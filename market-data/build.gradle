@@ -10,10 +10,10 @@ dependencies {
 
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
-    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-    implementation 'org.springframework.boot:spring-boot-starter-validation'
-    implementation 'org.springframework.boot:spring-boot-starter-security'
-    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+//    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+//    implementation 'org.springframework.boot:spring-boot-starter-validation'
+//    implementation 'org.springframework.boot:spring-boot-starter-security'
+//    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
@@ -21,14 +21,14 @@ dependencies {
     testAnnotationProcessor 'org.projectlombok:lombok'
 
     implementation 'io.jsonwebtoken:jjwt-api'
-    runtimeOnly  'io.jsonwebtoken:jjwt-impl'
-    runtimeOnly  'io.jsonwebtoken:jjwt-jackson'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson'
 
-    runtimeOnly 'org.postgresql:postgresql'
-    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui'
+//    runtimeOnly 'org.postgresql:postgresql'
+//    testImplementation 'org.testcontainers:postgresql'
 
+//    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.testcontainers:junit-jupiter'
-    testImplementation 'org.testcontainers:postgresql'
 }
-tasks.register("prepareKotlinBuildScriptModel") { }
+tasks.register("prepareKotlinBuildScriptModel") {}
