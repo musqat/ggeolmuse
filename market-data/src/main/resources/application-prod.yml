@@ -1,0 +1,22 @@
+# prod ?? ?? (??: AV rate limit ??)
+ingest:
+  rpm: 10
+  retry:
+    max: 5
+    backoffMs: 800
+
+alpha-vantage:
+  apiKey: ${ALPHAVANTAGE_API_KEY}
+
+# FX ?? ?? ??
+marketdata:
+  fx:
+    ingest:
+      backfill:
+        enabled: false             # ????? ?? ????
+      incremental:
+        enabled: true
+        defaultDays: 7             # ????? ?????
+      scheduler:
+        enabled: true              # ????? ??? ???
+        cron: "0 10 11 * * MON-FRI" # ? ??? 11:10 KST

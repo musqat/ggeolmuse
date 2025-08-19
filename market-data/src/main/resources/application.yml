@@ -1,0 +1,45 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  profiles:
+    active: dev
+
+# MarketData 수집 설정
+marketdata:
+  feed:
+    symbol:
+      enabled: true                 # 앱 시작시 심볼 수집
+    schedule:
+      enabled: true                 # 일일 배치 활성화
+      cron: "0 0 3 * * *"          # 매일 새벽 3시
+      timezone: "America/New_York"  # 시장 타임존
+      lookbackDays: 365            # 조회 기간
+
+  # FX 데이터 수집 설정
+  fx:
+    koreaexim:
+      url: "https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON"
+      authkey: ${KOREAEXIM_API_KEY:}
+    ingest:
+      backfill:
+        enabled: false              # 기본적으로 백필 비활성화
+        start: null
+        end: null
+      incremental:
+        enabled: true              # 증분 수집 활성화
+        defaultDays: 7             # 초기 수집 기간
+      scheduler:
+        enabled: true              # 일일 스케줄 활성화
+        cron: "0 10 11 * * MON-FRI" # 매 영업일 11:10
+        zone: "Asia/Seoul"         # KST
