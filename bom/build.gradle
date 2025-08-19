@@ -10,6 +10,7 @@ dependencies {
     api platform('org.springframework.cloud:spring-cloud-dependencies:2025.0.0')
     api platform('org.testcontainers:testcontainers-bom:1.20.1')
     constraints {
+        api 'org.springframework.boot:spring-boot-starter-validation:3.1.4'
         api 'org.projectlombok:lombok:1.18.34'
         api 'io.jsonwebtoken:jjwt-api:0.12.6'
         api 'io.jsonwebtoken:jjwt-impl:0.12.6'
@@ -20,6 +21,7 @@ dependencies {
         api 'org.springdoc:springdoc-openapi-starter-webflux-ui:2.6.0'
         api 'org.assertj:assertj-core:3.26.3'
         api 'org.mockito:mockito-core:5.13.0'
+        api 'com.h2database:h2:2.3.232'
     }
 }
 tasks.register("prepareKotlinBuildScriptModel") { }
