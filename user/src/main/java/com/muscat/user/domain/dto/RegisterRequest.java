@@ -20,8 +20,8 @@ public class RegisterRequest {
   @Size(min = 8, message = "비밀번호는 최소 8자 이상이어야 합니다")
   private String password;
 
-  @NotBlank(message = "닉네임은 필수입니다")
-  @Size(max = 8, message = "닉네임은 최대 8자 이하이어야 합니다")
+  @NotBlank
+  @Size(min = 2, max = 20, message = "닉네임은 2자 이상 20자 이하이어야 합니다")
   private String nickname;
 
 }
