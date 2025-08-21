@@ -1,0 +1,11 @@
+spring:
+  mail:
+    username: test@example.com
+    password: test-password
+
+keycloak:
+  credentials:
+    secret: test-secret
+  admin:
+    username: admin
+    password: admin
