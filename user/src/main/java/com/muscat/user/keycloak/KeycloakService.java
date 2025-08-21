@@ -28,6 +28,12 @@ public class KeycloakService {
   @Value("${keycloak.credentials.secret}")
   private String clientSecret;
 
+  @Value("${keycloak.admin.username}")
+  private String adminUsername;
+
+  @Value("${keycloak.admin.password}")
+  private String adminPassword;
+
   private final RestTemplate restTemplate = new RestTemplate();
 
   public String login(String email, String password) {
@@ -108,8 +114,8 @@ public class KeycloakService {
     MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
     body.add("grant_type", "password");
     body.add("client_id", "admin-cli");
-    body.add("username", "admin");
-    body.add("password", "admin");
+    body.add("username", adminUsername);
+    body.add("password", adminPassword);
 
     HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
 
