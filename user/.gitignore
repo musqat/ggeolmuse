@@ -35,3 +35,8 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### yml ###
+application-dev.yml
+application-prod.yml
+.env
