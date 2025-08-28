@@ -13,6 +13,7 @@ public enum UserResponse implements BaseResponseEnum {
   USER_CREATED("201", "회원가입이 완료되었습니다."),
   EMAIL_VERIFIED("200", "이메일 인증이 완료되었습니다."),
   LOGIN_SUCCESS("200", "로그인에 성공했습니다."),
+  PROFILE_FOUND("200", "프로필 조회에 성공했습니다."),
   PROFILE_UPDATED("200", "프로필이 수정되었습니다."),
   PASSWORD_CHANGED("200", "비밀번호가 변경되었습니다."),
   ACCOUNT_DELETED("200", "계정이 삭제되었습니다."),
@@ -24,6 +25,7 @@ public enum UserResponse implements BaseResponseEnum {
   EMAIL_TOKEN_INVALID("400", "유효하지 않은 인증 토큰입니다."),
   EMAIL_TOKEN_EXPIRED("400", "인증 토큰이 만료되었습니다."),
   EMAIL_ALREADY_VERIFIED("400", "이미 인증된 이메일입니다."),
+  ACCOUNT_DELETION_BLOCKED("400", "잔액이 있는 계좌가 존재하여 계정을 삭제할 수 없습니다."),
 
   // 401 Unauthorized
   AUTHENTICATION_FAILED("401", "인증에 실패했습니다."),
@@ -47,4 +49,4 @@ public enum UserResponse implements BaseResponseEnum {
   public HttpStatus getHttpStatus() {
     return HttpStatus.valueOf(Integer.parseInt(code));
   }
-}
+  }

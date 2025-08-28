@@ -9,9 +9,10 @@ import lombok.Data;
 @AllArgsConstructor
 @Builder
 public class ApiResponse<T> {
-  private String statusCode;
-  private String statusMsg;
-  private T data;
+
+  private String statusCode;    // 상태 코드 (200, 400, 500 등)
+  private String statusMsg;     // 상태 메시지
+  private T data;               // 응답 데이터
 
   public ApiResponse(BaseResponseEnum response) {
     this.statusCode = response.getCode();
@@ -23,7 +24,7 @@ public class ApiResponse<T> {
     this.data = data;
   }
 
-  // 성공 응답 정적 메서드
+  // 성공 응답 생성
   public static <T> ApiResponse<T> success(BaseResponseEnum response) {
     return new ApiResponse<>(response);
   }
@@ -32,7 +33,7 @@ public class ApiResponse<T> {
     return new ApiResponse<>(response, data);
   }
 
-  // 에러 응답 정적 메서드
+  // 에러 응답 생성
   public static <T> ApiResponse<T> error(BaseResponseEnum response) {
     return new ApiResponse<>(response);
   }
