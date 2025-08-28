@@ -9,7 +9,7 @@ import org.springframework.http.HttpStatus;
 @AllArgsConstructor
 public enum KeycloakResponse implements BaseResponseEnum {
 
-  // 500 Internal Server Error
+  // Internal Server Error
   USER_CREATE_FAILED("500", "계정 생성에 실패했습니다."),
   LOGIN_FAILED("500", "로그인 처리 중 오류가 발생했습니다."),
   TOKEN_PARSE_FAILED("500", "토큰 파싱에 실패했습니다."),
