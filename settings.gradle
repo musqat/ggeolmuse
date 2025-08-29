@@ -1,4 +1,4 @@
 pluginManagement { repositories { gradlePluginPortal(); mavenCentral() } }
 
 rootProject.name = 'ggeolmuse'
-include ':bom', ':market-data', ':user', ':pricing', ':backtest'
+include ':bom', ':market-data', ':user', ':trade', ':backtest'
