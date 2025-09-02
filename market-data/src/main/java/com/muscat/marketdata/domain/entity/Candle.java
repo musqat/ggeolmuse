@@ -3,6 +3,7 @@ package com.muscat.marketdata.domain.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 /**
  * 일봉 데이터 (OHLCV + 백테스트용 보정값)
@@ -12,13 +13,25 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(name = "candle", indexes = {
-    @Index(name = "idx_candle_symbol_date", columnList = "symbol,date", unique = true)
-})
+@Table(name = "candle", 
+    uniqueConstraints = @UniqueConstraint(columnNames = {"symbol", "date", "currency"}),
+    indexes = {
+        @Index(name = "idx_candle_symbol_date", columnList = "symbol,date")
+    })
 public class Candle {
 
-  @EmbeddedId
-  private CandleId id; // (symbol, date)
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
+
+  @Column(name = "symbol", nullable = false, length = 16)
+  private String symbol;
+
+  @Column(name = "date", nullable = false)
+  private LocalDate date;
+
+  @Column(name = "currency", nullable = false, length = 3)
+  private String currency;
 
   // ===== 원시 OHLCV 데이터 =====
 
@@ -69,8 +82,6 @@ public class Candle {
   @Builder.Default
   private BigDecimal splitCoefficient = BigDecimal.ONE;
 
-  // source, ingestedAt 필드 제거!
-  // 이유: 백테스트 목적에는 불필요한 메타데이터
 
   // ===== 비즈니스 로직 메서드들 =====
 

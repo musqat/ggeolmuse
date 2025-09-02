@@ -1,15 +1,13 @@
 package com.muscat.marketdata.provider.config;
 
+import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.validation.annotation.Validated;
 
-
-/**
- * Alpha Vantage API 설정
- *   api-key: ${ALPHAVANTAGE_API_KEY}
- */
-@Validated
-@ConfigurationProperties(prefix = "alpha-vantage")
-public record AlphaVantageProperties(
-    String apiKey
-) {}
+@Data
+@ConfigurationProperties(prefix = "alphavantage")
+public class AlphaVantageProperties {
+    private String apiKey;
+    private boolean enabled = true;
+    private int rateLimitPerSecond = 5;
+    private int timeoutSeconds = 15;
+}

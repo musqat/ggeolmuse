@@ -54,7 +54,7 @@ public class SecurityConfig {
 
     JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
     converter.setJwtGrantedAuthoritiesConverter(authoritiesConverter);
-    converter.setPrincipalClaimName("preferred_username");
+    converter.setPrincipalClaimName("sub");
     
     return converter;
   }

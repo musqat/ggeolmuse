@@ -33,7 +33,7 @@ user-service:
   url: ${USER_SERVICE_URL:http://localhost:8080}
 
 market-service:
-  url: ${MARKET_SERVICE_URL:http://localhost:8082}
+  url: ${MARKET_SERVICE_URL:http://localhost:8083}
 
 feign:
   client:
@@ -47,6 +47,20 @@ feign:
       market-service:
         connect-timeout: 5000
         read-timeout: 15000
+
+# Trade Service 비즈니스 설정
+trade:
+  fee:
+    default-rate: 0.0025        # 기본 수수료율 (0.25%)
+    minimum-amount: 1.00        # 최소 수수료 금액 (USD)
+  calculation:
+    price-precision: 2          # 가격 소수점 자릿수
+    quantity-precision: 6       # 수량 소수점 자릿수
+  validation:
+    max-price-deviation: 0.20   # 최대 가격 편차 (20%)
+    min-trade-amount: 1.00      # 최소 거래 금액 (USD)
+  cache:
+    market-data-ttl: 300        # 마켓 데이터 캐시 TTL (초)
 
 logging:
   level:

@@ -32,4 +32,9 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
   @Query("SELECT a FROM Account a WHERE a.id = :accountId AND a.user.id = :userId")
   Optional<Account> findByIdAndUserIdWithLock(@Param("accountId") Long accountId, @Param("userId") Long userId);
 
+  // Trade 서비스 전용: 계좌 ID로만 배타적 락 조회
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("SELECT a FROM Account a WHERE a.id = :accountId")
+  Optional<Account> findByIdWithLock(@Param("accountId") Long accountId);
+
 }

@@ -1,20 +1,22 @@
 package com.muscat.marketdata.domain.repository;
 
 import com.muscat.marketdata.domain.entity.Candle;
-import com.muscat.marketdata.domain.entity.CandleId;
-import java.time.LocalDate;
-import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface CandleRepository extends JpaRepository<Candle, CandleId> {
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+import org.springframework.stereotype.Repository;
 
-  // 심볼 + 날짜 범위 조회
-  List<Candle> findByIdSymbolAndIdDateBetweenOrderByIdDateAsc(
-      String symbol,
-      LocalDate startDate,
-      LocalDate endDate
-  );
+@Repository
+public interface CandleRepository extends JpaRepository<Candle, Long> {
 
-  // 특정 날짜 모든 종목 조회
-  List<Candle> findByIdDate(LocalDate date);
+    List<Candle> findBySymbolAndDateBetweenOrderByDateAsc(
+            String symbol, LocalDate startDate, LocalDate endDate);
+
+    List<Candle> findByDate(LocalDate date);
+    
+    Optional<Candle> findBySymbolAndDate(String symbol, LocalDate date);
+    
+    Optional<Candle> findFirstBySymbolOrderByDateDesc(String symbol);
 }
