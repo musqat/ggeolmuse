@@ -9,7 +9,7 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,8 +29,8 @@ public class PortfolioController {
 
   // 포트폴리오 조회 (계좌별 필터링 가능)
   @GetMapping
-  public ResponseEntity<List<HoldingResponseDto>> getPortfolio(Authentication auth) {
-    String userId = extractUserId(auth);
+  public ResponseEntity<List<HoldingResponseDto>> getPortfolio(@AuthenticationPrincipal Jwt jwt) {
+    String userId = jwt.getSubject();
     List<HoldingResponseDto> holdings = holdingsService.getPortfolio(userId, null);
     return ResponseEntity.ok(holdings);
   }
@@ -38,10 +38,10 @@ public class PortfolioController {
   // 계좌별 포트폴리오 조회
   @GetMapping("/account/{accountId}")
   public ResponseEntity<List<HoldingResponseDto>> getAccountPortfolio(
-      Authentication auth,
+      @AuthenticationPrincipal Jwt jwt,
       @PathVariable String accountId) {
 
-    String userId = extractUserId(auth);
+    String userId = jwt.getSubject();
     List<HoldingResponseDto> holdings = holdingsService.getPortfolio(userId, accountId);
     return ResponseEntity.ok(holdings);
   }
@@ -49,11 +49,11 @@ public class PortfolioController {
   // 특정 종목 보유 현황 조회
   @GetMapping("/account/{accountId}/symbol/{symbol}")
   public ResponseEntity<HoldingResponseDto> getHoldingBySymbol(
-      Authentication auth,
+      @AuthenticationPrincipal Jwt jwt,
       @PathVariable String accountId,
       @PathVariable String symbol) {
 
-    String userId = extractUserId(auth);
+    String userId = jwt.getSubject();
 
     HoldingResponseDto holding = holdingsService.getHoldingBySymbol(userId, accountId, symbol);
 
@@ -67,17 +67,12 @@ public class PortfolioController {
   // 포트폴리오 종합 정보 (모든 계산 포함)
   @PostMapping("/summary")
   public ResponseEntity<PortfolioSummary> getPortfolioSummary(
-      Authentication auth,
+      @AuthenticationPrincipal Jwt jwt,
       @RequestBody Map<String, BigDecimal> currentPrices) {
 
-    String userId = extractUserId(auth);
+    String userId = jwt.getSubject();
     PortfolioSummary summary = holdingsService.getPortfolioSummary(userId, currentPrices);
     return ResponseEntity.ok(summary);
   }
 
-  // JWT에서 사용자 ID 추출
-  private String extractUserId(Authentication auth) {
-    Jwt jwt = (Jwt) auth.getPrincipal();
-    return jwt.getClaimAsString("sub");
-  }
 }

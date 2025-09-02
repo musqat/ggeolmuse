@@ -3,6 +3,7 @@ package com.muscat.marketdata.domain.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 /**
  * 배당 이벤트 (백테스트 상세 분석용)
@@ -13,24 +14,29 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(name = "dividend", indexes = {
-    @Index(name = "idx_dividend_symbol_ex_date", columnList = "symbol,ex_date", unique = true),
-    @Index(name = "idx_dividend_ex_date", columnList = "ex_date")
-})
+@Table(name = "dividend",
+    uniqueConstraints = @UniqueConstraint(columnNames = {"symbol", "ex_date"}),
+    indexes = {
+        @Index(name = "idx_dividend_symbol_ex_date", columnList = "symbol,ex_date"),
+        @Index(name = "idx_dividend_ex_date", columnList = "ex_date")
+    })
 public class Dividend {
 
-  @EmbeddedId
-  private DividendId id; // (symbol, exDate)
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-  /**
-   * 주당 배당금액
-   */
+  @Column(name = "symbol", nullable = false, length = 16)
+  private String symbol;
+
+  @Column(name = "ex_date", nullable = false)
+  private LocalDate exDate;
+
+  // 주당 배당금액
   @Column(name = "amount", precision = 19, scale = 8, nullable = false)
   private BigDecimal amount;
 
-  /**
-   * 배당 통화 (NASDAQ 100은 대부분 USD)
-   */
+  // 배당 통화 (NASDAQ 100은 대부분 USD)
   @Column(name = "currency", length = 3, nullable = false)
   @Builder.Default
   private String currency = "USD";
@@ -41,8 +47,7 @@ public class Dividend {
    * 배당락일이 지났는지 확인
    */
   public boolean isExDatePassed() {
-    return id != null && id.getExDate() != null &&
-        id.getExDate().isBefore(java.time.LocalDate.now());
+    return exDate != null && exDate.isBefore(LocalDate.now());
   }
 
   /**

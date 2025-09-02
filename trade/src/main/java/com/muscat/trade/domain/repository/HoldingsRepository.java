@@ -2,8 +2,10 @@ package com.muscat.trade.domain.repository;
 
 import com.muscat.trade.domain.entity.Holdings;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import jakarta.persistence.LockModeType;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
@@ -21,6 +23,13 @@ public interface HoldingsRepository extends JpaRepository<Holdings, String> {
 
   // 특정 종목 보유현황 조회 (unique constraint 기준)
   Optional<Holdings> findByUserIdAndAccountIdAndSymbol(String userId, String accountId, String symbol);
+
+  // 특정 종목 보유현황 조회 with Pessimistic Write Lock (거래 시 사용)
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("SELECT h FROM Holdings h WHERE h.userId = :userId AND h.accountId = :accountId AND h.symbol = :symbol")
+  Optional<Holdings> findByUserIdAndAccountIdAndSymbolWithLock(@Param("userId") String userId, 
+                                                               @Param("accountId") String accountId, 
+                                                               @Param("symbol") String symbol);
 
   // 배당 계산이 필요한 종목들 조회 (마지막 배당 계산일이 특정 날짜 이전)
   @Query("SELECT h FROM Holdings h WHERE h.lastDividendCalculated < :date AND h.totalQuantity > 0")

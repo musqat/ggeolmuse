@@ -214,7 +214,7 @@ public class DividendServiceImpl implements DividendService {
     try {
       // market-data 모듈에서 해당 날짜의 배당 정보 조회
       var response = marketServiceClient.getDividendInfo(symbol);
-      if (response.isSuccess() && response.getData() != null) {
+      if (response.getData() != null) {
         DividendInfoDto dividendInfo = response.getData();
         
         // ex-dividend date가 조회 날짜와 일치하는 경우 배당금 반환

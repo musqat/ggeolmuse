@@ -15,7 +15,7 @@ public class ApiResponse<T> {
   private T data;               // 응답 데이터
 
   public ApiResponse(BaseResponseEnum response) {
-    this.statusCode = response.getCode();
+    this.statusCode = String.valueOf(response.getCode());
     this.statusMsg = response.getMessage();
   }
 
@@ -42,8 +42,4 @@ public class ApiResponse<T> {
     return new ApiResponse<>(response, data);
   }
 
-  // 성공 여부 확인
-  public boolean isSuccess() {
-    return "200".equals(statusCode) || "201".equals(statusCode);
-  }
 }

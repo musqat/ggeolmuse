@@ -10,7 +10,7 @@ import java.time.LocalDate;
 @Getter
 @Setter
 @NoArgsConstructor
-public class DividendRecord {
+public class DividendDto {
     private String userId;
     private String accountId;
     private String symbol;
@@ -20,7 +20,7 @@ public class DividendRecord {
     private LocalDate dividendDate;
     private LocalDate processedAt;
     
-    public DividendRecord(String userId, String accountId, String symbol, 
+    public DividendDto(String userId, String accountId, String symbol, 
                          BigDecimal dividendPerShare, BigDecimal totalQuantity,
                          BigDecimal totalDividend, LocalDate dividendDate, LocalDate processedAt) {
         this.userId = userId;

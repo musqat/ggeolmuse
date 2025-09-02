@@ -1,7 +1,6 @@
 package com.muscat.marketdata.domain.dto;
 
 import com.muscat.marketdata.domain.entity.Candle;
-import com.muscat.marketdata.domain.entity.CandleId;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import lombok.AllArgsConstructor;
@@ -10,15 +9,14 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * 일봉(보정 포함) DTO
- * - adjustFactor: 보정계수(액분/병합 반영) 필요 시 사용
- * - volume: 거래량
+ * 일봉(보정 포함) DTO - adjustFactor: 보정계수(액분/병합 반영) 필요 시 사용 - volume: 거래량
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class CandleDto {
+
   private String symbol;          // 예: AAPL
   private LocalDate date;         // 거래일(현지)
   private BigDecimal open;        // 보정 반영된 시가
@@ -32,13 +30,17 @@ public class CandleDto {
 
   public Candle toEntity() {
     return Candle.builder()
-        .id(new CandleId(symbol, date))
+        .symbol(symbol)
+        .date(date)
+        .currency(currency != null ? currency : "USD")
         .open(open)
         .high(high)
         .low(low)
         .close(close)
-        .adjustedClose(adjustedClose)
-        .volume(volume)
+        .adjustedClose(adjustedClose != null ? adjustedClose : close)
+        .volume(volume != null ? volume : 0L)
+        .dividendAmount(BigDecimal.ZERO)
+        .splitCoefficient(BigDecimal.ONE)
         .build();
   }
 

@@ -13,7 +13,9 @@ import com.muscat.user.common.util.MoneyUtils;
 import com.muscat.user.domain.account.dto.request.CreateAccountRequestDto;
 import com.muscat.user.domain.account.dto.response.BalanceResponseDto;
 import com.muscat.user.domain.account.entity.Account;
+import com.muscat.user.domain.account.entity.AccountHistory;
 import com.muscat.user.domain.account.repository.AccountRepository;
+import com.muscat.user.domain.account.repository.AccountHistoryRepository;
 import com.muscat.user.domain.account.service.AccountHistoryService;
 import com.muscat.user.domain.account.service.AccountService;
 import com.muscat.user.domain.user.entity.User;
@@ -34,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AccountServiceImpl implements AccountService {
 
   private final AccountRepository accountRepository;
+  private final AccountHistoryRepository accountHistoryRepository;
   private final UserRepository userRepository;
   private final AccountHistoryService accountHistoryService;
   private final AccountCalculatorUtil accountCalculator;
@@ -264,5 +267,50 @@ public class AccountServiceImpl implements AccountService {
   private String generateReferenceId(TransactionType type) {
     return type.name() + "_" + System.currentTimeMillis() + "_" +
         UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+  }
+
+  // Trade 서비스 전용: USD 잔고 직접 업데이트
+  @Override
+  @Transactional
+  public void updateUsdBalance(Long accountId, BigDecimal usdAmount, String description) {
+    Account account = accountRepository.findByIdWithLock(accountId)
+        .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
+
+    // USD 금액 검증 (음수도 허용, 0은 불허)
+    if (usdAmount == null || usdAmount.compareTo(BigDecimal.ZERO) == 0) {
+      throw new AccountException(AccountResponse.INVALID_DEPOSIT_AMOUNT, "USD 잔고 변경 금액은 0이 될 수 없습니다");
+    }
+    usdAmount = MoneyUtils.roundUsd(usdAmount);
+
+    BigDecimal newBalance = account.getBalanceUsd().add(usdAmount);
+    
+    if (newBalance.compareTo(BigDecimal.ZERO) < 0) {
+      throw new AccountException(AccountResponse.INSUFFICIENT_USD_BALANCE,
+          String.format("USD 잔고가 부족합니다. 현재: $%s, 필요: $%s", 
+              account.getBalanceUsd(), usdAmount.abs()));
+    }
+
+    account.setBalanceUsd(newBalance);
+    accountRepository.save(account);
+
+    // 거래 내역 기록
+    TransactionType transactionType = usdAmount.compareTo(BigDecimal.ZERO) > 0 
+        ? TransactionType.TRADE_SELL : TransactionType.TRADE_BUY;
+    String referenceId = generateReferenceId(transactionType);
+
+    AccountHistory history = AccountHistory.builder()
+        .account(account)
+        .transactionType(transactionType)
+        .amount(usdAmount.abs())
+        .currency("USD")
+        .balanceAfter(newBalance)
+        .referenceId(referenceId)
+        .description(description)
+        .build();
+
+    accountHistoryRepository.save(history);
+
+    log.info("USD 잔고 업데이트 완료: accountId={}, 변경금액={}, 변경후잔고={}", 
+        accountId, usdAmount, newBalance);
   }
 }

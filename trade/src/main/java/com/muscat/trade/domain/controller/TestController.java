@@ -1,7 +1,7 @@
 package com.muscat.trade.domain.controller;
 
 import com.muscat.trade.common.responses.ApiResponse;
-import com.muscat.trade.common.responses.TradeResponse;
+import com.muscat.trade.common.enums.BaseResponseEnum;
 import com.muscat.trade.infra.client.UserServiceClient;
 import com.muscat.trade.infra.client.dto.AccountBalanceDto;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +26,7 @@ public class TestController {
     log.info("인증 테스트 - 사용자: {}", authentication.getName());
     
     return ResponseEntity.ok(
-        ApiResponse.success(TradeResponse.TRADE_VALIDATION_SUCCESS, 
+        ApiResponse.success(BaseResponseEnum.TRADE_VALIDATION_SUCCESS, 
             "인증 성공: " + authentication.getName())
     );
   }
@@ -38,22 +38,22 @@ public class TestController {
     try {
       var response = userServiceClient.getAccountBalance(accountId);
       
-      if (response.isSuccess() && response.getData() != null) {
+      if (response.getData() != null) {
         log.info("계좌 정보 조회 성공: {}", response.getData());
         return ResponseEntity.ok(
-            ApiResponse.success(TradeResponse.TRADE_VALIDATION_SUCCESS, response.getData())
+            ApiResponse.success(BaseResponseEnum.TRADE_VALIDATION_SUCCESS, response.getData())
         );
       } else {
         log.warn("계좌 정보 조회 실패: {}", response.getStatusMsg());
         return ResponseEntity.badRequest().body(
-            ApiResponse.error(TradeResponse.ACCOUNT_NOT_FOUND)
+            ApiResponse.error(BaseResponseEnum.ACCOUNT_NOT_FOUND)
         );
       }
       
     } catch (Exception e) {
       log.error("계좌 연동 테스트 실패: accountId={}", accountId, e);
       return ResponseEntity.status(503).body(
-          ApiResponse.error(TradeResponse.USER_SERVICE_ERROR)
+          ApiResponse.error(BaseResponseEnum.USER_SERVICE_ERROR)
       );
     }
   }

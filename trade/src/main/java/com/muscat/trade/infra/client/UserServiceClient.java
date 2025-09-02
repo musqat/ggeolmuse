@@ -18,11 +18,11 @@ public interface UserServiceClient {
       @PathVariable("accountId") String accountId
   );
 
-  @PostMapping("/api/accounts/{accountId}/balance/update")
-  UserApiResponse<Void> updateAccountBalance(
-      @PathVariable("accountId") String accountId,
-      @RequestParam("amount") BigDecimal amount,
-      @RequestParam("type") String type,
+  @PostMapping("/api/accounts/{accountId}/trade/balance")
+  UserApiResponse<Void> updateTradeBalance(
+      @PathVariable("accountId") Long accountId,
+      @RequestParam("usdAmount") BigDecimal usdAmount,
+      @RequestParam("tradeType") String tradeType,
       @RequestParam("description") String description
   );
 }

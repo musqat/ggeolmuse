@@ -9,10 +9,10 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Provider 공용 인터페이스
- * - dev 프로필: Yahoo Finance 스크래핑으로  Candle/Dividend 소스로 주입
- * - prod 프로필: Alpha Vantage API로 Candle/Dividend 소스로 주입
- * - FX: KoreaExim API로  환율 소스로 주입
+ * MarketData Provider 인터페이스
+ * - yahoo: Yahoo Finance 스크래핑 (개발용)
+ * - alphavantage: AlphaVantage API (운영용)
+ * - FX: KoreaExim API 환율
  */
 public final class MarketDataProvider {
 
@@ -36,7 +36,7 @@ public final class MarketDataProvider {
   }
 
   /**
-   * 심볼 소스 (stooq 이외의 소스 활용시 )
+   * 심볼 소스
    */
   public interface SymbolSource {
 

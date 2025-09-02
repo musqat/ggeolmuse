@@ -14,6 +14,7 @@ import com.muscat.user.common.responses.AccountResponse;
 import com.muscat.user.common.util.AuthUtil;
 import com.muscat.user.common.exceptions.AccountException;
 import jakarta.validation.Valid;
+import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -115,5 +116,40 @@ public class AccountController {
 
     return ResponseEntity.ok(
         ApiResponse.success(AccountResponse.EXCHANGE_SUCCESS));
+  }
+
+  // Trade 서비스 전용: USD 잔고 업데이트 (매수/매도)
+  @PostMapping("/{accountId}/trade/balance")
+  public ResponseEntity<ApiResponse<Void>> updateTradeBalance(
+      @PathVariable Long accountId,
+      @RequestParam BigDecimal usdAmount,
+      @RequestParam String tradeType,
+      @RequestParam String description) {
+
+    log.info("거래 USD 잔고 업데이트: accountId={}, usdAmount={}, tradeType={}", 
+        accountId, usdAmount, tradeType);
+
+    try {
+      if ("BUY".equals(tradeType)) {
+        // 매수: USD 차감
+        accountService.updateUsdBalance(accountId, usdAmount.negate(), description);
+      } else if ("SELL".equals(tradeType)) {
+        // 매도: USD 추가
+        accountService.updateUsdBalance(accountId, usdAmount, description);
+      } else {
+        throw new AccountException(AccountResponse.INVALID_REQUEST);
+      }
+
+      log.info("거래 USD 잔고 업데이트 완료: accountId={}, usdAmount={}, type={}", 
+          accountId, usdAmount, tradeType);
+
+      return ResponseEntity.ok(
+          ApiResponse.success(AccountResponse.UPDATE_SUCCESS));
+          
+    } catch (Exception e) {
+      log.error("거래 USD 잔고 업데이트 실패: accountId={}, usdAmount={}, type={}", 
+          accountId, usdAmount, tradeType, e);
+      throw e;
+    }
   }
 }

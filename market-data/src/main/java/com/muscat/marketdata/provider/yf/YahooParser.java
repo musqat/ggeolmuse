@@ -14,69 +14,56 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-/**
- * Yahoo Finance Chart API JSON 파서
- * - 일봉 데이터 (OHLCV + adjustedClose)
- * - 배당 이벤트 (events.dividends)
- */
 @Component
 public class YahooParser {
 
-  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-  private static final String DEFAULT_CURRENCY = "USD";
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final String DEFAULT_CURRENCY = "USD";
 
-  /**
-   * 일봉 데이터 파싱 (adjustedClose가 없으면 close로 폴백)
-   */
-  public List<CandleDto> parseDailyAdjusted(String rawJson, String symbolOverride,
-      LocalDate fromDate, LocalDate toDate) {
-    try {
-      JsonNode root = OBJECT_MAPPER.readTree(rawJson);
-      JsonNode chartResult = getChartResult(root);
+    public List<CandleDto> parseDailyAdjusted(String rawJson, String symbolOverride,
+                                              LocalDate fromDate, LocalDate toDate) {
+        try {
+            JsonNode root = OBJECT_MAPPER.readTree(rawJson);
+            JsonNode chartResult = getChartResult(root);
 
-      ChartMetadata metadata = extractMetadata(chartResult, symbolOverride);
-      TimeSeriesData timeSeriesData = extractTimeSeriesData(chartResult);
+            ChartMetadata metadata = extractMetadata(chartResult, symbolOverride);
+            TimeSeriesData timeSeriesData = extractTimeSeriesData(chartResult);
 
-      return buildDailyAdjustedDtos(timeSeriesData, metadata, fromDate, toDate);
+            return buildDailyAdjustedDtos(timeSeriesData, metadata, fromDate, toDate);
 
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new IllegalStateException("Yahoo 일봉 파싱 실패", e);
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IllegalStateException("Yahoo 일봉 파싱 실패", e);
+        }
     }
-  }
 
-  /**
-   * 배당 데이터 파싱 (events.dividends에서 추출)
-   */
-  public List<DividendDto> parseDividends(String rawJson, String symbol, LocalDate fromDate, LocalDate toDate) {
-    try {
-      JsonNode root = OBJECT_MAPPER.readTree(rawJson);
-      JsonNode chartResult = getChartResult(root);
+    public List<DividendDto> parseDividends(String rawJson, String symbol, LocalDate fromDate, LocalDate toDate) {
+        try {
+            JsonNode root = OBJECT_MAPPER.readTree(rawJson);
+            JsonNode chartResult = getChartResult(root);
 
-      JsonNode dividends = chartResult.path("events").path("dividends");
-      if (dividends.isMissingNode() || dividends.isNull()) {
-        return List.of();
-      }
+            JsonNode dividends = chartResult.path("events").path("dividends");
+            if (dividends.isMissingNode() || dividends.isNull()) {
+                return List.of();
+            }
 
-      return extractDividendEvents(dividends, symbol, fromDate, toDate);
+            return extractDividendEvents(dividends, symbol, fromDate, toDate);
 
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new IllegalStateException("Yahoo 배당 파싱 실패", e);
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IllegalStateException("Yahoo 배당 파싱 실패", e);
+        }
     }
-  }
 
-  // ===== 내부 메서드 =====
-
-  private JsonNode getChartResult(JsonNode root) {
-    JsonNode chartResult = root.path("chart").path("result").get(0);
-    if (chartResult == null || chartResult.isNull()) {
-      throw new IllegalStateException("Yahoo Finance 응답에 차트 결과가 없습니다");
+    private JsonNode getChartResult(JsonNode root) {
+        JsonNode chartResult = root.path("chart").path("result").get(0);
+        if (chartResult == null || chartResult.isNull()) {
+            throw new IllegalStateException("Yahoo Finance 응답에 차트 결과가 없습니다");
+        }
+        return chartResult;
     }
-    return chartResult;
-  }
 
   private ChartMetadata extractMetadata(JsonNode chartResult, String symbolOverride) {
     JsonNode meta = chartResult.path("meta");
@@ -153,7 +140,7 @@ public class YahooParser {
         .close(close)
         .adjustedClose(adjustedClose)
         .volume(volume)
-        .adjustFactor(null) // Yahoo는 별도 이벤트로만 분할 정보 제공
+        .adjustFactor(null)
         .currency(metadata.currency())
         .build();
   }

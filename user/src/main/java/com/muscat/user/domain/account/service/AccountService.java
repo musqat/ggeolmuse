@@ -25,4 +25,7 @@ public interface AccountService {
 
   // USD → KRW 환전
   void exchangeUsdToKrw(Long accountId, Long userId, BigDecimal usdAmount, BigDecimal exchangeRate);
+
+  // Trade 서비스 전용: USD 잔고 직접 업데이트
+  void updateUsdBalance(Long accountId, BigDecimal usdAmount, String description);
 }
