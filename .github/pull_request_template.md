@@ -8,5 +8,5 @@
 - [ ] bom
 - [ ] market-data
 - [ ] user
-- [ ] pricing
+- [ ] trade
 - [ ] backtest
