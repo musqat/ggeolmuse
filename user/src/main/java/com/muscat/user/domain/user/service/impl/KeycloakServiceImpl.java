@@ -47,6 +47,9 @@ public class KeycloakServiceImpl implements KeycloakService {
   @Value("${keycloak.admin.password}")
   private String adminPassword;
 
+  @Value("${app.oauth.redirect-uri}")
+  private String redirectUri;
+
   private final JwtDecoder jwtDecoder;
   private final RestTemplate restTemplate;
 
@@ -98,7 +101,6 @@ public class KeycloakServiceImpl implements KeycloakService {
   public String exchangeCodeForToken(String authorizationCode) {
     try {
       String tokenUrl = keycloakUrl + "/realms/" + realm + "/protocol/openid-connect/token";
-      String redirectUri = "http://localhost:8080/api/auth/social/google/callback";
 
       log.debug("Authorization Code 교환 요청: {} | Redirect URI: {}", tokenUrl, redirectUri);
 
@@ -291,8 +293,8 @@ public class KeycloakServiceImpl implements KeycloakService {
 
   private String getAdminToken() {
     try {
-      String tokenUrl = keycloakUrl + "/realms/master/protocol/openid-connect/token";
-      
+      String tokenUrl = keycloakUrl + "/realms/" + realm + "/protocol/openid-connect/token";
+
       log.debug("Keycloak Admin 토큰 요청: {} | Username: {}", tokenUrl, adminUsername);
 
       HttpHeaders headers = new HttpHeaders();
@@ -307,22 +309,22 @@ public class KeycloakServiceImpl implements KeycloakService {
       HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
 
       ResponseEntity<Map> response = restTemplate.postForEntity(tokenUrl, request, Map.class);
-      
+
       if (response.getBody() == null || !response.getBody().containsKey("access_token")) {
         log.error("Keycloak Admin 토큰 응답에 access_token 없음: {}", response.getBody());
         throw new KeycloakException(KeycloakResponse.API_ERROR);
       }
-      
+
       String token = (String) response.getBody().get("access_token");
       log.debug("Keycloak Admin 토큰 획득 성공");
       return token;
 
     } catch (HttpClientErrorException e) {
-      log.error("Keycloak Admin 토큰 획득 실패 - HTTP {}: {} | URL: {} | Username: {}", 
+      log.error("Keycloak Admin 토큰 획득 실패 - HTTP {}: {} | URL: {} | Username: {}",
           e.getStatusCode(), e.getResponseBodyAsString(), keycloakUrl, adminUsername);
       throw new KeycloakException(KeycloakResponse.API_ERROR, e);
     } catch (Exception e) {
-      log.error("Keycloak Admin 토큰 획득 중 예상치 못한 오류: {} | URL: {} | Username: {}", 
+      log.error("Keycloak Admin 토큰 획득 중 예상치 못한 오류: {} | URL: {} | Username: {}",
           e.getMessage(), keycloakUrl, adminUsername, e);
       throw new KeycloakException(KeycloakResponse.API_ERROR, e);
     }

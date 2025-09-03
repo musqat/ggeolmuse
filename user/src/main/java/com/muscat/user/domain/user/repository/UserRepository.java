@@ -2,6 +2,7 @@ package com.muscat.user.domain.user.repository;
 
 import com.muscat.user.domain.user.entity.User;
 import com.muscat.user.common.enums.type.AuthType;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;

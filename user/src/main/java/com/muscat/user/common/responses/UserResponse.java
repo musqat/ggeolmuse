@@ -40,6 +40,7 @@ public enum UserResponse implements BaseResponseEnum {
 
   // 500 Internal Server Error
   EMAIL_SEND_FAILED("500", "이메일 발송에 실패했습니다."),
+  PASSWORD_CHANGE_FAILED("500", "비밀번호 변경에 실패했습니다."),
   INTERNAL_SERVER_ERROR("500", "서버에 문제가 발생했습니다.");
 
   private final String code;

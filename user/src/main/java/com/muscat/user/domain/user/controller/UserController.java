@@ -14,7 +14,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,8 +34,8 @@ public class UserController {
   private final UserMapper userMapper;
 
   @GetMapping("/me")
-  public ResponseEntity<ApiResponse<UserResponseDto>> getMyProfile(Authentication auth) {
-    String email = extractEmail(auth);
+  public ResponseEntity<ApiResponse<UserResponseDto>> getMyProfile(@AuthenticationPrincipal Jwt jwt) {
+    String email = jwt.getClaimAsString("email");
 
     User user = userService.getProfile(email);
     UserResponseDto userDto = userMapper.toResponseDto(user);
@@ -45,10 +45,10 @@ public class UserController {
 
   @PutMapping("/me")
   public ResponseEntity<ApiResponse<UserResponseDto>> updateProfile(
-      Authentication auth,
+      @AuthenticationPrincipal Jwt jwt,
       @Valid @RequestBody UpdateProfileRequestDto request) {
 
-    String email = extractEmail(auth);
+    String email = jwt.getClaimAsString("email");
     User updatedUser = userService.updateProfile(email, request);
     UserResponseDto userDto = userMapper.toResponseDto(updatedUser);
 
@@ -58,11 +58,11 @@ public class UserController {
 
   @PutMapping("/me/password")
   public ResponseEntity<ApiResponse<Void>> changePassword(
-      Authentication auth,
+      @AuthenticationPrincipal Jwt jwt,
       @Valid @RequestBody ChangePasswordRequestDto request) {
 
-    String keycloakId = extractKeycloakId(auth);
-    String email = extractEmail(auth);
+    String keycloakId = jwt.getClaimAsString("sub");
+    String email = jwt.getClaimAsString("email");
 
     keycloakService.changePassword(keycloakId, request);
 
@@ -72,23 +72,13 @@ public class UserController {
 
   @DeleteMapping("/me")
   public ResponseEntity<ApiResponse<Void>> deleteAccount(
-      Authentication auth,
+      @AuthenticationPrincipal Jwt jwt,
       @Valid @RequestBody DeleteAccountRequestDto request) {
 
-    String email = extractEmail(auth);
+    String email = jwt.getClaimAsString("email");
     userService.deleteAccount(email, request.getPassword());
 
     log.info("계정 삭제 완료: {}", email);
     return ResponseEntity.ok(ApiResponse.success(UserResponse.ACCOUNT_DELETED));
-  }
-
-  private String extractEmail(Authentication auth) {
-    Jwt jwt = (Jwt) auth.getPrincipal();
-    return jwt.getClaimAsString("email");
-  }
-
-  private String extractKeycloakId(Authentication auth) {
-    Jwt jwt = (Jwt) auth.getPrincipal();
-    return jwt.getClaimAsString("sub");
   }
 }

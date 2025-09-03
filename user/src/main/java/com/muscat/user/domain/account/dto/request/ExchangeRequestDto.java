@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ExchangeRequestDto {
 
-  @NotBlank(message = "원래 통화를 입력해주세요")
+  @NotBlank(message = "기본 통화를 입력해주세요")
   private String fromCurrency;     // 환전할 통화 (KRW, USD)
 
   @NotBlank(message = "변환 통화를 입력해주세요")
