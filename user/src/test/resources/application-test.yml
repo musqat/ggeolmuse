@@ -1,36 +1,21 @@
+# Test configuration
 spring:
   datasource:
     url: jdbc:h2:mem:testdb
-    username: sa
-    password:
-    driver-class-name: org.h2.Driver
   jpa:
     hibernate:
       ddl-auto: create-drop
-    show-sql: false
-  mail:
-    username: test@example.com
-    password: test-password
+
+app:
+  market-data:
+    url: http://localhost:8999
 
 keycloak:
-  realm: muscat
-  auth-server-url: http://localhost:7001
+  realm: test-realm
+  auth-server-url: http://localhost:7999
   resource: test-client
   credentials:
     secret: test-secret
   admin:
     username: test-admin
     password: test-password
-
-app:
-  mail:
-    from: test@example.com
-    verification:
-      expiry-hours: 24
-      base-url: http://localhost:8080
-
-logging:
-  level:
-    com.muscat.user: ERROR
-    org.springframework.security: ERROR
-    org.springframework.web: ERROR
