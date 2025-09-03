@@ -42,8 +42,8 @@ public class User {
   @Column(unique = true, nullable = false)
   private String email;
 
-  //  비밀번호는 Keycloak으로 관리  
-  //  private String password; 
+  @Column(name = "password_hash")
+  private String passwordHash; // Primary password storage 
 
   private String nickname;
 

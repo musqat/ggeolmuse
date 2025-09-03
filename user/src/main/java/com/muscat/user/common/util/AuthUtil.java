@@ -19,15 +19,10 @@ public class AuthUtil {
     this.userRepository = userRepository;
   }
 
-  // 현재 SecurityContext에서 Long userId 추출
-  public Long requireUserId(Authentication authentication) {
-    if (authentication == null || !authentication.isAuthenticated()) {
-      throw new AuthenticationException(UserResponse.AUTHENTICATION_FAILED, "인증되지 않은 요청입니다.");
-    }
-
-    Object principal = authentication.getPrincipal();
-    if (!(principal instanceof Jwt jwt)) {
-      throw new AuthenticationException(UserResponse.AUTHENTICATION_FAILED, "JWT principal이 아닙니다.");
+  // JWT에서 직접 Long userId 추출
+  public Long requireUserId(Jwt jwt) {
+    if (jwt == null) {
+      throw new AuthenticationException(UserResponse.AUTHENTICATION_FAILED, "JWT가 null입니다.");
     }
 
     String email = resolveLoginEmail(jwt);

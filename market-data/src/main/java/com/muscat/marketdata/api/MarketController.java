@@ -4,6 +4,8 @@ import com.muscat.marketdata.common.response.ApiResponse;
 import com.muscat.marketdata.domain.dto.OHLCPriceDto;
 import com.muscat.marketdata.domain.dto.StockPriceDto;
 import com.muscat.marketdata.domain.service.MarketService;
+import com.muscat.marketdata.domain.entity.FxRate;
+import com.muscat.marketdata.feed.service.FxRateService;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class MarketController {
 
   private final MarketService marketService;
+  private final FxRateService fxRateService;
 
   @GetMapping("/ohlc/{symbol}")
   @PostMapping("/ohlc/{symbol}")
@@ -62,6 +65,44 @@ public class MarketController {
 
     } catch (Exception e) {
       log.error("현재가 조회 중 오류: symbol={}, error={}", symbol, e.getMessage(), e);
+      throw e;
+    }
+  }
+
+  @GetMapping("/fx/{date}")
+  public ResponseEntity<ApiResponse<FxRate>> getFxRate(@PathVariable LocalDate date) {
+    try {
+      log.debug("환율 조회 요청: date={}", date);
+
+      FxRate fxRate = fxRateService.findByDate(date);
+      
+      if (fxRate == null) {
+        return ResponseEntity.ok(ApiResponse.success("해당 날짜의 환율 데이터가 없습니다", null));
+      }
+
+      return ResponseEntity.ok(ApiResponse.success(fxRate));
+
+    } catch (Exception e) {
+      log.error("환율 조회 중 오류: date={}, error={}", date, e.getMessage(), e);
+      throw e;
+    }
+  }
+
+  @GetMapping("/fx/latest")
+  public ResponseEntity<ApiResponse<FxRate>> getLatestFxRate() {
+    try {
+      log.debug("최신 환율 조회 요청");
+
+      var fxRate = fxRateService.getLatestRate();
+      
+      if (fxRate.isEmpty()) {
+        return ResponseEntity.ok(ApiResponse.success("환율 데이터가 없습니다", null));
+      }
+
+      return ResponseEntity.ok(ApiResponse.success(fxRate.get()));
+
+    } catch (Exception e) {
+      log.error("최신 환율 조회 중 오류: error={}", e.getMessage(), e);
       throw e;
     }
   }

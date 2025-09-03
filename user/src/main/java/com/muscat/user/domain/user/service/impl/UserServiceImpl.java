@@ -1,6 +1,7 @@
 package com.muscat.user.domain.user.service.impl;
 
 import com.muscat.user.common.exceptions.AuthenticationException;
+import com.muscat.user.common.exceptions.KeycloakException;
 import com.muscat.user.common.exceptions.UserException;
 import com.muscat.user.common.responses.UserResponse;
 import com.muscat.user.domain.account.entity.Account;
@@ -21,6 +22,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +37,7 @@ public class UserServiceImpl implements UserService {
   private final AccountRepository accountRepository;
   private final MailService mailService;
   private final KeycloakService keycloakService;
+  private final PasswordEncoder passwordEncoder;
   private final UserMapper userMapper;
 
   @Value("${app.mail.verification.expiry-hours}")
@@ -46,13 +49,16 @@ public class UserServiceImpl implements UserService {
       log.warn("회원가입 실패 - 이미 존재하는 이메일: {}", email);
       throw new UserException(UserResponse.EMAIL_ALREADY_EXISTS);
     }
-
+    
     try {
-      // Keycloak에 사용자 생성 (비밀번호는 Keycloak에서 관리)
+      // 1. Keycloak 사용자 생성 먼저 확인 (중복 체크)
       String keycloakId = keycloakService.createUser(email, password);
-
+      log.info("Keycloak 사용자 생성 성공: {}", email);
+      
+      // 2. 로컬 사용자 생성 (Keycloak 성공 후)
       User user = userMapper.createLocalUser(email, nickname, keycloakId);
-
+      user.setPasswordHash(passwordEncoder.encode(password));
+      
       User savedUser = userRepository.save(user);
 
       createAndSendVerificationToken(savedUser);
@@ -62,8 +68,12 @@ public class UserServiceImpl implements UserService {
 
     } catch (UserException e) {
       throw e;
+    } catch (KeycloakException e) {
+      // Keycloak 예외는 그대로 전파 (SYSTEM 타입 유지)
+      log.error("Keycloak 연동 실패: {}", e.getMessage(), e);
+      throw e;
     } catch (Exception e) {
-      log.error("회원가입 처리 중 오류 발생: {}", e.getMessage(), e);
+      log.error("회원가입 처리 중 예상치 못한 오류 발생: {}", e.getMessage(), e);
       throw new UserException(UserResponse.INTERNAL_SERVER_ERROR, "회원가입 처리 중 오류가 발생했습니다.");
     }
   }
@@ -83,12 +93,22 @@ public class UserServiceImpl implements UserService {
     }
 
     try {
+      // 1. 로컬 비밀번호 검증 (Primary)
+      if (user.getPasswordHash() == null || !passwordEncoder.matches(password, user.getPasswordHash())) {
+        log.warn("로그인 실패 - 비밀번호 불일치: {}", email);
+        throw new UserException(UserResponse.INVALID_CREDENTIALS);
+      }
+      
+      // 2. Keycloak 토큰 발급 시도 (Secondary)  
       String token = keycloakService.login(email, password);
       log.info("로그인 성공: {}", email);
       return token;
+      
+    } catch (UserException e) {
+      throw e;
     } catch (Exception e) {
-      log.warn("로그인 실패 - Keycloak 인증 오류: {}", email);
-      throw new UserException(UserResponse.INVALID_CREDENTIALS);
+      log.error("로그인 처리 중 예상치 못한 오류: {}", e.getMessage(), e);
+      throw new UserException(UserResponse.AUTHENTICATION_FAILED);
     }
   }
 
@@ -104,19 +124,24 @@ public class UserServiceImpl implements UserService {
         .orElseThrow(() -> new UserException(UserResponse.USER_NOT_FOUND));
 
     try {
-      keycloakService.login(email, password);
+      // 로컬 비밀번호 검증
+      if (user.getPasswordHash() == null || !passwordEncoder.matches(password, user.getPasswordHash())) {
+        log.warn("계정 삭제 실패 - 비밀번호 불일치: {}", email);
+        throw new UserException(UserResponse.INVALID_PASSWORD);
+      }
 
       user.validateForDeletion();
 
       deleteUserRelatedData(user);
 
-      // Keycloak 사용자 삭제 (실패해도 로컬 사용자는 삭제)
-      try {
-        if (user.getKeycloakId() != null) {
+      // Keycloak 사용자 삭제 시도 (실패해도 로컬 삭제 진행)
+      if (user.getKeycloakId() != null) {
+        try {
           keycloakService.deleteUser(user.getKeycloakId());
+          log.info("Keycloak 사용자 삭제 완료: {}", user.getKeycloakId());
+        } catch (Exception e) {
+          log.warn("Keycloak 사용자 삭제 실패하지만 로컬 계정 삭제 진행: {}", e.getMessage());
         }
-      } catch (Exception e) {
-        log.warn("Keycloak 사용자 삭제 실패했지만 로컬 계정은 삭제 진행: {}", e.getMessage());
       }
 
       userRepository.delete(user);

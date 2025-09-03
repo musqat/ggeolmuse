@@ -10,6 +10,9 @@ import com.muscat.user.common.responses.UserResponse;
 import com.muscat.user.common.util.AccountCalculatorUtil;
 import com.muscat.user.domain.account.dto.response.ExchangeCalculationResult;
 import com.muscat.user.common.util.MoneyUtils;
+import com.muscat.user.common.responses.ApiResponse;
+import com.muscat.user.infra.client.MarketDataServiceClient;
+import com.muscat.user.infra.client.dto.FxRateDto;
 import com.muscat.user.domain.account.dto.request.CreateAccountRequestDto;
 import com.muscat.user.domain.account.dto.response.BalanceResponseDto;
 import com.muscat.user.domain.account.entity.Account;
@@ -21,6 +24,7 @@ import com.muscat.user.domain.account.service.AccountService;
 import com.muscat.user.domain.user.entity.User;
 import com.muscat.user.domain.user.repository.UserRepository;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -41,9 +45,19 @@ public class AccountServiceImpl implements AccountService {
   private final AccountHistoryService accountHistoryService;
   private final AccountCalculatorUtil accountCalculator;
   private final TransactionLogger transactionLogger;
+  private final MarketDataServiceClient marketDataServiceClient;
 
   @Value("${app.account.initial-krw-amount:1000000}")
   private BigDecimal initialKrwAmount;
+
+  @Value("${app.exchange-rate.min-valid-rate}")
+  private BigDecimal minValidRate;
+
+  @Value("${app.exchange-rate.max-valid-rate}")
+  private BigDecimal maxValidRate;
+
+  @Value("${app.exchange-rate.fallback-rate}")
+  private BigDecimal fallbackRate;
 
   // 새 계좌 생성 (초기 KRW 잔액 설정)
   @Override
@@ -253,13 +267,91 @@ public class AccountServiceImpl implements AccountService {
   }
 
   // 현재 USD/KRW 환율 조회
-  private BigDecimal getCurrentExchangeRate() {
-    BigDecimal rate = MoneyUtils.roundExchangeRate(new BigDecimal("1380.50"));
-
-    if (rate.compareTo(new BigDecimal("500")) < 0 || rate.compareTo(new BigDecimal("2000")) > 0) {
-      transactionLogger.logAbnormalExchangeRate(rate, "getCurrentExchangeRate()");
+  @Override
+  public BigDecimal getCurrentExchangeRate() {
+    try {
+      // 1. 최신 환율 조회 시도
+      log.debug("최신 환율 조회 시도");
+      ApiResponse<FxRateDto> response = marketDataServiceClient.getLatestFxRate();
+      
+      // 디버그: 응답 확인
+      log.debug("Market-data 응답: response={}, data={}, rate={}", 
+          response, 
+          response != null ? response.getData() : "null",
+          response != null && response.getData() != null ? response.getData().getRate() : "null");
+      
+      if (response != null && response.getData() != null && response.getData().getRate() != null) {
+        BigDecimal rate = MoneyUtils.roundExchangeRate(response.getData().getRate());
+        
+        // 환율 유효성 검증
+        if (rate.compareTo(minValidRate) >= 0 && rate.compareTo(maxValidRate) <= 0) {
+          log.info("환율 조회 성공: {} (일자: {})", rate, response.getData().getDate());
+          return rate;
+        } else {
+          log.warn("비정상적인 환율 감지: {}, fallback으로 전환", rate);
+          transactionLogger.logAbnormalExchangeRate(rate, "MarketDataService에서 조회된 환율");
+        }
+      }
+      
+    } catch (Exception e) {
+      log.warn("환율 조회 실패, fallback으로 전환: {}", e.getMessage());
     }
+    
+    // 2. Fallback: 고정 환율 사용
+    log.info("Fallback 환율 사용: {}", fallbackRate);
+    transactionLogger.logExchangeRateFallback(fallbackRate, "Market-data 서비스 연결 실패");
+    
+    return MoneyUtils.roundExchangeRate(fallbackRate);
+  }
 
+  // 특정 날짜의 USD/KRW 환율 조회
+  @Override
+  public BigDecimal getExchangeRateByDate(LocalDate date) {
+    try {
+      // 1. 특정 날짜 환율 조회 시도
+      log.debug("특정 날짜 환율 조회 시도: {}", date);
+      ApiResponse<FxRateDto> response = marketDataServiceClient.getFxRate(date.toString());
+      
+      if (response != null && response.getData() != null && response.getData().getRate() != null) {
+        BigDecimal rate = MoneyUtils.roundExchangeRate(response.getData().getRate());
+        
+        // 환율 유효성 검증
+        if (rate.compareTo(minValidRate) >= 0 && rate.compareTo(maxValidRate) <= 0) {
+          log.info("특정 날짜 환율 조회 성공: {} (일자: {})", rate, date);
+          return rate;
+        } else {
+          log.warn("비정상적인 환율 감지: {}, 최신 환율로 fallback", rate);
+          transactionLogger.logAbnormalExchangeRate(rate, "특정 날짜(" + date + ") 환율");
+        }
+      } else {
+        log.info("특정 날짜({}) 환율 데이터 없음, 최신 환율로 fallback", date);
+      }
+      
+    } catch (Exception e) {
+      log.warn("특정 날짜({}) 환율 조회 실패, 최신 환율로 fallback: {}", date, e.getMessage());
+    }
+    
+    // 2. Fallback: 최신 환율 사용
+    return getCurrentExchangeRate();
+  }
+
+  // 수동 환율 입력 (manual)
+  @Override
+  public BigDecimal createManualExchangeRate(BigDecimal manualRate) {
+    if (manualRate == null) {
+      throw new AccountException(AccountResponse.INVALID_EXCHANGE_RATE, "환율이 입력되지 않았습니다");
+    }
+    
+    // 환율 유효성 검증
+    if (manualRate.compareTo(minValidRate) < 0 || manualRate.compareTo(maxValidRate) > 0) {
+      throw new AccountException(AccountResponse.INVALID_EXCHANGE_RATE, 
+          String.format("비정상적인 환율입니다: %s (유효 범위: %s~%s)", manualRate, minValidRate, maxValidRate));
+    }
+    
+    BigDecimal rate = MoneyUtils.roundExchangeRate(manualRate);
+    log.info("수동 환율 입력: {}", rate);
+    transactionLogger.logManualExchangeRate(rate, "사용자 수동 입력");
+    
     return rate;
   }
 
@@ -272,9 +364,14 @@ public class AccountServiceImpl implements AccountService {
   // Trade 서비스 전용: USD 잔고 직접 업데이트
   @Override
   @Transactional
-  public void updateUsdBalance(Long accountId, BigDecimal usdAmount, String description) {
+  public void updateUsdBalance(Long accountId, Long userId, BigDecimal usdAmount, String description) {
     Account account = accountRepository.findByIdWithLock(accountId)
         .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
+    
+    // 계좌 소유권 검증
+    if (!account.getUser().getId().equals(userId)) {
+      throw new AccountException(AccountResponse.ACCOUNT_ACCESS_DENIED, "해당 계좌에 대한 접근 권한이 없습니다");
+    }
 
     // USD 금액 검증 (음수도 허용, 0은 불허)
     if (usdAmount == null || usdAmount.compareTo(BigDecimal.ZERO) == 0) {

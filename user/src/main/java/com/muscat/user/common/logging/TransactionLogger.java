@@ -106,6 +106,18 @@ public class TransactionLogger {
             accountId, txType, amount, currency));
   }
 
+  // 수동 환율 입력 로그
+  public void logManualExchangeRate(BigDecimal exchangeRate, String context) {
+    executeWithMDC("MANUAL_RATE", null, STATUS_SUCCESS, null,
+        () -> AUDIT_LOG.info("수동 환율 입력 - 환율: {}, 컨텍스트: {}", exchangeRate, context));
+  }
+
+  // 환율 조회 fallback 로그
+  public void logExchangeRateFallback(BigDecimal fallbackRate, String reason) {
+    executeWithMDC("RATE_FALLBACK", null, STATUS_WARNING, null,
+        () -> AUDIT_LOG.warn("환율 Fallback 사용 - 환율: {}, 사유: {}", fallbackRate, reason));
+  }
+
 
   // MDC 설정
   private void setupMDC(String txType, Long accountId, String status, String txId) {

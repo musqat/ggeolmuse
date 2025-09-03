@@ -17,6 +17,7 @@ public enum AccountResponse implements BaseResponseEnum {
   ACCOUNT_DELETED("200", "계좌가 삭제되었습니다."),
   EXCHANGE_SUCCESS("200", "환전이 완료되었습니다."),
   UPDATE_SUCCESS("200", "계좌 업데이트가 완료되었습니다." ),
+  EXCHANGE_RATE_FOUND("200", "환율 조회가 완료되었습니다."),
 
   // 400 Bad Request
   INVALID_ACCOUNT_NAME("400", "계좌명을 확인해주세요."),

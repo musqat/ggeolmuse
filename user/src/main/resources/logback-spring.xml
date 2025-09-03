@@ -46,11 +46,9 @@
     <encoder>
       <pattern>${FILE_PATTERN}</pattern>
     </encoder>
-    <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
       <fileNamePattern>${LOG_DIR}/application.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
-      <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
-        <maxFileSize>100MB</maxFileSize>
-      </timeBasedFileNamingAndTriggeringPolicy>
+      <maxFileSize>100MB</maxFileSize>
       <maxHistory>30</maxHistory> <!-- 30일간 보관 -->
       <totalSizeCap>10GB</totalSizeCap> <!-- 총 로그 크기 제한 -->
     </rollingPolicy>
@@ -62,12 +60,10 @@
     <encoder>
       <pattern>${TRANSACTION_PATTERN}</pattern>
     </encoder>
-    <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
       <fileNamePattern>${LOG_DIR}/transaction.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
-      <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
-        <maxFileSize>500MB</maxFileSize>
-      </timeBasedFileNamingAndTriggeringPolicy>
-      <maxHistory>365</maxHistory> <!-- 1년간 보관 (감사 목적) -->
+      <maxFileSize>500MB</maxFileSize>
+      <maxHistory>365</maxHistory> <!-- 1년간 보관 -->
       <totalSizeCap>50GB</totalSizeCap>
     </rollingPolicy>
   </appender>
@@ -78,12 +74,10 @@
     <encoder>
       <pattern>${AUDIT_PATTERN}</pattern>
     </encoder>
-    <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
       <fileNamePattern>${LOG_DIR}/audit.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
-      <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
-        <maxFileSize>100MB</maxFileSize>
-      </timeBasedFileNamingAndTriggeringPolicy>
-      <maxHistory>730</maxHistory> <!-- 2년간 보관 (규제 준수) -->
+      <maxFileSize>100MB</maxFileSize>
+      <maxHistory>730</maxHistory> <!-- 2년간 보관 -->
       <totalSizeCap>20GB</totalSizeCap>
     </rollingPolicy>
   </appender>
@@ -118,21 +112,35 @@
 
   <!-- ========== 특별 로거 설정 ========== -->
 
-  <!-- 거래 로거 (TRANSACTION) -->
-  <logger name="TRANSACTION" level="INFO" additivity="false">
-    <appender-ref ref="TRANSACTION_FILE"/>
-    <springProfile name="!prod">
+  <!-- 거래 로거 (TRANSACTION) - 개발환경 -->
+  <springProfile name="!prod">
+    <logger name="TRANSACTION" level="INFO" additivity="false">
+      <appender-ref ref="TRANSACTION_FILE"/>
       <appender-ref ref="CONSOLE"/>
-    </springProfile>
-  </logger>
+    </logger>
+  </springProfile>
+  
+  <!-- 거래 로거 (TRANSACTION) - 운영환경 -->
+  <springProfile name="prod">
+    <logger name="TRANSACTION" level="INFO" additivity="false">
+      <appender-ref ref="TRANSACTION_FILE"/>
+    </logger>
+  </springProfile>
 
-  <!-- 감사 로거 (AUDIT) -->
-  <logger name="AUDIT" level="INFO" additivity="false">
-    <appender-ref ref="AUDIT_FILE"/>
-    <springProfile name="!prod">
+  <!-- 감사 로거 (AUDIT) - 개발환경 -->
+  <springProfile name="!prod">
+    <logger name="AUDIT" level="INFO" additivity="false">
+      <appender-ref ref="AUDIT_FILE"/>
       <appender-ref ref="CONSOLE"/>
-    </springProfile>
-  </logger>
+    </logger>
+  </springProfile>
+  
+  <!-- 감사 로거 (AUDIT) - 운영환경 -->
+  <springProfile name="prod">
+    <logger name="AUDIT" level="INFO" additivity="false">
+      <appender-ref ref="AUDIT_FILE"/>
+    </logger>
+  </springProfile>
 
   <!-- 느린 쿼리 로거 -->
   <logger name="org.hibernate.SQL" level="DEBUG" additivity="false">
@@ -170,23 +178,25 @@
   <logger name="org.springframework.mail" level="INFO"/>
 
   <!-- ========== 루트 로거 ========== -->
-  <root level="${ROOT_LOG_LEVEL}">
-    <!-- 개발환경: 콘솔 출력 -->
-    <springProfile name="!prod">
+  
+  <!-- 개발환경: 콘솔 + 파일 출력 -->
+  <springProfile name="!prod">
+    <root level="${ROOT_LOG_LEVEL}">
       <appender-ref ref="CONSOLE"/>
       <appender-ref ref="APPLICATION_FILE"/>
-    </springProfile>
+      <appender-ref ref="ERROR_FILE"/>
+    </root>
+  </springProfile>
 
-    <!-- 운영환경: 파일 출력만 -->
-    <springProfile name="prod">
+  <!-- 운영환경: 파일 출력만 -->
+  <springProfile name="prod">
+    <root level="${ROOT_LOG_LEVEL}">
       <appender-ref ref="APPLICATION_FILE"/>
-    </springProfile>
+      <appender-ref ref="ERROR_FILE"/>
+    </root>
+  </springProfile>
 
-    <!-- 모든 환경: 에러 로그 -->
-    <appender-ref ref="ERROR_FILE"/>
-  </root>
-
-  <!-- ========== 구조화된 로깅 (JSON 형태, 선택사항) ========== -->
+  <!-- ========== JSON 형태 로깅 ========== -->
   <springProfile name="json-logging">
     <appender name="JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
       <file>${LOG_DIR}/application.json</file>

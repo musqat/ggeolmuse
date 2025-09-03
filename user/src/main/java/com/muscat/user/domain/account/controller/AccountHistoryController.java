@@ -16,7 +16,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -46,9 +47,9 @@ public class AccountHistoryController {
       @RequestParam(defaultValue = "20") int size,
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
-      Authentication authentication) {
+      @AuthenticationPrincipal Jwt jwt) {
 
-    Long userId = authUtil.requireUserId(authentication);
+    Long userId = authUtil.requireUserId(jwt);
 
     if (size > MAX_PAGE_SIZE) {
       size = MAX_PAGE_SIZE;
@@ -77,9 +78,9 @@ public class AccountHistoryController {
   public ResponseEntity<ApiResponse<List<HistoryResponseDto>>> searchHistories(
       @PathVariable Long accountId,
       @Valid @RequestBody SearchHistoryRequestDto request,
-      Authentication authentication) {
+      @AuthenticationPrincipal Jwt jwt) {
 
-    Long userId = authUtil.requireUserId(authentication);
+    Long userId = authUtil.requireUserId(jwt);
     List<HistoryResponseDto> response;
 
     if (request.getCurrency() != null) {
@@ -116,9 +117,9 @@ public class AccountHistoryController {
   public ResponseEntity<ApiResponse<HistoryResponseDto>> getAccountHistory(
       @PathVariable Long accountId,
       @PathVariable Long historyId,
-      Authentication authentication) {
+      @AuthenticationPrincipal Jwt jwt) {
 
-    Long userId = authUtil.requireUserId(authentication);
+    Long userId = authUtil.requireUserId(jwt);
     HistoryResponseDto response = accountHistoryService.getAccountHistory(
         accountId, historyId, userId);
 
@@ -130,9 +131,9 @@ public class AccountHistoryController {
   @GetMapping("/exchanges")
   public ResponseEntity<ApiResponse<List<HistoryResponseDto>>> getExchangeHistories(
       @PathVariable Long accountId,
-      Authentication authentication) {
+      @AuthenticationPrincipal Jwt jwt) {
 
-    Long userId = authUtil.requireUserId(authentication);
+    Long userId = authUtil.requireUserId(jwt);
     List<HistoryResponseDto> response = accountHistoryService.getExchangeHistories(accountId,
         userId);
 
@@ -145,9 +146,9 @@ public class AccountHistoryController {
   public ResponseEntity<ApiResponse<List<HistoryResponseDto>>> getHistoriesByCurrency(
       @PathVariable Long accountId,
       @PathVariable String currency,
-      Authentication authentication) {
+      @AuthenticationPrincipal Jwt jwt) {
 
-    Long userId = authUtil.requireUserId(authentication);
+    Long userId = authUtil.requireUserId(jwt);
     List<HistoryResponseDto> response = accountHistoryService.getHistoriesByCurrency(
         accountId, currency, userId);
 
@@ -160,9 +161,9 @@ public class AccountHistoryController {
   public ResponseEntity<ApiResponse<List<HistoryResponseDto>>> getRecentHistories(
       @PathVariable Long accountId,
       @RequestParam(defaultValue = "10") int limit,
-      Authentication authentication) {
+      @AuthenticationPrincipal Jwt jwt) {
 
-    Long userId = authUtil.requireUserId(authentication);
+    Long userId = authUtil.requireUserId(jwt);
     if (limit > MAX_PAGE_SIZE) {
       limit = MAX_PAGE_SIZE;
     }

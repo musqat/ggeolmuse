@@ -4,6 +4,7 @@ import com.muscat.user.domain.account.dto.request.CreateAccountRequestDto;
 import com.muscat.user.domain.account.dto.response.BalanceResponseDto;
 import com.muscat.user.domain.account.entity.Account;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 public interface AccountService {
@@ -27,5 +28,10 @@ public interface AccountService {
   void exchangeUsdToKrw(Long accountId, Long userId, BigDecimal usdAmount, BigDecimal exchangeRate);
 
   // Trade 서비스 전용: USD 잔고 직접 업데이트
-  void updateUsdBalance(Long accountId, BigDecimal usdAmount, String description);
+  void updateUsdBalance(Long accountId, Long userId, BigDecimal usdAmount, String description);
+
+  // 환율 조회 관련
+  BigDecimal getCurrentExchangeRate();
+  BigDecimal getExchangeRateByDate(LocalDate date);
+  BigDecimal createManualExchangeRate(BigDecimal manualRate);
 }

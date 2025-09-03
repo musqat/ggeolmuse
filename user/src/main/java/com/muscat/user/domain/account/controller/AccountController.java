@@ -6,6 +6,7 @@ import com.muscat.user.domain.account.dto.response.AccountSummaryDto;
 import com.muscat.user.domain.account.dto.response.BalanceResponseDto;
 import com.muscat.user.domain.account.dto.request.KrwDepositRequestDto;
 import com.muscat.user.domain.account.dto.request.ExchangeRequestDto;
+import com.muscat.user.domain.account.dto.request.ExchangeByDateRequestDto;
 import com.muscat.user.domain.account.entity.Account;
 import com.muscat.user.domain.account.service.AccountService;
 import com.muscat.user.domain.user.mapper.UserMapper;
@@ -15,10 +16,13 @@ import com.muscat.user.common.util.AuthUtil;
 import com.muscat.user.common.exceptions.AccountException;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -37,9 +41,9 @@ public class AccountController {
   @PostMapping
   public ResponseEntity<ApiResponse<AccountResponseDto>> createAccount(
       @Valid @RequestBody CreateAccountRequestDto request,
-      Authentication authentication) {
+      @AuthenticationPrincipal Jwt jwt) {
 
-    Long userId = authUtil.requireUserId(authentication);
+    Long userId = authUtil.requireUserId(jwt);
     Account account = accountService.createAccount(userId, request);
 
     log.info("계좌 생성 요청: 사용자={}, 계좌명={}", userId, request.getAccountName());
@@ -51,9 +55,9 @@ public class AccountController {
 
   // 내 계좌 목록 조회
   @GetMapping
-  public ResponseEntity<ApiResponse<List<AccountSummaryDto>>> getUserAccounts(Authentication authentication) {
+  public ResponseEntity<ApiResponse<List<AccountSummaryDto>>> getUserAccounts(@AuthenticationPrincipal Jwt jwt) {
 
-    Long userId = authUtil.requireUserId(authentication);
+    Long userId = authUtil.requireUserId(jwt);
     List<Account> accounts = accountService.getUserAccounts(userId);
     List<AccountSummaryDto> accountDtos = accounts.stream()
         .map(userMapper::toAccountSummaryDto)
@@ -67,9 +71,9 @@ public class AccountController {
   @GetMapping("/{accountId}/balance")
   public ResponseEntity<ApiResponse<BalanceResponseDto>> getAccountBalance(
       @PathVariable Long accountId,
-      Authentication authentication) {
+      @AuthenticationPrincipal Jwt jwt) {
 
-    Long userId = authUtil.requireUserId(authentication);
+    Long userId = authUtil.requireUserId(jwt);
     BalanceResponseDto balance = accountService.getAccountBalance(accountId, userId);
 
     return ResponseEntity.ok(
@@ -81,9 +85,9 @@ public class AccountController {
   public ResponseEntity<ApiResponse<Void>> depositKrw(
       @PathVariable Long accountId,
       @Valid @RequestBody KrwDepositRequestDto request,
-      Authentication authentication) {
+      @AuthenticationPrincipal Jwt jwt) {
 
-    Long userId = authUtil.requireUserId(authentication);
+    Long userId = authUtil.requireUserId(jwt);
     accountService.depositKrw(accountId, userId, request.getKrwAmount());
 
     log.info("KRW 입금 요청: 사용자={}, 계좌={}, 금액={}원",
@@ -98,9 +102,9 @@ public class AccountController {
   public ResponseEntity<ApiResponse<Void>> exchangeCurrency(
       @PathVariable Long accountId,
       @Valid @RequestBody ExchangeRequestDto request,
-      Authentication authentication) {
+      @AuthenticationPrincipal Jwt jwt) {
 
-    Long userId = authUtil.requireUserId(authentication);
+    Long userId = authUtil.requireUserId(jwt);
 
     if ("KRW".equals(request.getFromCurrency()) && "USD".equals(request.getToCurrency())) {
       accountService.exchangeKrwToUsd(accountId, userId, request.getOriginalAmount(), request.getExchangeRate());
@@ -118,24 +122,55 @@ public class AccountController {
         ApiResponse.success(AccountResponse.EXCHANGE_SUCCESS));
   }
 
+  // 날짜 기반 자동 환율 환전
+  @PostMapping("/{accountId}/exchange/by-date")
+  public ResponseEntity<ApiResponse<Void>> exchangeCurrencyByDate(
+      @PathVariable Long accountId,
+      @Valid @RequestBody ExchangeByDateRequestDto request,
+      @AuthenticationPrincipal Jwt jwt) {
+
+    Long userId = authUtil.requireUserId(jwt);
+
+    // 해당 날짜의 환율 자동 조회
+    BigDecimal exchangeRate = accountService.getExchangeRateByDate(request.getExchangeDate());
+
+    if ("KRW".equals(request.getFromCurrency()) && "USD".equals(request.getToCurrency())) {
+      accountService.exchangeKrwToUsd(accountId, userId, request.getOriginalAmount(), exchangeRate);
+    } else if ("USD".equals(request.getFromCurrency()) && "KRW".equals(request.getToCurrency())) {
+      accountService.exchangeUsdToKrw(accountId, userId, request.getOriginalAmount(), exchangeRate);
+    } else {
+      throw new AccountException(AccountResponse.INVALID_CURRENCY);
+    }
+
+    log.info("날짜 기반 환전 완료: 사용자={}, 계좌={}, {} {} → {} (날짜: {}, 환율: {})",
+        userId, accountId, request.getOriginalAmount(), request.getFromCurrency(),
+        request.getToCurrency(), request.getExchangeDate(), exchangeRate);
+
+    return ResponseEntity.ok(
+        ApiResponse.success(AccountResponse.EXCHANGE_SUCCESS));
+  }
+
   // Trade 서비스 전용: USD 잔고 업데이트 (매수/매도)
   @PostMapping("/{accountId}/trade/balance")
   public ResponseEntity<ApiResponse<Void>> updateTradeBalance(
       @PathVariable Long accountId,
       @RequestParam BigDecimal usdAmount,
       @RequestParam String tradeType,
-      @RequestParam String description) {
+      @RequestParam String description,
+      @AuthenticationPrincipal Jwt jwt) {
 
-    log.info("거래 USD 잔고 업데이트: accountId={}, usdAmount={}, tradeType={}", 
-        accountId, usdAmount, tradeType);
+    Long userId = authUtil.requireUserId(jwt);
+    
+    log.info("거래 USD 잔고 업데이트: userId={}, accountId={}, usdAmount={}, tradeType={}", 
+        userId, accountId, usdAmount, tradeType);
 
     try {
       if ("BUY".equals(tradeType)) {
         // 매수: USD 차감
-        accountService.updateUsdBalance(accountId, usdAmount.negate(), description);
+        accountService.updateUsdBalance(accountId, userId, usdAmount.negate(), description);
       } else if ("SELL".equals(tradeType)) {
         // 매도: USD 추가
-        accountService.updateUsdBalance(accountId, usdAmount, description);
+        accountService.updateUsdBalance(accountId, userId, usdAmount, description);
       } else {
         throw new AccountException(AccountResponse.INVALID_REQUEST);
       }
@@ -151,5 +186,42 @@ public class AccountController {
           accountId, usdAmount, tradeType, e);
       throw e;
     }
+  }
+
+  // 현재 환율 조회 (Feign으로 market-data에서 가져오기)
+  @GetMapping("/exchange-rates/current")
+  public ResponseEntity<ApiResponse<BigDecimal>> getCurrentExchangeRate() {
+    log.debug("현재 환율 조회 요청");
+    
+    BigDecimal currentRate = accountService.getCurrentExchangeRate();
+    
+    return ResponseEntity.ok(
+        ApiResponse.success(AccountResponse.EXCHANGE_RATE_FOUND, currentRate));
+  }
+
+  // 특정 날짜 환율 조회
+  @GetMapping("/exchange-rates/{date}")
+  public ResponseEntity<ApiResponse<BigDecimal>> getExchangeRateByDate(
+      @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+    
+    log.debug("날짜별 환율 조회 요청: {}", date);
+    
+    BigDecimal rate = accountService.getExchangeRateByDate(date);
+    
+    return ResponseEntity.ok(
+        ApiResponse.success(AccountResponse.EXCHANGE_RATE_FOUND, rate));
+  }
+
+  // 수동 환율 입력/검증
+  @PostMapping("/exchange-rates/validate")
+  public ResponseEntity<ApiResponse<BigDecimal>> validateManualExchangeRate(
+      @RequestParam BigDecimal rate) {
+    
+    log.debug("수동 환율 검증 요청: {}", rate);
+    
+    BigDecimal validatedRate = accountService.createManualExchangeRate(rate);
+    
+    return ResponseEntity.ok(
+        ApiResponse.success(AccountResponse.EXCHANGE_RATE_FOUND, validatedRate));
   }
 }
