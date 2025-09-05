@@ -27,7 +27,7 @@ public class FxCollectProps {
     @Setter
     public static class Incremental {
         private boolean enabled = true;
-        private int defaultDays = 7;
+        private int defaultDays = 30;
     }
 
     @Getter

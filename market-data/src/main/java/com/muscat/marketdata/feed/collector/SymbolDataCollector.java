@@ -61,7 +61,7 @@ public class SymbolDataCollector implements CommandLineRunner {
     private void collectCandleData() {
         ZoneId marketTimeZone = ZoneId.of(props.getSchedule().getTimezone());
         LocalDate endDate = LocalDate.now(marketTimeZone);
-        LocalDate startDate = endDate.minusDays(30); // 최근 30일 데이터
+        LocalDate startDate = endDate.minusDays(365); // 최근 30일 데이터
         
         log.info("[자동 캔들수집] 기간: {} ~ {}", startDate, endDate);
         batchService.collectAll(startDate, endDate, true);

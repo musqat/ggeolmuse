@@ -6,6 +6,8 @@ import com.muscat.marketdata.domain.dto.StockPriceDto;
 import com.muscat.marketdata.domain.service.MarketService;
 import com.muscat.marketdata.domain.entity.FxRate;
 import com.muscat.marketdata.feed.service.FxRateService;
+import org.springframework.format.annotation.DateTimeFormat;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -103,6 +105,24 @@ public class MarketController {
 
     } catch (Exception e) {
       log.error("최신 환율 조회 중 오류: error={}", e.getMessage(), e);
+      throw e;
+    }
+  }
+
+  @PostMapping("/fx/generate")
+  public ResponseEntity<ApiResponse<Integer>> generateHistoricalFxRates(
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+      @RequestParam(defaultValue = "1350") BigDecimal baseRate) {
+    try {
+      log.info("과거 환율 데이터 생성 요청: {} ~ {}, 기준환율={}", startDate, endDate, baseRate);
+
+      int savedCount = fxRateService.generateHistoricalRates(startDate, endDate, baseRate);
+      
+      return ResponseEntity.ok(ApiResponse.success("과거 환율 데이터 생성 완료", savedCount));
+
+    } catch (Exception e) {
+      log.error("과거 환율 생성 중 오류: error={}", e.getMessage(), e);
       throw e;
     }
   }

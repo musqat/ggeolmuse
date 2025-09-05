@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Random;
 
 @Slf4j
 @Service
@@ -150,5 +151,38 @@ public class FxRateService {
         if (dayOfWeek == DayOfWeek.MONDAY) return date.minusDays(3);
         if (dayOfWeek == DayOfWeek.SUNDAY) return date.minusDays(2);
         return date.minusDays(1);
+    }
+    
+    @Transactional
+    public int generateHistoricalRates(LocalDate startDate, LocalDate endDate, BigDecimal baseRate) {
+        Objects.requireNonNull(startDate, "시작일은 필수입니다");
+        Objects.requireNonNull(endDate, "종료일은 필수입니다");
+        Objects.requireNonNull(baseRate, "기준 환율은 필수입니다");
+        
+        if (endDate.isBefore(startDate)) {
+            throw new IllegalArgumentException("종료일이 시작일보다 빠릅니다");
+        }
+        
+        log.info("[환율생성] 과거 환율 데이터 생성: {} ~ {}, 기준환율={}", startDate, endDate, baseRate);
+        
+        int savedCount = 0;
+        Random random = new Random();
+        
+        for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
+            // 기존 데이터가 있으면 건너뛰기
+            if (findByDate(date) != null) {
+                continue;
+            }
+            
+            // 기준 환율 ±5% 범위에서 랜덤 환율 생성
+            double variation = (random.nextDouble() - 0.5) * 0.1; // -5% ~ +5%
+            BigDecimal dailyRate = baseRate.multiply(BigDecimal.ONE.add(BigDecimal.valueOf(variation)));
+            
+            saveRate(date, dailyRate);
+            savedCount++;
+        }
+        
+        log.info("[환율생성] 과거 환율 데이터 생성 완료: {}건", savedCount);
+        return savedCount;
     }
 }
