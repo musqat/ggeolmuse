@@ -3,6 +3,7 @@ package com.muscat.trade.domain.controller;
 import com.muscat.trade.domain.dto.request.TradeRequestDto;
 import com.muscat.trade.domain.dto.response.TradeResponseDto;
 import com.muscat.trade.domain.service.TradingService;
+import com.muscat.trade.common.constants.TradeConstants;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -11,6 +12,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -37,7 +41,7 @@ public class TradingController {
 
     TradeResponseDto trade = tradingService.buyStock(
         userId, 
-        request.getAccountId(), 
+        Long.valueOf(request.getAccountId()), 
         request.getSymbol(), 
         request.getQuantity(), 
         request.getTradeDate(),
@@ -61,7 +65,7 @@ public class TradingController {
 
     TradeResponseDto trade = tradingService.sellStock(
         userId, 
-        request.getAccountId(), 
+        Long.valueOf(request.getAccountId()), 
         request.getSymbol(), 
         request.getQuantity(), 
         request.getTradeDate(),
@@ -72,53 +76,13 @@ public class TradingController {
     return ResponseEntity.ok(trade);
   }
 
-  // 거래 내역 조회 (페이지네이션)
-  @GetMapping("/history")
-  public ResponseEntity<List<TradeResponseDto>> getTradeHistory(
-      @AuthenticationPrincipal Jwt jwt,
-      @RequestParam(defaultValue = "0") int page,
-      @RequestParam(defaultValue = "20") int size) {
-
-    String userId = jwt.getSubject();
-
-    List<TradeResponseDto> trades = tradingService.getUserTrades(userId, page, size);
-
-    return ResponseEntity.ok(trades);
-  }
-
-  // 종목별 거래 내역 조회
-  @GetMapping("/history/{symbol}")
-  public ResponseEntity<List<TradeResponseDto>> getTradeHistoryBySymbol(
-      @AuthenticationPrincipal Jwt jwt,
-      @PathVariable String symbol) {
-
-    String userId = jwt.getSubject();
-
-    List<TradeResponseDto> trades = tradingService.getTradesBySymbol(userId, symbol);
-
-    return ResponseEntity.ok(trades);
-  }
-
-  // 기간별 거래 내역 조회
-  @GetMapping("/history/period")
-  public ResponseEntity<List<TradeResponseDto>> getTradeHistoryByPeriod(
-      @AuthenticationPrincipal Jwt jwt,
-      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-
-    String userId = jwt.getSubject();
-
-    List<TradeResponseDto> trades = tradingService.getTradesByDateRange(userId, startDate, endDate);
-
-    return ResponseEntity.ok(trades);
-  }
 
   // 매수 가능 여부 확인
   @GetMapping("/can-buy")
   public ResponseEntity<Boolean> canBuyStock(
       @AuthenticationPrincipal Jwt jwt,
-      @RequestParam String accountId,
-      @RequestParam String totalAmount) {
+      @RequestParam @NotBlank @Pattern(regexp = TradeConstants.ACCOUNT_ID_PATTERN, message = "유효하지 않은 계좌 ID 형식입니다") String accountId,
+      @RequestParam @NotBlank String totalAmount) {
 
     String userId = jwt.getSubject();
 
@@ -130,10 +94,10 @@ public class TradingController {
         throw new IllegalArgumentException("금액은 0보다 커야 합니다");
       }
     } catch (NumberFormatException e) {
-      throw new IllegalArgumentException("유효하지 않은 금액 형식입니다: " + totalAmount);
+      throw new IllegalArgumentException(String.format("유효하지 않은 금액 형식입니다: %s", totalAmount));
     }
 
-    boolean canBuy = tradingService.canBuyStock(userId, accountId, amount);
+    boolean canBuy = tradingService.canBuyStock(userId, Long.valueOf(accountId), amount);
 
     return ResponseEntity.ok(canBuy);
   }
@@ -142,9 +106,9 @@ public class TradingController {
   @GetMapping("/can-sell")
   public ResponseEntity<Boolean> canSellStock(
       @AuthenticationPrincipal Jwt jwt,
-      @RequestParam String accountId,
-      @RequestParam String symbol,
-      @RequestParam String quantity) {
+      @RequestParam @NotBlank @Pattern(regexp = TradeConstants.ACCOUNT_ID_PATTERN, message = "유효하지 않은 계좌 ID 형식입니다") String accountId,
+      @RequestParam @NotBlank @Pattern(regexp = TradeConstants.SYMBOL_PATTERN, message = "종목 심볼 형식이 올바르지 않습니다") String symbol,
+      @RequestParam @NotBlank String quantity) {
 
     String userId = jwt.getSubject();
 
@@ -159,7 +123,7 @@ public class TradingController {
       throw new IllegalArgumentException("유효하지 않은 수량 형식입니다: " + quantity);
     }
 
-    boolean canSell = tradingService.canSellStock(userId, accountId, symbol, qty);
+    boolean canSell = tradingService.canSellStock(userId, Long.valueOf(accountId), symbol, qty);
 
     return ResponseEntity.ok(canSell);
   }

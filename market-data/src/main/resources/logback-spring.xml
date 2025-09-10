@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    
+    <!-- 공통 설정 포함 -->
+    <include resource="logback-common.xml"/>
+    
+    <!-- Market Data 서비스별 프로퍼티 -->
+    <property name="LOG_FILE" value="${LOG_FILE:-market-data}"/>
+    
+    <!-- Market Data 패키지 로거 -->
+    <logger name="com.muscat.marketdata" level="${LOG_LEVEL}"/>
+    
+    <!-- 외부 API 제공업체별 로거 -->
+    <logger name="com.muscat.marketdata.provider" level="INFO"/>
+    
+    <!-- Root Logger -->
+    <springProfile name="!prod">
+        <root level="${ROOT_LOG_LEVEL}">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="APPLICATION_FILE"/>
+            <appender-ref ref="ERROR_FILE"/>
+        </root>
+    </springProfile>
+    
+    <springProfile name="prod">
+        <root level="${ROOT_LOG_LEVEL}">
+            <appender-ref ref="APPLICATION_FILE"/>
+            <appender-ref ref="ERROR_FILE"/>
+        </root>
+    </springProfile>
+    
+</configuration>

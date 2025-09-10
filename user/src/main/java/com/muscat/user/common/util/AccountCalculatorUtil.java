@@ -1,5 +1,6 @@
 package com.muscat.user.common.util;
 
+import com.muscat.commonlib.util.MoneyUtils;
 import com.muscat.user.domain.account.dto.response.ExchangeCalculationResult;
 import com.muscat.user.domain.account.entity.Account;
 import lombok.extern.slf4j.Slf4j;
@@ -73,7 +74,7 @@ public class AccountCalculatorUtil {
       return BigDecimal.ZERO;
     }
 
-    BigDecimal avgRate = newTotalKrw.divide(newTotalUsd, 10, MoneyUtils.DEFAULT_ROUNDING);
+    BigDecimal avgRate = newTotalKrw.divide(newTotalUsd, 10, MoneyUtils.ROUND_MODE);
     return MoneyUtils.roundExchangeRate(avgRate);
   }
 

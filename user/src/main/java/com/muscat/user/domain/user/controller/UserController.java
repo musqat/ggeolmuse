@@ -1,7 +1,5 @@
 package com.muscat.user.domain.user.controller;
 
-import com.muscat.user.common.responses.ApiResponse;
-import com.muscat.user.common.responses.UserResponse;
 import com.muscat.user.domain.user.dto.request.ChangePasswordRequestDto;
 import com.muscat.user.domain.user.dto.request.DeleteAccountRequestDto;
 import com.muscat.user.domain.user.dto.request.UpdateProfileRequestDto;
@@ -34,17 +32,17 @@ public class UserController {
   private final UserMapper userMapper;
 
   @GetMapping("/me")
-  public ResponseEntity<ApiResponse<UserResponseDto>> getMyProfile(@AuthenticationPrincipal Jwt jwt) {
+  public ResponseEntity<UserResponseDto> getMyProfile(@AuthenticationPrincipal Jwt jwt) {
     String email = jwt.getClaimAsString("email");
 
     User user = userService.getProfile(email);
     UserResponseDto userDto = userMapper.toResponseDto(user);
 
-    return ResponseEntity.ok(ApiResponse.success(UserResponse.PROFILE_FOUND, userDto));
+    return ResponseEntity.ok(userDto);
   }
 
   @PutMapping("/me")
-  public ResponseEntity<ApiResponse<UserResponseDto>> updateProfile(
+  public ResponseEntity<UserResponseDto> updateProfile(
       @AuthenticationPrincipal Jwt jwt,
       @Valid @RequestBody UpdateProfileRequestDto request) {
 
@@ -53,11 +51,11 @@ public class UserController {
     UserResponseDto userDto = userMapper.toResponseDto(updatedUser);
 
     log.info("프로필 수정 완료: {}", email);
-    return ResponseEntity.ok(ApiResponse.success(UserResponse.PROFILE_UPDATED, userDto));
+    return ResponseEntity.ok(userDto);
   }
 
   @PutMapping("/me/password")
-  public ResponseEntity<ApiResponse<Void>> changePassword(
+  public ResponseEntity<Void> changePassword(
       @AuthenticationPrincipal Jwt jwt,
       @Valid @RequestBody ChangePasswordRequestDto request) {
 
@@ -67,11 +65,11 @@ public class UserController {
     keycloakService.changePassword(keycloakId, request);
 
     log.info("비밀번호 변경 완료: {}", email);
-    return ResponseEntity.ok(ApiResponse.success(UserResponse.PASSWORD_CHANGED));
+    return ResponseEntity.ok().build();
   }
 
   @DeleteMapping("/me")
-  public ResponseEntity<ApiResponse<Void>> deleteAccount(
+  public ResponseEntity<Void> deleteAccount(
       @AuthenticationPrincipal Jwt jwt,
       @Valid @RequestBody DeleteAccountRequestDto request) {
 
@@ -79,6 +77,6 @@ public class UserController {
     userService.deleteAccount(email, request.getPassword());
 
     log.info("계정 삭제 완료: {}", email);
-    return ResponseEntity.ok(ApiResponse.success(UserResponse.ACCOUNT_DELETED));
+    return ResponseEntity.ok().build();
   }
 }

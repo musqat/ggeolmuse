@@ -2,8 +2,7 @@ package com.muscat.marketdata.provider.alphavantage;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.muscat.marketdata.common.exceptions.ApiRateLimitException;
-import com.muscat.marketdata.common.exceptions.MarketDataException;
+import com.muscat.marketdata.common.exceptions.AlphaVantageException;
 import com.muscat.marketdata.common.logging.MarketDataLogger;
 import com.muscat.marketdata.provider.config.AlphaVantageProperties;
 import lombok.RequiredArgsConstructor;
@@ -26,8 +25,6 @@ public class AlphaVantageClient {
     private final AlphaVantageProperties properties;
     private final MarketDataLogger marketDataLogger;
 
-    private static final String BASE_URL = "https://www.alphavantage.co/query";
-    private static final Duration TIMEOUT = Duration.ofSeconds(15);
 
     public JsonNode get(String function) {
         return get(function, Map.of());
@@ -47,7 +44,7 @@ public class AlphaVantageClient {
             if (response == null || response.trim().isEmpty()) {
                 log.warn("AlphaVantage 빈 응답: function={}, symbol={}", function, symbol);
                 marketDataLogger.logApiCall("ALPHAVANTAGE", function, symbol, false, responseTime, "Empty response");
-                throw new MarketDataException("AlphaVantage에서 빈 응답을 받았습니다: " + function);
+                throw new AlphaVantageException("AlphaVantage에서 빈 응답을 받았습니다: " + function);
             }
 
             JsonNode jsonResponse = objectMapper.readTree(response);
@@ -57,14 +54,14 @@ public class AlphaVantageClient {
                 String errorMessage = jsonResponse.get("Error Message").asText();
                 log.warn("AlphaVantage API 오류: function={}, error={}", function, errorMessage);
                 marketDataLogger.logApiCall("ALPHAVANTAGE", function, symbol, false, responseTime, errorMessage);
-                throw new MarketDataException("AlphaVantage API 오류: " + errorMessage);
+                throw new AlphaVantageException("AlphaVantage API 오류: " + errorMessage);
             }
             
             if (jsonResponse.has("Note") && jsonResponse.get("Note").asText().contains("call frequency")) {
                 String note = jsonResponse.get("Note").asText();
                 log.warn("AlphaVantage API 호출 제한: function={}, note={}", function, note);
                 marketDataLogger.logRateLimit("ALPHAVANTAGE", function, 60);
-                throw new ApiRateLimitException("ALPHAVANTAGE", 60);
+                throw new AlphaVantageException("AlphaVantage API 호출 제한");
             }
 
             marketDataLogger.logApiCall("ALPHAVANTAGE", function, symbol, true, responseTime, null);
@@ -74,11 +71,9 @@ public class AlphaVantageClient {
         } catch (HttpClientErrorException e) {
             long responseTime = System.currentTimeMillis() - startTime;
             String errorMessage = handleHttpError(e, function, symbol, responseTime);
-            throw new MarketDataException(errorMessage, e);
+            throw new AlphaVantageException(errorMessage, e);
             
-        } catch (ApiRateLimitException e) {
-            throw e;
-        } catch (MarketDataException e) {
+        } catch (AlphaVantageException e) {
             throw e;
         } catch (Exception e) {
             long responseTime = System.currentTimeMillis() - startTime;
@@ -87,13 +82,13 @@ public class AlphaVantageClient {
             log.error("AlphaVantage API 호출 중 예상치 못한 오류: function={}, error={}", function, e.getMessage(), e);
             marketDataLogger.logApiCall("ALPHAVANTAGE", function, symbol, false, responseTime, e.getMessage());
             
-            throw new MarketDataException(errorMessage, e);
+            throw new AlphaVantageException(errorMessage, e);
         }
     }
 
     private String buildUrl(String function, Map<String, String> params) {
         StringBuilder url = new StringBuilder()
-            .append(BASE_URL)
+            .append(properties.getBaseUrl())
             .append("?function=").append(function)
             .append("&apikey=").append(properties.getApiKey());
 
@@ -115,7 +110,7 @@ public class AlphaVantageClient {
             case TOO_MANY_REQUESTS:
                 marketDataLogger.logRateLimit("ALPHAVANTAGE", function, 60);
                 log.warn("AlphaVantage API 호출 제한: function={}", function);
-                throw new ApiRateLimitException("ALPHAVANTAGE", 60);
+                throw new AlphaVantageException("AlphaVantage API 호출 제한");
                 
             case UNAUTHORIZED:
                 errorMessage = "AlphaVantage API 인증 실패: 유효하지 않은 API 키";

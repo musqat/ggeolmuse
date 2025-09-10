@@ -52,7 +52,7 @@ public final class MarketDataProvider {
    */
   public interface FxSource {
 
-    Optional<BigDecimal> fetchUsdKrw(LocalDate date);
+    Optional<BigDecimal> fetchFx(LocalDate date);
   }
 
 }

@@ -2,7 +2,8 @@ package com.muscat.backtest.domain.mapper;
 
 import com.muscat.backtest.common.calculation.ComparisonCalculationResult;
 import com.muscat.backtest.common.calculation.StrategyCalculationResult;
-import com.muscat.backtest.common.util.BacktestCalculationUtils;
+import com.muscat.backtest.common.enums.type.StrategyType;
+import com.muscat.commonlib.util.MoneyUtils;
 import com.muscat.backtest.domain.dto.request.BaseComparisonRequest;
 import com.muscat.backtest.domain.dto.request.InvestmentRequest;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
@@ -36,20 +37,20 @@ public class ResponseMapper {
         .strategyType(request.getStrategyType())
         .transactions(transactions)
         .totalTransactions(transactions.size())
-        .totalInvested(BacktestCalculationUtils.scaleKrwAmount(calculation.getTotalInvested()))
-        .totalShares(BacktestCalculationUtils.scaleShares(calculation.getTotalShares()))
-        .averagePrice(BacktestCalculationUtils.scaleUsdAmount(calculation.getAveragePrice()))
+        .totalInvested(MoneyUtils.roundKrw(calculation.getTotalInvested()))
+        .totalShares(calculation.getTotalShares().setScale(6, MoneyUtils.ROUND_MODE))
+        .averagePrice(MoneyUtils.roundUsd(calculation.getAveragePrice()))
         .currentPrice(currentPrice.getCurrentPrice())
-        .currentValue(BacktestCalculationUtils.scaleUsdAmount(calculation.getCurrentValue()))
-        .currentValueKrw(BacktestCalculationUtils.scaleKrwAmount(calculation.getCurrentValueKrw()))
-        .totalReturn(BacktestCalculationUtils.scaleUsdAmount(calculation.getTotalReturnUsd()))
+        .currentValue(MoneyUtils.roundUsd(calculation.getCurrentValue()))
+        .currentValueKrw(MoneyUtils.roundKrw(calculation.getCurrentValueKrw()))
+        .totalReturn(MoneyUtils.roundUsd(calculation.getTotalReturnUsd()))
         .totalReturnPercent(
-            BacktestCalculationUtils.scaleUsdAmount(calculation.getTotalReturnPercent()))
-        .totalReturnKrw(BacktestCalculationUtils.scaleKrwAmount(calculation.getTotalReturnKrw()))
+            MoneyUtils.roundUsd(calculation.getTotalReturnPercent()))
+        .totalReturnKrw(MoneyUtils.roundKrw(calculation.getTotalReturnKrw()))
         .averageFxRate(calculation.getAverageFxRate())
         .currentFxRate(calculation.getCurrentFxRate())
-        .fxReturn(BacktestCalculationUtils.scaleUsdAmount(calculation.getFxReturn()))
-        .fxReturnPercent(BacktestCalculationUtils.scaleUsdAmount(calculation.getFxReturnPercent()))
+        .fxReturn(MoneyUtils.roundUsd(calculation.getFxReturn()))
+        .fxReturnPercent(MoneyUtils.roundUsd(calculation.getFxReturnPercent()))
         .totalDividends(BigDecimal.ZERO)
         .dividendYield(BigDecimal.ZERO)
         .strategyDetails(createStrategyDetails(request.getStrategyType(), transactions.size()))
@@ -103,25 +104,25 @@ public class ResponseMapper {
         .currentDate(LocalDate.now())
         .investmentAmount(request.getInvestmentAmount())
         .purchasePrice(purchasePriceUsd)
-        .shares(BacktestCalculationUtils.scaleShares(shares))
+        .shares(shares.setScale(6, MoneyUtils.ROUND_MODE))
         .currentPrice(currentPriceUsd)
-        .currentValue(BacktestCalculationUtils.scaleUsdAmount(currentValueUsd))
-        .stockReturn(BacktestCalculationUtils.scaleUsdAmount(stockReturn))
-        .stockReturnPercent(BacktestCalculationUtils.scaleUsdAmount(stockReturnPercent))
+        .currentValue(MoneyUtils.roundUsd(currentValueUsd))
+        .stockReturn(MoneyUtils.roundUsd(stockReturn))
+        .stockReturnPercent(MoneyUtils.roundUsd(stockReturnPercent))
         .purchaseFxRate(purchaseFxRate)
         .currentFxRate(currentFxRate)
-        .fxReturn(BacktestCalculationUtils.scaleUsdAmount(fxReturn))
-        .fxReturnPercent(BacktestCalculationUtils.scaleUsdAmount(fxReturnPercent))
-        .totalDividends(BacktestCalculationUtils.scaleUsdAmount(totalDividends))
-        .dividendYield(BacktestCalculationUtils.scaleUsdAmount(dividendYield))
-        .tradingFee(BacktestCalculationUtils.scaleUsdAmount(tradingFee))
-        .remainingCash(BacktestCalculationUtils.scaleUsdAmount(remainingCash))
-        .totalReturn(BacktestCalculationUtils.scaleUsdAmount(totalReturnKrw))
-        .totalReturnPercent(BacktestCalculationUtils.scaleUsdAmount(totalReturnPercent))
-        .currentValueKrw(BacktestCalculationUtils.scaleKrwAmount(currentValueKrw))
-        .totalReturnKrw(BacktestCalculationUtils.scaleKrwAmount(totalReturnKrw))
-        .remainingCashKrw(BacktestCalculationUtils.scaleKrwAmount(
-            BacktestCalculationUtils.convertUsdToKrw(remainingCash, currentFxRate)))
+        .fxReturn(MoneyUtils.roundUsd(fxReturn))
+        .fxReturnPercent(MoneyUtils.roundUsd(fxReturnPercent))
+        .totalDividends(MoneyUtils.roundUsd(totalDividends))
+        .dividendYield(MoneyUtils.roundUsd(dividendYield))
+        .tradingFee(MoneyUtils.roundUsd(tradingFee))
+        .remainingCash(MoneyUtils.roundUsd(remainingCash))
+        .totalReturn(MoneyUtils.roundUsd(totalReturnKrw))
+        .totalReturnPercent(MoneyUtils.roundUsd(totalReturnPercent))
+        .currentValueKrw(MoneyUtils.roundKrw(currentValueKrw))
+        .totalReturnKrw(MoneyUtils.roundKrw(totalReturnKrw))
+        .remainingCashKrw(MoneyUtils.roundKrw(
+            MoneyUtils.calculateUsdToKrw(remainingCash, currentFxRate)))
         .build();
   }
 
@@ -164,7 +165,7 @@ public class ResponseMapper {
         .build();
   }
 
-  private String createStrategyDetails(com.muscat.backtest.common.enums.StrategyType strategyType,
+  private String createStrategyDetails(StrategyType strategyType,
       int transactionCount) {
     return switch (strategyType) {
       case DCA -> String.format("DCA 전략 - %d회 투자 실행", transactionCount);

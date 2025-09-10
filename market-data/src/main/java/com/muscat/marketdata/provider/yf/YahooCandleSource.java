@@ -45,7 +45,7 @@ public class YahooCandleSource implements CandleSource {
         } catch (Exception e) {
             log.warn("Yahoo 일봉 데이터 수집 실패: symbol={}, period=[{}~{}], error={}",
                     symbol, fromDate, toDate, e.getMessage());
-            throw new RuntimeException("Yahoo 일봉 데이터 수집 실패: " + symbol, e);
+            return List.of(); // 빈 리스트 반환
         }
     }
 

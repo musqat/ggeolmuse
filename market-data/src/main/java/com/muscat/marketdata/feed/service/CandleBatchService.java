@@ -1,5 +1,6 @@
 package com.muscat.marketdata.feed.service;
 
+import com.muscat.marketdata.config.MarketDataProperties;
 import com.muscat.marketdata.domain.dto.BatchResult;
 import com.muscat.marketdata.domain.repository.AssetRepository;
 import lombok.RequiredArgsConstructor;
@@ -16,12 +17,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 @RequiredArgsConstructor
 public class CandleBatchService {
 
-    private static final int MIN_RPM = 1;
-    private static final long MAX_BACKOFF_MS = 30_000;
-    private static final long MILLIS_PER_MINUTE = 60_000;
-
     private final AssetRepository assetRepository;
     private final CandleUpdateService candleUpdateService;
+    private final MarketDataProperties properties;
 
     @Value("${feed.rpm:5}")
     private int requestsPerMinute;
@@ -95,8 +93,8 @@ public class CandleBatchService {
     }
 
     private long calculateSleepInterval() {
-        int effectiveRpm = Math.max(requestsPerMinute, MIN_RPM);
-        return Math.max(0, Math.round((double) MILLIS_PER_MINUTE / effectiveRpm));
+        int effectiveRpm = Math.max(requestsPerMinute, properties.getBatch().getMinRpm());
+        return Math.max(0, Math.round((double) properties.getBatch().getMillisPerMinute() / effectiveRpm));
     }
 
     private <T> T tryWithRetry(RetryableTask<T> task) throws Exception {
@@ -115,7 +113,7 @@ public class CandleBatchService {
 
                 log.debug("재시도 {}/{}: {}", attempt, maxRetryAttempts, e.getMessage());
                 sleepQuietly(currentBackoff);
-                currentBackoff = Math.min(currentBackoff * 2, MAX_BACKOFF_MS);
+                currentBackoff = Math.min(currentBackoff * 2, properties.getBatch().getMaxBackoffMs());
             }
         }
 

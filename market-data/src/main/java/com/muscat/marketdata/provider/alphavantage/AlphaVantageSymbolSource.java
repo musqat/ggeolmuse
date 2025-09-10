@@ -1,8 +1,7 @@
 package com.muscat.marketdata.provider.alphavantage;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.muscat.marketdata.common.exceptions.DataNotFoundException;
-import com.muscat.marketdata.common.exceptions.MarketDataException;
+import com.muscat.marketdata.common.exceptions.AlphaVantageException;
 import com.muscat.marketdata.common.logging.MarketDataLogger;
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.mapper.MarketDataMapper;
@@ -72,7 +71,7 @@ public class AlphaVantageSymbolSource {
             }
             
             if (nasdaq100Assets.isEmpty()) {
-                throw new DataNotFoundException("NASDAQ100", "SYMBOLS");
+                throw new AlphaVantageException("NASDAQ100 심볼 데이터를 찾을 수 없습니다");
             }
             
             marketDataLogger.logDataCollection("ALPHAVANTAGE", "NASDAQ100", "SYMBOLS", 
@@ -86,7 +85,7 @@ public class AlphaVantageSymbolSource {
             String errorMsg = "NASDAQ 100 종목 수집 실패";
             log.error("{}: error={}", errorMsg, e.getMessage(), e);
             marketDataLogger.logDataCollection("ALPHAVANTAGE", "NASDAQ100", "SYMBOLS", 0, false, e.getMessage());
-            throw new MarketDataException(errorMsg, e);
+            throw new AlphaVantageException(errorMsg, e);
         }
     }
 
@@ -163,7 +162,7 @@ public class AlphaVantageSymbolSource {
         } catch (Exception e) {
             String errorMsg = "심볼 검색 실패";
             log.error("{}: keywords={}, error={}", errorMsg, keywords, e.getMessage());
-            throw new MarketDataException(errorMsg, e);
+            throw new AlphaVantageException(errorMsg, e);
         }
     }
 }

@@ -10,4 +10,5 @@ public class AlphaVantageProperties {
     private boolean enabled = true;
     private int rateLimitPerSecond = 5;
     private int timeoutSeconds = 15;
+    private String baseUrl = "https://www.alphavantage.co/query";
 }

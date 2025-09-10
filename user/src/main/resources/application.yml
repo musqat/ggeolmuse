@@ -1,11 +1,37 @@
+server:
+  port: ${SERVER_PORT:8080}
+
 spring:
+  application:
+    name: user-service
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
+  
+  # Database Configuration
+  datasource:
+    url: ${DB_URL:jdbc:h2:mem:userdb}
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:}
+    driver-class-name: ${DB_DRIVER:org.h2.Driver}
+  
+  # JPA Configuration
   jpa:
+    hibernate:
+      ddl-auto: ${DDL_AUTO:create-drop}
+    show-sql: ${SHOW_SQL:false}
     open-in-view: false
+    defer-datasource-initialization: true
+  
+  # H2 Console (Dev only)
+  h2:
+    console:
+      enabled: ${H2_CONSOLE_ENABLED:true}
+      path: /h2-console
+  
+  # Email Configuration
   mail:
-    host: smtp.gmail.com
-    port: 587
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
     username: ${MAIL_USERNAME}
     password: ${MAIL_PASSWORD}
     properties:
@@ -14,33 +40,51 @@ spring:
           auth: true
           starttls:
             enable: true
+  
+  # Security Configuration
   security:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}
+          issuer-uri: ${KEYCLOAK_URL:http://localhost:7001}/realms/${KEYCLOAK_REALM:muscat}
+
+keycloak:
+  realm: ${KEYCLOAK_REALM:muscat}
+  auth-server-url: ${KEYCLOAK_URL:http://localhost:7001}
+  resource: ${KEYCLOAK_CLIENT_ID:muscathan-user-cc}
+  credentials:
+    secret: ${KEYCLOAK_SECRET:your-secret}
+  admin:
+    username: ${KEYCLOAK_ADMIN_USERNAME:admin}
+    password: ${KEYCLOAK_ADMIN_PASSWORD:admin}
 
 app:
   mail:
-    from: ${MAIL_FROM}
+    from: ${MAIL_FROM:noreply@muscat.com}
     verification:
-      expiry-hours: 24
-      base-url: ${APP_BASE_URL}
+      expiry-hours: ${EMAIL_EXPIRY_HOURS:24}
+      base-url: ${APP_BASE_URL:http://localhost:3000}
   oauth:
-    redirect-uri: ${OAUTH_REDIRECT_URI}
+    redirect-uri: ${OAUTH_REDIRECT_URI:http://localhost:3000/auth/callback}
   market-data:
-    url: ${MARKET_DATA_URL}
+    url: ${MARKET_DATA_URL:http://localhost:8083}
   exchange-rate:
-    min-valid-rate: ${EXCHANGE_RATE_MIN:0}
-    max-valid-rate: ${EXCHANGE_RATE_MAX:3000}
-    fallback-rate: ${EXCHANGE_RATE_FALLBACK:1300.00}
+    min-valid-rate: ${EXCHANGE_RATE_MIN:500}
+    max-valid-rate: ${EXCHANGE_RATE_MAX:2000}
+    fallback-rate: ${EXCHANGE_RATE_FALLBACK:1350.00}
 
-keycloak:
-  realm: ${KEYCLOAK_REALM}
-  auth-server-url: ${KEYCLOAK_URL}
-  resource: ${KEYCLOAK_CLIENT_ID}
-  credentials:
-    secret: ${KEYCLOAK_SECRET}
-  admin:
-    username: ${KEYCLOAK_ADMIN_USERNAME}
-    password: ${KEYCLOAK_ADMIN_PASSWORD}
+feign:
+  client:
+    config:
+      default:
+        connect-timeout: ${FEIGN_CONNECT_TIMEOUT:5000}
+        read-timeout: ${FEIGN_READ_TIMEOUT:10000}
+      market-service:
+        connect-timeout: 5000
+        read-timeout: 15000
+
+logging:
+  level:
+    com.muscat.user: ${LOG_LEVEL_USER:INFO}
+    org.springframework.security: ${LOG_LEVEL_SECURITY:WARN}
+    org.springframework.web: ${LOG_LEVEL_WEB:WARN}

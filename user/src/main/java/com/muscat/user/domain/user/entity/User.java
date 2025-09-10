@@ -1,8 +1,8 @@
 package com.muscat.user.domain.user.entity;
 
+import com.muscat.user.common.enums.responses.UserResponse;
 import com.muscat.user.common.enums.type.AuthType;
 import com.muscat.user.common.exceptions.UserException;
-import com.muscat.user.common.responses.UserResponse;
 import com.muscat.user.domain.account.entity.Account;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -81,9 +81,7 @@ public class User {
     for (Account account : accounts) {
       if (account.getBalanceKrw().compareTo(BigDecimal.ZERO) > 0 ||
           account.getBalanceUsd().compareTo(BigDecimal.ZERO) > 0) {
-        throw new UserException(UserResponse.ACCOUNT_DELETION_BLOCKED,
-            String.format("계좌 '%s'에 잔액이 있습니다. (KRW: %s, USD: %s)",
-                account.getAccountName(), account.getBalanceKrw(), account.getBalanceUsd()));
+        throw new UserException(UserResponse.ACCOUNT_DELETION_BLOCKED);
       }
     }
   }

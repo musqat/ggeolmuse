@@ -1,6 +1,5 @@
 package com.muscat.marketdata.feed;
 
-import com.muscat.marketdata.common.response.ApiResponse;
 import com.muscat.marketdata.domain.dto.BatchResult;
 import com.muscat.marketdata.feed.service.CandleBatchService;
 import com.muscat.marketdata.feed.service.CandleUpdateService;
@@ -34,7 +33,7 @@ public class DataCollectionController {
     private final CandleUpdateService candleUpdateService;
 
     @PostMapping("/candles")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> collectAllSymbols(
+    public ResponseEntity<Map<String, Object>> collectAllSymbols(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(defaultValue = "true") boolean includeDividends) {
@@ -59,7 +58,7 @@ public class DataCollectionController {
             );
             
             log.info("전체 심볼 데이터 수집 완료: 성공={}, 실패={}", result.successCount(), result.failureCount());
-            return ResponseEntity.ok(ApiResponse.success("데이터 수집이 완료되었습니다", responseData));
+            return ResponseEntity.ok(responseData);
             
         } catch (Exception e) {
             log.error("전체 심볼 데이터 수집 중 오류 발생", e);
@@ -69,7 +68,7 @@ public class DataCollectionController {
     }
 
     @PostMapping("/candles/{symbol}")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> collectSingleSymbol(
+    public ResponseEntity<Map<String, Object>> collectSingleSymbol(
             @PathVariable String symbol,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
@@ -95,7 +94,7 @@ public class DataCollectionController {
             );
             
             log.info("단일 심볼 데이터 수집 완료: symbol={}, savedRecords={}", symbol, savedRecords);
-            return ResponseEntity.ok(ApiResponse.success("데이터 수집이 완료되었습니다", responseData));
+            return ResponseEntity.ok(responseData);
             
         } catch (Exception e) {
             log.error("단일 심볼 데이터 수집 중 오류 발생: symbol={}", symbol, e);
@@ -104,7 +103,7 @@ public class DataCollectionController {
     }
 
     @GetMapping("/status")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getBatchStatus() {
+    public ResponseEntity<Map<String, Object>> getBatchStatus() {
         try {
             log.debug("배치 상태 조회 요청");
             
@@ -119,7 +118,7 @@ public class DataCollectionController {
                     )
             );
             
-            return ResponseEntity.ok(ApiResponse.success("배치 상태 조회 완료", responseData));
+            return ResponseEntity.ok(responseData);
             
         } catch (Exception e) {
             log.error("배치 상태 조회 중 오류 발생", e);

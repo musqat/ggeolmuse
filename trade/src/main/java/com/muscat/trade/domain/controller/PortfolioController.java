@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -72,6 +73,18 @@ public class PortfolioController {
 
     String userId = jwt.getSubject();
     PortfolioSummary summary = holdingsService.getPortfolioSummary(userId, currentPrices);
+    return ResponseEntity.ok(summary);
+  }
+
+  // 백테스트 결과 포함 포트폴리오 종합 정보 (BFF API)
+  @PostMapping("/summary-with-backtest")
+  public ResponseEntity<PortfolioSummary> getPortfolioSummaryWithBacktest(
+      @AuthenticationPrincipal Jwt jwt,
+      @RequestBody Map<String, BigDecimal> currentPrices,
+      @RequestHeader("Authorization") String authorization) {
+
+    String userId = jwt.getSubject();
+    PortfolioSummary summary = holdingsService.getPortfolioSummaryWithBacktest(userId, currentPrices, authorization);
     return ResponseEntity.ok(summary);
   }
 

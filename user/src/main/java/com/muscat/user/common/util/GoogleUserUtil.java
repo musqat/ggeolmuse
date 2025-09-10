@@ -1,7 +1,7 @@
 package com.muscat.user.common.util;
 
 import com.muscat.user.common.exceptions.SocialLoginException;
-import com.muscat.user.common.responses.SocialResponse;
+import com.muscat.user.common.enums.responses.SocialResponse;
 import com.muscat.user.domain.user.entity.User;
 import com.muscat.user.domain.user.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
@@ -47,7 +47,7 @@ public class GoogleUserUtil {
 
     if (googleId == null) {
       log.error("Google ID 추출 실패 - 사용 가능한 클레임: {}", tokenClaims.keySet());
-      throw new SocialLoginException(SocialResponse.GOOGLE_USER_INFO_FAILED, "Google ID를 추출할 수 없습니다.");
+      throw new SocialLoginException(SocialResponse.GOOGLE_USER_INFO_FAILED);
     }
 
     log.debug("Google ID 추출 성공: {}", googleId);

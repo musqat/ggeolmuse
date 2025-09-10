@@ -5,21 +5,22 @@ import com.muscat.trade.common.enums.type.TradeType;
 import com.muscat.trade.domain.entity.Holdings;
 import com.muscat.trade.domain.entity.Trade;
 import com.muscat.trade.domain.repository.HoldingsRepository;
+import com.muscat.trade.domain.repository.HoldingsQueryRepository;
 import com.muscat.trade.domain.repository.TradeRepository;
+import com.muscat.trade.domain.repository.TradeQueryRepository;
 import com.muscat.trade.domain.service.TradingService;
+import com.muscat.trade.domain.service.MarketDataService;
 import com.muscat.trade.domain.dto.response.TradeResponseDto;
-import com.muscat.trade.infra.client.MarketServiceClient;
 import com.muscat.trade.infra.client.UserServiceClient;
 import com.muscat.trade.infra.client.dto.AccountBalanceDto;
-import java.util.Map;
-import com.muscat.trade.common.exceptions.AccountNotFoundException;
-import com.muscat.trade.common.exceptions.MarketDataException;
-import com.muscat.trade.common.exceptions.NotEnoughBalanceException;
-import com.muscat.trade.common.exceptions.NotEnoughHoldingsException;
-import com.muscat.trade.common.exceptions.TradeException;
-import com.muscat.trade.common.enums.BaseResponseEnum;
-import com.muscat.trade.common.logging.TransactionLogger;
+import com.muscat.trade.common.exception.TradeException;
+import com.muscat.trade.common.exception.NotEnoughHoldingsException;
+import com.muscat.trade.common.enums.responses.TradeResponse;
+import com.muscat.trade.common.logging.TradeLogger;
 import com.muscat.trade.config.TradeProperties;
+import com.muscat.trade.common.util.TradeUtils;
+import com.muscat.trade.common.constants.TradeConstants;
+import com.muscat.commonlib.util.MoneyUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -35,6 +36,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+/**
+ * 거래 관련 서비스
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -42,159 +46,150 @@ import java.util.stream.Collectors;
 public class TradingServiceImpl implements TradingService {
 
   private final TradeRepository tradeRepository;
+  private final TradeQueryRepository tradeQueryRepository;
   private final HoldingsRepository holdingsRepository;
+  private final HoldingsQueryRepository holdingsQueryRepository;
   private final UserServiceClient userServiceClient;
-  private final MarketServiceClient marketServiceClient;
-  private final TransactionLogger transactionLogger;
+  private final MarketDataService marketDataService;
+  private final TradeLogger tradeLogger;
   private final TradeProperties tradeProperties;
+  private final TradeUtils tradeUtils;
 
+  // 주식 매수 실행 - 잔액 확인, 거래 실행, 보유종목 업데이트
   @Override
-  public TradeResponseDto buyStock(String userId, String accountId, String symbol,
+  public TradeResponseDto buyStock(String userId, Long accountId, String symbol,
                        BigDecimal quantity, LocalDate tradeDate, PriceType priceType, BigDecimal manualPrice) {
-    
-    log.info("매수 요청: 사용자={}, 계좌={}, 종목={}, 수량={}, 거래일={}, 가격유형={}", 
-        userId, accountId, symbol, quantity, tradeDate, priceType);
-
-    // 가격 유형에 따른 거래 가격 결정
-    BigDecimal tradePrice = determineTradePrice(symbol, tradeDate, priceType, manualPrice);
-    
-    log.info("매수 요청: 사용자={}, 계좌={}, 종목={}, 수량={}, 가격={}", 
-        userId, accountId, symbol, quantity, tradePrice);
-
-    // 계좌 정보 조회 (한 번만 조회하여 잔액 확인과 수수료 계산에 활용)
-    AccountBalanceDto accountBalance = getAccountBalance(accountId);
-    
-    BigDecimal tradeAmount = quantity.multiply(tradePrice);
-    BigDecimal fee = calculateFeeFromBalance(accountBalance, tradeAmount);
-    BigDecimal totalAmount = tradeAmount.add(fee);
-    
-    // 매수 가능 여부 확인
-    if (accountBalance.getBalanceUsd().compareTo(totalAmount) < 0) {
-      transactionLogger.logBalanceCheck(userId, accountId, totalAmount, accountBalance.getBalanceUsd(), false);
-      throw new NotEnoughBalanceException(totalAmount, accountBalance.getBalanceUsd());
-    }
-    
-    transactionLogger.logBalanceCheck(userId, accountId, totalAmount, accountBalance.getBalanceUsd(), true);
-    transactionLogger.logFeeCalculation(accountId, tradeAmount, accountBalance.getCommissionRate(), fee);
-
-    // 거래 기록 생성
-    Trade trade = Trade.builder()
-        .userId(userId)
-        .accountId(accountId)
-        .symbol(symbol)
-        .tradeType(TradeType.BUY)
-        .quantity(quantity)
-        .price(tradePrice)
-        .totalAmount(totalAmount)
-        .fee(fee)
-        .tradeDate(tradeDate)
-        .executedAt(LocalDateTime.now())
-        .build();
-
-    // 1단계: 외부 서비스 USD 차감 (먼저 실행)
-    boolean balanceUpdated = false;
-    try {
-      log.info("매수 USD 차감 요청: accountId={}, totalAmount={}", accountId, totalAmount);
-      userServiceClient.updateTradeBalance(
-          Long.valueOf(accountId), totalAmount, "BUY", 
-          "Stock purchase: " + symbol + " x " + quantity);
-      balanceUpdated = true;
-      log.info("매수 USD 차감 성공: accountId={}, amount={}", accountId, totalAmount);
-    } catch (Exception e) {
-      log.error("매수 USD 차감 중 오류: accountId={}, amount={}", accountId, totalAmount, e);
-      throw new RuntimeException("매수 USD 차감 실패", e);
-    }
-
-    // 2단계: DB 트랜잭션으로 거래 기록 및 Holdings 업데이트 (보상 트랜잭션 패턴 적용)
-    Trade savedTrade;
-    try {
-      savedTrade = executeTradeDbTransaction(userId, accountId, symbol, quantity, tradePrice, totalAmount, fee, tradeDate);
-    } catch (Exception e) {
-      // DB 실패 시 보상 트랜잭션: USD 복구
-      if (balanceUpdated) {
-        try {
-          log.warn("DB 저장 실패로 인한 USD 보상 트랜잭션 실행: accountId={}, amount={}", accountId, totalAmount);
-          userServiceClient.updateTradeBalance(
-              Long.valueOf(accountId), totalAmount.negate(), "COMPENSATION", 
-              "Failed trade compensation: " + symbol + " x " + quantity);
-          log.info("USD 보상 트랜잭션 완료");
-        } catch (Exception compensationError) {
-          log.error("보상 트랜잭션 실패! 수동 개입 필요: accountId={}, amount={}", accountId, totalAmount, compensationError);
-        }
-      }
-      throw new RuntimeException("매수 거래 실행 실패", e);
-    }
-    
-    // 거래 로그 기록 (성공 시에만)
-    transactionLogger.logTrade(savedTrade.getTradeId(), userId, accountId, symbol,
-        TradeType.BUY, quantity, tradePrice, fee, totalAmount, tradeDate);
-
-    log.info("매수 완료: 거래ID={}, 총금액={}", savedTrade.getTradeId(), totalAmount);
-    return TradeResponseDto.from(savedTrade);
+    return executeTrade(userId, accountId, symbol, quantity, tradeDate, priceType, manualPrice, TradeType.BUY);
   }
 
   @Override
-  public TradeResponseDto sellStock(String userId, String accountId, String symbol,
+  public TradeResponseDto sellStock(String userId, Long accountId, String symbol,
                         BigDecimal quantity, LocalDate tradeDate, PriceType priceType, BigDecimal manualPrice) {
+    return executeTrade(userId, accountId, symbol, quantity, tradeDate, priceType, manualPrice, TradeType.SELL);
+  }
+
+  /**
+   * 공통 거래 실행 메서드 (Template Method Pattern)
+   */
+  private TradeResponseDto executeTrade(String userId, Long accountId, String symbol,
+                                       BigDecimal quantity, LocalDate tradeDate, PriceType priceType, 
+                                       BigDecimal manualPrice, TradeType tradeType) {
     
-    log.info("매도 요청: 사용자={}, 계좌={}, 종목={}, 수량={}, 거래일={}, 가격유형={}", 
-        userId, accountId, symbol, quantity, tradeDate, priceType);
+    log.info("{} 요청: 사용자={}, 계좌={}, 종목={}, 수량={}, 거래일={}, 가격유형={}", 
+        tradeType.name(), userId, accountId, symbol, quantity, tradeDate, priceType);
 
-    // 매도 가능 여부 확인 (보유량 + 거래일자 검증)
-    validateSellEligibility(userId, accountId, symbol, quantity, tradeDate);
+    // 1. 거래 전 검증 (매수/매도별 다른 로직)
+    performPreTradeValidation(userId, String.valueOf(accountId), symbol, quantity, tradeDate, tradeType);
 
-    // 가격 유형에 따른 거래 가격 결정
-    BigDecimal tradePrice = determineTradePrice(symbol, tradeDate, priceType, manualPrice);
+    // 2. 가격 결정
+    BigDecimal tradePrice = marketDataService.determineTradePrice(symbol, tradeDate, priceType, manualPrice);
+    log.info("{} 요청: 사용자={}, 계좌={}, 종목={}, 수량={}, 가격={}", 
+        tradeType.name(), userId, accountId, symbol, quantity, tradePrice);
+
+    // 3. 수수료 계산 (매수/매도별 다른 계산)
+    AccountBalanceDto accountBalance = tradeUtils.getAccountBalance(String.valueOf(accountId));
+    BigDecimal[] amounts = calculateTradeAmounts(userId, String.valueOf(accountId), quantity, tradePrice, accountBalance, tradeType);
+    BigDecimal tradeAmount = amounts[0];
+    BigDecimal fee = amounts[1];
+    BigDecimal totalAmount = amounts[2];
+
+    // 4. 거래 실행 (2단계 트랜잭션)
+    Trade savedTrade = executeTradeTransaction(userId, String.valueOf(accountId), symbol, quantity, 
+                                             tradePrice, totalAmount, fee, tradeDate, tradeType);
     
-    log.info("매도 요청: 사용자={}, 계좌={}, 종목={}, 수량={}, 가격={}", 
-        userId, accountId, symbol, quantity, tradePrice);
+    // 5. 거래 로그 기록
+    tradeLogger.logTrade(savedTrade.getTradeId(), userId, String.valueOf(accountId), symbol,
+        tradeType, quantity, tradePrice, fee, totalAmount, tradeDate);
 
-    // 계좌 정보 조회 및 수수료 계산
-    AccountBalanceDto accountBalance = getAccountBalance(accountId);
-    BigDecimal tradeAmount = quantity.multiply(tradePrice);
-    BigDecimal fee = calculateFeeFromBalance(accountBalance, tradeAmount);
-    BigDecimal totalAmount = tradeAmount.subtract(fee);
+    log.info("{} 완료: 거래ID={}, 금액={}", tradeType.name(), savedTrade.getTradeId(), totalAmount);
+    return TradeResponseDto.from(savedTrade);
+  }
 
-    // 1단계: 외부 서비스 USD 수익 추가 (먼저 실행)
+  /**
+   * 거래 전 검증 수행 (매수/매도별 다른 로직)
+   */
+  private void performPreTradeValidation(String userId, String accountId, String symbol,
+                                        BigDecimal quantity, LocalDate tradeDate, TradeType tradeType) {
+    if (tradeType == TradeType.SELL) {
+      validateSellEligibility(userId, accountId, symbol, quantity, tradeDate);
+    }
+  }
+
+  /**
+   * 거래 금액 계산 (매수/매도별 다른 계산)
+   */
+  private BigDecimal[] calculateTradeAmounts(String userId, String accountId, BigDecimal quantity, 
+                                           BigDecimal tradePrice, AccountBalanceDto accountBalance, TradeType tradeType) {
+    // MoneyUtils를 사용한 정확한 금융 계산
+    BigDecimal tradeAmount = MoneyUtils.multiply(quantity, tradePrice);
+    tradeAmount = MoneyUtils.roundUsd(tradeAmount); // USD 거래 금액 정규화
+    
+    BigDecimal fee = tradeUtils.calculateFee(accountBalance, tradeAmount);
+    fee = MoneyUtils.roundUsd(fee); // 수수료도 USD 단위로 정규화
+    
+    BigDecimal totalAmount;
+    
+    if (tradeType == TradeType.BUY) {
+      totalAmount = MoneyUtils.add(tradeAmount, fee); // 매수: 수수료 추가
+      tradeUtils.validateBuyBalance(userId, accountId, totalAmount, accountBalance);
+    } else {
+      totalAmount = MoneyUtils.subtract(tradeAmount, fee); // 매도: 수수료 차감
+    }
+    
+    totalAmount = MoneyUtils.roundUsd(totalAmount); // 최종 금액 정규화
+    
+    tradeLogger.logFeeCalculation(accountId, tradeAmount, 
+                                accountBalance.getCommissionRate(), fee);
+    
+    return new BigDecimal[]{tradeAmount, fee, totalAmount};
+  }
+
+  /**
+   * 2단계 거래 트랜잭션 실행 (외부 서비스 + DB 트랜잭션)
+   */
+  private Trade executeTradeTransaction(String userId, String accountId, String symbol,
+                                       BigDecimal quantity, BigDecimal tradePrice, BigDecimal totalAmount,
+                                       BigDecimal fee, LocalDate tradeDate, TradeType tradeType) {
+    // 1단계: 외부 서비스 잔액 변경
     boolean balanceUpdated = false;
     try {
-      log.info("매도 USD 수익 추가 요청: accountId={}, totalAmount={}", accountId, totalAmount);
-      userServiceClient.updateTradeBalance(
-          Long.valueOf(accountId), totalAmount, "SELL", 
-          "Stock sale: " + symbol + " x " + quantity);
+      log.info("[트랜잭션 1단계] 외부 서비스 잔액 변경 시작: accountId={}, amount={}, type={}", 
+               accountId, totalAmount, tradeType);
+      tradeUtils.executeBalanceUpdate(accountId, totalAmount, tradeType.name(), symbol, quantity);
       balanceUpdated = true;
-      log.info("매도 USD 수익 추가 성공: accountId={}, amount={}", accountId, totalAmount);
+      log.info("[트랜잭션 1단계] 외부 서비스 잔액 변경 완료");
     } catch (Exception e) {
-      log.error("매도 USD 수익 추가 중 오류: accountId={}, amount={}", accountId, totalAmount, e);
-      throw new RuntimeException("매도 USD 수익 추가 실패", e);
+      log.error("[트랜잭션 1단계] 외부 서비스 잔액 변경 실패: {}", e.getMessage());
+      throw new TradeException(TradeResponse.USER_SERVICE_ERROR);
     }
 
-    // 2단계: DB 트랜잭션으로 거래 기록 및 Holdings 업데이트 (보상 트랜잭션 패턴 적용)
-    Trade savedTrade;
+    // 2단계: DB 트랜잭션으로 거래 기록 및 Holdings 업데이트
     try {
-      savedTrade = executeSellDbTransaction(userId, accountId, symbol, quantity, tradePrice, totalAmount, fee, tradeDate);
+      log.info("[트랜잭션 2단계] DB 트랜잭션 시작");
+      Trade result = executeTradeDbTransaction(userId, accountId, symbol, quantity, tradePrice, 
+                                              totalAmount, fee, tradeDate, tradeType);
+      log.info("[트랜잭션 2단계] DB 트랜잭션 완료: tradeId={}", result.getTradeId());
+      return result;
     } catch (Exception e) {
-      // DB 실패 시 보상 트랜잭션: USD 차감
+      log.error("[트랜잭션 2단계] DB 트랜잭션 실패: {}", e.getMessage());
+      
+      // DB 실패 시 보상 트랜잭션 실행
       if (balanceUpdated) {
         try {
-          log.warn("DB 저장 실패로 인한 USD 보상 트랜잭션 실행: accountId={}, amount={}", accountId, totalAmount);
-          userServiceClient.updateTradeBalance(
-              Long.valueOf(accountId), totalAmount.negate(), "COMPENSATION", 
-              "Failed sell compensation: " + symbol + " x " + quantity);
-          log.info("USD 보상 트랜잭션 완료");
-        } catch (Exception compensationError) {
-          log.error(" 보상 트랜잭션 실패! 수동 개입 필요: accountId={}, amount={}", accountId, totalAmount, compensationError);
+          log.warn("[보상 트랜잭션] 시작: 외부 서비스 잔액 롤백");
+          tradeUtils.executeCompensationTransaction(accountId, totalAmount, tradeType.name(), symbol, quantity);
+          log.info("[보상 트랜잭션] 완료: 외부 서비스 잔액 롤백 성공");
+        } catch (Exception compensationException) {
+          log.error("[보상 트랜잭션] 실패: {}. 수동 개입 필요!", compensationException.getMessage());
+          // 보상 트랜잭션도 실패한 경우 알림이나 수동 처리 필요
+          throw new TradeException(TradeResponse.COMPENSATION_TRANSACTION_FAILED);
         }
       }
-      throw new RuntimeException("매도 거래 실행 실패", e);
+      
+      String errorMessage = tradeType == TradeType.BUY ? 
+          "매수 거래 실패" : "매도 거래 실패";
+      throw new TradeException(TradeResponse.TRANSACTION_FAILED);
     }
-    
-    // 거래 로그 기록 (성공 시에만)
-    transactionLogger.logTrade(savedTrade.getTradeId(), userId, accountId, symbol,
-        TradeType.SELL, quantity, tradePrice, fee, totalAmount, tradeDate);
-
-    log.info("매도 완료: 거래ID={}, 순수령액={}", savedTrade.getTradeId(), totalAmount);
-    return TradeResponseDto.from(savedTrade);
   }
 
   @Override
@@ -219,7 +214,10 @@ public class TradingServiceImpl implements TradingService {
   @Override
   @Transactional(readOnly = true)
   public List<TradeResponseDto> getTradesByDateRange(String userId, LocalDate startDate, LocalDate endDate) {
-    List<Trade> trades = tradeRepository.findTradesByDateRange(userId, startDate, endDate);
+    // QueryDSL을 사용한 복잡한 날짜 범위 쿼리
+    List<Trade> trades = tradeQueryRepository.findTradesWithComplexFilters(
+        userId, null, null, null, startDate, endDate, null, null, 
+        PageRequest.of(0, TradeConstants.MAX_PAGE_SIZE)).getContent();
     return trades.stream()
         .map(TradeResponseDto::from)
         .collect(Collectors.toList());
@@ -227,11 +225,11 @@ public class TradingServiceImpl implements TradingService {
 
   @Override
   @Transactional(readOnly = true)
-  public boolean canBuyStock(String userId, String accountId, BigDecimal totalAmount) {
+  public boolean canBuyStock(String userId, Long accountId, BigDecimal totalAmount) {
     try {
       var response = userServiceClient.getAccountBalance(accountId);
-      if (response.getData() != null) {
-        AccountBalanceDto balance = response.getData();
+      if (response != null) {
+        AccountBalanceDto balance = response;
         BigDecimal availableUsd = balance.getBalanceUsd();
         
         log.debug("매수 가능 여부 확인: 사용자={}, 필요금액={}, 보유USD={}", 
@@ -250,9 +248,9 @@ public class TradingServiceImpl implements TradingService {
 
   @Override
   @Transactional(readOnly = true)
-  public boolean canSellStock(String userId, String accountId, String symbol, BigDecimal quantity) {
+  public boolean canSellStock(String userId, Long accountId, String symbol, BigDecimal quantity) {
     Optional<Holdings> holdings = holdingsRepository
-        .findByUserIdAndAccountIdAndSymbol(userId, accountId, symbol);
+        .findByUserIdAndAccountIdAndSymbol(userId, Long.valueOf(accountId), symbol);
     
     if (holdings.isEmpty()) {
       return false;
@@ -269,18 +267,18 @@ public class TradingServiceImpl implements TradingService {
   // ========== 내부 메서드들 ==========
 
   /**
-   * DB 트랜잭션으로 거래 기록 및 Holdings 업데이트 실행
+   * DB 트랜잭션으로 거래 기록 및 Holdings 업데이트 실행 (매수/매도 공통)
    */
   @Transactional(rollbackFor = Exception.class)
   protected Trade executeTradeDbTransaction(String userId, String accountId, String symbol, 
                                         BigDecimal quantity, BigDecimal tradePrice, BigDecimal totalAmount, 
-                                        BigDecimal fee, LocalDate tradeDate) {
+                                        BigDecimal fee, LocalDate tradeDate, TradeType tradeType) {
     // 거래 기록 생성 및 저장
     Trade trade = Trade.builder()
         .userId(userId)
-        .accountId(accountId)
+        .accountId(Long.valueOf(accountId))
         .symbol(symbol)
-        .tradeType(TradeType.BUY)
+        .tradeType(tradeType)
         .quantity(quantity)
         .price(tradePrice)
         .totalAmount(totalAmount)
@@ -292,123 +290,11 @@ public class TradingServiceImpl implements TradingService {
     Trade savedTrade = tradeRepository.save(trade);
 
     // Holdings 업데이트 (동일 트랜잭션 내에서)
-    updateHoldings(userId, accountId, symbol, quantity, tradePrice, totalAmount, TradeType.BUY);
+    updateHoldings(userId, accountId, symbol, quantity, tradePrice, totalAmount, tradeType);
 
     return savedTrade;
   }
 
-  /**
-   * DB 트랜잭션으로 매도 거래 기록 및 Holdings 업데이트 실행
-   */
-  @Transactional(rollbackFor = Exception.class)
-  protected Trade executeSellDbTransaction(String userId, String accountId, String symbol, 
-                                       BigDecimal quantity, BigDecimal tradePrice, BigDecimal totalAmount, 
-                                       BigDecimal fee, LocalDate tradeDate) {
-    // 거래 기록 생성 및 저장
-    Trade trade = Trade.builder()
-        .userId(userId)
-        .accountId(accountId)
-        .symbol(symbol)
-        .tradeType(TradeType.SELL)
-        .quantity(quantity)
-        .price(tradePrice)
-        .totalAmount(totalAmount)
-        .fee(fee)
-        .tradeDate(tradeDate)
-        .executedAt(LocalDateTime.now())
-        .build();
-
-    Trade savedTrade = tradeRepository.save(trade);
-
-    // Holdings 업데이트 (동일 트랜잭션 내에서)
-    updateHoldings(userId, accountId, symbol, quantity, tradePrice, totalAmount, TradeType.SELL);
-
-    return savedTrade;
-  }
-
-  // 가격 유형에 따른 거래 가격 결정
-  private BigDecimal determineTradePrice(String symbol, LocalDate tradeDate, PriceType priceType, BigDecimal manualPrice) {
-    if (priceType == PriceType.MANUAL) {
-      // 직접입력인 경우 가격 범위 검증
-      return validateManualPrice(symbol, tradeDate, manualPrice);
-    } else {
-      // OHLC 가격 조회
-      return getOHLCPrice(symbol, tradeDate, priceType);
-    }
-  }
-
-  // OHLC 가격 조회
-  private BigDecimal getOHLCPrice(String symbol, LocalDate tradeDate, PriceType priceType) {
-    try {
-      var response = marketServiceClient.getOHLCPrice(symbol, tradeDate.toString());
-      log.info("Market data raw response: {}", response);
-      
-      String statusCode = (String) response.get("statusCode");
-      if ("200".equals(statusCode)) {
-        @SuppressWarnings("unchecked")
-        Map<String, Object> data = (Map<String, Object>) response.get("data");
-        
-        BigDecimal price = switch (priceType) {
-          case OPEN -> new BigDecimal(data.get("openPrice").toString());
-          case HIGH -> new BigDecimal(data.get("highPrice").toString());
-          case LOW -> new BigDecimal(data.get("lowPrice").toString());
-          case CLOSE -> new BigDecimal(data.get("closePrice").toString());
-          default -> throw new IllegalArgumentException("Unsupported price type: " + priceType);
-        };
-        
-        transactionLogger.logMarketDataRequest(symbol, priceType.getCode(), true, null);
-        log.info("시장 가격 조회 성공: symbol={}, date={}, priceType={}, price={}", 
-            symbol, tradeDate, priceType, price);
-        return price;
-      } else {
-        String errorMsg = (String) response.get("statusMsg");
-        transactionLogger.logMarketDataRequest(symbol, priceType.getCode(), false, errorMsg);
-        throw new MarketDataException(symbol, errorMsg);
-      }
-    } catch (Exception e) {
-      transactionLogger.logMarketDataRequest(symbol, priceType.getCode(), false, e.getMessage());
-      log.error("시장 가격 조회 실패: symbol={}, date={}, priceType={}, error={}", 
-          symbol, tradeDate, priceType, e.getMessage());
-      throw new MarketDataException(symbol, "시장 가격 조회 실패: " + e.getMessage());
-    }
-  }
-
-  // 직접입력 가격 검증
-  private BigDecimal validateManualPrice(String symbol, LocalDate tradeDate, BigDecimal manualPrice) {
-    try {
-      var response = marketServiceClient.getOHLCPrice(symbol, tradeDate.toString());
-      String statusCode = (String) response.get("statusCode");
-      
-      if ("200".equals(statusCode)) {
-        @SuppressWarnings("unchecked")
-        Map<String, Object> data = (Map<String, Object>) response.get("data");
-        
-        BigDecimal lowPrice = new BigDecimal(data.get("lowPrice").toString());
-        BigDecimal highPrice = new BigDecimal(data.get("highPrice").toString());
-        
-        if (manualPrice.compareTo(lowPrice) < 0 || manualPrice.compareTo(highPrice) > 0) {
-          String errorMsg = String.format("입력 가격이 범위를 벗어남: 입력=%s, 범위=%s~%s", 
-              manualPrice, lowPrice, highPrice);
-          transactionLogger.logMarketDataRequest(symbol, "MANUAL_VALIDATION", false, errorMsg);
-          throw new MarketDataException(symbol, errorMsg);
-        }
-        
-        transactionLogger.logMarketDataRequest(symbol, "MANUAL_VALIDATION", true, null);
-        log.info("직접입력 가격 검증 성공: symbol={}, date={}, price={}, 범위={}~{}", 
-            symbol, tradeDate, manualPrice, lowPrice, highPrice);
-        return manualPrice;
-      } else {
-        String errorMsg = (String) response.get("statusMsg");
-        transactionLogger.logMarketDataRequest(symbol, "MANUAL_VALIDATION", false, errorMsg);
-        throw new MarketDataException(symbol, "가격 범위 검증 실패: " + errorMsg);
-      }
-    } catch (Exception e) {
-      transactionLogger.logMarketDataRequest(symbol, "MANUAL_VALIDATION", false, e.getMessage());
-      log.error("직접입력 가격 검증 실패: symbol={}, date={}, price={}, error={}", 
-          symbol, tradeDate, manualPrice, e.getMessage());
-      throw new MarketDataException(symbol, "가격 검증 실패: " + e.getMessage());
-    }
-  }
 
   // 거래에 따른 보유 현황 업데이트 (비관적 Lock 사용)
   private void updateHoldings(String userId, String accountId, String symbol,
@@ -416,7 +302,7 @@ public class TradingServiceImpl implements TradingService {
     
     // 비관적 Lock으로 동시성 문제 해결
     Optional<Holdings> existingHoldings = holdingsRepository
-        .findByUserIdAndAccountIdAndSymbolWithLock(userId, accountId, symbol);
+        .findByUserIdAndAccountIdAndSymbolWithLock(userId, Long.valueOf(accountId), symbol);
 
     if (tradeType == TradeType.BUY) {
       if (existingHoldings.isPresent()) {
@@ -437,7 +323,7 @@ public class TradingServiceImpl implements TradingService {
         holdings.setTotalInvestedAmount(holdings.getTotalInvestedAmount().add(totalAmount));
         
         // 보유량 변경 로그
-        transactionLogger.logHoldingsUpdate(userId, accountId, symbol, 
+        tradeLogger.logHoldingsUpdate(userId, accountId, symbol, 
             oldQuantity, newTotalQuantity, oldAvgPrice, newAvgPrice);
         
         log.debug("기존 보유종목 업데이트: 종목={}, 신규평균가={}, 총보유량={}", 
@@ -447,18 +333,17 @@ public class TradingServiceImpl implements TradingService {
         // 신규 보유 종목 생성
         Holdings newHoldings = Holdings.builder()
             .userId(userId)
-            .accountId(accountId)
+            .accountId(Long.valueOf(accountId))
             .symbol(symbol)
             .totalQuantity(quantity)
             .avgPurchasePrice(price)
             .totalInvestedAmount(totalAmount)
-            .lastDividendCalculated(LocalDate.now())
             .build();
         
         holdingsRepository.save(newHoldings);
         
         // 신규 보유량 로그
-        transactionLogger.logHoldingsUpdate(userId, accountId, symbol, 
+        tradeLogger.logHoldingsUpdate(userId, accountId, symbol, 
             BigDecimal.ZERO, quantity, BigDecimal.ZERO, price);
         
         log.debug("신규 보유종목 생성: 종목={}, 매수가={}, 수량={}", symbol, price, quantity);
@@ -467,7 +352,7 @@ public class TradingServiceImpl implements TradingService {
     } else if (tradeType == TradeType.SELL) {
       if (existingHoldings.isEmpty()) {
         log.error("매도 시 보유종목 없음: userId={}, symbol={}", userId, symbol);
-        throw new NotEnoughHoldingsException(symbol, quantity, BigDecimal.ZERO);
+        throw new TradeException(TradeResponse.INSUFFICIENT_HOLDINGS);
       }
       
       Holdings holdings = existingHoldings.get();
@@ -475,7 +360,7 @@ public class TradingServiceImpl implements TradingService {
       BigDecimal oldAvgPrice = holdings.getAvgPurchasePrice();
       
       if (holdings.getTotalQuantity().compareTo(quantity) < 0) {
-        throw new NotEnoughHoldingsException(symbol, quantity, holdings.getTotalQuantity());
+        throw new TradeException(TradeResponse.INSUFFICIENT_HOLDINGS);
       }
       
       BigDecimal newQuantity = holdings.getTotalQuantity().subtract(quantity);
@@ -483,18 +368,18 @@ public class TradingServiceImpl implements TradingService {
       if (newQuantity.compareTo(BigDecimal.ZERO) == 0) {
         // 전량 매도 시 보유종목 삭제
         holdingsRepository.delete(holdings);
-        transactionLogger.logHoldingsUpdate(userId, accountId, symbol, 
+        tradeLogger.logHoldingsUpdate(userId, accountId, symbol, 
             oldQuantity, BigDecimal.ZERO, oldAvgPrice, BigDecimal.ZERO);
         log.debug("전량 매도로 보유종목 삭제: 종목={}", symbol);
       } else {
         // 부분 매도 시 수량만 업데이트 (평균단가는 유지)
-        BigDecimal sellRatio = quantity.divide(holdings.getTotalQuantity(), 6, RoundingMode.HALF_UP);
+        BigDecimal sellRatio = quantity.divide(holdings.getTotalQuantity(), TradeConstants.SELL_RATIO_PRECISION, RoundingMode.HALF_UP);
         BigDecimal soldAmount = holdings.getTotalInvestedAmount().multiply(sellRatio);
         
         holdings.setTotalQuantity(newQuantity);
         holdings.setTotalInvestedAmount(holdings.getTotalInvestedAmount().subtract(soldAmount));
         
-        transactionLogger.logHoldingsUpdate(userId, accountId, symbol, 
+        tradeLogger.logHoldingsUpdate(userId, accountId, symbol, 
             oldQuantity, newQuantity, oldAvgPrice, holdings.getAvgPurchasePrice());
         
         log.debug("부분 매도로 수량 업데이트: 종목={}, 잔여수량={}", symbol, newQuantity);
@@ -502,57 +387,24 @@ public class TradingServiceImpl implements TradingService {
     }
   }
 
-  // 계좌 정보 조회
-  private AccountBalanceDto getAccountBalance(String accountId) {
-    try {
-      var response = userServiceClient.getAccountBalance(accountId);
-      if (response.getData() != null) {
-        return response.getData();
-      }
-      throw new AccountNotFoundException(accountId);
-    } catch (Exception e) {
-      log.error("계좌 정보 조회 중 오류 발생: accountId={}", accountId, e);
-      throw new AccountNotFoundException(accountId);
-    }
-  }
-
-  // 계좌별 수수료율로 수수료 계산
-  private BigDecimal calculateFeeFromBalance(AccountBalanceDto balance, BigDecimal tradeAmount) {
-    BigDecimal commissionRate = balance.getCommissionRate();
-    
-    if (commissionRate != null && commissionRate.compareTo(BigDecimal.ZERO) > 0) {
-      BigDecimal fee = tradeAmount.multiply(commissionRate)
-          .setScale(tradeProperties.getCalculation().getPricePrecision(), RoundingMode.HALF_UP);
-      
-      log.debug("수수료 계산: 거래금액={}, 수수료율={}%, 수수료={}", 
-          tradeAmount, commissionRate.multiply(new BigDecimal("100")), fee);
-      return fee;
-    }
-    
-    // 기본 수수료율 사용 (계좌 설정에서 가져옴)
-    log.debug("기본 수수료율 사용: 거래금액={}, 기본수수료율={}%", 
-        tradeAmount, tradeProperties.getFee().getDefaultRate().multiply(new BigDecimal("100")));
-    return tradeAmount.multiply(tradeProperties.getFee().getDefaultRate())
-        .setScale(tradeProperties.getCalculation().getPricePrecision(), RoundingMode.HALF_UP);
-  }
 
   // 매도 가능 여부 검증 (FIFO 방식 - 매도일 이전 매수 물량만 매도 가능)
   private void validateSellEligibility(String userId, String accountId, String symbol, 
                                      BigDecimal quantity, LocalDate sellDate) {
     // 1. 기본 보유량 확인
     Optional<Holdings> holdings = holdingsRepository
-        .findByUserIdAndAccountIdAndSymbol(userId, accountId, symbol);
+        .findByUserIdAndAccountIdAndSymbol(userId, Long.valueOf(accountId), symbol);
     
     if (holdings.isEmpty()) {
       log.error("매도 불가: 보유종목 없음 - userId={}, symbol={}", userId, symbol);
-      throw new NotEnoughHoldingsException(symbol, quantity, BigDecimal.ZERO);
+      throw new NotEnoughHoldingsException();
     }
     
     Holdings holding = holdings.get();
     if (holding.getTotalQuantity().compareTo(quantity) < 0) {
       log.error("매도 불가: 수량 부족 - userId={}, symbol={}, 보유={}, 매도시도={}", 
           userId, symbol, holding.getTotalQuantity(), quantity);
-      throw new NotEnoughHoldingsException(symbol, quantity, holding.getTotalQuantity());
+      throw new NotEnoughHoldingsException();
     }
 
     // 2. FIFO 방식으로 매도 가능 수량 계산
@@ -561,35 +413,22 @@ public class TradingServiceImpl implements TradingService {
     if (sellableQuantity.compareTo(quantity) < 0) {
       log.error("매도 불가: 시간여행 거래 - userId={}, symbol={}, 매도일={}, 매도가능량={}, 매도시도량={}", 
           userId, symbol, sellDate, sellableQuantity, quantity);
-      throw new TradeException(BaseResponseEnum.INSUFFICIENT_SELLABLE_QUANTITY, String.format(
-          "매도일(%s) 이전에 매수한 물량이 부족합니다. 매도 가능: %s, 시도: %s", 
-          sellDate, sellableQuantity, quantity));
+      throw new TradeException(TradeResponse.INSUFFICIENT_SELLABLE_QUANTITY);
     }
 
     log.debug("매도 가능 확인 완료: userId={}, symbol={}, 매도일={}, 매도가능량={}, 매도량={}", 
         userId, symbol, sellDate, sellableQuantity, quantity);
   }
 
-  // FIFO 방식으로 매도 가능 수량 계산 (매도일 이전 매수 물량만)
+  // FIFO 방식으로 매도 가능 수량 계산 (DB 집계 쿼리 사용)
   private BigDecimal calculateSellableQuantity(String userId, String accountId, String symbol, LocalDate sellDate) {
-    // 매도일 이전의 모든 거래 내역 조회 (매수는 +, 매도는 -)
-    List<Trade> trades = tradeRepository.findTradesByUserAccountSymbolBeforeDate(
+    // DB 레벨에서 집계하여 성능 최적화
+    BigDecimal sellableQuantity = tradeQueryRepository.calculateSellableQuantity(
         userId, accountId, symbol, sellDate);
     
-    BigDecimal cumulativeQuantity = BigDecimal.ZERO;
-    
-    for (Trade trade : trades) {
-      if (trade.getTradeType() == TradeType.BUY) {
-        cumulativeQuantity = cumulativeQuantity.add(trade.getQuantity());
-        log.trace("매수 누적: 일자={}, 수량={}, 누적={}", trade.getTradeDate(), trade.getQuantity(), cumulativeQuantity);
-      } else if (trade.getTradeType() == TradeType.SELL) {
-        cumulativeQuantity = cumulativeQuantity.subtract(trade.getQuantity());
-        log.trace("매도 차감: 일자={}, 수량={}, 누적={}", trade.getTradeDate(), trade.getQuantity(), cumulativeQuantity);
-      }
-    }
-    
-    log.debug("매도 가능 수량 계산 완료: symbol={}, 매도일={}, 가능수량={}", symbol, sellDate, cumulativeQuantity);
-    return cumulativeQuantity.max(BigDecimal.ZERO); // 음수가 되면 0으로 처리
+    log.debug("매도 가능 수량 계산 완료 (DB 집계): symbol={}, 매도일={}, 가능수량={}", 
+        symbol, sellDate, sellableQuantity);
+    return sellableQuantity;
   }
 
 }

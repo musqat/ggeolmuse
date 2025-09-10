@@ -2,11 +2,12 @@ package com.muscat.backtest.domain.strategy;
 
 import com.muscat.backtest.common.calculation.StrategyCalculationResult;
 import com.muscat.backtest.common.calculation.StrategyCalculator;
-import com.muscat.backtest.common.enums.BacktestResponseCode;
-import com.muscat.backtest.common.enums.StrategyType;
+import com.muscat.backtest.common.enums.BacktestResponse;
+import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.logging.BacktestLogger;
 import com.muscat.backtest.common.util.BacktestCalculationUtils;
+import com.muscat.commonlib.util.MoneyUtils;
 import com.muscat.backtest.common.util.BacktestDataUtils;
 import com.muscat.backtest.domain.dto.request.StrategyRequest;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
@@ -63,7 +64,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
           request, actualEndDate, maxPurchases);
 
       if (transactions.isEmpty()) {
-        throw new BacktestException(BacktestResponseCode.DATA_NOT_FOUND,
+        throw new BacktestException(BacktestResponse.DATA_NOT_FOUND,
             "조건부 매수 전략 실행 가능한 데이터가 없습니다");
       }
 
@@ -100,10 +101,10 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
   private void validateConditionalPurchaseRequest(StrategyRequest request) {
     if (request.getTotalInvestment() == null
         || request.getTotalInvestment().compareTo(BigDecimal.ZERO) <= 0) {
-      throw new BacktestException(BacktestResponseCode.STRATEGY_TOTAL_INVESTMENT_REQUIRED);
+      throw new BacktestException(BacktestResponse.STRATEGY_TOTAL_INVESTMENT_REQUIRED);
     }
     if (request.getDropPercentage() == null) {
-      throw new BacktestException(BacktestResponseCode.STRATEGY_DROP_PERCENTAGE_REQUIRED);
+      throw new BacktestException(BacktestResponse.STRATEGY_DROP_PERCENTAGE_REQUIRED);
     }
   }
 
@@ -135,8 +136,8 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
             shouldBuy = true;
             trigger = "초기매수";
           } else {
-            BigDecimal dropPercent = BacktestCalculationUtils.calculatePercentageReturn(
-                lastPrice.subtract(currentPriceValue), lastPrice);
+            BigDecimal dropPercent = MoneyUtils.calculateReturnRate(
+                currentPriceValue, lastPrice).abs();
 
             if (dropPercent.compareTo(request.getDropPercentage()) >= 0) {
               shouldBuy = true;

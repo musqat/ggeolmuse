@@ -1,6 +1,6 @@
 package com.muscat.backtest.domain.model;
 
-import com.muscat.backtest.common.enums.StrategyType;
+import com.muscat.backtest.common.enums.type.StrategyType;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import lombok.Data;

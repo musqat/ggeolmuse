@@ -52,5 +52,17 @@ public class BacktestLogger {
   public static void remove(String key) {
     MDC.remove(key);
   }
+  
+  // 로깅 패턴 통일을 위한 유틸리티 메서드들
+  public static void logRequest(String operation, String symbol, String details) {
+    log.info("{} 요청: {} - {}", operation, symbol, details);
+  }
+  
+  public static void logCompletion(String operation, String symbol, String result) {
+    log.info("{} 완료: {} - {}", operation, symbol, result);
+  }
+  
+  // slf4j Logger를 위한 정적 로거
+  private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(BacktestLogger.class);
 
 }

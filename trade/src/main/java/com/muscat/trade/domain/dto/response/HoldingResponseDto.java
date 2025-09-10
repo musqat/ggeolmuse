@@ -1,10 +1,12 @@
 package com.muscat.trade.domain.dto.response;
 
+import com.muscat.trade.common.constants.TradeConstants;
 import com.muscat.trade.domain.entity.Holdings;
 import lombok.Builder;
 import lombok.Getter;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -18,8 +20,6 @@ public class HoldingResponseDto {
   private BigDecimal totalQuantity; // 보유 수량
   private BigDecimal avgPurchasePrice; // 평균 매수가
   private BigDecimal totalInvestedAmount; // 총 투자금액
-  private BigDecimal totalDividends; // 누적 배당금
-  private LocalDate lastDividendCalculated; // 마지막 배당 계산일
   private LocalDateTime createdAt; // 생성일시
   
   // 추가 계산 필드들 (현재가 정보가 있을 때)
@@ -32,13 +32,11 @@ public class HoldingResponseDto {
   public static HoldingResponseDto from(Holdings holding) {
     return HoldingResponseDto.builder()
         .holdingId(holding.getHoldingId())
-        .accountId(holding.getAccountId())
+        .accountId(String.valueOf(holding.getAccountId()))
         .symbol(holding.getSymbol())
         .totalQuantity(holding.getTotalQuantity())
         .avgPurchasePrice(holding.getAvgPurchasePrice())
         .totalInvestedAmount(holding.getTotalInvestedAmount())
-        .totalDividends(holding.getTotalDividends())
-        .lastDividendCalculated(holding.getLastDividendCalculated())
         .createdAt(holding.getCreatedAt())
         .build();
   }
@@ -52,19 +50,17 @@ public class HoldingResponseDto {
     BigDecimal returnRate = BigDecimal.ZERO;
     if (holding.getAvgPurchasePrice().compareTo(BigDecimal.ZERO) > 0) {
       returnRate = currentPrice.subtract(holding.getAvgPurchasePrice())
-          .divide(holding.getAvgPurchasePrice(), 4, BigDecimal.ROUND_HALF_UP)
-          .multiply(new BigDecimal("100"));
+          .divide(holding.getAvgPurchasePrice(), 4, RoundingMode.HALF_UP)
+          .multiply(TradeConstants.PERCENTAGE_MULTIPLIER);
     }
 
     return HoldingResponseDto.builder()
         .holdingId(holding.getHoldingId())
-        .accountId(holding.getAccountId())
+        .accountId(String.valueOf(holding.getAccountId()))
         .symbol(holding.getSymbol())
         .totalQuantity(holding.getTotalQuantity())
         .avgPurchasePrice(holding.getAvgPurchasePrice())
         .totalInvestedAmount(holding.getTotalInvestedAmount())
-        .totalDividends(holding.getTotalDividends())
-        .lastDividendCalculated(holding.getLastDividendCalculated())
         .createdAt(holding.getCreatedAt())
         .currentPrice(currentPrice)
         .currentValue(currentValue)

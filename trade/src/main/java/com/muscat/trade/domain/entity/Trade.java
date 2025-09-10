@@ -8,6 +8,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -20,7 +21,12 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
 @Entity
-@Table(name = "trades")
+@Table(name = "trades", indexes = {
+    @Index(name = "idx_trades_user_symbol_date", columnList = "userId, symbol, tradeDate"),
+    @Index(name = "idx_trades_user_executed", columnList = "userId, executedAt"),
+    @Index(name = "idx_trades_user_account", columnList = "userId, accountId"),
+    @Index(name = "idx_trades_symbol_date", columnList = "symbol, tradeDate")
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -36,7 +42,7 @@ public class Trade {
   private String userId; // 사용자 ID (Keycloak UUID)
 
   @Column(nullable = false)
-  private String accountId; // 계좌 ID (수수료 정보 참조)
+  private Long accountId; // 계좌 ID (수수료 정보 참조)
 
   @Column(nullable = false, length = 10)
   private String symbol; // 주식 심볼 (AAPL, MSFT)

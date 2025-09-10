@@ -32,7 +32,7 @@ public class YahooDividendSource implements DividendSource {
 
         } catch (Exception e) {
             log.warn("Yahoo 배당 데이터 수집 실패: symbol={}, error={}", symbol, e.getMessage());
-            throw new RuntimeException("Yahoo 배당 데이터 수집 실패: " + symbol, e);
+            return List.of(); // 빈 리스트 반환
         }
     }
 }

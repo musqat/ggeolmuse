@@ -1,21 +1,34 @@
+server:
+  port: ${SERVER_PORT:8081}
+
 spring:
+  application:
+    name: trade-service
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
+  
+  # Database 설정
   datasource:
-    url: jdbc:h2:mem:tradedb
-    username: sa
-    password:
-    driver-class-name: org.h2.Driver
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
+    url: ${DB_URL:jdbc:h2:mem:tradedb}
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:}
+    driver-class-name: ${DB_DRIVER:org.h2.Driver}
+  
+  # JPA 설정
   jpa:
     hibernate:
-      ddl-auto: create-drop
-    show-sql: true
+      ddl-auto: ${DDL_AUTO:create-drop}
+    show-sql: ${SHOW_SQL:false}
     open-in-view: false
-
+    defer-datasource-initialization: true
+  
+  # H2 Console
+  h2:
+    console:
+      enabled: ${H2_CONSOLE_ENABLED:true}
+      path: /h2-console
+  
+  # Security 설정
   security:
     oauth2:
       resourceserver:
@@ -35,38 +48,59 @@ user-service:
 market-service:
   url: ${MARKET_SERVICE_URL:http://localhost:8083}
 
+backtest-service:
+  url: ${BACKTEST_SERVICE_URL:http://localhost:8082}
+
 feign:
   client:
     config:
       default:
-        connect-timeout: 5000
-        read-timeout: 10000
+        connect-timeout: ${FEIGN_CONNECT_TIMEOUT:5000}
+        read-timeout: ${FEIGN_READ_TIMEOUT:10000}
       user-service:
         connect-timeout: 5000
         read-timeout: 10000
       market-service:
         connect-timeout: 5000
         read-timeout: 15000
+      backtest-service:
+        connect-timeout: 10000
+        read-timeout: 30000
 
-# Trade Service 비즈니스 설정
 trade:
+  # Trading Fees 설정
   fee:
-    default-rate: 0.0025        # 기본 수수료율 (0.25%)
-    minimum-amount: 1.00        # 최소 수수료 금액 (USD)
+    default-rate: ${TRADE_FEE_RATE:0.0025}        # 기본 수수료율 (0.25%)
+    minimum-amount: ${TRADE_FEE_MIN:1.00}         # 최소 수수료 금액 (USD)
+    maximum-rate: ${TRADE_FEE_MAX:0.01}           # 최대 수수료율 (1%)
+  
+  # Calculation Precision
   calculation:
-    price-precision: 2          # 가격 소수점 자릿수
-    quantity-precision: 6       # 수량 소수점 자릿수
+    price-precision: ${PRICE_PRECISION:2}          # 가격 소수점 자릿수
+    quantity-precision: ${QUANTITY_PRECISION:6}    # 수량 소수점 자릿수
+    currency-precision: ${CURRENCY_PRECISION:2}    # 통화 소수점 자릿수
+  
+  # Trading Validation 설정
   validation:
-    max-price-deviation: 0.20   # 최대 가격 편차 (20%)
-    min-trade-amount: 1.00      # 최소 거래 금액 (USD)
+    max-price-deviation: ${MAX_PRICE_DEVIATION:0.20}   # 최대 가격 편차 (20%)
+    min-trade-amount: ${MIN_TRADE_AMOUNT:1.00}          # 최소 거래 금액 (USD)
+    max-trade-amount: ${MAX_TRADE_AMOUNT:1000000.00}    # 최대 거래 금액 (USD)
+    max-daily-trades: ${MAX_DAILY_TRADES:1000}          # 일일 최대 거래 횟수
+  
+  # Cache 설정
   cache:
-    market-data-ttl: 300        # 마켓 데이터 캐시 TTL (초)
+    market-data-ttl: ${CACHE_MARKET_DATA_TTL:300}       # 마켓 데이터 캐시 TTL (초)
+    portfolio-ttl: ${CACHE_PORTFOLIO_TTL:600}           # 포트폴리오 캐시 TTL (초)
+    balance-ttl: ${CACHE_BALANCE_TTL:300}               # 잔액 캐시 TTL (초)
+  
+  # FIFO Calculation 설정
+  fifo:
+    enabled: ${FIFO_ENABLED:true}                       # FIFO 계산 활성화
+    precision: ${FIFO_PRECISION:8}                      # FIFO 계산 정밀도
 
 logging:
   level:
-    com.muscat.trade: DEBUG
-    org.springframework.security: DEBUG
-    org.springframework.web: DEBUG
-
-server:
-  port: 8081
+    com.muscat.trade: ${LOG_LEVEL_TRADE:INFO}
+    org.springframework.security: ${LOG_LEVEL_SECURITY:WARN}
+    org.springframework.web: ${LOG_LEVEL_WEB:WARN}
+    feign: ${LOG_LEVEL_FEIGN:WARN}

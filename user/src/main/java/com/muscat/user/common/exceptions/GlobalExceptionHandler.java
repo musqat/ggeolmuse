@@ -1,15 +1,16 @@
 package com.muscat.user.common.exceptions;
 
-import com.muscat.user.common.dtos.ErrorResponseDto;
-import com.muscat.user.common.enums.type.ErrorType;
-import com.muscat.user.common.responses.ApiResponse;
-import com.muscat.user.common.responses.UserResponse;
+import com.muscat.commonlib.exception.BaseExceptionHandler;
+import com.muscat.commonlib.util.ProblemDetailUtils;
+import com.muscat.commonlib.enums.ErrorType;
+import com.muscat.user.common.enums.responses.UserResponse;
 import jakarta.servlet.http.HttpServletRequest;
-import java.util.HashMap;
+import java.net.URI;
+import java.time.LocalDateTime;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -17,159 +18,155 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 @Slf4j
-public class GlobalExceptionHandler {
+public class GlobalExceptionHandler extends BaseExceptionHandler {
 
-  // 사용자 관련 비즈니스 예외 처리
   @ExceptionHandler(UserException.class)
-  public ResponseEntity<ErrorResponseDto> handleUserException(UserException e,
-      HttpServletRequest request) {
+  public ResponseEntity<ProblemDetail> handleUserException(UserException e, HttpServletRequest request) {
     log.warn("[USER ERROR] {}", e.getMessage());
 
-    ErrorResponseDto errorResponse = ErrorResponseDto.of(
-        request.getRequestURI(),
-        e.getErrorCode().getHttpStatus(),
+    Map<String, Object> properties = Map.of("errorType", ErrorType.BUSINESS.name());
+    ProblemDetail problem = ProblemDetailUtils.createProblem(
+        e.getHttpStatus(),
         e.getMessage(),
-        ErrorType.BUSINESS
+        e.getErrorCode(),
+        request.getRequestURI(),
+        "User Error",
+        properties
     );
 
-    return ResponseEntity.status(e.getErrorCode().getHttpStatus())
-        .body(errorResponse);
+    return ResponseEntity.status(e.getHttpStatus()).body(problem);
   }
 
-  // 소셜 로그인 관련 비즈니스 예외 처리
   @ExceptionHandler(SocialLoginException.class)
-  public ResponseEntity<ErrorResponseDto> handleSocialLoginException(SocialLoginException e,
-      HttpServletRequest request) {
+  public ResponseEntity<ProblemDetail> handleSocialLoginException(SocialLoginException e, HttpServletRequest request) {
     log.error("[SOCIAL LOGIN ERROR] {}", e.getMessage(), e);
 
-    ErrorResponseDto errorResponse = ErrorResponseDto.of(
-        request.getRequestURI(),
-        e.getErrorCode().getHttpStatus(),
+    Map<String, Object> properties = Map.of("errorType", ErrorType.BUSINESS.name());
+    ProblemDetail problem = ProblemDetailUtils.createProblem(
+        e.getHttpStatus(),
         e.getMessage(),
-        ErrorType.BUSINESS
+        e.getErrorCode(),
+        request.getRequestURI(),
+        "Social Login Error",
+        properties
     );
 
-    return ResponseEntity.status(e.getErrorCode().getHttpStatus())
-        .body(errorResponse);
+    return ResponseEntity.status(e.getHttpStatus()).body(problem);
   }
 
-  // Keycloak 관련 시스템 예외 처리
   @ExceptionHandler(KeycloakException.class)
-  public ResponseEntity<ErrorResponseDto> handleKeycloakException(KeycloakException e,
-      HttpServletRequest request) {
+  public ResponseEntity<ProblemDetail> handleKeycloakException(KeycloakException e, HttpServletRequest request) {
     log.error("[KEYCLOAK ERROR] {}", e.getMessage(), e);
 
-    ErrorResponseDto errorResponse = ErrorResponseDto.of(
-        request.getRequestURI(),
-        e.getErrorCode().getHttpStatus(),
-        e.getMessage(),
-        ErrorType.KEYCLOAK
-    );
+    ProblemDetail problem = ProblemDetail.forStatusAndDetail(e.getHttpStatus(), e.getMessage());
+    problem.setType(URI.create("https://api.muscat.com/problems/keycloak-" + e.getErrorCode().toLowerCase().replace("_", "-")));
+    problem.setTitle("Keycloak Error");
+    problem.setInstance(URI.create(request.getRequestURI()));
+    problem.setProperty("errorCode", e.getErrorCode());
+    problem.setProperty("errorType", ErrorType.UNAUTHORIZED.name());
+    problem.setProperty("timestamp", LocalDateTime.now());
 
-    return ResponseEntity.status(e.getErrorCode().getHttpStatus())
-        .body(errorResponse);
+    return ResponseEntity.status(e.getHttpStatus()).body(problem);
   }
 
-  // 인증 관련 예외 처리
   @ExceptionHandler(AuthenticationException.class)
-  public ResponseEntity<ErrorResponseDto> handleAuthenticationException(AuthenticationException e,
-      HttpServletRequest request) {
+  public ResponseEntity<ProblemDetail> handleAuthenticationException(AuthenticationException e, HttpServletRequest request) {
     log.warn("[AUTH ERROR] {}", e.getMessage());
 
-    ErrorResponseDto errorResponse = ErrorResponseDto.of(
-        request.getRequestURI(),
-        e.getErrorCode().getHttpStatus(),
-        e.getMessage(),
-        ErrorType.UNAUTHORIZED
-    );
+    ProblemDetail problem = ProblemDetail.forStatusAndDetail(e.getHttpStatus(), e.getMessage());
+    problem.setType(URI.create("https://api.muscat.com/problems/authentication-" + e.getErrorCode().toLowerCase().replace("_", "-")));
+    problem.setTitle("Authentication Error");
+    problem.setInstance(URI.create(request.getRequestURI()));
+    problem.setProperty("errorCode", e.getErrorCode());
+    problem.setProperty("errorType", ErrorType.UNAUTHORIZED.name());
+    problem.setProperty("timestamp", LocalDateTime.now());
 
-    return ResponseEntity.status(e.getErrorCode().getHttpStatus())
-        .body(errorResponse);
+    return ResponseEntity.status(e.getHttpStatus()).body(problem);
   }
-  // 계좌 관련 비즈니스 예외 처리
+
   @ExceptionHandler(AccountException.class)
-  public ResponseEntity<ErrorResponseDto> handleAccountException(AccountException e,
-      HttpServletRequest request) {
+  public ResponseEntity<ProblemDetail> handleAccountException(AccountException e, HttpServletRequest request) {
     log.warn("[ACCOUNT ERROR] {}", e.getMessage());
 
-    ErrorResponseDto errorResponse = ErrorResponseDto.of(
-        request.getRequestURI(),
-        e.getErrorCode().getHttpStatus(),
-        e.getMessage(),
-        ErrorType.BUSINESS
-    );
+    ProblemDetail problem = ProblemDetail.forStatusAndDetail(e.getHttpStatus(), e.getMessage());
+    problem.setType(URI.create("https://api.muscat.com/problems/account-" + e.getErrorCode().toLowerCase().replace("_", "-")));
+    problem.setTitle("Account Error");
+    problem.setInstance(URI.create(request.getRequestURI()));
+    problem.setProperty("errorCode", e.getErrorCode());
+    problem.setProperty("errorType", ErrorType.BUSINESS);
+    problem.setProperty("timestamp", LocalDateTime.now());
 
-    return ResponseEntity.status(e.getErrorCode().getHttpStatus())
-        .body(errorResponse);
+    return ResponseEntity.status(e.getHttpStatus()).body(problem);
   }
 
-  // 계좌 거래 내역 관련 예외
   @ExceptionHandler(AccountHistoryException.class)
-  public ResponseEntity<ErrorResponseDto> handleAccountHistoryException(AccountHistoryException e,
-      HttpServletRequest request) {
+  public ResponseEntity<ProblemDetail> handleAccountHistoryException(AccountHistoryException e, HttpServletRequest request) {
     log.warn("[ACCOUNT HISTORY ERROR] {}", e.getMessage());
 
-    ErrorResponseDto errorResponse = ErrorResponseDto.of(
-        request.getRequestURI(),
-        e.getErrorCode().getHttpStatus(),
-        e.getMessage(),
-        ErrorType.BUSINESS
-    );
+    ProblemDetail problem = ProblemDetail.forStatusAndDetail(e.getHttpStatus(), e.getMessage());
+    problem.setType(URI.create("https://api.muscat.com/problems/account-history-" + e.getErrorCode().toLowerCase().replace("_", "-")));
+    problem.setTitle("Account History Error");
+    problem.setInstance(URI.create(request.getRequestURI()));
+    problem.setProperty("errorCode", e.getErrorCode());
+    problem.setProperty("errorType", ErrorType.BUSINESS);
+    problem.setProperty("timestamp", LocalDateTime.now());
 
-    return ResponseEntity.status(e.getErrorCode().getHttpStatus())
-        .body(errorResponse);
+    return ResponseEntity.status(e.getHttpStatus()).body(problem);
   }
 
-  // 유효성 검사 실패 예외 처리
   @ExceptionHandler(MethodArgumentNotValidException.class)
-  public ResponseEntity<ApiResponse<Map<String, String>>> handleValidationException(
-      MethodArgumentNotValidException e) {
-    log.warn("[VALIDATION ERROR] 입력값 검증 실패");
-
-    Map<String, String> errors = new HashMap<>();
-    e.getBindingResult().getAllErrors().forEach((error) -> {
-      String fieldName = ((FieldError) error).getField();
-      String errorMessage = error.getDefaultMessage();
-      errors.put(fieldName, errorMessage);
-    });
-
-    return ResponseEntity.badRequest()
-        .body(ApiResponse.error(UserResponse.INVALID_INPUT, errors));
+  public ResponseEntity<ProblemDetail> handleValidationException(MethodArgumentNotValidException e, HttpServletRequest request) {
+    return super.handleValidationException(e, request);
   }
 
-  // 필수 파라미터 누락 예외 처리
   @ExceptionHandler(MissingServletRequestParameterException.class)
-  public ResponseEntity<ErrorResponseDto> handleMissingParameterException(
-      MissingServletRequestParameterException e, HttpServletRequest request) {
+  public ResponseEntity<ProblemDetail> handleMissingParameterException(MissingServletRequestParameterException e, HttpServletRequest request) {
     log.warn("[MISSING PARAMETER] {}", e.getParameterName());
 
     String message = String.format("필수 파라미터가 누락되었습니다: %s", e.getParameterName());
 
-    ErrorResponseDto errorResponse = ErrorResponseDto.of(
-        request.getRequestURI(),
+    Map<String, Object> properties = Map.of(
+        "parameterName", e.getParameterName(),
+        "errorType", ErrorType.VALIDATION.name()
+    );
+    ProblemDetail problem = ProblemDetailUtils.createProblem(
         UserResponse.INVALID_INPUT.getHttpStatus(),
         message,
-        ErrorType.VALIDATION
+        "MISSING_PARAMETER",
+        request.getRequestURI(),
+        "Missing Parameter Error",
+        properties
     );
 
-    return ResponseEntity.badRequest()
-        .body(errorResponse);
+    return ResponseEntity.badRequest().body(problem);
   }
 
-  // 기타 모든 예외 처리
   @ExceptionHandler(Exception.class)
-  public ResponseEntity<ErrorResponseDto> handleGenericException(Exception e,
-      HttpServletRequest request) {
+  public ResponseEntity<ProblemDetail> handleGenericException(Exception e, HttpServletRequest request) {
     log.error("[SYSTEM ERROR] 예상치 못한 오류 발생", e);
 
-    ErrorResponseDto errorResponse = ErrorResponseDto.of(
-        request.getRequestURI(),
+    // 개발 환경에서는 상세한 에러 메시지 제공
+    String message = isDevelopmentEnvironment() 
+        ? String.format("%s - %s", e.getMessage(), e.getClass().getSimpleName())
+        : "서버에 문제가 발생했습니다. 관리자에게 문의해주세요.";
+
+    Map<String, Object> properties = Map.of("errorType", ErrorType.SYSTEM.name());
+    ProblemDetail problem = ProblemDetailUtils.createProblem(
         UserResponse.INTERNAL_SERVER_ERROR.getHttpStatus(),
-        "서버에 문제가 발생했습니다. 관리자에게 문의해주세요.",
-        ErrorType.SYSTEM
+        message,
+        "INTERNAL_SERVER_ERROR",
+        request.getRequestURI(),
+        "Internal Server Error",
+        properties
     );
 
-    return ResponseEntity.status(UserResponse.INTERNAL_SERVER_ERROR.getHttpStatus())
-        .body(errorResponse);
+    return ResponseEntity.status(UserResponse.INTERNAL_SERVER_ERROR.getHttpStatus()).body(problem);
+  }
+  
+  private boolean isDevelopmentEnvironment() {
+    // 개발 환경 판단 로직 (추후 @Value 등으로 개선 가능)
+    String[] activeProfiles = {"dev", "development", "local"};
+    String currentProfile = System.getProperty("spring.profiles.active", "dev");
+    return java.util.Arrays.asList(activeProfiles).contains(currentProfile);
   }
 }
