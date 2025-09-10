@@ -10,3 +10,5 @@
 - [ ] user
 - [ ] trade
 - [ ] backtest
+- [ ] configserver
+- [ ] commonlib
