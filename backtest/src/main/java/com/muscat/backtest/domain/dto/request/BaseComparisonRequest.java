@@ -1,6 +1,6 @@
 package com.muscat.backtest.domain.dto.request;
 
-import com.muscat.backtest.common.enums.ComparisonType;
+import com.muscat.backtest.common.enums.type.ComparisonType;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.math.BigDecimal;

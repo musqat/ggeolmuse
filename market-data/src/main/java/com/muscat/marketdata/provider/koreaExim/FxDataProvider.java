@@ -36,7 +36,7 @@ public class FxDataProvider implements MarketDataProvider.FxSource {
     private final ObjectMapper objectMapper;
 
     @Override
-    public Optional<BigDecimal> fetchUsdKrw(LocalDate date) {
+    public Optional<BigDecimal> fetchFx(LocalDate date) {
         return fetchFxRate(date)
                 .map(KoreaEximRateItem::parseRate);
     }
@@ -65,7 +65,7 @@ public class FxDataProvider implements MarketDataProvider.FxSource {
     }
 
     private String buildUrl(LocalDate date) {
-        return UriComponentsBuilder.fromHttpUrl(baseUrl)
+        return UriComponentsBuilder.fromUriString(baseUrl)
                 .queryParam("searchdate", date.format(DATE_FORMAT))
                 .queryParam("data", "AP01")
                 .queryParam("authkey", authKey)

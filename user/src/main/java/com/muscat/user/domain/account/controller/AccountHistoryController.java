@@ -1,9 +1,7 @@
 package com.muscat.user.domain.account.controller;
 
-import com.muscat.user.common.exceptions.BusinessException;
-import com.muscat.user.common.responses.AccountHistoryResponse;
-import com.muscat.user.common.responses.ApiResponse;
-import com.muscat.user.common.responses.UserResponse;
+import com.muscat.user.common.exceptions.UserException;
+import com.muscat.user.common.enums.responses.UserResponse;
 import com.muscat.user.common.util.AuthUtil;
 import com.muscat.user.domain.account.dto.request.SearchHistoryRequestDto;
 import com.muscat.user.domain.account.dto.response.HistoryListResponseDto;
@@ -41,7 +39,7 @@ public class AccountHistoryController {
 
   // 계좌 거래 내역 목록 조회 (페이징)
   @GetMapping
-  public ResponseEntity<ApiResponse<HistoryListResponseDto>> getAccountHistories(
+  public ResponseEntity<HistoryListResponseDto> getAccountHistories(
       @PathVariable Long accountId,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "20") int size,
@@ -59,7 +57,7 @@ public class AccountHistoryController {
     }
 
     if (from != null && to != null && !to.isAfter(from)) {
-      throw new BusinessException(UserResponse.INVALID_INPUT, "파라미터 오류: to는 from보다 뒤여야 합니다.");
+      throw new UserException(UserResponse.INVALID_INPUT);
     }
 
     HistoryListResponseDto response = accountHistoryService.getAccountHistories(
@@ -69,13 +67,12 @@ public class AccountHistoryController {
     log.info("이력 조회: userId={}, accountId={}, page={}, size={}, from={}, to={}",
         userId, accountId, page, size, from, to);
 
-    return ResponseEntity.ok(
-        ApiResponse.success(AccountHistoryResponse.HISTORY_LIST_FOUND, response));
+    return ResponseEntity.ok(response);
   }
 
   // 거래 내역 검색 (통화/기간/최근 N건)
   @PostMapping("/search")
-  public ResponseEntity<ApiResponse<List<HistoryResponseDto>>> searchHistories(
+  public ResponseEntity<List<HistoryResponseDto>> searchHistories(
       @PathVariable Long accountId,
       @Valid @RequestBody SearchHistoryRequestDto request,
       @AuthenticationPrincipal Jwt jwt) {
@@ -89,8 +86,7 @@ public class AccountHistoryController {
 
     } else if (request.getStartDate() != null && request.getEndDate() != null) {
       if (!request.getEndDate().isAfter(request.getStartDate())) {
-        throw new BusinessException(UserResponse.INVALID_INPUT,
-            "파라미터 오류: endDate는 startDate보다 뒤여야 합니다.");
+        throw new UserException(UserResponse.INVALID_INPUT);
       }
       response = accountHistoryService.getHistoriesByDateRange(
           accountId, request.getStartDate(), request.getEndDate(), userId);
@@ -108,13 +104,12 @@ public class AccountHistoryController {
 
     log.info("거래 내역 검색: userId={}, accountId={}, req={}", userId, accountId, request);
 
-    return ResponseEntity.ok(
-        ApiResponse.success(AccountHistoryResponse.HISTORY_LIST_FOUND, response));
+    return ResponseEntity.ok(response);
   }
 
   // 특정 거래 내역 상세 조회
   @GetMapping("/{historyId}")
-  public ResponseEntity<ApiResponse<HistoryResponseDto>> getAccountHistory(
+  public ResponseEntity<HistoryResponseDto> getAccountHistory(
       @PathVariable Long accountId,
       @PathVariable Long historyId,
       @AuthenticationPrincipal Jwt jwt) {
@@ -123,13 +118,12 @@ public class AccountHistoryController {
     HistoryResponseDto response = accountHistoryService.getAccountHistory(
         accountId, historyId, userId);
 
-    return ResponseEntity.ok(
-        ApiResponse.success(AccountHistoryResponse.HISTORY_FOUND, response));
+    return ResponseEntity.ok(response);
   }
 
   // 환전 내역만 조회
   @GetMapping("/exchanges")
-  public ResponseEntity<ApiResponse<List<HistoryResponseDto>>> getExchangeHistories(
+  public ResponseEntity<List<HistoryResponseDto>> getExchangeHistories(
       @PathVariable Long accountId,
       @AuthenticationPrincipal Jwt jwt) {
 
@@ -137,13 +131,12 @@ public class AccountHistoryController {
     List<HistoryResponseDto> response = accountHistoryService.getExchangeHistories(accountId,
         userId);
 
-    return ResponseEntity.ok(
-        ApiResponse.success(AccountHistoryResponse.HISTORY_LIST_FOUND, response));
+    return ResponseEntity.ok(response);
   }
 
   // 특정 통화의 거래 내역 조회
   @GetMapping("/currency/{currency}")
-  public ResponseEntity<ApiResponse<List<HistoryResponseDto>>> getHistoriesByCurrency(
+  public ResponseEntity<List<HistoryResponseDto>> getHistoriesByCurrency(
       @PathVariable Long accountId,
       @PathVariable String currency,
       @AuthenticationPrincipal Jwt jwt) {
@@ -152,13 +145,12 @@ public class AccountHistoryController {
     List<HistoryResponseDto> response = accountHistoryService.getHistoriesByCurrency(
         accountId, currency, userId);
 
-    return ResponseEntity.ok(
-        ApiResponse.success(AccountHistoryResponse.HISTORY_LIST_FOUND, response));
+    return ResponseEntity.ok(response);
   }
 
   // 최근 N개 거래 내역 조회
   @GetMapping("/recent")
-  public ResponseEntity<ApiResponse<List<HistoryResponseDto>>> getRecentHistories(
+  public ResponseEntity<List<HistoryResponseDto>> getRecentHistories(
       @PathVariable Long accountId,
       @RequestParam(defaultValue = "10") int limit,
       @AuthenticationPrincipal Jwt jwt) {
@@ -174,7 +166,6 @@ public class AccountHistoryController {
     List<HistoryResponseDto> response = accountHistoryService.getRecentHistories(
         accountId, limit, userId);
 
-    return ResponseEntity.ok(
-        ApiResponse.success(AccountHistoryResponse.HISTORY_LIST_FOUND, response));
+    return ResponseEntity.ok(response);
   }
 }

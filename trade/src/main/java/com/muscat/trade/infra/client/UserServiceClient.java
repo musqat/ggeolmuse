@@ -1,7 +1,6 @@
 package com.muscat.trade.infra.client;
 
 import com.muscat.trade.infra.client.dto.AccountBalanceDto;
-import com.muscat.trade.infra.client.dto.UserApiResponse;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -14,12 +13,12 @@ import java.math.BigDecimal;
 public interface UserServiceClient {
 
   @GetMapping("/api/accounts/{accountId}/balance")
-  UserApiResponse<AccountBalanceDto> getAccountBalance(
-      @PathVariable("accountId") String accountId
+  AccountBalanceDto getAccountBalance(
+      @PathVariable("accountId") Long accountId
   );
 
   @PostMapping("/api/accounts/{accountId}/trade/balance")
-  UserApiResponse<Void> updateTradeBalance(
+  Void updateTradeBalance(
       @PathVariable("accountId") Long accountId,
       @RequestParam("usdAmount") BigDecimal usdAmount,
       @RequestParam("tradeType") String tradeType,

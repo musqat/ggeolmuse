@@ -7,6 +7,8 @@ dependencies {
 	implementation(enforcedPlatform(project(':bom')))
 	annotationProcessor(enforcedPlatform(project(':bom')))
 	testAnnotationProcessor(enforcedPlatform(project(':bom')))
+	
+	implementation project(':common-lib')
 
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
@@ -26,6 +28,15 @@ dependencies {
 	runtimeOnly 'io.jsonwebtoken:jjwt-impl'
 	runtimeOnly 'io.jsonwebtoken:jjwt-jackson'
 
+	// QueryDSL 의존성 - 수동 Q클래스 생성 방식 사용
+	// (annotation processor 방식 대신 수동으로 Q클래스를 작성하여 성능과 안정성 확보)
+	implementation 'com.querydsl:querydsl-jpa:5.0.0:jakarta'
+	
+	// 자동 생성 방식 (현재 비활성화)
+	// annotationProcessor 'com.querydsl:querydsl-apt:5.0.0:jakarta'
+	// annotationProcessor 'jakarta.annotation:jakarta.annotation-api'
+	// annotationProcessor 'jakarta.persistence:jakarta.persistence-api'
+
 	runtimeOnly 'com.h2database:h2'
 //    runtimeOnly 'org.postgresql:postgresql'
 //    testImplementation 'org.testcontainers:postgresql'
@@ -34,4 +45,22 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.testcontainers:junit-jupiter'
 }
+// QueryDSL 설정 - 수동 Q클래스 생성 방식
+// 현재는 Q클래스를 수동으로 작성하여 src/main/java에 포함
+// 향후 자동 생성으로 전환 시 아래 설정 활성화
+/*
+def generated = 'build/generated/sources/annotationProcessor/java/main'
+sourceSets {
+	main.java.srcDirs += [generated]
+}
+
+tasks.withType(JavaCompile).configureEach {
+	options.getGeneratedSourceOutputDirectory().set(file(generated))
+}
+
+clean.doLast {
+	file(generated).deleteDir()
+}
+*/
+
 tasks.register("prepareKotlinBuildScriptModel") {}

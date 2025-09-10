@@ -28,7 +28,11 @@ dependencies {
         // Documentation
         api 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
         api 'org.springdoc:springdoc-openapi-starter-webflux-ui:2.6.0'
-        
+
+        // QueryDSL
+        api 'com.querydsl:querydsl-jpa:5.0.0:jakarta'
+        api 'com.querydsl:querydsl-apt:5.0.0:jakarta'
+
         // Test
         api 'org.assertj:assertj-core:3.26.3'
         api 'org.mockito:mockito-core:5.13.0'

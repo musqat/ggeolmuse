@@ -3,8 +3,8 @@ package com.muscat.user.domain.account.service.impl;
 import com.muscat.user.common.enums.type.TransactionType;
 import com.muscat.user.common.exceptions.AccountException;
 import com.muscat.user.common.exceptions.AccountHistoryException;
-import com.muscat.user.common.responses.AccountHistoryResponse;
-import com.muscat.user.common.responses.AccountResponse;
+import com.muscat.user.common.enums.responses.AccountHistoryResponse;
+import com.muscat.user.common.enums.responses.AccountResponse;
 import com.muscat.user.domain.account.dto.response.HistoryListResponseDto;
 import com.muscat.user.domain.account.dto.response.HistoryResponseDto;
 import com.muscat.user.domain.account.entity.Account;
@@ -12,7 +12,7 @@ import com.muscat.user.domain.account.entity.AccountHistory;
 import com.muscat.user.domain.account.repository.AccountHistoryRepository;
 import com.muscat.user.domain.account.repository.AccountRepository;
 import com.muscat.user.domain.account.service.AccountHistoryService;
-import com.muscat.user.common.util.MoneyUtils;
+import com.muscat.commonlib.util.MoneyUtils;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -63,14 +63,9 @@ public class AccountHistoryServiceImpl implements AccountHistoryService {
         .referenceId(referenceId)
         .build();
 
-    try {
-      AccountHistory savedHistory = accountHistoryRepository.save(history);
-      log.info("입금 거래 내역 생성: accountId={}, amount={} {}", accountId, amount, currency);
-      return HistoryResponseDto.from(savedHistory);
-    } catch (Exception e) {
-      log.error("입금 거래 내역 생성 실패: accountId={}", accountId, e);
-      throw new AccountHistoryException(AccountHistoryResponse.HISTORY_CREATION_FAILED);
-    }
+    AccountHistory savedHistory = accountHistoryRepository.save(history);
+    log.info("입금 거래 내역 생성: accountId={}, amount={} {}", accountId, amount, currency);
+    return HistoryResponseDto.from(savedHistory);
   }
 
   // 환전 거래 내역 생성 (내부 호출용)
@@ -104,15 +99,10 @@ public class AccountHistoryServiceImpl implements AccountHistoryService {
         .originalAmount(originalAmount)
         .build();
 
-    try {
-      AccountHistory savedHistory = accountHistoryRepository.save(history);
-      log.info("환전 거래 내역 생성: accountId={}, {} {} -> {} {} (환율: {})",
-          accountId, originalAmount, fromCurrency, exchangedAmount, toCurrency, exchangeRate);
-      return HistoryResponseDto.from(savedHistory);
-    } catch (Exception e) {
-      log.error("환전 거래 내역 생성 실패: accountId={}", accountId, e);
-      throw new AccountHistoryException(AccountHistoryResponse.HISTORY_CREATION_FAILED);
-    }
+    AccountHistory savedHistory = accountHistoryRepository.save(history);
+    log.info("환전 거래 내역 생성: accountId={}, {} {} -> {} {} (환율: {})",
+        accountId, originalAmount, fromCurrency, exchangedAmount, toCurrency, exchangeRate);
+    return HistoryResponseDto.from(savedHistory);
   }
 
   // 계좌별 거래 내역 조회 (페이징, 인증 포함)
@@ -245,11 +235,7 @@ public class AccountHistoryServiceImpl implements AccountHistoryService {
 
   // 금액 유효성 검증
   private void validateAmount(BigDecimal amount) {
-    try {
-      MoneyUtils.validatePositiveAmount(amount, "거래 금액");
-    } catch (AccountException e) {
-      throw new AccountHistoryException(AccountHistoryResponse.INVALID_TRANSACTION_AMOUNT);
-    }
+    MoneyUtils.validatePositiveAmount(amount, "거래 금액");
   }
 
   // 통화 유효성 검증

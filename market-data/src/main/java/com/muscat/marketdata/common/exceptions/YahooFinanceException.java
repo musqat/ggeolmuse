@@ -1,6 +1,6 @@
 package com.muscat.marketdata.common.exceptions;
 
-public class YahooFinanceException extends MarketDataException {
+public class YahooFinanceException extends RuntimeException {
     
     public YahooFinanceException(String message) {
         super(message);

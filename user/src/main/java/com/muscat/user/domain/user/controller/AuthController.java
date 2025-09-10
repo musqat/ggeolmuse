@@ -1,13 +1,9 @@
 package com.muscat.user.domain.user.controller;
 
 import com.muscat.user.common.exceptions.UserException;
-import com.muscat.user.common.responses.ApiResponse;
-import com.muscat.user.common.responses.SocialResponse;
-import com.muscat.user.common.responses.UserResponse;
 import com.muscat.user.domain.user.dto.request.LoginRequestDto;
 import com.muscat.user.domain.user.dto.request.RegisterRequestDto;
 import com.muscat.user.domain.user.dto.request.ResendRequestDto;
-import com.muscat.user.domain.user.dto.response.UserResponseDto;
 import com.muscat.user.domain.user.entity.User;
 import com.muscat.user.domain.user.mapper.UserMapper;
 import com.muscat.user.domain.user.service.UserService;
@@ -48,12 +44,11 @@ public class AuthController {
   private String frontendUrl;
 
   @PostMapping("/register")
-  public ResponseEntity<ApiResponse<Void>> register(@Valid @RequestBody RegisterRequestDto request) {
+  public ResponseEntity<Void> register(@Valid @RequestBody RegisterRequestDto request) {
     User user = userService.registerUser(request.getEmail(), request.getPassword(), request.getNickname());
     log.info("회원가입 완료: {}", user.getEmail());
 
-    return ResponseEntity.status(UserResponse.USER_CREATED.getHttpStatus())
-        .body(ApiResponse.success(UserResponse.USER_CREATED));
+    return ResponseEntity.status(201).build();
   }
 
   @GetMapping("/verify-email")
@@ -96,19 +91,19 @@ public class AuthController {
   }
 
   @PostMapping("/resend-verification")
-  public ResponseEntity<ApiResponse<Void>> resendVerification(@Valid @RequestBody ResendRequestDto request) {
+  public ResponseEntity<Void> resendVerification(@Valid @RequestBody ResendRequestDto request) {
     userService.resendVerificationEmail(request.getEmail());
     log.info("이메일 재발송 완료: {}", request.getEmail());
 
-    return ResponseEntity.ok(ApiResponse.success(UserResponse.EMAIL_VERIFIED, null));
+    return ResponseEntity.ok().build();
   }
 
   @PostMapping("/login")
-  public ResponseEntity<ApiResponse<String>> login(@Valid @RequestBody LoginRequestDto request) {
+  public ResponseEntity<String> login(@Valid @RequestBody LoginRequestDto request) {
     String token = userService.login(request.getEmail(), request.getPassword());
     log.info("로그인 성공: {}", request.getEmail());
 
-    return ResponseEntity.ok(ApiResponse.success(UserResponse.LOGIN_SUCCESS, token));
+    return ResponseEntity.ok(token);
   }
 
   // ============= 소셜 로그인 =============
@@ -149,7 +144,7 @@ public class AuthController {
 
   //Google 로그인 URL 생성
   @GetMapping("/social/google/login-url")
-  public ResponseEntity<ApiResponse<Map<String, String>>> getGoogleLoginUrl(HttpServletRequest request) {
+  public ResponseEntity<Map<String, String>> getGoogleLoginUrl(HttpServletRequest request) {
     // 현재 요청의 base URL 추출 (포트 처리 개선)
     String baseUrl = request.getScheme() + "://" + request.getServerName();
     int port = request.getServerPort();
@@ -179,7 +174,7 @@ public class AuthController {
     );
 
     log.info("Google 로그인 URL 생성 완료");
-    return ResponseEntity.ok(ApiResponse.success(SocialResponse.PROVIDERS_RETRIEVED, response));
+    return ResponseEntity.ok(response);
   }
 
 

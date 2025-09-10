@@ -40,21 +40,20 @@ public class YahooFinanceClient {
         HttpHeaders headers = createHeaders();
         RequestEntity<Void> request = RequestEntity.get(URI.create(url)).headers(headers).build();
 
+        ResponseEntity<byte[]> response = restTemplate.exchange(request, byte[].class);
+        byte[] responseBody = response.getBody();
+
+        if (responseBody == null || responseBody.length == 0) {
+            return "";
+        }
+
         try {
-            ResponseEntity<byte[]> response = restTemplate.exchange(request, byte[].class);
-            byte[] responseBody = response.getBody();
-
-            if (responseBody == null || responseBody.length == 0) {
-                throw new RuntimeException("Yahoo Finance 응답이 비어있습니다");
-            }
-
             String content = extractContent(response, responseBody);
             validateJsonResponse(content);
-
             return content;
-
-        } catch (Exception e) {
-            throw new RuntimeException("Yahoo Finance 요청 실패: " + e.getMessage(), e);
+        } catch (IOException e) {
+            log.error("Response content 추출 실패: symbol={}", symbol, e);
+            return "";
         }
     }
 
@@ -107,13 +106,12 @@ public class YahooFinanceClient {
     }
 
     private void validateJsonResponse(String content) {
+        if (content.isBlank()) return;
+        
         String trimmed = content.stripLeading();
-
         if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
-            String preview = trimmed.length() > MAX_PREVIEW_LENGTH
-                    ? trimmed.substring(0, MAX_PREVIEW_LENGTH) + "..."
-                    : trimmed;
-            throw new RuntimeException("Yahoo Finance JSON이 아닌 응답: " + preview);
+            log.warn("Yahoo Finance 비JSON 응답: {}", 
+                trimmed.length() > MAX_PREVIEW_LENGTH ? trimmed.substring(0, MAX_PREVIEW_LENGTH) + "..." : trimmed);
         }
     }
 }

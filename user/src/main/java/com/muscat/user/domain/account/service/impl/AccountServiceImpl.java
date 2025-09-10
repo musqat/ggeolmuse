@@ -5,12 +5,11 @@ import com.muscat.user.common.enums.type.TransactionType;
 import com.muscat.user.common.exceptions.AccountException;
 import com.muscat.user.common.exceptions.UserException;
 import com.muscat.user.common.logging.TransactionLogger;
-import com.muscat.user.common.responses.AccountResponse;
-import com.muscat.user.common.responses.UserResponse;
+import com.muscat.user.common.enums.responses.AccountResponse;
+import com.muscat.user.common.enums.responses.UserResponse;
 import com.muscat.user.common.util.AccountCalculatorUtil;
 import com.muscat.user.domain.account.dto.response.ExchangeCalculationResult;
-import com.muscat.user.common.util.MoneyUtils;
-import com.muscat.user.common.responses.ApiResponse;
+import com.muscat.commonlib.util.MoneyUtils;
 import com.muscat.user.infra.client.MarketDataServiceClient;
 import com.muscat.user.infra.client.dto.FxRateDto;
 import com.muscat.user.domain.account.dto.request.CreateAccountRequestDto;
@@ -119,51 +118,43 @@ public class AccountServiceImpl implements AccountService {
         .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
     transactionLogger.logExchangeStart(accountId, "KRW", "USD", krwAmount, exchangeRate);
 
+    exchangeRate = MoneyUtils.roundExchangeRate(exchangeRate);
+
     try {
-      exchangeRate = MoneyUtils.roundExchangeRate(exchangeRate);
-
-      try {
-        accountCalculator.validateExchangeRequest(account, krwAmount, "KRW");
-      } catch (AccountException e) {
-        if (e.getMessage().contains("잔액 부족")) {
-          transactionLogger.logInsufficientBalance(accountId, "KRW",
-              krwAmount, account.getBalanceKrw());
-        }
-        throw e;
+      accountCalculator.validateExchangeRequest(account, krwAmount, "KRW");
+    } catch (AccountException e) {
+      if (e.getMessage().contains("잔액 부족")) {
+        transactionLogger.logInsufficientBalance(accountId, "KRW",
+            krwAmount, account.getBalanceKrw());
       }
-
-      ExchangeCalculationResult calculation = accountCalculator.calculateExchangeWithCommission(
-          account, krwAmount, "KRW", "USD", exchangeRate);
-
-      if (krwAmount.compareTo(new BigDecimal("10000000")) > 0) {
-        transactionLogger.logLargeTransaction(accountId, "KRW_TO_USD", krwAmount, "KRW");
-      }
-      BigDecimal totalDeduction = calculation.getTotalKrwDeduction();
-      account.setBalanceKrw(account.getBalanceKrw().subtract(totalDeduction));
-      account.setBalanceUsd(account.getBalanceUsd().add(calculation.getFinalAmount()));
-
-      BigDecimal newAvgRate = accountCalculator.calculateNewAverageRate(account, krwAmount,
-          exchangeRate);
-      account.setTotalExchangedKrw(account.getTotalExchangedKrw().add(krwAmount));
-      account.setAvgExchangeRate(newAvgRate);
-      String referenceId = generateReferenceId(TransactionType.EXCHANGE);
-
-      accountHistoryService.createExchangeHistory(
-          accountId, CurrencyType.KRW.name(), CurrencyType.USD.name(),
-          krwAmount, calculation.getFinalAmount(), exchangeRate,
-          String.format("KRW → USD 환전 (환율: %s)", exchangeRate),
-          referenceId);
-      transactionLogger.logExchangeComplete(accountId, calculation, account, referenceId);
-
-      log.info("KRW→USD 환전 완료: 계좌={}, {}, 평균환율={}",
-          accountId, calculation.getSummary(), newAvgRate);
-
-    } catch (Exception e) {
-      transactionLogger.logExchangeFailure(accountId, "KRW", "USD", krwAmount, e.getMessage(), e);
-      log.error("KRW→USD 환전 처리 실패: accountId={}, 원인: {}", accountId, e.getMessage(), e);
-      throw new AccountException(AccountResponse.EXCHANGE_RATE_SERVICE_ERROR,
-          "환전 처리 중 오류가 발생했습니다: " + e.getMessage());
+      throw e;
     }
+
+    ExchangeCalculationResult calculation = accountCalculator.calculateExchangeWithCommission(
+        account, krwAmount, "KRW", "USD", exchangeRate);
+
+    if (krwAmount.compareTo(new BigDecimal("10000000")) > 0) {
+      transactionLogger.logLargeTransaction(accountId, "KRW_TO_USD", krwAmount, "KRW");
+    }
+    BigDecimal totalDeduction = calculation.getTotalKrwDeduction();
+    account.setBalanceKrw(account.getBalanceKrw().subtract(totalDeduction));
+    account.setBalanceUsd(account.getBalanceUsd().add(calculation.getFinalAmount()));
+
+    BigDecimal newAvgRate = accountCalculator.calculateNewAverageRate(account, krwAmount,
+        exchangeRate);
+    account.setTotalExchangedKrw(account.getTotalExchangedKrw().add(krwAmount));
+    account.setAvgExchangeRate(newAvgRate);
+    String referenceId = generateReferenceId(TransactionType.EXCHANGE);
+
+    accountHistoryService.createExchangeHistory(
+        accountId, CurrencyType.KRW.name(), CurrencyType.USD.name(),
+        krwAmount, calculation.getFinalAmount(), exchangeRate,
+        String.format("KRW → USD 환전 (환율: %s)", exchangeRate),
+        referenceId);
+    transactionLogger.logExchangeComplete(accountId, calculation, account, referenceId);
+
+    log.info("KRW→USD 환전 완료: 계좌={}, {}, 평균환율={}",
+        accountId, calculation.getSummary(), newAvgRate);
   }
 
   // USD → KRW 환전 처리
@@ -175,51 +166,43 @@ public class AccountServiceImpl implements AccountService {
         .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
     transactionLogger.logExchangeStart(accountId, "USD", "KRW", usdAmount, exchangeRate);
 
+    exchangeRate = MoneyUtils.roundExchangeRate(exchangeRate);
+
     try {
-      exchangeRate = MoneyUtils.roundExchangeRate(exchangeRate);
-
-      try {
-        accountCalculator.validateExchangeRequest(account, usdAmount, "USD");
-      } catch (AccountException e) {
-        if (e.getMessage().contains("잔액 부족")) {
-          transactionLogger.logInsufficientBalance(accountId, "USD",
-              usdAmount, account.getBalanceUsd());
-        }
-        throw e;
+      accountCalculator.validateExchangeRequest(account, usdAmount, "USD");
+    } catch (AccountException e) {
+      if (e.getMessage().contains("잔액 부족")) {
+        transactionLogger.logInsufficientBalance(accountId, "USD",
+            usdAmount, account.getBalanceUsd());
       }
-
-      ExchangeCalculationResult calculation = accountCalculator.calculateExchangeWithCommission(
-          account, usdAmount, "USD", "KRW", exchangeRate);
-
-      if (usdAmount.compareTo(new BigDecimal("10000")) > 0) {
-        transactionLogger.logLargeTransaction(accountId, "USD_TO_KRW", usdAmount, "USD");
-      }
-      account.setBalanceUsd(account.getBalanceUsd().subtract(usdAmount));
-      account.setBalanceKrw(account.getBalanceKrw().add(calculation.getFinalAmount()));
-
-      if (MoneyUtils.isEqual(account.getBalanceUsd(), BigDecimal.ZERO, "USD")) {
-        account.setAvgExchangeRate(BigDecimal.ZERO);
-        account.setTotalExchangedKrw(BigDecimal.ZERO);
-        log.debug("USD 잔액 0 - 평균환율 리셋: accountId={}", accountId);
-      }
-      String referenceId = generateReferenceId(TransactionType.EXCHANGE);
-
-      accountHistoryService.createExchangeHistory(
-          accountId, CurrencyType.USD.name(), CurrencyType.KRW.name(),
-          usdAmount, calculation.getBeforeCommissionAmount(), exchangeRate,
-          String.format("USD → KRW 환전 (환율: %s)", exchangeRate),
-          referenceId);
-      transactionLogger.logExchangeComplete(accountId, calculation, account, referenceId);
-
-      log.info("USD→KRW 환전 완료: 계좌={}, {}",
-          accountId, calculation.getSummary());
-
-    } catch (Exception e) {
-      transactionLogger.logExchangeFailure(accountId, "USD", "KRW", usdAmount, e.getMessage(), e);
-      log.error("USD→KRW 환전 처리 실패: accountId={}, 원인: {}", accountId, e.getMessage(), e);
-      throw new AccountException(AccountResponse.EXCHANGE_RATE_SERVICE_ERROR,
-          "환전 처리 중 오류가 발생했습니다: " + e.getMessage());
+      throw e;
     }
+
+    ExchangeCalculationResult calculation = accountCalculator.calculateExchangeWithCommission(
+        account, usdAmount, "USD", "KRW", exchangeRate);
+
+    if (usdAmount.compareTo(new BigDecimal("10000")) > 0) {
+      transactionLogger.logLargeTransaction(accountId, "USD_TO_KRW", usdAmount, "USD");
+    }
+    account.setBalanceUsd(account.getBalanceUsd().subtract(usdAmount));
+    account.setBalanceKrw(account.getBalanceKrw().add(calculation.getFinalAmount()));
+
+    if (MoneyUtils.isEqual(account.getBalanceUsd(), BigDecimal.ZERO, "USD")) {
+      account.setAvgExchangeRate(BigDecimal.ZERO);
+      account.setTotalExchangedKrw(BigDecimal.ZERO);
+      log.debug("USD 잔액 0 - 평균환율 리셋: accountId={}", accountId);
+    }
+    String referenceId = generateReferenceId(TransactionType.EXCHANGE);
+
+    accountHistoryService.createExchangeHistory(
+        accountId, CurrencyType.USD.name(), CurrencyType.KRW.name(),
+        usdAmount, calculation.getBeforeCommissionAmount(), exchangeRate,
+        String.format("USD → KRW 환전 (환율: %s)", exchangeRate),
+        referenceId);
+    transactionLogger.logExchangeComplete(accountId, calculation, account, referenceId);
+
+    log.info("USD→KRW 환전 완료: 계좌={}, {}",
+        accountId, calculation.getSummary());
   }
 
   // KRW 입금 처리
@@ -272,20 +255,19 @@ public class AccountServiceImpl implements AccountService {
     try {
       // 1. 최신 환율 조회 시도
       log.debug("최신 환율 조회 시도");
-      ApiResponse<FxRateDto> response = marketDataServiceClient.getLatestFxRate();
+      FxRateDto response = marketDataServiceClient.getLatestFxRate();
       
       // 디버그: 응답 확인
-      log.debug("Market-data 응답: response={}, data={}, rate={}", 
+      log.debug("Market-data 응답: response={}, rate={}", 
           response, 
-          response != null ? response.getData() : "null",
-          response != null && response.getData() != null ? response.getData().getRate() : "null");
+          response != null ? response.getRate() : "null");
       
-      if (response != null && response.getData() != null && response.getData().getRate() != null) {
-        BigDecimal rate = MoneyUtils.roundExchangeRate(response.getData().getRate());
+      if (response != null && response.getRate() != null) {
+        BigDecimal rate = MoneyUtils.roundExchangeRate(response.getRate());
         
         // 환율 유효성 검증
         if (rate.compareTo(minValidRate) >= 0 && rate.compareTo(maxValidRate) <= 0) {
-          log.info("환율 조회 성공: {} (일자: {})", rate, response.getData().getDate());
+          log.info("환율 조회 성공: {} (일자: {})", rate, response.getDate());
           return rate;
         } else {
           log.warn("비정상적인 환율 감지: {}, fallback으로 전환", rate);
@@ -310,10 +292,10 @@ public class AccountServiceImpl implements AccountService {
     try {
       // 1. 특정 날짜 환율 조회 시도
       log.debug("특정 날짜 환율 조회 시도: {}", date);
-      ApiResponse<FxRateDto> response = marketDataServiceClient.getFxRate(date.toString());
+      FxRateDto response = marketDataServiceClient.getFxRate(date.toString());
       
-      if (response != null && response.getData() != null && response.getData().getRate() != null) {
-        BigDecimal rate = MoneyUtils.roundExchangeRate(response.getData().getRate());
+      if (response != null && response.getRate() != null) {
+        BigDecimal rate = MoneyUtils.roundExchangeRate(response.getRate());
         
         // 환율 유효성 검증
         if (rate.compareTo(minValidRate) >= 0 && rate.compareTo(maxValidRate) <= 0) {
@@ -339,13 +321,12 @@ public class AccountServiceImpl implements AccountService {
   @Override
   public BigDecimal createManualExchangeRate(BigDecimal manualRate) {
     if (manualRate == null) {
-      throw new AccountException(AccountResponse.INVALID_EXCHANGE_RATE, "환율이 입력되지 않았습니다");
+      throw new AccountException(AccountResponse.INVALID_EXCHANGE_RATE);
     }
     
     // 환율 유효성 검증
     if (manualRate.compareTo(minValidRate) < 0 || manualRate.compareTo(maxValidRate) > 0) {
-      throw new AccountException(AccountResponse.INVALID_EXCHANGE_RATE, 
-          String.format("비정상적인 환율입니다: %s (유효 범위: %s~%s)", manualRate, minValidRate, maxValidRate));
+      throw new AccountException(AccountResponse.INVALID_EXCHANGE_RATE);
     }
     
     BigDecimal rate = MoneyUtils.roundExchangeRate(manualRate);
@@ -370,21 +351,19 @@ public class AccountServiceImpl implements AccountService {
     
     // 계좌 소유권 검증
     if (!account.getUser().getId().equals(userId)) {
-      throw new AccountException(AccountResponse.ACCOUNT_ACCESS_DENIED, "해당 계좌에 대한 접근 권한이 없습니다");
+      throw new AccountException(AccountResponse.ACCOUNT_ACCESS_DENIED);
     }
 
     // USD 금액 검증 (음수도 허용, 0은 불허)
     if (usdAmount == null || usdAmount.compareTo(BigDecimal.ZERO) == 0) {
-      throw new AccountException(AccountResponse.INVALID_DEPOSIT_AMOUNT, "USD 잔고 변경 금액은 0이 될 수 없습니다");
+      throw new AccountException(AccountResponse.INVALID_DEPOSIT_AMOUNT);
     }
     usdAmount = MoneyUtils.roundUsd(usdAmount);
 
     BigDecimal newBalance = account.getBalanceUsd().add(usdAmount);
     
     if (newBalance.compareTo(BigDecimal.ZERO) < 0) {
-      throw new AccountException(AccountResponse.INSUFFICIENT_USD_BALANCE,
-          String.format("USD 잔고가 부족합니다. 현재: $%s, 필요: $%s", 
-              account.getBalanceUsd(), usdAmount.abs()));
+      throw new AccountException(AccountResponse.INSUFFICIENT_USD_BALANCE);
     }
 
     account.setBalanceUsd(newBalance);

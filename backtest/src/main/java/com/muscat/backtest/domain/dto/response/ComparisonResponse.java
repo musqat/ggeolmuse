@@ -1,6 +1,6 @@
 package com.muscat.backtest.domain.dto.response;
 
-import com.muscat.backtest.common.enums.ComparisonType;
+import com.muscat.backtest.common.enums.type.ComparisonType;
 import com.muscat.backtest.domain.model.ComparisonItem;
 import java.math.BigDecimal;
 import java.time.LocalDate;

@@ -7,6 +7,8 @@ dependencies {
     implementation(enforcedPlatform(project(':bom')))
     annotationProcessor(enforcedPlatform(project(':bom')))
     testAnnotationProcessor(enforcedPlatform(project(':bom')))
+    
+    implementation project(':common-lib')
 
     // Spring Boot Starters
     implementation 'org.springframework.boot:spring-boot-starter-web'

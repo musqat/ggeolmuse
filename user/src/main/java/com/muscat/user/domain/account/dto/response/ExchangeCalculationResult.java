@@ -1,6 +1,6 @@
 package com.muscat.user.domain.account.dto.response;
 
-import com.muscat.user.common.util.MoneyUtils;
+import com.muscat.commonlib.util.MoneyUtils;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -86,7 +86,7 @@ public class ExchangeCalculationResult {
     }
 
     BigDecimal baseAmount = "KRW".equals(fromCurrency) ? requestAmount : beforeCommissionAmount;
-    return commissionAmount.divide(baseAmount, 6, MoneyUtils.DEFAULT_ROUNDING);
+    return commissionAmount.divide(baseAmount, 6, MoneyUtils.ROUND_MODE);
   }
 
   // ========== 유틸리티 메서드들 ========== //

@@ -31,8 +31,6 @@ public class YahooParser {
 
             return buildDailyAdjustedDtos(timeSeriesData, metadata, fromDate, toDate);
 
-        } catch (RuntimeException e) {
-            throw e;
         } catch (Exception e) {
             throw new IllegalStateException("Yahoo 일봉 파싱 실패", e);
         }
@@ -50,8 +48,6 @@ public class YahooParser {
 
             return extractDividendEvents(dividends, symbol, fromDate, toDate);
 
-        } catch (RuntimeException e) {
-            throw e;
         } catch (Exception e) {
             throw new IllegalStateException("Yahoo 배당 파싱 실패", e);
         }

@@ -2,8 +2,8 @@ package com.muscat.backtest.domain.strategy;
 
 import com.muscat.backtest.common.calculation.StrategyCalculationResult;
 import com.muscat.backtest.common.calculation.StrategyCalculator;
-import com.muscat.backtest.common.enums.BacktestResponseCode;
-import com.muscat.backtest.common.enums.StrategyType;
+import com.muscat.backtest.common.enums.BacktestResponse;
+import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.logging.BacktestLogger;
 import com.muscat.backtest.common.util.BacktestCalculationUtils;
@@ -59,7 +59,7 @@ public class DCAStrategy implements InvestmentStrategy {
           request, actualEndDate, investmentDay);
 
       if (transactions.isEmpty()) {
-        throw new BacktestException(BacktestResponseCode.DATA_NOT_FOUND,
+        throw new BacktestException(BacktestResponse.DATA_NOT_FOUND,
             "적립식 투자 전략 실행 가능한 데이터가 없습니다");
       }
 
@@ -97,7 +97,7 @@ public class DCAStrategy implements InvestmentStrategy {
   private void validateDCASpecificRequest(StrategyRequest request) {
     if (request.getMonthlyAmount() == null
         || request.getMonthlyAmount().compareTo(BigDecimal.ZERO) <= 0) {
-      throw new BacktestException(BacktestResponseCode.STRATEGY_MONTHLY_AMOUNT_REQUIRED);
+      throw new BacktestException(BacktestResponse.STRATEGY_MONTHLY_AMOUNT_REQUIRED);
     }
   }
 

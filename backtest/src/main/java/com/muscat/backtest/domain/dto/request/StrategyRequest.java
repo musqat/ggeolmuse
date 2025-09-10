@@ -1,6 +1,6 @@
 package com.muscat.backtest.domain.dto.request;
 
-import com.muscat.backtest.common.enums.StrategyType;
+import com.muscat.backtest.common.enums.type.StrategyType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;

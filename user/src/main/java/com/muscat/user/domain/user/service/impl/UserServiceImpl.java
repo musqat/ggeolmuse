@@ -3,7 +3,7 @@ package com.muscat.user.domain.user.service.impl;
 import com.muscat.user.common.exceptions.AuthenticationException;
 import com.muscat.user.common.exceptions.KeycloakException;
 import com.muscat.user.common.exceptions.UserException;
-import com.muscat.user.common.responses.UserResponse;
+import com.muscat.user.common.enums.responses.UserResponse;
 import com.muscat.user.domain.account.entity.Account;
 import com.muscat.user.domain.account.repository.AccountRepository;
 import com.muscat.user.domain.user.dto.request.UpdateProfileRequestDto;
@@ -14,7 +14,7 @@ import com.muscat.user.domain.user.repository.EmailTokenRepository;
 import com.muscat.user.domain.user.repository.UserRepository;
 import com.muscat.user.domain.user.service.KeycloakService;
 import com.muscat.user.domain.user.service.UserService;
-import com.muscat.user.mail.MailService;
+import com.muscat.user.config.mail.MailService;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -74,7 +74,7 @@ public class UserServiceImpl implements UserService {
       throw e;
     } catch (Exception e) {
       log.error("회원가입 처리 중 예상치 못한 오류 발생: {}", e.getMessage(), e);
-      throw new UserException(UserResponse.INTERNAL_SERVER_ERROR, "회원가입 처리 중 오류가 발생했습니다.");
+      throw new UserException(UserResponse.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -92,24 +92,16 @@ public class UserServiceImpl implements UserService {
       throw new UserException(UserResponse.EMAIL_NOT_VERIFIED);
     }
 
-    try {
-      // 1. 로컬 비밀번호 검증 (Primary)
-      if (user.getPasswordHash() == null || !passwordEncoder.matches(password, user.getPasswordHash())) {
-        log.warn("로그인 실패 - 비밀번호 불일치: {}", email);
-        throw new UserException(UserResponse.INVALID_CREDENTIALS);
-      }
-      
-      // 2. Keycloak 토큰 발급 시도 (Secondary)  
-      String token = keycloakService.login(email, password);
-      log.info("로그인 성공: {}", email);
-      return token;
-      
-    } catch (UserException e) {
-      throw e;
-    } catch (Exception e) {
-      log.error("로그인 처리 중 예상치 못한 오류: {}", e.getMessage(), e);
-      throw new UserException(UserResponse.AUTHENTICATION_FAILED);
+    // 1. 로컬 비밀번호 검증 (Primary)
+    if (user.getPasswordHash() == null || !passwordEncoder.matches(password, user.getPasswordHash())) {
+      log.warn("로그인 실패 - 비밀번호 불일치: {}", email);
+      throw new UserException(UserResponse.INVALID_CREDENTIALS);
     }
+    
+    // 2. Keycloak 토큰 발급 시도 (Secondary)  
+    String token = keycloakService.login(email, password);
+    log.info("로그인 성공: {}", email);
+    return token;
   }
 
   @Override
@@ -123,39 +115,29 @@ public class UserServiceImpl implements UserService {
     User user = userRepository.findByEmail(email)
         .orElseThrow(() -> new UserException(UserResponse.USER_NOT_FOUND));
 
-    try {
-      // 로컬 비밀번호 검증
-      if (user.getPasswordHash() == null || !passwordEncoder.matches(password, user.getPasswordHash())) {
-        log.warn("계정 삭제 실패 - 비밀번호 불일치: {}", email);
-        throw new UserException(UserResponse.INVALID_PASSWORD);
-      }
-
-      user.validateForDeletion();
-
-      deleteUserRelatedData(user);
-
-      // Keycloak 사용자 삭제 시도 (실패해도 로컬 삭제 진행)
-      if (user.getKeycloakId() != null) {
-        try {
-          keycloakService.deleteUser(user.getKeycloakId());
-          log.info("Keycloak 사용자 삭제 완료: {}", user.getKeycloakId());
-        } catch (Exception e) {
-          log.warn("Keycloak 사용자 삭제 실패하지만 로컬 계정 삭제 진행: {}", e.getMessage());
-        }
-      }
-
-      userRepository.delete(user);
-
-      log.info("계정 삭제 완료: {}", email);
-
-    } catch (AuthenticationException e) {
+    // 로컬 비밀번호 검증
+    if (user.getPasswordHash() == null || !passwordEncoder.matches(password, user.getPasswordHash())) {
+      log.warn("계정 삭제 실패 - 비밀번호 불일치: {}", email);
       throw new UserException(UserResponse.INVALID_PASSWORD);
-    } catch (UserException e) {
-      throw e;
-    } catch (Exception e) {
-      log.error("계정 삭제 중 오류 발생: {}", e.getMessage(), e);
-      throw new UserException(UserResponse.INTERNAL_SERVER_ERROR, "계정 삭제 중 오류가 발생했습니다.");
     }
+
+    user.validateForDeletion();
+
+    deleteUserRelatedData(user);
+
+    // Keycloak 사용자 삭제 시도 (실패해도 로컬 삭제 진행)
+    if (user.getKeycloakId() != null) {
+      try {
+        keycloakService.deleteUser(user.getKeycloakId());
+        log.info("Keycloak 사용자 삭제 완료: {}", user.getKeycloakId());
+      } catch (Exception e) {
+        log.warn("Keycloak 사용자 삭제 실패하지만 로컬 계정 삭제 진행: {}", e.getMessage());
+      }
+    }
+
+    userRepository.delete(user);
+
+    log.info("계정 삭제 완료: {}", email);
   }
 
 
@@ -228,19 +210,12 @@ public class UserServiceImpl implements UserService {
 
   // 사용자 관련 데이터 정리
   private void deleteUserRelatedData(User user) {
-    try {
-      emailTokenRepository.deleteByUser(user);
+    emailTokenRepository.deleteByUser(user);
 
-      List<Account> accounts = accountRepository.findByUserIdWithUser(user.getId());
-      validateAccountsForDeletion(accounts);
+    List<Account> accounts = accountRepository.findByUserIdWithUser(user.getId());
+    validateAccountsForDeletion(accounts);
 
-      log.debug("사용자 관련 데이터 정리 완료: userId={}, 계좌수={}", user.getId(), accounts.size());
-
-    } catch (Exception e) {
-      log.error("사용자 관련 데이터 정리 실패: userId={}", user.getId(), e);
-      throw new UserException(UserResponse.INTERNAL_SERVER_ERROR,
-          "관련 데이터 정리 중 오류가 발생했습니다: " + e.getMessage());
-    }
+    log.debug("사용자 관련 데이터 정리 완료: userId={}, 계좌수={}", user.getId(), accounts.size());
   }
 
   // 계좌들 삭제 가능 여부 일괄 검증
@@ -248,31 +223,25 @@ public class UserServiceImpl implements UserService {
     for (Account account : accounts) {
       if (account.getBalanceKrw().compareTo(BigDecimal.ZERO) > 0 ||
           account.getBalanceUsd().compareTo(BigDecimal.ZERO) > 0) {
-        throw new UserException(UserResponse.ACCOUNT_DELETION_BLOCKED,
-            String.format("계좌 '%s'에 잔액이 있어 삭제할 수 없습니다.", account.getAccountName()));
+        throw new UserException(UserResponse.ACCOUNT_DELETION_BLOCKED);
       }
     }
   }
 
   // 이메일 인증 토큰 생성 및 발송
   private void createAndSendVerificationToken(User user) {
-    try {
-      emailTokenRepository.deleteByUser(user);
+    emailTokenRepository.deleteByUser(user);
 
-      EmailToken token = new EmailToken();
-      token.setToken(UUID.randomUUID().toString());
-      token.setUser(user);
-      token.setExpiryDate(LocalDateTime.now().plusHours(expiryHours));
+    EmailToken token = new EmailToken();
+    token.setToken(UUID.randomUUID().toString());
+    token.setUser(user);
+    token.setExpiryDate(LocalDateTime.now().plusHours(expiryHours));
 
-      emailTokenRepository.save(token);
+    emailTokenRepository.save(token);
 
-      mailService.sendVerificationEmail(user.getEmail(), token.getToken());
+    mailService.sendVerificationEmail(user.getEmail(), token.getToken());
 
-      log.debug("이메일 인증 토큰 생성 및 발송 완료: {}", user.getEmail());
-    } catch (Exception e) {
-      log.error("이메일 발송 실패: {}", e.getMessage(), e);
-      throw new UserException(UserResponse.EMAIL_SEND_FAILED);
-    }
+    log.debug("이메일 인증 토큰 생성 및 발송 완료: {}", user.getEmail());
   }
 
 }

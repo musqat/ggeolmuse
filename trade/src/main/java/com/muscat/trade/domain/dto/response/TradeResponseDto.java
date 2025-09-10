@@ -28,7 +28,7 @@ public class TradeResponseDto {
   public static TradeResponseDto from(Trade trade) {
     return TradeResponseDto.builder()
         .tradeId(trade.getTradeId())
-        .accountId(trade.getAccountId())
+        .accountId(String.valueOf(trade.getAccountId()))
         .symbol(trade.getSymbol())
         .tradeType(trade.getTradeType())
         .quantity(trade.getQuantity())

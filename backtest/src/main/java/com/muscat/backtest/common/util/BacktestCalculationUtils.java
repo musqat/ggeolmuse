@@ -1,33 +1,40 @@
 package com.muscat.backtest.common.util;
 
-import com.muscat.backtest.common.enums.BacktestResponseCode;
+import com.muscat.backtest.common.enums.BacktestResponse;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.infra.client.dto.DividendHistoryDto;
+import com.muscat.commonlib.constants.CommonConstants;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
-import lombok.experimental.UtilityClass;
-
 // 백테스팅 계산 관련 유틸리티 클래스
-@UtilityClass
-public class BacktestCalculationUtils {
+public final class BacktestCalculationUtils {
 
-  // 반올림 모드 상수
-  public static final RoundingMode HALF_UP = RoundingMode.HALF_UP;
+  private BacktestCalculationUtils() {
+    throw new AssertionError("유틸리티 클래스는 인스턴스화할 수 없습니다");
+  }
 
-  // 스케일 상수
-  public static final int KRW_SCALE = 0;
-  public static final int USD_SCALE = 2;
+  // 반올림 모드 상수 - CommonConstants 사용 권장
+  @Deprecated(since = "2024.12", forRemoval = true)
+  public static final RoundingMode HALF_UP = CommonConstants.DEFAULT_ROUNDING_MODE;
+
+  // 스케일 상수 - CommonConstants 사용 권장
+  @Deprecated(since = "2024.12", forRemoval = true)
+  public static final int KRW_SCALE = CommonConstants.KRW_SCALE;
+  @Deprecated(since = "2024.12", forRemoval = true)
+  public static final int USD_SCALE = CommonConstants.USD_SCALE;
   public static final int SHARES_SCALE = 6;
   public static final int PERCENT_PRECISION = 4;
 
   // 퍼센트 수익률을 계산합니다 (현재값 - 기준값) / 기준값 * 100
+  @Deprecated(since = "2024.12", forRemoval = true)
   public static BigDecimal calculatePercentageReturn(BigDecimal currentValue,
       BigDecimal baseValue) {
+    // MoneyUtils.calculateReturnRate() 사용 권장
     if (baseValue == null || baseValue.compareTo(BigDecimal.ZERO) == 0) {
-      throw new BacktestException(BacktestResponseCode.RETURN_CALCULATION_ERROR,
+      throw new BacktestException(BacktestResponse.RETURN_CALCULATION_ERROR,
           "수익률 계산을 위한 기준값은 null이거나 0이 될 수 없습니다");
     }
 
@@ -37,7 +44,9 @@ public class BacktestCalculationUtils {
   }
 
   // 값을 퍼센트로 변환합니다 (값 / 기준값 * 100)
+  @Deprecated(since = "2024.12", forRemoval = true)
   public static BigDecimal toPercentage(BigDecimal value, BigDecimal baseValue) {
+    // MoneyUtils.calculateReturnRate() 사용 권장
     if (baseValue == null || baseValue.compareTo(BigDecimal.ZERO) == 0) {
       throw new IllegalArgumentException("기준값은 null이거나 0이 될 수 없습니다");
     }
@@ -47,7 +56,9 @@ public class BacktestCalculationUtils {
   }
 
   // USD를 KRW로 환전합니다
+  @Deprecated(since = "2024.12", forRemoval = true)
   public static BigDecimal convertUsdToKrw(BigDecimal usdAmount, BigDecimal fxRate) {
+    // MoneyUtils.calculateUsdToKrw() 사용 권장
     if (usdAmount == null || fxRate == null) {
       throw new IllegalArgumentException("USD 금액과 환율은 null이 될 수 없습니다");
     }
@@ -56,7 +67,9 @@ public class BacktestCalculationUtils {
   }
 
   // KRW를 USD로 환전합니다
+  @Deprecated(since = "2024.12", forRemoval = true)
   public static BigDecimal convertKrwToUsd(BigDecimal krwAmount, BigDecimal fxRate) {
+    // MoneyUtils.calculateKrwToUsd() 사용 권장
     if (krwAmount == null || fxRate == null) {
       throw new IllegalArgumentException("KRW 금액과 환율은 null이 될 수 없습니다");
     }
@@ -71,14 +84,14 @@ public class BacktestCalculationUtils {
   public static BigDecimal calculateShares(BigDecimal investmentAmount, BigDecimal fxRate,
       BigDecimal stockPrice) {
     if (investmentAmount == null || fxRate == null || stockPrice == null) {
-      throw new BacktestException(BacktestResponseCode.SHARES_CALCULATION_ERROR,
+      throw new BacktestException(BacktestResponse.SHARES_CALCULATION_ERROR,
           "주식 수량 계산을 위한 투자금액, 환율, 주식가격은 null이 될 수 없습니다");
     }
     if (fxRate.compareTo(BigDecimal.ZERO) == 0) {
-      throw new BacktestException(BacktestResponseCode.FX_CONVERSION_ERROR, "환율은 0이 될 수 없습니다");
+      throw new BacktestException(BacktestResponse.FX_CONVERSION_ERROR, "환율은 0이 될 수 없습니다");
     }
     if (stockPrice.compareTo(BigDecimal.ZERO) == 0) {
-      throw new BacktestException(BacktestResponseCode.SHARES_CALCULATION_ERROR,
+      throw new BacktestException(BacktestResponse.SHARES_CALCULATION_ERROR,
           "주식가격은 0이 될 수 없습니다");
     }
 
@@ -145,12 +158,16 @@ public class BacktestCalculationUtils {
   }
 
   // KRW 금액을 표준 스케일(0)로 반올림합니다
+  @Deprecated(since = "2024.12", forRemoval = true)
   public static BigDecimal scaleKrwAmount(BigDecimal krwAmount) {
+    // MoneyUtils.roundKrw() 사용 권장
     return scaleValue(krwAmount, KRW_SCALE);
   }
 
   // USD 금액을 표준 스케일(2)로 반올림합니다
+  @Deprecated(since = "2024.12", forRemoval = true)
   public static BigDecimal scaleUsdAmount(BigDecimal usdAmount) {
+    // MoneyUtils.roundUsd() 사용 권장
     return scaleValue(usdAmount, USD_SCALE);
   }
 
@@ -223,11 +240,11 @@ public class BacktestCalculationUtils {
   public static BigDecimal calculateWholeSharesWithFee(BigDecimal usdAmount, BigDecimal stockPrice,
       BigDecimal feeRate) {
     if (usdAmount == null || stockPrice == null || feeRate == null) {
-      throw new BacktestException(BacktestResponseCode.SHARES_CALCULATION_ERROR,
+      throw new BacktestException(BacktestResponse.SHARES_CALCULATION_ERROR,
           "수수료 계산을 위한 파라미터는 null이 될 수 없습니다");
     }
     if (stockPrice.compareTo(BigDecimal.ZERO) == 0) {
-      throw new BacktestException(BacktestResponseCode.SHARES_CALCULATION_ERROR,
+      throw new BacktestException(BacktestResponse.SHARES_CALCULATION_ERROR,
           "주식가격은 0이 될 수 없습니다");
     }
 
@@ -256,7 +273,7 @@ public class BacktestCalculationUtils {
   public static BigDecimal calculateTotalCost(BigDecimal shares, BigDecimal stockPrice,
       BigDecimal tradingFee) {
     if (shares == null || stockPrice == null) {
-      throw new BacktestException(BacktestResponseCode.CALCULATION_ERROR,
+      throw new BacktestException(BacktestResponse.CALCULATION_ERROR,
           "비용 계산을 위한 파라미터는 null이 될 수 없습니다");
     }
 
@@ -268,7 +285,7 @@ public class BacktestCalculationUtils {
   // 매수 후 잔액 계산 (USD)
   public static BigDecimal calculateRemainingCash(BigDecimal initialAmount, BigDecimal totalCost) {
     if (initialAmount == null || totalCost == null) {
-      throw new BacktestException(BacktestResponseCode.CALCULATION_ERROR,
+      throw new BacktestException(BacktestResponse.CALCULATION_ERROR,
           "잔액 계산을 위한 파라미터는 null이 될 수 없습니다");
     }
 

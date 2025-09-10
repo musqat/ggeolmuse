@@ -2,7 +2,7 @@ package com.muscat.user.domain.user.service.impl;
 
 import com.muscat.user.common.enums.type.AuthType;
 import com.muscat.user.common.exceptions.SocialLoginException;
-import com.muscat.user.common.responses.SocialResponse;
+import com.muscat.user.common.enums.responses.SocialResponse;
 import com.muscat.user.common.util.GoogleUserUtil;
 import com.muscat.user.domain.user.entity.User;
 import com.muscat.user.domain.user.repository.UserRepository;
@@ -75,8 +75,7 @@ public class SocialUserServiceImpl implements SocialUserService {
 
     } catch (Exception e) {
       log.error("Google 로그인 처리 실패: {}", e.getMessage());
-      throw new SocialLoginException(SocialResponse.GOOGLE_LOGIN_FAILED,
-          "Google 로그인 처리 중 오류가 발생했습니다: " + e.getMessage());
+      throw new SocialLoginException(SocialResponse.GOOGLE_LOGIN_FAILED);
     }
   }
 

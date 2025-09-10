@@ -1,9 +1,7 @@
 package com.muscat.user.domain.user.service.impl;
 
-import com.muscat.user.common.exceptions.AuthenticationException;
 import com.muscat.user.common.exceptions.KeycloakException;
-import com.muscat.user.common.responses.KeycloakResponse;
-import com.muscat.user.common.responses.UserResponse;
+import com.muscat.user.common.enums.responses.KeycloakResponse;
 import com.muscat.user.domain.user.dto.response.LoginResponseDto;
 import com.muscat.user.domain.user.dto.request.ChangePasswordRequestDto;
 import com.muscat.user.domain.user.service.KeycloakService;
@@ -65,191 +63,144 @@ public class KeycloakServiceImpl implements KeycloakService {
 
   @Override
   public String login(String email, String password) {
-    try {
-      String tokenUrl = keycloakUrl + "/realms/" + realm + "/protocol/openid-connect/token";
+    String tokenUrl = keycloakUrl + "/realms/" + realm + "/protocol/openid-connect/token";
 
-      log.info("Keycloak 로그인 시도: {}", email);
+    log.info("Keycloak 로그인 시도: {}", email);
 
-      HttpHeaders headers = new HttpHeaders();
-      headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
-      MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
-      body.add("grant_type", "password");
-      body.add("client_id", clientId);
-      body.add("client_secret", clientSecret);
-      body.add("username", email);
-      body.add("password", password);
+    MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+    body.add("grant_type", "password");
+    body.add("client_id", clientId);
+    body.add("client_secret", clientSecret);
+    body.add("username", email);
+    body.add("password", password);
 
-      HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
+    HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
 
-      ResponseEntity<LoginResponseDto> response = restTemplate.postForEntity(tokenUrl, request,
-          LoginResponseDto.class);
+    ResponseEntity<LoginResponseDto> response = restTemplate.postForEntity(tokenUrl, request,
+        LoginResponseDto.class);
 
-      log.info("Keycloak 로그인 성공: {}", email);
-      return Objects.requireNonNull(response.getBody()).getAccessToken();
-
-    } catch (HttpClientErrorException.Unauthorized e) {
-      log.warn("Keycloak 로그인 실패 - 인증 오류: {}", email);
-      throw new AuthenticationException(UserResponse.INVALID_CREDENTIALS);
-    } catch (Exception e) {
-      log.error("Keycloak 로그인 처리 중 오류 발생: {}", e.getMessage(), e);
-      throw new KeycloakException(KeycloakResponse.LOGIN_FAILED, e);
-    }
+    log.info("Keycloak 로그인 성공: {}", email);
+    return Objects.requireNonNull(response.getBody()).getAccessToken();
   }
 
   @Override
   public String exchangeCodeForToken(String authorizationCode) {
-    try {
-      String tokenUrl = keycloakUrl + "/realms/" + realm + "/protocol/openid-connect/token";
+    String tokenUrl = keycloakUrl + "/realms/" + realm + "/protocol/openid-connect/token";
 
-      log.debug("Authorization Code 교환 요청: {} | Redirect URI: {}", tokenUrl, redirectUri);
+    log.debug("Authorization Code 교환 요청: {} | Redirect URI: {}", tokenUrl, redirectUri);
 
-      HttpHeaders headers = new HttpHeaders();
-      headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
-      MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
-      body.add("grant_type", "authorization_code");
-      body.add("client_id", clientId);
-      body.add("client_secret", clientSecret);
-      body.add("code", authorizationCode);
-      body.add("redirect_uri", redirectUri);
+    MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+    body.add("grant_type", "authorization_code");
+    body.add("client_id", clientId);
+    body.add("client_secret", clientSecret);
+    body.add("code", authorizationCode);
+    body.add("redirect_uri", redirectUri);
 
-      HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
+    HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
 
-      log.info("Authorization Code를 토큰으로 교환 중");
+    log.info("Authorization Code를 토큰으로 교환 중");
 
-      ResponseEntity<Map> response = restTemplate.postForEntity(tokenUrl, request, Map.class);
-      
-      if (response.getBody() == null) {
-        log.error("토큰 교환 응답이 null입니다");
-        throw new KeycloakException(KeycloakResponse.API_ERROR);
-      }
-      
-      Map<String, Object> tokenResponse = response.getBody();
-      String accessToken = (String) tokenResponse.get("access_token");
-      
-      if (accessToken == null || accessToken.trim().isEmpty()) {
-        log.error("토큰 교환 응답에 access_token이 없습니다: {}", tokenResponse);
-        throw new KeycloakException(KeycloakResponse.API_ERROR);
-      }
-      
-      log.info("토큰 교환 성공");
-      return accessToken;
-
-    } catch (HttpClientErrorException e) {
-      log.error("토큰 교환 실패 - HTTP {}: {} | URL: {}", 
-          e.getStatusCode(), e.getResponseBodyAsString(), keycloakUrl);
-      throw new KeycloakException(KeycloakResponse.API_ERROR, e);
-    } catch (Exception e) {
-      log.error("토큰 교환 중 예상치 못한 오류: {} | URL: {}", e.getMessage(), keycloakUrl, e);
-      throw new KeycloakException(KeycloakResponse.API_ERROR, e);
+    ResponseEntity<Map> response = restTemplate.postForEntity(tokenUrl, request, Map.class);
+    
+    if (response.getBody() == null) {
+      log.error("토큰 교환 응답이 null입니다");
+      throw new KeycloakException(KeycloakResponse.API_ERROR);
     }
+    
+    Map<String, Object> tokenResponse = response.getBody();
+    String accessToken = (String) tokenResponse.get("access_token");
+    
+    if (accessToken == null || accessToken.trim().isEmpty()) {
+      log.error("토큰 교환 응답에 access_token이 없습니다: {}", tokenResponse);
+      throw new KeycloakException(KeycloakResponse.API_ERROR);
+    }
+    
+    log.info("토큰 교환 성공");
+    return accessToken;
   }
 
   @Override
   public Map<String, Object> parseTokenClaims(String jwtToken) {
-    try {
-      Jwt jwt = jwtDecoder.decode(jwtToken);
-      log.info("JWT 토큰 검증 및 파싱 완료: {}", jwt.getClaimAsString("email"));
-      return jwt.getClaims();
-
-    } catch (Exception e) {
-      log.error("JWT 토큰 파싱 실패: {}", e.getMessage(), e);
-      throw new KeycloakException(KeycloakResponse.TOKEN_PARSE_FAILED, e);
-    }
+    Jwt jwt = jwtDecoder.decode(jwtToken);
+    log.info("JWT 토큰 검증 및 파싱 완료: {}", jwt.getClaimAsString("email"));
+    return jwt.getClaims();
   }
 
   @Override
   public String createUser(String email, String password) {
-    try {
-      // 1. Admin 토큰 획득
-      String adminToken = getAdminToken();
+    // 1. Admin 토큰 획득
+    String adminToken = getAdminToken();
 
-      // 2. 사용자 생성 요청
-      String userUrl = keycloakUrl + "/admin/realms/" + realm + "/users";
-      
-      log.debug("Keycloak 사용자 생성 요청: {} | URL: {}", email, userUrl);
+    // 2. 사용자 생성 요청
+    String userUrl = keycloakUrl + "/admin/realms/" + realm + "/users";
+    
+    log.debug("Keycloak 사용자 생성 요청: {} | URL: {}", email, userUrl);
 
-      HttpHeaders headers = new HttpHeaders();
-      headers.setContentType(MediaType.APPLICATION_JSON);
-      headers.setBearerAuth(adminToken);
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.setBearerAuth(adminToken);
 
-      Map<String, Object> userRequest = Map.of(
-          "username", email,
-          "email", email,
-          "enabled", true,
-          "emailVerified", true,
-          "credentials", List.of(Map.of(
-              "type", "password",
-              "value", password,
-              "temporary", false
-          ))
-      );
+    Map<String, Object> userRequest = Map.of(
+        "username", email,
+        "email", email,
+        "enabled", true,
+        "emailVerified", true,
+        "credentials", List.of(Map.of(
+            "type", "password",
+            "value", password,
+            "temporary", false
+        ))
+    );
 
-      HttpEntity<Map<String, Object>> entity = new HttpEntity<>(userRequest, headers);
+    HttpEntity<Map<String, Object>> entity = new HttpEntity<>(userRequest, headers);
 
-      ResponseEntity<Void> response = restTemplate.postForEntity(userUrl, entity, Void.class);
+    ResponseEntity<Void> response = restTemplate.postForEntity(userUrl, entity, Void.class);
 
-      // 3. Location 헤더에서 사용자 ID 추출
-      String location = response.getHeaders().getFirst("Location");
-      if (location == null || location.trim().isEmpty()) {
-        log.error("사용자 생성 응답에 Location 헤더가 없습니다: {}", email);
-        throw new KeycloakException(KeycloakResponse.USER_CREATE_FAILED);
-      }
-      
-      String keycloakId = location.substring(location.lastIndexOf('/') + 1);
-      if (keycloakId.trim().isEmpty()) {
-        log.error("Location 헤더에서 Keycloak ID 추출 실패: {} | Location: {}", email, location);
-        throw new KeycloakException(KeycloakResponse.USER_CREATE_FAILED);
-      }
-
-      log.info("Keycloak 사용자 생성 완료: {} | ID: {}", email, keycloakId);
-      return keycloakId;
-
-    } catch (HttpClientErrorException e) {
-      log.error("Keycloak 사용자 생성 실패 - HTTP {}: {} | Email: {} | URL: {}", 
-          e.getStatusCode(), e.getResponseBodyAsString(), email, keycloakUrl);
-      throw new KeycloakException(KeycloakResponse.USER_CREATE_FAILED, e);
-    } catch (Exception e) {
-      log.error("Keycloak 사용자 생성 중 예상치 못한 오류: {} | Email: {} | URL: {}", 
-          e.getMessage(), email, keycloakUrl, e);
-      throw new KeycloakException(KeycloakResponse.USER_CREATE_FAILED, e);
+    // 3. Location 헤더에서 사용자 ID 추출
+    String location = response.getHeaders().getFirst("Location");
+    if (location == null || location.trim().isEmpty()) {
+      log.error("사용자 생성 응답에 Location 헤더가 없습니다: {}", email);
+      throw new KeycloakException(KeycloakResponse.USER_CREATE_FAILED);
     }
+    
+    String keycloakId = location.substring(location.lastIndexOf('/') + 1);
+    if (keycloakId.trim().isEmpty()) {
+      log.error("Location 헤더에서 Keycloak ID 추출 실패: {} | Location: {}", email, location);
+      throw new KeycloakException(KeycloakResponse.USER_CREATE_FAILED);
+    }
+
+    log.info("Keycloak 사용자 생성 완료: {} | ID: {}", email, keycloakId);
+    return keycloakId;
   }
 
   @Override
   public void changePassword(String keycloakId, ChangePasswordRequestDto request) {
-    try {
-      String adminToken = getAdminToken();
-      String passwordUrl =
-          keycloakUrl + "/admin/realms/" + realm + "/users/" + keycloakId + "/reset-password";
+    String adminToken = getAdminToken();
+    String passwordUrl =
+        keycloakUrl + "/admin/realms/" + realm + "/users/" + keycloakId + "/reset-password";
 
-      log.debug("Keycloak 비밀번호 변경 요청: {} | URL: {}", keycloakId, passwordUrl);
+    log.debug("Keycloak 비밀번호 변경 요청: {} | URL: {}", keycloakId, passwordUrl);
 
-      HttpHeaders headers = new HttpHeaders();
-      headers.setContentType(MediaType.APPLICATION_JSON);
-      headers.setBearerAuth(adminToken);
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.setBearerAuth(adminToken);
 
-      Map<String, Object> passwordRequest = Map.of(
-          "type", "password",
-          "value", request.getNewPassword(),
-          "temporary", false
-      );
+    Map<String, Object> passwordRequest = Map.of(
+        "type", "password",
+        "value", request.getNewPassword(),
+        "temporary", false
+    );
 
-      HttpEntity<Map<String, Object>> entity = new HttpEntity<>(passwordRequest, headers);
-      restTemplate.put(passwordUrl, entity);
+    HttpEntity<Map<String, Object>> entity = new HttpEntity<>(passwordRequest, headers);
+    restTemplate.put(passwordUrl, entity);
 
-      log.info("Keycloak 사용자 비밀번호 변경 완료: {}", keycloakId);
-
-    } catch (HttpClientErrorException e) {
-      log.error("비밀번호 변경 실패 - HTTP {}: {} | Keycloak ID: {} | URL: {}", 
-          e.getStatusCode(), e.getResponseBodyAsString(), keycloakId, keycloakUrl);
-      throw new KeycloakException(KeycloakResponse.PASSWORD_CHANGE_FAILED, e);
-    } catch (Exception e) {
-      log.error("비밀번호 변경 중 예상치 못한 오류: {} | Keycloak ID: {} | URL: {}", 
-          e.getMessage(), keycloakId, keycloakUrl, e);
-      throw new KeycloakException(KeycloakResponse.PASSWORD_CHANGE_FAILED, e);
-    }
+    log.info("Keycloak 사용자 비밀번호 변경 완료: {}", keycloakId);
   }
 
   @Override
@@ -287,7 +238,7 @@ public class KeycloakServiceImpl implements KeycloakService {
     } catch (Exception e) {
       log.error("Keycloak 사용자 삭제 중 예상치 못한 오류: {} | Keycloak ID: {} | URL: {}", 
           e.getMessage(), keycloakId, keycloakUrl, e);
-      throw new KeycloakException(KeycloakResponse.USER_DELETE_FAILED, e);
+      throw new KeycloakException(KeycloakResponse.USER_DELETE_FAILED);
     }
   }
 
@@ -322,11 +273,11 @@ public class KeycloakServiceImpl implements KeycloakService {
     } catch (HttpClientErrorException e) {
       log.error("Keycloak Admin 토큰 획득 실패 - HTTP {}: {} | URL: {} | Username: {}",
           e.getStatusCode(), e.getResponseBodyAsString(), keycloakUrl, adminUsername);
-      throw new KeycloakException(KeycloakResponse.API_ERROR, e);
+      throw new KeycloakException(KeycloakResponse.API_ERROR);
     } catch (Exception e) {
       log.error("Keycloak Admin 토큰 획득 중 예상치 못한 오류: {} | URL: {} | Username: {}",
           e.getMessage(), keycloakUrl, adminUsername, e);
-      throw new KeycloakException(KeycloakResponse.API_ERROR, e);
+      throw new KeycloakException(KeycloakResponse.API_ERROR);
     }
   }
 }

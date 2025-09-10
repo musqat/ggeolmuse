@@ -1,7 +1,5 @@
 package com.muscat.trade.infra.client;
 
-import com.muscat.trade.common.responses.ApiResponse;
-import com.muscat.trade.infra.client.dto.DividendInfoDto;
 import com.muscat.trade.infra.client.dto.StockPriceDto;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,17 +14,12 @@ import java.util.Map;
 public interface MarketServiceClient {
 
   @GetMapping("/api/market/price/{symbol}")
-  ApiResponse<StockPriceDto> getCurrentPrice(@PathVariable("symbol") String symbol);
+  StockPriceDto getCurrentPrice(@PathVariable("symbol") String symbol);
 
   @GetMapping("/api/market/prices")
-  ApiResponse<Map<String, StockPriceDto>> getCurrentPrices(@RequestParam("symbols") List<String> symbols);
+  Map<String, StockPriceDto> getCurrentPrices(@RequestParam("symbols") List<String> symbols);
 
-  @GetMapping("/api/market/dividend/{symbol}")
-  ApiResponse<DividendInfoDto> getDividendInfo(@PathVariable("symbol") String symbol);
-
-  @GetMapping("/api/market/dividends")
-  ApiResponse<List<DividendInfoDto>> getDividendsForDate(@RequestParam("date") LocalDate date);
 
   @GetMapping("/api/market/ohlc/{symbol}")
-  Map<String, Object> getOHLCPrice(@PathVariable("symbol") String symbol, @RequestParam("date") String date);
+  StockPriceDto getOHLCPrice(@PathVariable("symbol") String symbol, @RequestParam("date") String date);
 }

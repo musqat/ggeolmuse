@@ -1,7 +1,10 @@
 package com.muscat.marketdata.feed.service;
 
+import com.muscat.marketdata.common.util.FxRateCalculator;
+import com.muscat.marketdata.config.MarketDataProperties;
+import com.muscat.commonlib.util.MoneyUtils;
 import com.muscat.marketdata.domain.entity.FxRate;
-import com.muscat.marketdata.provider.MarketDataProvider.FxSource;
+import com.muscat.marketdata.feed.collector.FxDataCollector;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
@@ -10,34 +13,34 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Random;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class FxRateService {
 
-    private final FxSource fxSource;
+    private final FxDataCollector dataCollector;
+    private final FxRateCalculator calculator;
+    private final MarketDataProperties properties;
 
     @PersistenceContext
     private EntityManager em;
-
-    private static final int SCALE = 6;
-    private static final RoundingMode RM = RoundingMode.HALF_UP;
-    private static final int MAX_FALLBACK_DAYS = 7;
 
     @Transactional
     public FxRate saveRate(LocalDate date, BigDecimal usdToKrw) {
         Objects.requireNonNull(date, "날짜는 필수입니다");
         Objects.requireNonNull(usdToKrw, "환율은 필수입니다");
-        BigDecimal normalizedRate = normalize(usdToKrw);
+        
+        // MoneyUtils를 사용한 환율 정규화 (소수점 6자리)
+        BigDecimal normalizedRate = MoneyUtils.roundExchangeRate(usdToKrw);
+        
+        // 환율 유효성 검증
+        MoneyUtils.validateExchangeRate(normalizedRate);
 
         FxRate existing = em.find(FxRate.class, date);
         if (existing == null) {
@@ -72,27 +75,11 @@ public class FxRateService {
 
     @Transactional
     public FxRate syncSingleDate(LocalDate targetDate, boolean useBusinessDayFallback) {
-        Objects.requireNonNull(targetDate, "대상 날짜는 필수입니다");
-
-        LocalDate currentDate = targetDate;
-        int attempts = 0;
-
-        while (true) {
-            Optional<BigDecimal> rateData = fxSource.fetchUsdKrw(currentDate);
-            if (rateData.isPresent()) {
-                return saveRate(currentDate, rateData.get());
-            }
-
-            if (!useBusinessDayFallback) {
-                throw new IllegalStateException("환율 데이터를 찾을 수 없습니다: " + currentDate);
-            }
-
-            attempts++;
-            if (attempts > MAX_FALLBACK_DAYS) {
-                throw new IllegalStateException("환율 데이터 폴백 기간 초과: " + targetDate + "부터 " + MAX_FALLBACK_DAYS + "일");
-            }
-            currentDate = getPreviousBusinessDay(currentDate);
+        Optional<FxRate> collectedRate = dataCollector.collectSingleDate(targetDate, useBusinessDayFallback);
+        if (collectedRate.isPresent()) {
+            return saveRate(targetDate, collectedRate.get().getRate());
         }
+        throw new IllegalStateException("환율 데이터를 찾을 수 없습니다: " + targetDate);
     }
 
     @Transactional
@@ -103,12 +90,10 @@ public class FxRateService {
             throw new IllegalArgumentException("종료일이 시작일보다 빠릅니다");
         }
 
+        List<FxRate> collectedRates = dataCollector.collectDateRange(startDate, endDate);
         List<FxRate> savedRates = new ArrayList<>();
-        for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
-            Optional<BigDecimal> rateData = fxSource.fetchUsdKrw(date);
-            if (rateData.isPresent()) {
-                savedRates.add(saveRate(date, rateData.get()));
-            }
+        for (FxRate rate : collectedRates) {
+            savedRates.add(saveRate(rate.getDate(), rate.getRate()));
         }
         return savedRates;
     }
@@ -124,62 +109,34 @@ public class FxRateService {
         }
 
         log.info("[환율조회] DB가 비어있어서 오늘 환율을 API에서 가져옵니다");
-        return fxSource.fetchUsdKrw(LocalDate.now())
-                .map(rate -> saveRate(LocalDate.now(), rate));
+        Optional<FxRate> todayRate = dataCollector.collectSingleDate(LocalDate.now(), true);
+        return todayRate.map(rate -> saveRate(LocalDate.now(), rate.getRate()));
     }
 
     public boolean isDataSourceHealthy() {
         try {
-            fxSource.fetchUsdKrw(LocalDate.now().minusDays(1));
+            dataCollector.collectSingleDate(LocalDate.now().minusDays(1), false);
             return true;
         } catch (Exception e) {
             return false;
         }
     }
 
-    public static BigDecimal calculateInverseRate(BigDecimal usdToKrw) {
-        Objects.requireNonNull(usdToKrw, "환율은 필수입니다");
-        return BigDecimal.ONE.divide(usdToKrw, SCALE, RM);
-    }
-
-    private static BigDecimal normalize(BigDecimal value) {
-        return value.setScale(SCALE, RM);
-    }
-
-    private static LocalDate getPreviousBusinessDay(LocalDate date) {
-        DayOfWeek dayOfWeek = date.getDayOfWeek();
-        if (dayOfWeek == DayOfWeek.MONDAY) return date.minusDays(3);
-        if (dayOfWeek == DayOfWeek.SUNDAY) return date.minusDays(2);
-        return date.minusDays(1);
+    public BigDecimal calculateInverseRate(BigDecimal usdToKrw) {
+        return calculator.calculateInverseRate(usdToKrw);
     }
     
     @Transactional
     public int generateHistoricalRates(LocalDate startDate, LocalDate endDate, BigDecimal baseRate) {
-        Objects.requireNonNull(startDate, "시작일은 필수입니다");
-        Objects.requireNonNull(endDate, "종료일은 필수입니다");
-        Objects.requireNonNull(baseRate, "기준 환율은 필수입니다");
-        
-        if (endDate.isBefore(startDate)) {
-            throw new IllegalArgumentException("종료일이 시작일보다 빠릅니다");
-        }
-        
-        log.info("[환율생성] 과거 환율 데이터 생성: {} ~ {}, 기준환율={}", startDate, endDate, baseRate);
+        List<FxRate> generatedRates = calculator.generateHistoricalRates(startDate, endDate, baseRate);
         
         int savedCount = 0;
-        Random random = new Random();
-        
-        for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
+        for (FxRate rate : generatedRates) {
             // 기존 데이터가 있으면 건너뛰기
-            if (findByDate(date) != null) {
-                continue;
+            if (findByDate(rate.getDate()) == null) {
+                saveRate(rate.getDate(), rate.getRate());
+                savedCount++;
             }
-            
-            // 기준 환율 ±5% 범위에서 랜덤 환율 생성
-            double variation = (random.nextDouble() - 0.5) * 0.1; // -5% ~ +5%
-            BigDecimal dailyRate = baseRate.multiply(BigDecimal.ONE.add(BigDecimal.valueOf(variation)));
-            
-            saveRate(date, dailyRate);
-            savedCount++;
         }
         
         log.info("[환율생성] 과거 환율 데이터 생성 완료: {}건", savedCount);

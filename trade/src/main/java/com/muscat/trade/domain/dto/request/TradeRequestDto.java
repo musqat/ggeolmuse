@@ -4,6 +4,9 @@ import com.muscat.trade.common.enums.type.PriceType;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+import com.muscat.trade.common.constants.TradeConstants;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -17,9 +20,12 @@ import java.time.LocalDate;
 public class TradeRequestDto {
 
   @NotBlank(message = "계좌 ID는 필수입니다")
+  @Pattern(regexp = TradeConstants.ACCOUNT_ID_PATTERN, message = "계좌 ID는 숫자만 허용됩니다")
   private String accountId; // 사용자가 선택한 계좌 ID
 
   @NotBlank(message = "종목 심볼은 필수입니다")
+  @Size(min = TradeConstants.MIN_SYMBOL_LENGTH, max = TradeConstants.MAX_SYMBOL_LENGTH, message = "종목 심볼은 1-16자 이내여야 합니다")
+  @Pattern(regexp = TradeConstants.SYMBOL_PATTERN, message = "종목 심볼은 대문자, 숫자, 마침표만 허용됩니다")
   private String symbol; // 주식 심볼 (AAPL, MSFT)
 
   @NotNull(message = "수량은 필수입니다")

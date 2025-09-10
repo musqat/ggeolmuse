@@ -5,6 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.math.BigDecimal;
@@ -20,7 +21,12 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
 @Table(name = "holdings",
-    uniqueConstraints = @UniqueConstraint(columnNames = {"userId", "accountId", "symbol"}))
+    uniqueConstraints = @UniqueConstraint(columnNames = {"userId", "accountId", "symbol"}),
+    indexes = {
+        @Index(name = "idx_holdings_user_account", columnList = "userId, accountId"),
+        @Index(name = "idx_holdings_user_symbol", columnList = "userId, symbol"),
+        @Index(name = "idx_holdings_account_symbol", columnList = "accountId, symbol")
+    })
 @Getter
 @Setter
 @NoArgsConstructor
@@ -36,7 +42,7 @@ public class Holdings {
   private String userId; // 사용자 ID (Keycloak UUID)
 
   @Column(nullable = false)
-  private String accountId; // 계좌 ID
+  private Long accountId; // 계좌 ID
 
   @Column(nullable = false, length = 10)
   private String symbol; // 주식 심볼 (AAPL, MSFT)
@@ -53,12 +59,6 @@ public class Holdings {
   @Builder.Default
   private BigDecimal totalInvestedAmount = BigDecimal.ZERO; // 총 투자금액
 
-  @Column(nullable = false, precision = 15, scale = 2)
-  @Builder.Default
-  private BigDecimal totalDividends = BigDecimal.ZERO; // 누적 배당금
-
-  @Column(nullable = true)
-  private LocalDate lastDividendCalculated; // 마지막 배당 계산일
 
   @CreationTimestamp
   @Column(nullable = false, updatable = false)

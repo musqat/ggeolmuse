@@ -1,6 +1,6 @@
 package com.muscat.backtest.domain.dto.response;
 
-import com.muscat.backtest.common.enums.StrategyType;
+import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import java.math.BigDecimal;
 import java.time.LocalDate;

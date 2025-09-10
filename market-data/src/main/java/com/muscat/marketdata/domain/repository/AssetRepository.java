@@ -12,4 +12,10 @@ public interface AssetRepository extends JpaRepository<Asset, String> {
     List<Asset> findByCountry(String country);
     
     List<Asset> findByCurrency(String currency);
+    
+    List<Asset> findByAssetType(String assetType);
+    
+    List<Asset> findByCountryAndCurrency(String country, String currency);
+    
+    boolean existsBySymbol(String symbol);
 }

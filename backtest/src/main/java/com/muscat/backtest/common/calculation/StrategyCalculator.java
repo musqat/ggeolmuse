@@ -3,6 +3,7 @@ package com.muscat.backtest.common.calculation;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.backtest.common.util.BacktestCalculationUtils;
 import com.muscat.backtest.infra.client.MarketDataClient.FxRate;
+import com.muscat.commonlib.util.MoneyUtils;
 import com.muscat.backtest.infra.client.dto.StockPriceDto;
 import lombok.experimental.UtilityClass;
 import java.math.BigDecimal;
@@ -12,7 +13,7 @@ import java.util.List;
 @UtilityClass
 public class StrategyCalculator {
     
-    // 전략 실행 결과를 계산합니다
+    // 전략 실행 결과를 계산
     public static StrategyCalculationResult calculate(
             List<StrategyTransaction> transactions,
             BigDecimal totalInvested,
@@ -26,20 +27,21 @@ public class StrategyCalculator {
         BigDecimal averageFxRate = BacktestCalculationUtils.calculateAverageFxRate(
             totalFxRateSum, transactions.size());
 
-        BigDecimal currentValue = totalShares.multiply(currentPrice.getCurrentPrice());
-        BigDecimal currentValueKrw = BacktestCalculationUtils.convertUsdToKrw(
-            currentValue, currentFxRate.rate());
+        // MoneyUtils를 사용한 정확한 백테스트 계산
+        BigDecimal currentValue = MoneyUtils.multiply(totalShares, currentPrice.getCurrentPrice());
+        currentValue = MoneyUtils.roundUsd(currentValue);
+        
+        BigDecimal currentValueKrw = MoneyUtils.calculateUsdToKrw(currentValue, currentFxRate.rate());
 
-        BigDecimal totalInvestedUsd = BacktestCalculationUtils.convertKrwToUsd(
-            totalInvested, averageFxRate);
-        BigDecimal totalReturnUsd = currentValue.subtract(totalInvestedUsd);
-        BigDecimal totalReturnPercent = BacktestCalculationUtils.calculatePercentageReturn(
-            currentValue, totalInvestedUsd);
-        BigDecimal totalReturnKrw = currentValueKrw.subtract(totalInvested);
+        BigDecimal totalInvestedUsd = MoneyUtils.calculateKrwToUsd(totalInvested, averageFxRate);
+        BigDecimal totalReturnUsd = MoneyUtils.subtract(currentValue, totalInvestedUsd);
+        
+        // 수익률 계산 - MoneyUtils의 백분율 계산 사용
+        BigDecimal totalReturnPercent = MoneyUtils.calculateReturnRate(totalInvestedUsd, currentValue);
+        BigDecimal totalReturnKrw = MoneyUtils.subtract(currentValueKrw, totalInvested);
 
-        BigDecimal fxReturn = currentFxRate.rate().subtract(averageFxRate);
-        BigDecimal fxReturnPercent = BacktestCalculationUtils.calculatePercentageReturn(
-            currentFxRate.rate(), averageFxRate);
+        BigDecimal fxReturn = MoneyUtils.subtract(currentFxRate.rate(), averageFxRate);
+        BigDecimal fxReturnPercent = MoneyUtils.calculateReturnRate(averageFxRate, currentFxRate.rate());
         
         return StrategyCalculationResult.builder()
             .totalInvested(totalInvested)

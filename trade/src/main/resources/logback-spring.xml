@@ -1,40 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
+    
+    <!-- 공통 설정 포함 -->
+    <include resource="logback-common.xml"/>
+    
+    <!-- Trade 서비스별 프로퍼티 -->
     <property name="LOG_FILE" value="${LOG_FILE:-trade}"/>
-    <property name="LOG_PATH" value="${LOG_PATH:-./logs}"/>
     
-    <!-- Console Appender -->
-    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{requestId:-}] [%X{userId:-}] %logger{36} - %msg%n</pattern>
-        </encoder>
-    </appender>
-    
-    <!-- File Appender -->
-    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${LOG_PATH}/${LOG_FILE}.log</file>
-        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{requestId:-}] [%X{userId:-}] %logger{36} - %msg%n</pattern>
+    <!-- Transaction Log Appender (거래 전용 로그) -->
+    <appender name="TRANSACTION_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/trade-transaction.log</file>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%X{rid:-}] [%X{userId:-}] [%X{tradeType:-}] [%X{symbol:-}] [%X{accountId:-}] %msg%n</pattern>
         </encoder>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_PATH}/${LOG_FILE}.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
-            <maxFileSize>100MB</maxFileSize>
-            <maxHistory>30</maxHistory>
-            <totalSizeCap>3GB</totalSizeCap>
-        </rollingPolicy>
-    </appender>
-    
-    <!-- Transaction Log Appender (구조화된 거래 로그) -->
-    <appender name="TRANSACTION" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${LOG_PATH}/${LOG_FILE}-transaction.log</file>
-        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%X{requestId:-}] [%X{userId:-}] %msg%n</pattern>
-        </encoder>
-        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_PATH}/${LOG_FILE}-transaction.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
-            <maxFileSize>50MB</maxFileSize>
-            <maxHistory>90</maxHistory>
-            <totalSizeCap>5GB</totalSizeCap>
+            <fileNamePattern>${LOG_DIR}/trade-transaction.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>200MB</maxFileSize>
+            <maxHistory>365</maxHistory> <!-- 1년 보관 -->
+            <totalSizeCap>20GB</totalSizeCap>
         </rollingPolicy>
         <filter class="ch.qos.logback.core.filter.EvaluatorFilter">
             <evaluator class="ch.qos.logback.classic.boolex.OnMarkerEvaluator">
@@ -45,29 +28,37 @@
         </filter>
     </appender>
     
-    <!-- Logger for TransactionLogger -->
-    <logger name="com.muscat.trade.common.logging.TransactionLogger" level="INFO" additivity="false">
-        <appender-ref ref="TRANSACTION"/>
-        <appender-ref ref="CONSOLE"/>
-    </logger>
+    <!-- Trade Logger -->
+    <springProfile name="!prod">
+        <logger name="com.muscat.trade.common.logging.TradeLogger" level="INFO" additivity="false">
+            <appender-ref ref="TRANSACTION_FILE"/>
+            <appender-ref ref="CONSOLE"/>
+        </logger>
+    </springProfile>
+    
+    <springProfile name="prod">
+        <logger name="com.muscat.trade.common.logging.TradeLogger" level="INFO" additivity="false">
+            <appender-ref ref="TRANSACTION_FILE"/>
+        </logger>
+    </springProfile>
+    
+    <!-- Trade 패키지 로거 -->
+    <logger name="com.muscat.trade" level="${LOG_LEVEL}"/>
     
     <!-- Root Logger -->
-    <root level="INFO">
-        <appender-ref ref="CONSOLE"/>
-        <appender-ref ref="FILE"/>
-    </root>
-    
-    <!-- Spring profiles -->
-    <springProfile name="dev">
-        <root level="DEBUG">
+    <springProfile name="!prod">
+        <root level="${ROOT_LOG_LEVEL}">
             <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="APPLICATION_FILE"/>
+            <appender-ref ref="ERROR_FILE"/>
         </root>
     </springProfile>
     
     <springProfile name="prod">
-        <root level="WARN">
-            <appender-ref ref="FILE"/>
+        <root level="${ROOT_LOG_LEVEL}">
+            <appender-ref ref="APPLICATION_FILE"/>
+            <appender-ref ref="ERROR_FILE"/>
         </root>
-        <logger name="com.muscat.trade" level="INFO"/>
     </springProfile>
+    
 </configuration>
