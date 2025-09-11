@@ -1,141 +1,70 @@
-server:
-  port: ${SERVER_PORT:8083}
-
 spring:
   application:
     name: market-data-service
+  config:
+    import: optional:configserver:http://localhost:8888
   profiles:
-    active: ${SPRING_PROFILES_ACTIVE:dev}
-  
-  # Database 설정
-  datasource:
-    url: ${DB_URL:jdbc:h2:mem:marketdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH}
-    username: ${DB_USERNAME:sa}
-    password: ${DB_PASSWORD:}
-    driver-class-name: ${DB_DRIVER:org.h2.Driver}
-  
-  # JPA 설정
-  jpa:
-    hibernate:
-      ddl-auto: ${DDL_AUTO:create-drop}
-    show-sql: ${SHOW_SQL:false}
-    open-in-view: false
-    defer-datasource-initialization: true
-  
-  # H2 Console
-  h2:
-    console:
-      enabled: ${H2_CONSOLE_ENABLED:true}
-      path: /h2-console
-  
-  # Security 설정
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: ${KEYCLOAK_URL:http://localhost:7001}/realms/${KEYCLOAK_REALM:muscat}
+    include: config
 
-keycloak:
-  realm: ${KEYCLOAK_REALM:muscat}
-  auth-server-url: ${KEYCLOAK_URL:http://localhost:7001}
-  resource: ${KEYCLOAK_CLIENT_ID:muscathan-market-cc}
-  credentials:
-    secret: ${KEYCLOAK_SECRET:your-secret}
-
+# 외부 API 키 설정
 alphavantage:
-  api-key: ${ALPHAVANTAGE_API_KEY:demo}
-  enabled: ${ALPHAVANTAGE_ENABLED:true}
-  rate-limit-per-second: ${ALPHAVANTAGE_RATE_LIMIT:5}
-  timeout-seconds: ${ALPHAVANTAGE_TIMEOUT:15}
-  base-url: ${ALPHAVANTAGE_BASE_URL:https://www.alphavantage.co/query}
-  retry:
-    max-attempts: ${ALPHAVANTAGE_RETRY_MAX:3}
-    backoff-delay: ${ALPHAVANTAGE_RETRY_DELAY:1000}
+  api-key: ${ALPHAVANTAGE_API_KEY:}
 
-# Yahoo Finance 설정
-yahoo:
-  finance:
-    enabled: ${YAHOO_FINANCE_ENABLED:true}
-    base-url: ${YAHOO_FINANCE_BASE_URL:https://query1.finance.yahoo.com}
-    timeout-seconds: ${YAHOO_FINANCE_TIMEOUT:10}
-    rate-limit-per-second: ${YAHOO_FINANCE_RATE_LIMIT:10}
-    retry:
-      max-attempts: ${YAHOO_FINANCE_RETRY_MAX:3}
-      backoff-delay: ${YAHOO_FINANCE_RETRY_DELAY:500}
-
-# Korea Exim Bank FX Rate API
 korea-exim:
   api:
-    url: ${KOREAEXIM_URL:https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON}
     auth-key: ${KOREAEXIM_API_KEY:}
-    enabled: ${KOREAEXIM_ENABLED:true}
-    timeout-seconds: ${KOREAEXIM_TIMEOUT:10}
 
+# Market Data Service 비즈니스 설정
 marketdata:
-  # Constants 설정
+  # 상수 설정
   constants:
     fx:
-      default-base-rate: ${FX_DEFAULT_RATE:1350}        # 기본 환율
-      scale: ${FX_SCALE:6}                              # 소수점 자릿수
-      max-fallback-days: ${FX_FALLBACK_DAYS:7}          # 최대 폴백 기간(일)
+      default-base-rate: ${FX_DEFAULT_RATE:1350}
+      scale: ${FX_SCALE:6}
+      max-fallback-days: ${FX_FALLBACK_DAYS:7}
     batch:
-      min-rpm: ${BATCH_MIN_RPM:1}                       # 최소 분당 요청 수
-      max-backoff-ms: ${BATCH_MAX_BACKOFF:30000}        # 최대 백오프 시간(ms)
-      millis-per-minute: 60000                          # 분당 밀리초
+      min-rpm: ${BATCH_MIN_RPM:1}
+      max-backoff-ms: ${BATCH_MAX_BACKOFF:30000}
+      millis-per-minute: 60000
     database:
-      symbol-max-length: 16                             # 심볼 최대 길이
-      currency-length: 3                                # 통화 길이
-      decimal-precision: 19                             # 소수점 전체 자릿수
-      decimal-scale: 8                                  # 소수점 아래 자릿수
+      symbol-max-length: 16
+      currency-length: 3
+      decimal-precision: 19
+      decimal-scale: 8
     calculation:
-      percent-scale: 4                                  # 퍼센트 계산 소수점 자릿수
-      percentage-multiplier: 100                        # 퍼센트 변환 승수
+      percent-scale: 4
+      percentage-multiplier: 100
   
-  # Data Collection 설정
+  # 데이터 수집 설정
   feed:
     symbol:
-      enabled: ${SYMBOL_COLLECTION_ENABLED:true}        # 앱 시작시 심볼 수집 활성화
-      startup-delay: ${SYMBOL_STARTUP_DELAY:30}         # 시작 지연 시간(초)
+      enabled: ${SYMBOL_COLLECTION_ENABLED:true}
+      startup-delay: ${SYMBOL_STARTUP_DELAY:30}
     schedule:
-      enabled: ${SCHEDULE_ENABLED:false}                # 일일 배치 활성화
-      cron: ${SCHEDULE_CRON:0 0 5 * * *}               # 매일 새벽 5시
-      timezone: ${SCHEDULE_TIMEZONE:America/New_York}   # 시장 타임존
-      lookback-days: ${SCHEDULE_LOOKBACK:365}           # 조회 기간
+      enabled: ${SCHEDULE_ENABLED:false}
+      cron: ${SCHEDULE_CRON:0 0 5 * * *}
+      timezone: ${SCHEDULE_TIMEZONE:America/New_York}
+      lookback-days: ${SCHEDULE_LOOKBACK:365}
   
-  # FX Rate Collection 설정
+  # 환율 수집 설정
   fx:
     ingest:
       backfill:
-        enabled: ${FX_BACKFILL_ENABLED:true}            # 백필 활성화
-        start: ${FX_BACKFILL_START:2024-01-01}          # 백필 시작일
-        end: ${FX_BACKFILL_END:2024-12-31}              # 백필 종료일
+        enabled: ${FX_BACKFILL_ENABLED:false}
+        lookback-days: ${FX_BACKFILL_LOOKBACK:365}
       incremental:
-        enabled: ${FX_INCREMENTAL_ENABLED:true}         # 증분 수집 활성화
-        default-days: ${FX_INCREMENTAL_DAYS:7}          # 초기 수집 기간
+        enabled: ${FX_INCREMENTAL_ENABLED:true}
+        default-days: ${FX_INCREMENTAL_DAYS:30}
       scheduler:
-        enabled: ${FX_SCHEDULER_ENABLED:false}          # 일일 스케줄 활성화
-        cron: ${FX_SCHEDULER_CRON:0 10 11 * * MON-FRI}  # 매 영업일 11:10
-        zone: ${FX_SCHEDULER_ZONE:Asia/Seoul}           # KST
+        enabled: ${FX_SCHEDULER_ENABLED:false}
+        cron: ${FX_SCHEDULER_CRON:0 10 11 * * MON-FRI}
+        zone: ${FX_SCHEDULER_ZONE:Asia/Seoul}
   
-  # Cache 설정
+  # 캐시 설정
   cache:
-    price-data-ttl: ${CACHE_PRICE_TTL:300}              # 가격 데이터 캐시 TTL (초)
-    fx-rate-ttl: ${CACHE_FX_TTL:3600}                   # 환율 캐시 TTL (초)
-    symbol-info-ttl: ${CACHE_SYMBOL_TTL:86400}          # 심볼 정보 캐시 TTL (초)
-    dividend-ttl: ${CACHE_DIVIDEND_TTL:86400}           # 배당 정보 캐시 TTL (초)
-
-feign:
-  client:
-    config:
-      default:
-        connect-timeout: ${FEIGN_CONNECT_TIMEOUT:5000}
-        read-timeout: ${FEIGN_READ_TIMEOUT:15000}
-
-logging:
-  level:
-    com.muscat.marketdata: ${LOG_LEVEL_MARKET:INFO}
-    org.springframework.security: ${LOG_LEVEL_SECURITY:WARN}
-    org.springframework.web: ${LOG_LEVEL_WEB:WARN}
-    feign: ${LOG_LEVEL_FEIGN:WARN}
+    price-data-ttl: ${CACHE_PRICE_TTL:300}
+    fx-rate-ttl: ${CACHE_FX_TTL:3600}
+    symbol-info-ttl: ${CACHE_SYMBOL_TTL:86400}
+    dividend-ttl: ${CACHE_DIVIDEND_TTL:86400}
 
 

@@ -4,9 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-import java.time.LocalDate;
-
-@ConfigurationProperties(prefix = "marketdata.fx.feed")
+@ConfigurationProperties(prefix = "marketdata.fx.ingest")
 @Getter
 @Setter
 public class FxCollectProps {
@@ -19,8 +17,7 @@ public class FxCollectProps {
     @Setter
     public static class Backfill {
         private boolean enabled = false;
-        private LocalDate start;
-        private LocalDate end;
+        private int lookbackDays = 365;  // 캔들과 동일한 방식으로 통일
     }
 
     @Getter

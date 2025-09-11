@@ -13,6 +13,9 @@ dependencies {
     constraints {
         // Core Libraries  
         api 'org.projectlombok:lombok:1.18.34'
+        
+        // Spring Cloud Config
+        api 'org.springframework.cloud:spring-cloud-starter-config:4.1.3'
         api 'org.springframework.boot:spring-boot-starter-validation:3.5.4'
         
         // JWT
