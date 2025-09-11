@@ -55,28 +55,25 @@ public class FxDataCollector implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
-        if (props.getBackfill().isEnabled()) {
-            runHistoricalCollection();
-        }
+        try {
+            if (props.getBackfill().isEnabled()) {
+                runHistoricalCollection();
+            }
 
-        if (props.getIncremental().isEnabled()) {
-            runIncrementalCollection();
+            if (props.getIncremental().isEnabled()) {
+                runIncrementalCollection();
+            }
+        } catch (Exception e) {
+            log.error("[환율수집] 환율 데이터 수집 실패 - 서비스는 계속 실행됩니다", e);
         }
     }
 
     @Transactional
     protected void runHistoricalCollection() {
-        LocalDate startDate = Objects.requireNonNull(props.getBackfill().getStart(),
-                "과거데이터수집 시작일은 필수 설정입니다");
-        LocalDate endDate = props.getBackfill().getEnd() != null
-                ? props.getBackfill().getEnd()
-                : LocalDate.now(KST);
+        LocalDate endDate = LocalDate.now(KST);
+        LocalDate startDate = endDate.minusDays(props.getBackfill().getLookbackDays());
 
-        if (endDate.isBefore(startDate)) {
-            throw new IllegalArgumentException("종료일이 시작일보다 빠릅니다");
-        }
-
-        log.info("[환율수집] 과거데이터수집 시작: {} ~ {}", startDate, endDate);
+        log.info("[환율수집] 과거데이터수집 시작: {} ~ {} ({}일 과거)", startDate, endDate, props.getBackfill().getLookbackDays());
 
         LocalDate currentDate = startDate;
         int totalSaved = 0;
@@ -122,8 +119,8 @@ public class FxDataCollector implements CommandLineRunner {
         }
     }
 
-    @Scheduled(cron = "${marketdata.fx.feed.scheduler.cron:0 10 11 * * MON-FRI}",
-            zone = "${marketdata.fx.feed.scheduler.zone:Asia/Seoul}")
+    @Scheduled(cron = "${marketdata.fx.ingest.scheduler.cron:0 10 11 * * MON-FRI}",
+            zone = "${marketdata.fx.ingest.scheduler.zone:Asia/Seoul}")
     @Transactional
     public void collectDailyRateAt1110() {
         if (!props.getScheduler().isEnabled()) {
@@ -137,8 +134,10 @@ public class FxDataCollector implements CommandLineRunner {
             FxRate savedRate = null;
             if (collectedRate.isPresent()) {
                 savedRate = saveRate(today, collectedRate.get().getRate());
+                log.info("[환율수집] 일일 수집 완료: {} -> {}", savedRate.getDate(), savedRate.getRate());
+            } else {
+                log.warn("[환율수집] 일일 수집 실패: 환율 데이터를 가져올 수 없습니다");
             }
-            log.info("[환율수집] 일일 수집 완료: {} -> {}", savedRate.getDate(), savedRate.getRate());
         } catch (Exception e) {
             log.error("[환율수집] 일일 수집 실패", e);
         }

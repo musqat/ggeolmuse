@@ -1,0 +1,28 @@
+spring:
+  # PostgreSQL 운영 데이터베이스 기본 설정
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    
+  # JPA 운영 설정
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    
+  # H2 Console 비활성화 (운영환경)
+  h2:
+    console:
+      enabled: false
+
+# Actuator 운영환경 설정 (보안 강화)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+# 로깅 운영환경 설정
+logging:
+  level:
+    com.muscat: INFO
+    org.springframework.cloud.config: INFO

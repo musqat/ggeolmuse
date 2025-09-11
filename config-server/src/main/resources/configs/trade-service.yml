@@ -1,0 +1,48 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: trade-service
+    
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${keycloak.auth-server-url}/realms/${keycloak.realm}
+
+keycloak:
+  resource: muscathan-trade-cc
+
+# 외부 서비스 URL (환경변수 기반 동적 설정)
+user-service:
+  url: http://${USER_SERVICE_HOST:localhost}:${USER_SERVICE_PORT:8080}
+
+market-service:
+  url: http://${MARKET_DATA_SERVICE_HOST:localhost}:${MARKET_DATA_SERVICE_PORT:8083}
+
+backtest-service:
+  url: http://${BACKTEST_SERVICE_HOST:localhost}:${BACKTEST_SERVICE_PORT:8082}
+
+# Trade 비즈니스 설정
+trade:
+  fee:
+    default-rate: 0.0025
+    minimum-amount: 1.00
+    maximum-rate: 0.01
+  calculation:
+    price-precision: 2
+    quantity-precision: 6
+    currency-precision: 2
+  validation:
+    max-price-deviation: 0.20
+    min-trade-amount: 1.00
+    max-trade-amount: 1000000.00
+    max-daily-trades: 1000
+  cache:
+    market-data-ttl: 300
+    portfolio-ttl: 600
+    balance-ttl: 300
+  fifo:
+    enabled: true
+    precision: 8

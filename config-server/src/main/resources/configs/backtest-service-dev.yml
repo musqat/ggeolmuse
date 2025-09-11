@@ -1,0 +1,11 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:backtestdb
+    username: sa
+    password:
+
+# Keycloak Backtest Service 전용 설정  
+keycloak:
+  resource: muscathan-backtest-cc
+  credentials:
+    secret: ${KEYCLOAK_SECRET}

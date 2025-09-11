@@ -1,0 +1,100 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: market-data-service
+    
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${keycloak.auth-server-url}/realms/${keycloak.realm}
+
+keycloak:
+  resource: muscathan-market-data-cc
+
+# Market Data 비즈니스 설정
+marketdata:
+  constants:
+    fx:
+      default-base-rate: 1350
+      scale: 6
+      max-fallback-days: 7
+    batch:
+      min-rpm: 1
+      max-backoff-ms: 30000
+      millis-per-minute: 60000
+    database:
+      symbol-max-length: 16
+      currency-length: 3
+      decimal-precision: 19
+      decimal-scale: 8
+    calculation:
+      percent-scale: 4
+      percentage-multiplier: 100
+  
+  # 데이터 수집 공통 설정 (모든 데이터 타입에 일관된 방식 적용)
+  data-collection:
+    # 과거 데이터 백필 설정
+    backfill:
+      lookback-days: 365                      # 1년치 과거 데이터 수집
+    # 점진적 업데이트 설정
+    incremental:
+      default-days: 7                         # 기본 점진적 업데이트 기간
+    # 스케줄러 공통 설정
+    scheduler:
+      timezone: "America/New_York"            # 미국 증시 기준
+      
+  # 심볼/캔들 데이터 수집 설정
+  feed:
+    symbol:
+      enabled: true
+      startup-delay: 30                       # 서비스 시작 후 대기 시간(초)
+    schedule:
+      enabled: false
+      cron: "0 0 5 * * *"                     # 매일 새벽 5시 (EST)
+  
+  # 환율 데이터 수집 설정
+  fx:
+    ingest:
+      backfill:
+        enabled: true
+      incremental:
+        enabled: true
+      scheduler:
+        enabled: false
+        cron: "0 10 11 * * MON-FRI"           # 평일 오전 11시 10분 (KST)
+        zone: "Asia/Seoul"
+  
+  cache:
+    price-data-ttl: 300
+    fx-rate-ttl: 3600
+    symbol-info-ttl: 86400
+    dividend-ttl: 86400
+
+# 외부 API 기본 설정 (URL만, 키는 환경변수)
+alphavantage:
+  enabled: true
+  rate-limit-per-second: 5
+  timeout-seconds: 15
+  base-url: "https://www.alphavantage.co/query"
+  retry:
+    max-attempts: 3
+    backoff-delay: 1000
+
+yahoo:
+  finance:
+    enabled: true
+    base-url: "https://query1.finance.yahoo.com"
+    timeout-seconds: 10
+    rate-limit-per-second: 10
+    retry:
+      max-attempts: 3
+      backoff-delay: 500
+
+korea-exim:
+  api:
+    url: "https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON"
+    enabled: true
+    timeout-seconds: 10

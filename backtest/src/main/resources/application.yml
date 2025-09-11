@@ -1,73 +1,21 @@
-server:
-  port: ${SERVER_PORT:8082}
-  servlet:
-    context-path: ${CONTEXT_PATH:/api/backtest}
+# =============================================================================
+# Backtest Service 설정 (H2 사용, 민감정보는 환경변수로 관리)
+# =============================================================================
 
 spring:
   application:
     name: backtest-service
+  config:
+    import: configserver:
   profiles:
-    active: ${SPRING_PROFILES_ACTIVE:dev}
-  
-  # Database 설정
-  datasource:
-    url: ${DB_URL:jdbc:h2:mem:backtestdb}
-    username: ${DB_USERNAME:sa}
-    password: ${DB_PASSWORD:}
-    driver-class-name: ${DB_DRIVER:org.h2.Driver}
-  
-  # JPA 설정
-  jpa:
-    hibernate:
-      ddl-auto: ${DDL_AUTO:create-drop}
-    show-sql: ${SHOW_SQL:false}
-    open-in-view: false
-    defer-datasource-initialization: true
-  
-  # H2 Console
-  h2:
-    console:
-      enabled: ${H2_CONSOLE_ENABLED:true}
-      path: /h2-console
-  
-  # Security 설정
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: ${KEYCLOAK_URL:http://localhost:7001}/realms/${KEYCLOAK_REALM:muscat}
+    include: config
 
+# Keycloak 민감정보
 keycloak:
-  realm: ${KEYCLOAK_REALM:muscat}
-  auth-server-url: ${KEYCLOAK_URL:http://localhost:7001}
-  resource: ${KEYCLOAK_CLIENT_ID:muscathan-backtest-cc}
   credentials:
-    secret: ${KEYCLOAK_SECRET:your-secret}
+    secret: ${KEYCLOAK_SECRET:}
 
-app:
-  market-data:
-    url: ${MARKET_DATA_URL:http://localhost:8083}
-  trade-service:
-    url: ${TRADE_SERVICE_URL:http://localhost:8081}
-  user-service:
-    url: ${USER_SERVICE_URL:http://localhost:8080}
-
-feign:
-  client:
-    config:
-      default:
-        connect-timeout: ${FEIGN_CONNECT_TIMEOUT:10000}
-        read-timeout: ${FEIGN_READ_TIMEOUT:30000}
-      market-data-service:
-        connect-timeout: 10000
-        read-timeout: 30000
-      trade-service:
-        connect-timeout: 5000
-        read-timeout: 15000
-      user-service:
-        connect-timeout: 5000
-        read-timeout: 10000
-
+# Backtest Service 고유 비즈니스 설정
 backtest:
   # Calculation Settings
   calculation:
@@ -122,10 +70,3 @@ backtest:
     auto-save-enabled: ${AUTO_SAVE_ENABLED:true}        # 자동 저장 활성화
     max-results-per-user: ${MAX_RESULTS_PER_USER:1000}  # 사용자별 최대 결과 저장
     cleanup-days: ${CLEANUP_DAYS:90}                    # 결과 정리 주기(일)
-
-logging:
-  level:
-    com.muscat.backtest: ${LOG_LEVEL_BACKTEST:INFO}
-    org.springframework.security: ${LOG_LEVEL_SECURITY:WARN}
-    org.springframework.web: ${LOG_LEVEL_WEB:WARN}
-    feign: ${LOG_LEVEL_FEIGN:WARN}

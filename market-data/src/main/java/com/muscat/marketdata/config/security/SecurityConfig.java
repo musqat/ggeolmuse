@@ -12,6 +12,8 @@ import org.springframework.security.config.annotation.web.configurers.HeadersCon
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
@@ -57,5 +59,11 @@ public class SecurityConfig {
     converter.setPrincipalClaimName("sub");
     
     return converter;
+  }
+
+  @Bean
+  public JwtDecoder jwtDecoder() {
+    String jwkSetUri = keycloakUrl + "/realms/" + realm + "/protocol/openid-connect/certs";
+    return NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
   }
 }

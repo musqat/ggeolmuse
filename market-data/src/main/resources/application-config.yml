@@ -1,0 +1,18 @@
+# =============================================================================
+# Config Server 연결 설정 (별도 파일로 보안 향상)
+# =============================================================================
+
+spring:
+  cloud:
+    config:
+      uri: http://${CONFIG_SERVER_HOST:localhost}:${CONFIG_SERVER_PORT:8888}
+      username: ${CONFIG_SERVER_USERNAME:config}
+      password: ${CONFIG_SERVER_PASSWORD:config123}
+      retry:
+        initial-interval: 1000
+        max-attempts: 6
+        max-interval: 2000
+        multiplier: 1.1
+      fail-fast: true
+      request-connect-timeout: 5000
+      request-read-timeout: 60000

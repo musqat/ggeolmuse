@@ -3,19 +3,22 @@ package com.muscat.user.config.mail;
 import com.muscat.user.common.exceptions.UserException;
 import com.muscat.user.common.enums.responses.UserResponse;
 import jakarta.mail.internet.MimeMessage;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class MailService {
 
   private final JavaMailSender mailSender;
+
+  public MailService(@Autowired(required = false) JavaMailSender mailSender) {
+    this.mailSender = mailSender;
+  }
 
   @Value("${app.mail.from}")
   private String fromEmail;
@@ -25,7 +28,7 @@ public class MailService {
 
   // 이메일 인증 메일 발송
   public void sendVerificationEmail(String toEmail, String token) {
-    try {
+        try {
       MimeMessage message = mailSender.createMimeMessage();
       MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 

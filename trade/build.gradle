@@ -1,6 +1,6 @@
 plugins {
 	id 'java'
-	id 'org.springframework.boot' version '3.5.4'
+	id 'org.springframework.boot'
 }
 
 dependencies {
@@ -9,6 +9,9 @@ dependencies {
 	testAnnotationProcessor(enforcedPlatform(project(':bom')))
 	
 	implementation project(':common-lib')
+	
+	// Spring Cloud Config
+	implementation 'org.springframework.cloud:spring-cloud-starter-config'
 
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
@@ -17,7 +20,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
     implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
-//    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
@@ -45,22 +48,5 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.testcontainers:junit-jupiter'
 }
-// QueryDSL 설정 - 수동 Q클래스 생성 방식
-// 현재는 Q클래스를 수동으로 작성하여 src/main/java에 포함
-// 향후 자동 생성으로 전환 시 아래 설정 활성화
-/*
-def generated = 'build/generated/sources/annotationProcessor/java/main'
-sourceSets {
-	main.java.srcDirs += [generated]
-}
-
-tasks.withType(JavaCompile).configureEach {
-	options.getGeneratedSourceOutputDirectory().set(file(generated))
-}
-
-clean.doLast {
-	file(generated).deleteDir()
-}
-*/
 
 tasks.register("prepareKotlinBuildScriptModel") {}

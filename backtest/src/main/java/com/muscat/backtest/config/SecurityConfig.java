@@ -1,5 +1,6 @@
 package com.muscat.backtest.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -8,11 +9,19 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
+
+  @Value("${keycloak.auth-server-url}")
+  private String keycloakUrl;
+
+  @Value("${keycloak.realm}")
+  private String realm;
 
   @Bean
   public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -43,5 +52,11 @@ public class SecurityConfig {
     converter.setPrincipalClaimName("sub");
 
     return converter;
+  }
+
+  @Bean
+  public JwtDecoder jwtDecoder() {
+    String jwkSetUri = keycloakUrl + "/realms/" + realm + "/protocol/openid-connect/certs";
+    return NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
   }
 }

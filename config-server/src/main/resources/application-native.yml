@@ -1,0 +1,7 @@
+spring:
+  cloud:
+    config:
+      server:
+        native:
+          search-locations: classpath:/configs
+        default-profile: dev
