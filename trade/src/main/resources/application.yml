@@ -6,7 +6,7 @@ spring:
   application:
     name: trade-service
   config:
-    import: configserver:
+    import: optional:configserver:http://localhost:8888
   profiles:
     include: config
 
