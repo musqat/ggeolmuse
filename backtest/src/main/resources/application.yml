@@ -6,12 +6,14 @@ spring:
   application:
     name: backtest-service
   config:
-    import: configserver:
+    import: optional:configserver:http://localhost:8888
   profiles:
     include: config
 
 # Keycloak 민감정보
 keycloak:
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:http://localhost:7001}
+  realm: ${KEYCLOAK_REALM:muscathan}
   credentials:
     secret: ${KEYCLOAK_SECRET:}
 
