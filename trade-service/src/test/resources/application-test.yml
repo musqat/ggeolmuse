@@ -5,6 +5,8 @@ spring:
   cloud:
     config:
       enabled: false
+    compatibility-verifier:
+      enabled: false
 
   datasource:
     url: jdbc:h2:mem:testdb

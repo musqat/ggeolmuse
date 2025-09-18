@@ -6,6 +6,8 @@ spring:
   cloud:
     config:
       enabled: false
+    compatibility-verifier:
+      enabled: false
 
   # 테스트용 데이터소스
   datasource:
@@ -36,11 +38,13 @@ spring:
 server:
   port: 0  # 랜덤 포트 사용
 
-# Keycloak 설정 (테스트용)
+# Keycloak 설정 (테스트용) - 모든 필수 속성 포함
 keycloak:
   auth-server-url: http://localhost:8080
   realm: test-realm
   resource: test-resource
+  credentials:
+    secret: test-secret
   admin:
     username: admin
     password: admin
