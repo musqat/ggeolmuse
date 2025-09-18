@@ -1,0 +1,47 @@
+spring:
+  application:
+    name: trade-service
+
+  cloud:
+    config:
+      enabled: false
+    compatibility-verifier:
+      enabled: false
+
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    database-platform: org.hibernate.dialect.H2Dialect
+
+  h2:
+    console:
+      enabled: true
+
+server:
+  port: 0
+
+# Keycloak 테스트 설정
+keycloak:
+  auth-server-url: http://localhost:8080
+  realm: test-realm
+
+# Trade 테스트 설정
+trade:
+  enabled: false
+
+# 테스트용 외부 서비스 URL
+app:
+  services:
+    user-service: http://localhost:8080
+    market-data-service: http://localhost:8083
+
+logging:
+  level:
+    com.muscat.trade: DEBUG

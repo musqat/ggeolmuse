@@ -1,0 +1,39 @@
+spring:
+  application:
+    name: market-data-service
+
+  # Config Server 연결
+  config:
+    import: "optional:configserver:${SPRING_CLOUD_CONFIG_URI:http://localhost:8888}"
+
+  cloud:
+    config:
+      uri: ${SPRING_CLOUD_CONFIG_URI:http://localhost:8888}
+      username: ${SPRING_CLOUD_CONFIG_USERNAME:config}
+      password: ${SPRING_CLOUD_CONFIG_PASSWORD:config123}
+      fail-fast: false
+      retry:
+        initial-interval: 3000
+        max-attempts: 6
+        max-interval: 4000
+        multiplier: 1.1
+    compatibility-verifier:
+      enabled: false
+
+server:
+  port: 8083
+
+# Market Data 로컬 설정 (Config Server 사용 시 오버라이드됨)
+marketdata:
+  constants:
+    fx-ingest:
+      backfill:
+        enabled: false
+        lookback-days: 365
+      incremental:
+        enabled: true
+        default-days: 30
+      scheduler:
+        enabled: false  # 로컬에서는 스케줄러 비활성화
+        cron: "0 10 11 * * MON-FRI"
+        zone: "Asia/Seoul"

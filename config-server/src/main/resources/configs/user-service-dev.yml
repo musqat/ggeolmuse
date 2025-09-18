@@ -1,36 +1,34 @@
 spring:
+  #데이터베이스 (H2 PostgreSQL 호환 모드)
   datasource:
-    url: jdbc:h2:mem:userdb
+    url: jdbc:h2:mem:userdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driverClassName: org.h2.Driver
     username: sa
     password:
-  
-  # Mail Configuration
-  mail:
-    host: smtp.gmail.com
-    port: 587
-    username: ${MAIL_USERNAME}
-    password: ${MAIL_PASSWORD}
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
-            required: true
-          connectiontimeout: 5000
-          timeout: 3000
-          writetimeout: 5000
 
-# Keycloak User Service 전용 설정  
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+      settings:
+        web-allow-others: true
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+# Keycloak 설정
 keycloak:
-  resource: muscathan-user-cc
+  resource: ggeolmuse-client
   credentials:
     secret: ${KEYCLOAK_SECRET}
-  admin:
-    username: ${KEYCLOAK_ADMIN_USERNAME}
-    password: ${KEYCLOAK_ADMIN_PASSWORD}
 
-# User Service 비즈니스 설정
+# User 비즈니스 설정
 app:
   mail:
     from: ${MAIL_FROM:noreply@ggeolmuse.com}

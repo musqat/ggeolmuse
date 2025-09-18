@@ -12,17 +12,19 @@ spring:
           issuer-uri: ${keycloak.auth-server-url}/realms/${keycloak.realm}
 
 keycloak:
-  resource: muscathan-trade-cc
+  resource: ggeolmuse-client
+  credentials:
+    secret: ${KEYCLOAK_SECRET}
 
-# 외부 서비스 URL (환경변수 기반 동적 설정)
+# 외부 서비스 URL
 user-service:
-  url: http://${USER_SERVICE_HOST:localhost}:${USER_SERVICE_PORT:8080}
+  url: http://user-service:8080
 
 market-service:
-  url: http://${MARKET_DATA_SERVICE_HOST:localhost}:${MARKET_DATA_SERVICE_PORT:8083}
+  url: http://market-data-service:8083
 
 backtest-service:
-  url: http://${BACKTEST_SERVICE_HOST:localhost}:${BACKTEST_SERVICE_PORT:8082}
+  url: http://backtest-service:8082
 
 # Trade 비즈니스 설정
 trade:

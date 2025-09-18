@@ -1,0 +1,70 @@
+spring:
+  application:
+    name: market-data-service
+
+  cloud:
+    config:
+      enabled: false
+    compatibility-verifier:
+      enabled: false
+
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    database-platform: org.hibernate.dialect.H2Dialect
+
+  h2:
+    console:
+      enabled: true
+
+server:
+  port: 0
+
+# Keycloak 테스트 설정
+keycloak:
+  auth-server-url: http://localhost:8080
+  realm: test-realm
+
+# Market Data 테스트 설정
+marketdata:
+  constants:
+    fx-ingest:
+      backfill:
+        enabled: false
+        lookback-days: 365
+      incremental:
+        enabled: false
+        default-days: 30
+      scheduler:
+        enabled: false
+        cron: "0 10 11 * * MON-FRI"
+        zone: "Asia/Seoul"
+  fx:
+    koreaexim:
+      url: http://localhost:8080/test
+      authkey: test-key
+  feed:
+    enabled: false
+
+# Alpha Vantage 테스트 설정
+alphavantage:
+  api-key: test-key
+  enabled: false
+
+# Feed 설정 (테스트용)
+feed:
+  rpm: 5
+  retry:
+    max: 3
+    backoffMs: 2000
+
+logging:
+  level:
+    com.muscat.marketdata: DEBUG

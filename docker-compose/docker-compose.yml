@@ -1,0 +1,162 @@
+services:
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: ggeolmuse-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass ""
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    extends:
+      file: common-config.yml
+      service: base-service
+
+  # Keycloak
+  keycloak:
+    image: quay.io/keycloak/keycloak:22.0.5
+    container_name: ggeolmuse-keycloak
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: dev-file
+    ports:
+      - "7001:8080"
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+      - ./keycloak/muscathan-realm.json:/opt/keycloak/data/import/muscathan-realm.json:ro
+    command: start-dev --import-realm
+    healthcheck:
+      test: ["CMD-SHELL", 'exec 3<>/dev/tcp/localhost/8080; echo -e "GET /health/ready HTTP/1.1\nhost: localhost:8080\n" >&3; timeout --preserve-status 1 cat <&3 | grep -m 1 status | grep -m 1 UP; HEALTH_STATUS=$$?; exec 3<&-; exec 3>&-; exit $$HEALTH_STATUS']
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    extends:
+      file: common-config.yml
+      service: base-service
+
+
+  # Config Server
+  config-server:
+    image: ggeolmuse/config-server:v1
+    container_name: ggeolmuse-config-server
+    ports:
+      - "8888:8888"
+    environment:
+      SPRING_PROFILES_ACTIVE: native,dev
+      CONFIG_SERVER_USERNAME: config
+      CONFIG_SERVER_PASSWORD: config123
+    healthcheck:
+      test: ["CMD", "sh", "-c", "nc -z localhost 8888 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    extends:
+      file: common-config.yml
+      service: platform-service-config
+
+  # Gateway
+  gateway-server:
+    image: ggeolmuse/gateway-server:v1
+    container_name: ggeolmuse-gateway-server
+    ports:
+      - "8070:8070"
+    environment:
+      SPRING_APPLICATION_NAME: "gateway-server"
+      SERVER_PORT: 8070
+      SPRING_MAIN_WEB_APPLICATION_TYPE: reactive
+      SPRING_CLOUD_CONFIG_ENABLED: false
+      SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: false
+      SPRING_PROFILES_ACTIVE: default
+    healthcheck:
+      test: ["CMD", "sh", "-c", "wget --no-verbose --tries=1 --spider http://localhost:8070/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - ggeolmuse-network
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+        reservations:
+          memory: 512m
+
+  #### BUSINESS MICROSERVICES ####
+
+  # User Management Service
+  user-service:
+    image: ggeolmuse/user-service:v1
+    container_name: ggeolmuse-user-service
+    ports:
+      - "8090:8080"
+    environment:
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      JAVA_OPTS: "-Dh2.webAllowOthers=true"
+    extends:
+      file: common-config.yml
+      service: microservice-config
+
+  # Trade Service
+  trade-service:
+    image: ggeolmuse/trade-service:v1
+    container_name: ggeolmuse-trade-service
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_APPLICATION_NAME: "trade-service"
+    extends:
+      file: common-config.yml
+      service: microservice-config
+
+  # Market Data Service
+  market-data-service:
+    image: ggeolmuse/market-data-service:v1
+    container_name: ggeolmuse-market-data-service
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_APPLICATION_NAME: "market-data-service"
+      ALPHAVANTAGE_API_KEY: ${ALPHAVANTAGE_API_KEY:-demo}
+      KOREAEXIM_API_KEY: ${KOREAEXIM_API_KEY:-demo}
+    extends:
+      file: common-config.yml
+      service: microservice-config
+
+  # Backtest Service
+  backtest-service:
+    build:
+      context: ../backtest-service
+      dockerfile: Dockerfile
+    container_name: ggeolmuse-backtest-service
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_APPLICATION_NAME: "backtest-service"
+    extends:
+      file: common-config.yml
+      service: microservice-config
+
+# VOLUMES
+volumes:
+  redis_data:
+    driver: local
+  keycloak_data:
+    driver: local
+
+# NETWORKS
+
+networks:
+  ggeolmuse-network:
+    driver: bridge
+    name: ggeolmuse-network

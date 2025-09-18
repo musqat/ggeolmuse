@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: trade-service
+
+  # Config Server 연결
+  config:
+    import: "optional:configserver:${SPRING_CLOUD_CONFIG_URI:http://localhost:8888}"
+
+  cloud:
+    config:
+      uri: ${SPRING_CLOUD_CONFIG_URI:http://localhost:8888}
+      username: ${SPRING_CLOUD_CONFIG_USERNAME:config}
+      password: ${SPRING_CLOUD_CONFIG_PASSWORD:config123}
+      fail-fast: false
+      retry:
+        initial-interval: 3000
+        max-attempts: 6
+        max-interval: 4000
+        multiplier: 1.1
+    compatibility-verifier:
+      enabled: false
+
+server:
+  port: 8081
+
+market-service:
+  url: http://market-data-service:8083
+
+user-service:
+  url: http://user-service:8080
+
+backtest-service:
+  url: http://backtest-service:8082
