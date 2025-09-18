@@ -6,6 +6,16 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - common-lib
+          - config-server
+          - gateway-server
+          - user-service
+          - trade-service
+          - market-data-service
+          - backtest-service
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -13,7 +23,8 @@ jobs:
           distribution: temurin
           java-version: 21
       - uses: gradle/actions/setup-gradle@v3
-      - name: Build & Test
+      - name: Build & Test ${{ matrix.service }}
         run: |
+          cd ${{ matrix.service }}
           chmod +x ./gradlew
           ./gradlew clean test build --no-daemon
