@@ -1,0 +1,69 @@
+spring:
+  application:
+    name: user-service
+
+  # Config Server 비활성화 (테스트용)
+  cloud:
+    config:
+      enabled: false
+
+  # 테스트용 데이터소스
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  # JPA 설정
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    database-platform: org.hibernate.dialect.H2Dialect
+
+  # H2 Console (테스트용)
+  h2:
+    console:
+      enabled: true
+
+  # Mail 설정 (테스트용)
+  mail:
+    host: localhost
+    port: 25
+    username: test@test.com
+    password: test
+
+server:
+  port: 0  # 랜덤 포트 사용
+
+# Keycloak 설정 (테스트용)
+keycloak:
+  auth-server-url: http://localhost:8080
+  realm: test-realm
+  resource: test-resource
+  admin:
+    username: admin
+    password: admin
+
+# 애플리케이션 설정 (테스트용)
+app:
+  exchange-rate:
+    min-valid-rate: 1000
+    max-valid-rate: 1500
+    fallback-rate: 1300
+  oauth:
+    redirect-uri: http://localhost:8070/oauth/callback
+  mail:
+    from: test@test.com
+    verification:
+      base-url: http://localhost:8090
+      expiry-hours: 24
+  frontend:
+    url: http://localhost:3000
+  account:
+    initial-krw-amount: 1000000
+
+logging:
+  level:
+    com.muscat.user: DEBUG
+    org.springframework.web: DEBUG
