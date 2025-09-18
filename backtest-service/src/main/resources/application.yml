@@ -1,0 +1,36 @@
+spring:
+  application:
+    name: backtest-service
+  cloud:
+    config:
+      enabled: false
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:7001/realms/Muscat
+
+
+server:
+  port: 8082
+  servlet:
+    context-path: /api/backtest
+
+keycloak:
+  auth-server-url: http://localhost:7001
+  realm: muscathan
+  resource: muscat-user-service
+
+logging:
+  level:
+    com.muscat.backtest.infra.client: DEBUG
+    feign: DEBUG
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,mappings
+  endpoint:
+    mappings:
+      enabled: true

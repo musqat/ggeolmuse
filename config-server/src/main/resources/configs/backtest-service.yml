@@ -1,12 +1,10 @@
 server:
   port: 8082
-  servlet:
-    context-path: /api/backtest
 
 spring:
   application:
     name: backtest-service
-    
+
   security:
     oauth2:
       resourceserver:
@@ -14,7 +12,7 @@ spring:
           issuer-uri: ${keycloak.auth-server-url}/realms/${keycloak.realm}
 
 keycloak:
-  resource: muscathan-backtest-cc
+  resource: muscat-user-service
 
 # 외부 서비스 URL (환경변수 기반 동적 설정)
 app:

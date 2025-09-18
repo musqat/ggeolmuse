@@ -1,0 +1,56 @@
+services:
+  # 공통 네트워크 및 리소스 설정
+  base-service:
+    image: alpine:3.18  # 템플릿용 더미 이미지
+    networks:
+      - ggeolmuse-network
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+        reservations:
+          memory: 512m
+    profiles:
+      - template  # 기본 배포에서 제외
+
+  # Config Server
+  platform-service-config:
+    extends:
+      service: base-service
+    environment:
+      SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: false
+      KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
+      KEYCLOAK_REALM: muscathan
+      KEYCLOAK_SECRET: ${KEYCLOAK_SECRET}
+      KEYCLOAK_ADMIN_USERNAME: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+
+  # 전체 인프라 의존성
+  microservice-config:
+    extends:
+      service: base-service
+    depends_on:
+      config-server:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
+      SPRING_CLOUD_CONFIG_USERNAME: config
+      SPRING_CLOUD_CONFIG_PASSWORD: config123
+      SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: false
+      KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
+      KEYCLOAK_REALM: muscathan
+      KEYCLOAK_SECRET: ${KEYCLOAK_SECRET}
+      KEYCLOAK_ADMIN_USERNAME: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      JAVA_OPTS: "-Dspring.h2.console.settings.web-allow-others=true"
+    healthcheck:
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 45s
+

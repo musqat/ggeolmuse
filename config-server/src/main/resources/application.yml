@@ -14,19 +14,21 @@ spring:
         native:
           search-locations: classpath:/configs
         default-profile: dev
-        # 암호화 키 설정 (운영환경에서는 환경변수로 관리)
+        # 암호화 키 설정
         encrypt:
           enabled: ${CONFIG_ENCRYPT_ENABLED:false}
-        # Git 저장소 설정 (미래 확장성)
+        # Git 저장소 설정
         git:
           uri: ${CONFIG_GIT_URI:}
           username: ${CONFIG_GIT_USERNAME:}
           password: ${CONFIG_GIT_PASSWORD:}
           skip-ssl-validation: ${CONFIG_GIT_SKIP_SSL:false}
   
-  # 개발환경에서는 보안 비활성화
+  # Config Server 보안 설정
   security:
-    enabled: false
+    user:
+      name: config
+      password: config123
 
 management:
   server:
@@ -36,7 +38,6 @@ management:
       exposure:
         include: ${MANAGEMENT_ENDPOINTS:health,info,env,refresh,encrypt,decrypt}
       base-path: /actuator
-    enabled-by-default: false
   endpoint:
     health:
       enabled: true

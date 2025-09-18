@@ -1,0 +1,67 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.5.4'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.muscat'
+version = '1.0.0'
+
+ext {
+    springCloudVersion = '2023.0.3'
+}
+
+
+repositories {
+    mavenCentral()
+    mavenLocal()
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.boot:spring-boot-dependencies:3.5.4"
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+        mavenBom "org.testcontainers:testcontainers-bom:1.20.1"
+    }
+}
+
+dependencies {
+    // GGeolmuse Common Library
+    implementation 'com.muscat:common-lib:1.0.1'
+
+    // Spring Cloud Config
+    implementation 'org.springframework.cloud:spring-cloud-starter-config'
+
+    // Spring Boot Starters (already included in common-lib but needed for specific features)
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
+    // OpenFeign
+    implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+
+    // Lombok
+    compileOnly 'org.projectlombok:lombok:1.18.34'
+    annotationProcessor 'org.projectlombok:lombok:1.18.34'
+    testCompileOnly 'org.projectlombok:lombok:1.18.34'
+    testAnnotationProcessor 'org.projectlombok:lombok:1.18.34'
+
+    // JWT
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
+
+    // Database
+    runtimeOnly 'com.h2database:h2:2.3.232'
+
+    // QueryDSL (manual Q-class generation approach for better performance and stability)
+    implementation 'com.querydsl:querydsl-jpa:5.0.0:jakarta'
+
+    // Test
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.testcontainers:junit-jupiter'
+}
+
+
+test {
+    useJUnitPlatform()
+}

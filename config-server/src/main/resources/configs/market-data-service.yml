@@ -12,7 +12,7 @@ spring:
           issuer-uri: ${keycloak.auth-server-url}/realms/${keycloak.realm}
 
 keycloak:
-  resource: muscathan-market-data-cc
+  resource: muscat-user-cc
 
 # Market Data 비즈니스 설정
 marketdata:
@@ -33,8 +33,20 @@ marketdata:
     calculation:
       percent-scale: 4
       percentage-multiplier: 100
-  
-  # 데이터 수집 공통 설정 (모든 데이터 타입에 일관된 방식 적용)
+    # 환율 수집 설정
+    fx-ingest:
+      backfill:
+        enabled: true
+        lookback-days: 365
+      incremental:
+        enabled: true
+        default-days: 7
+      scheduler:
+        enabled: false
+        cron: "0 10 11 * * MON-FRI"           # 평일 오전 11시 10분 (KST)
+        zone: "Asia/Seoul"
+
+  # 데이터 수집 공통 설정
   data-collection:
     # 과거 데이터 백필 설정
     backfill:
@@ -45,7 +57,7 @@ marketdata:
     # 스케줄러 공통 설정
     scheduler:
       timezone: "America/New_York"            # 미국 증시 기준
-      
+
   # 심볼/캔들 데이터 수집 설정
   feed:
     symbol:
@@ -54,18 +66,6 @@ marketdata:
     schedule:
       enabled: false
       cron: "0 0 5 * * *"                     # 매일 새벽 5시 (EST)
-  
-  # 환율 데이터 수집 설정
-  fx:
-    ingest:
-      backfill:
-        enabled: true
-      incremental:
-        enabled: true
-      scheduler:
-        enabled: false
-        cron: "0 10 11 * * MON-FRI"           # 평일 오전 11시 10분 (KST)
-        zone: "Asia/Seoul"
   
   cache:
     price-data-ttl: 300

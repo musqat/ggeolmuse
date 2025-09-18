@@ -1,0 +1,62 @@
+spring:
+  application:
+    name: user-service
+
+  # Config Server 연결
+  config:
+    import: "optional:configserver:${SPRING_CLOUD_CONFIG_URI:http://localhost:8888}"
+
+  cloud:
+    config:
+      uri: ${SPRING_CLOUD_CONFIG_URI:http://localhost:8888}
+      username: ${SPRING_CLOUD_CONFIG_USERNAME:config}
+      password: ${SPRING_CLOUD_CONFIG_PASSWORD:config123}
+      fail-fast: false
+      retry:
+        initial-interval: 3000
+        max-attempts: 6
+        max-interval: 4000
+        multiplier: 1.1
+
+  # Mail configuration
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME:test@gmail.com}
+    password: ${MAIL_PASSWORD:testpassword}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+
+server:
+  port: 8080
+
+# Keycloak configuration
+keycloak:
+  auth-server-url: http://keycloak:8080
+  realm: muscathan
+  resource: muscat-user-service
+  admin:
+    username: admin
+    password: admin
+
+app:
+  exchange-rate:
+    min-valid-rate: 1000
+    max-valid-rate: 1500
+    fallback-rate: 1300
+  oauth:
+    redirect-uri: http://localhost:8070/oauth/callback
+  mail:
+    from: noreply@example.com
+    verification:
+      base-url: http://localhost:8090
+      expiry-hours: 24
+  frontend:
+    url: http://localhost:3000
+  account:
+    initial-krw-amount: 1000000

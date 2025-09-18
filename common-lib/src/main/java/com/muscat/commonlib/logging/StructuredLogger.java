@@ -11,9 +11,6 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * 구조화된 로깅을 위한 공통 유틸리티
- */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -21,9 +18,6 @@ public class StructuredLogger {
 
     private final ObjectMapper objectMapper;
 
-    /**
-     * 구조화된 로그 출력
-     */
     public void logStructured(Marker marker, String action, Map<String, Object> data) {
         // 공통 정보 추가
         Map<String, Object> enrichedData = new HashMap<>(data);
@@ -39,16 +33,10 @@ public class StructuredLogger {
         }
     }
 
-    /**
-     * 구조화된 로그 출력 (마커 없이)
-     */
     public void logStructured(String action, Map<String, Object> data) {
         logStructured(null, action, data);
     }
 
-    /**
-     * API 호출 로그
-     */
     public void logApiCall(String method, String uri, String userId, int statusCode, long duration) {
         Map<String, Object> apiLog = new HashMap<>();
         apiLog.put("eventType", "API_CALL");
@@ -61,9 +49,6 @@ public class StructuredLogger {
         logStructured("API_CALLED", apiLog);
     }
 
-    /**
-     * 에러 로그
-     */
     public void logError(String errorType, String message, String userId, Map<String, Object> context) {
         Map<String, Object> errorLog = new HashMap<>();
         errorLog.put("eventType", "ERROR");

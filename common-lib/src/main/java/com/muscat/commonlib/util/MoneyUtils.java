@@ -25,50 +25,43 @@ public final class MoneyUtils {
     throw new AssertionError("Utility class cannot be instantiated");
   }
 
-  // KRW 금액을 정책에 맞게 반올림 (소수점 제거)
+  // KRW 금액 반올림 (소수점 제거)
   public static BigDecimal roundKrw(BigDecimal amount) {
-    if (amount == null) {
-      return BigDecimal.ZERO;
-    }
-    return amount.setScale(KRW_SCALE, ROUND_MODE);
+    return amount == null ? BigDecimal.ZERO : amount.setScale(KRW_SCALE, ROUND_MODE);
   }
 
-  // USD 금액을 정책에 맞게 반올림 (센트 단위)
+  // USD 금액 반올림 (센트 단위)
   public static BigDecimal roundUsd(BigDecimal amount) {
-    if (amount == null) {
-      return BigDecimal.ZERO;
-    }
-    return amount.setScale(USD_SCALE, ROUND_MODE);
+    return amount == null ? BigDecimal.ZERO : amount.setScale(USD_SCALE, ROUND_MODE);
   }
 
-  // 환율을 정책에 맞게 반올림
+  // 환율 반올림
   public static BigDecimal roundExchangeRate(BigDecimal rate) {
-    if (rate == null) {
-      return BigDecimal.ZERO;
-    }
-    return rate.setScale(EXCHANGE_RATE_SCALE, ROUND_MODE);
+    return rate == null ? BigDecimal.ZERO : rate.setScale(EXCHANGE_RATE_SCALE, ROUND_MODE);
   }
 
-  // KRW → USD 환전 계산
+  // KRW → USD 환전 계산 (전체 검증)
   public static BigDecimal calculateKrwToUsd(BigDecimal krwAmount, BigDecimal exchangeRate) {
     validateExchangeInputs(krwAmount, exchangeRate, "KRW", "USD");
-
-    BigDecimal usdAmount = krwAmount.divide(exchangeRate, CALCULATION_SCALE, ROUND_MODE);
-    BigDecimal result = roundUsd(usdAmount);
-
-    log.debug("KRW→USD 환전: {}원 ÷ {} = {}달러", krwAmount, exchangeRate, result);
-    return result;
+    return convertKrwToUsd(krwAmount, exchangeRate);
   }
 
-  // USD → KRW 환전 계산
+  // KRW → USD 변환 (기본 검증만)
+  public static BigDecimal convertKrwToUsd(BigDecimal krwAmount, BigDecimal exchangeRate) {
+    validateBasicExchangeInputs(krwAmount, exchangeRate);
+    return roundUsd(krwAmount.divide(exchangeRate, CALCULATION_SCALE, ROUND_MODE));
+  }
+
+  // USD → KRW 환전 계산 (전체 검증)
   public static BigDecimal calculateUsdToKrw(BigDecimal usdAmount, BigDecimal exchangeRate) {
     validateExchangeInputs(usdAmount, exchangeRate, "USD", "KRW");
+    return convertUsdToKrw(usdAmount, exchangeRate);
+  }
 
-    BigDecimal krwAmount = usdAmount.multiply(exchangeRate);
-    BigDecimal result = roundKrw(krwAmount);
-
-    log.debug("USD→KRW 환전: {}달러 × {} = {}원", usdAmount, exchangeRate, result);
-    return result;
+  // USD → KRW 변환 (기본 검증만)
+  public static BigDecimal convertUsdToKrw(BigDecimal usdAmount, BigDecimal exchangeRate) {
+    validateBasicExchangeInputs(usdAmount, exchangeRate);
+    return roundKrw(usdAmount.multiply(exchangeRate));
   }
 
   // 양수 금액 검증
@@ -122,7 +115,57 @@ public final class MoneyUtils {
     }
   }
 
-  // 환전 입력값들 검증
+  // 두 금액이 같은지 비교 (통화별 정밀도 고려)
+  public static boolean isEqual(BigDecimal amount1, BigDecimal amount2, String currency) {
+    if (amount1 == null && amount2 == null) return true;
+    if (amount1 == null || amount2 == null) return false;
+
+    BigDecimal rounded1 = "KRW".equals(currency) ? roundKrw(amount1) : roundUsd(amount1);
+    BigDecimal rounded2 = "KRW".equals(currency) ? roundKrw(amount2) : roundUsd(amount2);
+
+    return rounded1.compareTo(rounded2) == 0;
+  }
+
+  // 금액을 통화에 맞게 포맷팅
+  public static String formatAmount(BigDecimal amount, String currency) {
+    if (amount == null) return "0";
+
+    return switch (currency.toUpperCase()) {
+      case "KRW" -> String.format("%,d원", roundKrw(amount).longValue());
+      case "USD" -> String.format("$%,.2f", roundUsd(amount));
+      default -> amount.toString() + " " + currency;
+    };
+  }
+
+  // 기본 산술 연산
+  public static BigDecimal add(BigDecimal a, BigDecimal b) {
+    if (a == null) a = BigDecimal.ZERO;
+    if (b == null) b = BigDecimal.ZERO;
+    return a.add(b);
+  }
+
+  public static BigDecimal subtract(BigDecimal a, BigDecimal b) {
+    if (a == null) a = BigDecimal.ZERO;
+    if (b == null) b = BigDecimal.ZERO;
+    return a.subtract(b);
+  }
+
+  public static BigDecimal multiply(BigDecimal a, BigDecimal b) {
+    if (a == null || b == null) return BigDecimal.ZERO;
+    return a.multiply(b);
+  }
+
+  // 기본 환전 입력값 검증
+  private static void validateBasicExchangeInputs(BigDecimal amount, BigDecimal exchangeRate) {
+    if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+      throw new ServiceException("INVALID_AMOUNT", "금액은 0보다 커야 합니다: " + amount);
+    }
+    if (exchangeRate == null || exchangeRate.compareTo(BigDecimal.ZERO) <= 0) {
+      throw new ServiceException("INVALID_EXCHANGE_RATE", "환율은 0보다 커야 합니다: " + exchangeRate);
+    }
+  }
+
+  // 전체 환전 입력값 검증
   private static void validateExchangeInputs(BigDecimal amount, BigDecimal exchangeRate, String fromCurrency, String toCurrency) {
     validatePositiveAmount(amount, fromCurrency + " 금액");
 
@@ -144,65 +187,6 @@ public final class MoneyUtils {
     if ("KRW".equals(fromCurrency)) {
       validateMaximumExchangeAmount(amount);
     }
-  }
-
-  // 두 금액이 같은지 비교 (통화별 정밀도 고려)
-  public static boolean isEqual(BigDecimal amount1, BigDecimal amount2, String currency) {
-    if (amount1 == null && amount2 == null) return true;
-    if (amount1 == null || amount2 == null) return false;
-
-    BigDecimal rounded1 = roundByCurrency(amount1, currency);
-    BigDecimal rounded2 = roundByCurrency(amount2, currency);
-
-    return rounded1.compareTo(rounded2) == 0;
-  }
-
-  // 금액을 통화에 맞게 포맷팅
-  public static String formatAmount(BigDecimal amount, String currency) {
-    if (amount == null) return "0";
-
-    BigDecimal rounded = roundByCurrency(amount, currency);
-
-    return switch (currency.toUpperCase()) {
-      case "KRW" -> String.format("%,d원", rounded.longValue());
-      case "USD" -> String.format("$%,.2f", rounded);
-      default -> rounded.toString() + " " + currency;
-    };
-  }
-
-  // 통화에 맞는 반올림 적용
-  private static BigDecimal roundByCurrency(BigDecimal amount, String currency) {
-    return switch (currency.toUpperCase()) {
-      case "KRW" -> roundKrw(amount);
-      case "USD" -> roundUsd(amount);
-      default -> amount;
-    };
-  }
-
-  // 기본 산술 연산 메서드들
-  public static BigDecimal add(BigDecimal a, BigDecimal b) {
-    if (a == null) a = BigDecimal.ZERO;
-    if (b == null) b = BigDecimal.ZERO;
-    return a.add(b);
-  }
-
-  public static BigDecimal subtract(BigDecimal a, BigDecimal b) {
-    if (a == null) a = BigDecimal.ZERO;
-    if (b == null) b = BigDecimal.ZERO;
-    return a.subtract(b);
-  }
-
-  public static BigDecimal multiply(BigDecimal a, BigDecimal b) {
-    if (a == null || b == null) return BigDecimal.ZERO;
-    return a.multiply(b);
-  }
-
-  public static BigDecimal divide(BigDecimal dividend, BigDecimal divisor, int scale, RoundingMode roundingMode) {
-    if (dividend == null) return BigDecimal.ZERO;
-    if (divisor == null || divisor.compareTo(BigDecimal.ZERO) == 0) {
-      throw new ServiceException("DIVISION_BY_ZERO", "0으로 나눌 수 없습니다");
-    }
-    return dividend.divide(divisor, scale, roundingMode);
   }
 
   // 수익률 계산 (백분율) - (현재값 - 기준값) / 기준값 * 100

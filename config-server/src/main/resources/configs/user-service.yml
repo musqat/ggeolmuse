@@ -4,16 +4,17 @@ server:
 spring:
   application:
     name: user-service
-  # Security OAuth2 설정
   security:
     oauth2:
       resourceserver:
         jwt:
           issuer-uri: ${keycloak.auth-server-url}/realms/${keycloak.realm}
 
-# Keycloak User Service 전용 설정  
+# Keycloak 설정
 keycloak:
-  resource: muscathan-user-cc
+  resource: ggeolmuse-client
+  credentials:
+    secret: ${KEYCLOAK_SECRET}
 
 # 로깅 설정
 logging:
