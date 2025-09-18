@@ -1,6 +1,5 @@
 package com.muscat.marketdata;
 
-import com.muscat.marketdata.provider.MarketDataProvider;
 import com.muscat.marketdata.provider.MarketDataProvider.CandleSource;
 import com.muscat.marketdata.provider.MarketDataProvider.DividendSource;
 import com.muscat.marketdata.provider.MarketDataProvider.SymbolSource;
@@ -11,12 +10,6 @@ import org.springframework.context.annotation.Primary;
 
 @TestConfiguration
 public class MarketDataTestConfiguration {
-
-    private final MarketDataProvider.DividendSource DividendSource;
-
-    public MarketDataTestConfiguration(DividendSource DividendSource) {
-        this.DividendSource = DividendSource;
-    }
 
     @Bean
     @Primary
