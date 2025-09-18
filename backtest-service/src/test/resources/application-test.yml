@@ -25,6 +25,11 @@ spring:
 server:
   port: 0
 
+# Keycloak 테스트 설정
+keycloak:
+  auth-server-url: http://localhost:8080
+  realm: test-realm
+
 # 테스트용 외부 서비스 URL
 app:
   services:
