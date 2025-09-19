@@ -12,3 +12,5 @@
 - [ ] backtest
 - [ ] configserver
 - [ ] commonlib
+- [ ] gateway
+- [ ] frontend
