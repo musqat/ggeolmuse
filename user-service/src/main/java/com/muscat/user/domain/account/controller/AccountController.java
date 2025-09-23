@@ -13,6 +13,12 @@ import com.muscat.user.domain.user.mapper.UserMapper;
 import com.muscat.user.common.enums.responses.AccountResponse;
 import com.muscat.user.common.util.AuthUtil;
 import com.muscat.user.common.exceptions.AccountException;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -26,21 +32,28 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Tag(name = "Account Management", description = "계좌 관리 API")
 @RestController
 @RequestMapping("/api/accounts")
 @RequiredArgsConstructor
 @Slf4j
+@SecurityRequirement(name = "bearerAuth")
 public class AccountController {
 
   private final AccountService accountService;
   private final AuthUtil authUtil;
   private final UserMapper userMapper;
 
-  // 계좌 생성
+  @Operation(summary = "계좌 생성", description = "새로운 계좌를 생성합니다")
+  @ApiResponses(value = {
+      @ApiResponse(responseCode = "201", description = "계좌 생성 성공"),
+      @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+      @ApiResponse(responseCode = "401", description = "인증 실패")
+  })
   @PostMapping
   public ResponseEntity<AccountResponseDto> createAccount(
       @Valid @RequestBody CreateAccountRequestDto request,
-      @AuthenticationPrincipal Jwt jwt) {
+      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
 
     Long userId = authUtil.requireUserId(jwt);
     Account account = accountService.createAccount(userId, request);
@@ -51,9 +64,14 @@ public class AccountController {
     return ResponseEntity.status(201).body(accountDto);
   }
 
-  // 내 계좌 목록 조회
+  @Operation(summary = "계좌 목록 조회", description = "사용자의 모든 계좌 목록을 조회합니다")
+  @ApiResponses(value = {
+      @ApiResponse(responseCode = "200", description = "조회 성공"),
+      @ApiResponse(responseCode = "401", description = "인증 실패")
+  })
   @GetMapping
-  public ResponseEntity<List<AccountSummaryDto>> getUserAccounts(@AuthenticationPrincipal Jwt jwt) {
+  public ResponseEntity<List<AccountSummaryDto>> getUserAccounts(
+      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
 
     Long userId = authUtil.requireUserId(jwt);
     List<Account> accounts = accountService.getUserAccounts(userId);
@@ -64,11 +82,16 @@ public class AccountController {
     return ResponseEntity.ok(accountDtos);
   }
 
-  // 계좌 잔액 조회
+  @Operation(summary = "계좌 잔액 조회", description = "특정 계좌의 잔액을 조회합니다")
+  @ApiResponses(value = {
+      @ApiResponse(responseCode = "200", description = "조회 성공"),
+      @ApiResponse(responseCode = "404", description = "계좌를 찾을 수 없음"),
+      @ApiResponse(responseCode = "401", description = "인증 실패")
+  })
   @GetMapping("/{accountId}/balance")
   public ResponseEntity<BalanceResponseDto> getAccountBalance(
-      @PathVariable Long accountId,
-      @AuthenticationPrincipal Jwt jwt) {
+      @Parameter(description = "계좌 ID") @PathVariable Long accountId,
+      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
 
     Long userId = authUtil.requireUserId(jwt);
     BalanceResponseDto balance = accountService.getAccountBalance(accountId, userId);
@@ -76,12 +99,18 @@ public class AccountController {
     return ResponseEntity.ok(balance);
   }
 
-  // KRW 입금
+  @Operation(summary = "KRW 입금", description = "계좌에 한국원을 입금합니다")
+  @ApiResponses(value = {
+      @ApiResponse(responseCode = "200", description = "입금 성공"),
+      @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+      @ApiResponse(responseCode = "404", description = "계좌를 찾을 수 없음"),
+      @ApiResponse(responseCode = "401", description = "인증 실패")
+  })
   @PostMapping("/{accountId}/deposit")
   public ResponseEntity<Void> depositKrw(
-      @PathVariable Long accountId,
+      @Parameter(description = "계좌 ID") @PathVariable Long accountId,
       @Valid @RequestBody KrwDepositRequestDto request,
-      @AuthenticationPrincipal Jwt jwt) {
+      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
 
     Long userId = authUtil.requireUserId(jwt);
     accountService.depositKrw(accountId, userId, request.getKrwAmount());
@@ -92,12 +121,18 @@ public class AccountController {
     return ResponseEntity.ok().build();
   }
 
-  // 환전 (양방향 지원)
+  @Operation(summary = "환전", description = "KRW와 USD 간 환전을 수행합니다")
+  @ApiResponses(value = {
+      @ApiResponse(responseCode = "200", description = "환전 성공"),
+      @ApiResponse(responseCode = "400", description = "잘못된 요청 또는 지원하지 않는 통화"),
+      @ApiResponse(responseCode = "404", description = "계좌를 찾을 수 없음"),
+      @ApiResponse(responseCode = "401", description = "인증 실패")
+  })
   @PostMapping("/{accountId}/exchange")
   public ResponseEntity<Void> exchangeCurrency(
-      @PathVariable Long accountId,
+      @Parameter(description = "계좌 ID") @PathVariable Long accountId,
       @Valid @RequestBody ExchangeRequestDto request,
-      @AuthenticationPrincipal Jwt jwt) {
+      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
 
     Long userId = authUtil.requireUserId(jwt);
 
@@ -116,12 +151,18 @@ public class AccountController {
     return ResponseEntity.ok().build();
   }
 
-  // 날짜 기반 자동 환율 환전
+  @Operation(summary = "날짜 기반 환전", description = "특정 날짜의 환율을 자동으로 조회하여 환전을 수행합니다")
+  @ApiResponses(value = {
+      @ApiResponse(responseCode = "200", description = "환전 성공"),
+      @ApiResponse(responseCode = "400", description = "잘못된 요청 또는 지원하지 않는 통화"),
+      @ApiResponse(responseCode = "404", description = "계좌를 찾을 수 없음 또는 해당 날짜 환율 없음"),
+      @ApiResponse(responseCode = "401", description = "인증 실패")
+  })
   @PostMapping("/{accountId}/exchange/by-date")
   public ResponseEntity<Void> exchangeCurrencyByDate(
-      @PathVariable Long accountId,
+      @Parameter(description = "계좌 ID") @PathVariable Long accountId,
       @Valid @RequestBody ExchangeByDateRequestDto request,
-      @AuthenticationPrincipal Jwt jwt) {
+      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
 
     Long userId = authUtil.requireUserId(jwt);
 
@@ -143,44 +184,11 @@ public class AccountController {
     return ResponseEntity.ok().build();
   }
 
-  // Trade 서비스 전용: USD 잔고 업데이트 (매수/매도)
-  @PostMapping("/{accountId}/trade/balance")
-  public ResponseEntity<Void> updateTradeBalance(
-      @PathVariable Long accountId,
-      @RequestParam BigDecimal usdAmount,
-      @RequestParam String tradeType,
-      @RequestParam String description,
-      @AuthenticationPrincipal Jwt jwt) {
-
-    Long userId = authUtil.requireUserId(jwt);
-    
-    log.info("거래 USD 잔고 업데이트: userId={}, accountId={}, usdAmount={}, tradeType={}", 
-        userId, accountId, usdAmount, tradeType);
-
-    try {
-      if ("BUY".equals(tradeType)) {
-        // 매수: USD 차감
-        accountService.updateUsdBalance(accountId, userId, usdAmount.negate(), description);
-      } else if ("SELL".equals(tradeType)) {
-        // 매도: USD 추가
-        accountService.updateUsdBalance(accountId, userId, usdAmount, description);
-      } else {
-        throw new AccountException(AccountResponse.INVALID_REQUEST);
-      }
-
-      log.info("거래 USD 잔고 업데이트 완료: accountId={}, usdAmount={}, type={}", 
-          accountId, usdAmount, tradeType);
-
-      return ResponseEntity.ok().build();
-          
-    } catch (Exception e) {
-      log.error("거래 USD 잔고 업데이트 실패: accountId={}, usdAmount={}, type={}", 
-          accountId, usdAmount, tradeType, e);
-      throw e;
-    }
-  }
-
-  // 현재 환율 조회 (Feign으로 market-data에서 가져오기)
+  @Operation(summary = "현재 환율 조회", description = "실시간 USD/KRW 환율을 조회합니다")
+  @ApiResponses(value = {
+      @ApiResponse(responseCode = "200", description = "환율 조회 성공"),
+      @ApiResponse(responseCode = "503", description = "외부 서비스 연결 실패")
+  })
   @GetMapping("/exchange-rates/current")
   public ResponseEntity<BigDecimal> getCurrentExchangeRate() {
     log.debug("현재 환율 조회 요청");
@@ -190,9 +198,15 @@ public class AccountController {
     return ResponseEntity.ok(currentRate);
   }
 
-  // 특정 날짜 환율 조회
+  @Operation(summary = "날짜별 환율 조회", description = "특정 날짜의 USD/KRW 환율을 조회합니다")
+  @ApiResponses(value = {
+      @ApiResponse(responseCode = "200", description = "환율 조회 성공"),
+      @ApiResponse(responseCode = "404", description = "해당 날짜 환율 데이터 없음"),
+      @ApiResponse(responseCode = "503", description = "외부 서비스 연결 실패")
+  })
   @GetMapping("/exchange-rates/{date}")
   public ResponseEntity<BigDecimal> getExchangeRateByDate(
+      @Parameter(description = "조회할 날짜 (YYYY-MM-DD)", example = "2024-01-15")
       @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
     
     log.debug("날짜별 환율 조회 요청: {}", date);
@@ -202,9 +216,14 @@ public class AccountController {
     return ResponseEntity.ok(rate);
   }
 
-  // 수동 환율 입력/검증
+  @Operation(summary = "수동 환율 검증", description = "사용자가 입력한 환율을 검증합니다")
+  @ApiResponses(value = {
+      @ApiResponse(responseCode = "200", description = "환율 검증 성공"),
+      @ApiResponse(responseCode = "400", description = "잘못된 환율 값")
+  })
   @PostMapping("/exchange-rates/validate")
   public ResponseEntity<BigDecimal> validateManualExchangeRate(
+      @Parameter(description = "검증할 환율 값", example = "1300.50")
       @RequestParam BigDecimal rate) {
     
     log.debug("수동 환율 검증 요청: {}", rate);

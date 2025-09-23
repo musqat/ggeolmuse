@@ -3,9 +3,9 @@ package com.muscat.marketdata.feed.service;
 import com.muscat.commonlib.util.MoneyUtils;
 import com.muscat.marketdata.config.MarketDataProperties;
 import com.muscat.marketdata.domain.entity.FxRate;
+import com.muscat.marketdata.domain.repository.FxRateRepository;
+import com.muscat.marketdata.domain.repository.FxRateQueryRepository;
 import com.muscat.marketdata.feed.collector.FxDataCollector;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -24,11 +24,10 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class FxRateService {
 
+  private final FxRateRepository fxRateRepository;
+  private final FxRateQueryRepository fxRateQueryRepository;
   private final FxDataCollector dataCollector;
   private final MarketDataProperties properties;
-
-  @PersistenceContext
-  private EntityManager em;
 
   @Transactional
   public FxRate saveRate(LocalDate date, BigDecimal usdToKrw) {
@@ -41,44 +40,42 @@ public class FxRateService {
     // 환율 유효성 검증
     MoneyUtils.validateExchangeRate(normalizedRate);
 
-    FxRate existing = em.find(FxRate.class, date);
-    if (existing == null) {
+    Optional<FxRate> existing = fxRateRepository.findByDate(date);
+    if (existing.isEmpty()) {
       FxRate newRate = FxRate.builder().date(date).rate(normalizedRate).build();
-      em.persist(newRate);
+      FxRate saved = fxRateRepository.save(newRate);
       log.debug("[환율저장] {} -> {}", date, normalizedRate);
-      return newRate;
+      return saved;
     } else {
-      if (existing.getRate() == null || existing.getRate().compareTo(normalizedRate) != 0) {
-        em.detach(existing);
+      FxRate existingRate = existing.get();
+      if (existingRate.getRate() == null || existingRate.getRate().compareTo(normalizedRate) != 0) {
         FxRate updatedRate = FxRate.builder().date(date).rate(normalizedRate).build();
-        FxRate saved = em.merge(updatedRate);
+        FxRate saved = fxRateRepository.save(updatedRate);
         log.debug("[환율업데이트] {} -> {}", date, normalizedRate);
         return saved;
       }
-      return existing;
+      return existingRate;
     }
   }
 
   @Transactional(readOnly = true)
   public FxRate findByDate(LocalDate date) {
-    return em.find(FxRate.class, date);
+    return fxRateRepository.findByDate(date).orElse(null);
   }
 
 
   @Transactional
   public Optional<FxRate> getLatestRate() {
-    List<FxRate> latest = em.createQuery("select f from FxRate f order by f.date desc",
-            FxRate.class)
-        .setMaxResults(1)
-        .getResultList();
+    Optional<FxRate> latest = fxRateQueryRepository.findLatestRate();
 
-    if (!latest.isEmpty()) {
-      return Optional.of(latest.get(0));
+    if (latest.isPresent()) {
+      return latest;
     }
 
     log.info("[환율조회] DB가 비어있어서 오늘 환율을 API에서 가져옵니다");
-    Optional<FxRate> todayRate = dataCollector.collectSingleDate(LocalDate.now(), true);
-    return todayRate.map(rate -> saveRate(LocalDate.now(), rate.getRate()));
+    LocalDate today = LocalDate.now();
+    Optional<FxRate> todayRate = dataCollector.collectSingleDate(today, true);
+    return todayRate.map(rate -> saveRate(today, rate.getRate()));
   }
 
 
@@ -121,11 +118,7 @@ public class FxRateService {
   @Deprecated(since = "2024.12", forRemoval = true)
   @Transactional(readOnly = true)
   public List<FxRate> findRateRange(LocalDate startDate, LocalDate endDate) {
-    return em.createQuery(
-            "select f from FxRate f where f.date between :start and :end order by f.date", FxRate.class)
-        .setParameter("start", startDate)
-        .setParameter("end", endDate)
-        .getResultList();
+    return fxRateQueryRepository.findByDateRange(startDate, endDate);
   }
 
   @Deprecated(since = "2024.12", forRemoval = true)

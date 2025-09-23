@@ -12,6 +12,8 @@ spring:
           issuer-uri: ${keycloak.auth-server-url}/realms/${keycloak.realm}
 
 keycloak:
+  auth-server-url: ${KEYCLOAK_AUTH_URL:http://localhost:8080/auth}
+  realm: ${KEYCLOAK_REALM:muscathan}
   resource: ggeolmuse-client
   credentials:
     secret: ${KEYCLOAK_SECRET}

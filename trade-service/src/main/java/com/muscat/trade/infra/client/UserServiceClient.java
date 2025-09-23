@@ -17,7 +17,7 @@ public interface UserServiceClient {
       @PathVariable("accountId") Long accountId
   );
 
-  @PostMapping("/api/accounts/{accountId}/trade/balance")
+  @PostMapping("/api/internal/account/{accountId}/trade/balance")
   Void updateTradeBalance(
       @PathVariable("accountId") Long accountId,
       @RequestParam("usdAmount") BigDecimal usdAmount,

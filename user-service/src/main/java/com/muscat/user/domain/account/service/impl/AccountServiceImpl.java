@@ -16,6 +16,7 @@ import com.muscat.user.domain.account.entity.Account;
 import com.muscat.user.domain.account.entity.AccountHistory;
 import com.muscat.user.domain.account.repository.AccountHistoryRepository;
 import com.muscat.user.domain.account.repository.AccountRepository;
+import com.muscat.user.domain.account.repository.AccountQueryRepository;
 import com.muscat.user.domain.account.service.AccountHistoryService;
 import com.muscat.user.domain.account.service.AccountService;
 import com.muscat.user.domain.user.entity.User;
@@ -39,6 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AccountServiceImpl implements AccountService {
 
   private final AccountRepository accountRepository;
+  private final AccountQueryRepository accountQueryRepository;
   private final AccountHistoryRepository accountHistoryRepository;
   private final UserRepository userRepository;
   private final AccountHistoryService accountHistoryService;
@@ -64,7 +66,7 @@ public class AccountServiceImpl implements AccountService {
     User user = userRepository.findById(userId)
         .orElseThrow(() -> new UserException(UserResponse.USER_NOT_FOUND));
 
-    if (accountRepository.existsByUserIdAndAccountName(userId, request.getAccountName())) {
+    if (accountQueryRepository.existsByUserIdAndAccountName(userId, request.getAccountName())) {
       throw new AccountException(AccountResponse.DUPLICATE_ACCOUNT_NAME);
     }
 
@@ -94,14 +96,14 @@ public class AccountServiceImpl implements AccountService {
   @Override
   @Transactional(readOnly = true)
   public List<Account> getUserAccounts(Long userId) {
-    return accountRepository.findByUserId(userId);
+    return accountQueryRepository.findByUserIdWithUser(userId);
   }
 
   // 계좌 잔액 조회 (현재 환율 기준 총 자산 포함)
   @Override
   @Transactional(readOnly = true)
   public BalanceResponseDto getAccountBalance(Long accountId, Long userId) {
-    Account account = accountRepository.findByIdAndUserId(accountId, userId)
+    Account account = accountQueryRepository.findByIdAndUserId(accountId, userId)
         .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
 
     BigDecimal currentExchangeRate = getCurrentExchangeRate();
@@ -114,7 +116,7 @@ public class AccountServiceImpl implements AccountService {
   public void exchangeKrwToUsd(Long accountId, Long userId, BigDecimal krwAmount,
       BigDecimal exchangeRate) {
 
-    Account account = accountRepository.findByIdAndUserIdWithLock(accountId, userId)
+    Account account = accountQueryRepository.findByIdAndUserIdWithLock(accountId, userId)
         .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
     userLogger.logExchangeStart(accountId, "KRW", "USD", krwAmount, exchangeRate);
 
@@ -162,7 +164,7 @@ public class AccountServiceImpl implements AccountService {
   public void exchangeUsdToKrw(Long accountId, Long userId, BigDecimal usdAmount,
       BigDecimal exchangeRate) {
 
-    Account account = accountRepository.findByIdAndUserIdWithLock(accountId, userId)
+    Account account = accountQueryRepository.findByIdAndUserIdWithLock(accountId, userId)
         .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
     userLogger.logExchangeStart(accountId, "USD", "KRW", usdAmount, exchangeRate);
 
@@ -208,7 +210,7 @@ public class AccountServiceImpl implements AccountService {
   // KRW 입금 처리
   @Override
   public void depositKrw(Long accountId, Long userId, BigDecimal krwAmount) {
-    Account account = accountRepository.findByIdAndUserIdWithLock(accountId, userId)
+    Account account = accountQueryRepository.findByIdAndUserIdWithLock(accountId, userId)
         .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
 
     MoneyUtils.validatePositiveAmount(krwAmount, "입금 금액");
@@ -338,7 +340,7 @@ public class AccountServiceImpl implements AccountService {
   private String generateUniqueAccountNumber() {
     for (int i = 0; i < 10; i++) {
       String accountNumber = generateAccountNumber();
-      if (accountRepository.findByAccountNumber(accountNumber).isEmpty()) {
+      if (accountQueryRepository.findByAccountNumber(accountNumber).isEmpty()) {
         return accountNumber;
       }
     }
@@ -360,7 +362,7 @@ public class AccountServiceImpl implements AccountService {
 
   // 계좌 접근 권한 검증
   private Account validateAccountAccess(Long accountId, Long userId) {
-    Account account = accountRepository.findByIdWithLock(accountId)
+    Account account = accountQueryRepository.findByIdWithLock(accountId)
         .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
 
     if (!account.getUser().getId().equals(userId)) {

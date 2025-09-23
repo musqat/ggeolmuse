@@ -13,6 +13,11 @@ public interface TradingSimulationService {
   // 과거 특정 시점 투자 시뮬레이션 실행
   SimulationResponse runSimulation(SimulationRequest request);
 
+  // 과거 특정 시점 투자 시뮬레이션 실행 (히스토리 기록 여부 지정)
+  default SimulationResponse runSimulation(SimulationRequest request, boolean recordHistory) {
+    return runSimulation(request);
+  }
+
   // 사용자의 투자 내역을 시뮬레이션 실행
   InvestmentResponse executeInvestment(InvestmentRequest request, String authorization);
 

@@ -17,9 +17,6 @@ public interface HoldingsRepository extends JpaRepository<Holdings, String> {
 
   List<Holdings> findByUserIdAndAccountId(String userId, Long accountId);
 
-  Optional<Holdings> findByUserIdAndAccountIdAndSymbol(String userId, Long accountId, String symbol);
-
-  // 거래 시 필요한 락 기능
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("SELECT h FROM Holdings h WHERE h.userId = :userId AND h.accountId = :accountId AND h.symbol = :symbol")
   Optional<Holdings> findByUserIdAndAccountIdAndSymbolWithLock(@Param("userId") String userId,

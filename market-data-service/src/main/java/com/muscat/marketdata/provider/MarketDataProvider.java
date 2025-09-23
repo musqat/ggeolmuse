@@ -40,10 +40,6 @@ public final class MarketDataProvider {
   public interface SymbolSource {
 
     List<Asset> fetchSymbols();
-
-    default List<String> fetchSymbolStrings() {
-      return fetchSymbols().stream().map(Asset::getSymbol).toList();
-    }
   }
 
   /**

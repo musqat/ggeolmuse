@@ -1,45 +1,19 @@
-spring:
-  #데이터베이스 (H2 PostgreSQL 호환 모드)
-  datasource:
-    url: jdbc:h2:mem:userdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-    driverClassName: org.h2.Driver
-    username: sa
-    password:
-
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
-      settings:
-        web-allow-others: true
-
-  jpa:
-    database-platform: org.hibernate.dialect.H2Dialect
+datasource:
+  url: jdbc:h2:mem:userdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+  driverClassName: org.h2.Driver
+  username: sa
+  password:
+h2:
+  console:
+    enabled: true
+    path: /h2-console
+    settings:
+      web-allow-others: true
+jpa:
+  database-platform: org.hibernate.dialect.H2Dialect
+  hibernate:
+    ddl-auto: create-drop
+  show-sql: true
+  properties:
     hibernate:
-      ddl-auto: create-drop
-    show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
-
-# Keycloak 설정
-keycloak:
-  resource: ggeolmuse-client
-  credentials:
-    secret: ${KEYCLOAK_SECRET}
-
-# User 비즈니스 설정
-app:
-  mail:
-    from: ${MAIL_FROM:noreply@ggeolmuse.com}
-    verification:
-      expiry-hours: ${EMAIL_EXPIRY_HOURS:24}
-      base-url: ${APP_BASE_URL:http://localhost:3000}
-  oauth:
-    redirect-uri: ${OAUTH_REDIRECT_URI:http://localhost:3000/auth/callback}
-  frontend:
-    url: ${APP_FRONTEND_URL:http://localhost:3000}
-  exchange-rate:
-    min-valid-rate: ${EXCHANGE_RATE_MIN:500}
-    max-valid-rate: ${EXCHANGE_RATE_MAX:2000}
-    fallback-rate: ${EXCHANGE_RATE_FALLBACK:1350.00}
+      format_sql: true

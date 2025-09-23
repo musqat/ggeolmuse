@@ -2,6 +2,8 @@ package com.muscat.user.domain.user.service.impl;
 
 import com.muscat.user.common.enums.responses.KeycloakResponse;
 import com.muscat.user.common.exceptions.KeycloakException;
+import com.muscat.user.config.AppProperties;
+import com.muscat.commonlib.config.KeycloakProperties;
 import com.muscat.user.domain.user.dto.request.ChangePasswordRequestDto;
 import com.muscat.user.domain.user.dto.response.LoginResponseDto;
 import com.muscat.user.domain.user.service.KeycloakService;
@@ -9,7 +11,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -27,32 +28,20 @@ import org.springframework.web.client.RestTemplate;
 @Slf4j
 public class KeycloakServiceImpl implements KeycloakService {
 
-  @Value("${keycloak.auth-server-url}")
-  private String keycloakUrl;
-
-  @Value("${keycloak.realm}")
-  private String realm;
-
-  @Value("${keycloak.resource}")
-  private String clientId;
-
-  @Value("${keycloak.credentials.secret}")
-  private String clientSecret;
-
-
-  @Value("${app.oauth.redirect-uri}")
-  private String redirectUri;
-
+  private final KeycloakProperties keycloakProperties;
+  private final AppProperties appProperties;
   private final JwtDecoder jwtDecoder;
   private final RestTemplate restTemplate;
 
-  public KeycloakServiceImpl(JwtDecoder jwtDecoder) {
+  public KeycloakServiceImpl(KeycloakProperties keycloakProperties, AppProperties appProperties, JwtDecoder jwtDecoder) {
+    this.keycloakProperties = keycloakProperties;
+    this.appProperties = appProperties;
     this.jwtDecoder = jwtDecoder;
 
     // RestTemplate을 타임아웃과 함께 설정
     RestTemplateBuilder builder = new RestTemplateBuilder()
-        .connectTimeout(java.time.Duration.ofSeconds(5))
-        .readTimeout(java.time.Duration.ofSeconds(10));
+        .setConnectTimeout(java.time.Duration.ofSeconds(5))
+        .setReadTimeout(java.time.Duration.ofSeconds(10));
     this.restTemplate = builder.build();
   }
 
@@ -62,8 +51,8 @@ public class KeycloakServiceImpl implements KeycloakService {
 
     MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
     body.add("grant_type", "password");
-    body.add("client_id", clientId);
-    body.add("client_secret", clientSecret);
+    body.add("client_id", keycloakProperties.getResource());
+    body.add("client_secret", keycloakProperties.getCredentials().getSecret());
     body.add("username", email);
     body.add("password", password);
 
@@ -77,19 +66,19 @@ public class KeycloakServiceImpl implements KeycloakService {
 
   @Override
   public String exchangeCodeForToken(String authorizationCode) {
-    String tokenUrl = keycloakUrl + "/realms/" + realm + "/protocol/openid-connect/token";
+    String tokenUrl = keycloakProperties.getAuthServerUrl() + "/realms/" + keycloakProperties.getRealm() + "/protocol/openid-connect/token";
 
-    log.debug("Authorization Code 교환 요청: {} | Redirect URI: {}", tokenUrl, redirectUri);
+    log.debug("Authorization Code 교환 요청: {} | Redirect URI: {}", tokenUrl, appProperties.getOauth().getRedirectUri());
 
     HttpHeaders headers = new HttpHeaders();
     headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
     MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
     body.add("grant_type", "authorization_code");
-    body.add("client_id", clientId);
-    body.add("client_secret", clientSecret);
+    body.add("client_id", keycloakProperties.getResource());
+    body.add("client_secret", keycloakProperties.getCredentials().getSecret());
     body.add("code", authorizationCode);
-    body.add("redirect_uri", redirectUri);
+    body.add("redirect_uri", appProperties.getOauth().getRedirectUri());
 
     HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
 
@@ -127,7 +116,7 @@ public class KeycloakServiceImpl implements KeycloakService {
     String adminToken = getAdminToken();
 
     // 2. 사용자 생성 요청
-    String userUrl = keycloakUrl + "/admin/realms/" + realm + "/users";
+    String userUrl = keycloakProperties.getAuthServerUrl() + "/admin/realms/" + keycloakProperties.getRealm() + "/users";
 
     log.debug("Keycloak 사용자 생성 요청: {} | URL: {}", email, userUrl);
 
@@ -172,7 +161,7 @@ public class KeycloakServiceImpl implements KeycloakService {
   public void changePassword(String keycloakId, ChangePasswordRequestDto request) {
     String adminToken = getAdminToken();
     String passwordUrl =
-        keycloakUrl + "/admin/realms/" + realm + "/users/" + keycloakId + "/reset-password";
+        keycloakProperties.getAuthServerUrl() + "/admin/realms/" + keycloakProperties.getRealm() + "/users/" + keycloakId + "/reset-password";
 
     log.debug("Keycloak 비밀번호 변경 요청: {} | URL: {}", keycloakId, passwordUrl);
 
@@ -201,7 +190,7 @@ public class KeycloakServiceImpl implements KeycloakService {
 
     try {
       String adminToken = getAdminToken();
-      String deleteUrl = keycloakUrl + "/admin/realms/" + realm + "/users/" + keycloakId;
+      String deleteUrl = keycloakProperties.getAuthServerUrl() + "/admin/realms/" + keycloakProperties.getRealm() + "/users/" + keycloakId;
 
       log.info("Keycloak 사용자 삭제 시도: {} -> {}", keycloakId, deleteUrl);
 
@@ -215,7 +204,7 @@ public class KeycloakServiceImpl implements KeycloakService {
 
     } catch (HttpClientErrorException e) {
       log.error("Keycloak 사용자 삭제 실패 - HTTP {}: {} | URL: {}",
-          e.getStatusCode(), e.getResponseBodyAsString(), keycloakUrl);
+          e.getStatusCode(), e.getResponseBodyAsString(), keycloakProperties.getAuthServerUrl());
 
       if (e.getStatusCode().value() == 404) {
         log.warn("Keycloak에서 사용자를 찾을 수 없음: {}", keycloakId);
@@ -226,7 +215,7 @@ public class KeycloakServiceImpl implements KeycloakService {
 
     } catch (Exception e) {
       log.error("Keycloak 사용자 삭제 중 예상치 못한 오류: {} | Keycloak ID: {} | URL: {}",
-          e.getMessage(), keycloakId, keycloakUrl, e);
+          e.getMessage(), keycloakId, keycloakProperties.getAuthServerUrl(), e);
       throw new KeycloakException(KeycloakResponse.USER_DELETE_FAILED);
     }
   }
@@ -237,8 +226,8 @@ public class KeycloakServiceImpl implements KeycloakService {
 
       MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
       body.add("grant_type", "client_credentials");
-      body.add("client_id", clientId);
-      body.add("client_secret", clientSecret);
+      body.add("client_id", keycloakProperties.getResource());
+      body.add("client_secret", keycloakProperties.getCredentials().getSecret());
 
       HttpEntity<MultiValueMap<String, String>> request = createFormRequest(body);
       ResponseEntity<Map> response = restTemplate.postForEntity(getTokenUrl(), request, Map.class);
@@ -258,7 +247,7 @@ public class KeycloakServiceImpl implements KeycloakService {
   }
 
   private String getTokenUrl() {
-    return keycloakUrl + "/realms/" + realm + "/protocol/openid-connect/token";
+    return keycloakProperties.getAuthServerUrl() + "/realms/" + keycloakProperties.getRealm() + "/protocol/openid-connect/token";
   }
 
   private HttpEntity<MultiValueMap<String, String>> createFormRequest(MultiValueMap<String, String> body) {

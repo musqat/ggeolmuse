@@ -3,7 +3,6 @@ package com.muscat.user.domain.account.service;
 import com.muscat.user.domain.account.dto.response.HistoryListResponseDto;
 import com.muscat.user.domain.account.dto.response.HistoryResponseDto;
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -23,7 +22,7 @@ public interface AccountHistoryService {
   // 계좌별 거래 내역 조회
   HistoryListResponseDto getAccountHistories(
       Long accountId, int page, int size, Long userId,
-      Instant from, Instant to
+      LocalDateTime from, LocalDateTime to
   );
 
   // 특정 거래 내역 상세 조회

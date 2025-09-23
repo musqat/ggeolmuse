@@ -14,10 +14,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-// 계좌 거래 내역 Repository
 public interface AccountHistoryRepository extends JpaRepository<AccountHistory, Long> {
 
-  // 통화별: 정렬 통일 (createdAt DESC, id DESC)
   @Query("""
       select h
       from AccountHistory h
@@ -31,7 +29,6 @@ public interface AccountHistoryRepository extends JpaRepository<AccountHistory, 
       Pageable pageable
   );
 
-  // 기간별 검색 [from, to) 구간 + 정렬 통일
   @Query("""
       select h
       from AccountHistory h
@@ -47,31 +44,26 @@ public interface AccountHistoryRepository extends JpaRepository<AccountHistory, 
       Pageable pageable
   );
 
-  // 특정 거래 내역 조회 (명시적 쿼리)
   @Query("SELECT ah FROM AccountHistory ah WHERE ah.id = :historyId AND ah.account.id = :accountId")
   Optional<AccountHistory> findByIdAndAccountId(@Param("historyId") Long historyId,
       @Param("accountId") Long accountId);
 
-  // 환전 내역만 조회
   @Query("SELECT ah FROM AccountHistory ah WHERE ah.account = :account " +
       "AND ah.fromCurrency IS NOT NULL AND ah.toCurrency IS NOT NULL " +
       "ORDER BY ah.id DESC")
   List<AccountHistory> findExchangeHistoryByAccount(@Param("account") Account account);
 
-  // 통계 조회
   @Query("SELECT COALESCE(SUM(ah.amount), 0) FROM AccountHistory ah " +
       "WHERE ah.account = :account AND ah.transactionType = :transactionType")
   BigDecimal getTotalAmountByAccountAndType(
       @Param("account") Account account,
       @Param("transactionType") TransactionType transactionType);
 
-  // 중복 거래 방지
   boolean existsByReferenceId(String referenceId);
 
   default Page<AccountHistory> findByAccountAndDateRangeOrderByCreatedAtDesc(
       Account account, LocalDateTime start, LocalDateTime end, Pageable pageable
   ) {
-    // LocalDateTime → Instant 변환
     Instant from =
         start == null ? null : start.atZone(java.time.ZoneId.systemDefault()).toInstant();
     Instant to = end == null ? null : end.atZone(java.time.ZoneId.systemDefault()).toInstant();

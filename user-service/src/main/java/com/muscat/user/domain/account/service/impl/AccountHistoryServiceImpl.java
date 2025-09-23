@@ -11,6 +11,7 @@ import com.muscat.user.domain.account.entity.Account;
 import com.muscat.user.domain.account.entity.AccountHistory;
 import com.muscat.user.domain.account.repository.AccountHistoryRepository;
 import com.muscat.user.domain.account.repository.AccountRepository;
+import com.muscat.user.domain.account.repository.AccountQueryRepository;
 import com.muscat.user.domain.account.service.AccountHistoryService;
 import com.muscat.commonlib.util.MoneyUtils;
 import java.math.BigDecimal;
@@ -35,6 +36,7 @@ public class AccountHistoryServiceImpl implements AccountHistoryService {
 
   private final AccountHistoryRepository accountHistoryRepository;
   private final AccountRepository accountRepository;
+  private final AccountQueryRepository accountQueryRepository;
 
   // 입금 거래 내역 생성 (내부 호출용)
   @Override
@@ -109,7 +111,7 @@ public class AccountHistoryServiceImpl implements AccountHistoryService {
   @Override
   public HistoryListResponseDto getAccountHistories(
       Long accountId, int page, int size, Long userId,
-      Instant from, Instant to
+      LocalDateTime from, LocalDateTime to
   ) {
     Account account = getAccountByIdWithAuth(accountId, userId);
 
@@ -117,8 +119,11 @@ public class AccountHistoryServiceImpl implements AccountHistoryService {
         .and(Sort.by(Sort.Direction.DESC, "id"));
     Pageable pageable = PageRequest.of(page, size, sort);
 
+    Instant fromInstant = from != null ? from.toInstant(java.time.ZoneOffset.UTC) : null;
+    Instant toInstant = to != null ? to.toInstant(java.time.ZoneOffset.UTC) : null;
+
     Page<AccountHistory> historyPage = accountHistoryRepository
-        .findByAccountAndRangeOrderByCreatedAtDesc(account, from, to, pageable);
+        .findByAccountAndRangeOrderByCreatedAtDesc(account, fromInstant, toInstant, pageable);
 
     List<HistoryResponseDto> histories = historyPage.getContent()
         .stream()
@@ -223,7 +228,7 @@ public class AccountHistoryServiceImpl implements AccountHistoryService {
 
   // 사용자 소유 계좌인지 검증
   private Account getAccountByIdWithAuth(Long accountId, Long userId) {
-    return accountRepository.findByIdAndUserId(accountId, userId)
+    return accountQueryRepository.findByIdAndUserId(accountId, userId)
         .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_ACCESS_DENIED));
   }
 

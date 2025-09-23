@@ -18,7 +18,14 @@ spring:
         max-interval: 4000
         multiplier: 1.1
 
-  # Mail configuration
+  # Security OAuth2 설정
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${keycloak.auth-server-url}/realms/${keycloak.realm}
+
+  # Mail 설정
   mail:
     host: smtp.gmail.com
     port: 587
@@ -35,28 +42,39 @@ spring:
 server:
   port: 8080
 
-# Keycloak configuration
 keycloak:
-  auth-server-url: http://keycloak:8080
-  realm: muscathan
-  resource: muscat-user-service
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:http://localhost:7001}
+  realm: ${KEYCLOAK_REALM:muscathan}
+  resource: ggeolmuse-client
+  credentials:
+    secret: ${KEYCLOAK_SECRET:dev-secret}
   admin:
     username: admin
     password: admin
 
 app:
   exchange-rate:
-    min-valid-rate: 1000
-    max-valid-rate: 1500
-    fallback-rate: 1300
+    min-valid-rate: ${EXCHANGE_RATE_MIN:1000}
+    max-valid-rate: ${EXCHANGE_RATE_MAX:1500}
+    fallback-rate: ${EXCHANGE_RATE_FALLBACK:1300}
   oauth:
-    redirect-uri: http://localhost:8070/oauth/callback
+    redirect-uri: ${OAUTH_REDIRECT_URI:http://localhost:8070/oauth/callback}
   mail:
-    from: noreply@example.com
+    from: ${MAIL_FROM:noreply@example.com}
     verification:
-      base-url: http://localhost:8090
-      expiry-hours: 24
+      base-url: ${APP_BASE_URL:http://localhost:8090}
+      expiry-hours: ${EMAIL_EXPIRY_HOURS:24}
   frontend:
-    url: http://localhost:3000
+    url: ${APP_FRONTEND_URL:http://localhost:3000}
   account:
     initial-krw-amount: 1000000
+
+# swagger 설정
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+    tagsSorter: alpha
+  show-actuator: false

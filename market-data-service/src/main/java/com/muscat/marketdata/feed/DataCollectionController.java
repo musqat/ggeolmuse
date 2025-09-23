@@ -19,6 +19,10 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 데이터 수집 관리용 컨트롤러
+ * 관리자 전용 API
+ */
 @Slf4j
 @RestController
 @RequestMapping("/batch")

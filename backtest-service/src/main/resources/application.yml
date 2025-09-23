@@ -1,23 +1,39 @@
 spring:
+  profiles:
+    active: dev
   application:
     name: backtest-service
+
+  # Config Server 연결
+  config:
+    import: "optional:configserver:${SPRING_CLOUD_CONFIG_URI:http://localhost:8888}"
+
   cloud:
     config:
+      uri: ${SPRING_CLOUD_CONFIG_URI:http://localhost:8888}
+      username: ${SPRING_CLOUD_CONFIG_USERNAME:config}
+      password: ${SPRING_CLOUD_CONFIG_PASSWORD:config123}
+      fail-fast: false
+      retry:
+        initial-interval: 3000
+        max-attempts: 6
+        max-interval: 4000
+        multiplier: 1.1
+    compatibility-verifier:
       enabled: false
+
   security:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://localhost:7001/realms/Muscat
+          issuer-uri: http://keycloak:8080/realms/muscathan
 
 
 server:
   port: 8082
-  servlet:
-    context-path: /api/backtest
 
 keycloak:
-  auth-server-url: http://localhost:7001
+  auth-server-url: http://keycloak:8080
   realm: muscathan
   resource: muscat-user-service
 
@@ -34,3 +50,13 @@ management:
   endpoint:
     mappings:
       enabled: true
+
+# SpringDoc OpenAPI 설정
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+    tagsSorter: alpha
+  show-actuator: false

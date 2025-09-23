@@ -4,7 +4,13 @@ server:
 spring:
   application:
     name: market-data-service
-    
+
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
   security:
     oauth2:
       resourceserver:

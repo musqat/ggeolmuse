@@ -7,9 +7,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1g
+          memory: 2g
         reservations:
-          memory: 512m
+          memory: 1g
     profiles:
       - template  # 기본 배포에서 제외
 
@@ -17,6 +17,11 @@ services:
   platform-service-config:
     extends:
       service: base-service
+    depends_on:
+      redis:
+        condition: service_started
+      keycloak:
+        condition: service_started
     environment:
       SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: false
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
@@ -30,10 +35,8 @@ services:
     extends:
       service: base-service
     depends_on:
-      config-server:
-        condition: service_healthy
       redis:
-        condition: service_healthy
+        condition: service_started
       keycloak:
         condition: service_started
     environment:
@@ -49,8 +52,5 @@ services:
       KEYCLOAK_ADMIN_PASSWORD: admin
       JAVA_OPTS: "-Dspring.h2.console.settings.web-allow-others=true"
     healthcheck:
-      interval: 20s
-      timeout: 10s
-      retries: 10
-      start_period: 45s
+      test: ["NONE"]
 
