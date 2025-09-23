@@ -1,8 +1,9 @@
 package com.muscat.backtest.config;
 
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -18,11 +19,16 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableWebSecurity
 public class SecurityConfig {
 
-  @Value("${keycloak.auth-server-url}")
-  private String keycloakUrl;
+  @Autowired
+  private Environment environment;
 
-  @Value("${keycloak.realm}")
-  private String realm;
+  private String getKeycloakAuthServerUrl() {
+    return environment.getProperty("KEYCLOAK_AUTH_SERVER_URL", "http://localhost:8080");
+  }
+
+  private String getKeycloakRealm() {
+    return environment.getProperty("KEYCLOAK_REALM", "ggeolmuse");
+  }
 
   @Bean
   public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -31,6 +37,7 @@ public class SecurityConfig {
         .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(auth -> auth
             .requestMatchers("/analysis/health", "/trading-simulation/**").permitAll()
+            .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
             .anyRequest().authenticated()
         )
         .oauth2ResourceServer(oauth2 -> oauth2
@@ -59,7 +66,9 @@ public class SecurityConfig {
 
   @Bean
   public JwtDecoder jwtDecoder() {
-    String jwkSetUri = keycloakUrl + "/realms/" + realm + "/protocol/openid-connect/certs";
+    String authServerUrl = getKeycloakAuthServerUrl();
+    String realm = getKeycloakRealm();
+    String jwkSetUri = authServerUrl + "/realms/" + realm + "/protocol/openid-connect/certs";
     return NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
   }
 }

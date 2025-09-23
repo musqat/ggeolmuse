@@ -1,4 +1,11 @@
 spring:
+  profiles:
+    active: dev
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://localhost:7001/auth/realms/muscathan
   application:
     name: trade-service
 
@@ -31,3 +38,15 @@ user-service:
 
 backtest-service:
   url: http://backtest-service:8082
+
+# swagger 설정
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+    tagsSorter: alpha
+  show-actuator: false
+
+

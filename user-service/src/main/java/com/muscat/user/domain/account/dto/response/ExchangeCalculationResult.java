@@ -1,23 +1,31 @@
 package com.muscat.user.domain.account.dto.response;
 
 import com.muscat.commonlib.util.MoneyUtils;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.ToString;
 
-// 환전 계산 결과를 담는 DTO 클래스
+@Schema(description = "환전 계산 결과 정보")
 @Getter
 @RequiredArgsConstructor
 @ToString
 public class ExchangeCalculationResult {
 
+  @Schema(description = "환전 요청 금액", example = "100000.00")
   private final BigDecimal requestAmount;           // 환전 요청 금액
+  @Schema(description = "적용된 환율", example = "1320.50")
   private final BigDecimal exchangeRate;            // 적용된 환율
+  @Schema(description = "원본 통화 코드", example = "KRW")
   private final String fromCurrency;               // 원본 통화
+  @Schema(description = "대상 통화 코드", example = "USD")
   private final String toCurrency;                 // 대상 통화
+  @Schema(description = "수수료 차감 전 환전 금액", example = "75.76")
   private final BigDecimal beforeCommissionAmount; // 수수료 차감 전 환전 금액
+  @Schema(description = "환전 수수료", example = "0.00")
   private final BigDecimal commissionAmount;       // 환전 수수료
+  @Schema(description = "최종 환전 금액", example = "75.76")
   private final BigDecimal finalAmount;            // 최종 환전 금액
 
   // KRW → USD 환전 결과 생성 (수수료 없음)

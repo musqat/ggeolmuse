@@ -1,0 +1,96 @@
+package com.muscat.marketdata.api;
+
+import com.muscat.marketdata.domain.dto.DividendDto;
+import com.muscat.marketdata.domain.dto.OHLCPriceDto;
+import com.muscat.marketdata.domain.dto.StockPriceDto;
+import com.muscat.marketdata.domain.entity.FxRate;
+import com.muscat.marketdata.domain.service.MarketService;
+import com.muscat.marketdata.feed.service.FxRateService;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.time.LocalDate;
+import java.util.List;
+
+/**
+ * 내부 서비스 간 통신용 컨트롤러
+ * 다른 마이크로서비스에서만 호출되는 API들
+ */
+@Slf4j
+@RestController
+@RequestMapping("/api/internal/market")
+@RequiredArgsConstructor
+public class InternalMarketController {
+
+  private final MarketService marketService;
+  private final FxRateService fxRateService;
+
+  @GetMapping("/ohlc/{symbol}")
+  public ResponseEntity<OHLCPriceDto> getOHLCPrice(
+      @PathVariable @NotBlank @Pattern(regexp = "^[A-Z]{1,16}$") String symbol,
+      @RequestParam LocalDate date) {
+
+    log.debug("내부 OHLC 조회 요청: symbol={}, date={}", symbol, date);
+
+    OHLCPriceDto result = marketService.getOHLCPrice(symbol, date);
+
+    return ResponseEntity.status(HttpStatus.OK).body(result);
+  }
+
+  @GetMapping("/price/{symbol}")
+  public ResponseEntity<StockPriceDto> getCurrentPrice(
+      @PathVariable @NotBlank @Pattern(regexp = "^[A-Z]{1,16}$") String symbol) {
+    log.debug("내부 현재가 조회 요청: symbol={}", symbol);
+
+    StockPriceDto result = marketService.getCurrentPrice(symbol);
+
+    return ResponseEntity.status(HttpStatus.OK).body(result);
+  }
+
+  @GetMapping("/fx/{date}")
+  public ResponseEntity<FxRate> getFxRate(@PathVariable LocalDate date) {
+    log.debug("내부 환율 조회 요청: date={}", date);
+
+    FxRate fxRate = fxRateService.findByDate(date);
+
+    if (fxRate == null) {
+      return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+    }
+
+    return ResponseEntity.status(HttpStatus.OK).body(fxRate);
+  }
+
+  @GetMapping("/fx/latest")
+  public ResponseEntity<FxRate> getLatestFxRate() {
+    log.debug("내부 최신 환율 조회 요청");
+
+    var fxRate = fxRateService.getLatestRate();
+
+    if (fxRate.isEmpty()) {
+      return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+    }
+
+    return ResponseEntity.status(HttpStatus.OK).body(fxRate.get());
+  }
+
+  @GetMapping("/dividend/{symbol}")
+  public ResponseEntity<List<DividendDto>> getDividendHistory(
+      @PathVariable @NotBlank @Pattern(regexp = "^[A-Z]{1,16}$") String symbol,
+      @RequestParam(required = false) LocalDate startDate,
+      @RequestParam(required = false) LocalDate endDate) {
+    log.debug("내부 배당 이력 조회 요청: symbol={}, startDate={}, endDate={}", symbol, startDate, endDate);
+
+    List<DividendDto> dividends = marketService.getDividendHistory(symbol, startDate, endDate);
+
+    return ResponseEntity.status(HttpStatus.OK).body(dividends);
+  }
+}

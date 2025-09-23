@@ -1,64 +1,25 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    
-    <!-- 공통 설정 포함 -->
-    <include resource="logback-common.xml"/>
-    
-    <!-- Trade 서비스별 프로퍼티 -->
+
+    <!-- Trade Service 간단한 로깅 설정 -->
     <property name="LOG_FILE" value="${LOG_FILE:-trade}"/>
-    
-    <!-- Transaction Log Appender (거래 전용 로그) -->
-    <appender name="TRANSACTION_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${LOG_DIR}/trade-transaction.log</file>
+
+    <!-- Console Appender -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%X{rid:-}] [%X{userId:-}] [%X{tradeType:-}] [%X{symbol:-}] [%X{accountId:-}] %msg%n</pattern>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
-        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_DIR}/trade-transaction.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
-            <maxFileSize>200MB</maxFileSize>
-            <maxHistory>365</maxHistory> <!-- 1년 보관 -->
-            <totalSizeCap>20GB</totalSizeCap>
-        </rollingPolicy>
-        <filter class="ch.qos.logback.core.filter.EvaluatorFilter">
-            <evaluator class="ch.qos.logback.classic.boolex.OnMarkerEvaluator">
-                <marker>TRADE_EVENT</marker>
-            </evaluator>
-            <onMismatch>DENY</onMismatch>
-            <onMatch>ACCEPT</onMatch>
-        </filter>
     </appender>
-    
-    <!-- Trade Logger -->
-    <springProfile name="!prod">
-        <logger name="com.muscat.trade.common.logging.TradeLogger" level="INFO" additivity="false">
-            <appender-ref ref="TRANSACTION_FILE"/>
-            <appender-ref ref="CONSOLE"/>
-        </logger>
-    </springProfile>
-    
-    <springProfile name="prod">
-        <logger name="com.muscat.trade.common.logging.TradeLogger" level="INFO" additivity="false">
-            <appender-ref ref="TRANSACTION_FILE"/>
-        </logger>
-    </springProfile>
-    
+
     <!-- Trade 패키지 로거 -->
-    <logger name="com.muscat.trade" level="${LOG_LEVEL}"/>
-    
+    <logger name="com.muscat.trade" level="DEBUG"/>
+
+    <!-- Feign 로거 -->
+    <logger name="com.muscat.trade.infra.client" level="DEBUG"/>
+
     <!-- Root Logger -->
-    <springProfile name="!prod">
-        <root level="${ROOT_LOG_LEVEL}">
-            <appender-ref ref="CONSOLE"/>
-            <appender-ref ref="APPLICATION_FILE"/>
-            <appender-ref ref="ERROR_FILE"/>
-        </root>
-    </springProfile>
-    
-    <springProfile name="prod">
-        <root level="${ROOT_LOG_LEVEL}">
-            <appender-ref ref="APPLICATION_FILE"/>
-            <appender-ref ref="ERROR_FILE"/>
-        </root>
-    </springProfile>
-    
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
 </configuration>

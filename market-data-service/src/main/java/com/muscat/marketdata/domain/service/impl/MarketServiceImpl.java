@@ -5,8 +5,10 @@ import com.muscat.marketdata.config.MarketDataProperties;
 import com.muscat.marketdata.domain.dto.DividendDto;
 import com.muscat.marketdata.domain.dto.OHLCPriceDto;
 import com.muscat.marketdata.domain.dto.StockPriceDto;
+import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.entity.Candle;
 import com.muscat.marketdata.domain.entity.Dividend;
+import com.muscat.marketdata.domain.repository.AssetQueryRepository;
 import com.muscat.marketdata.domain.repository.CandleQueryRepository;
 import com.muscat.marketdata.domain.repository.CandleRepository;
 import com.muscat.marketdata.domain.repository.DividendQueryRepository;
@@ -31,6 +33,7 @@ public class MarketServiceImpl implements MarketService {
   private final CandleQueryRepository candleQueryRepository;
   private final DividendRepository dividendRepository;
   private final DividendQueryRepository dividendQueryRepository;
+  private final AssetQueryRepository assetQueryRepository;
   private final MarketDataProperties properties;
 
   @Override
@@ -220,7 +223,58 @@ public class MarketServiceImpl implements MarketService {
     return result;
   }
 
-  //  변화율 계산 메서드
+  @Override
+  public List<String> getAllSymbols() {
+    log.debug("전체 심볼 목록 조회 요청");
+
+    List<String> symbols = assetQueryRepository.findAllSymbols();
+
+    log.debug("전체 심볼 목록 조회 성공: count={}", symbols.size());
+    return symbols;
+  }
+
+  @Override
+  public List<Asset> getAssetsByCountry(String country) {
+    log.debug("국가별 자산 조회 요청: country={}", country);
+
+    List<Asset> assets = assetQueryRepository.findByCountry(country);
+
+    log.debug("국가별 자산 조회 성공: country={}, count={}", country, assets.size());
+    return assets;
+  }
+
+  @Override
+  public List<Asset> getAssetsByCurrency(String currency) {
+    log.debug("통화별 자산 조회 요청: currency={}", currency);
+
+    List<Asset> assets = assetQueryRepository.findByCurrency(currency);
+
+    log.debug("통화별 자산 조회 성공: currency={}, count={}", currency, assets.size());
+    return assets;
+  }
+
+  @Override
+  public List<Asset> getAssetsByType(String assetType) {
+    log.debug("자산유형별 조회 요청: assetType={}", assetType);
+
+    List<Asset> assets = assetQueryRepository.findByAssetType(assetType);
+
+    log.debug("자산유형별 조회 성공: assetType={}, count={}", assetType, assets.size());
+    return assets;
+  }
+
+  @Override
+  public List<Asset> getAssetsWithFilters(String country, String currency, String assetType) {
+    log.debug("동적 필터링 자산 조회 요청: country={}, currency={}, assetType={}",
+        country, currency, assetType);
+
+    List<Asset> assets = assetQueryRepository.findWithDynamicFilters(country, currency, assetType);
+
+    log.debug("동적 필터링 자산 조회 성공: count={}", assets.size());
+    return assets;
+  }
+
+  // 변화율 계산 메서드
   private BigDecimal calculateChangePercent(BigDecimal currentPrice, BigDecimal previousClose) {
     if (currentPrice == null || previousClose == null ||
         previousClose.compareTo(BigDecimal.ZERO) == 0) {

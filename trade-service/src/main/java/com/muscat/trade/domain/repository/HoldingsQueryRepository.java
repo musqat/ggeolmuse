@@ -7,6 +7,7 @@ import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
@@ -72,6 +73,20 @@ public class HoldingsQueryRepository {
         )
         .orderBy(holdings.totalInvestedAmount.desc())
         .fetch();
+  }
+
+
+  public Optional<Holdings> findByUserIdAndAccountIdAndSymbol(String userId, Long accountId, String symbol) {
+    QHoldings holdings = QHoldings.holdings;
+    Holdings result = queryFactory
+        .selectFrom(holdings)
+        .where(
+            holdings.userId.eq(userId),
+            holdings.accountId.eq(accountId),
+            holdings.symbol.eq(symbol)
+        )
+        .fetchOne();
+    return Optional.ofNullable(result);
   }
 
 

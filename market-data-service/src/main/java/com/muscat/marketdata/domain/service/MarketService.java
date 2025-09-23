@@ -4,6 +4,7 @@ package com.muscat.marketdata.domain.service;
 import com.muscat.marketdata.domain.dto.DividendDto;
 import com.muscat.marketdata.domain.dto.OHLCPriceDto;
 import com.muscat.marketdata.domain.dto.StockPriceDto;
+import com.muscat.marketdata.domain.entity.Asset;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -27,4 +28,19 @@ public interface MarketService {
 
     // 고배당 주식 검색 (최소 금액 이상)
     List<DividendDto> findHighDividendStocks(BigDecimal minAmount, LocalDate fromDate);
+
+    // 전체 심볼 목록 조회
+    List<String> getAllSymbols();
+
+    // 국가별 자산 조회
+    List<Asset> getAssetsByCountry(String country);
+
+    // 통화별 자산 조회
+    List<Asset> getAssetsByCurrency(String currency);
+
+    // 자산 유형별 조회
+    List<Asset> getAssetsByType(String assetType);
+
+    // 동적 필터링 자산 조회
+    List<Asset> getAssetsWithFilters(String country, String currency, String assetType);
 }

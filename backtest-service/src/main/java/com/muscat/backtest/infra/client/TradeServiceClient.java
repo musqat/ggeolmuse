@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
 
-// 트레이딩 서비스 클라이언트 - 포트폴리오, 보유 주식, 거래 내역 조회
+// 트레이딩 서비스 - 포트폴리오, 보유 주식, 거래 내역 조회
 @FeignClient(name = "trade-service", url = "${app.trade-service.url:http://trade-service:8081}")
 public interface TradeServiceClient {
 
@@ -20,7 +20,7 @@ public interface TradeServiceClient {
   );
 
   // 특정 심볼의 거래 내역 조회 (백테스트에서 실제 매수 날짜 확인용)
-  @GetMapping("/api/trade/internal/history/{symbol}")
+  @GetMapping("/api/trade-history/history/{symbol}")
   List<TradeDto> getTradeHistoryBySymbol(
       @RequestHeader("Authorization") String authorization,
       @PathVariable("symbol") String symbol

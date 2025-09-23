@@ -14,7 +14,11 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-@RestControllerAdvice
+@RestControllerAdvice(basePackageClasses = {
+    com.muscat.trade.domain.controller.TradingController.class,
+    com.muscat.trade.domain.controller.PortfolioController.class,
+    com.muscat.trade.domain.controller.TradeApiController.class
+})
 @Slf4j
 public class GlobalExceptionHandler extends BaseExceptionHandler {
 

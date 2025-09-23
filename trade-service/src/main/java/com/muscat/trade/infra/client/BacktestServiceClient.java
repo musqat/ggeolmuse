@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 public interface BacktestServiceClient {
 
     // 사용자의 투자 백테스트 캐시 결과 조회
-    @GetMapping("/api/backtest/investment-result/{userId}")
+    @GetMapping("/api/internal/backtest/investment-result/{userId}")
     InvestmentBacktestResultDto getCachedInvestmentBacktestResult(
         @RequestHeader("Authorization") String authorization,
         @PathVariable("userId") String userId

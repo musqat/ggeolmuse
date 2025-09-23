@@ -18,7 +18,7 @@ public class MailService {
 
   public MailService(JavaMailSender mailSender) {
     this.mailSender = mailSender;
-    log.info("MailService 초기화 - JavaMailSender: 정상");
+    log.info("MailService 초기화");
   }
 
   @Value("${app.mail.from:noreply@example.com}")

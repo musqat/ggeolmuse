@@ -16,7 +16,12 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-@RestControllerAdvice
+@RestControllerAdvice(basePackageClasses = {
+    com.muscat.user.domain.user.controller.AuthController.class,
+    com.muscat.user.domain.user.controller.UserController.class,
+    com.muscat.user.domain.account.controller.AccountController.class,
+    com.muscat.user.domain.account.controller.AccountHistoryController.class
+})
 @Slf4j
 public class GlobalExceptionHandler extends BaseExceptionHandler {
 

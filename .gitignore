@@ -1,4 +1,18 @@
 HELP.md
+
+### Maven ###
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+### Gradle (legacy) ###
 .gradle
 build/
 !gradle/wrapper/gradle-wrapper.jar
@@ -40,7 +54,38 @@ out/
 logs/
 *.log
 
+### Database ###
+*.db
+*.trace.db
+*.lock.db
+data/
+
+### QueryDSL Generated Classes ###
+**/generated/
+**/generated-sources/
+**/generated-test-sources/
+src/main/generated/
+src/test/generated/
+
+### Docker ###
+*.pid
+.DS_Store
+
 ### Environment Variables ###
 .env
 .env.local
 .env.*.local
+
+### Frontend ###
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+dist/
+*.tsbuildinfo
+.vite/
+
+### Temporary Files ###
+*.tmp
+*.temp
+nul

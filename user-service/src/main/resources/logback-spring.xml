@@ -1,87 +1,28 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    
-    <!-- 공통 설정 포함 -->
-    <include resource="logback-common.xml"/>
-    
-    <!-- User 서비스별 프로퍼티 -->
+
+    <!-- User Service 간단한 로깅 설정 -->
     <property name="LOG_FILE" value="${LOG_FILE:-user}"/>
-    
-    <!-- Transaction Log Appender (거래 관련) -->
-    <appender name="TRANSACTION_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${LOG_DIR}/user-transaction.log</file>
+
+    <!-- Console Appender -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%X{rid:-}] [%X{userId:-}] [%X{txType:-}] [%X{accountId:-}] [%X{txId:-}] %msg%n</pattern>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
-        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_DIR}/user-transaction.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
-            <maxFileSize>500MB</maxFileSize>
-            <maxHistory>365</maxHistory>
-            <totalSizeCap>50GB</totalSizeCap>
-        </rollingPolicy>
     </appender>
-    
-    <!-- Audit Log Appender (보안/권한 관련) -->
-    <appender name="AUDIT_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${LOG_DIR}/user-audit.log</file>
-        <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%X{userId:-}] [%X{rid:-}] [%X{clientIp:-}] [AUDIT] %msg%n</pattern>
-        </encoder>
-        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_DIR}/user-audit.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
-            <maxFileSize>100MB</maxFileSize>
-            <maxHistory>730</maxHistory> <!-- 2년 보관 -->
-            <totalSizeCap>20GB</totalSizeCap>
-        </rollingPolicy>
-    </appender>
-    
-    <!-- Transaction Logger -->
-    <springProfile name="!prod">
-        <logger name="TRANSACTION" level="INFO" additivity="false">
-            <appender-ref ref="TRANSACTION_FILE"/>
-            <appender-ref ref="CONSOLE"/>
-        </logger>
-    </springProfile>
-    
-    <springProfile name="prod">
-        <logger name="TRANSACTION" level="INFO" additivity="false">
-            <appender-ref ref="TRANSACTION_FILE"/>
-        </logger>
-    </springProfile>
-    
-    <!-- Audit Logger -->
-    <springProfile name="!prod">
-        <logger name="AUDIT" level="INFO" additivity="false">
-            <appender-ref ref="AUDIT_FILE"/>
-            <appender-ref ref="CONSOLE"/>
-        </logger>
-    </springProfile>
-    
-    <springProfile name="prod">
-        <logger name="AUDIT" level="INFO" additivity="false">
-            <appender-ref ref="AUDIT_FILE"/>
-        </logger>
-    </springProfile>
-    
-    <!-- User 서비스 특화 로거 -->
-    <logger name="com.muscat.user" level="${LOG_LEVEL}"/>
+
+    <!-- User 패키지 로거 -->
+    <logger name="com.muscat.user" level="DEBUG"/>
+
+    <!-- Keycloak 로거 -->
     <logger name="org.keycloak" level="WARN"/>
+
+    <!-- Mail 로거 -->
     <logger name="org.springframework.mail" level="INFO"/>
-    
+
     <!-- Root Logger -->
-    <springProfile name="!prod">
-        <root level="${ROOT_LOG_LEVEL}">
-            <appender-ref ref="CONSOLE"/>
-            <appender-ref ref="APPLICATION_FILE"/>
-            <appender-ref ref="ERROR_FILE"/>
-        </root>
-    </springProfile>
-    
-    <springProfile name="prod">
-        <root level="${ROOT_LOG_LEVEL}">
-            <appender-ref ref="APPLICATION_FILE"/>
-            <appender-ref ref="ERROR_FILE"/>
-        </root>
-    </springProfile>
-    
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
 </configuration>

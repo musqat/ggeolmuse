@@ -39,15 +39,15 @@ public class HoldingsServiceImpl implements HoldingsService {
 
   @Override
   @Transactional(readOnly = true)
-  public List<HoldingResponseDto> getPortfolio(String userId, String accountId) {
+  public List<HoldingResponseDto> getPortfolio(String userId, Long accountId) {
     log.debug("포트폴리오 조회: userId={}, accountId={}", userId, accountId);
 
     List<Holdings> holdings = accountId != null
-        ? holdingsRepository.findByUserIdAndAccountId(userId, Long.valueOf(accountId))
+        ? holdingsRepository.findByUserIdAndAccountId(userId, accountId)
         : holdingsRepository.findByUserId(userId);
 
     String logType = accountId != null ? "ACCOUNT_PORTFOLIO" : "USER_PORTFOLIO";
-    tradeLogger.logPortfolioAccess(userId, logType, accountId, holdings.size());
+    tradeLogger.logPortfolioAccess(userId, logType, accountId != null ? accountId.toString() : null, holdings.size());
 
     return holdings.stream()
         .map(HoldingResponseDto::from)
@@ -56,9 +56,9 @@ public class HoldingsServiceImpl implements HoldingsService {
 
   @Override
   @Transactional(readOnly = true)
-  public HoldingResponseDto getHoldingBySymbol(String userId, String accountId, String symbol) {
-    Optional<Holdings> holding = holdingsRepository.findByUserIdAndAccountIdAndSymbol(userId,
-        Long.valueOf(accountId), symbol);
+  public HoldingResponseDto getHoldingBySymbol(String userId, Long accountId, String symbol) {
+    Optional<Holdings> holding = holdingsQueryRepository.findByUserIdAndAccountIdAndSymbol(userId,
+        accountId, symbol);
 
     if (holding.isEmpty()) {
       log.warn("보유종목 없음: userId={}, accountId={}, symbol={}", userId, accountId, symbol);

@@ -118,16 +118,17 @@ public class TradingServiceImpl implements TradingService {
   @Override
   @Transactional(readOnly = true)
   public boolean canSellStock(String userId, Long accountId, String symbol, BigDecimal quantity) {
-    Optional<Holdings> holdings = holdingsRepository
-        .findByUserIdAndAccountIdAndSymbol(userId, accountId, symbol);
+    Optional<Holdings> holdings = holdingsQueryRepository
+        .findByUserIdAndAccountIdAndSymbol(userId, Long.valueOf(accountId), symbol);
 
     if (holdings.isEmpty()) {
       return false;
     }
 
-    boolean canSell = holdings.get().getTotalQuantity().compareTo(quantity) >= 0;
+    Holdings holding = holdings.get();
+    boolean canSell = holding.getTotalQuantity().compareTo(quantity) >= 0;
     log.debug("매도 가능 여부: 종목={}, 보유량={}, 매도량={}, 가능={}",
-        symbol, holdings.get().getTotalQuantity(), quantity, canSell);
+        symbol, holding.getTotalQuantity(), quantity, canSell);
 
     return canSell;
   }
@@ -177,7 +178,7 @@ public class TradingServiceImpl implements TradingService {
 
     try {
       // 현재 보유 주식 수량 조회
-      Optional<Holdings> holdings = holdingsRepository.findByUserIdAndAccountIdAndSymbol(
+      Optional<Holdings> holdings = holdingsQueryRepository.findByUserIdAndAccountIdAndSymbol(
           userId, Long.valueOf(request.getAccountId()), request.getSymbol());
 
       BigDecimal currentHoldings = holdings.map(Holdings::getTotalQuantity)
@@ -431,7 +432,7 @@ public class TradingServiceImpl implements TradingService {
   private void validateSellEligibility(String userId, String accountId, String symbol,
                                      BigDecimal quantity, LocalDate sellDate) {
     // 1. 기본 보유량 확인
-    Optional<Holdings> holdings = holdingsRepository
+    Optional<Holdings> holdings = holdingsQueryRepository
         .findByUserIdAndAccountIdAndSymbol(userId, Long.valueOf(accountId), symbol);
 
     if (holdings.isEmpty()) {
@@ -463,7 +464,7 @@ public class TradingServiceImpl implements TradingService {
   private BigDecimal calculateSellableQuantity(String userId, String accountId, String symbol, LocalDate sellDate) {
     // DB 레벨에서 집계하여 성능 최적화
     BigDecimal sellableQuantity = tradeQueryRepository.calculateSellableQuantity(
-        userId, accountId, symbol, sellDate);
+        userId, Long.valueOf(accountId), symbol, sellDate);
 
     log.debug("매도 가능 수량 계산 완료 (DB 집계): symbol={}, 매도일={}, 가능수량={}",
         symbol, sellDate, sellableQuantity);

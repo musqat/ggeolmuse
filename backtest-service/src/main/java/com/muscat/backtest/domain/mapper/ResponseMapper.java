@@ -31,32 +31,8 @@ public class ResponseMapper {
       StrategyCalculationResult calculation,
       StockPriceDto currentPrice) {
 
-    return StrategyResponse.builder()
-        .symbol(request.getSymbol())
-        .startDate(request.getStartDate())
-        .endDate(request.getEndDate())
-        .strategyType(StrategyType.DCA)
-        .transactions(transactions)
-        .totalTransactions(transactions.size())
-        .totalInvested(MoneyUtils.roundKrw(calculation.getTotalInvested()))
-        .totalShares(calculation.getTotalShares().setScale(6, MoneyUtils.ROUND_MODE))
-        .averagePrice(MoneyUtils.roundUsd(calculation.getAveragePrice()))
-        .currentPrice(currentPrice.getCurrentPrice())
-        .currentValue(MoneyUtils.roundUsd(calculation.getCurrentValue()))
-        .currentValueKrw(MoneyUtils.roundKrw(calculation.getCurrentValueKrw()))
-        .totalReturn(MoneyUtils.roundUsd(calculation.getTotalReturnUsd()))
-        .totalReturnPercent(
-            MoneyUtils.roundUsd(calculation.getTotalReturnPercent()))
-        .totalReturnKrw(MoneyUtils.roundKrw(calculation.getTotalReturnKrw()))
-        .averageFxRate(calculation.getAverageFxRate())
-        .currentFxRate(calculation.getCurrentFxRate())
-        .fxReturn(MoneyUtils.roundUsd(calculation.getFxReturn()))
-        .fxReturnPercent(MoneyUtils.roundUsd(calculation.getFxReturnPercent()))
-        .totalDividends(BigDecimal.ZERO)
-        .dividendYield(BigDecimal.ZERO)
-        .strategyDetails(createStrategyDetails(StrategyType.DCA, transactions.size()))
-        .performanceSummary(createPerformanceSummary(calculation))
-        .build();
+    return buildStrategyResponse(StrategyType.DCA, request.getSymbol(), request.getStartDate(),
+        request.getEndDate(), transactions, calculation, currentPrice);
   }
 
   public StrategyResponse toStrategyResponse(
@@ -65,32 +41,8 @@ public class ResponseMapper {
       StrategyCalculationResult calculation,
       StockPriceDto currentPrice) {
 
-    return StrategyResponse.builder()
-        .symbol(request.getSymbol())
-        .startDate(request.getStartDate())
-        .endDate(request.getEndDate())
-        .strategyType(StrategyType.CONDITIONAL_PURCHASE)
-        .transactions(transactions)
-        .totalTransactions(transactions.size())
-        .totalInvested(MoneyUtils.roundKrw(calculation.getTotalInvested()))
-        .totalShares(calculation.getTotalShares().setScale(6, MoneyUtils.ROUND_MODE))
-        .averagePrice(MoneyUtils.roundUsd(calculation.getAveragePrice()))
-        .currentPrice(currentPrice.getCurrentPrice())
-        .currentValue(MoneyUtils.roundUsd(calculation.getCurrentValue()))
-        .currentValueKrw(MoneyUtils.roundKrw(calculation.getCurrentValueKrw()))
-        .totalReturn(MoneyUtils.roundUsd(calculation.getTotalReturnUsd()))
-        .totalReturnPercent(
-            MoneyUtils.roundUsd(calculation.getTotalReturnPercent()))
-        .totalReturnKrw(MoneyUtils.roundKrw(calculation.getTotalReturnKrw()))
-        .averageFxRate(calculation.getAverageFxRate())
-        .currentFxRate(calculation.getCurrentFxRate())
-        .fxReturn(MoneyUtils.roundUsd(calculation.getFxReturn()))
-        .fxReturnPercent(MoneyUtils.roundUsd(calculation.getFxReturnPercent()))
-        .totalDividends(BigDecimal.ZERO)
-        .dividendYield(BigDecimal.ZERO)
-        .strategyDetails(createStrategyDetails(StrategyType.CONDITIONAL_PURCHASE, transactions.size()))
-        .performanceSummary(createPerformanceSummary(calculation))
-        .build();
+    return buildStrategyResponse(StrategyType.CONDITIONAL_PURCHASE, request.getSymbol(),
+        request.getStartDate(), request.getEndDate(), transactions, calculation, currentPrice);
   }
 
   public ComparisonResponse toComparisonResponse(
@@ -198,6 +150,42 @@ public class ResponseMapper {
         .message("보유 주식 백테스트가 완료되었습니다")
         .portfolioCreated(false)
         .portfolioStatus("BACKTEST_COMPLETED")
+        .build();
+  }
+
+  private StrategyResponse buildStrategyResponse(
+      StrategyType strategyType,
+      String symbol,
+      LocalDate startDate,
+      LocalDate endDate,
+      List<StrategyTransaction> transactions,
+      StrategyCalculationResult calculation,
+      StockPriceDto currentPrice) {
+
+    return StrategyResponse.builder()
+        .symbol(symbol)
+        .startDate(startDate)
+        .endDate(endDate)
+        .strategyType(strategyType)
+        .transactions(transactions)
+        .totalTransactions(transactions.size())
+        .totalInvested(MoneyUtils.roundKrw(calculation.getTotalInvested()))
+        .totalShares(calculation.getTotalShares().setScale(6, MoneyUtils.ROUND_MODE))
+        .averagePrice(MoneyUtils.roundUsd(calculation.getAveragePrice()))
+        .currentPrice(currentPrice.getCurrentPrice())
+        .currentValue(MoneyUtils.roundUsd(calculation.getCurrentValue()))
+        .currentValueKrw(MoneyUtils.roundKrw(calculation.getCurrentValueKrw()))
+        .totalReturn(MoneyUtils.roundUsd(calculation.getTotalReturnUsd()))
+        .totalReturnPercent(MoneyUtils.roundUsd(calculation.getTotalReturnPercent()))
+        .totalReturnKrw(MoneyUtils.roundKrw(calculation.getTotalReturnKrw()))
+        .averageFxRate(calculation.getAverageFxRate())
+        .currentFxRate(calculation.getCurrentFxRate())
+        .fxReturn(MoneyUtils.roundUsd(calculation.getFxReturn()))
+        .fxReturnPercent(MoneyUtils.roundUsd(calculation.getFxReturnPercent()))
+        .totalDividends(BigDecimal.ZERO)
+        .dividendYield(BigDecimal.ZERO)
+        .strategyDetails(createStrategyDetails(strategyType, transactions.size()))
+        .performanceSummary(createPerformanceSummary(calculation))
         .build();
   }
 

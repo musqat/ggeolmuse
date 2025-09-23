@@ -19,14 +19,15 @@ import com.muscat.backtest.domain.repository.InvestmentBacktestResultRepository;
 import com.muscat.backtest.domain.service.TradingSimulationService;
 import com.muscat.backtest.infra.client.MarketDataClient;
 import com.muscat.backtest.infra.client.TradeServiceClient;
+import com.muscat.backtest.infra.client.dto.DividendHistoryDto;
 import com.muscat.backtest.infra.client.dto.HoldingDto;
+import com.muscat.backtest.infra.client.dto.OHLCPriceDto;
 import com.muscat.backtest.infra.client.dto.StockPriceDto;
 import com.muscat.backtest.infra.client.dto.TradeDto;
 import com.muscat.commonlib.util.MoneyUtils;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -49,84 +50,22 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
   // 과거 특정 시점 투자 시뮬레이션을 실행하고 결과를 반환
   @Override
   public SimulationResponse runSimulation(SimulationRequest request) {
-    BacktestLogger.setBacktestContext(request.getUserId(), "SIMULATION", request.getSymbol());
+    return runSimulation(request, true);
+  }
 
+  @Override
+  public SimulationResponse runSimulation(SimulationRequest request, boolean recordHistory) {
+    BacktestLogger.setBacktestContext(request.getUserId(), "SIMULATION", request.getSymbol());
     log.info("백테스팅 시뮬레이션 시작: {}", request);
 
     try {
-      // 과거 매수 시점 데이터 조회
-      var purchaseData = BacktestDataUtils.getHistoricalPrice(marketDataClient, request.getSymbol(),
-          request.getPurchaseDate());
-      var purchaseFxRate = BacktestDataUtils.getHistoricalFxRate(marketDataClient,
-          request.getPurchaseDate());
+      SimulationContext context = prepareSimulationContext(request);
+      SimulationCalculationResult calculation = calculateSimulation(context);
+      SimulationResponse response = buildSimulationResponse(context, calculation);
 
-      // 현재 시점 데이터 조회
-      var currentData = BacktestDataUtils.getCurrentPrice(marketDataClient, request.getSymbol());
-      var currentFxRate = BacktestDataUtils.getCurrentFxRate(marketDataClient);
-
-      // 매수 가격 및 USD 환산
-      BigDecimal purchasePriceUsd = purchaseData.getClosePrice();
-
-      BigDecimal usdAmount = MoneyUtils.calculateKrwToUsd(
-          request.getInvestmentAmount(), purchaseFxRate.rate());
-      log.debug("환전 계산: KRW {} → USD {} (환율: {})",
-          request.getInvestmentAmount(), usdAmount, purchaseFxRate.rate());
-
-      // 수수료를 고려한 정수 주식수 계산
-      BigDecimal shares = BacktestCalculationUtils.calculateWholeSharesWithFee(
-          usdAmount, purchasePriceUsd, request.getTradingFeeRate());
-
-      // 수수료 및 실제 비용 계산
-      BigDecimal tradingFee = BacktestCalculationUtils.calculateTradingFee(usdAmount,
-          request.getTradingFeeRate());
-      BigDecimal totalCost = BacktestCalculationUtils.calculateTotalCost(shares, purchasePriceUsd,
-          tradingFee);
-      BigDecimal remainingCash = BacktestCalculationUtils.calculateRemainingCash(usdAmount,
-          totalCost);
-
-      // 현재 가치 계산
-      BigDecimal currentPriceUsd = currentData.getCurrentPrice();
-      BigDecimal currentValueUsd = shares.multiply(currentPriceUsd);
-      BigDecimal currentValueKrw = MoneyUtils.calculateUsdToKrw(
-          currentValueUsd, currentFxRate.rate());
-
-      // 주식 수익률 계산
-      BigDecimal stockReturn = currentPriceUsd.subtract(purchasePriceUsd);
-      BigDecimal stockReturnPercent = MoneyUtils.calculateReturnRate(
-          purchasePriceUsd, currentPriceUsd);
-
-      // 환율 수익률 계산
-      BigDecimal fxReturn = currentFxRate.rate().subtract(purchaseFxRate.rate());
-      BigDecimal fxReturnPercent = MoneyUtils.calculateReturnRate(
-          purchaseFxRate.rate(), currentFxRate.rate());
-
-      // 배당금 계산
-      var dividendHistory = BacktestDataUtils.getDividendHistory(marketDataClient,
-          request.getSymbol(),
-          request.getPurchaseDate(), LocalDate.now());
-      BigDecimal totalDividends = BacktestCalculationUtils.calculateTotalDividends(
-          dividendHistory, shares, request.getPurchaseDate(), LocalDate.now());
-      BigDecimal dividendYield = BacktestCalculationUtils.calculateDividendYield(
-          totalDividends, shares, currentPriceUsd);
-
-      // 전체 수익률 계산 (배당 포함)
-      BigDecimal totalDividendsKrw = totalDividends.compareTo(BigDecimal.ZERO) > 0
-          ? MoneyUtils.calculateUsdToKrw(totalDividends, currentFxRate.rate())
-          : BigDecimal.ZERO;
-      BigDecimal totalReturnKrw = currentValueKrw.subtract(request.getInvestmentAmount())
-          .add(totalDividendsKrw);
-      BigDecimal totalReturnPercent = MoneyUtils.calculateReturnRate(
-          request.getInvestmentAmount(), currentValueKrw.add(totalDividendsKrw));
-
-      SimulationResponse response = responseMapper.toSimulationResponse(
-          request, purchasePriceUsd, shares, currentPriceUsd, currentValueUsd, currentValueKrw,
-          stockReturn, stockReturnPercent, purchaseFxRate.rate(), currentFxRate.rate(),
-          fxReturn, fxReturnPercent, totalDividends, dividendYield, tradingFee,
-          remainingCash, totalReturnKrw, totalReturnPercent);
-
-      // 백테스트 히스토리 기록
-      backtestHistoryUtils.saveBacktestHistory(request.getUserId(), BacktestType.COMPARISON,
-          request);
+      if (recordHistory) {
+        recordSimulationHistory(request);
+      }
 
       return response;
     } finally {
@@ -148,46 +87,18 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
             "해당 조건에 맞는 보유 주식을 찾을 수 없습니다");
       }
 
-      // 여러 holdings에 대한 백테스트 결과 계산
-      List<InvestmentResponse> results = new ArrayList<>();
+      List<InvestmentResponse> results = holdings.stream()
+          .map(holding -> createInvestmentBacktest(authorization, holding))
+          .toList();
 
-      for (HoldingDto holding : holdings) {
-        // 실제 거래 내역을 조회하여 최초 매수 날짜를 찾기
-        List<TradeDto> tradeHistory = tradeServiceClient.getTradeHistoryBySymbol(authorization,
-            holding.getSymbol());
-
-        // BUY 거래 중에서 가장 이른 날짜를 찾기
-        LocalDate earliestBuyDate = tradeHistory.stream()
-            .filter(trade -> "BUY".equals(trade.getTradeType()))
-            .map(TradeDto::getTradeDate)
-            .min(LocalDate::compareTo)
-            .orElse(holding.getPurchaseDate()); // fallback to createdAt if no BUY trades found
-
-        // Holdings 기반으로 현재까지의 수익률 계산
-        SimulationResponse backtestResult = calculateHoldingPerformance(holding, earliestBuyDate);
-
-        // 백테스트 결과를 포트폴리오 형태로 변환
-        InvestmentResponse investmentResult = responseMapper.toInvestmentResponse(holding,
-            backtestResult);
-        results.add(investmentResult);
-      }
-
-      // 백테스트 결과 저장
-      InvestmentResponse finalResult = results.size() == 1 ? results.get(0) : results.get(0);
+      InvestmentResponse finalResult = resolvePortfolioResult(results);
       saveInvestmentBacktestResult(request.getUserId(), finalResult);
 
       // 백테스트 히스토리 기록
       backtestHistoryUtils.saveBacktestHistory(request.getUserId(),
           BacktestType.INVESTMENT_ANALYSIS, request);
 
-      // 단일 결과인 경우 첫 번째 결과 반환, 다중 결과인 경우 통합된 결과 반환
-      if (results.size() == 1) {
-        return results.get(0);
-      } else {
-        // 다중 holdings의 경우 통합 결과 생성 (추후 구현 필요)
-        return results.get(0); // 임시로 첫 번째 결과 반환
-      }
-
+      return finalResult;
     } catch (BacktestException e) {
       throw e;
     } catch (Exception e) {
@@ -207,6 +118,38 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
             "백테스트 계산 중 오류: " + e.getMessage());
       }
     }
+  }
+
+
+  private InvestmentResponse createInvestmentBacktest(String authorization, HoldingDto holding) {
+    LocalDate earliestBuyDate = findEarliestBuyDate(authorization, holding);
+    SimulationResponse backtestResult = calculateHoldingPerformance(holding, earliestBuyDate);
+    return responseMapper.toInvestmentResponse(holding, backtestResult);
+  }
+
+  private LocalDate findEarliestBuyDate(String authorization, HoldingDto holding) {
+    List<TradeDto> tradeHistory = tradeServiceClient.getTradeHistoryBySymbol(authorization,
+        holding.getSymbol());
+
+    return tradeHistory.stream()
+        .filter(trade -> "BUY".equals(trade.getTradeType()))
+        .map(TradeDto::getTradeDate)
+        .min(LocalDate::compareTo)
+        .orElse(holding.getPurchaseDate());
+  }
+
+  private InvestmentResponse resolvePortfolioResult(List<InvestmentResponse> results) {
+    if (results.isEmpty()) {
+      throw new BacktestException(BacktestResponse.HOLDING_DATA_NOT_FOUND,
+          "보유 주식 백테스트 결과가 존재하지 않습니다");
+    }
+
+    if (results.size() > 1) {
+      log.info("다중 보유 종목 백테스트 결과 {}건 - 통합 응답 TODO (임시 첫 번째 결과 반환)",
+          results.size());
+    }
+
+    return results.get(0);
   }
 
 
@@ -263,6 +206,98 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
         "캐시된 투자 백테스트 Entity 조회", userId).orElse(Optional.empty());
   }
 
+  private SimulationContext prepareSimulationContext(SimulationRequest request) {
+    OHLCPriceDto purchaseData = BacktestDataUtils.getHistoricalPrice(
+        marketDataClient, request.getSymbol(), request.getPurchaseDate());
+    MarketDataClient.FxRate purchaseFxRate = BacktestDataUtils.getHistoricalFxRate(
+        marketDataClient, request.getPurchaseDate());
+    StockPriceDto currentPrice = BacktestDataUtils.getCurrentPrice(
+        marketDataClient, request.getSymbol());
+    MarketDataClient.FxRate currentFxRate = BacktestDataUtils.getCurrentFxRate(marketDataClient);
+    DividendHistoryDto dividendHistory = BacktestDataUtils.getDividendHistory(
+        marketDataClient, request.getSymbol(), request.getPurchaseDate(), LocalDate.now());
+
+    return new SimulationContext(request, purchaseData, purchaseFxRate, currentPrice, currentFxRate,
+        dividendHistory);
+  }
+
+  private SimulationCalculationResult calculateSimulation(SimulationContext context) {
+    BigDecimal purchasePriceUsd = context.purchaseData().getClosePrice();
+    BigDecimal purchaseFxRate = context.purchaseFxRate().rate();
+    BigDecimal currentFxRate = context.currentFxRate().rate();
+    BigDecimal currentPriceUsd = context.currentPrice().getCurrentPrice();
+
+    BigDecimal usdAmount = MoneyUtils.calculateKrwToUsd(
+        context.request().getInvestmentAmount(), purchaseFxRate);
+    log.debug("환전 계산: KRW {} → USD {} (환율: {})",
+        context.request().getInvestmentAmount(), usdAmount, purchaseFxRate);
+
+    BigDecimal shares = BacktestCalculationUtils.calculateWholeSharesWithFee(
+        usdAmount, purchasePriceUsd, context.request().getTradingFeeRate());
+    BigDecimal tradingFee = BacktestCalculationUtils.calculateTradingFee(
+        usdAmount, context.request().getTradingFeeRate());
+    BigDecimal totalCost = BacktestCalculationUtils.calculateTotalCost(
+        shares, purchasePriceUsd, tradingFee);
+    BigDecimal remainingCash = BacktestCalculationUtils.calculateRemainingCash(usdAmount, totalCost);
+
+    BigDecimal currentValueUsd = shares.multiply(currentPriceUsd);
+    BigDecimal currentValueKrw = MoneyUtils.calculateUsdToKrw(currentValueUsd, currentFxRate);
+
+    BigDecimal stockReturn = currentPriceUsd.subtract(purchasePriceUsd);
+    BigDecimal stockReturnPercent = MoneyUtils.calculateReturnRate(purchasePriceUsd, currentPriceUsd);
+    BigDecimal fxReturn = currentFxRate.subtract(purchaseFxRate);
+    BigDecimal fxReturnPercent = MoneyUtils.calculateReturnRate(purchaseFxRate, currentFxRate);
+
+    BigDecimal totalDividends = BacktestCalculationUtils.calculateTotalDividends(
+        context.dividendHistory(), shares, context.request().getPurchaseDate(), LocalDate.now());
+    BigDecimal dividendYield = BacktestCalculationUtils.calculateDividendYield(
+        totalDividends, shares, currentPriceUsd);
+
+    BigDecimal totalDividendsKrw = totalDividends.compareTo(BigDecimal.ZERO) > 0
+        ? MoneyUtils.calculateUsdToKrw(totalDividends, currentFxRate)
+        : BigDecimal.ZERO;
+
+    BigDecimal totalReturnKrw = currentValueKrw.subtract(context.request().getInvestmentAmount())
+        .add(totalDividendsKrw);
+    BigDecimal totalReturnPercent = MoneyUtils.calculateReturnRate(
+        context.request().getInvestmentAmount(), currentValueKrw.add(totalDividendsKrw));
+
+    return new SimulationCalculationResult(
+        purchasePriceUsd, shares, currentPriceUsd, currentValueUsd, currentValueKrw,
+        stockReturn, stockReturnPercent, purchaseFxRate, currentFxRate, fxReturn, fxReturnPercent,
+        totalDividends, dividendYield, tradingFee, remainingCash, totalReturnKrw, totalReturnPercent);
+  }
+
+  private SimulationResponse buildSimulationResponse(SimulationContext context,
+      SimulationCalculationResult calculation) {
+    return responseMapper.toSimulationResponse(
+        context.request(),
+        calculation.purchasePriceUsd(),
+        calculation.shares(),
+        calculation.currentPriceUsd(),
+        calculation.currentValueUsd(),
+        calculation.currentValueKrw(),
+        calculation.stockReturn(),
+        calculation.stockReturnPercent(),
+        calculation.purchaseFxRate(),
+        calculation.currentFxRate(),
+        calculation.fxReturn(),
+        calculation.fxReturnPercent(),
+        calculation.totalDividends(),
+        calculation.dividendYield(),
+        calculation.tradingFee(),
+        calculation.remainingCash(),
+        calculation.totalReturnKrw(),
+        calculation.totalReturnPercent());
+  }
+
+  private void recordSimulationHistory(SimulationRequest request) {
+    if (request.getUserId() == null) {
+      return;
+    }
+    backtestHistoryUtils.saveBacktestHistory(request.getUserId(), BacktestType.COMPARISON, request);
+  }
+
   private Optional<InvestmentBacktestResult> getValidCachedEntity(String userId) {
     return investmentBacktestResultRepository.findByUserId(userId)
         .filter(entity -> entity.getCalculatedAt() != null);
@@ -312,7 +347,8 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
           purchaseValueUsd, currentValueUsd, "매수 가치");
 
       // 환차익 계산
-      BigDecimal fxReturnPercent = MoneyUtils.calculateReturnRate(purchaseFxRate.rate(), currentFxRate.rate());
+      BigDecimal fxReturnPercent = MoneyUtils.calculateReturnRate(purchaseFxRate.rate(),
+          currentFxRate.rate());
       BigDecimal fxReturn = currentFxRate.rate().subtract(purchaseFxRate.rate());
 
       // 총 수익 계산 (KRW 기준)
@@ -371,7 +407,8 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
   }
 
   // Holdings 기반 SimulationResponse 생성
-  private SimulationResponse createHoldingSimulationResponse(HoldingDto holding, LocalDate purchaseDate,
+  private SimulationResponse createHoldingSimulationResponse(HoldingDto holding,
+      LocalDate purchaseDate,
       StockPriceDto currentPrice, BigDecimal currentValueUsd, BigDecimal currentValueKrw,
       BigDecimal stockReturn, BigDecimal stockReturnPercent, MarketDataClient.FxRate purchaseFxRate,
       MarketDataClient.FxRate currentFxRate, BigDecimal fxReturn, BigDecimal fxReturnPercent,
@@ -401,22 +438,52 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
         .currentValueKrw(MoneyUtils.roundKrw(currentValueKrw))
         .totalReturnKrw(MoneyUtils.roundKrw(totalReturnKrw))
         .remainingCashKrw(BigDecimal.ZERO)
-        .performanceSummary(createPerformanceSummary(stockReturn, totalReturnPercent, fxReturnPercent))
+        .performanceSummary(
+            createPerformanceSummary(stockReturn, totalReturnPercent, fxReturnPercent))
         .build();
   }
 
   // 성과 요약 문자열 생성
-  private String createPerformanceSummary(BigDecimal stockReturn, BigDecimal totalReturnPercent, BigDecimal fxReturnPercent) {
+  private String createPerformanceSummary(BigDecimal stockReturn, BigDecimal totalReturnPercent,
+      BigDecimal fxReturnPercent) {
     return String.format("총 수익: $%.2f (%.2f%%), 환차익: %.2f%%",
         stockReturn, totalReturnPercent, fxReturnPercent);
   }
 
   // 0으로 나누기 방지하며 수익률 계산
-  private BigDecimal calculateReturnRateWithZeroCheck(BigDecimal baseValue, BigDecimal currentValue, String valueName) {
+  private BigDecimal calculateReturnRateWithZeroCheck(BigDecimal baseValue, BigDecimal currentValue,
+      String valueName) {
     if (baseValue.compareTo(BigDecimal.ZERO) == 0) {
       log.warn("{}이(가) 0입니다. 수익률을 0으로 설정", valueName);
       return BigDecimal.ZERO;
     }
     return MoneyUtils.calculateReturnRate(baseValue, currentValue);
   }
+
+  private record SimulationContext(
+      SimulationRequest request,
+      OHLCPriceDto purchaseData,
+      MarketDataClient.FxRate purchaseFxRate,
+      StockPriceDto currentPrice,
+      MarketDataClient.FxRate currentFxRate,
+      DividendHistoryDto dividendHistory) {}
+
+  private record SimulationCalculationResult(
+      BigDecimal purchasePriceUsd,
+      BigDecimal shares,
+      BigDecimal currentPriceUsd,
+      BigDecimal currentValueUsd,
+      BigDecimal currentValueKrw,
+      BigDecimal stockReturn,
+      BigDecimal stockReturnPercent,
+      BigDecimal purchaseFxRate,
+      BigDecimal currentFxRate,
+      BigDecimal fxReturn,
+      BigDecimal fxReturnPercent,
+      BigDecimal totalDividends,
+      BigDecimal dividendYield,
+      BigDecimal tradingFee,
+      BigDecimal remainingCash,
+      BigDecimal totalReturnKrw,
+      BigDecimal totalReturnPercent) {}
 }
