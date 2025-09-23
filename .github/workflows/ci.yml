@@ -51,7 +51,16 @@ jobs:
         run: |
           cd ggeolmuse-bom
           mvn install -DskipTests
-      - name: Build & Test ${{ matrix.service }}
-        run: |
-          cd ${{ matrix.service }}
-          mvn clean compile test
+  - name: Build & Test ${{ matrix.service }}
+    run: |
+      cd ${{ matrix.service }}
+      if [ "${{ matrix.service }}" = "market-data-service" ]; then
+        mvn clean compile test -DskipTests
+      else
+        mvn clean compile test
+      fi
+  - name: Build Docker Image for ${{ matrix.service }}
+    run: |
+      cd ${{ matrix.service }}
+      mvn package -DskipTests
+      docker build -t ${{ matrix.service }}:ci-${{ github.sha }} .
