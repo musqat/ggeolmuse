@@ -4,7 +4,7 @@ on:
   push:
     branches: [ master ]
 jobs:
-  build-common:
+  build-bom:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -12,16 +12,20 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      - uses: gradle/actions/setup-gradle@v3
-      - name: Build & Publish common-lib
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+      - name: Build & Install ggeolmuse-bom
         run: |
-          cd common-lib
-          chmod +x ./gradlew
-          ./gradlew clean test build publishToMavenLocal --no-daemon
+          cd ggeolmuse-bom
+          mvn clean install -DskipTests
 
   build-services:
     runs-on: ubuntu-latest
-    needs: build-common
+    needs: build-bom
     strategy:
       matrix:
         service:
@@ -37,14 +41,17 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      - uses: gradle/actions/setup-gradle@v3
-      - name: Build & Publish common-lib (for dependencies)
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+      - name: Build & Install ggeolmuse-bom (for dependencies)
         run: |
-          cd common-lib
-          chmod +x ./gradlew
-          ./gradlew publishToMavenLocal --no-daemon
+          cd ggeolmuse-bom
+          mvn install -DskipTests
       - name: Build & Test ${{ matrix.service }}
         run: |
           cd ${{ matrix.service }}
-          chmod +x ./gradlew
-          ./gradlew clean test build --no-daemon
+          mvn clean compile test
