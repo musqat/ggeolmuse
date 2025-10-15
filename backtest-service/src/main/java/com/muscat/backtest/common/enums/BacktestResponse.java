@@ -13,6 +13,7 @@ public enum BacktestResponse {
 
   // === 클라이언트 오류 (400) ===
   INVALID_REQUEST("400", "잘못된 백테스트 요청입니다.", HttpStatus.BAD_REQUEST),
+  INSUFFICIENT_INVESTMENT("400", "투자 금액이 부족합니다.", HttpStatus.BAD_REQUEST),
 
 
   // === 전략 관련 검증 오류 ===

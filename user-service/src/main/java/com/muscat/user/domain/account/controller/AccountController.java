@@ -82,6 +82,27 @@ public class AccountController {
     return ResponseEntity.ok(accountDtos);
   }
 
+  @Operation(summary = "계좌 삭제", description = "계좌를 삭제합니다. 잔액이 0이어야 삭제할 수 있습니다.")
+  @ApiResponses(value = {
+      @ApiResponse(responseCode = "200", description = "삭제 성공"),
+      @ApiResponse(responseCode = "400", description = "잔액이 있는 계좌는 삭제할 수 없음"),
+      @ApiResponse(responseCode = "403", description = "권한 없음"),
+      @ApiResponse(responseCode = "404", description = "계좌를 찾을 수 없음"),
+      @ApiResponse(responseCode = "401", description = "인증 실패")
+  })
+  @DeleteMapping("/{accountId}")
+  public ResponseEntity<Void> deleteAccount(
+      @Parameter(description = "계좌 ID") @PathVariable Long accountId,
+      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
+
+    Long userId = authUtil.requireUserId(jwt);
+    accountService.deleteAccount(accountId, userId);
+
+    log.info("계좌 삭제 요청: 사용자={}, 계좌={}", userId, accountId);
+
+    return ResponseEntity.ok().build();
+  }
+
   @Operation(summary = "계좌 잔액 조회", description = "특정 계좌의 잔액을 조회합니다")
   @ApiResponses(value = {
       @ApiResponse(responseCode = "200", description = "조회 성공"),

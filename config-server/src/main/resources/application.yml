@@ -12,7 +12,7 @@ spring:
       server:
         bootstrap: true
         native:
-          search-locations: classpath:/configs
+          search-locations: classpath:/configs/{profile},classpath:/configs/common
         default-profile: dev
         # 암호화 키 설정
         encrypt:

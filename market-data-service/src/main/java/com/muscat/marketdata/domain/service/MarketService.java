@@ -14,6 +14,9 @@ public interface MarketService {
     // 특정 날짜의 OHLC 가격 조회
     OHLCPriceDto getOHLCPrice(String symbol, LocalDate date);
 
+    // 특정 기간의 OHLC 가격 범위 조회
+    List<OHLCPriceDto> getOHLCPriceRange(String symbol, LocalDate startDate, LocalDate endDate);
+
     // 종목의 현재가 조회
     StockPriceDto getCurrentPrice(String symbol);
 
@@ -43,4 +46,10 @@ public interface MarketService {
 
     // 동적 필터링 자산 조회
     List<Asset> getAssetsWithFilters(String country, String currency, String assetType);
+
+    // 전체 자산 목록 조회
+    List<Asset> getAllAssets();
+
+    // 전체 종목 목록과 현재가 조회
+    List<StockPriceDto> getAllStocksWithPrices();
 }

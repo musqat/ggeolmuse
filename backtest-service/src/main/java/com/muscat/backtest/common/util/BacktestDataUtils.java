@@ -125,7 +125,26 @@ public final class BacktestDataUtils {
 
       log.info("배당 데이터 조회 성공: symbol={}, count={}", symbol, response.size());
 
-      return response.get(0);
+      // List<DividendDto>를 DividendHistoryDto로 변환
+      DividendHistoryDto history = new DividendHistoryDto();
+      history.setSymbol(symbol);
+
+      // DividendDto를 DividendPayment로 변환
+      var payments = response.stream()
+          .map(dto -> {
+            var payment = new DividendHistoryDto.DividendPayment();
+            payment.setExDate(dto.getExDate());
+            payment.setPayDate(dto.getPaymentDate());
+            payment.setAmount(dto.getAmount());
+            payment.setFrequency(null); // frequency는 API에서 제공하지 않음
+            return payment;
+          })
+          .toList();
+
+      history.setDividends(payments);
+      log.info("배당 데이터 변환 완료: symbol={}, dividends={}", symbol, payments.size());
+
+      return history;
 
     } catch (Exception e) {
       log.warn("배당 데이터 조회 중 오류 발생: symbol={}, error={}", symbol, e.getMessage());

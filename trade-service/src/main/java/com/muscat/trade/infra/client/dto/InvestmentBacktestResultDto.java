@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class InvestmentBacktestResultDto {
-    
+
     private String userId;
     private String backtestResult; // JSON 형태의 백테스트 결과
     private LocalDateTime calculatedAt;

@@ -2,10 +2,12 @@ package com.muscat.backtest.domain.service;
 
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
+import com.muscat.backtest.domain.dto.request.OptimalTimingRequest;
 import com.muscat.backtest.domain.dto.request.StrategyComparisonRequest;
 import com.muscat.backtest.domain.dto.request.SymbolComparisonRequest;
 import com.muscat.backtest.domain.dto.request.TimingComparisonRequest;
 import com.muscat.backtest.domain.dto.response.ComparisonResponse;
+import com.muscat.backtest.domain.dto.response.OptimalTimingResponse;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 
 // 백테스팅 전략 실행 및 비교 분석을 통합한 서비스 인터페이스
@@ -25,5 +27,8 @@ public interface BacktestAnalysisService {
 
   // 동일 종목의 서로 다른 매수 시점들의 성과를 비교 분석합니다
   ComparisonResponse compareTiming(TimingComparisonRequest request);
+
+  // 목표 수익률 이상을 달성할 수 있는 최적 매수 타이밍을 분석합니다
+  OptimalTimingResponse analyzeOptimalTiming(OptimalTimingRequest request);
 
 }

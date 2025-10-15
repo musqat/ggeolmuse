@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.muscat.marketdata.common.exceptions.AlphaVantageException;
 import com.muscat.marketdata.common.logging.MarketDataLogger;
-import com.muscat.marketdata.provider.config.AlphaVantageProperties;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,7 +19,11 @@ public class AlphaVantageClient {
 
   private final RestTemplate restTemplate;
   private final ObjectMapper objectMapper;
-  private final AlphaVantageProperties properties;
+  @org.springframework.beans.factory.annotation.Value("${alphavantage.base-url:https://www.alphavantage.co/query}")
+  private String baseUrl;
+
+  @org.springframework.beans.factory.annotation.Value("${alphavantage.api-key:}")
+  private String apiKey;
   private final MarketDataLogger marketDataLogger;
 
 
@@ -91,9 +94,9 @@ public class AlphaVantageClient {
 
   private String buildUrl(String function, Map<String, String> params) {
     StringBuilder url = new StringBuilder()
-        .append(properties.getBaseUrl())
+        .append(baseUrl)
         .append("?function=").append(function)
-        .append("&apikey=").append(properties.getApiKey());
+        .append("&apikey=").append(apiKey);
 
     params.forEach((key, value) ->
         url.append("&").append(key).append("=").append(value));

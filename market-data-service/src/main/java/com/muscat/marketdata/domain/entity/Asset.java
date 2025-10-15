@@ -19,11 +19,14 @@ public class Asset {
   private String name;
 
   @Column(name = "country", nullable = false, length = 3)
-  private String country;  // KR, US
+  private String country;  // 국가 코드: KR, US
 
   @Column(name = "currency", nullable = false, length = 3)
-  private String currency; // KRW, USD
+  private String currency; // 통화 코드: KRW, USD
 
   @Column(name = "asset_type", nullable = false, length = 16)
-  private String assetType; // EQUITY, ETF, BOND, CRYPTO 등
+  private String assetType; // 자산 유형: EQUITY, ETF, BOND, CRYPTO 등
+
+  @Column(name = "market_cap", precision = 19, scale = 8)
+  private Long marketCap; // 시가총액
 }

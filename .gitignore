@@ -76,6 +76,12 @@ src/test/generated/
 .env.local
 .env.*.local
 
+### Kubernetes Secrets ###
+k8s/secrets.yaml
+k8s/*-secrets.yaml
+*.secret.yaml
+scripts/create-secrets.sh
+
 ### Frontend ###
 node_modules/
 npm-debug.log*

@@ -9,6 +9,7 @@ import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.entity.Candle;
 import com.muscat.marketdata.domain.entity.Dividend;
 import com.muscat.marketdata.domain.repository.AssetQueryRepository;
+import com.muscat.marketdata.domain.repository.AssetRepository;
 import com.muscat.marketdata.domain.repository.CandleQueryRepository;
 import com.muscat.marketdata.domain.repository.CandleRepository;
 import com.muscat.marketdata.domain.repository.DividendQueryRepository;
@@ -17,12 +18,14 @@ import com.muscat.marketdata.domain.service.MarketService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.cache.annotation.Cacheable;
 
 @Slf4j
 @Service
@@ -34,13 +37,15 @@ public class MarketServiceImpl implements MarketService {
   private final DividendRepository dividendRepository;
   private final DividendQueryRepository dividendQueryRepository;
   private final AssetQueryRepository assetQueryRepository;
+  private final AssetRepository assetRepository;
   private final MarketDataProperties properties;
 
   @Override
+  @Cacheable(cacheNames = "ohlc", key = "#symbol.toUpperCase() + ':' + #date")
   public OHLCPriceDto getOHLCPrice(String symbol, LocalDate date) {
     log.debug("OHLC 조회 요청: symbol={}, date={}", symbol, date);
 
-    // 심볼 대문자 변환 및 DB 조회
+    // 종목코드 대문자 변환 및 DB 조회
     String upperSymbol = symbol.toUpperCase();
     Optional<Candle> candle = candleRepository.findBySymbolAndDate(upperSymbol, date);
 
@@ -74,12 +79,42 @@ public class MarketServiceImpl implements MarketService {
   }
 
   @Override
+  public List<OHLCPriceDto> getOHLCPriceRange(String symbol, LocalDate startDate, LocalDate endDate) {
+    log.debug("OHLC 범위 조회 요청: symbol={}, startDate={}, endDate={}", symbol, startDate, endDate);
+
+    // 종목코드 대문자 변환 및 DB 조회
+    String upperSymbol = symbol.toUpperCase();
+    List<Candle> candles = candleRepository.findBySymbolAndDateBetweenOrderByDateAsc(
+        upperSymbol, startDate, endDate);
+
+    // 캔들 데이터를 DTO로 변환
+    List<OHLCPriceDto> result = candles.stream()
+        .map(c -> OHLCPriceDto.builder()
+            .symbol(c.getSymbol())
+            .date(c.getDate())
+            .openPrice(c.getOpen())
+            .highPrice(c.getHigh())
+            .lowPrice(c.getLow())
+            .closePrice(c.getClose())
+            .adjustedClose(c.getAdjustedClose())
+            .volume(c.getVolume())
+            .currency(c.getCurrency())
+            .available(true)
+            .build())
+        .collect(Collectors.toList());
+
+    log.debug("OHLC 범위 조회 성공: symbol={}, count={}", symbol, result.size());
+    return result;
+  }
+
+  @Override
+  // @Cacheable(cacheNames = "currentPrice", key = "#symbol.toUpperCase()")  // 캐싱 임시 비활성화
   public StockPriceDto getCurrentPrice(String symbol) {
     log.debug("현재가 조회 요청: symbol={}", symbol);
 
-    // 최신 캔들 데이터 조회
+    // 최신 캔들 데이터 조회 (QueryDSL 사용)
     String upperSymbol = symbol.toUpperCase();
-    Optional<Candle> latestCandle = candleRepository.findFirstBySymbolOrderByDateDesc(upperSymbol);
+    Optional<Candle> latestCandle = candleQueryRepository.findLatestBySymbol(upperSymbol);
 
     if (latestCandle.isEmpty()) {
       log.warn("현재가 데이터 없음: symbol={}", symbol);
@@ -91,12 +126,16 @@ public class MarketServiceImpl implements MarketService {
 
     Candle c = latestCandle.get();
 
-    // 전일 데이터 조회 및 변화율 계산
-    Optional<Candle> previousCandle = candleRepository
-        .findFirstBySymbolAndDateLessThanOrderByDateDesc(upperSymbol, c.getDate());
+    // 전일 데이터 조회 및 변화율 계산 (QueryDSL 사용)
+    Optional<Candle> previousCandle = candleQueryRepository
+        .findLatestBySymbolBeforeDate(upperSymbol, c.getDate());
 
     BigDecimal previousClose = previousCandle.map(Candle::getClose).orElse(c.getClose());
     BigDecimal changePercent = calculateChangePercent(c.getClose(), previousClose);
+
+    // TODO: marketCap은 이제 Candle 테이블로 이동 예정 - 임시 null 처리
+    Long marketCap = null;
+    log.debug("marketCap 임시 비활성화: symbol={}", upperSymbol);
 
     // 주가 정보 DTO 생성
     StockPriceDto result = StockPriceDto.builder()
@@ -107,6 +146,7 @@ public class MarketServiceImpl implements MarketService {
         .changePercent(changePercent)
         .volume(c.getVolume())
         .currency(c.getCurrency())
+        .marketCap(marketCap)
         .available(true)
         .build();
 
@@ -145,7 +185,7 @@ public class MarketServiceImpl implements MarketService {
       LocalDate endDate) {
     log.debug("다중 OHLC 조회 요청: symbols={}, startDate={}, endDate={}", symbols, startDate, endDate);
 
-    // 심볼 대문자 변환 및 범위 조회
+    // 종목코드 대문자 변환 및 범위 조회
     List<String> upperSymbols = symbols.stream().map(String::toUpperCase).toList();
     List<Candle> candles = candleQueryRepository.findBySymbolsAndDateRange(upperSymbols, startDate,
         endDate);
@@ -272,6 +312,56 @@ public class MarketServiceImpl implements MarketService {
 
     log.debug("동적 필터링 자산 조회 성공: count={}", assets.size());
     return assets;
+  }
+
+  @Override
+  public List<Asset> getAllAssets() {
+    log.debug("전체 자산 목록 조회 요청");
+
+    List<Asset> assets = assetRepository.findAll();
+
+    log.debug("전체 자산 목록 조회 성공: count={}", assets.size());
+    return assets;
+  }
+
+  @Override
+  public List<StockPriceDto> getAllStocksWithPrices() {
+    log.debug("전체 종목 목록과 현재가 조회 요청");
+
+    List<Asset> assets = assetRepository.findAll();
+    List<StockPriceDto> stockPrices = new ArrayList<>();
+    List<String> symbols = assets.stream().map(Asset::getSymbol).toList();
+    var latestCandles = candleQueryRepository.findLatestBySymbols(symbols);
+    var latestBySymbol = latestCandles.stream()
+        .collect(Collectors.toMap(Candle::getSymbol, c -> c, (a, b) -> a));
+
+    for (Asset asset : assets) {
+      try {
+        // 최신 캔들 데이터 조회 (현재가 대신)
+        Optional<Candle> latestCandle = Optional.ofNullable(latestBySymbol.get(asset.getSymbol()));
+
+        StockPriceDto stockPrice = StockPriceDto.builder()
+            .symbol(asset.getSymbol())
+            .currentPrice(latestCandle.map(Candle::getClose).orElse(null))
+            .previousClose(latestCandle.map(Candle::getOpen).orElse(null))
+            .changePercent(latestCandle.isPresent() && latestCandle.get().getClose() != null && latestCandle.get().getOpen() != null
+                ? calculateChangePercent(latestCandle.get().getClose(), latestCandle.get().getOpen())
+                : null)
+            .volume(latestCandle.map(Candle::getVolume).orElse(null))
+            .marketCap(asset.getMarketCap())
+            .date(latestCandle.map(Candle::getDate).orElse(LocalDate.now()))
+            .currency(asset.getCurrency())
+            .available(latestCandle.isPresent())
+            .build();
+
+        stockPrices.add(stockPrice);
+      } catch (Exception e) {
+        log.warn("종목 가격 정보 조회 실패: symbol={}", asset.getSymbol(), e);
+      }
+    }
+
+    log.debug("전체 종목 목록과 현재가 조회 성공: count={}", stockPrices.size());
+    return stockPrices;
   }
 
   // 변화율 계산 메서드

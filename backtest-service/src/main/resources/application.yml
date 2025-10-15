@@ -1,16 +1,14 @@
 spring:
-  profiles:
-    active: dev
   application:
     name: backtest-service
 
   # Config Server 연결
   config:
-    import: "optional:configserver:${SPRING_CLOUD_CONFIG_URI:http://localhost:8888}"
+    import: "optional:configserver:${SPRING_CLOUD_CONFIG_URI:http://config-server:8888}"
 
   cloud:
     config:
-      uri: ${SPRING_CLOUD_CONFIG_URI:http://localhost:8888}
+      uri: ${SPRING_CLOUD_CONFIG_URI:http://config-server:8888}
       username: ${SPRING_CLOUD_CONFIG_USERNAME:config}
       password: ${SPRING_CLOUD_CONFIG_PASSWORD:config123}
       fail-fast: false
@@ -22,20 +20,13 @@ spring:
     compatibility-verifier:
       enabled: false
 
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: http://keycloak:8080/realms/muscathan
+# Redis config is provided by Config Server
 
+# Security config is provided by Config Server
 
-server:
-  port: 8082
+## Server port moved to Config Server
 
-keycloak:
-  auth-server-url: http://keycloak:8080
-  realm: muscathan
-  resource: muscat-user-service
+## Keycloak config moved to Config Server
 
 logging:
   level:

@@ -1,0 +1,47 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-web
+  labels:
+    app: frontend-web 
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend-web
+  template:
+    metadata:
+      labels:
+        app: frontend-web
+    spec:
+      containers:
+      - name: frontend-web
+        image: muscathan/frontend-web:1.2.7
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+        env:
+        - name: VITE_API_URL
+          value: "http://app.localhost/api"
+        - name: VITE_KEYCLOAK_URL
+          value: "http://auth.localhost"
+        - name: VITE_KEYCLOAK_REALM
+          value: "muscathan"
+        - name: VITE_KEYCLOAK_CLIENT_ID
+          value: "ggeolmuse-frontend"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-web
+  labels:
+    app: frontend-web
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 3000
+    targetPort: 80
+    protocol: TCP
+  selector:
+    app: frontend-web

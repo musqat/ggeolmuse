@@ -9,8 +9,10 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 
 // 백테스팅 계산 관련 유틸리티 클래스
+@Slf4j
 public final class BacktestCalculationUtils {
 
   private BacktestCalculationUtils() {
@@ -135,22 +137,43 @@ public final class BacktestCalculationUtils {
   public static BigDecimal calculateTotalDividends(DividendHistoryDto dividendHistory,
       BigDecimal shares,
       LocalDate startDate, LocalDate endDate) {
+
+    log.error(" 배당금 계산 메서드 호출됨");
+
     if (dividendHistory == null || shares == null || startDate == null || endDate == null) {
+      log.error("배당금 계산 - NULL 파라미터: dividendHistory={}, shares={}, startDate={}, endDate={}",
+          dividendHistory, shares, startDate, endDate);
       return BigDecimal.ZERO;
     }
 
     if (dividendHistory.getDividends() == null || dividendHistory.getDividends().isEmpty()) {
+      log.error("배당금 계산 - 배당 데이터 없음 또는 비어있음");
       return BigDecimal.ZERO;
     }
 
-    return dividendHistory.getDividends().stream()
+    log.error("배당금 계산 시작 - 전체 배당 데이터 개수: {}", dividendHistory.getDividends().size());
+    log.error("배당금 계산 기간: {} ~ {}", startDate, endDate);
+    log.error("보유 주식수: {}", shares);
+
+    // 각 배당 데이터 상세 로그
+    dividendHistory.getDividends().forEach(d ->
+        log.error("배당 데이터: exDate={}, amount={}", d.getExDate(), d.getAmount())
+    );
+
+    BigDecimal totalDividends = dividendHistory.getDividends().stream()
         .filter(dividend -> dividend.getExDate() != null)
         .filter(dividend -> !dividend.getExDate().isBefore(startDate) && !dividend.getExDate()
             .isAfter(endDate))
+        .peek(dividend -> log.error("기간 내 배당: exDate={}, amount={}, shares={}, total={}",
+            dividend.getExDate(), dividend.getAmount(), shares,
+            dividend.getAmount() != null ? dividend.getAmount().multiply(shares) : BigDecimal.ZERO))
         .map(dividend -> dividend.getAmount() != null ? dividend.getAmount().multiply(shares)
             : BigDecimal.ZERO)
         .reduce(BigDecimal.ZERO, BigDecimal::add)
         .setScale(USD_SCALE, HALF_UP);
+
+    log.error("배당금 계산 완료 - 총 배당금: ${}", totalDividends);
+    return totalDividends;
   }
 
   // 연간 배당 수익률을 계산합니다 (%)
@@ -167,7 +190,44 @@ public final class BacktestCalculationUtils {
         .setScale(USD_SCALE, HALF_UP);
   }
 
-  // 수수료를 고려한 정수 주식수 계산 (소수점 버림)
+  // 수수료를 고려한 소수점 주식수 계산 (fractional shares)
+  public static BigDecimal calculateSharesWithFee(BigDecimal usdAmount, BigDecimal stockPrice,
+      BigDecimal feeRate) {
+    if (usdAmount == null || stockPrice == null || feeRate == null) {
+      throw new BacktestException(BacktestResponse.SHARES_CALCULATION_ERROR,
+          "수수료 계산을 위한 파라미터는 null이 될 수 없습니다");
+    }
+    if (stockPrice.compareTo(BigDecimal.ZERO) == 0) {
+      throw new BacktestException(BacktestResponse.SHARES_CALCULATION_ERROR,
+          "주식가격은 0이 될 수 없습니다");
+    }
+
+    // 수수료 계산
+    BigDecimal feeAmount = usdAmount.multiply(feeRate).setScale(USD_SCALE, HALF_UP);
+    BigDecimal netAmount = usdAmount.subtract(feeAmount);
+
+    // 음수 방지
+    if (netAmount.compareTo(BigDecimal.ZERO) <= 0) {
+      throw new BacktestException(BacktestResponse.INSUFFICIENT_INVESTMENT,
+          String.format("투자금액이 수수료보다 작습니다. 투자금액: $%.2f, 수수료: $%.2f",
+              usdAmount, feeAmount));
+    }
+
+    // 소수점 주식수 계산 (8자리 정밀도)
+    BigDecimal shares = netAmount.divide(stockPrice, 8, HALF_UP);
+
+    // 주식을 전혀 살 수 없는 경우 (매우 작은 금액)
+    if (shares.compareTo(BigDecimal.ZERO) == 0) {
+      throw new BacktestException(BacktestResponse.INSUFFICIENT_INVESTMENT,
+          String.format("투자금액($%.2f)이 너무 작습니다. 주가: $%.2f",
+              netAmount, stockPrice));
+    }
+
+    return shares;
+  }
+
+  // 수수료를 고려한 정수 주식수 계산 (소수점 버림) - 레거시 메서드
+  @Deprecated
   public static BigDecimal calculateWholeSharesWithFee(BigDecimal usdAmount, BigDecimal stockPrice,
       BigDecimal feeRate) {
     if (usdAmount == null || stockPrice == null || feeRate == null) {
@@ -185,11 +245,22 @@ public final class BacktestCalculationUtils {
 
     // 음수 방지
     if (netAmount.compareTo(BigDecimal.ZERO) <= 0) {
-      return BigDecimal.ZERO;
+      throw new BacktestException(BacktestResponse.INSUFFICIENT_INVESTMENT,
+          String.format("투자금액이 수수료보다 작습니다. 투자금액: $%.2f, 수수료: $%.2f",
+              usdAmount, feeAmount));
     }
 
     // 정수 주식수만 계산 (소수점 버림)
-    return netAmount.divide(stockPrice, 0, RoundingMode.DOWN);
+    BigDecimal shares = netAmount.divide(stockPrice, 0, RoundingMode.DOWN);
+
+    // 주식을 1주도 살 수 없는 경우 명확한 에러 메시지
+    if (shares.compareTo(BigDecimal.ZERO) == 0) {
+      throw new BacktestException(BacktestResponse.INSUFFICIENT_INVESTMENT,
+          String.format("투자금액($%.2f)으로는 주식을 1주도 구매할 수 없습니다. 주가: $%.2f, 최소 필요 금액: $%.2f",
+              netAmount, stockPrice, stockPrice));
+    }
+
+    return shares;
   }
 
   // 매매수수료 계산 (USD)

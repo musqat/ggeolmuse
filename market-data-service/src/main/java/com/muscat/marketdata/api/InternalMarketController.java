@@ -12,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -27,6 +29,7 @@ import java.util.List;
  */
 @Slf4j
 @RestController
+@Validated
 @RequestMapping("/api/internal/market")
 @RequiredArgsConstructor
 public class InternalMarketController {
@@ -37,11 +40,24 @@ public class InternalMarketController {
   @GetMapping("/ohlc/{symbol}")
   public ResponseEntity<OHLCPriceDto> getOHLCPrice(
       @PathVariable @NotBlank @Pattern(regexp = "^[A-Z]{1,16}$") String symbol,
-      @RequestParam LocalDate date) {
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
 
     log.debug("내부 OHLC 조회 요청: symbol={}, date={}", symbol, date);
 
     OHLCPriceDto result = marketService.getOHLCPrice(symbol, date);
+
+    return ResponseEntity.status(HttpStatus.OK).body(result);
+  }
+
+  @GetMapping("/ohlc/{symbol}/range")
+  public ResponseEntity<List<OHLCPriceDto>> getOHLCPriceRange(
+      @PathVariable @NotBlank @Pattern(regexp = "^[A-Z]{1,16}$") String symbol,
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+
+    log.debug("내부 OHLC 범위 조회 요청: symbol={}, startDate={}, endDate={}", symbol, startDate, endDate);
+
+    List<OHLCPriceDto> result = marketService.getOHLCPriceRange(symbol, startDate, endDate);
 
     return ResponseEntity.status(HttpStatus.OK).body(result);
   }
@@ -57,7 +73,7 @@ public class InternalMarketController {
   }
 
   @GetMapping("/fx/{date}")
-  public ResponseEntity<FxRate> getFxRate(@PathVariable LocalDate date) {
+  public ResponseEntity<FxRate> getFxRate(@PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
     log.debug("내부 환율 조회 요청: date={}", date);
 
     FxRate fxRate = fxRateService.findByDate(date);

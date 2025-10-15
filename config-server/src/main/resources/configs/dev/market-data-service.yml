@@ -1,0 +1,97 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:marketdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driverClassName: org.h2.Driver
+    username: sa
+    password:
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+      settings:
+        web-allow-others: true
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+
+alphavantage:
+  enabled: true
+  api-key: ${ALPHAVANTAGE_API_KEY:demo}
+  rate-limit-per-second: 5
+  timeout-seconds: 15
+  base-url: "https://www.alphavantage.co/query"
+
+korea-exim:
+  enabled: true
+  api:
+    auth-key: ${KOREAEXIM_API_KEY:demo}
+  base-url: "https://www.koreaexim.go.kr/site/program/financial/exchangeJSON"
+
+yahoo-finance:
+  enabled: false
+  timeout-seconds: 10
+  user-agent: "Mozilla/5.0 (Market Data Service)"
+
+keycloak:
+  resource: muscat-user-cc
+
+marketdata:
+  constants:
+    fx:
+      default-base-rate: ${FX_DEFAULT_RATE:1350}
+      scale: ${FX_SCALE:6}
+      max-fallback-days: ${FX_FALLBACK_DAYS:7}
+    batch:
+      min-rpm: ${BATCH_MIN_RPM:1}
+      max-backoff-ms: ${BATCH_MAX_BACKOFF:30000}
+      millis-per-minute: 60000
+    database:
+      symbol-max-length: 16
+      currency-length: 3
+      decimal-precision: 19
+      decimal-scale: 8
+    calculation:
+      percent-scale: 4
+      percentage-multiplier: 100
+
+    fx-ingest:
+      backfill:
+        enabled: ${FX_BACKFILL_ENABLED:false}
+        lookback-days: ${FX_BACKFILL_LOOKBACK:365}
+      incremental:
+        enabled: ${FX_INCREMENTAL_ENABLED:true}
+        default-days: ${FX_INCREMENTAL_DAYS:30}
+      scheduler:
+        enabled: ${FX_SCHEDULER_ENABLED:false}
+        cron: ${FX_SCHEDULER_CRON:0 10 11 * * MON-FRI}
+        zone: ${FX_SCHEDULER_ZONE:Asia/Seoul}
+
+  # Data collection
+  feed:
+    symbol:
+      enabled: ${SYMBOL_COLLECTION_ENABLED:true}
+      startup-delay: ${SYMBOL_STARTUP_DELAY:30}
+    schedule:
+      enabled: ${SCHEDULE_ENABLED:false}
+      cron: ${SCHEDULE_CRON:0 0 5 * * *}
+      timezone: ${SCHEDULE_TIMEZONE:America/New_York}
+      lookback-days: ${SCHEDULE_LOOKBACK:365}
+
+  # Cache
+  cache:
+    price-data-ttl: ${CACHE_PRICE_TTL:300}
+    fx-rate-ttl: ${CACHE_FX_TTL:3600}
+    symbol-info-ttl: ${CACHE_SYMBOL_TTL:86400}
+    dividend-ttl: ${CACHE_DIVIDEND_TTL:86400}

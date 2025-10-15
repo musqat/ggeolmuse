@@ -2,10 +2,12 @@ package com.muscat.backtest.domain.controller;
 
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
+import com.muscat.backtest.domain.dto.request.OptimalTimingRequest;
 import com.muscat.backtest.domain.dto.request.StrategyComparisonRequest;
 import com.muscat.backtest.domain.dto.request.SymbolComparisonRequest;
 import com.muscat.backtest.domain.dto.request.TimingComparisonRequest;
 import com.muscat.backtest.domain.dto.response.ComparisonResponse;
+import com.muscat.backtest.domain.dto.response.OptimalTimingResponse;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.service.BacktestAnalysisService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -236,6 +238,44 @@ public class BacktestAnalysisController {
 
     log.info("타이밍 비교 분석 완룄: {}개 시점, 최고 수익률 {}%",
         result.getItems().size(), result.getBestPerformer().getTotalReturnPercent());
+
+    return ResponseEntity.ok(result);
+  }
+
+  @Operation(
+      summary = "최적 매수 타이밍 분석",
+      description = "지정된 기간 내에서 목표 수익률 이상을 달성할 수 있는 매수 타이밍을 분석합니다"
+  )
+  @ApiResponses(value = {
+      @ApiResponse(
+          responseCode = "200",
+          description = "최적 타이밍 분석 성공",
+          content = @Content(
+              mediaType = "application/json",
+              schema = @Schema(implementation = OptimalTimingResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "400",
+          description = "잘못된 요청 데이터",
+          content = @Content(
+              mediaType = "application/json",
+              schema = @Schema(implementation = ProblemDetail.class)
+          )
+      )
+  })
+  @PostMapping("/timing/optimal")
+  public ResponseEntity<OptimalTimingResponse> analyzeOptimalTiming(
+      @Parameter(description = "최적 타이밍 분석 요청 정보", required = true)
+      @Valid @RequestBody OptimalTimingRequest request) {
+
+    log.info("최적 타이밍 분석 요청: {} - 목표 수익률 {}%",
+        request.getSymbol(), request.getTargetReturnPercent());
+
+    OptimalTimingResponse result = backtestAnalysisService.analyzeOptimalTiming(request);
+
+    log.info("최적 타이밍 분석 완료: {} - {}일 중 {}일 목표 달성",
+        request.getSymbol(), result.getTotalAnalyzedDays(), result.getTotalQualifyingDays());
 
     return ResponseEntity.ok(result);
   }

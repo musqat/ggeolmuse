@@ -1,21 +1,14 @@
 spring:
-  profiles:
-    active: dev
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: https://localhost:7001/auth/realms/muscathan
   application:
     name: trade-service
 
   # Config Server 연결
   config:
-    import: "optional:configserver:${SPRING_CLOUD_CONFIG_URI:http://localhost:8888}"
+    import: "optional:configserver:${SPRING_CLOUD_CONFIG_URI:http://config-server:8888}"
 
   cloud:
     config:
-      uri: ${SPRING_CLOUD_CONFIG_URI:http://localhost:8888}
+      uri: ${SPRING_CLOUD_CONFIG_URI:http://config-server:8888}
       username: ${SPRING_CLOUD_CONFIG_USERNAME:config}
       password: ${SPRING_CLOUD_CONFIG_PASSWORD:config123}
       fail-fast: false
@@ -27,17 +20,11 @@ spring:
     compatibility-verifier:
       enabled: false
 
-server:
-  port: 8081
+ # Redis config is provided by Config Server
 
-market-service:
-  url: http://market-data-service:8083
+## Server port moved to Config Server
 
-user-service:
-  url: http://user-service:8080
-
-backtest-service:
-  url: http://backtest-service:8082
+## Service URLs provided by Config Server
 
 # swagger 설정
 springdoc:

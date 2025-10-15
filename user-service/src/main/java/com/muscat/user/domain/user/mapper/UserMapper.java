@@ -54,9 +54,12 @@ public class UserMapper {
   // Account 엔티티를 AccountSummaryDto로 변환 (목록용)
   public AccountSummaryDto toAccountSummaryDto(Account account) {
     return AccountSummaryDto.builder()
-        .id(account.getId())
+        .accountId(account.getId())
         .accountName(account.getAccountName())
         .accountNumber(account.getAccountNumber())
+        .commissionRate(account.getCommissionRate())
+        .usdBalance(account.getBalanceUsd())
+        .krwBalance(account.getBalanceKrw())
         .createdAt(account.getCreatedAt())
         .build();
   }

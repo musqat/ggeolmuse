@@ -79,8 +79,9 @@ public class TradingSimulationController {
 
     SimulationResponse result = tradingSimulationService.runSimulation(request);
 
-    log.info("백테스팅 시뮬레이션 완료: {} 수익률 {}%",
-        request.getSymbol(), result.getTotalReturnPercent());
+    log.info("백테스팅 시뮬레이션 완료: {} 수익률 {}%, 보유주식 {}주, 재투자={}, 재투자날짜={}",
+        request.getSymbol(), result.getTotalReturnPercent(), result.getShares(),
+        request.getReinvestDividends(), result.getDividendReinvestDates());
 
     return ResponseEntity.ok(result);
   }

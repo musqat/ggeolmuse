@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Silent SSO Check</title>
+</head>
+<body>
+    <script>
+        // Keycloak silent SSO check
+        var oauth = {};
+        var url = window.location.href;
+        if (url.indexOf('code=') !== -1) {
+            oauth.code = url.substring(url.indexOf('code=') + 5);
+            oauth.code = oauth.code.substring(0, oauth.code.indexOf('&') !== -1 ? oauth.code.indexOf('&') : oauth.code.length);
+        }
+        if (url.indexOf('error=') !== -1) {
+            oauth.error = url.substring(url.indexOf('error=') + 6);
+            oauth.error = oauth.error.substring(0, oauth.error.indexOf('&') !== -1 ? oauth.error.indexOf('&') : oauth.error.length);
+        }
+        if (url.indexOf('state=') !== -1) {
+            oauth.state = url.substring(url.indexOf('state=') + 6);
+            oauth.state = oauth.state.substring(0, oauth.state.indexOf('&') !== -1 ? oauth.state.indexOf('&') : oauth.state.length);
+        }
+        parent.postMessage(oauth, location.origin);
+    </script>
+</body>
+</html>

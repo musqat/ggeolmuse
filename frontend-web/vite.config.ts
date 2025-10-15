@@ -18,11 +18,6 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8070',
-        changeOrigin: true
-      }
-    }
+    host: true // 외부 접근 허용
   }
 })

@@ -1,70 +1,25 @@
 spring:
-  profiles:
-    active: dev
   application:
     name: market-data-service
 
-
   # Config Server 연결
   config:
-    import: "optional:configserver:${SPRING_CLOUD_CONFIG_URI:http://localhost:8888}"
+    import: "optional:configserver:${SPRING_CLOUD_CONFIG_URI:http://config-server:8888}"
 
   cloud:
     config:
-      uri: ${SPRING_CLOUD_CONFIG_URI:http://localhost:8888}
+      uri: ${SPRING_CLOUD_CONFIG_URI:http://config-server:8888}
       username: ${SPRING_CLOUD_CONFIG_USERNAME:config}
       password: ${SPRING_CLOUD_CONFIG_PASSWORD:config123}
       fail-fast: false
       retry:
         initial-interval: 3000
         max-attempts: 6
-        max-interval: 4000
-        multiplier: 1.1
-    compatibility-verifier:
-      enabled: false
 
-  # JPA/Hibernate SQL 로깅 비활성화
-  jpa:
-    show-sql: false
-    properties:
-      hibernate:
-        format_sql: false
-
-server:
-  port: 8083
-
-# Market Data 로컬 설정
-marketdata:
-  constants:
-    fx-ingest:
-      backfill:
-        enabled: false
-        lookback-days: 365
-      incremental:
-        enabled: true
-        default-days: 30
-      scheduler:
-        enabled: false  # 로컬에서는 스케줄러 비활성화
-        cron: "0 10 11 * * MON-FRI"
-        zone: "Asia/Seoul"
-
-# swagger 설정
-springdoc:
-  api-docs:
-    path: /v3/api-docs
-  swagger-ui:
-    path: /swagger-ui.html
-    operationsSorter: method
-    tagsSorter: alpha
-  show-actuator: false
+  data:
+    redis:
+      host: ${SPRING_REDIS_HOST:redis.default.svc.cluster.local}
+      port: 6379
 
 
-keycloak:
-  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:http://localhost:7001}
-  realm: ${KEYCLOAK_REALM:muscathan}
-  resource: ggeolmuse-client
-  credentials:
-    secret: ${KEYCLOAK_SECRET:dev-secret}
-  admin:
-    username: admin
-    password: admin
+## Server port moved to Config Server

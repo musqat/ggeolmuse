@@ -1,0 +1,65 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ggeolmuse-ingress
+  namespace: default
+  annotations:
+    nginx.ingress.kubernetes.io/cors-allow-origin: "http://app.localhost,http://localhost:3000,http://localhost:5173"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET,POST,PUT,DELETE,PATCH,OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "*"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+  # API Gateway - 모든 API 요청을 Gateway로 포워딩
+  - host: api.localhost
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: gateway-server
+            port:
+              number: 8070
+
+  # Frontend - 프론트엔드 앱
+  - host: app.localhost
+    http:
+      paths:
+      # API 요청은 Gateway로
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: gateway-server
+            port:
+              number: 8070
+      # Keycloak 인증 요청
+      - path: /auth
+        pathType: Prefix
+        backend:
+          service:
+            name: keycloak
+            port:
+              number: 8080
+      # 나머지 요청은 Frontend로
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend-web
+            port:
+              number: 3000
+
+  # Keycloak - 인증 서버
+  - host: auth.localhost
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: keycloak
+            port:
+              number: 8080

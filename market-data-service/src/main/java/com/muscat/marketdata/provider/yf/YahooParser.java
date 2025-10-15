@@ -69,6 +69,90 @@ public class YahooParser {
         }
     }
 
+    public Long parseMarketCap(String rawJson, String symbol) {
+        log.debug("Yahoo Quote 시가총액 파싱 시작: symbol={}", symbol);
+
+        try {
+            JsonNode root = OBJECT_MAPPER.readTree(rawJson);
+            JsonNode quoteResponse = root.path("quoteResponse");
+
+            if (quoteResponse.isMissingNode() || quoteResponse.isNull()) {
+                log.warn("Yahoo Quote 응답에 quoteResponse 없음: symbol={}", symbol);
+                return null;
+            }
+
+            JsonNode result = quoteResponse.path("result");
+            if (!result.isArray() || result.size() == 0) {
+                log.warn("Yahoo Quote 응답에 result 배열 없음: symbol={}", symbol);
+                return null;
+            }
+
+            JsonNode quote = result.get(0);
+            if (quote == null || quote.isNull()) {
+                log.warn("Yahoo Quote 응답에 quote 데이터 없음: symbol={}", symbol);
+                return null;
+            }
+
+            JsonNode marketCapNode = quote.path("marketCap");
+            if (marketCapNode.isMissingNode() || marketCapNode.isNull()) {
+                log.debug("시가총액 데이터 없음: symbol={}", symbol);
+                return null;
+            }
+
+            Long marketCap = marketCapNode.asLong();
+            log.debug("Yahoo Quote 시가총액 파싱 완료: symbol={}, marketCap={}", symbol, marketCap);
+            return marketCap;
+
+        } catch (Exception e) {
+            log.error("Yahoo Quote 시가총액 파싱 실패: symbol={}", symbol, e);
+            return null;
+        }
+    }
+
+    public List<String> parseMostActiveStockSymbols(String rawJson) {
+        log.debug("Yahoo Most Active Stocks 심볼 파싱 시작");
+
+        try {
+            JsonNode root = OBJECT_MAPPER.readTree(rawJson);
+            JsonNode finance = root.path("finance");
+
+            if (finance.isMissingNode() || finance.isNull()) {
+                log.warn("Yahoo Most Active Stocks 응답에 finance 없음");
+                return List.of();
+            }
+
+            JsonNode result = finance.path("result");
+            if (!result.isArray() || result.size() == 0) {
+                log.warn("Yahoo Most Active Stocks 응답에 result 배열 없음");
+                return List.of();
+            }
+
+            JsonNode quotes = result.get(0).path("quotes");
+            if (!quotes.isArray()) {
+                log.warn("Yahoo Most Active Stocks 응답에 quotes 배열 없음");
+                return List.of();
+            }
+
+            List<String> symbols = new ArrayList<>();
+            for (JsonNode quote : quotes) {
+                JsonNode symbolNode = quote.path("symbol");
+                if (!symbolNode.isMissingNode() && !symbolNode.isNull()) {
+                    String symbol = symbolNode.asText();
+                    if (symbol != null && !symbol.isBlank()) {
+                        symbols.add(symbol.toUpperCase());
+                    }
+                }
+            }
+
+            log.debug("Yahoo Most Active Stocks 심볼 파싱 완료: count={}", symbols.size());
+            return symbols;
+
+        } catch (Exception e) {
+            log.error("Yahoo Most Active Stocks 심볼 파싱 실패", e);
+            return List.of();
+        }
+    }
+
     private JsonNode getChartResult(JsonNode root) {
         JsonNode chartResult = root.path("chart").path("result").get(0);
         if (chartResult == null || chartResult.isNull()) {

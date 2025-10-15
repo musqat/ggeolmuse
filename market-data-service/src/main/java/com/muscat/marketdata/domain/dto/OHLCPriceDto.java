@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
@@ -14,7 +15,8 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class OHLCPriceDto {
+public class OHLCPriceDto implements Serializable {
+  private static final long serialVersionUID = 1L;
   
     @Schema(description = "종목 코드", example = "AAPL")
     private String symbol;

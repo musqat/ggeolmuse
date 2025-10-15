@@ -9,7 +9,9 @@ import com.muscat.trade.domain.repository.HoldingsQueryRepository;
 import com.muscat.trade.domain.repository.HoldingsRepository;
 import com.muscat.trade.domain.service.HoldingsService;
 import com.muscat.trade.infra.client.BacktestServiceClient;
+import com.muscat.trade.infra.client.MarketServiceClient;
 import com.muscat.trade.infra.client.dto.InvestmentBacktestResultDto;
+import com.muscat.trade.infra.client.dto.StockPriceDto;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -18,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
@@ -36,6 +39,7 @@ public class HoldingsServiceImpl implements HoldingsService {
   private final HoldingsQueryRepository holdingsQueryRepository;
   private final TradeLogger tradeLogger;
   private final BacktestServiceClient backtestServiceClient;
+  private final MarketServiceClient marketServiceClient;
 
   @Override
   @Transactional(readOnly = true)
@@ -49,8 +53,41 @@ public class HoldingsServiceImpl implements HoldingsService {
     String logType = accountId != null ? "ACCOUNT_PORTFOLIO" : "USER_PORTFOLIO";
     tradeLogger.logPortfolioAccess(userId, logType, accountId != null ? accountId.toString() : null, holdings.size());
 
+    // 보유 종목의 현재가 조회 - 각 심볼별로 개별 조회
+    Set<String> symbols = holdings.stream()
+        .map(Holdings::getSymbol)
+        .collect(Collectors.toSet());
+
+    Map<String, BigDecimal> currentPrices = new HashMap<>();
+    for (String symbol : symbols) {
+      try {
+        log.debug("현재가 조회 시도: symbol={}", symbol);
+        StockPriceDto priceDto = marketServiceClient.getCurrentPrice(symbol);
+        log.debug("현재가 조회 응답: symbol={}, dto={}, currentPrice={}",
+            symbol, priceDto != null, priceDto != null ? priceDto.getCurrentPrice() : null);
+        if (priceDto != null && priceDto.getCurrentPrice() != null) {
+          currentPrices.put(symbol, priceDto.getCurrentPrice());
+          log.debug("현재가 저장 성공: symbol={}, price={}", symbol, priceDto.getCurrentPrice());
+        } else {
+          log.warn("현재가 정보 없음: symbol={}, dtoNull={}, priceNull={}",
+              symbol, priceDto == null, priceDto != null && priceDto.getCurrentPrice() == null);
+        }
+      } catch (Exception e) {
+        log.warn("현재가 조회 실패: symbol={}, error={}", symbol, e.getMessage());
+      }
+    }
+    log.debug("현재가 조회 완료: totalSymbols={}, successCount={}", symbols.size(), currentPrices.size());
+
+    // 현재가 정보와 함께 DTO 생성
     return holdings.stream()
-        .map(HoldingResponseDto::from)
+        .map(holding -> {
+          BigDecimal currentPrice = currentPrices.get(holding.getSymbol());
+          if (currentPrice != null) {
+            return HoldingResponseDto.fromWithCurrentPrice(holding, currentPrice);
+          } else {
+            return HoldingResponseDto.from(holding);
+          }
+        })
         .collect(Collectors.toList());
   }
 

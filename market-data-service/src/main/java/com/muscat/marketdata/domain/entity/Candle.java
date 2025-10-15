@@ -42,7 +42,7 @@ public class Candle {
   @Column(name = "currency", nullable = false, length = 3)
   private String currency;
 
-  // ===== OHLCV 데이터 =====
+  // ===== OHLCV 데이터 (시가, 고가, 저가, 종가, 거래량) =====
 
   @Column(name = "open", precision = 19, scale = 8)
   private BigDecimal open;

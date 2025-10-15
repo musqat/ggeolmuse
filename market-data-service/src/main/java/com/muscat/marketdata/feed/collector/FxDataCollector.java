@@ -155,7 +155,7 @@ public class FxDataCollector implements CommandLineRunner {
                     BigDecimal rate = rateOpt.get();
                     log.debug("환율 데이터 수집 성공: date={}, rate={}", currentDate, rate);
                     return Optional.of(FxRate.builder()
-                        .date(targetDate) // 원래 요청 날짜로 저장
+                        .date(targetDate) // 요청 날짜로 저장
                         .rate(rate)
                         .build());
                 }
@@ -185,11 +185,11 @@ public class FxDataCollector implements CommandLineRunner {
      */
     public List<FxRate> collectDateRange(LocalDate startDate, LocalDate endDate) {
         log.info("환율 데이터 범위 수집: {} ~ {}", startDate, endDate);
-        
+
         List<FxRate> collectedRates = new ArrayList<>();
-        
+
         for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
-            // 영업일만 처리
+            // 평일(영업일)만 처리
             if (date.getDayOfWeek() != DayOfWeek.SATURDAY && date.getDayOfWeek() != DayOfWeek.SUNDAY) {
                 Optional<FxRate> rate = collectSingleDate(date, true);
                 rate.ifPresent(collectedRates::add);
@@ -200,7 +200,7 @@ public class FxDataCollector implements CommandLineRunner {
         return collectedRates;
     }
 
-    // 수집된 환율 데이터 일괄 저장
+    // 수집된 환율 데이터를 DB에 일괄 저장
     private int saveCollectedRates(List<FxRate> collectedRates) {
         int savedCount = 0;
         for (FxRate rate : collectedRates) {
