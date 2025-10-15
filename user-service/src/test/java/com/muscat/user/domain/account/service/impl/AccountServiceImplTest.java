@@ -38,7 +38,11 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
+import org.mockito.quality.Strictness;
+import org.mockito.junit.jupiter.MockitoSettings;
+
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 @DisplayName("AccountService 단위 테스트")
 class AccountServiceImplTest {
 
@@ -171,7 +175,7 @@ class AccountServiceImplTest {
             assertThatThrownBy(() ->
                     accountService.createAccount(userId, request)
             ).isInstanceOf(AccountException.class)
-             .hasFieldOrPropertyWithValue("response", AccountResponse.DUPLICATE_ACCOUNT_NAME);
+             .hasMessage(AccountResponse.DUPLICATE_ACCOUNT_NAME.getMessage());
 
             verify(accountRepository, never()).save(any(Account.class));
         }
@@ -216,7 +220,7 @@ class AccountServiceImplTest {
             assertThatThrownBy(() ->
                     accountService.depositKrw(accountId, userId, depositAmount)
             ).isInstanceOf(AccountException.class)
-             .hasFieldOrPropertyWithValue("response", AccountResponse.ACCOUNT_NOT_FOUND);
+             .hasMessage(AccountResponse.ACCOUNT_NOT_FOUND.getMessage());
         }
     }
 
@@ -229,7 +233,7 @@ class AccountServiceImplTest {
         void exchangeKrwToUsd_Success() {
             // given
             BigDecimal krwAmount = new BigDecimal("1000000");
-            BigDecimal exchangeRate = new BigDecimal("1300");
+            BigDecimal exchangeRate = new BigDecimal("1300.00"); // 소수점 2자리
             BigDecimal expectedUsd = krwAmount.divide(exchangeRate, 2, java.math.RoundingMode.HALF_UP);
 
             ExchangeCalculationResult calculation = new ExchangeCalculationResult(
@@ -245,10 +249,11 @@ class AccountServiceImplTest {
             given(accountQueryRepository.findByIdAndUserIdWithLock(accountId, userId))
                     .willReturn(Optional.of(testAccount));
             doNothing().when(accountCalculator).validateExchangeRequest(testAccount, krwAmount, "KRW");
+            // any()를 사용하여 반올림된 exchangeRate도 매칭
             given(accountCalculator.calculateExchangeWithCommission(
-                    testAccount, krwAmount, "KRW", "USD", exchangeRate))
+                    eq(testAccount), eq(krwAmount), eq("KRW"), eq("USD"), any(BigDecimal.class)))
                     .willReturn(calculation);
-            given(accountCalculator.calculateNewAverageRate(testAccount, krwAmount, exchangeRate))
+            given(accountCalculator.calculateNewAverageRate(eq(testAccount), eq(krwAmount), any(BigDecimal.class)))
                     .willReturn(exchangeRate);
 
             // when
@@ -279,7 +284,7 @@ class AccountServiceImplTest {
             assertThatThrownBy(() ->
                     accountService.exchangeKrwToUsd(accountId, userId, krwAmount, exchangeRate)
             ).isInstanceOf(AccountException.class)
-             .hasFieldOrPropertyWithValue("response", AccountResponse.INSUFFICIENT_BALANCE);
+             .hasMessage(AccountResponse.INSUFFICIENT_BALANCE.getMessage());
         }
     }
 

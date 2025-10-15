@@ -7,7 +7,7 @@ import com.muscat.backtest.common.util.BacktestCalculationUtils;
 import com.muscat.backtest.common.util.BacktestDataUtils;
 import com.muscat.backtest.domain.dto.request.OptimalTimingRequest;
 import com.muscat.backtest.domain.dto.response.OptimalTimingResponse;
-import com.muscat.backtest.domain.dto.response.OptimalTimingResponse.TimingResult;
+import com.muscat.backtest.domain.dto.response.TimingResult;
 import com.muscat.backtest.infra.client.MarketDataClient;
 import com.muscat.commonlib.util.MoneyUtils;
 import java.math.BigDecimal;

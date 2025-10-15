@@ -45,6 +45,7 @@ public class DcaStrategyRequest {
   private Integer purchaseDay;             // 매월 몇일에 투자할지
 
   @Schema(description = "투자 주기 (개월 단위, 1=매월, 2=2개월마다, 3=분기마다)", example = "1")
+  @Builder.Default
   private Integer investmentInterval = 1;   // 투자 주기 (기본값: 1개월)
 
   @Schema(description = "총 투자 금액 한도 (null이면 무제한)", example = "1000000.00")
