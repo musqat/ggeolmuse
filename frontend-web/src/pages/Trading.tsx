@@ -1,334 +1,433 @@
-import React, {useState} from 'react';
-import {
-  BarChart3,
-  Clock,
-  MinusCircle,
-  PlusCircle,
-  ShoppingCart,
-  TrendingDown,
-  TrendingUp,
-  Zap
-} from 'lucide-react';
-import StockSearchInput from '@components/common/StockSearchInput';
+import React, { useEffect, useState } from 'react';
+import { Lock, LogIn } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import LoginModal from '../components/auth/LoginModal';
+import TradeHistoryTab from '../components/trading/TradeHistoryTab';
+import TradingCapacityPanel from '../components/trading/TradingCapacityPanel';
+import { stockApi, tradeApi, accountsApi } from '../services/api';
+import { convertOHLCToCandlestick, type CandlestickChartData } from '../types/ohlc';
+
+// Utility imports
+import { daysForTimeframe } from '@/utils/dateUtils';
+import { calculateExecutionPrice, validatePriceRange } from '@/utils/priceUtils';
+import type { Timeframe } from '@/utils/dateUtils';
+import type { PriceType } from '@/utils/priceUtils';
+
+// Hook imports
+import { useAccounts } from '@/hooks/useAccounts';
+
+// Component imports
+import OrderTypeToggle from '@/components/trading/OrderTypeToggle';
+import AccountSelector from '@/components/trading/AccountSelector';
+import TradeDatePicker from '@/components/trading/TradeDatePicker';
+import PriceTypeSelector from '@/components/trading/PriceTypeSelector';
+import OrderSummaryPanel from '@/components/trading/OrderSummaryPanel';
+import StockSelectionPanel from '@/components/trading/StockSelectionPanel';
+import TradingChartSection from '@/components/trading/TradingChartSection';
 
 const Trading: React.FC = () => {
+  const navigate = useNavigate();
+  const { isAuthenticated, login } = useAuth();
+  const [activeTab, setActiveTab] = useState<'order' | 'history'>('order');
   const [selectedStock, setSelectedStock] = useState('AAPL');
   const [orderType, setOrderType] = useState<'buy' | 'sell'>('buy');
-  const [priceType, setPriceType] = useState<'market' | 'limit'>('market');
+  const [priceType, setPriceType] = useState<PriceType>('close');
   const [quantity, setQuantity] = useState('10');
-  const [limitPrice, setLimitPrice] = useState('238.15');
+  const [limitPrice, setLimitPrice] = useState('0');
+  const [timeframe, setTimeframe] = useState<Timeframe>('1년');
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
-  // 실제로는 API에서 받아올 최신 데이터 날짜
-  // 예: GET /api/market-data/latest-update 또는 주식 데이터와 함께 전달
-  const [lastUpdateDate, setLastUpdateDate] = useState('2024-09-18');
+  // 커스텀 날짜 범위
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
 
-  // Mock 주식 데이터
-  const stockData = {
-    symbol: 'AAPL',
-    name: 'Apple Inc.',
-    currentPrice: 238.15,
-    change: 3.25,
-    changePercent: 1.38,
-    volume: 45_678_900,
-    marketCap: '$3.6T',
-    high: 241.30,
-    low: 235.80,
-    open: 237.45
+  const [chartData, setChartData] = useState<CandlestickChartData[]>([]);
+  const [latestOHLC, setLatestOHLC] = useState<any>(null);
+  const [selectedDateOHLC, setSelectedDateOHLC] = useState<any>(null);
+  const [chartLoading, setChartLoading] = useState(false);
+  const [supportedSymbols, setSupportedSymbols] = useState<string[]>([]);
+  const [tradeDate, setTradeDate] = useState(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  });
+
+  // Use custom hook for account management
+  const { accounts, selectedAccountId, setSelectedAccountId } = useAccounts(isAuthenticated);
+
+  // 지원하는 종목 목록 로드
+  useEffect(() => {
+    const loadInitial = async () => {
+      try {
+        const symbolsResponse = await stockApi.getAllSymbols();
+        const allSymbols = (Array.isArray(symbolsResponse.data) ? symbolsResponse.data : [])
+          .map((a: any) => String(a.symbol).toUpperCase());
+        setSupportedSymbols(allSymbols);
+      } catch (e) {
+        setSupportedSymbols(['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'TSLA']);
+      }
+    };
+    loadInitial();
+  }, []);
+
+  // 종목이나 기간 변경 시 차트 데이터 로드
+  useEffect(() => {
+    if (!selectedStock) return;
+
+    const loadStockData = async () => {
+      try {
+        setChartLoading(true);
+
+        let endDate: string;
+        let startDate: string;
+
+        if (timeframe === '직접설정') {
+          if (!customStartDate || !customEndDate) {
+            setChartLoading(false);
+            return;
+          }
+          startDate = customStartDate;
+          endDate = customEndDate;
+        } else {
+          endDate = new Date().toISOString().split('T')[0];
+          startDate = new Date(Date.now() - daysForTimeframe(timeframe) * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        }
+
+        const chartResponse = await stockApi.getOHLCData(selectedStock, startDate, endDate);
+        if (chartResponse.data && Array.isArray(chartResponse.data)) {
+          const convertedData = convertOHLCToCandlestick(chartResponse.data);
+          setChartData(convertedData);
+
+          // 최신 OHLC 데이터 가져오기
+          if (convertedData.length > 0) {
+            const latest = convertedData[convertedData.length - 1];
+            setLatestOHLC({
+              open: latest.open,
+              high: latest.high,
+              low: latest.low,
+              close: latest.close
+            });
+            // 최신 날짜로 거래 날짜 자동 설정
+            setTradeDate(latest.time);
+          }
+        } else {
+          setChartData([]);
+        }
+      } catch (error) {
+        setChartData([]);
+      } finally {
+        setChartLoading(false);
+      }
+    };
+
+    loadStockData();
+  }, [selectedStock, timeframe, customStartDate, customEndDate]);
+
+  // 가장 가까운 과거 거래일 찾기
+  const findClosestPastDate = (targetDate: string): CandlestickChartData | null => {
+    if (chartData.length === 0) return null;
+
+    const target = new Date(targetDate);
+    const pastDates = chartData.filter(d => new Date(d.time) <= target);
+
+    if (pastDates.length === 0) return null;
+    return pastDates[pastDates.length - 1];
   };
 
-  const watchlist = [
-    {symbol: 'AAPL', price: 238.15, change: 1.38, isPositive: true},
-    {symbol: 'MSFT', price: 380.25, change: -0.80, isPositive: false},
-    {symbol: 'NVDA', price: 875.30, change: 2.15, isPositive: true},
-    {symbol: 'GOOGL', price: 142.80, change: 0.95, isPositive: true},
-    {symbol: 'TSLA', price: 248.50, change: -1.25, isPositive: false}
-  ];
+  // 선택된 날짜의 OHLC 데이터 업데이트
+  useEffect(() => {
+    if (!tradeDate || chartData.length === 0) return;
 
-  const recentTrades = [
-    {symbol: 'AAPL', type: 'buy', quantity: 10, price: 235.80, time: '2분 전'},
-    {symbol: 'MSFT', type: 'sell', quantity: 5, price: 382.10, time: '15분 전'},
-    {symbol: 'NVDA', type: 'buy', quantity: 2, price: 870.50, time: '1시간 전'}
-  ];
+    const dateData = chartData.find(d => d.time === tradeDate);
+    if (dateData) {
+      setSelectedDateOHLC(dateData);
+    } else {
+      // 데이터가 없으면 가장 가까운 과거 거래일로 조정
+      const closest = findClosestPastDate(tradeDate);
+      if (closest) {
+        setSelectedDateOHLC(closest);
+        setTradeDate(closest.time);
+        alert(`${tradeDate}는 거래일이 아닙니다.\n가장 가까운 거래일 ${closest.time}로 조정되었습니다.`);
+      } else {
+        setSelectedDateOHLC(null);
+      }
+    }
+  }, [tradeDate, chartData]);
 
-  const calculateTotal = () => {
-    const price = priceType === 'market' ? stockData.currentPrice : parseFloat(limitPrice);
-    const qty = parseInt(quantity) || 0;
-    return (price * qty).toFixed(2);
+  const handleStockSelect = (symbol: string) => {
+    setSelectedStock(symbol);
   };
 
-  return (
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="space-y-6">
-          {/* 헤더 */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">주식 거래</h1>
-              <p className="text-gray-600 mt-1">과거 시세 데이터로 모의 거래를 체험해보세요</p>
-            </div>
-            <div className="flex items-center space-x-4 mt-4 md:mt-0">
-              <div className="flex items-center space-x-2 text-sm">
-                <Clock className="w-4 h-4 text-gray-500"/>
-                <span
-                    className="text-gray-600">최신 데이터: {new Date(lastUpdateDate).toLocaleDateString('ko-KR')}까지</span>
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              </div>
-            </div>
-          </div>
+  const handleViewDetailedChart = () => {
+    navigate(`/charts/${selectedStock}`);
+  };
 
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            {/* 왼쪽: 관심 종목 */}
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">관심 종목</h3>
-                <Zap className="w-5 h-5 text-yellow-500"/>
-              </div>
+  const getExecutionPrice = (): number => {
+    const ohlc = selectedDateOHLC || latestOHLC;
+    return calculateExecutionPrice(priceType, ohlc, Number(limitPrice));
+  };
 
-              <div className="space-y-3">
-                {watchlist.map((stock) => (
-                    <div
-                        key={stock.symbol}
-                        onClick={() => setSelectedStock(stock.symbol)}
-                        className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                            selectedStock === stock.symbol
-                                ? 'bg-indigo-50 border border-indigo-200'
-                                : 'bg-gray-50 hover:bg-gray-100'
-                        }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-gray-900">{stock.symbol}</span>
-                        <div className="text-right">
-                          <p className="font-medium text-gray-900">${stock.price}</p>
-                          <p className={`text-sm ${stock.isPositive ? 'text-green-600' : 'text-red-600'}`}>
-                            {stock.isPositive ? '+' : ''}{stock.change}%
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                ))}
-              </div>
-            </div>
+  // 가격 유효성 검증
+  const validatePrice = (price: number): boolean => {
+    const ohlc = selectedDateOHLC || latestOHLC;
+    const result = validatePriceRange(price, ohlc);
 
-            {/* 중앙: 차트 & 주문 */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* 주식 검색 및 정보 */}
-              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-                <div className="mb-4">
-                  <StockSearchInput
-                      value={selectedStock}
-                      onChange={setSelectedStock}
-                      placeholder="거래할 종목을 검색하세요..."
-                  />
-                </div>
+    if (!result.isValid) {
+      alert(result.message);
+      return false;
+    }
 
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-900">{stockData.symbol}</h2>
-                    <p className="text-gray-600">{stockData.name}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-3xl font-bold text-gray-900">${stockData.currentPrice}</p>
-                    <div className="flex items-center justify-end space-x-1">
-                      {stockData.change >= 0 ? (
-                          <TrendingUp className="w-4 h-4 text-green-600"/>
-                      ) : (
-                          <TrendingDown className="w-4 h-4 text-red-600"/>
-                      )}
-                      <span
-                          className={`font-medium ${stockData.change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {stockData.change >= 0 ? '+' : ''}${stockData.change} ({stockData.changePercent}%)
-                    </span>
-                    </div>
-                  </div>
-                </div>
+    return true;
+  };
 
-                {/* 시장 데이터 */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                  <div>
-                    <p className="text-sm text-gray-500">시가</p>
-                    <p className="font-medium">${stockData.open}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">고가</p>
-                    <p className="font-medium text-green-600">${stockData.high}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">저가</p>
-                    <p className="font-medium text-red-600">${stockData.low}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">거래량</p>
-                    <p className="font-medium">{stockData.volume.toLocaleString()}</p>
-                  </div>
-                </div>
+  const handleSubmitOrder = async () => {
+    // 1. 가격 검증
+    const price = getExecutionPrice();
 
-                {/* 차트 플레이스홀더 */}
-                <div className="bg-gray-50 rounded-lg h-64 flex items-center justify-center">
-                  <div className="text-center">
-                    <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-2"/>
-                    <p className="text-gray-500">과거 시세 차트</p>
-                    <p className="text-sm text-gray-400">최신
-                      데이터: {new Date(lastUpdateDate).toLocaleDateString('ko-KR')}까지</p>
-                  </div>
-                </div>
-              </div>
+    if (priceType === 'limit' && !validatePrice(price)) {
+      return;
+    }
 
-              {/* 주문 패널 */}
-              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">모의 주문하기</h3>
+    const total = price * Number(quantity || 0);
 
-                {/* 매수/매도 선택 */}
-                <div className="flex rounded-lg bg-gray-100 p-1 mb-4">
-                  <button
-                      onClick={() => setOrderType('buy')}
-                      className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors ${
-                          orderType === 'buy'
-                              ? 'bg-green-600 text-white shadow-sm'
-                              : 'text-gray-600 hover:text-gray-900'
-                      }`}
-                  >
-                    <ShoppingCart className="w-4 h-4 inline mr-2"/>
-                    매수
-                  </button>
-                  <button
-                      onClick={() => setOrderType('sell')}
-                      className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors ${
-                          orderType === 'sell'
-                              ? 'bg-red-600 text-white shadow-sm'
-                              : 'text-gray-600 hover:text-gray-900'
-                      }`}
-                  >
-                    <MinusCircle className="w-4 h-4 inline mr-2"/>
-                    매도
-                  </button>
-                </div>
+    // 2. 잔액 검증 (매수인 경우만)
+    if (orderType === 'buy' && selectedAccountId) {
+      try {
+        const balanceResponse = await accountsApi.getAccountBalance(selectedAccountId);
+        const balance = balanceResponse.data;
 
-                {/* 주문 타입 */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">주문 타입</label>
-                  <select
-                      value={priceType}
-                      onChange={(e) => setPriceType(e.target.value as 'market' | 'limit')}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  >
-                    <option value="market">시장가</option>
-                    <option value="limit">지정가</option>
-                  </select>
-                </div>
+        if (balance.balanceUsd < total) {
+          alert(
+            `잔액이 부족합니다.\n\n` +
+            `필요 금액: $${total.toFixed(2)}\n` +
+            `보유 잔액: $${balance.balanceUsd.toFixed(2)}\n` +
+            `부족 금액: $${(total - balance.balanceUsd).toFixed(2)}`
+          );
+          return;
+        }
+      } catch (error) {
+        alert('잔액 조회 중 오류가 발생했습니다.');
+        return;
+      }
+    }
 
-                {/* 수량 */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">수량</label>
-                  <div className="flex items-center space-x-2">
-                    <button
-                        onClick={() => setQuantity(String(Math.max(1, parseInt(quantity) - 1)))}
-                        className="p-2 border border-gray-300 rounded-md hover:bg-gray-50"
-                    >
-                      <MinusCircle className="w-4 h-4"/>
-                    </button>
-                    <input
-                        type="number"
-                        value={quantity}
-                        onChange={(e) => setQuantity(e.target.value)}
-                        className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                        min="1"
-                    />
-                    <button
-                        onClick={() => setQuantity(String(parseInt(quantity) + 1))}
-                        className="p-2 border border-gray-300 rounded-md hover:bg-gray-50"
-                    >
-                      <PlusCircle className="w-4 h-4"/>
-                    </button>
-                  </div>
-                </div>
+    // 3. 거래 실행
+    try {
+      // priceType 매핑: open/high/low/close/limit -> OPEN/HIGH/LOW/CLOSE/MANUAL
+      let backendPriceType: 'OPEN' | 'HIGH' | 'LOW' | 'CLOSE' | 'MANUAL';
+      if (priceType === 'limit') {
+        backendPriceType = 'MANUAL';
+      } else {
+        backendPriceType = priceType.toUpperCase() as 'OPEN' | 'HIGH' | 'LOW' | 'CLOSE';
+      }
 
-                {/* 지정가 */}
-                {priceType === 'limit' && (
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">지정가격</label>
-                      <input
-                          type="number"
-                          value={limitPrice}
-                          onChange={(e) => setLimitPrice(e.target.value)}
-                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                          step="0.01"
-                      />
-                    </div>
-                )}
+      const order = {
+        accountId: selectedAccountId!,
+        symbol: selectedStock,
+        quantity: Number(quantity),
+        tradeDate,
+        priceType: backendPriceType,
+        manualPrice: priceType === 'limit' ? price : undefined,
+      };
 
-                {/* 주문 요약 */}
-                <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm text-gray-600">예상 금액</span>
-                    <span className="font-semibold">${calculateTotal()}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">수수료</span>
-                    <span className="text-sm">$0.00</span>
-                  </div>
-                </div>
+      if (orderType === 'buy') {
+        await tradeApi.buy(order);
+        alert(`매수 주문이 체결되었습니다.\n\n종목: ${selectedStock}\n수량: ${quantity}주\n가격: $${price.toFixed(2)}\n총액: $${total.toFixed(2)}\n거래일: ${tradeDate}`);
+      } else {
+        await tradeApi.sell(order);
+        alert(`매도 주문이 체결되었습니다.\n\n종목: ${selectedStock}\n수량: ${quantity}주\n가격: $${price.toFixed(2)}\n총액: $${total.toFixed(2)}\n거래일: ${tradeDate}`);
+      }
 
-                {/* 주문 버튼 */}
-                <button
-                    className={`w-full py-3 px-4 rounded-lg font-semibold text-white transition-colors ${
-                        orderType === 'buy'
-                            ? 'bg-green-600 hover:bg-green-700'
-                            : 'bg-red-600 hover:bg-red-700'
-                    }`}
-                >
-                  모의 {orderType === 'buy' ? '매수' : '매도'} 주문
-                </button>
-              </div>
-            </div>
+      // 주문 성공 후 초기화
+      setQuantity('1');
+      setLimitPrice('');
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.detail || error?.message || '알 수 없는 오류';
+      alert(`주문 실패: ${errorMessage}`);
+    }
+  };
 
-            {/* 오른쪽: 최근 모의 거래 */}
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">최근 모의 거래</h3>
-                <Clock className="w-5 h-5 text-gray-400"/>
-              </div>
-
-              <div className="space-y-3">
-                {recentTrades.map((trade, index) => (
-                    <div key={index} className="p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-medium text-gray-900">{trade.symbol}</span>
-                        <span className={`text-sm px-2 py-1 rounded ${
-                            trade.type === 'buy' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}>
-                      {trade.type === 'buy' ? '매수' : '매도'}
-                    </span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm text-gray-600">
-                        <span>{trade.quantity}주 × ${trade.price}</span>
-                        <span>{trade.time}</span>
-                      </div>
-                    </div>
-                ))}
-              </div>
-
-              {/* 모의 계좌 정보 */}
-              <div className="mt-6 pt-4 border-t border-gray-200">
-                <h4 className="font-medium text-gray-900 mb-3">모의 계좌 잔고</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">KRW 잔고</span>
-                    <span className="font-medium">₩1,234,567</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">USD 잔고</span>
-                    <span className="font-medium">$8,923.45</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">매수 가능</span>
-                    <span
-                        className="font-medium text-green-600">${(8923.45 / stockData.currentPrice).toFixed(0)}주</span>
-                  </div>
-                </div>
-              </div>
+  // 인증되지 않은 사용자를 위한 안내 화면
+  if (!isAuthenticated) {
+    return (
+      <>
+        <div className="max-w-7xl mx-auto px-4 py-6">
+          <div className="min-h-[60vh] flex items-center justify-center">
+            <div className="text-center">
+              <Lock className="w-16 h-16 text-indigo-600 mx-auto mb-4" />
+              <h1 className="text-3xl font-bold text-gray-900 mb-4">로그인이 필요한 서비스입니다</h1>
+              <p className="text-lg text-gray-600 mb-6">
+                가상 거래 서비스를 이용하시려면 먼저 로그인해주세요
+              </p>
+              <button
+                onClick={() => setIsLoginModalOpen(true)}
+                className="flex items-center space-x-2 bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-colors mx-auto"
+              >
+                <LogIn className="w-5 h-5" />
+                <span>로그인하기</span>
+              </button>
             </div>
           </div>
         </div>
+        <LoginModal
+          isOpen={isLoginModalOpen}
+          onClose={() => setIsLoginModalOpen(false)}
+          onSwitchToSignup={() => {
+            setIsLoginModalOpen(false);
+            // 회원가입은 Header에서 관리되므로 단순히 모달만 닫음
+          }}
+          onLogin={async (email: string, password: string) => {
+            await login(email, password);
+          }}
+        />
+      </>
+    );
+  }
+
+  const currentPrice = getExecutionPrice();
+  const totalAmount = currentPrice * Number(quantity || 0);
+  const isUp = latestOHLC && latestOHLC.close >= latestOHLC.open;
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-6">
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">가상 거래</h1>
+        <p className="text-gray-600">과거 주식을 매매해보세요</p>
       </div>
+
+      {/* Tabs */}
+      <div className="mb-6 border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8">
+          <button
+            onClick={() => setActiveTab('order')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'order'
+                ? 'border-indigo-500 text-indigo-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            주문
+          </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'history'
+                ? 'border-indigo-500 text-indigo-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            거래내역
+          </button>
+        </nav>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'history' ? (
+        <TradeHistoryTab />
+      ) : (
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column - Stock Selection & Chart */}
+        <div className="lg:col-span-2 space-y-6">
+          <StockSelectionPanel
+            selectedStock={selectedStock}
+            onStockSelect={handleStockSelect}
+            supportedSymbols={supportedSymbols}
+            latestOHLC={latestOHLC}
+            onViewDetailedChart={handleViewDetailedChart}
+          />
+
+          <TradingChartSection
+            selectedStock={selectedStock}
+            chartData={chartData}
+            chartLoading={chartLoading}
+            timeframe={timeframe}
+            onTimeframeChange={setTimeframe}
+            customStartDate={customStartDate}
+            customEndDate={customEndDate}
+            onCustomStartDateChange={setCustomStartDate}
+            onCustomEndDateChange={setCustomEndDate}
+          />
+        </div>
+
+        {/* Right Column - Order Panel */}
+        <div className="lg:col-span-1">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 sticky top-6">
+            <h3 className="text-xl font-semibold text-gray-900 mb-6">주문하기</h3>
+
+            <OrderTypeToggle
+              orderType={orderType}
+              setOrderType={setOrderType}
+            />
+
+            <AccountSelector
+              accounts={accounts}
+              selectedAccountId={selectedAccountId}
+              onAccountChange={setSelectedAccountId}
+            />
+
+            <TradeDatePicker
+              tradeDate={tradeDate}
+              onTradeDateChange={setTradeDate}
+              chartData={chartData}
+              selectedDateOHLC={selectedDateOHLC}
+              onFindClosestPastDate={findClosestPastDate}
+            />
+
+            <PriceTypeSelector
+              priceType={priceType}
+              onPriceTypeChange={setPriceType}
+              limitPrice={limitPrice}
+              onLimitPriceChange={setLimitPrice}
+              ohlcData={selectedDateOHLC || latestOHLC}
+            />
+
+            {/* Quantity */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">수량</label>
+              <input
+                type="number"
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                min="1"
+              />
+
+            {/* Trading Capacity Panel */}
+            <TradingCapacityPanel
+              accountId={selectedAccountId}
+              symbol={selectedStock}
+              tradeDate={tradeDate}
+              orderType={orderType}
+              currentPrice={currentPrice}
+            />
+            </div>
+
+            <OrderSummaryPanel
+              selectedStock={selectedStock}
+              tradeDate={tradeDate}
+              quantity={quantity}
+              currentPrice={currentPrice}
+              totalAmount={totalAmount}
+            />
+
+            {/* Submit Button */}
+            <button
+              onClick={handleSubmitOrder}
+              disabled={!selectedStock || !quantity || !selectedAccountId || (priceType === 'limit' && !limitPrice)}
+              className={`w-full py-3 px-4 rounded-md font-medium transition-colors ${
+                orderType === 'buy'
+                  ? 'bg-green-600 hover:bg-green-700 text-white'
+                  : 'bg-red-600 hover:bg-red-700 text-white'
+              } disabled:bg-gray-300 disabled:cursor-not-allowed`}
+            >
+              {orderType === 'buy' ? '매수' : '매도'}
+            </button>
+          </div>
+        </div>
+      </div>
+      )}
+    </div>
   );
 };
 

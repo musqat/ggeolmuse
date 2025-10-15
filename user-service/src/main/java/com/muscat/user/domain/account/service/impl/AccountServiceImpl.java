@@ -99,6 +99,29 @@ public class AccountServiceImpl implements AccountService {
     return accountQueryRepository.findByUserIdWithUser(userId);
   }
 
+  // 계좌 삭제
+  @Override
+  public void deleteAccount(Long accountId, Long userId) {
+    Account account = accountQueryRepository.findByIdAndUserId(accountId, userId)
+        .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
+
+    // 잔액이 있는지 확인 (삭제 전 잔액 0이어야 함)
+    if (account.getBalanceKrw().compareTo(BigDecimal.ZERO) > 0 ||
+        account.getBalanceUsd().compareTo(BigDecimal.ZERO) > 0) {
+      throw new AccountException(AccountResponse.CANNOT_DELETE_ACCOUNT_WITH_BALANCE);
+    }
+
+    // 계좌 거래 내역 먼저 삭제 (외래 키 제약 조건 해결)
+    accountHistoryRepository.deleteByAccount(account);
+    log.debug("계좌 거래 내역 삭제 완료: accountId={}", accountId);
+
+    // 계좌 삭제
+    accountRepository.delete(account);
+
+    log.info("계좌 삭제 완료: 사용자={}, 계좌ID={}, 계좌번호={}",
+        userId, accountId, account.getAccountNumber());
+  }
+
   // 계좌 잔액 조회 (현재 환율 기준 총 자산 포함)
   @Override
   @Transactional(readOnly = true)

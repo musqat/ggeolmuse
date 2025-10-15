@@ -6,12 +6,16 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Schema(description = "DCA (적립식) 투자 전략 요청")
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class DcaStrategyRequest {
 
   @Schema(description = "종목 코드", example = "AAPL", required = true)
@@ -39,4 +43,25 @@ public class DcaStrategyRequest {
   @NotNull(message = "투자일은 필수입니다")
   @Positive(message = "투자일은 1 이상이어야 합니다")
   private Integer purchaseDay;             // 매월 몇일에 투자할지
+
+  @Schema(description = "투자 주기 (개월 단위, 1=매월, 2=2개월마다, 3=분기마다)", example = "1")
+  @Builder.Default
+  private Integer investmentInterval = 1;   // 투자 주기 (기본값: 1개월)
+
+  @Schema(description = "총 투자 금액 한도 (null이면 무제한)", example = "1000000.00")
+  private BigDecimal totalInvestmentLimit;  // 총 투자 금액 제한
+
+  @Schema(description = "매수 시 환율 (수동 설정 시, null이면 자동)", example = "1300.00")
+  private BigDecimal purchaseFxRate;  // 매수 시 환율 (수동)
+
+  @Schema(description = "현재 환율 (수동 설정 시, null이면 자동)", example = "1350.00")
+  private BigDecimal currentFxRate;  // 현재 환율 (수동)
+
+  @Schema(description = "배당금 재투자 여부", example = "false")
+  @Builder.Default
+  private Boolean reinvestDividends = false;  // 배당금 자동 재투자 여부
+
+  @Schema(description = "배당 원천징수세율 (15.4% = 0.154, 미적용 시 0)", example = "0.154")
+  @Builder.Default
+  private BigDecimal dividendTaxRate = BigDecimal.ZERO;  // 배당 원천징수 세율
 }

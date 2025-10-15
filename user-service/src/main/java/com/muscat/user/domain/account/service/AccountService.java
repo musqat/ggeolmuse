@@ -15,6 +15,9 @@ public interface AccountService {
   // 사용자의 모든 계좌 조회
   List<Account> getUserAccounts(Long userId);
 
+  // 계좌 삭제
+  void deleteAccount(Long accountId, Long userId);
+
   // 계좌 잔액 조회
   BalanceResponseDto getAccountBalance(Long accountId, Long userId);
 

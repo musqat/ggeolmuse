@@ -69,7 +69,7 @@ public class TradeQueryRepository {
       String symbol, LocalDate sellDate) {
     QTrade trade = QTrade.trade;
 
-    // 매도일 이전의 매수량 합계
+    // 매도일 이전(포함)의 매수량 합계
     BigDecimal totalBuyQuantity = queryFactory
         .select(trade.quantity.sum())
         .from(trade)
@@ -78,11 +78,11 @@ public class TradeQueryRepository {
             trade.accountId.eq(accountId),
             trade.symbol.eq(symbol),
             trade.tradeType.eq(TradeType.BUY),
-            trade.tradeDate.lt(sellDate)
+            trade.tradeDate.loe(sellDate)
         )
         .fetchOne();
 
-    // 매도일 이전의 매도량 합계
+    // 매도일 이전(포함)의 매도량 합계
     BigDecimal totalSellQuantity = queryFactory
         .select(trade.quantity.sum())
         .from(trade)
@@ -91,7 +91,7 @@ public class TradeQueryRepository {
             trade.accountId.eq(accountId),
             trade.symbol.eq(symbol),
             trade.tradeType.eq(TradeType.SELL),
-            trade.tradeDate.lt(sellDate)
+            trade.tradeDate.loe(sellDate)
         )
         .fetchOne();
 

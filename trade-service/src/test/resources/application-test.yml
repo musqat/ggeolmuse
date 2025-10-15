@@ -2,9 +2,16 @@ spring:
   application:
     name: trade-service
 
+  # 테스트용 빈 오버라이드 허용
+  main:
+    allow-bean-definition-overriding: true
+
   cloud:
     config:
       enabled: false
+      fail-fast: false
+      import-check:
+        enabled: false
     compatibility-verifier:
       enabled: false
 

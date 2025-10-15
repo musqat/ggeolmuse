@@ -45,6 +45,9 @@ public class AuthController {
   @Value("${keycloak.auth-server-url}")
   private String keycloakUrl;
 
+  @Value("${keycloak.public-url:${keycloak.auth-server-url}}")
+  private String keycloakPublicUrl;
+
   @Value("${keycloak.realm}")
   private String realm;
 
@@ -357,10 +360,10 @@ public class AuthController {
     }
     String redirectUri = baseUrl + "/api/auth/social/google/callback";
 
-    // Keycloak Google 로그인 URL 생성
+    // Keycloak Google 로그인 URL 생성 (browser-facing public URL 사용)
     String authUrl = String.format(
         "%s/realms/%s/protocol/openid-connect/auth",
-        keycloakUrl, realm);
+        keycloakPublicUrl, realm);
 
     String loginUrl = String.format(
         "%s?client_id=%s&response_type=code&scope=%s&redirect_uri=%s&kc_idp_hint=google",

@@ -4,70 +4,31 @@ spring:
 
   # Config Server 연결
   config:
-    import: "optional:configserver:${SPRING_CLOUD_CONFIG_URI:http://localhost:8888}"
+    import: "optional:configserver:${SPRING_CLOUD_CONFIG_URI:http://config-server:8888}"
 
   cloud:
     config:
-      uri: ${SPRING_CLOUD_CONFIG_URI:http://localhost:8888}
+      uri: ${SPRING_CLOUD_CONFIG_URI:http://config-server:8888}
       username: ${SPRING_CLOUD_CONFIG_USERNAME:config}
       password: ${SPRING_CLOUD_CONFIG_PASSWORD:config123}
-      fail-fast: false
+      fail-fast: true
       retry:
         initial-interval: 3000
-        max-attempts: 6
+        max-attempts: 3
         max-interval: 4000
         multiplier: 1.1
 
-  # Security OAuth2 설정
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: ${keycloak.auth-server-url}/realms/${keycloak.realm}
+# Security config is provided by Config Server
 
-  # Mail 설정
-  mail:
-    host: smtp.gmail.com
-    port: 587
-    username: ${MAIL_USERNAME:test@gmail.com}
-    password: ${MAIL_PASSWORD:testpassword}
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
+# Mail config is provided by Config Server
 
+# Redis config is provided by Config Server
 
-server:
-  port: 8080
+# Server port moved to Config Server
 
-keycloak:
-  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:http://localhost:7001}
-  realm: ${KEYCLOAK_REALM:muscathan}
-  resource: ggeolmuse-client
-  credentials:
-    secret: ${KEYCLOAK_SECRET:dev-secret}
-  admin:
-    username: admin
-    password: admin
+# Keycloak config is provided by Config Server
 
-app:
-  exchange-rate:
-    min-valid-rate: ${EXCHANGE_RATE_MIN:1000}
-    max-valid-rate: ${EXCHANGE_RATE_MAX:1500}
-    fallback-rate: ${EXCHANGE_RATE_FALLBACK:1300}
-  oauth:
-    redirect-uri: ${OAUTH_REDIRECT_URI:http://localhost:8070/oauth/callback}
-  mail:
-    from: ${MAIL_FROM:noreply@example.com}
-    verification:
-      base-url: ${APP_BASE_URL:http://localhost:8090}
-      expiry-hours: ${EMAIL_EXPIRY_HOURS:24}
-  frontend:
-    url: ${APP_FRONTEND_URL:http://localhost:3000}
-  account:
-    initial-krw-amount: 1000000
+# App business config is provided by Config Server
 
 # swagger 설정
 springdoc:

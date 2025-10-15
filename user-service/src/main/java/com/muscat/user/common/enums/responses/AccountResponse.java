@@ -28,6 +28,7 @@ public enum AccountResponse {
   MAX_ACCOUNT_LIMIT_EXCEEDED("400", "계좌 생성 한도를 초과했습니다.", HttpStatus.BAD_REQUEST),
   INVALID_CURRENCY("400", "지원하지 않는 통화입니다.", HttpStatus.BAD_REQUEST),
   INVALID_REQUEST("400", "잘못된 요청입니다.", HttpStatus.BAD_REQUEST),
+  CANNOT_DELETE_ACCOUNT_WITH_BALANCE("400", "잔액이 있는 계좌는 삭제할 수 없습니다.", HttpStatus.BAD_REQUEST),
 
   // 403 Forbidden
   ACCOUNT_ACCESS_DENIED("403", "계좌에 접근할 권한이 없습니다.", HttpStatus.FORBIDDEN),

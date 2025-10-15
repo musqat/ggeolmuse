@@ -24,10 +24,10 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class FxDataProvider implements MarketDataProvider.FxSource {
 
-    @Value("${marketdata.fx.koreaexim.url:https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON}")
+    @Value("${korea-exim.api.url:https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON}")
     private String baseUrl;
 
-    @Value("${marketdata.fx.koreaexim.authkey:}")
+    @Value("${korea-exim.api.auth-key:}")
     private String authKey;
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd");

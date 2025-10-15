@@ -42,8 +42,12 @@ public class StrategyResponse {
   private BigDecimal currentPrice;
   @Schema(description = "현재 자산 가치 (USD)", example = "89,352.08")
   private BigDecimal currentValue;
-  @Schema(description = "현재 자산 가치 (KRW)", example = "118,025,128")
+  @Schema(description = "현재 주식 가치 (KRW)", example = "118,025,128")
   private BigDecimal currentValueKrw;
+  @Schema(description = "잔액 (KRW)", example = "125,430")
+  private BigDecimal remainingCashKrw;        // 잔액 KRW 환산
+  @Schema(description = "총 자산 (주식+잔액+배당, KRW)", example = "118,150,558")
+  private BigDecimal totalAssetKrw;           // 총 자산 = 주식가치 + 잔액 + 배당금
 
   // 수익률 분석
   @Schema(description = "총 수익 (USD)", example = "18,833.58")
@@ -66,6 +70,8 @@ public class StrategyResponse {
   // 배당금 (추후 확장)
   @Schema(description = "총 배당금 (USD)", example = "125.50")
   private BigDecimal totalDividends;
+  @Schema(description = "재투자된 배당금 (USD)", example = "125.50")
+  private BigDecimal dividendsReinvested;
   @Schema(description = "배당 수익률 (%)", example = "1.67")
   private BigDecimal dividendYield;
 

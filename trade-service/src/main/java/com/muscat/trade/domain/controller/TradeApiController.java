@@ -12,9 +12,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -48,7 +48,7 @@ public class TradeApiController {
       @Parameter(description = "JWT 토큰에서 추출되는 사용자 ID", hidden = true)
       @AuthenticationPrincipal Jwt jwt,
       @Parameter(description = "종목 코드", required = true, example = "AAPL")
-      @PathVariable String symbol) {
+      @PathVariable("symbol") String symbol) {
 
     String userId = jwt.getSubject();
 
@@ -76,9 +76,9 @@ public class TradeApiController {
       @Parameter(description = "JWT 토큰에서 추출되는 사용자 ID", hidden = true)
       @AuthenticationPrincipal Jwt jwt,
       @Parameter(description = "페이지 번호 (0부터 시작)", example = "0")
-      @RequestParam(defaultValue = "0") int page,
+      @RequestParam(value = "page", defaultValue = "0") int page,
       @Parameter(description = "페이지 크기", example = "20")
-      @RequestParam(defaultValue = "20") int size) {
+      @RequestParam(value = "size", defaultValue = "20") int size) {
 
     String userId = jwt.getSubject();
 
@@ -106,9 +106,9 @@ public class TradeApiController {
       @Parameter(description = "JWT 토큰에서 추출되는 사용자 ID", hidden = true)
       @AuthenticationPrincipal Jwt jwt,
       @Parameter(description = "조회 시작일", required = true, example = "2024-01-01")
-      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+      @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
       @Parameter(description = "조회 종료일", required = true, example = "2024-12-31")
-      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+      @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
 
     String userId = jwt.getSubject();
 

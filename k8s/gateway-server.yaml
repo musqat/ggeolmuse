@@ -1,0 +1,89 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gateway-server
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gateway-server-role
+rules:
+- apiGroups: [""]
+  resources: ["services", "endpoints", "pods"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: gateway-server-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: gateway-server-role
+subjects:
+- kind: ServiceAccount
+  name: gateway-server
+  namespace: default
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway-server
+  labels:
+    app: gateway-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gateway-server
+  template:
+    metadata:
+      labels:
+        app: gateway-server
+    spec:
+      serviceAccountName: gateway-server
+      containers:
+      - name: gateway-server
+        image: muscathan/gateway-server:1.2.7
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8070
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "prod"
+        - name: SERVER_PORT
+          value: "8070"
+        - name: SPRING_CLOUD_CONFIG_URI
+          value: "http://config-server:8888"
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8070
+          initialDelaySeconds: 60
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8070
+          initialDelaySeconds: 120
+          periodSeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway-server
+  labels:
+    app: gateway-server
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 8070
+    targetPort: 8070
+    protocol: TCP
+  selector:
+    app: gateway-server
+

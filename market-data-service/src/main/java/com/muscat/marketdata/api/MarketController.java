@@ -21,23 +21,28 @@ import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.validation.annotation.Validated;
 
 @Slf4j
 @RestController
+@Validated
 @RequestMapping("/api/market")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*")
 @Tag(name = "시장 데이터", description = "주식 시세, OHLC 데이터, 배당 정보, 환율 조회 API")
 public class MarketController {
 
@@ -71,7 +76,7 @@ public class MarketController {
       @Parameter(description = "종목 코드 (예: AAPL, MSFT)", example = "AAPL", required = true)
       @PathVariable @NotBlank @Pattern(regexp = "^[A-Z]{1,16}$") String symbol,
       @Parameter(description = "조회할 날짜", example = "2024-01-15", required = true)
-      @RequestParam LocalDate date) {
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
 
     log.debug("OHLC 조회 요청: symbol={}, date={}", symbol, date);
 
@@ -120,6 +125,38 @@ public class MarketController {
     StockPriceDto result = marketService.getCurrentPrice(symbol);
 
     return ResponseEntity.status(HttpStatus.OK).body(result);
+  }
+
+  @Operation(
+      summary = "여러 종목 현재가 일괄 조회",
+      description = "여러 종목의 현재가를 한 번에 조회합니다"
+  )
+  @ApiResponses(value = {
+      @ApiResponse(
+          responseCode = "200",
+          description = "현재가 일괄 조회 성공",
+          content = @Content(
+              mediaType = "application/json"
+          )
+      )
+  })
+  @GetMapping("/prices")
+  public ResponseEntity<Map<String, StockPriceDto>> getCurrentPrices(
+      @Parameter(description = "종목 코드 리스트 (예: AAPL,MSFT,GOOGL)", required = true)
+      @RequestParam("symbols") List<String> symbols) {
+    log.debug("다중 현재가 조회 요청: symbols={}", symbols);
+
+    Map<String, StockPriceDto> results = new java.util.HashMap<>();
+    for (String symbol : symbols) {
+      try {
+        StockPriceDto price = marketService.getCurrentPrice(symbol.toUpperCase());
+        results.put(symbol.toUpperCase(), price);
+      } catch (Exception e) {
+        log.warn("현재가 조회 실패: symbol={}, error={}", symbol, e.getMessage());
+      }
+    }
+
+    return ResponseEntity.status(HttpStatus.OK).body(results);
   }
 
   @Operation(
@@ -248,6 +285,89 @@ public class MarketController {
     return ResponseEntity.status(HttpStatus.OK).body(dividends);
   }
 
+  @Operation(
+      summary = "전체 종목 목록 조회",
+      description = "테스트용 하드코딩된 종목 목록을 반환합니다 (AAPL, MSFT, GOOGL, TSLA, NVDA)"
+  )
+  @ApiResponses(value = {
+      @ApiResponse(
+          responseCode = "200",
+          description = "종목 목록 조회 성공",
+          content = @Content(
+              mediaType = "application/json",
+              schema = @Schema(implementation = com.muscat.marketdata.domain.entity.Asset.class)
+          )
+      )
+  })
+  @GetMapping("/symbols")
+  public ResponseEntity<List<com.muscat.marketdata.domain.entity.Asset>> getAllSymbols() {
+    log.debug("전체 종목 목록 조회 요청 (하드코딩된 5개 종목)");
+
+    // 하드코딩된 테스트용 종목 목록
+    List<com.muscat.marketdata.domain.entity.Asset> hardcodedAssets = List.of(
+        com.muscat.marketdata.domain.entity.Asset.builder()
+            .symbol("AAPL")
+            .name("Apple Inc.")
+            .country("US")
+            .currency("USD")
+            .assetType("EQUITY")
+            .build(),
+        com.muscat.marketdata.domain.entity.Asset.builder()
+            .symbol("MSFT")
+            .name("Microsoft Corp.")
+            .country("US")
+            .currency("USD")
+            .assetType("EQUITY")
+            .build(),
+        com.muscat.marketdata.domain.entity.Asset.builder()
+            .symbol("GOOGL")
+            .name("Alphabet Inc.")
+            .country("US")
+            .currency("USD")
+            .assetType("EQUITY")
+            .build(),
+        com.muscat.marketdata.domain.entity.Asset.builder()
+            .symbol("TSLA")
+            .name("Tesla Inc.")
+            .country("US")
+            .currency("USD")
+            .assetType("EQUITY")
+            .build(),
+        com.muscat.marketdata.domain.entity.Asset.builder()
+            .symbol("NVDA")
+            .name("NVIDIA Corp.")
+            .country("US")
+            .currency("USD")
+            .assetType("EQUITY")
+            .build()
+    );
+
+    return ResponseEntity.status(HttpStatus.OK).body(hardcodedAssets);
+  }
+
+  @Operation(
+      summary = "종목 목록과 현재가 조회",
+      description = "시스템에 등록된 모든 종목의 기본 정보와 현재가를 조회합니다"
+  )
+  @ApiResponses(value = {
+      @ApiResponse(
+          responseCode = "200",
+          description = "종목 목록과 현재가 조회 성공",
+          content = @Content(
+              mediaType = "application/json",
+              schema = @Schema(implementation = StockPriceDto.class)
+          )
+      )
+  })
+  @GetMapping("/stocks")
+  public ResponseEntity<List<StockPriceDto>> getAllStocksWithPrices() {
+    log.debug("종목 목록과 현재가 조회 요청");
+
+    List<StockPriceDto> stocks = marketService.getAllStocksWithPrices();
+
+    return ResponseEntity.status(HttpStatus.OK).body(stocks);
+  }
+
   // ===== 새로운 QueryDSL 활용 API들 =====
 
   @Operation(
@@ -273,9 +393,9 @@ public class MarketController {
       @Parameter(description = "종목 코드 목록 (1-50개)", example = "[\"AAPL\", \"MSFT\", \"GOOGL\"]", required = true)
       @RequestParam @Size(min = 1, max = 50) List<@Pattern(regexp = "^[A-Z]{1,16}$") String> symbols,
       @Parameter(description = "시작 날짜", example = "2024-01-01", required = true)
-      @RequestParam LocalDate startDate,
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
       @Parameter(description = "종료 날짜", example = "2024-12-31", required = true)
-      @RequestParam LocalDate endDate) {
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
     log.debug("다중 OHLC 조회 요청: symbols={}, startDate={}, endDate={}", symbols, startDate, endDate);
 
     List<OHLCPriceDto> result = marketService.getMultipleOHLCPrices(symbols, startDate, endDate);
@@ -306,9 +426,9 @@ public class MarketController {
       @Parameter(description = "종목 코드 (예: AAPL, MSFT)", example = "AAPL", required = true)
       @PathVariable @NotBlank @Pattern(regexp = "^[A-Z]{1,16}$") String symbol,
       @Parameter(description = "시작 날짜", example = "2024-01-01", required = true)
-      @RequestParam LocalDate startDate,
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
       @Parameter(description = "종료 날짜", example = "2024-12-31", required = true)
-      @RequestParam LocalDate endDate) {
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
     log.debug("배당 포함 캔들 조회 요청: symbol={}, startDate={}, endDate={}", symbol, startDate, endDate);
 
     List<OHLCPriceDto> result = marketService.getCandlesWithDividends(symbol, startDate, endDate);
@@ -339,7 +459,7 @@ public class MarketController {
       @Parameter(description = "최소 배당금 ($)", example = "1.0", required = true)
       @RequestParam @Positive BigDecimal minAmount,
       @Parameter(description = "검색 시작 날짜 (기본: 1년 전)", example = "2024-01-01")
-      @RequestParam(required = false) LocalDate fromDate) {
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate) {
     log.debug("고배당주 검색 요청: minAmount={}, fromDate={}", minAmount, fromDate);
 
     LocalDate searchFromDate = fromDate != null ? fromDate : LocalDate.now().minusYears(1);

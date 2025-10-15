@@ -1,37 +1,52 @@
 spring:
   application:
     name: gateway-server
-  main:
-    web-application-type: reactive
-
-  # Config Server 연결
   config:
-    import: "optional:configserver:${SPRING_CLOUD_CONFIG_URI:http://localhost:8888}"
-
-  # Cloud
+    import: "optional:configserver:${SPRING_CLOUD_CONFIG_URI:http://config-server:8888}"
   cloud:
     config:
-      uri: ${SPRING_CLOUD_CONFIG_URI:http://localhost:8888}
       username: ${SPRING_CLOUD_CONFIG_USERNAME:config}
       password: ${SPRING_CLOUD_CONFIG_PASSWORD:config123}
-      fail-fast: false
-      retry:
-        initial-interval: 3000
-        max-attempts: 6
-        max-interval: 4000
-        multiplier: 1.1
-    compatibility-verifier:
-      enabled: false
+    gateway:
+      routes:
+        - id: market-data-route
+          uri: http://market-data-service:8083
+          predicates:
+            - Path=/api/market/**
+        - id: user-service-route
+          uri: http://user-service:8080
+          predicates:
+            - Path=/api/auth/**,/api/users/**,/api/accounts/**
+        - id: trade-route
+          uri: http://trade-service:8081
+          predicates:
+            - Path=/api/trade/**,/api/trade-history/**,/api/portfolio/**
+        - id: backtest-route
+          uri: http://backtest-service:8082
+          predicates:
+            - Path=/api/trading-simulation/**,/api/backtest/**,/api/analysis/**,/api/internal/backtest/**
+  data:
+    redis:
+      host: ${REDIS_HOST:redis.default.svc.cluster.local}
+      port: 6379
+  main:
+    web-application-type: reactive
 
 server:
   port: 8070
 
-
 management:
   endpoints:
-    enabled-by-default: false
+    web:
+      exposure:
+        include: health,info,gateway
 
-logging:
-  level:
-    org.springframework.cloud.gateway: INFO
-    com.muscat.gateway: INFO
+services:
+  market-data:
+    uri: http://market-data-service:8083
+  user:
+    uri: http://user-service:8080
+  trade:
+    uri: http://trade-service:8081
+  backtest:
+    uri: http://backtest-service:8082

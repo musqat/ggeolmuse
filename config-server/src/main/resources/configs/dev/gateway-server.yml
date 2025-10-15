@@ -1,0 +1,37 @@
+spring:
+  main:
+    web-application-type: reactive
+
+  cloud:
+    gateway:
+
+services:
+  market-data:
+    uri: http://market-data-service:8083
+  user:
+    uri: http://user-service:8080
+  trade:
+    uri: http://trade-service:8081
+  backtest:
+    uri: http://backtest-service:8082
+
+gateway:
+  cors:
+    allowed-origins: "http://localhost:3000,http://localhost:5173,http://app.localhost,http://172.18.0.6:3000,http://172.18.0.7"
+
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO
+    com.muscat.gateway: INFO
+    reactor.netty: WARN
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway,routes
+  endpoint:
+    gateway:
+      enabled: true
+    routes:
+      enabled: true

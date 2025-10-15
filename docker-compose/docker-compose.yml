@@ -80,7 +80,7 @@ services:
 
   # Gateway
   gateway-server:
-    image: gateway-server:1.2.2
+    image: gateway-server:1.2.8
     container_name: ggeolmuse-gateway-server
     ports:
       - "8070:8070"
@@ -88,9 +88,11 @@ services:
       SPRING_APPLICATION_NAME: "gateway-server"
       SERVER_PORT: 8070
       SPRING_MAIN_WEB_APPLICATION_TYPE: reactive
-      SPRING_CLOUD_CONFIG_ENABLED: false
+      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
+      SPRING_CLOUD_CONFIG_USERNAME: config
+      SPRING_CLOUD_CONFIG_PASSWORD: config123
       SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: false
-      SPRING_PROFILES_ACTIVE: default
+      SPRING_PROFILES_ACTIVE: dev
     healthcheck:
       test: ["NONE"]
     depends_on:
@@ -177,7 +179,7 @@ services:
 
   # Market Data Service
   market-data-service:
-    image: market-data-service:1.2.2
+    image: market-data-service:1.2.8
     container_name: ggeolmuse-market-data-service
     ports:
       - "8083:8083"
@@ -196,11 +198,11 @@ services:
       KEYCLOAK_ADMIN_USERNAME: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8083/actuator/health", "||", "exit", "1"]
-      interval: 20s
-      timeout: 10s
-      retries: 10
-      start_period: 45s
+      test: ["CMD", "sh", "-c", "nc -z localhost 8083"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     depends_on:
       gateway-server:
         condition: service_started
@@ -248,6 +250,35 @@ services:
           memory: 2g
         reservations:
           memory: 1g
+
+  # Frontend Web Application
+  frontend-web:
+    build:
+      context: ../frontend-web
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=http://localhost:3000/api
+        - VITE_KEYCLOAK_URL=http://localhost:7001
+        - VITE_KEYCLOAK_REALM=muscathan
+        - VITE_KEYCLOAK_CLIENT_ID=ggeolmuse-frontend
+    container_name: ggeolmuse-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      gateway-server:
+        condition: service_started
+      keycloak:
+        condition: service_started
+    networks:
+      - ggeolmuse-network
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+        reservations:
+          memory: 256m
 
 # VOLUMES
 volumes:

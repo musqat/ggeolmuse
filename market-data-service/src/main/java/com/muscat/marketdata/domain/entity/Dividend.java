@@ -32,7 +32,7 @@ public class Dividend {
   @Column(name = "amount", precision = 19, scale = 8, nullable = false)
   private BigDecimal amount;
 
-  // 배당 통화 (NASDAQ 100은 대부분 USD)
+  // 배당 통화 (기본값: USD)
   @Column(name = "currency", length = 3, nullable = false)
   @Builder.Default
   private String currency = "USD";

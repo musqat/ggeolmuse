@@ -27,6 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-bom
     strategy:
+      fail-fast: false
       matrix:
         service:
           - config-server

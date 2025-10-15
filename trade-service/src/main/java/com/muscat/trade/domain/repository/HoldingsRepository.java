@@ -23,4 +23,5 @@ public interface HoldingsRepository extends JpaRepository<Holdings, String> {
       @Param("accountId") Long accountId,
       @Param("symbol") String symbol);
 
+  Optional<Holdings> findByUserIdAndSymbol(String userId, String symbol);
 }

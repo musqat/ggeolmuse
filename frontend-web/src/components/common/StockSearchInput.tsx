@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Search, X } from 'lucide-react';
-import { SUPPORTED_SYMBOLS, type SupportedSymbol } from '../../types/stock';
+import { type SupportedSymbol } from '../../types/stock';
 
 interface StockInfo {
   symbol: SupportedSymbol;
@@ -12,21 +12,42 @@ interface StockSearchInputProps {
   onChange: (symbol: string) => void;
   placeholder?: string;
   className?: string;
+  supportedSymbols?: string[];
 }
 
-const stockList: StockInfo[] = [
-  { symbol: 'AAPL', name: 'Apple Inc.' },
-  { symbol: 'MSFT', name: 'Microsoft Corporation' },
-  { symbol: 'NVDA', name: 'NVIDIA Corporation' },
-  { symbol: 'GOOGL', name: 'Alphabet Inc.' },
-  { symbol: 'TSLA', name: 'Tesla Inc.' }
-];
+// 회사명 조회 헬퍼 함수
+const getSymbolName = (symbol: string): string => {
+  const names: { [key: string]: string } = {
+    'AAPL': 'Apple Inc.',
+    'MSFT': 'Microsoft Corporation',
+    'NVDA': 'NVIDIA Corporation',
+    'GOOGL': 'Alphabet Inc.',
+    'TSLA': 'Tesla Inc.',
+    'AMZN': 'Amazon.com Inc.',
+    'META': 'Meta Platforms Inc.',
+    'BRK.B': 'Berkshire Hathaway Inc.',
+    'AVGO': 'Broadcom Inc.',
+    'JPM': 'JPMorgan Chase & Co.',
+    'LLY': 'Eli Lilly and Company',
+    'UNH': 'UnitedHealth Group Inc.',
+    'XOM': 'Exxon Mobil Corporation',
+    'V': 'Visa Inc.',
+    'PG': 'Procter & Gamble Co.',
+    'MA': 'Mastercard Incorporated',
+    'HD': 'Home Depot Inc.',
+    'JNJ': 'Johnson & Johnson',
+    'ABBV': 'AbbVie Inc.',
+    'NFLX': 'Netflix Inc.'
+  };
+  return names[symbol] || symbol;
+};
 
 const StockSearchInput: React.FC<StockSearchInputProps> = ({
   value,
   onChange,
   placeholder = "종목 검색...",
-  className = ""
+  className = "",
+  supportedSymbols = []
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -34,18 +55,32 @@ const StockSearchInput: React.FC<StockSearchInputProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  // supportedSymbols을 StockInfo 형태로 변환 (useMemo로 최적화)
+  const dynamicStockList = useMemo(() => {
+    return supportedSymbols.map(symbol => ({
+      symbol: symbol,
+      name: getSymbolName(symbol)
+    }));
+  }, [supportedSymbols]);
+
+  // 필터링 로직을 useMemo로 처리하여 useEffect 없이 계산
+  const filteredStocksResult = useMemo(() => {
     if (searchTerm.trim() === '') {
-      setFilteredStocks(stockList);
+      return dynamicStockList.slice(0, 20);
     } else {
-      const filtered = stockList.filter(
+      const filtered = dynamicStockList.filter(
         stock =>
           stock.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
           stock.name.toLowerCase().includes(searchTerm.toLowerCase())
       );
-      setFilteredStocks(filtered);
+      return filtered.slice(0, 20);
     }
-  }, [searchTerm]);
+  }, [searchTerm, dynamicStockList]);
+
+  // filteredStocks 상태를 filteredStocksResult로 동기화
+  useEffect(() => {
+    setFilteredStocks(filteredStocksResult);
+  }, [filteredStocksResult]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

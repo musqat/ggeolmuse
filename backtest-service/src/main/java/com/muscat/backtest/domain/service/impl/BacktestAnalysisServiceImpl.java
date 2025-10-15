@@ -10,11 +10,13 @@ import com.muscat.backtest.common.enums.type.BacktestType;
 import com.muscat.backtest.domain.dto.request.BaseComparisonRequest;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
+import com.muscat.backtest.domain.dto.request.OptimalTimingRequest;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
 import com.muscat.backtest.domain.dto.request.StrategyComparisonRequest;
 import com.muscat.backtest.domain.dto.request.SymbolComparisonRequest;
 import com.muscat.backtest.domain.dto.request.TimingComparisonRequest;
 import com.muscat.backtest.domain.dto.response.ComparisonResponse;
+import com.muscat.backtest.domain.dto.response.OptimalTimingResponse;
 import com.muscat.backtest.domain.dto.response.SimulationResponse;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
@@ -23,6 +25,7 @@ import com.muscat.backtest.domain.model.StrategyParameter;
 import com.muscat.backtest.domain.service.BacktestAnalysisService;
 import com.muscat.backtest.domain.service.TradingSimulationService;
 import com.muscat.backtest.domain.strategy.InvestmentStrategy;
+import com.muscat.backtest.domain.strategy.OptimalTimingStrategy;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -41,18 +44,20 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
   private final Map<StrategyType, InvestmentStrategy> strategyMap;
   private final ResponseMapper responseMapper;
   private final BacktestHistoryUtils backtestHistoryUtils;
+  private final OptimalTimingStrategy optimalTimingStrategy;
 
   public BacktestAnalysisServiceImpl(TradingSimulationService tradingSimulationService,
       List<InvestmentStrategy> strategies, ResponseMapper responseMapper,
-      BacktestHistoryUtils backtestHistoryUtils) {
+      BacktestHistoryUtils backtestHistoryUtils, OptimalTimingStrategy optimalTimingStrategy) {
     this.tradingSimulationService = tradingSimulationService;
     this.responseMapper = responseMapper;
     this.backtestHistoryUtils = backtestHistoryUtils;
+    this.optimalTimingStrategy = optimalTimingStrategy;
     this.strategyMap = strategies.stream()
         .collect(Collectors.toMap(InvestmentStrategy::getStrategyType, Function.identity()));
   }
 
-  // 투자 전략 유형에 따라 백테스팅을 실행
+  // DCA 전략 백테스팅 실행
   @Override
   public StrategyResponse runDcaStrategy(DcaStrategyRequest request) {
     log.info("DCA 전략 백테스팅 시작: {}", request.getSymbol());
@@ -262,6 +267,23 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
       return;
     }
     saveBacktestHistory(request.getUserId(), BacktestType.COMPARISON, request);
+  }
+
+  @Override
+  public OptimalTimingResponse analyzeOptimalTiming(OptimalTimingRequest request) {
+    log.info("최적 타이밍 분석 시작: {} - 목표 수익률 {}%",
+        request.getSymbol(), request.getTargetReturnPercent());
+
+    OptimalTimingResponse result = optimalTimingStrategy.analyzeOptimalTiming(request);
+
+    if (request.getUserId() != null) {
+      saveBacktestHistory(request.getUserId(), BacktestType.STRATEGY_SIMULATION, request);
+    }
+
+    log.info("최적 타이밍 분석 완료: {} - {}일 중 {}일 목표 달성",
+        request.getSymbol(), result.getTotalAnalyzedDays(), result.getTotalQualifyingDays());
+
+    return result;
   }
 
 }

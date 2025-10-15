@@ -1,0 +1,11 @@
+spring:
+  main:
+    web-application-type: reactive
+  cloud:
+    gateway:
+      httpclient:
+        http2: false
+        maxHeaderSize: 32KB
+        connect-timeout: 5000
+        response-timeout: 30s
+

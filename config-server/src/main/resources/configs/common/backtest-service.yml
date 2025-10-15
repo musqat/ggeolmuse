@@ -1,0 +1,88 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: backtest-service
+  data:
+    redis:
+      host: ${SPRING_REDIS_HOST:redis}
+      port: ${SPRING_REDIS_PORT:6379}
+      password: ${SPRING_REDIS_PASSWORD:}
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${keycloak.auth-server-url}/realms/${keycloak.realm}
+
+keycloak:
+  auth-server-url: http://keycloak:8080
+  realm: muscathan
+  resource: muscat-user-service
+
+app:
+  market-data:
+    url: http://${MARKET_DATA_SERVICE_HOST:localhost}:${MARKET_DATA_SERVICE_PORT:8083}
+  trade-service:
+    url: http://${TRADE_SERVICE_HOST:localhost}:${TRADE_SERVICE_PORT:8081}
+  user-service:
+    url: http://${USER_SERVICE_HOST:localhost}:${USER_SERVICE_PORT:8080}
+
+feign:
+  client:
+    config:
+      market-data-service:
+        connect-timeout: 10000
+        read-timeout: 30000
+      trade-service:
+        connect-timeout: 5000
+        read-timeout: 15000
+      user-service:
+        connect-timeout: 5000
+        read-timeout: 10000
+
+backtest:
+  calculation:
+    precision: 8
+    scale: 4
+    max-years: 10
+    min-days: 30
+  concurrent:
+    max-threads: 4
+    queue-capacity: 100
+    timeout-minutes: 10
+  rate-limit:
+    max-requests-per-minute: 60
+    max-concurrent-backtests: 5
+    daily-limit-per-user: 100
+  strategy:
+    dca:
+      min-monthly-amount: 100.00
+      max-monthly-amount: 10000.00
+    conditional:
+      min-drop-percentage: 5
+      max-drop-percentage: 50
+      min-total-investment: 1000.00
+  comparison:
+    max-symbols: 10
+    max-strategies: 5
+    max-timings: 10
+  validation:
+    min-investment-amount: 100.00
+    max-investment-amount: 10000000.00
+    max-trading-fee: 0.05
+    required-data-points: 30
+  cache:
+    result-ttl-hours: 24
+    history-ttl-hours: 168
+    max-cache-size: 1000
+  storage:
+    auto-save-enabled: true
+    max-results-per-user: 1000
+    cleanup-days: 90
+
+management:
+  health:
+    redis:
+      enabled: false

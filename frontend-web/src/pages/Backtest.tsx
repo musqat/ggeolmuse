@@ -1,448 +1,2161 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   TrendingUp,
   TrendingDown,
   BarChart3,
-  Calendar,
   DollarSign,
   Target,
-  Settings,
   Play,
   RotateCcw,
-  Download,
-  Info,
-  ChevronDown,
-  Activity
+  Activity,
+  ExternalLink,
+  LogIn,
+  Repeat,
+  AlertTriangle,
+  GitCompare,
+  Clock,
+  Lock,
+  History
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import StockSearchInput from '@components/common/StockSearchInput';
+import { NumberInput } from '@components/common/NumberInput';
+import { SimpleChart } from '@components/charts/backtest/SimpleChart';
+import { DCAChart } from '@components/charts/backtest/DCAChart';
+import { ConditionalChart } from '@components/charts/backtest/ConditionalChart';
+import { CompareSymbolsChart } from '@components/charts/backtest/CompareSymbolsChart';
+import { CompareStrategiesChart } from '@components/charts/backtest/CompareStrategiesChart';
+import { stockApi, backtestApi } from '../services/api';
+import type { BacktestHistoryDto, BacktestHistoryPage } from '../services/api';
+import LoginModal from '../components/auth/LoginModal';
+import { SimpleStrategyForm } from '@components/backtest/forms/SimpleStrategyForm';
+import { DCAStrategyForm } from '@components/backtest/forms/DCAStrategyForm';
+import { ConditionalStrategyForm } from '@components/backtest/forms/ConditionalStrategyForm';
+import { SymbolComparisonForm } from '@components/backtest/forms/SymbolComparisonForm';
+import { StrategyComparisonForm } from '@components/backtest/forms/StrategyComparisonForm';
+import { ResultSummaryCards } from '@components/backtest/shared/ResultSummaryCards';
+
+type BacktestMode = 'simple' | 'dca' | 'conditional' | 'compare-symbols' | 'compare-strategies' | 'history';
+
+// 전략 이름 매핑
+const STRATEGY_NAMES: Record<string, string> = {
+  'SIMPLE': '단순 매수',
+  'DCA': '적립식',
+  'CONDITIONAL_PURCHASE': '조건부 매수'
+};
+
+// 다중 종목 비교용 차트 색상
+const CHART_COLORS = [
+  '#3b82f6', // blue
+  '#ef4444', // red
+  '#10b981', // green
+  '#f59e0b', // amber
+  '#8b5cf6', // purple
+  '#ec4899', // pink
+  '#14b8a6', // teal
+  '#f97316', // orange
+];
 
 const Backtest: React.FC = () => {
-  const [strategy, setStrategy] = useState('dca');
+  const navigate = useNavigate();
+  const { isAuthenticated, login, user } = useAuth();
+
+  // 공통 설정
+  const [mode, setMode] = useState<BacktestMode>('simple');
   const [symbol, setSymbol] = useState('AAPL');
-  const [startDate, setStartDate] = useState('2020-01-01');
-  const [endDate, setEndDate] = useState('2024-12-31');
-  const [initialAmount, setInitialAmount] = useState('10000');
-  const [monthlyAmount, setMonthlyAmount] = useState('1000');
+  const [supportedSymbols, setSupportedSymbols] = useState<string[]>([]);
+
+  // 단순 백테스트 설정
+  const [purchaseDate, setPurchaseDate] = useState('2023-01-01');
+  const [saleDate, setSaleDate] = useState('');  // Empty = current date
+  const [initialInvestment, setInitialInvestment] = useState('300000');
+  const [simpleReinvestDividends, setSimpleReinvestDividends] = useState(false);
+  const [simpleTradingFeeRate, setSimpleTradingFeeRate] = useState('0');
+  const [simpleDividendTax, setSimpleDividendTax] = useState(false);
+
+  // 환율 설정 (Simple backtest용)
+  const [fxMode, setFxMode] = useState<'auto' | 'manual'>('auto');
+  const [manualPurchaseFxRate, setManualPurchaseFxRate] = useState('1300');
+  const [manualCurrentFxRate, setManualCurrentFxRate] = useState('1350');
+
+  // DCA 전략 설정
+  const [dcaStartDate, setDcaStartDate] = useState('2023-01-01');
+  const [dcaEndDate, setDcaEndDate] = useState('');  // Empty = current date
+  const [monthlyAmount, setMonthlyAmount] = useState('100000');
+  const [purchaseDay, setPurchaseDay] = useState('15');
+  const [investmentInterval, setInvestmentInterval] = useState('1');
+  const [dcaReinvestDividends, setDcaReinvestDividends] = useState(false);
+  const [dcaTradingFeeRate, setDcaTradingFeeRate] = useState('0');
+  const [dcaDividendTax, setDcaDividendTax] = useState(false);
+  const [dcaFxMode, setDcaFxMode] = useState<'auto' | 'manual'>('auto');
+  const [dcaManualPurchaseFxRate, setDcaManualPurchaseFxRate] = useState('1300');
+  const [dcaManualCurrentFxRate, setDcaManualCurrentFxRate] = useState('1350');
+
+  // 조건부 매수 전략 설정
+  const [conditionalStartDate, setConditionalStartDate] = useState('2023-01-01');
+  const [conditionalEndDate, setConditionalEndDate] = useState('');  // Empty = current date
+  const [investmentMode, setInvestmentMode] = useState<'TOTAL_BUDGET' | 'PER_PURCHASE'>('TOTAL_BUDGET');
+  const [totalInvestment, setTotalInvestment] = useState('1000000');
+  const [amountPerPurchase, setAmountPerPurchase] = useState('100000');
+  const [maxPurchases, setMaxPurchases] = useState('20');
+  const [dropPercentage, setDropPercentage] = useState('5');
+  const [conditionalReinvestDividends, setConditionalReinvestDividends] = useState(false);
+  const [conditionalTradingFeeRate, setConditionalTradingFeeRate] = useState('0');
+  const [conditionalDividendTax, setConditionalDividendTax] = useState(false);
+  const [conditionalFxMode, setConditionalFxMode] = useState<'auto' | 'manual'>('auto');
+  const [conditionalManualPurchaseFxRate, setConditionalManualPurchaseFxRate] = useState('1300');
+  const [conditionalManualCurrentFxRate, setConditionalManualCurrentFxRate] = useState('1350');
+
+  // 종목 비교 설정
+  const [compareSymbols, setCompareSymbols] = useState<string[]>(['AAPL', 'MSFT']);
+  const [compareSymbolInput, setCompareSymbolInput] = useState('');
+  const [comparePurchaseDate, setComparePurchaseDate] = useState('2023-01-01');
+  const [compareSaleDate, setCompareSaleDate] = useState('');  // Empty = current date
+  const [compareInvestment, setCompareInvestment] = useState('1000000');
+  const [compareReinvestDividends, setCompareReinvestDividends] = useState(false);
+  const [compareTradingFeeRate, setCompareTradingFeeRate] = useState('0');
+  const [compareDividendTax, setCompareDividendTax] = useState(false);
+  const [compareFxMode, setCompareFxMode] = useState<'auto' | 'manual'>('auto');
+  const [compareManualPurchaseFxRate, setCompareManualPurchaseFxRate] = useState('1300');
+  const [compareManualCurrentFxRate, setCompareManualCurrentFxRate] = useState('1350');
+
+  // 전략 비교 설정
+  const [strategyCompareSymbol, setStrategyCompareSymbol] = useState('AAPL');
+  const [strategyStartDate, setStrategyStartDate] = useState('2023-01-01');
+  const [strategyEndDate, setStrategyEndDate] = useState('');  // Empty = current date
+  const [strategyInvestment, setStrategyInvestment] = useState('1000000');
+  const [selectedStrategies, setSelectedStrategies] = useState<string[]>(['SIMPLE', 'DCA']);
+  const [strategyReinvestDividends, setStrategyReinvestDividends] = useState(false);
+  const [strategyTradingFeeRate, setStrategyTradingFeeRate] = useState('0');
+  const [strategyDividendTax, setStrategyDividendTax] = useState(false);
+  const [strategyFxMode, setStrategyFxMode] = useState<'auto' | 'manual'>('auto');
+  const [strategyManualPurchaseFxRate, setStrategyManualPurchaseFxRate] = useState('1300');
+  const [strategyManualCurrentFxRate, setStrategyManualCurrentFxRate] = useState('1350');
+
+  // 전략 파라미터 모달 관련
+  const [showStrategyModal, setShowStrategyModal] = useState(false);
+  const [modalStrategyType, setModalStrategyType] = useState<'SIMPLE' | 'DCA' | 'CONDITIONAL_PURCHASE' | null>(null);
+  const [strategyParameters, setStrategyParameters] = useState<{[key: string]: any}>({});
+
+  // 최적 타이밍 옵션 (Simple & Symbol Comparison)
+  const [findOptimalBuy, setFindOptimalBuy] = useState(false);
+  const [findOptimalSell, setFindOptimalSell] = useState(false);
+
+  // 실행 상태
   const [isRunning, setIsRunning] = useState(false);
-  const [showResults, setShowResults] = useState(false);
+  const [result, setResult] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [symbolOptimalPoints, setSymbolOptimalPoints] = useState<{
+    [symbol: string]: { buyDate: string; sellDate: string; minPrice: number; maxValue: number };
+  }>({});
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
-  // 실제로는 API에서 받아올 최신 데이터 날짜
-  const [lastUpdateDate, setLastUpdateDate] = useState('2024-09-18');
+  // 히스토리 관련 상태
+  const [historyData, setHistoryData] = useState<BacktestHistoryDto[]>([]);
+  const [historyPage, setHistoryPage] = useState(0);
+  const [historyTotalPages, setHistoryTotalPages] = useState(0);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
-  // Mock 백테스트 결과
-  const backtestResults = {
-    totalReturn: 156789,
-    returnPercent: 56.78,
-    annualizedReturn: 12.45,
-    maxDrawdown: -15.2,
-    sharpeRatio: 1.35,
-    winRate: 68.5,
-    totalTrades: 48,
-    benchmark: {
-      return: 89234,
-      returnPercent: 32.14
-    },
-    monthlyReturns: [
-      { month: '2024-01', return: 2.5 },
-      { month: '2024-02', return: -1.2 },
-      { month: '2024-03', return: 4.8 },
-      { month: '2024-04', return: 1.9 },
-      { month: '2024-05', return: 3.2 },
-      { month: '2024-06', return: -0.8 }
-    ]
+  // 히스토리 로드
+  const loadHistory = async (page: number = 0) => {
+    if (!user?.email) {
+      alert('로그인이 필요합니다.');
+      setIsLoginModalOpen(true);
+      return;
+    }
+
+    setHistoryLoading(true);
+    try {
+      const response = await backtestApi.getHistory(user.email, page, 20);
+      setHistoryData(response.data.content);
+      setHistoryTotalPages(response.data.totalPages);
+      setHistoryPage(page);
+    } catch (err: any) {
+      console.error('히스토리 로드 실패:', err);
+      alert('히스토리를 불러오는데 실패했습니다.');
+    } finally {
+      setHistoryLoading(false);
+    }
   };
 
-  const strategies = [
-    { id: 'dca', name: '정액적립 (DCA)', description: '매월 일정 금액 투자' },
-    { id: 'value_avg', name: '가치평균', description: '목표 금액 도달을 위한 투자' },
-    { id: 'momentum', name: '모멘텀', description: '상승 추세 시 매수' },
-    { id: 'contrarian', name: '역추세', description: '하락 시 매수, 상승 시 매도' }
-  ];
+  // 히스토리 모드로 전환 시 자동 로드
+  useEffect(() => {
+    if (mode === 'history' && isAuthenticated) {
+      loadHistory(0);
+    }
+  }, [mode, isAuthenticated]);
+
+  // 지원 종목 조회
+  useEffect(() => {
+    const loadSymbols = async () => {
+      try {
+        const response = await stockApi.getAllSymbols();
+        const assets = Array.isArray(response.data) ? response.data : [];
+        const symbols = assets.map((asset: any) => String(asset.symbol).toUpperCase());
+        setSupportedSymbols(symbols);
+      } catch (error) {
+        setSupportedSymbols(['AAPL', 'MSFT', 'GOOGL', 'TSLA', 'NVDA']);
+      }
+    };
+
+    loadSymbols();
+  }, []);
+
+  // 단순 백테스트 실행
+  const runSimpleBacktest = async () => {
+    const investment = parseFloat(initialInvestment);
+    if (isNaN(investment) || investment <= 0) {
+      alert('올바른 투자 금액을 입력해주세요.');
+      return;
+    }
+
+    if (investment < 100000) {
+      alert('최소 10만원 이상 투자해주세요. (미국 주식 1주 구매를 위해 약 30만원 권장)');
+      return;
+    }
+
+    if (new Date(purchaseDate) >= new Date()) {
+      alert('매수일은 과거 날짜여야 합니다.');
+      return;
+    }
+
+    // 매도일이 비어있으면 현재 날짜 사용
+    const effectiveSaleDate = saleDate || new Date().toISOString().split('T')[0];
+
+    if (saleDate && new Date(purchaseDate) >= new Date(saleDate)) {
+      alert('매수일은 매도일보다 빠른 날짜여야 합니다.');
+      return;
+    }
+
+    setIsRunning(true);
+    setError(null);
+    setResult(null);
+
+    try {
+      const requestData: any = {
+        symbol: symbol,
+        purchaseDate: purchaseDate,
+        saleDate: effectiveSaleDate,
+        investmentAmount: investment,
+        findOptimalBuy: findOptimalBuy,
+        findOptimalSell: findOptimalSell,
+        reinvestDividends: simpleReinvestDividends,
+        tradingFeeRate: parseFloat(simpleTradingFeeRate) / 100,
+        dividendTaxRate: simpleDividendTax ? 0.154 : 0,
+        userId: user?.email || 'anonymous'
+      };
+
+      // 환율 Manual 모드
+      if (fxMode === 'manual') {
+        requestData.purchaseFxRate = parseFloat(manualPurchaseFxRate);
+        requestData.currentFxRate = parseFloat(manualCurrentFxRate);
+      }
+
+      const response = await backtestApi.runSimulation(requestData);
+
+      setResult({ ...response.data, mode: 'simple' });
+    } catch (err: any) {
+      setError(err.response?.data?.detail || '백테스트 실행에 실패했습니다.');
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
+  // DCA 전략 실행
+  const runDcaStrategy = async () => {
+    const monthly = parseFloat(monthlyAmount);
+    const day = parseInt(purchaseDay);
+    const interval = parseInt(investmentInterval);
+
+    if (isNaN(monthly) || monthly <= 0) {
+      alert('올바른 월 투자 금액을 입력해주세요.');
+      return;
+    }
+
+    if (isNaN(day) || day < 1 || day > 28) {
+      alert('투자일은 1~28 사이여야 합니다.');
+      return;
+    }
+
+    // 종료일이 비어있으면 오늘 날짜로 설정
+    const effectiveEndDate = dcaEndDate || new Date().toISOString().split('T')[0];
+
+    if (new Date(dcaStartDate) >= new Date(effectiveEndDate)) {
+      alert('시작일은 종료일보다 빠른 날짜여야 합니다.');
+      return;
+    }
+
+    setIsRunning(true);
+    setError(null);
+    setResult(null);
+
+    try {
+      const requestData: any = {
+        symbol: symbol,
+        startDate: dcaStartDate,
+        endDate: effectiveEndDate,
+        monthlyAmount: monthly,
+        purchaseDay: day,
+        investmentInterval: interval,
+        reinvestDividends: dcaReinvestDividends,
+        tradingFeeRate: parseFloat(dcaTradingFeeRate) / 100,
+        dividendTaxRate: dcaDividendTax ? 0.154 : 0,
+        userId: user?.email || 'anonymous'
+      };
+
+      // 수동 환율 모드인 경우 환율 추가
+      if (dcaFxMode === 'manual') {
+        requestData.purchaseFxRate = parseFloat(dcaManualPurchaseFxRate);
+        requestData.currentFxRate = parseFloat(dcaManualCurrentFxRate);
+      }
+
+      const response = await backtestApi.runDcaStrategy(requestData);
+
+      setResult({ ...response.data, mode: 'dca' });
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'DCA 전략 실행에 실패했습니다.');
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
+  // 조건부 매수 전략 실행
+  const runConditionalStrategy = async () => {
+    const drop = parseFloat(dropPercentage);
+
+    // 투자 모드별 유효성 검사
+    if (investmentMode === 'TOTAL_BUDGET') {
+      const investment = parseFloat(totalInvestment);
+      const perPurchase = parseFloat(amountPerPurchase);
+
+      if (isNaN(investment) || investment <= 0) {
+        alert('올바른 총 투자금을 입력해주세요.');
+        return;
+      }
+      if (isNaN(perPurchase) || perPurchase <= 0) {
+        alert('올바른 회당 투자금을 입력해주세요.');
+        return;
+      }
+      if (perPurchase > investment) {
+        alert('회당 투자금은 총 투자금보다 작아야 합니다.');
+        return;
+      }
+    } else {
+      const perPurchase = parseFloat(amountPerPurchase);
+      const maxCount = parseInt(maxPurchases);
+
+      if (isNaN(perPurchase) || perPurchase <= 0) {
+        alert('올바른 회당 투자금을 입력해주세요.');
+        return;
+      }
+      if (isNaN(maxCount) || maxCount <= 0) {
+        alert('올바른 최대 횟수를 입력해주세요.');
+        return;
+      }
+    }
+
+    if (isNaN(drop) || drop <= 0 || drop > 100) {
+      alert('하락률은 0~100 사이여야 합니다.');
+      return;
+    }
+
+    // 종료일이 비어있으면 오늘 날짜로 설정
+    const effectiveEndDate = conditionalEndDate || new Date().toISOString().split('T')[0];
+
+    if (new Date(conditionalStartDate) >= new Date(effectiveEndDate)) {
+      alert('시작일은 종료일보다 빠른 날짜여야 합니다.');
+      return;
+    }
+
+    setIsRunning(true);
+    setError(null);
+    setResult(null);
+
+    try {
+      const requestData: any = {
+        symbol: symbol,
+        startDate: conditionalStartDate,
+        endDate: effectiveEndDate,
+        investmentMode: investmentMode,
+        dropPercentage: drop / 100,
+        reinvestDividends: conditionalReinvestDividends,
+        tradingFeeRate: parseFloat(conditionalTradingFeeRate) / 100,
+        dividendTaxRate: conditionalDividendTax ? 0.154 : 0,
+        userId: user?.email || 'anonymous'
+      };
+
+      if (investmentMode === 'TOTAL_BUDGET') {
+        requestData.totalInvestment = parseFloat(totalInvestment);
+        requestData.amountPerPurchase = parseFloat(amountPerPurchase);
+      } else {
+        requestData.amountPerPurchase = parseFloat(amountPerPurchase);
+        requestData.maxPurchases = parseInt(maxPurchases);
+      }
+
+      // 수동 환율 모드인 경우 환율 추가
+      if (conditionalFxMode === 'manual') {
+        requestData.purchaseFxRate = parseFloat(conditionalManualPurchaseFxRate);
+        requestData.currentFxRate = parseFloat(conditionalManualCurrentFxRate);
+      }
+
+      const response = await backtestApi.runConditionalStrategy(requestData);
+
+      setResult({ ...response.data, mode: 'conditional' });
+    } catch (err: any) {
+      setError(err.response?.data?.detail || '조건부 전략 실행에 실패했습니다.');
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
+  // 종목 비교 실행
+  const runSymbolComparison = async () => {
+    if (compareSymbols.length < 2) {
+      alert('최소 2개 이상의 종목을 선택해주세요.');
+      return;
+    }
+
+    const investment = parseFloat(compareInvestment);
+    if (isNaN(investment) || investment <= 0) {
+      alert('올바른 투자 금액을 입력해주세요.');
+      return;
+    }
+
+    // 매도일이 비어있으면 현재 날짜 사용
+    const effectiveCompareSaleDate = compareSaleDate || new Date().toISOString().split('T')[0];
+
+    if (compareSaleDate && new Date(comparePurchaseDate) >= new Date(compareSaleDate)) {
+      alert('매수일은 매도일보다 빠른 날짜여야 합니다.');
+      return;
+    }
+
+    setIsRunning(true);
+    setError(null);
+    setResult(null);
+
+    try {
+      const requestData: any = {
+        symbols: compareSymbols,
+        startDate: comparePurchaseDate,
+        endDate: effectiveCompareSaleDate,
+        investmentAmount: investment,
+        findOptimalBuy: findOptimalBuy,
+        findOptimalSell: findOptimalSell,
+        reinvestDividends: compareReinvestDividends,
+        tradingFeeRate: parseFloat(compareTradingFeeRate) / 100,
+        dividendTaxRate: compareDividendTax ? 0.154 : 0,
+        userId: user?.email || 'anonymous'
+      };
+
+      // 수동 환율 모드인 경우 환율 추가
+      if (compareFxMode === 'manual') {
+        requestData.purchaseFxRate = parseFloat(compareManualPurchaseFxRate);
+        requestData.currentFxRate = parseFloat(compareManualCurrentFxRate);
+      }
+
+      const response = await backtestApi.compareSymbols(requestData);
+
+      setResult({ ...response.data, mode: 'compare-symbols' });
+    } catch (err: any) {
+      setError(err.response?.data?.detail || '종목 비교 실행에 실패했습니다.');
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
+  // 전략 비교 실행
+  const runStrategyComparison = async () => {
+    if (selectedStrategies.length < 2) {
+      alert('최소 2개 이상의 전략을 선택해주세요.');
+      return;
+    }
+
+    if (new Date(strategyStartDate) >= new Date(strategyEndDate)) {
+      alert('시작일은 종료일보다 빠른 날짜여야 합니다.');
+      return;
+    }
+
+    // 전략 파라미터 유효성 검사 (기본값으로 폴백)
+    for (const strategyType of selectedStrategies) {
+      const params = strategyParameters[strategyType] || {};
+
+      if (strategyType === 'DCA') {
+        // 모달에서 설정하지 않은 경우 기본값 사용
+        const monthlyAmount = parseFloat(params.monthlyAmount || '100000');
+        const purchaseDay = parseInt(params.purchaseDay || '15');
+
+        if (!monthlyAmount || monthlyAmount <= 0) {
+          alert(`${STRATEGY_NAMES['DCA']}: 월 투자금이 유효하지 않습니다.`);
+          return;
+        }
+        if (!purchaseDay || purchaseDay < 1 || purchaseDay > 31) {
+          alert(`${STRATEGY_NAMES['DCA']}: 매수일이 유효하지 않습니다 (1-31).`);
+          return;
+        }
+      } else if (strategyType === 'CONDITIONAL_PURCHASE') {
+        // 설정되지 않은 경우 전략 투자금과 기본 하락률 사용
+        const totalInvestment = parseFloat(params.totalInvestment || strategyInvestment || '0');
+        const dropPercentage = parseFloat(params.dropPercentage || '5');
+
+        if (!totalInvestment || totalInvestment <= 0) {
+          alert(`${STRATEGY_NAMES['CONDITIONAL_PURCHASE']}: 총 투자금이 유효하지 않습니다.`);
+          return;
+        }
+        if (!dropPercentage || dropPercentage <= 0) {
+          alert(`${STRATEGY_NAMES['CONDITIONAL_PURCHASE']}: 하락률이 유효하지 않습니다.`);
+          return;
+        }
+      }
+    }
+
+    setIsRunning(true);
+    setError(null);
+    setResult(null);
+
+    try {
+      const strategies = selectedStrategies.map(strategyType => {
+        const params = strategyParameters[strategyType] || {};
+
+        if (strategyType === 'SIMPLE') {
+          return {
+            strategyType: 'SIMPLE' as const,
+            name: 'SIMPLE',
+            purchaseDate: params.purchaseDate || strategyStartDate
+          };
+        } else if (strategyType === 'DCA') {
+          return {
+            strategyType: 'DCA' as const,
+            name: 'DCA',
+            monthlyAmount: parseFloat(params.monthlyAmount || '100000'),
+            purchaseDay: parseInt(params.purchaseDay || '15'),
+            investmentInterval: parseInt(params.investmentInterval || '1'),
+            totalInvestmentLimit: parseFloat(strategyInvestment)
+          };
+        } else {  // CONDITIONAL_PURCHASE
+          return {
+            strategyType: 'CONDITIONAL_PURCHASE' as const,
+            name: 'CONDITIONAL_PURCHASE',
+            totalInvestment: parseFloat(params.totalInvestment || strategyInvestment),
+            dropPercentage: parseFloat(params.dropPercentage || '5') / 100
+          };
+        }
+      });
+
+      // 종료일이 비어있을시 현재날짜로 변경
+      const effectiveEndDate = strategyEndDate || new Date().toISOString().split('T')[0];
+
+      const requestData: any = {
+        symbol: strategyCompareSymbol,
+        startDate: strategyStartDate,
+        endDate: effectiveEndDate,
+        investmentAmount: parseFloat(strategyInvestment),
+        strategies,
+        reinvestDividends: strategyReinvestDividends,
+        tradingFeeRate: parseFloat(strategyTradingFeeRate) / 100,
+        dividendTaxRate: strategyDividendTax ? 0.154 : 0,
+        userId: user?.email || 'anonymous'
+      };
+
+      // 환율 Manual 설정
+      if (strategyFxMode === 'manual') {
+        requestData.purchaseFxRate = parseFloat(strategyManualPurchaseFxRate);
+        requestData.currentFxRate = parseFloat(strategyManualCurrentFxRate);
+      }
+
+      const response = await backtestApi.compareStrategies(requestData);
+
+      setResult({ ...response.data, mode: 'compare-strategies' });
+    } catch (err: any) {
+      setError(err.response?.data?.detail || '전략 비교 실행에 실패했습니다.');
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
 
   const runBacktest = async () => {
-    setIsRunning(true);
-    // 실제로는 API 호출
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    setIsRunning(false);
-    setShowResults(true);
+    if (!isAuthenticated) {
+      alert('로그인이 필요합니다.');
+      return;
+    }
+
+    switch (mode) {
+      case 'simple':
+        await runSimpleBacktest();
+        break;
+      case 'dca':
+        await runDcaStrategy();
+        break;
+      case 'conditional':
+        await runConditionalStrategy();
+        break;
+      case 'compare-symbols':
+        await runSymbolComparison();
+        break;
+      case 'compare-strategies':
+        await runStrategyComparison();
+        break;
+    }
   };
+
+  const handleReset = () => {
+    setResult(null);
+    setError(null);
+  };
+
+  const handleViewDetailedChart = () => {
+    navigate(`/charts?symbol=${symbol}`);
+  };
+
+  const handleAddCompareSymbol = () => {
+    if (compareSymbols.length >= 10) {
+      alert('최대 10개까지만 비교할 수 있습니다.');
+      return;
+    }
+    if (compareSymbolInput && !compareSymbols.includes(compareSymbolInput)) {
+      setCompareSymbols([...compareSymbols, compareSymbolInput]);
+      setCompareSymbolInput('');
+    }
+  };
+
+  const handleRemoveCompareSymbol = (symbolToRemove: string) => {
+    setCompareSymbols(compareSymbols.filter(s => s !== symbolToRemove));
+  };
+
+  const toggleStrategy = (strategy: 'SIMPLE' | 'DCA' | 'CONDITIONAL_PURCHASE') => {
+    if (selectedStrategies.includes(strategy)) {
+      if (selectedStrategies.length > 1) {
+        setSelectedStrategies(selectedStrategies.filter(s => s !== strategy));
+        const newParams = { ...strategyParameters };
+        delete newParams[strategy];
+        setStrategyParameters(newParams);
+      }
+    } else {
+      setModalStrategyType(strategy);
+
+      // 기본값 설정 (사용자가 수정 안 해도 저장되도록)
+      if (!strategyParameters[strategy]) {
+        const defaultParams: any = {};
+        if (strategy === 'SIMPLE') {
+          defaultParams.purchaseDate = strategyStartDate;
+        } else if (strategy === 'DCA') {
+          defaultParams.monthlyAmount = '100000';
+          defaultParams.purchaseDay = '15';
+          defaultParams.investmentInterval = '1';
+        } else if (strategy === 'CONDITIONAL_PURCHASE') {
+          defaultParams.dropPercentage = '5';
+        }
+        setStrategyParameters({
+          ...strategyParameters,
+          [strategy]: defaultParams
+        });
+      }
+
+      setShowStrategyModal(true);
+    }
+  };
+
+  const handleSaveStrategyParams = () => {
+    if (!modalStrategyType) return;
+
+    const params = strategyParameters[modalStrategyType] || {};
+
+    if (modalStrategyType === 'SIMPLE') {
+      if (!params.purchaseDate) {
+        alert(`${STRATEGY_NAMES[modalStrategyType]}: 매수일을 입력해주세요.`);
+        return;
+      }
+    } else if (modalStrategyType === 'DCA') {
+      if (!params.monthlyAmount || !params.purchaseDay) {
+        alert(`${STRATEGY_NAMES[modalStrategyType]}: 월 투자금과 매수일을 입력해주세요.`);
+        return;
+      }
+    } else if (modalStrategyType === 'CONDITIONAL_PURCHASE') {
+      // 하락률 체크
+      if (!params.dropPercentage) {
+        alert(`${STRATEGY_NAMES[modalStrategyType]}: 하락률을 입력해주세요.`);
+        return;
+      }
+    }
+
+    setSelectedStrategies([...selectedStrategies, modalStrategyType]);
+    setShowStrategyModal(false);
+    setModalStrategyType(null);
+  };
+
+  // 로그인 안 됨
+  if (!isAuthenticated) {
+    return (
+      <>
+        <div className="max-w-7xl mx-auto px-4 py-6">
+          <div className="min-h-[60vh] flex items-center justify-center">
+            <div className="text-center">
+              <Lock className="w-16 h-16 text-indigo-600 mx-auto mb-4" />
+              <h1 className="text-3xl font-bold text-gray-900 mb-4">로그인이 필요한 서비스입니다</h1>
+              <p className="text-lg text-gray-600 mb-6">
+                백테스트 기능을 이용하시려면 먼저 로그인해주세요
+              </p>
+              <button
+                onClick={() => setIsLoginModalOpen(true)}
+                className="flex items-center space-x-2 bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-colors mx-auto"
+              >
+                <LogIn className="w-5 h-5" />
+                <span>로그인하기</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <LoginModal
+          isOpen={isLoginModalOpen}
+          onClose={() => setIsLoginModalOpen(false)}
+          onSwitchToSignup={() => {
+            setIsLoginModalOpen(false);
+            // 회원가입은 Header에서 관리되므로 단순히 모달만 닫음
+          }}
+          onLogin={async (email: string, password: string) => {
+            await login(email, password);
+          }}
+        />
+      </>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
-      <div className="space-y-6">
-        {/* 헤더 */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">백테스트</h1>
-            <p className="text-gray-600 mt-1">과거 데이터로 투자 전략을 검증해보세요</p>
-          </div>
-          <div className="flex items-center space-x-3 mt-4 md:mt-0">
-            <button className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
-              <Download className="w-4 h-4" />
-              <span>결과 내보내기</span>
-            </button>
-            <button className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
-              <RotateCcw className="w-4 h-4" />
-              <span>초기화</span>
-            </button>
-          </div>
-        </div>
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">백테스트</h1>
+        <p className="text-gray-600">과거 데이터로 투자 전략을 검증해보세요</p>
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* 백테스트 설정 */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <div className="flex items-center space-x-2 mb-6">
-                <Settings className="w-5 h-5 text-indigo-600" />
-                <h3 className="text-lg font-semibold text-gray-900">백테스트 설정</h3>
+      {/* Mode Selection Tabs */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">백테스트 모드</h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <button
+            onClick={() => setMode('simple')}
+            className={`p-3 rounded-lg border-2 transition-all text-sm ${
+              mode === 'simple'
+                ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                : 'border-gray-200 hover:border-gray-300 text-gray-700'
+            }`}
+          >
+            <Target className="w-5 h-5 mx-auto mb-1" />
+            <div className="font-medium">단순</div>
+          </button>
+
+          <button
+            onClick={() => setMode('dca')}
+            className={`p-3 rounded-lg border-2 transition-all text-sm ${
+              mode === 'dca'
+                ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                : 'border-gray-200 hover:border-gray-300 text-gray-700'
+            }`}
+          >
+            <Repeat className="w-5 h-5 mx-auto mb-1" />
+            <div className="font-medium">적립식</div>
+          </button>
+
+          <button
+            onClick={() => setMode('conditional')}
+            className={`p-3 rounded-lg border-2 transition-all text-sm ${
+              mode === 'conditional'
+                ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                : 'border-gray-200 hover:border-gray-300 text-gray-700'
+            }`}
+          >
+            <AlertTriangle className="w-5 h-5 mx-auto mb-1" />
+            <div className="font-medium">조건부</div>
+          </button>
+
+          <button
+            onClick={() => setMode('compare-symbols')}
+            className={`p-3 rounded-lg border-2 transition-all text-sm ${
+              mode === 'compare-symbols'
+                ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                : 'border-gray-200 hover:border-gray-300 text-gray-700'
+            }`}
+          >
+            <GitCompare className="w-5 h-5 mx-auto mb-1" />
+            <div className="font-medium">종목 비교</div>
+          </button>
+
+          <button
+            onClick={() => setMode('compare-strategies')}
+            className={`p-3 rounded-lg border-2 transition-all text-sm ${
+              mode === 'compare-strategies'
+                ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                : 'border-gray-200 hover:border-gray-300 text-gray-700'
+            }`}
+          >
+            <BarChart3 className="w-5 h-5 mx-auto mb-1" />
+            <div className="font-medium">전략 비교</div>
+          </button>
+
+          <button
+            onClick={() => {
+              if (!isAuthenticated) {
+                setIsLoginModalOpen(true);
+              } else {
+                setMode('history');
+              }
+            }}
+            className={`p-3 rounded-lg border-2 transition-all text-sm ${
+              mode === 'history'
+                ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                : 'border-gray-200 hover:border-gray-300 text-gray-700'
+            }`}
+          >
+            <History className="w-5 h-5 mx-auto mb-1" />
+            <div className="font-medium">히스토리</div>
+            {!isAuthenticated && <Lock className="w-3 h-3 ml-1 inline" />}
+          </button>
+        </div>
+      </div>
+
+      {/* History Section */}
+      {mode === 'history' && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">백테스트 히스토리</h2>
+
+          {historyLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <RotateCcw className="w-6 h-6 animate-spin text-indigo-600" />
+              <span className="ml-2 text-gray-600">로딩 중...</span>
+            </div>
+          ) : historyData.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <Clock className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p>아직 백테스트 히스토리가 없습니다.</p>
+              <p className="text-sm mt-1">백테스트를 실행하면 여기에 기록됩니다.</p>
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">실행일시</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">전략 타입</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">환율 모드</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">종목 및 기간</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {historyData.map((history) => {
+                      let params: any = {};
+                      try {
+                        params = JSON.parse(history.requestParams);
+                      } catch (e) {}
+
+                      // 파라미터를 기반으로 상세 백테스트 유형 결정
+                      let backtestTypeLabel: string = history.backtestType;
+
+                      if (history.backtestType === 'STRATEGY_SIMULATION') {
+                        // 전략별 파라미터를 확인하여 유형 결정
+                        if (params.monthlyAmount !== undefined || params.purchaseDay !== undefined) {
+                          backtestTypeLabel = '적립식';
+                        } else if (params.dropPercentage !== undefined || params.totalInvestment !== undefined) {
+                          backtestTypeLabel = '조건부 매수';
+                        } else {
+                          backtestTypeLabel = '심플';
+                        }
+                      } else if (history.backtestType === 'COMPARISON') {
+                        // 종목 비교인지 전략 비교인지 확인
+                        if (params.symbols && Array.isArray(params.symbols)) {
+                          backtestTypeLabel = '종목 비교';
+                        } else if (params.strategies && Array.isArray(params.strategies)) {
+                          backtestTypeLabel = '전략 비교';
+                        } else {
+                          backtestTypeLabel = '비교 분석';
+                        }
+                      } else if (history.backtestType === 'INVESTMENT_ANALYSIS') {
+                        backtestTypeLabel = '투자 분석';
+                      }
+
+                      return (
+                        <tr key={history.backtestId} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                            {new Date(history.createdAt).toLocaleString('ko-KR')}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                            {backtestTypeLabel}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              history.fxRateMode === 'manual'
+                                ? 'bg-orange-100 text-orange-800'
+                                : 'bg-blue-100 text-blue-800'
+                            }`}>
+                              {history.fxRateMode === 'manual' ? '수동' : '자동'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {/* Symbol(s) display */}
+                            {params.symbol && <span className="font-medium">{params.symbol}</span>}
+                            {params.symbols && <span className="font-medium">{params.symbols.join(', ')}</span>}
+
+                            {/* Date range display */}
+                            {(params.startDate || params.purchaseDate) && (
+                              <span className="ml-2 text-gray-500">
+                                ({params.startDate || params.purchaseDate}
+                                {params.endDate && ` ~ ${params.endDate}`}
+                                {!params.endDate && ' ~ 현재'})
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
 
-              <div className="space-y-6">
-                {/* 투자 전략 */}
+              {/* 페이지네이션 */}
+              {historyTotalPages > 1 && (
+                <div className="mt-4 flex items-center justify-center space-x-2">
+                  <button
+                    onClick={() => loadHistory(historyPage - 1)}
+                    disabled={historyPage === 0}
+                    className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  >
+                    이전
+                  </button>
+                  <span className="text-sm text-gray-600">
+                    {historyPage + 1} / {historyTotalPages}
+                  </span>
+                  <button
+                    onClick={() => loadHistory(historyPage + 1)}
+                    disabled={historyPage >= historyTotalPages - 1}
+                    className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  >
+                    다음
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* 설정 부분 */}
+      {mode !== 'history' && (
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">설정</h2>
+          {(mode === 'simple' || mode === 'dca' || mode === 'conditional') && symbol && (
+            <button
+              onClick={handleViewDetailedChart}
+              className="flex items-center space-x-1 text-indigo-600 hover:text-indigo-700 text-sm"
+            >
+              <span>상세 차트 보기</span>
+              <ExternalLink className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {/* 단순 모드 설정 */}
+        {mode === 'simple' && (
+          <SimpleStrategyForm
+            symbol={symbol}
+            setSymbol={setSymbol}
+            purchaseDate={purchaseDate}
+            setPurchaseDate={setPurchaseDate}
+            saleDate={saleDate}
+            setSaleDate={setSaleDate}
+            initialInvestment={initialInvestment}
+            setInitialInvestment={setInitialInvestment}
+            fxMode={fxMode}
+            setFxMode={setFxMode}
+            manualPurchaseFxRate={manualPurchaseFxRate}
+            setManualPurchaseFxRate={setManualPurchaseFxRate}
+            manualCurrentFxRate={manualCurrentFxRate}
+            setManualCurrentFxRate={setManualCurrentFxRate}
+            reinvestDividends={simpleReinvestDividends}
+            setReinvestDividends={setSimpleReinvestDividends}
+            tradingFeeRate={simpleTradingFeeRate}
+            setTradingFeeRate={setSimpleTradingFeeRate}
+            dividendTax={simpleDividendTax}
+            setDividendTax={setSimpleDividendTax}
+            supportedSymbols={supportedSymbols}
+          />
+        )}
+
+        {/* 적립식 전략 설정 */}
+        {mode === 'dca' && (
+          <DCAStrategyForm
+            symbol={symbol}
+            setSymbol={setSymbol}
+            dcaStartDate={dcaStartDate}
+            setDcaStartDate={setDcaStartDate}
+            dcaEndDate={dcaEndDate}
+            setDcaEndDate={setDcaEndDate}
+            monthlyAmount={monthlyAmount}
+            setMonthlyAmount={setMonthlyAmount}
+            purchaseDay={purchaseDay}
+            setPurchaseDay={setPurchaseDay}
+            investmentInterval={investmentInterval}
+            setInvestmentInterval={setInvestmentInterval}
+            dcaFxMode={dcaFxMode}
+            setDcaFxMode={setDcaFxMode}
+            dcaManualPurchaseFxRate={dcaManualPurchaseFxRate}
+            setDcaManualPurchaseFxRate={setDcaManualPurchaseFxRate}
+            dcaManualCurrentFxRate={dcaManualCurrentFxRate}
+            setDcaManualCurrentFxRate={setDcaManualCurrentFxRate}
+            dcaReinvestDividends={dcaReinvestDividends}
+            setDcaReinvestDividends={setDcaReinvestDividends}
+            dcaTradingFeeRate={dcaTradingFeeRate}
+            setDcaTradingFeeRate={setDcaTradingFeeRate}
+            dcaDividendTax={dcaDividendTax}
+            setDcaDividendTax={setDcaDividendTax}
+            supportedSymbols={supportedSymbols}
+          />
+        )}
+
+        {/* 조건부 전략 설정 */}
+        {mode === 'conditional' && (
+          <ConditionalStrategyForm
+            symbol={symbol}
+            setSymbol={setSymbol}
+            conditionalStartDate={conditionalStartDate}
+            setConditionalStartDate={setConditionalStartDate}
+            conditionalEndDate={conditionalEndDate}
+            setConditionalEndDate={setConditionalEndDate}
+            investmentMode={investmentMode}
+            setInvestmentMode={setInvestmentMode}
+            totalInvestment={totalInvestment}
+            setTotalInvestment={setTotalInvestment}
+            amountPerPurchase={amountPerPurchase}
+            setAmountPerPurchase={setAmountPerPurchase}
+            maxPurchases={maxPurchases}
+            setMaxPurchases={setMaxPurchases}
+            dropPercentage={dropPercentage}
+            setDropPercentage={setDropPercentage}
+            conditionalFxMode={conditionalFxMode}
+            setConditionalFxMode={setConditionalFxMode}
+            conditionalManualPurchaseFxRate={conditionalManualPurchaseFxRate}
+            setConditionalManualPurchaseFxRate={setConditionalManualPurchaseFxRate}
+            conditionalManualCurrentFxRate={conditionalManualCurrentFxRate}
+            setConditionalManualCurrentFxRate={setConditionalManualCurrentFxRate}
+            conditionalReinvestDividends={conditionalReinvestDividends}
+            setConditionalReinvestDividends={setConditionalReinvestDividends}
+            conditionalTradingFeeRate={conditionalTradingFeeRate}
+            setConditionalTradingFeeRate={setConditionalTradingFeeRate}
+            conditionalDividendTax={conditionalDividendTax}
+            setConditionalDividendTax={setConditionalDividendTax}
+            supportedSymbols={supportedSymbols}
+          />
+        )}
+
+        {/* 종목비교 설정*/}
+        {mode === 'compare-symbols' && (
+          <SymbolComparisonForm
+            compareSymbols={compareSymbols}
+            setCompareSymbols={setCompareSymbols}
+            compareSymbolInput={compareSymbolInput}
+            setCompareSymbolInput={setCompareSymbolInput}
+            comparePurchaseDate={comparePurchaseDate}
+            setComparePurchaseDate={setComparePurchaseDate}
+            compareSaleDate={compareSaleDate}
+            setCompareSaleDate={setCompareSaleDate}
+            compareInvestment={compareInvestment}
+            setCompareInvestment={setCompareInvestment}
+            compareFxMode={compareFxMode}
+            setCompareFxMode={setCompareFxMode}
+            compareManualPurchaseFxRate={compareManualPurchaseFxRate}
+            setCompareManualPurchaseFxRate={setCompareManualPurchaseFxRate}
+            compareManualCurrentFxRate={compareManualCurrentFxRate}
+            setCompareManualCurrentFxRate={setCompareManualCurrentFxRate}
+            compareTradingFeeRate={compareTradingFeeRate}
+            setCompareTradingFeeRate={setCompareTradingFeeRate}
+            compareDividendTax={compareDividendTax}
+            setCompareDividendTax={setCompareDividendTax}
+            compareReinvestDividends={compareReinvestDividends}
+            setCompareReinvestDividends={setCompareReinvestDividends}
+            supportedSymbols={supportedSymbols}
+            onAddSymbol={handleAddCompareSymbol}
+            onRemoveSymbol={handleRemoveCompareSymbol}
+          />
+        )}
+
+        {/* Strategy Comparison Config */}
+        {mode === 'compare-strategies' && (
+          <StrategyComparisonForm
+            symbol={strategyCompareSymbol}
+            setSymbol={setStrategyCompareSymbol}
+            supportedSymbols={supportedSymbols}
+            startDate={strategyStartDate}
+            setStartDate={setStrategyStartDate}
+            endDate={strategyEndDate}
+            setEndDate={setStrategyEndDate}
+            investment={strategyInvestment}
+            setInvestment={setStrategyInvestment}
+            selectedStrategies={selectedStrategies}
+            toggleStrategy={toggleStrategy}
+            strategyNames={STRATEGY_NAMES}
+            fxMode={strategyFxMode}
+            setFxMode={setStrategyFxMode}
+            manualPurchaseFxRate={strategyManualPurchaseFxRate}
+            setManualPurchaseFxRate={setStrategyManualPurchaseFxRate}
+            manualCurrentFxRate={strategyManualCurrentFxRate}
+            setManualCurrentFxRate={setStrategyManualCurrentFxRate}
+            tradingFeeRate={strategyTradingFeeRate}
+            setTradingFeeRate={setStrategyTradingFeeRate}
+            dividendTax={strategyDividendTax}
+            setDividendTax={setStrategyDividendTax}
+            reinvestDividends={strategyReinvestDividends}
+            setReinvestDividends={setStrategyReinvestDividends}
+          />
+        )}
+
+        {/* Action Buttons */}
+        <div className="flex space-x-3 mt-6">
+          <button
+            onClick={runBacktest}
+            disabled={isRunning}
+            className="flex items-center space-x-2 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          >
+            <Play className="w-5 h-5" />
+            <span>{isRunning ? '실행 중...' : '백테스트 실행'}</span>
+          </button>
+          <button
+            onClick={handleReset}
+            disabled={isRunning}
+            className="flex items-center space-x-2 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <RotateCcw className="w-5 h-5" />
+            <span>초기화</span>
+          </button>
+        </div>
+      </div>
+      )}
+
+      {/* Error Display */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-800 px-6 py-4 rounded-lg mb-6">
+          <p className="font-medium">오류 발생</p>
+          <p className="text-sm mt-1">{error}</p>
+        </div>
+      )}
+
+      {/* Results Section - Simple */}
+      {result && result.mode === 'simple' && (
+        <div className="space-y-6">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+              <div className="flex items-center justify-between">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">투자 전략</label>
-                  <div className="space-y-2">
-                    {strategies.map((strat) => (
-                      <div
-                        key={strat.id}
-                        onClick={() => setStrategy(strat.id)}
-                        className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                          strategy === strat.id
-                            ? 'border-indigo-500 bg-indigo-50'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium text-gray-900 text-sm">{strat.name}</p>
-                            <p className="text-xs text-gray-500">{strat.description}</p>
-                          </div>
-                          <div className={`w-4 h-4 rounded-full border-2 ${
-                            strategy === strat.id
-                              ? 'border-indigo-500 bg-indigo-500'
-                              : 'border-gray-300'
-                          }`}>
-                            {strategy === strat.id && (
-                              <div className="w-2 h-2 bg-white rounded-full mx-auto mt-0.5"></div>
+                  <p className="text-sm font-medium text-gray-600">초기 투자금</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">
+                    ₩{result.investmentAmount?.toLocaleString()}
+                  </p>
+                </div>
+                <div className="bg-blue-100 p-3 rounded-lg">
+                  <DollarSign className="w-6 h-6 text-blue-600" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">현재 가치</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">
+                    ₩{result.totalAssetKrw?.toLocaleString()}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">주식: ₩{result.currentValueKrw?.toLocaleString()}, 현금: ₩{result.remainingCashKrw?.toLocaleString()}</p>
+                </div>
+                <div className="bg-purple-100 p-3 rounded-lg">
+                  <Target className="w-6 h-6 text-purple-600" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">총 수익</p>
+                  <p className={`text-2xl font-bold mt-1 ${
+                    (result.totalReturnKrw || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {(result.totalReturnKrw || 0) >= 0 ? '+' : ''}₩{result.totalReturnKrw?.toLocaleString()}
+                  </p>
+                </div>
+                <div className={`${
+                  (result.totalReturnKrw || 0) >= 0 ? 'bg-green-100' : 'bg-red-100'
+                } p-3 rounded-lg`}>
+                  {(result.totalReturnKrw || 0) >= 0 ? (
+                    <TrendingUp className="w-6 h-6 text-green-600" />
+                  ) : (
+                    <TrendingDown className="w-6 h-6 text-red-600" />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">수익률</p>
+                  <p className={`text-2xl font-bold mt-1 ${
+                    (result.totalReturnPercent || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {(result.totalReturnPercent || 0) >= 0 ? '+' : ''}{result.totalReturnPercent?.toFixed(2)}%
+                  </p>
+                </div>
+                <div className={`${
+                  (result.totalReturnPercent || 0) >= 0 ? 'bg-green-100' : 'bg-red-100'
+                } p-3 rounded-lg`}>
+                  <Activity className={`w-6 h-6 ${
+                    (result.totalReturnPercent || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Detailed Results - 4 Sections: Investment, Stock Performance, FX Impact, Optimal Timing */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
+            {/* Investment Info */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <DollarSign className="w-5 h-5 mr-2 text-indigo-600" />
+                투자 정보
+              </h3>
+              <div className="space-y-3">
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-600">종목</span>
+                  <span className="font-medium text-gray-900">{result.symbol}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-600">매수일</span>
+                  <span className="font-medium text-gray-900">{result.purchaseDate}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-600">평가일</span>
+                  <span className="font-medium text-gray-900">{result.currentDate || new Date().toISOString().split('T')[0]}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-600">초기 투자금</span>
+                  <span className="font-medium text-gray-900">₩{result.investmentAmount?.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-600">현재 가치</span>
+                  <div className="text-right">
+                    <div className="font-medium text-gray-900">₩{result.totalAssetKrw?.toLocaleString()}</div>
+                    <div className="text-xs text-gray-500">주식: ₩{result.currentValueKrw?.toLocaleString()}, 현금: ₩{result.remainingCashKrw?.toLocaleString()}</div>
+                  </div>
+                </div>
+                <div className="flex justify-between py-2">
+                  <span className="text-gray-600">총 수익</span>
+                  <span className={`font-bold ${
+                    (result.totalReturnKrw || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {(result.totalReturnKrw || 0) >= 0 ? '+' : ''}₩{result.totalReturnKrw?.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Stock Performance */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <TrendingUp className="w-5 h-5 mr-2 text-green-600" />
+                주식 수익
+              </h3>
+              <div className="space-y-3">
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-600">보유 주식수</span>
+                  <span className="font-medium text-gray-900">{result.shares?.toFixed(6)} 주</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-600">매수 가격</span>
+                  <span className="font-medium text-gray-900">${result.purchasePrice?.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-600">현재 가격</span>
+                  <span className="font-medium text-gray-900">${result.currentPrice?.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-600">주가 변동</span>
+                  <span className={`font-medium ${
+                    (result.stockReturn || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {(result.stockReturn || 0) >= 0 ? '+' : ''}${result.stockReturn?.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-600">주식 수익률</span>
+                  <span className={`font-bold ${
+                    (result.stockReturnPercent || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {(result.stockReturnPercent || 0) >= 0 ? '+' : ''}{result.stockReturnPercent?.toFixed(2)}%
+                  </span>
+                </div>
+                <div className="flex justify-between py-2">
+                  <span className="text-gray-600">배당금 (USD)</span>
+                  <span className="font-medium text-gray-900">${result.totalDividends?.toFixed(2) || '0.00'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* FX Impact */}
+            <div className="bg-white rounded-xl shadow-sm border border-blue-200 p-6 bg-blue-50">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <Repeat className="w-5 h-5 mr-2 text-blue-600" />
+                환율 영향
+              </h3>
+              <div className="space-y-3">
+                <div className="flex justify-between py-2 border-b border-blue-100">
+                  <span className="text-gray-600">시작일 환율</span>
+                  <span className="font-medium text-gray-900">₩{result.purchaseFxRate?.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-blue-100">
+                  <span className="text-gray-600">현재 환율</span>
+                  <span className="font-medium text-gray-900">₩{result.currentFxRate?.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-blue-100">
+                  <span className="text-gray-600">환율 변동</span>
+                  <span className={`font-medium ${
+                    (result.fxReturn || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {(result.fxReturn || 0) >= 0 ? '+' : ''}₩{result.fxReturn?.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between py-2">
+                  <span className="text-gray-600">환차익률</span>
+                  <span className={`font-bold ${
+                    (result.fxReturnPercent || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {(result.fxReturnPercent || 0) >= 0 ? '+' : ''}{result.fxReturnPercent?.toFixed(2)}%
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Optimal Timing Info */}
+            <div className="bg-white rounded-xl shadow-sm border border-amber-100 p-6 bg-amber-50">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <Target className="w-5 h-5 mr-2 text-amber-600" />
+                최적 타이밍
+              </h3>
+              <div className="space-y-3">
+                {result.optimalBuyDate ? (
+                  <>
+                    <div className="flex justify-between py-2 border-b border-amber-100">
+                      <span className="text-gray-600">최적 매수일</span>
+                      <span className="font-medium text-gray-900">{result.optimalBuyDate}</span>
+                    </div>
+                    {result.optimalBuyPrice && (
+                      <div className="flex justify-between py-2 border-b border-amber-100">
+                        <span className="text-gray-600">최적 매수가</span>
+                        <span className="font-medium text-green-600">${result.optimalBuyPrice?.toFixed(2)}</span>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="flex justify-between py-2 border-b border-amber-100">
+                    <span className="text-gray-600">최적 매수일</span>
+                    <span className="font-medium text-gray-400">-</span>
+                  </div>
+                )}
+                {result.optimalSellDate ? (
+                  <>
+                    <div className="flex justify-between py-2 border-b border-amber-100">
+                      <span className="text-gray-600">최적 매도일</span>
+                      <span className="font-medium text-gray-900">{result.optimalSellDate}</span>
+                    </div>
+                    {result.optimalSellPrice && (
+                      <div className="flex justify-between py-2 border-b border-amber-100">
+                        <span className="text-gray-600">최적 매도가</span>
+                        <span className="font-medium text-red-600">${result.optimalSellPrice?.toFixed(2)}</span>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="flex justify-between py-2 border-b border-amber-100">
+                    <span className="text-gray-600">최적 매도일</span>
+                    <span className="font-medium text-gray-400">-</span>
+                  </div>
+                )}
+                {result.optimalReturnPercent ? (
+                  <div className="flex justify-between py-2">
+                    <span className="text-gray-600">최적 수익률</span>
+                    <span className="font-bold text-amber-600">+{result.optimalReturnPercent?.toFixed(2)}%</span>
+                  </div>
+                ) : (
+                  <div className="flex justify-between py-2">
+                    <span className="text-gray-600">최적 수익률</span>
+                    <span className="font-medium text-gray-400">-</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* 차트 섹션 추가 - Simple */}
+          <SimpleChart
+            symbol={result.symbol || symbol}
+            purchaseDate={result.purchaseDate || purchaseDate}
+            purchasePrice={result.purchasePrice || 0}
+            shares={result.shares || 0}
+            investmentAmount={result.investmentAmount || 0}
+            currentPrice={result.currentPrice || 0}
+            currentValueKrw={result.currentValueKrw || 0}
+            fxRate={result.averageFxRate || result.currentFxRate || 1380}
+            optimalBuyDate={result.optimalBuyDate}
+            optimalBuyPrice={result.optimalBuyPrice}
+            optimalSellDate={result.optimalSellDate}
+            optimalSellPrice={result.optimalSellPrice}
+            dividendReinvestDates={result.dividendReinvestDates}
+          />
+        </div>
+      )}
+
+      {/* Results Section - 적립식 or Conditional */}
+      {result && (result.mode === 'dca' || result.mode === 'conditional') && (
+        <div className="space-y-6">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">총 투자금</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">
+                    ₩{result.totalInvested?.toLocaleString()}
+                  </p>
+                </div>
+                <div className="bg-blue-100 p-3 rounded-lg">
+                  <DollarSign className="w-6 h-6 text-blue-600" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">현재 가치</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">
+                    ₩{result.totalAssetKrw?.toLocaleString()}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">주식: ₩{result.currentValueKrw?.toLocaleString()}, 현금: ₩{result.remainingCashKrw?.toLocaleString()}</p>
+                </div>
+                <div className="bg-purple-100 p-3 rounded-lg">
+                  <Target className="w-6 h-6 text-purple-600" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">총 수익</p>
+                  <p className={`text-2xl font-bold mt-1 ${
+                    (result.totalReturnKrw || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {(result.totalReturnKrw || 0) >= 0 ? '+' : ''}₩{result.totalReturnKrw?.toLocaleString()}
+                  </p>
+                </div>
+                <div className={`${
+                  (result.totalReturnKrw || 0) >= 0 ? 'bg-green-100' : 'bg-red-100'
+                } p-3 rounded-lg`}>
+                  {(result.totalReturnKrw || 0) >= 0 ? (
+                    <TrendingUp className="w-6 h-6 text-green-600" />
+                  ) : (
+                    <TrendingDown className="w-6 h-6 text-red-600" />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">수익률</p>
+                  <p className={`text-2xl font-bold mt-1 ${
+                    (result.totalReturnPercent || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {(result.totalReturnPercent || 0) >= 0 ? '+' : ''}{result.totalReturnPercent?.toFixed(2)}%
+                  </p>
+                </div>
+                <div className={`${
+                  (result.totalReturnPercent || 0) >= 0 ? 'bg-green-100' : 'bg-red-100'
+                } p-3 rounded-lg`}>
+                  <Activity className={`w-6 h-6 ${
+                    (result.totalReturnPercent || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Detailed Results - 3 Columns like Simple */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Investment Info */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <DollarSign className="w-5 h-5 mr-2 text-indigo-600" />
+                투자 정보
+              </h3>
+              <div className="space-y-3">
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-600">종목</span>
+                  <span className="font-medium text-gray-900">{result.symbol}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-600">기간</span>
+                  <span className="font-medium text-gray-900">
+                    {result.startDate?.toString().substring(0, 7)} ~ {result.endDate?.toString().substring(0, 7)}
+                  </span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-600">거래 횟수</span>
+                  <span className="font-medium text-gray-900">{result.totalTransactions}회</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-600">총 투자금</span>
+                  <span className="font-medium text-gray-900">₩{result.totalInvested?.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between py-2">
+                  <span className="text-gray-600">현재 가치</span>
+                  <div className="text-right">
+                    <div className="font-medium text-gray-900">₩{result.currentValueKrw?.toLocaleString()}</div>
+                    <div className="text-xs text-gray-500">${result.currentValue?.toLocaleString()}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Stock Performance */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <TrendingUp className="w-5 h-5 mr-2 text-green-600" />
+                주식 수익
+              </h3>
+              <div className="space-y-3">
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-600">보유 주식수</span>
+                  <span className="font-medium text-gray-900">{result.totalShares?.toFixed(6)} 주</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-600">평균 매수가</span>
+                  <span className="font-medium text-gray-900">${result.averagePrice?.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-600">현재 가격</span>
+                  <span className="font-medium text-gray-900">${result.currentPrice?.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-600">배당금 (USD)</span>
+                  <span className="font-medium text-gray-900">${result.totalDividends?.toFixed(2) || '0.00'}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-600">총 수익 (KRW)</span>
+                  <span className={`font-bold ${
+                    (result.totalReturnKrw || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {(result.totalReturnKrw || 0) >= 0 ? '+' : ''}₩{result.totalReturnKrw?.toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex justify-between py-2">
+                  <span className="text-gray-600">수익률</span>
+                  <span className={`font-bold ${
+                    (result.totalReturnPercent || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {(result.totalReturnPercent || 0) >= 0 ? '+' : ''}{result.totalReturnPercent?.toFixed(2)}%
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* FX Impact */}
+            <div className="bg-white rounded-xl shadow-sm border border-blue-200 p-6 bg-blue-50">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <Repeat className="w-5 h-5 mr-2 text-blue-600" />
+                환율 영향
+              </h3>
+              <div className="space-y-3">
+                <div className="flex justify-between py-2 border-b border-blue-100">
+                  <span className="text-gray-600">평균 환율</span>
+                  <span className="font-medium text-gray-900">₩{result.averageFxRate?.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-blue-100">
+                  <span className="text-gray-600">현재 환율</span>
+                  <span className="font-medium text-gray-900">₩{result.currentFxRate?.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-blue-100">
+                  <span className="text-gray-600">환율 변동</span>
+                  <span className={`font-medium ${
+                    (result.fxReturn || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {(result.fxReturn || 0) >= 0 ? '+' : ''}₩{result.fxReturn?.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between py-2">
+                  <span className="text-gray-600">환차익률</span>
+                  <span className={`font-bold ${
+                    (result.fxReturnPercent || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {(result.fxReturnPercent || 0) >= 0 ? '+' : ''}{result.fxReturnPercent?.toFixed(2)}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 차트 섹션 추가 */}
+          {result.transactions && result.transactions.length > 0 && (
+            mode === 'dca' ? (
+              <DCAChart
+                symbol={result.symbol || symbol}
+                transactions={result.transactions}
+                currentPrice={result.currentPrice || 0}
+                currentValueKrw={result.currentValueKrw || 0}
+                totalInvested={result.totalInvested || 0}
+                startDate={result.startDate || dcaStartDate}
+                endDate={result.endDate || dcaEndDate}
+              />
+            ) : (
+              <ConditionalChart
+                symbol={result.symbol || symbol}
+                transactions={result.transactions}
+                currentPrice={result.currentPrice || 0}
+                currentValueKrw={result.currentValueKrw || 0}
+                totalInvested={result.totalInvested || 0}
+                startDate={result.startDate || conditionalStartDate}
+                endDate={result.endDate || conditionalEndDate}
+              />
+            )
+          )}
+        </div>
+      )}
+
+      {/* Results Section - Symbol Comparison */}
+      {result && result.mode === 'compare-symbols' && (
+        <div className="space-y-6">
+          {/* Best Performer Summary */}
+          {result.bestPerformer && (
+            <div className="bg-gradient-to-r from-yellow-50 to-amber-50 rounded-xl shadow-sm border border-yellow-200 p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-yellow-700">🏆 최고 성과 종목</p>
+                  <p className="text-3xl font-bold text-yellow-900 mt-1">{result.bestPerformer.name}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-yellow-700">수익률</p>
+                  <p className="text-4xl font-bold text-yellow-900">
+                    {result.bestPerformer.totalReturnPercent >= 0 ? '+' : ''}
+                    {result.bestPerformer.totalReturnPercent?.toFixed(2)}%
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Each Symbol Results */}
+          {result.items?.map((item: any, index: number) => {
+            const isBest = item.name === result.bestPerformer?.name;
+
+            // additionalData가 있으면 추출
+            const additionalData = item.additionalData || {};
+            const displayItem = {
+              ...item,
+              purchaseDate: additionalData.purchaseDate || item.purchaseDate,
+              purchasePrice: additionalData.purchasePrice || item.purchasePrice || item.averagePrice,
+              currentPrice: additionalData.currentPrice || item.currentPrice,
+              shares: additionalData.shares || item.shares || item.totalShares,
+              investmentAmount: additionalData.investmentAmount || item.investmentAmount || item.totalInvested,
+              currentDate: additionalData.currentDate || item.currentDate,
+              purchaseFxRate: additionalData.purchaseFxRate || item.purchaseFxRate,
+              currentFxRate: additionalData.currentFxRate || item.currentFxRate
+            };
+
+            return (
+              <div key={index} className={`${isBest ? 'ring-2 ring-yellow-400' : ''}`}>
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-3">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-xl font-bold text-gray-900">
+                      {displayItem.name || displayItem.symbol}
+                      {isBest && <span className="ml-2 text-yellow-500">👑</span>}
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      {displayItem.purchaseDate} → {displayItem.currentDate || new Date().toISOString().split('T')[0]}
+                    </p>
+                  </div>
+
+                  {/* Summary Cards */}
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3">
+                      <p className="text-xs text-blue-700">초기 투자금</p>
+                      <p className="text-lg font-bold text-blue-900">₩{displayItem.investmentAmount?.toLocaleString()}</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-3">
+                      <p className="text-xs text-purple-700">현재 가치</p>
+                      <p className="text-lg font-bold text-purple-900">₩{displayItem.currentValueKrw?.toLocaleString()}</p>
+                    </div>
+                    <div className={`bg-gradient-to-br ${displayItem.totalReturnKrw >= 0 ? 'from-green-50 to-green-100' : 'from-red-50 to-red-100'} rounded-lg p-3`}>
+                      <p className={`text-xs ${displayItem.totalReturnKrw >= 0 ? 'text-green-700' : 'text-red-700'}`}>총 수익</p>
+                      <p className={`text-lg font-bold ${displayItem.totalReturnKrw >= 0 ? 'text-green-900' : 'text-red-900'}`}>
+                        {displayItem.totalReturnKrw >= 0 ? '+' : ''}₩{displayItem.totalReturnKrw?.toLocaleString()}
+                      </p>
+                    </div>
+                    <div className={`bg-gradient-to-br ${displayItem.totalReturnPercent >= 0 ? 'from-green-50 to-green-100' : 'from-red-50 to-red-100'} rounded-lg p-3`}>
+                      <p className={`text-xs ${displayItem.totalReturnPercent >= 0 ? 'text-green-700' : 'text-red-700'}`}>수익률</p>
+                      <p className={`text-lg font-bold ${displayItem.totalReturnPercent >= 0 ? 'text-green-900' : 'text-red-900'}`}>
+                        {displayItem.totalReturnPercent >= 0 ? '+' : ''}{displayItem.totalReturnPercent?.toFixed(2)}%
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Detailed Cards */}
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+                    {/* Investment Info */}
+                    <div className="bg-white rounded-lg border border-gray-200 p-3">
+                      <h4 className="text-xs font-semibold text-gray-900 mb-2 flex items-center">
+                        <DollarSign className="w-3 h-3 mr-1 text-indigo-600" />
+                        투자 정보
+                      </h4>
+                      <div className="space-y-1 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">종목</span>
+                          <span className="font-medium">{displayItem.symbol || displayItem.name}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">매수일</span>
+                          <span className="font-medium">{displayItem.purchaseDate}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">보유일</span>
+                          <span className="font-medium">{displayItem.daysHeld}일</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Stock Performance */}
+                    <div className="bg-white rounded-lg border border-gray-200 p-3">
+                      <h4 className="text-xs font-semibold text-gray-900 mb-2 flex items-center">
+                        <TrendingUp className="w-3 h-3 mr-1 text-green-600" />
+                        주식 성과
+                      </h4>
+                      <div className="space-y-1 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">매수가</span>
+                          <span className="font-medium">${displayItem.purchasePrice?.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">현재가</span>
+                          <span className="font-medium">${displayItem.currentPrice?.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">보유 주식</span>
+                          <span className="font-medium">{displayItem.shares?.toFixed(4)}주</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* FX Impact */}
+                    <div className="bg-white rounded-lg border border-gray-200 p-3">
+                      <h4 className="text-xs font-semibold text-gray-900 mb-2 flex items-center">
+                        <Activity className="w-3 h-3 mr-1 text-blue-600" />
+                        환율 영향
+                      </h4>
+                      <div className="space-y-1 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">매수 환율</span>
+                          <span className="font-medium">₩{displayItem.purchaseFxRate?.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">현재 환율</span>
+                          <span className="font-medium">₩{displayItem.currentFxRate?.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className={`text-gray-600`}>환차익률</span>
+                          <span className={`font-bold ${(displayItem.fxReturnPercent || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {(displayItem.fxReturnPercent || 0) >= 0 ? '+' : ''}{displayItem.fxReturnPercent?.toFixed(2)}%
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Optimal Timing */}
+                    {(() => {
+                      // Simple 전략의 최적 시점 확인
+                      const hasSimpleOptimal = displayItem.optimalBuyDate || displayItem.optimalSellDate;
+                      // 종목 비교의 최적 시점 확인
+                      const symbolKey = item.symbol || item.name;
+                      const optimalPoint = symbolOptimalPoints[symbolKey];
+
+                      if (!hasSimpleOptimal && !optimalPoint) return null;
+
+                      return (
+                        <div className="bg-white rounded-lg border border-amber-200 p-3">
+                          <h4 className="text-xs font-semibold text-gray-900 mb-2 flex items-center">
+                            <Target className="w-3 h-3 mr-1 text-amber-600" />
+                            최적 타이밍
+                          </h4>
+                          <div className="space-y-1 text-xs">
+                            {/* Simple strategy optimal buy */}
+                            {displayItem.optimalBuyDate && (
+                              <>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">최적 매수일</span>
+                                  <span className="font-medium">{displayItem.optimalBuyDate}</span>
+                                </div>
+                                {displayItem.optimalBuyPrice && (
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600">최적 매수가</span>
+                                    <span className="font-medium text-green-600">${displayItem.optimalBuyPrice?.toFixed(2)}</span>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                            {/* Symbol Comparison optimal buy */}
+                            {!displayItem.optimalBuyDate && optimalPoint && (
+                              <>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">최적 매수일</span>
+                                  <span className="font-medium">{optimalPoint.buyDate}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">최적 매수가</span>
+                                  <span className="font-medium text-green-600">${optimalPoint.minPrice.toFixed(2)}</span>
+                                </div>
+                              </>
+                            )}
+
+                            {/* Simple strategy optimal sell */}
+                            {displayItem.optimalSellDate && (
+                              <>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">최적 매도일</span>
+                                  <span className="font-medium">{displayItem.optimalSellDate}</span>
+                                </div>
+                                {displayItem.optimalSellPrice && (
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600">최적 매도가</span>
+                                    <span className="font-medium text-red-600">${displayItem.optimalSellPrice?.toFixed(2)}</span>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                            {/* Symbol Comparison optimal sell */}
+                            {!displayItem.optimalSellDate && optimalPoint && (
+                              <>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">최적 매도일</span>
+                                  <span className="font-medium">{optimalPoint.sellDate}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">최적 평가금액</span>
+                                  <span className="font-medium text-red-600">
+                                    ₩{Math.floor(optimalPoint.maxValue).toLocaleString()}
+                                    <span className="text-xs text-gray-500 ml-1">
+                                      ({(optimalPoint.maxValue / 10000).toFixed(0)}만원)
+                                    </span>
+                                  </span>
+                                </div>
+                              </>
                             )}
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })()}
                   </div>
                 </div>
+              </div>
+            );
+          })}
 
-                {/* 투자 금액 */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">초기 투자금</label>
-                  <div className="relative">
-                    <DollarSign className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                    <input
-                      type="number"
-                      value={initialAmount}
-                      onChange={(e) => setInitialAmount(e.target.value)}
-                      className="w-full border border-gray-300 rounded-md pl-10 pr-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      placeholder="10,000"
-                    />
-                  </div>
-                </div>
+          {/* Unified Comparison Chart - at the end */}
+          {result.items && result.items.length > 0 && (
+            <CompareSymbolsChartMemoized
+              items={result.items}
+              comparePurchaseDate={comparePurchaseDate}
+              compareSaleDate={compareSaleDate}
+              onOptimalPointsCalculated={setSymbolOptimalPoints}
+            />
+          )}
+        </div>
+      )}
 
-                {strategy === 'dca' && (
+      {/* Results Section - Strategy Comparison (keep table format) */}
+      {result && result.mode === 'compare-strategies' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">전략 비교 결과</h3>
+
+            {/* Best Performer Highlight */}
+            {result.bestPerformer && (
+              <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="flex items-center justify-between">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">월 적립금</label>
-                    <div className="relative">
-                      <DollarSign className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                      <input
-                        type="number"
-                        value={monthlyAmount}
-                        onChange={(e) => setMonthlyAmount(e.target.value)}
-                        className="w-full border border-gray-300 rounded-md pl-10 pr-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                        placeholder="1,000"
-                      />
-                    </div>
+                    <p className="text-sm font-medium text-yellow-900">최고 성과</p>
+                    <p className="text-xl font-bold text-yellow-900 mt-1">
+                      {STRATEGY_NAMES[result.bestPerformer.name] || result.bestPerformer.name}
+                    </p>
                   </div>
-                )}
-
-                {/* 실행 버튼 */}
-                <button
-                  onClick={runBacktest}
-                  disabled={isRunning}
-                  className={`w-full py-3 px-4 rounded-lg font-semibold text-white transition-colors flex items-center justify-center space-x-2 ${
-                    isRunning
-                      ? 'bg-gray-400 cursor-not-allowed'
-                      : 'bg-indigo-600 hover:bg-indigo-700'
-                  }`}
-                >
-                  {isRunning ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      <span>실행 중...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Play className="w-4 h-4" />
-                      <span>백테스트 실행</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* 주식 차트 영역 */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* 종목 및 기간 설정 */}
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">백테스트 종목 및 기간</h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* 종목 선택 */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">투자 종목</label>
-                  <StockSearchInput
-                    value={symbol}
-                    onChange={setSymbol}
-                    placeholder="종목 검색..."
-                  />
-                </div>
-
-                {/* 시작일 */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">시작일</label>
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  />
-                </div>
-
-                {/* 종료일 */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">종료일</label>
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* 선택된 주식 차트 */}
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center space-x-4">
-                  <h3 className="text-lg font-semibold text-gray-900">{symbol} 주가 차트</h3>
-                  <div className="flex items-center space-x-1">
-                    {['1M', '3M', '6M', '1Y', '5Y'].map((period) => (
-                      <button
-                        key={period}
-                        className="px-3 py-1 text-sm rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
-                      >
-                        {period}
-                      </button>
-                    ))}
+                  <div className="text-right">
+                    <p className="text-sm text-yellow-700">수익률</p>
+                    <p className="text-2xl font-bold text-yellow-900">
+                      {result.bestPerformer.totalReturnPercent >= 0 ? '+' : ''}
+                      {result.bestPerformer.totalReturnPercent?.toFixed(2)}%
+                    </p>
                   </div>
-                </div>
-              </div>
-
-              <div className="bg-gray-50 rounded-lg h-64 flex items-center justify-center">
-                <div className="text-center">
-                  <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-500">{symbol} 주가 차트</p>
-                  <p className="text-sm text-gray-400">백테스트 기간: {startDate} ~ {endDate}</p>
-                  <p className="text-xs text-gray-300 mt-1">최신 데이터: {new Date(lastUpdateDate).toLocaleDateString('ko-KR')}까지</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 백테스트 결과 영역 */}
-          <div className="lg:col-span-1 space-y-6">
-            {/* 백테스트 요약 결과 */}
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">백테스트 요약</h3>
-              {!showResults ? (
-                <div className="text-center py-8">
-                  <Target className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">백테스트 실행 대기 중</p>
-                  <p className="text-sm text-gray-400">설정을 완료하고 실행해주세요</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">총 수익률</span>
-                    <span className="font-bold text-green-600">+{backtestResults.returnPercent}%</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">연평균 수익률</span>
-                    <span className="font-semibold text-gray-900">{backtestResults.annualizedReturn}%</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">최대 낙폭</span>
-                    <span className="font-semibold text-red-600">{backtestResults.maxDrawdown}%</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">샤프 비율</span>
-                    <span className="font-semibold text-gray-900">{backtestResults.sharpeRatio}</span>
-                  </div>
-                  <div className="flex justify-between items-center border-t pt-2">
-                    <span className="text-sm text-gray-600">총 투자금</span>
-                    <span className="font-semibold">${(parseInt(initialAmount) + parseInt(monthlyAmount) * 48).toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">최종 자산</span>
-                    <span className="font-bold text-green-600">${(parseInt(initialAmount) + parseInt(monthlyAmount) * 48 + backtestResults.totalReturn).toLocaleString()}</span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* 월별 수익률 (백테스트 결과가 있을 때만) */}
-            {showResults && (
-              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">월별 수익률</h3>
-                <div className="space-y-2">
-                  {backtestResults.monthlyReturns.map((monthData, index) => (
-                    <div key={index} className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">{monthData.month}</span>
-                      <span className={`font-medium text-sm ${
-                        monthData.return >= 0 ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        {monthData.return >= 0 ? '+' : ''}{monthData.return}%
-                      </span>
-                    </div>
-                  ))}
                 </div>
               </div>
             )}
+
+            {/* 비교 Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-3 px-4 font-semibold text-gray-900">전략</th>
+                    <th className="text-right py-3 px-4 font-semibold text-gray-900">투자금</th>
+                    <th className="text-right py-3 px-4 font-semibold text-gray-900">최종 가치</th>
+                    <th className="text-right py-3 px-4 font-semibold text-gray-900">총 수익</th>
+                    <th className="text-right py-3 px-4 font-semibold text-gray-900">수익률</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {result.items?.map((item: any, index: number) => {
+                    const isBest = item.name === result.bestPerformer?.name;
+                    return (
+                      <tr
+                        key={index}
+                        className={`border-b border-gray-100 ${
+                          isBest ? 'bg-yellow-50' : 'hover:bg-gray-50'
+                        }`}
+                      >
+                        <td className="py-3 px-4 font-medium text-gray-900">
+                          {STRATEGY_NAMES[item.name] || item.name}
+                        </td>
+                        <td className="py-3 px-4 text-right text-gray-700">
+                          ₩{item.totalInvested?.toLocaleString()}
+                        </td>
+                        <td className="py-3 px-4 text-right text-gray-900 font-medium">
+                          ₩{item.currentValueKrw?.toLocaleString()}
+                        </td>
+                        <td className={`py-3 px-4 text-right font-medium ${
+                          item.totalReturnKrw >= 0 ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                          {item.totalReturnKrw >= 0 ? '+' : ''}₩{item.totalReturnKrw?.toLocaleString()}
+                        </td>
+                        <td className={`py-3 px-4 text-right font-bold ${
+                          item.totalReturnPercent >= 0 ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                          {item.totalReturnPercent >= 0 ? '+' : ''}{item.totalReturnPercent?.toFixed(2)}%
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Strategy Comparison Charts */}
+          <CompareStrategiesChart
+            strategies={result.items || []}
+            strategyNames={STRATEGY_NAMES}
+          />
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!result && !error && !isRunning && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
+          <BarChart3 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">백테스트 결과 없음</h3>
+          <p className="text-gray-500 mb-6">모드를 선택하고 설정을 입력한 후 백테스트를 실행해보세요</p>
+        </div>
+      )}
+
+      {/* Strategy Parameter Modal */}
+      {showStrategyModal && modalStrategyType && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              전략 설정: {STRATEGY_NAMES[modalStrategyType]}
+            </h3>
+
+            <div className="space-y-4">
+              {modalStrategyType === 'SIMPLE' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">매수일</label>
+                  <input
+                    type="date"
+                    value={strategyParameters[modalStrategyType]?.purchaseDate || strategyStartDate}
+                    onChange={(e) => setStrategyParameters({
+                      ...strategyParameters,
+                      [modalStrategyType]: {
+                        ...strategyParameters[modalStrategyType],
+                        purchaseDate: e.target.value
+                      }
+                    })}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+              )}
+
+              {modalStrategyType === 'DCA' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">월 투자금 (₩)</label>
+                    <input
+                      type="number"
+                      value={strategyParameters[modalStrategyType]?.monthlyAmount || '100000'}
+                      onChange={(e) => setStrategyParameters({
+                        ...strategyParameters,
+                        [modalStrategyType]: {
+                          ...strategyParameters[modalStrategyType],
+                          monthlyAmount: e.target.value
+                        }
+                      })}
+                      placeholder="100000"
+                      step="10000"
+                      min="1"
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">매월 투자일</label>
+                    <input
+                      type="number"
+                      value={strategyParameters[modalStrategyType]?.purchaseDay || '15'}
+                      onChange={(e) => setStrategyParameters({
+                        ...strategyParameters,
+                        [modalStrategyType]: {
+                          ...strategyParameters[modalStrategyType],
+                          purchaseDay: e.target.value
+                        }
+                      })}
+                      placeholder="15"
+                      min="1"
+                      max="28"
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">1~28일</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">투자 주기</label>
+                    <select
+                      value={strategyParameters[modalStrategyType]?.investmentInterval || '1'}
+                      onChange={(e) => setStrategyParameters({
+                        ...strategyParameters,
+                        [modalStrategyType]: {
+                          ...strategyParameters[modalStrategyType],
+                          investmentInterval: e.target.value
+                        }
+                      })}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    >
+                      <option value="1">매월 (1개월)</option>
+                      <option value="2">2개월마다</option>
+                      <option value="3">분기마다 (3개월)</option>
+                      <option value="6">반기마다 (6개월)</option>
+                    </select>
+                  </div>
+                </>
+              )}
+
+              {modalStrategyType === 'CONDITIONAL_PURCHASE' && (
+                <>
+                  <div className="bg-blue-50 border border-blue-200 rounded-md px-3 py-2 mb-4">
+                    <p className="text-sm text-blue-800">
+                      총 투자금은 상단에서 설정한 <strong>₩{parseFloat(strategyInvestment || '0').toLocaleString()}</strong>이 사용됩니다.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">하락률 (%)</label>
+                    <input
+                      type="number"
+                      value={strategyParameters[modalStrategyType]?.dropPercentage || '5'}
+                      onChange={(e) => setStrategyParameters({
+                        ...strategyParameters,
+                        [modalStrategyType]: {
+                          ...strategyParameters[modalStrategyType],
+                          dropPercentage: e.target.value
+                        }
+                      })}
+                      placeholder="5"
+                      step="1"
+                      min="0.1"
+                      max="100"
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">가격이 이만큼 하락 시 매수</p>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="flex space-x-3 mt-6">
+              <button
+                onClick={handleSaveStrategyParams}
+                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+              >
+                저장
+              </button>
+              <button
+                onClick={() => {
+                  setShowStrategyModal(false);
+                  setModalStrategyType(null);
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                취소
+              </button>
+            </div>
           </div>
         </div>
-
-        {/* 상세 백테스트 결과 (하단 전체 영역) */}
-        {showResults && (
-          <div className="space-y-6">
-            {/* 포트폴리오 성과 차트 */}
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-gray-900">포트폴리오 성과 비교</h3>
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-3 h-3 bg-indigo-500 rounded-full"></div>
-                    <span className="text-sm text-gray-600">내 전략 ({strategy === 'dca' ? 'DCA' : strategy})</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
-                    <span className="text-sm text-gray-600">벤치마크 ({symbol})</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-gray-50 rounded-lg h-80 flex items-center justify-center">
-                <div className="text-center">
-                  <Activity className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500">백테스트 성과 비교 차트</p>
-                  <p className="text-sm text-gray-400">
-                    내 전략: +{backtestResults.returnPercent}% vs 벤치마크: +{backtestResults.benchmark.returnPercent}%
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* 기존 상세 결과들 */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* 성과 요약 카드들 */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm text-gray-600">총 수익</p>
-                    <TrendingUp className="w-4 h-4 text-green-500" />
-                  </div>
-                  <p className="text-lg font-bold text-green-600">
-                    +${backtestResults.totalReturn.toLocaleString()}
-                  </p>
-                  <p className="text-sm text-green-600">+{backtestResults.returnPercent}%</p>
-                </div>
-
-                <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm text-gray-600">연평균 수익률</p>
-                    <Target className="w-4 h-4 text-blue-500" />
-                  </div>
-                  <p className="text-lg font-bold text-gray-900">{backtestResults.annualizedReturn}%</p>
-                </div>
-
-                <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm text-gray-600">최대 낙폭</p>
-                    <TrendingDown className="w-4 h-4 text-red-500" />
-                  </div>
-                  <p className="text-lg font-bold text-red-600">{backtestResults.maxDrawdown}%</p>
-                </div>
-
-                <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm text-gray-600">샤프 비율</p>
-                    <Activity className="w-4 h-4 text-purple-500" />
-                  </div>
-                  <p className="text-lg font-bold text-gray-900">{backtestResults.sharpeRatio}</p>
-                </div>
-              </div>
-
-              {/* 벤치마크 비교 */}
-              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">벤치마크 비교</h3>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">내 전략 수익률</span>
-                    <span className="font-semibold text-green-600">+{backtestResults.returnPercent}%</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">벤치마크 수익률</span>
-                    <span className="font-semibold text-gray-900">+{backtestResults.benchmark.returnPercent}%</span>
-                  </div>
-                  <div className="flex justify-between items-center border-t pt-2">
-                    <span className="text-gray-600 font-medium">초과 수익률</span>
-                    <span className="font-bold text-indigo-600">
-                      +{(backtestResults.returnPercent - backtestResults.benchmark.returnPercent).toFixed(2)}%
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 거래 통계 */}
-              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">거래 통계</h3>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">총 거래 횟수</span>
-                    <span className="font-semibold">{backtestResults.totalTrades}회</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">승률</span>
-                    <span className="font-semibold text-green-600">{backtestResults.winRate}%</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">투자 전략</span>
-                    <span className="font-semibold text-indigo-600">
-                      {strategy === 'dca' ? 'DCA' :
-                       strategy === 'value_avg' ? '가치평균' :
-                       strategy === 'momentum' ? '모멘텀' : '역추세'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">투자 기간</span>
-                    <span className="font-semibold">{Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24 * 365))}년</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+      )}
     </div>
+  );
+};
+
+// 무한 리렌더링 방지를 위한 메모이제이션 래퍼 컴포넌트
+const CompareSymbolsChartMemoized: React.FC<{
+  items: any[];
+  comparePurchaseDate: string;
+  compareSaleDate: string;
+  onOptimalPointsCalculated: (points: any) => void;
+}> = ({ items, comparePurchaseDate, compareSaleDate, onOptimalPointsCalculated }) => {
+  const symbolsData = useMemo(() => {
+    return items.map((item: any, index: number) => {
+      // 중첩된 구조에서 추출
+      const additionalData = item.additionalData || {};
+
+      const fxRate = additionalData.purchaseFxRate || item.purchaseFxRate || 1380;
+      const purchasePrice = item.averagePrice || additionalData.purchasePrice || 0;
+      const investmentAmount = item.totalInvested || additionalData.investmentAmount || 0;
+      const shares = item.totalShares || additionalData.shares || 0;
+      const purchaseDate = additionalData.purchaseDate || item.purchaseDate || comparePurchaseDate;
+      const currentPrice = additionalData.currentPrice || item.currentPrice || 0;
+
+      return {
+        symbol: item.symbol || item.name,
+        purchaseDate: purchaseDate,
+        purchasePrice: purchasePrice,
+        shares: shares,
+        investmentAmount: investmentAmount,
+        currentPrice: currentPrice,
+        currentValueKrw: item.currentValueKrw || 0,
+        fxRate: fxRate,
+        color: CHART_COLORS[index % CHART_COLORS.length]
+      };
+    });
+  }, [items, comparePurchaseDate]);
+
+  return (
+    <CompareSymbolsChart
+      symbols={symbolsData}
+      startDate={comparePurchaseDate}
+      endDate={compareSaleDate || undefined}
+      onOptimalPointsCalculated={onOptimalPointsCalculated}
+    />
   );
 };
 

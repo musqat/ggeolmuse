@@ -11,11 +11,11 @@ import java.util.List;
 public interface TradingService {
 
   // 주식 매수 (가격 유형별)
-  TradeResponseDto buyStock(String userId, Long accountId, String symbol, 
+  TradeResponseDto buyStock(String userId, Long accountId, String symbol,
                 BigDecimal quantity, LocalDate tradeDate, PriceType priceType, BigDecimal manualPrice);
 
   // 주식 매도 (가격 유형별)
-  TradeResponseDto sellStock(String userId, Long accountId, String symbol, 
+  TradeResponseDto sellStock(String userId, Long accountId, String symbol,
                  BigDecimal quantity, LocalDate tradeDate, PriceType priceType, BigDecimal manualPrice);
 
   // 사용자별 거래 내역 조회

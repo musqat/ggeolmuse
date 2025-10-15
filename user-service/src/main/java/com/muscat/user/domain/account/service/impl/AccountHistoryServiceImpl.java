@@ -119,20 +119,17 @@ public class AccountHistoryServiceImpl implements AccountHistoryService {
         .and(Sort.by(Sort.Direction.DESC, "id"));
     Pageable pageable = PageRequest.of(page, size, sort);
 
-    Instant fromInstant = from != null ? from.toInstant(java.time.ZoneOffset.UTC) : null;
-    Instant toInstant = to != null ? to.toInstant(java.time.ZoneOffset.UTC) : null;
-
-    Page<AccountHistory> historyPage = accountHistoryRepository
-        .findByAccountAndRangeOrderByCreatedAtDesc(account, fromInstant, toInstant, pageable);
+    Page<AccountHistory> historyPage = accountQueryRepository
+        .findByAccountAndRangeOrderByCreatedAtDesc(account, from, to, pageable);
 
     List<HistoryResponseDto> histories = historyPage.getContent()
         .stream()
         .map(HistoryResponseDto::from)
         .collect(Collectors.toList());
 
-    BigDecimal totalDeposit = accountHistoryRepository
+    BigDecimal totalDeposit = accountQueryRepository
         .getTotalAmountByAccountAndType(account, TransactionType.DEPOSIT);
-    BigDecimal totalExchange = accountHistoryRepository
+    BigDecimal totalExchange = accountQueryRepository
         .getTotalAmountByAccountAndType(account, TransactionType.EXCHANGE);
 
     return new HistoryListResponseDto(
@@ -155,7 +152,7 @@ public class AccountHistoryServiceImpl implements AccountHistoryService {
     // 계좌 소유권 검증
     getAccountByIdWithAuth(accountId, userId);
 
-    AccountHistory history = accountHistoryRepository.findByIdAndAccountId(historyId, accountId)
+    AccountHistory history = accountQueryRepository.findByIdAndAccountId(historyId, accountId)
         .orElseThrow(() -> new AccountHistoryException(AccountHistoryResponse.HISTORY_NOT_FOUND));
 
     return HistoryResponseDto.from(history);
@@ -166,7 +163,7 @@ public class AccountHistoryServiceImpl implements AccountHistoryService {
   public List<HistoryResponseDto> getExchangeHistories(Long accountId, Long userId) {
     Account account = getAccountByIdWithAuth(accountId, userId);
 
-    List<AccountHistory> exchangeHistories = accountHistoryRepository
+    List<AccountHistory> exchangeHistories = accountQueryRepository
         .findExchangeHistoryByAccount(account);
 
     return exchangeHistories.stream()
@@ -184,7 +181,7 @@ public class AccountHistoryServiceImpl implements AccountHistoryService {
 
     PageRequest pageable = PageRequest.of(0, 100, sort);
 
-    Page<AccountHistory> page = accountHistoryRepository
+    Page<AccountHistory> page = accountQueryRepository
         .findByAccountAndCurrencyOrderByCreatedAtDesc(account, currency, pageable);
 
     return page.getContent().stream().map(HistoryResponseDto::from).toList();
@@ -202,8 +199,8 @@ public class AccountHistoryServiceImpl implements AccountHistoryService {
 
     PageRequest pageable = PageRequest.of(0, 1000, sort);
 
-    Page<AccountHistory> page = accountHistoryRepository
-        .findByAccountAndDateRangeOrderByCreatedAtDesc(account, startDate, endDate, pageable);
+    Page<AccountHistory> page = accountQueryRepository
+        .findByAccountAndRangeOrderByCreatedAtDesc(account, startDate, endDate, pageable);
 
     return page.getContent().stream().map(HistoryResponseDto::from).toList();
   }
@@ -218,7 +215,7 @@ public class AccountHistoryServiceImpl implements AccountHistoryService {
 
     PageRequest pageable = PageRequest.of(0, limit, sort);
 
-    Page<AccountHistory> page = accountHistoryRepository
+    Page<AccountHistory> page = accountQueryRepository
         .findByAccountAndRangeOrderByCreatedAtDesc(account, null, null, pageable);
 
     return page.getContent().stream().map(HistoryResponseDto::from).toList();

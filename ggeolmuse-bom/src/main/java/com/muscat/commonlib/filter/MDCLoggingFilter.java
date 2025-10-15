@@ -132,12 +132,15 @@ public class MDCLoggingFilter implements Filter {
   private void logRequestStart(HttpServletRequest request) {
     String uri = request.getRequestURI();
     String method = request.getMethod();
-    
-    if (isSensitiveEndpoint(uri)) {
+
+    if (isHealthCheckEndpoint(uri)) {
+      // 헬스체크 엔드포인트는 DEBUG 레벨로 로그
+      log.debug("요청 시작: {} {}", method, uri);
+    } else if (isSensitiveEndpoint(uri)) {
       log.info("요청 시작: {} {}", method, uri);
     } else {
       String fullUrl = buildFullUrl(request);
-      log.info("요청 시작: {} {} - UserAgent: {}", 
+      log.info("요청 시작: {} {} - UserAgent: {}",
           method, fullUrl, request.getHeader("User-Agent"));
     }
   }
@@ -154,14 +157,21 @@ public class MDCLoggingFilter implements Filter {
   private void logRequestEnd(HttpServletRequest request, long duration) {
     String method = request.getMethod();
     String uri = request.getRequestURI();
-    
-    if (duration > SLOW_REQUEST_THRESHOLD) {
+
+    if (isHealthCheckEndpoint(uri)) {
+      log.debug("요청 완료: {} {} - 소요시간: {}ms", method, uri, duration);
+    } else if (duration > SLOW_REQUEST_THRESHOLD) {
       log.warn("요청 완료 (SLOW): {} {} - 소요시간: {}ms", method, uri, duration);
     } else if (duration > NORMAL_LOG_THRESHOLD) {
       log.info("요청 완료: {} {} - 소요시간: {}ms", method, uri, duration);
     } else {
       log.debug("요청 완료: {} {} - 소요시간: {}ms", method, uri, duration);
     }
+  }
+
+  // 헬스체크 엔드포인트 판별
+  private boolean isHealthCheckEndpoint(String uri) {
+    return uri.contains("/actuator/health") || uri.contains("/health");
   }
 
   // 엔드포인트 판별

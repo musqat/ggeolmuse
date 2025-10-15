@@ -7,7 +7,7 @@
 
     <groupId>com.muscat</groupId>
     <artifactId>trade-service</artifactId>
-    <version>1.2.1</version>
+    <version>1.3.8</version>
     <packaging>jar</packaging>
 
     <name>Trade Service</name>
@@ -25,7 +25,7 @@
             <dependency>
                 <groupId>com.muscat</groupId>
                 <artifactId>ggeolmuse-bom</artifactId>
-            <version>1.2.1</version>
+            <version>1.3.0</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -37,7 +37,7 @@
         <dependency>
             <groupId>com.muscat</groupId>
             <artifactId>ggeolmuse-bom</artifactId>
-            <version>1.2.1</version>
+            <version>1.3.0</version>
         </dependency>
 
         <!-- Spring Boot Starters -->
@@ -143,6 +143,7 @@
                 <configuration>
                     <source>21</source>
                     <target>21</target>
+                    <parameters>true</parameters>
                     <annotationProcessorPaths>
                         <path>
                             <groupId>org.projectlombok</groupId>

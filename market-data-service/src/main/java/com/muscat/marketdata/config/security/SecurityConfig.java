@@ -40,9 +40,11 @@ public class SecurityConfig {
         .cors(Customizer.withDefaults())
         .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(auth -> auth
-            .requestMatchers("/api/public/**", "/api/internal/**", "/h2-console/**").permitAll()
+            .requestMatchers("/api/public/**", "/api/internal/**", "/h2-console/**", "/actuator/**").permitAll()
             .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**",
                 "/swagger-resources/**", "/webjars/**").permitAll()
+            // Public market data endpoints for non-authenticated users
+            .requestMatchers("/api/market/symbols", "/api/market/ohlc/**", "/api/market/price/**").permitAll()
             .anyRequest().authenticated()
         )
         .oauth2ResourceServer(oauth2 -> oauth2

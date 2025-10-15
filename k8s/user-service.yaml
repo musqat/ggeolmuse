@@ -1,0 +1,99 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  labels:
+    app: user-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      containers:
+      - name: user-service
+        image: muscathan/user-service:v1.3.3
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "dev,no-file-logging"
+        - name: JAVA_OPTS
+          value: "-Dh2.webAllowOthers=true"
+        - name: SPRING_REDIS_HOST
+          value: "redis"
+        - name: SPRING_REDIS_PORT
+          value: "6379"
+        - name: MANAGEMENT_HEALTH_REDIS_ENABLED
+          value: "false"
+        - name: KEYCLOAK_AUTH_SERVER_URL
+          value: "http://keycloak:8080"
+        - name: KEYCLOAK_PUBLIC_URL
+          value: "http://auth.localhost"
+        - name: KEYCLOAK_REALM
+          value: "muscathan"
+        - name: KEYCLOAK_RESOURCE
+          value: "ggeolmuse-client"
+        - name: KEYCLOAK_CREDENTIALS_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: ggeolmuse-secrets
+              key: KEYCLOAK_SECRET
+        - name: MAIL_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: ggeolmuse-secrets
+              key: MAIL_USERNAME
+        - name: MAIL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ggeolmuse-secrets
+              key: MAIL_PASSWORD
+        - name: MAIL_FROM
+          valueFrom:
+            secretKeyRef:
+              name: ggeolmuse-secrets
+              key: MAIL_FROM
+        - name: APP_BASE_URL
+          value: "http://app.localhost"
+        - name: APP_FRONTEND_URL
+          value: "http://app.localhost"
+        - name: APP_MAIL_VERIFICATION_BASE_URL
+          value: "http://app.localhost"
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 120
+          periodSeconds: 20
+          timeoutSeconds: 5
+          failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  labels:
+    app: user-service
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+  selector:
+    app: user-service

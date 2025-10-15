@@ -1,0 +1,92 @@
+spring:
+  # Backtest Service DB (H2)
+  datasource:
+    url: jdbc:h2:mem:backtestdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driverClassName: org.h2.Driver
+    username: sa
+    password:
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+      settings:
+        web-allow-others: true
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  # Redis defaults are managed in common
+
+# Keycloak
+keycloak:
+  resource: muscat-user-service
+
+# OpenFeign
+feign:
+  client:
+    config:
+      default:
+        connect-timeout: 5000
+        read-timeout: 15000
+        logger-level: basic
+
+app:
+  market-data:
+    url: http://market-data-service:8083
+  trade-service:
+    url: http://trade-service:8081
+
+# Backtest Service 설정
+backtest:
+  calculation:
+    precision: ${CALCULATION_PRECISION:8}
+    scale: ${CALCULATION_SCALE:4}
+    max-years: ${MAX_BACKTEST_YEARS:10}
+    min-days: ${MIN_BACKTEST_DAYS:30}
+
+  concurrent:
+    max-threads: ${MAX_CONCURRENT_THREADS:4}
+    queue-capacity: ${THREAD_QUEUE_CAPACITY:100}
+    timeout-minutes: ${BACKTEST_TIMEOUT:10}
+
+  rate-limit:
+    max-requests-per-minute: ${RATE_LIMIT_RPM:60}
+    max-concurrent-backtests: ${MAX_CONCURRENT:5}
+    daily-limit-per-user: ${DAILY_LIMIT:100}
+
+  strategy:
+    dca:
+      min-monthly-amount: ${DCA_MIN_AMOUNT:100.00}
+      max-monthly-amount: ${DCA_MAX_AMOUNT:10000.00}
+    conditional:
+      min-drop-percentage: ${CONDITIONAL_MIN_DROP:5}
+      max-drop-percentage: ${CONDITIONAL_MAX_DROP:50}
+      min-total-investment: ${CONDITIONAL_MIN_TOTAL:1000.00}
+
+  comparison:
+    max-symbols: ${MAX_COMPARISON_SYMBOLS:10}
+    max-strategies: ${MAX_COMPARISON_STRATEGIES:5}
+    max-timings: ${MAX_COMPARISON_TIMINGS:10}
+
+  validation:
+    min-investment-amount: ${MIN_INVESTMENT:100.00}
+    max-investment-amount: ${MAX_INVESTMENT:10000000.00}
+    max-trading-fee: ${MAX_TRADING_FEE:0.05}
+    required-data-points: ${REQUIRED_DATA_POINTS:30}
+
+  cache:
+    result-ttl-hours: ${CACHE_RESULT_TTL:24}
+    history-ttl-hours: ${CACHE_HISTORY_TTL:168}
+    max-cache-size: ${CACHE_MAX_SIZE:1000}
+
+  storage:
+    auto-save-enabled: ${AUTO_SAVE_ENABLED:true}
+    max-results-per-user: ${MAX_RESULTS_PER_USER:1000}
+    cleanup-days: ${CLEANUP_DAYS:90}

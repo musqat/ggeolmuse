@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
@@ -14,7 +15,8 @@ import java.time.LocalDate;
 @AllArgsConstructor
 @Builder
 @Schema(description = "주식 현재가 정보")
-public class StockPriceDto {
+public class StockPriceDto implements Serializable {
+    private static final long serialVersionUID = 1L;
 
     @Schema(description = "종목 코드", example = "AAPL")
     private String symbol;
@@ -39,4 +41,7 @@ public class StockPriceDto {
 
     @Schema(description = "데이터 유효성", example = "true")
     private boolean available;
+
+    @Schema(description = "시가총액", example = "3600000000000")
+    private Long marketCap;
 }

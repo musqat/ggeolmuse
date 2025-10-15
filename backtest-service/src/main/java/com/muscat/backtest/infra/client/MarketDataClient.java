@@ -1,5 +1,6 @@
 package com.muscat.backtest.infra.client;
 
+import com.muscat.backtest.infra.client.dto.DividendDto;
 import com.muscat.backtest.infra.client.dto.DividendHistoryDto;
 import com.muscat.backtest.infra.client.dto.OHLCPriceDto;
 import com.muscat.backtest.infra.client.dto.StockPriceDto;
@@ -19,6 +20,12 @@ public interface MarketDataClient {
   OHLCPriceDto getOHLCPrice(@PathVariable("symbol") String symbol,
       @RequestParam("date") String date);
 
+  // 특정 기간의 주식 OHLC 가격 범위 조회 (내부 API)
+  @GetMapping("/api/internal/market/ohlc/{symbol}/range")
+  List<OHLCPriceDto> getOHLCPriceRange(@PathVariable("symbol") String symbol,
+      @RequestParam("startDate") String startDate,
+      @RequestParam("endDate") String endDate);
+
   // 현재 주식 가격 조회 (내부 API)
   @GetMapping("/api/internal/market/price/{symbol}")
   StockPriceDto getCurrentPrice(@PathVariable("symbol") String symbol);
@@ -33,7 +40,7 @@ public interface MarketDataClient {
 
   // 특정 기간의 배당 이력 조회 (내부 API)
   @GetMapping("/api/internal/market/dividend/{symbol}")
-  List<DividendHistoryDto> getDividendHistory(@PathVariable("symbol") String symbol,
+  List<DividendDto> getDividendHistory(@PathVariable("symbol") String symbol,
       @RequestParam(value = "startDate", required = false) String startDate,
       @RequestParam(value = "endDate", required = false) String endDate);
 

@@ -23,10 +23,10 @@ public interface HoldingsService {
 
   // 거래 이력과 연관된 보유 종목 조회
   List<HoldingResponseDto> getHoldingsWithTradeHistory(String userId, String symbol, Integer minQuantity);
-  
+
   // 수익률 기준 상위 N개 종목 조회
   List<HoldingResponseDto> getTopPerformingHoldings(String userId, int limit);
-  
+
   // 특정 금액 이상 투자한 종목들 조회
   List<HoldingResponseDto> getHoldingsByMinInvestment(String userId, BigDecimal minAmount);
 

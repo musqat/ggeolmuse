@@ -1,0 +1,69 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:tradedb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driverClassName: org.h2.Driver
+    username: sa
+    password:
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+      settings:
+        web-allow-others: true
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  # Redis defaults are managed in common
+
+keycloak:
+  auth-server-url: ${KEYCLOAK_AUTH_URL:http://localhost:8080/auth}
+  realm: ${KEYCLOAK_REALM:muscathan}
+  resource: ggeolmuse-client
+  credentials:
+    secret: ${KEYCLOAK_SECRET}
+
+# OpenFeign
+feign:
+  client:
+    config:
+      default:
+        connect-timeout: 5000
+        read-timeout: 10000
+        logger-level: basic
+
+# Service URLs
+market-service:
+  url: http://market-data-service:8083
+user-service:
+  url: http://user-service:8080
+
+# Trade Service 설정
+trade:
+  fee:
+    default-rate: ${TRADE_FEE_RATE:0.0025}
+    minimum-amount: ${TRADE_FEE_MIN:1.00}
+    maximum-rate: ${TRADE_FEE_MAX:0.01}
+  calculation:
+    price-precision: ${PRICE_PRECISION:2}
+    quantity-precision: ${QUANTITY_PRECISION:6}
+    currency-precision: ${CURRENCY_PRECISION:2}
+  validation:
+    max-price-deviation: ${MAX_PRICE_DEVIATION:0.20}
+    min-trade-amount: ${MIN_TRADE_AMOUNT:1.00}
+    max-trade-amount: ${MAX_TRADE_AMOUNT:1000000.00}
+    max-daily-trades: ${MAX_DAILY_TRADES:1000}
+  cache:
+    market-data-ttl: ${CACHE_MARKET_DATA_TTL:300}
+    portfolio-ttl: ${CACHE_PORTFOLIO_TTL:600}
+    balance-ttl: ${CACHE_BALANCE_TTL:300}
+  fifo:
+    enabled: ${FIFO_ENABLED:true}
+    precision: ${FIFO_PRECISION:8}

@@ -1,0 +1,100 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+  labels:
+    app: keycloak
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: keycloak
+  template:
+    metadata:
+      labels:
+        app: keycloak
+    spec:
+      containers:
+      - name: keycloak
+        image: quay.io/keycloak/keycloak:22.0.5
+        ports:
+        - containerPort: 8080
+        env:
+        - name: KEYCLOAK_ADMIN
+          valueFrom:
+            secretKeyRef:
+              name: ggeolmuse-secrets
+              key: KEYCLOAK_ADMIN_USERNAME
+        - name: KEYCLOAK_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ggeolmuse-secrets
+              key: KEYCLOAK_ADMIN_PASSWORD
+        - name: KC_DB
+          value: "dev-file"
+        - name: KEYCLOAK_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: ggeolmuse-secrets
+              key: KEYCLOAK_CLIENT_SECRET
+        - name: KEYCLOAK_TEST_USER_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ggeolmuse-secrets
+              key: KEYCLOAK_TEST_USER_PASSWORD
+        command: ["sh", "-c"]
+        args:
+        - |
+          # Remove old H2 database to force fresh import
+          rm -rf /opt/keycloak/data/h2/*
+
+          # Substitute environment variables in realm config
+          envsubst < /opt/keycloak/data/import-template/muscathan-realm.json > /opt/keycloak/data/import/muscathan-realm.json
+
+          # Start Keycloak with realm import
+          /opt/keycloak/bin/kc.sh start-dev --import-realm
+        volumeMounts:
+        - name: keycloak-realm-template
+          mountPath: /opt/keycloak/data/import-template
+          readOnly: true
+        - name: keycloak-realm-output
+          mountPath: /opt/keycloak/data/import
+        resources:
+          limits:
+            memory: "1Gi"
+          requests:
+            memory: "512Mi"
+        readinessProbe:
+          httpGet:
+            path: /realms/master
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /realms/master
+            port: 8080
+          initialDelaySeconds: 120
+          periodSeconds: 30
+      volumes:
+      - name: keycloak-realm-template
+        configMap:
+          name: keycloak-realm-config
+      - name: keycloak-realm-output
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+  labels:
+    app: keycloak
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+  selector:
+    app: keycloak

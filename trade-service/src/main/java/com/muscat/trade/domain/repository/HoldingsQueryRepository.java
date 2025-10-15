@@ -89,8 +89,6 @@ public class HoldingsQueryRepository {
     return Optional.ofNullable(result);
   }
 
-
-
   // 포트폴리오 요약 정보를 위한 Projection record
   public record PortfolioSummaryProjection(BigDecimal totalInvestedAmount, Integer holdingCount) {
     public PortfolioSummaryProjection {

@@ -10,14 +10,14 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor
 public class StockPriceDto {
-  
+
   private String symbol;
   private BigDecimal currentPrice;
   private BigDecimal previousClose;
   private BigDecimal changePercent;
   private Long volume;
   private LocalDateTime lastUpdated;
-  
+
   // OHLC 데이터 필드
   private LocalDate date;
   private BigDecimal openPrice;

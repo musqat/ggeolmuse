@@ -4,6 +4,7 @@ import com.muscat.trade.domain.entity.Trade;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -15,5 +16,8 @@ public interface TradeRepository extends JpaRepository<Trade, String> {
 
   List<Trade> findByUserIdAndSymbolOrderByExecutedAtDesc(String userId, String symbol);
 
+  List<Trade> findByUserIdAndSymbolOrderByTradeDateAsc(String userId, String symbol);
 
+  @Query("SELECT DISTINCT t.symbol FROM Trade t WHERE t.userId = :userId")
+  List<String> findDistinctSymbolsByUserId(String userId);
 }

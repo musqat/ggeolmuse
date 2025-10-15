@@ -6,12 +6,16 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Schema(description = "투자 시뮬레이션 요청")
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class SimulationRequest {
 
   @Schema(description = "종목 코드", example = "AAPL", required = true)
@@ -34,4 +38,18 @@ public class SimulationRequest {
 
   @Schema(description = "사용자 아이디", example = "user123")
   private String userId;
+
+  @Schema(description = "매수 시 환율 (수동 설정 시, null이면 자동)", example = "1300.00")
+  private BigDecimal purchaseFxRate;  // 매수 시 환율 (수동)
+
+  @Schema(description = "현재 환율 (수동 설정 시, null이면 자동)", example = "1350.00")
+  private BigDecimal currentFxRate;  // 현재 환율 (수동)
+
+  @Schema(description = "배당금 재투자 여부", example = "false")
+  @Builder.Default
+  private Boolean reinvestDividends = false;  // 배당금 자동 재투자 여부
+
+  @Schema(description = "배당 원천징수세율 (15.4% = 0.154, 미적용 시 0)", example = "0.154")
+  @Builder.Default
+  private BigDecimal dividendTaxRate = BigDecimal.ZERO;  // 배당 원천징수 세율
 }

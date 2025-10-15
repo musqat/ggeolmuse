@@ -1,5 +1,6 @@
 package com.muscat.trade.infra.client;
 
+import com.muscat.trade.infra.client.dto.DividendDto;
 import com.muscat.trade.infra.client.dto.StockPriceDto;
 import java.util.List;
 import java.util.Map;
@@ -21,4 +22,14 @@ public interface MarketServiceClient {
   @GetMapping("/api/market/ohlc/{symbol}")
   StockPriceDto getOHLCPrice(@PathVariable("symbol") String symbol,
       @RequestParam("date") String date);
+
+  @GetMapping("/api/market/ohlc/{symbol}/with-dividends")
+  List<StockPriceDto> getHistoricalPrices(@PathVariable("symbol") String symbol,
+      @RequestParam("startDate") String startDate,
+      @RequestParam("endDate") String endDate);
+
+  @GetMapping("/api/internal/market/dividend/{symbol}")
+  List<DividendDto> getDividends(@PathVariable("symbol") String symbol,
+      @RequestParam(value = "startDate", required = false) String startDate,
+      @RequestParam(value = "endDate", required = false) String endDate);
 }

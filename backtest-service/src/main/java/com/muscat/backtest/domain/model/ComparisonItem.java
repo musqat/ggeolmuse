@@ -38,6 +38,13 @@ public class ComparisonItem {
   // 순위
   private Integer rank;                  // 수익률 기준 순위
 
+  // 최적 타이밍
+  private String optimalBuyDate;         // 최적 매수일
+  private BigDecimal optimalBuyPrice;    // 최적 매수가
+  private String optimalSellDate;        // 최적 매도일
+  private BigDecimal optimalSellPrice;   // 최적 매도가
+  private BigDecimal optimalReturnPercent; // 최적 수익률
+
   // 추가 메타데이터
   private Object additionalData;         // SimulationResponse, StrategyResponse 등
   private String performanceNote;        // 성과 특이사항

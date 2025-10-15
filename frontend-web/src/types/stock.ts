@@ -1,28 +1,22 @@
-export const SUPPORTED_SYMBOLS = ['AAPL', 'MSFT', 'GOOGL', 'TSLA', 'NVDA'] as const;
-export type SupportedSymbol = typeof SUPPORTED_SYMBOLS[number];
+export type SupportedSymbol = string;
 
 export interface Stock {
-  symbol: SupportedSymbol;
+  symbol: string;
   name: string;
-  currentPrice: number;
-  change: number;
-  changePercent: number;
-  marketCap: string;
-  volume: number;
+  currentPrice?: number;
+  change?: number;
+  changePercent?: number;
+  marketCap?: number;
+  volume?: number;
 }
 
 export interface StockPrice {
   symbol: string;
-  price: number;
+  currentPrice: number;
+  previousClose: number;
+  changePercent: number;
+  volume: number;
+  marketCap?: number;
   timestamp: string;
 }
 
-export interface OHLCData {
-  symbol: string;
-  date: string;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-}

@@ -28,5 +28,11 @@ public abstract class BaseComparisonRequest {
   @Schema(description = "사용자 아이디", example = "user123")
   private String userId;
 
+  @Schema(description = "매수 시 환율 (수동 설정 시, null이면 자동)", example = "1300.00")
+  private BigDecimal purchaseFxRate;  // 매수 시 환율 (수동)
+
+  @Schema(description = "현재 환율 (수동 설정 시, null이면 자동)", example = "1350.00")
+  private BigDecimal currentFxRate;  // 현재 환율 (수동)
+
   public abstract ComparisonType getComparisonType();
 }

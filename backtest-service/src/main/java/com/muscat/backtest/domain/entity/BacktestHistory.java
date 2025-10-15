@@ -20,15 +20,18 @@ public class BacktestHistory {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String backtestId;
 
-    @Column(nullable = false)
-    private String userId; // 사용자 ID
+    @Column(nullable = true)
+    private String userId; // 사용자 ID (null 가능 - 비로그인 사용자)
 
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private BacktestType backtestType; // STRATEGY, SYMBOL, TIMING, INVESTMENT
 
-    @Column(length = 1000)
+    @Column(length = 2000)
     private String requestParams; // 요청 파라미터 (JSON 형태)
+
+    @Column(length = 20)
+    private String fxRateMode; // 환율 설정 모드: "auto" 또는 "manual"
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
