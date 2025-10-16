@@ -1,0 +1,176 @@
+---
+# 기본 정책: 모든 Ingress 트래픽 차단 (비즈니스 서비스만)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-business-services
+  namespace: default
+spec:
+  podSelector:
+    matchExpressions:
+    - key: tier
+      operator: In
+      values:
+      - business-service
+  policyTypes:
+  - Ingress
+
+---
+# Gateway에서만 비즈니스 서비스 접근 허용
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-from-gateway
+  namespace: default
+spec:
+  podSelector:
+    matchExpressions:
+    - key: tier
+      operator: In
+      values:
+      - business-service
+  policyTypes:
+  - Ingress
+  ingress:
+  # Gateway에서의 접근 허용
+  - from:
+    - podSelector:
+        matchLabels:
+          app: gateway-server
+    ports:
+    - protocol: TCP
+      port: 8080  # user-service
+    - protocol: TCP
+      port: 8081  # trade-service
+    - protocol: TCP
+      port: 8082  # backtest-service
+    - protocol: TCP
+      port: 8083  # market-data-service
+  # 비즈니스 서비스 간 통신 허용 (inter-service communication)
+  - from:
+    - podSelector:
+        matchExpressions:
+        - key: tier
+          operator: In
+          values:
+          - business-service
+    ports:
+    - protocol: TCP
+      port: 8080  # user-service
+    - protocol: TCP
+      port: 8081  # trade-service
+    - protocol: TCP
+      port: 8082  # backtest-service
+    - protocol: TCP
+      port: 8083  # market-data-service
+
+---
+# Ingress Controller에서 Gateway 접근 허용
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-to-gateway
+  namespace: default
+spec:
+  podSelector:
+    matchLabels:
+      app: gateway-server
+  policyTypes:
+  - Ingress
+  ingress:
+  # Ingress Nginx Controller에서 접근 허용
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 8070
+  # 같은 namespace 내 모든 Pod에서 접근 허용 (개발 편의성)
+  - from:
+    - podSelector: {}
+    ports:
+    - protocol: TCP
+      port: 8070
+
+---
+# Config Server 접근 허용 (모든 서비스가 설정을 가져가야 함)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-to-config-server
+  namespace: default
+spec:
+  podSelector:
+    matchLabels:
+      app: config-server
+  policyTypes:
+  - Ingress
+  ingress:
+  # 모든 Pod에서 Config Server 접근 허용
+  - from:
+    - podSelector: {}
+    ports:
+    - protocol: TCP
+      port: 8888
+
+---
+# Keycloak 접근 허용 (인증이 필요한 모든 서비스)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-to-keycloak
+  namespace: default
+spec:
+  podSelector:
+    matchLabels:
+      app: keycloak
+  policyTypes:
+  - Ingress
+  ingress:
+  # Gateway와 비즈니스 서비스에서 접근 허용
+  - from:
+    - podSelector:
+        matchLabels:
+          app: gateway-server
+    - podSelector:
+        matchExpressions:
+        - key: tier
+          operator: In
+          values:
+          - business-service
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 8080
+
+---
+# Redis 접근 허용
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-to-redis
+  namespace: default
+spec:
+  podSelector:
+    matchLabels:
+      app: redis
+  policyTypes:
+  - Ingress
+  ingress:
+  # Gateway와 비즈니스 서비스에서 Redis 접근 허용
+  - from:
+    - podSelector:
+        matchLabels:
+          app: gateway-server
+    - podSelector:
+        matchExpressions:
+        - key: tier
+          operator: In
+          values:
+          - business-service
+    ports:
+    - protocol: TCP
+      port: 6379

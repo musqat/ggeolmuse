@@ -498,6 +498,13 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
             })}
           </LineChart>
         </ResponsiveContainer>
+        <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+          <p className="text-xs text-gray-700">
+            <span className="font-semibold">차트 마커 안내:</span><br/>
+            <span className="inline-block w-3 h-3 bg-gray-800 rounded-full mr-1 align-middle"></span> 검은색 점 = 실제 매수 시점 |
+            <span className="inline-block w-3 h-3 bg-amber-400 rounded-full mr-1 ml-2 align-middle"></span> 금색 점 = 최적 매수/매도 시점 (가장 낮은 가격 / 가장 높은 평가금액)
+          </p>
+        </div>
       </div>
     </div>
   );

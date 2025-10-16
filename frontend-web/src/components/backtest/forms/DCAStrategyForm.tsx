@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import StockSearchInput from '../../common/StockSearchInput';
 import { NumberInput } from '../../common/NumberInput';
 import { FxModeToggle } from '../shared/FxModeToggle';
 import { DividendFeeOptions } from '../shared/DividendFeeOptions';
+import DatePicker from '../../common/DatePicker';
 
 interface DCAStrategyFormProps {
   symbol: string;
@@ -65,10 +66,35 @@ export const DCAStrategyForm: React.FC<DCAStrategyFormProps> = ({
 }) => {
   const today = new Date().toISOString().split('T')[0];
 
+  // DatePicker용 Date 객체 상태 (기본값: 시작일 2025-01-01, 종료일 오늘)
+  const [startDateObj, setStartDateObj] = useState<Date | null>(
+    dcaStartDate ? new Date(dcaStartDate) : new Date('2025-01-01')
+  );
+  const [endDateObj, setEndDateObj] = useState<Date | null>(
+    dcaEndDate ? new Date(dcaEndDate) : new Date()
+  );
+
+  // 달력 표시 상태
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+
+  // Date 객체를 문자열로 변환하여 부모 컴포넌트에 전달
+  useEffect(() => {
+    if (startDateObj) {
+      setDcaStartDate(startDateObj.toISOString().split('T')[0]);
+    }
+  }, [startDateObj, setDcaStartDate]);
+
+  useEffect(() => {
+    if (endDateObj) {
+      setDcaEndDate(endDateObj.toISOString().split('T')[0]);
+    }
+  }, [endDateObj, setDcaEndDate]);
+
   return (
     <div className="space-y-4">
       {/* 기본 설정 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {/* 종목 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">종목</label>
@@ -81,27 +107,59 @@ export const DCAStrategyForm: React.FC<DCAStrategyFormProps> = ({
         </div>
 
         {/* 시작일 */}
-        <div>
+        <div className="relative">
           <label className="block text-sm font-medium text-gray-700 mb-2">시작일</label>
-          <input
-            type="date"
-            value={dcaStartDate}
-            onChange={(e) => setDcaStartDate(e.target.value)}
-            max={today}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-          />
+          <button
+            type="button"
+            onClick={() => {
+              setShowStartDatePicker(!showStartDatePicker);
+              setShowEndDatePicker(false);
+            }}
+            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md text-left hover:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition whitespace-nowrap"
+          >
+            {startDateObj
+              ? startDateObj.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })
+              : '날짜 선택'}
+          </button>
+          {showStartDatePicker && (
+            <div className="absolute top-full left-0 md:left-1/2 md:-translate-x-1/2 mt-2 z-50 shadow-2xl w-[400px] max-w-[calc(100vw-2rem)]">
+              <DatePicker
+                value={startDateObj}
+                onChange={(date) => {
+                  setStartDateObj(date);
+                  setShowStartDatePicker(false);
+                }}
+              />
+            </div>
+          )}
         </div>
 
         {/* 종료일 */}
-        <div>
+        <div className="relative">
           <label className="block text-sm font-medium text-gray-700 mb-2">종료일</label>
-          <input
-            type="date"
-            value={dcaEndDate}
-            onChange={(e) => setDcaEndDate(e.target.value)}
-            max={today}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-          />
+          <button
+            type="button"
+            onClick={() => {
+              setShowEndDatePicker(!showEndDatePicker);
+              setShowStartDatePicker(false);
+            }}
+            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md text-left hover:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition whitespace-nowrap"
+          >
+            {endDateObj
+              ? endDateObj.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })
+              : '날짜 선택'}
+          </button>
+          {showEndDatePicker && (
+            <div className="absolute top-full left-0 md:left-1/2 md:-translate-x-1/2 mt-2 z-50 shadow-2xl w-[400px] max-w-[calc(100vw-2rem)]">
+              <DatePicker
+                value={endDateObj}
+                onChange={(date) => {
+                  setEndDateObj(date);
+                  setShowEndDatePicker(false);
+                }}
+              />
+            </div>
+          )}
         </div>
 
         {/* 월 투자금 */}

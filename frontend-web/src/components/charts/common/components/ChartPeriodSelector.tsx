@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { ChartPeriod } from '../types';
 import { CHART_PERIOD_OPTIONS } from '../constants';
+import DatePicker from '../../../common/DatePicker';
 
 interface ChartPeriodSelectorProps {
   chartPeriod: ChartPeriod;
@@ -17,32 +18,64 @@ export const ChartPeriodSelector: React.FC<ChartPeriodSelectorProps> = ({
   onPeriodChange,
   onCustomDateChange,
 }) => {
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [startDateObj, setStartDateObj] = useState<Date | null>(
+    customStartDate ? new Date(customStartDate) : null
+  );
+
+  const handleStartDateChange = (date: Date | null) => {
+    setStartDateObj(date);
+    if (date) {
+      onCustomDateChange(date.toISOString().split('T')[0]);
+    }
+  };
+
   return (
-    <div className="flex items-center gap-2 mb-4">
-      <span className="text-sm font-medium">기간:</span>
-      <div className="flex gap-2">
-        {CHART_PERIOD_OPTIONS.map((option) => (
+    <div className="mb-4">
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-medium">기간:</span>
+        <div className="flex gap-2">
+          {CHART_PERIOD_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              onClick={() => {
+                onPeriodChange(option.value);
+                setShowDatePicker(false);
+              }}
+              className={`px-3 py-1 text-sm rounded ${
+                chartPeriod === option.value
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
           <button
-            key={option.value}
-            onClick={() => onPeriodChange(option.value)}
+            onClick={() => {
+              setShowDatePicker(!showDatePicker);
+              if (!showDatePicker) {
+                onPeriodChange('custom' as ChartPeriod);
+              }
+            }}
             className={`px-3 py-1 text-sm rounded ${
-              chartPeriod === option.value
-                ? 'bg-blue-600 text-white'
+              showDatePicker
+                ? 'bg-indigo-600 text-white'
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             }`}
           >
-            {option.label}
+            사용자 지정
           </button>
-        ))}
+        </div>
       </div>
-      {showCustomInput && (
-        <input
-          type="date"
-          value={customStartDate}
-          onChange={(e) => onCustomDateChange(e.target.value)}
-          max={new Date().toISOString().split('T')[0]}
-          className="px-2 py-1 border border-gray-300 rounded text-sm"
-        />
+
+      {showDatePicker && (
+        <div className="mt-4">
+          <DatePicker
+            value={startDateObj}
+            onChange={handleStartDateChange}
+          />
+        </div>
       )}
     </div>
   );

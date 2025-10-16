@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import type { CandlestickChartData } from '@/types/ohlc';
+import DatePicker from '../common/DatePicker';
 
 /**
  * 거래일 선택 컴포넌트의 Props 인터페이스
@@ -30,12 +31,32 @@ const TradeDatePicker: React.FC<TradeDatePickerProps> = ({
   selectedDateOHLC,
   onFindClosestPastDate,
 }) => {
+  const [tradeDateObj, setTradeDateObj] = useState<Date | null>(
+    tradeDate ? new Date(tradeDate) : null
+  );
+  const [showTradeDatePicker, setShowTradeDatePicker] = useState(false);
+
+  useEffect(() => {
+    if (tradeDateObj) {
+      onTradeDateChange(tradeDateObj.toISOString().split('T')[0]);
+    }
+  }, [tradeDateObj, onTradeDateChange]);
+
+  // tradeDate가 외부에서 변경되면 tradeDateObj 업데이트
+  useEffect(() => {
+    if (tradeDate && (!tradeDateObj || tradeDateObj.toISOString().split('T')[0] !== tradeDate)) {
+      setTradeDateObj(new Date(tradeDate));
+    }
+  }, [tradeDate]);
+
   /**
    * 최신 거래일로 설정
    */
   const handleSetLatest = () => {
     if (chartData.length > 0) {
-      onTradeDateChange(chartData[chartData.length - 1].time);
+      const latestDate = chartData[chartData.length - 1].time;
+      setTradeDateObj(new Date(latestDate));
+      onTradeDateChange(latestDate);
     }
   };
 
@@ -111,14 +132,28 @@ const TradeDatePicker: React.FC<TradeDatePickerProps> = ({
       </div>
 
       {/* Date Input */}
-      <input
-        type="date"
-        value={tradeDate}
-        onChange={(e) => onTradeDateChange(e.target.value)}
-        min={chartData.length > 0 ? chartData[0].time : undefined}
-        max={chartData.length > 0 ? chartData[chartData.length - 1].time : undefined}
-        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-      />
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setShowTradeDatePicker(!showTradeDatePicker)}
+          className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md text-left hover:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+        >
+          {tradeDateObj
+            ? tradeDateObj.toLocaleDateString('ko-KR')
+            : '날짜를 선택하세요'}
+        </button>
+        {showTradeDatePicker && (
+          <div className="absolute top-full left-0 md:left-1/2 md:-translate-x-1/2 mt-2 z-50 shadow-2xl w-[400px] max-w-[calc(100vw-2rem)]">
+            <DatePicker
+              value={tradeDateObj}
+              onChange={(date) => {
+                setTradeDateObj(date);
+                setShowTradeDatePicker(false);
+              }}
+            />
+          </div>
+        )}
+      </div>
 
       {/* Selected Date OHLC Info */}
       {selectedDateOHLC && (

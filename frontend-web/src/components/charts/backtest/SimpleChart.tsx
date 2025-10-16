@@ -304,6 +304,25 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
               />
             )}
 
+            {/* 최적 매수 시점 마커 (금색) - 주가 차트에만 표시 */}
+            {optimalBuyPoint && (
+              <ReferenceDot
+                x={optimalBuyPoint.date}
+                y={optimalBuyPoint.price}
+                r={6}
+                fill="#fbbf24"
+                stroke="#78350f"
+                strokeWidth={2}
+                label={{
+                  value: '최적 매수',
+                  position: 'top',
+                  fill: '#f59e0b',
+                  fontSize: 11,
+                  fontWeight: 'bold'
+                }}
+              />
+            )}
+
             {/* 배당 재투자 시점 마커들 */}
             {dividendReinvestPoints.map((point, idx) => (
               <ReferenceDot
@@ -319,7 +338,7 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
           </LineChart>
         </ResponsiveContainer>
         <p className="text-xs text-gray-500 mt-2 text-center">
-          파란색 라인 = 주가 | 녹색 점 = 매수/배당재투자 시점
+          파란색 라인 = 주가 | 🟢 녹색 점 = 매수/배당재투자 | 🟡 금색 점 = 최적 타이밍
         </p>
       </div>
 
@@ -385,6 +404,25 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
               />
             )}
 
+            {/* 최적 매도 시점 마커 (평가금액 기준) - 평가금액 차트에만 표시 */}
+            {optimalSellPoint && (
+              <ReferenceDot
+                x={optimalSellPoint.date}
+                y={optimalSellPoint.평가금액}
+                r={6}
+                fill="#fbbf24"
+                stroke="#78350f"
+                strokeWidth={2}
+                label={{
+                  value: '최적 매도',
+                  position: 'top',
+                  fill: '#f59e0b',
+                  fontSize: 11,
+                  fontWeight: 'bold'
+                }}
+              />
+            )}
+
             {/* 배당 재투자 시점 마커들 */}
             {dividendReinvestPoints.map((point, idx) => (
               <ReferenceDot
@@ -400,7 +438,7 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
           </LineChart>
         </ResponsiveContainer>
         <p className="text-xs text-gray-500 mt-2 text-center">
-          녹색 점선 = 투자금 | 파란색 = 평가금액 | 녹색 점 = 매수/배당재투자 시점
+          녹색 점선 = 투자금 | 파란색 = 평가금액 | 🟢 녹색 점 = 매수/배당재투자 | 🟡 금색 점 = 최적 타이밍
         </p>
       </div>
     </div>

@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import StockSearchInput from '../../common/StockSearchInput';
 import { NumberInput } from '../../common/NumberInput';
 import { FxModeToggle } from '../shared/FxModeToggle';
 import { DividendFeeOptions } from '../shared/DividendFeeOptions';
+import DatePicker from '../../common/DatePicker';
 
 interface SymbolComparisonFormProps {
   compareSymbols: string[];
@@ -64,49 +65,71 @@ export const SymbolComparisonForm: React.FC<SymbolComparisonFormProps> = ({
   onRemoveSymbol,
 }) => {
   const today = new Date().toISOString().split('T')[0];
+  const [purchaseDateObj, setPurchaseDateObj] = useState<Date | null>(comparePurchaseDate ? new Date(comparePurchaseDate) : new Date('2025-01-01'));
+  const [saleDateObj, setSaleDateObj] = useState<Date | null>(compareSaleDate ? new Date(compareSaleDate) : new Date());
+  const [showPurchaseDatePicker, setShowPurchaseDatePicker] = useState(false);
+  const [showSaleDatePicker, setShowSaleDatePicker] = useState(false);
+
+  useEffect(() => { if (purchaseDateObj) setComparePurchaseDate(purchaseDateObj.toISOString().split('T')[0]); }, [purchaseDateObj, setComparePurchaseDate]);
+  useEffect(() => { if (saleDateObj) setCompareSaleDate(saleDateObj.toISOString().split('T')[0]); }, [saleDateObj, setCompareSaleDate]);
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {/* 매수일 */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">매수일</label>
-          <input
-            type="date"
-            value={comparePurchaseDate}
-            onChange={(e) => setComparePurchaseDate(e.target.value)}
-            max={today}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-          />
+        {/* 시작일 */}
+        <div className="relative">
+          <label className="block text-sm font-medium text-gray-700 mb-2">시작일</label>
+          <button
+            type="button"
+            onClick={() => {
+              setShowPurchaseDatePicker(!showPurchaseDatePicker);
+              setShowSaleDatePicker(false);
+            }}
+            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md text-left hover:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition whitespace-nowrap"
+          >
+            {purchaseDateObj
+              ? purchaseDateObj.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })
+              : '날짜 선택'}
+          </button>
+          {showPurchaseDatePicker && (
+            <div className="absolute top-full left-0 md:left-1/2 md:-translate-x-1/2 mt-2 z-50 shadow-2xl w-[400px] max-w-[calc(100vw-2rem)]">
+              <DatePicker
+                value={purchaseDateObj}
+                onChange={(date) => {
+                  setPurchaseDateObj(date);
+                  setShowPurchaseDatePicker(false);
+                }}
+              />
+            </div>
+          )}
         </div>
 
-        {/* 매도일 */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            매도일 <span className="text-xs text-gray-500">(선택)</span>
-          </label>
-          <div className="flex space-x-2">
-            <input
-              type="date"
-              value={compareSaleDate}
-              onChange={(e) => setCompareSaleDate(e.target.value)}
-              max={today}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-            />
-            {compareSaleDate && (
-              <button
-                type="button"
-                onClick={() => setCompareSaleDate('')}
-                className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 text-sm"
-                title="현재까지로 설정"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-          <p className="text-xs text-gray-400 mt-1">
-            {compareSaleDate ? '특정 날짜까지' : '비어있음 (현재까지)'}
-          </p>
+        {/* 종료일 */}
+        <div className="relative">
+          <label className="block text-sm font-medium text-gray-700 mb-2">종료일</label>
+          <button
+            type="button"
+            onClick={() => {
+              setShowSaleDatePicker(!showSaleDatePicker);
+              setShowPurchaseDatePicker(false);
+            }}
+            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md text-left hover:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition whitespace-nowrap"
+          >
+            {saleDateObj
+              ? saleDateObj.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })
+              : '날짜 선택'}
+          </button>
+          {showSaleDatePicker && (
+            <div className="absolute top-full left-0 md:left-1/2 md:-translate-x-1/2 mt-2 z-50 shadow-2xl w-[400px] max-w-[calc(100vw-2rem)]">
+              <DatePicker
+                value={saleDateObj}
+                onChange={(date) => {
+                  setSaleDateObj(date);
+                  setShowSaleDatePicker(false);
+                }}
+              />
+            </div>
+          )}
         </div>
 
         {/* 투자금 */}

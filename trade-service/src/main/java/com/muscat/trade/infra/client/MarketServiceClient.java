@@ -12,18 +12,18 @@ import org.springframework.web.bind.annotation.RequestParam;
 @FeignClient(name = "market-service", url = "http://market-data-service:8083")
 public interface MarketServiceClient {
 
-  @GetMapping("/api/market/price/{symbol}")
+  @GetMapping("/api/internal/market/price/{symbol}")
   StockPriceDto getCurrentPrice(@PathVariable("symbol") String symbol);
 
-  @GetMapping("/api/market/prices")
+  @GetMapping("/api/internal/market/prices")
   Map<String, StockPriceDto> getCurrentPrices(@RequestParam("symbols") List<String> symbols);
 
 
-  @GetMapping("/api/market/ohlc/{symbol}")
+  @GetMapping("/api/internal/market/ohlc/{symbol}")
   StockPriceDto getOHLCPrice(@PathVariable("symbol") String symbol,
       @RequestParam("date") String date);
 
-  @GetMapping("/api/market/ohlc/{symbol}/with-dividends")
+  @GetMapping("/api/internal/market/ohlc/{symbol}/with-dividends")
   List<StockPriceDto> getHistoricalPrices(@PathVariable("symbol") String symbol,
       @RequestParam("startDate") String startDate,
       @RequestParam("endDate") String endDate);

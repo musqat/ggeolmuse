@@ -36,7 +36,11 @@ metadata:
   labels:
     app: gateway-server
 spec:
-  replicas: 1
+  replicas: 3
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
   selector:
     matchLabels:
       app: gateway-server
@@ -48,7 +52,7 @@ spec:
       serviceAccountName: gateway-server
       containers:
       - name: gateway-server
-        image: muscathan/gateway-server:1.2.7
+        image: muscathan/gateway-server:v1
         imagePullPolicy: Always
         ports:
         - containerPort: 8070

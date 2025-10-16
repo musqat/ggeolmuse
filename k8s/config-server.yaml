@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: config-server
-        image: muscathan/config-server:v1.5.4
+        image: muscathan/config-server:v1
         imagePullPolicy: Always
         ports:
         - containerPort: 8888

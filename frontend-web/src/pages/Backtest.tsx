@@ -224,7 +224,7 @@ const Backtest: React.FC = () => {
     const effectiveSaleDate = saleDate || new Date().toISOString().split('T')[0];
 
     if (saleDate && new Date(purchaseDate) >= new Date(saleDate)) {
-      alert('매수일은 매도일보다 빠른 날짜여야 합니다.');
+      alert('시작일은 종료일보다 빠른 날짜여야 합니다.');
       return;
     }
 
@@ -426,7 +426,7 @@ const Backtest: React.FC = () => {
     const effectiveCompareSaleDate = compareSaleDate || new Date().toISOString().split('T')[0];
 
     if (compareSaleDate && new Date(comparePurchaseDate) >= new Date(compareSaleDate)) {
-      alert('매수일은 매도일보다 빠른 날짜여야 합니다.');
+      alert('시작일은 종료일보다 빠른 날짜여야 합니다.');
       return;
     }
 

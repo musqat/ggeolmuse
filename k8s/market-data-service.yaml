@@ -14,10 +14,11 @@ spec:
     metadata:
       labels:
         app: market-data-service
+        tier: business-service
     spec:
       containers:
       - name: market-data-service
-        image: muscathan/market-data-service:v1.6.2
+        image: muscathan/market-data-service:1.2.3
         imagePullPolicy: Always
         ports:
         - containerPort: 8083

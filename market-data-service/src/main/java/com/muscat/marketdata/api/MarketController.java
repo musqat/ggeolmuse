@@ -28,7 +28,6 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -42,8 +41,7 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 @RequestMapping("/api/market")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
-@Tag(name = "시장 데이터", description = "주식 시세, OHLC 데이터, 배당 정보, 환율 조회 API")
+@Tag(name = "시장 데이터", description = "JWT 인증이 필요한 시장 데이터 API - 주식 시세, OHLC 데이터, 배당 정보, 환율 조회")
 public class MarketController {
 
   private final MarketService marketService;
@@ -301,7 +299,7 @@ public class MarketController {
   })
   @GetMapping("/symbols")
   public ResponseEntity<List<com.muscat.marketdata.domain.entity.Asset>> getAllSymbols() {
-    log.debug("전체 종목 목록 조회 요청 (하드코딩된 5개 종목)");
+    log.debug("[Public API] 전체 종목 목록 조회 요청 (하드코딩된 5개 종목)");
 
     // 하드코딩된 테스트용 종목 목록
     List<com.muscat.marketdata.domain.entity.Asset> hardcodedAssets = List.of(
