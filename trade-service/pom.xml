@@ -7,7 +7,7 @@
 
     <groupId>com.muscat</groupId>
     <artifactId>trade-service</artifactId>
-    <version>1.3.8</version>
+    <version>1.0.0</version>
     <packaging>jar</packaging>
 
     <name>Trade Service</name>

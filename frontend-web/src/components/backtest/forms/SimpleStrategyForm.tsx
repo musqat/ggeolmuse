@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import StockSearchInput from '../../common/StockSearchInput';
 import { NumberInput } from '../../common/NumberInput';
 import { FxModeToggle } from '../shared/FxModeToggle';
 import { DividendFeeOptions } from '../shared/DividendFeeOptions';
+import DatePicker from '../../common/DatePicker';
 
 interface SimpleStrategyFormProps {
   symbol: string;
@@ -55,12 +56,35 @@ export const SimpleStrategyForm: React.FC<SimpleStrategyFormProps> = ({
   setDividendTax,
   supportedSymbols,
 }) => {
-  const today = new Date().toISOString().split('T')[0];
+  // DatePicker용 Date 객체 상태 (기본값: 시작일 2025-01-01, 종료일 오늘)
+  const [purchaseDateObj, setPurchaseDateObj] = useState<Date | null>(
+    purchaseDate ? new Date(purchaseDate) : new Date('2025-01-01')
+  );
+  const [saleDateObj, setSaleDateObj] = useState<Date | null>(
+    saleDate ? new Date(saleDate) : new Date()
+  );
+
+  // 달력 표시 상태
+  const [showPurchaseDatePicker, setShowPurchaseDatePicker] = useState(false);
+  const [showSaleDatePicker, setShowSaleDatePicker] = useState(false);
+
+  // Date 객체를 문자열로 변환하여 부모 컴포넌트에 전달
+  useEffect(() => {
+    if (purchaseDateObj) {
+      setPurchaseDate(purchaseDateObj.toISOString().split('T')[0]);
+    }
+  }, [purchaseDateObj, setPurchaseDate]);
+
+  useEffect(() => {
+    if (saleDateObj) {
+      setSaleDate(saleDateObj.toISOString().split('T')[0]);
+    }
+  }, [saleDateObj, setSaleDate]);
 
   return (
     <div className="space-y-4">
-      {/* 기본 설정 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* 기본 설정 - 모바일 완전 세로 배치 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
         {/* 종목 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">종목</label>
@@ -70,47 +94,6 @@ export const SimpleStrategyForm: React.FC<SimpleStrategyFormProps> = ({
             supportedSymbols={supportedSymbols}
             placeholder="종목 검색"
           />
-        </div>
-
-        {/* 매수일 */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">매수일</label>
-          <input
-            type="date"
-            value={purchaseDate}
-            onChange={(e) => setPurchaseDate(e.target.value)}
-            max={today}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-          />
-        </div>
-
-        {/* 매도일 */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            매도일 <span className="text-xs text-gray-500">(선택)</span>
-          </label>
-          <div className="flex space-x-2">
-            <input
-              type="date"
-              value={saleDate}
-              onChange={(e) => setSaleDate(e.target.value)}
-              max={today}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-            />
-            {saleDate && (
-              <button
-                type="button"
-                onClick={() => setSaleDate('')}
-                className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 text-sm"
-                title="현재까지로 설정"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-          <p className="text-xs text-gray-400 mt-1">
-            {saleDate ? '특정 날짜까지' : '비어있음 (현재까지)'}
-          </p>
         </div>
 
         {/* 초기 투자금 */}
@@ -123,6 +106,62 @@ export const SimpleStrategyForm: React.FC<SimpleStrategyFormProps> = ({
             className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
           />
           <p className="text-xs text-gray-400 mt-1">최소 약 30만원 권장</p>
+        </div>
+
+        {/* 시작일 */}
+        <div className="relative">
+          <label className="block text-sm font-medium text-gray-700 mb-2">시작일</label>
+          <button
+            type="button"
+            onClick={() => {
+              setShowPurchaseDatePicker(!showPurchaseDatePicker);
+              setShowSaleDatePicker(false);
+            }}
+            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md text-left hover:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition whitespace-nowrap"
+          >
+            {purchaseDateObj
+              ? purchaseDateObj.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })
+              : '날짜 선택'}
+          </button>
+          {showPurchaseDatePicker && (
+            <div className="absolute top-full left-0 md:left-1/2 md:-translate-x-1/2 mt-2 z-50 shadow-2xl w-[400px] max-w-[calc(100vw-2rem)]">
+              <DatePicker
+                value={purchaseDateObj}
+                onChange={(date) => {
+                  setPurchaseDateObj(date);
+                  setShowPurchaseDatePicker(false);
+                }}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* 종료일 */}
+        <div className="relative">
+          <label className="block text-sm font-medium text-gray-700 mb-2">종료일</label>
+          <button
+            type="button"
+            onClick={() => {
+              setShowSaleDatePicker(!showSaleDatePicker);
+              setShowPurchaseDatePicker(false);
+            }}
+            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md text-left hover:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition whitespace-nowrap"
+          >
+            {saleDateObj
+              ? saleDateObj.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })
+              : '날짜 선택'}
+          </button>
+          {showSaleDatePicker && (
+            <div className="absolute top-full left-0 md:left-1/2 md:-translate-x-1/2 mt-2 z-50 shadow-2xl w-[400px] max-w-[calc(100vw-2rem)]">
+              <DatePicker
+                value={saleDateObj}
+                onChange={(date) => {
+                  setSaleDateObj(date);
+                  setShowSaleDatePicker(false);
+                }}
+              />
+            </div>
+          )}
         </div>
       </div>
 

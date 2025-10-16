@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import StockSearchInput from '../../common/StockSearchInput';
 import { NumberInput } from '../../common/NumberInput';
 import { FxModeToggle } from '../shared/FxModeToggle';
 import { DividendFeeOptions } from '../shared/DividendFeeOptions';
+import DatePicker from '../../common/DatePicker';
 
 interface StrategyComparisonFormProps {
   // Symbol selection
@@ -72,6 +73,27 @@ export const StrategyComparisonForm: React.FC<StrategyComparisonFormProps> = ({
   reinvestDividends,
   setReinvestDividends,
 }) => {
+  const [startDateObj, setStartDateObj] = useState<Date | null>(
+    startDate ? new Date(startDate) : new Date('2025-01-01')
+  );
+  const [endDateObj, setEndDateObj] = useState<Date | null>(
+    endDate ? new Date(endDate) : new Date()
+  );
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+
+  useEffect(() => {
+    if (startDateObj) {
+      setStartDate(startDateObj.toISOString().split('T')[0]);
+    }
+  }, [startDateObj, setStartDate]);
+
+  useEffect(() => {
+    if (endDateObj) {
+      setEndDate(endDateObj.toISOString().split('T')[0]);
+    }
+  }, [endDateObj, setEndDate]);
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -85,26 +107,58 @@ export const StrategyComparisonForm: React.FC<StrategyComparisonFormProps> = ({
           />
         </div>
 
-        <div>
+        <div className="relative">
           <label className="block text-sm font-medium text-gray-700 mb-2">시작일</label>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            max={new Date().toISOString().split('T')[0]}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-          />
+          <button
+            type="button"
+            onClick={() => {
+              setShowStartDatePicker(!showStartDatePicker);
+              setShowEndDatePicker(false);
+            }}
+            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md text-left hover:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition whitespace-nowrap"
+          >
+            {startDateObj
+              ? startDateObj.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })
+              : '날짜 선택'}
+          </button>
+          {showStartDatePicker && (
+            <div className="absolute top-full left-0 md:left-1/2 md:-translate-x-1/2 mt-2 z-50 shadow-2xl w-[400px] max-w-[calc(100vw-2rem)]">
+              <DatePicker
+                value={startDateObj}
+                onChange={(date) => {
+                  setStartDateObj(date);
+                  setShowStartDatePicker(false);
+                }}
+              />
+            </div>
+          )}
         </div>
 
-        <div>
+        <div className="relative">
           <label className="block text-sm font-medium text-gray-700 mb-2">종료일</label>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            max={new Date().toISOString().split('T')[0]}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-          />
+          <button
+            type="button"
+            onClick={() => {
+              setShowEndDatePicker(!showEndDatePicker);
+              setShowStartDatePicker(false);
+            }}
+            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md text-left hover:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition whitespace-nowrap"
+          >
+            {endDateObj
+              ? endDateObj.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })
+              : '날짜 선택'}
+          </button>
+          {showEndDatePicker && (
+            <div className="absolute top-full left-0 md:left-1/2 md:-translate-x-1/2 mt-2 z-50 shadow-2xl w-[400px] max-w-[calc(100vw-2rem)]">
+              <DatePicker
+                value={endDateObj}
+                onChange={(date) => {
+                  setEndDateObj(date);
+                  setShowEndDatePicker(false);
+                }}
+              />
+            </div>
+          )}
         </div>
 
         <div>

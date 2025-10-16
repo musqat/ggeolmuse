@@ -13,6 +13,7 @@ import {
 import { stockApi } from '../services/api';
 import LightweightChart from '../components/charts/LightweightChart';
 import SearchModal from '../components/common/SearchModal';
+import DatePicker from '../components/common/DatePicker';
 import { convertOHLCToCandlestick, type CandlestickChartData } from '../types/ohlc';
 
 interface OHLCData {
@@ -42,13 +43,21 @@ const Charts: React.FC = () => {
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
 
+  // 달력 표시 상태
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+
+  // Date 객체 상태
+  const [startDateObj, setStartDateObj] = useState<Date | null>(null);
+  const [endDateObj, setEndDateObj] = useState<Date | null>(null);
+
   // 차트 설정
   const [showMA5, setShowMA5] = useState(false);
   const [showMA20, setShowMA20] = useState(false);
   const [showMA60, setShowMA60] = useState(false);
 
   // 드롭다운 상태
-  const [isIndicatorOpen, setIsIndicatorOpen] = useState(true);
+  const [isIndicatorOpen, setIsIndicatorOpen] = useState(false);
 
   // 현재 가격 정보
   const [currentPrice, setCurrentPrice] = useState<CandlestickChartData | null>(null);
@@ -220,54 +229,56 @@ const Charts: React.FC = () => {
         </div>
 
         {/* 두 번째 줄: 가격 정보 + 컨트롤 */}
-        <div className="flex items-start justify-between gap-4">
+        <div className="md:flex md:items-start md:justify-between md:gap-4">
           {/* 왼쪽: 가격 정보 */}
           <div className="flex-1">
             {currentPrice && !loading && currentPrice.close !== undefined && (
-              <div className="flex items-end space-x-6">
-                <div>
-                  <div className="text-4xl font-bold text-gray-900">
+              <div className="space-y-2">
+                {/* 가격과 변동률 */}
+                <div className="flex items-end space-x-4">
+                  <div className="text-3xl md:text-4xl font-bold text-gray-900">
                     ${(currentPrice.close || 0).toFixed(2)}
                   </div>
                   <div
-                    className={`flex items-center space-x-2 mt-1 ${
+                    className={`flex items-center space-x-1 ${
                       isPositive ? 'text-green-600' : 'text-red-600'
                     }`}
                   >
                     {isPositive ? (
-                      <TrendingUp className="w-5 h-5" />
+                      <TrendingUp className="w-4 h-4 md:w-5 md:h-5" />
                     ) : (
-                      <TrendingDown className="w-5 h-5" />
+                      <TrendingDown className="w-4 h-4 md:w-5 md:h-5" />
                     )}
-                    <span className="text-xl font-semibold">
+                    <span className="text-base md:text-xl font-semibold">
                       {isPositive ? '+' : ''}
                       {priceChange.toFixed(2)} ({priceChangePercent}%)
                     </span>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-4 gap-6 pb-2">
+                {/* OHLC 정보 - 모바일에서는 한 행으로, 데스크탑에서도 유지 */}
+                <div className="grid grid-cols-4 gap-2 md:gap-6">
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">시가</p>
-                    <p className="text-sm font-semibold text-gray-900">
+                    <p className="text-[10px] md:text-xs text-gray-500 mb-0.5">시가</p>
+                    <p className="text-xs md:text-sm font-semibold text-gray-900">
                       ${(currentPrice.open || 0).toFixed(2)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">고가</p>
-                    <p className="text-sm font-semibold text-green-600">
+                    <p className="text-[10px] md:text-xs text-gray-500 mb-0.5">고가</p>
+                    <p className="text-xs md:text-sm font-semibold text-green-600">
                       ${(currentPrice.high || 0).toFixed(2)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">저가</p>
-                    <p className="text-sm font-semibold text-red-600">
+                    <p className="text-[10px] md:text-xs text-gray-500 mb-0.5">저가</p>
+                    <p className="text-xs md:text-sm font-semibold text-red-600">
                       ${(currentPrice.low || 0).toFixed(2)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">거래량</p>
-                    <p className="text-sm font-semibold text-gray-900">
+                    <p className="text-[10px] md:text-xs text-gray-500 mb-0.5">거래량</p>
+                    <p className="text-xs md:text-sm font-semibold text-gray-900">
                       {(currentPrice.volume || 0).toLocaleString()}
                     </p>
                   </div>
@@ -277,10 +288,10 @@ const Charts: React.FC = () => {
           </div>
 
           {/* 오른쪽: 컨트롤 (지표 + 기간 선택) */}
-          <div className="flex items-center space-x-3">
-            {/* 차트 설정 드롭다운 */}
-            <div className="relative">
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden min-w-[180px]">
+          <div className="mt-3 md:mt-0 space-y-2 md:space-y-0 md:flex md:items-center md:space-x-3">
+            {/* 차트 설정 드롭다운 - 모바일에서 별도 행 */}
+            <div className="relative w-full md:w-auto">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden md:min-w-[180px]">
                 <button
                   onClick={() => setIsIndicatorOpen(!isIndicatorOpen)}
                   className="w-full flex items-center justify-between px-3 py-2 hover:bg-gray-50 transition-colors"
@@ -363,14 +374,14 @@ const Charts: React.FC = () => {
             </div>
           </div>
 
-          {/* 기간 선택 */}
-          <div className="flex items-center space-x-2">
-            <div className="flex items-center space-x-2 bg-white rounded-lg shadow-sm border border-gray-200 p-1">
+          {/* 기간 선택 - 모바일에서 별도 행, 작은 글씨 */}
+          <div className="flex items-center space-x-2 w-full md:w-auto">
+            <div className="flex items-center space-x-1 md:space-x-2 bg-white rounded-lg shadow-sm border border-gray-200 p-1 w-full md:w-auto overflow-x-auto">
               {(['1개월', '3개월', '6개월', '1년', '5년'] as const).map((p) => (
                 <button
                   key={p}
                   onClick={() => setPeriod(p)}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  className={`px-2 md:px-4 py-1.5 md:py-2 rounded-md text-xs md:text-sm font-medium transition-colors whitespace-nowrap ${
                     period === p
                       ? 'bg-indigo-600 text-white shadow-sm'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
@@ -381,36 +392,81 @@ const Charts: React.FC = () => {
               ))}
               <button
                 onClick={() => setPeriod('CUSTOM')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center space-x-1 ${
+                className={`px-2 md:px-4 py-1.5 md:py-2 rounded-md text-xs md:text-sm font-medium transition-colors flex items-center space-x-1 whitespace-nowrap ${
                   period === 'CUSTOM'
                     ? 'bg-indigo-600 text-white shadow-sm'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                 }`}
               >
-                <Calendar className="w-4 h-4" />
+                <Calendar className="w-3 h-3 md:w-4 md:h-4" />
                 <span>직접설정</span>
               </button>
             </div>
 
-            {/* 커스텀 날짜 입력 */}
+            {/* 커스텀 날짜 입력 - 모바일에서 작은 글씨 */}
             {period === 'CUSTOM' && (
-              <div className="flex items-center space-x-2 bg-white rounded-lg shadow-sm border border-gray-200 p-2">
-                <input
-                  type="date"
-                  value={customStartDate}
-                  onChange={(e) => setCustomStartDate(e.target.value)}
-                  max={customEndDate || new Date().toISOString().split('T')[0]}
-                  className="px-3 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                />
-                <span className="text-gray-400">~</span>
-                <input
-                  type="date"
-                  value={customEndDate}
-                  onChange={(e) => setCustomEndDate(e.target.value)}
-                  min={customStartDate}
-                  max={new Date().toISOString().split('T')[0]}
-                  className="px-3 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                />
+              <div className="flex items-center space-x-2 mt-2 md:mt-0">
+                {/* 시작일 */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowStartDatePicker(!showStartDatePicker);
+                      setShowEndDatePicker(false);
+                    }}
+                    className="px-2 md:px-3 py-1 md:py-1.5 border border-gray-300 rounded text-xs md:text-sm hover:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition whitespace-nowrap"
+                  >
+                    {startDateObj
+                      ? startDateObj.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })
+                      : '시작일'}
+                  </button>
+                  {showStartDatePicker && (
+                    <div className="absolute top-full left-0 md:left-1/2 md:-translate-x-1/2 mt-2 z-50 shadow-2xl w-[400px] max-w-[calc(100vw-2rem)]">
+                      <DatePicker
+                        value={startDateObj}
+                        onChange={(date) => {
+                          setStartDateObj(date);
+                          if (date) {
+                            setCustomStartDate(date.toISOString().split('T')[0]);
+                          }
+                          setShowStartDatePicker(false);
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <span className="text-gray-400 text-xs md:text-sm">~</span>
+
+                {/* 종료일 */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowEndDatePicker(!showEndDatePicker);
+                      setShowStartDatePicker(false);
+                    }}
+                    className="px-2 md:px-3 py-1 md:py-1.5 border border-gray-300 rounded text-xs md:text-sm hover:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition whitespace-nowrap"
+                  >
+                    {endDateObj
+                      ? endDateObj.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })
+                      : '종료일'}
+                  </button>
+                  {showEndDatePicker && (
+                    <div className="absolute top-full left-0 md:left-1/2 md:-translate-x-1/2 mt-2 z-50 shadow-2xl w-[400px] max-w-[calc(100vw-2rem)]">
+                      <DatePicker
+                        value={endDateObj}
+                        onChange={(date) => {
+                          setEndDateObj(date);
+                          if (date) {
+                            setCustomEndDate(date.toISOString().split('T')[0]);
+                          }
+                          setShowEndDatePicker(false);
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -435,14 +491,14 @@ const Charts: React.FC = () => {
         <div className="w-full relative">
           <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4">
             {loading ? (
-              <div className="flex items-center justify-center h-[600px]">
+              <div className="flex items-center justify-center h-[480px]">
                 <div className="text-center">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
                   <p className="text-gray-600">차트 데이터 로딩 중...</p>
                 </div>
               </div>
             ) : error ? (
-              <div className="flex items-center justify-center h-[600px]">
+              <div className="flex items-center justify-center h-[480px]">
                 <div className="text-center">
                   <TrendingDown className="w-16 h-16 text-red-400 mx-auto mb-4" />
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">
@@ -452,7 +508,7 @@ const Charts: React.FC = () => {
                 </div>
               </div>
             ) : ohlcData.length === 0 ? (
-              <div className="flex items-center justify-center h-[600px]">
+              <div className="flex items-center justify-center h-[480px]">
                 <div className="text-center">
                   <TrendingUp className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">

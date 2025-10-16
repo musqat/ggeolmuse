@@ -14,10 +14,11 @@ spec:
     metadata:
       labels:
         app: user-service
+        tier: business-service
     spec:
       containers:
       - name: user-service
-        image: muscathan/user-service:v1.3.3
+        image: muscathan/user-service:1.2.3
         imagePullPolicy: Always
         ports:
         - containerPort: 8080

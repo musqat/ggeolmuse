@@ -23,30 +23,8 @@ public class AssetUpdateService {
 
     @Transactional
     public boolean updateMarketCap(String symbol) {
-        log.debug("시가총액 스크래핑 업데이트 시작: symbol={}", symbol);
-
-        try {
-            String upperSymbol = symbol.toUpperCase();
-
-            Optional<Asset> assetOpt = assetRepository.findById(upperSymbol);
-            if (assetOpt.isEmpty()) {
-                log.warn("Asset 정보 없음: symbol={}", symbol);
-                return false;
-            }
-
-            Long marketCap = yahooFinanceClient.scrapeMarketCap(upperSymbol);
-            if (marketCap == null) {
-                log.warn("시가총액 스크래핑 실패: symbol={}", symbol);
-                return false;
-            }
-
-            log.info("시가총액 스크래핑 업데이트 완료: symbol={}, marketCap={}", symbol, marketCap);
-            return true;
-
-        } catch (Exception e) {
-            log.error("시가총액 스크래핑 업데이트 실패: symbol={}", symbol, e);
-            return false;
-        }
+        log.info("시가총액 업데이트 기능 - 현재 비활성화됨: symbol={}", symbol);
+        return false;
     }
 
     @Transactional

@@ -15,10 +15,21 @@ const apiClient = axios.create({
 // 요청 인터셉터 (JWT 토큰 추가)
 apiClient.interceptors.request.use(
   async (config) => {
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    const requestUrl = config.url || '';
+
+    // Public API 호출 시에는 토큰을 보내지 않음
+    const isPublicApi = requestUrl.includes('/market/public/') ||
+                        requestUrl.includes('/auth/login') ||
+                        requestUrl.includes('/auth/register') ||
+                        requestUrl.includes('/auth/social');
+
+    if (!isPublicApi) {
+      const token = localStorage.getItem('accessToken');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
+
     return config;
   },
   (error) => Promise.reject(error)
@@ -55,37 +66,37 @@ apiClient.interceptors.response.use(
 export const stockApi = {
   // 전체 종목 목록 조회
   getAllSymbols: () =>
-    apiClient.get<any[]>(`/market/symbols`),
+    apiClient.get<any[]>(`/market/public/symbols`),
 
   // 특정 종목 현재가 조회
   getCurrentPrice: (symbol: string) =>
-    apiClient.get<ApiResponse<StockPrice>>(`/market/price/${symbol}`),
+    apiClient.get<ApiResponse<StockPrice>>(`/market/public/price/${symbol}`),
 
   // 여러 종목의 현재가를 한 번에 조회
   getCurrentPrices: (symbols: string[]) =>
-    apiClient.get<{ [symbol: string]: StockPrice }>(`/market/prices`, {
+    apiClient.get<{ [symbol: string]: StockPrice }>(`/market/public/prices`, {
       params: { symbols }
     }),
 
   // 모든 종목의 현재가 조회
   getAllStocksWithPrices: () =>
-    apiClient.get<StockPrice[]>(`/market/stocks`),
+    apiClient.get<StockPrice[]>(`/market/public/stocks`),
 
   // 특정 종목의 OHLC 데이터 조회
   getOHLCData: (symbol: string, startDate?: string, endDate?: string) =>
-    apiClient.get(`/market/ohlc/multiple`, {
+    apiClient.get(`/market/public/ohlc/multiple`, {
       params: { symbols: [symbol], startDate, endDate }
     }),
 
   // 여러 종목의 OHLC 데이터 조회
   getMultipleOHLCData: (symbols: string[], startDate: string, endDate: string) =>
-    apiClient.get(`/market/ohlc/multiple`, {
+    apiClient.get(`/market/public/ohlc/multiple`, {
       params: { symbols, startDate, endDate }
     }),
 
   // 배당 내역 조회
   getDividendHistory: (symbol: string, startDate?: string, endDate?: string) =>
-    apiClient.get(`/market/dividend/${symbol}`, {
+    apiClient.get(`/market/public/dividend/${symbol}`, {
       params: { startDate, endDate }
     }),
 };

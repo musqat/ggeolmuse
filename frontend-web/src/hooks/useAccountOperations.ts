@@ -68,15 +68,17 @@ export const useAccountOperations = (
       throw new Error('계좌명을 입력해주세요.');
     }
 
-    if (isNaN(commissionRate) || commissionRate < 0 || commissionRate > 0.05) {
-      throw new Error('수수료율은 0 ~ 5% 사이여야 합니다.');
+    if (isNaN(commissionRate) || commissionRate < 0 || commissionRate > 5) {
+      throw new Error(`수수료율은 0 ~ 5% 사이여야 합니다.`);
     }
 
     try {
       setLoading(true);
+      // 백엔드는 소수점 형식(0~0.05)을 기대하므로 100으로 나눔
+      // 예: 0.25% → 0.0025, 1% → 0.01
       await accountsApi.createAccount({
         accountName,
-        commissionRate
+        commissionRate: commissionRate / 100
       });
 
       if (onSuccess) {

@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar } from 'lucide-react';
 import CandlestickChart from '@/components/charts/trading/CandlestickChart';
 import type { CandlestickChartData } from '@/types/ohlc';
 import type { Timeframe } from '@/utils/dateUtils';
+import DatePicker from '../common/DatePicker';
 
 /**
  * 거래 차트 섹션 컴포넌트의 Props 인터페이스
@@ -49,6 +50,27 @@ const TradingChartSection: React.FC<TradingChartSectionProps> = ({
   onCustomStartDateChange,
   onCustomEndDateChange,
 }) => {
+  const [startDateObj, setStartDateObj] = useState<Date | null>(
+    customStartDate ? new Date(customStartDate) : null
+  );
+  const [endDateObj, setEndDateObj] = useState<Date | null>(
+    customEndDate ? new Date(customEndDate) : null
+  );
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+
+  useEffect(() => {
+    if (startDateObj) {
+      onCustomStartDateChange?.(startDateObj.toISOString().split('T')[0]);
+    }
+  }, [startDateObj, onCustomStartDateChange]);
+
+  useEffect(() => {
+    if (endDateObj) {
+      onCustomEndDateChange?.(endDateObj.toISOString().split('T')[0]);
+    }
+  }, [endDateObj, onCustomEndDateChange]);
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
       <div className="flex items-center justify-between mb-4">
@@ -75,22 +97,57 @@ const TradingChartSection: React.FC<TradingChartSectionProps> = ({
       {/* Custom Date Inputs */}
       {timeframe === '직접설정' && (
         <div className="flex items-center space-x-2 mb-4 p-3 bg-gray-50 rounded-lg">
-          <input
-            type="date"
-            value={customStartDate}
-            onChange={(e) => onCustomStartDateChange?.(e.target.value)}
-            max={customEndDate || new Date().toISOString().split('T')[0]}
-            className="px-3 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-          />
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setShowStartDatePicker(!showStartDatePicker);
+                setShowEndDatePicker(false);
+              }}
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-md text-left hover:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition whitespace-nowrap"
+            >
+              {startDateObj
+                ? startDateObj.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })
+                : '시작일'}
+            </button>
+            {showStartDatePicker && (
+              <div className="absolute top-full left-0 md:left-1/2 md:-translate-x-1/2 mt-2 z-50 shadow-2xl w-[400px] max-w-[calc(100vw-2rem)]">
+                <DatePicker
+                  value={startDateObj}
+                  onChange={(date) => {
+                    setStartDateObj(date);
+                    setShowStartDatePicker(false);
+                  }}
+                />
+              </div>
+            )}
+          </div>
           <span className="text-gray-400">~</span>
-          <input
-            type="date"
-            value={customEndDate}
-            onChange={(e) => onCustomEndDateChange?.(e.target.value)}
-            min={customStartDate}
-            max={new Date().toISOString().split('T')[0]}
-            className="px-3 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-          />
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setShowEndDatePicker(!showEndDatePicker);
+                setShowStartDatePicker(false);
+              }}
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-md text-left hover:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition whitespace-nowrap"
+            >
+              {endDateObj
+                ? endDateObj.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })
+                : '종료일'}
+            </button>
+            {showEndDatePicker && (
+              <div className="absolute top-full left-0 md:left-1/2 md:-translate-x-1/2 mt-2 z-50 shadow-2xl w-[400px] max-w-[calc(100vw-2rem)]">
+                <DatePicker
+                  value={endDateObj}
+                  onChange={(date) => {
+                    setEndDateObj(date);
+                    setShowEndDatePicker(false);
+                  }}
+                />
+              </div>
+            )}
+          </div>
         </div>
       )}
 

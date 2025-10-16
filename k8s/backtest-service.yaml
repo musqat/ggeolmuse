@@ -14,10 +14,11 @@ spec:
     metadata:
       labels:
         app: backtest-service
+        tier: business-service
     spec:
       containers:
       - name: backtest-service
-        image: muscathan/backtest-service:1.3.20
+        image: muscathan/backtest-service:v1
         imagePullPolicy: Always
         ports:
         - containerPort: 8082

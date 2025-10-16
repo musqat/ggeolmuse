@@ -62,6 +62,18 @@ public class InternalMarketController {
     return ResponseEntity.status(HttpStatus.OK).body(result);
   }
 
+  @GetMapping("/ohlc/{symbol}/with-dividends")
+  public ResponseEntity<List<OHLCPriceDto>> getCandlesWithDividends(
+      @PathVariable @NotBlank @Pattern(regexp = "^[A-Z]{1,16}$") String symbol,
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+    log.debug("내부 배당 포함 캔들 조회 요청: symbol={}, startDate={}, endDate={}", symbol, startDate, endDate);
+
+    List<OHLCPriceDto> result = marketService.getCandlesWithDividends(symbol, startDate, endDate);
+
+    return ResponseEntity.status(HttpStatus.OK).body(result);
+  }
+
   @GetMapping("/price/{symbol}")
   public ResponseEntity<StockPriceDto> getCurrentPrice(
       @PathVariable @NotBlank @Pattern(regexp = "^[A-Z]{1,16}$") String symbol) {
@@ -70,6 +82,24 @@ public class InternalMarketController {
     StockPriceDto result = marketService.getCurrentPrice(symbol);
 
     return ResponseEntity.status(HttpStatus.OK).body(result);
+  }
+
+  @GetMapping("/prices")
+  public ResponseEntity<java.util.Map<String, StockPriceDto>> getCurrentPrices(
+      @RequestParam("symbols") List<String> symbols) {
+    log.debug("내부 다중 현재가 조회 요청: symbols={}", symbols);
+
+    java.util.Map<String, StockPriceDto> results = new java.util.HashMap<>();
+    for (String symbol : symbols) {
+      try {
+        StockPriceDto price = marketService.getCurrentPrice(symbol.toUpperCase());
+        results.put(symbol.toUpperCase(), price);
+      } catch (Exception e) {
+        log.warn("현재가 조회 실패: symbol={}, error={}", symbol, e.getMessage());
+      }
+    }
+
+    return ResponseEntity.status(HttpStatus.OK).body(results);
   }
 
   @GetMapping("/fx/{date}")

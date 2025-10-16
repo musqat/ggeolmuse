@@ -32,9 +32,20 @@ export const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
       return;
     }
 
+    // 수수료율 검증 - 빈 문자열 체크 추가
+    if (!commissionRate || commissionRate.trim() === '') {
+      alert('수수료율을 입력해주세요.');
+      return;
+    }
+
     const commissionRatePercent = parseFloat(commissionRate);
-    if (isNaN(commissionRatePercent) || commissionRatePercent < 0 || commissionRatePercent > 5) {
-      alert('수수료율은 0 ~ 5% 사이여야 합니다.');
+    if (isNaN(commissionRatePercent)) {
+      alert('수수료율은 숫자로 입력해주세요.');
+      return;
+    }
+
+    if (commissionRatePercent < 0 || commissionRatePercent > 5) {
+      alert(`수수료율은 0 ~ 5% 사이여야 합니다. (입력값: ${commissionRatePercent}%)`);
       return;
     }
 
