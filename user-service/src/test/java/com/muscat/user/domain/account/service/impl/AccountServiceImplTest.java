@@ -16,7 +16,7 @@ import com.muscat.user.domain.account.repository.AccountRepository;
 import com.muscat.user.domain.account.service.AccountHistoryService;
 import com.muscat.user.domain.user.entity.User;
 import com.muscat.user.domain.user.repository.UserRepository;
-import com.muscat.user.infra.client.MarketDataServiceClient;
+import com.muscat.user.infra.client.MarketDataServiceClientWrapper;
 import com.muscat.user.infra.client.dto.FxRateDto;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -68,7 +68,7 @@ class AccountServiceImplTest {
     private UserLogger userLogger;
 
     @Mock
-    private MarketDataServiceClient marketDataServiceClient;
+    private MarketDataServiceClientWrapper marketDataServiceClientWrapper;
 
     @InjectMocks
     private AccountServiceImpl accountService;
@@ -300,21 +300,21 @@ class AccountServiceImplTest {
             ReflectionTestUtils.setField(fxRate, "rate", new BigDecimal("1320.50"));
             ReflectionTestUtils.setField(fxRate, "date", LocalDate.now());
 
-            given(marketDataServiceClient.getLatestFxRate()).willReturn(fxRate);
+            given(marketDataServiceClientWrapper.getLatestFxRate()).willReturn(fxRate);
 
             // when
             BigDecimal rate = accountService.getCurrentExchangeRate();
 
             // then
             assertThat(rate).isEqualByComparingTo(new BigDecimal("1320.50"));
-            verify(marketDataServiceClient).getLatestFxRate();
+            verify(marketDataServiceClientWrapper).getLatestFxRate();
         }
 
         @Test
         @DisplayName("환율 조회 실패 시 Fallback 환율을 반환한다")
         void getCurrentExchangeRate_Failure_ReturnsFallback() {
             // given
-            given(marketDataServiceClient.getLatestFxRate())
+            given(marketDataServiceClientWrapper.getLatestFxRate())
                     .willThrow(new RuntimeException("Service unavailable"));
 
             // when
@@ -333,7 +333,7 @@ class AccountServiceImplTest {
             ReflectionTestUtils.setField(fxRate, "rate", new BigDecimal("5000")); // 비정상
             ReflectionTestUtils.setField(fxRate, "date", LocalDate.now());
 
-            given(marketDataServiceClient.getLatestFxRate()).willReturn(fxRate);
+            given(marketDataServiceClientWrapper.getLatestFxRate()).willReturn(fxRate);
 
             // when
             BigDecimal rate = accountService.getCurrentExchangeRate();

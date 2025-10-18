@@ -69,7 +69,7 @@ public class SecurityConfig {
   @Order(2)
   public SecurityFilterChain privateSecurityFilterChain(HttpSecurity http) throws Exception {
     http
-        .securityMatcher("/api/**")
+        .securityMatcher("/api/internal/**")  // Public 경로 제외, Internal API만 JWT 검증
         .csrf(AbstractHttpConfigurer::disable)
         .cors(Customizer.withDefaults())
         .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

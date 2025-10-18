@@ -15,13 +15,13 @@ import com.muscat.user.domain.account.dto.response.ExchangeCalculationResult;
 import com.muscat.user.domain.account.entity.Account;
 import com.muscat.user.domain.account.entity.AccountHistory;
 import com.muscat.user.domain.account.repository.AccountHistoryRepository;
-import com.muscat.user.domain.account.repository.AccountRepository;
 import com.muscat.user.domain.account.repository.AccountQueryRepository;
+import com.muscat.user.domain.account.repository.AccountRepository;
 import com.muscat.user.domain.account.service.AccountHistoryService;
 import com.muscat.user.domain.account.service.AccountService;
 import com.muscat.user.domain.user.entity.User;
 import com.muscat.user.domain.user.repository.UserRepository;
-import com.muscat.user.infra.client.MarketDataServiceClient;
+import com.muscat.user.infra.client.MarketDataServiceClientWrapper;
 import com.muscat.user.infra.client.dto.FxRateDto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -46,7 +46,7 @@ public class AccountServiceImpl implements AccountService {
   private final AccountHistoryService accountHistoryService;
   private final AccountCalculatorUtil accountCalculator;
   private final UserLogger userLogger;
-  private final MarketDataServiceClient marketDataServiceClient;
+  private final MarketDataServiceClientWrapper marketDataServiceClientWrapper;
 
   @Value("${app.account.initial-krw-amount:1000000}")
   private BigDecimal initialKrwAmount;
@@ -64,30 +64,30 @@ public class AccountServiceImpl implements AccountService {
   @Override
   public Account createAccount(Long userId, CreateAccountRequestDto request) {
     User user = userRepository.findById(userId)
-        .orElseThrow(() -> new UserException(UserResponse.USER_NOT_FOUND));
+      .orElseThrow(() -> new UserException(UserResponse.USER_NOT_FOUND));
 
     if (accountQueryRepository.existsByUserIdAndAccountName(userId, request.getAccountName())) {
       throw new AccountException(AccountResponse.DUPLICATE_ACCOUNT_NAME);
     }
 
     Account account = Account.builder()
-        .user(user)
-        .accountNumber(generateUniqueAccountNumber())
-        .accountName(request.getAccountName())
-        .balanceKrw(MoneyUtils.roundKrw(initialKrwAmount))
-        .balanceUsd(BigDecimal.ZERO)
-        .totalExchangedKrw(BigDecimal.ZERO)
-        .avgExchangeRate(BigDecimal.ZERO)
-        .commissionRate(request.getCommissionRate())
-        .build();
+      .user(user)
+      .accountNumber(generateUniqueAccountNumber())
+      .accountName(request.getAccountName())
+      .balanceKrw(MoneyUtils.roundKrw(initialKrwAmount))
+      .balanceUsd(BigDecimal.ZERO)
+      .totalExchangedKrw(BigDecimal.ZERO)
+      .avgExchangeRate(BigDecimal.ZERO)
+      .commissionRate(request.getCommissionRate())
+      .build();
 
     Account savedAccount = accountRepository.save(account);
 
     userLogger.logAccountCreation(userId, savedAccount.getId(),
-        savedAccount.getAccountNumber(), initialKrwAmount);
+      savedAccount.getAccountNumber(), initialKrwAmount);
 
     log.info("계좌 생성 완료: 사용자={}, 계좌번호={}, 초기금액={}",
-        userId, savedAccount.getAccountNumber(), MoneyUtils.formatAmount(initialKrwAmount, "KRW"));
+      userId, savedAccount.getAccountNumber(), MoneyUtils.formatAmount(initialKrwAmount, "KRW"));
 
     return savedAccount;
   }
@@ -103,11 +103,11 @@ public class AccountServiceImpl implements AccountService {
   @Override
   public void deleteAccount(Long accountId, Long userId) {
     Account account = accountQueryRepository.findByIdAndUserId(accountId, userId)
-        .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
+      .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
 
     // 잔액이 있는지 확인 (삭제 전 잔액 0이어야 함)
     if (account.getBalanceKrw().compareTo(BigDecimal.ZERO) > 0 ||
-        account.getBalanceUsd().compareTo(BigDecimal.ZERO) > 0) {
+      account.getBalanceUsd().compareTo(BigDecimal.ZERO) > 0) {
       throw new AccountException(AccountResponse.CANNOT_DELETE_ACCOUNT_WITH_BALANCE);
     }
 
@@ -119,7 +119,7 @@ public class AccountServiceImpl implements AccountService {
     accountRepository.delete(account);
 
     log.info("계좌 삭제 완료: 사용자={}, 계좌ID={}, 계좌번호={}",
-        userId, accountId, account.getAccountNumber());
+      userId, accountId, account.getAccountNumber());
   }
 
   // 계좌 잔액 조회 (현재 환율 기준 총 자산 포함)
@@ -127,7 +127,7 @@ public class AccountServiceImpl implements AccountService {
   @Transactional(readOnly = true)
   public BalanceResponseDto getAccountBalance(Long accountId, Long userId) {
     Account account = accountQueryRepository.findByIdAndUserId(accountId, userId)
-        .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
+      .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
 
     BigDecimal currentExchangeRate = getCurrentExchangeRate();
 
@@ -137,10 +137,10 @@ public class AccountServiceImpl implements AccountService {
   // KRW → USD 환전 처리 (수수료 없음)
   @Override
   public void exchangeKrwToUsd(Long accountId, Long userId, BigDecimal krwAmount,
-      BigDecimal exchangeRate) {
+    BigDecimal exchangeRate) {
 
     Account account = accountQueryRepository.findByIdAndUserIdWithLock(accountId, userId)
-        .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
+      .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
     userLogger.logExchangeStart(accountId, "KRW", "USD", krwAmount, exchangeRate);
 
     exchangeRate = MoneyUtils.roundExchangeRate(exchangeRate);
@@ -150,13 +150,13 @@ public class AccountServiceImpl implements AccountService {
     } catch (AccountException e) {
       if (e.getMessage().contains("잔액 부족")) {
         userLogger.logInsufficientBalance(accountId, "KRW",
-            krwAmount, account.getBalanceKrw());
+          krwAmount, account.getBalanceKrw());
       }
       throw e;
     }
 
     ExchangeCalculationResult calculation = accountCalculator.calculateExchangeWithCommission(
-        account, krwAmount, "KRW", "USD", exchangeRate);
+      account, krwAmount, "KRW", "USD", exchangeRate);
 
     if (krwAmount.compareTo(new BigDecimal("10000000")) > 0) {
       userLogger.logLargeTransaction(accountId, "KRW_TO_USD", krwAmount, "KRW");
@@ -166,29 +166,29 @@ public class AccountServiceImpl implements AccountService {
     account.setBalanceUsd(account.getBalanceUsd().add(calculation.getFinalAmount()));
 
     BigDecimal newAvgRate = accountCalculator.calculateNewAverageRate(account, krwAmount,
-        exchangeRate);
+      exchangeRate);
     account.setTotalExchangedKrw(account.getTotalExchangedKrw().add(krwAmount));
     account.setAvgExchangeRate(newAvgRate);
     String referenceId = generateReferenceId(TransactionType.EXCHANGE);
 
     accountHistoryService.createExchangeHistory(
-        accountId, CurrencyType.KRW.name(), CurrencyType.USD.name(),
-        krwAmount, calculation.getFinalAmount(), exchangeRate,
-        String.format("KRW → USD 환전 (환율: %s)", exchangeRate),
-        referenceId);
+      accountId, CurrencyType.KRW.name(), CurrencyType.USD.name(),
+      krwAmount, calculation.getFinalAmount(), exchangeRate,
+      String.format("KRW → USD 환전 (환율: %s)", exchangeRate),
+      referenceId);
     userLogger.logExchangeComplete(accountId, calculation, account, referenceId);
 
     log.info("KRW→USD 환전 완료: 계좌={}, {}, 평균환율={}",
-        accountId, calculation.getSummary(), newAvgRate);
+      accountId, calculation.getSummary(), newAvgRate);
   }
 
   // USD → KRW 환전 처리
   @Override
   public void exchangeUsdToKrw(Long accountId, Long userId, BigDecimal usdAmount,
-      BigDecimal exchangeRate) {
+    BigDecimal exchangeRate) {
 
     Account account = accountQueryRepository.findByIdAndUserIdWithLock(accountId, userId)
-        .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
+      .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
     userLogger.logExchangeStart(accountId, "USD", "KRW", usdAmount, exchangeRate);
 
     exchangeRate = MoneyUtils.roundExchangeRate(exchangeRate);
@@ -198,13 +198,13 @@ public class AccountServiceImpl implements AccountService {
     } catch (AccountException e) {
       if (e.getMessage().contains("잔액 부족")) {
         userLogger.logInsufficientBalance(accountId, "USD",
-            usdAmount, account.getBalanceUsd());
+          usdAmount, account.getBalanceUsd());
       }
       throw e;
     }
 
     ExchangeCalculationResult calculation = accountCalculator.calculateExchangeWithCommission(
-        account, usdAmount, "USD", "KRW", exchangeRate);
+      account, usdAmount, "USD", "KRW", exchangeRate);
 
     if (usdAmount.compareTo(new BigDecimal("10000")) > 0) {
       userLogger.logLargeTransaction(accountId, "USD_TO_KRW", usdAmount, "USD");
@@ -220,21 +220,21 @@ public class AccountServiceImpl implements AccountService {
     String referenceId = generateReferenceId(TransactionType.EXCHANGE);
 
     accountHistoryService.createExchangeHistory(
-        accountId, CurrencyType.USD.name(), CurrencyType.KRW.name(),
-        usdAmount, calculation.getBeforeCommissionAmount(), exchangeRate,
-        String.format("USD → KRW 환전 (환율: %s)", exchangeRate),
-        referenceId);
+      accountId, CurrencyType.USD.name(), CurrencyType.KRW.name(),
+      usdAmount, calculation.getBeforeCommissionAmount(), exchangeRate,
+      String.format("USD → KRW 환전 (환율: %s)", exchangeRate),
+      referenceId);
     userLogger.logExchangeComplete(accountId, calculation, account, referenceId);
 
     log.info("USD→KRW 환전 완료: 계좌={}, {}",
-        accountId, calculation.getSummary());
+      accountId, calculation.getSummary());
   }
 
   // KRW 입금 처리
   @Override
   public void depositKrw(Long accountId, Long userId, BigDecimal krwAmount) {
     Account account = accountQueryRepository.findByIdAndUserIdWithLock(accountId, userId)
-        .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
+      .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
 
     MoneyUtils.validatePositiveAmount(krwAmount, "입금 금액");
     krwAmount = MoneyUtils.roundKrw(krwAmount);
@@ -248,8 +248,8 @@ public class AccountServiceImpl implements AccountService {
 
     String referenceId = generateReferenceId(TransactionType.DEPOSIT);
     accountHistoryService.createDepositHistory(
-        accountId, krwAmount, CurrencyType.KRW.name(),
-        "KRW 입금", referenceId);
+      accountId, krwAmount, CurrencyType.KRW.name(),
+      "KRW 입금", referenceId);
 
     userLogger.logKrwDeposit(accountId, krwAmount, referenceId);
 
@@ -260,14 +260,14 @@ public class AccountServiceImpl implements AccountService {
   @Override
   @Transactional
   public void updateUsdBalance(Long accountId, Long userId, BigDecimal usdAmount,
-      String description) {
+    String description) {
     Account account = validateAccountAccess(accountId, userId);
     BigDecimal validatedAmount = validateUsdAmount(usdAmount);
     BigDecimal newBalance = updateAccountBalance(account, validatedAmount);
     createTradeHistory(account, validatedAmount, newBalance, description);
 
     log.info("USD 잔고 업데이트 완료: accountId={}, 변경금액={}, 변경후잔고={}",
-        accountId, validatedAmount, newBalance);
+      accountId, validatedAmount, newBalance);
   }
 
   // 현재 USD/KRW 환율 조회
@@ -276,12 +276,12 @@ public class AccountServiceImpl implements AccountService {
     try {
       // 1. 최신 환율 조회 시도
       log.debug("최신 환율 조회 시도");
-      FxRateDto response = marketDataServiceClient.getLatestFxRate();
+      FxRateDto response = marketDataServiceClientWrapper.getLatestFxRate();
 
       // 디버그: 응답 확인
       log.debug("Market-data 응답: response={}, rate={}",
-          response,
-          response != null ? response.getRate() : "null");
+        response,
+        response != null ? response.getRate() : "null");
 
       if (response != null && response.getRate() != null) {
         BigDecimal rate = MoneyUtils.roundExchangeRate(response.getRate());
@@ -313,7 +313,7 @@ public class AccountServiceImpl implements AccountService {
     try {
       // 1. 특정 날짜 환율 조회 시도
       log.debug("특정 날짜 환율 조회 시도: {}", date);
-      FxRateDto response = marketDataServiceClient.getFxRate(date.toString());
+      FxRateDto response = marketDataServiceClientWrapper.getFxRate(date.toString());
 
       if (response != null && response.getRate() != null) {
         BigDecimal rate = MoneyUtils.roundExchangeRate(response.getRate());
@@ -379,14 +379,14 @@ public class AccountServiceImpl implements AccountService {
   // 거래 참조 ID 생성
   private String generateReferenceId(TransactionType type) {
     return type.name() + "_" + System.currentTimeMillis() + "_" +
-        UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+      UUID.randomUUID().toString().substring(0, 8).toUpperCase();
   }
 
 
   // 계좌 접근 권한 검증
   private Account validateAccountAccess(Long accountId, Long userId) {
     Account account = accountQueryRepository.findByIdWithLock(accountId)
-        .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
+      .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
 
     if (!account.getUser().getId().equals(userId)) {
       throw new AccountException(AccountResponse.ACCOUNT_ACCESS_DENIED);
@@ -419,20 +419,20 @@ public class AccountServiceImpl implements AccountService {
 
   // 거래 내역 생성
   private void createTradeHistory(Account account, BigDecimal usdAmount,
-      BigDecimal newBalance, String description) {
+    BigDecimal newBalance, String description) {
     TransactionType transactionType = usdAmount.compareTo(BigDecimal.ZERO) > 0
-        ? TransactionType.TRADE_SELL : TransactionType.TRADE_BUY;
+      ? TransactionType.TRADE_SELL : TransactionType.TRADE_BUY;
     String referenceId = generateReferenceId(transactionType);
 
     AccountHistory history = AccountHistory.builder()
-        .account(account)
-        .transactionType(transactionType)
-        .amount(usdAmount.abs())
-        .currency("USD")
-        .balanceAfter(newBalance)
-        .referenceId(referenceId)
-        .description(description)
-        .build();
+      .account(account)
+      .transactionType(transactionType)
+      .amount(usdAmount.abs())
+      .currency("USD")
+      .balanceAfter(newBalance)
+      .referenceId(referenceId)
+      .description(description)
+      .build();
 
     accountHistoryRepository.save(history);
   }

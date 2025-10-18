@@ -39,3 +39,36 @@ springdoc:
     operationsSorter: method
     tagsSorter: alpha
   show-actuator: false
+
+# Resilience4j 설정
+resilience4j:
+  circuitbreaker:
+    instances:
+      marketDataService:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 10s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+        recordExceptions:
+          - org.springframework.web.client.HttpServerErrorException
+          - java.util.concurrent.TimeoutException
+          - java.io.IOException
+  retry:
+    instances:
+      marketDataService:
+        maxAttempts: 3
+        waitDuration: 1s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - org.springframework.web.client.HttpServerErrorException
+          - java.util.concurrent.TimeoutException
+  timelimiter:
+    instances:
+      marketDataService:
+        timeoutDuration: 8s
+        cancelRunningFuture: true

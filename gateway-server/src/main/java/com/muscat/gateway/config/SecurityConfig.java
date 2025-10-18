@@ -44,13 +44,8 @@ public class SecurityConfig {
                 .pathMatchers("/h2-console/**").permitAll()
                 .pathMatchers("/swagger-ui/**", "/swagger-ui.html").permitAll()
                 .pathMatchers("/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
-                // Private API - JWT 인증 필요
-                .anyExchange().authenticated()
-            )
-            .oauth2ResourceServer(oauth2 -> oauth2
-                .jwt(jwt -> jwt
-                    .jwtAuthenticationConverter(jwtAuthenticationConverter())
-                )
+                // Private API - Gateway는 검증하지 않고 downstream service에서 검증
+                .anyExchange().permitAll()
             );
         return http.build();
     }
