@@ -1,0 +1,107 @@
+global:
+  domain: app.localhost
+  authDomain: auth.localhost
+  springProfiles: dev,no-file-logging
+
+infrastructure:
+  redis:
+    enabled: true
+  keycloak:
+    enabled: true
+    replicas: 1
+
+configServer:
+  enabled: true
+  replicaCount: 1
+
+gatewayServer:
+  enabled: true
+  replicaCount: 1
+  env:
+    springProfiles: dev
+
+services:
+  userService:
+    enabled: true
+    replicaCount: 1
+    env:
+      appBaseUrl: http://app.localhost
+      appFrontendUrl: http://app.localhost
+      mailVerificationBaseUrl: http://app.localhost
+
+  tradeService:
+    enabled: true
+    replicaCount: 1
+
+  marketDataService:
+    enabled: true
+    replicaCount: 1
+    env:
+      MARKETDATA_CONSTANTS_FX-INGEST_BACKFILL_ENABLED: "false"
+      MARKETDATA_CONSTANTS_FX-INGEST_INCREMENTAL_ENABLED: "false"
+      MARKETDATA_CONSTANTS_FX-INGEST_SCHEDULER_ENABLED: "false"
+
+  backtestService:
+    enabled: true
+    replicaCount: 1
+
+frontend:
+  enabled: true
+  replicaCount: 1
+  env:
+    apiUrl: http://app.localhost/api
+    keycloakUrl: http://auth.localhost
+    keycloakRealm: muscathan
+    keycloakClientId: ggeolmuse-frontend
+
+ingress:
+  enabled: true
+  annotations:
+    nginx.ingress.kubernetes.io/cors-allow-origin: "http://app.localhost,http://localhost:3000,http://localhost:5173"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET,POST,PUT,DELETE,PATCH,OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "*"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+
+networkPolicy:
+  enabled: true
+
+# 개발 환경용 Secret 설정
+# 실제 사용 시:
+# 1. 이 파일을 values-dev.yaml로 복사
+# 2. YOUR_*_HERE를 실제 값으로 교체
+# 3. kubectl create secret으로 Secret 생성 (권장)
+#
+# Secret 생성 예시:
+# kubectl create secret generic ggeolmuse-secrets \
+#   --from-literal=configServerUsername=YOUR_CONFIG_USERNAME \
+#   --from-literal=configServerPassword=YOUR_CONFIG_PASSWORD \
+#   --from-literal=keycloakSecret=YOUR_KEYCLOAK_SECRET \
+#   --from-literal=keycloakAdminUsername=YOUR_ADMIN_USERNAME \
+#   --from-literal=keycloakAdminPassword=YOUR_ADMIN_PASSWORD \
+#   --from-literal=keycloakClientSecret=YOUR_CLIENT_SECRET \
+#   --from-literal=keycloakTestUserPassword=YOUR_TEST_PASSWORD \
+#   --from-literal=mailUsername=YOUR_GMAIL_ADDRESS \
+#   --from-literal=mailPassword=YOUR_GMAIL_APP_PASSWORD \
+#   --from-literal=mailFrom=YOUR_GMAIL_ADDRESS \
+#   --from-literal=alphavantageApiKey=YOUR_ALPHAVANTAGE_KEY \
+#   --from-literal=koreaeximApiKey=YOUR_KOREAEXIM_KEY
+
+secrets:
+  enabled: false  # 외부에서 생성한 Secret 사용 (권장)
+  name: ggeolmuse-secrets
+  # data:  # enabled: true로 설정 시 아래 값들을 채우세요
+  #   configServerUsername: "YOUR_CONFIG_USERNAME_HERE"
+  #   configServerPassword: "YOUR_CONFIG_PASSWORD_HERE"
+  #   keycloakSecret: "YOUR_KEYCLOAK_SECRET_HERE"
+  #   keycloakAdminUsername: "YOUR_ADMIN_USERNAME_HERE"
+  #   keycloakAdminPassword: "YOUR_ADMIN_PASSWORD_HERE"
+  #   keycloakClientSecret: "YOUR_CLIENT_SECRET_HERE"
+  #   keycloakTestUserPassword: "YOUR_TEST_PASSWORD_HERE"
+  #   mailUsername: "YOUR_GMAIL_ADDRESS_HERE"
+  #   mailPassword: "YOUR_GMAIL_APP_PASSWORD_HERE"
+  #   mailFrom: "YOUR_GMAIL_ADDRESS_HERE"
+  #   alphavantageApiKey: "YOUR_ALPHAVANTAGE_KEY_HERE"
+  #   koreaeximApiKey: "YOUR_KOREAEXIM_KEY_HERE"

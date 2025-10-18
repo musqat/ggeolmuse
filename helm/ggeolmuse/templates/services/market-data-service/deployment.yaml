@@ -1,0 +1,70 @@
+{{- if .Values.services.marketDataService.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.services.marketDataService.name }}
+  labels:
+    app: {{ .Values.services.marketDataService.name }}
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.services.marketDataService.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.services.marketDataService.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.services.marketDataService.name }}
+        {{- include "ggeolmuse.serviceLabels" (dict "name" .Values.services.marketDataService.name "tier" .Values.services.marketDataService.labels.tier) | nindent 8 }}
+    spec:
+      initContainers:
+      - name: wait-for-config-server
+        image: busybox:1.35
+        command:
+        - sh
+        - -c
+        - |
+          echo "Waiting for Config Server to be ready..."
+          until wget -q --spider http://config-server:8888/actuator/health 2>/dev/null; do
+            echo "Config Server is not ready yet. Retrying in 5 seconds..."
+            sleep 5
+          done
+          echo "Config Server is ready!"
+      containers:
+      - name: {{ .Values.services.marketDataService.name }}
+        image: {{ include "ggeolmuse.image" (dict "Values" .Values "repository" .Values.services.marketDataService.image.repository "tag" .Values.services.marketDataService.image.tag "Chart" .Chart) }}
+        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        ports:
+        - containerPort: {{ .Values.services.marketDataService.service.port }}
+        env:
+        - name: SERVER_PORT
+          value: {{ .Values.services.marketDataService.service.port | quote }}
+        - name: SPRING_APPLICATION_NAME
+          value: {{ .Values.services.marketDataService.name | quote }}
+        {{- include "ggeolmuse.springEnv" . | nindent 8 }}
+        - name: KEYCLOAK_SECRET
+          {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "KEYCLOAK_SECRET") | nindent 10 }}
+        - name: ALPHAVANTAGE_API_KEY
+          {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "ALPHAVANTAGE_API_KEY") | nindent 10 }}
+        - name: KOREAEXIM_API_KEY
+          {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "KOREAEXIM_API_KEY") | nindent 10 }}
+        {{- if .Values.services.marketDataService.env }}
+        {{- range $key, $value := .Values.services.marketDataService.env }}
+        - name: {{ $key }}
+          value: {{ $value | quote }}
+        {{- end }}
+        {{- end }}
+        startupProbe:
+          httpGet:
+            path: /actuator/health
+            port: {{ .Values.services.marketDataService.service.port }}
+          initialDelaySeconds: {{ .Values.services.marketDataService.probes.startup.initialDelaySeconds }}
+          periodSeconds: {{ .Values.services.marketDataService.probes.startup.periodSeconds }}
+          timeoutSeconds: {{ .Values.services.marketDataService.probes.startup.timeoutSeconds }}
+          failureThreshold: {{ .Values.services.marketDataService.probes.startup.failureThreshold }}
+        readinessProbe:
+          {{- include "ggeolmuse.readinessProbe" (merge (dict "port" .Values.services.marketDataService.service.port) .Values.services.marketDataService.probes.readiness) | nindent 10 }}
+        livenessProbe:
+          {{- include "ggeolmuse.livenessProbe" (merge (dict "port" .Values.services.marketDataService.service.port) .Values.services.marketDataService.probes.liveness) | nindent 10 }}
+{{- end }}

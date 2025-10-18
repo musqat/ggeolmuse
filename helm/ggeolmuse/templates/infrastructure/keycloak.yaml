@@ -1,0 +1,105 @@
+{{- if .Values.infrastructure.keycloak.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+  labels:
+    app: keycloak
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.infrastructure.keycloak.replicas }}
+  selector:
+    matchLabels:
+      app: keycloak
+  template:
+    metadata:
+      labels:
+        app: keycloak
+    spec:
+      containers:
+      - name: keycloak
+        image: {{ .Values.infrastructure.keycloak.image }}
+        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        ports:
+        - containerPort: {{ .Values.infrastructure.keycloak.port }}
+        env:
+        - name: KEYCLOAK_ADMIN
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.secrets.name }}
+              key: KEYCLOAK_ADMIN_USERNAME
+        - name: KEYCLOAK_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.secrets.name }}
+              key: KEYCLOAK_ADMIN_PASSWORD
+        - name: KC_DB
+          value: {{ .Values.infrastructure.keycloak.env.kcDbVendor | quote }}
+        - name: KEYCLOAK_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.secrets.name }}
+              key: KEYCLOAK_CLIENT_SECRET
+        - name: KEYCLOAK_TEST_USER_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.secrets.name }}
+              key: KEYCLOAK_TEST_USER_PASSWORD
+        command: ["sh", "-c"]
+        args:
+        - |
+          rm -rf /opt/keycloak/data/h2/*
+          sed -e "s/\${KEYCLOAK_CLIENT_SECRET}/${KEYCLOAK_CLIENT_SECRET}/g" \
+              -e "s/\${KEYCLOAK_TEST_USER_PASSWORD}/${KEYCLOAK_TEST_USER_PASSWORD}/g" \
+              /opt/keycloak/data/import-template/muscathan-realm.json > /opt/keycloak/data/import/muscathan-realm.json
+          /opt/keycloak/bin/kc.sh start-dev --import-realm
+        volumeMounts:
+        - name: keycloak-realm-template
+          mountPath: /opt/keycloak/data/import-template
+          readOnly: true
+        - name: keycloak-realm-output
+          mountPath: /opt/keycloak/data/import
+        resources:
+          limits:
+            memory: "1Gi"
+          requests:
+            memory: "512Mi"
+        readinessProbe:
+          httpGet:
+            path: /realms/master
+            port: {{ .Values.infrastructure.keycloak.port }}
+          initialDelaySeconds: 60
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /realms/master
+            port: {{ .Values.infrastructure.keycloak.port }}
+          initialDelaySeconds: 120
+          periodSeconds: 30
+      volumes:
+      - name: keycloak-realm-template
+        configMap:
+          name: keycloak-realm-config
+      - name: keycloak-realm-output
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+  labels:
+    app: keycloak
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.infrastructure.keycloak.service.type }}
+  ports:
+  - port: {{ .Values.infrastructure.keycloak.service.targetPort }}
+    targetPort: {{ .Values.infrastructure.keycloak.service.targetPort }}
+    protocol: TCP
+    {{- if eq .Values.infrastructure.keycloak.service.type "LoadBalancer" }}
+    nodePort: {{ .Values.infrastructure.keycloak.service.port }}
+    {{- end }}
+  selector:
+    app: keycloak
+{{- end }}

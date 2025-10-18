@@ -1,0 +1,58 @@
+{{- if .Values.configServer.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.configServer.name }}
+  labels:
+    app: {{ .Values.configServer.name }}
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.configServer.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.configServer.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.configServer.name }}
+    spec:
+      initContainers:
+      - name: git-clone
+        image: alpine/git:latest
+        command:
+        - sh
+        - -c
+        - |
+          cd /config-repo
+          if [ -d .git ]; then
+            git pull
+          else
+            git clone --branch {{ .Values.configServer.git.label | default "main" }} {{ .Values.configServer.git.uri }} .
+          fi
+        volumeMounts:
+        - name: config-repo-volume
+          mountPath: /config-repo
+      containers:
+      - name: {{ .Values.configServer.name }}
+        image: {{ include "ggeolmuse.image" (dict "Values" .Values "repository" .Values.configServer.image.repository "tag" .Values.configServer.image.tag "Chart" .Chart) }}
+        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        ports:
+        - containerPort: {{ .Values.configServer.service.port }}
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: {{ .Values.configServer.env.springProfiles | quote }}
+        - name: SERVER_PORT
+          value: {{ .Values.configServer.service.port | quote }}
+        volumeMounts:
+        - name: config-repo-volume
+          mountPath: /config-repo
+          readOnly: true
+        readinessProbe:
+          {{- include "ggeolmuse.readinessProbe" (dict "port" .Values.configServer.service.port "initialDelaySeconds" .Values.configServer.probes.readiness.initialDelaySeconds "periodSeconds" .Values.configServer.probes.readiness.periodSeconds) | nindent 10 }}
+        livenessProbe:
+          {{- include "ggeolmuse.livenessProbe" (dict "port" .Values.configServer.service.port "initialDelaySeconds" .Values.configServer.probes.liveness.initialDelaySeconds "periodSeconds" .Values.configServer.probes.liveness.periodSeconds) | nindent 10 }}
+      volumes:
+      - name: config-repo-volume
+        emptyDir: {}
+{{- end }}

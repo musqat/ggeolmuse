@@ -7,24 +7,6 @@ spring:
     config:
       username: ${SPRING_CLOUD_CONFIG_USERNAME:config}
       password: ${SPRING_CLOUD_CONFIG_PASSWORD:config123}
-    gateway:
-      routes:
-        - id: market-data-route
-          uri: http://market-data-service:8083
-          predicates:
-            - Path=/api/market/**
-        - id: user-service-route
-          uri: http://user-service:8080
-          predicates:
-            - Path=/api/auth/**,/api/users/**,/api/accounts/**
-        - id: trade-route
-          uri: http://trade-service:8081
-          predicates:
-            - Path=/api/trade/**,/api/trade-history/**,/api/portfolio/**
-        - id: backtest-route
-          uri: http://backtest-service:8082
-          predicates:
-            - Path=/api/trading-simulation/**,/api/backtest/**,/api/analysis/**,/api/internal/backtest/**
   data:
     redis:
       host: ${REDIS_HOST:redis.default.svc.cluster.local}

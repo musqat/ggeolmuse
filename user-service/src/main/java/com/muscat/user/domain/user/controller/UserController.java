@@ -48,8 +48,8 @@ public class UserController {
   @GetMapping("/me")
   public ResponseEntity<UserResponseDto> getMyProfile(
       @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
-    String email = jwt.getClaimAsString("email");
 
+    String email = jwt.getClaimAsString("email");
     User user = userService.getProfile(email);
     UserResponseDto userDto = userMapper.toResponseDto(user);
 

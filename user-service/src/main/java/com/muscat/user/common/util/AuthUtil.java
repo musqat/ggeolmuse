@@ -7,15 +7,18 @@ import com.muscat.user.common.enums.responses.UserResponse;
 import com.muscat.user.domain.user.entity.User;
 import com.muscat.user.domain.user.repository.UserRepository;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.stereotype.Component;
 
 @Component
 public class AuthUtil {
 
   private final UserRepository userRepository;
+  private final JwtDecoder jwtDecoder;
 
-  public AuthUtil(UserRepository userRepository) {
+  public AuthUtil(UserRepository userRepository, JwtDecoder jwtDecoder) {
     this.userRepository = userRepository;
+    this.jwtDecoder = jwtDecoder;
   }
 
   // JWT에서 직접 Long userId 추출

@@ -1,0 +1,52 @@
+{{- if .Values.services.backtestService.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.services.backtestService.name }}
+  labels:
+    app: {{ .Values.services.backtestService.name }}
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.services.backtestService.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.services.backtestService.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.services.backtestService.name }}
+        {{- include "ggeolmuse.serviceLabels" (dict "name" .Values.services.backtestService.name "tier" .Values.services.backtestService.labels.tier) | nindent 8 }}
+    spec:
+      initContainers:
+      - name: wait-for-config-server
+        image: busybox:1.35
+        command:
+        - sh
+        - -c
+        - |
+          echo "Waiting for Config Server to be ready..."
+          until wget -q --spider http://config-server:8888/actuator/health 2>/dev/null; do
+            echo "Config Server is not ready yet. Retrying in 5 seconds..."
+            sleep 5
+          done
+          echo "Config Server is ready!"
+      containers:
+      - name: {{ .Values.services.backtestService.name }}
+        image: {{ include "ggeolmuse.image" (dict "Values" .Values "repository" .Values.services.backtestService.image.repository "tag" .Values.services.backtestService.image.tag "Chart" .Chart) }}
+        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        ports:
+        - containerPort: {{ .Values.services.backtestService.service.port }}
+        env:
+        - name: SERVER_PORT
+          value: {{ .Values.services.backtestService.service.port | quote }}
+        - name: SPRING_APPLICATION_NAME
+          value: {{ .Values.services.backtestService.name | quote }}
+        {{- include "ggeolmuse.springEnv" . | nindent 8 }}
+        - name: KEYCLOAK_SECRET
+          {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "KEYCLOAK_SECRET") | nindent 10 }}
+        readinessProbe:
+          {{- include "ggeolmuse.readinessProbe" (merge (dict "port" .Values.services.backtestService.service.port) .Values.services.backtestService.probes.readiness) | nindent 10 }}
+        livenessProbe:
+          {{- include "ggeolmuse.livenessProbe" (merge (dict "port" .Values.services.backtestService.service.port) .Values.services.backtestService.probes.liveness) | nindent 10 }}
+{{- end }}

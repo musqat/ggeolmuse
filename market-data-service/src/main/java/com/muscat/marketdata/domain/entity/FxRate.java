@@ -26,4 +26,8 @@ public class FxRate {
   @Column(nullable = false, precision = 18, scale = 6)
   private BigDecimal rate;
 
+  @Column(name = "currency_pair", nullable = false, length = 10)
+  @Builder.Default
+  private String currencyPair = "USD/KRW";
+
 }

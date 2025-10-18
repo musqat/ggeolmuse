@@ -18,8 +18,8 @@ spring:
           enabled: false
     gateway:
       httpclient:
-        connect-timeout: 1000
-        response-timeout: 10s
+        connect-timeout: 3000
+        response-timeout: 30s
       globalcors:
         cors-configurations:
           '[/**]':
