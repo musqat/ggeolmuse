@@ -10,8 +10,6 @@ spring:
           uri: http://market-data-service:8083
           predicates:
             - Path=/api/market/public/**
-          filters:
-            - RewritePath=/api/market/public/(?<segment>.*), /api/internal/public/$\{segment}
 
         # Market Data Service - Private APIs (JWT 필요)
         - id: market-data-private-route
