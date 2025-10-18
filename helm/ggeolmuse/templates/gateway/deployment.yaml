@@ -1,0 +1,67 @@
+{{- if .Values.gatewayServer.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.gatewayServer.name }}
+  labels:
+    app: {{ .Values.gatewayServer.name }}
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.gatewayServer.replicaCount }}
+  {{- with .Values.gatewayServer.strategy }}
+  strategy:
+    rollingUpdate:
+      maxUnavailable: {{ .rollingUpdate.maxUnavailable }}
+      maxSurge: {{ .rollingUpdate.maxSurge }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app: {{ .Values.gatewayServer.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.gatewayServer.name }}
+    spec:
+      {{- if .Values.gatewayServer.rbac.create }}
+      serviceAccountName: {{ .Values.gatewayServer.name }}
+      {{- end }}
+      initContainers:
+      - name: wait-for-config-server
+        image: busybox:1.35
+        command:
+        - sh
+        - -c
+        - |
+          echo "Waiting for Config Server to be ready..."
+          until wget -q --spider http://config-server:8888/actuator/health 2>/dev/null; do
+            echo "Config Server is not ready yet. Retrying in 5 seconds..."
+            sleep 5
+          done
+          echo "Config Server is ready!"
+      containers:
+      - name: {{ .Values.gatewayServer.name }}
+        image: {{ include "ggeolmuse.image" (dict "Values" .Values "repository" .Values.gatewayServer.image.repository "tag" .Values.gatewayServer.image.tag "Chart" .Chart) }}
+        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        ports:
+        - containerPort: {{ .Values.gatewayServer.service.port }}
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: {{ .Values.gatewayServer.env.springProfiles | quote }}
+        - name: SERVER_PORT
+          value: {{ .Values.gatewayServer.service.port | quote }}
+        - name: SPRING_CLOUD_CONFIG_URI
+          value: {{ .Values.gatewayServer.env.configUri | quote }}
+        - name: SPRING_CLOUD_CONFIG_USERNAME
+          value: {{ .Values.gatewayServer.env.configUsername | quote }}
+        - name: SPRING_CLOUD_CONFIG_PASSWORD
+          value: {{ .Values.gatewayServer.env.configPassword | quote }}
+        - name: KEYCLOAK_AUTH_SERVER_URL
+          value: {{ .Values.global.keycloak.authServerUrl | quote }}
+        - name: KEYCLOAK_REALM
+          value: {{ .Values.global.keycloak.realm | quote }}
+        readinessProbe:
+          {{- include "ggeolmuse.readinessProbe" (dict "port" .Values.gatewayServer.service.port "initialDelaySeconds" .Values.gatewayServer.probes.readiness.initialDelaySeconds "periodSeconds" .Values.gatewayServer.probes.readiness.periodSeconds) | nindent 10 }}
+        livenessProbe:
+          {{- include "ggeolmuse.livenessProbe" (dict "port" .Values.gatewayServer.service.port "initialDelaySeconds" .Values.gatewayServer.probes.liveness.initialDelaySeconds "periodSeconds" .Values.gatewayServer.probes.liveness.periodSeconds) | nindent 10 }}
+{{- end }}

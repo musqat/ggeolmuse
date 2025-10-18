@@ -157,6 +157,7 @@ public class FxDataCollector implements CommandLineRunner {
                     return Optional.of(FxRate.builder()
                         .date(targetDate) // 요청 날짜로 저장
                         .rate(rate)
+                        .currencyPair("USD/KRW")
                         .build());
                 }
             } catch (Exception e) {
@@ -220,14 +221,22 @@ public class FxDataCollector implements CommandLineRunner {
 
         FxRate existing = em.find(FxRate.class, date);
         if (existing == null) {
-            FxRate newRate = FxRate.builder().date(date).rate(normalizedRate).build();
+            FxRate newRate = FxRate.builder()
+                .date(date)
+                .rate(normalizedRate)
+                .currencyPair("USD/KRW")
+                .build();
             em.persist(newRate);
             log.debug("[환율저장] {} -> {}", date, normalizedRate);
             return newRate;
         } else {
             if (existing.getRate() == null || existing.getRate().compareTo(normalizedRate) != 0) {
                 em.detach(existing);
-                FxRate updatedRate = FxRate.builder().date(date).rate(normalizedRate).build();
+                FxRate updatedRate = FxRate.builder()
+                    .date(date)
+                    .rate(normalizedRate)
+                    .currencyPair("USD/KRW")
+                    .build();
                 em.merge(updatedRate);
                 log.debug("[환율업데이트] {} -> {}", date, normalizedRate);
                 return updatedRate;

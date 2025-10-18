@@ -1,0 +1,48 @@
+{{- if .Values.infrastructure.redis.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  labels:
+    app: redis
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: {{ .Values.infrastructure.redis.image }}
+        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        ports:
+        - containerPort: {{ .Values.infrastructure.redis.port }}
+        command: ["redis-server", "--appendonly", "yes", "--requirepass", ""]
+        resources:
+          limits:
+            memory: "1Gi"
+          requests:
+            memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  labels:
+    app: redis
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.infrastructure.redis.service.type }}
+  ports:
+  - port: {{ .Values.infrastructure.redis.port }}
+    targetPort: {{ .Values.infrastructure.redis.port }}
+    protocol: TCP
+  selector:
+    app: redis
+{{- end }}

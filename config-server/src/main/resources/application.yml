@@ -5,24 +5,20 @@ spring:
   application:
     name: config-server
   profiles:
-    active: ${SPRING_PROFILES_ACTIVE:native}
-  
+    active: git
+
   cloud:
     config:
       server:
-        bootstrap: true
-        native:
-          search-locations: classpath:/configs/{profile},classpath:/configs/common
-        default-profile: dev
+        git:
+          uri: ${CONFIG_GIT_URI:https://github.com/musqat/ggeolmuse-config.git}
+          default-label: ${CONFIG_GIT_LABEL:main}
+          search-paths: ${CONFIG_GIT_SEARCH_PATHS:.}
+          clone-on-start: true
+          timeout: 10
         # 암호화 키 설정
         encrypt:
           enabled: ${CONFIG_ENCRYPT_ENABLED:false}
-        # Git 저장소 설정
-        git:
-          uri: ${CONFIG_GIT_URI:}
-          username: ${CONFIG_GIT_USERNAME:}
-          password: ${CONFIG_GIT_PASSWORD:}
-          skip-ssl-validation: ${CONFIG_GIT_SKIP_SSL:false}
   
   # Config Server 보안 설정
   security:
@@ -57,5 +53,8 @@ management:
 
 logging:
   level:
-    org.springframework.cloud.config: INFO
+    org.springframework.cloud.config: DEBUG
+    org.springframework.cloud.config.server: DEBUG
+    org.springframework.cloud.config.server.environment: DEBUG
+    org.springframework.boot.autoconfigure: DEBUG
     com.muscat.configserver: INFO

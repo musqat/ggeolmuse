@@ -1,0 +1,18 @@
+{{- if .Values.services.backtestService.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.services.backtestService.name }}
+  labels:
+    app: {{ .Values.services.backtestService.name }}
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.services.backtestService.service.type }}
+  ports:
+  - port: {{ .Values.services.backtestService.service.port }}
+    targetPort: {{ .Values.services.backtestService.service.port }}
+    protocol: TCP
+  selector:
+    app: {{ .Values.services.backtestService.name }}
+{{- end }}

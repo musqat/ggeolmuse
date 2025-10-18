@@ -11,6 +11,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -34,8 +36,14 @@ public class MarketDataServiceImpl implements MarketDataService {
   }
 
   @Override
+  @Retryable(
+      retryFor = {Exception.class},
+      maxAttempts = 3,
+      backoff = @Backoff(delay = 500, multiplier = 2.0)
+  )
   public BigDecimal getOHLCPrice(String symbol, LocalDate tradeDate, PriceType priceType) {
     try {
+      log.info("시장 데이터 조회 시도: symbol={}, date={}, priceType={}", symbol, tradeDate, priceType);
       var response = marketServiceClient.getOHLCPrice(symbol, tradeDate.toString());
       log.info("Market data raw response: {}", response);
 
@@ -72,9 +80,15 @@ public class MarketDataServiceImpl implements MarketDataService {
   }
 
   @Override
+  @Retryable(
+      retryFor = {Exception.class},
+      maxAttempts = 3,
+      backoff = @Backoff(delay = 500, multiplier = 2.0)
+  )
   public BigDecimal validateManualPrice(String symbol, LocalDate tradeDate,
       BigDecimal manualPrice) {
     try {
+      log.info("수동 가격 검증을 위한 시장 데이터 조회 시도: symbol={}, date={}", symbol, tradeDate);
       var response = marketServiceClient.getOHLCPrice(symbol, tradeDate.toString());
 
       if (response != null && response.getAvailable()) {

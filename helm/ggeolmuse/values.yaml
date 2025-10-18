@@ -1,0 +1,300 @@
+# 전역 설정
+global:
+  domain: app.localhost
+  authDomain: auth.localhost
+  imageRegistry: muscathan
+  imagePullPolicy: Always
+
+  keycloak:
+    authServerUrl: http://keycloak:8080
+    publicUrl: http://auth.localhost
+    realm: muscathan
+    clientId: ggeolmuse-client
+    frontendClientId: ggeolmuse-frontend
+
+  redis:
+    host: redis
+    port: 6379
+    healthCheckEnabled: false
+
+  springProfiles: dev,no-file-logging
+
+# Ingress Controller
+ingressController:
+  enabled: true
+  image: registry.k8s.io/ingress-nginx/controller:v1.9.4
+
+# 인프라
+infrastructure:
+  redis:
+    enabled: true
+    image: redis:7-alpine
+    port: 6379
+    service:
+      type: ClusterIP
+
+  keycloak:
+    enabled: true
+    image: quay.io/keycloak/keycloak:23.0
+    port: 8080
+    replicas: 1
+    env:
+      kcAdminUser: admin
+      kcAdminPassword: admin
+      kcDbVendor: dev-file
+    service:
+      type: ClusterIP
+      port: 8080
+      targetPort: 8080
+
+# 설정 서버
+configServer:
+  enabled: true
+  name: config-server
+  replicaCount: 1
+  image:
+    repository: config-server
+    tag: v15
+  service:
+    type: ClusterIP
+    port: 8888
+  git:
+    uri: https://github.com/musqat/ggeolmuse-config.git
+    label: main
+    searchPaths: .
+  env:
+    springProfiles: git
+  probes:
+    readiness:
+      initialDelaySeconds: 60
+      periodSeconds: 5
+    liveness:
+      initialDelaySeconds: 120
+      periodSeconds: 15
+
+# 게이트웨이
+gatewayServer:
+  enabled: true
+  name: gateway-server
+  replicaCount: 3
+  image:
+    repository: gateway-server
+    tag: v8
+  service:
+    type: LoadBalancer
+    port: 8070
+  env:
+    springProfiles: dev
+    configUri: http://config-server:8888
+    configUsername: config
+    configPassword: config123
+  rbac:
+    create: true
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  probes:
+    readiness:
+      initialDelaySeconds: 60
+      periodSeconds: 5
+    liveness:
+      initialDelaySeconds: 120
+      periodSeconds: 15
+
+# 비즈니스 서비스
+services:
+  userService:
+    enabled: true
+    name: user-service
+    replicaCount: 1
+    image:
+      repository: user-service
+      tag: "1.2.3"
+    service:
+      type: ClusterIP
+      port: 8080
+    labels:
+      tier: business-service
+    env:
+      javaOpts: "-Dh2.webAllowOthers=true"
+      appBaseUrl: http://app.localhost
+      appFrontendUrl: http://app.localhost
+      mailVerificationBaseUrl: http://app.localhost
+    secrets:
+      keycloakSecret: true
+      mailUsername: true
+      mailPassword: true
+      mailFrom: true
+    probes:
+      readiness:
+        initialDelaySeconds: 60
+        periodSeconds: 10
+        timeoutSeconds: 5
+        failureThreshold: 3
+      liveness:
+        initialDelaySeconds: 120
+        periodSeconds: 20
+        timeoutSeconds: 5
+        failureThreshold: 3
+
+  tradeService:
+    enabled: true
+    name: trade-service
+    replicaCount: 1
+    image:
+      repository: trade-service
+      tag: "1.2.4"
+    service:
+      type: ClusterIP
+      port: 8081
+    labels:
+      tier: business-service
+    secrets:
+      keycloakSecret: true
+    probes:
+      readiness:
+        initialDelaySeconds: 60
+        periodSeconds: 10
+      liveness:
+        initialDelaySeconds: 120
+        periodSeconds: 20
+
+  marketDataService:
+    enabled: true
+    name: market-data-service
+    replicaCount: 1
+    image:
+      repository: market-data-service
+      tag: "1.2.4"
+    service:
+      type: ClusterIP
+      port: 8083
+    labels:
+      tier: business-service
+    secrets:
+      keycloakSecret: true
+      alphavantageApiKey: true
+      koreaexImApiKey: true
+    probes:
+      startup:
+        initialDelaySeconds: 30
+        periodSeconds: 10
+        timeoutSeconds: 5
+        failureThreshold: 60
+      readiness:
+        initialDelaySeconds: 5
+        periodSeconds: 5
+        timeoutSeconds: 3
+      liveness:
+        initialDelaySeconds: 10
+        periodSeconds: 15
+        timeoutSeconds: 5
+
+  backtestService:
+    enabled: true
+    name: backtest-service
+    replicaCount: 1
+    image:
+      repository: backtest-service
+      tag: "1.2.3"
+    service:
+      type: ClusterIP
+      port: 8082
+    labels:
+      tier: business-service
+    secrets:
+      keycloakSecret: true
+    probes:
+      readiness:
+        initialDelaySeconds: 60
+        periodSeconds: 10
+      liveness:
+        initialDelaySeconds: 120
+        periodSeconds: 20
+
+# 프론트엔드
+frontend:
+  enabled: true
+  name: frontend-web
+  replicaCount: 1
+  image:
+    repository: frontend-web
+    tag: "1.3.14"
+  service:
+    type: LoadBalancer
+    port: 3000
+    targetPort: 80
+  env:
+    apiUrl: http://app.localhost/api
+    keycloakUrl: http://auth.localhost
+    keycloakRealm: muscathan
+    keycloakClientId: ggeolmuse-frontend
+
+# 네트워크 정책
+networkPolicy:
+  enabled: true
+  policyTypes:
+    - Ingress
+  businessServiceTier: business-service
+  gatewayApp: gateway-server
+  ports:
+    - 8080
+    - 8081
+    - 8082
+    - 8083
+
+# Ingress 설정
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/cors-allow-origin: "http://app.localhost,http://localhost:3000,http://localhost:5173"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET,POST,PUT,DELETE,PATCH,OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "*"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+
+  hosts:
+    - host: app.localhost
+      paths:
+        - path: /api
+          pathType: Prefix
+          backend:
+            service: gateway-server
+            port: 8070
+        - path: /
+          pathType: Prefix
+          backend:
+            service: frontend-web
+            port: 3000
+
+    - host: auth.localhost
+      paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service: keycloak
+            port: 8080
+
+# Secret 설정
+secrets:
+  enabled: false  # 프로덕션에서는 외부에서 생성된 Secret 사용
+  name: ggeolmuse-secrets
+  data: {}
+
+# ConfigMap 설정
+configMap:
+  enabled: true
+  data:
+    appBaseUrl: "http://app.localhost"
+    oauthRedirectUri: "http://app.localhost/api/auth/social/google/callback"
+    emailExpiryHours: "24"
+    exchangeRateMin: "0"
+    exchangeRateMax: "3000"
+    exchangeRateFallback: "1300.00"
+    redisHost: "redis"
+    redisPort: "6379"
+    redisPassword: ""

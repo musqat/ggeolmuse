@@ -1,0 +1,66 @@
+{{- if .Values.services.userService.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.services.userService.name }}
+  labels:
+    app: {{ .Values.services.userService.name }}
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.services.userService.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.services.userService.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.services.userService.name }}
+        {{- include "ggeolmuse.serviceLabels" (dict "name" .Values.services.userService.name "tier" .Values.services.userService.labels.tier) | nindent 8 }}
+    spec:
+      initContainers:
+      - name: wait-for-config-server
+        image: busybox:1.35
+        command:
+        - sh
+        - -c
+        - |
+          echo "Waiting for Config Server to be ready..."
+          until wget -q --spider http://config-server:8888/actuator/health 2>/dev/null; do
+            echo "Config Server is not ready yet. Retrying in 5 seconds..."
+            sleep 5
+          done
+          echo "Config Server is ready!"
+      containers:
+      - name: {{ .Values.services.userService.name }}
+        image: {{ include "ggeolmuse.image" (dict "Values" .Values "repository" .Values.services.userService.image.repository "tag" .Values.services.userService.image.tag "Chart" .Chart) }}
+        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        ports:
+        - containerPort: {{ .Values.services.userService.service.port }}
+        env:
+        {{- include "ggeolmuse.springEnv" . | nindent 8 }}
+        - name: JAVA_OPTS
+          value: {{ .Values.services.userService.env.javaOpts | quote }}
+        - name: KEYCLOAK_PUBLIC_URL
+          value: {{ .Values.global.keycloak.publicUrl | quote }}
+        - name: KEYCLOAK_RESOURCE
+          value: {{ .Values.global.keycloak.clientId | quote }}
+        - name: KEYCLOAK_CREDENTIALS_SECRET
+          {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "KEYCLOAK_SECRET") | nindent 10 }}
+        - name: MAIL_USERNAME
+          {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "MAIL_USERNAME") | nindent 10 }}
+        - name: MAIL_PASSWORD
+          {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "MAIL_PASSWORD") | nindent 10 }}
+        - name: MAIL_FROM
+          {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "MAIL_FROM") | nindent 10 }}
+        - name: APP_BASE_URL
+          value: {{ .Values.services.userService.env.appBaseUrl | quote }}
+        - name: APP_FRONTEND_URL
+          value: {{ .Values.services.userService.env.appFrontendUrl | quote }}
+        - name: APP_MAIL_VERIFICATION_BASE_URL
+          value: {{ .Values.services.userService.env.mailVerificationBaseUrl | quote }}
+        readinessProbe:
+          {{- include "ggeolmuse.readinessProbe" (merge (dict "port" .Values.services.userService.service.port) .Values.services.userService.probes.readiness) | nindent 10 }}
+        livenessProbe:
+          {{- include "ggeolmuse.livenessProbe" (merge (dict "port" .Values.services.userService.service.port) .Values.services.userService.probes.liveness) | nindent 10 }}
+{{- end }}

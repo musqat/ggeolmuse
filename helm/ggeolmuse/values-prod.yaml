@@ -1,0 +1,127 @@
+global:
+  domain: app.ggeolmuse.com
+  authDomain: auth.ggeolmuse.com
+  springProfiles: prod
+
+  keycloak:
+    authServerUrl: http://keycloak:8080
+    publicUrl: https://auth.ggeolmuse.com
+
+infrastructure:
+  redis:
+    enabled: true
+  keycloak:
+    enabled: true
+    replicas: 2
+
+configServer:
+  enabled: true
+  replicaCount: 2
+
+gatewayServer:
+  enabled: true
+  replicaCount: 3
+  env:
+    springProfiles: prod
+
+services:
+  userService:
+    enabled: true
+    replicaCount: 3
+    env:
+      appBaseUrl: https://app.ggeolmuse.com
+      appFrontendUrl: https://app.ggeolmuse.com
+      mailVerificationBaseUrl: https://app.ggeolmuse.com
+
+  tradeService:
+    enabled: true
+    replicaCount: 3
+
+  marketDataService:
+    enabled: true
+    replicaCount: 2
+
+  backtestService:
+    enabled: true
+    replicaCount: 2
+
+frontend:
+  enabled: true
+  replicaCount: 3
+  image:
+    tag: "1.3.14"
+  env:
+    apiUrl: https://app.ggeolmuse.com/api
+    keycloakUrl: https://auth.ggeolmuse.com
+    keycloakRealm: muscathan
+    keycloakClientId: ggeolmuse-frontend
+
+ingress:
+  enabled: true
+  annotations:
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://app.ggeolmuse.com"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET,POST,PUT,DELETE,PATCH,OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "*"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+
+  hosts:
+    - host: app.ggeolmuse.com
+      paths:
+        - path: /api/user
+          pathType: Prefix
+          backend:
+            service: user-service
+            port: 8080
+        - path: /api/auth
+          pathType: Prefix
+          backend:
+            service: user-service
+            port: 8080
+        - path: /api/trade
+          pathType: Prefix
+          backend:
+            service: trade-service
+            port: 8081
+        - path: /api/account
+          pathType: Prefix
+          backend:
+            service: trade-service
+            port: 8081
+        - path: /api/market
+          pathType: Prefix
+          backend:
+            service: market-data-service
+            port: 8083
+        - path: /api/backtest
+          pathType: Prefix
+          backend:
+            service: backtest-service
+            port: 8082
+        - path: /
+          pathType: Prefix
+          backend:
+            service: frontend-web
+            port: 3000
+
+    - host: auth.ggeolmuse.com
+      paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service: keycloak
+            port: 8080
+
+  # TLS configuration for production
+  tls:
+    - secretName: ggeolmuse-tls
+      hosts:
+        - app.ggeolmuse.com
+        - auth.ggeolmuse.com
+
+networkPolicy:
+  enabled: true

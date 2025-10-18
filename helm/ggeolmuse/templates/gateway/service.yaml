@@ -1,0 +1,18 @@
+{{- if .Values.gatewayServer.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.gatewayServer.name }}
+  labels:
+    app: {{ .Values.gatewayServer.name }}
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.gatewayServer.service.type }}
+  ports:
+  - port: {{ .Values.gatewayServer.service.port }}
+    targetPort: {{ .Values.gatewayServer.service.port }}
+    protocol: TCP
+  selector:
+    app: {{ .Values.gatewayServer.name }}
+{{- end }}

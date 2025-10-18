@@ -1,0 +1,28 @@
+{{- if .Values.configMap.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ggeolmuse-config
+  labels:
+    app.kubernetes.io/name: ggeolmuse-config
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+data:
+  # 애플리케이션 URL 설정
+  APP_BASE_URL: {{ .Values.configMap.data.appBaseUrl | quote }}
+  OAUTH_REDIRECT_URI: {{ .Values.configMap.data.oauthRedirectUri | quote }}
+
+  # 이메일 인증 설정
+  EMAIL_EXPIRY_HOURS: {{ .Values.configMap.data.emailExpiryHours | quote }}
+
+  # 환율 설정
+  EXCHANGE_RATE_MIN: {{ .Values.configMap.data.exchangeRateMin | quote }}
+  EXCHANGE_RATE_MAX: {{ .Values.configMap.data.exchangeRateMax | quote }}
+  EXCHANGE_RATE_FALLBACK: {{ .Values.configMap.data.exchangeRateFallback | quote }}
+
+  # Redis 설정
+  REDIS_HOST: {{ .Values.configMap.data.redisHost | quote }}
+  REDIS_PORT: {{ .Values.configMap.data.redisPort | quote }}
+  REDIS_PASSWORD: {{ .Values.configMap.data.redisPassword | quote }}
+{{- end }}

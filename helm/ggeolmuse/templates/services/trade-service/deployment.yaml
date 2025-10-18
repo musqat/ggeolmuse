@@ -1,0 +1,52 @@
+{{- if .Values.services.tradeService.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.services.tradeService.name }}
+  labels:
+    app: {{ .Values.services.tradeService.name }}
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.services.tradeService.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.services.tradeService.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.services.tradeService.name }}
+        {{- include "ggeolmuse.serviceLabels" (dict "name" .Values.services.tradeService.name "tier" .Values.services.tradeService.labels.tier) | nindent 8 }}
+    spec:
+      initContainers:
+      - name: wait-for-config-server
+        image: busybox:1.35
+        command:
+        - sh
+        - -c
+        - |
+          echo "Waiting for Config Server to be ready..."
+          until wget -q --spider http://config-server:8888/actuator/health 2>/dev/null; do
+            echo "Config Server is not ready yet. Retrying in 5 seconds..."
+            sleep 5
+          done
+          echo "Config Server is ready!"
+      containers:
+      - name: {{ .Values.services.tradeService.name }}
+        image: {{ include "ggeolmuse.image" (dict "Values" .Values "repository" .Values.services.tradeService.image.repository "tag" .Values.services.tradeService.image.tag "Chart" .Chart) }}
+        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        ports:
+        - containerPort: {{ .Values.services.tradeService.service.port }}
+        env:
+        - name: SERVER_PORT
+          value: {{ .Values.services.tradeService.service.port | quote }}
+        - name: SPRING_APPLICATION_NAME
+          value: {{ .Values.services.tradeService.name | quote }}
+        {{- include "ggeolmuse.springEnv" . | nindent 8 }}
+        - name: KEYCLOAK_SECRET
+          {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "KEYCLOAK_SECRET") | nindent 10 }}
+        readinessProbe:
+          {{- include "ggeolmuse.readinessProbe" (merge (dict "port" .Values.services.tradeService.service.port) .Values.services.tradeService.probes.readiness) | nindent 10 }}
+        livenessProbe:
+          {{- include "ggeolmuse.livenessProbe" (merge (dict "port" .Values.services.tradeService.service.port) .Values.services.tradeService.probes.liveness) | nindent 10 }}
+{{- end }}

@@ -20,7 +20,6 @@ spring:
             - Path=/api/market/**
           filters:
             - RewritePath=/api/market/(?<segment>.*), /api/internal/$\{segment}
-            - TokenRelay
 
         # User Service - Auth endpoints (Public)
         - id: user-auth-route
@@ -37,7 +36,6 @@ spring:
             - Path=/api/users/**,/api/accounts/**
           filters:
             - RewritePath=/api/(?<prefix>users|accounts)/(?<segment>.*), /api/internal/$\{prefix}/$\{segment}
-            - TokenRelay
 
         # Trade Service (JWT 필요)
         - id: trade-route
@@ -46,7 +44,6 @@ spring:
             - Path=/api/trade/**,/api/trade-history/**,/api/portfolio/**
           filters:
             - RewritePath=/api/(?<prefix>trade|trade-history|portfolio)/(?<segment>.*), /api/internal/$\{prefix}/$\{segment}
-            - TokenRelay
 
         # Backtest Service (JWT 필요)
         - id: backtest-route
@@ -55,7 +52,6 @@ spring:
             - Path=/api/trading-simulation/**,/api/backtest/**,/api/analysis/**
           filters:
             - RewritePath=/api/(?<prefix>trading-simulation|backtest|analysis)/(?<segment>.*), /api/internal/$\{prefix}/$\{segment}
-            - TokenRelay
 
 services:
   market-data:

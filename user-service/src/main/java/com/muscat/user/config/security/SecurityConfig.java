@@ -13,11 +13,9 @@ import org.springframework.security.config.annotation.web.configurers.HeadersCon
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
-import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 @EnableWebSecurity
@@ -37,6 +35,7 @@ public class SecurityConfig {
 
   @Bean
   public JwtDecoder jwtDecoder() {
+    // JwtDecoder는 KeycloakService에서 토큰 파싱에 사용됨 (인증 목적이 아님)
     String authServerUrl = getKeycloakAuthServerUrl();
     String realm = getKeycloakRealm();
     String jwkSetUri = authServerUrl + "/realms/" + realm + "/protocol/openid-connect/certs";
@@ -55,15 +54,19 @@ public class SecurityConfig {
         .cors(Customizer.withDefaults())
         .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(auth -> auth
-            .requestMatchers("/api/internal/**").permitAll()  // 내부 서비스 간 통신 (NetworkPolicy로 보호)
-            .requestMatchers("/api/auth/**", "/api/public/**", "/h2-console/**", "/actuator/**").permitAll()
-            .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
-            .anyRequest().authenticated()
+            // Public endpoints
+            .requestMatchers("/api/auth/**").permitAll()
+            // 인프라 엔드포인트
+            .requestMatchers("/h2-console/**", "/actuator/**").permitAll()
+            .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**",
+                "/swagger-resources/**", "/webjars/**").permitAll()
+            // Private endpoints - JWT 인증 필요 (FeignClient도 JWT 전달)
+            .requestMatchers("/api/**").authenticated()
+            // 나머지는 모두 거부
+            .anyRequest().denyAll()
         )
         .oauth2ResourceServer(oauth2 -> oauth2
-            .jwt(jwt -> jwt
-                .jwtAuthenticationConverter(jwtAuthenticationConverter())
-            )
+            .jwt(Customizer.withDefaults())
         )
         .headers(headers -> headers
             .frameOptions(FrameOptionsConfig::disable)
@@ -71,17 +74,5 @@ public class SecurityConfig {
     return http.build();
   }
 
-  @Bean
-  public JwtAuthenticationConverter jwtAuthenticationConverter() {
-    JwtGrantedAuthoritiesConverter authoritiesConverter = new JwtGrantedAuthoritiesConverter();
-    authoritiesConverter.setAuthorityPrefix("ROLE_");
-    authoritiesConverter.setAuthoritiesClaimName("realm_access.roles");
-
-    JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
-    converter.setJwtGrantedAuthoritiesConverter(authoritiesConverter);
-    converter.setPrincipalClaimName("preferred_username");
-    
-    return converter;
-  }
 
 }

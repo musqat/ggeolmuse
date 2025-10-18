@@ -33,7 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "Account History", description = "계좌 거래 내역 관리 API")
 @RestController
-@RequestMapping("/api/accounts/{accountId}/histories")
+@RequestMapping("/api/internal/accounts/{accountId}/histories")
 @RequiredArgsConstructor
 @Slf4j
 @SecurityRequirement(name = "bearerAuth")
