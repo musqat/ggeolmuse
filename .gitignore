@@ -82,6 +82,11 @@ k8s/*-secrets.yaml
 *.secret.yaml
 scripts/create-secrets.sh
 
+### Helm Secrets (실제 값이 포함된 파일) ###
+helm/**/values-dev.yaml
+helm/**/values-prod.yaml
+helm/**/values-local.yaml
+
 ### Frontend ###
 node_modules/
 npm-debug.log*
