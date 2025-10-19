@@ -1,0 +1,9 @@
+# 모든 서비스 공통 설정
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0  # 100% 샘플링 (개발환경, 프로덕션에서는 0.1 정도 권장)
+  otlp:
+    tracing:
+      endpoint: http://tempo.monitoring.svc.cluster.local:4318/v1/traces
