@@ -26,7 +26,7 @@ spec:
         - -c
         - |
           echo "Waiting for Config Server to be ready..."
-          until wget -q --spider http://config-server:8888/actuator/health 2>/dev/null; do
+          until wget -q --spider http://config-server:9090/health 2>/dev/null; do
             echo "Config Server is not ready yet. Retrying in 5 seconds..."
             sleep 5
           done
@@ -39,8 +39,10 @@ spec:
         - containerPort: {{ .Values.services.userService.service.port }}
         env:
         {{- include "ggeolmuse.springEnv" . | nindent 8 }}
+        {{- if .Values.global.otel.enabled }}
         - name: JAVA_OPTS
-          value: {{ .Values.services.userService.env.javaOpts | quote }}
+          value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" .Values.services.userService.name "extraOpts" "-Dh2.webAllowOthers=true") }}
+        {{- end }}
         - name: KEYCLOAK_PUBLIC_URL
           value: {{ .Values.global.keycloak.publicUrl | quote }}
         - name: KEYCLOAK_RESOURCE
@@ -60,7 +62,7 @@ spec:
         - name: APP_MAIL_VERIFICATION_BASE_URL
           value: {{ .Values.services.userService.env.mailVerificationBaseUrl | quote }}
         readinessProbe:
-          {{- include "ggeolmuse.readinessProbe" (merge (dict "port" .Values.services.userService.service.port) .Values.services.userService.probes.readiness) | nindent 10 }}
+          {{- include "ggeolmuse.readinessProbe" (merge (dict "port" 9090) .Values.services.userService.probes.readiness) | nindent 10 }}
         livenessProbe:
-          {{- include "ggeolmuse.livenessProbe" (merge (dict "port" .Values.services.userService.service.port) .Values.services.userService.probes.liveness) | nindent 10 }}
+          {{- include "ggeolmuse.livenessProbe" (merge (dict "port" 9090) .Values.services.userService.probes.liveness) | nindent 10 }}
 {{- end }}

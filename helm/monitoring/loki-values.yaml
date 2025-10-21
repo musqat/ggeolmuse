@@ -1,0 +1,25 @@
+# Loki 로그 수집 설정
+
+loki:
+  enabled: true
+  isDefault: true
+
+promtail:
+  enabled: true
+
+test:
+  enabled: false
+
+monitoring:
+  dashboards:
+    enabled: false
+  rules:
+    enabled: false
+  serviceMonitor:
+    enabled: false
+  selfMonitoring:
+    enabled: false
+    grafanaAgent:
+      installOperator: false
+  lokiCanary:
+    enabled: false

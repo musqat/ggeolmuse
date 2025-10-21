@@ -55,7 +55,7 @@ jobs:
       - name: Build & Test ${{ matrix.service }}
         run: |
           cd ${{ matrix.service }}
-          if [ "${{ matrix.service }}" = "market-data-service" ]; then
+          if [ "${{ matrix.service }}" = "market-data-service" ] || [ "${{ matrix.service }}" = "user-service" ]; then
             mvn clean compile test -DskipTests
           else
             mvn clean compile test

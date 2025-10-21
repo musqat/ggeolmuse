@@ -99,6 +99,10 @@ export const stockApi = {
     apiClient.get(`/market/public/dividend/${symbol}`, {
       params: { startDate, endDate }
     }),
+
+  // Bulk 환율 조회 (여러 날짜 한 번에) - Public API
+  getExchangeRatesBulk: (dates: string[]) =>
+    apiClient.post<Record<string, number>>('/market/public/fx/bulk', dates),
 };
 
 // 보유 종목 정보
@@ -324,6 +328,12 @@ export const accountsApi = {
   // 날짜별 환율 조회
   getExchangeRateByDate: (date: string) =>
     apiClient.get<number>(`/accounts/exchange-rates/${date}`),
+
+  // Bulk 환율 조회 (여러 날짜 한 번에)
+  getExchangeRatesBulk: (dates: string[]) =>
+    apiClient.get<Record<string, number>>('/accounts/exchange-rates/bulk', {
+      params: { dates }
+    }),
 
   // 수동 환율 검증
   validateManualExchangeRate: (rate: number) =>

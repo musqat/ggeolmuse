@@ -4,7 +4,6 @@ import com.muscat.trade.infra.client.dto.DividendDto;
 import com.muscat.trade.infra.client.dto.StockPriceDto;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
-import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -16,7 +15,6 @@ import org.springframework.stereotype.Service;
  * Resilience4j 패턴 적용 Wrapper
  * Circuit Breaker: 연속된 실패 시 호출 차단
  * Retry: 일시적 실패 시 재시도
- * Time Limiter: 타임아웃 설정
  */
 @Slf4j
 @Service
@@ -27,7 +25,6 @@ public class MarketServiceClientWrapper {
 
   @CircuitBreaker(name = "marketService", fallbackMethod = "getCurrentPriceFallback")
   @Retry(name = "marketService")
-  @TimeLimiter(name = "marketService")
   public StockPriceDto getCurrentPrice(String symbol) {
     log.debug("Calling market-data-service getCurrentPrice for symbol: {}", symbol);
     return marketServiceClient.getCurrentPrice(symbol);
@@ -35,7 +32,6 @@ public class MarketServiceClientWrapper {
 
   @CircuitBreaker(name = "marketService", fallbackMethod = "getCurrentPricesFallback")
   @Retry(name = "marketService")
-  @TimeLimiter(name = "marketService")
   public Map<String, StockPriceDto> getCurrentPrices(List<String> symbols) {
     log.debug("Calling market-data-service getCurrentPrices for symbols: {}", symbols);
     return marketServiceClient.getCurrentPrices(symbols);
@@ -43,7 +39,6 @@ public class MarketServiceClientWrapper {
 
   @CircuitBreaker(name = "marketService", fallbackMethod = "getOHLCPriceFallback")
   @Retry(name = "marketService")
-  @TimeLimiter(name = "marketService")
   public StockPriceDto getOHLCPrice(String symbol, String date) {
     log.debug("Calling market-data-service getOHLCPrice for symbol: {}, date: {}", symbol, date);
     return marketServiceClient.getOHLCPrice(symbol, date);
@@ -51,7 +46,6 @@ public class MarketServiceClientWrapper {
 
   @CircuitBreaker(name = "marketService", fallbackMethod = "getHistoricalPricesFallback")
   @Retry(name = "marketService")
-  @TimeLimiter(name = "marketService")
   public List<StockPriceDto> getHistoricalPrices(String symbol, String startDate, String endDate) {
     log.debug("Calling market-data-service getHistoricalPrices for symbol: {}, period: {} to {}",
       symbol, startDate, endDate);
@@ -60,7 +54,6 @@ public class MarketServiceClientWrapper {
 
   @CircuitBreaker(name = "marketService", fallbackMethod = "getDividendsFallback")
   @Retry(name = "marketService")
-  @TimeLimiter(name = "marketService")
   public List<DividendDto> getDividends(String symbol, String startDate, String endDate) {
     log.debug("Calling market-data-service getDividends for symbol: {}", symbol);
     return marketServiceClient.getDividends(symbol, startDate, endDate);

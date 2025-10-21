@@ -10,8 +10,13 @@ metadata:
 spec:
   type: {{ .Values.configServer.service.type }}
   ports:
-  - port: {{ .Values.configServer.service.port }}
+  - name: http
+    port: {{ .Values.configServer.service.port }}
     targetPort: {{ .Values.configServer.service.port }}
+    protocol: TCP
+  - name: management
+    port: 9090
+    targetPort: 9090
     protocol: TCP
   selector:
     app: {{ .Values.configServer.name }}

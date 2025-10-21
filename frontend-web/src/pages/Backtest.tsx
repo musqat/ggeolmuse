@@ -521,7 +521,7 @@ const Backtest: React.FC = () => {
           return {
             strategyType: 'SIMPLE' as const,
             name: 'SIMPLE',
-            purchaseDate: params.purchaseDate || strategyStartDate
+            purchaseDate: strategyStartDate  // 전체 설정의 시작일 사용
           };
         } else if (strategyType === 'DCA') {
           return {
@@ -634,11 +634,10 @@ const Backtest: React.FC = () => {
     } else {
       setModalStrategyType(strategy);
 
-      // 기본값 설정 (사용자가 수정 안 해도 저장되도록)
+      // 기본값 설정
       if (!strategyParameters[strategy]) {
         const defaultParams: any = {};
         if (strategy === 'SIMPLE') {
-          defaultParams.purchaseDate = strategyStartDate;
         } else if (strategy === 'DCA') {
           defaultParams.monthlyAmount = '100000';
           defaultParams.purchaseDay = '15';
@@ -653,8 +652,7 @@ const Backtest: React.FC = () => {
       }
 
       setShowStrategyModal(true);
-    }
-  };
+    }  };
 
   const handleSaveStrategyParams = () => {
     if (!modalStrategyType) return;
@@ -662,10 +660,7 @@ const Backtest: React.FC = () => {
     const params = strategyParameters[modalStrategyType] || {};
 
     if (modalStrategyType === 'SIMPLE') {
-      if (!params.purchaseDate) {
-        alert(`${STRATEGY_NAMES[modalStrategyType]}: 매수일을 입력해주세요.`);
-        return;
-      }
+      // SIMPLE 전략은 전체 설정의 startDate를 사용하므로 별도 유효성 검사 불필요
     } else if (modalStrategyType === 'DCA') {
       if (!params.monthlyAmount || !params.purchaseDay) {
         alert(`${STRATEGY_NAMES[modalStrategyType]}: 월 투자금과 매수일을 입력해주세요.`);
@@ -1983,20 +1978,13 @@ const Backtest: React.FC = () => {
 
             <div className="space-y-4">
               {modalStrategyType === 'SIMPLE' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">매수일</label>
-                  <input
-                    type="date"
-                    value={strategyParameters[modalStrategyType]?.purchaseDate || strategyStartDate}
-                    onChange={(e) => setStrategyParameters({
-                      ...strategyParameters,
-                      [modalStrategyType]: {
-                        ...strategyParameters[modalStrategyType],
-                        purchaseDate: e.target.value
-                      }
-                    })}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  />
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
+                  <p className="text-sm text-blue-800">
+                    <strong>단순 매수 전략</strong>은 전체 설정에서 지정한 <strong>시작일({strategyStartDate})</strong>에 매수합니다.
+                  </p>
+                  <p className="text-sm text-blue-600 mt-2">
+                    별도의 파라미터 설정이 필요하지 않습니다.
+                  </p>
                 </div>
               )}
 

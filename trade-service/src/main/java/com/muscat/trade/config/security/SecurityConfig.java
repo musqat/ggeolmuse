@@ -3,6 +3,7 @@ package com.muscat.trade.config.security;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -39,28 +40,44 @@ public class SecurityConfig {
     return NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
   }
 
+  // Management port (9090)
   @Bean
+  @Order(0)
+  public SecurityFilterChain managementSecurityFilterChain(HttpSecurity http) throws Exception {
+    http
+      .securityMatcher(request -> request.getServerPort() == 9090)
+      .authorizeHttpRequests(auth -> auth
+        .anyRequest().permitAll()
+      )
+      .csrf(AbstractHttpConfigurer::disable)
+      .headers(headers -> headers
+        .frameOptions(FrameOptionsConfig::disable)
+      );
+    return http.build();
+  }
+
+  // API port (8081)
+  @Bean
+  @Order(1)
   public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
     http
-        .csrf(AbstractHttpConfigurer::disable)
-        .cors(Customizer.withDefaults())
-        .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-        .authorizeHttpRequests(auth -> auth
-            // 인프라 엔드포인트
-            .requestMatchers("/h2-console/**", "/actuator/**").permitAll()
-            .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**",
-                "/swagger-resources/**", "/webjars/**").permitAll()
-            // All API endpoints - JWT 인증 필요 (FeignClient도 JWT 전달)
-            .requestMatchers("/api/**").authenticated()
-            // 나머지는 모두 거부
-            .anyRequest().denyAll()
-        )
-        .oauth2ResourceServer(oauth2 -> oauth2
-            .jwt(Customizer.withDefaults())
-        )
-        .headers(headers -> headers
-            .frameOptions(FrameOptionsConfig::disable)
-        );
+      .csrf(AbstractHttpConfigurer::disable)
+      .cors(Customizer.withDefaults())
+      .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+      .authorizeHttpRequests(auth -> auth
+        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**",
+          "/swagger-resources/**", "/webjars/**").permitAll()
+        // All API endpoints - JWT 인증 필요 (FeignClient도 JWT 전달)
+        .requestMatchers("/api/**").authenticated()
+        // 나머지는 모두 거부
+        .anyRequest().denyAll()
+      )
+      .oauth2ResourceServer(oauth2 -> oauth2
+        .jwt(Customizer.withDefaults())
+      )
+      .headers(headers -> headers
+        .frameOptions(FrameOptionsConfig::disable)
+      );
     return http.build();
   }
 }

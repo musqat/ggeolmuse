@@ -67,3 +67,18 @@ trade:
   fifo:
     enabled: ${FIFO_ENABLED:true}
     precision: ${FIFO_PRECISION:8}
+
+management:
+  server:
+    port: 9090
+  endpoints:
+    web:
+      base-path: /
+      exposure:
+        include: health,info,prometheus
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}

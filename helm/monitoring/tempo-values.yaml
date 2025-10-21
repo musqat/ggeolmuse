@@ -1,0 +1,27 @@
+# Tempo 분산 추적 설정
+
+tempo:
+  resources:
+    limits:
+      memory: 512Mi
+    requests:
+      memory: 256Mi
+
+# OTLP 프로토콜 활성화 (Micrometer Tracing 사용)
+traces:
+  otlp:
+    http:
+      enabled: true
+    grpc:
+      enabled: true
+
+# Zipkin 호환성
+zipkin:
+  enabled: true
+
+# 저장소 설정 (로컬 파일시스템)
+persistence:
+  enabled: false
+
+serviceMonitor:
+  enabled: false

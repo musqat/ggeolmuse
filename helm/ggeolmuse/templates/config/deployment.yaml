@@ -44,14 +44,18 @@ spec:
           value: {{ .Values.configServer.env.springProfiles | quote }}
         - name: SERVER_PORT
           value: {{ .Values.configServer.service.port | quote }}
+        {{- if .Values.global.otel.enabled }}
+        - name: JAVA_OPTS
+          value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" .Values.configServer.name) }}
+        {{- end }}
         volumeMounts:
         - name: config-repo-volume
           mountPath: /config-repo
           readOnly: true
         readinessProbe:
-          {{- include "ggeolmuse.readinessProbe" (dict "port" .Values.configServer.service.port "initialDelaySeconds" .Values.configServer.probes.readiness.initialDelaySeconds "periodSeconds" .Values.configServer.probes.readiness.periodSeconds) | nindent 10 }}
+          {{- include "ggeolmuse.readinessProbe" (dict "port" 9090 "initialDelaySeconds" .Values.configServer.probes.readiness.initialDelaySeconds "periodSeconds" .Values.configServer.probes.readiness.periodSeconds) | nindent 10 }}
         livenessProbe:
-          {{- include "ggeolmuse.livenessProbe" (dict "port" .Values.configServer.service.port "initialDelaySeconds" .Values.configServer.probes.liveness.initialDelaySeconds "periodSeconds" .Values.configServer.probes.liveness.periodSeconds) | nindent 10 }}
+          {{- include "ggeolmuse.livenessProbe" (dict "port" 9090 "initialDelaySeconds" .Values.configServer.probes.liveness.initialDelaySeconds "periodSeconds" .Values.configServer.probes.liveness.periodSeconds) | nindent 10 }}
       volumes:
       - name: config-repo-volume
         emptyDir: {}

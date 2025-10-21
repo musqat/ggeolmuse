@@ -71,6 +71,9 @@ src/test/generated/
 *.pid
 .DS_Store
 
+### OpenTelemetry ###
+**/opentelemetry-javaagent.jar
+
 ### Environment Variables ###
 .env
 .env.local
@@ -100,3 +103,9 @@ dist/
 *.tmp
 *.temp
 nul
+
+# Helm Secret Values (실제 비밀 값 포함)
+helm/*/values-dev.yaml
+helm/*/values-prod.yaml
+**/values-dev.yaml
+**/values-prod.yaml

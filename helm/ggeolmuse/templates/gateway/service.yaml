@@ -10,8 +10,13 @@ metadata:
 spec:
   type: {{ .Values.gatewayServer.service.type }}
   ports:
-  - port: {{ .Values.gatewayServer.service.port }}
+  - name: http
+    port: {{ .Values.gatewayServer.service.port }}
     targetPort: {{ .Values.gatewayServer.service.port }}
+    protocol: TCP
+  - name: management
+    port: 9090
+    targetPort: 9090
     protocol: TCP
   selector:
     app: {{ .Values.gatewayServer.name }}

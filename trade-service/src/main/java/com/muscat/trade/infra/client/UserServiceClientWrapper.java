@@ -3,7 +3,6 @@ package com.muscat.trade.infra.client;
 import com.muscat.trade.infra.client.dto.AccountBalanceDto;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
-import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -14,7 +13,6 @@ import java.math.BigDecimal;
  * Resilience4j 패턴 적용 Wrapper
  * Circuit Breaker: 연속된 실패 시 호출 차단
  * Retry: 일시적 실패 시 재시도
- * Time Limiter: 타임아웃 설정
  */
 @Slf4j
 @Service
@@ -25,7 +23,6 @@ public class UserServiceClientWrapper {
 
   @CircuitBreaker(name = "userService", fallbackMethod = "getAccountBalanceFallback")
   @Retry(name = "userService")
-  @TimeLimiter(name = "userService")
   public AccountBalanceDto getAccountBalance(Long accountId) {
     log.debug("Calling user-service getAccountBalance for accountId: {}", accountId);
     return userServiceClient.getAccountBalance(accountId);
@@ -33,7 +30,6 @@ public class UserServiceClientWrapper {
 
   @CircuitBreaker(name = "userService", fallbackMethod = "updateTradeBalanceFallback")
   @Retry(name = "userService")
-  @TimeLimiter(name = "userService")
   public Void updateTradeBalance(Long accountId, BigDecimal usdAmount, String tradeType, String description) {
     log.debug("Calling user-service updateTradeBalance for accountId: {}, amount: {}, type: {}",
         accountId, usdAmount, tradeType);

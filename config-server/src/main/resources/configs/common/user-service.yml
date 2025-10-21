@@ -67,7 +67,3 @@ feign:
       default:
         connectTimeout: 500        # 연결 타임아웃: 500ms
         readTimeout: 1000          # 읽기 타임아웃: 1s
-
-logging:
-  level:
-    com.muscat.user: INFO

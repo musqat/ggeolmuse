@@ -400,6 +400,7 @@ const Trading: React.FC = () => {
               tradeDate={tradeDate}
               orderType={orderType}
               currentPrice={currentPrice}
+              selectedDateOHLC={selectedDateOHLC}
             />
             </div>
 

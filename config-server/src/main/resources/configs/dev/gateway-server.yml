@@ -46,14 +46,19 @@ spring:
             - RewritePath=/api/(?<prefix>trade|trade-history|portfolio)/(?<segment>.*), /api/internal/$\{prefix}/$\{segment}
             - TokenRelay
 
-        # Backtest Service (JWT 필요)
+        # Backtest Service
         - id: backtest-route
           uri: http://backtest-service:8082
           predicates:
-            - Path=/api/trading-simulation/**,/api/backtest/**,/api/analysis/**
+            - Path=/api/backtest/**,/api/trading-simulation/**,/api/analysis/**
           filters:
-            - RewritePath=/api/(?<prefix>trading-simulation|backtest|analysis)/(?<segment>.*), /api/internal/$\{prefix}/$\{segment}
             - TokenRelay
+
+        # Backtest Internal API (서비스 간 통신용)
+        - id: backtest-internal-route
+          uri: http://backtest-service:8082
+          predicates:
+            - Path=/api/internal/backtest/**
 
 services:
   market-data:
@@ -68,12 +73,6 @@ services:
 gateway:
   cors:
     allowed-origins: "http://localhost:3000,http://localhost:5173,http://app.localhost,http://172.18.0.6:3000,http://172.18.0.7"
-
-logging:
-  level:
-    org.springframework.cloud.gateway: INFO
-    com.muscat.gateway: INFO
-    reactor.netty: WARN
 
 management:
   endpoints:

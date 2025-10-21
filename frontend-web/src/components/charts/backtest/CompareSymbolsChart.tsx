@@ -12,7 +12,7 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
-import { stockApi } from '../../../services/api';
+import { stockApi, accountsApi } from '../../../services/api';
 import { useChartPeriod } from '../common/hooks/useChartPeriod';
 import { ChartPeriodSelector } from '../common/components/ChartPeriodSelector';
 import { CHART_COLORS } from '../common/constants';
@@ -99,6 +99,39 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
 
         const results = await Promise.all(dataPromises);
 
+        // 각 날짜의 환율 데이터 가져오기
+        const fxRateMap = new Map<string, number>();
+        const DEFAULT_FX_RATE = 1350; // Fallback 환율
+        const allDates = new Set<string>();
+
+        // 모든 종목의 모든 날짜 수집
+        results.forEach(({ data }) => {
+          data.forEach((item: any) => {
+            allDates.add(item.date);
+          });
+        });
+
+        // 모든 날짜에 대해 환율 조회 (병렬 처리)
+        const fxRatePromises = Array.from(allDates).map(async (dateStr) => {
+          try {
+            const fxRateResponse = await accountsApi.getExchangeRateByDate(dateStr);
+            const rate = typeof fxRateResponse.data === 'number'
+              ? fxRateResponse.data
+              : parseFloat(fxRateResponse.data);
+
+            if (!isNaN(rate) && rate > 0) {
+              fxRateMap.set(dateStr, rate);
+            } else {
+              fxRateMap.set(dateStr, DEFAULT_FX_RATE);
+            }
+          } catch (err) {
+            // 환율 데이터가 없으면 fallback 사용
+            fxRateMap.set(dateStr, DEFAULT_FX_RATE);
+          }
+        });
+
+        await Promise.all(fxRatePromises);
+
         // 날짜별로 모든 종목 데이터 병합
         const dateMap = new Map<string, ChartDataPoint>();
 
@@ -122,7 +155,9 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
             const effectivePurchaseDate = symbolData.purchaseDate || startDate;
 
             if (dateStr >= effectivePurchaseDate) {
-              const portfolioValueKrw = symbolData.shares * item.closePrice * symbolData.fxRate;
+              // 해당 날짜의 환율 사용 (각 날짜마다 다른 환율 적용)
+              const historicalFxRate = fxRateMap.get(dateStr) || DEFAULT_FX_RATE;
+              const portfolioValueKrw = symbolData.shares * item.closePrice * historicalFxRate;
               point[`${symbol}_portfolio`] = portfolioValueKrw;
             } else {
               // 매수일 이전에는 0으로 설정

@@ -91,15 +91,39 @@ export const DCAChart: React.FC<StrategyBacktestChartProps> = ({
           ? response.data.filter((item: any) => item.symbol === symbol)
           : [];
 
+        // 각 날짜의 환율 데이터 가져오기 (Bulk API 사용)
+        const fxRateMap = new Map<string, number>();
+        const DEFAULT_FX_RATE = 1350; // Fallback 환율
+
+        // 모든 날짜를 한 번에 조회 (Bulk API)
+        const dates = priceData.map((item: any) => item.date);
+        try {
+          const fxRateResponse = await stockApi.getExchangeRatesBulk(dates);
+          const rates = fxRateResponse.data;
+
+          // Map으로 변환
+          Object.entries(rates).forEach(([dateStr, rate]) => {
+            fxRateMap.set(dateStr, rate || DEFAULT_FX_RATE);
+          });
+
+          // 누락된 날짜는 DEFAULT로 채우기
+          dates.forEach(dateStr => {
+            if (!fxRateMap.has(dateStr)) {
+              fxRateMap.set(dateStr, DEFAULT_FX_RATE);
+            }
+          });
+        } catch (err) {
+          // Bulk 조회 실패 시 모든 날짜에 DEFAULT 사용
+          console.warn('Bulk 환율 조회 실패, fallback 환율 사용:', err);
+          dates.forEach(dateStr => {
+            fxRateMap.set(dateStr, DEFAULT_FX_RATE);
+          });
+        }
+
         // 거래 정보를 날짜별 맵으로 변환
         const transactionMap = new Map<string, { shares: number; investedAmount: number }>();
         let cumulativeShares = 0;
         let cumulativeInvested = 0;
-        let averageFxRate = 0;
-
-        if (transactions.length > 0) {
-          averageFxRate = transactions.reduce((sum, t) => sum + t.fxRate, 0) / transactions.length;
-        }
 
         transactions.forEach(tx => {
           const txDate = tx.actualDate || tx.date;
@@ -146,9 +170,12 @@ export const DCAChart: React.FC<StrategyBacktestChartProps> = ({
             }
           }
 
+          // 해당 날짜의 환율 사용 (각 날짜마다 다른 환율 적용)
+          const historicalFxRate = fxRateMap.get(dateStr) || 1350;
+
           // 포트폴리오 가치 = 보유주식 * 현재가격 (원화 환산)
           const portfolioValueUsd = sharesSoFar * item.closePrice;
-          const portfolioValueKrw = portfolioValueUsd * averageFxRate;
+          const portfolioValueKrw = portfolioValueUsd * historicalFxRate;
 
           return {
             date: dateStr,
@@ -345,7 +372,7 @@ export const DCAChart: React.FC<StrategyBacktestChartProps> = ({
             <Tooltip
               contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', border: '1px solid #ccc' }}
               formatter={(value: any, name: string) => {
-                return [`₩${Number(value).toLocaleString()}`, name];
+                return [`₩${Math.round(Number(value)).toLocaleString()}`, name];
               }}
               labelFormatter={(label) => `날짜: ${label}`}
             />

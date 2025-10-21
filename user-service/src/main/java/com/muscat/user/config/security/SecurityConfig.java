@@ -3,6 +3,7 @@ package com.muscat.user.config.security;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -35,7 +36,6 @@ public class SecurityConfig {
 
   @Bean
   public JwtDecoder jwtDecoder() {
-    // JwtDecoder는 KeycloakService에서 토큰 파싱에 사용됨 (인증 목적이 아님)
     String authServerUrl = getKeycloakAuthServerUrl();
     String realm = getKeycloakRealm();
     String jwkSetUri = authServerUrl + "/realms/" + realm + "/protocol/openid-connect/certs";
@@ -47,7 +47,25 @@ public class SecurityConfig {
     return new BCryptPasswordEncoder();
   }
 
+  // Management port (9090)
   @Bean
+  @Order(0)
+  public SecurityFilterChain managementSecurityFilterChain(HttpSecurity http) throws Exception {
+    http
+        .securityMatcher(request -> request.getServerPort() == 9090)
+        .authorizeHttpRequests(auth -> auth
+            .anyRequest().permitAll()
+        )
+        .csrf(AbstractHttpConfigurer::disable)
+        .headers(headers -> headers
+            .frameOptions(FrameOptionsConfig::disable)
+        );
+    return http.build();
+  }
+
+  // API port (8080)
+  @Bean
+  @Order(1)
   public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
     http
         .csrf(AbstractHttpConfigurer::disable)
@@ -56,8 +74,6 @@ public class SecurityConfig {
         .authorizeHttpRequests(auth -> auth
             // Public endpoints
             .requestMatchers("/api/auth/**").permitAll()
-            // 인프라 엔드포인트
-            .requestMatchers("/h2-console/**", "/actuator/**").permitAll()
             .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**",
                 "/swagger-resources/**", "/webjars/**").permitAll()
             // Private endpoints - JWT 인증 필요 (FeignClient도 JWT 전달)

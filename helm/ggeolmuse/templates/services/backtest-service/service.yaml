@@ -10,8 +10,13 @@ metadata:
 spec:
   type: {{ .Values.services.backtestService.service.type }}
   ports:
-  - port: {{ .Values.services.backtestService.service.port }}
+  - name: http
+    port: {{ .Values.services.backtestService.service.port }}
     targetPort: {{ .Values.services.backtestService.service.port }}
+    protocol: TCP
+  - name: management
+    port: 9090
+    targetPort: 9090
     protocol: TCP
   selector:
     app: {{ .Values.services.backtestService.name }}

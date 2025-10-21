@@ -1,0 +1,156 @@
+# Prometheus 설정
+prometheus:
+  prometheusSpec:
+    # Service Monitor 설정
+    serviceMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorSelector: {}
+
+    # Pod Monitor  설정
+    podMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelector: {}
+
+    # 메트릭 보관 기간
+    retention: 7d
+
+    # 스토리지 설정 (개발환경)
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
+
+  # Prometheus Ingress 설정
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hosts:
+      - prometheus.localhost
+    paths:
+      - /
+
+# Grafana 설정
+grafana:
+  enabled: true
+
+  # Admin 계정 설정
+  adminPassword: admin123
+
+  # Grafana Ingress 설정
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hosts:
+      - grafana.localhost
+    path: /
+
+  # 모든 데이터소스 통합 관리 (Prometheus + Loki + Tempo)
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          type: prometheus
+          access: proxy
+          url: http://prometheus-kube-prometheus-prometheus:9090
+          isDefault: true
+          jsonData:
+            timeInterval: 30s
+
+        - name: Loki
+          type: loki
+          access: proxy
+          url: http://loki:3100
+          isDefault: false
+          jsonData:
+            maxLines: 1000
+
+        - name: Tempo
+          type: tempo
+          access: proxy
+          url: http://tempo:3200
+          isDefault: false
+          jsonData:
+            tracesToLogsV2:
+              datasourceUid: 'loki'
+              spanStartTimeShift: '-1h'
+              spanEndTimeShift: '1h'
+              filterByTraceID: true
+              filterBySpanID: false
+            tracesToMetrics:
+              datasourceUid: 'prometheus'
+            serviceMap:
+              datasourceUid: 'prometheus'
+            nodeGraph:
+              enabled: true
+
+  # sidecar는 대시보드만 활성화
+  sidecar:
+    dashboards:
+      enabled: true
+    datasources:
+      enabled: false
+
+  # 대시보드 설정
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: 'default'
+          orgId: 1
+          folder: ''
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards/default
+
+  # Spring Boot 대시보드
+  dashboards:
+    default:
+      spring-boot:
+        gnetId: 12900  # Spring Boot 2.1+
+        revision: 1
+        datasource: Prometheus
+      jvm-micrometer:
+        gnetId: 4701   # JVM
+        revision: 1
+        datasource: Prometheus
+      kubernetes-cluster:
+        gnetId: 7249   # Kubernetes Cluster
+        revision: 1
+        datasource: Prometheus
+
+# AlertManager 설정
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 5Gi
+
+# Kubernetes 기본 메트릭 수집
+kubeStateMetrics:
+  enabled: true
+
+nodeExporter:
+  enabled: true
+
+# ServiceMonitor 생성 (Spring Boot Actuator)
+additionalServiceMonitors:
+  - name: spring-boot-services
+    selector:
+      matchLabels:
+        monitoring: enabled
+    namespaceSelector:
+      matchNames:
+        - default
+    endpoints:
+      - port: http
+        path: /actuator/prometheus
+        interval: 30s

@@ -10,7 +10,7 @@ import {
   ResponsiveContainer,
   ReferenceDot
 } from 'recharts';
-import { stockApi } from '../../../services/api';
+import { stockApi, accountsApi } from '../../../services/api';
 import { useChartPeriod } from '../common/hooks/useChartPeriod';
 import { ChartPeriodSelector } from '../common/components/ChartPeriodSelector';
 
@@ -91,7 +91,48 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
 
         if (ohlcData && Array.isArray(ohlcData) && ohlcData.length > 0) {
           console.log('SimpleChart OHLC data loaded:', ohlcData.length, 'records');
-          setPriceData(ohlcData);
+
+          // 각 날짜의 환율 데이터 가져오기
+          const fxRateMap = new Map<string, number>();
+          const DEFAULT_FX_RATE = 1350; // Fallback 환율
+
+          // 모든 날짜에 대해 환율 조회 (병렬 처리)
+          const fxRatePromises = ohlcData.map(async (item: any) => {
+            const dateStr = Array.isArray(item.date)
+              ? `${item.date[0]}-${String(item.date[1]).padStart(2, '0')}-${String(item.date[2]).padStart(2, '0')}`
+              : item.date;
+
+            try {
+              const fxRateResponse = await accountsApi.getExchangeRateByDate(dateStr);
+              const rate = typeof fxRateResponse.data === 'number'
+                ? fxRateResponse.data
+                : parseFloat(fxRateResponse.data);
+
+              if (!isNaN(rate) && rate > 0) {
+                fxRateMap.set(dateStr, rate);
+              } else {
+                fxRateMap.set(dateStr, DEFAULT_FX_RATE);
+              }
+            } catch (err) {
+              // 환율 데이터가 없으면 fallback 사용
+              console.log(`Using fallback rate for ${dateStr}:`, DEFAULT_FX_RATE);
+              fxRateMap.set(dateStr, DEFAULT_FX_RATE);
+            }
+          });
+
+          await Promise.all(fxRatePromises);
+
+          // OHLC 데이터와 환율 매핑을 함께 저장
+          setPriceData(ohlcData.map((item: any) => {
+            const dateStr = Array.isArray(item.date)
+              ? `${item.date[0]}-${String(item.date[1]).padStart(2, '0')}-${String(item.date[2]).padStart(2, '0')}`
+              : item.date;
+
+            return {
+              ...item,
+              fxRate: fxRateMap.get(dateStr) || DEFAULT_FX_RATE
+            };
+          }));
         } else {
           console.log('SimpleChart NO data loaded, response:', response.data);
         }
@@ -114,13 +155,23 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
     const result = priceData.map((candle: any) => {
       // OHLCPriceDto: closePrice (BigDecimal), date (LocalDate 또는 String)
       const dailyPrice = parseFloat(candle.closePrice || candle.close || 0);
-      const portfolioValue = shares * dailyPrice * fxRate;
 
       // date가 배열 형태로 올 수 있음: [2025, 1, 8] -> "2025-01-08"
       let dateStr = candle.date;
       if (Array.isArray(candle.date)) {
         const [year, month, day] = candle.date;
         dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      }
+
+      // 해당 날짜의 환율 사용 (각 날짜마다 다른 환율 적용)
+      const historicalFxRate = candle.fxRate || 1350;
+
+      // 매수일에는 투자금을 그대로 사용 (환율 괴리 방지)
+      let portfolioValue;
+      if (dateStr === purchaseDate) {
+        portfolioValue = investmentAmount;
+      } else {
+        portfolioValue = shares * dailyPrice * historicalFxRate;
       }
 
       return {
@@ -132,7 +183,7 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
     });
 
     return result;
-  }, [priceData, shares, fxRate, investmentAmount]);
+  }, [priceData, shares, investmentAmount, purchaseDate]);
 
   // 매수 시점 마커 - chartData에서 매수일 찾기 또는 다음 영업일 찾기
   const purchasePoint = useMemo(() => {
@@ -205,8 +256,9 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
           {isPurchaseDate && (
             <p className="text-xs text-indigo-600 mb-1">🔵 매수 시점</p>
           )}
+          {/* data.price가 있으면 직접 표시, 없으면 payload에서 찾기 */}
           <p className="text-sm text-gray-700">
-            주가: ${payload.find((p: any) => p.dataKey === 'price')?.value?.toFixed(2) || '-'}
+            주가: ${data.price?.toFixed(2) || '-'}
           </p>
           <p className="text-sm text-green-600">
             투자금: ₩{data.투자금?.toLocaleString()}
@@ -415,7 +467,7 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
                 strokeWidth={2}
                 label={{
                   value: '최적 매도',
-                  position: 'top',
+                  position: 'bottom',
                   fill: '#f59e0b',
                   fontSize: 11,
                   fontWeight: 'bold'
