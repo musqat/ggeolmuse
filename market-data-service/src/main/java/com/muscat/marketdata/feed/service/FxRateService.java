@@ -3,8 +3,8 @@ package com.muscat.marketdata.feed.service;
 import com.muscat.commonlib.util.MoneyUtils;
 import com.muscat.marketdata.config.MarketDataProperties;
 import com.muscat.marketdata.domain.entity.FxRate;
-import com.muscat.marketdata.domain.repository.FxRateRepository;
 import com.muscat.marketdata.domain.repository.FxRateQueryRepository;
+import com.muscat.marketdata.domain.repository.FxRateRepository;
 import com.muscat.marketdata.feed.collector.FxDataCollector;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
@@ -61,6 +61,14 @@ public class FxRateService {
   @Transactional(readOnly = true)
   public FxRate findByDate(LocalDate date) {
     return fxRateRepository.findByDate(date).orElse(null);
+  }
+
+  @Transactional(readOnly = true)
+  public List<FxRate> findByDates(List<LocalDate> dates) {
+    if (dates == null || dates.isEmpty()) {
+      return List.of();
+    }
+    return fxRateRepository.findByDateIn(dates);
   }
 
 
@@ -125,7 +133,7 @@ public class FxRateService {
   @Transactional
   public FxRate syncSingleDate(LocalDate targetDate, boolean useBusinessDayFallback) {
     Optional<FxRate> collectedRate = dataCollector.collectSingleDate(targetDate,
-        useBusinessDayFallback);
+      useBusinessDayFallback);
     if (collectedRate.isPresent()) {
       return saveRate(targetDate, collectedRate.get().getRate());
     }
@@ -165,6 +173,6 @@ public class FxRateService {
       throw new IllegalArgumentException("환율은 필수입니다");
     }
     return BigDecimal.ONE.divide(usdToKrw, properties.getFx().getScale(),
-        java.math.RoundingMode.HALF_UP);
+      java.math.RoundingMode.HALF_UP);
   }
 }

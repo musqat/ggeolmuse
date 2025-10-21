@@ -63,9 +63,9 @@ export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
             ⚠️ 주의사항
           </p>
           <ul className="text-sm text-yellow-700 mt-2 space-y-1 list-disc list-inside">
-            <li>잔액이 0이어야 삭제할 수 있습니다</li>
             <li>삭제된 계좌는 복구할 수 없습니다</li>
             <li>거래 내역도 함께 삭제됩니다</li>
+            <li>잔액이 있는 경우 삭제 시 잔액이 소멸됩니다</li>
           </ul>
         </div>
       </div>

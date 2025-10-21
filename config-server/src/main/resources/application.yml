@@ -28,33 +28,13 @@ spring:
 
 management:
   server:
-    port: ${MANAGEMENT_PORT:9888}
+    port: 9090
   endpoints:
     web:
       exposure:
-        include: ${MANAGEMENT_ENDPOINTS:health,info,env,refresh,encrypt,decrypt}
-      base-path: /actuator
-  endpoint:
-    health:
-      enabled: true
-      show-details: ${MANAGEMENT_HEALTH_DETAILS:when_authorized}
-    info:
-      enabled: true
-    env:
-      enabled: ${MANAGEMENT_ENV_ENABLED:false}
-    refresh:
-      enabled: ${MANAGEMENT_REFRESH_ENABLED:true}
-    encrypt:
-      enabled: ${MANAGEMENT_ENCRYPT_ENABLED:false}
-    decrypt:
-      enabled: ${MANAGEMENT_DECRYPT_ENABLED:false}
-  security:
-    enabled: ${MANAGEMENT_SECURITY_ENABLED:true}
+        include: health,info,prometheus
+      base-path: /
+  metrics:
+    tags:
+      application: ${spring.application.name}
 
-logging:
-  level:
-    org.springframework.cloud.config: DEBUG
-    org.springframework.cloud.config.server: DEBUG
-    org.springframework.cloud.config.server.environment: DEBUG
-    org.springframework.boot.autoconfigure: DEBUG
-    com.muscat.configserver: INFO

@@ -10,8 +10,13 @@ metadata:
 spec:
   type: {{ .Values.services.marketDataService.service.type }}
   ports:
-  - port: {{ .Values.services.marketDataService.service.port }}
+  - name: http
+    port: {{ .Values.services.marketDataService.service.port }}
     targetPort: {{ .Values.services.marketDataService.service.port }}
+    protocol: TCP
+  - name: management
+    port: 9090
+    targetPort: 9090
     protocol: TCP
   selector:
     app: {{ .Values.services.marketDataService.name }}

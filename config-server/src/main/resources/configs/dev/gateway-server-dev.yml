@@ -67,12 +67,6 @@ gateway:
   cors:
     allowed-origins: "http://localhost:3000,http://localhost:5173,http://app.localhost,http://172.18.0.6:3000,http://172.18.0.7"
 
-logging:
-  level:
-    org.springframework.cloud.gateway: INFO
-    com.muscat.gateway: INFO
-    reactor.netty: WARN
-
 management:
   endpoints:
     web:

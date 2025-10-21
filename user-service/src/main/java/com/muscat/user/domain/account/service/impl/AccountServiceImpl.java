@@ -105,11 +105,10 @@ public class AccountServiceImpl implements AccountService {
     Account account = accountQueryRepository.findByIdAndUserId(accountId, userId)
       .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
 
-    // 잔액이 있는지 확인 (삭제 전 잔액 0이어야 함)
-    if (account.getBalanceKrw().compareTo(BigDecimal.ZERO) > 0 ||
-      account.getBalanceUsd().compareTo(BigDecimal.ZERO) > 0) {
-      throw new AccountException(AccountResponse.CANNOT_DELETE_ACCOUNT_WITH_BALANCE);
-    }
+    // 잔액 확인 로직 제거 - 잔액이 있어도 삭제 가능
+    // 삭제 시 잔액 정보를 로그에 기록
+    log.info("계좌 삭제 요청: accountId={}, KRW잔액={}, USD잔액={}",
+      accountId, account.getBalanceKrw(), account.getBalanceUsd());
 
     // 계좌 거래 내역 먼저 삭제 (외래 키 제약 조건 해결)
     accountHistoryRepository.deleteByAccount(account);

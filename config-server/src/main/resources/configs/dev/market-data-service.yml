@@ -95,3 +95,19 @@ marketdata:
     fx-rate-ttl: ${CACHE_FX_TTL:3600}
     symbol-info-ttl: ${CACHE_SYMBOL_TTL:86400}
     dividend-ttl: ${CACHE_DIVIDEND_TTL:86400}
+
+
+management:
+  server:
+    port: 9090
+  endpoints:
+    web:
+      base-path: /
+      exposure:
+        include: health,info,prometheus
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}

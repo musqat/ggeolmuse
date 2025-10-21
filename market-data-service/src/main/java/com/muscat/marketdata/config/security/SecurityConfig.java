@@ -40,43 +40,46 @@ public class SecurityConfig {
     return NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
   }
 
-  // Public endpoints - 완전히 보안 없음
+  // Management port (9090)
   @Bean
-  @Order(1)
-  public SecurityFilterChain publicSecurityFilterChain(HttpSecurity http) throws Exception {
+  @Order(0)
+  public SecurityFilterChain managementSecurityFilterChain(HttpSecurity http) throws Exception {
     http
-        .securityMatcher(
-            "/api/market/public/**",
-            "/h2-console/**",
-            "/actuator/**",
-            "/swagger-ui/**",
-            "/swagger-ui.html",
-            "/v3/api-docs/**",
-            "/swagger-resources/**",
-            "/webjars/**"
-        )
-        .csrf(AbstractHttpConfigurer::disable)
-        .cors(Customizer.withDefaults())
-        .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-        .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
-        .headers(headers -> headers.frameOptions(FrameOptionsConfig::disable));
-
+      .securityMatcher(request -> request.getServerPort() == 9090)
+      .authorizeHttpRequests(auth -> auth
+        .anyRequest().permitAll()
+      )
+      .csrf(AbstractHttpConfigurer::disable)
+      .headers(headers -> headers
+        .frameOptions(FrameOptionsConfig::disable)
+      );
     return http.build();
   }
 
-  // Private endpoints - OAuth2 JWT 인증 필수
+  // API port (8083)
   @Bean
-  @Order(2)
-  public SecurityFilterChain privateSecurityFilterChain(HttpSecurity http) throws Exception {
+  @Order(1)
+  public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
     http
-        .securityMatcher("/api/internal/**")  // Public 경로 제외, Internal API만 JWT 검증
-        .csrf(AbstractHttpConfigurer::disable)
-        .cors(Customizer.withDefaults())
-        .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-        .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
-        .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
-        .headers(headers -> headers.frameOptions(FrameOptionsConfig::disable));
-
+      .csrf(AbstractHttpConfigurer::disable)
+      .cors(Customizer.withDefaults())
+      .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+      .authorizeHttpRequests(auth -> auth
+        // Public endpoints
+        .requestMatchers("/api/market/public/**").permitAll()
+        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**",
+          "/swagger-resources/**", "/webjars/**").permitAll()
+        // Private endpoints - JWT 인증 필요 (FeignClient도 JWT 전달)
+        .requestMatchers("/api/**").authenticated()
+        // 나머지는 모두 거부
+        .anyRequest().denyAll()
+      )
+      .oauth2ResourceServer(oauth2 -> oauth2
+        .jwt(Customizer.withDefaults())
+      )
+      .headers(headers -> headers
+        .frameOptions(FrameOptionsConfig::disable)
+      );
     return http.build();
   }
 

@@ -37,4 +37,13 @@ spec:
     - protocol: TCP
       port: {{ . }}
     {{- end }}
+
+  # monitoring
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 9090
 {{- end }}

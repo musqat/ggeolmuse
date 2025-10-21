@@ -8,6 +8,7 @@ interface TradingCapacityPanelProps {
   tradeDate: string;
   orderType: 'buy' | 'sell';
   currentPrice: number;
+  selectedDateOHLC: any | null;
 }
 
 interface CapacityData {
@@ -25,12 +26,13 @@ const TradingCapacityPanel: React.FC<TradingCapacityPanelProps> = ({
   tradeDate,
   orderType,
   currentPrice,
+  selectedDateOHLC,
 }) => {
   const [capacity, setCapacity] = useState<CapacityData | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!accountId || !symbol || !tradeDate || currentPrice <= 0) {
+    if (!accountId || !symbol || !tradeDate || currentPrice <= 0 || !selectedDateOHLC) {
       setCapacity(null);
       return;
     }
@@ -42,7 +44,7 @@ const TradingCapacityPanel: React.FC<TradingCapacityPanelProps> = ({
         const payload = {
           accountId: String(accountId),
           symbol,
-          tradeDate,
+          tradeDate: selectedDateOHLC.time,
         };
 
         if (orderType === 'buy') {
@@ -61,7 +63,7 @@ const TradingCapacityPanel: React.FC<TradingCapacityPanelProps> = ({
     };
 
     fetchCapacity();
-  }, [accountId, symbol, tradeDate, orderType, currentPrice]);
+  }, [accountId, symbol, orderType, currentPrice, selectedDateOHLC]);
 
   if (!accountId || !capacity) {
     return null;
@@ -154,7 +156,7 @@ const TradingCapacityPanel: React.FC<TradingCapacityPanelProps> = ({
               </div>
             </div>
 
-            {capacity.totalValue && (
+            {capacity.totalValue !== undefined && capacity.totalValue !== null && (
               <div className="mt-3 grid grid-cols-1 gap-2">
                 <div className="bg-white/60 rounded-lg p-3">
                   <p className="text-xs text-gray-600 mb-1">현재 평가액</p>

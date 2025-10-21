@@ -20,19 +20,6 @@ spring:
     compatibility-verifier:
       enabled: false
 
-# Redis config is provided by Config Server
-
-# Security config is provided by Config Server
-
-## Server port moved to Config Server
-
-## Keycloak config moved to Config Server
-
-logging:
-  level:
-    com.muscat.backtest.infra.client: DEBUG
-    feign: DEBUG
-
 management:
   endpoints:
     web:
