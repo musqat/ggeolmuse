@@ -253,5 +253,5 @@ networkPolicy:
 
 # Secrets - AWS Secrets Manager에서 가져온 값
 secrets:
-  enabled: true
+  enabled: false
   name: ggeolmuse-secrets
