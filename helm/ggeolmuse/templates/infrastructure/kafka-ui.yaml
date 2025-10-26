@@ -1,0 +1,75 @@
+{{- if .Values.infrastructure.kafkaUi.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-ui
+  labels:
+    app: kafka-ui
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.infrastructure.kafkaUi.service.type }}
+  ports:
+    - port: {{ .Values.infrastructure.kafkaUi.service.port }}
+      targetPort: {{ .Values.infrastructure.kafkaUi.port }}
+      name: http
+  selector:
+    app: kafka-ui
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-ui
+  labels:
+    app: kafka-ui
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.infrastructure.kafkaUi.replicas }}
+  selector:
+    matchLabels:
+      app: kafka-ui
+  template:
+    metadata:
+      labels:
+        app: kafka-ui
+    spec:
+      containers:
+        - name: kafka-ui
+          image: {{ .Values.infrastructure.kafkaUi.image }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.infrastructure.kafkaUi.port }}
+              name: http
+          env:
+            - name: KAFKA_CLUSTERS_0_NAME
+              value: "{{ .Values.infrastructure.kafkaUi.env.clustersName }}"
+            - name: KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS
+              value: "{{ .Values.infrastructure.kafkaUi.env.bootstrapServers }}"
+            - name: KAFKA_CLUSTERS_0_ZOOKEEPER
+              value: "{{ .Values.infrastructure.kafkaUi.env.zookeeper }}"
+            - name: DYNAMIC_CONFIG_ENABLED
+              value: "true"
+          resources:
+            requests:
+              memory: {{ .Values.infrastructure.kafkaUi.resources.requests.memory }}
+              cpu: {{ .Values.infrastructure.kafkaUi.resources.requests.cpu }}
+            limits:
+              memory: {{ .Values.infrastructure.kafkaUi.resources.limits.memory }}
+              cpu: {{ .Values.infrastructure.kafkaUi.resources.limits.cpu }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.infrastructure.kafkaUi.port }}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.infrastructure.kafkaUi.port }}
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+{{- end }}

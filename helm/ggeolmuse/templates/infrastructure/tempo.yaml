@@ -1,0 +1,162 @@
+{{- if .Values.infrastructure.tempo.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tempo-config
+  labels:
+    app: tempo
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+data:
+  tempo.yaml: |
+    server:
+      http_listen_port: 3200
+      log_level: info
+
+    distributor:
+      receivers:
+        otlp:
+          protocols:
+            grpc:
+              endpoint: 0.0.0.0:{{ .Values.infrastructure.tempo.ports.otlp }}
+            http:
+              endpoint: 0.0.0.0:{{ .Values.infrastructure.tempo.ports.otlpHttp }}
+        zipkin:
+          endpoint: 0.0.0.0:{{ .Values.infrastructure.tempo.ports.zipkin }}
+        jaeger:
+          protocols:
+            thrift_http:
+              endpoint: 0.0.0.0:{{ .Values.infrastructure.tempo.ports.jaeger }}
+
+    ingester:
+      max_block_duration: 5m
+
+    compactor:
+      compaction:
+        block_retention: 24h
+
+    storage:
+      trace:
+        backend: local
+        local:
+          path: /var/tempo/traces
+        wal:
+          path: /var/tempo/wal
+
+    query_frontend:
+      search:
+        max_duration: 0
+
+    metrics_generator:
+      registry:
+        external_labels:
+          source: tempo
+          cluster: ggeolmuse
+      storage:
+        path: /var/tempo/generator/wal
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tempo
+  labels:
+    app: tempo
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.infrastructure.tempo.service.type }}
+  ports:
+    - port: 3200
+      name: http
+      targetPort: 3200
+    - port: {{ .Values.infrastructure.tempo.ports.otlp }}
+      name: otlp-grpc
+      targetPort: {{ .Values.infrastructure.tempo.ports.otlp }}
+    - port: {{ .Values.infrastructure.tempo.ports.otlpHttp }}
+      name: otlp-http
+      targetPort: {{ .Values.infrastructure.tempo.ports.otlpHttp }}
+    - port: {{ .Values.infrastructure.tempo.ports.zipkin }}
+      name: zipkin
+      targetPort: {{ .Values.infrastructure.tempo.ports.zipkin }}
+    - port: {{ .Values.infrastructure.tempo.ports.jaeger }}
+      name: jaeger
+      targetPort: {{ .Values.infrastructure.tempo.ports.jaeger }}
+  selector:
+    app: tempo
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: tempo
+  labels:
+    app: tempo
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  serviceName: tempo
+  replicas: {{ .Values.infrastructure.tempo.replicas }}
+  selector:
+    matchLabels:
+      app: tempo
+  template:
+    metadata:
+      labels:
+        app: tempo
+    spec:
+      containers:
+        - name: tempo
+          image: {{ .Values.infrastructure.tempo.image }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          args:
+            - -config.file=/etc/tempo/tempo.yaml
+          ports:
+            - containerPort: 3200
+              name: http
+            - containerPort: {{ .Values.infrastructure.tempo.ports.otlp }}
+              name: otlp-grpc
+            - containerPort: {{ .Values.infrastructure.tempo.ports.otlpHttp }}
+              name: otlp-http
+            - containerPort: {{ .Values.infrastructure.tempo.ports.zipkin }}
+              name: zipkin
+            - containerPort: {{ .Values.infrastructure.tempo.ports.jaeger }}
+              name: jaeger
+          volumeMounts:
+            - name: tempo-config
+              mountPath: /etc/tempo
+            - name: tempo-data
+              mountPath: /var/tempo
+          resources:
+            requests:
+              memory: {{ .Values.infrastructure.tempo.resources.requests.memory }}
+              cpu: {{ .Values.infrastructure.tempo.resources.requests.cpu }}
+            limits:
+              memory: {{ .Values.infrastructure.tempo.resources.limits.memory }}
+              cpu: {{ .Values.infrastructure.tempo.resources.limits.cpu }}
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3200
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: 3200
+            initialDelaySeconds: 45
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+      volumes:
+        - name: tempo-config
+          configMap:
+            name: tempo-config
+  volumeClaimTemplates:
+    - metadata:
+        name: tempo-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.infrastructure.tempo.storage.data }}
+{{- end }}

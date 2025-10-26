@@ -1,0 +1,257 @@
+# AWS EC2 K3s Single Node Production Values
+# 단일 노드에 최적화된 설정
+
+global:
+  domain: ggeolmuse.kro.kr
+  authDomain: ggeolmuse.kro.kr
+  imageRegistry: muscathan
+  imagePullPolicy: Always
+  springProfiles: prod,no-file-logging
+
+  keycloak:
+    authServerUrl: http://keycloak:8080
+    publicUrl: https://ggeolmuse.kro.kr/auth
+
+  kafka:
+    enabled: true
+    bootstrapServers: kafka:9092
+
+  redis:
+    enabled: true
+
+# Ingress Controller - K3s에서 별도 설치
+ingressController:
+  enabled: false
+
+# 인프라 - 단일 노드용 (replicas=1, 리소스 최적화)
+infrastructure:
+  redis:
+    enabled: true
+    resources:
+      limits:
+        memory: 512Mi
+        cpu: 500m
+      requests:
+        memory: 256Mi
+        cpu: 250m
+
+  keycloak:
+    enabled: true
+    replicas: 1  # 단일 노드
+    resources:
+      limits:
+        memory: 1Gi
+        cpu: 1000m
+      requests:
+        memory: 512Mi
+        cpu: 500m
+
+  # PostgreSQL - Using AWS RDS (managed service)
+  postgres:
+    enabled: false  # RDS 사용으로 self-hosted postgres 비활성화
+    # RDS 연결 정보는 Secrets Manager에서 가져옴:
+    # - DB_URL: jdbc:postgresql://[RDS-ENDPOINT]:5432/ggeolmuse
+    # - DB_USERNAME: ggeolmuse
+    # - DB_PASSWORD: [from 04-create-rds.sh]
+
+  zookeeper:
+    enabled: true
+    replicas: 1
+    storage:
+      data: 5Gi
+      log: 5Gi
+      storageClass: local-path
+    resources:
+      limits:
+        memory: 512Mi
+        cpu: 500m
+      requests:
+        memory: 256Mi
+        cpu: 250m
+
+  kafka:
+    enabled: true
+    replicas: 1
+    storage:
+      data: 10Gi
+      storageClass: local-path
+    resources:
+      limits:
+        memory: 2Gi
+        cpu: 1000m
+      requests:
+        memory: 1Gi
+        cpu: 500m
+
+  kafkaUi:
+    enabled: false  # 프로덕션에서 비활성화
+
+  tempo:
+    enabled: false  # 리소스 절약
+
+# Config Server
+configServer:
+  enabled: true
+  replicaCount: 1
+  image:
+    tag: "1.0.0"
+  resources:
+    limits:
+      memory: 512Mi
+      cpu: 500m
+    requests:
+      memory: 256Mi
+      cpu: 250m
+
+# Gateway Server
+gatewayServer:
+  enabled: true
+  replicaCount: 1  # 단일 노드
+  image:
+    tag: "1.0.0"
+  env:
+    springProfiles: prod,no-file-logging
+  resources:
+    limits:
+      memory: 1Gi
+      cpu: 1000m
+    requests:
+      memory: 512Mi
+      cpu: 500m
+
+# 비즈니스 서비스
+services:
+  userService:
+    enabled: true
+    replicaCount: 1
+    image:
+      tag: "1.0.0"
+    env:
+      appBaseUrl: https://ggeolmuse.kro.kr
+      appFrontendUrl: https://ggeolmuse.kro.kr
+      mailVerificationBaseUrl: https://ggeolmuse.kro.kr
+    resources:
+      limits:
+        memory: 1Gi
+        cpu: 1000m
+      requests:
+        memory: 512Mi
+        cpu: 500m
+
+  tradeService:
+    enabled: true
+    replicaCount: 1
+    image:
+      tag: "1.0.0"
+    resources:
+      limits:
+        memory: 1Gi
+        cpu: 1000m
+      requests:
+        memory: 512Mi
+        cpu: 500m
+
+  marketDataService:
+    enabled: true
+    replicaCount: 1
+    image:
+      tag: "1.0.0"
+    env:
+      MARKETDATA_SYMBOL_LISTING_MAX_SYMBOLS: "0"  # 0 = 무제한 (전체 Stock + ETF)
+      MARKETDATA_SYMBOL_LISTING_ONLY_MAJOR_EXCHANGES: "true"  # NYSE, NASDAQ 등 주요 거래소만
+    resources:
+      limits:
+        memory: 2Gi
+        cpu: 1000m
+      requests:
+        memory: 1Gi
+        cpu: 500m
+
+  backtestService:
+    enabled: true
+    replicaCount: 1
+    image:
+      tag: "1.0.0"
+    resources:
+      limits:
+        memory: 1Gi
+        cpu: 1000m
+      requests:
+        memory: 512Mi
+        cpu: 500m
+
+# 프론트엔드
+frontend:
+  enabled: true
+  replicaCount: 1
+  image:
+    tag: "1.0.0"
+  env:
+    apiUrl: https://ggeolmuse.kro.kr/api
+    keycloakUrl: https://ggeolmuse.kro.kr/auth
+    keycloakRealm: muscathan
+    keycloakClientId: ggeolmuse-frontend
+  resources:
+    limits:
+      memory: 256Mi
+      cpu: 500m
+    requests:
+      memory: 128Mi
+      cpu: 250m
+
+# Ingress - CloudFlare와 통합
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    # CloudFlare SSL 설정
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+
+    # CORS 설정
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET,POST,PUT,DELETE,PATCH,OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "*"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+
+    # 타임아웃 설정
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+
+  hosts:
+    - host: ggeolmuse.kro.kr
+      paths:
+        # API Gateway 라우팅
+        - path: /api
+          pathType: Prefix
+          backend:
+            service: gateway-server
+            port: 8070
+
+        # Keycloak 인증
+        - path: /auth
+          pathType: Prefix
+          backend:
+            service: keycloak
+            port: 8080
+
+        # Frontend
+        - path: /
+          pathType: Prefix
+          backend:
+            service: frontend-web
+            port: 3000
+
+  # TLS는 CloudFlare에서 처리 (Flexible SSL)
+  tls: []
+
+# 네트워크 정책
+networkPolicy:
+  enabled: true
+
+# Secrets - AWS Secrets Manager에서 가져온 값
+secrets:
+  enabled: true
+  name: ggeolmuse-secrets

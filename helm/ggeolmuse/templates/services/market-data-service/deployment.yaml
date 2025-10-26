@@ -63,7 +63,7 @@ spec:
         {{- end }}
         startupProbe:
           httpGet:
-            path: /health
+            path: /health/liveness
             port: 9090
           initialDelaySeconds: {{ .Values.services.marketDataService.probes.startup.initialDelaySeconds }}
           periodSeconds: {{ .Values.services.marketDataService.probes.startup.periodSeconds }}

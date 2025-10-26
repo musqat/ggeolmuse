@@ -9,6 +9,13 @@ prometheus:
     podMonitorSelectorNilUsesHelmValues: false
     podMonitorSelector: {}
 
+    # PrometheusRule 자동 인식 설정
+    ruleSelectorNilUsesHelmValues: false
+    ruleSelector:
+      matchLabels:
+        app: ggeolmuse
+        release: prometheus
+
     # 메트릭 보관 기간
     retention: 7d
 
@@ -126,6 +133,13 @@ grafana:
 alertmanager:
   enabled: true
   alertmanagerSpec:
+    # 커스텀 AlertManager 설정 사용
+    configSecret: alertmanager-config
+
+    # Ingress 설정
+    externalUrl: http://alertmanager.localhost
+
+    # 스토리지 설정
     storage:
       volumeClaimTemplate:
         spec:
@@ -133,6 +147,15 @@ alertmanager:
           resources:
             requests:
               storage: 5Gi
+
+  # AlertManager Ingress
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hosts:
+      - alertmanager.localhost
+    paths:
+      - /
 
 # Kubernetes 기본 메트릭 수집
 kubeStateMetrics:

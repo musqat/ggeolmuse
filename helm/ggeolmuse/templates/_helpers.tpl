@@ -57,10 +57,20 @@ app.kubernetes.io/instance: {{ .Release.Name }}
   value: {{ .Values.global.redis.port | quote }}
 - name: MANAGEMENT_HEALTH_REDIS_ENABLED
   value: {{ .Values.global.redis.healthCheckEnabled | quote }}
+{{- if .Values.global.kafka.enabled }}
+- name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+  value: {{ .Values.global.kafka.bootstrapServers | quote }}
+{{- end }}
 - name: KEYCLOAK_AUTH_SERVER_URL
   value: {{ .Values.global.keycloak.authServerUrl | quote }}
 - name: KEYCLOAK_REALM
   value: {{ .Values.global.keycloak.realm | quote }}
+- name: SPRING_DATASOURCE_URL
+  {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "DB_URL") | nindent 2 }}
+- name: SPRING_DATASOURCE_USERNAME
+  {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "DB_USERNAME") | nindent 2 }}
+- name: SPRING_DATASOURCE_PASSWORD
+  {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "DB_PASSWORD") | nindent 2 }}
 {{- end }}
 
 {{/* 이미지 이름 */}}
@@ -82,7 +92,7 @@ tier: {{ .tier }}
 {{/* Readiness Probe */}}
 {{- define "ggeolmuse.readinessProbe" -}}
 httpGet:
-  path: /health
+  path: /health/liveness
   port: {{ .port }}
 initialDelaySeconds: {{ .initialDelaySeconds | default 60 }}
 periodSeconds: {{ .periodSeconds | default 10 }}
@@ -97,7 +107,7 @@ failureThreshold: {{ .failureThreshold }}
 {{/* Liveness Probe */}}
 {{- define "ggeolmuse.livenessProbe" -}}
 httpGet:
-  path: /health
+  path: /health/liveness
   port: {{ .port }}
 initialDelaySeconds: {{ .initialDelaySeconds | default 120 }}
 periodSeconds: {{ .periodSeconds | default 20 }}
@@ -124,7 +134,7 @@ valueFrom:
 {{- $otel := .Values.global.otel -}}
 {{- if $otel.enabled -}}
 {{- if $extraOpts }}{{ $extraOpts }} {{ end -}}
--Dotel.service.name={{ $serviceName }} -Dotel.traces.exporter={{ $otel.tracesExporter }} -Dotel.metrics.exporter={{ $otel.metricsExporter }} -Dotel.logs.exporter={{ $otel.logsExporter }} -Dotel.exporter.otlp.endpoint={{ $otel.endpoint }} -Dotel.exporter.otlp.protocol={{ $otel.protocol }}
+-javaagent:/app/opentelemetry-javaagent.jar -Dotel.service.name={{ $serviceName }} -Dotel.traces.exporter={{ $otel.tracesExporter }} -Dotel.metrics.exporter={{ $otel.metricsExporter }} -Dotel.logs.exporter={{ $otel.logsExporter }} -Dotel.exporter.otlp.endpoint={{ $otel.endpoint }} -Dotel.exporter.otlp.protocol={{ $otel.protocol }}
 {{- else -}}
 {{- if $extraOpts }}{{ $extraOpts }}{{ end -}}
 {{- end -}}

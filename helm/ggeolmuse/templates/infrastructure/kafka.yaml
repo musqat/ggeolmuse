@@ -1,0 +1,121 @@
+{{- if .Values.infrastructure.kafka.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka
+  labels:
+    app: kafka
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.infrastructure.kafka.service.internal.type }}
+  ports:
+    - port: {{ .Values.infrastructure.kafka.service.internal.port }}
+      name: internal
+      targetPort: {{ .Values.infrastructure.kafka.ports.internal }}
+  selector:
+    app: kafka
+  clusterIP: None
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-external
+  labels:
+    app: kafka
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.infrastructure.kafka.service.external.type }}
+  ports:
+    - port: {{ .Values.infrastructure.kafka.service.external.port }}
+      name: external
+      targetPort: {{ .Values.infrastructure.kafka.ports.external }}
+      nodePort: {{ .Values.infrastructure.kafka.service.external.nodePort }}
+  selector:
+    app: kafka
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kafka
+  labels:
+    app: kafka
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  serviceName: kafka
+  replicas: {{ .Values.infrastructure.kafka.replicas }}
+  selector:
+    matchLabels:
+      app: kafka
+  template:
+    metadata:
+      labels:
+        app: kafka
+    spec:
+      containers:
+        - name: kafka
+          image: {{ .Values.infrastructure.kafka.image }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.infrastructure.kafka.ports.internal }}
+              name: internal
+            - containerPort: {{ .Values.infrastructure.kafka.ports.external }}
+              name: external
+          env:
+            - name: KAFKA_BROKER_ID
+              value: "{{ .Values.infrastructure.kafka.env.brokerId }}"
+            - name: KAFKA_ZOOKEEPER_CONNECT
+              value: "{{ .Values.infrastructure.kafka.env.zookeeperConnect }}"
+            - name: KAFKA_LISTENERS
+              value: "INTERNAL://0.0.0.0:{{ .Values.infrastructure.kafka.ports.internal }},OUTSIDE://0.0.0.0:{{ .Values.infrastructure.kafka.ports.external }}"
+            - name: KAFKA_ADVERTISED_LISTENERS
+              value: "INTERNAL://kafka-0.kafka.default.svc.cluster.local:{{ .Values.infrastructure.kafka.ports.internal }},OUTSIDE://localhost:{{ .Values.infrastructure.kafka.service.external.nodePort }}"
+            - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+              value: "INTERNAL:PLAINTEXT,OUTSIDE:PLAINTEXT"
+            - name: KAFKA_INTER_BROKER_LISTENER_NAME
+              value: "INTERNAL"
+            - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+              value: "{{ .Values.infrastructure.kafka.env.offsetsTopicReplicationFactor }}"
+            - name: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR
+              value: "{{ .Values.infrastructure.kafka.env.transactionStateLogMinIsr }}"
+            - name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
+              value: "{{ .Values.infrastructure.kafka.env.transactionStateLogReplicationFactor }}"
+            - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE
+              value: "{{ .Values.infrastructure.kafka.env.autoCreateTopicsEnable }}"
+            - name: KAFKA_LOG_RETENTION_HOURS
+              value: "{{ .Values.infrastructure.kafka.env.logRetentionHours }}"
+            - name: KAFKA_LOG_SEGMENT_BYTES
+              value: "{{ .Values.infrastructure.kafka.env.logSegmentBytes }}"
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+          volumeMounts:
+            - name: kafka-data
+              mountPath: /var/lib/kafka/data
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.infrastructure.kafka.ports.internal }}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: {{ .Values.infrastructure.kafka.ports.internal }}
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+  volumeClaimTemplates:
+    - metadata:
+        name: kafka-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.infrastructure.kafka.storage.data }}
+{{- end }}

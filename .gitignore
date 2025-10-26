@@ -48,6 +48,12 @@ out/
 /.nb-gradle/
 
 ### VS Code ###
+
+### Security / Secrets ###
+k8s/keycloak-realm-template.json
+aws-deploy/secrets.json
+*.pem
+*.key
 .vscode/
 
 ### Logs ###
@@ -84,6 +90,8 @@ k8s/secrets.yaml
 k8s/*-secrets.yaml
 *.secret.yaml
 scripts/create-secrets.sh
+k8s/secrets/
+k8s/secrets/*.yaml
 
 ### Helm Secrets (실제 값이 포함된 파일) ###
 helm/**/values-dev.yaml

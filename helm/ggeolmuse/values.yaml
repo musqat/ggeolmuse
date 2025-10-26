@@ -17,12 +17,24 @@ global:
     port: 6379
     healthCheckEnabled: false
 
-  springProfiles: dev,no-file-logging
+  kafka:
+    enabled: true
+    bootstrapServers: kafka:9092
+    consumer:
+      groupIdPrefix: ggeolmuse
+      autoOffsetReset: earliest
+      enableAutoCommit: false
+    producer:
+      acks: all
+      retries: 3
+      compressionType: snappy
+
+  springProfiles: prod,no-file-logging
 
   # OpenTelemetry 설정
   otel:
     enabled: true
-    endpoint: http://tempo.monitoring.svc.cluster.local:4318
+    endpoint: http://tempo:4318
     protocol: http/protobuf
     tracesExporter: otlp
     metricsExporter: none  # Tempo는 traces만 지원
@@ -57,6 +69,92 @@ infrastructure:
       port: 8080
       targetPort: 8080
 
+  zookeeper:
+    enabled: true
+    image: confluentinc/cp-zookeeper:7.6.0
+    port: 2181
+    replicas: 1
+    env:
+      clientPort: 2181
+      tickTime: 2000
+      syncLimit: 2
+    service:
+      type: ClusterIP
+      port: 2181
+    storage:
+      data: 1Gi
+      log: 1Gi
+
+  kafka:
+    enabled: true
+    image: confluentinc/cp-kafka:7.6.0
+    replicas: 1
+    ports:
+      internal: 9092
+      external: 9094
+    env:
+      brokerId: 1
+      zookeeperConnect: zookeeper:2181
+      offsetsTopicReplicationFactor: 1
+      transactionStateLogMinIsr: 1
+      transactionStateLogReplicationFactor: 1
+      autoCreateTopicsEnable: true
+      logRetentionHours: 168
+      logSegmentBytes: "1073741824"
+    service:
+      internal:
+        type: ClusterIP
+        port: 9092
+      external:
+        type: NodePort
+        port: 9094
+        nodePort: 30094
+    storage:
+      data: 5Gi
+    topicsInit:
+      enabled: true
+
+  kafkaUi:
+    enabled: true
+    image: provectuslabs/kafka-ui:latest
+    replicas: 1
+    port: 8080
+    env:
+      clustersName: ggeolmuse
+      bootstrapServers: kafka:9092
+      zookeeper: zookeeper:2181
+    service:
+      type: ClusterIP
+      port: 8090
+    resources:
+      limits:
+        memory: 512Mi
+        cpu: 500m
+      requests:
+        memory: 256Mi
+        cpu: 250m
+
+  tempo:
+    enabled: true
+    image: grafana/tempo:2.3.1
+    replicas: 1
+    ports:
+      otlp: 4317      # OTLP gRPC
+      otlpHttp: 4318  # OTLP HTTP
+      zipkin: 9411    # Zipkin
+      jaeger: 14268   # Jaeger
+    service:
+      type: ClusterIP
+    storage:
+      data: 5Gi
+    resources:
+      limits:
+        memory: 1Gi
+        cpu: 1000m
+      requests:
+        memory: 512Mi
+        cpu: 500m
+
 # 설정 서버
 configServer:
   enabled: true
@@ -64,7 +162,7 @@ configServer:
   replicaCount: 1
   image:
     repository: config-server
-    tag: "1.3.1"
+    tag: "1.2.4"
   service:
     type: ClusterIP
     port: 8888
@@ -120,7 +218,7 @@ services:
     replicaCount: 1
     image:
       repository: user-service
-      tag: "1.3.1"
+      tag: "1.2.6"
     service:
       type: ClusterIP
       port: 8080
@@ -153,7 +251,7 @@ services:
     replicaCount: 1
     image:
       repository: trade-service
-      tag: "1.3.1"
+      tag: "1.2.5"
     service:
       type: ClusterIP
       port: 8081
@@ -176,7 +274,7 @@ services:
     replicaCount: 1
     image:
       repository: market-data-service
-      tag: "1.3.1"
+      tag: "1.3.9"
     service:
       type: ClusterIP
       port: 8083
@@ -208,7 +306,7 @@ services:
     replicaCount: 1
     image:
       repository: backtest-service
-      tag: "1.3.1"
+      tag: "1.3.4"
     service:
       type: ClusterIP
       port: 8082
@@ -232,7 +330,7 @@ frontend:
   replicaCount: 1
   image:
     repository: frontend-web
-    tag: "1.2.6"
+    tag: "1.2.10"
   service:
     type: LoadBalancer
     port: 3000
@@ -290,6 +388,22 @@ ingress:
           backend:
             service: keycloak
             port: 8080
+
+    - host: kafka.localhost
+      paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service: kafka-ui
+            port: 8090
+
+    - host: tempo.localhost
+      paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service: tempo
+            port: 3200
 
 # Secret 설정
 secrets:
