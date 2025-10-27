@@ -64,13 +64,13 @@ spec:
         startupProbe:
           httpGet:
             path: /health/liveness
-            port: 9090
+            port: {{ .Values.services.marketDataService.service.port }}
           initialDelaySeconds: {{ .Values.services.marketDataService.probes.startup.initialDelaySeconds }}
           periodSeconds: {{ .Values.services.marketDataService.probes.startup.periodSeconds }}
           timeoutSeconds: {{ .Values.services.marketDataService.probes.startup.timeoutSeconds }}
           failureThreshold: {{ .Values.services.marketDataService.probes.startup.failureThreshold }}
         readinessProbe:
-          {{- include "ggeolmuse.readinessProbe" (merge (dict "port" 9090) .Values.services.marketDataService.probes.readiness) | nindent 10 }}
+          {{- include "ggeolmuse.readinessProbe" (merge (dict "port" .Values.services.marketDataService.service.port) .Values.services.marketDataService.probes.readiness) | nindent 10 }}
         livenessProbe:
-          {{- include "ggeolmuse.livenessProbe" (merge (dict "port" 9090) .Values.services.marketDataService.probes.liveness) | nindent 10 }}
+          {{- include "ggeolmuse.livenessProbe" (merge (dict "port" .Values.services.marketDataService.service.port) .Values.services.marketDataService.probes.liveness) | nindent 10 }}
 {{- end }}
