@@ -52,6 +52,10 @@ spec:
         - name: config-repo-volume
           mountPath: /config-repo
           readOnly: true
+        {{- if .Values.configServer.resources }}
+        resources:
+          {{- toYaml .Values.configServer.resources | nindent 10 }}
+        {{- end }}
         readinessProbe:
           {{- include "ggeolmuse.readinessProbe" (dict "port" 9090 "initialDelaySeconds" .Values.configServer.probes.readiness.initialDelaySeconds "periodSeconds" .Values.configServer.probes.readiness.periodSeconds) | nindent 10 }}
         livenessProbe:
