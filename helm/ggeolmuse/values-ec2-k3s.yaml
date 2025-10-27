@@ -38,30 +38,26 @@ infrastructure:
     enabled: true
     resources:
       limits:
-        memory: 512Mi
-        cpu: 500m
+        memory: 384Mi
+        cpu: 300m
       requests:
-        memory: 256Mi
-        cpu: 250m
+        memory: 192Mi
+        cpu: 150m
 
   keycloak:
     enabled: true
     replicas: 1  # 단일 노드
     resources:
       limits:
-        memory: 1Gi
-        cpu: 1000m
-      requests:
         memory: 512Mi
         cpu: 500m
+      requests:
+        memory: 256Mi
+        cpu: 250m
 
   # PostgreSQL - Using AWS RDS (managed service)
   postgres:
     enabled: false  # RDS 사용으로 self-hosted postgres 비활성화
-    # RDS 연결 정보는 Secrets Manager에서 가져옴:
-    # - DB_URL: jdbc:postgresql://[RDS-ENDPOINT]:5432/ggeolmuse
-    # - DB_USERNAME: ggeolmuse
-    # - DB_PASSWORD: [from 04-create-rds.sh]
 
   zookeeper:
     enabled: true
@@ -72,11 +68,11 @@ infrastructure:
       storageClass: local-path
     resources:
       limits:
-        memory: 512Mi
-        cpu: 500m
+        memory: 384Mi
+        cpu: 300m
       requests:
-        memory: 256Mi
-        cpu: 250m
+        memory: 192Mi
+        cpu: 150m
 
   kafka:
     enabled: true
@@ -86,17 +82,24 @@ infrastructure:
       storageClass: local-path
     resources:
       limits:
-        memory: 2Gi
-        cpu: 1000m
+        memory: 1536Mi
+        cpu: 750m
       requests:
-        memory: 1Gi
-        cpu: 500m
+        memory: 768Mi
+        cpu: 400m
 
   kafkaUi:
     enabled: false  # 프로덕션에서 비활성화
 
   tempo:
-    enabled: false  # 리소스 절약
+    enabled: true
+    resources:
+      limits:
+        memory: 384Mi
+        cpu: 300m
+      requests:
+        memory: 192Mi
+        cpu: 150m
 
 # Config Server
 configServer:
@@ -106,11 +109,11 @@ configServer:
     tag: "1.0.0"
   resources:
     limits:
-      memory: 512Mi
-      cpu: 500m
+      memory: 384Mi
+      cpu: 300m
     requests:
-      memory: 256Mi
-      cpu: 250m
+      memory: 192Mi
+      cpu: 150m
 
 # Gateway Server
 gatewayServer:
@@ -129,11 +132,11 @@ gatewayServer:
       periodSeconds: 10
   resources:
     limits:
-      memory: 1Gi
-      cpu: 1000m
+      memory: 640Mi
+      cpu: 600m
     requests:
-      memory: 512Mi
-      cpu: 500m
+      memory: 320Mi
+      cpu: 300m
 
 # 비즈니스 서비스
 services:
@@ -155,11 +158,11 @@ services:
         periodSeconds: 10
     resources:
       limits:
-        memory: 1Gi
-        cpu: 1000m
+        memory: 640Mi
+        cpu: 600m
       requests:
-        memory: 512Mi
-        cpu: 500m
+        memory: 320Mi
+        cpu: 300m
 
   tradeService:
     enabled: true
@@ -175,11 +178,11 @@ services:
         periodSeconds: 10
     resources:
       limits:
-        memory: 1Gi
-        cpu: 1000m
+        memory: 640Mi
+        cpu: 600m
       requests:
-        memory: 512Mi
-        cpu: 500m
+        memory: 320Mi
+        cpu: 300m
 
   marketDataService:
     enabled: true
@@ -202,11 +205,11 @@ services:
         periodSeconds: 10
     resources:
       limits:
-        memory: 2Gi
-        cpu: 1000m
+        memory: 1280Mi
+        cpu: 700m
       requests:
-        memory: 1Gi
-        cpu: 500m
+        memory: 640Mi
+        cpu: 350m
 
   backtestService:
     enabled: true
@@ -222,11 +225,11 @@ services:
         periodSeconds: 10
     resources:
       limits:
-        memory: 1Gi
-        cpu: 1000m
+        memory: 640Mi
+        cpu: 600m
       requests:
-        memory: 512Mi
-        cpu: 500m
+        memory: 320Mi
+        cpu: 300m
 
 # 프론트엔드
 frontend:
