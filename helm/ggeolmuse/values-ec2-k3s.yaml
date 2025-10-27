@@ -19,6 +19,15 @@ global:
   redis:
     enabled: true
 
+  # OpenTelemetry - Tempo in monitoring namespace
+  otel:
+    enabled: true
+    endpoint: http://tempo.monitoring.svc.cluster.local:4318
+    protocol: http/protobuf
+    tracesExporter: otlp
+    metricsExporter: none
+    logsExporter: none
+
 # Ingress Controller - K3s에서 별도 설치
 ingressController:
   enabled: false
