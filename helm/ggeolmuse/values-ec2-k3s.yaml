@@ -139,6 +139,13 @@ services:
       appBaseUrl: https://ggeolmuse.kro.kr
       appFrontendUrl: https://ggeolmuse.kro.kr
       mailVerificationBaseUrl: https://ggeolmuse.kro.kr
+    probes:
+      liveness:
+        initialDelaySeconds: 300  # 5분으로 증가 (DB + Flyway)
+        periodSeconds: 20
+      readiness:
+        initialDelaySeconds: 120  # 2분으로 증가
+        periodSeconds: 10
     resources:
       limits:
         memory: 1Gi
@@ -152,6 +159,13 @@ services:
     replicaCount: 1
     image:
       tag: "1.0.0"
+    probes:
+      liveness:
+        initialDelaySeconds: 300  # 5분으로 증가
+        periodSeconds: 20
+      readiness:
+        initialDelaySeconds: 120  # 2분으로 증가
+        periodSeconds: 10
     resources:
       limits:
         memory: 1Gi
@@ -168,6 +182,17 @@ services:
     env:
       MARKETDATA_SYMBOL_LISTING_MAX_SYMBOLS: "0"  # 0 = 무제한 (전체 Stock + ETF)
       MARKETDATA_SYMBOL_LISTING_ONLY_MAJOR_EXCHANGES: "true"  # NYSE, NASDAQ 등 주요 거래소만
+    probes:
+      startup:
+        initialDelaySeconds: 30
+        periodSeconds: 10
+        failureThreshold: 60  # 최대 10분
+      liveness:
+        initialDelaySeconds: 300  # 5분으로 증가
+        periodSeconds: 20
+      readiness:
+        initialDelaySeconds: 120  # 2분으로 증가
+        periodSeconds: 10
     resources:
       limits:
         memory: 2Gi
@@ -181,6 +206,13 @@ services:
     replicaCount: 1
     image:
       tag: "1.0.0"
+    probes:
+      liveness:
+        initialDelaySeconds: 300  # 5분으로 증가
+        periodSeconds: 20
+      readiness:
+        initialDelaySeconds: 120  # 2분으로 증가
+        periodSeconds: 10
     resources:
       limits:
         memory: 1Gi
