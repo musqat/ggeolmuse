@@ -62,7 +62,7 @@ spec:
         - name: APP_MAIL_VERIFICATION_BASE_URL
           value: {{ .Values.services.userService.env.mailVerificationBaseUrl | quote }}
         readinessProbe:
-          {{- include "ggeolmuse.readinessProbe" (merge (dict "port" 9090) .Values.services.userService.probes.readiness) | nindent 10 }}
+          {{- include "ggeolmuse.readinessProbe" (merge (dict "port" .Values.services.userService.service.port) .Values.services.userService.probes.readiness) | nindent 10 }}
         livenessProbe:
-          {{- include "ggeolmuse.livenessProbe" (merge (dict "port" 9090) .Values.services.userService.probes.liveness) | nindent 10 }}
+          {{- include "ggeolmuse.livenessProbe" (merge (dict "port" .Values.services.userService.service.port) .Values.services.userService.probes.liveness) | nindent 10 }}
 {{- end }}
