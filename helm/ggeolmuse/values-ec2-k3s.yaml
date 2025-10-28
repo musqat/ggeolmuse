@@ -144,7 +144,7 @@ services:
     enabled: true
     replicaCount: 1
     image:
-      tag: "1.0.3"
+      tag: "1.0.4"
     env:
       appBaseUrl: https://ggeolmuse.kro.kr
       appFrontendUrl: https://ggeolmuse.kro.kr
@@ -168,7 +168,7 @@ services:
     enabled: true
     replicaCount: 1
     image:
-      tag: "1.0.3"
+      tag: "1.0.4"
     probes:
       liveness:
         initialDelaySeconds: 300  # 5분으로 증가
@@ -188,7 +188,7 @@ services:
     enabled: true
     replicaCount: 1
     image:
-      tag: "1.0.3"
+      tag: "1.0.4"
     env:
       MARKETDATA_SYMBOL_LISTING_MAX_SYMBOLS: "0"  # 0 = 무제한 (전체 Stock + ETF)
       MARKETDATA_SYMBOL_LISTING_ONLY_MAJOR_EXCHANGES: "true"  # NYSE, NASDAQ 등 주요 거래소만
@@ -215,7 +215,7 @@ services:
     enabled: true
     replicaCount: 1
     image:
-      tag: "1.0.3"
+      tag: "1.0.4"
     probes:
       liveness:
         initialDelaySeconds: 300  # 5분으로 증가
