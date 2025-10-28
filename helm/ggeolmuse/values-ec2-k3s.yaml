@@ -194,8 +194,11 @@ services:
     image:
       tag: "1.0.5"
     env:
-      MARKETDATA_SYMBOL_LISTING_MAX_SYMBOLS: "0"  # 0 = 무제한 (전체 Stock + ETF)
-      MARKETDATA_SYMBOL_LISTING_ONLY_MAJOR_EXCHANGES: "true"  # NYSE, NASDAQ 등 주요 거래소만
+      SYMBOL_LISTING_MAX: "0"  # 0 = 무제한 (전체 Stock + ETF)
+      SYMBOL_LISTING_ONLY_MAJOR: "true"  # NYSE, NASDAQ 등 주요 거래소만
+      SYMBOL_LOOKBACK_DAYS: "3650"  # 10년치 데이터 수집
+      SYMBOL_COLLECT_DATA: "true"  # 캔들 데이터 수집 활성화
+      SYMBOL_INCLUDE_DIVIDENDS: "true"  # 배당 데이터 포함
     probes:
       startup:
         initialDelaySeconds: 30
