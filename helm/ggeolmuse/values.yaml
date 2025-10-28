@@ -5,6 +5,10 @@ global:
   imageRegistry: muscathan
   imagePullPolicy: Always
 
+  # Management server port (Health, Metrics, Actuator)
+  management:
+    port: 9090
+
   keycloak:
     authServerUrl: http://keycloak:8080
     publicUrl: http://auth.localhost

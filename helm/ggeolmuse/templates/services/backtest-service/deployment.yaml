@@ -50,7 +50,7 @@ spec:
           value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" .Values.services.backtestService.name) }}
         {{- end }}
         readinessProbe:
-          {{- include "ggeolmuse.readinessProbe" (merge (dict "port" .Values.services.backtestService.service.port) .Values.services.backtestService.probes.readiness) | nindent 10 }}
+          {{- include "ggeolmuse.readinessProbe" (merge (dict "port" .Values.global.management.port) .Values.services.backtestService.probes.readiness) | nindent 10 }}
         livenessProbe:
-          {{- include "ggeolmuse.livenessProbe" (merge (dict "port" .Values.services.backtestService.service.port) .Values.services.backtestService.probes.liveness) | nindent 10 }}
+          {{- include "ggeolmuse.livenessProbe" (merge (dict "port" .Values.global.management.port) .Values.services.backtestService.probes.liveness) | nindent 10 }}
 {{- end }}
