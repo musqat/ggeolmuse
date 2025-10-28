@@ -257,7 +257,7 @@ frontend:
 # Ingress - CloudFlare와 통합
 ingress:
   enabled: true
-  className: nginx
+  className: traefik
   annotations:
     # CloudFlare SSL 설정
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
