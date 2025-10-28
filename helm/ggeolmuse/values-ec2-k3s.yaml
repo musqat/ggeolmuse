@@ -2,8 +2,8 @@
 # 단일 노드에 최적화된 설정
 
 global:
-  domain: ggeolmuse.kro.kr
-  authDomain: ggeolmuse.kro.kr
+  domain: ggeolmuse.com
+  authDomain: ggeolmuse.com
   imageRegistry: muscathan
   imagePullPolicy: Always
   springProfiles: prod,no-file-logging
@@ -14,7 +14,7 @@ global:
 
   keycloak:
     authServerUrl: http://keycloak:8080
-    publicUrl: https://ggeolmuse.kro.kr/auth
+    publicUrl: https://ggeolmuse.com/auth
 
   kafka:
     enabled: true
@@ -150,9 +150,9 @@ services:
     image:
       tag: "1.0.5"
     env:
-      appBaseUrl: https://ggeolmuse.kro.kr
-      appFrontendUrl: https://ggeolmuse.kro.kr
-      mailVerificationBaseUrl: https://ggeolmuse.kro.kr
+      appBaseUrl: https://ggeolmuse.com
+      appFrontendUrl: https://ggeolmuse.com
+      mailVerificationBaseUrl: https://ggeolmuse.com
     probes:
       liveness:
         initialDelaySeconds: 300  # 5분으로 증가 (DB + Flyway)
@@ -242,8 +242,8 @@ frontend:
   image:
     tag: "1.0.0"
   env:
-    apiUrl: https://ggeolmuse.kro.kr/api
-    keycloakUrl: https://ggeolmuse.kro.kr/auth
+    apiUrl: https://ggeolmuse.com/api
+    keycloakUrl: https://ggeolmuse.com/auth
     keycloakRealm: muscathan
     keycloakClientId: ggeolmuse-frontend
   resources:
@@ -276,7 +276,7 @@ ingress:
     nginx.ingress.kubernetes.io/proxy-body-size: "50m"
 
   hosts:
-    - host: ggeolmuse.kro.kr
+    - host: ggeolmuse.com
       paths:
         # API Gateway 라우팅
         - path: /api
