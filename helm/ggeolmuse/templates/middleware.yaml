@@ -1,0 +1,14 @@
+{{- if .Values.ingress.enabled }}
+---
+# Traefik Middleware for Keycloak /auth path stripping
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-auth-prefix
+  labels:
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  stripPrefix:
+    prefixes:
+      - /auth
+{{- end }}

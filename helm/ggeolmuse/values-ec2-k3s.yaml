@@ -288,8 +288,6 @@ ingress:
             service: gateway-server
             port: 8070
 
-        # Keycloak 인증 - 별도 ingress-keycloak.yaml에서 처리 (StripPrefix 적용)
-
         # Frontend
         - path: /
           pathType: Prefix

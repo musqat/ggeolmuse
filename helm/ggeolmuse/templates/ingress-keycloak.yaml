@@ -1,0 +1,29 @@
+{{- if .Values.ingress.enabled }}
+---
+# Separate Ingress for Keycloak with StripPrefix middleware
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "ggeolmuse.fullname" . }}-keycloak-ingress
+  labels:
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+  annotations:
+    # Traefik StripPrefix middleware - removes /auth prefix before forwarding to Keycloak
+    traefik.ingress.kubernetes.io/router.middlewares: default-strip-auth-prefix@kubernetescrd
+    {{- toYaml .Values.ingress.annotations | nindent 4 }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  rules:
+  {{- range .Values.ingress.hosts }}
+  - host: {{ .host }}
+    http:
+      paths:
+      - path: /auth
+        pathType: Prefix
+        backend:
+          service:
+            name: keycloak
+            port:
+              number: 8080
+  {{- end }}
+{{- end }}
