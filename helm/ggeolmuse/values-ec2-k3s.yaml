@@ -148,7 +148,7 @@ services:
     enabled: true
     replicaCount: 1
     image:
-      tag: "1.0.5"
+      tag: "1.0.6"
     env:
       appBaseUrl: https://ggeolmuse.com
       appFrontendUrl: https://ggeolmuse.com
@@ -243,7 +243,7 @@ frontend:
   enabled: true
   replicaCount: 1
   image:
-    tag: "1.0.0"
+    tag: "1.0.2"
   env:
     apiUrl: https://ggeolmuse.com/api
     keycloakUrl: https://ggeolmuse.com/auth
@@ -288,12 +288,7 @@ ingress:
             service: gateway-server
             port: 8070
 
-        # Keycloak 인증
-        - path: /auth
-          pathType: Prefix
-          backend:
-            service: keycloak
-            port: 8080
+        # Keycloak 인증 - 별도 ingress-keycloak.yaml에서 처리 (StripPrefix 적용)
 
         # Frontend
         - path: /
