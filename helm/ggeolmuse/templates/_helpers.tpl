@@ -65,8 +65,6 @@ app.kubernetes.io/instance: {{ .Release.Name }}
   value: {{ .Values.global.keycloak.authServerUrl | quote }}
 - name: KEYCLOAK_REALM
   value: {{ .Values.global.keycloak.realm | quote }}
-- name: SPRING_DATASOURCE_URL
-  {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "DB_URL") | nindent 2 }}
 - name: SPRING_DATASOURCE_USERNAME
   {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "DB_USERNAME") | nindent 2 }}
 - name: SPRING_DATASOURCE_PASSWORD
