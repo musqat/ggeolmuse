@@ -172,7 +172,7 @@ services:
     enabled: true
     replicaCount: 1
     image:
-      tag: "1.0.7"
+      tag: "1.0.8"
     probes:
       liveness:
         initialDelaySeconds: 300  # 5분으로 증가
