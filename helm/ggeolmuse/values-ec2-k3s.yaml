@@ -172,7 +172,7 @@ services:
     enabled: true
     replicaCount: 1
     image:
-      tag: "1.0.5"
+      tag: "1.0.6"
     probes:
       liveness:
         initialDelaySeconds: 300  # 5분으로 증가
@@ -192,7 +192,7 @@ services:
     enabled: true
     replicaCount: 1
     image:
-      tag: "1.0.6"
+      tag: "1.0.7"
     env:
       SYMBOL_LISTING_MAX: "0"  # 0 = 무제한 (전체 Stock + ETF)
       SYMBOL_LISTING_ONLY_MAJOR: "true"  # NYSE, NASDAQ 등 주요 거래소만
