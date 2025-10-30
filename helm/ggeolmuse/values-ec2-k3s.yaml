@@ -201,8 +201,9 @@ services:
     enabled: true
     replicaCount: 1
     image:
-      tag: "1.0.17"
+      tag: "1.0.18"
     env:
+      TZ: "Asia/Seoul"  # 한국 시간대 설정 (UTC+9)
       SYMBOL_LISTING_MAX: "0"  # 0 = 무제한
       SYMBOL_LISTING_ONLY_MAJOR: "true"  # NYSE, NASDAQ, NYSE ARCA 주요 거래소만
       SYMBOL_COLLECT_DATA: "true"  # 캔들 데이터 수집 활성화 (full outputsize로 20년치 전부)
@@ -211,6 +212,8 @@ services:
       ALPHAVANTAGE_SCHEDULER_FX_CRON: "-"
       ALPHAVANTAGE_SCHEDULER_CANDLE_CRON: "-"
       ALPHAVANTAGE_SCHEDULER_MARKET_CAP_CRON: "-"
+      # OpenTelemetry 비활성화 (초기 수집 완료 후 제거하고 재배포)
+      OTEL_SDK_DISABLED: "true"
     probes:
       startup:
         initialDelaySeconds: 30
