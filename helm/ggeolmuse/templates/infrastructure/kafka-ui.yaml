@@ -56,20 +56,26 @@ spec:
             limits:
               memory: {{ .Values.infrastructure.kafkaUi.resources.limits.memory }}
               cpu: {{ .Values.infrastructure.kafkaUi.resources.limits.cpu }}
-          readinessProbe:
+          startupProbe:
             httpGet:
-              path: /
+              path: /actuator/health
               port: {{ .Values.infrastructure.kafkaUi.port }}
             initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 15  # 30 + (10 * 15) = 최대 180초 대기
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: {{ .Values.infrastructure.kafkaUi.port }}
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 3
           livenessProbe:
             httpGet:
-              path: /
+              path: /actuator/health
               port: {{ .Values.infrastructure.kafkaUi.port }}
-            initialDelaySeconds: 60
-            periodSeconds: 10
+            periodSeconds: 20
             timeoutSeconds: 5
             failureThreshold: 3
 {{- end }}
