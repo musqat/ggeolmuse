@@ -1,0 +1,140 @@
+# Prometheus 설정
+prometheus:
+  prometheusSpec:
+    # Service Monitor 설정
+    serviceMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorSelector: {}
+
+    # Pod Monitor 설정
+    podMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelector: {}
+
+    # PrometheusRule 자동 인식 설정
+    ruleSelectorNilUsesHelmValues: false
+    ruleSelector:
+      matchLabels:
+        app: ggeolmuse
+        release: prometheus
+
+    # 메트릭 보관 기간
+    retention: 15d  # 15일
+
+    # 스토리지 설정
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 20Gi
+
+  # Prometheus Ingress는 비활성화
+  ingress:
+    enabled: false
+
+# Grafana 설정
+grafana:
+  enabled: true
+
+  # Admin 계정 설정 - Kubernetes Secret 사용
+  admin:
+    existingSecret: "grafana-admin"
+    userKey: admin-user
+    passwordKey: admin-password
+
+  # Sub-path 설정
+  grafana.ini:
+    server:
+      root_url: "https://ggeolmuse.com/grafana"
+      serve_from_sub_path: true
+
+  # Grafana Ingress는 비활성화
+  ingress:
+    enabled: false
+
+  # 리소스 설정
+  resources:
+    limits:
+      memory: 512Mi
+      cpu: 500m
+    requests:
+      memory: 256Mi
+      cpu: 250m
+
+  # 모든 데이터소스 통합 관리 (Prometheus + Tempo)
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          type: prometheus
+          access: proxy
+          url: http://prometheus-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090
+          isDefault: true
+          jsonData:
+            timeInterval: 30s
+
+        - name: Tempo
+          type: tempo
+          access: proxy
+          url: http://tempo.default.svc.cluster.local:3100
+          jsonData:
+            tracesToLogs:
+              datasourceUid: 'Loki'
+            serviceMap:
+              datasourceUid: 'Prometheus'
+            nodeGraph:
+              enabled: true
+
+  # 대시보드 자동 로드 설정
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: 'default'
+          orgId: 1
+          folder: ''
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards/default
+
+  # Spring Boot 대시보드
+  dashboards:
+    default:
+      spring-boot-dashboard:
+        gnetId: 12900
+        revision: 1
+        datasource: Prometheus
+      jvm-dashboard:
+        gnetId: 4701
+        revision: 6
+        datasource: Prometheus
+
+# Alertmanager 설정
+alertmanager:
+  enabled: true
+
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 5Gi
+  ingress:
+    enabled: false
+
+# 기타 컴포넌트 설정
+kubeStateMetrics:
+  enabled: true
+
+nodeExporter:
+  enabled: true
+
+prometheusOperator:
+  enabled: true

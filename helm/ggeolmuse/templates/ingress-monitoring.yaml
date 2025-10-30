@@ -3,7 +3,8 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "ggeolmuse.fullname" . }}-ingress
+  name: {{ include "ggeolmuse.fullname" . }}-monitoring-ingress
+  namespace: monitoring
   labels:
     {{- include "ggeolmuse.labels" . | nindent 4 }}
   annotations:
@@ -16,7 +17,7 @@ spec:
     http:
       paths:
       {{- range .paths }}
-      {{- if not .backend.namespace }}
+      {{- if .backend.namespace }}
       - path: {{ .path }}
         pathType: {{ .pathType }}
         backend:

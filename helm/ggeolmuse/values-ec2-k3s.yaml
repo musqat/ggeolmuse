@@ -93,17 +93,26 @@ infrastructure:
         cpu: 400m
 
   kafkaUi:
-    enabled: false  # 프로덕션에서 비활성화
+    enabled: true  # Ingress를 통해 접근 가능하도록 활성화
+    env:
+      SERVER_SERVLET_CONTEXT_PATH: /kafka-ui
+    resources:
+      limits:
+        memory: 256Mi
+        cpu: 200m
+      requests:
+        memory: 128Mi
+        cpu: 100m
 
   tempo:
     enabled: true
     resources:
       limits:
-        memory: 384Mi
-        cpu: 300m
+        memory: 1Gi
+        cpu: 500m
       requests:
-        memory: 192Mi
-        cpu: 150m
+        memory: 512Mi
+        cpu: 250m
 
 # Config Server
 configServer:
@@ -192,12 +201,16 @@ services:
     enabled: true
     replicaCount: 1
     image:
-      tag: "1.0.14"
+      tag: "1.0.15"
     env:
       SYMBOL_LISTING_MAX: "0"  # 0 = 무제한 (전체 Stock + ETF)
       SYMBOL_LISTING_ONLY_MAJOR: "true"  # NYSE, NASDAQ, NYSE ARCA 주요 거래소만
       SYMBOL_COLLECT_DATA: "true"  # 캔들 데이터 수집 활성화 (full outputsize로 20년치 전부)
       SYMBOL_INCLUDE_DIVIDENDS: "true"  # 배당 데이터 포함
+      # 초기 수집 중에는 스케줄러 비활성화 (DB + Kafka 초기화 후)
+      ALPHAVANTAGE_SCHEDULER_FX_CRON: "-"
+      ALPHAVANTAGE_SCHEDULER_CANDLE_CRON: "-"
+      ALPHAVANTAGE_SCHEDULER_MARKET_CAP_CRON: "-"
     probes:
       startup:
         initialDelaySeconds: 30
@@ -286,6 +299,28 @@ ingress:
           backend:
             service: gateway-server
             port: 8070
+
+        # Keycloak 인증 서버
+        - path: /auth
+          pathType: Prefix
+          backend:
+            service: keycloak
+            port: 8080
+
+        # Grafana 모니터링 대시보드
+        - path: /grafana
+          pathType: Prefix
+          backend:
+            service: grafana
+            port: 80
+            namespace: monitoring
+
+        # Kafka UI
+        - path: /kafka-ui
+          pathType: Prefix
+          backend:
+            service: kafka-ui
+            port: 8080
 
         # Frontend
         - path: /
