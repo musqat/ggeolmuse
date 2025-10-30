@@ -133,7 +133,7 @@ gatewayServer:
   enabled: true
   replicaCount: 1  # 단일 노드
   image:
-    tag: "1.0.4"
+    tag: "1.0.5"
   env:
     springProfiles: prod,no-file-logging
   probes:
@@ -210,14 +210,12 @@ services:
       MARKETDATA_SYMBOL_COLLECTION_ENABLED: "true"
       SYMBOL_LISTING_MAX: "0"  # 0 = 무제한
       SYMBOL_LISTING_ONLY_MAJOR: "true"  # NYSE, NASDAQ, NYSE ARCA 주요 거래소만
-      SYMBOL_COLLECT_DATA: "true"  # 캔들 데이터 수집 활성화 (full outputsize로 20년치 전부)
+      SYMBOL_COLLECT_DATA: "false"  # 초기 수집 완료, 스케줄러로만 업데이트
       SYMBOL_INCLUDE_DIVIDENDS: "true"  # 배당 데이터 포함
-      # 초기 수집 중에는 스케줄러 비활성화 (DB + Kafka 초기화 후)
-      ALPHAVANTAGE_SCHEDULER_FX_CRON: "-"
-      ALPHAVANTAGE_SCHEDULER_CANDLE_CRON: "-"
-      ALPHAVANTAGE_SCHEDULER_MARKET_CAP_CRON: "-"
-      # OpenTelemetry 비활성화 (초기 수집 완료 후 제거하고 재배포)
-      OTEL_SDK_DISABLED: "true"
+      # 스케줄러 활성화 (초기 수집 완료)
+      ALPHAVANTAGE_SCHEDULER_FX_CRON: "0 0 1 * * ?"  # 매일 오전 1시 (KST 10시)
+      ALPHAVANTAGE_SCHEDULER_CANDLE_CRON: "0 0 2 * * ?"  # 매일 오전 2시 (KST 11시)
+      ALPHAVANTAGE_SCHEDULER_MARKET_CAP_CRON: "0 0 3 * * ?"  # 매일 오전 3시 (KST 12시)
     probes:
       startup:
         initialDelaySeconds: 30
