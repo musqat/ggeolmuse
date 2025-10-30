@@ -43,10 +43,10 @@ grafana:
     userKey: admin-user
     passwordKey: admin-password
 
-  # Sidecar 설정 - 기본 datasource 자동 생성 비활성화
+  # Sidecar 설정 - Chart의 자동 datasource 생성 완전히 비활성화
   sidecar:
     datasources:
-      defaultDatasourceEnabled: false  # Chart의 기본 Prometheus datasource 생성 안 함
+      enabled: false  # Sidecar 비활성화하여 Chart가 생성하는 ConfigMap 방지
 
   # Sub-path 설정
   grafana.ini:
