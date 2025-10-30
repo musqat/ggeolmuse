@@ -204,6 +204,7 @@ services:
       tag: "1.0.18"
     env:
       TZ: "Asia/Seoul"  # 한국 시간대 설정 (UTC+9)
+      MARKETDATA_PROVIDER: "alphavantage"
       SYMBOL_LISTING_MAX: "0"  # 0 = 무제한
       SYMBOL_LISTING_ONLY_MAJOR: "true"  # NYSE, NASDAQ, NYSE ARCA 주요 거래소만
       SYMBOL_COLLECT_DATA: "true"  # 캔들 데이터 수집 활성화 (full outputsize로 20년치 전부)
