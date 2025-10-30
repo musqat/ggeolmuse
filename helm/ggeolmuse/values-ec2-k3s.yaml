@@ -201,10 +201,13 @@ services:
     enabled: true
     replicaCount: 1
     image:
-      tag: "1.0.18"
+      tag: "1.0.19"
     env:
       TZ: "Asia/Seoul"  # 한국 시간대 설정 (UTC+9)
+      # 마켓 데이터 프로바이더 설정
       MARKETDATA_PROVIDER: "alphavantage"
+      # 심볼 수집 활성화
+      MARKETDATA_SYMBOL_COLLECTION_ENABLED: "true"
       SYMBOL_LISTING_MAX: "0"  # 0 = 무제한
       SYMBOL_LISTING_ONLY_MAJOR: "true"  # NYSE, NASDAQ, NYSE ARCA 주요 거래소만
       SYMBOL_COLLECT_DATA: "true"  # 캔들 데이터 수집 활성화 (full outputsize로 20년치 전부)
