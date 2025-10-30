@@ -23,10 +23,10 @@ global:
   redis:
     enabled: true
 
-  # OpenTelemetry - Tempo in monitoring namespace
+  # OpenTelemetry - Tempo in default namespace
   otel:
     enabled: true
-    endpoint: http://tempo.monitoring.svc.cluster.local:4318
+    endpoint: http://tempo.default.svc.cluster.local:4318
     protocol: http/protobuf
     tracesExporter: otlp
     metricsExporter: none
