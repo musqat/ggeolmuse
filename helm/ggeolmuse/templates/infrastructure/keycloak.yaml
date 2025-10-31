@@ -79,13 +79,13 @@ spec:
             memory: "512Mi"
         readinessProbe:
           httpGet:
-            path: /realms/master
+            path: /auth/realms/master
             port: {{ .Values.infrastructure.keycloak.port }}
           initialDelaySeconds: 60
           periodSeconds: 10
         livenessProbe:
           httpGet:
-            path: /realms/master
+            path: /auth/realms/master
             port: {{ .Values.infrastructure.keycloak.port }}
           initialDelaySeconds: 120
           periodSeconds: 30
