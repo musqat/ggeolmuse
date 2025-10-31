@@ -13,7 +13,7 @@ global:
     port: 9090
 
   keycloak:
-    authServerUrl: http://keycloak:8080
+    authServerUrl: http://keycloak:8080/auth
     publicUrl: https://ggeolmuse.com/auth
 
   kafka:
