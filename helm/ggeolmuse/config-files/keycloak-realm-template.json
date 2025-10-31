@@ -90,25 +90,6 @@
   },
   "users": [
     {
-      "username": "admin",
-      "email": "admin@muscathan.com",
-      "firstName": "Admin",
-      "lastName": "User",
-      "enabled": true,
-      "emailVerified": true,
-      "credentials": [
-        {
-          "type": "password",
-          "value": "${KEYCLOAK_ADMIN_USER_PASSWORD}",
-          "temporary": false
-        }
-      ],
-      "realmRoles": [
-        "admin",
-        "user"
-      ]
-    },
-    {
       "username": "service-account-ggeolmuse-client",
       "enabled": true,
       "serviceAccountClientId": "ggeolmuse-client",

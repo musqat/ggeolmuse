@@ -36,22 +36,34 @@ spec:
               key: KEYCLOAK_ADMIN_PASSWORD
         - name: KC_DB
           value: {{ .Values.infrastructure.keycloak.env.kcDbVendor | quote }}
+        {{- if eq .Values.infrastructure.keycloak.env.kcDbVendor "postgres" }}
+        - name: KC_DB_URL
+          value: "jdbc:postgresql://ggeolmuse-postgres.cxa6ioco4fhg.ap-northeast-2.rds.amazonaws.com:5432/keycloak"
+        - name: KC_DB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.secrets.name }}
+              key: DB_USERNAME
+        - name: KC_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.secrets.name }}
+              key: DB_PASSWORD
+        - name: KC_HTTP_RELATIVE_PATH
+          value: {{ .Values.infrastructure.keycloak.env.kcHttpRelativePath | quote }}
+        {{- end }}
         - name: KEYCLOAK_CLIENT_SECRET
           valueFrom:
             secretKeyRef:
               name: {{ .Values.secrets.name }}
               key: KEYCLOAK_CLIENT_SECRET
-        - name: KEYCLOAK_TEST_USER_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: {{ .Values.secrets.name }}
-              key: KEYCLOAK_TEST_USER_PASSWORD
         command: ["sh", "-c"]
         args:
         - |
+          {{- if ne .Values.infrastructure.keycloak.env.kcDbVendor "postgres" }}
           rm -rf /opt/keycloak/data/h2/*
+          {{- end }}
           sed -e "s/\${KEYCLOAK_CLIENT_SECRET}/${KEYCLOAK_CLIENT_SECRET}/g" \
-              -e "s/\${KEYCLOAK_TEST_USER_PASSWORD}/${KEYCLOAK_TEST_USER_PASSWORD}/g" \
               /opt/keycloak/data/import-template/muscathan-realm.json > /opt/keycloak/data/import/muscathan-realm.json
           /opt/keycloak/bin/kc.sh start-dev --import-realm
         volumeMounts:

@@ -51,6 +51,9 @@ infrastructure:
   keycloak:
     enabled: true
     replicas: 1  # 단일 노드
+    env:
+      kcDbVendor: postgres
+      kcHttpRelativePath: /auth
     resources:
       limits:
         memory: 512Mi
