@@ -51,6 +51,10 @@ spec:
               key: DB_PASSWORD
         - name: KC_HTTP_RELATIVE_PATH
           value: {{ .Values.infrastructure.keycloak.env.kcHttpRelativePath | quote }}
+        - name: KC_HOSTNAME_URL
+          value: "https://{{ .Values.global.domain }}/auth"
+        - name: KC_HOSTNAME_ADMIN_URL
+          value: "https://{{ .Values.global.domain }}/auth"
         {{- end }}
         - name: KEYCLOAK_CLIENT_SECRET
           valueFrom:
