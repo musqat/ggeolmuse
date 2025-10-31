@@ -216,9 +216,10 @@ services:
       SYMBOL_COLLECT_DATA: "false"  # 초기 수집 완료, 스케줄러로만 업데이트
       SYMBOL_INCLUDE_DIVIDENDS: "true"  # 배당 데이터 포함
       # 스케줄러 활성화 (초기 수집 완료)
-      ALPHAVANTAGE_SCHEDULER_FX_CRON: "0 0 1 * * ?"  # 매일 오전 1시 (KST 10시)
-      ALPHAVANTAGE_SCHEDULER_CANDLE_CRON: "0 0 2 * * ?"  # 매일 오전 2시 (KST 11시)
-      ALPHAVANTAGE_SCHEDULER_MARKET_CAP_CRON: "0 0 3 * * ?"  # 매일 오전 3시 (KST 12시)
+      ALPHAVANTAGE_SCHEDULER_ZONE: "Asia/Seoul"  # 통합 시간대
+      ALPHAVANTAGE_SCHEDULER_FX_CRON: "0 0 6 * * MON-FRI"  # 매일 오전 6시 KST (한국 평일, USD/KRW 환율)
+      ALPHAVANTAGE_SCHEDULER_CANDLE_CRON: "0 0 6 * * TUE-SAT"  # 오전 6시 KST (미국 월~금 거래일 데이터)
+      ALPHAVANTAGE_SCHEDULER_MARKETCAP_CRON: "0 10 6 * * TUE-SAT"  # 오전 6시 10분 KST (미국 월~금 거래일 데이터)
     probes:
       startup:
         initialDelaySeconds: 30
