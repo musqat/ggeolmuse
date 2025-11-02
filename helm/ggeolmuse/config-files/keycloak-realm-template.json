@@ -16,6 +16,7 @@
       "secret": "${KEYCLOAK_CLIENT_SECRET}",
       "redirectUris": [
         "http://localhost:*",
+        "https://ggeolmuse.com/*",
         "http://gateway-server:8070/*",
         "http://user-service:8080/*",
         "http://trade-service:8081/*",
@@ -24,6 +25,7 @@
       ],
       "webOrigins": [
         "http://localhost:*",
+        "https://ggeolmuse.com",
         "http://gateway-server:8070",
         "http://user-service:8080",
         "http://trade-service:8081",
@@ -53,11 +55,13 @@
       "fullScopeAllowed": true,
       "redirectUris": [
         "http://localhost:3000/*",
-        "http://localhost:5173/*"
+        "http://localhost:5173/*",
+        "https://ggeolmuse.com/*"
       ],
       "webOrigins": [
         "http://localhost:3000",
-        "http://localhost:5173"
+        "http://localhost:5173",
+        "https://ggeolmuse.com"
       ],
       "attributes": {
         "pkce.code.challenge.method": "S256"
