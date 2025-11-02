@@ -7,6 +7,7 @@
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": true,
   "editUsernameAllowed": false,
+  "bruteForceProtected": true,
   "clients": [
     {
       "clientId": "ggeolmuse-client",
@@ -30,7 +31,8 @@
         "http://user-service:8080",
         "http://trade-service:8081",
         "http://market-data-service:8083",
-        "http://backtest-service:8082"
+        "http://backtest-service:8082",
+        "+"
       ],
       "protocol": "openid-connect",
       "publicClient": false,
@@ -61,11 +63,86 @@
       "webOrigins": [
         "http://localhost:3000",
         "http://localhost:5173",
-        "https://ggeolmuse.com"
+        "https://ggeolmuse.com",
+        "+"
       ],
       "attributes": {
-        "pkce.code.challenge.method": "S256"
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "+"
       }
+    },
+    {
+      "clientId": "security-admin-console",
+      "name": "${client_security-admin-console}",
+      "rootUrl": "${authAdminUrl}",
+      "baseUrl": "/admin/muscathan/console/",
+      "enabled": true,
+      "publicClient": true,
+      "redirectUris": [
+        "/admin/muscathan/console/*"
+      ],
+      "webOrigins": [
+        "+"
+      ],
+      "standardFlowEnabled": true,
+      "protocol": "openid-connect",
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "+"
+      },
+      "fullScopeAllowed": false
+    },
+    {
+      "clientId": "account",
+      "name": "${client_account}",
+      "baseUrl": "/realms/muscathan/account/",
+      "enabled": true,
+      "alwaysDisplayInConsole": true,
+      "redirectUris": [
+        "/realms/muscathan/account/*"
+      ],
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt"
+      ]
+    },
+    {
+      "clientId": "account-console",
+      "name": "${client_account-console}",
+      "rootUrl": "${authBaseUrl}",
+      "baseUrl": "/realms/muscathan/account/",
+      "enabled": true,
+      "publicClient": true,
+      "redirectUris": [
+        "/realms/muscathan/account/*"
+      ],
+      "webOrigins": [
+        "+"
+      ],
+      "standardFlowEnabled": true,
+      "protocol": "openid-connect",
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "+"
+      },
+      "fullScopeAllowed": false
+    },
+    {
+      "clientId": "broker",
+      "name": "${client_broker}",
+      "enabled": true,
+      "alwaysDisplayInConsole": false,
+      "protocol": "openid-connect",
+      "fullScopeAllowed": false
     }
   ],
   "clientScopeMappings": {
@@ -89,21 +166,60 @@
       {
         "name": "admin",
         "description": "Administrator role"
+      },
+      {
+        "name": "offline_access",
+        "description": "${role_offline-access}",
+        "composite": false
+      },
+      {
+        "name": "uma_authorization",
+        "description": "${role_uma_authorization}",
+        "composite": false
+      },
+      {
+        "name": "default-roles-muscathan",
+        "description": "${role_default-roles}",
+        "composite": true,
+        "composites": {
+          "realm": [
+            "offline_access",
+            "uma_authorization"
+          ],
+          "client": {
+            "account": [
+              "view-profile",
+              "manage-account"
+            ]
+          }
+        }
       }
-    ]
-  },
-  "users": [
-    {
-      "username": "service-account-ggeolmuse-client",
-      "enabled": true,
-      "serviceAccountClientId": "ggeolmuse-client",
-      "clientRoles": {
-        "realm-management": [
-          "manage-users",
-          "create-client",
-          "manage-clients"
-        ]
-      }
+    ],
+    "client": {
+      "account": [
+        {
+          "name": "view-profile",
+          "description": "${role_view-profile}",
+          "composite": false
+        },
+        {
+          "name": "manage-account",
+          "description": "${role_manage-account}",
+          "composite": true,
+          "composites": {
+            "client": {
+              "account": [
+                "manage-account-links"
+              ]
+            }
+          }
+        },
+        {
+          "name": "manage-account-links",
+          "description": "${role_manage-account-links}",
+          "composite": false
+        }
+      ]
     }
-  ]
+  }
 }
