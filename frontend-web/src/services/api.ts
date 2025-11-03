@@ -18,7 +18,7 @@ apiClient.interceptors.request.use(
     const requestUrl = config.url || '';
 
     // Public API 호출 시에는 토큰을 보내지 않음
-    const isPublicApi = requestUrl.includes('/market/public/') ||
+    const isPublicApi = requestUrl.includes('/market/') ||
                         requestUrl.includes('/auth/login') ||
                         requestUrl.includes('/auth/register') ||
                         requestUrl.includes('/auth/social');
@@ -39,9 +39,9 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      const requestUrl = error.config?.url || '';
+    const requestUrl = error.config?.url || '';
 
+    if (error.response?.status === 401) {
       // 로그인 요청이나 회원가입 요청의 401은 정상적인 실패이므로 무시
       if (requestUrl.includes('/auth/login') ||
           requestUrl.includes('/auth/register') ||
@@ -59,6 +59,14 @@ apiClient.interceptors.response.use(
       }
     }
 
+    // 거래 API의 400 에러는 비즈니스 로직 검증 실패 (예상된 에러)
+    if (error.response?.status === 400 &&
+        (requestUrl.includes('/trade/buy') || requestUrl.includes('/trade/sell'))) {
+      const detail = error.response?.data?.detail || error.message;
+      console.warn(`[거래 검증 실패] ${detail}`);
+      return Promise.reject(error);
+    }
+
     return Promise.reject(error);
   }
 );
@@ -66,43 +74,45 @@ apiClient.interceptors.response.use(
 export const stockApi = {
   // 전체 종목 목록 조회
   getAllSymbols: () =>
-    apiClient.get<any[]>(`/market/public/symbols`),
+    apiClient.get<any[]>(`/market/symbols`),
 
   // 특정 종목 현재가 조회
   getCurrentPrice: (symbol: string) =>
-    apiClient.get<ApiResponse<StockPrice>>(`/market/public/price/${symbol}`),
+    apiClient.get<ApiResponse<StockPrice>>(`/market/price/${symbol}`),
 
   // 여러 종목의 현재가를 한 번에 조회
   getCurrentPrices: (symbols: string[]) =>
-    apiClient.get<{ [symbol: string]: StockPrice }>(`/market/public/prices`, {
+    apiClient.get<{ [symbol: string]: StockPrice }>(`/market/prices`, {
       params: { symbols }
     }),
 
-  // 모든 종목의 현재가 조회
-  getAllStocksWithPrices: () =>
-    apiClient.get<StockPrice[]>(`/market/public/stocks`),
+  // 모든 종목의 현재가 조회 (페이지네이션) - 시가총액 큰 순으로 고정
+  getAllStocksWithPrices: (page: number = 0, size: number = 50) =>
+    apiClient.get(`/market/stocks`, {
+      params: { page, size }
+    }),
 
   // 특정 종목의 OHLC 데이터 조회
   getOHLCData: (symbol: string, startDate?: string, endDate?: string) =>
-    apiClient.get(`/market/public/ohlc/multiple`, {
+    apiClient.get(`/market/ohlc/multiple`, {
       params: { symbols: [symbol], startDate, endDate }
     }),
 
   // 여러 종목의 OHLC 데이터 조회
   getMultipleOHLCData: (symbols: string[], startDate: string, endDate: string) =>
-    apiClient.get(`/market/public/ohlc/multiple`, {
+    apiClient.get(`/market/ohlc/multiple`, {
       params: { symbols, startDate, endDate }
     }),
 
   // 배당 내역 조회
   getDividendHistory: (symbol: string, startDate?: string, endDate?: string) =>
-    apiClient.get(`/market/public/dividend/${symbol}`, {
+    apiClient.get(`/market/dividend/${symbol}`, {
       params: { startDate, endDate }
     }),
 
   // Bulk 환율 조회 (여러 날짜 한 번에) - Public API
   getExchangeRatesBulk: (dates: string[]) =>
-    apiClient.post<Record<string, number>>('/market/public/fx/bulk', dates),
+    apiClient.post<Record<string, number>>('/market/fx/bulk', dates),
 };
 
 // 보유 종목 정보
@@ -374,8 +384,12 @@ export type User = {
   id: number;
   email: string;
   nickname: string;                     // 닉네임
-  isVerified: boolean;                  // 이메일 인증 여부
+  role: 'USER' | 'ADMIN';               // 사용자 역할
+  provider: string;                     // 로그인 제공자 (LOCAL, GOOGLE)
+  emailVerified: boolean;               // 이메일 인증 여부
   createdAt: string;                    // 생성일
+  profileImageUrl?: string;             // 프로필 이미지 URL
+  socialEmail?: string;                 // 소셜 계정 이메일
 };
 
 // 비밀번호 변경 요청
@@ -387,6 +401,17 @@ export type ChangePasswordRequest = {
 // 닉네임 변경 요청
 export type ChangeNicknameRequest = {
   nickname: string;                     // 새 닉네임
+};
+
+// 비밀번호 재설정 요청
+export type ForgotPasswordRequest = {
+  email: string;                        // 이메일
+};
+
+// 비밀번호 재설정 (토큰 사용)
+export type ResetPasswordRequest = {
+  token: string;                        // 재설정 토큰
+  newPassword: string;                  // 새 비밀번호
 };
 
 export const authApi = {
@@ -402,6 +427,14 @@ export const authApi = {
   resendVerification: (data: ResendVerificationRequest) =>
     apiClient.post<void>('/auth/resend-verification', data),
 
+  // 비밀번호 재설정 요청 (이메일 발송)
+  forgotPassword: (data: ForgotPasswordRequest) =>
+    apiClient.post<void>('/auth/forgot-password', data),
+
+  // 비밀번호 재설정 (토큰 사용)
+  resetPassword: (data: ResetPasswordRequest) =>
+    apiClient.post<void>('/auth/reset-password', data),
+
   // Google 로그인 URL 조회
   getGoogleLoginUrl: () =>
     apiClient.get<GoogleLoginUrlResponse>('/auth/social/google/login-url'),
@@ -416,11 +449,11 @@ export const authApi = {
 
   // 비밀번호 변경
   changePassword: (data: ChangePasswordRequest) =>
-    apiClient.put<void>('/users/password', data),
+    apiClient.put<void>('/users/me/password', data),
 
   // 닉네임 변경
   changeNickname: (data: ChangeNicknameRequest) =>
-    apiClient.put<void>('/users/nickname', data),
+    apiClient.put<void>('/users/me', data),
 
   // 회원 탈퇴
   deleteAccount: () =>

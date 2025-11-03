@@ -1,0 +1,129 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-topics-init
+  labels:
+    app: kafka-topics-init
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels:
+        app: kafka-topics-init
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: kafka-topics-creator
+          image: confluentinc/cp-kafka:7.6.0
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for Kafka to be ready..."
+              sleep 30
+
+              echo "Creating Kafka topics..."
+
+              # Trading topics
+              kafka-topics --create --if-not-exists \
+                --bootstrap-server kafka:9092 \
+                --topic trading.trade.completed \
+                --partitions 3 \
+                --replication-factor 1 \
+                --config retention.ms=604800000 \
+                --config segment.bytes=1073741824
+
+              kafka-topics --create --if-not-exists \
+                --bootstrap-server kafka:9092 \
+                --topic trading.trade.failed \
+                --partitions 3 \
+                --replication-factor 1 \
+                --config retention.ms=604800000
+
+              # Market data topics
+              kafka-topics --create --if-not-exists \
+                --bootstrap-server kafka:9092 \
+                --topic market.price.updated \
+                --partitions 3 \
+                --replication-factor 1 \
+                --config retention.ms=86400000 \
+                --config cleanup.policy=compact
+
+              # User account topics
+              kafka-topics --create --if-not-exists \
+                --bootstrap-server kafka:9092 \
+                --topic user.account.created \
+                --partitions 3 \
+                --replication-factor 1 \
+                --config retention.ms=2592000000
+
+              kafka-topics --create --if-not-exists \
+                --bootstrap-server kafka:9092 \
+                --topic user.account.deleted \
+                --partitions 3 \
+                --replication-factor 1 \
+                --config retention.ms=2592000000
+
+              kafka-topics --create --if-not-exists \
+                --bootstrap-server kafka:9092 \
+                --topic user.email.send \
+                --partitions 3 \
+                --replication-factor 1 \
+                --config retention.ms=604800000
+
+              # Backtest topics
+              kafka-topics --create --if-not-exists \
+                --bootstrap-server kafka:9092 \
+                --topic backtest.completed \
+                --partitions 3 \
+                --replication-factor 1 \
+                --config retention.ms=2592000000
+
+              # Dead Letter Queue topics
+              kafka-topics --create --if-not-exists \
+                --bootstrap-server kafka:9092 \
+                --topic trading.trade.completed.DLT \
+                --partitions 3 \
+                --replication-factor 1 \
+                --config retention.ms=2592000000
+
+              kafka-topics --create --if-not-exists \
+                --bootstrap-server kafka:9092 \
+                --topic market.price.updated.DLT \
+                --partitions 3 \
+                --replication-factor 1 \
+                --config retention.ms=2592000000
+
+              kafka-topics --create --if-not-exists \
+                --bootstrap-server kafka:9092 \
+                --topic user.account.created.DLT \
+                --partitions 3 \
+                --replication-factor 1 \
+                --config retention.ms=2592000000
+
+              kafka-topics --create --if-not-exists \
+                --bootstrap-server kafka:9092 \
+                --topic user.email.send.DLT \
+                --partitions 3 \
+                --replication-factor 1 \
+                --config retention.ms=2592000000
+
+              kafka-topics --create --if-not-exists \
+                --bootstrap-server kafka:9092 \
+                --topic backtest.completed.DLT \
+                --partitions 3 \
+                --replication-factor 1 \
+                --config retention.ms=2592000000
+
+              echo "Listing all topics:"
+              kafka-topics --list --bootstrap-server kafka:9092
+
+              echo "Kafka topics initialization completed!"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"

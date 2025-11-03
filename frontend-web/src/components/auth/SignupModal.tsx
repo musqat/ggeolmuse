@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { X, Eye, EyeOff } from 'lucide-react';
+import { X, Eye, EyeOff, ChevronDown, ChevronUp } from 'lucide-react';
 import { authApi } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface SignupModalProps {
   isOpen: boolean;
@@ -11,6 +12,7 @@ interface SignupModalProps {
 }
 
 const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLogin, onSignup, onSignupSuccess }) => {
+  const { resendVerificationEmail } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -22,6 +24,10 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [showResendSection, setShowResendSection] = useState(false);
+  const [resendEmail, setResendEmail] = useState('');
+  const [resendSuccess, setResendSuccess] = useState(false);
+  const [resendError, setResendError] = useState('');
 
   const handleInputChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({ ...prev, [field]: e.target.value }));
@@ -85,14 +91,72 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
     setError('');
 
     try {
-      const response = await authApi.getGoogleLoginUrl();
-      const { loginUrl } = response.data;
+      // PKCE code_verifier 생성 (43-128 characters)
+      const generateRandomString = (length: number) => {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+        let result = '';
+        const randomValues = new Uint8Array(length);
+        crypto.getRandomValues(randomValues);
+        randomValues.forEach(v => result += chars[v % chars.length]);
+        return result;
+      };
 
-      // Google 회원가입 페이지로 리디렉션 (Google OAuth는 로그인과 회원가입이 동일함)
-      window.location.href = loginUrl;
+      const codeVerifier = generateRandomString(64);
+
+      // code_challenge 생성 (SHA256 해시)
+      const sha256 = async (plain: string) => {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(plain);
+        const hash = await crypto.subtle.digest('SHA-256', data);
+        return btoa(String.fromCharCode(...new Uint8Array(hash)))
+          .replace(/\+/g, '-')
+          .replace(/\//g, '_')
+          .replace(/=/g, '');
+      };
+
+      const codeChallenge = await sha256(codeVerifier);
+
+      // sessionStorage에 code_verifier 저장 (콜백에서 사용)
+      sessionStorage.setItem('pkce_code_verifier', codeVerifier);
+
+      // Keycloak Google Identity Provider를 통한 직접 로그인
+      const baseUrl = window.location.origin;
+      const keycloakAuthUrl = `${baseUrl}/auth/realms/muscathan/protocol/openid-connect/auth`;
+      const params = new URLSearchParams({
+        client_id: 'ggeolmuse-frontend',
+        response_type: 'code',
+        scope: 'openid email profile',
+        redirect_uri: `${baseUrl}/oauth/callback`,
+        code_challenge: codeChallenge,
+        code_challenge_method: 'S256',
+        kc_idp_hint: 'google'
+      });
+
+      // Keycloak Google OAuth로 리다이렉션 (회원가입과 로그인은 동일)
+      window.location.href = `${keycloakAuthUrl}?${params.toString()}`;
     } catch (error) {
       setError('Google 회원가입에 실패했습니다. 다시 시도해주세요.');
       setIsGoogleLoading(false);
+    }
+  };
+
+  const handleResendVerification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setResendError('');
+    setResendSuccess(false);
+
+    try {
+      await resendVerificationEmail(resendEmail);
+      setResendSuccess(true);
+      setResendEmail('');
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.detail ||
+                          err.response?.data?.message ||
+                          '인증 이메일 재전송에 실패했습니다.';
+      setResendError(errorMessage);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -253,6 +317,61 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
                 로그인
               </button>
             </p>
+          </div>
+
+          {/* 이메일 재전송 섹션 */}
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={() => setShowResendSection(!showResendSection)}
+              className="w-full flex items-center justify-center text-sm text-gray-600 hover:text-gray-800 transition-colors"
+            >
+              이메일을 못 받으셨나요?
+              {showResendSection ? (
+                <ChevronUp className="w-4 h-4 ml-1" />
+              ) : (
+                <ChevronDown className="w-4 h-4 ml-1" />
+              )}
+            </button>
+
+            {showResendSection && (
+              <div className="mt-4 space-y-3">
+                <p className="text-xs text-gray-500 text-center">
+                  회원가입 시 사용한 이메일을 입력하시면 인증 이메일을 다시 발송해드립니다.
+                </p>
+
+                <form onSubmit={handleResendVerification} className="space-y-3">
+                  <input
+                    type="email"
+                    value={resendEmail}
+                    onChange={(e) => setResendEmail(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="이메일을 입력하세요"
+                    required
+                  />
+
+                  {resendError && (
+                    <div className="text-red-600 text-xs bg-red-50 p-2 rounded-md">
+                      {resendError}
+                    </div>
+                  )}
+
+                  {resendSuccess && (
+                    <div className="text-green-600 text-xs bg-green-50 p-2 rounded-md">
+                      인증 이메일이 재전송되었습니다. 이메일을 확인해주세요.
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-md text-sm hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {isLoading ? '전송 중...' : '인증 이메일 재전송'}
+                  </button>
+                </form>
+              </div>
+            )}
           </div>
         </div>
       </div>

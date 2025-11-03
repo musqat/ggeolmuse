@@ -34,6 +34,10 @@ public class CandleDto {
   private Long volume;            // 거래량
   @Schema(description = "보정계수 (주식분할/배당 반영)", example = "1.0")
   private BigDecimal adjustFactor; // 선택: 보정계수(없으면 null)
+  @Schema(description = "배당금액", example = "0.25")
+  private BigDecimal dividendAmount; // 배당금액 (없으면 null)
+  @Schema(description = "주식분할 계수", example = "1.0")
+  private BigDecimal splitCoefficient; // 주식분할 계수 (없으면 null)
   @Schema(description = "통화 코드", example = "USD")
   private String currency;        // 예: USD
 
@@ -48,8 +52,8 @@ public class CandleDto {
         .close(close)
         .adjustedClose(adjustedClose != null ? adjustedClose : close)
         .volume(volume != null ? volume : 0L)
-        .dividendAmount(BigDecimal.ZERO)
-        .splitCoefficient(BigDecimal.ONE)
+        .dividendAmount(dividendAmount != null ? dividendAmount : BigDecimal.ZERO)
+        .splitCoefficient(splitCoefficient != null ? splitCoefficient : BigDecimal.ONE)
         .build();
   }
 

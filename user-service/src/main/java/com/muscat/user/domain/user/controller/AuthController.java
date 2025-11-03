@@ -1,9 +1,11 @@
 package com.muscat.user.domain.user.controller;
 
 import com.muscat.user.common.exceptions.UserException;
+import com.muscat.user.domain.user.dto.request.ForgotPasswordRequestDto;
 import com.muscat.user.domain.user.dto.request.LoginRequestDto;
 import com.muscat.user.domain.user.dto.request.RegisterRequestDto;
 import com.muscat.user.domain.user.dto.request.ResendRequestDto;
+import com.muscat.user.domain.user.dto.request.ResetPasswordRequestDto;
 import com.muscat.user.domain.user.entity.User;
 import com.muscat.user.domain.user.service.SocialUserService;
 import com.muscat.user.domain.user.service.UserService;
@@ -221,6 +223,78 @@ public class AuthController {
   }
 
   @Operation(
+      summary = "비밀번호 재설정 요청",
+      description = "이메일을 입력하면 비밀번호 재설정 링크가 포함된 이메일이 발송됩니다."
+  )
+  @ApiResponses(value = {
+      @ApiResponse(
+          responseCode = "200",
+          description = "비밀번호 재설정 이메일 발송 성공"
+      ),
+      @ApiResponse(
+          responseCode = "404",
+          description = "존재하지 않는 사용자",
+          content = @Content(
+              mediaType = "application/json",
+              schema = @Schema(implementation = ProblemDetail.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "429",
+          description = "요청 횟수 초과 (1분에 1번 제한)",
+          content = @Content(
+              mediaType = "application/json",
+              schema = @Schema(implementation = ProblemDetail.class)
+          )
+      )
+  })
+  @PostMapping("/forgot-password")
+  public ResponseEntity<Void> forgotPassword(
+      @Parameter(description = "비밀번호 재설정 요청", required = true)
+      @Valid @RequestBody ForgotPasswordRequestDto request) {
+    userService.requestPasswordReset(request.getEmail());
+    log.info("비밀번호 재설정 이메일 발송: {}", request.getEmail());
+
+    return ResponseEntity.ok().build();
+  }
+
+  @Operation(
+      summary = "비밀번호 재설정",
+      description = "이메일로 받은 토큰을 사용하여 새로운 비밀번호로 재설정합니다."
+  )
+  @ApiResponses(value = {
+      @ApiResponse(
+          responseCode = "200",
+          description = "비밀번호 재설정 성공"
+      ),
+      @ApiResponse(
+          responseCode = "400",
+          description = "유효하지 않거나 만료된 토큰",
+          content = @Content(
+              mediaType = "application/json",
+              schema = @Schema(implementation = ProblemDetail.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "500",
+          description = "비밀번호 재설정 실패",
+          content = @Content(
+              mediaType = "application/json",
+              schema = @Schema(implementation = ProblemDetail.class)
+          )
+      )
+  })
+  @PostMapping("/reset-password")
+  public ResponseEntity<Void> resetPassword(
+      @Parameter(description = "비밀번호 재설정 정보", required = true)
+      @Valid @RequestBody ResetPasswordRequestDto request) {
+    userService.resetPassword(request.getToken(), request.getNewPassword());
+    log.info("비밀번호 재설정 완료");
+
+    return ResponseEntity.ok().build();
+  }
+
+  @Operation(
       summary = "사용자 로그인",
       description = "이메일과 비밀번호로 로그인하여 JWT 토큰을 발급받습니다"
   )
@@ -231,7 +305,7 @@ public class AuthController {
           content = @Content(
               mediaType = "application/json",
               examples = @ExampleObject(
-                  value = "\"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyQGdnZW9sbXVzZS5jb20iLCJpYXQiOjE2MzA0NzUyMDAsImV4cCI6MTYzMDU2MTYwMH0.xyz123\""
+                  value = "\"eyJhbGciOiJIUzI1NiJ9.VyQGdnZW9sbXVzZS5jb20iLCJpYXQiOjE2MzA0NzUyMDAsImV4cCI6MTYzMDU2MTYwMH0.xyz123\""
               )
           )
       ),
@@ -351,13 +425,8 @@ public class AuthController {
   public ResponseEntity<Map<String, String>> getGoogleLoginUrl(
       @Parameter(description = "HTTP 요청 객체 (서버 정보 추출용)", hidden = true)
       HttpServletRequest request) {
-    // 현재 요청의 base URL 추출 (포트 처리 개선)
-    String baseUrl = request.getScheme() + "://" + request.getServerName();
-    int port = request.getServerPort();
-    if ((port != 80 && "http".equals(request.getScheme())) ||
-        (port != 443 && "https".equals(request.getScheme()))) {
-      baseUrl += ":" + port;
-    }
+    // Production 환경에서는 항상 HTTPS 사용 (Ingress가 TLS 종료)
+    String baseUrl = "https://" + request.getServerName();
     String redirectUri = baseUrl + "/api/auth/social/google/callback";
 
     // Keycloak Google 로그인 URL 생성 (browser-facing public URL 사용)

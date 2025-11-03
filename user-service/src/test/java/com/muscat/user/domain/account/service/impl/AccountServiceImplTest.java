@@ -10,14 +10,15 @@ import com.muscat.user.domain.account.dto.request.CreateAccountRequestDto;
 import com.muscat.user.domain.account.dto.response.BalanceResponseDto;
 import com.muscat.user.domain.account.dto.response.ExchangeCalculationResult;
 import com.muscat.user.domain.account.entity.Account;
+import com.muscat.user.domain.account.entity.AccountHistory;
 import com.muscat.user.domain.account.repository.AccountHistoryRepository;
-import com.muscat.user.domain.account.repository.AccountQueryRepository;
 import com.muscat.user.domain.account.repository.AccountRepository;
 import com.muscat.user.domain.account.service.AccountHistoryService;
 import com.muscat.user.domain.user.entity.User;
 import com.muscat.user.domain.user.repository.UserRepository;
 import com.muscat.user.infra.client.MarketDataServiceClientWrapper;
 import com.muscat.user.infra.client.dto.FxRateDto;
+import com.muscat.user.infra.kafka.AccountEventProducer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -30,6 +31,9 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -50,9 +54,6 @@ class AccountServiceImplTest {
     private AccountRepository accountRepository;
 
     @Mock
-    private AccountQueryRepository accountQueryRepository;
-
-    @Mock
     private AccountHistoryRepository accountHistoryRepository;
 
     @Mock
@@ -69,6 +70,9 @@ class AccountServiceImplTest {
 
     @Mock
     private MarketDataServiceClientWrapper marketDataServiceClientWrapper;
+
+    @Mock
+    private AccountEventProducer accountEventProducer;
 
     @InjectMocks
     private AccountServiceImpl accountService;
@@ -121,9 +125,9 @@ class AccountServiceImplTest {
             request.setCommissionRate(new BigDecimal("0.001"));
 
             given(userRepository.findById(userId)).willReturn(Optional.of(testUser));
-            given(accountQueryRepository.existsByUserIdAndAccountName(userId, "신규계좌"))
+            given(accountRepository.existsByUserIdAndAccountName(userId, "신규계좌"))
                     .willReturn(false);
-            given(accountQueryRepository.findByAccountNumber(anyString()))
+            given(accountRepository.findByAccountNumber(anyString()))
                     .willReturn(Optional.empty());
             given(accountRepository.save(any(Account.class)))
                     .willAnswer(invocation -> invocation.getArgument(0));
@@ -168,7 +172,7 @@ class AccountServiceImplTest {
             request.setCommissionRate(new BigDecimal("0.001"));
 
             given(userRepository.findById(userId)).willReturn(Optional.of(testUser));
-            given(accountQueryRepository.existsByUserIdAndAccountName(userId, "중복계좌"))
+            given(accountRepository.existsByUserIdAndAccountName(userId, "중복계좌"))
                     .willReturn(true);
 
             // when & then
@@ -192,7 +196,7 @@ class AccountServiceImplTest {
             BigDecimal depositAmount = new BigDecimal("500000");
             BigDecimal initialBalance = testAccount.getBalanceKrw();
 
-            given(accountQueryRepository.findByIdAndUserIdWithLock(accountId, userId))
+            given(accountRepository.findByIdAndUserIdWithLock(accountId, userId))
                     .willReturn(Optional.of(testAccount));
 
             // when
@@ -213,7 +217,7 @@ class AccountServiceImplTest {
             // given
             BigDecimal depositAmount = new BigDecimal("500000");
 
-            given(accountQueryRepository.findByIdAndUserIdWithLock(accountId, userId))
+            given(accountRepository.findByIdAndUserIdWithLock(accountId, userId))
                     .willReturn(Optional.empty());
 
             // when & then
@@ -246,7 +250,7 @@ class AccountServiceImplTest {
                     expectedUsd             // finalAmount
             );
 
-            given(accountQueryRepository.findByIdAndUserIdWithLock(accountId, userId))
+            given(accountRepository.findByIdAndUserIdWithLock(accountId, userId))
                     .willReturn(Optional.of(testAccount));
             doNothing().when(accountCalculator).validateExchangeRequest(testAccount, krwAmount, "KRW");
             // any()를 사용하여 반올림된 exchangeRate도 매칭
@@ -275,7 +279,7 @@ class AccountServiceImplTest {
             BigDecimal krwAmount = new BigDecimal("2000000"); // 초과 금액
             BigDecimal exchangeRate = new BigDecimal("1300");
 
-            given(accountQueryRepository.findByIdAndUserIdWithLock(accountId, userId))
+            given(accountRepository.findByIdAndUserIdWithLock(accountId, userId))
                     .willReturn(Optional.of(testAccount));
             doThrow(new AccountException(AccountResponse.INSUFFICIENT_BALANCE))
                     .when(accountCalculator).validateExchangeRequest(testAccount, krwAmount, "KRW");
@@ -361,7 +365,7 @@ class AccountServiceImplTest {
                     .balanceUsd(BigDecimal.ZERO)
                     .build();
 
-            given(accountQueryRepository.findByIdAndUserId(accountId, userId))
+            given(accountRepository.findByIdAndUserId(accountId, userId))
                     .willReturn(Optional.of(emptyAccount));
 
             // when
@@ -373,20 +377,18 @@ class AccountServiceImplTest {
         }
 
         @Test
-        @DisplayName("잔액이 있으면 계좌 삭제가 실패한다")
-        void deleteAccount_HasBalance_ThrowsException() {
+        @DisplayName("잔액이 있어도 계좌가 삭제된다 (로그만 기록)")
+        void deleteAccount_HasBalance_StillDeletes() {
             // given - testAccount는 잔액이 있음
-            given(accountQueryRepository.findByIdAndUserId(accountId, userId))
+            given(accountRepository.findByIdAndUserId(accountId, userId))
                     .willReturn(Optional.of(testAccount));
 
-            // when & then
-            assertThatThrownBy(() ->
-                    accountService.deleteAccount(accountId, userId)
-            ).isInstanceOf(AccountException.class)
-             .hasMessage(AccountResponse.CANNOT_DELETE_ACCOUNT_WITH_BALANCE.getMessage());
+            // when
+            accountService.deleteAccount(accountId, userId);
 
-            verify(accountHistoryRepository, never()).deleteByAccount(any(Account.class));
-            verify(accountRepository, never()).delete(any(Account.class));
+            // then - 잔액이 있어도 삭제됨 (정책 변경)
+            verify(accountHistoryRepository).deleteByAccount(testAccount);
+            verify(accountRepository).delete(testAccount);
         }
 
         @Test
@@ -394,7 +396,7 @@ class AccountServiceImplTest {
         void deleteAccount_OtherUser_ThrowsException() {
             // given
             Long otherUserId = 999L;
-            given(accountQueryRepository.findByIdAndUserId(accountId, otherUserId))
+            given(accountRepository.findByIdAndUserId(accountId, otherUserId))
                     .willReturn(Optional.empty());
 
             // when & then
@@ -405,6 +407,353 @@ class AccountServiceImplTest {
 
             verify(accountHistoryRepository, never()).deleteByAccount(any(Account.class));
             verify(accountRepository, never()).delete(any(Account.class));
+        }
+    }
+
+    @Nested
+    @DisplayName("USD 환전 테스트")
+    class ExchangeUsdToKrwTests {
+
+        @Test
+        @DisplayName("USD to KRW 환전이 정상 처리된다")
+        void exchangeUsdToKrw_Success() {
+            // given
+            testAccount.setBalanceUsd(new BigDecimal("1000.00"));
+            BigDecimal usdAmount = new BigDecimal("500.00");
+            BigDecimal exchangeRate = new BigDecimal("1300.00");
+            BigDecimal expectedKrw = usdAmount.multiply(exchangeRate);
+
+            ExchangeCalculationResult calculation = new ExchangeCalculationResult(
+                    usdAmount,              // requestAmount
+                    exchangeRate,           // exchangeRate
+                    "USD",                  // fromCurrency
+                    "KRW",                  // toCurrency
+                    expectedKrw,            // beforeCommissionAmount
+                    BigDecimal.ZERO,        // commissionAmount
+                    expectedKrw             // finalAmount
+            );
+
+            given(accountRepository.findByIdAndUserIdWithLock(accountId, userId))
+                    .willReturn(Optional.of(testAccount));
+            doNothing().when(accountCalculator).validateExchangeRequest(testAccount, usdAmount, "USD");
+            given(accountCalculator.calculateExchangeWithCommission(
+                    eq(testAccount), eq(usdAmount), eq("USD"), eq("KRW"), any(BigDecimal.class)))
+                    .willReturn(calculation);
+
+            // when
+            accountService.exchangeUsdToKrw(accountId, userId, usdAmount, exchangeRate);
+
+            // then
+            assertThat(testAccount.getBalanceUsd()).isLessThan(new BigDecimal("1000.00"));
+            assertThat(testAccount.getBalanceKrw()).isGreaterThan(BigDecimal.ZERO);
+
+            verify(accountHistoryService).createExchangeHistory(
+                    eq(accountId), eq("USD"), eq("KRW"), any(), any(), any(), anyString(), anyString());
+        }
+
+        @Test
+        @DisplayName("USD 잔액이 0이 되면 평균환율이 리셋된다")
+        void exchangeUsdToKrw_AllUsd_ResetsAvgRate() {
+            // given
+            testAccount.setBalanceUsd(new BigDecimal("1000.00"));
+            testAccount.setAvgExchangeRate(new BigDecimal("1300.00"));
+            BigDecimal usdAmount = new BigDecimal("1000.00"); // 전액 환전
+            BigDecimal exchangeRate = new BigDecimal("1300.00");
+
+            ExchangeCalculationResult calculation = new ExchangeCalculationResult(
+                    usdAmount, exchangeRate, "USD", "KRW",
+                    usdAmount.multiply(exchangeRate), BigDecimal.ZERO,
+                    usdAmount.multiply(exchangeRate)
+            );
+
+            given(accountRepository.findByIdAndUserIdWithLock(accountId, userId))
+                    .willReturn(Optional.of(testAccount));
+            doNothing().when(accountCalculator).validateExchangeRequest(testAccount, usdAmount, "USD");
+            given(accountCalculator.calculateExchangeWithCommission(
+                    eq(testAccount), eq(usdAmount), eq("USD"), eq("KRW"), any(BigDecimal.class)))
+                    .willReturn(calculation);
+
+            // when
+            accountService.exchangeUsdToKrw(accountId, userId, usdAmount, exchangeRate);
+
+            // then
+            assertThat(testAccount.getAvgExchangeRate()).isEqualByComparingTo(BigDecimal.ZERO);
+            assertThat(testAccount.getTotalExchangedKrw()).isEqualByComparingTo(BigDecimal.ZERO);
+        }
+    }
+
+    @Nested
+    @DisplayName("계좌 목록 조회 테스트")
+    class GetUserAccountsTests {
+
+        @Test
+        @DisplayName("사용자의 모든 계좌를 조회한다")
+        void getUserAccounts_Success() {
+            // given
+            Account account2 = Account.builder()
+                    .id(2L)
+                    .user(testUser)
+                    .accountNumber("ACC9876543210")
+                    .accountName("두번째계좌")
+                    .build();
+
+            given(accountRepository.findByUserIdWithUser(userId))
+                    .willReturn(Arrays.asList(testAccount, account2));
+
+            // when
+            List<Account> result = accountService.getUserAccounts(userId);
+
+            // then
+            assertThat(result).hasSize(2);
+            assertThat(result).containsExactly(testAccount, account2);
+            verify(accountRepository).findByUserIdWithUser(userId);
+        }
+
+        @Test
+        @DisplayName("계좌가 없으면 빈 리스트를 반환한다")
+        void getUserAccounts_NoAccounts_ReturnsEmptyList() {
+            // given
+            given(accountRepository.findByUserIdWithUser(userId))
+                    .willReturn(new ArrayList<>());
+
+            // when
+            List<Account> result = accountService.getUserAccounts(userId);
+
+            // then
+            assertThat(result).isEmpty();
+        }
+    }
+
+    @Nested
+    @DisplayName("잔액 조회 테스트")
+    class GetAccountBalanceTests {
+
+        @Test
+        @DisplayName("계좌 잔액을 조회한다")
+        void getAccountBalance_Success() {
+            // given
+            BigDecimal currentRate = new BigDecimal("1320.00");
+            FxRateDto fxRate = new FxRateDto();
+            ReflectionTestUtils.setField(fxRate, "rate", currentRate);
+
+            given(accountRepository.findByIdAndUserId(accountId, userId))
+                    .willReturn(Optional.of(testAccount));
+            given(marketDataServiceClientWrapper.getLatestFxRate()).willReturn(fxRate);
+
+            // when
+            BalanceResponseDto result = accountService.getAccountBalance(accountId, userId);
+
+            // then
+            assertThat(result).isNotNull();
+            verify(marketDataServiceClientWrapper).getLatestFxRate();
+        }
+
+        @Test
+        @DisplayName("계좌가 없으면 예외가 발생한다")
+        void getAccountBalance_AccountNotFound_ThrowsException() {
+            // given
+            given(accountRepository.findByIdAndUserId(accountId, userId))
+                    .willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() ->
+                    accountService.getAccountBalance(accountId, userId)
+            ).isInstanceOf(AccountException.class)
+             .hasMessage(AccountResponse.ACCOUNT_NOT_FOUND.getMessage());
+        }
+    }
+
+    @Nested
+    @DisplayName("USD 잔액 업데이트 테스트")
+    class UpdateUsdBalanceTests {
+
+        @Test
+        @DisplayName("USD 잔액이 증가한다 (매도)")
+        void updateUsdBalance_Increase_Success() {
+            // given
+            BigDecimal sellAmount = new BigDecimal("500.00");
+            testAccount.setBalanceUsd(new BigDecimal("1000.00"));
+
+            given(accountRepository.findByIdWithLock(accountId))
+                    .willReturn(Optional.of(testAccount));
+            given(accountRepository.save(testAccount)).willReturn(testAccount);
+
+            // when
+            accountService.updateUsdBalance(accountId, userId, sellAmount, "주식 매도");
+
+            // then
+            assertThat(testAccount.getBalanceUsd())
+                    .isEqualByComparingTo(new BigDecimal("1500.00"));
+            verify(accountHistoryRepository).save(any(AccountHistory.class));
+        }
+
+        @Test
+        @DisplayName("USD 잔액이 감소한다 (매수)")
+        void updateUsdBalance_Decrease_Success() {
+            // given
+            BigDecimal buyAmount = new BigDecimal("-500.00");
+            testAccount.setBalanceUsd(new BigDecimal("1000.00"));
+
+            given(accountRepository.findByIdWithLock(accountId))
+                    .willReturn(Optional.of(testAccount));
+            given(accountRepository.save(testAccount)).willReturn(testAccount);
+
+            // when
+            accountService.updateUsdBalance(accountId, userId, buyAmount, "주식 매수");
+
+            // then
+            assertThat(testAccount.getBalanceUsd())
+                    .isEqualByComparingTo(new BigDecimal("500.00"));
+            verify(accountHistoryRepository).save(any(AccountHistory.class));
+        }
+
+        @Test
+        @DisplayName("잔액 부족 시 예외가 발생한다")
+        void updateUsdBalance_InsufficientBalance_ThrowsException() {
+            // given
+            BigDecimal excessiveAmount = new BigDecimal("-2000.00");
+            testAccount.setBalanceUsd(new BigDecimal("1000.00"));
+
+            given(accountRepository.findByIdWithLock(accountId))
+                    .willReturn(Optional.of(testAccount));
+
+            // when & then
+            assertThatThrownBy(() ->
+                    accountService.updateUsdBalance(accountId, userId, excessiveAmount, "주식 매수")
+            ).isInstanceOf(AccountException.class)
+             .hasMessage(AccountResponse.INSUFFICIENT_USD_BALANCE.getMessage());
+
+            verify(accountRepository, never()).save(any(Account.class));
+        }
+
+        @Test
+        @DisplayName("금액이 0이면 예외가 발생한다")
+        void updateUsdBalance_ZeroAmount_ThrowsException() {
+            // given
+            given(accountRepository.findByIdWithLock(accountId))
+                    .willReturn(Optional.of(testAccount));
+
+            // when & then
+            assertThatThrownBy(() ->
+                    accountService.updateUsdBalance(accountId, userId, BigDecimal.ZERO, "테스트")
+            ).isInstanceOf(AccountException.class)
+             .hasMessage(AccountResponse.INVALID_DEPOSIT_AMOUNT.getMessage());
+        }
+
+        @Test
+        @DisplayName("다른 사용자의 계좌는 업데이트할 수 없다")
+        void updateUsdBalance_WrongUser_ThrowsException() {
+            // given
+            Long otherUserId = 999L;
+            User otherUser = User.builder().id(otherUserId).build();
+            testAccount.setUser(otherUser);
+
+            given(accountRepository.findByIdWithLock(accountId))
+                    .willReturn(Optional.of(testAccount));
+
+            // when & then
+            assertThatThrownBy(() ->
+                    accountService.updateUsdBalance(accountId, userId, new BigDecimal("100"), "테스트")
+            ).isInstanceOf(AccountException.class)
+             .hasMessage(AccountResponse.ACCOUNT_ACCESS_DENIED.getMessage());
+        }
+    }
+
+    @Nested
+    @DisplayName("특정 날짜 환율 조회 테스트")
+    class GetExchangeRateByDateTests {
+
+        @Test
+        @DisplayName("특정 날짜의 환율을 조회한다")
+        void getExchangeRateByDate_Success() {
+            // given
+            LocalDate testDate = LocalDate.of(2025, 1, 15);
+            FxRateDto fxRate = new FxRateDto();
+            ReflectionTestUtils.setField(fxRate, "rate", new BigDecimal("1315.50"));
+            ReflectionTestUtils.setField(fxRate, "date", testDate);
+
+            given(marketDataServiceClientWrapper.getFxRate(testDate.toString())).willReturn(fxRate);
+
+            // when
+            BigDecimal rate = accountService.getExchangeRateByDate(testDate);
+
+            // then
+            assertThat(rate).isEqualByComparingTo(new BigDecimal("1315.50"));
+        }
+
+        @Test
+        @DisplayName("데이터가 없으면 최신 환율로 fallback한다")
+        void getExchangeRateByDate_NoData_FallbackToLatest() {
+            // given
+            LocalDate testDate = LocalDate.of(2025, 1, 1);
+            FxRateDto latestRate = new FxRateDto();
+            ReflectionTestUtils.setField(latestRate, "rate", new BigDecimal("1320.00"));
+
+            given(marketDataServiceClientWrapper.getFxRate(testDate.toString()))
+                    .willReturn(null);
+            given(marketDataServiceClientWrapper.getLatestFxRate()).willReturn(latestRate);
+
+            // when
+            BigDecimal rate = accountService.getExchangeRateByDate(testDate);
+
+            // then
+            assertThat(rate).isEqualByComparingTo(new BigDecimal("1320.00"));
+            verify(marketDataServiceClientWrapper).getLatestFxRate();
+        }
+    }
+
+    @Nested
+    @DisplayName("수동 환율 생성 테스트")
+    class CreateManualExchangeRateTests {
+
+        @Test
+        @DisplayName("유효한 수동 환율을 생성한다")
+        void createManualExchangeRate_Valid_Success() {
+            // given
+            BigDecimal manualRate = new BigDecimal("1330.50");
+
+            // when
+            BigDecimal result = accountService.createManualExchangeRate(manualRate);
+
+            // then
+            assertThat(result).isEqualByComparingTo(new BigDecimal("1330.50"));
+            verify(userLogger).logManualExchangeRate(any(BigDecimal.class), anyString());
+        }
+
+        @Test
+        @DisplayName("null 환율은 예외가 발생한다")
+        void createManualExchangeRate_Null_ThrowsException() {
+            // when & then
+            assertThatThrownBy(() ->
+                    accountService.createManualExchangeRate(null)
+            ).isInstanceOf(AccountException.class)
+             .hasMessage(AccountResponse.INVALID_EXCHANGE_RATE.getMessage());
+        }
+
+        @Test
+        @DisplayName("최소값보다 낮은 환율은 예외가 발생한다")
+        void createManualExchangeRate_TooLow_ThrowsException() {
+            // given
+            BigDecimal tooLow = new BigDecimal("500");
+
+            // when & then
+            assertThatThrownBy(() ->
+                    accountService.createManualExchangeRate(tooLow)
+            ).isInstanceOf(AccountException.class)
+             .hasMessage(AccountResponse.INVALID_EXCHANGE_RATE.getMessage());
+        }
+
+        @Test
+        @DisplayName("최대값보다 높은 환율은 예외가 발생한다")
+        void createManualExchangeRate_TooHigh_ThrowsException() {
+            // given
+            BigDecimal tooHigh = new BigDecimal("3000");
+
+            // when & then
+            assertThatThrownBy(() ->
+                    accountService.createManualExchangeRate(tooHigh)
+            ).isInstanceOf(AccountException.class)
+             .hasMessage(AccountResponse.INVALID_EXCHANGE_RATE.getMessage());
         }
     }
 }

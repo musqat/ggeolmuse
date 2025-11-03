@@ -9,8 +9,11 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
+/**
+ * Trade Repository
+ */
 @Repository
-public interface TradeRepository extends JpaRepository<Trade, String> {
+public interface TradeRepository extends JpaRepository<Trade, String>, TradeRepositoryCustom {
 
   Page<Trade> findByUserIdOrderByExecutedAtDesc(String userId, Pageable pageable);
 

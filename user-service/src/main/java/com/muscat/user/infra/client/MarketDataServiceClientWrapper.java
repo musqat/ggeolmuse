@@ -3,7 +3,6 @@ package com.muscat.user.infra.client;
 import com.muscat.user.infra.client.dto.FxRateDto;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
-import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
@@ -11,7 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 /**
- * Resilience4j 패턴 적용 Wrapper
+ * Resilience4j Wrapper
  * Circuit Breaker: 연속된 실패 시 호출 차단
  * Retry: 일시적 실패 시 재시도
  * Time Limiter: 타임아웃 설정
@@ -26,7 +25,6 @@ public class MarketDataServiceClientWrapper {
 
   @CircuitBreaker(name = "marketDataService", fallbackMethod = "getFxRateFallback")
   @Retry(name = "marketDataService")
-  @TimeLimiter(name = "marketDataService")
   public FxRateDto getFxRate(String date) {
     log.debug("Calling market-data-service getFxRate for date: {}", date);
     return marketDataServiceClient.getFxRate(date);
@@ -34,7 +32,6 @@ public class MarketDataServiceClientWrapper {
 
   @CircuitBreaker(name = "marketDataService", fallbackMethod = "getLatestFxRateFallback")
   @Retry(name = "marketDataService")
-  @TimeLimiter(name = "marketDataService")
   public FxRateDto getLatestFxRate() {
     log.debug("Calling market-data-service getLatestFxRate");
     return marketDataServiceClient.getLatestFxRate();

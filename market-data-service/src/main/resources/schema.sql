@@ -1,12 +1,18 @@
 -- Asset table
 CREATE TABLE IF NOT EXISTS asset (
     symbol VARCHAR(16) PRIMARY KEY,
-    name VARCHAR(128) NOT NULL,
+    name VARCHAR(256) NOT NULL,
     country VARCHAR(3) NOT NULL,
     currency VARCHAR(3) NOT NULL,
     asset_type VARCHAR(16) NOT NULL,
-    market_cap DECIMAL(19,8)
+    market_cap BIGINT,
+    active BOOLEAN NOT NULL DEFAULT true,
+    delisted_date DATE
 );
+
+-- Performance indexes for asset table
+CREATE INDEX IF NOT EXISTS idx_asset_market_cap ON asset(market_cap DESC NULLS LAST);
+CREATE INDEX IF NOT EXISTS idx_asset_active ON asset(active) WHERE active = true;
 
 -- Candle table
 CREATE TABLE IF NOT EXISTS candle (

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Eye, EyeOff } from 'lucide-react';
 import { authApi } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -10,12 +11,15 @@ interface LoginModalProps {
 }
 
 const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSignup, onLogin }) => {
+  const { forgotPassword } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,15 +52,78 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
     setError('');
 
     try {
-      const response = await authApi.getGoogleLoginUrl();
-      const { loginUrl } = response.data;
+      // PKCE code_verifier 생성 (43-128 characters)
+      const generateRandomString = (length: number) => {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+        let result = '';
+        const randomValues = new Uint8Array(length);
+        crypto.getRandomValues(randomValues);
+        randomValues.forEach(v => result += chars[v % chars.length]);
+        return result;
+      };
 
-      // Google 로그인 페이지로 리디렉션
-      window.location.href = loginUrl;
+      const codeVerifier = generateRandomString(64);
+
+      // code_challenge 생성 (SHA256 해시)
+      const sha256 = async (plain: string) => {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(plain);
+        const hash = await crypto.subtle.digest('SHA-256', data);
+        return btoa(String.fromCharCode(...new Uint8Array(hash)))
+          .replace(/\+/g, '-')
+          .replace(/\//g, '_')
+          .replace(/=/g, '');
+      };
+
+      const codeChallenge = await sha256(codeVerifier);
+
+      // localStorage에 code_verifier 저장 (콜백에서 사용)
+      sessionStorage.setItem('pkce_code_verifier', codeVerifier);
+
+      // Keycloak Google Identity Provider를 통한 직접 로그인
+      const baseUrl = window.location.origin;
+      const keycloakAuthUrl = `${baseUrl}/auth/realms/muscathan/protocol/openid-connect/auth`;
+      const params = new URLSearchParams({
+        client_id: 'ggeolmuse-frontend',
+        response_type: 'code',
+        scope: 'openid email profile',
+        redirect_uri: `${baseUrl}/oauth/callback`,
+        code_challenge: codeChallenge,
+        code_challenge_method: 'S256',
+        kc_idp_hint: 'google'
+      });
+
+      // Keycloak Google OAuth로 리디렉션
+      window.location.href = `${keycloakAuthUrl}?${params.toString()}`;
     } catch (error) {
       setError('Google 로그인에 실패했습니다. 다시 시도해주세요.');
       setIsGoogleLoading(false);
     }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+
+    try {
+      await forgotPassword(email);
+      setForgotPasswordSuccess(true);
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.detail ||
+                          err.response?.data?.message ||
+                          '비밀번호 재설정 이메일 발송에 실패했습니다.';
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleBackToLogin = () => {
+    setShowForgotPassword(false);
+    setForgotPasswordSuccess(false);
+    setError('');
+    setEmail('');
   };
 
   if (!isOpen) return null;
@@ -66,7 +133,9 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-xl font-semibold text-gray-900">로그인</h2>
+          <h2 className="text-xl font-semibold text-gray-900">
+            {showForgotPassword ? '비밀번호 찾기' : '로그인'}
+          </h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -77,7 +146,82 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
 
         {/* Body */}
         <div className="p-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
+          {showForgotPassword ? (
+            // 비밀번호 찾기 모드
+            forgotPasswordSuccess ? (
+              // 성공 메시지
+              <div className="text-center py-8">
+                <div className="mb-4 text-green-600">
+                  <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">이메일을 발송했습니다</h3>
+                <p className="text-sm text-gray-600 mb-6">
+                  비밀번호 재설정 링크가 이메일로 전송되었습니다.<br />
+                  이메일을 확인해주세요.
+                </p>
+                <button
+                  onClick={handleBackToLogin}
+                  className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 transition-colors"
+                >
+                  로그인으로 돌아가기
+                </button>
+              </div>
+            ) : (
+              // 비밀번호 찾기 폼
+              <>
+                <p className="text-sm text-gray-600 mb-4">
+                  가입하신 이메일 주소를 입력하시면 비밀번호 재설정 링크를 보내드립니다.
+                </p>
+                <form onSubmit={handleForgotPassword} className="space-y-4">
+                  {/* Email */}
+                  <div>
+                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                      이메일
+                    </label>
+                    <input
+                      type="email"
+                      id="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      placeholder="your@email.com"
+                      required
+                    />
+                  </div>
+
+                  {/* Error Message */}
+                  {error && (
+                    <div className="text-red-600 text-sm bg-red-50 p-3 rounded-md">
+                      {error}
+                    </div>
+                  )}
+
+                  {/* Submit Button */}
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {isLoading ? '발송 중...' : '재설정 이메일 보내기'}
+                  </button>
+
+                  {/* Back Button */}
+                  <button
+                    type="button"
+                    onClick={handleBackToLogin}
+                    className="w-full text-gray-600 hover:text-gray-800 text-sm transition-colors"
+                  >
+                    로그인으로 돌아가기
+                  </button>
+                </form>
+              </>
+            )
+          ) : (
+            // 로그인 모드
+            <>
+              <form onSubmit={handleSubmit} className="space-y-4">
             {/* Email */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
@@ -117,6 +261,17 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
+            </div>
+
+            {/* 비밀번호 찾기 링크 */}
+            <div className="text-right -mt-2">
+              <button
+                type="button"
+                onClick={() => setShowForgotPassword(true)}
+                className="text-sm text-indigo-600 hover:text-indigo-500"
+              >
+                비밀번호를 잊으셨나요?
+              </button>
             </div>
 
             {/* Error Message */}
@@ -176,6 +331,8 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
               </button>
             </p>
           </div>
+            </>
+          )}
         </div>
       </div>
     </div>

@@ -15,14 +15,13 @@ import com.muscat.trade.domain.dto.response.TradeResponseDto;
 import com.muscat.trade.domain.dto.response.TradingCapacityResponseDto;
 import com.muscat.trade.domain.entity.Holdings;
 import com.muscat.trade.domain.entity.Trade;
-import com.muscat.trade.domain.repository.HoldingsQueryRepository;
 import com.muscat.trade.domain.repository.HoldingsRepository;
-import com.muscat.trade.domain.repository.TradeQueryRepository;
 import com.muscat.trade.domain.repository.TradeRepository;
 import com.muscat.trade.domain.service.MarketDataService;
 import com.muscat.trade.domain.service.TradingService;
 import com.muscat.trade.infra.client.UserServiceClientWrapper;
 import com.muscat.trade.infra.client.dto.AccountBalanceDto;
+import com.muscat.trade.infra.kafka.TradeEventProducer;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -44,14 +43,13 @@ import org.springframework.transaction.annotation.Transactional;
 public class TradingServiceImpl implements TradingService {
 
   private final TradeRepository tradeRepository;
-  private final TradeQueryRepository tradeQueryRepository;
   private final HoldingsRepository holdingsRepository;
-  private final HoldingsQueryRepository holdingsQueryRepository;
   private final UserServiceClientWrapper userServiceClientWrapper;
   private final MarketDataService marketDataService;
   private final TradeLogger tradeLogger;
   private final TradeProperties tradeProperties;
   private final TradeUtils tradeUtils;
+  private final TradeEventProducer tradeEventProducer;
 
   @Override
   public TradeResponseDto buyStock(String userId, Long accountId, String symbol,
@@ -91,7 +89,7 @@ public class TradingServiceImpl implements TradingService {
   @Transactional(readOnly = true)
   public List<TradeResponseDto> getTradesByDateRange(String userId, LocalDate startDate,
     LocalDate endDate) {
-    List<Trade> trades = tradeQueryRepository.findTradesWithComplexFilters(
+    List<Trade> trades = tradeRepository.findTradesWithComplexFilters(
       userId, null, null, null, startDate, endDate, null, null,
       Pageable.unpaged()).getContent();
     return trades.stream()
@@ -121,7 +119,7 @@ public class TradingServiceImpl implements TradingService {
   @Override
   @Transactional(readOnly = true)
   public boolean canSellStock(String userId, Long accountId, String symbol, BigDecimal quantity) {
-    Optional<Holdings> holdings = holdingsQueryRepository
+    Optional<Holdings> holdings = holdingsRepository
       .findByUserIdAndAccountIdAndSymbol(userId, Long.valueOf(accountId), symbol);
 
     if (holdings.isEmpty()) {
@@ -186,7 +184,7 @@ public class TradingServiceImpl implements TradingService {
 
     try {
       // 현재 보유 주식 수량 조회
-      Optional<Holdings> holdings = holdingsQueryRepository.findByUserIdAndAccountIdAndSymbol(
+      Optional<Holdings> holdings = holdingsRepository.findByUserIdAndAccountIdAndSymbol(
         userId, Long.valueOf(request.getAccountId()), request.getSymbol());
 
       BigDecimal currentHoldings = holdings.map(Holdings::getTotalQuantity)
@@ -287,45 +285,34 @@ public class TradingServiceImpl implements TradingService {
     return new BigDecimal[]{tradeAmount, fee, totalAmount};
   }
 
-  // 2단계 거래 트랜잭션 실행
+  // 2단계 거래 트랜잭션 실행 (Kafka 이벤트 기반)
   private Trade executeTradeTransaction(String userId, String accountId, String symbol,
     BigDecimal quantity, BigDecimal tradePrice, BigDecimal totalAmount,
     BigDecimal fee, LocalDate tradeDate, TradeType tradeType) {
-    boolean balanceUpdated = false;
-    try {
-      // 1단계: 외부 서비스 잔액 변경
-      log.info("외부 서비스 잔액 변경 시작: accountId={}, amount={}", accountId, totalAmount);
-      tradeUtils.executeBalanceUpdate(accountId, totalAmount, tradeType.name(), symbol, quantity);
-      balanceUpdated = true;
-    } catch (Exception e) {
-      log.error("외부 서비스 잔액 변경 실패: {}", e.getMessage());
-      throw new TradeException(TradeResponse.USER_SERVICE_ERROR);
-    }
 
     try {
-      // 2단계: DB 트랜잭션으로 거래 기록 및 Holdings 업데이트
+      // DB 트랜잭션으로 거래 기록 및 Holdings 업데이트
+      log.info("거래 DB 트랜잭션 시작: userId={}, symbol={}, amount={}", userId, symbol, totalAmount);
       Trade result = executeTradeDbTransaction(userId, accountId, symbol, quantity, tradePrice,
         totalAmount, fee, tradeDate, tradeType);
-      log.info("DB 트랜잭션 완료: tradeId={}", result.getTradeId());
+      log.info("거래 DB 트랜잭션 완료: tradeId={}", result.getTradeId());
+
+      // Kafka 이벤트 발행 (비동기 잔액 업데이트)
+      // user-service가 TradeCompletedEvent를 소비하여 잔액 업데이트
+      log.info("거래 완료 이벤트 발행: tradeId={}", result.getTradeId());
+      tradeEventProducer.publishTradeCompleted(result);
+
       return result;
+
     } catch (Exception e) {
-      log.error("DB 트랜잭션 실패: {}", e.getMessage());
-
-      // 보상 트랜잭션 실행
-      if (balanceUpdated) {
-        try {
-          log.warn("보상 트랜잭션 시작: 외부 서비스 잔액 롤백");
-          tradeUtils.executeCompensationTransaction(accountId, totalAmount, tradeType.name(),
-            symbol, quantity);
-          log.info("보상 트랜잭션 완료: 외부 서비스 잔액 롤백 성공");
-        } catch (Exception compensationException) {
-          log.error("보상 트랜잭션 실패: {}. 수동 개입 필요!", compensationException.getMessage());
-          throw new TradeException(TradeResponse.COMPENSATION_TRANSACTION_FAILED);
-        }
-      }
-
+      log.error("거래 DB 트랜잭션 실패: {}", e.getMessage(), e);
       throw new TradeException(TradeResponse.TRANSACTION_FAILED);
     }
+
+    // 1. 거래는 DB에 저장되면 무조건 성공
+    // 2. user-service가 다운되어도 이벤트는 Kafka에 저장됨
+    // 3. user-service 복구시 자동으로 이벤트 처리
+    // 4. 만약 거래 취소가 필요하면 TradeCancelledEvent 발행
   }
 
   // DB 트랜잭션으로 거래 기록 및 Holdings 업데이트 실행
@@ -449,7 +436,7 @@ public class TradingServiceImpl implements TradingService {
   private void validateSellEligibility(String userId, String accountId, String symbol,
     BigDecimal quantity, LocalDate sellDate) {
     // 1. 기본 보유량 확인
-    Optional<Holdings> holdings = holdingsQueryRepository
+    Optional<Holdings> holdings = holdingsRepository
       .findByUserIdAndAccountIdAndSymbol(userId, Long.valueOf(accountId), symbol);
 
     if (holdings.isEmpty()) {
@@ -481,7 +468,7 @@ public class TradingServiceImpl implements TradingService {
   private BigDecimal calculateSellableQuantity(String userId, String accountId, String symbol,
     LocalDate sellDate) {
     // DB 레벨에서 집계하여 성능 최적화
-    BigDecimal sellableQuantity = tradeQueryRepository.calculateSellableQuantity(
+    BigDecimal sellableQuantity = tradeRepository.calculateSellableQuantity(
       userId, Long.valueOf(accountId), symbol, sellDate);
 
     log.debug("매도 가능 수량 계산 완료 (DB 집계): symbol={}, 매도일={}, 가능수량={}",

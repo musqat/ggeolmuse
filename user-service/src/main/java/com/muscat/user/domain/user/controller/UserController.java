@@ -50,7 +50,28 @@ public class UserController {
       @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
 
     String email = jwt.getClaimAsString("email");
-    User user = userService.getProfile(email);
+
+    User user;
+    try {
+      user = userService.getProfile(email);
+    } catch (Exception e) {
+      // 사용자가 로컬 DB에 없지만 Keycloak에는 있음 (Google OAuth 등)
+      // JWT 토큰에서 정보를 추출하여 자동으로 동기화
+      log.info("로컬 DB에 사용자 없음, Keycloak에서 동기화 시작: {}", email);
+
+      String keycloakId = jwt.getClaimAsString("sub");
+      String name = jwt.getClaimAsString("name");
+      String givenName = jwt.getClaimAsString("given_name");
+      String familyName = jwt.getClaimAsString("family_name");
+
+      // nickname 생성: name > givenName > email prefix
+      String nickname = name != null ? name :
+                       (givenName != null ? givenName : email.split("@")[0]);
+
+      user = userService.createUserFromKeycloak(keycloakId, email, nickname);
+      log.info("Keycloak 사용자 동기화 완료: {}", email);
+    }
+
     UserResponseDto userDto = userMapper.toResponseDto(user);
 
     return ResponseEntity.ok(userDto);

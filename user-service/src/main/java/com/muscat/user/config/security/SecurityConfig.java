@@ -1,5 +1,9 @@
 package com.muscat.user.config.security;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -9,13 +13,16 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer.FrameOptionsConfig;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
@@ -31,7 +38,7 @@ public class SecurityConfig {
   }
 
   private String getKeycloakRealm() {
-    return environment.getProperty("KEYCLOAK_REALM", "ggeolmuse");
+    return environment.getProperty("KEYCLOAK_REALM", "muscathan");
   }
 
   @Bean
@@ -47,46 +54,92 @@ public class SecurityConfig {
     return new BCryptPasswordEncoder();
   }
 
-  // Management port (9090)
+  @Bean
+  public JwtAuthenticationConverter jwtAuthenticationConverter() {
+    JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
+
+    jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(jwt -> {
+      Map<String, Object> realmAccess = jwt.getClaim("realm_access");
+
+      if (realmAccess == null || !realmAccess.containsKey("roles")) {
+        return Collections.emptyList();
+      }
+
+      @SuppressWarnings("unchecked")
+      List<String> roles = (List<String>) realmAccess.get("roles");
+
+      return roles.stream()
+        .map(SimpleGrantedAuthority::new)
+        .collect(Collectors.toList());
+    });
+
+    return jwtAuthenticationConverter;
+  }
+
+  // Public endpoints를 Security filter chain에서 완전히 제외
+  @Bean
+  public WebSecurityCustomizer webSecurityCustomizer() {
+    return (web) -> web.ignoring()
+      .requestMatchers("/api/auth/**", "/api/internal/auth/**",
+        "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**",
+        "/swagger-resources/**", "/webjars/**");
+  }
+
+  // Management port (9090) - Health, Metrics, Actuator endpoints
   @Bean
   @Order(0)
   public SecurityFilterChain managementSecurityFilterChain(HttpSecurity http) throws Exception {
     http
-        .securityMatcher(request -> request.getServerPort() == 9090)
-        .authorizeHttpRequests(auth -> auth
-            .anyRequest().permitAll()
-        )
-        .csrf(AbstractHttpConfigurer::disable)
-        .headers(headers -> headers
-            .frameOptions(FrameOptionsConfig::disable)
-        );
+      .securityMatcher(request -> request.getServerPort() == 9090)
+      .authorizeHttpRequests(auth -> auth
+        .anyRequest().permitAll()
+      )
+      .csrf(AbstractHttpConfigurer::disable)
+      .headers(headers -> headers
+        .frameOptions(FrameOptionsConfig::disable)
+      );
     return http.build();
   }
 
-  // API port (8080)
+  // Admin endpoints (8080) - JWT authentication + ADMIN role required
   @Bean
   @Order(1)
-  public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+  public SecurityFilterChain adminSecurityFilterChain(HttpSecurity http) throws Exception {
     http
-        .csrf(AbstractHttpConfigurer::disable)
-        .cors(Customizer.withDefaults())
-        .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-        .authorizeHttpRequests(auth -> auth
-            // Public endpoints
-            .requestMatchers("/api/auth/**").permitAll()
-            .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**",
-                "/swagger-resources/**", "/webjars/**").permitAll()
-            // Private endpoints - JWT 인증 필요 (FeignClient도 JWT 전달)
-            .requestMatchers("/api/**").authenticated()
-            // 나머지는 모두 거부
-            .anyRequest().denyAll()
-        )
-        .oauth2ResourceServer(oauth2 -> oauth2
-            .jwt(Customizer.withDefaults())
-        )
-        .headers(headers -> headers
-            .frameOptions(FrameOptionsConfig::disable)
-        );
+      .securityMatcher("/api/admin/**")
+      .csrf(AbstractHttpConfigurer::disable)
+      .cors(Customizer.withDefaults())
+      .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+      .authorizeHttpRequests(auth -> auth
+        .anyRequest().hasAuthority("admin")  // Keycloak realm_access.roles의 "admin" 체크
+      )
+      .oauth2ResourceServer(oauth2 -> oauth2
+        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
+      )
+      .headers(headers -> headers
+        .frameOptions(FrameOptionsConfig::disable)
+      );
+    return http.build();
+  }
+
+  // Private endpoints (8080) - JWT authentication required
+  @Bean
+  @Order(2)
+  public SecurityFilterChain privateSecurityFilterChain(HttpSecurity http) throws Exception {
+    http
+      .securityMatcher("/api/users/**", "/api/accounts/**")
+      .csrf(AbstractHttpConfigurer::disable)
+      .cors(Customizer.withDefaults())
+      .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+      .authorizeHttpRequests(auth -> auth
+        .anyRequest().authenticated()
+      )
+      .oauth2ResourceServer(oauth2 -> oauth2
+        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
+      )
+      .headers(headers -> headers
+        .frameOptions(FrameOptionsConfig::disable)
+      );
     return http.build();
   }
 

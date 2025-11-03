@@ -1,6 +1,7 @@
 package com.muscat.marketdata.domain.entity;
 
 import jakarta.persistence.*;
+import java.time.LocalDate;
 import lombok.*;
 
 @Getter @Setter
@@ -15,7 +16,7 @@ public class Asset {
   @Column(name = "symbol", nullable = false, length = 16)
   private String symbol;
 
-  @Column(name = "name", nullable = false, length = 128)
+  @Column(name = "name", nullable = false, length = 256)
   private String name;
 
   @Column(name = "country", nullable = false, length = 3)
@@ -27,6 +28,13 @@ public class Asset {
   @Column(name = "asset_type", nullable = false, length = 16)
   private String assetType; // 자산 유형: EQUITY, ETF, BOND, CRYPTO 등
 
-  @Column(name = "market_cap", precision = 19, scale = 8)
-  private Long marketCap; // 시가총액
+  @Column(name = "market_cap")
+  private Long marketCap; // 시가총액 (BIGINT, no decimal precision needed)
+
+  @Column(name = "active", nullable = false)
+  @Builder.Default
+  private Boolean active = true; // 상장 여부 (true: 상장, false: 상장폐지)
+
+  @Column(name = "delisted_date")
+  private LocalDate delistedDate; // 상장폐지일
 }

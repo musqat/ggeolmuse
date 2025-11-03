@@ -21,6 +21,9 @@ public class StockPriceDto implements Serializable {
     @Schema(description = "종목 코드", example = "AAPL")
     private String symbol;
 
+    @Schema(description = "종목 이름", example = "Apple Inc.")
+    private String name;
+
     @Schema(description = "현재가", example = "238.15")
     private BigDecimal currentPrice;
 
@@ -44,4 +47,7 @@ public class StockPriceDto implements Serializable {
 
     @Schema(description = "시가총액", example = "3600000000000")
     private Long marketCap;
+
+    @Schema(description = "자산 유형", example = "EQUITY")
+    private String assetType;
 }

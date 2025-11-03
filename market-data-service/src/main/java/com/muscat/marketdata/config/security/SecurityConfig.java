@@ -29,7 +29,7 @@ public class SecurityConfig {
   }
 
   private String getKeycloakRealm() {
-    return environment.getProperty("KEYCLOAK_REALM", "ggeolmuse");
+    return environment.getProperty("KEYCLOAK_REALM", "muscathan");
   }
 
   @Bean
@@ -40,7 +40,7 @@ public class SecurityConfig {
     return NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
   }
 
-  // Management port (9090)
+  // Management port (9090) - Health, Metrics, Actuator endpoints
   @Bean
   @Order(0)
   public SecurityFilterChain managementSecurityFilterChain(HttpSecurity http) throws Exception {
@@ -56,7 +56,7 @@ public class SecurityConfig {
     return http.build();
   }
 
-  // API port (8083)
+  // Application port (8083) - Public and authenticated endpoints
   @Bean
   @Order(1)
   public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -65,13 +65,13 @@ public class SecurityConfig {
       .cors(Customizer.withDefaults())
       .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
       .authorizeHttpRequests(auth -> auth
-        // Public endpoints
-        .requestMatchers("/api/market/public/**").permitAll()
+        // Public endpoints - 공개 시장 데이터 API
+        .requestMatchers("/api/market/**").permitAll()
+        .requestMatchers("/api/internal/**").permitAll()  // Gateway RewritePath로 변경된 경로
         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**",
           "/swagger-resources/**", "/webjars/**").permitAll()
-        // Private endpoints - JWT 인증 필요 (FeignClient도 JWT 전달)
+        // Private endpoints - JWT 인증 필요
         .requestMatchers("/api/**").authenticated()
-        // 나머지는 모두 거부
         .anyRequest().denyAll()
       )
       .oauth2ResourceServer(oauth2 -> oauth2

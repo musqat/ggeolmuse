@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/trade")
+@RequestMapping("/api/transactions")
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "거래 내역", description = "통합 거래 내역 조회 API (매수/매도/배당)")

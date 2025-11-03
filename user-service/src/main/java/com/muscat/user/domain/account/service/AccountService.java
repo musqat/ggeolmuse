@@ -37,4 +37,12 @@ public interface AccountService {
   BigDecimal getCurrentExchangeRate();
   BigDecimal getExchangeRateByDate(LocalDate date);
   BigDecimal createManualExchangeRate(BigDecimal manualRate);
+
+  // Kafka 이벤트 처리
+  void processTradeEvent(com.muscat.messaging.event.TradeCompletedEvent event);
+
+  // ==================== ADMIN API ==================== //
+
+  // 사용자 ID로 계좌 목록 조회 (관리자용)
+  List<Account> findAccountsByUserId(Long userId);
 }

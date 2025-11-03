@@ -18,6 +18,207 @@ services:
         reservations:
           memory: 512m
 
+  # Zookeeper for Kafka
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    container_name: ggeolmuse-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_SYNC_LIMIT: 2
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_log:/var/lib/zookeeper/log
+    networks:
+      - ggeolmuse-network
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+        reservations:
+          memory: 256m
+
+  # Kafka Message Broker
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: ggeolmuse-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "9094:9094"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,OUTSIDE://0.0.0.0:9094
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,OUTSIDE://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    networks:
+      - ggeolmuse-network
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+        reservations:
+          memory: 1g
+
+  # Kafka Topics Initialization
+  kafka-topics-init:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: ggeolmuse-kafka-topics-init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    command:
+      - sh
+      - -c
+      - |
+        echo "Waiting for Kafka to be ready..."
+        sleep 10
+
+        echo "Creating Kafka topics..."
+
+        # Trading topics
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:9092 \
+          --topic trading.trade.completed \
+          --partitions 3 \
+          --replication-factor 1 \
+          --config retention.ms=604800000 \
+          --config segment.bytes=1073741824
+
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:9092 \
+          --topic trading.trade.failed \
+          --partitions 3 \
+          --replication-factor 1 \
+          --config retention.ms=604800000
+
+        # Market data topics
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:9092 \
+          --topic market.price.updated \
+          --partitions 3 \
+          --replication-factor 1 \
+          --config retention.ms=86400000 \
+          --config cleanup.policy=compact
+
+        # User account topics
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:9092 \
+          --topic user.account.created \
+          --partitions 3 \
+          --replication-factor 1 \
+          --config retention.ms=2592000000
+
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:9092 \
+          --topic user.account.deleted \
+          --partitions 3 \
+          --replication-factor 1 \
+          --config retention.ms=2592000000
+
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:9092 \
+          --topic user.email.send \
+          --partitions 3 \
+          --replication-factor 1 \
+          --config retention.ms=604800000
+
+        # Backtest topics
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:9092 \
+          --topic backtest.completed \
+          --partitions 3 \
+          --replication-factor 1 \
+          --config retention.ms=2592000000
+
+        # FX Rate topics
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:9092 \
+          --topic market.fxrate.updated \
+          --partitions 3 \
+          --replication-factor 1 \
+          --config retention.ms=2592000000 \
+          --config cleanup.policy=compact
+
+        # Dividend topics
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:9092 \
+          --topic market.dividend.updated \
+          --partitions 3 \
+          --replication-factor 1 \
+          --config retention.ms=7776000000
+
+        # Dead Letter Queue topics
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:9092 \
+          --topic trading.trade.completed.DLT \
+          --partitions 3 \
+          --replication-factor 1 \
+          --config retention.ms=2592000000
+
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:9092 \
+          --topic market.price.updated.DLT \
+          --partitions 3 \
+          --replication-factor 1 \
+          --config retention.ms=2592000000
+
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:9092 \
+          --topic user.account.created.DLT \
+          --partitions 3 \
+          --replication-factor 1 \
+          --config retention.ms=2592000000
+
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:9092 \
+          --topic user.email.send.DLT \
+          --partitions 3 \
+          --replication-factor 1 \
+          --config retention.ms=2592000000
+
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:9092 \
+          --topic backtest.completed.DLT \
+          --partitions 3 \
+          --replication-factor 1 \
+          --config retention.ms=2592000000
+
+        echo "Listing all topics:"
+        kafka-topics --list --bootstrap-server kafka:9092
+
+        echo "Kafka topics initialization completed!"
+
+        # Keep container running for logs inspection
+        tail -f /dev/null
+    networks:
+      - ggeolmuse-network
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+        reservations:
+          memory: 128m
+
   # Keycloak
   keycloak:
     image: quay.io/keycloak/keycloak:22.0.5
@@ -124,6 +325,7 @@ services:
       SPRING_CLOUD_CONFIG_USERNAME: config
       SPRING_CLOUD_CONFIG_PASSWORD: config123
       SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: false
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
       KEYCLOAK_REALM: muscathan
       KEYCLOAK_SECRET: ${KEYCLOAK_SECRET:-demo-secret-key}
@@ -132,6 +334,8 @@ services:
     depends_on:
       gateway-server:
         condition: service_started
+      kafka:
+        condition: service_healthy
     networks:
       - ggeolmuse-network
     deploy:
@@ -154,6 +358,7 @@ services:
       SPRING_CLOUD_CONFIG_USERNAME: config
       SPRING_CLOUD_CONFIG_PASSWORD: config123
       SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: false
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
       KEYCLOAK_REALM: muscathan
       KEYCLOAK_SECRET: ${KEYCLOAK_SECRET:-demo-secret-key}
@@ -168,6 +373,8 @@ services:
     depends_on:
       gateway-server:
         condition: service_started
+      kafka:
+        condition: service_healthy
     networks:
       - ggeolmuse-network
     deploy:
@@ -192,6 +399,7 @@ services:
       SPRING_CLOUD_CONFIG_USERNAME: config
       SPRING_CLOUD_CONFIG_PASSWORD: config123
       SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: false
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
       KEYCLOAK_REALM: muscathan
       KEYCLOAK_SECRET: ${KEYCLOAK_SECRET:-demo-secret-key}
@@ -206,6 +414,8 @@ services:
     depends_on:
       gateway-server:
         condition: service_started
+      kafka:
+        condition: service_healthy
     networks:
       - ggeolmuse-network
     deploy:
@@ -228,6 +438,7 @@ services:
       SPRING_CLOUD_CONFIG_USERNAME: config
       SPRING_CLOUD_CONFIG_PASSWORD: config123
       SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: false
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
       KEYCLOAK_REALM: muscathan
       KEYCLOAK_SECRET: ${KEYCLOAK_SECRET:-demo-secret-key}
@@ -242,6 +453,8 @@ services:
     depends_on:
       gateway-server:
         condition: service_started
+      kafka:
+        condition: service_healthy
     networks:
       - ggeolmuse-network
     deploy:
@@ -283,6 +496,12 @@ services:
 # VOLUMES
 volumes:
   redis_data:
+    driver: local
+  zookeeper_data:
+    driver: local
+  zookeeper_log:
+    driver: local
+  kafka_data:
     driver: local
   keycloak_data:
     driver: local

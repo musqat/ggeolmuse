@@ -174,12 +174,13 @@ export const DCAChart: React.FC<StrategyBacktestChartProps> = ({
           const historicalFxRate = fxRateMap.get(dateStr) || 1350;
 
           // 포트폴리오 가치 = 보유주식 * 현재가격 (원화 환산)
-          const portfolioValueUsd = sharesSoFar * item.closePrice;
+          const adjustedPrice = item.adjustedClose || item.closePrice;
+          const portfolioValueUsd = sharesSoFar * adjustedPrice;
           const portfolioValueKrw = portfolioValueUsd * historicalFxRate;
 
           return {
             date: dateStr,
-            stockPrice: item.closePrice,
+            stockPrice: adjustedPrice,
             portfolioValue: portfolioValueKrw,
             investedAmount: investedSoFar,
             isPurchase: purchaseDates.has(dateStr)  // 매수 날짜인지 체크

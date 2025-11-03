@@ -1,6 +1,7 @@
 package com.muscat.user.domain.account.service.impl;
 
 import com.muscat.commonlib.util.MoneyUtils;
+import com.muscat.messaging.event.TradeCompletedEvent;
 import com.muscat.user.common.enums.responses.AccountResponse;
 import com.muscat.user.common.enums.responses.UserResponse;
 import com.muscat.user.common.enums.type.CurrencyType;
@@ -15,7 +16,6 @@ import com.muscat.user.domain.account.dto.response.ExchangeCalculationResult;
 import com.muscat.user.domain.account.entity.Account;
 import com.muscat.user.domain.account.entity.AccountHistory;
 import com.muscat.user.domain.account.repository.AccountHistoryRepository;
-import com.muscat.user.domain.account.repository.AccountQueryRepository;
 import com.muscat.user.domain.account.repository.AccountRepository;
 import com.muscat.user.domain.account.service.AccountHistoryService;
 import com.muscat.user.domain.account.service.AccountService;
@@ -23,6 +23,7 @@ import com.muscat.user.domain.user.entity.User;
 import com.muscat.user.domain.user.repository.UserRepository;
 import com.muscat.user.infra.client.MarketDataServiceClientWrapper;
 import com.muscat.user.infra.client.dto.FxRateDto;
+import com.muscat.user.infra.kafka.AccountEventProducer;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -40,13 +41,13 @@ import org.springframework.transaction.annotation.Transactional;
 public class AccountServiceImpl implements AccountService {
 
   private final AccountRepository accountRepository;
-  private final AccountQueryRepository accountQueryRepository;
   private final AccountHistoryRepository accountHistoryRepository;
   private final UserRepository userRepository;
   private final AccountHistoryService accountHistoryService;
   private final AccountCalculatorUtil accountCalculator;
   private final UserLogger userLogger;
   private final MarketDataServiceClientWrapper marketDataServiceClientWrapper;
+  private final AccountEventProducer accountEventProducer;
 
   @Value("${app.account.initial-krw-amount:1000000}")
   private BigDecimal initialKrwAmount;
@@ -66,7 +67,7 @@ public class AccountServiceImpl implements AccountService {
     User user = userRepository.findById(userId)
       .orElseThrow(() -> new UserException(UserResponse.USER_NOT_FOUND));
 
-    if (accountQueryRepository.existsByUserIdAndAccountName(userId, request.getAccountName())) {
+    if (accountRepository.existsByUserIdAndAccountName(userId, request.getAccountName())) {
       throw new AccountException(AccountResponse.DUPLICATE_ACCOUNT_NAME);
     }
 
@@ -83,6 +84,9 @@ public class AccountServiceImpl implements AccountService {
 
     Account savedAccount = accountRepository.save(account);
 
+    // Kafka 이벤트 발행: 계좌 생성
+    accountEventProducer.publishAccountCreated(savedAccount);
+
     userLogger.logAccountCreation(userId, savedAccount.getId(),
       savedAccount.getAccountNumber(), initialKrwAmount);
 
@@ -96,19 +100,24 @@ public class AccountServiceImpl implements AccountService {
   @Override
   @Transactional(readOnly = true)
   public List<Account> getUserAccounts(Long userId) {
-    return accountQueryRepository.findByUserIdWithUser(userId);
+    return accountRepository.findByUserIdWithUser(userId);
   }
 
   // 계좌 삭제
   @Override
   public void deleteAccount(Long accountId, Long userId) {
-    Account account = accountQueryRepository.findByIdAndUserId(accountId, userId)
+    Account account = accountRepository.findByIdAndUserId(accountId, userId)
       .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
 
     // 잔액 확인 로직 제거 - 잔액이 있어도 삭제 가능
     // 삭제 시 잔액 정보를 로그에 기록
     log.info("계좌 삭제 요청: accountId={}, KRW잔액={}, USD잔액={}",
       accountId, account.getBalanceKrw(), account.getBalanceUsd());
+
+    // Kafka 이벤트 발행: 계좌 삭제 (삭제 전에 발행하여 계좌 정보 보존)
+    String deletionReason = String.format("사용자 요청에 의한 삭제 (KRW: %s, USD: %s)",
+      account.getBalanceKrw(), account.getBalanceUsd());
+    accountEventProducer.publishAccountDeleted(account, deletionReason);
 
     // 계좌 거래 내역 먼저 삭제 (외래 키 제약 조건 해결)
     accountHistoryRepository.deleteByAccount(account);
@@ -125,7 +134,7 @@ public class AccountServiceImpl implements AccountService {
   @Override
   @Transactional(readOnly = true)
   public BalanceResponseDto getAccountBalance(Long accountId, Long userId) {
-    Account account = accountQueryRepository.findByIdAndUserId(accountId, userId)
+    Account account = accountRepository.findByIdAndUserId(accountId, userId)
       .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
 
     BigDecimal currentExchangeRate = getCurrentExchangeRate();
@@ -138,7 +147,7 @@ public class AccountServiceImpl implements AccountService {
   public void exchangeKrwToUsd(Long accountId, Long userId, BigDecimal krwAmount,
     BigDecimal exchangeRate) {
 
-    Account account = accountQueryRepository.findByIdAndUserIdWithLock(accountId, userId)
+    Account account = accountRepository.findByIdAndUserIdWithLock(accountId, userId)
       .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
     userLogger.logExchangeStart(accountId, "KRW", "USD", krwAmount, exchangeRate);
 
@@ -186,7 +195,7 @@ public class AccountServiceImpl implements AccountService {
   public void exchangeUsdToKrw(Long accountId, Long userId, BigDecimal usdAmount,
     BigDecimal exchangeRate) {
 
-    Account account = accountQueryRepository.findByIdAndUserIdWithLock(accountId, userId)
+    Account account = accountRepository.findByIdAndUserIdWithLock(accountId, userId)
       .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
     userLogger.logExchangeStart(accountId, "USD", "KRW", usdAmount, exchangeRate);
 
@@ -232,7 +241,7 @@ public class AccountServiceImpl implements AccountService {
   // KRW 입금 처리
   @Override
   public void depositKrw(Long accountId, Long userId, BigDecimal krwAmount) {
-    Account account = accountQueryRepository.findByIdAndUserIdWithLock(accountId, userId)
+    Account account = accountRepository.findByIdAndUserIdWithLock(accountId, userId)
       .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
 
     MoneyUtils.validatePositiveAmount(krwAmount, "입금 금액");
@@ -356,13 +365,76 @@ public class AccountServiceImpl implements AccountService {
     return rate;
   }
 
+  /**
+   * Kafka 이벤트로부터 거래 완료 정보를 받아 계좌 잔액 업데이트
+   */
+  @Override
+  @Transactional
+  public void processTradeEvent(TradeCompletedEvent event) {
+    log.info("처리 시작: TradeCompletedEvent - tradeId={}, userId={}, tradeType={}, totalAmount={}",
+      event.getTradeId(), event.getUserId(), event.getTradeType(), event.getTotalAmount());
+
+    // 1. 사용자 ID를 Long으로 변환
+    Long userId;
+    try {
+      userId = Long.parseLong(event.getUserId());
+    } catch (NumberFormatException e) {
+      log.error("잘못된 userId 형식: {}", event.getUserId());
+      throw new AccountException(AccountResponse.ACCOUNT_NOT_FOUND);
+    }
+
+    // 2. 사용자의 계좌 조회 (첫 번째 계좌 사용)
+    List<Account> accounts = accountRepository.findByUserIdWithUser(userId);
+    if (accounts.isEmpty()) {
+      log.error("사용자의 계좌가 존재하지 않음: userId={}", userId);
+      throw new AccountException(AccountResponse.ACCOUNT_NOT_FOUND);
+    }
+
+    Account account = accounts.get(0); // 첫 번째 계좌 사용
+    log.debug("계좌 선택: accountId={}, accountNumber={}", account.getId(), account.getAccountNumber());
+
+    // 3. 거래 타입에 따라 잔액 변경 금액 계산
+    // BUY: 사용자가 USD를 지불하고 주식을 구매 -> USD 잔액 감소 (음수)
+    // SELL: 사용자가 주식을 팔고 USD를 받음 -> USD 잔액 증가 (양수)
+    BigDecimal balanceChange;
+    String description;
+
+    if ("BUY".equalsIgnoreCase(event.getTradeType())) {
+      balanceChange = event.getTotalAmount().negate(); // 음수
+      description = String.format("주식 매수: %s %s주 @ $%s (거래ID: %s)",
+        event.getSymbol(), event.getQuantity(), event.getPrice(), event.getTradeId());
+    } else if ("SELL".equalsIgnoreCase(event.getTradeType())) {
+      balanceChange = event.getTotalAmount(); // 양수
+      description = String.format("주식 매도: %s %s주 @ $%s (거래ID: %s)",
+        event.getSymbol(), event.getQuantity(), event.getPrice(), event.getTradeId());
+    } else {
+      log.error("알 수 없는 거래 타입: {}", event.getTradeType());
+      throw new AccountException(AccountResponse.INVALID_TRANSACTION_TYPE);
+    }
+
+    log.debug("잔액 변경 계산: tradeType={}, balanceChange={}", event.getTradeType(), balanceChange);
+
+    // 4. 기존 updateUsdBalance 메서드 재사용
+    try {
+      updateUsdBalance(account.getId(), userId, balanceChange, description);
+
+      log.info("거래 이벤트 처리 완료: tradeId={}, userId={}, accountId={}, balanceChange={}",
+        event.getTradeId(), userId, account.getId(), balanceChange);
+
+    } catch (AccountException e) {
+      log.error("잔액 업데이트 실패: tradeId={}, userId={}, accountId={}, error={}",
+        event.getTradeId(), userId, account.getId(), e.getMessage());
+      throw e;
+    }
+  }
+
   // ================== 내부 메서드 ================ //
 
   // 중복되지 않는 계좌번호 생성 (최대 10번 시도)
   private String generateUniqueAccountNumber() {
     for (int i = 0; i < 10; i++) {
       String accountNumber = generateAccountNumber();
-      if (accountQueryRepository.findByAccountNumber(accountNumber).isEmpty()) {
+      if (accountRepository.findByAccountNumber(accountNumber).isEmpty()) {
         return accountNumber;
       }
     }
@@ -384,7 +456,7 @@ public class AccountServiceImpl implements AccountService {
 
   // 계좌 접근 권한 검증
   private Account validateAccountAccess(Long accountId, Long userId) {
-    Account account = accountQueryRepository.findByIdWithLock(accountId)
+    Account account = accountRepository.findByIdWithLock(accountId)
       .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
 
     if (!account.getUser().getId().equals(userId)) {
@@ -434,5 +506,13 @@ public class AccountServiceImpl implements AccountService {
       .build();
 
     accountHistoryRepository.save(history);
+  }
+
+  // ==================== ADMIN API ==================== //
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<Account> findAccountsByUserId(Long userId) {
+    return accountRepository.findByUserIdWithUser(userId);
   }
 }

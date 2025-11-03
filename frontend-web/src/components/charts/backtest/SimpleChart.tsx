@@ -153,8 +153,8 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
     }
 
     const result = priceData.map((candle: any) => {
-      // OHLCPriceDto: closePrice (BigDecimal), date (LocalDate 또는 String)
-      const dailyPrice = parseFloat(candle.closePrice || candle.close || 0);
+      // OHLCPriceDto: adjustedClose (배당/주식분할 반영된 보정 종가)
+      const dailyPrice = parseFloat(candle.adjustedClose || candle.closePrice || candle.close || 0);
 
       // date가 배열 형태로 올 수 있음: [2025, 1, 8] -> "2025-01-08"
       let dateStr = candle.date;

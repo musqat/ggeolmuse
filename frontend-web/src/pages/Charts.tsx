@@ -5,10 +5,7 @@ import {
   TrendingDown,
   Home,
   Search,
-  Settings2,
-  Circle,
   Calendar,
-  ChevronDown,
 } from 'lucide-react';
 import { stockApi } from '../services/api';
 import LightweightChart from '../components/charts/LightweightChart';
@@ -33,7 +30,7 @@ const Charts: React.FC = () => {
   const [ohlcData, setOhlcData] = useState<CandlestickChartData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [period, setPeriod] = useState<'1개월' | '3개월' | '6개월' | '1년' | '5년' | 'CUSTOM'>('1년');
+  const [period, setPeriod] = useState<'1개월' | '3개월' | '6개월' | '1년' | '3년' | '5년' | '10년' | '전체' | 'CUSTOM'>('1년');
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [supportedSymbols, setSupportedSymbols] = useState<string[]>([]);
   const [showSearchInput, setShowSearchInput] = useState(false);
@@ -50,14 +47,6 @@ const Charts: React.FC = () => {
   // Date 객체 상태
   const [startDateObj, setStartDateObj] = useState<Date | null>(null);
   const [endDateObj, setEndDateObj] = useState<Date | null>(null);
-
-  // 차트 설정
-  const [showMA5, setShowMA5] = useState(false);
-  const [showMA20, setShowMA20] = useState(false);
-  const [showMA60, setShowMA60] = useState(false);
-
-  // 드롭다운 상태
-  const [isIndicatorOpen, setIsIndicatorOpen] = useState(false);
 
   // 현재 가격 정보
   const [currentPrice, setCurrentPrice] = useState<CandlestickChartData | null>(null);
@@ -142,9 +131,18 @@ const Charts: React.FC = () => {
       case '1년':
         date.setFullYear(date.getFullYear() - 1);
         break;
+      case '3년':
+        date.setFullYear(date.getFullYear() - 3);
+        break;
       case '5년':
         date.setFullYear(date.getFullYear() - 5);
         break;
+      case '10년':
+        date.setFullYear(date.getFullYear() - 10);
+        break;
+      case '전체':
+        // DB에 있는 가장 오래된 데이터부터 (1970년을 시작으로 설정)
+        return '1970-01-01';
     }
 
     return date.toISOString().split('T')[0];
@@ -287,125 +285,44 @@ const Charts: React.FC = () => {
             )}
           </div>
 
-          {/* 오른쪽: 컨트롤 (지표 + 기간 선택) */}
-          <div className="mt-3 md:mt-0 space-y-2 md:space-y-0 md:flex md:items-center md:space-x-3">
-            {/* 차트 설정 드롭다운 - 모바일에서 별도 행 */}
-            <div className="relative w-full md:w-auto">
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden md:min-w-[180px]">
-                <button
-                  onClick={() => setIsIndicatorOpen(!isIndicatorOpen)}
-                  className="w-full flex items-center justify-between px-3 py-2 hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-center space-x-2">
-                    <Settings2 className="w-4 h-4 text-gray-700" />
-                    <span className="font-medium text-sm text-gray-900">보조지표</span>
-                  </div>
-                  <ChevronDown
-                    className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${
-                      isIndicatorOpen ? 'rotate-180' : ''
+          {/* 오른쪽: 기간 선택 */}
+          <div className="mt-3 md:mt-0 w-full md:w-auto">
+            {/* 기간 선택 버튼 - 2줄 레이아웃 */}
+            <div className="space-y-2">
+              {/* 1줄: 1개월 ~ 전체 (8개 버튼) */}
+              <div className="flex items-center space-x-1 md:space-x-2 bg-white rounded-lg shadow-sm border border-gray-200 p-1 overflow-x-auto">
+                {(['1개월', '3개월', '6개월', '1년', '3년', '5년', '10년', '전체'] as const).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setPeriod(p)}
+                    className={`px-2 md:px-3 py-1.5 md:py-2 rounded-md text-xs md:text-sm font-medium transition-colors whitespace-nowrap ${
+                      period === p
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                     }`}
-                  />
-                </button>
-
-                {isIndicatorOpen && (
-                  <div className="absolute top-full mt-1 right-0 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden min-w-[200px] z-30">
-                    <div className="px-3 pb-3 space-y-3">
-                      <div>
-                        <p className="text-xs text-gray-500 mb-2 font-medium mt-2">
-                          이동평균선
-                        </p>
-                        <div className="space-y-1.5">
-                          <label className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
-                            <input
-                              type="checkbox"
-                              checked={showMA5}
-                              onChange={(e) => setShowMA5(e.target.checked)}
-                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
-                            />
-                            <span className="text-xs text-gray-700">MA5</span>
-                            <div className="flex-1 h-0.5 bg-blue-500"></div>
-                          </label>
-                          <label className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
-                            <input
-                              type="checkbox"
-                              checked={showMA20}
-                              onChange={(e) => setShowMA20(e.target.checked)}
-                              className="rounded border-gray-300 text-orange-600 focus:ring-orange-500 w-3.5 h-3.5"
-                            />
-                            <span className="text-xs text-gray-700">MA20</span>
-                            <div className="flex-1 h-0.5 bg-orange-500"></div>
-                          </label>
-                          <label className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
-                            <input
-                              type="checkbox"
-                              checked={showMA60}
-                              onChange={(e) => setShowMA60(e.target.checked)}
-                              className="rounded border-gray-300 text-purple-600 focus:ring-purple-500 w-3.5 h-3.5"
-                            />
-                            <span className="text-xs text-gray-700">MA60</span>
-                            <div className="flex-1 h-0.5 bg-purple-500"></div>
-                          </label>
-                        </div>
-                      </div>
-
-                      <div className="pt-2 border-t border-gray-200">
-                        <p className="text-xs text-gray-400 mb-1.5 font-medium">
-                          추가 예정
-                        </p>
-                        <div className="space-y-1">
-                          <div className="flex items-center space-x-1.5 text-xs text-gray-400">
-                            <Circle className="w-2.5 h-2.5" />
-                            <span>볼린저 밴드</span>
-                          </div>
-                          <div className="flex items-center space-x-1.5 text-xs text-gray-400">
-                            <Circle className="w-2.5 h-2.5" />
-                            <span>RSI</span>
-                          </div>
-                          <div className="flex items-center space-x-1.5 text-xs text-gray-400">
-                            <Circle className="w-2.5 h-2.5" />
-                            <span>MACD</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                  >
+                    {p}
+                  </button>
+                ))}
               </div>
-            </div>
-          </div>
 
-          {/* 기간 선택 - 모바일에서 별도 행, 작은 글씨 */}
-          <div className="flex items-center space-x-2 w-full md:w-auto">
-            <div className="flex items-center space-x-1 md:space-x-2 bg-white rounded-lg shadow-sm border border-gray-200 p-1 w-full md:w-auto overflow-x-auto">
-              {(['1개월', '3개월', '6개월', '1년', '5년'] as const).map((p) => (
+              {/* 2줄: 직접설정 버튼 + 날짜 입력 */}
+              <div className="flex items-center space-x-2">
                 <button
-                  key={p}
-                  onClick={() => setPeriod(p)}
-                  className={`px-2 md:px-4 py-1.5 md:py-2 rounded-md text-xs md:text-sm font-medium transition-colors whitespace-nowrap ${
-                    period === p
-                      ? 'bg-indigo-600 text-white shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  onClick={() => setPeriod('CUSTOM')}
+                  className={`px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center space-x-1 whitespace-nowrap bg-white shadow-sm border ${
+                    period === 'CUSTOM'
+                      ? 'border-indigo-600 text-indigo-600 bg-indigo-50'
+                      : 'border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                   }`}
                 >
-                  {p}
+                  <Calendar className="w-3 h-3 md:w-4 md:h-4" />
+                  <span>직접설정</span>
                 </button>
-              ))}
-              <button
-                onClick={() => setPeriod('CUSTOM')}
-                className={`px-2 md:px-4 py-1.5 md:py-2 rounded-md text-xs md:text-sm font-medium transition-colors flex items-center space-x-1 whitespace-nowrap ${
-                  period === 'CUSTOM'
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                }`}
-              >
-                <Calendar className="w-3 h-3 md:w-4 md:h-4" />
-                <span>직접설정</span>
-              </button>
-            </div>
 
-            {/* 커스텀 날짜 입력 - 모바일에서 작은 글씨 */}
-            {period === 'CUSTOM' && (
-              <div className="flex items-center space-x-2 mt-2 md:mt-0">
+                {/* 커스텀 날짜 입력 */}
+                {period === 'CUSTOM' && (
+                  <div className="flex items-center space-x-2">
                 {/* 시작일 */}
                 <div className="relative">
                   <button
@@ -471,6 +388,8 @@ const Charts: React.FC = () => {
             )}
           </div>
         </div>
+          </div>
+        </div>
 
         {/* 검색 모달 */}
         <SearchModal
@@ -531,9 +450,6 @@ const Charts: React.FC = () => {
                     volume: d.volume || 0
                   }))}
                   symbol={symbol}
-                  showMA5={showMA5}
-                  showMA20={showMA20}
-                  showMA60={showMA60}
                 />
               </div>
             )}

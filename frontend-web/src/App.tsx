@@ -2,6 +2,9 @@ import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import Header from '@components/common/Header';
+import Footer from '@components/layout/Footer';
+import AdminLayout from '@components/layout/AdminLayout';
+import ProtectedRoute from '@components/ProtectedRoute';
 import './styles/datepicker.css';
 
 // Lazy load pages for code splitting
@@ -15,6 +18,11 @@ const MyPage = lazy(() => import('./pages/MyPage'));
 const Charts = lazy(() => import('./pages/Charts'));
 const TradeHistory = lazy(() => import('./pages/TradeHistory'));
 const AuthCallback = lazy(() => import('./pages/AuthCallback'));
+const OAuthCallback = lazy(() => import('./pages/OAuthCallback'));
+const Unauthorized = lazy(() => import('./pages/Unauthorized'));
+const PasswordReset = lazy(() => import('./pages/PasswordReset'));
+const AdminMarket = lazy(() => import('./pages/admin/AdminMarket'));
+const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'));
 
 function App() {
   return (
@@ -29,6 +37,7 @@ function App() {
               </div>
             }>
               <Routes>
+                {/* Public Routes */}
                 <Route path="/" element={<Home />} />
                 <Route path="/stocks" element={<Stocks />} />
                 <Route path="/dashboard" element={<Navigate to="/stocks" replace />} />
@@ -42,9 +51,26 @@ function App() {
                 <Route path="/charts/:symbol" element={<Charts />} />
                 <Route path="/auth/callback" element={<AuthCallback />} />
                 <Route path="/auth/error" element={<AuthCallback />} />
+                <Route path="/oauth/callback" element={<OAuthCallback />} />
+                <Route path="/reset-password" element={<PasswordReset />} />
+                <Route path="/unauthorized" element={<Unauthorized />} />
+
+                {/* Admin Routes - 별도 레이아웃, ADMIN 권한 필요 */}
+                <Route
+                  path="/admin"
+                  element={
+                    <ProtectedRoute requireAdmin>
+                      <AdminLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route path="market" element={<AdminMarket />} />
+                  <Route path="users" element={<AdminUsers />} />
+                </Route>
               </Routes>
             </Suspense>
           </main>
+          <Footer />
         </div>
       </Router>
     </AuthProvider>
