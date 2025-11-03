@@ -58,7 +58,8 @@
       "redirectUris": [
         "http://localhost:3000/*",
         "http://localhost:5173/*",
-        "https://ggeolmuse.com/*"
+        "https://ggeolmuse.com/*",
+        "https://ggeolmuse.com/oauth/callback"
       ],
       "webOrigins": [
         "http://localhost:3000",
@@ -221,5 +222,19 @@
         }
       ]
     }
-  }
+  },
+  "users": [
+    {
+      "username": "service-account-ggeolmuse-client",
+      "enabled": true,
+      "serviceAccountClientId": "ggeolmuse-client",
+      "clientRoles": {
+        "realm-management": [
+          "manage-users",
+          "create-client",
+          "manage-clients"
+        ]
+      }
+    }
+  ]
 }
