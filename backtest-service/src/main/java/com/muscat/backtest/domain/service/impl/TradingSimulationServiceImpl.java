@@ -243,7 +243,10 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
   }
 
   private SimulationCalculationResult calculateSimulation(SimulationContext context) {
-    BigDecimal purchasePriceUsd = context.purchaseData().getClosePrice();
+    // adjustedClose 사용 (액면분할/배당 반영), 없으면 closePrice fallback
+    BigDecimal purchasePriceUsd = context.purchaseData().getAdjustedClose() != null
+        ? context.purchaseData().getAdjustedClose()
+        : context.purchaseData().getClosePrice();
     BigDecimal purchaseFxRate = context.purchaseFxRate().rate();
     BigDecimal currentFxRate = context.currentFxRate().rate();
     BigDecimal currentPriceUsd = context.currentPrice().getCurrentPrice();
@@ -314,9 +317,14 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
             var priceAtDividendDate = getHistoricalPriceWithRetry(
               context.request().getSymbol(), dividend.getExDate());
 
+            // adjustedClose 사용 (액면분할/배당 반영), 없으면 closePrice fallback
+            BigDecimal dividendDayPrice = priceAtDividendDate.getAdjustedClose() != null
+                ? priceAtDividendDate.getAdjustedClose()
+                : priceAtDividendDate.getClosePrice();
+
             // 세후 배당금으로 매수 가능한 주식수
             BigDecimal additionalShares = afterTaxDividend.divide(
-              priceAtDividendDate.getClosePrice(), 8, java.math.RoundingMode.HALF_UP);
+              dividendDayPrice, 8, java.math.RoundingMode.HALF_UP);
 
             sharesArray[0] = sharesArray[0].add(additionalShares);
             dividendsReinvestedArray[0] = dividendsReinvestedArray[0].add(afterTaxDividend);
@@ -324,7 +332,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
 
             log.info("배당 재투자: {} - ${} ({}주 보유) -> {}주 추가 매수 @${}",
               dividend.getExDate(), afterTaxDividend, sharesArray[0],
-              additionalShares, priceAtDividendDate.getClosePrice());
+              additionalShares, dividendDayPrice);
           }
         });
 

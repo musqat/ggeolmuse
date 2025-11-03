@@ -3,8 +3,11 @@ package com.muscat.marketdata.common.exceptions;
 import com.muscat.commonlib.exception.BaseExceptionHandler;
 import com.muscat.commonlib.util.ProblemDetailUtils;
 import com.muscat.commonlib.enums.ErrorType;
+import com.muscat.marketdata.api.controller.DataCollectionController;
+import com.muscat.marketdata.api.controller.MarketController;
 import com.muscat.marketdata.common.enums.response.MarketDataResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.Arrays;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,8 +19,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice(basePackageClasses = {
-    com.muscat.marketdata.api.MarketController.class,
-    com.muscat.marketdata.feed.DataCollectionController.class
+    MarketController.class,
+    DataCollectionController.class
 })
 @Slf4j
 public class GlobalExceptionHandler extends BaseExceptionHandler {
@@ -126,8 +129,7 @@ public class GlobalExceptionHandler extends BaseExceptionHandler {
     }
 
     private boolean isDevelopmentEnvironment() {
-        // 개발 환경 판단 로직
         String[] activeProfiles = {"dev", "development", "local"};
-        return java.util.Arrays.asList(activeProfiles).contains(currentProfile);
+        return Arrays.asList(activeProfiles).contains(currentProfile);
     }
 }

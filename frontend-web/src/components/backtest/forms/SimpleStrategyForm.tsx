@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import StockSearchInput from '../../common/StockSearchInput';
 import { NumberInput } from '../../common/NumberInput';
 import { FxModeToggle } from '../shared/FxModeToggle';
 import { DividendFeeOptions } from '../shared/DividendFeeOptions';
 import DatePicker from '../../common/DatePicker';
+import { AlertTriangle } from 'lucide-react';
 
 interface SimpleStrategyFormProps {
   symbol: string;
@@ -67,6 +68,13 @@ export const SimpleStrategyForm: React.FC<SimpleStrategyFormProps> = ({
   // 달력 표시 상태
   const [showPurchaseDatePicker, setShowPurchaseDatePicker] = useState(false);
   const [showSaleDatePicker, setShowSaleDatePicker] = useState(false);
+
+  // 환율 데이터 부족 경고 체크 (2014년 이전)
+  const showFxWarning = useMemo(() => {
+    if (!purchaseDateObj) return false;
+    const cutoffDate = new Date('2014-01-01');
+    return purchaseDateObj < cutoffDate;
+  }, [purchaseDateObj]);
 
   // Date 객체를 문자열로 변환하여 부모 컴포넌트에 전달
   useEffect(() => {
@@ -164,6 +172,22 @@ export const SimpleStrategyForm: React.FC<SimpleStrategyFormProps> = ({
           )}
         </div>
       </div>
+
+      {/* 환율 데이터 부족 경고 */}
+      {showFxWarning && (
+        <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+          <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-amber-800">
+              환율 데이터 부족 가능성
+            </p>
+            <p className="text-xs text-amber-700 mt-1">
+              2014년 이전 기간은 환율 정보가 부족할 수 있습니다.
+              정확한 백테스트를 위해 <span className="font-semibold">수동 환율 입력</span>을 권장합니다.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* 환율 설정 */}
       <FxModeToggle

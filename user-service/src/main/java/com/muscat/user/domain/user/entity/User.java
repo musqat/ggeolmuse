@@ -2,6 +2,7 @@ package com.muscat.user.domain.user.entity;
 
 import com.muscat.user.common.enums.responses.UserResponse;
 import com.muscat.user.common.enums.type.AuthType;
+import com.muscat.user.common.enums.type.UserRole;
 import com.muscat.user.common.exceptions.UserException;
 import com.muscat.user.domain.account.entity.Account;
 import jakarta.persistence.CascadeType;
@@ -43,7 +44,7 @@ public class User {
   private String email;
 
   @Column(name = "password_hash")
-  private String passwordHash; // Primary password storage 
+  private String passwordHash; // Primary password
 
   private String nickname;
 
@@ -53,8 +54,20 @@ public class User {
   @Builder.Default
   private AuthType provider = AuthType.LOCAL;
 
+  @Enumerated(EnumType.STRING)
+  @Builder.Default
+  @Column(nullable = false)
+  private UserRole role = UserRole.USER;
+
   @Builder.Default
   private boolean emailVerified = false;
+
+  @Builder.Default
+  @Column(nullable = false)
+  private boolean enabled = true; // 계정 활성화 여부 (관리자가 관리)
+
+  @Column(name = "last_login_at")
+  private LocalDateTime lastLoginAt; // 마지막 로그인 시간
 
   @CreationTimestamp
   private LocalDateTime createdAt;

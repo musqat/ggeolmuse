@@ -20,6 +20,13 @@
     <!-- Mail 로거 -->
     <logger name="org.springframework.mail" level="INFO"/>
 
+    <!-- Spring Security 로거  -->
+    <logger name="org.springframework.security" level="INFO"/>
+    <logger name="org.springframework.security.web.FilterChainProxy" level="WARN"/>
+
+    <!-- Actuator 로거 -->
+    <logger name="org.springframework.boot.actuate" level="WARN"/>
+
     <!-- Root Logger -->
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>

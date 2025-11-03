@@ -29,7 +29,7 @@ public class SecurityConfig {
   }
 
   private String getKeycloakRealm() {
-    return environment.getProperty("KEYCLOAK_REALM", "ggeolmuse");
+    return environment.getProperty("KEYCLOAK_REALM", "muscathan");
   }
 
   @Bean
@@ -40,7 +40,7 @@ public class SecurityConfig {
     return NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
   }
 
-  // Management port (9090)
+  // Management port (9090) - Health, Metrics, Actuator endpoints
   @Bean
   @Order(0)
   public SecurityFilterChain managementSecurityFilterChain(HttpSecurity http) throws Exception {
@@ -56,7 +56,7 @@ public class SecurityConfig {
     return http.build();
   }
 
-  // API port (8081)
+  // Application port (8081) - JWT authentication required
   @Bean
   @Order(1)
   public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {

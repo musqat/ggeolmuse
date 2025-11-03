@@ -1,5 +1,7 @@
 package com.muscat.trade.infra.client.dto;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -9,6 +11,8 @@ import java.time.LocalDateTime;
 
 @Getter
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class StockPriceDto {
 
   private String symbol;
@@ -27,4 +31,5 @@ public class StockPriceDto {
   private BigDecimal adjustedClose;
   private String currency;
   private Boolean available;
+  private String assetType;
 }

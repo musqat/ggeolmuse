@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createChart, ColorType, type CandlestickData, type Time } from 'lightweight-charts';
 
 interface OHLCData {
@@ -8,6 +8,17 @@ interface OHLCData {
   low: number;
   close: number;
   volume: number;
+}
+
+interface TooltipData {
+  time: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  change: number;
+  changePercent: number;
 }
 
 interface LightweightChartProps {
@@ -48,6 +59,7 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
 }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<any>(null);
+  const [tooltipData, setTooltipData] = useState<TooltipData | null>(null);
 
   useEffect(() => {
     if (!chartContainerRef.current || data.length === 0) return;
@@ -167,6 +179,41 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
 
     volumeSeries.setData(volumeData);
 
+    // Crosshair 이벤트 구독 - 툴팁 표시
+    chart.subscribeCrosshairMove((param) => {
+      if (!param.time || !param.point) {
+        setTooltipData(null);
+        return;
+      }
+
+      const candleData = param.seriesData.get(candlestickSeries) as CandlestickData | undefined;
+      if (!candleData) {
+        setTooltipData(null);
+        return;
+      }
+
+      // 해당 시간의 전체 데이터 찾기 (volume 정보 포함)
+      const fullData = data.find(d => d.time === param.time);
+      if (!fullData) {
+        setTooltipData(null);
+        return;
+      }
+
+      const change = candleData.close - candleData.open;
+      const changePercent = (change / candleData.open) * 100;
+
+      setTooltipData({
+        time: String(param.time),
+        open: candleData.open,
+        high: candleData.high,
+        low: candleData.low,
+        close: candleData.close,
+        volume: fullData.volume,
+        change,
+        changePercent,
+      });
+    });
+
     // 콘텐츠 맞춤
     chart.timeScale().fitContent();
 
@@ -204,6 +251,49 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
 
   return (
     <div className="w-full bg-white rounded-lg relative">
+      {/* 툴팁 - Crosshair에 따라 표시 */}
+      {tooltipData && (
+        <div className="absolute top-4 left-4 bg-white border border-gray-200 shadow-lg rounded-lg p-3 z-10 pointer-events-none">
+          <div className="text-xs font-semibold text-gray-700 mb-2">
+            {new Date(tooltipData.time).toLocaleDateString('ko-KR', {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric'
+            })}
+          </div>
+          <div className="space-y-1 text-xs">
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-500">시가:</span>
+              <span className="font-medium text-gray-900">${tooltipData.open.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-green-600">고가:</span>
+              <span className="font-medium text-green-600">${tooltipData.high.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-red-600">저가:</span>
+              <span className="font-medium text-red-600">${tooltipData.low.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-500">종가:</span>
+              <span className="font-medium text-gray-900">${tooltipData.close.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-500">거래량:</span>
+              <span className="font-medium text-gray-900">{tooltipData.volume.toLocaleString()}</span>
+            </div>
+            <div className="pt-1 mt-1 border-t border-gray-200">
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-500">변화:</span>
+                <span className={`font-medium ${tooltipData.change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {tooltipData.change >= 0 ? '+' : ''}{tooltipData.change.toFixed(2)} ({tooltipData.changePercent.toFixed(2)}%)
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 차트 컨테이너 - 깔끔하게, 오버레이 없음 */}
       <div ref={chartContainerRef} className="w-full" />
     </div>

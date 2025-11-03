@@ -1,6 +1,7 @@
 package com.muscat.user.domain.user.repository;
 
 import com.muscat.user.common.enums.type.AuthType;
+import com.muscat.user.common.enums.type.UserRole;
 import com.muscat.user.domain.user.entity.User;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -23,4 +24,12 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
   // 닉네임 중복 확인
   boolean existsByNickname(String nickname);
+
+  // ==================== ADMIN API ====================
+
+  // 활성화된 사용자 수
+  long countByEnabled(boolean enabled);
+
+  // 특정 역할의 사용자 수
+  long countByRole(UserRole role);
 }

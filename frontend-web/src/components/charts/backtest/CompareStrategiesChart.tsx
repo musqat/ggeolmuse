@@ -119,9 +119,10 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
 
     // 가격 데이터로 초기화
     priceData.forEach((price: any) => {
+      const adjustedPrice = price.adjustedClose || price.closePrice;
       priceDataMap.set(price.date, {
         date: price.date,
-        stockPrice: price.closePrice
+        stockPrice: adjustedPrice
       });
       portfolioDataMap.set(price.date, {
         date: price.date
@@ -147,11 +148,12 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
 
         const priceAtPurchase = priceData.find((p: any) => p.date === tradingDate);
         if (priceAtPurchase) {
+          const adjustedPrice = priceAtPurchase.adjustedClose || priceAtPurchase.closePrice;
           allPurchasePoints.push({
             date: tradingDate,
             strategyName: strategy.name,
             strategyIdx: strategyIdx,
-            stockPrice: priceAtPurchase.closePrice
+            stockPrice: adjustedPrice
           });
         }
 
@@ -161,7 +163,8 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
 
         priceData.forEach((price: any) => {
           if (price.date >= tradingDate) {
-            const portfolioValueUSD = shares * price.closePrice;
+            const adjustedPrice = price.adjustedClose || price.closePrice;
+            const portfolioValueUSD = shares * adjustedPrice;
             const portfolioValueKRW = portfolioValueUSD * fxRate;
 
             const existing = portfolioDataMap.get(price.date);
@@ -196,11 +199,12 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
 
         const priceAtPurchase = priceData.find((p: any) => p.date === tradingDate);
         if (priceAtPurchase) {
+          const adjustedPrice = priceAtPurchase.adjustedClose || priceAtPurchase.closePrice;
           allPurchasePoints.push({
             date: tradingDate,
             strategyName: strategy.name,
             strategyIdx: strategyIdx,
-            stockPrice: priceAtPurchase.closePrice
+            stockPrice: adjustedPrice
           });
         }
       });
@@ -216,7 +220,8 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
         });
 
         if (cumulativeShares > 0) {
-          const portfolioValueUSD = cumulativeShares * price.closePrice;
+          const adjustedPrice = price.adjustedClose || price.closePrice;
+          const portfolioValueUSD = cumulativeShares * adjustedPrice;
           const avgFxRate = data.transactions!.length > 0
             ? data.transactions!.reduce((sum, tx) => sum + tx.fxRate, 0) / data.transactions!.length
             : 1300;

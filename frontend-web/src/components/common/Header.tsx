@@ -140,7 +140,7 @@ const Header: React.FC = () => {
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">껄무새</h1>
-                <p className="text-xs text-gray-500">스마트 투자 플랫폼</p>
+                <p className="text-xs text-gray-500">모의투자 플랫폼</p>
               </div>
             </Link>
           </div>

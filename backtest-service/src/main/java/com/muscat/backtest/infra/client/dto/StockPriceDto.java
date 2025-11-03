@@ -13,4 +13,5 @@ public class StockPriceDto {
     private BigDecimal changePercent;
     private LocalDateTime lastUpdated;
     private boolean available;
+    private String assetType;
 }

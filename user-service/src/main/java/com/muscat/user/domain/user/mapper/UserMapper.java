@@ -43,6 +43,7 @@ public class UserMapper {
         .id(user.getId())
         .email(user.getEmail())
         .nickname(user.getNickname())
+        .role(user.getRole())
         .provider(user.getProvider().toString())
         .profileImageUrl(user.getProfileImageUrl())
         .emailVerified(user.isEmailVerified())

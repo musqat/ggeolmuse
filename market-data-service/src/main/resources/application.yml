@@ -21,5 +21,29 @@ spring:
       host: ${SPRING_REDIS_HOST:redis.default.svc.cluster.local}
       port: 6379
 
+# Provider 설정 (로컬 우선)
+alphavantage:
+  enabled: true
+  api-key: ${ALPHAVANTAGE_API_KEY:demo}
+  rate-limit-per-second: 5
+  timeout-seconds: 15
+  base-url: "https://www.alphavantage.co/query"
 
-## Server port moved to Config Server
+yahoo-finance:
+  enabled: false
+  timeout-seconds: 10
+  user-agent: "Mozilla/5.0 (Market Data Service)"
+
+korea-exim:
+  enabled: true
+  api:
+    auth-key: ${KOREAEXIM_API_KEY:demo}
+  base-url: "https://www.koreaexim.go.kr/site/program/financial/exchangeJSON"
+
+# Market Data 배치 설정
+marketdata:
+  batch:
+    default-lookback-days:
+      all: 365      # 전체 심볼 수집 기본값
+      single: 90    # 단일 심볼 수집 기본값
+

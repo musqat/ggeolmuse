@@ -147,8 +147,9 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
 
             const point = dateMap.get(dateStr)!;
 
-            // 주가 저장
-            point[`${symbol}_price`] = item.closePrice;
+            // 주가 저장 (adjustedClose 사용)
+            const adjustedPrice = item.adjustedClose || item.closePrice;
+            point[`${symbol}_price`] = adjustedPrice;
 
             // 매수일 이후에만 포트폴리오 가치 계산
             // purchaseDate가 비어있거나 undefined인 경우 startDate를 대체값으로 사용
@@ -157,7 +158,7 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
             if (dateStr >= effectivePurchaseDate) {
               // 해당 날짜의 환율 사용 (각 날짜마다 다른 환율 적용)
               const historicalFxRate = fxRateMap.get(dateStr) || DEFAULT_FX_RATE;
-              const portfolioValueKrw = symbolData.shares * item.closePrice * historicalFxRate;
+              const portfolioValueKrw = symbolData.shares * adjustedPrice * historicalFxRate;
               point[`${symbol}_portfolio`] = portfolioValueKrw;
             } else {
               // 매수일 이전에는 0으로 설정
@@ -166,7 +167,7 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
 
             // 산점도를 위한 매수 포인트 표시
             if (dateStr === effectivePurchaseDate) {
-              point[`${symbol}_purchasePrice`] = item.closePrice;
+              point[`${symbol}_purchasePrice`] = adjustedPrice;
             }
           });
         });

@@ -1,0 +1,79 @@
+# S&P 500 주요 종목 리스트
+# symbol,name,sector,priority
+# priority: 1=높음, 2=중간, 3=낮음 (데이터 수집 순서)
+
+# Tech Giants (시가총액 상위)
+AAPL,Apple Inc.,Technology,1
+MSFT,Microsoft Corporation,Technology,1
+GOOGL,Alphabet Inc. Class A,Technology,1
+AMZN,Amazon.com Inc.,Consumer Cyclical,1
+NVDA,NVIDIA Corporation,Technology,1
+META,Meta Platforms Inc.,Technology,1
+TSLA,Tesla Inc.,Consumer Cyclical,1
+
+# Finance
+BRK.B,Berkshire Hathaway Inc. Class B,Financial,1
+JPM,JPMorgan Chase & Co.,Financial,1
+V,Visa Inc. Class A,Financial,1
+MA,Mastercard Inc. Class A,Financial,1
+BAC,Bank of America Corp.,Financial,2
+WFC,Wells Fargo & Co.,Financial,2
+GS,The Goldman Sachs Group Inc.,Financial,2
+
+# Healthcare
+UNH,UnitedHealth Group Inc.,Healthcare,1
+JNJ,Johnson & Johnson,Healthcare,1
+LLY,Eli Lilly and Co.,Healthcare,1
+PFE,Pfizer Inc.,Healthcare,2
+ABBV,AbbVie Inc.,Healthcare,2
+MRK,Merck & Co. Inc.,Healthcare,2
+
+# Consumer
+WMT,Walmart Inc.,Consumer Defensive,1
+HD,The Home Depot Inc.,Consumer Cyclical,1
+MCD,McDonald's Corp.,Consumer Cyclical,1
+NKE,NIKE Inc. Class B,Consumer Cyclical,2
+COST,Costco Wholesale Corp.,Consumer Defensive,1
+PG,Procter & Gamble Co.,Consumer Defensive,1
+KO,The Coca-Cola Co.,Consumer Defensive,1
+PEP,PepsiCo Inc.,Consumer Defensive,1
+
+# Energy
+XOM,Exxon Mobil Corp.,Energy,1
+CVX,Chevron Corp.,Energy,1
+COP,ConocoPhillips,Energy,2
+
+# Industrials
+BA,Boeing Co.,Industrials,2
+CAT,Caterpillar Inc.,Industrials,2
+GE,General Electric Co.,Industrials,2
+UNP,Union Pacific Corp.,Industrials,2
+
+# Communication
+DIS,Walt Disney Co.,Communication,1
+CMCSA,Comcast Corp. Class A,Communication,2
+NFLX,Netflix Inc.,Communication,1
+T,AT&T Inc.,Communication,2
+
+# Semiconductors
+INTC,Intel Corp.,Technology,2
+AMD,Advanced Micro Devices Inc.,Technology,1
+QCOM,QUALCOMM Inc.,Technology,1
+AVGO,Broadcom Inc.,Technology,1
+TXN,Texas Instruments Inc.,Technology,2
+
+# Cloud & Software
+CRM,Salesforce Inc.,Technology,1
+ORCL,Oracle Corp.,Technology,1
+ADBE,Adobe Inc.,Technology,1
+CSCO,Cisco Systems Inc.,Technology,2
+IBM,International Business Machines Corp.,Technology,2
+
+# 추가 주요 종목 (알파벳순)
+ABT,Abbott Laboratories,Healthcare,2
+ACN,Accenture PLC Class A,Technology,2
+ADP,Automatic Data Processing Inc.,Technology,2
+AMGN,Amgen Inc.,Healthcare,2
+AXP,American Express Co.,Financial,2
+BLK,BlackRock Inc.,Financial,2
+BKNG,Booking Holdings Inc.,Consumer Cyclical,2

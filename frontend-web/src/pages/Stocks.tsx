@@ -16,10 +16,12 @@ const Stocks: React.FC = () => {
   const [symbols, setSymbols] = useState<StockSymbol[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showAll, setShowAll] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0); // API page (0-based)
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
   const [assetFilter, setAssetFilter] = useState<'ALL' | 'EQUITY' | 'ETF'>('ALL');
 
-  const INITIAL_DISPLAY_COUNT = 10;
+  const PAGE_SIZE = 50;
 
   // 회사 logo 생성 (여러 API fallback 방식)
   const getFaviconUrl = (symbol: string) => {
@@ -90,45 +92,55 @@ const Stocks: React.FC = () => {
     return domainMap[symbol] || null;
   };
 
-  useEffect(() => {
-    const loadSymbols = async () => {
-      try {
-        setLoading(true);
+  const loadStocks = async (page: number = 0) => {
+    try {
+      setLoading(true);
+      setError(null);
 
-        // 모든 종목과 가격을 한 번에 조회
-        const response = await stockApi.getAllStocksWithPrices();
-        const stocks = Array.isArray(response.data) ? response.data : [];
+      const response = await stockApi.getAllStocksWithPrices(page, PAGE_SIZE);
+      const pageData = response.data;
 
-        // StockPriceDto 형식을 StockSymbol 형식으로 변환
-        const symbolData = stocks.map((stock: any) => ({
+      // Spring Page 응답 처리
+      const stocks = Array.isArray(pageData.content) ? pageData.content : [];
+
+      // StockPriceDto 형식을 StockSymbol 형식으로 변환 (currentPrice가 null인 것 제외)
+      const symbolData = stocks
+        .filter((stock: any) => stock.available !== false && stock.currentPrice != null)
+        .map((stock: any) => ({
           symbol: stock.symbol,
           name: stock.name || stock.symbol,
           marketCap: stock.marketCap,
-          currentPrice: stock.price,
-          latestDate: stock.timestamp,
+          currentPrice: stock.currentPrice,
+          latestDate: stock.date,
           assetType: stock.assetType || 'EQUITY'
         }));
 
-        // 시가총액 순으로 정렬 (높은 순)
-        symbolData.sort((a, b) => (b.marketCap || 0) - (a.marketCap || 0));
+      setSymbols(symbolData);
+      setTotalPages(pageData.totalPages);
+      setTotalElements(pageData.totalElements);
+      setCurrentPage(page);
+    } catch (err) {
+      setError('종목 목록을 불러오는데 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        setSymbols(symbolData);
-      } catch (err) {
-        setError('종목 목록을 불러오는데 실패했습니다.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadSymbols();
+  // 초기 데이터 로드
+  useEffect(() => {
+    loadStocks(0);
   }, []);
+
+  // 페이지 변경 시
+  const handlePageChange = (page: number) => {
+    loadStocks(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   // 필터링 적용
   const filteredSymbols = assetFilter === 'ALL'
     ? symbols
     : symbols.filter(s => s.assetType === assetFilter);
-
-  const displayedSymbols = showAll ? filteredSymbols : filteredSymbols.slice(0, INITIAL_DISPLAY_COUNT);
 
   const handleSymbolClick = (symbol: string) => {
     navigate(`/charts/${symbol}`);
@@ -142,10 +154,14 @@ const Stocks: React.FC = () => {
     return `$${marketCap.toLocaleString()}`;
   };
 
-  if (loading) {
+  if (loading && symbols.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 text-lg">시장 데이터를 불러오는 중입니다...</p>
+          <p className="text-gray-400 text-sm mt-2">잠시만 기다려주세요</p>
+        </div>
       </div>
     );
   }
@@ -171,18 +187,20 @@ const Stocks: React.FC = () => {
       {/* 지원 종목 섹션 */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">
-            지원 종목 ({filteredSymbols.length}개)
+          <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+            지원 종목 ({totalElements}개)
           </h2>
           {symbols.length > 0 && symbols[0].latestDate && (
             <div className="text-sm text-gray-500">
-              최신 데이터: {new Date(symbols[0].latestDate).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
+              데이터 갱신: {new Date(symbols[0].latestDate).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
             </div>
           )}
         </div>
 
-        {/* 필터 버튼 */}
-        <div className="flex space-x-2 mb-6">
+        {/* 필터 */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+          {/* 필터 버튼 */}
+          <div className="flex space-x-2">
           <button
             onClick={() => setAssetFilter('ALL')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -213,6 +231,12 @@ const Stocks: React.FC = () => {
           >
             ETF
           </button>
+          </div>
+
+          {/* 정렬 안내 텍스트 */}
+          <div className="text-sm text-gray-500">
+            시가총액 큰 순서로 정렬
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -221,12 +245,12 @@ const Stocks: React.FC = () => {
               <tr className="border-b border-gray-200">
                 <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">이름</th>
                 <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">티커</th>
-                <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">현재가</th>
+                <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">주가</th>
                 <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">시가총액</th>
               </tr>
             </thead>
             <tbody>
-              {displayedSymbols.map((stock) => (
+              {filteredSymbols.map((stock) => (
                 <tr
                   key={stock.symbol}
                   onClick={() => handleSymbolClick(stock.symbol)}
@@ -280,30 +304,55 @@ const Stocks: React.FC = () => {
           </table>
         </div>
 
-        {filteredSymbols.length > INITIAL_DISPLAY_COUNT && (
-          <div className="text-center mt-6">
+        {/* 페이지네이션 */}
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center space-x-2 mt-6">
+            {/* 이전 버튼 */}
             <button
-              onClick={() => setShowAll(!showAll)}
-              className="bg-indigo-50 text-indigo-600 px-6 py-2 rounded-lg hover:bg-indigo-100 transition-colors"
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 0}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {showAll ? '접기' : `더보기 (+${filteredSymbols.length - INITIAL_DISPLAY_COUNT}개)`}
+              이전
+            </button>
+
+            {/* 페이지 번호 */}
+            {[...Array(Math.min(totalPages, 10))].map((_, i) => {
+              // 현재 페이지 근처의 페이지만 표시
+              const pageNumber = (() => {
+                if (totalPages <= 10) return i;
+                if (currentPage < 5) return i;
+                if (currentPage > totalPages - 6) return totalPages - 10 + i;
+                return currentPage - 4 + i;
+              })();
+
+              if (pageNumber < 0 || pageNumber >= totalPages) return null;
+
+              return (
+                <button
+                  key={pageNumber}
+                  onClick={() => handlePageChange(pageNumber)}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    currentPage === pageNumber
+                      ? 'bg-indigo-600 text-white'
+                      : 'border border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  {pageNumber + 1}
+                </button>
+              );
+            })}
+
+            {/* 다음 버튼 */}
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage >= totalPages - 1}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              다음
             </button>
           </div>
         )}
-      </div>
-
-
-      {/* 푸터 */}
-      <div className="bg-gray-50 rounded-xl p-6 text-center">
-        <div className="text-gray-600 mb-2">
-          <p className="text-sm">문제가 발생하거나 개선 사항이 있으시면 언제든지 연락해 주세요.</p>
-        </div>
-        <div className="text-indigo-600 font-medium">
-          📧 버그 제보 및 문의: <a href="mailto:your-email@example.com" className="hover:underline">your-email@example.com</a>
-        </div>
-        <div className="text-xs text-gray-400 mt-2">
-          GGeolmuse v1.3.0 • Built with Spring Boot & React
-        </div>
       </div>
     </div>
   );

@@ -18,6 +18,13 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    host: true // 외부 접근 허용
+    host: true, // 외부 접근 허용
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8070', // Gateway server
+        changeOrigin: true,
+        secure: false
+      }
+    }
   }
 })

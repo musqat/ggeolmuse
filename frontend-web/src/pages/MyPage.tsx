@@ -177,7 +177,7 @@ const MyPage: React.FC = () => {
               <h2 className="text-2xl font-bold text-gray-900">{user.nickname}</h2>
               <p className="text-gray-500">{user.email}</p>
             </div>
-            {user.isVerified && (
+            {user.emailVerified && (
               <div className="bg-green-100 px-3 py-1 rounded-full flex items-center space-x-1">
                 <Check className="w-4 h-4 text-green-600" />
                 <span className="text-sm font-medium text-green-600">인증됨</span>
@@ -229,20 +229,22 @@ const MyPage: React.FC = () => {
               <span className="text-gray-400">›</span>
             </button>
 
-            {/* 비밀번호 변경 */}
-            <button
-              onClick={() => setShowPasswordModal(true)}
-              className="w-full flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <div className="flex items-center space-x-3">
-                <Lock className="w-5 h-5 text-indigo-600" />
-                <div className="text-left">
-                  <p className="font-medium text-gray-900">비밀번호 변경</p>
-                  <p className="text-sm text-gray-500">보안을 위해 주기적으로 변경하세요</p>
+            {/* 비밀번호 변경 - OAuth 사용자는 숨김 */}
+            {user.provider === 'LOCAL' && (
+              <button
+                onClick={() => setShowPasswordModal(true)}
+                className="w-full flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <div className="flex items-center space-x-3">
+                  <Lock className="w-5 h-5 text-indigo-600" />
+                  <div className="text-left">
+                    <p className="font-medium text-gray-900">비밀번호 변경</p>
+                    <p className="text-sm text-gray-500">보안을 위해 주기적으로 변경하세요</p>
+                  </div>
                 </div>
-              </div>
-              <span className="text-gray-400">›</span>
-            </button>
+                <span className="text-gray-400">›</span>
+              </button>
+            )}
 
             {/* 로그아웃 */}
             <button

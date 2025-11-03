@@ -9,21 +9,21 @@ const Home: React.FC = () => {
     {
       icon: TrendingUp,
       title: '차트 분석',
-      description: '전문적인 캔들스틱 차트와 기술적 지표로 종목을 심층 분석하세요.',
+      description: '방대한 차트로 종목을 분석하세요.',
       color: 'text-blue-600',
       bgColor: 'bg-blue-50'
     },
     {
       icon: Activity,
       title: '전략 백테스트',
-      description: 'DCA, 조건부 매수 등 다양한 투자 전략의 과거 성과를 시뮬레이션하세요.',
+      description: '다양한 투자 전략으로 성과를 시뮬레이션하세요.',
       color: 'text-green-600',
       bgColor: 'bg-green-50'
     },
     {
       icon: Target,
       title: '가상 거래 연습',
-      description: '실제 돈을 쓰지 않고 포트폴리오를 구성하고 투자 전략을 연습하세요.',
+      description: '포트폴리오를 구성하고 투자 전략을 연습하세요.',
       color: 'text-purple-600',
       bgColor: 'bg-purple-50'
     },

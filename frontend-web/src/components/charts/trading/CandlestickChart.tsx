@@ -32,6 +32,12 @@ const CandlestickChart: React.FC<CandlestickChartProps> = ({ data, symbol, class
   const chartData = useMemo(() => {
     if (!data || data.length === 0) return [];
 
+    // 데이터 범위 계산 (첫 날짜와 마지막 날짜의 차이)
+    const firstDate = new Date(data[0].time);
+    const lastDate = new Date(data[data.length - 1].time);
+    const daysDiff = (lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24);
+    const isLongRange = daysDiff > 365; // 1년 이상이면 년-월 포맷
+
     return data.map((item) => {
       const open = item.open || 0;
       const close = item.close || 0;
@@ -39,8 +45,13 @@ const CandlestickChart: React.FC<CandlestickChartProps> = ({ data, symbol, class
       const low = item.low || 0;
       const isPositive = close >= open;
 
+      // 1년 이상: 년-월 포맷, 1년 미만: 월-일 포맷
+      const dateFormat = isLongRange
+        ? new Date(item.time).toLocaleDateString('ko-KR', { year: 'numeric', month: 'short' })
+        : new Date(item.time).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+
       return {
-        date: new Date(item.time).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }),
+        date: dateFormat,
         fullDate: item.time,
         open,
         high,

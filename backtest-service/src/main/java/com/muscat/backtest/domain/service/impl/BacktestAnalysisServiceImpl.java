@@ -3,10 +3,10 @@ package com.muscat.backtest.domain.service.impl;
 import com.muscat.backtest.common.calculation.ComparisonCalculationResult;
 import com.muscat.backtest.common.calculation.ComparisonCalculator;
 import com.muscat.backtest.common.enums.BacktestResponse;
+import com.muscat.backtest.common.enums.type.BacktestType;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.util.BacktestHistoryUtils;
-import com.muscat.backtest.common.enums.type.BacktestType;
 import com.muscat.backtest.domain.dto.request.BaseComparisonRequest;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
@@ -26,10 +26,13 @@ import com.muscat.backtest.domain.service.BacktestAnalysisService;
 import com.muscat.backtest.domain.service.TradingSimulationService;
 import com.muscat.backtest.domain.strategy.InvestmentStrategy;
 import com.muscat.backtest.domain.strategy.OptimalTimingStrategy;
+import com.muscat.backtest.infra.kafka.BacktestEventProducer;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -45,81 +48,221 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
   private final ResponseMapper responseMapper;
   private final BacktestHistoryUtils backtestHistoryUtils;
   private final OptimalTimingStrategy optimalTimingStrategy;
+  private final BacktestEventProducer backtestEventProducer;
 
   public BacktestAnalysisServiceImpl(TradingSimulationService tradingSimulationService,
-      List<InvestmentStrategy> strategies, ResponseMapper responseMapper,
-      BacktestHistoryUtils backtestHistoryUtils, OptimalTimingStrategy optimalTimingStrategy) {
+    List<InvestmentStrategy> strategies, ResponseMapper responseMapper,
+    BacktestHistoryUtils backtestHistoryUtils, OptimalTimingStrategy optimalTimingStrategy,
+    BacktestEventProducer backtestEventProducer) {
     this.tradingSimulationService = tradingSimulationService;
     this.responseMapper = responseMapper;
     this.backtestHistoryUtils = backtestHistoryUtils;
     this.optimalTimingStrategy = optimalTimingStrategy;
+    this.backtestEventProducer = backtestEventProducer;
     this.strategyMap = strategies.stream()
-        .collect(Collectors.toMap(InvestmentStrategy::getStrategyType, Function.identity()));
+      .collect(Collectors.toMap(InvestmentStrategy::getStrategyType, Function.identity()));
   }
 
   // DCA 전략 백테스팅 실행
   @Override
   public StrategyResponse runDcaStrategy(DcaStrategyRequest request) {
-    log.info("DCA 전략 백테스팅 시작: {}", request.getSymbol());
+    String backtestId = generateBacktestId();
+    long startTime = System.currentTimeMillis();
 
-    InvestmentStrategy strategy = getStrategy(StrategyType.DCA, "DCA 전략을 찾을 수 없습니다");
-    StrategyResponse result = strategy.executeDca(request);
+    try {
+      log.info("DCA 전략 백테스팅 시작: backtestId={}, symbol={}", backtestId, request.getSymbol());
 
-    saveBacktestHistory(request.getUserId(), BacktestType.STRATEGY_SIMULATION, request);
-    return result;
+      InvestmentStrategy strategy = getStrategy(StrategyType.DCA, "DCA 전략을 찾을 수 없습니다");
+      StrategyResponse result = strategy.executeDca(request);
+
+      saveBacktestHistory(request.getUserId(), BacktestType.STRATEGY_SIMULATION, request);
+
+      // Kafka 이벤트 발행 (성공)
+      long executionTimeMs = System.currentTimeMillis() - startTime;
+      backtestEventProducer.publishBacktestCompleted(
+        request.getUserId(),
+        backtestId,
+        request.getSymbol(),
+        request.getStartDate(),
+        request.getEndDate(),
+        result.getTotalInvested(),
+        result.getCurrentValue(),
+        result.getTotalReturn(),
+        result.getTotalReturnPercent(),
+        "DCA",
+        "MONTHLY",                           // 수정: 상수 사용
+        result.getTotalTransactions(),
+        BigDecimal.ZERO,
+        BigDecimal.ZERO,
+        executionTimeMs
+      );
+
+      log.info("DCA 전략 백테스팅 완료: backtestId={}, 수익률={}%, 실행시간={}ms",
+        backtestId, result.getTotalReturnPercent(), executionTimeMs);
+
+      return result;
+
+    } catch (Exception e) {
+      // Kafka 이벤트 발행 (실패)
+      long executionTimeMs = System.currentTimeMillis() - startTime;
+      backtestEventProducer.publishBacktestFailed(
+        request.getUserId(),
+        backtestId,
+        request.getSymbol(),
+        request.getStartDate(),
+        request.getEndDate(),
+        e.getMessage(),
+        executionTimeMs
+      );
+
+      log.error("DCA 전략 백테스팅 실패: backtestId={}, error={}", backtestId, e.getMessage());
+      throw e;
+    }
   }
 
   @Override
   public StrategyResponse runConditionalStrategy(ConditionalStrategyRequest request) {
-    log.info("조건부 매수 전략 백테스팅 시작: {}", request.getSymbol());
+    String backtestId = generateBacktestId();
+    long startTime = System.currentTimeMillis();
 
-    InvestmentStrategy strategy = getStrategy(StrategyType.CONDITIONAL_PURCHASE,
+    try {
+      log.info("조건부 매수 전략 백테스팅 시작: backtestId={}, symbol={}", backtestId, request.getSymbol());
+
+      InvestmentStrategy strategy = getStrategy(StrategyType.CONDITIONAL_PURCHASE,
         "조건부 매수 전략을 찾을 수 없습니다");
-    StrategyResponse result = strategy.executeConditional(request);
+      StrategyResponse result = strategy.executeConditional(request);
 
-    saveBacktestHistory(request.getUserId(), BacktestType.STRATEGY_SIMULATION, request);
-    return result;
+      saveBacktestHistory(request.getUserId(), BacktestType.STRATEGY_SIMULATION, request);
+
+      // Kafka 이벤트 발행 (성공)
+      long executionTimeMs = System.currentTimeMillis() - startTime;
+      backtestEventProducer.publishBacktestCompleted(
+        request.getUserId(),
+        backtestId,
+        request.getSymbol(),
+        request.getStartDate(),
+        request.getEndDate(),
+        result.getTotalInvested(),
+        result.getCurrentValue(),
+        result.getTotalReturn(),
+        result.getTotalReturnPercent(),
+        "CONDITIONAL_PURCHASE",
+        "CONDITIONAL_" + request.getDropPercentage() + "%",
+        result.getTotalTransactions(),
+        BigDecimal.ZERO,
+        BigDecimal.ZERO,
+        executionTimeMs
+      );
+
+      log.info("조건부 매수 전략 백테스팅 완료: backtestId={}, 수익률={}%, 실행시간={}ms",
+        backtestId, result.getTotalReturnPercent(), executionTimeMs);
+
+      return result;
+
+    } catch (Exception e) {
+      // Kafka 이벤트 발행 (실패)
+      long executionTimeMs = System.currentTimeMillis() - startTime;
+      backtestEventProducer.publishBacktestFailed(
+        request.getUserId(),
+        backtestId,
+        request.getSymbol(),
+        request.getStartDate(),
+        request.getEndDate(),
+        e.getMessage(),
+        executionTimeMs
+      );
+
+      log.error("조건부 매수 전략 백테스팅 실패: backtestId={}, error={}", backtestId, e.getMessage());
+      throw e;
+    }
   }
 
   // 여러 종목의 동일 기간 투자 성과를 비교 분석
   @Override
   public ComparisonResponse compareSymbols(SymbolComparisonRequest request) {
-    log.info("종목 비교 분석: {}", request.getSymbols());
+    String backtestId = generateBacktestId();
+    long startTime = System.currentTimeMillis();
 
-    List<ComparisonItem> items = collectComparisonItems(
+    try {
+      log.info("종목 비교 분석 시작: backtestId={}, symbols={}", backtestId, request.getSymbols());
+
+      List<ComparisonItem> items = collectComparisonItems(
         request.getSymbols(),
         symbol -> {
           SimulationRequest simulationRequest = buildSymbolSimulationRequest(request, symbol);
           SimulationResponse result = tradingSimulationService.runSimulation(simulationRequest,
-              false);
+            false);
           return responseMapper.toComparisonItemFromSimulation(result, symbol);
         },
         (symbol, e) -> log.warn("종목 {} 시뮬레이션 실패: {}", symbol, e.getMessage())
-    );
+      );
 
-    ComparisonResponse response = buildComparisonResponse(request, items,
+      ComparisonResponse response = buildComparisonResponse(request, items,
         "모든 종목의 데이터를 찾을 수 없습니다", "종목 비교");
-    recordComparisonHistory(request);
-    return response;
+      recordComparisonHistory(request);
+
+      // Kafka 이벤트 발행 (성공) - 최고 성과 종목 정보로 이벤트 생성
+      if (response.getBestPerformer() != null) {
+        long executionTimeMs = System.currentTimeMillis() - startTime;
+        backtestEventProducer.publishBacktestCompleted(
+          request.getUserId(),
+          backtestId,
+          String.join(",", request.getSymbols()), // 여러 종목
+          request.getStartDate(),
+          request.getStartDate(), // 종목 비교는 특정 날짜
+          response.getBestPerformer().getTotalInvested(),
+          response.getBestPerformer().getCurrentValue(),
+          response.getBestPerformer().getTotalReturn(),
+          response.getBestPerformer().getTotalReturnPercent(),
+          "SYMBOL_COMPARISON",
+          "COMPARISON_" + request.getSymbols().size() + "_SYMBOLS",
+          0, // ComparisonItem에는 transactions 필드가 없으므로 0 사용
+          BigDecimal.ZERO,
+          BigDecimal.ZERO,
+          executionTimeMs
+        );
+
+        log.info("종목 비교 분석 완료: backtestId={}, 최고수익률={}%, 실행시간={}ms",
+          backtestId, response.getBestPerformer().getTotalReturnPercent(), executionTimeMs);
+      }
+
+      return response;
+
+    } catch (Exception e) {
+      // Kafka 이벤트 발행 (실패)
+      long executionTimeMs = System.currentTimeMillis() - startTime;
+      backtestEventProducer.publishBacktestFailed(
+        request.getUserId(),
+        backtestId,
+        String.join(",", request.getSymbols()),
+        request.getStartDate(),
+        request.getStartDate(),
+        e.getMessage(),
+        executionTimeMs
+      );
+
+      log.error("종목 비교 분석 실패: backtestId={}, error={}", backtestId, e.getMessage());
+      throw e;
+    }
   }
 
   // 동일 종목에 대한 다양한 투자 전략의 성과를 비교 분석
   @Override
   public ComparisonResponse compareStrategies(StrategyComparisonRequest request) {
     log.info("전략 비교 분석: {} - {}개 전략", request.getSymbol(),
-        request.getStrategies() != null ? request.getStrategies().size() : 0);
+      request.getStrategies() != null ? request.getStrategies().size() : 0);
 
     List<ComparisonItem> items = collectComparisonItems(
-        request.getStrategies(),
-        strategyConfig -> buildStrategyComparisonItem(request, strategyConfig),
-        (strategyConfig, e) -> log.warn("전략 {} 실행 실패: {}",
-            strategyConfig.getName() != null ? strategyConfig.getName()
-                : strategyConfig.getStrategyType(),
-            e.getMessage())
+      request.getStrategies(),
+      strategyConfig -> buildStrategyComparisonItem(request, strategyConfig),
+      (strategyConfig, e) -> log.warn("전략 {} 실행 실패: {}",
+        strategyConfig.getName() != null ? strategyConfig.getName()
+          : strategyConfig.getStrategyType(),
+        e.getMessage())
     );
 
     ComparisonResponse response = buildComparisonResponse(request, items,
-        "모든 전략의 실행에 실패했습니다", "전략 비교");
+      "모든 전략의 실행에 실패했습니다", "전략 비교");
     recordComparisonHistory(request);
     return response;
   }
@@ -128,22 +271,22 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
   @Override
   public ComparisonResponse compareTiming(TimingComparisonRequest request) {
     log.info("타이밍 비교 분석: {} - {}개 시점", request.getSymbol(),
-        request.getPurchaseDates() != null ? request.getPurchaseDates().size() : 0);
+      request.getPurchaseDates() != null ? request.getPurchaseDates().size() : 0);
 
     List<ComparisonItem> items = collectComparisonItems(
-        request.getPurchaseDates(),
-        purchaseDate -> {
-          SimulationRequest simulationRequest = buildTimingSimulationRequest(request, purchaseDate);
-          SimulationResponse result = tradingSimulationService.runSimulation(simulationRequest,
-              false);
-          String timingName = String.format("%s 매수", purchaseDate);
-          return responseMapper.toComparisonItemFromSimulation(result, timingName);
-        },
-        (purchaseDate, e) -> log.warn("타이밍 {} 시뮬레이션 실패: {}", purchaseDate, e.getMessage())
+      request.getPurchaseDates(),
+      purchaseDate -> {
+        SimulationRequest simulationRequest = buildTimingSimulationRequest(request, purchaseDate);
+        SimulationResponse result = tradingSimulationService.runSimulation(simulationRequest,
+          false);
+        String timingName = String.format("%s 매수", purchaseDate);
+        return responseMapper.toComparisonItemFromSimulation(result, timingName);
+      },
+      (purchaseDate, e) -> log.warn("타이밍 {} 시뮬레이션 실패: {}", purchaseDate, e.getMessage())
     );
 
     ComparisonResponse response = buildComparisonResponse(request, items,
-        "타이밍의 데이터를 찾을 수 없습니다", "타이밍 비교");
+      "타이밍의 데이터를 찾을 수 없습니다", "타이밍 비교");
     recordComparisonHistory(request);
     return response;
   }
@@ -157,7 +300,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
   }
 
   private void saveBacktestHistory(String userId, BacktestType backtestType,
-      Object request) {
+    Object request) {
     try {
       backtestHistoryUtils.saveBacktestHistory(userId, backtestType, request);
     } catch (Exception e) {
@@ -166,51 +309,51 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
   }
 
   private ComparisonResponse buildComparisonResponse(BaseComparisonRequest request,
-      List<ComparisonItem> items, String emptyDataMessage, String calculationType) {
+    List<ComparisonItem> items, String emptyDataMessage, String calculationType) {
     if (items.isEmpty()) {
       throw new BacktestException(BacktestResponse.DATA_NOT_FOUND, emptyDataMessage);
     }
 
     ComparisonCalculationResult calculation = ComparisonCalculator.calculate(items,
-        calculationType);
+      calculationType);
     return responseMapper.toComparisonResponse(request, items, calculation);
   }
 
   private SimulationRequest buildSymbolSimulationRequest(SymbolComparisonRequest request,
-      String symbol) {
+    String symbol) {
     return SimulationRequest.builder()
-        .symbol(symbol)
-        .purchaseDate(request.getStartDate())
-        .investmentAmount(request.getInvestmentAmount())
-        .userId(request.getUserId())
-        .build();
+      .symbol(symbol)
+      .purchaseDate(request.getStartDate())
+      .investmentAmount(request.getInvestmentAmount())
+      .userId(request.getUserId())
+      .build();
   }
 
   private SimulationRequest buildTimingSimulationRequest(TimingComparisonRequest request,
-      LocalDate purchaseDate) {
+    LocalDate purchaseDate) {
     return SimulationRequest.builder()
-        .symbol(request.getSymbol())
-        .purchaseDate(purchaseDate)
-        .investmentAmount(request.getInvestmentAmount())
-        .userId(request.getUserId())
-        .build();
+      .symbol(request.getSymbol())
+      .purchaseDate(purchaseDate)
+      .investmentAmount(request.getInvestmentAmount())
+      .userId(request.getUserId())
+      .build();
   }
 
   private ComparisonItem buildStrategyComparisonItem(StrategyComparisonRequest request,
-      StrategyParameter strategyConfig) {
+    StrategyParameter strategyConfig) {
     StrategyType strategyType = strategyConfig.getStrategyType();
     String strategyName = strategyConfig.getName() != null ? strategyConfig.getName()
-        : strategyType != null ? strategyType.name() : "UNKNOWN";
+      : strategyType != null ? strategyType.name() : "UNKNOWN";
 
     if (strategyType == StrategyType.DCA) {
       DcaStrategyRequest dcaRequest = DcaStrategyRequest.builder()
-          .symbol(request.getSymbol())
-          .startDate(request.getStartDate())
-          .endDate(request.getEndDate())
-          .userId(request.getUserId())
-          .monthlyAmount(strategyConfig.getMonthlyAmount())
-          .purchaseDay(strategyConfig.getPurchaseDay())
-          .build();
+        .symbol(request.getSymbol())
+        .startDate(request.getStartDate())
+        .endDate(request.getEndDate())
+        .userId(request.getUserId())
+        .monthlyAmount(strategyConfig.getMonthlyAmount())
+        .purchaseDay(strategyConfig.getPurchaseDay())
+        .build();
 
       InvestmentStrategy strategy = getStrategy(StrategyType.DCA, "DCA 전략을 찾을 수 없습니다");
       StrategyResponse result = strategy.executeDca(dcaRequest);
@@ -219,35 +362,35 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
 
     if (strategyType == StrategyType.CONDITIONAL_PURCHASE) {
       ConditionalStrategyRequest conditionalRequest = ConditionalStrategyRequest.builder()
-          .symbol(request.getSymbol())
-          .startDate(request.getStartDate())
-          .endDate(request.getEndDate())
-          .userId(request.getUserId())
-          .totalInvestment(strategyConfig.getTotalInvestment())
-          .dropPercentage(strategyConfig.getDropPercentage())
-          .maxPurchases(strategyConfig.getMaxPurchases())
-          .build();
+        .symbol(request.getSymbol())
+        .startDate(request.getStartDate())
+        .endDate(request.getEndDate())
+        .userId(request.getUserId())
+        .totalInvestment(strategyConfig.getTotalInvestment())
+        .dropPercentage(strategyConfig.getDropPercentage())
+        .maxPurchases(strategyConfig.getMaxPurchases())
+        .build();
 
       InvestmentStrategy strategy = getStrategy(StrategyType.CONDITIONAL_PURCHASE,
-          "조건부 매수 전략을 찾을 수 없습니다");
+        "조건부 매수 전략을 찾을 수 없습니다");
       StrategyResponse result = strategy.executeConditional(conditionalRequest);
       return responseMapper.toComparisonItemFromStrategy(result, strategyName);
     }
 
     SimulationRequest simulationRequest = SimulationRequest.builder()
-        .symbol(request.getSymbol())
-        .purchaseDate(strategyConfig.getPurchaseDate())
-        .investmentAmount(request.getInvestmentAmount())
-        .userId(request.getUserId())
-        .build();
+      .symbol(request.getSymbol())
+      .purchaseDate(strategyConfig.getPurchaseDate())
+      .investmentAmount(request.getInvestmentAmount())
+      .userId(request.getUserId())
+      .build();
 
     SimulationResponse result = tradingSimulationService.runSimulation(simulationRequest,
-        false);
+      false);
     return responseMapper.toComparisonItemFromSimulation(result, strategyName);
   }
 
   private <T> List<ComparisonItem> collectComparisonItems(List<T> sources,
-      Function<T, ComparisonItem> itemProvider, BiConsumer<T, Exception> errorHandler) {
+    Function<T, ComparisonItem> itemProvider, BiConsumer<T, Exception> errorHandler) {
     List<ComparisonItem> items = new ArrayList<>();
     for (T source : sources) {
       try {
@@ -272,7 +415,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
   @Override
   public OptimalTimingResponse analyzeOptimalTiming(OptimalTimingRequest request) {
     log.info("최적 타이밍 분석 시작: {} - 목표 수익률 {}%",
-        request.getSymbol(), request.getTargetReturnPercent());
+      request.getSymbol(), request.getTargetReturnPercent());
 
     OptimalTimingResponse result = optimalTimingStrategy.analyzeOptimalTiming(request);
 
@@ -281,9 +424,14 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
     }
 
     log.info("최적 타이밍 분석 완료: {} - {}일 중 {}일 목표 달성",
-        request.getSymbol(), result.getTotalAnalyzedDays(), result.getTotalQualifyingDays());
+      request.getSymbol(), result.getTotalAnalyzedDays(), result.getTotalQualifyingDays());
 
     return result;
+  }
+
+  //백테스트 ID 생성 헬퍼 메서드
+  private String generateBacktestId() {
+    return "BT_" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
   }
 
 }

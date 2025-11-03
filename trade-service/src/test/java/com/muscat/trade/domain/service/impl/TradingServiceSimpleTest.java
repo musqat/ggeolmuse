@@ -14,9 +14,7 @@ import com.muscat.trade.common.util.TradeUtils;
 import com.muscat.trade.config.TradeProperties;
 import com.muscat.trade.domain.entity.Holdings;
 import com.muscat.trade.domain.entity.Trade;
-import com.muscat.trade.domain.repository.HoldingsQueryRepository;
 import com.muscat.trade.domain.repository.HoldingsRepository;
-import com.muscat.trade.domain.repository.TradeQueryRepository;
 import com.muscat.trade.domain.repository.TradeRepository;
 import com.muscat.trade.domain.service.MarketDataService;
 import com.muscat.trade.infra.client.UserServiceClient;
@@ -39,13 +37,7 @@ class TradingServiceSimpleTest {
   private TradeRepository tradeRepository;
 
   @Mock
-  private TradeQueryRepository tradeQueryRepository;
-
-  @Mock
   private HoldingsRepository holdingsRepository;
-
-  @Mock
-  private HoldingsQueryRepository holdingsQueryRepository;
 
   @Mock
   private UserServiceClient userServiceClient;
@@ -83,7 +75,7 @@ class TradingServiceSimpleTest {
     BigDecimal quantity = new BigDecimal("10");
     LocalDate tradeDate = LocalDate.of(2024, 1, 15);
 
-    given(holdingsQueryRepository.findByUserIdAndAccountIdAndSymbol(
+    given(holdingsRepository.findByUserIdAndAccountIdAndSymbol(
       userId, accountId, symbol))
       .willReturn(Optional.empty());
 
@@ -114,7 +106,7 @@ class TradingServiceSimpleTest {
       .totalInvestedAmount(new BigDecimal("700.00"))
       .build();
 
-    given(holdingsQueryRepository.findByUserIdAndAccountIdAndSymbol(
+    given(holdingsRepository.findByUserIdAndAccountIdAndSymbol(
       userId, accountId, symbol))
       .willReturn(Optional.of(holdings));
 
@@ -144,7 +136,7 @@ class TradingServiceSimpleTest {
       .totalInvestedAmount(new BigDecimal("1500.00"))
       .build();
 
-    given(holdingsQueryRepository.findByUserIdAndAccountIdAndSymbol(
+    given(holdingsRepository.findByUserIdAndAccountIdAndSymbol(
       userId, accountId, symbol))
       .willReturn(Optional.of(holdings));
 
@@ -172,7 +164,7 @@ class TradingServiceSimpleTest {
       .totalInvestedAmount(new BigDecimal("1500.00"))
       .build();
 
-    given(holdingsQueryRepository.findByUserIdAndAccountIdAndSymbol(
+    given(holdingsRepository.findByUserIdAndAccountIdAndSymbol(
       userId, accountId, symbol))
       .willReturn(Optional.of(holdings));
 
@@ -189,7 +181,7 @@ class TradingServiceSimpleTest {
     // given
     BigDecimal quantity = new BigDecimal("10");
 
-    given(holdingsQueryRepository.findByUserIdAndAccountIdAndSymbol(
+    given(holdingsRepository.findByUserIdAndAccountIdAndSymbol(
       userId, accountId, symbol))
       .willReturn(Optional.empty());
 
@@ -217,7 +209,7 @@ class TradingServiceSimpleTest {
       .totalInvestedAmount(new BigDecimal("1500.00"))
       .build();
 
-    given(holdingsQueryRepository.findByUserIdAndAccountIdAndSymbol(
+    given(holdingsRepository.findByUserIdAndAccountIdAndSymbol(
       userId, accountId, symbol))
       .willReturn(Optional.of(holdings));
 

@@ -18,9 +18,21 @@ public interface KeycloakService {
   // Keycloak에 사용자 생성
   String createUser(String email, String password);
 
+  // Keycloak에 관리자 사용자 생성 (admin role 부여)
+  String createAdminUser(String email, String password);
+
   // Keycloak 사용자 비밀번호 변경
   void changePassword(String keycloakId, ChangePasswordRequestDto newPassword);
 
+  // Keycloak 사용자 비밀번호 재설정 (현재 비밀번호 불필요)
+  void resetPassword(String keycloakId, String newPassword);
+
   // Keycloak 사용자 삭제
   void deleteUser(String keycloakId);
+
+  // 이메일로 Keycloak 사용자 조회
+  String findUserByEmail(String email);
+
+  // Keycloak 사용자에게 realm role 할당
+  void assignRealmRole(String keycloakId, String roleName);
 }

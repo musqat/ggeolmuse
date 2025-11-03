@@ -9,9 +9,9 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
- * 시작 시 자동 실행:
- * 1. SymbolDataCollector (Order=1): 심볼 수집
- * 2. FxCollector (Order=2): FX 데이터 수집
+ * Market Data Service
+ * - SymbolCollector: 종목 자동 수집 (설정 기반)
+ * - FxCollector: 환율 데이터 수집
  */
 @SpringBootApplication
 @EnableScheduling
