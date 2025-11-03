@@ -23,9 +23,33 @@ jobs:
           cd ggeolmuse-bom
           mvn clean install -DskipTests
 
-  build-services:
+  build-messaging:
     runs-on: ubuntu-latest
     needs: build-bom
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Cache Maven dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+      - name: Build & Install ggeolmuse-bom (for dependencies)
+        run: |
+          cd ggeolmuse-bom
+          mvn install -DskipTests
+      - name: Build & Install messaging
+        run: |
+          cd messaging
+          mvn clean install -DskipTests
+
+  build-services:
+    runs-on: ubuntu-latest
+    needs: [build-bom, build-messaging]
     strategy:
       fail-fast: false
       matrix:
@@ -51,6 +75,10 @@ jobs:
       - name: Build & Install ggeolmuse-bom (for dependencies)
         run: |
           cd ggeolmuse-bom
+          mvn install -DskipTests
+      - name: Build & Install messaging (for dependencies)
+        run: |
+          cd messaging
           mvn install -DskipTests
       - name: Build & Test ${{ matrix.service }}
         run: |
