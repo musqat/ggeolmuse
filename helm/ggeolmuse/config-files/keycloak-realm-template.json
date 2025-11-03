@@ -7,7 +7,6 @@
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": true,
   "editUsernameAllowed": false,
-  "bruteForceProtected": true,
   "clients": [
     {
       "clientId": "ggeolmuse-client",
@@ -31,8 +30,7 @@
         "http://user-service:8080",
         "http://trade-service:8081",
         "http://market-data-service:8083",
-        "http://backtest-service:8082",
-        "+"
+        "http://backtest-service:8082"
       ],
       "protocol": "openid-connect",
       "publicClient": false,
@@ -58,18 +56,15 @@
       "redirectUris": [
         "http://localhost:3000/*",
         "http://localhost:5173/*",
-        "https://ggeolmuse.com/*",
-        "https://ggeolmuse.com/oauth/callback"
+        "https://ggeolmuse.com/*"
       ],
       "webOrigins": [
         "http://localhost:3000",
         "http://localhost:5173",
-        "https://ggeolmuse.com",
-        "+"
+        "https://ggeolmuse.com"
       ],
       "attributes": {
-        "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "+"
+        "pkce.code.challenge.method": "S256"
       }
     },
     {
@@ -77,72 +72,61 @@
       "name": "${client_security-admin-console}",
       "rootUrl": "${authAdminUrl}",
       "baseUrl": "/admin/muscathan/console/",
+      "surrogateAuthRequired": false,
       "enabled": true,
-      "publicClient": true,
+      "alwaysDisplayInConsole": false,
+      "clientAuthenticatorType": "client-secret",
       "redirectUris": [
         "/admin/muscathan/console/*"
       ],
       "webOrigins": [
         "+"
       ],
+      "notBefore": 0,
+      "bearerOnly": false,
+      "consentRequired": false,
       "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "publicClient": true,
+      "frontchannelLogout": false,
       "protocol": "openid-connect",
       "attributes": {
-        "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "+"
+        "post.logout.redirect.uris": "+",
+        "pkce.code.challenge.method": "S256"
       },
       "fullScopeAllowed": false
-    },
-    {
-      "clientId": "account",
-      "name": "${client_account}",
-      "baseUrl": "/realms/muscathan/account/",
-      "enabled": true,
-      "alwaysDisplayInConsole": true,
-      "redirectUris": [
-        "/realms/muscathan/account/*"
-      ],
-      "defaultClientScopes": [
-        "web-origins",
-        "acr",
-        "profile",
-        "roles",
-        "email"
-      ],
-      "optionalClientScopes": [
-        "address",
-        "phone",
-        "offline_access",
-        "microprofile-jwt"
-      ]
     },
     {
       "clientId": "account-console",
       "name": "${client_account-console}",
       "rootUrl": "${authBaseUrl}",
       "baseUrl": "/realms/muscathan/account/",
+      "surrogateAuthRequired": false,
       "enabled": true,
-      "publicClient": true,
+      "alwaysDisplayInConsole": false,
+      "clientAuthenticatorType": "client-secret",
       "redirectUris": [
         "/realms/muscathan/account/*"
       ],
       "webOrigins": [
         "+"
       ],
+      "notBefore": 0,
+      "bearerOnly": false,
+      "consentRequired": false,
       "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "publicClient": true,
+      "frontchannelLogout": false,
       "protocol": "openid-connect",
       "attributes": {
-        "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "+"
+        "post.logout.redirect.uris": "+",
+        "pkce.code.challenge.method": "S256"
       },
-      "fullScopeAllowed": false
-    },
-    {
-      "clientId": "broker",
-      "name": "${client_broker}",
-      "enabled": true,
-      "alwaysDisplayInConsole": false,
-      "protocol": "openid-connect",
       "fullScopeAllowed": false
     }
   ],
@@ -167,61 +151,8 @@
       {
         "name": "admin",
         "description": "Administrator role"
-      },
-      {
-        "name": "offline_access",
-        "description": "${role_offline-access}",
-        "composite": false
-      },
-      {
-        "name": "uma_authorization",
-        "description": "${role_uma_authorization}",
-        "composite": false
-      },
-      {
-        "name": "default-roles-muscathan",
-        "description": "${role_default-roles}",
-        "composite": true,
-        "composites": {
-          "realm": [
-            "offline_access",
-            "uma_authorization"
-          ],
-          "client": {
-            "account": [
-              "view-profile",
-              "manage-account"
-            ]
-          }
-        }
       }
-    ],
-    "client": {
-      "account": [
-        {
-          "name": "view-profile",
-          "description": "${role_view-profile}",
-          "composite": false
-        },
-        {
-          "name": "manage-account",
-          "description": "${role_manage-account}",
-          "composite": true,
-          "composites": {
-            "client": {
-              "account": [
-                "manage-account-links"
-              ]
-            }
-          }
-        },
-        {
-          "name": "manage-account-links",
-          "description": "${role_manage-account-links}",
-          "composite": false
-        }
-      ]
-    }
+    ]
   },
   "users": [
     {
