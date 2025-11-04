@@ -1,0 +1,70 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ggeolmuse
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  # 소스: Git 저장소
+  source:
+    # Git 저장소 URL
+    repoURL: https://github.com/musqat/ggeolmuse
+    targetRevision: master
+    path: helm/ggeolmuse
+
+    # Helm 설정
+    helm:
+      # values 파일 지정 (순서대로 병합, 나중 파일이 우선)
+      valueFiles:
+        - values.yaml
+        - values-prod.yaml
+        - values-ec2-k3s.yaml
+
+  # 배포 대상: Kubernetes 클러스터
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: production
+
+  # 동기화 정책
+  syncPolicy:
+    # 자동 동기화 활성화
+    automated:
+      # 자동 프루닝: Git에서 삭제된 리소스를 클러스터에서도 삭제
+      prune: true
+      # Self-healing: 클러스터에서 수동 변경 시 Git 상태로 복구
+      selfHeal: true
+      # 동기화 전 리소스 상태 확인 (안전성 향상)
+      allowEmpty: false
+
+    # 동기화 옵션
+    syncOptions:
+      # Helm hook 사용
+      - CreateNamespace=true
+      # 서버 사이드 적용 사용 (충돌 방지)
+      - ServerSideApply=true
+      # 리소스 검증
+      - Validate=true
+
+    # 재시도 정책
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+  ignoreDifferences:
+    # Kubernetes가 자동으로 추가하는 필드 무시
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
+
+    # Secret 값 변경 무시
+    - group: ""
+      kind: Secret
+      jsonPointers:
+        - /data

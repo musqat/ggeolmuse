@@ -1,0 +1,100 @@
+# ArgoCD Helm Values
+# GitOps CD 도구 설정
+
+global:
+  domain: argocd.ggeolmuse.com
+
+# ArgoCD Server 설정
+server:
+  # Ingress 설정
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+      nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    hosts:
+      - argocd.ggeolmuse.com
+    tls:
+      - secretName: argocd-tls
+        hosts:
+          - argocd.ggeolmuse.com
+
+  # 리소스 제한 (t3.medium 최적화)
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+# Controller 설정 (Git 저장소 감시)
+controller:
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+# Repo Server 설정 (Git 저장소 연결)
+repoServer:
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+# Redis 설정
+redis:
+  resources:
+    limits:
+      cpu: 200m
+      memory: 128Mi
+    requests:
+      cpu: 100m
+      memory: 64Mi
+
+# ApplicationSet Controller 설정
+applicationSet:
+  enabled: true
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# Notifications Controller (선택사항)
+notifications:
+  enabled: false
+
+# Dex (OIDC 인증, 현재는 미사용)
+dex:
+  enabled: false
+
+# 설정
+configs:
+  params:
+    # Git 폴링 간격 (기본 3분)
+    timeout.reconciliation: 180s
+
+  cm:
+    # Git 저장소 자동 추가
+    repositories: |
+      - url: https://github.com/muscathan/ggeolmuse
+        type: git
+        name: ggeolmuse
+
+    # 리소스 추적 방법
+    application.resourceTrackingMethod: annotation
+
+    # 상태 배지 활성화
+    statusbadge.enabled: "true"
