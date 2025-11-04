@@ -1,6 +1,6 @@
 {{- if .Values.ingress.enabled }}
 ---
-# Grafana
+# Grafana Service
 apiVersion: v1
 kind: Service
 metadata:
@@ -9,10 +9,27 @@ metadata:
   labels:
     {{- include "ggeolmuse.labels" . | nindent 4 }}
 spec:
-  type: ExternalName
-  externalName: prometheus-grafana.monitoring.svc.cluster.local
+  type: ClusterIP
+  clusterIP: None
   ports:
     - name: http
       port: 80
       targetPort: 80
+      protocol: TCP
+---
+# Grafana Endpoints
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: prometheus-grafana-proxy
+  namespace: default
+  labels:
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+subsets:
+  - addresses:
+      - ip: 10.43.157.176
+    ports:
+      - name: http
+        port: 80
+        protocol: TCP
 {{- end }}

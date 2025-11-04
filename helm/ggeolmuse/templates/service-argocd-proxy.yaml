@@ -1,6 +1,6 @@
 {{- if .Values.ingress.enabled }}
 ---
-#  ArgoCD
+# ArgoCD Service
 apiVersion: v1
 kind: Service
 metadata:
@@ -9,10 +9,27 @@ metadata:
   labels:
     {{- include "ggeolmuse.labels" . | nindent 4 }}
 spec:
-  type: ExternalName
-  externalName: argocd-server.argocd.svc.cluster.local
+  type: ClusterIP
+  clusterIP: None
   ports:
     - name: http
       port: 80
       targetPort: 80
+      protocol: TCP
+---
+# ArgoCD Endpoints
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: argocd-server-proxy
+  namespace: default
+  labels:
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+subsets:
+  - addresses:
+      - ip: 10.43.112.251
+    ports:
+      - name: http
+        port: 80
+        protocol: TCP
 {{- end }}
