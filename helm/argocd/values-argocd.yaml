@@ -1,8 +1,5 @@
-# ArgoCD Helm Values
-# GitOps CD 도구 설정
-
 global:
-  domain: argocd.ggeolmuse.com
+  domain: ggeolmuse.com
 
 # ArgoCD Server 설정
 server:
@@ -15,12 +12,16 @@ server:
       nginx.ingress.kubernetes.io/ssl-redirect: "true"
       nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
       nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/rewrite-target: /$2
     hosts:
-      - argocd.ggeolmuse.com
+      - ggeolmuse.com
+    paths:
+      - /argocd(/|$)(.*)
+    pathType: ImplementationSpecific
     tls:
-      - secretName: argocd-tls
+      - secretName: ggeolmuse-tls
         hosts:
-          - argocd.ggeolmuse.com
+          - ggeolmuse.com
 
   # 리소스 제한 (t3.medium 최적화)
   resources:
@@ -85,11 +86,14 @@ configs:
   params:
     # Git 폴링 간격 (기본 3분)
     timeout.reconciliation: 180s
+    # Base URL 설정 (경로 기반)
+    server.basehref: /argocd
+    server.rootpath: /argocd
 
   cm:
     # Git 저장소 자동 추가
     repositories: |
-      - url: https://github.com/muscathan/ggeolmuse
+      - url: https://github.com/musqat/ggeolmuse
         type: git
         name: ggeolmuse
 
