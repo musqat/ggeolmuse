@@ -108,7 +108,7 @@ infrastructure:
         cpu: 100m
 
   tempo:
-    enabled: true
+    enabled: false  # Tempo는 monitoring 네임스페이스에서 실행
     resources:
       limits:
         memory: 1Gi

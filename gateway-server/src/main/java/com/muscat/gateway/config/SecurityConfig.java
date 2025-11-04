@@ -61,7 +61,7 @@ public class SecurityConfig {
                 .pathMatchers(HttpMethod.POST, "/api/market/fx/bulk").permitAll()  // Bulk FX rates
 
                 // Actuator health check (liveness/readiness probe)
-                .pathMatchers("/health", "/actuator/health").permitAll()
+                .pathMatchers("/health", "/actuator/health", "/actuator/health/**").permitAll()
 
 
                 // ===== Admin APIs (ADMIN 권한 필요) =====
