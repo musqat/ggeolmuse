@@ -17,10 +17,8 @@ spec:
 
     # Helm 설정
     helm:
-      # values 파일 지정 (순서대로 병합, 나중 파일이 우선)
+      # values 파일 지정
       valueFiles:
-        - values.yaml
-        - values-prod.yaml
         - values-ec2-k3s.yaml
 
   # 배포 대상: Kubernetes 클러스터
@@ -43,10 +41,12 @@ spec:
     syncOptions:
       # Helm hook 사용
       - CreateNamespace=true
-      # 서버 사이드 적용 사용 (충돌 방지)
-      - ServerSideApply=true
+      # Replace 전략 사용 (리소스 완전 교체)
+      - Replace=true
       # 리소스 검증
       - Validate=true
+      # ignoreDifferences 무시하고 모든 변경사항 감지
+      - RespectIgnoreDifferences=false
 
     # 재시도 정책
     retry:
