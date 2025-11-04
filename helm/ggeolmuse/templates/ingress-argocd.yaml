@@ -12,8 +12,8 @@ metadata:
     {{- include "ggeolmuse.labels" $ | nindent 4 }}
   annotations:
     {{- toYaml $.Values.ingress.annotations | nindent 4 }}
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
-    nginx.ingress.kubernetes.io/ssl-passthrough: "false"
+    traefik.ingress.kubernetes.io/router.entrypoints: "websecure"
+    traefik.ingress.kubernetes.io/router.tls: "true"
 spec:
   ingressClassName: {{ $.Values.ingress.className }}
   rules:

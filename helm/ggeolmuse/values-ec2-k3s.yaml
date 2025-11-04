@@ -305,7 +305,7 @@ ingress:
         - path: /grafana
           pathType: Prefix
           backend:
-            service: grafana
+            service: prometheus-grafana
             port: 80
             namespace: monitoring
 
@@ -321,7 +321,7 @@ ingress:
           pathType: Prefix
           backend:
             service: argocd-server
-            port: 443
+            port: 80
             namespace: argocd
 
         # Frontend
