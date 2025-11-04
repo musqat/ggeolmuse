@@ -27,14 +27,6 @@ spec:
             name: {{ .backend.service }}
             port:
               number: {{ .backend.port }}
-      {{- else }}
-      - path: {{ .path }}
-        pathType: {{ .pathType }}
-        backend:
-          service:
-            name: {{ .backend.service }}-proxy
-            port:
-              number: {{ .backend.port }}
       {{- end }}
       {{- end }}
   {{- end }}
