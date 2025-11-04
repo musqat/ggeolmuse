@@ -3,25 +3,8 @@ global:
 
 # ArgoCD Server 설정
 server:
-  # Ingress 설정
   ingress:
-    enabled: true
-    ingressClassName: nginx
-    annotations:
-      cert-manager.io/cluster-issuer: "letsencrypt-prod"
-      nginx.ingress.kubernetes.io/ssl-redirect: "true"
-      nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
-      nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-      nginx.ingress.kubernetes.io/rewrite-target: /$2
-    hosts:
-      - ggeolmuse.com
-    paths:
-      - /argocd(/|$)(.*)
-    pathType: ImplementationSpecific
-    tls:
-      - secretName: ggeolmuse-tls
-        hosts:
-          - ggeolmuse.com
+    enabled: false
 
   # 리소스 제한 (t3.medium 최적화)
   resources:

@@ -316,6 +316,14 @@ ingress:
             service: kafka-ui
             port: 8080
 
+        # ArgoCD GitOps
+        - path: /argocd
+          pathType: Prefix
+          backend:
+            service: argocd-server
+            port: 443
+            namespace: argocd
+
         # Frontend
         - path: /
           pathType: Prefix
