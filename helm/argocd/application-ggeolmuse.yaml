@@ -26,7 +26,7 @@ spec:
   # 배포 대상: Kubernetes 클러스터
   destination:
     server: https://kubernetes.default.svc
-    namespace: production
+    namespace: default
 
   # 동기화 정책
   syncPolicy:
