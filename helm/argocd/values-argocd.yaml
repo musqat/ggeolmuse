@@ -89,3 +89,15 @@ configs:
 
     # 상태 배지 활성화
     statusbadge.enabled: "true"
+
+    # 리소스 제외 설정
+    resource.exclusions: |
+      - apiGroups:
+        - ''
+        - discovery.k8s.io
+        kinds:
+        - EndpointSlice
+      - apiGroups:
+        - coordination.k8s.io
+        kinds:
+        - Lease
