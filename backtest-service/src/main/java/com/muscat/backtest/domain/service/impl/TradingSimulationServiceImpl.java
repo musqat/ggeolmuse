@@ -147,12 +147,107 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
         "보유 주식 백테스트 결과가 존재하지 않습니다");
     }
 
-    if (results.size() > 1) {
-      log.info("다중 보유 종목 백테스트 결과 {}건 - 통합 응답 TODO (임시 첫 번째 결과 반환)",
-        results.size());
+    if (results.size() == 1) {
+      return results.get(0);
     }
 
-    return results.get(0);
+    // 다중 종목 통합: 포트폴리오 전체 성과 계산
+    log.info("다중 보유 종목 백테스트 결과 {}건 - 포트폴리오 통합 응답 생성", results.size());
+    return mergePortfolioResults(results);
+  }
+
+  /**
+   * 여러 종목의 백테스트 결과를 포트폴리오 단위로 통합
+   */
+  private InvestmentResponse mergePortfolioResults(List<InvestmentResponse> results) {
+    BigDecimal totalInvestment = BigDecimal.ZERO;
+    BigDecimal totalCurrentValueUsd = BigDecimal.ZERO;
+    BigDecimal totalCurrentValueKrw = BigDecimal.ZERO;
+    BigDecimal totalDividends = BigDecimal.ZERO;
+    BigDecimal totalFees = BigDecimal.ZERO;
+    BigDecimal totalRemainingCash = BigDecimal.ZERO;
+    BigDecimal totalRemainingCashKrw = BigDecimal.ZERO;
+
+    LocalDate earliestPurchaseDate = null;
+    LocalDate latestCurrentDate = null;
+    BigDecimal avgCurrentFxRate = BigDecimal.ZERO;
+
+    StringBuilder symbolList = new StringBuilder();
+    int successCount = 0;
+
+    for (InvestmentResponse result : results) {
+      SimulationResponse sim = result.getSimulation();
+
+      // 투자 금액 및 현재 가치 합산
+      totalInvestment = totalInvestment.add(sim.getInvestmentAmount());
+      totalCurrentValueUsd = totalCurrentValueUsd.add(sim.getCurrentValue());
+      totalCurrentValueKrw = totalCurrentValueKrw.add(sim.getCurrentValueKrw());
+      totalDividends = totalDividends.add(sim.getTotalDividends());
+      totalFees = totalFees.add(sim.getTradingFee());
+      totalRemainingCash = totalRemainingCash.add(sim.getRemainingCash());
+      totalRemainingCashKrw = totalRemainingCashKrw.add(sim.getRemainingCashKrw());
+
+      // 날짜 범위 계산
+      if (earliestPurchaseDate == null || sim.getPurchaseDate().isBefore(earliestPurchaseDate)) {
+        earliestPurchaseDate = sim.getPurchaseDate();
+      }
+      if (latestCurrentDate == null || sim.getCurrentDate().isAfter(latestCurrentDate)) {
+        latestCurrentDate = sim.getCurrentDate();
+        avgCurrentFxRate = sim.getCurrentFxRate(); // 가장 최근 환율 사용
+      }
+
+      // 종목 리스트 구성
+      if (symbolList.length() > 0) {
+        symbolList.append(", ");
+      }
+      symbolList.append(result.getSymbol());
+
+      if ("SUCCESS".equals(result.getStatus())) {
+        successCount++;
+      }
+    }
+
+    // 총 수익 계산
+    BigDecimal totalAssetKrw = totalCurrentValueKrw.add(totalRemainingCashKrw)
+        .add(totalDividends.multiply(avgCurrentFxRate));
+    BigDecimal totalReturnKrw = totalAssetKrw.subtract(totalInvestment);
+    BigDecimal totalReturnPercent = totalInvestment.compareTo(BigDecimal.ZERO) > 0
+        ? totalReturnKrw.divide(totalInvestment, 4, BigDecimal.ROUND_HALF_UP)
+            .multiply(BigDecimal.valueOf(100))
+        : BigDecimal.ZERO;
+
+    // 통합 SimulationResponse 생성
+    SimulationResponse mergedSim = SimulationResponse.builder()
+        .symbol(symbolList.toString())
+        .purchaseDate(earliestPurchaseDate)
+        .currentDate(latestCurrentDate)
+        .investmentAmount(totalInvestment)
+        .currentValue(totalCurrentValueUsd)
+        .currentValueKrw(totalCurrentValueKrw)
+        .totalDividends(totalDividends)
+        .tradingFee(totalFees)
+        .remainingCash(totalRemainingCash)
+        .remainingCashKrw(totalRemainingCashKrw)
+        .totalAssetKrw(totalAssetKrw)
+        .totalReturnKrw(totalReturnKrw)
+        .totalReturnPercent(totalReturnPercent)
+        .currentFxRate(avgCurrentFxRate)
+        .performanceSummary(String.format("포트폴리오 %d종목, 총 수익률 %.2f%%",
+            results.size(), totalReturnPercent))
+        .build();
+
+    // 통합 InvestmentResponse 생성
+    return InvestmentResponse.builder()
+        .simulation(mergedSim)
+        .holdingId("PORTFOLIO-" + results.size())
+        .symbol(symbolList.toString())
+        .purchaseDate(earliestPurchaseDate)
+        .investmentAmount(totalInvestment)
+        .status(successCount == results.size() ? "SUCCESS" : "PARTIAL_SUCCESS")
+        .message(String.format("%d개 종목 중 %d개 성공", results.size(), successCount))
+        .portfolioCreated(true)
+        .portfolioStatus("ACTIVE")
+        .build();
   }
 
 

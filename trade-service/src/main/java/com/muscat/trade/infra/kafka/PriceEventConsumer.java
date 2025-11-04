@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
  * 주가 업데이트 이벤트를 Kafka에서 소비하는 Consumer
  *
  * market-data-service에서 발행한 PriceUpdatedEvent를 소비하여
- * 실시간 주가 정보를 활용합니다.
+ * 포트폴리오 캐시를 무효화하거나 실시간 가격 정보를 업데이트합니다.
  */
 @Slf4j
 @Component
@@ -67,7 +67,7 @@ public class PriceEventConsumer {
      * @param event 주가 업데이트 이벤트
      */
     private void processPriceUpdate(PriceUpdatedEvent event) {
-        // 현재는 로그만 기록 (향후 캐시 업데이트, 포트폴리오 평가액 갱신 등 추가 가능)
+        // 현재는 로그만 기록 (향후 캐시 무효화, Holdings 업데이트 등 추가 가능)
         log.info("주가 업데이트: symbol={}, date={}, open={}, high={}, low={}, close={}, adjustedClose={}, volume={}",
                 event.getSymbol(),
                 event.getDate(),

@@ -1,5 +1,8 @@
 package com.muscat.user.domain.account.service;
 
+import com.muscat.messaging.event.DividendReceivedEvent;
+import com.muscat.messaging.event.TradeCancelledEvent;
+import com.muscat.messaging.event.TradeCompletedEvent;
 import com.muscat.user.domain.account.dto.request.CreateAccountRequestDto;
 import com.muscat.user.domain.account.dto.response.BalanceResponseDto;
 import com.muscat.user.domain.account.entity.Account;
@@ -35,11 +38,17 @@ public interface AccountService {
 
   // 환율 조회 관련
   BigDecimal getCurrentExchangeRate();
+
   BigDecimal getExchangeRateByDate(LocalDate date);
+
   BigDecimal createManualExchangeRate(BigDecimal manualRate);
 
   // Kafka 이벤트 처리
-  void processTradeEvent(com.muscat.messaging.event.TradeCompletedEvent event);
+  void processTradeEvent(TradeCompletedEvent event);
+
+  void processTradeCancellationEvent(TradeCancelledEvent event);
+
+  void processDividendReceivedEvent(DividendReceivedEvent event);
 
   // ==================== ADMIN API ==================== //
 

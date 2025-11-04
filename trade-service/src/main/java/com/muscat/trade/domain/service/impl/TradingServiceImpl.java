@@ -21,6 +21,7 @@ import com.muscat.trade.domain.service.MarketDataService;
 import com.muscat.trade.domain.service.TradingService;
 import com.muscat.trade.infra.client.UserServiceClientWrapper;
 import com.muscat.trade.infra.client.dto.AccountBalanceDto;
+import com.muscat.trade.infra.kafka.HoldingsEventProducer;
 import com.muscat.trade.infra.kafka.TradeEventProducer;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -50,6 +51,7 @@ public class TradingServiceImpl implements TradingService {
   private final TradeProperties tradeProperties;
   private final TradeUtils tradeUtils;
   private final TradeEventProducer tradeEventProducer;
+  private final HoldingsEventProducer holdingsEventProducer;
 
   @Override
   public TradeResponseDto buyStock(String userId, Long accountId, String symbol,
@@ -306,6 +308,24 @@ public class TradingServiceImpl implements TradingService {
 
     } catch (Exception e) {
       log.error("거래 DB 트랜잭션 실패: {}", e.getMessage(), e);
+
+      // 거래 실패 이벤트 발행
+      String failureCode = e instanceof TradeException
+          ? ((TradeException) e).getErrorCode()
+          : "TRANSACTION_FAILED";
+      String failureMessage = e.getMessage();
+
+      tradeEventProducer.publishTradeFailed(
+          userId,
+          Long.parseLong(accountId),
+          symbol,
+          tradeType.name(),
+          quantity.intValue(),
+          tradePrice,
+          failureCode,
+          failureMessage
+      );
+
       throw new TradeException(TradeResponse.TRANSACTION_FAILED);
     }
 
@@ -334,14 +354,14 @@ public class TradingServiceImpl implements TradingService {
       .build();
 
     Trade savedTrade = tradeRepository.save(trade);
-    updateHoldings(userId, accountId, symbol, quantity, tradePrice, totalAmount, tradeType);
+    updateHoldings(userId, accountId, symbol, quantity, tradePrice, totalAmount, tradeType, savedTrade.getTradeId());
 
     return savedTrade;
   }
 
   // 거래에 따른 보유 현황 업데이트 (비관적 Lock 사용)
   private void updateHoldings(String userId, String accountId, String symbol,
-    BigDecimal quantity, BigDecimal price, BigDecimal totalAmount, TradeType tradeType) {
+    BigDecimal quantity, BigDecimal price, BigDecimal totalAmount, TradeType tradeType, String tradeId) {
 
     // 비관적 Lock으로 동시성 문제 해결
     Optional<Holdings> existingHoldings = holdingsRepository
@@ -364,7 +384,8 @@ public class TradingServiceImpl implements TradingService {
 
         holdings.setTotalQuantity(newTotalQuantity);
         holdings.setAvgPurchasePrice(newAvgPrice);
-        holdings.setTotalInvestedAmount(holdings.getTotalInvestedAmount().add(totalAmount));
+        BigDecimal newTotalInvestedAmount = holdings.getTotalInvestedAmount().add(totalAmount);
+        holdings.setTotalInvestedAmount(newTotalInvestedAmount);
 
         // 보유량 변경 로그
         tradeLogger.logHoldingsUpdate(userId, accountId, symbol,
@@ -372,6 +393,17 @@ public class TradingServiceImpl implements TradingService {
 
         log.debug("기존 보유종목 업데이트: 종목={}, 신규평균가={}, 총보유량={}",
           symbol, newAvgPrice, newTotalQuantity);
+
+        // Holdings 업데이트 이벤트 발행
+        holdingsEventProducer.publishHoldingsUpdated(
+          userId, Long.valueOf(accountId), symbol,
+          "UPDATED",
+          oldQuantity, newTotalQuantity,
+          oldAvgPrice, newAvgPrice,
+          newTotalInvestedAmount,
+          tradeId, tradeType.name(),
+          quantity, price
+        );
 
       } else {
         // 신규 보유 종목 생성
@@ -391,6 +423,17 @@ public class TradingServiceImpl implements TradingService {
           BigDecimal.ZERO, quantity, BigDecimal.ZERO, price);
 
         log.debug("신규 보유종목 생성: 종목={}, 매수가={}, 수량={}", symbol, price, quantity);
+
+        // Holdings 생성 이벤트 발행
+        holdingsEventProducer.publishHoldingsUpdated(
+          userId, Long.valueOf(accountId), symbol,
+          "CREATED",
+          BigDecimal.ZERO, quantity,
+          BigDecimal.ZERO, price,
+          totalAmount,
+          tradeId, tradeType.name(),
+          quantity, price
+        );
       }
 
     } else if (tradeType == TradeType.SELL) {
@@ -415,6 +458,17 @@ public class TradingServiceImpl implements TradingService {
         tradeLogger.logHoldingsUpdate(userId, accountId, symbol,
           oldQuantity, BigDecimal.ZERO, oldAvgPrice, BigDecimal.ZERO);
         log.debug("전량 매도로 보유종목 삭제: 종목={}", symbol);
+
+        // Holdings 삭제 이벤트 발행
+        holdingsEventProducer.publishHoldingsUpdated(
+          userId, Long.valueOf(accountId), symbol,
+          "DELETED",
+          oldQuantity, BigDecimal.ZERO,
+          oldAvgPrice, BigDecimal.ZERO,
+          BigDecimal.ZERO,
+          tradeId, tradeType.name(),
+          quantity, price
+        );
       } else {
         // 부분 매도 시 수량만 업데이트 (평균단가는 유지)
         BigDecimal sellRatio = quantity.divide(holdings.getTotalQuantity(),
@@ -422,12 +476,24 @@ public class TradingServiceImpl implements TradingService {
         BigDecimal soldAmount = holdings.getTotalInvestedAmount().multiply(sellRatio);
 
         holdings.setTotalQuantity(newQuantity);
-        holdings.setTotalInvestedAmount(holdings.getTotalInvestedAmount().subtract(soldAmount));
+        BigDecimal newTotalInvestedAmount = holdings.getTotalInvestedAmount().subtract(soldAmount);
+        holdings.setTotalInvestedAmount(newTotalInvestedAmount);
 
         tradeLogger.logHoldingsUpdate(userId, accountId, symbol,
           oldQuantity, newQuantity, oldAvgPrice, holdings.getAvgPurchasePrice());
 
         log.debug("부분 매도로 수량 업데이트: 종목={}, 잔여수량={}", symbol, newQuantity);
+
+        // Holdings 업데이트 이벤트 발행
+        holdingsEventProducer.publishHoldingsUpdated(
+          userId, Long.valueOf(accountId), symbol,
+          "UPDATED",
+          oldQuantity, newQuantity,
+          oldAvgPrice, holdings.getAvgPurchasePrice(),
+          newTotalInvestedAmount,
+          tradeId, tradeType.name(),
+          quantity, price
+        );
       }
     }
   }

@@ -41,6 +41,27 @@ spec:
                 --replication-factor 1 \
                 --config retention.ms=604800000
 
+              kafka-topics --create --if-not-exists \
+                --bootstrap-server kafka:9092 \
+                --topic trading.trade.cancelled \
+                --partitions 3 \
+                --replication-factor 1 \
+                --config retention.ms=2592000000
+
+              kafka-topics --create --if-not-exists \
+                --bootstrap-server kafka:9092 \
+                --topic trading.dividend.received \
+                --partitions 3 \
+                --replication-factor 1 \
+                --config retention.ms=2592000000
+
+              kafka-topics --create --if-not-exists \
+                --bootstrap-server kafka:9092 \
+                --topic trading.holdings.updated \
+                --partitions 3 \
+                --replication-factor 1 \
+                --config retention.ms=2592000000
+
               # Market data topics
               kafka-topics --create --if-not-exists \
                 --bootstrap-server kafka:9092 \
@@ -50,21 +71,35 @@ spec:
                 --config retention.ms=86400000 \
                 --config cleanup.policy=compact
 
+              kafka-topics --create --if-not-exists \
+                --bootstrap-server kafka:9092 \
+                --topic market.asset.created \
+                --partitions 3 \
+                --replication-factor 1 \
+                --config retention.ms=604800000
+
+              kafka-topics --create --if-not-exists \
+                --bootstrap-server kafka:9092 \
+                --topic market.dividend.updated \
+                --partitions 3 \
+                --replication-factor 1 \
+                --config retention.ms=2592000000
+
+              kafka-topics --create --if-not-exists \
+                --bootstrap-server kafka:9092 \
+                --topic market.fxrate.updated \
+                --partitions 3 \
+                --replication-factor 1 \
+                --config retention.ms=604800000
+
+              kafka-topics --create --if-not-exists \
+                --bootstrap-server kafka:9092 \
+                --topic market.collection.completed \
+                --partitions 3 \
+                --replication-factor 1 \
+                --config retention.ms=604800000
+
               # User account topics
-              kafka-topics --create --if-not-exists \
-                --bootstrap-server kafka:9092 \
-                --topic user.account.created \
-                --partitions 3 \
-                --replication-factor 1 \
-                --config retention.ms=2592000000
-
-              kafka-topics --create --if-not-exists \
-                --bootstrap-server kafka:9092 \
-                --topic user.account.deleted \
-                --partitions 3 \
-                --replication-factor 1 \
-                --config retention.ms=2592000000
-
               kafka-topics --create --if-not-exists \
                 --bootstrap-server kafka:9092 \
                 --topic user.email.send \
@@ -72,10 +107,37 @@ spec:
                 --replication-factor 1 \
                 --config retention.ms=604800000
 
-              # Backtest topics
               kafka-topics --create --if-not-exists \
                 --bootstrap-server kafka:9092 \
-                --topic backtest.completed \
+                --topic user.account.balance.updated \
+                --partitions 3 \
+                --replication-factor 1 \
+                --config retention.ms=2592000000
+
+              kafka-topics --create --if-not-exists \
+                --bootstrap-server kafka:9092 \
+                --topic user.login.success \
+                --partitions 3 \
+                --replication-factor 1 \
+                --config retention.ms=604800000
+
+              kafka-topics --create --if-not-exists \
+                --bootstrap-server kafka:9092 \
+                --topic user.login.failed \
+                --partitions 3 \
+                --replication-factor 1 \
+                --config retention.ms=604800000
+
+              kafka-topics --create --if-not-exists \
+                --bootstrap-server kafka:9092 \
+                --topic user.account.deposit.completed \
+                --partitions 3 \
+                --replication-factor 1 \
+                --config retention.ms=2592000000
+
+              kafka-topics --create --if-not-exists \
+                --bootstrap-server kafka:9092 \
+                --topic user.account.withdrawal.completed \
                 --partitions 3 \
                 --replication-factor 1 \
                 --config retention.ms=2592000000
@@ -90,6 +152,34 @@ spec:
 
               kafka-topics --create --if-not-exists \
                 --bootstrap-server kafka:9092 \
+                --topic trading.trade.failed.DLT \
+                --partitions 3 \
+                --replication-factor 1 \
+                --config retention.ms=2592000000
+
+              kafka-topics --create --if-not-exists \
+                --bootstrap-server kafka:9092 \
+                --topic trading.trade.cancelled.DLT \
+                --partitions 3 \
+                --replication-factor 1 \
+                --config retention.ms=2592000000
+
+              kafka-topics --create --if-not-exists \
+                --bootstrap-server kafka:9092 \
+                --topic trading.dividend.received.DLT \
+                --partitions 3 \
+                --replication-factor 1 \
+                --config retention.ms=2592000000
+
+              kafka-topics --create --if-not-exists \
+                --bootstrap-server kafka:9092 \
+                --topic trading.holdings.updated.DLT \
+                --partitions 3 \
+                --replication-factor 1 \
+                --config retention.ms=2592000000
+
+              kafka-topics --create --if-not-exists \
+                --bootstrap-server kafka:9092 \
                 --topic market.price.updated.DLT \
                 --partitions 3 \
                 --replication-factor 1 \
@@ -97,7 +187,14 @@ spec:
 
               kafka-topics --create --if-not-exists \
                 --bootstrap-server kafka:9092 \
-                --topic user.account.created.DLT \
+                --topic market.asset.created.DLT \
+                --partitions 3 \
+                --replication-factor 1 \
+                --config retention.ms=2592000000
+
+              kafka-topics --create --if-not-exists \
+                --bootstrap-server kafka:9092 \
+                --topic market.dividend.updated.DLT \
                 --partitions 3 \
                 --replication-factor 1 \
                 --config retention.ms=2592000000
@@ -111,7 +208,35 @@ spec:
 
               kafka-topics --create --if-not-exists \
                 --bootstrap-server kafka:9092 \
-                --topic backtest.completed.DLT \
+                --topic user.account.balance.updated.DLT \
+                --partitions 3 \
+                --replication-factor 1 \
+                --config retention.ms=2592000000
+
+              kafka-topics --create --if-not-exists \
+                --bootstrap-server kafka:9092 \
+                --topic user.login.success.DLT \
+                --partitions 3 \
+                --replication-factor 1 \
+                --config retention.ms=2592000000
+
+              kafka-topics --create --if-not-exists \
+                --bootstrap-server kafka:9092 \
+                --topic user.login.failed.DLT \
+                --partitions 3 \
+                --replication-factor 1 \
+                --config retention.ms=2592000000
+
+              kafka-topics --create --if-not-exists \
+                --bootstrap-server kafka:9092 \
+                --topic user.account.deposit.completed.DLT \
+                --partitions 3 \
+                --replication-factor 1 \
+                --config retention.ms=2592000000
+
+              kafka-topics --create --if-not-exists \
+                --bootstrap-server kafka:9092 \
+                --topic user.account.withdrawal.completed.DLT \
                 --partitions 3 \
                 --replication-factor 1 \
                 --config retention.ms=2592000000

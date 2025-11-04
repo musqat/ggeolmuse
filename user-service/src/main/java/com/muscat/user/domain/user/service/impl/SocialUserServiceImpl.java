@@ -8,6 +8,7 @@ import com.muscat.user.domain.user.entity.User;
 import com.muscat.user.domain.user.repository.UserRepository;
 import com.muscat.user.domain.user.service.KeycloakService;
 import com.muscat.user.domain.user.service.SocialUserService;
+import com.muscat.user.infra.kafka.LoginEventProducer;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ public class SocialUserServiceImpl implements SocialUserService {
   private final UserRepository userRepository;
   private final KeycloakService keycloakService;
   private final GoogleUserUtil googleUserUtil;
+  private final LoginEventProducer loginEventProducer;
 
   @Override
   public User syncGoogleUser(Map<String, Object> tokenClaims) {
@@ -61,6 +63,7 @@ public class SocialUserServiceImpl implements SocialUserService {
 
   @Override
   public User processGoogleLogin(String authorizationCode) {
+    String email = null;
     try {
       log.info("Google 로그인 처리 시작");
 
@@ -69,12 +72,29 @@ public class SocialUserServiceImpl implements SocialUserService {
 
       // 2. JWT -> UserInfo
       Map<String, Object> userInfo = keycloakService.parseTokenClaims(keycloakToken);
+      email = (String) userInfo.get("email");
 
       // 3. DB 동기화
-      return syncGoogleUser(userInfo);
+      User user = syncGoogleUser(userInfo);
+
+      log.info("Google 로그인 성공: {}", email);
+
+      // Kafka 이벤트 발행: Google 로그인 성공
+      loginEventProducer.publishLoginSuccess(
+        user, "GOOGLE_OAUTH", null, null, true);
+
+      return user;
 
     } catch (Exception e) {
       log.error("Google 로그인 처리 실패: {}", e.getMessage());
+
+      // Kafka 이벤트 발행: Google 로그인 실패
+      if (email != null) {
+        loginEventProducer.publishLoginFailed(
+          email, "GOOGLE_LOGIN_FAILED", "Google 로그인 실패: " + e.getMessage(),
+          "GOOGLE_OAUTH", null, null);
+      }
+
       throw new SocialLoginException(SocialResponse.GOOGLE_LOGIN_FAILED);
     }
   }
