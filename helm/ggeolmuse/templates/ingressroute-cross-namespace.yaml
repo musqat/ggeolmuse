@@ -1,0 +1,40 @@
+{{- if .Values.ingress.enabled }}
+---
+# ArgoCD IngressRoute
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: {{ include "ggeolmuse.fullname" . }}-argocd-route
+  namespace: default
+  labels:
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`{{ .Values.global.domain }}`) && PathPrefix(`/argocd`)
+      kind: Rule
+      services:
+        - name: argocd-server
+          namespace: argocd
+          port: 80
+---
+# Grafana IngressRoute
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: {{ include "ggeolmuse.fullname" . }}-grafana-route
+  namespace: default
+  labels:
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`{{ .Values.global.domain }}`) && PathPrefix(`/grafana`)
+      kind: Rule
+      services:
+        - name: prometheus-grafana
+          namespace: monitoring
+          port: 80
+{{- end }}
