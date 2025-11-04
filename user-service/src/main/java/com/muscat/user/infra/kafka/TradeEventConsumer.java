@@ -1,5 +1,6 @@
 package com.muscat.user.infra.kafka;
 
+import com.muscat.messaging.event.TradeCancelledEvent;
 import com.muscat.messaging.event.TradeCompletedEvent;
 import com.muscat.user.domain.account.service.AccountService;
 import lombok.RequiredArgsConstructor;
@@ -59,6 +60,51 @@ public class TradeEventConsumer {
 
         } catch (Exception ex) {
             log.error("거래 이벤트 처리 실패: tradeId={}, userId={}, error={}",
+                    event.getTradeId(), event.getUserId(), ex.getMessage(), ex);
+
+            // 재시도 실패시 DLQ (Dead Letter Queue)로 이동
+            throw ex;
+        }
+    }
+
+    /**
+     * 거래 취소 이벤트 처리
+     *
+     * trade-service에서 발행한 TradeCancelledEvent를 소비하여
+     * 원래 거래에서 차감/증액된 잔액을 원복합니다.
+     *
+     * @param event          거래 취소 이벤트
+     * @param partition      Kafka 파티션 번호
+     * @param offset         메시지 오프셋
+     * @param acknowledgment 수동 커밋용 객체
+     */
+    @KafkaListener(
+            topics = "trading.trade.cancelled",
+            groupId = "${spring.application.name}-trade-cancel-consumer",
+            containerFactory = "tradeCancelledEventKafkaListenerContainerFactory"
+    )
+    public void handleTradeCancelled(
+            @Payload TradeCancelledEvent event,
+            @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
+            @Header(KafkaHeaders.OFFSET) long offset,
+            Acknowledgment acknowledgment
+    ) {
+        log.info("거래 취소 이벤트 수신 (Saga 보상): tradeId={}, userId={}, symbol={}, reason={}, partition={}, offset={}",
+                event.getTradeId(), event.getUserId(), event.getSymbol(),
+                event.getCancellationReason(), partition, offset);
+
+        try {
+            // 계좌 잔액 원복 (보상 트랜잭션)
+            accountService.processTradeCancellationEvent(event);
+
+            // 수동 커밋 (처리 성공시에만)
+            acknowledgment.acknowledge();
+
+            log.info("거래 취소 이벤트 처리 완료 (잔액 원복): tradeId={}, userId={}, originalEventId={}",
+                    event.getTradeId(), event.getUserId(), event.getOriginalEventId());
+
+        } catch (Exception ex) {
+            log.error("거래 취소 이벤트 처리 실패: tradeId={}, userId={}, error={}",
                     event.getTradeId(), event.getUserId(), ex.getMessage(), ex);
 
             // 재시도 실패시 DLQ (Dead Letter Queue)로 이동

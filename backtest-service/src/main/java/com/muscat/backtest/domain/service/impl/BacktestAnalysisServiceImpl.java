@@ -26,7 +26,6 @@ import com.muscat.backtest.domain.service.BacktestAnalysisService;
 import com.muscat.backtest.domain.service.TradingSimulationService;
 import com.muscat.backtest.domain.strategy.InvestmentStrategy;
 import com.muscat.backtest.domain.strategy.OptimalTimingStrategy;
-import com.muscat.backtest.infra.kafka.BacktestEventProducer;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -48,17 +47,15 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
   private final ResponseMapper responseMapper;
   private final BacktestHistoryUtils backtestHistoryUtils;
   private final OptimalTimingStrategy optimalTimingStrategy;
-  private final BacktestEventProducer backtestEventProducer;
 
   public BacktestAnalysisServiceImpl(TradingSimulationService tradingSimulationService,
     List<InvestmentStrategy> strategies, ResponseMapper responseMapper,
-    BacktestHistoryUtils backtestHistoryUtils, OptimalTimingStrategy optimalTimingStrategy,
-    BacktestEventProducer backtestEventProducer) {
+    BacktestHistoryUtils backtestHistoryUtils, OptimalTimingStrategy optimalTimingStrategy) {
     this.tradingSimulationService = tradingSimulationService;
     this.responseMapper = responseMapper;
     this.backtestHistoryUtils = backtestHistoryUtils;
     this.optimalTimingStrategy = optimalTimingStrategy;
-    this.backtestEventProducer = backtestEventProducer;
+    // this.backtestEventProducer = backtestEventProducer;
     this.strategyMap = strategies.stream()
       .collect(Collectors.toMap(InvestmentStrategy::getStrategyType, Function.identity()));
   }
@@ -77,44 +74,14 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
 
       saveBacktestHistory(request.getUserId(), BacktestType.STRATEGY_SIMULATION, request);
 
-      // Kafka 이벤트 발행 (성공)
       long executionTimeMs = System.currentTimeMillis() - startTime;
-      backtestEventProducer.publishBacktestCompleted(
-        request.getUserId(),
-        backtestId,
-        request.getSymbol(),
-        request.getStartDate(),
-        request.getEndDate(),
-        result.getTotalInvested(),
-        result.getCurrentValue(),
-        result.getTotalReturn(),
-        result.getTotalReturnPercent(),
-        "DCA",
-        "MONTHLY",                           // 수정: 상수 사용
-        result.getTotalTransactions(),
-        BigDecimal.ZERO,
-        BigDecimal.ZERO,
-        executionTimeMs
-      );
-
       log.info("DCA 전략 백테스팅 완료: backtestId={}, 수익률={}%, 실행시간={}ms",
         backtestId, result.getTotalReturnPercent(), executionTimeMs);
 
       return result;
 
     } catch (Exception e) {
-      // Kafka 이벤트 발행 (실패)
       long executionTimeMs = System.currentTimeMillis() - startTime;
-      backtestEventProducer.publishBacktestFailed(
-        request.getUserId(),
-        backtestId,
-        request.getSymbol(),
-        request.getStartDate(),
-        request.getEndDate(),
-        e.getMessage(),
-        executionTimeMs
-      );
-
       log.error("DCA 전략 백테스팅 실패: backtestId={}, error={}", backtestId, e.getMessage());
       throw e;
     }
@@ -134,44 +101,14 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
 
       saveBacktestHistory(request.getUserId(), BacktestType.STRATEGY_SIMULATION, request);
 
-      // Kafka 이벤트 발행 (성공)
       long executionTimeMs = System.currentTimeMillis() - startTime;
-      backtestEventProducer.publishBacktestCompleted(
-        request.getUserId(),
-        backtestId,
-        request.getSymbol(),
-        request.getStartDate(),
-        request.getEndDate(),
-        result.getTotalInvested(),
-        result.getCurrentValue(),
-        result.getTotalReturn(),
-        result.getTotalReturnPercent(),
-        "CONDITIONAL_PURCHASE",
-        "CONDITIONAL_" + request.getDropPercentage() + "%",
-        result.getTotalTransactions(),
-        BigDecimal.ZERO,
-        BigDecimal.ZERO,
-        executionTimeMs
-      );
-
       log.info("조건부 매수 전략 백테스팅 완료: backtestId={}, 수익률={}%, 실행시간={}ms",
         backtestId, result.getTotalReturnPercent(), executionTimeMs);
 
       return result;
 
     } catch (Exception e) {
-      // Kafka 이벤트 발행 (실패)
       long executionTimeMs = System.currentTimeMillis() - startTime;
-      backtestEventProducer.publishBacktestFailed(
-        request.getUserId(),
-        backtestId,
-        request.getSymbol(),
-        request.getStartDate(),
-        request.getEndDate(),
-        e.getMessage(),
-        executionTimeMs
-      );
-
       log.error("조건부 매수 전략 백테스팅 실패: backtestId={}, error={}", backtestId, e.getMessage());
       throw e;
     }
@@ -201,27 +138,8 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
         "모든 종목의 데이터를 찾을 수 없습니다", "종목 비교");
       recordComparisonHistory(request);
 
-      // Kafka 이벤트 발행 (성공) - 최고 성과 종목 정보로 이벤트 생성
       if (response.getBestPerformer() != null) {
         long executionTimeMs = System.currentTimeMillis() - startTime;
-        backtestEventProducer.publishBacktestCompleted(
-          request.getUserId(),
-          backtestId,
-          String.join(",", request.getSymbols()), // 여러 종목
-          request.getStartDate(),
-          request.getStartDate(), // 종목 비교는 특정 날짜
-          response.getBestPerformer().getTotalInvested(),
-          response.getBestPerformer().getCurrentValue(),
-          response.getBestPerformer().getTotalReturn(),
-          response.getBestPerformer().getTotalReturnPercent(),
-          "SYMBOL_COMPARISON",
-          "COMPARISON_" + request.getSymbols().size() + "_SYMBOLS",
-          0, // ComparisonItem에는 transactions 필드가 없으므로 0 사용
-          BigDecimal.ZERO,
-          BigDecimal.ZERO,
-          executionTimeMs
-        );
-
         log.info("종목 비교 분석 완료: backtestId={}, 최고수익률={}%, 실행시간={}ms",
           backtestId, response.getBestPerformer().getTotalReturnPercent(), executionTimeMs);
       }
@@ -229,18 +147,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
       return response;
 
     } catch (Exception e) {
-      // Kafka 이벤트 발행 (실패)
       long executionTimeMs = System.currentTimeMillis() - startTime;
-      backtestEventProducer.publishBacktestFailed(
-        request.getUserId(),
-        backtestId,
-        String.join(",", request.getSymbols()),
-        request.getStartDate(),
-        request.getStartDate(),
-        e.getMessage(),
-        executionTimeMs
-      );
-
       log.error("종목 비교 분석 실패: backtestId={}, error={}", backtestId, e.getMessage());
       throw e;
     }

@@ -1,5 +1,6 @@
 package com.muscat.trade.infra.kafka;
 
+import com.muscat.messaging.event.TradeCancelledEvent;
 import com.muscat.messaging.event.TradeCompletedEvent;
 import com.muscat.messaging.event.TradeFailedEvent;
 import com.muscat.trade.domain.entity.Trade;
@@ -18,7 +19,7 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Trade 이벤트를 Kafka에 발행하는 Producer
  *
- * 거래 체결 완료/실패시 이벤트를 발행
+ * 거래 체결 완료/실패/취소 시 이벤트를 발행
  */
 @Slf4j
 @Component
@@ -27,9 +28,11 @@ public class TradeEventProducer {
 
     private static final String TRADE_COMPLETED_TOPIC = "trading.trade.completed";
     private static final String TRADE_FAILED_TOPIC = "trading.trade.failed";
+    private static final String TRADE_CANCELLED_TOPIC = "trading.trade.cancelled";
 
     private final KafkaTemplate<String, TradeCompletedEvent> tradeCompletedKafkaTemplate;
     private final KafkaTemplate<String, TradeFailedEvent> tradeFailedKafkaTemplate;
+    private final KafkaTemplate<String, TradeCancelledEvent> tradeCancelledKafkaTemplate;
 
     /**
      * 거래 완료 이벤트 발행
@@ -131,7 +134,6 @@ public class TradeEventProducer {
                 .price(price)
                 .totalAmount(totalAmount)
                 .currency("USD")
-                .priceType("MARKET")
                 .failureCode(failureCode)
                 .failureMessage(failureMessage)
                 .build();
@@ -153,6 +155,71 @@ public class TradeEventProducer {
             } else {
                 log.error("거래 실패 이벤트 발행 실패: symbol={}, error={}",
                         symbol, ex.getMessage(), ex);
+            }
+        });
+    }
+
+    /**
+     * 거래 취소 이벤트 발행
+     *
+     * @param trade 취소할 거래 정보
+     * @param originalEventId 원본 TradeCompletedEvent의 eventId
+     * @param cancellationReason 취소 사유 코드
+     * @param cancellationMessage 취소 사유 메시지
+     */
+    public void publishTradeCancelled(Trade trade, String originalEventId,
+                                       String cancellationReason, String cancellationMessage) {
+        String eventId = UUID.randomUUID().toString();
+
+        // OpenTelemetry trace ID 추출
+        String traceId = null;
+        try {
+            traceId = Span.current().getSpanContext().getTraceId();
+        } catch (Exception e) {
+            log.debug("TraceID 추출 실패: {}", e.getMessage());
+        }
+
+        TradeCancelledEvent event = TradeCancelledEvent.builder()
+                .eventId(eventId)
+                .eventType("TRADE_CANCELLED")
+                .timestamp(LocalDateTime.now())
+                .version("1.0")
+                .traceId(traceId)
+                .source("trade-service")
+                // Trade 정보
+                .userId(trade.getUserId())
+                .tradeId(trade.getTradeId())
+                .accountId(trade.getAccountId())
+                .symbol(trade.getSymbol())
+                .tradeType(trade.getTradeType().name())
+                .quantity(trade.getQuantity())
+                .price(trade.getPrice())
+                .totalAmount(trade.getTotalAmount())
+                .currency("USD")
+                .fee(trade.getFee())
+                // 취소 정보
+                .cancellationReason(cancellationReason)
+                .cancellationMessage(cancellationMessage)
+                .originalEventId(originalEventId)
+                .build();
+
+        log.info("거래 취소 이벤트 발행 중: tradeId={}, userId={}, reason={}",
+                trade.getTradeId(), trade.getUserId(), cancellationReason);
+
+        // 비동기로 Kafka에 전송
+        CompletableFuture<SendResult<String, TradeCancelledEvent>> future =
+                tradeCancelledKafkaTemplate.send(TRADE_CANCELLED_TOPIC, trade.getUserId(), event);
+
+        future.whenComplete((result, ex) -> {
+            if (ex == null) {
+                log.info("거래 취소 이벤트 발행 성공: topic={}, partition={}, offset={}, tradeId={}",
+                        TRADE_CANCELLED_TOPIC,
+                        result.getRecordMetadata().partition(),
+                        result.getRecordMetadata().offset(),
+                        trade.getTradeId());
+            } else {
+                log.error("거래 취소 이벤트 발행 실패: tradeId={}, error={}",
+                        trade.getTradeId(), ex.getMessage(), ex);
             }
         });
     }

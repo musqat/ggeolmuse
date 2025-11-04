@@ -9,62 +9,54 @@ import lombok.experimental.SuperBuilder;
 import java.math.BigDecimal;
 
 /**
- * 거래 실패 이벤트
+ * 배당금 수령 이벤트
+ *
+ * trade-service에서 발행하며, user-service가 소비하여 사용자 계좌에 배당금을 입금합니다.
  */
 @Data
 @SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(callSuper = true)
-public class TradeFailedEvent extends BaseEvent {
+public class DividendReceivedEvent extends BaseEvent {
 
     /**
-     * 거래를 시도한 사용자 ID
+     * 배당금을 받을 사용자 ID
      */
     private String userId;
 
     /**
-     * 계좌 ID
+     * 배당금을 입금할 계좌 ID
      */
     private Long accountId;
 
     /**
-     * 종목 심볼 (예: "AAPL", "GOOGL")
+     * 배당을 지급한 종목 심볼
      */
     private String symbol;
 
     /**
-     * 거래 타입: "BUY" 또는 "SELL"
+     * 배당 기준일 (ex-dividend date)
      */
-    private String tradeType;
+    private String exDate;
 
     /**
-     * 주문 수량
+     * 주당 배당금
      */
-    private Integer quantity;
+    private BigDecimal dividendPerShare;
 
     /**
-     * 주문 가격
+     * 보유 수량
      */
-    private BigDecimal price;
+    private BigDecimal quantity;
 
     /**
-     * 총 주문 금액
+     * 총 배당금 액수 (주당 배당금 × 보유 수량)
      */
     private BigDecimal totalAmount;
 
     /**
-     * 통화 코드
+     * 통화 코드 (예: "USD")
      */
     private String currency;
-
-    /**
-     * 실패 사유 코드
-     */
-    private String failureCode;
-
-    /**
-     * 실패 사유 상세 메시지
-     */
-    private String failureMessage;
 }

@@ -18,6 +18,7 @@ import com.muscat.trade.domain.repository.TradeRepository;
 import com.muscat.trade.domain.service.MarketDataService;
 import com.muscat.trade.infra.client.UserServiceClientWrapper;
 import com.muscat.trade.infra.client.dto.AccountBalanceDto;
+import com.muscat.trade.infra.kafka.HoldingsEventProducer;
 import com.muscat.trade.infra.kafka.TradeEventProducer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -63,6 +64,8 @@ class TradingServiceImplTest {
     private TradeUtils tradeUtils;
     @Mock
     private TradeEventProducer tradeEventProducer;
+    @Mock
+    private HoldingsEventProducer holdingsEventProducer;
 
     @InjectMocks
     private TradingServiceImpl tradingService;

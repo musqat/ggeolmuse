@@ -24,4 +24,11 @@ public interface UserServiceClient {
       @RequestParam("tradeType") String tradeType,
       @RequestParam("description") String description
   );
+
+  @PostMapping("/api/internal/account/{accountId}/dividend/balance")
+  Void updateDividendBalance(
+      @PathVariable("userId") String userId,
+      @PathVariable("accountId") Long accountId,
+      @RequestParam("amount") BigDecimal amount
+  );
 }

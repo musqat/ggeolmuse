@@ -1,6 +1,8 @@
 package com.muscat.user.domain.account.service.impl;
 
 import com.muscat.commonlib.util.MoneyUtils;
+import com.muscat.messaging.event.DividendReceivedEvent;
+import com.muscat.messaging.event.TradeCancelledEvent;
 import com.muscat.messaging.event.TradeCompletedEvent;
 import com.muscat.user.common.enums.responses.AccountResponse;
 import com.muscat.user.common.enums.responses.UserResponse;
@@ -24,6 +26,7 @@ import com.muscat.user.domain.user.repository.UserRepository;
 import com.muscat.user.infra.client.MarketDataServiceClientWrapper;
 import com.muscat.user.infra.client.dto.FxRateDto;
 import com.muscat.user.infra.kafka.AccountEventProducer;
+import com.muscat.user.infra.kafka.DepositWithdrawalEventProducer;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -48,6 +51,7 @@ public class AccountServiceImpl implements AccountService {
   private final UserLogger userLogger;
   private final MarketDataServiceClientWrapper marketDataServiceClientWrapper;
   private final AccountEventProducer accountEventProducer;
+  private final DepositWithdrawalEventProducer depositWithdrawalEventProducer;
 
   @Value("${app.account.initial-krw-amount:1000000}")
   private BigDecimal initialKrwAmount;
@@ -84,9 +88,6 @@ public class AccountServiceImpl implements AccountService {
 
     Account savedAccount = accountRepository.save(account);
 
-    // Kafka 이벤트 발행: 계좌 생성
-    accountEventProducer.publishAccountCreated(savedAccount);
-
     userLogger.logAccountCreation(userId, savedAccount.getId(),
       savedAccount.getAccountNumber(), initialKrwAmount);
 
@@ -113,11 +114,6 @@ public class AccountServiceImpl implements AccountService {
     // 삭제 시 잔액 정보를 로그에 기록
     log.info("계좌 삭제 요청: accountId={}, KRW잔액={}, USD잔액={}",
       accountId, account.getBalanceKrw(), account.getBalanceUsd());
-
-    // Kafka 이벤트 발행: 계좌 삭제 (삭제 전에 발행하여 계좌 정보 보존)
-    String deletionReason = String.format("사용자 요청에 의한 삭제 (KRW: %s, USD: %s)",
-      account.getBalanceKrw(), account.getBalanceUsd());
-    accountEventProducer.publishAccountDeleted(account, deletionReason);
 
     // 계좌 거래 내역 먼저 삭제 (외래 키 제약 조건 해결)
     accountHistoryRepository.deleteByAccount(account);
@@ -169,6 +165,11 @@ public class AccountServiceImpl implements AccountService {
     if (krwAmount.compareTo(new BigDecimal("10000000")) > 0) {
       userLogger.logLargeTransaction(accountId, "KRW_TO_USD", krwAmount, "KRW");
     }
+
+    // 변경 전 잔액 저장
+    BigDecimal previousBalanceKrw = account.getBalanceKrw();
+    BigDecimal previousBalanceUsd = account.getBalanceUsd();
+
     BigDecimal totalDeduction = calculation.getTotalKrwDeduction();
     account.setBalanceKrw(account.getBalanceKrw().subtract(totalDeduction));
     account.setBalanceUsd(account.getBalanceUsd().add(calculation.getFinalAmount()));
@@ -184,6 +185,21 @@ public class AccountServiceImpl implements AccountService {
       krwAmount, calculation.getFinalAmount(), exchangeRate,
       String.format("KRW → USD 환전 (환율: %s)", exchangeRate),
       referenceId);
+
+    // Kafka 이벤트 발행: 계좌 잔액 변경
+    accountEventProducer.publishAccountBalanceUpdated(
+      account, "EXCHANGE_TO_USD",
+      previousBalanceKrw, previousBalanceUsd,
+      totalDeduction.negate(), calculation.getFinalAmount(),
+      String.format("KRW → USD 환전 (환율: %s)", exchangeRate),
+      null, exchangeRate);
+
+    // Kafka 이벤트 발행: KRW 출금 (환전)
+    depositWithdrawalEventProducer.publishWithdrawalCompleted(
+      account, "KRW", totalDeduction, previousBalanceKrw,
+      "EXCHANGE", referenceId,
+      String.format("KRW → USD 환전 (환율: %s)", exchangeRate), true);
+
     userLogger.logExchangeComplete(accountId, calculation, account, referenceId);
 
     log.info("KRW→USD 환전 완료: 계좌={}, {}, 평균환율={}",
@@ -217,6 +233,11 @@ public class AccountServiceImpl implements AccountService {
     if (usdAmount.compareTo(new BigDecimal("10000")) > 0) {
       userLogger.logLargeTransaction(accountId, "USD_TO_KRW", usdAmount, "USD");
     }
+
+    // 변경 전 잔액 저장
+    BigDecimal previousBalanceKrw = account.getBalanceKrw();
+    BigDecimal previousBalanceUsd = account.getBalanceUsd();
+
     account.setBalanceUsd(account.getBalanceUsd().subtract(usdAmount));
     account.setBalanceKrw(account.getBalanceKrw().add(calculation.getFinalAmount()));
 
@@ -232,6 +253,21 @@ public class AccountServiceImpl implements AccountService {
       usdAmount, calculation.getBeforeCommissionAmount(), exchangeRate,
       String.format("USD → KRW 환전 (환율: %s)", exchangeRate),
       referenceId);
+
+    // Kafka 이벤트 발행: 계좌 잔액 변경
+    accountEventProducer.publishAccountBalanceUpdated(
+      account, "EXCHANGE_TO_KRW",
+      previousBalanceKrw, previousBalanceUsd,
+      calculation.getFinalAmount(), usdAmount.negate(),
+      String.format("USD → KRW 환전 (환율: %s)", exchangeRate),
+      null, exchangeRate);
+
+    // Kafka 이벤트 발행: USD 출금 (환전)
+    depositWithdrawalEventProducer.publishWithdrawalCompleted(
+      account, "USD", usdAmount, previousBalanceUsd,
+      "EXCHANGE", referenceId,
+      String.format("USD → KRW 환전 (환율: %s)", exchangeRate), true);
+
     userLogger.logExchangeComplete(accountId, calculation, account, referenceId);
 
     log.info("USD→KRW 환전 완료: 계좌={}, {}",
@@ -251,6 +287,10 @@ public class AccountServiceImpl implements AccountService {
       userLogger.logLargeTransaction(accountId, "KRW_DEPOSIT", krwAmount, "KRW");
     }
 
+    // 변경 전 잔액 저장
+    BigDecimal previousBalanceKrw = account.getBalanceKrw();
+    BigDecimal previousBalanceUsd = account.getBalanceUsd();
+
     BigDecimal newBalance = account.getBalanceKrw().add(krwAmount);
     account.setBalanceKrw(newBalance);
 
@@ -258,6 +298,18 @@ public class AccountServiceImpl implements AccountService {
     accountHistoryService.createDepositHistory(
       accountId, krwAmount, CurrencyType.KRW.name(),
       "KRW 입금", referenceId);
+
+    // Kafka 이벤트 발행: 계좌 잔액 변경
+    accountEventProducer.publishAccountBalanceUpdated(
+      account, "DEPOSIT_KRW",
+      previousBalanceKrw, previousBalanceUsd,
+      krwAmount, BigDecimal.ZERO,
+      "KRW 입금", null, null);
+
+    // Kafka 이벤트 발행: 입금 완료
+    depositWithdrawalEventProducer.publishDepositCompleted(
+      account, "KRW", krwAmount, previousBalanceKrw,
+      "MANUAL", referenceId, "KRW 입금");
 
     userLogger.logKrwDeposit(accountId, krwAmount, referenceId);
 
@@ -271,8 +323,34 @@ public class AccountServiceImpl implements AccountService {
     String description) {
     Account account = validateAccountAccess(accountId, userId);
     BigDecimal validatedAmount = validateUsdAmount(usdAmount);
+
+    // 변경 전 잔액 저장
+    BigDecimal previousBalanceKrw = account.getBalanceKrw();
+    BigDecimal previousBalanceUsd = account.getBalanceUsd();
+
     BigDecimal newBalance = updateAccountBalance(account, validatedAmount);
     createTradeHistory(account, validatedAmount, newBalance, description);
+
+    // 업데이트 타입 결정 (description에서 추론)
+    String updateType;
+    if (description.contains("주식 매수")) {
+      updateType = "TRADE_COMPLETED";
+    } else if (description.contains("주식 매도")) {
+      updateType = "TRADE_COMPLETED";
+    } else if (description.contains("거래 취소")) {
+      updateType = "TRADE_CANCELLED";
+    } else if (description.contains("배당금")) {
+      updateType = "DIVIDEND_RECEIVED";
+    } else {
+      updateType = "USD_BALANCE_UPDATE";
+    }
+
+    // Kafka 이벤트 발행: 계좌 잔액 변경
+    accountEventProducer.publishAccountBalanceUpdated(
+      account, updateType,
+      previousBalanceKrw, previousBalanceUsd,
+      BigDecimal.ZERO, validatedAmount,
+      description, null, null);
 
     log.info("USD 잔고 업데이트 완료: accountId={}, 변경금액={}, 변경후잔고={}",
       accountId, validatedAmount, newBalance);
@@ -424,6 +502,124 @@ public class AccountServiceImpl implements AccountService {
     } catch (AccountException e) {
       log.error("잔액 업데이트 실패: tradeId={}, userId={}, accountId={}, error={}",
         event.getTradeId(), userId, account.getId(), e.getMessage());
+      throw e;
+    }
+  }
+
+  /**
+   * 거래 취소 이벤트 처리
+   */
+  @Override
+  public void processTradeCancellationEvent(TradeCancelledEvent event) {
+    log.info("처리 시작: TradeCancelledEvent (Saga 보상) - tradeId={}, userId={}, tradeType={}, totalAmount={}, reason={}",
+      event.getTradeId(), event.getUserId(), event.getTradeType(), event.getTotalAmount(),
+      event.getCancellationReason());
+
+    // 1. 사용자 ID를 Long으로 변환
+    Long userId;
+    try {
+      userId = Long.parseLong(event.getUserId());
+    } catch (NumberFormatException e) {
+      log.error("잘못된 userId 형식: {}", event.getUserId());
+      throw new AccountException(AccountResponse.ACCOUNT_NOT_FOUND);
+    }
+
+    // 2. 사용자의 계좌 조회 (첫 번째 계좌 사용)
+    List<Account> accounts = accountRepository.findByUserIdWithUser(userId);
+    if (accounts.isEmpty()) {
+      log.error("사용자의 계좌가 존재하지 않음: userId={}", userId);
+      throw new AccountException(AccountResponse.ACCOUNT_NOT_FOUND);
+    }
+
+    Account account = accounts.get(0); // 첫 번째 계좌 사용
+    log.debug("계좌 선택: accountId={}, accountNumber={}", account.getId(), account.getAccountNumber());
+
+    // 3. 거래 취소를 위한 잔액 변경 계산 (원래 거래의 반대)
+    // 원래 BUY였으면: USD가 감소했었음 -> 다시 증가시켜야 함 (양수)
+    // 원래 SELL이었으면: USD가 증가했었음 -> 다시 감소시켜야 함 (음수)
+    BigDecimal compensationAmount;
+    String description;
+
+    if ("BUY".equalsIgnoreCase(event.getTradeType())) {
+      // BUY 취소: 차감된 금액을 다시 돌려줌 (양수)
+      compensationAmount = event.getTotalAmount(); // 양수
+      description = String.format("거래 취소 (매수 원복): %s %s주 @ $%s (거래ID: %s, 사유: %s)",
+        event.getSymbol(), event.getQuantity(), event.getPrice(), event.getTradeId(),
+        event.getCancellationReason());
+    } else if ("SELL".equalsIgnoreCase(event.getTradeType())) {
+      // SELL 취소: 증가된 금액을 다시 차감 (음수)
+      compensationAmount = event.getTotalAmount().negate(); // 음수
+      description = String.format("거래 취소 (매도 원복): %s %s주 @ $%s (거래ID: %s, 사유: %s)",
+        event.getSymbol(), event.getQuantity(), event.getPrice(), event.getTradeId(),
+        event.getCancellationReason());
+    } else {
+      log.error("알 수 없는 거래 타입: {}", event.getTradeType());
+      throw new AccountException(AccountResponse.INVALID_TRANSACTION_TYPE);
+    }
+
+    log.debug("보상 트랜잭션 계산: tradeType={}, originalAmount={}, compensationAmount={}",
+      event.getTradeType(), event.getTotalAmount(), compensationAmount);
+
+    // 4. 잔액 원복 (보상 트랜잭션)
+    try {
+      updateUsdBalance(account.getId(), userId, compensationAmount, description);
+
+      log.info("거래 취소 이벤트 처리 완료 (잔액 원복): tradeId={}, userId={}, accountId={}, compensationAmount={}, originalEventId={}",
+        event.getTradeId(), userId, account.getId(), compensationAmount, event.getOriginalEventId());
+
+    } catch (AccountException e) {
+      log.error("보상 트랜잭션 실패: tradeId={}, userId={}, accountId={}, error={}",
+        event.getTradeId(), userId, account.getId(), e.getMessage());
+      throw e;
+    }
+  }
+
+  /**
+   * 배당금 수령 이벤트 처리
+   *
+   * DividendReceivedEvent를 처리하여 사용자 계좌에 배당금을 입금합니다.
+   */
+  @Override
+  public void processDividendReceivedEvent(DividendReceivedEvent event) {
+    log.info("처리 시작: DividendReceivedEvent - userId={}, accountId={}, symbol={}, amount={}",
+      event.getUserId(), event.getAccountId(), event.getSymbol(), event.getTotalAmount());
+
+    // 1. 사용자 ID를 Long으로 변환
+    Long userId;
+    try {
+      userId = Long.parseLong(event.getUserId());
+    } catch (NumberFormatException e) {
+      log.error("잘못된 userId 형식: {}", event.getUserId());
+      throw new AccountException(AccountResponse.ACCOUNT_NOT_FOUND);
+    }
+
+    // 2. 계좌 조회
+    Account account = accountRepository.findById(event.getAccountId())
+      .orElseThrow(() -> {
+        log.error("계좌를 찾을 수 없음: accountId={}", event.getAccountId());
+        return new AccountException(AccountResponse.ACCOUNT_NOT_FOUND);
+      });
+
+    // 3. 계좌 소유자 확인
+    if (!account.getUser().getId().equals(userId)) {
+      log.error("계좌 소유자 불일치: accountId={}, userId={}, owner={}",
+        event.getAccountId(), userId, account.getUser().getId());
+      throw new AccountException(AccountResponse.ACCOUNT_ACCESS_DENIED);
+    }
+
+    // 4. 배당금 입금
+    String description = String.format("배당금 수령: %s (기준일: %s, 주당: $%s × %s주)",
+      event.getSymbol(), event.getExDate(), event.getDividendPerShare(), event.getQuantity());
+
+    try {
+      updateUsdBalance(account.getId(), userId, event.getTotalAmount(), description);
+
+      log.info("배당금 입금 완료: userId={}, accountId={}, symbol={}, amount={}",
+        userId, event.getAccountId(), event.getSymbol(), event.getTotalAmount());
+
+    } catch (AccountException e) {
+      log.error("배당금 입금 실패: userId={}, accountId={}, symbol={}, error={}",
+        userId, event.getAccountId(), event.getSymbol(), e.getMessage());
       throw e;
     }
   }
