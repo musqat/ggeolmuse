@@ -17,7 +17,7 @@ spec:
     http:
       paths:
       {{- range .paths }}
-      {{- if .backend.namespace }}
+      {{- if and .backend.namespace (eq .backend.namespace "monitoring") }}
       - path: {{ .path }}
         pathType: {{ .pathType }}
         backend:
