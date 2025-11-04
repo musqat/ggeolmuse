@@ -1,6 +1,6 @@
 {{- if .Values.ingress.enabled }}
 ---
-# ArgoCD IngressRoute
+# ArgoCD IngressRoute (subdomain-based)
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
 metadata:
@@ -12,14 +12,14 @@ spec:
   entryPoints:
     - web
   routes:
-    - match: Host(`{{ .Values.global.domain }}`) && PathPrefix(`/argocd`)
+    - match: Host(`argocd.{{ .Values.global.domain }}`)
       kind: Rule
       services:
         - name: argocd-server
           namespace: argocd
           port: 80
 ---
-# Grafana IngressRoute
+# Grafana IngressRoute (subdomain-based)
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
 metadata:
@@ -31,7 +31,7 @@ spec:
   entryPoints:
     - web
   routes:
-    - match: Host(`{{ .Values.global.domain }}`) && PathPrefix(`/grafana`)
+    - match: Host(`grafana.{{ .Values.global.domain }}`)
       kind: Rule
       services:
         - name: prometheus-grafana

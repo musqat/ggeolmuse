@@ -11,17 +11,4 @@ spec:
   stripPrefix:
     prefixes:
       - /auth
----
-# ArgoCD
-apiVersion: traefik.containo.us/v1alpha1
-kind: Middleware
-metadata:
-  name: strip-argocd-prefix
-  namespace: argocd
-  labels:
-    {{- include "ggeolmuse.labels" . | nindent 4 }}
-spec:
-  stripPrefix:
-    prefixes:
-      - /argocd
 {{- end }}

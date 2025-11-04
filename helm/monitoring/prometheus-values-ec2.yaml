@@ -48,11 +48,11 @@ grafana:
     datasources:
       enabled: false  # Sidecar 비활성화하여 Chart가 생성하는 ConfigMap 방지
 
-  # Sub-path 설정
+  # 서브도메인 설정
   grafana.ini:
     server:
-      root_url: "https://ggeolmuse.com/grafana"
-      serve_from_sub_path: true
+      root_url: "https://grafana.ggeolmuse.com"
+      serve_from_sub_path: false
 
   # Grafana Ingress는 비활성화
   ingress:

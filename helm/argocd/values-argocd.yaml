@@ -69,14 +69,14 @@ configs:
   params:
     # Git 폴링 간격 (기본 3분)
     timeout.reconciliation: 180s
-    # Base URL 설정 (경로 기반)
-    server.basehref: /argocd
-    server.rootpath: /argocd
+    # Base URL 설정 (서브도메인 기반)
+    server.basehref: /
+    server.rootpath: /
     server.insecure: "true"
 
   cm:
     # ArgoCD 서버 URL
-    url: "https://ggeolmuse.com/argocd"
+    url: "https://argocd.ggeolmuse.com"
 
     # Git 저장소 자동 추가
     repositories: |

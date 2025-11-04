@@ -301,28 +301,12 @@ ingress:
             service: keycloak
             port: 8080
 
-        # Grafana 모니터링 대시보드
-        - path: /grafana
-          pathType: Prefix
-          backend:
-            service: prometheus-grafana
-            port: 80
-            namespace: monitoring
-
         # Kafka UI
         - path: /kafka-ui
           pathType: Prefix
           backend:
             service: kafka-ui
             port: 8080
-
-        # ArgoCD GitOps
-        - path: /argocd
-          pathType: Prefix
-          backend:
-            service: argocd-server
-            port: 80
-            namespace: argocd
 
         # Frontend
         - path: /
