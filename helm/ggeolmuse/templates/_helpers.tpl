@@ -90,7 +90,7 @@ tier: {{ .tier }}
 {{/* Readiness Probe */}}
 {{- define "ggeolmuse.readinessProbe" -}}
 httpGet:
-  path: /actuator/health/readiness
+  path: /health/readiness
   port: {{ .port }}
 initialDelaySeconds: {{ .initialDelaySeconds | default 60 }}
 periodSeconds: {{ .periodSeconds | default 10 }}
@@ -105,7 +105,7 @@ failureThreshold: {{ .failureThreshold }}
 {{/* Liveness Probe */}}
 {{- define "ggeolmuse.livenessProbe" -}}
 httpGet:
-  path: /actuator/health/liveness
+  path: /health/liveness
   port: {{ .port }}
 initialDelaySeconds: {{ .initialDelaySeconds | default 120 }}
 periodSeconds: {{ .periodSeconds | default 20 }}
