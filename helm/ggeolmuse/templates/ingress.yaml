@@ -8,6 +8,9 @@ metadata:
     {{- include "ggeolmuse.labels" . | nindent 4 }}
   annotations:
     {{- toYaml .Values.ingress.annotations | nindent 4 }}
+    {{- if .Values.ingress.customAnnotations }}
+    {{- toYaml .Values.ingress.customAnnotations | nindent 4 }}
+    {{- end }}
 spec:
   ingressClassName: {{ .Values.ingress.className }}
   rules:
@@ -24,6 +27,8 @@ spec:
             name: {{ .backend.service }}
             port:
               number: {{ .backend.port }}
+      {{- else }}
+      # Cross-namespace service: {{ .backend.service }}.{{ .backend.namespace }}
       {{- end }}
       {{- end }}
   {{- end }}

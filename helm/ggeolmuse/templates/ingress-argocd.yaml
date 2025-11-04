@@ -1,0 +1,33 @@
+{{- if .Values.ingress.enabled }}
+{{- range .Values.ingress.hosts }}
+{{- range .paths }}
+{{- if and .backend.namespace (eq .backend.namespace "argocd") }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "ggeolmuse.fullname" $ }}-argocd-ingress
+  namespace: argocd
+  labels:
+    {{- include "ggeolmuse.labels" $ | nindent 4 }}
+  annotations:
+    {{- toYaml $.Values.ingress.annotations | nindent 4 }}
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/ssl-passthrough: "false"
+spec:
+  ingressClassName: {{ $.Values.ingress.className }}
+  rules:
+  - host: {{ $.Values.global.domain }}
+    http:
+      paths:
+      - path: {{ .path }}
+        pathType: {{ .pathType }}
+        backend:
+          service:
+            name: {{ .backend.service }}
+            port:
+              number: {{ .backend.port }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
