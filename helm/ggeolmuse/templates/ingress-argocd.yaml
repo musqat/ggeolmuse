@@ -12,9 +12,6 @@ metadata:
     {{- include "ggeolmuse.labels" $ | nindent 4 }}
   annotations:
     {{- toYaml $.Values.ingress.annotations | nindent 4 }}
-    traefik.ingress.kubernetes.io/router.entrypoints: "websecure"
-    traefik.ingress.kubernetes.io/router.tls: "true"
-    traefik.ingress.kubernetes.io/router.middlewares: argocd-strip-argocd-prefix@kubernetescrd
 spec:
   ingressClassName: {{ $.Values.ingress.className }}
   rules:
