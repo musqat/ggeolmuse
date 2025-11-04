@@ -28,7 +28,13 @@ spec:
             port:
               number: {{ .backend.port }}
       {{- else }}
-      # Cross-namespace service: {{ .backend.service }}.{{ .backend.namespace }}
+      - path: {{ .path }}
+        pathType: {{ .pathType }}
+        backend:
+          service:
+            name: {{ .backend.service }}-proxy
+            port:
+              number: {{ .backend.port }}
       {{- end }}
       {{- end }}
   {{- end }}
