@@ -1,6 +1,6 @@
 {{- if .Values.ingress.enabled }}
 ---
-# ArgoCD Middleware
+# Middlewares
 apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
@@ -11,6 +11,65 @@ metadata:
 spec:
   addPrefix:
     prefix: /argocd
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-auth-prefix
+  namespace: default
+  labels:
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  stripPrefix:
+    prefixes:
+      - /auth
+---
+# Main IngressRoute
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: {{ include "ggeolmuse.fullname" . }}-main-route
+  namespace: default
+  labels:
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  entryPoints:
+    - web
+    - websecure
+  routes:
+    # API Gateway
+    - match: Host(`{{ .Values.global.domain }}`) && PathPrefix(`/api`)
+      kind: Rule
+      priority: 20
+      services:
+        - name: gateway-server
+          port: 8070
+
+    # Keycloak
+    - match: Host(`{{ .Values.global.domain }}`) && PathPrefix(`/auth`)
+      kind: Rule
+      priority: 20
+      middlewares:
+        - name: strip-auth-prefix
+      services:
+        - name: keycloak
+          port: 8080
+
+    # Kafka UI
+    - match: Host(`{{ .Values.global.domain }}`) && PathPrefix(`/kafka-ui`)
+      kind: Rule
+      priority: 20
+      services:
+        - name: kafka-ui
+          port: 8080
+
+    # Frontend
+    - match: Host(`{{ .Values.global.domain }}`)
+      kind: Rule
+      priority: 10
+      services:
+        - name: frontend-web
+          port: 3000
 ---
 # ArgoCD IngressRoute (subdomain-based)
 apiVersion: traefik.containo.us/v1alpha1
