@@ -1,5 +1,17 @@
 {{- if .Values.ingress.enabled }}
 ---
+# ArgoCD Middleware
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: argocd-add-prefix
+  namespace: default
+  labels:
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  addPrefix:
+    prefix: /argocd
+---
 # ArgoCD IngressRoute (subdomain-based)
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
@@ -15,6 +27,9 @@ spec:
   routes:
     - match: Host(`argocd.{{ .Values.global.domain }}`)
       kind: Rule
+      priority: 100
+      middlewares:
+        - name: argocd-add-prefix
       services:
         - name: argocd-server
           namespace: argocd
@@ -35,6 +50,7 @@ spec:
   routes:
     - match: Host(`grafana.{{ .Values.global.domain }}`)
       kind: Rule
+      priority: 100
       services:
         - name: prometheus-grafana
           namespace: monitoring
