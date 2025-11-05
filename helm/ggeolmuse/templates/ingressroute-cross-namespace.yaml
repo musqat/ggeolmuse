@@ -11,6 +11,7 @@ metadata:
 spec:
   entryPoints:
     - web
+    - websecure
   routes:
     - match: Host(`argocd.{{ .Values.global.domain }}`)
       kind: Rule
@@ -30,6 +31,7 @@ metadata:
 spec:
   entryPoints:
     - web
+    - websecure
   routes:
     - match: Host(`grafana.{{ .Values.global.domain }}`)
       kind: Rule
