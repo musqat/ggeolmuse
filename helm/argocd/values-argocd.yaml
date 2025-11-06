@@ -75,8 +75,8 @@ configs:
     server.insecure: "true"
 
   cm:
-    # ArgoCD 서버 URL (HTTP로 변경 - Ingress에서 HTTPS 처리)
-    url: "http://argocd.ggeolmuse.com"
+    # ArgoCD 서버 URL
+    # url: "http://argocd.ggeolmuse.com"
 
     # Git 저장소 자동 추가
     repositories: |
