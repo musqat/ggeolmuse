@@ -87,8 +87,6 @@ spec:
     - match: Host(`argocd.{{ .Values.global.domain }}`)
       kind: Rule
       priority: 100
-      middlewares:
-        - name: argocd-add-prefix
       services:
         - name: argocd-server
           namespace: argocd
