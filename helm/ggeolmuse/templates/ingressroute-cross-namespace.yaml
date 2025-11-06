@@ -61,7 +61,7 @@ spec:
       priority: 20
       services:
         - name: kafka-ui
-          port: 8080
+          port: 8090
 
     # Frontend
     - match: Host(`{{ .Values.global.domain }}`)
