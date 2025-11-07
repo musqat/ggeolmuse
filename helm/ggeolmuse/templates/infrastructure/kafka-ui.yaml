@@ -62,7 +62,7 @@ spec:
               cpu: {{ .Values.infrastructure.kafkaUi.resources.limits.cpu }}
           startupProbe:
             httpGet:
-              path: /actuator/health
+              path: {{ if .Values.infrastructure.kafkaUi.env.SERVER_SERVLET_CONTEXT_PATH }}{{ .Values.infrastructure.kafkaUi.env.SERVER_SERVLET_CONTEXT_PATH }}{{ end }}/actuator/health
               port: {{ .Values.infrastructure.kafkaUi.port }}
             initialDelaySeconds: 30
             periodSeconds: 10
@@ -70,14 +70,14 @@ spec:
             failureThreshold: 15  # 30 + (10 * 15) = 최대 180초 대기
           readinessProbe:
             httpGet:
-              path: /actuator/health
+              path: {{ if .Values.infrastructure.kafkaUi.env.SERVER_SERVLET_CONTEXT_PATH }}{{ .Values.infrastructure.kafkaUi.env.SERVER_SERVLET_CONTEXT_PATH }}{{ end }}/actuator/health
               port: {{ .Values.infrastructure.kafkaUi.port }}
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 3
           livenessProbe:
             httpGet:
-              path: /actuator/health
+              path: {{ if .Values.infrastructure.kafkaUi.env.SERVER_SERVLET_CONTEXT_PATH }}{{ .Values.infrastructure.kafkaUi.env.SERVER_SERVLET_CONTEXT_PATH }}{{ end }}/actuator/health
               port: {{ .Values.infrastructure.kafkaUi.port }}
             periodSeconds: 20
             timeoutSeconds: 5
