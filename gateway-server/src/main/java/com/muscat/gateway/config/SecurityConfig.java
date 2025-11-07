@@ -60,13 +60,12 @@ public class SecurityConfig {
                 .pathMatchers(HttpMethod.GET, "/api/market/**").permitAll()
                 .pathMatchers(HttpMethod.POST, "/api/market/fx/bulk").permitAll()  // Bulk FX rates
 
-                // Actuator health check (liveness/readiness probe)
+                // Actuator endpoints (health check + Prometheus metrics)
                 .pathMatchers("/health", "/health/**").permitAll()
-
+                .pathMatchers("/actuator/**").permitAll()  // Prometheus scraping
 
                 // ===== Admin APIs (ADMIN 권한 필요) =====
                 .pathMatchers("/api/admin/**").hasRole("ADMIN")
-
 
                 // ===== Private APIs (JWT 인증 필요) =====
 
