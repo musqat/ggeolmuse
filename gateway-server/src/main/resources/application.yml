@@ -17,15 +17,6 @@ spring:
 server:
   port: 8070
 
-management:
-  server:
-    port: 9090
-  endpoints:
-    web:
-      exposure:
-        include: health,info,prometheus,gateway
-      base-path: /
-
 services:
   market-data:
     uri: http://market-data-service:8083
