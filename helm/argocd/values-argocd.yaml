@@ -6,6 +6,11 @@ server:
   ingress:
     enabled: false
 
+  # 환경 변수로 insecure 모드 명시적 설정
+  env:
+    - name: ARGOCD_SERVER_INSECURE
+      value: "true"
+
   # 리소스 제한 (t3.medium 최적화)
   resources:
     limits:
