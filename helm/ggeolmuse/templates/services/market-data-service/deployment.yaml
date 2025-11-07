@@ -61,14 +61,6 @@ spec:
         {{- end }}
         {{- end }}
         {{- end }}
-        startupProbe:
-          httpGet:
-            path: /health/liveness
-            port: {{ .Values.global.management.port }}
-          initialDelaySeconds: {{ .Values.services.marketDataService.probes.startup.initialDelaySeconds }}
-          periodSeconds: {{ .Values.services.marketDataService.probes.startup.periodSeconds }}
-          timeoutSeconds: {{ .Values.services.marketDataService.probes.startup.timeoutSeconds }}
-          failureThreshold: {{ .Values.services.marketDataService.probes.startup.failureThreshold }}
         readinessProbe:
           {{- include "ggeolmuse.readinessProbe" (merge (dict "port" .Values.global.management.port) .Values.services.marketDataService.probes.readiness) | nindent 10 }}
         livenessProbe:
