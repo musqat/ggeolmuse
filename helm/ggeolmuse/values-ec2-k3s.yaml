@@ -326,3 +326,8 @@ networkPolicy:
 secrets:
   enabled: false
   name: ggeolmuse-secrets
+
+# Monitoring - Prometheus ServiceMonitor
+monitoring:
+  serviceMonitor:
+    enabled: true
