@@ -49,6 +49,10 @@ spec:
               value: "{{ .Values.infrastructure.kafkaUi.env.zookeeper }}"
             - name: DYNAMIC_CONFIG_ENABLED
               value: "true"
+            {{- if .Values.infrastructure.kafkaUi.env.SERVER_SERVLET_CONTEXT_PATH }}
+            - name: SERVER_SERVLET_CONTEXT_PATH
+              value: "{{ .Values.infrastructure.kafkaUi.env.SERVER_SERVLET_CONTEXT_PATH }}"
+            {{- end }}
           resources:
             requests:
               memory: {{ .Values.infrastructure.kafkaUi.resources.requests.memory }}
