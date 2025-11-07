@@ -1,0 +1,92 @@
+{{- if .Values.monitoring.serviceMonitor.enabled }}
+---
+# Gateway Server ServiceMonitor
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: gateway-server
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: gateway-server
+  endpoints:
+    - port: management
+      path: /actuator/prometheus
+      interval: 30s
+---
+# User Service ServiceMonitor
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: user-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: user-service
+  endpoints:
+    - port: management
+      path: /actuator/prometheus
+      interval: 30s
+---
+# Trade Service ServiceMonitor
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: trade-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: trade-service
+  endpoints:
+    - port: management
+      path: /actuator/prometheus
+      interval: 30s
+---
+# Market Data Service ServiceMonitor
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: market-data-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: market-data-service
+  endpoints:
+    - port: management
+      path: /actuator/prometheus
+      interval: 30s
+---
+# Backtest Service ServiceMonitor
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: backtest-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: backtest-service
+  endpoints:
+    - port: management
+      path: /actuator/prometheus
+      interval: 30s
+{{- end }}
