@@ -73,9 +73,7 @@ configs:
   params:
     # Git 폴링 간격 (기본 3분)
     timeout.reconciliation: 180s
-    # Base URL 설정 (서브도메인 기반)
-    server.basehref: /
-    server.rootpath: /
+    # 서브도메인 기반
     server.insecure: "true"
 
   cm:
