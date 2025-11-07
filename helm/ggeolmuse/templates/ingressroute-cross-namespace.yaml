@@ -24,18 +24,6 @@ spec:
     prefixes:
       - /auth
 ---
-apiVersion: traefik.io/v1alpha1
-kind: Middleware
-metadata:
-  name: strip-kafka-ui-prefix
-  namespace: default
-  labels:
-    {{- include "ggeolmuse.labels" . | nindent 4 }}
-spec:
-  stripPrefix:
-    prefixes:
-      - /kafka-ui
----
 # Main IngressRoute
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
@@ -71,8 +59,6 @@ spec:
     - match: Host(`{{ .Values.global.domain }}`) && PathPrefix(`/kafka-ui`)
       kind: Rule
       priority: 20
-      middlewares:
-        - name: strip-kafka-ui-prefix
       services:
         - name: kafka-ui
           port: 8090
