@@ -80,7 +80,7 @@ configs:
 
   cm:
     # ArgoCD 서버 URL
-    # url: "http://argocd.ggeolmuse.com"
+    url: ""
 
     # Git 저장소 자동 추가
     repositories: |
