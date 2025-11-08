@@ -3,6 +3,11 @@ on:
   pull_request:
   push:
     branches: [ master ]
+
+permissions:
+  contents: read
+  security-events: write
+
 jobs:
   build-bom:
     runs-on: ubuntu-latest
@@ -105,8 +110,9 @@ jobs:
           ignore-unfixed: true
 
       - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         if: always()
+        continue-on-error: true
         with:
           sarif_file: 'trivy-results-${{ matrix.service }}.sarif'
           category: 'trivy-${{ matrix.service }}'

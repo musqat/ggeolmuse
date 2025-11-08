@@ -1,0 +1,64 @@
+name: Nightly Security Scan
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # 매일 새벽 2시 (UTC)
+  workflow_dispatch:  # 수동 실행 가능
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  dependency-scan:
+    name: OWASP Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      - name: Run OWASP Dependency Check
+        run: |
+          cd ggeolmuse-bom
+          mvn org.owasp:dependency-check-maven:check -DskipTests
+
+      - name: Upload Dependency Check Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-check-report-${{ github.run_number }}
+          path: '**/target/dependency-check-report.html'
+          retention-days: 30
+
+      - name: Notify on failure
+        if: failure()
+        uses: actions/github-script@v6
+        continue-on-error: true
+        with:
+          script: |
+            const body = `## Nightly Security Scan Failed
+
+            OWASP Dependency Check detected vulnerabilities.
+
+            **Run:** ${{ github.run_number }}
+            **Date:** ${new Date().toISOString()}
+
+            [View Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            `;
+
+            try {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: '[Security] Nightly Dependency Scan Failed',
+                body: body,
+                labels: ['security', 'automated']
+              });
+            } catch (error) {
+              console.log('Unable to create issue:', error.message);
+            }
