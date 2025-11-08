@@ -1,89 +1,13 @@
 spring:
   application:
     name: trade-service
-
-  # Config Server 연결
   config:
     import: "optional:configserver:${SPRING_CLOUD_CONFIG_URI:http://config-server:8888}"
-
   cloud:
     config:
       uri: ${SPRING_CLOUD_CONFIG_URI:http://config-server:8888}
       username: ${SPRING_CLOUD_CONFIG_USERNAME:config}
       password: ${SPRING_CLOUD_CONFIG_PASSWORD:config123}
-      fail-fast: false
-      retry:
-        initial-interval: 3000
-        max-attempts: 6
-        max-interval: 4000
-        multiplier: 1.1
-    compatibility-verifier:
-      enabled: false
 
- # Redis config is provided by Config Server
-
-## Server port moved to Config Server
-
-## Service URLs provided by Config Server
-
-# swagger 설정
-springdoc:
-  api-docs:
-    path: /v3/api-docs
-  swagger-ui:
-    path: /swagger-ui.html
-    operationsSorter: method
-    tagsSorter: alpha
-  show-actuator: false
-
-# Resilience4j 설정
-resilience4j:
-  circuitbreaker:
-    instances:
-      userService:
-        registerHealthIndicator: true
-        slidingWindowSize: 10
-        minimumNumberOfCalls: 5
-        permittedNumberOfCallsInHalfOpenState: 3
-        automaticTransitionFromOpenToHalfOpenEnabled: true
-        waitDurationInOpenState: 10s
-        failureRateThreshold: 50
-        eventConsumerBufferSize: 10
-        recordExceptions:
-          - org.springframework.web.client.HttpServerErrorException
-          - java.util.concurrent.TimeoutException
-          - java.io.IOException
-      marketService:
-        registerHealthIndicator: true
-        slidingWindowSize: 10
-        minimumNumberOfCalls: 5
-        permittedNumberOfCallsInHalfOpenState: 3
-        automaticTransitionFromOpenToHalfOpenEnabled: true
-        waitDurationInOpenState: 10s
-        failureRateThreshold: 50
-        eventConsumerBufferSize: 10
-  retry:
-    instances:
-      userService:
-        maxAttempts: 3
-        waitDuration: 1s
-        enableExponentialBackoff: true
-        exponentialBackoffMultiplier: 2
-        retryExceptions:
-          - org.springframework.web.client.HttpServerErrorException
-          - java.util.concurrent.TimeoutException
-      marketService:
-        maxAttempts: 3
-        waitDuration: 1s
-        enableExponentialBackoff: true
-        exponentialBackoffMultiplier: 2
-  timelimiter:
-    instances:
-      userService:
-        timeoutDuration: 5s
-        cancelRunningFuture: true
-      marketService:
-        timeoutDuration: 10s
-        cancelRunningFuture: true
-
-
+server:
+  port: 8081

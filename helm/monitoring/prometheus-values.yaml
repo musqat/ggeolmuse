@@ -92,14 +92,17 @@ grafana:
             nodeGraph:
               enabled: true
 
-  # sidecar는 대시보드만 활성화
+  # sidecar는 대시보드만 활성화 (ConfigMap에서 자동 로드)
   sidecar:
     dashboards:
-      enabled: true
+      enabled: true  # grafana_dashboard=1 레이블이 있는 ConfigMap 자동 감지
     datasources:
-      enabled: false
+      enabled: false  # datasources는 아래에서 직접 정의
 
   # 대시보드 설정
+  # Custom dashboards는 install-monitoring.sh/bat에서 ConfigMap으로 생성됨
+  # - business-metrics.json (백테스트, 거래량, 캐시 히트율 등)
+  # - resilience4j-metrics.json (Circuit Breaker, Retry, Bulkhead 등)
   dashboardProviders:
     dashboardproviders.yaml:
       apiVersion: 1

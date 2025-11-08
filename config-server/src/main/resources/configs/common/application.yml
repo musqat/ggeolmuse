@@ -9,11 +9,38 @@ management:
 
 # Kafka 공통 설정
 spring:
+  # 데이터소스 공통 설정 (HikariCP)
+  datasource:
+    hikari:
+      maximum-pool-size: 10          # 최대 커넥션 수
+      minimum-idle: 5                # 최소 유휴 커넥션 (풀에 항상 유지)
+      connection-timeout: 20000      # 커넥션 대기 시간 (20초)
+      idle-timeout: 300000           # 유휴 커넥션 제거 시간 (5분)
+      max-lifetime: 1200000          # 커넥션 최대 수명 (20분)
+      leak-detection-threshold: 60000 # 커넥션 누수 감지 (60초)
+      pool-name: ${spring.application.name:GGeolmuse}-HikariPool
+      connection-test-query: SELECT 1  # H2/PostgreSQL 호환 쿼리
+      auto-commit: true
+      # 성능 최적화 설정
+      register-mbeans: true          # JMX 모니터링 활성화
+
   # JPA 공통 설정
   jpa:
     hibernate:
       ddl-auto: validate  # Flyway가 스키마를 관리하므로 validate만 수행
     show-sql: false
+    properties:
+      hibernate:
+        # 성능 최적화 설정
+        jdbc:
+          batch_size: 20  # 배치 insert/update 크기
+          fetch_size: 50  # JDBC fetch 크기
+        order_inserts: true
+        order_updates: true
+        # 2차 캐시
+        cache:
+          use_second_level_cache: false
+          use_query_cache: false
 
   # SQL 초기화 비활성화 (Flyway 사용)
   sql:
@@ -78,7 +105,7 @@ logging:
     org.springframework.boot.actuate: WARN     # Actuator 로그 최소화
     org.springframework.cloud.gateway: INFO    # Gateway 기본 로그만
     # HTTP Client
-    feign: DEBUG                               # Feign 클라이언트 디버깅 (서비스 간 통신)
+    feign: DEBUG                               # Feign 클라이언트 디버깅
     reactor.netty: WARN                        # Netty 불필요한 로그 제거
     # Hibernate/JPA
     org.hibernate.SQL: WARN                    # SQL 로그 비활성화

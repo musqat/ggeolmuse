@@ -1,0 +1,238 @@
+name: Deploy to AWS Production
+
+# 트리거: main 브랜치에 push될 때만 실행
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'user-service/**'
+      - 'trade-service/**'
+      - 'market-data-service/**'
+      - 'backtest-service/**'
+      - 'gateway-server/**'
+      - 'config-server/**'
+      - 'frontend-web/**'
+      - 'helm/**'
+
+  # 수동 실행 가능
+  workflow_dispatch:
+    inputs:
+      service:
+        description: '배포할 서비스 선택'
+        required: true
+        type: choice
+        options:
+          - all
+          - user-service
+          - trade-service
+          - market-data-service
+          - backtest-service
+          - gateway-server
+          - config-server
+          - frontend-web
+
+jobs:
+  # 변경된 서비스 감지
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      user-service: ${{ steps.filter.outputs.user-service }}
+      trade-service: ${{ steps.filter.outputs.trade-service }}
+      market-data-service: ${{ steps.filter.outputs.market-data-service }}
+      backtest-service: ${{ steps.filter.outputs.backtest-service }}
+      gateway-server: ${{ steps.filter.outputs.gateway-server }}
+      config-server: ${{ steps.filter.outputs.config-server }}
+      frontend-web: ${{ steps.filter.outputs.frontend-web }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            user-service:
+              - 'user-service/**'
+            trade-service:
+              - 'trade-service/**'
+            market-data-service:
+              - 'market-data-service/**'
+            backtest-service:
+              - 'backtest-service/**'
+            gateway-server:
+              - 'gateway-server/**'
+            config-server:
+              - 'config-server/**'
+            frontend-web:
+              - 'frontend-web/**'
+
+  # Java 서비스 빌드 & 배포
+  deploy-java-service:
+    needs: detect-changes
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - user-service
+          - trade-service
+          - market-data-service
+          - backtest-service
+          - gateway-server
+          - config-server
+
+    if: |
+      needs.detect-changes.outputs[matrix.service] == 'true' ||
+      github.event.inputs.service == 'all' ||
+      github.event.inputs.service == matrix.service
+
+    steps:
+      - name: Checkout 코드
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v3
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build & Install ggeolmuse-bom (for dependencies)
+        run: |
+          cd ggeolmuse-bom
+          mvn install -DskipTests
+
+      - name: Build & Install messaging (for dependencies)
+        run: |
+          cd messaging
+          mvn install -DskipTests
+
+      - name: Maven 빌드
+        run: |
+          cd ${{ matrix.service }}
+          mvn clean package -DskipTests
+
+      - name: 버전 번호 생성
+        id: version
+        run: |
+          VERSION=$(date +%Y%m%d-%H%M%S)-${GITHUB_SHA::7}
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Docker 로그인
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Docker 이미지 빌드 & 푸시
+        uses: docker/build-push-action@v4
+        with:
+          context: ./${{ matrix.service }}
+          push: true
+          tags: |
+            muscathan/${{ matrix.service }}:${{ steps.version.outputs.VERSION }}
+            muscathan/${{ matrix.service }}:latest
+
+      - name: values-prod.yaml 업데이트
+        run: |
+          # 서비스 이름을 camelCase로 변환 (user-service → userService)
+          SERVICE_CAMEL=$(echo ${{ matrix.service }} | sed -r 's/(-)([a-z])/\U\2/g')
+
+          # values-prod.yaml에서 해당 서비스의 tag 업데이트
+          sed -i "s|${SERVICE_CAMEL}:.*tag:.*|${SERVICE_CAMEL}:\n    image:\n      tag: \"${{ steps.version.outputs.VERSION }}\"|" helm/ggeolmuse/values-prod.yaml
+
+      - name: Git commit & push
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add helm/ggeolmuse/values-prod.yaml
+          git commit -m "chore: Update ${{ matrix.service }} to ${{ steps.version.outputs.VERSION }}" || echo "No changes"
+          git push
+
+      - name: ArgoCD 자동 배포 대기
+        run: |
+          echo " Docker 이미지 빌드 및 values-prod.yaml 업데이트 완료"
+          echo " ArgoCD가 3분 이내에 자동으로 배포를 시작합니다"
+          echo " 배포 상태 확인: https://argocd.ggeolmuse.com"
+
+  # Frontend 빌드 & 배포
+  deploy-frontend:
+    needs: detect-changes
+    runs-on: ubuntu-latest
+    if: |
+      needs.detect-changes.outputs.frontend-web == 'true' ||
+      github.event.inputs.service == 'all' ||
+      github.event.inputs.service == 'frontend-web'
+
+    steps:
+      - name: Checkout 코드
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend-web/package-lock.json
+
+      - name: npm 빌드
+        run: |
+          cd frontend-web
+          npm ci
+          npm run build
+
+      - name: 버전 번호 생성
+        id: version
+        run: |
+          VERSION=$(date +%Y%m%d-%H%M%S)-${GITHUB_SHA::7}
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Docker 로그인
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Docker 이미지 빌드 & 푸시
+        uses: docker/build-push-action@v4
+        with:
+          context: ./frontend-web
+          file: ./frontend-web/Dockerfile.prod
+          push: true
+          tags: |
+            muscathan/frontend-web:${{ steps.version.outputs.VERSION }}
+            muscathan/frontend-web:latest
+
+      - name: values-prod.yaml 업데이트
+        run: |
+          sed -i "s|frontend:.*tag:.*|frontend:\n    image:\n      tag: \"${{ steps.version.outputs.VERSION }}\"|" helm/ggeolmuse/values-prod.yaml
+
+      - name: Git commit & push
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add helm/ggeolmuse/values-prod.yaml
+          git commit -m "chore: Update frontend-web to ${{ steps.version.outputs.VERSION }}" || echo "No changes"
+          git push
+
+      - name: ArgoCD 자동 배포 대기
+        run: |
+          echo " Docker 이미지 빌드 및 values-prod.yaml 업데이트 완료"
+          echo " ArgoCD가 3분 이내에 자동으로 배포를 시작합니다"
+          echo " 배포 상태 확인: https://argocd.ggeolmuse.com"
+
+  # Slack 알림 (선택사항)
+  notify:
+    needs: [deploy-java-service, deploy-frontend]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Slack 알림
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: |
+            AWS 프로덕션 배포 ${{ job.status }}
+            브랜치: ${{ github.ref }}
+            커밋: ${{ github.sha }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        if: ${{ secrets.SLACK_WEBHOOK != '' }}

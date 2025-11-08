@@ -1,83 +1,13 @@
 spring:
   application:
     name: backtest-service
-
-  # Config Server 연결
   config:
     import: "optional:configserver:${SPRING_CLOUD_CONFIG_URI:http://config-server:8888}"
-
   cloud:
     config:
       uri: ${SPRING_CLOUD_CONFIG_URI:http://config-server:8888}
       username: ${SPRING_CLOUD_CONFIG_USERNAME:config}
       password: ${SPRING_CLOUD_CONFIG_PASSWORD:config123}
-      fail-fast: false
-      retry:
-        initial-interval: 3000
-        max-attempts: 6
-        max-interval: 4000
-        multiplier: 1.1
-    compatibility-verifier:
-      enabled: false
 
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,mappings
-  endpoint:
-    mappings:
-      enabled: true
-
-# SpringDoc OpenAPI 설정
-springdoc:
-  api-docs:
-    path: /v3/api-docs
-  swagger-ui:
-    path: /swagger-ui.html
-    operationsSorter: method
-    tagsSorter: alpha
-  show-actuator: false
-
-# Resilience4j 설정
-resilience4j:
-  circuitbreaker:
-    instances:
-      tradeService:
-        registerHealthIndicator: true
-        slidingWindowSize: 10
-        minimumNumberOfCalls: 5
-        permittedNumberOfCallsInHalfOpenState: 3
-        automaticTransitionFromOpenToHalfOpenEnabled: true
-        waitDurationInOpenState: 10s
-        failureRateThreshold: 50
-        eventConsumerBufferSize: 10
-      marketDataService:
-        registerHealthIndicator: true
-        slidingWindowSize: 10
-        minimumNumberOfCalls: 5
-        permittedNumberOfCallsInHalfOpenState: 3
-        automaticTransitionFromOpenToHalfOpenEnabled: true
-        waitDurationInOpenState: 10s
-        failureRateThreshold: 50
-        eventConsumerBufferSize: 10
-  retry:
-    instances:
-      tradeService:
-        maxAttempts: 3
-        waitDuration: 1s
-        enableExponentialBackoff: true
-        exponentialBackoffMultiplier: 2
-      marketDataService:
-        maxAttempts: 3
-        waitDuration: 1s
-        enableExponentialBackoff: true
-        exponentialBackoffMultiplier: 2
-  timelimiter:
-    instances:
-      tradeService:
-        timeoutDuration: 5s
-        cancelRunningFuture: true
-      marketDataService:
-        timeoutDuration: 15s
-        cancelRunningFuture: true
+server:
+  port: 8082

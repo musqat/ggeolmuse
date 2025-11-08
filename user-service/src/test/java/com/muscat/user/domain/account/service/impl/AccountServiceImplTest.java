@@ -1,5 +1,7 @@
 package com.muscat.user.domain.account.service.impl;
 
+import com.muscat.messaging.event.DividendReceivedEvent;
+import com.muscat.messaging.event.TradeCancelledEvent;
 import com.muscat.user.common.enums.responses.AccountResponse;
 import com.muscat.user.common.enums.type.CurrencyType;
 import com.muscat.user.common.enums.type.TransactionType;
@@ -19,6 +21,7 @@ import com.muscat.user.domain.user.repository.UserRepository;
 import com.muscat.user.infra.client.MarketDataServiceClientWrapper;
 import com.muscat.user.infra.client.dto.FxRateDto;
 import com.muscat.user.infra.kafka.AccountEventProducer;
+import com.muscat.user.infra.kafka.DepositWithdrawalEventProducer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -73,6 +76,9 @@ class AccountServiceImplTest {
 
     @Mock
     private AccountEventProducer accountEventProducer;
+
+    @Mock
+    private DepositWithdrawalEventProducer depositWithdrawalEventProducer;
 
     @InjectMocks
     private AccountServiceImpl accountService;
@@ -754,6 +760,224 @@ class AccountServiceImplTest {
                     accountService.createManualExchangeRate(tooHigh)
             ).isInstanceOf(AccountException.class)
              .hasMessage(AccountResponse.INVALID_EXCHANGE_RATE.getMessage());
+        }
+    }
+
+    @Nested
+    @DisplayName("거래 완료 이벤트 처리 테스트")
+    class ProcessTradeEventTests {
+
+        // Note: processTradeEvent 메서드는 updateUsdBalance를 내부적으로 호출하므로
+        // 통합 테스트로 작성하는 것이 더 적합합니다. 여기서는 예외 케이스만 테스트합니다.
+
+        @Test
+        @DisplayName("잘못된 userId 형식 시 예외 발생")
+        void processTradeEvent_InvalidUserId_ThrowsException() {
+            // given
+            com.muscat.messaging.event.TradeCompletedEvent event =
+                    com.muscat.messaging.event.TradeCompletedEvent.builder()
+                            .userId("invalid-user-id")
+                            .tradeId("TRADE-003")
+                            .symbol("TSLA")
+                            .tradeType("BUY")
+                            .quantity(new BigDecimal("1"))
+                            .price(new BigDecimal("800.00"))
+                            .totalAmount(new BigDecimal("800.00"))
+                            .currency("USD")
+                            .build();
+
+            // when & then
+            assertThatThrownBy(() -> accountService.processTradeEvent(event))
+                    .isInstanceOf(AccountException.class)
+                    .hasMessage(AccountResponse.ACCOUNT_NOT_FOUND.getMessage());
+        }
+
+        @Test
+        @DisplayName("계좌가 없는 사용자의 거래 이벤트 처리 시 예외 발생")
+        void processTradeEvent_NoAccount_ThrowsException() {
+            // given
+            com.muscat.messaging.event.TradeCompletedEvent event =
+                    com.muscat.messaging.event.TradeCompletedEvent.builder()
+                            .userId(userId.toString())
+                            .tradeId("TRADE-004")
+                            .symbol("MSFT")
+                            .tradeType("BUY")
+                            .quantity(new BigDecimal("10"))
+                            .price(new BigDecimal("350.00"))
+                            .totalAmount(new BigDecimal("3500.00"))
+                            .currency("USD")
+                            .build();
+
+            given(accountRepository.findByUserIdWithUser(userId))
+                    .willReturn(new ArrayList<>());
+
+            // when & then
+            assertThatThrownBy(() -> accountService.processTradeEvent(event))
+                    .isInstanceOf(AccountException.class)
+                    .hasMessage(AccountResponse.ACCOUNT_NOT_FOUND.getMessage());
+        }
+
+        @Test
+        @DisplayName("알 수 없는 거래 타입 시 예외 발생")
+        void processTradeEvent_UnknownTradeType_ThrowsException() {
+            // given
+            com.muscat.messaging.event.TradeCompletedEvent event =
+                    com.muscat.messaging.event.TradeCompletedEvent.builder()
+                            .userId(userId.toString())
+                            .tradeId("TRADE-005")
+                            .symbol("AMZN")
+                            .tradeType("UNKNOWN")
+                            .quantity(new BigDecimal("2"))
+                            .price(new BigDecimal("3200.00"))
+                            .totalAmount(new BigDecimal("6400.00"))
+                            .currency("USD")
+                            .build();
+
+            given(accountRepository.findByUserIdWithUser(userId))
+                    .willReturn(Arrays.asList(testAccount));
+
+            // when & then
+            assertThatThrownBy(() -> accountService.processTradeEvent(event))
+                    .isInstanceOf(AccountException.class)
+                    .hasMessage(AccountResponse.INVALID_TRANSACTION_TYPE.getMessage());
+        }
+    }
+
+    @Nested
+    @DisplayName("거래 취소 이벤트 처리 테스트")
+    class ProcessTradeCancellationEventTests {
+
+        // Note: 마찬가지로 통합 테스트가 더 적합합니다.
+
+        @Test
+        @DisplayName("취소 이벤트 - 계좌 없을 때 예외 발생")
+        void processTradeCancellationEvent_NoAccount_ThrowsException() {
+            // given
+            TradeCancelledEvent event =
+                    com.muscat.messaging.event.TradeCancelledEvent.builder()
+                            .userId(userId.toString())
+                            .tradeId("TRADE-003")
+                            .symbol("TSLA")
+                            .tradeType("BUY")
+                            .quantity(new BigDecimal("1"))
+                            .price(new BigDecimal("800.00"))
+                            .totalAmount(new BigDecimal("800.00"))
+                            .cancellationReason("System error")
+                            .build();
+
+            given(accountRepository.findByUserIdWithUser(userId))
+                    .willReturn(new ArrayList<>());
+
+            // when & then
+            assertThatThrownBy(() -> accountService.processTradeCancellationEvent(event))
+                    .isInstanceOf(AccountException.class)
+                    .hasMessage(AccountResponse.ACCOUNT_NOT_FOUND.getMessage());
+        }
+    }
+
+    @Nested
+    @DisplayName("배당금 수령 이벤트 처리 테스트")
+    class ProcessDividendReceivedEventTests {
+
+        @Test
+        @DisplayName("배당금 수령 - 계좌 없을 때 예외 발생")
+        void processDividendReceivedEvent_AccountNotFound_ThrowsException() {
+            // given
+            DividendReceivedEvent event =
+                    com.muscat.messaging.event.DividendReceivedEvent.builder()
+                            .userId(userId.toString())
+                            .accountId(999L)
+                            .symbol("GOOGL")
+                            .quantity(new BigDecimal("50"))
+                            .dividendPerShare(new BigDecimal("0.50"))
+                            .totalAmount(new BigDecimal("25.00"))
+                            .exDate("2024-11-01")
+                            .currency("USD")
+                            .build();
+
+            given(accountRepository.findById(999L))
+                    .willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> accountService.processDividendReceivedEvent(event))
+                    .isInstanceOf(AccountException.class)
+                    .hasMessage(AccountResponse.ACCOUNT_NOT_FOUND.getMessage());
+        }
+
+        @Test
+        @DisplayName("배당금 수령 - 계좌 소유자 불일치 시 예외 발생")
+        void processDividendReceivedEvent_OwnerMismatch_ThrowsException() {
+            // given
+            User otherUser = User.builder()
+                    .id(999L)
+                    .email("other@example.com")
+                    .nickname("otheruser")
+                    .build();
+
+            Account otherAccount = Account.builder()
+                    .id(accountId)
+                    .user(otherUser)
+                    .accountNumber("987654321")
+                    .balanceKrw(BigDecimal.ZERO)
+                    .balanceUsd(BigDecimal.ZERO)
+                    .build();
+
+            DividendReceivedEvent event =
+                    com.muscat.messaging.event.DividendReceivedEvent.builder()
+                            .userId(userId.toString())
+                            .accountId(accountId)
+                            .symbol("MSFT")
+                            .quantity(new BigDecimal("20"))
+                            .dividendPerShare(new BigDecimal("0.68"))
+                            .totalAmount(new BigDecimal("13.60"))
+                            .exDate("2024-11-01")
+                            .currency("USD")
+                            .build();
+
+            given(accountRepository.findById(accountId))
+                    .willReturn(Optional.of(otherAccount));
+
+            // when & then
+            assertThatThrownBy(() -> accountService.processDividendReceivedEvent(event))
+                    .isInstanceOf(AccountException.class)
+                    .hasMessage(AccountResponse.ACCOUNT_ACCESS_DENIED.getMessage());
+        }
+    }
+
+    @Nested
+    @DisplayName("사용자 ID로 계좌 조회 테스트")
+    class FindAccountsByUserIdTests {
+
+        @Test
+        @DisplayName("사용자 ID로 계좌 목록 조회 성공")
+        void findAccountsByUserId_Success() {
+            // given
+            List<Account> accounts = Arrays.asList(testAccount);
+            given(accountRepository.findByUserIdWithUser(userId))
+                    .willReturn(accounts);
+
+            // when
+            List<Account> result = accountService.findAccountsByUserId(userId);
+
+            // then
+            assertThat(result).hasSize(1);
+            assertThat(result.get(0)).isEqualTo(testAccount);
+            verify(accountRepository).findByUserIdWithUser(userId);
+        }
+
+        @Test
+        @DisplayName("계좌가 없는 사용자 조회 시 빈 리스트 반환")
+        void findAccountsByUserId_NoAccounts_ReturnsEmptyList() {
+            // given
+            given(accountRepository.findByUserIdWithUser(userId))
+                    .willReturn(new ArrayList<>());
+
+            // when
+            List<Account> result = accountService.findAccountsByUserId(userId);
+
+            // then
+            assertThat(result).isEmpty();
+            verify(accountRepository).findByUserIdWithUser(userId);
         }
     }
 }
