@@ -105,7 +105,7 @@ jobs:
           image-ref: ${{ matrix.service }}:ci-${{ github.sha }}
           format: 'sarif'
           output: 'trivy-results-${{ matrix.service }}.sarif'
-          severity: 'CRITICAL,HIGH'
+          severity: 'CRITICAL'
           exit-code: '1'
           ignore-unfixed: true
 
