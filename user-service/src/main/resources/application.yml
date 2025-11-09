@@ -1,74 +1,13 @@
 spring:
   application:
     name: user-service
-
-  # Config Server 연결
   config:
     import: "optional:configserver:${SPRING_CLOUD_CONFIG_URI:http://config-server:8888}"
-
   cloud:
     config:
       uri: ${SPRING_CLOUD_CONFIG_URI:http://config-server:8888}
       username: ${SPRING_CLOUD_CONFIG_USERNAME:config}
       password: ${SPRING_CLOUD_CONFIG_PASSWORD:config123}
-      fail-fast: true
-      retry:
-        initial-interval: 3000
-        max-attempts: 3
-        max-interval: 4000
-        multiplier: 1.1
 
-# Security config is provided by Config Server
-
-# Mail config is provided by Config Server
-
-# Redis config is provided by Config Server
-
-# Server port moved to Config Server
-
-# Keycloak config is provided by Config Server
-
-# App business config is provided by Config Server
-
-# swagger 설정
-springdoc:
-  api-docs:
-    path: /v3/api-docs
-  swagger-ui:
-    path: /swagger-ui.html
-    operationsSorter: method
-    tagsSorter: alpha
-  show-actuator: false
-
-# Resilience4j 설정
-resilience4j:
-  circuitbreaker:
-    instances:
-      marketDataService:
-        registerHealthIndicator: true
-        slidingWindowSize: 10
-        minimumNumberOfCalls: 5
-        permittedNumberOfCallsInHalfOpenState: 3
-        automaticTransitionFromOpenToHalfOpenEnabled: true
-        waitDurationInOpenState: 10s
-        failureRateThreshold: 50
-        eventConsumerBufferSize: 10
-        recordExceptions:
-          - org.springframework.web.client.HttpServerErrorException
-          - java.util.concurrent.TimeoutException
-          - java.io.IOException
-  retry:
-    instances:
-      marketDataService:
-        maxAttempts: 3
-        waitDuration: 1s
-        enableExponentialBackoff: true
-        exponentialBackoffMultiplier: 2
-        retryExceptions:
-          - org.springframework.web.client.HttpServerErrorException
-          - java.util.concurrent.TimeoutException
-  timelimiter:
-    instances:
-      marketDataService:
-        timeoutDuration: 8s
-        cancelRunningFuture: true
+server:
+  port: 8080

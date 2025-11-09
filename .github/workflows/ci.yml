@@ -3,6 +3,11 @@ on:
   pull_request:
   push:
     branches: [ master ]
+
+permissions:
+  contents: read
+  security-events: write
+
 jobs:
   build-bom:
     runs-on: ubuntu-latest
@@ -93,3 +98,30 @@ jobs:
           cd ${{ matrix.service }}
           mvn package -DskipTests
           docker build -t ${{ matrix.service }}:ci-${{ github.sha }} .
+
+      - name: Run Trivy vulnerability scanner (table output for debugging)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ matrix.service }}:ci-${{ github.sha }}
+          format: 'table'
+          severity: 'CRITICAL'
+          exit-code: '0'
+          ignore-unfixed: true
+
+      - name: Run Trivy vulnerability scanner (SARIF for Security tab)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ matrix.service }}:ci-${{ github.sha }}
+          format: 'sarif'
+          output: 'trivy-results-${{ matrix.service }}.sarif'
+          severity: 'CRITICAL'
+          exit-code: '0'
+          ignore-unfixed: true
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        continue-on-error: true
+        with:
+          sarif_file: 'trivy-results-${{ matrix.service }}.sarif'
+          category: 'trivy-${{ matrix.service }}'

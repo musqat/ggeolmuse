@@ -5,24 +5,9 @@ spring:
     import: "optional:configserver:${SPRING_CLOUD_CONFIG_URI:http://config-server:8888}"
   cloud:
     config:
+      uri: ${SPRING_CLOUD_CONFIG_URI:http://config-server:8888}
       username: ${SPRING_CLOUD_CONFIG_USERNAME:config}
       password: ${SPRING_CLOUD_CONFIG_PASSWORD:config123}
-  data:
-    redis:
-      host: ${REDIS_HOST:redis.default.svc.cluster.local}
-      port: 6379
-  main:
-    web-application-type: reactive
 
 server:
   port: 8070
-
-services:
-  market-data:
-    uri: http://market-data-service:8083
-  user:
-    uri: http://user-service:8080
-  trade:
-    uri: http://trade-service:8081
-  backtest:
-    uri: http://backtest-service:8082

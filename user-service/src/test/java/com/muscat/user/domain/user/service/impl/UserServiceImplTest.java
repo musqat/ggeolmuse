@@ -7,11 +7,13 @@ import com.muscat.user.common.enums.type.UserRole;
 import com.muscat.user.common.exceptions.AuthenticationException;
 import com.muscat.user.common.exceptions.KeycloakException;
 import com.muscat.user.common.exceptions.UserException;
+import com.muscat.user.common.util.RateLimitService;
 import com.muscat.user.config.mail.MailService;
 import com.muscat.user.domain.account.entity.Account;
 import com.muscat.user.domain.account.repository.AccountRepository;
 import com.muscat.user.domain.user.dto.request.UpdateProfileRequestDto;
 import com.muscat.user.domain.user.entity.EmailToken;
+import com.muscat.user.domain.user.entity.PasswordResetToken;
 import com.muscat.user.domain.user.entity.User;
 import com.muscat.user.domain.user.mapper.UserMapper;
 import com.muscat.user.domain.user.repository.EmailTokenRepository;
@@ -45,6 +47,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willDoNothing;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -77,6 +80,9 @@ class UserServiceImplTest {
 
     @Mock
     private com.muscat.user.common.util.RateLimitService rateLimitService;
+
+    @Mock
+    private com.muscat.user.infra.kafka.LoginEventProducer loginEventProducer;
 
     @InjectMocks
     private UserServiceImpl userService;
@@ -795,6 +801,268 @@ class UserServiceImplTest {
             // then
             assertThat(result).isEqualTo(5L);
             verify(userRepository).countByRole(UserRole.ADMIN);
+        }
+
+        @Test
+        @DisplayName("관리자가 사용자 닉네임을 변경한다")
+        void adminUpdateNickname_Success() {
+            // given
+            Long userId = 1L;
+            String newNickname = "AdminChanged";
+
+            given(userRepository.findById(userId)).willReturn(Optional.of(testUser));
+            given(userRepository.save(testUser)).willReturn(testUser);
+
+            // when
+            User result = userService.adminUpdateNickname(userId, newNickname);
+
+            // then
+            assertThat(result.getNickname()).isEqualTo(newNickname);
+            verify(userRepository).save(testUser);
+        }
+
+        @Test
+        @DisplayName("관리자가 사용자 비밀번호를 변경한다")
+        void adminUpdatePassword_Success() {
+            // given
+            Long userId = 1L;
+            String newPassword = "newPassword123";
+
+            given(userRepository.findById(userId)).willReturn(Optional.of(testUser));
+            given(userRepository.save(testUser)).willReturn(testUser);
+            given(passwordEncoder.encode(newPassword)).willReturn("$2a$10$encodedNewPassword");
+            willDoNothing().given(keycloakService).resetPassword(keycloakId, newPassword);
+
+            // when
+            userService.adminUpdatePassword(userId, newPassword);
+
+            // then
+            verify(keycloakService).resetPassword(keycloakId, newPassword);
+            verify(passwordEncoder).encode(newPassword);
+            verify(userRepository).save(testUser);
+        }
+
+        @Test
+        @DisplayName("관리자가 사용자 이메일을 강제 인증한다")
+        void adminVerifyEmail_Success() {
+            // given
+            Long userId = 1L;
+            testUser.setEmailVerified(false);
+
+            given(userRepository.findById(userId)).willReturn(Optional.of(testUser));
+            given(userRepository.save(testUser)).willReturn(testUser);
+            willDoNothing().given(emailTokenRepository).deleteByUser(testUser);
+
+            // when
+            User result = userService.adminVerifyEmail(userId);
+
+            // then
+            assertThat(result.isEmailVerified()).isTrue();
+            verify(emailTokenRepository).deleteByUser(testUser);
+            verify(userRepository).save(testUser);
+        }
+
+        @Test
+        @DisplayName("관리자가 사용자를 강제 탈퇴시킨다")
+        void adminDeleteUser_Success() {
+            // given
+            Long userId = 1L;
+
+            given(userRepository.findById(userId)).willReturn(Optional.of(testUser));
+            given(accountRepository.findByUserIdWithUser(userId)).willReturn(List.of());
+            willDoNothing().given(emailTokenRepository).deleteByUser(testUser);
+            willDoNothing().given(passwordResetTokenRepository).deleteByUser(testUser);
+            willDoNothing().given(accountRepository).deleteAll(any());
+            willDoNothing().given(keycloakService).deleteUser(keycloakId);
+            willDoNothing().given(userRepository).delete(testUser);
+
+            // when
+            userService.adminDeleteUser(userId);
+
+            // then
+            verify(emailTokenRepository).deleteByUser(testUser);
+            verify(passwordResetTokenRepository).deleteByUser(testUser);
+            verify(accountRepository).findByUserIdWithUser(userId);
+            verify(keycloakService).deleteUser(keycloakId);
+            verify(userRepository).delete(testUser);
+        }
+    }
+
+    @Nested
+    @DisplayName("Keycloak 사용자 동기화 테스트")
+    class CreateUserFromKeycloakTests {
+
+        @Test
+        @DisplayName("Keycloak OAuth 사용자를 생성한다")
+        void createUserFromKeycloak_Success() {
+            // given
+            String keycloakId = "keycloak-123";
+            String email = "oauth@example.com";
+            String nickname = "oauthUser";
+
+            User oauthUser = User.builder()
+                    .id(1L)
+                    .keycloakId(keycloakId)
+                    .email(email)
+                    .nickname(nickname)
+                    .build();
+
+            given(userRepository.existsByEmail(email)).willReturn(false);
+            given(userMapper.createLocalUser(email, nickname, keycloakId)).willReturn(oauthUser);
+            given(userRepository.save(any(User.class))).willReturn(oauthUser);
+
+            // when
+            User result = userService.createUserFromKeycloak(keycloakId, email, nickname);
+
+            // then
+            assertThat(result).isNotNull();
+            assertThat(result.getEmail()).isEqualTo(email);
+            assertThat(result.getKeycloakId()).isEqualTo(keycloakId);
+            verify(userRepository).save(any(User.class));
+        }
+
+        @Test
+        @DisplayName("이미 존재하는 이메일이면 예외가 발생한다")
+        void createUserFromKeycloak_DuplicateEmail_ThrowsException() {
+            // given
+            String email = "existing@example.com";
+            given(userRepository.existsByEmail(email)).willReturn(true);
+
+            // when & then
+            assertThatThrownBy(() ->
+                    userService.createUserFromKeycloak("keycloak-123", email, "nickname"))
+                    .isInstanceOf(UserException.class)
+                    .hasMessage(UserResponse.EMAIL_ALREADY_EXISTS.getMessage());
+        }
+    }
+
+    @Nested
+    @DisplayName("비밀번호 재설정 테스트")
+    class PasswordResetTests {
+
+        @Test
+        @DisplayName("비밀번호 재설정을 요청한다")
+        void requestPasswordReset_Success() {
+            // given
+            testUser.setEmailVerified(true);
+            given(rateLimitService.tryAcquire(testEmail)).willReturn(true);
+            given(userRepository.findByEmail(testEmail)).willReturn(Optional.of(testUser));
+
+            // when
+            userService.requestPasswordReset(testEmail);
+
+            // then
+            verify(userRepository).findByEmail(testEmail);
+            verify(rateLimitService).tryAcquire(testEmail);
+        }
+
+        @Test
+        @DisplayName("이메일 미인증 사용자는 비밀번호 재설정 불가")
+        void requestPasswordReset_UnverifiedEmail_ThrowsException() {
+            // given
+            testUser.setEmailVerified(false);
+            given(rateLimitService.tryAcquire(testEmail)).willReturn(true);
+            given(userRepository.findByEmail(testEmail)).willReturn(Optional.of(testUser));
+
+            // when & then
+            assertThatThrownBy(() -> userService.requestPasswordReset(testEmail))
+                    .isInstanceOf(UserException.class)
+                    .hasMessage(UserResponse.EMAIL_NOT_VERIFIED.getMessage());
+        }
+
+        @Test
+        @DisplayName("Rate limit 초과 시 예외 발생")
+        void requestPasswordReset_RateLimitExceeded_ThrowsException() {
+            // given
+            given(rateLimitService.tryAcquire(testEmail)).willReturn(false);
+            given(rateLimitService.getRemainingWaitSeconds(testEmail)).willReturn(30L);
+
+            // when & then
+            assertThatThrownBy(() -> userService.requestPasswordReset(testEmail))
+                    .isInstanceOf(UserException.class)
+                    .hasMessage(UserResponse.RATE_LIMIT_EXCEEDED.getMessage());
+        }
+
+        @Test
+        @DisplayName("유효한 토큰으로 비밀번호를 재설정한다")
+        void resetPassword_Success() {
+            // given
+            String token = "valid-reset-token";
+            String newPassword = "newPassword123";
+
+            PasswordResetToken resetToken = new PasswordResetToken();
+            resetToken.setToken(token);
+            resetToken.setUser(testUser);
+            resetToken.setExpiryDate(LocalDateTime.now().plusMinutes(30));
+            resetToken.setUsed(false);
+
+            given(passwordResetTokenRepository.findByToken(token)).willReturn(Optional.of(resetToken));
+            given(passwordEncoder.encode(newPassword)).willReturn("$2a$10$encodedNewPassword");
+            given(passwordResetTokenRepository.save(resetToken)).willReturn(resetToken);
+            given(userRepository.save(testUser)).willReturn(testUser);
+            willDoNothing().given(keycloakService).resetPassword(keycloakId, newPassword);
+
+            // when
+            userService.resetPassword(token, newPassword);
+
+            // then
+            verify(keycloakService).resetPassword(keycloakId, newPassword);
+            verify(passwordEncoder).encode(newPassword);
+            verify(userRepository).save(testUser);
+            verify(passwordResetTokenRepository).save(resetToken);
+        }
+
+        @Test
+        @DisplayName("유효하지 않은 토큰으로 재설정 시 예외 발생")
+        void resetPassword_InvalidToken_ThrowsException() {
+            // given
+            String invalidToken = "invalid-token";
+            given(passwordResetTokenRepository.findByToken(invalidToken)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> userService.resetPassword(invalidToken, "newPassword"))
+                    .isInstanceOf(UserException.class)
+                    .hasMessage(UserResponse.PASSWORD_RESET_TOKEN_INVALID.getMessage());
+        }
+
+        @Test
+        @DisplayName("만료된 토큰으로 재설정 시 예외 발생")
+        void resetPassword_ExpiredToken_ThrowsException() {
+            // given
+            String token = "expired-token";
+
+            PasswordResetToken resetToken = new PasswordResetToken();
+            resetToken.setToken(token);
+            resetToken.setUser(testUser);
+            resetToken.setExpiryDate(LocalDateTime.now().minusMinutes(1)); // 만료됨
+            resetToken.setUsed(false);
+
+            given(passwordResetTokenRepository.findByToken(token)).willReturn(Optional.of(resetToken));
+
+            // when & then
+            assertThatThrownBy(() -> userService.resetPassword(token, "newPassword"))
+                    .isInstanceOf(UserException.class)
+                    .hasMessage(UserResponse.PASSWORD_RESET_TOKEN_EXPIRED.getMessage());
+        }
+
+        @Test
+        @DisplayName("이미 사용된 토큰으로 재설정 시 예외 발생")
+        void resetPassword_UsedToken_ThrowsException() {
+            // given
+            String token = "used-token";
+
+            PasswordResetToken resetToken = new PasswordResetToken();
+            resetToken.setToken(token);
+            resetToken.setUser(testUser);
+            resetToken.setExpiryDate(LocalDateTime.now().plusMinutes(30));
+            resetToken.setUsed(true); // 이미 사용됨
+
+            given(passwordResetTokenRepository.findByToken(token)).willReturn(Optional.of(resetToken));
+
+            // when & then
+            assertThatThrownBy(() -> userService.resetPassword(token, "newPassword"))
+                    .isInstanceOf(UserException.class)
+                    .hasMessage(UserResponse.PASSWORD_RESET_TOKEN_EXPIRED.getMessage());
         }
     }
 }

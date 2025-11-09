@@ -19,7 +19,7 @@ spec:
     helm:
       # values 파일 지정
       valueFiles:
-        - values-ec2-k3s.yaml
+        - values-prod.yaml
 
   # 배포 대상: Kubernetes 클러스터
   destination:
