@@ -1,4 +1,4 @@
--- Backtest History table
+-- 백테스트 이력 테이블
 CREATE TABLE IF NOT EXISTS backtest_history (
     backtest_id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(255),
@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS backtest_history (
     created_at TIMESTAMP NOT NULL
 );
 
--- Investment Backtest Result table
+-- 투자 백테스트 결과 테이블
 CREATE TABLE IF NOT EXISTS investment_backtest_result (
     result_id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(255) UNIQUE NOT NULL,

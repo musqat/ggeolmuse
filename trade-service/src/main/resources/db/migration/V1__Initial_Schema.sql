@@ -1,8 +1,8 @@
 -- ============================================================
--- Tables
+-- 테이블
 -- ============================================================
 
--- Trades table
+-- 거래 테이블
 CREATE TABLE IF NOT EXISTS trades (
     trade_id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(255) NOT NULL,
@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS trades (
     created_at TIMESTAMP NOT NULL
 );
 
--- Holdings table
+-- 보유자산 테이블
 CREATE TABLE IF NOT EXISTS holdings (
     holding_id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(255) NOT NULL,
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS holdings (
     UNIQUE (user_id, account_id, symbol)
 );
 
--- Dividends table (사용자 배당 지급 내역)
+-- 배당금 테이블 (사용자 배당 지급 내역)
 CREATE TABLE IF NOT EXISTS dividends (
     dividend_id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(255) NOT NULL,
@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS dividends (
 );
 
 -- ============================================================
--- Performance Indexes
+-- 성능 인덱스
 -- ============================================================
 
 -- 1. Trades 테이블 인덱스

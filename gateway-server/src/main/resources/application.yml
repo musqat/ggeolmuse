@@ -8,8 +8,8 @@ spring:
   cloud:
     config:
       uri: ${SPRING_CLOUD_CONFIG_URI:http://config-server:8888}
-      username: ${SPRING_CLOUD_CONFIG_USERNAME:config}
-      password: ${SPRING_CLOUD_CONFIG_PASSWORD:config123}
+      username: ${CONFIG_SERVER_USERNAME:config}
+      password: ${CONFIG_SERVER_PASSWORD:config123}
 
 server:
   port: 8070

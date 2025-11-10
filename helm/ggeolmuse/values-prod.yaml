@@ -4,7 +4,7 @@ global:
   authDomain: ggeolmuse.com
   imageRegistry: muscathan
   imagePullPolicy: Always
-  springProfiles: prod,no-file-logging
+  springProfiles: prod
 
   # Management server port (Health, Metrics, Actuator)
   management:
