@@ -23,8 +23,8 @@ spring:
   # Config Server 보안 설정
   security:
     user:
-      name: config
-      password: config123
+      name: ${CONFIG_SERVER_USERNAME:config}
+      password: ${CONFIG_SERVER_PASSWORD:config123}
 
 management:
   server:

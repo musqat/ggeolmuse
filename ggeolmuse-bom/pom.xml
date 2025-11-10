@@ -21,6 +21,7 @@
         <!-- Spring Boot and Cloud versions -->
         <spring-boot.version>3.3.11</spring-boot.version>
         <spring-cloud.version>2023.0.6</spring-cloud.version>
+        <spring-cloud-aws.version>3.1.1</spring-cloud-aws.version>
 
         <!-- Dependency versions -->
         <querydsl.version>5.0.0</querydsl.version>
@@ -50,6 +51,15 @@
                 <groupId>org.springframework.cloud</groupId>
                 <artifactId>spring-cloud-dependencies</artifactId>
                 <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- Spring Cloud AWS BOM -->
+            <dependency>
+                <groupId>io.awspring.cloud</groupId>
+                <artifactId>spring-cloud-aws-dependencies</artifactId>
+                <version>${spring-cloud-aws.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>

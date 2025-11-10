@@ -1,4 +1,5 @@
 {{- if .Values.configServer.enabled }}
+{{- include "ggeolmuse.serviceAccount" (dict "name" .Values.configServer.name "Values" .Values) }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -17,6 +18,9 @@ spec:
       labels:
         app: {{ .Values.configServer.name }}
     spec:
+      {{- if .Values.global.aws.serviceAccount.create }}
+      serviceAccountName: {{ .Values.configServer.name }}
+      {{- end }}
       initContainers:
       - name: git-clone
         image: alpine/git:latest
@@ -44,6 +48,14 @@ spec:
           value: {{ .Values.configServer.env.springProfiles | quote }}
         - name: SERVER_PORT
           value: {{ .Values.configServer.service.port | quote }}
+        {{- if .Values.global.aws.secretsManager.enabled }}
+        - name: AWS_SECRETS_MANAGER_ENABLED
+          value: "true"
+        - name: AWS_REGION
+          value: {{ .Values.global.aws.region | quote }}
+        - name: AWS_SECRETS_NAME
+          value: {{ .Values.global.aws.secretsManager.name | quote }}
+        {{- end }}
         {{- if .Values.global.otel.enabled }}
         - name: JAVA_OPTS
           value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" .Values.configServer.name) }}
