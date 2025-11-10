@@ -50,8 +50,6 @@ spec:
         {{- if .Values.global.aws.secretsManager.enabled }}
         - name: AWS_SECRETS_MANAGER_ENABLED
           value: "true"
-        - name: AWS_REGION
-          value: {{ .Values.global.aws.region | quote }}
         - name: AWS_SECRETS_NAME
           value: {{ .Values.global.aws.secretsManager.name | quote }}
         {{- end }}
