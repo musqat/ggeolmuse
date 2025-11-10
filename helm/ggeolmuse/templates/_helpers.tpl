@@ -65,7 +65,20 @@ app.kubernetes.io/instance: {{ .Release.Name }}
   value: {{ .Values.global.keycloak.authServerUrl | quote }}
 - name: KEYCLOAK_REALM
   value: {{ .Values.global.keycloak.realm | quote }}
-{{- if not .Values.global.aws.secretsManager.enabled }}
+{{- if .Values.global.aws.secretsManager.enabled }}
+- name: AWS_REGION
+  value: {{ .Values.global.aws.region | default "ap-northeast-2" | quote }}
+- name: AWS_ACCESS_KEY_ID
+  valueFrom:
+    secretKeyRef:
+      name: aws-credentials
+      key: access-key-id
+- name: AWS_SECRET_ACCESS_KEY
+  valueFrom:
+    secretKeyRef:
+      name: aws-credentials
+      key: secret-access-key
+{{- else }}
 - name: SPRING_DATASOURCE_USERNAME
   {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "DB_USERNAME") | nindent 2 }}
 - name: SPRING_DATASOURCE_PASSWORD
