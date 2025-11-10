@@ -1,4 +1,5 @@
 {{- if .Values.services.userService.enabled }}
+{{- include "ggeolmuse.serviceAccount" (dict "name" .Values.services.userService.name "Values" .Values) }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -18,6 +19,9 @@ spec:
         app: {{ .Values.services.userService.name }}
         {{- include "ggeolmuse.serviceLabels" (dict "name" .Values.services.userService.name "tier" .Values.services.userService.labels.tier) | nindent 8 }}
     spec:
+      {{- if .Values.global.aws.serviceAccount.create }}
+      serviceAccountName: {{ .Values.services.userService.name }}
+      {{- end }}
       initContainers:
       - name: wait-for-config-server
         image: busybox:1.35
@@ -39,6 +43,14 @@ spec:
         - containerPort: {{ .Values.services.userService.service.port }}
         env:
         {{- include "ggeolmuse.springEnv" . | nindent 8 }}
+        {{- if .Values.global.aws.secretsManager.enabled }}
+        - name: AWS_SECRETS_MANAGER_ENABLED
+          value: "true"
+        - name: AWS_REGION
+          value: {{ .Values.global.aws.region | quote }}
+        - name: AWS_SECRETS_NAME
+          value: {{ .Values.global.aws.secretsManager.name | quote }}
+        {{- end }}
         {{- if .Values.global.otel.enabled }}
         - name: JAVA_OPTS
           value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" .Values.services.userService.name "extraOpts" "-Dh2.webAllowOthers=true") }}
@@ -47,6 +59,7 @@ spec:
           value: {{ .Values.global.keycloak.publicUrl | quote }}
         - name: KEYCLOAK_RESOURCE
           value: {{ .Values.global.keycloak.clientId | quote }}
+        {{- if not .Values.global.aws.secretsManager.enabled }}
         - name: KEYCLOAK_CREDENTIALS_SECRET
           {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "KEYCLOAK_SECRET") | nindent 10 }}
         - name: MAIL_USERNAME
@@ -55,14 +68,15 @@ spec:
           {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "MAIL_PASSWORD") | nindent 10 }}
         - name: MAIL_FROM
           {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "MAIL_FROM") | nindent 10 }}
+        - name: ADMIN_PASSWORD
+          {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "ADMIN_PASSWORD") | nindent 10 }}
+        {{- end }}
         - name: APP_BASE_URL
           value: {{ .Values.services.userService.env.appBaseUrl | quote }}
         - name: APP_FRONTEND_URL
           value: {{ .Values.services.userService.env.appFrontendUrl | quote }}
         - name: APP_MAIL_VERIFICATION_BASE_URL
           value: {{ .Values.services.userService.env.mailVerificationBaseUrl | quote }}
-        - name: ADMIN_PASSWORD
-          {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "ADMIN_PASSWORD") | nindent 10 }}
         readinessProbe:
           {{- include "ggeolmuse.readinessProbe" (merge (dict "port" .Values.global.management.port) .Values.services.userService.probes.readiness) | nindent 10 }}
         livenessProbe:

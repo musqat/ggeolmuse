@@ -1,4 +1,5 @@
 {{- if .Values.gatewayServer.enabled }}
+{{- include "ggeolmuse.serviceAccount" (dict "name" .Values.gatewayServer.name "Values" .Values) }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -23,7 +24,7 @@ spec:
       labels:
         app: {{ .Values.gatewayServer.name }}
     spec:
-      {{- if .Values.gatewayServer.rbac.create }}
+      {{- if or .Values.gatewayServer.rbac.create .Values.global.aws.serviceAccount.create }}
       serviceAccountName: {{ .Values.gatewayServer.name }}
       {{- end }}
       initContainers:
@@ -60,6 +61,14 @@ spec:
           value: {{ .Values.global.keycloak.authServerUrl | quote }}
         - name: KEYCLOAK_REALM
           value: {{ .Values.global.keycloak.realm | quote }}
+        {{- if .Values.global.aws.secretsManager.enabled }}
+        - name: AWS_SECRETS_MANAGER_ENABLED
+          value: "true"
+        - name: AWS_REGION
+          value: {{ .Values.global.aws.region | quote }}
+        - name: AWS_SECRETS_NAME
+          value: {{ .Values.global.aws.secretsManager.name | quote }}
+        {{- end }}
         {{- if .Values.global.otel.enabled }}
         - name: JAVA_OPTS
           value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" .Values.gatewayServer.name) }}

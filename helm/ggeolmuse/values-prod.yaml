@@ -44,6 +44,18 @@ global:
     logsExporter: none
     serviceName: ""
 
+  # AWS Secrets Manager
+  aws:
+    enabled: true
+    region: ap-northeast-2
+    secretsManager:
+      enabled: true
+      name: ggeolmuse/production
+    serviceAccount:
+      create: true
+      # annotations:
+      #   eks.amazonaws.com/role-arn: arn:aws:iam::111071843009:role/ggeolmuse-secrets-role
+
 # Ingress Controller - K3s Traefik 사용
 ingressController:
   enabled: false

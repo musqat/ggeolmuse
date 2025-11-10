@@ -35,6 +35,21 @@ global:
 
   springProfiles: prod,no-file-logging
 
+  # AWS 설정
+  aws:
+    enabled: false  # Set to true to enable AWS Secrets Manager
+    region: ap-northeast-2
+    secretsManager:
+      enabled: false
+      # Shared production secret name (all services use this)
+      name: ggeolmuse/production
+    # IRSA (IAM Roles for Service Accounts) 설정
+    # EKS에서 사용 시 ServiceAccount에 IAM Role ARN을 annotation으로 추가
+    serviceAccount:
+      create: true
+      # annotations:
+      #   eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/ggeolmuse-secrets-role
+
   # OpenTelemetry 설정
   otel:
     enabled: true
