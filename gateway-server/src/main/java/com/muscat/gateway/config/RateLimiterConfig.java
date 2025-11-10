@@ -3,6 +3,7 @@ package com.muscat.gateway.config;
 import org.springframework.cloud.gateway.filter.ratelimit.KeyResolver;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import reactor.core.publisher.Mono;
 
 import java.util.Objects;
@@ -19,6 +20,7 @@ public class RateLimiterConfig {
      * 동일 IP에서 오는 요청을 그룹화하여 제한
      */
     @Bean
+    @Primary
     public KeyResolver ipKeyResolver() {
         return exchange -> {
             String clientIp = Objects.requireNonNull(

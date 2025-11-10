@@ -4,6 +4,8 @@ server:
 spring:
   application:
     name: config-server
+  config:
+    import: "optional:aws-secretsmanager:ggeolmuse/production"
   profiles:
     active: git
 
