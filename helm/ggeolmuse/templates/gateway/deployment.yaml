@@ -56,7 +56,14 @@ spec:
         - name: SPRING_CLOUD_CONFIG_USERNAME
           value: {{ .Values.gatewayServer.env.configUsername | quote }}
         - name: SPRING_CLOUD_CONFIG_PASSWORD
+          {{- if .Values.global.aws.secretsManager.enabled }}
+          valueFrom:
+            secretKeyRef:
+              name: config-server-credentials
+              key: password
+          {{- else }}
           value: {{ .Values.gatewayServer.env.configPassword | quote }}
+          {{- end }}
         - name: KEYCLOAK_AUTH_SERVER_URL
           value: {{ .Values.global.keycloak.authServerUrl | quote }}
         - name: KEYCLOAK_REALM
