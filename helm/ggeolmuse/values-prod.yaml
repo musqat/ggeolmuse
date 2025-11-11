@@ -206,7 +206,7 @@ configServer:
     port: 8888
   git:
     uri: https://github.com/musqat/ggeolmuse-config.git
-    label: master
+    label: main
     searchPaths: .
   env:
     springProfiles: git,prod

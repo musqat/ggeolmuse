@@ -52,7 +52,7 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 - name: SPRING_PROFILES_ACTIVE
   value: {{ .Values.global.springProfiles | quote }}
 - name: SPRING_CLOUD_CONFIG_LABEL
-  value: "master"
+  value: "main"
 - name: SPRING_REDIS_HOST
   value: {{ .Values.global.redis.host | quote }}
 - name: SPRING_REDIS_PORT
