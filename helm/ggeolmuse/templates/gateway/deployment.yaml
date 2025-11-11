@@ -53,10 +53,12 @@ spec:
           value: {{ .Values.gatewayServer.service.port | quote }}
         - name: SPRING_CLOUD_CONFIG_URI
           value: {{ .Values.gatewayServer.env.configUri | quote }}
+        {{- if not .Values.global.aws.secretsManager.enabled }}
         - name: SPRING_CLOUD_CONFIG_USERNAME
           value: {{ .Values.gatewayServer.env.configUsername | quote }}
         - name: SPRING_CLOUD_CONFIG_PASSWORD
           value: {{ .Values.gatewayServer.env.configPassword | quote }}
+        {{- end }}
         - name: KEYCLOAK_AUTH_SERVER_URL
           value: {{ .Values.global.keycloak.authServerUrl | quote }}
         - name: KEYCLOAK_REALM
