@@ -3,9 +3,9 @@
 tempo:
   resources:
     limits:
-      memory: 512Mi
+      memory: 2Gi
     requests:
-      memory: 256Mi
+      memory: 1Gi
 
 # OTLP 프로토콜 활성화 (Micrometer Tracing 사용)
 traces:
