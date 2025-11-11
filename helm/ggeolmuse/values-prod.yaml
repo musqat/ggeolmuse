@@ -241,7 +241,7 @@ gatewayServer:
     type: LoadBalancer
     port: 8070
   env:
-    springProfiles: prod,no-file-logging
+    springProfiles: prod
     configUri: http://config-server:8888
     configUsername: config
     configPassword: config123
