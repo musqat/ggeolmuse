@@ -40,9 +40,3 @@ resource "aws_iam_instance_profile" "ggeolmuse_ec2_profile" {
     ManagedBy   = "terraform"
   }
 }
-
-# Attach Instance Profile to EC2 instance
-resource "aws_iam_instance_profile_association" "ggeolmuse_ec2" {
-  instance_id         = var.ec2_instance_id
-  iam_instance_profile = aws_iam_instance_profile.ggeolmuse_ec2_profile.name
-}
