@@ -81,12 +81,7 @@ app.kubernetes.io/instance: {{ .Release.Name }}
     secretKeyRef:
       name: ggeolmuse-secrets
       key: CONFIG_SERVER_PASSWORD
-# Database
-- name: SPRING_DATASOURCE_URL
-  valueFrom:
-    secretKeyRef:
-      name: ggeolmuse-secrets
-      key: DB_URL
+# Database credentials (URL은 Config Server에서 가져옴)
 - name: SPRING_DATASOURCE_USERNAME
   valueFrom:
     secretKeyRef:
