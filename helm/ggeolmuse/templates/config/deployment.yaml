@@ -49,13 +49,33 @@ spec:
         - name: SERVER_PORT
           value: {{ .Values.configServer.service.port | quote }}
         {{- if .Values.global.aws.secretsManager.enabled }}
-        # Database credentials
-        - name: SPRING_DATASOURCE_USERNAME
+        # Database credentials and URLs for placeholder substitution
+        - name: DB_URL_USER
+          valueFrom:
+            secretKeyRef:
+              name: ggeolmuse-secrets
+              key: DB_URL_USER
+        - name: DB_URL_TRADE
+          valueFrom:
+            secretKeyRef:
+              name: ggeolmuse-secrets
+              key: DB_URL_TRADE
+        - name: DB_URL_MARKET
+          valueFrom:
+            secretKeyRef:
+              name: ggeolmuse-secrets
+              key: DB_URL_MARKET
+        - name: DB_URL_BACKTEST
+          valueFrom:
+            secretKeyRef:
+              name: ggeolmuse-secrets
+              key: DB_URL_BACKTEST
+        - name: DB_USERNAME
           valueFrom:
             secretKeyRef:
               name: ggeolmuse-secrets
               key: DB_USERNAME
-        - name: SPRING_DATASOURCE_PASSWORD
+        - name: DB_PASSWORD
           valueFrom:
             secretKeyRef:
               name: ggeolmuse-secrets
