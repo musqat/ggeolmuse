@@ -48,12 +48,12 @@ spec:
           value: {{ .Values.services.tradeService.name | quote }}
         {{- include "ggeolmuse.springEnv" . | nindent 8 }}
         {{- if .Values.global.aws.secretsManager.enabled }}
-        - name: AWS_SECRETS_MANAGER_ENABLED
-          value: "true"
-        - name: AWS_SECRETS_NAME
-          value: {{ .Values.global.aws.secretsManager.name | quote }}
-        {{- end }}
-        {{- if not .Values.global.aws.secretsManager.enabled }}
+        - name: KEYCLOAK_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: ggeolmuse-secrets
+              key: KEYCLOAK_SECRET
+        {{- else }}
         - name: KEYCLOAK_SECRET
           {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "KEYCLOAK_SECRET") | nindent 10 }}
         {{- end }}

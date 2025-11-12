@@ -48,12 +48,22 @@ spec:
           value: {{ .Values.services.marketDataService.name | quote }}
         {{- include "ggeolmuse.springEnv" . | nindent 8 }}
         {{- if .Values.global.aws.secretsManager.enabled }}
-        - name: AWS_SECRETS_MANAGER_ENABLED
-          value: "true"
-        - name: AWS_SECRETS_NAME
-          value: {{ .Values.global.aws.secretsManager.name | quote }}
-        {{- end }}
-        {{- if not .Values.global.aws.secretsManager.enabled }}
+        - name: KEYCLOAK_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: ggeolmuse-secrets
+              key: KEYCLOAK_SECRET
+        - name: ALPHAVANTAGE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: ggeolmuse-secrets
+              key: ALPHAVANTAGE_API_KEY
+        - name: KOREAEXIM_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: ggeolmuse-secrets
+              key: KOREAEXIM_API_KEY
+        {{- else }}
         - name: KEYCLOAK_SECRET
           {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "KEYCLOAK_SECRET") | nindent 10 }}
         - name: ALPHAVANTAGE_API_KEY

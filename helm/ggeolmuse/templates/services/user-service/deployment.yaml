@@ -43,12 +43,6 @@ spec:
         - containerPort: {{ .Values.services.userService.service.port }}
         env:
         {{- include "ggeolmuse.springEnv" . | nindent 8 }}
-        {{- if .Values.global.aws.secretsManager.enabled }}
-        - name: AWS_SECRETS_MANAGER_ENABLED
-          value: "true"
-        - name: AWS_SECRETS_NAME
-          value: {{ .Values.global.aws.secretsManager.name | quote }}
-        {{- end }}
         {{- if .Values.global.otel.enabled }}
         - name: JAVA_OPTS
           value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" .Values.services.userService.name "extraOpts" "-Dh2.webAllowOthers=true") }}
@@ -57,7 +51,28 @@ spec:
           value: {{ .Values.global.keycloak.publicUrl | quote }}
         - name: KEYCLOAK_RESOURCE
           value: {{ .Values.global.keycloak.clientId | quote }}
-        {{- if not .Values.global.aws.secretsManager.enabled }}
+        {{- if .Values.global.aws.secretsManager.enabled }}
+        - name: KEYCLOAK_CREDENTIALS_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: ggeolmuse-secrets
+              key: KEYCLOAK_SECRET
+        - name: MAIL_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: ggeolmuse-secrets
+              key: MAIL_USERNAME
+        - name: MAIL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ggeolmuse-secrets
+              key: MAIL_PASSWORD
+        - name: MAIL_FROM
+          valueFrom:
+            secretKeyRef:
+              name: ggeolmuse-secrets
+              key: MAIL_FROM
+        {{- else }}
         - name: KEYCLOAK_CREDENTIALS_SECRET
           {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "KEYCLOAK_SECRET") | nindent 10 }}
         - name: MAIL_USERNAME
@@ -66,8 +81,6 @@ spec:
           {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "MAIL_PASSWORD") | nindent 10 }}
         - name: MAIL_FROM
           {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "MAIL_FROM") | nindent 10 }}
-        - name: ADMIN_PASSWORD
-          {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "ADMIN_PASSWORD") | nindent 10 }}
         {{- end }}
         - name: APP_BASE_URL
           value: {{ .Values.services.userService.env.appBaseUrl | quote }}

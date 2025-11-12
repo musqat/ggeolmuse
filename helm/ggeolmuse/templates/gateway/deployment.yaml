@@ -59,8 +59,8 @@ spec:
           {{- if .Values.global.aws.secretsManager.enabled }}
           valueFrom:
             secretKeyRef:
-              name: config-server-credentials
-              key: password
+              name: ggeolmuse-secrets
+              key: CONFIG_SERVER_PASSWORD
           {{- else }}
           value: {{ .Values.gatewayServer.env.configPassword | quote }}
           {{- end }}
@@ -68,14 +68,6 @@ spec:
           value: {{ .Values.global.keycloak.authServerUrl | quote }}
         - name: KEYCLOAK_REALM
           value: {{ .Values.global.keycloak.realm | quote }}
-        {{- if .Values.global.aws.secretsManager.enabled }}
-        - name: AWS_SECRETS_MANAGER_ENABLED
-          value: "true"
-        - name: AWS_REGION
-          value: {{ .Values.global.aws.region | quote }}
-        - name: AWS_SECRETS_NAME
-          value: {{ .Values.global.aws.secretsManager.name | quote }}
-        {{- end }}
         {{- if .Values.global.otel.enabled }}
         - name: JAVA_OPTS
           value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" .Values.gatewayServer.name) }}

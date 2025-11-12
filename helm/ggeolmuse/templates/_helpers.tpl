@@ -68,18 +68,35 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 - name: KEYCLOAK_REALM
   value: {{ .Values.global.keycloak.realm | quote }}
 {{- if .Values.global.aws.secretsManager.enabled }}
-- name: AWS_REGION
-  value: {{ .Values.global.aws.region | default "ap-northeast-2" | quote }}
-- name: AWS_ACCESS_KEY_ID
+# Config Server 인증 (Bootstrap 단계 필요)
+- name: SPRING_CLOUD_CONFIG_URI
+  value: "http://config-server:8888"
+- name: SPRING_CLOUD_CONFIG_USERNAME
   valueFrom:
     secretKeyRef:
-      name: aws-credentials
-      key: access-key-id
-- name: AWS_SECRET_ACCESS_KEY
+      name: ggeolmuse-secrets
+      key: CONFIG_SERVER_USERNAME
+- name: SPRING_CLOUD_CONFIG_PASSWORD
   valueFrom:
     secretKeyRef:
-      name: aws-credentials
-      key: secret-access-key
+      name: ggeolmuse-secrets
+      key: CONFIG_SERVER_PASSWORD
+# Database
+- name: SPRING_DATASOURCE_URL
+  valueFrom:
+    secretKeyRef:
+      name: ggeolmuse-secrets
+      key: DB_URL
+- name: SPRING_DATASOURCE_USERNAME
+  valueFrom:
+    secretKeyRef:
+      name: ggeolmuse-secrets
+      key: DB_USERNAME
+- name: SPRING_DATASOURCE_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: ggeolmuse-secrets
+      key: DB_PASSWORD
 {{- else }}
 - name: SPRING_DATASOURCE_USERNAME
   {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "DB_USERNAME") | nindent 2 }}
