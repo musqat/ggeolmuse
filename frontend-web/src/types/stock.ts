@@ -12,6 +12,7 @@ export interface Stock {
 
 export interface StockPrice {
   symbol: string;
+  name?: string;
   currentPrice: number;
   previousClose: number;
   changePercent: number;

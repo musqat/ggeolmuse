@@ -332,14 +332,16 @@ public class MarketController {
       @Parameter(description = "페이지 크기", example = "50")
       @RequestParam(defaultValue = "50") int size,
       @Parameter(description = "정렬 방향 (asc: 오름차순, desc: 내림차순) - 시가총액 기준", example = "desc")
-      @RequestParam(defaultValue = "desc") String direction) {
-    log.debug("종목 목록과 현재가 조회 요청: page={}, size={}, direction={}",
-        page, size, direction);
+      @RequestParam(defaultValue = "desc") String direction,
+      @Parameter(description = "자산 유형 필터 (ALL, EQUITY, ETF)", example = "ALL")
+      @RequestParam(required = false) String assetType) {
+    log.debug("종목 목록과 현재가 조회 요청: page={}, size={}, direction={}, assetType={}",
+        page, size, direction, assetType);
 
     org.springframework.data.domain.Pageable pageable =
         org.springframework.data.domain.PageRequest.of(page, size);
     org.springframework.data.domain.Page<StockPriceDto> stocks =
-        candleService.getAllStocksWithPrices(pageable, direction);
+        candleService.getAllStocksWithPrices(pageable, direction, assetType);
 
     log.debug("종목 목록과 현재가 조회 완료: {} 개 (전체 {}개 중)", stocks.getNumberOfElements(), stocks.getTotalElements());
     return ResponseEntity.status(HttpStatus.OK).body(stocks);

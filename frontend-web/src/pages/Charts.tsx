@@ -50,6 +50,7 @@ const Charts: React.FC = () => {
 
   // 현재 가격 정보
   const [currentPrice, setCurrentPrice] = useState<CandlestickChartData | null>(null);
+  const [companyName, setCompanyName] = useState<string>('');
 
   // 지원 종목 목록 로드
   useEffect(() => {
@@ -103,6 +104,18 @@ const Charts: React.FC = () => {
         // 최신 데이터로 현재 가격 설정
         if (convertedData.length > 0) {
           setCurrentPrice(convertedData[convertedData.length - 1]);
+        }
+
+        // 회사명 가져오기
+        try {
+          const priceResponse = await stockApi.getCurrentPrice(symbol);
+          const stockData = priceResponse.data as any;
+          if (stockData?.name) {
+            setCompanyName(stockData.name);
+          }
+        } catch (err) {
+          // 회사명 가져오기 실패 시 무시
+          console.warn('Failed to fetch company name:', err);
         }
       } catch (err) {
         setError('차트 데이터를 불러오는데 실패했습니다.');
@@ -169,10 +182,15 @@ const Charts: React.FC = () => {
         </button>
 
         {/* 첫 번째 줄: 심볼 + 검색 */}
-        <div className="flex items-center space-x-4 mb-3">
+        <div className="mb-3">
           {!showSearchInput ? (
-            <>
-              <h1 className="text-4xl font-bold text-gray-900">{symbol}</h1>
+            <div className="flex items-center space-x-4">
+              <div>
+                <h1 className="text-4xl font-bold text-gray-900">{symbol}</h1>
+                {companyName && (
+                  <p className="text-sm text-gray-500 mt-1">{companyName}</p>
+                )}
+              </div>
               <button
                 onClick={() => setShowSearchInput(true)}
                 className="p-2 hover:bg-indigo-100 rounded-lg transition-colors bg-indigo-50"
@@ -180,7 +198,7 @@ const Charts: React.FC = () => {
               >
                 <Search className="w-5 h-5 text-indigo-600" />
               </button>
-            </>
+            </div>
           ) : (
             <div className="flex items-center space-x-2">
               <input

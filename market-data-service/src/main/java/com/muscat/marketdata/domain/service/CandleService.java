@@ -67,9 +67,11 @@ public interface CandleService {
    *
    * @param pageable  페이지 정보 (페이지 번호, 크기)
    * @param direction 정렬 방향 (asc: 오름차순, desc: 내림차순) - 시가총액 기준
+   * @param assetType 자산 유형 필터 (null, "ALL", "EQUITY", "ETF")
    * @return 종목의 주가 정보 페이지
    */
   Page<StockPriceDto> getAllStocksWithPrices(
     Pageable pageable,
-    String direction);
+    String direction,
+    String assetType);
 }

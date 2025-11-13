@@ -87,9 +87,9 @@ export const stockApi = {
     }),
 
   // 모든 종목의 현재가 조회 (페이지네이션) - 시가총액 큰 순으로 고정
-  getAllStocksWithPrices: (page: number = 0, size: number = 50) =>
+  getAllStocksWithPrices: (page: number = 0, size: number = 50, assetType?: string) =>
     apiClient.get(`/market/stocks`, {
-      params: { page, size }
+      params: { page, size, assetType }
     }),
 
   // 특정 종목의 OHLC 데이터 조회

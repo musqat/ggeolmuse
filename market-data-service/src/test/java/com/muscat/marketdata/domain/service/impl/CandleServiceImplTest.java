@@ -574,7 +574,7 @@ class CandleServiceImplTest {
                     .willReturn(List.of(aaplCandle, googlCandle, aaplPrevious, googlPrevious));
 
             // when
-            Page<StockPriceDto> results = candleService.getAllStocksWithPrices(pageable, "desc");
+            Page<StockPriceDto> results = candleService.getAllStocksWithPrices(pageable, "desc", null);
 
             // then
             assertThat(results.getContent()).hasSize(2);
@@ -615,7 +615,7 @@ class CandleServiceImplTest {
                     .willReturn(new ArrayList<>());
 
             // when
-            Page<StockPriceDto> results = candleService.getAllStocksWithPrices(pageable, "desc");
+            Page<StockPriceDto> results = candleService.getAllStocksWithPrices(pageable, "desc", null);
 
             // then
             assertThat(results.getContent()).hasSize(1);
@@ -635,7 +635,7 @@ class CandleServiceImplTest {
             given(assetRepository.findByActiveTrue()).willReturn(emptyList);
 
             // when
-            Page<StockPriceDto> results = candleService.getAllStocksWithPrices(pageable, "desc");
+            Page<StockPriceDto> results = candleService.getAllStocksWithPrices(pageable, "desc", null);
 
             // then
             assertThat(results.getContent()).isEmpty();
@@ -666,7 +666,7 @@ class CandleServiceImplTest {
                     .willReturn(List.of(testCandle));
 
             // when
-            Page<StockPriceDto> results = candleService.getAllStocksWithPrices(pageable, "desc");
+            Page<StockPriceDto> results = candleService.getAllStocksWithPrices(pageable, "desc", null);
 
             // then - ERROR 종목은 캔들이 없어서 available=false로 추가됨
             assertThat(results.getContent()).hasSize(2);

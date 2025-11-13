@@ -244,44 +244,21 @@ public class CandleServiceImpl implements CandleService {
   }
 
   @Override
-  @Cacheable(
-      cacheNames = "stockPrices",
-      key = "#pageable.pageNumber + ':' + #pageable.pageSize + ':' + #direction"
-  )
   public Page<StockPriceDto> getAllStocksWithPrices(
       Pageable pageable,
-      String direction) {
-    log.debug("전체 종목 목록과 주가 조회 요청: page={}, size={}, direction={}",
-        pageable.getPageNumber(), pageable.getPageSize(), direction);
+      String direction,
+      String assetType) {
+    log.debug("전체 종목 목록과 주가 조회 요청: page={}, size={}, direction={}, assetType={}",
+        pageable.getPageNumber(), pageable.getPageSize(), direction, assetType);
 
-    // active=true인 종목만 조회
-    List<Asset> allActiveAssets = assetRepository.findByActiveTrue();
-
-    // marketCap 기준 정렬 (NULL은 항상 마지막)
+    // DB 레벨 페이징 + 정렬 + 필터링 (QueryDSL)
     boolean ascending = "asc".equalsIgnoreCase(direction);
-    allActiveAssets.sort((a1, a2) -> {
-      Long mc1 = a1.getMarketCap();
-      Long mc2 = a2.getMarketCap();
-
-      // NULL은 항상 마지막
-      if (mc1 == null && mc2 == null) return a1.getSymbol().compareTo(a2.getSymbol());
-      if (mc1 == null) return 1;
-      if (mc2 == null) return -1;
-
-      // marketCap으로 정렬
-      int mcCompare = ascending ? mc1.compareTo(mc2) : mc2.compareTo(mc1);
-      // marketCap이 같으면 symbol로 정렬
-      return mcCompare != 0 ? mcCompare : a1.getSymbol().compareTo(a2.getSymbol());
-    });
-
-    // 페이징 처리
-    int start = (int) pageable.getOffset();
-    int end = Math.min((start + pageable.getPageSize()), allActiveAssets.size());
-    List<Asset> assets = allActiveAssets.subList(start, end);
+    Page<Asset> assetPage = assetRepository.findActiveSortedByMarketCap(pageable, ascending, assetType);
+    List<Asset> assets = assetPage.getContent();
     List<String> symbols = assets.stream().map(Asset::getSymbol).toList();
 
-    // 해당 페이지 심볼들의 최근 60일 캔들 데이터를 일괄 조회
-    List<Candle> recentCandles = candleRepository.findRecentBySymbols(symbols, 60);
+    // 해당 페이지 심볼들의 최근 2일 캔들 데이터를 일괄 조회 (최신가 + 전일가)
+    List<Candle> recentCandles = candleRepository.findRecentBySymbols(symbols, 2);
 
     // 심볼별로 캔들 그룹화 (날짜 내림차순 정렬 상태 유지)
     var candlesBySymbol = recentCandles.stream()
@@ -341,10 +318,10 @@ public class CandleServiceImpl implements CandleService {
     }
 
     log.debug("전체 종목 목록과 주가 조회 성공: {} 개 (전체 {}개 중)",
-        stockPrices.size(), allActiveAssets.size());
+        stockPrices.size(), assetPage.getTotalElements());
 
     return new org.springframework.data.domain.PageImpl<>(
-        stockPrices, pageable, allActiveAssets.size());
+        stockPrices, pageable, assetPage.getTotalElements());
   }
 
   // 변화율 계산 메서드

@@ -92,12 +92,12 @@ const Stocks: React.FC = () => {
     return domainMap[symbol] || null;
   };
 
-  const loadStocks = async (page: number = 0) => {
+  const loadStocks = async (page: number = 0, filter: string = 'ALL') => {
     try {
       setLoading(true);
       setError(null);
 
-      const response = await stockApi.getAllStocksWithPrices(page, PAGE_SIZE);
+      const response = await stockApi.getAllStocksWithPrices(page, PAGE_SIZE, filter === 'ALL' ? undefined : filter);
       const pageData = response.data;
 
       // Spring Page 응답 처리
@@ -126,21 +126,16 @@ const Stocks: React.FC = () => {
     }
   };
 
-  // 초기 데이터 로드
+  // 초기 데이터 로드 및 필터 변경 시 데이터 다시 로드
   useEffect(() => {
-    loadStocks(0);
-  }, []);
+    loadStocks(0, assetFilter);
+  }, [assetFilter]);
 
   // 페이지 변경 시
   const handlePageChange = (page: number) => {
-    loadStocks(page);
+    loadStocks(page, assetFilter);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-
-  // 필터링 적용
-  const filteredSymbols = assetFilter === 'ALL'
-    ? symbols
-    : symbols.filter(s => s.assetType === assetFilter);
 
   const handleSymbolClick = (symbol: string) => {
     navigate(`/charts/${symbol}`);
@@ -250,7 +245,7 @@ const Stocks: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredSymbols.map((stock) => (
+              {symbols.map((stock) => (
                 <tr
                   key={stock.symbol}
                   onClick={() => handleSymbolClick(stock.symbol)}
