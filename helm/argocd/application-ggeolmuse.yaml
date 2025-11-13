@@ -45,8 +45,8 @@ spec:
       - Replace=true
       # 리소스 검증
       - Validate=true
-      # ignoreDifferences 무시하고 모든 변경사항 감지
-      - RespectIgnoreDifferences=false
+      # ignoreDifferences 설정
+      - RespectIgnoreDifferences=true
 
     # 재시도 정책
     retry:
@@ -63,8 +63,10 @@ spec:
       jsonPointers:
         - /spec/replicas
 
-    # Secret 값 변경 무시
-    - group: ""
-      kind: Secret
+    # ExternalSecret의 duration 정규화 무시
+    - group: external-secrets.io
+      kind: ExternalSecret
+      name: ggeolmuse-secrets
+      namespace: default
       jsonPointers:
-        - /data
+        - /spec/refreshInterval
