@@ -38,8 +38,6 @@ data:
               uri: http://user-service:8080
               predicates:
                 - Path=/api/auth/**
-              filters:
-                - RewritePath=/api/auth/(?<segment>.*), /api/internal/auth/$\{segment}
 
             # User Service - User APIs (JWT 필요)
             - id: user-private-route
