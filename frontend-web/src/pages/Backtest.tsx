@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   TrendingUp,
   TrendingDown,
@@ -64,7 +65,6 @@ const Backtest: React.FC = () => {
   // 공통 설정
   const [mode, setMode] = useState<BacktestMode>('simple');
   const [symbol, setSymbol] = useState('AAPL');
-  const [supportedSymbols, setSupportedSymbols] = useState<string[]>([]);
 
   // 단순 백테스트 설정
   const [purchaseDate, setPurchaseDate] = useState('2023-01-01');
@@ -151,56 +151,40 @@ const Backtest: React.FC = () => {
   }>({});
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
-  // 히스토리 관련 상태
-  const [historyData, setHistoryData] = useState<BacktestHistoryDto[]>([]);
+  // 히스토리 페이지 상태만 유지 (React Query가 데이터/로딩 상태 관리)
   const [historyPage, setHistoryPage] = useState(0);
-  const [historyTotalPages, setHistoryTotalPages] = useState(0);
-  const [historyLoading, setHistoryLoading] = useState(false);
 
-  // 히스토리 로드
-  const loadHistory = async (page: number = 0) => {
-    if (!user?.email) {
-      alert('로그인이 필요합니다.');
-      setIsLoginModalOpen(true);
-      return;
-    }
+  // React Query: 지원 종목 조회
+  const { data: supportedSymbols = ['AAPL', 'MSFT', 'GOOGL', 'TSLA', 'NVDA'] } = useQuery({
+    queryKey: ['stock', 'symbols'],
+    queryFn: async () => {
+      const response = await stockApi.getAllSymbols();
+      const assets = Array.isArray(response.data) ? response.data : [];
+      return assets.map((asset: any) => String(asset.symbol).toUpperCase());
+    },
+    staleTime: 10 * 60 * 1000, // 10분 (종목 목록은 자주 안 바뀜)
+  });
 
-    setHistoryLoading(true);
-    try {
-      const response = await backtestApi.getHistory(user.email, page, 20);
-      setHistoryData(response.data.content);
-      setHistoryTotalPages(response.data.totalPages);
-      setHistoryPage(page);
-    } catch (err: any) {
-      console.error('히스토리 로드 실패:', err);
-      alert('히스토리를 불러오는데 실패했습니다.');
-    } finally {
-      setHistoryLoading(false);
-    }
-  };
-
-  // 히스토리 모드로 전환 시 자동 로드
-  useEffect(() => {
-    if (mode === 'history' && isAuthenticated) {
-      loadHistory(0);
-    }
-  }, [mode, isAuthenticated]);
-
-  // 지원 종목 조회
-  useEffect(() => {
-    const loadSymbols = async () => {
-      try {
-        const response = await stockApi.getAllSymbols();
-        const assets = Array.isArray(response.data) ? response.data : [];
-        const symbols = assets.map((asset: any) => String(asset.symbol).toUpperCase());
-        setSupportedSymbols(symbols);
-      } catch (error) {
-        setSupportedSymbols(['AAPL', 'MSFT', 'GOOGL', 'TSLA', 'NVDA']);
+  // React Query: 백테스트 히스토리 조회 (페이지네이션)
+  const {
+    data: historyResponse,
+    isLoading: historyLoading,
+    refetch: refetchHistory
+  } = useQuery({
+    queryKey: ['backtest', 'history', user?.email, historyPage],
+    queryFn: async () => {
+      if (!user?.email) {
+        throw new Error('로그인이 필요합니다.');
       }
-    };
+      const response = await backtestApi.getHistory(user.email, historyPage, 20);
+      return response.data;
+    },
+    enabled: mode === 'history' && isAuthenticated && !!user?.email,
+    staleTime: 1 * 60 * 1000, // 1분 (히스토리는 자주 변경될 수 있음)
+  });
 
-    loadSymbols();
-  }, []);
+  const historyData = historyResponse?.content || [];
+  const historyTotalPages = historyResponse?.totalPages || 0;
 
   // 단순 백테스트 실행
   const runSimpleBacktest = async () => {
@@ -911,8 +895,8 @@ const Backtest: React.FC = () => {
               {historyTotalPages > 1 && (
                 <div className="mt-4 flex items-center justify-center space-x-2">
                   <button
-                    onClick={() => loadHistory(historyPage - 1)}
-                    disabled={historyPage === 0}
+                    onClick={() => setHistoryPage(historyPage - 1)}
+                    disabled={historyPage === 0 || historyLoading}
                     className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                   >
                     이전
@@ -921,8 +905,8 @@ const Backtest: React.FC = () => {
                     {historyPage + 1} / {historyTotalPages}
                   </span>
                   <button
-                    onClick={() => loadHistory(historyPage + 1)}
-                    disabled={historyPage >= historyTotalPages - 1}
+                    onClick={() => setHistoryPage(historyPage + 1)}
+                    disabled={historyPage >= historyTotalPages - 1 || historyLoading}
                     className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                   >
                     다음
@@ -1960,7 +1944,7 @@ const Backtest: React.FC = () => {
       )}
 
       {/* Empty State */}
-      {!result && !error && !isRunning && (
+      {!result && !error && !isRunning && mode !== 'history' && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
           <BarChart3 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">백테스트 결과 없음</h3>

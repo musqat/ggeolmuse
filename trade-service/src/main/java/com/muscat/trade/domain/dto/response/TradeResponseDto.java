@@ -3,61 +3,56 @@ package com.muscat.trade.domain.dto.response;
 import com.muscat.trade.common.enums.type.TradeType;
 import com.muscat.trade.domain.entity.Trade;
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.Builder;
-import lombok.Getter;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Schema(description = "거래 내역 정보")
-@Getter
-@Builder
-public class TradeResponseDto {
-
+public record TradeResponseDto(
   @Schema(description = "거래 ID", example = "TRADE_20240918_001")
-  private String tradeId; // 거래 ID
+  String tradeId, // 거래 ID
 
   @Schema(description = "계좌 ID", example = "12345678")
-  private String accountId; // 계좌 ID
+  String accountId, // 계좌 ID
 
   @Schema(description = "종목 심볼", example = "AAPL")
-  private String symbol; // 종목 심볼
+  String symbol, // 종목 심볼
 
   @Schema(description = "거래 유형", example = "BUY", allowableValues = {"BUY", "SELL"})
-  private TradeType tradeType; // 거래 유형 (BUY/SELL)
+  TradeType tradeType, // 거래 유형 (BUY/SELL)
 
   @Schema(description = "거래 수량", example = "50.00")
-  private BigDecimal quantity; // 거래 수량
+  BigDecimal quantity, // 거래 수량
 
   @Schema(description = "체결가", example = "165.75")
-  private BigDecimal price; // 체결가
+  BigDecimal price, // 체결가
 
   @Schema(description = "총 거래금액", example = "8287.50")
-  private BigDecimal totalAmount; // 총 거래금액
+  BigDecimal totalAmount, // 총 거래금액
 
   @Schema(description = "수수료", example = "4.14")
-  private BigDecimal fee; // 수수료
+  BigDecimal fee, // 수수료
 
   @Schema(description = "거래일", example = "2024-09-18")
-  private LocalDate tradeDate; // 거래일
+  LocalDate tradeDate, // 거래일
 
   @Schema(description = "실행일시", example = "2024-09-18T14:30:00")
-  private LocalDateTime executedAt; // 실행일시
+  LocalDateTime executedAt // 실행일시
+) {
 
   // Entity to DTO 변환
   public static TradeResponseDto from(Trade trade) {
-    return TradeResponseDto.builder()
-        .tradeId(trade.getTradeId())
-        .accountId(String.valueOf(trade.getAccountId()))
-        .symbol(trade.getSymbol())
-        .tradeType(trade.getTradeType())
-        .quantity(trade.getQuantity())
-        .price(trade.getPrice())
-        .totalAmount(trade.getTotalAmount())
-        .fee(trade.getFee())
-        .tradeDate(trade.getTradeDate())
-        .executedAt(trade.getExecutedAt())
-        .build();
+    return new TradeResponseDto(
+      trade.getTradeId(),
+      String.valueOf(trade.getAccountId()),
+      trade.getSymbol(),
+      trade.getTradeType(),
+      trade.getQuantity(),
+      trade.getPrice(),
+      trade.getTotalAmount(),
+      trade.getFee(),
+      trade.getTradeDate(),
+      trade.getExecutedAt()
+    );
   }
 }

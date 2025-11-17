@@ -1,11 +1,10 @@
 package com.muscat.commonlib.util;
 
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ProblemDetail;
-
 import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.Map;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
 
 public final class ProblemDetailUtils {
 
@@ -16,7 +15,8 @@ public final class ProblemDetailUtils {
   }
 
   // 기본 ProblemDetail 생성
-  public static ProblemDetail createProblem(HttpStatus status, String detail, String errorCode, String path) {
+  public static ProblemDetail createProblem(HttpStatus status, String detail, String errorCode,
+    String path) {
     ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, detail);
     problem.setType(URI.create(PROBLEM_BASE_URL + errorCode.toLowerCase().replace("_", "-")));
     problem.setInstance(URI.create(path));
@@ -26,14 +26,16 @@ public final class ProblemDetailUtils {
   }
 
   // 제목 포함 ProblemDetail 생성
-  public static ProblemDetail createProblem(HttpStatus status, String detail, String errorCode, String path, String title) {
+  public static ProblemDetail createProblem(HttpStatus status, String detail, String errorCode,
+    String path, String title) {
     ProblemDetail problem = createProblem(status, detail, errorCode, path);
     problem.setTitle(title);
     return problem;
   }
 
   // 추가 속성 포함 ProblemDetail 생성
-  public static ProblemDetail createProblem(HttpStatus status, String detail, String errorCode, String path, String title, Map<String, Object> properties) {
+  public static ProblemDetail createProblem(HttpStatus status, String detail, String errorCode,
+    String path, String title, Map<String, Object> properties) {
     ProblemDetail problem = createProblem(status, detail, errorCode, path, title);
     if (properties != null) {
       properties.forEach(problem::setProperty);
@@ -42,8 +44,10 @@ public final class ProblemDetailUtils {
   }
 
   // 유효성 검사 오류용 ProblemDetail 생성
-  public static ProblemDetail createValidationProblem(String detail, String path, Map<String, String> validationErrors) {
-    ProblemDetail problem = createProblem(HttpStatus.BAD_REQUEST, detail, "VALIDATION_ERROR", path, "Validation Error");
+  public static ProblemDetail createValidationProblem(String detail, String path,
+    Map<String, String> validationErrors) {
+    ProblemDetail problem = createProblem(HttpStatus.BAD_REQUEST, detail, "VALIDATION_ERROR", path,
+      "Validation Error");
     problem.setProperty("validationErrors", validationErrors);
     return problem;
   }
@@ -51,16 +55,17 @@ public final class ProblemDetailUtils {
   // 내부 서버 오류용 ProblemDetail 생성
   public static ProblemDetail createInternalServerError(String path) {
     return createProblem(
-        HttpStatus.INTERNAL_SERVER_ERROR,
-        "서버 내부 오류가 발생했습니다",
-        "INTERNAL_SERVER_ERROR",
-        path,
-        "Internal Server Error"
+      HttpStatus.INTERNAL_SERVER_ERROR,
+      "서버 내부 오류가 발생했습니다",
+      "INTERNAL_SERVER_ERROR",
+      path,
+      "Internal Server Error"
     );
   }
 
   // 잘못된 요청용 ProblemDetail 생성
-  public static ProblemDetail createBadRequestProblem(String detail, String errorCode, String path) {
+  public static ProblemDetail createBadRequestProblem(String detail, String errorCode,
+    String path) {
     return createProblem(HttpStatus.BAD_REQUEST, detail, errorCode, path, "Bad Request");
   }
 
@@ -70,13 +75,16 @@ public final class ProblemDetailUtils {
   }
 
   // 인증되지 않음용 ProblemDetail 생성
-  public static ProblemDetail createUnauthorizedProblem(String detail, String errorCode, String path) {
+  public static ProblemDetail createUnauthorizedProblem(String detail, String errorCode,
+    String path) {
     return createProblem(HttpStatus.UNAUTHORIZED, detail, errorCode, path, "Unauthorized");
   }
 
   // 서비스 사용 불가용 ProblemDetail 생성
-  public static ProblemDetail createServiceUnavailableProblem(String detail, String errorCode, String path, String provider) {
-    ProblemDetail problem = createProblem(HttpStatus.SERVICE_UNAVAILABLE, detail, errorCode, path, "Service Unavailable");
+  public static ProblemDetail createServiceUnavailableProblem(String detail, String errorCode,
+    String path, String provider) {
+    ProblemDetail problem = createProblem(HttpStatus.SERVICE_UNAVAILABLE, detail, errorCode, path,
+      "Service Unavailable");
     problem.setProperty("provider", provider);
     return problem;
   }

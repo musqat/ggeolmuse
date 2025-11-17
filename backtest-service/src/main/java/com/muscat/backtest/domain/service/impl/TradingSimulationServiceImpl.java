@@ -2,6 +2,7 @@ package com.muscat.backtest.domain.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.muscat.backtest.common.constants.BacktestConstants;
 import com.muscat.backtest.common.enums.BacktestResponse;
 import com.muscat.backtest.common.enums.type.BacktestType;
 import com.muscat.backtest.common.exception.BacktestException;
@@ -22,9 +23,9 @@ import com.muscat.backtest.infra.client.TradeServiceClientWrapper;
 import com.muscat.backtest.infra.client.dto.DividendDto;
 import com.muscat.backtest.infra.client.dto.DividendHistoryDto;
 import com.muscat.backtest.infra.client.dto.HoldingDto;
-import com.muscat.backtest.infra.client.dto.OHLCPriceDto;
-import com.muscat.backtest.infra.client.dto.StockPriceDto;
 import com.muscat.backtest.infra.client.dto.TradeDto;
+import com.muscat.commonlib.dto.OHLCPriceDto;
+import com.muscat.commonlib.dto.StockPriceDto;
 import com.muscat.commonlib.util.MoneyUtils;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -132,7 +133,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
 
   private LocalDate findEarliestBuyDate(String authorization, HoldingDto holding) {
     List<TradeDto> tradeHistory = tradeServiceClientWrapper.getTradeHistoryBySymbol(authorization,
-      holding.getSymbol());
+      holding.symbol());
 
     return tradeHistory.stream()
       .filter(trade -> "BUY".equals(trade.getTradeType()))
@@ -213,7 +214,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
     BigDecimal totalReturnKrw = totalAssetKrw.subtract(totalInvestment);
     BigDecimal totalReturnPercent = totalInvestment.compareTo(BigDecimal.ZERO) > 0
         ? totalReturnKrw.divide(totalInvestment, 4, BigDecimal.ROUND_HALF_UP)
-            .multiply(BigDecimal.valueOf(100))
+            .multiply(BacktestConstants.Money.PERCENTAGE_MULTIPLIER)
         : BigDecimal.ZERO;
 
     // 통합 SimulationResponse 생성
@@ -339,12 +340,12 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
 
   private SimulationCalculationResult calculateSimulation(SimulationContext context) {
     // adjustedClose 사용 (액면분할/배당 반영), 없으면 closePrice fallback
-    BigDecimal purchasePriceUsd = context.purchaseData().getAdjustedClose() != null
-        ? context.purchaseData().getAdjustedClose()
-        : context.purchaseData().getClosePrice();
+    BigDecimal purchasePriceUsd = context.purchaseData().adjustedClose() != null
+        ? context.purchaseData().adjustedClose()
+        : context.purchaseData().closePrice();
     BigDecimal purchaseFxRate = context.purchaseFxRate().rate();
     BigDecimal currentFxRate = context.currentFxRate().rate();
-    BigDecimal currentPriceUsd = context.currentPrice().getCurrentPrice();
+    BigDecimal currentPriceUsd = context.currentPrice().currentPrice();
 
     BigDecimal usdAmount = MoneyUtils.convertKrwToUsd(
       context.request().getInvestmentAmount(), purchaseFxRate);
@@ -393,7 +394,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
         .forEach(dividend -> {
           // 이 배당금 계산 (현재 보유 주식수 기준)
           BigDecimal dividendAmount = dividend.getAmount().multiply(sharesArray[0])
-            .setScale(2, java.math.RoundingMode.HALF_UP);
+            .setScale(BacktestConstants.Money.SCALE, BacktestConstants.Money.ROUNDING_MODE);
 
           if (dividendAmount.compareTo(BigDecimal.ZERO) > 0) {
             // 배당 원천징수 적용 (설정된 경우)
@@ -401,11 +402,11 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
             BigDecimal afterTaxDividend = dividendAmount;
             if (taxRate != null && taxRate.compareTo(BigDecimal.ZERO) > 0) {
               BigDecimal taxAmount = dividendAmount.multiply(taxRate)
-                .setScale(2, java.math.RoundingMode.HALF_UP);
+                .setScale(BacktestConstants.Money.SCALE, BacktestConstants.Money.ROUNDING_MODE);
               afterTaxDividend = dividendAmount.subtract(taxAmount);
               log.info("배당 원천징수: {} - 배당금 ${} → 세후 ${} (세율 {}%)",
                 dividend.getExDate(), dividendAmount, afterTaxDividend,
-                taxRate.multiply(BigDecimal.valueOf(100)));
+                taxRate.multiply(BacktestConstants.Money.PERCENTAGE_MULTIPLIER));
             }
 
             // 배당금 지급일의 주가 조회
@@ -413,9 +414,9 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
               context.request().getSymbol(), dividend.getExDate());
 
             // adjustedClose 사용 (액면분할/배당 반영), 없으면 closePrice fallback
-            BigDecimal dividendDayPrice = priceAtDividendDate.getAdjustedClose() != null
-                ? priceAtDividendDate.getAdjustedClose()
-                : priceAtDividendDate.getClosePrice();
+            BigDecimal dividendDayPrice = priceAtDividendDate.adjustedClose() != null
+                ? priceAtDividendDate.adjustedClose()
+                : priceAtDividendDate.closePrice();
 
             // 세후 배당금으로 매수 가능한 주식수
             BigDecimal additionalShares = afterTaxDividend.divide(
@@ -530,12 +531,12 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
 
       // 최저가 찾기 (최적 매수)
       OHLCPriceDto lowestPrice = prices.stream()
-        .min(Comparator.comparing(OHLCPriceDto::getClosePrice))
+        .min(Comparator.comparing(OHLCPriceDto::closePrice))
         .orElse(null);
 
       // 최고가 찾기 (최적 매도)
       OHLCPriceDto highestPrice = prices.stream()
-        .max(Comparator.comparing(OHLCPriceDto::getClosePrice))
+        .max(Comparator.comparing(OHLCPriceDto::closePrice))
         .orElse(null);
 
       if (lowestPrice == null || highestPrice == null) {
@@ -544,13 +545,13 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
 
       // 최적 수익률 계산
       BigDecimal optimalReturn = MoneyUtils.calculateReturnRate(
-        lowestPrice.getClosePrice(), highestPrice.getClosePrice());
+        lowestPrice.closePrice(), highestPrice.closePrice());
 
       return new OptimalTiming(
-        lowestPrice.getDate(),
-        lowestPrice.getClosePrice(),
-        highestPrice.getDate(),
-        highestPrice.getClosePrice(),
+        lowestPrice.date(),
+        lowestPrice.closePrice(),
+        highestPrice.date(),
+        highestPrice.closePrice(),
         optimalReturn
       );
     } catch (Exception e) {
@@ -600,9 +601,9 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
     LocalDate purchaseDate) {
     try {
       log.debug("Holdings 데이터: symbol={}, shares={}, avgPrice={}",
-        holding.getSymbol(), holding.getShares(), holding.getAveragePrice());
+        holding.symbol(), holding.getShares(), holding.getAveragePrice());
       // 현재 주가 조회
-      StockPriceDto currentPrice = marketDataClientWrapper.getCurrentPrice(holding.getSymbol());
+      StockPriceDto currentPrice = marketDataClientWrapper.getCurrentPrice(holding.symbol());
 
       // 매수 시점의 환율 조회 (fallback 포함)
       MarketDataClient.FxRate purchaseFxRate = getFxRateWithFallback(purchaseDate);
@@ -611,7 +612,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
       MarketDataClient.FxRate currentFxRate = getCurrentFxRateWithFallback();
 
       // 보유 주식의 현재 가치 계산 (USD)
-      BigDecimal currentValueUsd = holding.getShares().multiply(currentPrice.getCurrentPrice())
+      BigDecimal currentValueUsd = holding.getShares().multiply(currentPrice.currentPrice())
         .setScale(2, MoneyUtils.ROUND_MODE);
 
       // 현재 가치 (KRW)
@@ -697,13 +698,13 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
     BigDecimal totalReturnKrw, BigDecimal totalReturnPercent) {
 
     return SimulationResponse.builder()
-      .symbol(holding.getSymbol())
+      .symbol(holding.symbol())
       .purchaseDate(purchaseDate)
       .currentDate(LocalDate.now())
       .investmentAmount(holding.getTotalInvested())
       .purchasePrice(holding.getAveragePrice())
       .shares(holding.getShares().setScale(6, MoneyUtils.ROUND_MODE))
-      .currentPrice(currentPrice.getCurrentPrice())
+      .currentPrice(currentPrice.currentPrice())
       .currentValue(MoneyUtils.roundUsd(currentValueUsd))
       .stockReturn(MoneyUtils.roundUsd(stockReturn))
       .stockReturnPercent(MoneyUtils.roundUsd(stockReturnPercent))
@@ -753,7 +754,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
       try {
         OHLCPriceDto response = marketDataClientWrapper.getOHLCPrice(symbol, searchDate.toString());
 
-        if (response != null && response.isAvailable()) {
+        if (response != null && response.available()) {
           if (!searchDate.equals(date)) {
             log.info("시장 휴일로 인한 대체 데이터 사용: 요청일={}, 사용일={}", date, searchDate);
           }
@@ -793,9 +794,9 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
     var payments = dividendList.stream()
       .map(dto -> {
         var payment = new DividendHistoryDto.DividendPayment();
-        payment.setExDate(dto.getExDate());
-        payment.setPayDate(dto.getPaymentDate());
-        payment.setAmount(dto.getAmount());
+        payment.setExDate(dto.exDate());
+        payment.setPayDate(dto.paymentDate());
+        payment.setAmount(dto.amount());
         payment.setFrequency(null); // frequency는 API에서 제공하지 않음
         return payment;
       })

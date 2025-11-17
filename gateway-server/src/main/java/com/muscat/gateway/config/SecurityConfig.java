@@ -37,50 +37,56 @@ public class SecurityConfig {
     @Value("${gateway.cors.allowed-origins:http://localhost:3000,http://localhost:5173}")
     private String allowedOrigins;
 
+    // Public endpoints - OAuth2 없이 처리
     @Bean
-    public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
+    @org.springframework.core.annotation.Order(1)
+    public SecurityWebFilterChain publicSecurityWebFilterChain(ServerHttpSecurity http) {
         http
-            // CSRF 비활성화 (JWT 사용)
+            .securityMatcher(exchange -> {
+                String path = exchange.getRequest().getPath().value();
+                boolean matches = path.startsWith("/api/auth/") ||
+                                  path.startsWith("/swagger-ui") ||
+                                  path.startsWith("/actuator/") ||
+                                  path.startsWith("/health") ||
+                                  path.startsWith("/v3/api-docs");
+                return matches ?
+                    org.springframework.security.web.server.util.matcher.ServerWebExchangeMatcher.MatchResult.match() :
+                    org.springframework.security.web.server.util.matcher.ServerWebExchangeMatcher.MatchResult.notMatch();
+            })
             .csrf(csrf -> csrf.disable())
-
-            // CORS 설정
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-
-            // 경로별 인증 설정
             .authorizeExchange(exchanges -> exchanges
-                // ===== Public APIs (인증 불필요) =====
+                .anyExchange().permitAll()
+            );
 
-                // Swagger UI 및 API Docs (모든 사용자 접근 가능)
-                .pathMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/webjars/**").permitAll()
+        return http.build();
+    }
 
-                // Auth endpoints (회원가입, 로그인, OAuth)
-                .pathMatchers("/api/auth/**").permitAll()
+    // Protected endpoints - OAuth2 JWT 검증
+    @Bean
+    @org.springframework.core.annotation.Order(2)
+    public SecurityWebFilterChain protectedSecurityWebFilterChain(ServerHttpSecurity http) {
+        http
+            .csrf(csrf -> csrf.disable())
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .authorizeExchange(exchanges -> exchanges
+                // CORS Preflight (OPTIONS) 요청 허용
+                .pathMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                 // Market data public APIs (시세 조회 등)
                 .pathMatchers(HttpMethod.GET, "/api/market/**").permitAll()
-                .pathMatchers(HttpMethod.POST, "/api/market/fx/bulk").permitAll()  // Bulk FX rates
-
-                // Actuator endpoints (health check + Prometheus metrics)
-                .pathMatchers("/health", "/health/**").permitAll()
-                .pathMatchers("/actuator/**").permitAll()  // Prometheus scraping
+                .pathMatchers(HttpMethod.POST, "/api/market/fx/bulk").permitAll()
 
                 // ===== Admin APIs (ADMIN 권한 필요) =====
                 .pathMatchers("/api/admin/**").hasRole("ADMIN")
 
                 // ===== Private APIs (JWT 인증 필요) =====
-
-                // User & Account management
                 .pathMatchers("/api/users/**", "/api/accounts/**").authenticated()
-
-                // Trading & Portfolio
                 .pathMatchers("/api/trade/**", "/api/portfolio/**", "/api/transactions/**", "/api/trade-history/**").authenticated()
-
-                // Backtest & Analysis
                 .pathMatchers("/api/backtest/**", "/api/analysis/**", "/api/trading-simulation/**").authenticated()
 
                 .anyExchange().authenticated()
             )
-
             .oauth2ResourceServer(oauth2 -> oauth2
                 .jwt(jwt -> jwt.jwtDecoder(jwtDecoder()))
             );
@@ -93,8 +99,8 @@ public class SecurityConfig {
      */
     @Bean
     public ReactiveJwtDecoder jwtDecoder() {
-        String issuerUri = keycloakUrl + "/realms/" + realm;
-        return NimbusReactiveJwtDecoder.withIssuerLocation(issuerUri).build();
+        String jwkSetUri = keycloakUrl + "/realms/" + realm + "/protocol/openid-connect/certs";
+        return NimbusReactiveJwtDecoder.withJwkSetUri(jwkSetUri).build();
     }
 
     /**

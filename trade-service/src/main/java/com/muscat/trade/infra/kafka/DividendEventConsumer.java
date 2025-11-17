@@ -1,10 +1,10 @@
 package com.muscat.trade.infra.kafka;
 
+import com.muscat.commonlib.constants.CommonConstants;
 import com.muscat.messaging.event.DividendUpdatedEvent;
 import com.muscat.trade.domain.entity.Holdings;
 import com.muscat.trade.domain.repository.HoldingsRepository;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,9 +17,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 배당금 업데이트 이벤트를 Kafka에서 소비하는 Consumer
- * market-data-service에서 발행한 DividendUpdatedEvent를 소비하여
- * 해당 종목을 보유한 사용자에게 자동으로 배당금을 지급합니다.
+ * 배당금 업데이트 이벤트를 Kafka에서 소비하는 Consumer market-data-service에서 발행한 DividendUpdatedEvent를 소비하여 해당 종목을
+ * 보유한 사용자에게 자동으로 배당금을 지급합니다.
  */
 @Slf4j
 @Component
@@ -73,7 +72,7 @@ public class DividendEventConsumer {
           // 배당금 계산: 주당 배당금 × 보유 수량
           BigDecimal dividendAmount = event.getAmount()
             .multiply(holdings.getTotalQuantity())
-            .setScale(2, RoundingMode.HALF_UP);
+            .setScale(CommonConstants.DEFAULT_SCALE, CommonConstants.DEFAULT_ROUNDING_MODE);
 
           log.info("배당금 지급 처리: userId={}, accountId={}, symbol={}, quantity={}, dividendAmount={}",
             holdings.getUserId(), holdings.getAccountId(),

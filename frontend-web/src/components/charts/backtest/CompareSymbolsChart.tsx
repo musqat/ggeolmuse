@@ -99,7 +99,7 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
 
         const results = await Promise.all(dataPromises);
 
-        // 각 날짜의 환율 데이터 가져오기
+        // 각 날짜의 환율 데이터 가져오기 (Bulk API 사용)
         const fxRateMap = new Map<string, number>();
         const DEFAULT_FX_RATE = 1350; // Fallback 환율
         const allDates = new Set<string>();
@@ -111,26 +111,29 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
           });
         });
 
-        // 모든 날짜에 대해 환율 조회 (병렬 처리)
-        const fxRatePromises = Array.from(allDates).map(async (dateStr) => {
-          try {
-            const fxRateResponse = await accountsApi.getExchangeRateByDate(dateStr);
-            const rate = typeof fxRateResponse.data === 'number'
-              ? fxRateResponse.data
-              : parseFloat(fxRateResponse.data);
+        // Bulk API로 한 번에 환율 조회
+        try {
+          const dateArray = Array.from(allDates);
+          const bulkResponse = await stockApi.getExchangeRatesBulk(dateArray);
+          const ratesData = bulkResponse.data;
 
-            if (!isNaN(rate) && rate > 0) {
-              fxRateMap.set(dateStr, rate);
-            } else {
-              fxRateMap.set(dateStr, DEFAULT_FX_RATE);
+          // Map에 저장
+          Object.entries(ratesData).forEach(([date, rate]) => {
+            const rateValue = typeof rate === 'number' ? rate : parseFloat(String(rate));
+            fxRateMap.set(date, !isNaN(rateValue) && rateValue > 0 ? rateValue : DEFAULT_FX_RATE);
+          });
+
+          // 누락된 날짜는 fallback 사용
+          dateArray.forEach(date => {
+            if (!fxRateMap.has(date)) {
+              fxRateMap.set(date, DEFAULT_FX_RATE);
             }
-          } catch (err) {
-            // 환율 데이터가 없으면 fallback 사용
-            fxRateMap.set(dateStr, DEFAULT_FX_RATE);
-          }
-        });
-
-        await Promise.all(fxRatePromises);
+          });
+        } catch (err) {
+          console.log('Bulk FX rate fetch failed, using fallback:', err);
+          // 모든 날짜에 fallback 적용
+          Array.from(allDates).forEach(date => fxRateMap.set(date, DEFAULT_FX_RATE));
+        }
 
         // 날짜별로 모든 종목 데이터 병합
         const dateMap = new Map<string, ChartDataPoint>();

@@ -33,6 +33,12 @@
         <resilience4j.version>2.2.0</resilience4j.version>
         <spring-kafka.version>3.2.4</spring-kafka.version>
         <flyway.version>10.21.0</flyway.version>
+
+        <!-- Security patch: Override Spring Cloud Gateway to fix CVE-2025-41243 (CVSS 10.0) -->
+        <spring-cloud-gateway.version>4.1.12</spring-cloud-gateway.version>
+
+        <!-- TODO: CVE-2025-48976 (commons-fileupload 1.5) - Waiting for fixed version release (1.6 or 2.0.0-M4)
+             Mitigation: Spring Boot 3.3.13+ includes Tomcat connector maxPartHeaderSize=512 bytes limit -->
     </properties>
 
     <dependencyManagement>

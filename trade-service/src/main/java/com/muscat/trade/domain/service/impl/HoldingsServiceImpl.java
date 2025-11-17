@@ -1,5 +1,6 @@
 package com.muscat.trade.domain.service.impl;
 
+import com.muscat.commonlib.dto.StockPriceDto;
 import com.muscat.trade.common.constants.TradeConstants;
 import com.muscat.trade.common.logging.TradeLogger;
 import com.muscat.trade.domain.dto.response.HoldingResponseDto;
@@ -10,7 +11,6 @@ import com.muscat.trade.domain.service.HoldingsService;
 import com.muscat.trade.infra.client.BacktestServiceClient;
 import com.muscat.trade.infra.client.MarketServiceClient;
 import com.muscat.trade.infra.client.dto.InvestmentBacktestResultDto;
-import com.muscat.trade.infra.client.dto.StockPriceDto;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -63,13 +63,13 @@ public class HoldingsServiceImpl implements HoldingsService {
         log.debug("현재가 조회 시도: symbol={}", symbol);
         StockPriceDto priceDto = marketServiceClient.getCurrentPrice(symbol);
         log.debug("현재가 조회 응답: symbol={}, dto={}, currentPrice={}",
-          symbol, priceDto != null, priceDto != null ? priceDto.getCurrentPrice() : null);
-        if (priceDto != null && priceDto.getCurrentPrice() != null) {
-          currentPrices.put(symbol, priceDto.getCurrentPrice());
-          log.debug("현재가 저장 성공: symbol={}, price={}", symbol, priceDto.getCurrentPrice());
+          symbol, priceDto != null, priceDto != null ? priceDto.currentPrice() : null);
+        if (priceDto != null && priceDto.currentPrice() != null) {
+          currentPrices.put(symbol, priceDto.currentPrice());
+          log.debug("현재가 저장 성공: symbol={}, price={}", symbol, priceDto.currentPrice());
         } else {
           log.warn("현재가 정보 없음: symbol={}, dtoNull={}, priceNull={}",
-            symbol, priceDto == null, priceDto != null && priceDto.getCurrentPrice() == null);
+            symbol, priceDto == null, priceDto != null && priceDto.currentPrice() == null);
         }
       } catch (Exception e) {
         log.warn("현재가 조회 실패: symbol={}, error={}", symbol, e.getMessage());

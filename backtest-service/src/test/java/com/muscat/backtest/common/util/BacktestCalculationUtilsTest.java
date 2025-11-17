@@ -107,26 +107,30 @@ class BacktestCalculationUtilsTest {
   class CalculateAverageFxRateTests {
 
     @Test
-    @DisplayName("정상적인 평균 환율 계산")
+    @DisplayName("정상적인 평균 환율 계산 (가중평균)")
     void calculateAverageFxRate_Success() {
       // given
-      BigDecimal totalFxRateSum = new BigDecimal("3900"); // 1300 + 1400 + 1200
-      int transactionCount = 3;
+      // 투자금액: 1000만, 2000만, 1000만 (총 4000만)
+      // 환율: 1300, 1400, 1200
+      // totalFxRateSum = (1000 × 1300) + (2000 × 1400) + (1000 × 1200) = 5,300,000
+      // 가중평균 환율 = 5,300,000 / 4000 = 1325
+      BigDecimal totalFxRateSum = new BigDecimal("5300000");
+      BigDecimal totalInvested = new BigDecimal("4000");
 
       // when
       BigDecimal avgRate = BacktestCalculationUtils.calculateAverageFxRate(totalFxRateSum,
-        transactionCount);
+        totalInvested);
 
-      // then - 3900 / 3 = 1300
-      assertThat(avgRate).isEqualByComparingTo(new BigDecimal("1300.00"));
+      // then - 5,300,000 / 4000 = 1325.00
+      assertThat(avgRate).isEqualByComparingTo(new BigDecimal("1325.00"));
     }
 
     @Test
-    @DisplayName("거래 횟수가 0 이하인 경우 예외 발생")
-    void calculateAverageFxRate_InvalidCount_ThrowsException() {
+    @DisplayName("총 투자금액이 0 이하인 경우 예외 발생")
+    void calculateAverageFxRate_InvalidInvested_ThrowsException() {
       // when & then
       assertThatThrownBy(() ->
-        BacktestCalculationUtils.calculateAverageFxRate(new BigDecimal("3900"), 0))
+        BacktestCalculationUtils.calculateAverageFxRate(new BigDecimal("5300000"), BigDecimal.ZERO))
         .isInstanceOf(IllegalArgumentException.class);
     }
   }

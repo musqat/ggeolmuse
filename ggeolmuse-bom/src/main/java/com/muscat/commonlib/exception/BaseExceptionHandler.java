@@ -16,13 +16,13 @@ public class BaseExceptionHandler {
 
 
   protected ResponseEntity<ProblemDetail> handleBaseException(BaseException ex,
-      HttpServletRequest request) {
+    HttpServletRequest request) {
     log.error("BaseException 발생: {}", ex.getMessage(), ex);
 
     ProblemDetail problem = ProblemDetailUtils.createBadRequestProblem(
-        ex.getErrorMessage(),
-        ex.getErrorCode(),
-        request.getRequestURI()
+      ex.getErrorMessage(),
+      ex.getErrorCode(),
+      request.getRequestURI()
     );
     problem.setTitle("Business Logic Error");
 
@@ -30,22 +30,22 @@ public class BaseExceptionHandler {
   }
 
   protected ResponseEntity<ProblemDetail> handleServiceException(ServiceException ex,
-      HttpServletRequest request) {
+    HttpServletRequest request) {
     log.error("ServiceException 발생: {}", ex.getMessage(), ex);
 
     ProblemDetail problem = ProblemDetailUtils.createProblem(
-        HttpStatus.INTERNAL_SERVER_ERROR,
-        ex.getErrorMessage(),
-        ex.getErrorCode(),
-        request.getRequestURI(),
-        "Service Error"
+      HttpStatus.INTERNAL_SERVER_ERROR,
+      ex.getErrorMessage(),
+      ex.getErrorCode(),
+      request.getRequestURI(),
+      "Service Error"
     );
 
     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(problem);
   }
 
   protected ResponseEntity<ProblemDetail> handleValidationException(
-      MethodArgumentNotValidException ex, HttpServletRequest request) {
+    MethodArgumentNotValidException ex, HttpServletRequest request) {
 
     log.error("Validation 오류 발생: {}", ex.getMessage());
 
@@ -57,16 +57,16 @@ public class BaseExceptionHandler {
     });
 
     ProblemDetail problem = ProblemDetailUtils.createValidationProblem(
-        "입력값 검증에 실패했습니다",
-        request.getRequestURI(),
-        validationErrors
+      "입력값 검증에 실패했습니다",
+      request.getRequestURI(),
+      validationErrors
     );
 
     return ResponseEntity.badRequest().body(problem);
   }
 
   protected ResponseEntity<ProblemDetail> handleGeneralException(Exception ex,
-      HttpServletRequest request) {
+    HttpServletRequest request) {
     log.error("예상치 못한 오류 발생: {}", ex.getMessage(), ex);
 
     ProblemDetail problem = ProblemDetailUtils.createInternalServerError(request.getRequestURI());

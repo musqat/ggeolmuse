@@ -193,7 +193,7 @@ class CandleServiceImplTest {
             // then
             assertThat(results).hasSize(3);
             assertThat(results).allMatch(OHLCPriceDto::isAvailable);
-            assertThat(results.get(0).getDate()).isEqualTo(LocalDate.of(2024, 10, 23));
+            assertThat(results.getFirst().getDate()).isEqualTo(LocalDate.of(2024, 10, 23));
             assertThat(results.get(1).getDate()).isEqualTo(LocalDate.of(2024, 10, 24));
             assertThat(results.get(2).getDate()).isEqualTo(TEST_DATE);
 
@@ -569,7 +569,8 @@ class CandleServiceImplTest {
                     .close(new BigDecimal("140.00"))
                     .build();
 
-            given(assetRepository.findByActiveTrue()).willReturn(assets);
+            given(assetRepository.findActiveSortedByMarketCap(any(Pageable.class), anyBoolean(), any()))
+                    .willReturn(assetPage);
             given(candleRepository.findRecentBySymbols(anyList(), anyInt()))
                     .willReturn(List.of(aaplCandle, googlCandle, aaplPrevious, googlPrevious));
 
@@ -583,7 +584,7 @@ class CandleServiceImplTest {
                     .containsExactly("AAPL", "GOOGL");
 
             // AAPL 가격 검증
-            StockPriceDto aaplPrice = results.getContent().get(0);
+            StockPriceDto aaplPrice = results.getContent().getFirst();
             assertThat(aaplPrice.getCurrentPrice()).isEqualByComparingTo(TEST_CLOSE);
             assertThat(aaplPrice.getPreviousClose()).isEqualByComparingTo(new BigDecimal("235.90"));
             assertThat(aaplPrice.getMarketCap()).isEqualTo(3000000000000L);
@@ -593,7 +594,7 @@ class CandleServiceImplTest {
             assertThat(googlPrice.getCurrentPrice()).isEqualByComparingTo(new BigDecimal("141.50"));
             assertThat(googlPrice.getPreviousClose()).isEqualByComparingTo(new BigDecimal("140.00"));
 
-            verify(assetRepository).findByActiveTrue();
+            verify(assetRepository).findActiveSortedByMarketCap(any(Pageable.class), anyBoolean(), any());
         }
 
         @Test
@@ -610,7 +611,8 @@ class CandleServiceImplTest {
             ));
             Page<Asset> assetPage = new PageImpl<>(assets, pageable, assets.size());
 
-            given(assetRepository.findByActiveTrue()).willReturn(assets);
+            given(assetRepository.findActiveSortedByMarketCap(any(Pageable.class), anyBoolean(), any()))
+                    .willReturn(assetPage);
             given(candleRepository.findRecentBySymbols(anyList(), anyInt()))
                     .willReturn(new ArrayList<>());
 
@@ -619,7 +621,7 @@ class CandleServiceImplTest {
 
             // then
             assertThat(results.getContent()).hasSize(1);
-            StockPriceDto newStockPrice = results.getContent().get(0);
+            StockPriceDto newStockPrice = results.getContent().getFirst();
             assertThat(newStockPrice.getSymbol()).isEqualTo("NEWSTOCK");
             assertThat(newStockPrice.isAvailable()).isFalse();
             assertThat(newStockPrice.getCurrentPrice()).isNull();
@@ -632,14 +634,16 @@ class CandleServiceImplTest {
             // given
             Pageable pageable = PageRequest.of(0, 10);
             List<Asset> emptyList = new ArrayList<>();
-            given(assetRepository.findByActiveTrue()).willReturn(emptyList);
+            Page<Asset> emptyPage = new PageImpl<>(emptyList, pageable, 0);
+            given(assetRepository.findActiveSortedByMarketCap(any(Pageable.class), anyBoolean(), any()))
+                    .willReturn(emptyPage);
 
             // when
             Page<StockPriceDto> results = candleService.getAllStocksWithPrices(pageable, "desc", null);
 
             // then
             assertThat(results.getContent()).isEmpty();
-            verify(assetRepository).findByActiveTrue();
+            verify(assetRepository).findActiveSortedByMarketCap(any(Pageable.class), anyBoolean(), any());
         }
 
         @Test
@@ -661,7 +665,8 @@ class CandleServiceImplTest {
             ));
             Page<Asset> assetPage = new PageImpl<>(assets, pageable, assets.size());
 
-            given(assetRepository.findByActiveTrue()).willReturn(assets);
+            given(assetRepository.findActiveSortedByMarketCap(any(Pageable.class), anyBoolean(), any()))
+                    .willReturn(assetPage);
             given(candleRepository.findRecentBySymbols(anyList(), anyInt()))
                     .willReturn(List.of(testCandle));
 

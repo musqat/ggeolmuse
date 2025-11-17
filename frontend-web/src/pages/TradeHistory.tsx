@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import {
   ArrowUpCircle,
@@ -33,41 +34,27 @@ type FilterType = 'ALL' | 'BUY' | 'SELL' | 'DIVIDEND';
 
 const TradeHistory: React.FC = () => {
   const { isAuthenticated, login } = useAuth();
-
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [filter, setFilter] = useState<FilterType>('ALL');
 
-  // 거래내역 로드
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setLoading(false);
-      return;
-    }
-
-    loadTransactionHistory();
-  }, [isAuthenticated]);
-
-  const loadTransactionHistory = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
+  // React Query: 거래내역 조회
+  const {
+    data: transactions = [],
+    isLoading: loading,
+    error,
+    refetch
+  } = useQuery({
+    queryKey: ['trade', 'history'],
+    queryFn: async () => {
       const response = await tradeApi.history();
-      setTransactions(response.data || []);
-
-    } catch (err: any) {
-      console.error('거래내역 조회 실패:', err);
-      setError('거래내역을 불러오는데 실패했습니다.');
-    } finally {
-      setLoading(false);
-    }
-  };
+      return response.data || [];
+    },
+    enabled: isAuthenticated,
+    staleTime: 2 * 60 * 1000, // 2분 (거래내역은 자주 변경됨)
+  });
 
   const handleRefresh = () => {
-    loadTransactionHistory();
+    refetch();
   };
 
   // Trade 단위로 그룹화 (매수 → 그 매수의 배당들)
@@ -246,7 +233,7 @@ const TradeHistory: React.FC = () => {
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
-            {error}
+            거래내역을 불러오는데 실패했습니다.
           </div>
         )}
 

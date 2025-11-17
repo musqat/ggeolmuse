@@ -5,8 +5,8 @@ import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.infra.client.MarketDataClient;
 import com.muscat.backtest.infra.client.MarketDataClient.FxRate;
 import com.muscat.backtest.infra.client.dto.DividendHistoryDto;
-import com.muscat.backtest.infra.client.dto.OHLCPriceDto;
-import com.muscat.backtest.infra.client.dto.StockPriceDto;
+import com.muscat.commonlib.dto.OHLCPriceDto;
+import com.muscat.commonlib.dto.StockPriceDto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import lombok.extern.slf4j.Slf4j;
@@ -37,9 +37,9 @@ public final class BacktestDataUtils {
       try {
         response = marketDataClient.getOHLCPrice(symbol, searchDate.toString());
         log.debug("주가 데이터 조회 시도: symbol={}, searchDate={}, available={}",
-            symbol, searchDate, response != null && response.isAvailable());
+            symbol, searchDate, response != null && response.available());
 
-        if (response != null && response.isAvailable()) {
+        if (response != null && response.available()) {
           if (!searchDate.equals(date)) {
             log.info("시장 휴일로 인한 대체 데이터 사용: 요청일={}, 사용일={}", date, searchDate);
           }
@@ -63,7 +63,7 @@ public final class BacktestDataUtils {
   public static StockPriceDto getCurrentPrice(MarketDataClient marketDataClient, String symbol) {
     var response = marketDataClient.getCurrentPrice(symbol);
 
-    if (response == null || !response.isAvailable()) {
+    if (response == null || !response.available()) {
       throw new BacktestException(BacktestResponse.STOCK_DATA_NOT_FOUND,
           "현재 주가 데이터를 찾을 수 없습니다: " + symbol);
     }
@@ -133,9 +133,9 @@ public final class BacktestDataUtils {
       var payments = response.stream()
           .map(dto -> {
             var payment = new DividendHistoryDto.DividendPayment();
-            payment.setExDate(dto.getExDate());
-            payment.setPayDate(dto.getPaymentDate());
-            payment.setAmount(dto.getAmount());
+            payment.setExDate(dto.exDate());
+            payment.setPayDate(dto.paymentDate());
+            payment.setAmount(dto.amount());
             payment.setFrequency(null); // frequency는 API에서 제공하지 않음
             return payment;
           })
@@ -152,6 +152,39 @@ public final class BacktestDataUtils {
       emptyHistory.setSymbol(symbol);
       emptyHistory.setDividends(java.util.Collections.emptyList());
       return emptyHistory;
+    }
+  }
+
+  // Bulk 환율 조회 (여러 날짜의 환율을 한 번에)
+  public static java.util.Map<LocalDate, BigDecimal> getBulkFxRates(
+      MarketDataClient marketDataClient, java.util.List<LocalDate> dates) {
+    log.info("Bulk 환율 데이터 요청: dates count={}", dates.size());
+
+    try {
+      var dateStrings = dates.stream()
+          .map(LocalDate::toString)
+          .toList();
+
+      var response = marketDataClient.getBulkFxRates(dateStrings);
+
+      // String key를 LocalDate로 변환
+      java.util.Map<LocalDate, BigDecimal> result = new java.util.HashMap<>();
+      for (var entry : response.entrySet()) {
+        LocalDate date = LocalDate.parse(entry.getKey());
+        result.put(date, entry.getValue());
+      }
+
+      log.info("Bulk 환율 조회 성공: {}개 요청, {}개 반환", dates.size(), result.size());
+      return result;
+
+    } catch (Exception e) {
+      log.warn("Bulk 환율 조회 실패, 기본값 사용: {}", e.getMessage());
+      // 실패 시 기본 환율로 채우기
+      java.util.Map<LocalDate, BigDecimal> result = new java.util.HashMap<>();
+      for (LocalDate date : dates) {
+        result.put(date, DEFAULT_FX_RATE_HISTORICAL);
+      }
+      return result;
     }
   }
 }

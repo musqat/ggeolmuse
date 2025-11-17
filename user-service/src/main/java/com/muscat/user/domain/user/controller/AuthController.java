@@ -3,6 +3,7 @@ package com.muscat.user.domain.user.controller;
 import com.muscat.user.common.exceptions.UserException;
 import com.muscat.user.domain.user.dto.request.ForgotPasswordRequestDto;
 import com.muscat.user.domain.user.dto.request.LoginRequestDto;
+import com.muscat.user.domain.user.dto.request.RefreshTokenRequestDto;
 import com.muscat.user.domain.user.dto.request.RegisterRequestDto;
 import com.muscat.user.domain.user.dto.request.ResendRequestDto;
 import com.muscat.user.domain.user.dto.request.ResetPasswordRequestDto;
@@ -60,162 +61,162 @@ public class AuthController {
   private String frontendUrl;
 
   @Operation(
-      summary = "사용자 회원가입",
-      description = "새로운 사용자 계정을 생성합니다. 가입 후 이메일 인증이 필요합니다."
+    summary = "사용자 회원가입",
+    description = "새로운 사용자 계정을 생성합니다. 가입 후 이메일 인증이 필요합니다."
   )
   @ApiResponses(value = {
-      @ApiResponse(
-          responseCode = "201",
-          description = "회원가입 성공",
-          content = @Content(mediaType = "application/json")
-      ),
-      @ApiResponse(
-          responseCode = "400",
-          description = "잘못된 요청 데이터",
-          content = @Content(
-              mediaType = "application/json",
-              schema = @Schema(implementation = ProblemDetail.class),
-              examples = @ExampleObject(
-                  value = """
-                      {
-                        "type": "about:blank",
-                        "title": "Bad Request",
-                        "status": 400,
-                        "detail": "이메일 형식이 올바르지 않습니다",
-                        "instance": "/api/auth/register"
-                      }
-                      """
-              )
-          )
-      ),
-      @ApiResponse(
-          responseCode = "409",
-          description = "이미 존재하는 사용자",
-          content = @Content(
-              mediaType = "application/json",
-              schema = @Schema(implementation = ProblemDetail.class),
-              examples = @ExampleObject(
-                  value = """
-                      {
-                        "type": "about:blank",
-                        "title": "Conflict",
-                        "status": 409,
-                        "detail": "이미 가입된 이메일입니다",
-                        "instance": "/api/auth/register"
-                      }
-                      """
-              )
-          )
+    @ApiResponse(
+      responseCode = "201",
+      description = "회원가입 성공",
+      content = @Content(mediaType = "application/json")
+    ),
+    @ApiResponse(
+      responseCode = "400",
+      description = "잘못된 요청 데이터",
+      content = @Content(
+        mediaType = "application/json",
+        schema = @Schema(implementation = ProblemDetail.class),
+        examples = @ExampleObject(
+          value = """
+            {
+              "type": "about:blank",
+              "title": "Bad Request",
+              "status": 400,
+              "detail": "이메일 형식이 올바르지 않습니다",
+              "instance": "/api/auth/register"
+            }
+            """
+        )
       )
+    ),
+    @ApiResponse(
+      responseCode = "409",
+      description = "이미 존재하는 사용자",
+      content = @Content(
+        mediaType = "application/json",
+        schema = @Schema(implementation = ProblemDetail.class),
+        examples = @ExampleObject(
+          value = """
+            {
+              "type": "about:blank",
+              "title": "Conflict",
+              "status": 409,
+              "detail": "이미 가입된 이메일입니다",
+              "instance": "/api/auth/register"
+            }
+            """
+        )
+      )
+    )
   })
   @PostMapping("/register")
   public ResponseEntity<Void> register(
-      @Parameter(description = "회원가입 정보", required = true)
-      @Valid @RequestBody RegisterRequestDto request) {
+    @Parameter(description = "회원가입 정보", required = true)
+    @Valid @RequestBody RegisterRequestDto request) {
     User user = userService.registerUser(request.getEmail(), request.getPassword(),
-        request.getNickname());
+      request.getNickname());
     log.info("회원가입 완료: {}", user.getEmail());
 
     return ResponseEntity.status(201).build();
   }
 
   @Operation(
-      summary = "이메일 인증",
-      description = "회원가입 후 발송된 이메일의 인증 토큰으로 계정을 활성화합니다"
+    summary = "이메일 인증",
+    description = "회원가입 후 발송된 이메일의 인증 토큰으로 계정을 활성화합니다"
   )
   @ApiResponses(value = {
-      @ApiResponse(
-          responseCode = "200",
-          description = "이메일 인증 성공",
-          content = @Content(
-              mediaType = "text/html",
-              examples = @ExampleObject(
-                  value = "<html><body><h2>이메일 인증이 완료되었습니다</h2></body></html>"
-              )
-          )
-      ),
-      @ApiResponse(
-          responseCode = "400",
-          description = "잘못된 토큰 또는 만료된 토큰",
-          content = @Content(
-              mediaType = "text/html",
-              examples = @ExampleObject(
-                  value = "<html><body><h2>인증에 실패했습니다</h2></body></html>"
-              )
-          )
+    @ApiResponse(
+      responseCode = "200",
+      description = "이메일 인증 성공",
+      content = @Content(
+        mediaType = "text/html",
+        examples = @ExampleObject(
+          value = "<html><body><h2>이메일 인증이 완료되었습니다</h2></body></html>"
+        )
       )
+    ),
+    @ApiResponse(
+      responseCode = "400",
+      description = "잘못된 토큰 또는 만료된 토큰",
+      content = @Content(
+        mediaType = "text/html",
+        examples = @ExampleObject(
+          value = "<html><body><h2>인증에 실패했습니다</h2></body></html>"
+        )
+      )
+    )
   })
   @GetMapping("/verify-email")
   public ResponseEntity<String> verifyEmail(
-      @Parameter(description = "이메일 인증 토큰", required = true, example = "eyJhbGciOiJIUzI1NiJ9...")
-      @RequestParam String token) {
+    @Parameter(description = "이메일 인증 토큰", required = true, example = "eyJhbGciOiJIUzI1NiJ9...")
+    @RequestParam String token) {
     try {
       User user = userService.verifyEmail(token);
       log.info("이메일 인증 완료: {}", user.getEmail());
 
       String successHtml = """
-          <html>
-          <head><meta charset="UTF-8"><title>인증 완료</title></head>
-          <body style="font-family: Arial; text-align: center; margin-top: 100px;">
-            <h2>이메일 인증이 완료되었습니다</h2>
-            <p>계정이 활성화되었습니다.</p>
-          </body>
-          </html>
-          """;
+        <html>
+        <head><meta charset="UTF-8"><title>인증 완료</title></head>
+        <body style="font-family: Arial; text-align: center; margin-top: 100px;">
+          <h2>이메일 인증이 완료되었습니다</h2>
+          <p>계정이 활성화되었습니다.</p>
+        </body>
+        </html>
+        """;
 
       return ResponseEntity.ok()
-          .header("Content-Type", "text/html; charset=UTF-8")
-          .body(successHtml);
+        .header("Content-Type", "text/html; charset=UTF-8")
+        .body(successHtml);
 
     } catch (UserException e) {
       log.warn("이메일 인증 실패: {}", e.getMessage());
 
       String errorHtml = """
-          <html>
-          <head><meta charset="UTF-8"><title>인증 실패</title></head>
-          <body style="font-family: Arial; text-align: center; margin-top: 100px;">
-            <h2>인증에 실패했습니다</h2>
-            <p>%s</p>
-          </body>
-          </html>
-          """.formatted(e.getMessage());
+        <html>
+        <head><meta charset="UTF-8"><title>인증 실패</title></head>
+        <body style="font-family: Arial; text-align: center; margin-top: 100px;">
+          <h2>인증에 실패했습니다</h2>
+          <p>%s</p>
+        </body>
+        </html>
+        """.formatted(e.getMessage());
 
       return ResponseEntity.badRequest()
-          .header("Content-Type", "text/html; charset=UTF-8")
-          .body(errorHtml);
+        .header("Content-Type", "text/html; charset=UTF-8")
+        .body(errorHtml);
     }
   }
 
   @Operation(
-      summary = "이메일 인증 재발송",
-      description = "이메일 인증을 받지 못한 경우 인증 이메일을 다시 발송합니다"
+    summary = "이메일 인증 재발송",
+    description = "이메일 인증을 받지 못한 경우 인증 이메일을 다시 발송합니다"
   )
   @ApiResponses(value = {
-      @ApiResponse(
-          responseCode = "200",
-          description = "인증 이메일 재발송 성공"
-      ),
-      @ApiResponse(
-          responseCode = "400",
-          description = "잘못된 이메일 또는 이미 인증된 계정",
-          content = @Content(
-              mediaType = "application/json",
-              schema = @Schema(implementation = ProblemDetail.class)
-          )
-      ),
-      @ApiResponse(
-          responseCode = "404",
-          description = "존재하지 않는 사용자",
-          content = @Content(
-              mediaType = "application/json",
-              schema = @Schema(implementation = ProblemDetail.class)
-          )
+    @ApiResponse(
+      responseCode = "200",
+      description = "인증 이메일 재발송 성공"
+    ),
+    @ApiResponse(
+      responseCode = "400",
+      description = "잘못된 이메일 또는 이미 인증된 계정",
+      content = @Content(
+        mediaType = "application/json",
+        schema = @Schema(implementation = ProblemDetail.class)
       )
+    ),
+    @ApiResponse(
+      responseCode = "404",
+      description = "존재하지 않는 사용자",
+      content = @Content(
+        mediaType = "application/json",
+        schema = @Schema(implementation = ProblemDetail.class)
+      )
+    )
   })
   @PostMapping("/resend-verification")
   public ResponseEntity<Void> resendVerification(
-      @Parameter(description = "인증 이메일 재발송 요청", required = true)
-      @Valid @RequestBody ResendRequestDto request) {
+    @Parameter(description = "인증 이메일 재발송 요청", required = true)
+    @Valid @RequestBody ResendRequestDto request) {
     userService.resendVerificationEmail(request.getEmail());
     log.info("이메일 재발송 완료: {}", request.getEmail());
 
@@ -223,35 +224,35 @@ public class AuthController {
   }
 
   @Operation(
-      summary = "비밀번호 재설정 요청",
-      description = "이메일을 입력하면 비밀번호 재설정 링크가 포함된 이메일이 발송됩니다."
+    summary = "비밀번호 재설정 요청",
+    description = "이메일을 입력하면 비밀번호 재설정 링크가 포함된 이메일이 발송됩니다."
   )
   @ApiResponses(value = {
-      @ApiResponse(
-          responseCode = "200",
-          description = "비밀번호 재설정 이메일 발송 성공"
-      ),
-      @ApiResponse(
-          responseCode = "404",
-          description = "존재하지 않는 사용자",
-          content = @Content(
-              mediaType = "application/json",
-              schema = @Schema(implementation = ProblemDetail.class)
-          )
-      ),
-      @ApiResponse(
-          responseCode = "429",
-          description = "요청 횟수 초과 (1분에 1번 제한)",
-          content = @Content(
-              mediaType = "application/json",
-              schema = @Schema(implementation = ProblemDetail.class)
-          )
+    @ApiResponse(
+      responseCode = "200",
+      description = "비밀번호 재설정 이메일 발송 성공"
+    ),
+    @ApiResponse(
+      responseCode = "404",
+      description = "존재하지 않는 사용자",
+      content = @Content(
+        mediaType = "application/json",
+        schema = @Schema(implementation = ProblemDetail.class)
       )
+    ),
+    @ApiResponse(
+      responseCode = "429",
+      description = "요청 횟수 초과 (1분에 1번 제한)",
+      content = @Content(
+        mediaType = "application/json",
+        schema = @Schema(implementation = ProblemDetail.class)
+      )
+    )
   })
   @PostMapping("/forgot-password")
   public ResponseEntity<Void> forgotPassword(
-      @Parameter(description = "비밀번호 재설정 요청", required = true)
-      @Valid @RequestBody ForgotPasswordRequestDto request) {
+    @Parameter(description = "비밀번호 재설정 요청", required = true)
+    @Valid @RequestBody ForgotPasswordRequestDto request) {
     userService.requestPasswordReset(request.getEmail());
     log.info("비밀번호 재설정 이메일 발송: {}", request.getEmail());
 
@@ -259,35 +260,35 @@ public class AuthController {
   }
 
   @Operation(
-      summary = "비밀번호 재설정",
-      description = "이메일로 받은 토큰을 사용하여 새로운 비밀번호로 재설정합니다."
+    summary = "비밀번호 재설정",
+    description = "이메일로 받은 토큰을 사용하여 새로운 비밀번호로 재설정합니다."
   )
   @ApiResponses(value = {
-      @ApiResponse(
-          responseCode = "200",
-          description = "비밀번호 재설정 성공"
-      ),
-      @ApiResponse(
-          responseCode = "400",
-          description = "유효하지 않거나 만료된 토큰",
-          content = @Content(
-              mediaType = "application/json",
-              schema = @Schema(implementation = ProblemDetail.class)
-          )
-      ),
-      @ApiResponse(
-          responseCode = "500",
-          description = "비밀번호 재설정 실패",
-          content = @Content(
-              mediaType = "application/json",
-              schema = @Schema(implementation = ProblemDetail.class)
-          )
+    @ApiResponse(
+      responseCode = "200",
+      description = "비밀번호 재설정 성공"
+    ),
+    @ApiResponse(
+      responseCode = "400",
+      description = "유효하지 않거나 만료된 토큰",
+      content = @Content(
+        mediaType = "application/json",
+        schema = @Schema(implementation = ProblemDetail.class)
       )
+    ),
+    @ApiResponse(
+      responseCode = "500",
+      description = "비밀번호 재설정 실패",
+      content = @Content(
+        mediaType = "application/json",
+        schema = @Schema(implementation = ProblemDetail.class)
+      )
+    )
   })
   @PostMapping("/reset-password")
   public ResponseEntity<Void> resetPassword(
-      @Parameter(description = "비밀번호 재설정 정보", required = true)
-      @Valid @RequestBody ResetPasswordRequestDto request) {
+    @Parameter(description = "비밀번호 재설정 정보", required = true)
+    @Valid @RequestBody ResetPasswordRequestDto request) {
     userService.resetPassword(request.getToken(), request.getNewPassword());
     log.info("비밀번호 재설정 완료");
 
@@ -295,79 +296,113 @@ public class AuthController {
   }
 
   @Operation(
-      summary = "사용자 로그인",
-      description = "이메일과 비밀번호로 로그인하여 JWT 토큰을 발급받습니다"
+    summary = "사용자 로그인",
+    description = "이메일과 비밀번호로 로그인하여 JWT 토큰을 발급받습니다"
   )
   @ApiResponses(value = {
-      @ApiResponse(
-          responseCode = "200",
-          description = "로그인 성공",
-          content = @Content(
-              mediaType = "application/json",
-              examples = @ExampleObject(
-                  value = "\"eyJhbGciOiJIUzI1NiJ9.VyQGdnZW9sbXVzZS5jb20iLCJpYXQiOjE2MzA0NzUyMDAsImV4cCI6MTYzMDU2MTYwMH0.xyz123\""
-              )
-          )
-      ),
-      @ApiResponse(
-          responseCode = "400",
-          description = "잘못된 이메일 또는 비밀번호",
-          content = @Content(
-              mediaType = "application/json",
-              schema = @Schema(implementation = ProblemDetail.class)
-          )
-      ),
-      @ApiResponse(
-          responseCode = "403",
-          description = "이메일 인증이 완료되지 않은 계정",
-          content = @Content(
-              mediaType = "application/json",
-              schema = @Schema(implementation = ProblemDetail.class)
-          )
+    @ApiResponse(
+      responseCode = "200",
+      description = "로그인 성공",
+      content = @Content(
+        mediaType = "application/json",
+        examples = @ExampleObject(
+          value = "\"eyJhbGciOiJIUzI1NiJ9.VyQGdnZW9sbXVzZS5jb20iLCJpYXQiOjE2MzA0NzUyMDAsImV4cCI6MTYzMDU2MTYwMH0.xyz123\""
+        )
       )
+    ),
+    @ApiResponse(
+      responseCode = "400",
+      description = "잘못된 이메일 또는 비밀번호",
+      content = @Content(
+        mediaType = "application/json",
+        schema = @Schema(implementation = ProblemDetail.class)
+      )
+    ),
+    @ApiResponse(
+      responseCode = "403",
+      description = "이메일 인증이 완료되지 않은 계정",
+      content = @Content(
+        mediaType = "application/json",
+        schema = @Schema(implementation = ProblemDetail.class)
+      )
+    )
   })
   @PostMapping("/login")
   public ResponseEntity<String> login(
-      @Parameter(description = "로그인 정보", required = true)
-      @Valid @RequestBody LoginRequestDto request) {
+    @Parameter(description = "로그인 정보", required = true)
+    @Valid @RequestBody LoginRequestDto request) {
     String token = userService.login(request.getEmail(), request.getPassword());
     log.info("로그인 성공: {}", request.getEmail());
 
     return ResponseEntity.ok(token);
   }
 
+  @Operation(
+    summary = "토큰 갱신",
+    description = "Refresh token을 사용하여 새로운 Access token을 발급받습니다"
+  )
+  @ApiResponses(value = {
+    @ApiResponse(
+      responseCode = "200",
+      description = "토큰 갱신 성공",
+      content = @Content(
+        mediaType = "application/json",
+        examples = @ExampleObject(
+          value = "\"eyJhbGciOiJIUzI1NiJ9.VyQGdnZW9sbXVzZS5jb20iLCJpYXQiOjE2MzA0NzUyMDAsImV4cCI6MTYzMDU2MTYwMH0.xyz123\""
+        )
+      )
+    ),
+    @ApiResponse(
+      responseCode = "401",
+      description = "유효하지 않거나 만료된 Refresh token",
+      content = @Content(
+        mediaType = "application/json",
+        schema = @Schema(implementation = ProblemDetail.class)
+      )
+    )
+  })
+  @PostMapping("/refresh")
+  public ResponseEntity<String> refreshToken(
+    @Parameter(description = "토큰 갱신 요청", required = true)
+    @Valid @RequestBody RefreshTokenRequestDto request) {
+    String newAccessToken = userService.refreshToken(request.getRefreshToken());
+    log.info("토큰 갱신 성공");
+
+    return ResponseEntity.ok(newAccessToken);
+  }
+
   // ============= 소셜 로그인 =============
 
   @Operation(
-      summary = "Google 로그인 콜백 처리",
-      description = "Keycloak를 통한 Google 소셜 로그인 성공 후 콜백을 처리하고 프론트엔드로 리디렉션합니다"
+    summary = "Google 로그인 콜백 처리",
+    description = "Keycloak를 통한 Google 소셜 로그인 성공 후 콜백을 처리하고 프론트엔드로 리디렉션합니다"
   )
   @ApiResponses(value = {
-      @ApiResponse(
-          responseCode = "302",
-          description = "Google 로그인 성공, 프론트엔드로 리디렉션",
-          content = @Content(
-              mediaType = "text/html",
-              examples = @ExampleObject(
-                  value = "Location: http://localhost:3000/auth/callback?provider=google&email=user@example.com"
-              )
-          )
-      ),
-      @ApiResponse(
-          responseCode = "302",
-          description = "Google 로그인 실패, 에러 페이지로 리디렉션",
-          content = @Content(
-              mediaType = "text/html",
-              examples = @ExampleObject(
-                  value = "Location: http://localhost:3000/auth/error?message=Google+로그인+실패"
-              )
-          )
+    @ApiResponse(
+      responseCode = "302",
+      description = "Google 로그인 성공, 프론트엔드로 리디렉션",
+      content = @Content(
+        mediaType = "text/html",
+        examples = @ExampleObject(
+          value = "Location: http://localhost:3000/auth/callback?provider=google&email=user@example.com"
+        )
       )
+    ),
+    @ApiResponse(
+      responseCode = "302",
+      description = "Google 로그인 실패, 에러 페이지로 리디렉션",
+      content = @Content(
+        mediaType = "text/html",
+        examples = @ExampleObject(
+          value = "Location: http://localhost:3000/auth/error?message=Google+로그인+실패"
+        )
+      )
+    )
   })
   @GetMapping("/social/google/callback")
   public ResponseEntity<?> handleGoogleCallback(
-      @Parameter(description = "Google OAuth 인증 코드", required = true, example = "4/0AdQt8qhexample...")
-      @RequestParam("code") String authorizationCode) {
+    @Parameter(description = "Google OAuth 인증 코드", required = true, example = "4/0AdQt8qhexample...")
+    @RequestParam("code") String authorizationCode) {
 
     try {
       log.info("Google 콜백 처리 시작");
@@ -377,75 +412,75 @@ public class AuthController {
 
       // 2. 프론트엔드로 리디렉션 (성공 응답)
       String callbackUrl = String.format("%s/auth/callback?provider=google&email=%s",
-          frontendUrl,
-          URLEncoder.encode(user.getEmail(), StandardCharsets.UTF_8));
+        frontendUrl,
+        URLEncoder.encode(user.getEmail(), StandardCharsets.UTF_8));
 
       log.info("Google 로그인 성공, 프론트엔드로 리디렉션: {}", user.getEmail());
 
       return ResponseEntity.status(302)
-          .header("Location", callbackUrl)
-          .build();
+        .header("Location", callbackUrl)
+        .build();
 
     } catch (Exception e) {
       log.error("Google 콜백 처리 실패: {}", e.getMessage());
 
       String errorUrl = String.format("%s/auth/error?message=%s",
-          frontendUrl,
-          URLEncoder.encode("Google 로그인 실패: " + e.getMessage(), StandardCharsets.UTF_8));
+        frontendUrl,
+        URLEncoder.encode("Google 로그인 실패: " + e.getMessage(), StandardCharsets.UTF_8));
 
       return ResponseEntity.status(302)
-          .header("Location", errorUrl)
-          .build();
+        .header("Location", errorUrl)
+        .build();
     }
   }
 
   @Operation(
-      summary = "Google 로그인 URL 생성",
-      description = "Keycloak를 통한 Google 소셜 로그인 URL을 생성하여 반환합니다"
+    summary = "Google 로그인 URL 생성",
+    description = "Keycloak를 통한 Google 소셜 로그인 URL을 생성하여 반환합니다"
   )
   @ApiResponses(value = {
-      @ApiResponse(
-          responseCode = "200",
-          description = "Google 로그인 URL 생성 성공",
-          content = @Content(
-              mediaType = "application/json",
-              examples = @ExampleObject(
-                  value = """
-                      {
-                        "loginUrl": "https://keycloak.example.com/realms/ggeolmuse/protocol/openid-connect/auth?client_id=ggeolmuse-frontend&response_type=code&scope=openid+email+profile&redirect_uri=http://localhost:8080/api/auth/social/google/callback&kc_idp_hint=google",
-                        "provider": "google",
-                        "redirectUri": "http://localhost:8080/api/auth/social/google/callback"
-                      }
-                      """
-              )
-          )
+    @ApiResponse(
+      responseCode = "200",
+      description = "Google 로그인 URL 생성 성공",
+      content = @Content(
+        mediaType = "application/json",
+        examples = @ExampleObject(
+          value = """
+            {
+              "loginUrl": "https://keycloak.example.com/realms/ggeolmuse/protocol/openid-connect/auth?client_id=ggeolmuse-frontend&response_type=code&scope=openid+email+profile&redirect_uri=http://localhost:8080/api/auth/social/google/callback&kc_idp_hint=google",
+              "provider": "google",
+              "redirectUri": "http://localhost:8080/api/auth/social/google/callback"
+            }
+            """
+        )
       )
+    )
   })
   @GetMapping("/social/google/login-url")
   public ResponseEntity<Map<String, String>> getGoogleLoginUrl(
-      @Parameter(description = "HTTP 요청 객체 (서버 정보 추출용)", hidden = true)
-      HttpServletRequest request) {
+    @Parameter(description = "HTTP 요청 객체 (서버 정보 추출용)", hidden = true)
+    HttpServletRequest request) {
     // Production 환경에서는 항상 HTTPS 사용 (Ingress가 TLS 종료)
     String baseUrl = "https://" + request.getServerName();
     String redirectUri = baseUrl + "/api/auth/social/google/callback";
 
     // Keycloak Google 로그인 URL 생성 (browser-facing public URL 사용)
     String authUrl = String.format(
-        "%s/realms/%s/protocol/openid-connect/auth",
-        keycloakPublicUrl, realm);
+      "%s/realms/%s/protocol/openid-connect/auth",
+      keycloakPublicUrl, realm);
 
     String loginUrl = String.format(
-        "%s?client_id=%s&response_type=code&scope=%s&redirect_uri=%s&kc_idp_hint=google",
-        authUrl,
-        URLEncoder.encode(clientId, StandardCharsets.UTF_8),
-        URLEncoder.encode("openid email profile", StandardCharsets.UTF_8),
-        URLEncoder.encode(redirectUri, StandardCharsets.UTF_8)
+      "%s?client_id=%s&response_type=code&scope=%s&redirect_uri=%s&kc_idp_hint=google",
+      authUrl,
+      URLEncoder.encode(clientId, StandardCharsets.UTF_8),
+      URLEncoder.encode("openid email profile", StandardCharsets.UTF_8),
+      URLEncoder.encode(redirectUri, StandardCharsets.UTF_8)
     );
 
     Map<String, String> response = Map.of(
-        "loginUrl", loginUrl,
-        "provider", "google",
-        "redirectUri", redirectUri
+      "loginUrl", loginUrl,
+      "provider", "google",
+      "redirectUri", redirectUri
     );
 
     log.info("Google 로그인 URL 생성 완료");

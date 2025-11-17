@@ -11,33 +11,6 @@
 
 ## 시스템 내 역할
 
-```mermaid
-sequenceDiagram
-    participant Client
-    participant Gateway
-    participant TradeService
-    participant UserService
-    participant MarketData
-    participant DB
-
-    Note over Client,DB: 매수 주문 Flow
-    Client->>Gateway: POST /api/trades (매수)
-    Gateway->>TradeService: 주문 요청
-    TradeService->>UserService: 계좌 잔액 확인
-    UserService-->>TradeService: 잔액 정보
-    TradeService->>MarketData: 현재 가격 조회
-    MarketData-->>TradeService: 실시간 시세
-
-    alt 잔액 충분
-        TradeService->>DB: 거래 기록 저장
-        TradeService->>DB: Holdings 업데이트
-        TradeService->>UserService: 잔액 차감 요청
-        TradeService-->>Client: 주문 체결 완료
-    else 잔액 부족
-        TradeService-->>Client: 400 Insufficient Balance
-    end
-```
-
 **시스템 내 책임:**
 - 거래 실행: 매수/매도 주문 처리 및 수수료/슬리피지 적용
 - 포트폴리오 관리: 실시간 평가액 계산 (현재가 × 보유 수량)
@@ -50,12 +23,22 @@ sequenceDiagram
 - Market Data Service: 실시간 시세, 배당 정보 (Feign Client)
 - Kafka: 환율 변동 이벤트 구독
 
-## 데이터베이스 스키마
+## 화면
 
-주요 테이블:
-- `trades`: 거래 내역 (symbol, quantity, price, fee)
-- `holdings`: 보유 종목 (total_quantity, avg_purchase_price)
-- `dividends`: 배당 지급 내역 (gross_amount, tax_amount, net_amount)
+### 거래 페이지
+<img src="../.github/images/trade-service/거래페이지.png" alt="거래 페이지" width="600"/>
+
+실시간 차트와 함께 매수/매도 주문을 실행할 수 있습니다.
+
+### 거래 내역
+<img src="../.github/images/trade-service/거래내역.png" alt="거래 내역" width="600"/>
+
+과거 거래 내역과 손익을 확인할 수 있습니다.
+
+### 포트폴리오
+<img src="../.github/images/trade-service/포트폴리오.png" alt="포트폴리오" width="600"/>
+
+보유 종목의 실시간 평가액과 수익률을 조회합니다.
 
 ## 비즈니스 로직
 

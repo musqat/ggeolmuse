@@ -35,27 +35,88 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// 응답 인터셉터 (에러 처리)
+// 토큰 갱신 중인지 추적
+let isRefreshing = false;
+let failedQueue: any[] = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+// 응답 인터셉터 (에러 처리 + 자동 토큰 갱신)
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
-    const requestUrl = error.config?.url || '';
+  async (error) => {
+    const originalRequest = error.config;
+    const requestUrl = originalRequest?.url || '';
 
     if (error.response?.status === 401) {
-      // 로그인 요청이나 회원가입 요청의 401은 정상적인 실패이므로 무시
+      // 로그인/회원가입/refresh 요청의 401은 정상적인 실패
       if (requestUrl.includes('/auth/login') ||
           requestUrl.includes('/auth/register') ||
-          requestUrl.includes('/auth/social')) {
+          requestUrl.includes('/auth/social') ||
+          requestUrl.includes('/auth/refresh')) {
         return Promise.reject(error);
       }
 
-      // 401 Unauthorized - 토큰 만료 또는 인증 실패
-      const token = localStorage.getItem('accessToken');
-      if (token) {
+      // 이미 재시도한 요청이면 로그아웃
+      if (originalRequest._retry) {
         localStorage.removeItem('accessToken');
-
-        // 전역 상태 업데이트를 위한 이벤트 발생
+        localStorage.removeItem('refreshToken');
         window.dispatchEvent(new CustomEvent('auth:logout'));
+        return Promise.reject(error);
+      }
+
+      // refresh token이 없으면 로그아웃
+      const refreshToken = localStorage.getItem('refreshToken');
+      if (!refreshToken) {
+        localStorage.removeItem('accessToken');
+        window.dispatchEvent(new CustomEvent('auth:logout'));
+        return Promise.reject(error);
+      }
+
+      // 토큰 갱신 중이면 대기열에 추가
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then(token => {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return apiClient(originalRequest);
+        }).catch(err => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      // Refresh token으로 새 access token 받아오기
+      try {
+        const response = await authApi.refreshToken();
+        const newAccessToken = response.data;
+
+        localStorage.setItem('accessToken', newAccessToken);
+
+        // 대기 중인 요청들 처리
+        processQueue(null, newAccessToken);
+
+        // 원래 요청 재시도
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+        return apiClient(originalRequest);
+      } catch (refreshError) {
+        // Refresh 실패 시 로그아웃
+        processQueue(refreshError, null);
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        window.dispatchEvent(new CustomEvent('auth:logout'));
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
       }
     }
 
@@ -220,7 +281,7 @@ export const tradeApi = {
 
   // 통합 거래 내역 조회 (매수/매도/배당)
   history: () =>
-    apiClient.get('/trade/history'),
+    apiClient.get('/transactions/history'),
 
   // 기존 페이징 API (deprecated, 통합 API 사용 권장)
   historyPaged: (page = 0, size = 20) =>
@@ -444,8 +505,13 @@ export const authApi = {
     apiClient.get<User>('/users/me'),
 
   // 토큰 갱신
-  refreshToken: () =>
-    apiClient.post<string>('/auth/refresh'),
+  refreshToken: () => {
+    const refreshToken = localStorage.getItem('refreshToken');
+    if (!refreshToken) {
+      throw new Error('No refresh token available');
+    }
+    return apiClient.post<string>('/auth/refresh', { refreshToken });
+  },
 
   // 비밀번호 변경
   changePassword: (data: ChangePasswordRequest) =>

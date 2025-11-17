@@ -15,7 +15,7 @@ interface StockSearchInputProps {
   supportedSymbols?: string[];
 }
 
-// 회사명 조회 헬퍼 함수
+// 회사명 조회 헬퍼 함수 (등록되지 않은 종목은 빈 문자열 반환)
 const getSymbolName = (symbol: string): string => {
   const names: { [key: string]: string } = {
     'AAPL': 'Apple Inc.',
@@ -39,7 +39,7 @@ const getSymbolName = (symbol: string): string => {
     'ABBV': 'AbbVie Inc.',
     'NFLX': 'Netflix Inc.'
   };
-  return names[symbol] || symbol;
+  return names[symbol] || ''; // 회사명이 없으면 빈 문자열 반환 (티커 티커 문제 해결)
 };
 
 const StockSearchInput: React.FC<StockSearchInputProps> = ({
@@ -68,12 +68,33 @@ const StockSearchInput: React.FC<StockSearchInputProps> = ({
     if (searchTerm.trim() === '') {
       return dynamicStockList.slice(0, 20);
     } else {
+      const searchLower = searchTerm.toLowerCase();
       const filtered = dynamicStockList.filter(
         stock =>
-          stock.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          stock.name.toLowerCase().includes(searchTerm.toLowerCase())
+          stock.symbol.toLowerCase().includes(searchLower) ||
+          stock.name.toLowerCase().includes(searchLower)
       );
-      return filtered.slice(0, 20);
+
+      // 정확히 일치하는 티커를 우선적으로 정렬 (1-2글자 티커 검색 개선)
+      const sorted = filtered.sort((a, b) => {
+        const aSymbolMatch = a.symbol.toLowerCase() === searchLower;
+        const bSymbolMatch = b.symbol.toLowerCase() === searchLower;
+        const aStartsWith = a.symbol.toLowerCase().startsWith(searchLower);
+        const bStartsWith = b.symbol.toLowerCase().startsWith(searchLower);
+
+        // 1. 정확히 일치하는 티커가 최우선
+        if (aSymbolMatch && !bSymbolMatch) return -1;
+        if (!aSymbolMatch && bSymbolMatch) return 1;
+
+        // 2. 티커가 검색어로 시작하는 것이 두 번째 우선
+        if (aStartsWith && !bStartsWith) return -1;
+        if (!aStartsWith && bStartsWith) return 1;
+
+        // 3. 나머지는 알파벳 순
+        return a.symbol.localeCompare(b.symbol);
+      });
+
+      return sorted.slice(0, 20);
     }
   }, [searchTerm, dynamicStockList]);
 
@@ -169,7 +190,9 @@ const StockSearchInput: React.FC<StockSearchInputProps> = ({
               >
                 <div className="flex items-center">
                   <span className="font-semibold text-sm">{stock.symbol}</span>
-                  <span className="ml-2 text-gray-500 text-sm truncate">{stock.name}</span>
+                  {stock.name && (
+                    <span className="ml-2 text-gray-500 text-sm truncate hover:text-white">{stock.name}</span>
+                  )}
                 </div>
               </div>
             ))

@@ -80,7 +80,8 @@ public class SecurityConfig {
   @Bean
   public WebSecurityCustomizer webSecurityCustomizer() {
     return (web) -> web.ignoring()
-      .requestMatchers("/api/auth/**", "/api/internal/auth/**",
+      .requestMatchers(
+        "/api/auth/**",
         "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**",
         "/swagger-resources/**", "/webjars/**");
   }

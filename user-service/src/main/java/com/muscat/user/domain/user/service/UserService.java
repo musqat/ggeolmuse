@@ -29,6 +29,9 @@ public interface UserService {
   // 로그인
   String login(String email, String password);
 
+  // 토큰 갱신
+  String refreshToken(String refreshToken);
+
   // 조회
   User getProfile(String email);
 
@@ -66,7 +69,9 @@ public interface UserService {
 
   // 통계
   long countTotalUsers();
+
   long countActiveUsers();
+
   long countAdminUsers();
 
 }

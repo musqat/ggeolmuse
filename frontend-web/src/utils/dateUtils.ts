@@ -2,7 +2,7 @@
  * 날짜 관련 유틸리티 함수
  */
 
-export type Timeframe = '1주' | '1개월' | '3개월' | '6개월' | '1년' | '직접설정';
+export type Timeframe = '1주' | '1개월' | '3개월' | '6개월' | '1년' | '전체' | '직접설정';
 
 /**
  * 기간에 따른 일수를 반환합니다
@@ -14,6 +14,7 @@ export function daysForTimeframe(tf: Timeframe): number {
     case '3개월': return 90;
     case '6개월': return 180;
     case '1년': return 365;
+    case '전체': return 365 * 50; // 50년 (DB의 모든 데이터)
     case '직접설정': return 0; // 커스텀은 별도로 처리됨
     default: return 365;
   }

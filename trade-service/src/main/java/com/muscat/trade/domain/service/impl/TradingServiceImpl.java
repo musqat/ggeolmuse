@@ -160,15 +160,17 @@ public class TradingServiceImpl implements TradingService {
       log.info("매수 가능 수량 계산 완료: symbol={}, 잔액={}, 주가={}, 최대주수={}",
         request.getSymbol(), availableBalance, currentPrice, maxShares);
 
-      return TradingCapacityResponseDto.builder()
-        .symbol(request.getSymbol())
-        .tradeDate(request.getTradeDate())
-        .currentPrice(currentPrice)
-        .availableBalance(availableBalance)
-        .maxShares(maxShares)
-        .totalValue(totalValue)
-        .currency("USD")
-        .build();
+      return new TradingCapacityResponseDto(
+        request.getSymbol(),
+        request.getTradeDate(),
+        currentPrice,
+        availableBalance,
+        maxShares,
+        totalValue,
+        "USD",
+        null,  // currentHoldings (매수용이므로 null)
+        null   // maxSellableShares (매수용이므로 null)
+      );
 
     } catch (Exception e) {
       log.error("매수 가능 수량 계산 실패: userId={}, symbol={}, error={}", userId, request.getSymbol(),
@@ -204,15 +206,17 @@ public class TradingServiceImpl implements TradingService {
       log.info("매도 가능 수량 계산 완료: symbol={}, 보유량={}, 매도가능량={}, 주가={}",
         request.getSymbol(), currentHoldings, maxSellableShares, currentPrice);
 
-      return TradingCapacityResponseDto.builder()
-        .symbol(request.getSymbol())
-        .tradeDate(request.getTradeDate())
-        .currentPrice(currentPrice)
-        .currentHoldings(currentHoldings)
-        .maxSellableShares(maxSellableShares)
-        .totalValue(totalValue)
-        .currency("USD")
-        .build();
+      return new TradingCapacityResponseDto(
+        request.getSymbol(),
+        request.getTradeDate(),
+        currentPrice,
+        null,  // availableBalance (매도용이므로 null)
+        null,  // maxShares (매도용이므로 null)
+        totalValue,
+        "USD",
+        currentHoldings,
+        maxSellableShares
+      );
 
     } catch (Exception e) {
       log.error("매도 가능 수량 계산 실패: userId={}, symbol={}, error={}", userId, request.getSymbol(),
@@ -311,19 +315,19 @@ public class TradingServiceImpl implements TradingService {
 
       // 거래 실패 이벤트 발행
       String failureCode = e instanceof TradeException
-          ? ((TradeException) e).getErrorCode()
-          : "TRANSACTION_FAILED";
+        ? ((TradeException) e).getErrorCode()
+        : "TRANSACTION_FAILED";
       String failureMessage = e.getMessage();
 
       tradeEventProducer.publishTradeFailed(
-          userId,
-          Long.parseLong(accountId),
-          symbol,
-          tradeType.name(),
-          quantity.intValue(),
-          tradePrice,
-          failureCode,
-          failureMessage
+        userId,
+        Long.parseLong(accountId),
+        symbol,
+        tradeType.name(),
+        quantity.intValue(),
+        tradePrice,
+        failureCode,
+        failureMessage
       );
 
       throw new TradeException(TradeResponse.TRANSACTION_FAILED);
@@ -354,14 +358,16 @@ public class TradingServiceImpl implements TradingService {
       .build();
 
     Trade savedTrade = tradeRepository.save(trade);
-    updateHoldings(userId, accountId, symbol, quantity, tradePrice, totalAmount, tradeType, savedTrade.getTradeId());
+    updateHoldings(userId, accountId, symbol, quantity, tradePrice, totalAmount, tradeType,
+      savedTrade.getTradeId());
 
     return savedTrade;
   }
 
   // 거래에 따른 보유 현황 업데이트 (비관적 Lock 사용)
   private void updateHoldings(String userId, String accountId, String symbol,
-    BigDecimal quantity, BigDecimal price, BigDecimal totalAmount, TradeType tradeType, String tradeId) {
+    BigDecimal quantity, BigDecimal price, BigDecimal totalAmount, TradeType tradeType,
+    String tradeId) {
 
     // 비관적 Lock으로 동시성 문제 해결
     Optional<Holdings> existingHoldings = holdingsRepository

@@ -1,6 +1,6 @@
 package com.muscat.user.infra.client;
 
-import com.muscat.user.infra.client.dto.FxRateDto;
+import com.muscat.commonlib.dto.FxRateDto;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;

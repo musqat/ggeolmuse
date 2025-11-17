@@ -22,10 +22,10 @@ import org.hibernate.annotations.CreationTimestamp;
 
 @Entity
 @Table(name = "trades", indexes = {
-    @Index(name = "idx_trades_user_symbol_date", columnList = "userId, symbol, tradeDate"),
-    @Index(name = "idx_trades_user_executed", columnList = "userId, executedAt"),
-    @Index(name = "idx_trades_user_account", columnList = "userId, accountId"),
-    @Index(name = "idx_trades_symbol_date", columnList = "symbol, tradeDate")
+  @Index(name = "idx_trades_user_symbol_date", columnList = "userId, symbol, tradeDate"),
+  @Index(name = "idx_trades_user_executed", columnList = "userId, executedAt"),
+  @Index(name = "idx_trades_user_account", columnList = "userId, accountId"),
+  @Index(name = "idx_trades_symbol_date", columnList = "symbol, tradeDate")
 })
 @Getter
 @Setter

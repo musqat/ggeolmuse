@@ -16,7 +16,7 @@ import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.model.ComparisonItem;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.backtest.infra.client.dto.HoldingDto;
-import com.muscat.backtest.infra.client.dto.StockPriceDto;
+import com.muscat.commonlib.dto.StockPriceDto;
 import com.muscat.commonlib.util.MoneyUtils;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -161,8 +161,8 @@ public class ResponseMapper {
 
     return InvestmentResponse.builder()
       .simulation(backtestResult)
-      .holdingId(holding.getHoldingId())
-      .symbol(holding.getSymbol())
+      .holdingId(holding.holdingId())
+      .symbol(holding.symbol())
       .purchaseDate(holding.getPurchaseDate())
       .investmentAmount(holding.getTotalInvested())
       .purchasePrice(backtestResult.getPurchasePrice())
@@ -194,7 +194,7 @@ public class ResponseMapper {
       .totalInvested(MoneyUtils.roundKrw(calculation.getTotalInvested()))
       .totalShares(calculation.getTotalShares().setScale(6, MoneyUtils.ROUND_MODE))
       .averagePrice(MoneyUtils.roundUsd(calculation.getAveragePrice()))
-      .currentPrice(currentPrice.getCurrentPrice())
+      .currentPrice(currentPrice.currentPrice())
       .currentValue(MoneyUtils.roundUsd(calculation.getCurrentValue()))
       .currentValueKrw(MoneyUtils.roundKrw(calculation.getCurrentValueKrw()))
       .remainingCashKrw(MoneyUtils.roundKrw(calculation.getRemainingCashKrw()))
@@ -210,7 +210,7 @@ public class ResponseMapper {
       .dividendsReinvested(MoneyUtils.roundUsd(calculation.getDividendsReinvested()))
       .dividendYield(MoneyUtils.roundUsd(BacktestCalculationUtils.calculateDividendYield(
         calculation.getTotalDividends(), calculation.getTotalShares(),
-        currentPrice.getCurrentPrice())))
+        currentPrice.currentPrice())))
       .strategyDetails(createStrategyDetails(strategyType, transactions.size()))
       .performanceSummary(createPerformanceSummary(calculation))
       .build();

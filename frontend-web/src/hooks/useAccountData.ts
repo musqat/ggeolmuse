@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   accountsApi,
   portfolioApi,
@@ -29,41 +29,36 @@ export interface UseAccountDataReturn {
  *
  */
 export const useAccountData = (isAuthenticated: boolean): UseAccountDataReturn => {
-  const [accounts, setAccounts] = useState<AccountSummary[]>([]);
-  const [accountBalances, setAccountBalances] = useState<Map<number, AccountBalance>>(new Map());
-  const [portfolioSummary, setPortfolioSummary] = useState<PortfolioSummaryResponse | null>(null);
-  const [currentExchangeRate, setCurrentExchangeRate] = useState<number>(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  /**
-   * 계좌 정보를 로드하는 함수
-   */
-  const loadAccounts = async () => {
-    if (!isAuthenticated) return;
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      // 계좌 목록 조회
+  // React Query: 모든 계좌 데이터를 한 번에 조회 (순차 API 호출)
+  const {
+    data,
+    isLoading: loading,
+    error: queryError,
+    refetch
+  } = useQuery({
+    queryKey: ['account', 'data'],
+    queryFn: async () => {
+      // 1. 계좌 목록 조회
       const accountsResponse = await accountsApi.getAccounts();
       const accountList = accountsResponse.data;
-      setAccounts(accountList);
 
-      // 현재 환율 조회
+      // 2. 현재 환율 조회
       const rateResponse = await accountsApi.getCurrentExchangeRate();
-      setCurrentExchangeRate(rateResponse.data);
+      const exchangeRate = rateResponse.data;
 
-      // 각 계좌의 잔액 조회
+      // 3. 각 계좌의 잔액 조회 (병렬 처리)
+      const balancePromises = accountList.map(account =>
+        accountsApi.getAccountBalance(account.accountId)
+          .then(response => ({ accountId: account.accountId, balance: response.data }))
+      );
+      const balanceResults = await Promise.all(balancePromises);
       const balanceMap = new Map<number, AccountBalance>();
-      for (const account of accountList) {
-        const balanceResponse = await accountsApi.getAccountBalance(account.accountId);
-        balanceMap.set(account.accountId, balanceResponse.data);
-      }
-      setAccountBalances(balanceMap);
+      balanceResults.forEach(result => {
+        balanceMap.set(result.accountId, result.balance);
+      });
 
-      // 포트폴리오 전체 조회 (총자산 계산용)
+      // 4. 포트폴리오 전체 조회 (총자산 계산용, 선택적)
+      let portfolioSummary: PortfolioSummaryResponse | null = null;
       try {
         const portfolioResponse = await portfolioApi.getPortfolio();
         const holdings = portfolioResponse.data;
@@ -80,35 +75,31 @@ export const useAccountData = (isAuthenticated: boolean): UseAccountDataReturn =
 
           // 포트폴리오 종합 정보 조회 (실제 현재가 기반)
           const summaryResponse = await portfolioApi.getPortfolioSummary(currentPrices);
-          setPortfolioSummary(summaryResponse.data);
+          portfolioSummary = summaryResponse.data;
         }
       } catch (err) {
         // 포트폴리오는 선택적이므로 에러가 나도 계속 진행
+        console.warn('포트폴리오 조회 실패:', err);
       }
 
-    } catch (err: any) {
-      setError('계좌 정보를 불러오는데 실패했습니다.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 인증 상태 변경 시 계좌 정보 로드
-  useEffect(() => {
-    if (isAuthenticated) {
-      loadAccounts();
-    } else {
-      setLoading(false);
-    }
-  }, [isAuthenticated]);
+      return {
+        accounts: accountList,
+        accountBalances: balanceMap,
+        portfolioSummary,
+        currentExchangeRate: exchangeRate
+      };
+    },
+    enabled: isAuthenticated,
+    staleTime: 1 * 60 * 1000, // 1분 (계좌 잔액은 자주 변경될 수 있음)
+  });
 
   return {
-    accounts,
-    accountBalances,
-    portfolioSummary,
-    currentExchangeRate,
+    accounts: data?.accounts || [],
+    accountBalances: data?.accountBalances || new Map(),
+    portfolioSummary: data?.portfolioSummary || null,
+    currentExchangeRate: data?.currentExchangeRate || 0,
     loading,
-    error,
-    refetch: loadAccounts
+    error: queryError ? '계좌 정보를 불러오는데 실패했습니다.' : null,
+    refetch: async () => { await refetch(); }
   };
 };

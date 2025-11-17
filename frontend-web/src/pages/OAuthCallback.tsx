@@ -58,8 +58,8 @@ const OAuthCallback: React.FC = () => {
 
         const { access_token, refresh_token } = tokenResponse.data;
 
-        // Access token 저장
-        tokenManager.setToken(access_token);
+        // Access token과 Refresh token 모두 저장
+        tokenManager.setTokens(access_token, refresh_token);
 
         // 홈으로 리다이렉트 (user-service 동기화는 나중에 처리)
         // Google OAuth 사용자는 Keycloak에 있으므로 JWT 토큰만으로 사용 가능

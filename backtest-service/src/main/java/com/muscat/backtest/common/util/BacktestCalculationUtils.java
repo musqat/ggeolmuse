@@ -1,5 +1,6 @@
 package com.muscat.backtest.common.util;
 
+import com.muscat.backtest.common.constants.BacktestConstants;
 import com.muscat.backtest.common.enums.BacktestResponse;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.infra.client.dto.DividendHistoryDto;
@@ -62,16 +63,18 @@ public final class BacktestCalculationUtils {
       .divide(totalShares, 8, HALF_UP);
   }
 
-  // 평균 환율을 계산합니다
-  public static BigDecimal calculateAverageFxRate(BigDecimal totalFxRateSum, int transactionCount) {
+  // 평균 환율을 계산합니다 (투자금액 가중평균)
+  // totalFxRateSum = Σ(투자금액 × 환율), totalInvested = Σ투자금액
+  // 가중평균 환율 = Σ(투자금액 × 환율) / Σ투자금액
+  public static BigDecimal calculateAverageFxRate(BigDecimal totalFxRateSum, BigDecimal totalInvested) {
     if (totalFxRateSum == null) {
       throw new IllegalArgumentException("환율 합계는 null이 될 수 없습니다");
     }
-    if (transactionCount <= 0) {
-      throw new IllegalArgumentException("거래 횟수는 0보다 커야 합니다");
+    if (totalInvested == null || totalInvested.compareTo(BigDecimal.ZERO) <= 0) {
+      throw new IllegalArgumentException("총 투자금액은 0보다 커야 합니다");
     }
 
-    return totalFxRateSum.divide(BigDecimal.valueOf(transactionCount), USD_SCALE, HALF_UP);
+    return totalFxRateSum.divide(totalInvested, USD_SCALE, HALF_UP);
   }
 
   // 리스트의 중간값을 계산합니다
@@ -243,7 +246,7 @@ public final class BacktestCalculationUtils {
 
     BigDecimal currentValue = shares.multiply(currentPrice);
     return totalDividends.divide(currentValue, PERCENT_PRECISION, HALF_UP)
-      .multiply(BigDecimal.valueOf(100))
+      .multiply(BacktestConstants.Money.PERCENTAGE_MULTIPLIER)
       .setScale(USD_SCALE, HALF_UP);
   }
 

@@ -1,7 +1,7 @@
 package com.muscat.trade.infra.client;
 
 import com.muscat.trade.infra.client.dto.DividendDto;
-import com.muscat.trade.infra.client.dto.StockPriceDto;
+import com.muscat.commonlib.dto.StockPriceDto;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import java.util.Collections;

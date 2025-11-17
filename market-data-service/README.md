@@ -12,40 +12,6 @@
 
 ## 시스템 내 역할
 
-```mermaid
-sequenceDiagram
-    participant Scheduler
-    participant MarketData
-    participant AlphaVantage
-    participant Kafka
-    participant Consumer
-    participant DB
-    participant Redis
-
-    Note over Scheduler,Redis: 1. 종목 선정
-    Scheduler->>MarketData: @EventListener(ApplicationReady)
-    MarketData->>AlphaVantage: LISTING_STATUS (전체 종목)
-    AlphaVantage-->>MarketData: 11,000+ 종목
-    MarketData->>MarketData: 주요 거래소 필터링
-    MarketData->>AlphaVantage: COMPANY_OVERVIEW (시가총액)
-    AlphaVantage-->>MarketData: 종목 메타데이터
-
-    loop 선정된 종목
-        MarketData->>DB: Asset 저장
-        MarketData->>Kafka: AssetCreatedEvent 발행
-    end
-
-    Note over Scheduler,Redis: 2. Kafka 기반 병렬 데이터 수집
-    Consumer->>Kafka: Event 구독 (concurrency=3)
-    Consumer->>AlphaVantage: TIME_SERIES_DAILY (20년)
-    AlphaVantage-->>Consumer: OHLC 데이터
-    Consumer->>DB: Candle 배치 저장
-
-    Note over Scheduler,Redis: 3. 실시간 조회 (캐싱)
-    MarketData->>DB: 가격 조회
-    MarketData->>Redis: 캐시 저장 (TTL 30s~24h)
-```
-
 **시스템 내 책임:**
 - 데이터 수집: Alpha Vantage API Rate Limit (75/min) 극복 (Kafka 병렬 처리)
 - 데이터 제공: Trade/Backtest Service에 시세 정보 제공
@@ -97,16 +63,15 @@ sequenceDiagram
 3. **병렬 처리**: Consumer concurrency=3으로 동시 처리
 4. **재시도 로직**: Kafka Consumer 자동 재시도
 
-## 데이터베이스 스키마
+## 화면
 
-주요 테이블:
-- `asset`: 종목 정보 (symbol, name, market_cap, active)
-- `candle`: 일별 OHLC 데이터 (2.9M+ rows, 20년치)
-- `dividend`: 배당 정보 (ex_date, amount, symbol)
-- `fx_rate`: 환율 데이터 (date, usd_to_krw)
+### 주식 페이지
+<img src="../.github/images/market-data-service/주식페이지.png" alt="주식 페이지" width="600"/>
 
-**데이터 규모:**
-- Asset: 11,000+ 종목 (주요 거래소)
-- Candle: 수백만 rows (종목 수 × 20년 × 252영업일)
-- Dividend: 배당 지급 이력
-- FxRate: ~3,000 rows (10년치)
+11,000+ 종목의 실시간 시세와 시가총액을 조회할 수 있습니다.
+
+### 차트 페이지
+<img src="../.github/images/market-data-service/차트페이지.png" alt="차트 페이지" width="600"/>
+
+20년치 OHLC 데이터를 활용한 인터랙티브 차트를 제공합니다.
+

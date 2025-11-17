@@ -30,13 +30,13 @@ public class BacktestHistoryServiceImpl implements BacktestHistoryService {
     }
 
     private BacktestHistoryDto convertToDto(BacktestHistory history) {
-        return BacktestHistoryDto.builder()
-            .backtestId(history.getBacktestId())
-            .userId(history.getUserId())
-            .backtestType(history.getBacktestType())
-            .requestParams(history.getRequestParams())
-            .fxRateMode(history.getFxRateMode())
-            .createdAt(history.getCreatedAt())
-            .build();
+        return new BacktestHistoryDto(
+            history.getBacktestId(),
+            history.getUserId(),
+            history.getBacktestType(),
+            history.getRequestParams(),
+            history.getFxRateMode(),
+            history.getCreatedAt()
+        );
     }
 }
