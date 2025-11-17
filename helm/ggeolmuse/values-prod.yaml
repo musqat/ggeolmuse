@@ -200,7 +200,7 @@ configServer:
   replicaCount: 1  # 단일 노드
   image:
     repository: config-server
-    tag: "1.1.1"
+    tag: "1.1.2"
   service:
     type: ClusterIP
     port: 8888
@@ -236,7 +236,7 @@ gatewayServer:
   replicaCount: 1  # 단일 노드
   image:
     repository: gateway-server
-    tag: "1.1.1"
+    tag: "1.1.2"
   service:
     type: LoadBalancer
     port: 8070
@@ -277,7 +277,7 @@ services:
     replicaCount: 1  # 단일 노드
     image:
       repository: user-service
-      tag: "1.1.1"
+      tag: "1.1.2"
     service:
       type: ClusterIP
       port: 8080
@@ -317,7 +317,7 @@ services:
     replicaCount: 1
     image:
       repository: trade-service
-      tag: "1.1.1"
+      tag: "1.1.2"
     service:
       type: ClusterIP
       port: 8081
@@ -351,7 +351,7 @@ services:
     replicaCount: 1
     image:
       repository: market-data-service
-      tag: "1.1.1"
+      tag: "1.1.2"
     service:
       type: ClusterIP
       port: 8083
@@ -406,7 +406,7 @@ services:
     replicaCount: 1
     image:
       repository: backtest-service
-      tag: "1.1.1"
+      tag: "1.1.2"
     service:
       type: ClusterIP
       port: 8082
