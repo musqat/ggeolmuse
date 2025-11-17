@@ -112,7 +112,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
 
         log.info("배당금 재투자 실행 시작: {} 개의 배당 내역", dividendHistory.getDividends().size());
 
-        // ✅ BULK API: 배당 날짜들의 가격 및 환율 데이터를 한 번에 조회
+        //  BULK API: 배당 날짜들의 가격 및 환율 데이터를 한 번에 조회
         List<LocalDate> dividendDates = dividendHistory.getDividends().stream()
           .filter(dividend -> dividend.getExDate() != null)
           .filter(dividend -> !dividend.getExDate().isBefore(firstPurchaseDate) &&
@@ -133,15 +133,15 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
             .collect(java.util.stream.Collectors.toMap(OHLCPriceDto::date, p -> p));
 
           // 배당 날짜들의 환율 데이터 조회
-          java.util.Map<LocalDate, BigDecimal> dividendFxRateMap = new java.util.HashMap<>();
-          if (request.getPurchaseFxRate() == null) {
-            dividendFxRateMap = BacktestDataUtils.getBulkFxRates(marketDataClient, dividendDates);
-          }
+          final java.util.Map<LocalDate, BigDecimal> dividendFxRateMap =
+            request.getPurchaseFxRate() == null
+              ? BacktestDataUtils.getBulkFxRates(marketDataClient, dividendDates)
+              : new java.util.HashMap<>();
 
           log.info("배당 재투자 데이터 조회 완료: 가격 {}개, 환율 {}개",
             dividendPriceMap.size(), dividendFxRateMap.size());
 
-          // ✅ 메모리에서 데이터 조회하여 배당 재투자 실행
+          //  메모리에서 데이터 조회하여 배당 재투자 실행
           dividendHistory.getDividends().stream()
             .filter(dividend -> dividend.getExDate() != null)
             .filter(dividend -> !dividend.getExDate().isBefore(firstPurchaseDate) &&
@@ -344,7 +344,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     List<StrategyTransaction> transactions = new ArrayList<>();
     BigDecimal lastPrice = null;
 
-    // ✅ BULK API 사용: 전체 기간의 가격 데이터를 한 번에 조회
+    //  BULK API 사용: 전체 기간의 가격 데이터를 한 번에 조회
     log.info("조건부 매수 전략 - Bulk 데이터 조회 시작: {} ~ {}", request.getStartDate(), actualEndDate);
     List<OHLCPriceDto> allPrices = marketDataClient.getOHLCPriceRange(
       request.getSymbol(),
@@ -359,7 +359,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
 
     log.info("가격 데이터 조회 완료: {}개", priceMap.size());
 
-    // ✅ BULK API 사용: 전체 기간의 환율 데이터를 한 번에 조회 (수동 설정이 없는 경우만)
+    //  BULK API 사용: 전체 기간의 환율 데이터를 한 번에 조회 (수동 설정이 없는 경우만)
     java.util.Map<LocalDate, BigDecimal> fxRateMap = new java.util.HashMap<>();
     if (request.getPurchaseFxRate() == null) {
       List<LocalDate> allDates = new ArrayList<>();
@@ -376,7 +376,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     LocalDate currentDate = request.getStartDate();
     int purchaseCount = 0;
 
-    // ✅ 메모리에서 데이터 조회 (API 호출 없음)
+    // 메모리에서 데이터 조회 (API 호출 없음)
     while (!currentDate.isAfter(actualEndDate) && purchaseCount < params.maxPurchases()) {
       try {
         OHLCPriceDto priceData = priceMap.get(currentDate);
