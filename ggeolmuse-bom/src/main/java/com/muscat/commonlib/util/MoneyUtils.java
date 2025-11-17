@@ -1,10 +1,9 @@
 package com.muscat.commonlib.util;
 
 import com.muscat.commonlib.exception.ServiceException;
-import lombok.extern.slf4j.Slf4j;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public final class MoneyUtils {
@@ -86,7 +85,7 @@ public final class MoneyUtils {
 
     if (amount.compareTo(minimumAmount) < 0) {
       throw new ServiceException("INSUFFICIENT_AMOUNT",
-          String.format("최소 환전 금액은 %s %s입니다", minimumAmount, currency));
+        String.format("최소 환전 금액은 %s %s입니다", minimumAmount, currency));
     }
   }
 
@@ -96,12 +95,13 @@ public final class MoneyUtils {
 
     if (krwAmount.compareTo(MAX_SINGLE_EXCHANGE_KRW) > 0) {
       throw new ServiceException("EXCESSIVE_AMOUNT",
-          String.format("1회 최대 환전 금액은 %s원입니다", MAX_SINGLE_EXCHANGE_KRW));
+        String.format("1회 최대 환전 금액은 %s원입니다", MAX_SINGLE_EXCHANGE_KRW));
     }
   }
 
   // 잔액 충분성 검증
-  public static void validateSufficientBalance(BigDecimal currentBalance, BigDecimal requiredAmount, String currency) {
+  public static void validateSufficientBalance(BigDecimal currentBalance, BigDecimal requiredAmount,
+    String currency) {
     validatePositiveAmount(requiredAmount, "필요 금액");
 
     if (currentBalance == null) {
@@ -110,15 +110,19 @@ public final class MoneyUtils {
 
     if (currentBalance.compareTo(requiredAmount) < 0) {
       throw new ServiceException("INSUFFICIENT_BALANCE",
-          String.format("잔액 부족: 현재 %s %s, 필요 %s %s",
-              currentBalance, currency, requiredAmount, currency));
+        String.format("잔액 부족: 현재 %s %s, 필요 %s %s",
+          currentBalance, currency, requiredAmount, currency));
     }
   }
 
   // 두 금액이 같은지 비교 (통화별 정밀도 고려)
   public static boolean isEqual(BigDecimal amount1, BigDecimal amount2, String currency) {
-    if (amount1 == null && amount2 == null) return true;
-    if (amount1 == null || amount2 == null) return false;
+    if (amount1 == null && amount2 == null) {
+      return true;
+    }
+    if (amount1 == null || amount2 == null) {
+      return false;
+    }
 
     BigDecimal rounded1 = "KRW".equals(currency) ? roundKrw(amount1) : roundUsd(amount1);
     BigDecimal rounded2 = "KRW".equals(currency) ? roundKrw(amount2) : roundUsd(amount2);
@@ -128,7 +132,9 @@ public final class MoneyUtils {
 
   // 금액을 통화에 맞게 포맷팅
   public static String formatAmount(BigDecimal amount, String currency) {
-    if (amount == null) return "0";
+    if (amount == null) {
+      return "0";
+    }
 
     return switch (currency.toUpperCase()) {
       case "KRW" -> String.format("%,d원", roundKrw(amount).longValue());
@@ -139,19 +145,29 @@ public final class MoneyUtils {
 
   // 기본 산술 연산
   public static BigDecimal add(BigDecimal a, BigDecimal b) {
-    if (a == null) a = BigDecimal.ZERO;
-    if (b == null) b = BigDecimal.ZERO;
+    if (a == null) {
+      a = BigDecimal.ZERO;
+    }
+    if (b == null) {
+      b = BigDecimal.ZERO;
+    }
     return a.add(b);
   }
 
   public static BigDecimal subtract(BigDecimal a, BigDecimal b) {
-    if (a == null) a = BigDecimal.ZERO;
-    if (b == null) b = BigDecimal.ZERO;
+    if (a == null) {
+      a = BigDecimal.ZERO;
+    }
+    if (b == null) {
+      b = BigDecimal.ZERO;
+    }
     return a.subtract(b);
   }
 
   public static BigDecimal multiply(BigDecimal a, BigDecimal b) {
-    if (a == null || b == null) return BigDecimal.ZERO;
+    if (a == null || b == null) {
+      return BigDecimal.ZERO;
+    }
     return a.multiply(b);
   }
 
@@ -166,7 +182,8 @@ public final class MoneyUtils {
   }
 
   // 전체 환전 입력값 검증
-  private static void validateExchangeInputs(BigDecimal amount, BigDecimal exchangeRate, String fromCurrency, String toCurrency) {
+  private static void validateExchangeInputs(BigDecimal amount, BigDecimal exchangeRate,
+    String fromCurrency, String toCurrency) {
     validatePositiveAmount(amount, fromCurrency + " 금액");
 
     if (exchangeRate == null || exchangeRate.compareTo(BigDecimal.ZERO) <= 0) {
@@ -199,9 +216,9 @@ public final class MoneyUtils {
     }
 
     return currentValue.subtract(baseValue)
-        .divide(baseValue, 4, ROUND_MODE)
-        .multiply(BigDecimal.valueOf(100))
-        .setScale(USD_SCALE, ROUND_MODE);
+      .divide(baseValue, 4, ROUND_MODE)
+      .multiply(BigDecimal.valueOf(100))
+      .setScale(USD_SCALE, ROUND_MODE);
   }
 
   // 환율 유효성 검증

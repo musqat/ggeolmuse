@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Lock, LogIn } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import LoginModal from '../components/auth/LoginModal';
 import TradeHistoryTab from '../components/trading/TradeHistoryTab';
@@ -42,86 +43,89 @@ const Trading: React.FC = () => {
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
 
-  const [chartData, setChartData] = useState<CandlestickChartData[]>([]);
-  const [latestOHLC, setLatestOHLC] = useState<any>(null);
   const [selectedDateOHLC, setSelectedDateOHLC] = useState<any>(null);
-  const [chartLoading, setChartLoading] = useState(false);
-  const [supportedSymbols, setSupportedSymbols] = useState<string[]>([]);
   const [tradeDate, setTradeDate] = useState(() => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    return yesterday.toISOString().split('T')[0];
   });
 
   // Use custom hook for account management
   const { accounts, selectedAccountId, setSelectedAccountId } = useAccounts(isAuthenticated);
 
-  // 지원하는 종목 목록 로드
-  useEffect(() => {
-    const loadInitial = async () => {
-      try {
-        const symbolsResponse = await stockApi.getAllSymbols();
-        const allSymbols = (Array.isArray(symbolsResponse.data) ? symbolsResponse.data : [])
-          .map((a: any) => String(a.symbol).toUpperCase());
-        setSupportedSymbols(allSymbols);
-      } catch (e) {
-        setSupportedSymbols(['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'TSLA']);
+  // React Query: 지원하는 종목 목록 로드
+  const { data: supportedSymbols = ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'TSLA'] } = useQuery({
+    queryKey: ['stock', 'symbols'],
+    queryFn: async () => {
+      const symbolsResponse = await stockApi.getAllSymbols();
+      const allSymbols = (Array.isArray(symbolsResponse.data) ? symbolsResponse.data : [])
+        .map((a: any) => String(a.symbol).toUpperCase());
+      return allSymbols;
+    },
+    staleTime: 10 * 60 * 1000, // 10분 (종목 목록은 자주 변경 안 됨)
+  });
+
+  // 날짜 범위 계산 (useMemo로 최적화)
+  const dateRange = useMemo(() => {
+    if (timeframe === '직접설정') {
+      if (!customStartDate || !customEndDate) {
+        return null;
       }
-    };
-    loadInitial();
-  }, []);
+      return { startDate: customStartDate, endDate: customEndDate };
+    }
 
-  // 종목이나 기간 변경 시 차트 데이터 로드
-  useEffect(() => {
-    if (!selectedStock) return;
+    const endDate = new Date().toISOString().split('T')[0];
+    const startDate = new Date(Date.now() - daysForTimeframe(timeframe) * 24 * 60 * 60 * 1000)
+      .toISOString().split('T')[0];
+    return { startDate, endDate };
+  }, [timeframe, customStartDate, customEndDate]);
 
-    const loadStockData = async () => {
-      try {
-        setChartLoading(true);
+  // React Query: 차트 데이터 로드
+  const {
+    data: chartData = [],
+    isLoading: chartLoading
+  } = useQuery({
+    queryKey: ['stock', 'ohlc', selectedStock, dateRange],
+    queryFn: async () => {
+      if (!dateRange) return [];
 
-        let endDate: string;
-        let startDate: string;
+      const chartResponse = await stockApi.getOHLCData(
+        selectedStock,
+        dateRange.startDate,
+        dateRange.endDate
+      );
 
-        if (timeframe === '직접설정') {
-          if (!customStartDate || !customEndDate) {
-            setChartLoading(false);
-            return;
-          }
-          startDate = customStartDate;
-          endDate = customEndDate;
-        } else {
-          endDate = new Date().toISOString().split('T')[0];
-          startDate = new Date(Date.now() - daysForTimeframe(timeframe) * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-        }
-
-        const chartResponse = await stockApi.getOHLCData(selectedStock, startDate, endDate);
-        if (chartResponse.data && Array.isArray(chartResponse.data)) {
-          const convertedData = convertOHLCToCandlestick(chartResponse.data);
-          setChartData(convertedData);
-
-          // 최신 OHLC 데이터 가져오기
-          if (convertedData.length > 0) {
-            const latest = convertedData[convertedData.length - 1];
-            setLatestOHLC({
-              open: latest.open,
-              high: latest.high,
-              low: latest.low,
-              close: latest.close
-            });
-            // 최신 날짜로 거래 날짜 자동 설정
-            setTradeDate(latest.time);
-          }
-        } else {
-          setChartData([]);
-        }
-      } catch (error) {
-        setChartData([]);
-      } finally {
-        setChartLoading(false);
+      if (chartResponse.data && Array.isArray(chartResponse.data)) {
+        const convertedData = convertOHLCToCandlestick(chartResponse.data);
+        return convertedData;
       }
-    };
 
-    loadStockData();
-  }, [selectedStock, timeframe, customStartDate, customEndDate]);
+      return [];
+    },
+    enabled: !!selectedStock && !!dateRange,
+    staleTime: 5 * 60 * 1000, // 5분
+  });
+
+  // 최신 OHLC 데이터 계산
+  const latestOHLC = useMemo(() => {
+    if (chartData.length === 0) return null;
+
+    const latest = chartData[chartData.length - 1];
+    return {
+      open: latest.open,
+      high: latest.high,
+      low: latest.low,
+      close: latest.close
+    };
+  }, [chartData]);
+
+  // 차트 데이터 변경 시 tradeDate 자동 설정
+  useEffect(() => {
+    if (chartData.length > 0) {
+      const latest = chartData[chartData.length - 1];
+      setTradeDate(latest.time);
+    }
+  }, [chartData]);
 
   // 가장 가까운 과거 거래일 찾기
   const findClosestPastDate = (targetDate: string): CandlestickChartData | null => {
@@ -134,7 +138,7 @@ const Trading: React.FC = () => {
     return pastDates[pastDates.length - 1];
   };
 
-  // 선택된 날짜의 OHLC 데이터 업데이트
+  // 선택된 날짜의 OHLC 데이터 업데이트 (차트 표시용)
   useEffect(() => {
     if (!tradeDate || chartData.length === 0) return;
 
@@ -142,12 +146,12 @@ const Trading: React.FC = () => {
     if (dateData) {
       setSelectedDateOHLC(dateData);
     } else {
-      // 데이터가 없으면 가장 가까운 과거 거래일로 조정
+      // 차트 범위 밖의 날짜 선택 시: selectedDateOHLC은 null (차트에 표시 안 함)
+      // 하지만 tradeDate는 유지 (거래 가능 정보 조회는 가능)
       const closest = findClosestPastDate(tradeDate);
       if (closest) {
         setSelectedDateOHLC(closest);
-        setTradeDate(closest.time);
-        alert(`${tradeDate}는 거래일이 아닙니다.\n가장 가까운 거래일 ${closest.time}로 조정되었습니다.`);
+        // tradeDate는 사용자가 선택한 날짜 그대로 유지 (조정하지 않음)
       } else {
         setSelectedDateOHLC(null);
       }

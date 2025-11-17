@@ -1,5 +1,6 @@
 package com.muscat.trade.domain.service.impl;
 
+import com.muscat.commonlib.constants.CommonConstants;
 import com.muscat.trade.common.enums.type.TradeType;
 import com.muscat.trade.domain.entity.Dividend;
 import com.muscat.trade.domain.entity.Trade;
@@ -9,7 +10,6 @@ import com.muscat.trade.domain.service.DividendService;
 import com.muscat.trade.infra.client.MarketServiceClient;
 import com.muscat.trade.infra.client.dto.DividendDto;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -33,7 +33,7 @@ public class DividendServiceImpl implements DividendService {
   private static final BigDecimal TAX_RATE = new BigDecimal("0.154"); // 15.4% 원천징수
 
   @Override
-  @Transactional(readOnly = true)
+  @Transactional
   public List<Map<String, Object>> getUserDividends(String userId) {
     log.info("조회: 사용자 {} 배당 내역", userId);
 
@@ -49,10 +49,10 @@ public class DividendServiceImpl implements DividendService {
 
       // 배당 조회 및 캐싱
       List<Map<String, Object>> dividends = getDividendsWithCache(
-          userId,
-          symbol,
-          firstPurchaseDate,
-          LocalDate.now()
+        userId,
+        symbol,
+        firstPurchaseDate,
+        LocalDate.now()
       );
 
       allDividends.addAll(dividends);
@@ -65,17 +65,17 @@ public class DividendServiceImpl implements DividendService {
   @Override
   @Transactional
   public List<Map<String, Object>> getDividendsWithCache(String userId, String symbol,
-      LocalDate startDate, LocalDate endDate) {
+    LocalDate startDate, LocalDate endDate) {
 
     log.debug("배당 조회 (Trade 단위 캐싱): userId={}, symbol={}, startDate={}, endDate={}",
-        userId, symbol, startDate, endDate);
+      userId, symbol, startDate, endDate);
 
     // 1. 해당 종목의 모든 BUY Trade 조회 (시간순)
     List<Trade> buyTrades = tradeRepository
-        .findByUserIdAndSymbolOrderByTradeDateAsc(userId, symbol)
-        .stream()
-        .filter(t -> t.getTradeType() == TradeType.BUY)
-        .toList();
+      .findByUserIdAndSymbolOrderByTradeDateAsc(userId, symbol)
+      .stream()
+      .filter(t -> t.getTradeType() == TradeType.BUY)
+      .toList();
 
     if (buyTrades.isEmpty()) {
       log.debug("매수 내역 없음: {}", symbol);
@@ -87,15 +87,15 @@ public class DividendServiceImpl implements DividendService {
     List<DividendDto> marketDividends;
     try {
       marketDividends = marketServiceClient.getDividends(
-          symbol,
-          startDate.toString(),
-          endDate.toString()
+        symbol,
+        startDate.toString(),
+        endDate.toString()
       );
     } catch (Exception e) {
       log.error("배당 조회 실패: {}", e.getMessage());
       // 실패 시 캐시된 데이터라도 반환
       return convertToDto(dividendRepository
-          .findByUserIdAndSymbolOrderByDividendDateDesc(userId, symbol));
+        .findByUserIdAndSymbolOrderByDividendDateDesc(userId, symbol));
     }
 
     log.info("배당 이벤트 {} 건 조회됨", marketDividends.size());
@@ -112,13 +112,13 @@ public class DividendServiceImpl implements DividendService {
 
         // 이미 저장된 배당인지 확인 (Trade + 배당일 단위)
         if (dividendRepository.existsByTradeIdAndDividendDate(
-            buyTrade.getTradeId(), dividendDate)) {
+          buyTrade.getTradeId(), dividendDate)) {
           continue;
         }
 
         // 배당 기준일에 이 Trade의 주식이 얼마나 남아있는지 계산
         BigDecimal sharesRemaining = calculateTradeSharesRemainingAt(
-            userId, symbol, buyTrade.getTradeId(), dividendDate);
+          userId, symbol, buyTrade.getTradeId(), dividendDate);
 
         if (sharesRemaining.compareTo(BigDecimal.ZERO) <= 0) {
           continue; // 이미 전량 매도됨
@@ -126,31 +126,31 @@ public class DividendServiceImpl implements DividendService {
 
         // 배당금 계산 (이 Trade의 남은 주식에 대해서만)
         BigDecimal grossAmount = marketDividend.amount().multiply(sharesRemaining)
-            .setScale(2, RoundingMode.HALF_UP);
+          .setScale(CommonConstants.DEFAULT_SCALE, CommonConstants.DEFAULT_ROUNDING_MODE);
         BigDecimal taxAmount = grossAmount.multiply(TAX_RATE)
-            .setScale(2, RoundingMode.HALF_UP);
+          .setScale(CommonConstants.DEFAULT_SCALE, CommonConstants.DEFAULT_ROUNDING_MODE);
         BigDecimal netAmount = grossAmount.subtract(taxAmount);
 
         // Dividend 엔티티 생성 및 저장 (tradeId 연결)
         Dividend dividend = Dividend.builder()
-            .userId(userId)
-            .accountId(buyTrade.getAccountId())
-            .symbol(symbol)
-            .tradeId(buyTrade.getTradeId())  // Trade 연결!
-            .shares(sharesRemaining)
-            .dividendPerShare(marketDividend.amount())
-            .grossAmount(grossAmount)
-            .taxAmount(taxAmount)
-            .netAmount(netAmount)
-            .dividendDate(dividendDate)
-            .processedAt(LocalDateTime.now())
-            .build();
+          .userId(userId)
+          .accountId(buyTrade.getAccountId())
+          .symbol(symbol)
+          .tradeId(buyTrade.getTradeId())  // Trade 연결!
+          .shares(sharesRemaining)
+          .dividendPerShare(marketDividend.amount())
+          .grossAmount(grossAmount)
+          .taxAmount(taxAmount)
+          .netAmount(netAmount)
+          .dividendDate(dividendDate)
+          .processedAt(LocalDateTime.now())
+          .build();
 
         dividendRepository.save(dividend);
 
         log.info("배당 캐싱: {} Trade[{}] - {} shares × ${} = ${} (세후: ${})",
-            symbol, buyTrade.getTradeId().substring(0, 8),
-            sharesRemaining, marketDividend.amount(), grossAmount, netAmount);
+          symbol, buyTrade.getTradeId().substring(0, 8),
+          sharesRemaining, marketDividend.amount(), grossAmount, netAmount);
       }
     }
 
@@ -159,7 +159,7 @@ public class DividendServiceImpl implements DividendService {
 
     // 4. 전체 배당 재조회 후 반환
     List<Dividend> allDividends = dividendRepository
-        .findByUserIdAndSymbolOrderByDividendDateDesc(userId, symbol);
+      .findByUserIdAndSymbolOrderByDividendDateDesc(userId, symbol);
 
     log.info("총 배당 레코드: {} 건", allDividends.size());
     return convertToDto(allDividends);
@@ -180,24 +180,23 @@ public class DividendServiceImpl implements DividendService {
   }
 
   /**
-   * 특정 Trade의 주식이 특정 날짜에 얼마나 남아있는지 계산
-   * FIFO (First-In-First-Out) 방식으로 매도 처리
-   *
+   * 특정 Trade의 주식이 특정 날짜에 얼마나 남아있는지 계산 FIFO (First-In-First-Out) 방식으로 매도 처리
+   * <p>
    * 예: Trade1 (10주 매수) → 매도 7주 → 배당일에 3주 남음
    */
   private BigDecimal calculateTradeSharesRemainingAt(
-      String userId, String symbol, String targetTradeId, LocalDate targetDate) {
+    String userId, String symbol, String targetTradeId, LocalDate targetDate) {
 
     // 모든 거래 내역 조회 (시간순)
     List<Trade> allTrades = tradeRepository
-        .findByUserIdAndSymbolOrderByTradeDateAsc(userId, symbol);
+      .findByUserIdAndSymbolOrderByTradeDateAsc(userId, symbol);
 
     // targetTradeId의 매수 수량
     BigDecimal originalShares = allTrades.stream()
-        .filter(t -> t.getTradeId().equals(targetTradeId) && t.getTradeType() == TradeType.BUY)
-        .map(Trade::getQuantity)
-        .findFirst()
-        .orElse(BigDecimal.ZERO);
+      .filter(t -> t.getTradeId().equals(targetTradeId) && t.getTradeType() == TradeType.BUY)
+      .map(Trade::getQuantity)
+      .findFirst()
+      .orElse(BigDecimal.ZERO);
 
     if (originalShares.compareTo(BigDecimal.ZERO) <= 0) {
       return BigDecimal.ZERO;
@@ -239,13 +238,13 @@ public class DividendServiceImpl implements DividendService {
    */
   private LocalDate getFirstPurchaseDate(String userId, String symbol) {
     List<Trade> trades = tradeRepository
-        .findByUserIdAndSymbolOrderByTradeDateAsc(userId, symbol);
+      .findByUserIdAndSymbolOrderByTradeDateAsc(userId, symbol);
 
     if (trades.isEmpty()) {
       return LocalDate.now();
     }
 
-    return trades.get(0).getTradeDate();
+    return trades.getFirst().getTradeDate();
   }
 
   /**

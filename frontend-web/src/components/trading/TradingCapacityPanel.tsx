@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { TrendingUp, TrendingDown, DollarSign, Package } from 'lucide-react';
 import { tradeApi } from '../../services/api';
 
@@ -28,42 +29,30 @@ const TradingCapacityPanel: React.FC<TradingCapacityPanelProps> = ({
   currentPrice,
   selectedDateOHLC,
 }) => {
-  const [capacity, setCapacity] = useState<CapacityData | null>(null);
-  const [loading, setLoading] = useState(false);
+  // React Query: 거래 가능 수량 조회
+  const {
+    data: capacity = null,
+    isLoading: loading
+  } = useQuery({
+    queryKey: ['trade', 'capacity', accountId, symbol, tradeDate, orderType],
+    queryFn: async () => {
+      const payload = {
+        accountId: String(accountId),
+        symbol,
+        tradeDate: tradeDate,
+      };
 
-  useEffect(() => {
-    if (!accountId || !symbol || !tradeDate || currentPrice <= 0 || !selectedDateOHLC) {
-      setCapacity(null);
-      return;
-    }
-
-    const fetchCapacity = async () => {
-      try {
-        setLoading(true);
-
-        const payload = {
-          accountId: String(accountId),
-          symbol,
-          tradeDate: selectedDateOHLC.time,
-        };
-
-        if (orderType === 'buy') {
-          const response = await tradeApi.canBuy(payload);
-          setCapacity(response.data);
-        } else {
-          const response = await tradeApi.canSell(payload);
-          setCapacity(response.data);
-        }
-      } catch (error) {
-        console.error('거래 가능 수량 조회 실패:', error);
-        setCapacity(null);
-      } finally {
-        setLoading(false);
+      if (orderType === 'buy') {
+        const response = await tradeApi.canBuy(payload);
+        return response.data;
+      } else {
+        const response = await tradeApi.canSell(payload);
+        return response.data;
       }
-    };
-
-    fetchCapacity();
-  }, [accountId, symbol, orderType, currentPrice, selectedDateOHLC]);
+    },
+    enabled: !!accountId && !!symbol && !!tradeDate && currentPrice > 0,
+    staleTime: 30 * 1000, // 30초 (실시간 데이터이므로 짧게)
+  });
 
   if (!accountId || !capacity) {
     return null;

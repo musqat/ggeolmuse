@@ -34,7 +34,7 @@ public class ComparisonCalculator {
                 .collect(Collectors.toList()));
 
         // 최고/최저 성과
-        ComparisonItem bestPerformer = items.get(0);
+        ComparisonItem bestPerformer = items.getFirst();
         ComparisonItem worstPerformer = items.get(items.size() - 1);
         
         BigDecimal performanceSpread = bestPerformer.getTotalReturnPercent()

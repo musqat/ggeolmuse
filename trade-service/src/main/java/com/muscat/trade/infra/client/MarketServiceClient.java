@@ -1,7 +1,7 @@
 package com.muscat.trade.infra.client;
 
 import com.muscat.trade.infra.client.dto.DividendDto;
-import com.muscat.trade.infra.client.dto.StockPriceDto;
+import com.muscat.commonlib.dto.StockPriceDto;
 import java.util.List;
 import java.util.Map;
 import org.springframework.cloud.openfeign.FeignClient;

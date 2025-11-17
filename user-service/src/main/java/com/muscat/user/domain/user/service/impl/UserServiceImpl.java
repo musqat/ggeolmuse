@@ -194,6 +194,20 @@ public class UserServiceImpl implements UserService {
   }
 
   @Override
+  public String refreshToken(String refreshToken) {
+    log.info("토큰 갱신 요청");
+
+    try {
+      String newAccessToken = keycloakService.refreshToken(refreshToken);
+      log.info("토큰 갱신 성공");
+      return newAccessToken;
+    } catch (Exception e) {
+      log.error("토큰 갱신 실패: {}", e.getMessage());
+      throw e;
+    }
+  }
+
+  @Override
   public User getProfile(String email) {
     return userRepository.findByEmail(email)
       .orElseThrow(() -> new UserException(UserResponse.USER_NOT_FOUND));
@@ -201,7 +215,7 @@ public class UserServiceImpl implements UserService {
 
   @Override
   public void deleteAccount(String email, String password) {
-    User user = userRepository.findByEmail(email)
+    User user = userRepository.findByEmailWithAccounts(email)
       .orElseThrow(() -> new UserException(UserResponse.USER_NOT_FOUND));
 
     // 로컬 비밀번호 검증
@@ -256,7 +270,7 @@ public class UserServiceImpl implements UserService {
 
   @Override
   public User verifyEmail(String token) {
-    EmailToken emailToken = emailTokenRepository.findByToken(token)
+    EmailToken emailToken = emailTokenRepository.findByTokenWithUser(token)
       .orElseThrow(() -> {
         log.warn("유효하지 않은 이메일 인증 토큰: {}", token);
         return new UserException(UserResponse.EMAIL_TOKEN_INVALID);
@@ -329,7 +343,7 @@ public class UserServiceImpl implements UserService {
 
   @Override
   public void resetPassword(String token, String newPassword) {
-    PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(token)
+    PasswordResetToken resetToken = passwordResetTokenRepository.findByTokenWithUser(token)
       .orElseThrow(() -> {
         log.warn("유효하지 않은 비밀번호 재설정 토큰: {}", token);
         return new UserException(UserResponse.PASSWORD_RESET_TOKEN_INVALID);

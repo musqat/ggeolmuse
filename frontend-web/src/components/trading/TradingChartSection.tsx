@@ -32,7 +32,7 @@ interface TradingChartSectionProps {
 /**
  * 사용 가능한 기간 옵션
  */
-const TIMEFRAMES: Timeframe[] = ['1주', '1개월', '3개월', '6개월', '1년', '직접설정'];
+const TIMEFRAMES: Timeframe[] = ['1주', '1개월', '3개월', '6개월', '1년', '전체', '직접설정'];
 
 /**
  * 거래 차트 섹션 컴포넌트

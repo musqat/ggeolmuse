@@ -1,6 +1,7 @@
 // JWT 토큰 관리 유틸리티
 
 export const TOKEN_STORAGE_KEY = 'accessToken';
+export const REFRESH_TOKEN_STORAGE_KEY = 'refreshToken';
 
 // 토큰 저장/조회/삭제
 export const tokenManager = {
@@ -12,8 +13,26 @@ export const tokenManager = {
     localStorage.setItem(TOKEN_STORAGE_KEY, token);
   },
 
+  getRefreshToken: (): string | null => {
+    return localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
+  },
+
+  setRefreshToken: (token: string): void => {
+    localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, token);
+  },
+
+  setTokens: (accessToken: string, refreshToken: string): void => {
+    localStorage.setItem(TOKEN_STORAGE_KEY, accessToken);
+    localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, refreshToken);
+  },
+
   removeToken: (): void => {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
+  },
+
+  removeTokens: (): void => {
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
   },
 
   // JWT 토큰에서 payload 디코딩 (간단한 구현)

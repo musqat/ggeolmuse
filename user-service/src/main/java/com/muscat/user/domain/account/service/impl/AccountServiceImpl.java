@@ -1,5 +1,6 @@
 package com.muscat.user.domain.account.service.impl;
 
+import com.muscat.commonlib.dto.FxRateDto;
 import com.muscat.commonlib.util.MoneyUtils;
 import com.muscat.messaging.event.DividendReceivedEvent;
 import com.muscat.messaging.event.TradeCancelledEvent;
@@ -24,7 +25,6 @@ import com.muscat.user.domain.account.service.AccountService;
 import com.muscat.user.domain.user.entity.User;
 import com.muscat.user.domain.user.repository.UserRepository;
 import com.muscat.user.infra.client.MarketDataServiceClientWrapper;
-import com.muscat.user.infra.client.dto.FxRateDto;
 import com.muscat.user.infra.kafka.AccountEventProducer;
 import com.muscat.user.infra.kafka.DepositWithdrawalEventProducer;
 import java.math.BigDecimal;
@@ -367,14 +367,14 @@ public class AccountServiceImpl implements AccountService {
       // 디버그: 응답 확인
       log.debug("Market-data 응답: response={}, rate={}",
         response,
-        response != null ? response.getRate() : "null");
+        response != null ? response.rate() : "null");
 
-      if (response != null && response.getRate() != null) {
-        BigDecimal rate = MoneyUtils.roundExchangeRate(response.getRate());
+      if (response != null && response.rate() != null) {
+        BigDecimal rate = MoneyUtils.roundExchangeRate(response.rate());
 
         // 환율 유효성 검증
         if (rate.compareTo(minValidRate) >= 0 && rate.compareTo(maxValidRate) <= 0) {
-          log.info("환율 조회 성공: {} (일자: {})", rate, response.getDate());
+          log.info("환율 조회 성공: {} (일자: {})", rate, response.date());
           return rate;
         } else {
           log.warn("비정상적인 환율 감지: {}, fallback으로 전환", rate);
@@ -401,8 +401,8 @@ public class AccountServiceImpl implements AccountService {
       log.debug("특정 날짜 환율 조회 시도: {}", date);
       FxRateDto response = marketDataServiceClientWrapper.getFxRate(date.toString());
 
-      if (response != null && response.getRate() != null) {
-        BigDecimal rate = MoneyUtils.roundExchangeRate(response.getRate());
+      if (response != null && response.rate() != null) {
+        BigDecimal rate = MoneyUtils.roundExchangeRate(response.rate());
 
         // 환율 유효성 검증
         if (rate.compareTo(minValidRate) >= 0 && rate.compareTo(maxValidRate) <= 0) {
@@ -468,7 +468,7 @@ public class AccountServiceImpl implements AccountService {
       throw new AccountException(AccountResponse.ACCOUNT_NOT_FOUND);
     }
 
-    Account account = accounts.get(0); // 첫 번째 계좌 사용
+    Account account = accounts.getFirst(); // 첫 번째 계좌 사용
     log.debug("계좌 선택: accountId={}, accountNumber={}", account.getId(), account.getAccountNumber());
 
     // 3. 거래 타입에 따라 잔액 변경 금액 계산
@@ -511,7 +511,8 @@ public class AccountServiceImpl implements AccountService {
    */
   @Override
   public void processTradeCancellationEvent(TradeCancelledEvent event) {
-    log.info("처리 시작: TradeCancelledEvent (Saga 보상) - tradeId={}, userId={}, tradeType={}, totalAmount={}, reason={}",
+    log.info(
+      "처리 시작: TradeCancelledEvent (Saga 보상) - tradeId={}, userId={}, tradeType={}, totalAmount={}, reason={}",
       event.getTradeId(), event.getUserId(), event.getTradeType(), event.getTotalAmount(),
       event.getCancellationReason());
 
@@ -531,7 +532,7 @@ public class AccountServiceImpl implements AccountService {
       throw new AccountException(AccountResponse.ACCOUNT_NOT_FOUND);
     }
 
-    Account account = accounts.get(0); // 첫 번째 계좌 사용
+    Account account = accounts.getFirst(); // 첫 번째 계좌 사용
     log.debug("계좌 선택: accountId={}, accountNumber={}", account.getId(), account.getAccountNumber());
 
     // 3. 거래 취소를 위한 잔액 변경 계산 (원래 거래의 반대)
@@ -564,8 +565,10 @@ public class AccountServiceImpl implements AccountService {
     try {
       updateUsdBalance(account.getId(), userId, compensationAmount, description);
 
-      log.info("거래 취소 이벤트 처리 완료 (잔액 원복): tradeId={}, userId={}, accountId={}, compensationAmount={}, originalEventId={}",
-        event.getTradeId(), userId, account.getId(), compensationAmount, event.getOriginalEventId());
+      log.info(
+        "거래 취소 이벤트 처리 완료 (잔액 원복): tradeId={}, userId={}, accountId={}, compensationAmount={}, originalEventId={}",
+        event.getTradeId(), userId, account.getId(), compensationAmount,
+        event.getOriginalEventId());
 
     } catch (AccountException e) {
       log.error("보상 트랜잭션 실패: tradeId={}, userId={}, accountId={}, error={}",
@@ -576,7 +579,6 @@ public class AccountServiceImpl implements AccountService {
 
   /**
    * 배당금 수령 이벤트 처리
-   *
    * DividendReceivedEvent를 처리하여 사용자 계좌에 배당금을 입금합니다.
    */
   @Override
@@ -630,7 +632,7 @@ public class AccountServiceImpl implements AccountService {
   private String generateUniqueAccountNumber() {
     for (int i = 0; i < 10; i++) {
       String accountNumber = generateAccountNumber();
-      if (accountRepository.findByAccountNumber(accountNumber).isEmpty()) {
+      if (!accountRepository.existsByAccountNumber(accountNumber)) {
         return accountNumber;
       }
     }

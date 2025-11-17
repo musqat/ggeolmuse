@@ -15,32 +15,6 @@
 
 ## 시스템 내 역할
 
-```mermaid
-sequenceDiagram
-    participant Client
-    participant Gateway
-    participant Backtest
-    participant MarketData
-    participant Trade
-    participant DB
-
-    Note over Client,DB: DCA 백테스팅 Flow
-    Client->>Gateway: POST /api/backtest/dca
-    Gateway->>Backtest: 백테스트 요청
-    Backtest->>MarketData: 기간별 OHLC 조회 (Redis 캐시)
-    MarketData-->>Backtest: 20년치 일봉 데이터
-    Backtest->>MarketData: 환율 데이터 조회
-    MarketData-->>Backtest: USD/KRW 환율
-
-    loop 매월 투자일
-        Backtest->>Trade: simulateBuy() (가상 거래)
-        Trade-->>Backtest: 매수 결과 (수수료 포함)
-    end
-
-    Backtest->>DB: BacktestHistory 저장
-    Backtest-->>Client: 백테스트 결과
-```
-
 **시스템 내 책임:**
 - 백테스팅: 과거 데이터로 투자 전략 시뮬레이션
 - 성과 분석: 수익률, MDD, Sharpe Ratio 등 계산
@@ -108,8 +82,15 @@ sequenceDiagram
 - 단일 날짜별 조회 대신 범위 조회 사용 (N → 1 API 호출)
 - MarketData Service의 `getOHLCPriceRange()` 활용
 
-## 데이터베이스 스키마
+## 화면
 
-주요 테이블:
-- `backtest_history`: 백테스트 실행 기록 (user_id, backtest_type, parameters)
-- `investment_backtest_result`: 캐시된 백테스트 결과 (user별 재사용)
+### 백테스트 실행
+<img src="../.github/images/backtest-service/백테스트.png" alt="백테스트 페이지" width="600"/>
+
+5가지 투자 전략을 선택하고 파라미터를 설정하여 시뮬레이션을 실행할 수 있습니다.
+
+### 백테스트 내역
+<img src="../.github/images/backtest-service/백테스트-내역.png" alt="백테스트 내역" width="600"/>
+
+과거 실행한 백테스트 결과를 조회하고 비교할 수 있습니다.
+

@@ -93,18 +93,18 @@ class BacktestHistoryServiceImplTest {
       assertThat(result.getTotalElements()).isEqualTo(2);
       assertThat(result.getContent()).hasSize(2);
 
-      BacktestHistoryDto dto1 = result.getContent().get(0);
-      assertThat(dto1.getBacktestId()).isEqualTo("bt-001");
-      assertThat(dto1.getUserId()).isEqualTo(TEST_USER_ID);
-      assertThat(dto1.getBacktestType()).isEqualTo(BacktestType.STRATEGY_SIMULATION);
-      assertThat(dto1.getRequestParams()).isEqualTo("{\"strategy\":\"DCA\"}");
-      assertThat(dto1.getFxRateMode()).isEqualTo("auto");
-      assertThat(dto1.getCreatedAt()).isEqualTo(LocalDateTime.of(2024, 10, 15, 14, 0));
+      BacktestHistoryDto dto1 = result.getContent().getFirst();
+      assertThat(dto1.backtestId()).isEqualTo("bt-001");
+      assertThat(dto1.userId()).isEqualTo(TEST_USER_ID);
+      assertThat(dto1.backtestType()).isEqualTo(BacktestType.STRATEGY_SIMULATION);
+      assertThat(dto1.requestParams()).isEqualTo("{\"strategy\":\"DCA\"}");
+      assertThat(dto1.fxRateMode()).isEqualTo("auto");
+      assertThat(dto1.createdAt()).isEqualTo(LocalDateTime.of(2024, 10, 15, 14, 0));
 
       BacktestHistoryDto dto2 = result.getContent().get(1);
-      assertThat(dto2.getBacktestId()).isEqualTo("bt-002");
-      assertThat(dto2.getBacktestType()).isEqualTo(BacktestType.COMPARISON);
-      assertThat(dto2.getFxRateMode()).isEqualTo("manual");
+      assertThat(dto2.backtestId()).isEqualTo("bt-002");
+      assertThat(dto2.backtestType()).isEqualTo(BacktestType.COMPARISON);
+      assertThat(dto2.fxRateMode()).isEqualTo("manual");
 
       verify(backtestHistoryRepository).findByUserIdOrderByCreatedAtDesc(TEST_USER_ID, pageable);
     }
@@ -167,7 +167,7 @@ class BacktestHistoryServiceImplTest {
       assertThat(result.getNumber()).isEqualTo(1); // 두 번째 페이지 (0-indexed)
 
       // 11번째 항목이 첫 번째로 와야 함
-      assertThat(result.getContent().get(0).getBacktestId()).isEqualTo("bt-011");
+      assertThat(result.getContent().getFirst().backtestId()).isEqualTo("bt-011");
     }
 
     @Test
@@ -216,7 +216,7 @@ class BacktestHistoryServiceImplTest {
       // then
       assertThat(result.getContent()).hasSize(3);
       assertThat(result.getContent())
-        .extracting(BacktestHistoryDto::getBacktestType)
+        .extracting(BacktestHistoryDto::backtestType)
         .containsExactly(
           BacktestType.STRATEGY_SIMULATION,
           BacktestType.COMPARISON,
@@ -240,15 +240,15 @@ class BacktestHistoryServiceImplTest {
 
       // then
       assertThat(result.getContent()).hasSize(1);
-      BacktestHistoryDto dto = result.getContent().get(0);
+      BacktestHistoryDto dto = result.getContent().getFirst();
 
       // 모든 필드가 정확히 변환되었는지 확인
-      assertThat(dto.getBacktestId()).isEqualTo(testHistory.getBacktestId());
-      assertThat(dto.getUserId()).isEqualTo(testHistory.getUserId());
-      assertThat(dto.getBacktestType()).isEqualTo(testHistory.getBacktestType());
-      assertThat(dto.getRequestParams()).isEqualTo(testHistory.getRequestParams());
-      assertThat(dto.getFxRateMode()).isEqualTo(testHistory.getFxRateMode());
-      assertThat(dto.getCreatedAt()).isEqualTo(testHistory.getCreatedAt());
+      assertThat(dto.backtestId()).isEqualTo(testHistory.getBacktestId());
+      assertThat(dto.userId()).isEqualTo(testHistory.getUserId());
+      assertThat(dto.backtestType()).isEqualTo(testHistory.getBacktestType());
+      assertThat(dto.requestParams()).isEqualTo(testHistory.getRequestParams());
+      assertThat(dto.fxRateMode()).isEqualTo(testHistory.getFxRateMode());
+      assertThat(dto.createdAt()).isEqualTo(testHistory.getCreatedAt());
     }
   }
 }

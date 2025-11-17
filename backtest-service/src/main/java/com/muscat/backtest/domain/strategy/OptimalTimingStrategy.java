@@ -1,5 +1,6 @@
 package com.muscat.backtest.domain.strategy;
 
+import com.muscat.backtest.common.constants.BacktestConstants;
 import com.muscat.backtest.common.enums.BacktestResponse;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.logging.BacktestLogger;
@@ -9,12 +10,14 @@ import com.muscat.backtest.domain.dto.request.OptimalTimingRequest;
 import com.muscat.backtest.domain.dto.response.OptimalTimingResponse;
 import com.muscat.backtest.domain.dto.response.TimingResult;
 import com.muscat.backtest.infra.client.MarketDataClient;
+import com.muscat.commonlib.dto.OHLCPriceDto;
 import com.muscat.commonlib.util.MoneyUtils;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,32 +48,51 @@ public class OptimalTimingStrategy {
       var currentPrice = BacktestDataUtils.getCurrentPrice(marketDataClient, request.getSymbol());
       var currentFxRate = BacktestDataUtils.getCurrentFxRate(marketDataClient);
 
-      log.info("현재 주가: ${}, 현재 환율: {}", currentPrice.getCurrentPrice(), currentFxRate.rate());
+      log.info("현재 주가: ${}, 현재 환율: {}", currentPrice.currentPrice(), currentFxRate.rate());
 
-      // 분석 기간 내 모든 날짜에 대해 분석 수행
+      // ✅ BULK API: 전체 기간의 가격 데이터를 한 번에 조회
+      log.info("최적 타이밍 분석 - Bulk 데이터 조회 시작: {} ~ {}", request.getStartDate(), actualEndDate);
+      List<OHLCPriceDto> allPrices = marketDataClient.getOHLCPriceRange(
+        request.getSymbol(),
+        request.getStartDate().toString(),
+        actualEndDate.toString()
+      );
+
+      // 날짜별 빠른 조회를 위한 Map 생성
+      Map<LocalDate, OHLCPriceDto> priceMap = allPrices.stream()
+        .filter(OHLCPriceDto::available)
+        .collect(Collectors.toMap(OHLCPriceDto::date, p -> p));
+
+      log.info("가격 데이터 조회 완료: {}개", priceMap.size());
+
+      // ✅ BULK API: 전체 기간의 환율 데이터를 한 번에 조회
+      List<LocalDate> allDates = new ArrayList<>();
+      LocalDate date = request.getStartDate();
+      while (!date.isAfter(actualEndDate)) {
+        allDates.add(date);
+        date = date.plusDays(1);
+      }
+
+      Map<LocalDate, BigDecimal> fxRateMap =
+        BacktestDataUtils.getBulkFxRates(marketDataClient, allDates);
+      log.info("환율 데이터 조회 완료: {}개", fxRateMap.size());
+
+      // ✅ 메모리에서 데이터 조회하여 분석 수행 (API 호출 없음)
       List<TimingResult> allResults = new ArrayList<>();
-      LocalDate currentDate = request.getStartDate();
       int analyzedDays = 0;
 
+      LocalDate currentDate = request.getStartDate();
       while (!currentDate.isAfter(actualEndDate)) {
-        try {
-          var priceData = BacktestDataUtils.getHistoricalPrice(
-            marketDataClient, request.getSymbol(), currentDate);
+        OHLCPriceDto priceData = priceMap.get(currentDate);
+        BigDecimal fxRate = fxRateMap.get(currentDate);
 
-          if (priceData.isAvailable()) {
-            var fxData = BacktestDataUtils.getHistoricalFxRate(marketDataClient, currentDate);
+        if (priceData != null && priceData.available() && fxRate != null) {
+          TimingResult result = calculateTimingResult(
+            request, currentDate, priceData.closePrice(), fxRate,
+            currentPrice.currentPrice(), currentFxRate.rate());
 
-            if (fxData != null) {
-              TimingResult result = calculateTimingResult(
-                request, currentDate, priceData.getClosePrice(), fxData.rate(),
-                currentPrice.getCurrentPrice(), currentFxRate.rate());
-
-              allResults.add(result);
-              analyzedDays++;
-            }
-          }
-        } catch (Exception e) {
-          log.warn("날짜 {} 데이터 처리 실패: {}", currentDate, e.getMessage());
+          allResults.add(result);
+          analyzedDays++;
         }
 
         currentDate = currentDate.plusDays(1);
@@ -121,7 +143,7 @@ public class OptimalTimingStrategy {
         .totalQualifyingDays(qualifyingTimings.size())
         .totalAnalyzedDays(analyzedDays)
         .investmentAmount(request.getInvestmentAmount())
-        .currentPrice(currentPrice.getCurrentPrice())
+        .currentPrice(currentPrice.currentPrice())
         .currentFxRate(currentFxRate.rate())
         .build();
 
@@ -140,11 +162,11 @@ public class OptimalTimingStrategy {
 
     // 현재 평가금액 (USD)
     BigDecimal currentValue = shares.multiply(currentPrice)
-      .setScale(2, BigDecimal.ROUND_HALF_UP);
+      .setScale(BacktestConstants.Money.SCALE, BacktestConstants.Money.ROUNDING_MODE);
 
     // 현재 평가금액 (KRW)
     BigDecimal currentValueKrw = currentValue.multiply(currentFxRate)
-      .setScale(0, BigDecimal.ROUND_HALF_UP);
+      .setScale(0, BacktestConstants.Money.ROUNDING_MODE);
 
     // 총 수익금 (KRW)
     BigDecimal totalReturn = currentValueKrw.subtract(request.getInvestmentAmount());
@@ -155,7 +177,7 @@ public class OptimalTimingStrategy {
 
     // 주식 수익금 (USD)
     BigDecimal purchaseValue = shares.multiply(purchasePrice)
-      .setScale(2, BigDecimal.ROUND_HALF_UP);
+      .setScale(BacktestConstants.Money.SCALE, BacktestConstants.Money.ROUNDING_MODE);
     BigDecimal stockReturn = currentValue.subtract(purchaseValue);
 
     // 주식 수익률 (%)
@@ -163,7 +185,7 @@ public class OptimalTimingStrategy {
 
     // 환차익 계산
     BigDecimal fxReturn = currentValue.multiply(currentFxRate.subtract(purchaseFxRate))
-      .setScale(2, BigDecimal.ROUND_HALF_UP);
+      .setScale(BacktestConstants.Money.SCALE, BacktestConstants.Money.ROUNDING_MODE);
 
     BigDecimal fxReturnPercent = MoneyUtils.calculateReturnRate(currentFxRate, purchaseFxRate);
 

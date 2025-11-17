@@ -2,6 +2,10 @@
 
 미국 주식 데이터 기반 투자 전략 백테스팅 플랫폼
 
+<div align="center">
+  <img src=".github/images/main/메인페이지.png" alt="GGeolmuse 메인 화면" width="800"/>
+</div>
+
 ## 서비스 개요
 
 투자자가 과거 데이터를 바탕으로 다양한 투자 전략을 시뮬레이션할 수 있는 플랫폼입니다.
@@ -19,57 +23,6 @@ NYSE, NASDAQ, NYSE ARCA에 상장된 11,000개 이상 종목의 20년치 일별 
 - Data: PostgreSQL, Redis (caching), Kafka
 - Frontend: React 18, TypeScript, Lightweight Charts
 - Infrastructure: Kubernetes (K3s), Helm, ArgoCD, Prometheus/Grafana
-
----
-
-## Architecture
-
-### System Architecture
-
-```mermaid
-graph TB
-    subgraph "Client Layer"
-        Client[React SPA]
-    end
-
-    subgraph "Edge Layer"
-        CF[CloudFlare DNS]
-        Traefik[Traefik Ingress<br/>Route: /, /api, /auth, /grafana]
-    end
-
-    subgraph "API Gateway"
-        GW[Gateway Server<br/>JWT, Rate Limit]
-        KC[Keycloak<br/>OAuth2/OIDC]
-    end
-
-    subgraph "Business Services"
-        US[User Service<br/>계정, 잔액]
-        TS[Trade Service<br/>거래, 포트폴리오]
-        MS[Market Data<br/>가격, 배당, 환율]
-        BS[Backtest<br/>전략 시뮬레이션]
-    end
-
-    subgraph "Data Layer"
-        PG[(PostgreSQL RDS<br/>11M+ rows)]
-        RD[(Redis<br/>5-tier Cache)]
-        KF[Kafka<br/>Event Bus]
-    end
-
-    Client --> CF --> Traefik
-    Traefik --> GW
-    Traefik --> KC
-    GW --> US & TS & MS & BS
-
-    US & TS & MS & BS --> PG
-    MS --> RD
-    US & TS & MS --> KF
-
-    style CF fill:#f96
-    style Traefik fill:#9cf
-    style GW fill:#9f9
-    style KF fill:#c9f
-    style RD fill:#f99
-```
 
 ---
 
@@ -103,7 +56,6 @@ graph TB
 - HikariCP 커넥션 풀 튜닝
 - Gateway Redis 기반 분산 Rate Limiting
 
-자세한 내용: **[Performance Benchmarks](docs/PERFORMANCE.md)**
 
 ### 안정성 (Resilience)
 - Resilience4j 5-layer 패턴
@@ -113,8 +65,6 @@ graph TB
   - Bulkhead (리소스 격리)
   - Rate Limiter (API 속도 제한)
 - Custom Grafana Dashboards (비즈니스 + 기술 메트릭)
-
-자세한 내용: **[Custom Dashboards](helm/monitoring/custom-dashboards/README.md)**
 
 ### 운영 자동화
 - CI/CD: GitHub Actions + ArgoCD (5분 내 자동 배포)
@@ -146,10 +96,6 @@ graph TB
 
 ## 문서
 
-### Core Documentation
-- **[API Usage Examples](docs/API_EXAMPLES.md)** - REST API 가이드 (curl 예시 포함)
-- **[Performance Benchmarks](docs/PERFORMANCE.md)** - 성능 최적화 상세 결과
-
 ### Service Documentation
 - **[User Service](user-service/README.md)** - 인증, 계좌 관리
 - **[Trade Service](trade-service/README.md)** - 거래, 포트폴리오
@@ -158,21 +104,12 @@ graph TB
 - **[Config Server](config-server/README.md)** - 중앙 설정 관리
 - **[Gateway Server](gateway-server/README.md)** - API Gateway
 
-### Operations
-- **[Monitoring Dashboards](helm/monitoring/custom-dashboards/README.md)** - Grafana 대시보드
-- **[Kubernetes Deployment](helm/ggeolmuse/README.md)** - Helm 배포
-- **[Quick Start](QUICK_START.md)** - 5분 안에 시작하기
-
 ---
 
 ## 모니터링 & 배포
 
-- **ArgoCD**: https://argocd.ggeolmuse.com (GitOps 배포 관리)
-- **Grafana**: https://ggeolmuse.com/grafana (메트릭 시각화)
-- **Kafka UI**: https://ggeolmuse.com/kafka-ui (이벤트 스트림)
+- **ArgoCD**: (GitOps 배포 관리)
+- **Grafana**:  (메트릭 시각화)
+- **Kafka UI**: (이벤트 스트림)
 
 ---
-
-## License
-
-MIT

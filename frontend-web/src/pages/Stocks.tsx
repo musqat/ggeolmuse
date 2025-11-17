@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { stockApi } from '../services/api';
 
@@ -13,15 +14,44 @@ interface StockSymbol {
 
 const Stocks: React.FC = () => {
   const navigate = useNavigate();
-  const [symbols, setSymbols] = useState<StockSymbol[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0); // API page (0-based)
-  const [totalPages, setTotalPages] = useState(0);
-  const [totalElements, setTotalElements] = useState(0);
   const [assetFilter, setAssetFilter] = useState<'ALL' | 'EQUITY' | 'ETF'>('ALL');
 
   const PAGE_SIZE = 50;
+
+  // React Query: 종목 목록 조회 (페이지네이션 + 필터)
+  const {
+    data: stocksResponse,
+    isLoading: loading,
+    error: queryError
+  } = useQuery({
+    queryKey: ['stocks', 'list', currentPage, assetFilter],
+    queryFn: async () => {
+      const response = await stockApi.getAllStocksWithPrices(
+        currentPage,
+        PAGE_SIZE,
+        assetFilter === 'ALL' ? undefined : assetFilter
+      );
+      return response.data;
+    },
+    staleTime: 2 * 60 * 1000, // 2분 (주가 데이터는 자주 변경됨)
+  });
+
+  // 응답 데이터 파싱
+  const stocks = Array.isArray(stocksResponse?.content) ? stocksResponse.content : [];
+  const symbols: StockSymbol[] = stocks
+    .filter((stock: any) => stock.available !== false && stock.currentPrice != null)
+    .map((stock: any) => ({
+      symbol: stock.symbol,
+      name: stock.name || stock.symbol,
+      marketCap: stock.marketCap,
+      currentPrice: stock.currentPrice,
+      latestDate: stock.date,
+      assetType: stock.assetType || 'EQUITY'
+    }));
+  const totalPages = stocksResponse?.totalPages || 0;
+  const totalElements = stocksResponse?.totalElements || 0;
+  const error = queryError ? '종목 목록을 불러오는데 실패했습니다.' : null;
 
   // 회사 logo 생성 (여러 API fallback 방식)
   const getFaviconUrl = (symbol: string) => {
@@ -92,48 +122,15 @@ const Stocks: React.FC = () => {
     return domainMap[symbol] || null;
   };
 
-  const loadStocks = async (page: number = 0, filter: string = 'ALL') => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const response = await stockApi.getAllStocksWithPrices(page, PAGE_SIZE, filter === 'ALL' ? undefined : filter);
-      const pageData = response.data;
-
-      // Spring Page 응답 처리
-      const stocks = Array.isArray(pageData.content) ? pageData.content : [];
-
-      // StockPriceDto 형식을 StockSymbol 형식으로 변환 (currentPrice가 null인 것 제외)
-      const symbolData = stocks
-        .filter((stock: any) => stock.available !== false && stock.currentPrice != null)
-        .map((stock: any) => ({
-          symbol: stock.symbol,
-          name: stock.name || stock.symbol,
-          marketCap: stock.marketCap,
-          currentPrice: stock.currentPrice,
-          latestDate: stock.date,
-          assetType: stock.assetType || 'EQUITY'
-        }));
-
-      setSymbols(symbolData);
-      setTotalPages(pageData.totalPages);
-      setTotalElements(pageData.totalElements);
-      setCurrentPage(page);
-    } catch (err) {
-      setError('종목 목록을 불러오는데 실패했습니다.');
-    } finally {
-      setLoading(false);
-    }
+  // 필터 변경 시 페이지 초기화
+  const handleFilterChange = (newFilter: 'ALL' | 'EQUITY' | 'ETF') => {
+    setAssetFilter(newFilter);
+    setCurrentPage(0); // 필터 변경 시 첫 페이지로
   };
-
-  // 초기 데이터 로드 및 필터 변경 시 데이터 다시 로드
-  useEffect(() => {
-    loadStocks(0, assetFilter);
-  }, [assetFilter]);
 
   // 페이지 변경 시
   const handlePageChange = (page: number) => {
-    loadStocks(page, assetFilter);
+    setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -197,7 +194,7 @@ const Stocks: React.FC = () => {
           {/* 필터 버튼 */}
           <div className="flex space-x-2">
           <button
-            onClick={() => setAssetFilter('ALL')}
+            onClick={() => handleFilterChange('ALL')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               assetFilter === 'ALL'
                 ? 'bg-indigo-600 text-white'
@@ -207,7 +204,7 @@ const Stocks: React.FC = () => {
             전체
           </button>
           <button
-            onClick={() => setAssetFilter('EQUITY')}
+            onClick={() => handleFilterChange('EQUITY')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               assetFilter === 'EQUITY'
                 ? 'bg-indigo-600 text-white'
@@ -217,7 +214,7 @@ const Stocks: React.FC = () => {
             주식
           </button>
           <button
-            onClick={() => setAssetFilter('ETF')}
+            onClick={() => handleFilterChange('ETF')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               assetFilter === 'ETF'
                 ? 'bg-indigo-600 text-white'

@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import {
   TrendingUp,
   TrendingDown,
@@ -27,12 +28,8 @@ const Charts: React.FC = () => {
   const navigate = useNavigate();
 
   const symbol = paramSymbol || 'AAPL';
-  const [ohlcData, setOhlcData] = useState<CandlestickChartData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [period, setPeriod] = useState<'1개월' | '3개월' | '6개월' | '1년' | '3년' | '5년' | '10년' | '전체' | 'CUSTOM'>('1년');
   const [showSearchModal, setShowSearchModal] = useState(false);
-  const [supportedSymbols, setSupportedSymbols] = useState<string[]>([]);
   const [showSearchInput, setShowSearchInput] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -47,85 +44,6 @@ const Charts: React.FC = () => {
   // Date 객체 상태
   const [startDateObj, setStartDateObj] = useState<Date | null>(null);
   const [endDateObj, setEndDateObj] = useState<Date | null>(null);
-
-  // 현재 가격 정보
-  const [currentPrice, setCurrentPrice] = useState<CandlestickChartData | null>(null);
-  const [companyName, setCompanyName] = useState<string>('');
-
-  // 지원 종목 목록 로드
-  useEffect(() => {
-    const loadSymbols = async () => {
-      try {
-        const response = await stockApi.getAllSymbols();
-        const symbols = (Array.isArray(response.data) ? response.data : [])
-          .map((a: any) => String(a.symbol).toUpperCase());
-        setSupportedSymbols(symbols);
-      } catch (err) {
-        setSupportedSymbols(['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'TSLA']);
-      }
-    };
-    loadSymbols();
-  }, []);
-
-  useEffect(() => {
-    if (!symbol) return;
-
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        let startDate: string;
-        let endDate: string;
-
-        if (period === 'CUSTOM') {
-          if (!customStartDate || !customEndDate) {
-            setLoading(false);
-            return;
-          }
-          startDate = customStartDate;
-          endDate = customEndDate;
-
-          // 날짜 유효성 검증
-          if (new Date(startDate) >= new Date(endDate)) {
-            setError('시작일은 종료일보다 이전이어야 합니다.');
-            setLoading(false);
-            return;
-          }
-        } else {
-          endDate = new Date().toISOString().split('T')[0];
-          startDate = getStartDate(period);
-        }
-
-        const response = await stockApi.getOHLCData(symbol, startDate, endDate);
-        const rawData = response.data || [];
-        const convertedData = convertOHLCToCandlestick(rawData);
-        setOhlcData(convertedData);
-
-        // 최신 데이터로 현재 가격 설정
-        if (convertedData.length > 0) {
-          setCurrentPrice(convertedData[convertedData.length - 1]);
-        }
-
-        // 회사명 가져오기
-        try {
-          const priceResponse = await stockApi.getCurrentPrice(symbol);
-          const stockData = priceResponse.data as any;
-          if (stockData?.name) {
-            setCompanyName(stockData.name);
-          }
-        } catch (err) {
-          // 회사명 가져오기 실패 시 무시
-          console.warn('Failed to fetch company name:', err);
-        }
-      } catch (err) {
-        setError('차트 데이터를 불러오는데 실패했습니다.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [symbol, period, customStartDate, customEndDate]);
 
   const getStartDate = (period: string): string => {
     const today = new Date();
@@ -160,6 +78,80 @@ const Charts: React.FC = () => {
 
     return date.toISOString().split('T')[0];
   };
+
+  // 날짜 범위 계산
+  const dateRange = useMemo(() => {
+    if (period === 'CUSTOM') {
+      if (!customStartDate || !customEndDate) {
+        return null;
+      }
+      // 날짜 유효성 검증
+      if (new Date(customStartDate) >= new Date(customEndDate)) {
+        return { error: '시작일은 종료일보다 이전이어야 합니다.' };
+      }
+      return { startDate: customStartDate, endDate: customEndDate };
+    }
+
+    const endDate = new Date().toISOString().split('T')[0];
+    const startDate = getStartDate(period);
+    return { startDate, endDate };
+  }, [period, customStartDate, customEndDate]);
+
+  // React Query: 지원하는 종목 목록 로드
+  const { data: supportedSymbols = ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'TSLA'] } = useQuery({
+    queryKey: ['stock', 'symbols'],
+    queryFn: async () => {
+      const response = await stockApi.getAllSymbols();
+      const symbols = (Array.isArray(response.data) ? response.data : [])
+        .map((a: any) => String(a.symbol).toUpperCase());
+      return symbols;
+    },
+    staleTime: 10 * 60 * 1000, // 10분
+  });
+
+  // React Query: 차트 데이터 로드
+  const {
+    data: ohlcData = [],
+    isLoading: loading,
+    error: apiError
+  } = useQuery({
+    queryKey: ['stock', 'ohlc', symbol, dateRange],
+    queryFn: async () => {
+      if (!dateRange || 'error' in dateRange) return [];
+
+      const response = await stockApi.getOHLCData(symbol, dateRange.startDate, dateRange.endDate);
+      const rawData = response.data || [];
+      const convertedData = convertOHLCToCandlestick(rawData);
+      return convertedData;
+    },
+    enabled: !!symbol && !!dateRange && !('error' in (dateRange || {})),
+    staleTime: 5 * 60 * 1000, // 5분
+  });
+
+  // React Query: 회사명 조회
+  const { data: companyName = '' } = useQuery({
+    queryKey: ['stock', 'companyName', symbol],
+    queryFn: async () => {
+      try {
+        const priceResponse = await stockApi.getCurrentPrice(symbol);
+        const stockData = priceResponse.data as any;
+        return stockData?.name || '';
+      } catch (err) {
+        console.warn('Failed to fetch company name:', err);
+        return '';
+      }
+    },
+    enabled: !!symbol,
+    staleTime: 30 * 60 * 1000, // 30분 (회사명은 거의 안 바뀜)
+  });
+
+  // 현재 가격 정보 계산
+  const currentPrice = useMemo(() => {
+    if (ohlcData.length === 0) return null;
+    return ohlcData[ohlcData.length - 1];
+  }, [ohlcData]);
+
+  const error = dateRange && 'error' in dateRange ? dateRange.error : (apiError ? '차트 데이터를 불러오는데 실패했습니다.' : null);
 
   const priceChange = currentPrice
     ? currentPrice.close - currentPrice.open

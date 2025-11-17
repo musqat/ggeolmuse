@@ -7,7 +7,7 @@
 
     <groupId>com.muscat</groupId>
     <artifactId>user-service</artifactId>
-    <version>1.1.0</version>
+    <version>1.1.2</version>
     <packaging>jar</packaging>
 
     <name>User Service</name>
@@ -200,7 +200,6 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-                <version>3.3.11</version>
                 <executions>
                     <execution>
                         <goals>

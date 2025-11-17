@@ -2,6 +2,7 @@ package com.muscat.backtest.domain.strategy;
 
 import com.muscat.backtest.common.calculation.StrategyCalculationResult;
 import com.muscat.backtest.common.calculation.StrategyCalculator;
+import com.muscat.backtest.common.constants.BacktestConstants;
 import com.muscat.backtest.common.enums.BacktestResponse;
 import com.muscat.backtest.common.enums.type.InvestmentMode;
 import com.muscat.backtest.common.enums.type.StrategyType;
@@ -14,12 +15,13 @@ import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.backtest.infra.client.MarketDataClient;
-import com.muscat.backtest.infra.client.dto.OHLCPriceDto;
+import com.muscat.commonlib.dto.OHLCPriceDto;
 import com.muscat.commonlib.util.MoneyUtils;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -81,7 +83,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
       }
 
       // 배당금 조회 (첫 매수일부터 현재까지)
-      LocalDate firstPurchaseDate = transactions.get(0).getDate();
+      LocalDate firstPurchaseDate = transactions.getFirst().getDate();
       var dividendHistory = BacktestDataUtils.getDividendHistory(
         marketDataClient, request.getSymbol(), firstPurchaseDate, LocalDate.now());
 
@@ -94,8 +96,9 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
         .map(StrategyTransaction::getShares)
         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+      // 투자금액으로 가중평균한 환율 합계 계산 (가중평균 환율 = Σ(투자금액 × 환율) / Σ투자금액)
       BigDecimal totalFxRateSum = transactions.stream()
-        .map(StrategyTransaction::getFxRate)
+        .map(t -> t.getFxRate().multiply(t.getAmount()))
         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
       // 재투자된 배당금 추적용 변수
@@ -109,72 +112,102 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
 
         log.info("배당금 재투자 실행 시작: {} 개의 배당 내역", dividendHistory.getDividends().size());
 
-        // 배당 내역을 날짜순 정렬 후 순차 재투자
-        dividendHistory.getDividends().stream()
+        // ✅ BULK API: 배당 날짜들의 가격 및 환율 데이터를 한 번에 조회
+        List<LocalDate> dividendDates = dividendHistory.getDividends().stream()
           .filter(dividend -> dividend.getExDate() != null)
           .filter(dividend -> !dividend.getExDate().isBefore(firstPurchaseDate) &&
             !dividend.getExDate().isAfter(LocalDate.now()))
-          .sorted((d1, d2) -> d1.getExDate().compareTo(d2.getExDate()))
-          .forEach(dividend -> {
-            // 배당 지급 시점의 보유 주식수 계산
-            BigDecimal sharesAtDividendDate = transactions.stream()
-              .filter(tx -> !tx.getDate().isAfter(dividend.getExDate()))
-              .map(StrategyTransaction::getShares)
-              .reduce(BigDecimal.ZERO, BigDecimal::add);
+          .map(d -> d.getExDate())
+          .toList();
 
-            if (sharesAtDividendDate.compareTo(BigDecimal.ZERO) > 0) {
-              // 배당금 계산
-              BigDecimal dividendAmount = dividend.getAmount().multiply(sharesAtDividendDate)
-                .setScale(2, java.math.RoundingMode.HALF_UP);
+        if (!dividendDates.isEmpty()) {
+          // 배당 날짜들의 가격 데이터 조회
+          List<OHLCPriceDto> dividendPrices = marketDataClient.getOHLCPriceRange(
+            request.getSymbol(),
+            dividendDates.get(0).toString(),
+            dividendDates.get(dividendDates.size() - 1).toString()
+          );
 
-              // 배당 원천징수세 적용
-              BigDecimal taxRate = request.getDividendTaxRate();
-              BigDecimal afterTaxDividend = dividendAmount;
-              if (taxRate != null && taxRate.compareTo(BigDecimal.ZERO) > 0) {
-                BigDecimal taxAmount = dividendAmount.multiply(taxRate)
-                  .setScale(2, java.math.RoundingMode.HALF_UP);
-                afterTaxDividend = dividendAmount.subtract(taxAmount);
-                log.info("배당 원천징수: {} - 배당금 ${} → 세후 ${} (세율 {}%)",
-                  dividend.getExDate(), dividendAmount, afterTaxDividend,
-                  taxRate.multiply(BigDecimal.valueOf(100)));
+          java.util.Map<LocalDate, OHLCPriceDto> dividendPriceMap = dividendPrices.stream()
+            .filter(OHLCPriceDto::available)
+            .collect(java.util.stream.Collectors.toMap(OHLCPriceDto::date, p -> p));
+
+          // 배당 날짜들의 환율 데이터 조회
+          java.util.Map<LocalDate, BigDecimal> dividendFxRateMap = new java.util.HashMap<>();
+          if (request.getPurchaseFxRate() == null) {
+            dividendFxRateMap = BacktestDataUtils.getBulkFxRates(marketDataClient, dividendDates);
+          }
+
+          log.info("배당 재투자 데이터 조회 완료: 가격 {}개, 환율 {}개",
+            dividendPriceMap.size(), dividendFxRateMap.size());
+
+          // ✅ 메모리에서 데이터 조회하여 배당 재투자 실행
+          dividendHistory.getDividends().stream()
+            .filter(dividend -> dividend.getExDate() != null)
+            .filter(dividend -> !dividend.getExDate().isBefore(firstPurchaseDate) &&
+              !dividend.getExDate().isAfter(LocalDate.now()))
+            .sorted((d1, d2) -> d1.getExDate().compareTo(d2.getExDate()))
+            .forEach(dividend -> {
+              // 배당 지급 시점의 보유 주식수 계산
+              BigDecimal sharesAtDividendDate = transactions.stream()
+                .filter(tx -> !tx.getDate().isAfter(dividend.getExDate()))
+                .map(StrategyTransaction::getShares)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+              if (sharesAtDividendDate.compareTo(BigDecimal.ZERO) > 0) {
+                // 배당금 계산
+                BigDecimal dividendAmount = dividend.getAmount().multiply(sharesAtDividendDate)
+                  .setScale(BacktestConstants.Money.SCALE, BacktestConstants.Money.ROUNDING_MODE);
+
+                // 배당 원천징수세 적용
+                BigDecimal taxRate = request.getDividendTaxRate();
+                BigDecimal afterTaxDividend = dividendAmount;
+                if (taxRate != null && taxRate.compareTo(BigDecimal.ZERO) > 0) {
+                  BigDecimal taxAmount = dividendAmount.multiply(taxRate)
+                    .setScale(BacktestConstants.Money.SCALE, BacktestConstants.Money.ROUNDING_MODE);
+                  afterTaxDividend = dividendAmount.subtract(taxAmount);
+                  log.debug("배당 원천징수: {} - 배당금 ${} → 세후 ${} (세율 {}%)",
+                    dividend.getExDate(), dividendAmount, afterTaxDividend,
+                    taxRate.multiply(BacktestConstants.Money.PERCENTAGE_MULTIPLIER));
+                }
+
+                // 메모리에서 배당금 지급일의 주가와 환율 조회
+                OHLCPriceDto priceAtDividendDate = dividendPriceMap.get(dividend.getExDate());
+
+                BigDecimal fxRateAtDividendDate;
+                if (request.getPurchaseFxRate() != null) {
+                  fxRateAtDividendDate = request.getPurchaseFxRate();
+                } else {
+                  fxRateAtDividendDate = dividendFxRateMap.getOrDefault(
+                    dividend.getExDate(), currentFxRate.rate());
+                }
+
+                if (priceAtDividendDate != null && priceAtDividendDate.available()) {
+                  // 세후 배당금으로 추가 매수 가능한 주식수 계산
+                  BigDecimal additionalShares = afterTaxDividend.divide(
+                    priceAtDividendDate.closePrice(), 8, java.math.RoundingMode.HALF_UP);
+
+                  // 배당 재투자 거래 기록 추가
+                  StrategyTransaction dividendReinvestment = StrategyTransaction.builder()
+                    .date(dividend.getExDate())
+                    .actualDate(priceAtDividendDate.date())
+                    .price(priceAtDividendDate.closePrice())
+                    .shares(additionalShares)
+                    .amount(BigDecimal.ZERO)  // 배당금 재투자이므로 추가 투자금 없음
+                    .fxRate(fxRateAtDividendDate)
+                    .trigger("배당 재투자")
+                    .build();
+
+                  transactions.add(dividendReinvestment);
+                  dividendsReinvestedArray[0] = dividendsReinvestedArray[0].add(afterTaxDividend);
+
+                  log.debug("배당 재투자: {} - ${} ({}주 보유) -> {}주 추가 매수 @${}",
+                    dividend.getExDate(), afterTaxDividend, sharesAtDividendDate,
+                    additionalShares, priceAtDividendDate.closePrice());
+                }
               }
-
-              // 배당금 지급일의 주가와 환율 조회
-              var priceAtDividendDate = BacktestDataUtils.getHistoricalPrice(
-                marketDataClient, request.getSymbol(), dividend.getExDate());
-
-              BigDecimal fxRateAtDividendDate;
-              if (request.getPurchaseFxRate() != null) {
-                fxRateAtDividendDate = request.getPurchaseFxRate();
-              } else {
-                var fxData = BacktestDataUtils.getHistoricalFxRate(marketDataClient,
-                  dividend.getExDate());
-                fxRateAtDividendDate = fxData != null ? fxData.rate() : currentFxRate.rate();
-              }
-
-              // 세후 배당금으로 추가 매수 가능한 주식수 계산
-              BigDecimal additionalShares = afterTaxDividend.divide(
-                priceAtDividendDate.getClosePrice(), 8, java.math.RoundingMode.HALF_UP);
-
-              // 배당 재투자 거래 기록 추가
-              StrategyTransaction dividendReinvestment = StrategyTransaction.builder()
-                .date(dividend.getExDate())
-                .actualDate(priceAtDividendDate.getDate())
-                .price(priceAtDividendDate.getClosePrice())
-                .shares(additionalShares)
-                .amount(BigDecimal.ZERO)  // 배당금 재투자이므로 추가 투자금 없음
-                .fxRate(fxRateAtDividendDate)
-                .trigger("배당 재투자")
-                .build();
-
-              transactions.add(dividendReinvestment);
-              dividendsReinvestedArray[0] = dividendsReinvestedArray[0].add(afterTaxDividend);
-
-              log.info("배당 재투자: {} - ${} ({}주 보유) -> {}주 추가 매수 @${}",
-                dividend.getExDate(), afterTaxDividend, sharesAtDividendDate,
-                additionalShares, priceAtDividendDate.getClosePrice());
-            }
-          });
+            });
+        }
 
         log.info("배당금 재투자 완료: 총 ${} 재투자", dividendsReinvestedArray[0]);
       }
@@ -311,30 +344,79 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     List<StrategyTransaction> transactions = new ArrayList<>();
     BigDecimal lastPrice = null;
 
+    // ✅ BULK API 사용: 전체 기간의 가격 데이터를 한 번에 조회
+    log.info("조건부 매수 전략 - Bulk 데이터 조회 시작: {} ~ {}", request.getStartDate(), actualEndDate);
+    List<OHLCPriceDto> allPrices = marketDataClient.getOHLCPriceRange(
+      request.getSymbol(),
+      request.getStartDate().toString(),
+      actualEndDate.toString()
+    );
+
+    // 날짜별 빠른 조회를 위한 Map 생성
+    java.util.Map<LocalDate, OHLCPriceDto> priceMap = allPrices.stream()
+      .filter(OHLCPriceDto::available)
+      .collect(java.util.stream.Collectors.toMap(OHLCPriceDto::date, p -> p));
+
+    log.info("가격 데이터 조회 완료: {}개", priceMap.size());
+
+    // ✅ BULK API 사용: 전체 기간의 환율 데이터를 한 번에 조회 (수동 설정이 없는 경우만)
+    java.util.Map<LocalDate, BigDecimal> fxRateMap = new java.util.HashMap<>();
+    if (request.getPurchaseFxRate() == null) {
+      List<LocalDate> allDates = new ArrayList<>();
+      LocalDate date = request.getStartDate();
+      while (!date.isAfter(actualEndDate)) {
+        allDates.add(date);
+        date = date.plusDays(1);
+      }
+
+      fxRateMap = BacktestDataUtils.getBulkFxRates(marketDataClient, allDates);
+      log.info("환율 데이터 조회 완료: {}개", fxRateMap.size());
+    }
+
     LocalDate currentDate = request.getStartDate();
     int purchaseCount = 0;
 
+    // ✅ 메모리에서 데이터 조회 (API 호출 없음)
     while (!currentDate.isAfter(actualEndDate) && purchaseCount < params.maxPurchases()) {
       try {
-        var priceData = BacktestDataUtils.getHistoricalPrice(
-          marketDataClient, request.getSymbol(), currentDate);
+        OHLCPriceDto priceData = priceMap.get(currentDate);
 
-        if (priceData.isAvailable()) {
-          BigDecimal currentPriceValue = priceData.getClosePrice();
+        if (priceData != null && priceData.available()) {
+          BigDecimal currentPriceValue = priceData.closePrice();
           var purchaseDecision = evaluatePurchaseCondition(lastPrice, currentPriceValue,
             request.getDropPercentage());
 
           if (purchaseDecision.shouldBuy()) {
-            var transaction = createTransaction(request, currentDate, priceData,
-              params.amountPerPurchase(), purchaseDecision.trigger());
-
-            if (transaction != null) {
-              transactions.add(transaction);
-              purchaseCount++;
-              log.debug("조건부 매수 실행: {} - {} ({}원 투자, {}주 매수)",
-                currentDate, purchaseDecision.trigger(), params.amountPerPurchase(),
-                transaction.getShares());
+            // 환율 조회 (메모리에서)
+            BigDecimal purchaseFxRate;
+            if (request.getPurchaseFxRate() != null) {
+              purchaseFxRate = request.getPurchaseFxRate();
+            } else {
+              purchaseFxRate = fxRateMap.get(currentDate);
+              if (purchaseFxRate == null) {
+                log.warn("환율 데이터 없음: {}", currentDate);
+                currentDate = currentDate.plusDays(1);
+                continue;
+              }
             }
+
+            BigDecimal shares = BacktestCalculationUtils.calculateShares(
+              params.amountPerPurchase(), purchaseFxRate, priceData.closePrice());
+
+            StrategyTransaction transaction = StrategyTransaction.builder()
+              .date(currentDate)
+              .actualDate(priceData.date())
+              .price(priceData.closePrice())
+              .shares(shares)
+              .amount(params.amountPerPurchase())
+              .fxRate(purchaseFxRate)
+              .trigger(purchaseDecision.trigger())
+              .build();
+
+            transactions.add(transaction);
+            purchaseCount++;
+            log.debug("조건부 매수 실행: {} - {} ({}원 투자, {}주 매수)",
+              currentDate, purchaseDecision.trigger(), params.amountPerPurchase(), shares);
           }
           lastPrice = currentPriceValue;
         }
@@ -346,6 +428,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
       currentDate = currentDate.plusDays(1);
     }
 
+    log.info("조건부 매수 전략 완료: {}회 매수", transactions.size());
     return transactions;
   }
 
@@ -357,7 +440,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
 
     // 하락률 계산 및 비교
     BigDecimal dropPercent = MoneyUtils.calculateReturnRate(currentPrice, lastPrice).abs();
-    BigDecimal dropPercentageAsPercent = dropPercentage.multiply(BigDecimal.valueOf(100));
+    BigDecimal dropPercentageAsPercent = dropPercentage.multiply(BacktestConstants.Money.PERCENTAGE_MULTIPLIER);
 
     if (dropPercent.compareTo(dropPercentageAsPercent) >= 0) {
       return new PurchaseDecision(true, String.format("%.1f%%하락", dropPercent));
@@ -382,12 +465,12 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     }
 
     BigDecimal shares = BacktestCalculationUtils.calculateShares(
-      investmentPerPurchase, purchaseFxRate, priceData.getClosePrice());
+      investmentPerPurchase, purchaseFxRate, priceData.closePrice());
 
     return StrategyTransaction.builder()
       .date(currentDate)
-      .actualDate(priceData.getDate())
-      .price(priceData.getClosePrice())
+      .actualDate(priceData.date())
+      .price(priceData.closePrice())
       .shares(shares)
       .amount(investmentPerPurchase)
       .fxRate(purchaseFxRate)

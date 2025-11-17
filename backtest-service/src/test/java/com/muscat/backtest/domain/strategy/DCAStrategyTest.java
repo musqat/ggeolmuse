@@ -16,7 +16,8 @@ import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.backtest.infra.client.MarketDataClient;
-import com.muscat.backtest.infra.client.dto.OHLCPriceDto;
+import com.muscat.commonlib.dto.OHLCPriceDto;
+import com.muscat.commonlib.dto.StockPriceDto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -219,27 +220,154 @@ class DCAStrategyTest {
     }
   }
 
-  // 내부 메서드
-  private OHLCPriceDto createOHLC(LocalDate date, BigDecimal closePrice) {
-    OHLCPriceDto dto = new OHLCPriceDto();
-    dto.setSymbol(symbol);
-    dto.setDate(date);
-    dto.setOpenPrice(closePrice.subtract(new BigDecimal("1.00")));
-    dto.setHighPrice(closePrice.add(new BigDecimal("2.00")));
-    dto.setLowPrice(closePrice.subtract(new BigDecimal("2.00")));
-    dto.setClosePrice(closePrice);
-    dto.setVolume(1000000L);
-    dto.setAvailable(true);
-    return dto;
+  @Nested
+  @DisplayName("배당금 재투자 테스트")
+  class DividendReinvestmentTests {
+
+    @Test
+    @DisplayName("배당금 재투자가 활성화되면 배당금으로 추가 주식을 매수한다")
+    void executeDca_WithDividendReinvestment_ReinvestsDividends() {
+      // given
+      BigDecimal monthlyAmount = new BigDecimal("1000.00");
+      DcaStrategyRequest request = DcaStrategyRequest.builder()
+        .userId(userId)
+        .symbol(symbol)
+        .startDate(LocalDate.of(2024, 1, 1))
+        .endDate(LocalDate.of(2024, 3, 31))
+        .monthlyAmount(monthlyAmount)
+        .purchaseDay(15)
+        .reinvestDividends(true)
+        .build();
+
+      // Mock price data
+      given(marketDataClient.getOHLCPrice(eq(symbol), anyString()))
+        .willReturn(createOHLC(LocalDate.of(2024, 1, 15), new BigDecimal("100.00")));
+
+      // Mock FX rate
+      MarketDataClient.FxRate fxRate = new MarketDataClient.FxRate(
+        LocalDate.now(), new BigDecimal("1300.00"));
+      given(marketDataClient.getFxRate(anyString())).willReturn(fxRate);
+      given(marketDataClient.getLatestFxRate()).willReturn(fxRate);
+
+      // Mock current price
+      given(marketDataClient.getCurrentPrice(eq(symbol)))
+        .willReturn(createStockPrice(new BigDecimal("100.00")));
+
+      // Mock dividend data
+      given(marketDataClient.getDividendHistory(eq(symbol), anyString(), anyString()))
+        .willReturn(java.util.Collections.emptyList());
+
+      // Mock ResponseMapper
+      StrategyResponse expectedResponse = StrategyResponse.builder()
+        .strategyType(StrategyType.DCA)
+        .build();
+      given(responseMapper.toStrategyResponse(
+        any(DcaStrategyRequest.class), any(), any(), any()))
+        .willReturn(expectedResponse);
+
+      // when
+      StrategyResponse result = dcaStrategy.executeDca(request);
+
+      // then
+      assertThat(result).isNotNull();
+      verify(marketDataClient).getDividendHistory(eq(symbol), anyString(), anyString());
+    }
   }
 
-  private com.muscat.backtest.infra.client.dto.StockPriceDto createStockPrice(BigDecimal price) {
-    com.muscat.backtest.infra.client.dto.StockPriceDto dto =
-      new com.muscat.backtest.infra.client.dto.StockPriceDto();
-    dto.setSymbol(symbol);
-    dto.setCurrentPrice(price);
-    dto.setAvailable(true);
-    return dto;
+  @Nested
+  @DisplayName("투자 한도 테스트")
+  class InvestmentLimitTests {
+
+    @Test
+    @DisplayName("총 투자금 한도에 도달하면 투자를 중단한다")
+    void executeDca_WithInvestmentLimit_StopsAtLimit() {
+      // given
+      BigDecimal monthlyAmount = new BigDecimal("1000.00");
+      BigDecimal investmentLimit = new BigDecimal("2500.00"); // 3개월치보다 적게 설정
+
+      DcaStrategyRequest request = DcaStrategyRequest.builder()
+        .userId(userId)
+        .symbol(symbol)
+        .startDate(LocalDate.of(2024, 1, 1))
+        .endDate(LocalDate.of(2024, 6, 30)) // 6개월 설정
+        .monthlyAmount(monthlyAmount)
+        .purchaseDay(15)
+        .totalInvestmentLimit(investmentLimit)
+        .build();
+
+      // Mock price data for all months
+      given(marketDataClient.getOHLCPrice(eq(symbol), anyString()))
+        .willReturn(createOHLC(LocalDate.now(), new BigDecimal("100.00")));
+
+      // Mock FX rate
+      MarketDataClient.FxRate fxRate = new MarketDataClient.FxRate(
+        LocalDate.now(), new BigDecimal("1300.00"));
+      given(marketDataClient.getFxRate(anyString())).willReturn(fxRate);
+      given(marketDataClient.getLatestFxRate()).willReturn(fxRate);
+
+      // Mock current price
+      given(marketDataClient.getCurrentPrice(eq(symbol)))
+        .willReturn(createStockPrice(new BigDecimal("100.00")));
+
+      // Mock dividend data
+      given(marketDataClient.getDividendHistory(eq(symbol), anyString(), anyString()))
+        .willReturn(java.util.Collections.emptyList());
+
+      // Mock ResponseMapper
+      StrategyResponse expectedResponse = StrategyResponse.builder()
+        .strategyType(StrategyType.DCA)
+        .totalInvested(new BigDecimal("2000.00")) // 2개월치만 투자
+        .build();
+      given(responseMapper.toStrategyResponse(
+        any(DcaStrategyRequest.class), any(), any(), any()))
+        .willReturn(expectedResponse);
+
+      // when
+      StrategyResponse result = dcaStrategy.executeDca(request);
+
+      // then
+      assertThat(result).isNotNull();
+      assertThat(result.getTotalInvested()).isLessThanOrEqualTo(investmentLimit);
+    }
+  }
+
+  // 내부 메서드
+  private OHLCPriceDto createOHLC(LocalDate date, BigDecimal closePrice) {
+    return new OHLCPriceDto(
+      symbol,
+      date,
+      closePrice.subtract(new BigDecimal("1.00")),  // openPrice
+      closePrice.add(new BigDecimal("2.00")),       // highPrice
+      closePrice.subtract(new BigDecimal("2.00")),  // lowPrice
+      closePrice,                                    // closePrice
+      null,                                          // adjustedClose
+      1000000L,                                      // volume
+      "USD",                                         // currency
+      true                                           // available
+    );
+  }
+
+  private StockPriceDto createStockPrice(BigDecimal price) {
+    return new StockPriceDto(
+      symbol,                    // symbol
+      "Test Stock",              // name
+      price,                     // currentPrice
+      null,                      // previousClose
+      null,                      // change
+      null,                      // changePercent
+      null,                      // volume
+      null,                      // date
+      null,                      // lastUpdated
+      null,                      // openPrice
+      null,                      // highPrice
+      null,                      // lowPrice
+      null,                      // closePrice
+      null,                      // adjustedClose
+      "USD",                     // currency
+      true,                      // available
+      null,                      // assetType
+      null                       // marketCap
+    );
   }
 
   private List<StrategyTransaction> createDcaTransactions() {

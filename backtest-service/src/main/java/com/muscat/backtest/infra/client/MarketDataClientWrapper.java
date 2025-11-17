@@ -1,8 +1,8 @@
 package com.muscat.backtest.infra.client;
 
 import com.muscat.backtest.infra.client.dto.DividendDto;
-import com.muscat.backtest.infra.client.dto.OHLCPriceDto;
-import com.muscat.backtest.infra.client.dto.StockPriceDto;
+import com.muscat.commonlib.dto.OHLCPriceDto;
+import com.muscat.commonlib.dto.StockPriceDto;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import java.util.Collections;
@@ -12,7 +12,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 /**
- * Resilience4j 패턴 적용 Wrapper Circuit Breaker: 연속된 실패 시 호출 차단 Retry: 일시적 실패 시 재시도
+ * Resilience4j 패턴 적용
+ * Wrapper Circuit Breaker: 연속된 실패 시 호출 차단
+ * Retry: 일시적 실패 시 재시도
  */
 @Slf4j
 @Service

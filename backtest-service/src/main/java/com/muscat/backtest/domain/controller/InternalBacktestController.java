@@ -25,8 +25,7 @@ public class InternalBacktestController {
   private final TradingSimulationService tradingSimulationService;
 
   /**
-   * 캐시된 투자 백테스트 결과 조회 (Trade 서비스용)
-   * Trade 서비스 내부 통신용 API
+   * 투자 백테스트 결과 조회
    */
   @GetMapping("/investment-result/{userId}")
   public ResponseEntity<InvestmentBacktestResultDto> getCachedInvestmentResult(

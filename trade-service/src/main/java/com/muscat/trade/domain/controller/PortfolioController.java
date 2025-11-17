@@ -95,7 +95,7 @@ public class PortfolioController {
     log.debug("포트폴리오 응답: accountId={}, holdings={}, firstHolding={}",
       accountId, holdings.size(),
       holdings.isEmpty() ? "none" : String.format("symbol=%s,currentPrice=%s",
-        holdings.get(0).getSymbol(), holdings.get(0).getCurrentPrice()));
+        holdings.getFirst().symbol(), holdings.getFirst().currentPrice()));
     return ResponseEntity.ok(holdings);
   }
 

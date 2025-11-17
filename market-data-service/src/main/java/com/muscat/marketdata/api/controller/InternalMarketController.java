@@ -19,6 +19,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -129,9 +131,9 @@ public class InternalMarketController {
     return ResponseEntity.status(HttpStatus.OK).body(fxRate.get());
   }
 
-  @GetMapping("/fx/bulk")
+  @PostMapping("/fx/bulk")
   public ResponseEntity<java.util.Map<String, java.math.BigDecimal>> getBulkFxRates(
-    @RequestParam("dates") List<LocalDate> dates) {
+    @RequestBody List<LocalDate> dates) {
     log.debug("내부 Bulk 환율 조회 요청: dates size={}", dates.size());
 
     List<FxRate> fxRates = fxRateService.findByDates(dates);

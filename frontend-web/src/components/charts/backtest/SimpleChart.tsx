@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   LineChart,
   Line,
@@ -45,9 +46,6 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
   optimalSellPrice,
   dividendReinvestDates
 }) => {
-  const [priceData, setPriceData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
   // 공통 차트 기간 훅 사용
   const {
     chartPeriod,
@@ -64,87 +62,84 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
     return getStartDateFromPeriod(chartPeriod, purchaseDate, customStartDate);
   };
 
-  // 일별 주가 데이터 가져오기
-  useEffect(() => {
-    const fetchPriceData = async () => {
-      try {
-        setLoading(true);
-        const today = new Date().toISOString().split('T')[0];
-        const startDate = getChartStartDate();
-        console.log('SimpleChart fetchPriceData:', { symbol, chartPeriod, customStartDate, purchaseDate, startDate, today });
-        const response = await stockApi.getOHLCData(symbol, startDate, today);
+  // React Query: 차트 데이터 조회 (OHLC + 환율)
+  const {
+    data: priceData = [],
+    isLoading: loading
+  } = useQuery({
+    queryKey: ['backtest', 'chart', 'simple', symbol, purchaseDate, chartPeriod, customStartDate],
+    queryFn: async () => {
+      const today = new Date().toISOString().split('T')[0];
+      const startDate = getChartStartDate();
+      console.log('SimpleChart fetchPriceData:', { symbol, chartPeriod, customStartDate, purchaseDate, startDate, today });
+      const response = await stockApi.getOHLCData(symbol, startDate, today);
 
-        // API는 List<OHLCPriceDto>를 반환 (flat 배열)
-        // response.data = [{symbol: "AAPL", date: "...", closePrice: ...}, ...]
-        let ohlcData = null;
+      // API는 List<OHLCPriceDto>를 반환 (flat 배열)
+      let ohlcData = null;
 
-        if (Array.isArray(response.data)) {
-          // Flat 배열 - 해당 symbol만 필터링
-          ohlcData = response.data.filter((item: any) => item.symbol === symbol);
-        } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
-          // ApiResponse로 감싸진 경우
-          ohlcData = response.data.data.filter((item: any) => item.symbol === symbol);
-        } else if (response.data && response.data[symbol]) {
-          // 이미 symbol별로 그룹화된 경우
-          ohlcData = response.data[symbol];
-        }
+      if (Array.isArray(response.data)) {
+        ohlcData = response.data.filter((item: any) => item.symbol === symbol);
+      } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        ohlcData = response.data.data.filter((item: any) => item.symbol === symbol);
+      } else if (response.data && response.data[symbol]) {
+        ohlcData = response.data[symbol];
+      }
 
-        if (ohlcData && Array.isArray(ohlcData) && ohlcData.length > 0) {
-          console.log('SimpleChart OHLC data loaded:', ohlcData.length, 'records');
+      if (ohlcData && Array.isArray(ohlcData) && ohlcData.length > 0) {
+        console.log('SimpleChart OHLC data loaded:', ohlcData.length, 'records');
 
-          // 각 날짜의 환율 데이터 가져오기
-          const fxRateMap = new Map<string, number>();
-          const DEFAULT_FX_RATE = 1350; // Fallback 환율
+        // 각 날짜의 환율 데이터 가져오기 (Bulk API 사용)
+        const fxRateMap = new Map<string, number>();
+        const DEFAULT_FX_RATE = 1350; // Fallback 환율
 
-          // 모든 날짜에 대해 환율 조회 (병렬 처리)
-          const fxRatePromises = ohlcData.map(async (item: any) => {
-            const dateStr = Array.isArray(item.date)
-              ? `${item.date[0]}-${String(item.date[1]).padStart(2, '0')}-${String(item.date[2]).padStart(2, '0')}`
-              : item.date;
+        // 모든 날짜 수집
+        const allDates = ohlcData.map((item: any) =>
+          Array.isArray(item.date)
+            ? `${item.date[0]}-${String(item.date[1]).padStart(2, '0')}-${String(item.date[2]).padStart(2, '0')}`
+            : item.date
+        );
 
-            try {
-              const fxRateResponse = await accountsApi.getExchangeRateByDate(dateStr);
-              const rate = typeof fxRateResponse.data === 'number'
-                ? fxRateResponse.data
-                : parseFloat(fxRateResponse.data);
+        // Bulk API로 한 번에 환율 조회
+        try {
+          const bulkResponse = await stockApi.getExchangeRatesBulk(allDates);
+          const ratesData = bulkResponse.data;
 
-              if (!isNaN(rate) && rate > 0) {
-                fxRateMap.set(dateStr, rate);
-              } else {
-                fxRateMap.set(dateStr, DEFAULT_FX_RATE);
-              }
-            } catch (err) {
-              // 환율 데이터가 없으면 fallback 사용
-              console.log(`Using fallback rate for ${dateStr}:`, DEFAULT_FX_RATE);
-              fxRateMap.set(dateStr, DEFAULT_FX_RATE);
-            }
+          // Map에 저장
+          Object.entries(ratesData).forEach(([date, rate]) => {
+            const rateValue = typeof rate === 'number' ? rate : parseFloat(String(rate));
+            fxRateMap.set(date, !isNaN(rateValue) && rateValue > 0 ? rateValue : DEFAULT_FX_RATE);
           });
 
-          await Promise.all(fxRatePromises);
-
-          // OHLC 데이터와 환율 매핑을 함께 저장
-          setPriceData(ohlcData.map((item: any) => {
-            const dateStr = Array.isArray(item.date)
-              ? `${item.date[0]}-${String(item.date[1]).padStart(2, '0')}-${String(item.date[2]).padStart(2, '0')}`
-              : item.date;
-
-            return {
-              ...item,
-              fxRate: fxRateMap.get(dateStr) || DEFAULT_FX_RATE
-            };
-          }));
-        } else {
-          console.log('SimpleChart NO data loaded, response:', response.data);
+          // 누락된 날짜는 fallback 사용
+          allDates.forEach(date => {
+            if (!fxRateMap.has(date)) {
+              fxRateMap.set(date, DEFAULT_FX_RATE);
+            }
+          });
+        } catch (err) {
+          console.log('Bulk FX rate fetch failed, using fallback:', err);
+          // 모든 날짜에 fallback 적용
+          allDates.forEach(date => fxRateMap.set(date, DEFAULT_FX_RATE));
         }
-      } catch (error) {
-        console.error('SimpleChart fetch error:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
 
-    fetchPriceData();
-  }, [symbol, purchaseDate, chartPeriod, customStartDate]);
+        // OHLC 데이터와 환율 매핑을 함께 저장
+        return ohlcData.map((item: any) => {
+          const dateStr = Array.isArray(item.date)
+            ? `${item.date[0]}-${String(item.date[1]).padStart(2, '0')}-${String(item.date[2]).padStart(2, '0')}`
+            : item.date;
+
+          return {
+            ...item,
+            fxRate: fxRateMap.get(dateStr) || DEFAULT_FX_RATE
+          };
+        });
+      } else {
+        console.log('SimpleChart NO data loaded, response:', response.data);
+        return [];
+      }
+    },
+    staleTime: 5 * 60 * 1000, // 5분
+  });
 
   // 차트 데이터 생성
   const chartData = useMemo(() => {

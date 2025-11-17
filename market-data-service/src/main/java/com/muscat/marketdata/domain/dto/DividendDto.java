@@ -14,6 +14,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class DividendDto {
+
   @Schema(description = "종목 코드", example = "AAPL")
   private String symbol;      // 티커 예: AAPL
   @Schema(description = "권리락일 (배당 받을 권리가 없어지는 날)", example = "2024-09-15")

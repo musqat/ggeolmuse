@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   ArrowUpCircle,
   ArrowDownCircle,
@@ -6,8 +7,7 @@ import {
   DollarSign,
   Filter
 } from 'lucide-react';
-import { tradeApi } from '../../services/api';
-import axios from 'axios';
+import { tradeApi, accountsApi } from '../../services/api';
 
 interface Transaction {
   type: 'BUY' | 'SELL' | 'DIVIDEND';
@@ -35,54 +35,35 @@ interface Account {
 type TransactionType = 'ALL' | 'BUY' | 'SELL' | 'DIVIDEND';
 
 const TradeHistoryTab: React.FC = () => {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState<number | 'ALL'>('ALL');
   const [selectedType, setSelectedType] = useState<TransactionType>('ALL');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  // 계좌 목록 로드
-  useEffect(() => {
-    const loadAccounts = async () => {
-      try {
-        const token = localStorage.getItem('accessToken');
-        const response = await axios.get('/api/accounts', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+  // React Query: 계좌 목록 조회
+  const { data: accounts = [] } = useQuery({
+    queryKey: ['accounts', 'list'],
+    queryFn: async () => {
+      const response = await accountsApi.getAccounts();
+      return response.data || [];
+    },
+    staleTime: 5 * 60 * 1000, // 5분
+  });
 
-        if (response.data && Array.isArray(response.data)) {
-          setAccounts(response.data);
-        }
-      } catch (error) {
-        console.error('계좌 조회 실패:', error);
-      }
-    };
-
-    loadAccounts();
-  }, []);
-
-  // 거래내역 로드
-  useEffect(() => {
-    loadTradeHistory();
-  }, []);
-
-  const loadTradeHistory = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
+  // React Query: 거래내역 조회
+  const {
+    data: transactions = [],
+    isLoading: loading,
+    error: queryError,
+    refetch
+  } = useQuery({
+    queryKey: ['trade', 'history'],
+    queryFn: async () => {
       const response = await tradeApi.history();
-      const data = response.data || [];
+      return response.data || [];
+    },
+    staleTime: 2 * 60 * 1000, // 2분
+  });
 
-      setTransactions(data);
-    } catch (err: any) {
-      console.error('거래내역 조회 실패:', err);
-      setError('거래내역을 불러오는데 실패했습니다.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const error = queryError ? '거래내역을 불러오는데 실패했습니다.' : null;
 
   // 필터링된 거래내역
   const filteredTransactions = useMemo(() => {
@@ -155,7 +136,7 @@ const TradeHistoryTab: React.FC = () => {
       <div className="text-center py-12">
         <p className="text-red-600 mb-4">{error}</p>
         <button
-          onClick={loadTradeHistory}
+          onClick={() => refetch()}
           className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
         >
           다시 시도
@@ -174,7 +155,7 @@ const TradeHistoryTab: React.FC = () => {
             <h3 className="text-lg font-semibold text-gray-900">필터</h3>
           </div>
           <button
-            onClick={loadTradeHistory}
+            onClick={() => refetch()}
             className="flex items-center space-x-1 px-3 py-1.5 text-sm text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"
           >
             <RefreshCw className="w-4 h-4" />

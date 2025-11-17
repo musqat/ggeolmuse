@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -19,8 +20,20 @@ const MyPage: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated, user: authUser, logout } = useAuth();
 
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  // React Query: 사용자 정보 조회
+  const {
+    data: user = null,
+    isLoading: loading,
+    refetch: refetchUser
+  } = useQuery({
+    queryKey: ['user', 'profile'],
+    queryFn: async () => {
+      const response = await authApi.getCurrentUser();
+      return response.data;
+    },
+    enabled: isAuthenticated,
+    staleTime: 5 * 60 * 1000, // 5분 (사용자 정보는 자주 안 바뀜)
+  });
 
   // 닉네임 변경
   const [showNicknameModal, setShowNicknameModal] = useState(false);
@@ -36,25 +49,11 @@ const MyPage: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
-  useEffect(() => {
-    if (!isAuthenticated) {
-      navigate('/');
-      return;
-    }
-
-    const loadUser = async () => {
-      try {
-        setLoading(true);
-        const response = await authApi.getCurrentUser();
-        setUser(response.data);
-      } catch (err) {
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadUser();
-  }, [isAuthenticated, navigate]);
+  // 로그인되지 않은 경우 홈으로 리다이렉트
+  if (!isAuthenticated) {
+    navigate('/');
+    return null;
+  }
 
   const handleChangeNickname = async () => {
     if (!newNickname.trim()) {
@@ -66,9 +65,8 @@ const MyPage: React.FC = () => {
       await authApi.changeNickname({ nickname: newNickname });
       alert('닉네임이 변경되었습니다.');
 
-      // 사용자 정보 새로고침
-      const response = await authApi.getCurrentUser();
-      setUser(response.data);
+      // React Query 캐시 새로고침
+      refetchUser();
 
       setShowNicknameModal(false);
       setNewNickname('');

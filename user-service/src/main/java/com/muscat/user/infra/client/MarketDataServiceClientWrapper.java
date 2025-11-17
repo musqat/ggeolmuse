@@ -1,6 +1,6 @@
 package com.muscat.user.infra.client;
 
-import com.muscat.user.infra.client.dto.FxRateDto;
+import com.muscat.commonlib.dto.FxRateDto;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import java.math.BigDecimal;
@@ -10,10 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 /**
- * Resilience4j Wrapper
- * Circuit Breaker: 연속된 실패 시 호출 차단
- * Retry: 일시적 실패 시 재시도
- * Time Limiter: 타임아웃 설정
+ * Resilience4j Wrapper Circuit Breaker: 연속된 실패 시 호출 차단 Retry: 일시적 실패 시 재시도 Time Limiter: 타임아웃 설정
  */
 @Slf4j
 @Service
@@ -41,12 +38,12 @@ public class MarketDataServiceClientWrapper {
   private FxRateDto getFxRateFallback(String date, Exception ex) {
     log.warn("Fallback triggered for getFxRate. Date: {}, Error: {}. Using default FX rate: {}",
       date, ex.getMessage(), DEFAULT_FX_RATE);
-    return new FxRateDto(LocalDate.parse(date), DEFAULT_FX_RATE);
+    return new FxRateDto(LocalDate.parse(date), DEFAULT_FX_RATE, "FALLBACK");
   }
 
   private FxRateDto getLatestFxRateFallback(Exception ex) {
     log.warn("Fallback triggered for getLatestFxRate. Error: {}. Using default FX rate: {}",
       ex.getMessage(), DEFAULT_FX_RATE);
-    return new FxRateDto(LocalDate.now(), DEFAULT_FX_RATE);
+    return new FxRateDto(LocalDate.now(), DEFAULT_FX_RATE, "FALLBACK");
   }
 }

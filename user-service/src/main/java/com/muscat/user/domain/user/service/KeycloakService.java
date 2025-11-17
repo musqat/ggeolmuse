@@ -35,4 +35,7 @@ public interface KeycloakService {
 
   // Keycloak 사용자에게 realm role 할당
   void assignRealmRole(String keycloakId, String roleName);
+
+  // Refresh token으로 새 Access token 발급
+  String refreshToken(String refreshToken);
 }

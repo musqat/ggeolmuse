@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import {
   TrendingUp,
@@ -26,68 +27,72 @@ const Portfolio: React.FC = () => {
   const accountId = searchParams.get('accountId');
 
   const [exchangeRate, setExchangeRate] = useState<number>(1400); // 기본 환율
-  const [loading, setLoading] = useState(true);
-  const [holdings, setHoldings] = useState<HoldingResponse[]>([]);
-  const [balanceInfo, setBalanceInfo] = useState<BalanceResponse | null>(null);
-  const [portfolioSummary, setPortfolioSummary] = useState<PortfolioSummaryResponse | null>(null);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
-  // 포트폴리오 데이터 로드
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setLoading(false);
-      return;
-    }
+  // React Query: 계좌별 포트폴리오 조회
+  const {
+    data: holdings = [],
+    isLoading: isLoadingHoldings,
+    error: holdingsError
+  } = useQuery({
+    queryKey: ['portfolio', 'holdings', accountId],
+    queryFn: async () => {
+      const response = await portfolioApi.getAccountPortfolio(parseInt(accountId!));
+      return response.data;
+    },
+    enabled: isAuthenticated && !!accountId,
+    staleTime: 2 * 60 * 1000, // 2분 (포트폴리오는 자주 변경됨)
+  });
 
-    if (!accountId) {
-      setLoading(false);
-      return;
-    }
-
-    const loadPortfolio = async () => {
-      try {
-        setLoading(true);
-
-        // 1. 계좌별 포트폴리오 조회
-        const holdingsResponse = await portfolioApi.getAccountPortfolio(parseInt(accountId));
-        const holdingsData = holdingsResponse.data;
-        setHoldings(holdingsData);
-
-        // 2. holdings가 있으면 현재가를 추출하여 포트폴리오 종합 정보 가져오기
-        if (holdingsData && holdingsData.length > 0) {
-          // holdings에서 직접 currentPrice 추출 (이미 포함되어 있음)
-          const currentPrices: { [symbol: string]: number } = {};
-          holdingsData.forEach(holding => {
-            if (holding.currentPrice && holding.currentPrice > 0) {
-              currentPrices[holding.symbol] = holding.currentPrice;
-            }
-          });
-
-          // 3. 포트폴리오 종합 정보 조회
-          try {
-            const summaryResponse = await portfolioApi.getPortfolioSummary(currentPrices);
-            setPortfolioSummary(summaryResponse.data);
-          } catch (err) {
-          }
+  // React Query: 포트폴리오 종합 정보 (holdings에서 현재가 추출 후 조회)
+  const {
+    data: portfolioSummary,
+    isLoading: isLoadingSummary
+  } = useQuery({
+    queryKey: ['portfolio', 'summary', holdings],
+    queryFn: async () => {
+      // holdings에서 currentPrice 추출
+      const currentPrices: { [symbol: string]: number } = {};
+      holdings.forEach(holding => {
+        if (holding.currentPrice && holding.currentPrice > 0) {
+          currentPrices[holding.symbol] = holding.currentPrice;
         }
+      });
 
-        // 4. 계좌 잔액 정보 조회 (accountName 포함)
-        const balanceResponse = await accountsApi.getAccountBalance(parseInt(accountId));
-        setBalanceInfo(balanceResponse.data);
-
-        // 5. 환율 정보는 balanceResponse에 포함되어 있음
-        if (balanceResponse.data.currentExchangeRate) {
-          setExchangeRate(Number(balanceResponse.data.currentExchangeRate));
-        }
-
-      } catch (err) {
-      } finally {
-        setLoading(false);
+      if (Object.keys(currentPrices).length === 0) {
+        return null;
       }
-    };
 
-    loadPortfolio();
-  }, [isAuthenticated, accountId]);
+      const response = await portfolioApi.getPortfolioSummary(currentPrices);
+      return response.data;
+    },
+    enabled: isAuthenticated && !!accountId && holdings.length > 0,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  // React Query: 계좌 잔액 정보 조회
+  const {
+    data: balanceInfo,
+    isLoading: isLoadingBalance
+  } = useQuery({
+    queryKey: ['account', 'balance', accountId],
+    queryFn: async () => {
+      const response = await accountsApi.getAccountBalance(parseInt(accountId!));
+      const data = response.data;
+
+      // 환율 정보 업데이트
+      if (data.currentExchangeRate) {
+        setExchangeRate(Number(data.currentExchangeRate));
+      }
+
+      return data;
+    },
+    enabled: isAuthenticated && !!accountId,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  // 통합 로딩 상태
+  const loading = isLoadingHoldings || isLoadingSummary || isLoadingBalance;
 
   // 로그인 안 됨
   if (!isAuthenticated) {

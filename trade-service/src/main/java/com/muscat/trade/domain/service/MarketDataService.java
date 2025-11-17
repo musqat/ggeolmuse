@@ -8,7 +8,7 @@ public interface MarketDataService {
 
   // 거래 가격 결정 (MANUAL인 경우 검증, OHLC인 경우 조회)
   BigDecimal determineTradePrice(String symbol, LocalDate tradeDate, PriceType priceType,
-      BigDecimal manualPrice);
+    BigDecimal manualPrice);
 
   // OHLC 가격 조회 (OPEN, HIGH, LOW, CLOSE)
   BigDecimal getOHLCPrice(String symbol, LocalDate tradeDate, PriceType priceType);

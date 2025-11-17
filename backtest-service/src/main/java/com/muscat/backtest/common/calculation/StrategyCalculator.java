@@ -4,7 +4,7 @@ import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.backtest.common.util.BacktestCalculationUtils;
 import com.muscat.backtest.infra.client.MarketDataClient.FxRate;
 import com.muscat.commonlib.util.MoneyUtils;
-import com.muscat.backtest.infra.client.dto.StockPriceDto;
+import com.muscat.commonlib.dto.StockPriceDto;
 import lombok.experimental.UtilityClass;
 import java.math.BigDecimal;
 import java.util.List;
@@ -27,10 +27,10 @@ public class StrategyCalculator {
         BigDecimal averagePrice = BacktestCalculationUtils.calculateAveragePrice(
             totalInvested, totalFxRateSum, totalShares);
         BigDecimal averageFxRate = BacktestCalculationUtils.calculateAverageFxRate(
-            totalFxRateSum, transactions.size());
+            totalFxRateSum, totalInvested);
 
         // MoneyUtils를 사용한 정확한 백테스트 계산
-        BigDecimal currentValue = MoneyUtils.multiply(totalShares, currentPrice.getCurrentPrice());
+        BigDecimal currentValue = MoneyUtils.multiply(totalShares, currentPrice.currentPrice());
         currentValue = MoneyUtils.roundUsd(currentValue);
         
         BigDecimal currentValueKrw = MoneyUtils.convertUsdToKrw(currentValue, currentFxRate.rate());
