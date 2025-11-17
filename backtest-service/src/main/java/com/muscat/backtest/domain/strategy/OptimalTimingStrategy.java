@@ -50,7 +50,7 @@ public class OptimalTimingStrategy {
 
       log.info("현재 주가: ${}, 현재 환율: {}", currentPrice.currentPrice(), currentFxRate.rate());
 
-      // ✅ BULK API: 전체 기간의 가격 데이터를 한 번에 조회
+      // BULK API: 전체 기간의 가격 데이터를 한 번에 조회
       log.info("최적 타이밍 분석 - Bulk 데이터 조회 시작: {} ~ {}", request.getStartDate(), actualEndDate);
       List<OHLCPriceDto> allPrices = marketDataClient.getOHLCPriceRange(
         request.getSymbol(),
@@ -65,7 +65,7 @@ public class OptimalTimingStrategy {
 
       log.info("가격 데이터 조회 완료: {}개", priceMap.size());
 
-      // ✅ BULK API: 전체 기간의 환율 데이터를 한 번에 조회
+      // BULK API: 전체 기간의 환율 데이터를 한 번에 조회
       List<LocalDate> allDates = new ArrayList<>();
       LocalDate date = request.getStartDate();
       while (!date.isAfter(actualEndDate)) {
@@ -77,7 +77,7 @@ public class OptimalTimingStrategy {
         BacktestDataUtils.getBulkFxRates(marketDataClient, allDates);
       log.info("환율 데이터 조회 완료: {}개", fxRateMap.size());
 
-      // ✅ 메모리에서 데이터 조회하여 분석 수행 (API 호출 없음)
+      // 메모리에서 데이터 조회하여 분석 수행 (API 호출 없음)
       List<TimingResult> allResults = new ArrayList<>();
       int analyzedDays = 0;
 

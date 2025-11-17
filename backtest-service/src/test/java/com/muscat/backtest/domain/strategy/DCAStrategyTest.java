@@ -77,18 +77,26 @@ class DCAStrategyTest {
         .purchaseDay(purchaseDay)
         .build();
 
-      // 각 월의 가격 데이터 Mock (BacktestDataUtils.getHistoricalPrice 내부에서 호출)
-      given(marketDataClient.getOHLCPrice(eq(symbol), eq("2024-01-15")))
-        .willReturn(createOHLC(LocalDate.of(2024, 1, 15), new BigDecimal("100.00")));
-      given(marketDataClient.getOHLCPrice(eq(symbol), eq("2024-02-15")))
-        .willReturn(createOHLC(LocalDate.of(2024, 2, 15), new BigDecimal("105.00")));
-      given(marketDataClient.getOHLCPrice(eq(symbol), eq("2024-03-15")))
-        .willReturn(createOHLC(LocalDate.of(2024, 3, 15), new BigDecimal("110.00")));
+      // BULK API: getOHLCPriceRange() Mock
+      List<OHLCPriceDto> ohlcPrices = List.of(
+        createOHLC(LocalDate.of(2024, 1, 15), new BigDecimal("100.00")),
+        createOHLC(LocalDate.of(2024, 2, 15), new BigDecimal("105.00")),
+        createOHLC(LocalDate.of(2024, 3, 15), new BigDecimal("110.00"))
+      );
+      given(marketDataClient.getOHLCPriceRange(eq(symbol), eq("2024-01-01"), eq("2024-03-31")))
+        .willReturn(ohlcPrices);
+
+      // BULK API: getBulkFxRates() Mock
+      java.util.Map<String, BigDecimal> fxRates = java.util.Map.of(
+        "2024-01-15", new BigDecimal("1300.00"),
+        "2024-02-15", new BigDecimal("1300.00"),
+        "2024-03-15", new BigDecimal("1300.00")
+      );
+      given(marketDataClient.getBulkFxRates(any())).willReturn(fxRates);
 
       // 환율 데이터 Mock
       MarketDataClient.FxRate fxRate = new MarketDataClient.FxRate(LocalDate.now(),
         new BigDecimal("1300.00"));
-      given(marketDataClient.getFxRate(anyString())).willReturn(fxRate);
       given(marketDataClient.getLatestFxRate()).willReturn(fxRate);
 
       // 현재 가격 Mock
@@ -124,7 +132,9 @@ class DCAStrategyTest {
       assertThat(result.getTotalInvested()).isEqualByComparingTo(new BigDecimal("3000.00"));
       assertThat(result.getTotalReturnPercent()).isGreaterThan(BigDecimal.ZERO);
 
-      verify(marketDataClient, times(3)).getOHLCPrice(eq(symbol), anyString());
+      // Bulk API 호출 검증
+      verify(marketDataClient, times(1)).getOHLCPriceRange(eq(symbol), anyString(), anyString());
+      verify(marketDataClient, times(1)).getBulkFxRates(any());
     }
 
     @Test
@@ -143,17 +153,22 @@ class DCAStrategyTest {
         .purchaseDay(purchaseDay)
         .build();
 
-      // 2024-06-01은 토요일이므로 5일간 검색하며 월요일(2024-06-03) 데이터를 반환
-      // BacktestDataUtils.getHistoricalPrice는 최대 5일 전까지 검색
-      given(marketDataClient.getOHLCPrice(eq(symbol), eq("2024-06-01")))
-        .willReturn(null); // 주말 - 데이터 없음
-      given(marketDataClient.getOHLCPrice(eq(symbol), eq("2024-05-31")))
-        .willReturn(createOHLC(LocalDate.of(2024, 5, 31), new BigDecimal("100.00"))); // 금요일
+      // BULK API: getOHLCPriceRange() Mock - 주말 제외하고 영업일 데이터만 반환
+      List<OHLCPriceDto> ohlcPrices = List.of(
+        createOHLC(LocalDate.of(2024, 5, 31), new BigDecimal("100.00")) // 금요일
+      );
+      given(marketDataClient.getOHLCPriceRange(eq(symbol), eq("2024-06-01"), eq("2024-06-30")))
+        .willReturn(ohlcPrices);
+
+      // BULK API: getBulkFxRates() Mock
+      java.util.Map<String, BigDecimal> fxRates = java.util.Map.of(
+        "2024-06-01", new BigDecimal("1300.00")
+      );
+      given(marketDataClient.getBulkFxRates(any())).willReturn(fxRates);
 
       // 환율 데이터 Mock
       MarketDataClient.FxRate fxRate = new MarketDataClient.FxRate(LocalDate.now(),
         new BigDecimal("1300.00"));
-      given(marketDataClient.getFxRate(anyString())).willReturn(fxRate);
       given(marketDataClient.getLatestFxRate()).willReturn(fxRate);
 
       // 현재 가격 Mock
@@ -194,9 +209,12 @@ class DCAStrategyTest {
         .purchaseDay(15)
         .build();
 
-      // BacktestDataUtils.getHistoricalPrice는 5일간 검색 후 데이터가 없으면 예외 발생
-      given(marketDataClient.getOHLCPrice(eq("INVALID"), anyString()))
-        .willReturn(null);
+      // BULK API: 빈 리스트/맵 반환 (데이터 없음)
+      given(marketDataClient.getOHLCPriceRange(eq("INVALID"), anyString(), anyString()))
+        .willReturn(java.util.Collections.emptyList());
+
+      given(marketDataClient.getBulkFxRates(any()))
+        .willReturn(java.util.Collections.emptyMap());
 
       // when & then
       assertThatThrownBy(() -> dcaStrategy.executeDca(request))
@@ -239,14 +257,25 @@ class DCAStrategyTest {
         .reinvestDividends(true)
         .build();
 
-      // Mock price data
-      given(marketDataClient.getOHLCPrice(eq(symbol), anyString()))
-        .willReturn(createOHLC(LocalDate.of(2024, 1, 15), new BigDecimal("100.00")));
+      // BULK API: Mock price data
+      List<OHLCPriceDto> ohlcPrices = List.of(
+        createOHLC(LocalDate.of(2024, 1, 15), new BigDecimal("100.00")),
+        createOHLC(LocalDate.of(2024, 2, 15), new BigDecimal("100.00")),
+        createOHLC(LocalDate.of(2024, 3, 15), new BigDecimal("100.00"))
+      );
+      given(marketDataClient.getOHLCPriceRange(eq(symbol), eq("2024-01-01"), eq("2024-03-31")))
+        .willReturn(ohlcPrices);
 
-      // Mock FX rate
+      // BULK API: Mock FX rate
+      java.util.Map<String, BigDecimal> fxRates = java.util.Map.of(
+        "2024-01-15", new BigDecimal("1300.00"),
+        "2024-02-15", new BigDecimal("1300.00"),
+        "2024-03-15", new BigDecimal("1300.00")
+      );
+      given(marketDataClient.getBulkFxRates(any())).willReturn(fxRates);
+
       MarketDataClient.FxRate fxRate = new MarketDataClient.FxRate(
         LocalDate.now(), new BigDecimal("1300.00"));
-      given(marketDataClient.getFxRate(anyString())).willReturn(fxRate);
       given(marketDataClient.getLatestFxRate()).willReturn(fxRate);
 
       // Mock current price
@@ -295,14 +324,31 @@ class DCAStrategyTest {
         .totalInvestmentLimit(investmentLimit)
         .build();
 
-      // Mock price data for all months
-      given(marketDataClient.getOHLCPrice(eq(symbol), anyString()))
-        .willReturn(createOHLC(LocalDate.now(), new BigDecimal("100.00")));
+      // BULK API: Mock price data for 6 months
+      List<OHLCPriceDto> ohlcPrices = List.of(
+        createOHLC(LocalDate.of(2024, 1, 15), new BigDecimal("100.00")),
+        createOHLC(LocalDate.of(2024, 2, 15), new BigDecimal("100.00")),
+        createOHLC(LocalDate.of(2024, 3, 15), new BigDecimal("100.00")),
+        createOHLC(LocalDate.of(2024, 4, 15), new BigDecimal("100.00")),
+        createOHLC(LocalDate.of(2024, 5, 15), new BigDecimal("100.00")),
+        createOHLC(LocalDate.of(2024, 6, 15), new BigDecimal("100.00"))
+      );
+      given(marketDataClient.getOHLCPriceRange(eq(symbol), eq("2024-01-01"), eq("2024-06-30")))
+        .willReturn(ohlcPrices);
 
-      // Mock FX rate
+      // BULK API: Mock FX rate
+      java.util.Map<String, BigDecimal> fxRates = java.util.Map.of(
+        "2024-01-15", new BigDecimal("1300.00"),
+        "2024-02-15", new BigDecimal("1300.00"),
+        "2024-03-15", new BigDecimal("1300.00"),
+        "2024-04-15", new BigDecimal("1300.00"),
+        "2024-05-15", new BigDecimal("1300.00"),
+        "2024-06-15", new BigDecimal("1300.00")
+      );
+      given(marketDataClient.getBulkFxRates(any())).willReturn(fxRates);
+
       MarketDataClient.FxRate fxRate = new MarketDataClient.FxRate(
         LocalDate.now(), new BigDecimal("1300.00"));
-      given(marketDataClient.getFxRate(anyString())).willReturn(fxRate);
       given(marketDataClient.getLatestFxRate()).willReturn(fxRate);
 
       // Mock current price
