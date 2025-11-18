@@ -90,6 +90,9 @@ jobs:
           cd ${{ matrix.service }}
           if [ "${{ matrix.service }}" = "market-data-service" ] || [ "${{ matrix.service }}" = "user-service" ]; then
             mvn clean compile test -DskipTests
+          elif [ "${{ matrix.service }}" = "trade-service" ] || [ "${{ matrix.service }}" = "backtest-service" ]; then
+            # Skip integration tests (TestContainers) in CI, run unit tests only
+            mvn clean compile test -Dtest='!**/*IntegrationTest'
           else
             mvn clean compile test
           fi
