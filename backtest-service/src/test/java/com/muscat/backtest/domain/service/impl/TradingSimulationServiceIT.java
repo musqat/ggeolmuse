@@ -38,7 +38,7 @@ import org.springframework.test.context.ActiveProfiles;
 @SpringBootTest
 @ActiveProfiles("test")
 @DisplayName("TradingSimulationService 통합 테스트")
-class TradingSimulationServiceIntegrationTest {
+class TradingSimulationServiceIT {
 
   @Autowired
   private TradingSimulationServiceImpl tradingSimulationService;

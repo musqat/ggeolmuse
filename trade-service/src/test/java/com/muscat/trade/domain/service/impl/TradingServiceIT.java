@@ -42,7 +42,7 @@ import org.testcontainers.utility.DockerImageName;
 @ActiveProfiles("test")
 @Testcontainers
 @DisplayName("TradingService 통합 테스트 (TestContainers)")
-class TradingServiceIntegrationTest {
+class TradingServiceIT {
 
   @Container
   static KafkaContainer kafka = new KafkaContainer(
