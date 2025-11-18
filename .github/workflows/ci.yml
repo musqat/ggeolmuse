@@ -91,6 +91,7 @@ jobs:
           if [ "${{ matrix.service }}" = "market-data-service" ] || [ "${{ matrix.service }}" = "user-service" ]; then
             mvn clean compile test -DskipTests
           else
+            # Run unit tests only (*Test.java). Integration tests (*IT.java) are excluded by default
             mvn clean compile test
           fi
       - name: Build Docker Image for ${{ matrix.service }}

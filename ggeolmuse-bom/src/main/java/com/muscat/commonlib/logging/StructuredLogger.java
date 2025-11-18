@@ -23,6 +23,12 @@ public class StructuredLogger {
     enrichedData.putIfAbsent("timestamp", LocalDateTime.now());
     enrichedData.putIfAbsent("action", action);
 
+    // 상관관계 ID 추가 (MDC에서 가져옴)
+    String correlationId = org.slf4j.MDC.get("correlationId");
+    if (correlationId != null && !correlationId.trim().isEmpty()) {
+      enrichedData.putIfAbsent("correlationId", correlationId);
+    }
+
     try {
       String jsonLog = objectMapper.writeValueAsString(enrichedData);
       log.info(marker, "STRUCTURED_EVENT action={} data={}", action, jsonLog);

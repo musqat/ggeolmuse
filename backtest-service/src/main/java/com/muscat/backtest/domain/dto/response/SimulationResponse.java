@@ -4,12 +4,16 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Schema(description = "투자 시뮬레이션 결과")
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class SimulationResponse {
 
   @Schema(description = "종목 코드", example = "AAPL")
