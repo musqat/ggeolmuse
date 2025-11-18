@@ -3,12 +3,16 @@ package com.muscat.backtest.domain.dto.response;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Schema(description = "실제 투자 실행 결과")
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class InvestmentResponse {
 
   // 시뮬레이션 결과
