@@ -1,5 +1,11 @@
 # GGeolmuse
 
+**Live Demo**: https://ggeolmuse.com
+
+[![CI/CD](https://github.com/musqat/ggeolmuse/actions/workflows/ci.yml/badge.svg)](https://github.com/musqat/ggeolmuse/actions)
+[![Security Scan](https://github.com/musqat/ggeolmuse/actions/workflows/nightly-security-scan.yml/badge.svg)](https://github.com/musqat/ggeolmuse/actions)
+[![Last Commit](https://img.shields.io/github/last-commit/musqat/ggeolmuse)](https://github.com/musqat/ggeolmuse/commits/master)
+
 미국 주식 데이터 기반 투자 전략 백테스팅 플랫폼
 
 <div align="center">
@@ -31,7 +37,7 @@ NYSE, NASDAQ, NYSE ARCA에 상장된 11,000개 이상 종목의 20년치 일별 
 | Service | 설명 | README |
 |---------|------|--------|
 | **Config Server** | 중앙 설정 관리 | [📄](config-server/README.md) |
-| **Gateway Server** | API Gateway (라우팅, 인증, Rate Limiting) | [📄](gateway-server/README.md) |
+| **Gateway Server** | API Gateway | [📄](gateway-server/README.md) |
 | **User Service** | 인증, 계좌 관리, 환전 | [📄](user-service/README.md) |
 | **Trade Service** | 거래 실행, 포트폴리오 관리 | [📄](trade-service/README.md) |
 | **Market Data Service** | 시세 데이터 수집/제공 | [📄](market-data-service/README.md) |
@@ -97,7 +103,6 @@ ggeolmuse/
 
 **성능 지표**
 - Cache Hit Rate: 85~99%
-- Kafka Consumer Throughput: 3 TPS
 - 백테스트 평균 응답시간: 150ms
 
 ---
