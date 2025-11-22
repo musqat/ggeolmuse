@@ -102,8 +102,7 @@ ggeolmuse/
 - 7,000+ 환율 데이터
 
 **성능 지표**
-- Cache Hit Rate: 85~99%
-- 백테스트 평균 응답시간: 150ms
+- Cache Hit Rate: 77%
 
 ---
 
