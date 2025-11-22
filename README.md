@@ -4,7 +4,6 @@
 
 [![CI/CD](https://github.com/musqat/ggeolmuse/actions/workflows/ci.yml/badge.svg)](https://github.com/musqat/ggeolmuse/actions)
 [![Security Scan](https://github.com/musqat/ggeolmuse/actions/workflows/nightly-security-scan.yml/badge.svg)](https://github.com/musqat/ggeolmuse/actions)
-[![Last Commit](https://img.shields.io/github/last-commit/musqat/ggeolmuse)](https://github.com/musqat/ggeolmuse/commits/master)
 
 미국 주식 데이터 기반 투자 전략 백테스팅 플랫폼
 
