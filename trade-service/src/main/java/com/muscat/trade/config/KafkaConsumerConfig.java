@@ -1,5 +1,6 @@
 package com.muscat.trade.config;
 
+import com.muscat.messaging.event.AccountDeletedEvent;
 import com.muscat.messaging.event.DividendUpdatedEvent;
 import com.muscat.messaging.event.PriceUpdatedEvent;
 import lombok.extern.slf4j.Slf4j;
@@ -25,8 +26,7 @@ import java.util.Map;
 
 /**
  * Trade Service Kafka Consumer 설정
- *
- * PriceUpdatedEvent, DividendUpdatedEvent를 Kafka에서 소비하기 위한 설정
+ * PriceUpdatedEvent, DividendUpdatedEvent 설정
  */
 @Slf4j
 @EnableKafka
@@ -124,6 +124,52 @@ public class KafkaConsumerConfig {
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL);
 
         // 동시성 레벨 (배당 이벤트는 빈도가 낮으므로 1개 스레드)
+        factory.setConcurrency(1);
+
+        // 공통 에러 핸들러 설정 (DLQ 포함)
+        factory.setCommonErrorHandler(kafkaErrorHandler(null));
+
+        return factory;
+    }
+
+    @Bean
+    public ConsumerFactory<String, AccountDeletedEvent> accountDeletedEventConsumerFactory() {
+        Map<String, Object> props = new HashMap<>();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, applicationName + "-account-deleted-consumer");
+
+        // 수동 커밋 모드
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+
+        // 컨슈머 그룹 최초 실행시 earliest부터 읽기
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+
+        // Deserializer 설정
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
+        props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class.getName());
+
+        // JSON Deserializer 추가 설정
+        props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, AccountDeletedEvent.class.getName());
+        props.put(JsonDeserializer.TRUSTED_PACKAGES, "com.muscat.*");
+        props.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
+
+        return new DefaultKafkaConsumerFactory<>(props);
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, AccountDeletedEvent>
+    accountDeletedEventKafkaListenerContainerFactory() {
+
+        ConcurrentKafkaListenerContainerFactory<String, AccountDeletedEvent> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
+
+        factory.setConsumerFactory(accountDeletedEventConsumerFactory());
+
+        // 수동 커밋 모드 설정
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL);
+
+        // 동시성 레벨 (계좌 삭제는 빈도가 낮으므로 1개 스레드)
         factory.setConcurrency(1);
 
         // 공통 에러 핸들러 설정 (DLQ 포함)

@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -25,7 +26,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Candle(캔들) 데이터 조회 서비스 구현체
- * <p>
  * OHLC 가격 데이터 및 주식 현재가 조회를 담당합니다.
  */
 @Slf4j
@@ -37,6 +37,7 @@ public class CandleServiceImpl implements CandleService {
   private final CandleRepository candleRepository;
   private final AssetRepository assetRepository;
   private final MarketDataProperties properties;
+  private final org.springframework.cache.CacheManager cacheManager;
 
   @Override
   @Cacheable(cacheNames = "ohlc", key = "#symbol.toUpperCase() + ':' + #date")
@@ -85,30 +86,45 @@ public class CandleServiceImpl implements CandleService {
   }
 
   @Override
-  @Cacheable(
-    cacheNames = "ohlcPriceRange",
-    key = "#symbol.toUpperCase() + ':' + #startDate + ':' + #endDate"
-  )
   public List<OHLCPriceDto> getOHLCPriceRange(String symbol, LocalDate startDate,
     LocalDate endDate) {
     log.debug("OHLC 범위 조회 요청: symbol={}, startDate={}, endDate={}", symbol, startDate, endDate);
 
-    // 종목코드 대문자 변환 및 DB 조회
     String upperSymbol = symbol.toUpperCase();
-    List<Candle> candles = candleRepository.findBySymbolAndDateBetweenOrderByDateAsc(
-      upperSymbol, startDate, endDate);
+    List<OHLCPriceDto> result = new ArrayList<>();
+    List<LocalDate> cacheMissDates = new ArrayList<>();
 
-    // 캔들 데이터를 DTO로 변환 (adjustedClose 비율로 모든 OHLC 조정)
-    List<OHLCPriceDto> result = candles.stream()
-      .map(c -> {
-        // adjustedClose 비율 계산 (액면분할/배당 반영)
+    // 1. 날짜별로 개별 캐시 조회 (기존 @Cacheable getOHLCPrice 재사용)
+    LocalDate current = startDate;
+    while (!current.isAfter(endDate)) {
+      OHLCPriceDto cached = getOHLCPrice(upperSymbol, current);
+
+      if (cached != null && cached.isAvailable()) {
+        result.add(cached);  // Cache Hit
+      } else {
+        cacheMissDates.add(current);  // Cache Miss
+      }
+
+      current = current.plusDays(1);
+    }
+
+    // 2. Cache Miss 날짜들만 DB Batch 조회
+    if (!cacheMissDates.isEmpty()) {
+      LocalDate batchStart = cacheMissDates.get(0);
+      LocalDate batchEnd = cacheMissDates.get(cacheMissDates.size() - 1);
+
+      List<Candle> candles = candleRepository
+        .findBySymbolAndDateBetweenOrderByDateAsc(upperSymbol, batchStart, batchEnd);
+
+      // 3. DB 결과를 DTO 변환 후 개별 캐시에 저장 (수동 캐싱)
+      candles.forEach(c -> {
         BigDecimal ratio = BigDecimal.ONE;
         if (c.getClose() != null && c.getClose().compareTo(BigDecimal.ZERO) > 0
           && c.getAdjustedClose() != null) {
           ratio = c.getAdjustedClose().divide(c.getClose(), 8, java.math.RoundingMode.HALF_UP);
         }
 
-        return OHLCPriceDto.builder()
+        OHLCPriceDto dto = OHLCPriceDto.builder()
           .symbol(c.getSymbol())
           .date(c.getDate())
           .openPrice(c.getOpen() != null ? c.getOpen().multiply(ratio) : null)
@@ -120,10 +136,23 @@ public class CandleServiceImpl implements CandleService {
           .currency(c.getCurrency())
           .available(true)
           .build();
-      })
-      .collect(Collectors.toList());
 
-    log.debug("OHLC 범위 조회 성공: symbol={}, count={}", symbol, result.size());
+        // 개별 캐시에 수동 저장
+        org.springframework.cache.Cache ohlcCache = cacheManager.getCache("ohlc");
+        if (ohlcCache != null) {
+          ohlcCache.put(upperSymbol + ":" + c.getDate(), dto);
+        }
+
+        result.add(dto);
+      });
+    }
+
+    // 4. 날짜순 정렬
+    result.sort(Comparator.comparing(OHLCPriceDto::getDate));
+
+    log.info("OHLC 범위 조회 완료: symbol={}, total={}, cacheHit={}, cacheMiss={}",
+      symbol, result.size(), result.size() - cacheMissDates.size(), cacheMissDates.size());
+
     return result;
   }
 

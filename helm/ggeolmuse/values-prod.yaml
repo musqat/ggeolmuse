@@ -139,8 +139,9 @@ infrastructure:
       transactionStateLogMinIsr: 1
       transactionStateLogReplicationFactor: 1
       autoCreateTopicsEnable: true
-      logRetentionHours: 168
-      logSegmentBytes: "1073741824"
+      logRetentionHours: 120
+      logSegmentBytes: "536870912"
+      heapOpts: "-Xms512m -Xmx896m"
     service:
       internal:
         type: ClusterIP
@@ -156,10 +157,10 @@ infrastructure:
       enabled: true
     resources:
       limits:
-        memory: 1536Mi
+        memory: 1280Mi
         cpu: 750m
       requests:
-        memory: 768Mi
+        memory: 640Mi
         cpu: 400m
 
   kafkaUi:
@@ -210,6 +211,7 @@ configServer:
     searchPaths: .
   env:
     springProfiles: git,prod
+    JAVA_OPTS: "-Xms128m -Xmx256m"
   probes:
     readiness:
       initialDelaySeconds: 60
@@ -223,17 +225,17 @@ configServer:
       failureThreshold: 3
   resources:
     limits:
-      memory: 384Mi
+      memory: 320Mi
       cpu: 300m
     requests:
-      memory: 192Mi
+      memory: 160Mi
       cpu: 150m
 
 # Gateway Server
 gatewayServer:
   enabled: true
   name: gateway-server
-  replicaCount: 1  # 단일 노드
+  replicaCount: 2
   image:
     repository: gateway-server
     tag: "1.1.2"
@@ -244,6 +246,7 @@ gatewayServer:
     springProfiles: prod
     configUri: http://config-server:8888
     configUsername: config
+    JAVA_OPTS: "-Xms192m -Xmx384m"
   rbac:
     create: true
   strategy:
@@ -263,10 +266,10 @@ gatewayServer:
       failureThreshold: 3
   resources:
     limits:
-      memory: 640Mi
+      memory: 512Mi
       cpu: 600m
     requests:
-      memory: 320Mi
+      memory: 256Mi
       cpu: 300m
 
 # 비즈니스 서비스
@@ -274,7 +277,7 @@ services:
   userService:
     enabled: true
     name: user-service
-    replicaCount: 1  # 단일 노드
+    replicaCount: 2
     image:
       repository: user-service
       tag: "1.1.2"
@@ -287,6 +290,7 @@ services:
       appBaseUrl: https://ggeolmuse.com
       appFrontendUrl: https://ggeolmuse.com
       mailVerificationBaseUrl: https://ggeolmuse.com
+      JAVA_OPTS: "-Xms512m -Xmx768m"
     secrets:
       keycloakSecret: true
       mailUsername: true
@@ -305,16 +309,16 @@ services:
         failureThreshold: 3
     resources:
       limits:
-        memory: 640Mi
+        memory: 1024Mi
         cpu: 600m
       requests:
-        memory: 320Mi
+        memory: 512Mi
         cpu: 300m
 
   tradeService:
     enabled: true
     name: trade-service
-    replicaCount: 1
+    replicaCount: 2  #
     image:
       repository: trade-service
       tag: "1.1.2"
@@ -323,7 +327,8 @@ services:
       port: 8081
     labels:
       tier: business-service
-    env: {}
+    env:
+      JAVA_OPTS: "-Xms512m -Xmx768m"
     secrets:
       keycloakSecret: true
     probes:
@@ -339,16 +344,16 @@ services:
         failureThreshold: 3
     resources:
       limits:
-        memory: 640Mi
+        memory: 1024Mi
         cpu: 600m
       requests:
-        memory: 320Mi
+        memory: 512Mi
         cpu: 300m
 
   marketDataService:
     enabled: true
     name: market-data-service
-    replicaCount: 1
+    replicaCount: 2
     image:
       repository: market-data-service
       tag: "1.1.2"
@@ -359,19 +364,11 @@ services:
       tier: business-service
     env:
       TZ: "Asia/Seoul"
+      JAVA_OPTS: "-Xms768m -Xmx1024m"
       # 마켓 데이터 프로바이더 설정
       MARKETDATA_PROVIDER: "alphavantage"
-      # 심볼 수집 활성화
-      MARKETDATA_SYMBOL_COLLECTION_ENABLED: "true"
-      SYMBOL_LISTING_MAX: "0"  # 0 = 무제한
-      SYMBOL_LISTING_ONLY_MAJOR: "true"  # NYSE, NASDAQ, NYSE ARCA 주요 거래소만
-      SYMBOL_COLLECT_DATA: "false"  # 초기 수집 완료, 스케줄러로만 업데이트
-      SYMBOL_INCLUDE_DIVIDENDS: "true"
-      # 스케줄러 설정 (한국 시간대)
-      ALPHAVANTAGE_SCHEDULER_ZONE: "Asia/Seoul"
-      ALPHAVANTAGE_SCHEDULER_FX_CRON: "0 0 6 * * MON-FRI"  # 매일 오전 6시 KST
-      ALPHAVANTAGE_SCHEDULER_CANDLE_CRON: "0 0 6 * * TUE-SAT"  # 오전 6시 KST
-      ALPHAVANTAGE_SCHEDULER_MARKETCAP_CRON: "0 10 6 * * TUE-SAT"  # 오전 6시 10분 KST
+      # 초기 수집 완료 후 스케줄러만 사용 (Config Server 기본값 override)
+      SYMBOL_COLLECT_DATA: "false"
     secrets:
       keycloakSecret: true
       alphavantageApiKey: true
@@ -412,7 +409,8 @@ services:
       port: 8082
     labels:
       tier: business-service
-    env: {}
+    env:
+      JAVA_OPTS: "-Xms384m -Xmx640m"
     secrets:
       keycloakSecret: true
     probes:
@@ -428,17 +426,17 @@ services:
         failureThreshold: 3
     resources:
       limits:
-        memory: 640Mi
+        memory: 896Mi
         cpu: 600m
       requests:
-        memory: 320Mi
+        memory: 448Mi
         cpu: 300m
 
 # 프론트엔드
 frontend:
   enabled: true
   name: frontend-web
-  replicaCount: 1
+  replicaCount: 2
   image:
     repository: frontend-web
     tag: "1.1.2"
@@ -514,9 +512,9 @@ ingress:
 
 # Secret 설정
 secrets:
-  enabled: false  # Production에서는 외부 Secret 사용
+  enabled: false
   name: ggeolmuse-secrets
-  data: {}  # 외부에서 Secret 생성 필요
+  data: {}
 
 # ConfigMap 설정
 configMap:

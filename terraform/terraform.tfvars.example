@@ -1,6 +1,0 @@
-# Copy this file to terraform.tfvars and fill in your values
-
-aws_region      = "ap-northeast-2"
-ec2_instance_id = "i-xxxxxxxxxxxxxxxxx"  # Replace with your EC2 instance ID
-project_name    = "ggeolmuse"
-environment     = "production"

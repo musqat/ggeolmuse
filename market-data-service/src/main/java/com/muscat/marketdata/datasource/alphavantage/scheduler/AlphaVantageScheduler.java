@@ -13,6 +13,7 @@ import com.muscat.marketdata.domain.repository.FxRateRepository;
 import com.muscat.marketdata.infra.kafka.AssetEventProducer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -31,9 +32,9 @@ import java.util.Optional;
  * AlphaVantage 데이터 통합 스케줄러
  *
  * 모든 AlphaVantage 데이터 소스의 일일 업데이트를 담당합니다:
- * - 환율(FX) 업데이트: 매일 11:10 KST
- * - 캔들 데이터 업데이트: 매일 17:00 EST (장마감 후)
- * - 시가총액 업데이트: 매일 10:00 EST
+ * - 환율(FX) 업데이트: 매일 오전 11:10 KST (평일)
+ * - 캔들 데이터 업데이트: 매일 오전 7시 KST (평일)
+ * - 시가총액 업데이트: 매일 오전 10시 KST (평일)
  */
 @Slf4j
 @Component
@@ -108,6 +109,11 @@ public class AlphaVantageScheduler {
      */
     @Scheduled(cron = "${alphavantage.scheduler.fx.cron:0 10 11 * * MON-FRI}",
                zone = "${alphavantage.scheduler.zone:Asia/Seoul}")
+    @SchedulerLock(
+        name = "updateFxRates",
+        lockAtMostFor = "10m",
+        lockAtLeastFor = "1m"
+    )
     @Transactional
     public void updateFxRates() {
         // 초기 수집 진행 중이면 스케줄러 스킵
@@ -136,7 +142,7 @@ public class AlphaVantageScheduler {
     /**
      * 캔들 데이터 업데이트 스케줄러
      *
-     * 매일 새벽 7시 EST (장마감 후)에 모든 종목의 최신 캔들 데이터를 수집합니다.
+     * 매일 오전 7시 KST에 모든 종목의 최신 캔들 데이터를 수집합니다.
      * 이벤트 기반 아키텍처를 사용하여 비동기로 처리됩니다.
      *
      * CandleUpdateService가 각 종목의 마지막 수집 날짜를 확인하여
@@ -144,6 +150,11 @@ public class AlphaVantageScheduler {
      */
     @Scheduled(cron = "${alphavantage.scheduler.candle.cron:0 0 7 * * MON-FRI}",
                zone = "${alphavantage.scheduler.zone:Asia/Seoul}")
+    @SchedulerLock(
+        name = "updateCandles",
+        lockAtMostFor = "9m",
+        lockAtLeastFor = "1m"
+    )
     @Transactional(readOnly = true)
     public void updateCandles() {
         // 초기 수집 진행 중이면 스케줄러 스킵
@@ -191,11 +202,16 @@ public class AlphaVantageScheduler {
     /**
      * 시가총액 업데이트 스케줄러
      *
-     * 매일 오전 10시 EST에 모든 종목의 시가총액을 업데이트
-     * AlphaVantage OVERVIEW API를 사용
+     * 매일 오전 10시 KST에 모든 종목의 시가총액을 업데이트합니다.
+     * AlphaVantage OVERVIEW API를 사용합니다.
      */
     @Scheduled(cron = "${alphavantage.scheduler.marketcap.cron:0 0 10 * * MON-FRI}",
                zone = "${alphavantage.scheduler.zone:Asia/Seoul}")
+    @SchedulerLock(
+        name = "updateMarketCaps",
+        lockAtMostFor = "30m",
+        lockAtLeastFor = "5m"
+    )
     public void updateMarketCaps() {
         // 초기 수집 진행 중이면 스케줄러 스킵
         if (isInitialCollectionInProgress()) {

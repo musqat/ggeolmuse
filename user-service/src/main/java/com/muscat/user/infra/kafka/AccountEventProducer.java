@@ -1,6 +1,7 @@
 package com.muscat.user.infra.kafka;
 
 import com.muscat.messaging.event.AccountBalanceUpdatedEvent;
+import com.muscat.messaging.event.AccountDeletedEvent;
 import com.muscat.user.domain.account.entity.Account;
 import io.opentelemetry.api.trace.Span;
 import java.math.BigDecimal;
@@ -14,9 +15,8 @@ import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Component;
 
 /**
- * 계좌 관련 이벤트를 Kafka에 발행하는 Producer
- * <p>
- * 계좌 잔액 변경 등의 중요한 계좌 이벤트를 발행하여 다른 서비스들이 실시간으로 계좌 상태 변경을 추적할 수 있도록 합니다.
+ * 계좌 관련 이벤트를 발행하는 Producer
+ * 계좌 잔액 변경 등의 이벤트를 발행하여 다른 서비스들이 계좌 상태 변경을 추적
  */
 @Slf4j
 @Component
@@ -24,8 +24,10 @@ import org.springframework.stereotype.Component;
 public class AccountEventProducer {
 
   private static final String ACCOUNT_BALANCE_UPDATED_TOPIC = "user.account.balance.updated";
+  private static final String ACCOUNT_DELETED_TOPIC = "user.account.deleted";
 
   private final KafkaTemplate<String, AccountBalanceUpdatedEvent> accountBalanceUpdatedKafkaTemplate;
+  private final KafkaTemplate<String, AccountDeletedEvent> accountDeletedKafkaTemplate;
 
   /**
    * 계좌 잔액 업데이트 이벤트 발행
@@ -98,6 +100,61 @@ public class AccountEventProducer {
       } else {
         log.error("계좌 잔액 업데이트 이벤트 발행 실패: accountId={}, updateType={}, error={}",
           account.getId(), updateType, ex.getMessage(), ex);
+      }
+    });
+  }
+
+  /**
+   * 계좌 삭제 이벤트 발행
+   *
+   * @param account        삭제된 계좌 정보
+   * @param deletionReason 삭제 사유 (선택사항)
+   */
+  public void publishAccountDeleted(Account account, String deletionReason) {
+    String eventId = UUID.randomUUID().toString();
+
+    // OpenTelemetry trace ID 추출
+    String traceId = null;
+    try {
+      traceId = Span.current().getSpanContext().getTraceId();
+    } catch (Exception e) {
+      log.debug("TraceID 추출 실패: {}", e.getMessage());
+    }
+
+    AccountDeletedEvent event = AccountDeletedEvent.builder()
+      .eventId(eventId)
+      .eventType("ACCOUNT_DELETED")
+      .timestamp(LocalDateTime.now())
+      .version("1.0")
+      .traceId(traceId)
+      .source("user-service")
+      // Account 정보
+      .userId(String.valueOf(account.getUser().getId()))
+      .accountId(account.getId())
+      .accountNumber(account.getAccountNumber())
+      .accountName(account.getAccountName())
+      .deletionReason(deletionReason)
+      .build();
+
+    log.info("계좌 삭제 이벤트 발행 중: accountId={}, accountNumber={}, userId={}",
+      account.getId(), account.getAccountNumber(), account.getUser().getId());
+
+    // 비동기로 Kafka에 전송
+    CompletableFuture<SendResult<String, AccountDeletedEvent>> future =
+      accountDeletedKafkaTemplate.send(ACCOUNT_DELETED_TOPIC,
+        String.valueOf(account.getUser().getId()), event);
+
+    future.whenComplete((result, ex) -> {
+      if (ex == null) {
+        log.info(
+          "계좌 삭제 이벤트 발행 성공: topic={}, partition={}, offset={}, accountId={}, accountNumber={}",
+          ACCOUNT_DELETED_TOPIC,
+          result.getRecordMetadata().partition(),
+          result.getRecordMetadata().offset(),
+          account.getId(), account.getAccountNumber());
+      } else {
+        log.error("계좌 삭제 이벤트 발행 실패: accountId={}, accountNumber={}, error={}",
+          account.getId(), account.getAccountNumber(), ex.getMessage(), ex);
       }
     });
   }

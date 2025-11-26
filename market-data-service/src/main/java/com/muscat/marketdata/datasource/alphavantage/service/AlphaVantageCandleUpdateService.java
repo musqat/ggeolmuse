@@ -7,7 +7,6 @@ import com.muscat.marketdata.domain.mapper.MarketDataMapper;
 import com.muscat.marketdata.domain.repository.CandleRepository;
 import com.muscat.marketdata.domain.repository.DividendRepository;
 import com.muscat.marketdata.infra.kafka.DividendEventProducer;
-import com.muscat.marketdata.infra.kafka.PriceEventProducer;
 import com.muscat.marketdata.datasource.common.MarketDataProvider.CandleSource;
 import com.muscat.marketdata.datasource.common.MarketDataProvider.DividendSource;
 import lombok.RequiredArgsConstructor;
@@ -40,7 +39,6 @@ public class AlphaVantageCandleUpdateService implements com.muscat.marketdata.do
     private final CandleRepository candleRepository;
     private final DividendRepository dividendRepository;
 
-    private final PriceEventProducer priceEventProducer;
     private final DividendEventProducer dividendEventProducer;
 
     @Transactional
@@ -91,10 +89,7 @@ public class AlphaVantageCandleUpdateService implements com.muscat.marketdata.do
         // DB에 저장
         candleRepository.saveAll(newCandles);
 
-        // Kafka 이벤트 발행 (배치로 처리)
-        priceEventProducer.publishBatch(newCandles);
-        log.debug("[주가 이벤트 발행] symbol={}, count={}", symbol, newCandles.size());
-
+        log.info("[캔들 저장 완료] symbol={}, count={}", symbol, newCandles.size());
         return newCandles.size();
     }
 

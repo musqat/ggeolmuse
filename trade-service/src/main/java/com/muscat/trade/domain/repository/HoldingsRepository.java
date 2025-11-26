@@ -29,4 +29,7 @@ public interface HoldingsRepository extends JpaRepository<Holdings, String>, Hol
       @Param("symbol") String symbol);
 
   Optional<Holdings> findByUserIdAndSymbol(String userId, String symbol);
+
+  // 계좌 삭제 시 모든 보유 자산 삭제
+  void deleteByAccountId(Long accountId);
 }

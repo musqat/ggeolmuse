@@ -23,4 +23,7 @@ public interface TradeRepository extends JpaRepository<Trade, String>, TradeRepo
 
   @Query("SELECT DISTINCT t.symbol FROM Trade t WHERE t.userId = :userId")
   List<String> findDistinctSymbolsByUserId(String userId);
+
+  // 계좌 삭제 시 모든 거래 내역 삭제
+  void deleteByAccountId(Long accountId);
 }

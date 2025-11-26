@@ -119,6 +119,11 @@ public class AccountServiceImpl implements AccountService {
     accountHistoryRepository.deleteByAccount(account);
     log.debug("계좌 거래 내역 삭제 완료: accountId={}", accountId);
 
+    // Kafka 이벤트 발행: 계좌 삭제 (trade-service에서 거래 내역/보유 자산 삭제)
+    String deletionReason = String.format("사용자 요청 (KRW: %s, USD: %s)",
+      account.getBalanceKrw(), account.getBalanceUsd());
+    accountEventProducer.publishAccountDeleted(account, deletionReason);
+
     // 계좌 삭제
     accountRepository.delete(account);
 
