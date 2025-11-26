@@ -273,7 +273,7 @@ services:
   userService:
     enabled: true
     name: user-service
-    replicaCount: 2
+    replicaCount: 1
     image:
       repository: user-service
       tag: "1.1.2"
@@ -294,12 +294,12 @@ services:
       mailFrom: true
     probes:
       readiness:
-        initialDelaySeconds: 120  # 2분 (DB + Flyway migration)
+        initialDelaySeconds: 180
         periodSeconds: 10
         timeoutSeconds: 5
         failureThreshold: 3
       liveness:
-        initialDelaySeconds: 300  # 5분
+        initialDelaySeconds: 600
         periodSeconds: 20
         timeoutSeconds: 5
         failureThreshold: 3
@@ -314,7 +314,7 @@ services:
   tradeService:
     enabled: true
     name: trade-service
-    replicaCount: 2  #
+    replicaCount: 2
     image:
       repository: trade-service
       tag: "1.1.2"
@@ -329,12 +329,12 @@ services:
       keycloakSecret: true
     probes:
       readiness:
-        initialDelaySeconds: 120  # 2분
+        initialDelaySeconds: 180
         periodSeconds: 10
         timeoutSeconds: 5
         failureThreshold: 3
       liveness:
-        initialDelaySeconds: 300  # 5분
+        initialDelaySeconds: 600
         periodSeconds: 20
         timeoutSeconds: 5
         failureThreshold: 3
@@ -374,14 +374,14 @@ services:
         initialDelaySeconds: 30
         periodSeconds: 10
         timeoutSeconds: 5
-        failureThreshold: 60  # 최대 10분
+        failureThreshold: 60
       readiness:
-        initialDelaySeconds: 120  # 2분
+        initialDelaySeconds: 180
         periodSeconds: 10
         timeoutSeconds: 3
         failureThreshold: 3
       liveness:
-        initialDelaySeconds: 300  # 5분
+        initialDelaySeconds: 600
         periodSeconds: 20
         timeoutSeconds: 5
         failureThreshold: 3
@@ -411,12 +411,12 @@ services:
       keycloakSecret: true
     probes:
       readiness:
-        initialDelaySeconds: 120  # 2분
+        initialDelaySeconds: 180
         periodSeconds: 10
         timeoutSeconds: 5
         failureThreshold: 3
       liveness:
-        initialDelaySeconds: 300  # 5분
+        initialDelaySeconds: 600
         periodSeconds: 20
         timeoutSeconds: 5
         failureThreshold: 3
