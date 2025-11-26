@@ -1,4 +1,3 @@
-# Production Environment Configuration
 global:
   domain: ggeolmuse.com
   authDomain: ggeolmuse.com
@@ -53,14 +52,12 @@ global:
       name: ggeolmuse/production
     serviceAccount:
       create: true
-      # annotations:
-      #   eks.amazonaws.com/role-arn: arn:aws:iam::111071843009:role/ggeolmuse-secrets-role
 
 # Ingress Controller - K3s Traefik 사용
 ingressController:
   enabled: false
 
-# 인프라 - 단일 노드 최적화 (replicas=1, 리소스 제한)
+# 인프라 - 단일 노드 최적화
 infrastructure:
   redis:
     enabled: true
@@ -82,7 +79,6 @@ infrastructure:
     port: 8080
     replicas: 1  # 단일 노드
     env:
-      # Keycloak admin credentials는 Secret에서 주입
       kcDbVendor: postgres  # RDS PostgreSQL 사용
       kcHttpRelativePath: /auth
     service:
