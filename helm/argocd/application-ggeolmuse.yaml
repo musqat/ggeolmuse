@@ -45,8 +45,6 @@ spec:
       - Replace=true
       # 리소스 검증
       - Validate=true
-      # ignoreDifferences 설정
-      - RespectIgnoreDifferences=true
 
     # 재시도 정책
     retry:
@@ -55,18 +53,3 @@ spec:
         duration: 5s
         factor: 2
         maxDuration: 3m
-
-  ignoreDifferences:
-    # Kubernetes가 자동으로 추가하는 필드 무시
-    - group: apps
-      kind: Deployment
-      jsonPointers:
-        - /spec/replicas
-
-    # ExternalSecret의 duration 정규화 무시
-    - group: external-secrets.io
-      kind: ExternalSecret
-      name: ggeolmuse-secrets
-      namespace: default
-      jsonPointers:
-        - /spec/refreshInterval

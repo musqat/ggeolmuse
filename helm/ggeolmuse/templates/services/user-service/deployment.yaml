@@ -52,6 +52,11 @@ spec:
         - name: KEYCLOAK_RESOURCE
           value: {{ .Values.global.keycloak.clientId | quote }}
         {{- if .Values.global.aws.secretsManager.enabled }}
+        - name: SPRING_DATASOURCE_URL
+          valueFrom:
+            secretKeyRef:
+              name: ggeolmuse-secrets
+              key: {{ include "ggeolmuse.dbUrlSecretKey" (dict "serviceName" .Values.services.userService.name) }}
         - name: KEYCLOAK_CREDENTIALS_SECRET
           valueFrom:
             secretKeyRef:

@@ -48,6 +48,11 @@ spec:
           value: {{ .Values.services.backtestService.name | quote }}
         {{- include "ggeolmuse.springEnv" . | nindent 8 }}
         {{- if .Values.global.aws.secretsManager.enabled }}
+        - name: SPRING_DATASOURCE_URL
+          valueFrom:
+            secretKeyRef:
+              name: ggeolmuse-secrets
+              key: {{ include "ggeolmuse.dbUrlSecretKey" (dict "serviceName" .Values.services.backtestService.name) }}
         - name: KEYCLOAK_SECRET
           valueFrom:
             secretKeyRef:
