@@ -79,6 +79,15 @@ public class SymbolCollector {
 
         log.info("[AV-심볼수집] DB 기존 종목: {}개", existingCount);
 
+        // Safety Check: API 응답이 비정상적으로 적으면 중단 (API 장애 방지)
+        // 기존 종목의 50% 미만이면 API 오류로 간주
+        if (existingCount > 0 && latestSymbols.size() < existingCount * 0.5) {
+            log.error("[AV-심볼수집] API 응답 이상 API: {}개, DB: {}개 (50% 미만). 상장폐지 처리 중단.",
+                latestSymbols.size(), existingCount);
+            log.error("[AV-심볼수집] AlphaVantage API 상태를 확인하거나, 수동으로 실행하세요.");
+            return;
+        }
+
         // 최신 종목 심볼 Set (빠른 검색용)
         java.util.Set<String> latestSymbolSet = latestSymbols.stream()
             .map(Asset::getSymbol)

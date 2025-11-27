@@ -77,6 +77,11 @@ spec:
             secretKeyRef:
               name: ggeolmuse-secrets
               key: MAIL_FROM
+        - name: ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ggeolmuse-secrets
+              key: KEYCLOAK_ADMIN_USER_PASSWORD
         {{- else }}
         - name: KEYCLOAK_CREDENTIALS_SECRET
           {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "KEYCLOAK_SECRET") | nindent 10 }}
@@ -86,6 +91,8 @@ spec:
           {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "MAIL_PASSWORD") | nindent 10 }}
         - name: MAIL_FROM
           {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "MAIL_FROM") | nindent 10 }}
+        - name: ADMIN_PASSWORD
+          {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "KEYCLOAK_ADMIN_USER_PASSWORD") | nindent 10 }}
         {{- end }}
         - name: APP_BASE_URL
           value: {{ .Values.services.userService.env.appBaseUrl | quote }}

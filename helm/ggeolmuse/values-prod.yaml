@@ -361,10 +361,12 @@ services:
     env:
       TZ: "Asia/Seoul"
       JAVA_OPTS: "-Xms768m -Xmx1024m"
-      # 마켓 데이터 프로바이더 설정
+      # 마켓 데이터  설정
       MARKETDATA_PROVIDER: "alphavantage"
-      # 초기 수집 완료 후 스케줄러만 사용 (Config Server 기본값 override)
+      SYMBOL_COLLECTION_ENABLED: "true"
       SYMBOL_COLLECT_DATA: "false"
+      # 심볼 수집 최대 개수 (0 = 무제한, 기본값 100)
+      SYMBOL_LISTING_MAX: "0"
     secrets:
       keycloakSecret: true
       alphavantageApiKey: true
