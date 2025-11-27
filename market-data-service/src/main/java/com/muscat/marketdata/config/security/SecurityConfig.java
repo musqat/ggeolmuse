@@ -1,5 +1,6 @@
 package com.muscat.marketdata.config.security;
 
+import com.muscat.commonlib.security.KeycloakJwtAuthenticationConverter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -40,6 +41,11 @@ public class SecurityConfig {
     return NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
   }
 
+  //Keycloak JWT를 Spring Security 권한으로 변환  @Bean
+  public KeycloakJwtAuthenticationConverter jwtAuthenticationConverter() {
+    return new KeycloakJwtAuthenticationConverter();
+  }
+
   // Management port (9090) - Health, Metrics, Actuator endpoints
   @Bean
   @Order(0)
@@ -70,12 +76,14 @@ public class SecurityConfig {
         .requestMatchers("/api/internal/**").permitAll()  // Gateway RewritePath로 변경된 경로
         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**",
           "/swagger-resources/**", "/webjars/**").permitAll()
+        // Admin endpoints - ADMIN 권한 필요
+        .requestMatchers("/api/admin/**").hasAuthority("admin")
         // Private endpoints - JWT 인증 필요
         .requestMatchers("/api/**").authenticated()
         .anyRequest().denyAll()
       )
       .oauth2ResourceServer(oauth2 -> oauth2
-        .jwt(Customizer.withDefaults())
+        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
       )
       .headers(headers -> headers
         .frameOptions(FrameOptionsConfig::disable)

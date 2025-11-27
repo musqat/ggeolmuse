@@ -6,9 +6,13 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder;
 import org.springframework.security.web.server.SecurityWebFilterChain;
+import org.springframework.core.convert.converter.Converter;
+import org.springframework.security.authentication.AbstractAuthenticationToken;
+import reactor.core.publisher.Mono;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsConfigurationSource;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
@@ -78,7 +82,7 @@ public class SecurityConfig {
                 .pathMatchers(HttpMethod.POST, "/api/market/fx/bulk").permitAll()
 
                 // ===== Admin APIs (ADMIN 권한 필요) =====
-                .pathMatchers("/api/admin/**").hasRole("ADMIN")
+                .pathMatchers("/api/admin/**").hasAuthority("admin")
 
                 // ===== Private APIs (JWT 인증 필요) =====
                 .pathMatchers("/api/users/**", "/api/accounts/**").authenticated()
@@ -88,7 +92,10 @@ public class SecurityConfig {
                 .anyExchange().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2
-                .jwt(jwt -> jwt.jwtDecoder(jwtDecoder()))
+                .jwt(jwt -> jwt
+                    .jwtDecoder(jwtDecoder())
+                    .jwtAuthenticationConverter(jwtAuthenticationConverter())
+                )
             );
 
         return http.build();
@@ -101,6 +108,16 @@ public class SecurityConfig {
     public ReactiveJwtDecoder jwtDecoder() {
         String jwkSetUri = keycloakUrl + "/realms/" + realm + "/protocol/openid-connect/certs";
         return NimbusReactiveJwtDecoder.withJwkSetUri(jwkSetUri).build();
+    }
+
+    /**
+     * Keycloak JWT를 Spring Security 권한으로 변환
+     * realm_access.roles를 GrantedAuthority로 매핑
+     */
+    @Bean
+    public Converter<Jwt, Mono<AbstractAuthenticationToken>> jwtAuthenticationConverter() {
+        return new KeycloakReactiveJwtAuthenticationConverter();
+
     }
 
     /**

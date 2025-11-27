@@ -1,9 +1,6 @@
 package com.muscat.user.config.security;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import com.muscat.commonlib.security.KeycloakJwtAuthenticationConverter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,12 +14,10 @@ import org.springframework.security.config.annotation.web.configuration.WebSecur
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer.FrameOptionsConfig;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
@@ -54,26 +49,10 @@ public class SecurityConfig {
     return new BCryptPasswordEncoder();
   }
 
+  //Keycloak JWT를 Spring Security 권한으로 변환
   @Bean
-  public JwtAuthenticationConverter jwtAuthenticationConverter() {
-    JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
-
-    jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(jwt -> {
-      Map<String, Object> realmAccess = jwt.getClaim("realm_access");
-
-      if (realmAccess == null || !realmAccess.containsKey("roles")) {
-        return Collections.emptyList();
-      }
-
-      @SuppressWarnings("unchecked")
-      List<String> roles = (List<String>) realmAccess.get("roles");
-
-      return roles.stream()
-        .map(SimpleGrantedAuthority::new)
-        .collect(Collectors.toList());
-    });
-
-    return jwtAuthenticationConverter;
+  public KeycloakJwtAuthenticationConverter jwtAuthenticationConverter() {
+    return new KeycloakJwtAuthenticationConverter();
   }
 
   // Public endpoints를 Security filter chain에서 완전히 제외
