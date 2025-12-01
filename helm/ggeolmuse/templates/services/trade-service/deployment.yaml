@@ -10,6 +10,13 @@ metadata:
     {{- include "ggeolmuse.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.services.tradeService.replicaCount }}
+  {{- if .Values.services.tradeService.strategy }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: {{ .Values.services.tradeService.strategy.rollingUpdate.maxUnavailable }}
+      maxSurge: {{ .Values.services.tradeService.strategy.rollingUpdate.maxSurge }}
+  {{- end }}
   selector:
     matchLabels:
       app: {{ .Values.services.tradeService.name }}

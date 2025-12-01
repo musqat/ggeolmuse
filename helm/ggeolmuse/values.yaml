@@ -218,7 +218,7 @@ gatewayServer:
   strategy:
     rollingUpdate:
       maxUnavailable: 1
-      maxSurge: 1
+      maxSurge: 0
   probes:
     readiness:
       initialDelaySeconds: 60
@@ -232,9 +232,10 @@ services:
   userService:
     enabled: true
     name: user-service
-    replicaCount: 1
+    replicaCount: 2
     image:
       repository: user-service
+      tag: "1.1.3"
     service:
       type: ClusterIP
       port: 8080
@@ -249,6 +250,10 @@ services:
       mailUsername: true
       mailPassword: true
       mailFrom: true
+    strategy:
+      rollingUpdate:
+        maxUnavailable: 1
+        maxSurge: 0
     probes:
       readiness:
         initialDelaySeconds: 60
@@ -264,9 +269,10 @@ services:
   tradeService:
     enabled: true
     name: trade-service
-    replicaCount: 1
+    replicaCount: 2
     image:
       repository: trade-service
+      tag: "1.1.3"
     service:
       type: ClusterIP
       port: 8081
@@ -275,6 +281,10 @@ services:
     env: {}
     secrets:
       keycloakSecret: true
+    strategy:
+      rollingUpdate:
+        maxUnavailable: 1
+        maxSurge: 0
     probes:
       readiness:
         initialDelaySeconds: 60
@@ -286,9 +296,10 @@ services:
   marketDataService:
     enabled: true
     name: market-data-service
-    replicaCount: 1
+    replicaCount: 2
     image:
       repository: market-data-service
+      tag: "1.1.3"
     service:
       type: ClusterIP
       port: 8083
@@ -299,6 +310,10 @@ services:
       keycloakSecret: true
       alphavantageApiKey: true
       koreaexImApiKey: true
+    strategy:
+      rollingUpdate:
+        maxUnavailable: 1
+        maxSurge: 0
     probes:
       startup:
         initialDelaySeconds: 30
@@ -434,6 +449,11 @@ secrets:
     mailFrom: ""
     alphavantageApiKey: ""
     koreaeximApiKey: ""
+
+# 모니터링 설정
+monitoring:
+  serviceMonitor:
+    enabled: true
 
 # ConfigMap 설정
 configMap:
