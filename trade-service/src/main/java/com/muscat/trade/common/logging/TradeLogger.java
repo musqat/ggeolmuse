@@ -22,8 +22,8 @@ public class TradeLogger {
   private static final Marker TRADE_EVENT = MarkerFactory.getMarker("TRADE_EVENT");
   private final StructuredLogger structuredLogger;
 
-  public void logTrade(String tradeId, String userId, String accountId, String symbol,
-                       TradeType tradeType, BigDecimal quantity, BigDecimal price, 
+  public void logTrade(Long tradeId, String userId, String accountId, String symbol,
+                       TradeType tradeType, BigDecimal quantity, BigDecimal price,
                        BigDecimal fee, BigDecimal totalAmount, LocalDate tradeDate) {
     
     Map<String, Object> tradeLog = new HashMap<>();

@@ -26,17 +26,6 @@ public class BacktestHistoryServiceImpl implements BacktestHistoryService {
         Page<BacktestHistory> historyPage = backtestHistoryRepository
             .findByUserIdOrderByCreatedAtDesc(userId, pageable);
 
-        return historyPage.map(this::convertToDto);
-    }
-
-    private BacktestHistoryDto convertToDto(BacktestHistory history) {
-        return new BacktestHistoryDto(
-            history.getBacktestId(),
-            history.getUserId(),
-            history.getBacktestType(),
-            history.getRequestParams(),
-            history.getFxRateMode(),
-            history.getCreatedAt()
-        );
+        return historyPage.map(BacktestHistoryDto::from);
     }
 }

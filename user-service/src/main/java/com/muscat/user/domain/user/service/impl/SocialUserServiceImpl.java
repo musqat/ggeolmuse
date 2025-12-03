@@ -127,14 +127,13 @@ public class SocialUserServiceImpl implements SocialUserService {
 
     log.debug("기존 Google 사용자 정보 업데이트: {}", email);
 
-    existingUser.setSocialEmail(email);
-    existingUser.setProfileImageUrl(picture);
-
     if (existingUser.getNickname() == null ||
         existingUser.getNickname().startsWith("Google") ||
         existingUser.getNickname().startsWith("GoogleUser")) {
-      existingUser.setNickname(nickname);
+      existingUser.updateSocialInfoWithNickname(email, picture, nickname);
       log.debug("닉네임 업데이트: {}", nickname);
+    } else {
+      existingUser.updateSocialInfo(email, picture);
     }
 
     return existingUser;

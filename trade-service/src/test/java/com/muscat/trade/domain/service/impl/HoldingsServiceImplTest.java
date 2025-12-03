@@ -62,7 +62,7 @@ class HoldingsServiceImplTest {
   @BeforeEach
   void setUp() {
     testHolding = Holdings.builder()
-      .holdingId("holding-uuid")
+      .id(1L)
       .userId(TEST_USER_ID)
       .accountId(TEST_ACCOUNT_ID)
       .symbol(TEST_SYMBOL)

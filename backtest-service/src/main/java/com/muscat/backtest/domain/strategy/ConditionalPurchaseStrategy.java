@@ -13,8 +13,11 @@ import com.muscat.backtest.common.util.BacktestDataUtils;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
+import com.muscat.backtest.domain.model.InvestmentParams;
+import com.muscat.backtest.domain.model.PurchaseDecision;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.backtest.infra.client.MarketDataClient;
+import com.muscat.backtest.infra.client.dto.FxRateDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import com.muscat.commonlib.util.MoneyUtils;
 import java.math.BigDecimal;
@@ -75,9 +78,9 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
       var currentPrice = BacktestDataUtils.getCurrentPrice(marketDataClient, request.getSymbol());
 
       // 환율 조회 (수동 설정 우선)
-      MarketDataClient.FxRate currentFxRate;
+      FxRateDto currentFxRate;
       if (request.getCurrentFxRate() != null) {
-        currentFxRate = new MarketDataClient.FxRate(LocalDate.now(), request.getCurrentFxRate());
+        currentFxRate = new FxRateDto(LocalDate.now(), request.getCurrentFxRate());
       } else {
         currentFxRate = BacktestDataUtils.getCurrentFxRate(marketDataClient);
       }
@@ -130,7 +133,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
 
           java.util.Map<LocalDate, OHLCPriceDto> dividendPriceMap = dividendPrices.stream()
             .filter(OHLCPriceDto::available)
-            .collect(java.util.stream.Collectors.toMap(OHLCPriceDto::date, p -> p));
+            .collect(java.util.stream.Collectors.toMap(OHLCPriceDto::date, p -> p, (existing, replacement) -> replacement));
 
           // 배당 날짜들의 환율 데이터 조회
           final java.util.Map<LocalDate, BigDecimal> dividendFxRateMap =
@@ -355,7 +358,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     // 날짜별 빠른 조회를 위한 Map 생성
     java.util.Map<LocalDate, OHLCPriceDto> priceMap = allPrices.stream()
       .filter(OHLCPriceDto::available)
-      .collect(java.util.stream.Collectors.toMap(OHLCPriceDto::date, p -> p));
+      .collect(java.util.stream.Collectors.toMap(OHLCPriceDto::date, p -> p, (existing, replacement) -> replacement));
 
     log.info("가격 데이터 조회 완료: {}개", priceMap.size());
 
@@ -477,14 +480,4 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
       .trigger(trigger)
       .build();
   }
-
-  private record PurchaseDecision(boolean shouldBuy, String trigger) {
-
-  }
-
-  // 투자 파라미터 레코드
-  private record InvestmentParams(BigDecimal amountPerPurchase, int maxPurchases) {
-
-  }
-
 }

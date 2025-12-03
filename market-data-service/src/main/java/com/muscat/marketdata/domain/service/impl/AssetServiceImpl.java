@@ -177,7 +177,13 @@ public class AssetServiceImpl implements AssetService {
 
         // Asset을 AssetSummaryDto로 변환 (currentPrice, latestDataDate 계산)
         List<AssetSummaryDto> summaries = pagedAssets.stream()
-                .map(this::convertToSummaryDto)
+                .map(asset -> {
+                    // 최신 Candle 데이터 조회
+                    return candleRepository.findFirstBySymbolOrderByDateDesc(asset.getSymbol())
+                            .map(candle -> AssetSummaryDto.of(
+                                    asset, candle.getClose(), candle.getDate()))
+                            .orElse(AssetSummaryDto.from(asset));
+                })
                 .collect(Collectors.toList());
 
         log.debug("활성 종목 요약 정보 변환 완료: count={}", summaries.size());
@@ -274,30 +280,4 @@ public class AssetServiceImpl implements AssetService {
                 upperSymbol, asset.getDelistedDate());
     }
 
-    // ==================== 내부 메서드 ====================
-
-    private AssetSummaryDto convertToSummaryDto(Asset asset) {
-        BigDecimal currentPrice = null;
-        LocalDate latestDataDate = null;
-
-        // 최신 Candle 데이터 조회
-        Optional<Candle> latestCandle = candleRepository.findFirstBySymbolOrderByDateDesc(asset.getSymbol());
-        if (latestCandle.isPresent()) {
-            currentPrice = latestCandle.get().getClose();
-            latestDataDate = latestCandle.get().getDate();
-        }
-
-        return AssetSummaryDto.builder()
-                .symbol(asset.getSymbol())
-                .name(asset.getName())
-                .country(asset.getCountry())
-                .currency(asset.getCurrency())
-                .assetType(asset.getAssetType())
-                .marketCap(asset.getMarketCap())
-                .active(asset.getActive())
-                .delistedDate(asset.getDelistedDate())
-                .currentPrice(currentPrice)
-                .latestDataDate(latestDataDate)
-                .build();
-    }
 }

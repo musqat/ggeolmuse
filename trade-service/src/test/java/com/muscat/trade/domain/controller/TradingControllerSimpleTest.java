@@ -58,8 +58,8 @@ class TradingControllerSimpleTest {
     request.setPriceType(PriceType.CLOSE);
 
     TradeResponseDto expectedResponse = new TradeResponseDto(
-      "TRADE_001",
-      "1",
+      1L,
+      1L,
       "AAPL",
       TradeType.BUY,
       new BigDecimal("10"),
@@ -86,7 +86,7 @@ class TradingControllerSimpleTest {
     // Then
     assertThat(response.getStatusCode().value()).isEqualTo(200);
     assertThat(response.getBody()).isNotNull();
-    assertThat(response.getBody().tradeId()).isEqualTo("TRADE_001");
+    assertThat(response.getBody().id()).isEqualTo(1L);
     assertThat(response.getBody().symbol()).isEqualTo("AAPL");
   }
 
@@ -102,8 +102,8 @@ class TradingControllerSimpleTest {
     request.setPriceType(PriceType.CLOSE);
 
     TradeResponseDto expectedResponse = new TradeResponseDto(
-      "TRADE_002",
-      "1",
+      2L,
+      1L,
       "AAPL",
       TradeType.SELL,
       new BigDecimal("5"),

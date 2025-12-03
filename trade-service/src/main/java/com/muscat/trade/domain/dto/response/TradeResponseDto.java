@@ -9,11 +9,11 @@ import java.time.LocalDateTime;
 
 @Schema(description = "거래 내역 정보")
 public record TradeResponseDto(
-  @Schema(description = "거래 ID", example = "TRADE_20240918_001")
-  String tradeId, // 거래 ID
+  @Schema(description = "거래 ID", example = "1")
+  Long id, // 거래 ID
 
   @Schema(description = "계좌 ID", example = "12345678")
-  String accountId, // 계좌 ID
+  Long accountId, // 계좌 ID
 
   @Schema(description = "종목 심볼", example = "AAPL")
   String symbol, // 종목 심볼
@@ -43,8 +43,8 @@ public record TradeResponseDto(
   // Entity to DTO 변환
   public static TradeResponseDto from(Trade trade) {
     return new TradeResponseDto(
-      trade.getTradeId(),
-      String.valueOf(trade.getAccountId()),
+      trade.getId(),
+      trade.getAccountId(),
       trade.getSymbol(),
       trade.getTradeType(),
       trade.getQuantity(),

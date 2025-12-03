@@ -97,7 +97,7 @@ class TradingServiceSimpleTest {
     LocalDate tradeDate = LocalDate.of(2024, 1, 15);
 
     Holdings holdings = Holdings.builder()
-      .holdingId("holding-1")
+      .id(1L)
       .userId(userId)
       .accountId(accountId)
       .symbol(symbol)
@@ -127,7 +127,7 @@ class TradingServiceSimpleTest {
     BigDecimal holdingQuantity = new BigDecimal("10");
 
     Holdings holdings = Holdings.builder()
-      .holdingId("holding-1")
+      .id(1L)
       .userId(userId)
       .accountId(accountId)
       .symbol(symbol)
@@ -155,7 +155,7 @@ class TradingServiceSimpleTest {
     BigDecimal holdingQuantity = new BigDecimal("10");
 
     Holdings holdings = Holdings.builder()
-      .holdingId("holding-1")
+      .id(1L)
       .userId(userId)
       .accountId(accountId)
       .symbol(symbol)
@@ -200,7 +200,7 @@ class TradingServiceSimpleTest {
     BigDecimal holdingQuantity = new BigDecimal("10");
 
     Holdings holdings = Holdings.builder()
-      .holdingId("holding-1")
+      .id(1L)
       .userId(userId)
       .accountId(accountId)
       .symbol(symbol)

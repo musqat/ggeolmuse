@@ -1,5 +1,6 @@
 package com.muscat.trade.domain.controller;
 
+import com.muscat.trade.domain.dto.response.DividendResponseDto;
 import com.muscat.trade.domain.entity.Trade;
 import com.muscat.trade.domain.repository.TradeRepository;
 import com.muscat.trade.domain.service.DividendService;
@@ -50,7 +51,7 @@ public class TransactionHistoryController {
     for (Trade trade : trades) {
       Map<String, Object> transaction = new HashMap<>();
       transaction.put("type", trade.getTradeType().toString()); // BUY or SELL
-      transaction.put("tradeId", trade.getTradeId()); // Trade ID
+      transaction.put("tradeId", trade.getId()); // Trade ID
       transaction.put("accountId", trade.getAccountId()); // 계좌 ID
       transaction.put("symbol", trade.getSymbol());
       transaction.put("quantity", trade.getQuantity());
@@ -63,23 +64,23 @@ public class TransactionHistoryController {
     }
 
     // 2. 배당 수령 내역 조회 (Trade 단위로 캐싱됨)
-    List<Map<String, Object>> dividends = dividendService.getUserDividends(userId);
+    List<DividendResponseDto> dividends = dividendService.getUserDividends(userId);
 
-    for (Map<String, Object> dividend : dividends) {
+    for (DividendResponseDto dividend : dividends) {
       Map<String, Object> transaction = new HashMap<>();
       transaction.put("type", "DIVIDEND"); // 배당
-      transaction.put("tradeId", dividend.get("tradeId")); // 연결된 Trade ID
-      transaction.put("symbol", dividend.get("symbol"));
+      transaction.put("tradeId", dividend.tradeId()); // 연결된 Trade ID
+      transaction.put("symbol", dividend.symbol());
       transaction.put("quantity", null); // 배당은 수량 없음
       transaction.put("price", null); // 배당은 단가 없음
-      transaction.put("totalAmount", dividend.get("netAmount")); // 세후 금액
-      transaction.put("grossAmount", dividend.get("grossAmount")); // 세전 금액
-      transaction.put("taxAmount", dividend.get("taxAmount")); // 원천징수세
+      transaction.put("totalAmount", dividend.netAmount()); // 세후 금액
+      transaction.put("grossAmount", dividend.grossAmount()); // 세전 금액
+      transaction.put("taxAmount", dividend.taxAmount()); // 원천징수세
       transaction.put("fee", null);
-      transaction.put("date", dividend.get("dividendDate"));
-      transaction.put("executedAt", dividend.get("processedAt"));
-      transaction.put("dividendPerShare", dividend.get("dividendPerShare"));
-      transaction.put("shares", dividend.get("shares")); // 배당 받은 주식 수
+      transaction.put("date", dividend.dividendDate());
+      transaction.put("executedAt", dividend.processedAt());
+      transaction.put("dividendPerShare", dividend.dividendPerShare());
+      transaction.put("shares", dividend.shares()); // 배당 받은 주식 수
       transactions.add(transaction);
     }
 

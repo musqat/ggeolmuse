@@ -89,6 +89,10 @@ public class User {
   private List<Account> accounts = new ArrayList<>();
 
 
+  // ============================================
+  // 도메인 메서드 (Domain Methods)
+  // ============================================
+
   // 계정 삭제 전 검증 메서드
   public void validateForDeletion() {
     for (Account account : accounts) {
@@ -96,6 +100,46 @@ public class User {
           account.getBalanceUsd().compareTo(BigDecimal.ZERO) > 0) {
         throw new UserException(UserResponse.ACCOUNT_DELETION_BLOCKED);
       }
+    }
+  }
+
+  // 비밀번호 변경
+  public void changePassword(String encodedPassword) {
+    this.passwordHash = encodedPassword;
+  }
+
+  // 이메일 인증 완료
+  public void verifyEmail() {
+    this.emailVerified = true;
+  }
+
+  // 닉네임 변경
+  public void changeNickname(String newNickname) {
+    this.nickname = newNickname;
+  }
+
+  // 역할 변경 (관리자용)
+  public void changeRole(UserRole newRole) {
+    this.role = newRole;
+  }
+
+  // 계정 활성화/비활성화 (관리자용)
+  public void changeEnabledStatus(boolean enabled) {
+    this.enabled = enabled;
+  }
+
+  // 소셜 정보 업데이트
+  public void updateSocialInfo(String socialEmail, String profileImageUrl) {
+    this.socialEmail = socialEmail;
+    this.profileImageUrl = profileImageUrl;
+  }
+
+  // 소셜 정보 업데이트 (닉네임 포함)
+  public void updateSocialInfoWithNickname(String socialEmail, String profileImageUrl, String nickname) {
+    this.socialEmail = socialEmail;
+    this.profileImageUrl = profileImageUrl;
+    if (nickname != null && !nickname.isBlank()) {
+      this.nickname = nickname;
     }
   }
 

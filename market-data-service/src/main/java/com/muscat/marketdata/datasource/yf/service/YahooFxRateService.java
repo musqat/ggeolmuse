@@ -10,6 +10,9 @@ import com.muscat.marketdata.infra.kafka.FxRateEventProducer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,6 +43,10 @@ public class YahooFxRateService implements FxRateService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(cacheNames = "fxRate", key = "#date"),
+        @CacheEvict(cacheNames = "latestFxRate", allEntries = true)
+    })
     public FxRate saveRate(LocalDate date, BigDecimal usdToKrw) {
         Objects.requireNonNull(date, "날짜는 필수입니다");
         Objects.requireNonNull(usdToKrw, "환율은 필수입니다");
@@ -82,7 +89,8 @@ public class YahooFxRateService implements FxRateService {
     @Override
     @Transactional(readOnly = true)
     public FxRate findByDate(LocalDate date) {
-        return fxRateRepository.findByDate(date).orElse(null);
+        // 정확한 날짜가 없으면 가장 가까운 이전 영업일 환율 조회 (주말/공휴일 대비)
+        return fxRateRepository.findFirstByDateLessThanEqualOrderByDateDesc(date).orElse(null);
     }
 
     @Override
@@ -95,18 +103,18 @@ public class YahooFxRateService implements FxRateService {
     }
 
     @Override
-    @Transactional
+    @Cacheable(cacheNames = "latestFxRate", key = "'latest'")
+    @Transactional(readOnly = true)
     public Optional<FxRate> getLatestRate() {
         Optional<FxRate> latest = fxRateRepository.findLatestRate();
 
         if (latest.isPresent()) {
+            log.debug("[YF-환율조회] DB에서 최신 환율 조회 성공: {}", latest.get().getRate());
             return latest;
         }
 
-        log.info("[YF-환율조회] DB가 비어있어서 오늘 환율을 API에서 가져옵니다");
-        LocalDate today = LocalDate.now();
-        Optional<FxRate> todayRate = dataCollector.collectSingleDate(today, true);
-        return todayRate.map(rate -> saveRate(today, rate.getRate()));
+        log.warn("[YF-환율조회] DB에 환율 데이터가 없습니다. 외부 API 호출은 스케줄러에서 수행됩니다.");
+        return Optional.empty();
     }
 
     @Override

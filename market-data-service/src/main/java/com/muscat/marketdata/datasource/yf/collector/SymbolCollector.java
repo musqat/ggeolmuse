@@ -6,6 +6,7 @@ import com.muscat.marketdata.domain.repository.AssetRepository;
 import com.muscat.marketdata.infra.kafka.AssetEventProducer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -20,7 +21,6 @@ import java.util.List;
 /**
  * Yahoo Finance 종목 자동 수집 (이벤트 기반)
  *
- * Asset 저장 후 Kafka 이벤트를 발행하여 비동기로 캔들 데이터를 수집합니다.
  * NASDAQ API (우선) 또는 CSV 파일 (fallback)에서 종목 정보를 로드합니다.
  */
 @Slf4j
@@ -45,6 +45,11 @@ public class SymbolCollector {
     @EventListener(ApplicationReadyEvent.class)
     @Async
     @Transactional
+    @SchedulerLock(
+        name = "YF_SymbolCollector_collectSymbols",
+        lockAtMostFor = "30m",
+        lockAtLeastFor = "10s"
+    )
     public void collectSymbols() {
         if (!enabled) {
             log.info("[YF-종목수집] 비활성화됨 (marketdata.symbol-collection.enabled=false)");

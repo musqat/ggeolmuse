@@ -771,7 +771,7 @@ class AccountServiceImplTest {
       com.muscat.messaging.event.TradeCompletedEvent event =
         com.muscat.messaging.event.TradeCompletedEvent.builder()
           .userId("invalid-user-id")
-          .tradeId("TRADE-003")
+          .tradeId(3L)
           .symbol("TSLA")
           .tradeType("BUY")
           .quantity(new BigDecimal("1"))
@@ -793,7 +793,7 @@ class AccountServiceImplTest {
       com.muscat.messaging.event.TradeCompletedEvent event =
         com.muscat.messaging.event.TradeCompletedEvent.builder()
           .userId(userId.toString())
-          .tradeId("TRADE-004")
+          .tradeId(4L)
           .symbol("MSFT")
           .tradeType("BUY")
           .quantity(new BigDecimal("10"))
@@ -818,7 +818,7 @@ class AccountServiceImplTest {
       com.muscat.messaging.event.TradeCompletedEvent event =
         com.muscat.messaging.event.TradeCompletedEvent.builder()
           .userId(userId.toString())
-          .tradeId("TRADE-005")
+          .tradeId(5L)
           .symbol("AMZN")
           .tradeType("UNKNOWN")
           .quantity(new BigDecimal("2"))
@@ -850,7 +850,7 @@ class AccountServiceImplTest {
       TradeCancelledEvent event =
         com.muscat.messaging.event.TradeCancelledEvent.builder()
           .userId(userId.toString())
-          .tradeId("TRADE-003")
+          .tradeId(3L)
           .symbol("TSLA")
           .tradeType("BUY")
           .quantity(new BigDecimal("1"))

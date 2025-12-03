@@ -2,7 +2,7 @@ package com.muscat.backtest.common.calculation;
 
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.backtest.common.util.BacktestCalculationUtils;
-import com.muscat.backtest.infra.client.MarketDataClient.FxRate;
+import com.muscat.backtest.infra.client.dto.FxRateDto;
 import com.muscat.commonlib.util.MoneyUtils;
 import com.muscat.commonlib.dto.StockPriceDto;
 import lombok.experimental.UtilityClass;
@@ -20,7 +20,7 @@ public class StrategyCalculator {
             BigDecimal totalShares,
             BigDecimal totalFxRateSum,
             StockPriceDto currentPrice,
-            FxRate currentFxRate,
+            FxRateDto currentFxRate,
             BigDecimal totalDividends,
             BigDecimal dividendsReinvested) {
         

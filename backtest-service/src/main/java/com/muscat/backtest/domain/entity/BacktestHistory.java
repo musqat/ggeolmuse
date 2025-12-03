@@ -17,8 +17,8 @@ import java.time.LocalDateTime;
 public class BacktestHistory {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private String backtestId;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @Column(nullable = true)
     private String userId; // 사용자 ID (null 가능 - 비로그인 사용자)

@@ -7,7 +7,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface InvestmentBacktestResultRepository extends
-    JpaRepository<InvestmentBacktestResult, String> {
+    JpaRepository<InvestmentBacktestResult, Long> {
 
   Optional<InvestmentBacktestResult> findByUserId(String userId);
 }

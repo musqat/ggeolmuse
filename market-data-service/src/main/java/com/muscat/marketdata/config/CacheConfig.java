@@ -23,7 +23,7 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 /**
  * Redis 기반 캐싱 설정
  *
- * - ohlcPriceRange: 과거 OHLC 데이터 (24시간) - 백테스트용, 변경 없음
+ * - ohlcPriceRange: 과거 OHLC 데이터 (24시간) - 백테스트용
  * - stockPrices: 주식 목록 (5분) - 시가총액 업데이트 빈도 고려
  * - currentPrice: 현재가 (30초) - 실시간성 요구
  * - fxRate: 환율 데이터 (24시간) - 하루 1번 업데이트
@@ -89,6 +89,10 @@ public class CacheConfig {
     // 5. 배당 이력 조회 - 24시간 TTL
     cacheConfigurations.put("dividends",
         defaultConfig.entryTtl(Duration.ofHours(24)));
+
+    // 6. 최신 환율 조회 - 1시간 TTL (빈번한 조회 최적화)
+    cacheConfigurations.put("latestFxRate",
+        defaultConfig.entryTtl(Duration.ofHours(1)));
 
     log.info("Configured caches: {}", cacheConfigurations.keySet());
 

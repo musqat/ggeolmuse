@@ -39,7 +39,7 @@ public record BalanceResponseDto(
   BigDecimal slippageRate          // 슬리피지율
 ) {
 
-  public static BalanceResponseDto from(Account account, BigDecimal currentRate,
+  public static BalanceResponseDto of(Account account, BigDecimal currentRate,
     AccountCalculatorUtil calculator) {
     return new BalanceResponseDto(
       account.getAccountName(),

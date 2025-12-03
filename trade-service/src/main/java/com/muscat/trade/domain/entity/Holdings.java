@@ -34,8 +34,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 public class Holdings {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.UUID)
-  private String holdingId; // PK
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id; // PK
 
   @Column(nullable = false)
   private String userId; // 사용자 ID (Keycloak UUID)
@@ -66,4 +66,36 @@ public class Holdings {
   @UpdateTimestamp
   @Column(nullable = false)
   private LocalDateTime lastUpdatedAt; // 최종 수정일시
+
+  // ============================================
+  // 도메인 메서드 (Domain Methods)
+  // ============================================
+
+  // 매수: 평균 매수가 재계산 (가중 평균)
+  public void addPurchase(BigDecimal quantity, BigDecimal price, int pricePrecision) {
+    BigDecimal currentTotalValue = this.totalQuantity.multiply(this.avgPurchasePrice);
+    BigDecimal newTotalValue = currentTotalValue.add(quantity.multiply(price));
+    BigDecimal newTotalQuantity = this.totalQuantity.add(quantity);
+    BigDecimal newAvgPrice = newTotalValue.divide(newTotalQuantity, pricePrecision,
+        java.math.RoundingMode.HALF_UP);
+
+    this.totalQuantity = newTotalQuantity;
+    this.avgPurchasePrice = newAvgPrice;
+    this.totalInvestedAmount = this.totalInvestedAmount.add(quantity.multiply(price));
+  }
+
+  // 매도: 수량 감소 (평균 매수가는 유지)
+  public void sellShares(BigDecimal quantity, int sellRatioPrecision) {
+    BigDecimal sellRatio = quantity.divide(this.totalQuantity, sellRatioPrecision,
+        java.math.RoundingMode.HALF_UP);
+    BigDecimal soldAmount = this.totalInvestedAmount.multiply(sellRatio);
+
+    this.totalQuantity = this.totalQuantity.subtract(quantity);
+    this.totalInvestedAmount = this.totalInvestedAmount.subtract(soldAmount);
+  }
+
+  // 보유 여부 확인
+  public boolean hasShares() {
+    return this.totalQuantity.compareTo(BigDecimal.ZERO) > 0;
+  }
 }

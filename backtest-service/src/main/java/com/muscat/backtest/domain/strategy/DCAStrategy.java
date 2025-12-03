@@ -14,11 +14,14 @@ import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.backtest.infra.client.MarketDataClient;
+import com.muscat.backtest.infra.client.dto.FxRateDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,20 +29,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * DCA(Dollar Cost Averaging) 적립식 투자 전략
- * <p>
  * 매월 지정된 날짜에 정해진 금액을 자동으로 투자하는 전략입니다.
- * 배당금 재투자, 원천징수세 적용, 환율 변동 등을 고려하여
- * 장기적인 투자 성과를 시뮬레이션합니다.
- * </p>
- *
- * <p>주요 기능:</p>
- * <ul>
- *   <li>정기적인 월 투자 실행</li>
- *   <li>배당금 자동 재투자 (선택 가능)</li>
- *   <li>배당 원천징수세 적용</li>
- *   <li>환율 변동 추적</li>
- *   <li>주말/공휴일 처리 (이전 영업일 적용)</li>
- * </ul>
+ * 배당금 재투자, 원천징수세 적용, 환율 변동등을 선택해서 투자할수있습니다.
  */
 @Component
 @RequiredArgsConstructor
@@ -56,14 +47,11 @@ public class DCAStrategy implements InvestmentStrategy {
 
   /**
    * DCA 전략을 실행하고 백테스팅 결과를 반환합니다.
-   * <p>
    * 시작일부터 종료일까지 매월 지정된 날짜에 정해진 금액을 투자하며,
    * 배당금 재투자, 환율 변동, 원천징수세 등을 모두 고려합니다.
-   * </p>
    *
    * @param request DCA 전략 실행 요청 (종목, 기간, 월투자액, 매수일 등)
    * @return 전략 실행 결과 (총 투자금, 수익률, 거래 내역, 배당금 등)
-   * @throws BacktestException 요청 검증 실패 또는 데이터 조회 실패 시
    */
   @Override
   public StrategyResponse executeDca(DcaStrategyRequest request) {
@@ -96,9 +84,9 @@ public class DCAStrategy implements InvestmentStrategy {
       var currentPrice = BacktestDataUtils.getCurrentPrice(marketDataClient, request.getSymbol());
 
       // 환율 조회 (수동 설정 우선, 없으면 자동 조회)
-      MarketDataClient.FxRate currentFxRate;
+      FxRateDto currentFxRate;
       if (request.getCurrentFxRate() != null) {
-        currentFxRate = new MarketDataClient.FxRate(LocalDate.now(), request.getCurrentFxRate());
+        currentFxRate = new FxRateDto(LocalDate.now(), request.getCurrentFxRate());
       } else {
         currentFxRate = BacktestDataUtils.getCurrentFxRate(marketDataClient);
       }
@@ -149,15 +137,16 @@ public class DCAStrategy implements InvestmentStrategy {
             dividendDates.get(dividendDates.size() - 1).toString()
           );
 
-          java.util.Map<LocalDate, OHLCPriceDto> dividendPriceMap = dividendPrices.stream()
+          Map<LocalDate, OHLCPriceDto> dividendPriceMap = dividendPrices.stream()
             .filter(OHLCPriceDto::available)
-            .collect(java.util.stream.Collectors.toMap(OHLCPriceDto::date, p -> p));
+            .collect(
+              Collectors.toMap(OHLCPriceDto::date, p -> p, (existing, replacement) -> replacement));
 
           // 배당 날짜들의 환율 데이터 조회
-          final java.util.Map<LocalDate, BigDecimal> dividendFxRateMap =
+          final Map<LocalDate, BigDecimal> dividendFxRateMap =
             request.getPurchaseFxRate() == null
               ? BacktestDataUtils.getBulkFxRates(marketDataClient, dividendDates)
-              : new java.util.HashMap<>();
+              : new HashMap<>();
 
           log.info("배당 재투자 데이터 조회 완료: 가격 {}개, 환율 {}개",
             dividendPriceMap.size(), dividendFxRateMap.size());
@@ -308,14 +297,15 @@ public class DCAStrategy implements InvestmentStrategy {
     );
 
     // 날짜별 빠른 조회를 위한 Map 생성
-    java.util.Map<LocalDate, OHLCPriceDto> priceMap = allPrices.stream()
+    Map<LocalDate, OHLCPriceDto> priceMap = allPrices.stream()
       .filter(OHLCPriceDto::available)
-      .collect(java.util.stream.Collectors.toMap(OHLCPriceDto::date, p -> p));
+      .collect(
+        Collectors.toMap(OHLCPriceDto::date, p -> p, (existing, replacement) -> replacement));
 
     log.info("가격 데이터 조회 완료: {}개", priceMap.size());
 
     //  BULK API 사용: 매월 투자일의 환율 데이터를 한 번에 조회
-    java.util.Map<LocalDate, BigDecimal> fxRateMap = new java.util.HashMap<>();
+    Map<LocalDate, BigDecimal> fxRateMap = new HashMap<>();
     if (request.getPurchaseFxRate() == null) {
       // 매월 투자일 계산
       List<LocalDate> investmentDates = new ArrayList<>();

@@ -35,8 +35,8 @@ import org.hibernate.annotations.CreationTimestamp;
 public class Trade {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.UUID)
-  private String tradeId; // PK
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id; // PK
 
   @Column(nullable = false)
   private String userId; // 사용자 ID (Keycloak UUID)

@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface BacktestHistoryRepository extends JpaRepository<BacktestHistory, String> {
+public interface BacktestHistoryRepository extends JpaRepository<BacktestHistory, Long> {
 
   // 사용자별 백테스트 히스토리 조회 (페이징)
   Page<BacktestHistory> findByUserIdOrderByCreatedAtDesc(String userId, Pageable pageable);

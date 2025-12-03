@@ -13,8 +13,8 @@ import com.muscat.backtest.domain.dto.request.InvestmentRequest;
 import com.muscat.backtest.domain.dto.response.InvestmentResponse;
 import com.muscat.backtest.domain.entity.InvestmentBacktestResult;
 import com.muscat.backtest.domain.repository.InvestmentBacktestResultRepository;
-import com.muscat.backtest.infra.client.MarketDataClient;
 import com.muscat.backtest.infra.client.MarketDataClientWrapper;
+import com.muscat.backtest.infra.client.dto.FxRateDto;
 import com.muscat.backtest.infra.client.TradeServiceClientWrapper;
 import com.muscat.backtest.infra.client.dto.HoldingDto;
 import com.muscat.backtest.infra.client.dto.TradeDto;
@@ -85,9 +85,9 @@ class TradingSimulationServiceIT {
       List<TradeDto> tradeHistory = List.of(trade);
 
       StockPriceDto currentPrice = createCurrentPrice(TEST_SYMBOL, new BigDecimal("230.00"));
-      MarketDataClient.FxRate purchaseFxRate = new MarketDataClient.FxRate(
+      FxRateDto purchaseFxRate = new FxRateDto(
         LocalDate.of(2024, 1, 10), new BigDecimal("1300.00"));
-      MarketDataClient.FxRate currentFxRate = new MarketDataClient.FxRate(
+      FxRateDto currentFxRate = new FxRateDto(
         LocalDate.now(), new BigDecimal("1320.00"));
 
       given(tradeServiceClientWrapper.getPortfolio(TEST_AUTHORIZATION))
@@ -140,9 +140,9 @@ class TradingSimulationServiceIT {
       List<TradeDto> tradeHistory = List.of(trade);
 
       StockPriceDto currentPrice = createCurrentPrice(TEST_SYMBOL, new BigDecimal("230.00"));
-      MarketDataClient.FxRate purchaseFxRate = new MarketDataClient.FxRate(
+      FxRateDto purchaseFxRate = new FxRateDto(
         LocalDate.of(2024, 1, 10), new BigDecimal("1300.00"));
-      MarketDataClient.FxRate currentFxRate = new MarketDataClient.FxRate(
+      FxRateDto currentFxRate = new FxRateDto(
         LocalDate.now(), new BigDecimal("1320.00"));
 
       given(tradeServiceClientWrapper.getPortfolio(TEST_AUTHORIZATION))
@@ -204,9 +204,9 @@ class TradingSimulationServiceIT {
       List<TradeDto> tradeHistory = List.of(trade);
 
       StockPriceDto currentPrice = createCurrentPrice(TEST_SYMBOL, new BigDecimal("230.00"));
-      MarketDataClient.FxRate purchaseFxRate = new MarketDataClient.FxRate(
+      FxRateDto purchaseFxRate = new FxRateDto(
         LocalDate.of(2024, 1, 10), new BigDecimal("1300.00"));
-      MarketDataClient.FxRate currentFxRate = new MarketDataClient.FxRate(
+      FxRateDto currentFxRate = new FxRateDto(
         LocalDate.now(), new BigDecimal("1320.00"));
 
       given(tradeServiceClientWrapper.getPortfolio(TEST_AUTHORIZATION))
@@ -290,9 +290,9 @@ class TradingSimulationServiceIT {
       List<TradeDto> tradeHistory = List.of(trade);
 
       StockPriceDto currentPrice = createCurrentPrice(TEST_SYMBOL, new BigDecimal("230.00"));
-      MarketDataClient.FxRate purchaseFxRate = new MarketDataClient.FxRate(
+      FxRateDto purchaseFxRate = new FxRateDto(
         LocalDate.of(2024, 1, 10), new BigDecimal("1300.00"));
-      MarketDataClient.FxRate currentFxRate = new MarketDataClient.FxRate(
+      FxRateDto currentFxRate = new FxRateDto(
         LocalDate.now(), new BigDecimal("1320.00"));
 
       given(tradeServiceClientWrapper.getPortfolio(TEST_AUTHORIZATION))
@@ -345,9 +345,9 @@ class TradingSimulationServiceIT {
       List<TradeDto> tradeHistory = List.of(trade);
 
       StockPriceDto currentPrice = createCurrentPrice(TEST_SYMBOL, new BigDecimal("230.00"));
-      MarketDataClient.FxRate purchaseFxRate = new MarketDataClient.FxRate(
+      FxRateDto purchaseFxRate = new FxRateDto(
         LocalDate.of(2024, 1, 10), new BigDecimal("1300.00"));
-      MarketDataClient.FxRate currentFxRate = new MarketDataClient.FxRate(
+      FxRateDto currentFxRate = new FxRateDto(
         LocalDate.now(), new BigDecimal("1320.00"));
 
       given(tradeServiceClientWrapper.getPortfolio(any()))

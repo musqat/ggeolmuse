@@ -140,7 +140,7 @@ public class AccountServiceImpl implements AccountService {
 
     BigDecimal currentExchangeRate = getCurrentExchangeRate();
 
-    return BalanceResponseDto.from(account, currentExchangeRate, accountCalculator);
+    return BalanceResponseDto.of(account, currentExchangeRate, accountCalculator);
   }
 
   // KRW → USD 환전 처리 (수수료 없음)
@@ -176,13 +176,13 @@ public class AccountServiceImpl implements AccountService {
     BigDecimal previousBalanceUsd = account.getBalanceUsd();
 
     BigDecimal totalDeduction = calculation.getTotalKrwDeduction();
-    account.setBalanceKrw(account.getBalanceKrw().subtract(totalDeduction));
-    account.setBalanceUsd(account.getBalanceUsd().add(calculation.getFinalAmount()));
-
     BigDecimal newAvgRate = accountCalculator.calculateNewAverageRate(account, krwAmount,
       exchangeRate);
-    account.setTotalExchangedKrw(account.getTotalExchangedKrw().add(krwAmount));
-    account.setAvgExchangeRate(newAvgRate);
+
+    // 검증 + 상태 변경
+    account.executeExchangeKrwToUsd(totalDeduction, calculation.getFinalAmount(),
+      newAvgRate, krwAmount);
+
     String referenceId = generateReferenceId(TransactionType.EXCHANGE);
 
     accountHistoryService.createExchangeHistory(
@@ -243,12 +243,10 @@ public class AccountServiceImpl implements AccountService {
     BigDecimal previousBalanceKrw = account.getBalanceKrw();
     BigDecimal previousBalanceUsd = account.getBalanceUsd();
 
-    account.setBalanceUsd(account.getBalanceUsd().subtract(usdAmount));
-    account.setBalanceKrw(account.getBalanceKrw().add(calculation.getFinalAmount()));
+    // 검증 + 상태 변경 + 평균환율 리셋
+    account.executeExchangeUsdToKrw(usdAmount, calculation.getFinalAmount());
 
-    if (MoneyUtils.isEqual(account.getBalanceUsd(), BigDecimal.ZERO, "USD")) {
-      account.setAvgExchangeRate(BigDecimal.ZERO);
-      account.setTotalExchangedKrw(BigDecimal.ZERO);
+    if (account.getBalanceUsd().compareTo(BigDecimal.ZERO) == 0) {
       log.debug("USD 잔액 0 - 평균환율 리셋: accountId={}", accountId);
     }
     String referenceId = generateReferenceId(TransactionType.EXCHANGE);
@@ -285,20 +283,20 @@ public class AccountServiceImpl implements AccountService {
     Account account = accountRepository.findByIdAndUserIdWithLock(accountId, userId)
       .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
 
-    MoneyUtils.validatePositiveAmount(krwAmount, "입금 금액");
     krwAmount = MoneyUtils.roundKrw(krwAmount);
 
     if (krwAmount.compareTo(new BigDecimal("50000000")) > 0) {
       userLogger.logLargeTransaction(accountId, "KRW_DEPOSIT", krwAmount, "KRW");
     }
 
-    // 변경 전 잔액 저장
+    // 변경 전 잔액 저장 (이벤트 발행용)
     BigDecimal previousBalanceKrw = account.getBalanceKrw();
     BigDecimal previousBalanceUsd = account.getBalanceUsd();
 
-    BigDecimal newBalance = account.getBalanceKrw().add(krwAmount);
-    account.setBalanceKrw(newBalance);
+    // 검증 + 상태 변경
+    account.depositKrw(krwAmount);
 
+    // 인프라 처리 (Service 책임)
     String referenceId = generateReferenceId(TransactionType.DEPOSIT);
     accountHistoryService.createDepositHistory(
       accountId, krwAmount, CurrencyType.KRW.name(),
@@ -329,11 +327,15 @@ public class AccountServiceImpl implements AccountService {
     Account account = validateAccountAccess(accountId, userId);
     BigDecimal validatedAmount = validateUsdAmount(usdAmount);
 
-    // 변경 전 잔액 저장
+    // 변경 전 잔액 저장 (이벤트 발행용)
     BigDecimal previousBalanceKrw = account.getBalanceKrw();
     BigDecimal previousBalanceUsd = account.getBalanceUsd();
 
-    BigDecimal newBalance = updateAccountBalance(account, validatedAmount);
+    // 검증 + 상태 변경
+    account.adjustUsdBalance(validatedAmount);
+    BigDecimal newBalance = account.getBalanceUsd();
+
+    // 인프라 처리 (Service 책임)
     createTradeHistory(account, validatedAmount, newBalance, description);
 
     // 업데이트 타입 결정 (description에서 추론)
@@ -457,14 +459,8 @@ public class AccountServiceImpl implements AccountService {
     log.info("처리 시작: TradeCompletedEvent - tradeId={}, userId={}, tradeType={}, totalAmount={}",
       event.getTradeId(), event.getUserId(), event.getTradeType(), event.getTotalAmount());
 
-    // 1. 사용자 ID를 Long으로 변환
-    Long userId;
-    try {
-      userId = Long.parseLong(event.getUserId());
-    } catch (NumberFormatException e) {
-      log.error("잘못된 userId 형식: {}", event.getUserId());
-      throw new AccountException(AccountResponse.ACCOUNT_NOT_FOUND);
-    }
+    // 1. 사용자 ID 조회
+    Long userId = resolveUserId(event.getUserId());
 
     // 2. 사용자의 계좌 조회 (첫 번째 계좌 사용)
     List<Account> accounts = accountRepository.findByUserIdWithUser(userId);
@@ -521,14 +517,8 @@ public class AccountServiceImpl implements AccountService {
       event.getTradeId(), event.getUserId(), event.getTradeType(), event.getTotalAmount(),
       event.getCancellationReason());
 
-    // 1. 사용자 ID를 Long으로 변환
-    Long userId;
-    try {
-      userId = Long.parseLong(event.getUserId());
-    } catch (NumberFormatException e) {
-      log.error("잘못된 userId 형식: {}", event.getUserId());
-      throw new AccountException(AccountResponse.ACCOUNT_NOT_FOUND);
-    }
+    // 1. 사용자 ID 조회
+    Long userId = resolveUserId(event.getUserId());
 
     // 2. 사용자의 계좌 조회 (첫 번째 계좌 사용)
     List<Account> accounts = accountRepository.findByUserIdWithUser(userId);
@@ -591,14 +581,8 @@ public class AccountServiceImpl implements AccountService {
     log.info("처리 시작: DividendReceivedEvent - userId={}, accountId={}, symbol={}, amount={}",
       event.getUserId(), event.getAccountId(), event.getSymbol(), event.getTotalAmount());
 
-    // 1. 사용자 ID를 Long으로 변환
-    Long userId;
-    try {
-      userId = Long.parseLong(event.getUserId());
-    } catch (NumberFormatException e) {
-      log.error("잘못된 userId 형식: {}", event.getUserId());
-      throw new AccountException(AccountResponse.ACCOUNT_NOT_FOUND);
-    }
+    // 1. 사용자 ID 조회
+    Long userId = resolveUserId(event.getUserId());
 
     // 2. 계좌 조회
     Account account = accountRepository.findById(event.getAccountId())
@@ -677,20 +661,6 @@ public class AccountServiceImpl implements AccountService {
     return MoneyUtils.roundUsd(usdAmount);
   }
 
-  // 계좌 잔액 업데이트
-  private BigDecimal updateAccountBalance(Account account, BigDecimal usdAmount) {
-    BigDecimal newBalance = account.getBalanceUsd().add(usdAmount);
-
-    if (newBalance.compareTo(BigDecimal.ZERO) < 0) {
-      throw new AccountException(AccountResponse.INSUFFICIENT_USD_BALANCE);
-    }
-
-    account.setBalanceUsd(newBalance);
-    accountRepository.save(account);
-
-    return newBalance;
-  }
-
   // 거래 내역 생성
   private void createTradeHistory(Account account, BigDecimal usdAmount,
     BigDecimal newBalance, String description) {
@@ -709,6 +679,28 @@ public class AccountServiceImpl implements AccountService {
       .build();
 
     accountHistoryRepository.save(history);
+  }
+
+
+ //사용자 ID 해석 (Long ID 또는 Keycloak UUID 지원)
+
+  private Long resolveUserId(String userIdStr) {
+    // 1. Long으로 파싱 시도
+    try {
+      return Long.parseLong(userIdStr);
+    } catch (NumberFormatException e) {
+      log.debug("userId가 Long 형식이 아님, Keycloak UUID로 조회 시도: {}", userIdStr);
+    }
+
+    // 2. Keycloak UUID로 User 조회
+    User user = userRepository.findByKeycloakId(userIdStr)
+      .orElseThrow(() -> {
+        log.error("사용자를 찾을 수 없음: keycloakId={}", userIdStr);
+        return new AccountException(AccountResponse.ACCOUNT_NOT_FOUND);
+      });
+
+    log.debug("Keycloak UUID로 사용자 조회 성공: keycloakId={}, userId={}", userIdStr, user.getId());
+    return user.getId();
   }
 
   // ==================== ADMIN API ==================== //

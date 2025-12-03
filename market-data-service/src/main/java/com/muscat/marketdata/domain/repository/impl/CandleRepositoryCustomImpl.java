@@ -11,9 +11,6 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
-/**
- * CandleRepositoryCustom 구현체
- */
 @Repository
 @RequiredArgsConstructor
 public class CandleRepositoryCustomImpl implements CandleRepositoryCustom {
@@ -76,5 +73,14 @@ public class CandleRepositoryCustomImpl implements CandleRepositoryCustom {
         .and(candle.date.goe(fromDate)))
       .orderBy(candle.symbol.asc(), candle.date.desc())
       .fetch();
+  }
+
+  @Override
+  public long countDistinctSymbols() {
+    Long count = queryFactory
+      .select(candle.symbol.countDistinct())
+      .from(candle)
+      .fetchOne();
+    return count != null ? count : 0L;
   }
 }
