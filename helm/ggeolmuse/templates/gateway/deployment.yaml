@@ -68,10 +68,8 @@ spec:
           value: {{ .Values.global.keycloak.authServerUrl | quote }}
         - name: KEYCLOAK_REALM
           value: {{ .Values.global.keycloak.realm | quote }}
-        {{- if .Values.global.otel.enabled }}
         - name: JAVA_OPTS
-          value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" .Values.gatewayServer.name) }}
-        {{- end }}
+          value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" .Values.gatewayServer.name "xmx" "192m") }}
         readinessProbe:
           {{- include "ggeolmuse.readinessProbe" (dict "port" 9090 "initialDelaySeconds" .Values.gatewayServer.probes.readiness.initialDelaySeconds "periodSeconds" .Values.gatewayServer.probes.readiness.periodSeconds) | nindent 10 }}
         livenessProbe:

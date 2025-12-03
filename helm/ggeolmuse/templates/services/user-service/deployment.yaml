@@ -50,10 +50,8 @@ spec:
         - containerPort: {{ .Values.services.userService.service.port }}
         env:
         {{- include "ggeolmuse.springEnv" . | nindent 8 }}
-        {{- if .Values.global.otel.enabled }}
         - name: JAVA_OPTS
-          value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" .Values.services.userService.name "extraOpts" "-Dh2.webAllowOthers=true") }}
-        {{- end }}
+          value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" .Values.services.userService.name "extraOpts" "-Dh2.webAllowOthers=true" "xmx" "256m") }}
         - name: KEYCLOAK_PUBLIC_URL
           value: {{ .Values.global.keycloak.publicUrl | quote }}
         - name: KEYCLOAK_RESOURCE

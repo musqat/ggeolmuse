@@ -86,13 +86,16 @@ spec:
               value: "{{ .Values.infrastructure.kafka.env.logRetentionHours }}"
             - name: KAFKA_LOG_SEGMENT_BYTES
               value: "{{ .Values.infrastructure.kafka.env.logSegmentBytes }}"
+            # JVM 힙 메모리
+            - name: KAFKA_HEAP_OPTS
+              value: "-Xmx1g -Xms1g"
           resources:
             requests:
               memory: "1Gi"
-              cpu: "500m"
+              cpu: "250m"
             limits:
-              memory: "2Gi"
-              cpu: "1000m"
+              memory: "1536Mi"
+              cpu: "750m"
           volumeMounts:
             - name: kafka-data
               mountPath: /var/lib/kafka/data

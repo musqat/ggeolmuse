@@ -81,10 +81,8 @@ spec:
               name: ggeolmuse-secrets
               key: DB_PASSWORD
         {{- end }}
-        {{- if .Values.global.otel.enabled }}
         - name: JAVA_OPTS
-          value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" .Values.configServer.name) }}
-        {{- end }}
+          value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" .Values.configServer.name "xmx" "128m") }}
         volumeMounts:
         - name: config-repo-volume
           mountPath: /config-repo

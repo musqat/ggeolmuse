@@ -154,16 +154,15 @@ valueFrom:
     key: {{ .key }}
 {{- end }}
 
-{{/* OpenTelemetry JAVA_OPTS 생성 */}}
+{{/* OpenTelemetry JAVA_OPTS 생성 (JVM 힙 메모리 제한 포함) */}}
 {{- define "ggeolmuse.otelJavaOpts" -}}
 {{- $serviceName := .serviceName -}}
 {{- $extraOpts := .extraOpts | default "" -}}
+{{- $xmx := .xmx | default "384m" -}}
 {{- $otel := .Values.global.otel -}}
+-Xmx{{ $xmx }} -Xms{{ $xmx }} {{ if $extraOpts }}{{ $extraOpts }} {{ end -}}
 {{- if $otel.enabled -}}
-{{- if $extraOpts }}{{ $extraOpts }} {{ end -}}
 -javaagent:/app/opentelemetry-javaagent.jar -Dotel.service.name={{ $serviceName }} -Dotel.traces.exporter={{ $otel.tracesExporter }} -Dotel.metrics.exporter={{ $otel.metricsExporter }} -Dotel.logs.exporter={{ $otel.logsExporter }} -Dotel.exporter.otlp.endpoint={{ $otel.endpoint }} -Dotel.exporter.otlp.protocol={{ $otel.protocol }}
-{{- else -}}
-{{- if $extraOpts }}{{ $extraOpts }}{{ end -}}
 {{- end -}}
 {{- end }}
 

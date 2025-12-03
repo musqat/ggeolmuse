@@ -83,13 +83,11 @@ spec:
         - name: KOREAEXIM_API_KEY
           {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "KOREAEXIM_API_KEY") | nindent 10 }}
         {{- end }}
-        {{- if .Values.global.otel.enabled }}
         - name: JAVA_OPTS
-          value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" .Values.services.marketDataService.name) }}
-        {{- end }}
+          value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" .Values.services.marketDataService.name "xmx" "768m") }}
         {{- if .Values.services.marketDataService.env }}
         {{- range $key, $value := .Values.services.marketDataService.env }}
-        {{- if ne $key "javaOpts" }}
+        {{- if and (ne $key "javaOpts") (ne $key "JAVA_OPTS") }}
         - name: {{ $key }}
           value: {{ $value | quote }}
         {{- end }}
