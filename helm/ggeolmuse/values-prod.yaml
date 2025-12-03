@@ -207,7 +207,6 @@ configServer:
     searchPaths: .
   env:
     springProfiles: git,prod
-    JAVA_OPTS: "-Xms128m -Xmx256m"
   probes:
     readiness:
       initialDelaySeconds: 60
@@ -242,7 +241,6 @@ gatewayServer:
     springProfiles: prod
     configUri: http://config-server:8888
     configUsername: config
-    JAVA_OPTS: "-Xms192m -Xmx384m"
   rbac:
     create: true
   strategy:
@@ -286,7 +284,6 @@ services:
       appBaseUrl: https://ggeolmuse.com
       appFrontendUrl: https://ggeolmuse.com
       mailVerificationBaseUrl: https://ggeolmuse.com
-      JAVA_OPTS: "-Xms512m -Xmx768m"
     secrets:
       keycloakSecret: true
       mailUsername: true
@@ -314,7 +311,7 @@ services:
   tradeService:
     enabled: true
     name: trade-service
-    replicaCount: 2
+    replicaCount: 1
     image:
       repository: trade-service
       tag: "1.1.3"
@@ -323,8 +320,7 @@ services:
       port: 8081
     labels:
       tier: business-service
-    env:
-      JAVA_OPTS: "-Xms512m -Xmx768m"
+    env: {}
     secrets:
       keycloakSecret: true
     probes:
@@ -360,8 +356,7 @@ services:
       tier: business-service
     env:
       TZ: "Asia/Seoul"
-      JAVA_OPTS: "-Xms768m -Xmx1024m"
-      # 마켓 데이터  설정
+      # 마켓 데이터 설정
       MARKETDATA_PROVIDER: "alphavantage"
       SYMBOL_COLLECTION_ENABLED: "true"
       SYMBOL_COLLECT_DATA: "false"
@@ -407,8 +402,7 @@ services:
       port: 8082
     labels:
       tier: business-service
-    env:
-      JAVA_OPTS: "-Xms384m -Xmx640m"
+    env: {}
     secrets:
       keycloakSecret: true
     probes:
