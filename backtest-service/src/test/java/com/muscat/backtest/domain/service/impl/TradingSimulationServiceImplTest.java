@@ -23,8 +23,8 @@ import com.muscat.backtest.domain.dto.response.SimulationResponse;
 import com.muscat.backtest.domain.entity.InvestmentBacktestResult;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.domain.repository.InvestmentBacktestResultRepository;
-import com.muscat.backtest.infra.client.MarketDataClient;
 import com.muscat.backtest.infra.client.MarketDataClientWrapper;
+import com.muscat.backtest.infra.client.dto.FxRateDto;
 import com.muscat.backtest.infra.client.TradeServiceClientWrapper;
 import com.muscat.backtest.infra.client.dto.HoldingDto;
 import com.muscat.backtest.infra.client.dto.TradeDto;
@@ -105,9 +105,9 @@ class TradingSimulationServiceImplTest {
         testSimulationRequest.getPurchaseDate(),
         new BigDecimal("180.00"), true);
       StockPriceDto currentPrice = createCurrentPrice(TEST_SYMBOL, new BigDecimal("230.00"));
-      MarketDataClient.FxRate purchaseFxRate = new MarketDataClient.FxRate(
+      FxRateDto purchaseFxRate = new FxRateDto(
         testSimulationRequest.getPurchaseDate(), new BigDecimal("1300.00"));
-      MarketDataClient.FxRate currentFxRate = new MarketDataClient.FxRate(
+      FxRateDto currentFxRate = new FxRateDto(
         LocalDate.now(), new BigDecimal("1320.00"));
 
       SimulationResponse expectedResponse = createSimulationResponse();
@@ -152,9 +152,9 @@ class TradingSimulationServiceImplTest {
         testSimulationRequest.getPurchaseDate(),
         new BigDecimal("180.00"), true);
       StockPriceDto currentPrice = createCurrentPrice(TEST_SYMBOL, new BigDecimal("230.00"));
-      MarketDataClient.FxRate purchaseFxRate = new MarketDataClient.FxRate(
+      FxRateDto purchaseFxRate = new FxRateDto(
         testSimulationRequest.getPurchaseDate(), new BigDecimal("1300.00"));
-      MarketDataClient.FxRate currentFxRate = new MarketDataClient.FxRate(
+      FxRateDto currentFxRate = new FxRateDto(
         LocalDate.now(), new BigDecimal("1320.00"));
 
       SimulationResponse expectedResponse = createSimulationResponse();
@@ -204,9 +204,9 @@ class TradingSimulationServiceImplTest {
         testSimulationRequest.getPurchaseDate(),
         new BigDecimal("180.00"), true);
       StockPriceDto currentPrice = createCurrentPrice(TEST_SYMBOL, new BigDecimal("230.00"));
-      MarketDataClient.FxRate purchaseFxRate = new MarketDataClient.FxRate(
+      FxRateDto purchaseFxRate = new FxRateDto(
         testSimulationRequest.getPurchaseDate(), new BigDecimal("1300.00"));
-      MarketDataClient.FxRate currentFxRate = new MarketDataClient.FxRate(
+      FxRateDto currentFxRate = new FxRateDto(
         LocalDate.now(), new BigDecimal("1320.00"));
 
       SimulationResponse expectedResponse = createSimulationResponse();
@@ -310,9 +310,9 @@ class TradingSimulationServiceImplTest {
         requestWithoutUserId.getPurchaseDate(),
         new BigDecimal("180.00"), true);
       StockPriceDto currentPrice = createCurrentPrice(TEST_SYMBOL, new BigDecimal("230.00"));
-      MarketDataClient.FxRate purchaseFxRate = new MarketDataClient.FxRate(
+      FxRateDto purchaseFxRate = new FxRateDto(
         requestWithoutUserId.getPurchaseDate(), new BigDecimal("1300.00"));
-      MarketDataClient.FxRate currentFxRate = new MarketDataClient.FxRate(
+      FxRateDto currentFxRate = new FxRateDto(
         LocalDate.now(), new BigDecimal("1320.00"));
 
       SimulationResponse expectedResponse = createSimulationResponse();
@@ -367,9 +367,9 @@ class TradingSimulationServiceImplTest {
       List<TradeDto> tradeHistory = List.of(trade);
 
       StockPriceDto currentPrice = createCurrentPrice("AAPL", new BigDecimal("230.00"));
-      MarketDataClient.FxRate purchaseFxRate = new MarketDataClient.FxRate(
+      FxRateDto purchaseFxRate = new FxRateDto(
         LocalDate.of(2024, 1, 10), new BigDecimal("1300.00"));
-      MarketDataClient.FxRate currentFxRate = new MarketDataClient.FxRate(
+      FxRateDto currentFxRate = new FxRateDto(
         LocalDate.now(), new BigDecimal("1320.00"));
 
       SimulationResponse simulationResponse = createSimulationResponse();
@@ -458,7 +458,7 @@ class TradingSimulationServiceImplTest {
     void getCachedInvestmentResult_Found_Success() throws JsonProcessingException {
       // given
       InvestmentBacktestResult cachedEntity = InvestmentBacktestResult.builder()
-        .resultId("result-123")
+        .id(123L)
         .userId(TEST_USER_ID)
         .resultData("{\"status\":\"SUCCESS\"}")
         .calculatedAt(LocalDateTime.now())
@@ -505,7 +505,7 @@ class TradingSimulationServiceImplTest {
     void getCachedInvestmentResult_NullCalculatedAt_ReturnsEmpty() {
       // given
       InvestmentBacktestResult cachedEntity = InvestmentBacktestResult.builder()
-        .resultId("result-123")
+        .id(123L)
         .userId(TEST_USER_ID)
         .resultData("{\"status\":\"SUCCESS\"}")
         .calculatedAt(null) // null calculatedAt
@@ -527,7 +527,7 @@ class TradingSimulationServiceImplTest {
     void getCachedInvestmentResult_JsonParsingError_ReturnsEmpty() throws JsonProcessingException {
       // given
       InvestmentBacktestResult cachedEntity = InvestmentBacktestResult.builder()
-        .resultId("result-123")
+        .id(123L)
         .userId(TEST_USER_ID)
         .resultData("invalid json")
         .calculatedAt(LocalDateTime.now())
@@ -572,7 +572,7 @@ class TradingSimulationServiceImplTest {
     void getCachedInvestmentResultEntity_Found_Success() {
       // given
       InvestmentBacktestResult cachedEntity = InvestmentBacktestResult.builder()
-        .resultId("result-123")
+        .id(123L)
         .userId(TEST_USER_ID)
         .resultData("{\"status\":\"SUCCESS\"}")
         .calculatedAt(LocalDateTime.now())
@@ -589,7 +589,7 @@ class TradingSimulationServiceImplTest {
       assertThat(result).isPresent();
       assertThat(result.get()).isEqualTo(cachedEntity);
       assertThat(result.get().getUserId()).isEqualTo(TEST_USER_ID);
-      assertThat(result.get().getResultId()).isEqualTo("result-123");
+      assertThat(result.get().getId()).isEqualTo(123L);
     }
 
     @Test
@@ -612,7 +612,7 @@ class TradingSimulationServiceImplTest {
     void getCachedInvestmentResultEntity_NullCalculatedAt_ReturnsEmpty() {
       // given
       InvestmentBacktestResult cachedEntity = InvestmentBacktestResult.builder()
-        .resultId("result-123")
+        .id(123L)
         .userId(TEST_USER_ID)
         .resultData("{\"status\":\"SUCCESS\"}")
         .calculatedAt(null)

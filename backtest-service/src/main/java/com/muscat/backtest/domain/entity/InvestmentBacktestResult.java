@@ -6,7 +6,6 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Entity
 @Table(name = "investment_backtest_result")
@@ -17,7 +16,8 @@ import java.util.UUID;
 public class InvestmentBacktestResult {
 
     @Id
-    private String resultId;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @Column(nullable = false, unique = true)
     private String userId;
@@ -35,13 +35,6 @@ public class InvestmentBacktestResult {
     @UpdateTimestamp
     @Column(nullable = false)
     private LocalDateTime updatedAt;
-
-    @PrePersist
-    private void generateId() {
-        if (this.resultId == null) {
-            this.resultId = UUID.randomUUID().toString();
-        }
-    }
 
     public InvestmentBacktestResult updateResult(String resultData, LocalDateTime calculatedAt) {
         return this.toBuilder()

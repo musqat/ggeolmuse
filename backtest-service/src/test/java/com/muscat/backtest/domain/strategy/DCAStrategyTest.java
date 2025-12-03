@@ -16,6 +16,7 @@ import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.backtest.infra.client.MarketDataClient;
+import com.muscat.backtest.infra.client.dto.FxRateDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import com.muscat.commonlib.dto.StockPriceDto;
 import java.math.BigDecimal;
@@ -95,7 +96,7 @@ class DCAStrategyTest {
       given(marketDataClient.getBulkFxRates(any())).willReturn(fxRates);
 
       // 환율 데이터 Mock
-      MarketDataClient.FxRate fxRate = new MarketDataClient.FxRate(LocalDate.now(),
+      FxRateDto fxRate = new FxRateDto(LocalDate.now(),
         new BigDecimal("1300.00"));
       given(marketDataClient.getLatestFxRate()).willReturn(fxRate);
 
@@ -167,7 +168,7 @@ class DCAStrategyTest {
       given(marketDataClient.getBulkFxRates(any())).willReturn(fxRates);
 
       // 환율 데이터 Mock
-      MarketDataClient.FxRate fxRate = new MarketDataClient.FxRate(LocalDate.now(),
+      FxRateDto fxRate = new FxRateDto(LocalDate.now(),
         new BigDecimal("1300.00"));
       given(marketDataClient.getLatestFxRate()).willReturn(fxRate);
 
@@ -274,7 +275,7 @@ class DCAStrategyTest {
       );
       given(marketDataClient.getBulkFxRates(any())).willReturn(fxRates);
 
-      MarketDataClient.FxRate fxRate = new MarketDataClient.FxRate(
+      FxRateDto fxRate = new FxRateDto(
         LocalDate.now(), new BigDecimal("1300.00"));
       given(marketDataClient.getLatestFxRate()).willReturn(fxRate);
 
@@ -347,7 +348,7 @@ class DCAStrategyTest {
       );
       given(marketDataClient.getBulkFxRates(any())).willReturn(fxRates);
 
-      MarketDataClient.FxRate fxRate = new MarketDataClient.FxRate(
+      FxRateDto fxRate = new FxRateDto(
         LocalDate.now(), new BigDecimal("1300.00"));
       given(marketDataClient.getLatestFxRate()).willReturn(fxRate);
 

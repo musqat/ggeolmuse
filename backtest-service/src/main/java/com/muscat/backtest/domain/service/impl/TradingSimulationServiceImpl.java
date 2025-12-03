@@ -15,10 +15,13 @@ import com.muscat.backtest.domain.dto.response.InvestmentResponse;
 import com.muscat.backtest.domain.dto.response.SimulationResponse;
 import com.muscat.backtest.domain.entity.InvestmentBacktestResult;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
+import com.muscat.backtest.domain.model.OptimalTiming;
+import com.muscat.backtest.domain.model.SimulationCalculationResult;
+import com.muscat.backtest.domain.model.SimulationContext;
 import com.muscat.backtest.domain.repository.InvestmentBacktestResultRepository;
 import com.muscat.backtest.domain.service.TradingSimulationService;
-import com.muscat.backtest.infra.client.MarketDataClient;
 import com.muscat.backtest.infra.client.MarketDataClientWrapper;
+import com.muscat.backtest.infra.client.dto.FxRateDto;
 import com.muscat.backtest.infra.client.TradeServiceClientWrapper;
 import com.muscat.backtest.infra.client.dto.DividendDto;
 import com.muscat.backtest.infra.client.dto.DividendHistoryDto;
@@ -311,9 +314,9 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
       request.getPurchaseDate());
 
     // 수동 환율이 설정되어 있으면 사용, 없으면 자동 조회
-    MarketDataClient.FxRate purchaseFxRate;
+    FxRateDto purchaseFxRate;
     if (request.getPurchaseFxRate() != null) {
-      purchaseFxRate = new MarketDataClient.FxRate(request.getPurchaseDate(),
+      purchaseFxRate = new FxRateDto(request.getPurchaseDate(),
         request.getPurchaseFxRate());
     } else {
       purchaseFxRate = marketDataClientWrapper.getFxRate(request.getPurchaseDate().toString());
@@ -321,9 +324,9 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
 
     StockPriceDto currentPrice = marketDataClientWrapper.getCurrentPrice(request.getSymbol());
 
-    MarketDataClient.FxRate currentFxRate;
+    FxRateDto currentFxRate;
     if (request.getCurrentFxRate() != null) {
-      currentFxRate = new MarketDataClient.FxRate(LocalDate.now(), request.getCurrentFxRate());
+      currentFxRate = new FxRateDto(LocalDate.now(), request.getCurrentFxRate());
     } else {
       currentFxRate = marketDataClientWrapper.getLatestFxRate();
     }
@@ -331,8 +334,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
     // 배당 이력 조회
     List<DividendDto> dividendList = marketDataClientWrapper.getDividendHistory(
       request.getSymbol(), request.getPurchaseDate().toString(), LocalDate.now().toString());
-    DividendHistoryDto dividendHistory = convertToDividendHistory(request.getSymbol(),
-      dividendList);
+    DividendHistoryDto dividendHistory = DividendHistoryDto.of(request.getSymbol(), dividendList);
 
     return new SimulationContext(request, purchaseData, purchaseFxRate, currentPrice, currentFxRate,
       dividendHistory);
@@ -560,20 +562,6 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
     }
   }
 
-  // 최적 타이밍 정보를 담는 레코드
-  private record OptimalTiming(
-    LocalDate buyDate,
-    BigDecimal buyPrice,
-    LocalDate sellDate,
-    BigDecimal sellPrice,
-    BigDecimal returnPercent
-  ) {
-
-    static OptimalTiming empty() {
-      return new OptimalTiming(null, null, null, null, null);
-    }
-  }
-
   private void recordSimulationHistory(SimulationRequest request) {
     if (request.getUserId() == null) {
       return;
@@ -606,10 +594,10 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
       StockPriceDto currentPrice = marketDataClientWrapper.getCurrentPrice(holding.symbol());
 
       // 매수 시점의 환율 조회 (fallback 포함)
-      MarketDataClient.FxRate purchaseFxRate = getFxRateWithFallback(purchaseDate);
+      FxRateDto purchaseFxRate = getFxRateWithFallback(purchaseDate);
 
       // 현재 환율 조회 (fallback 포함)
-      MarketDataClient.FxRate currentFxRate = getCurrentFxRateWithFallback();
+      FxRateDto currentFxRate = getCurrentFxRateWithFallback();
 
       // 보유 주식의 현재 가치 계산 (USD)
       BigDecimal currentValueUsd = holding.getShares().multiply(currentPrice.currentPrice())
@@ -651,10 +639,10 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
   }
 
   // 환율 조회 with fallback logic
-  private MarketDataClient.FxRate getFxRateWithFallback(LocalDate date) {
+  private FxRateDto getFxRateWithFallback(LocalDate date) {
     // 1차 시도: 해당 날짜의 환율 조회
     try {
-      MarketDataClient.FxRate rate = marketDataClientWrapper.getFxRate(date.toString());
+      FxRateDto rate = marketDataClientWrapper.getFxRate(date.toString());
       log.debug("{}일자 환율 조회 성공: {}", date, rate.rate());
       return rate;
     } catch (Exception e) {
@@ -663,29 +651,29 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
 
     // 2차 시도: 최신 환율 조회
     try {
-      MarketDataClient.FxRate latestRate = marketDataClientWrapper.getLatestFxRate();
+      FxRateDto latestRate = marketDataClientWrapper.getLatestFxRate();
       log.info("{}일자 환율 대신 최신 환율 사용: {}", date, latestRate.rate());
 
-      // 요청한 날짜로 FxRate 생성 (rate는 최신 것 사용)
-      return new MarketDataClient.FxRate(date, latestRate.rate());
+      // 요청한 날짜로 FxRateDto 생성 (rate는 최신 것 사용)
+      return new FxRateDto(date, latestRate.rate());
     } catch (Exception fallbackError) {
       log.warn("최신 환율 조회도 실패: {}", fallbackError.getMessage());
     }
 
     // 3차 시도: 기본 환율 사용 (1,300원)
     log.warn("모든 환율 조회 실패, 기본 환율 1,300원 사용 ({}일자)", date);
-    return new MarketDataClient.FxRate(date, new BigDecimal("1300.00"));
+    return new FxRateDto(date, new BigDecimal("1300.00"));
   }
 
   // 현재 환율 조회 with fallback logic
-  private MarketDataClient.FxRate getCurrentFxRateWithFallback() {
+  private FxRateDto getCurrentFxRateWithFallback() {
     try {
-      MarketDataClient.FxRate latestRate = marketDataClientWrapper.getLatestFxRate();
+      FxRateDto latestRate = marketDataClientWrapper.getLatestFxRate();
       log.debug("최신 환율 조회 성공: {}", latestRate.rate());
       return latestRate;
     } catch (Exception e) {
       log.warn("최신 환율 조회 실패, 기본 환율 1,300원 사용: {}", e.getMessage());
-      return new MarketDataClient.FxRate(LocalDate.now(), new BigDecimal("1300.00"));
+      return new FxRateDto(LocalDate.now(), new BigDecimal("1300.00"));
     }
   }
 
@@ -693,8 +681,8 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
   private SimulationResponse createHoldingSimulationResponse(HoldingDto holding,
     LocalDate purchaseDate,
     StockPriceDto currentPrice, BigDecimal currentValueUsd, BigDecimal currentValueKrw,
-    BigDecimal stockReturn, BigDecimal stockReturnPercent, MarketDataClient.FxRate purchaseFxRate,
-    MarketDataClient.FxRate currentFxRate, BigDecimal fxReturn, BigDecimal fxReturnPercent,
+    BigDecimal stockReturn, BigDecimal stockReturnPercent, FxRateDto purchaseFxRate,
+    FxRateDto currentFxRate, BigDecimal fxReturn, BigDecimal fxReturnPercent,
     BigDecimal totalReturnKrw, BigDecimal totalReturnPercent) {
 
     return SimulationResponse.builder()
@@ -772,73 +760,5 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
     // 5일 동안 데이터를 찾지 못한 경우
     throw new BacktestException(BacktestResponse.STOCK_DATA_NOT_FOUND,
       "주가 데이터를 찾을 수 없습니다 (5일 검색): " + symbol + ", " + date);
-  }
-
-  // DividendDto List를 DividendHistoryDto로 변환
-  private DividendHistoryDto convertToDividendHistory(String symbol,
-    List<DividendDto> dividendList) {
-    if (dividendList == null || dividendList.isEmpty()) {
-      log.warn("배당 데이터를 찾을 수 없습니다: {}", symbol);
-      DividendHistoryDto emptyHistory = new DividendHistoryDto();
-      emptyHistory.setSymbol(symbol);
-      emptyHistory.setDividends(java.util.Collections.emptyList());
-      return emptyHistory;
-    }
-
-    log.info("배당 데이터 조회 성공: symbol={}, count={}", symbol, dividendList.size());
-
-    DividendHistoryDto history = new DividendHistoryDto();
-    history.setSymbol(symbol);
-
-    // DividendDto를 DividendPayment로 변환
-    var payments = dividendList.stream()
-      .map(dto -> {
-        var payment = new DividendHistoryDto.DividendPayment();
-        payment.setExDate(dto.exDate());
-        payment.setPayDate(dto.paymentDate());
-        payment.setAmount(dto.amount());
-        payment.setFrequency(null); // frequency는 API에서 제공하지 않음
-        return payment;
-      })
-      .toList();
-
-    history.setDividends(payments);
-    log.info("배당 데이터 변환 완료: symbol={}, dividends={}", symbol, payments.size());
-
-    return history;
-  }
-
-  private record SimulationContext(
-    SimulationRequest request,
-    OHLCPriceDto purchaseData,
-    MarketDataClient.FxRate purchaseFxRate,
-    StockPriceDto currentPrice,
-    MarketDataClient.FxRate currentFxRate,
-    DividendHistoryDto dividendHistory) {
-
-  }
-
-  private record SimulationCalculationResult(
-    BigDecimal purchasePriceUsd,
-    BigDecimal shares,
-    BigDecimal currentPriceUsd,
-    BigDecimal currentValueUsd,
-    BigDecimal currentValueKrw,
-    BigDecimal stockReturn,
-    BigDecimal stockReturnPercent,
-    BigDecimal purchaseFxRate,
-    BigDecimal currentFxRate,
-    BigDecimal fxReturn,
-    BigDecimal fxReturnPercent,
-    BigDecimal totalDividends,
-    BigDecimal dividendYield,
-    BigDecimal tradingFee,
-    BigDecimal remainingCash,
-    BigDecimal totalAssetKrw,  // 추가: 총 자산 (주식 + 현금 + 배당)
-    BigDecimal totalReturnKrw,
-    BigDecimal totalReturnPercent,
-    BigDecimal dividendsReinvested,
-    List<LocalDate> dividendReinvestDates) {
-
   }
 }

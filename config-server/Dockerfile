@@ -8,4 +8,4 @@ RUN chmod 644 opentelemetry-javaagent.jar
 
 COPY target/*.jar app.jar
 
-ENTRYPOINT ["sh", "-c", "java -javaagent:opentelemetry-javaagent.jar $JAVA_OPTS -jar app.jar"]
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

@@ -88,4 +88,97 @@ public class Account {
     return String.format("Account[id=%d, number=%s, name=%s, krw=%s, usd=%s]",
         id, accountNumber, accountName, balanceKrw, balanceUsd);
   }
+
+  // ============================================
+  // 도메인 메서드 (Domain Methods)
+  // ============================================
+
+  // 잔액 검증
+  public void validateSufficientKrwBalance(BigDecimal amount) {
+    if (this.balanceKrw.compareTo(amount) < 0) {
+      throw new com.muscat.user.common.exceptions.AccountException(
+          com.muscat.user.common.enums.responses.AccountResponse.INSUFFICIENT_BALANCE
+      );
+    }
+  }
+
+  public void validateSufficientUsdBalance(BigDecimal amount) {
+    if (this.balanceUsd.compareTo(amount) < 0) {
+      throw new com.muscat.user.common.exceptions.AccountException(
+          com.muscat.user.common.enums.responses.AccountResponse.INSUFFICIENT_USD_BALANCE
+      );
+    }
+  }
+
+  // 삭제 가능 여부 검증
+  public void validateDeletable() {
+    if (this.balanceKrw.compareTo(BigDecimal.ZERO) > 0 ||
+        this.balanceUsd.compareTo(BigDecimal.ZERO) > 0) {
+      throw new com.muscat.user.common.exceptions.AccountException(
+          com.muscat.user.common.enums.responses.AccountResponse.CANNOT_DELETE_ACCOUNT_WITH_BALANCE
+      );
+    }
+  }
+
+  // KRW 입금
+  public void depositKrw(BigDecimal amount) {
+    com.muscat.commonlib.util.MoneyUtils.validatePositiveAmount(amount, "입금 금액");
+    this.balanceKrw = this.balanceKrw.add(amount);
+  }
+
+  // USD 입금
+  public void depositUsd(BigDecimal amount) {
+    com.muscat.commonlib.util.MoneyUtils.validatePositiveAmount(amount, "입금 금액");
+    this.balanceUsd = this.balanceUsd.add(amount);
+  }
+
+  // KRW 출금
+  public void withdrawKrw(BigDecimal amount) {
+    validateSufficientKrwBalance(amount);
+    this.balanceKrw = this.balanceKrw.subtract(amount);
+  }
+
+  // USD 출금
+  public void withdrawUsd(BigDecimal amount) {
+    validateSufficientUsdBalance(amount);
+    this.balanceUsd = this.balanceUsd.subtract(amount);
+  }
+
+  // USD 잔액 조정 (거래 서비스 전용: 양수/음수 모두 가능)
+  public void adjustUsdBalance(BigDecimal amount) {
+    BigDecimal newBalance = this.balanceUsd.add(amount);
+
+    if (newBalance.compareTo(BigDecimal.ZERO) < 0) {
+      throw new com.muscat.user.common.exceptions.AccountException(
+          com.muscat.user.common.enums.responses.AccountResponse.INSUFFICIENT_USD_BALANCE
+      );
+    }
+
+    this.balanceUsd = newBalance;
+  }
+
+  // KRW -> USD 환전
+  public void executeExchangeKrwToUsd(BigDecimal krwToDeduct, BigDecimal usdToAdd,
+                                       BigDecimal newAvgRate, BigDecimal krwAmountForAvg) {
+    validateSufficientKrwBalance(krwToDeduct);
+
+    this.balanceKrw = this.balanceKrw.subtract(krwToDeduct);
+    this.balanceUsd = this.balanceUsd.add(usdToAdd);
+    this.totalExchangedKrw = this.totalExchangedKrw.add(krwAmountForAvg);
+    this.avgExchangeRate = newAvgRate;
+  }
+
+  // USD -> KRW 환전
+  public void executeExchangeUsdToKrw(BigDecimal usdToDeduct, BigDecimal krwToAdd) {
+    validateSufficientUsdBalance(usdToDeduct);
+
+    this.balanceUsd = this.balanceUsd.subtract(usdToDeduct);
+    this.balanceKrw = this.balanceKrw.add(krwToAdd);
+
+    // USD 잔액이 0이면 평균환율 리셋
+    if (this.balanceUsd.compareTo(BigDecimal.ZERO) == 0) {
+      this.avgExchangeRate = BigDecimal.ZERO;
+      this.totalExchangedKrw = BigDecimal.ZERO;
+    }
+  }
 }

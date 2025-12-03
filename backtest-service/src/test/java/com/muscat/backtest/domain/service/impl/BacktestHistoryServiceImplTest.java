@@ -35,14 +35,14 @@ class BacktestHistoryServiceImplTest {
   private BacktestHistoryServiceImpl backtestHistoryService;
 
   private static final String TEST_USER_ID = "test-user@example.com";
-  private static final String TEST_BACKTEST_ID = "bt-12345";
+  private static final Long TEST_BACKTEST_ID = 12345L;
 
   private BacktestHistory testHistory;
 
   @BeforeEach
   void setUp() {
     testHistory = BacktestHistory.builder()
-      .backtestId(TEST_BACKTEST_ID)
+      .id(TEST_BACKTEST_ID)
       .userId(TEST_USER_ID)
       .backtestType(BacktestType.STRATEGY_SIMULATION)
       .requestParams("{\"symbol\":\"AAPL\",\"amount\":1000}")
@@ -60,7 +60,7 @@ class BacktestHistoryServiceImplTest {
     void getUserBacktestHistory_WithData_Success() {
       // given
       BacktestHistory history1 = BacktestHistory.builder()
-        .backtestId("bt-001")
+        .id(1L)
         .userId(TEST_USER_ID)
         .backtestType(BacktestType.STRATEGY_SIMULATION)
         .requestParams("{\"strategy\":\"DCA\"}")
@@ -69,7 +69,7 @@ class BacktestHistoryServiceImplTest {
         .build();
 
       BacktestHistory history2 = BacktestHistory.builder()
-        .backtestId("bt-002")
+        .id(2L)
         .userId(TEST_USER_ID)
         .backtestType(BacktestType.COMPARISON)
         .requestParams("{\"symbols\":[\"AAPL\",\"GOOGL\"]}")
@@ -94,7 +94,7 @@ class BacktestHistoryServiceImplTest {
       assertThat(result.getContent()).hasSize(2);
 
       BacktestHistoryDto dto1 = result.getContent().getFirst();
-      assertThat(dto1.backtestId()).isEqualTo("bt-001");
+      assertThat(dto1.id()).isEqualTo(1L);
       assertThat(dto1.userId()).isEqualTo(TEST_USER_ID);
       assertThat(dto1.backtestType()).isEqualTo(BacktestType.STRATEGY_SIMULATION);
       assertThat(dto1.requestParams()).isEqualTo("{\"strategy\":\"DCA\"}");
@@ -102,7 +102,7 @@ class BacktestHistoryServiceImplTest {
       assertThat(dto1.createdAt()).isEqualTo(LocalDateTime.of(2024, 10, 15, 14, 0));
 
       BacktestHistoryDto dto2 = result.getContent().get(1);
-      assertThat(dto2.backtestId()).isEqualTo("bt-002");
+      assertThat(dto2.id()).isEqualTo(2L);
       assertThat(dto2.backtestType()).isEqualTo(BacktestType.COMPARISON);
       assertThat(dto2.fxRateMode()).isEqualTo("manual");
 
@@ -138,7 +138,7 @@ class BacktestHistoryServiceImplTest {
       List<BacktestHistory> allHistories = new ArrayList<>();
       for (int i = 1; i <= 25; i++) {
         allHistories.add(BacktestHistory.builder()
-          .backtestId("bt-" + String.format("%03d", i))
+          .id((long) i)
           .userId(TEST_USER_ID)
           .backtestType(BacktestType.STRATEGY_SIMULATION)
           .requestParams("{}")
@@ -167,7 +167,7 @@ class BacktestHistoryServiceImplTest {
       assertThat(result.getNumber()).isEqualTo(1); // 두 번째 페이지 (0-indexed)
 
       // 11번째 항목이 첫 번째로 와야 함
-      assertThat(result.getContent().getFirst().backtestId()).isEqualTo("bt-011");
+      assertThat(result.getContent().getFirst().id()).isEqualTo(11L);
     }
 
     @Test
@@ -175,7 +175,7 @@ class BacktestHistoryServiceImplTest {
     void getUserBacktestHistory_MultipleTypes_Success() {
       // given
       BacktestHistory strategyHistory = BacktestHistory.builder()
-        .backtestId("bt-strategy")
+        .id(1L)
         .userId(TEST_USER_ID)
         .backtestType(BacktestType.STRATEGY_SIMULATION)
         .requestParams("{\"type\":\"strategy\"}")
@@ -184,7 +184,7 @@ class BacktestHistoryServiceImplTest {
         .build();
 
       BacktestHistory comparisonHistory = BacktestHistory.builder()
-        .backtestId("bt-comparison")
+        .id(2L)
         .userId(TEST_USER_ID)
         .backtestType(BacktestType.COMPARISON)
         .requestParams("{\"type\":\"comparison\"}")
@@ -193,7 +193,7 @@ class BacktestHistoryServiceImplTest {
         .build();
 
       BacktestHistory investmentHistory = BacktestHistory.builder()
-        .backtestId("bt-investment")
+        .id(3L)
         .userId(TEST_USER_ID)
         .backtestType(BacktestType.INVESTMENT_ANALYSIS)
         .requestParams("{\"type\":\"investment\"}")
@@ -243,7 +243,7 @@ class BacktestHistoryServiceImplTest {
       BacktestHistoryDto dto = result.getContent().getFirst();
 
       // 모든 필드가 정확히 변환되었는지 확인
-      assertThat(dto.backtestId()).isEqualTo(testHistory.getBacktestId());
+      assertThat(dto.id()).isEqualTo(testHistory.getId());
       assertThat(dto.userId()).isEqualTo(testHistory.getUserId());
       assertThat(dto.backtestType()).isEqualTo(testHistory.getBacktestType());
       assertThat(dto.requestParams()).isEqualTo(testHistory.getRequestParams());

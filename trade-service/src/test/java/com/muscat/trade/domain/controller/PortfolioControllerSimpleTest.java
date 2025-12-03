@@ -47,8 +47,8 @@ class PortfolioControllerSimpleTest {
     // Given
     List<HoldingResponseDto> holdings = List.of(
       new HoldingResponseDto(
-        "HOLD_001",
-        "1",
+        1L,
+        1L,
         "AAPL",
         new BigDecimal("50"),
         new BigDecimal("150.00"),
@@ -79,8 +79,8 @@ class PortfolioControllerSimpleTest {
     // Given
     List<HoldingResponseDto> holdings = List.of(
       new HoldingResponseDto(
-        "HOLD_002",
-        "1",
+        2L,
+        1L,
         "MSFT",
         new BigDecimal("30"),
         new BigDecimal("300.00"),
@@ -138,8 +138,8 @@ class PortfolioControllerSimpleTest {
   void getHoldingBySymbol_ReturnsHolding() {
     // Given
     HoldingResponseDto holding = new HoldingResponseDto(
-      "HOLD_003",
-      "1",
+      3L,
+      1L,
       "AAPL",
       new BigDecimal("100"),
       new BigDecimal("150.00"),

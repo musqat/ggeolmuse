@@ -256,10 +256,10 @@ public class TradingServiceImpl implements TradingService {
       tradePrice, totalAmount, fee, tradeDate, tradeType);
 
     // 거래 로그 기록
-    tradeLogger.logTrade(savedTrade.getTradeId(), userId, String.valueOf(accountId), symbol,
+    tradeLogger.logTrade(savedTrade.getId(), userId, String.valueOf(accountId), symbol,
       tradeType, quantity, tradePrice, fee, totalAmount, tradeDate);
 
-    log.info("{} 완료: 거래ID={}, 금액={}", tradeType.name(), savedTrade.getTradeId(), totalAmount);
+    log.info("{} 완료: 거래ID={}, 금액={}", tradeType.name(), savedTrade.getId(), totalAmount);
     return TradeResponseDto.from(savedTrade);
   }
 
@@ -301,11 +301,11 @@ public class TradingServiceImpl implements TradingService {
       log.info("거래 DB 트랜잭션 시작: userId={}, symbol={}, amount={}", userId, symbol, totalAmount);
       Trade result = executeTradeDbTransaction(userId, accountId, symbol, quantity, tradePrice,
         totalAmount, fee, tradeDate, tradeType);
-      log.info("거래 DB 트랜잭션 완료: tradeId={}", result.getTradeId());
+      log.info("거래 DB 트랜잭션 완료: tradeId={}", result.getId());
 
       // Kafka 이벤트 발행 (비동기 잔액 업데이트)
       // user-service가 TradeCompletedEvent를 소비하여 잔액 업데이트
-      log.info("거래 완료 이벤트 발행: tradeId={}", result.getTradeId());
+      log.info("거래 완료 이벤트 발행: tradeId={}", result.getId());
       tradeEventProducer.publishTradeCompleted(result);
 
       return result;
@@ -359,7 +359,7 @@ public class TradingServiceImpl implements TradingService {
 
     Trade savedTrade = tradeRepository.save(trade);
     updateHoldings(userId, accountId, symbol, quantity, tradePrice, totalAmount, tradeType,
-      savedTrade.getTradeId());
+      savedTrade.getId());
 
     return savedTrade;
   }
@@ -367,7 +367,7 @@ public class TradingServiceImpl implements TradingService {
   // 거래에 따른 보유 현황 업데이트 (비관적 Lock 사용)
   private void updateHoldings(String userId, String accountId, String symbol,
     BigDecimal quantity, BigDecimal price, BigDecimal totalAmount, TradeType tradeType,
-    String tradeId) {
+    Long tradeId) {
 
     // 비관적 Lock으로 동시성 문제 해결
     Optional<Holdings> existingHoldings = holdingsRepository
@@ -381,17 +381,13 @@ public class TradingServiceImpl implements TradingService {
         BigDecimal oldQuantity = holdings.getTotalQuantity();
         BigDecimal oldAvgPrice = holdings.getAvgPurchasePrice();
 
-        BigDecimal currentTotalValue = holdings.getTotalQuantity()
-          .multiply(holdings.getAvgPurchasePrice());
-        BigDecimal newTotalValue = currentTotalValue.add(quantity.multiply(price));
-        BigDecimal newTotalQuantity = holdings.getTotalQuantity().add(quantity);
-        BigDecimal newAvgPrice = newTotalValue.divide(newTotalQuantity,
-          tradeProperties.getCalculation().getPricePrecision(), RoundingMode.HALF_UP);
+        // 도메인 로직 위임 (평균 매수가 계산 + 상태 변경)
+        holdings.addPurchase(quantity, price,
+          tradeProperties.getCalculation().getPricePrecision());
 
-        holdings.setTotalQuantity(newTotalQuantity);
-        holdings.setAvgPurchasePrice(newAvgPrice);
-        BigDecimal newTotalInvestedAmount = holdings.getTotalInvestedAmount().add(totalAmount);
-        holdings.setTotalInvestedAmount(newTotalInvestedAmount);
+        BigDecimal newTotalQuantity = holdings.getTotalQuantity();
+        BigDecimal newAvgPrice = holdings.getAvgPurchasePrice();
+        BigDecimal newTotalInvestedAmount = holdings.getTotalInvestedAmount();
 
         // 보유량 변경 로그
         tradeLogger.logHoldingsUpdate(userId, accountId, symbol,
@@ -477,13 +473,10 @@ public class TradingServiceImpl implements TradingService {
         );
       } else {
         // 부분 매도 시 수량만 업데이트 (평균단가는 유지)
-        BigDecimal sellRatio = quantity.divide(holdings.getTotalQuantity(),
-          TradeConstants.SELL_RATIO_PRECISION, RoundingMode.HALF_UP);
-        BigDecimal soldAmount = holdings.getTotalInvestedAmount().multiply(sellRatio);
+        // 도메인 로직 위임 (수량 감소 + 투자금액 조정)
+        holdings.sellShares(quantity, TradeConstants.SELL_RATIO_PRECISION);
 
-        holdings.setTotalQuantity(newQuantity);
-        BigDecimal newTotalInvestedAmount = holdings.getTotalInvestedAmount().subtract(soldAmount);
-        holdings.setTotalInvestedAmount(newTotalInvestedAmount);
+        BigDecimal newTotalInvestedAmount = holdings.getTotalInvestedAmount();
 
         tradeLogger.logHoldingsUpdate(userId, accountId, symbol,
           oldQuantity, newQuantity, oldAvgPrice, holdings.getAvgPurchasePrice());

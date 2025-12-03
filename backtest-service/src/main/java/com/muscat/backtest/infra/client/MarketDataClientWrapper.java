@@ -1,10 +1,13 @@
 package com.muscat.backtest.infra.client;
 
 import com.muscat.backtest.infra.client.dto.DividendDto;
+import com.muscat.backtest.infra.client.dto.FxRateDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import com.muscat.commonlib.dto.StockPriceDto;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -55,14 +58,14 @@ public class MarketDataClientWrapper {
 
   @CircuitBreaker(name = "marketDataService", fallbackMethod = "getFxRateFallback")
   @Retry(name = "marketDataService")
-  public MarketDataClient.FxRate getFxRate(String date) {
+  public FxRateDto getFxRate(String date) {
     log.debug("Calling market-data-service getFxRate for date: {}", date);
     return marketDataClient.getFxRate(date);
   }
 
   @CircuitBreaker(name = "marketDataService", fallbackMethod = "getLatestFxRateFallback")
   @Retry(name = "marketDataService")
-  public MarketDataClient.FxRate getLatestFxRate() {
+  public FxRateDto getLatestFxRate() {
     log.debug("Calling market-data-service getLatestFxRate");
     return marketDataClient.getLatestFxRate();
   }
@@ -96,17 +99,15 @@ public class MarketDataClientWrapper {
     return Collections.emptyList();
   }
 
-  private MarketDataClient.FxRate getFxRateFallback(String date, Exception ex) {
+  private FxRateDto getFxRateFallback(String date, Exception ex) {
     log.error("Fallback triggered for getFxRate. Date: {}, Error: {}. Using default FX rate: 1300",
       date, ex.getMessage());
-    return new MarketDataClient.FxRate(java.time.LocalDate.parse(date),
-      java.math.BigDecimal.valueOf(1300));
+    return new FxRateDto(LocalDate.parse(date), BigDecimal.valueOf(1300));
   }
 
-  private MarketDataClient.FxRate getLatestFxRateFallback(Exception ex) {
+  private FxRateDto getLatestFxRateFallback(Exception ex) {
     log.error("Fallback triggered for getLatestFxRate. Error: {}. Using default FX rate: 1300",
       ex.getMessage());
-    return new MarketDataClient.FxRate(java.time.LocalDate.now(),
-      java.math.BigDecimal.valueOf(1300));
+    return new FxRateDto(LocalDate.now(), BigDecimal.valueOf(1300));
   }
 }

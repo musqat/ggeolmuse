@@ -24,7 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
- * 최적 매수 타이밍 분석 전략 지정된 기간 내에서 목표 수익률 이상을 달성할 수 있는 매수 타이밍을 모두 찾아 분석
+ * 최적 매수 타이밍 분석
  */
 @Component
 @RequiredArgsConstructor
@@ -61,7 +61,7 @@ public class OptimalTimingStrategy {
       // 날짜별 빠른 조회를 위한 Map 생성
       Map<LocalDate, OHLCPriceDto> priceMap = allPrices.stream()
         .filter(OHLCPriceDto::available)
-        .collect(Collectors.toMap(OHLCPriceDto::date, p -> p));
+        .collect(Collectors.toMap(OHLCPriceDto::date, p -> p, (existing, replacement) -> replacement));
 
       log.info("가격 데이터 조회 완료: {}개", priceMap.size());
 

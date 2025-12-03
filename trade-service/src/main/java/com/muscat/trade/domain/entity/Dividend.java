@@ -33,8 +33,8 @@ import org.hibernate.annotations.CreationTimestamp;
 public class Dividend {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.UUID)
-  private String dividendId; // PK
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id; // PK
 
   @Column(nullable = false)
   private String userId; // 사용자 ID (Keycloak UUID)
@@ -45,8 +45,8 @@ public class Dividend {
   @Column(nullable = false, length = 10)
   private String symbol; // 주식 심볼 (AAPL, MSFT)
 
-  @Column(length = 36)
-  private String tradeId; // 연결된 매수 거래 ID (어느 매수에서 발생한 배당인지)
+  @Column
+  private Long tradeId; // 연결된 매수 거래 ID (어느 매수에서 발생한 배당인지)
 
   @Column(nullable = false, precision = 15, scale = 6)
   private BigDecimal shares; // 배당 받은 주식 수량

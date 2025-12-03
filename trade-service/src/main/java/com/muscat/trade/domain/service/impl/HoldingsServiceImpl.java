@@ -82,7 +82,7 @@ public class HoldingsServiceImpl implements HoldingsService {
       .map(holding -> {
         BigDecimal currentPrice = currentPrices.get(holding.getSymbol());
         if (currentPrice != null) {
-          return HoldingResponseDto.fromWithCurrentPrice(holding, currentPrice);
+          return HoldingResponseDto.of(holding, currentPrice);
         } else {
           return HoldingResponseDto.from(holding);
         }
@@ -150,7 +150,7 @@ public class HoldingsServiceImpl implements HoldingsService {
         symbolUnrealizedPnL.put(holding.getSymbol(), pnl);
 
         // 현재가 포함한 보유 정보
-        holdings.add(HoldingResponseDto.fromWithCurrentPrice(holding, currentPrice));
+        holdings.add(HoldingResponseDto.of(holding, currentPrice));
       } else {
         log.warn("현재가 정보 없음: symbol={}", holding.getSymbol());
         holdings.add(HoldingResponseDto.from(holding));

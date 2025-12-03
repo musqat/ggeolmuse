@@ -18,7 +18,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * TradeRepositoryCustom 구현체
+ * TradeRepositoryCustom
  */
 @Repository
 @RequiredArgsConstructor
@@ -26,6 +26,16 @@ public class TradeRepositoryCustomImpl implements TradeRepositoryCustom {
 
     private final JPAQueryFactory queryFactory;
     private static final QTrade trade = QTrade.trade;
+
+    @Override
+    public List<String> findDistinctSymbolsByUserId(String userId) {
+        return queryFactory
+                .select(trade.symbol)
+                .distinct()
+                .from(trade)
+                .where(trade.userId.eq(userId))
+                .fetch();
+    }
 
     @Override
     public Page<Trade> findTradesWithComplexFilters(

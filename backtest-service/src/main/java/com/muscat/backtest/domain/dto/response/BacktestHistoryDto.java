@@ -1,14 +1,15 @@
 package com.muscat.backtest.domain.dto.response;
 
 import com.muscat.backtest.common.enums.type.BacktestType;
+import com.muscat.backtest.domain.entity.BacktestHistory;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
 
 @Schema(description = "백테스트 히스토리 응답")
 public record BacktestHistoryDto(
-    @Schema(description = "백테스트 ID", example = "123e4567-e89b-12d3-a456-426614174000")
-    String backtestId,
+    @Schema(description = "백테스트 ID", example = "1")
+    Long id,
 
     @Schema(description = "사용자 ID (이메일)", example = "user@example.com")
     String userId,
@@ -25,4 +26,14 @@ public record BacktestHistoryDto(
     @Schema(description = "실행 일시", example = "2025-10-14T10:30:00")
     LocalDateTime createdAt
 ) {
+    public static BacktestHistoryDto from(BacktestHistory history) {
+        return new BacktestHistoryDto(
+            history.getId(),
+            history.getUserId(),
+            history.getBacktestType(),
+            history.getRequestParams(),
+            history.getFxRateMode(),
+            history.getCreatedAt()
+        );
+    }
 }

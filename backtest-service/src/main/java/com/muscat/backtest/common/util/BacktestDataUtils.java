@@ -3,8 +3,8 @@ package com.muscat.backtest.common.util;
 import com.muscat.backtest.common.enums.BacktestResponse;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.infra.client.MarketDataClient;
-import com.muscat.backtest.infra.client.MarketDataClient.FxRate;
 import com.muscat.backtest.infra.client.dto.DividendHistoryDto;
+import com.muscat.backtest.infra.client.dto.FxRateDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import com.muscat.commonlib.dto.StockPriceDto;
 import java.math.BigDecimal;
@@ -73,36 +73,36 @@ public final class BacktestDataUtils {
 
 
   // 특정 날짜의 환율 데이터 조회 (기본값 fallback)
-  public static FxRate getHistoricalFxRate(MarketDataClient marketDataClient, LocalDate date) {
+  public static FxRateDto getHistoricalFxRate(MarketDataClient marketDataClient, LocalDate date) {
     try {
       var response = marketDataClient.getFxRate(date.toString());
 
       if (response == null) {
         log.warn("환율 데이터가 없어 기본값 사용: {} -> {}원", date, DEFAULT_FX_RATE_HISTORICAL);
-        return new FxRate(date, DEFAULT_FX_RATE_HISTORICAL);
+        return new FxRateDto(date, DEFAULT_FX_RATE_HISTORICAL);
       }
 
       return response;
     } catch (Exception e) {
       log.warn("환율 데이터 조회 실패, 기본값 사용: {} -> {}원", date, DEFAULT_FX_RATE_HISTORICAL);
-      return new FxRate(date, DEFAULT_FX_RATE_HISTORICAL);
+      return new FxRateDto(date, DEFAULT_FX_RATE_HISTORICAL);
     }
   }
 
   // 현재 환율 데이터 조회 (기본값 fallback)
-  public static FxRate getCurrentFxRate(MarketDataClient marketDataClient) {
+  public static FxRateDto getCurrentFxRate(MarketDataClient marketDataClient) {
     try {
       var response = marketDataClient.getLatestFxRate();
 
       if (response == null) {
         log.warn("현재 환율 데이터가 없어 기본값 사용: {}원", DEFAULT_FX_RATE_CURRENT);
-        return new FxRate(LocalDate.now(), DEFAULT_FX_RATE_CURRENT);
+        return new FxRateDto(LocalDate.now(), DEFAULT_FX_RATE_CURRENT);
       }
 
       return response;
     } catch (Exception e) {
       log.warn("현재 환율 데이터 조회 실패, 기본값 사용: {}원", DEFAULT_FX_RATE_CURRENT);
-      return new FxRate(LocalDate.now(), DEFAULT_FX_RATE_CURRENT);
+      return new FxRateDto(LocalDate.now(), DEFAULT_FX_RATE_CURRENT);
     }
   }
 

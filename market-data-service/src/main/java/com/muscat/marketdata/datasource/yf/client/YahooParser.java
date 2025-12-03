@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.muscat.marketdata.common.exceptions.YahooFinanceException;
 import com.muscat.marketdata.domain.dto.CandleDto;
 import com.muscat.marketdata.domain.dto.DividendDto;
+import com.muscat.marketdata.domain.model.ChartMetadata;
+import com.muscat.marketdata.domain.model.TimeSeriesData;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -280,21 +282,4 @@ public class YahooParser {
     }
   }
 
-  // ===== 레코드 =====
-
-  private record ChartMetadata(String symbol, String currency) {
-
-  }
-
-  private record TimeSeriesData(
-    JsonNode timestamps,
-    JsonNode open,
-    JsonNode high,
-    JsonNode low,
-    JsonNode close,
-    JsonNode volume,
-    JsonNode adjustedClose
-  ) {
-
-  }
 }

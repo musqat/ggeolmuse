@@ -17,7 +17,7 @@ class TradeTest {
   void createTrade_WithBuilder_Success() {
     // Given & When
     Trade trade = Trade.builder()
-      .tradeId("TRADE_001")
+      .id(1L)
       .userId("user-123")
       .accountId(1L)
       .symbol("AAPL")
@@ -31,7 +31,7 @@ class TradeTest {
       .build();
 
     // Then
-    assertThat(trade.getTradeId()).isEqualTo("TRADE_001");
+    assertThat(trade.getId()).isEqualTo(1L);
     assertThat(trade.getUserId()).isEqualTo("user-123");
     assertThat(trade.getAccountId()).isEqualTo(1L);
     assertThat(trade.getSymbol()).isEqualTo("AAPL");
@@ -59,7 +59,7 @@ class TradeTest {
   void createTrade_WithAllArgsConstructor_Success() {
     // When
     Trade trade = new Trade(
-      "TRADE_002",
+      2L,
       "user-456",
       2L,
       "MSFT",
@@ -74,7 +74,7 @@ class TradeTest {
     );
 
     // Then
-    assertThat(trade.getTradeId()).isEqualTo("TRADE_002");
+    assertThat(trade.getId()).isEqualTo(2L);
     assertThat(trade.getSymbol()).isEqualTo("MSFT");
     assertThat(trade.getTradeType()).isEqualTo(TradeType.SELL);
   }
@@ -86,7 +86,7 @@ class TradeTest {
     Trade trade = new Trade();
 
     // When
-    trade.setTradeId("TRADE_003");
+    trade.setId(3L);
     trade.setUserId("user-789");
     trade.setAccountId(3L);
     trade.setSymbol("GOOGL");
@@ -99,7 +99,7 @@ class TradeTest {
     trade.setExecutedAt(LocalDateTime.of(2024, 1, 17, 9, 0));
 
     // Then
-    assertThat(trade.getTradeId()).isEqualTo("TRADE_003");
+    assertThat(trade.getId()).isEqualTo(3L);
     assertThat(trade.getUserId()).isEqualTo("user-789");
     assertThat(trade.getSymbol()).isEqualTo("GOOGL");
   }
@@ -109,7 +109,7 @@ class TradeTest {
   void defaultFee_IsZero() {
     // When
     Trade trade = Trade.builder()
-      .tradeId("TRADE_004")
+      .id(4L)
       .userId("user-999")
       .accountId(1L)
       .symbol("TSLA")

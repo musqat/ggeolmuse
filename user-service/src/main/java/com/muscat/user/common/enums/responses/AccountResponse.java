@@ -30,6 +30,9 @@ public enum AccountResponse {
   INVALID_REQUEST("400", "잘못된 요청입니다.", HttpStatus.BAD_REQUEST),
   CANNOT_DELETE_ACCOUNT_WITH_BALANCE("400", "잔액이 있는 계좌는 삭제할 수 없습니다.", HttpStatus.BAD_REQUEST),
   INVALID_TRANSACTION_TYPE("400", "유효하지 않은 거래 타입입니다.", HttpStatus.BAD_REQUEST),
+  INVALID_AMOUNT("400", "금액이 유효하지 않습니다.", HttpStatus.BAD_REQUEST),
+  NEGATIVE_AMOUNT("400", "금액은 0보다 커야 합니다.", HttpStatus.BAD_REQUEST),
+  CURRENCY_MISMATCH("400", "통화가 일치하지 않습니다.", HttpStatus.BAD_REQUEST),
 
   // 403 Forbidden
   ACCOUNT_ACCESS_DENIED("403", "계좌에 접근할 권한이 없습니다.", HttpStatus.FORBIDDEN),

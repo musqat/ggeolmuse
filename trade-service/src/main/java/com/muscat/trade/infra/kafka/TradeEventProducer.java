@@ -59,7 +59,7 @@ public class TradeEventProducer {
                 .source("trade-service")
                 // Trade 정보
                 .userId(trade.getUserId())
-                .tradeId(trade.getTradeId())
+                .tradeId(trade.getId())
                 .symbol(trade.getSymbol())
                 .tradeType(trade.getTradeType().name())
                 .quantity(trade.getQuantity())
@@ -71,7 +71,7 @@ public class TradeEventProducer {
                 .build();
 
         log.info("거래 완료 이벤트 발행 중: tradeId={}, userId={}, symbol={}, amount={}",
-                trade.getTradeId(), trade.getUserId(), trade.getSymbol(), trade.getTotalAmount());
+                trade.getId(), trade.getUserId(), trade.getSymbol(), trade.getTotalAmount());
 
         // 비동기로 Kafka에 전송
         CompletableFuture<SendResult<String, TradeCompletedEvent>> future =
@@ -83,10 +83,10 @@ public class TradeEventProducer {
                         TRADE_COMPLETED_TOPIC,
                         result.getRecordMetadata().partition(),
                         result.getRecordMetadata().offset(),
-                        trade.getTradeId());
+                        trade.getId());
             } else {
                 log.error("거래 완료 이벤트 발행 실패: tradeId={}, error={}",
-                        trade.getTradeId(), ex.getMessage(), ex);
+                        trade.getId(), ex.getMessage(), ex);
             }
         });
     }
@@ -188,7 +188,7 @@ public class TradeEventProducer {
                 .source("trade-service")
                 // Trade 정보
                 .userId(trade.getUserId())
-                .tradeId(trade.getTradeId())
+                .tradeId(trade.getId())
                 .accountId(trade.getAccountId())
                 .symbol(trade.getSymbol())
                 .tradeType(trade.getTradeType().name())
@@ -204,7 +204,7 @@ public class TradeEventProducer {
                 .build();
 
         log.info("거래 취소 이벤트 발행 중: tradeId={}, userId={}, reason={}",
-                trade.getTradeId(), trade.getUserId(), cancellationReason);
+                trade.getId(), trade.getUserId(), cancellationReason);
 
         // 비동기로 Kafka에 전송
         CompletableFuture<SendResult<String, TradeCancelledEvent>> future =
@@ -216,10 +216,10 @@ public class TradeEventProducer {
                         TRADE_CANCELLED_TOPIC,
                         result.getRecordMetadata().partition(),
                         result.getRecordMetadata().offset(),
-                        trade.getTradeId());
+                        trade.getId());
             } else {
                 log.error("거래 취소 이벤트 발행 실패: tradeId={}, error={}",
-                        trade.getTradeId(), ex.getMessage(), ex);
+                        trade.getId(), ex.getMessage(), ex);
             }
         });
     }

@@ -50,7 +50,7 @@ public class HoldingsEventProducer {
                                         BigDecimal previousQuantity, BigDecimal currentQuantity,
                                         BigDecimal previousAvgPrice, BigDecimal currentAvgPrice,
                                         BigDecimal totalInvestedAmount,
-                                        String tradeId, String tradeType,
+                                        Long tradeId, String tradeType,
                                         BigDecimal tradeQuantity, BigDecimal tradePrice) {
         String eventId = UUID.randomUUID().toString();
 

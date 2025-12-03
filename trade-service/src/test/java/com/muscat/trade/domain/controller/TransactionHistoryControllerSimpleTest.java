@@ -6,13 +6,13 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import com.muscat.trade.common.enums.type.TradeType;
+import com.muscat.trade.domain.dto.response.DividendResponseDto;
 import com.muscat.trade.domain.entity.Trade;
 import com.muscat.trade.domain.repository.TradeRepository;
 import com.muscat.trade.domain.service.DividendService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -55,7 +55,7 @@ class TransactionHistoryControllerSimpleTest {
   void getTransactionHistory_OnlyTrades_ReturnsHistory() {
     // Given
     Trade buyTrade = Trade.builder()
-      .tradeId("TRADE_001")
+      .id(1L)
       .userId("test-user-123")
       .accountId(1L)
       .symbol("AAPL")
@@ -90,16 +90,19 @@ class TransactionHistoryControllerSimpleTest {
   @DisplayName("거래 내역 조회 - 배당 포함")
   void getTransactionHistory_WithDividends_ReturnsHistory() {
     // Given
-    Map<String, Object> dividend = new HashMap<>();
-    dividend.put("tradeId", "TRADE_001");
-    dividend.put("symbol", "AAPL");
-    dividend.put("netAmount", new BigDecimal("25.00"));
-    dividend.put("grossAmount", new BigDecimal("30.00"));
-    dividend.put("taxAmount", new BigDecimal("5.00"));
-    dividend.put("dividendDate", LocalDate.of(2024, 1, 20));
-    dividend.put("processedAt", LocalDateTime.of(2024, 1, 20, 12, 0));
-    dividend.put("dividendPerShare", new BigDecimal("0.25"));
-    dividend.put("shares", 100);
+    DividendResponseDto dividend = new DividendResponseDto(
+      1L,                                    // id
+      100L,                                  // tradeId
+      1L,                                    // accountId
+      "AAPL",                               // symbol
+      new BigDecimal("100"),                // shares
+      new BigDecimal("0.25"),               // dividendPerShare
+      new BigDecimal("30.00"),              // grossAmount
+      new BigDecimal("5.00"),               // taxAmount
+      new BigDecimal("25.00"),              // netAmount
+      LocalDate.of(2024, 1, 20),            // dividendDate
+      LocalDateTime.of(2024, 1, 20, 12, 0)  // processedAt
+    );
 
     when(
       tradeRepository.findByUserIdOrderByExecutedAtDesc(eq("test-user-123"), any(Pageable.class)))

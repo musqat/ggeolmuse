@@ -88,11 +88,11 @@ public class UserServiceImpl implements UserService {
 
     try {
       User user = userMapper.createLocalUser(email, nickname, keycloakId);
-      user.setPasswordHash(passwordEncoder.encode(password));
+      user.changePassword(passwordEncoder.encode(password));
 
       // Google OAuth 사용자는 이미 이메일 인증됨
       if (isExistingKeycloakUser) {
-        user.setEmailVerified(true);
+        user.verifyEmail();
       }
 
       User savedUser = userRepository.save(user);
@@ -121,7 +121,7 @@ public class UserServiceImpl implements UserService {
 
     try {
       User user = userMapper.createLocalUser(email, nickname, keycloakId);
-      user.setEmailVerified(true); // OAuth 사용자는 이미 이메일 인증됨
+      user.verifyEmail(); // OAuth 사용자는 이미 이메일 인증됨
 
       // OAuth 사용자는 비밀번호 없음 (null로 유지)
 
@@ -258,7 +258,7 @@ public class UserServiceImpl implements UserService {
         log.warn("프로필 수정 실패 - 닉네임 중복: {}", request.getNickname());
         throw new UserException(UserResponse.NICKNAME_ALREADY_EXISTS);
       }
-      user.setNickname(request.getNickname());
+      user.changeNickname(request.getNickname());
     }
 
     User updatedUser = userRepository.save(user);
@@ -282,7 +282,7 @@ public class UserServiceImpl implements UserService {
     }
 
     User user = emailToken.getUser();
-    user.setEmailVerified(true);
+    user.verifyEmail();
 
     emailTokenRepository.delete(emailToken);
 
@@ -366,7 +366,7 @@ public class UserServiceImpl implements UserService {
     }
 
     // 로컬 DB 비밀번호 해시 업데이트
-    user.setPasswordHash(passwordEncoder.encode(newPassword));
+    user.changePassword(passwordEncoder.encode(newPassword));
     userRepository.save(user);
 
     // 토큰 사용 처리 및 삭제
@@ -464,7 +464,7 @@ public class UserServiceImpl implements UserService {
     log.info("사용자 역할 변경: userId={}, oldRole={}, newRole={}",
       userId, user.getRole(), role);
 
-    user.setRole(role);
+    user.changeRole(role);
     return userRepository.save(user);
   }
 
@@ -475,7 +475,7 @@ public class UserServiceImpl implements UserService {
     log.info("사용자 활성화 상태 변경: userId={}, oldEnabled={}, newEnabled={}",
       userId, user.isEnabled(), enabled);
 
-    user.setEnabled(enabled);
+    user.changeEnabledStatus(enabled);
     return userRepository.save(user);
   }
 
@@ -504,7 +504,7 @@ public class UserServiceImpl implements UserService {
     log.info("Admin이 사용자 닉네임 강제 변경: userId={}, oldNickname={}, newNickname={}",
       userId, user.getNickname(), nickname);
 
-    user.setNickname(nickname);
+    user.changeNickname(nickname);
     return userRepository.save(user);
   }
 
@@ -525,7 +525,7 @@ public class UserServiceImpl implements UserService {
     }
 
     // 로컬 DB 비밀번호 해시 업데이트
-    user.setPasswordHash(passwordEncoder.encode(newPassword));
+    user.changePassword(passwordEncoder.encode(newPassword));
     userRepository.save(user);
 
     log.info("사용자 비밀번호 강제 변경 완료: {}", user.getEmail());
@@ -538,7 +538,7 @@ public class UserServiceImpl implements UserService {
     log.info("Admin이 사용자 이메일 강제 인증: userId={}, email={}",
       userId, user.getEmail());
 
-    user.setEmailVerified(true);
+    user.verifyEmail();
 
     // 이메일 인증 토큰 삭제 (있다면)
     emailTokenRepository.deleteByUser(user);

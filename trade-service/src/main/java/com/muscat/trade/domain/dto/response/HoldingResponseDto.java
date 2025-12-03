@@ -9,11 +9,11 @@ import java.time.LocalDateTime;
 
 @Schema(description = "보유 종목 정보")
 public record HoldingResponseDto(
-  @Schema(description = "보유 ID", example = "HOLD_20240918_001")
-  String holdingId, // 보유 ID
+  @Schema(description = "보유 ID", example = "1")
+  Long id, // 보유 ID
 
   @Schema(description = "계좌 ID", example = "12345678")
-  String accountId, // 계좌 ID
+  Long accountId, // 계좌 ID
 
   @Schema(description = "종목 심볼", example = "AAPL")
   String symbol, // 종목 심볼
@@ -47,8 +47,8 @@ public record HoldingResponseDto(
   // Entity to DTO 변환
   public static HoldingResponseDto from(Holdings holding) {
     return new HoldingResponseDto(
-      holding.getHoldingId(),
-      String.valueOf(holding.getAccountId()),
+      holding.getId(),
+      holding.getAccountId(),
       holding.getSymbol(),
       holding.getTotalQuantity(),
       holding.getAvgPurchasePrice(),
@@ -62,7 +62,7 @@ public record HoldingResponseDto(
   }
 
   // 현재가 정보 포함한 DTO 생성
-  public static HoldingResponseDto fromWithCurrentPrice(Holdings holding, BigDecimal currentPrice) {
+  public static HoldingResponseDto of(Holdings holding, BigDecimal currentPrice) {
     BigDecimal currentValue = holding.getTotalQuantity().multiply(currentPrice);
     BigDecimal bookValue = holding.getTotalQuantity().multiply(holding.getAvgPurchasePrice());
     BigDecimal unrealizedPnL = currentValue.subtract(bookValue);
@@ -75,8 +75,8 @@ public record HoldingResponseDto(
     }
 
     return new HoldingResponseDto(
-      holding.getHoldingId(),
-      String.valueOf(holding.getAccountId()),
+      holding.getId(),
+      holding.getAccountId(),
       holding.getSymbol(),
       holding.getTotalQuantity(),
       holding.getAvgPurchasePrice(),

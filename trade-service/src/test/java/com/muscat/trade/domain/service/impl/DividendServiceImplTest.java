@@ -11,6 +11,7 @@ import static org.mockito.BDDMockito.times;
 import static org.mockito.BDDMockito.verify;
 
 import com.muscat.trade.common.enums.type.TradeType;
+import com.muscat.trade.domain.dto.response.DividendResponseDto;
 import com.muscat.trade.domain.entity.Dividend;
 import com.muscat.trade.domain.entity.Trade;
 import com.muscat.trade.domain.repository.DividendRepository;
@@ -22,8 +23,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -50,7 +49,7 @@ class DividendServiceImplTest {
   private static final String TEST_USER_ID = "test-user-uuid";
   private static final Long TEST_ACCOUNT_ID = 1L;
   private static final String TEST_SYMBOL = "AAPL";
-  private static final String TEST_TRADE_ID = "trade-uuid-001";
+  private static final Long TEST_TRADE_ID = 1L;
   private static final BigDecimal TEST_QUANTITY = new BigDecimal("100");
   private static final BigDecimal DIVIDEND_PER_SHARE = new BigDecimal("0.25");
   private static final BigDecimal TAX_RATE = new BigDecimal("0.154"); // 15.4%
@@ -62,7 +61,7 @@ class DividendServiceImplTest {
   @BeforeEach
   void setUp() {
     testBuyTrade = Trade.builder()
-      .tradeId(TEST_TRADE_ID)
+      .id(TEST_TRADE_ID)
       .userId(TEST_USER_ID)
       .accountId(TEST_ACCOUNT_ID)
       .symbol(TEST_SYMBOL)
@@ -78,7 +77,7 @@ class DividendServiceImplTest {
     );
 
     testDividend = Dividend.builder()
-      .dividendId("dividend-uuid-001")
+      .id(1L)
       .userId(TEST_USER_ID)
       .accountId(TEST_ACCOUNT_ID)
       .symbol(TEST_SYMBOL)
@@ -108,7 +107,7 @@ class DividendServiceImplTest {
 
       // AAPL 관련 설정
       Trade appleTrade = Trade.builder()
-        .tradeId("apple-trade-id")
+        .id(10L)
         .userId(TEST_USER_ID)
         .accountId(TEST_ACCOUNT_ID)
         .symbol("AAPL")
@@ -124,14 +123,14 @@ class DividendServiceImplTest {
       given(marketServiceClient.getDividends(eq("AAPL"), anyString(), anyString()))
         .willReturn(List.of(appleDiv));
 
-      given(dividendRepository.existsByTradeIdAndDividendDate(anyString(), any(LocalDate.class)))
+      given(dividendRepository.existsByTradeIdAndDividendDate(any(Long.class), any(LocalDate.class)))
         .willReturn(false);
 
       Dividend savedAppleDividend = Dividend.builder()
-        .dividendId("apple-div-id")
+        .id(100L)
         .userId(TEST_USER_ID)
         .symbol("AAPL")
-        .tradeId("apple-trade-id")
+        .tradeId(10L)
         .build();
 
       given(dividendRepository.findByUserIdAndSymbolOrderByDividendDateDesc(TEST_USER_ID, "AAPL"))
@@ -139,7 +138,7 @@ class DividendServiceImplTest {
 
       // MSFT 관련 설정
       Trade msftTrade = Trade.builder()
-        .tradeId("msft-trade-id")
+        .id(11L)
         .userId(TEST_USER_ID)
         .accountId(TEST_ACCOUNT_ID)
         .symbol("MSFT")
@@ -156,19 +155,17 @@ class DividendServiceImplTest {
         .willReturn(List.of(msftDiv));
 
       Dividend savedMsftDividend = Dividend.builder()
-        .dividendId("msft-div-id")
+        .id(101L)
         .userId(TEST_USER_ID)
         .symbol("MSFT")
-        .tradeId("msft-trade-id")
+        .tradeId(11L)
         .build();
 
       given(dividendRepository.findByUserIdAndSymbolOrderByDividendDateDesc(TEST_USER_ID, "MSFT"))
         .willReturn(List.of(savedMsftDividend));
 
-      given(tradeRepository.findById(anyString())).willReturn(Optional.of(appleTrade));
-
       // when
-      List<Map<String, Object>> result = dividendService.getUserDividends(TEST_USER_ID);
+      List<DividendResponseDto> result = dividendService.getUserDividends(TEST_USER_ID);
 
       // then
       assertThat(result).hasSize(2);
@@ -184,7 +181,7 @@ class DividendServiceImplTest {
         .willReturn(new ArrayList<>());
 
       // when
-      List<Map<String, Object>> result = dividendService.getUserDividends(TEST_USER_ID);
+      List<DividendResponseDto> result = dividendService.getUserDividends(TEST_USER_ID);
 
       // then
       assertThat(result).isEmpty();
@@ -210,18 +207,16 @@ class DividendServiceImplTest {
         .willReturn(List.of(testDividendDto));
 
       // 배당이 아직 캐시되지 않음
-      given(dividendRepository.existsByTradeIdAndDividendDate(TEST_TRADE_ID,
-        LocalDate.parse(testDividendDto.exDate())))
+      given(dividendRepository.existsByTradeIdAndDividendDate(eq(TEST_TRADE_ID),
+        eq(LocalDate.parse(testDividendDto.exDate()))))
         .willReturn(false);
 
       given(
         dividendRepository.findByUserIdAndSymbolOrderByDividendDateDesc(TEST_USER_ID, TEST_SYMBOL))
         .willReturn(List.of(testDividend));
 
-      given(tradeRepository.findById(TEST_TRADE_ID)).willReturn(Optional.of(testBuyTrade));
-
       // when
-      List<Map<String, Object>> result = dividendService.getDividendsWithCache(
+      List<DividendResponseDto> result = dividendService.getDividendsWithCache(
         TEST_USER_ID, TEST_SYMBOL, startDate, endDate);
 
       // then
@@ -229,9 +224,9 @@ class DividendServiceImplTest {
       verify(dividendRepository).save(any(Dividend.class));
       verify(dividendRepository).flush();
 
-      Map<String, Object> dividend = result.getFirst();
-      assertThat(dividend.get("symbol")).isEqualTo(TEST_SYMBOL);
-      assertThat(dividend.get("tradeId")).isEqualTo(TEST_TRADE_ID);
+      DividendResponseDto dividend = result.getFirst();
+      assertThat(dividend.symbol()).isEqualTo(TEST_SYMBOL);
+      assertThat(dividend.tradeId()).isEqualTo(TEST_TRADE_ID);
     }
 
     @Test
@@ -248,18 +243,16 @@ class DividendServiceImplTest {
         .willReturn(List.of(testDividendDto));
 
       // 배당이 이미 캐시됨
-      given(dividendRepository.existsByTradeIdAndDividendDate(TEST_TRADE_ID,
-        LocalDate.parse(testDividendDto.exDate())))
+      given(dividendRepository.existsByTradeIdAndDividendDate(eq(TEST_TRADE_ID),
+        eq(LocalDate.parse(testDividendDto.exDate()))))
         .willReturn(true);
 
       given(
         dividendRepository.findByUserIdAndSymbolOrderByDividendDateDesc(TEST_USER_ID, TEST_SYMBOL))
         .willReturn(List.of(testDividend));
 
-      given(tradeRepository.findById(TEST_TRADE_ID)).willReturn(Optional.of(testBuyTrade));
-
       // when
-      List<Map<String, Object>> result = dividendService.getDividendsWithCache(
+      List<DividendResponseDto> result = dividendService.getDividendsWithCache(
         TEST_USER_ID, TEST_SYMBOL, startDate, endDate);
 
       // then
@@ -277,7 +270,7 @@ class DividendServiceImplTest {
       LocalDate dividendDate = LocalDate.of(2024, 3, 15);
 
       Trade buyTrade = Trade.builder()
-        .tradeId(TEST_TRADE_ID)
+        .id(TEST_TRADE_ID)
         .userId(TEST_USER_ID)
         .accountId(TEST_ACCOUNT_ID)
         .symbol(TEST_SYMBOL)
@@ -287,7 +280,7 @@ class DividendServiceImplTest {
         .build();
 
       Trade sellTrade = Trade.builder()
-        .tradeId("sell-trade-id")
+        .id(2L)
         .userId(TEST_USER_ID)
         .accountId(TEST_ACCOUNT_ID)
         .symbol(TEST_SYMBOL)
@@ -303,7 +296,7 @@ class DividendServiceImplTest {
       given(marketServiceClient.getDividends(eq(TEST_SYMBOL), anyString(), anyString()))
         .willReturn(List.of(dividendDto));
 
-      given(dividendRepository.existsByTradeIdAndDividendDate(anyString(), any(LocalDate.class)))
+      given(dividendRepository.existsByTradeIdAndDividendDate(any(Long.class), any(LocalDate.class)))
         .willReturn(false);
 
       // ArgumentCaptor로 저장된 배당 검증
@@ -331,7 +324,7 @@ class DividendServiceImplTest {
       LocalDate dividendDate = LocalDate.of(2024, 3, 15);
 
       Trade buyTrade = Trade.builder()
-        .tradeId(TEST_TRADE_ID)
+        .id(TEST_TRADE_ID)
         .userId(TEST_USER_ID)
         .accountId(TEST_ACCOUNT_ID)
         .symbol(TEST_SYMBOL)
@@ -341,7 +334,7 @@ class DividendServiceImplTest {
         .build();
 
       Trade sellTrade = Trade.builder()
-        .tradeId("sell-trade-id")
+        .id(2L)
         .userId(TEST_USER_ID)
         .accountId(TEST_ACCOUNT_ID)
         .symbol(TEST_SYMBOL)
@@ -362,7 +355,7 @@ class DividendServiceImplTest {
         .willReturn(new ArrayList<>());
 
       // when
-      List<Map<String, Object>> result = dividendService.getDividendsWithCache(
+      List<DividendResponseDto> result = dividendService.getDividendsWithCache(
         TEST_USER_ID, TEST_SYMBOL, buyDate, LocalDate.now());
 
       // then
@@ -387,10 +380,8 @@ class DividendServiceImplTest {
         dividendRepository.findByUserIdAndSymbolOrderByDividendDateDesc(TEST_USER_ID, TEST_SYMBOL))
         .willReturn(List.of(testDividend));
 
-      given(tradeRepository.findById(TEST_TRADE_ID)).willReturn(Optional.of(testBuyTrade));
-
       // when
-      List<Map<String, Object>> result = dividendService.getDividendsWithCache(
+      List<DividendResponseDto> result = dividendService.getDividendsWithCache(
         TEST_USER_ID, TEST_SYMBOL, startDate, endDate);
 
       // then
@@ -409,7 +400,7 @@ class DividendServiceImplTest {
         .willReturn(new ArrayList<>());
 
       // when
-      List<Map<String, Object>> result = dividendService.getDividendsWithCache(
+      List<DividendResponseDto> result = dividendService.getDividendsWithCache(
         TEST_USER_ID, TEST_SYMBOL, startDate, endDate);
 
       // then
@@ -431,7 +422,7 @@ class DividendServiceImplTest {
         .willReturn(symbols);
 
       Trade appleTrade = Trade.builder()
-        .tradeId("apple-trade-id")
+        .id(10L)
         .userId(TEST_USER_ID)
         .symbol("AAPL")
         .tradeType(TradeType.BUY)
@@ -440,7 +431,7 @@ class DividendServiceImplTest {
         .build();
 
       Trade msftTrade = Trade.builder()
-        .tradeId("msft-trade-id")
+        .id(11L)
         .userId(TEST_USER_ID)
         .symbol("MSFT")
         .tradeType(TradeType.BUY)

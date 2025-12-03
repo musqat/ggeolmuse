@@ -2,21 +2,22 @@ package com.muscat.gateway.controller;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
 import java.util.Map;
 
-// Gateway fallback 컨트롤러
-// 서비스 장애 시 fallback 응답 제공
+/**
+ * Gateway fallback 컨트롤러
+ * 서비스 장애 시 fallback 응답 제공
+ */
 @RestController
 @RequestMapping("/fallback")
 public class FallbackController {
 
     // fallback 엔드포인트
-    @GetMapping
+    @RequestMapping
     public ResponseEntity<Map<String, Object>> fallback() {
         Map<String, Object> response = Map.of(
             "error", "서비스 사용 불가",

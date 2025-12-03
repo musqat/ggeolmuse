@@ -125,7 +125,7 @@ class TradingServiceImplTest {
         .willReturn(Optional.empty());
 
       Trade savedTrade = Trade.builder()
-        .tradeId("trade-uuid")
+        .id(1L)
         .userId(TEST_USER_ID)
         .accountId(TEST_ACCOUNT_ID)
         .symbol(TEST_SYMBOL)
@@ -145,7 +145,7 @@ class TradingServiceImplTest {
 
       // then
       assertThat(result).isNotNull();
-      assertThat(result.tradeId()).isEqualTo("trade-uuid");
+      assertThat(result.id()).isEqualTo(1L);
       assertThat(result.symbol()).isEqualTo(TEST_SYMBOL);
       assertThat(result.quantity()).isEqualByComparingTo(TEST_QUANTITY);
       assertThat(result.price()).isEqualByComparingTo(TEST_PRICE);
@@ -173,7 +173,7 @@ class TradingServiceImplTest {
       BigDecimal existingInvestedAmount = existingQuantity.multiply(existingAvgPrice);
 
       Holdings existingHoldings = Holdings.builder()
-        .holdingId("holding-uuid")
+        .id(1L)
         .userId(TEST_USER_ID)
         .accountId(TEST_ACCOUNT_ID)
         .symbol(TEST_SYMBOL)
@@ -197,7 +197,7 @@ class TradingServiceImplTest {
         .willReturn(Optional.of(existingHoldings));
 
       Trade savedTrade = Trade.builder()
-        .tradeId("trade-uuid")
+        .id(1L)
         .userId(TEST_USER_ID)
         .accountId(TEST_ACCOUNT_ID)
         .symbol(TEST_SYMBOL)
@@ -274,7 +274,7 @@ class TradingServiceImplTest {
       BigDecimal totalInvestedAmount = existingQuantity.multiply(avgPrice);
 
       Holdings existingHoldings = Holdings.builder()
-        .holdingId("holding-uuid")
+        .id(1L)
         .userId(TEST_USER_ID)
         .accountId(TEST_ACCOUNT_ID)
         .symbol(TEST_SYMBOL)
@@ -305,7 +305,7 @@ class TradingServiceImplTest {
         .willReturn(Optional.of(existingHoldings));
 
       Trade savedTrade = Trade.builder()
-        .tradeId("trade-uuid")
+        .id(1L)
         .userId(TEST_USER_ID)
         .accountId(TEST_ACCOUNT_ID)
         .symbol(TEST_SYMBOL)
@@ -345,7 +345,7 @@ class TradingServiceImplTest {
       BigDecimal avgPrice = new BigDecimal("140.00");
 
       Holdings existingHoldings = Holdings.builder()
-        .holdingId("holding-uuid")
+        .id(1L)
         .userId(TEST_USER_ID)
         .accountId(TEST_ACCOUNT_ID)
         .symbol(TEST_SYMBOL)
@@ -375,7 +375,7 @@ class TradingServiceImplTest {
         .willReturn(Optional.of(existingHoldings));
 
       Trade savedTrade = Trade.builder()
-        .tradeId("trade-uuid")
+        .id(1L)
         .userId(TEST_USER_ID)
         .accountId(TEST_ACCOUNT_ID)
         .symbol(TEST_SYMBOL)
@@ -482,8 +482,8 @@ class TradingServiceImplTest {
     void getUserTrades_Success() {
       // given
       List<Trade> trades = new ArrayList<>();
-      trades.add(createTestTrade("trade-1", TradeType.BUY));
-      trades.add(createTestTrade("trade-2", TradeType.SELL));
+      trades.add(createTestTrade(1L, TradeType.BUY));
+      trades.add(createTestTrade(2L, TradeType.SELL));
 
       given(
         tradeRepository.findByUserIdOrderByExecutedAtDesc(eq(TEST_USER_ID), any(Pageable.class)))
@@ -494,8 +494,8 @@ class TradingServiceImplTest {
 
       // then
       assertThat(result).hasSize(2);
-      assertThat(result.getFirst().tradeId()).isEqualTo("trade-1");
-      assertThat(result.get(1).tradeId()).isEqualTo("trade-2");
+      assertThat(result.getFirst().id()).isEqualTo(1L);
+      assertThat(result.get(1).id()).isEqualTo(2L);
     }
 
     @Test
@@ -503,7 +503,7 @@ class TradingServiceImplTest {
     void getTradesBySymbol_Success() {
       // given
       List<Trade> trades = new ArrayList<>();
-      trades.add(createTestTrade("trade-1", TradeType.BUY));
+      trades.add(createTestTrade(1L, TradeType.BUY));
 
       given(tradeRepository.findByUserIdAndSymbolOrderByExecutedAtDesc(TEST_USER_ID, TEST_SYMBOL))
         .willReturn(trades);
@@ -524,7 +524,7 @@ class TradingServiceImplTest {
       LocalDate endDate = LocalDate.of(2024, 1, 31);
 
       List<Trade> trades = new ArrayList<>();
-      trades.add(createTestTrade("trade-1", TradeType.BUY));
+      trades.add(createTestTrade(1L, TradeType.BUY));
 
       given(tradeRepository.findTradesWithComplexFilters(
         eq(TEST_USER_ID), isNull(), isNull(), isNull(), eq(startDate), eq(endDate),
@@ -732,9 +732,9 @@ class TradingServiceImplTest {
   }
 
   // 헬퍼 메서드
-  private Trade createTestTrade(String tradeId, TradeType tradeType) {
+  private Trade createTestTrade(Long id, TradeType tradeType) {
     return Trade.builder()
-      .tradeId(tradeId)
+      .id(id)
       .userId(TEST_USER_ID)
       .accountId(TEST_ACCOUNT_ID)
       .symbol(TEST_SYMBOL)

@@ -9,11 +9,7 @@ import lombok.experimental.SuperBuilder;
 import java.io.Serializable;
 import java.time.LocalDate;
 
-/**
- * 데이터 수집 완료/실패 이벤트
- *
- * AssetCreatedEvent에 대한 응답으로 발행
- */
+// 데이터 수집 완료/실패 이벤트 - AssetCreatedEvent에 대한 응답으로 발행
 @Data
 @SuperBuilder
 @NoArgsConstructor

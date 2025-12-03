@@ -3,8 +3,8 @@ package com.muscat.backtest.infra.client;
 import com.muscat.backtest.infra.client.dto.DividendDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import com.muscat.commonlib.dto.StockPriceDto;
+import com.muscat.backtest.infra.client.dto.FxRateDto;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.List;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,11 +33,11 @@ public interface MarketDataClient {
 
   // 특정 날짜의 환율 조회 (내부 API)
   @GetMapping("/api/internal/market/fx/{date}")
-  FxRate getFxRate(@PathVariable("date") String date);
+  FxRateDto getFxRate(@PathVariable("date") String date);
 
   // 최신 환율 조회 (내부 API)
   @GetMapping("/api/internal/market/fx/latest")
-  FxRate getLatestFxRate();
+  FxRateDto getLatestFxRate();
 
   // 특정 기간의 배당 이력 조회 (내부 API)
   @GetMapping("/api/internal/market/dividend/{symbol}")
@@ -49,15 +49,4 @@ public interface MarketDataClient {
   @PostMapping("/api/internal/market/fx/bulk")
   java.util.Map<String, BigDecimal> getBulkFxRates(
     @RequestBody List<String> dates);
-
-  // 배당 포함 캔들 데이터 조회 (내부 API)
-  @GetMapping("/api/internal/market/ohlc/{symbol}/with-dividends")
-  List<OHLCPriceDto> getCandlesWithDividends(@PathVariable("symbol") String symbol,
-    @RequestParam("startDate") String startDate,
-    @RequestParam("endDate") String endDate);
-
-  // 환율 정보 레코드
-  record FxRate(LocalDate date, BigDecimal rate) {
-
-  }
 }
