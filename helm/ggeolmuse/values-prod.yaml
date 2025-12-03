@@ -230,7 +230,7 @@ configServer:
 gatewayServer:
   enabled: true
   name: gateway-server
-  replicaCount: 2
+  replicaCount: 1
   image:
     repository: gateway-server
     tag: "1.1.3"
@@ -345,7 +345,7 @@ services:
   marketDataService:
     enabled: true
     name: market-data-service
-    replicaCount: 2
+    replicaCount: 1
     image:
       repository: market-data-service
       tag: "1.1.3"
@@ -428,7 +428,7 @@ services:
 frontend:
   enabled: true
   name: frontend-web
-  replicaCount: 2
+  replicaCount: 1
   image:
     repository: frontend-web
     tag: "1.1.3"
