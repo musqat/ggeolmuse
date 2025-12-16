@@ -42,6 +42,12 @@ NYSE, NASDAQ, NYSE ARCA에 상장된 11,000개 이상 종목의 20년치 일별 
 | **Market Data Service** | 시세 데이터 수집/제공 | [📄](market-data-service/README.md) |
 | **Backtest Service** | 투자 전략 백테스팅 | [📄](backtest-service/README.md) |
 
+## 인프라 & 배포
+
+| 항목       | 설명 | README |
+|----------|------|--------|
+| **helm** | AWS 아키텍처, 비용 최적화, CI/CD, 모니터링, 트러블슈팅 | [📄](helm/README.md) |
+
 ---
 
 ## 아키텍처
@@ -109,6 +115,8 @@ ggeolmuse/
 
 ## 모니터링
 
+- **Prometheus + Grafana**: 메트릭 수집 및 시각화
+- **Loki**: 로그 집계
+- **Tempo + OpenTelemetry**: 분산 추적
 - **ArgoCD**: GitOps 배포 관리
-- **Grafana**: 메트릭 시각화
 - **Kafka UI**: 이벤트 스트림 모니터링
