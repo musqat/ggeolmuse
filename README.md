@@ -72,6 +72,8 @@ ggeolmuse/
 └── frontend-web/              # React 프론트엔드
 ```
 
+<img width="850" height="600" alt="껄무새 drawio (2)" src="https://github.com/user-attachments/assets/e54861a9-3a24-40f5-bf48-c0e0c55ada22" />
+
 ---
 
 ## 성능 최적화
