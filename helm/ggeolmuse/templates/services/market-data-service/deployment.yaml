@@ -65,11 +65,6 @@ spec:
             secretKeyRef:
               name: ggeolmuse-secrets
               key: KEYCLOAK_SECRET
-        - name: ALPHAVANTAGE_API_KEY
-          valueFrom:
-            secretKeyRef:
-              name: ggeolmuse-secrets
-              key: ALPHAVANTAGE_API_KEY
         - name: KOREAEXIM_API_KEY
           valueFrom:
             secretKeyRef:
@@ -78,8 +73,6 @@ spec:
         {{- else }}
         - name: KEYCLOAK_SECRET
           {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "KEYCLOAK_SECRET") | nindent 10 }}
-        - name: ALPHAVANTAGE_API_KEY
-          {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "ALPHAVANTAGE_API_KEY") | nindent 10 }}
         - name: KOREAEXIM_API_KEY
           {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "KOREAEXIM_API_KEY") | nindent 10 }}
         {{- end }}

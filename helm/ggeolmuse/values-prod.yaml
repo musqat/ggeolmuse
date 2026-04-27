@@ -357,14 +357,13 @@ services:
     env:
       TZ: "Asia/Seoul"
       # 마켓 데이터 설정
-      MARKETDATA_PROVIDER: "alphavantage"
+      MARKETDATA_PROVIDER: "yahoo"
       SYMBOL_COLLECTION_ENABLED: "true"
       SYMBOL_COLLECT_DATA: "false"
       # 심볼 수집 최대 개수 (0 = 무제한, 기본값 100)
       SYMBOL_LISTING_MAX: "0"
     secrets:
       keycloakSecret: true
-      alphavantageApiKey: true
       koreaexImApiKey: true
     probes:
       startup:

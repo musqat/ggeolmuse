@@ -308,7 +308,6 @@ services:
     env: {}
     secrets:
       keycloakSecret: true
-      alphavantageApiKey: true
       koreaexImApiKey: true
     strategy:
       rollingUpdate:
@@ -447,7 +446,6 @@ secrets:
     mailUsername: ""
     mailPassword: ""
     mailFrom: ""
-    alphavantageApiKey: ""
     koreaeximApiKey: ""
 
 # 모니터링 설정
