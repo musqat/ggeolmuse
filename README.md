@@ -13,8 +13,8 @@
 
 ## 서비스 개요
 
-투자자가 과거 데이터를 바탕으로 다양한 투자 전략을 시뮬레이션할 수 있는 플랫폼입니다.
-NYSE, NASDAQ, NYSE ARCA에 상장된 11,000개 이상 종목의 20년치 일별 가격 데이터를 자동으로 수집합니다.
+NYSE, NASDAQ, NYSE ARCA 상장 11,000개 이상 종목의 20년치 일별 가격 데이터로 투자 전략을 백테스팅합니다.
+환율 변동, 배당 재투자, 실제 수수료까지 반영해 실전에 가까운 시뮬레이션을 제공합니다.
 
 **주요 기능**
 - 실시간 주식 시세 조회 및 과거 OHLC 데이터 제공
@@ -53,13 +53,13 @@ NYSE, NASDAQ, NYSE ARCA에 상장된 11,000개 이상 종목의 20년치 일별 
 ## 아키텍처
 
 **Microservices Architecture**
-- 6개 독립 서비스로 구성
+- 6개 독립 서비스로 구성 (서비스별 독립 배포·스케일링 경험 목적, 실제 운영은 단일 EC2)
 - Kafka 기반 이벤트 드리븐 아키텍처
-- Spring Cloud Gateway를 통한 통합 라우팅
+- Spring Cloud Gateway로 라우팅 통합
 
 **인프라**
 - Kubernetes (K3s) 기반 컨테이너 오케스트레이션
-- ArgoCD를 통한 GitOps 배포
+- ArgoCD로 GitOps 배포
 - Prometheus + Grafana 모니터링
 
 ---
@@ -90,9 +90,8 @@ ggeolmuse/
 - 데이터베이스 인덱싱: 시가총액 정렬 조회 98% 개선 (2.5s → 50ms)
 
 **안정성**
-- Circuit Breaker로 장애 서비스 격리
-- Retry 정책으로 일시적 오류 복구
-- Rate Limiting으로 API 과부하 방지
+- Circuit Breaker로 장애 서비스 격리, Retry 정책으로 일시적 오류 복구
+- API 과부하는 Rate Limiting으로 방지
 
 **운영 자동화**
 - GitHub Actions CI/CD 파이프라인

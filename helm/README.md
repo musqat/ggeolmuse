@@ -87,7 +87,7 @@ EKS + Multi-Node ($300/월)
 EKS + RDS Multi-AZ + ElastiCache ($800/월)
 ```
 
-Helm Chart로 구성했기 때문에 EKS 전환 시 values 파일만 변경하면 됨.
+values 파일만 수정하면 EKS 전환 가능.
 
 ---
 
