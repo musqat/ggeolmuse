@@ -12,10 +12,6 @@ interface DateRangeInputProps {
   endPlaceholder?: string;
 }
 
-/**
- * 날짜 범위 입력 컴포넌트
- * 시작일과 종료일을 입력받습니다.
- */
 export const DateRangeInput: React.FC<DateRangeInputProps> = ({
   startDate,
   setStartDate,
@@ -32,7 +28,7 @@ export const DateRangeInput: React.FC<DateRangeInputProps> = ({
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {/* 시작일 */}
       <div>
-        <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 mb-2">
+        <label className="flex items-center space-x-2 text-sm font-medium text-tx-1 mb-2">
           <Calendar className="w-4 h-4" />
           <span>{startLabel}</span>
         </label>
@@ -41,17 +37,17 @@ export const DateRangeInput: React.FC<DateRangeInputProps> = ({
           value={startDate}
           onChange={(e) => setStartDate(e.target.value)}
           max={endDate || today}
-          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
         />
       </div>
 
       {/* 종료일 */}
       <div>
-        <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 mb-2">
+        <label className="flex items-center space-x-2 text-sm font-medium text-tx-1 mb-2">
           <Calendar className="w-4 h-4" />
           <span>{endLabel}</span>
           {allowEmptyEnd && (
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-tx-3">
               (비워두면 {endPlaceholder})
             </span>
           )}
@@ -63,7 +59,7 @@ export const DateRangeInput: React.FC<DateRangeInputProps> = ({
           min={startDate}
           max={today}
           placeholder={allowEmptyEnd ? endPlaceholder : undefined}
-          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
         />
       </div>
     </div>

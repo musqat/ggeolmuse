@@ -7,9 +7,6 @@ import {
   type PortfolioSummaryResponse
 } from '../services/api';
 
-/**
- * 계좌 데이터 페칭 훅의 반환 타입
- */
 export interface UseAccountDataReturn {
   accounts: AccountSummary[];
   accountBalances: Map<number, AccountBalance>;

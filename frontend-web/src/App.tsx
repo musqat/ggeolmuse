@@ -42,12 +42,12 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <Router>
-          <div className="App min-h-screen bg-gray-50">
+          <div className="App min-h-screen bg-surface/50">
             <Header />
             <main>
             <Suspense fallback={
               <div className="flex items-center justify-center min-h-screen">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand"></div>
               </div>
             }>
               <Routes>
@@ -68,6 +68,7 @@ function App() {
                 <Route path="/oauth/callback" element={<OAuthCallback />} />
                 <Route path="/reset-password" element={<PasswordReset />} />
                 <Route path="/unauthorized" element={<Unauthorized />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
 
                 {/* Admin Routes - 별도 레이아웃, ADMIN 권한 필요 */}
                 <Route

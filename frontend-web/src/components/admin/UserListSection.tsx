@@ -24,15 +24,15 @@ export default function UserListSection({
   onPageChange,
 }: UserListSectionProps) {
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className="bg-surface rounded-lg shadow-md p-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-semibold">사용자 목록</h2>
         <button
           onClick={onRefresh}
           disabled={loading}
-          className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition"
+          className="p-2 text-brand hover:bg-brand-bg rounded-lg transition"
         >
-          <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin':''}`} />
         </button>
       </div>
 
@@ -43,16 +43,16 @@ export default function UserListSection({
             onClick={() => onSelectUser(user.userId)}
             className={`p-4 rounded-lg border cursor-pointer transition ${
               selectedUserId === user.userId
-                ? 'border-indigo-500 bg-indigo-50'
-                : 'border-gray-200 hover:border-indigo-300 hover:bg-gray-50'
+                ? 'border-indigo-500 bg-brand-bg'
+                : 'border-line hover:border-brand/40 hover:bg-surface/50'
             }`}
           >
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <p className="font-semibold text-gray-900">{user.username}</p>
+                  <p className="font-semibold text-tx-1">{user.username}</p>
                   {user.role === 'ADMIN' && (
-                    <Shield className="w-4 h-4 text-indigo-600" />
+                    <Shield className="w-4 h-4 text-brand" />
                   )}
                   {user.enabled ? (
                     <UserCheck className="w-4 h-4 text-green-600" />
@@ -60,13 +60,13 @@ export default function UserListSection({
                     <UserX className="w-4 h-4 text-red-600" />
                   )}
                 </div>
-                <p className="text-sm text-gray-600">{user.email}</p>
+                <p className="text-sm text-tx-2">{user.email}</p>
                 <div className="flex gap-2 mt-2">
                   <span
                     className={`px-2 py-1 text-xs rounded-full ${
                       user.role === 'ADMIN'
-                        ? 'bg-indigo-100 text-indigo-800'
-                        : 'bg-gray-100 text-gray-800'
+                        ? 'bg-brand-bg text-indigo-800'
+                        : 'bg-elevated text-tx-1'
                     }`}
                   >
                     {user.role}
@@ -74,8 +74,8 @@ export default function UserListSection({
                   <span
                     className={`px-2 py-1 text-xs rounded-full ${
                       user.enabled
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-red-100 text-red-800'
+                        ? 'bg-green-500/15 text-green-600'
+                        : 'bg-red-500/15 text-red-600'
                     }`}
                   >
                     {user.enabled ? '활성' : '비활성'}
@@ -97,18 +97,18 @@ export default function UserListSection({
         <button
           onClick={() => onPageChange(page - 1)}
           disabled={page === 0 || loading}
-          className="px-4 py-2 text-sm bg-gray-100 rounded-lg disabled:opacity-50 flex items-center gap-1 transition"
+          className="px-4 py-2 text-sm bg-elevated rounded-lg disabled:opacity-50 flex items-center gap-1 transition"
         >
           <ChevronLeft className="w-4 h-4" />
           이전
         </button>
-        <span className="text-sm text-gray-600">
+        <span className="text-sm text-tx-2">
           {page + 1} / {totalPages}
         </span>
         <button
           onClick={() => onPageChange(page + 1)}
           disabled={page >= totalPages - 1 || loading}
-          className="px-4 py-2 text-sm bg-gray-100 rounded-lg disabled:opacity-50 flex items-center gap-1 transition"
+          className="px-4 py-2 text-sm bg-elevated rounded-lg disabled:opacity-50 flex items-center gap-1 transition"
         >
           다음
           <ChevronRight className="w-4 h-4" />

@@ -28,21 +28,21 @@ const OrderSummaryPanel: React.FC<OrderSummaryPanelProps> = ({
   totalAmount,
 }) => {
   return (
-    <div className="mb-6 p-4 bg-gray-50 rounded-lg space-y-2">
+    <div className="mb-6 p-4 bg-surface/50 rounded-lg space-y-2">
       <div className="flex justify-between text-sm">
-        <span className="text-gray-600">종목</span>
+        <span className="text-tx-2">종목</span>
         <span className="font-medium">{selectedStock}</span>
       </div>
       <div className="flex justify-between text-sm">
-        <span className="text-gray-600">거래일</span>
+        <span className="text-tx-2">거래일</span>
         <span className="font-medium">{tradeDate}</span>
       </div>
       <div className="flex justify-between text-sm">
-        <span className="text-gray-600">수량</span>
+        <span className="text-tx-2">수량</span>
         <span className="font-medium">{quantity}주</span>
       </div>
       <div className="flex justify-between text-sm">
-        <span className="text-gray-600">체결가</span>
+        <span className="text-tx-2">체결가</span>
         <span className="font-medium">${currentPrice.toFixed(2)}</span>
       </div>
       <div className="border-t pt-2 mt-2">

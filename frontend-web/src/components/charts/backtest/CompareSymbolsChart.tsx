@@ -303,9 +303,9 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-6">
         <div className="flex items-center justify-center h-64">
-          <div className="text-gray-500">차트 데이터 로딩 중...</div>
+          <div className="text-tx-2">차트 데이터 로딩 중...</div>
         </div>
       </div>
     );
@@ -313,7 +313,7 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
 
   if (error) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-6">
         <div className="flex items-center justify-center h-64">
           <div className="text-red-500">{error}</div>
         </div>
@@ -323,18 +323,18 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
 
   if (chartData.length === 0) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-6">
         <div className="flex items-center justify-center h-64">
-          <div className="text-gray-500">차트 데이터가 없습니다.</div>
+          <div className="text-tx-2">차트 데이터가 없습니다.</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-6">
+    <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-6 space-y-6">
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900">종목별 비교 차트</h3>
+        <h3 className="text-lg font-semibold text-tx-1">종목별 비교 차트</h3>
         <ChartPeriodSelector
           chartPeriod={chartPeriod}
           customStartDate={customStartDate}
@@ -346,7 +346,7 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
 
       {/* Stock Price Comparison Chart */}
       <div>
-        <h4 className="text-sm font-medium text-gray-700 mb-3">주가 추이 비교</h4>
+        <h4 className="text-sm font-medium text-tx-1 mb-3">주가 추이 비교</h4>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -435,7 +435,7 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
 
       {/* Portfolio Value Comparison Chart */}
       <div>
-        <h4 className="text-sm font-medium text-gray-700 mb-3">종목별 평가금액 추이</h4>
+        <h4 className="text-sm font-medium text-tx-1 mb-3">종목별 평가금액 추이</h4>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -538,9 +538,9 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
           </LineChart>
         </ResponsiveContainer>
         <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-          <p className="text-xs text-gray-700">
+          <p className="text-xs text-tx-1">
             <span className="font-semibold">차트 마커 안내:</span><br/>
-            <span className="inline-block w-3 h-3 bg-gray-800 rounded-full mr-1 align-middle"></span> 검은색 점 = 실제 매수 시점 |
+            <span className="inline-block w-3 h-3 bg-hover rounded-full mr-1 align-middle"></span> 검은색 점 = 실제 매수 시점 |
             <span className="inline-block w-3 h-3 bg-amber-400 rounded-full mr-1 ml-2 align-middle"></span> 금색 점 = 최적 매수/매도 시점 (가장 낮은 가격 / 가장 높은 평가금액)
           </p>
         </div>

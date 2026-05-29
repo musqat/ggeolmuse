@@ -153,7 +153,7 @@ const StockSearchInput: React.FC<StockSearchInputProps> = ({
     <div className={`relative ${className}`}>
       <div className="relative">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <Search className="h-4 w-4 text-gray-400" />
+          <Search className="h-4 w-4 text-tx-3" />
         </div>
         <input
           ref={inputRef}
@@ -162,13 +162,13 @@ const StockSearchInput: React.FC<StockSearchInputProps> = ({
           onChange={handleInputChange}
           onFocus={handleInputFocus}
           placeholder={placeholder}
-          className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+          className="block w-full pl-10 pr-10 py-2 border border-line-strong rounded-md leading-5 bg-surface placeholder-slate-500 focus:outline-none focus:placeholder-slate-500 focus:ring-1 focus:ring-brand focus:border-brand"
         />
         {searchTerm && (
           <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
             <button
               onClick={handleClear}
-              className="h-4 w-4 text-gray-400 hover:text-gray-600"
+              className="h-4 w-4 text-tx-3 hover:text-tx-2"
             >
               <X className="h-4 w-4" />
             </button>
@@ -179,25 +179,25 @@ const StockSearchInput: React.FC<StockSearchInputProps> = ({
       {isOpen && (
         <div
           ref={dropdownRef}
-          className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm"
+          className="absolute z-10 mt-1 w-full bg-surface shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm"
         >
           {filteredStocks.length > 0 ? (
             filteredStocks.map((stock) => (
               <div
                 key={stock.symbol}
                 onClick={() => handleSelectStock(stock)}
-                className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-indigo-600 hover:text-white"
+                className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-brand hover:text-white"
               >
                 <div className="flex items-center">
                   <span className="font-semibold text-sm">{stock.symbol}</span>
                   {stock.name && (
-                    <span className="ml-2 text-gray-500 text-sm truncate hover:text-white">{stock.name}</span>
+                    <span className="ml-2 text-tx-2 text-sm truncate hover:text-white">{stock.name}</span>
                   )}
                 </div>
               </div>
             ))
           ) : (
-            <div className="cursor-default select-none relative py-2 pl-3 pr-9 text-gray-700">
+            <div className="cursor-default select-none relative py-2 pl-3 pr-9 text-tx-1">
               검색 결과가 없습니다.
             </div>
           )}

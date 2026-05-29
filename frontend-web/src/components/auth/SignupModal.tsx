@@ -7,7 +7,7 @@ interface SignupModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSwitchToLogin: () => void;
-  onSignup: (email: string, password: string, nickname: string) => Promise<void>;
+  onSignup: (email: string, password: string, nickname: string) =>Promise<void>;
   onSignupSuccess: (email: string) => void;
 }
 
@@ -29,7 +29,7 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
   const [resendSuccess, setResendSuccess] = useState(false);
   const [resendError, setResendError] = useState('');
 
-  const handleInputChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (field: string) =>(e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({ ...prev, [field]: e.target.value }));
   };
 
@@ -164,13 +164,13 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+      <div className="bg-surface rounded-lg shadow-xl w-full max-w-md mx-4">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-xl font-semibold text-gray-900">회원가입</h2>
+          <h2 className="text-xl font-semibold text-tx-1">회원가입</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-tx-3 hover:text-tx-2 transition-colors"
           >
             <X className="w-6 h-6" />
           </button>
@@ -181,7 +181,7 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Nickname */}
             <div>
-              <label htmlFor="nickname" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="nickname" className="block text-sm font-medium text-tx-1 mb-1">
                 닉네임
               </label>
               <input
@@ -189,7 +189,7 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
                 id="nickname"
                 value={formData.nickname}
                 onChange={handleInputChange('nickname')}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-line-strong rounded-md focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
                 placeholder="사용할 닉네임을 입력하세요"
                 required
               />
@@ -197,7 +197,7 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
 
             {/* Email */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="email" className="block text-sm font-medium text-tx-1 mb-1">
                 이메일
               </label>
               <input
@@ -205,7 +205,7 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
                 id="email"
                 value={formData.email}
                 onChange={handleInputChange('email')}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-line-strong rounded-md focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
                 placeholder="your@email.com"
                 required
               />
@@ -213,7 +213,7 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
 
             {/* Password */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="password" className="block text-sm font-medium text-tx-1 mb-1">
                 비밀번호
               </label>
               <div className="relative">
@@ -222,23 +222,23 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
                   id="password"
                   value={formData.password}
                   onChange={handleInputChange('password')}
-                  className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-3 py-2 pr-10 border border-line-strong rounded-md focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
                   placeholder="8자 이상 입력하세요"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-tx-3 hover:text-tx-2"
                 >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showPassword ? <EyeOff className="w-5 h-5" />:<Eye className="w-5 h-5" />}
                 </button>
               </div>
             </div>
 
             {/* Confirm Password */}
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-tx-1 mb-1">
                 비밀번호 확인
               </label>
               <div className="relative">
@@ -247,23 +247,23 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
                   id="confirmPassword"
                   value={formData.confirmPassword}
                   onChange={handleInputChange('confirmPassword')}
-                  className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-3 py-2 pr-10 border border-line-strong rounded-md focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
                   placeholder="비밀번호를 다시 입력하세요"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-tx-3 hover:text-tx-2"
                 >
-                  {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showConfirmPassword ? <EyeOff className="w-5 h-5" />:<Eye className="w-5 h-5" />}
                 </button>
               </div>
             </div>
 
             {/* Error Message */}
             {error && (
-              <div className="text-red-600 text-sm bg-red-50 p-3 rounded-md">
+              <div className="text-red-600 text-sm bg-red-500/10 p-3 rounded-md">
                 {error}
               </div>
             )}
@@ -272,7 +272,7 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full bg-brand text-white py-2 px-4 rounded-md hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isLoading ? '회원가입 중...' : '회원가입'}
             </button>
@@ -282,10 +282,10 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
           <div className="my-6">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300"></div>
+                <div className="w-full border-t border-line-strong"></div>
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">또는</span>
+                <span className="px-2 bg-surface text-tx-2">또는</span>
               </div>
             </div>
           </div>
@@ -295,7 +295,7 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
             type="button"
             onClick={handleGoogleSignup}
             disabled={isGoogleLoading}
-            className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full flex items-center justify-center px-4 py-2 border border-line-strong rounded-md shadow-sm bg-surface text-sm font-medium text-tx-1 hover:bg-surface/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -308,11 +308,11 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
 
           {/* Footer */}
           <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              이미 계정이 있으신가요?{' '}
+            <p className="text-sm text-tx-2">
+              이미 계정이 있으신가요?{''}
               <button
                 onClick={onSwitchToLogin}
-                className="text-indigo-600 hover:text-indigo-500 font-medium"
+                className="text-brand hover:text-brand font-medium"
               >
                 로그인
               </button>
@@ -320,11 +320,11 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
           </div>
 
           {/* 이메일 재전송 섹션 */}
-          <div className="mt-4 pt-4 border-t border-gray-200">
+          <div className="mt-4 pt-4 border-t border-line">
             <button
               type="button"
               onClick={() => setShowResendSection(!showResendSection)}
-              className="w-full flex items-center justify-center text-sm text-gray-600 hover:text-gray-800 transition-colors"
+              className="w-full flex items-center justify-center text-sm text-tx-2 hover:text-tx-1 transition-colors"
             >
               이메일을 못 받으셨나요?
               {showResendSection ? (
@@ -336,7 +336,7 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
 
             {showResendSection && (
               <div className="mt-4 space-y-3">
-                <p className="text-xs text-gray-500 text-center">
+                <p className="text-xs text-tx-2 text-center">
                   회원가입 시 사용한 이메일을 입력하시면 인증 이메일을 다시 발송해드립니다.
                 </p>
 
@@ -345,19 +345,19 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
                     type="email"
                     value={resendEmail}
                     onChange={(e) => setResendEmail(e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full px-3 py-2 text-sm border border-line-strong rounded-md focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
                     placeholder="이메일을 입력하세요"
                     required
                   />
 
                   {resendError && (
-                    <div className="text-red-600 text-xs bg-red-50 p-2 rounded-md">
+                    <div className="text-red-600 text-xs bg-red-500/10 p-2 rounded-md">
                       {resendError}
                     </div>
                   )}
 
                   {resendSuccess && (
-                    <div className="text-green-600 text-xs bg-green-50 p-2 rounded-md">
+                    <div className="text-green-600 text-xs bg-green-500/10 p-2 rounded-md">
                       인증 이메일이 재전송되었습니다. 이메일을 확인해주세요.
                     </div>
                   )}
@@ -365,7 +365,7 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
                   <button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-md text-sm hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="w-full bg-elevated text-tx-1 py-2 px-4 rounded-md text-sm hover:bg-hover focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     {isLoading ? '전송 중...' : '인증 이메일 재전송'}
                   </button>

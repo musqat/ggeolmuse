@@ -27,6 +27,16 @@ const OAuthCallback: React.FC = () => {
           return;
         }
 
+        // state 파라미터 검증 (CSRF 방어)
+        const returnedState = params.get('state');
+        const savedState = sessionStorage.getItem('oauth_state');
+        sessionStorage.removeItem('oauth_state');
+        if (!returnedState || !savedState || returnedState !== savedState) {
+          setError('OAuth state 불일치 — CSRF 공격이 감지되었습니다. 다시 로그인해주세요.');
+          setTimeout(() => navigate('/'), 3000);
+          return;
+        }
+
         // PKCE code_verifier 가져오기
         const codeVerifier = sessionStorage.getItem('pkce_code_verifier');
         if (!codeVerifier) {
@@ -75,7 +85,7 @@ const OAuthCallback: React.FC = () => {
   }, [navigate]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center bg-surface/50">
       <div className="max-w-md w-full space-y-8 p-8">
         <div className="text-center">
           {error ? (
@@ -83,13 +93,13 @@ const OAuthCallback: React.FC = () => {
               <div className="text-red-600 text-xl font-semibold mb-4">
                 로그인 실패
               </div>
-              <p className="text-gray-600">{error}</p>
-              <p className="text-sm text-gray-500 mt-4">3초 후 메인 페이지로 이동합니다...</p>
+              <p className="text-tx-2">{error}</p>
+              <p className="text-sm text-tx-2 mt-4">3초 후 메인 페이지로 이동합니다...</p>
             </>
           ) : (
             <>
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600">Google 로그인 처리 중...</p>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand mx-auto"></div>
+              <p className="mt-4 text-tx-2">Google 로그인 처리 중...</p>
             </>
           )}
         </div>

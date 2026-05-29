@@ -33,11 +33,10 @@ interface SymbolComparisonFormProps {
   onAddSymbol: () => void;
   onRemoveSymbol: (symbol: string) => void;
 }
-
 /**
  * 종목 비교 백테스트 폼
- * 여러 종목에 동일한 투자금으로 매수했을 때의 성과를 비교합니다.
- * 최대 10개 종목까지 비교 가능합니다.
+ * 여러 종목에 동일한 투자금으로 매수했을 때의 성과를 비교
+ * 최대 10개 종목
  */
 export const SymbolComparisonForm: React.FC<SymbolComparisonFormProps> = ({
   compareSymbols,
@@ -86,14 +85,14 @@ export const SymbolComparisonForm: React.FC<SymbolComparisonFormProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {/* 시작일 */}
         <div className="relative">
-          <label className="block text-sm font-medium text-gray-700 mb-2">시작일</label>
+          <label className="block text-sm font-medium text-tx-1 mb-2">시작일</label>
           <button
             type="button"
             onClick={() => {
               setShowPurchaseDatePicker(!showPurchaseDatePicker);
               setShowSaleDatePicker(false);
             }}
-            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md text-left hover:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition whitespace-nowrap"
+            className="w-full px-3 py-1.5 text-sm border border-line-strong rounded-md text-left hover:border-brand focus:ring-2 focus:ring-brand focus:border-brand transition whitespace-nowrap"
           >
             {purchaseDateObj
               ? purchaseDateObj.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })
@@ -114,14 +113,14 @@ export const SymbolComparisonForm: React.FC<SymbolComparisonFormProps> = ({
 
         {/* 종료일 */}
         <div className="relative">
-          <label className="block text-sm font-medium text-gray-700 mb-2">종료일</label>
+          <label className="block text-sm font-medium text-tx-1 mb-2">종료일</label>
           <button
             type="button"
             onClick={() => {
               setShowSaleDatePicker(!showSaleDatePicker);
               setShowPurchaseDatePicker(false);
             }}
-            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md text-left hover:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition whitespace-nowrap"
+            className="w-full px-3 py-1.5 text-sm border border-line-strong rounded-md text-left hover:border-brand focus:ring-2 focus:ring-brand focus:border-brand transition whitespace-nowrap"
           >
             {saleDateObj
               ? saleDateObj.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })
@@ -142,18 +141,18 @@ export const SymbolComparisonForm: React.FC<SymbolComparisonFormProps> = ({
 
         {/* 투자금 */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">투자금 (₩)</label>
+          <label className="block text-sm font-medium text-tx-1 mb-2">투자금 (₩)</label>
           <NumberInput
             value={compareInvestment}
             onChange={setCompareInvestment}
             placeholder="1,000,000"
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
           />
         </div>
 
         {/* 종목 추가 */}
         <div className="col-span-full">
-          <label className="block text-sm font-medium text-gray-700 mb-2">종목 추가 (최대 10개)</label>
+          <label className="block text-sm font-medium text-tx-1 mb-2">종목 추가 (최대 10개)</label>
           <div className="flex items-center gap-2 mb-3">
             <StockSearchInput
               value={compareSymbolInput}
@@ -163,7 +162,7 @@ export const SymbolComparisonForm: React.FC<SymbolComparisonFormProps> = ({
             />
             <button
               onClick={onAddSymbol}
-              className="px-3 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm whitespace-nowrap"
+              className="px-3 py-2 bg-brand text-white rounded-md hover:bg-brand-dark text-sm whitespace-nowrap"
             >
               + 추가
             </button>
@@ -172,12 +171,12 @@ export const SymbolComparisonForm: React.FC<SymbolComparisonFormProps> = ({
             {compareSymbols.map((sym) => (
               <div
                 key={sym}
-                className="flex items-center space-x-2 px-3 py-1 bg-indigo-100 text-indigo-700 rounded-md"
+                className="flex items-center space-x-2 px-3 py-1 bg-brand-bg text-brand-dark rounded-md"
               >
                 <span className="font-medium">{sym}</span>
                 <button
                   onClick={() => onRemoveSymbol(sym)}
-                  className="text-indigo-900 hover:text-indigo-700 text-lg"
+                  className="text-tx-2 hover:text-brand-dark text-lg"
                 >
                   ×
                 </button>

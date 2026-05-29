@@ -42,10 +42,10 @@ export const ChartPeriodSelector: React.FC<ChartPeriodSelectorProps> = ({
                 onPeriodChange(option.value);
                 setShowDatePicker(false);
               }}
-              className={`px-3 py-1 text-sm rounded ${
+              className={`px-3 py-1 text-sm rounded transition-all ${
                 chartPeriod === option.value
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  ? 'bg-brand text-white font-semibold'
+                  : 'bg-elevated/50 text-tx-2 hover:bg-hover hover:text-tx-1 border border-line'
               }`}
             >
               {option.label}
@@ -58,10 +58,10 @@ export const ChartPeriodSelector: React.FC<ChartPeriodSelectorProps> = ({
                 onPeriodChange('custom' as ChartPeriod);
               }
             }}
-            className={`px-3 py-1 text-sm rounded ${
+            className={`px-3 py-1 text-sm rounded transition-all ${
               showDatePicker
-                ? 'bg-indigo-600 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                ? 'bg-brand text-white font-semibold'
+                : 'bg-elevated/50 text-tx-2 hover:bg-hover hover:text-tx-1 border border-line'
             }`}
           >
             사용자 지정

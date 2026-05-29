@@ -1,17 +1,11 @@
 import { useState } from 'react';
 import type { ChartPeriod } from '../types';
 
-/**
- * Custom hook for managing chart period selection
- */
 export const useChartPeriod = (initialPeriod: ChartPeriod = 'purchase') => {
   const [chartPeriod, setChartPeriod] = useState<ChartPeriod>(initialPeriod);
   const [customStartDate, setCustomStartDate] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
 
-  /**
-   * Calculate start date based on selected period
-   */
   const getStartDateFromPeriod = (
     period: ChartPeriod,
     originalStartDate: string,
@@ -53,9 +47,6 @@ export const useChartPeriod = (initialPeriod: ChartPeriod = 'purchase') => {
     }
   };
 
-  /**
-   * Handle period change
-   */
   const handlePeriodChange = (period: ChartPeriod) => {
     setChartPeriod(period);
     if (period === 'custom') {

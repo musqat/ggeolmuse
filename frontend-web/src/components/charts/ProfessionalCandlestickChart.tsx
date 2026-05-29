@@ -88,7 +88,7 @@ const ProfessionalCandlestickChart: React.FC<ProfessionalCandlestickChartProps> 
 
   if (!chartData || chartData.length === 0) {
     return (
-      <div className="h-full flex items-center justify-center text-gray-400">
+      <div className="h-full flex items-center justify-center text-tx-3">
         차트 데이터가 없습니다
       </div>
     );
@@ -104,25 +104,25 @@ const ProfessionalCandlestickChart: React.FC<ProfessionalCandlestickChartProps> 
     const priceChangePercent = d.open ? ((priceChange / d.open) * 100).toFixed(2) : '0.00';
 
     return (
-      <div className="bg-white p-4 border border-gray-300 rounded-lg shadow-xl">
-        <p className="font-semibold text-sm mb-3 text-gray-900">{d.fullDate}</p>
+      <div className="bg-surface p-4 border border-line-strong rounded-lg shadow-xl">
+        <p className="font-semibold text-sm mb-3 text-tx-1">{d.fullDate}</p>
 
         <div className="space-y-2">
           <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-xs">
             <div className="flex justify-between">
-              <span className="text-gray-600">시가:</span>
-              <span className="font-semibold text-gray-900">${d.open.toFixed(2)}</span>
+              <span className="text-tx-2">시가:</span>
+              <span className="font-semibold text-tx-1">${d.open.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">종가:</span>
-              <span className="font-semibold text-gray-900">${d.close.toFixed(2)}</span>
+              <span className="text-tx-2">종가:</span>
+              <span className="font-semibold text-tx-1">${d.close.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">고가:</span>
+              <span className="text-tx-2">고가:</span>
               <span className="font-semibold text-green-600">${d.high.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">저가:</span>
+              <span className="text-tx-2">저가:</span>
               <span className="font-semibold text-red-600">${d.low.toFixed(2)}</span>
             </div>
           </div>
@@ -140,23 +140,23 @@ const ProfessionalCandlestickChart: React.FC<ProfessionalCandlestickChartProps> 
           </div>
 
           {(d.ma5 || d.ma20 || d.ma60) && (
-            <div className="pt-2 border-t border-gray-200">
+            <div className="pt-2 border-t border-line">
               <div className="grid grid-cols-3 gap-3 text-xs">
                 {d.ma5 && (
                   <div className="flex flex-col">
-                    <span className="text-gray-500 text-[10px]">MA5</span>
+                    <span className="text-tx-2 text-[10px]">MA5</span>
                     <span className="font-semibold text-blue-600">${d.ma5.toFixed(2)}</span>
                   </div>
                 )}
                 {d.ma20 && (
                   <div className="flex flex-col">
-                    <span className="text-gray-500 text-[10px]">MA20</span>
+                    <span className="text-tx-2 text-[10px]">MA20</span>
                     <span className="font-semibold text-orange-600">${d.ma20.toFixed(2)}</span>
                   </div>
                 )}
                 {d.ma60 && (
                   <div className="flex flex-col">
-                    <span className="text-gray-500 text-[10px]">MA60</span>
+                    <span className="text-tx-2 text-[10px]">MA60</span>
                     <span className="font-semibold text-purple-600">${d.ma60.toFixed(2)}</span>
                   </div>
                 )}
@@ -164,10 +164,10 @@ const ProfessionalCandlestickChart: React.FC<ProfessionalCandlestickChartProps> 
             </div>
           )}
 
-          <div className="pt-2 border-t border-gray-200 text-xs">
+          <div className="pt-2 border-t border-line text-xs">
             <div className="flex justify-between">
-              <span className="text-gray-600">거래량:</span>
-              <span className="font-semibold text-gray-900">{d.volume.toLocaleString()}</span>
+              <span className="text-tx-2">거래량:</span>
+              <span className="font-semibold text-tx-1">{d.volume.toLocaleString()}</span>
             </div>
           </div>
         </div>
@@ -347,8 +347,8 @@ const ProfessionalCandlestickChart: React.FC<ProfessionalCandlestickChartProps> 
                 if (active && payload && payload.length) {
                   const d = payload[0].payload;
                   return (
-                    <div className="bg-white px-3 py-2 border border-gray-300 rounded shadow-lg">
-                      <p className="text-xs text-gray-900 font-medium">
+                    <div className="bg-surface px-3 py-2 border border-line-strong rounded shadow-lg">
+                      <p className="text-xs text-tx-1 font-medium">
                         거래량: {d.volume.toLocaleString()}
                       </p>
                     </div>

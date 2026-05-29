@@ -72,7 +72,7 @@ export const NumberInput: React.FC<NumberInputProps> = ({
         className={className}
       />
       {showKoreanHint && numericValue > 0 && (
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="text-xs text-tx-2 mt-1">
           {koreanWon}
         </p>
       )}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 
 interface PieChartData {
   symbol: string;
@@ -18,9 +18,9 @@ const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({ data }) => {
 
   if (!data || data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64 text-gray-400">
+      <div className="flex items-center justify-center h-64 text-tx-3">
         <div className="text-center">
-          <div className="text-4xl mb-2">📊</div>
+          <div className="text-4xl mb-2"></div>
           <p>데이터가 없습니다</p>
         </div>
       </div>
@@ -32,9 +32,9 @@ const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({ data }) => {
 
   if (total === 0) {
     return (
-      <div className="flex items-center justify-center h-64 text-gray-400">
+      <div className="flex items-center justify-center h-64 text-tx-3">
         <div className="text-center">
-          <div className="text-4xl mb-2">📊</div>
+          <div className="text-4xl mb-2"></div>
           <p>데이터가 없습니다</p>
         </div>
       </div>
@@ -51,9 +51,9 @@ const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({ data }) => {
   if (others.length > 0) {
     const othersTotalValue = others.reduce((sum, item) => sum + item.value, 0);
     chartData.push({
-      symbol: 'ETC',
+      symbol: "ETC",
       value: othersTotalValue,
-      color: '#9ca3af', // gray-400
+      color: "#9ca3af", // gray-400
     });
   }
 
@@ -86,8 +86,8 @@ const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({ data }) => {
       `M ${center} ${center}`,
       `L ${x1} ${y1}`,
       `A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2}`,
-      'Z'
-    ].join(' ');
+      "Z",
+    ].join("");
 
     currentAngle = endAngle;
 
@@ -98,7 +98,7 @@ const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({ data }) => {
       value: item.value,
       quantity: item.quantity,
       currentPrice: item.currentPrice,
-      percentage: percentage.toFixed(1)
+      percentage: percentage.toFixed(1),
     };
   });
 
@@ -108,7 +108,7 @@ const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({ data }) => {
       const rect = svg.getBoundingClientRect();
       setMousePosition({
         x: e.clientX - rect.left,
-        y: e.clientY - rect.top
+        y: e.clientY - rect.top,
       });
     }
   };
@@ -130,9 +130,11 @@ const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({ data }) => {
                 fill={slice.color}
                 className="transition-all duration-200 cursor-pointer"
                 style={{
-                  opacity: hoveredIndex === null || hoveredIndex === index ? 1 : 0.5,
-                  transform: hoveredIndex === index ? 'scale(1.05)' : 'scale(1)',
-                  transformOrigin: 'center',
+                  opacity:
+                    hoveredIndex === null || hoveredIndex === index ? 1 : 0.5,
+                  transform:
+                    hoveredIndex === index ? "scale(1.05)" : "scale(1)",
+                  transformOrigin: "center",
                 }}
                 onMouseEnter={() => setHoveredIndex(index)}
                 onMouseLeave={() => setHoveredIndex(null)}
@@ -149,17 +151,21 @@ const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({ data }) => {
                 y={mousePosition.y - 40}
                 width="200"
                 height="100"
-                style={{ pointerEvents: 'none' }}
+                style={{ pointerEvents: "none" }}
               >
-                <div className="bg-gray-900 text-white px-3 py-2 rounded-lg shadow-lg text-sm">
-                  <div className="font-semibold">{slices[hoveredIndex].symbol}</div>
+                <div className="bg-elevated text-white px-3 py-2 rounded-lg shadow-lg text-sm">
+                  <div className="font-semibold">
+                    {slices[hoveredIndex].symbol}
+                  </div>
                   <div className="text-xs mt-1">
                     <div>금액: ${slices[hoveredIndex].value.toFixed(2)}</div>
                     {slices[hoveredIndex].quantity && (
                       <div>수량: {slices[hoveredIndex].quantity}주</div>
                     )}
                     {slices[hoveredIndex].currentPrice && (
-                      <div>가격: ${slices[hoveredIndex].currentPrice.toFixed(2)}</div>
+                      <div>
+                        가격: ${slices[hoveredIndex].currentPrice.toFixed(2)}
+                      </div>
                     )}
                     <div>비중: {slices[hoveredIndex].percentage}%</div>
                   </div>
@@ -181,7 +187,7 @@ const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({ data }) => {
               <div
                 key={index}
                 className={`flex items-center justify-between p-3 rounded-lg transition-all duration-200 ${
-                  isHovered ? 'bg-gray-100' : 'bg-white'
+                  isHovered ? "bg-elevated" : "bg-surface"
                 }`}
               >
                 <div className="flex items-center gap-3 flex-1 mr-6">
@@ -189,9 +195,11 @@ const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({ data }) => {
                     className="w-4 h-4 rounded-full flex-shrink-0"
                     style={{ backgroundColor: item.color }}
                   ></div>
-                  <div className="font-medium text-gray-900">{item.symbol}</div>
+                  <div className="font-medium text-tx-1">{item.symbol}</div>
                 </div>
-                <div className="font-semibold text-gray-900 flex-shrink-0">{percentage}%</div>
+                <div className="font-semibold text-tx-1 flex-shrink-0">
+                  {percentage}%
+                </div>
               </div>
             );
           })}

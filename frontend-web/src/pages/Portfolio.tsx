@@ -101,14 +101,14 @@ const Portfolio: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="min-h-[60vh] flex items-center justify-center">
             <div className="text-center">
-              <Lock className="w-16 h-16 text-indigo-600 mx-auto mb-4" />
-              <h1 className="text-3xl font-bold text-gray-900 mb-4">로그인이 필요한 서비스입니다</h1>
-              <p className="text-lg text-gray-600 mb-6">
+              <Lock className="w-16 h-16 text-brand mx-auto mb-4" />
+              <h1 className="text-3xl font-bold text-tx-1 mb-4">로그인이 필요한 서비스입니다</h1>
+              <p className="text-lg text-tx-2 mb-6">
                 포트폴리오 기능을 이용하시려면 먼저 로그인해주세요
               </p>
               <button
                 onClick={() => setIsLoginModalOpen(true)}
-                className="flex items-center space-x-2 bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-colors mx-auto"
+                className="flex items-center space-x-2 bg-brand text-white px-6 py-3 rounded-lg hover:bg-brand-dark transition-colors mx-auto"
               >
                 <LogIn className="w-5 h-5" />
                 <span>로그인하기</span>
@@ -137,12 +137,12 @@ const Portfolio: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <Wallet className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">계좌를 선택해주세요</h3>
-            <p className="text-gray-500 mb-6">포트폴리오를 확인할 계좌를 선택해주세요</p>
+            <Wallet className="w-16 h-16 text-tx-3 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-tx-1 mb-2">계좌를 선택해주세요</h3>
+            <p className="text-tx-2 mb-6">포트폴리오를 확인할 계좌를 선택해주세요</p>
             <button
               onClick={() => navigate('/account')}
-              className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              className="px-6 py-3 bg-brand text-white rounded-lg hover:bg-brand-dark transition-colors"
             >
               계좌 관리로 이동
             </button>
@@ -156,7 +156,7 @@ const Portfolio: React.FC = () => {
     return (
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand"></div>
         </div>
       </div>
     );
@@ -168,12 +168,12 @@ const Portfolio: React.FC = () => {
         {/* 포트폴리오 헤더 */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">포트폴리오</h1>
-            <p className="text-gray-600 mt-1">
+            <h1 className="text-3xl font-bold text-tx-1">포트폴리오</h1>
+            <p className="text-tx-2 mt-1">
               {balanceInfo?.accountName || `계좌 #${accountId}`} - 투자 현황과 수익률을 한눈에 확인하세요
             </p>
             {balanceInfo && (
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-sm text-tx-2 mt-1">
                 KRW: ₩{Number(balanceInfo.balanceKrw)?.toLocaleString() ?? 0} |
                 USD: ${Number(balanceInfo.balanceUsd)?.toFixed(2) ?? 0}
               </p>
@@ -183,11 +183,11 @@ const Portfolio: React.FC = () => {
 
         {/* 포트폴리오 요약 카드 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+          <div className="bg-surface rounded-xl shadow-sm p-6 border border-line/50">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">총 자산</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-sm font-medium text-tx-2">총 자산</p>
+                <p className="text-2xl font-bold text-tx-1">
                   ${(() => {
                     const stockValue = portfolioSummary?.totalCurrentValue || 0;
                     const usdCash = Number(balanceInfo?.balanceUsd) || 0;
@@ -202,15 +202,15 @@ const Portfolio: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+          <div className="bg-surface rounded-xl shadow-sm p-6 border border-line/50">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">평가손익</p>
-                <p className={`text-2xl font-bold ${(portfolioSummary?.totalUnrealizedPnL ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <p className="text-sm font-medium text-tx-2">평가손익</p>
+                <p className={`text-2xl font-bold ${(portfolioSummary?.totalUnrealizedPnL ?? 0) >= 0 ? 'text-green-600':'text-red-600'}`}>
                   {(portfolioSummary?.totalUnrealizedPnL ?? 0) >= 0 ? '+' : ''}${portfolioSummary?.totalUnrealizedPnL?.toFixed(2) ?? '0.00'}
                 </p>
               </div>
-              <div className={`p-3 rounded-lg ${(portfolioSummary?.totalUnrealizedPnL ?? 0) >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
+              <div className={`p-3 rounded-lg ${(portfolioSummary?.totalUnrealizedPnL ?? 0) >= 0 ? 'bg-green-500/100/15':'bg-red-500/100/15'}`}>
                 {(portfolioSummary?.totalUnrealizedPnL ?? 0) >= 0 ? (
                   <TrendingUp className="w-6 h-6 text-green-600" />
                 ) : (
@@ -220,15 +220,15 @@ const Portfolio: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+          <div className="bg-surface rounded-xl shadow-sm p-6 border border-line/50">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">수익률</p>
-                <p className={`text-2xl font-bold ${(portfolioSummary?.totalReturnRate ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <p className="text-sm font-medium text-tx-2">수익률</p>
+                <p className={`text-2xl font-bold ${(portfolioSummary?.totalReturnRate ?? 0) >= 0 ? 'text-green-600':'text-red-600'}`}>
                   {(portfolioSummary?.totalReturnRate ?? 0) >= 0 ? '+' : ''}{portfolioSummary?.totalReturnRate?.toFixed(2) ?? '0.00'}%
                 </p>
               </div>
-              <div className={`p-3 rounded-lg ${(portfolioSummary?.totalReturnRate ?? 0) >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
+              <div className={`p-3 rounded-lg ${(portfolioSummary?.totalReturnRate ?? 0) >= 0 ? 'bg-green-500/100/15':'bg-red-500/100/15'}`}>
                 {(portfolioSummary?.totalReturnRate ?? 0) >= 0 ? (
                   <ArrowUpCircle className="w-6 h-6 text-green-600" />
                 ) : (
@@ -243,16 +243,16 @@ const Portfolio: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* 포트폴리오 차트 영역 */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div className="bg-surface rounded-xl shadow-sm p-6 border border-line/50">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-gray-900">자산 구성</h3>
+                <h3 className="text-lg font-semibold text-tx-1">자산 구성</h3>
                 <div className="flex items-center space-x-2">
-                  <PieChart className="w-5 h-5 text-gray-400" />
+                  <PieChart className="w-5 h-5 text-tx-3" />
                 </div>
               </div>
 
               {/* 차트 영역 */}
-              <div className="bg-gray-50 rounded-lg p-6 h-64 flex items-center justify-center">
+              <div className="bg-surface/50 rounded-lg p-6 h-64 flex items-center justify-center">
                 {(holdings.length > 0 || (balanceInfo && (Number(balanceInfo.balanceKrw) > 0 || Number(balanceInfo.balanceUsd) > 0))) ? (
                   <PortfolioPieChart
                     data={(() => {
@@ -296,9 +296,9 @@ const Portfolio: React.FC = () => {
                   />
                 ) : (
                   <div className="text-center">
-                    <PieChart className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                    <p className="text-gray-500">포트폴리오 성과 차트</p>
-                    <p className="text-sm text-gray-400">아직 자산이 없습니다</p>
+                    <PieChart className="w-12 h-12 text-tx-3 mx-auto mb-2" />
+                    <p className="text-tx-2">포트폴리오 성과 차트</p>
+                    <p className="text-sm text-tx-3">아직 자산이 없습니다</p>
                   </div>
                 )}
               </div>
@@ -306,8 +306,8 @@ const Portfolio: React.FC = () => {
           </div>
 
           {/* 자산 배분 */}
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">자산 배분</h3>
+          <div className="bg-surface rounded-xl shadow-sm p-6 border border-line/50">
+            <h3 className="text-lg font-semibold text-tx-1 mb-4">자산 배분</h3>
             {(holdings.length > 0 || (balanceInfo && (Number(balanceInfo.balanceUsd) > 0 || Number(balanceInfo.balanceKrw) > 0))) && portfolioSummary ? (
               <div className="space-y-4">
                 {(() => {
@@ -324,7 +324,7 @@ const Portfolio: React.FC = () => {
                         const allocation = totalAssets > 0 && holding.currentValue
                           ? ((holding.currentValue / totalAssets) * 100).toFixed(1)
                           : '0.0';
-                        const colors = ['bg-indigo-500', 'bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'bg-red-500', 'bg-purple-500'];
+                        const colors = ['bg-brand-bg0', 'bg-blue-500', 'bg-green-500/100', 'bg-yellow-500/100', 'bg-red-500/100', 'bg-purple-500/100'];
                         const colorClass = colors[index % colors.length];
 
                         return (
@@ -332,13 +332,13 @@ const Portfolio: React.FC = () => {
                             <div className="flex items-center space-x-3">
                               <div className={`w-3 h-3 ${colorClass} rounded-full`}></div>
                               <div>
-                                <p className="font-medium text-gray-900 text-sm">{holding.symbol}</p>
-                                <p className="text-xs text-gray-500">{holding.totalQuantity}주</p>
+                                <p className="font-medium text-tx-1 text-sm">{holding.symbol}</p>
+                                <p className="text-xs text-tx-2">{holding.totalQuantity}주</p>
                               </div>
                             </div>
                             <div className="text-right">
-                              <p className="font-medium text-gray-900 text-sm">{allocation}%</p>
-                              <p className="text-xs text-gray-500">
+                              <p className="font-medium text-tx-1 text-sm">{allocation}%</p>
+                              <p className="text-xs text-tx-2">
                                 ${holding.currentValue ? holding.currentValue.toFixed(2) : holding.totalInvestedAmount.toFixed(2)}
                               </p>
                             </div>
@@ -350,19 +350,19 @@ const Portfolio: React.FC = () => {
                       {balanceInfo && Number(balanceInfo.balanceUsd) > 0 && (
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-3">
-                            <div className="w-3 h-3 bg-gray-500 rounded-full"></div>
+                            <div className="w-3 h-3 bg-surface/500 rounded-full"></div>
                             <div>
-                              <p className="font-medium text-gray-900 text-sm">USD 현금</p>
-                              <p className="text-xs text-gray-500">달러 잔액</p>
+                              <p className="font-medium text-tx-1 text-sm">USD 현금</p>
+                              <p className="text-xs text-tx-2">달러 잔액</p>
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="font-medium text-gray-900 text-sm">
+                            <p className="font-medium text-tx-1 text-sm">
                               {totalAssets > 0
                                 ? ((Number(balanceInfo.balanceUsd) / totalAssets) * 100).toFixed(1)
                                 : '0.0'}%
                             </p>
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-tx-2">
                               ${Number(balanceInfo.balanceUsd).toFixed(2)}
                             </p>
                           </div>
@@ -375,17 +375,17 @@ const Portfolio: React.FC = () => {
                           <div className="flex items-center space-x-3">
                             <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
                             <div>
-                              <p className="font-medium text-gray-900 text-sm">KRW 현금</p>
-                              <p className="text-xs text-gray-500">원화 잔액</p>
+                              <p className="font-medium text-tx-1 text-sm">KRW 현금</p>
+                              <p className="text-xs text-tx-2">원화 잔액</p>
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="font-medium text-gray-900 text-sm">
+                            <p className="font-medium text-tx-1 text-sm">
                               {totalAssets > 0
                                 ? ((Number(balanceInfo.balanceKrw) / exchangeRate / totalAssets) * 100).toFixed(1)
                                 : '0.0'}%
                             </p>
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-tx-2">
                               ₩{Number(balanceInfo.balanceKrw).toLocaleString()}
                             </p>
                           </div>
@@ -396,7 +396,7 @@ const Portfolio: React.FC = () => {
                 })()}
               </div>
             ) : (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-tx-2">
                 <PieChart className="w-12 h-12 mx-auto mb-2 opacity-50" />
                 <p>보유 자산이 없습니다</p>
               </div>
@@ -405,60 +405,60 @@ const Portfolio: React.FC = () => {
         </div>
 
         {/* 보유 종목 테이블 */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
+        <div className="bg-surface rounded-xl shadow-sm border border-line/50 overflow-hidden">
+          <div className="px-6 py-4 border-b border-line">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">보유 종목</h3>
-              <p className="text-xs text-gray-500">* 수수료가 포함되지 않은 수익률입니다</p>
+              <h3 className="text-lg font-semibold text-tx-1">보유 종목</h3>
+              <p className="text-xs text-tx-2">* 수수료가 포함되지 않은 수익률입니다</p>
             </div>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-surface/50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-tx-2 uppercase tracking-wider">
                     종목
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-tx-2 uppercase tracking-wider">
                     보유량
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-tx-2 uppercase tracking-wider">
                     평균단가
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-tx-2 uppercase tracking-wider">
                     현재가
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-tx-2 uppercase tracking-wider">
                     평가금액
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-tx-2 uppercase tracking-wider">
                     손익
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-surface divide-y divide-line">
                 {holdings.length > 0 ? (
                   holdings.map((holding) => (
-                    <tr key={holding.holdingId} className="hover:bg-gray-50">
+                    <tr key={holding.holdingId} className="hover:bg-surface/50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
-                          <div className="text-sm font-medium text-gray-900">{holding.symbol}</div>
+                          <div className="text-sm font-medium text-tx-1">{holding.symbol}</div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{holding.totalQuantity}주</div>
+                        <div className="text-sm text-tx-1">{holding.totalQuantity}주</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">${holding.avgPurchasePrice.toFixed(2)}</div>
+                        <div className="text-sm text-tx-1">${holding.avgPurchasePrice.toFixed(2)}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
+                        <div className="text-sm text-tx-1">
                           {holding.currentPrice ? `$${holding.currentPrice.toFixed(2)}` : '-'}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
+                        <div className="text-sm text-tx-1">
                           {holding.currentValue ? `$${holding.currentValue.toFixed(2)}` : '-'}
                         </div>
                       </td>
@@ -477,14 +477,14 @@ const Portfolio: React.FC = () => {
                             <span className="ml-1">({holding.returnRate >= 0 ? '+' : ''}{holding.returnRate.toFixed(2)}%)</span>
                           </div>
                         ) : (
-                          <div className="text-sm text-gray-400">-</div>
+                          <div className="text-sm text-tx-3">-</div>
                         )}
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={6} className="px-6 py-8 text-center text-tx-2">
                       <BarChart3 className="w-12 h-12 mx-auto mb-2 opacity-50" />
                       <p>보유 종목이 없습니다</p>
                     </td>

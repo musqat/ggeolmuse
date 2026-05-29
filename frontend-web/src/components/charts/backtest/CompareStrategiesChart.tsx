@@ -245,10 +245,10 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">전략별 비교 차트</h3>
+      <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-6">
+        <h3 className="text-lg font-semibold text-tx-1 mb-4">전략별 비교 차트</h3>
         <div className="flex items-center justify-center h-80">
-          <div className="text-gray-500">데이터 로딩 중...</div>
+          <div className="text-tx-2">데이터 로딩 중...</div>
         </div>
       </div>
     );
@@ -259,9 +259,9 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-6">
+    <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-6 space-y-6">
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900">전략별 비교 차트</h3>
+        <h3 className="text-lg font-semibold text-tx-1">전략별 비교 차트</h3>
         <ChartPeriodSelector
           chartPeriod={chartPeriod}
           customStartDate={customStartDate}
@@ -273,7 +273,7 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
 
       {/* 주가 추이 비교 */}
       <div>
-        <h4 className="text-sm font-medium text-gray-700 mb-3">주가 추이 비교</h4>
+        <h4 className="text-sm font-medium text-tx-1 mb-3">주가 추이 비교</h4>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={priceChartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -330,7 +330,7 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
 
       {/* 전략별 평가금액 추이 */}
       <div>
-        <h4 className="text-sm font-medium text-gray-700 mb-3">전략별 평가금액 추이</h4>
+        <h4 className="text-sm font-medium text-tx-1 mb-3">전략별 평가금액 추이</h4>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={portfolioChartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />

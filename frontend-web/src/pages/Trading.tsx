@@ -132,7 +132,7 @@ const Trading: React.FC = () => {
     if (chartData.length === 0) return null;
 
     const target = new Date(targetDate);
-    const pastDates = chartData.filter(d => new Date(d.time) <= target);
+    const pastDates = chartData.filter(d =>new Date(d.time)<= target);
 
     if (pastDates.length === 0) return null;
     return pastDates[pastDates.length - 1];
@@ -258,14 +258,14 @@ const Trading: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="min-h-[60vh] flex items-center justify-center">
             <div className="text-center">
-              <Lock className="w-16 h-16 text-indigo-600 mx-auto mb-4" />
-              <h1 className="text-3xl font-bold text-gray-900 mb-4">로그인이 필요한 서비스입니다</h1>
-              <p className="text-lg text-gray-600 mb-6">
+              <Lock className="w-16 h-16 text-brand mx-auto mb-4" />
+              <h1 className="text-3xl font-bold text-tx-1 mb-4">로그인이 필요한 서비스입니다</h1>
+              <p className="text-lg text-tx-2 mb-6">
                 가상 거래 서비스를 이용하시려면 먼저 로그인해주세요
               </p>
               <button
                 onClick={() => setIsLoginModalOpen(true)}
-                className="flex items-center space-x-2 bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-colors mx-auto"
+                className="flex items-center space-x-2 bg-brand text-white px-6 py-3 rounded-lg hover:bg-brand-dark transition-colors mx-auto"
               >
                 <LogIn className="w-5 h-5" />
                 <span>로그인하기</span>
@@ -296,19 +296,19 @@ const Trading: React.FC = () => {
     <div className="max-w-7xl mx-auto px-4 py-6">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">가상 거래</h1>
-        <p className="text-gray-600">과거 주식을 매매해보세요</p>
+        <h1 className="text-3xl font-bold text-tx-1 mb-2">가상 거래</h1>
+        <p className="text-tx-2">과거 주식을 매매해보세요</p>
       </div>
 
       {/* Tabs */}
-      <div className="mb-6 border-b border-gray-200">
+      <div className="mb-6 border-b border-line">
         <nav className="-mb-px flex space-x-8">
           <button
             onClick={() => setActiveTab('order')}
             className={`py-4 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'order'
-                ? 'border-indigo-500 text-indigo-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-indigo-500 text-brand'
+                : 'border-transparent text-tx-2 hover:text-tx-1 hover:border-line-strong'
             }`}
           >
             주문
@@ -317,8 +317,8 @@ const Trading: React.FC = () => {
             onClick={() => setActiveTab('history')}
             className={`py-4 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'history'
-                ? 'border-indigo-500 text-indigo-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-indigo-500 text-brand'
+                : 'border-transparent text-tx-2 hover:text-tx-1 hover:border-line-strong'
             }`}
           >
             거래내역
@@ -356,8 +356,8 @@ const Trading: React.FC = () => {
 
         {/* Right Column - Order Panel */}
         <div className="lg:col-span-1">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 sticky top-6">
-            <h3 className="text-xl font-semibold text-gray-900 mb-6">주문하기</h3>
+          <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-6 sticky top-6">
+            <h3 className="text-xl font-semibold text-tx-1 mb-6">주문하기</h3>
 
             <OrderTypeToggle
               orderType={orderType}
@@ -388,12 +388,12 @@ const Trading: React.FC = () => {
 
             {/* Quantity */}
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">수량</label>
+              <label className="block text-sm font-medium text-tx-1 mb-2">수량</label>
               <input
                 type="number"
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
                 min="1"
               />
 
@@ -424,7 +424,7 @@ const Trading: React.FC = () => {
                 orderType === 'buy'
                   ? 'bg-green-600 hover:bg-green-700 text-white'
                   : 'bg-red-600 hover:bg-red-700 text-white'
-              } disabled:bg-gray-300 disabled:cursor-not-allowed`}
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               {orderType === 'buy' ? '매수' : '매도'}
             </button>

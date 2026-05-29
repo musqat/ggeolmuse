@@ -15,10 +15,6 @@ interface UseAccountsReturn {
   error: string | null;
 }
 
-/**
- * 사용자 계좌 목록을 불러오고 관리하는 훅
- * 인증된 사용자의 계좌 목록을 자동으로 로드합니다.
- */
 export function useAccounts(isAuthenticated: boolean): UseAccountsReturn {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);

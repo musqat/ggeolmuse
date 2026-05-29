@@ -100,7 +100,7 @@ const EnhancedTradingChart: React.FC<EnhancedTradingChartProps> = ({
   showMA60 = false
 }) => {
   if (data.length === 0) {
-    return <div className="flex items-center justify-center h-full text-gray-500">No data available</div>;
+    return <div className="flex items-center justify-center h-full text-tx-2">No data available</div>;
   }
 
   // 차트 데이터 준비
@@ -126,22 +126,22 @@ const EnhancedTradingChart: React.FC<EnhancedTradingChartProps> = ({
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
-        <div className="bg-white/95 backdrop-blur-sm border border-gray-200 rounded-lg shadow-lg p-4 text-sm">
-          <p className="font-semibold text-gray-900 mb-2">{data.time}</p>
+        <div className="bg-surface/95 backdrop-blur-sm border border-line rounded-lg shadow-lg p-4 text-sm">
+          <p className="font-semibold text-tx-1 mb-2">{data.time}</p>
           <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-            <span className="text-gray-600">시가:</span>
-            <span className="text-gray-900 font-medium">${data.open.toFixed(2)}</span>
+            <span className="text-tx-2">시가:</span>
+            <span className="text-tx-1 font-medium">${data.open.toFixed(2)}</span>
             <span className="text-green-600">고가:</span>
             <span className="text-green-600 font-medium">${data.high.toFixed(2)}</span>
             <span className="text-red-600">저가:</span>
             <span className="text-red-600 font-medium">${data.low.toFixed(2)}</span>
-            <span className="text-gray-600">종가:</span>
-            <span className="text-gray-900 font-medium">${data.close.toFixed(2)}</span>
-            <span className="text-gray-600">거래량:</span>
-            <span className="text-gray-900 font-medium">{data.volume.toLocaleString()}</span>
+            <span className="text-tx-2">종가:</span>
+            <span className="text-tx-1 font-medium">${data.close.toFixed(2)}</span>
+            <span className="text-tx-2">거래량:</span>
+            <span className="text-tx-1 font-medium">{data.volume.toLocaleString()}</span>
           </div>
           {showMA5 && !isNaN(data.ma5) && (
-            <div className="mt-2 pt-2 border-t border-gray-200">
+            <div className="mt-2 pt-2 border-t border-line">
               <span className="text-blue-600">MA5: ${data.ma5.toFixed(2)}</span>
             </div>
           )}
@@ -162,17 +162,17 @@ const EnhancedTradingChart: React.FC<EnhancedTradingChartProps> = ({
   };
 
   return (
-    <div className="relative w-full h-full bg-white rounded-lg">
+    <div className="relative w-full h-full bg-surface rounded-lg">
       {/* 가격 정보 - 상단 헤더 */}
-      <div className="px-6 py-4 border-b border-gray-200">
+      <div className="px-6 py-4 border-b border-line">
         <div className="flex items-center space-x-6">
-          <div className="font-bold text-2xl text-gray-900">{symbol}</div>
+          <div className="font-bold text-2xl text-tx-1">{symbol}</div>
           <div className="flex space-x-4 text-sm">
-            <div><span className="text-gray-500">시가:</span> <span className="font-semibold">${latestData.open.toFixed(2)}</span></div>
-            <div><span className="text-gray-500">고가:</span> <span className="font-semibold text-green-600">${latestData.high.toFixed(2)}</span></div>
-            <div><span className="text-gray-500">저가:</span> <span className="font-semibold text-red-600">${latestData.low.toFixed(2)}</span></div>
-            <div><span className="text-gray-500">종가:</span> <span className={`font-semibold ${latestData.close >= latestData.open ? 'text-red-600' : 'text-blue-600'}`}>${latestData.close.toFixed(2)}</span></div>
-            <div><span className="text-gray-500">거래량:</span> <span className="font-semibold">{latestData.volume.toLocaleString()}</span></div>
+            <div><span className="text-tx-2">시가:</span><span className="font-semibold">${latestData.open.toFixed(2)}</span></div>
+            <div><span className="text-tx-2">고가:</span><span className="font-semibold text-green-600">${latestData.high.toFixed(2)}</span></div>
+            <div><span className="text-tx-2">저가:</span><span className="font-semibold text-red-600">${latestData.low.toFixed(2)}</span></div>
+            <div><span className="text-tx-2">종가:</span><span className={`font-semibold ${latestData.close >= latestData.open ? 'text-red-600':'text-blue-600'}`}>${latestData.close.toFixed(2)}</span></div>
+            <div><span className="text-tx-2">거래량:</span><span className="font-semibold">{latestData.volume.toLocaleString()}</span></div>
           </div>
         </div>
       </div>
