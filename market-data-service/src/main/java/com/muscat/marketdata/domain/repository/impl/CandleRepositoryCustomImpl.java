@@ -66,13 +66,17 @@ public class CandleRepositoryCustomImpl implements CandleRepositoryCustom {
 
   @Override
   public List<Candle> findRecentBySymbols(List<String> symbols, int daysBack) {
-    LocalDate fromDate = LocalDate.now().minusDays(daysBack * 2 + 3);  // 주말 포함 여유있게
-    return queryFactory
-      .selectFrom(candle)
-      .where(candle.symbol.in(symbols)
-        .and(candle.date.goe(fromDate)))
-      .orderBy(candle.symbol.asc(), candle.date.desc())
-      .fetch();
+    List<Candle> result = new java.util.ArrayList<>();
+    for (String symbol : symbols) {
+      List<Candle> candles = queryFactory
+        .selectFrom(candle)
+        .where(candle.symbol.eq(symbol))
+        .orderBy(candle.date.desc())
+        .limit(daysBack)
+        .fetch();
+      result.addAll(candles);
+    }
+    return result;
   }
 
   @Override

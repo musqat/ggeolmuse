@@ -1,6 +1,5 @@
 package com.muscat.marketdata.api.controller;
 
-import com.muscat.marketdata.datasource.alphavantage.scheduler.AlphaVantageScheduler;
 import com.muscat.marketdata.domain.dto.AssetSummaryDto;
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.service.AssetService;
@@ -32,7 +31,6 @@ import java.util.List;
 public class AdminMarketController {
 
     private final AssetService assetService;
-    private final AlphaVantageScheduler alphaVantageScheduler;
 
     /**
      * 키워드로 심볼 검색
@@ -256,13 +254,16 @@ public class AdminMarketController {
         log.info("시가총액 수동 업데이트 요청");
 
         try {
-            // 비동기로 실행하여 응답 빠르게 반환
             new Thread(() -> {
-                try {
-                    alphaVantageScheduler.updateMarketCaps();
-                } catch (Exception e) {
-                    log.error("시가총액 업데이트 실패", e);
+                List<Asset> assets = assetService.getAllAssets();
+                for (Asset asset : assets) {
+                    try {
+                        assetService.updateAssetMarketCap(asset.getSymbol());
+                    } catch (Exception e) {
+                        log.warn("시가총액 업데이트 실패: symbol={}", asset.getSymbol(), e);
+                    }
                 }
+                log.info("시가총액 전체 업데이트 완료: {}개", assets.size());
             }).start();
 
             return ResponseEntity.ok(UpdateResponse.builder()
@@ -287,13 +288,16 @@ public class AdminMarketController {
         log.info("캔들 데이터 수동 업데이트 요청");
 
         try {
-            // 비동기로 실행하여 응답 빠르게 반환
             new Thread(() -> {
-                try {
-                    alphaVantageScheduler.updateCandles();
-                } catch (Exception e) {
-                    log.error("캔들 데이터 업데이트 실패", e);
+                List<Asset> assets = assetService.getAllAssets();
+                for (Asset asset : assets) {
+                    try {
+                        assetService.updateAssetPrice(asset.getSymbol());
+                    } catch (Exception e) {
+                        log.warn("캔들 데이터 업데이트 실패: symbol={}", asset.getSymbol(), e);
+                    }
                 }
+                log.info("캔들 전체 업데이트 완료: {}개", assets.size());
             }).start();
 
             return ResponseEntity.ok(UpdateResponse.builder()
