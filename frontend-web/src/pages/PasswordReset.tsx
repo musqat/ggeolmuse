@@ -77,7 +77,7 @@ const PasswordReset: React.FC = () => {
           boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
           textAlign: 'center'
         }}>
-          <h2 style={{ color: '#28a745', marginBottom: '20px', fontSize: '24px' }}>✓ 비밀번호 재설정 완료</h2>
+          <h2 style={{ color: '#28a745', marginBottom: '20px', fontSize: '24px' }}>비밀번호 재설정 완료</h2>
           <p style={{ color: '#6c757d', fontSize: '16px', lineHeight: '1.6' }}>
             비밀번호가 성공적으로 변경되었습니다.<br />
             3초 후 로그인 페이지로 이동합니다...

@@ -10,10 +10,6 @@ interface DividendFeeOptionsProps {
   setReinvestDividends: (reinvest: boolean) => void;
 }
 
-/**
- * 배당 및 수수료 옵션 컴포넌트
- * 거래 수수료율, 배당 원천징수, 배당금 재투자 옵션을 설정합니다.
- */
 export const DividendFeeOptions: React.FC<DividendFeeOptionsProps> = ({
   tradingFeeRate,
   setTradingFeeRate,
@@ -23,25 +19,25 @@ export const DividendFeeOptions: React.FC<DividendFeeOptionsProps> = ({
   setReinvestDividends,
 }) => {
   return (
-    <div className="border-t border-gray-200 pt-4 mt-4 space-y-3">
+    <div className="border-t border-line pt-4 mt-4 space-y-3">
       {/* 거래 수수료율 */}
       <div className="flex items-center space-x-3">
-        <Percent className="w-4 h-4 text-gray-500" />
-        <label className="text-sm font-medium text-gray-700 flex-shrink-0">
+        <Percent className="w-4 h-4 text-tx-2" />
+        <label className="text-sm font-medium text-tx-1 flex-shrink-0">
           거래 수수료율
         </label>
         <input
           type="number"
           value={tradingFeeRate}
           onChange={(e) => setTradingFeeRate(e.target.value)}
-          className="w-24 border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          className="w-24 border border-line-strong rounded-md px-3 py-1.5 text-sm focus:ring-2 focus:ring-brand focus:border-brand"
           placeholder="0"
           step="0.01"
           min="0"
           max="100"
         />
-        <span className="text-sm text-gray-500">%</span>
-        <span className="text-xs text-gray-400 ml-2">
+        <span className="text-sm text-tx-2">%</span>
+        <span className="text-xs text-tx-3 ml-2">
           (매수/매도 시 각각 적용)
         </span>
       </div>
@@ -52,13 +48,13 @@ export const DividendFeeOptions: React.FC<DividendFeeOptionsProps> = ({
           type="checkbox"
           checked={dividendTax}
           onChange={(e) => setDividendTax(e.target.checked)}
-          className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+          className="w-4 h-4 text-brand border-line-strong rounded focus:ring-brand"
         />
-        <TrendingDown className="w-4 h-4 text-gray-500 group-hover:text-indigo-600" />
-        <span className="text-sm text-gray-700 group-hover:text-indigo-600">
+        <TrendingDown className="w-4 h-4 text-tx-2 group-hover:text-brand" />
+        <span className="text-sm text-tx-1 group-hover:text-brand">
           배당 원천징수 (15.4%)
         </span>
-        <span className="text-xs text-gray-400">
+        <span className="text-xs text-tx-3">
           미국 주식 배당 세금 공제
         </span>
       </label>
@@ -69,13 +65,13 @@ export const DividendFeeOptions: React.FC<DividendFeeOptionsProps> = ({
           type="checkbox"
           checked={reinvestDividends}
           onChange={(e) => setReinvestDividends(e.target.checked)}
-          className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+          className="w-4 h-4 text-brand border-line-strong rounded focus:ring-brand"
         />
-        <Repeat className="w-4 h-4 text-gray-500 group-hover:text-indigo-600" />
-        <span className="text-sm text-gray-700 group-hover:text-indigo-600">
+        <Repeat className="w-4 h-4 text-tx-2 group-hover:text-brand" />
+        <span className="text-sm text-tx-1 group-hover:text-brand">
           배당금 재투자
         </span>
-        <span className="text-xs text-gray-400">
+        <span className="text-xs text-tx-3">
           받은 배당금으로 자동 매수
         </span>
       </label>

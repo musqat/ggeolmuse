@@ -108,12 +108,12 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, supportedSym
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 bg-black bg-opacity-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 overflow-hidden">
+      <div className="bg-surface rounded-lg shadow-xl w-full max-w-2xl mx-4 overflow-hidden">
         {/* 검색 입력 */}
-        <div className="p-4 border-b border-gray-200">
+        <div className="p-4 border-b border-line">
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-gray-400" />
+              <Search className="h-5 w-5 text-tx-3" />
             </div>
             <input
               ref={inputRef}
@@ -127,7 +127,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, supportedSym
             {searchTerm && (
               <button
                 onClick={() => setSearchTerm('')}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-tx-3 hover:text-tx-2"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -145,21 +145,21 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, supportedSym
                   onClick={() => handleSelectStock(stock)}
                   className={`cursor-pointer px-4 py-3 transition-colors ${
                     index === selectedIndex
-                      ? 'bg-indigo-50 border-l-4 border-indigo-600'
-                      : 'hover:bg-gray-50'
+                      ? 'bg-brand-bg border-l-4 border-brand'
+                      : 'hover:bg-surface/50'
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
-                      <div className="flex items-center justify-center w-10 h-10 bg-indigo-600 text-white rounded-full">
+                      <div className="flex items-center justify-center w-10 h-10 bg-brand text-white rounded-full">
                         <TrendingUp className="w-5 h-5" />
                       </div>
                       <div>
-                        <div className="font-semibold text-gray-900">{stock.symbol}</div>
-                        <div className="text-sm text-gray-500">{stock.name}</div>
+                        <div className="font-semibold text-tx-1">{stock.symbol}</div>
+                        <div className="text-sm text-tx-2">{stock.name}</div>
                       </div>
                     </div>
-                    <div className="text-xs text-gray-400">
+                    <div className="text-xs text-tx-3">
                       Enter ↵
                     </div>
                   </div>
@@ -168,9 +168,9 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, supportedSym
             </div>
           ) : (
             <div className="py-12 text-center">
-              <Search className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">검색 결과 없음</h3>
-              <p className="mt-1 text-sm text-gray-500">
+              <Search className="mx-auto h-12 w-12 text-tx-3" />
+              <h3 className="mt-2 text-sm font-medium text-tx-1">검색 결과 없음</h3>
+              <p className="mt-1 text-sm text-tx-2">
                 {searchTerm ? `"${searchTerm}"에 대한 검색 결과가 없습니다.` : '종목을 검색해보세요.'}
               </p>
             </div>
@@ -178,25 +178,25 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, supportedSym
         </div>
 
         {/* 하단 안내 */}
-        <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
-          <div className="flex items-center justify-between text-xs text-gray-500">
+        <div className="px-4 py-3 bg-surface/50 border-t border-line">
+          <div className="flex items-center justify-between text-xs text-tx-2">
             <div className="flex items-center space-x-4">
               <span className="flex items-center">
-                <kbd className="px-2 py-1 bg-white border border-gray-300 rounded text-xs">↑↓</kbd>
+                <kbd className="px-2 py-1 bg-surface border border-line-strong rounded text-xs">↑↓</kbd>
                 <span className="ml-1">이동</span>
               </span>
               <span className="flex items-center">
-                <kbd className="px-2 py-1 bg-white border border-gray-300 rounded text-xs">Enter</kbd>
+                <kbd className="px-2 py-1 bg-surface border border-line-strong rounded text-xs">Enter</kbd>
                 <span className="ml-1">선택</span>
               </span>
               <span className="flex items-center">
-                <kbd className="px-2 py-1 bg-white border border-gray-300 rounded text-xs">Esc</kbd>
+                <kbd className="px-2 py-1 bg-surface border border-line-strong rounded text-xs">Esc</kbd>
                 <span className="ml-1">닫기</span>
               </span>
             </div>
             <button
               onClick={onClose}
-              className="text-gray-500 hover:text-gray-700 transition-colors"
+              className="text-tx-2 hover:text-tx-1 transition-colors"
             >
               닫기
             </button>

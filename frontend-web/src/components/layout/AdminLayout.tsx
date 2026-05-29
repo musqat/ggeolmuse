@@ -12,7 +12,7 @@ export default function AdminLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-elevated">
       {/* Admin Header */}
       <header className="bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg">
         <div className="container mx-auto px-4">
@@ -24,19 +24,19 @@ export default function AdminLayout() {
 
             <div className="flex items-center gap-6">
               <span className="text-sm">
-                <span className="opacity-75">관리자:</span>{' '}
+                <span className="opacity-75">관리자:</span>{''}
                 <span className="font-semibold">{user?.nickname}</span>
               </span>
               <button
                 onClick={() => navigate('/')}
-                className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition"
+                className="flex items-center gap-2 px-4 py-2 bg-surface/10 hover:bg-surface/20 rounded-lg transition"
               >
                 <Home className="w-4 h-4" />
                 사용자 페이지
               </button>
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition"
+                className="flex items-center gap-2 px-4 py-2 bg-surface/10 hover:bg-surface/20 rounded-lg transition"
               >
                 <LogOut className="w-4 h-4" />
                 로그아웃
@@ -47,19 +47,19 @@ export default function AdminLayout() {
       </header>
 
       {/* Admin Navigation */}
-      <nav className="bg-white border-b border-gray-200 shadow-sm">
+      <nav className="bg-surface border-b border-line shadow-sm">
         <div className="container mx-auto px-4">
           <div className="flex gap-1">
             <Link
               to="/admin/market"
-              className="flex items-center gap-2 px-6 py-4 text-gray-700 hover:text-red-600 hover:bg-red-50 border-b-2 border-transparent hover:border-red-600 transition"
+              className="flex items-center gap-2 px-6 py-4 text-tx-1 hover:text-red-600 hover:bg-red-500/10 border-b-2 border-transparent hover:border-red-600 transition"
             >
               <TrendingUp className="w-5 h-5" />
               <span className="font-medium">시장 데이터 관리</span>
             </Link>
             <Link
               to="/admin/users"
-              className="flex items-center gap-2 px-6 py-4 text-gray-700 hover:text-red-600 hover:bg-red-50 border-b-2 border-transparent hover:border-red-600 transition"
+              className="flex items-center gap-2 px-6 py-4 text-tx-1 hover:text-red-600 hover:bg-red-500/10 border-b-2 border-transparent hover:border-red-600 transition"
             >
               <Users className="w-5 h-5" />
               <span className="font-medium">사용자 관리</span>
@@ -74,8 +74,8 @@ export default function AdminLayout() {
       </main>
 
       {/* Admin Footer */}
-      <footer className="bg-white border-t border-gray-200 mt-auto">
-        <div className="container mx-auto px-4 py-4 text-center text-sm text-gray-500">
+      <footer className="bg-surface border-t border-line mt-auto">
+        <div className="container mx-auto px-4 py-4 text-center text-sm text-tx-2">
           <p>© 2025 GGeolmuse Admin Panel. All rights reserved.</p>
         </div>
       </footer>

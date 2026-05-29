@@ -110,7 +110,20 @@ dist/
 ### Temporary Files ###
 *.tmp
 *.temp
+*.bak
 nul
+
+### Claude / Superpowers ###
+.claude/
+.superpowers/
+frontend-web/.claude/
+
+### Frontend Dev Scripts (일회성 마이그레이션) ###
+frontend-web/fix-*.mjs
+frontend-web/dark-theme-replace.mjs
+frontend-web/semantic-replace.mjs
+frontend-web/remove-jsdoc.mjs
+frontend-web/design-preview.html
 
 # Helm Secret Values (실제 비밀 값 포함)
 helm/*/values-dev.yaml

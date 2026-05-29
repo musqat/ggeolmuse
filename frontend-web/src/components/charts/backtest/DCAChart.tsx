@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from "react";
 import {
   LineChart,
   Line,
@@ -8,11 +8,11 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  ReferenceDot
-} from 'recharts';
-import { stockApi } from '../../../services/api';
-import { useChartPeriod } from '../common/hooks/useChartPeriod';
-import { ChartPeriodSelector } from '../common/components/ChartPeriodSelector';
+  ReferenceDot,
+} from "recharts";
+import { stockApi } from "../../../services/api";
+import { useChartPeriod } from "../common/hooks/useChartPeriod";
+import { ChartPeriodSelector } from "../common/components/ChartPeriodSelector";
 
 interface Transaction {
   date: string;
@@ -49,7 +49,7 @@ export const DCAChart: React.FC<StrategyBacktestChartProps> = ({
   currentValueKrw,
   totalInvested,
   startDate,
-  endDate
+  endDate,
 }) => {
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [loading, setLoading] = useState(false);
@@ -62,19 +62,25 @@ export const DCAChart: React.FC<StrategyBacktestChartProps> = ({
     showCustomInput,
     setChartPeriod,
     setCustomStartDate,
-    getStartDateFromPeriod
-  } = useChartPeriod('purchase');
+    getStartDateFromPeriod,
+  } = useChartPeriod("purchase");
 
   // 첫 매수일과 마지막 매수일
-  const firstPurchaseDate = transactions[0]?.actualDate || transactions[0]?.date || startDate;
-  const lastPurchaseDate = transactions[transactions.length - 1]?.actualDate ||
-                          transactions[transactions.length - 1]?.date ||
-                          endDate ||
-                          new Date().toISOString().split('T')[0];
+  const firstPurchaseDate =
+    transactions[0]?.actualDate || transactions[0]?.date || startDate;
+  const lastPurchaseDate =
+    transactions[transactions.length - 1]?.actualDate ||
+    transactions[transactions.length - 1]?.date ||
+    endDate ||
+    new Date().toISOString().split("T")[0];
 
   // 차트 시작일 계산 - useMemo로 감싸서 chartPeriod 변경 시 재계산
   const chartStartDate = useMemo(() => {
-    return getStartDateFromPeriod(chartPeriod, firstPurchaseDate, customStartDate);
+    return getStartDateFromPeriod(
+      chartPeriod,
+      firstPurchaseDate,
+      customStartDate,
+    );
   }, [chartPeriod, customStartDate, firstPurchaseDate, getStartDateFromPeriod]);
 
   useEffect(() => {
@@ -83,8 +89,12 @@ export const DCAChart: React.FC<StrategyBacktestChartProps> = ({
       setError(null);
 
       try {
-        const today = new Date().toISOString().split('T')[0];
-        const response = await stockApi.getOHLCData(symbol, chartStartDate, today);
+        const today = new Date().toISOString().split("T")[0];
+        const response = await stockApi.getOHLCData(
+          symbol,
+          chartStartDate,
+          today,
+        );
 
         // API는 flat 배열을 반환: [{symbol, date, closePrice, ...}, ...]
         let priceData = Array.isArray(response.data)
@@ -107,31 +117,34 @@ export const DCAChart: React.FC<StrategyBacktestChartProps> = ({
           });
 
           // 누락된 날짜는 DEFAULT로 채우기
-          dates.forEach(dateStr => {
+          dates.forEach((dateStr) => {
             if (!fxRateMap.has(dateStr)) {
               fxRateMap.set(dateStr, DEFAULT_FX_RATE);
             }
           });
         } catch (err) {
           // Bulk 조회 실패 시 모든 날짜에 DEFAULT 사용
-          console.warn('Bulk 환율 조회 실패, fallback 환율 사용:', err);
-          dates.forEach(dateStr => {
+          console.warn("Bulk 환율 조회 실패, fallback 환율 사용:", err);
+          dates.forEach((dateStr) => {
             fxRateMap.set(dateStr, DEFAULT_FX_RATE);
           });
         }
 
         // 거래 정보를 날짜별 맵으로 변환
-        const transactionMap = new Map<string, { shares: number; investedAmount: number }>();
+        const transactionMap = new Map<
+          string,
+          { shares: number; investedAmount: number }
+        >();
         let cumulativeShares = 0;
         let cumulativeInvested = 0;
 
-        transactions.forEach(tx => {
+        transactions.forEach((tx) => {
           const txDate = tx.actualDate || tx.date;
           cumulativeShares += tx.shares;
           cumulativeInvested += tx.amount;
           transactionMap.set(txDate, {
             shares: cumulativeShares,
-            investedAmount: cumulativeInvested
+            investedAmount: cumulativeInvested,
           });
         });
 
@@ -140,14 +153,14 @@ export const DCAChart: React.FC<StrategyBacktestChartProps> = ({
 
         // 매수 날짜를 실제 거래일로 매핑 (주말/휴일 -> 다음 영업일)
         const purchaseDates = new Set<string>();
-        transactions.forEach(tx => {
+        transactions.forEach((tx) => {
           const txDate = tx.actualDate || tx.date;
           // priceData에 정확한 날짜가 있으면 사용
           if (availableDates.includes(txDate)) {
             purchaseDates.add(txDate);
           } else {
             // 없으면 다음 영업일 찾기
-            const nextTradingDay = availableDates.find(d => d > txDate);
+            const nextTradingDay = availableDates.find((d) => d > txDate);
             if (nextTradingDay) {
               purchaseDates.add(nextTradingDay);
             }
@@ -183,13 +196,13 @@ export const DCAChart: React.FC<StrategyBacktestChartProps> = ({
             stockPrice: adjustedPrice,
             portfolioValue: portfolioValueKrw,
             investedAmount: investedSoFar,
-            isPurchase: purchaseDates.has(dateStr)  // 매수 날짜인지 체크
+            isPurchase: purchaseDates.has(dateStr), // 매수 날짜인지 체크
           };
         });
 
         setChartData(data);
       } catch (err: any) {
-        setError(err.message || '차트 데이터를 불러오는데 실패했습니다');
+        setError(err.message || "차트 데이터를 불러오는데 실패했습니다");
       } finally {
         setLoading(false);
       }
@@ -204,7 +217,7 @@ export const DCAChart: React.FC<StrategyBacktestChartProps> = ({
   const priceRange = useMemo(() => {
     if (chartData.length === 0) return [0, 100];
 
-    const prices = chartData.map(d => d.stockPrice);
+    const prices = chartData.map((d) => d.stockPrice);
     const min = Math.min(...prices);
     const max = Math.max(...prices);
     const padding = 50;
@@ -216,7 +229,9 @@ export const DCAChart: React.FC<StrategyBacktestChartProps> = ({
   const valueRange = useMemo(() => {
     if (chartData.length === 0) return [0, 100];
 
-    const values = chartData.map(d => Math.max(d.portfolioValue, d.investedAmount));
+    const values = chartData.map((d) =>
+      Math.max(d.portfolioValue, d.investedAmount),
+    );
     const min = Math.min(...values);
     const max = Math.max(...values);
     const padding = (max - min) * 0.1;
@@ -226,30 +241,37 @@ export const DCAChart: React.FC<StrategyBacktestChartProps> = ({
 
   // 매수 포인트는 chartData에서 isPurchase가 true인 것들
   const purchasePoints = useMemo(() => {
-    const points = chartData.filter(d => d.isPurchase);
+    const points = chartData.filter((d) => d.isPurchase);
     return points;
   }, [chartData]);
 
   // 일반 매수와 배당 재투자 구분
   const regularPurchasePoints = useMemo(() => {
     return purchasePoints.filter((_, index) => {
-      const tx = transactions.find(t => (t.actualDate || t.date) <= chartData[chartData.indexOf(purchasePoints[index])]?.date);
-      return tx && tx.trigger !== '배당 재투자';
+      const tx = transactions.find(
+        (t) =>
+          (t.actualDate || t.date) <=
+          chartData[chartData.indexOf(purchasePoints[index])]?.date,
+      );
+      return tx && tx.trigger !== "배당 재투자";
     });
   }, [purchasePoints, transactions, chartData]);
 
   const dividendReinvestPoints = useMemo(() => {
-    return chartData.filter(d => {
-      const tx = transactions.find(t => (t.actualDate || t.date) === d.date && t.trigger === '배당 재투자');
+    return chartData.filter((d) => {
+      const tx = transactions.find(
+        (t) =>
+          (t.actualDate || t.date) === d.date && t.trigger === "배당 재투자",
+      );
       return tx !== undefined;
     });
   }, [chartData, transactions]);
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-6">
         <div className="flex justify-center items-center h-64">
-          <div className="text-gray-500">차트 데이터를 불러오는 중...</div>
+          <div className="text-tx-2">차트 데이터를 불러오는 중...</div>
         </div>
       </div>
     );
@@ -257,7 +279,7 @@ export const DCAChart: React.FC<StrategyBacktestChartProps> = ({
 
   if (error) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-6">
         <div className="flex justify-center items-center h-64">
           <div className="text-red-500">{error}</div>
         </div>
@@ -266,11 +288,12 @@ export const DCAChart: React.FC<StrategyBacktestChartProps> = ({
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mt-6">
+    <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-6 mt-6">
       <div className="mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">투자 성과 차트</h3>
-        <p className="text-sm text-gray-600">
-          {transactions.length}회 매수 • 총 {transactions.reduce((sum, t) => sum + t.shares, 0).toFixed(4)}주 보유
+        <h3 className="text-lg font-semibold text-tx-1 mb-2">투자 성과 차트</h3>
+        <p className="text-sm text-tx-2">
+          {transactions.length}회 매수 • 총{" "}
+          {transactions.reduce((sum, t) => sum + t.shares, 0).toFixed(4)}주 보유
         </p>
       </div>
 
@@ -285,9 +308,12 @@ export const DCAChart: React.FC<StrategyBacktestChartProps> = ({
 
       {/* 주가 추이 차트 */}
       <div className="mb-8">
-        <h4 className="text-sm font-medium text-gray-700 mb-3">주가 추이</h4>
+        <h4 className="text-sm font-medium text-tx-1 mb-3">주가 추이</h4>
         <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+          <LineChart
+            data={chartData}
+            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+          >
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis
               dataKey="date"
@@ -304,9 +330,13 @@ export const DCAChart: React.FC<StrategyBacktestChartProps> = ({
               allowDecimals={false}
             />
             <Tooltip
-              contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', border: '1px solid #ccc' }}
+              contentStyle={{
+                backgroundColor: "rgba(255, 255, 255, 0.95)",
+                border: "1px solid #ccc",
+              }}
               formatter={(value: any, name: string) => {
-                if (name === '주가') return [`$${Number(value).toFixed(2)}`, name];
+                if (name === "주가")
+                  return [`$${Number(value).toFixed(2)}`, name];
                 return [value, name];
               }}
               labelFormatter={(label) => `날짜: ${label}`}
@@ -353,9 +383,14 @@ export const DCAChart: React.FC<StrategyBacktestChartProps> = ({
 
       {/* 포트폴리오 가치 vs 투자금 차트 */}
       <div>
-        <h4 className="text-sm font-medium text-gray-700 mb-3">포트폴리오 가치 vs 투자금</h4>
+        <h4 className="text-sm font-medium text-tx-1 mb-3">
+          포트폴리오 가치 vs 투자금
+        </h4>
         <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+          <LineChart
+            data={chartData}
+            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+          >
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis
               dataKey="date"
@@ -371,7 +406,10 @@ export const DCAChart: React.FC<StrategyBacktestChartProps> = ({
               domain={valueRange}
             />
             <Tooltip
-              contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', border: '1px solid #ccc' }}
+              contentStyle={{
+                backgroundColor: "rgba(255, 255, 255, 0.95)",
+                border: "1px solid #ccc",
+              }}
               formatter={(value: any, name: string) => {
                 return [`₩${Math.round(Number(value)).toLocaleString()}`, name];
               }}
@@ -414,8 +452,8 @@ export const DCAChart: React.FC<StrategyBacktestChartProps> = ({
         </ResponsiveContainer>
       </div>
 
-      <div className="mt-4 text-xs text-gray-500">
-        <p>• ⚫ 검은 점: 매수 시점 ({purchasePoints.length}개)</p>
+      <div className="mt-4 text-xs text-tx-2">
+        <p>• 검은 점: 매수 시점 ({purchasePoints.length}개)</p>
         <p>• 녹색 점선: 누적 투자금 (₩{totalInvested.toLocaleString()})</p>
         <p>• 파란 선: 포트폴리오 가치 (₩{currentValueKrw.toLocaleString()})</p>
       </div>

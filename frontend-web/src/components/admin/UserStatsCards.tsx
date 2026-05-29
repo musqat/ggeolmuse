@@ -10,7 +10,7 @@ export default function UserStatsCards({ stats }: UserStatsCardsProps) {
     {
       label: '전체 사용자',
       value: stats.totalUsers,
-      color: 'text-gray-900',
+      color: 'text-tx-1',
     },
     {
       label: '활성 사용자',
@@ -25,15 +25,15 @@ export default function UserStatsCards({ stats }: UserStatsCardsProps) {
     {
       label: '관리자',
       value: stats.adminUsers,
-      color: 'text-indigo-600',
+      color: 'text-brand',
     },
   ];
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
       {cards.map((card) => (
-        <div key={card.label} className="bg-white rounded-lg shadow-md p-6">
-          <p className="text-sm text-gray-600 mb-1">{card.label}</p>
+        <div key={card.label} className="bg-surface rounded-lg shadow-md p-6">
+          <p className="text-sm text-tx-2 mb-1">{card.label}</p>
           <p className={`text-3xl font-bold ${card.color}`}>{card.value}</p>
         </div>
       ))}

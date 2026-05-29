@@ -4,13 +4,14 @@ import { Modal } from '@/components/common/Modal';
 interface CreateAccountModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (accountName: string, commissionRate: number) => Promise<void>;
+  onSubmit: (accountName: string, commissionRate: number) =>Promise<void>;
 }
 
 /**
  * 계좌 생성 모달 컴포넌트
  * 계좌명과 거래 수수료율을 입력받아 새 계좌를 생성합니다.
  */
+
 export const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
   isOpen,
   onClose,
@@ -58,14 +59,14 @@ export const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
     <div className="flex space-x-3">
       <button
         onClick={handleClose}
-        className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+        className="flex-1 px-4 py-2 border border-line-strong text-tx-1 rounded-lg hover:bg-surface/50 transition-colors"
       >
         취소
       </button>
       <button
         onClick={handleSubmit}
         disabled={!accountName.trim()}
-        className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+        className="flex-1 px-4 py-2 bg-brand text-white rounded-lg hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         생성하기
       </button>
@@ -82,18 +83,18 @@ export const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
     >
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">계좌명</label>
+          <label className="block text-sm font-medium text-tx-1 mb-2">계좌명</label>
           <input
             type="text"
             value={accountName}
             onChange={(e) => setAccountName(e.target.value)}
             placeholder="예: 주식 투자 계좌"
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-tx-1 mb-2">
             거래 수수료 (%)
           </label>
           <input
@@ -103,9 +104,9 @@ export const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
             max="5"
             value={commissionRate}
             onChange={(e) => setCommissionRate(e.target.value)}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
           />
-          <p className="text-xs text-gray-500 mt-1">0 ~ 5% 사이의 값을 입력하세요</p>
+          <p className="text-xs text-tx-2 mt-1">0 ~ 5% 사이의 값을 입력하세요</p>
         </div>
       </div>
     </Modal>

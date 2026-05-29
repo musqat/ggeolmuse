@@ -1,25 +1,16 @@
 import { useState } from 'react';
 import { accountsApi } from '../services/api';
 
-/**
- * 계좌 생성 요청 파라미터
- */
 export interface CreateAccountParams {
   accountName: string;
   commissionRate: number;
 }
 
-/**
- * KRW 입금 요청 파라미터
- */
 export interface DepositKrwParams {
   accountId: number;
   amount: number;
 }
 
-/**
- * 환전 요청 파라미터
- */
 export interface ExchangeCurrencyParams {
   accountId: number;
   fromCurrency: 'KRW' | 'USD';
@@ -27,16 +18,10 @@ export interface ExchangeCurrencyParams {
   exchangeRate: number;
 }
 
-/**
- * 계좌 삭제 요청 파라미터
- */
 export interface DeleteAccountParams {
   accountId: number;
 }
 
-/**
- * 계좌 작업 훅의 반환 타입
- */
 export interface UseAccountOperationsReturn {
   createAccount: (params: CreateAccountParams) => Promise<void>;
   depositKrw: (params: DepositKrwParams) => Promise<void>;

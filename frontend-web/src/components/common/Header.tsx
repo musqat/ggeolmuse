@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, BarChart3, TrendingUp, User, Search, Menu, LogOut, ShoppingCart, Activity } from 'lucide-react';
+import { TrendingUp, Search, Menu, LogOut, User } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { accountsApi, stockApi, portfolioApi } from '../../services/api';
 import LoginModal from '../auth/LoginModal';
 import SignupModal from '../auth/SignupModal';
 import SignupSuccessModal from '../auth/SignupSuccessModal';
 import SearchModal from './SearchModal';
+import ThemeToggle from './ThemeToggle';
 
 const Header: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isAuthenticated, user, login, logout, signup, isLoading } = useAuth();
+  const { isAuthenticated, user, login, logout, signup } = useAuth();
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
   const [isSignupSuccessModalOpen, setIsSignupSuccessModalOpen] = useState(false);
@@ -23,336 +24,221 @@ const Header: React.FC = () => {
   const [supportedSymbols, setSupportedSymbols] = useState<string[]>([]);
 
   const navigation = [
-    { name: 'Home', href: '/', icon: Home },
-    { name: '종목', href: '/stocks', icon: TrendingUp },
-    { name: '차트', href: '/charts/AAPL', icon: BarChart3 },
-    { name: '거래', href: '/trading', icon: ShoppingCart },
-    { name: '백테스트', href: '/backtest', icon: Activity },
-    { name: '계좌', href: '/account', icon: User },
+    { name: 'Home', href: '/' },
+    { name: '종목', href: '/stocks' },
+    { name: '차트', href: '/charts/AAPL' },
+    { name: '거래', href: '/trading' },
+    { name: '백테스트', href: '/backtest' },
+    { name: '계좌', href: '/account' },
   ];
 
   const isActive = (path: string) => location.pathname === path;
 
-  const handleLogin = async (email: string, password: string) => {
-    await login(email, password);
-  };
-
-  const handleSignup = async (email: string, password: string, nickname: string) => {
-    await signup(email, password, nickname);
-  };
-
-  // 지원 종목 조회
   useEffect(() => {
     const loadSymbols = async () => {
       try {
         const response = await stockApi.getAllSymbols();
         const assets = Array.isArray(response.data) ? response.data : [];
-        const symbols = assets.map((asset: any) => String(asset.symbol).toUpperCase());
-        setSupportedSymbols(symbols);
-      } catch (error) {
-        // 종목 목록 조회 실패
-      }
+        setSupportedSymbols(assets.map((a: any) => String(a.symbol).toUpperCase()));
+      } catch {}
     };
-
     loadSymbols();
   }, []);
 
-  // 총 자산 조회
   useEffect(() => {
     const fetchTotalAssets = async () => {
-      if (!isAuthenticated || !user) {
-        setTotalAssets(0);
-        return;
-      }
-
+      if (!isAuthenticated || !user) { setTotalAssets(0); return; }
       setIsLoadingAssets(true);
       try {
-        // 모든 계좌 조회
-        const accountsResponse = await accountsApi.getAccounts();
-        const accounts = accountsResponse.data;
-
-        if (!accounts || accounts.length === 0) {
-          setTotalAssets(0);
-          setIsLoadingAssets(false);
-          return;
+        const accountsRes = await accountsApi.getAccounts();
+        const accounts = accountsRes.data;
+        if (!accounts?.length) { setTotalAssets(0); setIsLoadingAssets(false); return; }
+        const rate = (await accountsApi.getCurrentExchangeRate()).data;
+        let cash = 0;
+        for (const acc of accounts) {
+          const bal = (await accountsApi.getAccountBalance(acc.accountId)).data;
+          cash += bal.balanceKrw + bal.balanceUsd * rate;
         }
-
-        // 현재 환율 조회
-        const exchangeRateResponse = await accountsApi.getCurrentExchangeRate();
-        const currentExchangeRate = exchangeRateResponse.data;
-
-        // 각 계좌의 잔액을 가져와서 총 자산 계산 (현금)
-        let cashTotal = 0;
-        for (const account of accounts) {
-          const balanceResponse = await accountsApi.getAccountBalance(account.accountId);
-          const balance = balanceResponse.data;
-
-          // KRW + (USD * 현재환율)
-          cashTotal += balance.balanceKrw + (balance.balanceUsd * currentExchangeRate);
-        }
-
-        // 포트폴리오 주식 평가금액 조회
-        let stockValue = 0;
+        let stocks = 0;
         try {
-          const holdingsResponse = await portfolioApi.getPortfolio();
-          const holdings = holdingsResponse.data;
-
-          if (holdings && holdings.length > 0) {
-            // holdings에서 currentPrice 추출
-            const currentPrices: { [symbol: string]: number } = {};
-            holdings.forEach(holding => {
-              if (holding.currentPrice && holding.currentPrice > 0) {
-                currentPrices[holding.symbol] = holding.currentPrice;
-              }
-            });
-
-            // 포트폴리오 종합 정보 조회
-            const summaryResponse = await portfolioApi.getPortfolioSummary(currentPrices);
-            const portfolioSummary = summaryResponse.data;
-
-            // 주식 평가금액 (USD를 KRW로 환산)
-            stockValue = portfolioSummary.totalCurrentValue * currentExchangeRate;
+          const holdings = (await portfolioApi.getPortfolio()).data;
+          if (holdings?.length) {
+            const prices: Record<string, number> = {};
+            holdings.forEach((h: any) => { if (h.currentPrice > 0) prices[h.symbol] = h.currentPrice; });
+            const summary = (await portfolioApi.getPortfolioSummary(prices)).data;
+            stocks = summary.totalCurrentValue * rate;
           }
-        } catch (err) {
-          // 주식 조회 실패해도 현금 자산은 표시
-        }
-
-        setTotalAssets(cashTotal + stockValue);
-      } catch (error) {
-        setTotalAssets(0);
-      } finally {
-        setIsLoadingAssets(false);
-      }
+        } catch {}
+        setTotalAssets(cash + stocks);
+      } catch { setTotalAssets(0); }
+      finally { setIsLoadingAssets(false); }
     };
-
     fetchTotalAssets();
   }, [isAuthenticated, user]);
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+    <header className="bg-canvas/90 backdrop-blur-md border-b border-line/60 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          {/* 로고 및 브랜드 */}
-          <div className="flex items-center">
-            <Link to="/" className="flex items-center space-x-2">
-              <div className="bg-indigo-600 text-white p-2 rounded-lg">
-                <TrendingUp className="w-6 h-6" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">껄무새</h1>
-                <p className="text-xs text-gray-500">모의투자 플랫폼</p>
-              </div>
-            </Link>
-          </div>
+        <div className="flex justify-between items-center h-[58px] gap-8">
 
-          {/* 네비게이션 */}
-          <nav className="hidden md:flex space-x-8">
+          {/* 로고 */}
+          <Link to="/" className="flex items-center gap-2.5 flex-shrink-0">
+            <div className="w-[30px] h-[30px] bg-brand rounded-[7px] flex items-center justify-center">
+              <TrendingUp className="w-[15px] h-[15px] text-white" />
+            </div>
+            <span className="text-[14.5px] font-bold tracking-[-0.4px] text-tx-1">껄무새</span>
+          </Link>
+
+          {/* 데스크탑 네비게이션 */}
+          <nav className="hidden md:flex gap-0.5 flex-1">
             {navigation.map((item) => {
-              const Icon = item.icon;
+              const active = isActive(item.href);
               return (
                 <button
                   key={item.name}
-                  onClick={() => {
-                    navigate(item.href);
-                  }}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActive(item.href)
-                      ? 'bg-indigo-100 text-indigo-700'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  onClick={() => navigate(item.href)}
+                  className={`px-3 py-[5px] rounded-[6px] text-[13px] font-medium transition-all duration-150 ${
+                    active
+                      ? 'bg-elevated text-tx-1 font-semibold'
+                      : 'text-tx-2 hover:text-tx-1 hover:bg-elevated/60'
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
-                  <span>{item.name}</span>
+                  {item.name}
                 </button>
               );
             })}
           </nav>
 
-          {/* 우측 액션 버튼들 */}
-          <div className="flex items-center space-x-4">
-            {/* 검색 버튼 */}
+          {/* 우측 */}
+          <div className="flex items-center gap-1.5">
+            <ThemeToggle />
             <button
               onClick={() => setIsSearchModalOpen(true)}
-              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 text-tx-3 hover:text-tx-1 hover:bg-elevated rounded-[7px] transition-all"
               title="종목 검색"
             >
-              <Search className="w-5 h-5" />
+              <Search className="w-4 h-4" />
             </button>
 
-            {/* 로그인/로그아웃 버튼 */}
             {!isAuthenticated ? (
-              <div className="hidden sm:flex items-center space-x-2">
+              <div className="hidden sm:flex items-center gap-1">
                 <button
                   onClick={() => setIsLoginModalOpen(true)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="px-3 py-[5px] text-[13px] font-medium text-tx-2 hover:text-tx-1 hover:bg-elevated rounded-[6px] transition-all"
                 >
                   로그인
                 </button>
                 <button
                   onClick={() => setIsSignupModalOpen(true)}
-                  className="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                  className="px-3 py-[6px] text-[13px] font-semibold bg-brand text-white rounded-[7px] hover:bg-brand-dark transition-all"
                 >
-                  회원가입
+                  시작하기
                 </button>
               </div>
             ) : (
-              /* 로그인된 사용자 메뉴 */
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center gap-2">
                 <div className="hidden md:block text-right">
-                  <p className="text-sm font-medium text-gray-900">
-                    {user?.nickname || '사용자'}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {isLoadingAssets ? '로딩 중...' : `총 자산: ₩${Math.floor(totalAssets).toLocaleString()}`}
+                  <p className="text-[13px] font-semibold text-tx-1 leading-tight">{user?.nickname || '사용자'}</p>
+                  <p className="text-[11px] text-tx-3 leading-tight">
+                    {isLoadingAssets ? '...' : `₩${Math.floor(totalAssets).toLocaleString()}`}
                   </p>
                 </div>
                 <button
                   onClick={() => navigate('/mypage')}
-                  className="flex items-center justify-center w-8 h-8 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition-all"
+                  className="w-7 h-7 bg-brand text-white rounded-full flex items-center justify-center hover:bg-brand-dark transition-all"
                   title="마이페이지"
                 >
-                  <User className="w-4 h-4" />
+                  <User className="w-3.5 h-3.5" />
                 </button>
                 <button
                   onClick={logout}
-                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-1.5 text-tx-3 hover:text-tx-1 hover:bg-elevated rounded-[6px] transition-all"
                   title="로그아웃"
                 >
-                  <LogOut className="w-5 h-5" />
+                  <LogOut className="w-4 h-4" />
                 </button>
               </div>
             )}
 
-            {/* 모바일 메뉴 버튼 */}
-            <button 
+            <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="md:hidden p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              className="md:hidden p-2 text-tx-3 hover:text-tx-1 hover:bg-elevated rounded-[7px] transition-all"
             >
-              <Menu className="w-5 h-5" />
+              <Menu className="w-4 h-4" />
             </button>
           </div>
         </div>
       </div>
 
-      {/* 모바일 네비게이션 */}
+      {/* 모바일 메뉴 */}
       {isMobileMenuOpen && (
-        <div className="md:hidden border-t border-gray-200 bg-gray-50">
-          <div className="px-4 py-2 space-y-1">
-            {navigation.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.name}
-                  onClick={() => {
-                    setIsMobileMenuOpen(false);
-                    navigate(item.href);
-                  }}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium ${
-                    isActive(item.href)
-                      ? 'bg-indigo-100 text-indigo-700'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span>{item.name}</span>
-                </button>
-              );
-            })}
-
-            {/* 모바일 로그인/회원가입 버튼 */}
+        <div className="md:hidden border-t border-line bg-canvas/95 backdrop-blur-md">
+          <div className="px-4 py-3 space-y-1">
+            {navigation.map((item) => (
+              <button
+                key={item.name}
+                onClick={() => { setIsMobileMenuOpen(false); navigate(item.href); }}
+                className={`w-full text-left px-3 py-2 rounded-[7px] text-[13px] font-medium ${
+                  isActive(item.href)
+                    ? 'bg-elevated text-tx-1 font-semibold'
+                    : 'text-tx-2 hover:text-tx-1 hover:bg-elevated'
+                }`}
+              >
+                {item.name}
+              </button>
+            ))}
             {!isAuthenticated && (
-              <div className="pt-4 mt-4 border-t border-gray-200 space-y-2">
+              <div className="pt-3 mt-3 border-t border-line flex gap-2">
                 <button
-                  onClick={() => {
-                    setIsLoginModalOpen(true);
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className="w-full text-left px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+                  onClick={() => { setIsLoginModalOpen(true); setIsMobileMenuOpen(false); }}
+                  className="flex-1 py-2 text-[13px] font-medium text-tx-2 border border-line-strong rounded-[7px]"
                 >
                   로그인
                 </button>
                 <button
-                  onClick={() => {
-                    setIsSignupModalOpen(true);
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className="w-full text-left px-3 py-2 text-sm font-medium bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+                  onClick={() => { setIsSignupModalOpen(true); setIsMobileMenuOpen(false); }}
+                  className="flex-1 py-2 text-[13px] font-semibold bg-brand text-white rounded-[7px]"
                 >
-                  회원가입
+                  시작하기
                 </button>
               </div>
             )}
-
-            {/* 모바일 사용자 메뉴 */}
             {isAuthenticated && (
-              <div className="pt-4 mt-4 border-t border-gray-200">
+              <div className="pt-3 mt-3 border-t border-line">
                 <div className="px-3 py-2">
-                  <p className="text-sm font-medium text-gray-900">
-                    {user?.nickname || '사용자'}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {isLoadingAssets ? '로딩 중...' : `총 자산: ₩${Math.floor(totalAssets).toLocaleString()}`}
+                  <p className="text-[13px] font-semibold text-tx-1">{user?.nickname || '사용자'}</p>
+                  <p className="text-[11px] text-tx-3">
+                    {isLoadingAssets ? '...' : `₩${Math.floor(totalAssets).toLocaleString()}`}
                   </p>
                 </div>
-                <button
-                  onClick={() => {
-                    navigate('/mypage');
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className="w-full text-left px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
-                >
-                  마이페이지
-                </button>
-                <button
-                  onClick={() => {
-                    logout();
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className="w-full text-left px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
-                >
-                  로그아웃
-                </button>
+                <button onClick={() => { navigate('/mypage'); setIsMobileMenuOpen(false); }}
+                  className="w-full text-left px-3 py-2 text-[13px] text-tx-2 hover:bg-elevated rounded-[7px]">마이페이지</button>
+                <button onClick={() => { logout(); setIsMobileMenuOpen(false); }}
+                  className="w-full text-left px-3 py-2 text-[13px] text-tx-2 hover:bg-elevated rounded-[7px]">로그아웃</button>
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* 인증 모달 */}
       <LoginModal
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
-        onSwitchToSignup={() => {
-          setIsLoginModalOpen(false);
-          setIsSignupModalOpen(true);
-        }}
-        onLogin={handleLogin}
+        onSwitchToSignup={() => { setIsLoginModalOpen(false); setIsSignupModalOpen(true); }}
+        onLogin={async (email, password) => { await login(email, password); }}
       />
       <SignupModal
         isOpen={isSignupModalOpen}
         onClose={() => setIsSignupModalOpen(false)}
-        onSwitchToLogin={() => {
-          setIsSignupModalOpen(false);
-          setIsLoginModalOpen(true);
-        }}
-        onSignup={handleSignup}
-        onSignupSuccess={(email) => {
-          setSignupSuccessEmail(email);
-          setIsSignupSuccessModalOpen(true);
-        }}
+        onSwitchToLogin={() => { setIsSignupModalOpen(false); setIsLoginModalOpen(true); }}
+        onSignup={async (email, password, nickname) => { await signup(email, password, nickname); }}
+        onSignupSuccess={(email) => { setSignupSuccessEmail(email); setIsSignupSuccessModalOpen(true); }}
       />
-
-      {/* 회원가입 성공 모달 */}
       <SignupSuccessModal
         isOpen={isSignupSuccessModalOpen}
-        onClose={() => {
-          setIsSignupSuccessModalOpen(false);
-          setSignupSuccessEmail('');
-        }}
+        onClose={() => { setIsSignupSuccessModalOpen(false); setSignupSuccessEmail(''); }}
         email={signupSuccessEmail}
       />
-
-      {/* 검색 모달 */}
       <SearchModal
         isOpen={isSearchModalOpen}
         onClose={() => setIsSearchModalOpen(false)}

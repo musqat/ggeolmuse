@@ -26,7 +26,7 @@ export default function AssetSearchSection({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+    <div className="bg-surface rounded-lg shadow-md p-6 mb-6">
       <h2 className="text-xl font-semibold mb-4">심볼 검색</h2>
 
       <div className="flex gap-4">
@@ -36,12 +36,12 @@ export default function AssetSearchSection({
           onChange={(e) => onSearchKeywordChange(e.target.value)}
           onKeyPress={handleKeyPress}
           placeholder="회사명 또는 티커 입력 (예: Tesla, AAPL)"
-          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          className="flex-1 px-4 py-2 border border-line-strong rounded-lg focus:ring-2 focus:ring-brand focus:border-transparent"
         />
         <button
           onClick={onSearch}
           disabled={loading}
-          className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"
+          className="px-6 py-2 bg-brand text-white rounded-lg hover:bg-brand-dark disabled:opacity-50 flex items-center gap-2"
         >
           <Search className="w-5 h-5" />
           검색
@@ -55,20 +55,20 @@ export default function AssetSearchSection({
             {searchResults.map((asset) => (
               <div
                 key={asset.symbol}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition"
+                className="flex items-center justify-between p-3 bg-surface/50 rounded-lg hover:bg-elevated cursor-pointer transition"
                 onClick={() => onPreview(asset.symbol)}
               >
                 <div>
-                  <span className="font-semibold text-indigo-600">{asset.symbol}</span>
-                  <span className="ml-2 text-gray-700">{asset.name}</span>
-                  <span className="ml-2 text-sm text-gray-500">({asset.assetType})</span>
+                  <span className="font-semibold text-brand">{asset.symbol}</span>
+                  <span className="ml-2 text-tx-1">{asset.name}</span>
+                  <span className="ml-2 text-sm text-tx-2">({asset.assetType})</span>
                 </div>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     onPreview(asset.symbol);
                   }}
-                  className="text-sm text-indigo-600 hover:text-indigo-800"
+                  className="text-sm text-brand hover:text-indigo-800"
                 >
                   미리보기
                 </button>

@@ -1,11 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 
-/**
- * 한국어 버전 Ultra Elegant Calendar (Single Date Mode)
- * - 단일 날짜 선택 모드
- * - 월 드롭다운(한국어) + 오늘 버튼 중앙 배치
- * - 연도·월 전환, 빠른 탐색(10년 보기)
- */
 
 interface DatePickerProps {
   value: Date | null;
@@ -101,7 +95,7 @@ export default function DatePicker({
   const decadeYears = Array.from({ length: 12 }, (_, i) => decadeStart - 1 + i);
 
   return (
-    <div className="relative w-full rounded-2xl border border-slate-200 bg-white/90 backdrop-blur-xl shadow-md">
+    <div className="relative w-full rounded-2xl border border-slate-200 bg-surface/90 backdrop-blur-xl shadow-md">
       <div className="flex flex-col gap-2 p-3 select-none">
         <div className="grid grid-cols-3 items-center">
           {/* 왼쪽: 연도 */}
@@ -110,7 +104,7 @@ export default function DatePicker({
               <ChevronLeft />
             </IconButton>
             <button
-              className="text-sm font-semibold tracking-tight hover:text-indigo-600 transition"
+              className="text-sm font-semibold tracking-tight hover:text-brand transition"
               onClick={() => setShowDecade(!showDecade)}
             >
               {currentYear}년
@@ -124,19 +118,19 @@ export default function DatePicker({
           <div className="relative flex items-center justify-center gap-1">
             <button
               onClick={() => setShowMonthMenu((v) => !v)}
-              className="min-w-[60px] rounded-lg border border-slate-200 bg-white px-2 py-1 text-center text-xs font-medium text-slate-700 hover:bg-slate-50 transition"
+              className="min-w-[60px] rounded-lg border border-slate-200 bg-surface px-2 py-1 text-center text-xs font-medium text-slate-700 hover:bg-slate-50 transition"
             >
               {months[currentMonth]}
             </button>
             <button
               onClick={goToday}
-              className="rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 transition"
+              className="rounded-lg border border-brand/25 bg-brand-bg px-2 py-1 text-xs font-semibold text-brand-dark hover:bg-brand-bg transition"
             >
               오늘
             </button>
 
             {showMonthMenu && (
-              <div className="absolute top-[110%] z-10 w-[280px] rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+              <div className="absolute top-[110%] z-10 w-[280px] rounded-xl border border-slate-200 bg-surface p-2 shadow-xl">
                 <div className="grid grid-cols-3 gap-2">
                   {months.map((name, idx) => (
                     <button
@@ -147,8 +141,8 @@ export default function DatePicker({
                       }}
                       className={`rounded-lg px-3 py-2 text-sm transition ${
                         idx === currentMonth
-                          ? "bg-indigo-600 text-white shadow"
-                          : "bg-white text-slate-700 hover:bg-slate-50 border border-slate-200"
+                          ? "bg-brand text-white shadow"
+                          : "bg-surface text-slate-700 hover:bg-slate-50 border border-slate-200"
                       }`}
                     >
                       {name}
@@ -173,12 +167,12 @@ export default function DatePicker({
 
       {/* 10년 보기 */}
       {showDecade && (
-        <div className="mx-4 mb-3 rounded-xl border border-slate-200 bg-white/70 p-3 shadow-sm">
+        <div className="mx-4 mb-3 rounded-xl border border-slate-200 bg-surface/70 p-3 shadow-sm">
           <div className="mb-2 flex items-center justify-between">
             <IconButton onClick={() => jumpYear(-10)} label="이전 10년">
               <ChevronLeft />
             </IconButton>
-            <div className="text-sm font-semibold text-slate-600">
+            <div className="text-sm font-semibold text-tx-3">
               {decadeStart} – {decadeStart + 9}
             </div>
             <IconButton onClick={() => jumpYear(10)} label="다음 10년">
@@ -196,8 +190,8 @@ export default function DatePicker({
                 }}
                 className={`rounded-lg px-2 py-2 text-sm transition ${
                   yy === currentYear
-                    ? "bg-indigo-600 text-white shadow"
-                    : "bg-white text-slate-700 hover:bg-slate-50"
+                    ? "bg-brand text-white shadow"
+                    : "bg-surface text-slate-700 hover:bg-slate-50"
                 } ${yy < minYear || yy > maxYear ? "opacity-30 cursor-not-allowed" : ""}`}
               >
                 {yy}
@@ -209,7 +203,7 @@ export default function DatePicker({
 
       {/* 달력 본문 */}
       <div className="px-4 pb-4">
-        <div className="grid grid-cols-7 text-center text-xs font-medium text-slate-500">
+        <div className="grid grid-cols-7 text-center text-xs font-medium text-tx-3">
           {weekNames.map((w) => (
             <div key={w} className="w-11 py-1.5">
               {w}
@@ -224,10 +218,10 @@ export default function DatePicker({
                   onClick={() => handleDateClick(d)}
                   className={`flex h-full w-full items-center justify-center rounded-lg text-sm transition ${
                     isSelectedDate(d)
-                      ? "bg-indigo-600 text-white shadow-md font-semibold"
+                      ? "bg-brand text-white shadow-md font-semibold"
                       : isTodayDate(d)
-                      ? "border-2 border-indigo-300 text-indigo-700 font-medium"
-                      : "border border-transparent hover:bg-indigo-50 hover:text-indigo-700"
+                      ? "border-2 border-brand/40 text-brand-dark font-medium"
+                      : "border border-transparent hover:bg-brand-bg hover:text-brand-dark"
                   }`}
                 >
                   {d}
@@ -253,7 +247,7 @@ function IconButton({ children, onClick, label }: IconButtonProps) {
   return (
     <button
       onClick={onClick}
-      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-indigo-300 transition"
+      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-surface text-slate-700 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-indigo-300 transition"
       title={label}
     >
       {children}

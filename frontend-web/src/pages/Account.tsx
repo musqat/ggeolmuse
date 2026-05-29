@@ -104,14 +104,14 @@ const Account: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="min-h-[60vh] flex items-center justify-center">
             <div className="text-center">
-              <Lock className="w-16 h-16 text-indigo-600 mx-auto mb-4" />
-              <h1 className="text-3xl font-bold text-gray-900 mb-4">로그인이 필요한 서비스입니다</h1>
-              <p className="text-lg text-gray-600 mb-6">
+              <Lock className="w-16 h-16 text-brand mx-auto mb-4" />
+              <h1 className="text-3xl font-bold text-tx-1 mb-4">로그인이 필요한 서비스입니다</h1>
+              <p className="text-lg text-tx-2 mb-6">
                 계좌 관리 기능을 이용하시려면 먼저 로그인해주세요
               </p>
               <button
                 onClick={() => setIsLoginModalOpen(true)}
-                className="flex items-center space-x-2 bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-colors mx-auto"
+                className="flex items-center space-x-2 bg-brand text-white px-6 py-3 rounded-lg hover:bg-brand-dark transition-colors mx-auto"
               >
                 <LogIn className="w-5 h-5" />
                 <span>로그인하기</span>
@@ -138,7 +138,7 @@ const Account: React.FC = () => {
     return (
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex items-center justify-center h-64">
-          <RefreshCw className="w-8 h-8 animate-spin text-indigo-600" />
+          <RefreshCw className="w-8 h-8 animate-spin text-brand" />
         </div>
       </div>
     );
@@ -155,7 +155,7 @@ const Account: React.FC = () => {
         />
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
+          <div className="bg-red-500/100/10 border border-red-500/25 text-red-600 px-4 py-3 rounded-lg">
             {error}
           </div>
         )}
@@ -192,12 +192,12 @@ const Account: React.FC = () => {
 
         {/* 빈 상태 */}
         {accounts.length === 0 && !error && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">계좌가 없습니다</h3>
-            <p className="text-gray-500 mb-6">첫 번째 계좌를 생성하여 투자를 시작해보세요</p>
+          <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-12 text-center">
+            <h3 className="text-lg font-semibold text-tx-1 mb-2">계좌가 없습니다</h3>
+            <p className="text-tx-2 mb-6">첫 번째 계좌를 생성하여 투자를 시작해보세요</p>
             <button
               onClick={openCreateModal}
-              className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              className="px-6 py-3 bg-brand text-white rounded-lg hover:bg-brand-dark transition-colors"
             >
               계좌 생성하기
             </button>

@@ -239,7 +239,7 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
 
   if (data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-[600px] text-gray-500">
+      <div className="flex items-center justify-center h-[600px] text-tx-2">
         No data available
       </div>
     );
@@ -250,11 +250,11 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
   const priceChangePercent = (priceChange / latestData.open) * 100;
 
   return (
-    <div className="w-full bg-white rounded-lg relative">
+    <div className="w-full bg-surface rounded-lg relative">
       {/* 툴팁 - Crosshair에 따라 표시 */}
       {tooltipData && (
-        <div className="absolute top-4 left-4 bg-white border border-gray-200 shadow-lg rounded-lg p-3 z-10 pointer-events-none">
-          <div className="text-xs font-semibold text-gray-700 mb-2">
+        <div className="absolute top-4 left-4 bg-surface border border-line shadow-lg rounded-lg p-3 z-10 pointer-events-none">
+          <div className="text-xs font-semibold text-tx-1 mb-2">
             {new Date(tooltipData.time).toLocaleDateString('ko-KR', {
               year: 'numeric',
               month: 'short',
@@ -263,8 +263,8 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
           </div>
           <div className="space-y-1 text-xs">
             <div className="flex justify-between gap-4">
-              <span className="text-gray-500">시가:</span>
-              <span className="font-medium text-gray-900">${tooltipData.open.toFixed(2)}</span>
+              <span className="text-tx-2">시가:</span>
+              <span className="font-medium text-tx-1">${tooltipData.open.toFixed(2)}</span>
             </div>
             <div className="flex justify-between gap-4">
               <span className="text-green-600">고가:</span>
@@ -275,17 +275,17 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
               <span className="font-medium text-red-600">${tooltipData.low.toFixed(2)}</span>
             </div>
             <div className="flex justify-between gap-4">
-              <span className="text-gray-500">종가:</span>
-              <span className="font-medium text-gray-900">${tooltipData.close.toFixed(2)}</span>
+              <span className="text-tx-2">종가:</span>
+              <span className="font-medium text-tx-1">${tooltipData.close.toFixed(2)}</span>
             </div>
             <div className="flex justify-between gap-4">
-              <span className="text-gray-500">거래량:</span>
-              <span className="font-medium text-gray-900">{tooltipData.volume.toLocaleString()}</span>
+              <span className="text-tx-2">거래량:</span>
+              <span className="font-medium text-tx-1">{tooltipData.volume.toLocaleString()}</span>
             </div>
-            <div className="pt-1 mt-1 border-t border-gray-200">
+            <div className="pt-1 mt-1 border-t border-line">
               <div className="flex justify-between gap-4">
-                <span className="text-gray-500">변화:</span>
-                <span className={`font-medium ${tooltipData.change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <span className="text-tx-2">변화:</span>
+                <span className={`font-medium ${tooltipData.change >= 0 ? 'text-green-600':'text-red-600'}`}>
                   {tooltipData.change >= 0 ? '+' : ''}{tooltipData.change.toFixed(2)} ({tooltipData.changePercent.toFixed(2)}%)
                 </span>
               </div>

@@ -10,7 +10,7 @@ interface ExchangeModalProps {
     toCurrency: 'KRW' | 'USD';
     originalAmount: number;
     exchangeRate: number;
-  }) => Promise<void>;
+  }) =>Promise<void>;
   accountId: number | null;
   accountBalance: AccountBalance | undefined;
   currentExchangeRate: number;
@@ -101,14 +101,14 @@ export const ExchangeModal: React.FC<ExchangeModalProps> = ({
     <div className="flex space-x-3">
       <button
         onClick={handleClose}
-        className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+        className="flex-1 px-4 py-2 border border-line-strong text-tx-1 rounded-lg hover:bg-surface/50 transition-colors"
       >
         취소
       </button>
       <button
         onClick={handleSubmit}
         disabled={!exchangeAmount || parseFloat(exchangeAmount) <= 0}
-        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         환전하기
       </button>
@@ -131,11 +131,11 @@ export const ExchangeModal: React.FC<ExchangeModalProps> = ({
 
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">환전 방향</label>
+          <label className="block text-sm font-medium text-tx-1 mb-2">환전 방향</label>
           <select
             value={exchangeFromCurrency}
             onChange={(e) => setExchangeFromCurrency(e.target.value as 'KRW' | 'USD')}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
           >
             <option value="KRW">KRW → USD</option>
             <option value="USD">USD → KRW</option>
@@ -143,7 +143,7 @@ export const ExchangeModal: React.FC<ExchangeModalProps> = ({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-tx-1 mb-2">
             환전 금액 ({exchangeFromCurrency})
           </label>
           <input
@@ -151,7 +151,7 @@ export const ExchangeModal: React.FC<ExchangeModalProps> = ({
             value={exchangeAmount}
             onChange={(e) => setExchangeAmount(e.target.value)}
             placeholder={`환전할 ${exchangeFromCurrency} 금액`}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
           />
 
           {/* 빠른 금액 버튼 */}
@@ -160,13 +160,13 @@ export const ExchangeModal: React.FC<ExchangeModalProps> = ({
               <>
                 <button
                   onClick={() => setExchangeAmount('1000000')}
-                  className="py-2 px-3 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors text-sm"
+                  className="py-2 px-3 bg-elevated text-tx-1 rounded-md hover:bg-hover transition-colors text-sm"
                 >
                   $1천 (₩100만)
                 </button>
                 <button
                   onClick={() => setExchangeAmount('10000000')}
-                  className="py-2 px-3 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors text-sm"
+                  className="py-2 px-3 bg-elevated text-tx-1 rounded-md hover:bg-hover transition-colors text-sm"
                 >
                   $1만 (₩1000만)
                 </button>
@@ -176,7 +176,7 @@ export const ExchangeModal: React.FC<ExchangeModalProps> = ({
                       setExchangeAmount(accountBalance.balanceKrw.toString());
                     }
                   }}
-                  className="py-2 px-3 bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 transition-colors text-sm font-medium"
+                  className="py-2 px-3 bg-brand-bg text-brand-dark rounded-md hover:bg-indigo-200 transition-colors text-sm font-medium"
                 >
                   전액
                 </button>
@@ -185,13 +185,13 @@ export const ExchangeModal: React.FC<ExchangeModalProps> = ({
               <>
                 <button
                   onClick={() => setExchangeAmount('1000')}
-                  className="py-2 px-3 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors text-sm"
+                  className="py-2 px-3 bg-elevated text-tx-1 rounded-md hover:bg-hover transition-colors text-sm"
                 >
                   $1,000
                 </button>
                 <button
                   onClick={() => setExchangeAmount('10000')}
-                  className="py-2 px-3 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors text-sm"
+                  className="py-2 px-3 bg-elevated text-tx-1 rounded-md hover:bg-hover transition-colors text-sm"
                 >
                   $10,000
                 </button>
@@ -201,7 +201,7 @@ export const ExchangeModal: React.FC<ExchangeModalProps> = ({
                       setExchangeAmount(accountBalance.balanceUsd.toString());
                     }
                   }}
-                  className="py-2 px-3 bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 transition-colors text-sm font-medium"
+                  className="py-2 px-3 bg-brand-bg text-brand-dark rounded-md hover:bg-indigo-200 transition-colors text-sm font-medium"
                 >
                   전액
                 </button>
@@ -217,9 +217,9 @@ export const ExchangeModal: React.FC<ExchangeModalProps> = ({
               id="useManualRate"
               checked={useManualRate}
               onChange={(e) => setUseManualRate(e.target.checked)}
-              className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+              className="w-4 h-4 text-brand border-line-strong rounded focus:ring-brand"
             />
-            <label htmlFor="useManualRate" className="text-sm font-medium text-gray-700">
+            <label htmlFor="useManualRate" className="text-sm font-medium text-tx-1">
               수동 환율 입력
             </label>
           </div>
@@ -229,18 +229,18 @@ export const ExchangeModal: React.FC<ExchangeModalProps> = ({
               value={manualExchangeRate}
               onChange={(e) => setManualExchangeRate(e.target.value)}
               placeholder="원하는 환율 입력 (예: 1350)"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
             />
           )}
         </div>
 
         {expectedAmount && (
-          <div className="p-3 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-700">
+          <div className="p-3 bg-surface/50 rounded-lg">
+            <p className="text-sm text-tx-1">
               예상 환전 금액: {expectedAmount}
             </p>
             {useManualRate && manualExchangeRate && parseFloat(manualExchangeRate) > 0 && (
-              <p className="text-xs text-indigo-600 mt-1">
+              <p className="text-xs text-brand mt-1">
                 수동 환율: ₩{parseFloat(manualExchangeRate).toLocaleString()}/USD
               </p>
             )}

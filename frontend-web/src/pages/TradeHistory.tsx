@@ -33,7 +33,7 @@ interface Transaction {
 type FilterType = 'ALL' | 'BUY' | 'SELL' | 'DIVIDEND';
 
 const TradeHistory: React.FC = () => {
-  const { isAuthenticated, login } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, login } = useAuth();
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [filter, setFilter] = useState<FilterType>('ALL');
 
@@ -120,6 +120,16 @@ const TradeHistory: React.FC = () => {
     return groupedTransactions;
   }, [filter, groupedTransactions]);
 
+  if (authLoading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand"></div>
+        </div>
+      </div>
+    );
+  }
+
   // 로그인 안 됨
   if (!isAuthenticated) {
     return (
@@ -127,14 +137,14 @@ const TradeHistory: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="min-h-[60vh] flex items-center justify-center">
             <div className="text-center">
-              <Lock className="w-16 h-16 text-indigo-600 mx-auto mb-4" />
-              <h1 className="text-3xl font-bold text-gray-900 mb-4">로그인이 필요한 서비스입니다</h1>
-              <p className="text-lg text-gray-600 mb-6">
+              <Lock className="w-16 h-16 text-brand mx-auto mb-4" />
+              <h1 className="text-3xl font-bold text-tx-1 mb-4">로그인이 필요한 서비스입니다</h1>
+              <p className="text-lg text-tx-2 mb-6">
                 거래내역을 확인하시려면 먼저 로그인해주세요
               </p>
               <button
                 onClick={() => setIsLoginModalOpen(true)}
-                className="flex items-center space-x-2 bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-colors mx-auto"
+                className="flex items-center space-x-2 bg-brand text-white px-6 py-3 rounded-lg hover:bg-brand-dark transition-colors mx-auto"
               >
                 <LogIn className="w-5 h-5" />
                 <span>로그인하기</span>
@@ -160,7 +170,7 @@ const TradeHistory: React.FC = () => {
     return (
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand"></div>
         </div>
       </div>
     );
@@ -172,18 +182,18 @@ const TradeHistory: React.FC = () => {
         {/* 헤더 */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">거래내역</h1>
-            <p className="text-gray-600 mt-1">매수, 매도, 배당 수령 내역</p>
+            <h1 className="text-3xl font-bold text-tx-1">거래내역</h1>
+            <p className="text-tx-2 mt-1">매수, 매도, 배당 수령 내역</p>
           </div>
           <div className="flex items-center space-x-3 mt-4 md:mt-0">
             {/* 필터 버튼 */}
-            <div className="flex items-center space-x-2 bg-gray-100 rounded-lg p-1">
+            <div className="flex items-center space-x-2 bg-elevated rounded-lg p-1">
               <button
                 onClick={() => setFilter('ALL')}
                 className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
                   filter === 'ALL'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'bg-surface text-tx-1 shadow-sm'
+                    : 'text-tx-2 hover:text-tx-1'
                 }`}
               >
                 전체
@@ -192,8 +202,8 @@ const TradeHistory: React.FC = () => {
                 onClick={() => setFilter('BUY')}
                 className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
                   filter === 'BUY'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'bg-surface text-tx-1 shadow-sm'
+                    : 'text-tx-2 hover:text-tx-1'
                 }`}
               >
                 매수
@@ -202,8 +212,8 @@ const TradeHistory: React.FC = () => {
                 onClick={() => setFilter('SELL')}
                 className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
                   filter === 'SELL'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'bg-surface text-tx-1 shadow-sm'
+                    : 'text-tx-2 hover:text-tx-1'
                 }`}
               >
                 매도
@@ -212,8 +222,8 @@ const TradeHistory: React.FC = () => {
                 onClick={() => setFilter('DIVIDEND')}
                 className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
                   filter === 'DIVIDEND'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'bg-surface text-tx-1 shadow-sm'
+                    : 'text-tx-2 hover:text-tx-1'
                 }`}
               >
                 배당
@@ -223,16 +233,16 @@ const TradeHistory: React.FC = () => {
             <button
               onClick={handleRefresh}
               disabled={loading}
-              className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+              className="flex items-center space-x-2 px-4 py-2 bg-elevated text-tx-1 rounded-lg hover:bg-hover transition-colors disabled:opacity-50"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin':''}`} />
               <span>새로고침</span>
             </button>
           </div>
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
+          <div className="bg-red-500/10 border border-red-500/25 text-red-600 px-4 py-3 rounded-lg">
             거래내역을 불러오는데 실패했습니다.
           </div>
         )}
@@ -240,17 +250,17 @@ const TradeHistory: React.FC = () => {
         {/* 거래내역 리스트 */}
         <div className="space-y-4">
           {transactions.length === 0 ? (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-              <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500 text-lg">거래 내역이 없습니다</p>
+            <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-12 text-center">
+              <Calendar className="w-16 h-16 text-tx-3 mx-auto mb-4" />
+              <p className="text-tx-2 text-lg">거래 내역이 없습니다</p>
             </div>
           ) : (
             <>
               {/* 매수 그룹들 (각 매수 + 그 매수의 배당들) */}
               {filteredTransactions.grouped.map(({ trade, dividends }) => (
-                <div key={trade.tradeId} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div key={trade.tradeId} className="bg-surface rounded-xl shadow-sm border border-line/50 overflow-hidden">
                   {/* 매수 거래 */}
-                  <div className="p-4 hover:bg-gray-50 transition-colors">
+                  <div className="p-4 hover:bg-surface/50 transition-colors">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4">
                         <div className="flex-shrink-0">
@@ -263,21 +273,21 @@ const TradeHistory: React.FC = () => {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center space-x-3">
-                            <p className="text-lg font-semibold text-gray-900">{trade.symbol}</p>
-                            <p className="text-sm text-gray-500">
+                            <p className="text-lg font-semibold text-tx-1">{trade.symbol}</p>
+                            <p className="text-sm text-tx-2">
                               {new Date(trade.executedAt).toLocaleString('ko-KR')}
                             </p>
                           </div>
-                          <p className="text-sm text-gray-600 mt-1">
+                          <p className="text-sm text-tx-2 mt-1">
                             {trade.quantity?.toFixed(2)}주 × ${trade.price?.toFixed(2)}
                             {trade.fee && trade.fee > 0 && (
-                              <span className="text-gray-400 ml-2">(수수료 ${trade.fee.toFixed(2)})</span>
+                              <span className="text-tx-3 ml-2">(수수료 ${trade.fee.toFixed(2)})</span>
                             )}
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-lg font-semibold text-gray-900">
+                        <p className="text-lg font-semibold text-tx-1">
                           ${trade.totalAmount.toFixed(2)}
                         </p>
                       </div>
@@ -286,40 +296,40 @@ const TradeHistory: React.FC = () => {
 
                   {/* 이 매수로부터 발생한 배당들 (들여쓰기) */}
                   {dividends.length > 0 && (filter === 'ALL' || filter === 'DIVIDEND' || filter === 'BUY') && (
-                    <div className="bg-green-50 border-t border-green-100">
+                    <div className="bg-green-500/10 border-t border-green-500/20">
                       {dividends.map((dividend, idx) => (
                         <div
                           key={`${dividend.tradeId}-${dividend.date}`}
-                          className="p-4 pl-12 hover:bg-green-100 transition-colors"
+                          className="p-4 pl-12 hover:bg-green-500/15 transition-colors"
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-4">
                               <div className="flex-shrink-0">
                                 <div className="flex items-center space-x-2">
                                   <DollarSign className="w-4 h-4 text-green-600" />
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-200 text-green-800">
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-200 text-green-600">
                                     배당
                                   </span>
                                 </div>
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center space-x-3">
-                                  <p className="text-sm font-medium text-gray-700">{dividend.symbol}</p>
-                                  <p className="text-xs text-gray-500">
+                                  <p className="text-sm font-medium text-tx-1">{dividend.symbol}</p>
+                                  <p className="text-xs text-tx-2">
                                     {new Date(dividend.date).toLocaleDateString('ko-KR')}
                                   </p>
                                 </div>
-                                <p className="text-xs text-gray-600 mt-1">
+                                <p className="text-xs text-tx-2 mt-1">
                                   {dividend.shares?.toFixed(2)}주 보유 × ${dividend.dividendPerShare?.toFixed(2)}/주
-                                  <span className="text-gray-400 ml-2">(원천징수 15.4% 제외)</span>
+                                  <span className="text-tx-3 ml-2">(원천징수 15.4% 제외)</span>
                                 </p>
                               </div>
                             </div>
                             <div className="text-right">
-                              <p className="text-sm font-semibold text-green-700">
+                              <p className="text-sm font-semibold text-green-600">
                                 +${dividend.totalAmount.toFixed(2)}
                               </p>
-                              <p className="text-xs text-gray-500">
+                              <p className="text-xs text-tx-2">
                                 세전 ${dividend.grossAmount?.toFixed(2)}
                               </p>
                             </div>
@@ -333,35 +343,35 @@ const TradeHistory: React.FC = () => {
 
               {/* 매도 거래들 (별도 표시) */}
               {filteredTransactions.sellTrades.map((trade) => (
-                <div key={trade.tradeId} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                  <div className="p-4 hover:bg-gray-50 transition-colors">
+                <div key={trade.tradeId} className="bg-surface rounded-xl shadow-sm border border-line/50 overflow-hidden">
+                  <div className="p-4 hover:bg-surface/50 transition-colors">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4">
                         <div className="flex-shrink-0">
                           <div className="flex items-center space-x-2">
                             <ArrowDownCircle className="w-5 h-5 text-red-500" />
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-500/15 text-red-600">
                               매도
                             </span>
                           </div>
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center space-x-3">
-                            <p className="text-lg font-semibold text-gray-900">{trade.symbol}</p>
-                            <p className="text-sm text-gray-500">
+                            <p className="text-lg font-semibold text-tx-1">{trade.symbol}</p>
+                            <p className="text-sm text-tx-2">
                               {new Date(trade.executedAt).toLocaleString('ko-KR')}
                             </p>
                           </div>
-                          <p className="text-sm text-gray-600 mt-1">
+                          <p className="text-sm text-tx-2 mt-1">
                             {trade.quantity?.toFixed(2)}주 × ${trade.price?.toFixed(2)}
                             {trade.fee && trade.fee > 0 && (
-                              <span className="text-gray-400 ml-2">(수수료 ${trade.fee.toFixed(2)})</span>
+                              <span className="text-tx-3 ml-2">(수수료 ${trade.fee.toFixed(2)})</span>
                             )}
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-lg font-semibold text-gray-900">
+                        <p className="text-lg font-semibold text-tx-1">
                           ${trade.totalAmount.toFixed(2)}
                         </p>
                       </div>

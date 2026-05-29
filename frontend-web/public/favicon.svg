@@ -1,13 +1,5 @@
 <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="32" height="32" rx="6" fill="url(#gradient)"/>
-  <path d="M8 12h16v2H8v-2z" fill="white"/>
-  <path d="M10 16h12v2H10v-2z" fill="white"/>
-  <path d="M12 20h8v2h-8v-2z" fill="white"/>
-  <circle cx="24" cy="8" r="3" fill="#10B981"/>
-  <defs>
-    <linearGradient id="gradient" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#6366F1"/>
-      <stop offset="100%" stop-color="#8B5CF6"/>
-    </linearGradient>
-  </defs>
+  <rect width="32" height="32" rx="7" fill="#111827"/>
+  <polyline points="6,20 13,12 18,17 26,9" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <polyline points="21,9 26,9 26,14" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
 </svg>

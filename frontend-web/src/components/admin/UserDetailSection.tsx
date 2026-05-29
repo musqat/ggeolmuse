@@ -31,9 +31,9 @@ export default function UserDetailSection({
 
   if (!user) {
     return (
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="bg-surface rounded-lg shadow-md p-6">
         <h2 className="text-xl font-semibold mb-4">사용자 상세</h2>
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 text-tx-2">
           사용자를 선택하세요
         </div>
       </div>
@@ -84,19 +84,19 @@ export default function UserDetailSection({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className="bg-surface rounded-lg shadow-md p-6">
       <h2 className="text-xl font-semibold mb-4">사용자 상세</h2>
 
       <div className="space-y-6">
         {/* Basic Info */}
         <div className="space-y-3">
           <div>
-            <p className="text-sm text-gray-600">이메일</p>
+            <p className="text-sm text-tx-2">이메일</p>
             <p className="font-semibold">{user.email}</p>
           </div>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">닉네임</p>
+              <p className="text-sm text-tx-2">닉네임</p>
               <p className="font-semibold">{user.username}</p>
             </div>
             <button
@@ -105,14 +105,14 @@ export default function UserDetailSection({
                 setShowNicknameModal(true);
               }}
               disabled={loading}
-              className="px-3 py-1 text-sm bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 disabled:opacity-50 flex items-center gap-1"
+              className="px-3 py-1 text-sm bg-brand-bg text-brand-dark rounded hover:bg-indigo-200 disabled:opacity-50 flex items-center gap-1"
             >
               <Edit2 className="w-4 h-4" />
               변경
             </button>
           </div>
           <div>
-            <p className="text-sm text-gray-600">이메일 인증 상태</p>
+            <p className="text-sm text-tx-2">이메일 인증 상태</p>
             <div className="flex items-center justify-between">
               <p className={user.emailVerified ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
                 {user.emailVerified ? '인증됨' : '미인증'}
@@ -121,7 +121,7 @@ export default function UserDetailSection({
                 <button
                   onClick={handleVerifyEmail}
                   disabled={loading}
-                  className="px-3 py-1 text-sm bg-green-100 text-green-700 rounded hover:bg-green-200 disabled:opacity-50 flex items-center gap-1"
+                  className="px-3 py-1 text-sm bg-green-500/100/15 text-green-600 rounded hover:bg-green-200 disabled:opacity-50 flex items-center gap-1"
                 >
                   <CheckCircle className="w-4 h-4" />
                   강제 인증
@@ -130,12 +130,12 @@ export default function UserDetailSection({
             </div>
           </div>
           <div>
-            <p className="text-sm text-gray-600">가입일</p>
+            <p className="text-sm text-tx-2">가입일</p>
             <p>{new Date(user.createdAt).toLocaleString('ko-KR')}</p>
           </div>
           {user.lastLoginAt && (
             <div>
-              <p className="text-sm text-gray-600">마지막 로그인</p>
+              <p className="text-sm text-tx-2">마지막 로그인</p>
               <p>{new Date(user.lastLoginAt).toLocaleString('ko-KR')}</p>
             </div>
           )}
@@ -143,11 +143,11 @@ export default function UserDetailSection({
 
         {/* Password Management */}
         <div className="border-t pt-4">
-          <p className="text-sm text-gray-600 mb-2">비밀번호 관리</p>
+          <p className="text-sm text-tx-2 mb-2">비밀번호 관리</p>
           <button
             onClick={() => setShowPasswordModal(true)}
             disabled={loading}
-            className="w-full px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg hover:bg-yellow-200 disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full px-4 py-2 bg-yellow-500/100/15 text-yellow-600 rounded-lg hover:bg-yellow-200 disabled:opacity-50 flex items-center justify-center gap-2"
           >
             <Lock className="w-4 h-4" />
             비밀번호 강제 변경
@@ -156,19 +156,19 @@ export default function UserDetailSection({
 
         {/* Role Management */}
         <div className="border-t pt-4">
-          <p className="text-sm text-gray-600 mb-2">역할 관리</p>
+          <p className="text-sm text-tx-2 mb-2">역할 관리</p>
           <div className="flex gap-2">
             <button
               onClick={() => onUpdateRole(user.userId, 'USER')}
               disabled={user.role === 'USER' || loading}
-              className="flex-1 px-4 py-2 bg-gray-100 text-gray-800 rounded-lg disabled:opacity-50 hover:bg-gray-200 transition"
+              className="flex-1 px-4 py-2 bg-elevated text-tx-1 rounded-lg disabled:opacity-50 hover:bg-hover transition"
             >
               일반 사용자
             </button>
             <button
               onClick={() => onUpdateRole(user.userId, 'ADMIN')}
               disabled={user.role === 'ADMIN' || loading}
-              className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 hover:bg-indigo-700 transition"
+              className="flex-1 px-4 py-2 bg-brand text-white rounded-lg disabled:opacity-50 hover:bg-brand-dark transition"
             >
               관리자
             </button>
@@ -177,7 +177,7 @@ export default function UserDetailSection({
 
         {/* Enable/Disable */}
         <div className="border-t pt-4">
-          <p className="text-sm text-gray-600 mb-2">계정 상태</p>
+          <p className="text-sm text-tx-2 mb-2">계정 상태</p>
           <div className="flex gap-2">
             <button
               onClick={() => onUpdateEnabled(user.userId, true)}
@@ -198,21 +198,21 @@ export default function UserDetailSection({
 
         {/* Accounts */}
         <div className="border-t pt-4">
-          <p className="text-sm text-gray-600 mb-2">계좌 정보</p>
+          <p className="text-sm text-tx-2 mb-2">계좌 정보</p>
           {user.accounts.length > 0 ? (
             <div className="space-y-2">
               {user.accounts.map((account) => (
-                <div key={account.accountId} className="p-3 bg-gray-50 rounded-lg">
+                <div key={account.accountId} className="p-3 bg-surface/50 rounded-lg">
                   <p className="font-semibold text-sm">{account.accountName}</p>
                   <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
                     <div>
-                      <p className="text-gray-600">KRW 잔액</p>
+                      <p className="text-tx-2">KRW 잔액</p>
                       <p className="font-semibold">
                         ₩{account.balanceKrw.toLocaleString()}
                       </p>
                     </div>
                     <div>
-                      <p className="text-gray-600">USD 잔액</p>
+                      <p className="text-tx-2">USD 잔액</p>
                       <p className="font-semibold">
                         ${account.balanceUsd.toLocaleString(undefined, {
                           minimumFractionDigits: 2,
@@ -224,12 +224,12 @@ export default function UserDetailSection({
               ))}
             </div>
           ) : (
-            <p className="text-sm text-gray-500">계좌가 없습니다.</p>
+            <p className="text-sm text-tx-2">계좌가 없습니다.</p>
           )}
         </div>
 
         {/* Danger Zone */}
-        <div className="border-t border-red-200 pt-4">
+        <div className="border-t border-red-500/25 pt-4">
           <p className="text-sm text-red-600 font-semibold mb-2">위험 구역</p>
           <button
             onClick={handleDeleteUser}
@@ -245,17 +245,17 @@ export default function UserDetailSection({
       {/* Nickname Modal */}
       {showNicknameModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">닉네임 변경</h3>
+          <div className="bg-surface rounded-xl p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-semibold text-tx-1 mb-4">닉네임 변경</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">새 닉네임</label>
+                <label className="block text-sm font-medium text-tx-1 mb-2">새 닉네임</label>
                 <input
                   type="text"
                   value={newNickname}
                   onChange={(e) => setNewNickname(e.target.value)}
                   placeholder="새 닉네임 입력"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
                 />
               </div>
             </div>
@@ -265,14 +265,14 @@ export default function UserDetailSection({
                   setShowNicknameModal(false);
                   setNewNickname('');
                 }}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                className="flex-1 px-4 py-2 border border-line-strong text-tx-1 rounded-lg hover:bg-surface/50"
               >
                 취소
               </button>
               <button
                 onClick={handleUpdateNickname}
                 disabled={!newNickname.trim()}
-                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-brand text-white rounded-lg hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 변경하기
               </button>
@@ -284,26 +284,26 @@ export default function UserDetailSection({
       {/* Password Modal */}
       {showPasswordModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">비밀번호 강제 변경</h3>
+          <div className="bg-surface rounded-xl p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-semibold text-tx-1 mb-4">비밀번호 강제 변경</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">새 비밀번호</label>
+                <label className="block text-sm font-medium text-tx-1 mb-2">새 비밀번호</label>
                 <input
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
                 />
-                <p className="text-xs text-gray-500 mt-1">최소 8자 이상</p>
+                <p className="text-xs text-tx-2 mt-1">최소 8자 이상</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">새 비밀번호 확인</label>
+                <label className="block text-sm font-medium text-tx-1 mb-2">새 비밀번호 확인</label>
                 <input
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
                 />
               </div>
             </div>
@@ -314,14 +314,14 @@ export default function UserDetailSection({
                   setNewPassword('');
                   setConfirmPassword('');
                 }}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                className="flex-1 px-4 py-2 border border-line-strong text-tx-1 rounded-lg hover:bg-surface/50"
               >
                 취소
               </button>
               <button
                 onClick={handleUpdatePassword}
                 disabled={!newPassword || !confirmPassword}
-                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-brand text-white rounded-lg hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 변경하기
               </button>

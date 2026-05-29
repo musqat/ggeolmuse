@@ -150,9 +150,9 @@ const Stocks: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 text-lg">시장 데이터를 불러오는 중입니다...</p>
-          <p className="text-gray-400 text-sm mt-2">잠시만 기다려주세요</p>
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-brand mx-auto mb-4"></div>
+          <p className="text-tx-2 text-lg">시장 데이터를 불러오는 중입니다...</p>
+          <p className="text-tx-3 text-sm mt-2">잠시만 기다려주세요</p>
         </div>
       </div>
     );
@@ -165,7 +165,7 @@ const Stocks: React.FC = () => {
           <div className="text-red-600 text-xl mb-4">{error}</div>
           <button
             onClick={() => window.location.reload()}
-            className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
+            className="bg-brand text-white px-4 py-2 rounded-md hover:bg-brand-dark"
           >
             다시 시도
           </button>
@@ -177,13 +177,13 @@ const Stocks: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
       {/* 지원 종목 섹션 */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
+      <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-6 mb-8">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+          <h2 className="text-2xl font-bold text-tx-1 flex items-center gap-3">
             지원 종목 ({totalElements}개)
           </h2>
           {symbols.length > 0 && symbols[0].latestDate && (
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-tx-2">
               데이터 갱신: {new Date(symbols[0].latestDate).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
             </div>
           )}
@@ -197,8 +197,8 @@ const Stocks: React.FC = () => {
             onClick={() => handleFilterChange('ALL')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               assetFilter === 'ALL'
-                ? 'bg-indigo-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                ? 'bg-brand text-white'
+                : 'bg-elevated text-tx-1 hover:bg-hover'
             }`}
           >
             전체
@@ -207,8 +207,8 @@ const Stocks: React.FC = () => {
             onClick={() => handleFilterChange('EQUITY')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               assetFilter === 'EQUITY'
-                ? 'bg-indigo-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                ? 'bg-brand text-white'
+                : 'bg-elevated text-tx-1 hover:bg-hover'
             }`}
           >
             주식
@@ -217,8 +217,8 @@ const Stocks: React.FC = () => {
             onClick={() => handleFilterChange('ETF')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               assetFilter === 'ETF'
-                ? 'bg-indigo-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                ? 'bg-brand text-white'
+                : 'bg-elevated text-tx-1 hover:bg-hover'
             }`}
           >
             ETF
@@ -226,7 +226,7 @@ const Stocks: React.FC = () => {
           </div>
 
           {/* 정렬 안내 텍스트 */}
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-tx-2">
             시가총액 큰 순서로 정렬
           </div>
         </div>
@@ -234,11 +234,11 @@ const Stocks: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">이름</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">티커</th>
-                <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">주가</th>
-                <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">시가총액</th>
+              <tr className="border-b border-line">
+                <th className="text-left py-3 px-4 text-sm font-semibold text-tx-1">이름</th>
+                <th className="text-left py-3 px-4 text-sm font-semibold text-tx-1">티커</th>
+                <th className="text-right py-3 px-4 text-sm font-semibold text-tx-1">주가</th>
+                <th className="text-right py-3 px-4 text-sm font-semibold text-tx-1">시가총액</th>
               </tr>
             </thead>
             <tbody>
@@ -246,7 +246,7 @@ const Stocks: React.FC = () => {
                 <tr
                   key={stock.symbol}
                   onClick={() => handleSymbolClick(stock.symbol)}
-                  className="border-b border-gray-100 hover:bg-indigo-50 cursor-pointer transition-colors"
+                  className="border-b border-line/50 hover:bg-brand-bg cursor-pointer transition-colors"
                 >
                   <td className="py-3 px-4">
                     <div className="flex items-center space-x-3">
@@ -270,24 +270,24 @@ const Stocks: React.FC = () => {
                           }}
                         />
                       ) : (
-                        <div className="w-6 h-6 bg-indigo-100 rounded flex items-center justify-center">
-                          <span className="text-xs font-bold text-indigo-600">
+                        <div className="w-6 h-6 bg-brand-bg rounded flex items-center justify-center">
+                          <span className="text-xs font-bold text-brand">
                             {stock.symbol.charAt(0)}
                           </span>
                         </div>
                       )}
-                      <span className="text-sm text-gray-900">{stock.name}</span>
+                      <span className="text-sm text-tx-1">{stock.name}</span>
                     </div>
                   </td>
                   <td className="py-3 px-4">
-                    <span className="font-semibold text-gray-900">{stock.symbol}</span>
+                    <span className="font-semibold text-tx-1">{stock.symbol}</span>
                   </td>
                   <td className="py-3 px-4 text-right">
-                    <span className="text-gray-900">
+                    <span className="text-tx-1">
                       {stock.currentPrice ? `$${stock.currentPrice.toFixed(2)}` : 'N/A'}
                     </span>
                   </td>
-                  <td className="py-3 px-4 text-right text-gray-600">
+                  <td className="py-3 px-4 text-right text-tx-2">
                     {formatMarketCap(stock.marketCap)}
                   </td>
                 </tr>
@@ -303,7 +303,7 @@ const Stocks: React.FC = () => {
             <button
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 0}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-3 py-2 border border-line-strong rounded-lg text-sm font-medium hover:bg-surface/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               이전
             </button>
@@ -326,8 +326,8 @@ const Stocks: React.FC = () => {
                   onClick={() => handlePageChange(pageNumber)}
                   className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     currentPage === pageNumber
-                      ? 'bg-indigo-600 text-white'
-                      : 'border border-gray-300 hover:bg-gray-50'
+                      ? 'bg-brand text-white'
+                      : 'border border-line-strong hover:bg-surface/50'
                   }`}
                 >
                   {pageNumber + 1}
@@ -339,7 +339,7 @@ const Stocks: React.FC = () => {
             <button
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage >= totalPages - 1}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-3 py-2 border border-line-strong rounded-lg text-sm font-medium hover:bg-surface/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               다음
             </button>

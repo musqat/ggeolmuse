@@ -47,40 +47,40 @@ const AuthCallback: React.FC = () => {
   }, [searchParams, navigate, refreshUserData]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center bg-surface/50">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           {status === 'loading' && (
             <>
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-              <h2 className="mt-6 text-2xl font-bold text-gray-900">로그인 처리 중...</h2>
-              <p className="mt-2 text-sm text-gray-600">잠시만 기다려주세요.</p>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand mx-auto"></div>
+              <h2 className="mt-6 text-2xl font-bold text-tx-1">로그인 처리 중...</h2>
+              <p className="mt-2 text-sm text-tx-2">잠시만 기다려주세요.</p>
             </>
           )}
 
           {status === 'success' && (
             <>
-              <div className="rounded-full h-12 w-12 bg-green-100 mx-auto flex items-center justify-center">
+              <div className="rounded-full h-12 w-12 bg-green-500/100/15 mx-auto flex items-center justify-center">
                 <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h2 className="mt-6 text-2xl font-bold text-green-900">로그인 성공!</h2>
-              <p className="mt-2 text-sm text-gray-600">{message}</p>
-              <p className="mt-1 text-xs text-gray-500">곧 메인 페이지로 이동합니다...</p>
+              <h2 className="mt-6 text-2xl font-bold text-green-600">로그인 성공!</h2>
+              <p className="mt-2 text-sm text-tx-2">{message}</p>
+              <p className="mt-1 text-xs text-tx-2">곧 메인 페이지로 이동합니다...</p>
             </>
           )}
 
           {status === 'error' && (
             <>
-              <div className="rounded-full h-12 w-12 bg-red-100 mx-auto flex items-center justify-center">
+              <div className="rounded-full h-12 w-12 bg-red-500/100/15 mx-auto flex items-center justify-center">
                 <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </div>
-              <h2 className="mt-6 text-2xl font-bold text-red-900">로그인 실패</h2>
-              <p className="mt-2 text-sm text-gray-600">{message}</p>
-              <p className="mt-1 text-xs text-gray-500">곧 메인 페이지로 이동합니다...</p>
+              <h2 className="mt-6 text-2xl font-bold text-red-600">로그인 실패</h2>
+              <p className="mt-2 text-sm text-tx-2">{message}</p>
+              <p className="mt-1 text-xs text-tx-2">곧 메인 페이지로 이동합니다...</p>
             </>
           )}
         </div>

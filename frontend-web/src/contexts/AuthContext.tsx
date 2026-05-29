@@ -7,21 +7,21 @@ interface AuthContextType {
   isLoading: boolean;
   user: User | null;
   isAdmin: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) =>Promise<void>;
   logout: () => void;
-  signup: (email: string, password: string, nickname: string) => Promise<void>;
-  refreshUserData: () => Promise<void>;
-  forgotPassword: (email: string) => Promise<void>;
-  resetPassword: (token: string, newPassword: string) => Promise<void>;
-  resendVerificationEmail: (email: string) => Promise<void>;
-  loginWithGoogle: () => Promise<void>;
+  signup: (email: string, password: string, nickname: string) =>Promise<void>;
+  refreshUserData: () =>Promise<void>;
+  forgotPassword: (email: string) =>Promise<void>;
+  resetPassword: (token: string, newPassword: string) =>Promise<void>;
+  resendVerificationEmail: (email: string) =>Promise<void>;
+  loginWithGoogle: () =>Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true); // 초기 로딩 상태
+  const [isAuthenticated, setIsAuthenticated] = useState(DEV_SKIP_AUTH);
+  const [isLoading, setIsLoading] = useState(!DEV_SKIP_AUTH);
   const [user, setUser] = useState<User | null>(null);
 
   // 전역 로그아웃 이벤트 리스너
@@ -183,8 +183,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const codeChallenge = await sha256(codeVerifier);
 
+      // CSRF 방어용 state 생성
+      const state = crypto.randomUUID();
+
       // sessionStorage에 저장 (콜백에서 사용)
       sessionStorage.setItem('pkce_code_verifier', codeVerifier);
+      sessionStorage.setItem('oauth_state', state);
 
       // Keycloak Google Identity Provider를 통한 직접 로그인
       const baseUrl = window.location.origin;
@@ -196,7 +200,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         redirect_uri: `${baseUrl}/oauth/callback`,
         code_challenge: codeChallenge,
         code_challenge_method: 'S256',
-        kc_idp_hint: 'google'
+        kc_idp_hint: 'google',
+        state,
       });
 
       // Keycloak Google OAuth로 리디렉션

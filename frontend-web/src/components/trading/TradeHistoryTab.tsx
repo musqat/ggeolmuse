@@ -126,7 +126,7 @@ const TradeHistoryTab: React.FC = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand"></div>
       </div>
     );
   }
@@ -137,7 +137,7 @@ const TradeHistoryTab: React.FC = () => {
         <p className="text-red-600 mb-4">{error}</p>
         <button
           onClick={() => refetch()}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+          className="px-4 py-2 bg-brand text-white rounded-lg hover:bg-brand-dark"
         >
           다시 시도
         </button>
@@ -148,15 +148,15 @@ const TradeHistoryTab: React.FC = () => {
   return (
     <div className="space-y-4">
       {/* Filter Section */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+      <div className="bg-surface rounded-lg shadow-sm border border-line/50 p-4">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-2">
-            <Filter className="w-5 h-5 text-gray-600" />
-            <h3 className="text-lg font-semibold text-gray-900">필터</h3>
+            <Filter className="w-5 h-5 text-tx-2" />
+            <h3 className="text-lg font-semibold text-tx-1">필터</h3>
           </div>
           <button
             onClick={() => refetch()}
-            className="flex items-center space-x-1 px-3 py-1.5 text-sm text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"
+            className="flex items-center space-x-1 px-3 py-1.5 text-sm text-brand hover:bg-brand-bg rounded-md transition-colors"
           >
             <RefreshCw className="w-4 h-4" />
             <span>새로고침</span>
@@ -166,13 +166,13 @@ const TradeHistoryTab: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Account Filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-tx-1 mb-2">
               계좌
             </label>
             <select
               value={selectedAccountId}
               onChange={(e) => setSelectedAccountId(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
             >
               <option value="ALL">전체 계좌</option>
               {accounts.map(acc => (
@@ -185,7 +185,7 @@ const TradeHistoryTab: React.FC = () => {
 
           {/* Type Filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-tx-1 mb-2">
               거래 유형
             </label>
             <div className="flex space-x-2">
@@ -200,8 +200,8 @@ const TradeHistoryTab: React.FC = () => {
                   onClick={() => setSelectedType(value as TransactionType)}
                   className={`flex-1 px-3 py-2 text-sm rounded-md font-medium transition-colors ${
                     selectedType === value
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      ? 'bg-brand text-white'
+                      : 'bg-elevated text-tx-1 hover:bg-hover'
                   }`}
                 >
                   {label}
@@ -212,50 +212,50 @@ const TradeHistoryTab: React.FC = () => {
         </div>
 
         {/* Summary */}
-        <div className="mt-4 pt-4 border-t border-gray-200">
-          <p className="text-sm text-gray-600">
-            총 <span className="font-semibold text-indigo-600">{filteredTransactions.length}건</span>의 거래 내역
+        <div className="mt-4 pt-4 border-t border-line">
+          <p className="text-sm text-tx-2">
+            총 <span className="font-semibold text-brand">{filteredTransactions.length}건</span>의 거래 내역
           </p>
         </div>
       </div>
 
       {/* Transaction List */}
       {filteredTransactions.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-lg shadow-sm border border-gray-100">
-          <p className="text-gray-500">거래 내역이 없습니다</p>
+        <div className="text-center py-12 bg-surface rounded-lg shadow-sm border border-line/50">
+          <p className="text-tx-2">거래 내역이 없습니다</p>
         </div>
       ) : (
         <div className="space-y-3">
           {/* Dividends Only (when DIVIDEND filter is active) */}
           {groupedTransactions.dividendsOnly.map((dividend) => (
-            <div key={`${dividend.tradeId}-${dividend.date}`} className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-              <div className="p-3 bg-green-50 hover:bg-green-100 transition-colors">
+            <div key={`${dividend.tradeId}-${dividend.date}`} className="bg-surface rounded-lg shadow-sm border border-line/50 overflow-hidden">
+              <div className="p-3 bg-green-500/10 hover:bg-green-500/100/15 transition-colors">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <DollarSign className="w-5 h-5 text-green-600 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-2">
-                        <span className="font-semibold text-gray-900">{dividend.symbol}</span>
-                        <span className="text-xs font-medium text-green-700">배당</span>
-                        <span className="text-xs text-gray-500">
+                        <span className="font-semibold text-tx-1">{dividend.symbol}</span>
+                        <span className="text-xs font-medium text-green-600">배당</span>
+                        <span className="text-xs text-tx-2">
                           {new Date(dividend.date).toLocaleDateString('ko-KR')}
                         </span>
                         {accounts.find(acc => acc.accountId === dividend.accountId) && (
-                          <span className="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded">
+                          <span className="text-xs px-2 py-0.5 bg-purple-500/100/15 text-purple-600 rounded">
                             {accounts.find(acc => acc.accountId === dividend.accountId)!.accountName}
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-600">
+                      <p className="text-xs text-tx-2">
                         {dividend.shares?.toFixed(2)}주 × ${dividend.dividendPerShare?.toFixed(2)}/주
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold text-green-700 text-sm">
+                    <p className="font-semibold text-green-600 text-sm">
                       +${dividend.totalAmount.toFixed(2)}
                     </p>
-                    <p className="text-xs text-gray-500">세후</p>
+                    <p className="text-xs text-tx-2">세후</p>
                   </div>
                 </div>
               </div>
@@ -264,63 +264,63 @@ const TradeHistoryTab: React.FC = () => {
 
           {/* Buy Trades with Dividends */}
           {groupedTransactions.grouped.map(({ trade, dividends }) => (
-            <div key={trade.tradeId} className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+            <div key={trade.tradeId} className="bg-surface rounded-lg shadow-sm border border-line/50 overflow-hidden">
               {/* Buy Trade */}
-              <div className="p-3 hover:bg-gray-50 transition-colors">
+              <div className="p-3 hover:bg-surface/50 transition-colors">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <ArrowUpCircle className="w-5 h-5 text-blue-500 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-2">
-                        <span className="font-semibold text-gray-900">{trade.symbol}</span>
-                        <span className="text-xs text-gray-500">
+                        <span className="font-semibold text-tx-1">{trade.symbol}</span>
+                        <span className="text-xs text-tx-2">
                           {new Date(trade.date).toLocaleDateString('ko-KR')}
                         </span>
                         {accounts.find(acc => acc.accountId === trade.accountId) && (
-                          <span className="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded">
+                          <span className="text-xs px-2 py-0.5 bg-purple-500/100/15 text-purple-600 rounded">
                             {accounts.find(acc => acc.accountId === trade.accountId)!.accountName}
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-600">
+                      <p className="text-xs text-tx-2">
                         {trade.quantity?.toFixed(2)}주 × ${trade.price?.toFixed(2)}
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold text-gray-900 text-sm">${trade.totalAmount.toFixed(2)}</p>
+                    <p className="font-semibold text-tx-1 text-sm">${trade.totalAmount.toFixed(2)}</p>
                   </div>
                 </div>
               </div>
 
               {/* Dividends */}
               {dividends.length > 0 && (
-                <div className="bg-green-50 border-t border-green-100">
+                <div className="bg-green-500/10 border-t border-green-500/20">
                   {dividends.map((dividend) => (
                     <div
                       key={`${dividend.tradeId}-${dividend.date}`}
-                      className="p-3 pl-8 hover:bg-green-100 transition-colors"
+                      className="p-3 pl-8 hover:bg-green-500/100/15 transition-colors"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
                           <DollarSign className="w-4 h-4 text-green-600 flex-shrink-0" />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center space-x-2">
-                              <span className="text-xs font-medium text-gray-700">배당</span>
-                              <span className="text-xs text-gray-500">
+                              <span className="text-xs font-medium text-tx-1">배당</span>
+                              <span className="text-xs text-tx-2">
                                 {new Date(dividend.date).toLocaleDateString('ko-KR')}
                               </span>
                             </div>
-                            <p className="text-xs text-gray-600">
+                            <p className="text-xs text-tx-2">
                               {dividend.shares?.toFixed(2)}주 × ${dividend.dividendPerShare?.toFixed(2)}/주
                             </p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="font-semibold text-green-700 text-sm">
+                          <p className="font-semibold text-green-600 text-sm">
                             +${dividend.totalAmount.toFixed(2)}
                           </p>
-                          <p className="text-xs text-gray-500">세후</p>
+                          <p className="text-xs text-tx-2">세후</p>
                         </div>
                       </div>
                     </div>
@@ -332,30 +332,30 @@ const TradeHistoryTab: React.FC = () => {
 
           {/* Sell Trades */}
           {groupedTransactions.sellTrades.map((trade) => (
-            <div key={trade.tradeId} className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-              <div className="p-3 hover:bg-gray-50 transition-colors">
+            <div key={trade.tradeId} className="bg-surface rounded-lg shadow-sm border border-line/50 overflow-hidden">
+              <div className="p-3 hover:bg-surface/50 transition-colors">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <ArrowDownCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-2">
-                        <span className="font-semibold text-gray-900">{trade.symbol}</span>
-                        <span className="text-xs text-gray-500">
+                        <span className="font-semibold text-tx-1">{trade.symbol}</span>
+                        <span className="text-xs text-tx-2">
                           {new Date(trade.date).toLocaleDateString('ko-KR')}
                         </span>
                         {accounts.find(acc => acc.accountId === trade.accountId) && (
-                          <span className="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded">
+                          <span className="text-xs px-2 py-0.5 bg-purple-500/100/15 text-purple-600 rounded">
                             {accounts.find(acc => acc.accountId === trade.accountId)!.accountName}
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-600">
+                      <p className="text-xs text-tx-2">
                         {trade.quantity?.toFixed(2)}주 × ${trade.price?.toFixed(2)}
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold text-gray-900 text-sm">${trade.totalAmount.toFixed(2)}</p>
+                    <p className="font-semibold text-tx-1 text-sm">${trade.totalAmount.toFixed(2)}</p>
                   </div>
                 </div>
               </div>

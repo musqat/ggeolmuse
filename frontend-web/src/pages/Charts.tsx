@@ -9,7 +9,7 @@ import {
   Calendar,
 } from 'lucide-react';
 import { stockApi } from '../services/api';
-import LightweightChart from '../components/charts/LightweightChart';
+import KLineChartComponent from '../components/charts/KLineChartComponent';
 import SearchModal from '../components/common/SearchModal';
 import DatePicker from '../components/common/DatePicker';
 import { convertOHLCToCandlestick, type CandlestickChartData } from '../types/ohlc';
@@ -27,7 +27,13 @@ const Charts: React.FC = () => {
   const { symbol: paramSymbol } = useParams<{ symbol: string }>();
   const navigate = useNavigate();
 
-  const symbol = paramSymbol || 'AAPL';
+  const isValidSymbol = (s: string) => /^[A-Z]{1,6}(\.[A-Z]{1,2})?$/.test(s.toUpperCase());
+  const symbol = (paramSymbol && isValidSymbol(paramSymbol)) ? paramSymbol.toUpperCase() : null;
+
+  if (symbol === null) {
+    navigate('/charts/AAPL', { replace: true });
+    return null;
+  }
   const [period, setPeriod] = useState<'1개월' | '3개월' | '6개월' | '1년' | '3년' | '5년' | '10년' | '전체' | 'CUSTOM'>('1년');
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showSearchInput, setShowSearchInput] = useState(false);
@@ -167,7 +173,7 @@ const Charts: React.FC = () => {
       <div className="mb-4">
         <button
           onClick={() => navigate('/dashboard')}
-          className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-3 transition-colors"
+          className="inline-flex items-center text-tx-2 hover:text-tx-1 mb-3 transition-colors"
         >
           <Home className="w-5 h-5 mr-2" />
           대시보드
@@ -178,17 +184,17 @@ const Charts: React.FC = () => {
           {!showSearchInput ? (
             <div className="flex items-center space-x-4">
               <div>
-                <h1 className="text-4xl font-bold text-gray-900">{symbol}</h1>
+                <h1 className="text-4xl font-bold text-tx-1">{symbol}</h1>
                 {companyName && (
-                  <p className="text-sm text-gray-500 mt-1">{companyName}</p>
+                  <p className="text-sm text-tx-2 mt-1">{companyName}</p>
                 )}
               </div>
               <button
                 onClick={() => setShowSearchInput(true)}
-                className="p-2 hover:bg-indigo-100 rounded-lg transition-colors bg-indigo-50"
+                className="p-2 hover:bg-brand-bg rounded-lg transition-colors bg-brand-bg"
                 title="종목 변경"
               >
-                <Search className="w-5 h-5 text-indigo-600" />
+                <Search className="w-5 h-5 text-brand" />
               </button>
             </div>
           ) : (
@@ -209,7 +215,7 @@ const Charts: React.FC = () => {
                 }}
                 placeholder="심볼 입력 (예: AAPL)"
                 autoFocus
-                className="px-4 py-2 border border-indigo-300 rounded-lg text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="px-4 py-2 border border-brand/40 rounded-lg text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
               />
               <button
                 onClick={() => {
@@ -219,7 +225,7 @@ const Charts: React.FC = () => {
                     setSearchQuery('');
                   }
                 }}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                className="px-4 py-2 bg-brand text-white rounded-lg hover:bg-brand-dark transition-colors"
               >
                 검색
               </button>
@@ -228,7 +234,7 @@ const Charts: React.FC = () => {
                   setShowSearchInput(false);
                   setSearchQuery('');
                 }}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                className="px-4 py-2 bg-hover text-tx-1 rounded-lg hover:bg-hover hover:text-tx-1 transition-colors"
               >
                 취소
               </button>
@@ -244,7 +250,7 @@ const Charts: React.FC = () => {
               <div className="space-y-2">
                 {/* 가격과 변동률 */}
                 <div className="flex items-end space-x-4">
-                  <div className="text-3xl md:text-4xl font-bold text-gray-900">
+                  <div className="text-3xl md:text-4xl font-bold text-tx-1">
                     ${(currentPrice.close || 0).toFixed(2)}
                   </div>
                   <div
@@ -267,26 +273,26 @@ const Charts: React.FC = () => {
                 {/* OHLC 정보 - 모바일에서는 한 행으로, 데스크탑에서도 유지 */}
                 <div className="grid grid-cols-4 gap-2 md:gap-6">
                   <div>
-                    <p className="text-[10px] md:text-xs text-gray-500 mb-0.5">시가</p>
-                    <p className="text-xs md:text-sm font-semibold text-gray-900">
+                    <p className="text-[10px] md:text-xs text-tx-2 mb-0.5">시가</p>
+                    <p className="text-xs md:text-sm font-semibold text-tx-1">
                       ${(currentPrice.open || 0).toFixed(2)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-[10px] md:text-xs text-gray-500 mb-0.5">고가</p>
+                    <p className="text-[10px] md:text-xs text-tx-2 mb-0.5">고가</p>
                     <p className="text-xs md:text-sm font-semibold text-green-600">
                       ${(currentPrice.high || 0).toFixed(2)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-[10px] md:text-xs text-gray-500 mb-0.5">저가</p>
+                    <p className="text-[10px] md:text-xs text-tx-2 mb-0.5">저가</p>
                     <p className="text-xs md:text-sm font-semibold text-red-600">
                       ${(currentPrice.low || 0).toFixed(2)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-[10px] md:text-xs text-gray-500 mb-0.5">거래량</p>
-                    <p className="text-xs md:text-sm font-semibold text-gray-900">
+                    <p className="text-[10px] md:text-xs text-tx-2 mb-0.5">거래량</p>
+                    <p className="text-xs md:text-sm font-semibold text-tx-1">
                       {(currentPrice.volume || 0).toLocaleString()}
                     </p>
                   </div>
@@ -300,15 +306,15 @@ const Charts: React.FC = () => {
             {/* 기간 선택 버튼 - 2줄 레이아웃 */}
             <div className="space-y-2">
               {/* 1줄: 1개월 ~ 전체 (8개 버튼) */}
-              <div className="flex items-center space-x-1 md:space-x-2 bg-white rounded-lg shadow-sm border border-gray-200 p-1 overflow-x-auto">
+              <div className="flex items-center space-x-1 md:space-x-2 bg-surface rounded-lg shadow-sm border border-line p-1 overflow-x-auto">
                 {(['1개월', '3개월', '6개월', '1년', '3년', '5년', '10년', '전체'] as const).map((p) => (
                   <button
                     key={p}
                     onClick={() => setPeriod(p)}
                     className={`px-2 md:px-3 py-1.5 md:py-2 rounded-md text-xs md:text-sm font-medium transition-colors whitespace-nowrap ${
                       period === p
-                        ? 'bg-indigo-600 text-white shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                        ? 'bg-brand text-white shadow-sm'
+                        : 'text-tx-2 hover:text-tx-1 hover:bg-surface/50'
                     }`}
                   >
                     {p}
@@ -320,10 +326,10 @@ const Charts: React.FC = () => {
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() => setPeriod('CUSTOM')}
-                  className={`px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center space-x-1 whitespace-nowrap bg-white shadow-sm border ${
+                  className={`px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center space-x-1 whitespace-nowrap bg-surface shadow-sm border ${
                     period === 'CUSTOM'
-                      ? 'border-indigo-600 text-indigo-600 bg-indigo-50'
-                      : 'border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                      ? 'border-brand text-brand bg-brand-bg'
+                      : 'border-line text-tx-2 hover:text-tx-1 hover:bg-surface/50'
                   }`}
                 >
                   <Calendar className="w-3 h-3 md:w-4 md:h-4" />
@@ -341,7 +347,7 @@ const Charts: React.FC = () => {
                       setShowStartDatePicker(!showStartDatePicker);
                       setShowEndDatePicker(false);
                     }}
-                    className="px-2 md:px-3 py-1 md:py-1.5 border border-gray-300 rounded text-xs md:text-sm hover:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition whitespace-nowrap"
+                    className="px-2 md:px-3 py-1 md:py-1.5 border border-line-strong rounded text-xs md:text-sm hover:border-indigo-500 focus:ring-2 focus:ring-brand focus:border-brand transition whitespace-nowrap"
                   >
                     {startDateObj
                       ? startDateObj.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })
@@ -363,7 +369,7 @@ const Charts: React.FC = () => {
                   )}
                 </div>
 
-                <span className="text-gray-400 text-xs md:text-sm">~</span>
+                <span className="text-tx-3 text-xs md:text-sm">~</span>
 
                 {/* 종료일 */}
                 <div className="relative">
@@ -373,7 +379,7 @@ const Charts: React.FC = () => {
                       setShowEndDatePicker(!showEndDatePicker);
                       setShowStartDatePicker(false);
                     }}
-                    className="px-2 md:px-3 py-1 md:py-1.5 border border-gray-300 rounded text-xs md:text-sm hover:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition whitespace-nowrap"
+                    className="px-2 md:px-3 py-1 md:py-1.5 border border-line-strong rounded text-xs md:text-sm hover:border-indigo-500 focus:ring-2 focus:ring-brand focus:border-brand transition whitespace-nowrap"
                   >
                     {endDateObj
                       ? endDateObj.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })
@@ -418,50 +424,38 @@ const Charts: React.FC = () => {
       <div className="w-full">
         {/* 차트 영역 */}
         <div className="w-full relative">
-          <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4">
+          <div className="bg-surface rounded-lg shadow-md border border-line p-4">
             {loading ? (
               <div className="flex items-center justify-center h-[480px]">
                 <div className="text-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-                  <p className="text-gray-600">차트 데이터 로딩 중...</p>
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand mx-auto mb-4"></div>
+                  <p className="text-tx-2">차트 데이터 로딩 중...</p>
                 </div>
               </div>
             ) : error ? (
               <div className="flex items-center justify-center h-[480px]">
                 <div className="text-center">
                   <TrendingDown className="w-16 h-16 text-red-400 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  <h3 className="text-xl font-semibold text-tx-1 mb-2">
                     데이터 로딩 실패
                   </h3>
-                  <p className="text-gray-600">{error}</p>
-                </div>
-              </div>
-            ) : ohlcData.length === 0 ? (
-              <div className="flex items-center justify-center h-[480px]">
-                <div className="text-center">
-                  <TrendingUp className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                    데이터 없음
-                  </h3>
-                  <p className="text-gray-600">
-                    선택한 기간에 대한 차트 데이터가 없습니다.
-                  </p>
+                  <p className="text-tx-2">{error}</p>
                 </div>
               </div>
             ) : (
-              <div>
-                <LightweightChart
-                  data={ohlcData.map(d => ({
-                    time: d.time,
-                    open: d.open,
-                    high: d.high,
-                    low: d.low,
-                    close: d.close,
-                    volume: d.volume || 0
-                  }))}
-                  symbol={symbol}
-                />
-              </div>
+              <KLineChartComponent
+                data={ohlcData.map(d => ({
+                  time: d.time,
+                  open: d.open,
+                  high: d.high,
+                  low: d.low,
+                  close: d.close,
+                  volume: d.volume || 0
+                }))}
+                symbol={symbol}
+                showIndicatorPanel={true}
+                height={620}
+              />
             )}
           </div>
         </div>

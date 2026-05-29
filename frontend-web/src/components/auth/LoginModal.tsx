@@ -7,7 +7,7 @@ interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSwitchToSignup: () => void;
-  onLogin: (email: string, password: string) => Promise<void>;
+  onLogin: (email: string, password: string) =>Promise<void>;
 }
 
 const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSignup, onLogin }) => {
@@ -130,15 +130,15 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+      <div className="bg-surface rounded-lg shadow-xl w-full max-w-md mx-4">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-xl font-semibold text-gray-900">
+          <h2 className="text-xl font-semibold text-tx-1">
             {showForgotPassword ? '비밀번호 찾기' : '로그인'}
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-tx-3 hover:text-tx-2 transition-colors"
           >
             <X className="w-6 h-6" />
           </button>
@@ -156,14 +156,14 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">이메일을 발송했습니다</h3>
-                <p className="text-sm text-gray-600 mb-6">
+                <h3 className="text-lg font-semibold text-tx-1 mb-2">이메일을 발송했습니다</h3>
+                <p className="text-sm text-tx-2 mb-6">
                   비밀번호 재설정 링크가 이메일로 전송되었습니다.<br />
                   이메일을 확인해주세요.
                 </p>
                 <button
                   onClick={handleBackToLogin}
-                  className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 transition-colors"
+                  className="w-full bg-brand text-white py-2 px-4 rounded-md hover:bg-brand-dark transition-colors"
                 >
                   로그인으로 돌아가기
                 </button>
@@ -171,13 +171,13 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
             ) : (
               // 비밀번호 찾기 폼
               <>
-                <p className="text-sm text-gray-600 mb-4">
+                <p className="text-sm text-tx-2 mb-4">
                   가입하신 이메일 주소를 입력하시면 비밀번호 재설정 링크를 보내드립니다.
                 </p>
                 <form onSubmit={handleForgotPassword} className="space-y-4">
                   {/* Email */}
                   <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="email" className="block text-sm font-medium text-tx-1 mb-1">
                       이메일
                     </label>
                     <input
@@ -185,7 +185,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
                       id="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-line-strong rounded-md focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
                       placeholder="your@email.com"
                       required
                     />
@@ -193,7 +193,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
 
                   {/* Error Message */}
                   {error && (
-                    <div className="text-red-600 text-sm bg-red-50 p-3 rounded-md">
+                    <div className="text-red-600 text-sm bg-red-500/10 p-3 rounded-md">
                       {error}
                     </div>
                   )}
@@ -202,7 +202,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
                   <button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="w-full bg-brand text-white py-2 px-4 rounded-md hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     {isLoading ? '발송 중...' : '재설정 이메일 보내기'}
                   </button>
@@ -211,7 +211,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
                   <button
                     type="button"
                     onClick={handleBackToLogin}
-                    className="w-full text-gray-600 hover:text-gray-800 text-sm transition-colors"
+                    className="w-full text-tx-2 hover:text-tx-1 text-sm transition-colors"
                   >
                     로그인으로 돌아가기
                   </button>
@@ -224,7 +224,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
               <form onSubmit={handleSubmit} className="space-y-4">
             {/* Email */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="email" className="block text-sm font-medium text-tx-1 mb-1">
                 이메일
               </label>
               <input
@@ -232,7 +232,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
                 id="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-line-strong rounded-md focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
                 placeholder="your@email.com"
                 required
               />
@@ -240,7 +240,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
 
             {/* Password */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="password" className="block text-sm font-medium text-tx-1 mb-1">
                 비밀번호
               </label>
               <div className="relative">
@@ -249,16 +249,16 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
                   id="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-3 py-2 pr-10 border border-line-strong rounded-md focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
                   placeholder="비밀번호를 입력하세요"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-tx-3 hover:text-tx-2"
                 >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showPassword ? <EyeOff className="w-5 h-5" />:<Eye className="w-5 h-5" />}
                 </button>
               </div>
             </div>
@@ -268,7 +268,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
               <button
                 type="button"
                 onClick={() => setShowForgotPassword(true)}
-                className="text-sm text-indigo-600 hover:text-indigo-500"
+                className="text-sm text-brand hover:text-brand"
               >
                 비밀번호를 잊으셨나요?
               </button>
@@ -276,7 +276,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
 
             {/* Error Message */}
             {error && (
-              <div className="text-red-600 text-sm bg-red-50 p-3 rounded-md">
+              <div className="text-red-600 text-sm bg-red-500/10 p-3 rounded-md">
                 {error}
               </div>
             )}
@@ -285,7 +285,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full bg-brand text-white py-2 px-4 rounded-md hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isLoading ? '로그인 중...' : '로그인'}
             </button>
@@ -295,10 +295,10 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
           <div className="my-6">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300"></div>
+                <div className="w-full border-t border-line-strong"></div>
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">또는</span>
+                <span className="px-2 bg-surface text-tx-2">또는</span>
               </div>
             </div>
           </div>
@@ -308,7 +308,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
             type="button"
             onClick={handleGoogleLogin}
             disabled={isGoogleLoading}
-            className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full flex items-center justify-center px-4 py-2 border border-line-strong rounded-md shadow-sm bg-surface text-sm font-medium text-tx-1 hover:bg-surface/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -321,11 +321,11 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
 
           {/* Footer */}
           <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              계정이 없으신가요?{' '}
+            <p className="text-sm text-tx-2">
+              계정이 없으신가요?{''}
               <button
                 onClick={onSwitchToSignup}
-                className="text-indigo-600 hover:text-indigo-500 font-medium"
+                className="text-brand hover:text-brand font-medium"
               >
                 회원가입
               </button>
