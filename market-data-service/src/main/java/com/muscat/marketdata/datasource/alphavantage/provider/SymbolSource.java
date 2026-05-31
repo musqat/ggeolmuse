@@ -25,7 +25,8 @@ import org.springframework.stereotype.Component;
     havingValue = "alphavantage"
 )
 @RequiredArgsConstructor
-public class SymbolSource implements MarketDataProvider.SymbolSource {
+public class SymbolSource implements MarketDataProvider.SymbolSource,
+    MarketDataProvider.AssetInfoSource {
 
     private final AlphaVantageClient client;
     private final AlphaVantageRateLimiter rateLimiter;
@@ -130,6 +131,7 @@ public class SymbolSource implements MarketDataProvider.SymbolSource {
         return "US";  // 기본값
     }
 
+    @Override
     public Asset getAsset(String symbol) {
         rateLimiter.waitIfNeeded();
 

@@ -4,12 +4,13 @@ import com.muscat.marketdata.domain.entity.Candle;
 import com.muscat.marketdata.domain.entity.QCandle;
 import com.muscat.marketdata.domain.repository.CandleRepositoryCustom;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Repository;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Repository;
 
 @Repository
 @RequiredArgsConstructor
@@ -19,8 +20,7 @@ public class CandleRepositoryCustomImpl implements CandleRepositoryCustom {
   private static final QCandle candle = QCandle.candle;
 
   @Override
-  public List<Candle> findBySymbolsAndDateRange(List<String> symbols, LocalDate startDate,
-    LocalDate endDate) {
+  public List<Candle> findBySymbolsAndDateRange(List<String> symbols, LocalDate startDate, LocalDate endDate) {
     return queryFactory
       .selectFrom(candle)
       .where(candle.symbol.in(symbols)
@@ -30,8 +30,7 @@ public class CandleRepositoryCustomImpl implements CandleRepositoryCustom {
   }
 
   @Override
-  public List<Candle> findCandlesWithDividends(String symbol, LocalDate startDate,
-    LocalDate endDate) {
+  public List<Candle> findCandlesWithDividends(String symbol, LocalDate startDate, LocalDate endDate) {
     return queryFactory
       .selectFrom(candle)
       .where(candle.symbol.eq(symbol)

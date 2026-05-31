@@ -7,12 +7,19 @@ CREATE TABLE IF NOT EXISTS asset (
     asset_type VARCHAR(16) NOT NULL,
     market_cap BIGINT,
     active BOOLEAN NOT NULL DEFAULT true,
-    delisted_date DATE
+    delisted_date DATE,
+    latest_close DECIMAL(19,8),
+    latest_date DATE
 );
+
+-- 기존 테이블 대응: 컬럼 없으면 추가
+ALTER TABLE asset ADD COLUMN IF NOT EXISTS latest_close DECIMAL(19,8);
+ALTER TABLE asset ADD COLUMN IF NOT EXISTS latest_date DATE;
 
 -- Performance indexes for asset table
 CREATE INDEX IF NOT EXISTS idx_asset_market_cap ON asset(market_cap DESC NULLS LAST);
 CREATE INDEX IF NOT EXISTS idx_asset_active ON asset(active) WHERE active = true;
+CREATE INDEX IF NOT EXISTS idx_asset_active_symbol ON asset(symbol) WHERE active = true;
 
 -- Candle table
 CREATE TABLE IF NOT EXISTS candle (

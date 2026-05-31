@@ -29,7 +29,8 @@ import java.util.Map;
     havingValue = "alphavantage"
 )
 @RequiredArgsConstructor
-public class MarketCapCollectionService {
+public class MarketCapCollectionService implements
+    com.muscat.marketdata.datasource.common.MarketDataProvider.MarketCapSource {
 
     private final AlphaVantageClient client;
     private final AlphaVantageRateLimiter rateLimiter;
@@ -141,14 +142,15 @@ public class MarketCapCollectionService {
     }
 
     /**
-     * 특정 종목의 시가총액만 업데이트
+     * 특정 종목의 시가총액만 업데이트 (MarketCapSource 구현)
      */
+    @Override
     @Transactional
-    public void updateMarketCap(String symbol) {
+    public boolean updateMarketCap(String symbol) {
         Asset asset = assetRepository.findById(symbol).orElse(null);
         if (asset == null) {
             log.warn("[AV-MarketCap] 종목을 찾을 수 없음: {}", symbol);
-            return;
+            return false;
         }
 
         try {
@@ -158,10 +160,37 @@ public class MarketCapCollectionService {
                 assetRepository.save(asset);
                 log.info("[AV-MarketCap] 업데이트 성공: symbol={}, marketCap={}",
                          symbol, marketCap);
+                return true;
             }
+            return false;
         } catch (Exception e) {
             log.error("[AV-MarketCap] 업데이트 실패: symbol={}", symbol, e);
+            return false;
         }
+    }
+
+    /**
+     * 주어진 종목 리스트의 시가총액 일괄 업데이트 (MarketCapSource 구현)
+     */
+    @Override
+    @Transactional
+    public int updateAllMarketCaps(List<Asset> assets) {
+        int updated = 0;
+        for (Asset asset : assets) {
+            try {
+                Long marketCap = fetchMarketCap(asset.getSymbol());
+                if (marketCap != null && marketCap > 0) {
+                    asset.setMarketCap(marketCap);
+                    assetRepository.save(asset);
+                    updated++;
+                }
+            } catch (Exception e) {
+                log.warn("[AV-MarketCap] 업데이트 실패: symbol={}, error={}",
+                         asset.getSymbol(), e.getMessage());
+            }
+        }
+        log.info("[AV-MarketCap] 일괄 업데이트 완료: {}/{}개", updated, assets.size());
+        return updated;
     }
 
     /**

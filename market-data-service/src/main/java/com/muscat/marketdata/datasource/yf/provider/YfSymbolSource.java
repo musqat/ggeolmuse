@@ -3,10 +3,13 @@ package com.muscat.marketdata.datasource.yf.provider;
 import com.muscat.marketdata.datasource.common.MarketDataProvider;
 import com.muscat.marketdata.datasource.yf.client.NasdaqScreenerClient;
 import com.muscat.marketdata.datasource.yf.client.NasdaqScreenerParser;
+import com.muscat.marketdata.datasource.yf.client.YahooFinanceClient;
+import com.muscat.marketdata.datasource.yf.client.YahooParser;
 import com.muscat.marketdata.domain.entity.Asset;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -28,10 +31,13 @@ import org.springframework.stereotype.Component;
   havingValue = "yahoo"
 )
 @RequiredArgsConstructor
-public class YfSymbolSource implements MarketDataProvider.SymbolSource {
+public class YfSymbolSource implements MarketDataProvider.SymbolSource,
+  MarketDataProvider.AssetInfoSource {
 
   private final NasdaqScreenerClient nasdaqClient;
   private final NasdaqScreenerParser nasdaqParser;
+  private final YahooFinanceClient yahooClient;
+  private final YahooParser yahooParser;
 
   @Value("${marketdata.symbol-loader.market-cap-filter:mega,large}")
   private String marketCapFilter;
@@ -64,6 +70,29 @@ public class YfSymbolSource implements MarketDataProvider.SymbolSource {
 
     log.warn("종목 로드 실패: NASDAQ API와 CSV 모두 실패");
     return List.of();
+  }
+
+  /**
+   * Yahoo Finance Chart API로 단일 종목 정보 조회 (미리보기용)
+   * Quote API(/v7)는 401을 반환하므로 동작하는 Chart API(/v8) meta를 사용한다.
+   */
+  @Override
+  public Asset getAsset(String symbol) {
+    try {
+      String upper = symbol.toUpperCase();
+      // 최근 5일 범위로 chart 조회 (meta만 필요)
+      LocalDate to = LocalDate.now();
+      LocalDate from = to.minusDays(5);
+      String raw = yahooClient.getDailyChartRaw(upper, from, to);
+      if (raw == null || raw.isBlank()) {
+        log.warn("Yahoo 종목 정보 빈 응답: symbol={}", symbol);
+        return null;
+      }
+      return yahooParser.parseAssetInfoFromChart(raw, upper);
+    } catch (Exception e) {
+      log.error("Yahoo 종목 정보 조회 실패: symbol={}", symbol, e);
+      return null;
+    }
   }
 
   /**

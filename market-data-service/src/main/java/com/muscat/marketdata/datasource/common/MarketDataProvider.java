@@ -35,11 +35,28 @@ public final class MarketDataProvider {
   }
 
   /**
-   * 심볼 소스
+   * 심볼 소스 (전체 종목 리스트)
    */
   public interface SymbolSource {
 
     List<Asset> fetchSymbols();
+  }
+
+  /**
+   * 단일 종목 상세 조회 소스 (미리보기/등록용)
+   * AlphaVantage: OVERVIEW API 1콜로 전부. Yahoo: chart meta 사용.
+   */
+  public interface AssetInfoSource {
+    Asset getAsset(String symbol);
+  }
+
+  /**
+   * 시가총액 갱신 소스
+   * AlphaVantage: OVERVIEW per-symbol. Yahoo: NASDAQ Screener bulk.
+   */
+  public interface MarketCapSource {
+    int updateAllMarketCaps(List<Asset> assets);
+    boolean updateMarketCap(String symbol);
   }
 
   /**

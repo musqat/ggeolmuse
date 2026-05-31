@@ -29,7 +29,6 @@ public class YahooFinanceClient {
   @Value("${yahoo.finance.user-agent:Mozilla/5.0 (Market Data Service)}")
   private String userAgent;
   private static final String CHART_BASE_PATH = "/v8/finance/chart/";
-  private static final String QUOTE_BASE_PATH = "/v7/finance/quote?symbols=";
   private static final String QUERY_PARAMS = "?interval=1d&events=div,splits&includeAdjustedClose=true";
   private static final ZoneId MARKET_TIMEZONE = ZoneId.of("America/New_York");
   private static final byte GZIP_MAGIC_BYTE_1 = (byte) 0x1F;
