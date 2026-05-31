@@ -3,14 +3,19 @@ package com.muscat.marketdata.datasource.yf.service;
 import com.muscat.marketdata.domain.dto.DividendDto;
 import com.muscat.marketdata.domain.entity.Candle;
 import com.muscat.marketdata.domain.mapper.MarketDataMapper;
+import com.muscat.marketdata.domain.repository.AssetRepository;
 import com.muscat.marketdata.domain.repository.CandleRepository;
 import com.muscat.marketdata.domain.repository.DividendRepository;
 import com.muscat.marketdata.infra.kafka.DividendEventProducer;
+
+import java.util.Comparator;
 import com.muscat.marketdata.datasource.common.MarketDataProvider.CandleSource;
 import com.muscat.marketdata.datasource.common.MarketDataProvider.DividendSource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,8 +41,14 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
 
     private final CandleRepository candleRepository;
     private final DividendRepository dividendRepository;
+    private final AssetRepository assetRepository;
 
     private final DividendEventProducer dividendEventProducer;
+
+    // self-injection: saveBoth에서 proxy 통해 호출해야 REQUIRES_NEW가 실제로 적용됨
+    @Lazy
+    @Autowired
+    private YahooCandleUpdateService self;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public int saveCandles(String symbol, LocalDate from, LocalDate to) {
@@ -59,6 +70,17 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
             }
 
             candleRepository.saveAll(candles);
+
+            // 최신 캔들을 asset에 비정규화 (summary 조회 성능용)
+            candles.stream()
+                .max(Comparator.comparing(Candle::getDate))
+                .ifPresent(latest -> assetRepository.findById(symbol).ifPresent(asset -> {
+                    if (asset.getLatestDate() == null || !latest.getDate().isBefore(asset.getLatestDate())) {
+                        asset.setLatestClose(latest.getClose());
+                        asset.setLatestDate(latest.getDate());
+                        assetRepository.save(asset);
+                    }
+                }));
 
             log.info("[YF-캔들저장] 완료: symbol={}, count={}", symbol, candles.size());
             return candles.size();
@@ -102,10 +124,9 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
         }
     }
 
-    @Transactional
     public int saveBoth(String symbol, LocalDate from, LocalDate to) {
-        int c = saveCandles(symbol, from, to);
-        int d = saveDividends(symbol, from, to);
+        int c = self.saveCandles(symbol, from, to);
+        int d = self.saveDividends(symbol, from, to);
         log.info("[YF-데이터저장] {} 캔들={}, 배당={}", symbol, c, d);
         return c + d;
     }

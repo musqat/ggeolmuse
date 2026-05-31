@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.muscat.marketdata.common.exceptions.YahooFinanceException;
 import com.muscat.marketdata.domain.dto.CandleDto;
+import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.dto.DividendDto;
 import com.muscat.marketdata.domain.model.ChartMetadata;
 import com.muscat.marketdata.domain.model.TimeSeriesData;
@@ -213,6 +214,52 @@ public class YahooParser {
       .currency(DEFAULT_CURRENCY)
       .source(YAHOO_SOURCE)
       .build();
+  }
+
+  /**
+   * Chart API(/v8/finance/chart) 응답의 meta 블록에서 자산 정보 추출 (미리보기용)
+   * Quote API(/v7)가 401을 반환하므로 동작하는 Chart API를 사용한다.
+   */
+  public Asset parseAssetInfoFromChart(String rawJson, String symbol) {
+    if (rawJson == null || rawJson.isBlank()) {
+      return null;
+    }
+    try {
+      JsonNode root = OBJECT_MAPPER.readTree(rawJson);
+      JsonNode result = root.path("chart").path("result").get(0);
+      if (result == null || result.isNull()) {
+        log.debug("Yahoo Chart 자산 정보 없음: symbol={}", symbol);
+        return null;
+      }
+      JsonNode meta = result.path("meta");
+
+      String name = getTextValue(meta, "longName");
+      if (name == null) name = getTextValue(meta, "shortName");
+      if (name == null) name = symbol;
+
+      String currency = getTextValue(meta, "currency");
+      String instrumentType = getTextValue(meta, "instrumentType");
+
+      return Asset.builder()
+        .symbol(symbol)
+        .name(name)
+        .country("US")
+        .currency(currency != null ? currency : DEFAULT_CURRENCY)
+        .assetType(mapQuoteType(instrumentType))
+        .marketCap(null)
+        .build();
+    } catch (Exception e) {
+      log.error("Yahoo Chart 자산 정보 파싱 실패: symbol={}", symbol, e);
+      return null;
+    }
+  }
+
+  private String mapQuoteType(String quoteType) {
+    if (quoteType == null) return "EQUITY";
+    return switch (quoteType.toUpperCase()) {
+      case "ETF" -> "ETF";
+      default -> "EQUITY";
+    };
   }
 
   // ===== 내부 메서드 =====

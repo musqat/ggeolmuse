@@ -7,9 +7,11 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.never;
 import static org.mockito.BDDMockito.verify;
+import static org.springframework.test.util.ReflectionTestUtils.setField;
 
-import com.muscat.marketdata.datasource.alphavantage.provider.CandleSource;
-import com.muscat.marketdata.datasource.alphavantage.provider.SymbolSource;
+import com.muscat.marketdata.datasource.common.MarketDataProvider.AssetInfoSource;
+import com.muscat.marketdata.datasource.common.MarketDataProvider.CandleSource;
+import com.muscat.marketdata.datasource.common.MarketDataProvider.MarketCapSource;
 import com.muscat.marketdata.domain.dto.AssetSummaryDto;
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.entity.Candle;
@@ -25,7 +27,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
@@ -42,7 +43,10 @@ class AssetServiceImplTest {
   private CandleRepository candleRepository;
 
   @Mock
-  private SymbolSource symbolSource;
+  private AssetInfoSource assetInfoSource;
+
+  @Mock
+  private MarketCapSource marketCapSource;
 
   @Mock
   private CandleSource candleSource;
@@ -50,7 +54,6 @@ class AssetServiceImplTest {
   @Mock
   private AssetEventProducer assetEventProducer;
 
-  @InjectMocks
   private AssetServiceImpl assetService;
 
   private static final String TEST_SYMBOL = "AAPL";
@@ -71,8 +74,10 @@ class AssetServiceImplTest {
       .assetType(TEST_ASSET_TYPE)
       .build();
 
-    assetService = new AssetServiceImpl(assetRepository, candleRepository, symbolSource,
-      candleSource, assetEventProducer);
+    assetService = new AssetServiceImpl(assetRepository, candleRepository, assetEventProducer);
+    setField(assetService, "assetInfoSource", assetInfoSource);
+    setField(assetService, "marketCapSource", marketCapSource);
+    setField(assetService, "candleSource", candleSource);
   }
 
   @Nested
@@ -83,7 +88,7 @@ class AssetServiceImplTest {
     @DisplayName("SymbolSource가 활성화되어 있고 심볼을 찾으면 Asset을 반환한다")
     void previewSymbol_SymbolFound_Success() {
       // given
-      given(symbolSource.getAsset(TEST_SYMBOL)).willReturn(testAsset);
+      given(assetInfoSource.getAsset(TEST_SYMBOL)).willReturn(testAsset);
 
       // when
       Optional<Asset> result = assetService.previewSymbol(TEST_SYMBOL);
@@ -93,7 +98,7 @@ class AssetServiceImplTest {
       assertThat(result.get().getSymbol()).isEqualTo(TEST_SYMBOL);
       assertThat(result.get().getName()).isEqualTo(TEST_NAME);
 
-      verify(symbolSource).getAsset(TEST_SYMBOL);
+      verify(assetInfoSource).getAsset(TEST_SYMBOL);
     }
 
     @Test
@@ -101,14 +106,14 @@ class AssetServiceImplTest {
     void previewSymbol_ConvertsToUpperCase_Success() {
       // given
       String lowerCaseSymbol = "aapl";
-      given(symbolSource.getAsset("AAPL")).willReturn(testAsset);
+      given(assetInfoSource.getAsset("AAPL")).willReturn(testAsset);
 
       // when
       Optional<Asset> result = assetService.previewSymbol(lowerCaseSymbol);
 
       // then
       assertThat(result).isPresent();
-      verify(symbolSource).getAsset("AAPL");
+      verify(assetInfoSource).getAsset("AAPL");
     }
 
     @Test
@@ -116,7 +121,7 @@ class AssetServiceImplTest {
     void previewSymbol_SymbolSourceNull_ReturnsEmpty() {
       // given
       AssetServiceImpl serviceWithNullSource = new AssetServiceImpl(
-        assetRepository, candleRepository, null, null, assetEventProducer);
+        assetRepository, candleRepository, assetEventProducer);
 
       // when
       Optional<Asset> result = serviceWithNullSource.previewSymbol(TEST_SYMBOL);
@@ -129,14 +134,14 @@ class AssetServiceImplTest {
     @DisplayName("심볼을 찾지 못하면 빈 Optional을 반환한다")
     void previewSymbol_SymbolNotFound_ReturnsEmpty() {
       // given
-      given(symbolSource.getAsset(TEST_SYMBOL)).willReturn(null);
+      given(assetInfoSource.getAsset(TEST_SYMBOL)).willReturn(null);
 
       // when
       Optional<Asset> result = assetService.previewSymbol(TEST_SYMBOL);
 
       // then
       assertThat(result).isEmpty();
-      verify(symbolSource).getAsset(TEST_SYMBOL);
+      verify(assetInfoSource).getAsset(TEST_SYMBOL);
     }
   }
 
@@ -257,7 +262,7 @@ class AssetServiceImplTest {
         .build();
 
       given(assetRepository.findById("GOOGL")).willReturn(Optional.empty());
-      given(symbolSource.getAsset("GOOGL")).willReturn(fetchedAsset);
+      given(assetInfoSource.getAsset("GOOGL")).willReturn(fetchedAsset);
       given(assetRepository.save(any(Asset.class))).willReturn(fetchedAsset);
 
       // when
@@ -270,7 +275,7 @@ class AssetServiceImplTest {
       assertThat(result.getSymbol()).isEqualTo("GOOGL");
       assertThat(result.getName()).isEqualTo("Alphabet Inc.");
 
-      verify(symbolSource).getAsset("GOOGL");
+      verify(assetInfoSource).getAsset("GOOGL");
       verify(assetRepository).save(any(Asset.class));
     }
 
@@ -316,7 +321,7 @@ class AssetServiceImplTest {
     void createAsset_SymbolSourceNullAndMissingInfo_ThrowsException() {
       // given
       AssetServiceImpl serviceWithNullSource = new AssetServiceImpl(
-        assetRepository, candleRepository, null, null, assetEventProducer);
+        assetRepository, candleRepository, assetEventProducer);
 
       given(assetRepository.findById(TEST_SYMBOL)).willReturn(Optional.empty());
 
@@ -325,7 +330,7 @@ class AssetServiceImplTest {
         TEST_SYMBOL, null, null, null, null,
         false, null, null, false))
         .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("SymbolSource not available");
+        .hasMessageContaining("AssetInfoSource not available");
 
       verify(assetRepository).findById(TEST_SYMBOL);
     }
@@ -337,7 +342,7 @@ class AssetServiceImplTest {
       String unknownSymbol = "UNKNOWN";
 
       given(assetRepository.findById("UNKNOWN")).willReturn(Optional.empty());
-      given(symbolSource.getAsset("UNKNOWN")).willReturn(null);
+      given(assetInfoSource.getAsset("UNKNOWN")).willReturn(null);
 
       // when & then
       assertThatThrownBy(() -> assetService.createAsset(
@@ -346,7 +351,7 @@ class AssetServiceImplTest {
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("Symbol not found");
 
-      verify(symbolSource).getAsset("UNKNOWN");
+      verify(assetInfoSource).getAsset("UNKNOWN");
     }
 
     @Test
@@ -362,7 +367,7 @@ class AssetServiceImplTest {
         .build();
 
       given(assetRepository.findById(TEST_SYMBOL)).willReturn(Optional.empty());
-      given(symbolSource.getAsset(TEST_SYMBOL)).willReturn(sourceAsset);
+      given(assetInfoSource.getAsset(TEST_SYMBOL)).willReturn(sourceAsset);
       given(assetRepository.save(any(Asset.class))).willAnswer(
         invocation -> invocation.getArgument(0));
 
@@ -542,14 +547,11 @@ class AssetServiceImplTest {
     @Test
     @DisplayName("활성 종목의 요약 정보를 페이징하여 조회한다")
     void getAllAssetSummaries_WithPaging_Success() {
-      // given
-      List<Asset> activeAssets = List.of(testAsset);
-      given(assetRepository.findByActiveTrue()).willReturn(activeAssets);
-      given(candleRepository.findFirstBySymbolOrderByDateDesc(TEST_SYMBOL))
-        .willReturn(Optional.empty());
-
-      Pageable pageable =
-        org.springframework.data.domain.PageRequest.of(0, 10);
+      // given: 최신가/날짜는 asset에 비정규화되어 candle 조회 없이 DB 페이징
+      Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+      Page<Asset> assetPage =
+        new org.springframework.data.domain.PageImpl<>(List.of(testAsset), pageable, 1);
+      given(assetRepository.findByActiveTrue(any(Pageable.class))).willReturn(assetPage);
 
       // when
       Page<AssetSummaryDto> result =
@@ -560,8 +562,7 @@ class AssetServiceImplTest {
       assertThat(result.getContent()).hasSize(1);
       assertThat(result.getTotalElements()).isEqualTo(1);
 
-      verify(assetRepository).findByActiveTrue();
-      verify(candleRepository).findFirstBySymbolOrderByDateDesc(TEST_SYMBOL);
+      verify(assetRepository).findByActiveTrue(any(Pageable.class));
     }
   }
 
@@ -622,22 +623,14 @@ class AssetServiceImplTest {
     void updateAssetMarketCap_ExistingAsset_Success() {
       // given
       given(assetRepository.findById(TEST_SYMBOL)).willReturn(Optional.of(testAsset));
-
-      Asset updatedInfo = Asset.builder()
-        .symbol(TEST_SYMBOL)
-        .marketCap(3000000000000L)
-        .build();
-
-      given(symbolSource.getAsset(TEST_SYMBOL)).willReturn(updatedInfo);
+      given(marketCapSource.updateMarketCap(TEST_SYMBOL)).willReturn(true);
 
       // when
       assetService.updateAssetMarketCap(TEST_SYMBOL);
 
-      // then
+      // then: 존재 확인 후 활성 provider에 위임
       verify(assetRepository).findById(TEST_SYMBOL);
-      verify(symbolSource).getAsset(TEST_SYMBOL);
-      verify(assetRepository).save(testAsset);
-      assertThat(testAsset.getMarketCap()).isEqualTo(3000000000000L);
+      verify(marketCapSource).updateMarketCap(TEST_SYMBOL);
     }
 
     @Test

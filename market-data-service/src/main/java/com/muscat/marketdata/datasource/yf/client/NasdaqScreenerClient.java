@@ -68,18 +68,20 @@ public class NasdaqScreenerClient {
      * @return 모든 종목의 JSON 응답 (배열)
      */
     public String getAllStocks(String exchange, String marketCap) {
-        log.info("NASDAQ Screener 전체 종목 조회 시작: exchange={}, marketCap={}", exchange, marketCap);
+        log.info("NASDAQ Screener 전체 종목 조회 시작: exchange={}", exchange);
 
-        // NASDAQ API는 limit을 크게 설정하면 한 번에 가져올 수 있음
-        return getStocks(exchange, marketCap, 10000, 0);
+        // marketcap 콤마구분 필터(mega,large,mid,small)는 NASDAQ이 빈 결과를 반환함.
+        // 시총 매칭엔 필터 불필요 → 전 종목 조회 후 보유 종목만 매칭한다.
+        return getStocks(exchange, null, 10000, 0);
     }
 
     private String buildUrl(String exchange, String marketCap, int limit, int offset) {
+        // download=true 는 marketcap 필터와 조합 시 빈 결과(rows=null)를 반환함.
+        // data.table.rows 구조로 marketCap 포함 정상 응답.
         StringBuilder url = new StringBuilder(BASE_URL);
         url.append("?tableonly=true");
         url.append("&limit=").append(limit);
         url.append("&offset=").append(offset);
-        url.append("&download=true");
 
         if (exchange != null && !exchange.isEmpty()) {
             url.append("&exchange=").append(exchange.toUpperCase());

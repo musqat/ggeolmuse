@@ -2,6 +2,8 @@ package com.muscat.marketdata.domain.repository;
 
 import com.muscat.marketdata.domain.entity.Asset;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -10,6 +12,9 @@ public interface AssetRepository extends JpaRepository<Asset, String>, AssetRepo
 
   // 활성 상태인 모든 종목 조회
   List<Asset> findByActiveTrue();
+
+  // 활성 종목 페이징 조회 (요약 조회용 - DB 레벨 정렬/페이징)
+  Page<Asset> findByActiveTrue(Pageable pageable);
 
   // 시가총액이 없는 종목 조회 (데이터 수집용)
   List<Asset> findByMarketCapIsNull();

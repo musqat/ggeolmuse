@@ -88,6 +88,14 @@ public interface AssetService {
   void updateAssetMarketCap(String symbol);
 
   /**
+   * 전체 활성 종목 시가총액 일괄 업데이트
+   * 외부 소스(NASDAQ Screener)를 1회 조회하여 모든 종목을 갱신합니다.
+   *
+   * @return 업데이트된 종목 수
+   */
+  int updateAllMarketCaps();
+
+  /**
    * 종목 삭제 (soft delete)
    * active를 false로 설정하고 delistedDate를 기록합니다.
    *

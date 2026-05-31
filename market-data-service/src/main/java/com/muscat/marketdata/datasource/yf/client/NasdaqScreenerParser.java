@@ -144,10 +144,18 @@ public class NasdaqScreenerParser {
         }
 
         try {
-            // "3899609280300.00" 형식 파싱
-            // 소수점 제거하고 Long으로 변환
-            String cleaned = marketCapStr.split("\\.")[0];
-            return Long.parseLong(cleaned);
+            // "2,170,292,977,079" 또는 "3899609280300.00" 형식 파싱
+            // 콤마/공백/$ 제거 후 소수점 앞부분만 Long 변환
+            String cleaned = marketCapStr
+                .replace(",", "")
+                .replace("$", "")
+                .trim()
+                .split("\\.")[0];
+            if (cleaned.isEmpty()) {
+                return null;
+            }
+            long value = Long.parseLong(cleaned);
+            return value > 0 ? value : null;
         } catch (NumberFormatException e) {
             log.debug("시가총액 파싱 실패: marketCap={}", marketCapStr);
             return null;

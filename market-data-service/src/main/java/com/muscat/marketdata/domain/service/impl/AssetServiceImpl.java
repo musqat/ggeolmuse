@@ -1,7 +1,8 @@
 package com.muscat.marketdata.domain.service.impl;
 
-import com.muscat.marketdata.datasource.alphavantage.provider.CandleSource;
-import com.muscat.marketdata.datasource.alphavantage.provider.SymbolSource;
+import com.muscat.marketdata.datasource.common.MarketDataProvider.AssetInfoSource;
+import com.muscat.marketdata.datasource.common.MarketDataProvider.CandleSource;
+import com.muscat.marketdata.datasource.common.MarketDataProvider.MarketCapSource;
 import com.muscat.marketdata.domain.dto.AssetSummaryDto;
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.entity.Candle;
@@ -11,10 +12,10 @@ import com.muscat.marketdata.domain.service.AssetService;
 import com.muscat.marketdata.infra.kafka.AssetEventProducer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -34,20 +35,25 @@ public class AssetServiceImpl implements AssetService {
 
     private final AssetRepository assetRepository;
     private final CandleRepository candleRepository;
-    private final SymbolSource symbolSource;
-    private final CandleSource candleSource;
     private final AssetEventProducer assetEventProducer;
+
+    // capability 인터페이스: @ConditionalOnProperty 로 활성 provider 1개만 주입됨
+    // (yahoo → YfSymbolSource/YahooMarketCapService, alphavantage → SymbolSource/MarketCapCollectionService)
+    @Autowired(required = false)
+    private AssetInfoSource assetInfoSource;   // 단일 종목 상세 (preview/등록)
+
+    @Autowired(required = false)
+    private MarketCapSource marketCapSource;   // 시가총액 갱신
+
+    @Autowired(required = false)
+    private CandleSource candleSource;         // 단일 가격 갱신 (updateAssetPrice)
 
     public AssetServiceImpl(
             AssetRepository assetRepository,
             CandleRepository candleRepository,
-            @Autowired(required = false) SymbolSource symbolSource,
-            @Autowired(required = false) CandleSource candleSource,
             AssetEventProducer assetEventProducer) {
         this.assetRepository = assetRepository;
         this.candleRepository = candleRepository;
-        this.symbolSource = symbolSource;
-        this.candleSource = candleSource;
         this.assetEventProducer = assetEventProducer;
     }
 
@@ -56,12 +62,12 @@ public class AssetServiceImpl implements AssetService {
     public Optional<Asset> previewSymbol(String symbol) {
         log.debug("심볼 미리보기 요청: symbol={}", symbol);
 
-        if (symbolSource == null) {
-            log.warn("SymbolSource가 활성화되지 않음");
+        if (assetInfoSource == null) {
+            log.warn("AssetInfoSource가 활성화되지 않음");
             return Optional.empty();
         }
 
-        Asset asset = symbolSource.getAsset(symbol.toUpperCase());
+        Asset asset = assetInfoSource.getAsset(symbol.toUpperCase());
         if (asset != null) {
             log.debug("심볼 미리보기 성공: symbol={}, name={}", symbol, asset.getName());
         } else {
@@ -98,11 +104,11 @@ public class AssetServiceImpl implements AssetService {
 
         // 정보가 부족하면 SymbolSource에서 조회
         if (name == null || country == null || currency == null || assetType == null) {
-            if (symbolSource == null) {
-                throw new IllegalArgumentException("SymbolSource not available");
+            if (assetInfoSource == null) {
+                throw new IllegalArgumentException("AssetInfoSource not available");
             }
 
-            Asset fetched = symbolSource.getAsset(finalSymbol);
+            Asset fetched = assetInfoSource.getAsset(finalSymbol);
             if (fetched == null) {
                 throw new IllegalArgumentException("Symbol not found: " + finalSymbol);
             }
@@ -163,31 +169,41 @@ public class AssetServiceImpl implements AssetService {
         log.debug("전체 종목 요약 정보 조회 요청 (페이지: {}, 크기: {})",
                 pageable.getPageNumber(), pageable.getPageSize());
 
-        // active=true인 종목만 조회 (Pageable을 수동으로 처리)
-        List<Asset> allActiveAssets = assetRepository.findByActiveTrue();
+        // 최신가/최신날짜가 asset에 비정규화되어 있어 candle 조회 없이 DB에서 직접 정렬+페이징
+        // (candle 2967만 행을 매 요청마다 조회하던 병목 제거)
+        Pageable dbPageable = remapSort(pageable);
+        Page<Asset> page = assetRepository.findByActiveTrue(dbPageable);
 
-        // 페이징 처리
-        int start = (int) pageable.getOffset();
-        int end = Math.min((start + pageable.getPageSize()), allActiveAssets.size());
-        List<Asset> pagedAssets = allActiveAssets.subList(start, end);
-
-        log.debug("활성 종목 조회 성공: page={}, totalElements={}, totalPages={}",
-                pageable.getPageNumber(), allActiveAssets.size(),
-                (allActiveAssets.size() + pageable.getPageSize() - 1) / pageable.getPageSize());
-
-        // Asset을 AssetSummaryDto로 변환 (currentPrice, latestDataDate 계산)
-        List<AssetSummaryDto> summaries = pagedAssets.stream()
-                .map(asset -> {
-                    // 최신 Candle 데이터 조회
-                    return candleRepository.findFirstBySymbolOrderByDateDesc(asset.getSymbol())
-                            .map(candle -> AssetSummaryDto.of(
-                                    asset, candle.getClose(), candle.getDate()))
-                            .orElse(AssetSummaryDto.from(asset));
-                })
+        List<AssetSummaryDto> content = page.getContent().stream()
+                .map(AssetSummaryDto::from)
                 .collect(Collectors.toList());
 
-        log.debug("활성 종목 요약 정보 변환 완료: count={}", summaries.size());
-        return new PageImpl<>(summaries, pageable, allActiveAssets.size());
+        log.debug("활성 종목 요약 정보 조회 완료: page={}, totalElements={}",
+                pageable.getPageNumber(), page.getTotalElements());
+        return new PageImpl<>(content, pageable, page.getTotalElements());
+    }
+
+    /**
+     * 프론트엔드 정렬 필드명을 Asset 엔티티 필드명으로 매핑
+     * currentPrice → latestClose, latestDataDate → latestDate
+     */
+    private Pageable remapSort(Pageable pageable) {
+        Sort sort = pageable.getSort();
+        if (sort.isUnsorted()) {
+            return pageable;
+        }
+        Sort mapped = Sort.by(sort.stream()
+                .map(order -> {
+                    String prop = switch (order.getProperty()) {
+                        case "currentPrice" -> "latestClose";
+                        case "latestDataDate" -> "latestDate";
+                        default -> order.getProperty();
+                    };
+                    return new Sort.Order(order.getDirection(), prop).nullsLast();
+                })
+                .collect(Collectors.toList()));
+        return org.springframework.data.domain.PageRequest.of(
+                pageable.getPageNumber(), pageable.getPageSize(), mapped);
     }
 
     @Override
@@ -237,28 +253,30 @@ public class AssetServiceImpl implements AssetService {
         String upperSymbol = symbol.toUpperCase();
 
         // Asset 존재 확인
-        Asset asset = assetRepository.findById(upperSymbol)
+        assetRepository.findById(upperSymbol)
                 .orElseThrow(() -> new IllegalArgumentException("Not found: " + upperSymbol));
 
-        if (symbolSource == null) {
-            log.warn("SymbolSource가 활성화되지 않음");
-            throw new IllegalStateException("SymbolSource not available");
+        if (marketCapSource == null) {
+            log.warn("시가총액 소스가 활성화되지 않음");
+            throw new IllegalStateException("Market cap source not available");
         }
 
-        // AlphaVantage OVERVIEW API로 최신 정보 조회
-        Asset updatedInfo = symbolSource.getAsset(upperSymbol);
-
-        if (updatedInfo == null || updatedInfo.getMarketCap() == null || updatedInfo.getMarketCap() == 0) {
-            log.warn("시가총액 정보 없음: symbol={}", upperSymbol);
+        // 활성 provider(Yahoo/AlphaVantage)에 위임
+        boolean ok = marketCapSource.updateMarketCap(upperSymbol);
+        if (!ok) {
             throw new IllegalStateException("Market cap not available for: " + upperSymbol);
         }
+    }
 
-        // 시가총액 업데이트
-        asset.setMarketCap(updatedInfo.getMarketCap());
-        assetRepository.save(asset);
+    @Override
+    @Transactional
+    public int updateAllMarketCaps() {
+        log.info("전체 종목 시가총액 일괄 업데이트 요청");
 
-        log.info("종목 시가총액 업데이트 완료: symbol={}, marketCap={}",
-                upperSymbol, updatedInfo.getMarketCap());
+        if (marketCapSource == null) {
+            throw new IllegalStateException("Market cap source not available");
+        }
+        return marketCapSource.updateAllMarketCaps(assetRepository.findByActiveTrue());
     }
 
     @Override

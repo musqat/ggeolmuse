@@ -20,6 +20,32 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.util.List;
 
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+class PageResponse<T> {
+    private List<T> content;
+    private int number;
+    private int size;
+    private long totalElements;
+    private int totalPages;
+    private boolean first;
+    private boolean last;
+
+    static <T> PageResponse<T> from(Page<T> page) {
+        return PageResponse.<T>builder()
+            .content(page.getContent())
+            .number(page.getNumber())
+            .size(page.getSize())
+            .totalElements(page.getTotalElements())
+            .totalPages(page.getTotalPages())
+            .first(page.isFirst())
+            .last(page.isLast())
+            .build();
+    }
+}
+
 /**
  * 관리자용 마켓 데이터 관리 API
  * 심볼 추가/삭제, 데이터 수집 등의 관리 기능
@@ -75,7 +101,7 @@ public class AdminMarketController {
      * GET /api/admin/market/assets/summary?page=0&size=20&sort=symbol,asc
      */
     @GetMapping("/assets/summary")
-    public ResponseEntity<Page<AssetSummaryDto>> getAllAssetSummaries(
+    public ResponseEntity<PageResponse<AssetSummaryDto>> getAllAssetSummaries(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "symbol") String sortBy,
@@ -89,7 +115,7 @@ public class AdminMarketController {
         Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sortBy));
 
         Page<AssetSummaryDto> summaries = assetService.getAllAssetSummaries(pageable);
-        return ResponseEntity.ok(summaries);
+        return ResponseEntity.ok(PageResponse.from(summaries));
     }
 
     /**
@@ -255,15 +281,12 @@ public class AdminMarketController {
 
         try {
             new Thread(() -> {
-                List<Asset> assets = assetService.getAllAssets();
-                for (Asset asset : assets) {
-                    try {
-                        assetService.updateAssetMarketCap(asset.getSymbol());
-                    } catch (Exception e) {
-                        log.warn("시가총액 업데이트 실패: symbol={}", asset.getSymbol(), e);
-                    }
+                try {
+                    int updated = assetService.updateAllMarketCaps();
+                    log.info("시가총액 전체 업데이트 완료: {}개", updated);
+                } catch (Exception e) {
+                    log.error("시가총액 전체 업데이트 실패", e);
                 }
-                log.info("시가총액 전체 업데이트 완료: {}개", assets.size());
             }).start();
 
             return ResponseEntity.ok(UpdateResponse.builder()

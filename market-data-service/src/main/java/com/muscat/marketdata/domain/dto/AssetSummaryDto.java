@@ -42,21 +42,9 @@ public class AssetSummaryDto {
             .marketCap(asset.getMarketCap())
             .active(asset.getActive())
             .delistedDate(asset.getDelistedDate())
+            .currentPrice(asset.getLatestClose())
+            .latestDataDate(asset.getLatestDate())
             .build();
     }
 
-    public static AssetSummaryDto of(Asset asset, BigDecimal currentPrice, LocalDate latestDataDate) {
-        return AssetSummaryDto.builder()
-            .symbol(asset.getSymbol())
-            .name(asset.getName())
-            .country(asset.getCountry())
-            .currency(asset.getCurrency())
-            .assetType(asset.getAssetType())
-            .marketCap(asset.getMarketCap())
-            .active(asset.getActive())
-            .delistedDate(asset.getDelistedDate())
-            .currentPrice(currentPrice)
-            .latestDataDate(latestDataDate)
-            .build();
-    }
 }
