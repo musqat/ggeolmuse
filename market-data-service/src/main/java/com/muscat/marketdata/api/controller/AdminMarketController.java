@@ -201,6 +201,24 @@ public class AdminMarketController {
     }
 
     /**
+     * 여러 종목 일괄 삭제 (soft delete)
+     *
+     * POST /api/admin/market/assets/bulk-delete
+     */
+    @PostMapping("/assets/bulk-delete")
+    public ResponseEntity<BulkDeleteResponse> bulkDeleteAssets(@RequestBody BulkDeleteRequest request) {
+        int size = request.getSymbols() == null ? 0 : request.getSymbols().size();
+        log.info("심볼 일괄 삭제 요청: {}개", size);
+
+        int deleted = assetService.deleteAssets(request.getSymbols());
+        return ResponseEntity.ok(BulkDeleteResponse.builder()
+                .requested(size)
+                .deleted(deleted)
+                .message(deleted + "개 종목이 비활성화되었습니다.")
+                .build());
+    }
+
+    /**
      * 특정 종목의 가격 데이터 업데이트
      *
      * POST /api/admin/market/assets/AAPL/update-price
@@ -371,6 +389,23 @@ public class AdminMarketController {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class UpdateResponse {
+        private String message;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class BulkDeleteRequest {
+        private List<String> symbols;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class BulkDeleteResponse {
+        private int requested;
+        private int deleted;
         private String message;
     }
 }
