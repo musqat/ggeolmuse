@@ -102,4 +102,13 @@ public interface AssetService {
    * @param symbol 종목 심볼
    */
   void deleteAsset(String symbol);
+
+  /**
+   * 여러 종목 일괄 삭제 (soft delete)
+   * 선택한 심볼들의 active를 false로 설정하고 delistedDate를 기록합니다.
+   *
+   * @param symbols 종목 심볼 리스트
+   * @return 실제로 비활성화된 종목 수
+   */
+  int deleteAssets(java.util.List<String> symbols);
 }

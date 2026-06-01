@@ -42,8 +42,12 @@ public class YahooParser {
       log.debug("Yahoo 일봉 데이터 파싱 완료: symbol={}, 건수={}", symbolOverride, results.size());
       return results;
 
+    } catch (YahooFinanceException e) {
+      // 데이터 없음(상폐/신규 종목)은 정상 케이스 → 스택트레이스 없이 한 줄
+      log.warn("Yahoo 일봉 데이터 없음: symbol={}, reason={}", symbolOverride, e.getMessage());
+      throw e;
     } catch (Exception e) {
-      log.error("Yahoo 일봉 파싱 실패: symbol={}", symbolOverride, e);
+      log.error("Yahoo 일봉 파싱 실패: symbol={}, error={}", symbolOverride, e.getMessage());
       throw new YahooFinanceException("Yahoo 일봉 파싱 실패: " + symbolOverride, e);
     }
   }
@@ -66,8 +70,12 @@ public class YahooParser {
       log.debug("Yahoo 배당 데이터 파싱 완료: symbol={}, 건수={}", symbol, results.size());
       return results;
 
+    } catch (YahooFinanceException e) {
+      // 데이터 없음(상폐/신규 종목)은 정상 케이스 → 스택트레이스 없이 한 줄
+      log.warn("Yahoo 배당 데이터 없음: symbol={}, reason={}", symbol, e.getMessage());
+      throw e;
     } catch (Exception e) {
-      log.error("Yahoo 배당 파싱 실패: symbol={}", symbol, e);
+      log.error("Yahoo 배당 파싱 실패: symbol={}, error={}", symbol, e.getMessage());
       throw new YahooFinanceException("Yahoo 배당 파싱 실패: " + symbol, e);
     }
   }

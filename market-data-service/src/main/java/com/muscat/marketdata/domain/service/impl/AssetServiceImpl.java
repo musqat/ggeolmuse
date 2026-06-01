@@ -298,4 +298,30 @@ public class AssetServiceImpl implements AssetService {
                 upperSymbol, asset.getDelistedDate());
     }
 
+    @Override
+    @Transactional
+    public int deleteAssets(List<String> symbols) {
+        if (symbols == null || symbols.isEmpty()) {
+            return 0;
+        }
+        log.info("종목 일괄 삭제 요청 (soft delete): {}개", symbols.size());
+
+        List<String> upper = symbols.stream()
+                .filter(s -> s != null && !s.isBlank())
+                .map(String::toUpperCase)
+                .distinct()
+                .collect(Collectors.toList());
+
+        List<Asset> assets = assetRepository.findAllById(upper);
+        LocalDate now = LocalDate.now();
+        for (Asset asset : assets) {
+            asset.setActive(false);
+            asset.setDelistedDate(now);
+        }
+        assetRepository.saveAll(assets);
+
+        log.info("종목 일괄 삭제 완료 (soft delete): 요청 {}개, 처리 {}개", upper.size(), assets.size());
+        return assets.size();
+    }
+
 }
