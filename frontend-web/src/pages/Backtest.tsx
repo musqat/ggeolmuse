@@ -26,6 +26,7 @@ import { CompareSymbolsChart } from "@components/charts/backtest/CompareSymbolsC
 import { CompareStrategiesChart } from "@components/charts/backtest/CompareStrategiesChart";
 import { stockApi, backtestApi } from "../services/api";
 import type { BacktestHistoryDto, BacktestHistoryPage } from "../services/api";
+import { saveLocalBacktestHistory, getLocalBacktestHistory } from "../utils/localBacktestHistory";
 import LoginModal from "../components/auth/LoginModal";
 import { SimpleStrategyForm } from "@components/backtest/forms/SimpleStrategyForm";
 import { DCAStrategyForm } from "@components/backtest/forms/DCAStrategyForm";
@@ -224,8 +225,26 @@ const Backtest: React.FC = () => {
     staleTime: 1 * 60 * 1000, // 1분 (히스토리는 자주 변경될 수 있음)
   });
 
-  const historyData = historyResponse?.content || [];
-  const historyTotalPages = historyResponse?.totalPages || 0;
+  const localHistory = !isAuthenticated ? getLocalBacktestHistory() : [];
+  const historyData: BacktestHistoryDto[] = isAuthenticated
+    ? (historyResponse?.content || [])
+    : localHistory;
+  const historyTotalPages = isAuthenticated ? (historyResponse?.totalPages || 0) : 0;
+
+  // 백테스트 실행 + 저장 공통 헬퍼
+  const runBacktestWithSave = async <T,>(
+    apiFn: () => Promise<{ data: T }>,
+    backtestType: BacktestHistoryDto['backtestType'],
+    params: object,
+    fxRateMode: 'auto' | 'manual'
+  ): Promise<T> => {
+    const response = await apiFn();
+    if (!isAuthenticated) {
+      saveLocalBacktestHistory(backtestType, params, fxRateMode);
+    }
+    // TODO: 로그인 후 sync API 생기면 여기서 처리
+    return response.data;
+  };
 
   // 단순 백테스트 실행
   const runSimpleBacktest = async () => {
@@ -280,9 +299,11 @@ const Backtest: React.FC = () => {
         requestData.currentFxRate = parseFloat(manualCurrentFxRate);
       }
 
-      const response = await backtestApi.runSimulation(requestData);
-
-      setResult({ ...response.data, mode: "simple" });
+      const data = await runBacktestWithSave(
+        () => backtestApi.runSimulation(requestData),
+        'STRATEGY_SIMULATION', requestData, fxMode
+      );
+      setResult({ ...data, mode: "simple" });
     } catch (err: any) {
       setError(err.response?.data?.detail || "백테스트 실행에 실패했습니다.");
     } finally {
@@ -339,9 +360,11 @@ const Backtest: React.FC = () => {
         requestData.currentFxRate = parseFloat(dcaManualCurrentFxRate);
       }
 
-      const response = await backtestApi.runDcaStrategy(requestData);
-
-      setResult({ ...response.data, mode: "dca" });
+      const data = await runBacktestWithSave(
+        () => backtestApi.runDcaStrategy(requestData),
+        'STRATEGY_SIMULATION', requestData, dcaFxMode
+      );
+      setResult({ ...data, mode: "dca" });
     } catch (err: any) {
       setError(err.response?.data?.detail || "DCA 전략 실행에 실패했습니다.");
     } finally {
@@ -431,9 +454,11 @@ const Backtest: React.FC = () => {
         requestData.currentFxRate = parseFloat(conditionalManualCurrentFxRate);
       }
 
-      const response = await backtestApi.runConditionalStrategy(requestData);
-
-      setResult({ ...response.data, mode: "conditional" });
+      const data = await runBacktestWithSave(
+        () => backtestApi.runConditionalStrategy(requestData),
+        'STRATEGY_SIMULATION', requestData, conditionalFxMode
+      );
+      setResult({ ...data, mode: "conditional" });
     } catch (err: any) {
       setError(
         err.response?.data?.detail || "조건부 전략 실행에 실패했습니다.",
@@ -492,9 +517,11 @@ const Backtest: React.FC = () => {
         requestData.currentFxRate = parseFloat(compareManualCurrentFxRate);
       }
 
-      const response = await backtestApi.compareSymbols(requestData);
-
-      setResult({ ...response.data, mode: "compare-symbols" });
+      const data = await runBacktestWithSave(
+        () => backtestApi.compareSymbols(requestData),
+        'COMPARISON', requestData, compareFxMode
+      );
+      setResult({ ...data, mode: "compare-symbols" });
     } catch (err: any) {
       setError(err.response?.data?.detail || "종목 비교 실행에 실패했습니다.");
     } finally {
@@ -611,9 +638,11 @@ const Backtest: React.FC = () => {
         requestData.currentFxRate = parseFloat(strategyManualCurrentFxRate);
       }
 
-      const response = await backtestApi.compareStrategies(requestData);
-
-      setResult({ ...response.data, mode: "compare-strategies" });
+      const data = await runBacktestWithSave(
+        () => backtestApi.compareStrategies(requestData),
+        'COMPARISON', requestData, strategyFxMode
+      );
+      setResult({ ...data, mode: "compare-strategies" });
     } catch (err: any) {
       setError(err.response?.data?.detail || "전략 비교 실행에 실패했습니다.");
     } finally {
@@ -622,11 +651,6 @@ const Backtest: React.FC = () => {
   };
 
   const runBacktest = async () => {
-    if (!isAuthenticated) {
-      alert("로그인이 필요합니다.");
-      return;
-    }
-
     switch (mode) {
       case "simple":
         await runSimpleBacktest();
@@ -731,45 +755,6 @@ const Backtest: React.FC = () => {
     setModalStrategyType(null);
   };
 
-  // 로그인 안 됨
-  if (!isAuthenticated) {
-    return (
-      <>
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="min-h-[60vh] flex items-center justify-center">
-            <div className="text-center">
-              <Lock className="w-16 h-16 text-brand mx-auto mb-4" />
-              <h1 className="text-3xl font-bold text-tx-1 mb-4">
-                로그인이 필요한 서비스입니다
-              </h1>
-              <p className="text-lg text-tx-2 mb-6">
-                백테스트 기능을 이용하시려면 먼저 로그인해주세요
-              </p>
-              <button
-                onClick={() => setIsLoginModalOpen(true)}
-                className="flex items-center space-x-2 bg-brand text-white px-6 py-3 rounded-lg hover:bg-brand-dark transition-colors mx-auto"
-              >
-                <LogIn className="w-5 h-5" />
-                <span>로그인하기</span>
-              </button>
-            </div>
-          </div>
-        </div>
-        <LoginModal
-          isOpen={isLoginModalOpen}
-          onClose={() => setIsLoginModalOpen(false)}
-          onSwitchToSignup={() => {
-            setIsLoginModalOpen(false);
-            // 회원가입은 Header에서 관리되므로 단순히 모달만 닫음
-          }}
-          onLogin={async (email: string, password: string) => {
-            await login(email, password);
-          }}
-        />
-      </>
-    );
-  }
-
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
       {/* Header */}
@@ -838,13 +823,7 @@ const Backtest: React.FC = () => {
           </button>
 
           <button
-            onClick={() => {
-              if (!isAuthenticated) {
-                setIsLoginModalOpen(true);
-              } else {
-                setMode("history");
-              }
-            }}
+            onClick={() => setMode("history")}
             className={`p-3 rounded-lg border-2 transition-all text-sm ${
               mode === "history"
                 ? "border-brand bg-brand-bg text-brand-dark"
@@ -874,7 +853,9 @@ const Backtest: React.FC = () => {
               <Clock className="w-12 h-12 mx-auto mb-3 opacity-50" />
               <p>아직 백테스트 히스토리가 없습니다.</p>
               <p className="text-sm mt-1">
-                백테스트를 실행하면 여기에 기록됩니다.
+                {isAuthenticated
+                  ? '백테스트를 실행하면 여기에 기록됩니다.'
+                  : '백테스트를 실행하면 이 기기에 저장됩니다. 로그인하면 서버에 영구 저장됩니다.'}
               </p>
             </div>
           ) : (

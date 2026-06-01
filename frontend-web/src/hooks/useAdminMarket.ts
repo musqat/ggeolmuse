@@ -82,6 +82,40 @@ export const useAdminMarket = () => {
     }
   };
 
+  // 선택 상태
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const toggleOne = (symbol: string) =>
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(symbol) ? next.delete(symbol) : next.add(symbol);
+      return next;
+    });
+
+  const toggleAll = (symbols: string[]) =>
+    setSelected(prev =>
+      prev.size === symbols.length ? new Set() : new Set(symbols)
+    );
+
+  // 일괄 삭제
+  const handleBulkDelete = async () => {
+    if (selected.size === 0) return;
+    if (!confirm(`${selected.size}개 종목을 비활성화하시겠습니까?`)) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await marketAdminApi.bulkDeleteAssets([...selected]);
+      alert(res.message);
+      setSelected(new Set());
+      await loadAssets();
+    } catch (err) {
+      setError('일괄 삭제에 실패했습니다.');
+      console.error('Bulk delete failed:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // 심볼 삭제
   const handleDeleteAsset = async (symbol: string) => {
     if (!confirm(`${symbol}을(를) 삭제하시겠습니까?`)) return;
@@ -127,6 +161,7 @@ export const useAdminMarket = () => {
   // 페이지 변경
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
+    setSelected(new Set());
     loadAssets(newPage);
   };
 
@@ -241,6 +276,7 @@ export const useAdminMarket = () => {
     handlePreview,
     handleAddAsset,
     handleDeleteAsset,
+    handleBulkDelete,
     handleUpdatePrice,
     handleUpdateMarketCap,
     handleUpdateAllPrices,
@@ -256,5 +292,9 @@ export const useAdminMarket = () => {
     handlePageChange,
     handlePageSizeChange,
     handleSortChange,
+    // Bulk selection
+    selected,
+    toggleOne,
+    toggleAll,
   };
 };
