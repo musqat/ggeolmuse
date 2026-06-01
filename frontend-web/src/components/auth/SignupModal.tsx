@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import ReactDOM from 'react-dom';
 import { X, Eye, EyeOff, ChevronDown, ChevronUp } from 'lucide-react';
 import { authApi } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -115,9 +116,11 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
       };
 
       const codeChallenge = await sha256(codeVerifier);
+      const oauthState = generateRandomString(32);
 
-      // sessionStorage에 code_verifier 저장 (콜백에서 사용)
+      // sessionStorage에 code_verifier와 state 저장 (콜백에서 사용)
       sessionStorage.setItem('pkce_code_verifier', codeVerifier);
+      sessionStorage.setItem('oauth_state', oauthState);
 
       // Keycloak Google Identity Provider를 통한 직접 로그인
       const baseUrl = window.location.origin;
@@ -129,6 +132,7 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
         redirect_uri: `${baseUrl}/oauth/callback`,
         code_challenge: codeChallenge,
         code_challenge_method: 'S256',
+        state: oauthState,
         kc_idp_hint: 'google'
       });
 
@@ -162,9 +166,10 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-surface rounded-lg shadow-xl w-full max-w-md mx-4">
+  return ReactDOM.createPortal(
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.5)', overflowY: 'auto' }}>
+      <div className="flex min-h-full items-center justify-center p-4">
+      <div className="bg-surface rounded-lg shadow-xl w-full max-w-md">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b">
           <h2 className="text-xl font-semibold text-tx-1">회원가입</h2>
@@ -375,7 +380,9 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </div>,
+    document.body
   );
 };
 

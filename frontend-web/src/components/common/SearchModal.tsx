@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import { X, Search, TrendingUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -63,6 +64,16 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, supportedSym
     }
   }, [isOpen]);
 
+  // 전역 ESC 핸들러
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleEsc);
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, [isOpen, onClose]);
+
   // 검색어 필터링
   useEffect(() => {
     if (searchTerm.trim() === '') {
@@ -106,9 +117,9 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, supportedSym
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 bg-black bg-opacity-50">
-      <div className="bg-surface rounded-lg shadow-xl w-full max-w-2xl mx-4 overflow-hidden">
+  return ReactDOM.createPortal(
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '80px' }} onClick={onClose}>
+      <div className="bg-surface rounded-lg shadow-xl w-full max-w-2xl mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
         {/* 검색 입력 */}
         <div className="p-4 border-b border-line">
           <div className="relative">
@@ -203,7 +214,8 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, supportedSym
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
