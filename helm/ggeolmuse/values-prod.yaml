@@ -233,7 +233,7 @@ gatewayServer:
   replicaCount: 1
   image:
     repository: gateway-server
-    tag: "1.1.3"
+    tag: "1.1.4"
   service:
     type: LoadBalancer
     port: 8070
@@ -395,7 +395,7 @@ services:
     replicaCount: 1
     image:
       repository: backtest-service
-      tag: "1.1.3"
+      tag: "1.1.4"
     service:
       type: ClusterIP
       port: 8082
