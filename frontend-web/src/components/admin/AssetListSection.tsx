@@ -7,6 +7,7 @@ interface AssetListSectionProps {
   loading: boolean;
   onRefresh: () => void;
   onDelete: (symbol: string) => void;
+  onBulkDelete: () => void;
   onUpdatePrice: (symbol: string) => void;
   onUpdateMarketCap: (symbol: string) => void;
   onUpdateAllPrices: () => void;
@@ -21,6 +22,10 @@ interface AssetListSectionProps {
   onPageChange: (page: number) => void;
   onPageSizeChange: (size: number) => void;
   onSortChange: (field: string, direction: 'asc' | 'desc') => void;
+  // Bulk selection
+  selected: Set<string>;
+  onToggleOne: (symbol: string) => void;
+  onToggleAll: (symbols: string[]) => void;
 }
 
 export default function AssetListSection({
@@ -28,6 +33,7 @@ export default function AssetListSection({
   loading,
   onRefresh,
   onDelete,
+  onBulkDelete,
   onUpdatePrice,
   onUpdateMarketCap,
   onUpdateAllPrices,
@@ -41,7 +47,12 @@ export default function AssetListSection({
   onPageChange,
   onPageSizeChange,
   onSortChange,
+  selected,
+  onToggleOne,
+  onToggleAll,
 }: AssetListSectionProps) {
+  const currentSymbols = assets.map(a => a.symbol);
+  const allSelected = currentSymbols.length > 0 && currentSymbols.every(s => selected.has(s));
 
   const handleSort = (field: string) => {
     if (sortBy === field) {
@@ -131,6 +142,16 @@ export default function AssetListSection({
               <option value={100}>100</option>
             </select>
           </div>
+          {selected.size > 0 && (
+            <button
+              onClick={onBulkDelete}
+              disabled={loading}
+              className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg flex items-center gap-2 transition disabled:opacity-50"
+            >
+              <Trash2 className="w-5 h-5" />
+              선택 삭제 ({selected.size})
+            </button>
+          )}
           <button
             onClick={() => onRefresh()}
             disabled={loading}
@@ -162,6 +183,14 @@ export default function AssetListSection({
         <table className="w-full">
           <thead className="bg-surface/50">
             <tr>
+              <th className="px-4 py-3">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={() => onToggleAll(currentSymbols)}
+                  className="w-4 h-4 cursor-pointer"
+                />
+              </th>
               <SortHeader field="symbol" label="심볼" />
               <SortHeader field="currentPrice" label="가격" />
               <SortHeader field="marketCap" label="시가총액" />
@@ -176,7 +205,15 @@ export default function AssetListSection({
           </thead>
           <tbody className="bg-surface divide-y divide-line">
             {assets.map((asset) => (
-              <tr key={asset.symbol} className="hover:bg-surface/50 transition">
+              <tr key={asset.symbol} className={`hover:bg-surface/50 transition ${selected.has(asset.symbol) ? 'bg-brand-bg' : ''}`}>
+                <td className="px-4 py-4">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(asset.symbol)}
+                    onChange={() => onToggleOne(asset.symbol)}
+                    className="w-4 h-4 cursor-pointer"
+                  />
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap font-semibold text-brand">
                   {asset.symbol}
                 </td>

@@ -18,6 +18,7 @@ export default function AdminMarket() {
     handlePreview,
     handleAddAsset,
     handleDeleteAsset,
+    handleBulkDelete,
     handleUpdatePrice,
     handleUpdateMarketCap,
     handleUpdateAllPrices,
@@ -32,6 +33,9 @@ export default function AdminMarket() {
     handlePageChange,
     handlePageSizeChange,
     handleSortChange,
+    selected,
+    toggleOne,
+    toggleAll,
   } = useAdminMarket();
 
   return (
@@ -80,6 +84,7 @@ export default function AdminMarket() {
           loading={loading}
           onRefresh={loadAssets}
           onDelete={handleDeleteAsset}
+          onBulkDelete={handleBulkDelete}
           onUpdatePrice={handleUpdatePrice}
           onUpdateMarketCap={handleUpdateMarketCap}
           onUpdateAllPrices={handleUpdateAllPrices}
@@ -93,6 +98,9 @@ export default function AdminMarket() {
           onPageChange={handlePageChange}
           onPageSizeChange={handlePageSizeChange}
           onSortChange={handleSortChange}
+          selected={selected}
+          onToggleOne={toggleOne}
+          onToggleAll={toggleAll}
         />
       </div>
     </div>

@@ -46,6 +46,12 @@ export interface Asset {
   latestDataDate?: string;
 }
 
+export interface BulkDeleteResponse {
+  requested: number;
+  deleted: number;
+  message: string;
+}
+
 export interface PageResponse<T> {
   content: T[];
   totalPages: number;
@@ -115,6 +121,14 @@ export const marketAdminApi = {
 
   deleteAsset: async (symbol: string): Promise<void> => {
     await api.delete(`/admin/market/assets/${symbol}`);
+  },
+
+  bulkDeleteAssets: async (symbols: string[]): Promise<BulkDeleteResponse> => {
+    const { data } = await api.post<BulkDeleteResponse>(
+      '/admin/market/assets/bulk-delete',
+      { symbols }
+    );
+    return data;
   },
 
   updateAssetPrice: async (symbol: string): Promise<void> => {

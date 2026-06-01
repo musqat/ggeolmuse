@@ -1,9 +1,83 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { TrendingUp, BarChart3, Activity, ShoppingCart } from 'lucide-react';
+import { stockApi } from '../services/api';
+import type { OHLCData } from '../types/ohlc';
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
+
+  // 시총 상위 5개
+  const { data: topStocksRaw } = useQuery({
+    queryKey: ['home', 'topStocks'],
+    queryFn: async () => {
+      const res = await stockApi.getAllStocksWithPrices(0, 5);
+      const content = res.data?.content ?? [];
+      return content
+        .filter((s: any) => s.available !== false && s.currentPrice != null)
+        .map((s: any) => ({
+          symbol: s.symbol as string,
+          name: (s.name || s.symbol) as string,
+          currentPrice: s.currentPrice as number,
+        }));
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const topStocks: { symbol: string; name: string; currentPrice: number }[] = topStocksRaw ?? [];
+  const topSymbol = topStocks[0]?.symbol;
+  const listStocks = topStocks.slice(1, 5); // #2~5
+
+  // changePercent
+  const { data: prices } = useQuery({
+    queryKey: ['home', 'prices', topStocks.map(s => s.symbol)],
+    queryFn: async () => {
+      const symbols = topStocks.map(s => s.symbol);
+      const res = await stockApi.getCurrentPrices(symbols);
+      return res.data as Record<string, { changePercent: number }>;
+    },
+    enabled: topStocks.length > 0,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  // 스파크라인용 OHLC (최근 30일)
+  const { data: ohlcRaw } = useQuery({
+    queryKey: ['home', 'ohlc', topSymbol],
+    queryFn: async () => {
+      const end = new Date();
+      const start = new Date();
+      start.setDate(start.getDate() - 45);
+      const fmt = (d: Date) => d.toISOString().split('T')[0];
+      const res = await stockApi.getOHLCData(topSymbol!, fmt(start), fmt(end));
+      return (res.data ?? []) as OHLCData[];
+    },
+    enabled: !!topSymbol,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // SVG 스파크라인 path 생성
+  const sparkPath = useMemo(() => {
+    if (!ohlcRaw || ohlcRaw.length < 2) return null;
+    const recent = ohlcRaw.slice(-25);
+    const closes = recent.map(d => d.adjustedClose || d.closePrice);
+    const min = Math.min(...closes);
+    const max = Math.max(...closes);
+    const range = max - min || 1;
+    const n = closes.length;
+    const pts = closes.map((c, i) => {
+      const x = (i / (n - 1)) * 320;
+      const y = 60 - ((c - min) / range) * 52 + 4;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    });
+    const line = `M${pts[0]} ` + pts.slice(1).map(p => `L${p}`).join(' ');
+    const area = `${line} L320,64 L0,64 Z`;
+    return { line, area };
+  }, [ohlcRaw]);
+
+  const topChange = topSymbol ? (prices?.[topSymbol]?.changePercent ?? null) : null;
+  const topUp = topChange === null ? true : topChange >= 0;
+  const sparkColor = topUp ? '#10B981' : '#60A5FA';
 
   return (
     <div className="min-h-screen bg-canvas">
@@ -51,44 +125,65 @@ const Home: React.FC = () => {
         <div className="hidden lg:block">
           <div className="bg-surface border border-line rounded-[16px] p-5 shadow-panel">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-[13px] font-bold text-tx-1">NVDA · 실시간</span>
-              <span className="text-[11.5px] font-semibold text-up bg-red-500/10 px-2 py-0.5 rounded-[5px]">실시간 데이터</span>
+              <span className="text-[13px] font-bold text-tx-1">
+                {topSymbol ? `${topSymbol} · 실시간` : '시총 1위 · 실시간'}
+              </span>
+              <span className={`text-[11.5px] font-semibold px-2 py-0.5 rounded-[5px] ${topUp ? 'text-up bg-red-500/10' : 'text-down bg-blue-500/10'}`}>
+                {topChange !== null ? `${topUp ? '▲' : '▼'} ${Math.abs(topChange).toFixed(2)}%` : '실시간 데이터'}
+              </span>
             </div>
 
             {/* 스파크라인 */}
             <svg viewBox="0 0 320 64" className="w-full mb-4" preserveAspectRatio="none">
               <defs>
                 <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#10B981" stopOpacity="0.15" />
-                  <stop offset="100%" stopColor="#10B981" stopOpacity="0" />
+                  <stop offset="0%" stopColor={sparkColor} stopOpacity="0.15" />
+                  <stop offset="100%" stopColor={sparkColor} stopOpacity="0" />
                 </linearGradient>
               </defs>
-              <path d="M0,52 L20,48 L40,50 L60,44 L80,38 L100,40 L120,32 L140,28 L160,30 L180,24 L200,18 L220,20 L240,14 L260,10 L280,8 L300,6 L320,4 L320,64 L0,64 Z" fill="url(#sg)" />
-              <path d="M0,52 L20,48 L40,50 L60,44 L80,38 L100,40 L120,32 L140,28 L160,30 L180,24 L200,18 L220,20 L240,14 L260,10 L280,8 L300,6 L320,4" fill="none" stroke="#10B981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              {sparkPath ? (
+                <>
+                  <path d={sparkPath.area} fill="url(#sg)" />
+                  <path d={sparkPath.line} fill="none" stroke={sparkColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </>
+              ) : (
+                /* 로딩 중 플레이스홀더 */
+                <>
+                  <path d="M0,52 L80,38 L160,30 L240,14 L320,4 L320,64 L0,64 Z" fill="url(#sg)" />
+                  <path d="M0,52 L80,38 L160,30 L240,14 L320,4" fill="none" stroke={sparkColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </>
+              )}
             </svg>
 
             <div className="flex flex-col gap-2">
-              {[
-                { symbol: 'AAPL', name: 'Apple Inc.', up: true },
-                { symbol: 'TSLA', name: 'Tesla Inc.', up: false },
-                { symbol: 'MSFT', name: 'Microsoft', up: true },
-              ].map((s) => (
-                <div key={s.symbol} className="flex items-center justify-between px-3 py-2.5 bg-surface/50 rounded-[9px] border border-line/50">
-                  <div className="flex items-center gap-2.5">
-                    <span className={`w-2 h-2 rounded-full ${s.up ? 'bg-up' : 'bg-down'}`} />
-                    <div>
-                      <div className="text-[13px] font-bold text-tx-1 leading-tight">{s.symbol}</div>
-                      <div className="text-[11px] text-tx-3 leading-tight">{s.name}</div>
+              {(listStocks.length > 0 ? listStocks : [
+                { symbol: 'AAPL', name: 'Apple Inc.', currentPrice: 0 },
+                { symbol: 'MSFT', name: 'Microsoft', currentPrice: 0 },
+                { symbol: 'GOOGL', name: 'Alphabet', currentPrice: 0 },
+                { symbol: 'AMZN', name: 'Amazon', currentPrice: 0 },
+              ]).map((s) => {
+                const cp = prices?.[s.symbol]?.changePercent ?? null;
+                const up = cp === null ? true : cp >= 0;
+                return (
+                  <div key={s.symbol} className="flex items-center justify-between px-3 py-2.5 bg-surface/50 rounded-[9px] border border-line/50 cursor-pointer hover:border-brand/30 transition-colors" onClick={() => navigate(`/charts/${s.symbol}`)}>
+                    <div className="flex items-center gap-2.5">
+                      <span className={`w-2 h-2 rounded-full ${up ? 'bg-up' : 'bg-down'}`} />
+                      <div>
+                        <div className="text-[13px] font-bold text-tx-1 leading-tight">{s.symbol}</div>
+                        <div className="text-[11px] text-tx-3 leading-tight">{s.name}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[13px] font-semibold text-tx-1">
+                        {s.currentPrice > 0 ? `$${s.currentPrice.toFixed(2)}` : '—'}
+                      </div>
+                      <div className={`text-[11.5px] font-semibold ${up ? 'text-up' : 'text-down'}`}>
+                        {cp !== null ? `${up ? '▲' : '▼'} ${Math.abs(cp).toFixed(2)}%` : `${up ? '▲' : '▼'} 변동`}
+                      </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-[13px] font-semibold text-tx-1">실시간가</div>
-                    <div className={`text-[11.5px] font-semibold ${s.up ? 'text-up' : 'text-down'}`}>
-                      {s.up ? '▲' : '▼'} 변동
-                    </div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
