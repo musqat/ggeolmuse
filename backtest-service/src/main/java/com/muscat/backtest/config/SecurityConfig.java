@@ -67,6 +67,8 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
             .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**",
                 "/swagger-resources/**", "/webjars/**").permitAll()
+            .requestMatchers("/api/internal/trading-simulation/**").permitAll()
+            .requestMatchers("/api/internal/analysis/**").permitAll()
             .requestMatchers("/api/**").authenticated()
             .anyRequest().denyAll()
         )

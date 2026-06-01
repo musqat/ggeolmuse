@@ -84,10 +84,14 @@ public class SecurityConfig {
                 // ===== Admin APIs (ADMIN 권한 필요) =====
                 .pathMatchers("/api/admin/**").hasAuthority("admin")
 
+                // ===== Backtest public APIs (비로그인 허용) =====
+                .pathMatchers(HttpMethod.POST, "/api/trading-simulation/**").permitAll()
+                .pathMatchers(HttpMethod.POST, "/api/analysis/**").permitAll()
+
                 // ===== Private APIs (JWT 인증 필요) =====
                 .pathMatchers("/api/users/**", "/api/accounts/**").authenticated()
                 .pathMatchers("/api/trade/**", "/api/portfolio/**", "/api/transactions/**", "/api/trade-history/**").authenticated()
-                .pathMatchers("/api/backtest/**", "/api/analysis/**", "/api/trading-simulation/**").authenticated()
+                .pathMatchers("/api/backtest/**").authenticated()
 
                 .anyExchange().authenticated()
             )
