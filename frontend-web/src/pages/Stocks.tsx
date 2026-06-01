@@ -53,16 +53,8 @@ const Stocks: React.FC = () => {
   const totalElements = stocksResponse?.totalElements || 0;
   const error = queryError ? '종목 목록을 불러오는데 실패했습니다.' : null;
 
-  // 회사 logo 생성 (여러 API fallback 방식)
+  // 회사 logo — Google favicon API 우선, 실패 시 직접 favicon.ico
   const getFaviconUrl = (symbol: string) => {
-    const domain = getCompanyDomain(symbol);
-    if (domain) {
-      return `https://logo.clearbit.com/${domain}?size=32`;
-    }
-    return null;
-  };
-
-  const getGoogleFaviconUrl = (symbol: string) => {
     const domain = getCompanyDomain(symbol);
     if (domain) {
       return `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
@@ -256,17 +248,12 @@ const Stocks: React.FC = () => {
                           alt={`${stock.symbol} logo`}
                           className="w-6 h-6 rounded"
                           onError={(e) => {
-                            const googleUrl = getGoogleFaviconUrl(stock.symbol);
-                            if (googleUrl && e.currentTarget.src !== googleUrl) {
-                              e.currentTarget.src = googleUrl;
-                              return;
-                            }
                             const companyUrl = getCompanyFaviconUrl(stock.symbol);
                             if (companyUrl && e.currentTarget.src !== companyUrl) {
                               e.currentTarget.src = companyUrl;
                               return;
                             }
-                            e.currentTarget.src = `https://via.placeholder.com/24/6366f1/ffffff?text=${stock.symbol.charAt(0)}`;
+                            e.currentTarget.style.display = 'none';
                           }}
                         />
                       ) : (

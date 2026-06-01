@@ -132,7 +132,7 @@ export default function AssetListSection({
             </select>
           </div>
           <button
-            onClick={onRefresh}
+            onClick={() => onRefresh()}
             disabled={loading}
             className="px-4 py-2 text-brand hover:bg-brand-bg rounded-lg flex items-center gap-2 transition"
           >

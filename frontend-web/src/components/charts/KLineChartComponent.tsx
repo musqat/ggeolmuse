@@ -179,7 +179,35 @@ const KLineChartComponent: React.FC<KLineChartComponentProps> = ({
     rsi: null,
     macd: null,
     kdj: null,
+    vol: null,
   });
+
+  const [activeTool, setActiveTool] = useState<string | null>(null);
+
+  const DRAW_TOOLS = [
+    { name: 'straightLine',           label: '╱', title: '추세선' },
+    { name: 'horizontalStraightLine', label: '—', title: '수평선' },
+    { name: 'verticalStraightLine',   label: '|', title: '수직선' },
+    { name: 'fibonacciLine',          label: 'Fib', title: '피보나치' },
+    { name: 'arrow',                  label: '↗', title: '화살표' },
+  ];
+
+  const startDrawing = (toolName: string) => {
+    if (!chartRef.current) return;
+    if (activeTool === toolName) {
+      chartRef.current.removeOverlay();
+      setActiveTool(null);
+    } else {
+      chartRef.current.createOverlay({ name: toolName });
+      setActiveTool(toolName);
+    }
+  };
+
+  const clearDrawings = () => {
+    if (!chartRef.current) return;
+    chartRef.current.removeOverlay();
+    setActiveTool(null);
+  };
 
   const [indicators, setIndicators] = useState<IndicatorState>({
     ma5: false,
@@ -239,10 +267,11 @@ const KLineChartComponent: React.FC<KLineChartComponentProps> = ({
 
     chart.applyNewData(convertData(data));
 
-    // Default: MA20 + VOL
+    // Default: MA20 + VOL (서브패널)
     try {
       chart.createIndicator({ name: 'MA', calcParams: [20] }, true, { id: MA_PANE_ID });
-      chart.createIndicator('VOL', false, { id: MA_PANE_ID });
+      const volId = chart.createIndicator('VOL', false, { height: 80 });
+      panelIdsRef.current.vol = volId;
     } catch (e) {
       console.warn('[KLineChart] createIndicator failed:', e);
     }
@@ -332,9 +361,11 @@ const KLineChartComponent: React.FC<KLineChartComponentProps> = ({
 
       if (key === 'vol') {
         if (next.vol) {
-          chart.createIndicator('VOL', false, { id: MA_PANE_ID });
-        } else {
-          chart.removeIndicator(MA_PANE_ID, 'VOL');
+          const id = chart.createIndicator('VOL', false, { height: 80 });
+          panelIdsRef.current.vol = id;
+        } else if (panelIdsRef.current.vol) {
+          chart.removeIndicator(panelIdsRef.current.vol, 'VOL');
+          panelIdsRef.current.vol = null;
         }
       }
 
@@ -371,8 +402,34 @@ const KLineChartComponent: React.FC<KLineChartComponentProps> = ({
           목 데이터 (백엔드 연결 필요)
         </div>
       )}
+      {/* 드로잉 툴바 (왼쪽 세로) */}
+      <div className="flex-shrink-0 w-9 bg-surface border-r border-line/60 flex flex-col items-center py-2 gap-1" style={{ height }}>
+        {DRAW_TOOLS.map(tool => (
+          <button
+            key={tool.name}
+            title={tool.title}
+            onClick={() => startDrawing(tool.name)}
+            className={`w-7 h-7 rounded text-[12px] font-mono flex items-center justify-center transition-colors
+              ${activeTool === tool.name
+                ? 'bg-brand text-white'
+                : 'text-tx-3 hover:bg-hover hover:text-tx-1'
+              }`}
+          >
+            {tool.label}
+          </button>
+        ))}
+        <div className="border-t border-line/60 w-5 my-1" />
+        <button
+          title="전체 삭제"
+          onClick={clearDrawings}
+          className="w-7 h-7 rounded text-[11px] flex items-center justify-center text-tx-3 hover:bg-red-500/15 hover:text-red-400 transition-colors"
+        >
+          ✕
+        </button>
+      </div>
+
       {/* 차트 영역 */}
-      <div className={`${showIndicatorPanel ? 'flex-1' : 'w-full'} min-w-0`}>
+      <div className={`${showIndicatorPanel ? 'flex-1' : 'flex-1'} min-w-0`}>
         <div ref={chartContainerRef} style={{ width: '100%', height }} />
       </div>
 

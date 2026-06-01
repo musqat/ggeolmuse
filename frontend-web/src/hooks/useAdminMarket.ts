@@ -101,12 +101,13 @@ export const useAdminMarket = () => {
   };
 
   // 전체 심볼 목록 로드 (가격, 최신 데이터 날짜 포함, 페이지네이션)
-  const loadAssets = async (page = currentPage) => {
+  const loadAssets = async (page: number = currentPage) => {
+    const safePage = typeof page === 'number' && isFinite(page) ? page : 0;
     setLoading(true);
     setError(null);
     try {
       const data = await marketAdminApi.getAllAssetSummaries(
-        page,
+        safePage,
         pageSize,
         sortBy,
         sortDirection
@@ -114,7 +115,7 @@ export const useAdminMarket = () => {
       setAssets(data.content);
       setTotalPages(data.totalPages);
       setTotalElements(data.totalElements);
-      setCurrentPage(data.number);
+      setCurrentPage(typeof data.number === 'number' ? data.number : safePage);
     } catch (err) {
       setError('심볼 목록 조회에 실패했습니다.');
       console.error('Load assets failed:', err);
