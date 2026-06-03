@@ -675,6 +675,13 @@ const Backtest: React.FC = () => {
     setError(null);
   };
 
+  // 모드 전환 시 이전 결과/에러 초기화
+  const handleModeChange = (newMode: BacktestMode) => {
+    setMode(newMode);
+    setResult(null);
+    setError(null);
+  };
+
   const handleViewDetailedChart = () => {
     navigate(`/charts?symbol=${symbol}`);
   };
@@ -768,7 +775,7 @@ const Backtest: React.FC = () => {
         <h2 className="text-lg font-semibold text-tx-1 mb-4">백테스트 모드</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           <button
-            onClick={() => setMode("simple")}
+            onClick={() => handleModeChange("simple")}
             className={`p-3 rounded-lg border-2 transition-all text-sm ${
               mode === "simple"
                 ? "border-brand bg-brand-bg text-brand-dark"
@@ -779,7 +786,7 @@ const Backtest: React.FC = () => {
           </button>
 
           <button
-            onClick={() => setMode("dca")}
+            onClick={() => handleModeChange("dca")}
             className={`p-3 rounded-lg border-2 transition-all text-sm ${
               mode === "dca"
                 ? "border-brand bg-brand-bg text-brand-dark"
@@ -790,7 +797,7 @@ const Backtest: React.FC = () => {
           </button>
 
           <button
-            onClick={() => setMode("conditional")}
+            onClick={() => handleModeChange("conditional")}
             className={`p-3 rounded-lg border-2 transition-all text-sm ${
               mode === "conditional"
                 ? "border-brand bg-brand-bg text-brand-dark"
@@ -801,7 +808,7 @@ const Backtest: React.FC = () => {
           </button>
 
           <button
-            onClick={() => setMode("compare-symbols")}
+            onClick={() => handleModeChange("compare-symbols")}
             className={`p-3 rounded-lg border-2 transition-all text-sm ${
               mode === "compare-symbols"
                 ? "border-brand bg-brand-bg text-brand-dark"
@@ -812,7 +819,7 @@ const Backtest: React.FC = () => {
           </button>
 
           <button
-            onClick={() => setMode("compare-strategies")}
+            onClick={() => handleModeChange("compare-strategies")}
             className={`p-3 rounded-lg border-2 transition-all text-sm ${
               mode === "compare-strategies"
                 ? "border-brand bg-brand-bg text-brand-dark"
@@ -823,7 +830,7 @@ const Backtest: React.FC = () => {
           </button>
 
           <button
-            onClick={() => setMode("history")}
+            onClick={() => handleModeChange("history")}
             className={`p-3 rounded-lg border-2 transition-all text-sm ${
               mode === "history"
                 ? "border-brand bg-brand-bg text-brand-dark"
