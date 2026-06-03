@@ -423,6 +423,33 @@ services:
         memory: 448Mi
         cpu: 300m
 
+  chatService:
+    enabled: true
+    name: chat-service
+    replicaCount: 1
+    image:
+      repository: chat-service
+      tag: "1.0.0"
+    service:
+      type: ClusterIP
+      port: 8000
+    labels:
+      tier: business-service
+    probes:
+      readiness:
+        initialDelaySeconds: 15
+        periodSeconds: 10
+      liveness:
+        initialDelaySeconds: 30
+        periodSeconds: 20
+    resources:
+      limits:
+        memory: 512Mi
+        cpu: 400m
+      requests:
+        memory: 256Mi
+        cpu: 200m
+
 # 프론트엔드
 frontend:
   enabled: true

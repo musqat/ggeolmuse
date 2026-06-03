@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './contexts/AuthContext';
 import Header from '@components/common/Header';
 import Footer from '@components/layout/Footer';
+import AiChatButton from '@components/chat/AiChatButton';
 import AdminLayout from '@components/layout/AdminLayout';
 import ProtectedRoute from '@components/ProtectedRoute';
 import './styles/datepicker.css';
@@ -86,6 +87,7 @@ function App() {
             </Suspense>
           </main>
           <Footer />
+          <AiChatButton />
         </div>
       </Router>
     </AuthProvider>

@@ -352,6 +352,26 @@ services:
         initialDelaySeconds: 120
         periodSeconds: 20
 
+  chatService:
+    enabled: true
+    name: chat-service
+    replicaCount: 1
+    image:
+      repository: chat-service
+      tag: "1.0.0"
+    service:
+      type: ClusterIP
+      port: 8000
+    labels:
+      tier: business-service
+    probes:
+      readiness:
+        initialDelaySeconds: 10
+        periodSeconds: 10
+      liveness:
+        initialDelaySeconds: 20
+        periodSeconds: 20
+
 # 프론트엔드
 frontend:
   enabled: true
@@ -450,6 +470,7 @@ secrets:
     mailPassword: ""
     mailFrom: ""
     koreaeximApiKey: ""
+    openaiApiKey: ""
 
 # 모니터링 설정
 monitoring:

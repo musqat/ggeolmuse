@@ -12,6 +12,7 @@
 - [ ] trade-service
 - [ ] market-data-service
 - [ ] backtest-service
+- [ ] chat-service
 - [ ] messaging
 - [ ] ggeolmuse-bom
 - [ ] frontend-web

@@ -1,0 +1,53 @@
+{{- if .Values.services.chatService.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.services.chatService.name }}
+  labels:
+    app: {{ .Values.services.chatService.name }}
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.services.chatService.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.services.chatService.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.services.chatService.name }}
+        {{- include "ggeolmuse.serviceLabels" (dict "name" .Values.services.chatService.name "tier" .Values.services.chatService.labels.tier) | nindent 8 }}
+    spec:
+      containers:
+      - name: {{ .Values.services.chatService.name }}
+        image: {{ include "ggeolmuse.image" (dict "Values" .Values "repository" .Values.services.chatService.image.repository "tag" .Values.services.chatService.image.tag "Chart" .Chart) }}
+        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        ports:
+        - containerPort: {{ .Values.services.chatService.service.port }}
+        env:
+        - name: REDIS_HOST
+          value: {{ .Values.global.redis.host | quote }}
+        - name: REDIS_PORT
+          value: {{ .Values.global.redis.port | quote }}
+        - name: MARKET_DATA_BASE_URL
+          value: "http://market-data-service:8083"
+        - name: KEYCLOAK_JWKS_URL
+          value: "{{ .Values.global.keycloak.authServerUrl }}/realms/{{ .Values.global.keycloak.realm }}/protocol/openid-connect/certs"
+        - name: OPENAI_API_KEY
+          {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "OPENAI_API_KEY") | nindent 10 }}
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.services.chatService.service.port }}
+          initialDelaySeconds: {{ .Values.services.chatService.probes.readiness.initialDelaySeconds }}
+          periodSeconds: {{ .Values.services.chatService.probes.readiness.periodSeconds }}
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.services.chatService.service.port }}
+          initialDelaySeconds: {{ .Values.services.chatService.probes.liveness.initialDelaySeconds }}
+          periodSeconds: {{ .Values.services.chatService.probes.liveness.periodSeconds }}
+        {{- if .Values.services.chatService.resources }}
+        resources:
+          {{- toYaml .Values.services.chatService.resources | nindent 10 }}
+        {{- end }}
+{{- end }}
