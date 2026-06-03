@@ -75,9 +75,28 @@ const Home: React.FC = () => {
     return { line, area };
   }, [ohlcRaw]);
 
-  const topChange = topSymbol ? (prices?.[topSymbol]?.changePercent ?? null) : null;
+  // 일간 등락률: OHLC 최신일 종가 vs 직전일 종가
+  const topChange = useMemo(() => {
+    if (!ohlcRaw || ohlcRaw.length < 2) return null;
+    const last = ohlcRaw[ohlcRaw.length - 1];
+    const prev = ohlcRaw[ohlcRaw.length - 2];
+    const lastClose = last.adjustedClose || last.closePrice;
+    const prevClose = prev.adjustedClose || prev.closePrice;
+    if (!prevClose) return null;
+    return ((lastClose - prevClose) / prevClose) * 100;
+  }, [ohlcRaw]);
+
   const topUp = topChange === null ? true : topChange >= 0;
   const sparkColor = topUp ? '#10B981' : '#60A5FA';
+
+  // 데이터 기준 날짜 (OHLC 마지막 데이터)
+  const dataDate = useMemo(() => {
+    if (!ohlcRaw || ohlcRaw.length === 0) return null;
+    const last = ohlcRaw[ohlcRaw.length - 1].date;
+    if (!last) return null;
+    const d = new Date(last);
+    return d.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' });
+  }, [ohlcRaw]);
 
   return (
     <div className="min-h-screen bg-canvas">
@@ -126,10 +145,10 @@ const Home: React.FC = () => {
           <div className="bg-surface border border-line rounded-[16px] p-5 shadow-panel">
             <div className="flex items-center justify-between mb-3">
               <span className="text-[13px] font-bold text-tx-1">
-                {topSymbol ? `${topSymbol} · 실시간` : '시총 1위 · 실시간'}
+                {topSymbol && dataDate ? `${topSymbol} · ${dataDate} 종가` : topSymbol || '시총 1위'}
               </span>
               <span className={`text-[11.5px] font-semibold px-2 py-0.5 rounded-[5px] ${topUp ? 'text-up bg-red-500/10' : 'text-down bg-blue-500/10'}`}>
-                {topChange !== null ? `${topUp ? '▲' : '▼'} ${Math.abs(topChange).toFixed(2)}%` : '실시간 데이터'}
+                {topChange !== null ? `${topUp ? '▲' : '▼'} ${Math.abs(topChange).toFixed(2)}%` : '—'}
               </span>
             </div>
 

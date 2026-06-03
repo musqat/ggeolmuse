@@ -21,7 +21,9 @@ apiClient.interceptors.request.use(
     const isPublicApi = requestUrl.includes('/market/') ||
                         requestUrl.includes('/auth/login') ||
                         requestUrl.includes('/auth/register') ||
-                        requestUrl.includes('/auth/social');
+                        requestUrl.includes('/auth/social') ||
+                        requestUrl.includes('/trading-simulation/') ||
+                        requestUrl.includes('/analysis/');
 
     if (!isPublicApi) {
       const token = localStorage.getItem('accessToken');
