@@ -63,6 +63,12 @@ data:
               filters:
                 - RewritePath=/api/(?<prefix>trading-simulation|backtest|analysis)/(?<segment>.*), /api/internal/$\{prefix}/$\{segment}
 
+            # AI Chat Service
+            - id: chat-route
+              uri: http://chat-service:8000
+              predicates:
+                - Path=/api/chat/**
+
     services:
       market-data:
         uri: http://market-data-service:8083

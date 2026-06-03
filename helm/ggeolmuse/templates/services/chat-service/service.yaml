@@ -1,0 +1,16 @@
+{{- if .Values.services.chatService.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.services.chatService.name }}
+  labels:
+    app: {{ .Values.services.chatService.name }}
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.services.chatService.service.type }}
+  selector:
+    app: {{ .Values.services.chatService.name }}
+  ports:
+  - port: {{ .Values.services.chatService.service.port }}
+    targetPort: {{ .Values.services.chatService.service.port }}
+{{- end }}
