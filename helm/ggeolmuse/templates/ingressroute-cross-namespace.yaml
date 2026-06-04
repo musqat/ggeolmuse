@@ -1,4 +1,5 @@
-{{- if .Values.ingress.enabled }}
+{{- /* Traefik 전용(IngressRoute/Middleware). className이 traefik일 때만 렌더 → 로컬 nginx/vanilla k8s는 스킵 */ -}}
+{{- if and .Values.ingress.enabled (eq .Values.ingress.className "traefik") }}
 ---
 # Middlewares
 apiVersion: traefik.io/v1alpha1

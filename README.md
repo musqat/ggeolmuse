@@ -22,9 +22,11 @@ NYSE, NASDAQ, NYSE ARCA 상장 11,000개 이상 종목의 20년치 일별 가격
 - 환율 변동을 고려한 원화/달러 수익률 계산
 - 배당금 자동 재투자 시뮬레이션
 - 실제 거래 수수료 및 슬리피지 반영
+- AI 종목 기술 분석 (지표 기반 챗봇, 차트에서 원클릭 분석)
 
 **기술 스택**
-- Backend: Spring Boot, Spring Cloud
+- Backend: Spring Boot, Spring Cloud (Java) · FastAPI (Python, AI 챗봇)
+- AI: OpenAI (gpt-4o / gpt-4o-mini)
 - Data: PostgreSQL, Redis, Kafka
 - Frontend: React, TypeScript
 - Infrastructure: Kubernetes, Helm, ArgoCD
@@ -41,6 +43,7 @@ NYSE, NASDAQ, NYSE ARCA 상장 11,000개 이상 종목의 20년치 일별 가격
 | **Trade Service** | 거래 실행, 포트폴리오 관리 | [📄](trade-service/README.md) |
 | **Market Data Service** | 시세 데이터 수집/제공 | [📄](market-data-service/README.md) |
 | **Backtest Service** | 투자 전략 백테스팅 | [📄](backtest-service/README.md) |
+| **Chat Service** | AI 종목 기술 분석 (FastAPI + OpenAI) | [📄](chat-service/README.md) |
 
 ## 인프라 & 배포
 
@@ -53,9 +56,9 @@ NYSE, NASDAQ, NYSE ARCA 상장 11,000개 이상 종목의 20년치 일별 가격
 ## 아키텍처
 
 **Microservices Architecture**
-- 6개 독립 서비스로 구성 (서비스별 독립 배포·스케일링 경험 목적, 실제 운영은 단일 EC2)
+- 7개 독립 서비스로 구성 (Java 6 + Python 1, 서비스별 독립 배포·스케일링 경험 목적, 실제 운영은 단일 EC2)
 - Kafka 기반 이벤트 드리븐 아키텍처
-- Spring Cloud Gateway로 라우팅 통합
+- Spring Cloud Gateway로 라우팅 통합 (이종 언어 서비스도 동일 게이트웨이로 통합)
 
 **인프라**
 - Kubernetes (K3s) 기반 컨테이너 오케스트레이션
@@ -72,9 +75,11 @@ ggeolmuse/
 ├── trade-service/             # 거래 및 포트폴리오 관리
 ├── user-service/              # 인증 및 계좌 관리
 ├── market-data-service/       # 시세 데이터 수집/제공
+├── chat-service/              # AI 종목 기술 분석 (FastAPI + OpenAI)
 ├── gateway-server/            # API Gateway
 ├── config-server/             # 중앙 설정 관리
 ├── ggeolmuse-bom/             # 공통 라이브러리 (예외처리, 로깅, 유틸)
+├── messaging/                 # Kafka 메시징 공통 라이브러리
 └── frontend-web/              # React 프론트엔드
 ```
 
