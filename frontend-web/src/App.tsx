@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './contexts/AuthContext';
+import { AiChatProvider } from './contexts/AiChatContext';
 import Header from '@components/common/Header';
 import Footer from '@components/layout/Footer';
 import AiChatButton from '@components/chat/AiChatButton';
@@ -42,6 +43,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <AiChatProvider>
         <Router>
           <div className="App min-h-screen bg-surface/50">
             <Header />
@@ -90,7 +92,8 @@ function App() {
           <AiChatButton />
         </div>
       </Router>
-    </AuthProvider>
+        </AiChatProvider>
+      </AuthProvider>
   </QueryClientProvider>
   );
 }
