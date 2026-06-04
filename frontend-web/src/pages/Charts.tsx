@@ -199,14 +199,6 @@ const Charts: React.FC = () => {
               >
                 <Search className="w-5 h-5 text-brand" />
               </button>
-              <button
-                onClick={() => openChat(symbol)}
-                className="flex items-center gap-1.5 px-3 py-2 bg-brand text-white rounded-lg hover:bg-brand-dark transition-colors text-sm font-semibold"
-                title={`${symbol} AI 기술 분석`}
-              >
-                <Sparkles className="w-4 h-4" />
-                AI 분석
-              </button>
             </div>
           ) : (
             <div className="flex items-center space-x-2">
@@ -312,8 +304,19 @@ const Charts: React.FC = () => {
             )}
           </div>
 
-          {/* 오른쪽: 기간 선택 */}
+          {/* 오른쪽: AI 분석 + 기간 선택 */}
           <div className="mt-3 md:mt-0 w-full md:w-auto">
+            {/* AI 분석 버튼 (기간 선택 위, 우측 정렬) */}
+            <div className="flex justify-end mb-2">
+              <button
+                onClick={() => openChat(symbol)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-brand text-white rounded-lg hover:bg-brand-dark transition-colors text-sm font-semibold shadow-sm"
+                title={`${symbol} AI 기술 분석`}
+              >
+                <Sparkles className="w-4 h-4" />
+                AI 분석
+              </button>
+            </div>
             {/* 기간 선택 버튼 - 2줄 레이아웃 */}
             <div className="space-y-2">
               {/* 1줄: 1개월 ~ 전체 (8개 버튼) */}

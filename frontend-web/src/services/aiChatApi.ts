@@ -20,5 +20,5 @@ export interface ChatResponse {
 
 export const aiChatApi = {
   sendMessage: (message: string) =>
-    client.post<ChatResponse>('/api/chat', { message }),
+    client.post<ChatResponse>('/chat', { message }),
 };
