@@ -54,6 +54,28 @@ def test_no_symbol_does_not_consume_quota(client):
     assert res.json()["remaining"] == 5  # 차감 안 됨
 
 
+def test_symbol_param_skips_mini(client):
+    c, _, monkeypatch = client
+    # mini가 호출되면 실패하게 만들어 스킵 검증
+    def _boom(msg):
+        raise AssertionError("mini를 호출하면 안 됨")
+    monkeypatch.setattr(main, "call_router", _boom)
+    res = c.post("/api/chat", json={"message": "분석해줘", "symbol": "MSFT"})
+    assert res.status_code == 200
+    body = res.json()
+    assert body["symbol"] == "MSFT"
+    assert body["remaining"] == 4
+
+
+def test_symbol_param_unsupported_rejected(client):
+    c, _, _ = client
+    res = c.post("/api/chat", json={"message": "분석해줘", "symbol": "ZZZZ"})
+    assert res.status_code == 200
+    body = res.json()
+    assert "지원하지 않는" in body["answer"]
+    assert body["remaining"] == 5  # 차감 안 됨
+
+
 @pytest.mark.asyncio
 async def test_quota_exhausted_returns_429(client):
     c, limiter, _ = client

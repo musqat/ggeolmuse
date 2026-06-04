@@ -19,6 +19,7 @@ export interface ChatResponse {
 }
 
 export const aiChatApi = {
-  sendMessage: (message: string) =>
-    client.post<ChatResponse>('/chat', { message }),
+  // symbol 지정 시(차트 분석) 백엔드가 mini 추출 생략하고 그 종목 분석
+  sendMessage: (message: string, symbol?: string) =>
+    client.post<ChatResponse>('/chat', symbol ? { message, symbol } : { message }),
 };
