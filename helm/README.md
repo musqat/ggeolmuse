@@ -110,6 +110,21 @@ ArgoCD (CD)
     └── Helm 배포 → K3s 클러스터
 ```
 
+### Values 구조 (환경 분리)
+
+```
+values.yaml             공통 (환경 무관: 이미지 레지스트리, 포트, kafka, 토픽, probe/resource 기본값)
+values-dev.yaml         로컬/dev 환경 설정 (app.localhost, nginx ingress, aws off, dev 프로파일) — 커밋함
+values-prod.yaml        prod 환경 설정 (ggeolmuse.com, traefik, AWS Secrets Manager, prod 프로파일/리소스) — 커밋함
+values-secret.yaml      로컬 시크릿 (secrets.enabled + 실제 키) — gitignore, .example 참고해 각자 생성
+```
+
+- 배포 시 반드시 환경 파일 지정:
+  - 로컬: `helm ... -f values-dev.yaml -f values-secret.yaml` (환경설정 + 로컬시크릿)
+  - 운영: `helm ... -f values-prod.yaml` (ArgoCD가 사용, 시크릿은 AWS Secrets Manager)
+- `values.yaml`은 공통만 담으므로 단독 사용(no -f) 시 도메인/ingress 등이 비어 불완전.
+- 이미지 tag: `values.yaml`은 tag 미지정 → `Chart.AppVersion` 일괄 사용(로컬), prod는 서비스별 명시.
+
 ### ArgoCD GitOps
 
 values-prod.yaml 변경사항을 Git에 커밋하면 ArgoCD가 자동으로 감지하여 배포.

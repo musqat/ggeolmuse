@@ -123,12 +123,8 @@ httpGet:
   port: {{ .port }}
 initialDelaySeconds: {{ .initialDelaySeconds | default 60 }}
 periodSeconds: {{ .periodSeconds | default 10 }}
-{{- if .timeoutSeconds }}
-timeoutSeconds: {{ .timeoutSeconds }}
-{{- end }}
-{{- if .failureThreshold }}
-failureThreshold: {{ .failureThreshold }}
-{{- end }}
+timeoutSeconds: {{ .timeoutSeconds | default 5 }}
+failureThreshold: {{ .failureThreshold | default 3 }}
 {{- end }}
 
 {{/* Liveness Probe */}}
@@ -138,12 +134,8 @@ httpGet:
   port: {{ .port }}
 initialDelaySeconds: {{ .initialDelaySeconds | default 120 }}
 periodSeconds: {{ .periodSeconds | default 20 }}
-{{- if .timeoutSeconds }}
-timeoutSeconds: {{ .timeoutSeconds }}
-{{- end }}
-{{- if .failureThreshold }}
-failureThreshold: {{ .failureThreshold }}
-{{- end }}
+timeoutSeconds: {{ .timeoutSeconds | default 5 }}
+failureThreshold: {{ .failureThreshold | default 3 }}
 {{- end }}
 
 {{/* Secret 참조 */}}

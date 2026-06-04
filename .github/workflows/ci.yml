@@ -95,10 +95,9 @@ jobs:
             mvn clean compile test
           fi
       - name: Build Docker Image for ${{ matrix.service }}
+        # 멀티스테이지 Dockerfile
         run: |
-          cd ${{ matrix.service }}
-          mvn package -DskipTests
-          docker build -t ${{ matrix.service }}:ci-${{ github.sha }} .
+          docker build -f ${{ matrix.service }}/Dockerfile -t ${{ matrix.service }}:ci-${{ github.sha }} .
 
       - name: Run Trivy vulnerability scanner (table output for debugging)
         uses: aquasecurity/trivy-action@master
