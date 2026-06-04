@@ -1,8 +1,17 @@
 from __future__ import annotations
 
+import re
+
 from openai import OpenAI
 
 from app.config import settings
+
+
+def _strip_markdown(text: str) -> str:
+    text = re.sub(r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)", r"\1", text)  # *기울임* → 기울임 (제거)
+    text = re.sub(r"^#{1,6}\s*", "", text, flags=re.MULTILINE)  # 제목 # 제거
+    text = re.sub(r"^\s*[-*]\s+", "", text, flags=re.MULTILINE)  # 리스트 마커 제거
+    return text  # **굵게**는 보존
 
 DISCLAIMER = (
     "※ AI가 기술적 지표를 해석한 참고 자료입니다. 투자 조언이 아니며, "
@@ -15,6 +24,7 @@ SYSTEM_GUARD = (
     "- '오른다/내린다' 확언 금지. '~경향', '~신호로 해석될 수 있다' 식으로 표현\n"
     "- 펀더멘털/실적/뉴스는 데이터가 없으니 언급하지 마라\n"
     "- 수익 보장·확실성 표현 금지\n"
+    "- 핵심 지표명·결론만 **굵게**(별표 두 개)로 강조해라. 그 외 마크다운(*, #, 리스트 -)은 쓰지 마라\n"
     "- 제공된 지표 요약 범위 안에서만 한국어로 간결하게 설명하라"
 )
 
@@ -73,5 +83,5 @@ def call_analysis(symbol: str, summary: str, question: str) -> str:
         temperature=0.4,
         max_tokens=settings.max_answer_tokens,
     )
-    answer = (resp.choices[0].message.content or "").strip()
+    answer = _strip_markdown((resp.choices[0].message.content or "").strip())
     return f"{answer}\n\n{DISCLAIMER}"

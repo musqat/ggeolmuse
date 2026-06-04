@@ -7,12 +7,14 @@ import {
   Home,
   Search,
   Calendar,
+  Sparkles,
 } from 'lucide-react';
 import { stockApi } from '../services/api';
 import KLineChartComponent from '../components/charts/KLineChartComponent';
 import SearchModal from '../components/common/SearchModal';
 import DatePicker from '../components/common/DatePicker';
 import { convertOHLCToCandlestick, type CandlestickChartData } from '../types/ohlc';
+import { useAiChat } from '../contexts/AiChatContext';
 
 interface OHLCData {
   date: string;
@@ -26,6 +28,7 @@ interface OHLCData {
 const Charts: React.FC = () => {
   const { symbol: paramSymbol } = useParams<{ symbol: string }>();
   const navigate = useNavigate();
+  const { openChat } = useAiChat();
 
   const isValidSymbol = (s: string) => /^[A-Z]{1,6}(\.[A-Z]{1,2})?$/.test(s.toUpperCase());
   const symbol = (paramSymbol && isValidSymbol(paramSymbol)) ? paramSymbol.toUpperCase() : null;
@@ -195,6 +198,14 @@ const Charts: React.FC = () => {
                 title="종목 변경"
               >
                 <Search className="w-5 h-5 text-brand" />
+              </button>
+              <button
+                onClick={() => openChat(symbol)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-brand text-white rounded-lg hover:bg-brand-dark transition-colors text-sm font-semibold"
+                title={`${symbol} AI 기술 분석`}
+              >
+                <Sparkles className="w-4 h-4" />
+                AI 분석
               </button>
             </div>
           ) : (

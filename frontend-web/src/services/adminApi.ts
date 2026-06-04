@@ -5,7 +5,6 @@ const api = axios.create({
   timeout: 30000,
 });
 
-// Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('accessToken');
@@ -21,11 +20,6 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // 디버깅을 위해 임시로 리다이렉트 비활성화
-    // if (error.response?.status === 401) {
-    //   localStorage.removeItem('token');
-    //   window.location.href = '/';
-    // }
     console.error('Admin API Error:', error.response?.status, error.response?.data);
     return Promise.reject(error);
   }
