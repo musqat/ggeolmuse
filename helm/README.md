@@ -125,6 +125,49 @@ values-secret.yaml      로컬 시크릿 (secrets.enabled + 실제 키) — giti
 - `values.yaml`은 공통만 담으므로 단독 사용(no -f) 시 도메인/ingress 등이 비어 불완전.
 - 이미지 tag: `values.yaml`은 tag 미지정 → `Chart.AppVersion` 일괄 사용(로컬), prod는 서비스별 명시.
 
+### 로컬 빌드 & 배포
+
+> 전제: 로컬 Kubernetes(docker-desktop 등) + Docker + helm. 이미지는 로컬 빌드해 `Chart.AppVersion` 태그로 사용.
+
+**1. 시크릿 파일 준비** (최초 1회)
+```bash
+cp helm/ggeolmuse/values-secret.yaml.example helm/ggeolmuse/values-secret.yaml
+# values-secret.yaml 열어 실제 키 입력 (OPENAI_API_KEY 등). gitignore라 커밋 안 됨.
+```
+
+**2. 이미지 빌드** (`Chart.AppVersion`과 동일 태그로)
+```bash
+# Java 6개 — 멀티스테이지, 컨텍스트는 레포 루트
+for svc in config-server gateway-server user-service trade-service market-data-service backtest-service; do
+  docker build -f $svc/Dockerfile -t muscathan/$svc:1.1.3 .
+done
+
+# chat-service (Python) — 컨텍스트는 자기 폴더
+docker build -t muscathan/chat-service:1.1.3 chat-service
+
+# frontend-web — 컨텍스트는 자기 폴더
+docker build -t muscathan/frontend-web:1.1.3 frontend-web
+```
+> 태그(`1.1.3`)는 `helm/ggeolmuse/Chart.yaml`의 `appVersion`과 일치시킨다. base values는 tag 미지정 → 이 값 사용.
+
+**3. helm 배포**
+```bash
+helm upgrade --install ggeolmuse helm/ggeolmuse \
+  -f helm/ggeolmuse/values-dev.yaml \
+  -f helm/ggeolmuse/values-secret.yaml
+```
+> dev는 Traefik IngressRoute / Prometheus ServiceMonitor를 렌더하지 않으므로(해당 CRD 불필요) vanilla docker-desktop Kubernetes에 그대로 설치된다. (prod는 Traefik이라 IngressRoute 사용)
+
+**4. 접속**
+```bash
+# nginx ingress controller 있으면: http://app.localhost
+# 없으면 port-forward
+kubectl port-forward svc/frontend-web 3000:3000   # 프론트
+kubectl port-forward svc/gateway-server 8070:8070 # API
+```
+
+> 코드 수정 후 재배포: 해당 서비스만 다시 `docker build` → `helm upgrade ...` 또는 `kubectl rollout restart deployment/<svc>`.
+
 ### ArgoCD GitOps
 
 values-prod.yaml 변경사항을 Git에 커밋하면 ArgoCD가 자동으로 감지하여 배포.

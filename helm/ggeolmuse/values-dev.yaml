@@ -101,3 +101,8 @@ configMap:
   data:
     appBaseUrl: "http://app.localhost"
     oauthRedirectUri: "http://app.localhost/api/auth/social/google/callback"
+
+# 로컬은 Prometheus Operator(ServiceMonitor CRD) 없으므로 비활성화
+monitoring:
+  serviceMonitor:
+    enabled: false
