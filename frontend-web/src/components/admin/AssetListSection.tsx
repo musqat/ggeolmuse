@@ -26,6 +26,8 @@ interface AssetListSectionProps {
   selected: Set<string>;
   onToggleOne: (symbol: string) => void;
   onToggleAll: (symbols: string[]) => void;
+  // 검색 모드 (검색 결과 표시 — 페이지네이션 숨김)
+  searchMode?: boolean;
 }
 
 export default function AssetListSection({
@@ -50,6 +52,7 @@ export default function AssetListSection({
   selected,
   onToggleOne,
   onToggleAll,
+  searchMode = false,
 }: AssetListSectionProps) {
   const currentSymbols = assets.map(a => a.symbol);
   const allSelected = currentSymbols.length > 0 && currentSymbols.every(s => selected.has(s));
@@ -121,27 +124,30 @@ export default function AssetListSection({
     <div className="bg-surface rounded-lg shadow-md p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-xl font-semibold">등록된 심볼 목록</h2>
+          <h2 className="text-xl font-semibold">{searchMode ? '검색 결과' : '등록된 심볼 목록'}</h2>
           <p className="text-sm text-tx-2 mt-1">
-            전체 {totalElements.toLocaleString()}개 중 {currentPage * pageSize + 1}-
-            {Math.min((currentPage + 1) * pageSize, totalElements)} 표시
+            {searchMode
+              ? `${assets.length}개`
+              : `전체 ${totalElements.toLocaleString()}개 중 ${currentPage * pageSize + 1}-${Math.min((currentPage + 1) * pageSize, totalElements)} 표시`}
           </p>
         </div>
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-tx-2">페이지당:</label>
-            <select
-              value={pageSize}
-              onChange={(e) => onPageSizeChange(Number(e.target.value))}
-              className="px-3 py-1 border rounded-lg text-sm"
-              disabled={loading}
-            >
-              <option value={10}>10</option>
-              <option value={20}>20</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-          </div>
+          {!searchMode && (
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-tx-2">페이지당:</label>
+              <select
+                value={pageSize}
+                onChange={(e) => onPageSizeChange(Number(e.target.value))}
+                className="px-3 py-1 border rounded-lg text-sm"
+                disabled={loading}
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+          )}
           {selected.size > 0 && (
             <button
               onClick={onBulkDelete}
@@ -277,13 +283,13 @@ export default function AssetListSection({
 
         {assets.length === 0 && (
           <div className="text-center py-12 text-tx-2">
-            등록된 심볼이 없습니다. 검색을 통해 심볼을 추가하세요.
+            {searchMode ? '검색 결과가 없습니다.' : '등록된 심볼이 없습니다. 신규 종목 추가를 이용하세요.'}
           </div>
         )}
       </div>
 
-      {/* Pagination Controls */}
-      {totalPages > 1 && (
+      {/* Pagination Controls (검색 모드에선 숨김) */}
+      {!searchMode && totalPages > 1 && (
         <div className="mt-6 flex items-center justify-between border-t pt-4">
           <div className="text-sm text-tx-2">
             페이지 {currentPage + 1} / {totalPages}

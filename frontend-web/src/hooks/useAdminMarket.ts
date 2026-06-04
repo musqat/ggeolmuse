@@ -18,15 +18,20 @@ export const useAdminMarket = () => {
   const [sortBy, setSortBy] = useState('symbol');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
-  // 심볼 검색
-  const handleSearch = async () => {
-    if (!searchKeyword.trim()) return;
+  const [searchActive, setSearchActive] = useState(false);
 
+  // 보유 종목 검색 (DB) — 등록된 종목에서 키워드 매칭
+  const handleSearch = async () => {
+    if (!searchKeyword.trim()) {
+      clearSearch();
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
       const results = await marketAdminApi.searchAssets(searchKeyword);
       setSearchResults(results);
+      setSearchActive(true);
     } catch (err) {
       setError('검색에 실패했습니다.');
       console.error('Search failed:', err);
@@ -34,6 +39,16 @@ export const useAdminMarket = () => {
       setLoading(false);
     }
   };
+
+  // 검색 해제 → 전체 목록으로 복귀
+  const clearSearch = () => {
+    setSearchKeyword('');
+    setSearchResults([]);
+    setSearchActive(false);
+  };
+
+  // 외부 조회(preview) 초기화
+  const resetPreview = () => setPreview(null);
 
   // 심볼 미리보기
   const handlePreview = async (symbol: string) => {
@@ -268,7 +283,10 @@ export const useAdminMarket = () => {
     searchKeyword,
     setSearchKeyword,
     searchResults,
+    searchActive,
+    clearSearch,
     preview,
+    resetPreview,
     assets,
     loading,
     error,
