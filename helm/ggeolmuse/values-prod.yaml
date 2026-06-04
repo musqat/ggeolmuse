@@ -1,70 +1,30 @@
+# prod 전용 오버라이드만 정의. 나머지는 base values.yaml에서 상속(deep merge).
 global:
   domain: ggeolmuse.com
   authDomain: ggeolmuse.com
-  imageRegistry: muscathan
-  imagePullPolicy: Always
   springProfiles: prod
-
-  # Management server port (Health, Metrics, Actuator)
-  management:
-    port: 9090
 
   keycloak:
     authServerUrl: http://keycloak:8080/auth
     publicUrl: https://ggeolmuse.com/auth
-    realm: muscathan
-    clientId: ggeolmuse-client
-    frontendClientId: ggeolmuse-frontend
-
-  redis:
-    host: redis
-    port: 6379
-    healthCheckEnabled: false
-
-  kafka:
-    enabled: true
-    bootstrapServers: kafka:9092
-    consumer:
-      groupIdPrefix: ggeolmuse
-      autoOffsetReset: earliest
-      enableAutoCommit: false
-    producer:
-      acks: all
-      retries: 3
-      compressionType: snappy
 
   # OpenTelemetry - Tempo in monitoring namespace
   otel:
-    enabled: true
     endpoint: http://tempo.monitoring.svc.cluster.local:4318
-    protocol: http/protobuf
-    tracesExporter: otlp
-    metricsExporter: none
-    logsExporter: none
-    serviceName: ""
 
   # AWS Secrets Manager
   aws:
     enabled: true
-    region: ap-northeast-2
     secretsManager:
       enabled: true
-      name: ggeolmuse/production
-    serviceAccount:
-      create: true
 
 # Ingress Controller - K3s Traefik 사용
 ingressController:
   enabled: false
 
-# 인프라 - 단일 노드 최적화
+# 인프라 - 단일 노드 최적화 (prod 오버라이드만, 나머지 base 상속)
 infrastructure:
   redis:
-    enabled: true
-    image: redis:7-alpine
-    port: 6379
-    service:
-      type: ClusterIP
     resources:
       limits:
         memory: 384Mi
@@ -74,17 +34,9 @@ infrastructure:
         cpu: 150m
 
   keycloak:
-    enabled: true
-    image: quay.io/keycloak/keycloak:23.0
-    port: 8080
-    replicas: 1  # 단일 노드
     env:
       kcDbVendor: postgres  # RDS PostgreSQL 사용
       kcHttpRelativePath: /auth
-    service:
-      type: ClusterIP
-      port: 8080
-      targetPort: 8080
     resources:
       limits:
         memory: 512Mi
@@ -98,17 +50,6 @@ infrastructure:
     enabled: false
 
   zookeeper:
-    enabled: true
-    image: confluentinc/cp-zookeeper:7.6.0
-    port: 2181
-    replicas: 1
-    env:
-      clientPort: 2181
-      tickTime: 2000
-      syncLimit: 2
-    service:
-      type: ClusterIP
-      port: 2181
     storage:
       data: 5Gi
       log: 5Gi
@@ -122,35 +63,13 @@ infrastructure:
         cpu: 150m
 
   kafka:
-    enabled: true
-    image: confluentinc/cp-kafka:7.6.0
-    replicas: 1
-    ports:
-      internal: 9092
-      external: 9094
     env:
-      brokerId: 1
-      zookeeperConnect: zookeeper:2181
-      offsetsTopicReplicationFactor: 1
-      transactionStateLogMinIsr: 1
-      transactionStateLogReplicationFactor: 1
-      autoCreateTopicsEnable: true
       logRetentionHours: 120
       logSegmentBytes: "536870912"
       heapOpts: "-Xms512m -Xmx896m"
-    service:
-      internal:
-        type: ClusterIP
-        port: 9092
-      external:
-        type: NodePort
-        port: 9094
-        nodePort: 30094
     storage:
       data: 10Gi
       storageClass: local-path
-    topicsInit:
-      enabled: true
     resources:
       limits:
         memory: 1280Mi
@@ -160,18 +79,8 @@ infrastructure:
         cpu: 400m
 
   kafkaUi:
-    enabled: true
-    image: provectuslabs/kafka-ui:latest
-    replicas: 1
-    port: 8080
     env:
-      clustersName: ggeolmuse
-      bootstrapServers: kafka:9092
-      zookeeper: zookeeper:2181
       SERVER_SERVLET_CONTEXT_PATH: /kafka-ui
-    service:
-      type: ClusterIP
-      port: 8090
     resources:
       limits:
         memory: 256Mi
@@ -211,13 +120,9 @@ configServer:
     readiness:
       initialDelaySeconds: 60
       periodSeconds: 5
-      timeoutSeconds: 5
-      failureThreshold: 3
     liveness:
       initialDelaySeconds: 120
       periodSeconds: 15
-      timeoutSeconds: 5
-      failureThreshold: 3
   resources:
     limits:
       memory: 320Mi
@@ -251,13 +156,9 @@ gatewayServer:
     readiness:
       initialDelaySeconds: 120  # 2분 (Keycloak JWK + Redis)
       periodSeconds: 10
-      timeoutSeconds: 5
-      failureThreshold: 3
     liveness:
       initialDelaySeconds: 300  # 5분
       periodSeconds: 20
-      timeoutSeconds: 5
-      failureThreshold: 3
   resources:
     limits:
       memory: 512Mi
@@ -293,13 +194,9 @@ services:
       readiness:
         initialDelaySeconds: 180
         periodSeconds: 10
-        timeoutSeconds: 5
-        failureThreshold: 3
       liveness:
         initialDelaySeconds: 600
         periodSeconds: 20
-        timeoutSeconds: 5
-        failureThreshold: 3
     resources:
       limits:
         memory: 1024Mi
@@ -327,13 +224,9 @@ services:
       readiness:
         initialDelaySeconds: 180
         periodSeconds: 10
-        timeoutSeconds: 5
-        failureThreshold: 3
       liveness:
         initialDelaySeconds: 600
         periodSeconds: 20
-        timeoutSeconds: 5
-        failureThreshold: 3
     resources:
       limits:
         memory: 1024Mi
@@ -366,21 +259,13 @@ services:
       keycloakSecret: true
       koreaexImApiKey: true
     probes:
-      startup:
-        initialDelaySeconds: 30
-        periodSeconds: 10
-        timeoutSeconds: 5
-        failureThreshold: 60
       readiness:
         initialDelaySeconds: 180
         periodSeconds: 10
         timeoutSeconds: 3
-        failureThreshold: 3
       liveness:
         initialDelaySeconds: 600
         periodSeconds: 20
-        timeoutSeconds: 5
-        failureThreshold: 3
     resources:
       limits:
         memory: 1280Mi
@@ -408,13 +293,9 @@ services:
       readiness:
         initialDelaySeconds: 180
         periodSeconds: 10
-        timeoutSeconds: 5
-        failureThreshold: 3
       liveness:
         initialDelaySeconds: 600
         periodSeconds: 20
-        timeoutSeconds: 5
-        failureThreshold: 3
     resources:
       limits:
         memory: 896Mi

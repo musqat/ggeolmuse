@@ -94,9 +94,9 @@ k8s/secrets/
 k8s/secrets/*.yaml
 
 ### Helm Secrets (실제 값이 포함된 파일) ###
-helm/**/values-dev.yaml
-helm/**/values-prod.yaml
-helm/**/values-local.yaml
+# values.yaml(공통)/values-dev.yaml(로컬환경)/values-prod.yaml(prod환경) = 커밋함
+# values-secret.yaml = 로컬 시크릿 (secrets.enabled + 실제 키) = 커밋 금지, .example 참고
+helm/**/values-secret.yaml
 
 ### Frontend ###
 node_modules/
@@ -125,8 +125,4 @@ frontend-web/semantic-replace.mjs
 frontend-web/remove-jsdoc.mjs
 frontend-web/design-preview.html
 
-# Helm Secret Values (실제 비밀 값 포함)
-helm/*/values-dev.yaml
-helm/*/values-prod.yaml
-**/values-dev.yaml
-**/values-prod.yaml
+# Helm 로컬 시크릿 (위에서 helm/**/values-secret.yaml 로 통합)
