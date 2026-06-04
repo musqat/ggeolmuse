@@ -1,0 +1,103 @@
+# 로컬/dev 환경 설정 (비시크릿). 공통값은 values.yaml 상속.
+# 로컬 배포: helm ... -f values-dev.yaml -f values-secret.yaml
+global:
+  domain: app.localhost
+  authDomain: auth.localhost
+  springProfiles: prod,no-file-logging
+
+  keycloak:
+    authServerUrl: http://keycloak:8080
+    publicUrl: http://auth.localhost
+
+  otel:
+    endpoint: http://tempo:4318
+
+  aws:
+    enabled: false
+    secretsManager:
+      enabled: false
+
+# dev는 nginx ingress controller 사용
+ingressController:
+  enabled: true
+
+# 설정 서버 - dev 프로파일
+configServer:
+  env:
+    springProfiles: git
+
+# 게이트웨이 - dev 프로파일
+gatewayServer:
+  env:
+    springProfiles: dev
+
+# 비즈니스 서비스 - dev URL
+services:
+  userService:
+    env:
+      appBaseUrl: http://app.localhost
+      appFrontendUrl: http://app.localhost
+      mailVerificationBaseUrl: http://app.localhost
+
+# 프론트엔드 - dev URL
+frontend:
+  env:
+    apiUrl: http://app.localhost/api
+    keycloakUrl: http://auth.localhost
+
+# Ingress - dev (nginx, app.localhost)
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/cors-allow-origin: "http://app.localhost,http://localhost:3000,http://localhost:5173"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET,POST,PUT,DELETE,PATCH,OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "*"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+
+  hosts:
+    - host: app.localhost
+      paths:
+        - path: /api
+          pathType: Prefix
+          backend:
+            service: gateway-server
+            port: 8070
+        - path: /
+          pathType: Prefix
+          backend:
+            service: frontend-web
+            port: 3000
+
+    - host: auth.localhost
+      paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service: keycloak
+            port: 8080
+
+    - host: kafka.localhost
+      paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service: kafka-ui
+            port: 8090
+
+    - host: tempo.localhost
+      paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service: tempo
+            port: 3200
+
+# ConfigMap - dev URL
+configMap:
+  data:
+    appBaseUrl: "http://app.localhost"
+    oauthRedirectUri: "http://app.localhost/api/auth/social/google/callback"
