@@ -42,14 +42,14 @@ const AiChatModal: React.FC<AiChatModalProps> = ({ onRequireLogin }) => {
     bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight });
   }, [turns, loading]);
 
-  const send = async (message: string) => {
+  const send = async (message: string, symbol?: string) => {
     const msg = message.trim();
     if (!msg || loading) return;
     setError('');
     setTurns((t) => [...t, { role: 'user', text: msg }]);
     setLoading(true);
     try {
-      const res = await aiChatApi.sendMessage(msg);
+      const res = await aiChatApi.sendMessage(msg, symbol);
       setTurns((t) => [...t, { role: 'ai', text: res.data.answer }]);
       setRemaining(res.data.remaining);
     } catch (e: any) {
@@ -63,10 +63,10 @@ const AiChatModal: React.FC<AiChatModalProps> = ({ onRequireLogin }) => {
     }
   };
 
-  // 차트 등에서 종목 지정해 열면 자동 분석
+  // 차트 등에서 종목 지정해 열면 자동 분석 (symbol 직접 전달 → mini 추출 생략, 신규종목도 분석 가능)
   useEffect(() => {
     if (isOpen && autoSymbol && isAuthenticated && !loading) {
-      send(`${autoSymbol} 분석해줘`);
+      send(`${autoSymbol} 분석해줘`, autoSymbol);
       consumeAutoSymbol();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

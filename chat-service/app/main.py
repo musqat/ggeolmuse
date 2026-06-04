@@ -8,7 +8,7 @@ from app.auth import AuthError, extract_user_id
 from app.config import settings
 from app.deps import get_market_client, get_rate_limiter
 from app.indicators import build_indicator_summary
-from app.intent import extract_symbol
+from app.intent import extract_symbol, IntentResult
 from app.llm import call_analysis, call_router
 from app.market_client import MarketClient
 from app.rate_limit import RateLimiter
@@ -40,16 +40,28 @@ async def chat(
     if not await limiter.is_allowed(user_id):
         raise HTTPException(status_code=429, detail="오늘 사용 한도를 초과했습니다.")
 
-    # 2. 종목 추출 + 가드
+    # 2. 종목 결정
     supported = await market.fetch_supported_symbols()
-    intent = await extract_symbol(req.message, supported, mini_call=call_router)
-    if not intent.valid:
-        # 거절 — 한도 차감 안 함
-        return ChatResponse(
-            answer=intent.reason,
-            remaining=await limiter.remaining(user_id),
-            symbol=intent.symbol,
-        )
+    if req.symbol:
+        # 차트 등에서 종목 확정 전달 → mini 추출 생략, 지원종목 가드만
+        sym = req.symbol.strip().upper()
+        if sym not in supported:
+            return ChatResponse(
+                answer=f"{sym}는 지원하지 않는 종목입니다.",
+                remaining=await limiter.remaining(user_id),
+                symbol=sym,
+            )
+        intent = IntentResult(symbol=sym, valid=True, reason=None)
+    else:
+        # 자유 입력 → mini로 종목 추출 + 가드
+        intent = await extract_symbol(req.message, supported, mini_call=call_router)
+        if not intent.valid:
+            # 거절 — 한도 차감 안 함
+            return ChatResponse(
+                answer=intent.reason,
+                remaining=await limiter.remaining(user_id),
+                symbol=intent.symbol,
+            )
 
     # 3. OHLC 조회
     end = date.today()
