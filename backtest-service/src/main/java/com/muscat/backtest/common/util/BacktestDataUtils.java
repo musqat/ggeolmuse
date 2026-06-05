@@ -174,7 +174,12 @@ public final class BacktestDataUtils {
         result.put(date, entry.getValue());
       }
 
-      log.info("Bulk 환율 조회 성공: {}개 요청, {}개 반환", dates.size(), result.size());
+      // 응답에 없는 날짜는 기본 환율로 채움 (FX 데이터 미수집 환경에서도 전략 백테스트가 동작하도록)
+      for (LocalDate date : dates) {
+        result.putIfAbsent(date, DEFAULT_FX_RATE_HISTORICAL);
+      }
+
+      log.info("Bulk 환율 조회 성공: {}개 요청, {}개 반환(기본값 보정 포함)", dates.size(), result.size());
       return result;
 
     } catch (Exception e) {

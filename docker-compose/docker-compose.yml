@@ -59,7 +59,7 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       KAFKA_LOG_RETENTION_HOURS: 168
       KAFKA_LOG_SEGMENT_BYTES: 1073741824
     volumes:
@@ -79,160 +79,32 @@ services:
         reservations:
           memory: 1g
 
-  # Kafka Topics Initialization
-  kafka-topics-init:
-    image: confluentinc/cp-kafka:7.6.0
-    container_name: ggeolmuse-kafka-topics-init
-    depends_on:
-      kafka:
-        condition: service_healthy
-    command:
-      - sh
-      - -c
-      - |
-        echo "Waiting for Kafka to be ready..."
-        sleep 10
-
-        echo "Creating Kafka topics..."
-
-        # Trading topics
-        kafka-topics --create --if-not-exists \
-          --bootstrap-server kafka:9092 \
-          --topic trading.trade.completed \
-          --partitions 3 \
-          --replication-factor 1 \
-          --config retention.ms=604800000 \
-          --config segment.bytes=1073741824
-
-        kafka-topics --create --if-not-exists \
-          --bootstrap-server kafka:9092 \
-          --topic trading.trade.failed \
-          --partitions 3 \
-          --replication-factor 1 \
-          --config retention.ms=604800000
-
-        # Market data topics
-        kafka-topics --create --if-not-exists \
-          --bootstrap-server kafka:9092 \
-          --topic market.price.updated \
-          --partitions 3 \
-          --replication-factor 1 \
-          --config retention.ms=86400000 \
-          --config cleanup.policy=compact
-
-        # User account topics
-        kafka-topics --create --if-not-exists \
-          --bootstrap-server kafka:9092 \
-          --topic user.account.created \
-          --partitions 3 \
-          --replication-factor 1 \
-          --config retention.ms=2592000000
-
-        kafka-topics --create --if-not-exists \
-          --bootstrap-server kafka:9092 \
-          --topic user.account.deleted \
-          --partitions 3 \
-          --replication-factor 1 \
-          --config retention.ms=2592000000
-
-        kafka-topics --create --if-not-exists \
-          --bootstrap-server kafka:9092 \
-          --topic user.email.send \
-          --partitions 3 \
-          --replication-factor 1 \
-          --config retention.ms=604800000
-
-        # Backtest topics
-        kafka-topics --create --if-not-exists \
-          --bootstrap-server kafka:9092 \
-          --topic backtest.completed \
-          --partitions 3 \
-          --replication-factor 1 \
-          --config retention.ms=2592000000
-
-        # FX Rate topics
-        kafka-topics --create --if-not-exists \
-          --bootstrap-server kafka:9092 \
-          --topic market.fxrate.updated \
-          --partitions 3 \
-          --replication-factor 1 \
-          --config retention.ms=2592000000 \
-          --config cleanup.policy=compact
-
-        # Dividend topics
-        kafka-topics --create --if-not-exists \
-          --bootstrap-server kafka:9092 \
-          --topic market.dividend.updated \
-          --partitions 3 \
-          --replication-factor 1 \
-          --config retention.ms=7776000000
-
-        # Dead Letter Queue topics
-        kafka-topics --create --if-not-exists \
-          --bootstrap-server kafka:9092 \
-          --topic trading.trade.completed.DLT \
-          --partitions 3 \
-          --replication-factor 1 \
-          --config retention.ms=2592000000
-
-        kafka-topics --create --if-not-exists \
-          --bootstrap-server kafka:9092 \
-          --topic market.price.updated.DLT \
-          --partitions 3 \
-          --replication-factor 1 \
-          --config retention.ms=2592000000
-
-        kafka-topics --create --if-not-exists \
-          --bootstrap-server kafka:9092 \
-          --topic user.account.created.DLT \
-          --partitions 3 \
-          --replication-factor 1 \
-          --config retention.ms=2592000000
-
-        kafka-topics --create --if-not-exists \
-          --bootstrap-server kafka:9092 \
-          --topic user.email.send.DLT \
-          --partitions 3 \
-          --replication-factor 1 \
-          --config retention.ms=2592000000
-
-        kafka-topics --create --if-not-exists \
-          --bootstrap-server kafka:9092 \
-          --topic backtest.completed.DLT \
-          --partitions 3 \
-          --replication-factor 1 \
-          --config retention.ms=2592000000
-
-        echo "Listing all topics:"
-        kafka-topics --list --bootstrap-server kafka:9092
-
-        echo "Kafka topics initialization completed!"
-
-        # Keep container running for logs inspection
-        tail -f /dev/null
-    networks:
-      - ggeolmuse-network
-    deploy:
-      resources:
-        limits:
-          memory: 256m
-        reservations:
-          memory: 128m
-
-  # Keycloak
+  # Keycloak (로컬: realm import)
+  #   KC_HOSTNAME_URL 로 issuer를 항상 http://localhost:8080 으로 고정 발급.
+  #   => 브라우저는 localhost:8080 그대로 접속, 백엔드는 내부 keycloak:8080 으로 키(JWKS) fetch.
+  #      hosts 파일 수정 불필요.
   keycloak:
-    image: quay.io/keycloak/keycloak:22.0.5
+    image: quay.io/keycloak/keycloak:23.0
     container_name: ggeolmuse-keycloak
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
       KC_DB: dev-file
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_URL: http://localhost:8080
+      KC_HTTP_ENABLED: "true"
     ports:
-      - "7001:8080"
+      - "8080:8080"
     volumes:
       - keycloak_data:/opt/keycloak/data
-      - ./keycloak/muscathan-realm.json:/opt/keycloak/data/import/muscathan-realm.json:ro
+      - ./keycloak/custom-realm.json:/opt/keycloak/data/import/custom-realm.json:ro
     command: start-dev --import-realm
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo ok >&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     networks:
       - ggeolmuse-network
     deploy:
@@ -242,25 +114,32 @@ services:
         reservations:
           memory: 512m
 
-
-  # Config Server
+  # Config Server (외부 public git repo에서 서비스 설정 로드)
   config-server:
-    image: config-server:1.2.2
+    build:
+      context: ..
+      dockerfile: config-server/Dockerfile
+    image: ggeolmuse-local/config-server:latest
     container_name: ggeolmuse-config-server
     ports:
       - "8888:8888"
     environment:
-      SPRING_PROFILES_ACTIVE: native,dev
+      SPRING_PROFILES_ACTIVE: git
+      CONFIG_GIT_URI: ${CONFIG_GIT_URI:-https://github.com/musqat/ggeolmuse-config.git}
+      CONFIG_GIT_LABEL: ${CONFIG_GIT_LABEL:-main}
       CONFIG_SERVER_USERNAME: config
       CONFIG_SERVER_PASSWORD: config123
-      SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: false
+      SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: "false"
+      # 로컬: AWS 스킵 (region+더미 크리덴셜로 즉시 실패→skip)   
+      AWS_ACCESS_KEY_ID: dummy
+      AWS_SECRET_ACCESS_KEY: dummy
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
-      KEYCLOAK_REALM: muscathan
-      KEYCLOAK_SECRET: ${KEYCLOAK_SECRET:-demo-secret-key}
+      KEYCLOAK_REALM: custom
+      KEYCLOAK_SECRET: local-client-secret
       KEYCLOAK_ADMIN_USERNAME: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
     healthcheck:
-      test: ["CMD", "sh", "-c", "wget --spider --quiet http://localhost:8888/actuator/health || exit 1"]
+      test: ["CMD", "sh", "-c", "wget --spider --quiet http://localhost:9090/actuator/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -281,7 +160,10 @@ services:
 
   # Gateway
   gateway-server:
-    image: gateway-server:1.2.8
+    build:
+      context: ..
+      dockerfile: gateway-server/Dockerfile
+    image: ggeolmuse-local/gateway-server:latest
     container_name: ggeolmuse-gateway-server
     ports:
       - "8070:8070"
@@ -292,8 +174,14 @@ services:
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       SPRING_CLOUD_CONFIG_USERNAME: config
       SPRING_CLOUD_CONFIG_PASSWORD: config123
-      SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: false
+      SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: "false"
+      # 로컬: AWS 스킵 (region+더미 크리덴셜로 즉시 실패→skip)   
+      AWS_ACCESS_KEY_ID: dummy
+      AWS_SECRET_ACCESS_KEY: dummy
       SPRING_PROFILES_ACTIVE: dev
+      KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
+      KEYCLOAK_REALM: custom
+      KEYCLOAK_SECRET: local-client-secret
     healthcheck:
       test: ["NONE"]
     depends_on:
@@ -310,27 +198,46 @@ services:
 
   #### BUSINESS MICROSERVICES ####
 
-  # User Management Service
+  # User Management Service (시드 admin 자동 생성: admin@test.com / Admin123!)
   user-service:
-    image: user-service:1.2.2
+    build:
+      context: ..
+      dockerfile: user-service/Dockerfile
+    image: ggeolmuse-local/user-service:latest
     container_name: ggeolmuse-user-service
     ports:
-      - "8080:8080"
+      # host 8080은 keycloak이 사용 → user-service는 8085로 노출(내부는 8080, gateway가 라우팅)
+      - "8085:8080"
     environment:
-      MAIL_USERNAME: ${MAIL_USERNAME}
-      MAIL_PASSWORD: ${MAIL_PASSWORD}
       JAVA_OPTS: "-Dh2.webAllowOthers=true"
       SPRING_PROFILES_ACTIVE: "dev,no-file-logging"
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       SPRING_CLOUD_CONFIG_USERNAME: config
       SPRING_CLOUD_CONFIG_PASSWORD: config123
-      SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: false
+      SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: "false"
+      # 로컬: AWS 스킵 (region+더미 크리덴셜로 즉시 실패→skip)   
+      AWS_ACCESS_KEY_ID: dummy
+      AWS_SECRET_ACCESS_KEY: dummy
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
-      KEYCLOAK_REALM: muscathan
-      KEYCLOAK_SECRET: ${KEYCLOAK_SECRET:-demo-secret-key}
+      KEYCLOAK_REALM: custom
+      KEYCLOAK_SECRET: local-client-secret
       KEYCLOAK_ADMIN_USERNAME: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
+      # 시드 admin 계정 (로컬 체험용 더미)
+      APP_ADMIN_EMAIL: admin@test.com
+      ADMIN_PASSWORD: Admin123!
+      # config-server를 non-optional + retry로 가져옴 (초기 부팅 DNS race 방지). aws만 optional 유지.
+      SPRING_CONFIG_IMPORT: "optional:aws-secretsmanager:ggeolmuse/production,configserver:http://config-server:8888"
+      SPRING_CLOUD_CONFIG_FAIL_FAST: "true"
+      SPRING_CLOUD_CONFIG_RETRY_MAX_ATTEMPTS: "20"
+      SPRING_CLOUD_CONFIG_RETRY_INITIAL_INTERVAL: "2000"
+      SPRING_CLOUD_CONFIG_RETRY_MAX_INTERVAL: "10000"
+      # JWT: issuer는 브라우저 발급값(localhost) 문자열 검증, 키는 내부 keycloak에서 fetch
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://localhost:8080/realms/custom
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/custom/protocol/openid-connect/certs
+      MAIL_USERNAME: ${MAIL_USERNAME:-local@example.com}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-local-dummy}
     depends_on:
       gateway-server:
         condition: service_started
@@ -347,7 +254,10 @@ services:
 
   # Trade Service
   trade-service:
-    image: trade-service:1.2.2
+    build:
+      context: ..
+      dockerfile: trade-service/Dockerfile
+    image: ggeolmuse-local/trade-service:latest
     container_name: ggeolmuse-trade-service
     ports:
       - "8081:8081"
@@ -357,15 +267,21 @@ services:
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       SPRING_CLOUD_CONFIG_USERNAME: config
       SPRING_CLOUD_CONFIG_PASSWORD: config123
-      SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: false
+      SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: "false"
+      # 로컬: AWS 스킵 (region+더미 크리덴셜로 즉시 실패→skip)   
+      AWS_ACCESS_KEY_ID: dummy
+      AWS_SECRET_ACCESS_KEY: dummy
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
-      KEYCLOAK_REALM: muscathan
-      KEYCLOAK_SECRET: ${KEYCLOAK_SECRET:-demo-secret-key}
-      KEYCLOAK_ADMIN_USERNAME: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
+      KEYCLOAK_REALM: custom
+      KEYCLOAK_SECRET: local-client-secret
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://localhost:8080/realms/custom
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/custom/protocol/openid-connect/certs
+      # dev는 H2 + ddl-auto create-drop로 스키마 생성. flyway 마이그레이션(PostgreSQL용)은 H2서 충돌 → 끔
+      SPRING_FLYWAY_ENABLED: "false"
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/actuator/health", "||", "exit", "1"]
+      # actuator/health는 보안(401)이라 TCP 포트 응답으로 liveness 체크
+      test: ["CMD", "sh", "-c", "nc -z localhost 8081"]
       interval: 20s
       timeout: 10s
       retries: 10
@@ -386,25 +302,46 @@ services:
 
   # Market Data Service
   market-data-service:
-    image: market-data-service:1.2.8
+    build:
+      context: ..
+      dockerfile: market-data-service/Dockerfile
+    image: ggeolmuse-local/market-data-service:latest
     container_name: ggeolmuse-market-data-service
     ports:
       - "8083:8083"
     environment:
       SPRING_APPLICATION_NAME: "market-data-service"
+      # yahoo = 키 불필요·무료. 부팅 후 소수 종목 OHLC 자동 수집 → 차트/백테스트 데이터 확보
+      MARKETDATA_PROVIDER: yahoo
+      # 로컬(H2 in-mem): 전체 ~6700종목 수집은 무겁고 재시작마다 재수집 → 상위 50개만 수집(시총 desc, AAPL 등 포함).
+      MARKETDATA_SYMBOLCOLLECTION_MAXSYMBOLS: "50"
+      # 50종목뿐이라 메모리 여유 → 2년치 수집(1년+ 기간 백테스트/비교 가능)
+      SYMBOL_LOOKBACK_DAYS: "730"
+      SYMBOL_INCLUDE_DIVIDENDS: "false"
+      # 환율(KRW/USD) backfill: FX 소스가 KoreaExim API(실제 키 필요)라 demo 키론 실패.
+      #  KOREAEXIM_API_KEY(.env)에 무료 발급 키를 넣으면 켜기: FX_BACKFILL_ENABLED=true.
+      #  (단일 simulation 백테스트는 fallback 환율로 키 없이 동작. DCA/전략/비교만 FX 시계열 필요.)
+      FX_BACKFILL_ENABLED: "${FX_BACKFILL_ENABLED:-false}"
+      # 비동기 수집이 커넥션을 다 잡아 API가 503나는 것 방지
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "30"
+      # 컨테이너 2g 한도 내 heap 명시 (기본 25%로는 부족 → OOM)
+      JAVA_TOOL_OPTIONS: "-Xmx1536m"
       ALPHAVANTAGE_API_KEY: ${ALPHAVANTAGE_API_KEY:-demo}
       KOREAEXIM_API_KEY: ${KOREAEXIM_API_KEY:-demo}
       SPRING_PROFILES_ACTIVE: "dev,no-file-logging"
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       SPRING_CLOUD_CONFIG_USERNAME: config
       SPRING_CLOUD_CONFIG_PASSWORD: config123
-      SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: false
+      SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: "false"
+      # 로컬: AWS 스킵 (region+더미 크리덴셜로 즉시 실패→skip)   
+      AWS_ACCESS_KEY_ID: dummy
+      AWS_SECRET_ACCESS_KEY: dummy
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
-      KEYCLOAK_REALM: muscathan
-      KEYCLOAK_SECRET: ${KEYCLOAK_SECRET:-demo-secret-key}
-      KEYCLOAK_ADMIN_USERNAME: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
+      KEYCLOAK_REALM: custom
+      KEYCLOAK_SECRET: local-client-secret
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://localhost:8080/realms/custom
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/custom/protocol/openid-connect/certs
     healthcheck:
       test: ["CMD", "sh", "-c", "nc -z localhost 8083"]
       interval: 30s
@@ -427,7 +364,10 @@ services:
 
   # Backtest Service
   backtest-service:
-    image: backtest-service:1.2.2
+    build:
+      context: ..
+      dockerfile: backtest-service/Dockerfile
+    image: ggeolmuse-local/backtest-service:latest
     container_name: ggeolmuse-backtest-service
     ports:
       - "8082:8082"
@@ -437,15 +377,21 @@ services:
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       SPRING_CLOUD_CONFIG_USERNAME: config
       SPRING_CLOUD_CONFIG_PASSWORD: config123
-      SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: false
+      SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: "false"
+      # 로컬: AWS 스킵 (region+더미 크리덴셜로 즉시 실패→skip)   
+      AWS_ACCESS_KEY_ID: dummy
+      AWS_SECRET_ACCESS_KEY: dummy
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
-      KEYCLOAK_REALM: muscathan
-      KEYCLOAK_SECRET: ${KEYCLOAK_SECRET:-demo-secret-key}
-      KEYCLOAK_ADMIN_USERNAME: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
+      KEYCLOAK_REALM: custom
+      KEYCLOAK_SECRET: local-client-secret
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://localhost:8080/realms/custom
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/custom/protocol/openid-connect/certs
+      # dev는 H2 + ddl-auto create-drop로 스키마 생성. flyway 마이그레이션(PostgreSQL용)은 H2서 충돌 → 끔
+      SPRING_FLYWAY_ENABLED: "false"
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8082/actuator/health", "||", "exit", "1"]
+      # actuator/health는 보안(401)이라 TCP 포트 응답으로 liveness 체크
+      test: ["CMD", "sh", "-c", "nc -z localhost 8082"]
       interval: 20s
       timeout: 10s
       retries: 10
@@ -464,19 +410,50 @@ services:
         reservations:
           memory: 1g
 
+  # AI Chat Service (선택: OPENAI_API_KEY 있을 때만 --profile ai 로 실행)
+  chat-service:
+    build:
+      context: ../chat-service
+      dockerfile: Dockerfile
+    image: ggeolmuse-local/chat-service:latest
+    container_name: ggeolmuse-chat-service
+    profiles: ["ai"]
+    ports:
+      - "8000:8000"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      MARKET_DATA_BASE_URL: http://market-data-service:8083
+      KEYCLOAK_JWKS_URL: http://keycloak:8080/realms/custom/protocol/openid-connect/certs
+    depends_on:
+      redis:
+        condition: service_started
+      market-data-service:
+        condition: service_started
+    networks:
+      - ggeolmuse-network
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+        reservations:
+          memory: 256m
+
   # Frontend Web Application
   frontend-web:
     build:
       context: ../frontend-web
       dockerfile: Dockerfile
       args:
-        - VITE_API_URL=http://localhost:3000/api
-        - VITE_KEYCLOAK_URL=http://localhost:7001
-        - VITE_KEYCLOAK_REALM=muscathan
+        - VITE_API_URL=http://localhost:8070/api
+        - VITE_KEYCLOAK_URL=http://localhost:8080
+        - VITE_KEYCLOAK_REALM=custom
         - VITE_KEYCLOAK_CLIENT_ID=ggeolmuse-frontend
+    image: ggeolmuse-local/frontend-web:latest
     container_name: ggeolmuse-frontend
     ports:
-      - "3000:3000"
+      - "3000:80"
     environment:
       - NODE_ENV=production
     depends_on:
@@ -507,7 +484,6 @@ volumes:
     driver: local
 
 # NETWORKS
-
 networks:
   ggeolmuse-network:
     driver: bridge

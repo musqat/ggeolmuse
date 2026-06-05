@@ -95,7 +95,7 @@ export default function DatePicker({
   const decadeYears = Array.from({ length: 12 }, (_, i) => decadeStart - 1 + i);
 
   return (
-    <div className="relative w-full rounded-2xl border border-slate-200 bg-surface/90 backdrop-blur-xl shadow-md">
+    <div className="relative w-full rounded-2xl border border-line bg-surface/90 backdrop-blur-xl shadow-md">
       <div className="flex flex-col gap-2 p-3 select-none">
         <div className="grid grid-cols-3 items-center">
           {/* 왼쪽: 연도 */}
@@ -118,7 +118,7 @@ export default function DatePicker({
           <div className="relative flex items-center justify-center gap-1">
             <button
               onClick={() => setShowMonthMenu((v) => !v)}
-              className="min-w-[60px] rounded-lg border border-slate-200 bg-surface px-2 py-1 text-center text-xs font-medium text-slate-700 hover:bg-slate-50 transition"
+              className="min-w-[60px] rounded-lg border border-line bg-surface px-2 py-1 text-center text-xs font-medium text-tx-1 hover:bg-hover transition"
             >
               {months[currentMonth]}
             </button>
@@ -130,7 +130,7 @@ export default function DatePicker({
             </button>
 
             {showMonthMenu && (
-              <div className="absolute top-[110%] z-10 w-[280px] rounded-xl border border-slate-200 bg-surface p-2 shadow-xl">
+              <div className="absolute top-[110%] z-10 w-[280px] rounded-xl border border-line bg-surface p-2 shadow-xl">
                 <div className="grid grid-cols-3 gap-2">
                   {months.map((name, idx) => (
                     <button
@@ -142,7 +142,7 @@ export default function DatePicker({
                       className={`rounded-lg px-3 py-2 text-sm transition ${
                         idx === currentMonth
                           ? "bg-brand text-white shadow"
-                          : "bg-surface text-slate-700 hover:bg-slate-50 border border-slate-200"
+                          : "bg-surface text-tx-1 hover:bg-hover border border-line"
                       }`}
                     >
                       {name}
@@ -167,7 +167,7 @@ export default function DatePicker({
 
       {/* 10년 보기 */}
       {showDecade && (
-        <div className="mx-4 mb-3 rounded-xl border border-slate-200 bg-surface/70 p-3 shadow-sm">
+        <div className="mx-4 mb-3 rounded-xl border border-line bg-surface/70 p-3 shadow-sm">
           <div className="mb-2 flex items-center justify-between">
             <IconButton onClick={() => jumpYear(-10)} label="이전 10년">
               <ChevronLeft />
@@ -191,7 +191,7 @@ export default function DatePicker({
                 className={`rounded-lg px-2 py-2 text-sm transition ${
                   yy === currentYear
                     ? "bg-brand text-white shadow"
-                    : "bg-surface text-slate-700 hover:bg-slate-50"
+                    : "bg-surface text-tx-1 hover:bg-hover"
                 } ${yy < minYear || yy > maxYear ? "opacity-30 cursor-not-allowed" : ""}`}
               >
                 {yy}
@@ -247,7 +247,7 @@ function IconButton({ children, onClick, label }: IconButtonProps) {
   return (
     <button
       onClick={onClick}
-      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-surface text-slate-700 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-indigo-300 transition"
+      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-surface text-tx-1 hover:bg-hover focus-visible:ring-2 focus-visible:ring-indigo-300 transition"
       title={label}
     >
       {children}
