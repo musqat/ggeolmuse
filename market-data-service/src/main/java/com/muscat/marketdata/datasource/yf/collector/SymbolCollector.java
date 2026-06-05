@@ -42,6 +42,10 @@ public class SymbolCollector {
     @Value("${marketdata.symbol-collection.lookback-days:365}")
     private int lookbackDays;
 
+    // 수집 종목 수 상한 (0 = 무제한). 로컬에서 전체(~6700) 수집은 무거워 상위 N개만 수집할 때 사용.
+    @Value("${marketdata.symbol-collection.max-symbols:0}")
+    private int maxCollectSymbols;
+
     @EventListener(ApplicationReadyEvent.class)
     @Async
     @Transactional
@@ -103,6 +107,16 @@ public class SymbolCollector {
             if (symbols.isEmpty()) {
                 log.warn("[YF-종목수집] 실패: 종목을 찾을 수 없음");
                 return;
+            }
+
+            // 수집 상한 적용: 시가총액 desc 정렬 후 상위 N개 (거래소 무관, AAPL/MSFT 등 대형주 포함)
+            if (maxCollectSymbols > 0 && symbols.size() > maxCollectSymbols) {
+                symbols = symbols.stream()
+                    .sorted(java.util.Comparator.comparingLong(
+                        (Asset a) -> a.getMarketCap() == null ? 0L : a.getMarketCap()).reversed())
+                    .limit(maxCollectSymbols)
+                    .toList();
+                log.info("[YF-종목수집] 수집 상한 적용: 시총 상위 {}개만 수집", maxCollectSymbols);
             }
 
             log.info("[YF-종목수집] 종목 로드 완료: {}개", symbols.size());

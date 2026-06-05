@@ -69,6 +69,9 @@ public class SecurityConfig {
                 "/swagger-resources/**", "/webjars/**").permitAll()
             .requestMatchers("/api/internal/trading-simulation/**").permitAll()
             .requestMatchers("/api/internal/analysis/**").permitAll()
+            // 백테스트(시뮬레이션/분석)는 비로그인 허용 — gateway·프론트와 일치. 히스토리(/api/backtest/**)는 인증 유지
+            .requestMatchers(HttpMethod.POST, "/api/trading-simulation/**").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/analysis/**").permitAll()
             .requestMatchers("/api/**").authenticated()
             .anyRequest().denyAll()
         )

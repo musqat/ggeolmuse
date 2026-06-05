@@ -53,8 +53,12 @@ const AiChatModal: React.FC<AiChatModalProps> = ({ onRequireLogin }) => {
       setTurns((t) => [...t, { role: 'ai', text: res.data.answer }]);
       setRemaining(res.data.remaining);
     } catch (e: any) {
-      if (e.response?.status === 429) {
+      const status = e.response?.status;
+      if (status === 429) {
         setError('오늘 사용 한도(5회)를 모두 사용했습니다.');
+      } else if (status === 404 || status === 503) {
+        // chat-service 미배포(로컬 OpenAI 키 없음 등) → graceful 안내
+        setError('AI 분석 기능은 현재 환경에서 사용할 수 없습니다.');
       } else {
         setError('분석 요청에 실패했습니다. 잠시 후 다시 시도해주세요.');
       }

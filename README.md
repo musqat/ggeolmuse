@@ -53,6 +53,43 @@ NYSE, NASDAQ, NYSE ARCA 상장 11,000개 이상 종목의 20년치 일별 가격
 
 ---
 
+## 로컬에서 실행해보기
+
+본인 PC의 **Docker Desktop** 에서 docker-compose로 한 번에 띄워볼 수 있습니다.
+
+**전제**: Docker Desktop 실행 중
+
+```bash
+git clone https://github.com/musqat/ggeolmuse.git
+cd ggeolmuse
+bash scripts/local-up.sh
+```
+
+스크립트가 `.env` 자동 생성 → 이미지 빌드 → 전체 스택 기동까지 진행합니다.
+(직접 하려면 `cd docker-compose && docker compose up --build -d`)
+
+**접속**: http://localhost:3000
+
+**시드 admin 로그인** (메일 인증 불필요, 부팅 시 자동 생성):
+
+| 항목 | 값 |
+|------|-----|
+| 이메일 | `admin@test.com` |
+| 비밀번호 | `Admin123!` |
+
+**AI 챗봇(선택)**: OpenAI 키가 있으면 챗봇까지 활성화됩니다. 없으면 chat-service는 제외되고, AI 버튼은 표시되나 호출 시 안내가 뜹니다.
+
+```bash
+OPENAI_API_KEY=sk-... bash scripts/local-up.sh
+```
+
+> 로컬 설정·비밀번호는 모두 더미값(`docker-compose/.env`, gitignore)이며 운영 환경과 무관합니다.
+> 서비스 설정은 외부 public 저장소 `musqat/ggeolmuse-config`에서 로드합니다(인터넷 필요).
+> 시세 데이터는 기동 ~90초 후 Yahoo에서 50종목이 자동 수집됩니다(키 불필요). 그 전엔 차트가 비어 보일 수 있습니다.
+> 종료: `bash scripts/local-up.sh down`
+
+---
+
 ## 아키텍처
 
 **Microservices Architecture**
