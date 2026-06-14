@@ -6,6 +6,9 @@ import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.logging.BacktestLogger;
 import com.muscat.backtest.common.util.BacktestCalculationUtils;
 import com.muscat.backtest.common.util.BacktestDataUtils;
+import com.muscat.backtest.common.util.Decimals;
+import com.muscat.backtest.common.util.PriceLookup;
+import com.muscat.backtest.common.validation.BacktestRequestValidator;
 import com.muscat.backtest.domain.dto.request.OptimalTimingRequest;
 import com.muscat.backtest.domain.dto.response.OptimalTimingResponse;
 import com.muscat.backtest.domain.dto.response.TimingResult;
@@ -25,6 +28,10 @@ import org.springframework.stereotype.Component;
 
 /**
  * 최적 매수 타이밍 분석
+ * 기간 내 매일 "그날 매수했다면" 가정 → 현재 기준 수익률 계산
+ * 목표 수익률(targetReturnPercent) 이상 달성일만 추려 수익률 내림차순 순위
+ * 매수가 조정종가 기준
+ * 실매매 아님 → 거래내역·배당재투자 없음
  */
 @Component
 @RequiredArgsConstructor
@@ -33,6 +40,9 @@ public class OptimalTimingStrategy {
 
   private final MarketDataClient marketDataClient;
 
+  /**
+   * 최적 타이밍 분석
+   */
   public OptimalTimingResponse analyzeOptimalTiming(OptimalTimingRequest request) {
     validateRequest(request);
 
@@ -50,32 +60,13 @@ public class OptimalTimingStrategy {
 
       log.info("현재 주가: ${}, 현재 환율: {}", currentPrice.currentPrice(), currentFxRate.rate());
 
-      // BULK API: 전체 기간의 가격 데이터를 한 번에 조회
+      // BULK API: 전체 기간의 가격/환율 데이터를 한 번에 조회
       log.info("최적 타이밍 분석 - Bulk 데이터 조회 시작: {} ~ {}", request.getStartDate(), actualEndDate);
-      List<OHLCPriceDto> allPrices = marketDataClient.getOHLCPriceRange(
-        request.getSymbol(),
-        request.getStartDate().toString(),
-        actualEndDate.toString()
-      );
+      Map<LocalDate, OHLCPriceDto> priceMap = BacktestDataUtils.buildPriceMap(
+        marketDataClient, request.getSymbol(), request.getStartDate(), actualEndDate);
 
-      // 날짜별 빠른 조회를 위한 Map 생성
-      Map<LocalDate, OHLCPriceDto> priceMap = allPrices.stream()
-        .filter(OHLCPriceDto::available)
-        .collect(Collectors.toMap(OHLCPriceDto::date, p -> p, (existing, replacement) -> replacement));
-
-      log.info("가격 데이터 조회 완료: {}개", priceMap.size());
-
-      // BULK API: 전체 기간의 환율 데이터를 한 번에 조회
-      List<LocalDate> allDates = new ArrayList<>();
-      LocalDate date = request.getStartDate();
-      while (!date.isAfter(actualEndDate)) {
-        allDates.add(date);
-        date = date.plusDays(1);
-      }
-
-      Map<LocalDate, BigDecimal> fxRateMap =
-        BacktestDataUtils.getBulkFxRates(marketDataClient, allDates);
-      log.info("환율 데이터 조회 완료: {}개", fxRateMap.size());
+      Map<LocalDate, BigDecimal> fxRateMap = BacktestDataUtils.buildDailyFxRateMap(
+        marketDataClient, request.getStartDate(), actualEndDate);
 
       // 메모리에서 데이터 조회하여 분석 수행 (API 호출 없음)
       List<TimingResult> allResults = new ArrayList<>();
@@ -88,7 +79,7 @@ public class OptimalTimingStrategy {
 
         if (priceData != null && priceData.available() && fxRate != null) {
           TimingResult result = calculateTimingResult(
-            request, currentDate, priceData.closePrice(), fxRate,
+            request, currentDate, PriceLookup.effectiveClose(priceData), fxRate,
             currentPrice.currentPrice(), currentFxRate.rate());
 
           allResults.add(result);
@@ -206,23 +197,11 @@ public class OptimalTimingStrategy {
   }
 
   private void validateRequest(OptimalTimingRequest request) {
-    if (request == null) {
-      throw new BacktestException(BacktestResponse.STRATEGY_REQUEST_NULL);
-    }
-    if (request.getSymbol() == null || request.getSymbol().trim().isEmpty()) {
-      throw new BacktestException(BacktestResponse.STRATEGY_SYMBOL_REQUIRED);
-    }
-    if (request.getStartDate() == null) {
-      throw new BacktestException(BacktestResponse.STRATEGY_START_DATE_REQUIRED);
-    }
-    if (request.getEndDate() == null) {
-      throw new BacktestException(BacktestResponse.STRATEGY_END_DATE_REQUIRED);
-    }
-    if (request.getStartDate().isAfter(request.getEndDate())) {
-      throw new BacktestException(BacktestResponse.STRATEGY_DATE_RANGE_INVALID);
-    }
+    BacktestRequestValidator.requireNonNull(request);
+    BacktestRequestValidator.requireSymbol(request.getSymbol());
+    BacktestRequestValidator.requireDateRange(request.getStartDate(), request.getEndDate());
     if (request.getInvestmentAmount() == null
-      || request.getInvestmentAmount().compareTo(BigDecimal.ZERO) <= 0) {
+      || !Decimals.isPositive(request.getInvestmentAmount())) {
       throw new BacktestException(BacktestResponse.INVALID_REQUEST,
         "투자 금액은 0보다 커야 합니다");
     }

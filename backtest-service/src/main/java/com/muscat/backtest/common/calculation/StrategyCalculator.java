@@ -2,6 +2,7 @@ package com.muscat.backtest.common.calculation;
 
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.backtest.common.util.BacktestCalculationUtils;
+import com.muscat.backtest.common.util.Decimals;
 import com.muscat.backtest.infra.client.dto.FxRateDto;
 import com.muscat.commonlib.util.MoneyUtils;
 import com.muscat.commonlib.dto.StockPriceDto;
@@ -50,12 +51,12 @@ public class StrategyCalculator {
         BigDecimal remainingCashKrw = BigDecimal.ZERO;
 
         // 배당금을 원화로 환산
-        BigDecimal totalDividendsKrw = totalDividends != null && totalDividends.compareTo(BigDecimal.ZERO) > 0
+        BigDecimal totalDividendsKrw = totalDividends != null && Decimals.isPositive(totalDividends)
             ? MoneyUtils.convertUsdToKrw(totalDividends, currentFxRate.rate())
             : BigDecimal.ZERO;
 
         // 재투자된 배당금이 있으면, 이미 주식 가치에 포함되어 있으므로 배당금을 중복 더하지 않음
-        boolean hasReinvested = dividendsReinvested != null && dividendsReinvested.compareTo(BigDecimal.ZERO) > 0;
+        boolean hasReinvested = dividendsReinvested != null && Decimals.isPositive(dividendsReinvested);
         BigDecimal dividendsToAdd = hasReinvested ? BigDecimal.ZERO : totalDividendsKrw;
 
         // 총 자산 = 주식 가치 + 배당금 (재투자 시 배당금 제외)
