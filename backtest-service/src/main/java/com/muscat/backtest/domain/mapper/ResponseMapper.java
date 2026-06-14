@@ -4,6 +4,7 @@ import com.muscat.backtest.common.calculation.ComparisonCalculationResult;
 import com.muscat.backtest.common.calculation.StrategyCalculationResult;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.util.BacktestCalculationUtils;
+import com.muscat.backtest.common.util.Decimals;
 import com.muscat.backtest.domain.dto.request.BaseComparisonRequest;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
@@ -117,7 +118,7 @@ public class ResponseMapper {
       .totalReturnPercent(MoneyUtils.roundUsd(totalReturnPercent))
       .currentValueKrw(MoneyUtils.roundKrw(currentValueKrw))
       .remainingCashKrw(MoneyUtils.roundKrw(
-        remainingCash.compareTo(BigDecimal.ZERO) > 0
+        Decimals.isPositive(remainingCash)
           ? MoneyUtils.convertUsdToKrw(remainingCash, currentFxRate)
           : BigDecimal.ZERO))
       .totalAssetKrw(MoneyUtils.roundKrw(totalAssetKrw))

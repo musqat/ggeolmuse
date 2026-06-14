@@ -26,7 +26,6 @@ import com.muscat.backtest.domain.service.BacktestAnalysisService;
 import com.muscat.backtest.domain.service.TradingSimulationService;
 import com.muscat.backtest.domain.strategy.InvestmentStrategy;
 import com.muscat.backtest.domain.strategy.OptimalTimingStrategy;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;

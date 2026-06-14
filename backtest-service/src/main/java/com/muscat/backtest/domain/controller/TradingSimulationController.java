@@ -4,6 +4,7 @@ import com.muscat.backtest.domain.dto.request.InvestmentRequest;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
 import com.muscat.backtest.domain.dto.response.InvestmentResponse;
 import com.muscat.backtest.domain.dto.response.SimulationResponse;
+import com.muscat.backtest.domain.service.InvestmentBacktestService;
 import com.muscat.backtest.domain.service.TradingSimulationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -34,6 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class TradingSimulationController {
 
   private final TradingSimulationService tradingSimulationService;
+  private final InvestmentBacktestService investmentBacktestService;
 
   @Operation(
       summary = "백테스팅 시뮬레이션 실행",
@@ -51,11 +53,15 @@ public class TradingSimulationController {
                       {
                         "symbol": "AAPL",
                         "purchaseDate": "2023-01-01",
-                        "saleDate": "2024-01-01",
-                        "initialInvestment": 10000.00,
-                        "finalValue": 12500.00,
-                        "totalReturn": 2500.00,
-                        "totalReturnPercent": 25.00
+                        "currentDate": "2024-01-01",
+                        "investmentAmount": 1000000,
+                        "purchasePrice": 130.00,
+                        "shares": 5.92,
+                        "currentPrice": 195.00,
+                        "currentValue": 1154.40,
+                        "currentValueKrw": 1523808,
+                        "totalReturnKrw": 523808,
+                        "totalReturnPercent": 52.38
                       }
                       """
               )
@@ -114,7 +120,7 @@ public class TradingSimulationController {
     // JWT 토큰 값을 그대로 사용 (이미 Bearer 형식으로 전달됨)
     String token = "Bearer " + jwt.getTokenValue();
 
-    InvestmentResponse result = tradingSimulationService.executeInvestment(request, token);
+    InvestmentResponse result = investmentBacktestService.executeInvestment(request, token);
 
     log.info("보유 주식 백테스트 완료: 사용자 {} - {}",
         userId, result.getStatus());
@@ -143,7 +149,9 @@ public class TradingSimulationController {
 
     log.info("투자 시뮬레이션 요청: {}", request);
 
-    InvestmentResponse response = tradingSimulationService.executeInvestment(request, jwt.getTokenValue());
+    // trade-service Feign @RequestHeader("Authorization")에 전달 → "Bearer " 접두사 필수
+    String token = "Bearer " + jwt.getTokenValue();
+    InvestmentResponse response = investmentBacktestService.executeInvestment(request, token);
     return ResponseEntity.ok(response);
   }
 }
