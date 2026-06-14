@@ -138,6 +138,17 @@ timeoutSeconds: {{ .timeoutSeconds | default 5 }}
 failureThreshold: {{ .failureThreshold | default 3 }}
 {{- end }}
 
+{{/* Startup Probe — 느린 부팅 보호. 통과 전까진 liveness/readiness 비활성 */}}
+{{- define "ggeolmuse.startupProbe" -}}
+httpGet:
+  path: /actuator/health/readiness
+  port: {{ .port }}
+initialDelaySeconds: {{ .initialDelaySeconds | default 10 }}
+periodSeconds: {{ .periodSeconds | default 10 }}
+timeoutSeconds: {{ .timeoutSeconds | default 5 }}
+failureThreshold: {{ .failureThreshold | default 30 }}
+{{- end }}
+
 {{/* Secret 참조 */}}
 {{- define "ggeolmuse.secretRef" -}}
 valueFrom:

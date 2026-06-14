@@ -86,6 +86,8 @@ spec:
         {{- end }}
         {{- end }}
         {{- end }}
+        startupProbe:
+          {{- include "ggeolmuse.startupProbe" (merge (dict "port" .Values.global.management.port) .Values.services.marketDataService.probes.startup) | nindent 10 }}
         readinessProbe:
           {{- include "ggeolmuse.readinessProbe" (merge (dict "port" .Values.global.management.port) .Values.services.marketDataService.probes.readiness) | nindent 10 }}
         livenessProbe:

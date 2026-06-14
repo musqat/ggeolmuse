@@ -91,6 +91,8 @@ spec:
         resources:
           {{- toYaml .Values.configServer.resources | nindent 10 }}
         {{- end }}
+        startupProbe:
+          {{- include "ggeolmuse.startupProbe" (dict "port" 9090 "failureThreshold" .Values.configServer.probes.startup.failureThreshold "periodSeconds" .Values.configServer.probes.startup.periodSeconds) | nindent 10 }}
         readinessProbe:
           {{- include "ggeolmuse.readinessProbe" (dict "port" 9090 "initialDelaySeconds" .Values.configServer.probes.readiness.initialDelaySeconds "periodSeconds" .Values.configServer.probes.readiness.periodSeconds) | nindent 10 }}
         livenessProbe:

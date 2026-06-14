@@ -3,7 +3,6 @@ spring:
     name: gateway-server
   config:
     import:
-      - "optional:aws-secretsmanager:ggeolmuse/production"
       - "optional:configserver:${SPRING_CLOUD_CONFIG_URI:http://config-server:8888}"
   cloud:
     config:
@@ -13,3 +12,12 @@ spring:
 
 server:
   port: 8070
+
+---
+# prod 프로파일에서만 AWS Secrets Manager (dev/로컬은 AWS 미사용)
+spring:
+  config:
+    activate:
+      on-profile: prod
+    import:
+      - "optional:aws-secretsmanager:ggeolmuse/production"

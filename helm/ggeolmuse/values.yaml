@@ -186,6 +186,9 @@ configServer:
     liveness:
       initialDelaySeconds: 120
       periodSeconds: 15
+    startup:
+      failureThreshold: 30
+      periodSeconds: 10
 
 # 게이트웨이
 gatewayServer:
@@ -215,6 +218,9 @@ gatewayServer:
     liveness:
       initialDelaySeconds: 120
       periodSeconds: 15
+    startup:
+      failureThreshold: 30
+      periodSeconds: 10
 
 # 비즈니스 서비스
 services:
@@ -246,6 +252,9 @@ services:
       liveness:
         initialDelaySeconds: 120
         periodSeconds: 20
+      startup:
+        failureThreshold: 30
+        periodSeconds: 10
 
   tradeService:
     enabled: true
@@ -272,6 +281,9 @@ services:
       liveness:
         initialDelaySeconds: 120
         periodSeconds: 20
+      startup:
+        failureThreshold: 30
+        periodSeconds: 10
 
   marketDataService:
     enabled: true
@@ -300,6 +312,9 @@ services:
       liveness:
         initialDelaySeconds: 10
         periodSeconds: 15
+      startup:
+        failureThreshold: 30
+        periodSeconds: 10
 
   backtestService:
     enabled: true
@@ -322,6 +337,9 @@ services:
       liveness:
         initialDelaySeconds: 120
         periodSeconds: 20
+      startup:
+        failureThreshold: 30
+        periodSeconds: 10
 
   chatService:
     enabled: true

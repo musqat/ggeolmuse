@@ -71,6 +71,8 @@ spec:
         {{- end }}
         - name: JAVA_OPTS
           value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" .Values.services.tradeService.name "xmx" "256m") }}
+        startupProbe:
+          {{- include "ggeolmuse.startupProbe" (merge (dict "port" .Values.global.management.port) .Values.services.tradeService.probes.startup) | nindent 10 }}
         readinessProbe:
           {{- include "ggeolmuse.readinessProbe" (merge (dict "port" .Values.global.management.port) .Values.services.tradeService.probes.readiness) | nindent 10 }}
         livenessProbe:

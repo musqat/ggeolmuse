@@ -70,6 +70,8 @@ spec:
           value: {{ .Values.global.keycloak.realm | quote }}
         - name: JAVA_OPTS
           value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" .Values.gatewayServer.name "xmx" "192m") }}
+        startupProbe:
+          {{- include "ggeolmuse.startupProbe" (dict "port" 9090 "failureThreshold" .Values.gatewayServer.probes.startup.failureThreshold "periodSeconds" .Values.gatewayServer.probes.startup.periodSeconds) | nindent 10 }}
         readinessProbe:
           {{- include "ggeolmuse.readinessProbe" (dict "port" 9090 "initialDelaySeconds" .Values.gatewayServer.probes.readiness.initialDelaySeconds "periodSeconds" .Values.gatewayServer.probes.readiness.periodSeconds) | nindent 10 }}
         livenessProbe:
