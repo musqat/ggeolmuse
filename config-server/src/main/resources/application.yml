@@ -4,8 +4,8 @@ server:
 spring:
   application:
     name: config-server
-  config:
-    import: "optional:aws-secretsmanager:ggeolmuse/production"
+  # config-server는 앱 시크릿(ggeolmuse/production)을 쓰지 않음 → AWS import 제거
+  # (git config 서빙만 담당, 자체 크리덴셜은 env로 주입)
   profiles:
     active: git
 

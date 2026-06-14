@@ -105,6 +105,8 @@ spec:
           value: {{ .Values.services.userService.env.appFrontendUrl | quote }}
         - name: APP_MAIL_VERIFICATION_BASE_URL
           value: {{ .Values.services.userService.env.mailVerificationBaseUrl | quote }}
+        startupProbe:
+          {{- include "ggeolmuse.startupProbe" (merge (dict "port" .Values.global.management.port) .Values.services.userService.probes.startup) | nindent 10 }}
         readinessProbe:
           {{- include "ggeolmuse.readinessProbe" (merge (dict "port" .Values.global.management.port) .Values.services.userService.probes.readiness) | nindent 10 }}
         livenessProbe:

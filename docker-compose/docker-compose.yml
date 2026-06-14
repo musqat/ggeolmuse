@@ -130,9 +130,6 @@ services:
       CONFIG_SERVER_USERNAME: config
       CONFIG_SERVER_PASSWORD: config123
       SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: "false"
-      # 로컬: AWS 스킵 (region+더미 크리덴셜로 즉시 실패→skip)   
-      AWS_ACCESS_KEY_ID: dummy
-      AWS_SECRET_ACCESS_KEY: dummy
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
       KEYCLOAK_REALM: custom
       KEYCLOAK_SECRET: local-client-secret
@@ -175,9 +172,6 @@ services:
       SPRING_CLOUD_CONFIG_USERNAME: config
       SPRING_CLOUD_CONFIG_PASSWORD: config123
       SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: "false"
-      # 로컬: AWS 스킵 (region+더미 크리덴셜로 즉시 실패→skip)   
-      AWS_ACCESS_KEY_ID: dummy
-      AWS_SECRET_ACCESS_KEY: dummy
       SPRING_PROFILES_ACTIVE: dev
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
       KEYCLOAK_REALM: custom
@@ -215,9 +209,6 @@ services:
       SPRING_CLOUD_CONFIG_USERNAME: config
       SPRING_CLOUD_CONFIG_PASSWORD: config123
       SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: "false"
-      # 로컬: AWS 스킵 (region+더미 크리덴셜로 즉시 실패→skip)   
-      AWS_ACCESS_KEY_ID: dummy
-      AWS_SECRET_ACCESS_KEY: dummy
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
       KEYCLOAK_REALM: custom
@@ -227,8 +218,8 @@ services:
       # 시드 admin 계정 (로컬 체험용 더미)
       APP_ADMIN_EMAIL: admin@test.com
       ADMIN_PASSWORD: Admin123!
-      # config-server를 non-optional + retry로 가져옴 (초기 부팅 DNS race 방지). aws만 optional 유지.
-      SPRING_CONFIG_IMPORT: "optional:aws-secretsmanager:ggeolmuse/production,configserver:http://config-server:8888"
+      # config-server를 non-optional + retry로 가져옴 (초기 부팅 DNS race 방지). 로컬은 AWS 미사용.
+      SPRING_CONFIG_IMPORT: "configserver:http://config-server:8888"
       SPRING_CLOUD_CONFIG_FAIL_FAST: "true"
       SPRING_CLOUD_CONFIG_RETRY_MAX_ATTEMPTS: "20"
       SPRING_CLOUD_CONFIG_RETRY_INITIAL_INTERVAL: "2000"
@@ -268,9 +259,6 @@ services:
       SPRING_CLOUD_CONFIG_USERNAME: config
       SPRING_CLOUD_CONFIG_PASSWORD: config123
       SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: "false"
-      # 로컬: AWS 스킵 (region+더미 크리덴셜로 즉시 실패→skip)   
-      AWS_ACCESS_KEY_ID: dummy
-      AWS_SECRET_ACCESS_KEY: dummy
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
       KEYCLOAK_REALM: custom
@@ -333,9 +321,6 @@ services:
       SPRING_CLOUD_CONFIG_USERNAME: config
       SPRING_CLOUD_CONFIG_PASSWORD: config123
       SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: "false"
-      # 로컬: AWS 스킵 (region+더미 크리덴셜로 즉시 실패→skip)   
-      AWS_ACCESS_KEY_ID: dummy
-      AWS_SECRET_ACCESS_KEY: dummy
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
       KEYCLOAK_REALM: custom
@@ -378,9 +363,6 @@ services:
       SPRING_CLOUD_CONFIG_USERNAME: config
       SPRING_CLOUD_CONFIG_PASSWORD: config123
       SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: "false"
-      # 로컬: AWS 스킵 (region+더미 크리덴셜로 즉시 실패→skip)   
-      AWS_ACCESS_KEY_ID: dummy
-      AWS_SECRET_ACCESS_KEY: dummy
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
       KEYCLOAK_REALM: custom
