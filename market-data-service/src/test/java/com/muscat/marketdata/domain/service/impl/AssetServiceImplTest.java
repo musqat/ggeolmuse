@@ -615,6 +615,95 @@ class AssetServiceImplTest {
   }
 
   @Nested
+  @DisplayName("종목 이름 수정 테스트")
+  class UpdateAssetNameTests {
+
+    @Test
+    @DisplayName("존재하는 종목의 이름을 수정하고 저장한다")
+    void updateAssetName_ExistingAsset_Success() {
+      // given
+      given(assetRepository.findById(TEST_SYMBOL)).willReturn(Optional.of(testAsset));
+      given(assetRepository.save(any(Asset.class))).willAnswer(
+        invocation -> invocation.getArgument(0));
+
+      // when
+      Asset result = assetService.updateAssetName(TEST_SYMBOL, "SpaceX");
+
+      // then
+      assertThat(result.getName()).isEqualTo("SpaceX");
+      verify(assetRepository).findById(TEST_SYMBOL);
+      verify(assetRepository).save(testAsset);
+    }
+
+    @Test
+    @DisplayName("이름 앞뒤 공백은 제거하여 저장한다")
+    void updateAssetName_TrimsWhitespace_Success() {
+      // given
+      given(assetRepository.findById(TEST_SYMBOL)).willReturn(Optional.of(testAsset));
+      given(assetRepository.save(any(Asset.class))).willAnswer(
+        invocation -> invocation.getArgument(0));
+
+      // when
+      Asset result = assetService.updateAssetName(TEST_SYMBOL, "  SpaceX  ");
+
+      // then
+      assertThat(result.getName()).isEqualTo("SpaceX");
+    }
+
+    @Test
+    @DisplayName("심볼을 대문자로 변환하여 조회한다")
+    void updateAssetName_ConvertsToUpperCase_Success() {
+      // given
+      given(assetRepository.findById("AAPL")).willReturn(Optional.of(testAsset));
+      given(assetRepository.save(any(Asset.class))).willAnswer(
+        invocation -> invocation.getArgument(0));
+
+      // when
+      assetService.updateAssetName("aapl", "SpaceX");
+
+      // then
+      verify(assetRepository).findById("AAPL");
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 종목이면 예외를 발생시킨다")
+    void updateAssetName_NotExists_ThrowsException() {
+      // given
+      given(assetRepository.findById(TEST_SYMBOL)).willReturn(Optional.empty());
+
+      // when & then
+      assertThatThrownBy(() -> assetService.updateAssetName(TEST_SYMBOL, "SpaceX"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Not found");
+
+      verify(assetRepository).findById(TEST_SYMBOL);
+      verify(assetRepository, never()).save(any(Asset.class));
+    }
+
+    @Test
+    @DisplayName("이름이 비어있으면 예외를 발생시킨다")
+    void updateAssetName_BlankName_ThrowsException() {
+      // when & then
+      assertThatThrownBy(() -> assetService.updateAssetName(TEST_SYMBOL, "   "))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("name");
+
+      verify(assetRepository, never()).save(any(Asset.class));
+    }
+
+    @Test
+    @DisplayName("이름이 null이면 예외를 발생시킨다")
+    void updateAssetName_NullName_ThrowsException() {
+      // when & then
+      assertThatThrownBy(() -> assetService.updateAssetName(TEST_SYMBOL, null))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("name");
+
+      verify(assetRepository, never()).save(any(Asset.class));
+    }
+  }
+
+  @Nested
   @DisplayName("종목 시가총액 업데이트 테스트")
   class UpdateAssetMarketCapTests {
 

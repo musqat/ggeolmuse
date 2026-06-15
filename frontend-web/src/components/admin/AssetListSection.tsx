@@ -1,5 +1,5 @@
-import React from 'react';
-import { RefreshCw, Trash2, DollarSign, TrendingUp, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState } from 'react';
+import { RefreshCw, Trash2, DollarSign, TrendingUp, ArrowUpDown, ChevronLeft, ChevronRight, Pencil, Check, X } from 'lucide-react';
 import type { Asset } from '@services/adminApi';
 
 interface AssetListSectionProps {
@@ -10,6 +10,7 @@ interface AssetListSectionProps {
   onBulkDelete: () => void;
   onUpdatePrice: (symbol: string) => void;
   onUpdateMarketCap: (symbol: string) => void;
+  onUpdateName: (symbol: string, name: string) => Promise<boolean> | void;
   onUpdateAllPrices: () => void;
   onUpdateAllMarketCaps: () => void;
   // Pagination props
@@ -38,6 +39,7 @@ export default function AssetListSection({
   onBulkDelete,
   onUpdatePrice,
   onUpdateMarketCap,
+  onUpdateName,
   onUpdateAllPrices,
   onUpdateAllMarketCaps,
   currentPage,
@@ -56,6 +58,25 @@ export default function AssetListSection({
 }: AssetListSectionProps) {
   const currentSymbols = assets.map(a => a.symbol);
   const allSelected = currentSymbols.length > 0 && currentSymbols.every(s => selected.has(s));
+
+  // 이름 인라인 편집 상태
+  const [editingSymbol, setEditingSymbol] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+
+  const startEdit = (asset: Asset) => {
+    setEditingSymbol(asset.symbol);
+    setEditName(asset.name ?? '');
+  };
+
+  const cancelEdit = () => {
+    setEditingSymbol(null);
+    setEditName('');
+  };
+
+  const saveEdit = async (symbol: string) => {
+    const ok = await onUpdateName(symbol, editName);
+    if (ok !== false) cancelEdit();
+  };
 
   const handleSort = (field: string) => {
     if (sortBy === field) {
@@ -198,6 +219,9 @@ export default function AssetListSection({
                 />
               </th>
               <SortHeader field="symbol" label="심볼" />
+              <th className="px-6 py-3 text-left text-xs font-medium text-tx-2 uppercase tracking-wider">
+                이름
+              </th>
               <SortHeader field="currentPrice" label="가격" />
               <SortHeader field="marketCap" label="시가총액" />
               <SortHeader field="latestDataDate" label="최신 데이터" />
@@ -222,6 +246,50 @@ export default function AssetListSection({
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap font-semibold text-brand">
                   {asset.symbol}
+                </td>
+                <td className="px-6 py-4">
+                  {editingSymbol === asset.symbol ? (
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') saveEdit(asset.symbol);
+                          if (e.key === 'Escape') cancelEdit();
+                        }}
+                        autoFocus
+                        className="px-2 py-1 border rounded text-sm w-56"
+                      />
+                      <button
+                        onClick={() => saveEdit(asset.symbol)}
+                        disabled={loading}
+                        className="p-1 text-green-600 hover:bg-green-500/10 rounded disabled:opacity-50"
+                        title="저장"
+                      >
+                        <Check className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={cancelEdit}
+                        className="p-1 text-tx-2 hover:bg-elevated rounded"
+                        title="취소"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1 group">
+                      <span>{asset.name}</span>
+                      <button
+                        onClick={() => startEdit(asset)}
+                        disabled={loading}
+                        className="p-1 text-tx-3 hover:text-brand hover:bg-brand-bg rounded opacity-0 group-hover:opacity-100 transition disabled:opacity-50"
+                        title="이름 수정"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={asset.currentPrice == null ? 'text-tx-3' : 'font-medium'}>
