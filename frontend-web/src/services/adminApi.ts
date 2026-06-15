@@ -113,6 +113,10 @@ export const marketAdminApi = {
     await api.post('/admin/market/assets', request);
   },
 
+  updateAssetName: async (symbol: string, name: string): Promise<void> => {
+    await api.put(`/admin/market/assets/${symbol}`, { name });
+  },
+
   deleteAsset: async (symbol: string): Promise<void> => {
     await api.delete(`/admin/market/assets/${symbol}`);
   },

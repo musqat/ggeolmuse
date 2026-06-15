@@ -23,6 +23,7 @@ export default function AdminMarket() {
     handleBulkDelete,
     handleUpdatePrice,
     handleUpdateMarketCap,
+    handleUpdateName,
     handleUpdateAllPrices,
     handleUpdateAllMarketCaps,
     loadAssets,
@@ -123,6 +124,7 @@ export default function AdminMarket() {
           onBulkDelete={handleBulkDelete}
           onUpdatePrice={handleUpdatePrice}
           onUpdateMarketCap={handleUpdateMarketCap}
+          onUpdateName={handleUpdateName}
           onUpdateAllPrices={handleUpdateAllPrices}
           onUpdateAllMarketCaps={handleUpdateAllMarketCaps}
           currentPage={currentPage}

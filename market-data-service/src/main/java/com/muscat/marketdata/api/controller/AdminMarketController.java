@@ -183,6 +183,34 @@ public class AdminMarketController {
     }
 
     /**
+     * 종목 이름 수정 (잘못 수집된 회사명 교정)
+     */
+    @PutMapping("/assets/{symbol}")
+    public ResponseEntity<AssetResponse> updateAsset(
+            @PathVariable String symbol,
+            @RequestBody UpdateAssetRequest request) {
+        log.info("종목 이름 수정 요청: symbol={}, name={}", symbol, request.getName());
+
+        try {
+            Asset asset = assetService.updateAssetName(symbol, request.getName());
+            return ResponseEntity.ok(AssetResponse.builder()
+                    .symbol(asset.getSymbol())
+                    .name(asset.getName())
+                    .country(asset.getCountry())
+                    .currency(asset.getCurrency())
+                    .assetType(asset.getAssetType())
+                    .message("종목 이름이 수정되었습니다.")
+                    .build());
+        } catch (IllegalArgumentException e) {
+            log.warn("종목 이름 수정 실패: {}", e.getMessage());
+            HttpStatus status = e.getMessage() != null && e.getMessage().startsWith("Not found")
+                    ? HttpStatus.NOT_FOUND : HttpStatus.BAD_REQUEST;
+            return ResponseEntity.status(status)
+                    .body(AssetResponse.builder().message(e.getMessage()).build());
+        }
+    }
+
+    /**
      * 심볼 삭제 (soft delete)
      *
      * DELETE /api/admin/market/assets/AAPL
@@ -369,6 +397,13 @@ public class AdminMarketController {
         private LocalDate fromDate;
         private LocalDate toDate;
         private boolean includeDividends = false;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class UpdateAssetRequest {
+        private String name;
     }
 
     @Data

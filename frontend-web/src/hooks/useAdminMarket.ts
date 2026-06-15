@@ -149,6 +149,33 @@ export const useAdminMarket = () => {
     }
   };
 
+  // 종목 이름 수정 (잘못 수집된 회사명 교정)
+  const handleUpdateName = async (symbol: string, name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setError('이름은 비워둘 수 없습니다.');
+      return false;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await marketAdminApi.updateAssetName(symbol, trimmed);
+      // 검색 결과에 떠 있는 경우 즉시 반영, 전체 목록은 재로드
+      setSearchResults(prev =>
+        prev.map(a => (a.symbol === symbol ? { ...a, name: trimmed } : a))
+      );
+      await loadAssets();
+      return true;
+    } catch (err: any) {
+      const message = err.response?.data?.message || '이름 수정에 실패했습니다.';
+      setError(message);
+      console.error('Update name failed:', err);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // 전체 심볼 목록 로드 (가격, 최신 데이터 날짜 포함, 페이지네이션)
   const loadAssets = async (page: number = currentPage) => {
     const safePage = typeof page === 'number' && isFinite(page) ? page : 0;
@@ -294,6 +321,7 @@ export const useAdminMarket = () => {
     handlePreview,
     handleAddAsset,
     handleDeleteAsset,
+    handleUpdateName,
     handleBulkDelete,
     handleUpdatePrice,
     handleUpdateMarketCap,

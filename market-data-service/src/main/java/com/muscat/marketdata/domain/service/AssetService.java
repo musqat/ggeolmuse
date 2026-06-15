@@ -96,6 +96,16 @@ public interface AssetService {
   int updateAllMarketCaps();
 
   /**
+   * 종목 이름 수정
+   * 잘못 수집된 회사명을 관리자가 직접 교정
+   *
+   * @param symbol 종목 심볼
+   * @param name   새 회사명
+   * @return 수정된 Asset 엔티티
+   */
+  Asset updateAssetName(String symbol, String name);
+
+  /**
    * 종목 삭제 (soft delete)
    * active를 false로 설정하고 delistedDate를 기록합니다.
    *

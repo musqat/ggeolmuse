@@ -281,6 +281,26 @@ public class AssetServiceImpl implements AssetService {
 
     @Override
     @Transactional
+    public Asset updateAssetName(String symbol, String name) {
+        log.info("종목 이름 수정 요청: symbol={}, name={}", symbol, name);
+
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("Asset name must not be blank");
+        }
+
+        String upperSymbol = symbol.toUpperCase();
+        Asset asset = assetRepository.findById(upperSymbol)
+                .orElseThrow(() -> new IllegalArgumentException("Not found: " + upperSymbol));
+
+        asset.setName(name.trim());
+        Asset saved = assetRepository.save(asset);
+
+        log.info("종목 이름 수정 성공: symbol={}, name={}", upperSymbol, saved.getName());
+        return saved;
+    }
+
+    @Override
+    @Transactional
     public void deleteAsset(String symbol) {
         log.info("종목 삭제 요청 (soft delete): symbol={}", symbol);
 
