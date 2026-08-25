@@ -37,6 +37,14 @@ class FxDataCollectorTest {
   private static final LocalDate SAT = LocalDate.of(2024, 9, 21);
   private static final LocalDate SUN = LocalDate.of(2024, 9, 22);
 
+  /**
+   * FxDataCollector 는 LocalDate.now(KST) 를 쓴다. 테스트가 JVM 기본 타임존의
+   * LocalDate.now() 를 쓰면 UTC 러너에서 하루 어긋나 깨진다.
+   */
+  private static LocalDate today() {
+    return LocalDate.now(java.time.ZoneId.of("Asia/Seoul"));
+  }
+
   @Mock
   private FxSource fxSource;
 
@@ -196,7 +204,7 @@ class FxDataCollectorTest {
       // 마지막 저장일을 일주일 전으로 둔다. 하루 전으로 잡으면 수집 범위가
       // 오늘 하루뿐이라, 오늘이 주말이면 fetchFx 가 한 번도 불리지 않아
       // 테스트가 요일에 따라 깨진다.
-      LocalDate lastSaved = LocalDate.now().minusDays(7);
+      LocalDate lastSaved = today().minusDays(7);
       given(fxRateRepository.findAll())
         .willReturn(List.of(FxRate.builder().date(lastSaved).rate(BigDecimal.ONE).build()));
       given(fxSource.fetchFx(any())).willReturn(Optional.of(new BigDecimal("1350")));
@@ -213,7 +221,7 @@ class FxDataCollectorTest {
     void 증분_스킵() {
       properties.getFxIngest().getIncremental().setEnabled(true);
       given(fxRateRepository.findAll())
-        .willReturn(List.of(FxRate.builder().date(LocalDate.now()).rate(BigDecimal.ONE).build()));
+        .willReturn(List.of(FxRate.builder().date(today()).rate(BigDecimal.ONE).build()));
 
       collector.run();
 
@@ -236,8 +244,8 @@ class FxDataCollectorTest {
       assertThat(saved.getValue()).isNotEmpty();
       assertThat(saved.getValue())
         .allSatisfy(r -> assertThat(r.getDate())
-          .isAfterOrEqualTo(LocalDate.now().minusDays(3))
-          .isBeforeOrEqualTo(LocalDate.now()));
+          .isAfterOrEqualTo(today().minusDays(3))
+          .isBeforeOrEqualTo(today()));
     }
 
     @Test
