@@ -153,15 +153,9 @@ public class UserServiceImpl implements UserService {
       throw e;
     }
 
-    if (!user.isEmailVerified()) {
-      log.warn("로그인 실패 - 이메일 미인증: {}", email);
-      // Kafka 이벤트 발행: 로그인 실패 (이메일 미인증)
-      loginEventProducer.publishLoginFailed(
-        email, "EMAIL_NOT_VERIFIED", "이메일 인증이 완료되지 않았습니다",
-        "PASSWORD", null, null);
-      throw new UserException(UserResponse.EMAIL_NOT_VERIFIED);
-    }
-
+    // 비밀번호를 이메일 인증 체크보다 먼저 본다.
+    // 인증 체크가 앞서면, 비번을 몰라도 미인증(400)과 없는 계정(401)의 응답이 갈려
+    // 가입 여부가 드러난다. 비번을 통과한 사람에게만 미인증 안내를 주도록 순서를 둔다.
     if (user.getPasswordHash() == null || !passwordEncoder.matches(password,
       user.getPasswordHash())) {
       log.warn("로그인 실패 - 비밀번호 불일치: {}", email);
@@ -170,6 +164,15 @@ public class UserServiceImpl implements UserService {
         email, "INVALID_CREDENTIALS", "잘못된 이메일 또는 비밀번호입니다",
         "PASSWORD", null, null);
       throw new UserException(UserResponse.INVALID_CREDENTIALS);
+    }
+
+    if (!user.isEmailVerified()) {
+      log.warn("로그인 실패 - 이메일 미인증: {}", email);
+      // Kafka 이벤트 발행: 로그인 실패 (이메일 미인증)
+      loginEventProducer.publishLoginFailed(
+        email, "EMAIL_NOT_VERIFIED", "이메일 인증이 완료되지 않았습니다",
+        "PASSWORD", null, null);
+      throw new UserException(UserResponse.EMAIL_NOT_VERIFIED);
     }
 
     String token;

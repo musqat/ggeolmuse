@@ -253,11 +253,14 @@ class UserServiceImplTest {
     }
 
     @Test
-    @DisplayName("이메일 미인증 사용자는 로그인할 수 없다")
+    @DisplayName("비밀번호가 맞아도 이메일 미인증이면 로그인할 수 없다")
     void login_EmailNotVerified_ThrowsException() {
-      // given
+      // given: 미인증 사용자 + 올바른 비밀번호
+      // 비밀번호 검증이 인증 체크보다 먼저 돈다. 통과한 사람에게만 미인증 안내를 준다.
+      testUser.setPasswordHash("$2a$10$encodedPassword");
       testUser.setEmailVerified(false);
       given(userRepository.findByEmail(testEmail)).willReturn(Optional.of(testUser));
+      given(passwordEncoder.matches(testPassword, testUser.getPasswordHash())).willReturn(true);
 
       // when & then
       assertThatThrownBy(() ->
@@ -265,7 +268,24 @@ class UserServiceImplTest {
       ).isInstanceOf(UserException.class)
         .hasMessage(UserResponse.EMAIL_NOT_VERIFIED.getMessage());
 
-      verify(passwordEncoder, never()).matches(anyString(), anyString());
+      verify(keycloakService, never()).login(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("미인증 사용자라도 비밀번호가 틀리면 인증 실패로 응답한다(가입 여부 노출 차단)")
+    void login_EmailNotVerified_WrongPassword_HidesExistence() {
+      // given: 미인증 사용자 + 틀린 비밀번호
+      testUser.setPasswordHash("$2a$10$encodedPassword");
+      testUser.setEmailVerified(false);
+      given(userRepository.findByEmail(testEmail)).willReturn(Optional.of(testUser));
+      given(passwordEncoder.matches("wrongPassword", testUser.getPasswordHash())).willReturn(false);
+
+      // when & then: 없는 계정과 같은 INVALID_CREDENTIALS 로 응답해 열거를 막는다
+      assertThatThrownBy(() ->
+        userService.login(testEmail, "wrongPassword")
+      ).isInstanceOf(UserException.class)
+        .hasMessage(UserResponse.INVALID_CREDENTIALS.getMessage());
+
       verify(keycloakService, never()).login(anyString(), anyString());
     }
 

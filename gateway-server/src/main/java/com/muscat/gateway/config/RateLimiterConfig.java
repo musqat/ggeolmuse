@@ -1,11 +1,13 @@
 package com.muscat.gateway.config;
 
 import org.springframework.cloud.gateway.filter.ratelimit.KeyResolver;
+import org.springframework.cloud.gateway.support.ipresolver.XForwardedRemoteAddressResolver;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import reactor.core.publisher.Mono;
 
+import java.net.InetSocketAddress;
 import java.util.Objects;
 
 /**
@@ -15,17 +17,25 @@ import java.util.Objects;
 @Configuration
 public class RateLimiterConfig {
 
+    private final XForwardedRemoteAddressResolver xForwardedResolver =
+        XForwardedRemoteAddressResolver.maxTrustedIndex(1);
+
     /**
      * IP 주소 기반 Rate Limiting
      * 동일 IP에서 오는 요청을 그룹화하여 제한
+     *
+     * 예전엔 소켓 주소(getRemoteAddress)만 봐서, nginx 뒤에서는 모든 사용자가
+     * nginx IP 한 버킷을 공유했다(제한이 무의미). XFF 를 신뢰해 실 IP 로 나눈다.
      */
     @Bean
     @Primary
     public KeyResolver ipKeyResolver() {
         return exchange -> {
-            String clientIp = Objects.requireNonNull(
-                exchange.getRequest().getRemoteAddress()
-            ).getAddress().getHostAddress();
+            InetSocketAddress resolved = xForwardedResolver.resolve(exchange);
+            String clientIp = resolved != null
+                ? resolved.getAddress().getHostAddress()
+                : Objects.requireNonNull(exchange.getRequest().getRemoteAddress())
+                    .getAddress().getHostAddress();
 
             return Mono.just(clientIp);
         };
