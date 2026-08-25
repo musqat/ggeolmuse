@@ -36,7 +36,3 @@ export function getLocalBacktestHistory(): LocalBacktestEntry[] {
     return [];
   }
 }
-
-export function clearLocalBacktestHistory(): void {
-  localStorage.removeItem(STORAGE_KEY);
-}

@@ -238,7 +238,7 @@ export const portfolioApi = {
 };
 
 // 포트폴리오 평가 히스토리
-export type PortfolioEvaluationHistory = {
+type PortfolioEvaluationHistory = {
   date: string;
   symbolEvaluations: { [symbol: string]: number };   // 종목별 평가액
   totalEvaluation: number;                           // 총 평가액
@@ -310,7 +310,7 @@ export type AccountSummary = {
 };
 
 // 계좌 상세 정보
-export type AccountDetail = {
+type AccountDetail = {
   id: number;
   accountName: string;                  // 계좌명
   accountNumber: string;                // 계좌번호
@@ -339,18 +339,18 @@ export type AccountBalance = {
 export type BalanceResponse = AccountBalance;
 
 // 계좌 생성 요청
-export type CreateAccountRequest = {
+type CreateAccountRequest = {
   accountName: string;                  // 계좌명
   commissionRate: number;               // 수수료율 (0 ~ 0.05 = 0% ~ 5%)
 };
 
 // 입금 요청
-export type DepositRequest = {
+type DepositRequest = {
   krwAmount: number;                    // 입금 금액 (KRW)
 };
 
 // 환전 요청
-export type ExchangeRequest = {
+type ExchangeRequest = {
   fromCurrency: 'KRW' | 'USD';          // 출발 통화
   toCurrency: 'KRW' | 'USD';            // 도착 통화
   originalAmount: number;               // 환전 금액
@@ -358,7 +358,7 @@ export type ExchangeRequest = {
 };
 
 // 날짜 기준 환전 요청
-export type ExchangeByDateRequest = {
+type ExchangeByDateRequest = {
   fromCurrency: 'KRW' | 'USD';          // 출발 통화
   toCurrency: 'KRW' | 'USD';            // 도착 통화
   originalAmount: number;               // 환전 금액
@@ -418,20 +418,20 @@ export const accountsApi = {
 };
 
 // 로그인 요청
-export type LoginRequest = {
+type LoginRequest = {
   email: string;
   password: string;
 };
 
 // 회원가입 요청
-export type RegisterRequest = {
+type RegisterRequest = {
   email: string;
   password: string;
   nickname: string;                     // 닉네임
 };
 
 // 인증 이메일 재발송 요청
-export type ResendVerificationRequest = {
+type ResendVerificationRequest = {
   email: string;
 };
 
@@ -585,7 +585,7 @@ export type SymbolComparisonRequest = {
 };
 
 // 전략 파라미터
-export type StrategyParameter = {
+type StrategyParameter = {
   strategyType: 'SIMPLE' | 'DCA' | 'CONDITIONAL_PURCHASE';  // 전략 유형
   name?: string;                        // 전략명
   // DCA 전략 필드
@@ -639,7 +639,7 @@ export type StrategyResponse = {
 };
 
 // 비교 항목
-export type ComparisonItem = {
+type ComparisonItem = {
   name: string;                         // 항목명
   totalInvested?: number;               // 총 투자액
   currentValueKrw?: number;             // 현재 가치 (KRW)

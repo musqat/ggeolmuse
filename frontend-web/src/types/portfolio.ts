@@ -1,13 +1,4 @@
-export interface Account {
-  id: string;
-  accountName: string;
-  krwBalance: number;
-  usdBalance: number;
-  commissionRate: number;
-  createdAt: string;
-}
-
-export interface Holding {
+interface Holding {
   symbol: string;
   quantity: number;
   averagePrice: number;

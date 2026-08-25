@@ -9,7 +9,7 @@ interface DeleteAccountModalProps {
   accountId: number | null;
 }
 
-export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
+const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
   isOpen,
   onClose,
   onConfirm,

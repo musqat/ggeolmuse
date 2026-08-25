@@ -40,7 +40,7 @@ export interface Asset {
   latestDataDate?: string;
 }
 
-export interface BulkDeleteResponse {
+interface BulkDeleteResponse {
   requested: number;
   deleted: number;
   message: string;
@@ -67,7 +67,7 @@ export interface CompanyOverview {
   description: string;
 }
 
-export interface CreateAssetRequest {
+interface CreateAssetRequest {
   symbol: string;
   name?: string;
   country?: string;
@@ -166,7 +166,7 @@ export interface UserStats {
   adminUsers: number;
 }
 
-export interface AccountSummary {
+interface AccountSummary {
   accountId: number;
   accountName: string;
   balanceKrw: number;
@@ -185,14 +185,6 @@ export interface UserDetail {
   updatedAt: string;
   lastLoginAt: string | null;
   accounts: AccountSummary[];
-}
-
-export interface PageResponse<T> {
-  content: T[];
-  totalPages: number;
-  totalElements: number;
-  size: number;
-  number: number;
 }
 
 export const userAdminApi = {
@@ -244,4 +236,3 @@ export const userAdminApi = {
   },
 };
 
-export default api;

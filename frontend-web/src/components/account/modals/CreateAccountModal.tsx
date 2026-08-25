@@ -12,7 +12,7 @@ interface CreateAccountModalProps {
  * 계좌명과 거래 수수료율을 입력받아 새 계좌를 생성합니다.
  */
 
-export const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
+const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
   isOpen,
   onClose,
   onSubmit,
