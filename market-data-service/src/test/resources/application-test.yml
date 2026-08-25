@@ -28,6 +28,11 @@ spring:
     console:
       enabled: true
 
+  # KafkaProducerConfig 가 이 값을 @Value 로 직접 읽는다.
+  # 프로듀서는 지연 연결이라 컨텍스트 로딩엔 더미 주소로 충분하다.
+  kafka:
+    bootstrap-servers: localhost:9092
+
 server:
   port: 0
 
@@ -38,6 +43,9 @@ keycloak:
 
 # Market Data 테스트 설정
 marketdata:
+  # FxRateService 구현체가 @ConditionalOnProperty(marketdata.provider) 라
+  # 값이 없으면 빈이 하나도 뜨지 않고 컨텍스트 로딩이 실패한다.
+  provider: yahoo
   constants:
     fx-ingest:
       backfill:

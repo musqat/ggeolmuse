@@ -194,8 +194,10 @@ public class YahooParser {
 
   private DividendDto createDividendDto(JsonNode event, String eventKey, String symbol,
     LocalDate fromDate, LocalDate toDate) {
+    // 삼항 양쪽 타입을 Long 으로 맞춘다. long 과 섞이면 Long 쪽이 언박싱돼
+    // parseLongSafely 가 null 일 때 아래 체크 전에 NPE 가 난다.
     Long timestamp = event.hasNonNull("date")
-      ? event.get("date").asLong()
+      ? Long.valueOf(event.get("date").asLong())
       : parseLongSafely(eventKey);
 
     if (timestamp == null) {
