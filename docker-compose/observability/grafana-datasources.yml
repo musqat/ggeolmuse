@@ -1,0 +1,25 @@
+# Grafana 부팅 시 데이터소스를 자동 등록한다. UI에서 손으로 넣을 필요 없다.
+# 컨테이너의 /etc/grafana/provisioning/datasources/ 에 마운트된다.
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    uid: prometheus
+    access: proxy
+    # 컨테이너 네트워크 안이므로 9090 그대로. 호스트에서는 9091이다.
+    url: http://prometheus:9090
+    isDefault: true
+
+  - name: Tempo
+    type: tempo
+    uid: tempo
+    access: proxy
+    url: http://tempo:3200
+    jsonData:
+      # 트레이스 화면에서 해당 구간의 메트릭으로 바로 넘어간다.
+      tracesToMetrics:
+        datasourceUid: prometheus
+      serviceMap:
+        datasourceUid: prometheus

@@ -57,6 +57,20 @@
       <artifactId>micrometer-registry-prometheus</artifactId>
     </dependency>
 
+    <!-- 분산 추적.
+         다른 서비스는 ggeolmuse-bom 을 일반 의존성으로도 선언해 이 둘을 함께 받는다.
+         게이트웨이는 그럴 수 없다. BOM 의 dependencies 에 spring-boot-starter-web 과
+         data-jpa 가 있어서 WebFlux 게이트웨이가 서블릿으로 바뀌고 DataSource 자동설정에
+         걸린다. 그래서 필요한 둘만 직접 적는다. 버전은 BOM import 가 관리한다. -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-tracing-bridge-otel</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-exporter-otlp</artifactId>
+    </dependency>
+
     <!-- Data Redis for Rate Limiting -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
