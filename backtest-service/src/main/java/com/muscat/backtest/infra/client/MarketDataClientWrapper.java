@@ -1,5 +1,6 @@
 package com.muscat.backtest.infra.client;
 
+import com.muscat.backtest.config.CacheConfig;
 import com.muscat.backtest.infra.client.dto.DividendDto;
 import com.muscat.backtest.infra.client.dto.FxRateDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
@@ -12,6 +13,7 @@ import java.util.Collections;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 /**
@@ -63,6 +65,10 @@ public class MarketDataClientWrapper {
     return marketDataClient.getFxRate(date);
   }
 
+  /**
+   * 최신 환율은 요청과 무관하게 값이 하나다.
+   */
+  @Cacheable(cacheNames = CacheConfig.LATEST_FX_RATE, key = "'latest'")
   @CircuitBreaker(name = "marketDataService", fallbackMethod = "getLatestFxRateFallback")
   @Retry(name = "marketDataService")
   public FxRateDto getLatestFxRate() {

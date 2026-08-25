@@ -102,8 +102,16 @@ public class YahooFxRateService implements FxRateService {
         return fxRateRepository.findByDateIn(dates);
     }
 
+    /**
+     * Spring 캐시는 Optional 을 벗겨서 저장한다. 환율이 없으면 Optional.empty()
+     * 가 null 이 되고 캐시가 null 을 거부하면서 IllegalArgumentException 이 난다.
+     * 컨트롤러의 404 분기까지 가지도 못하고 500 이 나간다.
+     *
+     * unless 의 #result 도 벗겨진 뒤라 FxRate 다. Optional 인 줄 알고
+     * isEmpty() 를 부르면 SpEL 이 터진다. null 검사만 한다.
+     */
     @Override
-    @Cacheable(cacheNames = "latestFxRate", key = "'latest'")
+    @Cacheable(cacheNames = "latestFxRate", key = "'latest'", unless = "#result == null")
     @Transactional(readOnly = true)
     public Optional<FxRate> getLatestRate() {
         Optional<FxRate> latest = fxRateRepository.findLatestRate();

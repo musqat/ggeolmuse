@@ -102,8 +102,9 @@ public class AlphaVantageFxRateService implements FxRateService {
     return fxRateRepository.findByDateIn(dates);
   }
 
+  // Optional.empty() 는 캐시에 null 로 들어가 거부당한다. YahooFxRateService 와 같은 이유다.
   @Override
-  @Cacheable(cacheNames = "latestFxRate", key = "'latest'")
+  @Cacheable(cacheNames = "latestFxRate", key = "'latest'", unless = "#result == null")
   @Transactional(readOnly = true)
   public Optional<FxRate> getLatestRate() {
     Optional<FxRate> latest = fxRateRepository.findLatestRate();
