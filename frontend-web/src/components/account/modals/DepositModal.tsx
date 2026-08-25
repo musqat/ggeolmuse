@@ -12,7 +12,7 @@ interface DepositModalProps {
  * 입금 모달 컴포넌트
  * KRW 금액을 입력받아 계좌에 입금합니다.
  */
-export const DepositModal: React.FC<DepositModalProps> = ({
+const DepositModal: React.FC<DepositModalProps> = ({
   isOpen,
   onClose,
   onSubmit,

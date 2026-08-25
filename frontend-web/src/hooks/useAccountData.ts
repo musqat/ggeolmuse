@@ -7,7 +7,7 @@ import {
   type PortfolioSummaryResponse
 } from '../services/api';
 
-export interface UseAccountDataReturn {
+interface UseAccountDataReturn {
   accounts: AccountSummary[];
   accountBalances: Map<number, AccountBalance>;
   portfolioSummary: PortfolioSummaryResponse | null;

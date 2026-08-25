@@ -12,7 +12,7 @@ client.interceptors.request.use((config) => {
   return config;
 });
 
-export interface ChatResponse {
+interface ChatResponse {
   answer: string;
   remaining: number;
   symbol: string | null;

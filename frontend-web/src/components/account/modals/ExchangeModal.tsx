@@ -21,7 +21,7 @@ interface ExchangeModalProps {
  * KRW ↔ USD 환전을 처리합니다.
  * 현재 환율 또는 수동 환율을 선택할 수 있습니다.
  */
-export const ExchangeModal: React.FC<ExchangeModalProps> = ({
+const ExchangeModal: React.FC<ExchangeModalProps> = ({
   isOpen,
   onClose,
   onSubmit,

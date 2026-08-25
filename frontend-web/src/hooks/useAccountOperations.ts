@@ -1,28 +1,28 @@
 import { useState } from 'react';
 import { accountsApi } from '../services/api';
 
-export interface CreateAccountParams {
+interface CreateAccountParams {
   accountName: string;
   commissionRate: number;
 }
 
-export interface DepositKrwParams {
+interface DepositKrwParams {
   accountId: number;
   amount: number;
 }
 
-export interface ExchangeCurrencyParams {
+interface ExchangeCurrencyParams {
   accountId: number;
   fromCurrency: 'KRW' | 'USD';
   amount: number;
   exchangeRate: number;
 }
 
-export interface DeleteAccountParams {
+interface DeleteAccountParams {
   accountId: number;
 }
 
-export interface UseAccountOperationsReturn {
+interface UseAccountOperationsReturn {
   createAccount: (params: CreateAccountParams) => Promise<void>;
   depositKrw: (params: DepositKrwParams) => Promise<void>;
   exchangeCurrency: (params: ExchangeCurrencyParams) => Promise<void>;

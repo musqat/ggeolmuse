@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export interface UseModalStateReturn {
+interface UseModalStateReturn {
   // 모달 상태
   showCreateModal: boolean;
   showDepositModal: boolean;
