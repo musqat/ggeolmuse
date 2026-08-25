@@ -9,12 +9,15 @@ import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.env.Environment;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @RestControllerAdvice(basePackageClasses = {
     com.muscat.user.domain.user.controller.AuthController.class,
@@ -24,6 +27,12 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 })
 @Slf4j
 public class GlobalExceptionHandler extends BaseExceptionHandler {
+
+  private final Environment environment;
+
+  public GlobalExceptionHandler(Environment environment) {
+    this.environment = environment;
+  }
 
   @ExceptionHandler(UserException.class)
   public ResponseEntity<ProblemDetail> handleUserException(UserException e, HttpServletRequest request) {
@@ -146,6 +155,45 @@ public class GlobalExceptionHandler extends BaseExceptionHandler {
     return ResponseEntity.badRequest().body(problem);
   }
 
+  // 숫자 path 변수에 문자가 들어오는 등 타입 변환 실패.
+  // 클라이언트 잘못이므로 400. 예외 클래스명·입력값을 detail에 싣지 않는다.
+  @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+  public ResponseEntity<ProblemDetail> handleTypeMismatch(
+      MethodArgumentTypeMismatchException e, HttpServletRequest request) {
+    log.warn("[TYPE MISMATCH] parameter={}", e.getName());
+
+    Map<String, Object> properties = Map.of("errorType", ErrorType.VALIDATION.name());
+    ProblemDetail problem = ProblemDetailUtils.createProblem(
+        UserResponse.INVALID_INPUT.getHttpStatus(),
+        "요청 파라미터 형식이 올바르지 않습니다",
+        "INVALID_PARAMETER",
+        request.getRequestURI(),
+        "Invalid Parameter",
+        properties
+    );
+
+    return ResponseEntity.badRequest().body(problem);
+  }
+
+  // 깨진 JSON 본문. 마찬가지로 클라이언트 잘못이라 400, 파싱 예외 내용은 감춘다.
+  @ExceptionHandler(HttpMessageNotReadableException.class)
+  public ResponseEntity<ProblemDetail> handleNotReadable(
+      HttpMessageNotReadableException e, HttpServletRequest request) {
+    log.warn("[MALFORMED BODY] {}", e.getMostSpecificCause().getClass().getSimpleName());
+
+    Map<String, Object> properties = Map.of("errorType", ErrorType.VALIDATION.name());
+    ProblemDetail problem = ProblemDetailUtils.createProblem(
+        UserResponse.INVALID_INPUT.getHttpStatus(),
+        "요청 본문을 읽을 수 없습니다",
+        "MALFORMED_REQUEST_BODY",
+        request.getRequestURI(),
+        "Malformed Request Body",
+        properties
+    );
+
+    return ResponseEntity.badRequest().body(problem);
+  }
+
   @ExceptionHandler(Exception.class)
   public ResponseEntity<ProblemDetail> handleGenericException(Exception e, HttpServletRequest request) {
     log.error("[SYSTEM ERROR] 예상치 못한 오류 발생", e);
@@ -169,9 +217,11 @@ public class GlobalExceptionHandler extends BaseExceptionHandler {
   }
   
   private boolean isDevelopmentEnvironment() {
-    // 개발 환경 판단 로직 (추후 @Value 등으로 개선 가능)
-    String[] activeProfiles = {"dev", "development", "local"};
-    String currentProfile = System.getProperty("spring.profiles.active", "dev");
-    return java.util.Arrays.asList(activeProfiles).contains(currentProfile);
+    for (String profile : environment.getActiveProfiles()) {
+      if (profile.equals("dev") || profile.equals("development") || profile.equals("local")) {
+        return true;
+      }
+    }
+    return false;
   }
 }
