@@ -167,6 +167,9 @@ services:
     environment:
       SPRING_APPLICATION_NAME: "gateway-server"
       SERVER_PORT: 8070
+      # config repo 기본값은 k8s 내부 주소라 로컬에서 안 잡힌다.
+      # spring.config.import 방식이라 환경변수가 원격 설정을 이긴다.
+      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://tempo:4318/v1/traces
       SPRING_MAIN_WEB_APPLICATION_TYPE: reactive
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       SPRING_CLOUD_CONFIG_USERNAME: config
@@ -204,6 +207,7 @@ services:
       - "8085:8080"
     environment:
       JAVA_OPTS: "-Dh2.webAllowOthers=true"
+      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://tempo:4318/v1/traces
       SPRING_PROFILES_ACTIVE: "dev,no-file-logging"
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       SPRING_CLOUD_CONFIG_USERNAME: config
@@ -254,6 +258,7 @@ services:
       - "8081:8081"
     environment:
       SPRING_APPLICATION_NAME: "trade-service"
+      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://tempo:4318/v1/traces
       SPRING_PROFILES_ACTIVE: "dev,no-file-logging"
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       SPRING_CLOUD_CONFIG_USERNAME: config
@@ -299,6 +304,7 @@ services:
       - "8083:8083"
     environment:
       SPRING_APPLICATION_NAME: "market-data-service"
+      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://tempo:4318/v1/traces
       # yahoo = 키 불필요·무료. 부팅 후 소수 종목 OHLC 자동 수집 → 차트/백테스트 데이터 확보
       MARKETDATA_PROVIDER: yahoo
       # 로컬(H2 in-mem): 전체 ~6700종목 수집은 무겁고 재시작마다 재수집 → 상위 50개만 수집(시총 desc, AAPL 등 포함).
@@ -358,6 +364,7 @@ services:
       - "8082:8082"
     environment:
       SPRING_APPLICATION_NAME: "backtest-service"
+      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://tempo:4318/v1/traces
       SPRING_PROFILES_ACTIVE: "dev,no-file-logging"
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       SPRING_CLOUD_CONFIG_USERNAME: config
@@ -452,6 +459,79 @@ services:
         reservations:
           memory: 256m
 
+  #### OBSERVABILITY ####
+  # prod(helm/monitoring)와 같은 조합을 로컬에도 둔다.
+  # 앱은 이미 메트릭·트레이스를 뱉고 있었고, 그걸 받을 쪽이 없었을 뿐이다.
+
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    container_name: ggeolmuse-prometheus
+    ports:
+      # 컨테이너 9090은 각 서비스의 actuator 포트와 겹치지 않지만,
+      # 호스트에서는 비켜준다.
+      - "9091:9090"
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      # 부하 테스트 후 설정만 고쳐 다시 읽히려고 열어둔다.
+      - --web.enable-lifecycle
+    networks:
+      - ggeolmuse-network
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+        reservations:
+          memory: 256m
+
+  tempo:
+    image: grafana/tempo:2.7.1
+    container_name: ggeolmuse-tempo
+    command: ["-config.file=/etc/tempo.yml"]
+    volumes:
+      - ./observability/tempo.yml:/etc/tempo.yml:ro
+      # 트레이스는 컨테이너와 함께 사라진다. 볼륨을 붙이지 않는 이유는 둘이다.
+      # 지난 세션 트레이스를 볼 일이 없고, 쌓인 채로 재시작하면 옛 블록
+      # compaction 에 메모리가 크게 든다.
+    networks:
+      - ggeolmuse-network
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+        reservations:
+          memory: 256m
+
+  grafana:
+    image: grafana/grafana:11.5.1
+    container_name: ggeolmuse-grafana
+    ports:
+      # 3000은 frontend-web이 쓴다.
+      - "3001:3000"
+    environment:
+      # 로컬이라 로그인 화면을 건너뛴다.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+    volumes:
+      - ./observability/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      prometheus:
+        condition: service_started
+      tempo:
+        condition: service_started
+    networks:
+      - ggeolmuse-network
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+        reservations:
+          memory: 256m
+
 # VOLUMES
 volumes:
   redis_data:
@@ -463,6 +543,10 @@ volumes:
   kafka_data:
     driver: local
   keycloak_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
     driver: local
 
 # NETWORKS

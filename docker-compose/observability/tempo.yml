@@ -1,0 +1,32 @@
+# 로컬 트레이스 저장소. 설정 파일 없이는 컨테이너가 뜨지 않는다.
+# 보관은 로컬 디스크, 유지 기간은 짧게. 부하 테스트 한 번 보고 버리는 용도다.
+
+server:
+  http_listen_port: 3200
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        # Spring 의 management.otlp.tracing 은 HTTP(4318)로 쏜다.
+        http:
+          endpoint: 0.0.0.0:4318
+        # grpc 는 당장 안 쓰지만 열어둔다.
+        grpc:
+          endpoint: 0.0.0.0:4317
+
+ingester:
+  # 방금 보낸 트레이스가 검색에 늦게 뜨는 걸 줄인다.
+  max_block_duration: 5m
+
+compactor:
+  compaction:
+    block_retention: 1h
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /var/tempo/blocks
+    wal:
+      path: /var/tempo/wal
