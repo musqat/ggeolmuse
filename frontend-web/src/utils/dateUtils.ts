@@ -21,10 +21,22 @@ export function daysForTimeframe(tf: Timeframe): number {
 }
 
 /**
+ * Date를 로컬 기준 YYYY-MM-DD 문자열로 만듭니다
+ *
+ * toISOString()은 UTC라 한국(UTC+9)에서는 오전 9시 전에 하루 밀립니다.
+ */
+function toLocalDateString(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
  * 오늘 날짜를 YYYY-MM-DD 형식으로 반환합니다
  */
 export function getTodayString(): string {
-  return new Date().toISOString().split('T')[0];
+  return toLocalDateString(new Date());
 }
 
 /**
@@ -44,27 +56,40 @@ export function getDateRangeForTimeframe(
 
   const endDate = getTodayString();
   const days = daysForTimeframe(timeframe);
-  const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .split('T')[0];
+  // 종료일과 같은 로컬 기준을 써야 두 날짜가 어긋나지 않는다
+  const startDate = toLocalDateString(new Date(Date.now() - days * 24 * 60 * 60 * 1000));
 
   return { startDate, endDate };
+}
+
+/**
+ * YYYY-MM-DD 문자열을 로컬 자정 Date로 파싱합니다
+ *
+ * new Date('2026-08-13')은 UTC 자정으로 읽힙니다. 이후 setDate/setMonth는
+ * 로컬 기준으로 움직여서 두 기준이 섞이면 타임존에 따라 하루가 어긋납니다.
+ */
+function parseLocalDate(dateString: string): Date {
+  const [year, month, day] = dateString.split('-').map(Number);
+  return new Date(year, month - 1, day);
 }
 
 /**
  * 날짜에서 지정된 일수만큼 이전 날짜를 반환합니다
  */
 export function subtractDays(dateString: string, days: number): string {
-  const date = new Date(dateString);
+  const date = parseLocalDate(dateString);
   date.setDate(date.getDate() - days);
-  return date.toISOString().split('T')[0];
+  return toLocalDateString(date);
 }
 
 /**
  * 날짜에서 지정된 개월수만큼 이전 날짜를 반환합니다
+ *
+ * 말일 기준으로 빼면 다음 달로 밀립니다 (3/31 → 2/31 → 3/3).
+ * Date.setMonth의 기본 동작입니다.
  */
 export function subtractMonths(dateString: string, months: number): string {
-  const date = new Date(dateString);
+  const date = parseLocalDate(dateString);
   date.setMonth(date.getMonth() - months);
-  return date.toISOString().split('T')[0];
+  return toLocalDateString(date);
 }

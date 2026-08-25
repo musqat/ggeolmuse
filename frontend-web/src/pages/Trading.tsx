@@ -10,7 +10,7 @@ import { stockApi, tradeApi, accountsApi } from '../services/api';
 import { convertOHLCToCandlestick, type CandlestickChartData } from '../types/ohlc';
 
 // Utility imports
-import { daysForTimeframe } from '@/utils/dateUtils';
+import { getDateRangeForTimeframe, getTodayString, subtractDays } from '@/utils/dateUtils';
 import { calculateExecutionPrice, validatePriceRange } from '@/utils/priceUtils';
 import type { Timeframe } from '@/utils/dateUtils';
 import type { PriceType } from '@/utils/priceUtils';
@@ -44,11 +44,7 @@ const Trading: React.FC = () => {
   const [customEndDate, setCustomEndDate] = useState('');
 
   const [selectedDateOHLC, setSelectedDateOHLC] = useState<any>(null);
-  const [tradeDate, setTradeDate] = useState(() => {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    return yesterday.toISOString().split('T')[0];
-  });
+  const [tradeDate, setTradeDate] = useState(() => subtractDays(getTodayString(), 1));
 
   // Use custom hook for account management
   const { accounts, selectedAccountId, setSelectedAccountId } = useAccounts(isAuthenticated);
@@ -66,19 +62,10 @@ const Trading: React.FC = () => {
   });
 
   // 날짜 범위 계산 (useMemo로 최적화)
-  const dateRange = useMemo(() => {
-    if (timeframe === '직접설정') {
-      if (!customStartDate || !customEndDate) {
-        return null;
-      }
-      return { startDate: customStartDate, endDate: customEndDate };
-    }
-
-    const endDate = new Date().toISOString().split('T')[0];
-    const startDate = new Date(Date.now() - daysForTimeframe(timeframe) * 24 * 60 * 60 * 1000)
-      .toISOString().split('T')[0];
-    return { startDate, endDate };
-  }, [timeframe, customStartDate, customEndDate]);
+  const dateRange = useMemo(
+    () => getDateRangeForTimeframe(timeframe, customStartDate, customEndDate),
+    [timeframe, customStartDate, customEndDate]
+  );
 
   // React Query: 차트 데이터 로드
   const {
