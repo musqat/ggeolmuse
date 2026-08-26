@@ -134,3 +134,6 @@ docs/*
 !docs/problem-solving.md
 !docs/trial-and-error.md
 !docs/DEPLOY.md
+
+### wrangler 로컬 캐시 ###
+cloudflare/**/.wrangler/
