@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { RefreshCw, Trash2, DollarSign, TrendingUp, ArrowUpDown, ChevronLeft, ChevronRight, Pencil, Check, X } from 'lucide-react';
+import { RefreshCw, Trash2, DollarSign, TrendingUp, ArrowUpDown, ChevronLeft, ChevronRight, Pencil, Check, X, PlusCircle } from 'lucide-react';
 import type { Asset } from '@services/adminApi';
 
 interface AssetListSectionProps {
@@ -13,6 +13,7 @@ interface AssetListSectionProps {
   onUpdateName: (symbol: string, name: string) => Promise<boolean> | void;
   onUpdateAllPrices: () => void;
   onUpdateAllMarketCaps: () => void;
+  onCollectNewSymbols: () => void;
   // Pagination props
   currentPage: number;
   pageSize: number;
@@ -42,6 +43,7 @@ export default function AssetListSection({
   onUpdateName,
   onUpdateAllPrices,
   onUpdateAllMarketCaps,
+  onCollectNewSymbols,
   currentPage,
   pageSize,
   totalPages,
@@ -202,6 +204,15 @@ export default function AssetListSection({
           >
             <TrendingUp className="w-5 h-5" />
             전체 시가총액 업데이트
+          </button>
+          <button
+            onClick={onCollectNewSymbols}
+            disabled={loading}
+            title="목록을 다시 받아 DB 에 없는 종목만 추가합니다. 평일 08:00 스케줄과 같은 일입니다."
+            className="px-4 py-2 bg-purple-600 text-white hover:bg-purple-700 rounded-lg flex items-center gap-2 transition disabled:opacity-50"
+          >
+            <PlusCircle className="w-5 h-5" />
+            신규 종목 수집
           </button>
         </div>
       </div>

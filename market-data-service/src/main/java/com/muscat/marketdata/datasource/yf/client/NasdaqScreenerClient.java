@@ -75,6 +75,7 @@ public class NasdaqScreenerClient {
         return getStocks(exchange, null, 10000, 0);
     }
 
+
     private String buildUrl(String exchange, String marketCap, int limit, int offset) {
         // download=true 는 marketcap 필터와 조합 시 빈 결과(rows=null)를 반환함.
         // data.table.rows 구조로 marketCap 포함 정상 응답.
@@ -89,7 +90,18 @@ public class NasdaqScreenerClient {
 
         // 시가총액 필터 추가 (예: mega,large)
         if (marketCap != null && !marketCap.isEmpty()) {
-            url.append("&marketcap=").append(marketCap.toLowerCase());
+            //   mega        47건
+            //   large      614건
+            //   mega|large 661건   (합과 일치)
+            //   mega,large   0건
+            //
+            // 파이프는 URI.create 가 거부하는 문자라 %7C 로 인코딩해서 넣는다.
+            //
+            // 참고 — getAllStocks 는 marketCap 을 null 로 넘겨 필터를 쓰지 않는다.
+            String normalized = marketCap.toLowerCase()
+                .replace(",", "%7C")
+                .replace("|", "%7C");
+            url.append("&marketcap=").append(normalized);
         }
 
         return url.toString();

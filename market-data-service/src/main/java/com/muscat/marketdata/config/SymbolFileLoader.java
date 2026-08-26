@@ -43,7 +43,8 @@ public class SymbolFileLoader implements CommandLineRunner {
     @Value("${marketdata.symbol-loader.use-api:true}")
     private boolean useApi;
 
-    @Value("${marketdata.symbol-loader.market-cap-filter:mega,large}")
+    //   mega 47건 / large 614건 / mega|large 661건 / mega,large 0건
+    @Value("${marketdata.symbol-loader.market-cap-filter:mega|large}")
     private String marketCapFilter;
 
     @Value("${marketdata.symbol-loader.collect-data:false}")

@@ -408,6 +408,7 @@ secrets:
     mailPassword: ""
     mailFrom: ""
     koreaeximApiKey: ""
+    alphavantageApiKey: ""
     openaiApiKey: ""
 
 # 모니터링 설정

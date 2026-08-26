@@ -26,6 +26,7 @@ export default function AdminMarket() {
     handleUpdateName,
     handleUpdateAllPrices,
     handleUpdateAllMarketCaps,
+    handleCollectNewSymbols,
     loadAssets,
     currentPage,
     pageSize,
@@ -127,6 +128,7 @@ export default function AdminMarket() {
           onUpdateName={handleUpdateName}
           onUpdateAllPrices={handleUpdateAllPrices}
           onUpdateAllMarketCaps={handleUpdateAllMarketCaps}
+          onCollectNewSymbols={handleCollectNewSymbols}
           currentPage={currentPage}
           pageSize={pageSize}
           totalPages={totalPages}

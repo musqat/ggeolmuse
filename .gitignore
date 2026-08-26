@@ -126,3 +126,12 @@ frontend-web/remove-jsdoc.mjs
 frontend-web/design-preview.html
 
 # Helm 로컬 시크릿 (위에서 helm/**/values-secret.yaml 로 통합)
+
+### docs — 공개용만 추적한다 ###
+# 개인 작업 기록(백로그·세션 로그·면접 준비)은 리포에 넣지 않는다.
+# 아래 화이트리스트만 추적한다. 새 문서를 공개하려면 여기에 추가할 것.
+docs/*
+!docs/problem-solving.md
+!docs/trial-and-error.md
+!docs/DEPLOY.md
+!docs/terraform-scheduler.md

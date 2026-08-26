@@ -70,11 +70,18 @@ spec:
             secretKeyRef:
               name: ggeolmuse-secrets
               key: KOREAEXIM_API_KEY
+        - name: ALPHAVANTAGE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: ggeolmuse-secrets
+              key: ALPHAVANTAGE_API_KEY
         {{- else }}
         - name: KEYCLOAK_SECRET
           {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "KEYCLOAK_SECRET") | nindent 10 }}
         - name: KOREAEXIM_API_KEY
           {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "KOREAEXIM_API_KEY") | nindent 10 }}
+        - name: ALPHAVANTAGE_API_KEY
+          {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "ALPHAVANTAGE_API_KEY") | nindent 10 }}
         {{- end }}
         - name: JAVA_OPTS
           value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" .Values.services.marketDataService.name "xmx" "768m") }}
