@@ -18,10 +18,7 @@
 
 **의존 서비스:** Market Data Service, Trade Service
 
-<details>
-<summary><b>화면</b></summary>
-
-<br>
+## 화면
 
 **백테스트 실행**
 
@@ -30,5 +27,3 @@
 **백테스트 내역**
 
 <img src="../.github/images/backtest-service/백테스트-내역.png" alt="백테스트 내역" width="600"/>
-
-</details>

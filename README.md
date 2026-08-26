@@ -69,7 +69,8 @@ NYSE · NASDAQ · NYSE ARCA 상장 약 9,000 개 종목의 일별 가격으로 �
 ```
 
 Feign 은 답이 있어야 다음 줄이 진행되는 조회에 쓰고 Kafka 는 답이 필요 없는 사후 통지에 쓴다.
-설정은 Config Server 가 외부 저장소(`musqat/ggeolmuse-config`)에서 읽어 배포한다.
+설정은 Config Server 가 [ggeolmuse-config](https://github.com/musqat/ggeolmuse-config) 에서
+읽어 배포한다. 코드와 분리해 둬서 cron 이나 수집 상한 같은 값은 재배포 없이 바꾼다.
 
 <details>
 <summary><b>서비스별 상세</b> — 각 서비스 README</summary>
@@ -87,6 +88,7 @@ Feign 은 답이 있어야 다음 줄이 진행되는 조회에 쓰고 Kafka 는
 | **Chat Service** | AI 기술 분석 (FastAPI) | [📄](chat-service/README.md) |
 
 인프라 구성과 비용 최적화는 [helm/README.md](helm/README.md) 에 있다.
+서비스 설정은 별도 저장소 [ggeolmuse-config](https://github.com/musqat/ggeolmuse-config) 에 있다.
 
 </details>
 
@@ -136,14 +138,14 @@ ggeolmuse/
 
 ## 테스트
 
-백엔드 **648 개**, 프론트 **97 개**. 여섯 서비스가 CI 에서 같은 명령을 탄다.
+백엔드 **703 개**, 프론트 **97 개**. 여섯 서비스가 CI 에서 같은 명령을 탄다.
 
 | 서비스 | 테스트 |
 |---|---|
+| market-data-service | 235 |
 | user-service | 204 |
-| market-data-service | 165 |
-| backtest-service | 163 |
-| trade-service | 116 |
+| backtest-service | 155 |
+| trade-service | 109 |
 | frontend-web | 97 |
 
 <details>
@@ -156,10 +158,10 @@ ggeolmuse/
 
 | 서비스 | 라인 | 분기 |
 |---|---|---|
-| backtest | 67.3% | 56.4% |
-| trade | 55.5% | 54.8% |
-| user | 37.5% | 27.4% |
-| market-data | 24.2% | 28.1% |
+| backtest | 68.4% | 55.6% |
+| trade | 55.1% | 52.8% |
+| user | 44.7% | 25.2% |
+| market-data | 27.2% | 31.4% |
 
 market-data 가 낮은 이유는 수집 파이프라인이 대부분 외부 API 호출이라서다.
 파서와 매퍼는 붙였고 수집 자체는 아직이다. 낮은 걸 알고 두는 것과 모르는 것은 다르다.
