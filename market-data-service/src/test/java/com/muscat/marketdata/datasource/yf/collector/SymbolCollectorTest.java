@@ -1,5 +1,6 @@
 package com.muscat.marketdata.datasource.yf.collector;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -11,7 +12,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
-import com.muscat.marketdata.datasource.yf.provider.YfSymbolSource;
+import com.muscat.marketdata.datasource.common.SymbolCatalog;
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.repository.AssetRepository;
 import com.muscat.marketdata.infra.kafka.AssetEventProducer;
@@ -34,7 +35,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 class SymbolCollectorTest {
 
   @Mock
-  private YfSymbolSource symbolSource;
+  private SymbolCatalog symbolCatalog;
 
   @Mock
   private AssetRepository assetRepository;
@@ -79,7 +80,7 @@ class SymbolCollectorTest {
 
       symbolCollector.collectSymbols();
 
-      verifyNoInteractions(assetRepository, symbolSource, assetEventProducer);
+      verifyNoInteractions(assetRepository, symbolCatalog, assetEventProducer);
     }
   }
 
@@ -88,18 +89,126 @@ class SymbolCollectorTest {
   class ExistingSymbols {
 
     @Test
-    @DisplayName("종목을 새로 추가하지 않고 수집 이벤트만 발행한다")
-    void 업데이트만() {
+    @DisplayName("기존 종목 전부에 수집 이벤트를 발행한다")
+    void 업데이트() {
       given(assetRepository.count()).willReturn(3L);
       given(assetRepository.findAll()).willReturn(assets(3));
+      // 신규 조회는 비어 있는 경우
+      given(symbolCatalog.fetchAll()).willReturn(List.of());
 
       symbolCollector.collectSymbols();
 
       verify(assetEventProducer, times(3))
         .publishAssetCreated(any(), anyBoolean(), any(), any(), anyBoolean());
-      // 기존 종목 경로에서는 save 가 일어나면 안 된다
+      // 신규가 없으면 저장은 일어나지 않는다
       verify(assetRepository, never()).save(any());
-      verify(symbolSource, never()).fetchSymbols();
+    }
+
+    @Test
+    @DisplayName("기존 종목이 있어도 신규 상장을 확인한다")
+    void 신규_확인() {
+      given(assetRepository.count()).willReturn(2L);
+      given(assetRepository.findAll()).willReturn(assets(2));
+      given(symbolCatalog.fetchAll()).willReturn(List.of());
+
+      symbolCollector.collectSymbols();
+
+      // 예전에는 여기서 바로 return 해서 목록 조회 자체를 안 했다
+      verify(symbolCatalog).fetchAll();
+    }
+
+    @Test
+    @DisplayName("DB 에 없는 심볼만 저장한다")
+    void 신규만_저장() {
+      given(assetRepository.count()).willReturn(2L);
+      given(assetRepository.findAll()).willReturn(assets(2));   // SYM0, SYM1
+      given(symbolCatalog.fetchAll())
+        .willReturn(List.of(asset("SYM0", 1L), asset("SYM1", 2L), asset("NEWCO", 3L)));
+      given(assetRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+
+      symbolCollector.collectSymbols();
+
+      ArgumentCaptor<Asset> saved = ArgumentCaptor.forClass(Asset.class);
+      verify(assetRepository, times(1)).save(saved.capture());
+      org.assertj.core.api.Assertions.assertThat(saved.getValue().getSymbol()).isEqualTo("NEWCO");
+
+      // 기존 2건 + 신규 1건
+      verify(assetEventProducer, times(3))
+        .publishAssetCreated(any(), anyBoolean(), any(), any(), anyBoolean());
+    }
+
+    @Test
+    @DisplayName("목록 조회가 비면 기존 갱신은 그대로 끝난다")
+    void 목록_빔() {
+      given(assetRepository.count()).willReturn(2L);
+      given(assetRepository.findAll()).willReturn(assets(2));
+      // NASDAQ 이 200 에 빈 결과를 주는 경우
+      given(symbolCatalog.fetchAll()).willReturn(List.of());
+
+      assertThatCode(() -> symbolCollector.collectSymbols()).doesNotThrowAnyException();
+
+      verify(assetRepository, never()).save(any());
+      verify(assetEventProducer, times(2))
+        .publishAssetCreated(any(), anyBoolean(), any(), any(), anyBoolean());
+    }
+
+    @Test
+    @DisplayName("목록에 같은 심볼이 두 번 있어도 한 번만 저장한다")
+    void 중복_심볼() {
+      // 카탈로그가 중복을 걸러 주지만 방어적으로 한 번 더 본다
+      given(assetRepository.count()).willReturn(1L);
+      given(assetRepository.findAll()).willReturn(assets(1));   // SYM0
+      given(symbolCatalog.fetchAll())
+        .willReturn(List.of(asset("NEWCO", 1L), asset("NEWCO", 1L), asset("OTHER", 2L)));
+      given(assetRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+
+      symbolCollector.collectSymbols();
+
+      ArgumentCaptor<Asset> saved = ArgumentCaptor.forClass(Asset.class);
+      verify(assetRepository, times(2)).save(saved.capture());
+      assertThat(saved.getAllValues()).extracting(Asset::getSymbol)
+        .containsExactly("NEWCO", "OTHER");
+    }
+
+    @Test
+    @DisplayName("일일 스케줄은 기존 종목 갱신 없이 신규만 확인한다")
+    void 일일_스케줄() {
+      given(symbolCatalog.fetchAll())
+        .willReturn(List.of(asset("NEWCO", 1L)));
+      given(assetRepository.findAll()).willReturn(assets(2));   // SYM0, SYM1
+      given(assetRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+
+      symbolCollector.collectNewlyListedDaily();
+
+      // 신규 1건만 저장하고 이벤트도 1건
+      verify(assetRepository, times(1)).save(any());
+      verify(assetEventProducer, times(1))
+        .publishAssetCreated(any(), anyBoolean(), any(), any(), anyBoolean());
+      // 기동 경로와 달리 count() 로 분기하지 않는다
+      verify(assetRepository, never()).count();
+    }
+
+    @Test
+    @DisplayName("일일 스케줄도 비활성화면 아무것도 하지 않는다")
+    void 일일_비활성화() {
+      setConfig(false, 365, 0);
+
+      symbolCollector.collectNewlyListedDaily();
+
+      verifyNoInteractions(assetRepository, symbolCatalog, assetEventProducer);
+    }
+
+    @Test
+    @DisplayName("목록 조회가 실패해도 기존 갱신은 유지된다")
+    void 목록_예외() {
+      given(assetRepository.count()).willReturn(2L);
+      given(assetRepository.findAll()).willReturn(assets(2));
+      given(symbolCatalog.fetchAll()).willThrow(new IllegalStateException("NASDAQ 다운"));
+
+      assertThatCode(() -> symbolCollector.collectSymbols()).doesNotThrowAnyException();
+
+      verify(assetEventProducer, times(2))
+        .publishAssetCreated(any(), anyBoolean(), any(), any(), anyBoolean());
     }
 
     @Test
@@ -145,7 +254,7 @@ class SymbolCollectorTest {
     @DisplayName("소스에서 받아 저장하고 이벤트를 발행한다")
     void 신규_로드() {
       given(assetRepository.count()).willReturn(0L);
-      given(symbolSource.fetchSymbols()).willReturn(assets(3));
+      given(symbolCatalog.fetchAll()).willReturn(assets(3));
       given(assetRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
       symbolCollector.collectSymbols();
@@ -159,7 +268,7 @@ class SymbolCollectorTest {
     @DisplayName("소스가 빈 목록이면 저장하지 않는다")
     void 종목_없음() {
       given(assetRepository.count()).willReturn(0L);
-      given(symbolSource.fetchSymbols()).willReturn(List.of());
+      given(symbolCatalog.fetchAll()).willReturn(List.of());
 
       symbolCollector.collectSymbols();
 
@@ -172,7 +281,7 @@ class SymbolCollectorTest {
     void 상한_없음() {
       setConfig(true, 365, 0);
       given(assetRepository.count()).willReturn(0L);
-      given(symbolSource.fetchSymbols()).willReturn(assets(5));
+      given(symbolCatalog.fetchAll()).willReturn(assets(5));
       given(assetRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
       symbolCollector.collectSymbols();
@@ -185,7 +294,7 @@ class SymbolCollectorTest {
     void 상한_미만() {
       setConfig(true, 365, 10);
       given(assetRepository.count()).willReturn(0L);
-      given(symbolSource.fetchSymbols()).willReturn(assets(5));
+      given(symbolCatalog.fetchAll()).willReturn(assets(5));
       given(assetRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
       symbolCollector.collectSymbols();
@@ -198,7 +307,7 @@ class SymbolCollectorTest {
     void 상한_적용() {
       setConfig(true, 365, 2);
       given(assetRepository.count()).willReturn(0L);
-      given(symbolSource.fetchSymbols()).willReturn(List.of(
+      given(symbolCatalog.fetchAll()).willReturn(List.of(
         asset("SMALL", 100L), asset("BIG", 9000L), asset("MID", 500L)));
       given(assetRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
@@ -216,7 +325,7 @@ class SymbolCollectorTest {
     void 시총_null() {
       setConfig(true, 365, 2);
       given(assetRepository.count()).willReturn(0L);
-      given(symbolSource.fetchSymbols()).willReturn(List.of(
+      given(symbolCatalog.fetchAll()).willReturn(List.of(
         asset("NULLCAP", null), asset("BIG", 9000L), asset("MID", 500L)));
       given(assetRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
@@ -233,7 +342,7 @@ class SymbolCollectorTest {
     @DisplayName("한 종목 저장이 실패해도 나머지는 계속 저장한다")
     void 부분_실패() {
       given(assetRepository.count()).willReturn(0L);
-      given(symbolSource.fetchSymbols()).willReturn(assets(3));
+      given(symbolCatalog.fetchAll()).willReturn(assets(3));
       given(assetRepository.save(any())).willAnswer(inv -> {
         Asset a = inv.getArgument(0);
         if ("SYM1".equals(a.getSymbol())) {
@@ -253,7 +362,7 @@ class SymbolCollectorTest {
     @DisplayName("소스 조회가 통째로 실패해도 예외를 밖으로 내보내지 않는다")
     void 소스_실패() {
       given(assetRepository.count()).willReturn(0L);
-      given(symbolSource.fetchSymbols()).willThrow(new IllegalStateException("NASDAQ 다운"));
+      given(symbolCatalog.fetchAll()).willThrow(new IllegalStateException("NASDAQ 다운"));
 
       // 부팅 시 이벤트 리스너라 예외가 나가면 기동 로그가 지저분해진다
       assertThatCode(() -> symbolCollector.collectSymbols()).doesNotThrowAnyException();
