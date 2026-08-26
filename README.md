@@ -2,16 +2,17 @@
 
 > 미국 주식 데이터로 투자 전략을 백테스팅하는 마이크로서비스 플랫폼
 
-**Live Demo**: https://ggeolmuse.com
+**Live Demo**: https://ggeolmuse.com — 평일 07:30~19:00 (KST) 에만 띄워둡니다
 
 [![CI/CD](https://github.com/musqat/ggeolmuse/actions/workflows/ci.yml/badge.svg)](https://github.com/musqat/ggeolmuse/actions)
-[![Security Scan](https://github.com/musqat/ggeolmuse/actions/workflows/nightly-security-scan.yml/badge.svg)](https://github.com/musqat/ggeolmuse/actions)
+[![Security Scan](https://github.com/musqat/ggeolmuse/actions/workflows/weekly-security-scan.yml/badge.svg)](https://github.com/musqat/ggeolmuse/actions)
 
 <div align="center">
   <img src=".github/images/main/메인페이지.png" alt="GGeolmuse 메인 화면" width="800"/>
 </div>
 
-> 데모 서버는 평일 07:30~19:00 (KST) 에만 띄워둡니다. 비용 때문에 야간·주말은 내려둡니다.
+> 야간·주말은 내려둡니다. 꺼져 있는 동안 접속하면 다음 가동 시각을
+> 안내하는 페이지가 뜹니다 ([Cloudflare Worker](cloudflare/offline-notice/worker.js)).
 
 <br>
 

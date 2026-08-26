@@ -41,7 +41,8 @@ mvn test
 ## 운영에 올릴 때
 
 이미지를 손으로 빌드해 Docker Hub 에 올리고 helm values 의 태그를 바꾸면 ArgoCD 가
-master 를 보고 sync 한다. CI 는 테스트만 돌고 이미지는 만들지 않는다.
+master 를 보고 sync 한다. CI 도 이미지를 빌드하지만 Trivy 로 훑어보기 위한 것이라
+push 하지 않는다. 배포용 태그는 직접 만들어 올린다.
 
     코드 머지  →  이미지 빌드  →  Docker Hub push  →  values-prod 태그 수정  →  ArgoCD sync
 
