@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   TrendingUp,
@@ -33,10 +33,10 @@ const Charts: React.FC = () => {
   const isValidSymbol = (s: string) => /^[A-Z]{1,6}(\.[A-Z]{1,2})?$/.test(s.toUpperCase());
   const symbol = (paramSymbol && isValidSymbol(paramSymbol)) ? paramSymbol.toUpperCase() : null;
 
-  if (symbol === null) {
-    navigate('/charts/AAPL', { replace: true });
-    return null;
-  }
+  // 심볼이 없거나 형식이 틀리면 AAPL 로 보낸다. 리다이렉트는 훅을 전부 부른 뒤
+  // 아래에서 <Navigate> 로 한다. 여기서 조기 return 하면 렌더마다 훅 개수가 달라져
+  // React 가 훅 순서를 못 맞춘다.
+
   const [period, setPeriod] = useState<'1개월' | '3개월' | '6개월' | '1년' | '3년' | '5년' | '10년' | '전체' | 'CUSTOM'>('1년');
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showSearchInput, setShowSearchInput] = useState(false);
@@ -128,7 +128,8 @@ const Charts: React.FC = () => {
     queryFn: async () => {
       if (!dateRange || 'error' in dateRange) return [];
 
-      const response = await stockApi.getOHLCData(symbol, dateRange.startDate, dateRange.endDate);
+      // enabled 가 symbol null 을 막으므로 여기서는 항상 값이 있다
+      const response = await stockApi.getOHLCData(symbol!, dateRange.startDate, dateRange.endDate);
       const rawData = response.data || [];
       const convertedData = convertOHLCToCandlestick(rawData);
       return convertedData;
@@ -142,7 +143,7 @@ const Charts: React.FC = () => {
     queryKey: ['stock', 'companyName', symbol],
     queryFn: async () => {
       try {
-        const priceResponse = await stockApi.getCurrentPrice(symbol);
+        const priceResponse = await stockApi.getCurrentPrice(symbol!);
         const stockData = priceResponse.data as any;
         return stockData?.name || '';
       } catch (err) {
@@ -169,6 +170,12 @@ const Charts: React.FC = () => {
     ? ((priceChange / currentPrice.open) * 100).toFixed(2)
     : '0.00';
   const isPositive = priceChange >= 0;
+
+  // 훅을 전부 부른 뒤에 리다이렉트한다. <Navigate> 는 렌더 결과라 부수효과가 아니다.
+  // navigate() 를 렌더 중에 부르면 React Router 가 무시하고 화면이 비어 버린다.
+  if (symbol === null) {
+    return <Navigate to="/charts/AAPL" replace />;
+  }
 
   return (
     <div className="max-w-[1800px] mx-auto px-4 py-6">
