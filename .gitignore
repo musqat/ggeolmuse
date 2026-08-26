@@ -134,4 +134,3 @@ docs/*
 !docs/problem-solving.md
 !docs/trial-and-error.md
 !docs/DEPLOY.md
-!docs/terraform-scheduler.md

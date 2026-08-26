@@ -10,8 +10,14 @@
 
 **의존 서비스:** Keycloak, Market Data Service
 
-## 화면
+<details>
+<summary><b>화면</b></summary>
 
-### 계좌 관리
+<br>
+
+**계좌 관리**
+
 <img src="../.github/images/user-service/계좌.png" alt="계좌 관리 화면" width="600"/>
+
+</details>
 
