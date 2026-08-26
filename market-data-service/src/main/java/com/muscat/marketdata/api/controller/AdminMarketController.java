@@ -1,5 +1,6 @@
 package com.muscat.marketdata.api.controller;
 
+import com.muscat.marketdata.datasource.yf.collector.SymbolCollector;
 import com.muscat.marketdata.domain.dto.AssetSummaryDto;
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.service.AssetService;
@@ -9,6 +10,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
@@ -57,6 +59,10 @@ class PageResponse<T> {
 public class AdminMarketController {
 
     private final AssetService assetService;
+
+    // SymbolCollector 는 marketdata.provider=yahoo 일 때만 뜬다.
+    // 직접 주입하면 alphavantage 프로파일에서 기동이 깨지므로 선택 주입한다.
+    private final ObjectProvider<SymbolCollector> symbolCollectorProvider;
 
     /**
      * 키워드로 심볼 검색
@@ -377,6 +383,51 @@ public class AdminMarketController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(UpdateResponse.builder()
                             .message("캔들 데이터 업데이트 요청 실패: " + e.getMessage())
+                            .build());
+        }
+    }
+
+    /**
+     * 신규 상장 종목 수집 (수동 트리거)
+     *
+     * POST /api/admin/market/update/symbols
+     *
+     * 평일 08:00 스케줄과 같은 일을 한다. 목록을 다시 받아 DB 에 없는 심볼만 추가한다.
+     * 기존 종목은 건드리지 않는다.
+     *
+     * 필터를 조정한 뒤 결과를 바로 보고 싶을 때 쓴다. 스케줄을 기다리거나
+     * 파드를 재시작할 필요가 없다.
+     */
+    @PostMapping("/update/symbols")
+    public ResponseEntity<UpdateResponse> collectNewSymbols() {
+        log.info("신규 종목 수동 수집 요청");
+
+        SymbolCollector collector = symbolCollectorProvider.getIfAvailable();
+        if (collector == null) {
+            // marketdata.provider 가 yahoo 가 아니면 이 수집기가 없다
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(UpdateResponse.builder()
+                            .message("신규 종목 수집은 yahoo 프로바이더에서만 지원합니다.")
+                            .build());
+        }
+
+        try {
+            new Thread(() -> {
+                try {
+                    collector.collectNewlyListedDaily();
+                } catch (Exception e) {
+                    log.error("신규 종목 수집 실패", e);
+                }
+            }).start();
+
+            return ResponseEntity.ok(UpdateResponse.builder()
+                    .message("신규 종목 수집이 백그라운드에서 시작되었습니다.")
+                    .build());
+        } catch (Exception e) {
+            log.error("신규 종목 수집 요청 실패", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(UpdateResponse.builder()
+                            .message("신규 종목 수집 요청 실패: " + e.getMessage())
                             .build());
         }
     }

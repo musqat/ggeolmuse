@@ -1,7 +1,9 @@
 import axios from 'axios';
 
+const API_BASE = (import.meta.env.VITE_API_URL ?? '').trim() || '/api';
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE,
   timeout: 30000,
 });
 
@@ -143,6 +145,12 @@ export const marketAdminApi = {
 
   updateAllMarketCaps: async (): Promise<void> => {
     await api.post('/admin/market/update/market-cap');
+  },
+
+  // 신규 상장 종목을 지금 받아온다. 평일 08:00 스케줄과 같은 일을 한다.
+  // 목록을 다시 받아 DB 에 없는 심볼만 추가하고 기존 종목은 건드리지 않는다.
+  collectNewSymbols: async (): Promise<void> => {
+    await api.post('/admin/market/update/symbols');
   },
 };
 

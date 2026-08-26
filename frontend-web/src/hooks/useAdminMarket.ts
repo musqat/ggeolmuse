@@ -295,6 +295,24 @@ export const useAdminMarket = () => {
     }
   };
 
+  // 신규 상장 종목 수집
+  const handleCollectNewSymbols = async () => {
+    if (!confirm('신규 상장 종목을 지금 받아오시겠습니까? 기존 종목은 건드리지 않습니다.')) return;
+
+    setLoading(true);
+    setError(null);
+    try {
+      await marketAdminApi.collectNewSymbols();
+      alert('신규 종목 수집이 백그라운드에서 시작되었습니다. 잠시 뒤 목록을 새로고침해 주세요.');
+    } catch (err: any) {
+      const message = err.response?.data?.message || '신규 종목 수집에 실패했습니다.';
+      setError(message);
+      console.error('Collect new symbols failed:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadAssets();
   }, []);
@@ -327,6 +345,7 @@ export const useAdminMarket = () => {
     handleUpdateMarketCap,
     handleUpdateAllPrices,
     handleUpdateAllMarketCaps,
+    handleCollectNewSymbols,
     loadAssets,
     // Pagination
     currentPage,
