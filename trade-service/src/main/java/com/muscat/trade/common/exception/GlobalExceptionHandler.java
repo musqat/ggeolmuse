@@ -7,6 +7,7 @@ import com.muscat.trade.common.enums.responses.TradeResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.env.Environment;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -21,6 +22,12 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 })
 @Slf4j
 public class GlobalExceptionHandler extends BaseExceptionHandler {
+
+  private final Environment environment;
+
+  public GlobalExceptionHandler(Environment environment) {
+    this.environment = environment;
+  }
 
   @ExceptionHandler(TradeException.class)
   public ResponseEntity<ProblemDetail> handleTradeException(TradeException e, HttpServletRequest request) {
@@ -123,9 +130,14 @@ public class GlobalExceptionHandler extends BaseExceptionHandler {
   }
 
   private boolean isDevelopmentEnvironment() {
-    // 개발 환경 판단 로직
-    String[] activeProfiles = {"dev", "development", "local"};
-    String currentProfile = System.getProperty("spring.profiles.active", "dev");
-    return java.util.Arrays.asList(activeProfiles).contains(currentProfile);
+    // 프로파일은 환경변수(SPRING_PROFILES_ACTIVE)로 주입되므로 System.getProperty 로는
+    // 안 잡힌다. 예전 코드는 기본값 "dev" 로 떨어져 운영에서도 개발로 판정, 상세 오류를
+    // 노출했다. Spring 이 실제로 활성화한 프로파일을 본다.
+    for (String profile : environment.getActiveProfiles()) {
+      if (profile.equals("dev") || profile.equals("development") || profile.equals("local")) {
+        return true;
+      }
+    }
+    return false;
   }
 }
