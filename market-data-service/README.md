@@ -13,10 +13,17 @@
 
 **의존 서비스:** Alpha Vantage, Yahoo Finance
 
-## 화면
+<details>
+<summary><b>화면</b></summary>
 
-### 주식 페이지
+<br>
+
+**주식 페이지**
+
 <img src="../.github/images/market-data-service/주식페이지.png" alt="주식 페이지" width="600"/>
 
-### 차트 페이지
+**차트 페이지**
+
 <img src="../.github/images/market-data-service/차트페이지.png" alt="차트 페이지" width="600"/>
+
+</details>

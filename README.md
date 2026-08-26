@@ -1,63 +1,270 @@
 # GGeolmuse
 
+> 미국 주식 데이터로 투자 전략을 백테스팅하는 마이크로서비스 플랫폼
+
 **Live Demo**: https://ggeolmuse.com
 
 [![CI/CD](https://github.com/musqat/ggeolmuse/actions/workflows/ci.yml/badge.svg)](https://github.com/musqat/ggeolmuse/actions)
 [![Security Scan](https://github.com/musqat/ggeolmuse/actions/workflows/nightly-security-scan.yml/badge.svg)](https://github.com/musqat/ggeolmuse/actions)
 
-미국 주식 데이터 기반 투자 전략 백테스팅 플랫폼
-
 <div align="center">
   <img src=".github/images/main/메인페이지.png" alt="GGeolmuse 메인 화면" width="800"/>
 </div>
 
-## 서비스 개요
+> 데모 서버는 평일 07:30~19:00 (KST) 에만 띄워둡니다. 비용 때문에 야간·주말은 내려둡니다.
 
-NYSE, NASDAQ, NYSE ARCA 상장 11,000개 이상 종목의 20년치 일별 가격 데이터로 투자 전략을 백테스팅합니다.
-환율 변동, 배당 재투자, 실제 수수료까지 반영해 실전에 가까운 시뮬레이션을 제공합니다.
+<br>
 
-**주요 기능**
-- 실시간 주식 시세 조회 및 과거 OHLC 데이터 제공
-- 5가지 투자 전략 백테스팅 (단순, 적립식, 조건부 매매, 전략 비교, 종목 비교)
-- 환율 변동을 고려한 원화/달러 수익률 계산
+## 하는 일
+
+NYSE · NASDAQ · NYSE ARCA 상장 약 9,000 개 종목의 일별 가격으로 투자 전략을 검증한다.
+환율 변동, 배당 재투자, 거래 수수료까지 반영해 실제 매매에 가까운 수익률을 낸다.
+
+```
+종목 · 기간 · 전략 선택
+        ↓
+전략 실행   단순 매수 / 적립식 / 조건부 매매
+        ↓
+보정        환율(KRW↔USD) · 배당 재투자 · 수수료 · 슬리피지
+        ↓
+결과        수익률 · 자산 추이 · 전략 간 비교
+```
+
+<details>
+<summary><b>기능 목록</b></summary>
+
+<br>
+
+- 실시간 시세 조회와 과거 OHLC 데이터 제공
+- 투자 전략 다섯 가지 (단순, 적립식, 조건부 매매, 전략 비교, 종목 비교)
+- 환율을 반영한 원화·달러 수익률
 - 배당금 자동 재투자 시뮬레이션
-- 실제 거래 수수료 및 슬리피지 반영
-- AI 종목 기술 분석 (지표 기반 챗봇, 차트에서 원클릭 분석)
+- 거래 수수료와 슬리피지 반영
+- AI 종목 기술 분석 — 지표 기반 챗봇, 차트에서 원클릭
 
-**기술 스택**
-- Backend: Spring Boot, Spring Cloud (Java) · FastAPI (Python, AI 챗봇)
-- AI: OpenAI (gpt-4o / gpt-4o-mini)
-- Data: PostgreSQL, Redis, Kafka
-- Frontend: React, TypeScript
-- Infrastructure: Kubernetes, Helm, ArgoCD
+</details>
 
----
+<br>
 
-## 마이크로서비스
+## 구조
 
-| Service | 설명 | README |
-|---------|------|--------|
+서비스 일곱 개(Java 6 + Python 1). 서비스별 독립 배포와 스케일링을 다뤄보는 것이 목적이고
+**실제 운영은 단일 EC2 한 대**다.
+
+```
+                    Traefik IngressRoute
+                            │
+                    Gateway Server (8070)
+         JWT 검증 · 라우팅 · Rate Limit · Circuit Breaker
+                            │
+     ┌──────────┬───────────┼───────────┬──────────┐
+     ▼          ▼           ▼           ▼          ▼
+   User       Trade      Backtest   Market-Data   Chat
+   8080       8081        8082        8083       8000
+  인증·계좌   거래·포트폴리오  전략 시뮬  시세 수집·제공  AI 분석
+     │          │           │           │
+     └──────────┴─────┬─────┴───────────┘
+                      │
+        PostgreSQL · Redis · Kafka
+```
+
+Feign 은 답이 있어야 다음 줄이 진행되는 조회에 쓰고 Kafka 는 답이 필요 없는 사후 통지에 쓴다.
+설정은 Config Server 가 외부 저장소(`musqat/ggeolmuse-config`)에서 읽어 배포한다.
+
+<details>
+<summary><b>서비스별 상세</b> — 각 서비스 README</summary>
+
+<br>
+
+| Service | 역할 | |
+|---|---|---|
 | **Config Server** | 중앙 설정 관리 | [📄](config-server/README.md) |
-| **Gateway Server** | API Gateway | [📄](gateway-server/README.md) |
+| **Gateway Server** | 라우팅, JWT 검증, Rate Limit | [📄](gateway-server/README.md) |
 | **User Service** | 인증, 계좌 관리, 환전 | [📄](user-service/README.md) |
-| **Trade Service** | 거래 실행, 포트폴리오 관리 | [📄](trade-service/README.md) |
-| **Market Data Service** | 시세 데이터 수집/제공 | [📄](market-data-service/README.md) |
-| **Backtest Service** | 투자 전략 백테스팅 | [📄](backtest-service/README.md) |
-| **Chat Service** | AI 종목 기술 분석 (FastAPI + OpenAI) | [📄](chat-service/README.md) |
+| **Trade Service** | 거래 실행, 포트폴리오 | [📄](trade-service/README.md) |
+| **Market Data Service** | 시세 수집·제공 | [📄](market-data-service/README.md) |
+| **Backtest Service** | 전략 백테스팅 | [📄](backtest-service/README.md) |
+| **Chat Service** | AI 기술 분석 (FastAPI) | [📄](chat-service/README.md) |
 
-## 인프라 & 배포
+인프라 구성과 비용 최적화는 [helm/README.md](helm/README.md) 에 있다.
 
-| 항목       | 설명 | README |
-|----------|------|--------|
-| **helm** | AWS 아키텍처, 비용 최적화, CI/CD, 모니터링, 트러블슈팅 | [📄](helm/README.md) |
+</details>
 
----
+<details>
+<summary><b>디렉터리</b></summary>
 
-## 로컬에서 실행해보기
+<br>
 
-본인 PC의 **Docker Desktop** 에서 docker-compose로 한 번에 띄워볼 수 있습니다.
+```
+ggeolmuse/
+├── gateway-server/       API Gateway (WebFlux)
+├── config-server/        중앙 설정
+├── user-service/         인증 · 계좌
+├── trade-service/        거래 · 포트폴리오
+├── market-data-service/  시세 수집 · 제공
+├── backtest-service/     전략 시뮬레이션
+├── chat-service/         AI 기술 분석 (FastAPI)
+├── ggeolmuse-bom/        공통 라이브러리 (예외 · 로깅 · 유틸)
+├── messaging/            Kafka 공통 라이브러리
+├── frontend-web/         React
+├── helm/                 Helm 차트 · ArgoCD
+├── k6/                   부하 테스트 스크립트
+└── terraform/            EC2 스케줄러 · 알람
+```
 
-**전제**: Docker Desktop 실행 중
+<img width="850" height="600" alt="아키텍처" src="https://github.com/user-attachments/assets/e54861a9-3a24-40f5-bf48-c0e0c55ada22" />
+
+</details>
+
+<br>
+
+## 기술 스택
+
+| 영역 | 기술 |
+|---|---|
+| Backend | Java 21 · Spring Boot 3.3 · Spring Cloud Gateway · Spring Security |
+| AI | FastAPI (Python) · OpenAI gpt-4o / gpt-4o-mini |
+| Data | PostgreSQL · Redis · Kafka |
+| Frontend | React · TypeScript · Vite |
+| Auth | Keycloak (OAuth2 / JWT) |
+| Resilience | Resilience4j — CircuitBreaker · Retry · TimeLimiter · Bulkhead |
+| Infra | Kubernetes (K3s) · Helm · ArgoCD · Docker |
+| 관측 | Prometheus · Grafana · Tempo (OpenTelemetry) · Loki |
+| Test | JUnit 5 · Mockito · Vitest · k6 |
+
+<br>
+
+## 테스트
+
+백엔드 **648 개**, 프론트 **97 개**. 여섯 서비스가 CI 에서 같은 명령을 탄다.
+
+| 서비스 | 테스트 |
+|---|---|
+| user-service | 204 |
+| market-data-service | 165 |
+| backtest-service | 163 |
+| trade-service | 116 |
+| frontend-web | 97 |
+
+<details>
+<summary><b>커버리지와 그 한계</b></summary>
+
+<br>
+
+`Q*`, `*Config`, DTO, entity 를 제외한 수치다. 롬복이 만드는 게터·빌더가 포함되면
+숫자는 올라가지만 실제 검증 정도를 나타내지 못한다.
+
+| 서비스 | 라인 | 분기 |
+|---|---|---|
+| backtest | 67.3% | 56.4% |
+| trade | 55.5% | 54.8% |
+| user | 37.5% | 27.4% |
+| market-data | 24.2% | 28.1% |
+
+market-data 가 낮은 이유는 수집 파이프라인이 대부분 외부 API 호출이라서다.
+파서와 매퍼는 붙였고 수집 자체는 아직이다. 낮은 걸 알고 두는 것과 모르는 것은 다르다.
+
+프론트 테스트는 화면 개수가 아니라 **실제로 틀렸던 곳**을 기준으로 골랐다.
+`toISOString()` 이 UTC 라 날짜가 밀리던 것 같은 결함들이고
+전부 [문제 해결](docs/problem-solving.md) 에 기록돼 있다.
+
+</details>
+
+<br>
+
+## 성능
+
+측정한 조건을 같이 적는다. 조건이 빠진 수치는 나중에 자기가 자기를 속인다.
+
+**Bulk API — 호출 2,000 회 → 2 회**
+
+백테스트가 기간 내 날짜를 하루씩 개별 호출했다. 5년치면 약 2,000 회다.
+범위를 한 번에 받는 API 로 바꿔 100 초가 1.5 초가 됐다.
+
+**Redis 캐시 — 같은 백테스트에서 1.2s → 150ms**
+
+서버가 빨라진 게 아니라 캐시 미스와 히트의 차이다. 같은 요청을 캐시가 있을 때와
+없을 때 돌린 값이다.
+
+**캐시 히트율 — 기간 단위에서 일자 단위로**
+
+기간 단위로 캐시하면 요청 범위가 조금만 달라도 키가 어긋나 히트가 거의 없다.
+일자별로 쪼개니 겹치는 날짜가 재사용된다. 77% 를 봤지만 **표본이 적어 대푯값으로 보긴 어렵다.**
+이 변경에는 대가도 있었다 — 범위 조회가 날짜 수만큼 왕복하게 되어 다른 장애를 만들었다.
+
+<details>
+<summary><b>부하 테스트 (k6) — 게이트웨이가 앱 여력의 6% 만 통과시킨다</b></summary>
+
+<br>
+
+조회 API (`symbols` / `price` / `ohlc`) 기준.
+
+| 구간 | 처리량 | p95 | 5xx |
+|---|---|---|---|
+| 게이트웨이 경유 | 202 rps | 28.8ms | 0 |
+| 우회 (50 VU) | 3,368 rps | 29.8ms | 0 |
+| 우회 (250 VU) | 3,339 rps | 177ms | 0 |
+
+실패율이 89.87% 인데 응답은 p95 12ms 였다. 느려서 실패하는 것과 빠르게 거절당하는 것은
+다르고, 후자였다. 87% 가 429 였고 게이트웨이 `replenishRate: 200` 과 일치했다.
+
+**단, 3,350 rps 는 앱의 한계가 아니다.** 그 시점에 market-data 프로세스 CPU 는 38.7% 인데
+호스트 전체는 67.8% 였다. 부하 생성기를 같은 PC 에서 돌린 탓에 측정 환경이 먼저 포화했다.
+"게이트웨이가 앱 여력의 6% 만 통과시킨다" 는 말할 수 있어도 "앱이 3,350 rps 를 견딘다" 는
+말할 수 없다.
+
+rate limit 값을 아직 바꾸지 않은 이유도 이것이다. 앱의 실제 한계를 모르는 상태에서 문을
+넓히면 병목을 게이트웨이에서 앱으로 옮기는 것에 그친다.
+
+</details>
+
+<br>
+
+## 운영
+
+**비용** — 관리형 서비스로 구성하면 월 $650 이었다. 아키텍처는 유지하고 운영 등급만 낮춰
+$80 으로 내렸다. EKS→K3s, RDS Multi-AZ→Single-AZ, MSK·ElastiCache→파드 내 실행.
+values 파일만 바꾸면 되돌릴 수 있게 환경을 분리했다.
+
+**데이터** — 상장 목록을 받아오면 11,000 개가 넘게 잡힌다. 상장폐지된 것은 지우지 않고
+`active=false` 로 내린다. 수집 스케줄러는 `active=true` 인 약 9,000 개만 갱신한다.
+
+**가동 시간** — EventBridge Scheduler 가 EC2 를 평일 07:00 에 켜고 19:00 에 끈다.
+인스턴스 시간 기준 월 $49 를 더 아끼는 대신 가동률이 35.7% 가 된다.
+비용을 알고 내린 선택이라 README 에 적어둔다.
+
+<details>
+<summary><b>배포와 관측</b></summary>
+
+<br>
+
+```
+GitHub Actions          빌드 · 테스트 · Trivy 스캔
+        ↓
+ArgoCD (GitOps)         Helm 차트를 추적해 동기화
+        ↓
+K3s (EC2 단일 노드)      Traefik IngressRoute 로 진입
+```
+
+| 도구 | 용도 |
+|---|---|
+| Prometheus · Grafana | 메트릭 수집과 시각화 |
+| Tempo · OpenTelemetry | 분산 추적 |
+| Loki | 로그 집계 |
+| ArgoCD | GitOps 배포 |
+
+로컬에서도 같은 관측 스택을 `docker-compose` 로 띄울 수 있다.
+
+**안정성** — Resilience4j 로 CircuitBreaker · Retry · TimeLimiter · Bulkhead 를 걸었다.
+서킷은 market-data 를 내렸다 올리며 OPEN → CLOSED 전이를 실제로 확인했다.
+
+</details>
+
+<br>
+
+## 로컬에서 실행
+
+Docker Desktop 이 떠 있으면 한 번에 올라간다.
 
 ```bash
 git clone https://github.com/musqat/ggeolmuse.git
@@ -65,99 +272,12 @@ cd ggeolmuse
 bash scripts/local-up.sh
 ```
 
-스크립트가 `.env` 자동 생성 → 이미지 빌드 → 전체 스택 기동까지 진행합니다.
-(직접 하려면 `cd docker-compose && docker compose up --build -d`)
+접속은 http://localhost:3000, 시드 계정은 `admin@test.com` / `Admin123!` 이다.
+AI 챗봇 설정과 주의할 점은 [빌드와 배포](docs/DEPLOY.md) 에 적었다.
 
-**접속**: http://localhost:3000
+<br>
 
-**시드 admin 로그인** (메일 인증 불필요, 부팅 시 자동 생성):
+## 만들며 겪은 것
 
-| 항목 | 값 |
-|------|-----|
-| 이메일 | `admin@test.com` |
-| 비밀번호 | `Admin123!` |
-
-**AI 챗봇(선택)**: OpenAI 키가 있으면 챗봇까지 활성화됩니다. 없으면 chat-service는 제외되고, AI 버튼은 표시되나 호출 시 안내가 뜹니다.
-
-```bash
-OPENAI_API_KEY=sk-... bash scripts/local-up.sh
-```
-
-> 로컬 설정·비밀번호는 모두 더미값(`docker-compose/.env`, gitignore)이며 운영 환경과 무관합니다.
-> 서비스 설정은 외부 public 저장소 `musqat/ggeolmuse-config`에서 로드합니다(인터넷 필요).
-> 시세 데이터는 기동 ~90초 후 Yahoo에서 50종목이 자동 수집됩니다(키 불필요). 그 전엔 차트가 비어 보일 수 있습니다.
-> 종료: `bash scripts/local-up.sh down`
-
----
-
-## 아키텍처
-
-**Microservices Architecture**
-- 7개 독립 서비스로 구성 (Java 6 + Python 1, 서비스별 독립 배포·스케일링 경험 목적, 실제 운영은 단일 EC2)
-- Kafka 기반 이벤트 드리븐 아키텍처
-- Spring Cloud Gateway로 라우팅 통합 (이종 언어 서비스도 동일 게이트웨이로 통합)
-
-**인프라**
-- Kubernetes (K3s) 기반 컨테이너 오케스트레이션
-- ArgoCD로 GitOps 배포
-- Prometheus + Grafana 모니터링
-
----
-
-## 프로젝트 구조
-
-```
-ggeolmuse/
-├── backtest-service/          # 백테스팅 시뮬레이션
-├── trade-service/             # 거래 및 포트폴리오 관리
-├── user-service/              # 인증 및 계좌 관리
-├── market-data-service/       # 시세 데이터 수집/제공
-├── chat-service/              # AI 종목 기술 분석 (FastAPI + OpenAI)
-├── gateway-server/            # API Gateway
-├── config-server/             # 중앙 설정 관리
-├── ggeolmuse-bom/             # 공통 라이브러리 (예외처리, 로깅, 유틸)
-├── messaging/                 # Kafka 메시징 공통 라이브러리
-└── frontend-web/              # React 프론트엔드
-```
-
-<img width="850" height="600" alt="껄무새 drawio (2)" src="https://github.com/user-attachments/assets/e54861a9-3a24-40f5-bf48-c0e0c55ada22" />
-
----
-
-## 성능 최적화
-
-**데이터 처리**
-- Bulk API 패턴: API 호출 99% 감소 (2000+ → 2-4 calls)
-- Redis 캐싱: 응답시간 90% 개선 (1.2s → 150ms)
-- 데이터베이스 인덱싱: 시가총액 정렬 조회 98% 개선 (2.5s → 50ms)
-
-**안정성**
-- Circuit Breaker로 장애 서비스 격리, Retry 정책으로 일시적 오류 복구
-- API 과부하는 Rate Limiting으로 방지
-
-**운영 자동화**
-- GitHub Actions CI/CD 파이프라인
-- 컨테이너 보안 스캔 (Trivy, OWASP)
-- 분산 추적 및 로그 수집 (OpenTelemetry, Loki)
-
----
-
-## 프로젝트 규모
-
-**데이터**
-- 11,000+ 미국 주식 종목
-- 290만+ 일별 캔들 데이터 (최대 20년치)
-- 7,000+ 환율 데이터
-
-**성능 지표**
-- Cache Hit Rate: 77%
-
----
-
-## 모니터링
-
-- **Prometheus + Grafana**: 메트릭 수집 및 시각화
-- **Loki**: 로그 집계
-- **Tempo + OpenTelemetry**: 분산 추적
-- **ArgoCD**: GitOps 배포 관리
-- **Kafka UI**: 이벤트 스트림 모니터링
+- [시행착오](docs/trial-and-error.md) — 근거를 갖고 정한 것이 확인해보니 반대인 게 여럿이었다. 무엇을 믿었고 무엇으로 갈렸는지
+- [문제 해결](docs/problem-solving.md) — 겪은 장애와 버그를 문제 → 원인 → 해결. 감수하기로 한 한계도 함께

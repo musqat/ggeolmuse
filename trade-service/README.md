@@ -12,13 +12,21 @@
 
 **의존 서비스:** User Service, Market Data Service
 
-## 화면
+<details>
+<summary><b>화면</b></summary>
 
-### 거래 페이지
+<br>
+
+**거래 페이지**
+
 <img src="../.github/images/trade-service/거래페이지.png" alt="거래 페이지" width="600"/>
 
-### 거래 내역
+**거래 내역**
+
 <img src="../.github/images/trade-service/거래내역.png" alt="거래 내역" width="600"/>
 
-### 포트폴리오
+**포트폴리오**
+
 <img src="../.github/images/trade-service/포트폴리오.png" alt="포트폴리오" width="600"/>
+
+</details>
