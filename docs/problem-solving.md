@@ -26,11 +26,14 @@
 - [타임아웃인데 405 가 나왔다](#타임아웃인데-405-가-나왔다) — 증상이 사라진 것과 해결은 다르다
 - [처리량 상한이 앱이 아니라 게이트웨이였다](#처리량-상한이-앱이-아니라-게이트웨이였다) — 429 를 실패로 셌다
 - [rate limit 이 IP 별이 아니라 전체로 걸렸다](#rate-limit-이-ip-별이-아니라-전체로-걸렸다) — 프록시 뒤의 주소
+- [로그인 한 번이 다른 라우트의 토큰을 깎았다](#로그인-한-번이-다른-라우트의-토큰을-깎았다) — 버킷 키에 라우트가 없다
 
 **빌드와 CI**
 
 - [CI 배지는 초록인데 테스트가 안 돌았다](#ci-배지는-초록인데-테스트가-안-돌았다) — skipTests 분기
 - [BOM 을 import 했는데 라이브러리가 안 왔다](#bom-을-import-했는데-라이브러리가-안-왔다) — 게이트웨이만 트레이스 없음
+- [CI 가 11분인데 테스트는 45초였다](#ci-가-11분인데-테스트는-45초였다) — 죽은 저장소 응답 대기
+- [취약점 DB 캐시가 자리만 먹고 있었다](#취약점-db-캐시가-자리만-먹고-있었다) — 복원하고 새로 받는다
 - [로컬은 통과, CI 만 실패](#로컬은-통과-ci-만-실패) — 타임존
 
 **인프라**
@@ -472,6 +475,59 @@ XForwardedRemoteAddressResolver.maxTrustedIndex(1)
 
 ---
 
+## 로그인 한 번이 다른 라우트의 토큰을 깎았다
+
+`문제`
+E2E 스위트가 열 번에 한두 번 429 로 깨졌다. 재현이 잘 안 돼 타이밍 문제로 보였다.
+실패 응답 헤더를 남기게 하고 반복하니 이렇게 나왔다.
+
+```
+x-ratelimit-remaining: 0
+x-ratelimit-burst-capacity: 1000
+```
+
+용량 1000 인 버킷이 0 이다. 스위트는 1000 번을 부르지 않는다.
+
+`원인`
+버킷 키에 라우트가 없었다. Redis 키가 `request_rate_limiter.{IP}.tokens` 하나뿐이라
+모든 라우트가 그것을 나눠 쓴다.
+
+그런데 라우트마다 상한이 다르다.
+
+```
+user-login-route   replenishRate 1    burstCapacity 30    requestedTokens 10
+backtest-route     replenishRate 500  burstCapacity 1000  requestedTokens 1
+```
+
+Spring 의 Lua 스크립트는 저장된 토큰 수를 **호출한 라우트의 burstCapacity 로 자른다.**
+로그인이 지나가는 순간 버킷이 30 이하로 잘리고, 직후에 들어온 백테스트 요청은 0 을 만난다.
+
+실측이 분명했다. 시장 조회로 채워 395 였던 버킷이 로그인 한 번에 20 이 됐다.
+385 가 아니라 20 이다. 365 개가 증발한다.
+
+`해결`
+키에 라우트 ID 를 넣어 버킷을 갈랐다.
+
+```java
+Route route = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR);
+return Mono.just(clientIp(exchange) + ":" + routeId(exchange));
+```
+
+```
+{IP:market-data-route} = 395   로그인에 안 깎임
+{IP:user-login-route}  = 20
+```
+
+고치기 전 8회 중 2회가 깨졌고, 고친 뒤 클린룸 포함 15회 연속 통과한다.
+
+곁가지로 같은 파일의 NPE 두 곳을 막았다. 미해석 `InetSocketAddress` 는 `getAddress()` 가
+null 이고 끊긴 커넥션은 `getRemoteAddress()` 자체가 null 인데 `requireNonNull` 로
+감싸여 있어 그 경우 500 이 나갔다.
+
+<br>
+
+---
+
 # 빌드와 CI
 
 ## CI 배지는 초록인데 테스트가 안 돌았다
@@ -532,6 +588,81 @@ BOM 을 통째로 넣을 수는 없었다. BOM 의 `dependencies` 에 `spring-bo
 
 WebFlux 컨텍스트 전파는 Spring Boot 3.x + Reactor 3.5 조합에서 이미 자동으로 처리되고
 있었다. 옛 버전의 문제를 현재 버전에 그대로 적용한 오진이었다.
+
+<br>
+
+## CI 가 11분인데 테스트는 45초였다
+
+`문제`
+CI 가 4분에서 11분으로 늘었다. 잡별로 보니 `user-service` 혼자 615초고 나머지는
+100~163초다. 그중 `Build & Test` 가 484초였다.
+
+로컬에서 같은 명령이 33초다. 14배 차이를 테스트가 설명하지 못한다.
+
+`원인`
+로그 타임스탬프의 공백을 재보니 답이 나왔다.
+
+```
+251.7초  Downloading from jboss-public-repository-group: ...
+187.3초  Downloading from jboss-public-repository-group: ...
+```
+
+484초 중 439초가 저장소 응답 대기다. 그리고 **거기서 받아온 아티팩트는 0개**다.
+538개 전부 Central 에서 왔다.
+
+`keycloak-admin-client` 의 부모 pom 이 그 저장소를 선언한다. Maven 은 내 pom 의
+저장소만 보는 게 아니라 의존성 pom 이 선언한 것도 물려받아 뒤진다. keycloak 을 쓰는
+서비스가 user-service 뿐이라 다른 다섯은 해당이 없었다.
+
+로컬에서 안 보인 이유는 `~/.m2` 가 그 저장소를 이미 죽은 걸로 알고 넘어가서다.
+
+`해결`
+`.mvn/ci-settings.xml` 로 모든 저장소를 Central 로 미러링했다.
+Maven 이 `.mvn` 의 settings 를 자동으로 읽지 않아 CI 의 mvn 호출 6곳에 `-s` 를 붙이고
+Dockerfile 6개는 `/root/.m2/settings.xml` 로 복사한다.
+
+| | 전 | 후 |
+|---|---|---|
+| Build & Test | 484초 | 47초 |
+| 콜드 도커 빌드 | 427초 | 103초 |
+
+keycloak·jboss 캐시를 지우고 받아 테스트 204개 통과를 확인했다.
+JBoss 에만 있는 아티팩트는 없다.
+
+<br>
+
+## 취약점 DB 캐시가 자리만 먹고 있었다
+
+`문제`
+GitHub Actions 캐시가 리포 상한 10GB 중 6.28GB 를 쓰고 있었다.
+그중 5.7GB 가 Trivy 것이다.
+
+```
+cache-trivy-2026-08-25  x2   954MB씩
+cache-trivy-2026-08-26  x2
+cache-trivy-2026-08-27  x2
+```
+
+`원인`
+`trivy-action` 이 취약점 DB 를 날짜 키로 캐시하는데 옛 키를 안 지운다. 하루에 954MB 씩
+쌓인다. 그리고 그게 도커 레이어 캐시를 밀어내는데, 그쪽은 서비스당 264초를 아낀다.
+
+로그를 보니 캐시가 일을 하지도 않았다.
+
+```
+Cache hit for: cache-trivy-2026-08-27
+Cache restored successfully          954MB, 15초
+[vulndb] Need to update DB           그러고 새로 받는다
+```
+
+954MB 를 15초 걸려 복원해놓고 바로 새로 받는다.
+
+`해결`
+`cache: false`. 그리고 같은 이미지를 table 용과 SARIF 용으로 두 번 스캔하던 것도
+한 번으로 줄였다. 스캔 14초에 바이너리 풀기와 DB 준비 15초가 붙어 그 30초가 중복이었다.
+JSON 으로 한 번 받아 `trivy convert` 로 두 형식을 뽑는다. convert 는 0초다.
+
+서비스당 57초에서 33초가 됐다.
 
 <br>
 
