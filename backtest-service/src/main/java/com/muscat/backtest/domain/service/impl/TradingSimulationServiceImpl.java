@@ -311,7 +311,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
       calculation.dividendReinvestDates());
   }
 
-  // 최적 타이밍 계산 (기간 내 최저가 매수, 최고가 매도)
+  // 최적 타이밍 계산 (매수일 <= 매도일 제약 아래 최대 수익)
   private OptimalTiming calculateOptimalTiming(String symbol, LocalDate startDate,
     LocalDate endDate) {
     try {
@@ -322,30 +322,45 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
         return OptimalTiming.empty();
       }
 
-      // 최저가 찾기 (최적 매수) — 분할 반영 위해 effectiveClose 기준
-      OHLCPriceDto lowestPrice = prices.stream()
-        .min(Comparator.comparing(PriceLookup::effectiveClose))
-        .orElse(null);
+      // 전 구간 최저가와 최고가를 각각 뽑으면 최고가가 최저가보다 먼저 오는 날이 생긴다.
+      // 8월에 사서 7월에 파는 답이 나오는데, 그건 할 수 없는 매매다.
+      // 매수일 <= 매도일 제약을 지키려면 앞에서부터 훑으며 그때까지의 최저가를 들고 가야 한다.
+      //
+      // 날짜 오름차순 전제라 여기서 한 번 더 정렬한다.
+      List<OHLCPriceDto> ordered = prices.stream()
+        .sorted(Comparator.comparing(OHLCPriceDto::date))
+        .toList();
 
-      // 최고가 찾기 (최적 매도)
-      OHLCPriceDto highestPrice = prices.stream()
-        .max(Comparator.comparing(PriceLookup::effectiveClose))
-        .orElse(null);
+      OHLCPriceDto minSoFar = ordered.get(0);
+      OHLCPriceDto bestBuy = ordered.get(0);
+      OHLCPriceDto bestSell = ordered.get(0);
+      BigDecimal bestReturn = BigDecimal.ZERO;
 
-      if (lowestPrice == null || highestPrice == null) {
-        return OptimalTiming.empty();
+      for (OHLCPriceDto candle : ordered) {
+        // 분할·배당 반영을 위해 effectiveClose 기준
+        if (PriceLookup.effectiveClose(candle)
+          .compareTo(PriceLookup.effectiveClose(minSoFar)) < 0) {
+          minSoFar = candle;
+        }
+
+        BigDecimal ret = MoneyUtils.calculateReturnRate(
+          PriceLookup.effectiveClose(minSoFar), PriceLookup.effectiveClose(candle));
+
+        if (ret.compareTo(bestReturn) > 0) {
+          bestReturn = ret;
+          bestBuy = minSoFar;
+          bestSell = candle;
+        }
       }
 
-      // 최적 수익률 계산
-      BigDecimal optimalReturn = MoneyUtils.calculateReturnRate(
-        PriceLookup.effectiveClose(lowestPrice), PriceLookup.effectiveClose(highestPrice));
-
+      // 내내 하락하기만 하면 갱신이 없어 매수일 = 매도일 = 시작일, 수익률 0 이 된다.
+      // 그 구간에서는 사지 않는 것이 최선이라는 뜻이다.
       return new OptimalTiming(
-        lowestPrice.date(),
-        PriceLookup.effectiveClose(lowestPrice),
-        highestPrice.date(),
-        PriceLookup.effectiveClose(highestPrice),
-        optimalReturn
+        bestBuy.date(),
+        PriceLookup.effectiveClose(bestBuy),
+        bestSell.date(),
+        PriceLookup.effectiveClose(bestSell),
+        bestReturn
       );
     } catch (Exception e) {
       log.warn("최적 타이밍 계산 실패: {}", e.getMessage());

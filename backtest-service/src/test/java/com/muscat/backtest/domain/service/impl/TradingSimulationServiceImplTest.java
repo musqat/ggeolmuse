@@ -46,6 +46,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -409,6 +410,163 @@ class TradingSimulationServiceImplTest {
       assertThat(result).isNotNull();
       // userId가 null이므로 히스토리 저장 안 함
       verify(backtestHistoryUtils, never()).saveBacktestHistory(any(), any(), any());
+    }
+  }
+
+  @Nested
+  @DisplayName("최적 타이밍 계산 테스트")
+  class OptimalTimingTests {
+
+    /**
+     * responseMapper 로 넘어가는 최적 타이밍 인자를 잡는다.
+     * 위치는 toSimulationResponse 시그니처 기준으로
+     * optimalBuyDate, optimalBuyPrice, optimalSellDate, optimalSellPrice, optimalReturn 이다.
+     */
+    private void runWith(List<OHLCPriceDto> range) {
+      OHLCPriceDto purchasePrice = range.get(0);
+
+      given(marketDataClientWrapper.getOHLCPrice(eq(TEST_SYMBOL), anyString()))
+        .willReturn(purchasePrice);
+      given(marketDataClientWrapper.getFxRate(anyString()))
+        .willReturn(new FxRateDto(testSimulationRequest.getPurchaseDate(),
+          new BigDecimal("1300.00")));
+      given(marketDataClientWrapper.getCurrentPrice(TEST_SYMBOL))
+        .willReturn(createCurrentPrice(TEST_SYMBOL, new BigDecimal("230.00")));
+      given(marketDataClientWrapper.getLatestFxRate())
+        .willReturn(new FxRateDto(LocalDate.now(), new BigDecimal("1320.00")));
+      given(marketDataClientWrapper.getDividendHistory(eq(TEST_SYMBOL), anyString(), anyString()))
+        .willReturn(Collections.emptyList());
+      given(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
+        .willReturn(range);
+      given(responseMapper.toSimulationResponse(
+        any(SimulationRequest.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(LocalDate.class), any(BigDecimal.class),
+        any(LocalDate.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        anyList()))
+        .willReturn(createSimulationResponse());
+
+      tradingSimulationService.runSimulation(testSimulationRequest, false);
+    }
+
+    private OHLCPriceDto candle(String date, String close) {
+      return createOHLCPrice(TEST_SYMBOL, LocalDate.parse(date), new BigDecimal(close), true);
+    }
+
+    @Test
+    @DisplayName("매도일이 매수일보다 앞서는 답을 내지 않는다")
+    void optimalTiming_NeverSellsBeforeBuying() {
+      // given: 고점이 먼저 오고 그 뒤로 계속 내려가는 구간.
+      // 전 구간 최저(8/12)와 최고(7/28)를 각각 뽑으면 8월에 사서 7월에 파는 답이 나온다.
+      runWith(List.of(
+        candle("2026-07-02", "308.36"),
+        candle("2026-07-28", "339.79"),
+        candle("2026-08-12", "302.25"),
+        candle("2026-08-26", "312.84")
+      ));
+
+      ArgumentCaptor<LocalDate> buyDate = ArgumentCaptor.forClass(LocalDate.class);
+      ArgumentCaptor<LocalDate> sellDate = ArgumentCaptor.forClass(LocalDate.class);
+
+      verify(responseMapper).toSimulationResponse(
+        any(SimulationRequest.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), buyDate.capture(), any(BigDecimal.class),
+        sellDate.capture(), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        anyList());
+
+      // then: 7/2 에 사서 7/28 에 파는 것이 제약 아래 최대 수익이다
+      assertThat(buyDate.getValue()).isEqualTo(LocalDate.parse("2026-07-02"));
+      assertThat(sellDate.getValue()).isEqualTo(LocalDate.parse("2026-07-28"));
+      assertThat(sellDate.getValue()).isAfterOrEqualTo(buyDate.getValue());
+    }
+
+    @Test
+    @DisplayName("저점이 먼저 오면 저점 매수 고점 매도를 그대로 고른다")
+    void optimalTiming_PicksLowThenHigh() {
+      runWith(List.of(
+        candle("2025-01-02", "248.62"),
+        candle("2025-04-08", "171.37"),
+        candle("2026-07-28", "339.79")
+      ));
+
+      ArgumentCaptor<LocalDate> buyDate = ArgumentCaptor.forClass(LocalDate.class);
+      ArgumentCaptor<LocalDate> sellDate = ArgumentCaptor.forClass(LocalDate.class);
+
+      verify(responseMapper).toSimulationResponse(
+        any(SimulationRequest.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), buyDate.capture(), any(BigDecimal.class),
+        sellDate.capture(), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        anyList());
+
+      assertThat(buyDate.getValue()).isEqualTo(LocalDate.parse("2025-04-08"));
+      assertThat(sellDate.getValue()).isEqualTo(LocalDate.parse("2026-07-28"));
+    }
+
+    @Test
+    @DisplayName("내내 하락하면 매수일과 매도일이 같고 수익률이 0 이다")
+    void optimalTiming_AllDownhill_ReturnsZero() {
+      // 살 이유가 없는 구간이다. 손실을 최적이라고 부르지 않는다.
+      runWith(List.of(
+        candle("2026-01-02", "300.00"),
+        candle("2026-02-02", "250.00"),
+        candle("2026-03-02", "200.00")
+      ));
+
+      ArgumentCaptor<LocalDate> buyDate = ArgumentCaptor.forClass(LocalDate.class);
+      ArgumentCaptor<LocalDate> sellDate = ArgumentCaptor.forClass(LocalDate.class);
+      ArgumentCaptor<BigDecimal> optimalReturn = ArgumentCaptor.forClass(BigDecimal.class);
+
+      verify(responseMapper).toSimulationResponse(
+        any(SimulationRequest.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), buyDate.capture(), any(BigDecimal.class),
+        sellDate.capture(), any(BigDecimal.class), optimalReturn.capture(), any(BigDecimal.class),
+        anyList());
+
+      assertThat(buyDate.getValue()).isEqualTo(sellDate.getValue());
+      assertThat(optimalReturn.getValue()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
+    @DisplayName("응답이 날짜 순서로 오지 않아도 결과가 같다")
+    void optimalTiming_UnsortedInput_SameResult() {
+      // 호출 대상이 정렬해 주지만 그건 그쪽 구현 세부다. 여기서 기대지 않는다.
+      runWith(List.of(
+        candle("2026-08-12", "302.25"),
+        candle("2026-07-02", "308.36"),
+        candle("2026-08-26", "312.84"),
+        candle("2026-07-28", "339.79")
+      ));
+
+      ArgumentCaptor<LocalDate> buyDate = ArgumentCaptor.forClass(LocalDate.class);
+      ArgumentCaptor<LocalDate> sellDate = ArgumentCaptor.forClass(LocalDate.class);
+
+      verify(responseMapper).toSimulationResponse(
+        any(SimulationRequest.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), buyDate.capture(), any(BigDecimal.class),
+        sellDate.capture(), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        anyList());
+
+      assertThat(buyDate.getValue()).isEqualTo(LocalDate.parse("2026-07-02"));
+      assertThat(sellDate.getValue()).isEqualTo(LocalDate.parse("2026-07-28"));
     }
   }
 
