@@ -6,6 +6,7 @@
 
 [![CI/CD](https://github.com/musqat/ggeolmuse/actions/workflows/ci.yml/badge.svg)](https://github.com/musqat/ggeolmuse/actions)
 [![Security Scan](https://github.com/musqat/ggeolmuse/actions/workflows/weekly-security-scan.yml/badge.svg)](https://github.com/musqat/ggeolmuse/actions)
+[![E2E](https://github.com/musqat/ggeolmuse/actions/workflows/e2e.yml/badge.svg)](https://github.com/musqat/ggeolmuse/actions)
 
 <div align="center">
   <img src=".github/images/main/메인페이지.png" alt="GGeolmuse 메인 화면" width="800"/>
@@ -88,7 +89,7 @@ Feign 은 답이 있어야 다음 줄이 진행되는 조회에 쓰고 Kafka 는
 | **Backtest Service** | 전략 백테스팅 | [📄](backtest-service/README.md) |
 | **Chat Service** | AI 기술 분석 (FastAPI) | [📄](chat-service/README.md) |
 
-인프라 구성과 비용 최적화는 [helm/README.md](helm/README.md) 에 있다.
+인프라 구성은 [helm/README.md](helm/README.md) 에 있다.
 서비스 설정은 별도 저장소 [ggeolmuse-config](https://github.com/musqat/ggeolmuse-config) 에 있다.
 
 </details>
@@ -139,17 +140,23 @@ ggeolmuse/
 
 ## 테스트
 
-백엔드 **703 개**, 프론트 **97 개**. 여섯 서비스가 CI 에서 같은 명령을 탄다.
+백엔드 **679 개**, 프론트 **119 개**, E2E **35 개**.
 
 | 서비스 | 테스트 |
 |---|---|
-| market-data-service | 235 |
+| market-data-service | 207 |
 | user-service | 204 |
-| backtest-service | 155 |
+| backtest-service | 159 |
 | trade-service | 109 |
-| frontend-web | 97 |
+| frontend-web | 119 |
+| E2E (Playwright) | 35 |
 
 <details>
+
+E2E 는 `docker compose` 로 스택 전체를 띄우고 `master` push 마다 돈다.
+PR 게이트로 두지 않은 이유는 시세를 Yahoo Finance 에서 받아서다 — 우리 코드와
+무관하게 외부가 흔들리면 머지가 막힌다.
+
 <summary><b>커버리지와 그 한계</b></summary>
 
 <br>
@@ -225,16 +232,15 @@ rate limit 값을 아직 바꾸지 않은 이유도 이것이다. 앱의 실제 
 
 ## 운영
 
-**비용** — 관리형 서비스로 구성하면 월 $650 이었다. 아키텍처는 유지하고 운영 등급만 낮춰
-$80 으로 내렸다. EKS→K3s, RDS Multi-AZ→Single-AZ, MSK·ElastiCache→파드 내 실행.
-values 파일만 바꾸면 되돌릴 수 있게 환경을 분리했다.
+**구성 등급** — 관리형 서비스로 짜면 EKS, RDS Multi-AZ, MSK, ElastiCache 가 된다.
+아키텍처는 그대로 두고 운영 등급만 낮췄다. EKS→K3s, RDS Multi-AZ→Single-AZ,
+MSK·ElastiCache→파드 내 실행. values 파일만 바꾸면 되돌릴 수 있게 환경을 분리했다.
 
-**데이터** — 상장 목록을 받아오면 11,000 개가 넘게 잡힌다. 상장폐지된 것은 지우지 않고
+**데이터** — 상장 목록을 받아오면 14,000 개가 넘게 잡힌다. 상장폐지된 것은 지우지 않고
 `active=false` 로 내린다. 수집 스케줄러는 `active=true` 인 약 9,000 개만 갱신한다.
 
 **가동 시간** — EventBridge Scheduler 가 EC2 를 평일 07:00 에 켜고 19:00 에 끈다.
-인스턴스 시간 기준 월 $49 를 더 아끼는 대신 가동률이 35.7% 가 된다.
-비용을 알고 내린 선택이라 README 에 적어둔다.
+앱이 뜨는 데 5~10분 걸려서 방문자 기준은 07:30 이다.
 
 <details>
 <summary><b>배포와 관측</b></summary>
