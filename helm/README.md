@@ -51,18 +51,17 @@ AWS RDS (db.t3.micro)
 
 ---
 
-## 비용 최적화
+## 구성 등급 선택
 
 ### 초기 계획 vs 최종 선택
 
-| 구성 | 초기 계획 | 최종 선택 | 절감 |
-|------|----------|----------|------|
-| Kubernetes | EKS ($73/월) | K3s (EC2만) | -$73 |
-| Database | RDS Multi-AZ ($100/월) | RDS Single-AZ ($15/월) | -$85 |
-| Cache | ElastiCache ($50/월) | Pod 내 Redis | -$50 |
-| Message Queue | MSK ($300/월) | Pod 내 Kafka | -$300 |
-| Load Balancer | ALB ($20/월) | Cloudflare (무료) | -$20 |
-| **합계** | **$650+/월** | **$80/월** | **87% 절감** |
+| 구성 | 초기 계획 | 최종 선택 |
+|------|----------|----------|
+| Kubernetes | EKS | K3s (EC2 단일 노드) |
+| Database | RDS Multi-AZ | RDS Single-AZ |
+| Cache | ElastiCache | 파드 내 Redis |
+| Message Queue | MSK | 파드 내 Kafka |
+| Load Balancer | ALB | Cloudflare |
 
 ### 선택 근거
 
@@ -78,15 +77,14 @@ AWS RDS (db.t3.micro)
 
 **스케일업 경로**:
 ```
-현재 ($80/월)
+K3s 단일 노드
   ↓ 트래픽 증가 시
-EC2 스펙 업그레이드 ($120/월)
+EC2 스펙 업그레이드
   ↓ 더 증가 시
-EKS + Multi-Node ($300/월)
+EKS + Multi-Node
   ↓ 본격 서비스 시
-EKS + RDS Multi-AZ + ElastiCache ($800/월)
+EKS + RDS Multi-AZ + ElastiCache
 ```
-
 values 파일만 수정하면 EKS 전환 가능.
 
 ---
@@ -269,4 +267,4 @@ gateway: 실제 75MB 사용 중인데 384MB 할당
 | gateway | 384m | 192m |
 | config-server | 256m | 128m |
 
-**결과**: t3.xlarge → t3.large 다운그레이드 (월 $92 절감)
+**결과**: t3.xlarge → t3.large 다운그레이드. 실제로 쓰는 양이 그만큼이었다.
