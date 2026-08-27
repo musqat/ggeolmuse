@@ -22,7 +22,7 @@ FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
-ADD https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.10.0/opentelemetry-javaagent.jar opentelemetry-javaagent.jar
+ADD https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.26.1/opentelemetry-javaagent.jar opentelemetry-javaagent.jar
 RUN chmod 644 opentelemetry-javaagent.jar
 
 COPY --from=build /app/target/*.jar app.jar
