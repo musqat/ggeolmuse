@@ -26,7 +26,7 @@ jobs:
       - name: Build & Install ggeolmuse-bom
         run: |
           cd ggeolmuse-bom
-          mvn clean install -DskipTests
+          mvn -s $GITHUB_WORKSPACE/.mvn/ci-settings.xml clean install -DskipTests
 
   build-messaging:
     runs-on: ubuntu-latest
@@ -46,11 +46,11 @@ jobs:
       - name: Build & Install ggeolmuse-bom (for dependencies)
         run: |
           cd ggeolmuse-bom
-          mvn install -DskipTests
+          mvn -s $GITHUB_WORKSPACE/.mvn/ci-settings.xml install -DskipTests
       - name: Build & Install messaging
         run: |
           cd messaging
-          mvn clean install -DskipTests
+          mvn -s $GITHUB_WORKSPACE/.mvn/ci-settings.xml clean install -DskipTests
 
   build-services:
     runs-on: ubuntu-latest
@@ -80,16 +80,16 @@ jobs:
       - name: Build & Install ggeolmuse-bom (for dependencies)
         run: |
           cd ggeolmuse-bom
-          mvn install -DskipTests
+          mvn -s $GITHUB_WORKSPACE/.mvn/ci-settings.xml install -DskipTests
       - name: Build & Install messaging (for dependencies)
         run: |
           cd messaging
-          mvn install -DskipTests
+          mvn -s $GITHUB_WORKSPACE/.mvn/ci-settings.xml install -DskipTests
       - name: Build & Test ${{ matrix.service }}
         run: |
           cd ${{ matrix.service }}
           # Run unit tests only (*Test.java). Integration tests (*IT.java) are excluded by default
-          mvn clean compile test
+          mvn -s $GITHUB_WORKSPACE/.mvn/ci-settings.xml clean compile test
       - uses: docker/setup-buildx-action@v3
 
       # 러너는 매번 새 머신이라 레이어가 안 남는다. GitHub Actions 캐시에 얹어

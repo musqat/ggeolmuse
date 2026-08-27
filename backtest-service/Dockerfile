@@ -2,6 +2,9 @@
 FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /app
 
+# jboss 저장소는 응답이 없는데 keycloak 부모 pom 이 끌고 온다. Central 로 미러링해 막는다.
+COPY .mvn/ci-settings.xml /root/.m2/settings.xml
+
 # ggeolmuse-bom (common-lib 포함) 설치
 COPY ggeolmuse-bom/pom.xml /bom/pom.xml
 COPY ggeolmuse-bom/src /bom/src

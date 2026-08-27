@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  CI 전용 Maven 설정.
+
+  Keycloak admin client 의 부모 pom 이 jboss-public-repository-group 을 끌고 온다.
+  거기서 실제로 받아오는 건 하나도 없는데(538개 전부 Central), 러너에서 응답이 없어
+  user-service 빌드 484초 중 439초를 타임아웃 대기로 썼다.
+
+  Central 로 미러링해 그 저장소를 아예 안 보게 한다.
+-->
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+                              https://maven.apache.org/xsd/settings-1.0.0.xsd">
+  <mirrors>
+    <mirror>
+      <id>central-only</id>
+      <name>모든 저장소를 Maven Central 로 보낸다</name>
+      <url>https://repo.maven.apache.org/maven2</url>
+      <mirrorOf>*</mirrorOf>
+    </mirror>
+  </mirrors>
+</settings>
