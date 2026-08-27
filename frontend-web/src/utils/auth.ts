@@ -1,5 +1,12 @@
 // JWT 토큰 관리 유틸리티
 
+export interface JwtPayload {
+  exp?: number;
+  sub?: string;
+  email?: string;
+  [claim: string]: unknown;
+}
+
 export const TOKEN_STORAGE_KEY = 'accessToken';
 export const REFRESH_TOKEN_STORAGE_KEY = 'refreshToken';
 
@@ -36,14 +43,16 @@ export const tokenManager = {
   },
 
   // JWT 토큰에서 payload 디코딩 (간단한 구현)
-  decodeToken: (token: string): any | null => {
+  // JWT payload 는 발급자가 정한다. 공통으로 쓰는 것만 적고 나머지는 열어 둔다.
+  decodeToken: (token: string): JwtPayload | null => {
     try {
       const payload = token.split('.')[1];
       if (!payload) return null;
 
       const decoded = atob(payload);
       return JSON.parse(decoded);
-    } catch (error) {
+    } catch {
+      // 토큰 형식이 아니면 payload 를 못 읽는다
       return null;
     }
   },

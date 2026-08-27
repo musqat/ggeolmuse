@@ -65,7 +65,6 @@ export const DCAStrategyForm: React.FC<DCAStrategyFormProps> = ({
   setDcaDividendTax,
   supportedSymbols,
 }) => {
-  const today = new Date().toISOString().split('T')[0];
 
   // DatePicker용 Date 객체 상태 (기본값: 시작일 2025-01-01, 종료일 오늘)
   const [startDateObj, setStartDateObj] = useState<Date | null>(

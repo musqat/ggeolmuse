@@ -5,8 +5,6 @@ interface NumberInputProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
-  step?: string;
-  min?: string;
   className?: string;
   showKoreanHint?: boolean;
 }
@@ -15,8 +13,6 @@ export const NumberInput: React.FC<NumberInputProps> = ({
   value,
   onChange,
   placeholder = '0',
-  step,
-  min,
   className = '',
   showKoreanHint = true
 }) => {
@@ -35,7 +31,7 @@ export const NumberInput: React.FC<NumberInputProps> = ({
     const inputValue = e.target.value;
 
     // 숫자, 콤마, 소수점 허용
-    const numericValue = inputValue.replace(/[^\d,\.]/g, '');
+    const numericValue = inputValue.replace(/[^\d,.]/g, '');
 
     // 콤마 제거하고 순수 숫자만 추출 (소수점은 유지)
     const pureNumber = numericValue.replace(/,/g, '');

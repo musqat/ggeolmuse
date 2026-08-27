@@ -6,19 +6,18 @@ import {
   User as UserIcon,
   Mail,
   Calendar,
-  Shield,
   Edit2,
   LogOut,
   Trash2,
   Check,
-  X,
   Lock,
 } from "lucide-react";
-import { authApi, type User } from "../services/api";
+import { authApi } from "../services/api";
+import { getApiErrorMessage } from '../utils/apiError';
 
 const MyPage: React.FC = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, user: authUser, logout } = useAuth();
+  const { isAuthenticated, logout } = useAuth();
 
   // React Query: 사용자 정보 조회
   const {
@@ -70,11 +69,8 @@ const MyPage: React.FC = () => {
 
       setShowNicknameModal(false);
       setNewNickname("");
-    } catch (err: any) {
-      alert(
-        "닉네임 변경에 실패했습니다:" +
-          (err.response?.data?.detail || err.message),
-      );
+    } catch (err: unknown) {
+      alert("닉네임 변경에 실패했습니다:" + getApiErrorMessage(err, "알 수 없는 오류"));
     }
   };
 
@@ -105,11 +101,8 @@ const MyPage: React.FC = () => {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-    } catch (err: any) {
-      alert(
-        "비밀번호 변경에 실패했습니다:" +
-          (err.response?.data?.detail || err.message),
-      );
+    } catch (err: unknown) {
+      alert("비밀번호 변경에 실패했습니다:" + getApiErrorMessage(err, "알 수 없는 오류"));
     }
   };
 
@@ -130,11 +123,8 @@ const MyPage: React.FC = () => {
       alert("회원 탈퇴가 완료되었습니다.");
       logout();
       navigate("/");
-    } catch (err: any) {
-      alert(
-        "회원 탈퇴에 실패했습니다:" +
-          (err.response?.data?.detail || err.message),
-      );
+    } catch (err: unknown) {
+      alert("회원 탈퇴에 실패했습니다:" + getApiErrorMessage(err, "알 수 없는 오류"));
     }
   };
 

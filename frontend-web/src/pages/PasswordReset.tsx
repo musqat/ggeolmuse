@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Header from '../components/common/Header';
+import { getApiErrorMessage } from '../utils/apiError';
 
 const PasswordReset: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -54,8 +55,8 @@ const PasswordReset: React.FC = () => {
       setTimeout(() => {
         navigate('/');
       }, 3000);
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.detail || err.response?.data?.message || '비밀번호 재설정에 실패했습니다.';
+    } catch (err: unknown) {
+      const errorMessage = getApiErrorMessage(err, '비밀번호 재설정에 실패했습니다.');
       setError(errorMessage);
     }
   };

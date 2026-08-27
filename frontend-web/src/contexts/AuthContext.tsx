@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authApi, type User } from '../services/api';
 import { tokenManager, checkAuthStatus } from '../utils/auth';
+import { getApiErrorStatus } from '../utils/apiError';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -47,7 +48,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // 토큰이 유효하면 사용자 정보 가져오기
           await refreshUserData();
           setIsAuthenticated(true);
-        } catch (error) {
+        } catch {
           // 토큰이 있지만 유효하지 않은 경우 정리
           tokenManager.removeToken();
           setIsAuthenticated(false);
@@ -65,13 +66,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const refreshUserData = async () => {
-    try {
-      const response = await authApi.getCurrentUser();
-      // UserController가 직접 UserResponseDto를 리턴하므로 response.data로 접근
-      setUser(response.data);
-    } catch (error) {
-      throw error;
-    }
+    const response = await authApi.getCurrentUser();
+    // UserController가 직접 UserResponseDto를 리턴하므로 response.data로 접근
+    setUser(response.data);
   };
 
   const login = async (email: string, password: string, retryCount = 0) => {
@@ -87,9 +84,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await refreshUserData();
 
       setIsAuthenticated(true);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // 401 에러이고 첫 번째 시도인 경우 자동 재시도
-      if (error?.response?.status === 401 && retryCount === 0) {
+      if (getApiErrorStatus(error) === 401 && retryCount === 0) {
         setIsLoading(false); // 현재 로딩 상태 해제
         await new Promise(resolve => setTimeout(resolve, 500)); // 500ms 대기
         return login(email, password, 1); // 재시도 (retryCount = 1)
@@ -116,8 +113,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await authApi.register({ email, password, nickname });
       // 회원가입 후 자동 로그인하지 않음 (이메일 인증 필요)
-    } catch (error) {
-      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -127,8 +122,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     try {
       await authApi.forgotPassword({ email });
-    } catch (error) {
-      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -138,8 +131,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     try {
       await authApi.resetPassword({ token, newPassword });
-    } catch (error) {
-      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -149,66 +140,60 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     try {
       await authApi.resendVerification({ email });
-    } catch (error) {
-      throw error;
     } finally {
       setIsLoading(false);
     }
   };
 
   const loginWithGoogle = async () => {
-    try {
-      // PKCE code_verifier 생성
-      const generateRandomString = (length: number) => {
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
-        let result = '';
-        const randomValues = new Uint8Array(length);
-        crypto.getRandomValues(randomValues);
-        randomValues.forEach(v => result += chars[v % chars.length]);
-        return result;
-      };
+    // PKCE code_verifier 생성
+    const generateRandomString = (length: number) => {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+      let result = '';
+      const randomValues = new Uint8Array(length);
+      crypto.getRandomValues(randomValues);
+      randomValues.forEach(v => result += chars[v % chars.length]);
+      return result;
+    };
 
-      const codeVerifier = generateRandomString(64);
+    const codeVerifier = generateRandomString(64);
 
-      // code_challenge 생성 (SHA256)
-      const sha256 = async (plain: string) => {
-        const encoder = new TextEncoder();
-        const data = encoder.encode(plain);
-        const hash = await crypto.subtle.digest('SHA-256', data);
-        return btoa(String.fromCharCode(...new Uint8Array(hash)))
-          .replace(/\+/g, '-')
-          .replace(/\//g, '_')
-          .replace(/=/g, '');
-      };
+    // code_challenge 생성 (SHA256)
+    const sha256 = async (plain: string) => {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(plain);
+      const hash = await crypto.subtle.digest('SHA-256', data);
+      return btoa(String.fromCharCode(...new Uint8Array(hash)))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
+    };
 
-      const codeChallenge = await sha256(codeVerifier);
+    const codeChallenge = await sha256(codeVerifier);
 
-      // CSRF 방어용 state 생성
-      const state = crypto.randomUUID();
+    // CSRF 방어용 state 생성
+    const state = crypto.randomUUID();
 
-      // sessionStorage에 저장 (콜백에서 사용)
-      sessionStorage.setItem('pkce_code_verifier', codeVerifier);
-      sessionStorage.setItem('oauth_state', state);
+    // sessionStorage에 저장 (콜백에서 사용)
+    sessionStorage.setItem('pkce_code_verifier', codeVerifier);
+    sessionStorage.setItem('oauth_state', state);
 
-      // Keycloak Google Identity Provider를 통한 직접 로그인
-      const baseUrl = window.location.origin;
-      const keycloakAuthUrl = `${baseUrl}/auth/realms/muscathan/protocol/openid-connect/auth`;
-      const params = new URLSearchParams({
-        client_id: 'ggeolmuse-frontend',
-        response_type: 'code',
-        scope: 'openid email profile',
-        redirect_uri: `${baseUrl}/oauth/callback`,
-        code_challenge: codeChallenge,
-        code_challenge_method: 'S256',
-        kc_idp_hint: 'google',
-        state,
-      });
+    // Keycloak Google Identity Provider를 통한 직접 로그인
+    const baseUrl = window.location.origin;
+    const keycloakAuthUrl = `${baseUrl}/auth/realms/muscathan/protocol/openid-connect/auth`;
+    const params = new URLSearchParams({
+      client_id: 'ggeolmuse-frontend',
+      response_type: 'code',
+      scope: 'openid email profile',
+      redirect_uri: `${baseUrl}/oauth/callback`,
+      code_challenge: codeChallenge,
+      code_challenge_method: 'S256',
+      kc_idp_hint: 'google',
+      state,
+    });
 
-      // Keycloak Google OAuth로 리디렉션
-      window.location.href = `${keycloakAuthUrl}?${params.toString()}`;
-    } catch (error) {
-      throw error;
-    }
+    // Keycloak Google OAuth로 리디렉션
+    window.location.href = `${keycloakAuthUrl}?${params.toString()}`;
   };
 
   const contextValue: AuthContextType = {

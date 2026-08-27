@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import { X, Eye, EyeOff } from 'lucide-react';
-import { authApi } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { getApiErrorMessage, getApiErrorStatus } from '../../utils/apiError';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -30,16 +30,17 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
     try {
       await onLogin(email, password);
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       // 백엔드 에러 메시지 파싱
+      const status = getApiErrorStatus(err);
       let errorMessage = '로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.';
 
-      if (err.response?.status === 403) {
+      if (status === 403) {
         errorMessage = '이메일 인증이 완료되지 않았습니다. 이메일을 확인해주세요.';
-      } else if (err.response?.status === 401 || err.response?.status === 400) {
+      } else if (status === 401 || status === 400) {
         errorMessage = '이메일 또는 비밀번호가 올바르지 않습니다.';
-      } else if (err.response?.data?.detail) {
-        errorMessage = err.response.data.detail;
+      } else {
+        errorMessage = getApiErrorMessage(err, errorMessage);
       }
 
       setError(errorMessage);
@@ -100,6 +101,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
       // Keycloak Google OAuth로 리디렉션
       window.location.href = `${keycloakAuthUrl}?${params.toString()}`;
     } catch (error) {
+      console.error('Google 로그인 실패', error);
       setError('Google 로그인에 실패했습니다. 다시 시도해주세요.');
       setIsGoogleLoading(false);
     }
@@ -113,10 +115,8 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
     try {
       await forgotPassword(email);
       setForgotPasswordSuccess(true);
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.detail ||
-                          err.response?.data?.message ||
-                          '비밀번호 재설정 이메일 발송에 실패했습니다.';
+    } catch (err: unknown) {
+      const errorMessage = getApiErrorMessage(err, '비밀번호 재설정 이메일 발송에 실패했습니다.');
       setError(errorMessage);
     } finally {
       setIsLoading(false);

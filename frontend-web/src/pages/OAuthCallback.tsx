@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { tokenManager } from '../utils/auth';
+import { getOAuthErrorMessage } from '../utils/apiError';
 
 const OAuthCallback: React.FC = () => {
   const navigate = useNavigate();
@@ -74,9 +75,9 @@ const OAuthCallback: React.FC = () => {
         // 홈으로 리다이렉트 (user-service 동기화는 나중에 처리)
         // Google OAuth 사용자는 Keycloak에 있으므로 JWT 토큰만으로 사용 가능
         window.location.href = '/';
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('OAuth callback error:', err);
-        setError(err.response?.data?.error_description || 'Google 로그인 처리 중 오류가 발생했습니다.');
+        setError(getOAuthErrorMessage(err, 'Google 로그인 처리 중 오류가 발생했습니다.'));
         setTimeout(() => navigate('/'), 3000);
       }
     };

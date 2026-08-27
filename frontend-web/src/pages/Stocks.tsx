@@ -40,8 +40,8 @@ const Stocks: React.FC = () => {
   // 응답 데이터 파싱
   const stocks = Array.isArray(stocksResponse?.content) ? stocksResponse.content : [];
   const symbols: StockSymbol[] = stocks
-    .filter((stock: any) => stock.available !== false && stock.currentPrice != null)
-    .map((stock: any) => ({
+    .filter((stock) => stock.available !== false && stock.currentPrice != null)
+    .map((stock) => ({
       symbol: stock.symbol,
       name: stock.name || stock.symbol,
       marketCap: stock.marketCap,

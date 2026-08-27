@@ -64,7 +64,6 @@ export const SymbolComparisonForm: React.FC<SymbolComparisonFormProps> = ({
   onAddSymbol,
   onRemoveSymbol,
 }) => {
-  const today = new Date().toISOString().split('T')[0];
   const [purchaseDateObj, setPurchaseDateObj] = useState<Date | null>(comparePurchaseDate ? new Date(comparePurchaseDate) : new Date('2025-01-01'));
   const [saleDateObj, setSaleDateObj] = useState<Date | null>(compareSaleDate ? new Date(compareSaleDate) : new Date());
   const [showPurchaseDatePicker, setShowPurchaseDatePicker] = useState(false);

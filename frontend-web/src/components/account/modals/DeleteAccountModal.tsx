@@ -6,14 +6,12 @@ interface DeleteAccountModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => Promise<void>;
-  accountId: number | null;
 }
 
 const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
   isOpen,
   onClose,
   onConfirm,
-  accountId,
 }) => {
   const handleConfirm = async () => {
     await onConfirm();

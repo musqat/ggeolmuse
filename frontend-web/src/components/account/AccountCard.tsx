@@ -6,7 +6,6 @@ import type { AccountSummary, AccountBalance } from '../../services/api';
 export interface AccountCardProps {
   account: AccountSummary;
   balance: AccountBalance;
-  hideBalances: boolean;
   formatBalance: (amount: number, currency: 'KRW' | 'USD') => string;
   onDeposit: (accountId: number) => void;
   onExchange: (accountId: number) => void;
@@ -16,7 +15,6 @@ export interface AccountCardProps {
 export const AccountCard: React.FC<AccountCardProps> = ({
   account,
   balance,
-  hideBalances,
   formatBalance,
   onDeposit,
   onExchange,

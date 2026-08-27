@@ -12,11 +12,10 @@ interface CandlestickData {
 
 interface CandlestickChartProps {
   data: CandlestickData[];
-  symbol: string;
   className?: string;
 }
 
-const CandlestickChart: React.FC<CandlestickChartProps> = ({ data, symbol, className = '' }) => {
+const CandlestickChart: React.FC<CandlestickChartProps> = ({ data, className = '' }) => {
   if (!data || data.length === 0) {
     return (
       <div className={`flex items-center justify-center h-[400px] text-tx-2 ${className}`}>
@@ -36,7 +35,6 @@ const CandlestickChart: React.FC<CandlestickChartProps> = ({ data, symbol, class
           close: d.close,
           volume: d.volume || 0,
         }))}
-        symbol={symbol}
         showIndicatorPanel={false}
         height={400}
       />

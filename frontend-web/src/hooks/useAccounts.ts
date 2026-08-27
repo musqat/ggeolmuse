@@ -41,9 +41,11 @@ export function useAccounts(isAuthenticated: boolean): UseAccountsReturn {
         if (response.data && Array.isArray(response.data)) {
           setAccounts(response.data);
 
-          // 첫 번째 계좌를 자동 선택
-          if (response.data.length > 0 && !selectedAccountId) {
-            setSelectedAccountId(response.data[0].accountId);
+          // 첫 번째 계좌를 자동 선택.
+          // 함수형 갱신을 쓰면 현재 선택값을 effect 밖에서 읽지 않아도 된다.
+          // selectedAccountId 를 의존성에 넣으면 계좌를 바꿀 때마다 목록을 다시 부른다.
+          if (response.data.length > 0) {
+            setSelectedAccountId((prev) => prev ?? response.data[0].accountId);
           }
         }
       } catch (err) {

@@ -39,8 +39,12 @@ const Header: React.FC = () => {
       try {
         const response = await stockApi.getAllSymbols();
         const assets = Array.isArray(response.data) ? response.data : [];
-        setSupportedSymbols(assets.map((a: any) => String(a.symbol).toUpperCase()));
-      } catch {}
+        setSupportedSymbols(assets.map((a) => String(a.symbol).toUpperCase()));
+      } catch (e) {
+        // 검색 자동완성용이라 실패해도 화면은 뜬다. 다만 조용히 넘기면
+        // 검색이 안 되는 이유를 알 수 없어 로그는 남긴다.
+        console.warn('종목 목록을 불러오지 못했습니다', e);
+      }
     };
     loadSymbols();
   }, []);
@@ -64,11 +68,15 @@ const Header: React.FC = () => {
           const holdings = (await portfolioApi.getPortfolio()).data;
           if (holdings?.length) {
             const prices: Record<string, number> = {};
-            holdings.forEach((h: any) => { if (h.currentPrice > 0) prices[h.symbol] = h.currentPrice; });
+            holdings.forEach((h) => { if (h.currentPrice > 0) prices[h.symbol] = h.currentPrice; });
             const summary = (await portfolioApi.getPortfolioSummary(prices)).data;
             stocks = summary.totalCurrentValue * rate;
           }
-        } catch {}
+        } catch (e) {
+          // 주식 평가액을 못 구하면 현금만 보여준다. 실패를 삼키면
+          // 총자산이 왜 적게 나오는지 알 수 없다.
+          console.warn('포트폴리오 평가액을 불러오지 못했습니다', e);
+        }
         setTotalAssets(cash + stocks);
       } catch { setTotalAssets(0); }
       finally { setIsLoadingAssets(false); }

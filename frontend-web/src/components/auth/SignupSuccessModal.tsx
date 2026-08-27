@@ -22,6 +22,7 @@ const SignupSuccessModal: React.FC<SignupSuccessModalProps> = ({ isOpen, onClose
       await authApi.resendVerification({ email });
       setResendMessage('인증 이메일을 다시 발송했습니다.');
     } catch (error) {
+      console.error('인증 이메일 재발송 실패', error);
       setResendError('인증 이메일 재발송에 실패했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
       setIsResending(false);

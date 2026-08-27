@@ -9,16 +9,6 @@ interface TradingCapacityPanelProps {
   tradeDate: string;
   orderType: "buy" | "sell";
   currentPrice: number;
-  selectedDateOHLC: any | null;
-}
-
-interface CapacityData {
-  maxShares?: number;
-  availableBalance?: number;
-  currentHoldings?: number;
-  maxSellableShares?: number;
-  totalValue?: number;
-  currency?: string;
 }
 
 const TradingCapacityPanel: React.FC<TradingCapacityPanelProps> = ({
@@ -27,7 +17,6 @@ const TradingCapacityPanel: React.FC<TradingCapacityPanelProps> = ({
   tradeDate,
   orderType,
   currentPrice,
-  selectedDateOHLC,
 }) => {
   // React Query: 거래 가능 수량 조회
   const { data: capacity = null, isLoading: loading } = useQuery({

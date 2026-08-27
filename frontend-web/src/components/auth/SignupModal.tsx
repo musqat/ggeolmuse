@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import { X, Eye, EyeOff, ChevronDown, ChevronUp } from 'lucide-react';
-import { authApi } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { getApiErrorMessage, getApiErrorStatus } from '../../utils/apiError';
 
 interface SignupModalProps {
   isOpen: boolean;
@@ -69,16 +69,17 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
 
       // 성공 콜백 호출 (부모 컴포넌트에서 성공 모달 표시)
       onSignupSuccess(formData.email);
-    } catch (err: any) {
+    } catch (err: unknown) {
       // 백엔드 에러 메시지 파싱
+      const status = getApiErrorStatus(err);
       let errorMessage = '회원가입에 실패했습니다. 다시 시도해주세요.';
 
-      if (err.response?.status === 409) {
+      if (status === 409) {
         errorMessage = '이미 가입된 이메일입니다.';
-      } else if (err.response?.status === 400) {
+      } else if (status === 400) {
         errorMessage = '입력한 정보가 올바르지 않습니다. 다시 확인해주세요.';
-      } else if (err.response?.data?.detail) {
-        errorMessage = err.response.data.detail;
+      } else {
+        errorMessage = getApiErrorMessage(err, errorMessage);
       }
 
       setError(errorMessage);
@@ -139,6 +140,7 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
       // Keycloak Google OAuth로 리다이렉션 (회원가입과 로그인은 동일)
       window.location.href = `${keycloakAuthUrl}?${params.toString()}`;
     } catch (error) {
+      console.error('Google 회원가입 실패', error);
       setError('Google 회원가입에 실패했습니다. 다시 시도해주세요.');
       setIsGoogleLoading(false);
     }
@@ -154,10 +156,8 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
       await resendVerificationEmail(resendEmail);
       setResendSuccess(true);
       setResendEmail('');
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.detail ||
-                          err.response?.data?.message ||
-                          '인증 이메일 재전송에 실패했습니다.';
+    } catch (err: unknown) {
+      const errorMessage = getApiErrorMessage(err, '인증 이메일 재전송에 실패했습니다.');
       setResendError(errorMessage);
     } finally {
       setIsLoading(false);

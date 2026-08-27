@@ -5,7 +5,6 @@ export interface TotalAssetsSummaryProps {
   totalAssets: number;
   accountCount: number;
   currentExchangeRate: number;
-  hideBalances: boolean;
   formatBalance: (amount: number, currency: 'KRW' | 'USD') => string;
 }
 
@@ -16,7 +15,6 @@ export const TotalAssetsSummary: React.FC<TotalAssetsSummaryProps> = ({
   totalAssets,
   accountCount,
   currentExchangeRate,
-  hideBalances,
   formatBalance
 }) => {
   return (

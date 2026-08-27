@@ -133,7 +133,7 @@ export default function AssetListSection({
   const pageNumbers = [];
   const maxPagesToShow = 5;
   let startPage = Math.max(0, currentPage - Math.floor(maxPagesToShow / 2));
-  let endPage = Math.min(totalPages - 1, startPage + maxPagesToShow - 1);
+  const endPage = Math.min(totalPages - 1, startPage + maxPagesToShow - 1);
 
   if (endPage - startPage < maxPagesToShow - 1) {
     startPage = Math.max(0, endPage - maxPagesToShow + 1);

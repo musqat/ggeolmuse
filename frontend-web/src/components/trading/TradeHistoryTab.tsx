@@ -26,12 +26,6 @@ interface Transaction {
   executedAt: string;
 }
 
-interface Account {
-  accountId: number;
-  accountName: string;
-  usdBalance: number;
-}
-
 type TransactionType = 'ALL' | 'BUY' | 'SELL' | 'DIVIDEND';
 
 const TradeHistoryTab: React.FC = () => {

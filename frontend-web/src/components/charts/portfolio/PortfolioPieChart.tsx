@@ -64,7 +64,7 @@ const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({ data }) => {
 
   let currentAngle = -90; // 12시 방향부터 시작
 
-  const slices = chartData.map((item, index) => {
+  const slices = chartData.map((item) => {
     const percentage = (item.value / total) * 100;
     const angle = (percentage / 100) * 360;
 
@@ -82,12 +82,20 @@ const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({ data }) => {
     const largeArcFlag = angle > 180 ? 1 : 0;
 
     // Path 생성
-    const pathData = [
-      `M ${center} ${center}`,
-      `L ${x1} ${y1}`,
-      `A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2}`,
-      "Z",
-    ].join("");
+    const pathData =
+      angle >= 359.99
+        ? [
+            `M ${center} ${center - radius}`,
+            `A ${radius} ${radius} 0 1 1 ${center} ${center + radius}`,
+            `A ${radius} ${radius} 0 1 1 ${center} ${center - radius}`,
+            "Z",
+          ].join("")
+        : [
+            `M ${center} ${center}`,
+            `L ${x1} ${y1}`,
+            `A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2}`,
+            "Z",
+          ].join("");
 
     currentAngle = endAngle;
 

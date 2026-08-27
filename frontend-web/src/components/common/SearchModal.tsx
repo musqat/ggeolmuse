@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { X, Search, TrendingUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -50,10 +50,14 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, supportedSym
   const navigate = useNavigate();
 
   // 지원 종목 리스트 생성
-  const stockList: StockInfo[] = supportedSymbols.map(symbol => ({
-    symbol: symbol,
-    name: getSymbolName(symbol)
-  }));
+  // 매 렌더 새 배열을 만들면 아래 effect 의 의존성이 매번 바뀐다.
+  const stockList: StockInfo[] = useMemo(
+    () => supportedSymbols.map((symbol) => ({
+      symbol: symbol,
+      name: getSymbolName(symbol)
+    })),
+    [supportedSymbols]
+  );
 
   // 모달이 열릴 때 입력창에 포커스
   useEffect(() => {
@@ -87,7 +91,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, supportedSym
       setFilteredStocks(filtered.slice(0, 10));
     }
     setSelectedIndex(0);
-  }, [searchTerm, supportedSymbols]);
+  }, [searchTerm, stockList]);
 
   // 키보드 네비게이션
   const handleKeyDown = (e: React.KeyboardEvent) => {

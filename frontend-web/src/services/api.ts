@@ -1,7 +1,6 @@
 import axios from 'axios';
 import type { ApiResponse } from '../types/api';
-import type { Stock, StockPrice } from '../types/stock';
-import type { Portfolio } from '../types/portfolio';
+import type { StockPrice } from '../types/stock';
 
 // Gateway를 통한 통합 API 연결
 // 개발환경에서는 Vite 프록시 사용, 프로덕션에서는 환경변수 사용
@@ -39,9 +38,14 @@ apiClient.interceptors.request.use(
 
 // 토큰 갱신 중인지 추적
 let isRefreshing = false;
-let failedQueue: any[] = [];
+// 토큰 갱신을 기다리는 요청들. 갱신이 끝나면 resolve, 실패하면 reject 한다.
+interface PendingRequest {
+  resolve: (token: string | null) => void;
+  reject: (reason: unknown) => void;
+}
+let failedQueue: PendingRequest[] = [];
 
-const processQueue = (error: any, token: string | null = null) => {
+const processQueue = (error: unknown, token: string | null = null) => {
   failedQueue.forEach(prom => {
     if (error) {
       prom.reject(error);
@@ -134,10 +138,22 @@ apiClient.interceptors.response.use(
   }
 );
 
+// /market/symbols 와 /market/stocks 가 주는 종목 한 건.
+// 서버가 모든 필드를 항상 채우지는 않아 선택 필드가 많다.
+export interface AssetSummary {
+  symbol: string;
+  name?: string;
+  assetType?: string;
+  marketCap?: number;
+  currentPrice?: number;
+  date?: string;
+  available?: boolean;
+}
+
 export const stockApi = {
   // 전체 종목 목록 조회
   getAllSymbols: () =>
-    apiClient.get<any[]>(`/market/symbols`),
+    apiClient.get<AssetSummary[]>(`/market/symbols`),
 
   // 특정 종목 현재가 조회
   getCurrentPrice: (symbol: string) =>
@@ -151,7 +167,7 @@ export const stockApi = {
 
   // 모든 종목의 현재가 조회 (페이지네이션) - 시가총액 큰 순으로 고정
   getAllStocksWithPrices: (page: number = 0, size: number = 50, assetType?: string) =>
-    apiClient.get(`/market/stocks`, {
+    apiClient.get<{ content: AssetSummary[]; totalPages: number; totalElements: number }>(`/market/stocks`, {
       params: { page, size, assetType }
     }),
 
@@ -531,7 +547,18 @@ export const authApi = {
 // ===== 백테스트 타입 =====
 
 // 단순 시뮬레이션 요청
-export type SimulationRequest = {
+// 백테스트 요청 다섯 종류가 공통으로 보내는 것.
+// 환율은 fxMode 가 manual 일 때만 붙는다.
+export type BacktestCommonRequest = {
+  reinvestDividends?: boolean;          // 배당 재투자 여부
+  tradingFeeRate?: number;              // 거래 수수료율 (0.001 = 0.1%)
+  dividendTaxRate?: number;             // 배당 소득세율
+  userId?: string;                      // 히스토리 저장용
+  purchaseFxRate?: number;              // 수동 환율 - 매수 시점
+  currentFxRate?: number;               // 수동 환율 - 현재
+};
+
+export type SimulationRequest = BacktestCommonRequest & {
   symbol: string;                       // 종목 심볼
   purchaseDate: string;                 // 매수일 (YYYY-MM-DD)
   saleDate?: string;                    // 매도일 (YYYY-MM-DD, 기본값: 오늘)
@@ -555,7 +582,7 @@ export type SimulationResponse = {
 };
 
 // DCA(정기 적립) 전략 요청
-export type DcaStrategyRequest = {
+export type DcaStrategyRequest = BacktestCommonRequest & {
   symbol: string;                       // 종목 심볼
   startDate: string;                    // 시작일
   endDate: string;                      // 종료일
@@ -565,17 +592,20 @@ export type DcaStrategyRequest = {
 };
 
 // 조건부 매수 전략 요청
-export type ConditionalStrategyRequest = {
+export type ConditionalStrategyRequest = BacktestCommonRequest & {
   symbol: string;                       // 종목 심볼
   startDate: string;                    // 시작일
   endDate: string;                      // 종료일
-  totalInvestment: number;              // 총 투자 금액
+  // 투자 모드에 따라 둘 중 하나만 보낸다.
+  totalInvestment?: number;             // investmentMode 가 TOTAL_BUDGET 일 때
+  amountPerPurchase?: number;           // PER_PURCHASE 일 때           // 투자 모드가 회당 금액일 때
+  investmentMode?: string;              // total | perPurchase              // 총 투자 금액
   dropPercentage: number;               // 하락률 (0.05 = 5%)
   maxPurchases?: number;                // 최대 매수 횟수
 };
 
 // 종목 비교 요청
-export type SymbolComparisonRequest = {
+export type SymbolComparisonRequest = BacktestCommonRequest & {
   symbols: string[];                    // 비교할 종목 목록
   startDate: string;                    // 시작일
   endDate: string;                      // 종료일
@@ -601,7 +631,7 @@ type StrategyParameter = {
 };
 
 // 전략 비교 요청
-export type StrategyComparisonRequest = {
+export type StrategyComparisonRequest = BacktestCommonRequest & {
   symbol: string;                       // 종목 심볼
   startDate: string;                    // 시작일
   endDate: string;                      // 종료일
@@ -639,7 +669,7 @@ export type StrategyResponse = {
 };
 
 // 비교 항목
-type ComparisonItem = {
+export type ComparisonItem = {
   name: string;                         // 항목명
   totalInvested?: number;               // 총 투자액
   currentValueKrw?: number;             // 현재 가치 (KRW)
@@ -648,7 +678,32 @@ type ComparisonItem = {
   totalReturn?: number;                 // 총 수익
   totalReturnPercent: number;           // 총 수익률
   totalReturnKrw?: number;              // 총 수익 (KRW)
-  additionalData?: any;                 // 추가 데이터 (StrategyResponse 또는 SimulationResponse)
+
+  // 종목 비교에서만 채워지는 것들. 전략 비교 응답에는 없다.
+  symbol?: string;
+  purchaseDate?: string;
+  currentDate?: string;
+  purchasePrice?: number;               // 단순 매수
+  averagePrice?: number;                // 적립식·조건부 평균 단가
+  currentPrice?: number;
+  shares?: number;
+  totalShares?: number;
+  investmentAmount?: number;
+  purchaseFxRate?: number;
+  currentFxRate?: number;
+  fxReturnPercent?: number;             // 환차익 비중
+  daysHeld?: number;
+
+  // 최적 타이밍을 요청했을 때만 온다.
+  optimalBuyDate?: string;
+  optimalBuyPrice?: number;
+  optimalSellDate?: string;
+  optimalSellPrice?: number;
+
+  // 전략마다 모양이 달라(SimulationResponse | StrategyResponse) 여기서 좁히지 않는다.
+  // 화면이 필드 유무로 분기하며 읽는다. 응답을 하나로 맞추는 건 백엔드와 같이 볼 일이다.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  additionalData?: any;
 };
 
 // 비교 응답

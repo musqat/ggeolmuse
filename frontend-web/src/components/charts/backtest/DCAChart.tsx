@@ -13,6 +13,8 @@ import {
 import { stockApi } from "../../../services/api";
 import { useChartPeriod } from "../common/hooks/useChartPeriod";
 import { ChartPeriodSelector } from "../common/components/ChartPeriodSelector";
+import { getApiErrorMessage } from '../../../utils/apiError';
+import type { OHLCData } from '../../../types/ohlc';
 
 interface Transaction {
   date: string;
@@ -27,11 +29,9 @@ interface Transaction {
 interface StrategyBacktestChartProps {
   symbol: string;
   transactions: Transaction[];
-  currentPrice: number;
   currentValueKrw: number;
   totalInvested: number;
   startDate: string;
-  endDate?: string;
 }
 
 interface ChartDataPoint {
@@ -45,11 +45,9 @@ interface ChartDataPoint {
 export const DCAChart: React.FC<StrategyBacktestChartProps> = ({
   symbol,
   transactions,
-  currentPrice,
   currentValueKrw,
   totalInvested,
   startDate,
-  endDate,
 }) => {
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [loading, setLoading] = useState(false);
@@ -59,7 +57,6 @@ export const DCAChart: React.FC<StrategyBacktestChartProps> = ({
   const {
     chartPeriod,
     customStartDate,
-    showCustomInput,
     setChartPeriod,
     setCustomStartDate,
     getStartDateFromPeriod,
@@ -68,11 +65,6 @@ export const DCAChart: React.FC<StrategyBacktestChartProps> = ({
   // 첫 매수일과 마지막 매수일
   const firstPurchaseDate =
     transactions[0]?.actualDate || transactions[0]?.date || startDate;
-  const lastPurchaseDate =
-    transactions[transactions.length - 1]?.actualDate ||
-    transactions[transactions.length - 1]?.date ||
-    endDate ||
-    new Date().toISOString().split("T")[0];
 
   // 차트 시작일 계산 - useMemo로 감싸서 chartPeriod 변경 시 재계산
   const chartStartDate = useMemo(() => {
@@ -97,8 +89,8 @@ export const DCAChart: React.FC<StrategyBacktestChartProps> = ({
         );
 
         // API는 flat 배열을 반환: [{symbol, date, closePrice, ...}, ...]
-        let priceData = Array.isArray(response.data)
-          ? response.data.filter((item: any) => item.symbol === symbol)
+        const priceData = Array.isArray(response.data)
+          ? (response.data as OHLCData[]).filter((item) => item.symbol === symbol)
           : [];
 
         // 각 날짜의 환율 데이터 가져오기 (Bulk API 사용)
@@ -106,7 +98,7 @@ export const DCAChart: React.FC<StrategyBacktestChartProps> = ({
         const DEFAULT_FX_RATE = 1350; // Fallback 환율
 
         // 모든 날짜를 한 번에 조회 (Bulk API)
-        const dates = priceData.map((item: any) => item.date);
+        const dates = priceData.map((item) => item.date);
         try {
           const fxRateResponse = await stockApi.getExchangeRatesBulk(dates);
           const rates = fxRateResponse.data;
@@ -149,7 +141,7 @@ export const DCAChart: React.FC<StrategyBacktestChartProps> = ({
         });
 
         // priceData에서 사용 가능한 날짜들을 먼저 추출
-        const availableDates = priceData.map((item: any) => item.date).sort();
+        const availableDates = priceData.map((item) => item.date).sort();
 
         // 매수 날짜를 실제 거래일로 매핑 (주말/휴일 -> 다음 영업일)
         const purchaseDates = new Set<string>();
@@ -168,7 +160,7 @@ export const DCAChart: React.FC<StrategyBacktestChartProps> = ({
         });
 
         // 차트 데이터 생성
-        const data: ChartDataPoint[] = priceData.map((item: any) => {
+        const data: ChartDataPoint[] = priceData.map((item) => {
           const dateStr = item.date;
 
           // 이 날짜까지의 누적 투자금과 보유 주식 계산
@@ -201,8 +193,8 @@ export const DCAChart: React.FC<StrategyBacktestChartProps> = ({
         });
 
         setChartData(data);
-      } catch (err: any) {
-        setError(err.message || "차트 데이터를 불러오는데 실패했습니다");
+      } catch (err: unknown) {
+        setError(getApiErrorMessage(err, "차트 데이터를 불러오는데 실패했습니다"));
       } finally {
         setLoading(false);
       }
@@ -301,7 +293,6 @@ export const DCAChart: React.FC<StrategyBacktestChartProps> = ({
       <ChartPeriodSelector
         chartPeriod={chartPeriod}
         customStartDate={customStartDate}
-        showCustomInput={showCustomInput}
         onPeriodChange={setChartPeriod}
         onCustomDateChange={setCustomStartDate}
       />
@@ -334,7 +325,7 @@ export const DCAChart: React.FC<StrategyBacktestChartProps> = ({
                 backgroundColor: "rgba(255, 255, 255, 0.95)",
                 border: "1px solid #ccc",
               }}
-              formatter={(value: any, name: string) => {
+              formatter={(value: number | string, name: string) => {
                 if (name === "주가")
                   return [`$${Number(value).toFixed(2)}`, name];
                 return [value, name];
@@ -410,7 +401,7 @@ export const DCAChart: React.FC<StrategyBacktestChartProps> = ({
                 backgroundColor: "rgba(255, 255, 255, 0.95)",
                 border: "1px solid #ccc",
               }}
-              formatter={(value: any, name: string) => {
+              formatter={(value: number | string, name: string) => {
                 return [`₩${Math.round(Number(value)).toLocaleString()}`, name];
               }}
               labelFormatter={(label) => `날짜: ${label}`}

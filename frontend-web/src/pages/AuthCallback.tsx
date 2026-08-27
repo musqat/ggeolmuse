@@ -32,6 +32,7 @@ const AuthCallback: React.FC = () => {
           // 2초 후 메인 페이지로 이동
           setTimeout(() => navigate('/'), 2000);
         } catch (error) {
+          console.error('OAuth 콜백 처리 실패', error);
           setStatus('error');
           setMessage('로그인 처리 중 오류가 발생했습니다.');
           setTimeout(() => navigate('/'), 5000);

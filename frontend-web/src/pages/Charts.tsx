@@ -13,17 +13,8 @@ import { stockApi } from '../services/api';
 import KLineChartComponent from '../components/charts/KLineChartComponent';
 import SearchModal from '../components/common/SearchModal';
 import DatePicker from '../components/common/DatePicker';
-import { convertOHLCToCandlestick, type CandlestickChartData } from '../types/ohlc';
+import { convertOHLCToCandlestick } from '../types/ohlc';
 import { useAiChat } from '../contexts/AiChatContext';
-
-interface OHLCData {
-  date: string;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-}
 
 const Charts: React.FC = () => {
   const { symbol: paramSymbol } = useParams<{ symbol: string }>();
@@ -112,7 +103,7 @@ const Charts: React.FC = () => {
     queryFn: async () => {
       const response = await stockApi.getAllSymbols();
       const symbols = (Array.isArray(response.data) ? response.data : [])
-        .map((a: any) => String(a.symbol).toUpperCase());
+        .map((a) => String(a.symbol).toUpperCase());
       return symbols;
     },
     staleTime: 10 * 60 * 1000, // 10분
@@ -144,7 +135,7 @@ const Charts: React.FC = () => {
     queryFn: async () => {
       try {
         const priceResponse = await stockApi.getCurrentPrice(symbol!);
-        const stockData = priceResponse.data as any;
+        const stockData = priceResponse.data as { name?: string } | undefined;
         return stockData?.name || '';
       } catch (err) {
         console.warn('Failed to fetch company name:', err);
@@ -178,7 +169,7 @@ const Charts: React.FC = () => {
   }
 
   return (
-    <div className="max-w-[1800px] mx-auto px-4 py-6">
+    <div className="max-w-[1800px] mx-auto px-2 sm:px-4 py-4 sm:py-6">
       {/* 헤더 */}
       <div className="mb-4">
         <button
@@ -445,7 +436,7 @@ const Charts: React.FC = () => {
       <div className="w-full">
         {/* 차트 영역 */}
         <div className="w-full relative">
-          <div className="bg-surface rounded-lg shadow-md border border-line p-4">
+          <div className="bg-surface rounded-lg shadow-md border border-line p-1.5 sm:p-4">
             {loading ? (
               <div className="flex items-center justify-center h-[480px]">
                 <div className="text-center">
@@ -473,7 +464,6 @@ const Charts: React.FC = () => {
                   close: d.close,
                   volume: d.volume || 0
                 }))}
-                symbol={symbol}
                 showIndicatorPanel={true}
                 height={620}
               />
