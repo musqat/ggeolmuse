@@ -9,8 +9,9 @@ RUN mvn -f /bom/pom.xml install -DskipTests -q
 
 # 서비스 빌드
 COPY gateway-server/pom.xml .
+RUN mvn -B dependency:go-offline -DskipTests -q
 COPY gateway-server/src ./src
-RUN mvn clean package -DskipTests -q
+RUN mvn -B clean package -DskipTests -q
 
 # 런타임 스테이지
 FROM eclipse-temurin:21-jre-alpine

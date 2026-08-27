@@ -90,10 +90,19 @@ jobs:
           cd ${{ matrix.service }}
           # Run unit tests only (*Test.java). Integration tests (*IT.java) are excluded by default
           mvn clean compile test
+      - uses: docker/setup-buildx-action@v3
+
+      # 러너는 매번 새 머신이라 레이어가 안 남는다. GitHub Actions 캐시에 얹어
+      # 실행 사이에 재사용한다. Dockerfile 의 의존성 레이어와 짝이다.
       - name: Build Docker Image for ${{ matrix.service }}
-        # 멀티스테이지 Dockerfile
-        run: |
-          docker build -f ${{ matrix.service }}/Dockerfile -t ${{ matrix.service }}:ci-${{ github.sha }} .
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.service }}/Dockerfile
+          tags: ${{ matrix.service }}:ci-${{ github.sha }}
+          load: true
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
       - name: Run Trivy vulnerability scanner (table output for debugging)
         uses: aquasecurity/trivy-action@master

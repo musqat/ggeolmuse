@@ -14,8 +14,9 @@ RUN mvn -f /messaging/pom.xml install -DskipTests -q
 
 # 서비스 빌드
 COPY trade-service/pom.xml .
+RUN mvn -B dependency:go-offline -DskipTests -q
 COPY trade-service/src ./src
-RUN mvn clean package -DskipTests -q
+RUN mvn -B clean package -DskipTests -q
 
 # 런타임 스테이지
 FROM eclipse-temurin:21-jre-alpine
