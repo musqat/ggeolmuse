@@ -8,15 +8,13 @@ import {
   DollarSign,
   BarChart3,
   PieChart,
-  Activity,
-  Calendar,
   ArrowUpCircle,
   ArrowDownCircle,
   Wallet,
   LogIn,
   Lock
 } from 'lucide-react';
-import { portfolioApi, stockApi, accountsApi, type HoldingResponse, type PortfolioSummaryResponse, type BalanceResponse } from '../services/api';
+import { portfolioApi, accountsApi } from '../services/api';
 import PortfolioPieChart from '../components/charts/portfolio/PortfolioPieChart';
 import LoginModal from '../components/auth/LoginModal';
 
@@ -32,8 +30,7 @@ const Portfolio: React.FC = () => {
   // React Query: 계좌별 포트폴리오 조회
   const {
     data: holdings = [],
-    isLoading: isLoadingHoldings,
-    error: holdingsError
+    isLoading: isLoadingHoldings
   } = useQuery({
     queryKey: ['portfolio', 'holdings', accountId],
     queryFn: async () => {
@@ -252,7 +249,7 @@ const Portfolio: React.FC = () => {
               </div>
 
               {/* 차트 영역 */}
-              <div className="bg-surface/50 rounded-lg p-6 h-64 flex items-center justify-center">
+              <div className="bg-surface/50 rounded-lg p-4 sm:p-6 min-h-64 flex items-center justify-center">
                 {(holdings.length > 0 || (balanceInfo && (Number(balanceInfo.balanceKrw) > 0 || Number(balanceInfo.balanceUsd) > 0))) ? (
                   <PortfolioPieChart
                     data={(() => {
@@ -308,12 +305,15 @@ const Portfolio: React.FC = () => {
           {/* 자산 배분 */}
           <div className="bg-surface rounded-xl shadow-sm p-6 border border-line/50">
             <h3 className="text-lg font-semibold text-tx-1 mb-4">자산 배분</h3>
-            {(holdings.length > 0 || (balanceInfo && (Number(balanceInfo.balanceUsd) > 0 || Number(balanceInfo.balanceKrw) > 0))) && portfolioSummary ? (
+            {/* portfolioSummary 는 보유 종목이 있을 때만 조회된다(enabled 조건).
+                여기에 걸면 현금만 있는 계좌가 "보유 자산이 없습니다" 로 떨어진다.
+                주식 몫 계산에만 쓰이므로 없으면 0 으로 두면 된다. */}
+            {(holdings.length > 0 || (balanceInfo && (Number(balanceInfo.balanceUsd) > 0 || Number(balanceInfo.balanceKrw) > 0))) ? (
               <div className="space-y-4">
                 {(() => {
                   // 전체 자산 계산 (주식 + USD 현금 + KRW 현금을 USD로 환산)
                   const totalAssets =
-                    (portfolioSummary.totalCurrentValue || 0) +
+                    (portfolioSummary?.totalCurrentValue || 0) +
                     (Number(balanceInfo?.balanceUsd) || 0) +
                     ((Number(balanceInfo?.balanceKrw) || 0) / exchangeRate);
 

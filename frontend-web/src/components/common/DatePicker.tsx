@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 
 
 interface DatePickerProps {
@@ -31,11 +31,12 @@ export default function DatePicker({
     : ["일", "월", "화", "수", "목", "금", "토"];
 
   const daysInMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
-  const startDayIndex = (y: number, m: number) => {
+  // startOnMonday 만 쓰므로 useCallback 으로 묶어 grid 의 의존성에 그대로 넣는다.
+  const startDayIndex = useCallback((y: number, m: number) => {
     const d = new Date(y, m, 1);
     const i = d.getDay();
     return startOnMonday ? (i + 6) % 7 : i;
-  };
+  }, [startOnMonday]);
 
   const grid = useMemo(() => {
     const dim = daysInMonth(currentYear, currentMonth);
@@ -45,7 +46,7 @@ export default function DatePicker({
     for (let d = 1; d <= dim; d++) cells.push(d);
     while (cells.length % 7 !== 0) cells.push(null);
     return cells;
-  }, [currentYear, currentMonth, startOnMonday]);
+  }, [currentYear, currentMonth, startDayIndex]);
 
   const [showMonthMenu, setShowMonthMenu] = useState(false);
   const [showDecade, setShowDecade] = useState(false);

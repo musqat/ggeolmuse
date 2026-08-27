@@ -5,6 +5,7 @@ import { aiChatApi } from '../../services/aiChatApi';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAiChat } from '../../contexts/AiChatContext';
 import { loadChatHistory, saveChatHistory, clearChatHistory, type ChatTurn } from '../../utils/aiChatHistory';
+import { getApiErrorStatus } from '../../utils/apiError';
 
 interface AiChatModalProps {
   onRequireLogin: () => void;
@@ -52,8 +53,8 @@ const AiChatModal: React.FC<AiChatModalProps> = ({ onRequireLogin }) => {
       const res = await aiChatApi.sendMessage(msg, symbol);
       setTurns((t) => [...t, { role: 'ai', text: res.data.answer }]);
       setRemaining(res.data.remaining);
-    } catch (e: any) {
-      const status = e.response?.status;
+    } catch (e: unknown) {
+      const status = getApiErrorStatus(e);
       if (status === 429) {
         setError('오늘 사용 한도(5회)를 모두 사용했습니다.');
       } else if (status === 404 || status === 503) {

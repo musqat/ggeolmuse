@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import type { ChartPeriod } from '../types';
 
 export const useChartPeriod = (initialPeriod: ChartPeriod = 'purchase') => {
@@ -6,7 +6,9 @@ export const useChartPeriod = (initialPeriod: ChartPeriod = 'purchase') => {
   const [customStartDate, setCustomStartDate] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
 
-  const getStartDateFromPeriod = (
+  // 훅의 상태를 읽지 않는 순수 함수다. useCallback 으로 참조를 고정해야
+  // 이 함수를 쓰는 effect 들이 의존성에 그대로 넣을 수 있다.
+  const getStartDateFromPeriod = useCallback((
     period: ChartPeriod,
     originalStartDate: string,
     customDate?: string
@@ -45,7 +47,7 @@ export const useChartPeriod = (initialPeriod: ChartPeriod = 'purchase') => {
       default:
         return originalStartDate;
     }
-  };
+  }, []);
 
   const handlePeriodChange = (period: ChartPeriod) => {
     setChartPeriod(period);

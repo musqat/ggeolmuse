@@ -28,11 +28,14 @@ const TradeDatePicker: React.FC<TradeDatePickerProps> = ({
     }
   }, [tradeDateObj, onTradeDateChange]);
 
-  // tradeDate가 외부에서 변경되면 tradeDateObj 업데이트
+  // tradeDate 가 외부에서 변경되면 tradeDateObj 업데이트.
   useEffect(() => {
-    if (tradeDate && (!tradeDateObj || tradeDateObj.toISOString().split('T')[0] !== tradeDate)) {
-      setTradeDateObj(new Date(tradeDate));
-    }
+    if (!tradeDate) return;
+    setTradeDateObj((prev) =>
+      !prev || prev.toISOString().split('T')[0] !== tradeDate
+        ? new Date(tradeDate)
+        : prev
+    );
   }, [tradeDate]);
 
   const handleSetLatest = () => {

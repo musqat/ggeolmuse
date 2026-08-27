@@ -22,7 +22,7 @@ export function saveLocalBacktestHistory(
     };
     const updated = [entry, ...existing].slice(0, MAX_ENTRIES);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-  } catch (e) {
+  } catch {
     // localStorage 쓰기 실패 무시
   }
 }
@@ -32,7 +32,8 @@ export function getLocalBacktestHistory(): LocalBacktestEntry[] {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     return JSON.parse(raw) as LocalBacktestEntry[];
-  } catch (e) {
+  } catch {
+    // 저장된 값이 깨졌으면 빈 목록으로 시작한다
     return [];
   }
 }

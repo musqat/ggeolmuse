@@ -137,8 +137,8 @@ jobs:
           cache-dependency-path: frontend-web/package-lock.json
       - name: Install dependencies
         run: npm ci
-      # lint 는 아직 넣지 않는다. 기존 코드에 미해결 오류가 221개라 켜는 순간 항상 빨감.
-      # 정리한 뒤 스텝을 추가할 것.
+      - name: Lint
+        run: npx eslint . --max-warnings 2
       - name: Test
         # vitest run. 날짜 테스트가 TZ 에 의존해 vitest.config.ts 에서 Asia/Seoul 로 고정된다
         run: npm test

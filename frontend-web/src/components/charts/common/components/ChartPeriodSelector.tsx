@@ -6,7 +6,6 @@ import DatePicker from '../../../common/DatePicker';
 interface ChartPeriodSelectorProps {
   chartPeriod: ChartPeriod;
   customStartDate: string;
-  showCustomInput: boolean;
   onPeriodChange: (period: ChartPeriod) => void;
   onCustomDateChange: (date: string) => void;
 }
@@ -14,7 +13,6 @@ interface ChartPeriodSelectorProps {
 export const ChartPeriodSelector: React.FC<ChartPeriodSelectorProps> = ({
   chartPeriod,
   customStartDate,
-  showCustomInput,
   onPeriodChange,
   onCustomDateChange,
 }) => {

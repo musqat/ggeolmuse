@@ -10,30 +10,34 @@ import {
   RotateCcw,
   Activity,
   ExternalLink,
-  LogIn,
   Repeat,
   Clock,
   Lock,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import StockSearchInput from "@components/common/StockSearchInput";
-import { NumberInput } from "@components/common/NumberInput";
 import { SimpleChart } from "@components/charts/backtest/SimpleChart";
 import { DCAChart } from "@components/charts/backtest/DCAChart";
 import { ConditionalChart } from "@components/charts/backtest/ConditionalChart";
 import { CompareSymbolsChart } from "@components/charts/backtest/CompareSymbolsChart";
 import { CompareStrategiesChart } from "@components/charts/backtest/CompareStrategiesChart";
 import { stockApi, backtestApi } from "../services/api";
-import type { BacktestHistoryDto, BacktestHistoryPage } from "../services/api";
+import type {
+  BacktestHistoryDto,
+  SimulationRequest,
+  DcaStrategyRequest,
+  ConditionalStrategyRequest,
+  SymbolComparisonRequest,
+  StrategyComparisonRequest,
+  ComparisonItem,
+} from "../services/api";
 import { saveLocalBacktestHistory, getLocalBacktestHistory } from "../utils/localBacktestHistory";
-import LoginModal from "../components/auth/LoginModal";
 import { SimpleStrategyForm } from "@components/backtest/forms/SimpleStrategyForm";
 import { DCAStrategyForm } from "@components/backtest/forms/DCAStrategyForm";
 import { ConditionalStrategyForm } from "@components/backtest/forms/ConditionalStrategyForm";
 import { SymbolComparisonForm } from "@components/backtest/forms/SymbolComparisonForm";
 import { StrategyComparisonForm } from "@components/backtest/forms/StrategyComparisonForm";
-import { ResultSummaryCards } from "@components/backtest/shared/ResultSummaryCards";
+import { getApiErrorMessage } from '../utils/apiError';
 
 type BacktestMode =
   | "simple"
@@ -62,9 +66,19 @@ const CHART_COLORS = [
   "#f97316", // 주황
 ];
 
+// 종목별 최적 매수·매도 지점. CompareSymbolsChart 가 계산해서 올려준다.
+type OptimalPointsBySymbol = {
+  [symbol: string]: {
+    buyDate: string;
+    sellDate: string;
+    minPrice: number;
+    maxValue: number;
+  };
+};
+
 const Backtest: React.FC = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, login, user } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   // 공통 설정
   const [mode, setMode] = useState<BacktestMode>("simple");
@@ -166,16 +180,21 @@ const Backtest: React.FC = () => {
   const [modalStrategyType, setModalStrategyType] = useState<
     "SIMPLE" | "DCA" | "CONDITIONAL_PURCHASE" | null
   >(null);
+  // 폼이 입력값을 문자열로 담고, 실행 직전에 숫자로 바꾼다.
   const [strategyParameters, setStrategyParameters] = useState<{
-    [key: string]: any;
+    [strategy: string]: Record<string, string>;
   }>({});
 
   // 최적 타이밍 옵션 (Simple & Symbol Comparison)
+  //
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [findOptimalBuy, setFindOptimalBuy] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [findOptimalSell, setFindOptimalSell] = useState(false);
 
   // 실행 상태
   const [isRunning, setIsRunning] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [symbolOptimalPoints, setSymbolOptimalPoints] = useState<{
@@ -186,7 +205,6 @@ const Backtest: React.FC = () => {
       maxValue: number;
     };
   }>({});
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   // 히스토리 페이지 상태만 유지 (React Query가 데이터/로딩 상태 관리)
   const [historyPage, setHistoryPage] = useState(0);
@@ -198,7 +216,7 @@ const Backtest: React.FC = () => {
       queryFn: async () => {
         const response = await stockApi.getAllSymbols();
         const assets = Array.isArray(response.data) ? response.data : [];
-        return assets.map((asset: any) => String(asset.symbol).toUpperCase());
+        return assets.map((asset) => String(asset.symbol).toUpperCase());
       },
       staleTime: 10 * 60 * 1000, // 10분 (종목 목록은 자주 안 바뀜)
     });
@@ -207,7 +225,6 @@ const Backtest: React.FC = () => {
   const {
     data: historyResponse,
     isLoading: historyLoading,
-    refetch: refetchHistory,
   } = useQuery({
     queryKey: ["backtest", "history", user?.email, historyPage],
     queryFn: async () => {
@@ -280,7 +297,7 @@ const Backtest: React.FC = () => {
     setResult(null);
 
     try {
-      const requestData: any = {
+      const requestData: SimulationRequest = {
         symbol: symbol,
         purchaseDate: purchaseDate,
         saleDate: effectiveSaleDate,
@@ -304,8 +321,8 @@ const Backtest: React.FC = () => {
         'STRATEGY_SIMULATION', requestData, fxMode
       );
       setResult({ ...data, mode: "simple" });
-    } catch (err: any) {
-      setError(err.response?.data?.detail || "백테스트 실행에 실패했습니다.");
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, "백테스트 실행에 실패했습니다."));
     } finally {
       setIsRunning(false);
     }
@@ -341,7 +358,7 @@ const Backtest: React.FC = () => {
     setResult(null);
 
     try {
-      const requestData: any = {
+      const requestData: DcaStrategyRequest = {
         symbol: symbol,
         startDate: dcaStartDate,
         endDate: effectiveEndDate,
@@ -365,8 +382,8 @@ const Backtest: React.FC = () => {
         'STRATEGY_SIMULATION', requestData, dcaFxMode
       );
       setResult({ ...data, mode: "dca" });
-    } catch (err: any) {
-      setError(err.response?.data?.detail || "DCA 전략 실행에 실패했습니다.");
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, "DCA 전략 실행에 실패했습니다."));
     } finally {
       setIsRunning(false);
     }
@@ -426,7 +443,7 @@ const Backtest: React.FC = () => {
     setResult(null);
 
     try {
-      const requestData: any = {
+      const requestData: ConditionalStrategyRequest = {
         symbol: symbol,
         startDate: conditionalStartDate,
         endDate: effectiveEndDate,
@@ -459,10 +476,8 @@ const Backtest: React.FC = () => {
         'STRATEGY_SIMULATION', requestData, conditionalFxMode
       );
       setResult({ ...data, mode: "conditional" });
-    } catch (err: any) {
-      setError(
-        err.response?.data?.detail || "조건부 전략 실행에 실패했습니다.",
-      );
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, "조건부 전략 실행에 실패했습니다."));
     } finally {
       setIsRunning(false);
     }
@@ -498,7 +513,7 @@ const Backtest: React.FC = () => {
     setResult(null);
 
     try {
-      const requestData: any = {
+      const requestData: SymbolComparisonRequest = {
         symbols: compareSymbols,
         startDate: comparePurchaseDate,
         endDate: effectiveCompareSaleDate,
@@ -522,8 +537,8 @@ const Backtest: React.FC = () => {
         'COMPARISON', requestData, compareFxMode
       );
       setResult({ ...data, mode: "compare-symbols" });
-    } catch (err: any) {
-      setError(err.response?.data?.detail || "종목 비교 실행에 실패했습니다.");
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, "종목 비교 실행에 실패했습니다."));
     } finally {
       setIsRunning(false);
     }
@@ -620,7 +635,7 @@ const Backtest: React.FC = () => {
       const effectiveEndDate =
         strategyEndDate || new Date().toISOString().split("T")[0];
 
-      const requestData: any = {
+      const requestData: StrategyComparisonRequest = {
         symbol: strategyCompareSymbol,
         startDate: strategyStartDate,
         endDate: effectiveEndDate,
@@ -643,8 +658,8 @@ const Backtest: React.FC = () => {
         'COMPARISON', requestData, strategyFxMode
       );
       setResult({ ...data, mode: "compare-strategies" });
-    } catch (err: any) {
-      setError(err.response?.data?.detail || "전략 비교 실행에 실패했습니다.");
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, "전략 비교 실행에 실패했습니다."));
     } finally {
       setIsRunning(false);
     }
@@ -716,9 +731,9 @@ const Backtest: React.FC = () => {
 
       // 기본값 설정
       if (!strategyParameters[strategy]) {
-        const defaultParams: any = {};
-        if (strategy === "SIMPLE") {
-        } else if (strategy === "DCA") {
+        // SIMPLE 은 일시불이라 채울 기본값이 없다. 빈 채로 둔다.
+        const defaultParams: Record<string, string> = {};
+        if (strategy === "DCA") {
           defaultParams.monthlyAmount = "100000";
           defaultParams.purchaseDay = "15";
           defaultParams.investmentInterval = "1";
@@ -887,10 +902,14 @@ const Backtest: React.FC = () => {
                   </thead>
                   <tbody className="bg-surface divide-y divide-line">
                     {historyData.map((history) => {
-                      let params: any = {};
+                      // 저장된 요청 파라미터를 JSON.parse 한 것이라 값 모양이 섞여 있다.
+                      let params: Record<string, string | number | boolean | string[]> = {};
                       try {
                         params = JSON.parse(history.requestParams);
-                      } catch (e) {}
+                      } catch (e) {
+                        // 파라미터가 깨져도 나머지 내역은 보여준다. params 는 {} 로 둔다.
+                        console.warn('백테스트 내역의 파라미터를 읽지 못했습니다', history.backtestId, e);
+                      }
 
                       // 파라미터를 기반으로 상세 백테스트 유형 결정
                       let backtestTypeLabel: string = history.backtestType;
@@ -963,7 +982,7 @@ const Backtest: React.FC = () => {
                             )}
                             {params.symbols && (
                               <span className="font-medium">
-                                {params.symbols.join(",")}
+                                {Array.isArray(params.symbols) ? params.symbols.join(",") : params.symbols}
                               </span>
                             )}
 
@@ -1561,16 +1580,10 @@ const Backtest: React.FC = () => {
           <SimpleChart
             symbol={result.symbol || symbol}
             purchaseDate={result.purchaseDate || purchaseDate}
-            purchasePrice={result.purchasePrice || 0}
             shares={result.shares || 0}
             investmentAmount={result.investmentAmount || 0}
-            currentPrice={result.currentPrice || 0}
-            currentValueKrw={result.currentValueKrw || 0}
-            fxRate={result.averageFxRate || result.currentFxRate || 1380}
             optimalBuyDate={result.optimalBuyDate}
-            optimalBuyPrice={result.optimalBuyPrice}
             optimalSellDate={result.optimalSellDate}
-            optimalSellPrice={result.optimalSellPrice}
             dividendReinvestDates={result.dividendReinvestDates}
           />
         </div>
@@ -1840,21 +1853,17 @@ const Backtest: React.FC = () => {
               <DCAChart
                 symbol={result.symbol || symbol}
                 transactions={result.transactions}
-                currentPrice={result.currentPrice || 0}
                 currentValueKrw={result.currentValueKrw || 0}
                 totalInvested={result.totalInvested || 0}
                 startDate={result.startDate || dcaStartDate}
-                endDate={result.endDate || dcaEndDate}
               />
             ) : (
               <ConditionalChart
                 symbol={result.symbol || symbol}
                 transactions={result.transactions}
-                currentPrice={result.currentPrice || 0}
                 currentValueKrw={result.currentValueKrw || 0}
                 totalInvested={result.totalInvested || 0}
                 startDate={result.startDate || conditionalStartDate}
-                endDate={result.endDate || conditionalEndDate}
               />
             ))}
         </div>
@@ -1887,7 +1896,7 @@ const Backtest: React.FC = () => {
           )}
 
           {/* Each Symbol Results */}
-          {result.items?.map((item: any, index: number) => {
+          {result.items?.map((item: ComparisonItem, index: number) => {
             const isBest = item.name === result.bestPerformer?.name;
 
             // additionalData가 있으면 추출
@@ -2250,7 +2259,7 @@ const Backtest: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {result.items?.map((item: any, index: number) => {
+                  {result.items?.map((item: ComparisonItem, index: number) => {
                     const isBest = item.name === result.bestPerformer?.name;
                     return (
                       <tr
@@ -2491,10 +2500,10 @@ const Backtest: React.FC = () => {
 
 // 무한 리렌더링 방지를 위한 메모이제이션 래퍼 컴포넌트
 const CompareSymbolsChartMemoized: React.FC<{
-  items: any[];
+  items: ComparisonItem[];
   comparePurchaseDate: string;
   compareSaleDate: string;
-  onOptimalPointsCalculated: (points: any) => void;
+  onOptimalPointsCalculated: (points: OptimalPointsBySymbol) => void;
 }> = ({
   items,
   comparePurchaseDate,
@@ -2502,7 +2511,7 @@ const CompareSymbolsChartMemoized: React.FC<{
   onOptimalPointsCalculated,
 }) => {
   const symbolsData = useMemo(() => {
-    return items.map((item: any, index: number) => {
+    return items.map((item: ComparisonItem, index: number) => {
       // 중첩된 구조에서 추출
       const additionalData = item.additionalData || {};
 

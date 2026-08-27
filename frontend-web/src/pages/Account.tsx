@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   RefreshCw,
   Lock,
@@ -23,7 +22,6 @@ import ExchangeModal from '../components/account/modals/ExchangeModal';
 import DeleteAccountModal from '../components/account/modals/DeleteAccountModal';
 
 const Account: React.FC = () => {
-  const navigate = useNavigate();
   const { isAuthenticated, login } = useAuth();
 
   const [hideBalances, setHideBalances] = useState(false);
@@ -44,8 +42,7 @@ const Account: React.FC = () => {
     createAccount,
     depositKrw,
     exchangeCurrency,
-    deleteAccount,
-    loading: operationLoading
+    deleteAccount
   } = useAccountOperations(refetch);
 
   const {
@@ -165,7 +162,6 @@ const Account: React.FC = () => {
           totalAssets={calculateTotalAssets()}
           accountCount={accounts.length}
           currentExchangeRate={currentExchangeRate}
-          hideBalances={hideBalances}
           formatBalance={formatBalance}
         />
 
@@ -180,7 +176,6 @@ const Account: React.FC = () => {
                 key={account.accountId}
                 account={account}
                 balance={balance}
-                hideBalances={hideBalances}
                 formatBalance={formatBalance}
                 onDeposit={() => openDepositModal(account.accountId)}
                 onExchange={() => openExchangeModal(account.accountId)}
@@ -222,7 +217,6 @@ const Account: React.FC = () => {
             await depositKrw({ accountId: selectedAccountId, amount });
           }
         }}
-        accountId={selectedAccountId}
       />
 
       <ExchangeModal
@@ -238,7 +232,6 @@ const Account: React.FC = () => {
             });
           }
         }}
-        accountId={selectedAccountId}
         accountBalance={selectedAccountId ? accountBalances.get(selectedAccountId) : undefined}
         currentExchangeRate={currentExchangeRate}
       />
@@ -251,7 +244,6 @@ const Account: React.FC = () => {
             await deleteAccount({ accountId: selectedAccountId });
           }
         }}
-        accountId={selectedAccountId}
       />
     </div>
   );

@@ -11,7 +11,6 @@ interface ExchangeModalProps {
     originalAmount: number;
     exchangeRate: number;
   }) =>Promise<void>;
-  accountId: number | null;
   accountBalance: AccountBalance | undefined;
   currentExchangeRate: number;
 }
@@ -25,7 +24,6 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
   isOpen,
   onClose,
   onSubmit,
-  accountId,
   accountBalance,
   currentExchangeRate,
 }) => {

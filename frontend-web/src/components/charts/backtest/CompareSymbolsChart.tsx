@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
-  ComposedChart,
   LineChart,
   Line,
-  Scatter,
   ReferenceDot,
   XAxis,
   YAxis,
@@ -12,10 +10,11 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
-import { stockApi, accountsApi } from '../../../services/api';
+import { stockApi } from '../../../services/api';
 import { useChartPeriod } from '../common/hooks/useChartPeriod';
 import { ChartPeriodSelector } from '../common/components/ChartPeriodSelector';
 import { CHART_COLORS } from '../common/constants';
+import type { OHLCData } from '../../../types/ohlc';
 
 interface SymbolData {
   symbol: string;
@@ -62,7 +61,6 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
   const {
     chartPeriod,
     customStartDate,
-    showCustomInput,
     setChartPeriod,
     setCustomStartDate,
     getStartDateFromPeriod
@@ -89,10 +87,12 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
             .then(response => ({
               symbol: symbolData.symbol,
               data: Array.isArray(response.data)
-                ? response.data.filter((item: any) => item.symbol === symbolData.symbol)
+                ? (response.data as OHLCData[]).filter((item) => item.symbol === symbolData.symbol)
                 : []
             }))
             .catch(err => {
+              // 한 종목이 실패해도 나머지는 그린다
+              console.warn('종목 데이터 조회 실패', symbolData.symbol, err);
               return { symbol: symbolData.symbol, data: [] };
             })
         );
@@ -106,7 +106,7 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
 
         // 모든 종목의 모든 날짜 수집
         results.forEach(({ data }) => {
-          data.forEach((item: any) => {
+          data.forEach((item: OHLCData) => {
             allDates.add(item.date);
           });
         });
@@ -141,7 +141,7 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
         results.forEach(({ symbol, data }, index) => {
           const symbolData = symbols[index];
 
-          data.forEach((item: any) => {
+          data.forEach((item: OHLCData) => {
             const dateStr = item.date;
 
             if (!dateMap.has(dateStr)) {
@@ -291,7 +291,8 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
         if (onOptimalPointsCalculated) {
           onOptimalPointsCalculated(optimalPointsData);
         }
-      } catch (err: any) {
+      } catch (err) {
+        console.error('비교 차트 데이터 조회 실패', err);
         setError('차트 데이터를 가져오는데 실패했습니다.');
       } finally {
         setLoading(false);
@@ -299,7 +300,7 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
     };
 
     fetchChartData();
-  }, [symbols, startDate, endDate, chartPeriod, customStartDate]);
+  }, [symbols, startDate, endDate, chartPeriod, customStartDate, getStartDateFromPeriod, onOptimalPointsCalculated]);
 
   if (loading) {
     return (
@@ -338,7 +339,6 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
         <ChartPeriodSelector
           chartPeriod={chartPeriod}
           customStartDate={customStartDate}
-          showCustomInput={showCustomInput}
           onPeriodChange={setChartPeriod}
           onCustomDateChange={setCustomStartDate}
         />
@@ -365,7 +365,7 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
             />
             <Tooltip
               contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', border: '1px solid #ccc' }}
-              formatter={(value: any, name: string) => {
+              formatter={(value: number | string, name: string) => {
                 if (name.endsWith('_price')) {
                   const symbol = name.replace('_price', '');
                   return [`$${Number(value).toFixed(2)}`, `${symbol} 주가`];
@@ -389,7 +389,7 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
             ))}
 
             {/* 매수 포인트 마커 (검은색) */}
-            {symbols.map((symbolData, index) => {
+            {symbols.map((symbolData) => {
               // 정확한 날짜 또는 매수일 이후 첫 번째 날짜 찾기
               const purchasePoint = chartData.find(d => d.date >= symbolData.purchaseDate);
               if (!purchasePoint) return null;
@@ -409,7 +409,7 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
             })}
 
             {/* 최적 매수 포인트 마커 (금색) */}
-            {symbols.map((symbolData, index) => {
+            {symbols.map((symbolData) => {
               const optimalPoint = optimalPoints[symbolData.symbol];
               if (!optimalPoint) return null;
 
@@ -454,7 +454,7 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
             />
             <Tooltip
               contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', border: '1px solid #ccc' }}
-              formatter={(value: any, name: string) => {
+              formatter={(value: number | string, name: string) => {
                 if (name.endsWith('_portfolio')) {
                   const symbol = name.replace('_portfolio', '');
                   return [`₩${Number(value).toLocaleString()}`, `${symbol} 평가금`];
@@ -495,7 +495,7 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
             ))}
 
             {/* 매수 포인트 마커 (검은색) - 포트폴리오 차트 */}
-            {symbols.map((symbolData, index) => {
+            {symbols.map((symbolData) => {
               // 정확한 날짜 또는 매수일 이후 첫 번째 날짜 찾기
               const purchasePoint = chartData.find(d => d.date >= symbolData.purchaseDate);
               if (!purchasePoint) return null;
@@ -515,7 +515,7 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
             })}
 
             {/* 최적 매도 포인트 마커 (금색) */}
-            {symbols.map((symbolData, index) => {
+            {symbols.map((symbolData) => {
               const optimalPoint = optimalPoints[symbolData.symbol];
               if (!optimalPoint) return null;
 

@@ -5,7 +5,6 @@ interface DepositModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (amount: number) =>Promise<void>;
-  accountId: number | null;
 }
 
 /**
@@ -16,7 +15,6 @@ const DepositModal: React.FC<DepositModalProps> = ({
   isOpen,
   onClose,
   onSubmit,
-  accountId,
 }) => {
   const [depositAmount, setDepositAmount] = useState('');
 

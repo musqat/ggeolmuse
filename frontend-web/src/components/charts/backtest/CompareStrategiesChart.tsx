@@ -11,9 +11,24 @@ import {
   ReferenceDot
 } from 'recharts';
 import { stockApi } from '../../../services/api';
+import type { OHLCData } from '../../../types/ohlc';
 import { useChartPeriod } from '../common/hooks/useChartPeriod';
 import { ChartPeriodSelector } from '../common/components/ChartPeriodSelector';
 import { CHART_COLORS } from '../common/constants';
+
+// 전략 이름이 그대로 컬럼이 된다 (`${name}_portfolio`). 키를 미리 적을 수 없어
+// 인덱스 시그니처를 쓴다.
+interface ChartRow {
+  date: string;
+  [column: string]: string | number;
+}
+
+interface PurchasePoint {
+  date: string;
+  strategyName: string;
+  strategyIdx: number;
+  stockPrice: number;
+}
 
 interface StrategyItem {
   name: string;
@@ -51,14 +66,13 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
   strategies,
   strategyNames
 }) => {
-  const [priceData, setPriceData] = useState<any[]>([]);
+  const [priceData, setPriceData] = useState<OHLCData[]>([]);
   const [loading, setLoading] = useState(true);
 
   // 공통 차트 기간 훅 사용
   const {
     chartPeriod,
     customStartDate,
-    showCustomInput,
     setChartPeriod,
     setCustomStartDate,
     getStartDateFromPeriod
@@ -98,13 +112,15 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
         );
         setPriceData(response.data || []);
       } catch (error) {
+        // 가격 데이터가 없으면 차트는 비어 보인다. 이유를 알 수 있게 남긴다.
+        console.warn('비교 차트의 가격 데이터를 불러오지 못했습니다', symbol, error);
       } finally {
         setLoading(false);
       }
     };
 
     fetchPriceData();
-  }, [strategies, chartPeriod, customStartDate]);
+  }, [strategies, chartPeriod, customStartDate, getStartDateFromPeriod]);
 
   // 매수 포인트를 포함한 차트 데이터 계산
   const { priceChartData, portfolioChartData, purchasePoints } = useMemo(() => {
@@ -112,13 +128,13 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
       return { priceChartData: [], portfolioChartData: [], purchasePoints: [] };
     }
 
-    const priceDataMap = new Map<string, any>();
-    const portfolioDataMap = new Map<string, any>();
-    const allPurchasePoints: any[] = [];
-    const availableDates = priceData.map((item: any) => item.date).sort();
+    const priceDataMap = new Map<string, ChartRow>();
+    const portfolioDataMap = new Map<string, ChartRow>();
+    const allPurchasePoints: PurchasePoint[] = [];
+    const availableDates = priceData.map((item) => item.date).sort();
 
     // 가격 데이터로 초기화
-    priceData.forEach((price: any) => {
+    priceData.forEach((price) => {
       const adjustedPrice = price.adjustedClose || price.closePrice;
       priceDataMap.set(price.date, {
         date: price.date,
@@ -146,7 +162,7 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
           if (nextTradingDay) tradingDate = nextTradingDay;
         }
 
-        const priceAtPurchase = priceData.find((p: any) => p.date === tradingDate);
+        const priceAtPurchase = priceData.find((p) => p.date === tradingDate);
         if (priceAtPurchase) {
           const adjustedPrice = priceAtPurchase.adjustedClose || priceAtPurchase.closePrice;
           allPurchasePoints.push({
@@ -161,7 +177,7 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
         const investmentAmount = data.investmentAmount || strategy.totalInvested || 0;
         const fxRate = data.purchaseFxRate || 1300;
 
-        priceData.forEach((price: any) => {
+        priceData.forEach((price) => {
           if (price.date >= tradingDate) {
             const adjustedPrice = price.adjustedClose || price.closePrice;
             const portfolioValueUSD = shares * adjustedPrice;
@@ -197,7 +213,7 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
           if (nextTradingDay) tradingDate = nextTradingDay;
         }
 
-        const priceAtPurchase = priceData.find((p: any) => p.date === tradingDate);
+        const priceAtPurchase = priceData.find((p) => p.date === tradingDate);
         if (priceAtPurchase) {
           const adjustedPrice = priceAtPurchase.adjustedClose || priceAtPurchase.closePrice;
           allPurchasePoints.push({
@@ -210,7 +226,7 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
       });
 
       // 포트폴리오 가치 계산
-      priceData.forEach((price: any, priceIndex: any) => {
+      priceData.forEach((price, priceIndex) => {
         sortedTransactions.forEach(tx => {
           const txDate = tx.actualDate || tx.date;
           if (txDate <= price.date && txDate > (priceData[priceIndex - 1]?.date || '')) {
@@ -265,7 +281,6 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
         <ChartPeriodSelector
           chartPeriod={chartPeriod}
           customStartDate={customStartDate}
-          showCustomInput={showCustomInput}
           onPeriodChange={setChartPeriod}
           onCustomDateChange={setCustomStartDate}
         />
@@ -291,7 +306,7 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
             />
             <Tooltip
               contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', border: '1px solid #ccc' }}
-              formatter={(value: any, name: any) => {
+              formatter={(value: number | string, name: string) => {
                 if (name === 'stockPrice') {
                   return [`$${Number(value).toFixed(2)}`, '주가'];
                 }
@@ -348,7 +363,7 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
             />
             <Tooltip
               contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', border: '1px solid #ccc' }}
-              formatter={(value: any, name: string) => {
+              formatter={(value: number | string, name: string) => {
                 if (name.endsWith('_portfolio')) {
                   const strategyName = name.replace('_portfolio', '');
                   return [`₩${Math.floor(Number(value)).toLocaleString()}`, `${strategyNames[strategyName] || strategyName}`];

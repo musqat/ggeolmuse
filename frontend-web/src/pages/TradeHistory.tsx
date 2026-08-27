@@ -9,7 +9,6 @@ import {
   LogIn,
   Lock,
   DollarSign,
-  Filter
 } from 'lucide-react';
 import { tradeApi } from '../services/api';
 import LoginModal from '../components/auth/LoginModal';
@@ -297,7 +296,7 @@ const TradeHistory: React.FC = () => {
                   {/* 이 매수로부터 발생한 배당들 (들여쓰기) */}
                   {dividends.length > 0 && (filter === 'ALL' || filter === 'DIVIDEND' || filter === 'BUY') && (
                     <div className="bg-green-500/10 border-t border-green-500/20">
-                      {dividends.map((dividend, idx) => (
+                      {dividends.map((dividend) => (
                         <div
                           key={`${dividend.tradeId}-${dividend.date}`}
                           className="p-4 pl-12 hover:bg-green-500/15 transition-colors"

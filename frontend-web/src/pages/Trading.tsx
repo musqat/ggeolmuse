@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Lock, LogIn } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -26,6 +26,7 @@ import PriceTypeSelector from '@/components/trading/PriceTypeSelector';
 import OrderSummaryPanel from '@/components/trading/OrderSummaryPanel';
 import StockSelectionPanel from '@/components/trading/StockSelectionPanel';
 import TradingChartSection from '@/components/trading/TradingChartSection';
+import { getApiErrorMessage } from '@/utils/apiError';
 
 const Trading: React.FC = () => {
   const navigate = useNavigate();
@@ -43,7 +44,7 @@ const Trading: React.FC = () => {
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
 
-  const [selectedDateOHLC, setSelectedDateOHLC] = useState<any>(null);
+  const [selectedDateOHLC, setSelectedDateOHLC] = useState<CandlestickChartData | null>(null);
   const [tradeDate, setTradeDate] = useState(() => subtractDays(getTodayString(), 1));
 
   // Use custom hook for account management
@@ -55,7 +56,7 @@ const Trading: React.FC = () => {
     queryFn: async () => {
       const symbolsResponse = await stockApi.getAllSymbols();
       const allSymbols = (Array.isArray(symbolsResponse.data) ? symbolsResponse.data : [])
-        .map((a: any) => String(a.symbol).toUpperCase());
+        .map((a) => String(a.symbol).toUpperCase());
       return allSymbols;
     },
     staleTime: 10 * 60 * 1000, // 10분 (종목 목록은 자주 변경 안 됨)
@@ -114,8 +115,9 @@ const Trading: React.FC = () => {
     }
   }, [chartData]);
 
-  // 가장 가까운 과거 거래일 찾기
-  const findClosestPastDate = (targetDate: string): CandlestickChartData | null => {
+  // 가장 가까운 과거 거래일 찾기.
+  // chartData 만 쓰므로 useCallback 으로 묶어 아래 effect 의 의존성에 그대로 넣는다.
+  const findClosestPastDate = useCallback((targetDate: string): CandlestickChartData | null => {
     if (chartData.length === 0) return null;
 
     const target = new Date(targetDate);
@@ -123,7 +125,7 @@ const Trading: React.FC = () => {
 
     if (pastDates.length === 0) return null;
     return pastDates[pastDates.length - 1];
-  };
+  }, [chartData]);
 
   // 선택된 날짜의 OHLC 데이터 업데이트 (차트 표시용)
   useEffect(() => {
@@ -143,7 +145,7 @@ const Trading: React.FC = () => {
         setSelectedDateOHLC(null);
       }
     }
-  }, [tradeDate, chartData]);
+  }, [tradeDate, chartData, findClosestPastDate]);
 
   const handleStockSelect = (symbol: string) => {
     setSelectedStock(symbol);
@@ -197,6 +199,7 @@ const Trading: React.FC = () => {
           return;
         }
       } catch (error) {
+        console.error('잔액 조회 실패', error);
         alert('잔액 조회 중 오류가 발생했습니다.');
         return;
       }
@@ -232,8 +235,8 @@ const Trading: React.FC = () => {
       // 주문 성공 후 초기화
       setQuantity('1');
       setLimitPrice('');
-    } catch (error: any) {
-      const errorMessage = error?.response?.data?.detail || error?.message || '알 수 없는 오류';
+    } catch (error: unknown) {
+      const errorMessage = getApiErrorMessage(error, '알 수 없는 오류');
       alert(`주문 실패: ${errorMessage}`);
     }
   };
@@ -277,7 +280,6 @@ const Trading: React.FC = () => {
 
   const currentPrice = getExecutionPrice();
   const totalAmount = currentPrice * Number(quantity || 0);
-  const isUp = latestOHLC && latestOHLC.close >= latestOHLC.open;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
@@ -329,7 +331,6 @@ const Trading: React.FC = () => {
           />
 
           <TradingChartSection
-            selectedStock={selectedStock}
             chartData={chartData}
             chartLoading={chartLoading}
             timeframe={timeframe}
@@ -360,8 +361,8 @@ const Trading: React.FC = () => {
             <TradeDatePicker
               tradeDate={tradeDate}
               onTradeDateChange={setTradeDate}
-              chartData={chartData}
               selectedDateOHLC={selectedDateOHLC}
+              chartData={chartData}
               onFindClosestPastDate={findClosestPastDate}
             />
 
@@ -391,7 +392,6 @@ const Trading: React.FC = () => {
               tradeDate={tradeDate}
               orderType={orderType}
               currentPrice={currentPrice}
-              selectedDateOHLC={selectedDateOHLC}
             />
             </div>
 

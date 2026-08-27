@@ -11,46 +11,49 @@ import {
   ResponsiveContainer,
   ReferenceDot,
 } from "recharts";
-import { stockApi, accountsApi } from "../../../services/api";
+import { stockApi } from "../../../services/api";
 import { useChartPeriod } from "../common/hooks/useChartPeriod";
 import { ChartPeriodSelector } from "../common/components/ChartPeriodSelector";
+
+// 가격·환율·평가액은 받지 않는다. 차트가 일자별 캔들에서 직접 구한다.
+// 최적 매수·매도도 날짜만 받아 그 날의 데이터를 chartData 에서 찾는다.
+// 서버가 date 를 "2025-01-08" 로도, [2025, 1, 8] 배열로도 준다.
+type RawOhlcDate = string | [number, number, number];
+
+interface RawOhlc {
+  symbol: string;
+  date: RawOhlcDate;
+  closePrice?: number;
+  adjustedClose?: number;
+  close?: number;
+}
+
+// 위 응답에 일자별 환율을 얹은 것
+type OhlcWithFx = RawOhlc & { fxRate: number };
 
 interface SimpleBacktestChartProps {
   symbol: string;
   purchaseDate: string;
-  purchasePrice: number;
   shares: number;
   investmentAmount: number;
-  currentPrice: number;
-  currentValueKrw: number;
-  fxRate: number;
   optimalBuyDate?: string;
-  optimalBuyPrice?: number;
   optimalSellDate?: string;
-  optimalSellPrice?: number;
   dividendReinvestDates?: string[];
 }
 
 export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
   symbol,
   purchaseDate,
-  purchasePrice,
   shares,
   investmentAmount,
-  currentPrice,
-  currentValueKrw,
-  fxRate,
   optimalBuyDate,
-  optimalBuyPrice,
   optimalSellDate,
-  optimalSellPrice,
   dividendReinvestDates,
 }) => {
   // 공통 차트 기간 훅 사용
   const {
     chartPeriod,
     customStartDate,
-    showCustomInput,
     setChartPeriod,
     setCustomStartDate,
     getStartDateFromPeriod,
@@ -90,14 +93,14 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
       let ohlcData = null;
 
       if (Array.isArray(response.data)) {
-        ohlcData = response.data.filter((item: any) => item.symbol === symbol);
+        ohlcData = (response.data as RawOhlc[]).filter((item) => item.symbol === symbol);
       } else if (
         response.data &&
         response.data.data &&
         Array.isArray(response.data.data)
       ) {
-        ohlcData = response.data.data.filter(
-          (item: any) => item.symbol === symbol,
+        ohlcData = (response.data.data as RawOhlc[]).filter(
+          (item) => item.symbol === symbol,
         );
       } else if (response.data && response.data[symbol]) {
         ohlcData = response.data[symbol];
@@ -115,7 +118,7 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
         const DEFAULT_FX_RATE = 1350; // Fallback 환율
 
         // 모든 날짜 수집
-        const allDates = ohlcData.map((item: any) =>
+        const allDates = ohlcData.map((item: RawOhlc) =>
           Array.isArray(item.date)
             ? `${item.date[0]}-${String(item.date[1]).padStart(2, "0")}-${String(item.date[2]).padStart(2, "0")}`
             : item.date,
@@ -149,7 +152,7 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
         }
 
         // OHLC 데이터와 환율 매핑을 함께 저장
-        return ohlcData.map((item: any) => {
+        return ohlcData.map((item: RawOhlc) => {
           const dateStr = Array.isArray(item.date)
             ? `${item.date[0]}-${String(item.date[1]).padStart(2, "0")}-${String(item.date[2]).padStart(2, "0")}`
             : item.date;
@@ -173,18 +176,16 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
       return [];
     }
 
-    const result = priceData.map((candle: any) => {
+    const result = priceData.map((candle: OhlcWithFx) => {
       // OHLCPriceDto: adjustedClose (배당/주식분할 반영된 보정 종가)
-      const dailyPrice = parseFloat(
-        candle.adjustedClose || candle.closePrice || candle.close || 0,
-      );
+      // 0 이면 다음 값으로 넘어간다. 주가 0 은 유효한 값이 아니라 원래 동작을 유지한다.
+      const dailyPrice =
+        candle.adjustedClose || candle.closePrice || candle.close || 0;
 
       // date가 배열 형태로 올 수 있음: [2025, 1, 8] -> "2025-01-08"
-      let dateStr = candle.date;
-      if (Array.isArray(candle.date)) {
-        const [year, month, day] = candle.date;
-        dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-      }
+      const dateStr: string = Array.isArray(candle.date)
+        ? `${candle.date[0]}-${String(candle.date[1]).padStart(2, "0")}-${String(candle.date[2]).padStart(2, "0")}`
+        : candle.date;
 
       // 해당 날짜의 환율 사용 (각 날짜마다 다른 환율 적용)
       const historicalFxRate = candle.fxRate || 1350;
@@ -272,7 +273,12 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
   }, [chartData]);
 
   // 커스텀 툴팁
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  // recharts 가 넘기는 값이라 payload 모양은 차트 데이터에 달려 있다.
+  const CustomTooltip = ({ active, payload, label }: {
+    active?: boolean;
+    payload?: Array<{ payload: { date: string; price: number; 투자금: number; 평가금액: number } }>;
+    label?: string;
+  }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       const isPurchaseDate = data.date === purchaseDate;
@@ -332,7 +338,6 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
         <ChartPeriodSelector
           chartPeriod={chartPeriod}
           customStartDate={customStartDate}
-          showCustomInput={showCustomInput}
           onPeriodChange={setChartPeriod}
           onCustomDateChange={setCustomStartDate}
         />

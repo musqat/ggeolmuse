@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { accountsApi } from '../services/api';
+import { getApiErrorMessage } from '../utils/apiError';
 
 interface CreateAccountParams {
   accountName: string;
@@ -71,8 +72,8 @@ export const useAccountOperations = (
       }
 
       alert('계좌가 생성되었습니다.');
-    } catch (err: any) {
-      alert('계좌 생성에 실패했습니다: ' + (err.response?.data?.detail || err.message));
+    } catch (err: unknown) {
+      alert('계좌 생성에 실패했습니다: ' + getApiErrorMessage(err, '알 수 없는 오류'));
       throw err;
     } finally {
       setLoading(false);
@@ -101,8 +102,8 @@ export const useAccountOperations = (
       }
 
       alert('입금이 완료되었습니다.');
-    } catch (err: any) {
-      alert('입금에 실패했습니다: ' + (err.response?.data?.detail || err.message));
+    } catch (err: unknown) {
+      alert('입금에 실패했습니다: ' + getApiErrorMessage(err, '알 수 없는 오류'));
       throw err;
     } finally {
       setLoading(false);
@@ -145,8 +146,8 @@ export const useAccountOperations = (
       }
 
       alert('환전이 완료되었습니다.');
-    } catch (err: any) {
-      alert('환전에 실패했습니다: ' + (err.response?.data?.detail || err.message));
+    } catch (err: unknown) {
+      alert('환전에 실패했습니다: ' + getApiErrorMessage(err, '알 수 없는 오류'));
       throw err;
     } finally {
       setLoading(false);
@@ -170,8 +171,8 @@ export const useAccountOperations = (
       }
 
       alert('계좌가 삭제되었습니다.');
-    } catch (err: any) {
-      alert('계좌 삭제에 실패했습니다: ' + (err.response?.data?.detail || err.message));
+    } catch (err: unknown) {
+      alert('계좌 삭제에 실패했습니다: ' + getApiErrorMessage(err, '알 수 없는 오류'));
       throw err;
     } finally {
       setLoading(false);

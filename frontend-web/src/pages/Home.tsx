@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { TrendingUp, BarChart3, Activity, ShoppingCart } from 'lucide-react';
 import { stockApi } from '../services/api';
 import type { OHLCData } from '../types/ohlc';
 
@@ -15,8 +14,8 @@ const Home: React.FC = () => {
       const res = await stockApi.getAllStocksWithPrices(0, 5);
       const content = res.data?.content ?? [];
       return content
-        .filter((s: any) => s.available !== false && s.currentPrice != null)
-        .map((s: any) => ({
+        .filter((s) => s.available !== false && s.currentPrice != null)
+        .map((s) => ({
           symbol: s.symbol as string,
           name: (s.name || s.symbol) as string,
           currentPrice: s.currentPrice as number,

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { marketAdminApi } from '@services/adminApi';
 import type { Asset, CompanyOverview } from '@services/adminApi';
+import { getApiErrorMessage } from '../utils/apiError';
 
 export const useAdminMarket = () => {
   const [searchKeyword, setSearchKeyword] = useState('');
@@ -103,7 +104,11 @@ export const useAdminMarket = () => {
   const toggleOne = (symbol: string) =>
     setSelected(prev => {
       const next = new Set(prev);
-      next.has(symbol) ? next.delete(symbol) : next.add(symbol);
+      if (next.has(symbol)) {
+        next.delete(symbol);
+      } else {
+        next.add(symbol);
+      }
       return next;
     });
 
@@ -166,8 +171,8 @@ export const useAdminMarket = () => {
       );
       await loadAssets();
       return true;
-    } catch (err: any) {
-      const message = err.response?.data?.message || '이름 수정에 실패했습니다.';
+    } catch (err: unknown) {
+      const message = getApiErrorMessage(err, '이름 수정에 실패했습니다.');
       setError(message);
       console.error('Update name failed:', err);
       return false;
@@ -231,8 +236,8 @@ export const useAdminMarket = () => {
       await marketAdminApi.updateAssetPrice(symbol);
       alert('가격 데이터가 업데이트되었습니다.');
       loadAssets();
-    } catch (err: any) {
-      const message = err.response?.data?.message || '가격 업데이트에 실패했습니다.';
+    } catch (err: unknown) {
+      const message = getApiErrorMessage(err, '가격 업데이트에 실패했습니다.');
       setError(message);
       console.error('Update price failed:', err);
     } finally {
@@ -250,8 +255,8 @@ export const useAdminMarket = () => {
       await marketAdminApi.updateAssetMarketCap(symbol);
       alert('시가총액이 업데이트되었습니다.');
       loadAssets();
-    } catch (err: any) {
-      const message = err.response?.data?.message || '시가총액 업데이트에 실패했습니다.';
+    } catch (err: unknown) {
+      const message = getApiErrorMessage(err, '시가총액 업데이트에 실패했습니다.');
       setError(message);
       console.error('Update market cap failed:', err);
     } finally {
@@ -268,8 +273,8 @@ export const useAdminMarket = () => {
     try {
       await marketAdminApi.updateAllPrices();
       alert('전체 가격 데이터 업데이트가 백그라운드에서 시작되었습니다.');
-    } catch (err: any) {
-      const message = err.response?.data?.message || '전체 가격 업데이트에 실패했습니다.';
+    } catch (err: unknown) {
+      const message = getApiErrorMessage(err, '전체 가격 업데이트에 실패했습니다.');
       setError(message);
       console.error('Update all prices failed:', err);
     } finally {
@@ -286,8 +291,8 @@ export const useAdminMarket = () => {
     try {
       await marketAdminApi.updateAllMarketCaps();
       alert('전체 시가총액 업데이트가 백그라운드에서 시작되었습니다.');
-    } catch (err: any) {
-      const message = err.response?.data?.message || '전체 시가총액 업데이트에 실패했습니다.';
+    } catch (err: unknown) {
+      const message = getApiErrorMessage(err, '전체 시가총액 업데이트에 실패했습니다.');
       setError(message);
       console.error('Update all market caps failed:', err);
     } finally {
@@ -304,8 +309,8 @@ export const useAdminMarket = () => {
     try {
       await marketAdminApi.collectNewSymbols();
       alert('신규 종목 수집이 백그라운드에서 시작되었습니다. 잠시 뒤 목록을 새로고침해 주세요.');
-    } catch (err: any) {
-      const message = err.response?.data?.message || '신규 종목 수집에 실패했습니다.';
+    } catch (err: unknown) {
+      const message = getApiErrorMessage(err, '신규 종목 수집에 실패했습니다.');
       setError(message);
       console.error('Collect new symbols failed:', err);
     } finally {
@@ -313,8 +318,10 @@ export const useAdminMarket = () => {
     }
   };
 
+
   useEffect(() => {
     loadAssets();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 정렬이 변경되면 데이터 다시 로드
@@ -322,6 +329,7 @@ export const useAdminMarket = () => {
     if (sortBy && sortDirection) {
       loadAssets(0);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortBy, sortDirection]);
 
   return {

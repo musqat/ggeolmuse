@@ -73,7 +73,6 @@ export const ConditionalStrategyForm: React.FC<ConditionalStrategyFormProps> = (
   setConditionalDividendTax,
   supportedSymbols,
 }) => {
-  const today = new Date().toISOString().split('T')[0];
 
   const [startDateObj, setStartDateObj] = useState<Date | null>(
     conditionalStartDate ? new Date(conditionalStartDate) : new Date('2025-01-01')

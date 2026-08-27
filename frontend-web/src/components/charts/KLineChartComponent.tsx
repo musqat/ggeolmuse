@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { init, dispose } from 'klinecharts';
+import { init, dispose, type Chart } from 'klinecharts';
 
 // 목 데이터 생성 (데이터 없을 때 UI 확인용)
 function generateMockData(days = 365): OHLCData[] {
@@ -40,7 +40,6 @@ interface OHLCData {
 
 interface KLineChartComponentProps {
   data: OHLCData[];
-  symbol: string;
   showIndicatorPanel?: boolean;
   height?: number;
 }
@@ -60,9 +59,6 @@ interface IndicatorState {
 }
 
 const MA_PANE_ID = 'candle_pane';
-const RSI_PANE_ID = 'rsi_pane';
-const MACD_PANE_ID = 'macd_pane';
-const KDJ_PANE_ID = 'kdj_pane';
 
 function convertData(data: OHLCData[]) {
   return data.map(d => ({
@@ -167,14 +163,25 @@ function getLightStyles() {
 
 const KLineChartComponent: React.FC<KLineChartComponentProps> = ({
   data: rawData,
-  symbol,
   showIndicatorPanel = false,
   height = 600,
 }) => {
   const data = rawData.length > 0 ? rawData : generateMockData();
   const isMock = rawData.length === 0;
+
+  // 모바일에서는 600px 차트가 화면을 다 먹는다. 폭 기준으로 줄인다.
+  const [isNarrow, setIsNarrow] = useState(
+    typeof window !== 'undefined' && window.innerWidth < 768
+  );
+  useEffect(() => {
+    const onResize = () => setIsNarrow(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  const chartHeight = isNarrow ? Math.min(height, 380) : height;
+
   const chartContainerRef = useRef<HTMLDivElement>(null);
-  const chartRef = useRef<any>(null);
+  const chartRef = useRef<Chart | null>(null);
   const panelIdsRef = useRef<Record<string, string | null>>({
     rsi: null,
     macd: null,
@@ -236,7 +243,7 @@ const KLineChartComponent: React.FC<KLineChartComponentProps> = ({
     return periods;
   }, []);
 
-  const applyMAIndicator = useCallback((chart: any, state: IndicatorState) => {
+  const applyMAIndicator = useCallback((chart: Chart, state: IndicatorState) => {
     chart.removeIndicator(MA_PANE_ID, 'MA');
     const periods = getActiveMaPeriods(state);
     if (periods.length > 0) {
@@ -252,7 +259,18 @@ const KLineChartComponent: React.FC<KLineChartComponentProps> = ({
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
-    const chart = init(chartContainerRef.current);
+    // cleanup 시점에는 ref 가 이미 바뀌어 있을 수 있다. 지금 값을 붙잡아 둔다.
+    const container = chartContainerRef.current;
+
+    const originalLog = console.log;
+    console.log = () => {};
+    let chart;
+    try {
+      chart = init(container);
+    } finally {
+      console.log = originalLog;
+    }
+
     if (!chart) {
       console.error('[KLineChart] init() returned null');
       return;
@@ -265,7 +283,9 @@ const KLineChartComponent: React.FC<KLineChartComponentProps> = ({
       console.warn('[KLineChart] setStyles failed:', e);
     }
 
-    chart.applyNewData(convertData(data));
+    // 초기 데이터는 아래 "Update data when it changes" effect 가 마운트 직후에도
+    // 한 번 돌면서 넣는다. 여기서 또 넣으면 data 가 의존성이 되어 데이터가 바뀔 때마다
+    // 차트를 다시 만들게 된다.
 
     // Default: MA20 + VOL (서브패널)
     try {
@@ -276,8 +296,16 @@ const KLineChartComponent: React.FC<KLineChartComponentProps> = ({
       console.warn('[KLineChart] createIndicator failed:', e);
     }
 
+    // 컨테이너 폭이 바뀌면 캔버스를 다시 잡아야 한다. 안 부르면 화면을 돌리거나
+    // 지표 패널이 사라져도 캔버스가 옛 크기로 남는다.
+    const observer = new ResizeObserver(() => {
+      chartRef.current?.resize();
+    });
+    observer.observe(container);
+
     return () => {
-      dispose(chartContainerRef.current!);
+      observer.disconnect();
+      dispose(container);
       chartRef.current = null;
     };
   }, []);
@@ -288,6 +316,13 @@ const KLineChartComponent: React.FC<KLineChartComponentProps> = ({
       chartRef.current.applyNewData(convertData(data));
     }
   }, [data]);
+
+  // 높이가 바뀌면(모바일 <-> 데스크탑) 캔버스를 다시 잡는다.
+  // 위 ResizeObserver 가 폭을 맡고, 이쪽이 높이를 맡는다.
+  useEffect(() => {
+    chartRef.current?.resize();
+  }, [chartHeight]);
+
 
   // Update theme
   useEffect(() => {
@@ -403,7 +438,10 @@ const KLineChartComponent: React.FC<KLineChartComponentProps> = ({
         </div>
       )}
       {/* 드로잉 툴바 (왼쪽 세로) */}
-      <div className="flex-shrink-0 w-9 bg-surface border-r border-line/60 flex flex-col items-center py-2 gap-1" style={{ height }}>
+      <div
+        className="flex-shrink-0 w-9 bg-surface border-r border-line/60 flex flex-col items-center py-2 gap-1"
+        style={{ height: chartHeight }}
+      >
         {DRAW_TOOLS.map(tool => (
           <button
             key={tool.name}
@@ -429,13 +467,16 @@ const KLineChartComponent: React.FC<KLineChartComponentProps> = ({
       </div>
 
       {/* 차트 영역 */}
-      <div className={`${showIndicatorPanel ? 'flex-1' : 'flex-1'} min-w-0`}>
-        <div ref={chartContainerRef} style={{ width: '100%', height }} />
+      <div className="flex-1 min-w-0">
+        <div ref={chartContainerRef} style={{ width: '100%', height: chartHeight }} />
       </div>
 
-      {/* 지표 사이드 패널 */}
+      {/* 지표 사이드 패널. */}
       {showIndicatorPanel && (
-        <div className="w-[160px] flex-shrink-0 bg-surface border-l border-line/60 overflow-y-auto" style={{ height }}>
+        <div
+          className="hidden md:block w-[160px] flex-shrink-0 bg-surface border-l border-line/60 overflow-y-auto"
+          style={{ height: chartHeight }}
+        >
           <div className="p-3">
             <p className="text-[11px] font-semibold text-tx-3 uppercase tracking-wider mb-2">지표 설정</p>
 
