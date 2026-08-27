@@ -121,6 +121,7 @@ export const SimpleStrategyForm: React.FC<SimpleStrategyFormProps> = ({
           <label className="block text-sm font-medium text-tx-1 mb-2">시작일</label>
           <button
             type="button"
+            data-testid="date-start"
             onClick={() => {
               setShowPurchaseDatePicker(!showPurchaseDatePicker);
               setShowSaleDatePicker(false);
@@ -149,6 +150,7 @@ export const SimpleStrategyForm: React.FC<SimpleStrategyFormProps> = ({
           <label className="block text-sm font-medium text-tx-1 mb-2">종료일</label>
           <button
             type="button"
+            data-testid="date-end"
             onClick={() => {
               setShowSaleDatePicker(!showSaleDatePicker);
               setShowPurchaseDatePicker(false);

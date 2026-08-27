@@ -474,6 +474,7 @@ const KLineChartComponent: React.FC<KLineChartComponentProps> = ({
       {/* 지표 사이드 패널. */}
       {showIndicatorPanel && (
         <div
+          data-testid="chart-indicator-panel"
           className="hidden md:block w-[160px] flex-shrink-0 bg-surface border-l border-line/60 overflow-y-auto"
           style={{ height: chartHeight }}
         >

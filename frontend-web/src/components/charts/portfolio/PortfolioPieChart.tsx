@@ -134,6 +134,7 @@ const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({ data }) => {
           {slices.map((slice, index) => (
             <g key={index}>
               <path
+                data-testid="pie-slice"
                 d={slice.path}
                 fill={slice.color}
                 className="transition-all duration-200 cursor-pointer"

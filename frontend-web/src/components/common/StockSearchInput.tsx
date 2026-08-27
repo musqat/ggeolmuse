@@ -186,6 +186,7 @@ const StockSearchInput: React.FC<StockSearchInputProps> = ({
               <div
                 key={stock.symbol}
                 onClick={() => handleSelectStock(stock)}
+                data-testid="symbol-option"
                 className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-brand hover:text-white"
               >
                 <div className="flex items-center">
