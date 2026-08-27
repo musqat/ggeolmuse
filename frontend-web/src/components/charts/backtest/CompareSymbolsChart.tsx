@@ -15,6 +15,7 @@ import { useChartPeriod } from '../common/hooks/useChartPeriod';
 import { ChartPeriodSelector } from '../common/components/ChartPeriodSelector';
 import { CHART_COLORS } from '../common/constants';
 import type { OHLCData } from '../../../types/ohlc';
+import { calculateOptimalPoints } from './optimalTiming';
 
 interface SymbolData {
   symbol: string;
@@ -208,31 +209,9 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
           }
         });
 
-        // 각 종목의 최적 매수/매도 포인트 계산
-        const optimalPointsData: typeof optimalPoints = {};
-        symbols.forEach(symbolData => {
-          let minPrice = Infinity;
-          let maxValue = 0;
-          let buyDate = '';
-          let sellDate = '';
-
-          chartDataArray.forEach(point => {
-            const price = point[`${symbolData.symbol}_price`] as number;
-            const portfolioValue = point[`${symbolData.symbol}_portfolio`] as number;
-
-            if (price && price < minPrice) {
-              minPrice = price;
-              buyDate = point.date;
-            }
-
-            if (portfolioValue && portfolioValue > maxValue) {
-              maxValue = portfolioValue;
-              sellDate = point.date;
-            }
-          });
-
-          optimalPointsData[symbolData.symbol] = { buyDate, sellDate, minPrice, maxValue };
-        });
+        // 최적 매수/매도 포인트. 계산은 optimalTiming.ts 에 있다.
+        // 매수일 <= 매도일 제약이 걸려 있어야 하고, 백엔드와 같은 방식이라 따로 뺐다.
+        const optimalPointsData = calculateOptimalPoints(symbols, chartDataArray);
 
         // 더 나은 차트 렌더링을 위한 Y축 범위 계산
         // 가격 차트 범위
