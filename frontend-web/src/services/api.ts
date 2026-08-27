@@ -338,7 +338,6 @@ export type AccountBalance = {
   slippageRate: number;                 // 슬리피지율
 };
 
-export type BalanceResponse = AccountBalance;
 
 // 계좌 생성 요청
 type CreateAccountRequest = {
@@ -535,7 +534,7 @@ export const authApi = {
 // 단순 시뮬레이션 요청
 // 백테스트 요청 다섯 종류가 공통으로 보내는 것.
 // 환율은 fxMode 가 manual 일 때만 붙는다.
-export type BacktestCommonRequest = {
+type BacktestCommonRequest = {
   reinvestDividends?: boolean;          // 배당 재투자 여부
   tradingFeeRate?: number;              // 거래 수수료율 (0.001 = 0.1%)
   dividendTaxRate?: number;             // 배당 소득세율
