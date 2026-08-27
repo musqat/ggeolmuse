@@ -1201,6 +1201,7 @@ const Backtest: React.FC = () => {
             <button
               onClick={runBacktest}
               disabled={isRunning}
+              data-testid="backtest-run"
               className="flex items-center space-x-2 px-6 py-3 bg-brand text-white rounded-lg hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <Play className="w-5 h-5" />
@@ -1299,6 +1300,7 @@ const Backtest: React.FC = () => {
                 <div>
                   <p className="text-sm font-medium text-tx-2">수익률</p>
                   <p
+                    data-testid="backtest-return-rate"
                     className={`text-2xl font-bold mt-1 ${
                       (result.totalReturnPercent || 0) >= 0
                         ? "text-green-600"
@@ -2305,7 +2307,10 @@ const Backtest: React.FC = () => {
 
       {/* Empty State */}
       {!result && !error && !isRunning && mode !== "history" && (
-        <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-12 text-center">
+        <div
+          data-testid="backtest-empty"
+          className="bg-surface rounded-xl shadow-sm border border-line/50 p-12 text-center"
+        >
           <BarChart3 className="w-16 h-16 text-tx-3 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-tx-1 mb-2">
             백테스트 결과 없음

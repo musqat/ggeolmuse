@@ -245,20 +245,6 @@ export const portfolioApi = {
   // 백테스트 결과 포함 포트폴리오 종합 정보 조회
   getPortfolioSummaryWithBacktest: (currentPrices: { [symbol: string]: number }) =>
     apiClient.post<PortfolioSummaryResponse>('/portfolio/summary-with-backtest', currentPrices),
-
-  // 포트폴리오 평가금액 히스토리 조회
-  getEvaluationHistory: (accountId: number, startDate: string, endDate: string) =>
-    apiClient.get<PortfolioEvaluationHistory[]>('/portfolio/evaluation-history', {
-      params: { accountId, startDate, endDate }
-    }),
-};
-
-// 포트폴리오 평가 히스토리
-type PortfolioEvaluationHistory = {
-  date: string;
-  symbolEvaluations: { [symbol: string]: number };   // 종목별 평가액
-  totalEvaluation: number;                           // 총 평가액
-  symbolQuantities: { [symbol: string]: number };    // 종목별 수량
 };
 
 // 거래 주문 정보

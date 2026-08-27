@@ -87,6 +87,7 @@ export const SymbolComparisonForm: React.FC<SymbolComparisonFormProps> = ({
           <label className="block text-sm font-medium text-tx-1 mb-2">시작일</label>
           <button
             type="button"
+            data-testid="date-start"
             onClick={() => {
               setShowPurchaseDatePicker(!showPurchaseDatePicker);
               setShowSaleDatePicker(false);
@@ -115,6 +116,7 @@ export const SymbolComparisonForm: React.FC<SymbolComparisonFormProps> = ({
           <label className="block text-sm font-medium text-tx-1 mb-2">종료일</label>
           <button
             type="button"
+            data-testid="date-end"
             onClick={() => {
               setShowSaleDatePicker(!showSaleDatePicker);
               setShowPurchaseDatePicker(false);
@@ -174,6 +176,7 @@ export const SymbolComparisonForm: React.FC<SymbolComparisonFormProps> = ({
               >
                 <span className="font-medium">{sym}</span>
                 <button
+                  data-testid="compare-symbol-remove"
                   onClick={() => onRemoveSymbol(sym)}
                   className="text-tx-2 hover:text-brand-dark text-lg"
                 >

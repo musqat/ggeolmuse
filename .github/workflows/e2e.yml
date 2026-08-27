@@ -1,0 +1,67 @@
+name: E2E
+
+# PR 이 아니라 master 에 들어온 뒤 돈다.
+#
+# PR 게이트로 두지 않는 이유는 스위트가 Yahoo Finance 에 의존해서다. 우리 코드와
+# 무관하게 Yahoo 가 흔들리면 머지가 막힌다. 실제로 환율 수집이 그렇게 죽는 걸 봤다.
+#
+# 이 프로젝트는 머지 뒤 손으로 이미지를 만들어 올린다. 그 사이 8분이면 신호가
+# 도착하므로 배포 전에 회귀를 잡을 수 있다.
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    name: 핵심 흐름 E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # 시크릿이 필요 없다. .env.example 의 기본값만으로 스택이 뜬다.
+      # 시세와 환율은 Yahoo Finance 에서 받고 키를 요구하지 않는다.
+      # KEYCLOAK_SECRET 은 compose 에 local-client-secret 로 박혀 있다.
+      # AlphaVantage / 한국수출입은행 키는 선택이고 없으면 안 쓴다.
+      - name: compose 환경 변수 준비
+        working-directory: docker-compose
+        run: cp .env.example .env
+
+      - name: 스택 기동
+        working-directory: docker-compose
+        run: docker compose up -d --build
+
+      - name: Playwright 설치
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      # 게이트웨이가 뜰 때까지는 setup 프로젝트가 알아서 기다린다.
+      - name: E2E 실행
+        working-directory: e2e
+        run: npx playwright test
+
+      - name: 리포트 보관
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: e2e/playwright-report/
+          retention-days: 14
+
+      - name: 실패 시 컨테이너 로그
+        if: failure()
+        working-directory: docker-compose
+        run: docker compose logs --tail 200
+
+      - name: 스택 정리
+        if: always()
+        working-directory: docker-compose
+        run: docker compose down -v

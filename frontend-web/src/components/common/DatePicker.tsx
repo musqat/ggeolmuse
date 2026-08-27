@@ -119,6 +119,7 @@ export default function DatePicker({
           <div className="relative flex items-center justify-center gap-1">
             <button
               onClick={() => setShowMonthMenu((v) => !v)}
+              data-testid="datepicker-month"
               className="min-w-[60px] rounded-lg border border-line bg-surface px-2 py-1 text-center text-xs font-medium text-tx-1 hover:bg-hover transition"
             >
               {months[currentMonth]}
@@ -136,6 +137,7 @@ export default function DatePicker({
                   {months.map((name, idx) => (
                     <button
                       key={name}
+                      data-testid="datepicker-month-option"
                       onClick={() => {
                         setCurrentMonth(idx);
                         setShowMonthMenu(false);
@@ -217,6 +219,8 @@ export default function DatePicker({
               {d ? (
                 <button
                   onClick={() => handleDateClick(d)}
+                  data-testid="datepicker-day"
+                  data-day={d}
                   className={`flex h-full w-full items-center justify-center rounded-lg text-sm transition ${
                     isSelectedDate(d)
                       ? "bg-brand text-white shadow-md font-semibold"
@@ -250,6 +254,7 @@ function IconButton({ children, onClick, label }: IconButtonProps) {
       onClick={onClick}
       className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-surface text-tx-1 hover:bg-hover focus-visible:ring-2 focus-visible:ring-indigo-300 transition"
       title={label}
+      aria-label={label}
     >
       {children}
     </button>

@@ -1,0 +1,14 @@
+{
+  "name": "ggeolmuse-e2e",
+  "private": true,
+  "version": "1.0.0",
+  "description": "핵심 흐름이 살아 있는지 보는 E2E. 분기와 엣지 케이스는 단위 테스트 몫이다.",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1"
+  }
+}
