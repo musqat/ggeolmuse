@@ -104,24 +104,25 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
-      - name: Run Trivy vulnerability scanner (table output for debugging)
+      # JSON 으로 한 번 받아 convert 로 두 형식을 뽑는다. convert 는 재스캔하지 않는다.
+      - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ matrix.service }}:ci-${{ github.sha }}
-          format: 'table'
+          format: 'json'
+          output: 'trivy-${{ matrix.service }}.json'
           severity: 'CRITICAL'
           exit-code: '0'
           ignore-unfixed: true
+          # 954MB 를 복원해놓고 바로 "Need to update DB" 로 새로 받는다. 자리만 먹는다.
+          cache: false
 
-      - name: Run Trivy vulnerability scanner (SARIF for Security tab)
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ matrix.service }}:ci-${{ github.sha }}
-          format: 'sarif'
-          output: 'trivy-results-${{ matrix.service }}.sarif'
-          severity: 'CRITICAL'
-          exit-code: '0'
-          ignore-unfixed: true
+      - name: Trivy 결과를 SARIF 와 표로 변환
+        run: |
+          trivy convert --format sarif \
+            --output trivy-results-${{ matrix.service }}.sarif \
+            trivy-${{ matrix.service }}.json
+          trivy convert --format table trivy-${{ matrix.service }}.json
 
       - name: Upload Trivy results to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
