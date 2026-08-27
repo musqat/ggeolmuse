@@ -5,7 +5,9 @@
 
   "workers_dev": false,
 
+  // www 도 같이 잡는다. 없으면 Cloudflare 기본 화면이 뜬다.
   "routes": [
-    { "pattern": "ggeolmuse.com/*", "zone_name": "ggeolmuse.com" }
+    { "pattern": "ggeolmuse.com/*", "zone_name": "ggeolmuse.com" },
+    { "pattern": "www.ggeolmuse.com/*", "zone_name": "ggeolmuse.com" }
   ]
 }
