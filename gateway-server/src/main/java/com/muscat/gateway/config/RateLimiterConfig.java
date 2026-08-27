@@ -1,14 +1,17 @@
 package com.muscat.gateway.config;
 
 import org.springframework.cloud.gateway.filter.ratelimit.KeyResolver;
+import org.springframework.cloud.gateway.route.Route;
+import org.springframework.cloud.gateway.support.ServerWebExchangeUtils;
 import org.springframework.cloud.gateway.support.ipresolver.XForwardedRemoteAddressResolver;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.util.Objects;
 
 /**
  * Gateway Rate Limiter 설정
@@ -20,25 +23,44 @@ public class RateLimiterConfig {
     private final XForwardedRemoteAddressResolver xForwardedResolver =
         XForwardedRemoteAddressResolver.maxTrustedIndex(1);
 
+    /** 실 IP 나 라우트를 못 구했을 때 쓰는 키 */
+    private static final String UNKNOWN_CLIENT = "unknown";
+
     /**
-     * IP 주소 기반 Rate Limiting
-     * 동일 IP에서 오는 요청을 그룹화하여 제한
+     * XFF 를 신뢰해 실 IP 로 나눈다. 소켓 주소만 보면 nginx 뒤에서 다같이 한 버킷을 쓴다.
      *
-     * 예전엔 소켓 주소(getRemoteAddress)만 봐서, nginx 뒤에서는 모든 사용자가
-     * nginx IP 한 버킷을 공유했다(제한이 무의미). XFF 를 신뢰해 실 IP 로 나눈다.
+     * 라우트 ID 를 붙이는 이유 - Lua 스크립트가 저장된 토큰을 호출한 라우트의
+     * burstCapacity 로 자른다. IP 만 키로 쓰면 상한 낮은 라우트가 나머지 토큰을 깎는다.
      */
     @Bean
     @Primary
     public KeyResolver ipKeyResolver() {
-        return exchange -> {
-            InetSocketAddress resolved = xForwardedResolver.resolve(exchange);
-            String clientIp = resolved != null
-                ? resolved.getAddress().getHostAddress()
-                : Objects.requireNonNull(exchange.getRequest().getRemoteAddress())
-                    .getAddress().getHostAddress();
+        return exchange -> Mono.just(clientIp(exchange) + ":" + routeId(exchange));
+    }
 
-            return Mono.just(clientIp);
-        };
+    /** XFF 우선, 없으면 소켓 주소. 미해석 주소와 끊긴 커넥션에서 둘 다 null 이 된다. */
+    private String clientIp(ServerWebExchange exchange) {
+        InetSocketAddress resolved = xForwardedResolver.resolve(exchange);
+        String ip = hostAddress(resolved);
+        if (ip != null) {
+            return ip;
+        }
+
+        ip = hostAddress(exchange.getRequest().getRemoteAddress());
+        return ip != null ? ip : UNKNOWN_CLIENT;
+    }
+
+    private String hostAddress(InetSocketAddress socketAddress) {
+        if (socketAddress == null) {
+            return null;
+        }
+        InetAddress address = socketAddress.getAddress();
+        return address != null ? address.getHostAddress() : null;
+    }
+
+    private String routeId(ServerWebExchange exchange) {
+        Route route = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR);
+        return route != null ? route.getId() : UNKNOWN_CLIENT;
     }
 
     /**
