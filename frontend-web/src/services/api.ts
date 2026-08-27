@@ -563,8 +563,6 @@ export type SimulationRequest = BacktestCommonRequest & {
   purchaseDate: string;                 // 매수일 (YYYY-MM-DD)
   saleDate?: string;                    // 매도일 (YYYY-MM-DD, 기본값: 오늘)
   investmentAmount: number;             // 투자 금액
-  findOptimalBuy?: boolean;             // 최적 매수 시점 찾기
-  findOptimalSell?: boolean;            // 최적 매도 시점 찾기
 };
 
 // 단순 시뮬레이션 응답
@@ -610,8 +608,6 @@ export type SymbolComparisonRequest = BacktestCommonRequest & {
   startDate: string;                    // 시작일
   endDate: string;                      // 종료일
   investmentAmount: number;             // 투자 금액
-  findOptimalBuy?: boolean;             // 최적 매수 시점 찾기
-  findOptimalSell?: boolean;            // 최적 매도 시점 찾기
 };
 
 // 전략 파라미터

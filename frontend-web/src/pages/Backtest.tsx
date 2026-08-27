@@ -185,12 +185,6 @@ const Backtest: React.FC = () => {
     [strategy: string]: Record<string, string>;
   }>({});
 
-  // 최적 타이밍 옵션 (Simple & Symbol Comparison)
-  //
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [findOptimalBuy, setFindOptimalBuy] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [findOptimalSell, setFindOptimalSell] = useState(false);
 
   // 실행 상태
   const [isRunning, setIsRunning] = useState(false);
@@ -302,8 +296,6 @@ const Backtest: React.FC = () => {
         purchaseDate: purchaseDate,
         saleDate: effectiveSaleDate,
         investmentAmount: investment,
-        findOptimalBuy: findOptimalBuy,
-        findOptimalSell: findOptimalSell,
         reinvestDividends: simpleReinvestDividends,
         tradingFeeRate: parseFloat(simpleTradingFeeRate) / 100,
         dividendTaxRate: simpleDividendTax ? 0.154 : 0,
@@ -518,8 +510,6 @@ const Backtest: React.FC = () => {
         startDate: comparePurchaseDate,
         endDate: effectiveCompareSaleDate,
         investmentAmount: investment,
-        findOptimalBuy: findOptimalBuy,
-        findOptimalSell: findOptimalSell,
         reinvestDividends: compareReinvestDividends,
         tradingFeeRate: parseFloat(compareTradingFeeRate) / 100,
         dividendTaxRate: compareDividendTax ? 0.154 : 0,
