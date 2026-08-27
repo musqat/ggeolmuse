@@ -9,7 +9,7 @@
  * 종목 비교 화면은 서버가 값을 안 줄 때 이쪽 계산을 쓴다.
  */
 
-export interface OptimalPoint {
+interface OptimalPoint {
   buyDate: string;
   sellDate: string;
   minPrice: number;
