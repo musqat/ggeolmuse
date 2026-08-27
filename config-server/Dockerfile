@@ -9,15 +9,16 @@ RUN mvn -f /bom/pom.xml install -DskipTests -q
 
 # 서비스 빌드
 COPY config-server/pom.xml .
+RUN mvn -B dependency:go-offline -DskipTests -q
 COPY config-server/src ./src
-RUN mvn clean package -DskipTests -q
+RUN mvn -B clean package -DskipTests -q
 
 # 런타임 스테이지
 FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
-ADD https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.10.0/opentelemetry-javaagent.jar opentelemetry-javaagent.jar
+ADD https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.26.1/opentelemetry-javaagent.jar opentelemetry-javaagent.jar
 RUN chmod 644 opentelemetry-javaagent.jar
 
 COPY --from=build /app/target/*.jar app.jar
