@@ -43,13 +43,4 @@ public interface FxRateService {
    */
   Optional<FxRate> getLatestRate();
 
-  /**
-   * 과거 환율 데이터 생성 (테스트용)
-   *
-   * @param startDate 시작 날짜
-   * @param endDate   종료 날짜
-   * @param baseRate  기준 환율
-   * @return 생성된 환율 데이터 개수
-   */
-  int generateHistoricalRates(LocalDate startDate, LocalDate endDate, BigDecimal baseRate);
 }

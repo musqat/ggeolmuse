@@ -17,12 +17,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Random;
 
 /**
  * Yahoo Finance (KoreaExim) 환율 서비스 구현체
@@ -125,36 +123,4 @@ public class YahooFxRateService implements FxRateService {
         return Optional.empty();
     }
 
-    @Override
-    @Transactional
-    public int generateHistoricalRates(LocalDate startDate, LocalDate endDate, BigDecimal baseRate) {
-        log.info("[YF-환율생성] 과거 환율 생성 시작: {} ~ {}, 기준환율={}", startDate, endDate, baseRate);
-
-        Random random = new Random();
-        BigDecimal currentRate = baseRate;
-        int savedCount = 0;
-
-        for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
-            if (isBusinessDay(date) && findByDate(date) == null) {
-                currentRate = generateNextRate(random, currentRate);
-                saveRate(date, currentRate);
-                savedCount++;
-            }
-        }
-
-        log.info("[YF-환율생성] 과거 환율 데이터 생성 완료: {}건", savedCount);
-        return savedCount;
-    }
-
-    private boolean isBusinessDay(LocalDate date) {
-        DayOfWeek dayOfWeek = date.getDayOfWeek();
-        return dayOfWeek != DayOfWeek.SATURDAY && dayOfWeek != DayOfWeek.SUNDAY;
-    }
-
-    private BigDecimal generateNextRate(Random random, BigDecimal currentRate) {
-        double changePercent = random.nextGaussian() * 0.01; // 표준편차 1%
-        BigDecimal multiplier = BigDecimal.ONE.add(BigDecimal.valueOf(changePercent));
-        BigDecimal newRate = currentRate.multiply(multiplier);
-        return MoneyUtils.roundExchangeRate(newRate);
-    }
 }

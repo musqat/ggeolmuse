@@ -226,35 +226,6 @@ public class MarketController {
   }
 
   @Operation(
-    summary = "과거 환율 데이터 생성",
-    description = "지정된 기간에 대한 시뮤레이션 환율 데이터를 생성합니다 (테스트/개발용)"
-  )
-  @ApiResponses(value = {
-    @ApiResponse(
-      responseCode = "200",
-      description = "환율 데이터 생성 성공, 생성된 데이터 개수 반환",
-      content = @Content(
-        mediaType = "application/json",
-        schema = @Schema(implementation = Integer.class)
-      )
-    )
-  })
-  @PostMapping("/fx/generate")
-  public ResponseEntity<Integer> generateHistoricalFxRates(
-    @Parameter(description = "시작 날짜", example = "2024-01-01", required = true)
-    @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-    @Parameter(description = "종료 날짜", example = "2024-12-31", required = true)
-    @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-    @Parameter(description = "기준 환율", example = "1350")
-    @RequestParam(defaultValue = "1350") BigDecimal baseRate) {
-    log.info("과거 환율 데이터 생성 요청: {} ~ {}, 기준환율={}", startDate, endDate, baseRate);
-
-    int savedCount = fxRateService.generateHistoricalRates(startDate, endDate, baseRate);
-
-    return ResponseEntity.status(HttpStatus.OK).body(savedCount);
-  }
-
-  @Operation(
     summary = "배당 이력 조회",
     description = "지정된 종목의 배당 지급 이력을 조회합니다"
   )

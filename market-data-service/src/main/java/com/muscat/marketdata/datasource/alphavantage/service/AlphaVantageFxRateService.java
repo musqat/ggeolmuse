@@ -8,12 +8,10 @@ import com.muscat.marketdata.domain.service.FxRateService;
 import com.muscat.marketdata.datasource.alphavantage.collector.FxDataCollector;
 import com.muscat.marketdata.infra.kafka.FxRateEventProducer;
 import java.math.BigDecimal;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Random;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -116,41 +114,6 @@ public class AlphaVantageFxRateService implements FxRateService {
 
     log.warn("[환율조회] DB에 환율 데이터가 없습니다. 외부 API 호출은 스케줄러에서 수행됩니다.");
     return Optional.empty();
-  }
-
-  @Override
-  @Transactional
-  public int generateHistoricalRates(LocalDate startDate, LocalDate endDate, BigDecimal baseRate) {
-    log.info("과거 환율 생성 시작: {} ~ {}, 기준환율={}", startDate, endDate, baseRate);
-
-    Random random = new Random();
-    BigDecimal currentRate = baseRate;
-    int savedCount = 0;
-
-    for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
-      if (isBusinessDay(date) && findByDate(date) == null) {
-        currentRate = generateNextRate(random, currentRate);
-        saveRate(date, currentRate);
-        savedCount++;
-      }
-    }
-
-    log.info("[환율생성] 과거 환율 데이터 생성 완료: {}건", savedCount);
-    return savedCount;
-  }
-
-  // 영업일 체크 (주말 제외)
-  private boolean isBusinessDay(LocalDate date) {
-    DayOfWeek dayOfWeek = date.getDayOfWeek();
-    return dayOfWeek != DayOfWeek.SATURDAY && dayOfWeek != DayOfWeek.SUNDAY;
-  }
-
-  // 다음 환율 생성 (랜덤 변동 적용)
-  private BigDecimal generateNextRate(Random random, BigDecimal currentRate) {
-    double changePercent = random.nextGaussian() * 0.01; // 표준편차 1%
-    BigDecimal multiplier = BigDecimal.ONE.add(BigDecimal.valueOf(changePercent));
-    BigDecimal newRate = currentRate.multiply(multiplier);
-    return MoneyUtils.roundExchangeRate(newRate);
   }
 
 }
