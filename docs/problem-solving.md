@@ -41,7 +41,9 @@
 - [메모리가 부족해 인스턴스를 키우려 했다](#메모리가-부족해-인스턴스를-키우려-했다) — Xmx 미설정
 - [배포할 때마다 서버가 응답 불능이 됐다](#배포할-때마다-서버가-응답-불능이-됐다) — maxSurge
 - [ingress 를 붙였는데 외부에서 안 닿았다](#ingress-를-붙였는데-외부에서-안-닿았다) — k3s 는 Traefik 이 기본이다
-- [새 서비스만 503 이 났다](#새-서비스만-503-이-났다) — NetworkPolicy 포트
+- [새 서비스만 503 이 났다](#새-서비스만-503-이-났다)
+- [서비스 다섯이 한꺼번에 죽었다](#서비스-다섯이-한꺼번에-죽었다--config-server-가-다른-비밀번호로-떠-있었다) — 한쪽만 시크릿을 봤다
+- [검증을 꺼둔 채로 지나갔다](#검증을-꺼둔-채로-지나갔다--flyway-체크섬이-계속-어긋나-있었다) — 안전장치를 끄면 안 보일 뿐이다
 - [메모리를 늘려 덮을 뻔했다](#메모리를-늘려-덮을-뻔했다) — Tempo OOM
 
 **로컬 개발 환경**
@@ -858,6 +860,148 @@ ArgoCD 가 차트를 추적하므로 `kubectl edit` 으로 직접 고치면 self
 이쪽이 맞다.
 
 한도를 올렸을 때 증상은 사라졌지만 원인은 아직 안 본 상태였다.
+
+<br>
+
+---
+
+## 서비스 다섯이 한꺼번에 죽었다 — config-server 가 다른 비밀번호로 떠 있었다
+
+`문제`
+아침에 켜니 프론트는 200 인데 API 가 전부 503 이었다. Traefik 이 `no available server`
+를 돌려준다. 파드를 보니 자바 서비스 다섯이 CrashLoopBackOff, 재시작 60회대였다.
+
+죽는 모양이 둘로 갈렸다.
+
+```
+gateway·user·trade·market-data   Could not resolve placeholder 'services.user.uri'
+backtest                         Flyway checksum mismatch (version 1, 3)
+```
+
+전혀 달라 보여서 별개의 사고 두 건으로 봤다. 아니었다.
+
+`원인`
+게이트웨이 로그에서 죽는 줄 위에 이 한 줄이 있었다.
+
+```
+Could not locate PropertySource (...uris = [http://config-server:8888]...): 401
+```
+
+config-server 와 클라이언트가 **다른 자리에서 비밀번호를 읽고 있었다.**
+
+```
+config-server   Helm 이 DB_* 만 주입. CONFIG_SERVER_USERNAME/PASSWORD 는 안 줌
+                -> application.yml 기본값 config / config123 으로 뜬다
+
+클라이언트 5개   _helpers.tpl 이 ggeolmuse-secrets 의 값을 주입
+                -> 시크릿 값으로 인증
+```
+
+두 값이 같은 동안만 돌아가는 구조였다. Secrets Manager 에서 비밀번호를 바꾸는 순간
+config-server 만 옛 기본값에 남는다. ExternalSecret 갱신 주기가 1시간이라
+바꾼 뒤 한 시간 안에 갈라진다.
+
+추정을 안 남기려고 클러스터에서 양쪽 다 확인했다. `kubectl exec` 로 환경변수를 보니
+쿠버네티스가 자동 주입하는 `CONFIG_SERVER_PORT` 류만 있고 USERNAME/PASSWORD 는 없었다.
+그리고 클러스터 안에서 `config:config123` 으로 호출하니 200 이 왔다.
+
+`왜 backtest 만 다른 에러였나`
+설정 리포의 `application.yml` 에 이 줄이 있다.
+
+```yaml
+flyway:
+  validate-on-migrate: false
+```
+
+backtest 는 이 설정을 config-server 에서 받아야 검증이 꺼진다. 401 로 못 받으면
+Spring 기본값 `true` 로 떨어진다. 그러면 전부터 어긋나 있던 체크섬이 그제서야 걸린다.
+
+**같은 401 이 서비스마다 다른 얼굴로 나타난 것이다.** 게이트웨이는 플레이스홀더가
+안 풀려 죽고, backtest 는 검증이 켜져 죽는다.
+
+`해결`
+config-server 배포도 같은 시크릿에서 읽게 했다.
+
+```yaml
+- name: CONFIG_SERVER_USERNAME
+  valueFrom:
+    secretKeyRef:
+      name: ggeolmuse-secrets
+      key: CONFIG_SERVER_USERNAME
+```
+
+재시작 뒤 로그에 이 줄이 나오면 통한 것이다.
+
+```
+Adding property source: Config resource 'file [.../market-data-service.yml]'
+```
+
+`남은 것`
+환경변수 이름이 쿠버네티스 자동 주입과 접두어가 겹친다(`CONFIG_SERVER_PORT` 등).
+지금은 충돌하지 않지만 `SPRING_SECURITY_USER_*` 가 안전하다.
+
+<br>
+
+## 검증을 꺼둔 채로 지나갔다 — Flyway 체크섬이 계속 어긋나 있었다
+
+`문제`
+위 장애를 파다 나왔다. backtest 의 Flyway 체크섬이 두 개 어긋나 있었다.
+
+```
+Migration checksum mismatch for migration version 1
+-> Applied to database : 520234694
+-> Resolved locally    : -786903602
+```
+
+`원인`
+처음엔 줄바꿈을 의심했다. `core.autocrlf=true` 인데 `.gitattributes` 에 `*.sql` 규칙이
+없어서 워킹트리가 CRLF 였고, 그 상태로 로컬에서 이미지를 구웠기 때문이다.
+
+**틀렸다.** 체크섬을 직접 계산해보니 LF 값이 곧 이미지가 뽑은 값이었다. Flyway 는
+`readLine()` 으로 읽어 줄바꿈이 체크섬에 안 들어간다. 파일 내용이 진짜로 바뀐 것이다.
+
+이력 테이블의 적용 시각과 git 커밋 시각을 맞춰보니 갈렸다.
+
+```
+version  적용일        커밋
+1        2025-10-29   2025-11-11 커밋에서 주석 2줄을 한글로 번역
+3        2025-12-01   2025-12-04    <- 적용이 커밋보다 3일 빠르다
+```
+
+V1 은 이미 적용된 파일의 주석을 고친 것이다. SQL 은 그대로다.
+V3 는 커밋 안 된 워킹트리로 구운 이미지가 배포돼서 적용됐고, 그 뒤 파일이 바뀐 채
+커밋됐다.
+
+`왜 2026-08-28 까지 안 터졌나`
+`validate-on-migrate: false` 가 가리고 있었다. 검증을 끄면 체크섬이 달라도 지나간다.
+2026-05-30 에 이미지를 다시 구웠을 때 이미 어긋나 있었지만 아무도 몰랐다.
+
+401 로 그 설정을 못 받게 되자 그제서야 드러났다.
+
+`해결`
+지우기 전에 스키마가 의도대로인지 봤다. `backtest_history` 에 `id` 가 PK 로 있고
+`backtest_id` 는 없었다. V3 의도대로다.
+
+DDL 은 제대로 적용돼 있고 체크섬만 어긋난 상태다. `flyway repair` 가 하는 일과 같게
+`flyway_schema_history` 의 checksum 두 행만 갱신했다. 스키마와 데이터는 안 건드린다.
+
+```sql
+UPDATE flyway_schema_history SET checksum = -786903602 WHERE version = '1';
+UPDATE flyway_schema_history SET checksum = 1928604194 WHERE version = '3';
+```
+
+되돌릴 값은 `520234694`, `1022414654` 다.
+
+Spring Boot 3.3 에는 `spring.flyway.repair-on-migrate` 가 없다. `validate-on-migrate`
+와 `clean-disabled` 뿐이라 앱 설정으로는 못 고친다.
+
+`남은 것`
+체크섬을 실제로 맞춰놨으니 이제 `validate-on-migrate: false` 를 지울 수 있다.
+그래야 다음에 누가 적용된 마이그레이션을 고칠 때 바로 걸린다. 지금은 켜야 할 안전장치를
+꺼서 문제를 안 보이게 해둔 상태다.
+
+뿌리는 두 가지다. **적용된 마이그레이션 파일을 고친 것**과 **커밋 안 된 파일로 이미지를
+구운 것**. 앞엣것은 규칙으로, 뒤엣것은 CI 에서만 굽는 것으로 막는다.
 
 <br>
 
