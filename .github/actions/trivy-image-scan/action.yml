@@ -1,0 +1,44 @@
+name: Trivy image scan
+description: 컨테이너 이미지를 스캔해 결과를 GitHub Security 탭에 올린다
+
+inputs:
+  image:
+    description: 스캔할 이미지 태그
+    required: true
+  name:
+    description: 리포트 파일명과 Security 탭 카테고리에 쓸 이름
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # JSON 으로 한 번 받아 convert 로 두 형식을 뽑는다. convert 는 재스캔하지 않는다.
+    - name: ${{ inputs.name }} 스캔
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ inputs.image }}
+        format: json
+        output: trivy-${{ inputs.name }}.json
+        severity: CRITICAL,HIGH
+        exit-code: '0'
+        ignore-unfixed: true
+        cache: false
+
+    - name: SARIF 와 표로 변환
+      shell: bash
+      # 호출하는 잡이 defaults.run.working-directory 를 걸어둘 수 있다.
+      # 리포트는 워크스페이스 루트에 떨어지므로 여기에 작성
+      working-directory: ${{ github.workspace }}
+      run: |
+        trivy convert --format sarif \
+          --output trivy-results-${{ inputs.name }}.sarif \
+          trivy-${{ inputs.name }}.json
+        trivy convert --format table trivy-${{ inputs.name }}.json
+
+    - name: GitHub Security 탭에 업로드
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      continue-on-error: true
+      with:
+        sarif_file: trivy-results-${{ inputs.name }}.sarif
+        category: trivy-${{ inputs.name }}

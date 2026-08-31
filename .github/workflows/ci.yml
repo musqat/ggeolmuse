@@ -104,33 +104,11 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
-      # JSON 으로 한 번 받아 convert 로 두 형식을 뽑는다. convert 는 재스캔하지 않는다.
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
+      - name: Trivy 이미지 스캔
+        uses: ./.github/actions/trivy-image-scan
         with:
-          image-ref: ${{ matrix.service }}:ci-${{ github.sha }}
-          format: 'json'
-          output: 'trivy-${{ matrix.service }}.json'
-          severity: 'CRITICAL'
-          exit-code: '0'
-          ignore-unfixed: true
-          # 954MB 를 복원해놓고 바로 "Need to update DB" 로 새로 받는다. 자리만 먹는다.
-          cache: false
-
-      - name: Trivy 결과를 SARIF 와 표로 변환
-        run: |
-          trivy convert --format sarif \
-            --output trivy-results-${{ matrix.service }}.sarif \
-            trivy-${{ matrix.service }}.json
-          trivy convert --format table trivy-${{ matrix.service }}.json
-
-      - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        continue-on-error: true
-        with:
-          sarif_file: 'trivy-results-${{ matrix.service }}.sarif'
-          category: 'trivy-${{ matrix.service }}'
+          image: ${{ matrix.service }}:ci-${{ github.sha }}
+          name: ${{ matrix.service }}
 
   # 프론트엔드는 BOM/messaging 과 무관하므로 Java 잡과 병렬로 돈다
   build-frontend:
@@ -155,3 +133,76 @@ jobs:
       - name: Build
         # tsc -b 를 포함하므로 타입 오류도 여기서 걸린다
         run: npm run build
+
+      - uses: docker/setup-buildx-action@v3
+      - name: Build Docker Image for frontend-web
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend-web
+          file: frontend-web/Dockerfile
+          tags: frontend-web:ci-${{ github.sha }}
+          load: true
+          cache-from: type=gha,scope=frontend-web
+          cache-to: type=gha,mode=max,scope=frontend-web
+
+      - name: Trivy 이미지 스캔
+        uses: ./.github/actions/trivy-image-scan
+        with:
+          image: frontend-web:ci-${{ github.sha }}
+          name: frontend-web
+
+  scan-images:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - chat-service
+          - nginx-proxy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build Docker Image for ${{ matrix.image }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.image }}
+          file: ${{ matrix.image }}/Dockerfile
+          tags: ${{ matrix.image }}:ci-${{ github.sha }}
+          load: true
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+      - name: Trivy 이미지 스캔
+        uses: ./.github/actions/trivy-image-scan
+        with:
+          image: ${{ matrix.image }}:ci-${{ github.sha }}
+          name: ${{ matrix.image }}
+
+  # 렌더링한 매니페스트를 검사한다. 리소스 한도 누락이나 특권 컨테이너처럼
+  # 이미지 스캔으로는 안 보이는 것들이 여기서 걸린다.
+  scan-manifests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+
+      - name: 실제 배포본을 뽑는다
+        run: |
+          helm template ggeolmuse helm/ggeolmuse \
+            -f helm/ggeolmuse/values-prod.yaml > rendered.yaml
+
+      - uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: config
+          scan-ref: rendered.yaml
+          format: sarif
+          output: trivy-manifests.sarif
+          severity: CRITICAL,HIGH
+          exit-code: '0'
+
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        continue-on-error: true
+        with:
+          sarif_file: trivy-manifests.sarif
+          category: trivy-manifests

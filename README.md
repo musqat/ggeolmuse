@@ -5,7 +5,6 @@
 **Live Demo**: https://ggeolmuse.com — 평일 07:30~19:00 (KST) 에만 띄워둡니다
 
 [![CI/CD](https://github.com/musqat/ggeolmuse/actions/workflows/ci.yml/badge.svg)](https://github.com/musqat/ggeolmuse/actions)
-[![Security Scan](https://github.com/musqat/ggeolmuse/actions/workflows/weekly-security-scan.yml/badge.svg)](https://github.com/musqat/ggeolmuse/actions)
 [![E2E](https://github.com/musqat/ggeolmuse/actions/workflows/e2e.yml/badge.svg)](https://github.com/musqat/ggeolmuse/actions)
 
 <div align="center">
