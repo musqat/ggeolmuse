@@ -10,11 +10,10 @@ prometheus:
     podMonitorSelector: {}
 
     # PrometheusRule 자동 인식 설정
+    # 네임스페이스 구분 없이 모든 PrometheusRule 을 로드한다.
     ruleSelectorNilUsesHelmValues: false
-    ruleSelector:
-      matchLabels:
-        app: ggeolmuse
-        release: prometheus
+    ruleSelector: {}
+    ruleNamespaceSelector: {}
 
     # 메트릭 보관 기간
     retention: 15d  # 15일
@@ -124,6 +123,12 @@ alertmanager:
   enabled: true
 
   alertmanagerSpec:
+    # 네임스페이스 구분 없이 모든 AlertmanagerConfig 를 로드한다.
+    alertmanagerConfigSelector: {}
+    alertmanagerConfigNamespaceSelector: {}
+    # 알림의 네임스페이스와 무관하게 라우팅한다.
+    alertmanagerConfigMatcherStrategy:
+      type: None
     storage:
       volumeClaimTemplate:
         spec:
