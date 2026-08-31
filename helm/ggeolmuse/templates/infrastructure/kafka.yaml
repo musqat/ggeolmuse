@@ -91,11 +91,11 @@ spec:
               value: "-Xmx512m -Xms512m"
           resources:
             requests:
-              memory: "512Mi"
-              cpu: "100m"
+              memory: {{ .Values.infrastructure.kafka.resources.requests.memory }}
+              cpu: {{ .Values.infrastructure.kafka.resources.requests.cpu }}
             limits:
-              memory: "768Mi"
-              cpu: "500m"
+              memory: {{ .Values.infrastructure.kafka.resources.limits.memory }}
+              cpu: {{ .Values.infrastructure.kafka.resources.limits.cpu }}
           volumeMounts:
             - name: kafka-data
               mountPath: /var/lib/kafka/data

@@ -26,9 +26,9 @@ spec:
         command: ["redis-server", "--appendonly", "yes", "--requirepass", ""]
         resources:
           limits:
-            memory: "1Gi"
+            memory: {{ .Values.infrastructure.redis.resources.limits.memory }}
           requests:
-            memory: "512Mi"
+            memory: {{ .Values.infrastructure.redis.resources.requests.memory }}
 ---
 apiVersion: v1
 kind: Service

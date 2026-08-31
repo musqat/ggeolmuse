@@ -27,10 +27,10 @@ infrastructure:
   redis:
     resources:
       limits:
-        memory: 384Mi
+        memory: 256Mi
         cpu: 300m
       requests:
-        memory: 192Mi
+        memory: 128Mi
         cpu: 150m
 
   keycloak:
@@ -39,10 +39,10 @@ infrastructure:
       kcHttpRelativePath: /auth
     resources:
       limits:
-        memory: 512Mi
+        memory: 768Mi
         cpu: 500m
       requests:
-        memory: 256Mi
+        memory: 384Mi
         cpu: 250m
 
   # PostgreSQL - AWS RDS 사용
@@ -72,10 +72,10 @@ infrastructure:
       storageClass: local-path
     resources:
       limits:
-        memory: 1280Mi
+        memory: 1Gi
         cpu: 750m
       requests:
-        memory: 640Mi
+        memory: 512Mi
         cpu: 400m
 
   kafkaUi:
@@ -83,10 +83,10 @@ infrastructure:
       SERVER_SERVLET_CONTEXT_PATH: /kafka-ui
     resources:
       limits:
-        memory: 256Mi
+        memory: 384Mi
         cpu: 200m
       requests:
-        memory: 128Mi
+        memory: 192Mi
         cpu: 100m
 
   tempo:

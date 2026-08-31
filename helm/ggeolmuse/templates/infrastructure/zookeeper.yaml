@@ -51,11 +51,11 @@ spec:
               value: "{{ .Values.infrastructure.zookeeper.env.syncLimit }}"
           resources:
             requests:
-              memory: "256Mi"
-              cpu: "250m"
+              memory: {{ .Values.infrastructure.zookeeper.resources.requests.memory }}
+              cpu: {{ .Values.infrastructure.zookeeper.resources.requests.cpu }}
             limits:
-              memory: "512Mi"
-              cpu: "500m"
+              memory: {{ .Values.infrastructure.zookeeper.resources.limits.memory }}
+              cpu: {{ .Values.infrastructure.zookeeper.resources.limits.cpu }}
           volumeMounts:
             - name: zookeeper-data
               mountPath: /var/lib/zookeeper/data
