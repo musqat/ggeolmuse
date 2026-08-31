@@ -99,6 +99,10 @@ spec:
         - name: {{ $k }}
           value: {{ $v | quote }}
         {{- end }}
+        {{- if $svc.resources }}
+        resources:
+          {{- toYaml $svc.resources | nindent 10 }}
+        {{- end }}
         startupProbe:
           {{- include "ggeolmuse.startupProbe" (merge (dict "port" .Values.global.management.port) $svc.probes.startup) | nindent 10 }}
         readinessProbe:

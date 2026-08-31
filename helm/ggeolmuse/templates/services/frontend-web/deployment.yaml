@@ -21,6 +21,10 @@ spec:
       - name: {{ .Values.frontend.name }}
         image: {{ include "ggeolmuse.image" (dict "Values" .Values "repository" .Values.frontend.image.repository "tag" .Values.frontend.image.tag "Chart" .Chart) }}
         imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        {{- if .Values.frontend.resources }}
+        resources:
+          {{- toYaml .Values.frontend.resources | nindent 10 }}
+        {{- end }}
         ports:
         - containerPort: {{ .Values.frontend.service.targetPort }}
         env:
