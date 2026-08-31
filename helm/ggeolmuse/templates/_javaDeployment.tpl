@@ -1,8 +1,9 @@
 {{/*
-자바 서비스 deployment. trade·backtest 가 xmx 말고는 같아서 하나로 묶었다.
-인자: svc(서비스 values 블록) · Values · Chart
+자바 서비스 Deployment 의 공통 앞부분
+네 서비스가 이 부분은 완전히 같다. env 항목부터 서비스별로 갈린다.
+인자: svc · Values · Chart
 */}}
-{{- define "ggeolmuse.javaDeployment" -}}
+{{- define "ggeolmuse.javaPodHeader" -}}
 {{- $svc := .svc -}}
 apiVersion: apps/v1
 kind: Deployment
@@ -52,6 +53,15 @@ spec:
         ports:
         - containerPort: {{ $svc.service.port }}
         env:
+{{- end }}
+
+{{/*
+자바 서비스 Deployment 전체. user-service 는 env 배치가 달라 자기 파일을 쓴다.
+인자: svc · Values · Chart
+*/}}
+{{- define "ggeolmuse.javaDeployment" -}}
+{{- $svc := .svc -}}
+{{- include "ggeolmuse.javaPodHeader" . }}
         - name: SERVER_PORT
           value: {{ $svc.service.port | quote }}
         - name: SPRING_APPLICATION_NAME
@@ -68,12 +78,27 @@ spec:
             secretKeyRef:
               name: ggeolmuse-secrets
               key: KEYCLOAK_SECRET
+        {{- range $svc.extraSecrets }}
+        - name: {{ . }}
+          valueFrom:
+            secretKeyRef:
+              name: ggeolmuse-secrets
+              key: {{ . }}
+        {{- end }}
         {{- else }}
         - name: KEYCLOAK_SECRET
           {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "KEYCLOAK_SECRET") | nindent 10 }}
+        {{- range $svc.extraSecrets }}
+        - name: {{ . }}
+          {{- include "ggeolmuse.secretRef" (dict "Values" $.Values "key" .) | nindent 10 }}
+        {{- end }}
         {{- end }}
         - name: JAVA_OPTS
           value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" $svc.name "xmx" $svc.xmx) }}
+        {{- range $k, $v := $svc.env }}
+        - name: {{ $k }}
+          value: {{ $v | quote }}
+        {{- end }}
         startupProbe:
           {{- include "ggeolmuse.startupProbe" (merge (dict "port" .Values.global.management.port) $svc.probes.startup) | nindent 10 }}
         readinessProbe:

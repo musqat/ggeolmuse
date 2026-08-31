@@ -208,7 +208,6 @@ services:
   tradeService:
     enabled: true
     name: trade-service
-    xmx: 256m
     replicaCount: 1
     image:
       repository: trade-service
@@ -278,7 +277,6 @@ services:
   backtestService:
     enabled: true
     name: backtest-service
-    xmx: 320m
     replicaCount: 1
     image:
       repository: backtest-service

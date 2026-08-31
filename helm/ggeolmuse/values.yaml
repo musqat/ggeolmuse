@@ -289,6 +289,10 @@ services:
   marketDataService:
     enabled: true
     name: market-data-service
+    xmx: 768m
+    extraSecrets:
+      - KOREAEXIM_API_KEY
+      - ALPHAVANTAGE_API_KEY
     replicaCount: 1
     image:
       repository: market-data-service

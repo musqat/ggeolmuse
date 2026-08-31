@@ -1,54 +1,7 @@
 {{- if .Values.services.userService.enabled }}
 {{- include "ggeolmuse.serviceAccount" (dict "name" .Values.services.userService.name "Values" .Values) }}
 ---
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ .Values.services.userService.name }}
-  labels:
-    app: {{ .Values.services.userService.name }}
-    {{- include "ggeolmuse.labels" . | nindent 4 }}
-spec:
-  replicas: {{ .Values.services.userService.replicaCount }}
-  {{- if .Values.services.userService.strategy }}
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxUnavailable: {{ .Values.services.userService.strategy.rollingUpdate.maxUnavailable }}
-      maxSurge: {{ .Values.services.userService.strategy.rollingUpdate.maxSurge }}
-  {{- end }}
-  selector:
-    matchLabels:
-      app: {{ .Values.services.userService.name }}
-  template:
-    metadata:
-      labels:
-        app: {{ .Values.services.userService.name }}
-        {{- include "ggeolmuse.serviceLabels" (dict "name" .Values.services.userService.name "tier" .Values.services.userService.labels.tier) | nindent 8 }}
-    spec:
-      {{- if .Values.global.aws.serviceAccount.create }}
-      serviceAccountName: {{ .Values.services.userService.name }}
-      {{- end }}
-      initContainers:
-      - name: wait-for-config-server
-        image: busybox:1.35
-        command:
-        - sh
-        - -c
-        - |
-          echo "Waiting for Config Server to be ready..."
-          until wget -q --spider http://config-server:9090/actuator/health 2>/dev/null; do
-            echo "Config Server is not ready yet. Retrying in 5 seconds..."
-            sleep 5
-          done
-          echo "Config Server is ready!"
-      containers:
-      - name: {{ .Values.services.userService.name }}
-        image: {{ include "ggeolmuse.image" (dict "Values" .Values "repository" .Values.services.userService.image.repository "tag" .Values.services.userService.image.tag "Chart" .Chart) }}
-        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
-        ports:
-        - containerPort: {{ .Values.services.userService.service.port }}
-        env:
+{{- include "ggeolmuse.javaPodHeader" (dict "svc" .Values.services.userService "Values" .Values "Chart" .Chart "Release" .Release) }}
         {{- include "ggeolmuse.springEnv" . | nindent 8 }}
         - name: JAVA_OPTS
           value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" .Values.services.userService.name "extraOpts" "-Dh2.webAllowOthers=true" "xmx" "256m") }}
