@@ -78,9 +78,9 @@ spec:
           mountPath: /opt/keycloak/data/import
         resources:
           limits:
-            memory: "1Gi"
+            memory: {{ .Values.infrastructure.keycloak.resources.limits.memory }}
           requests:
-            memory: "512Mi"
+            memory: {{ .Values.infrastructure.keycloak.resources.requests.memory }}
         readinessProbe:
           httpGet:
             path: /auth/realms/master
