@@ -125,10 +125,10 @@ configServer:
       periodSeconds: 15
   resources:
     limits:
-      memory: 320Mi
+      memory: 512Mi
       cpu: 300m
     requests:
-      memory: 160Mi
+      memory: 256Mi
       cpu: 150m
 
 # Gateway Server
@@ -161,10 +161,10 @@ gatewayServer:
       periodSeconds: 20
   resources:
     limits:
-      memory: 512Mi
+      memory: 768Mi
       cpu: 600m
     requests:
-      memory: 256Mi
+      memory: 384Mi
       cpu: 300m
 
 # 비즈니스 서비스
