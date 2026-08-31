@@ -90,3 +90,21 @@ spec:
       path: /actuator/prometheus
       interval: 30s
 {{- end }}
+---
+# Config Server ServiceMonitor
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: config-server
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: config-server
+  endpoints:
+    - port: management
+      path: /actuator/prometheus
+      interval: 30s
