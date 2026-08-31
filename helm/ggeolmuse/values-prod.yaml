@@ -268,10 +268,10 @@ services:
         periodSeconds: 20
     resources:
       limits:
-        memory: 1280Mi
+        memory: 1536Mi
         cpu: 700m
       requests:
-        memory: 640Mi
+        memory: 768Mi
         cpu: 350m
 
   backtestService:
