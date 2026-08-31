@@ -18,7 +18,7 @@ spec:
       rules:
         - alert: ServiceDown
           expr: up{job=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service)"} == 0
-          for: 1m
+          for: 5m
           labels:
             severity: critical
             category: availability
@@ -130,7 +130,7 @@ spec:
       rules:
         - alert: ConfigServerDown
           expr: up{job="config-server"} == 0
-          for: 1m
+          for: 5m
           labels:
             severity: critical
             category: config
@@ -152,7 +152,7 @@ spec:
             description: "Config Server의 P95 응답 시간이 5초를 초과했습니다. 서비스 시작이 지연될 수 있습니다."
 
     # ========================================
-    # Gateway 특화 알림
+    # Gateway 알림
     # ========================================
     - name: gateway
       interval: 30s
