@@ -31,7 +31,7 @@ infrastructure:
         cpu: 300m
       requests:
         memory: 128Mi
-        cpu: 150m
+        cpu: 50m
 
   keycloak:
     env:
@@ -43,7 +43,7 @@ infrastructure:
         cpu: 500m
       requests:
         memory: 384Mi
-        cpu: 250m
+        cpu: 100m
 
   # PostgreSQL - AWS RDS 사용
   postgres:
@@ -60,7 +60,7 @@ infrastructure:
         cpu: 300m
       requests:
         memory: 192Mi
-        cpu: 150m
+        cpu: 50m
 
   kafka:
     env:
@@ -76,7 +76,7 @@ infrastructure:
         cpu: 750m
       requests:
         memory: 512Mi
-        cpu: 400m
+        cpu: 200m
 
   kafkaUi:
     env:
@@ -87,7 +87,7 @@ infrastructure:
         cpu: 200m
       requests:
         memory: 192Mi
-        cpu: 100m
+        cpu: 50m
 
   tempo:
     enabled: false  # Tempo는 monitoring 네임스페이스에서 별도 실행
@@ -129,7 +129,7 @@ configServer:
       cpu: 300m
     requests:
       memory: 256Mi
-      cpu: 150m
+      cpu: 200m
 
 # Gateway Server
 gatewayServer:
@@ -165,7 +165,7 @@ gatewayServer:
       cpu: 600m
     requests:
       memory: 384Mi
-      cpu: 300m
+      cpu: 100m
 
 # 비즈니스 서비스
 services:
@@ -203,7 +203,7 @@ services:
         cpu: 600m
       requests:
         memory: 512Mi
-        cpu: 300m
+        cpu: 100m
 
   tradeService:
     enabled: true
@@ -233,7 +233,7 @@ services:
         cpu: 600m
       requests:
         memory: 512Mi
-        cpu: 300m
+        cpu: 100m
 
   marketDataService:
     enabled: true
@@ -272,7 +272,7 @@ services:
         cpu: 700m
       requests:
         memory: 768Mi
-        cpu: 350m
+        cpu: 100m
 
   backtestService:
     enabled: true
@@ -302,7 +302,7 @@ services:
         cpu: 600m
       requests:
         memory: 448Mi
-        cpu: 300m
+        cpu: 100m
 
   chatService:
     enabled: true
@@ -329,7 +329,7 @@ services:
         cpu: 400m
       requests:
         memory: 256Mi
-        cpu: 200m
+        cpu: 100m
 
 # 프론트엔드
 frontend:
@@ -354,7 +354,7 @@ frontend:
       cpu: 500m
     requests:
       memory: 128Mi
-      cpu: 250m
+      cpu: 50m
 
 # 네트워크 정책
 networkPolicy:

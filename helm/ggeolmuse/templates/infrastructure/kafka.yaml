@@ -90,12 +90,7 @@ spec:
             - name: KAFKA_HEAP_OPTS
               value: "-Xmx512m -Xms512m"
           resources:
-            requests:
-              memory: {{ .Values.infrastructure.kafka.resources.requests.memory }}
-              cpu: {{ .Values.infrastructure.kafka.resources.requests.cpu }}
-            limits:
-              memory: {{ .Values.infrastructure.kafka.resources.limits.memory }}
-              cpu: {{ .Values.infrastructure.kafka.resources.limits.cpu }}
+            {{- toYaml .Values.infrastructure.kafka.resources | nindent 12 }}
           volumeMounts:
             - name: kafka-data
               mountPath: /var/lib/kafka/data

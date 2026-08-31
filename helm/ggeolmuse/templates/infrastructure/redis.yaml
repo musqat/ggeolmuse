@@ -25,10 +25,7 @@ spec:
         - containerPort: {{ .Values.infrastructure.redis.port }}
         command: ["redis-server", "--appendonly", "yes", "--requirepass", ""]
         resources:
-          limits:
-            memory: {{ .Values.infrastructure.redis.resources.limits.memory }}
-          requests:
-            memory: {{ .Values.infrastructure.redis.resources.requests.memory }}
+          {{- toYaml .Values.infrastructure.redis.resources | nindent 10 }}
 ---
 apiVersion: v1
 kind: Service

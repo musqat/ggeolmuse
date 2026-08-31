@@ -50,12 +50,7 @@ spec:
             - name: ZOOKEEPER_SYNC_LIMIT
               value: "{{ .Values.infrastructure.zookeeper.env.syncLimit }}"
           resources:
-            requests:
-              memory: {{ .Values.infrastructure.zookeeper.resources.requests.memory }}
-              cpu: {{ .Values.infrastructure.zookeeper.resources.requests.cpu }}
-            limits:
-              memory: {{ .Values.infrastructure.zookeeper.resources.limits.memory }}
-              cpu: {{ .Values.infrastructure.zookeeper.resources.limits.cpu }}
+            {{- toYaml .Values.infrastructure.zookeeper.resources | nindent 12 }}
           volumeMounts:
             - name: zookeeper-data
               mountPath: /var/lib/zookeeper/data

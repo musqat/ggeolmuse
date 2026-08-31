@@ -77,10 +77,7 @@ spec:
         - name: keycloak-realm-output
           mountPath: /opt/keycloak/data/import
         resources:
-          limits:
-            memory: {{ .Values.infrastructure.keycloak.resources.limits.memory }}
-          requests:
-            memory: {{ .Values.infrastructure.keycloak.resources.requests.memory }}
+          {{- toYaml .Values.infrastructure.keycloak.resources | nindent 10 }}
         readinessProbe:
           httpGet:
             path: /auth/realms/master
