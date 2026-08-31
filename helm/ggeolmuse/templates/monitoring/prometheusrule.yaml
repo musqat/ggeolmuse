@@ -1,0 +1,183 @@
+# PrometheusRule: ggeolmuse 마이크로서비스 알림 규칙
+# app=ggeolmuse, release=prometheus 를 보므로 이 라벨이면 자동으로 집는다.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ggeolmuse-alerts
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: ggeolmuse
+    release: prometheus
+spec:
+  groups:
+    # ========================================
+    # 서비스 가용성 알림
+    # ========================================
+    - name: service-availability
+      interval: 30s
+      rules:
+        - alert: ServiceDown
+          expr: up{job=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service)"} == 0
+          for: 1m
+          labels:
+            severity: critical
+            category: availability
+          annotations:
+            summary: "서비스 다운 감지: {{ `{{ $labels.job }}` }}"
+            description: "{{ `{{ $labels.job }}` }} 서비스가 1분 이상 응답하지 않습니다. 즉시 확인이 필요합니다."
+            instance: "{{ `{{ $labels.instance }}` }}"
+            value: "{{ `{{ $value }}` }}"
+
+        - alert: ServiceRestarting
+          expr: rate(kube_pod_container_status_restarts_total{namespace="default", pod=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service).*"}[15m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+            category: availability
+          annotations:
+            summary: "Pod 재시작 감지: {{ `{{ $labels.pod }}` }}"
+            description: "{{ `{{ $labels.pod }}` }}가 최근 15분 동안 재시작되었습니다. 로그를 확인하세요."
+            namespace: "{{ `{{ $labels.namespace }}` }}"
+            container: "{{ `{{ $labels.container }}` }}"
+
+    # ========================================
+    # 리소스 사용량 알림
+    # ========================================
+    - name: resource-usage
+      interval: 30s
+      rules:
+        - alert: HighCpuUsage
+          expr: |
+            (
+              rate(process_cpu_seconds_total{job=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service)"}[5m]) * 100
+            ) > 80
+          for: 5m
+          labels:
+            severity: warning
+            category: resource
+          annotations:
+            summary: "높은 CPU 사용률: {{ `{{ $labels.job }}` }}"
+            description: "{{ `{{ $labels.job }}` }}의 CPU 사용률이 5분 동안 80%를 초과했습니다. 현재: {{ `{{ $value | humanizePercentage }}` }}"
+            instance: "{{ `{{ $labels.instance }}` }}"
+
+        - alert: HighMemoryUsage
+          expr: |
+            (
+              jvm_memory_used_bytes{job=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service)", area="heap"}
+              / jvm_memory_max_bytes{job=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service)", area="heap"}
+              * 100
+            ) > 85
+          for: 5m
+          labels:
+            severity: warning
+            category: resource
+          annotations:
+            summary: "높은 메모리 사용률: {{ `{{ $labels.job }}` }}"
+            description: "{{ `{{ $labels.job }}` }}의 Heap 메모리 사용률이 5분 동안 85%를 초과했습니다. 현재: {{ `{{ $value | humanizePercentage }}` }}"
+            instance: "{{ `{{ $labels.instance }}` }}"
+
+        - alert: CriticalMemoryUsage
+          expr: |
+            (
+              jvm_memory_used_bytes{job=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service)", area="heap"}
+              / jvm_memory_max_bytes{job=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service)", area="heap"}
+              * 100
+            ) > 95
+          for: 2m
+          labels:
+            severity: critical
+            category: resource
+          annotations:
+            summary: "심각한 메모리 부족: {{ `{{ $labels.job }}` }}"
+            description: "{{ `{{ $labels.job }}` }}의 Heap 메모리 사용률이 95%를 초과했습니다. OOM 위험이 있습니다. 현재: {{ `{{ $value | humanizePercentage }}` }}"
+            instance: "{{ `{{ $labels.instance }}` }}"
+
+    # ========================================
+    # API 성능 알림
+    # ========================================
+    - name: api-performance
+      interval: 30s
+      rules:
+        - alert: HighErrorRate
+          expr: |
+            (
+              sum(rate(http_server_requests_seconds_count{job=~"(gateway-server|user-service|trade-service|market-data-service|backtest-service)", status=~"5.."}[5m])) by (job, uri)
+              / sum(rate(http_server_requests_seconds_count{job=~"(gateway-server|user-service|trade-service|market-data-service|backtest-service)"}[5m])) by (job, uri)
+              * 100
+            ) > 5
+          for: 3m
+          labels:
+            severity: critical
+            category: performance
+          annotations:
+            summary: "높은 에러율: {{ `{{ $labels.job }}` }} {{ `{{ $labels.uri }}` }}"
+            description: "{{ `{{ $labels.job }}` }}의 {{ `{{ $labels.uri }}` }} 엔드포인트에서 5xx 에러율이 5%를 초과했습니다. 현재: {{ `{{ $value | humanizePercentage }}` }}"
+
+        - alert: SlowResponseTime
+          expr: |
+            histogram_quantile(0.95,
+              sum(rate(http_server_requests_seconds_bucket{job=~"(gateway-server|user-service|trade-service|market-data-service|backtest-service)"}[5m])) by (job, uri, le)
+            ) > 2
+          for: 5m
+          labels:
+            severity: warning
+            category: performance
+          annotations:
+            summary: "느린 응답 시간: {{ `{{ $labels.job }}` }} {{ `{{ $labels.uri }}` }}"
+            description: "{{ `{{ $labels.job }}` }}의 {{ `{{ $labels.uri }}` }} 엔드포인트 P95 응답 시간이 2초를 초과했습니다. 현재: {{ `{{ $value }}` }}s"
+    - name: config-server
+      interval: 30s
+      rules:
+        - alert: ConfigServerDown
+          expr: up{job="config-server"} == 0
+          for: 1m
+          labels:
+            severity: critical
+            category: config
+          annotations:
+            summary: "Config Server 다운"
+            description: "Config Server가 응답하지 않습니다. 다른 서비스들이 설정을 가져올 수 없습니다."
+
+        - alert: ConfigServerHighLatency
+          expr: |
+            histogram_quantile(0.95,
+              sum(rate(http_server_requests_seconds_bucket{job="config-server"}[5m])) by (le)
+            ) > 5
+          for: 5m
+          labels:
+            severity: warning
+            category: config
+          annotations:
+            summary: "Config Server 응답 지연"
+            description: "Config Server의 P95 응답 시간이 5초를 초과했습니다. 서비스 시작이 지연될 수 있습니다."
+
+    # ========================================
+    # Gateway 특화 알림
+    # ========================================
+    - name: gateway
+      interval: 30s
+      rules:
+        - alert: GatewayHighErrorRate
+          expr: |
+            (
+              sum(rate(http_server_requests_seconds_count{job="gateway-server", status=~"5.."}[5m]))
+              / sum(rate(http_server_requests_seconds_count{job="gateway-server"}[5m]))
+              * 100
+            ) > 3
+          for: 3m
+          labels:
+            severity: critical
+            category: gateway
+          annotations:
+            summary: "Gateway 높은 에러율"
+            description: "Gateway의 5xx 에러율이 3%를 초과했습니다. 백엔드 서비스 문제일 수 있습니다. 현재: {{ `{{ $value | humanizePercentage }}` }}"
+
+        - alert: GatewayCircuitBreakerOpen
+          expr: resilience4j_circuitbreaker_state{job="gateway-server", state="open"} > 0
+          for: 1m
+          labels:
+            severity: warning
+            category: gateway
+          annotations:
+            summary: "Circuit Breaker 오픈: {{ `{{ $labels.name }}` }}"
+            description: "Gateway의 {{ `{{ $labels.name }}` }} Circuit Breaker가 오픈되었습니다. 백엔드 서비스에 문제가 있습니다."
