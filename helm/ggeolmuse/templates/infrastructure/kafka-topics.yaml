@@ -145,10 +145,5 @@ spec:
 
               echo "Kafka topics initialization completed!"
           resources:
-            requests:
-              memory: "128Mi"
-              cpu: "100m"
-            limits:
-              memory: "256Mi"
-              cpu: "200m"
+            {{- toYaml .Values.infrastructure.kafka.topicsInit.resources | nindent 12 }}
 {{- end }}

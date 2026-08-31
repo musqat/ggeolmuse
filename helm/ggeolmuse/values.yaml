@@ -122,6 +122,14 @@ infrastructure:
       data: 5Gi
     topicsInit:
       enabled: true
+      # kafka-topics 는 호출마다 JVM 이 새로 뜬다. 토픽이 14개라 14번이다.
+      resources:
+        requests:
+          memory: 128Mi
+          cpu: 100m
+        limits:
+          memory: 256Mi
+          cpu: 1000m
 
   kafkaUi:
     enabled: true
