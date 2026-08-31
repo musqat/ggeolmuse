@@ -16,31 +16,35 @@
 
 ## 설치
 
+<details>
+<summary><b>설치 명령</b></summary>
+
 ```bash
 # Prometheus Stack 설치
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
-
 helm install prometheus prometheus-community/kube-prometheus-stack \
   --namespace monitoring \
   --values prometheus-values.yaml
-
 # Loki 설치
 helm repo add grafana https://grafana.github.io/helm-charts
-
 helm install loki grafana/loki-stack \
   --namespace monitoring \
   --values loki-values.yaml
-
 # Tempo 설치 (OpenTelemetry 백엔드)
 helm install tempo grafana/tempo \
   --namespace monitoring \
   --values tempo-values.yaml
 ```
 
+</details>
+
 ---
 
 ## 접근
+
+<details>
+<summary><b>접속 주소</b></summary>
 
 | 서비스 | URL |
 |--------|-----|
@@ -48,11 +52,16 @@ helm install tempo grafana/tempo \
 | Prometheus | http://prometheus.localhost |
 | AlertManager | http://alertmanager.localhost |
 
+</details>
+
 ---
 
 ## 알림 규칙
 
-**prometheus-rules.yaml**에 정의:
+`helm/ggeolmuse/templates/monitoring/prometheusrule.yaml` 에 정의:
+
+ggeolmuse 차트 안에 있어 ArgoCD 가 배포한다.
+
 - 서비스 가용성 (ServiceDown, ServiceRestarting)
 - 리소스 사용량 (HighCpuUsage, HighMemoryUsage)
 - API 성능 (HighErrorRate, SlowResponseTime)
@@ -90,21 +99,22 @@ Grafana sidecar가 `grafana_dashboard=1` 레이블이 있는 ConfigMap을 자동
 
 ## 알림 설정
 
-**alertmanager-config.yaml** 수정하여 Slack/Email 알림 설정 가능:
+Slack 라우팅은 `helm/ggeolmuse/templates/monitoring/alertmanagerconfig.yaml` 에 있다.
+웹훅 URL 은 `ggeolmuse-secrets` 의 `SLACK_WEBHOOK_URL` 을 참조한다.
+
+<details>
+<summary><b>켜고 끄기</b></summary>
+
+`values-prod.yaml` 에서 조절한다.
 
 ```yaml
-# Slack
-global:
-  slack_api_url: 'https://hooks.slack.com/services/xxx/yyy/zzz'
-
-# Email
-global:
-  smtp_from: 'alerts@yourdomain.com'
-  smtp_smarthost: 'smtp.gmail.com:587'
+monitoring:
+  slack:
+    enabled: true
+    channel: "#ggeolmuse-alerts"
 ```
 
-설정 후:
-```bash
-kubectl apply -f alertmanager-config.yaml
-kubectl rollout restart statefulset -n monitoring alertmanager-prometheus-kube-prometheus-alertmanager
-```
+웹훅 URL 은 AWS Secrets Manager 의 `ggeolmuse/production` 에 `SLACK_WEBHOOK_URL`
+키로 넣는다. ExternalSecret 이 끌어온다.
+
+</details>
