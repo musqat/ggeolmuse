@@ -18,25 +18,27 @@ spec:
       rules:
         - alert: ServiceDown
           expr: up{job=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service)"} == 0
-          for: 5m
+          # 콜드 부팅에 7분 걸린다. config-server 가 뜬 뒤에야 나머지가 시작한다.
+          for: 10m
           labels:
             severity: critical
             category: availability
           annotations:
             summary: "서비스 다운 감지: {{ `{{ $labels.job }}` }}"
-            description: "{{ `{{ $labels.job }}` }} 서비스가 1분 이상 응답하지 않습니다. 즉시 확인이 필요합니다."
+            description: "{{ `{{ $labels.job }}` }} 서비스가 10분 이상 응답하지 않습니다."
             instance: "{{ `{{ $labels.instance }}` }}"
             value: "{{ `{{ $value }}` }}"
 
         - alert: ServiceRestarting
-          expr: rate(kube_pod_container_status_restarts_total{namespace="default", pod=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service).*"}[15m]) > 0
+          # EC2 를 매일 껐다 켜서 부팅마다 1회는 정상이다. 크래시 루프만 잡는다.
+          expr: increase(kube_pod_container_status_restarts_total{namespace="default", pod=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service).*"}[15m]) > 2
           for: 5m
           labels:
             severity: warning
             category: availability
           annotations:
             summary: "Pod 재시작 감지: {{ `{{ $labels.pod }}` }}"
-            description: "{{ `{{ $labels.pod }}` }}가 최근 15분 동안 재시작되었습니다. 로그를 확인하세요."
+            description: "{{ `{{ $labels.pod }}` }}가 15분 동안 세 번 넘게 재시작했습니다. 로그를 확인하세요."
             namespace: "{{ `{{ $labels.namespace }}` }}"
             container: "{{ `{{ $labels.container }}` }}"
 
