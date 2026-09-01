@@ -5,6 +5,10 @@ spring:
     import:
       - "optional:configserver:${SPRING_CLOUD_CONFIG_URI:http://config-server:8888}"
   cloud:
+    # 자동설정이 리전을 찾다 실패한다. prod 에서만 켠다
+    aws:
+      secretsmanager:
+        enabled: false
     config:
       uri: ${SPRING_CLOUD_CONFIG_URI:http://config-server:8888}
       username: ${CONFIG_SERVER_USERNAME:config}
@@ -21,3 +25,9 @@ spring:
       on-profile: prod
     import:
       - "optional:aws-secretsmanager:ggeolmuse/production"
+  cloud:
+    aws:
+      secretsmanager:
+        enabled: true
+      region:
+        static: ${AWS_REGION:ap-northeast-2}
