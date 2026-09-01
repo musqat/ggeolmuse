@@ -16,12 +16,18 @@ spec:
     groupInterval: 5m
     repeatInterval: 4h
     routes:
+      # 알림 경로가 살아 있는지 증명하려고 항상 울리는 알림이다. 받을 곳이 없다.
+      - receiver: "null"
+        matchers:
+          - name: alertname
+            value: Watchdog
       - receiver: slack-critical
         matchers:
           - name: severity
             value: critical
         repeatInterval: 1h
   receivers:
+    - name: "null"
     - name: slack-critical
       slackConfigs:
         - apiURL:
@@ -29,7 +35,7 @@ spec:
             key: SLACK_WEBHOOK_URL
           channel: {{ .Values.monitoring.slack.channel | quote }}
           sendResolved: true
-          title: '[CRITICAL] {{ `{{ .GroupLabels.alertname }}` }}'
+          title: '{{ `{{ if eq .Status "resolved" }}[RESOLVED] {{ else }}[CRITICAL] {{ end }}{{ .GroupLabels.alertname }}` }}'
           text: |-
             {{ `{{ range .Alerts }}` }}
             *{{ `{{ .Labels.alertname }}` }}* ({{ `{{ .Labels.severity }}` }})
@@ -43,7 +49,7 @@ spec:
             key: SLACK_WEBHOOK_URL
           channel: {{ .Values.monitoring.slack.channel | quote }}
           sendResolved: true
-          title: '{{ `{{ .GroupLabels.alertname }}` }}'
+          title: '{{ `{{ if eq .Status "resolved" }}[RESOLVED] {{ end }}{{ .GroupLabels.alertname }}` }}'
           text: |-
             {{ `{{ range .Alerts }}` }}
             *{{ `{{ .Labels.alertname }}` }}*

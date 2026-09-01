@@ -149,3 +149,13 @@ nodeExporter:
 
 prometheusOperator:
   enabled: true
+
+kubeProxy:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+
+kubeEtcd:
+  enabled: false
