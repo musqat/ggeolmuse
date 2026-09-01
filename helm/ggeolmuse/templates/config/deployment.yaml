@@ -94,6 +94,9 @@ spec:
         {{- end }}
         - name: JAVA_OPTS
           value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" .Values.configServer.name "xmx" "128m") }}
+        # UID 10001 은 홈이 없어 HOME 이 / 로 잡힌다. JGit 이 거기 설정을 쓴다
+        - name: HOME
+          value: /tmp
         volumeMounts:
         - name: config-repo-volume
           mountPath: /config-repo
