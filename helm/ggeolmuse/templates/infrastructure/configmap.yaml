@@ -24,5 +24,4 @@ data:
   # Redis 설정
   REDIS_HOST: {{ .Values.configMap.data.redisHost | quote }}
   REDIS_PORT: {{ .Values.configMap.data.redisPort | quote }}
-  REDIS_PASSWORD: {{ .Values.configMap.data.redisPassword | quote }}
 {{- end }}

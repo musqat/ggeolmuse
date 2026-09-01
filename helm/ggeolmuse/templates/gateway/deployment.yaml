@@ -74,10 +74,16 @@ spec:
         resources:
           {{- toYaml .Values.gatewayServer.resources | nindent 10 }}
         {{- end }}
+        securityContext:
+          {{- include "ggeolmuse.securityContext" . | nindent 10 }}
+        volumeMounts:
+          {{- include "ggeolmuse.tmpVolumeMount" . | nindent 10 }}
         startupProbe:
           {{- include "ggeolmuse.startupProbe" (dict "port" 9090 "failureThreshold" .Values.gatewayServer.probes.startup.failureThreshold "periodSeconds" .Values.gatewayServer.probes.startup.periodSeconds) | nindent 10 }}
         readinessProbe:
           {{- include "ggeolmuse.readinessProbe" (dict "port" 9090 "initialDelaySeconds" .Values.gatewayServer.probes.readiness.initialDelaySeconds "periodSeconds" .Values.gatewayServer.probes.readiness.periodSeconds) | nindent 10 }}
         livenessProbe:
           {{- include "ggeolmuse.livenessProbe" (dict "port" 9090 "initialDelaySeconds" .Values.gatewayServer.probes.liveness.initialDelaySeconds "periodSeconds" .Values.gatewayServer.probes.liveness.periodSeconds) | nindent 10 }}
+      volumes:
+        {{- include "ggeolmuse.tmpVolume" . | nindent 8 }}
 {{- end }}
