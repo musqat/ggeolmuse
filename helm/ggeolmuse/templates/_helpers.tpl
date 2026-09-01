@@ -184,3 +184,28 @@ DB_URL_BACKTEST
 DB_URL
 {{- end -}}
 {{- end }}
+
+{{/* 컨테이너 보안 컨텍스트. 루트를 버리고 파일시스템을 읽기전용으로 둔다.
+     JVM 이 /tmp 에 쓰므로 ggeolmuse.tmpVolume 과 짝으로 쓴다. */}}
+{{- define "ggeolmuse.securityContext" -}}
+runAsNonRoot: true
+runAsUser: 10001
+runAsGroup: 10001
+allowPrivilegeEscalation: false
+readOnlyRootFilesystem: true
+capabilities:
+  drop:
+    - ALL
+seccompProfile:
+  type: RuntimeDefault
+{{- end }}
+
+{{- define "ggeolmuse.tmpVolumeMount" -}}
+- name: tmp
+  mountPath: /tmp
+{{- end }}
+
+{{- define "ggeolmuse.tmpVolume" -}}
+- name: tmp
+  emptyDir: {}
+{{- end }}

@@ -23,7 +23,7 @@ spec:
       {{- end }}
       initContainers:
       - name: git-clone
-        image: alpine/git:latest
+        image: alpine/git:v2.54.0
         command:
         - sh
         - -c
@@ -98,10 +98,13 @@ spec:
         - name: config-repo-volume
           mountPath: /config-repo
           readOnly: true
+        {{- include "ggeolmuse.tmpVolumeMount" . | nindent 8 }}
         {{- if .Values.configServer.resources }}
         resources:
           {{- toYaml .Values.configServer.resources | nindent 10 }}
         {{- end }}
+        securityContext:
+          {{- include "ggeolmuse.securityContext" . | nindent 10 }}
         startupProbe:
           {{- include "ggeolmuse.startupProbe" (dict "port" 9090 "failureThreshold" .Values.configServer.probes.startup.failureThreshold "periodSeconds" .Values.configServer.probes.startup.periodSeconds) | nindent 10 }}
         readinessProbe:
@@ -111,4 +114,5 @@ spec:
       volumes:
       - name: config-repo-volume
         emptyDir: {}
+      {{- include "ggeolmuse.tmpVolume" . | nindent 6 }}
 {{- end }}

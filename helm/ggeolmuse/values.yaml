@@ -133,7 +133,7 @@ infrastructure:
 
   kafkaUi:
     enabled: true
-    image: provectuslabs/kafka-ui:latest
+    image: provectuslabs/kafka-ui:v0.7.2
     replicas: 1
     port: 8080
     env:
@@ -445,4 +445,3 @@ configMap:
     exchangeRateFallback: "1300.00"
     redisHost: "redis"
     redisPort: "6379"
-    redisPassword: ""

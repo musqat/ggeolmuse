@@ -428,7 +428,6 @@ configMap:
     exchangeRateFallback: "1300.00"
     redisHost: "redis"
     redisPort: "6379"
-    redisPassword: ""
 
 # Monitoring - Prometheus ServiceMonitor
 monitoring:

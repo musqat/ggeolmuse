@@ -103,10 +103,16 @@ spec:
         resources:
           {{- toYaml $svc.resources | nindent 10 }}
         {{- end }}
+        securityContext:
+          {{- include "ggeolmuse.securityContext" . | nindent 10 }}
+        volumeMounts:
+          {{- include "ggeolmuse.tmpVolumeMount" . | nindent 10 }}
         startupProbe:
           {{- include "ggeolmuse.startupProbe" (merge (dict "port" .Values.global.management.port) $svc.probes.startup) | nindent 10 }}
         readinessProbe:
           {{- include "ggeolmuse.readinessProbe" (merge (dict "port" .Values.global.management.port) $svc.probes.readiness) | nindent 10 }}
         livenessProbe:
           {{- include "ggeolmuse.livenessProbe" (merge (dict "port" .Values.global.management.port) $svc.probes.liveness) | nindent 10 }}
+      volumes:
+        {{- include "ggeolmuse.tmpVolume" . | nindent 8 }}
 {{- end }}
