@@ -15,6 +15,12 @@ spring:
         enabled: false
     compatibility-verifier:
       enabled: false
+    # 자격증명이 없어 클라이언트를 못 만든다
+    aws:
+      secretsmanager:
+        enabled: false
+      parameterstore:
+        enabled: false
 
   # 테스트용 데이터소스
   datasource:
