@@ -6,7 +6,9 @@ services:
     container_name: ggeolmuse-redis
     ports:
       - "6379:6379"
-    command: redis-server --appendonly yes --requirepass ""
+    command: sh -c 'exec redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"'
+    environment:
+      REDIS_PASSWORD: "${REDIS_PASSWORD}"
     volumes:
       - redis_data:/data
     networks:
@@ -174,6 +176,7 @@ services:
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       SPRING_CLOUD_CONFIG_USERNAME: config
       SPRING_CLOUD_CONFIG_PASSWORD: config123
+      SPRING_REDIS_PASSWORD: "${REDIS_PASSWORD}"
       SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: "false"
       SPRING_PROFILES_ACTIVE: dev
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
@@ -212,6 +215,7 @@ services:
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       SPRING_CLOUD_CONFIG_USERNAME: config
       SPRING_CLOUD_CONFIG_PASSWORD: config123
+      SPRING_REDIS_PASSWORD: "${REDIS_PASSWORD}"
       SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: "false"
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
@@ -263,6 +267,7 @@ services:
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       SPRING_CLOUD_CONFIG_USERNAME: config
       SPRING_CLOUD_CONFIG_PASSWORD: config123
+      SPRING_REDIS_PASSWORD: "${REDIS_PASSWORD}"
       SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: "false"
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
@@ -326,6 +331,7 @@ services:
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       SPRING_CLOUD_CONFIG_USERNAME: config
       SPRING_CLOUD_CONFIG_PASSWORD: config123
+      SPRING_REDIS_PASSWORD: "${REDIS_PASSWORD}"
       SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: "false"
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
@@ -369,6 +375,7 @@ services:
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       SPRING_CLOUD_CONFIG_USERNAME: config
       SPRING_CLOUD_CONFIG_PASSWORD: config123
+      SPRING_REDIS_PASSWORD: "${REDIS_PASSWORD}"
       SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: "false"
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080

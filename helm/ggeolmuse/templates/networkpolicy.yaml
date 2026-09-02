@@ -47,3 +47,29 @@ spec:
     - protocol: TCP
       port: 9090
 {{- end }}
+{{- if and .Values.networkPolicy.enabled .Values.infrastructure.redis.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-redis-from-services
+  labels:
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: redis
+  policyTypes:
+    - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: {{ .Values.networkPolicy.gatewayApp }}
+    - podSelector:
+        matchLabels:
+          tier: {{ .Values.networkPolicy.businessServiceTier }}
+    ports:
+    - protocol: TCP
+      port: {{ .Values.infrastructure.redis.port }}
+{{- end }}
