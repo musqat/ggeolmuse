@@ -27,8 +27,6 @@ jobs:
           cache: npm
           cache-dependency-path: e2e/package-lock.json
 
-      - uses: docker/setup-buildx-action@v3
-
       # 시크릿이 필요 없다. .env.example 의 기본값만으로 스택이 뜬다.
       # 시세와 환율은 Yahoo Finance 에서 받고 키를 요구하지 않는다.
       # KEYCLOAK_SECRET 은 compose 에 local-client-secret 로 박혀 있다.
@@ -37,21 +35,7 @@ jobs:
         working-directory: docker-compose
         run: cp .env.example .env
 
-      # ci.yml 이 같은 Dockerfile 을 같은 scope 로 캐시에 넣는다. 읽기만 한다.
-      # compose 의 --build 는 캐시 백엔드를 못 써서 매번 처음부터 만든다.
-      - name: 이미지 빌드
-        run: |
-          build() {
-            docker buildx build \
-              --cache-from "type=gha,scope=$1" \
-              --tag "ggeolmuse-local/$1:latest" \
-              --load -f "$2" "$3"
-          }
-          for s in config-server gateway-server user-service trade-service market-data-service backtest-service; do
-            build "$s" "$s/Dockerfile" .
-          done
-          build chat-service chat-service/Dockerfile chat-service
-
+      # compose 는 일곱 개를 병렬로 만든다.
       - name: 스택 기동
         working-directory: docker-compose
         run: docker compose up -d --build
