@@ -80,13 +80,13 @@ Feign 은 답이 있어야 다음 줄이 진행되는 조회에 쓰고 Kafka 는
 
 | Service | 역할 | |
 |---|---|---|
-| **Config Server** | 중앙 설정 관리 | [📄](config-server/README.md) |
-| **Gateway Server** | 라우팅, JWT 검증, Rate Limit | [📄](gateway-server/README.md) |
-| **User Service** | 인증, 계좌 관리, 환전 | [📄](user-service/README.md) |
-| **Trade Service** | 거래 실행, 포트폴리오 | [📄](trade-service/README.md) |
-| **Market Data Service** | 시세 수집·제공 | [📄](market-data-service/README.md) |
-| **Backtest Service** | 전략 백테스팅 | [📄](backtest-service/README.md) |
-| **Chat Service** | AI 기술 분석 (FastAPI) | [📄](chat-service/README.md) |
+| **Config Server** | 중앙 설정 관리 | [📄](backend/config-server/README.md) |
+| **Gateway Server** | 라우팅, JWT 검증, Rate Limit | [📄](backend/gateway-server/README.md) |
+| **User Service** | 인증, 계좌 관리, 환전 | [📄](backend/user-service/README.md) |
+| **Trade Service** | 거래 실행, 포트폴리오 | [📄](backend/trade-service/README.md) |
+| **Market Data Service** | 시세 수집·제공 | [📄](backend/market-data-service/README.md) |
+| **Backtest Service** | 전략 백테스팅 | [📄](backend/backtest-service/README.md) |
+| **Chat Service** | AI 기술 분석 (FastAPI) | [📄](backend/chat-service/README.md) |
 
 인프라 구성은 [helm/README.md](helm/README.md) 에 있다.
 서비스 설정은 별도 저장소 [ggeolmuse-config](https://github.com/musqat/ggeolmuse-config) 에 있다.
@@ -100,17 +100,19 @@ Feign 은 답이 있어야 다음 줄이 진행되는 조회에 쓰고 Kafka 는
 
 ```
 ggeolmuse/
-├── gateway-server/       API Gateway (WebFlux)
-├── config-server/        중앙 설정
-├── user-service/         인증 · 계좌
-├── trade-service/        거래 · 포트폴리오
-├── market-data-service/  시세 수집 · 제공
-├── backtest-service/     전략 시뮬레이션
-├── chat-service/         AI 기술 분석 (FastAPI)
-├── ggeolmuse-bom/        공통 라이브러리 (예외 · 로깅 · 유틸)
-├── messaging/            Kafka 공통 라이브러리
+├── backend/
+│   ├── gateway-server/       API Gateway (WebFlux)
+│   ├── config-server/        중앙 설정
+│   ├── user-service/         인증 · 계좌
+│   ├── trade-service/        거래 · 포트폴리오
+│   ├── market-data-service/  시세 수집 · 제공
+│   ├── backtest-service/     전략 시뮬레이션
+│   ├── chat-service/         AI 기술 분석 (FastAPI)
+│   ├── ggeolmuse-bom/        공통 라이브러리 (예외 · 로깅 · 유틸)
+│   └── messaging/            Kafka 공통 라이브러리
 ├── frontend-web/         React
 ├── helm/                 Helm 차트 · ArgoCD
+├── e2e/                  Playwright
 ├── k6/                   부하 테스트 스크립트
 └── terraform/            EC2 스케줄러 · 알람
 ```

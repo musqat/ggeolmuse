@@ -6,19 +6,19 @@ WORKDIR /app
 COPY .mvn/ci-settings.xml /root/.m2/settings.xml
 
 # ggeolmuse-bom (common-lib 포함) 설치
-COPY ggeolmuse-bom/pom.xml /bom/pom.xml
-COPY ggeolmuse-bom/src /bom/src
+COPY backend/ggeolmuse-bom/pom.xml /bom/pom.xml
+COPY backend/ggeolmuse-bom/src /bom/src
 RUN mvn -f /bom/pom.xml install -DskipTests -q
 
 # messaging 모듈 설치
-COPY messaging/pom.xml /messaging/pom.xml
-COPY messaging/src /messaging/src
+COPY backend/messaging/pom.xml /messaging/pom.xml
+COPY backend/messaging/src /messaging/src
 RUN mvn -f /messaging/pom.xml install -DskipTests -q
 
 # 서비스 빌드
-COPY market-data-service/pom.xml .
+COPY backend/user-service/pom.xml .
 RUN mvn -B dependency:go-offline -DskipTests -q
-COPY market-data-service/src ./src
+COPY backend/user-service/src ./src
 RUN mvn -B clean package -DskipTests -q
 
 # 런타임 스테이지

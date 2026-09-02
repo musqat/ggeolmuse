@@ -26,7 +26,7 @@ jobs:
           restore-keys: ${{ runner.os }}-m2-bom-
       - name: Build & Install ggeolmuse-bom
         run: |
-          cd ggeolmuse-bom
+          cd backend/ggeolmuse-bom
           mvn -s $GITHUB_WORKSPACE/.mvn/ci-settings.xml clean install -DskipTests
 
   build-messaging:
@@ -46,11 +46,11 @@ jobs:
           restore-keys: ${{ runner.os }}-m2-messaging-
       - name: Build & Install ggeolmuse-bom (for dependencies)
         run: |
-          cd ggeolmuse-bom
+          cd backend/ggeolmuse-bom
           mvn -s $GITHUB_WORKSPACE/.mvn/ci-settings.xml install -DskipTests
       - name: Build & Install messaging
         run: |
-          cd messaging
+          cd backend/messaging
           mvn -s $GITHUB_WORKSPACE/.mvn/ci-settings.xml clean install -DskipTests
 
   build-services:
@@ -80,15 +80,15 @@ jobs:
           restore-keys: ${{ runner.os }}-m2-${{ matrix.service }}-
       - name: Build & Install ggeolmuse-bom (for dependencies)
         run: |
-          cd ggeolmuse-bom
+          cd backend/ggeolmuse-bom
           mvn -s $GITHUB_WORKSPACE/.mvn/ci-settings.xml install -DskipTests
       - name: Build & Install messaging (for dependencies)
         run: |
-          cd messaging
+          cd backend/messaging
           mvn -s $GITHUB_WORKSPACE/.mvn/ci-settings.xml install -DskipTests
       - name: Build & Test ${{ matrix.service }}
         run: |
-          cd ${{ matrix.service }}
+          cd backend/${{ matrix.service }}
           # Run unit tests only (*Test.java). Integration tests (*IT.java) are excluded by default
           mvn -s $GITHUB_WORKSPACE/.mvn/ci-settings.xml clean compile test
       - uses: docker/setup-buildx-action@v3
@@ -99,7 +99,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ${{ matrix.service }}/Dockerfile
+          file: backend/${{ matrix.service }}/Dockerfile
           tags: ${{ matrix.service }}:ci-${{ github.sha }}
           load: true
           cache-from: type=gha,scope=${{ matrix.service }}
@@ -156,18 +156,21 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      # 자바 서비스와 달리 둘의 위치가 갈려서 이름과 경로를 따로 준다.
       matrix:
-        image:
-          - chat-service
-          - nginx-proxy
+        include:
+          - image: chat-service
+            dir: backend/chat-service
+          - image: nginx-proxy
+            dir: nginx-proxy
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
       - name: Build Docker Image for ${{ matrix.image }}
         uses: docker/build-push-action@v6
         with:
-          context: ${{ matrix.image }}
-          file: ${{ matrix.image }}/Dockerfile
+          context: ${{ matrix.dir }}
+          file: ${{ matrix.dir }}/Dockerfile
           tags: ${{ matrix.image }}:ci-${{ github.sha }}
           load: true
           cache-from: type=gha,scope=${{ matrix.image }}
