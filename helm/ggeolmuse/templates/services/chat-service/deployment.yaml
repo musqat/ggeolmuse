@@ -50,4 +50,10 @@ spec:
         resources:
           {{- toYaml .Values.services.chatService.resources | nindent 10 }}
         {{- end }}
+        securityContext:
+          {{- include "ggeolmuse.securityContext" . | nindent 10 }}
+        volumeMounts:
+          {{- include "ggeolmuse.tmpVolumeMount" . | nindent 10 }}
+      volumes:
+        {{- include "ggeolmuse.tmpVolume" . | nindent 8 }}
 {{- end }}
