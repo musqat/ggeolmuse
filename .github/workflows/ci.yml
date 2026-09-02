@@ -191,7 +191,9 @@ jobs:
           helm template ggeolmuse helm/ggeolmuse \
             -f helm/ggeolmuse/values-prod.yaml > rendered.yaml
 
-      - uses: aquasecurity/trivy-action@master
+      - uses: aquasecurity/trivy-action@0.36.0
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         with:
           scan-type: config
           scan-ref: rendered.yaml

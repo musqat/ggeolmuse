@@ -13,8 +13,13 @@ runs:
   using: composite
   steps:
     # JSON 으로 한 번 받아 convert 로 두 형식을 뽑는다. convert 는 재스캔하지 않는다.
+    #
+    # 설치 스크립트가 GitHub API 로 버전을 찾는다. 토큰이 없으면 IP 단위 속도
+    # 제한에 걸려 내려받기가 exit 35 로 죽는다.
     - name: ${{ inputs.name }} 스캔
-      uses: aquasecurity/trivy-action@master
+      uses: aquasecurity/trivy-action@0.36.0
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
       with:
         image-ref: ${{ inputs.image }}
         format: json
