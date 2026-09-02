@@ -1,7 +1,7 @@
 // 램프 부하. 숫자가 깨지는 지점을 찾는다.
 //
-//   k6 run k6/load.js
-//   k6 run -e MAX_VUS=100 k6/load.js
+//   k6 run tests/k6/load.js
+//   k6 run -e MAX_VUS=100 tests/k6/load.js
 //
 // 주의 — 부하 생성기와 대상이 같은 PC 를 쓴다. 절대 수치는 믿을 게 못 되고
 // 같은 조건에서 잰 before/after 비교만 의미가 있다.
@@ -12,8 +12,8 @@ import { randomSymbol, randomTradingDate } from './lib/symbols.js';
 
 // BASE_URL 을 8083 으로 주면 게이트웨이를 건너뛰고 앱만 잰다.
 //
-//   k6 run k6/load.js                                        게이트웨이 경유
-//   k6 run -e BASE_URL=http://localhost:8083 k6/load.js      우회
+//   k6 run tests/k6/load.js                                        게이트웨이 경유
+//   k6 run -e BASE_URL=http://localhost:8083 tests/k6/load.js      우회
 const BASE = __ENV.BASE_URL || 'http://localhost:8070';
 const MAX_VUS = Number(__ENV.MAX_VUS || 50);
 

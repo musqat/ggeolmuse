@@ -1,6 +1,6 @@
 // 스모크. 스크립트가 맞게 도는지만 본다.
 //
-//   k6 run k6/smoke.js
+//   k6 run tests/k6/smoke.js
 //
 // VU 1명으로 30초. 여기서 실패하면 부하를 올려도 의미가 없다.
 import http from 'k6/http';

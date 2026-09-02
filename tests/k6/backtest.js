@@ -1,7 +1,7 @@
 // 백테스트 부하. market-data 로 팬아웃이 일어나는 무거운 경로다.
 //
-//   k6 run k6/backtest.js
-//   k6 run -e MAX_VUS=30 k6/backtest.js
+//   k6 run tests/k6/backtest.js
+//   k6 run -e MAX_VUS=30 tests/k6/backtest.js
 //
 // 앞의 조회 API 와 달리 요청 하나가 수백 ms 이상 걸린다.
 // VU 를 크게 잡을 필요가 없고, 잡으면 큐만 쌓인다.
