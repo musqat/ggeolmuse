@@ -209,3 +209,15 @@ seccompProfile:
 - name: tmp
   emptyDir: {}
 {{- end }}
+
+{{/* Redis 비밀번호. 설정은 ${SPRING_REDIS_PASSWORD:} 로 읽는다.
+     config-server 는 Redis 를 쓰지 않아 빠진다. */}}
+{{- define "ggeolmuse.redisPasswordEnv" -}}
+{{- if .Values.global.aws.secretsManager.enabled }}
+- name: SPRING_REDIS_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: ggeolmuse-secrets
+      key: REDIS_PASSWORD
+{{- end }}
+{{- end }}

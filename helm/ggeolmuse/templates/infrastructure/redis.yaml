@@ -23,7 +23,18 @@ spec:
         imagePullPolicy: {{ .Values.global.imagePullPolicy }}
         ports:
         - containerPort: {{ .Values.infrastructure.redis.port }}
-        command: ["redis-server", "--appendonly", "yes", "--requirepass", ""]
+        {{- if .Values.global.aws.secretsManager.enabled }}
+        # --requirepass 는 인자라 환경변수가 안 풀린다. 셸을 거쳐 넘긴다.
+        command: ["sh", "-c", "exec redis-server --appendonly yes --requirepass \"$REDIS_PASSWORD\""]
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ggeolmuse-secrets
+              key: REDIS_PASSWORD
+        {{- else }}
+        command: ["redis-server", "--appendonly", "yes"]
+        {{- end }}
         resources:
           {{- toYaml .Values.infrastructure.redis.resources | nindent 10 }}
 ---

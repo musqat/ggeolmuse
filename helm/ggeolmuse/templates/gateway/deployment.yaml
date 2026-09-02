@@ -47,6 +47,7 @@ spec:
         ports:
         - containerPort: {{ .Values.gatewayServer.service.port }}
         env:
+        {{- include "ggeolmuse.redisPasswordEnv" . | nindent 8 }}
         - name: SPRING_PROFILES_ACTIVE
           value: {{ .Values.gatewayServer.env.springProfiles | quote }}
         - name: SERVER_PORT

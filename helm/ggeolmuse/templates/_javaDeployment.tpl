@@ -53,6 +53,7 @@ spec:
         ports:
         - containerPort: {{ $svc.service.port }}
         env:
+        {{- include "ggeolmuse.redisPasswordEnv" . | nindent 8 }}
 {{- end }}
 
 {{/*
