@@ -17,12 +17,13 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
+      # 잡마다 받는 의존이 달라 키를 나눈다.
       - name: Cache Maven dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.m2
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-m2
+          key: ${{ runner.os }}-m2-bom-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2-bom-
       - name: Build & Install ggeolmuse-bom
         run: |
           cd ggeolmuse-bom
@@ -38,11 +39,11 @@ jobs:
           distribution: temurin
           java-version: 21
       - name: Cache Maven dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.m2
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-m2
+          key: ${{ runner.os }}-m2-messaging-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2-messaging-
       - name: Build & Install ggeolmuse-bom (for dependencies)
         run: |
           cd ggeolmuse-bom
@@ -72,11 +73,11 @@ jobs:
           distribution: temurin
           java-version: 21
       - name: Cache Maven dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.m2
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-m2
+          key: ${{ runner.os }}-m2-${{ matrix.service }}-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2-${{ matrix.service }}-
       - name: Build & Install ggeolmuse-bom (for dependencies)
         run: |
           cd ggeolmuse-bom
@@ -191,7 +192,9 @@ jobs:
           helm template ggeolmuse helm/ggeolmuse \
             -f helm/ggeolmuse/values-prod.yaml > rendered.yaml
 
-      - uses: aquasecurity/trivy-action@master
+      - uses: aquasecurity/trivy-action@v0.36.0
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         with:
           scan-type: config
           scan-ref: rendered.yaml
