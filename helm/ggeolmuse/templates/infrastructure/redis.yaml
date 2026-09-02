@@ -17,6 +17,9 @@ spec:
       labels:
         app: redis
     spec:
+      # /data 는 emptyDir 이라 root 소유로 생긴다. fsGroup 이 있어야 AOF 를 쓴다.
+      securityContext:
+        fsGroup: 10001
       containers:
       - name: redis
         image: {{ .Values.infrastructure.redis.image }}
@@ -37,6 +40,15 @@ spec:
         {{- end }}
         resources:
           {{- toYaml .Values.infrastructure.redis.resources | nindent 10 }}
+        securityContext:
+          {{- include "ggeolmuse.securityContext" . | nindent 10 }}
+        # AOF 가 여기 쌓인다. 루트를 읽기전용으로 막아서 쓸 자리를 따로 준다.
+        volumeMounts:
+        - name: data
+          mountPath: /data
+      volumes:
+      - name: data
+        emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
