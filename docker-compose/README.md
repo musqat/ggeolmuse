@@ -162,7 +162,7 @@ docker compose up --build -d
 스크립트를 그대로 쓰려면 Git Bash를 명시한다.
 
 ```powershell
-& "C:\Program Files\Git\bin\bash.exe" -c "cd /d/<repo> && bash scripts/local-up.sh"
+& "C:\Program Files\Git\bin\bash.exe" -c "cd /d/<repo> && bash docker-compose/local-up.sh"
 ```
 
 ---

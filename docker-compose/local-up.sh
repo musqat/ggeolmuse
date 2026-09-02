@@ -4,17 +4,15 @@
 #   git clone 직후 한 번에 빌드 -> 기동 -> 시드 admin 로그인까지.
 #
 # 사용법:
-#   bash scripts/local-up.sh                 # 빌드 + 기동
-#   OPENAI_API_KEY=sk-... bash scripts/local-up.sh   # AI 챗봇까지
-#   bash scripts/local-up.sh down            # 종료
+#   bash docker-compose/local-up.sh                 # 빌드 + 기동
+#   OPENAI_API_KEY=sk-... bash docker-compose/local-up.sh   # AI 챗봇까지
+#   bash docker-compose/local-up.sh down            # 종료
 #
 # 전제: Docker Desktop 실행 중.
 #
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-COMPOSE_DIR="$ROOT_DIR/docker-compose"
+COMPOSE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="$COMPOSE_DIR/.env"
 ENV_EXAMPLE="$COMPOSE_DIR/.env.example"
 
@@ -90,6 +88,6 @@ cat <<EOF
    비밀번호: Admin123!
 
  AI 챗봇: $([[ -n "$OPENAI_KEY" ]] && echo "활성" || echo "비활성 (OPENAI_API_KEY 주고 재실행 시 켜짐)")
- 종료:   bash scripts/local-up.sh down
+ 종료:   bash docker-compose/local-up.sh down
 ────────────────────────────────────────────────
 EOF

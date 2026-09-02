@@ -8,11 +8,11 @@
 Docker Desktop 이 떠 있으면 한 번에 올라간다.
 
 ```bash
-bash scripts/local-up.sh
+bash docker-compose/local-up.sh
 ```
 
 접속은 http://localhost:3000, 시드 계정은 `admin@test.com` / `Admin123!` 이다.
-종료는 `bash scripts/local-up.sh down`.
+종료는 `bash docker-compose/local-up.sh down`.
 
 스크립트가 `.env` 생성 → 이미지 빌드 → 전체 스택 기동까지 한다.
 직접 하려면 `cd docker-compose && docker compose up --build -d`.
@@ -21,7 +21,7 @@ AI 챗봇은 OpenAI 키가 있을 때만 뜬다. 없으면 chat-service 가 빠�
 호출하면 안내가 뜬다.
 
 ```bash
-OPENAI_API_KEY=sk-... bash scripts/local-up.sh
+OPENAI_API_KEY=sk-... bash docker-compose/local-up.sh
 ```
 
 알아두면 좋은 것
