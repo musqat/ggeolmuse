@@ -40,6 +40,10 @@ spec:
             sleep 5
           done
           echo "Config Server is ready!"
+        securityContext:
+          {{- include "ggeolmuse.securityContext" . | nindent 10 }}
+        resources:
+          {{- toYaml .Values.global.initContainer.resources | nindent 10 }}
       containers:
       - name: {{ .Values.gatewayServer.name }}
         image: {{ include "ggeolmuse.image" (dict "Values" .Values "repository" .Values.gatewayServer.image.repository "tag" .Values.gatewayServer.image.tag "Chart" .Chart) }}
