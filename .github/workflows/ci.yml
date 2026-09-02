@@ -153,6 +153,8 @@ jobs:
           name: frontend-web
 
   scan-images:
+    #이미지 이름만 남긴다.
+    name: scan-images (${{ matrix.image }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

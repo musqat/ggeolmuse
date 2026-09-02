@@ -279,7 +279,7 @@ Docker Desktop 이 떠 있으면 한 번에 올라간다.
 ```bash
 git clone https://github.com/musqat/ggeolmuse.git
 cd ggeolmuse
-bash scripts/local-up.sh
+bash docker-compose/local-up.sh
 ```
 
 접속은 http://localhost:3000, 시드 계정은 `admin@test.com` / `Admin123!` 이다.
