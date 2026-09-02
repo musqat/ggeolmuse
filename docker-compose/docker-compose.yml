@@ -120,7 +120,7 @@ services:
   config-server:
     build:
       context: ..
-      dockerfile: config-server/Dockerfile
+      dockerfile: backend/config-server/Dockerfile
     image: ggeolmuse-local/config-server:latest
     container_name: ggeolmuse-config-server
     ports:
@@ -161,7 +161,7 @@ services:
   gateway-server:
     build:
       context: ..
-      dockerfile: gateway-server/Dockerfile
+      dockerfile: backend/gateway-server/Dockerfile
     image: ggeolmuse-local/gateway-server:latest
     container_name: ggeolmuse-gateway-server
     ports:
@@ -202,7 +202,7 @@ services:
   user-service:
     build:
       context: ..
-      dockerfile: user-service/Dockerfile
+      dockerfile: backend/user-service/Dockerfile
     image: ggeolmuse-local/user-service:latest
     container_name: ggeolmuse-user-service
     ports:
@@ -255,7 +255,7 @@ services:
   trade-service:
     build:
       context: ..
-      dockerfile: trade-service/Dockerfile
+      dockerfile: backend/trade-service/Dockerfile
     image: ggeolmuse-local/trade-service:latest
     container_name: ggeolmuse-trade-service
     ports:
@@ -302,7 +302,7 @@ services:
   market-data-service:
     build:
       context: ..
-      dockerfile: market-data-service/Dockerfile
+      dockerfile: backend/market-data-service/Dockerfile
     image: ggeolmuse-local/market-data-service:latest
     container_name: ggeolmuse-market-data-service
     ports:
@@ -363,7 +363,7 @@ services:
   backtest-service:
     build:
       context: ..
-      dockerfile: backtest-service/Dockerfile
+      dockerfile: backend/backtest-service/Dockerfile
     image: ggeolmuse-local/backtest-service:latest
     container_name: ggeolmuse-backtest-service
     ports:
@@ -409,7 +409,7 @@ services:
   # AI Chat Service (선택: OPENAI_API_KEY 있을 때만 --profile ai 로 실행)
   chat-service:
     build:
-      context: ../chat-service
+      context: ../backend/chat-service
       dockerfile: Dockerfile
     image: ggeolmuse-local/chat-service:latest
     container_name: ggeolmuse-chat-service

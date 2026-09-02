@@ -6,14 +6,14 @@ WORKDIR /app
 COPY .mvn/ci-settings.xml /root/.m2/settings.xml
 
 # ggeolmuse-bom (common-lib 포함) 설치
-COPY ggeolmuse-bom/pom.xml /bom/pom.xml
-COPY ggeolmuse-bom/src /bom/src
+COPY backend/ggeolmuse-bom/pom.xml /bom/pom.xml
+COPY backend/ggeolmuse-bom/src /bom/src
 RUN mvn -f /bom/pom.xml install -DskipTests -q
 
 # 서비스 빌드
-COPY gateway-server/pom.xml .
+COPY backend/gateway-server/pom.xml .
 RUN mvn -B dependency:go-offline -DskipTests -q
-COPY gateway-server/src ./src
+COPY backend/gateway-server/src ./src
 RUN mvn -B clean package -DskipTests -q
 
 # 런타임 스테이지
