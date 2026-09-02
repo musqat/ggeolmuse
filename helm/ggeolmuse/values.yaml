@@ -7,6 +7,16 @@ global:
   management:
     port: 9090
 
+  # config-server 를 기다리는 초기 컨테이너
+  initContainer:
+    resources:
+      limits:
+        cpu: 100m
+        memory: 64Mi
+      requests:
+        cpu: 10m
+        memory: 16Mi
+
   keycloak:
     realm: muscathan
     clientId: ggeolmuse-client
