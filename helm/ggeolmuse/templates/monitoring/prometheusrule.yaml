@@ -63,9 +63,10 @@ spec:
             instance: "{{ `{{ $labels.instance }}` }}"
 
         - alert: HighMemoryUsage
+          # GC 후 남는 양으로 잰다. used 는 수거 전 쓰레기를 포함해서 배치가 돌 때마다 걸린다.
           expr: |
             (
-              jvm_memory_used_bytes{job=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service)", area="heap"}
+              jvm_gc_live_data_size_bytes{job=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service)"}
               / jvm_memory_max_bytes{job=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service)", area="heap"}
               * 100
             ) > 85
@@ -81,7 +82,7 @@ spec:
         - alert: CriticalMemoryUsage
           expr: |
             (
-              jvm_memory_used_bytes{job=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service)", area="heap"}
+              jvm_gc_live_data_size_bytes{job=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service)"}
               / jvm_memory_max_bytes{job=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service)", area="heap"}
               * 100
             ) > 95
