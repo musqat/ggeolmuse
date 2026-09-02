@@ -14,7 +14,9 @@ runs:
   steps:
     # JSON 으로 한 번 받아 convert 로 두 형식을 뽑는다. convert 는 재스캔하지 않는다.
     - name: ${{ inputs.name }} 스캔
-      uses: aquasecurity/trivy-action@master
+      uses: aquasecurity/trivy-action@v0.36.0
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
       with:
         image-ref: ${{ inputs.image }}
         format: json
