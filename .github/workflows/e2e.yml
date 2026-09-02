@@ -52,11 +52,10 @@ jobs:
             build "$s" "$s/Dockerfile" .
           done
           build chat-service chat-service/Dockerfile chat-service
-          build frontend-web frontend-web/Dockerfile frontend-web
 
       - name: 스택 기동
         working-directory: docker-compose
-        run: docker compose up -d
+        run: docker compose up -d --build
 
       - name: Playwright 브라우저 캐시
         uses: actions/cache@v4
