@@ -112,8 +112,9 @@ ggeolmuse/
 │   └── messaging/            Kafka 공통 라이브러리
 ├── frontend-web/         React
 ├── helm/                 Helm 차트 · ArgoCD
-├── e2e/                  Playwright
-├── k6/                   부하 테스트 스크립트
+├── tests/
+│   ├── e2e/              Playwright
+│   └── k6/               부하 테스트 스크립트
 └── terraform/            EC2 스케줄러 · 알람
 ```
 
