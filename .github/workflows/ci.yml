@@ -152,37 +152,27 @@ jobs:
           image: frontend-web:ci-${{ github.sha }}
           name: frontend-web
 
+  # 파이썬이라 build-services 의 메이븐 잡에 안 들어간다.
   scan-images:
-    #이미지 이름만 남긴다.
-    name: scan-images (${{ matrix.image }})
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      # 자바 서비스와 달리 둘의 위치가 갈려서 이름과 경로를 따로 준다.
-      matrix:
-        include:
-          - image: chat-service
-            dir: backend/chat-service
-          - image: nginx-proxy
-            dir: nginx-proxy
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
-      - name: Build Docker Image for ${{ matrix.image }}
+      - name: Build Docker Image for chat-service
         uses: docker/build-push-action@v6
         with:
-          context: ${{ matrix.dir }}
-          file: ${{ matrix.dir }}/Dockerfile
-          tags: ${{ matrix.image }}:ci-${{ github.sha }}
+          context: backend/chat-service
+          file: backend/chat-service/Dockerfile
+          tags: chat-service:ci-${{ github.sha }}
           load: true
-          cache-from: type=gha,scope=${{ matrix.image }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+          cache-from: type=gha,scope=chat-service
+          cache-to: type=gha,mode=max,scope=chat-service
 
       - name: Trivy 이미지 스캔
         uses: ./.github/actions/trivy-image-scan
         with:
-          image: ${{ matrix.image }}:ci-${{ github.sha }}
-          name: ${{ matrix.image }}
+          image: chat-service:ci-${{ github.sha }}
+          name: chat-service
 
   # 렌더링한 매니페스트를 검사한다. 리소스 한도 누락이나 특권 컨테이너처럼
   # 이미지 스캔으로는 안 보이는 것들이 여기서 걸린다.
