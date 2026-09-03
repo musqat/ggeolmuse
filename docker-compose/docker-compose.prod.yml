@@ -254,7 +254,7 @@ services:
       VITE_KEYCLOAK_REALM: muscathan
       VITE_KEYCLOAK_CLIENT_ID: ggeolmuse-frontend
     ports:
-      - "3000:80"
+      - "3000:8080"
     networks:
       - ggeolmuse-network
     depends_on:

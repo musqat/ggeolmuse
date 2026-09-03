@@ -17,6 +17,8 @@ spec:
       labels:
         app: {{ .Values.frontend.name }}
     spec:
+      securityContext:
+        fsGroup: 10001
       containers:
       - name: {{ .Values.frontend.name }}
         image: {{ include "ggeolmuse.image" (dict "Values" .Values "repository" .Values.frontend.image.repository "tag" .Values.frontend.image.tag "Chart" .Chart) }}
@@ -36,4 +38,14 @@ spec:
           value: {{ .Values.frontend.env.keycloakRealm | quote }}
         - name: VITE_KEYCLOAK_CLIENT_ID
           value: {{ .Values.frontend.env.keycloakClientId | quote }}
+        securityContext:
+          {{- include "ggeolmuse.securityContext" . | nindent 10 }}
+        volumeMounts:
+          {{- include "ggeolmuse.tmpVolumeMount" . | nindent 10 }}
+          - name: nginx-cache
+            mountPath: /var/cache/nginx
+      volumes:
+        {{- include "ggeolmuse.tmpVolume" . | nindent 8 }}
+        - name: nginx-cache
+          emptyDir: {}
 {{- end }}
