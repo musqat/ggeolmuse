@@ -36,6 +36,10 @@ COPY --from=build /app/dist /usr/share/nginx/html
 # nginx 설정 파일 복사
 COPY nginx.conf /etc/nginx/nginx.conf
 
-EXPOSE 3000
+RUN chown -R 10001:10001 /var/cache/nginx
+
+USER 10001
+
+EXPOSE 8080
 
 CMD ["nginx", "-g", "daemon off;"]
