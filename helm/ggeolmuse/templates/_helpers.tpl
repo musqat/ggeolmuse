@@ -185,6 +185,18 @@ DB_URL
 {{- end -}}
 {{- end }}
 
+{{/* 서드파티 이미지용
+     이미지가 자기 비root 사용자로 돌고, PVC 안 파일이 그 uid 소유라
+     10001 로 바꾸면 기존 데이터에 못 쓴다. */}}
+{{- define "ggeolmuse.baseSecurityContext" -}}
+allowPrivilegeEscalation: false
+capabilities:
+  drop:
+    - ALL
+seccompProfile:
+  type: RuntimeDefault
+{{- end }}
+
 {{/* 컨테이너 보안 컨텍스트. 루트를 버리고 파일시스템을 읽기전용으로 둔다.
      JVM 이 /tmp 에 쓰므로 ggeolmuse.tmpVolume 과 짝으로 쓴다. */}}
 {{- define "ggeolmuse.securityContext" -}}

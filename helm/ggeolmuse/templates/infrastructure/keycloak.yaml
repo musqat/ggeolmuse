@@ -78,6 +78,8 @@ spec:
           mountPath: /opt/keycloak/data/import
         resources:
           {{- toYaml .Values.infrastructure.keycloak.resources | nindent 10 }}
+        securityContext:
+          {{- include "ggeolmuse.baseSecurityContext" . | nindent 10 }}
         readinessProbe:
           httpGet:
             path: /auth/realms/master

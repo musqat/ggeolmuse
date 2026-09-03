@@ -91,6 +91,8 @@ spec:
               value: "-Xmx512m -Xms512m"
           resources:
             {{- toYaml .Values.infrastructure.kafka.resources | nindent 12 }}
+          securityContext:
+            {{- include "ggeolmuse.baseSecurityContext" . | nindent 12 }}
           volumeMounts:
             - name: kafka-data
               mountPath: /var/lib/kafka/data
