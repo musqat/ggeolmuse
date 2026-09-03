@@ -51,6 +51,8 @@ spec:
               value: "{{ .Values.infrastructure.zookeeper.env.syncLimit }}"
           resources:
             {{- toYaml .Values.infrastructure.zookeeper.resources | nindent 12 }}
+          securityContext:
+            {{- include "ggeolmuse.baseSecurityContext" . | nindent 12 }}
           volumeMounts:
             - name: zookeeper-data
               mountPath: /var/lib/zookeeper/data

@@ -60,6 +60,12 @@ spec:
             limits:
               memory: {{ .Values.infrastructure.kafkaUi.resources.limits.memory }}
               cpu: {{ .Values.infrastructure.kafkaUi.resources.limits.cpu }}
+          # 루트에 쓰는 게 JVM 성능 데이터뿐이라 읽기전용으로
+          securityContext:
+            {{- include "ggeolmuse.baseSecurityContext" . | nindent 12 }}
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            {{- include "ggeolmuse.tmpVolumeMount" . | nindent 12 }}
           startupProbe:
             httpGet:
               path: {{ if .Values.infrastructure.kafkaUi.env.SERVER_SERVLET_CONTEXT_PATH }}{{ .Values.infrastructure.kafkaUi.env.SERVER_SERVLET_CONTEXT_PATH }}{{ end }}/actuator/health
@@ -82,4 +88,6 @@ spec:
             periodSeconds: 20
             timeoutSeconds: 5
             failureThreshold: 3
+      volumes:
+        {{- include "ggeolmuse.tmpVolume" . | nindent 8 }}
 {{- end }}
