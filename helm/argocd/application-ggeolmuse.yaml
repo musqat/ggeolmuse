@@ -41,8 +41,6 @@ spec:
     syncOptions:
       # Helm hook 사용
       - CreateNamespace=true
-      # Replace 전략 사용 (리소스 완전 교체)
-      - Replace=true
       # 리소스 검증
       - Validate=true
 
