@@ -241,7 +241,7 @@ services:
     replicaCount: 1
     image:
       repository: market-data-service
-      tag: "1.2.3"
+      tag: "1.2.4"
     service:
       type: ClusterIP
       port: 8083
@@ -338,7 +338,7 @@ frontend:
   replicaCount: 1
   image:
     repository: frontend-web
-    tag: "1.2.1"
+    tag: "1.2.4"
   service:
     type: LoadBalancer
     port: 3000
