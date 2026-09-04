@@ -1,6 +1,6 @@
 import { test, expect, request } from '@playwright/test';
 import { API_URL } from '../playwright.config';
-import { priceRange } from './fixtures';
+import { pickPricedSymbols, priceRange } from './fixtures';
 import { pickDate } from './datepicker';
 
 /**
@@ -13,9 +13,7 @@ import { pickDate } from './datepicker';
  */
 test('종목 비교가 화면에서 끝까지 돈다', async ({ page }) => {
   const api = await request.newContext();
-  const res = await api.get(`${API_URL}/market/symbols`);
-  const all = (await res.json()) as Array<{ symbol: string; latestClose: number | null }>;
-  const usable = all.filter((s) => s.latestClose != null).slice(0, 2);
+  const usable = (await pickPricedSymbols(api, 2)).slice(0, 2);
   expect(usable.length, '시세가 있는 종목이 둘은 있어야 한다').toBe(2);
   const { start, end } = await priceRange(api, usable[0].symbol);
   await api.dispose();

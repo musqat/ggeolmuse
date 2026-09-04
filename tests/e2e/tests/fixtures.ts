@@ -11,16 +11,40 @@ export interface TestSymbol {
   name: string;
 }
 
+/** 시세가 붙은 종목을 골라 모은다. symbols 는 티커만 줘서 stocks 를 쓴다. */
+export async function pickPricedSymbols(
+  api: APIRequestContext,
+  count: number
+): Promise<TestSymbol[]> {
+  const found: TestSymbol[] = [];
+
+  // 시가총액 순이라 시세 있는 종목이 앞쪽에 몰려 있지 않다
+  for (let page = 0; page < 10 && found.length < count; page++) {
+    const res = await api.get(`${API_URL}/market/stocks`, { params: { page, size: 200 } });
+    if (!res.ok()) throw new Error(`종목 목록 조회 실패: ${res.status()}`);
+
+    const body = (await res.json()) as {
+      content?: Array<{ symbol: string; name: string; currentPrice: number | null }>;
+      last?: boolean;
+    };
+    const rows = body.content ?? [];
+
+    for (const row of rows) {
+      if (row.currentPrice != null) found.push({ symbol: row.symbol, name: row.name });
+    }
+
+    if (body.last || rows.length === 0) break;
+  }
+
+  return found;
+}
+
 /** 시세가 실제로 있는 종목 하나를 고른다. */
 export async function pickSymbol(api: APIRequestContext): Promise<TestSymbol> {
-  const res = await api.get(`${API_URL}/market/symbols`);
-  if (!res.ok()) throw new Error(`종목 목록 조회 실패: ${res.status()}`);
-
-  const all = (await res.json()) as Array<TestSymbol & { latestClose: number | null }>;
-  const usable = all.find((s) => s.latestClose != null);
+  const [usable] = await pickPricedSymbols(api, 1);
   if (!usable) throw new Error('시세가 있는 종목이 하나도 없다. 스택이 덜 떴을 수 있다.');
 
-  return { symbol: usable.symbol, name: usable.name };
+  return usable;
 }
 
 /** 그 종목에 OHLC 가 실제로 있는 구간을 돌려준다. 양끝은 며칠 물려 둔다. */

@@ -1,6 +1,6 @@
 import { test, expect, request, APIRequestContext } from '@playwright/test';
 import { API_URL } from '../playwright.config';
-import { pickSymbol, priceRange } from './fixtures';
+import { pickPricedSymbols, pickSymbol, priceRange } from './fixtures';
 
 /**
  * 모드마다 컨트롤러와 요청 DTO 가 따로다. 배선이 붙어있는지 확인
@@ -19,9 +19,8 @@ test.beforeAll(async () => {
   symbol = picked.symbol;
 
   // 비교에는 두 종목이 필요하다. 시세가 있는 것 중 다른 하나를 고른다.
-  const res = await api.get(`${API_URL}/market/symbols`);
-  const all = (await res.json()) as Array<{ symbol: string; latestClose: number | null }>;
-  const other = all.find((s) => s.latestClose != null && s.symbol !== symbol);
+  const priced = await pickPricedSymbols(api, 10);
+  const other = priced.find((s) => s.symbol !== symbol);
   expect(other, '시세가 있는 종목이 하나뿐이다').toBeTruthy();
   second = other!.symbol;
 
