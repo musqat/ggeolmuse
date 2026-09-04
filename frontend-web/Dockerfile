@@ -1,5 +1,5 @@
 # 프론트엔드 Dockerfile
-FROM node:20 as build
+FROM node:20 AS build
 
 # K8s 환경용 기본값이 있는 빌드 인자
 ARG VITE_API_URL=/api
