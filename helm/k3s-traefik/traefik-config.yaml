@@ -17,5 +17,5 @@ spec:
         allowCrossNamespace: true
         allowExternalNameServices: true
     api:
-      insecure: true
+      insecure: false
       dashboard: true
