@@ -13,4 +13,7 @@ public interface AssetRepositoryCustom {
   // 활성 상태인 종목을 시가총액 기준 정렬하여 페이징 조회
   // ascending: true면 오름차순, false면 내림차순 / assetType: null이면 전체
   Page<Asset> findActiveSortedByMarketCap(Pageable pageable, boolean ascending, String assetType);
+
+  // 상장 중인 종목의 티커만 조회. 검색용
+  List<String> findActiveSymbols();
 }

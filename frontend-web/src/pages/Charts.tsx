@@ -30,8 +30,6 @@ const Charts: React.FC = () => {
 
   const [period, setPeriod] = useState<'1개월' | '3개월' | '6개월' | '1년' | '3년' | '5년' | '10년' | '전체' | 'CUSTOM'>('1년');
   const [showSearchModal, setShowSearchModal] = useState(false);
-  const [showSearchInput, setShowSearchInput] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
 
   // 커스텀 날짜 범위
   const [customStartDate, setCustomStartDate] = useState('');
@@ -182,65 +180,21 @@ const Charts: React.FC = () => {
 
         {/* 첫 번째 줄: 심볼 + 검색 */}
         <div className="mb-3">
-          {!showSearchInput ? (
-            <div className="flex items-center space-x-4">
-              <div>
-                <h1 className="text-4xl font-bold text-tx-1">{symbol}</h1>
-                {companyName && (
-                  <p className="text-sm text-tx-2 mt-1">{companyName}</p>
-                )}
-              </div>
-              <button
-                onClick={() => setShowSearchInput(true)}
-                className="p-2 hover:bg-brand-bg rounded-lg transition-colors bg-brand-bg"
-                title="종목 변경"
-              >
-                <Search className="w-5 h-5 text-brand" />
-              </button>
+          <div className="flex items-center space-x-4">
+            <div>
+              <h1 className="text-4xl font-bold text-tx-1">{symbol}</h1>
+              {companyName && (
+                <p className="text-sm text-tx-2 mt-1">{companyName}</p>
+              )}
             </div>
-          ) : (
-            <div className="flex items-center space-x-2">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value.toUpperCase())}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && searchQuery) {
-                    navigate(`/charts/${searchQuery}`);
-                    setShowSearchInput(false);
-                    setSearchQuery('');
-                  } else if (e.key === 'Escape') {
-                    setShowSearchInput(false);
-                    setSearchQuery('');
-                  }
-                }}
-                placeholder="심볼 입력 (예: AAPL)"
-                autoFocus
-                className="px-4 py-2 border border-brand/40 rounded-lg text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
-              />
-              <button
-                onClick={() => {
-                  if (searchQuery) {
-                    navigate(`/charts/${searchQuery}`);
-                    setShowSearchInput(false);
-                    setSearchQuery('');
-                  }
-                }}
-                className="px-4 py-2 bg-brand text-white rounded-lg hover:bg-brand-dark transition-colors"
-              >
-                검색
-              </button>
-              <button
-                onClick={() => {
-                  setShowSearchInput(false);
-                  setSearchQuery('');
-                }}
-                className="px-4 py-2 bg-hover text-tx-1 rounded-lg hover:bg-hover hover:text-tx-1 transition-colors"
-              >
-                취소
-              </button>
-            </div>
-          )}
+            <button
+              onClick={() => setShowSearchModal(true)}
+              className="p-2 hover:bg-brand-bg rounded-lg transition-colors bg-brand-bg"
+              title="종목 변경"
+            >
+              <Search className="w-5 h-5 text-brand" />
+            </button>
+          </div>
         </div>
 
         {/* 두 번째 줄: 가격 정보 + 컨트롤 */}

@@ -24,6 +24,16 @@ public class AssetRepositoryCustomImpl implements AssetRepositoryCustom {
     private static final QAsset asset = QAsset.asset;
 
     @Override
+    public List<String> findActiveSymbols() {
+        return queryFactory
+            .select(asset.symbol)
+            .from(asset)
+            .where(asset.active.isTrue())
+            .orderBy(asset.symbol.asc())
+            .fetch();
+    }
+
+    @Override
     public List<Asset> searchByKeyword(String keyword, int limit) {
         String upperKeyword = keyword.toUpperCase();
 
