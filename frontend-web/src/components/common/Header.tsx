@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { TrendingUp, Search, Menu, LogOut, User } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -21,7 +22,6 @@ const Header: React.FC = () => {
   const [totalAssets, setTotalAssets] = useState<number>(0);
   const [isLoadingAssets, setIsLoadingAssets] = useState<boolean>(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
-  const [supportedSymbols, setSupportedSymbols] = useState<string[]>([]);
 
   const navigation = [
     { name: 'Home', href: '/' },
@@ -34,20 +34,16 @@ const Header: React.FC = () => {
 
   const isActive = (path: string) => location.pathname === path;
 
-  useEffect(() => {
-    const loadSymbols = async () => {
-      try {
-        const response = await stockApi.getAllSymbols();
-        const assets = Array.isArray(response.data) ? response.data : [];
-        setSupportedSymbols(assets.map((a) => String(a.symbol).toUpperCase()));
-      } catch (e) {
-        // 검색 자동완성용이라 실패해도 화면은 뜬다. 다만 조용히 넘기면
-        // 검색이 안 되는 이유를 알 수 없어 로그는 남긴다.
-        console.warn('종목 목록을 불러오지 못했습니다', e);
-      }
-    };
-    loadSymbols();
-  }, []);
+  // Charts, Backtest, Trading 과 같은 키를 써서 캐시를 나눈다
+  const { data: supportedSymbols = [] } = useQuery({
+    queryKey: ['stock', 'symbols'],
+    queryFn: async () => {
+      const response = await stockApi.getAllSymbols();
+      return (Array.isArray(response.data) ? response.data : [])
+        .map((a) => String(a.symbol).toUpperCase());
+    },
+    staleTime: 10 * 60 * 1000, // 10분
+  });
 
   useEffect(() => {
     const fetchTotalAssets = async () => {
