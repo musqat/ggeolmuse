@@ -64,6 +64,13 @@ public interface AssetService {
   List<Asset> getAllAssets();
 
   /**
+   * 상장 중인 종목의 티커만 조회
+   *
+   * @return 티커 리스트
+   */
+  List<String> getActiveSymbols();
+
+  /**
    * 전체 종목 요약 정보 조회 (가격, 최신 데이터 날짜 포함, 페이지네이션)
    *
    * @param pageable 페이지 정보 (page, size, sort)

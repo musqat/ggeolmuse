@@ -165,6 +165,17 @@ public class AssetServiceImpl implements AssetService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<String> getActiveSymbols() {
+        log.debug("활성 티커 조회 요청");
+
+        List<String> symbols = assetRepository.findActiveSymbols();
+        log.debug("활성 티커 조회 성공: count={}", symbols.size());
+
+        return symbols;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Page<AssetSummaryDto> getAllAssetSummaries(Pageable pageable) {
         log.debug("전체 종목 요약 정보 조회 요청 (페이지: {}, 크기: {})",
                 pageable.getPageNumber(), pageable.getPageSize());

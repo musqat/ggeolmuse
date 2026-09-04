@@ -3,6 +3,7 @@ package com.muscat.marketdata.api.controller;
 import com.muscat.marketdata.domain.dto.DividendDto;
 import com.muscat.marketdata.domain.dto.OHLCPriceDto;
 import com.muscat.marketdata.domain.dto.StockPriceDto;
+import com.muscat.marketdata.domain.dto.SymbolDto;
 import com.muscat.marketdata.domain.entity.FxRate;
 import com.muscat.marketdata.domain.service.AssetService;
 import com.muscat.marketdata.domain.service.CandleService;
@@ -259,27 +260,29 @@ public class MarketController {
   }
 
   @Operation(
-    summary = "전체 종목 목록 조회",
-    description = "시스템에 등록된 모든 종목(Asset)의 기본 정보를 조회합니다"
+    summary = "종목 티커 목록 조회",
+    description = "상장 중인 종목의 티커만 조회합니다. 검색 자동완성에 씁니다"
   )
   @ApiResponses(value = {
     @ApiResponse(
       responseCode = "200",
-      description = "종목 목록 조회 성공",
+      description = "티커 목록 조회 성공",
       content = @Content(
         mediaType = "application/json",
-        schema = @Schema(implementation = com.muscat.marketdata.domain.entity.Asset.class)
+        schema = @Schema(implementation = SymbolDto.class)
       )
     )
   })
   @GetMapping("/symbols")
-  public ResponseEntity<List<com.muscat.marketdata.domain.entity.Asset>> getAllSymbols() {
-    log.debug("전체 종목 목록 조회 요청");
+  public ResponseEntity<List<SymbolDto>> getActiveSymbols() {
+    log.debug("활성 종목 티커 조회 요청");
 
-    List<com.muscat.marketdata.domain.entity.Asset> assets = assetService.getAllAssets();
+    List<SymbolDto> symbols = assetService.getActiveSymbols().stream()
+      .map(SymbolDto::new)
+      .toList();
 
-    log.debug("전체 종목 목록 조회 완료: {} 개", assets.size());
-    return ResponseEntity.status(HttpStatus.OK).body(assets);
+    log.debug("활성 종목 티커 조회 완료: {} 개", symbols.size());
+    return ResponseEntity.status(HttpStatus.OK).body(symbols);
   }
 
   @Operation(

@@ -138,8 +138,8 @@ apiClient.interceptors.response.use(
   }
 );
 
-// /market/symbols 와 /market/stocks 가 주는 종목 한 건.
-// 서버가 모든 필드를 항상 채우지는 않아 선택 필드가 많다.
+// /market/stocks 가 주는 종목 한 건.
+// /market/symbols 는 자동완성용이라 symbol 만 준다.
 export interface AssetSummary {
   symbol: string;
   name?: string;
