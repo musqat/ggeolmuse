@@ -69,37 +69,6 @@ spec:
             secretKeyRef:
               name: ggeolmuse-secrets
               key: CONFIG_SERVER_PASSWORD
-        # Database credentials and URLs for placeholder substitution
-        - name: DB_URL_USER
-          valueFrom:
-            secretKeyRef:
-              name: ggeolmuse-secrets
-              key: DB_URL_USER
-        - name: DB_URL_TRADE
-          valueFrom:
-            secretKeyRef:
-              name: ggeolmuse-secrets
-              key: DB_URL_TRADE
-        - name: DB_URL_MARKET
-          valueFrom:
-            secretKeyRef:
-              name: ggeolmuse-secrets
-              key: DB_URL_MARKET
-        - name: DB_URL_BACKTEST
-          valueFrom:
-            secretKeyRef:
-              name: ggeolmuse-secrets
-              key: DB_URL_BACKTEST
-        - name: DB_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: ggeolmuse-secrets
-              key: DB_USERNAME
-        - name: DB_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: ggeolmuse-secrets
-              key: DB_PASSWORD
         {{- end }}
         - name: JAVA_OPTS
           value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" .Values.configServer.name "xmx" "128m") }}
