@@ -74,8 +74,6 @@ configs:
     timeout.reconciliation: 180s
     # 서브도메인 기반
     server.insecure: "true"
-    server.rootpath: /
-    server.basehref: /
 
   cm:
     # ArgoCD 서버 URL
