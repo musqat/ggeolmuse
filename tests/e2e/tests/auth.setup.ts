@@ -1,5 +1,6 @@
 import { test as setup, expect, request } from '@playwright/test';
 import { API_URL, BASE_URL, SEED_EMAIL, SEED_PASSWORD, STORAGE_STATE, TOKEN_FILE } from '../playwright.config';
+import { pickPricedSymbols } from './fixtures';
 
 /**
  * localStorage 의 accessToken 하나면 로그인한 상태가 된다. 인터셉터가 그걸 꺼내 쓴다.
@@ -14,10 +15,7 @@ setup('시드 계정으로 토큰을 받아 저장한다', async () => {
     .poll(
       async () => {
         try {
-          const res = await api.get(`${API_URL}/market/symbols`);
-          if (!res.ok()) return 0;
-          const list = (await res.json()) as Array<{ latestClose: number | null }>;
-          return list.filter((x) => x.latestClose != null).length;
+          return (await pickPricedSymbols(api, 10)).length;
         } catch {
           return 0;
         }
