@@ -51,7 +51,13 @@ redis:
 
 # ApplicationSet Controller 설정
 applicationSet:
-  enabled: false
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 10m
+      memory: 64Mi
 
 # Notifications Controller (선택사항)
 notifications:
