@@ -21,7 +21,7 @@ kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
 echo "3. ArgoCD Helm chart 설치..."
 helm upgrade --install argocd argo/argo-cd \
   --namespace argocd \
-  --version 5.51.6 \
+  --version 9.0.6 \
   --values values-argocd.yaml \
   --wait \
   --timeout 10m
@@ -44,6 +44,4 @@ echo "URL: https://argocd.ggeolmuse.com"
 echo "Username: admin"
 echo "Password: $ARGOCD_PASSWORD"
 echo "=========================================="
-echo ""
-echo "※ UI 또는 'argocd account update-password' 명령어 사용"
 echo ""
