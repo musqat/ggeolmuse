@@ -50,6 +50,8 @@ export default defineConfig({
     {
       name: 'setup',
       testMatch: /auth\.setup\.ts/,
+      // 스택이 시세를 받을 때까지 기다린다.
+      timeout: 330_000,
     },
     {
       name: 'chromium',
