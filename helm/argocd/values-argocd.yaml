@@ -10,14 +10,14 @@ server:
   extraArgs:
     - --insecure
 
-  # 리소스 제한 (t3.medium 최적화)
+  # 요청을 실사용에 맞추고 한도는 남긴다.
   resources:
     limits:
       cpu: 500m
       memory: 512Mi
     requests:
-      cpu: 250m
-      memory: 256Mi
+      cpu: 50m
+      memory: 128Mi
 
 # Controller 설정 (Git 저장소 감시)
 controller:
@@ -26,8 +26,8 @@ controller:
       cpu: 500m
       memory: 512Mi
     requests:
-      cpu: 250m
-      memory: 256Mi
+      cpu: 100m
+      memory: 320Mi
 
 # Repo Server 설정 (Git 저장소 연결)
 repoServer:
@@ -36,8 +36,8 @@ repoServer:
       cpu: 500m
       memory: 512Mi
     requests:
-      cpu: 250m
-      memory: 256Mi
+      cpu: 100m
+      memory: 128Mi
 
 # Redis 설정
 redis:
@@ -46,19 +46,12 @@ redis:
       cpu: 200m
       memory: 128Mi
     requests:
-      cpu: 100m
-      memory: 64Mi
+      cpu: 25m
+      memory: 32Mi
 
 # ApplicationSet Controller 설정
 applicationSet:
-  enabled: true
-  resources:
-    limits:
-      cpu: 200m
-      memory: 256Mi
-    requests:
-      cpu: 100m
-      memory: 128Mi
+  enabled: false
 
 # Notifications Controller (선택사항)
 notifications:
