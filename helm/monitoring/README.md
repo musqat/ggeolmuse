@@ -96,7 +96,8 @@ count(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_irate)
 | resource-usage | HighCpuUsage, HighMemoryUsage, CriticalMemoryUsage |
 | api-performance | HighErrorRate, SlowResponseTime |
 | config-server | ConfigServerDown, ConfigServerHighLatency |
-| gateway | GatewayHighErrorRate, GatewayCircuitBreakerOpen |
+| gateway | GatewayHighErrorRate |
+| resilience | CircuitBreakerOpen, CircuitBreakerMissing |
 
 파드·노드 수준은 차트 내장 규칙이 맡는다. Redis·Kafka·Keycloak 은 exporter 가 없어
 `up` 시계열 자체가 없다.
