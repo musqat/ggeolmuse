@@ -5,7 +5,7 @@
 ### AWS 구성
 
 ```
-AWS EC2 (t3.large, 8GB RAM + 2GB Swap)
+AWS EC2 (t3a.xlarge, 16GB RAM)
 ├── Cloudflare (DNS, SSL, DDoS 방어)
 │
 └── K3s Cluster
