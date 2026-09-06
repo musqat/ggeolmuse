@@ -13,7 +13,6 @@ import java.time.LocalDate;
 @Table(name = "dividend",
     uniqueConstraints = @UniqueConstraint(columnNames = {"symbol", "ex_date"}),
     indexes = {
-        @Index(name = "idx_dividend_symbol_ex_date", columnList = "symbol,ex_date"),
         @Index(name = "idx_dividend_ex_date", columnList = "ex_date")
     })
 public class Dividend {
