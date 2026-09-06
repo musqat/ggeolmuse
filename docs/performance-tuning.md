@@ -19,6 +19,7 @@
 | [ArgoCD requests](#42-argocd-요청-950m-실사용-9m) | 950m | 275m | kubectl top | 09-04 |
 | [CI 저장소 대기](#51-응답-없는-저장소를-기다렸다) | 484초 | 47초 | user-service 잡 | 08-28 |
 | [Trivy 스캔](#52-같은-이미지를-두-번-스캔했다) | 서비스당 57초 | 33초 | CI 로그 | 08-28 |
+| [겹친 인덱스](#61-같은-컬럼에-인덱스가-두-벌씩-있었다) | 4개 · 1,648 MB | 0 | 운영 DB | 09-06 |
 
 날짜는 잰 날이다. 같은 노드라도 날이 다르면 합계가 다르다. 그 사이 올라간 게 있어서다.
 
@@ -386,6 +387,45 @@ Cache restored successfully          954MB, 15초
 | 확인 | 두 형식 산출물이 그대로 나오는지. SARIF 업로드 정상 |
 
 경위는 [취약점 DB 캐시가 자리만 차지하고 있었다](problem-solving.md#취약점-db-캐시가-자리만-차지하고-있었다).
+
+<br>
+
+## 개선 6. 겹친 인덱스를 지웠다
+
+### 6.1 같은 컬럼에 인덱스가 두 벌씩 있었다
+
+**문제.** Flyway 검증을 켜려고 스키마를 살피다 인덱스 사용 횟수를 같이 뽑았다.
+같은 컬럼을 덮는 구조가 테이블마다 둘씩 있었다.
+
+**원인.** 이름이 `uk` + 해시인 것들은 Hibernate `ddl-auto` 가 만든 유니크 제약이다.
+마이그레이션이 같은 제약을 이미 만들어 두었는데 한 벌이 더 생겼다. dividend 는
+`(symbol, ex_date)` 위에 유니크 둘과 일반 인덱스 둘, 넷이 겹쳐 있었다.
+
+**개선.** V3 마이그레이션으로 겹친 쪽을 지웠다. 테이블마다 유니크 제약 한 벌은 남는다.
+`idx_asset_active_market_cap` 은 운영에만 `WHERE active = true` 가 붙어 있어 V2 정의대로
+다시 만들었다.
+
+**결과.**
+
+| 지운 것 | 크기 |
+|---|---|
+| candle 의 중복 UNIQUE (symbol, date, currency) | 1,606 MB |
+| dividend 의 중복 UNIQUE (symbol, ex_date) | 14 MB |
+| `idx_dividend_symbol_date` | 14 MB |
+| `idx_dividend_symbol_ex_date` | 14 MB |
+
+| | 전 | 후 |
+|---|---|---|
+| dividend 테이블 전체 | 109 MB | 66 MB |
+| 인덱스 수 (candle + dividend) | 13 | 9 |
+
+| | |
+|---|---|
+| 조건 | 운영 DB, `pg_total_relation_size` · `pg_indexes`. 2026-09-06 |
+| 확인 | 유니크 제약이 테이블마다 하나씩 남아 있는지. `idx_asset_active_market_cap` 정의에 WHERE 절이 없는지 |
+
+쓰기마다 유지하던 인덱스가 넷 줄었다. 읽기 경로는 그대로다. 남은 인덱스로 같은 질의를
+받는다.
 
 <br>
 
