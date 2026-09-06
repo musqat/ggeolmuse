@@ -8,6 +8,7 @@ metadata:
     {{- include "ggeolmuse.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.services.chatService.replicaCount }}
+  revisionHistoryLimit: {{ .Values.global.revisionHistoryLimit | default 5 }}
   selector:
     matchLabels:
       app: {{ .Values.services.chatService.name }}

@@ -3,6 +3,9 @@ global:
   imageRegistry: muscathan
   imagePullPolicy: Always
 
+  # 롤백용으로 남기는 옛 ReplicaSet 개수. 기본값은 10 -> 5
+  revisionHistoryLimit: 5
+
   # Management server port (Health, Metrics, Actuator)
   management:
     port: 9090

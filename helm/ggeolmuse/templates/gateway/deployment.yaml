@@ -10,6 +10,7 @@ metadata:
     {{- include "ggeolmuse.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.gatewayServer.replicaCount }}
+  revisionHistoryLimit: {{ .Values.global.revisionHistoryLimit | default 5 }}
   {{- with .Values.gatewayServer.strategy }}
   strategy:
     rollingUpdate:

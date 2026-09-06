@@ -14,6 +14,7 @@ metadata:
     {{- include "ggeolmuse.labels" . | nindent 4 }}
 spec:
   replicas: {{ $svc.replicaCount }}
+  revisionHistoryLimit: {{ .Values.global.revisionHistoryLimit | default 5 }}
   {{- if $svc.strategy }}
   strategy:
     type: RollingUpdate
