@@ -95,7 +95,7 @@ count(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_irate)
 | service-availability | ServiceDown, ServiceRestarting |
 | resource-usage | HighCpuUsage, HighMemoryUsage, CriticalMemoryUsage |
 | api-performance | HighErrorRate, SlowResponseTime |
-| config-server | ConfigServerDown, ConfigServerHighLatency |
+| config-server | ConfigServerDown, ConfigServerHighLatency, ConfigServerUnauthorized |
 | gateway | GatewayHighErrorRate |
 | resilience | CircuitBreakerOpen, CircuitBreakerMissing |
 

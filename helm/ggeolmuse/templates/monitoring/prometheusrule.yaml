@@ -25,7 +25,7 @@ spec:
             category: availability
           annotations:
             summary: "서비스 다운 감지: {{ `{{ $labels.job }}` }}"
-            description: "{{ `{{ $labels.job }}` }} 서비스가 10분 이상 응답하지 않습니다."
+            description: '{{ `{{ $labels.job }}` }} 응답 없음 · 10분 지속'
             instance: "{{ `{{ $labels.instance }}` }}"
             value: "{{ `{{ $value }}` }}"
 
@@ -38,7 +38,7 @@ spec:
             category: availability
           annotations:
             summary: "Pod 재시작 감지: {{ `{{ $labels.pod }}` }}"
-            description: "{{ `{{ $labels.pod }}` }}가 15분 동안 세 번 넘게 재시작했습니다. 로그를 확인하세요."
+            description: '{{ `{{ $labels.pod }}` }} 재시작 3회 초과 · 최근 15분'
             namespace: "{{ `{{ $labels.namespace }}` }}"
             container: "{{ `{{ $labels.container }}` }}"
 
@@ -59,7 +59,7 @@ spec:
             category: resource
           annotations:
             summary: "높은 CPU 사용률: {{ `{{ $labels.job }}` }}"
-            description: "{{ `{{ $labels.job }}` }}의 CPU 사용률이 5분 동안 80%를 초과했습니다. 현재: {{ `{{ $value | humanizePercentage }}` }}"
+            description: '{{ `{{ $labels.job }}` }} CPU 사용률 80% 초과 · 5분 지속 · 현재 {{ `{{ $value | printf "%.1f" }}` }}%'
             instance: "{{ `{{ $labels.instance }}` }}"
 
         - alert: HighMemoryUsage
@@ -76,7 +76,7 @@ spec:
             category: resource
           annotations:
             summary: "높은 메모리 사용률: {{ `{{ $labels.job }}` }}"
-            description: "{{ `{{ $labels.job }}` }}의 Heap 메모리 사용률이 5분 동안 85%를 초과했습니다. 현재: {{ `{{ $value | humanizePercentage }}` }}"
+            description: '{{ `{{ $labels.job }}` }} 힙 사용률 85% 초과 · 5분 지속 · 현재 {{ `{{ $value | printf "%.1f" }}` }}%'
             instance: "{{ `{{ $labels.instance }}` }}"
 
         - alert: CriticalMemoryUsage
@@ -92,7 +92,7 @@ spec:
             category: resource
           annotations:
             summary: "심각한 메모리 부족: {{ `{{ $labels.job }}` }}"
-            description: "{{ `{{ $labels.job }}` }}의 Heap 메모리 사용률이 95%를 초과했습니다. OOM 위험이 있습니다. 현재: {{ `{{ $value | humanizePercentage }}` }}"
+            description: '{{ `{{ $labels.job }}` }} 힙 사용률 95% 초과 · 2분 지속 · 현재 {{ `{{ $value | printf "%.1f" }}` }}% · OOM 임박'
             instance: "{{ `{{ $labels.instance }}` }}"
 
     # ========================================
@@ -114,7 +114,7 @@ spec:
             category: performance
           annotations:
             summary: "높은 에러율: {{ `{{ $labels.job }}` }} {{ `{{ $labels.uri }}` }}"
-            description: "{{ `{{ $labels.job }}` }}의 {{ `{{ $labels.uri }}` }} 엔드포인트에서 5xx 에러율이 5%를 초과했습니다. 현재: {{ `{{ $value | humanizePercentage }}` }}"
+            description: '{{ `{{ $labels.job }}` }} {{ `{{ $labels.uri }}` }} 5xx 비율 5% 초과 · 3분 지속 · 현재 {{ `{{ $value | printf "%.1f" }}` }}%'
 
         - alert: SlowResponseTime
           expr: |
@@ -127,7 +127,7 @@ spec:
             category: performance
           annotations:
             summary: "느린 응답 시간: {{ `{{ $labels.job }}` }} {{ `{{ $labels.uri }}` }}"
-            description: "{{ `{{ $labels.job }}` }}의 {{ `{{ $labels.uri }}` }} 엔드포인트 P95 응답 시간이 2초를 초과했습니다. 현재: {{ `{{ $value }}` }}s"
+            description: '{{ `{{ $labels.job }}` }} {{ `{{ $labels.uri }}` }} P95 응답 2초 초과 · 5분 지속 · 현재 {{ `{{ $value | printf "%.2f" }}` }}초'
     - name: config-server
       interval: 30s
       rules:
@@ -139,7 +139,7 @@ spec:
             category: config
           annotations:
             summary: "Config Server 다운"
-            description: "Config Server가 응답하지 않습니다. 다른 서비스들이 설정을 가져올 수 없습니다."
+            description: 'config-server 응답 없음 · 5분 지속 · 나머지 서비스 설정 조회 불가'
 
         - alert: ConfigServerHighLatency
           expr: |
@@ -152,7 +152,18 @@ spec:
             category: config
           annotations:
             summary: "Config Server 응답 지연"
-            description: "Config Server의 P95 응답 시간이 5초를 초과했습니다. 서비스 시작이 지연될 수 있습니다."
+            description: 'config-server P95 응답 5초 초과 · 5분 지속 · 서비스 기동 지연'
+
+        - alert: ConfigServerUnauthorized
+          # 클라이언트와 config-server 의 비밀번호가 어긋나면 여기서 401 이 난다
+          expr: sum(rate(http_server_requests_seconds_count{job="config-server", status="401"}[5m])) * 60 > 0
+          for: 5m
+          labels:
+            severity: critical
+            category: config
+          annotations:
+            summary: "Config Server 인증 실패"
+            description: 'config-server 401 응답 · 5분 지속 · 분당 {{ `{{ $value | printf "%.0f" }}` }}회 · 클라이언트 비밀번호 불일치 의심'
 
     # ========================================
     # Gateway 알림
@@ -173,7 +184,7 @@ spec:
             category: gateway
           annotations:
             summary: "Gateway 높은 에러율"
-            description: "Gateway의 5xx 에러율이 3%를 초과했습니다. 백엔드 서비스 문제일 수 있습니다. 현재: {{ `{{ $value | humanizePercentage }}` }}"
+            description: 'gateway-server 5xx 비율 3% 초과 · 3분 지속 · 현재 {{ `{{ $value | printf "%.1f" }}` }}%'
 
     # ========================================
     # 서킷브레이커
@@ -189,7 +200,7 @@ spec:
             category: resilience
           annotations:
             summary: "서킷 OPEN: {{ `{{ $labels.job }}` }} → {{ `{{ $labels.name }}` }}"
-            description: "{{ `{{ $labels.job }}` }} 의 {{ `{{ $labels.name }}` }} 서킷이 1분 넘게 열려 있습니다. 대상 서비스 호출이 실패하고 있습니다."
+            description: '{{ `{{ $labels.job }}` }} → {{ `{{ $labels.name }}` }} 서킷 OPEN · 1분 지속 · 대상 서비스 호출 차단 중'
 
         - alert: CircuitBreakerMissing
           # 설정의 인스턴스 이름과 코드의 @CircuitBreaker 이름이 어긋나면 서킷이 기본값으로 돌아
@@ -207,4 +218,4 @@ spec:
             category: resilience
           annotations:
             summary: "서킷 메트릭 없음: {{ `{{ $labels.job }}` }} / {{ `{{ $labels.name }}` }}"
-            description: "{{ `{{ $labels.job }}` }} 에 {{ `{{ $labels.name }}` }} 서킷이 등록되지 않았습니다. 설정 리포의 instances 이름과 코드의 @CircuitBreaker 이름을 대조하세요."
+            description: '{{ `{{ $labels.job }}` }} 에 {{ `{{ $labels.name }}` }} 서킷 메트릭 없음 · 15분 지속 · 설정 instances 이름과 @CircuitBreaker 이름 불일치 의심'
