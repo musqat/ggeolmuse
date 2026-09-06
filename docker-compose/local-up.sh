@@ -41,16 +41,16 @@ if [[ "${1:-}" == "down" ]]; then
 fi
 
 # ── 1. 전제 체크 ─────────────────────────────────────────────
-command -v docker >/dev/null 2>&1 || die "docker 없음. Docker Desktop 설치 후 실행."
-docker info >/dev/null 2>&1 || die "Docker 데몬 미실행. Docker Desktop을 켜세요."
+command -v docker >/dev/null 2>&1 || die "docker 없음 · Docker Desktop 설치 필요"
+docker info >/dev/null 2>&1 || die "Docker 데몬 미실행 · Docker Desktop 실행 필요"
 ok "docker 준비됨"
 
 # ── 2. .env 준비 ─────────────────────────────────────────────
 if [[ ! -f "$ENV_FILE" ]]; then
   cp "$ENV_EXAMPLE" "$ENV_FILE"
-  ok ".env 생성됨 (기본값)."
+  ok ".env 생성 (기본값)"
 else
-  info ".env 이미 존재 — 보존"
+  info ".env 있음 · 그대로 사용"
 fi
 
 # OpenAI 키: 환경변수 우선, 없으면 .env 확인
@@ -65,7 +65,7 @@ if [[ -n "$OPENAI_KEY" ]]; then
   PROFILE_ARGS=(--profile ai)
   ok "OpenAI 키 감지 → chat-service 포함"
 else
-  warn "OPENAI_API_KEY 없음 → chat-service 제외. (AI 버튼은 보이나 호출 시 안내)"
+  warn "OPENAI_API_KEY 없음 → chat-service 제외 (AI 버튼은 호출 시 안내만)"
 fi
 
 # ── 3. 빌드 + 기동 ───────────────────────────────────────────
@@ -87,7 +87,7 @@ cat <<EOF
    이메일:   admin@test.com
    비밀번호: Admin123!
 
- AI 챗봇: $([[ -n "$OPENAI_KEY" ]] && echo "활성" || echo "비활성 (OPENAI_API_KEY 주고 재실행 시 켜짐)")
+ AI 챗봇: $([[ -n "$OPENAI_KEY" ]] && echo "활성" || echo "비활성 (OPENAI_API_KEY 설정 후 재실행)")
  종료:   bash docker-compose/local-up.sh down
 ────────────────────────────────────────────────
 EOF

@@ -736,4 +736,23 @@ class AssetServiceImplTest {
       verify(assetRepository).findById(TEST_SYMBOL);
     }
   }
+
+  @Nested
+  @DisplayName("활성 티커 목록 테스트")
+  class ActiveSymbolsTests {
+
+    @Test
+    @DisplayName("리포지토리가 준 티커를 그대로 돌려준다")
+    void getActiveSymbols_ReturnsRepositoryResult() {
+      // given
+      given(assetRepository.findActiveSymbols()).willReturn(List.of("AAPL", "MSFT"));
+
+      // when
+      List<String> result = assetService.getActiveSymbols();
+
+      // then
+      assertThat(result).containsExactly("AAPL", "MSFT");
+      verify(assetRepository).findActiveSymbols();
+    }
+  }
 }
