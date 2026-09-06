@@ -10,6 +10,7 @@ metadata:
     {{- include "ggeolmuse.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.configServer.replicaCount }}
+  revisionHistoryLimit: {{ .Values.global.revisionHistoryLimit | default 5 }}
   selector:
     matchLabels:
       app: {{ .Values.configServer.name }}
