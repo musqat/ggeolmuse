@@ -102,10 +102,11 @@ spec:
       interval: 30s
       rules:
         - alert: HighErrorRate
+          # /fallback 은 503 이 정상이라 uri 별 비율이 늘 100% 다
           expr: |
             (
-              sum(rate(http_server_requests_seconds_count{job=~"(gateway-server|user-service|trade-service|market-data-service|backtest-service)", status=~"5.."}[5m])) by (job, uri)
-              / sum(rate(http_server_requests_seconds_count{job=~"(gateway-server|user-service|trade-service|market-data-service|backtest-service)"}[5m])) by (job, uri)
+              sum(rate(http_server_requests_seconds_count{job=~"(gateway-server|user-service|trade-service|market-data-service|backtest-service)", uri!="/fallback", status=~"5.."}[5m])) by (job, uri)
+              / sum(rate(http_server_requests_seconds_count{job=~"(gateway-server|user-service|trade-service|market-data-service|backtest-service)", uri!="/fallback"}[5m])) by (job, uri)
               * 100
             ) > 5
           for: 3m
