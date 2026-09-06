@@ -1,12 +1,7 @@
 name: E2E
 
-# PR 이 아니라 master 에 들어온 뒤 돈다.
-#
-# PR 게이트로 두지 않는 이유는 스위트가 Yahoo Finance 에 의존해서다. 우리 코드와
-# 무관하게 Yahoo 가 흔들리면 머지가 막힌다. 실제로 환율 수집이 그렇게 죽는 걸 봤다.
-#
-# 이 프로젝트는 머지 뒤 손으로 이미지를 만들어 올린다. 그 사이 8분이면 신호가
-# 도착하므로 배포 전에 회귀를 잡을 수 있다.
+# master 에 들어온 뒤 돈다. Yahoo Finance에 의존하는 스위트라 PR 게이트로 두지 않는다
+# 이미지는 머지 뒤 손으로 올리므로 8분 안에 끝나면 배포 전에 결과가 나온다
 on:
   push:
     branches: [ master ]
@@ -27,10 +22,7 @@ jobs:
           cache: npm
           cache-dependency-path: tests/e2e/package-lock.json
 
-      # 시크릿이 필요 없다. .env.example 의 기본값만으로 스택이 뜬다.
-      # 시세와 환율은 Yahoo Finance 에서 받고 키를 요구하지 않는다.
-      # KEYCLOAK_SECRET 은 compose 에 local-client-secret 로 박혀 있다.
-      # AlphaVantage / 한국수출입은행 키는 선택이고 없으면 안 쓴다.
+      # 시크릿 없이 .env.example 기본값으로 뜬다. Yahoo는 키가 없고 선택 키는 없으면 안 쓴다
       - name: compose 환경 변수 준비
         working-directory: docker-compose
         run: cp .env.example .env

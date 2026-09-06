@@ -28,8 +28,7 @@ runs:
 
     - name: SARIF 와 표로 변환
       shell: bash
-      # 호출하는 잡이 defaults.run.working-directory 를 걸어둘 수 있다.
-      # 리포트는 워크스페이스 루트에 떨어지므로 여기에 작성
+      # 리포트는 워크스페이스 루트에 떨어진다. 호출 잡의 working-directory 와 무관
       working-directory: ${{ github.workspace }}
       run: |
         trivy convert --format sarif \
