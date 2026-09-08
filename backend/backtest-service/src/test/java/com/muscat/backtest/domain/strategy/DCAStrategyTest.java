@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -16,6 +17,7 @@ import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.backtest.infra.client.MarketDataClient;
+import com.muscat.backtest.infra.client.dto.DividendDto;
 import com.muscat.backtest.infra.client.dto.FxRateDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import com.muscat.commonlib.dto.StockPriceDto;
@@ -288,8 +290,8 @@ class DCAStrategyTest {
   class DividendReinvestmentTests {
 
     @Test
-    @DisplayName("배당금 재투자가 활성화되면 배당금으로 추가 주식을 매수한다")
-    void executeDca_WithDividendReinvestment_ReinvestsDividends() {
+    @DisplayName("재투자를 켜도 배당으로 추가 매수하지 않는다 - 조정 종가에 이미 반영됨")
+    void executeDca_WithDividendReinvestment_DoesNotBuyExtraShares() {
       // given
       BigDecimal monthlyAmount = new BigDecimal("1000.00");
       DcaStrategyRequest request = DcaStrategyRequest.builder()
@@ -327,9 +329,17 @@ class DCAStrategyTest {
       given(marketDataClient.getOHLCPrice(eq(symbol), anyString()))
         .willReturn(createOHLC(request.getEndDate(), new BigDecimal("100.00")));
 
-      // Mock dividend data
+      // 배당 2건. 재투자가 살아 있으면 거래가 5건이 된다
       given(marketDataClient.getDividendHistory(eq(symbol), anyString(), anyString()))
-        .willReturn(java.util.Collections.emptyList());
+        .willReturn(List.of(
+          new DividendDto(symbol, LocalDate.of(2024, 2, 15), null, null,
+            new BigDecimal("1.00"), "USD", "test"),
+          new DividendDto(symbol, LocalDate.of(2024, 3, 15), null, null,
+            new BigDecimal("1.00"), "USD", "test")));
+
+      // 재투자가 살아나면 집는 시세. 지금은 안 쓰여서 lenient
+      lenient().when(marketDataClient.getOHLCPriceRange(eq(symbol), eq("2024-02-15"), eq("2024-03-15")))
+        .thenReturn(ohlcPrices);
 
       // Mock ResponseMapper
       StrategyResponse expectedResponse = StrategyResponse.builder()
@@ -344,7 +354,16 @@ class DCAStrategyTest {
 
       // then
       assertThat(result).isNotNull();
-      verify(marketDataClient).getDividendHistory(eq(symbol), anyString(), anyString());
+
+      ArgumentCaptor<StrategyCalculationResult> calcCaptor =
+        ArgumentCaptor.forClass(StrategyCalculationResult.class);
+      @SuppressWarnings("unchecked")
+      ArgumentCaptor<List<StrategyTransaction>> txCaptor = ArgumentCaptor.forClass(List.class);
+      verify(responseMapper).toStrategyResponse(
+        any(DcaStrategyRequest.class), txCaptor.capture(), calcCaptor.capture(), any());
+
+      assertThat(calcCaptor.getValue().getDividendsReinvested()).isEqualByComparingTo("0");
+      assertThat(txCaptor.getValue()).hasSize(3);
     }
   }
 
