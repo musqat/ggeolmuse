@@ -1,0 +1,122 @@
+{{- if .Values.dbBackup.enabled }}
+{{- $b := .Values.dbBackup }}
+{{- $firstKey := index $b.databaseSecretKeys 0 }}
+---
+# 월간 pg_dump → S3. 버킷과 권한은 terraform/db-backup.tf
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: db-backup
+  labels:
+    app: db-backup
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  schedule: {{ $b.schedule | quote }}
+  timeZone: {{ $b.timeZone | quote }}
+  startingDeadlineSeconds: {{ $b.startingDeadlineSeconds }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app: db-backup
+        spec:
+          restartPolicy: Never
+          volumes:
+            - name: dump
+              emptyDir: {}
+          initContainers:
+            - name: dump
+              image: {{ $b.images.dump }}
+              imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+              env:
+                - name: PGUSER
+                  valueFrom:
+                    secretKeyRef:
+                      name: ggeolmuse-secrets
+                      key: DB_USERNAME
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: ggeolmuse-secrets
+                      key: DB_PASSWORD
+                {{- range $b.databaseSecretKeys }}
+                - name: {{ . }}
+                  valueFrom:
+                    secretKeyRef:
+                      name: ggeolmuse-secrets
+                      key: {{ . }}
+                {{- end }}
+                - name: DB_SECRET_KEYS
+                  value: {{ join " " $b.databaseSecretKeys | quote }}
+                - name: EXTRA_DB_NAMES
+                  value: {{ join " " $b.extraDatabaseNames | quote }}
+              command:
+                - sh
+                - -eu
+                - -c
+                - |
+                  STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+                  echo "$STAMP" > /dump/.stamp
+
+                  to_conn() {
+                    conn="${1#jdbc:}"
+                    printf '%s' "${conn%%\?*}"
+                  }
+
+                  dump_one() {
+                    db="${1##*/}"
+                    echo "dump ${db}"
+                    pg_dump -Fc --no-owner --no-privileges -d "$1" -f "/dump/${db}-${STAMP}.dump"
+                  }
+
+                  for key in $DB_SECRET_KEYS; do
+                    dump_one "$(to_conn "$(printenv "$key")")"
+                  done
+
+                  if [ -n "${EXTRA_DB_NAMES}" ]; then
+                    base="$(to_conn "$(printenv "{{ $firstKey }}")")"
+                    for db in $EXTRA_DB_NAMES; do
+                      dump_one "${base%/*}/${db}"
+                    done
+                  fi
+
+                  ls -lh /dump
+              volumeMounts:
+                - name: dump
+                  mountPath: /dump
+              resources:
+                {{- toYaml $b.resources.dump | nindent 16 }}
+              securityContext:
+                {{- include "ggeolmuse.baseSecurityContext" . | nindent 16 }}
+          containers:
+            - name: upload
+              image: {{ $b.images.upload }}
+              imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+              env:
+                - name: AWS_REGION
+                  value: {{ $b.region | quote }}
+                - name: BUCKET
+                  value: {{ $b.bucket | quote }}
+              command:
+                - sh
+                - -eu
+                - -c
+                - |
+                  STAMP=$(cat /dump/.stamp)
+                  prefix="s3://${BUCKET}/$(echo "$STAMP" | cut -c1-4)/$(echo "$STAMP" | cut -c5-6)/"
+                  aws s3 cp /dump "$prefix" --recursive --exclude ".stamp" --only-show-errors
+                  aws s3 ls "$prefix" --human-readable
+              volumeMounts:
+                - name: dump
+                  mountPath: /dump
+                  readOnly: true
+              resources:
+                {{- toYaml $b.resources.upload | nindent 16 }}
+              securityContext:
+                {{- include "ggeolmuse.baseSecurityContext" . | nindent 16 }}
+{{- end }}

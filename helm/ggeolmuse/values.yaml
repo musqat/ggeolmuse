@@ -447,6 +447,41 @@ monitoring:
     enabled: false
     channel: "#ggeolmuse-alerts"
 
+# DB 백업 (enabled: 환경별. RDS 를 쓰는 prod 만)
+dbBackup:
+  enabled: false
+  schedule: "0 9 1 * *"
+  timeZone: Asia/Seoul
+  # 실행 시각에 클러스터가 꺼져 있어도 이 안에 켜지면 따라잡는다
+  startingDeadlineSeconds: 259200
+  bucket: ggeolmuse-db-backup-apne2
+  region: ap-northeast-2
+  databaseSecretKeys:
+    - DB_URL_USER
+    - DB_URL_TRADE
+    - DB_URL_MARKET
+    - DB_URL_BACKTEST
+  extraDatabaseNames:
+    - keycloak
+  images:
+    dump: postgres:15-alpine
+    upload: amazon/aws-cli:2.36.40
+  resources:
+    dump:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+    upload:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+
 # ConfigMap 설정
 configMap:
   enabled: true
