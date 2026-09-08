@@ -147,3 +147,17 @@ variable "rds_stop_minute" {
     error_message = "rds_stop_minute는 0~59 사이여야 합니다."
   }
 }
+
+# DB 백업 (db-backup.tf)
+
+variable "db_backup_bucket_name" {
+  description = "pg_dump 를 올릴 S3 버킷 이름."
+  type        = string
+  default     = "ggeolmuse-db-backup-apne2"
+}
+
+variable "db_backup_retention_days" {
+  description = "덤프 보존 일수."
+  type        = number
+  default     = 400
+}
