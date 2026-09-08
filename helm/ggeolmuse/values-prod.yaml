@@ -280,7 +280,7 @@ services:
     replicaCount: 1
     image:
       repository: backtest-service
-      tag: "1.2.3"
+      tag: "1.2.4"
     service:
       type: ClusterIP
       port: 8082
