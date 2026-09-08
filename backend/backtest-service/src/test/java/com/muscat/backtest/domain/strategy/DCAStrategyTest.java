@@ -99,11 +99,11 @@ class DCAStrategyTest {
       // 환율 데이터 Mock
       FxRateDto fxRate = new FxRateDto(LocalDate.now(),
         new BigDecimal("1300.00"));
-      given(marketDataClient.getLatestFxRate()).willReturn(fxRate);
+      given(marketDataClient.getFxRate(anyString())).willReturn(fxRate);
 
-      // 현재 가격 Mock
-      given(marketDataClient.getCurrentPrice(eq(symbol)))
-        .willReturn(createStockPrice(new BigDecimal("110.00")));
+      // 평가일 시세 Mock
+      given(marketDataClient.getOHLCPrice(eq(symbol), anyString()))
+        .willReturn(createOHLC(request.getEndDate(), new BigDecimal("110.00")));
 
       // 배당 데이터 Mock (빈 리스트)
       given(marketDataClient.getDividendHistory(eq(symbol), anyString(), anyString()))
@@ -171,11 +171,11 @@ class DCAStrategyTest {
       // 환율 데이터 Mock
       FxRateDto fxRate = new FxRateDto(LocalDate.now(),
         new BigDecimal("1300.00"));
-      given(marketDataClient.getLatestFxRate()).willReturn(fxRate);
+      given(marketDataClient.getFxRate(anyString())).willReturn(fxRate);
 
-      // 현재 가격 Mock
-      given(marketDataClient.getCurrentPrice(eq(symbol)))
-        .willReturn(createStockPrice(new BigDecimal("100.00")));
+      // 평가일 시세 Mock
+      given(marketDataClient.getOHLCPrice(eq(symbol), anyString()))
+        .willReturn(createOHLC(request.getEndDate(), new BigDecimal("100.00")));
 
       // 배당 데이터 Mock
       given(marketDataClient.getDividendHistory(eq(symbol), anyString(), anyString()))
@@ -220,10 +220,10 @@ class DCAStrategyTest {
         .willReturn(List.of(splitDay));
       given(marketDataClient.getBulkFxRates(any()))
         .willReturn(java.util.Map.of("2024-01-15", new BigDecimal("1300.00")));
-      given(marketDataClient.getLatestFxRate())
+      given(marketDataClient.getFxRate(anyString()))
         .willReturn(new FxRateDto(LocalDate.now(), new BigDecimal("1300.00")));
-      given(marketDataClient.getCurrentPrice(eq(symbol)))
-        .willReturn(createStockPrice(new BigDecimal("30.00")));
+      given(marketDataClient.getOHLCPrice(eq(symbol), anyString()))
+        .willReturn(createOHLC(request.getEndDate(), new BigDecimal("30.00")));
       given(marketDataClient.getDividendHistory(eq(symbol), anyString(), anyString()))
         .willReturn(java.util.Collections.emptyList());
       given(responseMapper.toStrategyResponse(any(DcaStrategyRequest.class), any(), any(), any()))
@@ -238,7 +238,7 @@ class DCAStrategyTest {
       verify(responseMapper).toStrategyResponse(any(DcaStrategyRequest.class), captor.capture(), any(), any());
       List<StrategyTransaction> txs = captor.getValue();
       assertThat(txs).hasSize(1);
-      assertThat(txs.get(0).getPrice()).isEqualByComparingTo("25.00");
+      assertThat(txs.getFirst().getPrice()).isEqualByComparingTo("25.00");
     }
 
     @Test
@@ -321,11 +321,11 @@ class DCAStrategyTest {
 
       FxRateDto fxRate = new FxRateDto(
         LocalDate.now(), new BigDecimal("1300.00"));
-      given(marketDataClient.getLatestFxRate()).willReturn(fxRate);
+      given(marketDataClient.getFxRate(anyString())).willReturn(fxRate);
 
-      // Mock current price
-      given(marketDataClient.getCurrentPrice(eq(symbol)))
-        .willReturn(createStockPrice(new BigDecimal("100.00")));
+      // 평가일 시세 Mock
+      given(marketDataClient.getOHLCPrice(eq(symbol), anyString()))
+        .willReturn(createOHLC(request.getEndDate(), new BigDecimal("100.00")));
 
       // Mock dividend data
       given(marketDataClient.getDividendHistory(eq(symbol), anyString(), anyString()))
@@ -394,11 +394,11 @@ class DCAStrategyTest {
 
       FxRateDto fxRate = new FxRateDto(
         LocalDate.now(), new BigDecimal("1300.00"));
-      given(marketDataClient.getLatestFxRate()).willReturn(fxRate);
+      given(marketDataClient.getFxRate(anyString())).willReturn(fxRate);
 
-      // Mock current price
-      given(marketDataClient.getCurrentPrice(eq(symbol)))
-        .willReturn(createStockPrice(new BigDecimal("100.00")));
+      // 평가일 시세 Mock
+      given(marketDataClient.getOHLCPrice(eq(symbol), anyString()))
+        .willReturn(createOHLC(request.getEndDate(), new BigDecimal("100.00")));
 
       // Mock dividend data
       given(marketDataClient.getDividendHistory(eq(symbol), anyString(), anyString()))
