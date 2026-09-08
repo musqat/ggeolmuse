@@ -429,6 +429,10 @@ configMap:
     redisHost: "redis"
     redisPort: "6379"
 
+# DB 백업
+dbBackup:
+  enabled: true
+
 # Monitoring - Prometheus ServiceMonitor
 monitoring:
   serviceMonitor:
