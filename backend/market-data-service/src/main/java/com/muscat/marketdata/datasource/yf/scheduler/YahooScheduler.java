@@ -10,6 +10,7 @@ import com.muscat.marketdata.infra.kafka.AssetEventProducer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -37,6 +38,10 @@ public class YahooScheduler {
     private final YahooMarketCapService marketCapService;
     private final FxDataCollector fxDataCollector;
 
+    // 평소에는 1년. 전 기간 백필은 이 값을 크게 잡고 한 번 돌린 뒤 되돌린다
+    @Value("${yahoo.scheduler.candle.lookback-days:365}")
+    private int candleLookbackDays;
+
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
     private static final double INITIAL_COLLECTION_THRESHOLD = 0.95;
 
@@ -45,7 +50,8 @@ public class YahooScheduler {
      */
     @Scheduled(cron = "${yahoo.scheduler.candle.cron:0 0 7 * * MON-FRI}",
         zone = "${yahoo.scheduler.zone:Asia/Seoul}")
-    @SchedulerLock(name = "yahooUpdateCandles", lockAtMostFor = "9m", lockAtLeastFor = "1m")
+    // 전 종목을 초당 10건으로 받으면 한 바퀴가 25분을 넘는다
+    @SchedulerLock(name = "yahooUpdateCandles", lockAtMostFor = "50m", lockAtLeastFor = "1m")
     public void updateCandles() {
         if (isInitialCollectionInProgress()) {
             log.info("=== [YF 스케줄러] 초기 수집 진행 중 - 캔들 업데이트 스킵 ===");
@@ -58,7 +64,7 @@ public class YahooScheduler {
         log.info("[YF 스케줄러] 업데이트 대상 종목: {}개", assets.size());
 
         LocalDate today = LocalDate.now(ZoneId.of("America/New_York"));
-        LocalDate from = today.minusYears(1);
+        LocalDate from = today.minusDays(candleLookbackDays);
 
         int published = 0;
         for (Asset asset : assets) {
