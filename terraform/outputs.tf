@@ -57,3 +57,13 @@ output "alarm_email_pending" {
   description = "이메일 구독 상태. 수신함의 확인 링크를 눌러야 알람이 온다"
   value       = var.alarm_email == "" ? "구독 없음 (alarm_email 미설정)" : "${var.alarm_email} — 수신함에서 구독 확인 필요"
 }
+
+output "db_backup_bucket" {
+  description = "pg_dump 가 올라가는 S3 버킷. helm 의 dbBackup.bucket 과 같아야 한다"
+  value       = aws_s3_bucket.db_backup.bucket
+}
+
+output "db_backup_role_name" {
+  description = "S3 쓰기 정책이 붙은 EC2 역할. 인스턴스에 실제로 붙은 프로파일에서 따라간 값"
+  value       = data.aws_iam_instance_profile.ggeolmuse.role_name
+}
