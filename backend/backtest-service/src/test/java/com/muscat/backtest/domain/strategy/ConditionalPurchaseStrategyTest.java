@@ -19,7 +19,6 @@ import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.backtest.infra.client.MarketDataClient;
 import com.muscat.backtest.infra.client.dto.FxRateDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
-import com.muscat.commonlib.dto.StockPriceDto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -93,10 +92,10 @@ class ConditionalPurchaseStrategyTest {
         .willReturn(java.util.Map.of(
           "2024-01-15", new BigDecimal("1300.00"),
           "2024-01-16", new BigDecimal("1300.00")));
-      given(marketDataClient.getLatestFxRate())
+      given(marketDataClient.getFxRate(anyString()))
         .willReturn(new FxRateDto(LocalDate.now(), new BigDecimal("1300.00")));
-      given(marketDataClient.getCurrentPrice(eq("SPLIT-TEST")))
-        .willReturn(stockPrice(new BigDecimal("30.00")));
+      given(marketDataClient.getOHLCPrice(eq("SPLIT-TEST"), anyString()))
+        .willReturn(day2);
       given(marketDataClient.getDividendHistory(eq("SPLIT-TEST"), anyString(), anyString()))
         .willReturn(java.util.Collections.emptyList());
       given(responseMapper.toStrategyResponse(any(ConditionalStrategyRequest.class), any(), any(), any()))
@@ -112,12 +111,7 @@ class ConditionalPurchaseStrategyTest {
         any(ConditionalStrategyRequest.class), captor.capture(), any(), any());
       List<StrategyTransaction> txs = captor.getValue();
       assertThat(txs).hasSize(1);
-      assertThat(txs.get(0).getPrice()).isEqualByComparingTo("25.00");
-    }
-
-    private StockPriceDto stockPrice(BigDecimal price) {
-      return new StockPriceDto("SPLIT-TEST", "Split Test", price, null, null, null, null,
-        null, null, null, null, null, null, null, "USD", true, null, null);
+      assertThat(txs.getFirst().getPrice()).isEqualByComparingTo("25.00");
     }
   }
 

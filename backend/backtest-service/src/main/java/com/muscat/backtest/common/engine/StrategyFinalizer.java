@@ -15,12 +15,12 @@ import java.util.List;
 
 /**
  * 전략(DCA/조건부) 공통 마무리 처리. 매수내역 생성 이후의 동일 로직을 단일화:
- * 현재가/환율 조회 → 총투자·환율합 → 배당 재투자 → 총배당 → StrategyCalculator.calculate.
+ * 평가일 시세/환율 조회 → 총투자·환율합 → 배당 재투자 → 총배당 → StrategyCalculator.calculate.
  * (전략별로 다른 응답 매핑 toStrategyResponse 호출은 각 전략 유지 )
  */
 public final class StrategyFinalizer {
 
-  /** 마무리 결과: (재투자 반영된)거래내역 + 계산결과 + 현재가. */
+  /** 마무리 결과: (재투자 반영된)거래내역 + 계산결과 + 평가일 시세. */
   public record Result(List<StrategyTransaction> transactions,
                        StrategyCalculationResult calculation,
                        StockPriceDto currentPrice) {}
@@ -30,21 +30,23 @@ public final class StrategyFinalizer {
   public static Result run(
       MarketDataClient marketDataClient,
       String symbol,
+      LocalDate valuationDate,
       BigDecimal manualCurrentFxRate,
       BigDecimal manualPurchaseFxRate,
       boolean reinvestEnabled,
       BigDecimal dividendTaxRate,
       List<StrategyTransaction> transactions) {
 
-    StockPriceDto currentPrice = BacktestDataUtils.getCurrentPrice(marketDataClient, symbol);
+    StockPriceDto currentPrice = BacktestDataUtils.getPriceAt(
+        marketDataClient, symbol, valuationDate);
 
     FxRateDto currentFxRate = manualCurrentFxRate != null
-        ? new FxRateDto(LocalDate.now(), manualCurrentFxRate)
-        : BacktestDataUtils.getCurrentFxRate(marketDataClient);
+        ? new FxRateDto(valuationDate, manualCurrentFxRate)
+        : BacktestDataUtils.getFxRateAt(marketDataClient, valuationDate);
 
     LocalDate firstPurchaseDate = transactions.getFirst().getDate();
     DividendHistoryDto dividendHistory = BacktestDataUtils.getDividendHistory(
-        marketDataClient, symbol, firstPurchaseDate, LocalDate.now());
+        marketDataClient, symbol, firstPurchaseDate, valuationDate);
 
     BigDecimal totalInvested = transactions.stream()
         .map(StrategyTransaction::getAmount)
@@ -65,7 +67,7 @@ public final class StrategyFinalizer {
         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
     BigDecimal totalDividends = BacktestCalculationUtils.calculateTotalDividends(
-        dividendHistory, transactions, firstPurchaseDate, LocalDate.now());
+        dividendHistory, transactions, firstPurchaseDate, valuationDate);
 
     StrategyCalculationResult calculation = StrategyCalculator.calculate(
         transactions, totalInvested, totalShares, totalFxRateSum, currentPrice, currentFxRate,

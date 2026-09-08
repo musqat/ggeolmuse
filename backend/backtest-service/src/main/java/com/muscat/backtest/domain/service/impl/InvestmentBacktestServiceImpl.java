@@ -206,8 +206,8 @@ public class InvestmentBacktestServiceImpl implements InvestmentBacktestService 
       }
     }
 
-    BigDecimal totalAssetKrw = totalCurrentValueKrw.add(totalRemainingCashKrw)
-        .add(totalDividends.multiply(avgCurrentFxRate));
+    // 매수가로 쓰는 조정 종가에 배당이 이미 반영돼 있다. 여기서 또 더하면 두 번 세는 것이다
+    BigDecimal totalAssetKrw = totalCurrentValueKrw.add(totalRemainingCashKrw);
     BigDecimal totalReturnKrw = totalAssetKrw.subtract(totalInvestment);
     BigDecimal totalReturnPercent = Decimals.isPositive(totalInvestment)
         ? totalReturnKrw.divide(totalInvestment, 4, RoundingMode.HALF_UP)

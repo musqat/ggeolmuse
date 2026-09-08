@@ -48,6 +48,30 @@ public final class BacktestDataUtils {
 
 
   /**
+   * 평가일 시세. 오늘 이후면 현재가, 과거면 그 날 종가
+   */
+  public static StockPriceDto getPriceAt(MarketDataClient marketDataClient, String symbol,
+                                         LocalDate date) {
+    if (!date.isBefore(LocalDate.now())) {
+      return getCurrentPrice(marketDataClient, symbol);
+    }
+
+    OHLCPriceDto ohlc = getHistoricalPrice(marketDataClient, symbol, date);
+    return new StockPriceDto(symbol, null, PriceLookup.effectiveClose(ohlc), null, null, null,
+      ohlc.volume(), ohlc.date(), ohlc.date().atStartOfDay(), ohlc.openPrice(), ohlc.highPrice(),
+      ohlc.lowPrice(), ohlc.closePrice(), ohlc.adjustedClose(), ohlc.currency(), true, null, null);
+  }
+
+  /**
+   * 평가일 환율. 오늘 이후면 최신, 과거면 그 날 환율
+   */
+  public static FxRateDto getFxRateAt(MarketDataClient marketDataClient, LocalDate date) {
+    return date.isBefore(LocalDate.now())
+      ? getHistoricalFxRate(marketDataClient, date)
+      : getCurrentFxRate(marketDataClient);
+  }
+
+  /**
    * 특정 날짜의 환율 데이터 조회 (기본값 fallback)
    */
   public static FxRateDto getHistoricalFxRate(MarketDataClient marketDataClient, LocalDate date) {

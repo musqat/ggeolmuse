@@ -85,9 +85,9 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
           "조건부 매수 전략 실행 가능한 데이터가 없습니다");
       }
 
-      // 마무리(현재가/환율/배당재투자/계산) — 공통 로직 위임
+      // 마무리(평가일 시세/환율/배당재투자/계산) — 공통 로직 위임
       StrategyFinalizer.Result finalized = StrategyFinalizer.run(
-        marketDataClient, request.getSymbol(), request.getCurrentFxRate(),
+        marketDataClient, request.getSymbol(), actualEndDate, request.getCurrentFxRate(),
         request.getPurchaseFxRate(), Boolean.TRUE.equals(request.getReinvestDividends()),
         request.getDividendTaxRate(), transactions);
 

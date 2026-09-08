@@ -250,12 +250,8 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
       ? MoneyUtils.convertUsdToKrw(remainingCash, currentFxRate)
       : BigDecimal.ZERO;
 
-    // 재투자된 배당금이 있으면, 이미 주식 가치에 포함되어 있으므로 배당금을 중복 더하지 않음
-    boolean hasReinvested = Decimals.isPositive(dividendsReinvested);
-    BigDecimal dividendsToAdd = hasReinvested ? BigDecimal.ZERO : totalDividendsKrw;
-
-    // 총 자산 = 주식 가치 + 남은 현금 + 배당금 (재투자 시 배당금 제외)
-    BigDecimal totalAssetKrw = currentValueKrw.add(remainingCashKrw).add(dividendsToAdd);
+    // 매수가로 쓰는 조정 종가에 배당이 이미 반영돼 있다
+    BigDecimal totalAssetKrw = currentValueKrw.add(remainingCashKrw);
 
     // 총 수익 = 총 자산 - 투자금
     BigDecimal totalReturnKrw = totalAssetKrw.subtract(context.request().getInvestmentAmount());
