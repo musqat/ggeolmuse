@@ -47,7 +47,8 @@ public final class BacktestCalculationUtils {
       .divide(stockPrice, 8, HALF_UP);
   }
 
-  // 평균 가격을 계산합니다
+  // 평균 매수가(USD)를 계산합니다
+  // totalFxRateSum 은 Σ(투자금액 × 환율) 이라 가중평균 환율로 바꿔서 나눈다
   public static BigDecimal calculateAveragePrice(BigDecimal totalInvestment,
     BigDecimal totalFxRateSum, BigDecimal totalShares) {
     if (totalInvestment == null || totalFxRateSum == null || totalShares == null) {
@@ -57,8 +58,10 @@ public final class BacktestCalculationUtils {
       throw new IllegalArgumentException("환율 합계와 총 주식 수량은 0이 될 수 없습니다");
     }
 
+    BigDecimal averageFxRate = calculateAverageFxRate(totalFxRateSum, totalInvestment);
+
     return totalInvestment
-      .divide(totalFxRateSum, 8, HALF_UP)
+      .divide(averageFxRate, 8, HALF_UP)
       .divide(totalShares, 8, HALF_UP);
   }
 

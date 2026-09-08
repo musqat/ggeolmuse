@@ -79,16 +79,17 @@ class BacktestCalculationUtilsTest {
     @DisplayName("정상적인 평균 가격 계산")
     void calculateAveragePrice_Success() {
       // given
+      // 130만원씩 두 번, 환율 1300. totalFxRateSum = Σ(투자금액 × 환율)
       BigDecimal totalInvestment = new BigDecimal("2600000");
-      BigDecimal totalFxRateSum = new BigDecimal("2600"); // 1300 + 1300
+      BigDecimal totalFxRateSum = new BigDecimal("3380000000");
       BigDecimal totalShares = new BigDecimal("20");
 
       // when
       BigDecimal avgPrice = BacktestCalculationUtils.calculateAveragePrice(totalInvestment,
         totalFxRateSum, totalShares);
 
-      // then - 2,600,000 / 2,600 / 20 = 50
-      assertThat(avgPrice).isEqualByComparingTo(new BigDecimal("50.00000000"));
+      // then - 2,600,000 / 1,300 / 20 = 100
+      assertThat(avgPrice).isEqualByComparingTo(new BigDecimal("100.00000000"));
     }
 
     @Test
