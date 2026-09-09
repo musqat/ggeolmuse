@@ -71,12 +71,12 @@ public interface AssetService {
   List<String> getActiveSymbols();
 
   /**
-   * 전체 종목 요약 정보 조회 (가격, 최신 데이터 날짜 포함, 페이지네이션)
+   * 종목 요약 정보 조회 (가격, 최신 데이터 날짜 포함, 페이지네이션)
    *
    * @param pageable 페이지 정보 (page, size, sort)
+   * @param active   true 면 상장 종목, false 면 상장폐지 종목
    */
-  Page<AssetSummaryDto> getAllAssetSummaries(
-    Pageable pageable);
+  Page<AssetSummaryDto> getAllAssetSummaries(Pageable pageable, boolean active);
 
   /**
    * 특정 종목의 가격 데이터 업데이트
@@ -128,4 +128,12 @@ public interface AssetService {
    * @return 실제로 비활성화된 종목 수
    */
   int deleteAssets(java.util.List<String> symbols);
+
+  /**
+   * 상장폐지 처리한 종목을 되돌립니다.
+   * active를 true로 되돌리고 delistedDate를 지웁니다.
+   *
+   * @param symbol 종목 심볼
+   */
+  void restoreAsset(String symbol);
 }

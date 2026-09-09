@@ -2,6 +2,7 @@ package com.muscat.marketdata.domain.service.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -551,18 +552,18 @@ class AssetServiceImplTest {
       Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
       Page<Asset> assetPage =
         new org.springframework.data.domain.PageImpl<>(List.of(testAsset), pageable, 1);
-      given(assetRepository.findActiveSorted(any(Pageable.class))).willReturn(assetPage);
+      given(assetRepository.findSorted(any(Pageable.class), anyBoolean())).willReturn(assetPage);
 
       // when
       Page<AssetSummaryDto> result =
-        assetService.getAllAssetSummaries(pageable);
+        assetService.getAllAssetSummaries(pageable, true);
 
       // then
       assertThat(result).isNotNull();
       assertThat(result.getContent()).hasSize(1);
       assertThat(result.getTotalElements()).isEqualTo(1);
 
-      verify(assetRepository).findActiveSorted(any(Pageable.class));
+      verify(assetRepository).findSorted(any(Pageable.class), anyBoolean());
     }
   }
 

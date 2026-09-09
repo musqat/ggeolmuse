@@ -176,21 +176,21 @@ public class AssetServiceImpl implements AssetService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<AssetSummaryDto> getAllAssetSummaries(Pageable pageable) {
+    public Page<AssetSummaryDto> getAllAssetSummaries(Pageable pageable, boolean active) {
         log.debug("전체 종목 요약 정보 조회 요청 (페이지: {}, 크기: {})",
                 pageable.getPageNumber(), pageable.getPageSize());
 
         // 최신가/최신날짜가 asset에 비정규화되어 있어 candle 조회 없이 DB에서 직접 정렬+페이징
         // (candle 2967만 행을 매 요청마다 조회하던 병목 제거)
         Pageable dbPageable = remapSort(pageable);
-        Page<Asset> page = assetRepository.findActiveSorted(dbPageable);
+        Page<Asset> page = assetRepository.findSorted(dbPageable, active);
 
         List<AssetSummaryDto> content = page.getContent().stream()
                 .map(AssetSummaryDto::from)
                 .collect(Collectors.toList());
 
-        log.debug("활성 종목 요약 정보 조회 완료: page={}, totalElements={}",
-                pageable.getPageNumber(), page.getTotalElements());
+        log.debug("종목 요약 조회 완료: active={}, page={}, totalElements={}",
+                active, pageable.getPageNumber(), page.getTotalElements());
         return new PageImpl<>(content, pageable, page.getTotalElements());
     }
 
@@ -328,6 +328,21 @@ public class AssetServiceImpl implements AssetService {
 
         log.info("종목 삭제 성공 (soft delete): symbol={}, delistedDate={}",
                 upperSymbol, asset.getDelistedDate());
+    }
+
+    @Override
+    @Transactional
+    public void restoreAsset(String symbol) {
+        String upperSymbol = symbol.toUpperCase();
+
+        Asset asset = assetRepository.findById(upperSymbol)
+                .orElseThrow(() -> new IllegalArgumentException("Not found: " + upperSymbol));
+
+        asset.setActive(true);
+        asset.setDelistedDate(null);
+        assetRepository.save(asset);
+
+        log.info("종목 복구: symbol={}", upperSymbol);
     }
 
     @Override
