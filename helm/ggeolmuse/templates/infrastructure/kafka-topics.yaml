@@ -12,7 +12,8 @@ metadata:
     "helm.sh/hook-weight": "10"
     "helm.sh/hook-delete-policy": before-hook-creation
 spec:
-  ttlSecondsAfterFinished: 300
+  # ttl 을 두면 파티션 보고를 읽기 전에 파드가 지워진다.
+  # 정리는 before-hook-creation 이 맡아 다음 sync 직전에 한다
   template:
     metadata:
       labels:
@@ -40,6 +41,7 @@ spec:
 
               created=0
               mismatch=0
+              retimed=0
               total=0
 
               # 토픽                              파티션 보존(ms)     추가설정
@@ -49,7 +51,8 @@ spec:
               trading.trade.failed                3      604800000
               trading.dividend.received           3      7776000000
 
-              market.asset.created                3      604800000
+              # 수집 작업큐. 컨슈머 동시성이 파티션에 묶여 6으로 둔다
+              market.asset.created                6      604800000
               market.dividend.updated             3      7776000000
               market.fxrate.updated               3      2592000000   --config cleanup.policy=compact
               market.price.updated                3      86400000     --config cleanup.policy=compact
@@ -65,10 +68,22 @@ spec:
 
               backtest.completed                  3      2592000000
 
+              # 구독하는 토픽마다 하나씩. DeadLetterPublishingRecoverer 가 여기로 보낸다
               trading.trade.completed.DLT         3      2592000000
+              trading.trade.cancelled.DLT         3      2592000000
+              trading.dividend.received.DLT       3      2592000000
+              market.asset.created.DLT            3      2592000000
+              market.dividend.updated.DLT         3      2592000000
+              user.account.deleted.DLT            3      2592000000
+              user.account.balance.updated.DLT    3      2592000000
+              user.account.deposit.completed.DLT  3      2592000000
+              user.account.withdrawal.completed.DLT 3    2592000000
+              user.login.success.DLT              3      2592000000
+              user.login.failed.DLT               3      2592000000
+              user.email.send.DLT                 3      2592000000
+
               market.price.updated.DLT            3      2592000000
               user.account.created.DLT            3      2592000000
-              user.email.send.DLT                 3      2592000000
               backtest.completed.DLT              3      2592000000
               '
               echo "$TOPICS" > /tmp/topics.txt
@@ -93,6 +108,24 @@ spec:
                   continue
                 fi
 
+                # 서비스가 먼저 붙으면 토픽이 브로커 기본값으로 자동 생성되고
+                # --if-not-exists 가 그것을 건너뛴다. 보존 기간은 되돌릴 수 있어 그냥 맞춘다
+                configs=$(awk -v t="$topic" '
+                  $1 == "Topic:" && $2 == t {
+                    for (i = 1; i <= NF; i++) if ($i == "Configs:") { print $(i + 1); exit }
+                  }' /tmp/current.txt)
+
+                case "$configs" in
+                  *"retention.ms=$retention"*) ;;
+                  *)
+                    echo "$topic 보존 $retention 으로 맞춘다"
+                    kafka-configs --alter --bootstrap-server "$BS" \
+                      --entity-type topics --entity-name "$topic" \
+                      --add-config retention.ms="$retention" > /dev/null
+                    retimed=$((retimed + 1))
+                    ;;
+                esac
+
                 [ "$actual" = "$partitions" ] && continue
 
                 # 자동 생성된 토픽은 브로커 기본 파티션으로 만들어진다.
@@ -107,7 +140,7 @@ spec:
                 fi
               done < /tmp/topics.txt
 
-              echo "토픽 $total, 새로 만듦 $created, 파티션 다름 $mismatch"
+              echo "토픽 $total, 새로 만듦 $created, 보존 맞춤 $retimed, 파티션 다름 $mismatch"
               if [ "$mismatch" -gt 0 ] && [ "$ALIGN" != "true" ]; then
                 echo "alignPartitions=true 로 올리면 맞춘다"
               fi
