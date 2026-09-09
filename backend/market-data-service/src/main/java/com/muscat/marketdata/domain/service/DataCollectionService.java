@@ -4,12 +4,10 @@ import com.muscat.marketdata.infra.kafka.DataCollectionEventProducer;
 import com.muscat.messaging.event.AssetCreatedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 /**
- * 데이터 수집을 비동기로 처리하는 서비스
- *
+ * 종목 하나의 캔들·배당을 수집한다.
  */
 @Slf4j
 @Service
@@ -20,12 +18,11 @@ public class DataCollectionService {
     private final DataCollectionEventProducer collectionEventProducer;
 
     /**
-     * 비동기로 데이터를 수집하는 메서드
-     * 별도 스레드풀에서 실행됨
+     * 컨슈머 스레드에서 그대로 수집한다.
+     * 병렬도는 리스너 동시성이 정하고, 그래야 ACK 를 수집 뒤로 미룰 수 있다.
      */
-    @Async
-    public void collectDataAsync(AssetCreatedEvent event) {
-        log.debug("Starting async data collection: symbol={}", event.getSymbol());
+    public void collect(AssetCreatedEvent event) {
+        log.debug("수집 시작: symbol={}", event.getSymbol());
         long startTime = System.currentTimeMillis();
 
         int candleCount = 0;
@@ -67,10 +64,8 @@ public class DataCollectionService {
 
         } catch (Exception e) {
             long executionTime = System.currentTimeMillis() - startTime;
-            log.error("Async data collection failed: symbol={}, error={}",
-                    event.getSymbol(), e.getMessage(), e);
+            log.error("수집 실패: symbol={}, error={}", event.getSymbol(), e.getMessage(), e);
 
-            // 수집 실패 이벤트 발행
             collectionEventProducer.publishFailed(
                     event.getSymbol(),
                     event.getFromDate(),
@@ -78,6 +73,10 @@ public class DataCollectionService {
                     e.getMessage(),
                     executionTime
             );
+
+            // 종목 하나의 실패는 saveCandles 가 이미 삼킨다. 여기까지 오면 예상 밖이라
+            // 재시도와 .DLT 로 보낸다
+            throw e;
         }
     }
 }

@@ -42,7 +42,7 @@ public class AccountAuditConsumer {
         try {
             // 감사 로그 기록
             log.info("[AUDIT] 잔액 변경: userId={}, accountId={}, updateType={}, " +
-                            "KRW[{} -> {}] ({:+}), USD[{} -> {}] ({:+}), " +
+                            "KRW[{} -> {}] ({}), USD[{} -> {}] ({}), " +
                             "description={}, relatedTradeId={}, timestamp={}",
                     event.getUserId(),
                     event.getAccountId(),

@@ -135,8 +135,9 @@ infrastructure:
       data: 5Gi
     topicsInit:
       enabled: true
-      # 파티션이 선언과 다른 토픽을 실제로 늘린다. 되돌릴 수 없어 기본은 보고만 한다
-      alignPartitions: false
+      # 파티션이 선언과 다른 토픽을 실제로 늘린다. 되돌릴 수 없다.
+      # 켠 근거는 2026-09-10 확인 — 프로듀서가 전부 키를 넣고 컨슈머는 순서에 기대지 않는다
+      alignPartitions: true
       # kafka-topics 는 호출마다 JVM 이 새로 뜬다. 상태는 describe 한 번으로 받는다
       resources:
         requests:
