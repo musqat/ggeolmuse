@@ -183,7 +183,7 @@ public class AssetServiceImpl implements AssetService {
         // 최신가/최신날짜가 asset에 비정규화되어 있어 candle 조회 없이 DB에서 직접 정렬+페이징
         // (candle 2967만 행을 매 요청마다 조회하던 병목 제거)
         Pageable dbPageable = remapSort(pageable);
-        Page<Asset> page = assetRepository.findByActiveTrue(dbPageable);
+        Page<Asset> page = assetRepository.findActiveSorted(dbPageable);
 
         List<AssetSummaryDto> content = page.getContent().stream()
                 .map(AssetSummaryDto::from)
@@ -197,6 +197,7 @@ public class AssetServiceImpl implements AssetService {
     /**
      * 프론트엔드 정렬 필드명을 Asset 엔티티 필드명으로 매핑
      * currentPrice → latestClose, latestDataDate → latestDate
+     * NULL 순서는 리포지토리가 QueryDSL 로 붙인다
      */
     private Pageable remapSort(Pageable pageable) {
         Sort sort = pageable.getSort();
@@ -210,7 +211,7 @@ public class AssetServiceImpl implements AssetService {
                         case "latestDataDate" -> "latestDate";
                         default -> order.getProperty();
                     };
-                    return new Sort.Order(order.getDirection(), prop).nullsLast();
+                    return new Sort.Order(order.getDirection(), prop);
                 })
                 .collect(Collectors.toList()));
         return org.springframework.data.domain.PageRequest.of(
