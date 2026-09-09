@@ -49,7 +49,7 @@ public class SimulationRequest {
   @Builder.Default
   private Boolean reinvestDividends = false;  // 배당금 자동 재투자 여부
 
-  @Schema(description = "배당 원천징수세율 (15.4% = 0.154, 미적용 시 0)", example = "0.154")
+  @Schema(description = "배당 원천징수세율 (미국 원천징수 15% = 0.15, 미적용 시 0)", example = "0.15")
   @Builder.Default
   private BigDecimal dividendTaxRate = BigDecimal.ZERO;  // 배당 원천징수 세율
 }

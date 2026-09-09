@@ -51,8 +51,7 @@ export const DividendFeeOptions: React.FC<DividendFeeOptionsProps> = ({
           className="w-4 h-4 text-brand border-line-strong rounded focus:ring-brand"
         />
         <TrendingDown className="w-4 h-4 text-tx-2 group-hover:text-brand" />
-        <span className="text-sm text-tx-1 group-hover:text-brand">
-          배당 원천징수 (15.4%)
+        <span className="text-sm text-tx-1 group-hover:text-brand">          배당 원천징수 (15%)
         </span>
         <span className="text-xs text-tx-3">
           미국 주식 배당 세금 공제

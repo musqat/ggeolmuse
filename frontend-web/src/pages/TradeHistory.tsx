@@ -320,7 +320,7 @@ const TradeHistory: React.FC = () => {
                                 </div>
                                 <p className="text-xs text-tx-2 mt-1">
                                   {dividend.shares?.toFixed(2)}주 보유 × ${dividend.dividendPerShare?.toFixed(2)}/주
-                                  <span className="text-tx-3 ml-2">(원천징수 15.4% 제외)</span>
+                                  <span className="text-tx-3 ml-2">(원천징수 15% 제외)</span>
                                 </p>
                               </div>
                             </div>
