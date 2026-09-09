@@ -505,11 +505,11 @@ public class AdminMarketController {
     /**
      * close 에 분할이 반영되지 않은 종목 목록
      *
-     * GET /api/admin/market/candles/unadjusted?from=2010-01-01
+     * GET /api/admin/market/candles/unadjusted?from=1970-01-01
      */
     @GetMapping("/candles/unadjusted")
     public ResponseEntity<UnadjustedResponse> findUnadjusted(
-        @RequestParam(defaultValue = "2010-01-01") LocalDate from) {
+        @RequestParam(defaultValue = "1970-01-01") LocalDate from) {
 
         List<String> symbols = candleRepository.findSymbolsWithUnadjustedSplits(from);
         log.info("분할 미반영 종목 조회: from={}, count={}", from, symbols.size());
@@ -525,11 +525,11 @@ public class AdminMarketController {
      * 지정한 종목만 다시 수집한다. 수집은 Kafka 컨슈머가 비동기로 처리한다.
      *
      * POST /api/admin/market/candles/refresh
-     * { "symbols": ["NVDA","TSLA"], "from": "2010-01-01" }
+     * { "symbols": ["NVDA","TSLA"], "from": "1970-01-01" }
      */
     @PostMapping("/candles/refresh")
     public ResponseEntity<RefreshResponse> refreshCandles(@RequestBody RefreshRequest request) {
-        LocalDate from = request.getFrom() != null ? request.getFrom() : LocalDate.of(2010, 1, 1);
+        LocalDate from = request.getFrom() != null ? request.getFrom() : LocalDate.of(1970, 1, 1);
         LocalDate to = LocalDate.now(ZoneId.of("America/New_York"));
 
         List<String> requested = request.getSymbols() != null ? request.getSymbols() : List.of();

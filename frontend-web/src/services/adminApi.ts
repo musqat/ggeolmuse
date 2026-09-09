@@ -147,12 +147,43 @@ export const marketAdminApi = {
     await api.post('/admin/market/update/market-cap');
   },
 
+  // close 에 분할이 반영되지 않은 종목을 찾는다. 종목 안에서 조정비가 크게 갈리는 것을 본다
+  findUnadjustedSymbols: async (from: string): Promise<UnadjustedResponse> => {
+    const { data } = await api.get<UnadjustedResponse>("/admin/market/candles/unadjusted", {
+      params: { from },
+    });
+    return data;
+  },
+
+  // 지정 종목만 다시 받는다. 수집은 백그라운드로 돈다
+  refreshCandles: async (symbols: string[], from: string): Promise<RefreshResponse> => {
+    const { data } = await api.post<RefreshResponse>("/admin/market/candles/refresh", {
+      symbols,
+      from,
+    });
+    return data;
+  },
+
   // 신규 상장 종목을 지금 받아온다. 평일 08:00 스케줄과 같은 일을 한다.
   // 목록을 다시 받아 DB 에 없는 심볼만 추가하고 기존 종목은 건드리지 않는다.
   collectNewSymbols: async (): Promise<void> => {
     await api.post('/admin/market/update/symbols');
   },
 };
+
+export interface UnadjustedResponse {
+  from: string;
+  count: number;
+  symbols: string[];
+}
+
+export interface RefreshResponse {
+  requested: number;
+  published: number;
+  notFound: string[];
+  from: string;
+  to: string;
+}
 
 // ==================== User Admin APIs ====================
 
