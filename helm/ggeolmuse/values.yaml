@@ -135,7 +135,9 @@ infrastructure:
       data: 5Gi
     topicsInit:
       enabled: true
-      # kafka-topics 는 호출마다 JVM 이 새로 뜬다. 토픽이 14개라 14번이다.
+      # 파티션이 선언과 다른 토픽을 실제로 늘린다. 되돌릴 수 없어 기본은 보고만 한다
+      alignPartitions: false
+      # kafka-topics 는 호출마다 JVM 이 새로 뜬다. 상태는 describe 한 번으로 받는다
       resources:
         requests:
           memory: 128Mi

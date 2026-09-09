@@ -27,123 +27,90 @@ spec:
             - sh
             - -c
             - |
-              echo "Waiting for Kafka to be ready..."
+              set -u
+              BS=kafka:{{ .Values.infrastructure.kafka.ports.internal }}
+              RF={{ .Values.infrastructure.kafka.replicas }}
+              ALIGN={{ .Values.infrastructure.kafka.topicsInit.alignPartitions }}
+
+              echo "kafka 대기 30초"
               sleep 30
 
-              echo "Creating Kafka topics..."
+              # 현재 상태를 한 번에 받는다. kafka-topics 는 호출마다 JVM 이 새로 뜬다
+              kafka-topics --describe --bootstrap-server "$BS" > /tmp/current.txt 2>/dev/null || true
 
-              # Trading topics
-              kafka-topics --create --if-not-exists \
-                --bootstrap-server kafka:{{ .Values.infrastructure.kafka.ports.internal }} \
-                --topic trading.trade.completed \
-                --partitions 3 \
-                --replication-factor {{ .Values.infrastructure.kafka.replicas }} \
-                --config retention.ms=604800000 \
-                --config segment.bytes=1073741824
+              created=0
+              mismatch=0
+              total=0
 
-              kafka-topics --create --if-not-exists \
-                --bootstrap-server kafka:{{ .Values.infrastructure.kafka.ports.internal }} \
-                --topic trading.trade.failed \
-                --partitions 3 \
-                --replication-factor {{ .Values.infrastructure.kafka.replicas }} \
-                --config retention.ms=604800000
+              # 토픽                              파티션 보존(ms)     추가설정
+              TOPICS='
+              trading.trade.completed             3      604800000    --config segment.bytes=1073741824
+              trading.trade.cancelled             3      604800000
+              trading.trade.failed                3      604800000
+              trading.dividend.received           3      7776000000
 
-              # Market data topics
-              kafka-topics --create --if-not-exists \
-                --bootstrap-server kafka:{{ .Values.infrastructure.kafka.ports.internal }} \
-                --topic market.price.updated \
-                --partitions 3 \
-                --replication-factor {{ .Values.infrastructure.kafka.replicas }} \
-                --config retention.ms=86400000 \
-                --config cleanup.policy=compact
+              market.asset.created                3      604800000
+              market.dividend.updated             3      7776000000
+              market.fxrate.updated               3      2592000000   --config cleanup.policy=compact
+              market.price.updated                3      86400000     --config cleanup.policy=compact
 
-              # User account topics
-              kafka-topics --create --if-not-exists \
-                --bootstrap-server kafka:{{ .Values.infrastructure.kafka.ports.internal }} \
-                --topic user.account.created \
-                --partitions 3 \
-                --replication-factor {{ .Values.infrastructure.kafka.replicas }} \
-                --config retention.ms=2592000000
+              user.account.created                3      2592000000
+              user.account.deleted                3      2592000000
+              user.account.balance.updated        3      2592000000
+              user.account.deposit.completed      3      2592000000
+              user.account.withdrawal.completed   3      2592000000
+              user.login.success                  3      2592000000
+              user.login.failed                   3      2592000000
+              user.email.send                     3      604800000
 
-              kafka-topics --create --if-not-exists \
-                --bootstrap-server kafka:{{ .Values.infrastructure.kafka.ports.internal }} \
-                --topic user.account.deleted \
-                --partitions 3 \
-                --replication-factor {{ .Values.infrastructure.kafka.replicas }} \
-                --config retention.ms=2592000000
+              backtest.completed                  3      2592000000
 
-              kafka-topics --create --if-not-exists \
-                --bootstrap-server kafka:{{ .Values.infrastructure.kafka.ports.internal }} \
-                --topic user.email.send \
-                --partitions 3 \
-                --replication-factor {{ .Values.infrastructure.kafka.replicas }} \
-                --config retention.ms=604800000
+              trading.trade.completed.DLT         3      2592000000
+              market.price.updated.DLT            3      2592000000
+              user.account.created.DLT            3      2592000000
+              user.email.send.DLT                 3      2592000000
+              backtest.completed.DLT              3      2592000000
+              '
+              echo "$TOPICS" > /tmp/topics.txt
 
-              # Backtest topics
-              kafka-topics --create --if-not-exists \
-                --bootstrap-server kafka:{{ .Values.infrastructure.kafka.ports.internal }} \
-                --topic backtest.completed \
-                --partitions 3 \
-                --replication-factor {{ .Values.infrastructure.kafka.replicas }} \
-                --config retention.ms=2592000000
+              while read -r topic partitions retention extra; do
+                case "$topic" in ''|'#'*) continue ;; esac
+                total=$((total + 1))
 
-              # FX Rate topics
-              kafka-topics --create --if-not-exists \
-                --bootstrap-server kafka:{{ .Values.infrastructure.kafka.ports.internal }} \
-                --topic market.fxrate.updated \
-                --partitions 3 \
-                --replication-factor {{ .Values.infrastructure.kafka.replicas }} \
-                --config retention.ms=2592000000 \
-                --config cleanup.policy=compact
+                actual=$(awk -v t="$topic" '
+                  $1 == "Topic:" && $2 == t {
+                    for (i = 1; i <= NF; i++) if ($i == "PartitionCount:") { print $(i + 1); exit }
+                  }' /tmp/current.txt)
 
-              # Dividend topics
-              kafka-topics --create --if-not-exists \
-                --bootstrap-server kafka:{{ .Values.infrastructure.kafka.ports.internal }} \
-                --topic market.dividend.updated \
-                --partitions 3 \
-                --replication-factor {{ .Values.infrastructure.kafka.replicas }} \
-                --config retention.ms=7776000000
+                if [ -z "$actual" ]; then
+                  kafka-topics --create --if-not-exists \
+                    --bootstrap-server "$BS" \
+                    --topic "$topic" \
+                    --partitions "$partitions" \
+                    --replication-factor "$RF" \
+                    --config retention.ms="$retention" $extra
+                  created=$((created + 1))
+                  continue
+                fi
 
-              # Dead Letter Queue topics
-              kafka-topics --create --if-not-exists \
-                --bootstrap-server kafka:{{ .Values.infrastructure.kafka.ports.internal }} \
-                --topic trading.trade.completed.DLT \
-                --partitions 3 \
-                --replication-factor {{ .Values.infrastructure.kafka.replicas }} \
-                --config retention.ms=2592000000
+                [ "$actual" = "$partitions" ] && continue
 
-              kafka-topics --create --if-not-exists \
-                --bootstrap-server kafka:{{ .Values.infrastructure.kafka.ports.internal }} \
-                --topic market.price.updated.DLT \
-                --partitions 3 \
-                --replication-factor {{ .Values.infrastructure.kafka.replicas }} \
-                --config retention.ms=2592000000
+                # 자동 생성된 토픽은 브로커 기본 파티션으로 만들어진다.
+                # 파티션은 늘리는 방향만 되고 키에서 파티션으로 가는 배치가 바뀐다
+                mismatch=$((mismatch + 1))
+                if [ "$ALIGN" = "true" ]; then
+                  echo "$topic 파티션 $actual -> $partitions"
+                  kafka-topics --alter --bootstrap-server "$BS" \
+                    --topic "$topic" --partitions "$partitions"
+                else
+                  echo "$topic 파티션 $actual, 선언 $partitions"
+                fi
+              done < /tmp/topics.txt
 
-              kafka-topics --create --if-not-exists \
-                --bootstrap-server kafka:{{ .Values.infrastructure.kafka.ports.internal }} \
-                --topic user.account.created.DLT \
-                --partitions 3 \
-                --replication-factor {{ .Values.infrastructure.kafka.replicas }} \
-                --config retention.ms=2592000000
-
-              kafka-topics --create --if-not-exists \
-                --bootstrap-server kafka:{{ .Values.infrastructure.kafka.ports.internal }} \
-                --topic user.email.send.DLT \
-                --partitions 3 \
-                --replication-factor {{ .Values.infrastructure.kafka.replicas }} \
-                --config retention.ms=2592000000
-
-              kafka-topics --create --if-not-exists \
-                --bootstrap-server kafka:{{ .Values.infrastructure.kafka.ports.internal }} \
-                --topic backtest.completed.DLT \
-                --partitions 3 \
-                --replication-factor {{ .Values.infrastructure.kafka.replicas }} \
-                --config retention.ms=2592000000
-
-              echo "Listing all topics:"
-              kafka-topics --list --bootstrap-server kafka:{{ .Values.infrastructure.kafka.ports.internal }}
-
-              echo "Kafka topics initialization completed!"
+              echo "토픽 $total, 새로 만듦 $created, 파티션 다름 $mismatch"
+              if [ "$mismatch" -gt 0 ] && [ "$ALIGN" != "true" ]; then
+                echo "alignPartitions=true 로 올리면 맞춘다"
+              fi
           resources:
             {{- toYaml .Values.infrastructure.kafka.topicsInit.resources | nindent 12 }}
           securityContext:
