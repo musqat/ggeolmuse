@@ -40,20 +40,21 @@ public class YahooCandleSource implements CandleSource {
         toDate);
 
       if (dailyDtos.isEmpty()) {
-        log.info("Yahoo 일봉 데이터 없음: symbol={}, period=[{}~{}]", symbol, fromDate, toDate);
+        log.debug("Yahoo 일봉 데이터 없음: symbol={}, period=[{}~{}]", symbol, fromDate, toDate);
         return List.of();
       }
 
       List<Candle> candles = MarketDataMapper.toCandles(dailyDtos, symbol);
       ensureAdjustedCloseNotNull(candles);
 
-      log.info("Yahoo 일봉 데이터 수집 완료: symbol={}, 파싱건수={}, 변환건수={}, period=[{}~{}]",
+      log.debug("Yahoo 일봉 데이터 수집 완료: symbol={}, 파싱건수={}, 변환건수={}, period=[{}~{}]",
         symbol, dailyDtos.size(), candles.size(), fromDate, toDate);
 
       return candles;
 
     } catch (Exception e) {
-      log.warn("Yahoo 일봉 데이터 수집 실패: symbol={}, period=[{}~{}], error={}",
+      // 상장폐지 종목이 대부분이라 건수만 CollectionStats 에 남긴다
+      log.debug("Yahoo 일봉 데이터 수집 실패: symbol={}, period=[{}~{}], error={}",
         symbol, fromDate, toDate, e.getMessage());
       return List.of(); // 빈 리스트 반환
     }

@@ -44,7 +44,7 @@ public class YahooParser {
 
     } catch (YahooFinanceException e) {
       // 데이터 없음(상폐/신규 종목)은 정상 케이스 → 스택트레이스 없이 한 줄
-      log.warn("Yahoo 일봉 데이터 없음: symbol={}, reason={}", symbolOverride, e.getMessage());
+      log.debug("Yahoo 일봉 데이터 없음: symbol={}, reason={}", symbolOverride, e.getMessage());
       throw e;
     } catch (Exception e) {
       log.error("Yahoo 일봉 파싱 실패: symbol={}, error={}", symbolOverride, e.getMessage());
@@ -72,7 +72,7 @@ public class YahooParser {
 
     } catch (YahooFinanceException e) {
       // 데이터 없음(상폐/신규 종목)은 정상 케이스 → 스택트레이스 없이 한 줄
-      log.warn("Yahoo 배당 데이터 없음: symbol={}, reason={}", symbol, e.getMessage());
+      log.debug("Yahoo 배당 데이터 없음: symbol={}, reason={}", symbol, e.getMessage());
       throw e;
     } catch (Exception e) {
       log.error("Yahoo 배당 파싱 실패: symbol={}, error={}", symbol, e.getMessage());

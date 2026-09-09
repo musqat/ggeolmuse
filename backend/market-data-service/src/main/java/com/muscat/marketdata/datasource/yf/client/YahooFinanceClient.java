@@ -1,5 +1,6 @@
 package com.muscat.marketdata.datasource.yf.client;
 
+import com.muscat.marketdata.domain.service.CollectionStats;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -13,10 +14,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
 @Slf4j
@@ -36,6 +40,7 @@ public class YahooFinanceClient {
   private static final int MAX_PREVIEW_LENGTH = 200;
 
   private final RestTemplate restTemplate;
+  private final CollectionStats collectionStats;
 
   // ===== Public API =====
   public String getDailyChartRaw(String symbol, LocalDate fromDate, LocalDate toDate) {
@@ -56,10 +61,29 @@ public class YahooFinanceClient {
     } catch (IOException e) {
       log.error("응답 본문 디코딩 실패: symbol={}", symbol, e);
       return "";
+    } catch (HttpStatusCodeException e) {
+      return handleStatusError(symbol, e);
+    } catch (ResourceAccessException e) {
+      // 연결 실패와 타임아웃. 스택이 매번 같은 RestTemplate 프레임이라 메시지만 남긴다
+      collectionStats.recordRequestUnreachable();
+      log.warn("Yahoo Finance 차트 연결 실패: symbol={}, error={}", symbol, e.getMessage());
+      return "";
     } catch (Exception e) {
       log.error("Yahoo Finance 차트 API 호출 실패: symbol={}", symbol, e);
       return "";
     }
+  }
+
+  // 404 는 상장폐지와 티커 변경이라 다시 받을 것이 없다. 건수는 CollectionStats 가 센다
+  private String handleStatusError(String symbol, HttpStatusCodeException e) {
+    if (e.getStatusCode().value() == HttpStatus.NOT_FOUND.value()) {
+      collectionStats.recordRequestNotFound();
+      log.debug("Yahoo Finance 차트 404: symbol={}", symbol);
+    } else {
+      collectionStats.recordRequestHttpError();
+      log.warn("Yahoo Finance 차트 {}: symbol={}", e.getStatusCode().value(), symbol);
+    }
+    return "";
   }
 
   // ===== 내부 메서드 =====
