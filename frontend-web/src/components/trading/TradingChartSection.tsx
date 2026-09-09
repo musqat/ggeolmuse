@@ -129,16 +129,16 @@ const TradingChartSection: React.FC<TradingChartSectionProps> = ({
         </div>
       )}
 
-      {/* Chart Display */}
-      <div className="h-64">
+      {/* Chart Display — 높이는 CandlestickChart 가 정한다. 여기서 고정하면 차트가 넘친다 */}
+      <div>
         {chartLoading ? (
-          <div className="h-full flex items-center justify-center">
+          <div className="h-[400px] flex items-center justify-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand"></div>
           </div>
         ) : chartData.length > 0 ? (
-          <CandlestickChart data={chartData} className="h-full" />
+          <CandlestickChart data={chartData} />
         ) : (
-          <div className="h-full flex items-center justify-center text-tx-3">
+          <div className="h-[400px] flex items-center justify-center text-tx-3">
             차트 데이터가 없습니다
           </div>
         )}
