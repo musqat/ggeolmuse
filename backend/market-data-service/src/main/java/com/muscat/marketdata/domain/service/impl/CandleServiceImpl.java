@@ -63,20 +63,13 @@ public class CandleServiceImpl implements CandleService {
     // 캔들 데이터를 DTO로 변환 (adjustedClose 비율로 모든 OHLC 조정)
     Candle c = candle.get();
 
-    // adjustedClose 비율 계산 (액면분할/배당 반영)
-    BigDecimal ratio = BigDecimal.ONE;
-    if (c.getClose() != null && c.getClose().compareTo(BigDecimal.ZERO) > 0
-      && c.getAdjustedClose() != null) {
-      ratio = c.getAdjustedClose().divide(c.getClose(), 8, RoundingMode.HALF_UP);
-    }
-
     OHLCPriceDto result = OHLCPriceDto.builder()
       .symbol(c.getSymbol())
       .date(c.getDate())
-      .openPrice(c.getOpen() != null ? c.getOpen().multiply(ratio) : null)
-      .highPrice(c.getHigh() != null ? c.getHigh().multiply(ratio) : null)
-      .lowPrice(c.getLow() != null ? c.getLow().multiply(ratio) : null)
-      .closePrice(c.getClose() != null ? c.getClose().multiply(ratio) : null)
+      .openPrice(c.getOpen())
+      .highPrice(c.getHigh())
+      .lowPrice(c.getLow())
+      .closePrice(c.getClose())
       .adjustedClose(c.getAdjustedClose())
       .volume(c.getVolume())
       .currency(c.getCurrency())
@@ -100,19 +93,13 @@ public class CandleServiceImpl implements CandleService {
 
     List<OHLCPriceDto> result = candles.stream()
       .map(c -> {
-        BigDecimal ratio = BigDecimal.ONE;
-        if (c.getClose() != null && c.getClose().compareTo(BigDecimal.ZERO) > 0
-          && c.getAdjustedClose() != null) {
-          ratio = c.getAdjustedClose().divide(c.getClose(), 8, RoundingMode.HALF_UP);
-        }
-
         return OHLCPriceDto.builder()
           .symbol(c.getSymbol())
           .date(c.getDate())
-          .openPrice(c.getOpen() != null ? c.getOpen().multiply(ratio) : null)
-          .highPrice(c.getHigh() != null ? c.getHigh().multiply(ratio) : null)
-          .lowPrice(c.getLow() != null ? c.getLow().multiply(ratio) : null)
-          .closePrice(c.getClose() != null ? c.getClose().multiply(ratio) : null)
+          .openPrice(c.getOpen())
+          .highPrice(c.getHigh())
+          .lowPrice(c.getLow())
+          .closePrice(c.getClose())
           .adjustedClose(c.getAdjustedClose())
           .volume(c.getVolume())
           .currency(c.getCurrency())
@@ -193,20 +180,13 @@ public class CandleServiceImpl implements CandleService {
     // 캔들 데이터 DTO 변환 (adjustedClose 비율로 모든 OHLC 조정)
     List<OHLCPriceDto> result = candles.stream()
       .map(c -> {
-        // adjustedClose 비율 계산 (액면분할/배당 반영)
-        BigDecimal ratio = BigDecimal.ONE;
-        if (c.getClose() != null && c.getClose().compareTo(BigDecimal.ZERO) > 0
-          && c.getAdjustedClose() != null) {
-          ratio = c.getAdjustedClose().divide(c.getClose(), 8, RoundingMode.HALF_UP);
-        }
-
         return OHLCPriceDto.builder()
           .symbol(c.getSymbol())
           .date(c.getDate())
-          .openPrice(c.getOpen() != null ? c.getOpen().multiply(ratio) : null)
-          .highPrice(c.getHigh() != null ? c.getHigh().multiply(ratio) : null)
-          .lowPrice(c.getLow() != null ? c.getLow().multiply(ratio) : null)
-          .closePrice(c.getClose() != null ? c.getClose().multiply(ratio) : null)
+          .openPrice(c.getOpen())
+          .highPrice(c.getHigh())
+          .lowPrice(c.getLow())
+          .closePrice(c.getClose())
           .adjustedClose(c.getAdjustedClose())
           .volume(c.getVolume())
           .currency(c.getCurrency())
@@ -232,20 +212,13 @@ public class CandleServiceImpl implements CandleService {
     // 캔들 데이터 DTO 변환 (adjustedClose 비율로 모든 OHLC 조정)
     List<OHLCPriceDto> result = candlesWithDividends.stream()
       .map(c -> {
-        // adjustedClose 비율 계산 (액면분할/배당 반영)
-        BigDecimal ratio = BigDecimal.ONE;
-        if (c.getClose() != null && c.getClose().compareTo(BigDecimal.ZERO) > 0
-          && c.getAdjustedClose() != null) {
-          ratio = c.getAdjustedClose().divide(c.getClose(), 8, RoundingMode.HALF_UP);
-        }
-
         return OHLCPriceDto.builder()
           .symbol(c.getSymbol())
           .date(c.getDate())
-          .openPrice(c.getOpen() != null ? c.getOpen().multiply(ratio) : null)
-          .highPrice(c.getHigh() != null ? c.getHigh().multiply(ratio) : null)
-          .lowPrice(c.getLow() != null ? c.getLow().multiply(ratio) : null)
-          .closePrice(c.getClose() != null ? c.getClose().multiply(ratio) : null)
+          .openPrice(c.getOpen())
+          .highPrice(c.getHigh())
+          .lowPrice(c.getLow())
+          .closePrice(c.getClose())
           .adjustedClose(c.getAdjustedClose())
           .volume(c.getVolume())
           .currency(c.getCurrency())
