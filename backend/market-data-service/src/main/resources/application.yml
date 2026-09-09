@@ -1,6 +1,10 @@
 spring:
   application:
     name: market-data-service
+  task:
+    scheduling:
+      # 기본 1이면 수집 집계가 크론 작업 뒤에서 밀린다
+      pool-size: 3
   config:
     import:
       - "optional:configserver:${SPRING_CLOUD_CONFIG_URI:http://config-server:8888}"

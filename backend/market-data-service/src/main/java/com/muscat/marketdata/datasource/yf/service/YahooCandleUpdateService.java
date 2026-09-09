@@ -6,6 +6,7 @@ import com.muscat.marketdata.domain.mapper.MarketDataMapper;
 import com.muscat.marketdata.domain.repository.AssetRepository;
 import com.muscat.marketdata.domain.repository.CandleRepository;
 import com.muscat.marketdata.domain.repository.DividendRepository;
+import com.muscat.marketdata.domain.service.CollectionStats;
 import com.muscat.marketdata.infra.kafka.DividendEventProducer;
 
 import java.util.Comparator;
@@ -49,6 +50,7 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
     private final AssetRepository assetRepository;
 
     private final DividendEventProducer dividendEventProducer;
+    private final CollectionStats collectionStats;
 
     // self-injection: saveBoth에서 proxy 통해 호출해야 REQUIRES_NEW가 실제로 적용됨
     @Lazy
@@ -60,11 +62,12 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
         try {
             List<Candle> candles = candleSource.fetchDailyAdjusted(symbol, from, to);
             if (candles == null || candles.isEmpty()) {
+                collectionStats.recordSymbolEmpty();
                 log.debug("[YF-캔들저장] 데이터 없음: symbol={}", symbol);
                 return 0;
             }
 
-            mergeIntoExisting(symbol, from, to, candles);
+            Merged merged = mergeIntoExisting(symbol, from, to, candles);
 
             // 최신 캔들을 asset에 비정규화 (summary 조회 성능용)
             candles.stream()
@@ -77,10 +80,13 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
                     }
                 }));
 
-            log.info("[YF-캔들저장] 완료: symbol={}, count={}", symbol, candles.size());
+            collectionStats.recordSymbol(merged.inserted(), merged.updated());
+            log.debug("[YF-캔들저장] 완료: symbol={}, 받음={}, 신규={}, 갱신={}",
+                symbol, candles.size(), merged.inserted(), merged.updated());
             return candles.size();
         } catch (Exception e) {
-            log.error("[YF-캔들저장] 실패: symbol={}, error={}", symbol, e.getMessage());
+            collectionStats.recordSymbolFailed();
+            log.warn("[YF-캔들저장] 실패: symbol={}, error={}", symbol, e.getMessage());
             return 0;
         }
     }
@@ -110,11 +116,12 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
 
             // Kafka 이벤트 발행 (배치로 처리)
             dividendEventProducer.publishBatch(newDividends);
+            collectionStats.recordDividends(newDividends.size());
             log.debug("[YF-배당저장] 완료: symbol={}, count={}", symbol, newDividends.size());
 
             return newDividends.size();
         } catch (Exception e) {
-            log.error("[YF-배당저장] 실패: symbol={}, error={}", symbol, e.getMessage());
+            log.warn("[YF-배당저장] 실패: symbol={}, error={}", symbol, e.getMessage());
             return 0;
         }
     }
@@ -122,7 +129,7 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
     public int saveBoth(String symbol, LocalDate from, LocalDate to) {
         int c = self.saveCandles(symbol, from, to);
         int d = self.saveDividends(symbol, from, to);
-        log.info("[YF-데이터저장] {} 캔들={}, 배당={}", symbol, c, d);
+        log.debug("[YF-데이터저장] {} 캔들={}, 배당={}", symbol, c, d);
         return c + d;
     }
 
@@ -130,7 +137,7 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
      * 받아온 캔들을 기존 행과 대조해 없는 것만 넣고 값이 달라진 것만 고친다.
      * adjusted_close 는 배당이 나올 때마다 과거 날짜까지 바뀌므로 기존 행도 다시 본다.
      */
-    private void mergeIntoExisting(String symbol, LocalDate from, LocalDate to,
+    private Merged mergeIntoExisting(String symbol, LocalDate from, LocalDate to,
         List<Candle> candles) {
 
         Map<String, Candle> existing = candleRepository
@@ -155,8 +162,10 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
             candleRepository.saveAll(inserts);
         }
 
-        log.debug("[YF-캔들저장] symbol={}, 신규={}, 갱신={}", symbol, inserts.size(), updated);
+        return new Merged(inserts.size(), updated);
     }
+
+    private record Merged(int inserted, int updated) {}
 
     // UNIQUE(symbol, date, currency) 와 같은 기준
     private static String key(Candle c) {
