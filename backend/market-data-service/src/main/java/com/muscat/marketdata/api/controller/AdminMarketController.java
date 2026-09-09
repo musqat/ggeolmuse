@@ -120,16 +120,17 @@ public class AdminMarketController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "symbol") String sortBy,
-            @RequestParam(defaultValue = "asc") String direction) {
+            @RequestParam(defaultValue = "asc") String direction,
+            @RequestParam(defaultValue = "true") boolean active) {
 
-        log.info("전체 심볼 요약 정보 조회 (page={}, size={}, sort={},{})",
-                page, size, sortBy, direction);
+        log.info("심볼 요약 조회 (active={}, page={}, size={}, sort={},{})",
+                active, page, size, sortBy, direction);
 
         Sort.Direction sortDirection = direction.equalsIgnoreCase("desc")
                 ? Sort.Direction.DESC : Sort.Direction.ASC;
         Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sortBy));
 
-        Page<AssetSummaryDto> summaries = assetService.getAllAssetSummaries(pageable);
+        Page<AssetSummaryDto> summaries = assetService.getAllAssetSummaries(pageable, active);
         return ResponseEntity.ok(PageResponse.from(summaries));
     }
 
@@ -239,6 +240,24 @@ public class AdminMarketController {
             return ResponseEntity.noContent().build();
         } catch (IllegalArgumentException e) {
             log.warn("심볼 삭제 실패: {}", e.getMessage());
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    /**
+     * 상장폐지 처리한 종목 복구
+     *
+     * POST /api/admin/market/assets/AAPL/restore
+     */
+    @PostMapping("/assets/{symbol}/restore")
+    public ResponseEntity<Void> restoreAsset(@PathVariable String symbol) {
+        log.info("심볼 복구 요청: symbol={}", symbol);
+
+        try {
+            assetService.restoreAsset(symbol);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException e) {
+            log.warn("심볼 복구 실패: {}", e.getMessage());
             return ResponseEntity.notFound().build();
         }
     }
@@ -563,6 +582,7 @@ public class AdminMarketController {
 
         List<String> requested = request.getSymbols() != null ? request.getSymbols() : List.of();
         int published = 0;
+        int delisted = 0;
         List<String> notFound = new java.util.ArrayList<>();
 
         for (String raw : requested) {
@@ -572,12 +592,17 @@ public class AdminMarketController {
                 notFound.add(symbol);
                 continue;
             }
+            // 상장폐지 종목은 야후가 404 를 낸다. 발행해봐야 빈 응답만 받는다
+            if (!Boolean.TRUE.equals(asset.getActive())) {
+                delisted++;
+                continue;
+            }
             assetEventProducer.publishAssetCreated(asset, true, from, to, false);
             published++;
         }
 
-        log.info("캔들 재수집 요청: 요청 {}개, 발행 {}개, 없는 종목 {}개, from={}",
-            requested.size(), published, notFound.size(), from);
+        log.info("캔들 재수집 요청: 요청 {}개, 발행 {}개, 상장폐지 {}개, 없는 종목 {}개, from={}",
+            requested.size(), published, delisted, notFound.size(), from);
 
         return ResponseEntity.ok(RefreshResponse.builder()
             .requested(requested.size())

@@ -85,7 +85,7 @@ public class AssetRepositoryCustomImpl implements AssetRepositoryCustom {
 
   // 파생 쿼리에 nullsLast 를 붙이면 Criteria 가 못 다뤄 터진다. QueryDSL 은 SQL 을 직접 만들어 된다.
   @Override
-  public Page<Asset> findActiveSorted(Pageable pageable) {
+  public Page<Asset> findSorted(Pageable pageable, boolean active) {
     List<OrderSpecifier<?>> orders = new ArrayList<>();
     for (Sort.Order order : pageable.getSort()) {
       ComparableExpressionBase<?> path = sortPath(order.getProperty());
@@ -98,7 +98,7 @@ public class AssetRepositoryCustomImpl implements AssetRepositoryCustom {
 
     List<Asset> content = queryFactory
       .selectFrom(asset)
-      .where(asset.active.isTrue())
+      .where(asset.active.eq(active))
       .orderBy(orders.toArray(new OrderSpecifier[0]))
       .offset(pageable.getOffset())
       .limit(pageable.getPageSize())
@@ -107,7 +107,7 @@ public class AssetRepositoryCustomImpl implements AssetRepositoryCustom {
     Long total = queryFactory
       .select(asset.count())
       .from(asset)
-      .where(asset.active.isTrue())
+      .where(asset.active.eq(active))
       .fetchOne();
 
     return new PageImpl<>(content, pageable, total != null ? total : 0L);

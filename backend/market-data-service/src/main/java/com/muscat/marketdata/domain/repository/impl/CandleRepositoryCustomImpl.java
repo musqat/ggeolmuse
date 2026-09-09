@@ -1,6 +1,7 @@
 package com.muscat.marketdata.domain.repository.impl;
 
 import com.muscat.marketdata.domain.entity.Candle;
+import com.muscat.marketdata.domain.entity.QAsset;
 import com.muscat.marketdata.domain.entity.QCandle;
 import com.muscat.marketdata.domain.repository.CandleRepositoryCustom;
 import com.querydsl.core.types.dsl.NumberExpression;
@@ -19,6 +20,7 @@ public class CandleRepositoryCustomImpl implements CandleRepositoryCustom {
 
   private final JPAQueryFactory queryFactory;
   private static final QCandle candle = QCandle.candle;
+  private static final QAsset asset = QAsset.asset;
 
   @Override
   public List<Candle> findBySymbolsAndDateRange(List<String> symbols, LocalDate startDate, LocalDate endDate) {
@@ -97,12 +99,15 @@ public class CandleRepositoryCustomImpl implements CandleRepositoryCustom {
   public List<String> findSymbolsWithUnadjustedSplits(LocalDate from) {
     NumberExpression<BigDecimal> ratio = candle.adjustedClose.divide(candle.close);
 
+    // 상장폐지 종목은 야후가 404 를 낸다. 다시 받을 수 없으니 목록에서 뺀다
     return queryFactory
       .select(candle.symbol)
       .from(candle)
+      .join(asset).on(asset.symbol.eq(candle.symbol))
       .where(candle.date.goe(from)
         .and(candle.close.gt(BigDecimal.ZERO))
-        .and(candle.adjustedClose.gt(BigDecimal.ZERO)))
+        .and(candle.adjustedClose.gt(BigDecimal.ZERO))
+        .and(asset.active.isTrue()))
       .groupBy(candle.symbol)
       .having(ratio.max().divide(ratio.min()).gt(SPLIT_RATIO_THRESHOLD))
       .orderBy(candle.symbol.asc())

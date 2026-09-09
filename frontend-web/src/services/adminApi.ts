@@ -103,10 +103,11 @@ export const marketAdminApi = {
     page = 0,
     size = 20,
     sortBy = 'symbol',
-    direction = 'asc'
+    direction = 'asc',
+    active = true
   ): Promise<PageResponse<Asset>> => {
     const { data } = await api.get<PageResponse<Asset>>('/admin/market/assets/summary', {
-      params: { page, size, sortBy, direction },
+      params: { page, size, sortBy, direction, active },
     });
     return data;
   },
@@ -121,6 +122,10 @@ export const marketAdminApi = {
 
   deleteAsset: async (symbol: string): Promise<void> => {
     await api.delete(`/admin/market/assets/${symbol}`);
+  },
+
+  restoreAsset: async (symbol: string): Promise<void> => {
+    await api.post(`/admin/market/assets/${symbol}/restore`);
   },
 
   bulkDeleteAssets: async (symbols: string[]): Promise<BulkDeleteResponse> => {
