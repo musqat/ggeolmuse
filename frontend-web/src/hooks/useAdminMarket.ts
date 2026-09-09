@@ -21,6 +21,9 @@ export const useAdminMarket = () => {
 
   const [searchActive, setSearchActive] = useState(false);
 
+  // 상장 목록과 상장폐지 목록을 오간다
+  const [listActive, setListActive] = useState(true);
+
   // 보유 종목 검색 (DB) — 등록된 종목에서 키워드 매칭
   const handleSearch = async () => {
     if (!searchKeyword.trim()) {
@@ -137,6 +140,31 @@ export const useAdminMarket = () => {
   };
 
   // 심볼 삭제
+  // 상장폐지 처리한 종목을 되돌린다. 되돌리면 수집 대상에 다시 들어간다
+  const handleRestoreAsset = async (symbol: string) => {
+    if (!confirm(`${symbol}을(를) 상장 상태로 되돌립니다. 계속할까요?`)) return;
+
+    setLoading(true);
+    setError(null);
+    try {
+      await marketAdminApi.restoreAsset(symbol);
+      loadAssets();
+    } catch (err) {
+      setError('심볼 복구에 실패했습니다.');
+      console.error('Restore failed:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 상장 목록과 상장폐지 목록을 바꾼다
+  const handleListActiveChange = (active: boolean) => {
+    setListActive(active);
+    setCurrentPage(0);
+    setSelected(new Set());
+    loadAssets(0, active);
+  };
+
   const handleDeleteAsset = async (symbol: string) => {
     if (!confirm(`${symbol}을(를) 삭제하시겠습니까?`)) return;
 
@@ -182,7 +210,7 @@ export const useAdminMarket = () => {
   };
 
   // 전체 심볼 목록 로드 (가격, 최신 데이터 날짜 포함, 페이지네이션)
-  const loadAssets = async (page: number = currentPage) => {
+  const loadAssets = async (page: number = currentPage, active: boolean = listActive) => {
     const safePage = typeof page === 'number' && isFinite(page) ? page : 0;
     setLoading(true);
     setError(null);
@@ -191,7 +219,8 @@ export const useAdminMarket = () => {
         safePage,
         pageSize,
         sortBy,
-        sortDirection
+        sortDirection,
+        active
       );
       setAssets(data.content);
       setTotalPages(data.totalPages);
@@ -347,6 +376,9 @@ export const useAdminMarket = () => {
     handlePreview,
     handleAddAsset,
     handleDeleteAsset,
+    handleRestoreAsset,
+    listActive,
+    handleListActiveChange,
     handleUpdateName,
     handleBulkDelete,
     handleUpdatePrice,

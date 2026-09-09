@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { RefreshCw, Trash2, DollarSign, TrendingUp, ArrowUpDown, ChevronLeft, ChevronRight, Pencil, Check, X, PlusCircle } from 'lucide-react';
+import { RefreshCw, Trash2, DollarSign, TrendingUp, ArrowUpDown, ChevronLeft, ChevronRight, Pencil, Check, X, PlusCircle, Undo2 } from 'lucide-react';
 import type { Asset } from '@services/adminApi';
 
 interface AssetListSectionProps {
@@ -7,6 +7,10 @@ interface AssetListSectionProps {
   loading: boolean;
   onRefresh: () => void;
   onDelete: (symbol: string) => void;
+  onRestore: (symbol: string) => void;
+  // true 면 상장 목록, false 면 상장폐지 목록
+  listActive: boolean;
+  onListActiveChange: (active: boolean) => void;
   onBulkDelete: () => void;
   onUpdatePrice: (symbol: string) => void;
   onUpdateMarketCap: (symbol: string) => void;
@@ -37,6 +41,9 @@ export default function AssetListSection({
   loading,
   onRefresh,
   onDelete,
+  onRestore,
+  listActive,
+  onListActiveChange,
   onBulkDelete,
   onUpdatePrice,
   onUpdateMarketCap,
@@ -147,12 +154,32 @@ export default function AssetListSection({
     <div className="bg-surface rounded-lg shadow-md p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-xl font-semibold">{searchMode ? '검색 결과' : '등록된 심볼 목록'}</h2>
+          <h2 className="text-xl font-semibold">
+            {searchMode ? '검색 결과' : listActive ? '등록된 심볼 목록' : '상장폐지 심볼 목록'}
+          </h2>
           <p className="text-sm text-tx-2 mt-1">
             {searchMode
               ? `${assets.length}개`
               : `전체 ${totalElements.toLocaleString()}개 중 ${currentPage * pageSize + 1}-${Math.min((currentPage + 1) * pageSize, totalElements)} 표시`}
           </p>
+          {!searchMode && (
+            <div className="mt-3 inline-flex rounded-lg border border-line-strong overflow-hidden text-sm">
+              <button
+                onClick={() => onListActiveChange(true)}
+                disabled={loading}
+                className={`px-3 py-1.5 transition disabled:opacity-50 ${listActive ? 'bg-brand text-white' : 'text-tx-2 hover:bg-surface-2'}`}
+              >
+                상장
+              </button>
+              <button
+                onClick={() => onListActiveChange(false)}
+                disabled={loading}
+                className={`px-3 py-1.5 transition disabled:opacity-50 ${listActive ? 'text-tx-2 hover:bg-surface-2' : 'bg-brand text-white'}`}
+              >
+                상장폐지
+              </button>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-4">
           {!searchMode && (
@@ -344,15 +371,27 @@ export default function AssetListSection({
                         시총
                       </button>
                     )}
-                    <button
-                      onClick={() => onDelete(asset.symbol)}
-                      disabled={loading}
-                      className="px-3 py-1 text-sm text-red-600 hover:bg-red-500/10 rounded flex items-center gap-1 transition disabled:opacity-50"
-                      title="삭제"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      삭제
-                    </button>
+                    {listActive ? (
+                      <button
+                        onClick={() => onDelete(asset.symbol)}
+                        disabled={loading}
+                        className="px-3 py-1 text-sm text-red-600 hover:bg-red-500/10 rounded flex items-center gap-1 transition disabled:opacity-50"
+                        title="삭제"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        삭제
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => onRestore(asset.symbol)}
+                        disabled={loading}
+                        className="px-3 py-1 text-sm text-brand hover:bg-brand-bg rounded flex items-center gap-1 transition disabled:opacity-50"
+                        title="상장 상태로 되돌린다"
+                      >
+                        <Undo2 className="w-4 h-4" />
+                        복구
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>

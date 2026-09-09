@@ -21,6 +21,9 @@ export default function AdminMarket() {
     handlePreview,
     handleAddAsset,
     handleDeleteAsset,
+    handleRestoreAsset,
+    listActive,
+    handleListActiveChange,
     handleBulkDelete,
     handleUpdatePrice,
     handleUpdateMarketCap,
@@ -126,6 +129,9 @@ export default function AdminMarket() {
           searchMode={searchActive}
           onRefresh={searchActive ? handleSearch : loadAssets}
           onDelete={handleDeleteAsset}
+          onRestore={handleRestoreAsset}
+          listActive={listActive}
+          onListActiveChange={handleListActiveChange}
           onBulkDelete={handleBulkDelete}
           onUpdatePrice={handleUpdatePrice}
           onUpdateMarketCap={handleUpdateMarketCap}
