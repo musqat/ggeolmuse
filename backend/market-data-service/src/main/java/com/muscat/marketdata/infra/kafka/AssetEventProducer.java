@@ -74,7 +74,7 @@ public class AssetEventProducer {
                 .includeDividends(includeDividends)
                 .build();
 
-        log.info("종목 생성 이벤트 발행 중: symbol={}, collectData={}",
+        log.debug("종목 생성 이벤트 발행 중: symbol={}, collectData={}",
                 asset.getSymbol(), collectData);
 
         CompletableFuture<SendResult<String, AssetCreatedEvent>> future =
@@ -82,7 +82,7 @@ public class AssetEventProducer {
 
         future.whenComplete((result, ex) -> {
             if (ex == null) {
-                log.info("종목 생성 이벤트 발행 성공: topic={}, partition={}, offset={}, symbol={}",
+                log.debug("종목 생성 이벤트 발행 성공: topic={}, partition={}, offset={}, symbol={}",
                         ASSET_CREATED_TOPIC,
                         result.getRecordMetadata().partition(),
                         result.getRecordMetadata().offset(),

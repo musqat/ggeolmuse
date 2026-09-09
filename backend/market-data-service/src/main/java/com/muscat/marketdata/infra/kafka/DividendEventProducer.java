@@ -90,7 +90,7 @@ public class DividendEventProducer {
             return;
         }
 
-        log.info("배당 이벤트 일괄 발행 중: {}건", dividends.size());
+        log.debug("배당 이벤트 일괄 발행 중: {}건", dividends.size());
         dividends.forEach(this::publishDividendUpdated);
     }
 }

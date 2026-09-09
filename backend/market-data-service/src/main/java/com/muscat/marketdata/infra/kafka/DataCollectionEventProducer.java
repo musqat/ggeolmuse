@@ -68,7 +68,7 @@ public class DataCollectionEventProducer {
                 .executionTimeMs(executionTimeMs)
                 .build();
 
-        log.info("데이터 수집 완료 이벤트 발행 중: symbol={}, candleCount={}, dividendCount={}",
+        log.debug("데이터 수집 완료 이벤트 발행 중: symbol={}, candleCount={}, dividendCount={}",
                 symbol, candleCount, dividendCount);
 
         CompletableFuture<SendResult<String, DataCollectionCompletedEvent>> future =
@@ -76,7 +76,7 @@ public class DataCollectionEventProducer {
 
         future.whenComplete((result, ex) -> {
             if (ex == null) {
-                log.info("데이터 수집 완료 이벤트 발행 성공: topic={}, partition={}, offset={}, symbol={}",
+                log.debug("데이터 수집 완료 이벤트 발행 성공: topic={}, partition={}, offset={}, symbol={}",
                         COLLECTION_COMPLETED_TOPIC,
                         result.getRecordMetadata().partition(),
                         result.getRecordMetadata().offset(),
@@ -129,7 +129,7 @@ public class DataCollectionEventProducer {
 
         future.whenComplete((result, ex) -> {
             if (ex == null) {
-                log.info("데이터 수집 실패 이벤트 발행 성공: topic={}, partition={}, offset={}, symbol={}",
+                log.debug("데이터 수집 실패 이벤트 발행 성공: topic={}, partition={}, offset={}, symbol={}",
                         COLLECTION_COMPLETED_TOPIC,
                         result.getRecordMetadata().partition(),
                         result.getRecordMetadata().offset(),

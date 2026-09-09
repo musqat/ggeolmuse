@@ -41,7 +41,8 @@ public class YahooDividendSource implements DividendSource {
       return dividends;
 
     } catch (Exception e) {
-      log.warn("Yahoo 배당 데이터 수집 실패: symbol={}, error={}", symbol, e.getMessage());
+      // 상장폐지 종목이 대부분이라 건수만 CollectionStats 에 남긴다
+      log.debug("Yahoo 배당 데이터 수집 실패: symbol={}, error={}", symbol, e.getMessage());
       return List.of();
     }
   }

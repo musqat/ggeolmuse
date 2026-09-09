@@ -25,7 +25,7 @@ public class DataCollectionService {
      */
     @Async
     public void collectDataAsync(AssetCreatedEvent event) {
-        log.info("Starting async data collection: symbol={}", event.getSymbol());
+        log.debug("Starting async data collection: symbol={}", event.getSymbol());
         long startTime = System.currentTimeMillis();
 
         int candleCount = 0;
@@ -40,7 +40,7 @@ public class DataCollectionService {
                         event.getToDate()
                 );
                 candleCount = totalRecords;
-                log.info("Data collection completed: symbol={}, totalRecords={}",
+                log.debug("Data collection completed: symbol={}, totalRecords={}",
                         event.getSymbol(), totalRecords);
             } else {
                 // 캔들만 수집
@@ -49,7 +49,7 @@ public class DataCollectionService {
                         event.getFromDate(),
                         event.getToDate()
                 );
-                log.info("Candle collection completed: symbol={}, candleCount={}",
+                log.debug("Candle collection completed: symbol={}, candleCount={}",
                         event.getSymbol(), candleCount);
             }
 
