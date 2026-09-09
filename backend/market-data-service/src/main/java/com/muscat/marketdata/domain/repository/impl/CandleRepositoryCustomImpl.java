@@ -3,6 +3,7 @@ package com.muscat.marketdata.domain.repository.impl;
 import com.muscat.marketdata.domain.entity.Candle;
 import com.muscat.marketdata.domain.entity.QCandle;
 import com.muscat.marketdata.domain.repository.CandleRepositoryCustom;
+import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -85,5 +86,26 @@ public class CandleRepositoryCustomImpl implements CandleRepositoryCustom {
       .from(candle)
       .fetchOne();
     return count != null ? count : 0L;
+  }
+
+  // 분할이 close 에 반영되지 않으면 종목 안에서 adjusted_close/close 가 분할 배수만큼 갈린다.
+  // 2:1 분할이 최소라 문턱은 1.9 로 둔다. 배당만으로 이만큼 벌어진 고배당 종목도 같이 잡히는데,
+  // 그쪽도 다시 받아서 손해가 아니다.
+  private static final BigDecimal SPLIT_RATIO_THRESHOLD = new BigDecimal("1.9");
+
+  @Override
+  public List<String> findSymbolsWithUnadjustedSplits(LocalDate from) {
+    NumberExpression<BigDecimal> ratio = candle.adjustedClose.divide(candle.close);
+
+    return queryFactory
+      .select(candle.symbol)
+      .from(candle)
+      .where(candle.date.goe(from)
+        .and(candle.close.gt(BigDecimal.ZERO))
+        .and(candle.adjustedClose.gt(BigDecimal.ZERO)))
+      .groupBy(candle.symbol)
+      .having(ratio.max().divide(ratio.min()).gt(SPLIT_RATIO_THRESHOLD))
+      .orderBy(candle.symbol.asc())
+      .fetch();
   }
 }

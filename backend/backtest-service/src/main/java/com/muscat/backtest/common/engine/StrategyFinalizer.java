@@ -15,7 +15,7 @@ import java.util.List;
 
 /**
  * 전략(DCA/조건부) 공통 마무리 처리. 매수내역 생성 이후의 동일 로직을 단일화:
- * 평가일 시세/환율 조회 → 총투자·환율합 → 총배당 → StrategyCalculator.calculate.
+ * 평가일 시세/환율 조회 → 총투자·환율합 → 배당 재투자 → 총배당 → StrategyCalculator.calculate.
  * (전략별로 다른 응답 매핑 toStrategyResponse 호출은 각 전략 유지 )
  */
 public final class StrategyFinalizer {
@@ -57,10 +57,11 @@ public final class StrategyFinalizer {
         .map(t -> t.getFxRate().multiply(t.getAmount()))
         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-    // 조정 종가에 배당 재투자가 이미 반영돼 있다
-    BigDecimal dividendsReinvested = BigDecimal.ZERO;
+    BigDecimal dividendsReinvested = DividendReinvestor.reinvest(
+        marketDataClient, dividendHistory, transactions, symbol,
+        firstPurchaseDate, reinvestEnabled, dividendTaxRate, manualPurchaseFxRate, currentFxRate.rate());
 
-    // 총 보유 주식수
+    // 배당 재투자 후 총 보유 주식수
     BigDecimal totalShares = transactions.stream()
         .map(StrategyTransaction::getShares)
         .reduce(BigDecimal.ZERO, BigDecimal::add);

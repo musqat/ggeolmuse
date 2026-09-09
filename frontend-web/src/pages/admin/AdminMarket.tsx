@@ -3,6 +3,7 @@ import { TrendingUp, Search, Plus, X } from 'lucide-react';
 import { useAdminMarket } from '@hooks/useAdminMarket';
 import AssetListSection from '@components/admin/AssetListSection';
 import AddAssetModal from '@components/admin/AddAssetModal';
+import CandleRefreshSection from '@components/admin/CandleRefreshSection';
 
 export default function AdminMarket() {
   const {
@@ -74,6 +75,9 @@ export default function AdminMarket() {
             <p className="text-red-600">{error}</p>
           </div>
         )}
+
+        {/* 분할 미반영 종목 정비 */}
+        <CandleRefreshSection />
 
         {/* 보유 종목 검색 (DB) */}
         <div className="bg-surface rounded-lg shadow-md p-4 mb-6">

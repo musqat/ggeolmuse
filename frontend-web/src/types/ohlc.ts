@@ -26,7 +26,7 @@ export function convertOHLCToCandlestick(ohlcData: OHLCData[]): CandlestickChart
     open: item.openPrice,
     high: item.highPrice,
     low: item.lowPrice,
-    close: item.adjustedClose || item.closePrice,  // 액면분할/배당 반영된 조정 종가 사용
+    close: item.closePrice ?? item.adjustedClose,  // 시고저와 같은 척도. 분할만 조정된 종가
     volume: item.volume
   }));
 }
