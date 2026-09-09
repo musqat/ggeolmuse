@@ -7,15 +7,16 @@
     <!-- Console Appender -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <pattern>%d{MM-dd HH:mm:ss} %-5level %logger{0} - %msg%n</pattern>
         </encoder>
     </appender>
 
-    <!-- Market Data 패키지 로거 -->
-    <logger name="com.muscat.marketdata" level="DEBUG"/>
-
-    <!-- 외부 API 제공업체별 로거 -->
-    <logger name="com.muscat.marketdata.provider" level="INFO"/>
+    <!--
+      config-server 가 logging.level 로 덮어쓴다. 여기 값은 config-server 를 못 붙었을 때의 기본이다.
+      DEBUG 로 두면 붙지 못한 그 순간에 종목당 수십 줄이 쏟아진다.
+      로컬에서 자세히 보려면 -Dlogging.level.com.muscat.marketdata=DEBUG 를 준다
+    -->
+    <logger name="com.muscat.marketdata" level="INFO"/>
 
     <!-- Root Logger -->
     <root level="INFO">
