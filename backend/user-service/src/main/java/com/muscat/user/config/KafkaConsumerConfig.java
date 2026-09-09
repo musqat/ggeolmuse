@@ -10,7 +10,10 @@ import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,13 +21,16 @@ import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
+import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.CommonErrorHandler;
 import org.springframework.kafka.listener.ContainerProperties;
+import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
-import org.springframework.util.backoff.ExponentialBackOff;
+import org.springframework.kafka.support.serializer.JsonSerializer;
+import org.springframework.util.backoff.FixedBackOff;
 
 /**
  * User Service Kafka Consumer 설정
@@ -85,7 +91,7 @@ public class KafkaConsumerConfig {
     // (spring.kafka.consumer 설정)
 
     // 공통 에러 핸들러 설정 (DLQ 포함)
-    factory.setCommonErrorHandler(kafkaErrorHandler(null));
+    factory.setCommonErrorHandler(kafkaErrorHandler());
 
     return factory;
   }
@@ -131,7 +137,7 @@ public class KafkaConsumerConfig {
     factory.setConcurrency(3);
 
     // 공통 에러 핸들러 설정 (DLQ 포함)
-    factory.setCommonErrorHandler(kafkaErrorHandler(null));
+    factory.setCommonErrorHandler(kafkaErrorHandler());
 
     return factory;
   }
@@ -177,7 +183,7 @@ public class KafkaConsumerConfig {
     factory.setConcurrency(3);
 
     // 공통 에러 핸들러 설정 (DLQ 포함)
-    factory.setCommonErrorHandler(kafkaErrorHandler(null));
+    factory.setCommonErrorHandler(kafkaErrorHandler());
 
     return factory;
   }
@@ -226,7 +232,7 @@ public class KafkaConsumerConfig {
     // (spring.kafka.consumer 설정)
 
     // 공통 에러 핸들러 설정 (DLQ 포함)
-    factory.setCommonErrorHandler(kafkaErrorHandler(null));
+    factory.setCommonErrorHandler(kafkaErrorHandler());
 
     return factory;
   }
@@ -262,7 +268,7 @@ public class KafkaConsumerConfig {
     factory.setConsumerFactory(depositCompletedEventConsumerFactory());
     factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL);
     factory.setConcurrency(3);
-    factory.setCommonErrorHandler(kafkaErrorHandler(null));
+    factory.setCommonErrorHandler(kafkaErrorHandler());
 
     return factory;
   }
@@ -298,34 +304,39 @@ public class KafkaConsumerConfig {
     factory.setConsumerFactory(withdrawalCompletedEventConsumerFactory());
     factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL);
     factory.setConcurrency(3);
-    factory.setCommonErrorHandler(kafkaErrorHandler(null));
+    factory.setCommonErrorHandler(kafkaErrorHandler());
 
     return factory;
   }
 
   /**
-   * Kafka Consumer 공통 에러 핸들러 - 3회 재시도 (지수 백오프: 1초, 2초, 4초) - 재시도 실패 시 DLQ 토픽으로 전송
+   * 재시도로 못 살린 메시지를 .DLT 토픽에 넣을 때 쓴다.
    */
-  private CommonErrorHandler kafkaErrorHandler(KafkaTemplate<String, Object> kafkaTemplate) {
-    // 지수 백오프 설정: 초기 1초, 배수 2.0, 최대 10초
-    ExponentialBackOff backOff = new ExponentialBackOff(1000L, 2.0);
-    backOff.setMaxElapsedTime(10000L);
+  @Bean
+  public KafkaTemplate<String, Object> dltKafkaTemplate() {
+    Map<String, Object> props = new HashMap<>();
+    props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+    props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+    props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+    props.put(ProducerConfig.ACKS_CONFIG, "all");
+    return new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(props));
+  }
 
-    DefaultErrorHandler errorHandler = new DefaultErrorHandler((consumerRecord, exception) -> {
-      // DLQ 토픽으로 전송
-      String dlqTopic = consumerRecord.topic() + ".DLQ";
-      log.error(
-        "Failed to process message after retries. Sending to DLQ: topic={}, key={}, offset={}, partition={}",
-        dlqTopic, consumerRecord.key(), consumerRecord.offset(), consumerRecord.partition(),
-        exception);
+  /**
+   * 1초 간격으로 3회 재시도한다. 그래도 안 되면 토픽 이름에 .DLT 를 붙인 곳으로 보낸다.
+   */
+  private CommonErrorHandler kafkaErrorHandler() {
+    // 파티션을 -1 로 두면 카프카가 고른다. DLT 파티션 수가 원본보다 적어도 된다
+    DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(
+      dltKafkaTemplate(),
+      (record, ex) -> new TopicPartition(record.topic() + ".DLT", -1));
 
-      // kafkaTemplate이 있으면 DLQ로 전송 (현재는 수동 커밋 모드이므로 로깅만 수행)
-    }, backOff);
+    DefaultErrorHandler errorHandler =
+      new DefaultErrorHandler(recoverer, new FixedBackOff(1000L, 3L));
 
-    // 최대 재시도 횟수: 3회
     errorHandler.setRetryListeners((record, ex, deliveryAttempt) -> {
-      log.warn("Retry attempt {} for topic {}, partition {}, offset {}",
-        deliveryAttempt, record.topic(), record.partition(), record.offset());
+      log.warn("재시도 {}/3: topic={}, partition={}, offset={}, error={}",
+        deliveryAttempt, record.topic(), record.partition(), record.offset(), ex.getMessage());
     });
 
     return errorHandler;
