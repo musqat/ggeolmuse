@@ -24,4 +24,7 @@ public interface CandleRepositoryCustom {
 
     // 캔들 데이터를 가진 고유 종목 개수 조회
     long countDistinctSymbols();
+
+    // close 에 분할이 반영되지 않은 종목. adjusted_close/close 가 하루 만에 튀는 자리로 찾는다
+    List<String> findSymbolsWithUnadjustedSplits(LocalDate from);
 }

@@ -3,7 +3,10 @@ package com.muscat.marketdata.api.controller;
 import com.muscat.marketdata.datasource.yf.collector.SymbolCollector;
 import com.muscat.marketdata.domain.dto.AssetSummaryDto;
 import com.muscat.marketdata.domain.entity.Asset;
+import com.muscat.marketdata.domain.repository.AssetRepository;
+import com.muscat.marketdata.domain.repository.CandleRepository;
 import com.muscat.marketdata.domain.service.AssetService;
+import com.muscat.marketdata.infra.kafka.AssetEventProducer;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -20,6 +23,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 
 @Data
@@ -59,6 +63,9 @@ class PageResponse<T> {
 public class AdminMarketController {
 
     private final AssetService assetService;
+    private final AssetRepository assetRepository;
+    private final CandleRepository candleRepository;
+    private final AssetEventProducer assetEventProducer;
 
     // SymbolCollector 는 marketdata.provider=yahoo 일 때만 뜬다.
     // 직접 주입하면 alphavantage 프로파일에서 기동이 깨지므로 선택 주입한다.
@@ -493,5 +500,92 @@ public class AdminMarketController {
         private int requested;
         private int deleted;
         private String message;
+    }
+
+    /**
+     * close 에 분할이 반영되지 않은 종목 목록
+     *
+     * GET /api/admin/market/candles/unadjusted?from=2010-01-01
+     */
+    @GetMapping("/candles/unadjusted")
+    public ResponseEntity<UnadjustedResponse> findUnadjusted(
+        @RequestParam(defaultValue = "2010-01-01") LocalDate from) {
+
+        List<String> symbols = candleRepository.findSymbolsWithUnadjustedSplits(from);
+        log.info("분할 미반영 종목 조회: from={}, count={}", from, symbols.size());
+
+        return ResponseEntity.ok(UnadjustedResponse.builder()
+            .from(from)
+            .count(symbols.size())
+            .symbols(symbols)
+            .build());
+    }
+
+    /**
+     * 지정한 종목만 다시 수집한다. 수집은 Kafka 컨슈머가 비동기로 처리한다.
+     *
+     * POST /api/admin/market/candles/refresh
+     * { "symbols": ["NVDA","TSLA"], "from": "2010-01-01" }
+     */
+    @PostMapping("/candles/refresh")
+    public ResponseEntity<RefreshResponse> refreshCandles(@RequestBody RefreshRequest request) {
+        LocalDate from = request.getFrom() != null ? request.getFrom() : LocalDate.of(2010, 1, 1);
+        LocalDate to = LocalDate.now(ZoneId.of("America/New_York"));
+
+        List<String> requested = request.getSymbols() != null ? request.getSymbols() : List.of();
+        int published = 0;
+        List<String> notFound = new java.util.ArrayList<>();
+
+        for (String raw : requested) {
+            String symbol = raw.trim().toUpperCase();
+            Asset asset = assetRepository.findById(symbol).orElse(null);
+            if (asset == null) {
+                notFound.add(symbol);
+                continue;
+            }
+            assetEventProducer.publishAssetCreated(asset, true, from, to, false);
+            published++;
+        }
+
+        log.info("캔들 재수집 요청: 요청 {}개, 발행 {}개, 없는 종목 {}개, from={}",
+            requested.size(), published, notFound.size(), from);
+
+        return ResponseEntity.ok(RefreshResponse.builder()
+            .requested(requested.size())
+            .published(published)
+            .notFound(notFound)
+            .from(from)
+            .to(to)
+            .build());
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class UnadjustedResponse {
+        private LocalDate from;
+        private int count;
+        private List<String> symbols;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class RefreshRequest {
+        private List<String> symbols;
+        private LocalDate from;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class RefreshResponse {
+        private int requested;
+        private int published;
+        private List<String> notFound;
+        private LocalDate from;
+        private LocalDate to;
     }
 }
