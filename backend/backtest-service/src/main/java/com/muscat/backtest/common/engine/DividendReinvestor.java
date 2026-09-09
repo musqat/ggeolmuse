@@ -18,8 +18,6 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 배당 재투자 처리 단일화. DCA/조건부 전략이 복붙하던 ~110줄 블록을 추출(동작 불변).
  * 각 배당일(ex-date)의 보유 주식수 × 주당배당 → 세후 → 그날 종가로 추가 매수하여 transactions에 기록.
- *
- * 조정 종가를 쓰는 동안은 StrategyFinalizer 가 부르지 않는다.
  */
 @Slf4j
 public final class DividendReinvestor {

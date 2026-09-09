@@ -20,10 +20,10 @@ public final class PriceLookup {
   private PriceLookup() {}
 
   /**
-   * 가격 계산용 유효 종가. 액면분할/배당 반영된 adjustedClose 우선, 없으면 closePrice fallback
+   * 가격 계산용 유효 종가. 분할만 조정된 closePrice 우선. 배당은 따로 재투자한다
    */
   public static java.math.BigDecimal effectiveClose(OHLCPriceDto price) {
-    return price.adjustedClose() != null ? price.adjustedClose() : price.closePrice();
+    return price.closePrice() != null ? price.closePrice() : price.adjustedClose();
   }
 
   /**

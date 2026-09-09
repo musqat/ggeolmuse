@@ -64,7 +64,7 @@ class ConditionalPurchaseStrategyTest {
   class AdjustedCloseTriggerTests {
 
     @Test
-    @DisplayName("액면분할일을 폭락으로 오인해 유령매수하지 않는다(트리거는 adjustedClose 기준)")
+    @DisplayName("분할일을 폭락으로 오인해 유령매수하지 않는다 - closePrice 가 분할 조정된 값이라")
     void executeConditional_SplitDay_NoPhantomDropBuy() {
       // given: PER_PURCHASE, 20% 하락시 매수, 최대 5회
       ConditionalStrategyRequest request = ConditionalStrategyRequest.builder()
@@ -78,11 +78,10 @@ class ConditionalPurchaseStrategyTest {
         .dropPercentage(new BigDecimal("0.2")) // 20%
         .build();
 
-      // Day1: 분할 전 raw 100 / 조정 25 (초기매수)
-      // Day2: 분할일 raw 25 / 조정 25 — raw로 보면 75%↓ 폭락처럼 보이나 실제(조정)는 평탄
+      // 수집 단계에서 분할이 close 에 반영돼 온다. 분할 전후로 25 로 평탄하다
       OHLCPriceDto day1 = new OHLCPriceDto("SPLIT-TEST", LocalDate.of(2024, 1, 15),
-        new BigDecimal("99"), new BigDecimal("101"), new BigDecimal("98"),
-        new BigDecimal("100.00"), new BigDecimal("25.00"), 1_000_000L, "USD", true);
+        new BigDecimal("24"), new BigDecimal("26"), new BigDecimal("23"),
+        new BigDecimal("25.00"), new BigDecimal("24.00"), 1_000_000L, "USD", true);
       OHLCPriceDto day2 = new OHLCPriceDto("SPLIT-TEST", LocalDate.of(2024, 1, 16),
         new BigDecimal("24"), new BigDecimal("26"), new BigDecimal("23"),
         new BigDecimal("25.00"), new BigDecimal("25.00"), 1_000_000L, "USD", true);

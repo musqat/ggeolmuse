@@ -79,21 +79,21 @@ class PriceLookupTest {
   }
 
   @Test
-  @DisplayName("effectiveClose: adjustedClose 있으면 그 값(분할/배당 반영)")
-  void effectiveClose_usesAdjusted() {
-    // 분할 전 raw 종가 100, 분할 반영 조정종가 25
+  @DisplayName("effectiveClose: closePrice 를 쓴다. 배당 조정된 adjustedClose 가 아니다")
+  void effectiveClose_usesClose() {
+    // closePrice 는 분할만 조정된 값, adjustedClose 는 배당까지 조정된 값
     OHLCPriceDto p = new OHLCPriceDto("AAPL", d("2025-06-05"),
         BigDecimal.valueOf(100), BigDecimal.valueOf(100), BigDecimal.valueOf(100),
-        BigDecimal.valueOf(100), BigDecimal.valueOf(25), 1L, "USD", true);
-    assertThat(PriceLookup.effectiveClose(p)).isEqualByComparingTo("25");
+        BigDecimal.valueOf(100), BigDecimal.valueOf(90), 1L, "USD", true);
+    assertThat(PriceLookup.effectiveClose(p)).isEqualByComparingTo("100");
   }
 
   @Test
-  @DisplayName("effectiveClose: adjustedClose null이면 closePrice fallback")
+  @DisplayName("effectiveClose: closePrice null이면 adjustedClose fallback")
   void effectiveClose_fallback() {
     OHLCPriceDto p = new OHLCPriceDto("AAPL", d("2025-06-05"),
         BigDecimal.valueOf(100), BigDecimal.valueOf(100), BigDecimal.valueOf(100),
-        BigDecimal.valueOf(100), null, 1L, "USD", true);
-    assertThat(PriceLookup.effectiveClose(p)).isEqualByComparingTo("100");
+        null, BigDecimal.valueOf(90), 1L, "USD", true);
+    assertThat(PriceLookup.effectiveClose(p)).isEqualByComparingTo("90");
   }
 }

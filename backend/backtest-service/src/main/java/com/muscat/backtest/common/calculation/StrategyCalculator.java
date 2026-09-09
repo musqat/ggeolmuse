@@ -50,11 +50,17 @@ public class StrategyCalculator {
         // 각 거래에서 amount만큼 정확히 주식을 매수하므로 잔액이 남지 않음
         BigDecimal remainingCashKrw = BigDecimal.ZERO;
 
-        // 매수가로 쓰는 조정 종가에 배당이 이미 반영돼 있다. 여기서 또 더하면 두 번 세는 것이다.
-        // totalDividends 는 참고값으로만 내려보낸다.
-        BigDecimal totalAssetKrw = currentValueKrw;
+        // 재투자했으면 배당이 이미 주식으로 들어가 있고, 안 했으면 현금으로 남는다
+        boolean reinvested = dividendsReinvested != null
+            && dividendsReinvested.compareTo(BigDecimal.ZERO) > 0;
+        boolean hasCashDividend = !reinvested
+            && totalDividends != null && totalDividends.compareTo(BigDecimal.ZERO) > 0;
 
-        // 총 수익 = 주식 가치 - 투자금
+        BigDecimal totalAssetKrw = hasCashDividend
+            ? currentValueKrw.add(MoneyUtils.convertUsdToKrw(totalDividends, currentFxRate.rate()))
+            : currentValueKrw;
+
+        // 총 수익 = 주식 가치(+현금 배당) - 투자금
         BigDecimal adjustedTotalReturnKrw = MoneyUtils.subtract(totalAssetKrw, totalInvested);
         BigDecimal adjustedTotalReturnPercent = MoneyUtils.calculateReturnRate(totalInvested, totalAssetKrw);
 

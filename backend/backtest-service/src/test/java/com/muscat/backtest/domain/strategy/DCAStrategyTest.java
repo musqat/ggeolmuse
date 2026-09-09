@@ -6,7 +6,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -201,9 +200,9 @@ class DCAStrategyTest {
     }
 
     @Test
-    @DisplayName("매수가는 raw closePrice가 아니라 adjustedClose(분할/배당 반영)를 사용한다")
-    void executeDca_UsesAdjustedClose_NotRawClose() {
-      // given: 액면분할 종목 — raw 종가 100, 조정종가 25 (4:1 분할 반영)
+    @DisplayName("매수가는 분할만 조정된 closePrice 를 쓴다. 배당 조정된 adjustedClose 가 아니다")
+    void executeDca_UsesClosePrice_NotAdjustedClose() {
+      // given: 분할 조정된 종가 100, 배당까지 조정된 값 25
       DcaStrategyRequest request = DcaStrategyRequest.builder()
         .userId(userId)
         .symbol(symbol)
@@ -215,8 +214,8 @@ class DCAStrategyTest {
 
       OHLCPriceDto splitDay = new OHLCPriceDto(symbol, LocalDate.of(2024, 1, 15),
         new BigDecimal("99"), new BigDecimal("101"), new BigDecimal("98"),
-        new BigDecimal("100.00"),  // raw closePrice
-        new BigDecimal("25.00"),   // adjustedClose (분할 반영)
+        new BigDecimal("100.00"),  // closePrice (분할 조정)
+        new BigDecimal("25.00"),   // adjustedClose (배당까지 조정)
         1000000L, "USD", true);
       given(marketDataClient.getOHLCPriceRange(eq(symbol), eq("2024-01-01"), eq("2024-01-31")))
         .willReturn(List.of(splitDay));
@@ -234,13 +233,13 @@ class DCAStrategyTest {
       // when
       dcaStrategy.executeDca(request);
 
-      // then: responseMapper로 넘어간 거래의 매수가가 조정종가(25)여야 함 (raw 100 아님)
+      // then: 매수가가 closePrice(100) 여야 함 (adjustedClose 25 아님)
       @SuppressWarnings("unchecked")
       ArgumentCaptor<List<StrategyTransaction>> captor = ArgumentCaptor.forClass(List.class);
       verify(responseMapper).toStrategyResponse(any(DcaStrategyRequest.class), captor.capture(), any(), any());
       List<StrategyTransaction> txs = captor.getValue();
       assertThat(txs).hasSize(1);
-      assertThat(txs.getFirst().getPrice()).isEqualByComparingTo("25.00");
+      assertThat(txs.getFirst().getPrice()).isEqualByComparingTo("100.00");
     }
 
     @Test
@@ -290,8 +289,8 @@ class DCAStrategyTest {
   class DividendReinvestmentTests {
 
     @Test
-    @DisplayName("재투자를 켜도 배당으로 추가 매수하지 않는다 - 조정 종가에 이미 반영됨")
-    void executeDca_WithDividendReinvestment_DoesNotBuyExtraShares() {
+    @DisplayName("재투자를 켜면 배당으로 추가 매수한다")
+    void executeDca_WithDividendReinvestment_BuysExtraShares() {
       // given
       BigDecimal monthlyAmount = new BigDecimal("1000.00");
       DcaStrategyRequest request = DcaStrategyRequest.builder()
@@ -329,7 +328,7 @@ class DCAStrategyTest {
       given(marketDataClient.getOHLCPrice(eq(symbol), anyString()))
         .willReturn(createOHLC(request.getEndDate(), new BigDecimal("100.00")));
 
-      // 배당 2건. 재투자가 살아 있으면 거래가 5건이 된다
+      // 배당 2건. 재투자로 거래가 3건에서 5건이 된다
       given(marketDataClient.getDividendHistory(eq(symbol), anyString(), anyString()))
         .willReturn(List.of(
           new DividendDto(symbol, LocalDate.of(2024, 2, 15), null, null,
@@ -337,9 +336,9 @@ class DCAStrategyTest {
           new DividendDto(symbol, LocalDate.of(2024, 3, 15), null, null,
             new BigDecimal("1.00"), "USD", "test")));
 
-      // 재투자가 살아나면 집는 시세. 지금은 안 쓰여서 lenient
-      lenient().when(marketDataClient.getOHLCPriceRange(eq(symbol), eq("2024-02-15"), eq("2024-03-15")))
-        .thenReturn(ohlcPrices);
+      // 배당일 범위 시세. 재투자가 이걸 집어 추가 매수한다
+      given(marketDataClient.getOHLCPriceRange(eq(symbol), eq("2024-02-15"), eq("2024-03-15")))
+        .willReturn(ohlcPrices);
 
       // Mock ResponseMapper
       StrategyResponse expectedResponse = StrategyResponse.builder()
@@ -362,8 +361,8 @@ class DCAStrategyTest {
       verify(responseMapper).toStrategyResponse(
         any(DcaStrategyRequest.class), txCaptor.capture(), calcCaptor.capture(), any());
 
-      assertThat(calcCaptor.getValue().getDividendsReinvested()).isEqualByComparingTo("0");
-      assertThat(txCaptor.getValue()).hasSize(3);
+      assertThat(calcCaptor.getValue().getDividendsReinvested()).isGreaterThan(BigDecimal.ZERO);
+      assertThat(txCaptor.getValue()).hasSize(5);
     }
   }
 
