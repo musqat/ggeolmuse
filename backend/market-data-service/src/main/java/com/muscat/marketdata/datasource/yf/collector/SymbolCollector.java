@@ -72,36 +72,10 @@ public class SymbolCollector {
         // 기존 심볼이 있는지 확인
         long existingCount = assetRepository.count();
 
+        // 기존 종목이 있으면 기동 시에는 아무것도 발행하지 않는다.
+        // 전 종목 발행은 재기동마다 3천만 행을 갱신하게 만든다. 갱신은 캔들 스케줄러가 맡는다.
         if (existingCount > 0) {
-            // 기존 심볼들에 대해서만 데이터 수집 이벤트 발행 (심볼 추가 안 함)
-            log.info("[YF-종목수집] 기존 {}개 종목 발견 - 데이터 업데이트만 수행 (종목 추가 안 함)", existingCount);
-
-            List<Asset> existingAssets = assetRepository.findAll();
-            int eventCount = 0;
-
-            for (Asset asset : existingAssets) {
-                try {
-                    // Kafka 이벤트 발행 (비동기 캔들 수집)
-                    assetEventProducer.publishAssetCreated(
-                        asset,
-                        true,           // collectData
-                        from,
-                        to,
-                        true            // includeDividends
-                    );
-                    eventCount++;
-
-                    if (eventCount % 100 == 0) {
-                        log.info("[YF-종목수집] 진행 중: {}/{} 이벤트 발행", eventCount, existingAssets.size());
-                    }
-                } catch (Exception e) {
-                    log.error("[YF-종목수집] 이벤트 발행 실패: symbol={}", asset.getSymbol(), e);
-                }
-            }
-
-            log.info("[YF-종목수집] 완료: {}개 기존 종목에 대해 데이터 수집 이벤트 발행", eventCount);
-
-            // 기존 종목 갱신과 별개로 신규 상장을 받아온다.
+            log.info("[YF-종목수집] 기존 {}개 종목 발견 - 기동 시 수집은 건너뛴다", existingCount);
             collectNewlyListed(from, to);
             return;
         }
@@ -197,6 +171,7 @@ public class SymbolCollector {
         try {
             // 카탈로그가 중복 제거와 보통주 필터까지 마친 목록을 준다
             List<Asset> fetched = symbolCatalog.fetchAll();
+
 
             if (fetched.isEmpty()) {
                 log.warn("[YF-신규종목] 목록이 비어 있어 건너뛴다");

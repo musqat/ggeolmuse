@@ -89,16 +89,15 @@ class SymbolCollectorTest {
   class ExistingSymbols {
 
     @Test
-    @DisplayName("기존 종목 전부에 수집 이벤트를 발행한다")
-    void 업데이트() {
+    @DisplayName("기존 종목이 있으면 기동 시 수집을 발행하지 않는다")
+    void 기동_발행_없음() {
       given(assetRepository.count()).willReturn(3L);
-      given(assetRepository.findAll()).willReturn(assets(3));
       // 신규 조회는 비어 있는 경우
       given(symbolCatalog.fetchAll()).willReturn(List.of());
 
       symbolCollector.collectSymbols();
 
-      verify(assetEventProducer, times(3))
+      verify(assetEventProducer, never())
         .publishAssetCreated(any(), anyBoolean(), any(), any(), anyBoolean());
       // 신규가 없으면 저장은 일어나지 않는다
       verify(assetRepository, never()).save(any());
@@ -108,7 +107,6 @@ class SymbolCollectorTest {
     @DisplayName("기존 종목이 있어도 신규 상장을 확인한다")
     void 신규_확인() {
       given(assetRepository.count()).willReturn(2L);
-      given(assetRepository.findAll()).willReturn(assets(2));
       given(symbolCatalog.fetchAll()).willReturn(List.of());
 
       symbolCollector.collectSymbols();
@@ -132,8 +130,8 @@ class SymbolCollectorTest {
       verify(assetRepository, times(1)).save(saved.capture());
       org.assertj.core.api.Assertions.assertThat(saved.getValue().getSymbol()).isEqualTo("NEWCO");
 
-      // 기존 2건 + 신규 1건
-      verify(assetEventProducer, times(3))
+      // 신규 1건만. 기존 종목은 기동 시 발행하지 않는다
+      verify(assetEventProducer, times(1))
         .publishAssetCreated(any(), anyBoolean(), any(), any(), anyBoolean());
     }
 
@@ -141,14 +139,13 @@ class SymbolCollectorTest {
     @DisplayName("목록 조회가 비면 기존 갱신은 그대로 끝난다")
     void 목록_빔() {
       given(assetRepository.count()).willReturn(2L);
-      given(assetRepository.findAll()).willReturn(assets(2));
       // NASDAQ 이 200 에 빈 결과를 주는 경우
       given(symbolCatalog.fetchAll()).willReturn(List.of());
 
       assertThatCode(() -> symbolCollector.collectSymbols()).doesNotThrowAnyException();
 
       verify(assetRepository, never()).save(any());
-      verify(assetEventProducer, times(2))
+      verify(assetEventProducer, never())
         .publishAssetCreated(any(), anyBoolean(), any(), any(), anyBoolean());
     }
 
@@ -199,24 +196,25 @@ class SymbolCollectorTest {
     }
 
     @Test
-    @DisplayName("목록 조회가 실패해도 기존 갱신은 유지된다")
+    @DisplayName("목록 조회가 실패해도 예외가 새지 않는다")
     void 목록_예외() {
       given(assetRepository.count()).willReturn(2L);
-      given(assetRepository.findAll()).willReturn(assets(2));
       given(symbolCatalog.fetchAll()).willThrow(new IllegalStateException("NASDAQ 다운"));
 
       assertThatCode(() -> symbolCollector.collectSymbols()).doesNotThrowAnyException();
 
-      verify(assetEventProducer, times(2))
+      verify(assetEventProducer, never())
         .publishAssetCreated(any(), anyBoolean(), any(), any(), anyBoolean());
     }
 
     @Test
-    @DisplayName("수집 기간은 lookbackDays 만큼 거슬러 잡는다")
+    @DisplayName("신규 종목 수집 기간은 lookbackDays 만큼 거슬러 잡는다")
     void 수집_기간() {
       setConfig(true, 30, 0);
       given(assetRepository.count()).willReturn(1L);
       given(assetRepository.findAll()).willReturn(assets(1));
+      given(symbolCatalog.fetchAll()).willReturn(List.of(asset("NEWCO", 1L)));
+      given(assetRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
       symbolCollector.collectSymbols();
 
@@ -230,20 +228,6 @@ class SymbolCollectorTest {
       org.assertj.core.api.Assertions.assertThat(from.getValue()).isEqualTo(today.minusDays(30));
     }
 
-    @Test
-    @DisplayName("한 건이 실패해도 나머지는 계속 발행한다")
-    void 부분_실패() {
-      given(assetRepository.count()).willReturn(3L);
-      given(assetRepository.findAll()).willReturn(assets(3));
-      lenient().doThrow(new IllegalStateException("발행 실패"))
-        .when(assetEventProducer)
-        .publishAssetCreated(eq(assets(3).get(1)), anyBoolean(), any(), any(), anyBoolean());
-
-      assertThatCode(() -> symbolCollector.collectSymbols()).doesNotThrowAnyException();
-
-      verify(assetEventProducer, times(3))
-        .publishAssetCreated(any(), anyBoolean(), any(), any(), anyBoolean());
-    }
   }
 
   @Nested
