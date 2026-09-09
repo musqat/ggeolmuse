@@ -71,7 +71,7 @@ public final class StrategyFinalizer {
 
     StrategyCalculationResult calculation = StrategyCalculator.calculate(
         transactions, totalInvested, totalShares, totalFxRateSum, currentPrice, currentFxRate,
-        totalDividends, dividendsReinvested);
+        totalDividends, dividendsReinvested, dividendTaxRate);
 
     return new Result(transactions, calculation, currentPrice);
   }

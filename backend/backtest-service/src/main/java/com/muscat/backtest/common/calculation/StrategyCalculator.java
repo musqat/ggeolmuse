@@ -23,7 +23,8 @@ public class StrategyCalculator {
             StockPriceDto currentPrice,
             FxRateDto currentFxRate,
             BigDecimal totalDividends,
-            BigDecimal dividendsReinvested) {
+            BigDecimal dividendsReinvested,
+            BigDecimal dividendTaxRate) {
         
         BigDecimal averagePrice = BacktestCalculationUtils.calculateAveragePrice(
             totalInvested, totalFxRateSum, totalShares);
@@ -56,9 +57,17 @@ public class StrategyCalculator {
         boolean hasCashDividend = !reinvested
             && totalDividends != null && totalDividends.compareTo(BigDecimal.ZERO) > 0;
 
-        BigDecimal totalAssetKrw = hasCashDividend
-            ? currentValueKrw.add(MoneyUtils.convertUsdToKrw(totalDividends, currentFxRate.rate()))
-            : currentValueKrw;
+        // 현금으로 받는 배당도 원천징수를 뗀다. 재투자 경로는 DividendReinvestor 가 이미 뗐다
+        BigDecimal cashDividendKrw = BigDecimal.ZERO;
+        if (hasCashDividend) {
+            BigDecimal afterTax = totalDividends;
+            if (dividendTaxRate != null && Decimals.isPositive(dividendTaxRate)) {
+                afterTax = totalDividends.subtract(totalDividends.multiply(dividendTaxRate));
+            }
+            cashDividendKrw = MoneyUtils.convertUsdToKrw(afterTax, currentFxRate.rate());
+        }
+
+        BigDecimal totalAssetKrw = currentValueKrw.add(cashDividendKrw);
 
         // 총 수익 = 주식 가치(+현금 배당) - 투자금
         BigDecimal adjustedTotalReturnKrw = MoneyUtils.subtract(totalAssetKrw, totalInvested);

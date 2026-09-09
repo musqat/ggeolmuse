@@ -298,7 +298,7 @@ const Backtest: React.FC = () => {
         investmentAmount: investment,
         reinvestDividends: simpleReinvestDividends,
         tradingFeeRate: parseFloat(simpleTradingFeeRate) / 100,
-        dividendTaxRate: simpleDividendTax ? 0.154 : 0,
+        dividendTaxRate: simpleDividendTax ? 0.15 : 0,
         userId: user?.email || "anonymous",
       };
 
@@ -359,7 +359,7 @@ const Backtest: React.FC = () => {
         investmentInterval: interval,
         reinvestDividends: dcaReinvestDividends,
         tradingFeeRate: parseFloat(dcaTradingFeeRate) / 100,
-        dividendTaxRate: dcaDividendTax ? 0.154 : 0,
+        dividendTaxRate: dcaDividendTax ? 0.15 : 0,
         userId: user?.email || "anonymous",
       };
 
@@ -443,7 +443,7 @@ const Backtest: React.FC = () => {
         dropPercentage: drop / 100,
         reinvestDividends: conditionalReinvestDividends,
         tradingFeeRate: parseFloat(conditionalTradingFeeRate) / 100,
-        dividendTaxRate: conditionalDividendTax ? 0.154 : 0,
+        dividendTaxRate: conditionalDividendTax ? 0.15 : 0,
         userId: user?.email || "anonymous",
       };
 
@@ -512,7 +512,7 @@ const Backtest: React.FC = () => {
         investmentAmount: investment,
         reinvestDividends: compareReinvestDividends,
         tradingFeeRate: parseFloat(compareTradingFeeRate) / 100,
-        dividendTaxRate: compareDividendTax ? 0.154 : 0,
+        dividendTaxRate: compareDividendTax ? 0.15 : 0,
         userId: user?.email || "anonymous",
       };
 
@@ -633,7 +633,7 @@ const Backtest: React.FC = () => {
         strategies,
         reinvestDividends: strategyReinvestDividends,
         tradingFeeRate: parseFloat(strategyTradingFeeRate) / 100,
-        dividendTaxRate: strategyDividendTax ? 0.154 : 0,
+        dividendTaxRate: strategyDividendTax ? 0.15 : 0,
         userId: user?.email || "anonymous",
       };
 

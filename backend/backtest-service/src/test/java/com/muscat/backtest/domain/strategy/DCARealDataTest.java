@@ -226,4 +226,62 @@ class DCARealDataTest {
     // 세후 재투자액이 세전의 84.6% 보다 낮다. 재투자 주식이 줄어 다음 배당 기준도 같이 줄기 때문
     assertThat(calc.getDividendsReinvested().doubleValue()).isLessThan(129.82 * 0.846);
   }
+
+  @Test
+  @DisplayName("재투자를 끄면 배당을 현금으로 받되 원천징수를 뗀다")
+  void executeDca_realData_cashDividendWithTax() {
+    BigDecimal taxRate = new BigDecimal("0.154");
+
+    DcaStrategyRequest request = DcaStrategyRequest.builder()
+      .userId("test-user")
+      .symbol(SYMBOL)
+      .startDate(LocalDate.of(2022, 9, 1))
+      .endDate(LocalDate.of(2025, 9, 1))
+      .monthlyAmount(new BigDecimal("100000"))
+      .purchaseDay(1)
+      .investmentInterval(1)
+      .purchaseFxRate(FX)
+      .currentFxRate(FX)
+      .reinvestDividends(false)
+      .dividendTaxRate(taxRate)
+      .build();
+
+    Map<LocalDate, OHLCPriceDto> byDate = BARS.stream()
+        .collect(Collectors.toMap(OHLCPriceDto::date, Function.identity()));
+
+    given(marketDataClient.getOHLCPriceRange(eq(SYMBOL), anyString(), anyString()))
+      .willReturn(BARS);
+    given(marketDataClient.getDividendHistory(eq(SYMBOL), anyString(), anyString()))
+      .willReturn(DIVIDENDS);
+    given(marketDataClient.getOHLCPrice(eq(SYMBOL), anyString()))
+      .willAnswer(inv -> byDate.get(LocalDate.parse(inv.getArgument(1))));
+    given(responseMapper.toStrategyResponse(any(DcaStrategyRequest.class), any(), any(), any()))
+      .willReturn(StrategyResponse.builder().strategyType(StrategyType.DCA).build());
+
+    dcaStrategy.executeDca(request);
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<StrategyTransaction>> txCaptor = ArgumentCaptor.forClass(List.class);
+    ArgumentCaptor<StrategyCalculationResult> calcCaptor =
+        ArgumentCaptor.forClass(StrategyCalculationResult.class);
+    verify(responseMapper).toStrategyResponse(
+        any(DcaStrategyRequest.class), txCaptor.capture(), calcCaptor.capture(), any());
+
+    StrategyCalculationResult calc = calcCaptor.getValue();
+
+    // 재투자를 껐으니 매수 37건만 남는다
+    assertThat(txCaptor.getValue()).hasSize(37);
+    assertThat(calc.getDividendsReinvested()).isEqualByComparingTo("0");
+    assertThat(calc.getTotalDividends().doubleValue()).isGreaterThan(0);
+
+    // 자산 = 주식 평가액 + 세후 배당
+    double afterTax = calc.getTotalDividends().doubleValue() * (1 - taxRate.doubleValue());
+    double expected = calc.getCurrentValueKrw().doubleValue() + afterTax * FX.doubleValue();
+    assertThat(calc.getTotalAssetKrw().doubleValue()).isCloseTo(expected, within(1.0));
+
+    // 세전으로 더했다면 이보다 커진다
+    double gross = calc.getCurrentValueKrw().doubleValue()
+        + calc.getTotalDividends().doubleValue() * FX.doubleValue();
+    assertThat(calc.getTotalAssetKrw().doubleValue()).isLessThan(gross);
+  }
 }

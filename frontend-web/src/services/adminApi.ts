@@ -147,11 +147,19 @@ export const marketAdminApi = {
     await api.post('/admin/market/update/market-cap');
   },
 
-  // close 에 분할이 반영되지 않은 종목을 찾는다. 종목 안에서 조정비가 크게 갈리는 것을 본다
-  findUnadjustedSymbols: async (from: string): Promise<UnadjustedResponse> => {
-    const { data } = await api.get<UnadjustedResponse>("/admin/market/candles/unadjusted", {
-      params: { from },
-    });
+  // 탐색을 시작만 한다. 3천만 행 집계라 몇 분 걸려 게이트웨이 30초 제한을 넘는다
+  startUnadjustedScan: async (from: string): Promise<UnadjustedResponse> => {
+    const { data } = await api.post<UnadjustedResponse>(
+      '/admin/market/candles/unadjusted/scan',
+      null,
+      { params: { from } }
+    );
+    return data;
+  },
+
+  // 마지막 탐색 결과. running 이 true 면 아직 도는 중이다
+  findUnadjustedSymbols: async (): Promise<UnadjustedResponse> => {
+    const { data } = await api.get<UnadjustedResponse>('/admin/market/candles/unadjusted');
     return data;
   },
 
@@ -172,9 +180,13 @@ export const marketAdminApi = {
 };
 
 export interface UnadjustedResponse {
-  from: string;
+  running: boolean;
+  from: string | null;
   count: number;
-  symbols: string[];
+  symbols: string[] | null;
+  finishedAt: string | null;
+  tookMillis: number;
+  error: string | null;
 }
 
 export interface RefreshResponse {
