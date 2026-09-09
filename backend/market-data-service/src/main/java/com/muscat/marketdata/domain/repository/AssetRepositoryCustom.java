@@ -16,4 +16,7 @@ public interface AssetRepositoryCustom {
 
   // 상장 중인 종목의 티커만 조회. 검색용
   List<String> findActiveSymbols();
+
+  // 활성 종목을 임의 정렬로 페이징 조회. NULL 은 항상 마지막
+  Page<Asset> findActiveSorted(Pageable pageable);
 }

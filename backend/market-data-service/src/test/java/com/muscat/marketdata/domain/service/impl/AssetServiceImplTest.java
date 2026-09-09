@@ -551,7 +551,7 @@ class AssetServiceImplTest {
       Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
       Page<Asset> assetPage =
         new org.springframework.data.domain.PageImpl<>(List.of(testAsset), pageable, 1);
-      given(assetRepository.findByActiveTrue(any(Pageable.class))).willReturn(assetPage);
+      given(assetRepository.findActiveSorted(any(Pageable.class))).willReturn(assetPage);
 
       // when
       Page<AssetSummaryDto> result =
@@ -562,7 +562,7 @@ class AssetServiceImplTest {
       assertThat(result.getContent()).hasSize(1);
       assertThat(result.getTotalElements()).isEqualTo(1);
 
-      verify(assetRepository).findByActiveTrue(any(Pageable.class));
+      verify(assetRepository).findActiveSorted(any(Pageable.class));
     }
   }
 
