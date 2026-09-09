@@ -42,19 +42,18 @@ public class AssetEventConsumer {
                 return;
             }
 
-            // 비동기로 데이터 수집 시작 (즉시 반환)
-            // DataCollectionService의 @Async 메서드 호출 → Spring AOP proxy 정상 작동
-            dataCollectionService.collectDataAsync(event);
+            // 수집이 끝난 뒤에 ACK 한다. 먼저 커밋하면 파드가 내려갈 때
+            // 아직 안 받은 종목의 오프셋까지 넘어가 그 이벤트가 다시 오지 않는다
+            dataCollectionService.collect(event);
 
-            // 즉시 ACK하여 다음 메시지 처리 가능하게 함
             acknowledgment.acknowledge();
-            log.debug("메시지 ACK 완료, 비동기 수집 시작: symbol={}", event.getSymbol());
+            log.debug("수집 완료 후 ACK: symbol={}", event.getSymbol());
 
         } catch (Exception e) {
-            log.error("종목 생성 이벤트 처리 중 예상치 못한 오류: symbol={}, error={}",
-                    event.getSymbol(), e.getMessage(), e);
-            // 예상치 못한 오류는 재처리하지 않음
-            acknowledgment.acknowledge();
+            // ACK 하지 않는다. 에러 핸들러가 재시도하고 남으면 .DLT 로 보낸다
+            log.warn("종목 생성 이벤트 처리 실패: symbol={}, error={}",
+                    event.getSymbol(), e.getMessage());
+            throw e;
         }
     }
 
