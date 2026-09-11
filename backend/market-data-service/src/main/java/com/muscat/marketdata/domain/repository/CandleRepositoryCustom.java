@@ -25,6 +25,9 @@ public interface CandleRepositoryCustom {
     // 캔들 데이터를 가진 고유 종목 개수 조회
     long countDistinctSymbols();
 
-    // close 에 분할이 반영되지 않은 종목. adjusted_close/close 가 하루 만에 튀는 자리로 찾는다
-    List<String> findSymbolsWithUnadjustedSplits(LocalDate from);
+    // 활성 종목 중 시작일 이후 분할 계수가 기록된 종목. 이름순
+    List<String> findSymbolsWithSplits(LocalDate from);
+
+    // 종목 안에서 adjusted_close/close 의 최대 · 최소 비가 1.9 를 넘는 종목. 배당이 오래 쌓인 종목도 걸린다
+    List<String> findSymbolsByRatioSpread(LocalDate from);
 }

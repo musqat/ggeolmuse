@@ -91,12 +91,11 @@ public class CandleRepositoryCustomImpl implements CandleRepositoryCustom {
   }
 
   // 분할이 close 에 반영되지 않으면 종목 안에서 adjusted_close/close 가 분할 배수만큼 갈린다.
-  // 2:1 분할이 최소라 문턱은 1.9 로 둔다. 배당만으로 이만큼 벌어진 고배당 종목도 같이 잡히는데,
-  // 그쪽도 다시 받아서 손해가 아니다.
+  // 2:1 이상은 1.9 를 넘지만 3:2 같은 작은 분할은 못 넘을 수 있고, 배당이 오래 쌓인 종목도 넘는다.
   private static final BigDecimal SPLIT_RATIO_THRESHOLD = new BigDecimal("1.9");
 
   @Override
-  public List<String> findSymbolsWithUnadjustedSplits(LocalDate from) {
+  public List<String> findSymbolsByRatioSpread(LocalDate from) {
     NumberExpression<BigDecimal> ratio = candle.adjustedClose.divide(candle.close);
 
     // 상장폐지 종목은 야후가 404 를 낸다. 다시 받을 수 없으니 목록에서 뺀다
@@ -110,6 +109,19 @@ public class CandleRepositoryCustomImpl implements CandleRepositoryCustom {
         .and(asset.active.isTrue()))
       .groupBy(candle.symbol)
       .having(ratio.max().divide(ratio.min()).gt(SPLIT_RATIO_THRESHOLD))
+      .orderBy(candle.symbol.asc())
+      .fetch();
+  }
+
+  @Override
+  public List<String> findSymbolsWithSplits(LocalDate from) {
+    return queryFactory
+      .select(candle.symbol).distinct()
+      .from(candle)
+      .join(asset).on(asset.symbol.eq(candle.symbol))
+      .where(candle.date.goe(from)
+        .and(candle.splitCoefficient.ne(BigDecimal.ONE))
+        .and(asset.active.isTrue()))
       .orderBy(candle.symbol.asc())
       .fetch();
   }

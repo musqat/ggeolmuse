@@ -543,6 +543,7 @@ public class AdminMarketController {
         return ResponseEntity.ok(UnadjustedResponse.builder()
             .running(scanService.isRunning())
             .from(last.getFrom())
+            .mode(last.getMode() != null ? last.getMode().name() : null)
             .count(last.getCount())
             .symbols(last.getSymbols())
             .finishedAt(last.getFinishedAt() != null ? last.getFinishedAt().toString() : null)
@@ -554,18 +555,20 @@ public class AdminMarketController {
     /**
      * 분할 미반영 종목 탐색을 시작한다. 결과는 GET 으로 받는다.
      *
-     * POST /api/admin/market/candles/unadjusted/scan?from=1970-01-01
+     * POST /api/admin/market/candles/unadjusted/scan?from=1970-01-01&mode=SPLITS
      */
     @PostMapping("/candles/unadjusted/scan")
     public ResponseEntity<UnadjustedResponse> scanUnadjusted(
-        @RequestParam(defaultValue = "1970-01-01") LocalDate from) {
+        @RequestParam(defaultValue = "1970-01-01") LocalDate from,
+        @RequestParam(defaultValue = "SPLITS") UnadjustedScanService.ScanMode mode) {
 
-        boolean started = scanService.start(from);
-        log.info("분할 미반영 탐색 요청: from={}, started={}", from, started);
+        boolean started = scanService.start(from, mode);
+        log.info("분할 미반영 탐색 요청: from={}, mode={}, started={}", from, mode, started);
 
         return ResponseEntity.accepted().body(UnadjustedResponse.builder()
             .running(true)
             .from(from)
+            .mode(mode.name())
             .build());
     }
 
@@ -620,6 +623,7 @@ public class AdminMarketController {
     public static class UnadjustedResponse {
         private boolean running;
         private LocalDate from;
+        private String mode;
         private int count;
         private List<String> symbols;
         private String finishedAt;
