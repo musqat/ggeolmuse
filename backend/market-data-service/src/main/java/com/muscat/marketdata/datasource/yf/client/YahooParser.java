@@ -9,12 +9,15 @@ import com.muscat.marketdata.domain.dto.DividendDto;
 import com.muscat.marketdata.domain.model.ChartMetadata;
 import com.muscat.marketdata.domain.model.TimeSeriesData;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -37,8 +40,9 @@ public class YahooParser {
 
       ChartMetadata metadata = extractMetadata(chartResult, symbolOverride);
       TimeSeriesData timeSeriesData = extractTimeSeriesData(chartResult);
+      Map<LocalDate, BigDecimal> splits = extractSplits(chartResult);
 
-      List<CandleDto> results = buildDailyAdjustedDtos(timeSeriesData, metadata, fromDate, toDate);
+      List<CandleDto> results = buildDailyAdjustedDtos(timeSeriesData, metadata, fromDate, toDate, splits);
       log.debug("Yahoo 일봉 데이터 파싱 완료: symbol={}, 건수={}", symbolOverride, results.size());
       return results;
 
@@ -117,8 +121,51 @@ public class YahooParser {
     );
   }
 
+  // events.splits 를 분할일별 계수(numerator ÷ denominator)로 바꾼다. 날짜는 가격 데이터와 같이 UTC
+  private Map<LocalDate, BigDecimal> extractSplits(JsonNode chartResult) {
+    JsonNode splits = chartResult.path("events").path("splits");
+    if (!splits.isObject()) {
+      return Map.of();
+    }
+
+    Map<LocalDate, BigDecimal> result = new HashMap<>();
+    Iterator<String> keys = splits.fieldNames();
+    while (keys.hasNext()) {
+      String key = keys.next();
+      JsonNode event = splits.get(key);
+      if (event == null || event.isNull()) {
+        continue;
+      }
+
+      Long timestamp = event.hasNonNull("date")
+        ? Long.valueOf(event.get("date").asLong())
+        : parseLongSafely(key);
+      BigDecimal numerator = decimalOrNull(event.get("numerator"));
+      BigDecimal denominator = decimalOrNull(event.get("denominator"));
+      if (timestamp == null || numerator == null || denominator == null
+        || numerator.signum() <= 0 || denominator.signum() <= 0) {
+        continue;
+      }
+
+      LocalDate date = Instant.ofEpochSecond(timestamp).atZone(ZoneOffset.UTC).toLocalDate();
+      result.put(date, numerator.divide(denominator, 8, RoundingMode.HALF_UP));
+    }
+    return result;
+  }
+
+  private BigDecimal decimalOrNull(JsonNode node) {
+    if (node == null || node.isNull()) {
+      return null;
+    }
+    try {
+      return new BigDecimal(node.asText());
+    } catch (NumberFormatException e) {
+      return null;
+    }
+  }
+
   private List<CandleDto> buildDailyAdjustedDtos(TimeSeriesData data, ChartMetadata metadata,
-    LocalDate fromDate, LocalDate toDate) {
+    LocalDate fromDate, LocalDate toDate, Map<LocalDate, BigDecimal> splits) {
     List<CandleDto> results = new ArrayList<>();
 
     for (int i = 0; i < data.timestamps().size(); i++) {
@@ -132,7 +179,7 @@ public class YahooParser {
         continue;
       }
 
-      CandleDto dto = createDailyAdjustedDto(data, metadata, date, i);
+      CandleDto dto = createDailyAdjustedDto(data, metadata, date, i, splits.get(date));
       if (dto != null) {
         results.add(dto);
       }
@@ -142,7 +189,7 @@ public class YahooParser {
   }
 
   private CandleDto createDailyAdjustedDto(TimeSeriesData data, ChartMetadata metadata,
-    LocalDate date, int index) {
+    LocalDate date, int index, BigDecimal splitCoefficient) {
     BigDecimal open = getDecimalValueAt(data.open(), index);
     BigDecimal high = getDecimalValueAt(data.high(), index);
     BigDecimal low = getDecimalValueAt(data.low(), index);
@@ -167,6 +214,7 @@ public class YahooParser {
       .adjustedClose(adjustedClose)
       .volume(volume)
       .adjustFactor(null)
+      .splitCoefficient(splitCoefficient)
       .currency(metadata.currency())
       .build();
   }

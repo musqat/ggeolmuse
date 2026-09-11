@@ -98,12 +98,21 @@ class MarketDataMapperTest {
     }
 
     @Test
-    @DisplayName("배당·분할 필드는 고정값으로 채운다")
+    @DisplayName("배당은 0 으로 채우고 분할 계수가 없으면 1")
     void 고정_필드() {
       Candle result = MarketDataMapper.toCandle(candle().build(), null);
 
       assertThat(result.getDividendAmount()).isEqualByComparingTo("0");
       assertThat(result.getSplitCoefficient()).isEqualByComparingTo("1");
+    }
+
+    @Test
+    @DisplayName("분할 계수가 있으면 그대로 옮긴다")
+    void 분할_계수() {
+      Candle result = MarketDataMapper.toCandle(
+        candle().splitCoefficient(new BigDecimal("4")).build(), null);
+
+      assertThat(result.getSplitCoefficient()).isEqualByComparingTo("4");
     }
 
     @Test

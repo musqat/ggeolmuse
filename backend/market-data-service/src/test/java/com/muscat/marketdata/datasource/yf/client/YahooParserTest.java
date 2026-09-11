@@ -524,4 +524,84 @@ class YahooParserTest {
       assertThat(parser.parseAssetInfoFromChart("{ not json", SYMBOL)).isNull();
     }
   }
+
+  private static String chartWithSplits(String splitsJson) {
+    return """
+      {
+        "chart": {
+          "result": [{
+            "meta": { "symbol": "AAPL", "currency": "USD" },
+            "timestamp": [1726444800, 1726531200, 1726617600],
+            "events": { "splits": %s },
+            "indicators": {
+              "quote": [{
+                "open":   [216.54, 215.75, 217.55],
+                "high":   [217.22, 216.90, 222.71],
+                "low":    [213.92, 214.50, 217.54],
+                "close":  [216.32, 216.79, 220.69],
+                "volume": [59357400, 45519300, 318679900]
+              }],
+              "adjclose": [{ "adjclose": [215.30, 215.77, 219.65] }]
+            }
+          }]
+        }
+      }
+      """.formatted(splitsJson);
+  }
+
+  @Nested
+  @DisplayName("parseDailyAdjusted - 분할 계수")
+  class SplitCoefficient {
+
+    @Test
+    @DisplayName("분할일 데이터에만 numerator ÷ denominator 를 넣는다")
+    void 분할일에만_계수() {
+      String json = chartWithSplits("""
+        { "1726531200": { "date": 1726531200, "numerator": 4, "denominator": 1, "splitRatio": "4:1" } }
+        """);
+
+      List<CandleDto> result = parser.parseDailyAdjusted(json, SYMBOL, null, null);
+
+      assertThat(result).extracting(CandleDto::getDate).containsExactly(D_0916, D_0917, D_0918);
+      assertThat(result.get(0).getSplitCoefficient()).isNull();
+      assertThat(result.get(1).getSplitCoefficient()).isEqualByComparingTo("4");
+      assertThat(result.get(2).getSplitCoefficient()).isNull();
+    }
+
+    @Test
+    @DisplayName("역분할은 1 보다 작은 계수")
+    void 역분할() {
+      String json = chartWithSplits("""
+        { "1726531200": { "date": 1726531200, "numerator": 1, "denominator": 10, "splitRatio": "1:10" } }
+        """);
+
+      CandleDto splitDay = parser.parseDailyAdjusted(json, SYMBOL, null, null).get(1);
+
+      assertThat(splitDay.getSplitCoefficient()).isEqualByComparingTo("0.1");
+    }
+
+    @Test
+    @DisplayName("분모가 0 이거나 숫자가 아닌 분할 정보는 건너뛰고 가격은 그대로 뽑는다")
+    void 깨진_항목() {
+      String json = chartWithSplits("""
+        {
+          "1726444800": { "date": 1726444800, "numerator": 2, "denominator": 0 },
+          "1726531200": { "date": 1726531200, "numerator": "x", "denominator": 1 }
+        }
+        """);
+
+      List<CandleDto> result = parser.parseDailyAdjusted(json, SYMBOL, null, null);
+
+      assertThat(result).hasSize(3);
+      assertThat(result).extracting(CandleDto::getSplitCoefficient).containsOnlyNulls();
+    }
+
+    @Test
+    @DisplayName("events 가 없으면 계수는 모두 null")
+    void events_없음() {
+      assertThat(parser.parseDailyAdjusted(CHART_JSON, SYMBOL, null, null))
+        .extracting(CandleDto::getSplitCoefficient).containsOnlyNulls();
+    }
+  }
+
 }
