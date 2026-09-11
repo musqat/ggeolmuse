@@ -19,6 +19,7 @@ public class CollectionStats {
   private final AtomicLong symbolsOk = new AtomicLong();
   private final AtomicLong symbolsEmpty = new AtomicLong();
   private final AtomicLong symbolsFailed = new AtomicLong();
+  private final AtomicLong splitResyncs = new AtomicLong();
 
   private final AtomicLong candlesInserted = new AtomicLong();
   private final AtomicLong candlesUpdated = new AtomicLong();
@@ -50,6 +51,11 @@ public class CollectionStats {
     symbolsFailed.incrementAndGet();
   }
 
+  public void recordSplitResync() {
+    begin();
+    splitResyncs.incrementAndGet();
+  }
+
   public void recordDividends(int saved) {
     dividendsSaved.addAndGet(saved);
   }
@@ -71,7 +77,7 @@ public class CollectionStats {
    */
   @Scheduled(fixedDelay = REPORT_INTERVAL_MILLIS)
   void report() {
-    long symbols = symbolsOk.get() + symbolsEmpty.get() + symbolsFailed.get();
+    long symbols = symbolsOk.get() + symbolsEmpty.get() + symbolsFailed.get() + splitResyncs.get();
     if (symbols == 0) {
       return;
     }
@@ -95,6 +101,7 @@ public class CollectionStats {
     append(line, "성공", symbolsOk.get());
     append(line, "빈값", symbolsEmpty.get());
     append(line, "실패", symbolsFailed.get());
+    append(line, "분할재수집", splitResyncs.get());
     append(line, "신규", candlesInserted.get());
     append(line, "갱신", candlesUpdated.get());
     append(line, "배당", dividendsSaved.get());
@@ -126,6 +133,7 @@ public class CollectionStats {
     symbolsOk.set(0);
     symbolsEmpty.set(0);
     symbolsFailed.set(0);
+    splitResyncs.set(0);
     candlesInserted.set(0);
     candlesUpdated.set(0);
     dividendsSaved.set(0);

@@ -1,14 +1,26 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { RefreshCw, AlertTriangle } from 'lucide-react';
-import { marketAdminApi, type UnadjustedResponse } from '@services/adminApi';
+import { marketAdminApi, type UnadjustedResponse, type ScanMode } from '@services/adminApi';
 
 // 한 번에 보내는 종목 수. 요청 본문이 지나치게 커지지 않게 끊는다
 const CHUNK = 200;
 // 탐색이 몇 분 걸려 폴링으로 결과를 받는다
 const POLL_MS = 5000;
+// 다시 받기는 늘 이 날부터. 분할은 과거 가격 전체를 바꾼다
+const FULL_FROM = '1970-01-01';
+
+// 시작일 기본값. 분할 계수는 한 달 전, 비율은 전 기간
+const defaultFrom = (mode: ScanMode) => {
+  if (mode === 'RATIO') return FULL_FROM;
+  const d = new Date();
+  d.setMonth(d.getMonth() - 1);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
 
 export default function CandleRefreshSection() {
-  const [from, setFrom] = useState('1970-01-01');
+  const [mode, setMode] = useState<ScanMode>('SPLITS');
+  const [from, setFrom] = useState(() => defaultFrom('SPLITS'));
   const [scan, setScan] = useState<UnadjustedResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
@@ -61,7 +73,7 @@ export default function CandleRefreshSection() {
     setError(null);
     setProgress(null);
     try {
-      const res = await marketAdminApi.startUnadjustedScan(from);
+      const res = await marketAdminApi.startUnadjustedScan(from, mode);
       setScan(res);
       startPolling();
     } catch (err) {
@@ -73,7 +85,7 @@ export default function CandleRefreshSection() {
   const refresh = async () => {
     const symbols = scan?.symbols ?? [];
     if (symbols.length === 0) return;
-    if (!confirm(`${symbols.length}개 종목을 ${from} 부터 다시 받습니다. 계속할까요?`)) return;
+    if (!confirm(`${symbols.length}개 종목을 ${FULL_FROM} 부터 다시 받습니다. 계속할까요?`)) return;
 
     setLoading(true);
     setError(null);
@@ -81,7 +93,7 @@ export default function CandleRefreshSection() {
     try {
       for (let i = 0; i < symbols.length; i += CHUNK) {
         const chunk = symbols.slice(i, i + CHUNK);
-        const res = await marketAdminApi.refreshCandles(chunk, from);
+        const res = await marketAdminApi.refreshCandles(chunk, FULL_FROM);
         published += res.published;
         setProgress(`${Math.min(i + CHUNK, symbols.length)} / ${symbols.length} 발행 완료`);
       }
@@ -105,7 +117,7 @@ export default function CandleRefreshSection() {
           분할 미반영 종목 정비
         </h2>
         <p className="mt-1 text-sm text-tx-2">
-          종가에 액면분할이 반영되지 않은 종목을 찾아 다시 받습니다.
+          액면분할이 반영되지 않았을 수 있는 종목을 찾아 1970년부터 다시 받습니다.
           탐색은 몇 분 걸리므로 백그라운드로 돌고, 결과는 자동으로 갱신됩니다.
         </p>
       </div>
@@ -119,6 +131,23 @@ export default function CandleRefreshSection() {
             onChange={(e) => setFrom(e.target.value)}
             className="px-3 py-2 border border-line-strong rounded-lg focus:outline-none focus:ring-2 focus:ring-brand"
           />
+        </label>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-tx-3">방식</span>
+          <select
+            value={mode}
+            onChange={(e) => {
+              const next = e.target.value as ScanMode;
+              setMode(next);
+              setFrom(defaultFrom(next));
+            }}
+            disabled={running || loading}
+            className="px-3 py-2 border border-line-strong rounded-lg focus:outline-none focus:ring-2 focus:ring-brand"
+          >
+            <option value="SPLITS">분할 계수</option>
+            <option value="RATIO">비율(옛 방식)</option>
+          </select>
         </label>
 
         <button
@@ -140,6 +169,12 @@ export default function CandleRefreshSection() {
         </button>
       </div>
 
+      <p className="mt-2 text-xs text-tx-3">
+        {mode === 'RATIO'
+          ? '배당이 많은 종목도 같이 잡힙니다.'
+          : '시작일 이후 분할이 기록된 종목을 찾습니다.'}
+      </p>
+
       {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
       {progress && <p className="mt-3 text-sm text-tx-2">{progress}</p>}
 
@@ -150,7 +185,7 @@ export default function CandleRefreshSection() {
       {!running && scan?.finishedAt && (
         <div className="mt-3">
           <p className="text-sm text-tx-2">
-            {scan.from} 이후 기준 {scan.count}개
+            {scan.from} 이후 · {scan.mode === 'RATIO' ? '비율' : '분할 계수'} 기준 {scan.count}개
             <span className="text-tx-3 ml-2">
               {new Date(scan.finishedAt).toLocaleString('ko-KR')} · {Math.round(scan.tookMillis / 1000)}초
             </span>

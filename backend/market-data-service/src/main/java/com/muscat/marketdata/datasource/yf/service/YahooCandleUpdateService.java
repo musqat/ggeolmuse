@@ -7,6 +7,8 @@ import com.muscat.marketdata.domain.repository.AssetRepository;
 import com.muscat.marketdata.domain.repository.CandleRepository;
 import com.muscat.marketdata.domain.repository.DividendRepository;
 import com.muscat.marketdata.domain.service.CollectionStats;
+import com.muscat.marketdata.domain.service.SplitScale;
+import com.muscat.marketdata.infra.kafka.AssetEventProducer;
 import com.muscat.marketdata.infra.kafka.DividendEventProducer;
 
 import java.util.Comparator;
@@ -51,6 +53,10 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
 
     private final DividendEventProducer dividendEventProducer;
     private final CollectionStats collectionStats;
+    private final AssetEventProducer assetEventProducer;
+
+    // 관리자 재수집 기본값과 같다. 이 날부터 받을 때는 과거 종가를 비교하지 않는다
+    private static final LocalDate FULL_HISTORY_FROM = LocalDate.of(1970, 1, 1);
 
     // self-injection: saveBoth에서 proxy 통해 호출해야 REQUIRES_NEW가 실제로 적용됨
     @Lazy
@@ -67,7 +73,13 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
                 return 0;
             }
 
-            Merged merged = mergeIntoExisting(symbol, from, to, candles);
+            Map<String, Candle> existing = loadExisting(symbol, from, to);
+            if (scaleChanged(existing, candles) && isPartialWindow(symbol, from)) {
+                resyncFullHistory(symbol, to);
+                return 0;
+            }
+
+            Merged merged = mergeIntoExisting(existing, candles);
 
             // 최신 캔들을 asset에 비정규화 (summary 조회 성능용)
             candles.stream()
@@ -133,18 +145,18 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
         return c + d;
     }
 
+    private Map<String, Candle> loadExisting(String symbol, LocalDate from, LocalDate to) {
+        return candleRepository
+            .findBySymbolAndDateBetweenOrderByDateAsc(symbol, from, to)
+            .stream()
+            .collect(Collectors.toMap(YahooCandleUpdateService::key, c -> c, (a, b) -> a));
+    }
+
     /**
      * 받아온 캔들을 기존 행과 대조해 없는 것만 넣고 값이 달라진 것만 고친다.
      * adjusted_close 는 배당이 나올 때마다 과거 날짜까지 바뀌므로 기존 행도 다시 본다.
      */
-    private Merged mergeIntoExisting(String symbol, LocalDate from, LocalDate to,
-        List<Candle> candles) {
-
-        Map<String, Candle> existing = candleRepository
-            .findBySymbolAndDateBetweenOrderByDateAsc(symbol, from, to)
-            .stream()
-            .collect(Collectors.toMap(YahooCandleUpdateService::key, c -> c, (a, b) -> a));
-
+    private Merged mergeIntoExisting(Map<String, Candle> existing, List<Candle> candles) {
         List<Candle> inserts = new ArrayList<>();
         int updated = 0;
 
@@ -163,6 +175,29 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
         }
 
         return new Merged(inserts.size(), updated);
+    }
+
+    // 기존 데이터와 겹치는 날짜 중 가장 이른 날의 종가를 비교한다. 분할이 나면 과거 종가가 전부 분할 기준으로 바뀐다
+    private static boolean scaleChanged(Map<String, Candle> existing, List<Candle> candles) {
+        return candles.stream()
+            .filter(fresh -> existing.containsKey(key(fresh)))
+            .min(Comparator.comparing(Candle::getDate))
+            .map(fresh -> SplitScale.isScaleChange(existing.get(key(fresh)).getClose(), fresh.getClose()))
+            .orElse(false);
+    }
+
+    // 1970년 부터 받을 때는 비교하지 않는다. 비교하면 1970년 이전 데이터가 있는 종목에서 재수집이 되풀이된다
+    private boolean isPartialWindow(String symbol, LocalDate from) {
+        return from != null && from.isAfter(FULL_HISTORY_FROM)
+            && candleRepository.existsBySymbolAndDateBefore(symbol, from);
+    }
+
+    // 덮어쓰지 않으므로 재수집 요청이 실패해도 다음 수집에서 같은 차이가 다시 보인다
+    private void resyncFullHistory(String symbol, LocalDate to) {
+        assetRepository.findById(symbol).ifPresent(asset ->
+            assetEventProducer.publishAssetCreated(asset, true, FULL_HISTORY_FROM, to, false));
+        collectionStats.recordSplitResync();
+        log.info("[YF-캔들저장] 분할로 과거 종가가 바뀌어 전 기간을 다시 받는다: symbol={}", symbol);
     }
 
     private record Merged(int inserted, int updated) {}

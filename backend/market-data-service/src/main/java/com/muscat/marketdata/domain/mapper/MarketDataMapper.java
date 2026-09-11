@@ -49,7 +49,7 @@ public final class MarketDataMapper {
       .adjustedClose(dto.getAdjustedClose() != null ? dto.getAdjustedClose() : dto.getClose())
       .volume(dto.getVolume())
       .dividendAmount(BigDecimal.ZERO)
-      .splitCoefficient(BigDecimal.ONE)
+      .splitCoefficient(dto.getSplitCoefficient() != null ? dto.getSplitCoefficient() : BigDecimal.ONE)
       .build();
   }
 

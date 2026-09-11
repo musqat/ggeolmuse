@@ -114,4 +114,14 @@ class CollectionStatsTest {
       .isEqualTo("수집 진행  0분  종목 1  성공 1  신규 3")
       .doesNotContain("갱신").doesNotContain("빈값").doesNotContain("404");
   }
+
+  @Test
+  @DisplayName("분할 재수집은 종목으로 세고 따로 표시한다")
+  void report_countsSplitResync() {
+    stats.recordSplitResync();
+
+    stats.report();
+
+    assertThat(messages().get(0)).isEqualTo("수집 진행  0분  종목 1  분할재수집 1");
+  }
 }
