@@ -26,4 +26,7 @@ public interface CandleRepository extends JpaRepository<Candle, Long>, CandleRep
   // 특정 종목의 가장 최신 캔들 데이터 조회 (증분 수집용)
   Optional<Candle> findFirstBySymbolOrderByDateDesc(String symbol);
 
+  // 이 날짜보다 오래된 데이터가 있는지. 받는 기간 밖에 데이터가 남는지 볼 때 쓴다
+  boolean existsBySymbolAndDateBefore(String symbol, LocalDate date);
+
 }
