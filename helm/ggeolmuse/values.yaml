@@ -233,8 +233,8 @@ gatewayServer:
     create: true
   strategy:
     rollingUpdate:
-      maxUnavailable: 1
-      maxSurge: 0
+      maxUnavailable: 0
+      maxSurge: 1
   probes:
     readiness:
       initialDelaySeconds: 60
@@ -267,8 +267,8 @@ services:
       mailFrom: true
     strategy:
       rollingUpdate:
-        maxUnavailable: 1
-        maxSurge: 0
+        maxUnavailable: 0
+        maxSurge: 1
     probes:
       readiness:
         initialDelaySeconds: 60
@@ -297,8 +297,8 @@ services:
       keycloakSecret: true
     strategy:
       rollingUpdate:
-        maxUnavailable: 1
-        maxSurge: 0
+        maxUnavailable: 0
+        maxSurge: 1
     probes:
       readiness:
         initialDelaySeconds: 60
@@ -331,8 +331,8 @@ services:
       koreaexImApiKey: true
     strategy:
       rollingUpdate:
-        maxUnavailable: 1
-        maxSurge: 0
+        maxUnavailable: 0
+        maxSurge: 1
     probes:
       readiness:
         initialDelaySeconds: 5

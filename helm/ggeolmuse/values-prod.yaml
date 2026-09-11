@@ -150,7 +150,7 @@ gatewayServer:
     create: true
   strategy:
     rollingUpdate:
-      maxUnavailable: 1
+      maxUnavailable: 0
       maxSurge: 1
   probes:
     readiness:
