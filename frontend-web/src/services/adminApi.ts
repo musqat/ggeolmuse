@@ -153,11 +153,11 @@ export const marketAdminApi = {
   },
 
   // 탐색을 시작만 한다. 3천만 행 집계라 몇 분 걸려 게이트웨이 30초 제한을 넘는다
-  startUnadjustedScan: async (from: string): Promise<UnadjustedResponse> => {
+  startUnadjustedScan: async (from: string, mode: ScanMode = 'SPLITS'): Promise<UnadjustedResponse> => {
     const { data } = await api.post<UnadjustedResponse>(
       '/admin/market/candles/unadjusted/scan',
       null,
-      { params: { from } }
+      { params: { from, mode } }
     );
     return data;
   },
@@ -184,9 +184,13 @@ export const marketAdminApi = {
   },
 };
 
+// SPLITS 는 분할 계수가 기록된 종목, RATIO 는 adjusted_close/close 비라 배당이 오래 쌓인 종목도 걸린다
+export type ScanMode = 'SPLITS' | 'RATIO';
+
 export interface UnadjustedResponse {
   running: boolean;
   from: string | null;
+  mode: ScanMode | null;
   count: number;
   symbols: string[] | null;
   finishedAt: string | null;
