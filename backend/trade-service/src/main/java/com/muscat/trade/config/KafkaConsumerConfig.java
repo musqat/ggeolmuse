@@ -39,6 +39,10 @@ import java.util.Map;
 @Configuration
 public class KafkaConsumerConfig {
 
+    // 첫 전달이 실패하면 1초 간격으로 세 번 더 보낸다
+    private static final long RETRY_INTERVAL_MS = 1000L;
+    private static final long MAX_RETRIES = 3L;
+
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
 
@@ -203,7 +207,7 @@ public class KafkaConsumerConfig {
     }
 
     /**
-     * 1초 간격으로 3회 재시도한다. 그래도 안 되면 토픽 이름에 .DLT 를 붙인 곳으로 보낸다.
+     * 첫 전달까지 넣어 최대 네 번 보낸다. 다 실패하면 토픽 이름에 .DLT 를 붙인 곳으로 보낸다.
      */
     private CommonErrorHandler kafkaErrorHandler() {
         // 파티션을 -1 로 두면 카프카가 고른다. DLT 파티션 수가 원본보다 적어도 된다
@@ -212,11 +216,12 @@ public class KafkaConsumerConfig {
                 (record, ex) -> new TopicPartition(record.topic() + ".DLT", -1));
 
         DefaultErrorHandler errorHandler =
-                new DefaultErrorHandler(recoverer, new FixedBackOff(1000L, 3L));
+                new DefaultErrorHandler(recoverer, new FixedBackOff(RETRY_INTERVAL_MS, MAX_RETRIES));
 
         errorHandler.setRetryListeners((record, ex, deliveryAttempt) -> {
-            log.warn("재시도 {}/3: topic={}, partition={}, offset={}, error={}",
-                    deliveryAttempt, record.topic(), record.partition(), record.offset(), ex.getMessage());
+            log.warn("전달 {}/{} 실패: topic={}, partition={}, offset={}, error={}",
+                    deliveryAttempt, MAX_RETRIES + 1, record.topic(), record.partition(),
+                    record.offset(), ex.getMessage());
         });
 
         return errorHandler;
