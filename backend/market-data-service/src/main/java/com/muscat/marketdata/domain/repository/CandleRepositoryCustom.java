@@ -27,7 +27,4 @@ public interface CandleRepositoryCustom {
 
     // 활성 종목 중 시작일 이후 분할 계수가 기록된 종목. 이름순
     List<String> findSymbolsWithSplits(LocalDate from);
-
-    // 종목 안에서 adjusted_close/close 의 최대 · 최소 비가 1.9 를 넘는 종목. 배당이 오래 쌓인 종목도 걸린다
-    List<String> findSymbolsByRatioSpread(LocalDate from);
 }
