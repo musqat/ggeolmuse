@@ -2,7 +2,9 @@ package com.muscat.marketdata.api.controller;
 
 import com.muscat.marketdata.datasource.yf.collector.SymbolCollector;
 import com.muscat.marketdata.domain.dto.AssetSummaryDto;
+import com.muscat.marketdata.domain.entity.AdminJobRun;
 import com.muscat.marketdata.domain.entity.Asset;
+import com.muscat.marketdata.domain.repository.AdminJobRunRepository;
 import com.muscat.marketdata.domain.repository.AssetRepository;
 import com.muscat.marketdata.domain.repository.CandleRepository;
 import com.muscat.marketdata.domain.service.AssetService;
@@ -24,6 +26,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 
@@ -68,6 +71,10 @@ public class AdminMarketController {
     private final CandleRepository candleRepository;
     private final AssetEventProducer assetEventProducer;
     private final UnadjustedScanService scanService;
+    private final AdminJobRunRepository adminJobRunRepository;
+
+    private static final String REFRESH_ALL_JOB = "candle-refresh-all";
+    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     // SymbolCollector 는 marketdata.provider=yahoo 일 때만 뜬다.
     // 직접 주입하면 alphavantage 프로파일에서 기동이 깨지므로 선택 주입한다.
@@ -524,11 +531,11 @@ public class AdminMarketController {
     }
 
     /**
-     * close 에 분할이 반영되지 않은 종목 목록
+     * 시작일 이후 분할 계수가 기록된 종목 목록
      *
      * GET /api/admin/market/candles/unadjusted
      *
-     * 탐색은 3천만 행 집계라 몇 분 걸린다. 여기서는 마지막 결과만 준다.
+     * 탐색은 3천만 행을 훑어 몇 분 걸린다. 여기서는 마지막 결과만 준다.
      */
     @GetMapping("/candles/unadjusted")
     public ResponseEntity<UnadjustedResponse> findUnadjusted() {
@@ -543,7 +550,6 @@ public class AdminMarketController {
         return ResponseEntity.ok(UnadjustedResponse.builder()
             .running(scanService.isRunning())
             .from(last.getFrom())
-            .mode(last.getMode() != null ? last.getMode().name() : null)
             .count(last.getCount())
             .symbols(last.getSymbols())
             .finishedAt(last.getFinishedAt() != null ? last.getFinishedAt().toString() : null)
@@ -553,22 +559,20 @@ public class AdminMarketController {
     }
 
     /**
-     * 분할 미반영 종목 탐색을 시작한다. 결과는 GET 으로 받는다.
+     * 분할 종목 탐색을 시작한다. 결과는 GET 으로 받는다.
      *
-     * POST /api/admin/market/candles/unadjusted/scan?from=1970-01-01&mode=SPLITS
+     * POST /api/admin/market/candles/unadjusted/scan?from=2026-08-01
      */
     @PostMapping("/candles/unadjusted/scan")
     public ResponseEntity<UnadjustedResponse> scanUnadjusted(
-        @RequestParam(defaultValue = "1970-01-01") LocalDate from,
-        @RequestParam(defaultValue = "SPLITS") UnadjustedScanService.ScanMode mode) {
+        @RequestParam(defaultValue = "1970-01-01") LocalDate from) {
 
-        boolean started = scanService.start(from, mode);
-        log.info("분할 미반영 탐색 요청: from={}, mode={}, started={}", from, mode, started);
+        boolean started = scanService.start(from);
+        log.info("분할 종목 탐색 요청: from={}, started={}", from, started);
 
         return ResponseEntity.accepted().body(UnadjustedResponse.builder()
             .running(true)
             .from(from)
-            .mode(mode.name())
             .build());
     }
 
@@ -616,6 +620,40 @@ public class AdminMarketController {
             .build());
     }
 
+    /**
+     * 활성 종목 전체를 1970-01-01 부터 다시 수집한다. 수집은 Kafka 컨슈머가 비동기로 처리한다.
+     *
+     * POST /api/admin/market/candles/refresh-all
+     */
+    @PostMapping("/candles/refresh-all")
+    public ResponseEntity<RefreshAllResponse> refreshAllCandles() {
+        LocalDate from = LocalDate.of(1970, 1, 1);
+        LocalDate to = LocalDate.now(ZoneId.of("America/New_York"));
+
+        List<Asset> assets = assetRepository.findByActiveTrue();
+        for (Asset asset : assets) {
+            assetEventProducer.publishAssetCreated(asset, true, from, to, false);
+        }
+
+        AdminJobRun run = adminJobRunRepository.save(
+            new AdminJobRun(REFRESH_ALL_JOB, LocalDateTime.now(KST), assets.size()));
+        log.info("전체 캔들 재수집 요청: 발행 {}개, from={}", assets.size(), from);
+
+        return ResponseEntity.ok(RefreshAllResponse.of(run));
+    }
+
+    /**
+     * 마지막 전체 재수집 기록. 한 번도 하지 않았으면 lastRunAt 이 비어 있다
+     *
+     * GET /api/admin/market/candles/refresh-all
+     */
+    @GetMapping("/candles/refresh-all")
+    public ResponseEntity<RefreshAllResponse> lastRefreshAll() {
+        return ResponseEntity.ok(adminJobRunRepository.findById(REFRESH_ALL_JOB)
+            .map(RefreshAllResponse::of)
+            .orElseGet(RefreshAllResponse::new));
+    }
+
     @Data
     @Builder
     @NoArgsConstructor
@@ -623,7 +661,6 @@ public class AdminMarketController {
     public static class UnadjustedResponse {
         private boolean running;
         private LocalDate from;
-        private String mode;
         private int count;
         private List<String> symbols;
         private String finishedAt;
@@ -649,5 +686,18 @@ public class AdminMarketController {
         private List<String> notFound;
         private LocalDate from;
         private LocalDate to;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class RefreshAllResponse {
+        // 서울 시각
+        private LocalDateTime lastRunAt;
+        private int published;
+
+        static RefreshAllResponse of(AdminJobRun run) {
+            return new RefreshAllResponse(run.getLastRunAt(), run.getPublished());
+        }
     }
 }
