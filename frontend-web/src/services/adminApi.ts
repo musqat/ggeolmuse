@@ -153,11 +153,11 @@ export const marketAdminApi = {
   },
 
   // 탐색을 시작만 한다. 3천만 행 집계라 몇 분 걸려 게이트웨이 30초 제한을 넘는다
-  startUnadjustedScan: async (from: string, mode: ScanMode = 'SPLITS'): Promise<UnadjustedResponse> => {
+  startUnadjustedScan: async (from: string): Promise<UnadjustedResponse> => {
     const { data } = await api.post<UnadjustedResponse>(
       '/admin/market/candles/unadjusted/scan',
       null,
-      { params: { from, mode } }
+      { params: { from } }
     );
     return data;
   },
@@ -177,6 +177,18 @@ export const marketAdminApi = {
     return data;
   },
 
+  // 활성 종목 전체를 1970-01-01 부터 다시 받는다. 수집은 몇 시간 백그라운드로 돈다
+  refreshAllCandles: async (): Promise<RefreshAllResponse> => {
+    const { data } = await api.post<RefreshAllResponse>('/admin/market/candles/refresh-all');
+    return data;
+  },
+
+  // 마지막 전체 다시 받기 기록. 한 번도 안 했으면 lastRunAt 이 null
+  findLastRefreshAll: async (): Promise<RefreshAllResponse> => {
+    const { data } = await api.get<RefreshAllResponse>('/admin/market/candles/refresh-all');
+    return data;
+  },
+
   // 신규 상장 종목을 지금 받아온다. 평일 08:00 스케줄과 같은 일을 한다.
   // 목록을 다시 받아 DB 에 없는 심볼만 추가하고 기존 종목은 건드리지 않는다.
   collectNewSymbols: async (): Promise<void> => {
@@ -184,13 +196,9 @@ export const marketAdminApi = {
   },
 };
 
-// SPLITS 는 분할 계수가 기록된 종목, RATIO 는 adjusted_close/close 비라 배당이 오래 쌓인 종목도 걸린다
-export type ScanMode = 'SPLITS' | 'RATIO';
-
 export interface UnadjustedResponse {
   running: boolean;
   from: string | null;
-  mode: ScanMode | null;
   count: number;
   symbols: string[] | null;
   finishedAt: string | null;
@@ -204,6 +212,12 @@ export interface RefreshResponse {
   notFound: string[];
   from: string;
   to: string;
+}
+
+// lastRunAt 은 서버가 KST 로 남긴 시각이다
+export interface RefreshAllResponse {
+  lastRunAt: string | null;
+  published: number;
 }
 
 // ==================== User Admin APIs ====================
