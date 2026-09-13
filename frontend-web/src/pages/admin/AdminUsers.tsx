@@ -1,5 +1,4 @@
 import React from 'react';
-import { Users } from 'lucide-react';
 import { useAdminUsers } from '@hooks/useAdminUsers';
 import UserStatsCards from '@components/admin/UserStatsCards';
 import UserListSection from '@components/admin/UserListSection';
@@ -30,10 +29,7 @@ export default function AdminUsers() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-tx-1 flex items-center gap-2">
-            <Users className="w-8 h-8 text-brand" />
-            사용자 관리
-          </h1>
+          <h1 className="text-3xl font-bold text-tx-1">사용자 관리</h1>
           <p className="mt-2 text-tx-2">
             사용자 역할, 활성화 상태 및 계좌 정보 관리
           </p>

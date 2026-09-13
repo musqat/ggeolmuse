@@ -1,5 +1,5 @@
 import { Link, Outlet, useNavigate } from 'react-router-dom';
-import { Shield, Users, TrendingUp, LogOut, Home } from 'lucide-react';
+import { Users, TrendingUp, LogOut, Home } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function AdminLayout() {
@@ -17,10 +17,7 @@ export default function AdminLayout() {
       <header className="bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <Shield className="w-8 h-8" />
-              <h1 className="text-2xl font-bold">GGeolmuse Admin</h1>
-            </div>
+            <h1 className="text-2xl font-bold">GGeolmuse Admin</h1>
 
             <div className="flex items-center gap-6">
               <span className="text-sm">

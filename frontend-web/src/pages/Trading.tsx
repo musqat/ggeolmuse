@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { Lock, LogIn } from 'lucide-react';
+import { LogIn } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
@@ -248,7 +248,6 @@ const Trading: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="min-h-[60vh] flex items-center justify-center">
             <div className="text-center">
-              <Lock className="w-16 h-16 text-brand mx-auto mb-4" />
               <h1 className="text-3xl font-bold text-tx-1 mb-4">로그인이 필요한 서비스입니다</h1>
               <p className="text-lg text-tx-2 mb-6">
                 가상 거래 서비스를 이용하시려면 먼저 로그인해주세요

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckCircle, X, Mail } from 'lucide-react';
+import { X } from 'lucide-react';
 import { authApi } from '../../services/api';
 
 interface SignupSuccessModalProps {
@@ -36,10 +36,7 @@ const SignupSuccessModal: React.FC<SignupSuccessModalProps> = ({ isOpen, onClose
       <div className="bg-surface rounded-lg shadow-xl w-full max-w-md mx-4">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b">
-          <div className="flex items-center space-x-2">
-            <CheckCircle className="w-6 h-6 text-green-600" />
-            <h2 className="text-xl font-semibold text-tx-1">회원가입 완료</h2>
-          </div>
+          <h2 className="text-xl font-semibold text-tx-1">회원가입 완료</h2>
           <button
             onClick={onClose}
             className="text-tx-3 hover:text-tx-2 transition-colors"
@@ -51,9 +48,6 @@ const SignupSuccessModal: React.FC<SignupSuccessModalProps> = ({ isOpen, onClose
         {/* Body */}
         <div className="p-6">
           <div className="text-center mb-6">
-            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-500/100/15 mb-4">
-              <Mail className="h-8 w-8 text-green-600" />
-            </div>
             <h3 className="text-lg font-medium text-tx-1 mb-2">
               회원가입이 완료되었습니다
             </h3>

@@ -1,9 +1,5 @@
 import React, { useState } from 'react';
-import {
-  RefreshCw,
-  Lock,
-  LogIn
-} from 'lucide-react';
+import { RefreshCw, LogIn } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import LoginModal from '../components/auth/LoginModal';
 
@@ -101,7 +97,6 @@ const Account: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="min-h-[60vh] flex items-center justify-center">
             <div className="text-center">
-              <Lock className="w-16 h-16 text-brand mx-auto mb-4" />
               <h1 className="text-3xl font-bold text-tx-1 mb-4">로그인이 필요한 서비스입니다</h1>
               <p className="text-lg text-tx-2 mb-6">
                 계좌 관리 기능을 이용하시려면 먼저 로그인해주세요

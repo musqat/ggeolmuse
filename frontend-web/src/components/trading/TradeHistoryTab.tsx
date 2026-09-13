@@ -4,8 +4,7 @@ import {
   ArrowUpCircle,
   ArrowDownCircle,
   RefreshCw,
-  DollarSign,
-  Filter
+  DollarSign
 } from 'lucide-react';
 import { tradeApi, accountsApi } from '../../services/api';
 
@@ -144,10 +143,7 @@ const TradeHistoryTab: React.FC = () => {
       {/* Filter Section */}
       <div className="bg-surface rounded-lg shadow-sm border border-line/50 p-4">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-2">
-            <Filter className="w-5 h-5 text-tx-2" />
-            <h3 className="text-lg font-semibold text-tx-1">필터</h3>
-          </div>
+          <h3 className="text-lg font-semibold text-tx-1">필터</h3>
           <button
             onClick={() => refetch()}
             className="flex items-center space-x-1 px-3 py-1.5 text-sm text-brand hover:bg-brand-bg rounded-md transition-colors"

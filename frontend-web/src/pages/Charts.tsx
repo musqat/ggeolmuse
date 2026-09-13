@@ -1,14 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import {
-  TrendingUp,
-  TrendingDown,
-  Home,
-  Search,
-  Calendar,
-  Sparkles,
-} from 'lucide-react';
+import { TrendingUp, TrendingDown, Home, Search, Calendar } from 'lucide-react';
 import { stockApi } from '../services/api';
 import KLineChartComponent from '../components/charts/KLineChartComponent';
 import SearchModal from '../components/common/SearchModal';
@@ -265,7 +258,6 @@ const Charts: React.FC = () => {
                 className="flex items-center gap-1.5 px-3 py-2 bg-brand text-white rounded-lg hover:bg-brand-dark transition-colors text-sm font-semibold shadow-sm"
                 title={`${symbol} AI 기술 분석`}
               >
-                <Sparkles className="w-4 h-4" />
                 AI 분석
               </button>
             </div>
@@ -401,7 +393,6 @@ const Charts: React.FC = () => {
             ) : error ? (
               <div className="flex items-center justify-center h-[480px]">
                 <div className="text-center">
-                  <TrendingDown className="w-16 h-16 text-red-400 mx-auto mb-4" />
                   <h3 className="text-xl font-semibold text-tx-1 mb-2">
                     데이터 로딩 실패
                   </h3>
