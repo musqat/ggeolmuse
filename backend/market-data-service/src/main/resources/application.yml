@@ -35,3 +35,8 @@ spring:
         enabled: true
       region:
         static: ${AWS_REGION:ap-northeast-2}
+  datasource:
+    hikari:
+      data-source-properties:
+        # 끊긴 DB 연결에서 응답을 끝없이 기다리지 않게 5분(초 단위)에서 끊는다
+        socketTimeout: 300
