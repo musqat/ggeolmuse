@@ -1,5 +1,4 @@
 import React from 'react';
-import { DollarSign } from 'lucide-react';
 
 interface FxModeToggleProps {
   fxMode: 'auto' | 'manual';
@@ -25,10 +24,7 @@ export const FxModeToggle: React.FC<FxModeToggleProps> = ({
   return (
     <div className="border-t border-line pt-4">
       <div className="flex items-center justify-between mb-3">
-        <label className="flex items-center space-x-2 text-sm font-medium text-tx-1">
-          <DollarSign className="w-4 h-4" />
-          <span>환율 설정</span>
-        </label>
+        <label className="text-sm font-medium text-tx-1">환율 설정</label>
         <div className="flex items-center space-x-2">
           <button
             type="button"

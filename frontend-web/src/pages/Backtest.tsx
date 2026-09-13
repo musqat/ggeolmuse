@@ -47,6 +47,13 @@ type BacktestMode =
   | "compare-strategies"
   | "history";
 
+// 저장 시각. 올해면 6.4, 다른 해면 2025.6.4
+const formatSavedDate = (iso: string) => {
+  const d = new Date(iso);
+  const monthDay = `${d.getMonth() + 1}.${d.getDate()}`;
+  return d.getFullYear() === new Date().getFullYear() ? monthDay : `${d.getFullYear()}.${monthDay}`;
+};
+
 // 전략 이름 매핑
 const STRATEGY_NAMES: Record<string, string> = {
   SIMPLE: "단순 매수",
@@ -942,10 +949,11 @@ const Backtest: React.FC = () => {
                           key={history.backtestId}
                           className="hover:bg-surface/50"
                         >
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-tx-1">
-                            {new Date(history.createdAt).toLocaleString(
-                              "ko-KR",
-                            )}
+                          <td
+                            className="px-4 py-3 whitespace-nowrap text-sm text-tx-1"
+                            title={new Date(history.createdAt).toLocaleString("ko-KR")}
+                          >
+                            {formatSavedDate(history.createdAt)}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-tx-1">
                             {backtestTypeLabel}
@@ -980,8 +988,8 @@ const Backtest: React.FC = () => {
                             {(params.startDate || params.purchaseDate) && (
                               <span className="ml-2 text-tx-2">
                                 ({params.startDate || params.purchaseDate}
-                                {params.endDate && `~ ${params.endDate}`}
-                                {!params.endDate && "~ 현재"})
+                                {params.endDate && ` ~ ${params.endDate}`}
+                                {!params.endDate && " ~ 현재"})
                               </span>
                             )}
                           </td>

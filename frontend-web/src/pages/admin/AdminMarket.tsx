@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TrendingUp, Search, Plus, X } from 'lucide-react';
+import { Search, Plus, X } from 'lucide-react';
 import { useAdminMarket } from '@hooks/useAdminMarket';
 import AssetListSection from '@components/admin/AssetListSection';
 import AddAssetModal from '@components/admin/AddAssetModal';
@@ -57,10 +57,7 @@ export default function AdminMarket() {
         {/* Header */}
         <div className="mb-8 flex items-start justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-tx-1 flex items-center gap-2">
-              <TrendingUp className="w-8 h-8 text-brand" />
-              Market Data 관리
-            </h1>
+            <h1 className="text-3xl font-bold text-tx-1">Market Data 관리</h1>
             <p className="mt-2 text-tx-2">보유 종목 검색·관리 및 신규 종목 추가</p>
           </div>
           <button

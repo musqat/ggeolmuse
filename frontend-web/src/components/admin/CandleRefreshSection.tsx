@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { RefreshCw, AlertTriangle } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { marketAdminApi, type UnadjustedResponse, type RefreshAllResponse } from '@services/adminApi';
 
 // 한 번에 보내는 종목 수. 요청 본문이 지나치게 커지지 않게 끊는다
@@ -120,7 +120,7 @@ export default function CandleRefreshSection() {
     try {
       const res = await marketAdminApi.refreshAllCandles();
       setLastAll(res);
-      setProgress(`${res.published.toLocaleString('ko-KR')}개 발행 완료. 수집은 백그라운드에서 몇 시간 이어집니다`);
+      setProgress(`${res.published.toLocaleString('ko-KR')}개 발행을 시작했습니다. 수집은 백그라운드에서 몇 시간 이어집니다`);
     } catch (err) {
       setError('전체 재수집 요청에 실패했습니다.');
       console.error('refresh all candles failed:', err);
@@ -135,10 +135,7 @@ export default function CandleRefreshSection() {
   return (
     <div className="bg-surface rounded-lg shadow-md p-4 mb-6">
       <div className="mb-3">
-        <h2 className="text-lg font-semibold text-tx-1 flex items-center gap-2">
-          <AlertTriangle className="w-5 h-5 text-brand" />
-          분할 미반영 종목 정비
-        </h2>
+        <h2 className="text-lg font-semibold text-tx-1">분할 미반영 종목 정비</h2>
         <p className="mt-1 text-sm text-tx-2">
           시작일 이후 분할이 기록된 종목을 찾아 1970년부터 다시 받습니다.
           전체 다시 받기는 활성 종목 전부를 받고 몇 시간 걸립니다.
@@ -200,7 +197,7 @@ export default function CandleRefreshSection() {
       {!running && scan?.finishedAt && (
         <div className="mt-3">
           <p className="text-sm text-tx-2">
-            {scan.from} 이후 {scan.count}개
+            지난 찾기 · {scan.from} 이후 {scan.count}개
             <span className="text-tx-3 ml-2">
               {new Date(scan.finishedAt).toLocaleString('ko-KR')} · {Math.round(scan.tookMillis / 1000)}초
             </span>

@@ -44,16 +44,17 @@ public class Candle {
 
   // ===== OHLCV 데이터 (시가, 고가, 저가, 종가, 거래량) =====
 
-  @Column(name = "open", precision = 19, scale = 8)
+  // 역분할이 쌓인 종목은 조정된 과거가가 10^11 을 넘어 가격 다섯은 24자리로 둔다(V6)
+  @Column(name = "open", precision = 24, scale = 8)
   private BigDecimal open;
 
-  @Column(name = "high", precision = 19, scale = 8)
+  @Column(name = "high", precision = 24, scale = 8)
   private BigDecimal high;
 
-  @Column(name = "low", precision = 19, scale = 8)
+  @Column(name = "low", precision = 24, scale = 8)
   private BigDecimal low;
 
-  @Column(name = "close", precision = 19, scale = 8)
+  @Column(name = "close", precision = 24, scale = 8)
   private BigDecimal close;
 
   @Column(name = "volume")
@@ -61,7 +62,7 @@ public class Candle {
 
   // ===== 백테스트용 보정 필드들 =====
 
-  @Column(name = "adjusted_close", precision = 19, scale = 8, nullable = false)
+  @Column(name = "adjusted_close", precision = 24, scale = 8, nullable = false)
   private BigDecimal adjustedClose;
 
   @Column(name = "dividend_amount", precision = 19, scale = 8, nullable = false)

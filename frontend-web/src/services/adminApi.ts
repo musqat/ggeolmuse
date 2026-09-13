@@ -177,7 +177,7 @@ export const marketAdminApi = {
     return data;
   },
 
-  // 활성 종목 전체를 1970-01-01 부터 다시 받는다. 수집은 몇 시간 백그라운드로 돈다
+  // 활성 종목 전체를 1970-01-01 부터 다시 받는다. 요청은 바로 돌아오고 발행과 수집은 백그라운드로 돈다
   refreshAllCandles: async (): Promise<RefreshAllResponse> => {
     const { data } = await api.post<RefreshAllResponse>('/admin/market/candles/refresh-all');
     return data;

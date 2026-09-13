@@ -47,7 +47,7 @@ public class KafkaConsumerConfig {
     @Value("${marketdata.kafka.collection-concurrency:6}")
     private int concurrency;
 
-    @Value("${marketdata.kafka.max-poll-records:5}")
+    @Value("${marketdata.kafka.max-poll-records:1}")
     private int maxPollRecords;
 
     @Value("${marketdata.kafka.max-poll-interval-ms:600000}")
@@ -66,7 +66,7 @@ public class KafkaConsumerConfig {
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 
         // 리스너 안에서 수집을 끝내므로 한 번에 받는 건수가 곧 poll 주기가 된다.
-        // 기본값 500 이면 종목당 몇 초만 걸려도 max.poll.interval.ms 를 넘겨 리밸런스가 돈다
+        // 여러 건을 받으면 느린 종목 하나에 나머지가 묶여 max.poll.interval.ms 를 넘긴다. 한 건씩 받는다
         props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, maxPollRecords);
         props.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, maxPollIntervalMs);
 

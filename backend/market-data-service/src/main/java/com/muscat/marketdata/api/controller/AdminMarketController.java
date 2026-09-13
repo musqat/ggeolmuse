@@ -8,6 +8,7 @@ import com.muscat.marketdata.domain.repository.AdminJobRunRepository;
 import com.muscat.marketdata.domain.repository.AssetRepository;
 import com.muscat.marketdata.domain.repository.CandleRepository;
 import com.muscat.marketdata.domain.service.AssetService;
+import com.muscat.marketdata.domain.service.CandleRefreshAllPublisher;
 import com.muscat.marketdata.domain.service.UnadjustedScanService;
 import com.muscat.marketdata.infra.kafka.AssetEventProducer;
 import lombok.AllArgsConstructor;
@@ -72,6 +73,7 @@ public class AdminMarketController {
     private final AssetEventProducer assetEventProducer;
     private final UnadjustedScanService scanService;
     private final AdminJobRunRepository adminJobRunRepository;
+    private final CandleRefreshAllPublisher refreshAllPublisher;
 
     private static final String REFRESH_ALL_JOB = "candle-refresh-all";
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
@@ -621,7 +623,7 @@ public class AdminMarketController {
     }
 
     /**
-     * 활성 종목 전체를 1970-01-01 부터 다시 수집한다. 수집은 Kafka 컨슈머가 비동기로 처리한다.
+     * 활성 종목 전체를 1970-01-01 부터 다시 수집한다. 실행 기록을 먼저 남기고 발행은 뒤에서 한다.
      *
      * POST /api/admin/market/candles/refresh-all
      */
@@ -631,13 +633,12 @@ public class AdminMarketController {
         LocalDate to = LocalDate.now(ZoneId.of("America/New_York"));
 
         List<Asset> assets = assetRepository.findByActiveTrue();
-        for (Asset asset : assets) {
-            assetEventProducer.publishAssetCreated(asset, true, from, to, false);
-        }
-
         AdminJobRun run = adminJobRunRepository.save(
             new AdminJobRun(REFRESH_ALL_JOB, LocalDateTime.now(KST), assets.size()));
-        log.info("전체 캔들 재수집 요청: 발행 {}개, from={}", assets.size(), from);
+
+        // 1만 건 넘게 발행하면 게이트웨이 30초를 넘긴다. 요청은 먼저 돌려준다
+        refreshAllPublisher.publish(assets, from, to);
+        log.info("전체 캔들 재수집 요청: 대상 {}개, from={}", assets.size(), from);
 
         return ResponseEntity.ok(RefreshAllResponse.of(run));
     }

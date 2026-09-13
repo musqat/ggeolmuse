@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { ShieldAlert, Home } from 'lucide-react';
+import { Home } from 'lucide-react';
 
 export default function Unauthorized() {
   const navigate = useNavigate();
@@ -8,9 +8,6 @@ export default function Unauthorized() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-orange-50">
       <div className="max-w-md w-full bg-surface rounded-xl shadow-2xl p-8 text-center">
         <div className="mb-6">
-          <div className="w-20 h-20 bg-red-500/100/15 rounded-full flex items-center justify-center mx-auto mb-4">
-            <ShieldAlert className="w-12 h-12 text-red-600" />
-          </div>
           <h1 className="text-3xl font-bold text-tx-1 mb-2">
             접근 권한 없음
           </h1>

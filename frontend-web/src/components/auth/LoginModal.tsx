@@ -156,11 +156,6 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
             forgotPasswordSuccess ? (
               // 성공 메시지
               <div className="text-center py-8">
-                <div className="mb-4 text-green-600">
-                  <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
                 <h3 className="text-lg font-semibold text-tx-1 mb-2">이메일을 발송했습니다</h3>
                 <p className="text-sm text-tx-2 mb-6">
                   비밀번호 재설정 링크가 이메일로 전송되었습니다.<br />

@@ -183,7 +183,6 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, supportedSym
             </div>
           ) : (
             <div className="py-12 text-center">
-              <Search className="mx-auto h-12 w-12 text-tx-3" />
               <h3 className="mt-2 text-sm font-medium text-tx-1">검색 결과 없음</h3>
               <p className="mt-1 text-sm text-tx-2">
                 {searchTerm ? `"${searchTerm}"에 대한 검색 결과가 없습니다.` : '종목을 검색해보세요.'}

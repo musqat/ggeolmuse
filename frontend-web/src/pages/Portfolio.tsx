@@ -2,18 +2,7 @@ import React, { useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
-import {
-  TrendingUp,
-  TrendingDown,
-  DollarSign,
-  BarChart3,
-  PieChart,
-  ArrowUpCircle,
-  ArrowDownCircle,
-  Wallet,
-  LogIn,
-  Lock
-} from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, ArrowUpCircle, ArrowDownCircle, LogIn } from 'lucide-react';
 import { portfolioApi, accountsApi } from '../services/api';
 import PortfolioPieChart from '../components/charts/portfolio/PortfolioPieChart';
 import LoginModal from '../components/auth/LoginModal';
@@ -98,7 +87,6 @@ const Portfolio: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="min-h-[60vh] flex items-center justify-center">
             <div className="text-center">
-              <Lock className="w-16 h-16 text-brand mx-auto mb-4" />
               <h1 className="text-3xl font-bold text-tx-1 mb-4">로그인이 필요한 서비스입니다</h1>
               <p className="text-lg text-tx-2 mb-6">
                 포트폴리오 기능을 이용하시려면 먼저 로그인해주세요
@@ -134,7 +122,6 @@ const Portfolio: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <Wallet className="w-16 h-16 text-tx-3 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-tx-1 mb-2">계좌를 선택해주세요</h3>
             <p className="text-tx-2 mb-6">포트폴리오를 확인할 계좌를 선택해주세요</p>
             <button
@@ -241,12 +228,7 @@ const Portfolio: React.FC = () => {
           {/* 포트폴리오 차트 영역 */}
           <div className="lg:col-span-2">
             <div className="bg-surface rounded-xl shadow-sm p-6 border border-line/50">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-tx-1">자산 구성</h3>
-                <div className="flex items-center space-x-2">
-                  <PieChart className="w-5 h-5 text-tx-3" />
-                </div>
-              </div>
+              <h3 className="text-lg font-semibold text-tx-1 mb-6">자산 구성</h3>
 
               {/* 차트 영역 */}
               <div className="bg-surface/50 rounded-lg p-4 sm:p-6 min-h-64 flex items-center justify-center">
@@ -293,7 +275,6 @@ const Portfolio: React.FC = () => {
                   />
                 ) : (
                   <div className="text-center">
-                    <PieChart className="w-12 h-12 text-tx-3 mx-auto mb-2" />
                     <p className="text-tx-2">포트폴리오 성과 차트</p>
                     <p className="text-sm text-tx-3">아직 자산이 없습니다</p>
                   </div>
@@ -397,7 +378,6 @@ const Portfolio: React.FC = () => {
               </div>
             ) : (
               <div className="text-center py-8 text-tx-2">
-                <PieChart className="w-12 h-12 mx-auto mb-2 opacity-50" />
                 <p>보유 자산이 없습니다</p>
               </div>
             )}
@@ -485,7 +465,6 @@ const Portfolio: React.FC = () => {
                 ) : (
                   <tr>
                     <td colSpan={6} className="px-6 py-8 text-center text-tx-2">
-                      <BarChart3 className="w-12 h-12 mx-auto mb-2 opacity-50" />
                       <p>보유 종목이 없습니다</p>
                     </td>
                   </tr>

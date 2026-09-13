@@ -1,5 +1,5 @@
 import React from 'react';
-import { Wallet, DollarSign } from 'lucide-react';
+import { DollarSign } from 'lucide-react';
 
 export interface TotalAssetsSummaryProps {
   totalAssets: number;
@@ -24,9 +24,6 @@ export const TotalAssetsSummary: React.FC<TotalAssetsSummaryProps> = ({
           <p className="text-indigo-100 text-sm font-medium">총 자산</p>
           <p className="text-3xl font-bold">{formatBalance(totalAssets, 'KRW')}</p>
           <p className="text-indigo-100 text-sm mt-1">{accountCount}개 계좌</p>
-        </div>
-        <div className="bg-surface/20 p-3 rounded-lg">
-          <Wallet className="w-8 h-8" />
         </div>
       </div>
       {currentExchangeRate > 0 && (

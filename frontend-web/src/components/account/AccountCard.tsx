@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TrendingUp, ArrowDownRight, RefreshCw, Trash2, Wallet } from 'lucide-react';
+import { ArrowDownRight, RefreshCw, Trash2, Wallet } from 'lucide-react';
 import type { AccountSummary, AccountBalance } from '../../services/api';
 
 export interface AccountCardProps {
@@ -27,9 +27,6 @@ export const AccountCard: React.FC<AccountCardProps> = ({
       {/* 계좌 헤더 */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center space-x-3">
-          <div className="bg-brand-bg p-2 rounded-lg">
-            <TrendingUp className="w-5 h-5 text-brand" />
-          </div>
           <div>
             <h3 className="font-semibold text-tx-1">{account.accountName}</h3>
             <p className="text-sm text-tx-2">계좌 #{account.accountId}</p>

@@ -1,15 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
-import {
-  ArrowUpCircle,
-  ArrowDownCircle,
-  Calendar,
-  RefreshCw,
-  LogIn,
-  Lock,
-  DollarSign,
-} from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, RefreshCw, LogIn, DollarSign } from 'lucide-react';
 import { tradeApi } from '../services/api';
 import LoginModal from '../components/auth/LoginModal';
 
@@ -136,7 +128,6 @@ const TradeHistory: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="min-h-[60vh] flex items-center justify-center">
             <div className="text-center">
-              <Lock className="w-16 h-16 text-brand mx-auto mb-4" />
               <h1 className="text-3xl font-bold text-tx-1 mb-4">로그인이 필요한 서비스입니다</h1>
               <p className="text-lg text-tx-2 mb-6">
                 거래내역을 확인하시려면 먼저 로그인해주세요
@@ -250,7 +241,6 @@ const TradeHistory: React.FC = () => {
         <div className="space-y-4">
           {transactions.length === 0 ? (
             <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-12 text-center">
-              <Calendar className="w-16 h-16 text-tx-3 mx-auto mb-4" />
               <p className="text-tx-2 text-lg">거래 내역이 없습니다</p>
             </div>
           ) : (
