@@ -1,7 +1,7 @@
 -- 참고용 스냅샷
 -- 스키마를 바꾸는 것은 db/migration 뿐이다. 마이그레이션을 더할 때 이 파일도 같이 고친다.
 --
--- V1 ~ V5 를 적용한 결과다. 운영 DB 한 곳만 다르다 — idx_asset_active 가
+-- V1 ~ V6 을 적용한 결과다. 운영 DB 한 곳만 다르다 — idx_asset_active 가
 -- WHERE active = true 가 붙은 부분 인덱스다. 마이그레이션 이전에 만들어진 것이라 그대로 둔다.
 
 -- ============================================================
@@ -29,12 +29,12 @@ CREATE TABLE candle (
     symbol            VARCHAR(16)  NOT NULL,
     date              DATE         NOT NULL,
     currency          VARCHAR(3)   NOT NULL,
-    open              DECIMAL(19,8),
-    high              DECIMAL(19,8),
-    low               DECIMAL(19,8),
-    close             DECIMAL(19,8),
+    open              DECIMAL(24,8),
+    high              DECIMAL(24,8),
+    low               DECIMAL(24,8),
+    close             DECIMAL(24,8),
     volume            BIGINT,
-    adjusted_close    DECIMAL(19,8) NOT NULL,
+    adjusted_close    DECIMAL(24,8) NOT NULL,
     dividend_amount   DECIMAL(19,8) NOT NULL DEFAULT 0,
     split_coefficient DECIMAL(19,8) NOT NULL DEFAULT 1,
     UNIQUE (symbol, date, currency)
