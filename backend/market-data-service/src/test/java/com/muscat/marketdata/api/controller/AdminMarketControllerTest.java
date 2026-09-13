@@ -4,8 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.muscat.marketdata.api.controller.AdminMarketController.RefreshAllResponse;
 import com.muscat.marketdata.datasource.yf.collector.SymbolCollector;
@@ -15,6 +17,7 @@ import com.muscat.marketdata.domain.repository.AdminJobRunRepository;
 import com.muscat.marketdata.domain.repository.AssetRepository;
 import com.muscat.marketdata.domain.repository.CandleRepository;
 import com.muscat.marketdata.domain.service.AssetService;
+import com.muscat.marketdata.domain.service.CandleRefreshAllPublisher;
 import com.muscat.marketdata.domain.service.UnadjustedScanService;
 import com.muscat.marketdata.infra.kafka.AssetEventProducer;
 import java.time.LocalDate;
@@ -25,6 +28,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -44,6 +48,7 @@ class AdminMarketControllerTest {
   @Mock private UnadjustedScanService scanService;
   @Mock private ObjectProvider<SymbolCollector> symbolCollectorProvider;
   @Mock private AdminJobRunRepository adminJobRunRepository;
+  @Mock private CandleRefreshAllPublisher refreshAllPublisher;
 
   @InjectMocks
   private AdminMarketController controller;
@@ -53,8 +58,8 @@ class AdminMarketControllerTest {
   }
 
   @Test
-  @DisplayName("활성 종목마다 1970-01-01 부터 발행하고 실행 시각과 건수를 남긴다")
-  void 전체_발행과_기록() {
+  @DisplayName("실행 시각과 건수를 먼저 남기고 활성 종목 발행은 뒤로 넘긴다")
+  void 기록하고_발행은_뒤로() {
     Asset aapl = asset("AAPL");
     Asset nvda = asset("NVDA");
     given(assetRepository.findByActiveTrue()).willReturn(List.of(aapl, nvda));
@@ -62,12 +67,13 @@ class AdminMarketControllerTest {
 
     RefreshAllResponse body = controller.refreshAllCandles().getBody();
 
-    verify(assetEventProducer).publishAssetCreated(eq(aapl), eq(true), eq(FULL_FROM), any(LocalDate.class), eq(false));
-    verify(assetEventProducer).publishAssetCreated(eq(nvda), eq(true), eq(FULL_FROM), any(LocalDate.class), eq(false));
+    InOrder order = inOrder(adminJobRunRepository, refreshAllPublisher);
+    ArgumentCaptor<AdminJobRun> saved = ArgumentCaptor.forClass(AdminJobRun.class);
+    order.verify(adminJobRunRepository).save(saved.capture());
+    order.verify(refreshAllPublisher).publish(eq(List.of(aapl, nvda)), eq(FULL_FROM), any(LocalDate.class));
+    verifyNoInteractions(assetEventProducer);
     verify(assetRepository, never()).findAll();
 
-    ArgumentCaptor<AdminJobRun> saved = ArgumentCaptor.forClass(AdminJobRun.class);
-    verify(adminJobRunRepository).save(saved.capture());
     assertThat(saved.getValue().getName()).isEqualTo(JOB);
     assertThat(saved.getValue().getPublished()).isEqualTo(2);
     assertThat(saved.getValue().getLastRunAt()).isNotNull();
