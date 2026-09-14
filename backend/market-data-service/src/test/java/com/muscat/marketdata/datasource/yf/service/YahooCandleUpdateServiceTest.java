@@ -176,4 +176,48 @@ class YahooCandleUpdateServiceTest {
     verify(collectionStats).recordSymbol(0, 1);
     assertThat(storedD1.getClose()).isEqualByComparingTo("124.81");
   }
+
+  private static Candle candleWithAdjustedClose(LocalDate date, String close, String adjustedClose) {
+    Candle candle = candle(date, close);
+    candle.setAdjustedClose(new BigDecimal(adjustedClose));
+    return candle;
+  }
+
+  @Test
+  @DisplayName("adjclose 가 응답 서버마다 백만분의 1 안팎으로 달라도 다시 쓰지 않는다")
+  void adjclose_잡음은_그대로() {
+    // APH 2002-06-27 을 query1 · query2 로 받은 두 값. 상대 차이 1.4e-6
+    Candle storedD1 = candleWithAdjustedClose(D1, "0.62", "0.50810856");
+    stub(FROM, List.of(storedD1), List.of(candleWithAdjustedClose(D1, "0.62", "0.5081092715263367")));
+
+    service.saveCandles(SYMBOL, FROM, TO);
+
+    verify(collectionStats).recordSymbol(0, 0);
+    assertThat(storedD1.getAdjustedClose()).isEqualByComparingTo("0.50810856");
+  }
+
+  @Test
+  @DisplayName("배당이 반영돼 adjclose 가 바뀌면 고친다")
+  void adjclose_배당_반영은_고치기() {
+    // 상대 차이 2.7e-4. 84종목 배당 360건 중 한 번에 가장 작게 바뀐 비율과 같은 크기다
+    Candle storedD1 = candleWithAdjustedClose(D1, "50", "49.00000000");
+    stub(FROM, List.of(storedD1), List.of(candleWithAdjustedClose(D1, "50", "48.987")));
+
+    service.saveCandles(SYMBOL, FROM, TO);
+
+    verify(collectionStats).recordSymbol(0, 1);
+    assertThat(storedD1.getAdjustedClose()).isEqualByComparingTo("48.987");
+  }
+
+  @Test
+  @DisplayName("아주 작은 adjclose 는 소수 8자리로 반올림해 같으면 다시 쓰지 않는다")
+  void 작은_adjclose는_반올림으로_비교() {
+    // 저장 칸이 소수 8자리라 1e-4 크기 값은 반올림만으로도 상대 차이가 1e-5 를 넘는다
+    Candle storedD1 = candleWithAdjustedClose(D1, "0.0002", "0.00012345");
+    stub(FROM, List.of(storedD1), List.of(candleWithAdjustedClose(D1, "0.0002", "0.000123454")));
+
+    service.saveCandles(SYMBOL, FROM, TO);
+
+    verify(collectionStats).recordSymbol(0, 0);
+  }
 }

@@ -62,6 +62,10 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
     // candle 가격 · 배당 · 분할 계수 컬럼의 소수 자릿수
     private static final int DB_SCALE = 8;
 
+    // 야후는 응답 서버마다 adjclose 를 조금씩 다르게 준다. 84종목을 두 서버에서 받아 비교했을 때 상대 차이는 최대 1.4e-6,
+    // 배당 한 번이 과거 adjclose 를 바꾸는 비율은 가장 작아도 2.7e-4 였다. 그 사이 값으로 둘을 가른다
+    private static final BigDecimal ADJUSTED_CLOSE_TOLERANCE = new BigDecimal("0.00001");
+
     // self-injection: saveBoth에서 proxy 통해 호출해야 REQUIRES_NEW가 실제로 적용됨
     @Lazy
     @Autowired
@@ -216,7 +220,7 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
             || differs(prev.getHigh(), fresh.getHigh())
             || differs(prev.getLow(), fresh.getLow())
             || differs(prev.getClose(), fresh.getClose())
-            || differs(prev.getAdjustedClose(), fresh.getAdjustedClose())
+            || adjustedCloseDiffers(prev.getAdjustedClose(), fresh.getAdjustedClose())
             || differs(prev.getDividendAmount(), fresh.getDividendAmount())
             || differs(prev.getSplitCoefficient(), fresh.getSplitCoefficient())
             || !Objects.equals(prev.getVolume(), fresh.getVolume());
@@ -228,6 +232,18 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
             return a != b;
         }
         return a.setScale(DB_SCALE, RoundingMode.HALF_UP).compareTo(b.setScale(DB_SCALE, RoundingMode.HALF_UP)) != 0;
+    }
+
+    // 8자리 비교를 먼저 한다. 1e-4 크기 값은 반올림만으로도 상대 차이가 허용치를 넘는다
+    private static boolean adjustedCloseDiffers(BigDecimal stored, BigDecimal fetched) {
+        if (!differs(stored, fetched)) {
+            return false;
+        }
+        if (stored == null || fetched == null || stored.signum() == 0) {
+            return true;
+        }
+        BigDecimal gap = stored.subtract(fetched).abs();
+        return gap.compareTo(stored.abs().multiply(ADJUSTED_CLOSE_TOLERANCE)) > 0;
     }
 
     private static void copyValues(Candle target, Candle source) {

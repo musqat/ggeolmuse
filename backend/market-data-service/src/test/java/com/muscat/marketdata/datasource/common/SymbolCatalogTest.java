@@ -34,6 +34,7 @@ class SymbolCatalogTest {
   @BeforeEach
   void setUp() {
     setPatterns("warrant, units,rights,preferred,depositary,notes due");
+    ReflectionTestUtils.setField(catalog, "symbolMaxLength", 16);
   }
 
   private void setPatterns(String patterns) {
@@ -124,6 +125,22 @@ class SymbolCatalogTest {
 
     assertThat(result).extracting(Asset::getSymbol).containsExactly("AAPL", "MSFT");
     assertThat(result.get(0).getName()).isEqualTo("Apple Inc");
+  }
+
+  @Test
+  @DisplayName("저장 칸(16자)을 넘거나 티커에 안 쓰는 글자가 든 심볼은 거른다")
+  void 심볼_형식() {
+    // CAPTW(EXP20260807) 한 줄이 기동 때 신규 종목 저장을 통째로 실패시켰다
+    given(listingSource.fetch()).willReturn(List.of(
+        asset("CAPTW(EXP20260807)", "Abcam plc"),
+        asset("AB(EXP1)", "Short Annotated Corp"),
+        asset("ABCDEFGHIJKLMNOPQ", "Seventeen Letters Corp"),
+        asset("ABCDEFGHIJKLMNOP", "Sixteen Letters Corp"),
+        asset("BRK-B", "Berkshire Hathaway Inc"),
+        asset("AAPL", "Apple Inc")));
+
+    assertThat(catalog.fetchAll()).extracting(Asset::getSymbol)
+        .containsExactly("ABCDEFGHIJKLMNOP", "BRK-B", "AAPL");
   }
 
   @Test
