@@ -5,6 +5,9 @@ spring:
     scheduling:
       # 기본 1이면 수집 집계가 크론 작업 뒤에서 밀린다
       pool-size: 3
+  flyway:
+    # db/postgresql 에는 H2 가 모르는 Postgres 전용 마이그레이션을 둔다
+    locations: classpath:db/migration,classpath:db/{vendor}
   config:
     import:
       - "optional:configserver:${SPRING_CLOUD_CONFIG_URI:http://config-server:8888}"

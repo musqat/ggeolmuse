@@ -4,6 +4,7 @@ import com.muscat.marketdata.domain.entity.Candle;
 import com.muscat.marketdata.domain.entity.QAsset;
 import com.muscat.marketdata.domain.entity.QCandle;
 import com.muscat.marketdata.domain.repository.CandleRepositoryCustom;
+import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -97,7 +98,8 @@ public class CandleRepositoryCustomImpl implements CandleRepositoryCustom {
       .from(candle)
       .join(asset).on(asset.symbol.eq(candle.symbol))
       .where(candle.date.goe(from)
-        .and(candle.splitCoefficient.ne(BigDecimal.ONE))
+        // 1 을 파라미터로 넘기면 부분 인덱스 idx_candle_split_date 를 못 쓰는 계획이 나올 수 있다
+        .and(Expressions.booleanTemplate("{0} <> 1", candle.splitCoefficient))
         .and(asset.active.isTrue()))
       .orderBy(candle.symbol.asc())
       .fetch();
