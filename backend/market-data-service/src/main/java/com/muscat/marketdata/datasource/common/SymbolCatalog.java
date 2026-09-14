@@ -5,6 +5,7 @@ import com.muscat.marketdata.domain.entity.Asset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +34,9 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class SymbolCatalog {
 
+  // 티커에 쓰는 글자. CAPTW(EXP20260807) 처럼 만기 표기가 붙은 줄은 야후에서도 404 다
+  private static final Pattern TICKER = Pattern.compile("[A-Za-z0-9.^/-]+");
+
   private final ListingStatusSource listingSource;
 
   // 보통주가 아닌 것을 이름으로 거른다. 백테스트는 주식을 전제하므로
@@ -45,8 +49,12 @@ public class SymbolCatalog {
   @Value("${marketdata.symbol-loader.exclude-name-patterns:warrant, units,rights,preferred,depositary,notes due}")
   private String excludeNamePatterns;
 
+  // asset.symbol 칸 길이. 넘는 심볼은 INSERT 가 실패한다
+  @Value("${marketdata.constants.database.symbol-max-length:16}")
+  private int symbolMaxLength;
+
   /**
-   * 상장 종목 전체를 받아온다. 보통주가 아닌 것과 중복은 걸러서 돌려준다.
+   * 상장 종목 전체를 받아온다. 중복, 저장할 수 없는 심볼, 보통주가 아닌 것은 걸러서 돌려준다.
    *
    * 실패하면 빈 목록을 돌려준다. 부분 목록으로 판정하면 받아오지 못한 종목이
    * 상장폐지된 것처럼 보일 수 있다.
@@ -67,7 +75,8 @@ public class SymbolCatalog {
     }
 
     List<Asset> deduped = dedupeBySymbol(fetched);
-    List<Asset> kept = excludeNonCommonStock(deduped);
+    List<Asset> storable = excludeUnstorableSymbols(deduped);
+    List<Asset> kept = excludeNonCommonStock(storable);
 
     log.info("[종목목록] 조회 {}개 -> 중복 제거 {}개 -> 최종 {}개",
         fetched.size(), deduped.size(), kept.size());
@@ -85,6 +94,32 @@ public class SymbolCatalog {
                 (first, dup) -> first,
                 LinkedHashMap::new))
             .values());
+  }
+
+  /**
+   * asset.symbol 칸을 넘거나 티커에 안 쓰는 글자가 든 심볼을 뺀다.
+   *
+   * LISTING_STATUS 에는 CAPTW(EXP20260807) 이 Abcam plc 로 오는 것처럼 이름이 어긋난 줄도 있어
+   * 이름 필터와 따로 심볼을 본다.
+   */
+  List<Asset> excludeUnstorableSymbols(List<Asset> assets) {
+    List<String> dropped = new ArrayList<>();
+    List<Asset> kept = assets.stream()
+        .filter(a -> {
+          String symbol = a.getSymbol();
+          boolean storable = symbol.length() <= symbolMaxLength && TICKER.matcher(symbol).matches();
+          if (!storable) {
+            dropped.add(symbol);
+          }
+          return storable;
+        })
+        .toList();
+
+    if (!dropped.isEmpty()) {
+      log.info("[종목목록] 저장할 수 없는 심볼 제외: {}개 {}", dropped.size(), dropped);
+    }
+
+    return kept;
   }
 
   /**
