@@ -152,4 +152,28 @@ class YahooCandleUpdateServiceTest {
     verify(collectionStats, never()).recordSplitResync();
     assertThat(storedD1.getClose()).isEqualByComparingTo("100");
   }
+
+  @Test
+  @DisplayName("야후의 긴 소수를 8자리로 반올림하면 저장값과 같다 → 다시 쓰지 않는다")
+  void 반올림하면_같은_값은_그대로() {
+    Candle storedD1 = candle(D1, "124.80750275");
+    stub(FROM, List.of(storedD1), List.of(candle(D1, "124.80750274658203")));
+
+    service.saveCandles(SYMBOL, FROM, TO);
+
+    verify(collectionStats).recordSymbol(0, 0);
+    assertThat(storedD1.getClose()).isEqualTo(new BigDecimal("124.80750275"));
+  }
+
+  @Test
+  @DisplayName("8자리로 반올림해도 다르면 고친다")
+  void 반올림해도_다르면_고치기() {
+    Candle storedD1 = candle(D1, "124.80750275");
+    stub(FROM, List.of(storedD1), List.of(candle(D1, "124.81")));
+
+    service.saveCandles(SYMBOL, FROM, TO);
+
+    verify(collectionStats).recordSymbol(0, 1);
+    assertThat(storedD1.getClose()).isEqualByComparingTo("124.81");
+  }
 }

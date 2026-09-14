@@ -24,6 +24,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -57,6 +58,9 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
 
     // 관리자 재수집 기본값과 같다. 이 날부터 받을 때는 과거 종가를 비교하지 않는다
     private static final LocalDate FULL_HISTORY_FROM = LocalDate.of(1970, 1, 1);
+
+    // candle 가격 · 배당 · 분할 계수 컬럼의 소수 자릿수
+    private static final int DB_SCALE = 8;
 
     // self-injection: saveBoth에서 proxy 통해 호출해야 REQUIRES_NEW가 실제로 적용됨
     @Lazy
@@ -218,12 +222,12 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
             || !Objects.equals(prev.getVolume(), fresh.getVolume());
     }
 
-    // BigDecimal 은 자릿수가 달라도 같은 값일 수 있어 equals 를 쓰지 않는다
+    // 야후는 124.80750274658203 처럼 주고 DB 는 소수 8자리로 반올림해 저장한다. 같은 자리로 맞춘 뒤 비교한다
     private static boolean differs(BigDecimal a, BigDecimal b) {
         if (a == null || b == null) {
             return a != b;
         }
-        return a.compareTo(b) != 0;
+        return a.setScale(DB_SCALE, RoundingMode.HALF_UP).compareTo(b.setScale(DB_SCALE, RoundingMode.HALF_UP)) != 0;
     }
 
     private static void copyValues(Candle target, Candle source) {
