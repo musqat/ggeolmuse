@@ -14,7 +14,6 @@ import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -52,9 +51,9 @@ public class SymbolCollector {
     private int maxCollectSymbols;
 
 
+    // 트랜잭션을 걸지 않는다. 걸면 저장이 커밋 때 한꺼번에 나가 한 종목 실패가 전부를 되돌리고, 이벤트는 커밋 전에 나간다
     @EventListener(ApplicationReadyEvent.class)
     @Async
-    @Transactional
     @SchedulerLock(
         name = "YF_SymbolCollector_collectSymbols",
         lockAtMostFor = "30m",
