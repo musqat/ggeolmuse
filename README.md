@@ -115,7 +115,7 @@ ggeolmuse/
 ├── tests/
 │   ├── e2e/              Playwright
 │   └── k6/               부하 테스트 스크립트
-└── terraform/            EC2 스케줄러 · 알람
+└── terraform/            EC2 · RDS 스케줄러 · 알람
 ```
 
 <img width="850" height="600" alt="아키텍처" src="https://github.com/user-attachments/assets/e54861a9-3a24-40f5-bf48-c0e0c55ada22" />
@@ -128,7 +128,7 @@ ggeolmuse/
 
 | 영역 | 기술 |
 |---|---|
-| Backend | Java 21 · Spring Boot 3.3 · Spring Cloud Gateway · Spring Security |
+| Backend | Java 21 · Spring Boot 3.5 · Spring Cloud Gateway · Spring Security |
 | AI | FastAPI (Python) · OpenAI gpt-4o / gpt-4o-mini |
 | Data | PostgreSQL · Redis · Kafka |
 | Frontend | React · TypeScript · Vite |
@@ -142,13 +142,13 @@ ggeolmuse/
 
 ## 테스트
 
-백엔드 **679 개**, 프론트 **119 개**, E2E **35 개**.
+백엔드 **714 개**, 프론트 **119 개**, E2E **35 개**.
 
 | 서비스 | 테스트 |
 |---|---|
-| market-data-service | 207 |
+| market-data-service | 238 |
 | user-service | 204 |
-| backtest-service | 159 |
+| backtest-service | 163 |
 | trade-service | 109 |
 | frontend-web | 119 |
 | E2E (Playwright) | 35 |
@@ -168,13 +168,13 @@ PR 게이트로 두지 않은 이유는 시세를 Yahoo Finance 에서 받아서
 
 | 서비스 | 라인 | 분기 |
 |---|---|---|
-| backtest | 68.4% | 55.6% |
+| backtest | 71.2% | 59.0% |
 | trade | 55.1% | 52.8% |
 | user | 44.7% | 25.2% |
-| market-data | 27.2% | 31.4% |
+| market-data | 31.3% | 33.6% |
 
 market-data 가 낮은 이유는 수집 파이프라인이 대부분 외부 API 호출이라서다.
-파서와 매퍼는 붙였고 수집 자체는 아직이다. 낮은 걸 알고 두는 것과 모르는 것은 다르다.
+파서 · 매퍼와 캔들 저장 판단(덮어쓰기 · 분할 재수집)은 붙였고, 야후 호출과 컨슈머 흐름은 아직이다.
 
 프론트 테스트는 화면 개수가 아니라 **실제로 틀렸던 곳**을 기준으로 골랐다.
 `toISOString()` 이 UTC 라 날짜가 밀리던 것 같은 결함들이고
@@ -222,7 +222,7 @@ K3s (EC2 단일 노드)      Traefik IngressRoute 로 진입
 | Loki | 로그 집계 |
 | ArgoCD | GitOps 배포 |
 
-로컬에서도 같은 관측 스택을 `docker-compose` 로 띄울 수 있다.
+로컬 `docker-compose` 로는 Prometheus · Grafana · Tempo 를 띄운다. Loki 는 클러스터에만 있다.
 
 **안정성** — Resilience4j 로 CircuitBreaker · Retry · TimeLimiter · Bulkhead 를 걸었다.
 서킷은 market-data 를 내렸다 올리며 OPEN → CLOSED 전이를 실제로 확인했다.
