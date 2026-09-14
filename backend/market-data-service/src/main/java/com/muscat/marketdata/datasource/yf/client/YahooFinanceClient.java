@@ -74,11 +74,11 @@ public class YahooFinanceClient {
     }
   }
 
-  // 404 는 상장폐지와 티커 변경이라 다시 받을 것이 없다. 건수는 CollectionStats 가 센다
+  // 404 는 상장폐지와 티커 변경이라 다시 받을 것이 없다. 비활성으로 돌릴 종목의 이름을 INFO 로 남긴다
   private String handleStatusError(String symbol, HttpStatusCodeException e) {
     if (e.getStatusCode().value() == HttpStatus.NOT_FOUND.value()) {
       collectionStats.recordRequestNotFound();
-      log.debug("Yahoo Finance 차트 404: symbol={}", symbol);
+      log.info("Yahoo Finance 차트 404: symbol={}", symbol);
     } else {
       collectionStats.recordRequestHttpError();
       log.warn("Yahoo Finance 차트 {}: symbol={}", e.getStatusCode().value(), symbol);

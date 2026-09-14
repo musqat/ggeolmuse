@@ -1,7 +1,7 @@
 -- 참고용 스냅샷
 -- 스키마를 바꾸는 것은 db/migration 뿐이다. 마이그레이션을 더할 때 이 파일도 같이 고친다.
 --
--- V1 ~ V6 을 적용한 결과다. 운영 DB 한 곳만 다르다 — idx_asset_active 가
+-- V1 ~ V7 을 적용한 결과다. 운영 DB 한 곳만 다르다 — idx_asset_active 가
 -- WHERE active = true 가 붙은 부분 인덱스다. 마이그레이션 이전에 만들어진 것이라 그대로 둔다.
 
 -- ============================================================
@@ -74,6 +74,8 @@ CREATE TABLE admin_job_run (
 CREATE INDEX idx_candle_symbol_date      ON candle(symbol, date);
 CREATE INDEX idx_candle_symbol_date_desc ON candle(symbol, date DESC);
 CREATE INDEX idx_candle_dividend_lookup  ON candle(symbol, date, dividend_amount);
+-- Postgres 전용 (db/postgresql/V7). 분할 계수가 1 이 아닌 행만 담는다
+CREATE INDEX idx_candle_split_date       ON candle(date) WHERE split_coefficient <> 1;
 
 -- asset
 CREATE INDEX idx_asset_country           ON asset(country);

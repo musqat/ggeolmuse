@@ -197,7 +197,7 @@ export default function CandleRefreshSection() {
       {!running && scan?.finishedAt && (
         <div className="mt-3">
           <p className="text-sm text-tx-2">
-            지난 찾기 · {scan.from} 이후 {scan.count}개
+            지난 찾기 · {scan.from} 이후 {scan.error ? '실패' : `${scan.count}개`}
             <span className="text-tx-3 ml-2">
               {new Date(scan.finishedAt).toLocaleString('ko-KR')} · {Math.round(scan.tookMillis / 1000)}초
             </span>
