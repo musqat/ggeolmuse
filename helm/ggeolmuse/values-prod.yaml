@@ -241,7 +241,7 @@ services:
     replicaCount: 1
     image:
       repository: market-data-service
-      tag: "1.3.7"
+      tag: "1.3.10"
     service:
       type: ClusterIP
       port: 8083
