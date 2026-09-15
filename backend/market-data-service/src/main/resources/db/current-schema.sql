@@ -1,7 +1,7 @@
 -- 참고용 스냅샷
 -- 스키마를 바꾸는 것은 db/migration 뿐이다. 마이그레이션을 더할 때 이 파일도 같이 고친다.
 --
--- V1 ~ V7 을 적용한 결과다. 운영 DB 한 곳만 다르다 — idx_asset_active 가
+-- V1 ~ V8 을 적용한 결과다. 운영 DB 한 곳만 다르다 — idx_asset_active 가
 -- WHERE active = true 가 붙은 부분 인덱스다. 마이그레이션 이전에 만들어진 것이라 그대로 둔다.
 
 -- ============================================================
@@ -20,7 +20,9 @@ CREATE TABLE asset (
     delisted_date DATE,
     -- 요약 조회가 쓰는 최신 캔들 값 (V5)
     latest_close  DECIMAL(19,8),
-    latest_date   DATE
+    latest_date   DATE,
+    -- 전 기간을 다시 받았을 때 받은 최신 봉 날짜 (V8)
+    full_history_through DATE
 );
 
 -- 일봉

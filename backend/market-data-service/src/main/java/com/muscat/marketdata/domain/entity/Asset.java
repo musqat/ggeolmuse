@@ -48,4 +48,8 @@ public class Asset {
 
   @Column(name = "latest_date")
   private LocalDate latestDate; // 최신 캔들 날짜
+
+  // 1970 부터 전 기간을 받았을 때 받은 봉 중 가장 최근 날짜 (V8). 분할 찾기가 이 날짜 뒤의 분할만 본다
+  @Column(name = "full_history_through")
+  private LocalDate fullHistoryThrough;
 }
