@@ -627,7 +627,7 @@ class AssetServiceImplTest {
       // when & then
       assertThatThrownBy(() -> assetService.updateAssetPrice(TEST_SYMBOL))
         .isInstanceOf(MarketDataException.class)
-        .hasFieldOrPropertyWithValue("errorCode", "404");
+        .hasFieldOrPropertyWithValue("errorCode", "PRICE_DATA_NOT_FOUND");
 
       verify(candleRepository, never()).save(any());
     }
