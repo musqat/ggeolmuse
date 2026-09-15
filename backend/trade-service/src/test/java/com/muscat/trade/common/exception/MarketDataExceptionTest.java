@@ -17,7 +17,7 @@ class MarketDataExceptionTest {
         MarketDataException exception = new MarketDataException();
 
         // Then
-        assertThat(exception.getErrorCode()).isEqualTo(TradeResponse.MARKET_DATA_SERVICE_ERROR.getCode());
+        assertThat(exception.getErrorCode()).isEqualTo(TradeResponse.MARKET_DATA_SERVICE_ERROR.name());
         assertThat(exception.getErrorMessage()).contains("데이터");
         assertThat(exception.getHttpStatus()).isEqualTo(HttpStatus.BAD_GATEWAY);
     }
