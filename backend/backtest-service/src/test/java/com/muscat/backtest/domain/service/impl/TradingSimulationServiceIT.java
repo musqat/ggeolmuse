@@ -182,7 +182,7 @@ class TradingSimulationServiceIT {
       assertThatThrownBy(() ->
         investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION))
         .isInstanceOf(BacktestException.class)
-        .extracting("errorCode")
+        .extracting("code")
         .isEqualTo(BacktestResponse.HOLDING_DATA_NOT_FOUND);
 
       // DB에 저장되지 않았는지 확인

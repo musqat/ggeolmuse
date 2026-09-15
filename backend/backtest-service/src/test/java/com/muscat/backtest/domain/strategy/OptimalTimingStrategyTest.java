@@ -40,7 +40,7 @@ class OptimalTimingStrategyTest {
     void validateRequest_Null_ThrowsException() {
       assertThatThrownBy(() -> strategy.analyzeOptimalTiming(null))
         .isInstanceOf(BacktestException.class)
-        .extracting("errorCode")
+        .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_REQUEST_NULL);
     }
 
@@ -57,7 +57,7 @@ class OptimalTimingStrategyTest {
 
       assertThatThrownBy(() -> strategy.analyzeOptimalTiming(request))
         .isInstanceOf(BacktestException.class)
-        .extracting("errorCode")
+        .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_SYMBOL_REQUIRED);
     }
 
@@ -74,7 +74,7 @@ class OptimalTimingStrategyTest {
 
       assertThatThrownBy(() -> strategy.analyzeOptimalTiming(request))
         .isInstanceOf(BacktestException.class)
-        .extracting("errorCode")
+        .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_SYMBOL_REQUIRED);
     }
 
@@ -91,7 +91,7 @@ class OptimalTimingStrategyTest {
 
       assertThatThrownBy(() -> strategy.analyzeOptimalTiming(request))
         .isInstanceOf(BacktestException.class)
-        .extracting("errorCode")
+        .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_START_DATE_REQUIRED);
     }
 
@@ -108,7 +108,7 @@ class OptimalTimingStrategyTest {
 
       assertThatThrownBy(() -> strategy.analyzeOptimalTiming(request))
         .isInstanceOf(BacktestException.class)
-        .extracting("errorCode")
+        .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_END_DATE_REQUIRED);
     }
 
@@ -125,7 +125,7 @@ class OptimalTimingStrategyTest {
 
       assertThatThrownBy(() -> strategy.analyzeOptimalTiming(request))
         .isInstanceOf(BacktestException.class)
-        .extracting("errorCode")
+        .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_DATE_RANGE_INVALID);
     }
 
@@ -142,7 +142,7 @@ class OptimalTimingStrategyTest {
 
       assertThatThrownBy(() -> strategy.analyzeOptimalTiming(request))
         .isInstanceOf(BacktestException.class)
-        .extracting("errorCode")
+        .extracting("code")
         .isEqualTo(BacktestResponse.INVALID_REQUEST);
     }
 
@@ -159,7 +159,7 @@ class OptimalTimingStrategyTest {
 
       assertThatThrownBy(() -> strategy.analyzeOptimalTiming(request))
         .isInstanceOf(BacktestException.class)
-        .extracting("errorCode")
+        .extracting("code")
         .isEqualTo(BacktestResponse.INVALID_REQUEST);
     }
 
@@ -176,7 +176,7 @@ class OptimalTimingStrategyTest {
 
       assertThatThrownBy(() -> strategy.analyzeOptimalTiming(request))
         .isInstanceOf(BacktestException.class)
-        .extracting("errorCode")
+        .extracting("code")
         .isEqualTo(BacktestResponse.INVALID_REQUEST);
     }
 
@@ -193,7 +193,7 @@ class OptimalTimingStrategyTest {
 
       assertThatThrownBy(() -> strategy.analyzeOptimalTiming(request))
         .isInstanceOf(BacktestException.class)
-        .extracting("errorCode")
+        .extracting("code")
         .isEqualTo(BacktestResponse.INVALID_REQUEST);
     }
   }

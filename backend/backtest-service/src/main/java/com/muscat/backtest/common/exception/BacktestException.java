@@ -1,20 +1,15 @@
 package com.muscat.backtest.common.exception;
 
 import com.muscat.backtest.common.enums.BacktestResponse;
-import lombok.Getter;
+import com.muscat.commonlib.exception.BusinessException;
 
-@Getter
-public class BacktestException extends RuntimeException {
-
-  private final BacktestResponse errorCode;
+public class BacktestException extends BusinessException {
 
   public BacktestException(BacktestResponse errorCode) {
-    super(errorCode.getMessage());
-    this.errorCode = errorCode;
+    super(errorCode);
   }
 
   public BacktestException(BacktestResponse errorCode, String details) {
-    super(details);
-    this.errorCode = errorCode;
+    super(errorCode, details);
   }
 }
