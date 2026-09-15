@@ -1,5 +1,6 @@
 package com.muscat.marketdata.api.controller;
 
+import com.muscat.marketdata.common.exceptions.MarketDataException;
 import com.muscat.marketdata.datasource.yf.collector.SymbolCollector;
 import com.muscat.marketdata.domain.dto.AssetSummaryDto;
 import com.muscat.marketdata.domain.entity.AdminJobRun;
@@ -303,6 +304,13 @@ public class AdminMarketController {
             return ResponseEntity.ok(UpdateResponse.builder()
                     .message("종목 가격 데이터가 업데이트되었습니다: " + symbol)
                     .build());
+        } catch (MarketDataException e) {
+            log.warn("종목 가격 업데이트 실패: symbol={}, code={}, message={}",
+                    symbol, e.getErrorCode(), e.getErrorMessage());
+            return ResponseEntity.status(e.getHttpStatus())
+                    .body(UpdateResponse.builder()
+                            .message(e.getErrorMessage() + ": " + symbol)
+                            .build());
         } catch (IllegalArgumentException e) {
             log.warn("종목 가격 업데이트 실패: {}", e.getMessage());
             return ResponseEntity.badRequest()
@@ -405,6 +413,9 @@ public class AdminMarketController {
                 for (Asset asset : assets) {
                     try {
                         assetService.updateAssetPrice(asset.getSymbol());
+                    } catch (MarketDataException e) {
+                        log.warn("캔들 데이터 업데이트 실패: symbol={}, code={}, message={}",
+                                asset.getSymbol(), e.getErrorCode(), e.getErrorMessage());
                     } catch (Exception e) {
                         log.warn("캔들 데이터 업데이트 실패: symbol={}", asset.getSymbol(), e);
                     }

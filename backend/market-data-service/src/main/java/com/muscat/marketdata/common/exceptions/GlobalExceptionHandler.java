@@ -28,6 +28,23 @@ public class GlobalExceptionHandler extends BaseExceptionHandler {
     @Value("${spring.profiles.active:dev}")
     private String currentProfile;
 
+    @ExceptionHandler(MarketDataException.class)
+    public ResponseEntity<ProblemDetail> handleMarketDataException(MarketDataException e, HttpServletRequest request) {
+        log.warn("[MARKET DATA ERROR] {} - {}", e.getErrorCode(), e.getMessage());
+
+        Map<String, Object> properties = Map.of("errorType", ErrorType.BUSINESS.name());
+        ProblemDetail problem = ProblemDetailUtils.createProblem(
+            e.getHttpStatus(),
+            e.getMessage(),
+            e.getErrorCode(),
+            request.getRequestURI(),
+            "Market Data Error",
+            properties
+        );
+
+        return ResponseEntity.status(e.getHttpStatus()).body(problem);
+    }
+
     @ExceptionHandler(YahooFinanceException.class)
     public ResponseEntity<ProblemDetail> handleYahooFinanceException(YahooFinanceException e, HttpServletRequest request) {
         log.error("[YAHOO FINANCE ERROR] {}", e.getMessage(), e);
