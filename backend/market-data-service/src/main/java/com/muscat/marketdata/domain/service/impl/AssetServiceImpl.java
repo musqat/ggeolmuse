@@ -1,5 +1,7 @@
 package com.muscat.marketdata.domain.service.impl;
 
+import com.muscat.marketdata.common.enums.response.MarketDataResponse;
+import com.muscat.marketdata.common.exceptions.MarketDataException;
 import com.muscat.marketdata.datasource.common.MarketDataProvider.AssetInfoSource;
 import com.muscat.marketdata.datasource.common.MarketDataProvider.CandleSource;
 import com.muscat.marketdata.datasource.common.MarketDataProvider.MarketCapSource;
@@ -17,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -240,9 +243,9 @@ public class AssetServiceImpl implements AssetService {
 
         List<Candle> candles = candleSource.fetchDailyAdjusted(upperSymbol, from, to);
 
+        // 야후 404 로그는 YahooFinanceClient 에 있다
         if (candles.isEmpty()) {
-            log.warn("캔들 데이터가 없음: symbol={}", upperSymbol);
-            throw new IllegalStateException("No candle data available for: " + upperSymbol);
+            throw new MarketDataException(MarketDataResponse.PRICE_DATA_NOT_FOUND);
         }
 
         // 기존 데이터와 중복 확인하여 저장
@@ -253,6 +256,16 @@ public class AssetServiceImpl implements AssetService {
                 savedCount++;
             }
         }
+
+        // 받은 최신 봉으로 최신 종가 · 날짜 갱신 (비활성 종목 포함)
+        candles.stream()
+                .max(Comparator.comparing(Candle::getDate))
+                .filter(latest -> asset.getLatestDate() == null || !latest.getDate().isBefore(asset.getLatestDate()))
+                .ifPresent(latest -> {
+                    asset.setLatestClose(latest.getClose());
+                    asset.setLatestDate(latest.getDate());
+                    assetRepository.save(asset);
+                });
 
         log.info("종목 가격 업데이트 완료: symbol={}, 저장된 캔들 개수={}", upperSymbol, savedCount);
     }

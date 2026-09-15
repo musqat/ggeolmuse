@@ -10,6 +10,7 @@ import static org.mockito.BDDMockito.never;
 import static org.mockito.BDDMockito.verify;
 import static org.springframework.test.util.ReflectionTestUtils.setField;
 
+import com.muscat.marketdata.common.exceptions.MarketDataException;
 import com.muscat.marketdata.datasource.common.MarketDataProvider.AssetInfoSource;
 import com.muscat.marketdata.datasource.common.MarketDataProvider.CandleSource;
 import com.muscat.marketdata.datasource.common.MarketDataProvider.MarketCapSource;
@@ -612,6 +613,88 @@ class AssetServiceImplTest {
         .hasMessageContaining("Not found");
 
       verify(assetRepository).findById(TEST_SYMBOL);
+    }
+
+    @Test
+    @DisplayName("받은 봉이 없으면 가격 데이터 없음(404) 예외를 던지고 봉을 저장하지 않는다")
+    void updateAssetPrice_NoCandles_ThrowsPriceDataNotFound() {
+      // given
+      given(assetRepository.findById(TEST_SYMBOL)).willReturn(Optional.of(testAsset));
+      given(candleSource.fetchDailyAdjusted(eq(TEST_SYMBOL), any(LocalDate.class),
+        any(LocalDate.class)))
+        .willReturn(List.of());
+
+      // when & then
+      assertThatThrownBy(() -> assetService.updateAssetPrice(TEST_SYMBOL))
+        .isInstanceOf(MarketDataException.class)
+        .hasFieldOrPropertyWithValue("errorCode", "404");
+
+      verify(candleRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("비활성 종목도 받은 최신 봉으로 최신 종가와 날짜를 바꾼다")
+    void updateAssetPrice_InactiveAsset_UpdatesLatest() {
+      // given
+      testAsset.setActive(false);
+      given(assetRepository.findById(TEST_SYMBOL)).willReturn(Optional.of(testAsset));
+
+      Candle latest =
+        Candle.builder()
+          .symbol(TEST_SYMBOL)
+          .date(LocalDate.of(2026, 9, 14))
+          .close(java.math.BigDecimal.valueOf(41.5))
+          .build();
+      Candle older =
+        Candle.builder()
+          .symbol(TEST_SYMBOL)
+          .date(LocalDate.of(2026, 9, 11))
+          .close(java.math.BigDecimal.valueOf(40.0))
+          .build();
+
+      given(candleSource.fetchDailyAdjusted(eq(TEST_SYMBOL), any(LocalDate.class),
+        any(LocalDate.class)))
+        .willReturn(List.of(latest, older));
+      given(candleRepository.existsBySymbolAndDate(eq(TEST_SYMBOL), any(LocalDate.class)))
+        .willReturn(false);
+
+      // when
+      assetService.updateAssetPrice(TEST_SYMBOL);
+
+      // then
+      assertThat(testAsset.getLatestDate()).isEqualTo(LocalDate.of(2026, 9, 14));
+      assertThat(testAsset.getLatestClose()).isEqualByComparingTo("41.5");
+      verify(assetRepository).save(testAsset);
+    }
+
+    @Test
+    @DisplayName("받은 최신 봉이 저장된 최신 날짜보다 오래되면 최신 값을 덮어쓰지 않는다")
+    void updateAssetPrice_OlderCandle_KeepsLatest() {
+      // given
+      testAsset.setLatestDate(LocalDate.of(2026, 9, 14));
+      testAsset.setLatestClose(java.math.BigDecimal.valueOf(41.5));
+      given(assetRepository.findById(TEST_SYMBOL)).willReturn(Optional.of(testAsset));
+
+      Candle older =
+        Candle.builder()
+          .symbol(TEST_SYMBOL)
+          .date(LocalDate.of(2026, 9, 11))
+          .close(java.math.BigDecimal.valueOf(40.0))
+          .build();
+
+      given(candleSource.fetchDailyAdjusted(eq(TEST_SYMBOL), any(LocalDate.class),
+        any(LocalDate.class)))
+        .willReturn(List.of(older));
+      given(candleRepository.existsBySymbolAndDate(TEST_SYMBOL, older.getDate()))
+        .willReturn(true);
+
+      // when
+      assetService.updateAssetPrice(TEST_SYMBOL);
+
+      // then
+      assertThat(testAsset.getLatestDate()).isEqualTo(LocalDate.of(2026, 9, 14));
+      assertThat(testAsset.getLatestClose()).isEqualByComparingTo("41.5");
+      verify(assetRepository, never()).save(any());
     }
   }
 
