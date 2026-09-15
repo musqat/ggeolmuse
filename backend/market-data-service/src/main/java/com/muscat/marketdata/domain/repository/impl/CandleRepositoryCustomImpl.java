@@ -100,7 +100,9 @@ public class CandleRepositoryCustomImpl implements CandleRepositoryCustom {
       .where(candle.date.goe(from)
         // 1 을 파라미터로 넘기면 부분 인덱스 idx_candle_split_date 를 못 쓰는 계획이 나올 수 있다
         .and(Expressions.booleanTemplate("{0} <> 1", candle.splitCoefficient))
-        .and(asset.active.isTrue()))
+        .and(asset.active.isTrue())
+        // 분할일 봉까지 전 기간을 받은 종목은 뺀다. 분할일과 기록 날짜가 같으면 받은 것으로 본다
+        .and(asset.fullHistoryThrough.isNull().or(candle.date.gt(asset.fullHistoryThrough))))
       .orderBy(candle.symbol.asc())
       .fetch();
   }

@@ -84,4 +84,29 @@ class CandleRepositorySplitTest {
 
     assertThat(result).containsExactly("AAPL", "NVDA");
   }
+
+  private void asset(String symbol, LocalDate fullHistoryThrough) {
+    Asset asset = Asset.builder()
+      .symbol(symbol).name(symbol).country("US").currency("USD").assetType("EQUITY")
+      .build();
+    asset.setFullHistoryThrough(fullHistoryThrough);
+    assetRepository.save(asset);
+  }
+
+  @Test
+  @DisplayName("분할일 이후 날짜까지 전 기간을 받은 종목은 빼고, 분할 전에 받았거나 기록이 없는 종목은 남긴다")
+  void 다시_받은_종목은_뺀다() {
+    asset("NVDA", LocalDate.of(2024, 6, 12));  // 분할 뒤에 받음
+    asset("AAPL", LocalDate.of(2020, 8, 31));  // 분할일 봉까지 받음
+    asset("TSLA", LocalDate.of(2022, 8, 24));  // 분할 전에 받음
+    asset("GOOG", null);                       // 기록 없음
+    candle("NVDA", LocalDate.of(2024, 6, 10), "10");
+    candle("AAPL", LocalDate.of(2020, 8, 31), "4");
+    candle("TSLA", LocalDate.of(2022, 8, 25), "3");
+    candle("GOOG", LocalDate.of(2022, 7, 18), "20");
+
+    List<String> result = candleRepository.findSymbolsWithSplits(LocalDate.of(2014, 1, 1));
+
+    assertThat(result).containsExactly("GOOG", "TSLA");
+  }
 }
