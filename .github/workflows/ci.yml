@@ -27,7 +27,7 @@ jobs:
       - name: Build & Install ggeolmuse-bom
         run: |
           cd backend/ggeolmuse-bom
-          mvn -s $GITHUB_WORKSPACE/.mvn/ci-settings.xml clean install -DskipTests
+          mvn -s $GITHUB_WORKSPACE/.mvn/ci-settings.xml clean install
 
   build-messaging:
     runs-on: ubuntu-latest

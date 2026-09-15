@@ -119,7 +119,7 @@ class InvestmentBacktestServiceImplTest {
         investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION))
         .isInstanceOf(BacktestException.class)
         .hasMessageContaining("보유 주식")
-        .extracting("errorCode")
+        .extracting("code")
         .isEqualTo(BacktestResponse.HOLDING_DATA_NOT_FOUND);
 
       verify(backtestHistoryUtils, never()).saveBacktestHistory(any(), any(), any());
@@ -146,7 +146,7 @@ class InvestmentBacktestServiceImplTest {
         investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION))
         .isInstanceOf(BacktestException.class)
         .hasMessageContaining("계산")
-        .extracting("errorCode")
+        .extracting("code")
         .isEqualTo(BacktestResponse.CALCULATION_ERROR);
     }
   }

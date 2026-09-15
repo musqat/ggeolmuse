@@ -17,7 +17,7 @@ class NotEnoughHoldingsExceptionTest {
         NotEnoughHoldingsException exception = new NotEnoughHoldingsException();
 
         // Then
-        assertThat(exception.getErrorCode()).isEqualTo(TradeResponse.INSUFFICIENT_HOLDINGS.getCode());
+        assertThat(exception.getErrorCode()).isEqualTo(TradeResponse.INSUFFICIENT_HOLDINGS.name());
         assertThat(exception.getErrorMessage()).contains("보유 수량이 부족");
         assertThat(exception.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
     }

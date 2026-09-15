@@ -20,7 +20,7 @@ class TradeExceptionTest {
         TradeException exception = new TradeException(response);
 
         // Then
-        assertThat(exception.getErrorCode()).isEqualTo(response.getCode());
+        assertThat(exception.getErrorCode()).isEqualTo(response.name());
         assertThat(exception.getErrorMessage()).isEqualTo(response.getMessage());
         assertThat(exception.getHttpStatus()).isEqualTo(response.getHttpStatus());
     }
@@ -32,7 +32,7 @@ class TradeExceptionTest {
         TradeException exception = new TradeException(TradeResponse.INSUFFICIENT_BALANCE);
 
         // Then
-        assertThat(exception.getErrorCode()).isEqualTo("400");
+        assertThat(exception.getErrorCode()).isEqualTo("INSUFFICIENT_BALANCE");
         assertThat(exception.getErrorMessage()).contains("잔액이 부족");
         assertThat(exception.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
@@ -44,7 +44,7 @@ class TradeExceptionTest {
         TradeException exception = new TradeException(TradeResponse.ACCOUNT_NOT_FOUND);
 
         // Then
-        assertThat(exception.getErrorCode()).isEqualTo("404");
+        assertThat(exception.getErrorCode()).isEqualTo("ACCOUNT_NOT_FOUND");
         assertThat(exception.getErrorMessage()).contains("계좌를 찾을 수 없");
         assertThat(exception.getHttpStatus()).isEqualTo(HttpStatus.NOT_FOUND);
     }
@@ -56,7 +56,7 @@ class TradeExceptionTest {
         TradeException exception = new TradeException(TradeResponse.INSUFFICIENT_HOLDINGS);
 
         // Then
-        assertThat(exception.getErrorCode()).isEqualTo("400");
+        assertThat(exception.getErrorCode()).isEqualTo("INSUFFICIENT_HOLDINGS");
         assertThat(exception.getErrorMessage()).contains("보유 수량이 부족");
         assertThat(exception.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
     }

@@ -28,23 +28,6 @@ public class GlobalExceptionHandler extends BaseExceptionHandler {
     this.environment = environment;
   }
 
-  @ExceptionHandler(BacktestException.class)
-  public ResponseEntity<ProblemDetail> handleBacktestException(BacktestException e, HttpServletRequest request) {
-    log.warn("[BACKTEST ERROR] {} - {}", e.getErrorCode().getCode(), e.getMessage());
-
-    Map<String, Object> properties = Map.of("errorType", ErrorType.BUSINESS.name());
-    ProblemDetail problem = ProblemDetailUtils.createProblem(
-        e.getErrorCode().getHttpStatus(),
-        e.getMessage(),
-        e.getErrorCode().name(),
-        request.getRequestURI(),
-        "Backtest Error",
-        properties
-    );
-
-    return ResponseEntity.status(e.getErrorCode().getHttpStatus()).body(problem);
-  }
-
   @ExceptionHandler(MethodArgumentNotValidException.class)
   public ResponseEntity<ProblemDetail> handleValidationException(MethodArgumentNotValidException e, HttpServletRequest request) {
     return super.handleValidationException(e, request);

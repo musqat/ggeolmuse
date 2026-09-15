@@ -123,7 +123,7 @@ class ConditionalPurchaseStrategyTest {
     void validateRequest_Null_ThrowsException() {
       assertThatThrownBy(() -> strategy.executeConditional(null))
         .isInstanceOf(BacktestException.class)
-        .extracting("errorCode")
+        .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_REQUEST_NULL);
     }
 
@@ -140,7 +140,7 @@ class ConditionalPurchaseStrategyTest {
 
       assertThatThrownBy(() -> strategy.executeConditional(request))
         .isInstanceOf(BacktestException.class)
-        .extracting("errorCode")
+        .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_SYMBOL_REQUIRED);
     }
 
@@ -157,7 +157,7 @@ class ConditionalPurchaseStrategyTest {
 
       assertThatThrownBy(() -> strategy.executeConditional(request))
         .isInstanceOf(BacktestException.class)
-        .extracting("errorCode")
+        .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_SYMBOL_REQUIRED);
     }
 
@@ -174,7 +174,7 @@ class ConditionalPurchaseStrategyTest {
 
       assertThatThrownBy(() -> strategy.executeConditional(request))
         .isInstanceOf(BacktestException.class)
-        .extracting("errorCode")
+        .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_START_DATE_REQUIRED);
     }
 
@@ -191,7 +191,7 @@ class ConditionalPurchaseStrategyTest {
 
       assertThatThrownBy(() -> strategy.executeConditional(request))
         .isInstanceOf(BacktestException.class)
-        .extracting("errorCode")
+        .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_END_DATE_REQUIRED);
     }
 
@@ -208,7 +208,7 @@ class ConditionalPurchaseStrategyTest {
 
       assertThatThrownBy(() -> strategy.executeConditional(request))
         .isInstanceOf(BacktestException.class)
-        .extracting("errorCode")
+        .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_DATE_RANGE_INVALID);
     }
 
@@ -226,7 +226,7 @@ class ConditionalPurchaseStrategyTest {
 
       assertThatThrownBy(() -> strategy.executeConditional(request))
         .isInstanceOf(BacktestException.class)
-        .extracting("errorCode")
+        .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_TOTAL_INVESTMENT_REQUIRED);
     }
 
@@ -244,7 +244,7 @@ class ConditionalPurchaseStrategyTest {
 
       assertThatThrownBy(() -> strategy.executeConditional(request))
         .isInstanceOf(BacktestException.class)
-        .extracting("errorCode")
+        .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_TOTAL_INVESTMENT_REQUIRED);
     }
 
@@ -297,7 +297,7 @@ class ConditionalPurchaseStrategyTest {
 
       assertThatThrownBy(() -> strategy.executeConditional(request))
         .isInstanceOf(BacktestException.class)
-        .extracting("errorCode")
+        .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_DROP_PERCENTAGE_REQUIRED);
     }
 
@@ -314,7 +314,7 @@ class ConditionalPurchaseStrategyTest {
 
       assertThatThrownBy(() -> strategy.executeConditional(request))
         .isInstanceOf(BacktestException.class)
-        .extracting("errorCode")
+        .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_DROP_PERCENTAGE_REQUIRED);
     }
 
@@ -332,7 +332,7 @@ class ConditionalPurchaseStrategyTest {
 
       assertThatThrownBy(() -> strategy.executeConditional(request))
         .isInstanceOf(BacktestException.class)
-        .extracting("errorCode")
+        .extracting("code")
         .isEqualTo(BacktestResponse.INVALID_MAX_PURCHASES);
     }
   }

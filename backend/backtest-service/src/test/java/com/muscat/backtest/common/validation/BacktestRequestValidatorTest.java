@@ -17,7 +17,7 @@ class BacktestRequestValidatorTest {
   void requireNonNull() {
     assertThatThrownBy(() -> BacktestRequestValidator.requireNonNull(null))
         .isInstanceOf(BacktestException.class)
-        .extracting("errorCode").isEqualTo(BacktestResponse.STRATEGY_REQUEST_NULL);
+        .extracting("code").isEqualTo(BacktestResponse.STRATEGY_REQUEST_NULL);
   }
 
   @Test
@@ -25,7 +25,7 @@ class BacktestRequestValidatorTest {
   void requireSymbol_blank() {
     assertThatThrownBy(() -> BacktestRequestValidator.requireSymbol("  "))
         .isInstanceOf(BacktestException.class)
-        .extracting("errorCode").isEqualTo(BacktestResponse.STRATEGY_SYMBOL_REQUIRED);
+        .extracting("code").isEqualTo(BacktestResponse.STRATEGY_SYMBOL_REQUIRED);
     assertThatThrownBy(() -> BacktestRequestValidator.requireSymbol(null))
         .isInstanceOf(BacktestException.class);
   }
@@ -37,13 +37,13 @@ class BacktestRequestValidatorTest {
     LocalDate e = LocalDate.of(2026, 1, 1);
     assertThatThrownBy(() -> BacktestRequestValidator.requireDateRange(null, e))
         .isInstanceOf(BacktestException.class)
-        .extracting("errorCode").isEqualTo(BacktestResponse.STRATEGY_START_DATE_REQUIRED);
+        .extracting("code").isEqualTo(BacktestResponse.STRATEGY_START_DATE_REQUIRED);
     assertThatThrownBy(() -> BacktestRequestValidator.requireDateRange(s, null))
         .isInstanceOf(BacktestException.class)
-        .extracting("errorCode").isEqualTo(BacktestResponse.STRATEGY_END_DATE_REQUIRED);
+        .extracting("code").isEqualTo(BacktestResponse.STRATEGY_END_DATE_REQUIRED);
     assertThatThrownBy(() -> BacktestRequestValidator.requireDateRange(e, s))
         .isInstanceOf(BacktestException.class)
-        .extracting("errorCode").isEqualTo(BacktestResponse.STRATEGY_DATE_RANGE_INVALID);
+        .extracting("code").isEqualTo(BacktestResponse.STRATEGY_DATE_RANGE_INVALID);
   }
 
   @Test
