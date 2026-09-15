@@ -93,9 +93,18 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
             candles.stream()
                 .max(Comparator.comparing(Candle::getDate))
                 .ifPresent(latest -> assetRepository.findById(symbol).ifPresent(asset -> {
+                    boolean touched = false;
                     if (asset.getLatestDate() == null || !latest.getDate().isBefore(asset.getLatestDate())) {
                         asset.setLatestClose(latest.getClose());
                         asset.setLatestDate(latest.getDate());
+                        touched = true;
+                    }
+                    // 전 기간을 받았으면 받은 최신 봉 날짜를 남긴다. 분할 찾기가 이 날짜 뒤에 난 분할만 본다
+                    if (from != null && !from.isAfter(FULL_HISTORY_FROM)) {
+                        asset.setFullHistoryThrough(latest.getDate());
+                        touched = true;
+                    }
+                    if (touched) {
                         assetRepository.save(asset);
                     }
                 }));

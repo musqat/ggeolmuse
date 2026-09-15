@@ -220,4 +220,46 @@ class YahooCandleUpdateServiceTest {
 
     verify(collectionStats).recordSymbol(0, 0);
   }
+
+  @Test
+  @DisplayName("1970 부터 받기가 성공하면 받은 봉 중 가장 최근 날짜를 asset 에 남긴다")
+  void 전_기간_받기면_최신_봉_날짜를_기록() {
+    stub(FULL_FROM, List.of(), List.of(candle(D1, "100"), candle(D2, "101")));
+
+    service.saveCandles(SYMBOL, FULL_FROM, TO);
+
+    assertThat(asset.getFullHistoryThrough()).isEqualTo(D2);
+  }
+
+  @Test
+  @DisplayName("저장된 최신 날짜가 받은 봉보다 뒤여도 전 기간 기록은 남긴다")
+  void 최신_날짜가_더_뒤여도_기록() {
+    asset.setLatestDate(LocalDate.of(2026, 9, 11));
+    stub(FULL_FROM, List.of(), List.of(candle(D1, "100"), candle(D2, "101")));
+
+    service.saveCandles(SYMBOL, FULL_FROM, TO);
+
+    assertThat(asset.getFullHistoryThrough()).isEqualTo(D2);
+    assertThat(asset.getLatestDate()).isEqualTo(LocalDate.of(2026, 9, 11));
+  }
+
+  @Test
+  @DisplayName("일부 기간 받기는 전 기간 기록을 바꾸지 않는다")
+  void 일부_기간은_기록하지_않는다() {
+    stub(FROM, List.of(), List.of(candle(D1, "100")));
+
+    service.saveCandles(SYMBOL, FROM, TO);
+
+    assertThat(asset.getFullHistoryThrough()).isNull();
+  }
+
+  @Test
+  @DisplayName("빈 응답은 전 기간 기록을 바꾸지 않는다")
+  void 빈_응답은_기록하지_않는다() {
+    stub(FULL_FROM, List.of(), List.of());
+
+    service.saveCandles(SYMBOL, FULL_FROM, TO);
+
+    assertThat(asset.getFullHistoryThrough()).isNull();
+  }
 }
