@@ -5,8 +5,6 @@ import com.muscat.commonlib.util.ProblemDetailUtils;
 import com.muscat.commonlib.enums.ErrorType;
 import com.muscat.user.common.enums.responses.UserResponse;
 import jakarta.servlet.http.HttpServletRequest;
-import java.net.URI;
-import java.time.LocalDateTime;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.env.Environment;
@@ -32,100 +30,6 @@ public class GlobalExceptionHandler extends BaseExceptionHandler {
 
   public GlobalExceptionHandler(Environment environment) {
     this.environment = environment;
-  }
-
-  @ExceptionHandler(UserException.class)
-  public ResponseEntity<ProblemDetail> handleUserException(UserException e, HttpServletRequest request) {
-    log.warn("[USER ERROR] {}", e.getMessage());
-
-    Map<String, Object> properties = Map.of("errorType", ErrorType.BUSINESS.name());
-    ProblemDetail problem = ProblemDetailUtils.createProblem(
-        e.getHttpStatus(),
-        e.getMessage(),
-        e.getErrorCode(),
-        request.getRequestURI(),
-        "User Error",
-        properties
-    );
-
-    return ResponseEntity.status(e.getHttpStatus()).body(problem);
-  }
-
-  @ExceptionHandler(SocialLoginException.class)
-  public ResponseEntity<ProblemDetail> handleSocialLoginException(SocialLoginException e, HttpServletRequest request) {
-    log.error("[SOCIAL LOGIN ERROR] {}", e.getMessage(), e);
-
-    Map<String, Object> properties = Map.of("errorType", ErrorType.BUSINESS.name());
-    ProblemDetail problem = ProblemDetailUtils.createProblem(
-        e.getHttpStatus(),
-        e.getMessage(),
-        e.getErrorCode(),
-        request.getRequestURI(),
-        "Social Login Error",
-        properties
-    );
-
-    return ResponseEntity.status(e.getHttpStatus()).body(problem);
-  }
-
-  @ExceptionHandler(KeycloakException.class)
-  public ResponseEntity<ProblemDetail> handleKeycloakException(KeycloakException e, HttpServletRequest request) {
-    log.error("[KEYCLOAK ERROR] {}", e.getMessage(), e);
-
-    ProblemDetail problem = ProblemDetail.forStatusAndDetail(e.getHttpStatus(), e.getMessage());
-    problem.setType(URI.create("https://api.muscat.com/problems/keycloak-" + e.getErrorCode().toLowerCase().replace("_", "-")));
-    problem.setTitle("Keycloak Error");
-    problem.setInstance(URI.create(request.getRequestURI()));
-    problem.setProperty("errorCode", e.getErrorCode());
-    problem.setProperty("errorType", ErrorType.UNAUTHORIZED.name());
-    problem.setProperty("timestamp", LocalDateTime.now());
-
-    return ResponseEntity.status(e.getHttpStatus()).body(problem);
-  }
-
-  @ExceptionHandler(AuthenticationException.class)
-  public ResponseEntity<ProblemDetail> handleAuthenticationException(AuthenticationException e, HttpServletRequest request) {
-    log.warn("[AUTH ERROR] {}", e.getMessage());
-
-    ProblemDetail problem = ProblemDetail.forStatusAndDetail(e.getHttpStatus(), e.getMessage());
-    problem.setType(URI.create("https://api.muscat.com/problems/authentication-" + e.getErrorCode().toLowerCase().replace("_", "-")));
-    problem.setTitle("Authentication Error");
-    problem.setInstance(URI.create(request.getRequestURI()));
-    problem.setProperty("errorCode", e.getErrorCode());
-    problem.setProperty("errorType", ErrorType.UNAUTHORIZED.name());
-    problem.setProperty("timestamp", LocalDateTime.now());
-
-    return ResponseEntity.status(e.getHttpStatus()).body(problem);
-  }
-
-  @ExceptionHandler(AccountException.class)
-  public ResponseEntity<ProblemDetail> handleAccountException(AccountException e, HttpServletRequest request) {
-    log.warn("[ACCOUNT ERROR] {}", e.getMessage());
-
-    ProblemDetail problem = ProblemDetail.forStatusAndDetail(e.getHttpStatus(), e.getMessage());
-    problem.setType(URI.create("https://api.muscat.com/problems/account-" + e.getErrorCode().toLowerCase().replace("_", "-")));
-    problem.setTitle("Account Error");
-    problem.setInstance(URI.create(request.getRequestURI()));
-    problem.setProperty("errorCode", e.getErrorCode());
-    problem.setProperty("errorType", ErrorType.BUSINESS);
-    problem.setProperty("timestamp", LocalDateTime.now());
-
-    return ResponseEntity.status(e.getHttpStatus()).body(problem);
-  }
-
-  @ExceptionHandler(AccountHistoryException.class)
-  public ResponseEntity<ProblemDetail> handleAccountHistoryException(AccountHistoryException e, HttpServletRequest request) {
-    log.warn("[ACCOUNT HISTORY ERROR] {}", e.getMessage());
-
-    ProblemDetail problem = ProblemDetail.forStatusAndDetail(e.getHttpStatus(), e.getMessage());
-    problem.setType(URI.create("https://api.muscat.com/problems/account-history-" + e.getErrorCode().toLowerCase().replace("_", "-")));
-    problem.setTitle("Account History Error");
-    problem.setInstance(URI.create(request.getRequestURI()));
-    problem.setProperty("errorCode", e.getErrorCode());
-    problem.setProperty("errorType", ErrorType.BUSINESS);
-    problem.setProperty("timestamp", LocalDateTime.now());
-
-    return ResponseEntity.status(e.getHttpStatus()).body(problem);
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -201,7 +105,7 @@ public class GlobalExceptionHandler extends BaseExceptionHandler {
     // 개발 환경에서는 상세한 에러 메시지 제공
     String message = isDevelopmentEnvironment() 
         ? String.format("%s - %s", e.getMessage(), e.getClass().getSimpleName())
-        : "서버에 문제가 발생했습니다. 관리자에게 문의해주세요.";
+        : "서버에 문제가 발생했습니다.";
 
     Map<String, Object> properties = Map.of("errorType", ErrorType.SYSTEM.name());
     ProblemDetail problem = ProblemDetailUtils.createProblem(
