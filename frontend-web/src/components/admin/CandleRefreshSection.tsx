@@ -102,7 +102,7 @@ export default function CandleRefreshSection() {
         published += res.published;
         setProgress(`${Math.min(i + CHUNK, symbols.length)} / ${symbols.length} 발행 완료`);
       }
-      setProgress(`${published}개 발행 완료. 수집은 백그라운드에서 이어집니다`);
+      setProgress(`${published}개 발행 완료. 수집은 백그라운드에서 이어집니다. 수집이 끝난 뒤 찾기를 다시 누르면 받은 종목이 빠집니다`);
     } catch (err) {
       setError('재수집 요청에 실패했습니다.');
       console.error('refresh candles failed:', err);
@@ -137,7 +137,7 @@ export default function CandleRefreshSection() {
       <div className="mb-3">
         <h2 className="text-lg font-semibold text-tx-1">분할 미반영 종목 정비</h2>
         <p className="mt-1 text-sm text-tx-2">
-          시작일 이후 분할이 기록된 종목을 찾아 1970년부터 다시 받습니다.
+          시작일 이후 분할이 났는데 그 뒤로 1970년부터 다시 받지 않은 종목을 찾습니다.
           전체 다시 받기는 활성 종목 전부를 받고 몇 시간 걸립니다.
         </p>
       </div>

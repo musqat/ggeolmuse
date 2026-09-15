@@ -142,11 +142,11 @@ ggeolmuse/
 
 ## 테스트
 
-백엔드 **718 개**, 프론트 **119 개**, E2E **35 개**.
+백엔드 **723 개**, 프론트 **119 개**, E2E **35 개**.
 
 | 서비스 | 테스트 |
 |---|---|
-| market-data-service | 242 |
+| market-data-service | 247 |
 | user-service | 204 |
 | backtest-service | 163 |
 | trade-service | 109 |
@@ -171,7 +171,7 @@ PR 게이트로 두지 않은 이유는 시세를 Yahoo Finance 에서 받아서
 | backtest | 71.2% | 59.0% |
 | trade | 55.1% | 52.8% |
 | user | 44.7% | 25.2% |
-| market-data | 31.7% | 34.5% |
+| market-data | 31.9% | 34.9% |
 
 market-data 가 낮은 이유는 수집 파이프라인이 대부분 외부 API 호출이라서다.
 파서 · 매퍼와 캔들 저장 판단(덮어쓰기 · 분할 재수집)은 붙였고, 야후 호출과 컨슈머 흐름은 아직이다.
