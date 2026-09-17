@@ -199,8 +199,8 @@ const Account: React.FC = () => {
       <CreateAccountModal
         isOpen={showCreateModal}
         onClose={closeCreateModal}
-        onSubmit={async (accountName: string, commissionRate: number) => {
-          await createAccount({ accountName, commissionRate });
+        onSubmit={async (accountName: string, commissionRate: number, slippageRate: number) => {
+          await createAccount({ accountName, commissionRate, slippageRate });
         }}
       />
 

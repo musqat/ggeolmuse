@@ -25,4 +25,9 @@ public class CreateAccountRequestDto {
   @DecimalMin(value = "0")
   @DecimalMax(value = "0.05")
   private BigDecimal commissionRate;  // 수수료율 (0~5%)
+
+  @Schema(description = "슬리피지율 (0~1%). 비우면 0.1%", example = "0.001")
+  @DecimalMin(value = "0")
+  @DecimalMax(value = "0.01")
+  private BigDecimal slippageRate;  // 슬리피지율 (0~1%)
 }

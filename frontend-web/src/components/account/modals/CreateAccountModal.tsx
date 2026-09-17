@@ -4,12 +4,12 @@ import { Modal } from '@/components/common/Modal';
 interface CreateAccountModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (accountName: string, commissionRate: number) =>Promise<void>;
+  onSubmit: (accountName: string, commissionRate: number, slippageRate: number) => Promise<void>;
 }
 
 /**
  * 계좌 생성 모달 컴포넌트
- * 계좌명과 거래 수수료율을 입력받아 새 계좌를 생성합니다.
+ * 계좌명, 거래 수수료율, 슬리피지율을 입력받아 새 계좌를 생성합니다.
  */
 
 const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
@@ -19,10 +19,12 @@ const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
 }) => {
   const [accountName, setAccountName] = useState('');
   const [commissionRate, setCommissionRate] = useState('0.25');
+  const [slippageRate, setSlippageRate] = useState('0.1');
 
   const handleClose = () => {
     setAccountName('');
     setCommissionRate('0.25');
+    setSlippageRate('0.1');
     onClose();
   };
 
@@ -50,8 +52,25 @@ const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
       return;
     }
 
+    // 슬리피지율 검증
+    if (!slippageRate || slippageRate.trim() === '') {
+      alert('슬리피지율을 입력해주세요.');
+      return;
+    }
+
+    const slippageRatePercent = parseFloat(slippageRate);
+    if (isNaN(slippageRatePercent)) {
+      alert('슬리피지율은 숫자로 입력해주세요.');
+      return;
+    }
+
+    if (slippageRatePercent < 0 || slippageRatePercent > 1) {
+      alert(`슬리피지율은 0 ~ 1% 사이여야 합니다. (입력값: ${slippageRatePercent}%)`);
+      return;
+    }
+
     // 제출
-    await onSubmit(accountName, commissionRatePercent);
+    await onSubmit(accountName, commissionRatePercent, slippageRatePercent);
     handleClose();
   };
 
@@ -107,6 +126,23 @@ const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
             className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
           />
           <p className="text-xs text-tx-2 mt-1">0 ~ 5% 사이의 값을 입력하세요</p>
+        </div>
+
+        <div>
+          <label htmlFor="slippage-rate" className="block text-sm font-medium text-tx-1 mb-2">
+            슬리피지 (%)
+          </label>
+          <input
+            id="slippage-rate"
+            type="number"
+            step="0.01"
+            min="0"
+            max="1"
+            value={slippageRate}
+            onChange={(e) => setSlippageRate(e.target.value)}
+            className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
+          />
+          <p className="text-xs text-tx-2 mt-1">0 ~ 1%. 매수는 이만큼 비싸게, 매도는 싸게 체결됩니다</p>
         </div>
       </div>
     </Modal>

@@ -33,6 +33,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 @Builder
 public class Account {
 
+  public static final BigDecimal DEFAULT_SLIPPAGE_RATE = new BigDecimal("0.001");
+
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
@@ -72,10 +74,10 @@ public class Account {
   @Builder.Default
   private BigDecimal commissionRate = BigDecimal.ZERO;
 
-  // 슬리피지율 (0.01 = 1%)
+  // 슬리피지율 (0.001 = 0.1%)
   @Column(name = "slippage_rate", precision = 6, scale = 5, nullable = false)
   @Builder.Default
-  private BigDecimal slippageRate = new BigDecimal("0.01");
+  private BigDecimal slippageRate = DEFAULT_SLIPPAGE_RATE;
 
   @CreationTimestamp
   private LocalDateTime createdAt;
