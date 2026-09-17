@@ -8,6 +8,7 @@ import com.muscat.trade.common.enums.type.TradeType;
 import com.muscat.trade.common.exception.NotEnoughHoldingsException;
 import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.common.logging.TradeLogger;
+import com.muscat.trade.common.util.SlippagePricing;
 import com.muscat.trade.common.util.TradeUtils;
 import com.muscat.trade.config.TradeProperties;
 import com.muscat.trade.domain.dto.request.TradingCapacityRequestDto;
@@ -240,11 +241,13 @@ public class TradingServiceImpl implements TradingService {
       tradeType);
 
     // 가격 결정
-    BigDecimal tradePrice = marketDataService.determineTradePrice(symbol, tradeDate, priceType,
+    BigDecimal marketPrice = marketDataService.determineTradePrice(symbol, tradeDate, priceType,
       manualPrice);
 
     // 수수료 계산
     AccountBalanceDto accountBalance = tradeUtils.getAccountBalance(String.valueOf(accountId));
+    BigDecimal tradePrice = applySlippage(symbol, marketPrice, accountBalance, priceType,
+      tradeType);
     BigDecimal[] amounts = calculateTradeAmounts(userId, String.valueOf(accountId), quantity,
       tradePrice, accountBalance, tradeType);
     BigDecimal tradeAmount = amounts[0];
@@ -269,6 +272,22 @@ public class TradingServiceImpl implements TradingService {
     if (tradeType == TradeType.SELL) {
       validateSellEligibility(userId, accountId, symbol, quantity, tradeDate);
     }
+  }
+
+  // 체결가에 계좌 슬리피지율을 반영. 직접 입력 가격에는 붙이지 않는다
+  private BigDecimal applySlippage(String symbol, BigDecimal marketPrice,
+    AccountBalanceDto accountBalance, PriceType priceType, TradeType tradeType) {
+    BigDecimal rate = accountBalance.getSlippageRate();
+    if (priceType == PriceType.MANUAL || rate == null
+      || rate.compareTo(BigDecimal.ZERO) <= 0) {
+      return marketPrice;
+    }
+
+    BigDecimal adjusted = SlippagePricing.apply(marketPrice, rate, tradeType,
+      tradeProperties.getCalculation().getPricePrecision());
+    log.debug("슬리피지 반영: 종목={}, 구분={}, 시장가={}, 율={}, 체결가={}",
+      symbol, tradeType, marketPrice, rate, adjusted);
+    return adjusted;
   }
 
   // 거래 금액 계산

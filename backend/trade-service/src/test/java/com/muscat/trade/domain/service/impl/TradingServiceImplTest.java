@@ -164,6 +164,83 @@ class TradingServiceImplTest {
     }
 
     @Test
+    @DisplayName("매수는 계좌 슬리피지율만큼 비싸게 체결된다")
+    void buyStock_WithSlippage_RaisesTradePrice() {
+      // given
+      stubTradePropertiesForHoldingsUpdate();
+      testAccountBalance = AccountBalanceDto.builder()
+        .accountId(String.valueOf(TEST_ACCOUNT_ID))
+        .balanceUsd(new BigDecimal("10000.00"))
+        .balanceKrw(BigDecimal.ZERO)
+        .commissionRate(new BigDecimal("0.001"))
+        .slippageRate(new BigDecimal("0.001"))
+        .build();
+      BigDecimal expectedPrice = new BigDecimal("150.15"); // 150.00 × 1.001
+      BigDecimal fee = new BigDecimal("1.50");
+
+      given(marketDataService.determineTradePrice(TEST_SYMBOL, TEST_TRADE_DATE,
+        PriceType.CLOSE, null))
+        .willReturn(TEST_PRICE);
+      given(tradeUtils.getAccountBalance(String.valueOf(TEST_ACCOUNT_ID)))
+        .willReturn(testAccountBalance);
+      given(tradeUtils.calculateFee(any(), any())).willReturn(fee);
+      given(holdingsRepository.findByUserIdAndAccountIdAndSymbolWithLock(
+        TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL))
+        .willReturn(Optional.empty());
+      given(tradeRepository.save(any(Trade.class)))
+        .willAnswer(invocation -> invocation.getArgument(0));
+
+      // when
+      tradingService.buyStock(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL, TEST_QUANTITY,
+        TEST_TRADE_DATE, PriceType.CLOSE, null);
+
+      // then
+      ArgumentCaptor<Trade> tradeCaptor = ArgumentCaptor.forClass(Trade.class);
+      verify(tradeRepository).save(tradeCaptor.capture());
+      assertThat(tradeCaptor.getValue().getPrice()).isEqualByComparingTo(expectedPrice);
+
+      // 수수료도 조정된 체결가 기준이다
+      ArgumentCaptor<BigDecimal> amountCaptor = ArgumentCaptor.forClass(BigDecimal.class);
+      verify(tradeUtils).calculateFee(eq(testAccountBalance), amountCaptor.capture());
+      assertThat(amountCaptor.getValue()).isEqualByComparingTo("1501.50"); // 10 × 150.15
+    }
+
+    @Test
+    @DisplayName("직접 입력 가격에는 슬리피지를 붙이지 않는다")
+    void buyStock_ManualPrice_KeepsInputPrice() {
+      // given
+      BigDecimal manualPrice = new BigDecimal("100.00");
+      testAccountBalance = AccountBalanceDto.builder()
+        .accountId(String.valueOf(TEST_ACCOUNT_ID))
+        .balanceUsd(new BigDecimal("10000.00"))
+        .balanceKrw(BigDecimal.ZERO)
+        .commissionRate(new BigDecimal("0.001"))
+        .slippageRate(new BigDecimal("0.001"))
+        .build();
+
+      given(marketDataService.determineTradePrice(TEST_SYMBOL, TEST_TRADE_DATE,
+        PriceType.MANUAL, manualPrice))
+        .willReturn(manualPrice);
+      given(tradeUtils.getAccountBalance(String.valueOf(TEST_ACCOUNT_ID)))
+        .willReturn(testAccountBalance);
+      given(tradeUtils.calculateFee(any(), any())).willReturn(new BigDecimal("1.00"));
+      given(holdingsRepository.findByUserIdAndAccountIdAndSymbolWithLock(
+        TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL))
+        .willReturn(Optional.empty());
+      given(tradeRepository.save(any(Trade.class)))
+        .willAnswer(invocation -> invocation.getArgument(0));
+
+      // when
+      tradingService.buyStock(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL, TEST_QUANTITY,
+        TEST_TRADE_DATE, PriceType.MANUAL, manualPrice);
+
+      // then
+      ArgumentCaptor<Trade> tradeCaptor = ArgumentCaptor.forClass(Trade.class);
+      verify(tradeRepository).save(tradeCaptor.capture());
+      assertThat(tradeCaptor.getValue().getPrice()).isEqualByComparingTo(manualPrice);
+    }
+
+    @Test
     @DisplayName("기존 Holdings에 추가 매수된다 (평균 단가 재계산)")
     void buyStock_ExistingHoldings_Success() {
       // given
@@ -335,6 +412,60 @@ class TradingServiceImplTest {
 
       verify(holdingsRepository, never()).delete(any());
       verify(tradeEventProducer).publishTradeCompleted(any(Trade.class));
+    }
+
+    @Test
+    @DisplayName("매도는 계좌 슬리피지율만큼 싸게 체결된다")
+    void sellStock_WithSlippage_LowersTradePrice() {
+      // given
+      stubTradePropertiesForHoldingsUpdate();
+      BigDecimal existingQuantity = new BigDecimal("20");
+      BigDecimal avgPrice = new BigDecimal("140.00");
+      Holdings existingHoldings = Holdings.builder()
+        .id(1L)
+        .userId(TEST_USER_ID)
+        .accountId(TEST_ACCOUNT_ID)
+        .symbol(TEST_SYMBOL)
+        .totalQuantity(existingQuantity)
+        .avgPurchasePrice(avgPrice)
+        .totalInvestedAmount(existingQuantity.multiply(avgPrice))
+        .build();
+      testAccountBalance = AccountBalanceDto.builder()
+        .accountId(String.valueOf(TEST_ACCOUNT_ID))
+        .balanceUsd(new BigDecimal("10000.00"))
+        .balanceKrw(BigDecimal.ZERO)
+        .commissionRate(new BigDecimal("0.001"))
+        .slippageRate(new BigDecimal("0.001"))
+        .build();
+      BigDecimal sellQuantity = new BigDecimal("10");
+      BigDecimal expectedPrice = new BigDecimal("149.85"); // 150.00 × 0.999
+
+      given(holdingsRepository.findByUserIdAndAccountIdAndSymbol(
+        TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL))
+        .willReturn(Optional.of(existingHoldings));
+      given(tradeRepository.calculateSellableQuantity(
+        TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL, TEST_TRADE_DATE))
+        .willReturn(existingQuantity);
+      given(marketDataService.determineTradePrice(TEST_SYMBOL, TEST_TRADE_DATE,
+        PriceType.CLOSE, null))
+        .willReturn(TEST_PRICE);
+      given(tradeUtils.getAccountBalance(String.valueOf(TEST_ACCOUNT_ID)))
+        .willReturn(testAccountBalance);
+      given(tradeUtils.calculateFee(any(), any())).willReturn(new BigDecimal("1.50"));
+      given(holdingsRepository.findByUserIdAndAccountIdAndSymbolWithLock(
+        TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL))
+        .willReturn(Optional.of(existingHoldings));
+      given(tradeRepository.save(any(Trade.class)))
+        .willAnswer(invocation -> invocation.getArgument(0));
+
+      // when
+      tradingService.sellStock(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL, sellQuantity,
+        TEST_TRADE_DATE, PriceType.CLOSE, null);
+
+      // then
+      ArgumentCaptor<Trade> tradeCaptor = ArgumentCaptor.forClass(Trade.class);
+      verify(tradeRepository).save(tradeCaptor.capture());
+      assertThat(tradeCaptor.getValue().getPrice()).isEqualByComparingTo(expectedPrice);
     }
 
     @Test
