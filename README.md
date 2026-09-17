@@ -26,7 +26,7 @@ NYSE · NASDAQ · NYSE ARCA 상장 12,000+ 종목의 일별 가격으로 투자 
         ↓
 전략 실행   단순 매수 / 적립식 / 조건부 매매
         ↓
-보정        환율(KRW↔USD) · 배당 재투자 · 수수료 · 슬리피지
+보정        환율(KRW↔USD) · 배당 재투자 · 수수료
         ↓
 결과        수익률 · 자산 추이 · 전략 간 비교
 ```
@@ -142,16 +142,16 @@ ggeolmuse/
 
 ## 테스트
 
-백엔드 **746 개**, 프론트 **119 개**, E2E **35 개**.
+백엔드 **760 개**, 프론트 **123 개**, E2E **35 개**.
 
 | 서비스 | 테스트 |
 |---|---|
 | market-data-service | 252 |
-| user-service | 205 |
+| user-service | 210 |
 | backtest-service | 164 |
-| trade-service | 110 |
+| trade-service | 119 |
 | ggeolmuse-bom | 15 |
-| frontend-web | 119 |
+| frontend-web | 123 |
 | E2E (Playwright) | 35 |
 
 <details>
@@ -170,8 +170,8 @@ PR 게이트로 두지 않은 이유는 시세를 Yahoo Finance 에서 받아서
 | 서비스 | 라인 | 분기 |
 |---|---|---|
 | backtest | 71.5% | 59.0% |
-| trade | 56.0% | 52.8% |
-| user | 45.5% | 25.2% |
+| trade | 56.4% | 54.7% |
+| user | 45.5% | 25.4% |
 | market-data | 32.5% | 35.2% |
 
 market-data 가 낮은 이유는 수집 파이프라인이 대부분 외부 API 호출이라서다.
