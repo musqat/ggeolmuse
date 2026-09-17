@@ -5,6 +5,7 @@ import { getApiErrorMessage } from '../utils/apiError';
 interface CreateAccountParams {
   accountName: string;
   commissionRate: number;
+  slippageRate: number;
 }
 
 interface DepositKrwParams {
@@ -46,10 +47,10 @@ export const useAccountOperations = (
   /**
    * 계좌 생성
    *
-   * @param {CreateAccountParams} params - 계좌명 및 수수료율
-   * @throws {Error} 계좌명이 없거나 수수료율이 유효하지 않은 경우
+   * @param {CreateAccountParams} params - 계좌명, 수수료율, 슬리피지율
+   * @throws {Error} 계좌명이 없거나 수수료율·슬리피지율이 유효하지 않은 경우
    */
-  const createAccount = async ({ accountName, commissionRate }: CreateAccountParams) => {
+  const createAccount = async ({ accountName, commissionRate, slippageRate }: CreateAccountParams) => {
     if (!accountName.trim()) {
       throw new Error('계좌명을 입력해주세요.');
     }
@@ -58,13 +59,18 @@ export const useAccountOperations = (
       throw new Error(`수수료율은 0 ~ 5% 사이여야 합니다.`);
     }
 
+    if (isNaN(slippageRate) || slippageRate < 0 || slippageRate > 1) {
+      throw new Error(`슬리피지율은 0 ~ 1% 사이여야 합니다.`);
+    }
+
     try {
       setLoading(true);
       // 백엔드는 소수점 형식(0~0.05)을 기대하므로 100으로 나눔
       // 예: 0.25% → 0.0025, 1% → 0.01
       await accountsApi.createAccount({
         accountName,
-        commissionRate: commissionRate / 100
+        commissionRate: commissionRate / 100,
+        slippageRate: slippageRate / 100
       });
 
       if (onSuccess) {

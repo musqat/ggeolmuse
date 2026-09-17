@@ -343,6 +343,7 @@ export type AccountBalance = {
 type CreateAccountRequest = {
   accountName: string;                  // 계좌명
   commissionRate: number;               // 수수료율 (0 ~ 0.05 = 0% ~ 5%)
+  slippageRate?: number;                // 슬리피지율 (0 ~ 0.01 = 0% ~ 1%). 비우면 0.1%
 };
 
 // 입금 요청
