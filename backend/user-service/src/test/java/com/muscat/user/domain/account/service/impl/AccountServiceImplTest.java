@@ -153,6 +153,53 @@ class AccountServiceImplTest {
     }
 
     @Test
+    @DisplayName("요청의 슬리피지율로 계좌를 만든다")
+    void createAccount_WithSlippageRate_UsesRequestedRate() {
+      // given
+      CreateAccountRequestDto request = new CreateAccountRequestDto();
+      request.setAccountName("신규계좌");
+      request.setCommissionRate(new BigDecimal("0.001"));
+      request.setSlippageRate(new BigDecimal("0.005"));
+
+      given(userRepository.findById(userId)).willReturn(Optional.of(testUser));
+      given(accountRepository.existsByUserIdAndAccountName(userId, "신규계좌"))
+        .willReturn(false);
+      given(accountRepository.findByAccountNumber(anyString()))
+        .willReturn(Optional.empty());
+      given(accountRepository.save(any(Account.class)))
+        .willAnswer(invocation -> invocation.getArgument(0));
+
+      // when
+      Account result = accountService.createAccount(userId, request);
+
+      // then
+      assertThat(result.getSlippageRate()).isEqualByComparingTo("0.005");
+    }
+
+    @Test
+    @DisplayName("슬리피지율을 비우면 기본값 0.1% 로 만든다")
+    void createAccount_WithoutSlippageRate_UsesDefault() {
+      // given
+      CreateAccountRequestDto request = new CreateAccountRequestDto();
+      request.setAccountName("신규계좌");
+      request.setCommissionRate(new BigDecimal("0.001"));
+
+      given(userRepository.findById(userId)).willReturn(Optional.of(testUser));
+      given(accountRepository.existsByUserIdAndAccountName(userId, "신규계좌"))
+        .willReturn(false);
+      given(accountRepository.findByAccountNumber(anyString()))
+        .willReturn(Optional.empty());
+      given(accountRepository.save(any(Account.class)))
+        .willAnswer(invocation -> invocation.getArgument(0));
+
+      // when
+      Account result = accountService.createAccount(userId, request);
+
+      // then
+      assertThat(result.getSlippageRate()).isEqualByComparingTo("0.001");
+    }
+
+    @Test
     @DisplayName("사용자가 없으면 예외가 발생한다")
     void createAccount_UserNotFound_ThrowsException() {
       // given

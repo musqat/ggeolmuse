@@ -84,6 +84,8 @@ public class AccountServiceImpl implements AccountService {
       .totalExchangedKrw(BigDecimal.ZERO)
       .avgExchangeRate(BigDecimal.ZERO)
       .commissionRate(request.getCommissionRate())
+      .slippageRate(request.getSlippageRate() != null
+        ? request.getSlippageRate() : Account.DEFAULT_SLIPPAGE_RATE)
       .build();
 
     Account savedAccount = accountRepository.save(account);
