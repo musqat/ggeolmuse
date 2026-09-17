@@ -56,6 +56,11 @@ export const AccountCard: React.FC<AccountCardProps> = ({
           <span className="font-medium">{(account.commissionRate * 100).toFixed(2)}%</span>
         </div>
 
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-tx-2">슬리피지</span>
+          <span className="font-medium">{(balance.slippageRate * 100).toFixed(2)}%</span>
+        </div>
+
         {/* 액션 버튼 그룹 */}
         <div className="grid grid-cols-3 gap-2 pt-3 border-t">
           <button
