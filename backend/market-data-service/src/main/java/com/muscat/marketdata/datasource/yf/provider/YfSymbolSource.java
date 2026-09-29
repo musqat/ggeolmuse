@@ -1,14 +1,12 @@
 package com.muscat.marketdata.datasource.yf.provider;
 
+import com.muscat.marketdata.datasource.common.BundledSymbolSource;
 import com.muscat.marketdata.datasource.common.MarketDataProvider;
 import com.muscat.marketdata.datasource.yf.client.NasdaqScreenerClient;
 import com.muscat.marketdata.datasource.yf.client.NasdaqScreenerParser;
 import com.muscat.marketdata.datasource.yf.client.YahooFinanceClient;
 import com.muscat.marketdata.datasource.yf.client.YahooParser;
 import com.muscat.marketdata.domain.entity.Asset;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -16,7 +14,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
 /**
@@ -34,6 +31,7 @@ import org.springframework.stereotype.Component;
 public class YfSymbolSource implements MarketDataProvider.SymbolSource,
   MarketDataProvider.AssetInfoSource {
 
+  private final BundledSymbolSource bundledSource;
   private final NasdaqScreenerClient nasdaqClient;
   private final NasdaqScreenerParser nasdaqParser;
   private final YahooFinanceClient yahooClient;
@@ -59,7 +57,7 @@ public class YfSymbolSource implements MarketDataProvider.SymbolSource,
 
     // 2. CSV fallback
     try {
-      allAssets = loadFromCsvFiles();
+      allAssets = bundledSource.fetch();
       if (!allAssets.isEmpty()) {
         log.info("CSV 파일에서 종목 로드 성공: {}개", allAssets.size());
         return allAssets;
@@ -119,108 +117,6 @@ public class YfSymbolSource implements MarketDataProvider.SymbolSource,
     log.debug("NASDAQ 종목 로드 완료: {}개", nasdaqStocks.size());
 
     return allAssets;
-  }
-
-  /**
-   * CSV 파일에서 종목 로드 (Fallback)
-   */
-  private List<Asset> loadFromCsvFiles() {
-    List<Asset> allAssets = new ArrayList<>();
-
-    // NYSE 종목
-    List<Asset> nyseStocks = loadNasdaqCsv("symbols/nyse_stocks.csv");
-    allAssets.addAll(nyseStocks);
-    log.debug("NYSE 주식 종목 로드 완료: {}개 (CSV)", nyseStocks.size());
-
-    // NASDAQ 종목
-    List<Asset> nasdaqStocks = loadNasdaqCsv("symbols/nasdaq_stocks.csv");
-    allAssets.addAll(nasdaqStocks);
-    log.debug("NASDAQ 주식 종목 로드 완료: {}개 (CSV)", nasdaqStocks.size());
-
-    return allAssets;
-  }
-
-  /**
-   * NASDAQ CSV 형식 파일 로드 형식: Symbol,Name,Last Sale,Net Change,% Change,Market Cap,Country,IPO
-   * Year,Volume,Sector,Industry
-   */
-  private List<Asset> loadNasdaqCsv(String filePath) {
-    List<Asset> assets = new ArrayList<>();
-
-    try {
-      ClassPathResource resource = new ClassPathResource(filePath);
-
-      try (BufferedReader reader = new BufferedReader(
-        new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8))) {
-
-        String line;
-        boolean isFirstLine = true;
-
-        while ((line = reader.readLine()) != null) {
-          // 헤더 라인 스킵
-          if (isFirstLine) {
-            isFirstLine = false;
-            continue;
-          }
-
-          // 빈 줄 스킵
-          line = line.trim();
-          if (line.isEmpty()) {
-            continue;
-          }
-
-          // CSV 파싱
-          String[] parts = line.split(",");
-          if (parts.length < 11) {
-            log.debug("잘못된 CSV 라인 (컬럼 수 부족): {}", line);
-            continue;
-          }
-
-          try {
-            String symbol = parts[0].trim();
-            String name = parts[1].trim();
-            String marketCapStr = parts[5].trim();
-            String country = parts[6].trim();
-
-            // Market Cap 파싱
-            Long marketCap = null;
-            if (!marketCapStr.isEmpty()) {
-              try {
-                marketCap = Long.parseLong(marketCapStr.split("\\.")[0]);
-              } catch (NumberFormatException e) {
-                log.trace("시가총액 파싱 실패: symbol={}, marketCap={}", symbol, marketCapStr);
-              }
-            }
-
-            // Country 정규화
-            if (country.isEmpty() || "United States".equals(country)) {
-              country = "US";
-            }
-
-            // Asset 생성
-            Asset asset = Asset.builder()
-              .symbol(symbol)
-              .name(name)
-              .country(country)
-              .currency("USD")
-              .assetType("EQUITY")
-              .marketCap(marketCap)
-              .build();
-
-            assets.add(asset);
-            log.trace("종목 로드: {} - {}", symbol, name);
-
-          } catch (Exception e) {
-            log.debug("종목 파싱 실패: line={}, error={}", line, e.getMessage());
-          }
-        }
-      }
-
-    } catch (Exception e) {
-      log.error("종목 파일 로드 실패: {}", filePath, e);
-    }
-
-    return assets;
   }
 
   private void sleep(long millis) {
