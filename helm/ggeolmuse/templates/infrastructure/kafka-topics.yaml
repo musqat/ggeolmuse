@@ -50,14 +50,14 @@ spec:
               trading.trade.cancelled             3      604800000
               trading.trade.failed                3      604800000
               trading.dividend.received           3      7776000000
+              trading.holdings.updated            3      2592000000
 
               # 수집 작업큐. 컨슈머 동시성이 파티션에 묶여 6으로 둔다
               market.asset.created                6      604800000
               market.dividend.updated             3      7776000000
               market.fxrate.updated               3      2592000000   --config cleanup.policy=compact
-              market.price.updated                3      86400000     --config cleanup.policy=compact
+              market.collection.completed         3      604800000
 
-              user.account.created                3      2592000000
               user.account.deleted                3      2592000000
               user.account.balance.updated        3      2592000000
               user.account.deposit.completed      3      2592000000
@@ -80,8 +80,6 @@ spec:
               user.login.failed.DLT               3      2592000000
               user.email.send.DLT                 3      2592000000
 
-              market.price.updated.DLT            3      2592000000
-              user.account.created.DLT            3      2592000000
               '
               echo "$TOPICS" > /tmp/topics.txt
 
