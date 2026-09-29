@@ -61,7 +61,10 @@ jobs:
       - name: 실패 시 컨테이너 로그
         if: failure()
         working-directory: docker-compose
-        run: docker compose logs --tail 200
+        run: |
+          docker compose logs --tail 200
+          # 기동 구간이 폴링 로그에 밀려 나가 앞쪽을 따로 남긴다
+          docker compose logs market-data-service | head -400
 
       - name: 스택 정리
         if: always()
