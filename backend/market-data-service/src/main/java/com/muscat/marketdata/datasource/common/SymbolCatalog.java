@@ -38,6 +38,11 @@ public class SymbolCatalog {
   private static final Pattern TICKER = Pattern.compile("[A-Za-z0-9.^/-]+");
 
   private final ListingStatusSource listingSource;
+  private final BundledSymbolSource bundledSource;
+
+  // 목록 API 가 비어 있을 때 이미지에 든 CSV 로 대체할지. 로컬·E2E 에서만 켠다
+  @Value("${marketdata.symbol-listing.csv-fallback:false}")
+  private boolean csvFallback;
 
   // 보통주가 아닌 것을 이름으로 거른다. 백테스트는 주식을 전제하므로
   // 워런트·유닛·신주인수권·우선주·채권이 섞이면 결과가 뒤틀린다.
@@ -70,8 +75,17 @@ public class SymbolCatalog {
     }
 
     if (fetched == null || fetched.isEmpty()) {
-      log.warn("[종목목록] 목록이 비어 있다. 출처나 API 키를 확인할 것");
-      return List.of();
+      if (!csvFallback) {
+        log.warn("[종목목록] 목록이 비어 있다. 출처나 API 키를 확인할 것");
+        return List.of();
+      }
+
+      fetched = bundledSource.fetch();
+      log.warn("[종목목록] 목록이 비어 번들 CSV 로 대체한다: {}개", fetched.size());
+
+      if (fetched.isEmpty()) {
+        return List.of();
+      }
     }
 
     List<Asset> deduped = dedupeBySymbol(fetched);

@@ -28,6 +28,9 @@ class SymbolCatalogTest {
   @Mock
   private ListingStatusSource listingSource;
 
+  @Mock
+  private BundledSymbolSource bundledSource;
+
   @InjectMocks
   private SymbolCatalog catalog;
 
@@ -35,6 +38,27 @@ class SymbolCatalogTest {
   void setUp() {
     setPatterns("warrant, units,rights,preferred,depositary,notes due");
     ReflectionTestUtils.setField(catalog, "symbolMaxLength", 16);
+    ReflectionTestUtils.setField(catalog, "csvFallback", false);
+  }
+
+  @Test
+  @DisplayName("목록이 비고 폴백이 켜져 있으면 번들 CSV 를 쓴다")
+  void fetchAll_EmptyListingWithFallback_UsesBundledCsv() {
+    ReflectionTestUtils.setField(catalog, "csvFallback", true);
+    given(listingSource.fetch()).willReturn(List.of());
+    given(bundledSource.fetch()).willReturn(List.of(asset("AAPL", "Apple Inc. Common Stock")));
+
+    List<Asset> kept = catalog.fetchAll();
+
+    assertThat(kept).extracting(Asset::getSymbol).containsExactly("AAPL");
+  }
+
+  @Test
+  @DisplayName("폴백이 꺼져 있으면 빈 목록을 그대로 돌려준다")
+  void fetchAll_EmptyListingWithoutFallback_ReturnsEmpty() {
+    given(listingSource.fetch()).willReturn(List.of());
+
+    assertThat(catalog.fetchAll()).isEmpty();
   }
 
   private void setPatterns(String patterns) {

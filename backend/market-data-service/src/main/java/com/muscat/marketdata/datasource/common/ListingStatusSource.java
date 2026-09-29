@@ -61,7 +61,18 @@ public class ListingStatusSource {
     }
 
     log.info("[종목목록] LISTING_STATUS 파싱 완료: {}개", assets.size());
+
+    // 레이트리밋 안내문처럼 CSV 가 아닌 본문이 와도 0개로 끝난다. 그때 본문을 봐야 갈린다
+    if (assets.isEmpty()) {
+      log.warn("[종목목록] 파싱된 종목이 없다. 응답 앞부분: {}", head(csv));
+    }
+
     return assets;
+  }
+
+  private static String head(String csv) {
+    String oneLine = csv.replaceAll("\\s+", " ").trim();
+    return oneLine.length() <= 200 ? oneLine : oneLine.substring(0, 200) + "...";
   }
 
   private Asset parseLine(String line) {
