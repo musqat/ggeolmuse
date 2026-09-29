@@ -335,6 +335,8 @@ services:
       MARKETDATA_SYMBOLCOLLECTION_MAXSYMBOLS: "50"
       # 50종목뿐이라 메모리 여유 → 2년치 수집(1년+ 기간 백테스트/비교 가능)
       SYMBOL_LOOKBACK_DAYS: "730"
+      # 목록 API(AlphaVantage)가 공유 IP 에서 자주 막힌다. 비면 이미지에 든 CSV 로 채운다
+      MARKETDATA_SYMBOLLISTING_CSVFALLBACK: "true"
       SYMBOL_INCLUDE_DIVIDENDS: "false"
       # 환율(KRW/USD) backfill: FX 소스가 KoreaExim API(실제 키 필요)라 demo 키론 실패.
       #  KOREAEXIM_API_KEY(.env)에 무료 발급 키를 넣으면 켜기: FX_BACKFILL_ENABLED=true.
