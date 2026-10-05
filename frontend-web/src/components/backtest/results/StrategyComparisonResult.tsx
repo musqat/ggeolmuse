@@ -1,13 +1,11 @@
 import React from 'react';
 import { CompareStrategiesChart } from '@components/charts/backtest/CompareStrategiesChart';
-import type { ComparisonItem } from '../../../services/api';
+import type { ComparisonItem, ComparisonResponse } from '../../../services/api';
 import { STRATEGY_NAMES } from '../shared/backtestDisplay';
 import { formatKrw, formatPercent, formatSigned, gainLossClass } from '../../../utils/gainLoss';
 
 interface StrategyComparisonResultProps {
-  // 페이지가 결과를 any 로 들고 있다
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  result: any;
+  result: ComparisonResponse;
 }
 
 export const StrategyComparisonResult: React.FC<StrategyComparisonResultProps> = ({ result }) => (

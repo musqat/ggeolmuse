@@ -1,3 +1,5 @@
+import type { ComparisonResponse, SimulationResponse, StrategyResponse } from "../../../services/api";
+
 export type BacktestMode =
   | "simple"
   | "dca"
@@ -30,6 +32,12 @@ export const CHART_COLORS = [
   "#14b8a6",
   "#f97316",
 ];
+
+// 실행한 모드를 붙여 들고 있는 결과. mode 로 어떤 응답인지 가른다
+export type BacktestResult =
+  | (SimulationResponse & { mode: "simple" })
+  | (StrategyResponse & { mode: "dca" | "conditional" })
+  | (ComparisonResponse & { mode: "compare-symbols" | "compare-strategies" });
 
 // 종목별 최적 매수·매도 지점. CompareSymbolsChart 가 계산해서 올려준다
 export type OptimalPointsBySymbol = {

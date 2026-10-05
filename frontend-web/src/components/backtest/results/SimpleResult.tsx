@@ -1,6 +1,7 @@
 import React from 'react';
 import { TrendingUp, TrendingDown, DollarSign, Zap, Activity, Repeat } from 'lucide-react';
 import { SimpleChart } from '@components/charts/backtest/SimpleChart';
+import type { SimulationResponse } from '../../../services/api';
 import {
   formatKrw,
   formatPercent,
@@ -14,8 +15,7 @@ import { StatCard } from './StatCard';
 import { DetailRow, DetailSection } from './DetailSection';
 
 interface SimpleResultProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  result: any;
+  result: SimulationResponse;
   symbol: string;
   purchaseDate: string;
 }
@@ -229,9 +229,9 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
         purchaseDate={result.purchaseDate || purchaseDate}
         shares={result.shares || 0}
         investmentAmount={result.investmentAmount || 0}
-        optimalBuyDate={result.optimalBuyDate}
-        optimalSellDate={result.optimalSellDate}
-        dividendReinvestDates={result.dividendReinvestDates}
+        optimalBuyDate={result.optimalBuyDate ?? undefined}
+        optimalSellDate={result.optimalSellDate ?? undefined}
+        dividendReinvestDates={result.dividendReinvestDates ?? undefined}
       />
     </div>
   );

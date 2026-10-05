@@ -2,6 +2,7 @@ import React from 'react';
 import { TrendingUp, TrendingDown, DollarSign, Activity, Repeat } from 'lucide-react';
 import { DCAChart } from '@components/charts/backtest/DCAChart';
 import { ConditionalChart } from '@components/charts/backtest/ConditionalChart';
+import type { StrategyResponse } from '../../../services/api';
 import type { BacktestMode } from '../shared/backtestDisplay';
 import {
   formatKrw,
@@ -15,8 +16,7 @@ import { StatCard } from './StatCard';
 import { DetailRow, DetailSection } from './DetailSection';
 
 interface DcaConditionalResultProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  result: any;
+  result: StrategyResponse;
   mode: BacktestMode;
   symbol: string;
   dcaStartDate: string;

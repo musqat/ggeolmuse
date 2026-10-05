@@ -31,7 +31,11 @@ import { SymbolComparisonResult } from "@components/backtest/results/SymbolCompa
 import { DcaConditionalResult } from "@components/backtest/results/DcaConditionalResult";
 import { SimpleResult } from "@components/backtest/results/SimpleResult";
 import { BacktestHistoryPanel } from "@components/backtest/history/BacktestHistoryPanel";
-import { STRATEGY_NAMES, type BacktestMode } from "@components/backtest/shared/backtestDisplay";
+import {
+  STRATEGY_NAMES,
+  type BacktestMode,
+  type BacktestResult,
+} from "@components/backtest/shared/backtestDisplay";
 
 const Backtest: React.FC = () => {
   const navigate = useNavigate();
@@ -145,8 +149,7 @@ const Backtest: React.FC = () => {
 
   // 실행 상태
   const [isRunning, setIsRunning] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<BacktestResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [symbolOptimalPoints, setSymbolOptimalPoints] = useState<{
     [symbol: string]: {

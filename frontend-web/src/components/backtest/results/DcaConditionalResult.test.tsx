@@ -8,7 +8,6 @@ vi.mock('@components/charts/backtest/ConditionalChart', () => ({
 }))
 
 const result = {
-  mode: 'dca',
   symbol: 'AAPL',
   startDate: '2023-01-01',
   endDate: '2024-01-01',
@@ -26,7 +25,7 @@ const result = {
   currentPrice: 170,
   currentFxRate: 1350,
   totalTransactions: 12,
-  transactions: [{ date: '2023-01-15', shares: 1, price: 140, amountKrw: 100000 }],
+  transactions: [{ date: '2023-01-15', shares: 1, price: 140, amount: 100000, fxRate: 1300 }],
 }
 
 const props = {
@@ -43,7 +42,7 @@ describe('DcaConditionalResult', () => {
   })
 
   it('조건부면 조건부 차트를 그린다', () => {
-    render(<DcaConditionalResult result={{ ...result, mode: 'conditional' }} mode="conditional" {...props} />)
+    render(<DcaConditionalResult result={result} mode="conditional" {...props} />)
 
     expect(screen.getByText('조건부 차트')).toBeInTheDocument()
   })

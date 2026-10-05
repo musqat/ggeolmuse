@@ -32,8 +32,8 @@ interface PurchasePoint {
 
 interface StrategyItem {
   name: string;
-  totalInvested: number;
-  currentValueKrw: number;
+  totalInvested?: number | null;
+  currentValueKrw?: number | null;
   additionalData?: {
     // StrategyResponse 필드
     symbol?: string;

@@ -1,13 +1,26 @@
 import React from 'react';
 import { TrendingUp, DollarSign, Zap, Activity } from 'lucide-react';
-import { formatKrw, formatPercent, formatSigned, gainLossClass } from '../../../utils/gainLoss';
-import type { ComparisonItem } from '../../../services/api';
+import {
+  formatKrw,
+  formatPercent,
+  formatSigned,
+  gainLossClass,
+  gainLossTone,
+  type GainLossTone,
+} from '../../../utils/gainLoss';
+import type { ComparisonItem, ComparisonResponse } from '../../../services/api';
 import type { OptimalPointsBySymbol } from '../shared/backtestDisplay';
 import { CompareSymbolsChartMemoized } from './CompareSymbolsChartMemoized';
 
+// 종목 카드의 수익 칸 배경. 값이 없으면 중립 배경
+const SOFT_BOX: Record<GainLossTone, string> = {
+  gain: "bg-green-500/10",
+  loss: "bg-red-500/10",
+  none: "bg-brand-bg",
+};
+
 interface SymbolComparisonResultProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  result: any;
+  result: ComparisonResponse;
   comparePurchaseDate: string;
   compareSaleDate: string;
   symbolOptimalPoints: OptimalPointsBySymbol;
@@ -103,7 +116,7 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
                   </p>
                 </div>
                 <div
-                  className={`${displayItem.totalReturnKrw >= 0 ? "bg-green-500/10" : "bg-red-500/10"} rounded-lg p-3`}
+                  className={`${SOFT_BOX[gainLossTone(displayItem.totalReturnKrw)]} rounded-lg p-3`}
                 >
                   <p
                     className={`text-xs ${gainLossClass(displayItem.totalReturnKrw)}`}
@@ -117,7 +130,7 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
                   </p>
                 </div>
                 <div
-                  className={`${displayItem.totalReturnPercent >= 0 ? "bg-green-500/10" : "bg-red-500/10"} rounded-lg p-3`}
+                  className={`${SOFT_BOX[gainLossTone(displayItem.totalReturnPercent)]} rounded-lg p-3`}
                 >
                   <p
                     className={`text-xs ${gainLossClass(displayItem.totalReturnPercent)}`}

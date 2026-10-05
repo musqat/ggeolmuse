@@ -44,3 +44,23 @@ describe('SymbolComparisonResult', () => {
     expect(screen.getAllByText('MSFT').length).toBeGreaterThan(0)
   })
 })
+
+describe('SymbolComparisonResult 값이 없을 때', () => {
+  it('총 수익이 비어 있으면 - 와 중립 배경을 쓴다', () => {
+    const missing = { ...result, items: [{ ...item('AAPL', 0, 0), totalReturnKrw: undefined }] }
+    render(
+      <SymbolComparisonResult
+        result={missing}
+        comparePurchaseDate="2023-01-03"
+        compareSaleDate=""
+        symbolOptimalPoints={{}}
+        setSymbolOptimalPoints={vi.fn()}
+      />
+    )
+
+    const label = screen.getAllByText('총 수익')[0]
+    const box = label.parentElement
+    expect(box).toHaveClass('bg-brand-bg')
+    expect(box).toHaveTextContent('-')
+  })
+})
