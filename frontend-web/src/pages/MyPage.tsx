@@ -179,7 +179,7 @@ const MyPage: React.FC = () => {
               <p className="text-tx-2">{user.email}</p>
             </div>
             {user.emailVerified && (
-              <div className="bg-green-500/100/15 px-3 py-1 rounded-full flex items-center space-x-1">
+              <div className="bg-green-500/15 px-3 py-1 rounded-full flex items-center space-x-1">
                 <Check className="w-4 h-4 text-green-600" />
                 <span className="text-sm font-medium text-green-600">
                   인증됨
@@ -279,7 +279,7 @@ const MyPage: React.FC = () => {
 
           <button
             onClick={() => setShowDeleteModal(true)}
-            className="w-full flex items-center justify-between p-4 bg-red-500/10 rounded-lg hover:bg-red-500/100/15 transition-colors border border-red-500/25"
+            className="w-full flex items-center justify-between p-4 bg-red-500/10 rounded-lg hover:bg-red-500/15 transition-colors border border-red-500/25"
           >
             <div className="flex items-center space-x-3">
               <Trash2 className="w-5 h-5 text-red-600" />

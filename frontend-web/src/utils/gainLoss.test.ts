@@ -25,7 +25,7 @@ describe('gainLoss', () => {
   })
 
   it('아이콘 배경도 이익·손실로 나눈다', () => {
-    expect(gainLossBoxClass(5)).toBe('bg-green-500/100/15')
-    expect(gainLossBoxClass(-5)).toBe('bg-red-500/100/15')
+    expect(gainLossBoxClass(5)).toBe('bg-green-500/15')
+    expect(gainLossBoxClass(-5)).toBe('bg-red-500/15')
   })
 })

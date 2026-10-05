@@ -121,7 +121,7 @@ export default function UserDetailSection({
                 <button
                   onClick={handleVerifyEmail}
                   disabled={loading}
-                  className="px-3 py-1 text-sm bg-green-500/100/15 text-green-600 rounded hover:bg-green-200 disabled:opacity-50 flex items-center gap-1"
+                  className="px-3 py-1 text-sm bg-green-500/15 text-green-600 rounded hover:bg-green-200 disabled:opacity-50 flex items-center gap-1"
                 >
                   <CheckCircle className="w-4 h-4" />
                   강제 인증
@@ -147,7 +147,7 @@ export default function UserDetailSection({
           <button
             onClick={() => setShowPasswordModal(true)}
             disabled={loading}
-            className="w-full px-4 py-2 bg-yellow-500/100/15 text-yellow-600 rounded-lg hover:bg-yellow-200 disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full px-4 py-2 bg-yellow-500/15 text-yellow-600 rounded-lg hover:bg-yellow-200 disabled:opacity-50 flex items-center justify-center gap-2"
           >
             <Lock className="w-4 h-4" />
             비밀번호 강제 변경

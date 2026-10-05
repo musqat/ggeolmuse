@@ -34,12 +34,12 @@ describe('StatCard 아이콘 틀', () => {
         label="수익률"
         value="-3.20%"
         icon={DollarSign}
-        iconBoxClassName="bg-red-500/100/15"
+        iconBoxClassName="bg-red-500/15"
         iconClassName="text-red-600"
       />
     )
 
-    expect(container.querySelector('svg')?.parentElement).toHaveClass('bg-red-500/100/15')
+    expect(container.querySelector('svg')?.parentElement).toHaveClass('bg-red-500/15')
     expect(container.querySelector('svg')).toHaveClass('text-red-600')
   })
 })

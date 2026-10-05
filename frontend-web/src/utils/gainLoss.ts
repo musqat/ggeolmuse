@@ -8,4 +8,4 @@ export const gainLossClass = (value: MaybeNumber) =>
   isGain(value) ? "text-green-600" : "text-red-600";
 
 export const gainLossBoxClass = (value: MaybeNumber) =>
-  isGain(value) ? "bg-green-500/100/15" : "bg-red-500/100/15";
+  isGain(value) ? "bg-green-500/15" : "bg-red-500/15";
