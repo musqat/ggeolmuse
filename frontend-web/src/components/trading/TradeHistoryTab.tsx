@@ -219,7 +219,7 @@ const TradeHistoryTab: React.FC = () => {
           {/* Dividends Only (when DIVIDEND filter is active) */}
           {groupedTransactions.dividendsOnly.map((dividend) => (
             <div key={`${dividend.tradeId}-${dividend.date}`} className="bg-surface rounded-lg shadow-sm border border-line/50 overflow-hidden">
-              <div className="p-3 bg-green-500/10 hover:bg-green-500/100/15 transition-colors">
+              <div className="p-3 bg-green-500/10 hover:bg-green-500/15 transition-colors">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <DollarSign className="w-5 h-5 text-green-600 flex-shrink-0" />
@@ -231,7 +231,7 @@ const TradeHistoryTab: React.FC = () => {
                           {new Date(dividend.date).toLocaleDateString('ko-KR')}
                         </span>
                         {accounts.find(acc => acc.accountId === dividend.accountId) && (
-                          <span className="text-xs px-2 py-0.5 bg-purple-500/100/15 text-purple-600 rounded">
+                          <span className="text-xs px-2 py-0.5 bg-purple-500/15 text-purple-600 rounded">
                             {accounts.find(acc => acc.accountId === dividend.accountId)!.accountName}
                           </span>
                         )}
@@ -267,7 +267,7 @@ const TradeHistoryTab: React.FC = () => {
                           {new Date(trade.date).toLocaleDateString('ko-KR')}
                         </span>
                         {accounts.find(acc => acc.accountId === trade.accountId) && (
-                          <span className="text-xs px-2 py-0.5 bg-purple-500/100/15 text-purple-600 rounded">
+                          <span className="text-xs px-2 py-0.5 bg-purple-500/15 text-purple-600 rounded">
                             {accounts.find(acc => acc.accountId === trade.accountId)!.accountName}
                           </span>
                         )}
@@ -289,7 +289,7 @@ const TradeHistoryTab: React.FC = () => {
                   {dividends.map((dividend) => (
                     <div
                       key={`${dividend.tradeId}-${dividend.date}`}
-                      className="p-3 pl-8 hover:bg-green-500/100/15 transition-colors"
+                      className="p-3 pl-8 hover:bg-green-500/15 transition-colors"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
@@ -334,7 +334,7 @@ const TradeHistoryTab: React.FC = () => {
                           {new Date(trade.date).toLocaleDateString('ko-KR')}
                         </span>
                         {accounts.find(acc => acc.accountId === trade.accountId) && (
-                          <span className="text-xs px-2 py-0.5 bg-purple-500/100/15 text-purple-600 rounded">
+                          <span className="text-xs px-2 py-0.5 bg-purple-500/15 text-purple-600 rounded">
                             {accounts.find(acc => acc.accountId === trade.accountId)!.accountName}
                           </span>
                         )}

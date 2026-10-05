@@ -552,17 +552,41 @@ export type SimulationRequest = BacktestCommonRequest & {
 };
 
 // 단순 시뮬레이션 응답
+// 단순 시뮬레이션 응답. backtest-service SimulationResponse 와 같은 칸이다.
+// 백엔드가 빈 칸을 null 로 보내서 숫자 · 날짜 칸은 null 일 수 있다. 날짜는 YYYY-MM-DD 문자열이다
 export type SimulationResponse = {
   symbol: string;
-  purchaseDate: string;                 // 매수일
-  saleDate?: string;                    // 매도일
-  currentValue: number;                 // 현재 가치
-  investmentAmount: number;             // 투자 금액
-  totalReturn: number;                  // 총 수익
-  totalReturnPercent: number;           // 총 수익률
-  daysHeld: number;                     // 보유 일수
-  optimalBuyDate?: string;              // 최적 매수일
-  optimalSellDate?: string;             // 최적 매도일
+  purchaseDate?: string | null;
+  currentDate?: string | null;
+  investmentAmount?: number | null;     // 투자 금액 (KRW)
+  purchasePrice?: number | null;        // 매수가 (USD)
+  shares?: number | null;
+  currentPrice?: number | null;         // 현재가 (USD)
+  currentValue?: number | null;         // 현재 가치 (USD)
+  stockReturn?: number | null;          // 주가 변동 (USD)
+  stockReturnPercent?: number | null;
+  purchaseFxRate?: number | null;
+  currentFxRate?: number | null;
+  fxReturn?: number | null;             // 환율 변동 (KRW)
+  fxReturnPercent?: number | null;
+  totalDividends?: number | null;       // 배당금 (USD)
+  dividendYield?: number | null;
+  tradingFee?: number | null;           // 매매 수수료 (USD)
+  remainingCash?: number | null;        // 매수 후 잔액 (USD)
+  totalReturn?: number | null;
+  totalReturnPercent?: number | null;
+  currentValueKrw?: number | null;
+  remainingCashKrw?: number | null;
+  totalAssetKrw?: number | null;        // 주식 가치 + 잔액 + 배당금 (KRW)
+  totalReturnKrw?: number | null;
+  performanceSummary?: string | null;
+  optimalBuyDate?: string | null;
+  optimalBuyPrice?: number | null;
+  optimalSellDate?: string | null;
+  optimalSellPrice?: number | null;
+  optimalReturnPercent?: number | null;
+  dividendsReinvested?: number | null;
+  dividendReinvestDates?: string[] | null;
 };
 
 // DCA(정기 적립) 전략 요청
@@ -640,14 +664,45 @@ export type OptimalTimingRequest = {
 };
 
 // 전략 응답
+// 적립식 · 조건부 전략의 매수 한 건. 거래가 일어난 건만 오므로 날짜 · 가격 · 수량은 늘 있다
+export type StrategyTransaction = {
+  date: string;                         // 계획된 매수일
+  actualDate?: string;                  // 실제 거래일 (주말 · 휴장일 조정)
+  price: number;                        // 주가 (USD)
+  shares: number;
+  amount: number;                       // 투자금 (KRW)
+  fxRate: number;
+  trigger?: string;                     // 적립식은 "월정액", 조건부는 "5%하락" 같은 값
+};
+
+// 적립식 · 조건부 전략 응답. backtest-service StrategyResponse 와 같은 칸이다
 export type StrategyResponse = {
   symbol: string;
-  strategyName: string;                 // 전략명
-  totalInvestment: number;              // 총 투자 금액
-  finalValue: number;                   // 최종 가치
-  totalReturn: number;                  // 총 수익
-  totalReturnPercent: number;           // 총 수익률
-  transactions?: number;                // 거래 횟수
+  startDate?: string | null;
+  endDate?: string | null;
+  strategyType?: string | null;
+  transactions?: StrategyTransaction[] | null;
+  totalTransactions?: number | null;
+  totalInvested?: number | null;        // 총 투자금 (KRW)
+  totalShares?: number | null;
+  averagePrice?: number | null;         // 평균 단가 (USD)
+  currentPrice?: number | null;
+  currentValue?: number | null;         // 현재 가치 (USD)
+  currentValueKrw?: number | null;
+  remainingCashKrw?: number | null;
+  totalAssetKrw?: number | null;
+  totalReturn?: number | null;          // 총 수익 (USD)
+  totalReturnPercent?: number | null;
+  totalReturnKrw?: number | null;
+  averageFxRate?: number | null;
+  currentFxRate?: number | null;
+  fxReturn?: number | null;
+  fxReturnPercent?: number | null;
+  totalDividends?: number | null;
+  dividendsReinvested?: number | null;
+  dividendYield?: number | null;
+  strategyDetails?: string | null;
+  performanceSummary?: string | null;
 };
 
 // 비교 항목
@@ -689,9 +744,18 @@ export type ComparisonItem = {
 };
 
 // 비교 응답
+// 종목 · 전략 비교 응답. backtest-service ComparisonResponse 와 같은 칸이다
 export type ComparisonResponse = {
+  comparisonType?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  investmentAmount?: number | null;
   items: ComparisonItem[];              // 비교 항목 목록
-  bestPerformer: ComparisonItem;        // 최고 성과 항목
+  bestPerformer?: ComparisonItem | null;
+  worstPerformer?: ComparisonItem | null;
+  averageReturn?: number | null;
+  medianReturn?: number | null;
+  summary?: string | null;
 };
 
 // 백테스트 히스토리

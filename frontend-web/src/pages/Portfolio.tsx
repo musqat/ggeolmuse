@@ -194,7 +194,7 @@ const Portfolio: React.FC = () => {
                   {(portfolioSummary?.totalUnrealizedPnL ?? 0) >= 0 ? '+' : ''}${portfolioSummary?.totalUnrealizedPnL?.toFixed(2) ?? '0.00'}
                 </p>
               </div>
-              <div className={`p-3 rounded-lg ${(portfolioSummary?.totalUnrealizedPnL ?? 0) >= 0 ? 'bg-green-500/100/15':'bg-red-500/100/15'}`}>
+              <div className={`p-3 rounded-lg ${(portfolioSummary?.totalUnrealizedPnL ?? 0) >= 0 ? 'bg-green-500/15':'bg-red-500/15'}`}>
                 {(portfolioSummary?.totalUnrealizedPnL ?? 0) >= 0 ? (
                   <TrendingUp className="w-6 h-6 text-green-600" />
                 ) : (
@@ -212,7 +212,7 @@ const Portfolio: React.FC = () => {
                   {(portfolioSummary?.totalReturnRate ?? 0) >= 0 ? '+' : ''}{portfolioSummary?.totalReturnRate?.toFixed(2) ?? '0.00'}%
                 </p>
               </div>
-              <div className={`p-3 rounded-lg ${(portfolioSummary?.totalReturnRate ?? 0) >= 0 ? 'bg-green-500/100/15':'bg-red-500/100/15'}`}>
+              <div className={`p-3 rounded-lg ${(portfolioSummary?.totalReturnRate ?? 0) >= 0 ? 'bg-green-500/15':'bg-red-500/15'}`}>
                 {(portfolioSummary?.totalReturnRate ?? 0) >= 0 ? (
                   <ArrowUpCircle className="w-6 h-6 text-green-600" />
                 ) : (

@@ -65,7 +65,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
         <div className="grid grid-cols-3 gap-2 pt-3 border-t">
           <button
             onClick={() => onDeposit(account.accountId)}
-            className="w-full flex items-center justify-center space-x-1 py-2 px-2 bg-green-500/10 text-green-600 rounded-lg hover:bg-green-500/100/15 transition-colors"
+            className="w-full flex items-center justify-center space-x-1 py-2 px-2 bg-green-500/10 text-green-600 rounded-lg hover:bg-green-500/15 transition-colors"
           >
             <ArrowDownRight className="w-4 h-4" />
             <span className="text-sm font-medium">입금</span>
@@ -79,7 +79,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
           </button>
           <button
             onClick={() => onDelete(account.accountId)}
-            className="w-full flex items-center justify-center space-x-1 py-2 px-2 bg-red-500/10 text-red-600 rounded-lg hover:bg-red-500/100/15 transition-colors"
+            className="w-full flex items-center justify-center space-x-1 py-2 px-2 bg-red-500/10 text-red-600 rounded-lg hover:bg-red-500/15 transition-colors"
           >
             <Trash2 className="w-4 h-4" />
             <span className="text-sm font-medium">삭제</span>
