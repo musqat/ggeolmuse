@@ -23,3 +23,17 @@ describe('StrategyComparisonResult', () => {
     expect(screen.getAllByText('적립식').length).toBeGreaterThan(0)
   })
 })
+
+describe('StrategyComparisonResult 값이 없을 때', () => {
+  it('수익이 비어 있으면 회색 - 로 보여준다', () => {
+    const missing = {
+      ...result,
+      items: [{ name: 'CONDITIONAL_PURCHASE', totalInvested: 1000000, currentValueKrw: 1000000, totalReturnPercent: 0 }],
+    }
+    render(<StrategyComparisonResult result={missing} />)
+
+    const dashes = screen.getAllByText('-')
+    expect(dashes.length).toBeGreaterThan(0)
+    expect(dashes[0]).toHaveClass('text-tx-3')
+  })
+})

@@ -1,5 +1,6 @@
 import React from 'react';
 import { TrendingUp, DollarSign, Zap, Activity } from 'lucide-react';
+import { formatKrw, formatPercent, formatSigned, gainLossClass } from '../../../utils/gainLoss';
 import type { ComparisonItem } from '../../../services/api';
 import type { OptimalPointsBySymbol } from '../shared/backtestDisplay';
 import { CompareSymbolsChartMemoized } from './CompareSymbolsChartMemoized';
@@ -37,8 +38,7 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
             <div className="text-right">
               <p className="text-sm text-yellow-600">수익률</p>
               <p className="text-4xl font-bold text-yellow-900">
-                {result.bestPerformer.totalReturnPercent >= 0 ? "+" : ""}
-                {result.bestPerformer.totalReturnPercent?.toFixed(2)}%
+                {formatSigned(result.bestPerformer.totalReturnPercent, formatPercent)}
               </p>
             </div>
           </div>
@@ -106,30 +106,28 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
                   className={`${displayItem.totalReturnKrw >= 0 ? "bg-green-500/10" : "bg-red-500/10"} rounded-lg p-3`}
                 >
                   <p
-                    className={`text-xs ${displayItem.totalReturnKrw >= 0 ? "text-green-600" : "text-red-600"}`}
+                    className={`text-xs ${gainLossClass(displayItem.totalReturnKrw)}`}
                   >
                     총 수익
                   </p>
                   <p
-                    className={`text-lg font-bold ${displayItem.totalReturnKrw >= 0 ? "text-green-600" : "text-red-600"}`}
+                    className={`text-lg font-bold ${gainLossClass(displayItem.totalReturnKrw)}`}
                   >
-                    {displayItem.totalReturnKrw >= 0 ? "+" : ""}₩
-                    {displayItem.totalReturnKrw?.toLocaleString()}
+                    {formatSigned(displayItem.totalReturnKrw, formatKrw)}
                   </p>
                 </div>
                 <div
                   className={`${displayItem.totalReturnPercent >= 0 ? "bg-green-500/10" : "bg-red-500/10"} rounded-lg p-3`}
                 >
                   <p
-                    className={`text-xs ${displayItem.totalReturnPercent >= 0 ? "text-green-600" : "text-red-600"}`}
+                    className={`text-xs ${gainLossClass(displayItem.totalReturnPercent)}`}
                   >
                     수익률
                   </p>
                   <p
-                    className={`text-lg font-bold ${displayItem.totalReturnPercent >= 0 ? "text-green-600" : "text-red-600"}`}
+                    className={`text-lg font-bold ${gainLossClass(displayItem.totalReturnPercent)}`}
                   >
-                    {displayItem.totalReturnPercent >= 0 ? "+" : ""}
-                    {displayItem.totalReturnPercent?.toFixed(2)}%
+                    {formatSigned(displayItem.totalReturnPercent, formatPercent)}
                   </p>
                 </div>
               </div>
@@ -214,10 +212,9 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
                     <div className="flex justify-between">
                       <span className={`text-tx-2`}>환차익률</span>
                       <span
-                        className={`font-bold ${(displayItem.fxReturnPercent || 0) >= 0 ? "text-green-600" : "text-red-600"}`}
+                        className={`font-bold ${gainLossClass(displayItem.fxReturnPercent)}`}
                       >
-                        {(displayItem.fxReturnPercent || 0) >= 0 ? "+" : ""}
-                        {displayItem.fxReturnPercent?.toFixed(2)}%
+                        {formatSigned(displayItem.fxReturnPercent, formatPercent)}
                       </span>
                     </div>
                   </div>

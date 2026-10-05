@@ -30,3 +30,13 @@ describe('SimpleResult', () => {
     expect(screen.getByTestId('backtest-return-rate')).toBeInTheDocument()
   })
 })
+
+describe('SimpleResult 값이 없을 때', () => {
+  it('환율 변동이 비어 있으면 회색 - 로 보여준다', () => {
+    render(<SimpleResult result={{ ...result, fxReturn: undefined }} symbol="AAPL" purchaseDate="2023-01-03" />)
+
+    const row = screen.getByText('환율 변동').parentElement
+    expect(row).toHaveTextContent('환율 변동-')
+    expect(row?.lastElementChild).toHaveClass('text-tx-3')
+  })
+})

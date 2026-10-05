@@ -1,7 +1,15 @@
 import React from 'react';
 import { TrendingUp, TrendingDown, DollarSign, Zap, Activity, Repeat } from 'lucide-react';
 import { SimpleChart } from '@components/charts/backtest/SimpleChart';
-import { gainLossBoxClass, gainLossClass, isGain, signPrefix } from '../../../utils/gainLoss';
+import {
+  formatKrw,
+  formatPercent,
+  formatSigned,
+  formatUsd,
+  gainLossBoxClass,
+  gainLossClass,
+  gainLossTone,
+} from '../../../utils/gainLoss';
 import { StatCard } from './StatCard';
 import { DetailRow, DetailSection } from './DetailSection';
 
@@ -38,13 +46,10 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
         <StatCard
           label="총 수익"
           value={
-            <>
-              {signPrefix(result.totalReturnKrw)}₩
-              {result.totalReturnKrw?.toLocaleString()}
-            </>
+            formatSigned(result.totalReturnKrw, formatKrw)
           }
           valueClassName={gainLossClass(result.totalReturnKrw)}
-          icon={isGain(result.totalReturnKrw) ? TrendingUp : TrendingDown}
+          icon={gainLossTone(result.totalReturnKrw) === "loss" ? TrendingDown : TrendingUp}
           iconBoxClassName={gainLossBoxClass(result.totalReturnKrw)}
           iconClassName={gainLossClass(result.totalReturnKrw)}
         />
@@ -52,10 +57,7 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
         <StatCard
           label="수익률"
           value={
-            <>
-              {signPrefix(result.totalReturnPercent)}
-              {result.totalReturnPercent?.toFixed(2)}%
-            </>
+            formatSigned(result.totalReturnPercent, formatPercent)
           }
           valueClassName={gainLossClass(result.totalReturnPercent)}
           icon={Activity}
@@ -93,10 +95,7 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
           <DetailRow
             label="총 수익"
             value={
-              <>
-                {signPrefix(result.totalReturnKrw)}₩
-                {result.totalReturnKrw?.toLocaleString()}
-              </>
+              formatSigned(result.totalReturnKrw, formatKrw)
             }
             valueClassName={`font-bold ${gainLossClass(result.totalReturnKrw)}`}
             last
@@ -110,20 +109,14 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
           <DetailRow
             label="주가 변동"
             value={
-              <>
-                {signPrefix(result.stockReturn)}$
-                {result.stockReturn?.toFixed(2)}
-              </>
+              formatSigned(result.stockReturn, formatUsd)
             }
             valueClassName={`font-medium ${gainLossClass(result.stockReturn)}`}
           />
           <DetailRow
             label="주식 수익률"
             value={
-              <>
-                {signPrefix(result.stockReturnPercent)}
-                {result.stockReturnPercent?.toFixed(2)}%
-              </>
+              formatSigned(result.stockReturnPercent, formatPercent)
             }
             valueClassName={`font-bold ${gainLossClass(result.stockReturnPercent)}`}
           />
@@ -148,10 +141,7 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
           <DetailRow
             label="환율 변동"
             value={
-              <>
-                {signPrefix(result.fxReturn)}₩
-                {result.fxReturn?.toFixed(2)}
-              </>
+              formatSigned(result.fxReturn, (v) => `₩${v.toFixed(2)}`)
             }
             valueClassName={`font-medium ${gainLossClass(result.fxReturn)}`}
             dividerClassName="border-line"
@@ -159,10 +149,7 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
           <DetailRow
             label="환차익률"
             value={
-              <>
-                {signPrefix(result.fxReturnPercent)}
-                {result.fxReturnPercent?.toFixed(2)}%
-              </>
+              formatSigned(result.fxReturnPercent, formatPercent)
             }
             valueClassName={`font-bold ${gainLossClass(result.fxReturnPercent)}`}
             last

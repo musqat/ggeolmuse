@@ -2,6 +2,7 @@ import React from 'react';
 import { CompareStrategiesChart } from '@components/charts/backtest/CompareStrategiesChart';
 import type { ComparisonItem } from '../../../services/api';
 import { STRATEGY_NAMES } from '../shared/backtestDisplay';
+import { formatKrw, formatPercent, formatSigned, gainLossClass } from '../../../utils/gainLoss';
 
 interface StrategyComparisonResultProps {
   // 페이지가 결과를 any 로 들고 있다
@@ -32,8 +33,7 @@ export const StrategyComparisonResult: React.FC<StrategyComparisonResultProps> =
             <div className="text-right">
               <p className="text-sm text-yellow-600">수익률</p>
               <p className="text-2xl font-bold text-yellow-900">
-                {result.bestPerformer.totalReturnPercent >= 0 ? "+" : ""}
-                {result.bestPerformer.totalReturnPercent?.toFixed(2)}%
+                {formatSigned(result.bestPerformer.totalReturnPercent, formatPercent)}
               </p>
             </div>
           </div>
@@ -82,24 +82,14 @@ export const StrategyComparisonResult: React.FC<StrategyComparisonResultProps> =
                     ₩{item.currentValueKrw?.toLocaleString()}
                   </td>
                   <td
-                    className={`py-3 px-4 text-right font-medium ${
-                      item.totalReturnKrw >= 0
-                        ? "text-green-600"
-                        : "text-red-600"
-                    }`}
+                    className={`py-3 px-4 text-right font-medium ${gainLossClass(item.totalReturnKrw)}`}
                   >
-                    {item.totalReturnKrw >= 0 ? "+" : ""}₩
-                    {item.totalReturnKrw?.toLocaleString()}
+                    {formatSigned(item.totalReturnKrw, formatKrw)}
                   </td>
                   <td
-                    className={`py-3 px-4 text-right font-bold ${
-                      item.totalReturnPercent >= 0
-                        ? "text-green-600"
-                        : "text-red-600"
-                    }`}
+                    className={`py-3 px-4 text-right font-bold ${gainLossClass(item.totalReturnPercent)}`}
                   >
-                    {item.totalReturnPercent >= 0 ? "+" : ""}
-                    {item.totalReturnPercent?.toFixed(2)}%
+                    {formatSigned(item.totalReturnPercent, formatPercent)}
                   </td>
                 </tr>
               );
