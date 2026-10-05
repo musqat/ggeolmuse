@@ -90,7 +90,7 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
       const response = await stockApi.getOHLCData(symbol, startDate, today);
 
       // API는 List<OHLCPriceDto>를 반환 (flat 배열)
-      let ohlcData = null;
+      let ohlcData: RawOhlc[] | null = null;
 
       if (Array.isArray(response.data)) {
         ohlcData = (response.data as RawOhlc[]).filter((item) => item.symbol === symbol);
