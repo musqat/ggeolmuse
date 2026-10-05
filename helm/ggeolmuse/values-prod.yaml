@@ -338,7 +338,7 @@ frontend:
   replicaCount: 1
   image:
     repository: frontend-web
-    tag: "1.2.14"
+    tag: "1.2.15"
   service:
     type: LoadBalancer
     port: 3000
