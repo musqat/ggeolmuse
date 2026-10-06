@@ -1,11 +1,21 @@
 name: E2E
 
-# master 에 들어온 뒤 돈다. Yahoo Finance에 의존하는 스위트라 PR 게이트로 두지 않는다
+# PR 과 master push 에서 돈다. Yahoo Finance에 의존하는 스위트라 필수 체크로는 두지 않는다
 # 이미지는 머지 뒤 손으로 올리므로 8분 안에 끝나면 배포 전에 결과가 나온다
 on:
+  pull_request:
+    branches: [ master ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
   push:
     branches: [ master ]
   workflow_dispatch:
+
+# 같은 PR 에 새 커밋이 오면 이전 실행을 멈춘다. master 는 머지마다 끝까지 돈다
+concurrency:
+  group: e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   e2e:
