@@ -22,11 +22,11 @@ public class TradeUtils {
   private final TradeLogger tradeLogger;
   private final TradeProperties tradeProperties;
 
-  // 거래 수수료 계산
+  // 거래 수수료 계산. 비율이 0 이면 수수료도 0 이고, 비율이 없거나 음수일 때만 기본 비율을 쓴다
   public BigDecimal calculateFee(AccountBalanceDto accountBalance, BigDecimal tradeAmount) {
     BigDecimal commissionRate = accountBalance.getCommissionRate();
 
-    if (commissionRate != null && commissionRate.compareTo(BigDecimal.ZERO) > 0) {
+    if (commissionRate != null && commissionRate.signum() >= 0) {
       BigDecimal fee = tradeAmount.multiply(commissionRate)
         .setScale(tradeProperties.getCalculation().getPricePrecision(), RoundingMode.HALF_UP);
 
@@ -67,48 +67,5 @@ public class TradeUtils {
     }
     tradeLogger.logBalanceCheck(userId, accountId, totalAmount,
       accountBalance.getBalanceUsd(), true);
-  }
-
-  // 잔액 변경 실행
-  public void executeBalanceUpdate(String accountId, BigDecimal amount, String tradeType,
-    String symbol, BigDecimal quantity) {
-    try {
-      log.info("{} 잔액 변경 요청: accountId={}, amount={}", tradeType, accountId, amount);
-      String description = String.format("Stock %s: %s x %s",
-        tradeType.toLowerCase(), symbol, quantity);
-
-      userServiceClientWrapper.updateTradeBalance(
-        Long.valueOf(accountId), amount, tradeType, description);
-
-      log.info("{} 잔액 변경 성공: accountId={}, amount={}", tradeType, accountId, amount);
-    } catch (Exception e) {
-      log.error("{} 잔액 변경 중 오류: accountId={}, amount={}", tradeType, accountId, amount, e);
-      throw new RuntimeException(tradeType + " 잔액 변경 실패", e);
-    }
-  }
-
-  // 보상 트랜잭션 실행
-  public void executeCompensationTransaction(String accountId, BigDecimal originalAmount,
-    String compensationType, String symbol, BigDecimal quantity) {
-    try {
-      log.warn("보상 트랜잭션 실행: accountId={}, amount={}, type={}",
-        accountId, originalAmount, compensationType);
-
-      BigDecimal compensationAmount = compensationType.equals("BUY")
-        ? originalAmount.negate()  // 매수 실패시 차감했던 금액 복구
-        : originalAmount.negate(); // 매도 실패시 추가했던 금액 차감
-
-      String description = String.format("Failed %s compensation: %s x %s",
-        compensationType.toLowerCase(), symbol, quantity);
-
-      userServiceClientWrapper.updateTradeBalance(
-        Long.valueOf(accountId), compensationAmount, "COMPENSATION", description);
-
-      log.info("보상 트랜잭션 완료: accountId={}, compensationAmount={}",
-        accountId, compensationAmount);
-    } catch (Exception compensationError) {
-      log.error("보상 트랜잭션 실패! 수동 개입 필요: accountId={}, amount={}, type={}",
-        accountId, originalAmount, compensationType, compensationError);
-    }
   }
 }

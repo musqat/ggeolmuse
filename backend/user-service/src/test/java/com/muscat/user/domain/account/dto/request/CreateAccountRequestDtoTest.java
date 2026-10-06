@@ -56,4 +56,28 @@ class CreateAccountRequestDtoTest {
       .extracting(violation -> violation.getPropertyPath().toString())
       .containsExactly("slippageRate");
   }
+
+  @Test
+  @DisplayName("슬리피지율이 음수면 거절한다")
+  void slippageRate_Negative_IsRejected() {
+    Set<ConstraintViolation<CreateAccountRequestDto>> violations =
+      validator.validate(request(new BigDecimal("-0.001")));
+
+    assertThat(violations)
+      .extracting(violation -> violation.getPropertyPath().toString())
+      .containsExactly("slippageRate");
+  }
+
+  @Test
+  @DisplayName("수수료율이 음수면 거절한다")
+  void commissionRate_Negative_IsRejected() {
+    CreateAccountRequestDto request = request(null);
+    request.setCommissionRate(new BigDecimal("-0.001"));
+
+    Set<ConstraintViolation<CreateAccountRequestDto>> violations = validator.validate(request);
+
+    assertThat(violations)
+      .extracting(violation -> violation.getPropertyPath().toString())
+      .containsExactly("commissionRate");
+  }
 }

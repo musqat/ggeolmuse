@@ -2,12 +2,14 @@ import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { TrendingUp, TrendingDown, DollarSign, Package } from "lucide-react";
 import { tradeApi } from "../../services/api";
+import { toBackendPriceType, type PriceType } from "@/utils/priceUtils";
 
 interface TradingCapacityPanelProps {
   accountId: number | null;
   symbol: string;
   tradeDate: string;
   orderType: "buy" | "sell";
+  priceType: PriceType;
   currentPrice: number;
 }
 
@@ -16,16 +18,24 @@ const TradingCapacityPanel: React.FC<TradingCapacityPanelProps> = ({
   symbol,
   tradeDate,
   orderType,
+  priceType,
   currentPrice,
 }) => {
-  // React Query: 거래 가능 수량 조회
+  const isLimit = priceType === "limit";
+
+  // React Query: 거래 가능 수량 조회. 매수 수량은 주문과 같은 가격 유형으로 센다
   const { data: capacity = null, isLoading: loading } = useQuery({
-    queryKey: ["trade", "capacity", accountId, symbol, tradeDate, orderType],
+    queryKey: [
+      "trade", "capacity", accountId, symbol, tradeDate, orderType, priceType,
+      isLimit ? currentPrice : null,
+    ],
     queryFn: async () => {
       const payload = {
         accountId: String(accountId),
         symbol,
         tradeDate: tradeDate,
+        priceType: toBackendPriceType(priceType),
+        manualPrice: isLimit ? currentPrice : undefined,
       };
 
       if (orderType === "buy") {
@@ -88,8 +98,9 @@ const TradingCapacityPanel: React.FC<TradingCapacityPanelProps> = ({
         </div>
 
         <div className="mt-3 p-2 bg-green-500/15 rounded text-xs text-green-600">
-          현재가 ${currentPrice.toFixed(2)} 기준 최대{" "}
-          {capacity.maxShares?.toFixed(2) || "0"}주 매수 가능
+          {`${isLimit ? "지정가" : "기준가"} $${currentPrice.toFixed(2)} · ${
+            isLimit ? "수수료" : "슬리피지·수수료"
+          } 포함 최대 ${capacity.maxShares?.toFixed(2) || "0"}주 매수 가능`}
         </div>
       </div>
     );

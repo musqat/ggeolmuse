@@ -10,7 +10,7 @@ import {
   ResponsiveContainer,
   ReferenceDot
 } from 'recharts';
-import { stockApi } from '../../../services/api';
+import { stockApi, type ComparisonDetail } from '../../../services/api';
 import type { OHLCData } from '../../../types/ohlc';
 import { useChartPeriod } from '../common/hooks/useChartPeriod';
 import { ChartPeriodSelector } from '../common/components/ChartPeriodSelector';
@@ -34,27 +34,8 @@ interface StrategyItem {
   name: string;
   totalInvested?: number | null;
   currentValueKrw?: number | null;
-  additionalData?: {
-    // StrategyResponse 필드
-    symbol?: string;
-    startDate?: string;
-    endDate?: string;
-    transactions?: Array<{
-      date: string;
-      actualDate?: string;
-      price: number;
-      shares: number;
-      amount: number;
-      fxRate: number;
-    }>;
-    // SimulationResponse 필드 (SIMPLE 전략용)
-    purchaseDate?: string;
-    currentDate?: string;
-    investmentAmount?: number;
-    purchasePrice?: number;
-    shares?: number;
-    purchaseFxRate?: number;
-  };
+  // 적립식 · 조건부는 StrategyResponse, 단순 매수는 SimulationResponse 칸이 온다
+  additionalData?: ComparisonDetail | null;
 }
 
 interface StockPriceWithStrategyChartProps {

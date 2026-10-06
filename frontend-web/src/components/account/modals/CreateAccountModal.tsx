@@ -7,6 +7,16 @@ interface CreateAccountModalProps {
   onSubmit: (accountName: string, commissionRate: number, slippageRate: number) => Promise<void>;
 }
 
+// 비율 칸에 음수가 들어가지 않게 '-' 입력과 '-' 가 든 붙여넣기를 막는다
+const blockMinus = {
+  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === '-') e.preventDefault();
+  },
+  onPaste: (e: React.ClipboardEvent<HTMLInputElement>) => {
+    if (e.clipboardData.getData('text').includes('-')) e.preventDefault();
+  },
+};
+
 /**
  * 계좌 생성 모달 컴포넌트
  * 계좌명, 거래 수수료율, 슬리피지율을 입력받아 새 계좌를 생성합니다.
@@ -113,16 +123,18 @@ const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-tx-1 mb-2">
+          <label htmlFor="commission-rate" className="block text-sm font-medium text-tx-1 mb-2">
             거래 수수료 (%)
           </label>
           <input
+            id="commission-rate"
             type="number"
             step="0.01"
             min="0"
             max="5"
             value={commissionRate}
             onChange={(e) => setCommissionRate(e.target.value)}
+            {...blockMinus}
             className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
           />
           <p className="text-xs text-tx-2 mt-1">0 ~ 5% 사이의 값을 입력하세요</p>
@@ -140,6 +152,7 @@ const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
             max="1"
             value={slippageRate}
             onChange={(e) => setSlippageRate(e.target.value)}
+            {...blockMinus}
             className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
           />
           <p className="text-xs text-tx-2 mt-1">0 ~ 1%. 매수는 이만큼 비싸게, 매도는 싸게 체결됩니다</p>

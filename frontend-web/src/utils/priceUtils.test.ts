@@ -4,6 +4,7 @@ import {
   validatePriceRange,
   formatPrice,
   calculateTotalAmount,
+  toBackendPriceType,
   type OHLCData,
 } from './priceUtils'
 
@@ -76,5 +77,18 @@ describe('calculateTotalAmount', () => {
   it('가격 곱하기 수량', () => {
     expect(calculateTotalAmount(110, 3)).toBe(330)
     expect(calculateTotalAmount(110, 0)).toBe(0)
+  })
+})
+
+describe('toBackendPriceType', () => {
+  it('시가·고가·저가·종가는 대문자로 바꾼다', () => {
+    expect(toBackendPriceType('open')).toBe('OPEN')
+    expect(toBackendPriceType('high')).toBe('HIGH')
+    expect(toBackendPriceType('low')).toBe('LOW')
+    expect(toBackendPriceType('close')).toBe('CLOSE')
+  })
+
+  it('지정가는 MANUAL 이다', () => {
+    expect(toBackendPriceType('limit')).toBe('MANUAL')
   })
 })

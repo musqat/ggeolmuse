@@ -38,4 +38,26 @@ describe('CreateAccountModal', () => {
     expect(alert).toHaveBeenCalledWith('슬리피지율은 0 ~ 1% 사이여야 합니다. (입력값: 1.5%)')
     expect(onSubmit).not.toHaveBeenCalled()
   })
+
+  it('수수료율·슬리피지율 칸에는 - 를 입력할 수 없다', async () => {
+    renderModal()
+
+    for (const label of ['거래 수수료 (%)', '슬리피지 (%)']) {
+      const input = screen.getByLabelText(label)
+      await userEvent.clear(input)
+      await userEvent.type(input, '-0.5')
+
+      expect(input).toHaveValue(0.5)
+    }
+  })
+
+  it('- 가 든 값은 붙여 넣어도 들어가지 않는다', async () => {
+    renderModal()
+
+    const commission = screen.getByLabelText('거래 수수료 (%)')
+    await userEvent.clear(commission)
+    await userEvent.paste('-1')
+
+    expect(commission).toHaveValue(null)
+  })
 })

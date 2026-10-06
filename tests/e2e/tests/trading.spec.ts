@@ -124,14 +124,21 @@ test('입금하고 사면 보유 종목과 거래 내역에 남는다', async ()
   const maxShares = Number(cap.maxShares);
   expect(price, '현재가가 없다').toBeGreaterThan(0);
 
-  // 요청 금액이 잔고보다 커도 잔고 이상은 못 산다.
+  // 최대 수량의 총액은 슬리피지와 수수료까지 넣어도 잔고 안에 든다.
   expect(
-    maxShares * price,
-    `잔고 ${balance} 인데 ${maxShares}주(${maxShares * price})까지 살 수 있다고 한다`
+    Number(cap.totalValue),
+    `잔고 ${balance} 인데 ${maxShares}주 총액이 ${cap.totalValue} 이다`
   ).toBeLessThanOrEqual(balance);
 
-  // 한 주 더 사면 잔고를 넘어야 한다. 그래야 최대치가 맞는 것이다.
-  expect((maxShares + 1) * price, '최대 매수 가능 수량이 실제보다 적다').toBeGreaterThan(balance);
+  // 한 주 더 사면 실제 매수가 잔액 부족으로 막혀야 최대치가 맞는 것이다.
+  // 잔액 검사는 체결 전이라 막힌 주문은 잔고와 보유를 바꾸지 않는다.
+  const oneMore = await auth.post(`${API_URL}/trade/buy`, {
+    data: { ...order, quantity: maxShares + 1 },
+  });
+  expect(
+    oneMore.status(),
+    `${maxShares + 1}주 매수가 막히지 않았다: ${await oneMore.text()}`
+  ).toBe(400);
 
   const canSell = await auth.post(`${API_URL}/trade/can-sell`, {
     data: { accountId, symbol, tradeDate, quantity: 1 },

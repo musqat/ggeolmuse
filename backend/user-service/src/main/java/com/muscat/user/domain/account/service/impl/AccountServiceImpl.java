@@ -464,15 +464,8 @@ public class AccountServiceImpl implements AccountService {
     // 1. 사용자 ID 조회
     Long userId = resolveUserId(event.getUserId());
 
-    // 2. 사용자의 계좌 조회 (첫 번째 계좌 사용)
-    List<Account> accounts = accountRepository.findByUserIdWithUser(userId);
-    if (accounts.isEmpty()) {
-      log.error("사용자의 계좌가 존재하지 않음: userId={}", userId);
-      throw new AccountException(AccountResponse.ACCOUNT_NOT_FOUND);
-    }
-
-    Account account = accounts.getFirst(); // 첫 번째 계좌 사용
-    log.debug("계좌 선택: accountId={}, accountNumber={}", account.getId(), account.getAccountNumber());
+    // 2. 거래한 계좌. 소유자 확인은 updateUsdBalance 가 한다
+    Long accountId = resolveTradeAccountId(event.getAccountId(), userId, event.getTradeId());
 
     // 3. 거래 타입에 따라 잔액 변경 금액 계산
     // BUY: 사용자가 USD를 지불하고 주식을 구매 -> USD 잔액 감소 (음수)
@@ -497,14 +490,14 @@ public class AccountServiceImpl implements AccountService {
 
     // 4. 기존 updateUsdBalance 메서드 재사용
     try {
-      updateUsdBalance(account.getId(), userId, balanceChange, description);
+      updateUsdBalance(accountId, userId, balanceChange, description);
 
       log.info("거래 이벤트 처리 완료: tradeId={}, userId={}, accountId={}, balanceChange={}",
-        event.getTradeId(), userId, account.getId(), balanceChange);
+        event.getTradeId(), userId, accountId, balanceChange);
 
     } catch (AccountException e) {
       log.error("잔액 업데이트 실패: tradeId={}, userId={}, accountId={}, error={}",
-        event.getTradeId(), userId, account.getId(), e.getMessage());
+        event.getTradeId(), userId, accountId, e.getMessage());
       throw e;
     }
   }
@@ -522,15 +515,8 @@ public class AccountServiceImpl implements AccountService {
     // 1. 사용자 ID 조회
     Long userId = resolveUserId(event.getUserId());
 
-    // 2. 사용자의 계좌 조회 (첫 번째 계좌 사용)
-    List<Account> accounts = accountRepository.findByUserIdWithUser(userId);
-    if (accounts.isEmpty()) {
-      log.error("사용자의 계좌가 존재하지 않음: userId={}", userId);
-      throw new AccountException(AccountResponse.ACCOUNT_NOT_FOUND);
-    }
-
-    Account account = accounts.getFirst(); // 첫 번째 계좌 사용
-    log.debug("계좌 선택: accountId={}, accountNumber={}", account.getId(), account.getAccountNumber());
+    // 2. 거래한 계좌. 소유자 확인은 updateUsdBalance 가 한다
+    Long accountId = resolveTradeAccountId(event.getAccountId(), userId, event.getTradeId());
 
     // 3. 거래 취소를 위한 잔액 변경 계산 (원래 거래의 반대)
     // 원래 BUY였으면: USD가 감소했었음 -> 다시 증가시켜야 함 (양수)
@@ -560,18 +546,33 @@ public class AccountServiceImpl implements AccountService {
 
     // 4. 잔액 원복 (보상 트랜잭션)
     try {
-      updateUsdBalance(account.getId(), userId, compensationAmount, description);
+      updateUsdBalance(accountId, userId, compensationAmount, description);
 
       log.info(
         "거래 취소 이벤트 처리 완료 (잔액 원복): tradeId={}, userId={}, accountId={}, compensationAmount={}, originalEventId={}",
-        event.getTradeId(), userId, account.getId(), compensationAmount,
+        event.getTradeId(), userId, accountId, compensationAmount,
         event.getOriginalEventId());
 
     } catch (AccountException e) {
       log.error("보상 트랜잭션 실패: tradeId={}, userId={}, accountId={}, error={}",
-        event.getTradeId(), userId, account.getId(), e.getMessage());
+        event.getTradeId(), userId, accountId, e.getMessage());
       throw e;
     }
+  }
+
+  // 거래가 일어난 계좌 ID. 계좌 ID 를 싣기 전에 나간 이벤트는 사용자의 첫 번째 계좌로 처리한다
+  private Long resolveTradeAccountId(Long eventAccountId, Long userId, Long tradeId) {
+    if (eventAccountId != null) {
+      return eventAccountId;
+    }
+
+    log.warn("계좌 ID 가 없는 거래 이벤트라 첫 번째 계좌로 처리: tradeId={}, userId={}", tradeId, userId);
+    List<Account> accounts = accountRepository.findByUserIdWithUser(userId);
+    if (accounts.isEmpty()) {
+      log.error("사용자의 계좌가 존재하지 않음: userId={}", userId);
+      throw new AccountException(AccountResponse.ACCOUNT_NOT_FOUND);
+    }
+    return accounts.getFirst().getId();
   }
 
   /**

@@ -14,6 +14,7 @@ import static org.mockito.Mockito.verify;
 import com.muscat.commonlib.dto.FxRateDto;
 import com.muscat.messaging.event.DividendReceivedEvent;
 import com.muscat.messaging.event.TradeCancelledEvent;
+import com.muscat.messaging.event.TradeCompletedEvent;
 import com.muscat.user.common.enums.responses.AccountResponse;
 import com.muscat.user.common.exceptions.AccountException;
 import com.muscat.user.common.logging.UserLogger;
@@ -882,6 +883,58 @@ class AccountServiceImplTest {
         .isInstanceOf(AccountException.class)
         .hasMessage(AccountResponse.INVALID_TRANSACTION_TYPE.getMessage());
     }
+
+    @Test
+    @DisplayName("거래한 계좌의 잔액을 바꾼다")
+    void processTradeEvent_UsesEventAccount() {
+      // given
+      Account firstAccount = usdAccount(10L, testUser, "1000.00");
+      Account tradedAccount = usdAccount(20L, testUser, "1000.00");
+      given(accountRepository.findByUserIdWithUser(userId))
+        .willReturn(Arrays.asList(firstAccount, tradedAccount));
+      given(accountRepository.findByIdWithLock(20L)).willReturn(Optional.of(tradedAccount));
+
+      // when
+      accountService.processTradeEvent(buyEvent(20L, "90.02"));
+
+      // then
+      assertThat(tradedAccount.getBalanceUsd()).isEqualByComparingTo("909.98");
+      assertThat(firstAccount.getBalanceUsd()).isEqualByComparingTo("1000.00");
+    }
+
+    @Test
+    @DisplayName("계좌 ID 가 없는 예전 이벤트는 첫 번째 계좌에 반영한다")
+    void processTradeEvent_NoAccountId_UsesFirstAccount() {
+      // given
+      Account firstAccount = usdAccount(10L, testUser, "1000.00");
+      given(accountRepository.findByUserIdWithUser(userId)).willReturn(List.of(firstAccount));
+      given(accountRepository.findByIdWithLock(10L)).willReturn(Optional.of(firstAccount));
+
+      // when
+      accountService.processTradeEvent(buyEvent(null, "90.02"));
+
+      // then
+      assertThat(firstAccount.getBalanceUsd()).isEqualByComparingTo("909.98");
+    }
+
+    @Test
+    @DisplayName("다른 사용자의 계좌면 거절한다")
+    void processTradeEvent_OtherUsersAccount_ThrowsException() {
+      // given
+      User otherUser = User.builder()
+        .id(2L)
+        .email("other@example.com")
+        .nickname("other")
+        .build();
+      Account othersAccount = usdAccount(30L, otherUser, "1000.00");
+      given(accountRepository.findByIdWithLock(30L)).willReturn(Optional.of(othersAccount));
+
+      // when & then
+      assertThatThrownBy(() -> accountService.processTradeEvent(buyEvent(30L, "90.02")))
+        .isInstanceOf(AccountException.class)
+        .hasMessage(AccountResponse.ACCOUNT_ACCESS_DENIED.getMessage());
+      assertThat(othersAccount.getBalanceUsd()).isEqualByComparingTo("1000.00");
+    }
   }
 
   @Nested
@@ -913,6 +966,36 @@ class AccountServiceImplTest {
       assertThatThrownBy(() -> accountService.processTradeCancellationEvent(event))
         .isInstanceOf(AccountException.class)
         .hasMessage(AccountResponse.ACCOUNT_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    @DisplayName("취소도 거래한 계좌에 되돌린다")
+    void processTradeCancellationEvent_UsesEventAccount() {
+      // given
+      Account firstAccount = usdAccount(10L, testUser, "1000.00");
+      Account tradedAccount = usdAccount(20L, testUser, "909.98");
+      given(accountRepository.findByUserIdWithUser(userId))
+        .willReturn(Arrays.asList(firstAccount, tradedAccount));
+      given(accountRepository.findByIdWithLock(20L)).willReturn(Optional.of(tradedAccount));
+
+      TradeCancelledEvent event = TradeCancelledEvent.builder()
+        .userId(userId.toString())
+        .accountId(20L)
+        .tradeId(7L)
+        .symbol("TSLL")
+        .tradeType("BUY")
+        .quantity(new BigDecimal("10"))
+        .price(new BigDecimal("8.98"))
+        .totalAmount(new BigDecimal("90.02"))
+        .cancellationReason("TEST")
+        .build();
+
+      // when
+      accountService.processTradeCancellationEvent(event);
+
+      // then
+      assertThat(tradedAccount.getBalanceUsd()).isEqualByComparingTo("1000.00");
+      assertThat(firstAccount.getBalanceUsd()).isEqualByComparingTo("1000.00");
     }
   }
 
@@ -1020,5 +1103,33 @@ class AccountServiceImplTest {
       assertThat(result).isEmpty();
       verify(accountRepository).findByUserIdWithUser(userId);
     }
+  }
+
+  private Account usdAccount(Long id, User owner, String balanceUsd) {
+    return Account.builder()
+      .id(id)
+      .user(owner)
+      .accountNumber("ACC" + id)
+      .accountName("계좌" + id)
+      .balanceKrw(BigDecimal.ZERO)
+      .balanceUsd(new BigDecimal(balanceUsd))
+      .avgExchangeRate(BigDecimal.ZERO)
+      .totalExchangedKrw(BigDecimal.ZERO)
+      .commissionRate(BigDecimal.ZERO)
+      .build();
+  }
+
+  private TradeCompletedEvent buyEvent(Long accountId, String totalAmount) {
+    return TradeCompletedEvent.builder()
+      .userId(userId.toString())
+      .accountId(accountId)
+      .tradeId(7L)
+      .symbol("TSLL")
+      .tradeType("BUY")
+      .quantity(new BigDecimal("10"))
+      .price(new BigDecimal("8.98"))
+      .totalAmount(new BigDecimal(totalAmount))
+      .currency("USD")
+      .build();
   }
 }

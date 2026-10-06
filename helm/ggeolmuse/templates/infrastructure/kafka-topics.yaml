@@ -36,7 +36,7 @@ spec:
               echo "kafka 대기 30초"
               sleep 30
 
-              # 현재 상태를 한 번에 받는다. kafka-topics 는 호출마다 JVM 이 새로 뜬다
+              # 현재 상태를 한 번에 받는다.
               kafka-topics --describe --bootstrap-server "$BS" > /tmp/current.txt 2>/dev/null || true
 
               created=0
@@ -48,9 +48,7 @@ spec:
               TOPICS='
               trading.trade.completed             3      604800000    --config segment.bytes=1073741824
               trading.trade.cancelled             3      604800000
-              trading.trade.failed                3      604800000
               trading.dividend.received           3      7776000000
-              trading.holdings.updated            3      2592000000
 
               # 수집 작업큐. 컨슈머 동시성이 파티션에 묶여 6으로 둔다
               market.asset.created                6      604800000
@@ -104,7 +102,7 @@ spec:
                 fi
 
                 # 서비스가 먼저 붙으면 토픽이 브로커 기본값으로 자동 생성되고
-                # --if-not-exists 가 그것을 건너뛴다. 보존 기간은 되돌릴 수 있어 그냥 맞춘다
+                # --if-not-exists 가 그것을 건너뛴다.
                 configs=$(awk -v t="$topic" '
                   $1 == "Topic:" && $2 == t {
                     for (i = 1; i <= NF; i++) if ($i == "Configs:") { print $(i + 1); exit }
