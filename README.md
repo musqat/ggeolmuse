@@ -142,22 +142,22 @@ ggeolmuse/
 
 ## 테스트
 
-백엔드 **765 개**, 프론트 **123 개**, E2E **35 개**.
+백엔드 **781 개**, 프론트 **164 개**, E2E **35 개**.
 
 | 서비스 | 테스트 |
 |---|---|
 | market-data-service | 257 |
-| user-service | 210 |
+| user-service | 216 |
 | backtest-service | 164 |
-| trade-service | 119 |
+| trade-service | 129 |
 | ggeolmuse-bom | 15 |
-| frontend-web | 123 |
+| frontend-web | 164 |
 | E2E (Playwright) | 35 |
 
 <details>
 
-E2E 는 `docker compose` 로 스택 전체를 띄우고 `master` push 마다 돈다.
-PR 게이트로 두지 않은 이유는 시세를 Yahoo Finance 에서 받아서다 — 우리 코드와
+E2E 는 `docker compose` 로 스택 전체를 띄우고 PR 과 `master` push 마다 돈다.
+필수 체크로 두지 않은 이유는 시세를 Yahoo Finance 에서 받아서다 — 우리 코드와
 무관하게 외부가 흔들리면 머지가 막힌다.
 
 <summary><b>커버리지와 그 한계</b></summary>
@@ -170,9 +170,9 @@ PR 게이트로 두지 않은 이유는 시세를 Yahoo Finance 에서 받아서
 | 서비스 | 라인 | 분기 |
 |---|---|---|
 | backtest | 71.5% | 59.0% |
-| trade | 56.4% | 54.7% |
-| user | 45.5% | 25.4% |
-| market-data | 32.5% | 35.2% |
+| trade | 64.9% | 59.3% |
+| user | 46.7% | 26.1% |
+| market-data | 33.9% | 36.4% |
 
 market-data 가 낮은 이유는 수집 파이프라인이 대부분 외부 API 호출이라서다.
 파서 · 매퍼와 캔들 저장 판단(덮어쓰기 · 분할 재수집)은 붙였고, 야후 호출과 컨슈머 흐름은 아직이다.
