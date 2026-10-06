@@ -22,7 +22,6 @@ import com.muscat.trade.domain.service.MarketDataService;
 import com.muscat.trade.domain.service.TradingService;
 import com.muscat.trade.infra.client.UserServiceClientWrapper;
 import com.muscat.trade.infra.client.dto.AccountBalanceDto;
-import com.muscat.trade.infra.kafka.HoldingsEventProducer;
 import com.muscat.trade.infra.kafka.TradeEventProducer;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -52,7 +51,6 @@ public class TradingServiceImpl implements TradingService {
   private final TradeProperties tradeProperties;
   private final TradeUtils tradeUtils;
   private final TradeEventProducer tradeEventProducer;
-  private final HoldingsEventProducer holdingsEventProducer;
 
   @Override
   public TradeResponseDto buyStock(String userId, Long accountId, String symbol,
@@ -150,16 +148,20 @@ public class TradingServiceImpl implements TradingService {
         Long.valueOf(request.getAccountId()));
       BigDecimal availableBalance = balance.getBalanceUsd();
 
-      // 해당 날짜의 주식 가격 조회 (종가)
-      BigDecimal currentPrice = marketDataService.getOHLCPrice(request.getSymbol(),
-        request.getTradeDate(), PriceType.CLOSE);
+      // 주문과 같은 가격 유형의 가격. 비우면 종가
+      PriceType priceType = request.getPriceType() != null
+        ? request.getPriceType() : PriceType.CLOSE;
+      BigDecimal currentPrice = marketDataService.determineTradePrice(request.getSymbol(),
+        request.getTradeDate(), priceType, request.getManualPrice());
 
-      // 매수 가능한 최대 주식 수 계산 (소수점 버림)
-      BigDecimal maxShares = availableBalance.divide(currentPrice, 0, RoundingMode.DOWN);
-      BigDecimal totalValue = maxShares.multiply(currentPrice);
+      // 체결 때와 같은 체결가와 총액으로 센다
+      BigDecimal tradePrice = applySlippage(request.getSymbol(), currentPrice, balance, priceType,
+        TradeType.BUY);
+      BigDecimal maxShares = maxAffordableShares(availableBalance, tradePrice, balance);
+      BigDecimal totalValue = buyTotal(maxShares, tradePrice, balance);
 
-      log.info("매수 가능 수량 계산 완료: symbol={}, 잔액={}, 주가={}, 최대주수={}",
-        request.getSymbol(), availableBalance, currentPrice, maxShares);
+      log.info("매수 가능 수량 계산 완료: symbol={}, 잔액={}, 주가={}, 체결가={}, 최대주수={}",
+        request.getSymbol(), availableBalance, currentPrice, tradePrice, maxShares);
 
       return new TradingCapacityResponseDto(
         request.getSymbol(),
@@ -310,6 +312,30 @@ public class TradingServiceImpl implements TradingService {
     return new BigDecimal[]{tradeAmount, fee, totalAmount};
   }
 
+  // 잔액 안에 드는 가장 큰 수량. 체결 때와 같은 총액(수량 × 체결가 + 수수료)으로 이분 탐색한다
+  private BigDecimal maxAffordableShares(BigDecimal balanceUsd, BigDecimal tradePrice,
+    AccountBalanceDto accountBalance) {
+    long low = 0;
+    long high = balanceUsd.divide(tradePrice, 0, RoundingMode.DOWN).longValueExact();
+    while (low < high) {
+      long mid = low + (high - low + 1) / 2;
+      if (buyTotal(BigDecimal.valueOf(mid), tradePrice, accountBalance).compareTo(balanceUsd) <= 0) {
+        low = mid;
+      } else {
+        high = mid - 1;
+      }
+    }
+    return BigDecimal.valueOf(low);
+  }
+
+  // 매수 총액. calculateTradeAmounts 의 매수 쪽과 같은 반올림
+  private BigDecimal buyTotal(BigDecimal quantity, BigDecimal tradePrice,
+    AccountBalanceDto accountBalance) {
+    BigDecimal tradeAmount = MoneyUtils.roundUsd(MoneyUtils.multiply(quantity, tradePrice));
+    BigDecimal fee = MoneyUtils.roundUsd(tradeUtils.calculateFee(accountBalance, tradeAmount));
+    return MoneyUtils.roundUsd(MoneyUtils.add(tradeAmount, fee));
+  }
+
   // 2단계 거래 트랜잭션 실행 (Kafka 이벤트 기반)
   private Trade executeTradeTransaction(String userId, String accountId, String symbol,
     BigDecimal quantity, BigDecimal tradePrice, BigDecimal totalAmount,
@@ -331,24 +357,6 @@ public class TradingServiceImpl implements TradingService {
 
     } catch (Exception e) {
       log.error("거래 DB 트랜잭션 실패: {}", e.getMessage(), e);
-
-      // 거래 실패 이벤트 발행
-      String failureCode = e instanceof TradeException
-        ? ((TradeException) e).getErrorCode()
-        : "TRANSACTION_FAILED";
-      String failureMessage = e.getMessage();
-
-      tradeEventProducer.publishTradeFailed(
-        userId,
-        Long.parseLong(accountId),
-        symbol,
-        tradeType.name(),
-        quantity.intValue(),
-        tradePrice,
-        failureCode,
-        failureMessage
-      );
-
       throw new TradeException(TradeResponse.TRANSACTION_FAILED);
     }
 
@@ -377,16 +385,14 @@ public class TradingServiceImpl implements TradingService {
       .build();
 
     Trade savedTrade = tradeRepository.save(trade);
-    updateHoldings(userId, accountId, symbol, quantity, tradePrice, totalAmount, tradeType,
-      savedTrade.getId());
+    updateHoldings(userId, accountId, symbol, quantity, tradePrice, totalAmount, tradeType);
 
     return savedTrade;
   }
 
   // 거래에 따른 보유 현황 업데이트 (비관적 Lock 사용)
   private void updateHoldings(String userId, String accountId, String symbol,
-    BigDecimal quantity, BigDecimal price, BigDecimal totalAmount, TradeType tradeType,
-    Long tradeId) {
+    BigDecimal quantity, BigDecimal price, BigDecimal totalAmount, TradeType tradeType) {
 
     // 비관적 Lock으로 동시성 문제 해결
     Optional<Holdings> existingHoldings = holdingsRepository
@@ -406,7 +412,6 @@ public class TradingServiceImpl implements TradingService {
 
         BigDecimal newTotalQuantity = holdings.getTotalQuantity();
         BigDecimal newAvgPrice = holdings.getAvgPurchasePrice();
-        BigDecimal newTotalInvestedAmount = holdings.getTotalInvestedAmount();
 
         // 보유량 변경 로그
         tradeLogger.logHoldingsUpdate(userId, accountId, symbol,
@@ -414,17 +419,6 @@ public class TradingServiceImpl implements TradingService {
 
         log.debug("기존 보유종목 업데이트: 종목={}, 신규평균가={}, 총보유량={}",
           symbol, newAvgPrice, newTotalQuantity);
-
-        // Holdings 업데이트 이벤트 발행
-        holdingsEventProducer.publishHoldingsUpdated(
-          userId, Long.valueOf(accountId), symbol,
-          "UPDATED",
-          oldQuantity, newTotalQuantity,
-          oldAvgPrice, newAvgPrice,
-          newTotalInvestedAmount,
-          tradeId, tradeType.name(),
-          quantity, price
-        );
 
       } else {
         // 신규 보유 종목 생성
@@ -444,17 +438,6 @@ public class TradingServiceImpl implements TradingService {
           BigDecimal.ZERO, quantity, BigDecimal.ZERO, price);
 
         log.debug("신규 보유종목 생성: 종목={}, 매수가={}, 수량={}", symbol, price, quantity);
-
-        // Holdings 생성 이벤트 발행
-        holdingsEventProducer.publishHoldingsUpdated(
-          userId, Long.valueOf(accountId), symbol,
-          "CREATED",
-          BigDecimal.ZERO, quantity,
-          BigDecimal.ZERO, price,
-          totalAmount,
-          tradeId, tradeType.name(),
-          quantity, price
-        );
       }
 
     } else if (tradeType == TradeType.SELL) {
@@ -479,39 +462,15 @@ public class TradingServiceImpl implements TradingService {
         tradeLogger.logHoldingsUpdate(userId, accountId, symbol,
           oldQuantity, BigDecimal.ZERO, oldAvgPrice, BigDecimal.ZERO);
         log.debug("전량 매도로 보유종목 삭제: 종목={}", symbol);
-
-        // Holdings 삭제 이벤트 발행
-        holdingsEventProducer.publishHoldingsUpdated(
-          userId, Long.valueOf(accountId), symbol,
-          "DELETED",
-          oldQuantity, BigDecimal.ZERO,
-          oldAvgPrice, BigDecimal.ZERO,
-          BigDecimal.ZERO,
-          tradeId, tradeType.name(),
-          quantity, price
-        );
       } else {
         // 부분 매도 시 수량만 업데이트 (평균단가는 유지)
         // 도메인 로직 위임 (수량 감소 + 투자금액 조정)
         holdings.sellShares(quantity, TradeConstants.SELL_RATIO_PRECISION);
 
-        BigDecimal newTotalInvestedAmount = holdings.getTotalInvestedAmount();
-
         tradeLogger.logHoldingsUpdate(userId, accountId, symbol,
           oldQuantity, newQuantity, oldAvgPrice, holdings.getAvgPurchasePrice());
 
         log.debug("부분 매도로 수량 업데이트: 종목={}, 잔여수량={}", symbol, newQuantity);
-
-        // Holdings 업데이트 이벤트 발행
-        holdingsEventProducer.publishHoldingsUpdated(
-          userId, Long.valueOf(accountId), symbol,
-          "UPDATED",
-          oldQuantity, newQuantity,
-          oldAvgPrice, holdings.getAvgPurchasePrice(),
-          newTotalInvestedAmount,
-          tradeId, tradeType.name(),
-          quantity, price
-        );
       }
     }
   }

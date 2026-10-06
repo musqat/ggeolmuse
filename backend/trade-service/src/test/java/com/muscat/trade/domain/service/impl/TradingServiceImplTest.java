@@ -28,7 +28,6 @@ import com.muscat.trade.domain.repository.TradeRepository;
 import com.muscat.trade.domain.service.MarketDataService;
 import com.muscat.trade.infra.client.UserServiceClientWrapper;
 import com.muscat.trade.infra.client.dto.AccountBalanceDto;
-import com.muscat.trade.infra.kafka.HoldingsEventProducer;
 import com.muscat.trade.infra.kafka.TradeEventProducer;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -69,8 +68,6 @@ class TradingServiceImplTest {
   private TradeUtils tradeUtils;
   @Mock
   private TradeEventProducer tradeEventProducer;
-  @Mock
-  private HoldingsEventProducer holdingsEventProducer;
 
   @InjectMocks
   private TradingServiceImpl tradingService;
@@ -782,8 +779,9 @@ class TradingServiceImplTest {
 
       given(userServiceClientWrapper.getAccountBalance(TEST_ACCOUNT_ID))
         .willReturn(testAccountBalance);
-      given(marketDataService.getOHLCPrice(TEST_SYMBOL, TEST_TRADE_DATE, PriceType.CLOSE))
-        .willReturn(TEST_PRICE);
+      given(marketDataService.determineTradePrice(
+        TEST_SYMBOL, TEST_TRADE_DATE, PriceType.CLOSE, null)).willReturn(TEST_PRICE);
+      stubFeeRate("0.001");
 
       // when
       TradingCapacityResponseDto result = tradingService.calculateBuyingCapacity(
@@ -796,10 +794,135 @@ class TradingServiceImplTest {
       assertThat(result.availableBalance()).isEqualByComparingTo(
         testAccountBalance.getBalanceUsd());
 
-      // 10000 / 150 = 66 shares (소수점 버림)
-      BigDecimal expectedMaxShares = testAccountBalance.getBalanceUsd()
-        .divide(TEST_PRICE, 0, RoundingMode.DOWN);
-      assertThat(result.maxShares()).isEqualByComparingTo(expectedMaxShares);
+      // 66주는 9,900 + 수수료 9.90 = 9,909.90. 67주는 가격만 10,050 이다
+      assertThat(result.maxShares()).isEqualByComparingTo("66");
+      assertThat(result.totalValue()).isEqualByComparingTo("9909.90");
+    }
+
+    @Test
+    @DisplayName("슬리피지를 붙인 체결가와 수수료까지 넣어 센다")
+    void calculateBuyingCapacity_SlippageAndFee_CountsTradeTotal() {
+      // given
+      given(userServiceClientWrapper.getAccountBalance(TEST_ACCOUNT_ID))
+        .willReturn(balance("90.00", "0.001"));
+      given(marketDataService.determineTradePrice(
+        TEST_SYMBOL, TEST_TRADE_DATE, PriceType.CLOSE, null)).willReturn(new BigDecimal("8.97"));
+      given(tradeProperties.getCalculation()).willReturn(calculationProps);
+      stubFeeRate("0.0025");
+
+      // when
+      TradingCapacityResponseDto result = tradingService.calculateBuyingCapacity(
+        TEST_USER_ID, capacityRequest(null, null));
+
+      // then
+      // 체결가 8.97 × 1.001 = 8.98. 10주는 89.80 + 수수료 0.22 = 90.02 라 잔액을 넘는다
+      assertThat(result.currentPrice()).isEqualByComparingTo("8.97");
+      assertThat(result.maxShares()).isEqualByComparingTo("9");
+      assertThat(result.totalValue()).isEqualByComparingTo("81.02");
+    }
+
+    @Test
+    @DisplayName("가격 유형을 고르면 그 가격으로 센다")
+    void calculateBuyingCapacity_PriceType_UsesThatPrice() {
+      // given
+      given(userServiceClientWrapper.getAccountBalance(TEST_ACCOUNT_ID))
+        .willReturn(balance("100.00", null));
+      given(marketDataService.determineTradePrice(
+        TEST_SYMBOL, TEST_TRADE_DATE, PriceType.HIGH, null)).willReturn(new BigDecimal("10.00"));
+      stubFeeRate("0");
+
+      // when
+      TradingCapacityResponseDto result = tradingService.calculateBuyingCapacity(
+        TEST_USER_ID, capacityRequest(PriceType.HIGH, null));
+
+      // then
+      assertThat(result.currentPrice()).isEqualByComparingTo("10.00");
+      assertThat(result.maxShares()).isEqualByComparingTo("10");
+    }
+
+    @Test
+    @DisplayName("지정가는 슬리피지 없이 입력한 가격으로 센다")
+    void calculateBuyingCapacity_Manual_SkipsSlippage() {
+      // given
+      BigDecimal manualPrice = new BigDecimal("9.00");
+      given(userServiceClientWrapper.getAccountBalance(TEST_ACCOUNT_ID))
+        .willReturn(balance("90.00", "0.001"));
+      given(marketDataService.determineTradePrice(
+        TEST_SYMBOL, TEST_TRADE_DATE, PriceType.MANUAL, manualPrice)).willReturn(manualPrice);
+      stubFeeRate("0");
+
+      // when
+      TradingCapacityResponseDto result = tradingService.calculateBuyingCapacity(
+        TEST_USER_ID, capacityRequest(PriceType.MANUAL, manualPrice));
+
+      // then
+      // 슬리피지가 붙었으면 9.01 이라 9주다
+      assertThat(result.maxShares()).isEqualByComparingTo("10");
+    }
+
+    @Test
+    @DisplayName("수수료 반올림까지 체결 때와 같게 센다")
+    void calculateBuyingCapacity_FeeRounding_MatchesTradeTotal() {
+      // given
+      given(userServiceClientWrapper.getAccountBalance(TEST_ACCOUNT_ID))
+        .willReturn(balance("100.35", null));
+      given(marketDataService.determineTradePrice(
+        TEST_SYMBOL, TEST_TRADE_DATE, PriceType.CLOSE, null)).willReturn(new BigDecimal("10.01"));
+      stubFeeRate("0.0025");
+
+      // when
+      TradingCapacityResponseDto result = tradingService.calculateBuyingCapacity(
+        TEST_USER_ID, capacityRequest(null, null));
+
+      // then
+      // 10주는 100.10 + 수수료 0.25025 → 0.25 = 100.35 로 잔액과 같다
+      assertThat(result.maxShares()).isEqualByComparingTo("10");
+      assertThat(result.totalValue()).isEqualByComparingTo("100.35");
+    }
+
+    @Test
+    @DisplayName("잔액이 한 주 값보다 적으면 0주")
+    void calculateBuyingCapacity_NotEnoughForOneShare_ReturnsZero() {
+      // given
+      given(userServiceClientWrapper.getAccountBalance(TEST_ACCOUNT_ID))
+        .willReturn(balance("5.00", null));
+      given(marketDataService.determineTradePrice(
+        TEST_SYMBOL, TEST_TRADE_DATE, PriceType.CLOSE, null)).willReturn(new BigDecimal("8.97"));
+      stubFeeRate("0.0025");
+
+      // when
+      TradingCapacityResponseDto result = tradingService.calculateBuyingCapacity(
+        TEST_USER_ID, capacityRequest(null, null));
+
+      // then
+      assertThat(result.maxShares()).isEqualByComparingTo("0");
+    }
+
+    private TradingCapacityRequestDto capacityRequest(PriceType priceType,
+      BigDecimal manualPrice) {
+      return TradingCapacityRequestDto.builder()
+        .accountId(String.valueOf(TEST_ACCOUNT_ID))
+        .symbol(TEST_SYMBOL)
+        .tradeDate(TEST_TRADE_DATE)
+        .priceType(priceType)
+        .manualPrice(manualPrice)
+        .build();
+    }
+
+    private AccountBalanceDto balance(String balanceUsd, String slippageRate) {
+      return AccountBalanceDto.builder()
+        .accountId(String.valueOf(TEST_ACCOUNT_ID))
+        .balanceUsd(new BigDecimal(balanceUsd))
+        .commissionRate(new BigDecimal("0.0025"))
+        .slippageRate(slippageRate == null ? null : new BigDecimal(slippageRate))
+        .build();
+    }
+
+    // 수수료는 tradeUtils 목이 내니 비율만 정해 둔다
+    private void stubFeeRate(String rate) {
+      given(tradeUtils.calculateFee(any(), any())).willAnswer(invocation ->
+        invocation.<BigDecimal>getArgument(1).multiply(new BigDecimal(rate))
+          .setScale(2, RoundingMode.HALF_UP));
     }
 
     @Test
@@ -852,7 +975,8 @@ class TradingServiceImplTest {
 
       given(userServiceClientWrapper.getAccountBalance(TEST_ACCOUNT_ID))
         .willReturn(testAccountBalance);
-      given(marketDataService.getOHLCPrice(TEST_SYMBOL, TEST_TRADE_DATE, PriceType.CLOSE))
+      given(marketDataService.determineTradePrice(
+        TEST_SYMBOL, TEST_TRADE_DATE, PriceType.CLOSE, null))
         .willThrow(new RuntimeException("Market data unavailable"));
 
       // when & then

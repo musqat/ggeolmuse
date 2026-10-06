@@ -1,10 +1,8 @@
 package com.muscat.trade.config;
 
 import com.muscat.messaging.event.DividendReceivedEvent;
-import com.muscat.messaging.event.HoldingsUpdatedEvent;
 import com.muscat.messaging.event.TradeCancelledEvent;
 import com.muscat.messaging.event.TradeCompletedEvent;
-import com.muscat.messaging.event.TradeFailedEvent;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
@@ -62,16 +60,6 @@ public class KafkaProducerConfig {
     }
 
     @Bean
-    public ProducerFactory<String, TradeFailedEvent> tradeFailedEventProducerFactory() {
-        return new DefaultKafkaProducerFactory<>(getCommonProducerConfig());
-    }
-
-    @Bean
-    public KafkaTemplate<String, TradeFailedEvent> tradeFailedKafkaTemplate() {
-        return new KafkaTemplate<>(tradeFailedEventProducerFactory());
-    }
-
-    @Bean
     public ProducerFactory<String, TradeCancelledEvent> tradeCancelledEventProducerFactory() {
         return new DefaultKafkaProducerFactory<>(getCommonProducerConfig());
     }
@@ -89,15 +77,5 @@ public class KafkaProducerConfig {
     @Bean
     public KafkaTemplate<String, DividendReceivedEvent> dividendReceivedKafkaTemplate() {
         return new KafkaTemplate<>(dividendReceivedEventProducerFactory());
-    }
-
-    @Bean
-    public ProducerFactory<String, HoldingsUpdatedEvent> holdingsUpdatedEventProducerFactory() {
-        return new DefaultKafkaProducerFactory<>(getCommonProducerConfig());
-    }
-
-    @Bean
-    public KafkaTemplate<String, HoldingsUpdatedEvent> holdingsUpdatedKafkaTemplate() {
-        return new KafkaTemplate<>(holdingsUpdatedEventProducerFactory());
     }
 }
