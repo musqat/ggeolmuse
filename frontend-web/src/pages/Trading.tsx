@@ -1,17 +1,18 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { LogIn } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import LoginModal from '../components/auth/LoginModal';
 import TradeHistoryTab from '../components/trading/TradeHistoryTab';
 import TradingCapacityPanel from '../components/trading/TradingCapacityPanel';
-import { stockApi, tradeApi, accountsApi } from '../services/api';
+import { stockApi, tradeApi } from '../services/api';
 import { convertOHLCToCandlestick, type CandlestickChartData } from '../types/ohlc';
 
 // Utility imports
 import { getDateRangeForTimeframe, getTodayString, subtractDays } from '@/utils/dateUtils';
-import { calculateExecutionPrice, validatePriceRange } from '@/utils/priceUtils';
+import { calculateExecutionPrice, toBackendPriceType, validatePriceRange } from '@/utils/priceUtils';
+import { formatTradeResult } from '@/utils/tradeResult';
 import type { Timeframe } from '@/utils/dateUtils';
 import type { PriceType } from '@/utils/priceUtils';
 
@@ -30,6 +31,7 @@ import { getApiErrorMessage } from '@/utils/apiError';
 
 const Trading: React.FC = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { isAuthenticated, login } = useAuth();
   const [activeTab, setActiveTab] = useState<'order' | 'history'>('order');
   const [selectedStock, setSelectedStock] = useState('AAPL');
@@ -181,56 +183,23 @@ const Trading: React.FC = () => {
       return;
     }
 
-    const total = price * Number(quantity || 0);
-
-    // 2. 잔액 검증 (매수인 경우만)
-    if (orderType === 'buy' && selectedAccountId) {
-      try {
-        const balanceResponse = await accountsApi.getAccountBalance(selectedAccountId);
-        const balance = balanceResponse.data;
-
-        if (balance.balanceUsd < total) {
-          alert(
-            `잔액이 부족합니다.\n\n` +
-            `필요 금액: $${total.toFixed(2)}\n` +
-            `보유 잔액: $${balance.balanceUsd.toFixed(2)}\n` +
-            `부족 금액: $${(total - balance.balanceUsd).toFixed(2)}`
-          );
-          return;
-        }
-      } catch (error) {
-        console.error('잔액 조회 실패', error);
-        alert('잔액 조회 중 오류가 발생했습니다.');
-        return;
-      }
-    }
-
-    // 3. 거래 실행
+    // 2. 거래 실행. 잔액은 trade-service 가 슬리피지·수수료까지 넣어 검사한다
     try {
-      // priceType 매핑: open/high/low/close/limit -> OPEN/HIGH/LOW/CLOSE/MANUAL
-      let backendPriceType: 'OPEN' | 'HIGH' | 'LOW' | 'CLOSE' | 'MANUAL';
-      if (priceType === 'limit') {
-        backendPriceType = 'MANUAL';
-      } else {
-        backendPriceType = priceType.toUpperCase() as 'OPEN' | 'HIGH' | 'LOW' | 'CLOSE';
-      }
-
       const order = {
         accountId: selectedAccountId!,
         symbol: selectedStock,
         quantity: Number(quantity),
         tradeDate,
-        priceType: backendPriceType,
+        priceType: toBackendPriceType(priceType),
         manualPrice: priceType === 'limit' ? price : undefined,
       };
 
-      if (orderType === 'buy') {
-        await tradeApi.buy(order);
-        alert(`매수 주문이 체결되었습니다.\n\n종목: ${selectedStock}\n수량: ${quantity}주\n가격: $${price.toFixed(2)}\n총액: $${total.toFixed(2)}\n거래일: ${tradeDate}`);
-      } else {
-        await tradeApi.sell(order);
-        alert(`매도 주문이 체결되었습니다.\n\n종목: ${selectedStock}\n수량: ${quantity}주\n가격: $${price.toFixed(2)}\n총액: $${total.toFixed(2)}\n거래일: ${tradeDate}`);
-      }
+      const { data: trade } = orderType === 'buy'
+        ? await tradeApi.buy(order)
+        : await tradeApi.sell(order);
+      // 잔고와 보유가 바뀌어 매수·매도 가능 수량과 거래 내역을 다시 받는다
+      void queryClient.invalidateQueries({ queryKey: ['trade'] });
+      alert(formatTradeResult(trade));
 
       // 주문 성공 후 초기화
       setQuantity('1');
@@ -390,6 +359,7 @@ const Trading: React.FC = () => {
               symbol={selectedStock}
               tradeDate={tradeDate}
               orderType={orderType}
+              priceType={priceType}
               currentPrice={currentPrice}
             />
             </div>
@@ -398,6 +368,7 @@ const Trading: React.FC = () => {
               selectedStock={selectedStock}
               tradeDate={tradeDate}
               quantity={quantity}
+              priceType={priceType}
               currentPrice={currentPrice}
               totalAmount={totalAmount}
             />

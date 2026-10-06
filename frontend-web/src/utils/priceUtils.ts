@@ -70,3 +70,12 @@ export function formatPrice(price: number, decimals: number = 2): string {
 export function calculateTotalAmount(price: number, quantity: number): number {
   return price * quantity;
 }
+
+export type BackendPriceType = 'OPEN' | 'HIGH' | 'LOW' | 'CLOSE' | 'MANUAL';
+
+/**
+ * 화면의 가격 유형을 trade-service 가 받는 값으로 바꿉니다. 지정가는 MANUAL 입니다
+ */
+export function toBackendPriceType(priceType: PriceType): BackendPriceType {
+  return priceType === 'limit' ? 'MANUAL' : (priceType.toUpperCase() as BackendPriceType);
+}

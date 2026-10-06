@@ -264,16 +264,32 @@ type TradingCapacityRequest = {
   tradeDate: string;                                 // 거래일 (YYYY-MM-DD)
   totalAmount?: number;                              // 매수 시: 총 금액
   quantity?: number;                                 // 매도 시: 수량
+  priceType?: 'OPEN' | 'HIGH' | 'LOW' | 'CLOSE' | 'MANUAL';  // 매수 시: 가격 유형. 비우면 CLOSE
+  manualPrice?: number;                              // 매수 시: 지정가 입력 가격
+};
+
+// 매수 · 매도 체결 결과. trade-service TradeResponseDto 와 같은 칸이다
+export type TradeResult = {
+  id: number;
+  accountId: number;
+  symbol: string;
+  tradeType: 'BUY' | 'SELL';
+  quantity: number;
+  price: number;                                     // 체결가 (슬리피지 반영)
+  totalAmount: number;                               // 매수는 체결 금액 + 수수료, 매도는 체결 금액 - 수수료
+  fee: number;                                       // 수수료
+  tradeDate: string;                                 // 거래일 (YYYY-MM-DD)
+  executedAt: string;                                // 체결 일시
 };
 
 export const tradeApi = {
   // 매수 주문
   buy: (order: TradeOrder) =>
-    apiClient.post('/trade/buy', order),
+    apiClient.post<TradeResult>('/trade/buy', order),
 
   // 매도 주문
   sell: (order: TradeOrder) =>
-    apiClient.post('/trade/sell', order),
+    apiClient.post<TradeResult>('/trade/sell', order),
 
   // 매수 가능 여부 확인
   canBuy: (payload: TradingCapacityRequest) =>
@@ -705,6 +721,10 @@ export type StrategyResponse = {
   performanceSummary?: string | null;
 };
 
+// 비교 항목에 실린 원래 응답. 종목 비교는 SimulationResponse, 전략 비교는 전략마다
+// SimulationResponse 나 StrategyResponse 다. 화면이 칸이 있는지로 읽어서 두 쪽 칸을 모두 선택으로 둔다
+export type ComparisonDetail = Partial<SimulationResponse> & Partial<StrategyResponse>;
+
 // 비교 항목
 export type ComparisonItem = {
   name: string;                         // 항목명
@@ -737,10 +757,7 @@ export type ComparisonItem = {
   optimalSellDate?: string;
   optimalSellPrice?: number;
 
-  // 전략마다 모양이 달라(SimulationResponse | StrategyResponse) 여기서 좁히지 않는다.
-  // 화면이 필드 유무로 분기하며 읽는다. 응답을 하나로 맞추는 건 백엔드와 같이 볼 일이다.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  additionalData?: any;
+  additionalData?: ComparisonDetail | null;
 };
 
 // 비교 응답
