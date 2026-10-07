@@ -23,12 +23,12 @@ import com.muscat.trade.domain.dto.response.TradeResponseDto;
 import com.muscat.trade.domain.dto.response.TradingCapacityResponseDto;
 import com.muscat.trade.domain.entity.Holdings;
 import com.muscat.trade.domain.entity.Trade;
+import com.muscat.trade.domain.event.TradeSavedEvent;
 import com.muscat.trade.domain.repository.HoldingsRepository;
 import com.muscat.trade.domain.repository.TradeRepository;
 import com.muscat.trade.domain.service.MarketDataService;
 import com.muscat.trade.infra.client.UserServiceClientWrapper;
 import com.muscat.trade.infra.client.dto.AccountBalanceDto;
-import com.muscat.trade.infra.kafka.TradeEventProducer;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -45,6 +45,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 
@@ -67,7 +68,7 @@ class TradingServiceImplTest {
   @Mock
   private TradeUtils tradeUtils;
   @Mock
-  private TradeEventProducer tradeEventProducer;
+  private ApplicationEventPublisher eventPublisher;
 
   @InjectMocks
   private TradingServiceImpl tradingService;
@@ -157,7 +158,7 @@ class TradingServiceImplTest {
       assertThat(capturedHoldings.getAvgPurchasePrice()).isEqualByComparingTo(TEST_PRICE);
 
       // 이벤트 발행 확인
-      verify(tradeEventProducer).publishTradeCompleted(any(Trade.class));
+      verify(eventPublisher).publishEvent(any(TradeSavedEvent.class));
     }
 
     @Test
@@ -302,7 +303,7 @@ class TradingServiceImplTest {
       assertThat(existingHoldings.getAvgPurchasePrice()).isEqualByComparingTo(expectedAvgPrice);
 
       verify(holdingsRepository, never()).save(any(Holdings.class));
-      verify(tradeEventProducer).publishTradeCompleted(any(Trade.class));
+      verify(eventPublisher).publishEvent(any(TradeSavedEvent.class));
     }
 
     @Test
@@ -331,7 +332,7 @@ class TradingServiceImplTest {
 
       verify(tradeRepository, never()).save(any(Trade.class));
       verify(holdingsRepository, never()).save(any(Holdings.class));
-      verify(tradeEventProducer, never()).publishTradeCompleted(any());
+      verify(eventPublisher, never()).publishEvent(any(Object.class));
     }
   }
 
@@ -408,7 +409,7 @@ class TradingServiceImplTest {
       assertThat(existingHoldings.getAvgPurchasePrice()).isEqualByComparingTo(avgPrice);
 
       verify(holdingsRepository, never()).delete(any());
-      verify(tradeEventProducer).publishTradeCompleted(any(Trade.class));
+      verify(eventPublisher).publishEvent(any(TradeSavedEvent.class));
     }
 
     @Test
@@ -524,7 +525,7 @@ class TradingServiceImplTest {
       // then
       assertThat(result).isNotNull();
       verify(holdingsRepository).delete(existingHoldings);
-      verify(tradeEventProducer).publishTradeCompleted(any(Trade.class));
+      verify(eventPublisher).publishEvent(any(TradeSavedEvent.class));
     }
 
     @Test
@@ -541,7 +542,7 @@ class TradingServiceImplTest {
         .isInstanceOf(NotEnoughHoldingsException.class);
 
       verify(tradeRepository, never()).save(any(Trade.class));
-      verify(tradeEventProducer, never()).publishTradeCompleted(any());
+      verify(eventPublisher, never()).publishEvent(any(Object.class));
     }
 
     @Test

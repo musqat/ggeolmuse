@@ -2,6 +2,8 @@ package com.muscat.trade.config;
 
 import com.muscat.messaging.event.AccountDeletedEvent;
 import com.muscat.messaging.event.DividendUpdatedEvent;
+import io.micrometer.core.instrument.MeterRegistry;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -36,11 +38,14 @@ import java.util.Map;
 @Slf4j
 @EnableKafka
 @Configuration
+@RequiredArgsConstructor
 public class KafkaConsumerConfig {
 
     // 첫 전달이 실패하면 1초 간격으로 세 번 더 보낸다
     private static final long RETRY_INTERVAL_MS = 1000L;
     private static final long MAX_RETRIES = 3L;
+
+    private final MeterRegistry meterRegistry;
 
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
@@ -141,11 +146,6 @@ public class KafkaConsumerConfig {
     }
 
     /**
-     * Kafka Consumer 공통 에러 핸들러
-     * - 3회 재시도 (지수 백오프: 1초, 2초, 4초)
-     * - 재시도 실패 시 DLQ 토픽으로 전송
-     */
-    /**
      * 재시도로 못 살린 메시지를 .DLT 토픽에 넣을 때 쓴다.
      */
     @Bean
@@ -167,8 +167,9 @@ public class KafkaConsumerConfig {
                 dltKafkaTemplate(),
                 (record, ex) -> new TopicPartition(record.topic() + ".DLT", -1));
 
-        DefaultErrorHandler errorHandler =
-                new DefaultErrorHandler(recoverer, new FixedBackOff(RETRY_INTERVAL_MS, MAX_RETRIES));
+        DefaultErrorHandler errorHandler = new DefaultErrorHandler(
+                new CountingDeadLetterRecoverer(recoverer, meterRegistry),
+                new FixedBackOff(RETRY_INTERVAL_MS, MAX_RETRIES));
 
         errorHandler.setRetryListeners((record, ex, deliveryAttempt) -> {
             log.warn("전달 {}/{} 실패: topic={}, partition={}, offset={}, error={}",
