@@ -175,7 +175,7 @@ services:
     replicaCount: 1
     image:
       repository: user-service
-      tag: "1.4.3"
+      tag: "1.4.4"
     service:
       type: ClusterIP
       port: 8080
@@ -211,7 +211,7 @@ services:
     replicaCount: 1
     image:
       repository: trade-service
-      tag: "1.4.3"
+      tag: "1.4.4"
     service:
       type: ClusterIP
       port: 8081
@@ -338,7 +338,7 @@ frontend:
   replicaCount: 1
   image:
     repository: frontend-web
-    tag: "1.4.0"
+    tag: "1.4.1"
   service:
     type: LoadBalancer
     port: 3000
