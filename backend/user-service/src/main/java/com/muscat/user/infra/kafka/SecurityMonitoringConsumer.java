@@ -36,7 +36,7 @@ public class SecurityMonitoringConsumer {
     @KafkaListener(
             topics = "user.login.success",
             groupId = "${spring.application.name}-login-success-consumer",
-            containerFactory = "emailEventKafkaListenerContainerFactory" // 공통 설정 재사용
+            containerFactory = "loginSuccessEventKafkaListenerContainerFactory"
     )
     public void handleLoginSuccess(
             @Payload UserLoginSuccessEvent event,
@@ -75,7 +75,7 @@ public class SecurityMonitoringConsumer {
     @KafkaListener(
             topics = "user.login.failed",
             groupId = "${spring.application.name}-login-failed-consumer",
-            containerFactory = "emailEventKafkaListenerContainerFactory" // 공통 설정 재사용
+            containerFactory = "loginFailedEventKafkaListenerContainerFactory"
     )
     public void handleLoginFailed(
             @Payload UserLoginFailedEvent event,

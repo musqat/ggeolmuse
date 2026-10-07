@@ -7,7 +7,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.muscat.messaging.event.TradeCompletedEvent;
-import com.muscat.user.domain.account.service.AccountService;
 import com.muscat.user.domain.account.service.TradeSettlementService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,9 +19,6 @@ import org.springframework.kafka.support.Acknowledgment;
 @ExtendWith(MockitoExtension.class)
 @DisplayName("체결 이벤트 소비")
 class TradeEventConsumerTest {
-
-  @Mock
-  private AccountService accountService;
 
   @Mock
   private TradeSettlementService tradeSettlementService;

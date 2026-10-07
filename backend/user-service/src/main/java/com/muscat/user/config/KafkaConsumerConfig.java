@@ -1,11 +1,13 @@
 package com.muscat.user.config;
 
+import com.muscat.messaging.event.AccountBalanceUpdatedEvent;
 import com.muscat.messaging.event.AccountDepositCompletedEvent;
 import com.muscat.messaging.event.AccountWithdrawalCompletedEvent;
 import com.muscat.messaging.event.DividendReceivedEvent;
 import com.muscat.messaging.event.EmailSendEvent;
-import com.muscat.messaging.event.TradeCancelledEvent;
 import com.muscat.messaging.event.TradeCompletedEvent;
+import com.muscat.messaging.event.UserLoginFailedEvent;
+import com.muscat.messaging.event.UserLoginSuccessEvent;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.util.HashMap;
 import java.util.Map;
@@ -36,7 +38,7 @@ import org.springframework.util.backoff.FixedBackOff;
 
 /**
  * User Service Kafka Consumer 설정
- * TradeCompletedEvent, EmailSendEvent
+ * TradeCompletedEvent, EmailSendEvent, 입출금 · 배당, 잔액 변경 감사, 로그인 감시
  */
 @Slf4j
 @EnableKafka
@@ -98,52 +100,6 @@ public class KafkaConsumerConfig {
 
     // Consumer 재시도 설정은 Config Server의 공통 설정 사용
     // (spring.kafka.consumer 설정)
-
-    // 공통 에러 핸들러 설정 (DLQ 포함)
-    factory.setCommonErrorHandler(kafkaErrorHandler());
-
-    return factory;
-  }
-
-  @Bean
-  public ConsumerFactory<String, TradeCancelledEvent> tradeCancelledEventConsumerFactory() {
-    Map<String, Object> props = new HashMap<>();
-    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-    props.put(ConsumerConfig.GROUP_ID_CONFIG, applicationName + "-trade-cancel-consumer");
-
-    // 수동 커밋 모드 (메시지 처리 성공시에만 커밋)
-    props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
-
-    // 컨슈머 그룹 최초 실행시 earliest부터 읽기
-    props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-
-    // Deserializer 설정
-    props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-    props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
-    props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class.getName());
-
-    // JSON Deserializer 추가 설정
-    props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, TradeCancelledEvent.class.getName());
-    props.put(JsonDeserializer.TRUSTED_PACKAGES, "com.muscat.*");
-    props.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
-
-    return new DefaultKafkaConsumerFactory<>(props);
-  }
-
-  @Bean
-  public ConcurrentKafkaListenerContainerFactory<String, TradeCancelledEvent>
-  tradeCancelledEventKafkaListenerContainerFactory() {
-
-    ConcurrentKafkaListenerContainerFactory<String, TradeCancelledEvent> factory =
-      new ConcurrentKafkaListenerContainerFactory<>();
-
-    factory.setConsumerFactory(tradeCancelledEventConsumerFactory());
-
-    // 수동 커밋 모드 설정
-    factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL);
-
-    // 동시성 레벨 (병렬 Consumer 스레드 수)
-    factory.setConcurrency(3);
 
     // 공통 에러 핸들러 설정 (DLQ 포함)
     factory.setCommonErrorHandler(kafkaErrorHandler());
@@ -315,6 +271,55 @@ public class KafkaConsumerConfig {
     factory.setConcurrency(3);
     factory.setCommonErrorHandler(kafkaErrorHandler());
 
+    return factory;
+  }
+
+  @Bean
+  public ConcurrentKafkaListenerContainerFactory<String, AccountBalanceUpdatedEvent>
+  balanceUpdatedEventKafkaListenerContainerFactory() {
+    return manualAckFactory(
+      jsonConsumerFactory(AccountBalanceUpdatedEvent.class, "-balance-audit-consumer"), 1);
+  }
+
+  @Bean
+  public ConcurrentKafkaListenerContainerFactory<String, UserLoginSuccessEvent>
+  loginSuccessEventKafkaListenerContainerFactory() {
+    return manualAckFactory(
+      jsonConsumerFactory(UserLoginSuccessEvent.class, "-login-success-consumer"), 1);
+  }
+
+  @Bean
+  public ConcurrentKafkaListenerContainerFactory<String, UserLoginFailedEvent>
+  loginFailedEventKafkaListenerContainerFactory() {
+    return manualAckFactory(
+      jsonConsumerFactory(UserLoginFailedEvent.class, "-login-failed-consumer"), 1);
+  }
+
+  // 값 하나의 타입으로 역직렬화하는 컨슈머 팩토리. 리스너 @Payload 와 타입이 다르면 첫 시도에 DLT 로 간다
+  private <T> ConsumerFactory<String, T> jsonConsumerFactory(Class<T> type, String groupSuffix) {
+    Map<String, Object> props = new HashMap<>();
+    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+    props.put(ConsumerConfig.GROUP_ID_CONFIG, applicationName + groupSuffix);
+    props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+    props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+    props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+    props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
+    props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class.getName());
+    props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, type.getName());
+    props.put(JsonDeserializer.TRUSTED_PACKAGES, "com.muscat.*");
+    props.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
+    return new DefaultKafkaConsumerFactory<>(props);
+  }
+
+  // 수동 커밋 · 공통 에러 핸들러를 붙인 컨테이너 팩토리
+  private <T> ConcurrentKafkaListenerContainerFactory<String, T> manualAckFactory(
+    ConsumerFactory<String, T> consumerFactory, int concurrency) {
+    ConcurrentKafkaListenerContainerFactory<String, T> factory =
+      new ConcurrentKafkaListenerContainerFactory<>();
+    factory.setConsumerFactory(consumerFactory);
+    factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL);
+    factory.setConcurrency(concurrency);
+    factory.setCommonErrorHandler(kafkaErrorHandler());
     return factory;
   }
 

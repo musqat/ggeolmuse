@@ -3,7 +3,6 @@ package com.muscat.user.domain.account.service.impl;
 import com.muscat.commonlib.dto.FxRateDto;
 import com.muscat.commonlib.util.MoneyUtils;
 import com.muscat.messaging.event.DividendReceivedEvent;
-import com.muscat.messaging.event.TradeCancelledEvent;
 import com.muscat.messaging.event.TradeCompletedEvent;
 import com.muscat.user.common.enums.responses.AccountResponse;
 import com.muscat.user.common.enums.responses.UserResponse;
@@ -497,64 +496,6 @@ public class AccountServiceImpl implements AccountService {
 
     } catch (AccountException e) {
       log.error("잔액 업데이트 실패: tradeId={}, userId={}, accountId={}, error={}",
-        event.getTradeId(), userId, accountId, e.getMessage());
-      throw e;
-    }
-  }
-
-  /**
-   * 거래 취소 이벤트 처리
-   */
-  @Override
-  public void processTradeCancellationEvent(TradeCancelledEvent event) {
-    log.info(
-      "처리 시작: TradeCancelledEvent (Saga 보상) - tradeId={}, userId={}, tradeType={}, totalAmount={}, reason={}",
-      event.getTradeId(), event.getUserId(), event.getTradeType(), event.getTotalAmount(),
-      event.getCancellationReason());
-
-    // 1. 사용자 ID 조회
-    Long userId = resolveUserId(event.getUserId());
-
-    // 2. 거래한 계좌. 소유자 확인은 updateUsdBalance 가 한다
-    Long accountId = resolveTradeAccountId(event.getAccountId(), userId, event.getTradeId());
-
-    // 3. 거래 취소를 위한 잔액 변경 계산 (원래 거래의 반대)
-    // 원래 BUY였으면: USD가 감소했었음 -> 다시 증가시켜야 함 (양수)
-    // 원래 SELL이었으면: USD가 증가했었음 -> 다시 감소시켜야 함 (음수)
-    BigDecimal compensationAmount;
-    String description;
-
-    if ("BUY".equalsIgnoreCase(event.getTradeType())) {
-      // BUY 취소: 차감된 금액을 다시 돌려줌 (양수)
-      compensationAmount = event.getTotalAmount(); // 양수
-      description = String.format("거래 취소 (매수 원복): %s %s주 @ $%s (거래ID: %s, 사유: %s)",
-        event.getSymbol(), event.getQuantity(), event.getPrice(), event.getTradeId(),
-        event.getCancellationReason());
-    } else if ("SELL".equalsIgnoreCase(event.getTradeType())) {
-      // SELL 취소: 증가된 금액을 다시 차감 (음수)
-      compensationAmount = event.getTotalAmount().negate(); // 음수
-      description = String.format("거래 취소 (매도 원복): %s %s주 @ $%s (거래ID: %s, 사유: %s)",
-        event.getSymbol(), event.getQuantity(), event.getPrice(), event.getTradeId(),
-        event.getCancellationReason());
-    } else {
-      log.error("알 수 없는 거래 타입: {}", event.getTradeType());
-      throw new AccountException(AccountResponse.INVALID_TRANSACTION_TYPE);
-    }
-
-    log.debug("보상 트랜잭션 계산: tradeType={}, originalAmount={}, compensationAmount={}",
-      event.getTradeType(), event.getTotalAmount(), compensationAmount);
-
-    // 4. 잔액 원복 (보상 트랜잭션)
-    try {
-      updateUsdBalance(accountId, userId, compensationAmount, description);
-
-      log.info(
-        "거래 취소 이벤트 처리 완료 (잔액 원복): tradeId={}, userId={}, accountId={}, compensationAmount={}, originalEventId={}",
-        event.getTradeId(), userId, accountId, compensationAmount,
-        event.getOriginalEventId());
-
-    } catch (AccountException e) {
-      log.error("보상 트랜잭션 실패: tradeId={}, userId={}, accountId={}, error={}",
         event.getTradeId(), userId, accountId, e.getMessage());
       throw e;
     }

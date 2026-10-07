@@ -9,7 +9,6 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-import com.muscat.messaging.event.TradeCancelledEvent;
 import com.muscat.messaging.event.TradeCompletedEvent;
 import com.muscat.trade.common.enums.type.TradeType;
 import com.muscat.trade.domain.entity.Trade;
@@ -31,12 +30,9 @@ class TradeEventProducerTest {
   @SuppressWarnings("unchecked")
   private final KafkaTemplate<String, TradeCompletedEvent> completedTemplate =
     mock(KafkaTemplate.class);
-  @SuppressWarnings("unchecked")
-  private final KafkaTemplate<String, TradeCancelledEvent> cancelledTemplate =
-    mock(KafkaTemplate.class);
 
   private final TradeEventProducer producer =
-    new TradeEventProducer(completedTemplate, cancelledTemplate);
+    new TradeEventProducer(completedTemplate);
 
   private static Trade trade() {
     return Trade.builder()

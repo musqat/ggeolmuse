@@ -1,7 +1,6 @@
 package com.muscat.user.domain.account.service;
 
 import com.muscat.messaging.event.DividendReceivedEvent;
-import com.muscat.messaging.event.TradeCancelledEvent;
 import com.muscat.messaging.event.TradeCompletedEvent;
 import com.muscat.user.domain.account.dto.request.CreateAccountRequestDto;
 import com.muscat.user.domain.account.dto.response.BalanceResponseDto;
@@ -46,7 +45,6 @@ public interface AccountService {
   // Kafka 이벤트 처리
   void processTradeEvent(TradeCompletedEvent event);
 
-  void processTradeCancellationEvent(TradeCancelledEvent event);
 
   void processDividendReceivedEvent(DividendReceivedEvent event);
 
