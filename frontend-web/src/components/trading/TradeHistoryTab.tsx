@@ -7,6 +7,7 @@ import {
   DollarSign
 } from 'lucide-react';
 import { tradeApi, accountsApi } from '../../services/api';
+import TradeCancelledBadge from './TradeCancelledBadge';
 
 interface Transaction {
   type: 'BUY' | 'SELL' | 'DIVIDEND';
@@ -23,6 +24,8 @@ interface Transaction {
   shares?: number;
   date: string;
   executedAt: string;
+  status?: 'COMPLETED' | 'CANCELLED'; // 매수 · 매도만. 잔액 반영 실패면 CANCELLED
+  cancelReason?: string | null;
 }
 
 type TransactionType = 'ALL' | 'BUY' | 'SELL' | 'DIVIDEND';
@@ -256,13 +259,14 @@ const TradeHistoryTab: React.FC = () => {
           {groupedTransactions.grouped.map(({ trade, dividends }) => (
             <div key={trade.tradeId} className="bg-surface rounded-lg shadow-sm border border-line/50 overflow-hidden">
               {/* Buy Trade */}
-              <div className="p-3 hover:bg-surface/50 transition-colors">
+              <div className={`p-3 hover:bg-surface/50 transition-colors${trade.status === 'CANCELLED' ? ' opacity-60' : ''}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <ArrowUpCircle className="w-5 h-5 text-blue-500 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-2">
                         <span className="font-semibold text-tx-1">{trade.symbol}</span>
+                        {trade.status === 'CANCELLED' && <TradeCancelledBadge reason={trade.cancelReason} />}
                         <span className="text-xs text-tx-2">
                           {new Date(trade.date).toLocaleDateString('ko-KR')}
                         </span>
@@ -323,13 +327,14 @@ const TradeHistoryTab: React.FC = () => {
           {/* Sell Trades */}
           {groupedTransactions.sellTrades.map((trade) => (
             <div key={trade.tradeId} className="bg-surface rounded-lg shadow-sm border border-line/50 overflow-hidden">
-              <div className="p-3 hover:bg-surface/50 transition-colors">
+              <div className={`p-3 hover:bg-surface/50 transition-colors${trade.status === 'CANCELLED' ? ' opacity-60' : ''}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <ArrowDownCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-2">
                         <span className="font-semibold text-tx-1">{trade.symbol}</span>
+                        {trade.status === 'CANCELLED' && <TradeCancelledBadge reason={trade.cancelReason} />}
                         <span className="text-xs text-tx-2">
                           {new Date(trade.date).toLocaleDateString('ko-KR')}
                         </span>
