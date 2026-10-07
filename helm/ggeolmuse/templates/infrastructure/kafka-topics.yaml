@@ -47,7 +47,6 @@ spec:
               # 토픽                              파티션 보존(ms)     추가설정
               TOPICS='
               trading.trade.completed             3      604800000    --config segment.bytes=1073741824
-              trading.trade.cancelled             3      604800000
               trading.dividend.received           3      7776000000
 
               # 수집 작업큐. 컨슈머 동시성이 파티션에 묶여 6으로 둔다
@@ -63,10 +62,10 @@ spec:
               user.login.success                  3      2592000000
               user.login.failed                   3      2592000000
               user.email.send                     3      604800000
+              user.trade.rejected                 3      2592000000
 
               # 구독하는 토픽마다 하나씩. DeadLetterPublishingRecoverer 가 여기로 보낸다
               trading.trade.completed.DLT         3      2592000000
-              trading.trade.cancelled.DLT         3      2592000000
               trading.dividend.received.DLT       3      2592000000
               market.asset.created.DLT            3      2592000000
               market.dividend.updated.DLT         3      2592000000
@@ -77,6 +76,7 @@ spec:
               user.login.success.DLT              3      2592000000
               user.login.failed.DLT               3      2592000000
               user.email.send.DLT                 3      2592000000
+              user.trade.rejected.DLT             3      2592000000
 
               '
               echo "$TOPICS" > /tmp/topics.txt

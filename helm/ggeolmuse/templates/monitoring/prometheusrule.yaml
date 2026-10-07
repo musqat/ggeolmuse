@@ -247,3 +247,13 @@ spec:
           annotations:
             summary: "못 보낸 체결 이벤트"
             description: '1분 넘게 못 보낸 체결 {{ `{{ $value | printf "%.0f" }}` }}건 · 10분 지속 · 카프카 상태 확인'
+
+        - alert: TradeCancelNeedsReview
+          # 취소한 체결을 자동으로 다 되돌리지 못했다. 보유보다 많은 매도이거나 배당이 이미 지급됐다
+          expr: sum by (reason) (increase(trade_cancel_review_total{job="trade-service"}[10m])) > 0
+          labels:
+            severity: warning
+            category: messaging
+          annotations:
+            summary: "체결 취소 확인 필요: {{ `{{ $labels.reason }}` }}"
+            description: 'trade-service 최근 10분 {{ `{{ $value | printf "%.0f" }}` }}건 · 로그에서 tradeId 확인 · 잔액 수동 확인'
