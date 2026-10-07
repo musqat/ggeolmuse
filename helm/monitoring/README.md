@@ -87,7 +87,7 @@ count(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_irate)
 
 ## 알림
 
-`helm/ggeolmuse/templates/monitoring/prometheusrule.yaml` 에 11개. ggeolmuse 차트
+`helm/ggeolmuse/templates/monitoring/prometheusrule.yaml` 에 15개. ggeolmuse 차트
 안에 있어 ArgoCD 가 배포한다.
 
 | 그룹 | 규칙 |
@@ -98,9 +98,19 @@ count(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_irate)
 | config-server | ConfigServerDown, ConfigServerHighLatency, ConfigServerUnauthorized |
 | gateway | GatewayHighErrorRate |
 | resilience | CircuitBreakerOpen, CircuitBreakerMissing |
+| trade-settlement | KafkaDeadLetter, TradeEventsUnpublished |
 
 파드·노드 수준은 차트 내장 규칙이 맡는다. Redis·Kafka·Keycloak 은 exporter 가 없어
 `up` 시계열 자체가 없다.
+
+`KafkaDeadLetter` 는 user · trade 가 재시도로 못 살린 메시지를 `<토픽>.DLT` 로 넘길 때 오르는
+`kafka_dlt_records_total` 을 본다. 원인은 그 서비스 로그의 `DLT 로 보냄` 줄과 DLT 메시지 헤더
+`kafka_dlt-exception-message` 에 있다. 원인을 고친 뒤 kafka-ui 에서 DLT 메시지 값을 원래 토픽에 같은
+키(userId)로 다시 넣는다. `trading.trade.completed` 는 user-service 가 처리한 체결을 `trade_settlements` 에
+남겨 다시 넣어도 한 번만 반영한다. 다른 토픽은 다시 넣기 전에 이미 반영됐는지 확인한다.
+
+`TradeEventsUnpublished` 는 trade-service 가 커밋한 체결 가운데 이벤트를 1분 넘게 못 보낸 수다. 스케줄러가
+30초마다 다시 보내므로 카프카가 돌아오면 0 으로 내려간다.
 
 반복 주기는 critical 1시간, 나머지 4시간. `groupWait` 30초, `groupInterval` 5분.
 

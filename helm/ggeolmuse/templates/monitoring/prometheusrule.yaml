@@ -220,3 +220,30 @@ spec:
           annotations:
             summary: "서킷 메트릭 없음: {{ `{{ $labels.job }}` }} / {{ `{{ $labels.name }}` }}"
             description: '{{ `{{ $labels.job }}` }} 에 {{ `{{ $labels.name }}` }} 서킷 메트릭 없음 · 15분 지속 · 설정 instances 이름과 @CircuitBreaker 이름 불일치 의심'
+
+    # ========================================
+    # 체결 잔액 반영
+    # ========================================
+    - name: trade-settlement
+      interval: 30s
+      rules:
+        - alert: KafkaDeadLetter
+          # 재시도로 못 살린 메시지가 <토픽>.DLT 로 갔다. 처리 법은 helm/monitoring/README.md
+          expr: sum by (job) (increase(kafka_dlt_records_total{job=~"(user-service|trade-service)"}[10m])) > 0
+          labels:
+            severity: warning
+            category: messaging
+          annotations:
+            summary: "DLT 로 간 메시지: {{ `{{ $labels.job }}` }}"
+            description: '{{ `{{ $labels.job }}` }} 최근 10분 {{ `{{ $value | printf "%.0f" }}` }}건 · 로그 "DLT 로 보냄" 확인'
+
+        - alert: TradeEventsUnpublished
+          # 커밋한 체결의 이벤트를 1분 넘게 못 보냈다. 그만큼 잔액 반영이 밀린다
+          expr: max(trade_events_unpublished{job="trade-service"}) > 0
+          for: 10m
+          labels:
+            severity: critical
+            category: messaging
+          annotations:
+            summary: "못 보낸 체결 이벤트"
+            description: '1분 넘게 못 보낸 체결 {{ `{{ $value | printf "%.0f" }}` }}건 · 10분 지속 · 카프카 상태 확인'

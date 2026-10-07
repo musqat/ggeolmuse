@@ -6,8 +6,10 @@ import com.muscat.messaging.event.DividendReceivedEvent;
 import com.muscat.messaging.event.EmailSendEvent;
 import com.muscat.messaging.event.TradeCancelledEvent;
 import com.muscat.messaging.event.TradeCompletedEvent;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.util.HashMap;
 import java.util.Map;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -39,11 +41,14 @@ import org.springframework.util.backoff.FixedBackOff;
 @Slf4j
 @EnableKafka
 @Configuration
+@RequiredArgsConstructor
 public class KafkaConsumerConfig {
 
   // 첫 전달이 실패하면 1초 간격으로 세 번 더 보낸다
   private static final long RETRY_INTERVAL_MS = 1000L;
   private static final long MAX_RETRIES = 3L;
+
+  private final MeterRegistry meterRegistry;
 
   @Value("${spring.kafka.bootstrap-servers}")
   private String bootstrapServers;
@@ -335,8 +340,9 @@ public class KafkaConsumerConfig {
       dltKafkaTemplate(),
       (record, ex) -> new TopicPartition(record.topic() + ".DLT", -1));
 
-    DefaultErrorHandler errorHandler =
-      new DefaultErrorHandler(recoverer, new FixedBackOff(RETRY_INTERVAL_MS, MAX_RETRIES));
+    DefaultErrorHandler errorHandler = new DefaultErrorHandler(
+      new CountingDeadLetterRecoverer(recoverer, meterRegistry),
+      new FixedBackOff(RETRY_INTERVAL_MS, MAX_RETRIES));
 
     errorHandler.setRetryListeners((record, ex, deliveryAttempt) -> {
       log.warn("전달 {}/{} 실패: topic={}, partition={}, offset={}, error={}",
