@@ -40,6 +40,7 @@ public class KafkaProducerConfig {
         configProps.put(ProducerConfig.ACKS_CONFIG, "all"); // 모든 replica 확인
         configProps.put(ProducerConfig.RETRIES_CONFIG, 3); // 3번 재시도
         configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true); // 멱등성 보장
+        configProps.put(ProducerConfig.MAX_BLOCK_MS_CONFIG, 5000); // 브로커를 못 찾으면 5초 안에 실패 (기본 60초)
 
         // 성능 최적화
         configProps.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "gzip"); // Docker 호환성

@@ -16,13 +16,13 @@ import com.muscat.trade.domain.dto.response.TradeResponseDto;
 import com.muscat.trade.domain.dto.response.TradingCapacityResponseDto;
 import com.muscat.trade.domain.entity.Holdings;
 import com.muscat.trade.domain.entity.Trade;
+import com.muscat.trade.domain.event.TradeSavedEvent;
 import com.muscat.trade.domain.repository.HoldingsRepository;
 import com.muscat.trade.domain.repository.TradeRepository;
 import com.muscat.trade.domain.service.MarketDataService;
 import com.muscat.trade.domain.service.TradingService;
 import com.muscat.trade.infra.client.UserServiceClientWrapper;
 import com.muscat.trade.infra.client.dto.AccountBalanceDto;
-import com.muscat.trade.infra.kafka.TradeEventProducer;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -32,6 +32,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -50,7 +51,7 @@ public class TradingServiceImpl implements TradingService {
   private final TradeLogger tradeLogger;
   private final TradeProperties tradeProperties;
   private final TradeUtils tradeUtils;
-  private final TradeEventProducer tradeEventProducer;
+  private final ApplicationEventPublisher eventPublisher;
 
   @Override
   public TradeResponseDto buyStock(String userId, Long accountId, String symbol,
@@ -336,7 +337,7 @@ public class TradingServiceImpl implements TradingService {
     return MoneyUtils.roundUsd(MoneyUtils.add(tradeAmount, fee));
   }
 
-  // 2단계 거래 트랜잭션 실행 (Kafka 이벤트 기반)
+  // 체결 저장 · 보유 변경
   private Trade executeTradeTransaction(String userId, String accountId, String symbol,
     BigDecimal quantity, BigDecimal tradePrice, BigDecimal totalAmount,
     BigDecimal fee, LocalDate tradeDate, TradeType tradeType) {
@@ -348,10 +349,8 @@ public class TradingServiceImpl implements TradingService {
         totalAmount, fee, tradeDate, tradeType);
       log.info("거래 DB 트랜잭션 완료: tradeId={}", result.getId());
 
-      // Kafka 이벤트 발행 (비동기 잔액 업데이트)
-      // user-service가 TradeCompletedEvent를 소비하여 잔액 업데이트
-      log.info("거래 완료 이벤트 발행: tradeId={}", result.getId());
-      tradeEventProducer.publishTradeCompleted(result);
+      // trading.trade.completed 발행은 커밋 뒤로 미룬다
+      eventPublisher.publishEvent(new TradeSavedEvent(result));
 
       return result;
 
@@ -359,11 +358,6 @@ public class TradingServiceImpl implements TradingService {
       log.error("거래 DB 트랜잭션 실패: {}", e.getMessage(), e);
       throw new TradeException(TradeResponse.TRANSACTION_FAILED);
     }
-
-    // 1. 거래는 DB에 저장되면 무조건 성공
-    // 2. user-service가 다운되어도 이벤트는 Kafka에 저장됨
-    // 3. user-service 복구시 자동으로 이벤트 처리
-    // 4. 만약 거래 취소가 필요하면 TradeCancelledEvent 발행
   }
 
   // DB 트랜잭션으로 거래 기록 및 Holdings 업데이트 실행

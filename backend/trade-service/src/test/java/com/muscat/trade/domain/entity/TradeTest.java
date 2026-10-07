@@ -70,7 +70,8 @@ class TradeTest {
       new BigDecimal("1.00"),
       LocalDate.of(2024, 1, 16),
       LocalDateTime.of(2024, 1, 16, 14, 20),
-      LocalDateTime.now()
+      LocalDateTime.now(),
+      null
     );
 
     // Then
