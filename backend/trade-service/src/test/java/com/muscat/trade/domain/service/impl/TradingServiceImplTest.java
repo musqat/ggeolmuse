@@ -108,6 +108,7 @@ class TradingServiceImplTest {
     @DisplayName("정상적으로 주식이 매수된다 (신규 Holdings 생성)")
     void buyStock_NewHoldings_Success() {
       // given
+      stubTradePropertiesForHoldingsUpdate();
       BigDecimal tradeAmount = TEST_QUANTITY.multiply(TEST_PRICE); // 1500.00
       BigDecimal fee = new BigDecimal("1.50");
       BigDecimal totalAmount = tradeAmount.add(fee); // 1501.50
@@ -207,6 +208,7 @@ class TradingServiceImplTest {
     @DisplayName("직접 입력 가격에는 슬리피지를 붙이지 않는다")
     void buyStock_ManualPrice_KeepsInputPrice() {
       // given
+      stubTradePropertiesForHoldingsUpdate();
       BigDecimal manualPrice = new BigDecimal("100.00");
       testAccountBalance = AccountBalanceDto.builder()
         .accountId(String.valueOf(TEST_ACCOUNT_ID))
@@ -344,6 +346,7 @@ class TradingServiceImplTest {
     @DisplayName("정상적으로 주식이 매도된다 (부분 매도)")
     void sellStock_PartialSell_Success() {
       // given
+      stubTradePropertiesForHoldingsUpdate();
       BigDecimal existingQuantity = new BigDecimal("20");
       BigDecimal avgPrice = new BigDecimal("140.00");
       BigDecimal totalInvestedAmount = existingQuantity.multiply(avgPrice);
@@ -470,6 +473,7 @@ class TradingServiceImplTest {
     @DisplayName("전량 매도 시 Holdings가 삭제된다")
     void sellStock_FullSell_DeletesHoldings() {
       // given
+      stubTradePropertiesForHoldingsUpdate();
       BigDecimal existingQuantity = TEST_QUANTITY;
       BigDecimal avgPrice = new BigDecimal("140.00");
 

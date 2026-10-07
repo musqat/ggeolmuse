@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 
 import com.muscat.trade.common.enums.type.PriceType;
+import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.common.enums.type.TradeType;
 import com.muscat.trade.domain.dto.request.TradeRequestDto;
 import com.muscat.trade.domain.dto.request.TradingCapacityRequestDto;
@@ -67,7 +68,9 @@ class TradingControllerSimpleTest {
       new BigDecimal("1500.00"),
       new BigDecimal("1.50"),
       LocalDate.of(2024, 1, 15),
-      LocalDateTime.now()
+      LocalDateTime.now(),
+      TradeStatus.COMPLETED,
+      null
     );
 
     when(tradingService.buyStock(
@@ -111,7 +114,9 @@ class TradingControllerSimpleTest {
       new BigDecimal("800.00"),
       new BigDecimal("0.80"),
       LocalDate.of(2024, 1, 15),
-      LocalDateTime.now()
+      LocalDateTime.now(),
+      TradeStatus.COMPLETED,
+      null
     );
 
     when(tradingService.sellStock(

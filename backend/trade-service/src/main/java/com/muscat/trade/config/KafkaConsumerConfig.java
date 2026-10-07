@@ -2,6 +2,7 @@ package com.muscat.trade.config;
 
 import com.muscat.messaging.event.AccountDeletedEvent;
 import com.muscat.messaging.event.DividendUpdatedEvent;
+import com.muscat.messaging.event.TradeRejectedEvent;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +34,7 @@ import java.util.Map;
 
 /**
  * Trade Service Kafka Consumer 설정
- * DividendUpdatedEvent, AccountDeletedEvent 설정
+ * DividendUpdatedEvent, AccountDeletedEvent, TradeRejectedEvent 설정
  */
 @Slf4j
 @EnableKafka
@@ -142,6 +143,35 @@ public class KafkaConsumerConfig {
         // 공통 에러 핸들러 설정 (DLQ 포함)
         factory.setCommonErrorHandler(kafkaErrorHandler());
 
+        return factory;
+    }
+
+    @Bean
+    public ConsumerFactory<String, TradeRejectedEvent> tradeRejectedEventConsumerFactory() {
+        Map<String, Object> props = new HashMap<>();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, applicationName + "-trade-rejected-consumer");
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+        // trade-service 가 늦게 배포돼도 먼저 쌓인 반영 실패를 읽는다
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
+        props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class.getName());
+        props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, TradeRejectedEvent.class.getName());
+        props.put(JsonDeserializer.TRUSTED_PACKAGES, "com.muscat.*");
+        props.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
+        return new DefaultKafkaConsumerFactory<>(props);
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, TradeRejectedEvent>
+    tradeRejectedEventKafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, TradeRejectedEvent> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(tradeRejectedEventConsumerFactory());
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL);
+        factory.setConcurrency(1);
+        factory.setCommonErrorHandler(kafkaErrorHandler());
         return factory;
     }
 

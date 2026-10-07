@@ -1,6 +1,7 @@
 package com.muscat.trade.domain.service.impl;
 
 import com.muscat.commonlib.constants.CommonConstants;
+import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.common.enums.type.TradeType;
 import com.muscat.trade.domain.dto.response.DividendResponseDto;
 import com.muscat.trade.domain.entity.Dividend;
@@ -71,7 +72,7 @@ public class DividendServiceImpl implements DividendService {
 
     // 1. 해당 종목의 모든 BUY Trade 조회 (시간순)
     List<Trade> buyTrades = tradeRepository
-        .findByUserIdAndSymbolOrderByTradeDateAsc(userId, symbol)
+        .findByUserIdAndSymbolAndStatusOrderByTradeDateAsc(userId, symbol, TradeStatus.COMPLETED)
         .stream()
         .filter(t -> t.getTradeType() == TradeType.BUY)
         .toList();
@@ -191,7 +192,7 @@ public class DividendServiceImpl implements DividendService {
 
     // 모든 거래 내역 조회 (시간순)
     List<Trade> allTrades = tradeRepository
-      .findByUserIdAndSymbolOrderByTradeDateAsc(userId, symbol);
+      .findByUserIdAndSymbolAndStatusOrderByTradeDateAsc(userId, symbol, TradeStatus.COMPLETED);
 
     // targetTradeId의 매수 수량
     BigDecimal originalShares = allTrades.stream()
@@ -240,7 +241,7 @@ public class DividendServiceImpl implements DividendService {
    */
   private LocalDate getFirstPurchaseDate(String userId, String symbol) {
     List<Trade> trades = tradeRepository
-      .findByUserIdAndSymbolOrderByTradeDateAsc(userId, symbol);
+      .findByUserIdAndSymbolAndStatusOrderByTradeDateAsc(userId, symbol, TradeStatus.COMPLETED);
 
     if (trades.isEmpty()) {
       return LocalDate.now();

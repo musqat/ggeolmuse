@@ -10,6 +10,7 @@ import static org.mockito.BDDMockito.never;
 import static org.mockito.BDDMockito.times;
 import static org.mockito.BDDMockito.verify;
 
+import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.common.enums.type.TradeType;
 import com.muscat.trade.domain.dto.response.DividendResponseDto;
 import com.muscat.trade.domain.entity.Dividend;
@@ -116,7 +117,7 @@ class DividendServiceImplTest {
         .tradeDate(LocalDate.of(2024, 1, 1))
         .build();
 
-      given(tradeRepository.findByUserIdAndSymbolOrderByTradeDateAsc(TEST_USER_ID, "AAPL"))
+      given(tradeRepository.findByUserIdAndSymbolAndStatusOrderByTradeDateAsc(TEST_USER_ID, "AAPL", TradeStatus.COMPLETED))
         .willReturn(List.of(appleTrade));
 
       DividendDto appleDiv = new DividendDto("2024-02-15", new BigDecimal("0.25"));
@@ -147,7 +148,7 @@ class DividendServiceImplTest {
         .tradeDate(LocalDate.of(2024, 1, 1))
         .build();
 
-      given(tradeRepository.findByUserIdAndSymbolOrderByTradeDateAsc(TEST_USER_ID, "MSFT"))
+      given(tradeRepository.findByUserIdAndSymbolAndStatusOrderByTradeDateAsc(TEST_USER_ID, "MSFT", TradeStatus.COMPLETED))
         .willReturn(List.of(msftTrade));
 
       DividendDto msftDiv = new DividendDto("2024-02-20", new BigDecimal("0.75"));
@@ -200,7 +201,7 @@ class DividendServiceImplTest {
       LocalDate startDate = LocalDate.of(2024, 1, 1);
       LocalDate endDate = LocalDate.of(2024, 12, 31);
 
-      given(tradeRepository.findByUserIdAndSymbolOrderByTradeDateAsc(TEST_USER_ID, TEST_SYMBOL))
+      given(tradeRepository.findByUserIdAndSymbolAndStatusOrderByTradeDateAsc(TEST_USER_ID, TEST_SYMBOL, TradeStatus.COMPLETED))
         .willReturn(List.of(testBuyTrade));
 
       given(marketServiceClient.getDividends(TEST_SYMBOL, startDate.toString(), endDate.toString()))
@@ -236,7 +237,7 @@ class DividendServiceImplTest {
       LocalDate startDate = LocalDate.of(2024, 1, 1);
       LocalDate endDate = LocalDate.of(2024, 12, 31);
 
-      given(tradeRepository.findByUserIdAndSymbolOrderByTradeDateAsc(TEST_USER_ID, TEST_SYMBOL))
+      given(tradeRepository.findByUserIdAndSymbolAndStatusOrderByTradeDateAsc(TEST_USER_ID, TEST_SYMBOL, TradeStatus.COMPLETED))
         .willReturn(List.of(testBuyTrade));
 
       given(marketServiceClient.getDividends(TEST_SYMBOL, startDate.toString(), endDate.toString()))
@@ -289,7 +290,7 @@ class DividendServiceImplTest {
         .tradeDate(sellDate)
         .build();
 
-      given(tradeRepository.findByUserIdAndSymbolOrderByTradeDateAsc(TEST_USER_ID, TEST_SYMBOL))
+      given(tradeRepository.findByUserIdAndSymbolAndStatusOrderByTradeDateAsc(TEST_USER_ID, TEST_SYMBOL, TradeStatus.COMPLETED))
         .willReturn(List.of(buyTrade, sellTrade));
 
       DividendDto dividendDto = new DividendDto(dividendDate.toString(), DIVIDEND_PER_SHARE);
@@ -343,7 +344,7 @@ class DividendServiceImplTest {
         .tradeDate(sellDate)
         .build();
 
-      given(tradeRepository.findByUserIdAndSymbolOrderByTradeDateAsc(TEST_USER_ID, TEST_SYMBOL))
+      given(tradeRepository.findByUserIdAndSymbolAndStatusOrderByTradeDateAsc(TEST_USER_ID, TEST_SYMBOL, TradeStatus.COMPLETED))
         .willReturn(List.of(buyTrade, sellTrade));
 
       DividendDto dividendDto = new DividendDto(dividendDate.toString(), DIVIDEND_PER_SHARE);
@@ -370,7 +371,7 @@ class DividendServiceImplTest {
       LocalDate startDate = LocalDate.of(2024, 1, 1);
       LocalDate endDate = LocalDate.of(2024, 12, 31);
 
-      given(tradeRepository.findByUserIdAndSymbolOrderByTradeDateAsc(TEST_USER_ID, TEST_SYMBOL))
+      given(tradeRepository.findByUserIdAndSymbolAndStatusOrderByTradeDateAsc(TEST_USER_ID, TEST_SYMBOL, TradeStatus.COMPLETED))
         .willReturn(List.of(testBuyTrade));
 
       given(marketServiceClient.getDividends(TEST_SYMBOL, startDate.toString(), endDate.toString()))
@@ -396,7 +397,7 @@ class DividendServiceImplTest {
       LocalDate startDate = LocalDate.of(2024, 1, 1);
       LocalDate endDate = LocalDate.of(2024, 12, 31);
 
-      given(tradeRepository.findByUserIdAndSymbolOrderByTradeDateAsc(TEST_USER_ID, TEST_SYMBOL))
+      given(tradeRepository.findByUserIdAndSymbolAndStatusOrderByTradeDateAsc(TEST_USER_ID, TEST_SYMBOL, TradeStatus.COMPLETED))
         .willReturn(new ArrayList<>());
 
       // when
@@ -439,9 +440,9 @@ class DividendServiceImplTest {
         .tradeDate(LocalDate.of(2024, 1, 1))
         .build();
 
-      given(tradeRepository.findByUserIdAndSymbolOrderByTradeDateAsc(TEST_USER_ID, "AAPL"))
+      given(tradeRepository.findByUserIdAndSymbolAndStatusOrderByTradeDateAsc(TEST_USER_ID, "AAPL", TradeStatus.COMPLETED))
         .willReturn(List.of(appleTrade));
-      given(tradeRepository.findByUserIdAndSymbolOrderByTradeDateAsc(TEST_USER_ID, "MSFT"))
+      given(tradeRepository.findByUserIdAndSymbolAndStatusOrderByTradeDateAsc(TEST_USER_ID, "MSFT", TradeStatus.COMPLETED))
         .willReturn(List.of(msftTrade));
 
       given(marketServiceClient.getDividends(eq("AAPL"), anyString(), anyString()))

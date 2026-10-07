@@ -1,0 +1,4 @@
+-- 체결 상태. 잔액 반영 실패면 CANCELLED
+ALTER TABLE trades ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'COMPLETED';
+ALTER TABLE trades ADD COLUMN cancel_reason VARCHAR(50);
+ALTER TABLE trades ADD COLUMN cancelled_at TIMESTAMP;
