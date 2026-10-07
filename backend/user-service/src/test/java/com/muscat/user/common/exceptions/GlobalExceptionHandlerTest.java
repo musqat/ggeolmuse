@@ -2,6 +2,7 @@ package com.muscat.user.common.exceptions;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.muscat.commonlib.exception.ServiceException;
 import com.muscat.user.common.enums.responses.UserResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,6 +22,8 @@ class GlobalExceptionHandlerTest {
       .isEqualTo("handleBusinessException");
     assertThat(resolver.resolveMethod(new AuthenticationException(UserResponse.AUTHENTICATION_FAILED)).getName())
       .isEqualTo("handleBusinessException");
+    assertThat(resolver.resolveMethod(new ServiceException("EXCESSIVE_AMOUNT", "한도 초과")).getName())
+      .isEqualTo("handleServiceException");
     assertThat(resolver.resolveMethod(new IllegalStateException("원인")).getName())
       .isEqualTo("handleGenericException");
   }

@@ -73,4 +73,19 @@ class BaseExceptionHandlerTest {
     assertThat(body.getInstance()).hasToString("/api/market/prices/AAPL");
     assertThat(body.getProperties()).containsEntry("errorCode", "PRICE_DATA_NOT_FOUND");
   }
+
+  @Test
+  @DisplayName("금액 검증 실패(ServiceException)는 400 과 그 메시지로 응답한다")
+  void serviceException_BadRequestWithMessage() {
+    ResponseEntity<ProblemDetail> response = handler.handleServiceException(
+      new ServiceException("EXCESSIVE_AMOUNT", "1회 최대 환전 금액은 50000000원입니다"),
+      new MockHttpServletRequest("POST", "/api/accounts/18/exchange"));
+
+    ProblemDetail body = response.getBody();
+    assertThat(response.getStatusCode().value()).isEqualTo(400);
+    assertThat(body).isNotNull();
+    assertThat(body.getDetail()).isEqualTo("1회 최대 환전 금액은 50000000원입니다");
+    assertThat(body.getProperties()).containsEntry("errorCode", "EXCESSIVE_AMOUNT");
+    assertThat(body.getProperties()).containsEntry("errorType", "BUSINESS");
+  }
 }
