@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { addAmount } from '@/utils/amount';
 import { Modal } from '@/components/common/Modal';
 import type { AccountBalance } from '@/services/api';
 
@@ -152,21 +153,21 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
             className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
           />
 
-          {/* 빠른 금액 버튼 */}
+          {/* 빠른 금액 버튼. 누를 때마다 더한다 */}
           <div className="grid grid-cols-3 gap-2 mt-2">
             {exchangeFromCurrency === 'KRW' ? (
               <>
                 <button
-                  onClick={() => setExchangeAmount('1000000')}
+                  onClick={() => setExchangeAmount((current) => addAmount(current, 1000000))}
                   className="py-2 px-3 bg-elevated text-tx-1 rounded-md hover:bg-hover transition-colors text-sm"
                 >
-                  $1천 (₩100만)
+                  +$1천 (₩100만)
                 </button>
                 <button
-                  onClick={() => setExchangeAmount('10000000')}
+                  onClick={() => setExchangeAmount((current) => addAmount(current, 10000000))}
                   className="py-2 px-3 bg-elevated text-tx-1 rounded-md hover:bg-hover transition-colors text-sm"
                 >
-                  $1만 (₩1000만)
+                  +$1만 (₩1000만)
                 </button>
                 <button
                   onClick={() => {
@@ -182,16 +183,16 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
             ) : (
               <>
                 <button
-                  onClick={() => setExchangeAmount('1000')}
+                  onClick={() => setExchangeAmount((current) => addAmount(current, 1000))}
                   className="py-2 px-3 bg-elevated text-tx-1 rounded-md hover:bg-hover transition-colors text-sm"
                 >
-                  $1,000
+                  +$1,000
                 </button>
                 <button
-                  onClick={() => setExchangeAmount('10000')}
+                  onClick={() => setExchangeAmount((current) => addAmount(current, 10000))}
                   className="py-2 px-3 bg-elevated text-tx-1 rounded-md hover:bg-hover transition-colors text-sm"
                 >
-                  $10,000
+                  +$10,000
                 </button>
                 <button
                   onClick={() => {
