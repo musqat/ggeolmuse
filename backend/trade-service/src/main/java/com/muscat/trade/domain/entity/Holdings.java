@@ -94,6 +94,13 @@ public class Holdings {
     this.totalInvestedAmount = this.totalInvestedAmount.subtract(soldAmount);
   }
 
+  // 다시 쌓은 값으로 수량 · 평균 매수가 · 투자금액을 바꾼다
+  public void overwriteWith(Holdings rebuilt) {
+    this.totalQuantity = rebuilt.totalQuantity;
+    this.avgPurchasePrice = rebuilt.avgPurchasePrice;
+    this.totalInvestedAmount = rebuilt.totalInvestedAmount;
+  }
+
   // 보유 여부 확인
   public boolean hasShares() {
     return this.totalQuantity.compareTo(BigDecimal.ZERO) > 0;

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Modal } from '@/components/common/Modal';
+import { addAmount } from '@/utils/amount';
 
 interface DepositModalProps {
   isOpen: boolean;
@@ -18,7 +19,7 @@ const DepositModal: React.FC<DepositModalProps> = ({
 }) => {
   const [depositAmount, setDepositAmount] = useState('');
 
-  // 빠른 금액 버튼 옵션
+  // 빠른 금액 버튼. 누를 때마다 더한다
   const quickAmounts = [100000, 1000000, 10000000];
 
   const handleClose = () => {
@@ -85,10 +86,10 @@ const DepositModal: React.FC<DepositModalProps> = ({
           {quickAmounts.map((amount) => (
             <button
               key={amount}
-              onClick={() => setDepositAmount(amount.toString())}
+              onClick={() => setDepositAmount((current) => addAmount(current, amount))}
               className="py-2 px-3 bg-elevated text-tx-1 rounded-md hover:bg-hover transition-colors text-sm"
             >
-              ₩{(amount / 10000).toFixed(0)}만
+              +₩{(amount / 10000).toFixed(0)}만
             </button>
           ))}
         </div>

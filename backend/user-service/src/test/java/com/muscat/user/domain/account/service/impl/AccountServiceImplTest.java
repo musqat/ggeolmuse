@@ -13,7 +13,6 @@ import static org.mockito.Mockito.verify;
 
 import com.muscat.commonlib.dto.FxRateDto;
 import com.muscat.messaging.event.DividendReceivedEvent;
-import com.muscat.messaging.event.TradeCancelledEvent;
 import com.muscat.messaging.event.TradeCompletedEvent;
 import com.muscat.user.common.enums.responses.AccountResponse;
 import com.muscat.user.common.exceptions.AccountException;
@@ -934,68 +933,6 @@ class AccountServiceImplTest {
         .isInstanceOf(AccountException.class)
         .hasMessage(AccountResponse.ACCOUNT_ACCESS_DENIED.getMessage());
       assertThat(othersAccount.getBalanceUsd()).isEqualByComparingTo("1000.00");
-    }
-  }
-
-  @Nested
-  @DisplayName("거래 취소 이벤트 처리 테스트")
-  class ProcessTradeCancellationEventTests {
-
-    // Note: 마찬가지로 통합 테스트가 더 적합합니다.
-
-    @Test
-    @DisplayName("취소 이벤트 - 계좌 없을 때 예외 발생")
-    void processTradeCancellationEvent_NoAccount_ThrowsException() {
-      // given
-      TradeCancelledEvent event =
-        com.muscat.messaging.event.TradeCancelledEvent.builder()
-          .userId(userId.toString())
-          .tradeId(3L)
-          .symbol("TSLA")
-          .tradeType("BUY")
-          .quantity(new BigDecimal("1"))
-          .price(new BigDecimal("800.00"))
-          .totalAmount(new BigDecimal("800.00"))
-          .cancellationReason("System error")
-          .build();
-
-      given(accountRepository.findByUserIdWithUser(userId))
-        .willReturn(new ArrayList<>());
-
-      // when & then
-      assertThatThrownBy(() -> accountService.processTradeCancellationEvent(event))
-        .isInstanceOf(AccountException.class)
-        .hasMessage(AccountResponse.ACCOUNT_NOT_FOUND.getMessage());
-    }
-
-    @Test
-    @DisplayName("취소도 거래한 계좌에 되돌린다")
-    void processTradeCancellationEvent_UsesEventAccount() {
-      // given
-      Account firstAccount = usdAccount(10L, testUser, "1000.00");
-      Account tradedAccount = usdAccount(20L, testUser, "909.98");
-      given(accountRepository.findByUserIdWithUser(userId))
-        .willReturn(Arrays.asList(firstAccount, tradedAccount));
-      given(accountRepository.findByIdWithLock(20L)).willReturn(Optional.of(tradedAccount));
-
-      TradeCancelledEvent event = TradeCancelledEvent.builder()
-        .userId(userId.toString())
-        .accountId(20L)
-        .tradeId(7L)
-        .symbol("TSLL")
-        .tradeType("BUY")
-        .quantity(new BigDecimal("10"))
-        .price(new BigDecimal("8.98"))
-        .totalAmount(new BigDecimal("90.02"))
-        .cancellationReason("TEST")
-        .build();
-
-      // when
-      accountService.processTradeCancellationEvent(event);
-
-      // then
-      assertThat(tradedAccount.getBalanceUsd()).isEqualByComparingTo("1000.00");
-      assertThat(firstAccount.getBalanceUsd()).isEqualByComparingTo("1000.00");
     }
   }
 

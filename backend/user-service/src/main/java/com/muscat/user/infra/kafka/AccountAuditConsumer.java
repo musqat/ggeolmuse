@@ -31,7 +31,7 @@ public class AccountAuditConsumer {
     @KafkaListener(
             topics = "user.account.balance.updated",
             groupId = "${spring.application.name}-balance-audit-consumer",
-            containerFactory = "emailEventKafkaListenerContainerFactory" // 공통 설정 재사용
+            containerFactory = "balanceUpdatedEventKafkaListenerContainerFactory"
     )
     public void handleBalanceUpdated(
             @Payload AccountBalanceUpdatedEvent event,

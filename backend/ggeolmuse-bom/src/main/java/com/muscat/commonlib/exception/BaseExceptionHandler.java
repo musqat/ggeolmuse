@@ -39,6 +39,24 @@ public class BaseExceptionHandler {
     return ResponseEntity.status(status).body(problem);
   }
 
+  // MoneyUtils 의 금액 · 통화 · 환율 검증 실패. 요청 값 문제라 400
+  @ExceptionHandler(ServiceException.class)
+  public ResponseEntity<ProblemDetail> handleServiceException(ServiceException ex,
+    HttpServletRequest request) {
+    log.warn("[VALIDATION ERROR] {} - {}", ex.getErrorCode(), ex.getMessage());
+
+    ProblemDetail problem = ProblemDetailUtils.createProblem(
+      HttpStatus.BAD_REQUEST,
+      ex.getMessage(),
+      ex.getErrorCode(),
+      request.getRequestURI(),
+      HttpStatus.BAD_REQUEST.getReasonPhrase(),
+      Map.of("errorType", ErrorType.BUSINESS.name())
+    );
+
+    return ResponseEntity.badRequest().body(problem);
+  }
+
   protected ResponseEntity<ProblemDetail> handleValidationException(
     MethodArgumentNotValidException ex, HttpServletRequest request) {
 

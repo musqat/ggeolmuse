@@ -1,5 +1,6 @@
 package com.muscat.trade.domain.dto.response;
 
+import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.common.enums.type.TradeType;
 import com.muscat.trade.domain.entity.Trade;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -37,7 +38,13 @@ public record TradeResponseDto(
   LocalDate tradeDate, // 거래일
 
   @Schema(description = "실행일시", example = "2024-09-18T14:30:00")
-  LocalDateTime executedAt // 실행일시
+  LocalDateTime executedAt, // 실행일시
+
+  @Schema(description = "체결 상태", example = "COMPLETED", allowableValues = {"COMPLETED", "CANCELLED"})
+  TradeStatus status, // 체결 상태
+
+  @Schema(description = "취소 사유 코드", example = "INSUFFICIENT_USD_BALANCE")
+  String cancelReason // 취소 사유 (취소된 체결만)
 ) {
 
   // Entity to DTO 변환
@@ -52,7 +59,9 @@ public record TradeResponseDto(
       trade.getTotalAmount(),
       trade.getFee(),
       trade.getTradeDate(),
-      trade.getExecutedAt()
+      trade.getExecutedAt(),
+      trade.getStatus(),
+      trade.getCancelReason()
     );
   }
 }

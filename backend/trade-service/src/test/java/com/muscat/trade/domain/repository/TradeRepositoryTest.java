@@ -3,6 +3,7 @@ package com.muscat.trade.domain.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.muscat.jpatest.TradeJpaTestConfig;
+import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.common.enums.type.TradeType;
 import com.muscat.trade.domain.entity.Trade;
 import java.math.BigDecimal;
@@ -81,5 +82,46 @@ class TradeRepositoryTest {
     assertThat(updated).isEqualTo(1);
     assertThat(tradeRepository.findById(saved.getId()).orElseThrow().getEventPublishedAt())
       .isEqualTo(publishedAt);
+  }
+
+  private Trade saveTrade(TradeType type, String quantity, TradeStatus status, LocalDateTime executedAt) {
+    return tradeRepository.save(Trade.builder()
+      .userId("user-1").accountId(20L).symbol("AAPL").tradeType(type)
+      .quantity(new BigDecimal(quantity)).price(new BigDecimal("100.00"))
+      .totalAmount(new BigDecimal(quantity).multiply(new BigDecimal("100.00")))
+      .tradeDate(LocalDate.of(2026, 10, 7)).executedAt(executedAt).status(status)
+      .build());
+  }
+
+  @Test
+  @DisplayName("보유 다시 쌓기용 조회는 취소 안 된 체결만 반영 순서대로 준다")
+  void findCompleted_InExecutionOrder() {
+    Trade later = saveTrade(TradeType.BUY, "1", TradeStatus.COMPLETED, LocalDateTime.of(2026, 10, 7, 10, 0));
+    saveTrade(TradeType.BUY, "2", TradeStatus.CANCELLED, LocalDateTime.of(2026, 10, 7, 9, 0));
+    Trade earlier = saveTrade(TradeType.SELL, "1", TradeStatus.COMPLETED, LocalDateTime.of(2026, 10, 7, 9, 0));
+
+    List<Trade> found = tradeRepository.findByUserIdAndAccountIdAndSymbolAndStatusOrderByExecutedAtAscIdAsc(
+      "user-1", 20L, "AAPL", TradeStatus.COMPLETED);
+
+    assertThat(found).extracting(Trade::getId).containsExactly(earlier.getId(), later.getId());
+  }
+
+  @Test
+  @DisplayName("매도 가능 수량에서 취소된 체결을 뺀다")
+  void calculateSellableQuantity_ExcludesCancelled() {
+    saveTrade(TradeType.BUY, "10", TradeStatus.COMPLETED, LocalDateTime.of(2026, 10, 7, 9, 0));
+    saveTrade(TradeType.BUY, "5", TradeStatus.CANCELLED, LocalDateTime.of(2026, 10, 7, 9, 1));
+    saveTrade(TradeType.SELL, "3", TradeStatus.COMPLETED, LocalDateTime.of(2026, 10, 7, 9, 2));
+
+    assertThat(tradeRepository.calculateSellableQuantity("user-1", 20L, "AAPL", LocalDate.of(2026, 10, 7)))
+      .isEqualByComparingTo("7");
+  }
+
+  @Test
+  @DisplayName("체결을 잠가서 읽는다")
+  void findByIdForUpdate_ReturnsTrade() {
+    Trade saved = saveTrade(TradeType.BUY, "1", TradeStatus.COMPLETED, LocalDateTime.of(2026, 10, 7, 9, 0));
+
+    assertThat(tradeRepository.findByIdForUpdate(saved.getId())).isPresent();
   }
 }

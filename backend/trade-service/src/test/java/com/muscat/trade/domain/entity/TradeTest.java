@@ -2,6 +2,7 @@ package com.muscat.trade.domain.entity;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.common.enums.type.TradeType;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -71,6 +72,9 @@ class TradeTest {
       LocalDate.of(2024, 1, 16),
       LocalDateTime.of(2024, 1, 16, 14, 20),
       LocalDateTime.now(),
+      null,
+      TradeStatus.COMPLETED,
+      null,
       null
     );
 
@@ -124,5 +128,25 @@ class TradeTest {
 
     // Then
     assertThat(trade.getFee()).isEqualByComparingTo(BigDecimal.ZERO);
+  }
+
+  @Test
+  @DisplayName("상태 기본값은 COMPLETED")
+  void status_DefaultsToCompleted() {
+    assertThat(new Trade().getStatus()).isEqualTo(TradeStatus.COMPLETED);
+    assertThat(Trade.builder().build().getStatus()).isEqualTo(TradeStatus.COMPLETED);
+  }
+
+  @Test
+  @DisplayName("취소하면 상태 · 사유 · 시각이 바뀐다")
+  void cancel_SetsStatusReasonAndTime() {
+    Trade trade = Trade.builder().id(7L).build();
+    LocalDateTime at = LocalDateTime.of(2026, 10, 8, 9, 0);
+
+    trade.cancel("INSUFFICIENT_USD_BALANCE", at);
+
+    assertThat(trade.getStatus()).isEqualTo(TradeStatus.CANCELLED);
+    assertThat(trade.getCancelReason()).isEqualTo("INSUFFICIENT_USD_BALANCE");
+    assertThat(trade.getCancelledAt()).isEqualTo(at);
   }
 }

@@ -51,6 +51,17 @@ public class TradeSettlement implements Persistable<Long> {
     return settlement;
   }
 
+  public static TradeSettlement rejected(Long tradeId, Long accountId, String reasonCode,
+    LocalDateTime processedAt) {
+    TradeSettlement settlement = new TradeSettlement();
+    settlement.tradeId = tradeId;
+    settlement.accountId = accountId;
+    settlement.status = SettlementStatus.REJECTED;
+    settlement.reasonCode = reasonCode;
+    settlement.processedAt = processedAt;
+    return settlement;
+  }
+
   @Override
   public Long getId() {
     return tradeId;

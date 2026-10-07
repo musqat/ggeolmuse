@@ -1,5 +1,6 @@
 package com.muscat.trade.domain.repository.impl;
 
+import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.common.enums.type.TradeType;
 import com.muscat.trade.domain.entity.QTrade;
 import com.muscat.trade.domain.entity.Trade;
@@ -99,6 +100,7 @@ public class TradeRepositoryCustomImpl implements TradeRepositoryCustom {
                         trade.accountId.eq(accountId),
                         trade.symbol.eq(symbol),
                         trade.tradeType.eq(TradeType.BUY),
+                        trade.status.eq(TradeStatus.COMPLETED),
                         trade.tradeDate.loe(sellDate)
                 )
                 .fetchOne();
@@ -111,6 +113,7 @@ public class TradeRepositoryCustomImpl implements TradeRepositoryCustom {
                         trade.accountId.eq(accountId),
                         trade.symbol.eq(symbol),
                         trade.tradeType.eq(TradeType.SELL),
+                        trade.status.eq(TradeStatus.COMPLETED),
                         trade.tradeDate.loe(sellDate)
                 )
                 .fetchOne();

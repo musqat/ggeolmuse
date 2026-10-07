@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { ArrowUpCircle, ArrowDownCircle, RefreshCw, LogIn, DollarSign } from 'lucide-react';
 import { tradeApi } from '../services/api';
 import LoginModal from '../components/auth/LoginModal';
+import TradeCancelledBadge from '../components/trading/TradeCancelledBadge';
 
 interface Transaction {
   type: 'BUY' | 'SELL' | 'DIVIDEND';
@@ -19,6 +20,8 @@ interface Transaction {
   shares?: number;
   date: string;
   executedAt: string;
+  status?: 'COMPLETED' | 'CANCELLED'; // 매수 · 매도만. 잔액 반영 실패면 CANCELLED
+  cancelReason?: string | null;
 }
 
 type FilterType = 'ALL' | 'BUY' | 'SELL' | 'DIVIDEND';
@@ -249,7 +252,7 @@ const TradeHistory: React.FC = () => {
               {filteredTransactions.grouped.map(({ trade, dividends }) => (
                 <div key={trade.tradeId} className="bg-surface rounded-xl shadow-sm border border-line/50 overflow-hidden">
                   {/* 매수 거래 */}
-                  <div className="p-4 hover:bg-surface/50 transition-colors">
+                  <div className={`p-4 hover:bg-surface/50 transition-colors${trade.status === 'CANCELLED' ? ' opacity-60' : ''}`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4">
                         <div className="flex-shrink-0">
@@ -263,6 +266,7 @@ const TradeHistory: React.FC = () => {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center space-x-3">
                             <p className="text-lg font-semibold text-tx-1">{trade.symbol}</p>
+                            {trade.status === 'CANCELLED' && <TradeCancelledBadge reason={trade.cancelReason} />}
                             <p className="text-sm text-tx-2">
                               {new Date(trade.executedAt).toLocaleString('ko-KR')}
                             </p>
@@ -333,7 +337,7 @@ const TradeHistory: React.FC = () => {
               {/* 매도 거래들 (별도 표시) */}
               {filteredTransactions.sellTrades.map((trade) => (
                 <div key={trade.tradeId} className="bg-surface rounded-xl shadow-sm border border-line/50 overflow-hidden">
-                  <div className="p-4 hover:bg-surface/50 transition-colors">
+                  <div className={`p-4 hover:bg-surface/50 transition-colors${trade.status === 'CANCELLED' ? ' opacity-60' : ''}`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4">
                         <div className="flex-shrink-0">
@@ -347,6 +351,7 @@ const TradeHistory: React.FC = () => {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center space-x-3">
                             <p className="text-lg font-semibold text-tx-1">{trade.symbol}</p>
+                            {trade.status === 'CANCELLED' && <TradeCancelledBadge reason={trade.cancelReason} />}
                             <p className="text-sm text-tx-2">
                               {new Date(trade.executedAt).toLocaleString('ko-KR')}
                             </p>

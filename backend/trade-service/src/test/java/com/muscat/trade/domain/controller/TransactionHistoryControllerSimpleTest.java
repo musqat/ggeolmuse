@@ -84,6 +84,7 @@ class TransactionHistoryControllerSimpleTest {
     assertThat(response.getBody()).hasSize(1);
     assertThat(response.getBody().get(0).get("type")).isEqualTo("BUY");
     assertThat(response.getBody().get(0).get("symbol")).isEqualTo("AAPL");
+    assertThat(response.getBody().get(0).get("status")).isEqualTo("COMPLETED");
   }
 
   @Test

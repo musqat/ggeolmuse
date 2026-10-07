@@ -15,6 +15,7 @@ import com.muscat.user.common.exceptions.AccountException;
 import com.muscat.user.domain.account.entity.TradeSettlement;
 import com.muscat.user.domain.account.repository.TradeSettlementRepository;
 import com.muscat.user.domain.account.service.AccountService;
+import com.muscat.user.infra.kafka.TradeRejectedEventProducer;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -36,6 +37,9 @@ class TradeSettlementServiceImplTest {
   private TradeSettlementRepository tradeSettlementRepository;
 
   @Mock
+  private TradeRejectedEventProducer tradeRejectedEventProducer;
+
+  @Mock
   private PlatformTransactionManager transactionManager;
 
   private TradeSettlementServiceImpl service;
@@ -50,7 +54,8 @@ class TradeSettlementServiceImplTest {
 
   @BeforeEach
   void setUp() {
-    service = new TradeSettlementServiceImpl(accountService, tradeSettlementRepository, transactionManager);
+    service = new TradeSettlementServiceImpl(accountService, tradeSettlementRepository,
+      tradeRejectedEventProducer, transactionManager);
   }
 
   @Test
@@ -75,15 +80,53 @@ class TradeSettlementServiceImplTest {
 
     verify(accountService, never()).processTradeEvent(any());
     verify(tradeSettlementRepository, never()).saveAndFlush(any());
+    verify(tradeRejectedEventProducer, never()).publish(any(), any(), any());
   }
 
   @Test
-  @DisplayName("반영이 실패하면 기록하지 않고 예외를 그대로 던진다")
-  void settle_ApplyFails_RethrowsWithoutRecord() {
+  @DisplayName("기술 실패는 기록 · 발행 없이 예외를 그대로 던진다")
+  void settle_TechnicalFailure_Rethrows() {
+    willThrow(new IllegalStateException("db down")).given(accountService).processTradeEvent(event);
+
+    assertThatThrownBy(() -> service.settle(event)).isInstanceOf(IllegalStateException.class);
+    verify(tradeSettlementRepository, never()).saveAndFlush(any());
+    verify(tradeRejectedEventProducer, never()).publish(any(), any(), any());
+  }
+
+  @Test
+  @DisplayName("잔액 부족이면 REJECTED 를 저장하고 반영 실패를 발행한다")
+  void settle_InsufficientBalance_RejectsAndPublishes() {
     willThrow(new AccountException(AccountResponse.INSUFFICIENT_USD_BALANCE))
       .given(accountService).processTradeEvent(event);
 
+    service.settle(event);
+
+    ArgumentCaptor<TradeSettlement> saved = ArgumentCaptor.forClass(TradeSettlement.class);
+    verify(tradeSettlementRepository).saveAndFlush(saved.capture());
+    assertThat(saved.getValue().getStatus()).isEqualTo(SettlementStatus.REJECTED);
+    assertThat(saved.getValue().getReasonCode()).isEqualTo("INSUFFICIENT_USD_BALANCE");
+    verify(tradeRejectedEventProducer)
+      .publish(event, "INSUFFICIENT_USD_BALANCE", AccountResponse.INSUFFICIENT_USD_BALANCE.getMessage());
+  }
+
+  @Test
+  @DisplayName("5xx AccountException 은 업무 실패가 아니라 그대로 던진다")
+  void settle_ServerErrorCode_Rethrows() {
+    willThrow(new AccountException(AccountResponse.EXCHANGE_RATE_SERVICE_ERROR))
+      .given(accountService).processTradeEvent(event);
+
     assertThatThrownBy(() -> service.settle(event)).isInstanceOf(AccountException.class);
-    verify(tradeSettlementRepository, never()).saveAndFlush(any());
+    verify(tradeRejectedEventProducer, never()).publish(any(), any(), any());
+  }
+
+  @Test
+  @DisplayName("반영 실패 발행이 실패하면 예외를 던진다")
+  void settle_PublishFails_Throws() {
+    willThrow(new AccountException(AccountResponse.INSUFFICIENT_USD_BALANCE))
+      .given(accountService).processTradeEvent(event);
+    willThrow(new IllegalStateException("broker down"))
+      .given(tradeRejectedEventProducer).publish(any(), any(), any());
+
+    assertThatThrownBy(() -> service.settle(event)).isInstanceOf(IllegalStateException.class);
   }
 }

@@ -1,5 +1,6 @@
 package com.muscat.trade.domain.entity;
 
+import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.common.enums.type.TradeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -75,4 +76,21 @@ public class Trade {
   private LocalDateTime createdAt; // 레코드 생성일시
 
   private LocalDateTime eventPublishedAt; // 체결 이벤트 발행 시각. 비어 있으면 다시 발행 대상
+
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false, length = 20)
+  @Builder.Default
+  private TradeStatus status = TradeStatus.COMPLETED; // 체결 상태
+
+  @Column(length = 50)
+  private String cancelReason; // 취소 사유 (AccountResponse 이름)
+
+  private LocalDateTime cancelledAt; // 취소 시각
+
+  // 잔액 반영 실패로 취소
+  public void cancel(String reason, LocalDateTime at) {
+    this.status = TradeStatus.CANCELLED;
+    this.cancelReason = reason;
+    this.cancelledAt = at;
+  }
 }

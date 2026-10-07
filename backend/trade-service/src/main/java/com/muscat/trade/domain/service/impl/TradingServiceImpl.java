@@ -1,7 +1,6 @@
 package com.muscat.trade.domain.service.impl;
 
 import com.muscat.commonlib.util.MoneyUtils;
-import com.muscat.trade.common.constants.TradeConstants;
 import com.muscat.trade.common.enums.responses.TradeResponse;
 import com.muscat.trade.common.enums.type.PriceType;
 import com.muscat.trade.common.enums.type.TradeType;
@@ -19,6 +18,7 @@ import com.muscat.trade.domain.entity.Trade;
 import com.muscat.trade.domain.event.TradeSavedEvent;
 import com.muscat.trade.domain.repository.HoldingsRepository;
 import com.muscat.trade.domain.repository.TradeRepository;
+import com.muscat.trade.domain.service.HoldingsCalculator;
 import com.muscat.trade.domain.service.MarketDataService;
 import com.muscat.trade.domain.service.TradingService;
 import com.muscat.trade.infra.client.UserServiceClientWrapper;
@@ -379,94 +379,35 @@ public class TradingServiceImpl implements TradingService {
       .build();
 
     Trade savedTrade = tradeRepository.save(trade);
-    updateHoldings(userId, accountId, symbol, quantity, tradePrice, totalAmount, tradeType);
+    updateHoldings(savedTrade);
 
     return savedTrade;
   }
 
-  // 거래에 따른 보유 현황 업데이트 (비관적 Lock 사용)
-  private void updateHoldings(String userId, String accountId, String symbol,
-    BigDecimal quantity, BigDecimal price, BigDecimal totalAmount, TradeType tradeType) {
+  // 체결을 보유에 반영 (비관적 Lock)
+  private void updateHoldings(Trade trade) {
+    Optional<Holdings> existing = holdingsRepository.findByUserIdAndAccountIdAndSymbolWithLock(
+      trade.getUserId(), trade.getAccountId(), trade.getSymbol());
+    BigDecimal oldQuantity = existing.map(Holdings::getTotalQuantity).orElse(BigDecimal.ZERO);
+    BigDecimal oldAvgPrice = existing.map(Holdings::getAvgPurchasePrice).orElse(BigDecimal.ZERO);
 
-    // 비관적 Lock으로 동시성 문제 해결
-    Optional<Holdings> existingHoldings = holdingsRepository
-      .findByUserIdAndAccountIdAndSymbolWithLock(userId, Long.valueOf(accountId), symbol);
-
-    if (tradeType == TradeType.BUY) {
-      if (existingHoldings.isPresent()) {
-        // 기존 보유 종목 업데이트 (평균 단가 재계산)
-        Holdings holdings = existingHoldings.get();
-
-        BigDecimal oldQuantity = holdings.getTotalQuantity();
-        BigDecimal oldAvgPrice = holdings.getAvgPurchasePrice();
-
-        // 도메인 로직 위임 (평균 매수가 계산 + 상태 변경)
-        holdings.addPurchase(quantity, price,
-          tradeProperties.getCalculation().getPricePrecision());
-
-        BigDecimal newTotalQuantity = holdings.getTotalQuantity();
-        BigDecimal newAvgPrice = holdings.getAvgPurchasePrice();
-
-        // 보유량 변경 로그
-        tradeLogger.logHoldingsUpdate(userId, accountId, symbol,
-          oldQuantity, newTotalQuantity, oldAvgPrice, newAvgPrice);
-
-        log.debug("기존 보유종목 업데이트: 종목={}, 신규평균가={}, 총보유량={}",
-          symbol, newAvgPrice, newTotalQuantity);
-
-      } else {
-        // 신규 보유 종목 생성
-        Holdings newHoldings = Holdings.builder()
-          .userId(userId)
-          .accountId(Long.valueOf(accountId))
-          .symbol(symbol)
-          .totalQuantity(quantity)
-          .avgPurchasePrice(price)
-          .totalInvestedAmount(totalAmount)
-          .build();
-
-        holdingsRepository.save(newHoldings);
-
-        // 신규 보유량 로그
-        tradeLogger.logHoldingsUpdate(userId, accountId, symbol,
-          BigDecimal.ZERO, quantity, BigDecimal.ZERO, price);
-
-        log.debug("신규 보유종목 생성: 종목={}, 매수가={}, 수량={}", symbol, price, quantity);
-      }
-
-    } else if (tradeType == TradeType.SELL) {
-      if (existingHoldings.isEmpty()) {
-        log.error("매도 시 보유종목 없음: userId={}, symbol={}", userId, symbol);
-        throw new TradeException(TradeResponse.INSUFFICIENT_HOLDINGS);
-      }
-
-      Holdings holdings = existingHoldings.get();
-      BigDecimal oldQuantity = holdings.getTotalQuantity();
-      BigDecimal oldAvgPrice = holdings.getAvgPurchasePrice();
-
-      if (holdings.getTotalQuantity().compareTo(quantity) < 0) {
-        throw new TradeException(TradeResponse.INSUFFICIENT_HOLDINGS);
-      }
-
-      BigDecimal newQuantity = holdings.getTotalQuantity().subtract(quantity);
-
-      if (newQuantity.compareTo(BigDecimal.ZERO) == 0) {
-        // 전량 매도 시 보유종목 삭제
-        holdingsRepository.delete(holdings);
-        tradeLogger.logHoldingsUpdate(userId, accountId, symbol,
-          oldQuantity, BigDecimal.ZERO, oldAvgPrice, BigDecimal.ZERO);
-        log.debug("전량 매도로 보유종목 삭제: 종목={}", symbol);
-      } else {
-        // 부분 매도 시 수량만 업데이트 (평균단가는 유지)
-        // 도메인 로직 위임 (수량 감소 + 투자금액 조정)
-        holdings.sellShares(quantity, TradeConstants.SELL_RATIO_PRECISION);
-
-        tradeLogger.logHoldingsUpdate(userId, accountId, symbol,
-          oldQuantity, newQuantity, oldAvgPrice, holdings.getAvgPurchasePrice());
-
-        log.debug("부분 매도로 수량 업데이트: 종목={}, 잔여수량={}", symbol, newQuantity);
-      }
+    HoldingsCalculator.Applied applied = HoldingsCalculator.apply(existing.orElse(null), trade,
+      tradeProperties.getCalculation().getPricePrecision());
+    if (applied.uncovered()) {
+      log.error("매도 수량이 보유보다 많음: userId={}, symbol={}", trade.getUserId(), trade.getSymbol());
+      throw new TradeException(TradeResponse.INSUFFICIENT_HOLDINGS);
     }
+
+    Holdings holdings = applied.holdings();
+    if (holdings == null) {
+      existing.ifPresent(holdingsRepository::delete);
+    } else if (existing.isEmpty()) {
+      holdingsRepository.save(holdings);
+    }
+
+    tradeLogger.logHoldingsUpdate(trade.getUserId(), String.valueOf(trade.getAccountId()),
+      trade.getSymbol(), oldQuantity, holdings == null ? BigDecimal.ZERO : holdings.getTotalQuantity(),
+      oldAvgPrice, holdings == null ? BigDecimal.ZERO : holdings.getAvgPurchasePrice());
   }
 
   // 매도 가능 여부 검증 (FIFO 방식 - 매도일 이전 매수 물량만 매도 가능)

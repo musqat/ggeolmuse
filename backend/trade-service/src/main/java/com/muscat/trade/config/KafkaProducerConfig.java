@@ -1,7 +1,6 @@
 package com.muscat.trade.config;
 
 import com.muscat.messaging.event.DividendReceivedEvent;
-import com.muscat.messaging.event.TradeCancelledEvent;
 import com.muscat.messaging.event.TradeCompletedEvent;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
@@ -58,16 +57,6 @@ public class KafkaProducerConfig {
     @Bean
     public KafkaTemplate<String, TradeCompletedEvent> tradeCompletedKafkaTemplate() {
         return new KafkaTemplate<>(tradeEventProducerFactory());
-    }
-
-    @Bean
-    public ProducerFactory<String, TradeCancelledEvent> tradeCancelledEventProducerFactory() {
-        return new DefaultKafkaProducerFactory<>(getCommonProducerConfig());
-    }
-
-    @Bean
-    public KafkaTemplate<String, TradeCancelledEvent> tradeCancelledKafkaTemplate() {
-        return new KafkaTemplate<>(tradeCancelledEventProducerFactory());
     }
 
     @Bean

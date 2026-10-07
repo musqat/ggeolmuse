@@ -12,6 +12,9 @@ public interface DividendRepository extends JpaRepository<Dividend, Long> {
   // 특정 Trade의 특정 배당일에 배당이 이미 지급되었는지 확인 (Trade 단위 배당 추적)
   boolean existsByTradeIdAndDividendDate(Long tradeId, LocalDate dividendDate);
 
+  // 이 체결로 지급한 배당이 있는지
+  boolean existsByTradeId(Long tradeId);
+
   // 특정 사용자의 특정 종목 배당 내역 조회 (최신순)
   List<Dividend> findByUserIdAndSymbolOrderByDividendDateDesc(String userId, String symbol);
 }
