@@ -3,6 +3,7 @@ package com.muscat.user.infra.kafka;
 import com.muscat.messaging.event.TradeCancelledEvent;
 import com.muscat.messaging.event.TradeCompletedEvent;
 import com.muscat.user.domain.account.service.AccountService;
+import com.muscat.user.domain.account.service.TradeSettlementService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -24,6 +25,7 @@ import org.springframework.stereotype.Component;
 public class TradeEventConsumer {
 
     private final AccountService accountService;
+    private final TradeSettlementService tradeSettlementService;
 
     /**
      * 거래 완료 이벤트 처리
@@ -49,8 +51,8 @@ public class TradeEventConsumer {
                 event.getTotalAmount(), partition, offset);
 
         try {
-            // 계좌 잔액 업데이트
-            accountService.processTradeEvent(event);
+            // 같은 체결은 한 번만 반영한다
+            tradeSettlementService.settle(event);
 
             // 수동 커밋 (처리 성공시에만)
             acknowledgment.acknowledge();
