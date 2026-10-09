@@ -5,7 +5,6 @@ import {
   Play,
   RotateCcw,
   ExternalLink,
-  Lock,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
@@ -13,6 +12,7 @@ import { stockApi, backtestApi } from "../services/api";
 import type { BacktestHistoryDto } from "../services/api";
 import { getLocalBacktestHistory } from "../utils/localBacktestHistory";
 import { BacktestHistoryPanel } from "@components/backtest/history/BacktestHistoryPanel";
+import { BacktestModeTabs } from "@components/backtest/BacktestModeTabs";
 import type { BacktestMode } from "@components/backtest/shared/backtestDisplay";
 import { useBacktestRunner } from "@components/backtest/modes/useBacktestRunner";
 import { useSimpleMode } from "@components/backtest/modes/simple/useSimpleMode";
@@ -117,77 +117,14 @@ const Backtest: React.FC = () => {
       </div>
 
       {/* Mode Selection Tabs */}
-      <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-6 mb-6">
-        <h2 className="text-lg font-semibold text-tx-1 mb-4">백테스트 모드</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <button
-            onClick={() => handleModeChange("simple")}
-            className={`p-3 rounded-lg border-2 transition-all text-sm ${
-              mode === "simple"
-                ? "border-brand bg-brand-bg text-brand-dark"
-                : "border-line hover:border-line-strong text-tx-1"
-            }`}
-          >
-            <div className="font-medium">단순</div>
-          </button>
-
-          <button
-            onClick={() => handleModeChange("dca")}
-            className={`p-3 rounded-lg border-2 transition-all text-sm ${
-              mode === "dca"
-                ? "border-brand bg-brand-bg text-brand-dark"
-                : "border-line hover:border-line-strong text-tx-1"
-            }`}
-          >
-            <div className="font-medium">적립식</div>
-          </button>
-
-          <button
-            onClick={() => handleModeChange("conditional")}
-            className={`p-3 rounded-lg border-2 transition-all text-sm ${
-              mode === "conditional"
-                ? "border-brand bg-brand-bg text-brand-dark"
-                : "border-line hover:border-line-strong text-tx-1"
-            }`}
-          >
-            <div className="font-medium">조건부</div>
-          </button>
-
-          <button
-            onClick={() => handleModeChange("compare-symbols")}
-            className={`p-3 rounded-lg border-2 transition-all text-sm ${
-              mode === "compare-symbols"
-                ? "border-brand bg-brand-bg text-brand-dark"
-                : "border-line hover:border-line-strong text-tx-1"
-            }`}
-          >
-            <div className="font-medium">종목 비교</div>
-          </button>
-
-          <button
-            onClick={() => handleModeChange("compare-strategies")}
-            className={`p-3 rounded-lg border-2 transition-all text-sm ${
-              mode === "compare-strategies"
-                ? "border-brand bg-brand-bg text-brand-dark"
-                : "border-line hover:border-line-strong text-tx-1"
-            }`}
-          >
-            <div className="font-medium">전략 비교</div>
-          </button>
-
-          <button
-            onClick={() => handleModeChange("history")}
-            className={`p-3 rounded-lg border-2 transition-all text-sm ${
-              mode === "history"
-                ? "border-brand bg-brand-bg text-brand-dark"
-                : "border-line hover:border-line-strong text-tx-1"
-            }`}
-          >
-            <div className="font-medium">히스토리</div>
-            {!isAuthenticated && <Lock className="w-3 h-3 ml-1 inline" />}
-          </button>
-        </div>
-      </div>
+      <BacktestModeTabs
+        tabs={[
+          ...modes.map(({ id, label }) => ({ id, label })),
+          { id: "history", label: "히스토리", locked: !isAuthenticated },
+        ]}
+        active={mode}
+        onChange={handleModeChange}
+      />
 
       {/* History Section */}
       {mode === "history" && (
