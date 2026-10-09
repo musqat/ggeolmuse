@@ -14,12 +14,12 @@ export default function UserStatsCards({ stats }: UserStatsCardsProps) {
     {
       label: '활성 사용자',
       value: stats.activeUsers,
-      color: 'text-green-600',
+      color: 'text-success',
     },
     {
       label: '비활성 사용자',
       value: stats.inactiveUsers,
-      color: 'text-red-600',
+      color: 'text-danger',
     },
     {
       label: '관리자',

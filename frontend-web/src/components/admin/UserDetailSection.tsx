@@ -105,7 +105,7 @@ export default function UserDetailSection({
                 setShowNicknameModal(true);
               }}
               disabled={loading}
-              className="px-3 py-1 text-sm bg-brand-bg text-brand-dark rounded hover:bg-indigo-200 disabled:opacity-50 flex items-center gap-1"
+              className="px-3 py-1 text-sm bg-brand-bg text-brand-dark rounded hover:bg-brand/20 disabled:opacity-50 flex items-center gap-1"
             >
               <Edit2 className="w-4 h-4" />
               변경
@@ -114,14 +114,14 @@ export default function UserDetailSection({
           <div>
             <p className="text-sm text-tx-2">이메일 인증 상태</p>
             <div className="flex items-center justify-between">
-              <p className={user.emailVerified ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
+              <p className={user.emailVerified ? 'text-success font-semibold' : 'text-danger font-semibold'}>
                 {user.emailVerified ? '인증됨' : '미인증'}
               </p>
               {!user.emailVerified && (
                 <button
                   onClick={handleVerifyEmail}
                   disabled={loading}
-                  className="px-3 py-1 text-sm bg-green-500/15 text-green-600 rounded hover:bg-green-200 disabled:opacity-50 flex items-center gap-1"
+                  className="px-3 py-1 text-sm bg-success/10 text-success rounded hover:bg-success/15 disabled:opacity-50 flex items-center gap-1"
                 >
                   <CheckCircle className="w-4 h-4" />
                   강제 인증
@@ -147,7 +147,7 @@ export default function UserDetailSection({
           <button
             onClick={() => setShowPasswordModal(true)}
             disabled={loading}
-            className="w-full px-4 py-2 bg-yellow-500/15 text-yellow-600 rounded-lg hover:bg-yellow-200 disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full px-4 py-2 bg-warning-soft/10 text-warning rounded-lg hover:bg-warning-soft/20 disabled:opacity-50 flex items-center justify-center gap-2"
           >
             <Lock className="w-4 h-4" />
             비밀번호 강제 변경
@@ -229,8 +229,8 @@ export default function UserDetailSection({
         </div>
 
         {/* Danger Zone */}
-        <div className="border-t border-red-500/25 pt-4">
-          <p className="text-sm text-red-600 font-semibold mb-2">위험 구역</p>
+        <div className="border-t border-danger/25 pt-4">
+          <p className="text-sm text-danger font-semibold mb-2">위험 구역</p>
           <button
             onClick={handleDeleteUser}
             disabled={loading}

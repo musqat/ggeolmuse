@@ -42,7 +42,7 @@ export default function UserListSection({
             onClick={() => onSelectUser(user.userId)}
             className={`p-4 rounded-lg border cursor-pointer transition ${
               selectedUserId === user.userId
-                ? 'border-indigo-500 bg-brand-bg'
+                ? 'border-brand bg-brand-bg'
                 : 'border-line hover:border-brand/40 hover:bg-surface/50'
             }`}
           >
@@ -54,9 +54,9 @@ export default function UserListSection({
                     <Shield className="w-4 h-4 text-brand" />
                   )}
                   {user.enabled ? (
-                    <UserCheck className="w-4 h-4 text-green-600" />
+                    <UserCheck className="w-4 h-4 text-success" />
                   ) : (
-                    <UserX className="w-4 h-4 text-red-600" />
+                    <UserX className="w-4 h-4 text-danger" />
                   )}
                 </div>
                 <p className="text-sm text-tx-2">{user.email}</p>
@@ -64,7 +64,7 @@ export default function UserListSection({
                   <span
                     className={`px-2 py-1 text-xs rounded-full ${
                       user.role === 'ADMIN'
-                        ? 'bg-brand-bg text-indigo-800'
+                        ? 'bg-warning-soft/10 text-warning'
                         : 'bg-elevated text-tx-1'
                     }`}
                   >
@@ -73,14 +73,14 @@ export default function UserListSection({
                   <span
                     className={`px-2 py-1 text-xs rounded-full ${
                       user.enabled
-                        ? 'bg-green-500/15 text-green-600'
-                        : 'bg-red-500/15 text-red-600'
+                        ? 'bg-success/10 text-success'
+                        : 'bg-danger/10 text-danger'
                     }`}
                   >
                     {user.enabled ? '활성' : '비활성'}
                   </span>
                   {user.emailVerified && (
-                    <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
+                    <span className="px-2 py-1 text-xs rounded-full bg-info/10 text-info">
                       이메일 인증
                     </span>
                   )}

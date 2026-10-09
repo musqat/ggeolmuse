@@ -49,14 +49,14 @@ export default function AdminLayout() {
           <div className="flex gap-1">
             <Link
               to="/admin/market"
-              className="flex items-center gap-2 px-6 py-4 text-tx-1 hover:text-red-600 hover:bg-red-500/10 border-b-2 border-transparent hover:border-red-600 transition"
+              className="flex items-center gap-2 px-6 py-4 text-tx-1 hover:text-danger hover:bg-danger/10 border-b-2 border-transparent hover:border-danger transition"
             >
               <TrendingUp className="w-5 h-5" />
               <span className="font-medium">시장 데이터 관리</span>
             </Link>
             <Link
               to="/admin/users"
-              className="flex items-center gap-2 px-6 py-4 text-tx-1 hover:text-red-600 hover:bg-red-500/10 border-b-2 border-transparent hover:border-red-600 transition"
+              className="flex items-center gap-2 px-6 py-4 text-tx-1 hover:text-danger hover:bg-danger/10 border-b-2 border-transparent hover:border-danger transition"
             >
               <Users className="w-5 h-5" />
               <span className="font-medium">사용자 관리</span>

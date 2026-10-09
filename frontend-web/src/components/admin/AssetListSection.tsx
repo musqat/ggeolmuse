@@ -302,7 +302,7 @@ export default function AssetListSection({
                       <button
                         onClick={() => saveEdit(asset.symbol)}
                         disabled={loading}
-                        className="p-1 text-green-600 hover:bg-green-500/10 rounded disabled:opacity-50"
+                        className="p-1 text-success hover:bg-success/10 rounded disabled:opacity-50"
                         title="저장"
                       >
                         <Check className="w-4 h-4" />
@@ -345,7 +345,7 @@ export default function AssetListSection({
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
+                  <span className="px-2 py-1 text-xs rounded-full bg-info/10 text-info">
                     {asset.assetType}
                   </span>
                 </td>
@@ -354,7 +354,7 @@ export default function AssetListSection({
                     <button
                       onClick={() => onUpdatePrice(asset.symbol)}
                       disabled={loading}
-                      className="px-3 py-1 text-sm text-green-600 hover:bg-green-500/10 rounded flex items-center gap-1 transition disabled:opacity-50"
+                      className="px-3 py-1 text-sm text-success hover:bg-success/10 rounded flex items-center gap-1 transition disabled:opacity-50"
                       title="가격 업데이트"
                     >
                       <DollarSign className="w-4 h-4" />
@@ -364,7 +364,7 @@ export default function AssetListSection({
                       <button
                         onClick={() => onUpdateMarketCap(asset.symbol)}
                         disabled={loading}
-                        className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded flex items-center gap-1 transition disabled:opacity-50"
+                        className="px-3 py-1 text-sm text-info hover:bg-info/10 rounded flex items-center gap-1 transition disabled:opacity-50"
                         title="시가총액 업데이트"
                       >
                         <TrendingUp className="w-4 h-4" />
@@ -375,7 +375,7 @@ export default function AssetListSection({
                       <button
                         onClick={() => onDelete(asset.symbol)}
                         disabled={loading}
-                        className="px-3 py-1 text-sm text-red-600 hover:bg-red-500/10 rounded flex items-center gap-1 transition disabled:opacity-50"
+                        className="px-3 py-1 text-sm text-danger hover:bg-danger/10 rounded flex items-center gap-1 transition disabled:opacity-50"
                         title="삭제"
                       >
                         <Trash2 className="w-4 h-4" />
