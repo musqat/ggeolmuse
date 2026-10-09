@@ -75,11 +75,11 @@ const TradeDatePicker: React.FC<TradeDatePickerProps> = ({
             </div>
             <div>
               <span className="text-tx-2">고가</span>
-              <p className="font-semibold text-green-600">${selectedDateOHLC.high.toFixed(2)}</p>
+              <p className="font-semibold text-gain">${selectedDateOHLC.high.toFixed(2)}</p>
             </div>
             <div>
               <span className="text-tx-2">저가</span>
-              <p className="font-semibold text-red-600">${selectedDateOHLC.low.toFixed(2)}</p>
+              <p className="font-semibold text-loss">${selectedDateOHLC.low.toFixed(2)}</p>
             </div>
             <div>
               <span className="text-tx-2">종가</span>

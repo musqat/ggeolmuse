@@ -43,11 +43,11 @@ const PriceBlock = ({ summary: { last, change, changePercent } }: { summary: Pri
       </div>
       <div>
         <p className="text-[10px] md:text-xs text-tx-2 mb-0.5">고가</p>
-        <p className="text-xs md:text-sm font-semibold text-green-600">${last.high.toFixed(2)}</p>
+        <p className="text-xs md:text-sm font-semibold text-gain">${last.high.toFixed(2)}</p>
       </div>
       <div>
         <p className="text-[10px] md:text-xs text-tx-2 mb-0.5">저가</p>
-        <p className="text-xs md:text-sm font-semibold text-red-600">${last.low.toFixed(2)}</p>
+        <p className="text-xs md:text-sm font-semibold text-loss">${last.low.toFixed(2)}</p>
       </div>
       <div>
         <p className="text-[10px] md:text-xs text-tx-2 mb-0.5">거래량</p>

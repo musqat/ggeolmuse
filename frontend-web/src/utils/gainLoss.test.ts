@@ -27,14 +27,14 @@ describe('gainLoss', () => {
   })
 
   it('글자색은 초록 · 빨강 · 회색', () => {
-    expect(gainLossClass(1)).toBe('text-green-600')
-    expect(gainLossClass(-1)).toBe('text-red-600')
+    expect(gainLossClass(1)).toBe('text-gain')
+    expect(gainLossClass(-1)).toBe('text-loss')
     expect(gainLossClass(null)).toBe('text-tx-3')
   })
 
   it('아이콘 배경도 이익 · 손실로 나누고 값이 없으면 기본 배경', () => {
-    expect(gainLossBoxClass(5)).toBe('bg-green-500/15')
-    expect(gainLossBoxClass(-5)).toBe('bg-red-500/15')
+    expect(gainLossBoxClass(5)).toBe('bg-gain/15')
+    expect(gainLossBoxClass(-5)).toBe('bg-loss/15')
     expect(gainLossBoxClass(undefined)).toBe('bg-brand-bg')
   })
 

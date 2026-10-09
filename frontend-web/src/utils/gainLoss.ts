@@ -10,15 +10,16 @@ export const gainLossTone = (value: MaybeNumber): GainLossTone => {
   return value >= 0 ? "gain" : "loss";
 };
 
+// 테마마다 바뀌는 색 토큰(index.css). 어두운 바탕에서는 밝은 단계가 된다
 const TEXT_CLASS: Record<GainLossTone, string> = {
-  gain: "text-green-600",
-  loss: "text-red-600",
+  gain: "text-gain",
+  loss: "text-loss",
   none: "text-tx-3",
 };
 
 const BOX_CLASS: Record<GainLossTone, string> = {
-  gain: "bg-green-500/15",
-  loss: "bg-red-500/15",
+  gain: "bg-gain/15",
+  loss: "bg-loss/15",
   none: "bg-brand-bg",
 };
 
