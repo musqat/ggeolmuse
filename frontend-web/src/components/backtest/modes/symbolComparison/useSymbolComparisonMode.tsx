@@ -1,0 +1,115 @@
+import { useState } from 'react';
+import { backtestApi } from '@services/api';
+import { SymbolComparisonForm } from '../../forms/SymbolComparisonForm';
+import { SymbolComparisonResult } from '../../results/SymbolComparisonResult';
+import type { OptimalPointsBySymbol } from '../../shared/backtestDisplay';
+import type { ModeController } from '../types';
+import { buildSymbolComparisonRequest } from './request';
+
+export const useSymbolComparisonMode = ({
+  supportedSymbols,
+}: {
+  supportedSymbols: string[];
+}): ModeController => {
+  const [symbols, setSymbols] = useState<string[]>(['AAPL', 'MSFT']);
+  const [symbolInput, setSymbolInput] = useState('');
+  const [purchaseDate, setPurchaseDate] = useState('2023-01-01');
+  const [saleDate, setSaleDate] = useState(''); // 비어있으면 최신 데이터
+  const [investment, setInvestment] = useState('1000000');
+  const [reinvestDividends, setReinvestDividends] = useState(false);
+  const [tradingFeeRate, setTradingFeeRate] = useState('0');
+  const [dividendTax, setDividendTax] = useState(false);
+  const [fxMode, setFxMode] = useState<'auto' | 'manual'>('auto');
+  const [manualPurchaseFxRate, setManualPurchaseFxRate] = useState('1300');
+  const [manualCurrentFxRate, setManualCurrentFxRate] = useState('1350');
+  const [symbolOptimalPoints, setSymbolOptimalPoints] = useState<OptimalPointsBySymbol>({});
+
+  const addSymbol = () => {
+    if (symbols.length >= 10) {
+      alert('최대 10개까지만 비교할 수 있습니다.');
+      return;
+    }
+    if (symbolInput && !symbols.includes(symbolInput)) {
+      setSymbols([...symbols, symbolInput]);
+      setSymbolInput('');
+    }
+  };
+
+  const removeSymbol = (symbolToRemove: string) => {
+    setSymbols(symbols.filter((s) => s !== symbolToRemove));
+  };
+
+  return {
+    id: 'compare-symbols',
+    label: '종목 비교',
+    showsChartLink: false,
+    form: (
+      <SymbolComparisonForm
+        compareSymbols={symbols}
+        setCompareSymbols={setSymbols}
+        compareSymbolInput={symbolInput}
+        setCompareSymbolInput={setSymbolInput}
+        comparePurchaseDate={purchaseDate}
+        setComparePurchaseDate={setPurchaseDate}
+        compareSaleDate={saleDate}
+        setCompareSaleDate={setSaleDate}
+        compareInvestment={investment}
+        setCompareInvestment={setInvestment}
+        compareFxMode={fxMode}
+        setCompareFxMode={setFxMode}
+        compareManualPurchaseFxRate={manualPurchaseFxRate}
+        setCompareManualPurchaseFxRate={setManualPurchaseFxRate}
+        compareManualCurrentFxRate={manualCurrentFxRate}
+        setCompareManualCurrentFxRate={setManualCurrentFxRate}
+        compareTradingFeeRate={tradingFeeRate}
+        setCompareTradingFeeRate={setTradingFeeRate}
+        compareDividendTax={dividendTax}
+        setCompareDividendTax={setDividendTax}
+        compareReinvestDividends={reinvestDividends}
+        setCompareReinvestDividends={setReinvestDividends}
+        supportedSymbols={supportedSymbols}
+        onAddSymbol={addSymbol}
+        onRemoveSymbol={removeSymbol}
+      />
+    ),
+    prepare: (ctx) => {
+      const built = buildSymbolComparisonRequest(
+        {
+          symbols,
+          purchaseDate,
+          saleDate,
+          investment,
+          reinvestDividends,
+          tradingFeeRate,
+          dividendTax,
+          fxMode,
+          manualPurchaseFxRate,
+          manualCurrentFxRate,
+        },
+        ctx,
+      );
+      if ('error' in built) return built;
+      const { request } = built;
+      return {
+        execute: async () => ({
+          ...(await backtestApi.compareSymbols(request)).data,
+          mode: 'compare-symbols' as const,
+        }),
+        historyType: 'COMPARISON',
+        params: request,
+        fxMode,
+        failureMessage: '종목 비교 실행에 실패했습니다.',
+      };
+    },
+    renderResult: (result) =>
+      result.mode === 'compare-symbols' ? (
+        <SymbolComparisonResult
+          result={result}
+          comparePurchaseDate={purchaseDate}
+          compareSaleDate={saleDate}
+          symbolOptimalPoints={symbolOptimalPoints}
+          setSymbolOptimalPoints={setSymbolOptimalPoints}
+        />
+      ) : null,
+  };
+};

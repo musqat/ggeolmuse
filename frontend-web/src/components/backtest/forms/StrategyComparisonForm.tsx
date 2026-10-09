@@ -4,6 +4,8 @@ import { NumberInput } from '../../common/NumberInput';
 import { FxModeToggle } from '../shared/FxModeToggle';
 import { DividendFeeOptions } from '../shared/DividendFeeOptions';
 import DatePicker from '../../common/DatePicker';
+import { COMPARISON_STRATEGIES } from '../comparison/catalog';
+import type { ComparisonStrategyType } from '../comparison/types';
 
 interface StrategyComparisonFormProps {
   // Symbol selection
@@ -23,8 +25,7 @@ interface StrategyComparisonFormProps {
 
   // Strategy selection
   selectedStrategies: string[];
-  toggleStrategy: (strategy: 'SIMPLE' | 'DCA' | 'CONDITIONAL_PURCHASE') => void;
-  strategyNames: Record<string, string>;
+  toggleStrategy: (strategy: ComparisonStrategyType) => void;
 
   // FX settings
   fxMode: 'auto' | 'manual';
@@ -58,7 +59,6 @@ export const StrategyComparisonForm: React.FC<StrategyComparisonFormProps> = ({
   setInvestment,
   selectedStrategies,
   toggleStrategy,
-  strategyNames,
   fxMode,
   setFxMode,
   manualPurchaseFxRate,
@@ -181,17 +181,17 @@ export const StrategyComparisonForm: React.FC<StrategyComparisonFormProps> = ({
       <div>
         <label className="block text-sm font-medium text-tx-1 mb-2">비교할 전략 선택 (최소 2개)</label>
         <div className="flex flex-wrap gap-2">
-          {(['SIMPLE', 'DCA', 'CONDITIONAL_PURCHASE'] as const).map((strategy) => (
+          {COMPARISON_STRATEGIES.map(({ type, name }) => (
             <button
-              key={strategy}
-              onClick={() => toggleStrategy(strategy)}
+              key={type}
+              onClick={() => toggleStrategy(type)}
               className={`px-4 py-2 rounded-md transition-colors ${
-                selectedStrategies.includes(strategy)
+                selectedStrategies.includes(type)
                   ? 'bg-brand text-white'
                   : 'bg-elevated/50 text-tx-2 hover:bg-hover hover:text-tx-1 border border-line'
               }`}
             >
-              {strategyNames[strategy]}
+              {name}
             </button>
           ))}
         </div>

@@ -15,11 +15,7 @@ export const formatSavedDate = (iso: string) => {
   return d.getFullYear() === new Date().getFullYear() ? monthDay : `${d.getFullYear()}.${monthDay}`;
 };
 
-export const STRATEGY_NAMES: Record<string, string> = {
-  SIMPLE: "단순 매수",
-  DCA: "적립식",
-  CONDITIONAL_PURCHASE: "조건부 매수",
-};
+export { STRATEGY_NAMES } from "../comparison/catalog";
 
 // 다중 종목 비교용 차트 색상
 export const CHART_COLORS = [

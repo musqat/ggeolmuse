@@ -637,13 +637,14 @@ export type SymbolComparisonRequest = BacktestCommonRequest & {
 };
 
 // 전략 파라미터
-type StrategyParameter = {
+export type StrategyParameter = {
   strategyType: 'SIMPLE' | 'DCA' | 'CONDITIONAL_PURCHASE';  // 전략 유형
   name?: string;                        // 전략명
   // DCA 전략 필드
   monthlyAmount?: number;               // 월 투자 금액
   purchaseDay?: number;                 // 매수일
   investmentInterval?: number;          // 투자 주기 (1, 2, 3, 6개월)
+  totalInvestmentLimit?: number;        // 총 투자 한도
   // 조건부 매수 전략 필드
   totalInvestment?: number;             // 총 투자 금액
   dropPercentage?: number;              // 하락률
