@@ -2,11 +2,12 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import AiChatModal from './AiChatModal'
-import { AiChatProvider, useAiChat } from '../../contexts/AiChatContext'
+import { AiChatProvider } from '../../contexts/AiChatContext'
+import { useAiChat } from '../../hooks/useAiChat'
 import { aiChatApi } from '../../services/aiChatApi'
 
 vi.mock('../../services/aiChatApi', () => ({ aiChatApi: { sendMessage: vi.fn() } }))
-vi.mock('../../contexts/AuthContext', () => ({ useAuth: () => ({ isAuthenticated: true }) }))
+vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ isAuthenticated: true }) }))
 
 const sendMessage = vi.mocked(aiChatApi.sendMessage)
 

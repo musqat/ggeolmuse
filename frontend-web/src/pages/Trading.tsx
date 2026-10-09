@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { LogIn } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import LoginModal from '../components/auth/LoginModal';
 import TradeHistoryTab from '../components/trading/TradeHistoryTab';
 import TradingCapacityPanel from '../components/trading/TradingCapacityPanel';

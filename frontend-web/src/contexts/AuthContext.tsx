@@ -1,24 +1,8 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { authApi, type User } from '../services/api';
 import { tokenManager, checkAuthStatus } from '../utils/auth';
 import { getApiErrorStatus } from '../utils/apiError';
-
-interface AuthContextType {
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  user: User | null;
-  isAdmin: boolean;
-  login: (email: string, password: string) =>Promise<void>;
-  logout: () => void;
-  signup: (email: string, password: string, nickname: string) =>Promise<void>;
-  refreshUserData: () =>Promise<void>;
-  forgotPassword: (email: string) =>Promise<void>;
-  resetPassword: (token: string, newPassword: string) =>Promise<void>;
-  resendVerificationEmail: (email: string) =>Promise<void>;
-  loginWithGoogle: () =>Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+import { AuthContext, type AuthContextType } from '../hooks/useAuth';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -212,12 +196,4 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
-};
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
 };

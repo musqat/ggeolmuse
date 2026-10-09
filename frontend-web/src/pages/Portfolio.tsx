@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { TrendingUp, TrendingDown, DollarSign, ArrowUpCircle, ArrowDownCircle, LogIn } from 'lucide-react';
 import { portfolioApi, accountsApi } from '../services/api';
 import PortfolioPieChart, { type PieChartData } from '../components/charts/portfolio/PortfolioPieChart';

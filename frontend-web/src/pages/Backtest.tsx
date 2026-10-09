@@ -7,7 +7,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../hooks/useAuth";
 import { stockApi, backtestApi } from "../services/api";
 import type { BacktestHistoryDto } from "../services/api";
 import { getLocalBacktestHistory } from "../utils/localBacktestHistory";

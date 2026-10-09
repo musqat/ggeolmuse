@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import { X, Eye, EyeOff, ChevronDown, ChevronUp } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 import { getApiErrorMessage, getApiErrorStatus } from '../../utils/apiError';
 
 interface SignupModalProps {

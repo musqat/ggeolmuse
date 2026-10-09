@@ -3,8 +3,8 @@ import { useLocation } from 'react-router-dom';
 import { MessageCircle } from 'lucide-react';
 import AiChatModal from './AiChatModal';
 import LoginModal from '../auth/LoginModal';
-import { useAuth } from '../../contexts/AuthContext';
-import { useAiChat } from '../../contexts/AiChatContext';
+import { useAuth } from '../../hooks/useAuth';
+import { useAiChat } from '../../hooks/useAiChat';
 
 // 버튼을 숨길 경로 (admin, 인증 콜백 등) — 모달은 Context라 전역 동작
 const HIDDEN_PREFIXES = ['/admin', '/auth/', '/oauth/', '/reset-password', '/unauthorized'];
