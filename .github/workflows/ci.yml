@@ -8,9 +8,33 @@ permissions:
   contents: read
   security-events: write
 
+# 같은 PR 에 새 커밋이 오면 이전 실행을 멈춘다. master 는 머지마다 끝까지 돈다
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  # PR 은 바뀐 서비스 이미지만 빌드한다. master push 는 전부. 기준은 .github/scripts/ci-changes.sh
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.pick.outputs.services }}
+      frontend: ${{ steps.pick.outputs.frontend }}
+      chat: ${{ steps.pick.outputs.chat }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: pick
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: bash .github/scripts/ci-changes.sh
+
   build-bom:
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.services != '[]'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -31,7 +55,7 @@ jobs:
 
   build-messaging:
     runs-on: ubuntu-latest
-    needs: build-bom
+    needs: [changes, build-bom]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -55,17 +79,11 @@ jobs:
 
   build-services:
     runs-on: ubuntu-latest
-    needs: [build-bom, build-messaging]
+    needs: [changes, build-bom, build-messaging]
     strategy:
       fail-fast: false
       matrix:
-        service:
-          - config-server
-          - gateway-server
-          - user-service
-          - trade-service
-          - market-data-service
-          - backtest-service
+        service: ${{ fromJSON(needs.changes.outputs.services) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -119,6 +137,8 @@ jobs:
   # 프론트엔드는 BOM/messaging 과 무관하므로 Java 잡과 병렬로 돈다
   build-frontend:
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     defaults:
       run:
         working-directory: frontend-web
@@ -166,6 +186,8 @@ jobs:
   # 파이썬이라 build-services 의 메이븐 잡에 안 들어간다.
   scan-images:
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.chat == 'true'
     steps:
       - uses: actions/checkout@v4
       # 로그인 없이 받으면 Docker Hub 횟수 제한(429)에 걸린다. 읽기 전용 토큰으로 받는다
