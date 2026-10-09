@@ -5,9 +5,19 @@ import {
   getDateRangeForTimeframe,
   subtractDays,
   subtractMonths,
+  toLocalDateString,
 } from './dateUtils'
 
 // 기대값은 TZ=Asia/Seoul 전제 (vitest.config.ts 에서 고정)
+
+describe('toLocalDateString', () => {
+  it('달력이 만든 로컬 자정을 그날로 적는다 (toISOString 은 전날)', () => {
+    const picked = new Date(2024, 5, 14)
+
+    expect(toLocalDateString(picked)).toBe('2024-06-14')
+    expect(picked.toISOString().split('T')[0]).toBe('2024-06-13')
+  })
+})
 
 describe('daysForTimeframe', () => {
   it('기간 문자열을 일수로 바꾼다', () => {
@@ -114,9 +124,10 @@ describe('subtractMonths', () => {
     expect(subtractMonths('2026-01-15', 1)).toBe('2025-12-15')
   })
 
-  it('말일에서 빼면 다음 달로 밀린다', () => {
-    // 2/31 → 3/3. Date.setMonth 기본 동작.
-    // 2/28 을 기대했다면 코드 수정 필요.
-    expect(subtractMonths('2026-03-31', 1)).toBe('2026-03-03')
+  it('대상 달에 그 날이 없으면 그 달 말일로 맞춘다', () => {
+    expect(subtractMonths('2026-03-31', 1)).toBe('2026-02-28')
+    expect(subtractMonths('2024-03-31', 1)).toBe('2024-02-29')
+    expect(subtractMonths('2026-05-31', 1)).toBe('2026-04-30')
+    expect(subtractMonths('2026-03-31', 13)).toBe('2025-02-28')
   })
 })

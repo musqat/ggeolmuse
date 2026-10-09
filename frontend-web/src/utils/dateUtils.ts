@@ -25,7 +25,7 @@ export function daysForTimeframe(tf: Timeframe): number {
  *
  * toISOString()은 UTC라 한국(UTC+9)에서는 오전 9시 전에 하루 밀립니다.
  */
-function toLocalDateString(date: Date): string {
+export function toLocalDateString(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
@@ -85,11 +85,14 @@ export function subtractDays(dateString: string, days: number): string {
 /**
  * 날짜에서 지정된 개월수만큼 이전 날짜를 반환합니다
  *
- * 말일 기준으로 빼면 다음 달로 밀립니다 (3/31 → 2/31 → 3/3).
- * Date.setMonth의 기본 동작입니다.
+ * 대상 달에 그 날이 없으면 그 달 말일로 맞춥니다 (3/31 → 2/28).
  */
 export function subtractMonths(dateString: string, months: number): string {
   const date = parseLocalDate(dateString);
+  const day = date.getDate();
+  date.setDate(1);
   date.setMonth(date.getMonth() - months);
+  const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  date.setDate(Math.min(day, lastDay));
   return toLocalDateString(date);
 }

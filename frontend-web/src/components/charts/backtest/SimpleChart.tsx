@@ -14,6 +14,7 @@ import {
 import { stockApi } from "../../../services/api";
 import { useChartPeriod } from "../common/hooks/useChartPeriod";
 import { ChartPeriodSelector } from "../common/components/ChartPeriodSelector";
+import { getTodayString } from "../../../utils/dateUtils";
 
 // 가격·환율·평가액은 받지 않는다. 차트가 일자별 캔들에서 직접 구한다.
 // 최적 매수·매도도 날짜만 받아 그 날의 데이터를 chartData 에서 찾는다.
@@ -39,6 +40,8 @@ interface SimpleBacktestChartProps {
   optimalBuyDate?: string;
   optimalSellDate?: string;
   dividendReinvestDates?: string[];
+  // 평가일(매도일). 없으면 오늘까지 그린다
+  endDate?: string;
 }
 
 export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
@@ -49,6 +52,7 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
   optimalBuyDate,
   optimalSellDate,
   dividendReinvestDates,
+  endDate,
 }) => {
   // 공통 차트 기간 훅 사용
   const {
@@ -73,11 +77,12 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
       "simple",
       symbol,
       purchaseDate,
+      endDate,
       chartPeriod,
       customStartDate,
     ],
     queryFn: async () => {
-      const today = new Date().toISOString().split("T")[0];
+      const lastDate = endDate || getTodayString();
       const startDate = getChartStartDate();
       console.log("SimpleChart fetchPriceData:", {
         symbol,
@@ -85,25 +90,15 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
         customStartDate,
         purchaseDate,
         startDate,
-        today,
+        lastDate,
       });
-      const response = await stockApi.getOHLCData(symbol, startDate, today);
+      const response = await stockApi.getOHLCData(symbol, startDate, lastDate);
 
       // API는 List<OHLCPriceDto>를 반환 (flat 배열)
       let ohlcData: RawOhlc[] | null = null;
 
       if (Array.isArray(response.data)) {
         ohlcData = (response.data as RawOhlc[]).filter((item) => item.symbol === symbol);
-      } else if (
-        response.data &&
-        response.data.data &&
-        Array.isArray(response.data.data)
-      ) {
-        ohlcData = (response.data.data as RawOhlc[]).filter(
-          (item) => item.symbol === symbol,
-        );
-      } else if (response.data && response.data[symbol]) {
-        ohlcData = response.data[symbol];
       }
 
       if (ohlcData && Array.isArray(ohlcData) && ohlcData.length > 0) {

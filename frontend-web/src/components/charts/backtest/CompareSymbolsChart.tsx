@@ -16,6 +16,7 @@ import { ChartPeriodSelector } from '../common/components/ChartPeriodSelector';
 import { CHART_COLORS } from '../common/constants';
 import type { OHLCData } from '../../../types/ohlc';
 import { calculateOptimalPoints } from './optimalTiming';
+import { getTodayString } from '../../../utils/dateUtils';
 
 interface SymbolData {
   symbol: string;
@@ -77,7 +78,7 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
       setError(null);
 
       try {
-        const today = endDate || new Date().toISOString().split('T')[0];
+        const today = endDate || getTodayString();
 
         // 공통 훅을 사용하여 시작일 계산
         const apiStartDate = getStartDateFromPeriod(chartPeriod, startDate, customStartDate);

@@ -20,6 +20,7 @@ import { useDcaMode } from "@components/backtest/modes/dca/useDcaMode";
 import { useConditionalMode } from "@components/backtest/modes/conditional/useConditionalMode";
 import { useSymbolComparisonMode } from "@components/backtest/modes/symbolComparison/useSymbolComparisonMode";
 import { useStrategyComparisonMode } from "@components/backtest/modes/strategyComparison/useStrategyComparisonMode";
+import { getTodayString } from "../utils/dateUtils";
 
 const Backtest: React.FC = () => {
   const navigate = useNavigate();
@@ -88,7 +89,7 @@ const Backtest: React.FC = () => {
     if (!current) return;
     const prepared = current.prepare({
       userId: user?.email || "anonymous",
-      today: new Date().toISOString().split("T")[0],
+      today: getTodayString(),
       now: new Date(),
     });
     if ("error" in prepared) {

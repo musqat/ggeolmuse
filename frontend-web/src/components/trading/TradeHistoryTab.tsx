@@ -6,27 +6,10 @@ import {
   RefreshCw,
   DollarSign
 } from 'lucide-react';
-import { tradeApi, accountsApi } from '../../services/api';
+import { tradeApi, accountsApi, type TransactionHistoryItem } from '../../services/api';
 import TradeCancelledBadge from './TradeCancelledBadge';
 
-interface Transaction {
-  type: 'BUY' | 'SELL' | 'DIVIDEND';
-  tradeId?: string;
-  accountId?: number;
-  symbol: string;
-  quantity?: number;
-  price?: number;
-  totalAmount: number;
-  fee?: number;
-  grossAmount?: number;
-  taxAmount?: number;
-  dividendPerShare?: number;
-  shares?: number;
-  date: string;
-  executedAt: string;
-  status?: 'COMPLETED' | 'CANCELLED'; // 매수 · 매도만. 잔액 반영 실패면 CANCELLED
-  cancelReason?: string | null;
-}
+type Transaction = TransactionHistoryItem;
 
 type TransactionType = 'ALL' | 'BUY' | 'SELL' | 'DIVIDEND';
 

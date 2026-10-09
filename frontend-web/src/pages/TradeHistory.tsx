@@ -2,27 +2,11 @@ import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { ArrowUpCircle, ArrowDownCircle, RefreshCw, LogIn, DollarSign } from 'lucide-react';
-import { tradeApi } from '../services/api';
+import { tradeApi, type TransactionHistoryItem } from '../services/api';
 import LoginModal from '../components/auth/LoginModal';
 import TradeCancelledBadge from '../components/trading/TradeCancelledBadge';
 
-interface Transaction {
-  type: 'BUY' | 'SELL' | 'DIVIDEND';
-  tradeId?: string; // Trade ID (매수/매도는 필수, 배당은 연결된 Trade ID)
-  symbol: string;
-  quantity?: number;
-  price?: number;
-  totalAmount: number;
-  fee?: number;
-  grossAmount?: number;
-  taxAmount?: number;
-  dividendPerShare?: number;
-  shares?: number;
-  date: string;
-  executedAt: string;
-  status?: 'COMPLETED' | 'CANCELLED'; // 매수 · 매도만. 잔액 반영 실패면 CANCELLED
-  cancelReason?: string | null;
-}
+type Transaction = TransactionHistoryItem;
 
 type FilterType = 'ALL' | 'BUY' | 'SELL' | 'DIVIDEND';
 

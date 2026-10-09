@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { SimpleResult } from './SimpleResult'
+import { SimpleChart } from '@components/charts/backtest/SimpleChart'
 
-vi.mock('@components/charts/backtest/SimpleChart', () => ({ SimpleChart: () => null }))
+vi.mock('@components/charts/backtest/SimpleChart', () => ({ SimpleChart: vi.fn(() => null) }))
 
 const result = {
   mode: 'simple',
@@ -28,6 +29,12 @@ describe('SimpleResult', () => {
     render(<SimpleResult result={result} symbol="AAPL" purchaseDate="2023-01-03" />)
 
     expect(screen.getByTestId('backtest-return-rate')).toBeInTheDocument()
+  })
+
+  it('차트를 평가일까지 그리게 넘긴다', () => {
+    render(<SimpleResult result={{ ...result, currentDate: '2024-06-14' }} symbol="AAPL" purchaseDate="2023-01-03" />)
+
+    expect(vi.mocked(SimpleChart).mock.lastCall?.[0]).toMatchObject({ endDate: '2024-06-14' })
   })
 
   it('평가일 기준 라벨을 쓴다', () => {

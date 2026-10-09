@@ -4,6 +4,7 @@ import { NumberInput } from '../../common/NumberInput';
 import { FxModeToggle } from '../shared/FxModeToggle';
 import { DividendFeeOptions } from '../shared/DividendFeeOptions';
 import DatePicker from '../../common/DatePicker';
+import { toLocalDateString } from '../../../utils/dateUtils';
 
 interface SimpleStrategyFormProps {
   symbol: string;
@@ -78,13 +79,13 @@ export const SimpleStrategyForm: React.FC<SimpleStrategyFormProps> = ({
   // Date 객체를 문자열로 변환하여 부모 컴포넌트에 전달
   useEffect(() => {
     if (purchaseDateObj) {
-      setPurchaseDate(purchaseDateObj.toISOString().split('T')[0]);
+      setPurchaseDate(toLocalDateString(purchaseDateObj));
     }
   }, [purchaseDateObj, setPurchaseDate]);
 
   useEffect(() => {
     if (saleDateObj) {
-      setSaleDate(saleDateObj.toISOString().split('T')[0]);
+      setSaleDate(toLocalDateString(saleDateObj));
     }
   }, [saleDateObj, setSaleDate]);
 

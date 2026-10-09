@@ -6,6 +6,7 @@ import { DividendFeeOptions } from '../shared/DividendFeeOptions';
 import DatePicker from '../../common/DatePicker';
 import { COMPARISON_STRATEGIES } from '../comparison/catalog';
 import type { ComparisonStrategyType } from '../comparison/types';
+import { toLocalDateString } from '../../../utils/dateUtils';
 
 interface StrategyComparisonFormProps {
   // Symbol selection
@@ -90,13 +91,13 @@ export const StrategyComparisonForm: React.FC<StrategyComparisonFormProps> = ({
 
   useEffect(() => {
     if (startDateObj) {
-      setStartDate(startDateObj.toISOString().split('T')[0]);
+      setStartDate(toLocalDateString(startDateObj));
     }
   }, [startDateObj, setStartDate]);
 
   useEffect(() => {
     if (endDateObj) {
-      setEndDate(endDateObj.toISOString().split('T')[0]);
+      setEndDate(toLocalDateString(endDateObj));
     }
   }, [endDateObj, setEndDate]);
 

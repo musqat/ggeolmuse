@@ -1,6 +1,7 @@
 import axios from 'axios';
 import type { ApiResponse } from '../types/api';
 import type { StockPrice } from '../types/stock';
+import type { OHLCData } from '../types/ohlc';
 
 // Gateway를 통한 통합 API 연결
 // 개발환경에서는 Vite 프록시 사용, 프로덕션에서는 환경변수 사용
@@ -173,20 +174,8 @@ export const stockApi = {
 
   // 특정 종목의 OHLC 데이터 조회
   getOHLCData: (symbol: string, startDate?: string, endDate?: string) =>
-    apiClient.get(`/market/ohlc/multiple`, {
+    apiClient.get<OHLCData[]>(`/market/ohlc/multiple`, {
       params: { symbols: [symbol], startDate, endDate }
-    }),
-
-  // 여러 종목의 OHLC 데이터 조회
-  getMultipleOHLCData: (symbols: string[], startDate: string, endDate: string) =>
-    apiClient.get(`/market/ohlc/multiple`, {
-      params: { symbols, startDate, endDate }
-    }),
-
-  // 배당 내역 조회
-  getDividendHistory: (symbol: string, startDate?: string, endDate?: string) =>
-    apiClient.get(`/market/dividend/${symbol}`, {
-      params: { startDate, endDate }
     }),
 
   // Bulk 환율 조회 (여러 날짜 한 번에) - Public API
@@ -268,6 +257,39 @@ type TradingCapacityRequest = {
   manualPrice?: number;                              // 매수 시: 지정가 입력 가격
 };
 
+// 매수 · 매도 가능 수량. trade-service TradingCapacityResponseDto 와 같은 칸이다
+export type TradingCapacityResponse = {
+  symbol: string;
+  tradeDate: string;                                 // 거래일 (YYYY-MM-DD)
+  currentPrice: number;
+  availableBalance: number;
+  maxShares: number;
+  totalValue?: number | null;
+  currency: string;
+  currentHoldings?: number | null;                   // 매도 때만
+  maxSellableShares?: number | null;                 // 매도 때만
+};
+
+// 통합 거래 내역 한 줄. 매수 · 매도 · 배당이 섞여 온다 (trade-service TransactionHistoryController)
+export type TransactionHistoryItem = {
+  type: 'BUY' | 'SELL' | 'DIVIDEND';
+  tradeId?: number;                                  // 배당은 연결된 매수의 Trade ID
+  accountId?: number;                                // 매수 · 매도만
+  symbol: string;
+  quantity?: number | null;
+  price?: number | null;
+  totalAmount: number;                               // 배당은 세후 금액
+  fee?: number | null;
+  grossAmount?: number;                              // 배당만: 세전 금액
+  taxAmount?: number;                                // 배당만: 원천징수세
+  dividendPerShare?: number;                         // 배당만
+  shares?: number;                                   // 배당만: 배당 받은 주식 수
+  date: string;
+  executedAt: string;
+  status?: 'COMPLETED' | 'CANCELLED';                // 매수 · 매도만. 잔액 반영 실패면 CANCELLED
+  cancelReason?: string | null;
+};
+
 // 매수 · 매도 체결 결과. trade-service TradeResponseDto 와 같은 칸이다
 export type TradeResult = {
   id: number;
@@ -293,27 +315,15 @@ export const tradeApi = {
 
   // 매수 가능 여부 확인
   canBuy: (payload: TradingCapacityRequest) =>
-    apiClient.post('/trade/can-buy', payload),
+    apiClient.post<TradingCapacityResponse>('/trade/can-buy', payload),
 
   // 매도 가능 여부 확인
   canSell: (payload: TradingCapacityRequest) =>
-    apiClient.post('/trade/can-sell', payload),
+    apiClient.post<TradingCapacityResponse>('/trade/can-sell', payload),
 
   // 통합 거래 내역 조회 (매수/매도/배당)
   history: () =>
-    apiClient.get('/transactions/history'),
-
-  // 기존 페이징 API (deprecated, 통합 API 사용 권장)
-  historyPaged: (page = 0, size = 20) =>
-    apiClient.get('/trade-history/history', { params: { page, size } }),
-
-  // 종목별 거래 내역 조회
-  historyBySymbol: (symbol: string) =>
-    apiClient.get(`/trade-history/history/${encodeURIComponent(symbol)}`),
-
-  // 기간별 거래 내역 조회
-  historyByPeriod: (startDate: string, endDate: string) =>
-    apiClient.get('/trade-history/history/period', { params: { startDate, endDate } }),
+    apiClient.get<TransactionHistoryItem[]>('/transactions/history'),
 };
 
 // 계좌 요약 정보

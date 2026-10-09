@@ -11,6 +11,7 @@ import {
 import type { ComparisonItem, ComparisonResponse } from '../../../services/api';
 import type { OptimalPointsBySymbol } from '../shared/backtestDisplay';
 import { CompareSymbolsChartMemoized } from './CompareSymbolsChartMemoized';
+import { getTodayString } from '../../../utils/dateUtils';
 
 // 종목 카드의 수익 칸 배경. 값이 없으면 중립 배경
 const SOFT_BOX: Record<GainLossTone, string> = {
@@ -97,7 +98,7 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
                 <p className="text-sm text-tx-2">
                   {displayItem.purchaseDate} →{" "}
                   {displayItem.currentDate ||
-                    new Date().toISOString().split("T")[0]}
+                    getTodayString()}
                 </p>
               </div>
 

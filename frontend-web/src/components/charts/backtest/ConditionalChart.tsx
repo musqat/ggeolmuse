@@ -15,6 +15,7 @@ import { useChartPeriod } from "../common/hooks/useChartPeriod";
 import { ChartPeriodSelector } from "../common/components/ChartPeriodSelector";
 import { getApiErrorMessage } from '../../../utils/apiError';
 import type { OHLCData } from '../../../types/ohlc';
+import { getTodayString } from "../../../utils/dateUtils";
 
 interface Transaction {
   date: string;
@@ -81,7 +82,7 @@ export const ConditionalChart: React.FC<StrategyBacktestChartProps> = ({
       setError(null);
 
       try {
-        const today = new Date().toISOString().split("T")[0];
+        const today = getTodayString();
         const response = await stockApi.getOHLCData(
           symbol,
           chartStartDate,
