@@ -99,16 +99,6 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
 
       if (Array.isArray(response.data)) {
         ohlcData = (response.data as RawOhlc[]).filter((item) => item.symbol === symbol);
-      } else if (
-        response.data &&
-        response.data.data &&
-        Array.isArray(response.data.data)
-      ) {
-        ohlcData = (response.data.data as RawOhlc[]).filter(
-          (item) => item.symbol === symbol,
-        );
-      } else if (response.data && response.data[symbol]) {
-        ohlcData = response.data[symbol];
       }
 
       if (ohlcData && Array.isArray(ohlcData) && ohlcData.length > 0) {
