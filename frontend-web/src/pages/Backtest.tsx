@@ -32,10 +32,11 @@ import { DcaConditionalResult } from "@components/backtest/results/DcaConditiona
 import { SimpleResult } from "@components/backtest/results/SimpleResult";
 import { BacktestHistoryPanel } from "@components/backtest/history/BacktestHistoryPanel";
 import {
-  STRATEGY_NAMES,
   type BacktestMode,
   type BacktestResult,
 } from "@components/backtest/shared/backtestDisplay";
+import { strategyByType } from "@components/backtest/comparison/catalog";
+import type { ComparisonStrategyType } from "@components/backtest/comparison/types";
 
 const Backtest: React.FC = () => {
   const navigate = useNavigate();
@@ -120,7 +121,7 @@ const Backtest: React.FC = () => {
   const [strategyStartDate, setStrategyStartDate] = useState("2023-01-01");
   const [strategyEndDate, setStrategyEndDate] = useState(""); // 비어있으면 현재 날짜
   const [strategyInvestment, setStrategyInvestment] = useState("1000000");
-  const [selectedStrategies, setSelectedStrategies] = useState<string[]>([
+  const [selectedStrategies, setSelectedStrategies] = useState<ComparisonStrategyType[]>([
     "SIMPLE",
     "DCA",
   ]);
@@ -138,9 +139,7 @@ const Backtest: React.FC = () => {
 
   // 전략 파라미터 모달 관련
   const [showStrategyModal, setShowStrategyModal] = useState(false);
-  const [modalStrategyType, setModalStrategyType] = useState<
-    "SIMPLE" | "DCA" | "CONDITIONAL_PURCHASE" | null
-  >(null);
+  const [modalStrategyType, setModalStrategyType] = useState<ComparisonStrategyType | null>(null);
   // 폼이 입력값을 문자열로 담고, 실행 직전에 숫자로 바꾼다.
   const [strategyParameters, setStrategyParameters] = useState<{
     [strategy: string]: Record<string, string>;
@@ -506,42 +505,17 @@ const Backtest: React.FC = () => {
       return;
     }
 
-    // 전략 파라미터 유효성 검사 (기본값으로 폴백)
+    const common = { startDate: strategyStartDate, investment: strategyInvestment };
+
+    // 전략 파라미터 유효성 검사 (빈 값은 기본값으로 본다)
     for (const strategyType of selectedStrategies) {
-      const params = strategyParameters[strategyType] || {};
-
-      if (strategyType === "DCA") {
-        // 모달에서 설정하지 않은 경우 기본값 사용
-        const monthlyAmount = parseFloat(params.monthlyAmount || "100000");
-        const purchaseDay = parseInt(params.purchaseDay || "15");
-
-        if (!monthlyAmount || monthlyAmount <= 0) {
-          alert(`${STRATEGY_NAMES["DCA"]}: 월 투자금이 유효하지 않습니다.`);
-          return;
-        }
-        if (!purchaseDay || purchaseDay < 1 || purchaseDay > 31) {
-          alert(`${STRATEGY_NAMES["DCA"]}: 매수일이 유효하지 않습니다 (1-31).`);
-          return;
-        }
-      } else if (strategyType === "CONDITIONAL_PURCHASE") {
-        // 설정되지 않은 경우 전략 투자금과 기본 하락률 사용
-        const totalInvestment = parseFloat(
-          params.totalInvestment || strategyInvestment || "0",
-        );
-        const dropPercentage = parseFloat(params.dropPercentage || "5");
-
-        if (!totalInvestment || totalInvestment <= 0) {
-          alert(
-            `${STRATEGY_NAMES["CONDITIONAL_PURCHASE"]}: 총 투자금이 유효하지 않습니다.`,
-          );
-          return;
-        }
-        if (!dropPercentage || dropPercentage <= 0) {
-          alert(
-            `${STRATEGY_NAMES["CONDITIONAL_PURCHASE"]}: 하락률이 유효하지 않습니다.`,
-          );
-          return;
-        }
+      const message = strategyByType(strategyType).checkOnRun(
+        strategyParameters[strategyType] || {},
+        common,
+      );
+      if (message) {
+        alert(message);
+        return;
       }
     }
 
@@ -550,36 +524,9 @@ const Backtest: React.FC = () => {
     setResult(null);
 
     try {
-      const strategies = selectedStrategies.map((strategyType) => {
-        const params = strategyParameters[strategyType] || {};
-
-        if (strategyType === "SIMPLE") {
-          return {
-            strategyType: "SIMPLE" as const,
-            name: "SIMPLE",
-            purchaseDate: strategyStartDate, // 전체 설정의 시작일 사용
-          };
-        } else if (strategyType === "DCA") {
-          return {
-            strategyType: "DCA" as const,
-            name: "DCA",
-            monthlyAmount: parseFloat(params.monthlyAmount || "100000"),
-            purchaseDay: parseInt(params.purchaseDay || "15"),
-            investmentInterval: parseInt(params.investmentInterval || "1"),
-            totalInvestmentLimit: parseFloat(strategyInvestment),
-          };
-        } else {
-          // 조건부 매수
-          return {
-            strategyType: "CONDITIONAL_PURCHASE" as const,
-            name: "CONDITIONAL_PURCHASE",
-            totalInvestment: parseFloat(
-              params.totalInvestment || strategyInvestment,
-            ),
-            dropPercentage: parseFloat(params.dropPercentage || "5") / 100,
-          };
-        }
-      });
+      const strategies = selectedStrategies.map((strategyType) =>
+        strategyByType(strategyType).toRequest(strategyParameters[strategyType] || {}, common),
+      );
 
       // 종료일이 비어있을시 현재날짜로 변경
       const effectiveEndDate =
@@ -666,9 +613,7 @@ const Backtest: React.FC = () => {
     setCompareSymbols(compareSymbols.filter((s) => s !== symbolToRemove));
   };
 
-  const toggleStrategy = (
-    strategy: "SIMPLE" | "DCA" | "CONDITIONAL_PURCHASE",
-  ) => {
+  const toggleStrategy = (strategy: ComparisonStrategyType) => {
     if (selectedStrategies.includes(strategy)) {
       if (selectedStrategies.length > 1) {
         setSelectedStrategies(selectedStrategies.filter((s) => s !== strategy));
@@ -681,18 +626,9 @@ const Backtest: React.FC = () => {
 
       // 기본값 설정
       if (!strategyParameters[strategy]) {
-        // SIMPLE 은 일시불이라 채울 기본값이 없다. 빈 채로 둔다.
-        const defaultParams: Record<string, string> = {};
-        if (strategy === "DCA") {
-          defaultParams.monthlyAmount = "100000";
-          defaultParams.purchaseDay = "15";
-          defaultParams.investmentInterval = "1";
-        } else if (strategy === "CONDITIONAL_PURCHASE") {
-          defaultParams.dropPercentage = "5";
-        }
         setStrategyParameters({
           ...strategyParameters,
-          [strategy]: defaultParams,
+          [strategy]: { ...strategyByType(strategy).defaultParams },
         });
       }
 
@@ -703,23 +639,12 @@ const Backtest: React.FC = () => {
   const handleSaveStrategyParams = () => {
     if (!modalStrategyType) return;
 
-    const params = strategyParameters[modalStrategyType] || {};
-
-    if (modalStrategyType === "SIMPLE") {
-      // SIMPLE 전략은 전체 설정의 startDate를 사용하므로 별도 유효성 검사 불필요
-    } else if (modalStrategyType === "DCA") {
-      if (!params.monthlyAmount || !params.purchaseDay) {
-        alert(
-          `${STRATEGY_NAMES[modalStrategyType]}: 월 투자금과 매수일을 입력해주세요.`,
-        );
-        return;
-      }
-    } else if (modalStrategyType === "CONDITIONAL_PURCHASE") {
-      // 하락률 체크
-      if (!params.dropPercentage) {
-        alert(`${STRATEGY_NAMES[modalStrategyType]}: 하락률을 입력해주세요.`);
-        return;
-      }
+    const message = strategyByType(modalStrategyType).checkOnSave(
+      strategyParameters[modalStrategyType] || {},
+    );
+    if (message) {
+      alert(message);
+      return;
     }
 
     setSelectedStrategies([...selectedStrategies, modalStrategyType]);
@@ -979,7 +904,6 @@ const Backtest: React.FC = () => {
               setInvestment={setStrategyInvestment}
               selectedStrategies={selectedStrategies}
               toggleStrategy={toggleStrategy}
-              strategyNames={STRATEGY_NAMES}
               fxMode={strategyFxMode}
               setFxMode={setStrategyFxMode}
               manualPurchaseFxRate={strategyManualPurchaseFxRate}
