@@ -287,6 +287,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
         .currentFxRate(request.getCurrentFxRate())
         .reinvestDividends(reinvests(request))
         .dividendTaxRate(orZero(request.getDividendTaxRate()))
+        .tradingFeeRate(orZero(request.getTradingFeeRate()))
         .build();
 
       InvestmentStrategy strategy = getStrategy(StrategyType.DCA, "DCA 전략을 찾을 수 없습니다");
@@ -307,6 +308,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
         .currentFxRate(request.getCurrentFxRate())
         .reinvestDividends(reinvests(request))
         .dividendTaxRate(orZero(request.getDividendTaxRate()))
+        .tradingFeeRate(orZero(request.getTradingFeeRate()))
         .build();
 
       InvestmentStrategy strategy = getStrategy(StrategyType.CONDITIONAL_PURCHASE,

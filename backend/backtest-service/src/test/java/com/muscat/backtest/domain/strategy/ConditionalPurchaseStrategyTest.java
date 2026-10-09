@@ -115,6 +115,56 @@ class ConditionalPurchaseStrategyTest {
   }
 
   @Nested
+  @DisplayName("수수료")
+  class FeeTests {
+
+    @Test
+    @DisplayName("매수마다 수수료를 떼고 남은 달러로 산다")
+    void executeConditional_DeductsFee() {
+      ConditionalStrategyRequest request = ConditionalStrategyRequest.builder()
+        .userId("test-user")
+        .symbol("FEE-TEST")
+        .startDate(LocalDate.of(2024, 1, 15))
+        .endDate(LocalDate.of(2024, 1, 16))
+        .investmentMode(InvestmentMode.PER_PURCHASE)
+        .amountPerPurchase(new BigDecimal("1300000"))
+        .maxPurchases(1)
+        .dropPercentage(new BigDecimal("0.2"))
+        .tradingFeeRate(new BigDecimal("0.01"))
+        .build();
+
+      OHLCPriceDto day1 = new OHLCPriceDto("FEE-TEST", LocalDate.of(2024, 1, 15),
+        new BigDecimal("99"), new BigDecimal("101"), new BigDecimal("98"),
+        new BigDecimal("100.00"), new BigDecimal("100.00"), 1_000_000L, "USD", true);
+      given(marketDataClient.getOHLCPriceRange(eq("FEE-TEST"), eq("2024-01-15"), eq("2024-01-16")))
+        .willReturn(List.of(day1));
+      given(marketDataClient.getBulkFxRates(any()))
+        .willReturn(java.util.Map.of(
+          "2024-01-15", new BigDecimal("1300"),
+          "2024-01-16", new BigDecimal("1300")));
+      given(marketDataClient.getFxRate(anyString()))
+        .willReturn(new FxRateDto(LocalDate.now(), new BigDecimal("1300")));
+      given(marketDataClient.getOHLCPrice(eq("FEE-TEST"), anyString()))
+        .willReturn(day1);
+      given(marketDataClient.getDividendHistory(eq("FEE-TEST"), anyString(), anyString()))
+        .willReturn(java.util.Collections.emptyList());
+      given(responseMapper.toStrategyResponse(any(ConditionalStrategyRequest.class), any(), any(), any()))
+        .willReturn(StrategyResponse.builder().build());
+
+      strategy.executeConditional(request);
+
+      @SuppressWarnings("unchecked")
+      ArgumentCaptor<List<StrategyTransaction>> captor = ArgumentCaptor.forClass(List.class);
+      verify(responseMapper).toStrategyResponse(
+        any(ConditionalStrategyRequest.class), captor.capture(), any(), any());
+      assertThat(captor.getValue()).singleElement().satisfies(tx -> {
+        assertThat(tx.getFee()).isEqualByComparingTo("10.00");
+        assertThat(tx.getShares()).isEqualByComparingTo("9.9");
+      });
+    }
+  }
+
+  @Nested
   @DisplayName("요청 검증 테스트")
   class ValidationTests {
 

@@ -22,6 +22,7 @@ import com.muscat.commonlib.util.MoneyUtils;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -212,9 +213,18 @@ public class ResponseMapper {
       .dividendYield(MoneyUtils.roundUsd(BacktestCalculationUtils.calculateDividendYield(
         calculation.getTotalDividends(), calculation.getTotalShares(),
         currentPrice.currentPrice())))
+      .totalTradingFee(MoneyUtils.roundUsd(totalTradingFee(transactions)))
       .strategyDetails(createStrategyDetails(strategyType, transactions.size()))
       .performanceSummary(createPerformanceSummary(calculation))
       .build();
+  }
+
+  // 거래 수수료 합 (USD). 배당 재투자 거래는 fee 가 없다
+  private static BigDecimal totalTradingFee(List<StrategyTransaction> transactions) {
+    return transactions.stream()
+      .map(StrategyTransaction::getFee)
+      .filter(Objects::nonNull)
+      .reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 
   private String createStrategyDetails(StrategyType strategyType,

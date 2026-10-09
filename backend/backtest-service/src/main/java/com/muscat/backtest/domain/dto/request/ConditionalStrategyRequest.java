@@ -67,6 +67,10 @@ public class ConditionalStrategyRequest {
   @Builder.Default
   private Boolean reinvestDividends = false;  // 배당금 자동 재투자 여부
 
+  @Schema(description = "매매 수수료율 (0.25% = 0.0025, 매수마다 뗀다)", example = "0.0025")
+  @Builder.Default
+  private BigDecimal tradingFeeRate = BigDecimal.ZERO;  // 매매 수수료율
+
   @Schema(description = "배당 원천징수세율 (미국 원천징수 15% = 0.15, 미적용 시 0)", example = "0.15")
   @Builder.Default
   private BigDecimal dividendTaxRate = BigDecimal.ZERO;  // 배당 원천징수 세율

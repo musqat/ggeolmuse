@@ -172,9 +172,11 @@ public class DCAStrategy implements InvestmentStrategy {
         }
 
         if (priceData != null && priceData.available() && purchaseFxRate != null) {
-          // 매수 실행
-          BigDecimal shares = BacktestCalculationUtils.calculateShares(
-            request.getMonthlyAmount(), purchaseFxRate, PriceLookup.effectiveClose(priceData));
+          // 매수 실행. 수수료를 떼고 남은 달러로 산다
+          BigDecimal fee = BacktestCalculationUtils.calculatePurchaseFee(
+            request.getMonthlyAmount(), purchaseFxRate, request.getTradingFeeRate());
+          BigDecimal shares = BacktestCalculationUtils.calculateSharesAfterFee(
+            request.getMonthlyAmount(), purchaseFxRate, PriceLookup.effectiveClose(priceData), fee);
 
           // 거래 기록 생성
           StrategyTransaction transaction = StrategyTransaction.builder()
@@ -182,6 +184,7 @@ public class DCAStrategy implements InvestmentStrategy {
             .actualDate(priceData.date())   // 실제 거래일
             .price(PriceLookup.effectiveClose(priceData))
             .shares(shares)
+            .fee(fee)
             .amount(request.getMonthlyAmount())
             .fxRate(purchaseFxRate)
             .trigger(BacktestConstants.TransactionTrigger.MONTHLY_INVESTMENT)
