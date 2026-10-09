@@ -5,10 +5,23 @@ import { ko } from 'react-day-picker/locale';
 import 'react-day-picker/style.css';
 import { autoUpdate, flip, offset, shift, useFloating } from '@floating-ui/react-dom';
 import { CalendarDays } from 'lucide-react';
-import { parseLocalDate, toLocalDateString } from '../../utils/dateUtils';
+import {
+  getTodayString,
+  parseLocalDate,
+  subtractMonths,
+  toLocalDateString,
+} from '../../utils/dateUtils';
 
 // 한 칸이 열릴 때 다른 칸을 닫으라고 보내는 이벤트
 const OPEN_EVENT = 'datefield:open';
+
+// 팝오버 위 빠른 이동. 달력을 오늘에서 이만큼 전 달로 넘긴다
+const PRESETS = [
+  { label: '1개월 전', months: 1 },
+  { label: '3개월 전', months: 3 },
+  { label: '6개월 전', months: 6 },
+  { label: '1년 전', months: 12 },
+];
 
 // 한 칸 40px 라 7칸과 여백이 320px 화면에 들어간다
 const calendarStyle = {
@@ -27,6 +40,8 @@ interface DateFieldProps {
   min?: string;
   max?: string;
   placeholder?: string;
+  // 팝오버 위에 달력을 1개월 · 3개월 · 6개월 · 1년 전 달로 넘기는 버튼을 보인다
+  presets?: boolean;
   testId?: string;
 }
 
@@ -37,10 +52,13 @@ export const DateField = ({
   min,
   max,
   placeholder = '날짜 선택',
+  presets = false,
   testId,
 }: DateFieldProps) => {
   const id = useId();
   const [open, setOpen] = useState(false);
+  // 달력이 보여 주는 달. 열 때 값의 달로 맞추고 빠른 선택이 옮긴다
+  const [month, setMonth] = useState<Date>();
   const selected = value ? parseLocalDate(value) : undefined;
   const minDate = min ? parseLocalDate(min) : undefined;
   const maxDate = max ? parseLocalDate(max) : undefined;
@@ -85,9 +103,19 @@ export const DateField = ({
   }, [open, refs]);
 
   const toggle = () => {
-    if (!open) window.dispatchEvent(new CustomEvent(OPEN_EVENT, { detail: id }));
+    if (!open) {
+      window.dispatchEvent(new CustomEvent(OPEN_EVENT, { detail: id }));
+      setMonth(selected ?? maxDate ?? new Date());
+    }
     setOpen(!open);
   };
+
+  const pick = (next: string) => {
+    onChange(next);
+    setOpen(false);
+  };
+
+  const today = getTodayString();
 
   return (
     <>
@@ -111,17 +139,40 @@ export const DateField = ({
         createPortal(
           <div
             ref={refs.setFloating}
-            style={floatingStyles}
+            // 화면 구석의 AI 채팅 버튼(z-index 9000)보다 위에 띄운다
+            style={{ ...floatingStyles, zIndex: 9050 }}
             role="dialog"
-            className="z-50 rounded-lg border border-line bg-surface p-3 text-tx-1 shadow-2xl"
+            className="rounded-lg border border-line bg-surface p-3 text-tx-1 shadow-2xl"
           >
+            {presets && (
+              <div className="mb-2 grid grid-cols-4 gap-1">
+                {PRESETS.map(({ label, months }) => {
+                  // 달만 비교한다. min 이 그 달 중간이어도 그 달은 열 수 있다
+                  const target = subtractMonths(today, months).slice(0, 7);
+                  const outOfRange =
+                    (!!min && target < min.slice(0, 7)) || (!!max && target > max.slice(0, 7));
+                  return (
+                    <button
+                      key={label}
+                      type="button"
+                      disabled={outOfRange}
+                      onClick={() => setMonth(parseLocalDate(`${target}-01`))}
+                      className="rounded-md border border-line px-1 py-1 text-xs text-tx-2 hover:border-brand hover:text-tx-1 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             <DayPicker
               mode="single"
               locale={ko}
               weekStartsOn={1}
               captionLayout="dropdown"
               selected={selected}
-              defaultMonth={selected ?? maxDate}
+              month={month}
+              onMonthChange={setMonth}
               startMonth={minDate ?? new Date(1980, 0)}
               endMonth={maxDate ?? new Date(new Date().getFullYear() + 1, 11)}
               disabled={[
@@ -129,9 +180,7 @@ export const DateField = ({
                 ...(maxDate ? [{ after: maxDate }] : []),
               ]}
               onSelect={(date) => {
-                if (!date) return;
-                onChange(toLocalDateString(date));
-                setOpen(false);
+                if (date) pick(toLocalDateString(date));
               }}
               style={calendarStyle}
             />
