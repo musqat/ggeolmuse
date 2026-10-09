@@ -18,16 +18,16 @@ export const TotalAssetsSummary: React.FC<TotalAssetsSummaryProps> = ({
   formatBalance
 }) => {
   return (
-    <div className="bg-brand rounded-xl shadow-sm p-6 text-white">
+    <div className="bg-brand rounded-xl shadow-sm p-6 text-brand-ink">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-indigo-100 text-sm font-medium">총 자산</p>
+          <p className="text-brand-ink/90 text-sm font-medium">총 자산</p>
           <p className="text-3xl font-bold">{formatBalance(totalAssets, 'KRW')}</p>
-          <p className="text-indigo-100 text-sm mt-1">{accountCount}개 계좌</p>
+          <p className="text-brand-ink/90 text-sm mt-1">{accountCount}개 계좌</p>
         </div>
       </div>
       {currentExchangeRate > 0 && (
-        <div className="mt-4 pt-4 border-t border-indigo-400">
+        <div className="mt-4 pt-4 border-t border-brand-ink/20">
           <div className="flex items-center space-x-2 text-sm">
             <DollarSign className="w-4 h-4" />
             <span>현재 환율: ₩{currentExchangeRate.toLocaleString()}/USD</span>

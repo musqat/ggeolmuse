@@ -51,7 +51,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
         </div>
 
         {/* 수수료 정보 */}
-        <div className="flex items-center justify-between text-sm pt-3 border-t">
+        <div className="flex items-center justify-between text-sm pt-3 border-t border-line">
           <span className="text-tx-2">거래 수수료</span>
           <span className="font-medium">{(account.commissionRate * 100).toFixed(2)}%</span>
         </div>
@@ -62,7 +62,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
         </div>
 
         {/* 액션 버튼 그룹 */}
-        <div className="grid grid-cols-3 gap-2 pt-3 border-t">
+        <div className="grid grid-cols-3 gap-2 pt-3 border-t border-line">
           <button
             onClick={() => onDeposit(account.accountId)}
             className="w-full flex items-center justify-center space-x-1 py-2 px-2 bg-success/10 text-success rounded-lg hover:bg-success/15 transition-colors"
