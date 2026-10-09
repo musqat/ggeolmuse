@@ -16,9 +16,11 @@ import com.muscat.backtest.common.enums.type.BacktestType;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.util.BacktestHistoryUtils;
+import com.muscat.backtest.domain.dto.request.BaseComparisonRequest;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
 import com.muscat.backtest.domain.dto.request.OptimalTimingRequest;
+import com.muscat.backtest.domain.dto.request.SimulationRequest;
 import com.muscat.backtest.domain.dto.request.StrategyComparisonRequest;
 import com.muscat.backtest.domain.dto.request.SymbolComparisonRequest;
 import com.muscat.backtest.domain.dto.request.TimingComparisonRequest;
@@ -44,6 +46,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -640,6 +643,193 @@ class BacktestAnalysisServiceImplTest {
       assertThat(result).isNotNull();
       verify(optimalTimingStrategy).analyzeOptimalTiming(request);
       verify(backtestHistoryUtils, never()).saveBacktestHistory(any(), any(), any());
+    }
+  }
+
+  @Nested
+  @DisplayName("비교 옵션 전달")
+  class ComparisonOptionsTests {
+
+    private final ComparisonItem item = ComparisonItem.builder()
+      .name("항목")
+      .totalReturnPercent(BigDecimal.TEN)
+      .build();
+
+    private StrategyParameter strategy(StrategyType type) {
+      StrategyParameter parameter = new StrategyParameter();
+      parameter.setStrategyType(type);
+      parameter.setName(type.name());
+      return parameter;
+    }
+
+    private StrategyComparisonRequest strategyRequest(StrategyParameter... strategies) {
+      StrategyComparisonRequest request = new StrategyComparisonRequest();
+      request.setSymbol("AAPL");
+      request.setStartDate(LocalDate.of(2023, 1, 1));
+      request.setEndDate(LocalDate.of(2024, 1, 1));
+      request.setInvestmentAmount(BigDecimal.valueOf(1_000_000));
+      request.setStrategies(Arrays.asList(strategies));
+      request.setUserId("user123");
+      return request;
+    }
+
+    // 수수료 0.25% · 수동 환율 1300/1350 · 재투자 · 배당세 15%
+    private void withOptions(BaseComparisonRequest request) {
+      request.setTradingFeeRate(new BigDecimal("0.0025"));
+      request.setPurchaseFxRate(new BigDecimal("1300"));
+      request.setCurrentFxRate(new BigDecimal("1350"));
+      request.setReinvestDividends(true);
+      request.setDividendTaxRate(new BigDecimal("0.15"));
+    }
+
+    private void assertSimulationOptions(SimulationRequest simulation) {
+      assertThat(simulation.getTradingFeeRate()).isEqualByComparingTo(new BigDecimal("0.0025"));
+      assertThat(simulation.getPurchaseFxRate()).isEqualByComparingTo(new BigDecimal("1300"));
+      assertThat(simulation.getCurrentFxRate()).isEqualByComparingTo(new BigDecimal("1350"));
+      assertThat(simulation.getReinvestDividends()).isTrue();
+      assertThat(simulation.getDividendTaxRate()).isEqualByComparingTo(new BigDecimal("0.15"));
+    }
+
+    private void stubSimulation() {
+      given(tradingSimulationService.runSimulation(any(), eq(false)))
+        .willReturn(SimulationResponse.builder().build());
+      given(responseMapper.toComparisonItemFromSimulation(any(), any())).willReturn(item);
+    }
+
+    private void stubComparisonResponse() {
+      given(responseMapper.toComparisonResponse(any(), any(), any()))
+        .willReturn(ComparisonResponse.builder().build());
+    }
+
+    @Test
+    @DisplayName("전략 비교는 세 전략 하위 요청에 공통 옵션을, 적립식에는 주기 · 한도도 넘긴다")
+    void compareStrategies_PassesOptions() {
+      StrategyParameter simple = strategy(StrategyType.SIMPLE);
+      simple.setPurchaseDate(LocalDate.of(2023, 1, 1));
+      StrategyParameter dca = strategy(StrategyType.DCA);
+      dca.setMonthlyAmount(BigDecimal.valueOf(100_000));
+      dca.setPurchaseDay(15);
+      dca.setInvestmentInterval(2);
+      dca.setTotalInvestmentLimit(BigDecimal.valueOf(1_000_000));
+      StrategyParameter conditional = strategy(StrategyType.CONDITIONAL_PURCHASE);
+      conditional.setTotalInvestment(BigDecimal.valueOf(1_000_000));
+      conditional.setDropPercentage(new BigDecimal("0.05"));
+      StrategyComparisonRequest request = strategyRequest(simple, dca, conditional);
+      withOptions(request);
+
+      stubSimulation();
+      given(dcaStrategy.executeDca(any())).willReturn(StrategyResponse.builder().build());
+      given(conditionalPurchaseStrategy.executeConditional(any()))
+        .willReturn(StrategyResponse.builder().build());
+      given(responseMapper.toComparisonItemFromStrategy(any(), any())).willReturn(item);
+      stubComparisonResponse();
+
+      backtestAnalysisService.compareStrategies(request);
+
+      ArgumentCaptor<SimulationRequest> simulation = ArgumentCaptor.forClass(SimulationRequest.class);
+      verify(tradingSimulationService).runSimulation(simulation.capture(), eq(false));
+      assertThat(simulation.getValue().getPurchaseDate()).isEqualTo(LocalDate.of(2023, 1, 1));
+      assertSimulationOptions(simulation.getValue());
+
+      ArgumentCaptor<DcaStrategyRequest> dcaRequest = ArgumentCaptor.forClass(DcaStrategyRequest.class);
+      verify(dcaStrategy).executeDca(dcaRequest.capture());
+      assertThat(dcaRequest.getValue().getInvestmentInterval()).isEqualTo(2);
+      assertThat(dcaRequest.getValue().getTotalInvestmentLimit())
+        .isEqualByComparingTo(BigDecimal.valueOf(1_000_000));
+      assertThat(dcaRequest.getValue().getPurchaseFxRate()).isEqualByComparingTo(new BigDecimal("1300"));
+      assertThat(dcaRequest.getValue().getCurrentFxRate()).isEqualByComparingTo(new BigDecimal("1350"));
+      assertThat(dcaRequest.getValue().getReinvestDividends()).isTrue();
+      assertThat(dcaRequest.getValue().getDividendTaxRate()).isEqualByComparingTo(new BigDecimal("0.15"));
+
+      ArgumentCaptor<ConditionalStrategyRequest> conditionalRequest =
+        ArgumentCaptor.forClass(ConditionalStrategyRequest.class);
+      verify(conditionalPurchaseStrategy).executeConditional(conditionalRequest.capture());
+      assertThat(conditionalRequest.getValue().getPurchaseFxRate())
+        .isEqualByComparingTo(new BigDecimal("1300"));
+      assertThat(conditionalRequest.getValue().getCurrentFxRate())
+        .isEqualByComparingTo(new BigDecimal("1350"));
+      assertThat(conditionalRequest.getValue().getReinvestDividends()).isTrue();
+      assertThat(conditionalRequest.getValue().getDividendTaxRate())
+        .isEqualByComparingTo(new BigDecimal("0.15"));
+    }
+
+    @Test
+    @DisplayName("옵션이 비면 재투자 끔 · 수수료 0 · 배당세 0 · 투자 주기 1 로 넘긴다")
+    void compareStrategies_EmptyOptions_UsesDefaults() {
+      StrategyParameter simple = strategy(StrategyType.SIMPLE);
+      simple.setPurchaseDate(LocalDate.of(2023, 1, 1));
+      StrategyParameter dca = strategy(StrategyType.DCA);
+      dca.setMonthlyAmount(BigDecimal.valueOf(100_000));
+      dca.setPurchaseDay(15);
+      StrategyComparisonRequest request = strategyRequest(simple, dca);
+
+      stubSimulation();
+      given(dcaStrategy.executeDca(any())).willReturn(StrategyResponse.builder().build());
+      given(responseMapper.toComparisonItemFromStrategy(any(), any())).willReturn(item);
+      stubComparisonResponse();
+
+      backtestAnalysisService.compareStrategies(request);
+
+      ArgumentCaptor<SimulationRequest> simulation = ArgumentCaptor.forClass(SimulationRequest.class);
+      verify(tradingSimulationService).runSimulation(simulation.capture(), eq(false));
+      assertThat(simulation.getValue().getTradingFeeRate()).isEqualByComparingTo(BigDecimal.ZERO);
+      assertThat(simulation.getValue().getReinvestDividends()).isFalse();
+      assertThat(simulation.getValue().getDividendTaxRate()).isEqualByComparingTo(BigDecimal.ZERO);
+      assertThat(simulation.getValue().getPurchaseFxRate()).isNull();
+
+      ArgumentCaptor<DcaStrategyRequest> dcaRequest = ArgumentCaptor.forClass(DcaStrategyRequest.class);
+      verify(dcaStrategy).executeDca(dcaRequest.capture());
+      assertThat(dcaRequest.getValue().getInvestmentInterval()).isEqualTo(1);
+      assertThat(dcaRequest.getValue().getTotalInvestmentLimit()).isNull();
+      assertThat(dcaRequest.getValue().getReinvestDividends()).isFalse();
+      assertThat(dcaRequest.getValue().getDividendTaxRate()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
+    @DisplayName("종목 비교는 종목마다 시뮬레이션 요청에 공통 옵션을 넘긴다")
+    void compareSymbols_PassesOptions() {
+      SymbolComparisonRequest request = new SymbolComparisonRequest();
+      request.setSymbols(Arrays.asList("AAPL", "MSFT"));
+      request.setStartDate(LocalDate.of(2023, 1, 1));
+      request.setEndDate(LocalDate.of(2024, 1, 1));
+      request.setInvestmentAmount(BigDecimal.valueOf(1_000_000));
+      request.setUserId("user123");
+      withOptions(request);
+
+      stubSimulation();
+      stubComparisonResponse();
+
+      backtestAnalysisService.compareSymbols(request);
+
+      ArgumentCaptor<SimulationRequest> simulations = ArgumentCaptor.forClass(SimulationRequest.class);
+      verify(tradingSimulationService, times(2)).runSimulation(simulations.capture(), eq(false));
+      assertThat(simulations.getAllValues())
+        .extracting(SimulationRequest::getSymbol)
+        .containsExactly("AAPL", "MSFT");
+      assertThat(simulations.getAllValues()).allSatisfy(this::assertSimulationOptions);
+    }
+
+    @Test
+    @DisplayName("타이밍 비교는 매수 시점마다 시뮬레이션 요청에 공통 옵션을 넘긴다")
+    void compareTiming_PassesOptions() {
+      TimingComparisonRequest request = new TimingComparisonRequest();
+      request.setSymbol("AAPL");
+      request.setPurchaseDates(Arrays.asList(LocalDate.of(2023, 1, 1), LocalDate.of(2023, 6, 1)));
+      request.setInvestmentAmount(BigDecimal.valueOf(1_000_000));
+      request.setUserId("user123");
+      withOptions(request);
+
+      stubSimulation();
+      stubComparisonResponse();
+
+      backtestAnalysisService.compareTiming(request);
+
+      ArgumentCaptor<SimulationRequest> simulations = ArgumentCaptor.forClass(SimulationRequest.class);
+      verify(tradingSimulationService, times(2)).runSimulation(simulations.capture(), eq(false));
+      assertThat(simulations.getAllValues())
+        .extracting(SimulationRequest::getPurchaseDate)
+        .containsExactly(LocalDate.of(2023, 1, 1), LocalDate.of(2023, 6, 1));
+      assertThat(simulations.getAllValues()).allSatisfy(this::assertSimulationOptions);
     }
   }
 }

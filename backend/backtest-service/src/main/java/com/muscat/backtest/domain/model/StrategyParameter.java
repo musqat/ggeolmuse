@@ -15,6 +15,8 @@ public class StrategyParameter {
   // 적립식 투자 전략용
   private BigDecimal monthlyAmount;
   private Integer purchaseDay;
+  private Integer investmentInterval;       // 투자 주기 (개월, null이면 1)
+  private BigDecimal totalInvestmentLimit;  // 총 투자 금액 한도
 
   // 조건부 매수용
   private BigDecimal totalInvestment;

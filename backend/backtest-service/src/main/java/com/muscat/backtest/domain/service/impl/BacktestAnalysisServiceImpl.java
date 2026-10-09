@@ -26,6 +26,7 @@ import com.muscat.backtest.domain.service.BacktestAnalysisService;
 import com.muscat.backtest.domain.service.TradingSimulationService;
 import com.muscat.backtest.domain.strategy.InvestmentStrategy;
 import com.muscat.backtest.domain.strategy.OptimalTimingStrategy;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -227,22 +228,41 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
 
   private SimulationRequest buildSymbolSimulationRequest(SymbolComparisonRequest request,
     String symbol) {
-    return SimulationRequest.builder()
+    return simulationWithOptions(request)
       .symbol(symbol)
       .purchaseDate(request.getStartDate())
-      .investmentAmount(request.getInvestmentAmount())
-      .userId(request.getUserId())
       .build();
   }
 
   private SimulationRequest buildTimingSimulationRequest(TimingComparisonRequest request,
     LocalDate purchaseDate) {
-    return SimulationRequest.builder()
+    return simulationWithOptions(request)
       .symbol(request.getSymbol())
       .purchaseDate(purchaseDate)
+      .build();
+  }
+
+  // 단순 시뮬레이션 요청에 비교 요청의 투자금 · 수수료 · 환율 · 배당 옵션을 채운다
+  private SimulationRequest.SimulationRequestBuilder simulationWithOptions(
+    BaseComparisonRequest request) {
+    return SimulationRequest.builder()
       .investmentAmount(request.getInvestmentAmount())
       .userId(request.getUserId())
-      .build();
+      .tradingFeeRate(orZero(request.getTradingFeeRate()))
+      .purchaseFxRate(request.getPurchaseFxRate())
+      .currentFxRate(request.getCurrentFxRate())
+      .reinvestDividends(reinvests(request))
+      .dividendTaxRate(orZero(request.getDividendTaxRate()));
+  }
+
+  // 빈 값은 재투자 안 함
+  private static boolean reinvests(BaseComparisonRequest request) {
+    return Boolean.TRUE.equals(request.getReinvestDividends());
+  }
+
+  // 빈 값은 0. builder 에 null 을 넣으면 @Builder.Default 가 덮인다
+  private static BigDecimal orZero(BigDecimal value) {
+    return value != null ? value : BigDecimal.ZERO;
   }
 
   private ComparisonItem buildStrategyComparisonItem(StrategyComparisonRequest request,
@@ -259,6 +279,13 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
         .userId(request.getUserId())
         .monthlyAmount(strategyConfig.getMonthlyAmount())
         .purchaseDay(strategyConfig.getPurchaseDay())
+        .investmentInterval(strategyConfig.getInvestmentInterval() != null
+          ? strategyConfig.getInvestmentInterval() : 1)
+        .totalInvestmentLimit(strategyConfig.getTotalInvestmentLimit())
+        .purchaseFxRate(request.getPurchaseFxRate())
+        .currentFxRate(request.getCurrentFxRate())
+        .reinvestDividends(reinvests(request))
+        .dividendTaxRate(orZero(request.getDividendTaxRate()))
         .build();
 
       InvestmentStrategy strategy = getStrategy(StrategyType.DCA, "DCA 전략을 찾을 수 없습니다");
@@ -275,6 +302,10 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
         .totalInvestment(strategyConfig.getTotalInvestment())
         .dropPercentage(strategyConfig.getDropPercentage())
         .maxPurchases(strategyConfig.getMaxPurchases())
+        .purchaseFxRate(request.getPurchaseFxRate())
+        .currentFxRate(request.getCurrentFxRate())
+        .reinvestDividends(reinvests(request))
+        .dividendTaxRate(orZero(request.getDividendTaxRate()))
         .build();
 
       InvestmentStrategy strategy = getStrategy(StrategyType.CONDITIONAL_PURCHASE,
@@ -283,11 +314,9 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
       return responseMapper.toComparisonItemFromStrategy(result, strategyName);
     }
 
-    SimulationRequest simulationRequest = SimulationRequest.builder()
+    SimulationRequest simulationRequest = simulationWithOptions(request)
       .symbol(request.getSymbol())
       .purchaseDate(strategyConfig.getPurchaseDate())
-      .investmentAmount(request.getInvestmentAmount())
-      .userId(request.getUserId())
       .build();
 
     SimulationResponse result = tradingSimulationService.runSimulation(simulationRequest,
