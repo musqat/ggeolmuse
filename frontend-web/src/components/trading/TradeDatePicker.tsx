@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import type { CandlestickChartData } from '@/types/ohlc';
-import DatePicker from '../common/DatePicker';
+import { getTodayString, subtractDays, subtractMonths } from '@/utils/dateUtils';
+import { DateField } from '../common/DateField';
 
 interface TradeDatePickerProps {
   tradeDate: string;
@@ -17,56 +18,21 @@ const TradeDatePicker: React.FC<TradeDatePickerProps> = ({
   selectedDateOHLC,
   onFindClosestPastDate,
 }) => {
-  const [tradeDateObj, setTradeDateObj] = useState<Date | null>(
-    tradeDate ? new Date(tradeDate) : null
-  );
-  const [showTradeDatePicker, setShowTradeDatePicker] = useState(false);
+  const latest = chartData.length > 0 ? chartData[chartData.length - 1].time : null;
 
-  useEffect(() => {
-    if (tradeDateObj) {
-      onTradeDateChange(tradeDateObj.toISOString().split('T')[0]);
-    }
-  }, [tradeDateObj, onTradeDateChange]);
-
-  // tradeDate 가 외부에서 변경되면 tradeDateObj 업데이트.
-  useEffect(() => {
-    if (!tradeDate) return;
-    setTradeDateObj((prev) =>
-      !prev || prev.toISOString().split('T')[0] !== tradeDate
-        ? new Date(tradeDate)
-        : prev
-    );
-  }, [tradeDate]);
-
-  const handleSetLatest = () => {
-    if (chartData.length > 0) {
-      const latestDate = chartData[chartData.length - 1].time;
-      setTradeDateObj(new Date(latestDate));
-      onTradeDateChange(latestDate);
-    }
-  };
-
-  const handleSetOneWeekAgo = () => {
-    if (chartData.length === 0) return;
-    const latest = new Date(chartData[chartData.length - 1].time);
-    latest.setDate(latest.getDate() - 7);
-    const closest = onFindClosestPastDate(latest.toISOString().split('T')[0]);
+  // 그날과 같거나 앞선 가장 가까운 거래일로 옮긴다
+  const moveToClosest = (target: string) => {
+    const closest = onFindClosestPastDate(target);
     if (closest) onTradeDateChange(closest.time);
   };
 
-  const handleSetOneMonthAgo = () => {
-    if (chartData.length === 0) return;
-    const latest = new Date(chartData[chartData.length - 1].time);
-    latest.setMonth(latest.getMonth() - 1);
-    const closest = onFindClosestPastDate(latest.toISOString().split('T')[0]);
-    if (closest) onTradeDateChange(closest.time);
-  };
-
-  const handleSetOldest = () => {
-    if (chartData.length > 0) {
-      onTradeDateChange(chartData[0].time);
-    }
-  };
+  // 빠른 선택. 1주전 · 1달전은 마지막 캔들에서 거슬러 간다
+  const quickPicks = [
+    { label: '최신', pick: (last: string) => onTradeDateChange(last) },
+    { label: '1주전', pick: (last: string) => moveToClosest(subtractDays(last, 7)) },
+    { label: '1달전', pick: (last: string) => moveToClosest(subtractMonths(last, 1)) },
+    { label: '가장오래된', pick: () => onTradeDateChange(chartData[0].time) },
+  ];
 
   return (
     <div className="mb-4">
@@ -74,63 +40,27 @@ const TradeDatePicker: React.FC<TradeDatePickerProps> = ({
 
       {/* Quick Select Buttons */}
       <div className="grid grid-cols-4 gap-2 mb-2">
-        <button
-          type="button"
-          onClick={handleSetLatest}
-          disabled={chartData.length === 0}
-          className="px-2 py-1 text-xs bg-elevated text-tx-1 rounded hover:bg-hover disabled:bg-surface/50 disabled:text-tx-3 disabled:cursor-not-allowed transition-colors"
-        >
-          최신
-        </button>
-        <button
-          type="button"
-          onClick={handleSetOneWeekAgo}
-          disabled={chartData.length === 0}
-          className="px-2 py-1 text-xs bg-elevated text-tx-1 rounded hover:bg-hover disabled:bg-surface/50 disabled:text-tx-3 disabled:cursor-not-allowed transition-colors"
-        >
-          1주전
-        </button>
-        <button
-          type="button"
-          onClick={handleSetOneMonthAgo}
-          disabled={chartData.length === 0}
-          className="px-2 py-1 text-xs bg-elevated text-tx-1 rounded hover:bg-hover disabled:bg-surface/50 disabled:text-tx-3 disabled:cursor-not-allowed transition-colors"
-        >
-          1달전
-        </button>
-        <button
-          type="button"
-          onClick={handleSetOldest}
-          disabled={chartData.length === 0}
-          className="px-2 py-1 text-xs bg-elevated text-tx-1 rounded hover:bg-hover disabled:bg-surface/50 disabled:text-tx-3 disabled:cursor-not-allowed transition-colors"
-        >
-          가장오래된
-        </button>
+        {quickPicks.map(({ label, pick }) => (
+          <button
+            key={label}
+            type="button"
+            onClick={() => latest && pick(latest)}
+            disabled={!latest}
+            className="px-2 py-1 text-xs bg-elevated text-tx-1 rounded hover:bg-hover disabled:bg-surface/50 disabled:text-tx-3 disabled:cursor-not-allowed transition-colors"
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
-      {/* Date Input */}
-      <div className="relative">
-        <button
-          type="button"
-          onClick={() => setShowTradeDatePicker(!showTradeDatePicker)}
-          className="w-full px-3 py-1.5 text-sm border border-line-strong rounded-md text-left hover:border-indigo-500 focus:ring-2 focus:ring-brand focus:border-brand transition"
-        >
-          {tradeDateObj
-            ? tradeDateObj.toLocaleDateString('ko-KR')
-            : '날짜를 선택하세요'}
-        </button>
-        {showTradeDatePicker && (
-          <div className="absolute top-full left-0 md:left-1/2 md:-translate-x-1/2 mt-2 z-50 shadow-2xl w-[400px] max-w-[calc(100vw-2rem)]">
-            <DatePicker
-              value={tradeDateObj}
-              onChange={(date) => {
-                setTradeDateObj(date);
-                setShowTradeDatePicker(false);
-              }}
-            />
-          </div>
-        )}
-      </div>
+      {/* 미래 날짜는 고를 수 없다 */}
+      <DateField
+        value={tradeDate}
+        onChange={onTradeDateChange}
+        max={getTodayString()}
+        placeholder="날짜를 선택하세요"
+        testId="trade-date"
+      />
 
       {/* Selected Date OHLC Info */}
       {selectedDateOHLC && (

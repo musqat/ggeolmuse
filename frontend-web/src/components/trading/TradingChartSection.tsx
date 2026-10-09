@@ -1,19 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Calendar } from 'lucide-react';
 import CandlestickChart from '@/components/charts/trading/CandlestickChart';
 import type { CandlestickChartData } from '@/types/ohlc';
-import type { Timeframe } from '@/utils/dateUtils';
-import DatePicker from '../common/DatePicker';
+import { getTodayString, type Timeframe } from '@/utils/dateUtils';
+import { DateField } from '../common/DateField';
 
 interface TradingChartSectionProps {
   chartData: CandlestickChartData[];
   chartLoading: boolean;
   timeframe: Timeframe;
   onTimeframeChange: (timeframe: Timeframe) => void;
-  customStartDate?: string;
-  customEndDate?: string;
-  onCustomStartDateChange?: (date: string) => void;
-  onCustomEndDateChange?: (date: string) => void;
+  customStartDate: string;
+  customEndDate: string;
+  onCustomStartDateChange: (date: string) => void;
+  onCustomEndDateChange: (date: string) => void;
 }
 
 const TIMEFRAMES: Timeframe[] = ['1주', '1개월', '3개월', '6개월', '1년', '전체', '직접설정'];
@@ -28,26 +28,9 @@ const TradingChartSection: React.FC<TradingChartSectionProps> = ({
   onCustomStartDateChange,
   onCustomEndDateChange,
 }) => {
-  const [startDateObj, setStartDateObj] = useState<Date | null>(
-    customStartDate ? new Date(customStartDate) : null
-  );
-  const [endDateObj, setEndDateObj] = useState<Date | null>(
-    customEndDate ? new Date(customEndDate) : null
-  );
-  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
-  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
-
-  useEffect(() => {
-    if (startDateObj) {
-      onCustomStartDateChange?.(startDateObj.toISOString().split('T')[0]);
-    }
-  }, [startDateObj, onCustomStartDateChange]);
-
-  useEffect(() => {
-    if (endDateObj) {
-      onCustomEndDateChange?.(endDateObj.toISOString().split('T')[0]);
-    }
-  }, [endDateObj, onCustomEndDateChange]);
+  const today = getTodayString();
+  // 직접설정에서 날짜를 다 고르지 않으면 요청을 안 보낸다
+  const customIncomplete = timeframe === '직접설정' && (!customStartDate || !customEndDate);
 
   return (
     <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-3 sm:p-6">
@@ -75,71 +58,41 @@ const TradingChartSection: React.FC<TradingChartSectionProps> = ({
       {/* Custom Date Inputs */}
       {timeframe === '직접설정' && (
         <div className="flex flex-wrap items-center gap-2 mb-4 p-3 bg-surface/50 rounded-lg">
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                setShowStartDatePicker(!showStartDatePicker);
-                setShowEndDatePicker(false);
-              }}
-              className="px-3 py-1.5 text-sm border border-line-strong rounded-md text-left hover:border-indigo-500 focus:ring-2 focus:ring-brand focus:border-brand transition whitespace-nowrap"
-            >
-              {startDateObj
-                ? startDateObj.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })
-                : '시작일'}
-            </button>
-            {showStartDatePicker && (
-              <div className="absolute top-full left-0 md:left-1/2 md:-translate-x-1/2 mt-2 z-50 shadow-2xl w-[400px] max-w-[calc(100vw-2rem)]">
-                <DatePicker
-                  value={startDateObj}
-                  onChange={(date) => {
-                    setStartDateObj(date);
-                    setShowStartDatePicker(false);
-                  }}
-                />
-              </div>
-            )}
+          <div className="w-40">
+            <DateField
+              value={customStartDate}
+              onChange={onCustomStartDateChange}
+              max={customEndDate || today}
+              placeholder="시작일"
+              testId="trade-chart-start"
+            />
           </div>
           <span className="text-tx-3">~</span>
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                setShowEndDatePicker(!showEndDatePicker);
-                setShowStartDatePicker(false);
-              }}
-              className="px-3 py-1.5 text-sm border border-line-strong rounded-md text-left hover:border-indigo-500 focus:ring-2 focus:ring-brand focus:border-brand transition whitespace-nowrap"
-            >
-              {endDateObj
-                ? endDateObj.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })
-                : '종료일'}
-            </button>
-            {showEndDatePicker && (
-              <div className="absolute top-full left-0 md:left-1/2 md:-translate-x-1/2 mt-2 z-50 shadow-2xl w-[400px] max-w-[calc(100vw-2rem)]">
-                <DatePicker
-                  value={endDateObj}
-                  onChange={(date) => {
-                    setEndDateObj(date);
-                    setShowEndDatePicker(false);
-                  }}
-                />
-              </div>
-            )}
+          <div className="w-40">
+            <DateField
+              value={customEndDate}
+              onChange={onCustomEndDateChange}
+              min={customStartDate}
+              max={today}
+              placeholder="종료일"
+              testId="trade-chart-end"
+            />
           </div>
         </div>
       )}
 
-      {/* Chart Display — 높이는 CandlestickChart 가 정한다. 여기서 고정하면 차트가 넘친다 */}
+      {/* Chart Display — 높이는 CandlestickChart 가 정한다. 여기서 고정하면 차트가 넘친다.
+          로딩 · 안내 칸은 차트와 같은 높이(좁은 화면 380px, 768px 이상 400px) */}
       <div>
         {chartLoading ? (
-          <div className="h-[400px] flex items-center justify-center">
+          <div className="h-[380px] md:h-[400px] flex items-center justify-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand"></div>
           </div>
         ) : chartData.length > 0 ? (
           <CandlestickChart data={chartData} />
         ) : (
-          <div className="h-[400px] flex items-center justify-center text-tx-3">
-            차트 데이터가 없습니다
+          <div className="h-[380px] md:h-[400px] flex items-center justify-center text-tx-3">
+            {customIncomplete ? '시작일과 종료일을 고르세요' : '차트 데이터가 없습니다'}
           </div>
         )}
       </div>
