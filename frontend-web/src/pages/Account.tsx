@@ -147,7 +147,7 @@ const Account: React.FC = () => {
         />
 
         {error && (
-          <div className="bg-red-500/100/10 border border-red-500/25 text-red-600 px-4 py-3 rounded-lg">
+          <div className="bg-danger/10 border border-danger/25 text-danger px-4 py-3 rounded-lg">
             {error}
           </div>
         )}

@@ -41,7 +41,7 @@ const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
       onClose={onClose}
       title={
         <div className="flex items-center">
-          <Trash2 className="w-6 h-6 mr-2 text-red-600" />
+          <Trash2 className="w-6 h-6 mr-2 text-danger" />
           계좌 삭제 확인
         </div>
       }
@@ -50,9 +50,9 @@ const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
     >
       <div>
         <p className="text-tx-1 mb-2">정말로 이 계좌를 삭제하시겠습니까?</p>
-        <div className="bg-yellow-500/10 border border-yellow-500/25 rounded-lg p-3 mt-3">
-          <p className="text-sm text-yellow-600 font-medium">주의사항</p>
-          <ul className="text-sm text-yellow-600 mt-2 space-y-1 list-disc list-inside">
+        <div className="bg-warning/10 border border-warning/30 rounded-lg p-3 mt-3">
+          <p className="text-sm text-warning font-medium">주의사항</p>
+          <ul className="text-sm text-warning mt-2 space-y-1 list-disc list-inside">
             <li>삭제된 계좌는 복구할 수 없습니다</li>
             <li>거래 내역도 함께 삭제됩니다</li>
             <li>잔액이 있는 경우 삭제 시 잔액이 소멸됩니다</li>

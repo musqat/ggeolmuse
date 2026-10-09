@@ -122,8 +122,8 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
       footer={footer}
       maxWidth="md"
     >
-      <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-        <p className="text-sm text-blue-800">
+      <div className="mb-4 p-3 bg-info/10 rounded-lg">
+        <p className="text-sm text-info">
           현재 환율: ₩{currentExchangeRate.toLocaleString()}/USD
         </p>
       </div>
