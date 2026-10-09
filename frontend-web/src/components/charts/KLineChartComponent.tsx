@@ -1,74 +1,60 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { init, dispose, type Chart } from 'klinecharts';
-
-// 목 데이터 생성 (데이터 없을 때 UI 확인용)
-function generateMockData(days = 365): OHLCData[] {
-  const result: OHLCData[] = [];
-  let price = 180;
-  const now = new Date();
-  for (let i = days; i >= 0; i--) {
-    const date = new Date(now);
-    date.setDate(date.getDate() - i);
-    const day = date.getDay();
-    if (day === 0 || day === 6) continue;
-    const change = (Math.random() - 0.48) * 4;
-    const open = price;
-    const close = Math.max(10, price + change);
-    const high = Math.max(open, close) + Math.random() * 2;
-    const low = Math.min(open, close) - Math.random() * 2;
-    price = close;
-    result.push({
-      time: date.toISOString().split('T')[0],
-      open: +open.toFixed(2),
-      high: +high.toFixed(2),
-      low: +low.toFixed(2),
-      close: +close.toFixed(2),
-      volume: Math.floor(Math.random() * 80000000 + 20000000),
-    });
-  }
-  return result;
-}
-
-interface OHLCData {
-  time: string;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-}
+import React, { useEffect, useRef, useState } from 'react';
+import { init, dispose, LineType, TooltipShowRule, type Chart } from 'klinecharts';
+import type { CandlestickChartData } from '../../types/ohlc';
+import { IndicatorPanel } from './indicators/IndicatorPanel';
+import { IndicatorSheet } from './indicators/IndicatorSheet';
+import {
+  DEFAULT_INDICATORS,
+  MA_LINES,
+  type IndicatorKey,
+  type IndicatorState,
+} from './indicators/indicators';
 
 interface KLineChartComponentProps {
-  data: OHLCData[];
+  data: CandlestickChartData[];
   showIndicatorPanel?: boolean;
   height?: number;
 }
 
-interface IndicatorState {
-  ma5: boolean;
-  ma20: boolean;
-  ma60: boolean;
-  ma120: boolean;
-  ma200: boolean;
-  ema: boolean;
-  boll: boolean;
-  rsi: boolean;
-  macd: boolean;
-  kdj: boolean;
-  vol: boolean;
-}
-
 const MA_PANE_ID = 'candle_pane';
 
-function convertData(data: OHLCData[]) {
+// 아래에 패널을 따로 붙이는 지표와 klinecharts 이름
+const PANE_INDICATORS = { rsi: 'RSI', macd: 'MACD', kdj: 'KDJ', vol: 'VOL' } as const;
+type PaneKey = keyof typeof PANE_INDICATORS;
+
+// 아래 패널 하나 높이. 좁은 화면은 줄인다
+const PANE_HEIGHT = 100;
+const NARROW_PANE_HEIGHT = 80;
+// 아래 패널 위 여백(px). 범례 한 줄이 막대 · 선과 겹치지 않게 비운다
+const PANE_GAP = { top: 32 };
+
+function convertData(data: CandlestickChartData[]) {
   return data.map(d => ({
     timestamp: new Date(d.time).getTime(),
     open: d.open,
     high: d.high,
     low: d.low,
     close: d.close,
-    volume: d.volume,
+    volume: d.volume ?? 0,
   }));
+}
+
+// 켜진 이동평균을 MA 지표 하나로 묶는다. 선 색을 지표 목록 색에 맞춘다
+function maIndicator(state: IndicatorState) {
+  const active = MA_LINES.filter(({ key }) => state[key]);
+  return {
+    name: 'MA',
+    calcParams: active.map(({ period }) => period),
+    styles: {
+      lines: active.map(({ color }) => ({
+        style: LineType.Solid,
+        smooth: false,
+        size: 1,
+        color,
+        dashedValue: [2, 2],
+      })),
+    },
+  };
 }
 
 function getDarkStyles() {
@@ -161,14 +147,21 @@ function getLightStyles() {
   };
 }
 
+const DRAW_TOOLS = [
+  { name: 'straightLine',           label: '╱', title: '추세선' },
+  { name: 'horizontalStraightLine', label: '—', title: '수평선' },
+  { name: 'verticalStraightLine',   label: '|', title: '수직선' },
+  { name: 'fibonacciLine',          label: 'Fib', title: '피보나치' },
+  { name: 'arrow',                  label: '↗', title: '화살표' },
+];
+
+const isDark = () => document.documentElement.dataset.theme !== 'light';
+
 const KLineChartComponent: React.FC<KLineChartComponentProps> = ({
-  data: rawData,
+  data,
   showIndicatorPanel = false,
   height = 600,
 }) => {
-  const data = rawData.length > 0 ? rawData : generateMockData();
-  const isMock = rawData.length === 0;
-
   // 모바일에서는 600px 차트가 화면을 다 먹는다. 폭 기준으로 줄인다.
   const [isNarrow, setIsNarrow] = useState(
     typeof window !== 'undefined' && window.innerWidth < 768
@@ -178,11 +171,10 @@ const KLineChartComponent: React.FC<KLineChartComponentProps> = ({
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
-  const chartHeight = isNarrow ? Math.min(height, 380) : height;
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<Chart | null>(null);
-  const panelIdsRef = useRef<Record<string, string | null>>({
+  const panelIdsRef = useRef<Record<PaneKey, string | null>>({
     rsi: null,
     macd: null,
     kdj: null,
@@ -190,14 +182,13 @@ const KLineChartComponent: React.FC<KLineChartComponentProps> = ({
   });
 
   const [activeTool, setActiveTool] = useState<string | null>(null);
+  const [indicators, setIndicators] = useState<IndicatorState>(DEFAULT_INDICATORS);
 
-  const DRAW_TOOLS = [
-    { name: 'straightLine',           label: '╱', title: '추세선' },
-    { name: 'horizontalStraightLine', label: '—', title: '수평선' },
-    { name: 'verticalStraightLine',   label: '|', title: '수직선' },
-    { name: 'fibonacciLine',          label: 'Fib', title: '피보나치' },
-    { name: 'arrow',                  label: '↗', title: '화살표' },
-  ];
+  // height 는 거래량 패널 하나가 붙은 높이. 아래 패널이 늘면 그만큼 키워 캔들 영역이 줄지 않게 한다
+  const paneHeight = isNarrow ? NARROW_PANE_HEIGHT : PANE_HEIGHT;
+  const baseHeight = isNarrow ? Math.min(height, 380) : height;
+  const paneCount = (Object.keys(PANE_INDICATORS) as PaneKey[]).filter((key) => indicators[key]).length;
+  const chartHeight = baseHeight + paneHeight * (paneCount - 1);
 
   const startDrawing = (toolName: string) => {
     if (!chartRef.current) return;
@@ -215,45 +206,6 @@ const KLineChartComponent: React.FC<KLineChartComponentProps> = ({
     chartRef.current.removeOverlay();
     setActiveTool(null);
   };
-
-  const [indicators, setIndicators] = useState<IndicatorState>({
-    ma5: false,
-    ma20: true,
-    ma60: false,
-    ma120: false,
-    ma200: false,
-    ema: false,
-    boll: false,
-    rsi: false,
-    macd: false,
-    kdj: false,
-    vol: true,
-  });
-
-  const isDark = () => document.documentElement.dataset.theme !== 'light';
-
-  // MA periods currently active
-  const getActiveMaPeriods = useCallback((state: IndicatorState) => {
-    const periods: number[] = [];
-    if (state.ma5) periods.push(5);
-    if (state.ma20) periods.push(20);
-    if (state.ma60) periods.push(60);
-    if (state.ma120) periods.push(120);
-    if (state.ma200) periods.push(200);
-    return periods;
-  }, []);
-
-  const applyMAIndicator = useCallback((chart: Chart, state: IndicatorState) => {
-    chart.removeIndicator(MA_PANE_ID, 'MA');
-    const periods = getActiveMaPeriods(state);
-    if (periods.length > 0) {
-      chart.createIndicator(
-        { name: 'MA', calcParams: periods },
-        true,
-        { id: MA_PANE_ID }
-      );
-    }
-  }, [getActiveMaPeriods]);
 
   // Initialize chart
   useEffect(() => {
@@ -289,9 +241,9 @@ const KLineChartComponent: React.FC<KLineChartComponentProps> = ({
 
     // Default: MA20 + VOL (서브패널)
     try {
-      chart.createIndicator({ name: 'MA', calcParams: [20] }, true, { id: MA_PANE_ID });
-      const volId = chart.createIndicator('VOL', false, { height: 80 });
-      panelIdsRef.current.vol = volId;
+      chart.createIndicator(maIndicator(DEFAULT_INDICATORS), true, { id: MA_PANE_ID });
+      const volHeight = window.innerWidth < 768 ? NARROW_PANE_HEIGHT : PANE_HEIGHT;
+      panelIdsRef.current.vol = chart.createIndicator('VOL', false, { height: volHeight, gap: PANE_GAP });
     } catch (e) {
       console.warn('[KLineChart] createIndicator failed:', e);
     }
@@ -310,19 +262,22 @@ const KLineChartComponent: React.FC<KLineChartComponentProps> = ({
     };
   }, []);
 
-  // Update data when it changes
+  // Update data when it changes. 쓰는 쪽이 같은 배열을 넘기면 다시 그리지 않는다
   useEffect(() => {
-    if (chartRef.current && data.length > 0) {
-      chartRef.current.applyNewData(convertData(data));
-    }
+    chartRef.current?.applyNewData(convertData(data));
   }, [data]);
 
-  // 높이가 바뀌면(모바일 <-> 데스크탑) 캔버스를 다시 잡는다.
+  // 좁은 화면은 범례 글자가 여러 줄로 감겨 캔들을 덮는다. 차트를 눌러 십자선이 뜰 때만 보인다
+  useEffect(() => {
+    const showRule = isNarrow ? TooltipShowRule.FollowCross : TooltipShowRule.Always;
+    chartRef.current?.setStyles({ candle: { tooltip: { showRule } }, indicator: { tooltip: { showRule } } });
+  }, [isNarrow]);
+
+  // 높이가 바뀌면(모바일 <-> 데스크탑, 아래 패널 수) 캔버스를 다시 잡는다.
   // 위 ResizeObserver 가 폭을 맡고, 이쪽이 높이를 맡는다.
   useEffect(() => {
     chartRef.current?.resize();
   }, [chartHeight]);
-
 
   // Update theme
   useEffect(() => {
@@ -335,191 +290,98 @@ const KLineChartComponent: React.FC<KLineChartComponentProps> = ({
     return () => observer.disconnect();
   }, []);
 
-  const toggleIndicator = (key: keyof IndicatorState) => {
-    if (!chartRef.current) return;
-    const chart = chartRef.current;
-
-    setIndicators(prev => {
-      const next = { ...prev, [key]: !prev[key] };
-
-      // MA 계열 — 한 번에 재생성
-      if (['ma5', 'ma20', 'ma60', 'ma120', 'ma200'].includes(key)) {
-        applyMAIndicator(chart, next);
-        return next;
+  // 지표 하나를 켜거나 끈다. next 는 바꾼 뒤 상태
+  const applyIndicator = (chart: Chart, key: IndicatorKey, next: IndicatorState) => {
+    // MA 계열 — 한 번에 재생성
+    if (MA_LINES.some((line) => line.key === key)) {
+      chart.removeIndicator(MA_PANE_ID, 'MA');
+      const ma = maIndicator(next);
+      if (ma.calcParams.length > 0) {
+        chart.createIndicator(ma, true, { id: MA_PANE_ID });
       }
+      return;
+    }
 
-      if (key === 'ema') {
-        if (next.ema) {
-          chart.createIndicator({ name: 'EMA', calcParams: [12, 26] }, true, { id: MA_PANE_ID });
-        } else {
-          chart.removeIndicator(MA_PANE_ID, 'EMA');
-        }
+    if (key === 'ema') {
+      if (next.ema) {
+        chart.createIndicator({ name: 'EMA', calcParams: [12, 26] }, true, { id: MA_PANE_ID });
+      } else {
+        chart.removeIndicator(MA_PANE_ID, 'EMA');
       }
+      return;
+    }
 
-      if (key === 'boll') {
-        if (next.boll) {
-          chart.createIndicator('BOLL', true, { id: MA_PANE_ID });
-        } else {
-          chart.removeIndicator(MA_PANE_ID, 'BOLL');
-        }
+    if (key === 'boll') {
+      if (next.boll) {
+        chart.createIndicator('BOLL', true, { id: MA_PANE_ID });
+      } else {
+        chart.removeIndicator(MA_PANE_ID, 'BOLL');
       }
+      return;
+    }
 
-      if (key === 'rsi') {
-        if (next.rsi) {
-          const id = chart.createIndicator('RSI', false, { height: 80 });
-          panelIdsRef.current.rsi = id;
-        } else if (panelIdsRef.current.rsi) {
-          chart.removeIndicator(panelIdsRef.current.rsi, 'RSI');
-          panelIdsRef.current.rsi = null;
-        }
-      }
-
-      if (key === 'macd') {
-        if (next.macd) {
-          const id = chart.createIndicator('MACD', false, { height: 80 });
-          panelIdsRef.current.macd = id;
-        } else if (panelIdsRef.current.macd) {
-          chart.removeIndicator(panelIdsRef.current.macd, 'MACD');
-          panelIdsRef.current.macd = null;
-        }
-      }
-
-      if (key === 'kdj') {
-        if (next.kdj) {
-          const id = chart.createIndicator('KDJ', false, { height: 80 });
-          panelIdsRef.current.kdj = id;
-        } else if (panelIdsRef.current.kdj) {
-          chart.removeIndicator(panelIdsRef.current.kdj, 'KDJ');
-          panelIdsRef.current.kdj = null;
-        }
-      }
-
-      if (key === 'vol') {
-        if (next.vol) {
-          const id = chart.createIndicator('VOL', false, { height: 80 });
-          panelIdsRef.current.vol = id;
-        } else if (panelIdsRef.current.vol) {
-          chart.removeIndicator(panelIdsRef.current.vol, 'VOL');
-          panelIdsRef.current.vol = null;
-        }
-      }
-
-      return next;
-    });
+    const paneKey = key as PaneKey;
+    const name = PANE_INDICATORS[paneKey];
+    if (next[paneKey]) {
+      panelIdsRef.current[paneKey] = chart.createIndicator(name, false, { height: paneHeight, gap: PANE_GAP });
+    } else if (panelIdsRef.current[paneKey]) {
+      chart.removeIndicator(panelIdsRef.current[paneKey]!, name);
+      panelIdsRef.current[paneKey] = null;
+    }
   };
 
-  const IndicatorCheckbox = ({
-    label,
-    indicatorKey,
-    color,
-  }: {
-    label: string;
-    indicatorKey: keyof IndicatorState;
-    color?: string;
-  }) => (
-    <label className="flex items-center gap-2 py-1 px-2 rounded cursor-pointer hover:bg-hover/50 transition-colors">
-      <input
-        type="checkbox"
-        checked={indicators[indicatorKey]}
-        onChange={() => toggleIndicator(indicatorKey)}
-        className="w-3.5 h-3.5 accent-brand"
-      />
-      <span className="text-xs text-tx-2 select-none" style={color ? { color } : undefined}>
-        {label}
-      </span>
-    </label>
-  );
+  // 다음 상태를 먼저 정하고 차트는 setState 밖에서 바꾼다.
+  // 업데이터 함수는 StrictMode 에서 두 번 불려 그 안에서 바꾸면 패널이 두 번 생긴다.
+  const toggleIndicator = (key: IndicatorKey) => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    const next = { ...indicators, [key]: !indicators[key] };
+    applyIndicator(chart, key, next);
+    setIndicators(next);
+  };
 
   return (
-    <div className="flex w-full relative">
-      {isMock && (
-        <div className="absolute top-2 left-2 z-10 bg-amber-500/20 border border-amber-500/40 text-amber-400 text-[10px] font-medium px-2 py-0.5 rounded pointer-events-none">
-          목 데이터 (백엔드 연결 필요)
-        </div>
-      )}
-      {/* 드로잉 툴바 (왼쪽 세로) */}
-      <div
-        className="flex-shrink-0 w-9 bg-surface border-r border-line/60 flex flex-col items-center py-2 gap-1"
-        style={{ height: chartHeight }}
-      >
-        {DRAW_TOOLS.map(tool => (
-          <button
-            key={tool.name}
-            title={tool.title}
-            onClick={() => startDrawing(tool.name)}
-            className={`w-7 h-7 rounded text-[12px] font-mono flex items-center justify-center transition-colors
-              ${activeTool === tool.name
-                ? 'bg-brand text-white'
-                : 'text-tx-3 hover:bg-hover hover:text-tx-1'
-              }`}
-          >
-            {tool.label}
-          </button>
-        ))}
-        <div className="border-t border-line/60 w-5 my-1" />
-        <button
-          title="전체 삭제"
-          onClick={clearDrawings}
-          className="w-7 h-7 rounded text-[11px] flex items-center justify-center text-tx-3 hover:bg-red-500/15 hover:text-red-400 transition-colors"
-        >
-          ✕
-        </button>
-      </div>
-
-      {/* 차트 영역 */}
-      <div className="flex-1 min-w-0">
-        <div ref={chartContainerRef} style={{ width: '100%', height: chartHeight }} />
-      </div>
-
-      {/* 지표 사이드 패널. */}
-      {showIndicatorPanel && (
+    <div className="w-full">
+      {showIndicatorPanel && <IndicatorSheet indicators={indicators} onToggle={toggleIndicator} />}
+      <div className="flex w-full relative">
+        {/* 드로잉 툴바 (왼쪽 세로) */}
         <div
-          data-testid="chart-indicator-panel"
-          className="hidden md:block w-[160px] flex-shrink-0 bg-surface border-l border-line/60 overflow-y-auto"
+          className="flex-shrink-0 w-9 bg-surface border-r border-line/60 flex flex-col items-center py-2 gap-1"
           style={{ height: chartHeight }}
         >
-          <div className="p-3">
-            <p className="text-[11px] font-semibold text-tx-3 uppercase tracking-wider mb-2">지표 설정</p>
-
-            {/* 이동평균 */}
-            <div className="mb-3">
-              <p className="text-[10px] font-medium text-tx-3 mb-1 px-2">이동평균선</p>
-              <IndicatorCheckbox label="MA 5" indicatorKey="ma5" color="#60a5fa" />
-              <IndicatorCheckbox label="MA 20" indicatorKey="ma20" color="#f59e0b" />
-              <IndicatorCheckbox label="MA 60" indicatorKey="ma60" color="#a855f7" />
-              <IndicatorCheckbox label="MA 120" indicatorKey="ma120" color="#22c55e" />
-              <IndicatorCheckbox label="MA 200" indicatorKey="ma200" color="#f97316" />
-            </div>
-
-            <div className="border-t border-line/60 mb-3" />
-
-            {/* EMA / 볼린저 */}
-            <div className="mb-3">
-              <p className="text-[10px] font-medium text-tx-3 mb-1 px-2">오버레이</p>
-              <IndicatorCheckbox label="EMA 12·26" indicatorKey="ema" />
-              <IndicatorCheckbox label="볼린저밴드" indicatorKey="boll" />
-            </div>
-
-            <div className="border-t border-line/60 mb-3" />
-
-            {/* 오실레이터 */}
-            <div className="mb-3">
-              <p className="text-[10px] font-medium text-tx-3 mb-1 px-2">오실레이터</p>
-              <IndicatorCheckbox label="RSI (14)" indicatorKey="rsi" />
-              <IndicatorCheckbox label="MACD" indicatorKey="macd" />
-              <IndicatorCheckbox label="스토캐스틱" indicatorKey="kdj" />
-            </div>
-
-            <div className="border-t border-line/60 mb-3" />
-
-            {/* 거래량 */}
-            <div>
-              <p className="text-[10px] font-medium text-tx-3 mb-1 px-2">거래량</p>
-              <IndicatorCheckbox label="거래량 MA" indicatorKey="vol" />
-            </div>
-          </div>
+          {DRAW_TOOLS.map(tool => (
+            <button
+              key={tool.name}
+              title={tool.title}
+              onClick={() => startDrawing(tool.name)}
+              className={`w-7 h-7 rounded text-[12px] font-mono flex items-center justify-center transition-colors
+                ${activeTool === tool.name
+                  ? 'bg-brand text-white'
+                  : 'text-tx-3 hover:bg-hover hover:text-tx-1'
+                }`}
+            >
+              {tool.label}
+            </button>
+          ))}
+          <div className="border-t border-line/60 w-5 my-1" />
+          <button
+            title="전체 삭제"
+            onClick={clearDrawings}
+            className="w-7 h-7 rounded text-[11px] flex items-center justify-center text-tx-3 hover:bg-red-500/15 hover:text-red-400 transition-colors"
+          >
+            ✕
+          </button>
         </div>
-      )}
+
+        {/* 차트 영역 */}
+        <div className="flex-1 min-w-0">
+          <div ref={chartContainerRef} style={{ width: '100%', height: chartHeight }} />
+        </div>
+
+        {showIndicatorPanel && (
+          <IndicatorPanel indicators={indicators} onToggle={toggleIndicator} height={chartHeight} />
+        )}
+      </div>
     </div>
   );
 };

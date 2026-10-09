@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SimpleStrategyForm } from './SimpleStrategyForm'
 
@@ -33,7 +33,9 @@ function renderForm() {
 }
 
 async function pickDay(day: string) {
-  const button = screen.getAllByTestId('datepicker-day').find((b) => b.dataset.day === day)
+  const button = within(screen.getByRole('dialog'))
+    .getAllByRole('button')
+    .find((b) => b.textContent === day)
   await userEvent.click(button!)
 }
 

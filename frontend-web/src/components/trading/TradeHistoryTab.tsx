@@ -1,22 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  ArrowUpCircle,
-  ArrowDownCircle,
-  RefreshCw,
-  DollarSign
-} from 'lucide-react';
 import { tradeApi, accountsApi, type TransactionHistoryItem } from '../../services/api';
-import TradeCancelledBadge from './TradeCancelledBadge';
+import { TradeHistoryList } from './history/TradeHistoryList';
 
-type Transaction = TransactionHistoryItem;
-
-type TransactionType = 'ALL' | 'BUY' | 'SELL' | 'DIVIDEND';
-
+// 거래 화면의 거래내역 탭. 목록은 거래내역 페이지와 같은 것을 쓴다
 const TradeHistoryTab: React.FC = () => {
-  const [selectedAccountId, setSelectedAccountId] = useState<number | 'ALL'>('ALL');
-  const [selectedType, setSelectedType] = useState<TransactionType>('ALL');
-
   // React Query: 계좌 목록 조회
   const { data: accounts = [] } = useQuery({
     queryKey: ['accounts', 'list'],
@@ -31,76 +19,17 @@ const TradeHistoryTab: React.FC = () => {
   const {
     data: transactions = [],
     isLoading: loading,
-    error: queryError,
+    isFetching,
+    error,
     refetch
   } = useQuery({
     queryKey: ['trade', 'history'],
-    queryFn: async (): Promise<Transaction[]> => {
+    queryFn: async (): Promise<TransactionHistoryItem[]> => {
       const response = await tradeApi.history();
       return response.data || [];
     },
     staleTime: 2 * 60 * 1000, // 2분
   });
-
-  const error = queryError ? '거래내역을 불러오는데 실패했습니다.' : null;
-
-  // 필터링된 거래내역
-  const filteredTransactions = useMemo(() => {
-    let filtered = [...transactions];
-
-    // 계좌 필터링
-    if (selectedAccountId !== 'ALL') {
-      filtered = filtered.filter((tx) =>
-        tx.accountId === selectedAccountId
-      );
-    }
-
-    // 거래 유형 필터링
-    if (selectedType !== 'ALL') {
-      filtered = filtered.filter((tx) => tx.type === selectedType);
-    }
-
-    return filtered;
-  }, [transactions, selectedAccountId, selectedType]);
-
-  // Trade 단위로 그룹화 (배당 필터 시에는 원본 거래 포함)
-  const groupedTransactions = useMemo((): {
-    grouped: Array<{ trade: Transaction; dividends: Transaction[] }>;
-    sellTrades: Transaction[];
-    dividendsOnly: Transaction[];
-  } => {
-    if (!filteredTransactions || filteredTransactions.length === 0) {
-      return { grouped: [], sellTrades: [], dividendsOnly: [] };
-    }
-
-    // 배당만 필터링한 경우
-    if (selectedType === 'DIVIDEND') {
-      const dividendsOnly = filteredTransactions
-        .filter(tx => tx.type === 'DIVIDEND')
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      return { grouped: [], sellTrades: [], dividendsOnly };
-    }
-
-    const buyTrades = filteredTransactions
-      .filter(tx => tx.type === 'BUY')
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-    const sellTrades = filteredTransactions
-      .filter(tx => tx.type === 'SELL')
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-    const grouped: Array<{ trade: Transaction; dividends: Transaction[] }> = [];
-
-    for (const buyTrade of buyTrades) {
-      const relatedDividends = transactions
-        .filter(tx => tx.type === 'DIVIDEND' && tx.tradeId === buyTrade.tradeId)
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-      grouped.push({ trade: buyTrade, dividends: relatedDividends });
-    }
-
-    return { grouped, sellTrades, dividendsOnly: [] };
-  }, [filteredTransactions, selectedType, transactions]);
 
   if (loading) {
     return (
@@ -113,7 +42,7 @@ const TradeHistoryTab: React.FC = () => {
   if (error) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-600 mb-4">{error}</p>
+        <p className="text-loss mb-4">거래내역을 불러오는데 실패했습니다.</p>
         <button
           onClick={() => refetch()}
           className="px-4 py-2 bg-brand text-white rounded-lg hover:bg-brand-dark"
@@ -125,223 +54,12 @@ const TradeHistoryTab: React.FC = () => {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Filter Section */}
-      <div className="bg-surface rounded-lg shadow-sm border border-line/50 p-4">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-tx-1">필터</h3>
-          <button
-            onClick={() => refetch()}
-            className="flex items-center space-x-1 px-3 py-1.5 text-sm text-brand hover:bg-brand-bg rounded-md transition-colors"
-          >
-            <RefreshCw className="w-4 h-4" />
-            <span>새로고침</span>
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Account Filter */}
-          <div>
-            <label className="block text-sm font-medium text-tx-1 mb-2">
-              계좌
-            </label>
-            <select
-              value={selectedAccountId}
-              onChange={(e) => setSelectedAccountId(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}
-              className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
-            >
-              <option value="ALL">전체 계좌</option>
-              {accounts.map(acc => (
-                <option key={acc.accountId} value={acc.accountId}>
-                  {acc.accountName} (${acc.usdBalance.toFixed(2)})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Type Filter */}
-          <div>
-            <label className="block text-sm font-medium text-tx-1 mb-2">
-              거래 유형
-            </label>
-            <div className="flex space-x-2">
-              {[
-                { value: 'ALL', label: '전체' },
-                { value: 'BUY', label: '매수' },
-                { value: 'SELL', label: '매도' },
-                { value: 'DIVIDEND', label: '배당' }
-              ].map(({ value, label }) => (
-                <button
-                  key={value}
-                  onClick={() => setSelectedType(value as TransactionType)}
-                  className={`flex-1 px-3 py-2 text-sm rounded-md font-medium transition-colors ${
-                    selectedType === value
-                      ? 'bg-brand text-white'
-                      : 'bg-elevated text-tx-1 hover:bg-hover'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Summary */}
-        <div className="mt-4 pt-4 border-t border-line">
-          <p className="text-sm text-tx-2">
-            총 <span className="font-semibold text-brand">{filteredTransactions.length}건</span>의 거래 내역
-          </p>
-        </div>
-      </div>
-
-      {/* Transaction List */}
-      {filteredTransactions.length === 0 ? (
-        <div className="text-center py-12 bg-surface rounded-lg shadow-sm border border-line/50">
-          <p className="text-tx-2">거래 내역이 없습니다</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {/* Dividends Only (when DIVIDEND filter is active) */}
-          {groupedTransactions.dividendsOnly.map((dividend) => (
-            <div key={`${dividend.tradeId}-${dividend.date}`} className="bg-surface rounded-lg shadow-sm border border-line/50 overflow-hidden">
-              <div className="p-3 bg-green-500/10 hover:bg-green-500/15 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <DollarSign className="w-5 h-5 text-green-600 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2">
-                        <span className="font-semibold text-tx-1">{dividend.symbol}</span>
-                        <span className="text-xs font-medium text-green-600">배당</span>
-                        <span className="text-xs text-tx-2">
-                          {new Date(dividend.date).toLocaleDateString('ko-KR')}
-                        </span>
-                        {accounts.find(acc => acc.accountId === dividend.accountId) && (
-                          <span className="text-xs px-2 py-0.5 bg-purple-500/15 text-purple-600 rounded">
-                            {accounts.find(acc => acc.accountId === dividend.accountId)!.accountName}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-tx-2">
-                        {dividend.shares?.toFixed(2)}주 × ${dividend.dividendPerShare?.toFixed(2)}/주
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-green-600 text-sm">
-                      +${dividend.totalAmount.toFixed(2)}
-                    </p>
-                    <p className="text-xs text-tx-2">세후</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-
-          {/* Buy Trades with Dividends */}
-          {groupedTransactions.grouped.map(({ trade, dividends }) => (
-            <div key={trade.tradeId} className="bg-surface rounded-lg shadow-sm border border-line/50 overflow-hidden">
-              {/* Buy Trade */}
-              <div className={`p-3 hover:bg-surface/50 transition-colors${trade.status === 'CANCELLED' ? ' opacity-60' : ''}`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <ArrowUpCircle className="w-5 h-5 text-blue-500 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2">
-                        <span className="font-semibold text-tx-1">{trade.symbol}</span>
-                        {trade.status === 'CANCELLED' && <TradeCancelledBadge reason={trade.cancelReason} />}
-                        <span className="text-xs text-tx-2">
-                          {new Date(trade.date).toLocaleDateString('ko-KR')}
-                        </span>
-                        {accounts.find(acc => acc.accountId === trade.accountId) && (
-                          <span className="text-xs px-2 py-0.5 bg-purple-500/15 text-purple-600 rounded">
-                            {accounts.find(acc => acc.accountId === trade.accountId)!.accountName}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-tx-2">
-                        {trade.quantity?.toFixed(2)}주 × ${trade.price?.toFixed(2)}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-tx-1 text-sm">${trade.totalAmount.toFixed(2)}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Dividends */}
-              {dividends.length > 0 && (
-                <div className="bg-green-500/10 border-t border-green-500/20">
-                  {dividends.map((dividend) => (
-                    <div
-                      key={`${dividend.tradeId}-${dividend.date}`}
-                      className="p-3 pl-8 hover:bg-green-500/15 transition-colors"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <DollarSign className="w-4 h-4 text-green-600 flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-2">
-                              <span className="text-xs font-medium text-tx-1">배당</span>
-                              <span className="text-xs text-tx-2">
-                                {new Date(dividend.date).toLocaleDateString('ko-KR')}
-                              </span>
-                            </div>
-                            <p className="text-xs text-tx-2">
-                              {dividend.shares?.toFixed(2)}주 × ${dividend.dividendPerShare?.toFixed(2)}/주
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-semibold text-green-600 text-sm">
-                            +${dividend.totalAmount.toFixed(2)}
-                          </p>
-                          <p className="text-xs text-tx-2">세후</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-
-          {/* Sell Trades */}
-          {groupedTransactions.sellTrades.map((trade) => (
-            <div key={trade.tradeId} className="bg-surface rounded-lg shadow-sm border border-line/50 overflow-hidden">
-              <div className={`p-3 hover:bg-surface/50 transition-colors${trade.status === 'CANCELLED' ? ' opacity-60' : ''}`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <ArrowDownCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2">
-                        <span className="font-semibold text-tx-1">{trade.symbol}</span>
-                        {trade.status === 'CANCELLED' && <TradeCancelledBadge reason={trade.cancelReason} />}
-                        <span className="text-xs text-tx-2">
-                          {new Date(trade.date).toLocaleDateString('ko-KR')}
-                        </span>
-                        {accounts.find(acc => acc.accountId === trade.accountId) && (
-                          <span className="text-xs px-2 py-0.5 bg-purple-500/15 text-purple-600 rounded">
-                            {accounts.find(acc => acc.accountId === trade.accountId)!.accountName}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-tx-2">
-                        {trade.quantity?.toFixed(2)}주 × ${trade.price?.toFixed(2)}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-tx-1 text-sm">${trade.totalAmount.toFixed(2)}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+    <TradeHistoryList
+      transactions={transactions}
+      accounts={accounts}
+      onRefresh={() => refetch()}
+      refreshing={isFetching}
+    />
   );
 };
 

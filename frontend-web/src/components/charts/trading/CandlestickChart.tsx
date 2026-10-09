@@ -1,17 +1,9 @@
 import React from 'react';
 import KLineChartComponent from '../KLineChartComponent';
-
-interface CandlestickData {
-  time: string;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume?: number;
-}
+import type { CandlestickChartData } from '../../../types/ohlc';
 
 interface CandlestickChartProps {
-  data: CandlestickData[];
+  data: CandlestickChartData[];
   className?: string;
 }
 
@@ -26,15 +18,9 @@ const CandlestickChart: React.FC<CandlestickChartProps> = ({ data, className = '
 
   return (
     <div className={className}>
+      {/* 받은 배열을 그대로 넘긴다. 새 배열을 만들면 렌더마다 차트를 다시 그린다 */}
       <KLineChartComponent
-        data={data.map(d => ({
-          time: d.time,
-          open: d.open,
-          high: d.high,
-          low: d.low,
-          close: d.close,
-          volume: d.volume || 0,
-        }))}
+        data={data}
         showIndicatorPanel={false}
         height={400}
       />
