@@ -264,7 +264,7 @@ const Trading: React.FC = () => {
             onClick={() => setActiveTab('order')}
             className={`py-4 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'order'
-                ? 'border-indigo-500 text-brand'
+                ? 'border-brand text-brand'
                 : 'border-transparent text-tx-2 hover:text-tx-1 hover:border-line-strong'
             }`}
           >
@@ -274,7 +274,7 @@ const Trading: React.FC = () => {
             onClick={() => setActiveTab('history')}
             className={`py-4 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'history'
-                ? 'border-indigo-500 text-brand'
+                ? 'border-brand text-brand'
                 : 'border-transparent text-tx-2 hover:text-tx-1 hover:border-line-strong'
             }`}
           >
