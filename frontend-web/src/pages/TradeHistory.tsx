@@ -39,7 +39,7 @@ const TradeHistory: React.FC = () => {
     refetch
   } = useQuery({
     queryKey: ['trade', 'history'],
-    queryFn: async () => {
+    queryFn: async (): Promise<Transaction[]> => {
       const response = await tradeApi.history();
       return response.data || [];
     },

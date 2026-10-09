@@ -64,7 +64,7 @@ const Header: React.FC = () => {
           const holdings = (await portfolioApi.getPortfolio()).data;
           if (holdings?.length) {
             const prices: Record<string, number> = {};
-            holdings.forEach((h) => { if (h.currentPrice > 0) prices[h.symbol] = h.currentPrice; });
+            holdings.forEach((h) => { if (h.currentPrice !== undefined && h.currentPrice > 0) prices[h.symbol] = h.currentPrice; });
             const summary = (await portfolioApi.getPortfolioSummary(prices)).data;
             stocks = summary.totalCurrentValue * rate;
           }

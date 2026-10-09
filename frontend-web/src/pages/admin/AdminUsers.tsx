@@ -1,4 +1,3 @@
-import React from 'react';
 import { useAdminUsers } from '@hooks/useAdminUsers';
 import UserStatsCards from '@components/admin/UserStatsCards';
 import UserListSection from '@components/admin/UserListSection';
