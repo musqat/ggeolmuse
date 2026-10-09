@@ -179,9 +179,9 @@ const MyPage: React.FC = () => {
               <p className="text-tx-2">{user.email}</p>
             </div>
             {user.emailVerified && (
-              <div className="bg-green-500/15 px-3 py-1 rounded-full flex items-center space-x-1">
-                <Check className="w-4 h-4 text-green-600" />
-                <span className="text-sm font-medium text-green-600">
+              <div className="bg-success/10 px-3 py-1 rounded-full flex items-center space-x-1">
+                <Check className="w-4 h-4 text-success" />
+                <span className="text-sm font-medium text-success">
                   인증됨
                 </span>
               </div>
@@ -274,23 +274,23 @@ const MyPage: React.FC = () => {
         </div>
 
         {/* 위험 구역 */}
-        <div className="bg-surface rounded-xl shadow-sm border border-red-500/25 p-6">
-          <h3 className="text-lg font-semibold text-red-600 mb-4">위험 구역</h3>
+        <div className="bg-surface rounded-xl shadow-sm border border-danger/25 p-6">
+          <h3 className="text-lg font-semibold text-danger mb-4">위험 구역</h3>
 
           <button
             onClick={() => setShowDeleteModal(true)}
-            className="w-full flex items-center justify-between p-4 bg-red-500/10 rounded-lg hover:bg-red-500/15 transition-colors border border-red-500/25"
+            className="w-full flex items-center justify-between p-4 bg-danger/10 rounded-lg hover:bg-danger/15 transition-colors border border-danger/25"
           >
             <div className="flex items-center space-x-3">
-              <Trash2 className="w-5 h-5 text-red-600" />
+              <Trash2 className="w-5 h-5 text-danger" />
               <div className="text-left">
-                <p className="font-medium text-red-600">회원 탈퇴</p>
-                <p className="text-sm text-red-500">
+                <p className="font-medium text-danger">회원 탈퇴</p>
+                <p className="text-sm text-tx-2">
                   모든 데이터가 삭제되며 복구할 수 없습니다
                 </p>
               </div>
             </div>
-            <span className="text-red-400">›</span>
+            <span className="text-danger">›</span>
           </button>
         </div>
       </div>
@@ -415,16 +415,16 @@ const MyPage: React.FC = () => {
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-surface rounded-xl p-6 w-full max-w-md mx-4">
-            <h3 className="text-lg font-semibold text-red-600 mb-4">
+            <h3 className="text-lg font-semibold text-danger mb-4">
               회원 탈퇴
             </h3>
 
             <div className="space-y-4">
-              <div className="p-4 bg-red-500/10 rounded-lg border border-red-500/25">
-                <p className="text-sm text-red-600 font-medium mb-2">
+              <div className="p-4 bg-danger/10 rounded-lg border border-danger/25">
+                <p className="text-sm text-danger font-medium mb-2">
                   주의사항
                 </p>
-                <ul className="text-sm text-red-600 space-y-1 list-disc list-inside">
+                <ul className="text-sm text-danger space-y-1 list-disc list-inside">
                   <li>모든 계좌 정보가 삭제됩니다</li>
                   <li>거래 내역이 모두 삭제됩니다</li>
                   <li>이 작업은 되돌릴 수 없습니다</li>
@@ -440,7 +440,7 @@ const MyPage: React.FC = () => {
                   value={deleteConfirmText}
                   onChange={(e) => setDeleteConfirmText(e.target.value)}
                   placeholder="회원탈퇴"
-                  className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                  className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-danger focus:border-danger"
                 />
               </div>
             </div>
