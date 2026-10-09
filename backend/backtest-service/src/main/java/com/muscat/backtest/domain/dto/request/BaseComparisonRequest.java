@@ -34,5 +34,14 @@ public abstract class BaseComparisonRequest {
   @Schema(description = "현재 환율 (수동 설정 시, null이면 자동)", example = "1350.00")
   private BigDecimal currentFxRate;  // 현재 환율 (수동)
 
+  @Schema(description = "배당금 재투자 여부 (null이면 끔)", example = "false")
+  private Boolean reinvestDividends;
+
+  @Schema(description = "매매 수수료율 (0.25% = 0.0025, null이면 0)", example = "0.0025")
+  private BigDecimal tradingFeeRate;
+
+  @Schema(description = "배당 원천징수 세율 (15% = 0.15, null이면 0)", example = "0.15")
+  private BigDecimal dividendTaxRate;
+
   public abstract ComparisonType getComparisonType();
 }
