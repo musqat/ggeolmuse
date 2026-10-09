@@ -68,7 +68,7 @@ export function getDateRangeForTimeframe(
  * new Date('2026-08-13')은 UTC 자정으로 읽힙니다. 이후 setDate/setMonth는
  * 로컬 기준으로 움직여서 두 기준이 섞이면 타임존에 따라 하루가 어긋납니다.
  */
-function parseLocalDate(dateString: string): Date {
+export function parseLocalDate(dateString: string): Date {
   const [year, month, day] = dateString.split('-').map(Number);
   return new Date(year, month - 1, day);
 }
