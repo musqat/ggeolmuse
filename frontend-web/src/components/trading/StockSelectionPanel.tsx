@@ -54,11 +54,11 @@ const StockSelectionPanel: React.FC<StockSelectionPanelProps> = ({
           </div>
           <div className="text-center">
             <p className="text-xs text-tx-2">고가</p>
-            <p className="font-semibold text-green-600">${latestOHLC.high.toFixed(2)}</p>
+            <p className="font-semibold text-gain">${latestOHLC.high.toFixed(2)}</p>
           </div>
           <div className="text-center">
             <p className="text-xs text-tx-2">저가</p>
-            <p className="font-semibold text-red-600">${latestOHLC.low.toFixed(2)}</p>
+            <p className="font-semibold text-loss">${latestOHLC.low.toFixed(2)}</p>
           </div>
           <div className="text-center">
             <p className="text-xs text-tx-2">종가</p>

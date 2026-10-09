@@ -162,7 +162,7 @@ const AiChatModal: React.FC<AiChatModalProps> = ({ onRequireLogin }) => {
             ))
           )}
           {loading && <div className="text-sm text-tx-3">분석 중...</div>}
-          {error && <div className="text-sm text-red-500">{error}</div>}
+          {error && <div className="text-sm text-danger">{error}</div>}
         </div>
 
         {/* 입력 */}

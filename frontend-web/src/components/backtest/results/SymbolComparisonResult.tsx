@@ -15,8 +15,8 @@ import { getTodayString } from '../../../utils/dateUtils';
 
 // 종목 카드의 수익 칸 배경. 값이 없으면 중립 배경
 const SOFT_BOX: Record<GainLossTone, string> = {
-  gain: "bg-green-500/10",
-  loss: "bg-red-500/10",
+  gain: "bg-gain/10",
+  loss: "bg-loss/10",
   none: "bg-brand-bg",
 };
 
@@ -93,7 +93,6 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-xl font-bold text-tx-1">
                   {displayItem.name || displayItem.symbol}
-                  {isBest && <span className="ml-2 text-yellow-500"></span>}
                 </h3>
                 <p className="text-sm text-tx-2">
                   {displayItem.purchaseDate} →{" "}

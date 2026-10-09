@@ -67,7 +67,7 @@ export const StrategyComparisonResult: React.FC<StrategyComparisonResultProps> =
                 <tr
                   key={index}
                   className={`border-b border-line/50 ${
-                    isBest ? "bg-yellow-500/10" : "hover:bg-surface/50"
+                    isBest ? "bg-warning-soft/10" : "hover:bg-surface/50"
                   }`}
                 >
                   <td className="py-3 px-4 font-medium text-tx-1">
