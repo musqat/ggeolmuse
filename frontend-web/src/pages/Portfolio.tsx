@@ -7,6 +7,10 @@ import { portfolioApi, accountsApi } from '../services/api';
 import PortfolioPieChart, { type PieChartData } from '../components/charts/portfolio/PortfolioPieChart';
 import LoginModal from '../components/auth/LoginModal';
 
+// 자산 구성 파이와 자산 배분 목록이 같이 쓰는 색. 종목 다음에 USD · KRW 현금 순으로 이어진다
+const ALLOCATION_COLORS = ['#6366f1', '#3b82f6', '#10b981', '#eab308', '#ef4444', '#a855f7', '#f59e0b', '#06b6d4'];
+const allocationColor = (index: number) => ALLOCATION_COLORS[index % ALLOCATION_COLORS.length];
+
 const Portfolio: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -180,8 +184,8 @@ const Portfolio: React.FC = () => {
                   })()}
                 </p>
               </div>
-              <div className="bg-blue-100 p-3 rounded-lg">
-                <DollarSign className="w-6 h-6 text-blue-600" />
+              <div className="bg-info/10 p-3 rounded-lg">
+                <DollarSign className="w-6 h-6 text-info" />
               </div>
             </div>
           </div>
@@ -190,15 +194,15 @@ const Portfolio: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-tx-2">평가손익</p>
-                <p className={`text-2xl font-bold ${(portfolioSummary?.totalUnrealizedPnL ?? 0) >= 0 ? 'text-green-600':'text-red-600'}`}>
+                <p className={`text-2xl font-bold ${(portfolioSummary?.totalUnrealizedPnL ?? 0) >= 0 ? 'text-gain':'text-loss'}`}>
                   {(portfolioSummary?.totalUnrealizedPnL ?? 0) >= 0 ? '+' : ''}${portfolioSummary?.totalUnrealizedPnL?.toFixed(2) ?? '0.00'}
                 </p>
               </div>
-              <div className={`p-3 rounded-lg ${(portfolioSummary?.totalUnrealizedPnL ?? 0) >= 0 ? 'bg-green-500/15':'bg-red-500/15'}`}>
+              <div className={`p-3 rounded-lg ${(portfolioSummary?.totalUnrealizedPnL ?? 0) >= 0 ? 'bg-gain/15':'bg-loss/15'}`}>
                 {(portfolioSummary?.totalUnrealizedPnL ?? 0) >= 0 ? (
-                  <TrendingUp className="w-6 h-6 text-green-600" />
+                  <TrendingUp className="w-6 h-6 text-gain" />
                 ) : (
-                  <TrendingDown className="w-6 h-6 text-red-600" />
+                  <TrendingDown className="w-6 h-6 text-loss" />
                 )}
               </div>
             </div>
@@ -208,15 +212,15 @@ const Portfolio: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-tx-2">수익률</p>
-                <p className={`text-2xl font-bold ${(portfolioSummary?.totalReturnRate ?? 0) >= 0 ? 'text-green-600':'text-red-600'}`}>
+                <p className={`text-2xl font-bold ${(portfolioSummary?.totalReturnRate ?? 0) >= 0 ? 'text-gain':'text-loss'}`}>
                   {(portfolioSummary?.totalReturnRate ?? 0) >= 0 ? '+' : ''}{portfolioSummary?.totalReturnRate?.toFixed(2) ?? '0.00'}%
                 </p>
               </div>
-              <div className={`p-3 rounded-lg ${(portfolioSummary?.totalReturnRate ?? 0) >= 0 ? 'bg-green-500/15':'bg-red-500/15'}`}>
+              <div className={`p-3 rounded-lg ${(portfolioSummary?.totalReturnRate ?? 0) >= 0 ? 'bg-gain/15':'bg-loss/15'}`}>
                 {(portfolioSummary?.totalReturnRate ?? 0) >= 0 ? (
-                  <ArrowUpCircle className="w-6 h-6 text-green-600" />
+                  <ArrowUpCircle className="w-6 h-6 text-gain" />
                 ) : (
-                  <ArrowDownCircle className="w-6 h-6 text-red-600" />
+                  <ArrowDownCircle className="w-6 h-6 text-loss" />
                 )}
               </div>
             </div>
@@ -236,7 +240,6 @@ const Portfolio: React.FC = () => {
                   <PortfolioPieChart
                     data={(() => {
                       const chartData: PieChartData[] = [];
-                      const colors = ['#6366f1', '#3b82f6', '#10b981', '#eab308', '#ef4444', '#a855f7', '#f59e0b', '#06b6d4'];
                       let colorIndex = 0;
 
                       // 주식 추가 (quantity와 currentPrice 포함)
@@ -244,7 +247,7 @@ const Portfolio: React.FC = () => {
                         chartData.push({
                           symbol: holding.symbol,
                           value: holding.currentValue || holding.totalInvestedAmount,
-                          color: colors[colorIndex % colors.length],
+                          color: allocationColor(colorIndex),
                           quantity: holding.totalQuantity,
                           currentPrice: holding.currentPrice
                         });
@@ -256,7 +259,7 @@ const Portfolio: React.FC = () => {
                         chartData.push({
                           symbol: 'USD 현금',
                           value: Number(balanceInfo.balanceUsd),
-                          color: colors[colorIndex % colors.length]
+                          color: allocationColor(colorIndex)
                         });
                         colorIndex++;
                       }
@@ -266,7 +269,7 @@ const Portfolio: React.FC = () => {
                         chartData.push({
                           symbol: 'KRW 현금',
                           value: Number(balanceInfo.balanceKrw) / exchangeRate,
-                          color: colors[colorIndex % colors.length]
+                          color: allocationColor(colorIndex)
                         });
                       }
 
@@ -305,13 +308,11 @@ const Portfolio: React.FC = () => {
                         const allocation = totalAssets > 0 && holding.currentValue
                           ? ((holding.currentValue / totalAssets) * 100).toFixed(1)
                           : '0.0';
-                        const colors = ['bg-brand-bg0', 'bg-blue-500', 'bg-green-500/100', 'bg-yellow-500/100', 'bg-red-500/100', 'bg-purple-500/100'];
-                        const colorClass = colors[index % colors.length];
 
                         return (
                           <div key={holding.holdingId} className="flex items-center justify-between">
                             <div className="flex items-center space-x-3">
-                              <div className={`w-3 h-3 ${colorClass} rounded-full`}></div>
+                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: allocationColor(index) }}></div>
                               <div>
                                 <p className="font-medium text-tx-1 text-sm">{holding.symbol}</p>
                                 <p className="text-xs text-tx-2">{holding.totalQuantity}주</p>
@@ -331,7 +332,7 @@ const Portfolio: React.FC = () => {
                       {balanceInfo && Number(balanceInfo.balanceUsd) > 0 && (
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-3">
-                            <div className="w-3 h-3 bg-surface/500 rounded-full"></div>
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: allocationColor(holdings.length) }}></div>
                             <div>
                               <p className="font-medium text-tx-1 text-sm">USD 현금</p>
                               <p className="text-xs text-tx-2">달러 잔액</p>
@@ -354,7 +355,10 @@ const Portfolio: React.FC = () => {
                       {balanceInfo && Number(balanceInfo.balanceKrw) > 0 && (
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-3">
-                            <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                            <div
+                              className="w-3 h-3 rounded-full"
+                              style={{ backgroundColor: allocationColor(holdings.length + (Number(balanceInfo.balanceUsd) > 0 ? 1 : 0)) }}
+                            ></div>
                             <div>
                               <p className="font-medium text-tx-1 text-sm">KRW 현금</p>
                               <p className="text-xs text-tx-2">원화 잔액</p>
@@ -446,7 +450,7 @@ const Portfolio: React.FC = () => {
                         {holding.unrealizedPnL !== null && holding.unrealizedPnL !== undefined &&
                          holding.returnRate !== null && holding.returnRate !== undefined ? (
                           <div className={`text-sm font-medium flex items-center ${
-                            holding.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'
+                            holding.unrealizedPnL >= 0 ? 'text-gain' : 'text-loss'
                           }`}>
                             {holding.unrealizedPnL >= 0 ? (
                               <ArrowUpCircle className="w-4 h-4 mr-1" />
