@@ -4,6 +4,7 @@ import { NumberInput } from '../../common/NumberInput';
 import { FxModeToggle } from '../shared/FxModeToggle';
 import { DividendFeeOptions } from '../shared/DividendFeeOptions';
 import DatePicker from '../../common/DatePicker';
+import { toLocalDateString } from '../../../utils/dateUtils';
 
 interface DCAStrategyFormProps {
   symbol: string;
@@ -87,13 +88,13 @@ export const DCAStrategyForm: React.FC<DCAStrategyFormProps> = ({
   // Date 객체를 문자열로 변환하여 부모 컴포넌트에 전달
   useEffect(() => {
     if (startDateObj) {
-      setDcaStartDate(startDateObj.toISOString().split('T')[0]);
+      setDcaStartDate(toLocalDateString(startDateObj));
     }
   }, [startDateObj, setDcaStartDate]);
 
   useEffect(() => {
     if (endDateObj) {
-      setDcaEndDate(endDateObj.toISOString().split('T')[0]);
+      setDcaEndDate(toLocalDateString(endDateObj));
     }
   }, [endDateObj, setDcaEndDate]);
 

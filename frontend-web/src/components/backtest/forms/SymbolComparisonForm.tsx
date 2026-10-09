@@ -4,6 +4,7 @@ import { NumberInput } from '../../common/NumberInput';
 import { FxModeToggle } from '../shared/FxModeToggle';
 import { DividendFeeOptions } from '../shared/DividendFeeOptions';
 import DatePicker from '../../common/DatePicker';
+import { toLocalDateString } from '../../../utils/dateUtils';
 
 interface SymbolComparisonFormProps {
   compareSymbols: string[];
@@ -75,8 +76,8 @@ export const SymbolComparisonForm: React.FC<SymbolComparisonFormProps> = ({
     return purchaseDateObj < cutoffDate;
   }, [purchaseDateObj]);
 
-  useEffect(() => { if (purchaseDateObj) setComparePurchaseDate(purchaseDateObj.toISOString().split('T')[0]); }, [purchaseDateObj, setComparePurchaseDate]);
-  useEffect(() => { if (saleDateObj) setCompareSaleDate(saleDateObj.toISOString().split('T')[0]); }, [saleDateObj, setCompareSaleDate]);
+  useEffect(() => { if (purchaseDateObj) setComparePurchaseDate(toLocalDateString(purchaseDateObj)); }, [purchaseDateObj, setComparePurchaseDate]);
+  useEffect(() => { if (saleDateObj) setCompareSaleDate(toLocalDateString(saleDateObj)); }, [saleDateObj, setCompareSaleDate]);
 
   return (
     <div className="space-y-4">

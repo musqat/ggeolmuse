@@ -13,6 +13,7 @@ import {
 } from '../../../utils/gainLoss';
 import { StatCard } from './StatCard';
 import { DetailRow, DetailSection } from './DetailSection';
+import { getTodayString } from '../../../utils/dateUtils';
 
 interface SimpleResultProps {
   result: SimulationResponse;
@@ -74,7 +75,7 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
           <DetailRow label="매수일" value={result.purchaseDate} />
           <DetailRow
             label="평가일"
-            value={result.currentDate || new Date().toISOString().split("T")[0]}
+            value={result.currentDate || getTodayString()}
           />
           <DetailRow
             label="초기 투자금"

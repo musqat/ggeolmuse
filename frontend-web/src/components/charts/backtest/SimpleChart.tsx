@@ -14,6 +14,7 @@ import {
 import { stockApi } from "../../../services/api";
 import { useChartPeriod } from "../common/hooks/useChartPeriod";
 import { ChartPeriodSelector } from "../common/components/ChartPeriodSelector";
+import { getTodayString } from "../../../utils/dateUtils";
 
 // 가격·환율·평가액은 받지 않는다. 차트가 일자별 캔들에서 직접 구한다.
 // 최적 매수·매도도 날짜만 받아 그 날의 데이터를 chartData 에서 찾는다.
@@ -77,7 +78,7 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
       customStartDate,
     ],
     queryFn: async () => {
-      const today = new Date().toISOString().split("T")[0];
+      const today = getTodayString();
       const startDate = getChartStartDate();
       console.log("SimpleChart fetchPriceData:", {
         symbol,

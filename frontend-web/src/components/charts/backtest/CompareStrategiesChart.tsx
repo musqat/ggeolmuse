@@ -15,6 +15,7 @@ import type { OHLCData } from '../../../types/ohlc';
 import { useChartPeriod } from '../common/hooks/useChartPeriod';
 import { ChartPeriodSelector } from '../common/components/ChartPeriodSelector';
 import { CHART_COLORS } from '../common/constants';
+import { getTodayString } from '../../../utils/dateUtils';
 
 // 전략 이름이 그대로 컬럼이 된다 (`${name}_portfolio`). 키를 미리 적을 수 없어
 // 인덱스 시그니처를 쓴다.
@@ -89,7 +90,7 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
         const response = await stockApi.getOHLCData(
           symbol,
           apiStartDate,
-          endDate || new Date().toISOString().split('T')[0]
+          endDate || getTodayString()
         );
         setPriceData(response.data || []);
       } catch (error) {

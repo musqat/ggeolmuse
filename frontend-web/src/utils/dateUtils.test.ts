@@ -5,9 +5,19 @@ import {
   getDateRangeForTimeframe,
   subtractDays,
   subtractMonths,
+  toLocalDateString,
 } from './dateUtils'
 
 // 기대값은 TZ=Asia/Seoul 전제 (vitest.config.ts 에서 고정)
+
+describe('toLocalDateString', () => {
+  it('달력이 만든 로컬 자정을 그날로 적는다 (toISOString 은 전날)', () => {
+    const picked = new Date(2024, 5, 14)
+
+    expect(toLocalDateString(picked)).toBe('2024-06-14')
+    expect(picked.toISOString().split('T')[0]).toBe('2024-06-13')
+  })
+})
 
 describe('daysForTimeframe', () => {
   it('기간 문자열을 일수로 바꾼다', () => {

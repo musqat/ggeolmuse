@@ -4,6 +4,7 @@ import { NumberInput } from '../../common/NumberInput';
 import { FxModeToggle } from '../shared/FxModeToggle';
 import { DividendFeeOptions } from '../shared/DividendFeeOptions';
 import DatePicker from '../../common/DatePicker';
+import { toLocalDateString } from '../../../utils/dateUtils';
 
 interface ConditionalStrategyFormProps {
   symbol: string;
@@ -91,13 +92,13 @@ export const ConditionalStrategyForm: React.FC<ConditionalStrategyFormProps> = (
 
   useEffect(() => {
     if (startDateObj) {
-      setConditionalStartDate(startDateObj.toISOString().split('T')[0]);
+      setConditionalStartDate(toLocalDateString(startDateObj));
     }
   }, [startDateObj, setConditionalStartDate]);
 
   useEffect(() => {
     if (endDateObj) {
-      setConditionalEndDate(endDateObj.toISOString().split('T')[0]);
+      setConditionalEndDate(toLocalDateString(endDateObj));
     }
   }, [endDateObj, setConditionalEndDate]);
 
