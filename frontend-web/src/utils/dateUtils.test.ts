@@ -124,9 +124,10 @@ describe('subtractMonths', () => {
     expect(subtractMonths('2026-01-15', 1)).toBe('2025-12-15')
   })
 
-  it('말일에서 빼면 다음 달로 밀린다', () => {
-    // 2/31 → 3/3. Date.setMonth 기본 동작.
-    // 2/28 을 기대했다면 코드 수정 필요.
-    expect(subtractMonths('2026-03-31', 1)).toBe('2026-03-03')
+  it('대상 달에 그 날이 없으면 그 달 말일로 맞춘다', () => {
+    expect(subtractMonths('2026-03-31', 1)).toBe('2026-02-28')
+    expect(subtractMonths('2024-03-31', 1)).toBe('2024-02-29')
+    expect(subtractMonths('2026-05-31', 1)).toBe('2026-04-30')
+    expect(subtractMonths('2026-03-31', 13)).toBe('2025-02-28')
   })
 })
