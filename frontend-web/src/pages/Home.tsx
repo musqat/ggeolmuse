@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { stockApi } from '../services/api';
 import type { OHLCData } from '../types/ohlc';
+import { getTodayString, subtractDays } from '../utils/dateUtils';
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
@@ -44,11 +45,8 @@ const Home: React.FC = () => {
   const { data: ohlcRaw } = useQuery({
     queryKey: ['home', 'ohlc', topSymbol],
     queryFn: async () => {
-      const end = new Date();
-      const start = new Date();
-      start.setDate(start.getDate() - 45);
-      const fmt = (d: Date) => d.toISOString().split('T')[0];
-      const res = await stockApi.getOHLCData(topSymbol!, fmt(start), fmt(end));
+      const end = getTodayString();
+      const res = await stockApi.getOHLCData(topSymbol!, subtractDays(end, 45), end);
       return (res.data ?? []) as OHLCData[];
     },
     enabled: !!topSymbol,

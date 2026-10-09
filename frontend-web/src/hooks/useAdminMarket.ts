@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { marketAdminApi } from '@services/adminApi';
 import type { Asset, CompanyOverview } from '@services/adminApi';
 import { getApiErrorMessage } from '../utils/apiError';
+import { getTodayString, subtractDays } from '../utils/dateUtils';
 
 export const useAdminMarket = () => {
   const [searchKeyword, setSearchKeyword] = useState('');
@@ -83,10 +84,8 @@ export const useAdminMarket = () => {
         currency: preview.currency,
         assetType: preview.assetType,
         collectData: true,
-        fromDate: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000)
-          .toISOString()
-          .split('T')[0],
-        toDate: new Date().toISOString().split('T')[0],
+        fromDate: subtractDays(getTodayString(), 365),
+        toDate: getTodayString(),
         includeDividends: true,
       });
 
