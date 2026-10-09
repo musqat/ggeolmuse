@@ -98,7 +98,7 @@ public class ResponseMapper {
     return SimulationResponse.builder()
       .symbol(request.getSymbol())
       .purchaseDate(request.getPurchaseDate())
-      .currentDate(LocalDate.now())
+      .currentDate(request.valuationDate(LocalDate.now()))
       .investmentAmount(request.getInvestmentAmount())
       .purchasePrice(purchasePriceUsd)
       .shares(shares.setScale(6, MoneyUtils.ROUND_MODE))

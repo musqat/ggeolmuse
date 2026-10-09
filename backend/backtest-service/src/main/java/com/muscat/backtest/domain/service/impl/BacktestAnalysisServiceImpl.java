@@ -242,10 +242,11 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
       .build();
   }
 
-  // 단순 시뮬레이션 요청에 비교 요청의 투자금 · 수수료 · 환율 · 배당 옵션을 채운다
+  // 단순 시뮬레이션 요청에 비교 요청의 매도일(종료일) · 투자금 · 수수료 · 환율 · 배당 옵션을 채운다
   private SimulationRequest.SimulationRequestBuilder simulationWithOptions(
     BaseComparisonRequest request) {
     return SimulationRequest.builder()
+      .saleDate(request.getEndDate())
       .investmentAmount(request.getInvestmentAmount())
       .userId(request.getUserId())
       .tradingFeeRate(orZero(request.getTradingFeeRate()))

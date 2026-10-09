@@ -729,6 +729,7 @@ class BacktestAnalysisServiceImplTest {
       ArgumentCaptor<SimulationRequest> simulation = ArgumentCaptor.forClass(SimulationRequest.class);
       verify(tradingSimulationService).runSimulation(simulation.capture(), eq(false));
       assertThat(simulation.getValue().getPurchaseDate()).isEqualTo(LocalDate.of(2023, 1, 1));
+      assertThat(simulation.getValue().getSaleDate()).isEqualTo(LocalDate.of(2024, 1, 1));
       assertSimulationOptions(simulation.getValue());
 
       ArgumentCaptor<DcaStrategyRequest> dcaRequest = ArgumentCaptor.forClass(DcaStrategyRequest.class);
@@ -806,6 +807,9 @@ class BacktestAnalysisServiceImplTest {
       assertThat(simulations.getAllValues())
         .extracting(SimulationRequest::getSymbol)
         .containsExactly("AAPL", "MSFT");
+      assertThat(simulations.getAllValues())
+        .extracting(SimulationRequest::getSaleDate)
+        .containsOnly(LocalDate.of(2024, 1, 1));
       assertThat(simulations.getAllValues()).allSatisfy(this::assertSimulationOptions);
     }
 
