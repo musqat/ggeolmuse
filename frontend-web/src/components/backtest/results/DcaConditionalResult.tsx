@@ -41,7 +41,7 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
         />
 
         <StatCard
-          label="현재 가치"
+          label="평가 가치"
           value={<>₩{result.totalAssetKrw?.toLocaleString()}</>}
           sub={
             <>
@@ -94,7 +94,7 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
             value={<>₩{result.totalInvested?.toLocaleString()}</>}
           />
           <div className="flex justify-between py-2">
-            <span className="text-tx-2">현재 가치</span>
+            <span className="text-tx-2">평가 가치</span>
             <div className="text-right">
               <div className="font-medium text-tx-1">
                 ₩{result.currentValueKrw?.toLocaleString()}
@@ -109,7 +109,7 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
         <DetailSection title="주식 수익" icon={TrendingUp} iconClassName="text-green-600">
           <DetailRow label="보유 주식수" value={<>{result.totalShares?.toFixed(6)} 주</>} />
           <DetailRow label="평균 매수가" value={<>${result.averagePrice?.toFixed(2)}</>} />
-          <DetailRow label="현재 가격" value={<>${result.currentPrice?.toFixed(2)}</>} />
+          <DetailRow label="평가일 가격" value={<>${result.currentPrice?.toFixed(2)}</>} />
           <DetailRow
             label="배당금 (USD)"
             value={<>${result.totalDividends?.toFixed(2) || "0.00"}</>}
@@ -138,7 +138,7 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
             dividerClassName="border-line"
           />
           <DetailRow
-            label="현재 환율"
+            label="평가일 환율"
             value={<>₩{result.currentFxRate?.toLocaleString()}</>}
             dividerClassName="border-line"
           />

@@ -17,4 +17,5 @@ public class StrategyTransaction {
   private BigDecimal amount;            // 투자금액 (KRW)
   private BigDecimal fxRate;            // 당시 환율
   private String trigger;               // 매수 트리거 (적립식: "월정액", 조건부: "5%하락")
+  private BigDecimal fee;               // 매매 수수료 (USD, 배당 재투자는 null)
 }

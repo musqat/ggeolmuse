@@ -131,6 +131,20 @@ class ResponseMapperTest {
     }
 
     @Test
+    @DisplayName("거래 수수료를 더해 달러 둘째 자리로 싣는다. 수수료 없는 거래는 건너뛴다")
+    void 수수료_합계() {
+      List<StrategyTransaction> txs = List.of(
+        StrategyTransaction.builder().shares(BigDecimal.ONE).fee(new BigDecimal("10.004")).build(),
+        StrategyTransaction.builder().shares(BigDecimal.ONE).fee(new BigDecimal("5")).build(),
+        StrategyTransaction.builder().shares(BigDecimal.ONE).build());
+
+      StrategyResponse result = mapper.toStrategyResponse(
+        dcaRequest(), txs, calculation(), price("120.5"));
+
+      assertThat(result.getTotalTradingFee()).isEqualByComparingTo("15.00");
+    }
+
+    @Test
     @DisplayName("거래가 없어도 0건으로 처리한다")
     void 거래_없음() {
       StrategyResponse result = mapper.toStrategyResponse(

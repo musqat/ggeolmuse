@@ -26,6 +26,9 @@ public class SimulationRequest {
   @NotNull(message = "매수일은 필수입니다")
   private LocalDate purchaseDate;
 
+  @Schema(description = "매도일 (null이거나 오늘 이후면 오늘 평가)", example = "2024-12-31")
+  private LocalDate saleDate;
+
   @Schema(description = "투자 금액", example = "1000000.00", required = true)
   @NotNull(message = "투자 금액은 필수입니다")
   @Positive(message = "투자 금액은 0보다 커야 합니다")
@@ -52,4 +55,9 @@ public class SimulationRequest {
   @Schema(description = "배당 원천징수세율 (미국 원천징수 15% = 0.15, 미적용 시 0)", example = "0.15")
   @Builder.Default
   private BigDecimal dividendTaxRate = BigDecimal.ZERO;  // 배당 원천징수 세율
+
+  // 평가일. 매도일이 없거나 오늘 이후면 오늘
+  public LocalDate valuationDate(LocalDate today) {
+    return saleDate != null && saleDate.isBefore(today) ? saleDate : today;
+  }
 }

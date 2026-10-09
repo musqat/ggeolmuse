@@ -226,14 +226,19 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
               }
             }
 
-            BigDecimal shares = BacktestCalculationUtils.calculateShares(
-              params.amountPerPurchase(), purchaseFxRate, PriceLookup.effectiveClose(priceData));
+            // 수수료를 떼고 남은 달러로 산다
+            BigDecimal fee = BacktestCalculationUtils.calculatePurchaseFee(
+              params.amountPerPurchase(), purchaseFxRate, request.getTradingFeeRate());
+            BigDecimal shares = BacktestCalculationUtils.calculateSharesAfterFee(
+              params.amountPerPurchase(), purchaseFxRate, PriceLookup.effectiveClose(priceData),
+              fee);
 
             StrategyTransaction transaction = StrategyTransaction.builder()
               .date(currentDate)
               .actualDate(priceData.date())
               .price(PriceLookup.effectiveClose(priceData))
               .shares(shares)
+              .fee(fee)
               .amount(params.amountPerPurchase())
               .fxRate(purchaseFxRate)
               .trigger(purchaseDecision.trigger())

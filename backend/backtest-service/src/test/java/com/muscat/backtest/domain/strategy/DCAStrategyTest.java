@@ -440,6 +440,53 @@ class DCAStrategyTest {
     }
   }
 
+  @Nested
+  @DisplayName("수수료")
+  class FeeTests {
+
+    @Test
+    @DisplayName("매수마다 수수료를 떼고 남은 달러로 산다. 투자금은 그대로 둔다")
+    void executeDca_DeductsFeePerPurchase() {
+      DcaStrategyRequest request = DcaStrategyRequest.builder()
+        .userId(userId)
+        .symbol(symbol)
+        .startDate(startDate)
+        .endDate(LocalDate.of(2024, 2, 29))
+        .monthlyAmount(new BigDecimal("1300000"))
+        .purchaseDay(15)
+        .tradingFeeRate(new BigDecimal("0.01"))
+        .build();
+
+      given(marketDataClient.getOHLCPriceRange(eq(symbol), eq("2024-01-01"), eq("2024-02-29")))
+        .willReturn(List.of(
+          createOHLC(LocalDate.of(2024, 1, 15), new BigDecimal("100.00")),
+          createOHLC(LocalDate.of(2024, 2, 15), new BigDecimal("100.00"))));
+      given(marketDataClient.getBulkFxRates(any())).willReturn(java.util.Map.of(
+        "2024-01-15", new BigDecimal("1300"),
+        "2024-02-15", new BigDecimal("1300")));
+      given(marketDataClient.getFxRate(anyString()))
+        .willReturn(new FxRateDto(LocalDate.now(), new BigDecimal("1300")));
+      given(marketDataClient.getOHLCPrice(eq(symbol), anyString()))
+        .willReturn(createOHLC(request.getEndDate(), new BigDecimal("100.00")));
+      given(marketDataClient.getDividendHistory(eq(symbol), anyString(), anyString()))
+        .willReturn(java.util.Collections.emptyList());
+      given(responseMapper.toStrategyResponse(any(DcaStrategyRequest.class), any(), any(), any()))
+        .willReturn(StrategyResponse.builder().build());
+
+      dcaStrategy.executeDca(request);
+
+      @SuppressWarnings("unchecked")
+      ArgumentCaptor<List<StrategyTransaction>> captor = ArgumentCaptor.forClass(List.class);
+      verify(responseMapper).toStrategyResponse(
+        any(DcaStrategyRequest.class), captor.capture(), any(), any());
+      assertThat(captor.getValue()).hasSize(2).allSatisfy(tx -> {
+        assertThat(tx.getFee()).isEqualByComparingTo("10.00");
+        assertThat(tx.getShares()).isEqualByComparingTo("9.9");
+        assertThat(tx.getAmount()).isEqualByComparingTo("1300000");
+      });
+    }
+  }
+
   // 내부 메서드
   private OHLCPriceDto createOHLC(LocalDate date, BigDecimal closePrice) {
     return new OHLCPriceDto(

@@ -521,4 +521,48 @@ class BacktestCalculationUtilsTest {
         .isInstanceOf(BacktestException.class);
     }
   }
+
+  @Nested
+  @DisplayName("매수 수수료")
+  class PurchaseFeeTests {
+
+    @Test
+    @DisplayName("투자금을 환율로 바꾼 달러에 수수료율을 곱한다")
+    void calculatePurchaseFee() {
+      assertThat(BacktestCalculationUtils.calculatePurchaseFee(
+        new BigDecimal("1300000"), new BigDecimal("1300"), new BigDecimal("0.01")))
+        .isEqualByComparingTo("10.00");
+    }
+
+    @Test
+    @DisplayName("수수료율이 없거나 0 이면 0")
+    void calculatePurchaseFee_NoRate() {
+      assertThat(BacktestCalculationUtils.calculatePurchaseFee(
+        new BigDecimal("1300000"), new BigDecimal("1300"), null)).isEqualByComparingTo("0");
+      assertThat(BacktestCalculationUtils.calculatePurchaseFee(
+        new BigDecimal("1300000"), new BigDecimal("1300"), BigDecimal.ZERO))
+        .isEqualByComparingTo("0");
+    }
+
+    @Test
+    @DisplayName("수수료를 뺀 달러로 주식 수를 센다")
+    void calculateSharesAfterFee() {
+      assertThat(BacktestCalculationUtils.calculateSharesAfterFee(
+        new BigDecimal("1300000"), new BigDecimal("1300"), new BigDecimal("100"),
+        new BigDecimal("10.00")))
+        .isEqualByComparingTo("9.9");
+    }
+
+    @Test
+    @DisplayName("수수료가 0 이면 calculateShares 와 같다")
+    void calculateSharesAfterFee_NoFee() {
+      BigDecimal amount = new BigDecimal("1000000");
+      BigDecimal fxRate = new BigDecimal("1337.77");
+      BigDecimal price = new BigDecimal("187.31");
+
+      assertThat(BacktestCalculationUtils.calculateSharesAfterFee(amount, fxRate, price,
+        BigDecimal.ZERO))
+        .isEqualTo(BacktestCalculationUtils.calculateShares(amount, fxRate, price));
+    }
+  }
 }

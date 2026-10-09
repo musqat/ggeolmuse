@@ -729,6 +729,7 @@ class BacktestAnalysisServiceImplTest {
       ArgumentCaptor<SimulationRequest> simulation = ArgumentCaptor.forClass(SimulationRequest.class);
       verify(tradingSimulationService).runSimulation(simulation.capture(), eq(false));
       assertThat(simulation.getValue().getPurchaseDate()).isEqualTo(LocalDate.of(2023, 1, 1));
+      assertThat(simulation.getValue().getSaleDate()).isEqualTo(LocalDate.of(2024, 1, 1));
       assertSimulationOptions(simulation.getValue());
 
       ArgumentCaptor<DcaStrategyRequest> dcaRequest = ArgumentCaptor.forClass(DcaStrategyRequest.class);
@@ -740,6 +741,7 @@ class BacktestAnalysisServiceImplTest {
       assertThat(dcaRequest.getValue().getCurrentFxRate()).isEqualByComparingTo(new BigDecimal("1350"));
       assertThat(dcaRequest.getValue().getReinvestDividends()).isTrue();
       assertThat(dcaRequest.getValue().getDividendTaxRate()).isEqualByComparingTo(new BigDecimal("0.15"));
+      assertThat(dcaRequest.getValue().getTradingFeeRate()).isEqualByComparingTo(new BigDecimal("0.0025"));
 
       ArgumentCaptor<ConditionalStrategyRequest> conditionalRequest =
         ArgumentCaptor.forClass(ConditionalStrategyRequest.class);
@@ -751,6 +753,8 @@ class BacktestAnalysisServiceImplTest {
       assertThat(conditionalRequest.getValue().getReinvestDividends()).isTrue();
       assertThat(conditionalRequest.getValue().getDividendTaxRate())
         .isEqualByComparingTo(new BigDecimal("0.15"));
+      assertThat(conditionalRequest.getValue().getTradingFeeRate())
+        .isEqualByComparingTo(new BigDecimal("0.0025"));
     }
 
     @Test
@@ -783,6 +787,7 @@ class BacktestAnalysisServiceImplTest {
       assertThat(dcaRequest.getValue().getTotalInvestmentLimit()).isNull();
       assertThat(dcaRequest.getValue().getReinvestDividends()).isFalse();
       assertThat(dcaRequest.getValue().getDividendTaxRate()).isEqualByComparingTo(BigDecimal.ZERO);
+      assertThat(dcaRequest.getValue().getTradingFeeRate()).isEqualByComparingTo(BigDecimal.ZERO);
     }
 
     @Test
@@ -806,6 +811,9 @@ class BacktestAnalysisServiceImplTest {
       assertThat(simulations.getAllValues())
         .extracting(SimulationRequest::getSymbol)
         .containsExactly("AAPL", "MSFT");
+      assertThat(simulations.getAllValues())
+        .extracting(SimulationRequest::getSaleDate)
+        .containsOnly(LocalDate.of(2024, 1, 1));
       assertThat(simulations.getAllValues()).allSatisfy(this::assertSimulationOptions);
     }
 

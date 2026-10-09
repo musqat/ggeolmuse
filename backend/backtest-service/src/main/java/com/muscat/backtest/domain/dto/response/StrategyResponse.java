@@ -75,6 +75,9 @@ public class StrategyResponse {
   @Schema(description = "배당 수익률 (%)", example = "1.67")
   private BigDecimal dividendYield;
 
+  @Schema(description = "매매 수수료 합계 (USD)", example = "12.50")
+  private BigDecimal totalTradingFee;
+
   // 전략별 특화 정보
   @Schema(description = "전략 상세 정보", example = "DCA: 매월 15일 900,000원 투자")
   private String strategyDetails;          // 전략 상세 정보

@@ -570,6 +570,117 @@ class TradingSimulationServiceImplTest {
     }
   }
 
+  @Nested
+  @DisplayName("매도일 평가")
+  class SaleDateTests {
+
+    private final LocalDate purchaseDate = LocalDate.of(2024, 1, 15);
+    private final LocalDate saleDate = LocalDate.of(2024, 6, 14);
+    private TradingSimulationServiceImpl service;
+
+    @BeforeEach
+    void setUpService() {
+      service = new TradingSimulationServiceImpl(
+        marketDataClientWrapper, new ResponseMapper(), backtestHistoryUtils);
+    }
+
+    private SimulationRequest request(LocalDate sale, boolean reinvest) {
+      return SimulationRequest.builder()
+        .symbol(TEST_SYMBOL)
+        .purchaseDate(purchaseDate)
+        .saleDate(sale)
+        .investmentAmount(new BigDecimal("1300000"))
+        .reinvestDividends(reinvest)
+        .build();
+    }
+
+    private void stubPurchase() {
+      given(marketDataClientWrapper.getOHLCPrice(TEST_SYMBOL, "2024-01-15"))
+        .willReturn(createOHLCPrice(TEST_SYMBOL, purchaseDate, new BigDecimal("100.00"), true));
+      given(marketDataClientWrapper.getFxRate("2024-01-15"))
+        .willReturn(new FxRateDto(purchaseDate, new BigDecimal("1300")));
+    }
+
+    private void stubSale() {
+      given(marketDataClientWrapper.getOHLCPrice(TEST_SYMBOL, "2024-06-14"))
+        .willReturn(createOHLCPrice(TEST_SYMBOL, saleDate, new BigDecimal("150.00"), true));
+      given(marketDataClientWrapper.getFxRate("2024-06-14"))
+        .willReturn(new FxRateDto(saleDate, new BigDecimal("1350")));
+    }
+
+    private DividendDto dividend(LocalDate exDate) {
+      return new DividendDto(TEST_SYMBOL, exDate, exDate.plusDays(5), null,
+        new BigDecimal("1.00"), "USD", "test");
+    }
+
+    @Test
+    @DisplayName("과거 매도일이면 그날 조정 종가 · 환율로 평가하고 평가일을 그날로 둔다")
+    void pastSaleDate_ValuesAtSaleDate() {
+      stubPurchase();
+      stubSale();
+      given(marketDataClientWrapper.getDividendHistory(TEST_SYMBOL, "2024-01-15", "2024-06-14"))
+        .willReturn(Collections.emptyList());
+      given(marketDataClientWrapper.getOHLCPriceRange(TEST_SYMBOL, "2024-01-15", "2024-06-14"))
+        .willReturn(List.of());
+
+      SimulationResponse response = service.runSimulation(request(saleDate, false), false);
+
+      assertThat(response.getCurrentDate()).isEqualTo(saleDate);
+      assertThat(response.getCurrentPrice()).isEqualByComparingTo("150.00");
+      assertThat(response.getCurrentFxRate()).isEqualByComparingTo("1350");
+      verify(marketDataClientWrapper, never()).getCurrentPrice(any());
+      verify(marketDataClientWrapper, never()).getLatestFxRate();
+    }
+
+    @Test
+    @DisplayName("매도일이 없으면 지금처럼 현재가 · 최신 환율로 오늘 평가한다")
+    void noSaleDate_ValuesToday() {
+      String today = LocalDate.now().toString();
+      stubPurchase();
+      given(marketDataClientWrapper.getCurrentPrice(TEST_SYMBOL))
+        .willReturn(createCurrentPrice(TEST_SYMBOL, new BigDecimal("230.00")));
+      given(marketDataClientWrapper.getLatestFxRate())
+        .willReturn(new FxRateDto(LocalDate.now(), new BigDecimal("1320")));
+      given(marketDataClientWrapper.getDividendHistory(TEST_SYMBOL, "2024-01-15", today))
+        .willReturn(Collections.emptyList());
+      given(marketDataClientWrapper.getOHLCPriceRange(TEST_SYMBOL, "2024-01-15", today))
+        .willReturn(List.of());
+
+      SimulationResponse response = service.runSimulation(request(null, false), false);
+
+      assertThat(response.getCurrentDate()).isEqualTo(LocalDate.now());
+      assertThat(response.getCurrentPrice()).isEqualByComparingTo("230.00");
+      assertThat(response.getCurrentFxRate()).isEqualByComparingTo("1320");
+    }
+
+    @Test
+    @DisplayName("매도일이 매수일보다 앞서면 시세를 부르기 전에 막는다")
+    void saleDateBeforePurchase_Throws() {
+      assertThatThrownBy(() ->
+        service.runSimulation(request(LocalDate.of(2024, 1, 14), false), false))
+        .isInstanceOf(BacktestException.class)
+        .extracting("code")
+        .isEqualTo(BacktestResponse.STRATEGY_DATE_RANGE_INVALID);
+      verify(marketDataClientWrapper, never()).getOHLCPrice(any(), any());
+    }
+
+    @Test
+    @DisplayName("배당 재투자는 매도일까지의 배당만 쓴다")
+    void reinvest_OnlyUntilSaleDate() {
+      stubPurchase();
+      stubSale();
+      given(marketDataClientWrapper.getDividendHistory(TEST_SYMBOL, "2024-01-15", "2024-06-14"))
+        .willReturn(List.of(dividend(LocalDate.of(2024, 5, 10)), dividend(LocalDate.of(2024, 8, 9))));
+      given(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
+        .willReturn(List.of(createOHLCPrice(TEST_SYMBOL, LocalDate.of(2024, 5, 10),
+          new BigDecimal("120.00"), true)));
+
+      SimulationResponse response = service.runSimulation(request(saleDate, true), false);
+
+      assertThat(response.getDividendReinvestDates()).containsExactly(LocalDate.of(2024, 5, 10));
+    }
+  }
+
 
   // === Helper Methods ===
 

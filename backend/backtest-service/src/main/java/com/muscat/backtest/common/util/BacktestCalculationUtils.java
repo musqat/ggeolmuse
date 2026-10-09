@@ -252,6 +252,27 @@ public final class BacktestCalculationUtils {
       .setScale(USD_SCALE, HALF_UP);
   }
 
+  // 매수 한 번의 수수료 (USD). 투자금(KRW)을 그날 환율로 바꾼 달러 × 수수료율
+  public static BigDecimal calculatePurchaseFee(BigDecimal investmentAmount, BigDecimal fxRate,
+    BigDecimal feeRate) {
+    if (feeRate == null || !Decimals.isPositive(feeRate)) {
+      return BigDecimal.ZERO;
+    }
+    return investmentAmount.divide(fxRate, 8, HALF_UP).multiply(feeRate)
+      .setScale(USD_SCALE, HALF_UP);
+  }
+
+  // 수수료를 뺀 달러로 살 수 있는 주식 수. 수수료가 0 이면 calculateShares 와 같다
+  public static BigDecimal calculateSharesAfterFee(BigDecimal investmentAmount, BigDecimal fxRate,
+    BigDecimal stockPrice, BigDecimal feeUsd) {
+    BigDecimal shares = calculateShares(investmentAmount, fxRate, stockPrice);
+    if (feeUsd == null || !Decimals.isPositive(feeUsd)) {
+      return shares;
+    }
+    return investmentAmount.divide(fxRate, 8, HALF_UP).subtract(feeUsd)
+      .divide(stockPrice, 8, HALF_UP);
+  }
+
   // 수수료를 고려한 소수점 주식수 계산 (fractional shares)
   public static BigDecimal calculateSharesWithFee(BigDecimal usdAmount, BigDecimal stockPrice,
     BigDecimal feeRate) {

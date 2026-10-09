@@ -7,6 +7,7 @@ import com.muscat.backtest.common.util.BacktestCalculationUtils;
 import com.muscat.backtest.common.util.BacktestHistoryUtils;
 import com.muscat.backtest.common.util.Decimals;
 import com.muscat.backtest.common.util.PriceLookup;
+import com.muscat.backtest.common.validation.BacktestRequestValidator;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
 import com.muscat.backtest.domain.dto.response.SimulationResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
@@ -19,7 +20,6 @@ import com.muscat.backtest.infra.client.dto.FxRateDto;
 import com.muscat.backtest.infra.client.dto.DividendDto;
 import com.muscat.backtest.infra.client.dto.DividendHistoryDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
-import com.muscat.commonlib.dto.StockPriceDto;
 import com.muscat.commonlib.util.MoneyUtils;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -87,8 +87,15 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
 
   // ====== 헬퍼 메소드 ======
 
-  // 시뮬레이션 입력 컨텍스트 구성 (매수가·환율·현재가·배당이력 조회)
+  // 시뮬레이션 입력 컨텍스트 구성 (매수가·환율·평가일 시세·배당이력 조회)
   private SimulationContext prepareSimulationContext(SimulationRequest request) {
+    if (request.getSaleDate() != null) {
+      BacktestRequestValidator.requireDateRange(request.getPurchaseDate(), request.getSaleDate());
+    }
+    LocalDate today = LocalDate.now();
+    LocalDate valuationDate = request.valuationDate(today);
+    boolean valuedToday = valuationDate.equals(today);
+
     // 주가 데이터 조회 - Wrapper 직접 호출로 resilience 패턴 적용
     OHLCPriceDto purchaseData = getHistoricalPriceWithRetry(request.getSymbol(),
       request.getPurchaseDate());
@@ -102,22 +109,27 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
       purchaseFxRate = marketDataClientWrapper.getFxRate(request.getPurchaseDate().toString());
     }
 
-    StockPriceDto currentPrice = marketDataClientWrapper.getCurrentPrice(request.getSymbol());
+    // 평가일 시세. 오늘이면 현재가, 과거면 그날 조정 종가
+    BigDecimal valuationPrice = valuedToday
+      ? marketDataClientWrapper.getCurrentPrice(request.getSymbol()).currentPrice()
+      : PriceLookup.effectiveClose(getHistoricalPriceWithRetry(request.getSymbol(), valuationDate));
 
     FxRateDto currentFxRate;
     if (request.getCurrentFxRate() != null) {
-      currentFxRate = new FxRateDto(LocalDate.now(), request.getCurrentFxRate());
-    } else {
+      currentFxRate = new FxRateDto(valuationDate, request.getCurrentFxRate());
+    } else if (valuedToday) {
       currentFxRate = marketDataClientWrapper.getLatestFxRate();
+    } else {
+      currentFxRate = marketDataClientWrapper.getFxRate(valuationDate.toString());
     }
 
-    // 배당 이력 조회
+    // 배당 이력 조회 (매수일 ~ 평가일)
     List<DividendDto> dividendList = marketDataClientWrapper.getDividendHistory(
-      request.getSymbol(), request.getPurchaseDate().toString(), LocalDate.now().toString());
+      request.getSymbol(), request.getPurchaseDate().toString(), valuationDate.toString());
     DividendHistoryDto dividendHistory = DividendHistoryDto.of(request.getSymbol(), dividendList);
 
-    return new SimulationContext(request, purchaseData, purchaseFxRate, currentPrice, currentFxRate,
-      dividendHistory);
+    return new SimulationContext(request, purchaseData, purchaseFxRate, valuationPrice,
+      currentFxRate, dividendHistory, valuationDate);
   }
 
   // 손익 계산 (매수가·주식수·수수료·배당재투자·환차익 → 총자산/수익률)
@@ -126,7 +138,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
     BigDecimal purchasePriceUsd = PriceLookup.effectiveClose(context.purchaseData());
     BigDecimal purchaseFxRate = context.purchaseFxRate().rate();
     BigDecimal currentFxRate = context.currentFxRate().rate();
-    BigDecimal currentPriceUsd = context.currentPrice().currentPrice();
+    BigDecimal currentPriceUsd = context.valuationPrice();
 
     BigDecimal usdAmount = MoneyUtils.convertKrwToUsd(
       context.request().getInvestmentAmount(), purchaseFxRate);
@@ -168,7 +180,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
       // 배당 내역을 ex-date 순으로 정렬해 순차 재투자
       var dividends = context.dividendHistory().getDividends().stream()
         .filter(d -> d.getExDate() != null)
-        .filter(d -> !d.getExDate().isBefore(purchaseDate) && !d.getExDate().isAfter(LocalDate.now()))
+        .filter(d -> !d.getExDate().isBefore(purchaseDate) && !d.getExDate().isAfter(context.valuationDate()))
         .sorted((d1, d2) -> d1.getExDate().compareTo(d2.getExDate()))
         .toList();
 
@@ -236,7 +248,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
 
     // 배당금 계산 (표시용 - 재투자 여부와 관계없이 총 배당금 계산)
     BigDecimal totalDividends = BacktestCalculationUtils.calculateTotalDividends(
-      context.dividendHistory(), shares, context.request().getPurchaseDate(), LocalDate.now());
+      context.dividendHistory(), shares, context.request().getPurchaseDate(), context.valuationDate());
 
     BigDecimal dividendYield = BacktestCalculationUtils.calculateDividendYield(
       totalDividends, shares, currentPriceUsd);
@@ -272,11 +284,11 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
   private SimulationResponse buildSimulationResponse(SimulationContext context,
     SimulationCalculationResult calculation) {
 
-    // 최적 타이밍 계산 (매수일 ~ 현재)
+    // 최적 타이밍 계산 (매수일 ~ 평가일)
     OptimalTiming optimalTiming = calculateOptimalTiming(
       context.request().getSymbol(),
       context.request().getPurchaseDate(),
-      LocalDate.now());
+      context.valuationDate());
 
     return responseMapper.toSimulationResponse(
       context.request(),

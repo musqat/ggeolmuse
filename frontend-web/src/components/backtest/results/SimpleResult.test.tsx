@@ -29,6 +29,15 @@ describe('SimpleResult', () => {
 
     expect(screen.getByTestId('backtest-return-rate')).toBeInTheDocument()
   })
+
+  it('평가일 기준 라벨을 쓴다', () => {
+    render(<SimpleResult result={result} symbol="AAPL" purchaseDate="2023-01-03" />)
+
+    expect(screen.getAllByText('평가 가치').length).toBeGreaterThan(0)
+    expect(screen.getByText('평가일 가격')).toBeInTheDocument()
+    expect(screen.getByText('평가일 환율')).toBeInTheDocument()
+    expect(screen.queryByText('현재 가격')).toBeNull()
+  })
 })
 
 describe('SimpleResult 값이 없을 때', () => {
