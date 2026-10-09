@@ -46,4 +46,13 @@ describe('DcaConditionalResult', () => {
 
     expect(screen.getByText('조건부 차트')).toBeInTheDocument()
   })
+
+  it('평가일 기준 라벨을 쓴다', () => {
+    render(<DcaConditionalResult result={result} mode="dca" {...props} />)
+
+    expect(screen.getAllByText('평가 가치').length).toBeGreaterThan(0)
+    expect(screen.getByText('평가일 가격')).toBeInTheDocument()
+    expect(screen.getByText('평가일 환율')).toBeInTheDocument()
+    expect(screen.queryByText('현재 가격')).toBeNull()
+  })
 })

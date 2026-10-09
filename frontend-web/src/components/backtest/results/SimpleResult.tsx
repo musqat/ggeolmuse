@@ -32,7 +32,7 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
         />
 
         <StatCard
-          label="현재 가치"
+          label="평가 가치"
           value={<>₩{result.totalAssetKrw?.toLocaleString()}</>}
           sub={
             <>
@@ -81,7 +81,7 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
             value={<>₩{result.investmentAmount?.toLocaleString()}</>}
           />
           <div className="flex justify-between py-2 border-b border-line/50">
-            <span className="text-tx-2">현재 가치</span>
+            <span className="text-tx-2">평가 가치</span>
             <div className="text-right">
               <div className="font-medium text-tx-1">
                 ₩{result.totalAssetKrw?.toLocaleString()}
@@ -105,7 +105,7 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
         <DetailSection title="주식 수익" icon={TrendingUp} iconClassName="text-green-600">
           <DetailRow label="보유 주식수" value={<>{result.shares?.toFixed(6)} 주</>} />
           <DetailRow label="매수 가격" value={<>${result.purchasePrice?.toFixed(2)}</>} />
-          <DetailRow label="현재 가격" value={<>${result.currentPrice?.toFixed(2)}</>} />
+          <DetailRow label="평가일 가격" value={<>${result.currentPrice?.toFixed(2)}</>} />
           <DetailRow
             label="주가 변동"
             value={
@@ -134,7 +134,7 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
             dividerClassName="border-line"
           />
           <DetailRow
-            label="현재 환율"
+            label="평가일 환율"
             value={<>₩{result.currentFxRate?.toLocaleString()}</>}
             dividerClassName="border-line"
           />

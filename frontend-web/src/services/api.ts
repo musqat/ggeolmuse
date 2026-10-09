@@ -690,6 +690,7 @@ export type StrategyTransaction = {
   amount: number;                       // 투자금 (KRW)
   fxRate: number;
   trigger?: string;                     // 적립식은 "월정액", 조건부는 "5%하락" 같은 값
+  fee?: number | null;                  // 매매 수수료 (USD, 배당 재투자는 없음)
 };
 
 // 적립식 · 조건부 전략 응답. backtest-service StrategyResponse 와 같은 칸이다
@@ -718,6 +719,7 @@ export type StrategyResponse = {
   totalDividends?: number | null;
   dividendsReinvested?: number | null;
   dividendYield?: number | null;
+  totalTradingFee?: number | null;      // 매매 수수료 합계 (USD)
   strategyDetails?: string | null;
   performanceSummary?: string | null;
 };
