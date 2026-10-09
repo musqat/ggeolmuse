@@ -56,25 +56,25 @@ const SignupSuccessModal: React.FC<SignupSuccessModalProps> = ({ isOpen, onClose
             </p>
           </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-6">
-            <p className="text-sm text-blue-800 mb-2">
+          <div className="bg-info/10 border border-info/25 rounded-md p-4 mb-6">
+            <p className="text-sm text-info mb-2">
               <strong>{email}</strong>로 인증 이메일을 발송했습니다.
             </p>
-            <p className="text-xs text-blue-600">
+            <p className="text-xs text-tx-2">
               이메일 수신함을 확인하고 인증 링크를 클릭해주세요.
             </p>
           </div>
 
           {/* Resend Success Message */}
           {resendMessage && (
-            <div className="text-green-600 text-sm bg-green-500/10 p-3 rounded-md mb-4 border border-green-500/25">
+            <div className="text-success text-sm bg-success/10 p-3 rounded-md mb-4 border border-success/25">
               {resendMessage}
             </div>
           )}
 
           {/* Resend Error Message */}
           {resendError && (
-            <div className="text-red-600 text-sm bg-red-500/10 p-3 rounded-md mb-4 border border-red-500/25">
+            <div className="text-danger text-sm bg-danger/10 p-3 rounded-md mb-4 border border-danger/25">
               {resendError}
             </div>
           )}

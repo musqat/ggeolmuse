@@ -16,8 +16,8 @@ export default function Unauthorized() {
           </p>
         </div>
 
-        <div className="bg-red-500/100/10 border border-red-500/25 rounded-lg p-4 mb-6">
-          <p className="text-sm text-red-600">
+        <div className="bg-danger/10 border border-danger/25 rounded-lg p-4 mb-6">
+          <p className="text-sm text-danger">
             <strong>관리자 권한이 필요합니다.</strong>
             <br />
             일반 사용자는 이 페이지에 접근할 수 없습니다.

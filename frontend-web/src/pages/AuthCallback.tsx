@@ -61,12 +61,12 @@ const AuthCallback: React.FC = () => {
 
           {status === 'success' && (
             <>
-              <div className="rounded-full h-12 w-12 bg-green-500/15 mx-auto flex items-center justify-center">
-                <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="rounded-full h-12 w-12 bg-success/15 mx-auto flex items-center justify-center">
+                <svg className="h-6 w-6 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h2 className="mt-6 text-2xl font-bold text-green-600">로그인 성공!</h2>
+              <h2 className="mt-6 text-2xl font-bold text-success">로그인 성공!</h2>
               <p className="mt-2 text-sm text-tx-2">{message}</p>
               <p className="mt-1 text-xs text-tx-2">곧 메인 페이지로 이동합니다...</p>
             </>
@@ -74,12 +74,12 @@ const AuthCallback: React.FC = () => {
 
           {status === 'error' && (
             <>
-              <div className="rounded-full h-12 w-12 bg-red-500/15 mx-auto flex items-center justify-center">
-                <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="rounded-full h-12 w-12 bg-danger/15 mx-auto flex items-center justify-center">
+                <svg className="h-6 w-6 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </div>
-              <h2 className="mt-6 text-2xl font-bold text-red-600">로그인 실패</h2>
+              <h2 className="mt-6 text-2xl font-bold text-danger">로그인 실패</h2>
               <p className="mt-2 text-sm text-tx-2">{message}</p>
               <p className="mt-1 text-xs text-tx-2">곧 메인 페이지로 이동합니다...</p>
             </>
