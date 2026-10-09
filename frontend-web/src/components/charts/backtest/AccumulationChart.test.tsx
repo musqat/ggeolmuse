@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor, cleanup } from '@testing-library/react'
-import { DCAChart } from './DCAChart'
-import { ConditionalChart } from './ConditionalChart'
+import { render, screen, waitFor } from '@testing-library/react'
+import { AccumulationChart } from './AccumulationChart'
 import { stockApi } from '../../../services/api'
 import { readCharts } from '../../../test/readCharts'
 
@@ -25,7 +24,7 @@ const transactions = [
 const props = { symbol: 'AAPL', transactions, currentValueKrw: 300000, totalInvested: 295900, startDate: '2026-03-01' }
 
 // 지금 동작을 그대로 적어 둔다. 공통 부분을 뺄 때 이 결과가 바뀌면 안 된다
-describe('DCAChart · ConditionalChart 지금 동작', () => {
+describe('AccumulationChart 지금 동작', () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date('2026-03-10T12:00:00+09:00'))
@@ -50,7 +49,7 @@ describe('DCAChart · ConditionalChart 지금 동작', () => {
   })
 
   it('첫 매수일부터 오늘까지 받고, 그 종목 날짜로만 환율을 묻는다', async () => {
-    render(<DCAChart {...props} />)
+    render(<AccumulationChart {...props} />)
 
     await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(2))
     expect(getOHLCData).toHaveBeenCalledWith('AAPL', '2026-03-01', '2026-03-10')
@@ -58,7 +57,7 @@ describe('DCAChart · ConditionalChart 지금 동작', () => {
   })
 
   it('주가 · 포트폴리오 차트의 데이터와 마커', async () => {
-    render(<DCAChart {...props} />)
+    render(<AccumulationChart {...props} />)
 
     await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(2))
     expect(readCharts()).toMatchInlineSnapshot(`
@@ -204,15 +203,4 @@ describe('DCAChart · ConditionalChart 지금 동작', () => {
     expect(screen.getByText(/검은 점: 매수 시점/)).toHaveTextContent('검은 점: 매수 시점 (3개)')
   })
 
-  it('조건부 차트는 적립식 차트와 같은 것을 그린다', async () => {
-    render(<DCAChart {...props} />)
-    await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(2))
-    const dca = { charts: readCharts(), text: document.body.textContent }
-    cleanup()
-
-    render(<ConditionalChart {...props} />)
-    await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(2))
-
-    expect({ charts: readCharts(), text: document.body.textContent }).toEqual(dca)
-  })
 })

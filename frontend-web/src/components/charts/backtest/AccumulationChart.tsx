@@ -10,7 +10,19 @@ import {
   ResponsiveContainer,
   ReferenceDot,
 } from "recharts";
-import { stockApi } from "../../../services/api";
+import { DEFAULT_FX_RATE, fetchFxRates } from './shared/fxRates';
+import { fetchSymbolPrices } from './shared/prices';
+import {
+  CHART_HEIGHT,
+  CHART_MARGIN,
+  formatDayTick,
+  formatManwonTick,
+  formatTooltipDate,
+  formatUsdTick,
+  GRID_PROPS,
+  MARKER_PROPS,
+  TOOLTIP_STYLE,
+} from './shared/chartStyle';
 import { useChartPeriod } from "../common/hooks/useChartPeriod";
 import { ChartPeriodSelector } from "../common/components/ChartPeriodSelector";
 import { getApiErrorMessage } from '../../../utils/apiError';
@@ -43,7 +55,8 @@ interface ChartDataPoint {
   isPurchase: boolean;
 }
 
-export const ConditionalChart: React.FC<StrategyBacktestChartProps> = ({
+// 적립식 · 조건부 결과 차트. 두 전략 모두 거래 목록을 받아 같은 것을 그린다
+export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
   symbol,
   transactions,
   currentValueKrw,
@@ -82,64 +95,8 @@ export const ConditionalChart: React.FC<StrategyBacktestChartProps> = ({
       setError(null);
 
       try {
-        const today = getTodayString();
-        const response = await stockApi.getOHLCData(
-          symbol,
-          chartStartDate,
-          today,
-        );
-
-        // API는 flat 배열을 반환: [{symbol, date, closePrice, ...}, ...]
-        const priceData = Array.isArray(response.data)
-          ? (response.data as OHLCData[]).filter((item) => item.symbol === symbol)
-          : [];
-
-        // 각 날짜의 환율 데이터 가져오기 (Bulk API 사용)
-        const fxRateMap = new Map<string, number>();
-        const DEFAULT_FX_RATE = 1350; // Fallback 환율
-
-        // 모든 날짜를 한 번에 조회 (Bulk API)
-        const dates = priceData.map((item) => item.date);
-        try {
-          const fxRateResponse = await stockApi.getExchangeRatesBulk(dates);
-          const rates = fxRateResponse.data;
-
-          // Map으로 변환
-          Object.entries(rates).forEach(([dateStr, rate]) => {
-            fxRateMap.set(dateStr, rate || DEFAULT_FX_RATE);
-          });
-
-          // 누락된 날짜는 DEFAULT로 채우기
-          dates.forEach((dateStr) => {
-            if (!fxRateMap.has(dateStr)) {
-              fxRateMap.set(dateStr, DEFAULT_FX_RATE);
-            }
-          });
-        } catch (err) {
-          // Bulk 조회 실패 시 모든 날짜에 DEFAULT 사용
-          console.warn("Bulk 환율 조회 실패, fallback 환율 사용:", err);
-          dates.forEach((dateStr) => {
-            fxRateMap.set(dateStr, DEFAULT_FX_RATE);
-          });
-        }
-
-        // 거래 정보를 날짜별 맵으로 변환
-        const transactionMap = new Map<
-          string,
-          { shares: number; investedAmount: number }
-        >();
-        let cumulativeShares = 0;
-        let cumulativeInvested = 0;
-
-        transactions.forEach((tx) => {
-          const txDate = tx.actualDate || tx.date;
-          cumulativeShares += tx.shares;
-          cumulativeInvested += tx.amount;
-          transactionMap.set(txDate, {
-            shares: cumulativeShares,
-            investedAmount: cumulativeInvested,
-          });
-        });
+        const priceData = await fetchSymbolPrices<OHLCData>(symbol, chartStartDate, getTodayString());
+        const fxRateMap = await fetchFxRates(priceData.map((item) => item.date));
 
         // priceData에서 사용 가능한 날짜들을 먼저 추출
         const availableDates = priceData.map((item) => item.date).sort();
@@ -177,7 +134,7 @@ export const ConditionalChart: React.FC<StrategyBacktestChartProps> = ({
           }
 
           // 해당 날짜의 환율 사용 (각 날짜마다 다른 환율 적용)
-          const historicalFxRate = fxRateMap.get(dateStr) || 1350;
+          const historicalFxRate = fxRateMap.get(dateStr) || DEFAULT_FX_RATE;
 
           // 포트폴리오 가치 = 보유주식 * 현재가격 (원화 환산)
           const adjustedPrice = item.adjustedClose || item.closePrice;
@@ -301,37 +258,31 @@ export const ConditionalChart: React.FC<StrategyBacktestChartProps> = ({
       {/* 주가 추이 차트 */}
       <div className="mb-8">
         <h4 className="text-sm font-medium text-tx-1 mb-3">주가 추이</h4>
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
           <LineChart
             data={chartData}
-            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+            margin={CHART_MARGIN}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <CartesianGrid {...GRID_PROPS} />
             <XAxis
               dataKey="date"
               tick={{ fontSize: 12 }}
-              tickFormatter={(value) => {
-                const date = new Date(value);
-                return `${date.getMonth() + 1}/${date.getDate()}`;
-              }}
+              tickFormatter={formatDayTick}
             />
             <YAxis
               tick={{ fontSize: 12 }}
-              tickFormatter={(value) => `$${Math.round(value)}`}
+              tickFormatter={formatUsdTick}
               domain={priceRange}
               allowDecimals={false}
             />
             <Tooltip
-              contentStyle={{
-                backgroundColor: "rgba(255, 255, 255, 0.95)",
-                border: "1px solid #ccc",
-              }}
+              contentStyle={TOOLTIP_STYLE}
               formatter={(value: number | string, name: string) => {
                 if (name === "주가")
                   return [`$${Number(value).toFixed(2)}`, name];
                 return [value, name];
               }}
-              labelFormatter={(label) => `날짜: ${label}`}
+              labelFormatter={formatTooltipDate}
             />
             <Legend />
             <Line
@@ -350,10 +301,8 @@ export const ConditionalChart: React.FC<StrategyBacktestChartProps> = ({
                 key={`purchase-${index}`}
                 x={point.date}
                 y={point.stockPrice}
-                r={4}
+                {...MARKER_PROPS}
                 fill="#1f2937"
-                stroke="#fff"
-                strokeWidth={2}
               />
             ))}
 
@@ -363,10 +312,8 @@ export const ConditionalChart: React.FC<StrategyBacktestChartProps> = ({
                 key={`dividend-${index}`}
                 x={point.date}
                 y={point.stockPrice}
-                r={4}
+                {...MARKER_PROPS}
                 fill="#10b981"
-                stroke="#fff"
-                strokeWidth={2}
               />
             ))}
           </LineChart>
@@ -378,34 +325,28 @@ export const ConditionalChart: React.FC<StrategyBacktestChartProps> = ({
         <h4 className="text-sm font-medium text-tx-1 mb-3">
           포트폴리오 가치 vs 투자금
         </h4>
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
           <LineChart
             data={chartData}
-            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+            margin={CHART_MARGIN}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <CartesianGrid {...GRID_PROPS} />
             <XAxis
               dataKey="date"
               tick={{ fontSize: 12 }}
-              tickFormatter={(value) => {
-                const date = new Date(value);
-                return `${date.getMonth() + 1}/${date.getDate()}`;
-              }}
+              tickFormatter={formatDayTick}
             />
             <YAxis
               tick={{ fontSize: 12 }}
-              tickFormatter={(value) => `₩${(value / 10000).toFixed(0)}만`}
+              tickFormatter={formatManwonTick}
               domain={valueRange}
             />
             <Tooltip
-              contentStyle={{
-                backgroundColor: "rgba(255, 255, 255, 0.95)",
-                border: "1px solid #ccc",
-              }}
+              contentStyle={TOOLTIP_STYLE}
               formatter={(value: number | string, name: string) => {
                 return [`₩${Math.round(Number(value)).toLocaleString()}`, name];
               }}
-              labelFormatter={(label) => `날짜: ${label}`}
+              labelFormatter={formatTooltipDate}
             />
             <Legend />
             <Line
@@ -434,10 +375,8 @@ export const ConditionalChart: React.FC<StrategyBacktestChartProps> = ({
                 key={`portfolio-purchase-${index}`}
                 x={point.date}
                 y={point.portfolioValue}
-                r={4}
+                {...MARKER_PROPS}
                 fill="#1f2937"
-                stroke="#fff"
-                strokeWidth={2}
               />
             ))}
           </LineChart>
