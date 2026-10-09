@@ -22,6 +22,11 @@ export default {
         gain: 'rgb(var(--gain) / <alpha-value>)',
         loss: 'rgb(var(--loss) / <alpha-value>)',
         buy:  'rgb(var(--buy)  / <alpha-value>)',
+        // 오류 · 성공 · 안내 · 경고. 등락과 값이 같아도 뜻으로 고른다
+        danger:  'rgb(var(--danger)  / <alpha-value>)',
+        success: 'rgb(var(--success) / <alpha-value>)',
+        info:    'rgb(var(--info)    / <alpha-value>)',
+        warning: 'rgb(var(--warning) / <alpha-value>)',
         // Semantic tokens
         canvas:   'rgb(var(--bg-canvas)   / <alpha-value>)',
         surface:  'rgb(var(--bg-surface)  / <alpha-value>)',

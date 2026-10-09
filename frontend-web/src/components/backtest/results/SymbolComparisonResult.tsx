@@ -39,19 +39,19 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
     <div className="space-y-6">
       {/* Best Performer Summary */}
       {result.bestPerformer && (
-        <div className="bg-gradient-to-r from-yellow-50 to-amber-50 rounded-xl shadow-sm border border-yellow-500/25 p-6">
+        <div className="bg-warning/10 rounded-xl shadow-sm border border-warning/30 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-yellow-600">
+              <p className="text-sm font-medium text-tx-2">
                 최고 성과 종목
               </p>
-              <p className="text-3xl font-bold text-yellow-900 mt-1">
+              <p className="text-3xl font-bold text-warning mt-1">
                 {result.bestPerformer.name}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-sm text-yellow-600">수익률</p>
-              <p className="text-4xl font-bold text-yellow-900">
+              <p className="text-sm text-tx-2">수익률</p>
+              <p className="text-4xl font-bold text-warning">
                 {formatSigned(result.bestPerformer.totalReturnPercent, formatPercent)}
               </p>
             </div>
@@ -179,7 +179,7 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
                 {/* Stock Performance */}
                 <div className="bg-surface rounded-lg border border-line p-3">
                   <h4 className="text-xs font-semibold text-tx-1 mb-2 flex items-center">
-                    <TrendingUp className="w-3 h-3 mr-1 text-green-600" />
+                    <TrendingUp className="w-3 h-3 mr-1 text-gain" />
                     주식 성과
                   </h4>
                   <div className="space-y-1 text-xs">
@@ -267,7 +267,7 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
                                 <span className="text-tx-2">
                                   최적 매수가
                                 </span>
-                                <span className="font-medium text-green-600">
+                                <span className="font-medium text-gain">
                                   ${displayItem.optimalBuyPrice?.toFixed(2)}
                                 </span>
                               </div>
@@ -285,7 +285,7 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
                             </div>
                             <div className="flex justify-between">
                               <span className="text-tx-2">최적 매수가</span>
-                              <span className="font-medium text-green-600">
+                              <span className="font-medium text-gain">
                                 ${optimalPoint.minPrice.toFixed(2)}
                               </span>
                             </div>
@@ -306,7 +306,7 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
                                 <span className="text-tx-2">
                                   최적 매도가
                                 </span>
-                                <span className="font-medium text-red-600">
+                                <span className="font-medium text-loss">
                                   $
                                   {displayItem.optimalSellPrice?.toFixed(2)}
                                 </span>
@@ -327,7 +327,7 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
                               <span className="text-tx-2">
                                 최적 평가금액
                               </span>
-                              <span className="font-medium text-red-600">
+                              <span className="font-medium text-loss">
                                 ₩
                                 {Math.floor(
                                   optimalPoint.maxValue,

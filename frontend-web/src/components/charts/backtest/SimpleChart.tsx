@@ -288,15 +288,15 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
           <p className="text-sm text-tx-1">
             주가: ${data.price?.toFixed(2) || "-"}
           </p>
-          <p className="text-sm text-green-600">
+          <p className="text-sm text-gain">
             투자금: ₩{data.투자금?.toLocaleString()}
           </p>
-          <p className="text-sm text-blue-600">
+          <p className="text-sm text-info">
             평가금액: ₩{data.평가금액?.toLocaleString()}
           </p>
           {data.평가금액 && data.투자금 && (
             <p
-              className={`text-sm font-semibold ${data.평가금액 >= data.투자금 ? "text-green-600" : "text-red-600"}`}
+              className={`text-sm font-semibold ${data.평가금액 >= data.투자금 ? "text-gain" : "text-loss"}`}
             >
               {data.평가금액 >= data.투자금 ? "수익" : "손실"}: ₩
               {Math.abs(data.평가금액 - data.투자금).toLocaleString()}(

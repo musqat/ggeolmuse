@@ -106,7 +106,7 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
           </div>
         </DetailSection>
 
-        <DetailSection title="주식 수익" icon={TrendingUp} iconClassName="text-green-600">
+        <DetailSection title="주식 수익" icon={TrendingUp} iconClassName="text-gain">
           <DetailRow label="보유 주식수" value={<>{result.totalShares?.toFixed(6)} 주</>} />
           <DetailRow label="평균 매수가" value={<>${result.averagePrice?.toFixed(2)}</>} />
           <DetailRow label="평가일 가격" value={<>${result.currentPrice?.toFixed(2)}</>} />

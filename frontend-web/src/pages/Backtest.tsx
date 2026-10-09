@@ -182,7 +182,7 @@ const Backtest: React.FC = () => {
 
       {/* Error Display */}
       {error && (
-        <div className="bg-red-500/100/10 border border-red-500/25 text-red-600 px-6 py-4 rounded-lg mb-6">
+        <div className="bg-danger/10 border border-danger/25 text-danger px-6 py-4 rounded-lg mb-6">
           <p className="font-medium">오류 발생</p>
           <p className="text-sm mt-1">{error}</p>
         </div>

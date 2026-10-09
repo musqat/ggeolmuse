@@ -274,7 +274,7 @@ export const ConditionalChart: React.FC<StrategyBacktestChartProps> = ({
     return (
       <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-6">
         <div className="flex justify-center items-center h-64">
-          <div className="text-red-500">{error}</div>
+          <div className="text-danger">{error}</div>
         </div>
       </div>
     );
