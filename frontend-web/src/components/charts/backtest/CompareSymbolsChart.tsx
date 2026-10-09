@@ -517,7 +517,7 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
             })}
           </LineChart>
         </ResponsiveContainer>
-        <div className="mt-3 p-3 bg-warning/10 border border-warning/30 rounded-lg">
+        <div className="mt-3 p-3 bg-warning-soft/10 border border-warning-soft/40 rounded-lg">
           <p className="text-xs text-tx-1">
             <span className="font-semibold">차트 마커 안내:</span><br/>
             <span className="inline-block w-3 h-3 bg-hover rounded-full mr-1 align-middle"></span> 검은색 점 = 실제 매수 시점 |

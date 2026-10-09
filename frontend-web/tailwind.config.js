@@ -27,6 +27,7 @@ export default {
         success: 'rgb(var(--success) / <alpha-value>)',
         info:    'rgb(var(--info)    / <alpha-value>)',
         warning: 'rgb(var(--warning) / <alpha-value>)',
+        'warning-soft': 'rgb(var(--warning-soft) / <alpha-value>)',
         // Semantic tokens
         canvas:   'rgb(var(--bg-canvas)   / <alpha-value>)',
         surface:  'rgb(var(--bg-surface)  / <alpha-value>)',

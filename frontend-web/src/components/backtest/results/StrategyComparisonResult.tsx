@@ -17,7 +17,7 @@ export const StrategyComparisonResult: React.FC<StrategyComparisonResultProps> =
 
       {/* Best Performer Highlight */}
       {result.bestPerformer && (
-        <div className="mb-6 p-4 bg-warning/10 border border-warning/30 rounded-lg">
+        <div className="mb-6 p-4 bg-warning-soft/10 border border-warning-soft/40 rounded-lg">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-tx-2">

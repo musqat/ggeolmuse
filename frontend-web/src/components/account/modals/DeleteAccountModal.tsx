@@ -50,7 +50,7 @@ const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
     >
       <div>
         <p className="text-tx-1 mb-2">정말로 이 계좌를 삭제하시겠습니까?</p>
-        <div className="bg-warning/10 border border-warning/30 rounded-lg p-3 mt-3">
+        <div className="bg-warning-soft/10 border border-warning-soft/40 rounded-lg p-3 mt-3">
           <p className="text-sm text-warning font-medium">주의사항</p>
           <ul className="text-sm text-warning mt-2 space-y-1 list-disc list-inside">
             <li>삭제된 계좌는 복구할 수 없습니다</li>

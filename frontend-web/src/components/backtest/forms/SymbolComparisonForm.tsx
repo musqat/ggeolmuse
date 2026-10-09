@@ -145,7 +145,7 @@ export const SymbolComparisonForm: React.FC<SymbolComparisonFormProps> = ({
         {/* 환율 데이터 부족 경고 */}
         {showFxWarning && (
           <div className="col-span-full">
-            <div className="flex items-start gap-2 p-3 bg-warning/10 border border-warning/30 rounded-lg">
+            <div className="flex items-start gap-2 p-3 bg-warning-soft/10 border border-warning-soft/40 rounded-lg">
               <div className="flex-1">
                 <p className="text-sm font-medium text-warning">
                   환율 데이터 부족 가능성

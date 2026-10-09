@@ -39,7 +39,7 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
     <div className="space-y-6">
       {/* Best Performer Summary */}
       {result.bestPerformer && (
-        <div className="bg-warning/10 rounded-xl shadow-sm border border-warning/30 p-6">
+        <div className="bg-warning-soft/10 rounded-xl shadow-sm border border-warning-soft/40 p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-tx-2">
