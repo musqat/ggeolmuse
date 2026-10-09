@@ -33,6 +33,13 @@ services:
     volumes:
       - zookeeper_data:/var/lib/zookeeper/data
       - zookeeper_log:/var/lib/zookeeper/log
+    # 세션을 맺을 수 있어야 healthy. Kafka 시작 스크립트가 쓰는 확인과 같다
+    healthcheck:
+      test: ["CMD", "cub", "zk-ready", "localhost:2181", "5"]
+      interval: 5s
+      timeout: 10s
+      retries: 12
+      start_period: 5s
     networks:
       - ggeolmuse-network
     deploy:
@@ -46,8 +53,10 @@ services:
   kafka:
     image: confluentinc/cp-kafka:7.6.0
     container_name: ggeolmuse-kafka
+    # 포트만 열린 Zookeeper 에 붙으면 세션이 안 맺어진 채 40초 뒤 죽는다. healthy 를 기다린다
     depends_on:
-      - zookeeper
+      zookeeper:
+        condition: service_healthy
     ports:
       - "9092:9092"
       - "9094:9094"
