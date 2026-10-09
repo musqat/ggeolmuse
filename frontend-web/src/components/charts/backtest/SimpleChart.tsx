@@ -11,7 +11,21 @@ import {
   ResponsiveContainer,
   ReferenceDot,
 } from "recharts";
-import { stockApi } from "../../../services/api";
+import { DEFAULT_FX_RATE, fetchFxRates } from './shared/fxRates';
+import { fetchSymbolPrices } from './shared/prices';
+import {
+  AXIS_PROPS,
+  CHART_HEIGHT,
+  CHART_MARGIN,
+  formatDayTick,
+  formatManwonTick,
+  formatUsdTick,
+  GRID_PROPS,
+  MARKER_COLORS,
+  MARKER_LABEL_STYLE,
+  MARKER_PROPS,
+  OPTIMAL_MARKER_PROPS,
+} from './shared/chartStyle';
 import { useChartPeriod } from "../common/hooks/useChartPeriod";
 import { ChartPeriodSelector } from "../common/components/ChartPeriodSelector";
 import { getTodayString } from "../../../utils/dateUtils";
@@ -28,6 +42,12 @@ interface RawOhlc {
   adjustedClose?: number;
   close?: number;
 }
+
+// [2025, 1, 8] → "2025-01-08"
+const toDateString = (date: RawOhlcDate): string =>
+  Array.isArray(date)
+    ? `${date[0]}-${String(date[1]).padStart(2, "0")}-${String(date[2]).padStart(2, "0")}`
+    : date;
 
 // 위 응답에 일자별 환율을 얹은 것
 type OhlcWithFx = RawOhlc & { fxRate: number };
@@ -82,85 +102,15 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
       customStartDate,
     ],
     queryFn: async () => {
-      const lastDate = endDate || getTodayString();
-      const startDate = getChartStartDate();
-      console.log("SimpleChart fetchPriceData:", {
-        symbol,
-        chartPeriod,
-        customStartDate,
-        purchaseDate,
-        startDate,
-        lastDate,
-      });
-      const response = await stockApi.getOHLCData(symbol, startDate, lastDate);
+      const ohlcData = await fetchSymbolPrices<RawOhlc>(symbol, getChartStartDate(), endDate || getTodayString());
+      if (ohlcData.length === 0) return [];
 
-      // API는 List<OHLCPriceDto>를 반환 (flat 배열)
-      let ohlcData: RawOhlc[] | null = null;
-
-      if (Array.isArray(response.data)) {
-        ohlcData = (response.data as RawOhlc[]).filter((item) => item.symbol === symbol);
-      }
-
-      if (ohlcData && Array.isArray(ohlcData) && ohlcData.length > 0) {
-        console.log(
-          "SimpleChart OHLC data loaded:",
-          ohlcData.length,
-          "records",
-        );
-
-        // 각 날짜의 환율 데이터 가져오기 (Bulk API 사용)
-        const fxRateMap = new Map<string, number>();
-        const DEFAULT_FX_RATE = 1350; // Fallback 환율
-
-        // 모든 날짜 수집
-        const allDates = ohlcData.map((item: RawOhlc) =>
-          Array.isArray(item.date)
-            ? `${item.date[0]}-${String(item.date[1]).padStart(2, "0")}-${String(item.date[2]).padStart(2, "0")}`
-            : item.date,
-        );
-
-        // Bulk API로 한 번에 환율 조회
-        try {
-          const bulkResponse = await stockApi.getExchangeRatesBulk(allDates);
-          const ratesData = bulkResponse.data;
-
-          // Map에 저장
-          Object.entries(ratesData).forEach(([date, rate]) => {
-            const rateValue =
-              typeof rate === "number" ? rate : parseFloat(String(rate));
-            fxRateMap.set(
-              date,
-              !isNaN(rateValue) && rateValue > 0 ? rateValue : DEFAULT_FX_RATE,
-            );
-          });
-
-          // 누락된 날짜는 fallback 사용
-          allDates.forEach((date) => {
-            if (!fxRateMap.has(date)) {
-              fxRateMap.set(date, DEFAULT_FX_RATE);
-            }
-          });
-        } catch (err) {
-          console.log("Bulk FX rate fetch failed, using fallback:", err);
-          // 모든 날짜에 fallback 적용
-          allDates.forEach((date) => fxRateMap.set(date, DEFAULT_FX_RATE));
-        }
-
-        // OHLC 데이터와 환율 매핑을 함께 저장
-        return ohlcData.map((item: RawOhlc) => {
-          const dateStr = Array.isArray(item.date)
-            ? `${item.date[0]}-${String(item.date[1]).padStart(2, "0")}-${String(item.date[2]).padStart(2, "0")}`
-            : item.date;
-
-          return {
-            ...item,
-            fxRate: fxRateMap.get(dateStr) || DEFAULT_FX_RATE,
-          };
-        });
-      } else {
-        console.log("SimpleChart NO data loaded, response:", response.data);
-        return [];
-      }
+      // 일자별 환율을 얹는다
+      const fxRateMap = await fetchFxRates(ohlcData.map((item) => toDateString(item.date)));
+      return ohlcData.map((item) => ({
+        ...item,
+        fxRate: fxRateMap.get(toDateString(item.date)) || DEFAULT_FX_RATE,
+      }));
     },
     staleTime: 5 * 60 * 1000, // 5분
   });
@@ -177,13 +127,10 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
       const dailyPrice =
         candle.adjustedClose || candle.closePrice || candle.close || 0;
 
-      // date가 배열 형태로 올 수 있음: [2025, 1, 8] -> "2025-01-08"
-      const dateStr: string = Array.isArray(candle.date)
-        ? `${candle.date[0]}-${String(candle.date[1]).padStart(2, "0")}-${String(candle.date[2]).padStart(2, "0")}`
-        : candle.date;
+      const dateStr = toDateString(candle.date);
 
       // 해당 날짜의 환율 사용 (각 날짜마다 다른 환율 적용)
-      const historicalFxRate = candle.fxRate || 1350;
+      const historicalFxRate = candle.fxRate || DEFAULT_FX_RATE;
 
       // 매수일에는 투자금을 그대로 사용 (환율 괴리 방지)
       let portfolioValue;
@@ -336,20 +283,20 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
           onPeriodChange={setChartPeriod}
           onCustomDateChange={setCustomStartDate}
         />
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
           <LineChart
             data={chartData}
-            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+            margin={CHART_MARGIN}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <CartesianGrid {...GRID_PROPS} />
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 12 }}
-              tickFormatter={(value) => value.split("-").slice(1).join("/")}
+              {...AXIS_PROPS}
+              tickFormatter={formatDayTick}
             />
             <YAxis
-              tick={{ fontSize: 12 }}
-              tickFormatter={(value) => `$${Math.round(value)}`}
+              {...AXIS_PROPS}
+              tickFormatter={formatUsdTick}
               domain={priceRange}
               allowDecimals={false}
             />
@@ -372,17 +319,10 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
               <ReferenceDot
                 x={purchasePoint.date}
                 y={purchasePoint.price}
+                {...MARKER_PROPS}
                 r={6}
-                fill="#10b981"
-                stroke="#fff"
-                strokeWidth={2}
-                label={{
-                  value: "매수",
-                  position: "top",
-                  fill: "#10b981",
-                  fontSize: 12,
-                  fontWeight: "bold",
-                }}
+                fill={MARKER_COLORS.purchase}
+                label={{ value: "매수", position: "top", ...MARKER_LABEL_STYLE }}
               />
             )}
 
@@ -391,17 +331,9 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
               <ReferenceDot
                 x={optimalBuyPoint.date}
                 y={optimalBuyPoint.price}
+                {...OPTIMAL_MARKER_PROPS}
                 r={6}
-                fill="#fbbf24"
-                stroke="#78350f"
-                strokeWidth={2}
-                label={{
-                  value: "최적 매수",
-                  position: "top",
-                  fill: "#f59e0b",
-                  fontSize: 11,
-                  fontWeight: "bold",
-                }}
+                label={{ value: "최적 매수", position: "top", ...MARKER_LABEL_STYLE }}
               />
             )}
 
@@ -411,16 +343,14 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
                 key={`dividend-${idx}`}
                 x={point.date}
                 y={point.price}
-                r={4}
-                fill="#10b981"
-                stroke="#fff"
-                strokeWidth={2}
+                {...MARKER_PROPS}
+                fill={MARKER_COLORS.dividend}
               />
             ))}
           </LineChart>
         </ResponsiveContainer>
         <p className="text-xs text-tx-2 mt-2 text-center">
-          파란색 라인 = 주가 | 녹색 점 = 매수/배당재투자 | 금색 점 = 최적 타이밍
+          파란 선 = 주가 | 보라 점 = 매수 | 녹색 점 = 배당 재투자 | 금색 점 = 최적 매수
         </p>
       </div>
 
@@ -429,20 +359,20 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
         <h3 className="text-lg font-semibold text-tx-1 mb-4">
           투자금 vs 평가금액
         </h3>
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
           <LineChart
             data={chartData}
-            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+            margin={CHART_MARGIN}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <CartesianGrid {...GRID_PROPS} />
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 12 }}
-              tickFormatter={(value) => value.split("-").slice(1).join("/")}
+              {...AXIS_PROPS}
+              tickFormatter={formatDayTick}
             />
             <YAxis
-              tick={{ fontSize: 12 }}
-              tickFormatter={(value) => `₩${(value / 10000).toFixed(0)}만`}
+              {...AXIS_PROPS}
+              tickFormatter={formatManwonTick}
             />
             <Tooltip content={<CustomTooltip />} />
             <Legend />
@@ -475,17 +405,10 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
               <ReferenceDot
                 x={purchasePoint.date}
                 y={purchasePoint.투자금}
+                {...MARKER_PROPS}
                 r={6}
-                fill="#10b981"
-                stroke="#fff"
-                strokeWidth={2}
-                label={{
-                  value: "매수",
-                  position: "top",
-                  fill: "#10b981",
-                  fontSize: 12,
-                  fontWeight: "bold",
-                }}
+                fill={MARKER_COLORS.purchase}
+                label={{ value: "매수", position: "top", ...MARKER_LABEL_STYLE }}
               />
             )}
 
@@ -494,17 +417,9 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
               <ReferenceDot
                 x={optimalSellPoint.date}
                 y={optimalSellPoint.평가금액}
+                {...OPTIMAL_MARKER_PROPS}
                 r={6}
-                fill="#fbbf24"
-                stroke="#78350f"
-                strokeWidth={2}
-                label={{
-                  value: "최적 매도",
-                  position: "bottom",
-                  fill: "#f59e0b",
-                  fontSize: 11,
-                  fontWeight: "bold",
-                }}
+                label={{ value: "최적 매도", position: "bottom", ...MARKER_LABEL_STYLE }}
               />
             )}
 
@@ -514,17 +429,15 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
                 key={`dividend-portfolio-${idx}`}
                 x={point.date}
                 y={point.평가금액}
-                r={4}
-                fill="#10b981"
-                stroke="#fff"
-                strokeWidth={2}
+                {...MARKER_PROPS}
+                fill={MARKER_COLORS.dividend}
               />
             ))}
           </LineChart>
         </ResponsiveContainer>
         <p className="text-xs text-tx-2 mt-2 text-center">
-          녹색 점선 = 투자금 | 파란색 = 평가금액 | 녹색 점 = 매수/배당재투자 |
-          금색 점 = 최적 타이밍
+          녹색 점선 = 투자금 | 파란 선 = 평가금액 | 보라 점 = 매수 | 녹색 점 = 배당
+          재투자 | 금색 점 = 최적 매도
         </p>
       </div>
     </div>

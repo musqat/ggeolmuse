@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { X, Send, Maximize2, Minimize2, Trash2 } from 'lucide-react';
 import { aiChatApi } from '../../services/aiChatApi';
-import { useAuth } from '../../contexts/AuthContext';
-import { useAiChat } from '../../contexts/AiChatContext';
+import { useAuth } from '../../hooks/useAuth';
+import { useAiChat } from '../../hooks/useAiChat';
 import { loadChatHistory, saveChatHistory, clearChatHistory, type ChatTurn } from '../../utils/aiChatHistory';
 import { getApiErrorStatus } from '../../utils/apiError';
 

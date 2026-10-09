@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { TrendingUp, Search, Menu, LogOut, User } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 import { accountsApi, stockApi, portfolioApi } from '../../services/api';
 import LoginModal from '../auth/LoginModal';
 import SignupModal from '../auth/SignupModal';

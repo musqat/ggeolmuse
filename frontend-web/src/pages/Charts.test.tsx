@@ -13,7 +13,7 @@ vi.mock('../services/api', () => ({
 vi.mock('../components/charts/KLineChartComponent', () => ({
   default: () => <div data-testid="kline" />,
 }))
-vi.mock('../contexts/AiChatContext', () => ({ useAiChat: () => ({ openChat: vi.fn() }) }))
+vi.mock('../hooks/useAiChat', () => ({ useAiChat: () => ({ openChat: vi.fn() }) }))
 vi.mock('../components/common/SearchModal', () => ({
   default: ({ isOpen, onSelectStock }: { isOpen: boolean; onSelectStock?: (s: string) => void }) =>
     isOpen ? <button onClick={() => onSelectStock?.('MSFT')}>MSFT 고르기</button> : null,

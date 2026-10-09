@@ -23,7 +23,7 @@ const auth = vi.hoisted(() => ({
   isAuthenticated: true,
   user: { email: 'tester@example.com' } as { email: string } | null,
 }))
-vi.mock('../contexts/AuthContext', () => ({ useAuth: () => auth }))
+vi.mock('../hooks/useAuth', () => ({ useAuth: () => auth }))
 
 vi.mock('../utils/localBacktestHistory', () => ({
   saveLocalBacktestHistory: vi.fn(),

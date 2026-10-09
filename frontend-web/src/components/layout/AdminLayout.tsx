@@ -1,6 +1,6 @@
 import { Link, Outlet, useNavigate } from 'react-router-dom';
 import { Users, TrendingUp, LogOut, Home } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 
 export default function AdminLayout() {
   const { user, logout } = useAuth();

@@ -1,7 +1,6 @@
 import React from 'react';
 import { TrendingUp, TrendingDown, DollarSign, Activity, Repeat } from 'lucide-react';
-import { DCAChart } from '@components/charts/backtest/DCAChart';
-import { ConditionalChart } from '@components/charts/backtest/ConditionalChart';
+import { AccumulationChart } from '@components/charts/backtest/AccumulationChart';
 import type { StrategyResponse } from '../../../services/api';
 import type { BacktestMode } from '../shared/backtestDisplay';
 import {
@@ -162,25 +161,16 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
       </div>
 
       {/* 차트 섹션 추가 */}
-      {result.transactions &&
-        result.transactions.length > 0 &&
-        (mode === "dca" ? (
-          <DCAChart
-            symbol={result.symbol || symbol}
-            transactions={result.transactions}
-            currentValueKrw={result.currentValueKrw || 0}
-            totalInvested={result.totalInvested || 0}
-            startDate={result.startDate || dcaStartDate}
-          />
-        ) : (
-          <ConditionalChart
-            symbol={result.symbol || symbol}
-            transactions={result.transactions}
-            currentValueKrw={result.currentValueKrw || 0}
-            totalInvested={result.totalInvested || 0}
-            startDate={result.startDate || conditionalStartDate}
-          />
-        ))}
+      {result.transactions && result.transactions.length > 0 && (
+        <AccumulationChart
+          symbol={result.symbol || symbol}
+          transactions={result.transactions}
+          currentValueKrw={result.currentValueKrw || 0}
+          totalInvested={result.totalInvested || 0}
+          startDate={result.startDate || (mode === "dca" ? dcaStartDate : conditionalStartDate)}
+          endDate={result.endDate ?? undefined}
+        />
+      )}
     </div>
   );
 };

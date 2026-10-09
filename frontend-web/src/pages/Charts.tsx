@@ -9,7 +9,7 @@ import { ChartPeriodBar } from '../components/charts/stock/ChartPeriodBar';
 import { useChartRange } from '../components/charts/stock/useChartRange';
 import { priceSummary } from '../components/charts/stock/priceSummary';
 import { convertOHLCToCandlestick, type CandlestickChartData } from '../types/ohlc';
-import { useAiChat } from '../contexts/AiChatContext';
+import { useAiChat } from '../hooks/useAiChat';
 
 // 데이터가 없을 때 넘기는 빈 배열. 렌더마다 새 배열이 되지 않게 하나로 둔다
 const NO_CANDLES: CandlestickChartData[] = [];

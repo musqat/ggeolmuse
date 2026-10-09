@@ -2,9 +2,14 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { DcaConditionalResult } from './DcaConditionalResult'
 
-vi.mock('@components/charts/backtest/DCAChart', () => ({ DCAChart: () => <div>DCA 차트</div> }))
-vi.mock('@components/charts/backtest/ConditionalChart', () => ({
-  ConditionalChart: () => <div>조건부 차트</div>,
+// 차트는 기간만 보인다. 결과에 시작일이 없을 때 모드별 시작일을 넘기는지 본다
+vi.mock('@components/charts/backtest/AccumulationChart', () => ({
+  AccumulationChart: ({ startDate, endDate }: { startDate: string; endDate?: string }) => (
+    <div>
+      <div>차트 시작 {startDate}</div>
+      <div>차트 끝 {endDate ?? '오늘'}</div>
+    </div>
+  ),
 }))
 
 const result = {
@@ -31,20 +36,26 @@ const result = {
 const props = {
   symbol: 'AAPL',
   dcaStartDate: '2023-01-01',
-  conditionalStartDate: '2023-01-01',
+  conditionalStartDate: '2022-06-01',
 }
 
 describe('DcaConditionalResult', () => {
-  it('적립식이면 적립식 차트를 그린다', () => {
-    render(<DcaConditionalResult result={result} mode="dca" {...props} />)
-
-    expect(screen.getByText('DCA 차트')).toBeInTheDocument()
-  })
-
-  it('조건부면 조건부 차트를 그린다', () => {
+  it('결과의 시작일부터 평가일까지 차트를 그린다', () => {
     render(<DcaConditionalResult result={result} mode="conditional" {...props} />)
 
-    expect(screen.getByText('조건부 차트')).toBeInTheDocument()
+    expect(screen.getByText('차트 시작 2023-01-01')).toBeInTheDocument()
+    expect(screen.getByText('차트 끝 2024-01-01')).toBeInTheDocument()
+  })
+
+  it('결과에 시작일이 없으면 모드별 시작일을 쓴다', () => {
+    const { startDate: _omit, ...withoutStart } = result
+    void _omit
+    const { unmount } = render(<DcaConditionalResult result={withoutStart} mode="dca" {...props} />)
+    expect(screen.getByText('차트 시작 2023-01-01')).toBeInTheDocument()
+    unmount()
+
+    render(<DcaConditionalResult result={withoutStart} mode="conditional" {...props} />)
+    expect(screen.getByText('차트 시작 2022-06-01')).toBeInTheDocument()
   })
 
   it('평가일 기준 라벨을 쓴다', () => {

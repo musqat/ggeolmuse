@@ -10,7 +10,21 @@ import {
   ResponsiveContainer,
   ReferenceDot
 } from 'recharts';
-import { stockApi, type ComparisonDetail } from '../../../services/api';
+import type { ComparisonDetail } from '../../../services/api';
+import { DEFAULT_FX_RATE, fetchFxRates } from './shared/fxRates';
+import { fetchSymbolPrices } from './shared/prices';
+import {
+  AXIS_PROPS,
+  CHART_HEIGHT,
+  CHART_MARGIN,
+  formatDayTick,
+  formatManwonTick,
+  formatTooltipDate,
+  formatUsdTick,
+  GRID_PROPS,
+  MARKER_PROPS,
+  TOOLTIP_PROPS,
+} from './shared/chartStyle';
 import type { OHLCData } from '../../../types/ohlc';
 import { useChartPeriod } from '../common/hooks/useChartPeriod';
 import { ChartPeriodSelector } from '../common/components/ChartPeriodSelector';
@@ -49,6 +63,7 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
   strategyNames
 }) => {
   const [priceData, setPriceData] = useState<OHLCData[]>([]);
+  const [fxRates, setFxRates] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
 
   // 공통 차트 기간 훅 사용
@@ -87,12 +102,10 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
         // 공통 훅을 사용하여 시작일 계산
         const apiStartDate = getStartDateFromPeriod(chartPeriod, originalStartDate, customStartDate);
 
-        const response = await stockApi.getOHLCData(
-          symbol,
-          apiStartDate,
-          endDate || getTodayString()
-        );
-        setPriceData(response.data || []);
+        const prices = await fetchSymbolPrices<OHLCData>(symbol, apiStartDate, endDate || getTodayString());
+        // 평가금액은 다른 결과 차트처럼 그날 환율로 원화 환산한다
+        setFxRates(await fetchFxRates(prices.map((item) => item.date)));
+        setPriceData(prices);
       } catch (error) {
         // 가격 데이터가 없으면 차트는 비어 보인다. 이유를 알 수 있게 남긴다.
         console.warn('비교 차트의 가격 데이터를 불러오지 못했습니다', symbol, error);
@@ -157,13 +170,12 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
 
         const shares = data.shares || 0;
         const investmentAmount = data.investmentAmount || strategy.totalInvested || 0;
-        const fxRate = data.purchaseFxRate || 1300;
 
         priceData.forEach((price) => {
           if (price.date >= tradingDate) {
             const adjustedPrice = price.adjustedClose || price.closePrice;
             const portfolioValueUSD = shares * adjustedPrice;
-            const portfolioValueKRW = portfolioValueUSD * fxRate;
+            const portfolioValueKRW = portfolioValueUSD * (fxRates.get(price.date) || DEFAULT_FX_RATE);
 
             const existing = portfolioDataMap.get(price.date);
             if (existing) {
@@ -220,10 +232,7 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
         if (cumulativeShares > 0) {
           const adjustedPrice = price.adjustedClose || price.closePrice;
           const portfolioValueUSD = cumulativeShares * adjustedPrice;
-          const avgFxRate = data.transactions!.length > 0
-            ? data.transactions!.reduce((sum, tx) => sum + tx.fxRate, 0) / data.transactions!.length
-            : 1300;
-          const portfolioValueKRW = portfolioValueUSD * avgFxRate;
+          const portfolioValueKRW = portfolioValueUSD * (fxRates.get(price.date) || DEFAULT_FX_RATE);
 
           const existing = portfolioDataMap.get(price.date);
           if (existing) {
@@ -239,7 +248,7 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
       portfolioChartData: Array.from(portfolioDataMap.values()).sort((a, b) => a.date.localeCompare(b.date)),
       purchasePoints: allPurchasePoints
     };
-  }, [priceData, strategies]);
+  }, [priceData, fxRates, strategies]);
 
   if (loading) {
     return (
@@ -271,30 +280,27 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
       {/* 주가 추이 비교 */}
       <div>
         <h4 className="text-sm font-medium text-tx-1 mb-3">주가 추이 비교</h4>
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={priceChartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+        <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
+          <LineChart data={priceChartData} margin={CHART_MARGIN}>
+            <CartesianGrid {...GRID_PROPS} />
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 12 }}
-              tickFormatter={(value) => {
-                const date = new Date(value);
-                return `${date.getMonth() + 1}/${date.getDate()}`;
-              }}
+              {...AXIS_PROPS}
+              tickFormatter={formatDayTick}
             />
             <YAxis
-              tick={{ fontSize: 12 }}
-              tickFormatter={(value) => `$${value.toFixed(0)}`}
+              {...AXIS_PROPS}
+              tickFormatter={formatUsdTick}
             />
             <Tooltip
-              contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', border: '1px solid #ccc' }}
+              {...TOOLTIP_PROPS}
               formatter={(value: number | string, name: string) => {
-                if (name === 'stockPrice') {
+                if (name === '주가') {
                   return [`$${Number(value).toFixed(2)}`, '주가'];
                 }
                 return [value, name];
               }}
-              labelFormatter={(label) => `날짜: ${label}`}
+              labelFormatter={formatTooltipDate}
             />
             <Legend />
 
@@ -302,7 +308,7 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
             <Line
               type="monotone"
               dataKey="stockPrice"
-              stroke="#374151"
+              stroke="rgb(var(--text-2))"
               strokeWidth={2}
               dot={false}
               name="주가"
@@ -315,10 +321,8 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
                 key={`purchase-${index}`}
                 x={point.date}
                 y={point.stockPrice}
-                r={4}
+                {...MARKER_PROPS}
                 fill={CHART_COLORS[point.strategyIdx % CHART_COLORS.length]}
-                stroke="#fff"
-                strokeWidth={2}
               />
             ))}
           </LineChart>
@@ -328,23 +332,20 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
       {/* 전략별 평가금액 추이 */}
       <div>
         <h4 className="text-sm font-medium text-tx-1 mb-3">전략별 평가금액 추이</h4>
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={portfolioChartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+        <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
+          <LineChart data={portfolioChartData} margin={CHART_MARGIN}>
+            <CartesianGrid {...GRID_PROPS} />
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 12 }}
-              tickFormatter={(value) => {
-                const date = new Date(value);
-                return `${date.getMonth() + 1}/${date.getDate()}`;
-              }}
+              {...AXIS_PROPS}
+              tickFormatter={formatDayTick}
             />
             <YAxis
-              tick={{ fontSize: 12 }}
-              tickFormatter={(value) => `₩${(value / 10000).toFixed(0)}만`}
+              {...AXIS_PROPS}
+              tickFormatter={formatManwonTick}
             />
             <Tooltip
-              contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', border: '1px solid #ccc' }}
+              {...TOOLTIP_PROPS}
               formatter={(value: number | string, name: string) => {
                 if (name.endsWith('_portfolio')) {
                   const strategyName = name.replace('_portfolio', '');
@@ -356,7 +357,7 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
                 }
                 return [value, name];
               }}
-              labelFormatter={(label) => `날짜: ${label}`}
+              labelFormatter={formatTooltipDate}
             />
             <Legend
               formatter={(value) => {
@@ -364,14 +365,11 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
                   const strategyName = value.replace('_portfolio', '');
                   return `${strategyNames[strategyName] || strategyName}`;
                 }
-                if (value.endsWith('_invested')) {
-                  return null; // Hide invested lines from legend
-                }
                 return value;
               }}
             />
 
-            {/* 투자금 라인 (점선) */}
+            {/* 투자금 라인 (점선). 범례에는 평가금액 선만 둔다 */}
             {strategies.map((strategy, index) => (
               <Line
                 key={`${strategy.name}_invested`}
@@ -382,6 +380,7 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
                 dot={false}
                 strokeDasharray="5 5"
                 name={`${strategy.name}_invested`}
+                legendType="none"
                 isAnimationActive={false}
               />
             ))}
@@ -413,10 +412,8 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
                   key={`purchase-portfolio-${index}`}
                   x={point.date}
                   y={portfolioValue}
-                  r={4}
+                  {...MARKER_PROPS}
                   fill={CHART_COLORS[point.strategyIdx % CHART_COLORS.length]}
-                  stroke="#fff"
-                  strokeWidth={2}
                 />
               );
             })}
