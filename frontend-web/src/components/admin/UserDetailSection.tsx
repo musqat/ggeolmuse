@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Edit2, Lock, CheckCircle, Trash2 } from 'lucide-react';
 import type { UserDetail } from '@services/adminApi';
 

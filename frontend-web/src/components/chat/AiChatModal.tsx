@@ -75,7 +75,7 @@ const AiChatModal: React.FC<AiChatModalProps> = ({ onRequireLogin }) => {
       consumeAutoSymbol();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, autoSymbol, isAuthenticated]);
+  }, [isOpen, autoSymbol, isAuthenticated, loading]);
 
   if (!isOpen) return null;
 

@@ -1,4 +1,3 @@
-import React from 'react';
 import { RefreshCw, Shield, UserX, UserCheck, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { UserSummary } from '@services/adminApi';
 

@@ -1,4 +1,3 @@
-import React from 'react';
 import type { UserStats } from '@services/adminApi';
 
 interface UserStatsCardsProps {

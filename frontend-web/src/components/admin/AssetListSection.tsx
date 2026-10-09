@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { RefreshCw, Trash2, DollarSign, TrendingUp, ArrowUpDown, ChevronLeft, ChevronRight, Pencil, Check, X, PlusCircle, Undo2 } from 'lucide-react';
 import type { Asset } from '@services/adminApi';
 
@@ -137,7 +137,7 @@ export default function AssetListSection({
     </th>
   );
 
-  const pageNumbers = [];
+  const pageNumbers: number[] = [];
   const maxPagesToShow = 5;
   let startPage = Math.max(0, currentPage - Math.floor(maxPagesToShow / 2));
   const endPage = Math.min(totalPages - 1, startPage + maxPagesToShow - 1);

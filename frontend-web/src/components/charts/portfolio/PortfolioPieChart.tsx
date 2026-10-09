@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-interface PieChartData {
+export interface PieChartData {
   symbol: string;
   value: number;
   color: string;

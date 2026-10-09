@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { TrendingUp, TrendingDown, DollarSign, ArrowUpCircle, ArrowDownCircle, LogIn } from 'lucide-react';
 import { portfolioApi, accountsApi } from '../services/api';
-import PortfolioPieChart from '../components/charts/portfolio/PortfolioPieChart';
+import PortfolioPieChart, { type PieChartData } from '../components/charts/portfolio/PortfolioPieChart';
 import LoginModal from '../components/auth/LoginModal';
 
 const Portfolio: React.FC = () => {
@@ -235,7 +235,7 @@ const Portfolio: React.FC = () => {
                 {(holdings.length > 0 || (balanceInfo && (Number(balanceInfo.balanceKrw) > 0 || Number(balanceInfo.balanceUsd) > 0))) ? (
                   <PortfolioPieChart
                     data={(() => {
-                      const chartData = [];
+                      const chartData: PieChartData[] = [];
                       const colors = ['#6366f1', '#3b82f6', '#10b981', '#eab308', '#ef4444', '#a855f7', '#f59e0b', '#06b6d4'];
                       let colorIndex = 0;
 

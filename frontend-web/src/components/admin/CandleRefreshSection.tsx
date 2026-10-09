@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { marketAdminApi, type UnadjustedResponse, type RefreshAllResponse } from '@services/adminApi';
 
