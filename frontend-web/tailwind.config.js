@@ -18,6 +18,10 @@ export default {
         },
         up: '#EF4444',
         down: '#60A5FA',
+        // 테마마다 바뀌는 수익 · 손실 · 매수 색 (index.css)
+        gain: 'rgb(var(--gain) / <alpha-value>)',
+        loss: 'rgb(var(--loss) / <alpha-value>)',
+        buy:  'rgb(var(--buy)  / <alpha-value>)',
         // Semantic tokens
         canvas:   'rgb(var(--bg-canvas)   / <alpha-value>)',
         surface:  'rgb(var(--bg-surface)  / <alpha-value>)',
