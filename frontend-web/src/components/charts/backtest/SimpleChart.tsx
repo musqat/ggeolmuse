@@ -40,6 +40,8 @@ interface SimpleBacktestChartProps {
   optimalBuyDate?: string;
   optimalSellDate?: string;
   dividendReinvestDates?: string[];
+  // 평가일(매도일). 없으면 오늘까지 그린다
+  endDate?: string;
 }
 
 export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
@@ -50,6 +52,7 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
   optimalBuyDate,
   optimalSellDate,
   dividendReinvestDates,
+  endDate,
 }) => {
   // 공통 차트 기간 훅 사용
   const {
@@ -74,11 +77,12 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
       "simple",
       symbol,
       purchaseDate,
+      endDate,
       chartPeriod,
       customStartDate,
     ],
     queryFn: async () => {
-      const today = getTodayString();
+      const lastDate = endDate || getTodayString();
       const startDate = getChartStartDate();
       console.log("SimpleChart fetchPriceData:", {
         symbol,
@@ -86,9 +90,9 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
         customStartDate,
         purchaseDate,
         startDate,
-        today,
+        lastDate,
       });
-      const response = await stockApi.getOHLCData(symbol, startDate, today);
+      const response = await stockApi.getOHLCData(symbol, startDate, lastDate);
 
       // API는 List<OHLCPriceDto>를 반환 (flat 배열)
       let ohlcData: RawOhlc[] | null = null;

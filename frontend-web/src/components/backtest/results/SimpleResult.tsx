@@ -233,6 +233,7 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
         optimalBuyDate={result.optimalBuyDate ?? undefined}
         optimalSellDate={result.optimalSellDate ?? undefined}
         dividendReinvestDates={result.dividendReinvestDates ?? undefined}
+        endDate={result.currentDate ?? undefined}
       />
     </div>
   );
