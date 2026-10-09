@@ -168,6 +168,7 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
           currentValueKrw={result.currentValueKrw || 0}
           totalInvested={result.totalInvested || 0}
           startDate={result.startDate || (mode === "dca" ? dcaStartDate : conditionalStartDate)}
+          endDate={result.endDate ?? undefined}
         />
       )}
     </div>

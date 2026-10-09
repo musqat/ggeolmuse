@@ -10,6 +10,7 @@ vi.mock('../../../services/api', () => ({
 }))
 
 const getOHLCData = vi.mocked(stockApi.getOHLCData)
+const getExchangeRatesBulk = vi.mocked(stockApi.getExchangeRatesBulk)
 
 const candle = (date: string, close: number) => ({ symbol: 'AAPL', date, closePrice: close, adjustedClose: close })
 
@@ -35,11 +36,13 @@ const strategies = [
   },
 ]
 
-// 지금 동작을 그대로 적어 둔다. 공통 부분을 뺄 때 이 결과가 바뀌면 안 된다
-describe('CompareStrategiesChart 지금 동작', () => {
+// 평가금액은 전략마다 그날 환율로 원화 환산한다
+describe('CompareStrategiesChart', () => {
   beforeEach(() => {
     getOHLCData.mockReset()
     getOHLCData.mockResolvedValue({ data: [candle('2026-03-02', 100), candle('2026-03-03', 90), candle('2026-03-04', 110)] } as never)
+    getExchangeRatesBulk.mockReset()
+    getExchangeRatesBulk.mockResolvedValue({ data: { '2026-03-02': 1400, '2026-03-03': 1410, '2026-03-04': 1420 } } as never)
   })
 
   it('첫 전략 기간으로 받고, 전략별 평가 · 투자금과 매수 마커를 낸다', async () => {
@@ -47,6 +50,7 @@ describe('CompareStrategiesChart 지금 동작', () => {
 
     await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(2))
     expect(getOHLCData).toHaveBeenCalledWith('AAPL', '2026-03-01', '2026-03-04')
+    expect(getExchangeRatesBulk).toHaveBeenCalledWith(['2026-03-02', '2026-03-03', '2026-03-04'])
     expect(readCharts()).toMatchInlineSnapshot(`
       [
         {
@@ -98,12 +102,12 @@ describe('CompareStrategiesChart 지금 동작', () => {
             {
               "fill": "#ef4444",
               "x": "2026-03-02",
-              "y": 140500,
+              "y": 140000,
             },
             {
               "fill": "#ef4444",
               "x": "2026-03-04",
-              "y": 309100,
+              "y": 312400,
             },
           ],
           "lines": [
@@ -115,23 +119,23 @@ describe('CompareStrategiesChart 지금 동작', () => {
           "points": [
             {
               "DCA_invested": 140000,
-              "DCA_portfolio": 140500,
+              "DCA_portfolio": 140000,
               "SIMPLE_invested": 280000,
               "SIMPLE_portfolio": 280000,
               "date": "2026-03-02",
             },
             {
               "DCA_invested": 140000,
-              "DCA_portfolio": 126450,
+              "DCA_portfolio": 126900,
               "SIMPLE_invested": 280000,
-              "SIMPLE_portfolio": 252000,
+              "SIMPLE_portfolio": 253800,
               "date": "2026-03-03",
             },
             {
               "DCA_invested": 281000,
-              "DCA_portfolio": 309100,
+              "DCA_portfolio": 312400,
               "SIMPLE_invested": 280000,
-              "SIMPLE_portfolio": 308000,
+              "SIMPLE_portfolio": 312400,
               "date": "2026-03-04",
             },
           ],

@@ -13,6 +13,7 @@ import {
 import { DEFAULT_FX_RATE, fetchFxRates } from './shared/fxRates';
 import { fetchSymbolPrices } from './shared/prices';
 import {
+  AXIS_PROPS,
   CHART_HEIGHT,
   CHART_MARGIN,
   formatDayTick,
@@ -20,14 +21,18 @@ import {
   formatTooltipDate,
   formatUsdTick,
   GRID_PROPS,
+  MARKER_COLORS,
   MARKER_PROPS,
-  TOOLTIP_STYLE,
+  TOOLTIP_PROPS,
 } from './shared/chartStyle';
 import { useChartPeriod } from "../common/hooks/useChartPeriod";
 import { ChartPeriodSelector } from "../common/components/ChartPeriodSelector";
 import { getApiErrorMessage } from '../../../utils/apiError';
 import type { OHLCData } from '../../../types/ohlc';
 import { getTodayString } from "../../../utils/dateUtils";
+
+// 서버가 배당으로 산 거래에 다는 trigger
+const DIVIDEND_REINVEST = "배당 재투자";
 
 interface Transaction {
   date: string;
@@ -45,6 +50,8 @@ interface StrategyBacktestChartProps {
   currentValueKrw: number;
   totalInvested: number;
   startDate: string;
+  // 평가일. 없으면 오늘까지 그린다
+  endDate?: string;
 }
 
 interface ChartDataPoint {
@@ -52,7 +59,9 @@ interface ChartDataPoint {
   stockPrice: number;
   portfolioValue: number;
   investedAmount: number;
+  // 이 거래일에 일반 매수 · 배당 재투자가 있었나
   isPurchase: boolean;
+  isDividendReinvest: boolean;
 }
 
 // 적립식 · 조건부 결과 차트. 두 전략 모두 거래 목록을 받아 같은 것을 그린다
@@ -62,6 +71,7 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
   currentValueKrw,
   totalInvested,
   startDate,
+  endDate,
 }) => {
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [loading, setLoading] = useState(false);
@@ -95,25 +105,23 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
       setError(null);
 
       try {
-        const priceData = await fetchSymbolPrices<OHLCData>(symbol, chartStartDate, getTodayString());
+        const priceData = await fetchSymbolPrices<OHLCData>(symbol, chartStartDate, endDate || getTodayString());
         const fxRateMap = await fetchFxRates(priceData.map((item) => item.date));
 
         // priceData에서 사용 가능한 날짜들을 먼저 추출
         const availableDates = priceData.map((item) => item.date).sort();
 
-        // 매수 날짜를 실제 거래일로 매핑 (주말/휴일 -> 다음 영업일)
+        // 거래를 실제 거래일에 붙인다 (주말/휴일 -> 다음 영업일). 일반 매수와 배당 재투자를 따로 센다
         const purchaseDates = new Set<string>();
+        const dividendDates = new Set<string>();
         transactions.forEach((tx) => {
           const txDate = tx.actualDate || tx.date;
-          // priceData에 정확한 날짜가 있으면 사용
-          if (availableDates.includes(txDate)) {
-            purchaseDates.add(txDate);
+          const tradingDate = availableDates.find((d) => d >= txDate);
+          if (!tradingDate) return;
+          if (tx.trigger === DIVIDEND_REINVEST) {
+            dividendDates.add(tradingDate);
           } else {
-            // 없으면 다음 영업일 찾기
-            const nextTradingDay = availableDates.find((d) => d > txDate);
-            if (nextTradingDay) {
-              purchaseDates.add(nextTradingDay);
-            }
+            purchaseDates.add(tradingDate);
           }
         });
 
@@ -146,7 +154,8 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
             stockPrice: adjustedPrice,
             portfolioValue: portfolioValueKrw,
             investedAmount: investedSoFar,
-            isPurchase: purchaseDates.has(dateStr), // 매수 날짜인지 체크
+            isPurchase: purchaseDates.has(dateStr),
+            isDividendReinvest: dividendDates.has(dateStr),
           };
         });
 
@@ -161,7 +170,7 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
     if (symbol && transactions.length > 0) {
       fetchChartData();
     }
-  }, [symbol, chartStartDate, transactions]);
+  }, [symbol, chartStartDate, endDate, transactions]);
 
   // Y축 범위 계산 (±50 여유)
   const priceRange = useMemo(() => {
@@ -189,33 +198,8 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
     return [Math.max(0, min - padding), max + padding];
   }, [chartData]);
 
-  // 매수 포인트는 chartData에서 isPurchase가 true인 것들
-  const purchasePoints = useMemo(() => {
-    const points = chartData.filter((d) => d.isPurchase);
-    return points;
-  }, [chartData]);
-
-  // 일반 매수와 배당 재투자 구분
-  const regularPurchasePoints = useMemo(() => {
-    return purchasePoints.filter((_, index) => {
-      const tx = transactions.find(
-        (t) =>
-          (t.actualDate || t.date) <=
-          chartData[chartData.indexOf(purchasePoints[index])]?.date,
-      );
-      return tx && tx.trigger !== "배당 재투자";
-    });
-  }, [purchasePoints, transactions, chartData]);
-
-  const dividendReinvestPoints = useMemo(() => {
-    return chartData.filter((d) => {
-      const tx = transactions.find(
-        (t) =>
-          (t.actualDate || t.date) === d.date && t.trigger === "배당 재투자",
-      );
-      return tx !== undefined;
-    });
-  }, [chartData, transactions]);
+  const purchasePoints = useMemo(() => chartData.filter((d) => d.isPurchase), [chartData]);
+  const dividendReinvestPoints = useMemo(() => chartData.filter((d) => d.isDividendReinvest), [chartData]);
 
   if (loading) {
     return (
@@ -266,17 +250,17 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
             <CartesianGrid {...GRID_PROPS} />
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 12 }}
+              {...AXIS_PROPS}
               tickFormatter={formatDayTick}
             />
             <YAxis
-              tick={{ fontSize: 12 }}
+              {...AXIS_PROPS}
               tickFormatter={formatUsdTick}
               domain={priceRange}
               allowDecimals={false}
             />
             <Tooltip
-              contentStyle={TOOLTIP_STYLE}
+              {...TOOLTIP_PROPS}
               formatter={(value: number | string, name: string) => {
                 if (name === "주가")
                   return [`$${Number(value).toFixed(2)}`, name];
@@ -295,25 +279,25 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
               isAnimationActive={false}
             />
 
-            {/* 일반 매수 시점 마커 (검은색) */}
-            {regularPurchasePoints.map((point, index) => (
+            {/* 일반 매수 시점 마커 */}
+            {purchasePoints.map((point, index) => (
               <ReferenceDot
                 key={`purchase-${index}`}
                 x={point.date}
                 y={point.stockPrice}
                 {...MARKER_PROPS}
-                fill="#1f2937"
+                fill={MARKER_COLORS.purchase}
               />
             ))}
 
-            {/* 배당 재투자 시점 마커 (녹색) */}
+            {/* 배당 재투자 시점 마커 */}
             {dividendReinvestPoints.map((point, index) => (
               <ReferenceDot
                 key={`dividend-${index}`}
                 x={point.date}
                 y={point.stockPrice}
                 {...MARKER_PROPS}
-                fill="#10b981"
+                fill={MARKER_COLORS.dividend}
               />
             ))}
           </LineChart>
@@ -333,16 +317,16 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
             <CartesianGrid {...GRID_PROPS} />
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 12 }}
+              {...AXIS_PROPS}
               tickFormatter={formatDayTick}
             />
             <YAxis
-              tick={{ fontSize: 12 }}
+              {...AXIS_PROPS}
               tickFormatter={formatManwonTick}
               domain={valueRange}
             />
             <Tooltip
-              contentStyle={TOOLTIP_STYLE}
+              {...TOOLTIP_PROPS}
               formatter={(value: number | string, name: string) => {
                 return [`₩${Math.round(Number(value)).toLocaleString()}`, name];
               }}
@@ -369,14 +353,23 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
               isAnimationActive={false}
             />
 
-            {/* 매수 시점 마커 (검은색) - 포트폴리오 값 기준 */}
+            {/* 매수 · 배당 재투자 시점 마커 - 포트폴리오 값 기준 */}
             {purchasePoints.map((point, index) => (
               <ReferenceDot
                 key={`portfolio-purchase-${index}`}
                 x={point.date}
                 y={point.portfolioValue}
                 {...MARKER_PROPS}
-                fill="#1f2937"
+                fill={MARKER_COLORS.purchase}
+              />
+            ))}
+            {dividendReinvestPoints.map((point, index) => (
+              <ReferenceDot
+                key={`portfolio-dividend-${index}`}
+                x={point.date}
+                y={point.portfolioValue}
+                {...MARKER_PROPS}
+                fill={MARKER_COLORS.dividend}
               />
             ))}
           </LineChart>
@@ -384,7 +377,10 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
       </div>
 
       <div className="mt-4 text-xs text-tx-2">
-        <p>• 검은 점: 매수 시점 ({purchasePoints.length}개)</p>
+        <p>• 보라 점: 매수 ({purchasePoints.length}개)</p>
+        {dividendReinvestPoints.length > 0 && (
+          <p>• 녹색 점: 배당 재투자 ({dividendReinvestPoints.length}개)</p>
+        )}
         <p>• 녹색 점선: 누적 투자금 (₩{totalInvested.toLocaleString()})</p>
         <p>• 파란 선: 포트폴리오 가치 (₩{currentValueKrw.toLocaleString()})</p>
       </div>

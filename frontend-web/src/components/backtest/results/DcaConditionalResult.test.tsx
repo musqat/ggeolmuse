@@ -2,9 +2,14 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { DcaConditionalResult } from './DcaConditionalResult'
 
-// 차트는 시작일만 보인다. 결과에 시작일이 없을 때 모드별 시작일을 넘기는지 본다
+// 차트는 기간만 보인다. 결과에 시작일이 없을 때 모드별 시작일을 넘기는지 본다
 vi.mock('@components/charts/backtest/AccumulationChart', () => ({
-  AccumulationChart: ({ startDate }: { startDate: string }) => <div>차트 시작 {startDate}</div>,
+  AccumulationChart: ({ startDate, endDate }: { startDate: string; endDate?: string }) => (
+    <div>
+      <div>차트 시작 {startDate}</div>
+      <div>차트 끝 {endDate ?? '오늘'}</div>
+    </div>
+  ),
 }))
 
 const result = {
@@ -35,10 +40,11 @@ const props = {
 }
 
 describe('DcaConditionalResult', () => {
-  it('결과의 시작일로 차트를 그린다', () => {
+  it('결과의 시작일부터 평가일까지 차트를 그린다', () => {
     render(<DcaConditionalResult result={result} mode="conditional" {...props} />)
 
     expect(screen.getByText('차트 시작 2023-01-01')).toBeInTheDocument()
+    expect(screen.getByText('차트 끝 2024-01-01')).toBeInTheDocument()
   })
 
   it('결과에 시작일이 없으면 모드별 시작일을 쓴다', () => {

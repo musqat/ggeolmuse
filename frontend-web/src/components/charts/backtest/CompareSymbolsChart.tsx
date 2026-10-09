@@ -13,6 +13,7 @@ import {
 import { DEFAULT_FX_RATE, fetchFxRates } from './shared/fxRates';
 import { fetchSymbolPrices } from './shared/prices';
 import {
+  AXIS_PROPS,
   CHART_HEIGHT,
   CHART_MARGIN,
   formatDayTick,
@@ -20,8 +21,10 @@ import {
   formatTooltipDate,
   formatUsdTick,
   GRID_PROPS,
+  MARKER_COLORS,
   MARKER_PROPS,
-  TOOLTIP_STYLE,
+  OPTIMAL_MARKER_PROPS,
+  TOOLTIP_PROPS,
 } from './shared/chartStyle';
 import { useChartPeriod } from '../common/hooks/useChartPeriod';
 import { ChartPeriodSelector } from '../common/components/ChartPeriodSelector';
@@ -312,16 +315,16 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
             <CartesianGrid {...GRID_PROPS} />
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 12 }}
+              {...AXIS_PROPS}
               tickFormatter={formatDayTick}
             />
             <YAxis
               domain={priceDomain}
-              tick={{ fontSize: 12 }}
+              {...AXIS_PROPS}
               tickFormatter={formatUsdTick}
             />
             <Tooltip
-              contentStyle={TOOLTIP_STYLE}
+              {...TOOLTIP_PROPS}
               formatter={(value: number | string, name: string) => {
                 if (name.endsWith('_price')) {
                   const symbol = name.replace('_price', '');
@@ -345,7 +348,7 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
               />
             ))}
 
-            {/* 매수 포인트 마커 (검은색) */}
+            {/* 매수 포인트 마커 */}
             {symbols.map((symbolData) => {
               // 정확한 날짜 또는 매수일 이후 첫 번째 날짜 찾기
               const purchasePoint = chartData.find(d => d.date >= symbolData.purchaseDate);
@@ -357,13 +360,13 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
                   x={purchasePoint.date}
                   y={purchasePoint[`${symbolData.symbol}_price`]}
                   {...MARKER_PROPS}
-                  fill="#1f2937"
+                  fill={MARKER_COLORS.purchase}
                   label={{ value: '', position: 'top' }}
                 />
               );
             })}
 
-            {/* 최적 매수 포인트 마커 (금색) */}
+            {/* 최적 매수 포인트 마커 */}
             {symbols.map((symbolData) => {
               const optimalPoint = optimalPoints[symbolData.symbol];
               if (!optimalPoint) return null;
@@ -376,10 +379,7 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
                   key={`${symbolData.symbol}-optimal-buy`}
                   x={buyPoint.date}
                   y={buyPoint[`${symbolData.symbol}_price`]}
-                  r={5}
-                  fill="#fbbf24"
-                  stroke="#78350f"
-                  strokeWidth={2}
+                  {...OPTIMAL_MARKER_PROPS}
                   label={{ value: '', position: 'top' }}
                 />
               );
@@ -396,16 +396,16 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
             <CartesianGrid {...GRID_PROPS} />
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 12 }}
+              {...AXIS_PROPS}
               tickFormatter={formatDayTick}
             />
             <YAxis
               domain={portfolioDomain}
-              tick={{ fontSize: 12 }}
+              {...AXIS_PROPS}
               tickFormatter={formatManwonTick}
             />
             <Tooltip
-              contentStyle={TOOLTIP_STYLE}
+              {...TOOLTIP_PROPS}
               formatter={(value: number | string, name: string) => {
                 if (name.endsWith('_portfolio')) {
                   const symbol = name.replace('_portfolio', '');
@@ -446,7 +446,7 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
               />
             ))}
 
-            {/* 매수 포인트 마커 (검은색) - 포트폴리오 차트 */}
+            {/* 매수 포인트 마커 - 포트폴리오 차트 */}
             {symbols.map((symbolData) => {
               // 정확한 날짜 또는 매수일 이후 첫 번째 날짜 찾기
               const purchasePoint = chartData.find(d => d.date >= symbolData.purchaseDate);
@@ -458,13 +458,13 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
                   x={purchasePoint.date}
                   y={purchasePoint[`${symbolData.symbol}_portfolio`]}
                   {...MARKER_PROPS}
-                  fill="#1f2937"
+                  fill={MARKER_COLORS.purchase}
                   label={{ value: '', position: 'top' }}
                 />
               );
             })}
 
-            {/* 최적 매도 포인트 마커 (금색) */}
+            {/* 최적 매도 포인트 마커 */}
             {symbols.map((symbolData) => {
               const optimalPoint = optimalPoints[symbolData.symbol];
               if (!optimalPoint) return null;
@@ -477,10 +477,7 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
                   key={`${symbolData.symbol}-optimal-sell`}
                   x={sellPoint.date}
                   y={sellPoint[`${symbolData.symbol}_portfolio`]}
-                  r={5}
-                  fill="#fbbf24"
-                  stroke="#78350f"
-                  strokeWidth={2}
+                  {...OPTIMAL_MARKER_PROPS}
                   label={{ value: '', position: 'top' }}
                 />
               );
@@ -490,8 +487,8 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
         <div className="mt-3 p-3 bg-warning-soft/10 border border-warning-soft/40 rounded-lg">
           <p className="text-xs text-tx-1">
             <span className="font-semibold">차트 마커 안내:</span><br/>
-            <span className="inline-block w-3 h-3 bg-hover rounded-full mr-1 align-middle"></span> 검은색 점 = 실제 매수 시점 |
-            <span className="inline-block w-3 h-3 bg-amber-400 rounded-full mr-1 ml-2 align-middle"></span> 금색 점 = 최적 매수/매도 시점 (가장 낮은 가격 / 가장 높은 평가금액)
+            <span className="inline-block w-3 h-3 rounded-full mr-1 align-middle" style={{ backgroundColor: MARKER_COLORS.purchase }}></span> 보라 점 = 실제 매수 시점 |
+            <span className="inline-block w-3 h-3 rounded-full mr-1 ml-2 align-middle" style={{ backgroundColor: MARKER_COLORS.optimal }}></span> 금색 점 = 최적 매수/매도 시점 (가장 낮은 가격 / 가장 높은 평가금액)
           </p>
         </div>
       </div>

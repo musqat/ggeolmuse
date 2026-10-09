@@ -54,8 +54,8 @@ describe('SimpleChart 가격 구간', () => {
   })
 })
 
-// 지금 동작을 그대로 적어 둔다. 공통 부분을 뺄 때 이 결과가 바뀌면 안 된다
-describe('SimpleChart 지금 동작', () => {
+// 매수는 보라, 배당 재투자는 녹색, 최적 시점은 금색 점
+describe('SimpleChart 차트', () => {
   it('가격 · 평가금액 데이터와 매수 · 최적 · 배당 재투자 마커', async () => {
     // 날짜가 배열로 오는 줄과 다른 종목 줄이 섞여 온다. 03-04 환율은 빠져 대체값을 쓴다
     getOHLCData.mockResolvedValue({
@@ -93,7 +93,7 @@ describe('SimpleChart 지금 동작', () => {
         {
           "dots": [
             {
-              "fill": "#10b981",
+              "fill": "#8b5cf6",
               "x": "2026-03-02",
               "y": 100,
             },
@@ -152,7 +152,7 @@ describe('SimpleChart 지금 동작', () => {
         {
           "dots": [
             {
-              "fill": "#10b981",
+              "fill": "#8b5cf6",
               "x": "2026-03-02",
               "y": 280000,
             },

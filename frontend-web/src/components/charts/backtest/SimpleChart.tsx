@@ -14,12 +14,17 @@ import {
 import { DEFAULT_FX_RATE, fetchFxRates } from './shared/fxRates';
 import { fetchSymbolPrices } from './shared/prices';
 import {
+  AXIS_PROPS,
   CHART_HEIGHT,
   CHART_MARGIN,
+  formatDayTick,
   formatManwonTick,
   formatUsdTick,
   GRID_PROPS,
+  MARKER_COLORS,
+  MARKER_LABEL_STYLE,
   MARKER_PROPS,
+  OPTIMAL_MARKER_PROPS,
 } from './shared/chartStyle';
 import { useChartPeriod } from "../common/hooks/useChartPeriod";
 import { ChartPeriodSelector } from "../common/components/ChartPeriodSelector";
@@ -286,11 +291,11 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
             <CartesianGrid {...GRID_PROPS} />
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 12 }}
-              tickFormatter={(value) => value.split("-").slice(1).join("/")}
+              {...AXIS_PROPS}
+              tickFormatter={formatDayTick}
             />
             <YAxis
-              tick={{ fontSize: 12 }}
+              {...AXIS_PROPS}
               tickFormatter={formatUsdTick}
               domain={priceRange}
               allowDecimals={false}
@@ -314,17 +319,10 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
               <ReferenceDot
                 x={purchasePoint.date}
                 y={purchasePoint.price}
+                {...MARKER_PROPS}
                 r={6}
-                fill="#10b981"
-                stroke="#fff"
-                strokeWidth={2}
-                label={{
-                  value: "매수",
-                  position: "top",
-                  fill: "#10b981",
-                  fontSize: 12,
-                  fontWeight: "bold",
-                }}
+                fill={MARKER_COLORS.purchase}
+                label={{ value: "매수", position: "top", ...MARKER_LABEL_STYLE }}
               />
             )}
 
@@ -333,17 +331,9 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
               <ReferenceDot
                 x={optimalBuyPoint.date}
                 y={optimalBuyPoint.price}
+                {...OPTIMAL_MARKER_PROPS}
                 r={6}
-                fill="#fbbf24"
-                stroke="#78350f"
-                strokeWidth={2}
-                label={{
-                  value: "최적 매수",
-                  position: "top",
-                  fill: "#f59e0b",
-                  fontSize: 11,
-                  fontWeight: "bold",
-                }}
+                label={{ value: "최적 매수", position: "top", ...MARKER_LABEL_STYLE }}
               />
             )}
 
@@ -354,13 +344,13 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
                 x={point.date}
                 y={point.price}
                 {...MARKER_PROPS}
-                fill="#10b981"
+                fill={MARKER_COLORS.dividend}
               />
             ))}
           </LineChart>
         </ResponsiveContainer>
         <p className="text-xs text-tx-2 mt-2 text-center">
-          파란색 라인 = 주가 | 녹색 점 = 매수/배당재투자 | 금색 점 = 최적 타이밍
+          파란 선 = 주가 | 보라 점 = 매수 | 녹색 점 = 배당 재투자 | 금색 점 = 최적 매수
         </p>
       </div>
 
@@ -377,11 +367,11 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
             <CartesianGrid {...GRID_PROPS} />
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 12 }}
-              tickFormatter={(value) => value.split("-").slice(1).join("/")}
+              {...AXIS_PROPS}
+              tickFormatter={formatDayTick}
             />
             <YAxis
-              tick={{ fontSize: 12 }}
+              {...AXIS_PROPS}
               tickFormatter={formatManwonTick}
             />
             <Tooltip content={<CustomTooltip />} />
@@ -415,17 +405,10 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
               <ReferenceDot
                 x={purchasePoint.date}
                 y={purchasePoint.투자금}
+                {...MARKER_PROPS}
                 r={6}
-                fill="#10b981"
-                stroke="#fff"
-                strokeWidth={2}
-                label={{
-                  value: "매수",
-                  position: "top",
-                  fill: "#10b981",
-                  fontSize: 12,
-                  fontWeight: "bold",
-                }}
+                fill={MARKER_COLORS.purchase}
+                label={{ value: "매수", position: "top", ...MARKER_LABEL_STYLE }}
               />
             )}
 
@@ -434,17 +417,9 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
               <ReferenceDot
                 x={optimalSellPoint.date}
                 y={optimalSellPoint.평가금액}
+                {...OPTIMAL_MARKER_PROPS}
                 r={6}
-                fill="#fbbf24"
-                stroke="#78350f"
-                strokeWidth={2}
-                label={{
-                  value: "최적 매도",
-                  position: "bottom",
-                  fill: "#f59e0b",
-                  fontSize: 11,
-                  fontWeight: "bold",
-                }}
+                label={{ value: "최적 매도", position: "bottom", ...MARKER_LABEL_STYLE }}
               />
             )}
 
@@ -455,14 +430,14 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
                 x={point.date}
                 y={point.평가금액}
                 {...MARKER_PROPS}
-                fill="#10b981"
+                fill={MARKER_COLORS.dividend}
               />
             ))}
           </LineChart>
         </ResponsiveContainer>
         <p className="text-xs text-tx-2 mt-2 text-center">
-          녹색 점선 = 투자금 | 파란색 = 평가금액 | 녹색 점 = 매수/배당재투자 |
-          금색 점 = 최적 타이밍
+          녹색 점선 = 투자금 | 파란 선 = 평가금액 | 보라 점 = 매수 | 녹색 점 = 배당
+          재투자 | 금색 점 = 최적 매도
         </p>
       </div>
     </div>

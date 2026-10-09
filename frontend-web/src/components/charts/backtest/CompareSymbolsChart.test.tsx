@@ -25,8 +25,8 @@ const symbols = [
   { symbol: 'MSFT', purchaseDate: '2026-03-03', purchasePrice: 410, shares: 0.5, investmentAmount: 280000, currentPrice: 380, currentValueKrw: 0, fxRate: 1400, color: '#ef4444' },
 ]
 
-// 지금 동작을 그대로 적어 둔다. 공통 부분을 뺄 때 이 결과가 바뀌면 안 된다
-describe('CompareSymbolsChart 지금 동작', () => {
+// 종목마다 같은 기간 가격을 받아 주가 · 평가금액 · 매수 · 최적 시점을 그린다
+describe('CompareSymbolsChart 차트', () => {
   beforeEach(() => {
     getOHLCData.mockReset()
     getExchangeRatesBulk.mockReset()
@@ -63,12 +63,12 @@ describe('CompareSymbolsChart 지금 동작', () => {
         {
           "dots": [
             {
-              "fill": "#1f2937",
+              "fill": "#8b5cf6",
               "x": "2026-03-02",
               "y": 100,
             },
             {
-              "fill": "#1f2937",
+              "fill": "#8b5cf6",
               "x": "2026-03-03",
               "y": 410,
             },
@@ -128,12 +128,12 @@ describe('CompareSymbolsChart 지금 동작', () => {
         {
           "dots": [
             {
-              "fill": "#1f2937",
+              "fill": "#8b5cf6",
               "x": "2026-03-02",
               "y": 280000,
             },
             {
-              "fill": "#1f2937",
+              "fill": "#8b5cf6",
               "x": "2026-03-03",
               "y": 289050,
             },
