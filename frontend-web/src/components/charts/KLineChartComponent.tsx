@@ -367,7 +367,7 @@ const KLineChartComponent: React.FC<KLineChartComponentProps> = ({
           <button
             title="전체 삭제"
             onClick={clearDrawings}
-            className="w-7 h-7 rounded text-[11px] flex items-center justify-center text-tx-3 hover:bg-red-500/15 hover:text-red-400 transition-colors"
+            className="w-7 h-7 rounded text-[11px] flex items-center justify-center text-tx-3 hover:bg-danger/15 hover:text-danger transition-colors"
           >
             ✕
           </button>

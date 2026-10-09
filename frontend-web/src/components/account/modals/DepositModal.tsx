@@ -64,8 +64,8 @@ const DepositModal: React.FC<DepositModalProps> = ({
       footer={footer}
       maxWidth="md"
     >
-      <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-        <p className="text-sm text-blue-800">
+      <div className="mb-4 p-3 bg-info/10 rounded-lg">
+        <p className="text-sm text-info">
           가상 투자 자금을 추가합니다.
         </p>
       </div>

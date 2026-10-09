@@ -91,7 +91,7 @@ const OAuthCallback: React.FC = () => {
         <div className="text-center">
           {error ? (
             <>
-              <div className="text-red-600 text-xl font-semibold mb-4">
+              <div className="text-danger text-xl font-semibold mb-4">
                 로그인 실패
               </div>
               <p className="text-tx-2">{error}</p>

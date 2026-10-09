@@ -222,12 +222,12 @@ export const ConditionalStrategyForm: React.FC<ConditionalStrategyFormProps> = (
 
       {/* 환율 데이터 부족 경고 */}
       {showFxWarning && (
-        <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+        <div className="flex items-start gap-2 p-3 bg-warning-soft/10 border border-warning-soft/40 rounded-lg">
           <div className="flex-1">
-            <p className="text-sm font-medium text-amber-800">
+            <p className="text-sm font-medium text-warning">
               환율 데이터 부족 가능성
             </p>
-            <p className="text-xs text-amber-700 mt-1">
+            <p className="text-xs text-tx-2 mt-1">
               2014년 이전 기간은 환율 정보가 부족할 수 있습니다.
               정확한 백테스트를 위해 <span className="font-semibold">수동 환율 입력</span>을 권장합니다.
             </p>

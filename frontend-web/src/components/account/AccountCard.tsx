@@ -51,7 +51,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
         </div>
 
         {/* 수수료 정보 */}
-        <div className="flex items-center justify-between text-sm pt-3 border-t">
+        <div className="flex items-center justify-between text-sm pt-3 border-t border-line">
           <span className="text-tx-2">거래 수수료</span>
           <span className="font-medium">{(account.commissionRate * 100).toFixed(2)}%</span>
         </div>
@@ -62,24 +62,24 @@ export const AccountCard: React.FC<AccountCardProps> = ({
         </div>
 
         {/* 액션 버튼 그룹 */}
-        <div className="grid grid-cols-3 gap-2 pt-3 border-t">
+        <div className="grid grid-cols-3 gap-2 pt-3 border-t border-line">
           <button
             onClick={() => onDeposit(account.accountId)}
-            className="w-full flex items-center justify-center space-x-1 py-2 px-2 bg-green-500/10 text-green-600 rounded-lg hover:bg-green-500/15 transition-colors"
+            className="w-full flex items-center justify-center space-x-1 py-2 px-2 bg-success/10 text-success rounded-lg hover:bg-success/15 transition-colors"
           >
             <ArrowDownRight className="w-4 h-4" />
             <span className="text-sm font-medium">입금</span>
           </button>
           <button
             onClick={() => onExchange(account.accountId)}
-            className="w-full flex items-center justify-center space-x-1 py-2 px-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors"
+            className="w-full flex items-center justify-center space-x-1 py-2 px-2 bg-info/10 text-info rounded-lg hover:bg-info/15 transition-colors"
           >
             <RefreshCw className="w-4 h-4" />
             <span className="text-sm font-medium">환전</span>
           </button>
           <button
             onClick={() => onDelete(account.accountId)}
-            className="w-full flex items-center justify-center space-x-1 py-2 px-2 bg-red-500/10 text-red-600 rounded-lg hover:bg-red-500/15 transition-colors"
+            className="w-full flex items-center justify-center space-x-1 py-2 px-2 bg-danger/10 text-danger rounded-lg hover:bg-danger/15 transition-colors"
           >
             <Trash2 className="w-4 h-4" />
             <span className="text-sm font-medium">삭제</span>

@@ -103,7 +103,7 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
           />
         </DetailSection>
 
-        <DetailSection title="주식 수익" icon={TrendingUp} iconClassName="text-green-600">
+        <DetailSection title="주식 수익" icon={TrendingUp} iconClassName="text-gain">
           <DetailRow label="보유 주식수" value={<>{result.shares?.toFixed(6)} 주</>} />
           <DetailRow label="매수 가격" value={<>${result.purchasePrice?.toFixed(2)}</>} />
           <DetailRow label="평가일 가격" value={<>${result.currentPrice?.toFixed(2)}</>} />
@@ -174,7 +174,7 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
                 <DetailRow
                   label="최적 매수가"
                   value={<>${result.optimalBuyPrice?.toFixed(2)}</>}
-                  valueClassName="font-medium text-green-600"
+                  valueClassName="font-medium text-gain"
                   dividerClassName="border-brand/25"
                 />
               )}
@@ -198,7 +198,7 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
                 <DetailRow
                   label="최적 매도가"
                   value={<>${result.optimalSellPrice?.toFixed(2)}</>}
-                  valueClassName="font-medium text-red-600"
+                  valueClassName="font-medium text-loss"
                   dividerClassName="border-brand/25"
                 />
               )}

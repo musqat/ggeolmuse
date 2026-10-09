@@ -122,8 +122,8 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
       footer={footer}
       maxWidth="md"
     >
-      <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-        <p className="text-sm text-blue-800">
+      <div className="mb-4 p-3 bg-info/10 rounded-lg">
+        <p className="text-sm text-info">
           현재 환율: ₩{currentExchangeRate.toLocaleString()}/USD
         </p>
       </div>
@@ -175,7 +175,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                       setExchangeAmount(accountBalance.balanceKrw.toString());
                     }
                   }}
-                  className="py-2 px-3 bg-brand-bg text-brand-dark rounded-md hover:bg-indigo-200 transition-colors text-sm font-medium"
+                  className="py-2 px-3 bg-brand-bg text-brand-dark rounded-md hover:bg-brand/20 transition-colors text-sm font-medium"
                 >
                   전액
                 </button>
@@ -200,7 +200,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                       setExchangeAmount(accountBalance.balanceUsd.toString());
                     }
                   }}
-                  className="py-2 px-3 bg-brand-bg text-brand-dark rounded-md hover:bg-indigo-200 transition-colors text-sm font-medium"
+                  className="py-2 px-3 bg-brand-bg text-brand-dark rounded-md hover:bg-brand/20 transition-colors text-sm font-medium"
                 >
                   전액
                 </button>

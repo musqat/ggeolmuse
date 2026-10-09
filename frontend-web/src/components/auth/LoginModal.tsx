@@ -193,7 +193,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
 
                   {/* Error Message */}
                   {error && (
-                    <div className="text-red-600 text-sm bg-red-500/10 p-3 rounded-md">
+                    <div className="text-danger text-sm bg-danger/10 p-3 rounded-md">
                       {error}
                     </div>
                   )}
@@ -276,7 +276,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
 
             {/* Error Message */}
             {error && (
-              <div className="text-red-600 text-sm bg-red-500/10 p-3 rounded-md">
+              <div className="text-danger text-sm bg-danger/10 p-3 rounded-md">
                 {error}
               </div>
             )}

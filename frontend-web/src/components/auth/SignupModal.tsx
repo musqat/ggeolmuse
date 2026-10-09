@@ -268,7 +268,7 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
 
             {/* Error Message */}
             {error && (
-              <div className="text-red-600 text-sm bg-red-500/10 p-3 rounded-md">
+              <div className="text-danger text-sm bg-danger/10 p-3 rounded-md">
                 {error}
               </div>
             )}
@@ -356,13 +356,13 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
                   />
 
                   {resendError && (
-                    <div className="text-red-600 text-xs bg-red-500/10 p-2 rounded-md">
+                    <div className="text-danger text-xs bg-danger/10 p-2 rounded-md">
                       {resendError}
                     </div>
                   )}
 
                   {resendSuccess && (
-                    <div className="text-green-600 text-xs bg-green-500/10 p-2 rounded-md">
+                    <div className="text-success text-xs bg-success/10 p-2 rounded-md">
                       인증 이메일이 재전송되었습니다. 이메일을 확인해주세요.
                     </div>
                   )}

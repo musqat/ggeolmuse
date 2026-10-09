@@ -17,20 +17,20 @@ export const StrategyComparisonResult: React.FC<StrategyComparisonResultProps> =
 
       {/* Best Performer Highlight */}
       {result.bestPerformer && (
-        <div className="mb-6 p-4 bg-yellow-500/10 border border-yellow-500/25 rounded-lg">
+        <div className="mb-6 p-4 bg-warning-soft/10 border border-warning-soft/40 rounded-lg">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-yellow-900">
+              <p className="text-sm font-medium text-tx-2">
                 최고 성과
               </p>
-              <p className="text-xl font-bold text-yellow-900 mt-1">
+              <p className="text-xl font-bold text-warning mt-1">
                 {STRATEGY_NAMES[result.bestPerformer.name] ||
                   result.bestPerformer.name}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-sm text-yellow-600">수익률</p>
-              <p className="text-2xl font-bold text-yellow-900">
+              <p className="text-sm text-tx-2">수익률</p>
+              <p className="text-2xl font-bold text-warning">
                 {formatSigned(result.bestPerformer.totalReturnPercent, formatPercent)}
               </p>
             </div>
@@ -67,7 +67,7 @@ export const StrategyComparisonResult: React.FC<StrategyComparisonResultProps> =
                 <tr
                   key={index}
                   className={`border-b border-line/50 ${
-                    isBest ? "bg-yellow-500/10" : "hover:bg-surface/50"
+                    isBest ? "bg-warning-soft/10" : "hover:bg-surface/50"
                   }`}
                 >
                   <td className="py-3 px-4 font-medium text-tx-1">

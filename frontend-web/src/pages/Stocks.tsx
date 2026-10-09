@@ -154,7 +154,7 @@ const Stocks: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="text-red-600 text-xl mb-4">{error}</div>
+          <div className="text-danger text-xl mb-4">{error}</div>
           <button
             onClick={() => window.location.reload()}
             className="bg-brand text-white px-4 py-2 rounded-md hover:bg-brand-dark"

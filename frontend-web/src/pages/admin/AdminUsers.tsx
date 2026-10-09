@@ -36,8 +36,8 @@ export default function AdminUsers() {
 
         {/* Error Alert */}
         {error && (
-          <div className="mb-6 p-4 bg-red-500/100/10 border border-red-500/25 rounded-lg">
-            <p className="text-red-600">{error}</p>
+          <div className="mb-6 p-4 bg-danger/10 border border-danger/25 rounded-lg">
+            <p className="text-danger">{error}</p>
           </div>
         )}
 

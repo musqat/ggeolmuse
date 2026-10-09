@@ -69,35 +69,35 @@ const TradingCapacityPanel: React.FC<TradingCapacityPanelProps> = ({
 
   if (orderType === "buy") {
     return (
-      <div className="bg-green-500/10 border border-green-500/25 rounded-lg p-4 mb-4">
+      <div className="bg-gain/10 border border-gain/25 rounded-lg p-4 mb-4">
         <div className="flex items-center mb-3">
-          <TrendingUp className="w-5 h-5 text-green-600 mr-2" />
-          <h4 className="font-semibold text-green-600">매수 가능 정보</h4>
+          <TrendingUp className="w-5 h-5 text-gain mr-2" />
+          <h4 className="font-semibold text-gain">매수 가능 정보</h4>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-surface/60 rounded-lg p-3">
             <div className="flex items-center mb-1">
-              <Package className="w-4 h-4 text-green-600 mr-1" />
+              <Package className="w-4 h-4 text-gain mr-1" />
               <p className="text-xs text-tx-2">최대 매수 가능</p>
             </div>
-            <p className="text-lg font-bold text-green-600">
+            <p className="text-lg font-bold text-gain">
               {capacity.maxShares?.toFixed(2) || "0"} 주
             </p>
           </div>
 
           <div className="bg-surface/60 rounded-lg p-3">
             <div className="flex items-center mb-1">
-              <DollarSign className="w-4 h-4 text-green-600 mr-1" />
+              <DollarSign className="w-4 h-4 text-gain mr-1" />
               <p className="text-xs text-tx-2">사용 가능 잔액</p>
             </div>
-            <p className="text-lg font-bold text-green-600">
+            <p className="text-lg font-bold text-gain">
               ${capacity.availableBalance?.toFixed(2) || "0"}
             </p>
           </div>
         </div>
 
-        <div className="mt-3 p-2 bg-green-500/15 rounded text-xs text-green-600">
+        <div className="mt-3 p-2 bg-gain/10 rounded text-xs text-gain">
           {`${isLimit ? "지정가" : "기준가"} $${currentPrice.toFixed(2)} · ${
             isLimit ? "수수료" : "슬리피지·수수료"
           } 포함 최대 ${capacity.maxShares?.toFixed(2) || "0"}주 매수 가능`}
@@ -112,16 +112,16 @@ const TradingCapacityPanel: React.FC<TradingCapacityPanelProps> = ({
       <div
         className={`border rounded-lg p-4 mb-4 ${
           hasHoldings
-            ? "bg-red-500/10 border-red-500/25"
+            ? "bg-loss/10 border-loss/25"
             : "bg-elevated border-line-strong"
         }`}
       >
         <div className="flex items-center mb-3">
           <TrendingDown
-            className={`w-5 h-5 mr-2 ${hasHoldings ? "text-red-600" : "text-tx-2"}`}
+            className={`w-5 h-5 mr-2 ${hasHoldings ? "text-loss" : "text-tx-2"}`}
           />
           <h4
-            className={`font-semibold ${hasHoldings ? "text-red-600" : "text-tx-1"}`}
+            className={`font-semibold ${hasHoldings ? "text-loss" : "text-tx-1"}`}
           >
             매도 가능 정보
           </h4>
@@ -132,20 +132,20 @@ const TradingCapacityPanel: React.FC<TradingCapacityPanelProps> = ({
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-surface/60 rounded-lg p-3">
                 <div className="flex items-center mb-1">
-                  <Package className="w-4 h-4 text-red-600 mr-1" />
+                  <Package className="w-4 h-4 text-loss mr-1" />
                   <p className="text-xs text-tx-2">보유 수량</p>
                 </div>
-                <p className="text-lg font-bold text-red-600">
+                <p className="text-lg font-bold text-loss">
                   {capacity.currentHoldings?.toFixed(2) || "0"} 주
                 </p>
               </div>
 
               <div className="bg-surface/60 rounded-lg p-3">
                 <div className="flex items-center mb-1">
-                  <TrendingDown className="w-4 h-4 text-red-600 mr-1" />
+                  <TrendingDown className="w-4 h-4 text-loss mr-1" />
                   <p className="text-xs text-tx-2">매도 가능</p>
                 </div>
-                <p className="text-lg font-bold text-red-600">
+                <p className="text-lg font-bold text-loss">
                   {capacity.maxSellableShares?.toFixed(2) || "0"} 주
                 </p>
               </div>
@@ -156,14 +156,14 @@ const TradingCapacityPanel: React.FC<TradingCapacityPanelProps> = ({
                 <div className="mt-3 grid grid-cols-1 gap-2">
                   <div className="bg-surface/60 rounded-lg p-3">
                     <p className="text-xs text-tx-2 mb-1">현재 평가액</p>
-                    <p className="text-xl font-bold text-red-600">
+                    <p className="text-xl font-bold text-loss">
                       ${capacity.totalValue.toFixed(2)}
                     </p>
                   </div>
                 </div>
               )}
 
-            <div className="mt-3 p-2 bg-red-500/10 rounded text-xs text-red-600">
+            <div className="mt-3 p-2 bg-loss/10 rounded text-xs text-loss">
               {tradeDate} 이전에 매수한{" "}
               {capacity.maxSellableShares?.toFixed(2) || "0"}주만 매도 가능
               (FIFO)

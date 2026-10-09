@@ -15,6 +15,8 @@ export default {
           dark: '#D97706',
           bg: 'rgba(245,158,11,0.12)',
           border: 'rgba(245,158,11,0.25)',
+          // 주황 바탕 위 글자. 흰 글자는 대비 2.15 라 진한 갈색(6.97)을 쓴다
+          ink: '#451A03',
         },
         up: '#EF4444',
         down: '#60A5FA',
@@ -22,6 +24,12 @@ export default {
         gain: 'rgb(var(--gain) / <alpha-value>)',
         loss: 'rgb(var(--loss) / <alpha-value>)',
         buy:  'rgb(var(--buy)  / <alpha-value>)',
+        // 오류 · 성공 · 안내 · 경고. 등락과 값이 같아도 뜻으로 고른다
+        danger:  'rgb(var(--danger)  / <alpha-value>)',
+        success: 'rgb(var(--success) / <alpha-value>)',
+        info:    'rgb(var(--info)    / <alpha-value>)',
+        warning: 'rgb(var(--warning) / <alpha-value>)',
+        'warning-soft': 'rgb(var(--warning-soft) / <alpha-value>)',
         // Semantic tokens
         canvas:   'rgb(var(--bg-canvas)   / <alpha-value>)',
         surface:  'rgb(var(--bg-surface)  / <alpha-value>)',
