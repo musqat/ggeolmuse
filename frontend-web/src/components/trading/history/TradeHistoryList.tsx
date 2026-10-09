@@ -24,11 +24,11 @@ const FILTERS: { value: HistoryFilter; label: string }[] = [
   { value: 'DIVIDEND', label: '배당' },
 ];
 
-// 유형별 꼬리표 색과 금액 부호. 나간 돈은 -, 들어온 돈은 +
+// 유형별 꼬리표 색과 금액 부호. 나간 돈은 -, 들어온 돈은 +. 바탕은 10% 라 작은 글자도 대비 4.5 를 넘는다
 const TYPE_STYLE = {
-  BUY: { label: '매수', chip: 'bg-buy/15 text-buy', sign: '-' },
-  SELL: { label: '매도', chip: 'bg-loss/15 text-loss', sign: '+' },
-  DIVIDEND: { label: '배당', chip: 'bg-gain/15 text-gain', sign: '+' },
+  BUY: { label: '매수', chip: 'bg-buy/10 text-buy', sign: '-' },
+  SELL: { label: '매도', chip: 'bg-loss/10 text-loss', sign: '+' },
+  DIVIDEND: { label: '배당', chip: 'bg-gain/10 text-gain', sign: '+' },
 } as const;
 
 const usd = (value: number) =>
