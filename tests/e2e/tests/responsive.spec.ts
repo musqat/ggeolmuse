@@ -29,6 +29,25 @@ test.describe('모바일 폭', () => {
     await expect(page.getByTestId('chart-indicator-panel')).toBeHidden();
   });
 
+  test('지표 버튼으로 시트를 열어 지표를 바꾼다', async ({ page }) => {
+    await page.goto('/charts');
+    await page.waitForLoadState('networkidle');
+
+    // 옆 패널 대신 차트 위 버튼이 있다.
+    await page.getByTestId('chart-indicator-button').click();
+    const sheet = page.getByRole('dialog', { name: '지표 설정' });
+    await expect(sheet).toBeVisible();
+
+    const rsi = sheet.getByRole('switch', { name: 'RSI (14)' });
+    await expect(rsi).toHaveAttribute('aria-checked', 'false');
+    await rsi.click();
+    await expect(rsi).toHaveAttribute('aria-checked', 'true');
+
+    await page.keyboard.press('Escape');
+    await expect(sheet).toBeHidden();
+    await expect(page.getByText('MA 20 · RSI (14) · 거래량 MA')).toBeVisible();
+  });
+
   test('백테스트 화면도 가로로 넘치지 않는다', async ({ page }) => {
     await page.goto('/backtest');
     await expect(page.getByTestId('backtest-run')).toBeVisible();
