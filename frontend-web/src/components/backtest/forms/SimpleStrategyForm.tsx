@@ -96,7 +96,6 @@ export const SimpleStrategyForm: React.FC<SimpleStrategyFormProps> = ({
             value={purchaseDate}
             onChange={setPurchaseDate}
             max={saleDate || today}
-            presets
             testId="date-start"
           />
         </div>

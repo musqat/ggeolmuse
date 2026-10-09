@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React from 'react';
 import StockSearchInput from '../../common/StockSearchInput';
 import { NumberInput } from '../../common/NumberInput';
 import { FxModeToggle } from '../shared/FxModeToggle';
 import { DividendFeeOptions } from '../shared/DividendFeeOptions';
-import DatePicker from '../../common/DatePicker';
-import { toLocalDateString } from '../../../utils/dateUtils';
+import { DateField } from '../../common/DateField';
+import { getTodayString } from '../../../utils/dateUtils';
 
 interface SymbolComparisonFormProps {
   compareSymbols: string[];
@@ -64,80 +64,35 @@ export const SymbolComparisonForm: React.FC<SymbolComparisonFormProps> = ({
   onAddSymbol,
   onRemoveSymbol,
 }) => {
-  const [purchaseDateObj, setPurchaseDateObj] = useState<Date | null>(comparePurchaseDate ? new Date(comparePurchaseDate) : new Date('2025-01-01'));
-  const [saleDateObj, setSaleDateObj] = useState<Date | null>(compareSaleDate ? new Date(compareSaleDate) : new Date());
-  const [showPurchaseDatePicker, setShowPurchaseDatePicker] = useState(false);
-  const [showSaleDatePicker, setShowSaleDatePicker] = useState(false);
+  const today = getTodayString();
 
   // 환율 데이터 부족 경고 체크 (2014년 이전)
-  const showFxWarning = useMemo(() => {
-    if (!purchaseDateObj) return false;
-    const cutoffDate = new Date('2014-01-01');
-    return purchaseDateObj < cutoffDate;
-  }, [purchaseDateObj]);
-
-  useEffect(() => { if (purchaseDateObj) setComparePurchaseDate(toLocalDateString(purchaseDateObj)); }, [purchaseDateObj, setComparePurchaseDate]);
-  useEffect(() => { if (saleDateObj) setCompareSaleDate(toLocalDateString(saleDateObj)); }, [saleDateObj, setCompareSaleDate]);
+  const showFxWarning = !!comparePurchaseDate && comparePurchaseDate < '2014-01-01';
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {/* 시작일 */}
-        <div className="relative">
+        <div>
           <label className="block text-sm font-medium text-tx-1 mb-2">시작일</label>
-          <button
-            type="button"
-            data-testid="date-start"
-            onClick={() => {
-              setShowPurchaseDatePicker(!showPurchaseDatePicker);
-              setShowSaleDatePicker(false);
-            }}
-            className="w-full px-3 py-1.5 text-sm border border-line-strong rounded-md text-left hover:border-brand focus:ring-2 focus:ring-brand focus:border-brand transition whitespace-nowrap"
-          >
-            {purchaseDateObj
-              ? purchaseDateObj.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })
-              : '날짜 선택'}
-          </button>
-          {showPurchaseDatePicker && (
-            <div className="absolute top-full left-0 md:left-1/2 md:-translate-x-1/2 mt-2 z-50 shadow-2xl w-[400px] max-w-[calc(100vw-2rem)]">
-              <DatePicker
-                value={purchaseDateObj}
-                onChange={(date) => {
-                  setPurchaseDateObj(date);
-                  setShowPurchaseDatePicker(false);
-                }}
-              />
-            </div>
-          )}
+          <DateField
+            value={comparePurchaseDate}
+            onChange={setComparePurchaseDate}
+            max={compareSaleDate || today}
+            testId="date-start"
+          />
         </div>
 
         {/* 종료일 */}
-        <div className="relative">
+        <div>
           <label className="block text-sm font-medium text-tx-1 mb-2">종료일</label>
-          <button
-            type="button"
-            data-testid="date-end"
-            onClick={() => {
-              setShowSaleDatePicker(!showSaleDatePicker);
-              setShowPurchaseDatePicker(false);
-            }}
-            className="w-full px-3 py-1.5 text-sm border border-line-strong rounded-md text-left hover:border-brand focus:ring-2 focus:ring-brand focus:border-brand transition whitespace-nowrap"
-          >
-            {saleDateObj
-              ? saleDateObj.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })
-              : '날짜 선택'}
-          </button>
-          {showSaleDatePicker && (
-            <div className="absolute top-full left-0 md:left-1/2 md:-translate-x-1/2 mt-2 z-50 shadow-2xl w-[400px] max-w-[calc(100vw-2rem)]">
-              <DatePicker
-                value={saleDateObj}
-                onChange={(date) => {
-                  setSaleDateObj(date);
-                  setShowSaleDatePicker(false);
-                }}
-              />
-            </div>
-          )}
+          <DateField
+            value={compareSaleDate || today}
+            onChange={setCompareSaleDate}
+            min={comparePurchaseDate}
+            max={today}
+            testId="date-end"
+          />
         </div>
 
         {/* 투자금 */}

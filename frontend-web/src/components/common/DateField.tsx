@@ -40,7 +40,7 @@ interface DateFieldProps {
   min?: string;
   max?: string;
   placeholder?: string;
-  // 팝오버 위에 달력을 1개월 · 3개월 · 6개월 · 1년 전 달로 넘기는 버튼을 보인다
+  // 팝오버 위 1개월 · 3개월 · 6개월 · 1년 전 이동 버튼. 기본으로 보이고 false 면 숨긴다
   presets?: boolean;
   testId?: string;
 }
@@ -52,7 +52,7 @@ export const DateField = ({
   min,
   max,
   placeholder = '날짜 선택',
-  presets = false,
+  presets = true,
   testId,
 }: DateFieldProps) => {
   const id = useId();

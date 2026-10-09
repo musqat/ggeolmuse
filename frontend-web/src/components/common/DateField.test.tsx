@@ -86,9 +86,9 @@ describe('DateField 빠른 선택', () => {
     vi.useRealTimers()
   })
 
-  it('빠른 선택은 달력을 오늘에서 그만큼 전 달로 넘기기만 하고 값은 그대로 둔다', async () => {
+  it('빠른 이동은 기본으로 보이고, 달력을 오늘에서 그만큼 전 달로 넘기기만 하고 값은 그대로 둔다', async () => {
     const onChange = vi.fn()
-    render(<DateField value="2026-03-31" onChange={onChange} presets testId="field" />)
+    render(<DateField value="2026-03-31" onChange={onChange} testId="field" />)
 
     await userEvent.click(screen.getByTestId('field'))
     await userEvent.click(screen.getByRole('button', { name: '3개월 전' }))
@@ -107,8 +107,8 @@ describe('DateField 빠른 선택', () => {
     expect(onChange).toHaveBeenCalledWith('2025-03-10')
   })
 
-  it('min 이 든 달보다 앞서는 빠른 선택은 누를 수 없다', async () => {
-    render(<DateField value="2026-03-31" onChange={vi.fn()} presets min="2025-12-15" testId="field" />)
+  it('min 이 든 달보다 앞서는 빠른 이동은 누를 수 없다', async () => {
+    render(<DateField value="2026-03-31" onChange={vi.fn()} min="2025-12-15" testId="field" />)
 
     await userEvent.click(screen.getByTestId('field'))
 
@@ -116,8 +116,8 @@ describe('DateField 빠른 선택', () => {
     expect(screen.getByRole('button', { name: '6개월 전' })).toBeDisabled()
   })
 
-  it('presets 를 안 켜면 빠른 선택이 없다', async () => {
-    render(<DateField value="2026-03-31" onChange={vi.fn()} testId="field" />)
+  it('presets={false} 면 빠른 이동 버튼이 없다', async () => {
+    render(<DateField value="2026-03-31" onChange={vi.fn()} presets={false} testId="field" />)
 
     await userEvent.click(screen.getByTestId('field'))
 

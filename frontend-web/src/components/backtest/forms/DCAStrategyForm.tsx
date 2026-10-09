@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React from 'react';
 import StockSearchInput from '../../common/StockSearchInput';
 import { NumberInput } from '../../common/NumberInput';
 import { FxModeToggle } from '../shared/FxModeToggle';
 import { DividendFeeOptions } from '../shared/DividendFeeOptions';
-import DatePicker from '../../common/DatePicker';
-import { toLocalDateString } from '../../../utils/dateUtils';
+import { DateField } from '../../common/DateField';
+import { getTodayString } from '../../../utils/dateUtils';
 
 interface DCAStrategyFormProps {
   symbol: string;
@@ -66,37 +66,10 @@ export const DCAStrategyForm: React.FC<DCAStrategyFormProps> = ({
   supportedSymbols,
 }) => {
 
-  // DatePicker용 Date 객체 상태 (기본값: 시작일 2025-01-01, 종료일 오늘)
-  const [startDateObj, setStartDateObj] = useState<Date | null>(
-    dcaStartDate ? new Date(dcaStartDate) : new Date('2025-01-01')
-  );
-  const [endDateObj, setEndDateObj] = useState<Date | null>(
-    dcaEndDate ? new Date(dcaEndDate) : new Date()
-  );
-
-  // 달력 표시 상태
-  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
-  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const today = getTodayString();
 
   // 환율 데이터 부족 경고 체크 (2014년 이전)
-  const showFxWarning = useMemo(() => {
-    if (!startDateObj) return false;
-    const cutoffDate = new Date('2014-01-01');
-    return startDateObj < cutoffDate;
-  }, [startDateObj]);
-
-  // Date 객체를 문자열로 변환하여 부모 컴포넌트에 전달
-  useEffect(() => {
-    if (startDateObj) {
-      setDcaStartDate(toLocalDateString(startDateObj));
-    }
-  }, [startDateObj, setDcaStartDate]);
-
-  useEffect(() => {
-    if (endDateObj) {
-      setDcaEndDate(toLocalDateString(endDateObj));
-    }
-  }, [endDateObj, setDcaEndDate]);
+  const showFxWarning = !!dcaStartDate && dcaStartDate < '2014-01-01';
 
   return (
     <div className="space-y-4">
@@ -114,59 +87,24 @@ export const DCAStrategyForm: React.FC<DCAStrategyFormProps> = ({
         </div>
 
         {/* 시작일 */}
-        <div className="relative">
+        <div>
           <label className="block text-sm font-medium text-tx-1 mb-2">시작일</label>
-          <button
-            type="button"
-            onClick={() => {
-              setShowStartDatePicker(!showStartDatePicker);
-              setShowEndDatePicker(false);
-            }}
-            className="w-full px-3 py-1.5 text-sm border border-line-strong rounded-md text-left hover:border-brand focus:ring-2 focus:ring-brand focus:border-brand transition whitespace-nowrap"
-          >
-            {startDateObj
-              ? startDateObj.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })
-              : '날짜 선택'}
-          </button>
-          {showStartDatePicker && (
-            <div className="absolute top-full left-0 md:left-1/2 md:-translate-x-1/2 mt-2 z-50 shadow-2xl w-[400px] max-w-[calc(100vw-2rem)]">
-              <DatePicker
-                value={startDateObj}
-                onChange={(date) => {
-                  setStartDateObj(date);
-                  setShowStartDatePicker(false);
-                }}
-              />
-            </div>
-          )}
+          <DateField
+            value={dcaStartDate}
+            onChange={setDcaStartDate}
+            max={dcaEndDate || today}
+          />
         </div>
 
         {/* 종료일 */}
-        <div className="relative">
+        <div>
           <label className="block text-sm font-medium text-tx-1 mb-2">종료일</label>
-          <button
-            type="button"
-            onClick={() => {
-              setShowEndDatePicker(!showEndDatePicker);
-              setShowStartDatePicker(false);
-            }}
-            className="w-full px-3 py-1.5 text-sm border border-line-strong rounded-md text-left hover:border-brand focus:ring-2 focus:ring-brand focus:border-brand transition whitespace-nowrap"
-          >
-            {endDateObj
-              ? endDateObj.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })
-              : '날짜 선택'}
-          </button>
-          {showEndDatePicker && (
-            <div className="absolute top-full left-0 md:left-1/2 md:-translate-x-1/2 mt-2 z-50 shadow-2xl w-[400px] max-w-[calc(100vw-2rem)]">
-              <DatePicker
-                value={endDateObj}
-                onChange={(date) => {
-                  setEndDateObj(date);
-                  setShowEndDatePicker(false);
-                }}
-              />
-            </div>
-          )}
+          <DateField
+            value={dcaEndDate || today}
+            onChange={setDcaEndDate}
+            min={dcaStartDate}
+            max={today}
+          />
         </div>
 
         {/* 월 투자금 */}
