@@ -35,6 +35,7 @@ COPY --from=build /app/dist /usr/share/nginx/html
 
 # nginx 설정 파일 복사
 COPY nginx.conf /etc/nginx/nginx.conf
+COPY security-headers.conf /etc/nginx/security-headers.conf
 
 RUN chown -R 10001:10001 /var/cache/nginx
 
