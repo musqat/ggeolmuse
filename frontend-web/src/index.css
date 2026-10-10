@@ -26,8 +26,9 @@
   --accent:      #F59E0B;
   --accent-dark: #D97706;
   --accent-bg:   rgba(245,158,11,0.12);
-  --up:          #EF4444;
-  --down:        #60A5FA;
+  /* 등락(한국식 상승 빨강 · 하락 파랑). 어두운 바탕은 400 단계 */
+  --up:   248 113 113;         /* #F87171 */
+  --down:  96 165 250;         /* #60A5FA */
 
   /* 수익 · 손실 · 매수 색. 어두운 바탕은 400 단계, 밝은 바탕은 700 ~ 800 단계 */
   --gain:  74 222 128;         /* #4ADE80 */
@@ -60,6 +61,8 @@
   --gain:  22 101  52;         /* #166534 */
   --loss: 185  28  28;         /* #B91C1C */
   --buy:   29  78 216;         /* #1D4ED8 */
+  --up:   185  28  28;         /* #B91C1C */
+  --down:  29  78 216;         /* #1D4ED8 */
 
   --danger:  185  28  28;      /* #B91C1C */
   --success:  22 101  52;      /* #166534 */
@@ -118,8 +121,6 @@ input:-webkit-autofill:focus {
 }
 
 @layer utilities {
-  .text-up   { color: var(--up); }
-  .text-down { color: var(--down); }
   .letter-tight   { letter-spacing: -0.02em; }
   .letter-tighter { letter-spacing: -0.04em; }
 }

@@ -187,12 +187,12 @@ const StockSearchInput: React.FC<StockSearchInputProps> = ({
                 key={stock.symbol}
                 onClick={() => handleSelectStock(stock)}
                 data-testid="symbol-option"
-                className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-brand hover:text-white"
+                className="group cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-brand hover:text-brand-ink"
               >
                 <div className="flex items-center">
                   <span className="font-semibold text-sm">{stock.symbol}</span>
                   {stock.name && (
-                    <span className="ml-2 text-tx-2 text-sm truncate hover:text-white">{stock.name}</span>
+                    <span className="ml-2 text-tx-2 text-sm truncate group-hover:text-brand-ink">{stock.name}</span>
                   )}
                 </div>
               </div>

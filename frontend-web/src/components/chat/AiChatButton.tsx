@@ -25,7 +25,7 @@ const AiChatButton: React.FC = () => {
           onClick={() => openChat()}
           aria-label="AI 종목 분석"
           style={{ position: 'fixed', right: '24px', bottom: '24px', zIndex: 9000 }}
-          className="w-14 h-14 rounded-full bg-brand text-white shadow-lg flex items-center justify-center hover:bg-brand-dark transition-all"
+          className="w-14 h-14 rounded-full bg-brand text-brand-ink shadow-lg flex items-center justify-center hover:bg-brand-dark transition-all"
         >
           <MessageCircle className="w-6 h-6" />
         </button>
