@@ -157,7 +157,7 @@ const Stocks: React.FC = () => {
           <div className="text-danger text-xl mb-4">{error}</div>
           <button
             onClick={() => window.location.reload()}
-            className="bg-brand text-white px-4 py-2 rounded-md hover:bg-brand-dark"
+            className="bg-brand text-brand-ink px-4 py-2 rounded-md hover:bg-brand-dark"
           >
             다시 시도
           </button>
@@ -189,7 +189,7 @@ const Stocks: React.FC = () => {
             onClick={() => handleFilterChange('ALL')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               assetFilter === 'ALL'
-                ? 'bg-brand text-white'
+                ? 'bg-brand text-brand-ink'
                 : 'bg-elevated text-tx-1 hover:bg-hover'
             }`}
           >
@@ -199,7 +199,7 @@ const Stocks: React.FC = () => {
             onClick={() => handleFilterChange('EQUITY')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               assetFilter === 'EQUITY'
-                ? 'bg-brand text-white'
+                ? 'bg-brand text-brand-ink'
                 : 'bg-elevated text-tx-1 hover:bg-hover'
             }`}
           >
@@ -209,7 +209,7 @@ const Stocks: React.FC = () => {
             onClick={() => handleFilterChange('ETF')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               assetFilter === 'ETF'
-                ? 'bg-brand text-white'
+                ? 'bg-brand text-brand-ink'
                 : 'bg-elevated text-tx-1 hover:bg-hover'
             }`}
           >
@@ -313,7 +313,7 @@ const Stocks: React.FC = () => {
                   onClick={() => handlePageChange(pageNumber)}
                   className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     currentPage === pageNumber
-                      ? 'bg-brand text-white'
+                      ? 'bg-brand text-brand-ink'
                       : 'border border-line-strong hover:bg-surface/50'
                   }`}
                 >

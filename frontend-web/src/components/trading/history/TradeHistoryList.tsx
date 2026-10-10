@@ -183,7 +183,7 @@ export const TradeHistoryList = ({ transactions, accounts, onRefresh, refreshing
               type="button"
               onClick={() => setFilter(value)}
               className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                filter === value ? 'bg-brand text-white' : 'text-tx-1 hover:bg-hover'
+                filter === value ? 'bg-brand text-brand-ink' : 'text-tx-1 hover:bg-hover'
               }`}
             >
               {label}

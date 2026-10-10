@@ -79,7 +79,7 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({
             <button
               onClick={handleLookup}
               disabled={loading || !ticker.trim()}
-              className="px-4 py-2 bg-brand text-white rounded-lg hover:bg-brand-dark disabled:opacity-50 flex items-center gap-1.5"
+              className="px-4 py-2 bg-brand text-brand-ink rounded-lg hover:bg-brand-dark disabled:opacity-50 flex items-center gap-1.5"
             >
               <Search className="w-4 h-4" />
               조회
@@ -123,7 +123,7 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({
               <button
                 onClick={onAdd}
                 disabled={loading}
-                className="mt-4 w-full py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                className="mt-4 w-full py-2.5 bg-green-700 text-white rounded-lg hover:bg-green-800 disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 <Plus className="w-5 h-5" />
                 추가 및 데이터 수집 시작

@@ -168,7 +168,7 @@ export default function UserDetailSection({
             <button
               onClick={() => onUpdateRole(user.userId, 'ADMIN')}
               disabled={user.role === 'ADMIN' || loading}
-              className="flex-1 px-4 py-2 bg-brand text-white rounded-lg disabled:opacity-50 hover:bg-brand-dark transition"
+              className="flex-1 px-4 py-2 bg-brand text-brand-ink rounded-lg disabled:opacity-50 hover:bg-brand-dark transition"
             >
               관리자
             </button>
@@ -182,7 +182,7 @@ export default function UserDetailSection({
             <button
               onClick={() => onUpdateEnabled(user.userId, true)}
               disabled={user.enabled || loading}
-              className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg disabled:opacity-50 hover:bg-green-700 transition"
+              className="flex-1 px-4 py-2 bg-green-700 text-white rounded-lg disabled:opacity-50 hover:bg-green-800 transition"
             >
               활성화
             </button>
@@ -272,7 +272,7 @@ export default function UserDetailSection({
               <button
                 onClick={handleUpdateNickname}
                 disabled={!newNickname.trim()}
-                className="flex-1 px-4 py-2 bg-brand text-white rounded-lg hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-brand text-brand-ink rounded-lg hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 변경하기
               </button>
@@ -321,7 +321,7 @@ export default function UserDetailSection({
               <button
                 onClick={handleUpdatePassword}
                 disabled={!newPassword || !confirmPassword}
-                className="flex-1 px-4 py-2 bg-brand text-white rounded-lg hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-brand text-brand-ink rounded-lg hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 변경하기
               </button>

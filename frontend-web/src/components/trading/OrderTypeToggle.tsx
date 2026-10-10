@@ -20,7 +20,7 @@ const OrderTypeToggle: React.FC<OrderTypeToggleProps> = ({ orderType, setOrderTy
         onClick={() => setOrderType('buy')}
         className={`flex-1 py-2 rounded-md font-medium transition-colors ${
           orderType === 'buy'
-            ? 'bg-green-600 text-white shadow-sm'
+            ? 'bg-green-700 text-white shadow-sm'
             : 'text-tx-2'
         }`}
       >

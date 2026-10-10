@@ -95,7 +95,7 @@ const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
       <button
         onClick={handleSubmit}
         disabled={!accountName.trim()}
-        className="flex-1 px-4 py-2 bg-brand text-white rounded-lg hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="flex-1 px-4 py-2 bg-brand text-brand-ink rounded-lg hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         생성하기
       </button>

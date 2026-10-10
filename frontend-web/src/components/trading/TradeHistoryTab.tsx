@@ -45,7 +45,7 @@ const TradeHistoryTab: React.FC = () => {
         <p className="text-loss mb-4">거래내역을 불러오는데 실패했습니다.</p>
         <button
           onClick={() => refetch()}
-          className="px-4 py-2 bg-brand text-white rounded-lg hover:bg-brand-dark"
+          className="px-4 py-2 bg-brand text-brand-ink rounded-lg hover:bg-brand-dark"
         >
           다시 시도
         </button>
