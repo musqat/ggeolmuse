@@ -57,20 +57,6 @@ export function validatePriceRange(
   return { isValid: true };
 }
 
-/**
- * 가격을 통화 형식으로 포맷합니다
- */
-export function formatPrice(price: number, decimals: number = 2): string {
-  return `$${price.toFixed(decimals)}`;
-}
-
-/**
- * 총 금액을 계산합니다
- */
-export function calculateTotalAmount(price: number, quantity: number): number {
-  return price * quantity;
-}
-
 export type BackendPriceType = 'OPEN' | 'HIGH' | 'LOW' | 'CLOSE' | 'MANUAL';
 
 /**

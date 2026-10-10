@@ -94,10 +94,6 @@ export const marketAdminApi = {
     return data;
   },
 
-  getAllAssets: async (): Promise<Asset[]> => {
-    const { data } = await api.get<Asset[]>('/admin/market/assets');
-    return data;
-  },
 
   getAllAssetSummaries: async (
     page = 0,

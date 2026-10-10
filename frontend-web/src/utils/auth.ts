@@ -90,9 +90,3 @@ export const tokenManager = {
 export const checkAuthStatus = (): boolean => {
   return tokenManager.isCurrentTokenValid();
 };
-
-// 자동 로그아웃 (토큰 만료 시)
-export const handleTokenExpiration = (): void => {
-  tokenManager.removeToken();
-  // 필요시 추가 정리 작업
-};

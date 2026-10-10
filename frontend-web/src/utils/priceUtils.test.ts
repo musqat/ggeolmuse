@@ -2,8 +2,6 @@ import { describe, it, expect } from 'vitest'
 import {
   calculateExecutionPrice,
   validatePriceRange,
-  formatPrice,
-  calculateTotalAmount,
   toBackendPriceType,
   type OHLCData,
 } from './priceUtils'
@@ -58,25 +56,6 @@ describe('validatePriceRange', () => {
 
   it('고가보다 높으면 막는다', () => {
     expect(validatePriceRange(120.01, ohlc).isValid).toBe(false)
-  })
-})
-
-describe('formatPrice', () => {
-  it('달러 기호와 소수 두 자리', () => {
-    expect(formatPrice(10)).toBe('$10.00')
-    expect(formatPrice(10.456)).toBe('$10.46')
-  })
-
-  it('자릿수를 지정할 수 있다', () => {
-    expect(formatPrice(10.4567, 3)).toBe('$10.457')
-    expect(formatPrice(10.4, 0)).toBe('$10')
-  })
-})
-
-describe('calculateTotalAmount', () => {
-  it('가격 곱하기 수량', () => {
-    expect(calculateTotalAmount(110, 3)).toBe(330)
-    expect(calculateTotalAmount(110, 0)).toBe(0)
   })
 })
 
