@@ -1,17 +1,11 @@
 import React from 'react';
-import { TrendingUp, TrendingDown, DollarSign, Activity, Repeat } from 'lucide-react';
+import { TrendingUp, DollarSign } from 'lucide-react';
 import { AccumulationChart } from '@components/charts/backtest/AccumulationChart';
 import type { StrategyResponse } from '../../../services/api';
 import type { BacktestMode } from '../shared/backtestDisplay';
-import {
-  formatKrw,
-  formatPercent,
-  formatSigned,
-  gainLossBoxClass,
-  gainLossClass,
-  gainLossTone,
-} from '../../../utils/gainLoss';
-import { StatCard } from './StatCard';
+import { formatKrw, formatPercent, formatSigned, gainLossClass } from '../../../utils/gainLoss';
+import { SummaryCards } from './SummaryCards';
+import { FxImpactSection } from './FxImpactSection';
 import { DetailRow, DetailSection } from './DetailSection';
 
 interface DcaConditionalResultProps {
@@ -31,48 +25,7 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
 }) => {
   return (
     <div className="space-y-6">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard
-          label="총 투자금"
-          value={<>₩{result.totalInvested?.toLocaleString()}</>}
-          icon={DollarSign}
-        />
-
-        <StatCard
-          label="평가 가치"
-          value={<>₩{result.totalAssetKrw?.toLocaleString()}</>}
-          sub={
-            <>
-              주식: ₩{result.currentValueKrw?.toLocaleString()}, 현금: ₩
-              {result.remainingCashKrw?.toLocaleString()}
-            </>
-          }
-          icon={TrendingUp}
-        />
-
-        <StatCard
-          label="총 수익"
-          value={
-            formatSigned(result.totalReturnKrw, formatKrw)
-          }
-          valueClassName={gainLossClass(result.totalReturnKrw)}
-          icon={gainLossTone(result.totalReturnKrw) === "loss" ? TrendingDown : TrendingUp}
-          iconBoxClassName={gainLossBoxClass(result.totalReturnKrw)}
-          iconClassName={gainLossClass(result.totalReturnKrw)}
-        />
-
-        <StatCard
-          label="수익률"
-          value={
-            formatSigned(result.totalReturnPercent, formatPercent)
-          }
-          valueClassName={gainLossClass(result.totalReturnPercent)}
-          icon={Activity}
-          iconBoxClassName={gainLossBoxClass(result.totalReturnPercent)}
-          iconClassName={gainLossClass(result.totalReturnPercent)}
-        />
-      </div>
+      <SummaryCards result={result} investedLabel="총 투자금" invested={result.totalInvested} />
 
       {/* Detailed Results - 3 Columns like Simple */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -130,34 +83,7 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
           />
         </DetailSection>
 
-        <DetailSection title="환율 영향" icon={Repeat} borderClassName="border-brand/25">
-          <DetailRow
-            label="평균 환율"
-            value={<>₩{result.averageFxRate?.toLocaleString()}</>}
-            dividerClassName="border-line"
-          />
-          <DetailRow
-            label="평가일 환율"
-            value={<>₩{result.currentFxRate?.toLocaleString()}</>}
-            dividerClassName="border-line"
-          />
-          <DetailRow
-            label="환율 변동"
-            value={
-              formatSigned(result.fxReturn, (v) => `₩${v.toFixed(2)}`)
-            }
-            valueClassName={`font-medium ${gainLossClass(result.fxReturn)}`}
-            dividerClassName="border-line"
-          />
-          <DetailRow
-            label="환차익률"
-            value={
-              formatSigned(result.fxReturnPercent, formatPercent)
-            }
-            valueClassName={`font-bold ${gainLossClass(result.fxReturnPercent)}`}
-            last
-          />
-        </DetailSection>
+        <FxImpactSection result={result} startLabel="평균 환율" startRate={result.averageFxRate} />
       </div>
 
       {/* 차트 섹션 추가 */}

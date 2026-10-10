@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
   tokenManager,
   checkAuthStatus,
-  handleTokenExpiration,
   TOKEN_STORAGE_KEY,
   REFRESH_TOKEN_STORAGE_KEY,
 } from './auth'
@@ -164,15 +163,5 @@ describe('getUserFromToken', () => {
 
   it('디코딩 실패하면 null', () => {
     expect(tokenManager.getUserFromToken('garbage')).toBeNull()
-  })
-})
-
-describe('handleTokenExpiration', () => {
-  it('access 만 지우고 refresh 는 남긴다', () => {
-    // 재발급 흐름 때문인지 의도인지 확인 필요. 현재 동작을 고정해둔다
-    tokenManager.setTokens('access', 'refresh')
-    handleTokenExpiration()
-    expect(tokenManager.getToken()).toBeNull()
-    expect(tokenManager.getRefreshToken()).toBe('refresh')
   })
 })

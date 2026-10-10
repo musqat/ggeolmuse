@@ -3,6 +3,8 @@ import StockSearchInput from '../../common/StockSearchInput';
 import { NumberInput } from '../../common/NumberInput';
 import { FxModeToggle } from '../shared/FxModeToggle';
 import { DividendFeeOptions } from '../shared/DividendFeeOptions';
+import { FxDataWarning } from '../shared/FxDataWarning';
+import type { BacktestOptionsState } from '../shared/backtestOptions';
 import { DateField } from '../../common/DateField';
 import { getTodayString } from '../../../utils/dateUtils';
 
@@ -15,18 +17,7 @@ interface SimpleStrategyFormProps {
   setSaleDate: (date: string) => void;
   initialInvestment: string;
   setInitialInvestment: (amount: string) => void;
-  fxMode: 'auto' | 'manual';
-  setFxMode: (mode: 'auto' | 'manual') => void;
-  manualPurchaseFxRate: string;
-  setManualPurchaseFxRate: (rate: string) => void;
-  manualCurrentFxRate: string;
-  setManualCurrentFxRate: (rate: string) => void;
-  reinvestDividends: boolean;
-  setReinvestDividends: (reinvest: boolean) => void;
-  tradingFeeRate: string;
-  setTradingFeeRate: (rate: string) => void;
-  dividendTax: boolean;
-  setDividendTax: (tax: boolean) => void;
+  options: BacktestOptionsState;
   supportedSymbols: string[];
 }
 
@@ -43,24 +34,10 @@ export const SimpleStrategyForm: React.FC<SimpleStrategyFormProps> = ({
   setSaleDate,
   initialInvestment,
   setInitialInvestment,
-  fxMode,
-  setFxMode,
-  manualPurchaseFxRate,
-  setManualPurchaseFxRate,
-  manualCurrentFxRate,
-  setManualCurrentFxRate,
-  reinvestDividends,
-  setReinvestDividends,
-  tradingFeeRate,
-  setTradingFeeRate,
-  dividendTax,
-  setDividendTax,
+  options,
   supportedSymbols,
 }) => {
   const today = getTodayString();
-
-  // 환율 데이터 부족 경고 체크 (2014년 이전)
-  const showFxWarning = !!purchaseDate && purchaseDate < '2014-01-01';
 
   return (
     <div className="space-y-4">
@@ -114,40 +91,18 @@ export const SimpleStrategyForm: React.FC<SimpleStrategyFormProps> = ({
       </div>
 
       {/* 환율 데이터 부족 경고 */}
-      {showFxWarning && (
-        <div className="flex items-start gap-2 p-3 bg-warning-soft/10 border border-warning-soft/40 rounded-lg">
-          <div className="flex-1">
-            <p className="text-sm font-medium text-warning">
-              환율 데이터 부족 가능성
-            </p>
-            <p className="text-xs text-tx-2 mt-1">
-              2014년 이전 기간은 환율 정보가 부족할 수 있습니다.
-              정확한 백테스트를 위해 <span className="font-semibold">수동 환율 입력</span>을 권장합니다.
-            </p>
-          </div>
-        </div>
-      )}
+      <FxDataWarning startDate={purchaseDate} />
 
       {/* 환율 설정 */}
       <FxModeToggle
-        fxMode={fxMode}
-        setFxMode={setFxMode}
-        manualPurchaseFxRate={manualPurchaseFxRate}
-        setManualPurchaseFxRate={setManualPurchaseFxRate}
-        manualCurrentFxRate={manualCurrentFxRate}
-        setManualCurrentFxRate={setManualCurrentFxRate}
+        options={options}
         purchaseLabel="매수일 환율"
         currentLabel="매도일 환율"
       />
 
       {/* 배당 및 수수료 옵션 */}
       <DividendFeeOptions
-        tradingFeeRate={tradingFeeRate}
-        setTradingFeeRate={setTradingFeeRate}
-        dividendTax={dividendTax}
-        setDividendTax={setDividendTax}
-        reinvestDividends={reinvestDividends}
-        setReinvestDividends={setReinvestDividends}
+        options={options}
       />
     </div>
   );

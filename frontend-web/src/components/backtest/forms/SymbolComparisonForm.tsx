@@ -3,6 +3,8 @@ import StockSearchInput from '../../common/StockSearchInput';
 import { NumberInput } from '../../common/NumberInput';
 import { FxModeToggle } from '../shared/FxModeToggle';
 import { DividendFeeOptions } from '../shared/DividendFeeOptions';
+import { FxDataWarning } from '../shared/FxDataWarning';
+import type { BacktestOptionsState } from '../shared/backtestOptions';
 import { DateField } from '../../common/DateField';
 import { getTodayString } from '../../../utils/dateUtils';
 
@@ -17,18 +19,7 @@ interface SymbolComparisonFormProps {
   setCompareSaleDate: (date: string) => void;
   compareInvestment: string;
   setCompareInvestment: (amount: string) => void;
-  compareFxMode: 'auto' | 'manual';
-  setCompareFxMode: (mode: 'auto' | 'manual') => void;
-  compareManualPurchaseFxRate: string;
-  setCompareManualPurchaseFxRate: (rate: string) => void;
-  compareManualCurrentFxRate: string;
-  setCompareManualCurrentFxRate: (rate: string) => void;
-  compareTradingFeeRate: string;
-  setCompareTradingFeeRate: (rate: string) => void;
-  compareDividendTax: boolean;
-  setCompareDividendTax: (tax: boolean) => void;
-  compareReinvestDividends: boolean;
-  setCompareReinvestDividends: (reinvest: boolean) => void;
+  options: BacktestOptionsState;
   supportedSymbols: string[];
   onAddSymbol: () => void;
   onRemoveSymbol: (symbol: string) => void;
@@ -48,26 +39,12 @@ export const SymbolComparisonForm: React.FC<SymbolComparisonFormProps> = ({
   setCompareSaleDate,
   compareInvestment,
   setCompareInvestment,
-  compareFxMode,
-  setCompareFxMode,
-  compareManualPurchaseFxRate,
-  setCompareManualPurchaseFxRate,
-  compareManualCurrentFxRate,
-  setCompareManualCurrentFxRate,
-  compareTradingFeeRate,
-  setCompareTradingFeeRate,
-  compareDividendTax,
-  setCompareDividendTax,
-  compareReinvestDividends,
-  setCompareReinvestDividends,
+  options,
   supportedSymbols,
   onAddSymbol,
   onRemoveSymbol,
 }) => {
   const today = getTodayString();
-
-  // 환율 데이터 부족 경고 체크 (2014년 이전)
-  const showFxWarning = !!comparePurchaseDate && comparePurchaseDate < '2014-01-01';
 
   return (
     <div className="space-y-4">
@@ -143,31 +120,12 @@ export const SymbolComparisonForm: React.FC<SymbolComparisonFormProps> = ({
         </div>
 
         {/* 환율 데이터 부족 경고 */}
-        {showFxWarning && (
-          <div className="col-span-full">
-            <div className="flex items-start gap-2 p-3 bg-warning-soft/10 border border-warning-soft/40 rounded-lg">
-              <div className="flex-1">
-                <p className="text-sm font-medium text-warning">
-                  환율 데이터 부족 가능성
-                </p>
-                <p className="text-xs text-tx-2 mt-1">
-                  2014년 이전 기간은 환율 정보가 부족할 수 있습니다.
-                  정확한 백테스트를 위해 <span className="font-semibold">수동 환율 입력</span>을 권장합니다.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
+        <FxDataWarning startDate={comparePurchaseDate} className="col-span-full" />
 
         {/* 환율 설정 */}
         <div className="col-span-full">
           <FxModeToggle
-            fxMode={compareFxMode}
-            setFxMode={setCompareFxMode}
-            manualPurchaseFxRate={compareManualPurchaseFxRate}
-            setManualPurchaseFxRate={setCompareManualPurchaseFxRate}
-            manualCurrentFxRate={compareManualCurrentFxRate}
-            setManualCurrentFxRate={setCompareManualCurrentFxRate}
+            options={options}
             purchaseLabel="시작일 환율 (₩/USD)"
             currentLabel="현재 환율 (₩/USD)"
           />
@@ -176,12 +134,7 @@ export const SymbolComparisonForm: React.FC<SymbolComparisonFormProps> = ({
         {/* 배당 및 수수료 옵션 */}
         <div className="col-span-full">
           <DividendFeeOptions
-            tradingFeeRate={compareTradingFeeRate}
-            setTradingFeeRate={setCompareTradingFeeRate}
-            dividendTax={compareDividendTax}
-            setDividendTax={setCompareDividendTax}
-            reinvestDividends={compareReinvestDividends}
-            setReinvestDividends={setCompareReinvestDividends}
+            options={options}
           />
         </div>
       </div>

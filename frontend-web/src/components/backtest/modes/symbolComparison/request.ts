@@ -1,17 +1,12 @@
 import type { SymbolComparisonRequest } from '@services/api';
 import type { BuildResult, RunContext } from '../types';
+import { toOptionFields, type BacktestOptions } from '../../shared/backtestOptions';
 
-export interface SymbolComparisonValues {
+export interface SymbolComparisonValues extends BacktestOptions {
   symbols: string[];
   purchaseDate: string;
   saleDate: string;
   investment: string;
-  reinvestDividends: boolean;
-  tradingFeeRate: string;
-  dividendTax: boolean;
-  fxMode: 'auto' | 'manual';
-  manualPurchaseFxRate: string;
-  manualCurrentFxRate: string;
 }
 
 // 종목 비교 요청. 검사에 걸리면 alert 문구를 돌려준다
@@ -28,9 +23,9 @@ export const buildSymbolComparisonRequest = (
     return { error: '올바른 투자 금액을 입력해주세요.' };
   }
 
-  // 매도일이 비어있으면 오늘
+  // 매도일이 비어있으면 오늘. 채운 날짜로 검사해 오늘 매수가 길이 0 기간으로 나가지 않게 한다
   const effectiveSaleDate = values.saleDate || ctx.today;
-  if (values.saleDate && new Date(values.purchaseDate) >= new Date(values.saleDate)) {
+  if (values.purchaseDate >= effectiveSaleDate) {
     return { error: '시작일은 종료일보다 빠른 날짜여야 합니다.' };
   }
 
@@ -39,14 +34,8 @@ export const buildSymbolComparisonRequest = (
     startDate: values.purchaseDate,
     endDate: effectiveSaleDate,
     investmentAmount: investment,
-    reinvestDividends: values.reinvestDividends,
-    tradingFeeRate: parseFloat(values.tradingFeeRate) / 100,
-    dividendTaxRate: values.dividendTax ? 0.15 : 0,
+    ...toOptionFields(values),
     userId: ctx.userId,
   };
-  if (values.fxMode === 'manual') {
-    request.purchaseFxRate = parseFloat(values.manualPurchaseFxRate);
-    request.currentFxRate = parseFloat(values.manualCurrentFxRate);
-  }
   return { request };
 };

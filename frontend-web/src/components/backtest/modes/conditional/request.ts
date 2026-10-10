@@ -1,7 +1,8 @@
 import type { ConditionalStrategyRequest } from '@services/api';
 import type { BuildResult, RunContext } from '../types';
+import { toOptionFields, type BacktestOptions } from '../../shared/backtestOptions';
 
-export interface ConditionalValues {
+export interface ConditionalValues extends BacktestOptions {
   startDate: string;
   endDate: string;
   investmentMode: 'TOTAL_BUDGET' | 'PER_PURCHASE';
@@ -9,12 +10,6 @@ export interface ConditionalValues {
   amountPerPurchase: string;
   maxPurchases: string;
   dropPercentage: string;
-  reinvestDividends: boolean;
-  tradingFeeRate: string;
-  dividendTax: boolean;
-  fxMode: 'auto' | 'manual';
-  manualPurchaseFxRate: string;
-  manualCurrentFxRate: string;
 }
 
 // 조건부 매수 요청. 검사에 걸리면 alert 문구를 돌려준다
@@ -65,9 +60,7 @@ export const buildConditionalRequest = (
     endDate: effectiveEndDate,
     investmentMode: values.investmentMode,
     dropPercentage: drop / 100,
-    reinvestDividends: values.reinvestDividends,
-    tradingFeeRate: parseFloat(values.tradingFeeRate) / 100,
-    dividendTaxRate: values.dividendTax ? 0.15 : 0,
+    ...toOptionFields(values),
     userId: ctx.userId,
   };
   if (values.investmentMode === 'TOTAL_BUDGET') {
@@ -76,10 +69,6 @@ export const buildConditionalRequest = (
   } else {
     request.amountPerPurchase = parseFloat(values.amountPerPurchase);
     request.maxPurchases = parseInt(values.maxPurchases);
-  }
-  if (values.fxMode === 'manual') {
-    request.purchaseFxRate = parseFloat(values.manualPurchaseFxRate);
-    request.currentFxRate = parseFloat(values.manualCurrentFxRate);
   }
   return { request };
 };

@@ -2,20 +2,15 @@ import type { StrategyComparisonRequest } from '@services/api';
 import { strategyByType } from '../../comparison/catalog';
 import type { ComparisonStrategyType, StrategyParams } from '../../comparison/types';
 import type { BuildResult, RunContext } from '../types';
+import { toOptionFields, type BacktestOptions } from '../../shared/backtestOptions';
 
-export interface StrategyComparisonValues {
+export interface StrategyComparisonValues extends BacktestOptions {
   symbol: string;
   startDate: string;
   endDate: string;
   investment: string;
   selectedStrategies: ComparisonStrategyType[];
   strategyParameters: Record<string, StrategyParams>;
-  reinvestDividends: boolean;
-  tradingFeeRate: string;
-  dividendTax: boolean;
-  fxMode: 'auto' | 'manual';
-  manualPurchaseFxRate: string;
-  manualCurrentFxRate: string;
 }
 
 // 전략 비교 요청. 검사에 걸리면 alert 문구를 돌려준다
@@ -27,7 +22,9 @@ export const buildStrategyComparisonRequest = (
     return { error: '최소 2개 이상의 전략을 선택해주세요.' };
   }
 
-  if (new Date(values.startDate) >= new Date(values.endDate)) {
+  // 종료일이 비어있으면 오늘. 채운 날짜로 검사한다(빈 종료일과 비교하면 늘 통과했다)
+  const effectiveEndDate = values.endDate || ctx.today;
+  if (values.startDate >= effectiveEndDate) {
     return { error: '시작일은 종료일보다 빠른 날짜여야 합니다.' };
   }
 
@@ -46,23 +43,14 @@ export const buildStrategyComparisonRequest = (
     strategyByType(strategyType).toRequest(values.strategyParameters[strategyType] || {}, common),
   );
 
-  // 종료일이 비어있을시 현재날짜로 변경
-  const effectiveEndDate = values.endDate || ctx.today;
-
   const request: StrategyComparisonRequest = {
     symbol: values.symbol,
     startDate: values.startDate,
     endDate: effectiveEndDate,
     investmentAmount: parseFloat(values.investment),
     strategies,
-    reinvestDividends: values.reinvestDividends,
-    tradingFeeRate: parseFloat(values.tradingFeeRate) / 100,
-    dividendTaxRate: values.dividendTax ? 0.15 : 0,
+    ...toOptionFields(values),
     userId: ctx.userId,
   };
-  if (values.fxMode === 'manual') {
-    request.purchaseFxRate = parseFloat(values.manualPurchaseFxRate);
-    request.currentFxRate = parseFloat(values.manualCurrentFxRate);
-  }
   return { request };
 };

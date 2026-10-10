@@ -42,6 +42,7 @@ describe('buildSymbolComparisonRequest', () => {
     [{ symbols: ['AAPL'] }, '최소 2개 이상의 종목을 선택해주세요.'],
     [{ investment: '' }, '올바른 투자 금액을 입력해주세요.'],
     [{ saleDate: '2023-01-01' }, '시작일은 종료일보다 빠른 날짜여야 합니다.'],
+    [{ purchaseDate: '2026-10-08' }, '시작일은 종료일보다 빠른 날짜여야 합니다.'],
   ])('%o 는 막는다', (patch, error) => {
     expect(buildSymbolComparisonRequest({ ...values, ...patch }, ctx)).toEqual({ error })
   })

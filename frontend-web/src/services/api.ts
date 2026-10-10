@@ -223,17 +223,9 @@ export const portfolioApi = {
   getAccountPortfolio: (accountId: number) =>
     apiClient.get<HoldingResponse[]>(`/portfolio/account/${accountId}`),
 
-  // 특정 종목 보유 현황 조회
-  getHoldingBySymbol: (accountId: number, symbol: string) =>
-    apiClient.get<HoldingResponse>(`/portfolio/account/${accountId}/symbol/${symbol}`),
-
   // 포트폴리오 종합 정보 조회 (현재가 필요)
   getPortfolioSummary: (currentPrices: { [symbol: string]: number }) =>
     apiClient.post<PortfolioSummaryResponse>('/portfolio/summary', currentPrices),
-
-  // 백테스트 결과 포함 포트폴리오 종합 정보 조회
-  getPortfolioSummaryWithBacktest: (currentPrices: { [symbol: string]: number }) =>
-    apiClient.post<PortfolioSummaryResponse>('/portfolio/summary-with-backtest', currentPrices),
 };
 
 // 거래 주문 정보
@@ -385,22 +377,10 @@ type ExchangeRequest = {
   exchangeRate: number;                 // 환율
 };
 
-// 날짜 기준 환전 요청
-type ExchangeByDateRequest = {
-  fromCurrency: 'KRW' | 'USD';          // 출발 통화
-  toCurrency: 'KRW' | 'USD';            // 도착 통화
-  originalAmount: number;               // 환전 금액
-  exchangeDate: string;                 // 환전 기준일 (YYYY-MM-DD)
-};
-
 export const accountsApi = {
   // 계좌 목록 조회
   getAccounts: () =>
     apiClient.get<AccountSummary[]>('/accounts'),
-
-  // 계좌 상세 조회
-  getAccountDetail: (accountId: number) =>
-    apiClient.get<AccountDetail>(`/accounts/${accountId}`),
 
   // 계좌 잔액 조회
   getAccountBalance: (accountId: number) =>
@@ -418,27 +398,15 @@ export const accountsApi = {
   exchangeCurrency: (accountId: number, data: ExchangeRequest) =>
     apiClient.post<void>(`/accounts/${accountId}/exchange`, data),
 
-  // 날짜 기반 환전
-  exchangeCurrencyByDate: (accountId: number, data: ExchangeByDateRequest) =>
-    apiClient.post<void>(`/accounts/${accountId}/exchange/by-date`, data),
-
   // 현재 환율 조회
   getCurrentExchangeRate: () =>
     apiClient.get<number>('/accounts/exchange-rates/current'),
-
-  // 날짜별 환율 조회
-  getExchangeRateByDate: (date: string) =>
-    apiClient.get<number>(`/accounts/exchange-rates/${date}`),
 
   // Bulk 환율 조회 (여러 날짜 한 번에)
   getExchangeRatesBulk: (dates: string[]) =>
     apiClient.get<Record<string, number>>('/accounts/exchange-rates/bulk', {
       params: { dates }
     }),
-
-  // 수동 환율 검증
-  validateManualExchangeRate: (rate: number) =>
-    apiClient.post<number>('/accounts/exchange-rates/validate', null, { params: { rate } }),
 
   // 계좌 삭제
   deleteAccount: (accountId: number) =>
@@ -461,13 +429,6 @@ type RegisterRequest = {
 // 인증 이메일 재발송 요청
 type ResendVerificationRequest = {
   email: string;
-};
-
-// Google 로그인 URL 응답
-export type GoogleLoginUrlResponse = {
-  loginUrl: string;                     // 로그인 URL
-  provider: string;                     // 제공자 (google)
-  redirectUri: string;                  // 리다이렉트 URI
 };
 
 // 사용자 정보
@@ -525,10 +486,6 @@ export const authApi = {
   // 비밀번호 재설정 (토큰 사용)
   resetPassword: (data: ResetPasswordRequest) =>
     apiClient.post<void>('/auth/reset-password', data),
-
-  // Google 로그인 URL 조회
-  getGoogleLoginUrl: () =>
-    apiClient.get<GoogleLoginUrlResponse>('/auth/social/google/login-url'),
 
   // 현재 사용자 정보 조회 (JWT 토큰 기반)
   getCurrentUser: () =>
@@ -672,24 +629,6 @@ export type StrategyComparisonRequest = BacktestCommonRequest & {
   strategies: StrategyParameter[];      // 비교할 전략 목록
 };
 
-// 타이밍 비교 요청
-export type TimingComparisonRequest = {
-  symbol: string;                       // 종목 심볼
-  purchaseDates: string[];              // 매수일 목록
-  startDate: string;                    // 시작일
-  endDate: string;                      // 종료일
-  investmentAmount: number;             // 투자 금액
-};
-
-// 최적 타이밍 분석 요청
-export type OptimalTimingRequest = {
-  symbol: string;                       // 종목 심볼
-  startDate: string;                    // 시작일
-  endDate: string;                      // 종료일
-  investmentAmount: number;             // 투자 금액
-  targetReturnPercent: number;          // 목표 수익률
-};
-
 // 전략 응답
 // 적립식 · 조건부 전략의 매수 한 건. 거래가 일어난 건만 오므로 날짜 · 가격 · 수량은 늘 있다
 export type StrategyTransaction = {
@@ -829,14 +768,6 @@ export const backtestApi = {
   // 전략 비교 분석
   compareStrategies: (data: StrategyComparisonRequest) =>
     apiClient.post<ComparisonResponse>('/analysis/compare/strategies', data),
-
-  // 타이밍 비교 분석
-  compareTiming: (data: TimingComparisonRequest) =>
-    apiClient.post<ComparisonResponse>('/analysis/compare/timing', data),
-
-  // 최적 타이밍 분석
-  analyzeOptimalTiming: (data: OptimalTimingRequest) =>
-    apiClient.post<ComparisonResponse>('/analysis/timing/optimal', data),
 
   // 백테스트 히스토리 조회
   getHistory: (userId: string, page: number = 0, size: number = 20) =>

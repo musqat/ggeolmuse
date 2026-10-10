@@ -1,16 +1,11 @@
 import type { SimulationRequest } from '@services/api';
 import type { BuildResult, RunContext } from '../types';
+import { toOptionFields, type BacktestOptions } from '../../shared/backtestOptions';
 
-export interface SimpleValues {
+export interface SimpleValues extends BacktestOptions {
   purchaseDate: string;
   saleDate: string;
   initialInvestment: string;
-  reinvestDividends: boolean;
-  tradingFeeRate: string;
-  dividendTax: boolean;
-  fxMode: 'auto' | 'manual';
-  manualPurchaseFxRate: string;
-  manualCurrentFxRate: string;
 }
 
 // 단순 매수 요청. 검사에 걸리면 alert 문구를 돌려준다
@@ -42,14 +37,8 @@ export const buildSimpleRequest = (
     purchaseDate: values.purchaseDate,
     saleDate: effectiveSaleDate,
     investmentAmount: investment,
-    reinvestDividends: values.reinvestDividends,
-    tradingFeeRate: parseFloat(values.tradingFeeRate) / 100,
-    dividendTaxRate: values.dividendTax ? 0.15 : 0,
+    ...toOptionFields(values),
     userId: ctx.userId,
   };
-  if (values.fxMode === 'manual') {
-    request.purchaseFxRate = parseFloat(values.manualPurchaseFxRate);
-    request.currentFxRate = parseFloat(values.manualCurrentFxRate);
-  }
   return { request };
 };

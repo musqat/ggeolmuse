@@ -3,6 +3,7 @@ import {
   formatNumberWithCommas,
   parseNumberFromFormatted,
   formatToKoreanWon,
+  formatMarketCap,
 } from './formatNumber'
 
 describe('formatNumberWithCommas', () => {
@@ -89,5 +90,24 @@ describe('formatToKoreanWon', () => {
 
   it('콤마 붙은 문자열도 받는다', () => {
     expect(formatToKoreanWon('1,000,000')).toBe('100만원')
+  })
+})
+
+describe('formatMarketCap', () => {
+  it.each([
+    [3_120_000_000_000, '$3.12T'],
+    [845_210_000_000, '$845.21B'],
+    [12_300_000, '$12.30M'],
+    [950_000, '$950,000'],
+  ])('%d 는 %s', (value, expected) => {
+    expect(formatMarketCap(value)).toBe(expected)
+  })
+
+  it('자릿수를 줄 수 있다', () => {
+    expect(formatMarketCap(3_120_000_000_000, 1)).toBe('$3.1T')
+  })
+
+  it.each([undefined, null, 0])('%s 는 N/A', (value) => {
+    expect(formatMarketCap(value)).toBe('N/A')
   })
 })
