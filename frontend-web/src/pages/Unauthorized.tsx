@@ -26,7 +26,7 @@ export default function Unauthorized() {
 
         <button
           onClick={() => navigate('/')}
-          className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-brand text-white rounded-lg hover:bg-brand-dark transition font-medium"
+          className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-brand text-brand-ink rounded-lg hover:bg-brand-dark transition font-medium"
         >
           <Home className="w-5 h-5" />
           홈으로 돌아가기
