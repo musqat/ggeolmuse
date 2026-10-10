@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { buildStrategyComparisonRequest, type StrategyComparisonValues } from './request'
 
-const ctx = { userId: 'u@x.com', today: '2026-10-08', now: new Date('2026-10-08T03:00:00Z') }
+const ctx = { userId: 'u@x.com', today: '2026-10-08' }
 
 const values: StrategyComparisonValues = {
   symbol: 'AAPL',

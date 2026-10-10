@@ -21,8 +21,8 @@ const PRICES: Record<string, ReturnType<typeof candle>[]> = {
 }
 
 const symbols = [
-  { symbol: 'AAPL', purchaseDate: '2026-03-02', purchasePrice: 100, shares: 2, investmentAmount: 280000, currentPrice: 110, currentValueKrw: 0, fxRate: 1400, color: '#3b82f6' },
-  { symbol: 'MSFT', purchaseDate: '2026-03-03', purchasePrice: 410, shares: 0.5, investmentAmount: 280000, currentPrice: 380, currentValueKrw: 0, fxRate: 1400, color: '#ef4444' },
+  { symbol: 'AAPL', purchaseDate: '2026-03-02', purchasePrice: 100, shares: 2, investmentAmount: 280000, currentPrice: 110, currentValueKrw: 0, color: '#3b82f6' },
+  { symbol: 'MSFT', purchaseDate: '2026-03-03', purchasePrice: 410, shares: 0.5, investmentAmount: 280000, currentPrice: 380, currentValueKrw: 0, color: '#ef4444' },
 ]
 
 // 종목마다 같은 기간 가격을 받아 주가 · 평가금액 · 매수 · 최적 시점을 그린다
@@ -46,7 +46,7 @@ describe('CompareSymbolsChart 차트', () => {
       {
         "AAPL": {
           "buyDate": "2026-03-03",
-          "maxValue": 297000,
+          "maxValue": 286000,
           "minPrice": 90,
           "sellDate": "2026-03-04",
         },
@@ -109,13 +109,13 @@ describe('CompareSymbolsChart 차트', () => {
               "totalPortfolio": 542850,
             },
             {
-              "AAPL_portfolio": 297000,
+              "AAPL_portfolio": 286000,
               "AAPL_price": 110,
-              "MSFT_portfolio": 256500,
+              "MSFT_portfolio": 247000,
               "MSFT_price": 380,
               "date": "2026-03-04",
               "totalInvestment": 280000,
-              "totalPortfolio": 553500,
+              "totalPortfolio": 533000,
             },
           ],
           "yDomains": [
@@ -140,7 +140,7 @@ describe('CompareSymbolsChart 차트', () => {
             {
               "fill": "#fbbf24",
               "x": "2026-03-04",
-              "y": 297000,
+              "y": 286000,
             },
             {
               "fill": "#fbbf24",
@@ -175,19 +175,19 @@ describe('CompareSymbolsChart 차트', () => {
               "totalPortfolio": 542850,
             },
             {
-              "AAPL_portfolio": 297000,
+              "AAPL_portfolio": 286000,
               "AAPL_price": 110,
-              "MSFT_portfolio": 256500,
+              "MSFT_portfolio": 247000,
               "MSFT_price": 380,
               "date": "2026-03-04",
               "totalInvestment": 280000,
-              "totalPortfolio": 553500,
+              "totalPortfolio": 533000,
             },
           ],
           "yDomains": [
             [
-              251640,
-              299160,
+              244897,
+              291153,
             ],
           ],
         },
