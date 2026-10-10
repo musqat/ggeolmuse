@@ -53,7 +53,7 @@ export const StrategyParamsModal: React.FC<StrategyParamsModalProps> = ({
         <div className="flex space-x-3 mt-6">
           <button
             onClick={handleSaveStrategyParams}
-            className="flex-1 px-4 py-2 bg-brand text-white rounded-md hover:bg-brand-dark transition-colors"
+            className="flex-1 px-4 py-2 bg-brand text-brand-ink rounded-md hover:bg-brand-dark transition-colors"
           >
             저장
           </button>

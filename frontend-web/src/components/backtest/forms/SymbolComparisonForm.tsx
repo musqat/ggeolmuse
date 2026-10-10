@@ -118,7 +118,7 @@ export const SymbolComparisonForm: React.FC<SymbolComparisonFormProps> = ({
             />
             <button
               onClick={onAddSymbol}
-              className="px-3 py-2 bg-brand text-white rounded-md hover:bg-brand-dark text-sm whitespace-nowrap"
+              className="px-3 py-2 bg-brand text-brand-ink rounded-md hover:bg-brand-dark text-sm whitespace-nowrap"
             >
               + 추가
             </button>

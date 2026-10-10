@@ -27,7 +27,7 @@ export const ChartPeriodSelector: React.FC<ChartPeriodSelectorProps> = ({
         onClick={() => onPeriodChange(option.value)}
         className={`px-3 py-1 text-sm rounded transition-all ${
           chartPeriod === option.value
-            ? 'bg-brand text-white font-semibold'
+            ? 'bg-brand text-brand-ink font-semibold'
             : 'bg-elevated/50 text-tx-2 hover:bg-hover hover:text-tx-1 border border-line'
         }`}
       >

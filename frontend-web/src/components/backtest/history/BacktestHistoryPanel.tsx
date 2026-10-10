@@ -126,8 +126,8 @@ export const BacktestHistoryPanel: React.FC<BacktestHistoryPanelProps> = ({
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-medium ${
                             history.fxRateMode === "manual"
-                              ? "bg-orange-500/20 text-orange-300"
-                              : "bg-down/15 text-down"
+                              ? "bg-warning-soft/15 text-warning"
+                              : "bg-info/10 text-info"
                           }`}
                         >
                           {history.fxRateMode === "manual"
