@@ -1,17 +1,10 @@
 import React from 'react';
-import { TrendingUp, TrendingDown, DollarSign, Zap, Activity, Repeat } from 'lucide-react';
+import { TrendingUp, DollarSign, Zap } from 'lucide-react';
 import { SimpleChart } from '@components/charts/backtest/SimpleChart';
 import type { SimulationResponse } from '../../../services/api';
-import {
-  formatKrw,
-  formatPercent,
-  formatSigned,
-  formatUsd,
-  gainLossBoxClass,
-  gainLossClass,
-  gainLossTone,
-} from '../../../utils/gainLoss';
-import { StatCard } from './StatCard';
+import { formatKrw, formatPercent, formatSigned, formatUsd, gainLossClass } from '../../../utils/gainLoss';
+import { SummaryCards } from './SummaryCards';
+import { FxImpactSection } from './FxImpactSection';
 import { DetailRow, DetailSection } from './DetailSection';
 import { getTodayString } from '../../../utils/dateUtils';
 
@@ -24,49 +17,12 @@ interface SimpleResultProps {
 export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purchaseDate }) => {
   return (
     <div className="space-y-6">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard
-          label="초기 투자금"
-          value={<>₩{result.investmentAmount?.toLocaleString()}</>}
-          icon={DollarSign}
-        />
-
-        <StatCard
-          label="평가 가치"
-          value={<>₩{result.totalAssetKrw?.toLocaleString()}</>}
-          sub={
-            <>
-              주식: ₩{result.currentValueKrw?.toLocaleString()}, 현금: ₩
-              {result.remainingCashKrw?.toLocaleString()}
-            </>
-          }
-          icon={TrendingUp}
-        />
-
-        <StatCard
-          label="총 수익"
-          value={
-            formatSigned(result.totalReturnKrw, formatKrw)
-          }
-          valueClassName={gainLossClass(result.totalReturnKrw)}
-          icon={gainLossTone(result.totalReturnKrw) === "loss" ? TrendingDown : TrendingUp}
-          iconBoxClassName={gainLossBoxClass(result.totalReturnKrw)}
-          iconClassName={gainLossClass(result.totalReturnKrw)}
-        />
-
-        <StatCard
-          label="수익률"
-          value={
-            formatSigned(result.totalReturnPercent, formatPercent)
-          }
-          valueClassName={gainLossClass(result.totalReturnPercent)}
-          icon={Activity}
-          iconBoxClassName={gainLossBoxClass(result.totalReturnPercent)}
-          iconClassName={gainLossClass(result.totalReturnPercent)}
-          testId="backtest-return-rate"
-        />
-      </div>
+      <SummaryCards
+        result={result}
+        investedLabel="초기 투자금"
+        invested={result.investmentAmount}
+        returnRateTestId="backtest-return-rate"
+      />
 
       {/* Detailed Results - 4 Sections: Investment, Stock Performance, FX Impact, Optimal Timing */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
@@ -128,34 +84,7 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
           />
         </DetailSection>
 
-        <DetailSection title="환율 영향" icon={Repeat} borderClassName="border-brand/25">
-          <DetailRow
-            label="시작일 환율"
-            value={<>₩{result.purchaseFxRate?.toLocaleString()}</>}
-            dividerClassName="border-line"
-          />
-          <DetailRow
-            label="평가일 환율"
-            value={<>₩{result.currentFxRate?.toLocaleString()}</>}
-            dividerClassName="border-line"
-          />
-          <DetailRow
-            label="환율 변동"
-            value={
-              formatSigned(result.fxReturn, (v) => `₩${v.toFixed(2)}`)
-            }
-            valueClassName={`font-medium ${gainLossClass(result.fxReturn)}`}
-            dividerClassName="border-line"
-          />
-          <DetailRow
-            label="환차익률"
-            value={
-              formatSigned(result.fxReturnPercent, formatPercent)
-            }
-            valueClassName={`font-bold ${gainLossClass(result.fxReturnPercent)}`}
-            last
-          />
-        </DetailSection>
+        <FxImpactSection result={result} startLabel="시작일 환율" startRate={result.purchaseFxRate} />
 
         <DetailSection
           title="최적 타이밍"
