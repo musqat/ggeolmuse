@@ -16,8 +16,11 @@ export default mergeConfig(
       },
       coverage: {
         provider: 'v8',
-        reporter: ['text', 'html'],
-        include: ['src/utils/**', 'src/components/**'],
+        // json-summary 는 docs/superpowers/tools/cov-front.cjs 가 읽는다
+        reporter: ['text', 'html', 'json-summary'],
+        // src 전체를 잰다. 테스트 도구 · 테스트 파일 · 진입점 · 타입 선언만 뺀다
+        include: ['src/**'],
+        exclude: ['src/test/**', 'src/**/*.test.*', 'src/main.tsx', 'src/**/*.d.ts'],
       },
     },
   })
