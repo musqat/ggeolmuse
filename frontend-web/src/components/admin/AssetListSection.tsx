@@ -167,14 +167,14 @@ export default function AssetListSection({
               <button
                 onClick={() => onListActiveChange(true)}
                 disabled={loading}
-                className={`px-3 py-1.5 transition disabled:opacity-50 ${listActive ? 'bg-brand text-white' : 'text-tx-2 hover:bg-surface-2'}`}
+                className={`px-3 py-1.5 transition disabled:opacity-50 ${listActive ? 'bg-brand text-brand-ink' : 'text-tx-2 hover:bg-hover'}`}
               >
                 상장
               </button>
               <button
                 onClick={() => onListActiveChange(false)}
                 disabled={loading}
-                className={`px-3 py-1.5 transition disabled:opacity-50 ${listActive ? 'text-tx-2 hover:bg-surface-2' : 'bg-brand text-white'}`}
+                className={`px-3 py-1.5 transition disabled:opacity-50 ${listActive ? 'text-tx-2 hover:bg-hover' : 'bg-brand text-brand-ink'}`}
               >
                 상장폐지
               </button>
@@ -219,7 +219,7 @@ export default function AssetListSection({
           <button
             onClick={onUpdateAllPrices}
             disabled={loading}
-            className="px-4 py-2 bg-green-600 text-white hover:bg-green-700 rounded-lg flex items-center gap-2 transition disabled:opacity-50"
+            className="px-4 py-2 bg-green-700 text-white hover:bg-green-800 rounded-lg flex items-center gap-2 transition disabled:opacity-50"
           >
             <DollarSign className="w-5 h-5" />
             전체 가격 업데이트
@@ -435,7 +435,7 @@ export default function AssetListSection({
                 disabled={loading}
                 className={`px-3 py-1 text-sm border rounded-lg transition ${
                   currentPage === pageNum
-                    ? 'bg-brand text-white border-brand'
+                    ? 'bg-brand text-brand-ink border-brand'
                     : 'hover:bg-surface/50'
                 }`}
               >

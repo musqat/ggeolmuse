@@ -130,7 +130,7 @@ export const StrategyComparisonForm: React.FC<StrategyComparisonFormProps> = ({
               onClick={() => toggleStrategy(type)}
               className={`px-4 py-2 rounded-md transition-colors ${
                 selectedStrategies.includes(type)
-                  ? 'bg-brand text-white'
+                  ? 'bg-brand text-brand-ink'
                   : 'bg-elevated/50 text-tx-2 hover:bg-hover hover:text-tx-1 border border-line'
               }`}
             >

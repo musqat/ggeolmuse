@@ -223,7 +223,7 @@ const Trading: React.FC = () => {
               </p>
               <button
                 onClick={() => setIsLoginModalOpen(true)}
-                className="flex items-center space-x-2 bg-brand text-white px-6 py-3 rounded-lg hover:bg-brand-dark transition-colors mx-auto"
+                className="flex items-center space-x-2 bg-brand text-brand-ink px-6 py-3 rounded-lg hover:bg-brand-dark transition-colors mx-auto"
               >
                 <LogIn className="w-5 h-5" />
                 <span>로그인하기</span>
@@ -379,7 +379,7 @@ const Trading: React.FC = () => {
               disabled={!selectedStock || !quantity || !selectedAccountId || (priceType === 'limit' && !limitPrice)}
               className={`w-full py-3 px-4 rounded-md font-medium transition-colors ${
                 orderType === 'buy'
-                  ? 'bg-green-600 hover:bg-green-700 text-white'
+                  ? 'bg-green-700 hover:bg-green-800 text-white'
                   : 'bg-red-600 hover:bg-red-700 text-white'
               } disabled:opacity-50 disabled:cursor-not-allowed`}
             >

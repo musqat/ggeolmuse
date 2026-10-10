@@ -149,7 +149,7 @@ const MyPage: React.FC = () => {
             </h3>
             <button
               onClick={() => navigate("/")}
-              className="px-6 py-3 bg-brand text-white rounded-lg hover:bg-brand-dark transition-colors"
+              className="px-6 py-3 bg-brand text-brand-ink rounded-lg hover:bg-brand-dark transition-colors"
             >
               홈으로 이동
             </button>
@@ -331,7 +331,7 @@ const MyPage: React.FC = () => {
               <button
                 onClick={handleChangeNickname}
                 disabled={!newNickname.trim()}
-                className="flex-1 px-4 py-2 bg-brand text-white rounded-lg hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="flex-1 px-4 py-2 bg-brand text-brand-ink rounded-lg hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 변경하기
               </button>
@@ -402,7 +402,7 @@ const MyPage: React.FC = () => {
               <button
                 onClick={handleChangePassword}
                 disabled={!currentPassword || !newPassword || !confirmPassword}
-                className="flex-1 px-4 py-2 bg-brand text-white rounded-lg hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="flex-1 px-4 py-2 bg-brand text-brand-ink rounded-lg hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 변경하기
               </button>

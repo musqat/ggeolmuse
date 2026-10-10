@@ -131,7 +131,7 @@ const AiChatModal: React.FC<AiChatModalProps> = ({ onRequireLogin }) => {
               <p className="text-tx-2 mb-4">로그인하면 AI 주식 기술 분석을 받아볼 수 있어요.</p>
               <button
                 onClick={onRequireLogin}
-                className="bg-brand text-white px-4 py-2 rounded-lg hover:bg-brand-dark"
+                className="bg-brand text-brand-ink px-4 py-2 rounded-lg hover:bg-brand-dark"
               >
                 로그인하기
               </button>
@@ -183,7 +183,7 @@ const AiChatModal: React.FC<AiChatModalProps> = ({ onRequireLogin }) => {
               <button
                 onClick={handleSend}
                 disabled={loading}
-                className="bg-brand text-white px-3 rounded-lg hover:bg-brand-dark disabled:opacity-50"
+                className="bg-brand text-brand-ink px-3 rounded-lg hover:bg-brand-dark disabled:opacity-50"
               >
                 <Send className="w-4 h-4" />
               </button>

@@ -134,7 +134,7 @@ const Header: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setIsSignupModalOpen(true)}
-                  className="px-3 py-[6px] text-[13px] font-semibold bg-brand text-white rounded-[7px] hover:bg-brand-dark transition-all"
+                  className="px-3 py-[6px] text-[13px] font-semibold bg-brand text-brand-ink rounded-[7px] hover:bg-brand-dark transition-all"
                 >
                   시작하기
                 </button>
@@ -149,7 +149,7 @@ const Header: React.FC = () => {
                 </div>
                 <button
                   onClick={() => navigate('/mypage')}
-                  className="w-7 h-7 bg-brand text-white rounded-full flex items-center justify-center hover:bg-brand-dark transition-all"
+                  className="w-7 h-7 bg-brand text-brand-ink rounded-full flex items-center justify-center hover:bg-brand-dark transition-all"
                   title="마이페이지"
                 >
                   <User className="w-3.5 h-3.5" />
@@ -201,7 +201,7 @@ const Header: React.FC = () => {
                 </button>
                 <button
                   onClick={() => { setIsSignupModalOpen(true); setIsMobileMenuOpen(false); }}
-                  className="flex-1 py-2 text-[13px] font-semibold bg-brand text-white rounded-[7px]"
+                  className="flex-1 py-2 text-[13px] font-semibold bg-brand text-brand-ink rounded-[7px]"
                 >
                   시작하기
                 </button>

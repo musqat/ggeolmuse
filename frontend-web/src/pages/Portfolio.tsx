@@ -7,9 +7,11 @@ import { portfolioApi, accountsApi } from '../services/api';
 import PortfolioPieChart, { type PieChartData } from '../components/charts/portfolio/PortfolioPieChart';
 import LoginModal from '../components/auth/LoginModal';
 
-// 자산 구성 파이와 자산 배분 목록이 같이 쓰는 색. 종목 다음에 USD · KRW 현금 순으로 이어진다
-const ALLOCATION_COLORS = ['#6366f1', '#3b82f6', '#10b981', '#eab308', '#ef4444', '#a855f7', '#f59e0b', '#06b6d4'];
-const allocationColor = (index: number) => ALLOCATION_COLORS[index % ALLOCATION_COLORS.length];
+// 자산 구성 파이와 자산 배분 목록이 같이 쓰는 색(index.css). 금액 큰 순서로 다섯 자리를 주고 그 뒤는 회색.
+// 돌려 쓰지 않는다 — 여섯 번째부터는 파이에서도 ETC 로 묶인다
+const ALLOCATION_COLORS = ['var(--alloc-1)', 'var(--alloc-2)', 'var(--alloc-3)', 'var(--alloc-4)', 'var(--alloc-5)'];
+const ALLOCATION_ETC_COLOR = 'var(--alloc-etc)';
+const allocationColor = (index: number) => ALLOCATION_COLORS[index] ?? ALLOCATION_ETC_COLOR;
 
 const Portfolio: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -97,7 +99,7 @@ const Portfolio: React.FC = () => {
               </p>
               <button
                 onClick={() => setIsLoginModalOpen(true)}
-                className="flex items-center space-x-2 bg-brand text-white px-6 py-3 rounded-lg hover:bg-brand-dark transition-colors mx-auto"
+                className="flex items-center space-x-2 bg-brand text-brand-ink px-6 py-3 rounded-lg hover:bg-brand-dark transition-colors mx-auto"
               >
                 <LogIn className="w-5 h-5" />
                 <span>로그인하기</span>
@@ -130,7 +132,7 @@ const Portfolio: React.FC = () => {
             <p className="text-tx-2 mb-6">포트폴리오를 확인할 계좌를 선택해주세요</p>
             <button
               onClick={() => navigate('/account')}
-              className="px-6 py-3 bg-brand text-white rounded-lg hover:bg-brand-dark transition-colors"
+              className="px-6 py-3 bg-brand text-brand-ink rounded-lg hover:bg-brand-dark transition-colors"
             >
               계좌 관리로 이동
             </button>
@@ -139,6 +141,27 @@ const Portfolio: React.FC = () => {
       </div>
     );
   }
+
+  // 주식 · USD 현금 · KRW 현금(USD 로 환산)을 금액 큰 순으로 세우고 그 순서로 색을 준다
+  const allocationItems: PieChartData[] = [
+    ...holdings.map((holding) => ({
+      symbol: holding.symbol,
+      value: holding.currentValue || holding.totalInvestedAmount,
+      color: '',
+      quantity: holding.totalQuantity,
+      currentPrice: holding.currentPrice,
+    })),
+    ...(balanceInfo && Number(balanceInfo.balanceUsd) > 0
+      ? [{ symbol: 'USD 현금', value: Number(balanceInfo.balanceUsd), color: '' }]
+      : []),
+    ...(balanceInfo && Number(balanceInfo.balanceKrw) > 0
+      ? [{ symbol: 'KRW 현금', value: Number(balanceInfo.balanceKrw) / exchangeRate, color: '' }]
+      : []),
+  ]
+    .sort((a, b) => b.value - a.value)
+    .map((item, index) => ({ ...item, color: allocationColor(index) }));
+  const allocationColorOf = (symbol: string) =>
+    allocationItems.find((item) => item.symbol === symbol)?.color ?? ALLOCATION_ETC_COLOR;
 
   if (loading) {
     return (
@@ -238,43 +261,7 @@ const Portfolio: React.FC = () => {
               <div className="bg-surface/50 rounded-lg p-4 sm:p-6 min-h-64 flex items-center justify-center">
                 {(holdings.length > 0 || (balanceInfo && (Number(balanceInfo.balanceKrw) > 0 || Number(balanceInfo.balanceUsd) > 0))) ? (
                   <PortfolioPieChart
-                    data={(() => {
-                      const chartData: PieChartData[] = [];
-                      let colorIndex = 0;
-
-                      // 주식 추가 (quantity와 currentPrice 포함)
-                      holdings.forEach((holding) => {
-                        chartData.push({
-                          symbol: holding.symbol,
-                          value: holding.currentValue || holding.totalInvestedAmount,
-                          color: allocationColor(colorIndex),
-                          quantity: holding.totalQuantity,
-                          currentPrice: holding.currentPrice
-                        });
-                        colorIndex++;
-                      });
-
-                      // USD 현금 추가 (0보다 크면)
-                      if (balanceInfo && Number(balanceInfo.balanceUsd) > 0) {
-                        chartData.push({
-                          symbol: 'USD 현금',
-                          value: Number(balanceInfo.balanceUsd),
-                          color: allocationColor(colorIndex)
-                        });
-                        colorIndex++;
-                      }
-
-                      // KRW 현금 추가 (0보다 크면, USD로 환산)
-                      if (balanceInfo && Number(balanceInfo.balanceKrw) > 0) {
-                        chartData.push({
-                          symbol: 'KRW 현금',
-                          value: Number(balanceInfo.balanceKrw) / exchangeRate,
-                          color: allocationColor(colorIndex)
-                        });
-                      }
-
-                      return chartData;
-                    })()}
+                    data={allocationItems}
                   />
                 ) : (
                   <div className="text-center">
@@ -304,7 +291,7 @@ const Portfolio: React.FC = () => {
                   return (
                     <>
                       {/* 주식 자산 */}
-                      {holdings.map((holding, index) => {
+                      {holdings.map((holding) => {
                         const allocation = totalAssets > 0 && holding.currentValue
                           ? ((holding.currentValue / totalAssets) * 100).toFixed(1)
                           : '0.0';
@@ -312,7 +299,7 @@ const Portfolio: React.FC = () => {
                         return (
                           <div key={holding.holdingId} className="flex items-center justify-between">
                             <div className="flex items-center space-x-3">
-                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: allocationColor(index) }}></div>
+                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: allocationColorOf(holding.symbol) }}></div>
                               <div>
                                 <p className="font-medium text-tx-1 text-sm">{holding.symbol}</p>
                                 <p className="text-xs text-tx-2">{holding.totalQuantity}주</p>
@@ -332,7 +319,7 @@ const Portfolio: React.FC = () => {
                       {balanceInfo && Number(balanceInfo.balanceUsd) > 0 && (
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-3">
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: allocationColor(holdings.length) }}></div>
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: allocationColorOf('USD 현금') }}></div>
                             <div>
                               <p className="font-medium text-tx-1 text-sm">USD 현금</p>
                               <p className="text-xs text-tx-2">달러 잔액</p>
@@ -357,7 +344,7 @@ const Portfolio: React.FC = () => {
                           <div className="flex items-center space-x-3">
                             <div
                               className="w-3 h-3 rounded-full"
-                              style={{ backgroundColor: allocationColor(holdings.length + (Number(balanceInfo.balanceUsd) > 0 ? 1 : 0)) }}
+                              style={{ backgroundColor: allocationColorOf('KRW 현금') }}
                             ></div>
                             <div>
                               <p className="font-medium text-tx-1 text-sm">KRW 현금</p>

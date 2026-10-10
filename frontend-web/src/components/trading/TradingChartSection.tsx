@@ -44,7 +44,7 @@ const TradingChartSection: React.FC<TradingChartSectionProps> = ({
               onClick={() => onTimeframeChange(tf)}
               className={`px-3 py-1 text-sm rounded-md transition-colors flex items-center space-x-1 ${
                 timeframe === tf
-                  ? 'bg-brand text-white'
+                  ? 'bg-brand text-brand-ink'
                   : 'bg-elevated text-tx-1 hover:bg-hover'
               }`}
             >

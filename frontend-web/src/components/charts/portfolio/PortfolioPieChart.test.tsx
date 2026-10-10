@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import PortfolioPieChart from './PortfolioPieChart'
 
 /** 파이 조각만 골라낸다. 툴팁이나 아이콘 path 는 fill 이 없다. */
@@ -69,5 +69,34 @@ describe('PortfolioPieChart', () => {
 
     expect(slicePaths(container)).toHaveLength(0)
     expect(screen.getByText('데이터가 없습니다')).toBeInTheDocument()
+  })
+  // SVG(280 × 280)가 overflow hidden 이라 툴팁(200 × 120)이 밖으로 나가면 잘린다
+  it('툴팁을 SVG 안에 둔다', () => {
+    const { container } = render(
+      <PortfolioPieChart
+        data={[
+          { symbol: 'AAPL', value: 600, color: '#6366f1' },
+          { symbol: 'MSFT', value: 400, color: '#3b82f6' },
+        ]}
+      />
+    )
+    const slice = slicePaths(container)[0]
+    const box = () => {
+      const fo = container.querySelector('foreignObject')!
+      return [Number(fo.getAttribute('x')), Number(fo.getAttribute('y'))]
+    }
+
+    fireEvent.mouseEnter(slice)
+    // 왼쪽 위: 커서 오른쪽 10 · 위 40 자리. 위로 넘치면 0 으로
+    fireEvent.mouseMove(slice, { clientX: 20, clientY: 20 })
+    expect(box()).toEqual([30, 0])
+
+    // 오른쪽 아래: 커서 왼쪽으로 돌리고 안쪽으로 자른다
+    fireEvent.mouseMove(slice, { clientX: 270, clientY: 270 })
+    expect(box()).toEqual([60, 160])
+
+    // 가운데 오른쪽: 왼쪽으로 돌려도 넘쳐 0 까지
+    fireEvent.mouseMove(slice, { clientX: 150, clientY: 140 })
+    expect(box()).toEqual([0, 100])
   })
 })

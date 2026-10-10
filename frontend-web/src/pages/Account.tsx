@@ -103,7 +103,7 @@ const Account: React.FC = () => {
               </p>
               <button
                 onClick={() => setIsLoginModalOpen(true)}
-                className="flex items-center space-x-2 bg-brand text-white px-6 py-3 rounded-lg hover:bg-brand-dark transition-colors mx-auto"
+                className="flex items-center space-x-2 bg-brand text-brand-ink px-6 py-3 rounded-lg hover:bg-brand-dark transition-colors mx-auto"
               >
                 <LogIn className="w-5 h-5" />
                 <span>로그인하기</span>
@@ -187,7 +187,7 @@ const Account: React.FC = () => {
             <p className="text-tx-2 mb-6">첫 번째 계좌를 생성하여 투자를 시작해보세요</p>
             <button
               onClick={openCreateModal}
-              className="px-6 py-3 bg-brand text-white rounded-lg hover:bg-brand-dark transition-colors"
+              className="px-6 py-3 bg-brand text-brand-ink rounded-lg hover:bg-brand-dark transition-colors"
             >
               계좌 생성하기
             </button>

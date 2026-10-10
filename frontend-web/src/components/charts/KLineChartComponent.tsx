@@ -356,7 +356,7 @@ const KLineChartComponent: React.FC<KLineChartComponentProps> = ({
               onClick={() => startDrawing(tool.name)}
               className={`w-7 h-7 rounded text-[12px] font-mono flex items-center justify-center transition-colors
                 ${activeTool === tool.name
-                  ? 'bg-brand text-white'
+                  ? 'bg-brand text-brand-ink'
                   : 'text-tx-3 hover:bg-hover hover:text-tx-1'
                 }`}
             >

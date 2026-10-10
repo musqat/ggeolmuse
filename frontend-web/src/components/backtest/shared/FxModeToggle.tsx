@@ -31,7 +31,7 @@ export const FxModeToggle: React.FC<FxModeToggleProps> = ({
             onClick={() => setFxMode('auto')}
             className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
               fxMode === 'auto'
-                ? 'bg-brand text-white'
+                ? 'bg-brand text-brand-ink'
                 : 'bg-elevated text-tx-1 hover:bg-hover'
             }`}
           >
@@ -42,7 +42,7 @@ export const FxModeToggle: React.FC<FxModeToggleProps> = ({
             onClick={() => setFxMode('manual')}
             className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
               fxMode === 'manual'
-                ? 'bg-brand text-white'
+                ? 'bg-brand text-brand-ink'
                 : 'bg-elevated text-tx-1 hover:bg-hover'
             }`}
           >

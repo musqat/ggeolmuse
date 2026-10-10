@@ -62,7 +62,7 @@ export default function AdminMarket() {
           </div>
           <button
             onClick={() => setAddOpen(true)}
-            className="px-4 py-2 bg-brand text-white rounded-lg hover:bg-brand-dark flex items-center gap-2 font-semibold"
+            className="px-4 py-2 bg-brand text-brand-ink rounded-lg hover:bg-brand-dark flex items-center gap-2 font-semibold"
           >
             <Plus className="w-5 h-5" />
             신규 종목 추가
@@ -105,7 +105,7 @@ export default function AdminMarket() {
             <button
               onClick={handleSearch}
               disabled={loading}
-              className="px-5 py-2 bg-brand text-white rounded-lg hover:bg-brand-dark disabled:opacity-50 flex items-center gap-1.5"
+              className="px-5 py-2 bg-brand text-brand-ink rounded-lg hover:bg-brand-dark disabled:opacity-50 flex items-center gap-1.5"
             >
               <Search className="w-4 h-4" />
               검색

@@ -156,7 +156,7 @@ export default function CandleRefreshSection() {
         <button
           onClick={startScan}
           disabled={running || loading}
-          className="px-5 py-2 bg-brand text-white rounded-lg hover:bg-brand-dark disabled:opacity-50 flex items-center gap-1.5"
+          className="px-5 py-2 bg-brand text-brand-ink rounded-lg hover:bg-brand-dark disabled:opacity-50 flex items-center gap-1.5"
         >
           {running && <RefreshCw className="w-4 h-4 animate-spin" />}
           {running ? '탐색 중' : '찾기'}
@@ -165,7 +165,7 @@ export default function CandleRefreshSection() {
         <button
           onClick={refresh}
           disabled={loading || running || symbols.length === 0}
-          className="px-5 py-2 border border-line-strong rounded-lg hover:bg-surface-2 disabled:opacity-50 flex items-center gap-1.5"
+          className="px-5 py-2 border border-line-strong rounded-lg hover:bg-hover disabled:opacity-50 flex items-center gap-1.5"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           {symbols.length > 0 ? `${symbols.length}개 다시 받기` : '다시 받기'}
@@ -174,7 +174,7 @@ export default function CandleRefreshSection() {
         <button
           onClick={refreshAll}
           disabled={loading || running}
-          className="px-5 py-2 border border-line-strong rounded-lg hover:bg-surface-2 disabled:opacity-50"
+          className="px-5 py-2 border border-line-strong rounded-lg hover:bg-hover disabled:opacity-50"
         >
           전체 다시 받기
         </button>

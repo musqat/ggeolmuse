@@ -41,10 +41,10 @@ const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({ data }) => {
     );
   }
 
-  // 데이터를 value 기준으로 정렬하고 상위 5개와 나머지 분리
-  const sortedData = [...data].sort((a, b) => b.value - a.value);
-  const top5 = sortedData.slice(0, 5);
-  const others = sortedData.slice(5);
+  // 부모가 금액 순으로 세워 색을 준다. 받은 순서대로 그려야 이웃한 조각의 색이 갈린다.
+  // 앞 다섯 개만 따로 그리고 나머지는 ETC 로 묶는다
+  const top5 = data.slice(0, 5);
+  const others = data.slice(5);
 
   // 기타(ETC) 항목이 있으면 추가
   const chartData = [...top5];
@@ -53,13 +53,16 @@ const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({ data }) => {
     chartData.push({
       symbol: "ETC",
       value: othersTotalValue,
-      color: "#9ca3af", // gray-400
+      color: "var(--alloc-etc)",
     });
   }
 
   // SVG 원형 차트 생성
   const size = 280;
   const center = size / 2;
+  // 툴팁 크기(네 줄까지 들어가는 높이). SVG 가 overflow hidden 이라 밖으로 나가면 잘리므로 안쪽에 둔다
+  const tooltipWidth = 200;
+  const tooltipHeight = 120;
   const radius = size / 2 - 20;
 
   let currentAngle = -90; // 12시 방향부터 시작
@@ -110,6 +113,15 @@ const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({ data }) => {
     };
   });
 
+  // 커서 오른쪽에 두고, 넘치면 왼쪽으로 돌린 뒤 SVG 안으로 자른다
+  const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max);
+  const tooltipX = clamp(
+    mousePosition.x + 10 + tooltipWidth <= size ? mousePosition.x + 10 : mousePosition.x - 10 - tooltipWidth,
+    0,
+    size - tooltipWidth,
+  );
+  const tooltipY = clamp(mousePosition.y - 40, 0, size - tooltipHeight);
+
   const handleMouseMove = (e: React.MouseEvent<SVGPathElement>) => {
     const svg = e.currentTarget.ownerSVGElement;
     if (svg) {
@@ -137,10 +149,10 @@ const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({ data }) => {
                 data-testid="pie-slice"
                 d={slice.path}
                 fill={slice.color}
+                stroke="rgb(var(--bg-surface))"
+                strokeWidth={2}
                 className="transition-all duration-200 cursor-pointer"
                 style={{
-                  opacity:
-                    hoveredIndex === null || hoveredIndex === index ? 1 : 0.5,
                   transform:
                     hoveredIndex === index ? "scale(1.05)" : "scale(1)",
                   transformOrigin: "center",
@@ -156,13 +168,13 @@ const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({ data }) => {
           {hoveredIndex !== null && (
             <g>
               <foreignObject
-                x={mousePosition.x + 10}
-                y={mousePosition.y - 40}
-                width="200"
-                height="100"
+                x={tooltipX}
+                y={tooltipY}
+                width={tooltipWidth}
+                height={tooltipHeight}
                 style={{ pointerEvents: "none" }}
               >
-                <div className="bg-elevated text-white px-3 py-2 rounded-lg shadow-lg text-sm">
+                <div className="bg-elevated text-tx-1 px-3 py-2 rounded-lg shadow-lg text-sm">
                   <div className="font-semibold">
                     {slices[hoveredIndex].symbol}
                   </div>

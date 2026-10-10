@@ -14,7 +14,7 @@ interface ChartPeriodBarProps {
 
 const buttonClass = (active: boolean) =>
   `px-2 md:px-3 py-1.5 md:py-2 rounded-md text-xs md:text-sm font-medium transition-colors whitespace-nowrap ${
-    active ? 'bg-brand text-white shadow-sm' : 'text-tx-2 hover:text-tx-1 hover:bg-hover'
+    active ? 'bg-brand text-brand-ink shadow-sm' : 'text-tx-2 hover:text-tx-1 hover:bg-hover'
   }`;
 
 // 기간 버튼 한 줄과 직접설정 날짜 칸. 좁은 화면에서는 버튼 줄을 옆으로 민다

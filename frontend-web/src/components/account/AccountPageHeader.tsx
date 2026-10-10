@@ -28,7 +28,7 @@ export const AccountPageHeader: React.FC<AccountPageHeaderProps> = ({
         </button>
         <button
           onClick={onCreateAccount}
-          className="flex items-center space-x-2 px-4 py-2 bg-brand text-white rounded-lg hover:bg-brand-dark transition-colors"
+          className="flex items-center space-x-2 px-4 py-2 bg-brand text-brand-ink rounded-lg hover:bg-brand-dark transition-colors"
         >
           <Plus className="w-4 h-4" />
           <span>계좌 생성</span>

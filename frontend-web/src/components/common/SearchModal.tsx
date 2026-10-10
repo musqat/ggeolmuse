@@ -166,7 +166,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, supportedSym
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
-                      <div className="flex items-center justify-center w-10 h-10 bg-brand text-white rounded-full">
+                      <div className="flex items-center justify-center w-10 h-10 bg-brand text-brand-ink rounded-full">
                         <TrendingUp className="w-5 h-5" />
                       </div>
                       <div>

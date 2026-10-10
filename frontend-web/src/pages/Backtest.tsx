@@ -163,7 +163,7 @@ const Backtest: React.FC = () => {
               onClick={runBacktest}
               disabled={isRunning}
               data-testid="backtest-run"
-              className="flex items-center space-x-2 px-6 py-3 bg-brand text-white rounded-lg hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center space-x-2 px-6 py-3 bg-brand text-brand-ink rounded-lg hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <Play className="w-5 h-5" />
               <span>{isRunning ? "실행 중..." : "백테스트 실행"}</span>
