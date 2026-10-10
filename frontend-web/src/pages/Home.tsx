@@ -84,7 +84,8 @@ const Home: React.FC = () => {
   }, [ohlcRaw]);
 
   const topUp = topChange === null ? true : topChange >= 0;
-  const sparkColor = topUp ? '#10B981' : '#60A5FA';
+  // 꼬리표와 같은 등락 색(상승 빨강 · 하락 파랑). 테마마다 바뀐다
+  const sparkColor = topUp ? 'rgb(var(--up))' : 'rgb(var(--down))';
 
   // 데이터 기준 날짜 (OHLC 마지막 데이터)
   const dataDate = useMemo(() => {
@@ -144,7 +145,7 @@ const Home: React.FC = () => {
               <span className="text-[13px] font-bold text-tx-1">
                 {topSymbol && dataDate ? `${topSymbol} · ${dataDate} 종가` : topSymbol || '시총 1위'}
               </span>
-              <span className={`text-[11.5px] font-semibold px-2 py-0.5 rounded-[5px] ${topUp ? 'text-up bg-red-500/10' : 'text-down bg-blue-500/10'}`}>
+              <span className={`text-[11.5px] font-semibold px-2 py-0.5 rounded-[5px] ${topUp ? 'text-up bg-up/10' : 'text-down bg-down/10'}`}>
                 {topChange !== null ? `${topUp ? '▲' : '▼'} ${Math.abs(topChange).toFixed(2)}%` : '—'}
               </span>
             </div>
