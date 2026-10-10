@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { RefreshCw, Trash2, DollarSign, TrendingUp, ArrowUpDown, ChevronLeft, ChevronRight, Pencil, Check, X, PlusCircle, Undo2 } from 'lucide-react';
 import type { Asset } from '@services/adminApi';
+import { formatMarketCap } from '../../utils/formatNumber';
 
 interface AssetListSectionProps {
   assets: Asset[];
@@ -100,22 +101,6 @@ export default function AssetListSection({
   const formatPrice = (price?: number) => {
     if (price == null) return 'N/A';
     return `$${price.toFixed(2)}`;
-  };
-
-  const formatMarketCap = (marketCap?: number, assetType?: string) => {
-    // ETF는 시가총액이 없음
-    if (assetType === 'ETF') return '-';
-    if (marketCap == null) return 'N/A';
-    if (marketCap >= 1_000_000_000_000) {
-      return `$${(marketCap / 1_000_000_000_000).toFixed(2)}T`;
-    }
-    if (marketCap >= 1_000_000_000) {
-      return `$${(marketCap / 1_000_000_000).toFixed(2)}B`;
-    }
-    if (marketCap >= 1_000_000) {
-      return `$${(marketCap / 1_000_000).toFixed(2)}M`;
-    }
-    return `$${marketCap.toLocaleString()}`;
   };
 
   const formatDate = (date?: string) => {
@@ -336,7 +321,7 @@ export default function AssetListSection({
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={asset.marketCap == null && asset.assetType !== 'ETF' ? 'text-tx-3' : 'font-medium'}>
-                    {formatMarketCap(asset.marketCap, asset.assetType)}
+                    {asset.assetType === 'ETF' ? '-' : formatMarketCap(asset.marketCap)}
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">

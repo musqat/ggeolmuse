@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { stockApi } from '../services/api';
+import { formatMarketCap } from '../utils/formatNumber';
 
 interface StockSymbol {
   symbol: string;
@@ -128,14 +129,6 @@ const Stocks: React.FC = () => {
 
   const handleSymbolClick = (symbol: string) => {
     navigate(`/charts/${symbol}`);
-  };
-
-  const formatMarketCap = (marketCap?: number) => {
-    if (!marketCap) return 'N/A';
-    if (marketCap >= 1e12) return `$${(marketCap / 1e12).toFixed(1)}T`;
-    if (marketCap >= 1e9) return `$${(marketCap / 1e9).toFixed(1)}B`;
-    if (marketCap >= 1e6) return `$${(marketCap / 1e6).toFixed(1)}M`;
-    return `$${marketCap.toLocaleString()}`;
   };
 
   if (loading && symbols.length === 0) {
@@ -275,7 +268,7 @@ const Stocks: React.FC = () => {
                     </span>
                   </td>
                   <td className="py-3 px-4 text-right text-tx-2">
-                    {formatMarketCap(stock.marketCap)}
+                    {formatMarketCap(stock.marketCap, 1)}
                   </td>
                 </tr>
               ))}

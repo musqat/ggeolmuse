@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
 import { CompareSymbolsChart } from '@components/charts/backtest/CompareSymbolsChart';
 import type { ComparisonItem } from '../../../services/api';
-import { CHART_COLORS, type OptimalPointsBySymbol } from '../shared/backtestDisplay';
+import { CHART_COLORS } from '@components/charts/common/constants';
+import type { OptimalPointsBySymbol } from '../shared/backtestDisplay';
 
 // 무한 리렌더링 방지를 위한 메모이제이션 래퍼 컴포넌트
 export const CompareSymbolsChartMemoized: React.FC<{

@@ -17,18 +17,6 @@ export const formatSavedDate = (iso: string) => {
 
 export { STRATEGY_NAMES } from "../comparison/catalog";
 
-// 다중 종목 비교용 차트 색상
-export const CHART_COLORS = [
-  "#3b82f6",
-  "#ef4444",
-  "#10b981",
-  "#f59e0b",
-  "#8b5cf6",
-  "#ec4899",
-  "#14b8a6",
-  "#f97316",
-];
-
 // 실행한 모드를 붙여 들고 있는 결과. mode 로 어떤 응답인지 가른다
 export type BacktestResult =
   | (SimulationResponse & { mode: "simple" })
