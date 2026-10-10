@@ -3,6 +3,8 @@ import StockSearchInput from '../../common/StockSearchInput';
 import { NumberInput } from '../../common/NumberInput';
 import { FxModeToggle } from '../shared/FxModeToggle';
 import { DividendFeeOptions } from '../shared/DividendFeeOptions';
+import { FxDataWarning } from '../shared/FxDataWarning';
+import type { BacktestOptionsState } from '../shared/backtestOptions';
 import { DateField } from '../../common/DateField';
 import { COMPARISON_STRATEGIES } from '../comparison/catalog';
 import type { ComparisonStrategyType } from '../comparison/types';
@@ -29,20 +31,9 @@ interface StrategyComparisonFormProps {
   toggleStrategy: (strategy: ComparisonStrategyType) => void;
 
   // FX settings
-  fxMode: 'auto' | 'manual';
-  setFxMode: (mode: 'auto' | 'manual') => void;
-  manualPurchaseFxRate: string;
-  setManualPurchaseFxRate: (rate: string) => void;
-  manualCurrentFxRate: string;
-  setManualCurrentFxRate: (rate: string) => void;
+  options: BacktestOptionsState;
 
   // Dividend and fee options
-  tradingFeeRate: string;
-  setTradingFeeRate: (rate: string) => void;
-  dividendTax: boolean;
-  setDividendTax: (tax: boolean) => void;
-  reinvestDividends: boolean;
-  setReinvestDividends: (reinvest: boolean) => void;
 }
 /**
  * 전략 비교 폼 컴포넌트
@@ -60,23 +51,9 @@ export const StrategyComparisonForm: React.FC<StrategyComparisonFormProps> = ({
   setInvestment,
   selectedStrategies,
   toggleStrategy,
-  fxMode,
-  setFxMode,
-  manualPurchaseFxRate,
-  setManualPurchaseFxRate,
-  manualCurrentFxRate,
-  setManualCurrentFxRate,
-  tradingFeeRate,
-  setTradingFeeRate,
-  dividendTax,
-  setDividendTax,
-  reinvestDividends,
-  setReinvestDividends,
+  options,
 }) => {
   const today = getTodayString();
-
-  // 환율 데이터 부족 경고 체크 (2014년 이전)
-  const showFxWarning = !!startDate && startDate < '2014-01-01';
 
   return (
     <div className="space-y-4">
@@ -141,40 +118,18 @@ export const StrategyComparisonForm: React.FC<StrategyComparisonFormProps> = ({
       </div>
 
       {/* 환율 데이터 부족 경고 */}
-      {showFxWarning && (
-        <div className="flex items-start gap-2 p-3 bg-warning-soft/10 border border-warning-soft/40 rounded-lg">
-          <div className="flex-1">
-            <p className="text-sm font-medium text-warning">
-              환율 데이터 부족 가능성
-            </p>
-            <p className="text-xs text-tx-2 mt-1">
-              2014년 이전 기간은 환율 정보가 부족할 수 있습니다.
-              정확한 백테스트를 위해 <span className="font-semibold">수동 환율 입력</span>을 권장합니다.
-            </p>
-          </div>
-        </div>
-      )}
+      <FxDataWarning startDate={startDate} />
 
       {/* FX Mode Toggle */}
       <FxModeToggle
-        fxMode={fxMode}
-        setFxMode={setFxMode}
-        manualPurchaseFxRate={manualPurchaseFxRate}
-        setManualPurchaseFxRate={setManualPurchaseFxRate}
-        manualCurrentFxRate={manualCurrentFxRate}
-        setManualCurrentFxRate={setManualCurrentFxRate}
+        options={options}
         purchaseLabel="시작일 환율 (₩/USD)"
         currentLabel="현재 환율 (₩/USD)"
       />
 
       {/* Dividend and Fee Options */}
       <DividendFeeOptions
-        tradingFeeRate={tradingFeeRate}
-        setTradingFeeRate={setTradingFeeRate}
-        dividendTax={dividendTax}
-        setDividendTax={setDividendTax}
-        reinvestDividends={reinvestDividends}
-        setReinvestDividends={setReinvestDividends}
+        options={options}
       />
     </div>
   );

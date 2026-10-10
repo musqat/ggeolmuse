@@ -3,6 +3,8 @@ import StockSearchInput from '../../common/StockSearchInput';
 import { NumberInput } from '../../common/NumberInput';
 import { FxModeToggle } from '../shared/FxModeToggle';
 import { DividendFeeOptions } from '../shared/DividendFeeOptions';
+import { FxDataWarning } from '../shared/FxDataWarning';
+import type { BacktestOptionsState } from '../shared/backtestOptions';
 import { DateField } from '../../common/DateField';
 import { getTodayString } from '../../../utils/dateUtils';
 
@@ -23,18 +25,7 @@ interface ConditionalStrategyFormProps {
   setMaxPurchases: (count: string) => void;
   dropPercentage: string;
   setDropPercentage: (percentage: string) => void;
-  conditionalFxMode: 'auto' | 'manual';
-  setConditionalFxMode: (mode: 'auto' | 'manual') => void;
-  conditionalManualPurchaseFxRate: string;
-  setConditionalManualPurchaseFxRate: (rate: string) => void;
-  conditionalManualCurrentFxRate: string;
-  setConditionalManualCurrentFxRate: (rate: string) => void;
-  conditionalReinvestDividends: boolean;
-  setConditionalReinvestDividends: (reinvest: boolean) => void;
-  conditionalTradingFeeRate: string;
-  setConditionalTradingFeeRate: (rate: string) => void;
-  conditionalDividendTax: boolean;
-  setConditionalDividendTax: (tax: boolean) => void;
+  options: BacktestOptionsState;
   supportedSymbols: string[];
 }
 
@@ -59,25 +50,11 @@ export const ConditionalStrategyForm: React.FC<ConditionalStrategyFormProps> = (
   setMaxPurchases,
   dropPercentage,
   setDropPercentage,
-  conditionalFxMode,
-  setConditionalFxMode,
-  conditionalManualPurchaseFxRate,
-  setConditionalManualPurchaseFxRate,
-  conditionalManualCurrentFxRate,
-  setConditionalManualCurrentFxRate,
-  conditionalReinvestDividends,
-  setConditionalReinvestDividends,
-  conditionalTradingFeeRate,
-  setConditionalTradingFeeRate,
-  conditionalDividendTax,
-  setConditionalDividendTax,
+  options,
   supportedSymbols,
 }) => {
 
   const today = getTodayString();
-
-  // 환율 데이터 부족 경고 체크 (2014년 이전)
-  const showFxWarning = !!conditionalStartDate && conditionalStartDate < '2014-01-01';
 
   return (
     <div className="space-y-4">
@@ -221,40 +198,18 @@ export const ConditionalStrategyForm: React.FC<ConditionalStrategyFormProps> = (
       </div>
 
       {/* 환율 데이터 부족 경고 */}
-      {showFxWarning && (
-        <div className="flex items-start gap-2 p-3 bg-warning-soft/10 border border-warning-soft/40 rounded-lg">
-          <div className="flex-1">
-            <p className="text-sm font-medium text-warning">
-              환율 데이터 부족 가능성
-            </p>
-            <p className="text-xs text-tx-2 mt-1">
-              2014년 이전 기간은 환율 정보가 부족할 수 있습니다.
-              정확한 백테스트를 위해 <span className="font-semibold">수동 환율 입력</span>을 권장합니다.
-            </p>
-          </div>
-        </div>
-      )}
+      <FxDataWarning startDate={conditionalStartDate} />
 
       {/* 환율 설정 */}
       <FxModeToggle
-        fxMode={conditionalFxMode}
-        setFxMode={setConditionalFxMode}
-        manualPurchaseFxRate={conditionalManualPurchaseFxRate}
-        setManualPurchaseFxRate={setConditionalManualPurchaseFxRate}
-        manualCurrentFxRate={conditionalManualCurrentFxRate}
-        setManualCurrentFxRate={setConditionalManualCurrentFxRate}
+        options={options}
         purchaseLabel="시작일 환율"
         currentLabel="현재 환율"
       />
 
       {/* 배당 및 수수료 옵션 */}
       <DividendFeeOptions
-        tradingFeeRate={conditionalTradingFeeRate}
-        setTradingFeeRate={setConditionalTradingFeeRate}
-        dividendTax={conditionalDividendTax}
-        setDividendTax={setConditionalDividendTax}
-        reinvestDividends={conditionalReinvestDividends}
-        setReinvestDividends={setConditionalReinvestDividends}
+        options={options}
       />
     </div>
   );

@@ -1,26 +1,18 @@
 import React from 'react';
+import type { BacktestOptionsState } from './backtestOptions';
 
 interface FxModeToggleProps {
-  fxMode: 'auto' | 'manual';
-  setFxMode: (mode: 'auto' | 'manual') => void;
-  manualPurchaseFxRate: string;
-  setManualPurchaseFxRate: (rate: string) => void;
-  manualCurrentFxRate: string;
-  setManualCurrentFxRate: (rate: string) => void;
+  options: BacktestOptionsState;
   purchaseLabel?: string;
   currentLabel?: string;
 }
 
 export const FxModeToggle: React.FC<FxModeToggleProps> = ({
-  fxMode,
-  setFxMode,
-  manualPurchaseFxRate,
-  setManualPurchaseFxRate,
-  manualCurrentFxRate,
-  setManualCurrentFxRate,
+  options,
   purchaseLabel = '시작일 환율',
   currentLabel = '현재 환율',
 }) => {
+  const { fxMode, setFxMode, manualPurchaseFxRate, setManualPurchaseFxRate, manualCurrentFxRate, setManualCurrentFxRate } = options;
   return (
     <div className="border-t border-line pt-4">
       <div className="flex items-center justify-between mb-3">

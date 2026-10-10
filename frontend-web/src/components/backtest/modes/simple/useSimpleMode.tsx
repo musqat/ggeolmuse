@@ -4,6 +4,7 @@ import { SimpleStrategyForm } from '../../forms/SimpleStrategyForm';
 import { SimpleResult } from '../../results/SimpleResult';
 import type { ModeController, SharedSymbolProps } from '../types';
 import { buildSimpleRequest } from './request';
+import { useBacktestOptions } from '../../shared/backtestOptions';
 
 export const useSimpleMode = ({
   symbol,
@@ -13,12 +14,7 @@ export const useSimpleMode = ({
   const [purchaseDate, setPurchaseDate] = useState('2023-01-01');
   const [saleDate, setSaleDate] = useState(''); // 비어있으면 현재 날짜
   const [initialInvestment, setInitialInvestment] = useState('300000');
-  const [reinvestDividends, setReinvestDividends] = useState(false);
-  const [tradingFeeRate, setTradingFeeRate] = useState('0');
-  const [dividendTax, setDividendTax] = useState(false);
-  const [fxMode, setFxMode] = useState<'auto' | 'manual'>('auto');
-  const [manualPurchaseFxRate, setManualPurchaseFxRate] = useState('1300');
-  const [manualCurrentFxRate, setManualCurrentFxRate] = useState('1350');
+  const options = useBacktestOptions();
 
   return {
     id: 'simple',
@@ -34,18 +30,7 @@ export const useSimpleMode = ({
         setSaleDate={setSaleDate}
         initialInvestment={initialInvestment}
         setInitialInvestment={setInitialInvestment}
-        fxMode={fxMode}
-        setFxMode={setFxMode}
-        manualPurchaseFxRate={manualPurchaseFxRate}
-        setManualPurchaseFxRate={setManualPurchaseFxRate}
-        manualCurrentFxRate={manualCurrentFxRate}
-        setManualCurrentFxRate={setManualCurrentFxRate}
-        reinvestDividends={reinvestDividends}
-        setReinvestDividends={setReinvestDividends}
-        tradingFeeRate={tradingFeeRate}
-        setTradingFeeRate={setTradingFeeRate}
-        dividendTax={dividendTax}
-        setDividendTax={setDividendTax}
+        options={options}
         supportedSymbols={supportedSymbols}
       />
     ),
@@ -55,12 +40,7 @@ export const useSimpleMode = ({
           purchaseDate,
           saleDate,
           initialInvestment,
-          reinvestDividends,
-          tradingFeeRate,
-          dividendTax,
-          fxMode,
-          manualPurchaseFxRate,
-          manualCurrentFxRate,
+          ...options,
         },
         symbol,
         ctx,
@@ -74,7 +54,7 @@ export const useSimpleMode = ({
         }),
         historyType: 'STRATEGY_SIMULATION',
         params: request,
-        fxMode,
+        fxMode: options.fxMode,
         failureMessage: '백테스트 실행에 실패했습니다.',
       };
     },

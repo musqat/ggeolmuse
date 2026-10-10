@@ -1,17 +1,12 @@
 import type { SymbolComparisonRequest } from '@services/api';
 import type { BuildResult, RunContext } from '../types';
+import { toOptionFields, type BacktestOptions } from '../../shared/backtestOptions';
 
-export interface SymbolComparisonValues {
+export interface SymbolComparisonValues extends BacktestOptions {
   symbols: string[];
   purchaseDate: string;
   saleDate: string;
   investment: string;
-  reinvestDividends: boolean;
-  tradingFeeRate: string;
-  dividendTax: boolean;
-  fxMode: 'auto' | 'manual';
-  manualPurchaseFxRate: string;
-  manualCurrentFxRate: string;
 }
 
 // 종목 비교 요청. 검사에 걸리면 alert 문구를 돌려준다
@@ -39,14 +34,8 @@ export const buildSymbolComparisonRequest = (
     startDate: values.purchaseDate,
     endDate: effectiveSaleDate,
     investmentAmount: investment,
-    reinvestDividends: values.reinvestDividends,
-    tradingFeeRate: parseFloat(values.tradingFeeRate) / 100,
-    dividendTaxRate: values.dividendTax ? 0.15 : 0,
+    ...toOptionFields(values),
     userId: ctx.userId,
   };
-  if (values.fxMode === 'manual') {
-    request.purchaseFxRate = parseFloat(values.manualPurchaseFxRate);
-    request.currentFxRate = parseFloat(values.manualCurrentFxRate);
-  }
   return { request };
 };

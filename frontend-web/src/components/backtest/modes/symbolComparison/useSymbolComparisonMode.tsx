@@ -5,6 +5,7 @@ import { SymbolComparisonResult } from '../../results/SymbolComparisonResult';
 import type { OptimalPointsBySymbol } from '../../shared/backtestDisplay';
 import type { ModeController } from '../types';
 import { buildSymbolComparisonRequest } from './request';
+import { useBacktestOptions } from '../../shared/backtestOptions';
 
 export const useSymbolComparisonMode = ({
   supportedSymbols,
@@ -16,12 +17,7 @@ export const useSymbolComparisonMode = ({
   const [purchaseDate, setPurchaseDate] = useState('2023-01-01');
   const [saleDate, setSaleDate] = useState(''); // 비어있으면 최신 데이터
   const [investment, setInvestment] = useState('1000000');
-  const [reinvestDividends, setReinvestDividends] = useState(false);
-  const [tradingFeeRate, setTradingFeeRate] = useState('0');
-  const [dividendTax, setDividendTax] = useState(false);
-  const [fxMode, setFxMode] = useState<'auto' | 'manual'>('auto');
-  const [manualPurchaseFxRate, setManualPurchaseFxRate] = useState('1300');
-  const [manualCurrentFxRate, setManualCurrentFxRate] = useState('1350');
+  const options = useBacktestOptions();
   const [symbolOptimalPoints, setSymbolOptimalPoints] = useState<OptimalPointsBySymbol>({});
 
   const addSymbol = () => {
@@ -55,18 +51,7 @@ export const useSymbolComparisonMode = ({
         setCompareSaleDate={setSaleDate}
         compareInvestment={investment}
         setCompareInvestment={setInvestment}
-        compareFxMode={fxMode}
-        setCompareFxMode={setFxMode}
-        compareManualPurchaseFxRate={manualPurchaseFxRate}
-        setCompareManualPurchaseFxRate={setManualPurchaseFxRate}
-        compareManualCurrentFxRate={manualCurrentFxRate}
-        setCompareManualCurrentFxRate={setManualCurrentFxRate}
-        compareTradingFeeRate={tradingFeeRate}
-        setCompareTradingFeeRate={setTradingFeeRate}
-        compareDividendTax={dividendTax}
-        setCompareDividendTax={setDividendTax}
-        compareReinvestDividends={reinvestDividends}
-        setCompareReinvestDividends={setReinvestDividends}
+        options={options}
         supportedSymbols={supportedSymbols}
         onAddSymbol={addSymbol}
         onRemoveSymbol={removeSymbol}
@@ -79,12 +64,7 @@ export const useSymbolComparisonMode = ({
           purchaseDate,
           saleDate,
           investment,
-          reinvestDividends,
-          tradingFeeRate,
-          dividendTax,
-          fxMode,
-          manualPurchaseFxRate,
-          manualCurrentFxRate,
+          ...options,
         },
         ctx,
       );
@@ -97,7 +77,7 @@ export const useSymbolComparisonMode = ({
         }),
         historyType: 'COMPARISON',
         params: request,
-        fxMode,
+        fxMode: options.fxMode,
         failureMessage: '종목 비교 실행에 실패했습니다.',
       };
     },

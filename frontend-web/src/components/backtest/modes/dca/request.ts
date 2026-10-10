@@ -1,18 +1,13 @@
 import type { DcaStrategyRequest } from '@services/api';
 import type { BuildResult, RunContext } from '../types';
+import { toOptionFields, type BacktestOptions } from '../../shared/backtestOptions';
 
-export interface DcaValues {
+export interface DcaValues extends BacktestOptions {
   startDate: string;
   endDate: string;
   monthlyAmount: string;
   purchaseDay: string;
   investmentInterval: string;
-  reinvestDividends: boolean;
-  tradingFeeRate: string;
-  dividendTax: boolean;
-  fxMode: 'auto' | 'manual';
-  manualPurchaseFxRate: string;
-  manualCurrentFxRate: string;
 }
 
 // 적립식 요청. 검사에 걸리면 alert 문구를 돌려준다
@@ -45,14 +40,8 @@ export const buildDcaRequest = (
     monthlyAmount: monthly,
     purchaseDay: day,
     investmentInterval: interval,
-    reinvestDividends: values.reinvestDividends,
-    tradingFeeRate: parseFloat(values.tradingFeeRate) / 100,
-    dividendTaxRate: values.dividendTax ? 0.15 : 0,
+    ...toOptionFields(values),
     userId: ctx.userId,
   };
-  if (values.fxMode === 'manual') {
-    request.purchaseFxRate = parseFloat(values.manualPurchaseFxRate);
-    request.currentFxRate = parseFloat(values.manualCurrentFxRate);
-  }
   return { request };
 };

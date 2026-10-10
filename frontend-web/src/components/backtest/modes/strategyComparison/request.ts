@@ -2,20 +2,15 @@ import type { StrategyComparisonRequest } from '@services/api';
 import { strategyByType } from '../../comparison/catalog';
 import type { ComparisonStrategyType, StrategyParams } from '../../comparison/types';
 import type { BuildResult, RunContext } from '../types';
+import { toOptionFields, type BacktestOptions } from '../../shared/backtestOptions';
 
-export interface StrategyComparisonValues {
+export interface StrategyComparisonValues extends BacktestOptions {
   symbol: string;
   startDate: string;
   endDate: string;
   investment: string;
   selectedStrategies: ComparisonStrategyType[];
   strategyParameters: Record<string, StrategyParams>;
-  reinvestDividends: boolean;
-  tradingFeeRate: string;
-  dividendTax: boolean;
-  fxMode: 'auto' | 'manual';
-  manualPurchaseFxRate: string;
-  manualCurrentFxRate: string;
 }
 
 // 전략 비교 요청. 검사에 걸리면 alert 문구를 돌려준다
@@ -55,14 +50,8 @@ export const buildStrategyComparisonRequest = (
     endDate: effectiveEndDate,
     investmentAmount: parseFloat(values.investment),
     strategies,
-    reinvestDividends: values.reinvestDividends,
-    tradingFeeRate: parseFloat(values.tradingFeeRate) / 100,
-    dividendTaxRate: values.dividendTax ? 0.15 : 0,
+    ...toOptionFields(values),
     userId: ctx.userId,
   };
-  if (values.fxMode === 'manual') {
-    request.purchaseFxRate = parseFloat(values.manualPurchaseFxRate);
-    request.currentFxRate = parseFloat(values.manualCurrentFxRate);
-  }
   return { request };
 };

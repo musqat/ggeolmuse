@@ -4,6 +4,7 @@ import { ConditionalStrategyForm } from '../../forms/ConditionalStrategyForm';
 import { DcaConditionalResult } from '../../results/DcaConditionalResult';
 import type { ModeController, SharedSymbolProps } from '../types';
 import { buildConditionalRequest } from './request';
+import { useBacktestOptions } from '../../shared/backtestOptions';
 
 export const useConditionalMode = ({
   symbol,
@@ -17,12 +18,7 @@ export const useConditionalMode = ({
   const [amountPerPurchase, setAmountPerPurchase] = useState('100000');
   const [maxPurchases, setMaxPurchases] = useState('20');
   const [dropPercentage, setDropPercentage] = useState('5');
-  const [reinvestDividends, setReinvestDividends] = useState(false);
-  const [tradingFeeRate, setTradingFeeRate] = useState('0');
-  const [dividendTax, setDividendTax] = useState(false);
-  const [fxMode, setFxMode] = useState<'auto' | 'manual'>('auto');
-  const [manualPurchaseFxRate, setManualPurchaseFxRate] = useState('1300');
-  const [manualCurrentFxRate, setManualCurrentFxRate] = useState('1350');
+  const options = useBacktestOptions();
 
   return {
     id: 'conditional',
@@ -46,18 +42,7 @@ export const useConditionalMode = ({
         setMaxPurchases={setMaxPurchases}
         dropPercentage={dropPercentage}
         setDropPercentage={setDropPercentage}
-        conditionalFxMode={fxMode}
-        setConditionalFxMode={setFxMode}
-        conditionalManualPurchaseFxRate={manualPurchaseFxRate}
-        setConditionalManualPurchaseFxRate={setManualPurchaseFxRate}
-        conditionalManualCurrentFxRate={manualCurrentFxRate}
-        setConditionalManualCurrentFxRate={setManualCurrentFxRate}
-        conditionalReinvestDividends={reinvestDividends}
-        setConditionalReinvestDividends={setReinvestDividends}
-        conditionalTradingFeeRate={tradingFeeRate}
-        setConditionalTradingFeeRate={setTradingFeeRate}
-        conditionalDividendTax={dividendTax}
-        setConditionalDividendTax={setDividendTax}
+        options={options}
         supportedSymbols={supportedSymbols}
       />
     ),
@@ -71,12 +56,7 @@ export const useConditionalMode = ({
           amountPerPurchase,
           maxPurchases,
           dropPercentage,
-          reinvestDividends,
-          tradingFeeRate,
-          dividendTax,
-          fxMode,
-          manualPurchaseFxRate,
-          manualCurrentFxRate,
+          ...options,
         },
         symbol,
         ctx,
@@ -90,7 +70,7 @@ export const useConditionalMode = ({
         }),
         historyType: 'STRATEGY_SIMULATION',
         params: request,
-        fxMode,
+        fxMode: options.fxMode,
         failureMessage: '조건부 전략 실행에 실패했습니다.',
       };
     },

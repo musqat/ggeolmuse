@@ -7,6 +7,7 @@ import { strategyByType } from '../../comparison/catalog';
 import type { ComparisonStrategyType, StrategyParams } from '../../comparison/types';
 import type { ModeController } from '../types';
 import { buildStrategyComparisonRequest } from './request';
+import { useBacktestOptions } from '../../shared/backtestOptions';
 
 export const useStrategyComparisonMode = ({
   supportedSymbols,
@@ -21,12 +22,7 @@ export const useStrategyComparisonMode = ({
     'SIMPLE',
     'DCA',
   ]);
-  const [reinvestDividends, setReinvestDividends] = useState(false);
-  const [tradingFeeRate, setTradingFeeRate] = useState('0');
-  const [dividendTax, setDividendTax] = useState(false);
-  const [fxMode, setFxMode] = useState<'auto' | 'manual'>('auto');
-  const [manualPurchaseFxRate, setManualPurchaseFxRate] = useState('1300');
-  const [manualCurrentFxRate, setManualCurrentFxRate] = useState('1350');
+  const options = useBacktestOptions();
 
   // 전략 파라미터 모달
   const [showStrategyModal, setShowStrategyModal] = useState(false);
@@ -90,18 +86,7 @@ export const useStrategyComparisonMode = ({
         setInvestment={setInvestment}
         selectedStrategies={selectedStrategies}
         toggleStrategy={toggleStrategy}
-        fxMode={fxMode}
-        setFxMode={setFxMode}
-        manualPurchaseFxRate={manualPurchaseFxRate}
-        setManualPurchaseFxRate={setManualPurchaseFxRate}
-        manualCurrentFxRate={manualCurrentFxRate}
-        setManualCurrentFxRate={setManualCurrentFxRate}
-        tradingFeeRate={tradingFeeRate}
-        setTradingFeeRate={setTradingFeeRate}
-        dividendTax={dividendTax}
-        setDividendTax={setDividendTax}
-        reinvestDividends={reinvestDividends}
-        setReinvestDividends={setReinvestDividends}
+        options={options}
       />
     ),
     overlay:
@@ -126,12 +111,7 @@ export const useStrategyComparisonMode = ({
           investment,
           selectedStrategies,
           strategyParameters,
-          reinvestDividends,
-          tradingFeeRate,
-          dividendTax,
-          fxMode,
-          manualPurchaseFxRate,
-          manualCurrentFxRate,
+          ...options,
         },
         ctx,
       );
@@ -144,7 +124,7 @@ export const useStrategyComparisonMode = ({
         }),
         historyType: 'COMPARISON',
         params: request,
-        fxMode,
+        fxMode: options.fxMode,
         failureMessage: '전략 비교 실행에 실패했습니다.',
       };
     },

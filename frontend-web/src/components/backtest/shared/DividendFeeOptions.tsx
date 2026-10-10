@@ -1,22 +1,8 @@
 import React from 'react';
+import type { BacktestOptionsState } from './backtestOptions';
 
-interface DividendFeeOptionsProps {
-  tradingFeeRate: string;
-  setTradingFeeRate: (rate: string) => void;
-  dividendTax: boolean;
-  setDividendTax: (tax: boolean) => void;
-  reinvestDividends: boolean;
-  setReinvestDividends: (reinvest: boolean) => void;
-}
-
-export const DividendFeeOptions: React.FC<DividendFeeOptionsProps> = ({
-  tradingFeeRate,
-  setTradingFeeRate,
-  dividendTax,
-  setDividendTax,
-  reinvestDividends,
-  setReinvestDividends,
-}) => {
+export const DividendFeeOptions: React.FC<{ options: BacktestOptionsState }> = ({ options }) => {
+  const { tradingFeeRate, setTradingFeeRate, dividendTax, setDividendTax, reinvestDividends, setReinvestDividends } = options;
   return (
     <div className="border-t border-line pt-4 mt-4 space-y-3">
       {/* 거래 수수료율 */}

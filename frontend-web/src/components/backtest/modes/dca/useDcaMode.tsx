@@ -4,6 +4,7 @@ import { DCAStrategyForm } from '../../forms/DCAStrategyForm';
 import { DcaConditionalResult } from '../../results/DcaConditionalResult';
 import type { ModeController, SharedSymbolProps } from '../types';
 import { buildDcaRequest } from './request';
+import { useBacktestOptions } from '../../shared/backtestOptions';
 
 export const useDcaMode = ({
   symbol,
@@ -15,12 +16,7 @@ export const useDcaMode = ({
   const [monthlyAmount, setMonthlyAmount] = useState('100000');
   const [purchaseDay, setPurchaseDay] = useState('15');
   const [investmentInterval, setInvestmentInterval] = useState('1');
-  const [reinvestDividends, setReinvestDividends] = useState(false);
-  const [tradingFeeRate, setTradingFeeRate] = useState('0');
-  const [dividendTax, setDividendTax] = useState(false);
-  const [fxMode, setFxMode] = useState<'auto' | 'manual'>('auto');
-  const [manualPurchaseFxRate, setManualPurchaseFxRate] = useState('1300');
-  const [manualCurrentFxRate, setManualCurrentFxRate] = useState('1350');
+  const options = useBacktestOptions();
 
   return {
     id: 'dca',
@@ -40,18 +36,7 @@ export const useDcaMode = ({
         setPurchaseDay={setPurchaseDay}
         investmentInterval={investmentInterval}
         setInvestmentInterval={setInvestmentInterval}
-        dcaFxMode={fxMode}
-        setDcaFxMode={setFxMode}
-        dcaManualPurchaseFxRate={manualPurchaseFxRate}
-        setDcaManualPurchaseFxRate={setManualPurchaseFxRate}
-        dcaManualCurrentFxRate={manualCurrentFxRate}
-        setDcaManualCurrentFxRate={setManualCurrentFxRate}
-        dcaReinvestDividends={reinvestDividends}
-        setDcaReinvestDividends={setReinvestDividends}
-        dcaTradingFeeRate={tradingFeeRate}
-        setDcaTradingFeeRate={setTradingFeeRate}
-        dcaDividendTax={dividendTax}
-        setDcaDividendTax={setDividendTax}
+        options={options}
         supportedSymbols={supportedSymbols}
       />
     ),
@@ -63,12 +48,7 @@ export const useDcaMode = ({
           monthlyAmount,
           purchaseDay,
           investmentInterval,
-          reinvestDividends,
-          tradingFeeRate,
-          dividendTax,
-          fxMode,
-          manualPurchaseFxRate,
-          manualCurrentFxRate,
+          ...options,
         },
         symbol,
         ctx,
@@ -82,7 +62,7 @@ export const useDcaMode = ({
         }),
         historyType: 'STRATEGY_SIMULATION',
         params: request,
-        fxMode,
+        fxMode: options.fxMode,
         failureMessage: 'DCA 전략 실행에 실패했습니다.',
       };
     },
