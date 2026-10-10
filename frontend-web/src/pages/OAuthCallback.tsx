@@ -3,6 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { tokenManager } from '../utils/auth';
 import { getOAuthErrorMessage } from '../utils/apiError';
+import {
+  keycloakTokenUrl,
+  OAUTH_CLIENT_ID,
+  OAUTH_STATE_KEY,
+  oauthRedirectUri,
+  PKCE_VERIFIER_KEY,
+} from '../utils/googleLogin';
 
 const OAuthCallback: React.FC = () => {
   const navigate = useNavigate();
@@ -30,8 +37,8 @@ const OAuthCallback: React.FC = () => {
 
         // state 파라미터 검증 (CSRF 방어)
         const returnedState = params.get('state');
-        const savedState = sessionStorage.getItem('oauth_state');
-        sessionStorage.removeItem('oauth_state');
+        const savedState = sessionStorage.getItem(OAUTH_STATE_KEY);
+        sessionStorage.removeItem(OAUTH_STATE_KEY);
         if (!returnedState || !savedState || returnedState !== savedState) {
           setError('OAuth state 불일치 — CSRF 공격이 감지되었습니다. 다시 로그인해주세요.');
           setTimeout(() => navigate('/'), 3000);
@@ -39,7 +46,7 @@ const OAuthCallback: React.FC = () => {
         }
 
         // PKCE code_verifier 가져오기
-        const codeVerifier = sessionStorage.getItem('pkce_code_verifier');
+        const codeVerifier = sessionStorage.getItem(PKCE_VERIFIER_KEY);
         if (!codeVerifier) {
           setError('인증 정보가 없습니다. 다시 로그인해주세요.');
           setTimeout(() => navigate('/'), 3000);
@@ -48,18 +55,18 @@ const OAuthCallback: React.FC = () => {
 
         // Keycloak token endpoint로 토큰 교환
         const baseUrl = window.location.origin;
-        const tokenUrl = `${baseUrl}/auth/realms/muscathan/protocol/openid-connect/token`;
+        const tokenUrl = keycloakTokenUrl(baseUrl);
 
         const tokenParams = new URLSearchParams({
           grant_type: 'authorization_code',
-          client_id: 'ggeolmuse-frontend',
+          client_id: OAUTH_CLIENT_ID,
           code: code,
-          redirect_uri: `${baseUrl}/oauth/callback`,
+          redirect_uri: oauthRedirectUri(baseUrl),
           code_verifier: codeVerifier
         });
 
         // 사용 후 code_verifier 삭제
-        sessionStorage.removeItem('pkce_code_verifier');
+        sessionStorage.removeItem(PKCE_VERIFIER_KEY);
 
         const tokenResponse = await axios.post(tokenUrl, tokenParams, {
           headers: {

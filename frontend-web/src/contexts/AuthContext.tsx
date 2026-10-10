@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { authApi, type User } from '../services/api';
 import { tokenManager, checkAuthStatus } from '../utils/auth';
 import { getApiErrorStatus } from '../utils/apiError';
+import { buildGoogleLoginUrl } from '../utils/googleLogin';
 import { AuthContext, type AuthContextType } from '../hooks/useAuth';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -129,55 +130,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // 구글 로그인(Keycloak)으로 보낸다. 로그인 · 회원가입 모달이 같이 쓴다
   const loginWithGoogle = async () => {
-    // PKCE code_verifier 생성
-    const generateRandomString = (length: number) => {
-      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
-      let result = '';
-      const randomValues = new Uint8Array(length);
-      crypto.getRandomValues(randomValues);
-      randomValues.forEach(v => result += chars[v % chars.length]);
-      return result;
-    };
-
-    const codeVerifier = generateRandomString(64);
-
-    // code_challenge 생성 (SHA256)
-    const sha256 = async (plain: string) => {
-      const encoder = new TextEncoder();
-      const data = encoder.encode(plain);
-      const hash = await crypto.subtle.digest('SHA-256', data);
-      return btoa(String.fromCharCode(...new Uint8Array(hash)))
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_')
-        .replace(/=/g, '');
-    };
-
-    const codeChallenge = await sha256(codeVerifier);
-
-    // CSRF 방어용 state 생성
-    const state = crypto.randomUUID();
-
-    // sessionStorage에 저장 (콜백에서 사용)
-    sessionStorage.setItem('pkce_code_verifier', codeVerifier);
-    sessionStorage.setItem('oauth_state', state);
-
-    // Keycloak Google Identity Provider를 통한 직접 로그인
-    const baseUrl = window.location.origin;
-    const keycloakAuthUrl = `${baseUrl}/auth/realms/muscathan/protocol/openid-connect/auth`;
-    const params = new URLSearchParams({
-      client_id: 'ggeolmuse-frontend',
-      response_type: 'code',
-      scope: 'openid email profile',
-      redirect_uri: `${baseUrl}/oauth/callback`,
-      code_challenge: codeChallenge,
-      code_challenge_method: 'S256',
-      kc_idp_hint: 'google',
-      state,
-    });
-
-    // Keycloak Google OAuth로 리디렉션
-    window.location.href = `${keycloakAuthUrl}?${params.toString()}`;
+    window.location.href = await buildGoogleLoginUrl(window.location.origin);
   };
 
   const contextValue: AuthContextType = {
