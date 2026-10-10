@@ -22,7 +22,9 @@ export const buildStrategyComparisonRequest = (
     return { error: '최소 2개 이상의 전략을 선택해주세요.' };
   }
 
-  if (new Date(values.startDate) >= new Date(values.endDate)) {
+  // 종료일이 비어있으면 오늘. 채운 날짜로 검사한다(빈 종료일과 비교하면 늘 통과했다)
+  const effectiveEndDate = values.endDate || ctx.today;
+  if (values.startDate >= effectiveEndDate) {
     return { error: '시작일은 종료일보다 빠른 날짜여야 합니다.' };
   }
 
@@ -40,9 +42,6 @@ export const buildStrategyComparisonRequest = (
   const strategies = values.selectedStrategies.map((strategyType) =>
     strategyByType(strategyType).toRequest(values.strategyParameters[strategyType] || {}, common),
   );
-
-  // 종료일이 비어있을시 현재날짜로 변경
-  const effectiveEndDate = values.endDate || ctx.today;
 
   const request: StrategyComparisonRequest = {
     symbol: values.symbol,

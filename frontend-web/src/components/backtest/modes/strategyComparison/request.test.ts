@@ -45,7 +45,7 @@ describe('buildStrategyComparisonRequest', () => {
     })
   })
 
-  it('종료일이 비면 시작일 검사를 지나 오늘로 채운다', () => {
+  it('종료일이 비면 오늘로 채운다', () => {
     expect(buildStrategyComparisonRequest({ ...values, endDate: '' }, ctx)).toMatchObject({
       request: { endDate: '2026-10-08' },
     })
@@ -70,6 +70,7 @@ describe('buildStrategyComparisonRequest', () => {
   it.each([
     [{ selectedStrategies: ['SIMPLE' as const] }, '최소 2개 이상의 전략을 선택해주세요.'],
     [{ endDate: '2023-01-01' }, '시작일은 종료일보다 빠른 날짜여야 합니다.'],
+    [{ startDate: '2026-10-08', endDate: '' }, '시작일은 종료일보다 빠른 날짜여야 합니다.'],
     [{ strategyParameters: { DCA: { purchaseDay: '40' } } }, '적립식: 매수일이 유효하지 않습니다 (1-31).'],
   ])('%o 는 막는다', (patch, error) => {
     expect(buildStrategyComparisonRequest({ ...values, ...patch }, ctx)).toEqual({ error })
