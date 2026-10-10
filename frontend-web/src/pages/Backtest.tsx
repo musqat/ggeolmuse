@@ -90,7 +90,6 @@ const Backtest: React.FC = () => {
     const prepared = current.prepare({
       userId: user?.email || "anonymous",
       today: getTodayString(),
-      now: new Date(),
     });
     if ("error" in prepared) {
       alert(prepared.error);

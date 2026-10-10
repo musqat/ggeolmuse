@@ -41,7 +41,6 @@ interface SymbolData {
   investmentAmount: number;
   currentPrice: number;
   currentValueKrw: number;
-  fxRate: number;
   color: string; // Chart line color
 }
 

@@ -240,11 +240,10 @@ export const useAdminMarket = () => {
     loadAssets(newPage);
   };
 
-  // 페이지 크기 변경
+  // 페이지 크기 변경. 목록은 아래 effect 가 새 크기로 받는다
   const handlePageSizeChange = (newSize: number) => {
     setPageSize(newSize);
     setCurrentPage(0);
-    loadAssets(0);
   };
 
   // 정렬 변경
@@ -347,18 +346,12 @@ export const useAdminMarket = () => {
   };
 
 
+  // 처음 열 때와 정렬 · 페이지 크기가 바뀔 때 첫 페이지부터 받는다.
+  // 처음 불러오기를 따로 두면 첫 렌더에서 이것과 같이 돌아 같은 요청이 두 번 간다
   useEffect(() => {
-    loadAssets();
+    loadAssets(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // 정렬이 변경되면 데이터 다시 로드
-  useEffect(() => {
-    if (sortBy && sortDirection) {
-      loadAssets(0);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sortBy, sortDirection]);
+  }, [sortBy, sortDirection, pageSize]);
 
   return {
     searchKeyword,

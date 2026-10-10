@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { buildSimpleRequest, type SimpleValues } from './request'
 
-const ctx = { userId: 'u@x.com', today: '2026-10-08', now: new Date('2026-10-08T03:00:00Z') }
+const ctx = { userId: 'u@x.com', today: '2026-10-08' }
 
 const values: SimpleValues = {
   purchaseDate: '2023-01-01',
@@ -56,9 +56,15 @@ describe('buildSimpleRequest', () => {
     expect(buildSimpleRequest({ ...values, initialInvestment }, 'AAPL', ctx)).toEqual({ error })
   })
 
-  it('매수일이 지금 이후면 막는다', () => {
-    expect(buildSimpleRequest({ ...values, purchaseDate: '2026-10-09' }, 'AAPL', ctx)).toEqual({
+  it.each(['2026-10-08', '2026-10-09'])('매수일 %s(오늘 · 내일)는 막는다', (purchaseDate) => {
+    expect(buildSimpleRequest({ ...values, purchaseDate }, 'AAPL', ctx)).toEqual({
       error: '매수일은 과거 날짜여야 합니다.',
+    })
+  })
+
+  it('어제 매수일은 통과한다', () => {
+    expect(buildSimpleRequest({ ...values, purchaseDate: '2026-10-07' }, 'AAPL', ctx)).toMatchObject({
+      request: { purchaseDate: '2026-10-07', saleDate: '2026-10-08' },
     })
   })
 

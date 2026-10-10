@@ -20,8 +20,6 @@ export const CompareSymbolsChartMemoized: React.FC<{
       // 중첩된 구조에서 추출
       const additionalData = item.additionalData || {};
 
-      const fxRate =
-        additionalData.purchaseFxRate || item.purchaseFxRate || 1380;
       const purchasePrice =
         item.averagePrice || additionalData.purchasePrice || 0;
       const investmentAmount =
@@ -40,7 +38,6 @@ export const CompareSymbolsChartMemoized: React.FC<{
         investmentAmount: investmentAmount,
         currentPrice: currentPrice,
         currentValueKrw: item.currentValueKrw || 0,
-        fxRate: fxRate,
         color: CHART_COLORS[index % CHART_COLORS.length],
       };
     });

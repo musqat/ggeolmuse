@@ -1,7 +1,7 @@
 import { stockApi } from '../../../../services/api';
 
-// 환율을 못 받은 날에 쓰는 값
-export const DEFAULT_FX_RATE = 1350;
+// 환율을 못 받은 날에 쓰는 값. 서버(backtest-service FxFallback.DEFAULT_RATE)와 같게 둔다
+export const DEFAULT_FX_RATE = 1300;
 
 // 날짜별 환율을 한 번에 받는다. 값이 없거나 0 이하이거나 조회가 실패한 날은 대체값을 쓴다
 export async function fetchFxRates(dates: string[]): Promise<Map<string, number>> {
