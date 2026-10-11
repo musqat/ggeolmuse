@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { AxiosError, AxiosHeaders } from 'axios'
-import { getApiErrorMessage, getApiErrorStatus, getOAuthErrorMessage } from './apiError'
+import { getApiErrorMessage, getApiErrorStatus } from './apiError'
 
 /** axios 오류를 만든다. isAxiosError 가 참이 되려면 AxiosError 인스턴스여야 한다. */
 function axiosErrorWith(status: number, data: unknown, message = 'Request failed') {
@@ -61,17 +61,5 @@ describe('getApiErrorStatus', () => {
     // 로그인 화면이 401·403 을 갈라 쓰므로, 아닌 값에 0 같은 걸 주면 안 된다
     expect(getApiErrorStatus(new Error('boom'))).toBeUndefined()
     expect(getApiErrorStatus('문자열')).toBeUndefined()
-  })
-})
-
-describe('getOAuthErrorMessage', () => {
-  it('error_description 을 쓴다', () => {
-    const err = axiosErrorWith(400, { error_description: 'code_verifier 가 맞지 않습니다' })
-    expect(getOAuthErrorMessage(err, '기본값')).toBe('code_verifier 가 맞지 않습니다')
-  })
-
-  it('없으면 기본값을 쓴다', () => {
-    expect(getOAuthErrorMessage(axiosErrorWith(400, { detail: '다른 필드' }), '기본값')).toBe('기본값')
-    expect(getOAuthErrorMessage(new Error('boom'), '기본값')).toBe('기본값')
   })
 })

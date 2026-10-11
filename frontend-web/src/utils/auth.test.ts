@@ -23,30 +23,20 @@ describe('토큰 저장/조회', () => {
     expect(tokenManager.getToken()).toBe('abc')
   })
 
-  it('refresh 토큰 왕복', () => {
-    expect(tokenManager.getRefreshToken()).toBeNull()
-    tokenManager.setRefreshToken('xyz')
-    expect(tokenManager.getRefreshToken()).toBe('xyz')
-  })
-
-  it('setTokens 는 두 개를 각자 키에 넣는다', () => {
-    tokenManager.setTokens('access', 'refresh')
-    expect(localStorage.getItem(TOKEN_STORAGE_KEY)).toBe('access')
-    expect(localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY)).toBe('refresh')
-  })
-
-  it('removeToken 은 access 만 지운다', () => {
-    tokenManager.setTokens('access', 'refresh')
-    tokenManager.removeToken()
-    expect(tokenManager.getToken()).toBeNull()
-    expect(tokenManager.getRefreshToken()).toBe('refresh')
-  })
-
-  it('removeTokens 는 둘 다 지운다', () => {
-    tokenManager.setTokens('access', 'refresh')
+  it('removeTokens 는 access 와 예전 버전이 남긴 refresh 키를 지운다', () => {
+    localStorage.setItem(TOKEN_STORAGE_KEY, 'access')
+    localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, 'legacy')
     tokenManager.removeTokens()
-    expect(tokenManager.getToken()).toBeNull()
-    expect(tokenManager.getRefreshToken()).toBeNull()
+    expect(localStorage.getItem(TOKEN_STORAGE_KEY)).toBeNull()
+    expect(localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY)).toBeNull()
+  })
+
+  it('clearLegacyRefreshToken 은 예전 refresh 키만 지우고 access 는 둔다', () => {
+    localStorage.setItem(TOKEN_STORAGE_KEY, 'access')
+    localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, 'legacy')
+    tokenManager.clearLegacyRefreshToken()
+    expect(localStorage.getItem(TOKEN_STORAGE_KEY)).toBe('access')
+    expect(localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY)).toBeNull()
   })
 })
 

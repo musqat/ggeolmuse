@@ -34,10 +34,10 @@ setup('시드 계정으로 토큰을 받아 저장한다', async () => {
 
   expect(res.status(), '시드 계정 로그인이 200 이어야 한다').toBe(200);
 
-  // 응답은 { accessToken, refreshToken, expiresIn } 이다.
-  const { accessToken: token, refreshToken } = await res.json();
+  // 응답 본문은 { accessToken, expiresIn } 이고 refresh token 은 httpOnly 쿠키로 온다.
+  const { accessToken: token } = await res.json();
   expect(token.split('.'), 'JWT 는 점으로 나뉜 세 조각이다').toHaveLength(3);
-  expect(refreshToken, '로그인 응답에 refresh token 이 없다').toBeTruthy();
+  expect(res.headers()['set-cookie'] ?? '', 'refresh token 쿠키가 없다').toContain('refresh_token=');
 
   await api.storageState({ path: STORAGE_STATE });
   await api.dispose();
@@ -58,10 +58,7 @@ setup('시드 계정으로 토큰을 받아 저장한다', async () => {
         origins: [
           {
             origin: BASE_URL,
-            localStorage: [
-              { name: 'accessToken', value: token },
-              { name: 'refreshToken', value: refreshToken },
-            ],
+            localStorage: [{ name: 'accessToken', value: token }],
           },
         ],
       },

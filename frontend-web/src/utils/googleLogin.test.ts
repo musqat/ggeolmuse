@@ -3,7 +3,6 @@ import {
   buildGoogleLoginUrl,
   createCodeChallenge,
   createCodeVerifier,
-  keycloakTokenUrl,
   OAUTH_STATE_KEY,
   PKCE_VERIFIER_KEY,
 } from './googleLogin'
@@ -52,11 +51,5 @@ describe('buildGoogleLoginUrl', () => {
     await buildGoogleLoginUrl('https://app.example')
     expect(sessionStorage.getItem(PKCE_VERIFIER_KEY)).not.toBe(first[0])
     expect(sessionStorage.getItem(OAUTH_STATE_KEY)).not.toBe(first[1])
-  })
-
-  it('토큰 주소는 같은 realm 의 token 이다', () => {
-    expect(keycloakTokenUrl('https://app.example')).toBe(
-      'https://app.example/auth/realms/muscathan/protocol/openid-connect/token'
-    )
   })
 })
