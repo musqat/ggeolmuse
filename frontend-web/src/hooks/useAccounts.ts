@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import { accountsApi } from '../services/api';
 
 export interface Account {
   accountId: number;
@@ -33,10 +33,8 @@ export function useAccounts(isAuthenticated: boolean): UseAccountsReturn {
       setError(null);
 
       try {
-        const token = localStorage.getItem('accessToken');
-        const response = await axios.get('/api/accounts', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        // apiClient 를 거쳐야 VITE_API_URL 을 따르고, 토큰이 만료되면 인터셉터가 갱신한다
+        const response = await accountsApi.getAccounts();
 
         if (response.data && Array.isArray(response.data)) {
           setAccounts(response.data);

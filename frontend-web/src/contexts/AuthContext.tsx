@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { authApi, type User } from '../services/api';
+import { authApi, refreshAccessToken, type User } from '../services/api';
 import { tokenManager, checkAuthStatus } from '../utils/auth';
-import { getApiErrorStatus } from '../utils/apiError';
 import { buildGoogleLoginUrl } from '../utils/googleLogin';
 import { AuthContext, type AuthContextType } from '../hooks/useAuth';
 
@@ -15,7 +14,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const handleGlobalLogout = () => {
       setIsAuthenticated(false);
       setUser(null);
-      tokenManager.removeToken();
+      tokenManager.removeTokens();
     };
 
     window.addEventListener('auth:logout', handleGlobalLogout);
@@ -27,19 +26,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const initializeAuth = async () => {
       setIsLoading(true);
 
-      // 저장된 토큰이 있고 유효한지 확인
-      if (checkAuthStatus()) {
+      // access 가 유효하거나, 만료됐어도 refresh token 으로 갱신되면 로그인 상태를 이어 간다(새로고침해도 유지)
+      if (checkAuthStatus() || (await refreshStoredSession())) {
         try {
           // 토큰이 유효하면 사용자 정보 가져오기
           await refreshUserData();
           setIsAuthenticated(true);
         } catch {
           // 토큰이 있지만 유효하지 않은 경우 정리
-          tokenManager.removeToken();
+          tokenManager.removeTokens();
           setIsAuthenticated(false);
           setUser(null);
         }
       } else {
+        tokenManager.removeTokens();
         setIsAuthenticated(false);
         setUser(null);
       }
@@ -50,35 +50,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initializeAuth();
   }, []);
 
+  // 남은 refresh token 으로 갱신해 본다. 없거나 실패하면 false
+  const refreshStoredSession = async () => {
+    if (!tokenManager.getRefreshToken()) return false;
+    try {
+      await refreshAccessToken();
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   const refreshUserData = async () => {
     const response = await authApi.getCurrentUser();
     // UserController가 직접 UserResponseDto를 리턴하므로 response.data로 접근
     setUser(response.data);
   };
 
-  const login = async (email: string, password: string, retryCount = 0) => {
+  const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      const response = await authApi.login({ email, password });
-      const token = response.data;
-
-      // 토큰 저장
-      tokenManager.setToken(token);
+      const { data } = await authApi.login({ email, password });
+      // 이전 사용자의 refresh token 이 남지 않게 둘 다 새로 넣는다
+      tokenManager.setTokens(data.accessToken, data.refreshToken);
 
       // 사용자 정보 가져오기
       await refreshUserData();
 
       setIsAuthenticated(true);
     } catch (error: unknown) {
-      // 401 에러이고 첫 번째 시도인 경우 자동 재시도
-      if (getApiErrorStatus(error) === 401 && retryCount === 0) {
-        setIsLoading(false); // 현재 로딩 상태 해제
-        await new Promise(resolve => setTimeout(resolve, 500)); // 500ms 대기
-        return login(email, password, 1); // 재시도 (retryCount = 1)
-      }
-
-      // 토큰 정리
-      tokenManager.removeToken();
+      tokenManager.removeTokens();
       setIsAuthenticated(false);
       setUser(null);
       throw error;
@@ -87,10 +88,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // 화면은 바로 로그아웃시키고, Keycloak 세션 종료는 뒤에서 보낸다(실패해도 토큰은 이미 지웠다)
   const logout = () => {
-    tokenManager.removeToken();
+    const refreshToken = tokenManager.getRefreshToken();
+    tokenManager.removeTokens();
     setIsAuthenticated(false);
     setUser(null);
+    if (refreshToken) {
+      authApi.logout(refreshToken).catch((error) => console.warn('서버 로그아웃 실패', error));
+    }
   };
 
   const signup = async (email: string, password: string, nickname: string) => {

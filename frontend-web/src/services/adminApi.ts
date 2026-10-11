@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { attachTokenRefresh } from './api';
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? '').trim() || '/api';
 
@@ -17,6 +18,9 @@ api.interceptors.request.use(
   },
   (error) => Promise.reject(error)
 );
+
+// 401 이면 메인 클라이언트와 같은 방식으로 토큰을 갱신하고 다시 보낸다
+attachTokenRefresh(api);
 
 // Response interceptor for error handling
 api.interceptors.response.use(

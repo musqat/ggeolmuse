@@ -1,15 +1,17 @@
 import React from 'react'
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, waitFor, act } from '@testing-library/react'
 import { AxiosError, type AxiosResponse } from 'axios'
-import { authApi } from '../services/api'
+import { authApi, refreshAccessToken } from '../services/api'
 import { useAuth } from '../hooks/useAuth'
 import { AuthProvider } from './AuthContext'
 
 vi.mock('../services/api', () => ({
+  refreshAccessToken: vi.fn(),
   authApi: {
     getCurrentUser: vi.fn(),
     login: vi.fn(),
+    logout: vi.fn(),
     register: vi.fn(),
     forgotPassword: vi.fn(),
     resetPassword: vi.fn(),
@@ -51,8 +53,9 @@ describe('AuthProvider 처음 확인', () => {
     expect(result.current.isAdmin).toBe(false)
   })
 
-  it('토큰은 있는데 내 정보 받기가 실패하면 토큰을 지우고 로그아웃 상태로 둔다', async () => {
+  it('토큰은 있는데 내 정보 받기가 실패하면 두 토큰을 지우고 로그아웃 상태로 둔다', async () => {
     localStorage.setItem('accessToken', validToken())
+    localStorage.setItem('refreshToken', 'R1')
     api.getCurrentUser.mockRejectedValue(httpError(500))
 
     const { result } = await renderAuth()
@@ -60,6 +63,7 @@ describe('AuthProvider 처음 확인', () => {
     expect(result.current.isAuthenticated).toBe(false)
     expect(result.current.user).toBeNull()
     expect(localStorage.getItem('accessToken')).toBeNull()
+    expect(localStorage.getItem('refreshToken')).toBeNull()
   })
 
   it.each([
@@ -71,7 +75,37 @@ describe('AuthProvider 처음 확인', () => {
     const { result } = await renderAuth()
 
     expect(api.getCurrentUser).not.toHaveBeenCalled()
+    expect(refreshAccessToken).not.toHaveBeenCalled()
     expect(result.current.isAuthenticated).toBe(false)
+  })
+
+  it('access 가 만료돼도 refresh token 으로 갱신되면 로그인 상태를 이어 간다(새로고침)', async () => {
+    localStorage.setItem('accessToken', `h.${btoa(JSON.stringify({ exp: 1 }))}.s`)
+    localStorage.setItem('refreshToken', 'R1')
+    vi.mocked(refreshAccessToken).mockImplementation(async () => {
+      localStorage.setItem('accessToken', validToken())
+      return 'NEW'
+    })
+    api.getCurrentUser.mockResolvedValue(ok(USER) as never)
+
+    const { result } = await renderAuth()
+
+    expect(refreshAccessToken).toHaveBeenCalledTimes(1)
+    expect(result.current.isAuthenticated).toBe(true)
+    expect(result.current.user).toEqual(USER)
+  })
+
+  it('갱신도 실패하면 두 토큰을 지우고 로그아웃 상태로 둔다', async () => {
+    localStorage.setItem('accessToken', `h.${btoa(JSON.stringify({ exp: 1 }))}.s`)
+    localStorage.setItem('refreshToken', 'R1')
+    vi.mocked(refreshAccessToken).mockRejectedValue(httpError(400))
+
+    const { result } = await renderAuth()
+
+    expect(api.getCurrentUser).not.toHaveBeenCalled()
+    expect(result.current.isAuthenticated).toBe(false)
+    expect(localStorage.getItem('accessToken')).toBeNull()
+    expect(localStorage.getItem('refreshToken')).toBeNull()
   })
 
   it('관리자면 isAdmin 이 참이다', async () => {
@@ -85,73 +119,57 @@ describe('AuthProvider 처음 확인', () => {
 })
 
 describe('AuthProvider 로그인', () => {
-  afterEach(() => vi.useRealTimers())
-
-  it('받은 토큰을 저장하고 내 정보를 받아 로그인 상태가 된다', async () => {
-    api.login.mockResolvedValue(ok('TOKEN1') as never)
+  it('받은 두 토큰을 저장하고 내 정보를 받아 로그인 상태가 된다', async () => {
+    api.login.mockResolvedValue(ok({ accessToken: 'A1', refreshToken: 'R1', expiresIn: 3600 }) as never)
     api.getCurrentUser.mockResolvedValue(ok(USER) as never)
     const { result } = await renderAuth()
 
     await act(() => result.current.login('u@example.local', 'pw'))
 
     expect(api.login).toHaveBeenCalledWith({ email: 'u@example.local', password: 'pw' })
-    expect(localStorage.getItem('accessToken')).toBe('TOKEN1')
+    expect(localStorage.getItem('accessToken')).toBe('A1')
+    expect(localStorage.getItem('refreshToken')).toBe('R1')
     expect(result.current.isAuthenticated).toBe(true)
     expect(result.current.user).toEqual(USER)
   })
 
-  // 지금 동작 고정: 401 이면 0.5초 뒤 한 번 더 보낸다(BACKLOG 이메일 로그인 항목에서 지울 예정)
-  it('401 이면 0.5초 뒤 한 번 더 보내고, 또 401 이면 실패를 던진다', async () => {
-    api.login.mockRejectedValue(httpError(401))
-    const { result } = await renderAuth()
-    vi.useFakeTimers()
-
-    let caught: unknown
-    const done = act(() => result.current.login('u@example.local', 'bad').catch((e) => { caught = e }))
-    await vi.advanceTimersByTimeAsync(500)
-    await done
-
-    expect(api.login).toHaveBeenCalledTimes(2)
-    expect((caught as AxiosError).response?.status).toBe(401)
-    expect(result.current.isAuthenticated).toBe(false)
-    expect(localStorage.getItem('accessToken')).toBeNull()
-  })
-
-  it('401 뒤 다시 보낸 것이 성공하면 로그인 상태가 된다', async () => {
-    api.login.mockRejectedValueOnce(httpError(401)).mockResolvedValueOnce(ok('TOKEN2') as never)
+  it('이전 사용자의 refresh token 을 새것으로 덮는다', async () => {
+    localStorage.setItem('refreshToken', 'PREVIOUS_USER')
+    api.login.mockResolvedValue(ok({ accessToken: 'A2', refreshToken: 'R2', expiresIn: 3600 }) as never)
     api.getCurrentUser.mockResolvedValue(ok(USER) as never)
     const { result } = await renderAuth()
-    vi.useFakeTimers()
 
-    const done = act(() => result.current.login('u@example.local', 'pw'))
-    await vi.advanceTimersByTimeAsync(500)
-    await done
+    await act(() => result.current.login('u@example.local', 'pw'))
 
-    expect(api.login).toHaveBeenCalledTimes(2)
-    expect(result.current.isAuthenticated).toBe(true)
+    expect(localStorage.getItem('refreshToken')).toBe('R2')
   })
 
-  it('401 이 아닌 실패는 다시 보내지 않고 던진다', async () => {
-    api.login.mockRejectedValue(httpError(500))
+  it.each([401, 500])('%i 이면 다시 보내지 않고 던지며 두 토큰을 지운다', async (status) => {
+    localStorage.setItem('refreshToken', 'PREVIOUS_USER')
+    api.login.mockRejectedValue(httpError(status))
     const { result } = await renderAuth()
 
-    await act(() => expect(result.current.login('u@example.local', 'pw')).rejects.toMatchObject({ response: { status: 500 } }))
+    await act(() => expect(result.current.login('u@example.local', 'bad')).rejects.toMatchObject({ response: { status } }))
 
     expect(api.login).toHaveBeenCalledTimes(1)
     expect(result.current.isAuthenticated).toBe(false)
+    expect(localStorage.getItem('accessToken')).toBeNull()
+    expect(localStorage.getItem('refreshToken')).toBeNull()
   })
 })
 
 describe('AuthProvider 로그아웃', () => {
   const loggedIn = async () => {
     localStorage.setItem('accessToken', validToken())
+    localStorage.setItem('refreshToken', 'R1')
     api.getCurrentUser.mockResolvedValue(ok(USER) as never)
     const hook = await renderAuth()
     expect(hook.result.current.isAuthenticated).toBe(true)
     return hook
   }
 
-  it('logout 은 access token 을 지우고 로그아웃 상태로 둔다', async () => {
+  it('logout 은 두 토큰을 지우고 그 refresh token 으로 서버 세션을 끊는다', async () => {
+    api.logout.mockResolvedValue(ok(undefined) as never)
     const { result } = await loggedIn()
 
     act(() => result.current.logout())
@@ -159,9 +177,35 @@ describe('AuthProvider 로그아웃', () => {
     expect(result.current.isAuthenticated).toBe(false)
     expect(result.current.user).toBeNull()
     expect(localStorage.getItem('accessToken')).toBeNull()
+    expect(localStorage.getItem('refreshToken')).toBeNull()
+    expect(api.logout).toHaveBeenCalledWith('R1')
   })
 
-  it('인터셉터가 보낸 auth:logout 이벤트를 받으면 로그아웃 상태로 둔다', async () => {
+  it('서버 로그아웃이 실패해도 화면은 로그아웃 상태다', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    api.logout.mockRejectedValue(httpError(500))
+    const { result } = await loggedIn()
+
+    act(() => result.current.logout())
+
+    await waitFor(() => expect(warn).toHaveBeenCalled())
+    expect(result.current.isAuthenticated).toBe(false)
+    expect(localStorage.getItem('refreshToken')).toBeNull()
+    warn.mockRestore()
+  })
+
+  it('refresh token 이 없으면 서버 로그아웃을 부르지 않는다', async () => {
+    localStorage.setItem('accessToken', validToken())
+    api.getCurrentUser.mockResolvedValue(ok(USER) as never)
+    const { result } = await renderAuth()
+
+    act(() => result.current.logout())
+
+    expect(api.logout).not.toHaveBeenCalled()
+    expect(result.current.isAuthenticated).toBe(false)
+  })
+
+  it('인터셉터가 보낸 auth:logout 이벤트를 받으면 두 토큰을 지우고 로그아웃 상태로 둔다', async () => {
     const { result } = await loggedIn()
 
     act(() => { window.dispatchEvent(new CustomEvent('auth:logout')) })
@@ -169,6 +213,7 @@ describe('AuthProvider 로그아웃', () => {
     expect(result.current.isAuthenticated).toBe(false)
     expect(result.current.user).toBeNull()
     expect(localStorage.getItem('accessToken')).toBeNull()
+    expect(localStorage.getItem('refreshToken')).toBeNull()
   })
 })
 

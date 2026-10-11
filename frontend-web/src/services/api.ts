@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { type AxiosInstance } from 'axios';
 import type { ApiResponse } from '../types/api';
 import type { StockPrice } from '../types/stock';
 import type { OHLCData } from '../types/ohlc';
@@ -57,19 +57,35 @@ const processQueue = (error: unknown, token: string | null = null) => {
   failedQueue = [];
 };
 
-// 응답 인터셉터 (에러 처리 + 자동 토큰 갱신)
-apiClient.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
-    const requestUrl = originalRequest?.url || '';
+// refresh token 으로 새 토큰을 받아 둘 다 저장하고 새 access token 을 돌려준다.
+// 401 인터셉터와 첫 화면 확인(AuthContext)이 같이 쓴다
+export const refreshAccessToken = async (): Promise<string> => {
+  const { data } = await authApi.refreshToken();
+  localStorage.setItem('accessToken', data.accessToken);
+  // Keycloak 이 갱신 때마다 새 refresh token 을 준다. 옛것은 세션 유휴 시간이 지나면 만료된다
+  if (data.refreshToken) {
+    localStorage.setItem('refreshToken', data.refreshToken);
+  }
+  return data.accessToken;
+};
 
-    if (error.response?.status === 401) {
-      // 로그인/회원가입/refresh 요청의 401은 정상적인 실패
+// 401 이면 refresh token 으로 갱신하고 원래 요청을 그 클라이언트로 다시 보낸다.
+// 클라이언트 셋(apiClient · 관리자 · AI 채팅)이 같이 쓰고, 갱신 중 여부와 대기열은 모듈에 하나라 갱신은 한 번만 한다
+export const attachTokenRefresh = (client: AxiosInstance) => {
+  client.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+      if (error.response?.status !== 401) return Promise.reject(error);
+
+      const originalRequest = error.config;
+      const requestUrl = originalRequest?.url || '';
+
+      // 로그인/회원가입/refresh/로그아웃 요청의 401은 정상적인 실패
       if (requestUrl.includes('/auth/login') ||
           requestUrl.includes('/auth/register') ||
           requestUrl.includes('/auth/social') ||
-          requestUrl.includes('/auth/refresh')) {
+          requestUrl.includes('/auth/refresh') ||
+          requestUrl.includes('/auth/logout')) {
         return Promise.reject(error);
       }
 
@@ -95,26 +111,22 @@ apiClient.interceptors.response.use(
           failedQueue.push({ resolve, reject });
         }).then(token => {
           originalRequest.headers.Authorization = `Bearer ${token}`;
-          return apiClient(originalRequest);
+          return client(originalRequest);
         }).catch(err => Promise.reject(err));
       }
 
       originalRequest._retry = true;
       isRefreshing = true;
 
-      // Refresh token으로 새 access token 받아오기
       try {
-        const response = await authApi.refreshToken();
-        const newAccessToken = response.data;
-
-        localStorage.setItem('accessToken', newAccessToken);
+        const newAccessToken = await refreshAccessToken();
 
         // 대기 중인 요청들 처리
         processQueue(null, newAccessToken);
 
         // 원래 요청 재시도
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-        return apiClient(originalRequest);
+        return client(originalRequest);
       } catch (refreshError) {
         // Refresh 실패 시 로그아웃
         processQueue(refreshError, null);
@@ -126,15 +138,21 @@ apiClient.interceptors.response.use(
         isRefreshing = false;
       }
     }
+  );
+};
 
-    // 거래 API의 400 에러는 비즈니스 로직 검증 실패 (예상된 에러)
+attachTokenRefresh(apiClient);
+
+// 거래 API의 400 에러는 비즈니스 로직 검증 실패 (예상된 에러)
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const requestUrl = error.config?.url || '';
     if (error.response?.status === 400 &&
         (requestUrl.includes('/trade/buy') || requestUrl.includes('/trade/sell'))) {
       const detail = error.response?.data?.detail || error.message;
       console.warn(`[거래 검증 실패] ${detail}`);
-      return Promise.reject(error);
     }
-
     return Promise.reject(error);
   }
 );
@@ -413,6 +431,13 @@ export const accountsApi = {
     apiClient.delete<void>(`/accounts/${accountId}`),
 };
 
+// 로그인 · 토큰 갱신 응답 (user-service TokenResponseDto)
+export type TokenResponse = {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;                    // access token 만료까지 남은 초
+};
+
 // 로그인 요청
 type LoginRequest = {
   email: string;
@@ -469,7 +494,7 @@ export type ResetPasswordRequest = {
 export const authApi = {
   // 일반 로그인
   login: (credentials: LoginRequest) =>
-    apiClient.post<string>('/auth/login', credentials),
+    apiClient.post<TokenResponse>('/auth/login', credentials),
 
   // 회원가입
   register: (userData: RegisterRequest) =>
@@ -497,8 +522,12 @@ export const authApi = {
     if (!refreshToken) {
       throw new Error('No refresh token available');
     }
-    return apiClient.post<string>('/auth/refresh', { refreshToken });
+    return apiClient.post<TokenResponse>('/auth/refresh', { refreshToken });
   },
+
+  // 로그아웃: refresh token 이 속한 Keycloak 세션을 끊는다
+  logout: (refreshToken: string) =>
+    apiClient.post<void>('/auth/logout', { refreshToken }),
 
   // 비밀번호 변경
   changePassword: (data: ChangePasswordRequest) =>

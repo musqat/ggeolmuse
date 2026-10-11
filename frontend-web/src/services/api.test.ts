@@ -32,7 +32,10 @@ async function setup(routes: Record<string, Reply[]>) {
   }
   axios.defaults.adapter = adapter
   const api = await import('./api')
-  return { api, calls }
+  // 관리자 · AI 채팅 클라이언트도 같은 api 모듈(같은 갱신 상태)을 물려받는다
+  const admin = await import('./adminApi')
+  const chat = await import('./aiChatApi')
+  return { api, admin, chat, calls }
 }
 
 describe('api 요청 인터셉터', () => {
@@ -80,12 +83,12 @@ describe('api 응답 인터셉터 · 401', () => {
   })
   afterEach(() => window.removeEventListener('auth:logout', onLogout))
 
-  it('refresh token 으로 새 access token 을 받아 저장하고 원래 요청을 다시 보낸다', async () => {
+  it('refresh token 으로 새 토큰을 받아 둘 다 저장하고 원래 요청을 다시 보낸다', async () => {
     localStorage.setItem('accessToken', 'OLD')
     localStorage.setItem('refreshToken', 'R1')
     const { api, calls } = await setup({
       'GET /users/me': [{ status: 401 }, { status: 200, data: { id: 7 } }],
-      'POST /auth/refresh': [{ status: 200, data: 'NEW' }],
+      'POST /auth/refresh': [{ status: 200, data: { accessToken: 'NEW', refreshToken: 'R2', expiresIn: 3600 } }],
     })
 
     const res = await api.authApi.getCurrentUser()
@@ -99,6 +102,7 @@ describe('api 응답 인터셉터 · 401', () => {
     ])
     expect(calls[1].body).toEqual({ refreshToken: 'R1' })
     expect(localStorage.getItem('accessToken')).toBe('NEW')
+    expect(localStorage.getItem('refreshToken')).toBe('R2')
     expect(logouts).toBe(0)
   })
 
@@ -110,7 +114,7 @@ describe('api 응답 인터셉터 · 401', () => {
     const { api, calls } = await setup({
       'GET /users/me': [{ status: 401 }, { status: 200, data: { id: 7 } }],
       'GET /accounts': [{ status: 401 }, { status: 200, data: [] }],
-      'POST /auth/refresh': [async () => { await refreshGate; return { status: 200, data: 'NEW' } }],
+      'POST /auth/refresh': [async () => { await refreshGate; return { status: 200, data: { accessToken: 'NEW', refreshToken: 'R2', expiresIn: 3600 } } }],
     })
 
     const first = api.authApi.getCurrentUser()
@@ -166,7 +170,7 @@ describe('api 응답 인터셉터 · 401', () => {
     localStorage.setItem('refreshToken', 'R1')
     const { api, calls } = await setup({
       'GET /users/me': [{ status: 401 }],
-      'POST /auth/refresh': [{ status: 200, data: 'NEW' }],
+      'POST /auth/refresh': [{ status: 200, data: { accessToken: 'NEW', refreshToken: 'R2', expiresIn: 3600 } }],
     })
 
     await expect(api.authApi.getCurrentUser()).rejects.toMatchObject({ response: { status: 401 } })
@@ -175,6 +179,43 @@ describe('api 응답 인터셉터 · 401', () => {
     expect(localStorage.getItem('accessToken')).toBeNull()
     expect(localStorage.getItem('refreshToken')).toBeNull()
     expect(logouts).toBe(1)
+  })
+
+  it('로그아웃 요청의 401 은 갱신하지 않고 그대로 돌려준다', async () => {
+    localStorage.setItem('refreshToken', 'R1')
+    const { api, calls } = await setup({ 'POST /auth/logout': [{ status: 401 }] })
+
+    await expect(api.authApi.logout('R1')).rejects.toMatchObject({ response: { status: 401 } })
+
+    expect(calls.map((c) => c.url)).toEqual(['/auth/logout'])
+    expect(calls[0].body).toEqual({ refreshToken: 'R1' })
+  })
+
+  it('관리자 · AI 채팅 요청도 401 이면 같은 갱신을 거쳐 그 클라이언트로 다시 보낸다. 셋이 함께 401 이어도 갱신은 한 번', async () => {
+    localStorage.setItem('accessToken', 'OLD')
+    localStorage.setItem('refreshToken', 'R1')
+    let releaseRefresh!: () => void
+    const refreshGate = new Promise<void>((resolve) => { releaseRefresh = resolve })
+    const { api, admin, chat, calls } = await setup({
+      'GET /users/me': [{ status: 401 }, { status: 200, data: { id: 7 } }],
+      'GET /admin/users/stats': [{ status: 401 }, { status: 200, data: { totalUsers: 3 } }],
+      'POST /chat': [{ status: 401 }, { status: 200, data: { answer: 'ok', remaining: 4, symbol: null } }],
+      'POST /auth/refresh': [async () => { await refreshGate; return { status: 200, data: { accessToken: 'NEW', refreshToken: 'R2', expiresIn: 3600 } } }],
+    })
+
+    const me = api.authApi.getCurrentUser()
+    await vi.waitFor(() => expect(calls.some((c) => c.url === '/auth/refresh')).toBe(true))
+    const stats = admin.userAdminApi.getUserStats()
+    const answer = chat.aiChatApi.sendMessage('안녕')
+    await vi.waitFor(() => expect(calls.filter((c) => c.url === '/admin/users/stats' || c.url === '/chat')).toHaveLength(2))
+    releaseRefresh()
+
+    await expect(me).resolves.toMatchObject({ data: { id: 7 } })
+    await expect(stats).resolves.toEqual({ totalUsers: 3 })
+    await expect(answer).resolves.toMatchObject({ data: { answer: 'ok' } })
+    expect(calls.filter((c) => c.url === '/auth/refresh')).toHaveLength(1)
+    expect(calls.filter((c) => c.auth === 'Bearer NEW').map((c) => c.url).sort()).toEqual(['/admin/users/stats', '/chat', '/users/me'])
+    expect(localStorage.getItem('refreshToken')).toBe('R2')
   })
 
   it('로그인 요청의 401 은 갱신 · 로그아웃 없이 그대로 돌려준다', async () => {

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { attachTokenRefresh } from './api';
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? '').trim() || '';
 
@@ -11,6 +12,9 @@ client.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// 401 이면 메인 클라이언트와 같은 방식으로 토큰을 갱신하고 다시 보낸다
+attachTokenRefresh(client);
 
 interface ChatResponse {
   answer: string;
