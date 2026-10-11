@@ -13,20 +13,6 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class UserMapper {
 
-  // Google 소셜 로그인 사용자 생성
-  public User createGoogleUser(String email, String googleId, String nickname,
-    String profileImageUrl) {
-    return User.builder()
-      .email(email)
-      .socialEmail(email)
-      .socialId(googleId)
-      .nickname(nickname)
-      .profileImageUrl(profileImageUrl)
-      .provider(AuthType.GOOGLE)
-      .emailVerified(true)
-      .build();
-  }
-
   // 로컬 회원가입 사용자 생성
   public User createLocalUser(String email, String nickname, String keycloakId) {
     return User.builder()

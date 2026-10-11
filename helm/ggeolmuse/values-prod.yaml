@@ -421,7 +421,6 @@ configMap:
   enabled: true
   data:
     appBaseUrl: "https://ggeolmuse.com"
-    oauthRedirectUri: "https://ggeolmuse.com/api/auth/social/google/callback"
     emailExpiryHours: "24"
     exchangeRateMin: "0"
     exchangeRateMax: "3000"

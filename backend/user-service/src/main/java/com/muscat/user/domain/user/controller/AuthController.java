@@ -14,7 +14,6 @@ import com.muscat.user.domain.user.dto.response.TokenResponseDto;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.CookieValue;
 import com.muscat.user.domain.user.entity.User;
-import com.muscat.user.domain.user.service.SocialUserService;
 import com.muscat.user.domain.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -24,14 +23,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -49,23 +43,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
   private final UserService userService;
-  private final SocialUserService socialUserService;
   private final RefreshTokenCookie refreshTokenCookie;
-
-  @Value("${keycloak.auth-server-url}")
-  private String keycloakUrl;
-
-  @Value("${keycloak.public-url:${keycloak.auth-server-url}}")
-  private String keycloakPublicUrl;
-
-  @Value("${keycloak.realm}")
-  private String realm;
-
-  @Value("${keycloak.resource}")
-  private String clientId;
-
-  @Value("${app.frontend.url:http://localhost:3000}")
-  private String frontendUrl;
 
   @Operation(
     summary = "사용자 회원가입",
@@ -423,122 +401,5 @@ public class AuthController {
       .header(HttpHeaders.SET_COOKIE, refreshTokenCookie.issue(tokens))
       .body(AccessTokenResponseDto.from(tokens));
   }
-
-  // ============= 소셜 로그인 =============
-
-  @Operation(
-    summary = "Google 로그인 콜백 처리",
-    description = "Keycloak를 통한 Google 소셜 로그인 성공 후 콜백을 처리하고 프론트엔드로 리디렉션합니다"
-  )
-  @ApiResponses(value = {
-    @ApiResponse(
-      responseCode = "302",
-      description = "Google 로그인 성공, 프론트엔드로 리디렉션",
-      content = @Content(
-        mediaType = "text/html",
-        examples = @ExampleObject(
-          value = "Location: http://localhost:3000/auth/callback?provider=google&email=user@example.com"
-        )
-      )
-    ),
-    @ApiResponse(
-      responseCode = "302",
-      description = "Google 로그인 실패, 에러 페이지로 리디렉션",
-      content = @Content(
-        mediaType = "text/html",
-        examples = @ExampleObject(
-          value = "Location: http://localhost:3000/auth/error?message=Google+로그인+실패"
-        )
-      )
-    )
-  })
-  @GetMapping("/social/google/callback")
-  public ResponseEntity<?> handleGoogleCallback(
-    @Parameter(description = "Google OAuth 인증 코드", required = true, example = "4/0AdQt8qhexample...")
-    @RequestParam("code") String authorizationCode) {
-
-    try {
-      log.info("Google 콜백 처리 시작");
-
-      // 1. Google 사용자 처리 및 DB 동기화 (서비스에서 모든 비즈니스 로직 처리)
-      User user = socialUserService.processGoogleLogin(authorizationCode);
-
-      // 2. 프론트엔드로 리디렉션 (성공 응답)
-      String callbackUrl = String.format("%s/auth/callback?provider=google&email=%s",
-        frontendUrl,
-        URLEncoder.encode(user.getEmail(), StandardCharsets.UTF_8));
-
-      log.info("Google 로그인 성공, 프론트엔드로 리디렉션: {}", user.getEmail());
-
-      return ResponseEntity.status(302)
-        .header("Location", callbackUrl)
-        .build();
-
-    } catch (Exception e) {
-      log.error("Google 콜백 처리 실패: {}", e.getMessage());
-
-      String errorUrl = String.format("%s/auth/error?message=%s",
-        frontendUrl,
-        URLEncoder.encode("Google 로그인 실패: " + e.getMessage(), StandardCharsets.UTF_8));
-
-      return ResponseEntity.status(302)
-        .header("Location", errorUrl)
-        .build();
-    }
-  }
-
-  @Operation(
-    summary = "Google 로그인 URL 생성",
-    description = "Keycloak를 통한 Google 소셜 로그인 URL을 생성하여 반환합니다"
-  )
-  @ApiResponses(value = {
-    @ApiResponse(
-      responseCode = "200",
-      description = "Google 로그인 URL 생성 성공",
-      content = @Content(
-        mediaType = "application/json",
-        examples = @ExampleObject(
-          value = """
-            {
-              "loginUrl": "https://keycloak.example.com/realms/ggeolmuse/protocol/openid-connect/auth?client_id=ggeolmuse-frontend&response_type=code&scope=openid+email+profile&redirect_uri=http://localhost:8080/api/auth/social/google/callback&kc_idp_hint=google",
-              "provider": "google",
-              "redirectUri": "http://localhost:8080/api/auth/social/google/callback"
-            }
-            """
-        )
-      )
-    )
-  })
-  @GetMapping("/social/google/login-url")
-  public ResponseEntity<Map<String, String>> getGoogleLoginUrl(
-    @Parameter(description = "HTTP 요청 객체 (서버 정보 추출용)", hidden = true)
-    HttpServletRequest request) {
-    // Production 환경에서는 항상 HTTPS 사용 (Ingress가 TLS 종료)
-    String baseUrl = "https://" + request.getServerName();
-    String redirectUri = baseUrl + "/api/auth/social/google/callback";
-
-    // Keycloak Google 로그인 URL 생성 (browser-facing public URL 사용)
-    String authUrl = String.format(
-      "%s/realms/%s/protocol/openid-connect/auth",
-      keycloakPublicUrl, realm);
-
-    String loginUrl = String.format(
-      "%s?client_id=%s&response_type=code&scope=%s&redirect_uri=%s&kc_idp_hint=google",
-      authUrl,
-      URLEncoder.encode(clientId, StandardCharsets.UTF_8),
-      URLEncoder.encode("openid email profile", StandardCharsets.UTF_8),
-      URLEncoder.encode(redirectUri, StandardCharsets.UTF_8)
-    );
-
-    Map<String, String> response = Map.of(
-      "loginUrl", loginUrl,
-      "provider", "google",
-      "redirectUri", redirectUri
-    );
-
-    log.info("Google 로그인 URL 생성 완료");
-    return ResponseEntity.ok(response);
-  }
-
 
 }

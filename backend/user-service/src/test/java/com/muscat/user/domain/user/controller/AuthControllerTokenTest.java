@@ -17,7 +17,6 @@ import com.muscat.user.common.exceptions.GlobalExceptionHandler;
 import com.muscat.user.common.exceptions.KeycloakException;
 import com.muscat.user.config.AppProperties;
 import com.muscat.user.domain.user.dto.response.TokenResponseDto;
-import com.muscat.user.domain.user.service.SocialUserService;
 import com.muscat.user.domain.user.service.UserService;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,9 +38,6 @@ class AuthControllerTokenTest {
   @Mock
   private UserService userService;
 
-  @Mock
-  private SocialUserService socialUserService;
-
   private MockMvc mockMvc;
 
   private static final TokenResponseDto TOKENS = new TokenResponseDto("access-1", "refresh-1", 3600, 7200);
@@ -49,7 +45,7 @@ class AuthControllerTokenTest {
   @BeforeEach
   void setUp() {
     RefreshTokenCookie cookie = new RefreshTokenCookie(new AppProperties());
-    AuthController controller = new AuthController(userService, socialUserService, cookie);
+    AuthController controller = new AuthController(userService, cookie);
     mockMvc = MockMvcBuilders.standaloneSetup(controller)
       .setControllerAdvice(new GlobalExceptionHandler(new MockEnvironment()))
       .build();

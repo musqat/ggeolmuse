@@ -22,8 +22,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -36,15 +34,12 @@ public class KeycloakServiceImpl implements KeycloakService {
 
   private final KeycloakProperties keycloakProperties;
   private final AppProperties appProperties;
-  private final JwtDecoder jwtDecoder;
   private final RestTemplate restTemplate;
   private static final ObjectMapper JSON = new ObjectMapper();
 
-  public KeycloakServiceImpl(KeycloakProperties keycloakProperties, AppProperties appProperties,
-    JwtDecoder jwtDecoder) {
+  public KeycloakServiceImpl(KeycloakProperties keycloakProperties, AppProperties appProperties) {
     this.keycloakProperties = keycloakProperties;
     this.appProperties = appProperties;
-    this.jwtDecoder = jwtDecoder;
 
     // RestTemplate을 타임아웃과 함께 설정
     RestTemplateBuilder builder = new RestTemplateBuilder()
@@ -94,55 +89,6 @@ public class KeycloakServiceImpl implements KeycloakService {
       log.error("구글 로그인 코드 교환 중 오류: {}", e.getMessage(), e);
       throw new KeycloakException(KeycloakResponse.API_ERROR);
     }
-  }
-
-  @Override
-  public String exchangeCodeForToken(String authorizationCode) {
-    String tokenUrl =
-      keycloakProperties.getAuthServerUrl() + "/realms/" + keycloakProperties.getRealm()
-        + "/protocol/openid-connect/token";
-
-    log.debug("Authorization Code 교환 요청: {} | Redirect URI: {}", tokenUrl,
-      appProperties.getOauth().getRedirectUri());
-
-    HttpHeaders headers = new HttpHeaders();
-    headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-
-    MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
-    body.add("grant_type", "authorization_code");
-    body.add("client_id", keycloakProperties.getResource());
-    body.add("client_secret", keycloakProperties.getCredentials().getSecret());
-    body.add("code", authorizationCode);
-    body.add("redirect_uri", appProperties.getOauth().getRedirectUri());
-
-    HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
-
-    log.info("Authorization Code를 토큰으로 교환 중");
-
-    ResponseEntity<Map> response = restTemplate.postForEntity(tokenUrl, request, Map.class);
-
-    if (response.getBody() == null) {
-      log.error("토큰 교환 응답이 null입니다");
-      throw new KeycloakException(KeycloakResponse.API_ERROR);
-    }
-
-    Map<String, Object> tokenResponse = response.getBody();
-    String accessToken = (String) tokenResponse.get("access_token");
-
-    if (accessToken == null || accessToken.trim().isEmpty()) {
-      log.error("토큰 교환 응답에 access_token이 없습니다: {}", tokenResponse);
-      throw new KeycloakException(KeycloakResponse.API_ERROR);
-    }
-
-    log.info("토큰 교환 성공");
-    return accessToken;
-  }
-
-  @Override
-  public Map<String, Object> parseTokenClaims(String jwtToken) {
-    Jwt jwt = jwtDecoder.decode(jwtToken);
-    log.info("JWT 토큰 검증 및 파싱 완료: {}", jwt.getClaimAsString("email"));
-    return jwt.getClaims();
   }
 
   @Override

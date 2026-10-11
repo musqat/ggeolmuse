@@ -81,8 +81,6 @@ app:
     min-valid-rate: 1000
     max-valid-rate: 1500
     fallback-rate: 1300
-  oauth:
-    redirect-uri: http://localhost:8070/oauth/callback
   mail:
     from: test@test.com
     verification:

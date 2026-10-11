@@ -46,15 +46,15 @@ test('같은 이메일로 두 번 가입되지 않는다', async () => {
   await api.dispose();
 });
 
-test('구글 로그인 URL 을 준다', async () => {
+test('구글 인가 코드 교환은 잘못된 코드를 400 으로 막는다', async () => {
   const api = await request.newContext();
 
-  const res = await api.get(`${API_URL}/auth/social/google/login-url`);
-  expect(res.status()).toBe(200);
-
-  const body = await res.json();
-  const url = body.loginUrl ?? body.url ?? body;
-  expect(String(url), '구글 로그인 URL 이 아니다').toContain('http');
+  // 진짜 코드는 구글 로그인 화면을 거쳐야 나온다. 여기서는 user-service → Keycloak 교환 길이 살아 있고 실패를 400 으로 돌려주는지만 본다
+  const res = await api.post(`${API_URL}/auth/social/google/token`, {
+    data: { code: 'e2e-invalid-code', codeVerifier: 'e2e-invalid-verifier', redirectUri: 'http://localhost:3000/oauth/callback' },
+  });
+  expect(res.status(), `잘못된 코드가 통과하거나 다른 이유로 실패한다: ${await res.text()}`).toBe(400);
+  expect(res.headers()['set-cookie'] ?? '', '실패했는데 refresh 쿠키를 준다').not.toContain('refresh_token=');
 
   await api.dispose();
 });

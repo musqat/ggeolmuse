@@ -1,5 +1,7 @@
 package com.muscat.user.domain.user.controller;
 
+import com.muscat.user.common.enums.responses.UserResponse;
+import com.muscat.user.common.exceptions.UserException;
 import com.muscat.user.domain.user.dto.request.ChangePasswordRequestDto;
 import com.muscat.user.domain.user.dto.request.DeleteAccountRequestDto;
 import com.muscat.user.domain.user.dto.request.UpdateProfileRequestDto;
@@ -54,9 +56,12 @@ public class UserController {
     User user;
     try {
       user = userService.getProfile(email);
-    } catch (Exception e) {
+    } catch (UserException e) {
       // 사용자가 로컬 DB에 없지만 Keycloak에는 있음 (Google OAuth 등)
-      // JWT 토큰에서 정보를 추출하여 자동으로 동기화
+      // JWT 토큰에서 정보를 추출하여 자동으로 동기화. DB 오류 같은 다른 실패는 사용자를 새로 만들지 않고 그대로 올린다
+      if (e.getCode() != UserResponse.USER_NOT_FOUND) {
+        throw e;
+      }
       log.info("로컬 DB에 사용자 없음, Keycloak에서 동기화 시작: {}", email);
 
       String keycloakId = jwt.getClaimAsString("sub");

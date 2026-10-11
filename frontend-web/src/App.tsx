@@ -32,7 +32,6 @@ const Account = lazy(() => import('@pages/Account'));
 const MyPage = lazy(() => import('./pages/MyPage'));
 const Charts = lazy(() => import('./pages/Charts'));
 const TradeHistory = lazy(() => import('./pages/TradeHistory'));
-const AuthCallback = lazy(() => import('./pages/AuthCallback'));
 const OAuthCallback = lazy(() => import('./pages/OAuthCallback'));
 const Unauthorized = lazy(() => import('./pages/Unauthorized'));
 const PasswordReset = lazy(() => import('./pages/PasswordReset'));
@@ -66,8 +65,6 @@ function App() {
                 <Route path="/mypage" element={<MyPage />} />
                 <Route path="/charts" element={<Charts />} />
                 <Route path="/charts/:symbol" element={<Charts />} />
-                <Route path="/auth/callback" element={<AuthCallback />} />
-                <Route path="/auth/error" element={<AuthCallback />} />
                 <Route path="/oauth/callback" element={<OAuthCallback />} />
                 <Route path="/reset-password" element={<PasswordReset />} />
                 <Route path="/unauthorized" element={<Unauthorized />} />

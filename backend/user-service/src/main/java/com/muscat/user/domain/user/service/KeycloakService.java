@@ -2,7 +2,6 @@ package com.muscat.user.domain.user.service;
 
 import com.muscat.user.domain.user.dto.request.ChangePasswordRequestDto;
 import com.muscat.user.domain.user.dto.response.TokenResponseDto;
-import java.util.Map;
 
 // Keycloak 인증 서비스 인터페이스
 public interface KeycloakService {
@@ -10,14 +9,8 @@ public interface KeycloakService {
   // 이메일/비밀번호로 Keycloak 로그인. access · refresh token 을 같이 돌려준다
   TokenResponseDto login(String email, String password);
 
-  // Authorization Code를 Keycloak JWT 토큰으로 교환
-  String exchangeCodeForToken(String authorizationCode);
-
   // 브라우저가 public client 로 시작한 구글 로그인(PKCE)의 인가 코드를 토큰으로 바꾼다
   TokenResponseDto exchangePkceCode(String code, String codeVerifier, String redirectUri);
-
-  // JWT 토큰에서 클레임 추출
-  Map<String, Object> parseTokenClaims(String jwtToken);
 
   // Keycloak에 사용자 생성
   String createUser(String email, String password);

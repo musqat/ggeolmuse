@@ -58,8 +58,7 @@ const OAuthCallback: React.FC = () => {
         });
         tokenManager.setToken(data.accessToken);
 
-        // 홈으로 리다이렉트 (user-service 동기화는 나중에 처리)
-        // Google OAuth 사용자는 Keycloak에 있으므로 JWT 토큰만으로 사용 가능
+        // 홈을 새로 연다. 첫 로그인이면 AuthContext 가 부르는 /users/me 가 DB 에 사용자를 만든다
         window.location.href = '/';
       } catch (err: unknown) {
         console.error('OAuth callback error:', err);
