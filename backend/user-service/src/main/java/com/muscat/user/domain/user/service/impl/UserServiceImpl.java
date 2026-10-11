@@ -20,8 +20,10 @@ import com.muscat.user.domain.user.repository.PasswordResetTokenRepository;
 import com.muscat.user.domain.user.repository.UserRepository;
 import com.muscat.user.domain.user.service.KeycloakService;
 import com.muscat.user.domain.user.service.UserService;
+import com.muscat.user.infra.kafka.AccountEventProducer;
 import com.muscat.user.infra.kafka.LoginEventProducer;
-import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -50,6 +52,10 @@ public class UserServiceImpl implements UserService {
   private final UserMapper userMapper;
   private final RateLimitService rateLimitService;
   private final LoginEventProducer loginEventProducer;
+  private final AccountEventProducer accountEventProducer;
+
+  // 비밀번호 없는 사용자(구글)는 이 시간 안에 로그인한 토큰이어야 탈퇴할 수 있다. 훔친 access token 만으로는 못 지운다
+  private static final Duration REAUTH_WINDOW = Duration.ofMinutes(5);
 
   @Value("${app.mail.verification.expiry-hours:24}")
   private int expiryHours;
@@ -228,31 +234,21 @@ public class UserServiceImpl implements UserService {
   }
 
   @Override
-  public void deleteAccount(String email, String password) {
+  public void deleteAccount(String email, String password, Instant authTime) {
     User user = userRepository.findByEmailWithAccounts(email)
       .orElseThrow(() -> new UserException(UserResponse.USER_NOT_FOUND));
 
-    // 로컬 비밀번호 검증
-    if (user.getPasswordHash() == null || !passwordEncoder.matches(password,
-      user.getPasswordHash())) {
-      log.warn("계정 삭제 실패 - 비밀번호 불일치: {}", email);
-      throw new UserException(UserResponse.INVALID_PASSWORD);
-    }
-
-    user.validateForDeletion();
-
-    deleteUserRelatedData(user);
-
-    if (user.getKeycloakId() != null) {
-      try {
-        keycloakService.deleteUser(user.getKeycloakId());
-        log.info("Keycloak 사용자 삭제 완료: {}", user.getKeycloakId());
-      } catch (Exception e) {
-        log.warn("Keycloak 사용자 삭제 실패하지만 로컬 계정 삭제 진행: {}", e.getMessage());
+    if (user.getPasswordHash() != null) {
+      if (password == null || !passwordEncoder.matches(password, user.getPasswordHash())) {
+        log.warn("계정 삭제 실패 - 비밀번호 불일치: {}", email);
+        throw new UserException(UserResponse.INVALID_PASSWORD);
       }
+    } else if (authTime == null || authTime.isBefore(Instant.now().minus(REAUTH_WINDOW))) {
+      log.warn("계정 삭제 실패 - 다시 로그인 필요: {}", email);
+      throw new UserException(UserResponse.REAUTH_REQUIRED);
     }
 
-    userRepository.delete(user);
+    removeUser(user);
 
     log.info("계정 삭제 완료: {}", email);
   }
@@ -392,25 +388,27 @@ public class UserServiceImpl implements UserService {
 
   // ========== 내부 Methods ==========
 
-  // 사용자 관련 데이터 정리
-  private void deleteUserRelatedData(User user) {
+  // 탈퇴 · 강제 탈퇴 공통. 잔액은 가상 머니라 보지 않는다(계좌 삭제와 같다). 계좌마다 삭제 이벤트를 보내
+  // trade-service 가 거래 · 보유를 지우게 하고, 계좌 내역은 DB 의 ON DELETE CASCADE 로 같이 지워진다
+  private void removeUser(User user) {
     emailTokenRepository.deleteByUser(user);
+    passwordResetTokenRepository.deleteByUser(user);
 
     List<Account> accounts = accountRepository.findByUserIdWithUser(user.getId());
-    validateAccountsForDeletion(accounts);
+    accounts.forEach(account -> accountEventProducer.publishAccountDeleted(account, "회원 탈퇴"));
+    accountRepository.deleteAll(accounts);
+    log.debug("사용자 계좌 삭제: userId={}, 계좌수={}", user.getId(), accounts.size());
 
-    log.debug("사용자 관련 데이터 정리 완료: userId={}, 계좌수={}", user.getId(), accounts.size());
-  }
-
-  // 계좌들 삭제 가능 여부 검증
-  private void validateAccountsForDeletion(List<Account> accounts) {
-    boolean hasBalance = accounts.stream()
-      .anyMatch(account -> account.getBalanceKrw().compareTo(BigDecimal.ZERO) > 0 ||
-        account.getBalanceUsd().compareTo(BigDecimal.ZERO) > 0);
-
-    if (hasBalance) {
-      throw new UserException(UserResponse.ACCOUNT_DELETION_BLOCKED);
+    if (user.getKeycloakId() != null) {
+      try {
+        keycloakService.deleteUser(user.getKeycloakId());
+        log.info("Keycloak 사용자 삭제 완료: {}", user.getKeycloakId());
+      } catch (Exception e) {
+        log.warn("Keycloak 사용자 삭제 실패하지만 로컬 계정 삭제 진행: {}", e.getMessage());
+      }
     }
+
+    userRepository.delete(user);
   }
 
   // 이메일 인증 토큰 생성 및 발송
@@ -570,28 +568,7 @@ public class UserServiceImpl implements UserService {
     log.info("Admin이 사용자 강제 탈퇴 처리: userId={}, email={}",
       userId, user.getEmail());
 
-    // 사용자 관련 데이터 정리 (계좌 잔액 체크 없이 강제 삭제)
-    emailTokenRepository.deleteByUser(user);
-    passwordResetTokenRepository.deleteByUser(user);
-
-    // 계좌도 함께 삭제 (잔액 체크 없이)
-    List<Account> accounts = accountRepository.findByUserIdWithUser(userId);
-    accountRepository.deleteAll(accounts);
-
-    log.info("사용자 관련 데이터 정리 완료: userId={}, 계좌수={}", userId, accounts.size());
-
-    // Keycloak 사용자 삭제
-    if (user.getKeycloakId() != null) {
-      try {
-        keycloakService.deleteUser(user.getKeycloakId());
-        log.info("Keycloak 사용자 삭제 완료: {}", user.getKeycloakId());
-      } catch (Exception e) {
-        log.warn("Keycloak 사용자 삭제 실패하지만 로컬 계정 삭제 진행: {}", e.getMessage());
-      }
-    }
-
-    // 로컬 DB에서 사용자 삭제
-    userRepository.delete(user);
+    removeUser(user);
 
     log.info("사용자 강제 탈퇴 완료: {}", user.getEmail());
   }

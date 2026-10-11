@@ -1,10 +1,12 @@
 import { test, expect, request } from '@playwright/test';
-import { API_URL } from '../playwright.config';
+import { readFile } from 'node:fs/promises';
+import { API_URL, TOKEN_FILE } from '../playwright.config';
 
 /**
  * 인증 뒤로는 못 간다. 메일 토큰이 있어야 하고 그 메일은 설정된 계정으로 실제로 나간다.
  * forgot-password, resend-verification 도 같은 이유로 뺐다.
  * register 는 Keycloak 사용자와 DB 행만 만든다.
+ * 탈퇴 테스트는 메일 대신 관리자(시드 계정)가 이메일 인증을 처리해 로그인까지 간다.
  */
 
 /** 스택을 여러 번 돌려도 겹치지 않게 매번 다른 계정을 만든다. */
@@ -57,4 +59,36 @@ test('구글 인가 코드 교환은 잘못된 코드를 400 으로 막는다', 
   expect(res.headers()['set-cookie'] ?? '', '실패했는데 refresh 쿠키를 준다').not.toContain('refresh_token=');
 
   await api.dispose();
+});
+
+test('이메일 사용자는 비밀번호로 탈퇴하고, 탈퇴하면 다시 로그인되지 않는다', async () => {
+  const plain = await request.newContext();
+  const user = throwawayAccount();
+  expect((await plain.post(`${API_URL}/auth/register`, { data: user })).status()).toBe(201);
+
+  const adminToken = (await readFile(TOKEN_FILE, 'utf8')).trim();
+  const admin = await request.newContext({ extraHTTPHeaders: { Authorization: `Bearer ${adminToken}` } });
+  const users = await (await admin.get(`${API_URL}/admin/users?size=50`)).json();
+  const found = users.content.find((u: { email: string }) => u.email === user.email);
+  expect(found, '가입한 사용자가 관리자 목록에 없다').toBeTruthy();
+  expect((await admin.patch(`${API_URL}/admin/users/${found.userId}/verify-email`)).status()).toBe(200);
+
+  const login = await plain.post(`${API_URL}/auth/login`, { data: { email: user.email, password: user.password } });
+  expect(login.status(), `인증한 계정이 로그인되지 않는다: ${await login.text()}`).toBe(200);
+  const { accessToken } = await login.json();
+  const me = await request.newContext({ extraHTTPHeaders: { Authorization: `Bearer ${accessToken}` } });
+
+  // 새 계좌는 KRW 1,000,000 을 들고 시작한다. 잔액이 있어도 탈퇴된다
+  const account = await me.post(`${API_URL}/accounts`, { data: { accountName: `E2E 탈퇴 ${user.nickname}`, commissionRate: 0 } });
+  expect(account.status(), `계좌 생성이 실패했다: ${await account.text()}`).toBeLessThan(300);
+
+  const wrong = await me.delete(`${API_URL}/users/me`, { data: { password: `x${user.password}` } });
+  expect(wrong.status(), '틀린 비밀번호로 탈퇴된다').toBe(400);
+  const deleted = await me.delete(`${API_URL}/users/me`, { data: { password: user.password } });
+  expect(deleted.status(), `탈퇴가 실패했다: ${await deleted.text()}`).toBe(200);
+
+  const again = await plain.post(`${API_URL}/auth/login`, { data: { email: user.email, password: user.password } });
+  expect(again.status(), '탈퇴한 계정이 로그인된다').toBeGreaterThanOrEqual(400);
+
+  await Promise.all([plain.dispose(), admin.dispose(), me.dispose()]);
 });

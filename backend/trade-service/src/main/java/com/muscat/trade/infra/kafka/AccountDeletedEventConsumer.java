@@ -1,6 +1,7 @@
 package com.muscat.trade.infra.kafka;
 
 import com.muscat.messaging.event.AccountDeletedEvent;
+import com.muscat.trade.domain.repository.DividendRepository;
 import com.muscat.trade.domain.repository.HoldingsRepository;
 import com.muscat.trade.domain.repository.TradeRepository;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 계좌 삭제 이벤트를 소비하는 Consumer
  * user-service에서 발행한 AccountDeletedEvent를 소비하여
- * 해당 계좌의 모든 거래 내역 및 보유 자산을 삭제
+ * 해당 계좌의 모든 거래 내역 · 보유 자산 · 배당 내역을 삭제
  */
 @Slf4j
 @Component
@@ -25,6 +26,7 @@ public class AccountDeletedEventConsumer {
 
   private final TradeRepository tradeRepository;
   private final HoldingsRepository holdingsRepository;
+  private final DividendRepository dividendRepository;
 
   /**
    * 계좌 삭제 이벤트 처리
@@ -55,10 +57,14 @@ public class AccountDeletedEventConsumer {
       holdingsRepository.deleteByAccountId(event.getAccountId());
       log.info("보유 자산 삭제 완료: accountId={}", event.getAccountId());
 
+      // 3. 해당 계좌의 배당 내역 삭제(회원 탈퇴 뒤 남지 않게)
+      dividendRepository.deleteByAccountId(event.getAccountId());
+      log.info("배당 내역 삭제 완료: accountId={}", event.getAccountId());
+
       log.info("계좌 삭제 이벤트 처리 완료: userId={}, accountId={}, accountNumber={}",
         event.getUserId(), event.getAccountId(), event.getAccountNumber());
 
-      // 3. 수동 커밋 (처리 성공시에만)
+      // 4. 수동 커밋 (처리 성공시에만)
       acknowledgment.acknowledge();
 
     } catch (Exception ex) {

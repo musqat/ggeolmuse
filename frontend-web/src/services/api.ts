@@ -469,6 +469,7 @@ export type User = {
   createdAt: string;                    // 생성일
   profileImageUrl?: string;             // 프로필 이미지 URL
   socialEmail?: string;                 // 소셜 계정 이메일
+  hasPassword: boolean;                 // 비밀번호로 로그인할 수 있는지(구글로만 가입하면 false)
 };
 
 // 비밀번호 변경 요청
@@ -539,8 +540,9 @@ export const authApi = {
     apiClient.put<void>('/users/me', data),
 
   // 회원 탈퇴
-  deleteAccount: () =>
-    apiClient.delete<void>('/users/me'),
+  // 비밀번호로 가입한 사용자는 비밀번호를 싣는다. 구글 사용자는 본문 없이 보내고 서버가 최근 로그인인지 본다
+  deleteAccount: (password?: string) =>
+    apiClient.delete<void>('/users/me', password ? { data: { password } } : undefined),
 };
 
 // ===== 백테스트 타입 =====

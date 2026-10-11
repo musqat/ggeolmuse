@@ -35,7 +35,8 @@ public class UserMapper {
       user.getProvider().toString(),
       user.isEmailVerified(),
       user.getProfileImageUrl(),
-      user.getSocialEmail()
+      user.getSocialEmail(),
+      user.getPasswordHash() != null
     );
   }
 

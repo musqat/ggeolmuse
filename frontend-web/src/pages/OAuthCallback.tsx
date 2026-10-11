@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { authApi } from '../services/api';
 import { tokenManager } from '../utils/auth';
 import { getApiErrorMessage } from '../utils/apiError';
-import { OAUTH_STATE_KEY, oauthRedirectUri, PKCE_VERIFIER_KEY } from '../utils/googleLogin';
+import { OAUTH_STATE_KEY, oauthRedirectUri, PKCE_VERIFIER_KEY, takeOAuthReturnPath } from '../utils/googleLogin';
 
 const OAuthCallback: React.FC = () => {
   const navigate = useNavigate();
@@ -58,8 +58,8 @@ const OAuthCallback: React.FC = () => {
         });
         tokenManager.setToken(data.accessToken);
 
-        // 홈을 새로 연다. 첫 로그인이면 AuthContext 가 부르는 /users/me 가 DB 에 사용자를 만든다
-        window.location.href = '/';
+        // 홈(또는 로그인 전에 정해 둔 화면)을 새로 연다. 첫 로그인이면 AuthContext 가 부르는 /users/me 가 DB 에 사용자를 만든다
+        window.location.href = takeOAuthReturnPath();
       } catch (err: unknown) {
         console.error('OAuth callback error:', err);
         setError(getApiErrorMessage(err, 'Google 로그인 처리 중 오류가 발생했습니다.'));

@@ -27,7 +27,6 @@ public enum UserResponse implements ErrorCode {
   EMAIL_ALREADY_VERIFIED("이미 인증된 이메일입니다.", HttpStatus.BAD_REQUEST),
   PASSWORD_RESET_TOKEN_INVALID("유효하지 않은 비밀번호 재설정 토큰입니다.", HttpStatus.BAD_REQUEST),
   PASSWORD_RESET_TOKEN_EXPIRED("비밀번호 재설정 토큰이 만료되었거나 이미 사용되었습니다.", HttpStatus.BAD_REQUEST),
-  ACCOUNT_DELETION_BLOCKED("잔액이 있는 계좌가 존재하여 계정을 삭제할 수 없습니다.", HttpStatus.BAD_REQUEST),
 
   // 401 Unauthorized
   AUTHENTICATION_FAILED("인증에 실패했습니다.", HttpStatus.UNAUTHORIZED),
@@ -36,6 +35,8 @@ public enum UserResponse implements ErrorCode {
   // 403 Forbidden
   FORBIDDEN("접근 권한이 없습니다.", HttpStatus.FORBIDDEN),
   ADMIN_REQUIRED("관리자 권한이 필요합니다.", HttpStatus.FORBIDDEN),
+  // 401 이면 프론트가 토큰 갱신 뒤 다시 보내는데, 갱신해도 로그인 시각은 그대로라 403 으로 둔다
+  REAUTH_REQUIRED("보안을 위해 다시 로그인한 뒤 탈퇴할 수 있습니다.", HttpStatus.FORBIDDEN),
 
   // 404 Not Found
   USER_NOT_FOUND("사용자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),

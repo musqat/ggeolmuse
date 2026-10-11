@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { authApi, refreshAccessToken, type User } from '../services/api';
 import { tokenManager, checkAuthStatus } from '../utils/auth';
-import { buildGoogleLoginUrl } from '../utils/googleLogin';
+import { buildGoogleLoginUrl, type GoogleLoginOptions } from '../utils/googleLogin';
 import { AuthContext, type AuthContextType } from '../hooks/useAuth';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -135,8 +135,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // 구글 로그인(Keycloak)으로 보낸다. 로그인 · 회원가입 모달이 같이 쓴다
-  const loginWithGoogle = async () => {
-    window.location.href = await buildGoogleLoginUrl(window.location.origin);
+  const loginWithGoogle = async (options?: GoogleLoginOptions) => {
+    window.location.href = await buildGoogleLoginUrl(window.location.origin, options);
   };
 
   const contextValue: AuthContextType = {

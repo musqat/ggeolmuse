@@ -17,4 +17,7 @@ public interface DividendRepository extends JpaRepository<Dividend, Long> {
 
   // 특정 사용자의 특정 종목 배당 내역 조회 (최신순)
   List<Dividend> findByUserIdAndSymbolOrderByDividendDateDesc(String userId, String symbol);
+
+  // 계좌 삭제 시 배당 내역 삭제
+  void deleteByAccountId(Long accountId);
 }

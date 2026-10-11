@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import {
   User as UserIcon,
@@ -13,11 +13,21 @@ import {
   Lock,
 } from "lucide-react";
 import { authApi } from "../services/api";
-import { getApiErrorMessage } from '../utils/apiError';
+import { getApiErrorMessage, getApiErrorStatus } from '../utils/apiError';
+import { tokenManager } from '../utils/auth';
+
+// 비밀번호 없는 사용자(구글)는 이 시간 안에 로그인한 토큰이어야 서버가 탈퇴를 받는다(user-service 와 같은 5분)
+const REAUTH_WINDOW_MS = 5 * 60 * 1000;
+
+const loggedInRecently = () => {
+  const authTime = tokenManager.decodeToken(tokenManager.getToken() ?? '')?.auth_time;
+  return typeof authTime === 'number' && Date.now() - authTime * 1000 < REAUTH_WINDOW_MS;
+};
 
 const MyPage: React.FC = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, logout, loginWithGoogle } = useAuth();
+  const [searchParams] = useSearchParams();
 
   // React Query: 사용자 정보 조회
   const {
@@ -44,9 +54,11 @@ const MyPage: React.FC = () => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  // 회원 탈퇴
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  // 회원 탈퇴. 구글로 다시 로그인하고 돌아오면(?delete=1) 모달을 열어 둔다
+  const [showDeleteModal, setShowDeleteModal] = useState(() => searchParams.get("delete") === "1");
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deletePassword, setDeletePassword] = useState("");
+  const [reauthRejected, setReauthRejected] = useState(false);
 
   // 로그인되지 않은 경우 홈으로 리다이렉트
   if (!isAuthenticated) {
@@ -119,14 +131,28 @@ const MyPage: React.FC = () => {
     }
 
     try {
-      await authApi.deleteAccount();
+      await authApi.deleteAccount(user?.hasPassword ? deletePassword : undefined);
       alert("회원 탈퇴가 완료되었습니다.");
       logout();
       navigate("/");
     } catch (err: unknown) {
+      // 서버가 로그인한 지 오래됐다고 하면 다시 로그인하라는 안내로 바꾼다
+      if (getApiErrorStatus(err) === 403) {
+        setReauthRejected(true);
+        return;
+      }
       alert("회원 탈퇴에 실패했습니다:" + getApiErrorMessage(err, "알 수 없는 오류"));
     }
   };
+
+  const closeDeleteModal = () => {
+    setShowDeleteModal(false);
+    setDeleteConfirmText("");
+    setDeletePassword("");
+    setReauthRejected(false);
+  };
+
+  const needsReauth = !user?.hasPassword && (reauthRejected || !loggedInRecently());
 
   if (loading) {
     return (
@@ -232,8 +258,8 @@ const MyPage: React.FC = () => {
               <span className="text-tx-3">›</span>
             </button>
 
-            {/* 비밀번호 변경 - OAuth 사용자는 숨김 */}
-            {user.provider === "LOCAL" && (
+            {/* 비밀번호 변경 - 비밀번호 없는 사용자(구글)는 숨김 */}
+            {user.hasPassword && (
               <button
                 onClick={() => setShowPasswordModal(true)}
                 className="w-full flex items-center justify-between p-4 bg-surface/50 rounded-lg hover:bg-elevated transition-colors"
@@ -443,21 +469,49 @@ const MyPage: React.FC = () => {
                   className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-danger focus:border-danger"
                 />
               </div>
+
+              {user.hasPassword ? (
+                <div>
+                  <label htmlFor="delete-password" className="block text-sm font-medium text-tx-1 mb-2">
+                    비밀번호
+                  </label>
+                  <input
+                    id="delete-password"
+                    type="password"
+                    value={deletePassword}
+                    onChange={(e) => setDeletePassword(e.target.value)}
+                    autoComplete="current-password"
+                    className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-danger focus:border-danger"
+                  />
+                </div>
+              ) : needsReauth ? (
+                <div className="p-4 bg-elevated rounded-lg space-y-3">
+                  <p className="text-sm text-tx-2">
+                    보안을 위해 구글로 다시 로그인한 뒤 탈퇴할 수 있습니다. 로그인하면 이 화면으로 돌아옵니다.
+                  </p>
+                  <button
+                    onClick={() => loginWithGoogle({ reauth: true, returnTo: "/mypage?delete=1" })}
+                    className="w-full px-4 py-2 border border-line-strong text-tx-1 rounded-lg hover:bg-surface/50 transition-colors"
+                  >
+                    구글로 다시 로그인
+                  </button>
+                </div>
+              ) : null}
             </div>
 
             <div className="flex space-x-3 mt-6">
               <button
-                onClick={() => {
-                  setShowDeleteModal(false);
-                  setDeleteConfirmText("");
-                }}
+                onClick={closeDeleteModal}
                 className="flex-1 px-4 py-2 border border-line-strong text-tx-1 rounded-lg hover:bg-surface/50 transition-colors"
               >
                 취소
               </button>
               <button
                 onClick={handleDeleteAccount}
-                disabled={deleteConfirmText !== "회원탈퇴"}
+                disabled={
+                  deleteConfirmText !== "회원탈퇴" ||
+                  (user.hasPassword ? !deletePassword : needsReauth)
+                }
                 className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 탈퇴하기

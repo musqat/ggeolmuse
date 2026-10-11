@@ -3,6 +3,7 @@ package com.muscat.user.domain.user.service;
 import com.muscat.user.common.enums.type.UserRole;
 import com.muscat.user.domain.user.dto.request.UpdateProfileRequestDto;
 import com.muscat.user.domain.user.entity.User;
+import java.time.Instant;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import com.muscat.user.domain.user.dto.response.TokenResponseDto;
@@ -45,8 +46,8 @@ public interface UserService {
   // 닉네임 변경
   User updateProfile(String email, UpdateProfileRequestDto request);
 
-  // 회원 탈퇴
-  void deleteAccount(String email, String password);
+  // 회원 탈퇴. 비밀번호가 있으면 비밀번호로, 없으면(구글) authTime(토큰의 로그인 시각)이 최근인지로 본인을 확인한다
+  void deleteAccount(String email, String password, Instant authTime);
 
   // ==================== ADMIN APIs ====================
 

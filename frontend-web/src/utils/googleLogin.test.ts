@@ -3,8 +3,10 @@ import {
   buildGoogleLoginUrl,
   createCodeChallenge,
   createCodeVerifier,
+  OAUTH_RETURN_KEY,
   OAUTH_STATE_KEY,
   PKCE_VERIFIER_KEY,
+  takeOAuthReturnPath,
 } from './googleLogin'
 
 describe('PKCE', () => {
@@ -51,5 +53,40 @@ describe('buildGoogleLoginUrl', () => {
     await buildGoogleLoginUrl('https://app.example')
     expect(sessionStorage.getItem(PKCE_VERIFIER_KEY)).not.toBe(first[0])
     expect(sessionStorage.getItem(OAUTH_STATE_KEY)).not.toBe(first[1])
+  })
+})
+
+describe('다시 로그인 · 돌아올 경로', () => {
+  beforeEach(() => sessionStorage.clear())
+
+  it('reauth 면 prompt=login 을 붙이고 돌아올 경로를 저장한다', async () => {
+    const url = new URL(await buildGoogleLoginUrl('https://app.example', { reauth: true, returnTo: '/mypage?delete=1' }))
+
+    expect(url.searchParams.get('prompt')).toBe('login')
+    expect(sessionStorage.getItem(OAUTH_RETURN_KEY)).toBe('/mypage?delete=1')
+  })
+
+  it('보통 로그인은 prompt 가 없고, 전에 남은 돌아올 경로를 지운다', async () => {
+    sessionStorage.setItem(OAUTH_RETURN_KEY, '/mypage?delete=1')
+
+    const url = new URL(await buildGoogleLoginUrl('https://app.example'))
+
+    expect(url.searchParams.has('prompt')).toBe(false)
+    expect(sessionStorage.getItem(OAUTH_RETURN_KEY)).toBeNull()
+  })
+
+  it('돌아올 경로는 같은 출처 경로만 쓰고 한 번 꺼내면 지운다', () => {
+    const take = (value: string | null) => {
+      if (value === null) sessionStorage.removeItem(OAUTH_RETURN_KEY)
+      else sessionStorage.setItem(OAUTH_RETURN_KEY, value)
+      return takeOAuthReturnPath()
+    }
+
+    expect(take('/mypage?delete=1')).toBe('/mypage?delete=1')
+    expect(sessionStorage.getItem(OAUTH_RETURN_KEY)).toBeNull()
+    expect(take(null)).toBe('/')
+    expect(take('//evil.example/x')).toBe('/')
+    expect(take('/\\evil.example')).toBe('/')
+    expect(take('https://evil.example')).toBe('/')
   })
 })
