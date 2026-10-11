@@ -8,6 +8,7 @@ export interface JwtPayload {
 }
 
 export const TOKEN_STORAGE_KEY = 'accessToken';
+// 예전 버전이 refresh token 을 두던 키. 지금은 httpOnly 쿠키라 남은 값을 지울 때만 쓴다
 export const REFRESH_TOKEN_STORAGE_KEY = 'refreshToken';
 
 // 토큰 저장/조회/삭제
@@ -20,25 +21,18 @@ export const tokenManager = {
     localStorage.setItem(TOKEN_STORAGE_KEY, token);
   },
 
-  getRefreshToken: (): string | null => {
-    return localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
-  },
-
-  setRefreshToken: (token: string): void => {
-    localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, token);
-  },
-
-  setTokens: (accessToken: string, refreshToken: string): void => {
-    localStorage.setItem(TOKEN_STORAGE_KEY, accessToken);
-    localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, refreshToken);
-  },
-
   removeToken: (): void => {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
   },
 
+  // access token 과 예전 버전이 남긴 refresh token 을 지운다
   removeTokens: (): void => {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+  },
+
+  // 예전 버전이 localStorage 에 둔 refresh token 만 지운다(로그인은 유지)
+  clearLegacyRefreshToken: (): void => {
     localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
   },
 

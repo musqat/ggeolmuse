@@ -57,16 +57,19 @@ const processQueue = (error: unknown, token: string | null = null) => {
   failedQueue = [];
 };
 
-// refresh token 으로 새 토큰을 받아 둘 다 저장하고 새 access token 을 돌려준다.
-// 401 인터셉터와 첫 화면 확인(AuthContext)이 같이 쓴다
+// refresh token 쿠키로 새 access token 을 받아 저장하고 돌려준다. 401 인터셉터와 첫 화면 확인(AuthContext)이 같이 쓴다.
+// refresh token 은 갱신마다 바뀌고 옛것은 거절된다(회전). 탭 여러 개가 같이 갱신하면 늦은 탭이 이미 쓴 토큰을 보내게 되니
+// 브라우저 잠금으로 한 번에 한 탭만 갱신하고, 기다린 탭은 그사이 다른 탭이 저장한 access token 을 그대로 쓴다
 export const refreshAccessToken = async (): Promise<string> => {
-  const { data } = await authApi.refreshToken();
-  localStorage.setItem('accessToken', data.accessToken);
-  // Keycloak 이 갱신 때마다 새 refresh token 을 준다. 옛것은 세션 유휴 시간이 지나면 만료된다
-  if (data.refreshToken) {
-    localStorage.setItem('refreshToken', data.refreshToken);
-  }
-  return data.accessToken;
+  const staleToken = localStorage.getItem('accessToken');
+  const refresh = async () => {
+    const current = localStorage.getItem('accessToken');
+    if (current && current !== staleToken) return current;
+    const { data } = await authApi.refreshToken();
+    localStorage.setItem('accessToken', data.accessToken);
+    return data.accessToken;
+  };
+  return navigator.locks ? navigator.locks.request('ggeolmuse-token-refresh', refresh) : refresh();
 };
 
 // 401 이면 refresh token 으로 갱신하고 원래 요청을 그 클라이언트로 다시 보낸다.
@@ -91,15 +94,6 @@ export const attachTokenRefresh = (client: AxiosInstance) => {
 
       // 이미 재시도한 요청이면 로그아웃
       if (originalRequest._retry) {
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        window.dispatchEvent(new CustomEvent('auth:logout'));
-        return Promise.reject(error);
-      }
-
-      // refresh token이 없으면 로그아웃
-      const refreshToken = localStorage.getItem('refreshToken');
-      if (!refreshToken) {
         localStorage.removeItem('accessToken');
         window.dispatchEvent(new CustomEvent('auth:logout'));
         return Promise.reject(error);
@@ -128,10 +122,9 @@ export const attachTokenRefresh = (client: AxiosInstance) => {
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
         return client(originalRequest);
       } catch (refreshError) {
-        // Refresh 실패 시 로그아웃
+        // Refresh 실패 시 로그아웃(쿠키가 없거나 세션이 끝났다)
         processQueue(refreshError, null);
         localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
         window.dispatchEvent(new CustomEvent('auth:logout'));
         return Promise.reject(refreshError);
       } finally {
@@ -431,12 +424,21 @@ export const accountsApi = {
     apiClient.delete<void>(`/accounts/${accountId}`),
 };
 
-// 로그인 · 토큰 갱신 응답 (user-service TokenResponseDto)
-export type TokenResponse = {
+// 로그인 · 토큰 갱신 · 구글 교환 응답 (user-service AccessTokenResponseDto). refresh token 은 httpOnly 쿠키로 온다
+export type AccessTokenResponse = {
   accessToken: string;
-  refreshToken: string;
   expiresIn: number;                    // access token 만료까지 남은 초
 };
+
+// 구글 로그인 콜백의 인가 코드 교환 요청
+type GoogleTokenRequest = {
+  code: string;
+  codeVerifier: string;                 // PKCE code_verifier
+  redirectUri: string;
+};
+
+// refresh token 쿠키를 주고받는 인증 요청. 운영은 같은 출처지만 로컬 compose 는 게이트웨이가 다른 포트라 명시한다
+const withRefreshCookie = { withCredentials: true };
 
 // 로그인 요청
 type LoginRequest = {
@@ -494,7 +496,7 @@ export type ResetPasswordRequest = {
 export const authApi = {
   // 일반 로그인
   login: (credentials: LoginRequest) =>
-    apiClient.post<TokenResponse>('/auth/login', credentials),
+    apiClient.post<AccessTokenResponse>('/auth/login', credentials, withRefreshCookie),
 
   // 회원가입
   register: (userData: RegisterRequest) =>
@@ -516,18 +518,17 @@ export const authApi = {
   getCurrentUser: () =>
     apiClient.get<User>('/users/me'),
 
-  // 토큰 갱신
-  refreshToken: () => {
-    const refreshToken = localStorage.getItem('refreshToken');
-    if (!refreshToken) {
-      throw new Error('No refresh token available');
-    }
-    return apiClient.post<TokenResponse>('/auth/refresh', { refreshToken });
-  },
+  // 토큰 갱신: refresh token 쿠키로 새 access token 을 받는다(쿠키도 새것으로 바뀐다)
+  refreshToken: () =>
+    apiClient.post<AccessTokenResponse>('/auth/refresh', null, withRefreshCookie),
 
-  // 로그아웃: refresh token 이 속한 Keycloak 세션을 끊는다
-  logout: (refreshToken: string) =>
-    apiClient.post<void>('/auth/logout', { refreshToken }),
+  // 로그아웃: 쿠키의 Keycloak 세션을 끊고 쿠키를 지운다
+  logout: () =>
+    apiClient.post<void>('/auth/logout', null, withRefreshCookie),
+
+  // 구글 로그인 콜백의 인가 코드를 user-service 가 토큰으로 바꾼다
+  exchangeGoogleCode: (data: GoogleTokenRequest) =>
+    apiClient.post<AccessTokenResponse>('/auth/social/google/token', data, withRefreshCookie),
 
   // 비밀번호 변경
   changePassword: (data: ChangePasswordRequest) =>

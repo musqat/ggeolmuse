@@ -1,15 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { authApi } from '../services/api';
 import { tokenManager } from '../utils/auth';
-import { getOAuthErrorMessage } from '../utils/apiError';
-import {
-  keycloakTokenUrl,
-  OAUTH_CLIENT_ID,
-  OAUTH_STATE_KEY,
-  oauthRedirectUri,
-  PKCE_VERIFIER_KEY,
-} from '../utils/googleLogin';
+import { getApiErrorMessage } from '../utils/apiError';
+import { OAUTH_STATE_KEY, oauthRedirectUri, PKCE_VERIFIER_KEY } from '../utils/googleLogin';
 
 const OAuthCallback: React.FC = () => {
   const navigate = useNavigate();
@@ -53,38 +47,22 @@ const OAuthCallback: React.FC = () => {
           return;
         }
 
-        // Keycloak token endpoint로 토큰 교환
-        const baseUrl = window.location.origin;
-        const tokenUrl = keycloakTokenUrl(baseUrl);
-
-        const tokenParams = new URLSearchParams({
-          grant_type: 'authorization_code',
-          client_id: OAUTH_CLIENT_ID,
-          code: code,
-          redirect_uri: oauthRedirectUri(baseUrl),
-          code_verifier: codeVerifier
-        });
-
         // 사용 후 code_verifier 삭제
         sessionStorage.removeItem(PKCE_VERIFIER_KEY);
 
-        const tokenResponse = await axios.post(tokenUrl, tokenParams, {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          }
+        // 인가 코드는 user-service 가 토큰으로 바꾼다. refresh token 은 httpOnly 쿠키로 오고 access token 만 받는다
+        const { data } = await authApi.exchangeGoogleCode({
+          code,
+          codeVerifier,
+          redirectUri: oauthRedirectUri(window.location.origin),
         });
+        tokenManager.setToken(data.accessToken);
 
-        const { access_token, refresh_token } = tokenResponse.data;
-
-        // Access token과 Refresh token 모두 저장
-        tokenManager.setTokens(access_token, refresh_token);
-
-        // 홈으로 리다이렉트 (user-service 동기화는 나중에 처리)
-        // Google OAuth 사용자는 Keycloak에 있으므로 JWT 토큰만으로 사용 가능
+        // 홈을 새로 연다. 첫 로그인이면 AuthContext 가 부르는 /users/me 가 DB 에 사용자를 만든다
         window.location.href = '/';
       } catch (err: unknown) {
         console.error('OAuth callback error:', err);
-        setError(getOAuthErrorMessage(err, 'Google 로그인 처리 중 오류가 발생했습니다.'));
+        setError(getApiErrorMessage(err, 'Google 로그인 처리 중 오류가 발생했습니다.'));
         setTimeout(() => navigate('/'), 3000);
       }
     };

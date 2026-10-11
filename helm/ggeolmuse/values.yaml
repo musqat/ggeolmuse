@@ -489,7 +489,7 @@ dbBackup:
 configMap:
   enabled: true
   data:
-    # appBaseUrl, oauthRedirectUri: 환경별 (dev/prod)
+    # appBaseUrl: 환경별 (dev/prod)
     emailExpiryHours: "24"
     exchangeRateMin: "0"
     exchangeRateMax: "3000"

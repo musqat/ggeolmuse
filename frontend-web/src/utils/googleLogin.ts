@@ -1,15 +1,13 @@
-// 구글 로그인(Keycloak 구글 IdP + PKCE). 시작하는 쪽(로그인 · 회원가입)과 /oauth/callback 이 같은 값을 쓴다
+// 구글 로그인(Keycloak 구글 IdP + PKCE). 시작하는 쪽(로그인 · 회원가입)과 /oauth/callback 이 같은 값을 쓴다.
+// 인가 코드는 콜백이 user-service(/auth/social/google/token)로 보내 토큰으로 바꾼다
 
 export const PKCE_VERIFIER_KEY = 'pkce_code_verifier';
 export const OAUTH_STATE_KEY = 'oauth_state';
 export const OAUTH_CLIENT_ID = 'ggeolmuse-frontend';
 
-const realmEndpoint = (origin: string, path: 'auth' | 'token') =>
-  `${origin}/auth/realms/muscathan/protocol/openid-connect/${path}`;
+const authEndpoint = (origin: string) => `${origin}/auth/realms/muscathan/protocol/openid-connect/auth`;
 
 export const oauthRedirectUri = (origin: string) => `${origin}/oauth/callback`;
-
-export const keycloakTokenUrl = (origin: string) => realmEndpoint(origin, 'token');
 
 // code_verifier 에 쓸 수 있는 문자 (RFC 7636 unreserved)
 const VERIFIER_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
@@ -49,5 +47,5 @@ export const buildGoogleLoginUrl = async (origin: string): Promise<string> => {
     kc_idp_hint: 'google',
     state,
   });
-  return `${realmEndpoint(origin, 'auth')}?${params.toString()}`;
+  return `${authEndpoint(origin)}?${params.toString()}`;
 };

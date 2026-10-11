@@ -25,9 +25,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const initializeAuth = async () => {
       setIsLoading(true);
+      tokenManager.clearLegacyRefreshToken();
 
-      // access 가 유효하거나, 만료됐어도 refresh token 으로 갱신되면 로그인 상태를 이어 간다(새로고침해도 유지)
-      if (checkAuthStatus() || (await refreshStoredSession())) {
+      // access 가 유효하거나, 만료됐어도 refresh token 쿠키로 갱신되면 로그인 상태를 이어 간다(새로고침해도 유지).
+      // access 가 아예 없으면 로그인한 적이 없거나 로그아웃한 것이라 갱신을 묻지 않는다
+      if (checkAuthStatus() || (tokenManager.getToken() !== null && (await refreshStoredSession()))) {
         try {
           // 토큰이 유효하면 사용자 정보 가져오기
           await refreshUserData();
@@ -50,9 +52,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initializeAuth();
   }, []);
 
-  // 남은 refresh token 으로 갱신해 본다. 없거나 실패하면 false
+  // refresh token 쿠키로 갱신해 본다. 쿠키가 없거나 세션이 끝났으면 false
   const refreshStoredSession = async () => {
-    if (!tokenManager.getRefreshToken()) return false;
     try {
       await refreshAccessToken();
       return true;
@@ -71,8 +72,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     try {
       const { data } = await authApi.login({ email, password });
-      // 이전 사용자의 refresh token 이 남지 않게 둘 다 새로 넣는다
-      tokenManager.setTokens(data.accessToken, data.refreshToken);
+      // refresh token 은 서버가 httpOnly 쿠키로 심었다(이전 사용자 쿠키는 덮인다)
+      tokenManager.setToken(data.accessToken);
 
       // 사용자 정보 가져오기
       await refreshUserData();
@@ -88,15 +89,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // 화면은 바로 로그아웃시키고, Keycloak 세션 종료는 뒤에서 보낸다(실패해도 토큰은 이미 지웠다)
+  // 화면은 바로 로그아웃시키고, 서버에는 쿠키의 Keycloak 세션 종료와 쿠키 지우기를 뒤에서 보낸다
   const logout = () => {
-    const refreshToken = tokenManager.getRefreshToken();
     tokenManager.removeTokens();
     setIsAuthenticated(false);
     setUser(null);
-    if (refreshToken) {
-      authApi.logout(refreshToken).catch((error) => console.warn('서버 로그아웃 실패', error));
-    }
+    authApi.logout().catch((error) => console.warn('서버 로그아웃 실패', error));
   };
 
   const signup = async (email: string, password: string, nickname: string) => {

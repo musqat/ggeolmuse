@@ -37,8 +37,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.MultiValueMap;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
@@ -49,9 +47,6 @@ class KeycloakServiceImplTest {
 
   @Mock
   private RestTemplate restTemplate;
-
-  @Mock
-  private JwtDecoder jwtDecoder;
 
   private KeycloakServiceImpl keycloakService;
 
@@ -66,7 +61,6 @@ class KeycloakServiceImplTest {
   private static final String REALM = "test-realm";
   private static final String CLIENT_ID = "test-client";
   private static final String CLIENT_SECRET = "test-secret";
-  private static final String REDIRECT_URI = "http://localhost:3000/callback";
 
   @BeforeEach
   void setUp() {
@@ -80,14 +74,10 @@ class KeycloakServiceImplTest {
     credentials.setSecret(CLIENT_SECRET);
     keycloakProperties.setCredentials(credentials);
 
-    // AppProperties 설정
     appProperties = new AppProperties();
-    AppProperties.Oauth oauth = new AppProperties.Oauth();
-    oauth.setRedirectUri(REDIRECT_URI);
-    appProperties.setOauth(oauth);
 
     // KeycloakService 인스턴스 생성
-    keycloakService = new KeycloakServiceImpl(keycloakProperties, appProperties, jwtDecoder);
+    keycloakService = new KeycloakServiceImpl(keycloakProperties, appProperties);
 
     // RestTemplate을 Mock으로 교체 (리플렉션 사용)
     ReflectionTestUtils.setField(keycloakService, "restTemplate", restTemplate);
@@ -105,7 +95,8 @@ class KeycloakServiceImplTest {
         TEST_TOKEN,      // accessToken
         "refresh_token", // refreshToken
         300,             // expiresIn
-        "Bearer"         // tokenType
+        "Bearer",        // tokenType
+        1800             // refreshExpiresIn
       );
 
       ResponseEntity<LoginResponseDto> responseEntity = ResponseEntity.ok(loginResponse);
@@ -117,7 +108,7 @@ class KeycloakServiceImplTest {
       TokenResponseDto tokens = keycloakService.login(TEST_EMAIL, TEST_PASSWORD);
 
       // then
-      assertThat(tokens).isEqualTo(new TokenResponseDto(TEST_TOKEN, "refresh_token", 300));
+      assertThat(tokens).isEqualTo(new TokenResponseDto(TEST_TOKEN, "refresh_token", 300, 1800));
       verify(restTemplate).postForEntity(anyString(), any(HttpEntity.class),
         eq(LoginResponseDto.class));
     }
@@ -137,128 +128,36 @@ class KeycloakServiceImplTest {
   }
 
   @Nested
-  @DisplayName("Authorization Code 교환 테스트")
-  class ExchangeCodeForTokenTests {
+  @DisplayName("구글 로그인 PKCE 코드 교환 테스트")
+  class ExchangePkceCodeTests {
 
     @Test
-    @DisplayName("정상적으로 Authorization Code를 토큰으로 교환한다")
-    void exchangeCodeForToken_Success() {
-      // given
-      String authCode = "test_auth_code";
-      Map<String, Object> tokenResponse = new HashMap<>();
-      tokenResponse.put("access_token", TEST_TOKEN);
-      tokenResponse.put("token_type", "Bearer");
-      tokenResponse.put("expires_in", 300);
+    @DisplayName("public client 로 secret 없이 code · code_verifier · redirect_uri 를 보내 두 토큰을 받는다")
+    void exchangePkceCode_UsesPublicClientWithVerifier() {
+      given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(LoginResponseDto.class)))
+        .willReturn(ResponseEntity.ok(new LoginResponseDto("a", "r", 3600, "Bearer", 7200)));
 
-      ResponseEntity<Map> responseEntity = ResponseEntity.ok(tokenResponse);
-      given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(Map.class)))
-        .willReturn(responseEntity);
+      TokenResponseDto tokens = keycloakService.exchangePkceCode("code-1", "verifier-1", "https://app.example/oauth/callback");
 
-      // when
-      String accessToken = keycloakService.exchangeCodeForToken(authCode);
-
-      // then
-      assertThat(accessToken).isEqualTo(TEST_TOKEN);
-      verify(restTemplate).postForEntity(anyString(), any(HttpEntity.class), eq(Map.class));
+      assertThat(tokens).isEqualTo(new TokenResponseDto("a", "r", 3600, 7200));
+      MultiValueMap<String, String> body = capturedForm(LoginResponseDto.class);
+      assertThat(body.getFirst("grant_type")).isEqualTo("authorization_code");
+      assertThat(body.getFirst("client_id")).isEqualTo("ggeolmuse-frontend");
+      assertThat(body.getFirst("code")).isEqualTo("code-1");
+      assertThat(body.getFirst("code_verifier")).isEqualTo("verifier-1");
+      assertThat(body.getFirst("redirect_uri")).isEqualTo("https://app.example/oauth/callback");
+      assertThat(body.containsKey("client_secret")).isFalse();
     }
 
     @Test
-    @DisplayName("응답 body가 null이면 예외가 발생한다")
-    void exchangeCodeForToken_NullResponse_ThrowsException() {
-      // given
-      String authCode = "test_auth_code";
-      ResponseEntity<Map> responseEntity = ResponseEntity.ok(null);
-      given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(Map.class)))
-        .willReturn(responseEntity);
+    @DisplayName("Keycloak 이 코드를 거절하면 CODE_EXCHANGE_FAILED")
+    void exchangePkceCode_Rejected_Throws() {
+      given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(LoginResponseDto.class)))
+        .willThrow(new HttpClientErrorException(HttpStatus.BAD_REQUEST, "invalid_grant"));
 
-      // when & then
-      assertThatThrownBy(() -> keycloakService.exchangeCodeForToken(authCode))
+      assertThatThrownBy(() -> keycloakService.exchangePkceCode("used", "v", "https://app.example/oauth/callback"))
         .isInstanceOf(KeycloakException.class)
-        .hasMessage(KeycloakResponse.API_ERROR.getMessage());
-    }
-
-    @Test
-    @DisplayName("access_token이 없으면 예외가 발생한다")
-    void exchangeCodeForToken_NoAccessToken_ThrowsException() {
-      // given
-      String authCode = "test_auth_code";
-      Map<String, Object> tokenResponse = new HashMap<>();
-      tokenResponse.put("token_type", "Bearer");
-
-      ResponseEntity<Map> responseEntity = ResponseEntity.ok(tokenResponse);
-      given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(Map.class)))
-        .willReturn(responseEntity);
-
-      // when & then
-      assertThatThrownBy(() -> keycloakService.exchangeCodeForToken(authCode))
-        .isInstanceOf(KeycloakException.class)
-        .hasMessage(KeycloakResponse.API_ERROR.getMessage());
-    }
-
-    @Test
-    @DisplayName("access_token이 빈 문자열이면 예외가 발생한다")
-    void exchangeCodeForToken_EmptyAccessToken_ThrowsException() {
-      // given
-      String authCode = "test_auth_code";
-      Map<String, Object> tokenResponse = new HashMap<>();
-      tokenResponse.put("access_token", "   ");
-
-      ResponseEntity<Map> responseEntity = ResponseEntity.ok(tokenResponse);
-      given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(Map.class)))
-        .willReturn(responseEntity);
-
-      // when & then
-      assertThatThrownBy(() -> keycloakService.exchangeCodeForToken(authCode))
-        .isInstanceOf(KeycloakException.class)
-        .hasMessage(KeycloakResponse.API_ERROR.getMessage());
-    }
-  }
-
-  @Nested
-  @DisplayName("JWT 토큰 파싱 테스트")
-  class ParseTokenClaimsTests {
-
-    @Test
-    @DisplayName("정상적으로 JWT 토큰을 파싱한다")
-    void parseTokenClaims_Success() {
-      // given
-      Map<String, Object> claims = new HashMap<>();
-      claims.put("sub", TEST_KEYCLOAK_ID);
-      claims.put("email", TEST_EMAIL);
-      claims.put("name", "Test User");
-
-      Jwt jwt = Jwt.withTokenValue(TEST_TOKEN)
-        .header("alg", "RS256")
-        .claim("sub", TEST_KEYCLOAK_ID)
-        .claim("email", TEST_EMAIL)
-        .claim("name", "Test User")
-        .issuedAt(Instant.now())
-        .expiresAt(Instant.now().plusSeconds(300))
-        .build();
-
-      given(jwtDecoder.decode(TEST_TOKEN)).willReturn(jwt);
-
-      // when
-      Map<String, Object> result = keycloakService.parseTokenClaims(TEST_TOKEN);
-
-      // then
-      assertThat(result).isNotNull();
-      assertThat(result.get("email")).isEqualTo(TEST_EMAIL);
-      assertThat(result.get("sub")).isEqualTo(TEST_KEYCLOAK_ID);
-      verify(jwtDecoder).decode(TEST_TOKEN);
-    }
-
-    @Test
-    @DisplayName("잘못된 JWT 토큰이면 예외가 발생한다")
-    void parseTokenClaims_InvalidToken_ThrowsException() {
-      // given
-      String invalidToken = "invalid.jwt.token";
-      given(jwtDecoder.decode(invalidToken))
-        .willThrow(new org.springframework.security.oauth2.jwt.JwtException("Invalid JWT"));
-
-      // when & then
-      assertThatThrownBy(() -> keycloakService.parseTokenClaims(invalidToken))
-        .isInstanceOf(org.springframework.security.oauth2.jwt.JwtException.class);
+        .hasMessage(KeycloakResponse.CODE_EXCHANGE_FAILED.getMessage());
     }
   }
 
@@ -508,11 +407,11 @@ class KeycloakServiceImplTest {
     @DisplayName("refresh_token 으로 갱신하고 Keycloak 이 준 새 refresh token 까지 돌려준다")
     void refreshToken_ReturnsBothTokens() {
       given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(LoginResponseDto.class)))
-        .willReturn(ResponseEntity.ok(new LoginResponseDto("new-access", "new-refresh", 3600, "Bearer")));
+        .willReturn(ResponseEntity.ok(new LoginResponseDto("new-access", "new-refresh", 3600, "Bearer", 7200)));
 
       TokenResponseDto tokens = keycloakService.refreshToken("old-refresh");
 
-      assertThat(tokens).isEqualTo(new TokenResponseDto("new-access", "new-refresh", 3600));
+      assertThat(tokens).isEqualTo(new TokenResponseDto("new-access", "new-refresh", 3600, 7200));
       MultiValueMap<String, String> body = capturedForm(LoginResponseDto.class);
       assertThat(body.getFirst("grant_type")).isEqualTo("refresh_token");
       assertThat(body.getFirst("refresh_token")).isEqualTo("old-refresh");
@@ -534,7 +433,7 @@ class KeycloakServiceImplTest {
     @DisplayName("구글 로그인 토큰(azp=public client)은 그 client 로 secret 없이 갱신한다")
     void refreshToken_PublicClientToken_UsesPublicClient() {
       given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(LoginResponseDto.class)))
-        .willReturn(ResponseEntity.ok(new LoginResponseDto("a", "r", 3600, "Bearer")));
+        .willReturn(ResponseEntity.ok(new LoginResponseDto("a", "r", 3600, "Bearer", 7200)));
 
       keycloakService.refreshToken(tokenIssuedFor("ggeolmuse-frontend"));
 
@@ -547,7 +446,7 @@ class KeycloakServiceImplTest {
     @DisplayName("이메일 로그인 토큰(azp=confidential client)은 client 인증을 붙여 갱신한다")
     void refreshToken_ConfidentialToken_UsesClientSecret() {
       given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(LoginResponseDto.class)))
-        .willReturn(ResponseEntity.ok(new LoginResponseDto("a", "r", 3600, "Bearer")));
+        .willReturn(ResponseEntity.ok(new LoginResponseDto("a", "r", 3600, "Bearer", 7200)));
 
       keycloakService.refreshToken(tokenIssuedFor(CLIENT_ID));
 

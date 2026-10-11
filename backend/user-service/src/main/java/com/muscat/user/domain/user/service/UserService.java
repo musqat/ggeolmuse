@@ -36,6 +36,9 @@ public interface UserService {
   // 로그아웃 (Keycloak 세션 종료)
   void logout(String refreshToken);
 
+  // 구글 로그인 인가 코드(PKCE) → 토큰
+  TokenResponseDto exchangeGoogleCode(String code, String codeVerifier, String redirectUri);
+
   // 조회
   User getProfile(String email);
 

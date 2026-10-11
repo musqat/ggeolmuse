@@ -3,13 +3,17 @@ package com.muscat.user.domain.user.controller;
 import com.muscat.user.common.exceptions.UserException;
 import com.muscat.user.domain.user.dto.request.ForgotPasswordRequestDto;
 import com.muscat.user.domain.user.dto.request.LoginRequestDto;
-import com.muscat.user.domain.user.dto.request.RefreshTokenRequestDto;
+import com.muscat.user.domain.user.dto.request.GoogleTokenRequestDto;
 import com.muscat.user.domain.user.dto.request.RegisterRequestDto;
 import com.muscat.user.domain.user.dto.request.ResendRequestDto;
 import com.muscat.user.domain.user.dto.request.ResetPasswordRequestDto;
+import com.muscat.user.common.enums.responses.KeycloakResponse;
+import com.muscat.user.common.exceptions.KeycloakException;
+import com.muscat.user.domain.user.dto.response.AccessTokenResponseDto;
 import com.muscat.user.domain.user.dto.response.TokenResponseDto;
+import org.springframework.http.HttpHeaders;
+import org.springframework.web.bind.annotation.CookieValue;
 import com.muscat.user.domain.user.entity.User;
-import com.muscat.user.domain.user.service.SocialUserService;
 import com.muscat.user.domain.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -19,14 +23,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -44,22 +43,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
   private final UserService userService;
-  private final SocialUserService socialUserService;
-
-  @Value("${keycloak.auth-server-url}")
-  private String keycloakUrl;
-
-  @Value("${keycloak.public-url:${keycloak.auth-server-url}}")
-  private String keycloakPublicUrl;
-
-  @Value("${keycloak.realm}")
-  private String realm;
-
-  @Value("${keycloak.resource}")
-  private String clientId;
-
-  @Value("${app.frontend.url:http://localhost:3000}")
-  private String frontendUrl;
+  private final RefreshTokenCookie refreshTokenCookie;
 
   @Operation(
     summary = "사용자 회원가입",
@@ -298,7 +282,7 @@ public class AuthController {
 
   @Operation(
     summary = "사용자 로그인",
-    description = "이메일과 비밀번호로 로그인하여 JWT 토큰을 발급받습니다"
+    description = "이메일과 비밀번호로 로그인합니다. access token 은 본문으로, refresh token 은 httpOnly 쿠키(refresh_token)로 줍니다"
   )
   @ApiResponses(value = {
     @ApiResponse(
@@ -307,7 +291,7 @@ public class AuthController {
       content = @Content(
         mediaType = "application/json",
         examples = @ExampleObject(
-          value = "{\"accessToken\": \"eyJhbGciOiJSUzI1NiJ9...\", \"refreshToken\": \"eyJhbGciOiJIUzI1NiJ9...\", \"expiresIn\": 3600}"
+          value = "{\"accessToken\": \"eyJhbGciOiJSUzI1NiJ9...\", \"expiresIn\": 3600}"
         )
       )
     ),
@@ -329,18 +313,18 @@ public class AuthController {
     )
   })
   @PostMapping("/login")
-  public ResponseEntity<TokenResponseDto> login(
+  public ResponseEntity<AccessTokenResponseDto> login(
     @Parameter(description = "로그인 정보", required = true)
     @Valid @RequestBody LoginRequestDto request) {
     TokenResponseDto tokens = userService.login(request.getEmail(), request.getPassword());
     log.info("로그인 성공: {}", request.getEmail());
 
-    return ResponseEntity.ok(tokens);
+    return withRefreshCookie(tokens);
   }
 
   @Operation(
     summary = "토큰 갱신",
-    description = "Refresh token 으로 새 access · refresh token 을 받습니다"
+    description = "refresh_token 쿠키로 새 access token 을 받습니다. 쿠키도 새 refresh token 으로 바뀝니다"
   )
   @ApiResponses(value = {
     @ApiResponse(
@@ -349,7 +333,7 @@ public class AuthController {
       content = @Content(
         mediaType = "application/json",
         examples = @ExampleObject(
-          value = "{\"accessToken\": \"eyJhbGciOiJSUzI1NiJ9...\", \"refreshToken\": \"eyJhbGciOiJIUzI1NiJ9...\", \"expiresIn\": 3600}"
+          value = "{\"accessToken\": \"eyJhbGciOiJSUzI1NiJ9...\", \"expiresIn\": 3600}"
         )
       )
     ),
@@ -363,145 +347,59 @@ public class AuthController {
     )
   })
   @PostMapping("/refresh")
-  public ResponseEntity<TokenResponseDto> refreshToken(
-    @Parameter(description = "토큰 갱신 요청", required = true)
-    @Valid @RequestBody RefreshTokenRequestDto request) {
-    TokenResponseDto tokens = userService.refreshToken(request.getRefreshToken());
+  public ResponseEntity<AccessTokenResponseDto> refreshToken(
+    @Parameter(hidden = true) @CookieValue(name = RefreshTokenCookie.NAME, required = false) String refreshToken) {
+    if (refreshToken == null || refreshToken.isBlank()) {
+      throw new KeycloakException(KeycloakResponse.TOKEN_REFRESH_FAILED);
+    }
+    TokenResponseDto tokens = userService.refreshToken(refreshToken);
     log.info("토큰 갱신 성공");
 
-    return ResponseEntity.ok(tokens);
+    return withRefreshCookie(tokens);
   }
 
   @Operation(
     summary = "로그아웃",
-    description = "Refresh token 이 속한 Keycloak 세션을 끊습니다. 이미 끝난 세션이어도 204 입니다"
+    description = "refresh_token 쿠키가 속한 Keycloak 세션을 끊고 쿠키를 지웁니다. 쿠키가 없거나 이미 끝난 세션이어도 204 입니다"
   )
   @ApiResponses(value = {
     @ApiResponse(responseCode = "204", description = "로그아웃 완료")
   })
   @PostMapping("/logout")
   public ResponseEntity<Void> logout(
-    @Parameter(description = "로그아웃할 세션의 refresh token", required = true)
-    @Valid @RequestBody RefreshTokenRequestDto request) {
-    userService.logout(request.getRefreshToken());
-    return ResponseEntity.noContent().build();
-  }
-
-  // ============= 소셜 로그인 =============
-
-  @Operation(
-    summary = "Google 로그인 콜백 처리",
-    description = "Keycloak를 통한 Google 소셜 로그인 성공 후 콜백을 처리하고 프론트엔드로 리디렉션합니다"
-  )
-  @ApiResponses(value = {
-    @ApiResponse(
-      responseCode = "302",
-      description = "Google 로그인 성공, 프론트엔드로 리디렉션",
-      content = @Content(
-        mediaType = "text/html",
-        examples = @ExampleObject(
-          value = "Location: http://localhost:3000/auth/callback?provider=google&email=user@example.com"
-        )
-      )
-    ),
-    @ApiResponse(
-      responseCode = "302",
-      description = "Google 로그인 실패, 에러 페이지로 리디렉션",
-      content = @Content(
-        mediaType = "text/html",
-        examples = @ExampleObject(
-          value = "Location: http://localhost:3000/auth/error?message=Google+로그인+실패"
-        )
-      )
-    )
-  })
-  @GetMapping("/social/google/callback")
-  public ResponseEntity<?> handleGoogleCallback(
-    @Parameter(description = "Google OAuth 인증 코드", required = true, example = "4/0AdQt8qhexample...")
-    @RequestParam("code") String authorizationCode) {
-
-    try {
-      log.info("Google 콜백 처리 시작");
-
-      // 1. Google 사용자 처리 및 DB 동기화 (서비스에서 모든 비즈니스 로직 처리)
-      User user = socialUserService.processGoogleLogin(authorizationCode);
-
-      // 2. 프론트엔드로 리디렉션 (성공 응답)
-      String callbackUrl = String.format("%s/auth/callback?provider=google&email=%s",
-        frontendUrl,
-        URLEncoder.encode(user.getEmail(), StandardCharsets.UTF_8));
-
-      log.info("Google 로그인 성공, 프론트엔드로 리디렉션: {}", user.getEmail());
-
-      return ResponseEntity.status(302)
-        .header("Location", callbackUrl)
-        .build();
-
-    } catch (Exception e) {
-      log.error("Google 콜백 처리 실패: {}", e.getMessage());
-
-      String errorUrl = String.format("%s/auth/error?message=%s",
-        frontendUrl,
-        URLEncoder.encode("Google 로그인 실패: " + e.getMessage(), StandardCharsets.UTF_8));
-
-      return ResponseEntity.status(302)
-        .header("Location", errorUrl)
-        .build();
+    @Parameter(hidden = true) @CookieValue(name = RefreshTokenCookie.NAME, required = false) String refreshToken) {
+    if (refreshToken != null && !refreshToken.isBlank()) {
+      try {
+        userService.logout(refreshToken);
+      } catch (KeycloakException e) {
+        // 세션 종료가 실패해도 쿠키는 지운다. 원인은 KeycloakServiceImpl 이 로그로 남긴다
+        log.error("로그아웃 중 Keycloak 세션 종료 실패: {}", e.getMessage());
+      }
     }
+    return ResponseEntity.noContent().header(HttpHeaders.SET_COOKIE, refreshTokenCookie.clear()).build();
   }
 
   @Operation(
-    summary = "Google 로그인 URL 생성",
-    description = "Keycloak를 통한 Google 소셜 로그인 URL을 생성하여 반환합니다"
+    summary = "구글 로그인 코드 교환",
+    description = "구글 로그인(Keycloak, PKCE) 콜백의 인가 코드를 토큰으로 바꿉니다. access token 은 본문, refresh token 은 httpOnly 쿠키입니다"
   )
   @ApiResponses(value = {
-    @ApiResponse(
-      responseCode = "200",
-      description = "Google 로그인 URL 생성 성공",
-      content = @Content(
-        mediaType = "application/json",
-        examples = @ExampleObject(
-          value = """
-            {
-              "loginUrl": "https://keycloak.example.com/realms/ggeolmuse/protocol/openid-connect/auth?client_id=ggeolmuse-frontend&response_type=code&scope=openid+email+profile&redirect_uri=http://localhost:8080/api/auth/social/google/callback&kc_idp_hint=google",
-              "provider": "google",
-              "redirectUri": "http://localhost:8080/api/auth/social/google/callback"
-            }
-            """
-        )
-      )
-    )
+    @ApiResponse(responseCode = "200", description = "교환 성공"),
+    @ApiResponse(responseCode = "400", description = "코드 만료 · 재사용 · verifier 불일치",
+      content = @Content(mediaType = "application/json", schema = @Schema(implementation = ProblemDetail.class)))
   })
-  @GetMapping("/social/google/login-url")
-  public ResponseEntity<Map<String, String>> getGoogleLoginUrl(
-    @Parameter(description = "HTTP 요청 객체 (서버 정보 추출용)", hidden = true)
-    HttpServletRequest request) {
-    // Production 환경에서는 항상 HTTPS 사용 (Ingress가 TLS 종료)
-    String baseUrl = "https://" + request.getServerName();
-    String redirectUri = baseUrl + "/api/auth/social/google/callback";
-
-    // Keycloak Google 로그인 URL 생성 (browser-facing public URL 사용)
-    String authUrl = String.format(
-      "%s/realms/%s/protocol/openid-connect/auth",
-      keycloakPublicUrl, realm);
-
-    String loginUrl = String.format(
-      "%s?client_id=%s&response_type=code&scope=%s&redirect_uri=%s&kc_idp_hint=google",
-      authUrl,
-      URLEncoder.encode(clientId, StandardCharsets.UTF_8),
-      URLEncoder.encode("openid email profile", StandardCharsets.UTF_8),
-      URLEncoder.encode(redirectUri, StandardCharsets.UTF_8)
-    );
-
-    Map<String, String> response = Map.of(
-      "loginUrl", loginUrl,
-      "provider", "google",
-      "redirectUri", redirectUri
-    );
-
-    log.info("Google 로그인 URL 생성 완료");
-    return ResponseEntity.ok(response);
+  @PostMapping("/social/google/token")
+  public ResponseEntity<AccessTokenResponseDto> exchangeGoogleCode(
+    @Valid @RequestBody GoogleTokenRequestDto request) {
+    TokenResponseDto tokens = userService.exchangeGoogleCode(request.code(), request.codeVerifier(), request.redirectUri());
+    return withRefreshCookie(tokens);
   }
 
+  // access token 은 본문, refresh token 은 httpOnly 쿠키
+  private ResponseEntity<AccessTokenResponseDto> withRefreshCookie(TokenResponseDto tokens) {
+    return ResponseEntity.ok()
+      .header(HttpHeaders.SET_COOKIE, refreshTokenCookie.issue(tokens))
+      .body(AccessTokenResponseDto.from(tokens));
+  }
 
 }

@@ -9,6 +9,7 @@ interface Call {
   url: string
   auth?: string
   body?: unknown
+  credentials?: boolean
 }
 
 type Reply = { status: number; data?: unknown } | ((config: InternalAxiosRequestConfig) => { status: number; data?: unknown } | Promise<{ status: number; data?: unknown }>)
@@ -21,7 +22,7 @@ async function setup(routes: Record<string, Reply[]>) {
   const adapter: AxiosAdapter = async (config) => {
     const key = `${config.method?.toUpperCase()} ${config.url}`
     const body = typeof config.data === 'string' ? JSON.parse(config.data) : config.data
-    calls.push({ method: config.method!.toUpperCase(), url: config.url!, auth: config.headers?.Authorization as string | undefined, body })
+    calls.push({ method: config.method!.toUpperCase(), url: config.url!, auth: config.headers?.Authorization as string | undefined, body, credentials: config.withCredentials })
     const queue = routes[key]
     if (!queue?.length) throw new Error(`준비 안 된 요청: ${key}`)
     const next = queue.length > 1 ? queue.shift()! : queue[0]
@@ -53,6 +54,7 @@ describe('api 요청 인터셉터', () => {
   it.each([
     ['시세', (api: typeof import('./api')) => api.stockApi.getAllSymbols(), 'GET /market/symbols'],
     ['로그인', (api: typeof import('./api')) => api.authApi.login({ email: 'a@b.c', password: 'x' }), 'POST /auth/login'],
+    ['구글 코드 교환', (api: typeof import('./api')) => api.authApi.exchangeGoogleCode({ code: 'c', codeVerifier: 'v', redirectUri: 'r' }), 'POST /auth/social/google/token'],
     ['백테스트', (api: typeof import('./api')) => api.backtestApi.runSimulation({} as never), 'POST /trading-simulation/simulation'],
   ])('공개 API(%s)에는 토큰을 싣지 않는다', async (_name, call, key) => {
     localStorage.setItem('accessToken', 'A1')
@@ -70,6 +72,29 @@ describe('api 요청 인터셉터', () => {
 
     expect(calls[0].auth).toBeUndefined()
   })
+
+  it('로그인 · 갱신 · 로그아웃 · 구글 교환만 refresh token 쿠키를 싣고(withCredentials), 다른 요청은 싣지 않는다', async () => {
+    const { api, calls } = await setup({
+      'POST /auth/login': [{ status: 200, data: { accessToken: 'A', expiresIn: 3600 } }],
+      'POST /auth/refresh': [{ status: 200, data: { accessToken: 'A', expiresIn: 3600 } }],
+      'POST /auth/logout': [{ status: 204 }],
+      'POST /auth/social/google/token': [{ status: 200, data: { accessToken: 'A', expiresIn: 3600 } }],
+      'GET /users/me': [{ status: 200, data: {} }],
+    })
+
+    await api.authApi.login({ email: 'a@b.c', password: 'x' })
+    await api.authApi.refreshToken()
+    await api.authApi.logout()
+    await api.authApi.exchangeGoogleCode({ code: 'c', codeVerifier: 'v', redirectUri: 'r' })
+    await api.authApi.getCurrentUser()
+
+    expect(calls.map((c) => `${c.url} ${c.credentials ? '쿠키' : '-'}`)).toEqual([
+      '/auth/login 쿠키', '/auth/refresh 쿠키', '/auth/logout 쿠키', '/auth/social/google/token 쿠키', '/users/me -',
+    ])
+    // refresh token 은 본문에도 localStorage 에도 없다
+    expect(calls[1].body).toBeFalsy()
+    expect(localStorage.getItem('refreshToken')).toBeNull()
+  })
 })
 
 describe('api 응답 인터셉터 · 401', () => {
@@ -81,14 +106,16 @@ describe('api 응답 인터셉터 · 401', () => {
     logouts = 0
     window.addEventListener('auth:logout', onLogout)
   })
-  afterEach(() => window.removeEventListener('auth:logout', onLogout))
+  afterEach(() => {
+    window.removeEventListener('auth:logout', onLogout)
+    Reflect.deleteProperty(navigator, 'locks')
+  })
 
-  it('refresh token 으로 새 토큰을 받아 둘 다 저장하고 원래 요청을 다시 보낸다', async () => {
+  it('refresh token 쿠키로 새 access token 을 받아 저장하고 원래 요청을 다시 보낸다', async () => {
     localStorage.setItem('accessToken', 'OLD')
-    localStorage.setItem('refreshToken', 'R1')
     const { api, calls } = await setup({
       'GET /users/me': [{ status: 401 }, { status: 200, data: { id: 7 } }],
-      'POST /auth/refresh': [{ status: 200, data: { accessToken: 'NEW', refreshToken: 'R2', expiresIn: 3600 } }],
+      'POST /auth/refresh': [{ status: 200, data: { accessToken: 'NEW', expiresIn: 3600 } }],
     })
 
     const res = await api.authApi.getCurrentUser()
@@ -100,21 +127,19 @@ describe('api 응답 인터셉터 · 401', () => {
       'POST /auth/refresh Bearer OLD',
       'GET /users/me Bearer NEW',
     ])
-    expect(calls[1].body).toEqual({ refreshToken: 'R1' })
+    expect(calls[1].credentials).toBe(true)
     expect(localStorage.getItem('accessToken')).toBe('NEW')
-    expect(localStorage.getItem('refreshToken')).toBe('R2')
     expect(logouts).toBe(0)
   })
 
   it('갱신하는 동안 온 401 은 기다렸다가 새 토큰으로 다시 보낸다. 갱신은 한 번만 한다', async () => {
     localStorage.setItem('accessToken', 'OLD')
-    localStorage.setItem('refreshToken', 'R1')
     let releaseRefresh!: () => void
     const refreshGate = new Promise<void>((resolve) => { releaseRefresh = resolve })
     const { api, calls } = await setup({
       'GET /users/me': [{ status: 401 }, { status: 200, data: { id: 7 } }],
       'GET /accounts': [{ status: 401 }, { status: 200, data: [] }],
-      'POST /auth/refresh': [async () => { await refreshGate; return { status: 200, data: { accessToken: 'NEW', refreshToken: 'R2', expiresIn: 3600 } } }],
+      'POST /auth/refresh': [async () => { await refreshGate; return { status: 200, data: { accessToken: 'NEW', expiresIn: 3600 } } }],
     })
 
     const first = api.authApi.getCurrentUser()
@@ -130,20 +155,49 @@ describe('api 응답 인터셉터 · 401', () => {
     expect(calls.filter((c) => c.auth === 'Bearer NEW').map((c) => c.url).sort()).toEqual(['/accounts', '/users/me'])
   })
 
-  it('refresh token 이 없으면 access token 을 지우고 로그아웃 이벤트를 낸다', async () => {
+  it('다른 탭이 잠금을 쥔 사이 먼저 갱신했으면, 그 탭이 저장한 access token 을 쓰고 다시 갱신하지 않는다(회전된 토큰 재사용 방지)', async () => {
     localStorage.setItem('accessToken', 'OLD')
-    const { api, calls } = await setup({ 'GET /users/me': [{ status: 401 }] })
+    // 잠금을 기다리는 동안 다른 탭이 갱신을 끝내고 새 access token 을 저장한 상황
+    Object.defineProperty(navigator, 'locks', {
+      configurable: true,
+      value: {
+        request: async (_name: string, callback: () => Promise<unknown>) => {
+          localStorage.setItem('accessToken', 'FROM_OTHER_TAB')
+          return callback()
+        },
+      },
+    })
+    const { api, calls } = await setup({
+      'GET /users/me': [{ status: 401 }, { status: 200, data: { id: 7 } }],
+      'POST /auth/refresh': [{ status: 200, data: { accessToken: 'NEW', expiresIn: 3600 } }],
+    })
 
-    await expect(api.authApi.getCurrentUser()).rejects.toMatchObject({ response: { status: 401 } })
+    await expect(api.authApi.getCurrentUser()).resolves.toMatchObject({ data: { id: 7 } })
 
-    expect(calls).toHaveLength(1)
-    expect(localStorage.getItem('accessToken')).toBeNull()
-    expect(logouts).toBe(1)
+    expect(calls.map((c) => `${c.url} ${c.auth ?? '-'}`)).toEqual(['/users/me Bearer OLD', '/users/me Bearer FROM_OTHER_TAB'])
   })
 
-  it('갱신이 실패하면 두 토큰을 지우고 로그아웃한다. 기다리던 요청도 같이 실패한다', async () => {
+  it('잠금을 쥔 탭이 처음 갱신하는 것이면 갱신한다', async () => {
     localStorage.setItem('accessToken', 'OLD')
-    localStorage.setItem('refreshToken', 'R1')
+    const lockNames: string[] = []
+    Object.defineProperty(navigator, 'locks', {
+      configurable: true,
+      value: { request: async (name: string, callback: () => Promise<unknown>) => { lockNames.push(name); return callback() } },
+    })
+    const { api, calls } = await setup({
+      'GET /users/me': [{ status: 401 }, { status: 200, data: { id: 7 } }],
+      'POST /auth/refresh': [{ status: 200, data: { accessToken: 'NEW', expiresIn: 3600 } }],
+    })
+
+    await api.authApi.getCurrentUser()
+
+    expect(lockNames).toEqual(['ggeolmuse-token-refresh'])
+    expect(calls.filter((c) => c.url === '/auth/refresh')).toHaveLength(1)
+    expect(localStorage.getItem('accessToken')).toBe('NEW')
+  })
+
+  it('갱신이 401 이면(쿠키 없음 · 세션 끝) access token 을 지우고 로그아웃한다. 기다리던 요청도 같이 실패한다', async () => {
+    localStorage.setItem('accessToken', 'OLD')
     let releaseRefresh!: () => void
     const refreshGate = new Promise<void>((resolve) => { releaseRefresh = resolve })
     const { api, calls } = await setup({
@@ -161,46 +215,40 @@ describe('api 응답 인터셉터 · 401', () => {
     await expect(first).rejects.toMatchObject({ config: { url: '/auth/refresh' } })
     await expect(second).rejects.toMatchObject({ config: { url: '/auth/refresh' } })
     expect(localStorage.getItem('accessToken')).toBeNull()
-    expect(localStorage.getItem('refreshToken')).toBeNull()
     expect(logouts).toBe(1)
   })
 
-  it('새 토큰으로 다시 보낸 요청도 401 이면 두 토큰을 지우고 로그아웃한다', async () => {
+  it('새 토큰으로 다시 보낸 요청도 401 이면 access token 을 지우고 로그아웃한다', async () => {
     localStorage.setItem('accessToken', 'OLD')
-    localStorage.setItem('refreshToken', 'R1')
     const { api, calls } = await setup({
       'GET /users/me': [{ status: 401 }],
-      'POST /auth/refresh': [{ status: 200, data: { accessToken: 'NEW', refreshToken: 'R2', expiresIn: 3600 } }],
+      'POST /auth/refresh': [{ status: 200, data: { accessToken: 'NEW', expiresIn: 3600 } }],
     })
 
     await expect(api.authApi.getCurrentUser()).rejects.toMatchObject({ response: { status: 401 } })
 
     expect(calls.map((c) => c.url)).toEqual(['/users/me', '/auth/refresh', '/users/me'])
     expect(localStorage.getItem('accessToken')).toBeNull()
-    expect(localStorage.getItem('refreshToken')).toBeNull()
     expect(logouts).toBe(1)
   })
 
   it('로그아웃 요청의 401 은 갱신하지 않고 그대로 돌려준다', async () => {
-    localStorage.setItem('refreshToken', 'R1')
     const { api, calls } = await setup({ 'POST /auth/logout': [{ status: 401 }] })
 
-    await expect(api.authApi.logout('R1')).rejects.toMatchObject({ response: { status: 401 } })
+    await expect(api.authApi.logout()).rejects.toMatchObject({ response: { status: 401 } })
 
     expect(calls.map((c) => c.url)).toEqual(['/auth/logout'])
-    expect(calls[0].body).toEqual({ refreshToken: 'R1' })
   })
 
   it('관리자 · AI 채팅 요청도 401 이면 같은 갱신을 거쳐 그 클라이언트로 다시 보낸다. 셋이 함께 401 이어도 갱신은 한 번', async () => {
     localStorage.setItem('accessToken', 'OLD')
-    localStorage.setItem('refreshToken', 'R1')
     let releaseRefresh!: () => void
     const refreshGate = new Promise<void>((resolve) => { releaseRefresh = resolve })
     const { api, admin, chat, calls } = await setup({
       'GET /users/me': [{ status: 401 }, { status: 200, data: { id: 7 } }],
       'GET /admin/users/stats': [{ status: 401 }, { status: 200, data: { totalUsers: 3 } }],
       'POST /chat': [{ status: 401 }, { status: 200, data: { answer: 'ok', remaining: 4, symbol: null } }],
-      'POST /auth/refresh': [async () => { await refreshGate; return { status: 200, data: { accessToken: 'NEW', refreshToken: 'R2', expiresIn: 3600 } } }],
+      'POST /auth/refresh': [async () => { await refreshGate; return { status: 200, data: { accessToken: 'NEW', expiresIn: 3600 } } }],
     })
 
     const me = api.authApi.getCurrentUser()
@@ -215,17 +263,14 @@ describe('api 응답 인터셉터 · 401', () => {
     await expect(answer).resolves.toMatchObject({ data: { answer: 'ok' } })
     expect(calls.filter((c) => c.url === '/auth/refresh')).toHaveLength(1)
     expect(calls.filter((c) => c.auth === 'Bearer NEW').map((c) => c.url).sort()).toEqual(['/admin/users/stats', '/chat', '/users/me'])
-    expect(localStorage.getItem('refreshToken')).toBe('R2')
   })
 
   it('로그인 요청의 401 은 갱신 · 로그아웃 없이 그대로 돌려준다', async () => {
-    localStorage.setItem('refreshToken', 'R1')
     const { api, calls } = await setup({ 'POST /auth/login': [{ status: 401 }] })
 
     await expect(api.authApi.login({ email: 'a@b.c', password: 'x' })).rejects.toMatchObject({ response: { status: 401 } })
 
     expect(calls).toHaveLength(1)
-    expect(localStorage.getItem('refreshToken')).toBe('R1')
     expect(logouts).toBe(0)
   })
 })
