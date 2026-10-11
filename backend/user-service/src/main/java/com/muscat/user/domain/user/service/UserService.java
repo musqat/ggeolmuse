@@ -5,6 +5,7 @@ import com.muscat.user.domain.user.dto.request.UpdateProfileRequestDto;
 import com.muscat.user.domain.user.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import com.muscat.user.domain.user.dto.response.TokenResponseDto;
 
 public interface UserService {
 
@@ -27,10 +28,13 @@ public interface UserService {
   void resetPassword(String token, String newPassword);
 
   // 로그인
-  String login(String email, String password);
+  TokenResponseDto login(String email, String password);
 
   // 토큰 갱신
-  String refreshToken(String refreshToken);
+  TokenResponseDto refreshToken(String refreshToken);
+
+  // 로그아웃 (Keycloak 세션 종료)
+  void logout(String refreshToken);
 
   // 조회
   User getProfile(String email);

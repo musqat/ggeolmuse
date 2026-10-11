@@ -18,6 +18,7 @@ import com.muscat.user.common.exceptions.KeycloakException;
 import com.muscat.user.config.AppProperties;
 import com.muscat.user.domain.user.dto.request.ChangePasswordRequestDto;
 import com.muscat.user.domain.user.dto.response.LoginResponseDto;
+import com.muscat.user.domain.user.dto.response.TokenResponseDto;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -26,12 +27,14 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.MultiValueMap;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -93,7 +96,7 @@ class KeycloakServiceImplTest {
   class LoginTests {
 
     @Test
-    @DisplayName("정상적으로 로그인되고 access token이 반환된다")
+    @DisplayName("정상적으로 로그인되고 access · refresh token 이 같이 반환된다")
     void login_Success() {
       // given
       LoginResponseDto loginResponse = new LoginResponseDto(
@@ -109,10 +112,10 @@ class KeycloakServiceImplTest {
         .willReturn(responseEntity);
 
       // when
-      String accessToken = keycloakService.login(TEST_EMAIL, TEST_PASSWORD);
+      TokenResponseDto tokens = keycloakService.login(TEST_EMAIL, TEST_PASSWORD);
 
       // then
-      assertThat(accessToken).isEqualTo(TEST_TOKEN);
+      assertThat(tokens).isEqualTo(new TokenResponseDto(TEST_TOKEN, "refresh_token", 300));
       verify(restTemplate).postForEntity(anyString(), any(HttpEntity.class),
         eq(LoginResponseDto.class));
     }
@@ -493,5 +496,86 @@ class KeycloakServiceImplTest {
         .isInstanceOf(KeycloakException.class)
         .hasMessage(KeycloakResponse.USER_DELETE_FAILED.getMessage());
     }
+  }
+
+  @Nested
+  @DisplayName("토큰 갱신 테스트")
+  class RefreshTokenTests {
+
+    @Test
+    @DisplayName("refresh_token 으로 갱신하고 Keycloak 이 준 새 refresh token 까지 돌려준다")
+    void refreshToken_ReturnsBothTokens() {
+      given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(LoginResponseDto.class)))
+        .willReturn(ResponseEntity.ok(new LoginResponseDto("new-access", "new-refresh", 3600, "Bearer")));
+
+      TokenResponseDto tokens = keycloakService.refreshToken("old-refresh");
+
+      assertThat(tokens).isEqualTo(new TokenResponseDto("new-access", "new-refresh", 3600));
+      MultiValueMap<String, String> body = capturedForm(LoginResponseDto.class);
+      assertThat(body.getFirst("grant_type")).isEqualTo("refresh_token");
+      assertThat(body.getFirst("refresh_token")).isEqualTo("old-refresh");
+      assertThat(body.getFirst("client_id")).isEqualTo(CLIENT_ID);
+    }
+
+    @Test
+    @DisplayName("Keycloak 이 거절하면 TOKEN_REFRESH_FAILED")
+    void refreshToken_Rejected_Throws() {
+      given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(LoginResponseDto.class)))
+        .willThrow(new HttpClientErrorException(HttpStatus.BAD_REQUEST, "invalid_grant"));
+
+      assertThatThrownBy(() -> keycloakService.refreshToken("expired"))
+        .isInstanceOf(KeycloakException.class)
+        .hasMessage(KeycloakResponse.TOKEN_REFRESH_FAILED.getMessage());
+    }
+  }
+
+  @Nested
+  @DisplayName("로그아웃 테스트")
+  class LogoutTests {
+
+    @Test
+    @DisplayName("realm 의 logout 엔드포인트에 client 인증과 refresh_token 을 보낸다")
+    void logout_PostsToLogoutEndpoint() {
+      given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(Void.class)))
+        .willReturn(ResponseEntity.noContent().build());
+
+      keycloakService.logout("refresh-1");
+
+      ArgumentCaptor<String> url = ArgumentCaptor.forClass(String.class);
+      verify(restTemplate).postForEntity(url.capture(), any(HttpEntity.class), eq(Void.class));
+      assertThat(url.getValue()).isEqualTo(AUTH_SERVER_URL + "/realms/" + REALM + "/protocol/openid-connect/logout");
+      MultiValueMap<String, String> body = capturedForm(Void.class);
+      assertThat(body.getFirst("refresh_token")).isEqualTo("refresh-1");
+      assertThat(body.getFirst("client_id")).isEqualTo(CLIENT_ID);
+      assertThat(body.getFirst("client_secret")).isEqualTo(CLIENT_SECRET);
+    }
+
+    @Test
+    @DisplayName("만료 · 이미 끊긴 세션(400)이면 예외 없이 끝난다")
+    void logout_AlreadyEnded_Ignored() {
+      given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(Void.class)))
+        .willThrow(HttpClientErrorException.create(HttpStatus.BAD_REQUEST, "invalid_grant", HttpHeaders.EMPTY, null, null));
+
+      keycloakService.logout("expired");
+    }
+
+    @Test
+    @DisplayName("client 인증 실패(401) 같은 설정 문제는 API_ERROR 로 올린다")
+    void logout_ClientAuthFailure_Throws() {
+      given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(Void.class)))
+        .willThrow(HttpClientErrorException.create(HttpStatus.UNAUTHORIZED, "unauthorized_client", HttpHeaders.EMPTY, null, null));
+
+      assertThatThrownBy(() -> keycloakService.logout("refresh-1"))
+        .isInstanceOf(KeycloakException.class)
+        .hasMessage(KeycloakResponse.API_ERROR.getMessage());
+    }
+  }
+
+  // restTemplate 에 보낸 폼 본문
+  @SuppressWarnings("unchecked")
+  private <T> MultiValueMap<String, String> capturedForm(Class<T> responseType) {
+    ArgumentCaptor<HttpEntity<MultiValueMap<String, String>>> request = ArgumentCaptor.forClass(HttpEntity.class);
+    verify(restTemplate).postForEntity(anyString(), request.capture(), eq(responseType));
+    return request.getValue().getBody();
   }
 }

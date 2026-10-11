@@ -23,6 +23,7 @@ import com.muscat.user.config.mail.MailService;
 import com.muscat.user.domain.account.entity.Account;
 import com.muscat.user.domain.account.repository.AccountRepository;
 import com.muscat.user.domain.user.dto.request.UpdateProfileRequestDto;
+import com.muscat.user.domain.user.dto.response.TokenResponseDto;
 import com.muscat.user.domain.user.entity.EmailToken;
 import com.muscat.user.domain.user.entity.PasswordResetToken;
 import com.muscat.user.domain.user.entity.User;
@@ -214,10 +215,10 @@ class UserServiceImplTest {
   class LoginTests {
 
     @Test
-    @DisplayName("정상적으로 로그인이 성공한다")
+    @DisplayName("정상적으로 로그인이 성공하고 access · refresh token 을 그대로 돌려준다")
     void login_Success() {
       // given
-      String jwtToken = "jwt.token.here";
+      TokenResponseDto jwtToken = new TokenResponseDto("jwt.token.here", "refresh.token.here", 3600);
       String rawPassword = "password123";
 
       testUser.setPasswordHash("$2a$10$encodedPassword");
@@ -228,7 +229,7 @@ class UserServiceImplTest {
       given(keycloakService.login(testEmail, rawPassword)).willReturn(jwtToken);
 
       // when
-      String result = userService.login(testEmail, rawPassword);
+      TokenResponseDto result = userService.login(testEmail, rawPassword);
 
       // then
       assertThat(result).isEqualTo(jwtToken);
@@ -323,6 +324,38 @@ class UserServiceImplTest {
         userService.login(testEmail, testPassword)
       ).isInstanceOf(UserException.class)
         .hasMessage(UserResponse.INVALID_CREDENTIALS.getMessage());
+    }
+  }
+
+  @Nested
+  @DisplayName("토큰 갱신 · 로그아웃 테스트")
+  class TokenSessionTests {
+
+    @Test
+    @DisplayName("갱신은 Keycloak 이 준 두 토큰을 그대로 돌려준다")
+    void refreshToken_ReturnsKeycloakTokens() {
+      TokenResponseDto tokens = new TokenResponseDto("new-access", "new-refresh", 3600);
+      given(keycloakService.refreshToken("old-refresh")).willReturn(tokens);
+
+      assertThat(userService.refreshToken("old-refresh")).isEqualTo(tokens);
+    }
+
+    @Test
+    @DisplayName("갱신이 실패하면 예외를 그대로 올린다")
+    void refreshToken_Failure_Rethrows() {
+      given(keycloakService.refreshToken("expired"))
+        .willThrow(new KeycloakException(KeycloakResponse.TOKEN_REFRESH_FAILED));
+
+      assertThatThrownBy(() -> userService.refreshToken("expired"))
+        .isInstanceOf(KeycloakException.class);
+    }
+
+    @Test
+    @DisplayName("로그아웃은 Keycloak 세션 종료로 넘긴다")
+    void logout_DelegatesToKeycloak() {
+      userService.logout("refresh-1");
+
+      verify(keycloakService).logout("refresh-1");
     }
   }
 

@@ -6,6 +6,7 @@ import com.muscat.user.common.exceptions.KeycloakException;
 import com.muscat.user.config.AppProperties;
 import com.muscat.user.domain.user.dto.request.ChangePasswordRequestDto;
 import com.muscat.user.domain.user.dto.response.LoginResponseDto;
+import com.muscat.user.domain.user.dto.response.TokenResponseDto;
 import com.muscat.user.domain.user.service.KeycloakService;
 import java.util.List;
 import java.util.Map;
@@ -48,7 +49,7 @@ public class KeycloakServiceImpl implements KeycloakService {
   }
 
   @Override
-  public String login(String email, String password) {
+  public TokenResponseDto login(String email, String password) {
     log.info("Keycloak 로그인 시도: {}", email);
 
     MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
@@ -63,7 +64,7 @@ public class KeycloakServiceImpl implements KeycloakService {
       getTokenUrl(), request, LoginResponseDto.class);
 
     log.info("Keycloak 로그인 성공: {}", email);
-    return Objects.requireNonNull(response.getBody()).accessToken();
+    return TokenResponseDto.from(Objects.requireNonNull(response.getBody()));
   }
 
   @Override
@@ -351,7 +352,7 @@ public class KeycloakServiceImpl implements KeycloakService {
   }
 
   @Override
-  public String refreshToken(String refreshToken) {
+  public TokenResponseDto refreshToken(String refreshToken) {
     log.info("Keycloak 토큰 갱신 시도");
 
     MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
@@ -367,7 +368,7 @@ public class KeycloakServiceImpl implements KeycloakService {
         getTokenUrl(), request, LoginResponseDto.class);
 
       log.info("Keycloak 토큰 갱신 성공");
-      return Objects.requireNonNull(response.getBody()).accessToken();
+      return TokenResponseDto.from(Objects.requireNonNull(response.getBody()));
 
     } catch (HttpClientErrorException e) {
       log.error("Keycloak 토큰 갱신 실패 - HTTP {}: {}",
@@ -376,6 +377,26 @@ public class KeycloakServiceImpl implements KeycloakService {
     } catch (Exception e) {
       log.error("Keycloak 토큰 갱신 중 예상치 못한 오류: {}", e.getMessage(), e);
       throw new KeycloakException(KeycloakResponse.TOKEN_REFRESH_FAILED);
+    }
+  }
+
+  @Override
+  public void logout(String refreshToken) {
+    MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+    body.add("client_id", keycloakProperties.getResource());
+    body.add("client_secret", keycloakProperties.getCredentials().getSecret());
+    body.add("refresh_token", refreshToken);
+
+    try {
+      restTemplate.postForEntity(getLogoutUrl(), createFormRequest(body), Void.class);
+      log.info("Keycloak 세션 종료");
+    } catch (HttpClientErrorException.BadRequest e) {
+      // 만료 · 이미 끊긴 세션의 토큰은 400(invalid_grant)이 온다. 끊을 세션이 없으니 로그아웃은 끝난 것으로 본다.
+      // client 인증 실패(401) 같은 설정 문제는 아래로 보내 숨기지 않는다
+      log.info("Keycloak 세션 종료 생략 - HTTP {}: {}", e.getStatusCode(), e.getResponseBodyAsString());
+    } catch (Exception e) {
+      log.error("Keycloak 세션 종료 중 오류: {}", e.getMessage(), e);
+      throw new KeycloakException(KeycloakResponse.API_ERROR);
     }
   }
 
@@ -408,6 +429,11 @@ public class KeycloakServiceImpl implements KeycloakService {
   private String getTokenUrl() {
     return keycloakProperties.getAuthServerUrl() + "/realms/" + keycloakProperties.getRealm()
       + "/protocol/openid-connect/token";
+  }
+
+  private String getLogoutUrl() {
+    return keycloakProperties.getAuthServerUrl() + "/realms/" + keycloakProperties.getRealm()
+      + "/protocol/openid-connect/logout";
   }
 
   private HttpEntity<MultiValueMap<String, String>> createFormRequest(

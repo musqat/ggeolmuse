@@ -10,6 +10,7 @@ import com.muscat.user.config.mail.MailService;
 import com.muscat.user.domain.account.entity.Account;
 import com.muscat.user.domain.account.repository.AccountRepository;
 import com.muscat.user.domain.user.dto.request.UpdateProfileRequestDto;
+import com.muscat.user.domain.user.dto.response.TokenResponseDto;
 import com.muscat.user.domain.user.entity.EmailToken;
 import com.muscat.user.domain.user.entity.PasswordResetToken;
 import com.muscat.user.domain.user.entity.User;
@@ -137,7 +138,7 @@ public class UserServiceImpl implements UserService {
   }
 
   @Override
-  public String login(String email, String password) {
+  public TokenResponseDto login(String email, String password) {
     User user;
     try {
       user = userRepository.findByEmail(email)
@@ -175,7 +176,7 @@ public class UserServiceImpl implements UserService {
       throw new UserException(UserResponse.EMAIL_NOT_VERIFIED);
     }
 
-    String token;
+    TokenResponseDto token;
     try {
       token = keycloakService.login(email, password);
     } catch (Exception e) {
@@ -197,17 +198,22 @@ public class UserServiceImpl implements UserService {
   }
 
   @Override
-  public String refreshToken(String refreshToken) {
+  public TokenResponseDto refreshToken(String refreshToken) {
     log.info("토큰 갱신 요청");
 
     try {
-      String newAccessToken = keycloakService.refreshToken(refreshToken);
+      TokenResponseDto tokens = keycloakService.refreshToken(refreshToken);
       log.info("토큰 갱신 성공");
-      return newAccessToken;
+      return tokens;
     } catch (Exception e) {
       log.error("토큰 갱신 실패: {}", e.getMessage());
       throw e;
     }
+  }
+
+  @Override
+  public void logout(String refreshToken) {
+    keycloakService.logout(refreshToken);
   }
 
   @Override

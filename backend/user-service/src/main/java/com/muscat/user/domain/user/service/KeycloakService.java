@@ -1,13 +1,14 @@
 package com.muscat.user.domain.user.service;
 
 import com.muscat.user.domain.user.dto.request.ChangePasswordRequestDto;
+import com.muscat.user.domain.user.dto.response.TokenResponseDto;
 import java.util.Map;
 
 // Keycloak 인증 서비스 인터페이스
 public interface KeycloakService {
 
-  // 이메일/비밀번호로 Keycloak 로그인
-  String login(String email, String password);
+  // 이메일/비밀번호로 Keycloak 로그인. access · refresh token 을 같이 돌려준다
+  TokenResponseDto login(String email, String password);
 
   // Authorization Code를 Keycloak JWT 토큰으로 교환
   String exchangeCodeForToken(String authorizationCode);
@@ -36,6 +37,9 @@ public interface KeycloakService {
   // Keycloak 사용자에게 realm role 할당
   void assignRealmRole(String keycloakId, String roleName);
 
-  // Refresh token으로 새 Access token 발급
-  String refreshToken(String refreshToken);
+  // Refresh token 으로 새 토큰을 받는다. Keycloak 이 주는 새 refresh token 도 같이 돌려준다
+  TokenResponseDto refreshToken(String refreshToken);
+
+  // Refresh token 이 속한 Keycloak 세션을 끊는다. 이미 끝난 세션이면 조용히 넘어간다
+  void logout(String refreshToken);
 }
