@@ -1,9 +1,7 @@
 package com.muscat.user.domain.user.entity;
 
-import com.muscat.user.common.enums.responses.UserResponse;
 import com.muscat.user.common.enums.type.AuthType;
 import com.muscat.user.common.enums.type.UserRole;
-import com.muscat.user.common.exceptions.UserException;
 import com.muscat.user.domain.account.entity.Account;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -15,7 +13,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -92,16 +89,6 @@ public class User {
   // ============================================
   // 도메인 메서드 (Domain Methods)
   // ============================================
-
-  // 계정 삭제 전 검증 메서드
-  public void validateForDeletion() {
-    for (Account account : accounts) {
-      if (account.getBalanceKrw().compareTo(BigDecimal.ZERO) > 0 ||
-          account.getBalanceUsd().compareTo(BigDecimal.ZERO) > 0) {
-        throw new UserException(UserResponse.ACCOUNT_DELETION_BLOCKED);
-      }
-    }
-  }
 
   // 비밀번호 변경
   public void changePassword(String encodedPassword) {

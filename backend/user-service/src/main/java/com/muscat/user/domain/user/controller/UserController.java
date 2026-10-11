@@ -126,17 +126,18 @@ public class UserController {
   @Operation(summary = "계정 삭제", description = "사용자 계정을 영구적으로 삭제합니다")
   @ApiResponses(value = {
       @ApiResponse(responseCode = "200", description = "계정 삭제 성공"),
-      @ApiResponse(responseCode = "400", description = "잘못된 비밀번호 또는 요청 데이터"),
+      @ApiResponse(responseCode = "400", description = "비밀번호 불일치"),
       @ApiResponse(responseCode = "401", description = "인증 실패"),
-      @ApiResponse(responseCode = "403", description = "비밀번호 불일치")
+      @ApiResponse(responseCode = "403", description = "비밀번호 없는 사용자가 로그인한 지 오래됨(다시 로그인 필요)")
   })
   @DeleteMapping("/me")
   public ResponseEntity<Void> deleteAccount(
       @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
-      @Valid @RequestBody DeleteAccountRequestDto request) {
+      @RequestBody(required = false) DeleteAccountRequestDto request) {
 
     String email = jwt.getClaimAsString("email");
-    userService.deleteAccount(email, request.getPassword());
+    String password = request != null ? request.getPassword() : null;
+    userService.deleteAccount(email, password, jwt.getClaimAsInstant("auth_time"));
 
     log.info("계정 삭제 완료: {}", email);
     return ResponseEntity.ok().build();

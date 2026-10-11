@@ -32,6 +32,8 @@ import com.muscat.user.domain.user.repository.EmailTokenRepository;
 import com.muscat.user.domain.user.repository.UserRepository;
 import com.muscat.user.domain.user.service.KeycloakService;
 import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -86,6 +88,9 @@ class UserServiceImplTest {
 
   @Mock
   private com.muscat.user.infra.kafka.LoginEventProducer loginEventProducer;
+
+  @Mock
+  private com.muscat.user.infra.kafka.AccountEventProducer accountEventProducer;
 
   @InjectMocks
   private UserServiceImpl userService;
@@ -419,7 +424,7 @@ class UserServiceImplTest {
       doNothing().when(keycloakService).deleteUser(keycloakId);
 
       // when
-      userService.deleteAccount(testEmail, testPassword);
+      userService.deleteAccount(testEmail, testPassword, null);
 
       // then
       verify(emailTokenRepository).deleteByUser(testUser);
@@ -439,7 +444,7 @@ class UserServiceImplTest {
 
       // when & then
       assertThatThrownBy(() ->
-        userService.deleteAccount(testEmail, wrongPassword)
+        userService.deleteAccount(testEmail, wrongPassword, null)
       ).isInstanceOf(UserException.class)
         .hasMessage(UserResponse.INVALID_PASSWORD.getMessage());
 
@@ -447,29 +452,57 @@ class UserServiceImplTest {
     }
 
     @Test
-    @DisplayName("잔액이 있는 계좌가 있으면 삭제할 수 없다")
-    void deleteAccount_HasBalance_ThrowsException() {
-      // given
-      testUser.setPasswordHash("$2a$10$encodedPassword");
-
-      Account accountWithBalance = Account.builder()
-        .id(1L)
-        .user(testUser)
-        .balanceKrw(new BigDecimal("1000000"))
-        .balanceUsd(BigDecimal.ZERO)
-        .build();
-
+    @DisplayName("잔액이 있어도 삭제되고, 계좌마다 삭제 이벤트를 보낸다")
+    void deleteAccount_WithBalance_DeletesAndPublishesPerAccount() {
+      Account first = Account.builder().id(1L).user(testUser).balanceKrw(new BigDecimal("1000000")).balanceUsd(BigDecimal.ZERO).build();
+      Account second = Account.builder().id(2L).user(testUser).balanceKrw(BigDecimal.ZERO).balanceUsd(new BigDecimal("12.5")).build();
       given(userRepository.findByEmailWithAccounts(testEmail)).willReturn(Optional.of(testUser));
       given(passwordEncoder.matches(testPassword, testUser.getPasswordHash())).willReturn(true);
-      given(accountRepository.findByUserIdWithUser(testUser.getId()))
-        .willReturn(Arrays.asList(accountWithBalance));
+      given(accountRepository.findByUserIdWithUser(testUser.getId())).willReturn(Arrays.asList(first, second));
 
-      // when & then
-      assertThatThrownBy(() ->
-        userService.deleteAccount(testEmail, testPassword)
-      ).isInstanceOf(UserException.class)
-        .hasMessage(UserResponse.ACCOUNT_DELETION_BLOCKED.getMessage());
+      userService.deleteAccount(testEmail, testPassword, null);
 
+      verify(accountEventProducer).publishAccountDeleted(first, "회원 탈퇴");
+      verify(accountEventProducer).publishAccountDeleted(second, "회원 탈퇴");
+      verify(accountRepository).deleteAll(Arrays.asList(first, second));
+      verify(passwordResetTokenRepository).deleteByUser(testUser);
+      verify(userRepository).delete(testUser);
+    }
+
+    @Test
+    @DisplayName("비밀번호가 있는 사용자가 비밀번호 없이 보내면 거절한다")
+    void deleteAccount_PasswordUserWithoutPassword_Rejected() {
+      given(userRepository.findByEmailWithAccounts(testEmail)).willReturn(Optional.of(testUser));
+
+      assertThatThrownBy(() -> userService.deleteAccount(testEmail, null, Instant.now()))
+        .isInstanceOf(UserException.class)
+        .hasMessage(UserResponse.INVALID_PASSWORD.getMessage());
+      verify(userRepository, never()).delete(any(User.class));
+    }
+
+    @Test
+    @DisplayName("비밀번호 없는 사용자(구글)는 방금 로그인한 토큰이면 지운다")
+    void deleteAccount_SocialUserRecentLogin_Deletes() {
+      testUser.setPasswordHash(null);
+      given(userRepository.findByEmailWithAccounts(testEmail)).willReturn(Optional.of(testUser));
+      given(accountRepository.findByUserIdWithUser(testUser.getId())).willReturn(new ArrayList<>());
+
+      userService.deleteAccount(testEmail, null, Instant.now().minus(Duration.ofMinutes(1)));
+
+      verify(userRepository).delete(testUser);
+    }
+
+    @Test
+    @DisplayName("비밀번호 없는 사용자(구글)는 로그인한 지 오래됐거나 시각이 없으면 다시 로그인하라고 한다")
+    void deleteAccount_SocialUserStaleLogin_RequiresReauth() {
+      testUser.setPasswordHash(null);
+      given(userRepository.findByEmailWithAccounts(testEmail)).willReturn(Optional.of(testUser));
+
+      for (Instant authTime : Arrays.asList(Instant.now().minus(Duration.ofMinutes(6)), null)) {
+        assertThatThrownBy(() -> userService.deleteAccount(testEmail, null, authTime))
+          .isInstanceOf(UserException.class)
+          .hasMessage(UserResponse.REAUTH_REQUIRED.getMessage());
+      }
       verify(userRepository, never()).delete(any(User.class));
     }
 
@@ -487,7 +520,7 @@ class UserServiceImplTest {
         .when(keycloakService).deleteUser(keycloakId);
 
       // when
-      userService.deleteAccount(testEmail, testPassword);
+      userService.deleteAccount(testEmail, testPassword, null);
 
       // then
       verify(userRepository).delete(testUser);
@@ -506,7 +539,7 @@ class UserServiceImplTest {
       given(accountRepository.findByUserIdWithUser(testUser.getId())).willReturn(new ArrayList<>());
 
       // when
-      userService.deleteAccount(testEmail, testPassword);
+      userService.deleteAccount(testEmail, testPassword, null);
 
       // then
       verify(keycloakService, never()).deleteUser(anyString());
@@ -933,7 +966,8 @@ class UserServiceImplTest {
       Long userId = 1L;
 
       given(userRepository.findById(userId)).willReturn(Optional.of(testUser));
-      given(accountRepository.findByUserIdWithUser(userId)).willReturn(List.of());
+      Account account = Account.builder().id(7L).user(testUser).balanceKrw(new BigDecimal("1000000")).balanceUsd(BigDecimal.ZERO).build();
+      given(accountRepository.findByUserIdWithUser(userId)).willReturn(List.of(account));
       willDoNothing().given(emailTokenRepository).deleteByUser(testUser);
       willDoNothing().given(passwordResetTokenRepository).deleteByUser(testUser);
       willDoNothing().given(accountRepository).deleteAll(any());
@@ -947,6 +981,7 @@ class UserServiceImplTest {
       verify(emailTokenRepository).deleteByUser(testUser);
       verify(passwordResetTokenRepository).deleteByUser(testUser);
       verify(accountRepository).findByUserIdWithUser(userId);
+      verify(accountEventProducer).publishAccountDeleted(account, "회원 탈퇴");
       verify(keycloakService).deleteUser(keycloakId);
       verify(userRepository).delete(testUser);
     }
