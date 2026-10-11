@@ -211,7 +211,7 @@ services:
     replicaCount: 1
     image:
       repository: trade-service
-      tag: "1.4.4"
+      tag: "1.4.5"
     service:
       type: ClusterIP
       port: 8081
