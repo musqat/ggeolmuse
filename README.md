@@ -142,16 +142,16 @@ ggeolmuse/
 
 ## 테스트
 
-백엔드 **829 개**, 프론트 **170 개**, E2E **35 개**.
+백엔드 **857 개**, 프론트 **378 개**, E2E **35 개**.
 
 | 서비스 | 테스트 |
 |---|---|
 | market-data-service | 257 |
-| user-service | 231 |
-| backtest-service | 164 |
+| user-service | 242 |
+| backtest-service | 181 |
 | trade-service | 161 |
 | ggeolmuse-bom | 16 |
-| frontend-web | 170 |
+| frontend-web | 378 |
 | E2E (Playwright) | 35 |
 
 <details>
@@ -170,8 +170,8 @@ E2E 는 `docker compose` 로 스택 전체를 띄우고 PR 과 `master` push 마
 | 서비스 | 라인 | 분기 |
 |---|---|---|
 | trade | 72.4% | 66.3% |
-| backtest | 71.5% | 59.0% |
-| user | 48.6% | 26.4% |
+| backtest | 72.3% | 60.7% |
+| user | 49.9% | 26.7% |
 | market-data | 33.9% | 36.4% |
 
 market-data 가 낮은 이유는 수집 파이프라인이 대부분 외부 API 호출이라서다.

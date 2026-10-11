@@ -1,7 +1,7 @@
 {{- if .Values.services.userService.enabled }}
 {{- include "ggeolmuse.serviceAccount" (dict "name" .Values.services.userService.name "Values" .Values) }}
 ---
-{{- include "ggeolmuse.javaPodHeader" (dict "svc" .Values.services.userService "Values" .Values "Chart" .Chart "Release" .Release) }}
+{{ include "ggeolmuse.javaPodHeader" (dict "svc" .Values.services.userService "Values" .Values "Chart" .Chart "Release" .Release) }}
         {{- include "ggeolmuse.springEnv" . | nindent 8 }}
         - name: JAVA_OPTS
           value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" .Values.services.userService.name "extraOpts" "-Dh2.webAllowOthers=true" "xmx" "256m") }}
