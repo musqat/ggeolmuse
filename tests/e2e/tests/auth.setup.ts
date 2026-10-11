@@ -34,9 +34,10 @@ setup('시드 계정으로 토큰을 받아 저장한다', async () => {
 
   expect(res.status(), '시드 계정 로그인이 200 이어야 한다').toBe(200);
 
-  // 응답 본문이 따옴표 없는 JWT 문자열 그대로다.
-  const token = (await res.text()).trim();
+  // 응답은 { accessToken, refreshToken, expiresIn } 이다.
+  const { accessToken: token, refreshToken } = await res.json();
   expect(token.split('.'), 'JWT 는 점으로 나뉜 세 조각이다').toHaveLength(3);
+  expect(refreshToken, '로그인 응답에 refresh token 이 없다').toBeTruthy();
 
   await api.storageState({ path: STORAGE_STATE });
   await api.dispose();
@@ -57,7 +58,10 @@ setup('시드 계정으로 토큰을 받아 저장한다', async () => {
         origins: [
           {
             origin: BASE_URL,
-            localStorage: [{ name: 'accessToken', value: token }],
+            localStorage: [
+              { name: 'accessToken', value: token },
+              { name: 'refreshToken', value: refreshToken },
+            ],
           },
         ],
       },
