@@ -3,11 +3,16 @@ package com.muscat.user.domain.user.controller;
 import com.muscat.user.common.exceptions.UserException;
 import com.muscat.user.domain.user.dto.request.ForgotPasswordRequestDto;
 import com.muscat.user.domain.user.dto.request.LoginRequestDto;
-import com.muscat.user.domain.user.dto.request.RefreshTokenRequestDto;
+import com.muscat.user.domain.user.dto.request.GoogleTokenRequestDto;
 import com.muscat.user.domain.user.dto.request.RegisterRequestDto;
 import com.muscat.user.domain.user.dto.request.ResendRequestDto;
 import com.muscat.user.domain.user.dto.request.ResetPasswordRequestDto;
+import com.muscat.user.common.enums.responses.KeycloakResponse;
+import com.muscat.user.common.exceptions.KeycloakException;
+import com.muscat.user.domain.user.dto.response.AccessTokenResponseDto;
 import com.muscat.user.domain.user.dto.response.TokenResponseDto;
+import org.springframework.http.HttpHeaders;
+import org.springframework.web.bind.annotation.CookieValue;
 import com.muscat.user.domain.user.entity.User;
 import com.muscat.user.domain.user.service.SocialUserService;
 import com.muscat.user.domain.user.service.UserService;
@@ -45,6 +50,7 @@ public class AuthController {
 
   private final UserService userService;
   private final SocialUserService socialUserService;
+  private final RefreshTokenCookie refreshTokenCookie;
 
   @Value("${keycloak.auth-server-url}")
   private String keycloakUrl;
@@ -298,7 +304,7 @@ public class AuthController {
 
   @Operation(
     summary = "사용자 로그인",
-    description = "이메일과 비밀번호로 로그인하여 JWT 토큰을 발급받습니다"
+    description = "이메일과 비밀번호로 로그인합니다. access token 은 본문으로, refresh token 은 httpOnly 쿠키(refresh_token)로 줍니다"
   )
   @ApiResponses(value = {
     @ApiResponse(
@@ -307,7 +313,7 @@ public class AuthController {
       content = @Content(
         mediaType = "application/json",
         examples = @ExampleObject(
-          value = "{\"accessToken\": \"eyJhbGciOiJSUzI1NiJ9...\", \"refreshToken\": \"eyJhbGciOiJIUzI1NiJ9...\", \"expiresIn\": 3600}"
+          value = "{\"accessToken\": \"eyJhbGciOiJSUzI1NiJ9...\", \"expiresIn\": 3600}"
         )
       )
     ),
@@ -329,18 +335,18 @@ public class AuthController {
     )
   })
   @PostMapping("/login")
-  public ResponseEntity<TokenResponseDto> login(
+  public ResponseEntity<AccessTokenResponseDto> login(
     @Parameter(description = "로그인 정보", required = true)
     @Valid @RequestBody LoginRequestDto request) {
     TokenResponseDto tokens = userService.login(request.getEmail(), request.getPassword());
     log.info("로그인 성공: {}", request.getEmail());
 
-    return ResponseEntity.ok(tokens);
+    return withRefreshCookie(tokens);
   }
 
   @Operation(
     summary = "토큰 갱신",
-    description = "Refresh token 으로 새 access · refresh token 을 받습니다"
+    description = "refresh_token 쿠키로 새 access token 을 받습니다. 쿠키도 새 refresh token 으로 바뀝니다"
   )
   @ApiResponses(value = {
     @ApiResponse(
@@ -349,7 +355,7 @@ public class AuthController {
       content = @Content(
         mediaType = "application/json",
         examples = @ExampleObject(
-          value = "{\"accessToken\": \"eyJhbGciOiJSUzI1NiJ9...\", \"refreshToken\": \"eyJhbGciOiJIUzI1NiJ9...\", \"expiresIn\": 3600}"
+          value = "{\"accessToken\": \"eyJhbGciOiJSUzI1NiJ9...\", \"expiresIn\": 3600}"
         )
       )
     ),
@@ -363,28 +369,59 @@ public class AuthController {
     )
   })
   @PostMapping("/refresh")
-  public ResponseEntity<TokenResponseDto> refreshToken(
-    @Parameter(description = "토큰 갱신 요청", required = true)
-    @Valid @RequestBody RefreshTokenRequestDto request) {
-    TokenResponseDto tokens = userService.refreshToken(request.getRefreshToken());
+  public ResponseEntity<AccessTokenResponseDto> refreshToken(
+    @Parameter(hidden = true) @CookieValue(name = RefreshTokenCookie.NAME, required = false) String refreshToken) {
+    if (refreshToken == null || refreshToken.isBlank()) {
+      throw new KeycloakException(KeycloakResponse.TOKEN_REFRESH_FAILED);
+    }
+    TokenResponseDto tokens = userService.refreshToken(refreshToken);
     log.info("토큰 갱신 성공");
 
-    return ResponseEntity.ok(tokens);
+    return withRefreshCookie(tokens);
   }
 
   @Operation(
     summary = "로그아웃",
-    description = "Refresh token 이 속한 Keycloak 세션을 끊습니다. 이미 끝난 세션이어도 204 입니다"
+    description = "refresh_token 쿠키가 속한 Keycloak 세션을 끊고 쿠키를 지웁니다. 쿠키가 없거나 이미 끝난 세션이어도 204 입니다"
   )
   @ApiResponses(value = {
     @ApiResponse(responseCode = "204", description = "로그아웃 완료")
   })
   @PostMapping("/logout")
   public ResponseEntity<Void> logout(
-    @Parameter(description = "로그아웃할 세션의 refresh token", required = true)
-    @Valid @RequestBody RefreshTokenRequestDto request) {
-    userService.logout(request.getRefreshToken());
-    return ResponseEntity.noContent().build();
+    @Parameter(hidden = true) @CookieValue(name = RefreshTokenCookie.NAME, required = false) String refreshToken) {
+    if (refreshToken != null && !refreshToken.isBlank()) {
+      try {
+        userService.logout(refreshToken);
+      } catch (KeycloakException e) {
+        // 세션 종료가 실패해도 쿠키는 지운다. 원인은 KeycloakServiceImpl 이 로그로 남긴다
+        log.error("로그아웃 중 Keycloak 세션 종료 실패: {}", e.getMessage());
+      }
+    }
+    return ResponseEntity.noContent().header(HttpHeaders.SET_COOKIE, refreshTokenCookie.clear()).build();
+  }
+
+  @Operation(
+    summary = "구글 로그인 코드 교환",
+    description = "구글 로그인(Keycloak, PKCE) 콜백의 인가 코드를 토큰으로 바꿉니다. access token 은 본문, refresh token 은 httpOnly 쿠키입니다"
+  )
+  @ApiResponses(value = {
+    @ApiResponse(responseCode = "200", description = "교환 성공"),
+    @ApiResponse(responseCode = "400", description = "코드 만료 · 재사용 · verifier 불일치",
+      content = @Content(mediaType = "application/json", schema = @Schema(implementation = ProblemDetail.class)))
+  })
+  @PostMapping("/social/google/token")
+  public ResponseEntity<AccessTokenResponseDto> exchangeGoogleCode(
+    @Valid @RequestBody GoogleTokenRequestDto request) {
+    TokenResponseDto tokens = userService.exchangeGoogleCode(request.code(), request.codeVerifier(), request.redirectUri());
+    return withRefreshCookie(tokens);
+  }
+
+  // access token 은 본문, refresh token 은 httpOnly 쿠키
+  private ResponseEntity<AccessTokenResponseDto> withRefreshCookie(TokenResponseDto tokens) {
+    return ResponseEntity.ok()
+      .header(HttpHeaders.SET_COOKIE, refreshTokenCookie.issue(tokens))
+      .body(AccessTokenResponseDto.from(tokens));
   }
 
   // ============= 소셜 로그인 =============

@@ -105,7 +105,8 @@ class KeycloakServiceImplTest {
         TEST_TOKEN,      // accessToken
         "refresh_token", // refreshToken
         300,             // expiresIn
-        "Bearer"         // tokenType
+        "Bearer",        // tokenType
+        1800             // refreshExpiresIn
       );
 
       ResponseEntity<LoginResponseDto> responseEntity = ResponseEntity.ok(loginResponse);
@@ -117,7 +118,7 @@ class KeycloakServiceImplTest {
       TokenResponseDto tokens = keycloakService.login(TEST_EMAIL, TEST_PASSWORD);
 
       // then
-      assertThat(tokens).isEqualTo(new TokenResponseDto(TEST_TOKEN, "refresh_token", 300));
+      assertThat(tokens).isEqualTo(new TokenResponseDto(TEST_TOKEN, "refresh_token", 300, 1800));
       verify(restTemplate).postForEntity(anyString(), any(HttpEntity.class),
         eq(LoginResponseDto.class));
     }
@@ -133,6 +134,40 @@ class KeycloakServiceImplTest {
       // when & then
       assertThatThrownBy(() -> keycloakService.login(TEST_EMAIL, "wrong_password"))
         .isInstanceOf(HttpClientErrorException.class);
+    }
+  }
+
+  @Nested
+  @DisplayName("구글 로그인 PKCE 코드 교환 테스트")
+  class ExchangePkceCodeTests {
+
+    @Test
+    @DisplayName("public client 로 secret 없이 code · code_verifier · redirect_uri 를 보내 두 토큰을 받는다")
+    void exchangePkceCode_UsesPublicClientWithVerifier() {
+      given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(LoginResponseDto.class)))
+        .willReturn(ResponseEntity.ok(new LoginResponseDto("a", "r", 3600, "Bearer", 7200)));
+
+      TokenResponseDto tokens = keycloakService.exchangePkceCode("code-1", "verifier-1", "https://app.example/oauth/callback");
+
+      assertThat(tokens).isEqualTo(new TokenResponseDto("a", "r", 3600, 7200));
+      MultiValueMap<String, String> body = capturedForm(LoginResponseDto.class);
+      assertThat(body.getFirst("grant_type")).isEqualTo("authorization_code");
+      assertThat(body.getFirst("client_id")).isEqualTo("ggeolmuse-frontend");
+      assertThat(body.getFirst("code")).isEqualTo("code-1");
+      assertThat(body.getFirst("code_verifier")).isEqualTo("verifier-1");
+      assertThat(body.getFirst("redirect_uri")).isEqualTo("https://app.example/oauth/callback");
+      assertThat(body.containsKey("client_secret")).isFalse();
+    }
+
+    @Test
+    @DisplayName("Keycloak 이 코드를 거절하면 CODE_EXCHANGE_FAILED")
+    void exchangePkceCode_Rejected_Throws() {
+      given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(LoginResponseDto.class)))
+        .willThrow(new HttpClientErrorException(HttpStatus.BAD_REQUEST, "invalid_grant"));
+
+      assertThatThrownBy(() -> keycloakService.exchangePkceCode("used", "v", "https://app.example/oauth/callback"))
+        .isInstanceOf(KeycloakException.class)
+        .hasMessage(KeycloakResponse.CODE_EXCHANGE_FAILED.getMessage());
     }
   }
 
@@ -508,11 +543,11 @@ class KeycloakServiceImplTest {
     @DisplayName("refresh_token 으로 갱신하고 Keycloak 이 준 새 refresh token 까지 돌려준다")
     void refreshToken_ReturnsBothTokens() {
       given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(LoginResponseDto.class)))
-        .willReturn(ResponseEntity.ok(new LoginResponseDto("new-access", "new-refresh", 3600, "Bearer")));
+        .willReturn(ResponseEntity.ok(new LoginResponseDto("new-access", "new-refresh", 3600, "Bearer", 7200)));
 
       TokenResponseDto tokens = keycloakService.refreshToken("old-refresh");
 
-      assertThat(tokens).isEqualTo(new TokenResponseDto("new-access", "new-refresh", 3600));
+      assertThat(tokens).isEqualTo(new TokenResponseDto("new-access", "new-refresh", 3600, 7200));
       MultiValueMap<String, String> body = capturedForm(LoginResponseDto.class);
       assertThat(body.getFirst("grant_type")).isEqualTo("refresh_token");
       assertThat(body.getFirst("refresh_token")).isEqualTo("old-refresh");
@@ -534,7 +569,7 @@ class KeycloakServiceImplTest {
     @DisplayName("구글 로그인 토큰(azp=public client)은 그 client 로 secret 없이 갱신한다")
     void refreshToken_PublicClientToken_UsesPublicClient() {
       given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(LoginResponseDto.class)))
-        .willReturn(ResponseEntity.ok(new LoginResponseDto("a", "r", 3600, "Bearer")));
+        .willReturn(ResponseEntity.ok(new LoginResponseDto("a", "r", 3600, "Bearer", 7200)));
 
       keycloakService.refreshToken(tokenIssuedFor("ggeolmuse-frontend"));
 
@@ -547,7 +582,7 @@ class KeycloakServiceImplTest {
     @DisplayName("이메일 로그인 토큰(azp=confidential client)은 client 인증을 붙여 갱신한다")
     void refreshToken_ConfidentialToken_UsesClientSecret() {
       given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(LoginResponseDto.class)))
-        .willReturn(ResponseEntity.ok(new LoginResponseDto("a", "r", 3600, "Bearer")));
+        .willReturn(ResponseEntity.ok(new LoginResponseDto("a", "r", 3600, "Bearer", 7200)));
 
       keycloakService.refreshToken(tokenIssuedFor(CLIENT_ID));
 

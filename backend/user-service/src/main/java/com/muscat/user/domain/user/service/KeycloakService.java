@@ -13,6 +13,9 @@ public interface KeycloakService {
   // Authorization Code를 Keycloak JWT 토큰으로 교환
   String exchangeCodeForToken(String authorizationCode);
 
+  // 브라우저가 public client 로 시작한 구글 로그인(PKCE)의 인가 코드를 토큰으로 바꾼다
+  TokenResponseDto exchangePkceCode(String code, String codeVerifier, String redirectUri);
+
   // JWT 토큰에서 클레임 추출
   Map<String, Object> parseTokenClaims(String jwtToken);
 

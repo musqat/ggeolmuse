@@ -73,6 +73,30 @@ public class KeycloakServiceImpl implements KeycloakService {
   }
 
   @Override
+  public TokenResponseDto exchangePkceCode(String code, String codeVerifier, String redirectUri) {
+    // 인가 요청을 public client 가 했으니 같은 client 로, secret 없이 verifier 로 증명한다
+    MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+    body.add("grant_type", "authorization_code");
+    body.add("client_id", appProperties.getOauth().getPublicClientId());
+    body.add("code", code);
+    body.add("code_verifier", codeVerifier);
+    body.add("redirect_uri", redirectUri);
+
+    try {
+      ResponseEntity<LoginResponseDto> response = restTemplate.postForEntity(
+        getTokenUrl(), createFormRequest(body), LoginResponseDto.class);
+      log.info("구글 로그인 코드 교환 성공");
+      return TokenResponseDto.from(Objects.requireNonNull(response.getBody()));
+    } catch (HttpClientErrorException e) {
+      log.warn("구글 로그인 코드 교환 실패 - HTTP {}: {}", e.getStatusCode(), e.getResponseBodyAsString());
+      throw new KeycloakException(KeycloakResponse.CODE_EXCHANGE_FAILED);
+    } catch (Exception e) {
+      log.error("구글 로그인 코드 교환 중 오류: {}", e.getMessage(), e);
+      throw new KeycloakException(KeycloakResponse.API_ERROR);
+    }
+  }
+
+  @Override
   public String exchangeCodeForToken(String authorizationCode) {
     String tokenUrl =
       keycloakProperties.getAuthServerUrl() + "/realms/" + keycloakProperties.getRealm()

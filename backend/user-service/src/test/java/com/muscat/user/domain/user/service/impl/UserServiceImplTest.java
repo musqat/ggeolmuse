@@ -218,7 +218,7 @@ class UserServiceImplTest {
     @DisplayName("정상적으로 로그인이 성공하고 access · refresh token 을 그대로 돌려준다")
     void login_Success() {
       // given
-      TokenResponseDto jwtToken = new TokenResponseDto("jwt.token.here", "refresh.token.here", 3600);
+      TokenResponseDto jwtToken = new TokenResponseDto("jwt.token.here", "refresh.token.here", 3600, 7200);
       String rawPassword = "password123";
 
       testUser.setPasswordHash("$2a$10$encodedPassword");
@@ -334,7 +334,7 @@ class UserServiceImplTest {
     @Test
     @DisplayName("갱신은 Keycloak 이 준 두 토큰을 그대로 돌려준다")
     void refreshToken_ReturnsKeycloakTokens() {
-      TokenResponseDto tokens = new TokenResponseDto("new-access", "new-refresh", 3600);
+      TokenResponseDto tokens = new TokenResponseDto("new-access", "new-refresh", 3600, 7200);
       given(keycloakService.refreshToken("old-refresh")).willReturn(tokens);
 
       assertThat(userService.refreshToken("old-refresh")).isEqualTo(tokens);
@@ -356,6 +356,15 @@ class UserServiceImplTest {
       userService.logout("refresh-1");
 
       verify(keycloakService).logout("refresh-1");
+    }
+
+    @Test
+    @DisplayName("구글 인가 코드 교환은 Keycloak PKCE 교환으로 넘긴다")
+    void exchangeGoogleCode_DelegatesToKeycloak() {
+      TokenResponseDto tokens = new TokenResponseDto("a", "r", 3600, 7200);
+      given(keycloakService.exchangePkceCode("c", "v", "https://app.example/oauth/callback")).willReturn(tokens);
+
+      assertThat(userService.exchangeGoogleCode("c", "v", "https://app.example/oauth/callback")).isEqualTo(tokens);
     }
   }
 

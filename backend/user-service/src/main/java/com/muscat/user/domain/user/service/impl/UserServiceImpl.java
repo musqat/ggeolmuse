@@ -217,6 +217,11 @@ public class UserServiceImpl implements UserService {
   }
 
   @Override
+  public TokenResponseDto exchangeGoogleCode(String code, String codeVerifier, String redirectUri) {
+    return keycloakService.exchangePkceCode(code, codeVerifier, redirectUri);
+  }
+
+  @Override
   public User getProfile(String email) {
     return userRepository.findByEmail(email)
       .orElseThrow(() -> new UserException(UserResponse.USER_NOT_FOUND));
