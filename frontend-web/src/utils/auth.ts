@@ -4,6 +4,7 @@ export interface JwtPayload {
   exp?: number;
   sub?: string;
   email?: string;
+  auth_time?: number; // 로그인한 시각(초). 토큰을 갱신해도 그대로다
   [claim: string]: unknown;
 }
 

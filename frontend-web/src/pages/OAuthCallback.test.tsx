@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { AxiosError, type AxiosResponse } from 'axios'
 import { authApi } from '../services/api'
-import { OAUTH_STATE_KEY, PKCE_VERIFIER_KEY } from '../utils/googleLogin'
+import { OAUTH_RETURN_KEY, OAUTH_STATE_KEY, PKCE_VERIFIER_KEY } from '../utils/googleLogin'
 import OAuthCallback from './OAuthCallback'
 
 vi.mock('../services/api', () => ({ authApi: { exchangeGoogleCode: vi.fn() } }))
@@ -48,6 +48,23 @@ describe('OAuthCallback', () => {
     expect(localStorage.getItem('refreshToken')).toBeNull()
     expect(sessionStorage.getItem(PKCE_VERIFIER_KEY)).toBeNull()
     expect(sessionStorage.getItem(OAUTH_STATE_KEY)).toBeNull()
+  })
+
+  it('로그인 전에 정해 둔 화면이 있으면 그리로 간다', async () => {
+    exchange.mockResolvedValue({ data: { accessToken: 'ACCESS', expiresIn: 3600 } } as never)
+    sessionStorage.setItem(OAUTH_RETURN_KEY, '/mypage?delete=1')
+    const assigned: string[] = []
+    vi.spyOn(window, 'location', 'get').mockReturnValue({
+      ...window.location,
+      search: '?code=CODE1&state=STATE1',
+      origin: window.location.origin,
+      set href(value: string) { assigned.push(value) },
+    } as unknown as Location)
+
+    openCallback('?code=CODE1&state=STATE1')
+
+    await waitFor(() => expect(assigned).toEqual(['/mypage?delete=1']))
+    expect(sessionStorage.getItem(OAUTH_RETURN_KEY)).toBeNull()
   })
 
   it('state 가 다르면 교환하지 않고 막는다', async () => {
