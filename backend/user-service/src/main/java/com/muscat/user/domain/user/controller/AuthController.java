@@ -7,6 +7,7 @@ import com.muscat.user.domain.user.dto.request.RefreshTokenRequestDto;
 import com.muscat.user.domain.user.dto.request.RegisterRequestDto;
 import com.muscat.user.domain.user.dto.request.ResendRequestDto;
 import com.muscat.user.domain.user.dto.request.ResetPasswordRequestDto;
+import com.muscat.user.domain.user.dto.response.TokenResponseDto;
 import com.muscat.user.domain.user.entity.User;
 import com.muscat.user.domain.user.service.SocialUserService;
 import com.muscat.user.domain.user.service.UserService;
@@ -306,7 +307,7 @@ public class AuthController {
       content = @Content(
         mediaType = "application/json",
         examples = @ExampleObject(
-          value = "\"eyJhbGciOiJIUzI1NiJ9.VyQGdnZW9sbXVzZS5jb20iLCJpYXQiOjE2MzA0NzUyMDAsImV4cCI6MTYzMDU2MTYwMH0.xyz123\""
+          value = "{\"accessToken\": \"eyJhbGciOiJSUzI1NiJ9...\", \"refreshToken\": \"eyJhbGciOiJIUzI1NiJ9...\", \"expiresIn\": 3600}"
         )
       )
     ),
@@ -328,18 +329,18 @@ public class AuthController {
     )
   })
   @PostMapping("/login")
-  public ResponseEntity<String> login(
+  public ResponseEntity<TokenResponseDto> login(
     @Parameter(description = "로그인 정보", required = true)
     @Valid @RequestBody LoginRequestDto request) {
-    String token = userService.login(request.getEmail(), request.getPassword());
+    TokenResponseDto tokens = userService.login(request.getEmail(), request.getPassword());
     log.info("로그인 성공: {}", request.getEmail());
 
-    return ResponseEntity.ok(token);
+    return ResponseEntity.ok(tokens);
   }
 
   @Operation(
     summary = "토큰 갱신",
-    description = "Refresh token을 사용하여 새로운 Access token을 발급받습니다"
+    description = "Refresh token 으로 새 access · refresh token 을 받습니다"
   )
   @ApiResponses(value = {
     @ApiResponse(
@@ -348,7 +349,7 @@ public class AuthController {
       content = @Content(
         mediaType = "application/json",
         examples = @ExampleObject(
-          value = "\"eyJhbGciOiJIUzI1NiJ9.VyQGdnZW9sbXVzZS5jb20iLCJpYXQiOjE2MzA0NzUyMDAsImV4cCI6MTYzMDU2MTYwMH0.xyz123\""
+          value = "{\"accessToken\": \"eyJhbGciOiJSUzI1NiJ9...\", \"refreshToken\": \"eyJhbGciOiJIUzI1NiJ9...\", \"expiresIn\": 3600}"
         )
       )
     ),
@@ -362,13 +363,28 @@ public class AuthController {
     )
   })
   @PostMapping("/refresh")
-  public ResponseEntity<String> refreshToken(
+  public ResponseEntity<TokenResponseDto> refreshToken(
     @Parameter(description = "토큰 갱신 요청", required = true)
     @Valid @RequestBody RefreshTokenRequestDto request) {
-    String newAccessToken = userService.refreshToken(request.getRefreshToken());
+    TokenResponseDto tokens = userService.refreshToken(request.getRefreshToken());
     log.info("토큰 갱신 성공");
 
-    return ResponseEntity.ok(newAccessToken);
+    return ResponseEntity.ok(tokens);
+  }
+
+  @Operation(
+    summary = "로그아웃",
+    description = "Refresh token 이 속한 Keycloak 세션을 끊습니다. 이미 끝난 세션이어도 204 입니다"
+  )
+  @ApiResponses(value = {
+    @ApiResponse(responseCode = "204", description = "로그아웃 완료")
+  })
+  @PostMapping("/logout")
+  public ResponseEntity<Void> logout(
+    @Parameter(description = "로그아웃할 세션의 refresh token", required = true)
+    @Valid @RequestBody RefreshTokenRequestDto request) {
+    userService.logout(request.getRefreshToken());
+    return ResponseEntity.noContent().build();
   }
 
   // ============= 소셜 로그인 =============
