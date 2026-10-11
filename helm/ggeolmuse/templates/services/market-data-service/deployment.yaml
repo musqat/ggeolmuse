@@ -1,5 +1,5 @@
 {{- if .Values.services.marketDataService.enabled }}
 {{- include "ggeolmuse.serviceAccount" (dict "name" .Values.services.marketDataService.name "Values" .Values) }}
 ---
-{{- include "ggeolmuse.javaDeployment" (dict "svc" .Values.services.marketDataService "Values" .Values "Chart" .Chart "Release" .Release) }}
+{{ include "ggeolmuse.javaDeployment" (dict "svc" .Values.services.marketDataService "Values" .Values "Chart" .Chart "Release" .Release) }}
 {{- end }}
