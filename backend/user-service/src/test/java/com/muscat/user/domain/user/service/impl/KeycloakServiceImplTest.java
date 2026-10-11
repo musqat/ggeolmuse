@@ -19,7 +19,9 @@ import com.muscat.user.config.AppProperties;
 import com.muscat.user.domain.user.dto.request.ChangePasswordRequestDto;
 import com.muscat.user.domain.user.dto.response.LoginResponseDto;
 import com.muscat.user.domain.user.dto.response.TokenResponseDto;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -527,6 +529,32 @@ class KeycloakServiceImplTest {
         .isInstanceOf(KeycloakException.class)
         .hasMessage(KeycloakResponse.TOKEN_REFRESH_FAILED.getMessage());
     }
+
+    @Test
+    @DisplayName("구글 로그인 토큰(azp=public client)은 그 client 로 secret 없이 갱신한다")
+    void refreshToken_PublicClientToken_UsesPublicClient() {
+      given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(LoginResponseDto.class)))
+        .willReturn(ResponseEntity.ok(new LoginResponseDto("a", "r", 3600, "Bearer")));
+
+      keycloakService.refreshToken(tokenIssuedFor("ggeolmuse-frontend"));
+
+      MultiValueMap<String, String> body = capturedForm(LoginResponseDto.class);
+      assertThat(body.getFirst("client_id")).isEqualTo("ggeolmuse-frontend");
+      assertThat(body.containsKey("client_secret")).isFalse();
+    }
+
+    @Test
+    @DisplayName("이메일 로그인 토큰(azp=confidential client)은 client 인증을 붙여 갱신한다")
+    void refreshToken_ConfidentialToken_UsesClientSecret() {
+      given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(LoginResponseDto.class)))
+        .willReturn(ResponseEntity.ok(new LoginResponseDto("a", "r", 3600, "Bearer")));
+
+      keycloakService.refreshToken(tokenIssuedFor(CLIENT_ID));
+
+      MultiValueMap<String, String> body = capturedForm(LoginResponseDto.class);
+      assertThat(body.getFirst("client_id")).isEqualTo(CLIENT_ID);
+      assertThat(body.getFirst("client_secret")).isEqualTo(CLIENT_SECRET);
+    }
   }
 
   @Nested
@@ -569,6 +597,26 @@ class KeycloakServiceImplTest {
         .isInstanceOf(KeycloakException.class)
         .hasMessage(KeycloakResponse.API_ERROR.getMessage());
     }
+
+    @Test
+    @DisplayName("구글 로그인 토큰은 public client 로 secret 없이 세션을 끊는다")
+    void logout_PublicClientToken_UsesPublicClient() {
+      given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(Void.class)))
+        .willReturn(ResponseEntity.noContent().build());
+
+      keycloakService.logout(tokenIssuedFor("ggeolmuse-frontend"));
+
+      MultiValueMap<String, String> body = capturedForm(Void.class);
+      assertThat(body.getFirst("client_id")).isEqualTo("ggeolmuse-frontend");
+      assertThat(body.containsKey("client_secret")).isFalse();
+    }
+  }
+
+  // azp 만 든 JWT 모양 문자열(서명은 Keycloak 이 보니 여기서는 안 본다)
+  private static String tokenIssuedFor(String azp) {
+    String payload = Base64.getUrlEncoder().withoutPadding()
+      .encodeToString(("{\"azp\":\"" + azp + "\",\"typ\":\"Refresh\"}").getBytes(StandardCharsets.UTF_8));
+    return "header." + payload + ".signature";
   }
 
   // restTemplate 에 보낸 폼 본문

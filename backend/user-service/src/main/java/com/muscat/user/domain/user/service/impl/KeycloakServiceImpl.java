@@ -1,5 +1,7 @@
 package com.muscat.user.domain.user.service.impl;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.muscat.commonlib.config.KeycloakProperties;
 import com.muscat.user.common.enums.responses.KeycloakResponse;
 import com.muscat.user.common.exceptions.KeycloakException;
@@ -8,6 +10,8 @@ import com.muscat.user.domain.user.dto.request.ChangePasswordRequestDto;
 import com.muscat.user.domain.user.dto.response.LoginResponseDto;
 import com.muscat.user.domain.user.dto.response.TokenResponseDto;
 import com.muscat.user.domain.user.service.KeycloakService;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -34,6 +38,7 @@ public class KeycloakServiceImpl implements KeycloakService {
   private final AppProperties appProperties;
   private final JwtDecoder jwtDecoder;
   private final RestTemplate restTemplate;
+  private static final ObjectMapper JSON = new ObjectMapper();
 
   public KeycloakServiceImpl(KeycloakProperties keycloakProperties, AppProperties appProperties,
     JwtDecoder jwtDecoder) {
@@ -43,8 +48,8 @@ public class KeycloakServiceImpl implements KeycloakService {
 
     // RestTemplate을 타임아웃과 함께 설정
     RestTemplateBuilder builder = new RestTemplateBuilder()
-      .setConnectTimeout(java.time.Duration.ofSeconds(5))
-      .setReadTimeout(java.time.Duration.ofSeconds(10));
+      .connectTimeout(java.time.Duration.ofSeconds(5))
+      .readTimeout(java.time.Duration.ofSeconds(10));
     this.restTemplate = builder.build();
   }
 
@@ -357,8 +362,7 @@ public class KeycloakServiceImpl implements KeycloakService {
 
     MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
     body.add("grant_type", "refresh_token");
-    body.add("client_id", keycloakProperties.getResource());
-    body.add("client_secret", keycloakProperties.getCredentials().getSecret());
+    addClientFor(body, refreshToken);
     body.add("refresh_token", refreshToken);
 
     HttpEntity<MultiValueMap<String, String>> request = createFormRequest(body);
@@ -383,8 +387,7 @@ public class KeycloakServiceImpl implements KeycloakService {
   @Override
   public void logout(String refreshToken) {
     MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
-    body.add("client_id", keycloakProperties.getResource());
-    body.add("client_secret", keycloakProperties.getCredentials().getSecret());
+    addClientFor(body, refreshToken);
     body.add("refresh_token", refreshToken);
 
     try {
@@ -393,7 +396,7 @@ public class KeycloakServiceImpl implements KeycloakService {
     } catch (HttpClientErrorException.BadRequest e) {
       // 만료 · 이미 끊긴 세션의 토큰은 400(invalid_grant)이 온다. 끊을 세션이 없으니 로그아웃은 끝난 것으로 본다.
       // client 인증 실패(401) 같은 설정 문제는 아래로 보내 숨기지 않는다
-      log.info("Keycloak 세션 종료 생략 - HTTP {}: {}", e.getStatusCode(), e.getResponseBodyAsString());
+      log.warn("Keycloak 세션 종료 생략 - HTTP {}: {}", e.getStatusCode(), e.getResponseBodyAsString());
     } catch (Exception e) {
       log.error("Keycloak 세션 종료 중 오류: {}", e.getMessage(), e);
       throw new KeycloakException(KeycloakResponse.API_ERROR);
@@ -434,6 +437,32 @@ public class KeycloakServiceImpl implements KeycloakService {
   private String getLogoutUrl() {
     return keycloakProperties.getAuthServerUrl() + "/realms/" + keycloakProperties.getRealm()
       + "/protocol/openid-connect/logout";
+  }
+
+  // refresh token 은 받은 client 로 보내야 한다. 다르면 Keycloak 이 400 "Token client and authorized client don't match".
+  // 구글 로그인은 브라우저가 public client 로 받아 secret 없이 보내고, 이메일 로그인은 여기서 받은 confidential client 다
+  private void addClientFor(MultiValueMap<String, String> body, String refreshToken) {
+    String publicClientId = appProperties.getOauth().getPublicClientId();
+    if (publicClientId != null && publicClientId.equals(issuedFor(refreshToken))) {
+      body.add("client_id", publicClientId);
+      return;
+    }
+    body.add("client_id", keycloakProperties.getResource());
+    body.add("client_secret", keycloakProperties.getCredentials().getSecret());
+  }
+
+  // 토큰을 받은 client(azp). 서명 검증은 Keycloak 이 하니 여기서는 payload 만 읽는다. 못 읽으면 null
+  private String issuedFor(String token) {
+    try {
+      String[] parts = token.split("\\.");
+      if (parts.length < 2) {
+        return null;
+      }
+      JsonNode payload = JSON.readTree(new String(Base64.getUrlDecoder().decode(parts[1]), StandardCharsets.UTF_8));
+      return payload.path("azp").asText(null);
+    } catch (Exception e) {
+      return null;
+    }
   }
 
   private HttpEntity<MultiValueMap<String, String>> createFormRequest(
