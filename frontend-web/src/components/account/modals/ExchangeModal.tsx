@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { addAmount } from '@/utils/amount';
 import { Modal } from '@/components/common/Modal';
-import type { AccountBalance } from '@/services/api';
+import { accountsApi, type AccountBalance } from '@/services/api';
 
 interface ExchangeModalProps {
   isOpen: boolean;
@@ -33,6 +34,14 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
   const [useManualRate, setUseManualRate] = useState(false);
   const [manualExchangeRate, setManualExchangeRate] = useState('');
 
+  // 수동 환율로 넣을 수 있는 범위. 서버도 같은 범위로 검사한다
+  const { data: rateRange } = useQuery({
+    queryKey: ['exchange-rate-range'],
+    queryFn: async () => (await accountsApi.getExchangeRateRange()).data,
+    enabled: isOpen,
+    staleTime: 10 * 60 * 1000,
+  });
+
   const handleClose = () => {
     setExchangeAmount('');
     setExchangeFromCurrency('KRW');
@@ -54,6 +63,10 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
       exchangeRate = parseFloat(manualExchangeRate);
       if (isNaN(exchangeRate) || exchangeRate <= 0) {
         alert('올바른 환율을 입력해주세요.');
+        return;
+      }
+      if (rateRange && (exchangeRate < rateRange.min || exchangeRate > rateRange.max)) {
+        alert(`환율은 ${rateRange.min} ~ ${rateRange.max}원 사이로 넣어 주세요.`);
         return;
       }
     } else {
@@ -223,13 +236,22 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
             </label>
           </div>
           {useManualRate && (
-            <input
-              type="number"
-              value={manualExchangeRate}
-              onChange={(e) => setManualExchangeRate(e.target.value)}
-              placeholder="원하는 환율 입력 (예: 1350)"
-              className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
-            />
+            <>
+              <input
+                type="number"
+                value={manualExchangeRate}
+                onChange={(e) => setManualExchangeRate(e.target.value)}
+                placeholder="원하는 환율 입력 (예: 1350)"
+                min={rateRange?.min}
+                max={rateRange?.max}
+                className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
+              />
+              {rateRange && (
+                <p className="text-xs text-tx-2 mt-1">
+                  가능 범위: ₩{rateRange.min.toLocaleString()} ~ ₩{rateRange.max.toLocaleString()}
+                </p>
+              )}
+            </>
           )}
         </div>
 
