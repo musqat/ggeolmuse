@@ -190,6 +190,23 @@ class UserServiceImplTest {
     }
 
     @Test
+    @DisplayName("Keycloak 에 이미 있는 이메일(409)은 연결하지 않고 이미 가입된 이메일로 막는다")
+    void registerUser_KeycloakConflict_EmailAlreadyExists() {
+      // given
+      given(userRepository.existsByEmail(testEmail)).willReturn(false);
+      given(keycloakService.createUser(testEmail, testPassword)).willThrow(
+        org.springframework.web.client.HttpClientErrorException.create(org.springframework.http.HttpStatus.CONFLICT,
+          "Conflict", org.springframework.http.HttpHeaders.EMPTY, new byte[0], null));
+
+      // when & then
+      assertThatThrownBy(() -> userService.registerUser(testEmail, testPassword, testNickname))
+        .isInstanceOf(UserException.class)
+        .hasMessage(UserResponse.EMAIL_ALREADY_EXISTS.getMessage());
+      verify(keycloakService, never()).findUserByEmail(anyString());
+      verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
     @DisplayName("이메일 발송 실패 시에도 사용자 등록은 성공한다")
     void registerUser_EmailSendFailure_StillSucceeds() {
       // given
@@ -720,35 +737,33 @@ class UserServiceImplTest {
     }
 
     @Test
-    @DisplayName("이미 인증된 사용자는 재발송할 수 없다")
-    void resendVerificationEmail_AlreadyVerified_ThrowsException() {
+    @DisplayName("이미 인증된 사용자면 같은 응답으로 끝내고 메일을 보내지 않는다(인증 여부를 드러내지 않는다)")
+    void resendVerificationEmail_AlreadyVerified_SilentlyEnds() {
       // given
       given(rateLimitService.tryAcquire(testEmail)).willReturn(true);
       testUser.setEmailVerified(true);
       given(userRepository.findByEmail(testEmail)).willReturn(Optional.of(testUser));
 
-      // when & then
-      assertThatThrownBy(() ->
-        userService.resendVerificationEmail(testEmail)
-      ).isInstanceOf(UserException.class)
-        .hasMessage(UserResponse.EMAIL_ALREADY_VERIFIED.getMessage());
+      // when
+      userService.resendVerificationEmail(testEmail);
 
+      // then
       verify(emailTokenRepository, never()).save(any(EmailToken.class));
       verify(mailService, never()).sendVerificationEmail(anyString(), anyString());
     }
 
     @Test
-    @DisplayName("존재하지 않는 사용자면 예외가 발생한다")
-    void resendVerificationEmail_UserNotFound_ThrowsException() {
+    @DisplayName("없는 사용자여도 같은 응답으로 끝내고 메일을 보내지 않는다(가입 여부를 드러내지 않는다)")
+    void resendVerificationEmail_UserNotFound_SilentlyEnds() {
       // given
       given(rateLimitService.tryAcquire(testEmail)).willReturn(true);
       given(userRepository.findByEmail(testEmail)).willReturn(Optional.empty());
 
-      // when & then
-      assertThatThrownBy(() ->
-        userService.resendVerificationEmail(testEmail)
-      ).isInstanceOf(UserException.class)
-        .hasMessage(UserResponse.USER_NOT_FOUND.getMessage());
+      // when
+      userService.resendVerificationEmail(testEmail);
+
+      // then
+      verify(mailService, never()).sendVerificationEmail(anyString(), anyString());
     }
 
     @Test
@@ -1056,17 +1071,19 @@ class UserServiceImplTest {
     }
 
     @Test
-    @DisplayName("이메일 미인증 사용자는 비밀번호 재설정 불가")
-    void requestPasswordReset_UnverifiedEmail_ThrowsException() {
+    @DisplayName("이메일 미인증 사용자는 같은 응답으로 끝내고 재설정 메일을 보내지 않는다")
+    void requestPasswordReset_UnverifiedEmail_SilentlyEnds() {
       // given
       testUser.setEmailVerified(false);
       given(rateLimitService.tryAcquire(testEmail)).willReturn(true);
       given(userRepository.findByEmail(testEmail)).willReturn(Optional.of(testUser));
 
-      // when & then
-      assertThatThrownBy(() -> userService.requestPasswordReset(testEmail))
-        .isInstanceOf(UserException.class)
-        .hasMessage(UserResponse.EMAIL_NOT_VERIFIED.getMessage());
+      // when
+      userService.requestPasswordReset(testEmail);
+
+      // then
+      verify(passwordResetTokenRepository, never()).save(any(PasswordResetToken.class));
+      verify(mailService, never()).sendPasswordResetEmail(anyString(), anyString());
     }
 
     @Test
@@ -1258,14 +1275,14 @@ class UserServiceImplTest {
     }
 
     @Test
-    @DisplayName("없는 이메일로 비밀번호 재설정을 요청하면 USER_NOT_FOUND 이고 메일을 보내지 않는다")
-    void requestPasswordReset_UserNotFound() {
+    @DisplayName("없는 이메일로 비밀번호 재설정을 요청해도 같은 응답으로 끝내고 메일을 보내지 않는다")
+    void requestPasswordReset_UserNotFound_SilentlyEnds() {
       given(rateLimitService.tryAcquire(testEmail)).willReturn(true);
       given(userRepository.findByEmail(testEmail)).willReturn(Optional.empty());
 
-      assertThatThrownBy(() -> userService.requestPasswordReset(testEmail))
-        .isInstanceOf(UserException.class)
-        .hasMessage(UserResponse.USER_NOT_FOUND.getMessage());
+      userService.requestPasswordReset(testEmail);
+
+      verify(passwordResetTokenRepository, never()).save(any(PasswordResetToken.class));
       verify(mailService, never()).sendPasswordResetEmail(anyString(), anyString());
     }
 

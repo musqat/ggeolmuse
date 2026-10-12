@@ -319,7 +319,7 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
 
                   {resendSuccess && (
                     <div className="text-success text-xs bg-success/10 p-2 rounded-md">
-                      인증 이메일이 재전송되었습니다. 이메일을 확인해주세요.
+                      인증이 필요한 계정이면 인증 메일을 다시 보냈습니다. 메일함을 확인해주세요.
                     </div>
                   )}
 

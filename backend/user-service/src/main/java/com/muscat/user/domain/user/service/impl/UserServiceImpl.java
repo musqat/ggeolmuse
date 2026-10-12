@@ -26,6 +26,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -71,19 +72,16 @@ public class UserServiceImpl implements UserService {
     }
 
     String keycloakId;
-    boolean isExistingKeycloakUser = false;
 
     try {
       keycloakId = keycloakService.createUser(email, password);
       log.info("Keycloak 사용자 생성 성공: {}", email);
 
-    } catch (org.springframework.web.client.HttpClientErrorException.Forbidden e) {
-      // Keycloak에 이미 사용자 존재 (Google OAuth 등)
-      log.info("Keycloak에 이미 존재하는 사용자, 로컬 DB에만 저장: {}", email);
-      isExistingKeycloakUser = true;
-
-      // Keycloak에서 사용자 ID 조회
-      keycloakId = keycloakService.findUserByEmail(email);
+    } catch (org.springframework.web.client.HttpClientErrorException.Conflict e) {
+      // Keycloak 에 이미 있다(구글로 가입하고 로컬 DB 에는 없는 경우 등). 이메일 확인 없이 그 계정에
+      // 연결하면 남의 이메일로 가입해 인증된 계정을 얻을 수 있어, 로컬 중복과 같이 이미 가입된 이메일로 막는다
+      log.warn("회원가입 실패 - Keycloak 에 이미 있는 이메일: {}", email);
+      throw new UserException(UserResponse.EMAIL_ALREADY_EXISTS);
 
     } catch (UserException | KeycloakException e) {
       log.error("회원가입 실패: {}", e.getMessage(), e);
@@ -97,17 +95,8 @@ public class UserServiceImpl implements UserService {
       User user = userMapper.createLocalUser(email, nickname, keycloakId);
       user.changePassword(passwordEncoder.encode(password));
 
-      // Google OAuth 사용자는 이미 이메일 인증됨
-      if (isExistingKeycloakUser) {
-        user.verifyEmail();
-      }
-
       User savedUser = userRepository.save(user);
-
-      // 새로 생성한 Keycloak 사용자만 이메일 인증 필요
-      if (!isExistingKeycloakUser) {
-        createAndSendVerificationToken(savedUser);
-      }
+      createAndSendVerificationToken(savedUser);
 
       log.info("회원가입 성공: {}", email);
       return savedUser;
@@ -311,18 +300,14 @@ public class UserServiceImpl implements UserService {
       throw new UserException(UserResponse.RATE_LIMIT_EXCEEDED);
     }
 
-    User user = userRepository.findByEmail(email)
-      .orElseThrow(() -> {
-        log.warn("이메일 재발송 실패 - 사용자 없음: {}", email);
-        return new UserException(UserResponse.USER_NOT_FOUND);
-      });
-
-    if (user.isEmailVerified()) {
-      log.warn("이메일 재발송 실패 - 이미 인증됨: {}", email);
-      throw new UserException(UserResponse.EMAIL_ALREADY_VERIFIED);
+    // 가입 여부 · 인증 여부를 응답으로 드러내지 않는다. 보낼 사람에게만 보내고 나머지는 같은 응답으로 끝낸다
+    Optional<User> user = userRepository.findByEmail(email);
+    if (user.isEmpty() || user.get().isEmailVerified()) {
+      log.info("인증 메일 재발송 대상 아님(없는 사용자 또는 인증됨): {}", email);
+      return;
     }
 
-    createAndSendVerificationToken(user);
+    createAndSendVerificationToken(user.get());
     log.debug("이메일 재발송 완료: {}", email);
   }
 
@@ -335,19 +320,14 @@ public class UserServiceImpl implements UserService {
       throw new UserException(UserResponse.RATE_LIMIT_EXCEEDED);
     }
 
-    User user = userRepository.findByEmail(email)
-      .orElseThrow(() -> {
-        log.warn("비밀번호 재설정 요청 실패 - 사용자 없음: {}", email);
-        return new UserException(UserResponse.USER_NOT_FOUND);
-      });
-
-    // 이메일 미인증 사용자는 비밀번호 재설정 불가
-    if (!user.isEmailVerified()) {
-      log.warn("비밀번호 재설정 요청 실패 - 이메일 미인증: {}", email);
-      throw new UserException(UserResponse.EMAIL_NOT_VERIFIED);
+    // 가입 여부를 응답으로 드러내지 않는다. 인증된 사용자에게만 보내고 나머지는 같은 응답으로 끝낸다
+    Optional<User> user = userRepository.findByEmail(email);
+    if (user.isEmpty() || !user.get().isEmailVerified()) {
+      log.info("비밀번호 재설정 메일 대상 아님(없는 사용자 또는 미인증): {}", email);
+      return;
     }
 
-    createAndSendPasswordResetToken(user);
+    createAndSendPasswordResetToken(user.get());
     log.info("비밀번호 재설정 이메일 발송 완료: {}", email);
   }
 

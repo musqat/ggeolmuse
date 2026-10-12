@@ -24,7 +24,6 @@ public enum UserResponse implements ErrorCode {
   INVALID_PASSWORD("비밀번호가 올바르지 않습니다.", HttpStatus.BAD_REQUEST),
   EMAIL_TOKEN_INVALID("유효하지 않은 인증 토큰입니다.", HttpStatus.BAD_REQUEST),
   EMAIL_TOKEN_EXPIRED("인증 토큰이 만료되었습니다.", HttpStatus.BAD_REQUEST),
-  EMAIL_ALREADY_VERIFIED("이미 인증된 이메일입니다.", HttpStatus.BAD_REQUEST),
   PASSWORD_RESET_TOKEN_INVALID("유효하지 않은 비밀번호 재설정 토큰입니다.", HttpStatus.BAD_REQUEST),
   PASSWORD_RESET_TOKEN_EXPIRED("비밀번호 재설정 토큰이 만료되었거나 이미 사용되었습니다.", HttpStatus.BAD_REQUEST),
 
