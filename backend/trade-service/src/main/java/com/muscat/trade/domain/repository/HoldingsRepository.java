@@ -20,9 +20,6 @@ public interface HoldingsRepository extends JpaRepository<Holdings, Long>, Holdi
   // 사용자 ID와 계좌 ID로 보유 종목 조회
   List<Holdings> findByUserIdAndAccountId(String userId, Long accountId);
 
-  // 심볼로 보유 종목 조회 (배당 처리용)
-  List<Holdings> findBySymbol(String symbol);
-
   // 비관적 락으로 보유 종목 조회 (매수/매도 동시성 제어)
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("SELECT h FROM Holdings h WHERE h.userId = :userId AND h.accountId = :accountId AND h.symbol = :symbol")

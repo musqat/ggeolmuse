@@ -2,10 +2,16 @@ package com.muscat.trade.infra.kafka;
 
 import com.muscat.commonlib.constants.CommonConstants;
 import com.muscat.messaging.event.DividendUpdatedEvent;
-import com.muscat.trade.domain.entity.Holdings;
-import com.muscat.trade.domain.repository.HoldingsRepository;
+import com.muscat.trade.common.constants.TradeConstants;
+import com.muscat.trade.common.enums.type.TradeStatus;
+import com.muscat.trade.domain.entity.Trade;
+import com.muscat.trade.domain.repository.TradeRepository;
+import com.muscat.trade.domain.service.DividendEntitlement;
 import java.math.BigDecimal;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -25,7 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class DividendEventConsumer {
 
-  private final HoldingsRepository holdingsRepository;
+  private final TradeRepository tradeRepository;
   private final DividendEventProducer dividendEventProducer;
 
   /**
@@ -52,53 +58,51 @@ public class DividendEventConsumer {
       event.getSymbol(), event.getExDate(), event.getAmount(), partition, offset);
 
     try {
-      // 1. 해당 종목을 보유한 모든 Holdings 조회
-      List<Holdings> holdingsList = holdingsRepository.findBySymbol(event.getSymbol());
+      // 1. 배당락일 전에 이 종목을 거래한 계좌. 지금 보유가 아니라 배당락일 전날 보유가 기준이다
+      List<Trade> trades = tradeRepository.findBySymbolAndStatusAndTradeDateBeforeOrderByTradeDateAsc(
+        event.getSymbol(), TradeStatus.COMPLETED, event.getExDate());
+      Map<Long, List<Trade>> tradesByAccount = trades.stream()
+        .collect(Collectors.groupingBy(Trade::getAccountId, LinkedHashMap::new, Collectors.toList()));
 
-      if (holdingsList.isEmpty()) {
-        log.info("배당금 지급 대상 없음: symbol={} (보유자 없음)", event.getSymbol());
+      if (tradesByAccount.isEmpty()) {
+        log.info("배당금 지급 대상 없음: symbol={}, exDate={} (배당락일 전 거래 없음)", event.getSymbol(), event.getExDate());
         acknowledgment.acknowledge();
         return;
       }
 
-      log.info("배당금 지급 시작: symbol={}, 보유자 수={}", event.getSymbol(), holdingsList.size());
+      log.info("배당금 지급 시작: symbol={}, 대상 계좌 수={}", event.getSymbol(), tradesByAccount.size());
 
-      // 2. 각 Holdings에 대해 배당금 계산 및 지급
+      // 2. 계좌마다 배당락일 전날 보유 수량으로 세후 배당금을 계산해 지급
       int successCount = 0;
       int failCount = 0;
 
-      for (Holdings holdings : holdingsList) {
+      for (Map.Entry<Long, List<Trade>> entry : tradesByAccount.entrySet()) {
+        Long accountId = entry.getKey();
+        String userId = entry.getValue().getFirst().getUserId();
         try {
-          // 배당금 계산: 주당 배당금 × 보유 수량
-          BigDecimal dividendAmount = event.getAmount()
-            .multiply(holdings.getTotalQuantity())
+          BigDecimal shares = DividendEntitlement.sharesHeldBefore(entry.getValue(), event.getExDate());
+          if (shares.signum() <= 0) {
+            continue;
+          }
+
+          BigDecimal grossAmount = event.getAmount().multiply(shares)
             .setScale(CommonConstants.DEFAULT_SCALE, CommonConstants.DEFAULT_ROUNDING_MODE);
+          BigDecimal taxAmount = grossAmount.multiply(TradeConstants.DIVIDEND_TAX_RATE)
+            .setScale(CommonConstants.DEFAULT_SCALE, CommonConstants.DEFAULT_ROUNDING_MODE);
+          BigDecimal netAmount = grossAmount.subtract(taxAmount);
 
-          log.info("배당금 지급 처리: userId={}, accountId={}, symbol={}, quantity={}, dividendAmount={}",
-            holdings.getUserId(), holdings.getAccountId(),
-            holdings.getSymbol(), holdings.getTotalQuantity(), dividendAmount);
+          log.info("배당금 지급 처리: userId={}, accountId={}, symbol={}, quantity={}, 세전={}, 세후={}",
+            userId, accountId, event.getSymbol(), shares, grossAmount, netAmount);
 
-          // 3. 배당금 수령 이벤트 발행 (비동기)
-          // 기존 동기 REST API 호출을 Kafka 이벤트로 전환
           dividendEventProducer.publishDividendReceived(
-            holdings.getUserId(),
-            holdings.getAccountId(),
-            holdings.getSymbol(),
-            event.getExDate().toString(),
-            event.getAmount(),
-            holdings.getTotalQuantity(),
-            dividendAmount
-          );
-
+            userId, accountId, event.getSymbol(), event.getExDate().toString(),
+            event.getAmount(), shares, netAmount);
           successCount++;
-          log.info("배당금 수령 이벤트 발행: userId={}, accountId={}, amount={}",
-            holdings.getUserId(), holdings.getAccountId(), dividendAmount);
 
         } catch (Exception e) {
           failCount++;
           log.error("배당금 지급 실패: userId={}, accountId={}, symbol={}, error={}",
-            holdings.getUserId(), holdings.getAccountId(),
-            holdings.getSymbol(), e.getMessage(), e);
+            userId, accountId, event.getSymbol(), e.getMessage(), e);
           // 개별 지급 실패는 무시하고 계속 진행
         }
       }

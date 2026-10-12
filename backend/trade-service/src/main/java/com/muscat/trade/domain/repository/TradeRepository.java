@@ -12,6 +12,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -27,6 +28,10 @@ public interface TradeRepository extends JpaRepository<Trade, Long>, TradeReposi
   List<Trade> findByUserIdAndSymbolOrderByExecutedAtDesc(String userId, String symbol);
 
   // 배당 계산용. 상태로 거른 사용자/종목별 체결 (오래된순)
+  // 배당락일 전에 이 종목이 체결된 거래(계좌별 배당 수량 계산용)
+  List<Trade> findBySymbolAndStatusAndTradeDateBeforeOrderByTradeDateAsc(String symbol, TradeStatus status,
+    LocalDate exDate);
+
   List<Trade> findByUserIdAndSymbolAndStatusOrderByTradeDateAsc(String userId, String symbol,
     TradeStatus status);
 
