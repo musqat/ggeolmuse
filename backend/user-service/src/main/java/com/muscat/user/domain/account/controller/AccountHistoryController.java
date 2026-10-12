@@ -75,8 +75,9 @@ public class AccountHistoryController {
       throw new UserException(UserResponse.INVALID_INPUT);
     }
 
-    LocalDateTime fromLocal = from != null ? LocalDateTime.ofInstant(from, java.time.ZoneOffset.UTC) : null;
-    LocalDateTime toLocal = to != null ? LocalDateTime.ofInstant(to, java.time.ZoneOffset.UTC) : null;
+    // 저장 시각은 서버 시간대(Asia/Seoul) 같은 시간대로 바꿔 비교한다
+    LocalDateTime fromLocal = from != null ? LocalDateTime.ofInstant(from, java.time.ZoneId.systemDefault()) : null;
+    LocalDateTime toLocal = to != null ? LocalDateTime.ofInstant(to, java.time.ZoneId.systemDefault()) : null;
 
     HistoryListResponseDto response = accountHistoryService.getAccountHistories(
         accountId, page, size, userId, fromLocal, toLocal
