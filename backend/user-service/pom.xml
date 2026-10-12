@@ -267,14 +267,20 @@
                                 <exclude>**/entity/**</exclude>
                             </excludes>
                             <rules>
-                                <!-- 서비스 전체 라인 커버리지. 지금 수치를 바닥으로 두고 테스트를 채울 때마다 올려 70% 까지 간다 -->
+                                <!-- 서비스 전체 커버리지 바닥. 롬복이 만든 코드는 backend/lombok.config 로 빠진다.
+                                     바닥 아래로 내려가면 빌드를 막는다. 테스트를 채우면 올린다 -->
                                 <rule>
                                     <element>BUNDLE</element>
                                     <limits>
                                         <limit>
                                             <counter>LINE</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>0.51</minimum>
+                                            <minimum>0.95</minimum>
+                                        </limit>
+                                        <limit>
+                                            <counter>BRANCH</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.85</minimum>
                                         </limit>
                                     </limits>
                                 </rule>
