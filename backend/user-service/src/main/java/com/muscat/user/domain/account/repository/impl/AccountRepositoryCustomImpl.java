@@ -71,16 +71,6 @@ public class AccountRepositoryCustomImpl implements AccountRepositoryCustom {
   }
 
   @Override
-  public Optional<Account> findByAccountNumber(String accountNumber) {
-    Account result = queryFactory
-      .selectFrom(account)
-      .join(account.user, user).fetchJoin()  // N+1 방지
-      .where(account.accountNumber.eq(accountNumber))
-      .fetchOne();
-    return Optional.ofNullable(result);
-  }
-
-  @Override
   public Optional<Account> findByIdWithLock(Long accountId) {
     Account result = queryFactory
       .selectFrom(account)

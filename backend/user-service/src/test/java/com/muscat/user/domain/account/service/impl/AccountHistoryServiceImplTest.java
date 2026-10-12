@@ -243,6 +243,22 @@ class AccountHistoryServiceImplTest {
     }
 
     @Test
+    @DisplayName("같은 거래 번호의 환전 이력이 있으면 저장하지 않는다")
+    void createExchangeHistory_DuplicateReferenceId_ThrowsException() {
+      given(accountRepository.findById(accountId)).willReturn(Optional.of(testAccount));
+      given(accountHistoryRepository.existsByReferenceId("EX_DUP")).willReturn(true);
+
+      assertThatThrownBy(() ->
+        accountHistoryService.createExchangeHistory(
+          accountId, "KRW", "USD",
+          new BigDecimal("1000000"), new BigDecimal("769.23"),
+          new BigDecimal("1300.00"), "테스트", "EX_DUP")
+      ).isInstanceOf(AccountHistoryException.class)
+        .hasMessage(AccountHistoryResponse.DUPLICATE_TRANSACTION.getMessage());
+      verify(accountHistoryRepository, never()).save(any(AccountHistory.class));
+    }
+
+    @Test
     @DisplayName("환율이 0 이하이면 예외가 발생한다")
     void createExchangeHistory_InvalidExchangeRate_ThrowsException() {
       // when & then

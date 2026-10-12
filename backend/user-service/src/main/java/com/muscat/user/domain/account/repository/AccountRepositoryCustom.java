@@ -19,9 +19,6 @@ public interface AccountRepositoryCustom {
     // 락을 걸고 계좌 조회 (사용자 ID와 계좌 ID로)
     Optional<Account> findByIdAndUserIdWithLock(Long accountId, Long userId);
 
-    // 계좌번호로 계좌 조회
-    Optional<Account> findByAccountNumber(String accountNumber);
-
     // 락을 걸고 계좌 조회 (계좌 ID만으로)
     Optional<Account> findByIdWithLock(Long accountId);
 
