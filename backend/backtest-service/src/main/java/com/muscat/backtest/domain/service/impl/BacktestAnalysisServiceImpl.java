@@ -82,7 +82,8 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
 
     } catch (Exception e) {
       long executionTimeMs = System.currentTimeMillis() - startTime;
-      log.error("DCA 전략 백테스팅 실패: backtestId={}, error={}", backtestId, e.getMessage());
+      log.error("DCA 전략 백테스팅 실패: backtestId={}, error={}, 실행시간={}ms",
+        backtestId, e.getMessage(), executionTimeMs);
       throw e;
     }
   }
@@ -109,7 +110,8 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
 
     } catch (Exception e) {
       long executionTimeMs = System.currentTimeMillis() - startTime;
-      log.error("조건부 매수 전략 백테스팅 실패: backtestId={}, error={}", backtestId, e.getMessage());
+      log.error("조건부 매수 전략 백테스팅 실패: backtestId={}, error={}, 실행시간={}ms",
+        backtestId, e.getMessage(), executionTimeMs);
       throw e;
     }
   }
@@ -148,7 +150,8 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
 
     } catch (Exception e) {
       long executionTimeMs = System.currentTimeMillis() - startTime;
-      log.error("종목 비교 분석 실패: backtestId={}, error={}", backtestId, e.getMessage());
+      log.error("종목 비교 분석 실패: backtestId={}, error={}, 실행시간={}ms",
+        backtestId, e.getMessage(), executionTimeMs);
       throw e;
     }
   }
