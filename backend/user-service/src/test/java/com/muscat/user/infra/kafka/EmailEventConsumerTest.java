@@ -10,9 +10,13 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.muscat.messaging.event.EmailSendEvent;
+import jakarta.mail.Address;
 import jakarta.mail.Session;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 import java.util.Properties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -47,14 +51,20 @@ class EmailEventConsumerTest {
     return sent.getValue();
   }
 
+  private static List<String> fromAddresses(MimeMessage message) throws Exception {
+    return Arrays.stream(Objects.requireNonNull(message.getFrom()))
+      .map(address -> ((InternetAddress) address).getAddress())
+      .toList();
+  }
+
   @Test
   @DisplayName("보내는 주소가 없으면 기본 주소로 보내고 커밋한다")
   void defaultFrom() throws Exception {
     consumer.handleEmailSend(event(null), 0, 1L, acknowledgment);
 
     MimeMessage message = sentMessage();
-    assertThat(((InternetAddress) message.getFrom()[0]).getAddress()).isEqualTo("noreply@example.com");
-    assertThat(message.getAllRecipients()[0].toString()).isEqualTo("user@example.com");
+    assertThat(fromAddresses(message)).containsExactly("noreply@example.com");
+    assertThat(message.getAllRecipients()).extracting(Address::toString).containsExactly("user@example.com");
     assertThat(message.getSubject()).isEqualTo("인증 메일");
     verify(acknowledgment).acknowledge();
   }
@@ -64,7 +74,7 @@ class EmailEventConsumerTest {
   void eventFrom() throws Exception {
     consumer.handleEmailSend(event("support@example.com"), 0, 1L, acknowledgment);
 
-    assertThat(((InternetAddress) sentMessage().getFrom()[0]).getAddress()).isEqualTo("support@example.com");
+    assertThat(fromAddresses(sentMessage())).containsExactly("support@example.com");
   }
 
   @Test

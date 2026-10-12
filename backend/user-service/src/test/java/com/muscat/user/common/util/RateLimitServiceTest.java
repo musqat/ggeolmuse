@@ -2,10 +2,14 @@ package com.muscat.user.common.util;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.LocalDateTime;
+import java.util.Map;
+import java.util.Objects;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @DisplayName("RateLimitService 단위 테스트")
 class RateLimitServiceTest {
@@ -15,6 +19,12 @@ class RateLimitServiceTest {
   @BeforeEach
   void setUp() {
     rateLimitService = new RateLimitService();
+  }
+
+  @SuppressWarnings("unchecked")
+  private Map<String, LocalDateTime> lastSendTimes() {
+    return (Map<String, LocalDateTime>) Objects.requireNonNull(
+      ReflectionTestUtils.getField(rateLimitService, "lastSendTimes"));
   }
 
   @Nested
@@ -50,13 +60,13 @@ class RateLimitServiceTest {
 
     @Test
     @DisplayName("1분 경과 후 요청은 허용")
-    void tryAcquire_AfterOneMinute_Success() throws InterruptedException {
-      // given
+    void tryAcquire_AfterOneMinute_Success() {
+      // given - 실제로 1분을 기다리지 않고 마지막 전송 시각을 2분 전으로 둔다
       String email = "delayed@example.com";
       rateLimitService.tryAcquire(email);
+      lastSendTimes().put(email, LocalDateTime.now().minusMinutes(2));
 
-      // when - 실제로 1분을 기다릴 수 없으므로, reset 사용
-      rateLimitService.reset(email);
+      // when
       boolean result = rateLimitService.tryAcquire(email);
 
       // then

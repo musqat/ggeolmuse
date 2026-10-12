@@ -8,6 +8,7 @@ import com.muscat.commonlib.dto.FxRateDto;
 import com.muscat.commonlib.dto.FxRateRangeDto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Objects;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -37,8 +38,8 @@ class MarketDataServiceClientWrapperTest {
   @Test
   @DisplayName("날짜 환율을 못 받으면 그 날짜로 기본 환율 1300 을 쓴다")
   void fxRateFallback() {
-    FxRateDto fallback = ReflectionTestUtils.invokeMethod(wrapper, "getFxRateFallback", "2024-03-15",
-      new RuntimeException("down"));
+    FxRateDto fallback = Objects.requireNonNull(ReflectionTestUtils.invokeMethod(wrapper, "getFxRateFallback",
+      "2024-03-15", new RuntimeException("down")));
 
     assertThat(fallback.date()).isEqualTo(LocalDate.of(2024, 3, 15));
     assertThat(fallback.rate()).isEqualByComparingTo("1300");
@@ -48,7 +49,8 @@ class MarketDataServiceClientWrapperTest {
   @Test
   @DisplayName("최신 환율을 못 받으면 오늘 날짜로 기본 환율을 쓰고, 범위를 못 받으면 비워 둔다")
   void latestAndRangeFallback() {
-    FxRateDto latest = ReflectionTestUtils.invokeMethod(wrapper, "getLatestFxRateFallback", new RuntimeException("down"));
+    FxRateDto latest = Objects.requireNonNull(
+      ReflectionTestUtils.invokeMethod(wrapper, "getLatestFxRateFallback", new RuntimeException("down")));
     FxRateRangeDto range = ReflectionTestUtils.invokeMethod(wrapper, "getFxRateRangeFallback", new RuntimeException("down"));
 
     assertThat(latest.date()).isEqualTo(LocalDate.now());
