@@ -29,27 +29,38 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.KafkaContainer;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
+import org.testcontainers.kafka.ConfluentKafkaContainer;
 
-@SpringBootTest
+// test 프로필의 H2 설정 대신 운영처럼 Flyway 로 테이블을 만들고 엔티티가 맞는지 검사한다.
+// 레포지토리 테스트가 같은 프로필을 H2 로 쓰고 있어 여기서만 덮어쓴다
+@SpringBootTest(properties = {
+  "spring.jpa.hibernate.ddl-auto=validate",
+  "spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect"
+})
 @ActiveProfiles("test")
 @Testcontainers
 @DisplayName("TradingService 통합 테스트 (TestContainers)")
 class TradingServiceIT {
 
+  // 운영과 같은 Postgres. 마이그레이션이 여기서 돈다
   @Container
-  static KafkaContainer kafka = new KafkaContainer(
-    DockerImageName.parse("confluentinc/cp-kafka:7.6.0"));
+  @ServiceConnection
+  static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
 
+  @Container
+  static ConfluentKafkaContainer kafka = new ConfluentKafkaContainer("confluentinc/cp-kafka:7.6.0");
+
+  // 앱의 Kafka 설정이 이 값을 직접 읽어 ServiceConnection 대신 프로퍼티로 넣는다
   @DynamicPropertySource
-  static void overrideProperties(DynamicPropertyRegistry registry) {
+  static void kafkaProperties(DynamicPropertyRegistry registry) {
     registry.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
   }
 
@@ -62,10 +73,10 @@ class TradingServiceIT {
   @Autowired
   private HoldingsRepository holdingsRepository;
 
-  @MockBean
+  @MockitoBean
   private UserServiceClientWrapper userServiceClientWrapper;
 
-  @MockBean
+  @MockitoBean
   private MarketDataService marketDataService;
 
   private static final String TEST_USER_ID = "test-user@example.com";
