@@ -434,4 +434,31 @@ class AccountServiceIntegrationTest {
       assertThat(allHistories).hasSizeGreaterThanOrEqualTo(3); // 입금 + 환전 + 거래
     }
   }
+
+  @Nested
+  @DisplayName("계좌 목록 조회 통합 테스트")
+  class GetUserAccountsIntegrationTests {
+
+    private CreateAccountRequestDto request(String name) {
+      CreateAccountRequestDto request = new CreateAccountRequestDto();
+      request.setAccountName(name);
+      request.setCommissionRate(new BigDecimal("0.001"));
+      return request;
+    }
+
+    @Test
+    @DisplayName("사용자의 계좌만 사용자 정보와 함께 가져온다(트랜잭션 밖에서 사용자를 읽어도 지연 로딩 오류가 없다)")
+    void getUserAccounts_OnlyOwnWithUserFetched() {
+      accountService.createAccount(testUserId, request("내 계좌 1"));
+      accountService.createAccount(testUserId, request("내 계좌 2"));
+      User other = userRepository.save(User.builder().email("other@example.com").passwordHash("x")
+        .nickname("다른 사용자").keycloakId("keycloak-other").build());
+      accountService.createAccount(other.getId(), request("남의 계좌"));
+
+      List<Account> accounts = accountService.getUserAccounts(testUserId);
+
+      assertThat(accounts).extracting(Account::getAccountName).containsExactlyInAnyOrder("내 계좌 1", "내 계좌 2");
+      assertThat(accounts).allSatisfy(account -> assertThat(account.getUser().getEmail()).isEqualTo(TEST_USER_EMAIL));
+    }
+  }
 }

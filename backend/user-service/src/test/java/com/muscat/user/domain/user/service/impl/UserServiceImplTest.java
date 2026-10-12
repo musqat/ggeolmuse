@@ -190,6 +190,23 @@ class UserServiceImplTest {
     }
 
     @Test
+    @DisplayName("Keycloak 에 이미 있는 이메일(409)은 연결하지 않고 이미 가입된 이메일로 막는다")
+    void registerUser_KeycloakConflict_EmailAlreadyExists() {
+      // given
+      given(userRepository.existsByEmail(testEmail)).willReturn(false);
+      given(keycloakService.createUser(testEmail, testPassword)).willThrow(
+        org.springframework.web.client.HttpClientErrorException.create(org.springframework.http.HttpStatus.CONFLICT,
+          "Conflict", org.springframework.http.HttpHeaders.EMPTY, new byte[0], null));
+
+      // when & then
+      assertThatThrownBy(() -> userService.registerUser(testEmail, testPassword, testNickname))
+        .isInstanceOf(UserException.class)
+        .hasMessage(UserResponse.EMAIL_ALREADY_EXISTS.getMessage());
+      verify(keycloakService, never()).findUserByEmail(anyString());
+      verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
     @DisplayName("이메일 발송 실패 시에도 사용자 등록은 성공한다")
     void registerUser_EmailSendFailure_StillSucceeds() {
       // given
@@ -720,35 +737,33 @@ class UserServiceImplTest {
     }
 
     @Test
-    @DisplayName("이미 인증된 사용자는 재발송할 수 없다")
-    void resendVerificationEmail_AlreadyVerified_ThrowsException() {
+    @DisplayName("이미 인증된 사용자면 같은 응답으로 끝내고 메일을 보내지 않는다(인증 여부를 드러내지 않는다)")
+    void resendVerificationEmail_AlreadyVerified_SilentlyEnds() {
       // given
       given(rateLimitService.tryAcquire(testEmail)).willReturn(true);
       testUser.setEmailVerified(true);
       given(userRepository.findByEmail(testEmail)).willReturn(Optional.of(testUser));
 
-      // when & then
-      assertThatThrownBy(() ->
-        userService.resendVerificationEmail(testEmail)
-      ).isInstanceOf(UserException.class)
-        .hasMessage(UserResponse.EMAIL_ALREADY_VERIFIED.getMessage());
+      // when
+      userService.resendVerificationEmail(testEmail);
 
+      // then
       verify(emailTokenRepository, never()).save(any(EmailToken.class));
       verify(mailService, never()).sendVerificationEmail(anyString(), anyString());
     }
 
     @Test
-    @DisplayName("존재하지 않는 사용자면 예외가 발생한다")
-    void resendVerificationEmail_UserNotFound_ThrowsException() {
+    @DisplayName("없는 사용자여도 같은 응답으로 끝내고 메일을 보내지 않는다(가입 여부를 드러내지 않는다)")
+    void resendVerificationEmail_UserNotFound_SilentlyEnds() {
       // given
       given(rateLimitService.tryAcquire(testEmail)).willReturn(true);
       given(userRepository.findByEmail(testEmail)).willReturn(Optional.empty());
 
-      // when & then
-      assertThatThrownBy(() ->
-        userService.resendVerificationEmail(testEmail)
-      ).isInstanceOf(UserException.class)
-        .hasMessage(UserResponse.USER_NOT_FOUND.getMessage());
+      // when
+      userService.resendVerificationEmail(testEmail);
+
+      // then
+      verify(mailService, never()).sendVerificationEmail(anyString(), anyString());
     }
 
     @Test
@@ -1056,17 +1071,19 @@ class UserServiceImplTest {
     }
 
     @Test
-    @DisplayName("이메일 미인증 사용자는 비밀번호 재설정 불가")
-    void requestPasswordReset_UnverifiedEmail_ThrowsException() {
+    @DisplayName("이메일 미인증 사용자는 같은 응답으로 끝내고 재설정 메일을 보내지 않는다")
+    void requestPasswordReset_UnverifiedEmail_SilentlyEnds() {
       // given
       testUser.setEmailVerified(false);
       given(rateLimitService.tryAcquire(testEmail)).willReturn(true);
       given(userRepository.findByEmail(testEmail)).willReturn(Optional.of(testUser));
 
-      // when & then
-      assertThatThrownBy(() -> userService.requestPasswordReset(testEmail))
-        .isInstanceOf(UserException.class)
-        .hasMessage(UserResponse.EMAIL_NOT_VERIFIED.getMessage());
+      // when
+      userService.requestPasswordReset(testEmail);
+
+      // then
+      verify(passwordResetTokenRepository, never()).save(any(PasswordResetToken.class));
+      verify(mailService, never()).sendPasswordResetEmail(anyString(), anyString());
     }
 
     @Test
@@ -1166,6 +1183,146 @@ class UserServiceImplTest {
       assertThatThrownBy(() -> userService.resetPassword(token, "newPassword"))
         .isInstanceOf(UserException.class)
         .hasMessage(UserResponse.PASSWORD_RESET_TOKEN_EXPIRED.getMessage());
+    }
+  }
+
+  @Nested
+  @DisplayName("실패 경로")
+  class FailureTests {
+
+    private PasswordResetToken validResetToken(String token) {
+      PasswordResetToken resetToken = new PasswordResetToken();
+      resetToken.setToken(token);
+      resetToken.setUser(testUser);
+      resetToken.setExpiryDate(LocalDateTime.now().plusMinutes(30));
+      resetToken.setUsed(false);
+      return resetToken;
+    }
+
+    @Test
+    @DisplayName("가입 중 Keycloak 에서 예상하지 못한 예외가 나면 INTERNAL_SERVER_ERROR 이고 저장하지 않는다")
+    void register_UnexpectedKeycloakError() {
+      given(userRepository.existsByEmail(testEmail)).willReturn(false);
+      given(keycloakService.createUser(testEmail, testPassword)).willThrow(new IllegalStateException("connection reset"));
+
+      assertThatThrownBy(() -> userService.registerUser(testEmail, testPassword, testNickname))
+        .isInstanceOf(UserException.class)
+        .hasMessage(UserResponse.INTERNAL_SERVER_ERROR.getMessage());
+      verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Keycloak 생성 뒤 로컬 저장이 실패하면 INTERNAL_SERVER_ERROR 이고 인증 메일을 보내지 않는다")
+    void register_LocalSaveFails() {
+      given(userRepository.existsByEmail(testEmail)).willReturn(false);
+      given(keycloakService.createUser(testEmail, testPassword)).willReturn(keycloakId);
+      given(userMapper.createLocalUser(testEmail, testNickname, keycloakId)).willReturn(testUser);
+      given(passwordEncoder.encode(testPassword)).willReturn("$2a$10$encoded");
+      given(userRepository.save(testUser)).willThrow(new IllegalStateException("db down"));
+
+      assertThatThrownBy(() -> userService.registerUser(testEmail, testPassword, testNickname))
+        .isInstanceOf(UserException.class)
+        .hasMessage(UserResponse.INTERNAL_SERVER_ERROR.getMessage());
+      verify(mailService, never()).sendVerificationEmail(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("구글 사용자 동기화 저장이 실패하면 INTERNAL_SERVER_ERROR 다")
+    void createUserFromKeycloak_SaveFails() {
+      given(userRepository.existsByEmail(testEmail)).willReturn(false);
+      given(userMapper.createLocalUser(testEmail, testNickname, keycloakId)).willReturn(testUser);
+      given(userRepository.save(testUser)).willThrow(new IllegalStateException("db down"));
+
+      assertThatThrownBy(() -> userService.createUserFromKeycloak(keycloakId, testEmail, testNickname))
+        .isInstanceOf(UserException.class)
+        .hasMessage(UserResponse.INTERNAL_SERVER_ERROR.getMessage());
+    }
+
+    @Test
+    @DisplayName("비밀번호가 맞아도 Keycloak 로그인이 실패하면 실패 사유 KEYCLOAK_ERROR 를 발행하고 그대로 올린다")
+    void login_KeycloakError_PublishesAndRethrows() {
+      given(userRepository.findByEmail(testEmail)).willReturn(Optional.of(testUser));
+      given(passwordEncoder.matches(testPassword, testUser.getPasswordHash())).willReturn(true);
+      KeycloakException failure = new KeycloakException(KeycloakResponse.API_ERROR);
+      given(keycloakService.login(testEmail, testPassword)).willThrow(failure);
+
+      assertThatThrownBy(() -> userService.login(testEmail, testPassword)).isSameAs(failure);
+      verify(loginEventProducer).publishLoginFailed(eq(testEmail), eq("KEYCLOAK_ERROR"), anyString(),
+        eq("PASSWORD"), any(), any());
+    }
+
+    @Test
+    @DisplayName("없는 사용자의 프로필은 고치지 않는다")
+    void updateProfile_UserNotFound() {
+      given(userRepository.findByEmail(testEmail)).willReturn(Optional.empty());
+
+      assertThatThrownBy(() -> userService.updateProfile(testEmail, new UpdateProfileRequestDto()))
+        .isInstanceOf(UserException.class)
+        .hasMessage(UserResponse.USER_NOT_FOUND.getMessage());
+      verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("인증 메일 재발송이 1분 안에 다시 오면 사용자를 찾지 않고 막는다")
+    void resendVerification_RateLimited() {
+      given(rateLimitService.tryAcquire(testEmail)).willReturn(false);
+      given(rateLimitService.getRemainingWaitSeconds(testEmail)).willReturn(42L);
+
+      assertThatThrownBy(() -> userService.resendVerificationEmail(testEmail))
+        .isInstanceOf(UserException.class)
+        .hasMessage(UserResponse.RATE_LIMIT_EXCEEDED.getMessage());
+      verify(userRepository, never()).findByEmail(anyString());
+    }
+
+    @Test
+    @DisplayName("없는 이메일로 비밀번호 재설정을 요청해도 같은 응답으로 끝내고 메일을 보내지 않는다")
+    void requestPasswordReset_UserNotFound_SilentlyEnds() {
+      given(rateLimitService.tryAcquire(testEmail)).willReturn(true);
+      given(userRepository.findByEmail(testEmail)).willReturn(Optional.empty());
+
+      userService.requestPasswordReset(testEmail);
+
+      verify(passwordResetTokenRepository, never()).save(any(PasswordResetToken.class));
+      verify(mailService, never()).sendPasswordResetEmail(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("재설정 메일 발송이 실패해도 요청은 성공으로 끝난다(토큰은 저장된다)")
+    void requestPasswordReset_MailFails_StillSucceeds() {
+      given(rateLimitService.tryAcquire(testEmail)).willReturn(true);
+      given(userRepository.findByEmail(testEmail)).willReturn(Optional.of(testUser));
+      doThrow(new IllegalStateException("smtp down")).when(mailService).sendPasswordResetEmail(eq(testEmail), anyString());
+
+      userService.requestPasswordReset(testEmail);
+
+      verify(passwordResetTokenRepository).save(any(PasswordResetToken.class));
+    }
+
+    @Test
+    @DisplayName("Keycloak 비밀번호 재설정이 실패하면 로컬 비밀번호와 토큰을 그대로 둔다")
+    void resetPassword_KeycloakFails_KeepsLocalState() {
+      given(passwordResetTokenRepository.findByTokenWithUser("reset-token")).willReturn(Optional.of(validResetToken("reset-token")));
+      doThrow(new KeycloakException(KeycloakResponse.API_ERROR)).when(keycloakService).resetPassword(keycloakId, "N3w-pass!");
+
+      assertThatThrownBy(() -> userService.resetPassword("reset-token", "N3w-pass!"))
+        .isInstanceOf(UserException.class)
+        .hasMessage(UserResponse.PASSWORD_RESET_FAILED.getMessage());
+      assertThat(testUser.getPasswordHash()).isEqualTo("$2a$10$encodedPassword");
+      verify(userRepository, never()).save(any());
+      verify(passwordResetTokenRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("관리자 비밀번호 변경도 Keycloak 이 실패하면 로컬 비밀번호를 바꾸지 않는다")
+    void adminUpdatePassword_KeycloakFails() {
+      given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
+      doThrow(new KeycloakException(KeycloakResponse.API_ERROR)).when(keycloakService).resetPassword(keycloakId, "N3w-pass!");
+
+      assertThatThrownBy(() -> userService.adminUpdatePassword(1L, "N3w-pass!"))
+        .isInstanceOf(UserException.class)
+        .hasMessage(UserResponse.INTERNAL_SERVER_ERROR.getMessage());
+      assertThat(testUser.getPasswordHash()).isEqualTo("$2a$10$encodedPassword");
+      verify(userRepository, never()).save(any());
     }
   }
 }

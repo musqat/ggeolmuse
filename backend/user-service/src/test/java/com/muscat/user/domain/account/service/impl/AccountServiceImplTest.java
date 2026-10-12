@@ -3,16 +3,20 @@ package com.muscat.user.domain.account.service.impl;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.muscat.commonlib.dto.FxRateDto;
 import com.muscat.commonlib.dto.FxRateRangeDto;
+import com.muscat.commonlib.exception.ServiceException;
 import com.muscat.messaging.event.DividendReceivedEvent;
 import com.muscat.messaging.event.TradeCompletedEvent;
 import com.muscat.user.common.enums.responses.AccountResponse;
@@ -141,8 +145,6 @@ class AccountServiceImplTest {
       given(userRepository.findById(userId)).willReturn(Optional.of(testUser));
       given(accountRepository.existsByUserIdAndAccountName(userId, "신규계좌"))
         .willReturn(false);
-      given(accountRepository.findByAccountNumber(anyString()))
-        .willReturn(Optional.empty());
       given(accountRepository.save(any(Account.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
 
@@ -171,8 +173,6 @@ class AccountServiceImplTest {
       given(userRepository.findById(userId)).willReturn(Optional.of(testUser));
       given(accountRepository.existsByUserIdAndAccountName(userId, "신규계좌"))
         .willReturn(false);
-      given(accountRepository.findByAccountNumber(anyString()))
-        .willReturn(Optional.empty());
       given(accountRepository.save(any(Account.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
 
@@ -194,8 +194,6 @@ class AccountServiceImplTest {
       given(userRepository.findById(userId)).willReturn(Optional.of(testUser));
       given(accountRepository.existsByUserIdAndAccountName(userId, "신규계좌"))
         .willReturn(false);
-      given(accountRepository.findByAccountNumber(anyString()))
-        .willReturn(Optional.empty());
       given(accountRepository.save(any(Account.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
 
@@ -1160,5 +1158,167 @@ class AccountServiceImplTest {
       .totalAmount(new BigDecimal(totalAmount))
       .currency("USD")
       .build();
+  }
+
+  @Nested
+  @DisplayName("실패 · 경계 경로")
+  class FailureAndBoundaryTests {
+
+    // MoneyUtils.validateSufficientBalance 가 실제로 던지는 예외
+    private ServiceException insufficient() {
+      return new ServiceException("INSUFFICIENT_BALANCE", "잔액 부족: 현재 1000000 KRW, 필요 2000000 KRW");
+    }
+
+    private void lockedAccount() {
+      given(accountRepository.findByIdAndUserIdWithLock(accountId, userId)).willReturn(Optional.of(testAccount));
+    }
+
+    private DividendReceivedEvent dividend(String eventUserId) {
+      return DividendReceivedEvent.builder().userId(eventUserId).accountId(accountId).symbol("AAPL")
+        .quantity(BigDecimal.TEN).dividendPerShare(new BigDecimal("0.25")).totalAmount(new BigDecimal("2.12"))
+        .exDate("2024-11-01").currency("USD").build();
+    }
+
+    @Test
+    @DisplayName("원화 → 달러 잔액 부족은 감사 로그를 남기고 잔액 · 이력 · 이벤트를 건드리지 않는다")
+    void krwToUsd_Insufficient_LogsAndChangesNothing() {
+      lockedAccount();
+      BigDecimal amount = new BigDecimal("2000000");
+      doThrow(insufficient()).when(accountCalculator).validateExchangeRequest(testAccount, amount, "KRW");
+
+      assertThatThrownBy(() -> accountService.exchangeKrwToUsd(accountId, userId, amount, new BigDecimal("1300")))
+        .isInstanceOf(ServiceException.class);
+
+      verify(userLogger).logInsufficientBalance(accountId, "KRW", amount, new BigDecimal("1000000"));
+      assertThat(testAccount.getBalanceKrw()).isEqualByComparingTo("1000000");
+      verifyNoInteractions(accountHistoryService, accountEventProducer, depositWithdrawalEventProducer);
+    }
+
+    @Test
+    @DisplayName("달러 → 원화 잔액 부족도 감사 로그를 남긴다")
+    void usdToKrw_Insufficient_Logs() {
+      lockedAccount();
+      BigDecimal amount = new BigDecimal("100");
+      doThrow(insufficient()).when(accountCalculator).validateExchangeRequest(testAccount, amount, "USD");
+
+      assertThatThrownBy(() -> accountService.exchangeUsdToKrw(accountId, userId, amount, new BigDecimal("1300")))
+        .isInstanceOf(ServiceException.class);
+
+      verify(userLogger).logInsufficientBalance(accountId, "USD", amount, BigDecimal.ZERO);
+      verifyNoInteractions(accountHistoryService, depositWithdrawalEventProducer);
+    }
+
+    @Test
+    @DisplayName("잔액 부족이 아닌 검증 실패(최소 금액 등)는 잔액 부족 로그를 남기지 않는다")
+    void otherValidationFailure_NoInsufficientLog() {
+      lockedAccount();
+      BigDecimal amount = new BigDecimal("100");
+      doThrow(new ServiceException("BELOW_MINIMUM_EXCHANGE", "최소 환전 금액 미만"))
+        .when(accountCalculator).validateExchangeRequest(testAccount, amount, "KRW");
+
+      assertThatThrownBy(() -> accountService.exchangeKrwToUsd(accountId, userId, amount, new BigDecimal("1300")))
+        .isInstanceOf(ServiceException.class);
+
+      verify(userLogger, never()).logInsufficientBalance(any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("범위 밖 환율은 계좌를 잠그기 전에 막는다")
+    void rateOutOfRange_RejectedBeforeLock() {
+      assertThatThrownBy(() -> accountService.exchangeKrwToUsd(accountId, userId, new BigDecimal("10000"), BigDecimal.ONE))
+        .isInstanceOf(AccountException.class)
+        .hasMessageContaining("1000 ~ 1650");
+
+      verify(accountRepository, never()).findByIdAndUserIdWithLock(any(), any());
+    }
+
+    @Test
+    @DisplayName("5천만 원을 넘는 입금만 대량 거래로 기록한다")
+    void largeDeposit_Logged() {
+      lockedAccount();
+
+      accountService.depositKrw(accountId, userId, new BigDecimal("10000"));
+      accountService.depositKrw(accountId, userId, new BigDecimal("60000000"));
+
+      verify(userLogger).logLargeTransaction(eq(accountId), eq("KRW_DEPOSIT"),
+        argThat(amount -> amount.compareTo(new BigDecimal("60000000")) == 0), eq("KRW"));
+      verify(userLogger, times(1)).logLargeTransaction(any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("잔액 반영 사유로 이벤트 종류를 정한다: 거래 취소 · 그 밖")
+    void updateUsdBalance_UpdateTypeFromDescription() {
+      testAccount.setBalanceUsd(new BigDecimal("100"));
+      given(accountRepository.findByIdWithLock(accountId)).willReturn(Optional.of(testAccount));
+
+      accountService.updateUsdBalance(accountId, userId, new BigDecimal("10"), "거래 취소: AAPL");
+      accountService.updateUsdBalance(accountId, userId, new BigDecimal("5"), "수동 조정");
+
+      verify(accountEventProducer).publishAccountBalanceUpdated(eq(testAccount), eq("TRADE_CANCELLED"),
+        any(), any(), any(), any(), any(), any(), any());
+      verify(accountEventProducer).publishAccountBalanceUpdated(eq(testAccount), eq("USD_BALANCE_UPDATE"),
+        any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("날짜 환율이 정상 범위를 벗어나면 기록하고 최신 환율을, 조회가 실패해도 최신 환율을 쓴다")
+    void rateByDate_AbnormalOrFailure_FallsBackToLatest() {
+      LocalDate abnormalDay = LocalDate.of(2025, 1, 2);
+      LocalDate failingDay = LocalDate.of(2025, 1, 3);
+      given(marketDataServiceClientWrapper.getFxRate(abnormalDay.toString()))
+        .willReturn(new FxRateDto(abnormalDay, new BigDecimal("5000"), "KOREAEXIM"));
+      given(marketDataServiceClientWrapper.getFxRate(failingDay.toString())).willThrow(new IllegalStateException("down"));
+      given(marketDataServiceClientWrapper.getLatestFxRate())
+        .willReturn(new FxRateDto(LocalDate.now(), new BigDecimal("1320.00"), "KOREAEXIM"));
+
+      assertThat(accountService.getExchangeRateByDate(abnormalDay)).isEqualByComparingTo("1320.00");
+      assertThat(accountService.getExchangeRateByDate(failingDay)).isEqualByComparingTo("1320.00");
+      verify(userLogger).logAbnormalExchangeRate(argThat(rate -> rate.compareTo(new BigDecimal("5000")) == 0), anyString());
+    }
+
+    @Test
+    @DisplayName("배당 입금이 실패하면 예외를 올리고 입금 기록을 남기지 않는다")
+    void dividend_DepositFails_NoSettlement() {
+      given(accountRepository.findById(accountId)).willReturn(Optional.of(testAccount));
+      // 잔액 반영 단계의 잠금 조회가 비어 계좌 없음으로 실패한다
+      given(accountRepository.findByIdWithLock(accountId)).willReturn(Optional.empty());
+
+      assertThatThrownBy(() -> accountService.processDividendReceivedEvent(dividend(userId.toString())))
+        .isInstanceOf(AccountException.class);
+
+      verify(dividendSettlementRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    @DisplayName("이벤트의 사용자가 Keycloak UUID 면 사용자 id 로 바꾸고, 없는 사용자면 계좌 없음이다")
+    void dividend_KeycloakUserId() {
+      given(userRepository.findByKeycloakId("kc-uuid-1")).willReturn(Optional.of(testUser));
+      given(accountRepository.findById(accountId)).willReturn(Optional.of(testAccount));
+      given(accountRepository.findByIdWithLock(accountId)).willReturn(Optional.of(testAccount));
+
+      accountService.processDividendReceivedEvent(dividend("kc-uuid-1"));
+
+      assertThat(testAccount.getBalanceUsd()).isEqualByComparingTo("2.12");
+      assertThatThrownBy(() -> accountService.processDividendReceivedEvent(dividend("kc-unknown")))
+        .isInstanceOf(AccountException.class)
+        .hasMessage(AccountResponse.ACCOUNT_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    @DisplayName("계좌번호가 열 번 모두 겹치면 계좌를 만들지 않는다")
+    void accountNumberCollision_CreationFailed() {
+      given(userRepository.findById(userId)).willReturn(Optional.of(testUser));
+      given(accountRepository.existsByAccountNumber(anyString())).willReturn(true);
+      CreateAccountRequestDto request = new CreateAccountRequestDto();
+      request.setAccountName("새 계좌");
+      request.setCommissionRate(new BigDecimal("0.001"));
+
+      assertThatThrownBy(() -> accountService.createAccount(userId, request))
+        .isInstanceOf(AccountException.class)
+        .hasMessage(AccountResponse.ACCOUNT_CREATION_FAILED.getMessage());
+
+      verify(accountRepository, times(10)).existsByAccountNumber(anyString());
+      verify(accountRepository, never()).save(any());
+    }
   }
 }

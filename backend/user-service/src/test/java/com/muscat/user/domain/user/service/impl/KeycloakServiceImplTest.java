@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
@@ -23,6 +24,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -33,6 +35,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -524,5 +527,148 @@ class KeycloakServiceImplTest {
     ArgumentCaptor<HttpEntity<MultiValueMap<String, String>>> request = ArgumentCaptor.forClass(HttpEntity.class);
     verify(restTemplate).postForEntity(anyString(), request.capture(), eq(responseType));
     return request.getValue().getBody();
+  }
+
+  // 관리자 토큰 요청(postForEntity ... Map.class)이 돌려줄 응답
+  private void adminToken(Map<String, Object> body) {
+    given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(Map.class)))
+      .willReturn(ResponseEntity.ok(body));
+  }
+
+  private void adminTokenOk() {
+    adminToken(Map.of("access_token", "admin_access_token"));
+  }
+
+  @Nested
+  @DisplayName("관리자 API · 실패 경로")
+  class AdminApiTests {
+
+    @Test
+    @DisplayName("비밀번호 재설정은 관리자 토큰으로 그 사용자의 reset-password 에 영구 비밀번호를 보낸다")
+    @SuppressWarnings("unchecked")
+    void resetPassword_PutsPermanentPassword() {
+      adminTokenOk();
+
+      keycloakService.resetPassword(TEST_KEYCLOAK_ID, "N3w-pass!");
+
+      ArgumentCaptor<HttpEntity<Map<String, Object>>> entity = ArgumentCaptor.forClass(HttpEntity.class);
+      verify(restTemplate).put(eq(AUTH_SERVER_URL + "/admin/realms/" + REALM + "/users/" + TEST_KEYCLOAK_ID
+        + "/reset-password"), entity.capture());
+      assertThat(entity.getValue().getHeaders().getFirst(HttpHeaders.AUTHORIZATION)).isEqualTo("Bearer admin_access_token");
+      assertThat(entity.getValue().getBody())
+        .containsEntry("type", "password")
+        .containsEntry("value", "N3w-pass!")
+        .containsEntry("temporary", false);
+    }
+
+    @Test
+    @DisplayName("관리자 토큰 응답이 비었거나 access_token 이 없으면 API_ERROR 다")
+    void adminToken_BadResponse_ApiError() {
+      given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(Map.class)))
+        .willReturn(ResponseEntity.ok(null))
+        .willReturn(ResponseEntity.ok(Map.of("token_type", "Bearer")))
+        .willThrow(new IllegalStateException("connection reset"));
+
+      for (int i = 0; i < 3; i++) {
+        assertThatThrownBy(() -> keycloakService.resetPassword(TEST_KEYCLOAK_ID, "N3w-pass!"))
+          .isInstanceOf(KeycloakException.class)
+          .hasMessage(KeycloakResponse.API_ERROR.getMessage());
+      }
+      verify(restTemplate, never()).put(anyString(), any(HttpEntity.class));
+    }
+
+    @Test
+    @DisplayName("이메일로 사용자를 찾으면 id, 없거나 조회가 실패하면 null 이다")
+    void findUserByEmail() {
+      adminTokenOk();
+      given(restTemplate.exchange(contains("email=found@example.com"), eq(HttpMethod.GET), any(HttpEntity.class), eq(List.class)))
+        .willReturn(ResponseEntity.ok(List.of(Map.of("id", TEST_KEYCLOAK_ID))));
+      given(restTemplate.exchange(contains("email=none@example.com"), eq(HttpMethod.GET), any(HttpEntity.class), eq(List.class)))
+        .willReturn(ResponseEntity.ok(List.of()));
+      given(restTemplate.exchange(contains("email=down@example.com"), eq(HttpMethod.GET), any(HttpEntity.class), eq(List.class)))
+        .willThrow(new HttpClientErrorException(HttpStatus.SERVICE_UNAVAILABLE));
+
+      assertThat(keycloakService.findUserByEmail("found@example.com")).isEqualTo(TEST_KEYCLOAK_ID);
+      assertThat(keycloakService.findUserByEmail("none@example.com")).isNull();
+      assertThat(keycloakService.findUserByEmail("down@example.com")).isNull();
+    }
+
+    @Test
+    @DisplayName("realm 역할을 조회해 그대로 사용자 역할 매핑에 넣는다")
+    @SuppressWarnings("unchecked")
+    void assignRealmRole_PostsRoleMapping() {
+      adminTokenOk();
+      Map<String, Object> role = Map.of("id", "role-1", "name", "admin");
+      given(restTemplate.exchange(eq(AUTH_SERVER_URL + "/admin/realms/" + REALM + "/roles/admin"), eq(HttpMethod.GET),
+        any(HttpEntity.class), eq(Map.class))).willReturn(ResponseEntity.ok(role));
+
+      keycloakService.assignRealmRole(TEST_KEYCLOAK_ID, "admin");
+
+      ArgumentCaptor<HttpEntity<List<Map<String, Object>>>> entity = ArgumentCaptor.forClass(HttpEntity.class);
+      verify(restTemplate).postForEntity(eq(AUTH_SERVER_URL + "/admin/realms/" + REALM + "/users/" + TEST_KEYCLOAK_ID
+        + "/role-mappings/realm"), entity.capture(), eq(Void.class));
+      assertThat(entity.getValue().getBody()).containsExactly(role);
+    }
+
+    @Test
+    @DisplayName("역할이 없거나 조회가 실패하면 역할을 넣지 않고 API_ERROR 다")
+    void assignRealmRole_RoleMissing_ApiError() {
+      adminTokenOk();
+      given(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(Map.class)))
+        .willReturn(ResponseEntity.ok(null))
+        .willThrow(new HttpClientErrorException(HttpStatus.NOT_FOUND));
+
+      for (int i = 0; i < 2; i++) {
+        assertThatThrownBy(() -> keycloakService.assignRealmRole(TEST_KEYCLOAK_ID, "admin"))
+          .isInstanceOf(KeycloakException.class)
+          .hasMessage(KeycloakResponse.API_ERROR.getMessage());
+      }
+      verify(restTemplate, never()).postForEntity(contains("/role-mappings/realm"), any(), eq(Void.class));
+    }
+
+    @Test
+    @DisplayName("관리자 생성은 사용자를 만들고 admin 역할을 넣는다. 역할을 못 넣으면 USER_CREATE_FAILED 다")
+    void createAdminUser() {
+      adminTokenOk();
+      HttpHeaders created = new HttpHeaders();
+      created.add("Location", AUTH_SERVER_URL + "/admin/realms/" + REALM + "/users/" + TEST_KEYCLOAK_ID);
+      given(restTemplate.postForEntity(contains("/users"), any(HttpEntity.class), eq(Void.class)))
+        .willReturn(new ResponseEntity<>(created, HttpStatus.CREATED));
+      given(restTemplate.exchange(contains("/roles/admin"), eq(HttpMethod.GET), any(HttpEntity.class), eq(Map.class)))
+        .willReturn(ResponseEntity.ok(Map.of("id", "role-1", "name", "admin")))
+        .willReturn(ResponseEntity.ok(null));
+
+      assertThat(keycloakService.createAdminUser("admin@example.com", "Adm1n-pass!")).isEqualTo(TEST_KEYCLOAK_ID);
+      assertThatThrownBy(() -> keycloakService.createAdminUser("admin@example.com", "Adm1n-pass!"))
+        .isInstanceOf(KeycloakException.class)
+        .hasMessage(KeycloakResponse.USER_CREATE_FAILED.getMessage());
+    }
+
+    @Test
+    @DisplayName("코드 교환 · 토큰 갱신 중 HTTP 오류가 아닌 예외도 정해진 오류로 바꾼다")
+    void unexpectedErrors_Mapped() {
+      given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(LoginResponseDto.class)))
+        .willThrow(new IllegalStateException("connection reset"));
+
+      assertThatThrownBy(() -> keycloakService.exchangePkceCode("code", "verifier", "https://example.com/callback"))
+        .isInstanceOf(KeycloakException.class)
+        .hasMessage(KeycloakResponse.API_ERROR.getMessage());
+      assertThatThrownBy(() -> keycloakService.refreshToken("old-refresh"))
+        .isInstanceOf(KeycloakException.class)
+        .hasMessage(KeycloakResponse.TOKEN_REFRESH_FAILED.getMessage());
+    }
+
+    @Test
+    @DisplayName("payload 를 못 읽는 refresh token 은 confidential client 로 갱신한다")
+    void refreshToken_UnreadableToken_UsesClientSecret() {
+      given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(LoginResponseDto.class)))
+        .willReturn(ResponseEntity.ok(new LoginResponseDto("a", "r", 3600, "Bearer", 7200)));
+
+      keycloakService.refreshToken("header.%%%not-base64%%%.signature");
+
+      MultiValueMap<String, String> body = capturedForm(LoginResponseDto.class);
+      assertThat(body.getFirst("client_id")).isEqualTo(CLIENT_ID);
+      assertThat(body.getFirst("client_secret")).isEqualTo(CLIENT_SECRET);
+    }
   }
 }

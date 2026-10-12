@@ -2,6 +2,7 @@ package com.muscat.user.domain.account.service.impl;
 
 import com.muscat.commonlib.dto.FxRateDto;
 import com.muscat.commonlib.dto.FxRateRangeDto;
+import com.muscat.commonlib.exception.BaseException;
 import com.muscat.commonlib.util.MoneyUtils;
 import com.muscat.messaging.event.DividendReceivedEvent;
 import com.muscat.messaging.event.TradeCompletedEvent;
@@ -47,6 +48,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @Slf4j
 public class AccountServiceImpl implements AccountService {
+
+  // 잔액 부족 오류 코드. MoneyUtils(ServiceException) 와 AccountResponse(AccountException) 가 같은 이름을 쓴다
+  private static final String INSUFFICIENT_BALANCE_CODE = "INSUFFICIENT_BALANCE";
 
   private final AccountRepository accountRepository;
   private final AccountHistoryRepository accountHistoryRepository;
@@ -175,10 +179,11 @@ public class AccountServiceImpl implements AccountService {
 
     exchangeRate = MoneyUtils.roundExchangeRate(exchangeRate);
 
+    // 잔액 검사는 MoneyUtils 의 ServiceException 으로 온다. 메시지가 아니라 오류 코드로 본다
     try {
       accountCalculator.validateExchangeRequest(account, krwAmount, "KRW");
-    } catch (AccountException e) {
-      if (e.getMessage().contains("잔액 부족")) {
+    } catch (BaseException e) {
+      if (INSUFFICIENT_BALANCE_CODE.equals(e.getErrorCode())) {
         userLogger.logInsufficientBalance(accountId, "KRW",
           krwAmount, account.getBalanceKrw());
       }
@@ -246,8 +251,8 @@ public class AccountServiceImpl implements AccountService {
 
     try {
       accountCalculator.validateExchangeRequest(account, usdAmount, "USD");
-    } catch (AccountException e) {
-      if (e.getMessage().contains("잔액 부족")) {
+    } catch (BaseException e) {
+      if (INSUFFICIENT_BALANCE_CODE.equals(e.getErrorCode())) {
         userLogger.logInsufficientBalance(accountId, "USD",
           usdAmount, account.getBalanceUsd());
       }

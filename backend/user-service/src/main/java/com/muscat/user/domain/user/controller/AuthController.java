@@ -179,19 +179,19 @@ public class AuthController {
   @ApiResponses(value = {
     @ApiResponse(
       responseCode = "200",
-      description = "인증 이메일 재발송 성공"
+      description = "요청 접수. 가입 여부 · 인증 여부와 상관없이 같은 응답이고, 미인증 사용자에게만 메일을 보낸다"
     ),
     @ApiResponse(
       responseCode = "400",
-      description = "잘못된 이메일 또는 이미 인증된 계정",
+      description = "이메일 형식 오류",
       content = @Content(
         mediaType = "application/json",
         schema = @Schema(implementation = ProblemDetail.class)
       )
     ),
     @ApiResponse(
-      responseCode = "404",
-      description = "존재하지 않는 사용자",
+      responseCode = "429",
+      description = "요청 횟수 초과 (1분에 1번 제한)",
       content = @Content(
         mediaType = "application/json",
         schema = @Schema(implementation = ProblemDetail.class)
@@ -215,15 +215,7 @@ public class AuthController {
   @ApiResponses(value = {
     @ApiResponse(
       responseCode = "200",
-      description = "비밀번호 재설정 이메일 발송 성공"
-    ),
-    @ApiResponse(
-      responseCode = "404",
-      description = "존재하지 않는 사용자",
-      content = @Content(
-        mediaType = "application/json",
-        schema = @Schema(implementation = ProblemDetail.class)
-      )
+      description = "요청 접수. 가입 여부와 상관없이 같은 응답이고, 인증된 사용자에게만 메일을 보낸다"
     ),
     @ApiResponse(
       responseCode = "429",

@@ -111,10 +111,10 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
             forgotPasswordSuccess ? (
               // 성공 메시지
               <div className="text-center py-8">
-                <h3 className="text-lg font-semibold text-tx-1 mb-2">이메일을 발송했습니다</h3>
+                <h3 className="text-lg font-semibold text-tx-1 mb-2">요청을 접수했습니다</h3>
                 <p className="text-sm text-tx-2 mb-6">
-                  비밀번호 재설정 링크가 이메일로 전송되었습니다.<br />
-                  이메일을 확인해주세요.
+                  가입된 이메일이면 비밀번호 재설정 링크를 보냈습니다.<br />
+                  메일이 오지 않으면 주소를 확인해주세요.
                 </p>
                 <button
                   onClick={handleBackToLogin}
