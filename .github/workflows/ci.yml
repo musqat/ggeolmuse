@@ -22,7 +22,7 @@ jobs:
       frontend: ${{ steps.pick.outputs.frontend }}
       chat: ${{ steps.pick.outputs.chat }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - id: pick
@@ -36,14 +36,14 @@ jobs:
     needs: changes
     if: needs.changes.outputs.services != '[]'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 21
       # 잡마다 받는 의존이 달라 키를 나눈다.
       - name: Cache Maven dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.m2
           key: ${{ runner.os }}-m2-bom-${{ hashFiles('**/pom.xml') }}
@@ -57,13 +57,13 @@ jobs:
     runs-on: ubuntu-latest
     needs: [changes, build-bom]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 21
       - name: Cache Maven dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.m2
           key: ${{ runner.os }}-m2-messaging-${{ hashFiles('**/pom.xml') }}
@@ -85,13 +85,13 @@ jobs:
       matrix:
         service: ${{ fromJSON(needs.changes.outputs.services) }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 21
       - name: Cache Maven dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ matrix.service }}-${{ hashFiles('**/pom.xml') }}
@@ -107,7 +107,7 @@ jobs:
       # 로그인 없이 받으면 Docker Hub 횟수 제한(429)에 걸린다. 읽기 전용 토큰으로 받는다.
       # 통합 테스트의 Testcontainers 도 Postgres · Kafka 이미지를 받아 테스트 전에 로그인한다
       - name: Docker Hub 로그인
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -117,11 +117,11 @@ jobs:
           # 단위 테스트(*Test)는 surefire, 통합 테스트(*IT)는 failsafe 가 verify 에서 돈다.
           # 커버리지 검사(user)도 verify 에서 돌아 바닥 아래로 내려가면 막는다
           mvn -s $GITHUB_WORKSPACE/.mvn/ci-settings.xml clean verify
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       # 러너가 매번 새 머신이라 Docker 레이어를 Actions 캐시에 얹어 재사용한다
       - name: Build Docker Image for ${{ matrix.service }}
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: backend/${{ matrix.service }}/Dockerfile
@@ -145,8 +145,8 @@ jobs:
       run:
         working-directory: frontend-web
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -164,13 +164,13 @@ jobs:
 
       # 로그인 없이 받으면 Docker Hub 횟수 제한(429)에 걸린다. 읽기 전용 토큰으로 받는다
       - name: Docker Hub 로그인
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
       - name: Build Docker Image for frontend-web
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: frontend-web
           file: frontend-web/Dockerfile
@@ -191,16 +191,16 @@ jobs:
     needs: changes
     if: needs.changes.outputs.chat == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # 로그인 없이 받으면 Docker Hub 횟수 제한(429)에 걸린다. 읽기 전용 토큰으로 받는다
       - name: Docker Hub 로그인
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
       - name: Build Docker Image for chat-service
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: backend/chat-service
           file: backend/chat-service/Dockerfile
@@ -219,8 +219,8 @@ jobs:
   scan-manifests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: azure/setup-helm@v4
+      - uses: actions/checkout@v7
+      - uses: azure/setup-helm@v5
 
       - name: 실제 배포본을 뽑는다
         run: |
@@ -242,7 +242,7 @@ jobs:
           severity: CRITICAL,HIGH
           exit-code: '0'
 
-      - uses: github/codeql-action/upload-sarif@v3
+      - uses: github/codeql-action/upload-sarif@v4
         if: always()
         continue-on-error: true
         with:
