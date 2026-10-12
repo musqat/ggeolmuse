@@ -8,21 +8,11 @@ spring:
     compatibility-verifier:
       enabled: false
 
-  datasource:
-    url: jdbc:h2:mem:testdb
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
-
+  # DB 는 테스트의 Postgres 컨테이너가 붙는다. 운영처럼 Flyway 로 테이블을 만들고 엔티티가 맞는지 검사한다
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: validate
     show-sql: false
-    database-platform: org.hibernate.dialect.H2Dialect
-
-  h2:
-    console:
-      enabled: true
 
 server:
   port: 0

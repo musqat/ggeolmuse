@@ -32,13 +32,23 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 @SpringBootTest
 @ActiveProfiles("test")
+@Testcontainers
 @DisplayName("TradingSimulationService 통합 테스트")
 class TradingSimulationServiceIT {
+
+  // 운영과 같은 Postgres. 마이그레이션이 여기서 돌고 엔티티 검사(validate)를 거친다
+  @Container
+  @ServiceConnection
+  static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
 
   @Autowired
   private TradingSimulationServiceImpl tradingSimulationService;
@@ -49,10 +59,10 @@ class TradingSimulationServiceIT {
   @Autowired
   private InvestmentBacktestResultRepository investmentBacktestResultRepository;
 
-  @MockBean
+  @MockitoBean
   private MarketDataClientWrapper marketDataClientWrapper;
 
-  @MockBean
+  @MockitoBean
   private TradeServiceClientWrapper tradeServiceClientWrapper;
 
   private static final String TEST_USER_ID = "integration-test-user@example.com";
