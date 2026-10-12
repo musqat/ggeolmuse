@@ -20,8 +20,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 @RestControllerAdvice(basePackageClasses = {
     com.muscat.user.domain.user.controller.AuthController.class,
     com.muscat.user.domain.user.controller.UserController.class,
-    com.muscat.user.domain.account.controller.AccountController.class,
-    com.muscat.user.domain.account.controller.AccountHistoryController.class
+    com.muscat.user.domain.account.controller.AccountController.class
 })
 @Slf4j
 public class GlobalExceptionHandler extends BaseExceptionHandler {

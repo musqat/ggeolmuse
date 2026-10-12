@@ -6,7 +6,6 @@ import com.muscat.user.common.enums.responses.AccountResponse;
 import com.muscat.user.common.enums.type.TransactionType;
 import com.muscat.user.common.exceptions.AccountException;
 import com.muscat.user.common.exceptions.AccountHistoryException;
-import com.muscat.user.domain.account.dto.response.HistoryListResponseDto;
 import com.muscat.user.domain.account.dto.response.HistoryResponseDto;
 import com.muscat.user.domain.account.entity.Account;
 import com.muscat.user.domain.account.entity.AccountHistory;
@@ -14,15 +13,8 @@ import com.muscat.user.domain.account.repository.AccountHistoryRepository;
 import com.muscat.user.domain.account.repository.AccountRepository;
 import com.muscat.user.domain.account.service.AccountHistoryService;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -104,137 +96,7 @@ public class AccountHistoryServiceImpl implements AccountHistoryService {
     return HistoryResponseDto.from(savedHistory);
   }
 
-  // 계좌별 거래 내역 조회 (페이징)
-  @Override
-  public HistoryListResponseDto getAccountHistories(
-    Long accountId, int page, int size, Long userId,
-    LocalDateTime from, LocalDateTime to
-  ) {
-    Account account = getAccountByIdWithAuth(accountId, userId);
-
-    var sort = Sort.by(Sort.Direction.DESC, "createdAt")
-      .and(Sort.by(Sort.Direction.DESC, "id"));
-    Pageable pageable = PageRequest.of(page, size, sort);
-
-    Page<AccountHistory> historyPage = accountRepository
-      .findHistoryByAccountAndRange(account, from, to, pageable);
-
-    List<HistoryResponseDto> histories = historyPage.getContent()
-      .stream()
-      .map(HistoryResponseDto::from)
-      .collect(Collectors.toList());
-
-    BigDecimal totalDeposit = accountRepository
-      .getTotalAmountByAccountAndType(account, TransactionType.DEPOSIT);
-    BigDecimal totalExchange = accountRepository
-      .getTotalAmountByAccountAndType(account, TransactionType.EXCHANGE);
-
-    return new HistoryListResponseDto(
-      accountId,
-      account.getAccountNumber(),
-      account.getAccountName(),
-      histories,
-      historyPage.getTotalPages(),
-      historyPage.getTotalElements(),
-      historyPage.hasNext(),
-      historyPage.hasPrevious(),
-      totalDeposit,
-      totalExchange
-    );
-  }
-
-  // 특정 거래 내역 상세 조회
-  @Override
-  public HistoryResponseDto getAccountHistory(Long accountId, Long historyId, Long userId) {
-    // 계좌 소유권 검증
-    getAccountByIdWithAuth(accountId, userId);
-
-    AccountHistory history = accountRepository.findHistoryByIdAndAccountId(historyId, accountId)
-      .orElseThrow(() -> new AccountHistoryException(AccountHistoryResponse.HISTORY_NOT_FOUND));
-
-    return HistoryResponseDto.from(history);
-  }
-
-  // 환전 내역만 조회
-  @Override
-  public List<HistoryResponseDto> getExchangeHistories(Long accountId, Long userId) {
-    Account account = getAccountByIdWithAuth(accountId, userId);
-
-    List<AccountHistory> exchangeHistories = accountRepository
-      .findExchangeHistoryByAccount(account);
-
-    return exchangeHistories.stream()
-      .map(HistoryResponseDto::from)
-      .collect(Collectors.toList());
-  }
-
-  // 특정 통화의 거래 내역 조회
-  @Override
-  public List<HistoryResponseDto> getHistoriesByCurrency(Long accountId, String currency,
-    Long userId) {
-    Account account = getAccountByIdWithAuth(accountId, userId);
-
-    var sort = org.springframework.data.domain.Sort.by(
-        org.springframework.data.domain.Sort.Direction.DESC, "createdAt")
-      .and(
-        org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC,
-          "id"));
-
-    PageRequest pageable = PageRequest.of(0, 100, sort);
-
-    Page<AccountHistory> page = accountRepository
-      .findHistoryByAccountAndCurrency(account, currency, pageable);
-
-    return page.getContent().stream().map(HistoryResponseDto::from).toList();
-  }
-
-  // 기간별 거래 내역 조회
-  @Override
-  public List<HistoryResponseDto> getHistoriesByDateRange(
-    Long accountId, LocalDateTime startDate, LocalDateTime endDate, Long userId
-  ) {
-    Account account = getAccountByIdWithAuth(accountId, userId);
-
-    var sort = org.springframework.data.domain.Sort.by(
-        org.springframework.data.domain.Sort.Direction.DESC, "createdAt")
-      .and(
-        org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC,
-          "id"));
-
-    PageRequest pageable = PageRequest.of(0, 1000, sort);
-
-    Page<AccountHistory> page = accountRepository
-      .findHistoryByAccountAndRange(account, startDate, endDate, pageable);
-
-    return page.getContent().stream().map(HistoryResponseDto::from).toList();
-  }
-
-  // 최근 N개 거래 내역 조회
-  @Override
-  public List<HistoryResponseDto> getRecentHistories(Long accountId, int limit, Long userId) {
-    Account account = getAccountByIdWithAuth(accountId, userId);
-
-    var sort = org.springframework.data.domain.Sort.by(
-        org.springframework.data.domain.Sort.Direction.DESC, "createdAt")
-      .and(
-        org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC,
-          "id"));
-
-    PageRequest pageable = PageRequest.of(0, limit, sort);
-
-    Page<AccountHistory> page = accountRepository
-      .findHistoryByAccountAndRange(account, null, null, pageable);
-
-    return page.getContent().stream().map(HistoryResponseDto::from).toList();
-  }
-
   // ========== 내부 메서드들 ==========
-
-  // 사용자 소유 계좌인지 검증
-  private Account getAccountByIdWithAuth(Long accountId, Long userId) {
-    return accountRepository.findByIdAndUserId(accountId, userId)
-      .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_ACCESS_DENIED));
-  }
 
   // 계좌 조회 (내부 호출용)
   private Account getAccountByIdInternal(Long accountId) {
