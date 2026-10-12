@@ -124,4 +124,27 @@ class TradeRepositoryTest {
 
     assertThat(tradeRepository.findByIdForUpdate(saved.getId())).isPresent();
   }
+
+  private Trade saveDated(String symbol, String quantity, TradeStatus status, LocalDate tradeDate) {
+    return tradeRepository.save(Trade.builder()
+      .userId("user-1").accountId(20L).symbol(symbol).tradeType(TradeType.BUY)
+      .quantity(new BigDecimal(quantity)).price(new BigDecimal("100.00"))
+      .totalAmount(new BigDecimal(quantity).multiply(new BigDecimal("100.00")))
+      .tradeDate(tradeDate).executedAt(tradeDate.atTime(9, 0)).status(status)
+      .build());
+  }
+
+  @Test
+  @DisplayName("배당용 조회는 그 종목의 배당락일 전 체결만 거래일 순으로 준다")
+  void findTradesBeforeExDate_ForDividend() {
+    LocalDate exDate = LocalDate.of(2024, 9, 16);
+    Trade second = saveDated("AAPL", "2", TradeStatus.COMPLETED, exDate.minusDays(1));
+    Trade first = saveDated("AAPL", "1", TradeStatus.COMPLETED, exDate.minusDays(5));
+    saveDated("AAPL", "3", TradeStatus.COMPLETED, exDate);
+    saveDated("AAPL", "4", TradeStatus.CANCELLED, exDate.minusDays(2));
+    saveDated("MSFT", "5", TradeStatus.COMPLETED, exDate.minusDays(2));
+
+    assertThat(tradeRepository.findBySymbolAndStatusAndTradeDateBeforeOrderByTradeDateAsc("AAPL", TradeStatus.COMPLETED, exDate))
+      .extracting(Trade::getId).containsExactly(first.getId(), second.getId());
+  }
 }

@@ -3,6 +3,7 @@ package com.muscat.backtest.common.util;
 import com.muscat.backtest.common.constants.BacktestConstants;
 import com.muscat.backtest.common.enums.BacktestResponse;
 import com.muscat.backtest.common.exception.BacktestException;
+import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.backtest.infra.client.dto.DividendHistoryDto;
 import com.muscat.commonlib.constants.CommonConstants;
 import java.math.BigDecimal;
@@ -138,10 +139,15 @@ public final class BacktestCalculationUtils {
     return totalInvestment.divide(BigDecimal.valueOf(divisions), USD_SCALE, HALF_UP);
   }
 
+  // 배당락일 전에 산(실제 거래일 < 배당락일) 주식만 그 배당을 받는다. 배당락일 당일 매수는 못 받는다
+  public static boolean receivesDividend(LocalDate tradeDate, LocalDate exDate) {
+    return tradeDate != null && exDate != null && tradeDate.isBefore(exDate);
+  }
+
   // 특정 기간 동안의 총 배당금을 계산합니다 (USD)
   // 각 배당일에 실제로 보유한 주식수를 기준으로 계산 (거래 목록 기반)
   public static BigDecimal calculateTotalDividends(DividendHistoryDto dividendHistory,
-    List<?> transactions,
+    List<StrategyTransaction> transactions,
     LocalDate startDate, LocalDate endDate) {
 
     log.debug("배당금 계산 메서드 호출됨 (거래 목록 기반)");
@@ -166,27 +172,8 @@ public final class BacktestCalculationUtils {
       .map(dividend -> {
         // 각 배당일에 실제로 보유한 주식수 계산
         BigDecimal sharesAtDividendDate = transactions.stream()
-          .filter(tx -> {
-            try {
-              // StrategyTransaction 타입으로 캐스팅하여 getDate() 호출
-              java.lang.reflect.Method getDateMethod = tx.getClass().getMethod("getDate");
-              LocalDate txDate = (LocalDate) getDateMethod.invoke(tx);
-              return !txDate.isAfter(dividend.getExDate());
-            } catch (Exception e) {
-              log.warn("거래 날짜 조회 실패: {}", e.getMessage());
-              return false;
-            }
-          })
-          .map(tx -> {
-            try {
-              // StrategyTransaction 타입으로 캐스팅하여 getShares() 호출
-              java.lang.reflect.Method getSharesMethod = tx.getClass().getMethod("getShares");
-              return (BigDecimal) getSharesMethod.invoke(tx);
-            } catch (Exception e) {
-              log.warn("주식수 조회 실패: {}", e.getMessage());
-              return BigDecimal.ZERO;
-            }
-          })
+          .filter(tx -> receivesDividend(tx.tradedOn(), dividend.getExDate()))
+          .map(StrategyTransaction::getShares)
           .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal dividendAmount = dividend.getAmount() != null ?
@@ -205,7 +192,7 @@ public final class BacktestCalculationUtils {
   }
 
   // 특정 기간 동안의 총 배당금을 계산합니다 (USD)
-  // 단순 고정 주식수 기반 - 심플 백테스트용
+  // 단순 고정 주식수 기반 - 심플 백테스트용. startDate 는 매수일이라 그날이 배당락일인 배당은 받지 않는다
   public static BigDecimal calculateTotalDividends(DividendHistoryDto dividendHistory,
     BigDecimal shares,
     LocalDate startDate, LocalDate endDate) {
@@ -227,7 +214,7 @@ public final class BacktestCalculationUtils {
 
     BigDecimal totalDividends = dividendHistory.getDividends().stream()
       .filter(dividend -> dividend.getExDate() != null)
-      .filter(dividend -> !dividend.getExDate().isBefore(startDate) &&
+      .filter(dividend -> receivesDividend(startDate, dividend.getExDate()) &&
         !dividend.getExDate().isAfter(endDate))
       .map(dividend -> dividend.getAmount() != null ?
         dividend.getAmount().multiply(shares) : BigDecimal.ZERO)

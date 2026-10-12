@@ -12,8 +12,10 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.muscat.messaging.event.DividendUpdatedEvent;
-import com.muscat.trade.domain.entity.Holdings;
-import com.muscat.trade.domain.repository.HoldingsRepository;
+import com.muscat.trade.common.enums.type.TradeStatus;
+import com.muscat.trade.common.enums.type.TradeType;
+import com.muscat.trade.domain.entity.Trade;
+import com.muscat.trade.domain.repository.TradeRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -33,7 +35,7 @@ class DividendEventConsumerTest {
   private static final LocalDate EX_DATE = LocalDate.of(2024, 9, 16);
 
   @Mock
-  private HoldingsRepository holdingsRepository;
+  private TradeRepository tradeRepository;
 
   @Mock
   private DividendEventProducer dividendEventProducer;
@@ -53,13 +55,14 @@ class DividendEventConsumerTest {
     return e;
   }
 
-  private static Holdings holdings(String userId, long accountId, String quantity) {
-    return Holdings.builder()
-      .userId(userId)
-      .accountId(accountId)
-      .symbol(SYMBOL)
-      .totalQuantity(new BigDecimal(quantity))
-      .build();
+  private static Trade trade(String userId, long accountId, TradeType type, String quantity) {
+    return Trade.builder().userId(userId).accountId(accountId).symbol(SYMBOL).tradeType(type)
+      .quantity(new BigDecimal(quantity)).tradeDate(EX_DATE.minusDays(3)).build();
+  }
+
+  private void tradesBeforeExDate(Trade... trades) {
+    given(tradeRepository.findBySymbolAndStatusAndTradeDateBeforeOrderByTradeDateAsc(SYMBOL, TradeStatus.COMPLETED, EX_DATE))
+      .willReturn(List.of(trades));
   }
 
   private void consume(DividendUpdatedEvent event) {
@@ -67,9 +70,9 @@ class DividendEventConsumerTest {
   }
 
   @Test
-  @DisplayName("보유자가 없으면 아무것도 발행하지 않고 커밋한다")
-  void 보유자_없음() {
-    given(holdingsRepository.findBySymbol(SYMBOL)).willReturn(List.of());
+  @DisplayName("배당락일 전 거래가 없으면 아무것도 발행하지 않고 커밋한다")
+  void 대상_없음() {
+    tradesBeforeExDate();
 
     consume(event("0.25"));
 
@@ -79,73 +82,61 @@ class DividendEventConsumerTest {
   }
 
   @Test
-  @DisplayName("보유 수량만큼 배당금을 계산해 발행한다")
-  void 금액_계산() {
-    given(holdingsRepository.findBySymbol(SYMBOL))
-      .willReturn(List.of(holdings("user-1", 10L, "13")));
+  @DisplayName("배당락일 전날 보유 수량으로 세후(15.4% 원천징수) 배당금을 발행한다")
+  void 세후_금액() {
+    tradesBeforeExDate(trade("user-1", 10L, TradeType.BUY, "13"));
 
     consume(event("0.25"));
 
-    // 0.25 * 13 = 3.25
+    // 세전 0.25 × 13 = 3.25, 세금 3.25 × 0.154 = 0.5005 → 0.50, 세후 2.75
     verify(dividendEventProducer).publishDividendReceived(
       "user-1", 10L, SYMBOL, "2024-09-16",
-      new BigDecimal("0.25"), new BigDecimal("13"), new BigDecimal("3.25"));
+      new BigDecimal("0.25"), new BigDecimal("13"), new BigDecimal("2.75"));
     verify(acknowledgment).acknowledge();
   }
 
   @Test
-  @DisplayName("소수 셋째 자리에서 반올림해 두 자리로 맞춘다")
+  @DisplayName("세전 · 세금을 각각 두 자리로 반올림한 뒤 뺀다")
   void 반올림() {
-    given(holdingsRepository.findBySymbol(SYMBOL))
-      .willReturn(List.of(holdings("user-1", 10L, "3.7")));
+    tradesBeforeExDate(trade("user-1", 10L, TradeType.BUY, "3.7"));
 
     consume(event("0.235"));
 
-    // 0.235 * 3.7 = 0.8695 → 0.87 (HALF_UP, scale 2)
+    // 세전 0.8695 → 0.87, 세금 0.87 × 0.154 = 0.13398 → 0.13, 세후 0.74
     verify(dividendEventProducer).publishDividendReceived(
-      eq("user-1"), eq(10L), eq(SYMBOL), eq("2024-09-16"),
-      any(), any(), eq(new BigDecimal("0.87")));
+      eq("user-1"), eq(10L), eq(SYMBOL), eq("2024-09-16"), any(), any(), eq(new BigDecimal("0.74")));
   }
 
   @Test
-  @DisplayName("보유자가 여럿이면 각각 발행한다")
-  void 다수_보유자() {
-    given(holdingsRepository.findBySymbol(SYMBOL)).willReturn(List.of(
-      holdings("user-1", 10L, "10"),
-      holdings("user-2", 20L, "5"),
-      holdings("user-3", 30L, "1")));
+  @DisplayName("계좌마다 따로 계산해 발행하고, 배당락일 전에 다 판 계좌는 건너뛴다")
+  void 계좌별() {
+    tradesBeforeExDate(
+      trade("user-1", 10L, TradeType.BUY, "10"),
+      trade("user-1", 10L, TradeType.SELL, "4"),
+      trade("user-2", 20L, TradeType.BUY, "5"),
+      trade("user-2", 20L, TradeType.SELL, "5"),
+      trade("user-3", 30L, TradeType.BUY, "1"));
 
     consume(event("0.25"));
 
-    verify(dividendEventProducer, times(3))
+    verify(dividendEventProducer, times(2))
       .publishDividendReceived(anyString(), any(), anyString(), anyString(), any(), any(), any());
+    // 6주: 세전 1.50, 세금 0.23, 세후 1.27
     verify(dividendEventProducer).publishDividendReceived(
-      eq("user-1"), eq(10L), any(), any(), any(), any(), eq(new BigDecimal("2.50")));
+      eq("user-1"), eq(10L), any(), any(), any(), eq(new BigDecimal("6")), eq(new BigDecimal("1.27")));
+    // 1주: 세전 0.25, 세금 0.04, 세후 0.21
     verify(dividendEventProducer).publishDividendReceived(
-      eq("user-3"), eq(30L), any(), any(), any(), any(), eq(new BigDecimal("0.25")));
+      eq("user-3"), eq(30L), any(), any(), any(), any(), eq(new BigDecimal("0.21")));
     verify(acknowledgment).acknowledge();
   }
 
   @Test
-  @DisplayName("보유 수량이 0이면 0원으로 발행한다")
-  void 수량_0() {
-    given(holdingsRepository.findBySymbol(SYMBOL))
-      .willReturn(List.of(holdings("user-1", 10L, "0")));
-
-    consume(event("0.25"));
-
-    // 전량 매도한 보유 행이 남아 있으면 0원 이벤트가 나간다
-    verify(dividendEventProducer).publishDividendReceived(
-      eq("user-1"), eq(10L), any(), any(), any(), any(), eq(new BigDecimal("0.00")));
-  }
-
-  @Test
-  @DisplayName("한 명이 실패해도 나머지는 계속 지급한다")
+  @DisplayName("한 계좌가 실패해도 나머지는 계속 지급한다")
   void 부분_실패() {
-    given(holdingsRepository.findBySymbol(SYMBOL)).willReturn(List.of(
-      holdings("user-1", 10L, "10"),
-      holdings("user-2", 20L, "5"),
-      holdings("user-3", 30L, "1")));
+    tradesBeforeExDate(
+      trade("user-1", 10L, TradeType.BUY, "10"),
+      trade("user-2", 20L, TradeType.BUY, "5"),
+      trade("user-3", 30L, TradeType.BUY, "1"));
 
     // user-1, user-3 호출은 이 스텁과 안 맞는 게 정상이라 lenient 로 둔다
     lenient().doThrow(new IllegalStateException("발행 실패"))
@@ -154,7 +145,6 @@ class DividendEventConsumerTest {
 
     consume(event("0.25"));
 
-    // 개별 실패는 삼키고 루프를 계속 돈다
     verify(dividendEventProducer).publishDividendReceived(
       eq("user-1"), any(), any(), any(), any(), any(), any());
     verify(dividendEventProducer).publishDividendReceived(
@@ -166,8 +156,7 @@ class DividendEventConsumerTest {
   @Test
   @DisplayName("전원 실패해도 커밋한다")
   void 전원_실패() {
-    given(holdingsRepository.findBySymbol(SYMBOL))
-      .willReturn(List.of(holdings("user-1", 10L, "10")));
+    tradesBeforeExDate(trade("user-1", 10L, TradeType.BUY, "10"));
 
     willThrow(new IllegalStateException("발행 실패"))
       .given(dividendEventProducer).publishDividendReceived(
@@ -181,7 +170,7 @@ class DividendEventConsumerTest {
   @Test
   @DisplayName("조회가 실패하면 커밋하지 않고 예외를 올린다")
   void 조회_실패() {
-    given(holdingsRepository.findBySymbol(SYMBOL))
+    given(tradeRepository.findBySymbolAndStatusAndTradeDateBeforeOrderByTradeDateAsc(SYMBOL, TradeStatus.COMPLETED, EX_DATE))
       .willThrow(new IllegalStateException("DB 연결 끊김"));
 
     // 커밋을 건너뛰어야 Kafka 가 재시도한다
@@ -190,17 +179,5 @@ class DividendEventConsumerTest {
       .hasMessage("DB 연결 끊김");
 
     verify(acknowledgment, never()).acknowledge();
-  }
-
-  @Test
-  @DisplayName("배당락일은 yyyy-MM-dd 문자열로 넘어간다")
-  void 날짜_형식() {
-    given(holdingsRepository.findBySymbol(SYMBOL))
-      .willReturn(List.of(holdings("user-1", 10L, "1")));
-
-    consume(event("0.25"));
-
-    verify(dividendEventProducer).publishDividendReceived(
-      any(), any(), any(), eq("2024-09-16"), any(), any(), any());
   }
 }

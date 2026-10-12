@@ -357,6 +357,57 @@ class BacktestCalculationUtilsTest {
   }
 
   @Nested
+  @DisplayName("배당락일 경계 (실제 거래일 < 배당락일만 받는다)")
+  class DividendExDateBoundaryTests {
+
+    private final LocalDate exDate = LocalDate.of(2024, 3, 18); // 월요일
+
+    private DividendHistoryDto history() {
+      DividendHistoryDto.DividendPayment pay = new DividendHistoryDto.DividendPayment();
+      pay.setExDate(exDate);
+      pay.setAmount(new BigDecimal("0.50"));
+      DividendHistoryDto h = new DividendHistoryDto();
+      h.setDividends(List.of(pay));
+      return h;
+    }
+
+    private com.muscat.backtest.domain.model.StrategyTransaction buy(LocalDate planned, LocalDate actual) {
+      return com.muscat.backtest.domain.model.StrategyTransaction.builder()
+        .date(planned).actualDate(actual).shares(new BigDecimal("10")).build();
+    }
+
+    @Test
+    @DisplayName("배당락일 전날 매수만 받고, 당일 · 이후 매수와 빈 날짜는 못 받는다")
+    void receivesDividend() {
+      assertThat(BacktestCalculationUtils.receivesDividend(exDate.minusDays(1), exDate)).isTrue();
+      assertThat(BacktestCalculationUtils.receivesDividend(exDate, exDate)).isFalse();
+      assertThat(BacktestCalculationUtils.receivesDividend(exDate.plusDays(1), exDate)).isFalse();
+      assertThat(BacktestCalculationUtils.receivesDividend(null, exDate)).isFalse();
+    }
+
+    @Test
+    @DisplayName("단순 매수: 매수일이 배당락일이면 그 배당은 빠진다")
+    void fixedShares_PurchaseOnExDate_Excluded() {
+      assertThat(BacktestCalculationUtils.calculateTotalDividends(history(), new BigDecimal("100"), exDate, exDate.plusMonths(3)))
+        .isEqualByComparingTo("0");
+      assertThat(BacktestCalculationUtils.calculateTotalDividends(history(), new BigDecimal("100"), exDate.minusDays(1), exDate.plusMonths(3)))
+        .isEqualByComparingTo("50.00");
+    }
+
+    @Test
+    @DisplayName("적립식: 토요일에 계획해 배당락일(월요일)에 실제로 산 주식은 못 받고, 전 거래일에 산 주식만 받는다")
+    void transactions_UseActualTradeDate() {
+      var plannedSaturdayBoughtMonday = buy(exDate.minusDays(2), exDate);
+      var boughtFriday = buy(exDate.minusDays(3), exDate.minusDays(3));
+
+      assertThat(BacktestCalculationUtils.calculateTotalDividends(history(), List.of(plannedSaturdayBoughtMonday),
+        exDate.minusDays(2), exDate.plusMonths(3))).isEqualByComparingTo("0");
+      assertThat(BacktestCalculationUtils.calculateTotalDividends(history(), List.of(plannedSaturdayBoughtMonday, boughtFriday),
+        exDate.minusDays(3), exDate.plusMonths(3))).isEqualByComparingTo("5.00");
+    }
+  }
+
+  @Nested
   @DisplayName("배당 수익률 계산 테스트")
   class CalculateDividendYieldTests {
 

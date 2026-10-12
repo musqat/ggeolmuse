@@ -88,6 +88,24 @@ class DividendReinvestorTest {
   }
 
   @Test
+  @DisplayName("배당락일 당일에 산 주식은 그 배당을 받지 못해 재투자도 없다")
+  void boughtOnExDate_NoReinvest() {
+    List<StrategyTransaction> txs = new ArrayList<>();
+    txs.add(StrategyTransaction.builder()
+        .date(EX.minusDays(2)).actualDate(EX)
+        .price(new BigDecimal("40")).shares(BigDecimal.TEN)
+        .amount(new BigDecimal("100000")).fxRate(new BigDecimal("1300")).trigger("월정액")
+        .build());
+
+    BigDecimal reinvested = DividendReinvestor.reinvest(
+        client, history(new BigDecimal("2")), txs, "AAPL", EX.minusDays(2),
+        true, BigDecimal.ZERO, null, new BigDecimal("1300"));
+
+    assertThat(reinvested).isEqualByComparingTo("0");
+    assertThat(txs).hasSize(1);
+  }
+
+  @Test
   @DisplayName("재투자 비활성: 0 반환, 거래 추가 없음")
   void disabled() {
     var txs = buyTransactions(10);

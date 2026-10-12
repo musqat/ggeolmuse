@@ -1,6 +1,7 @@
 package com.muscat.backtest.common.engine;
 
 import com.muscat.backtest.common.constants.BacktestConstants;
+import com.muscat.backtest.common.util.BacktestCalculationUtils;
 import com.muscat.backtest.common.util.BacktestDataUtils;
 import com.muscat.backtest.common.util.Decimals;
 import com.muscat.backtest.common.util.PriceLookup;
@@ -49,7 +50,7 @@ public final class DividendReinvestor {
     // BULK API: 배당 날짜들의 가격 및 환율 데이터를 한 번에 조회
     List<LocalDate> dividendDates = dividendHistory.getDividends().stream()
         .filter(dividend -> dividend.getExDate() != null)
-        .filter(dividend -> !dividend.getExDate().isBefore(firstPurchaseDate)
+        .filter(dividend -> BacktestCalculationUtils.receivesDividend(firstPurchaseDate, dividend.getExDate())
             && !dividend.getExDate().isAfter(LocalDate.now()))
         .map(d -> d.getExDate())
         .sorted()
@@ -79,12 +80,12 @@ public final class DividendReinvestor {
 
     dividendHistory.getDividends().stream()
         .filter(dividend -> dividend.getExDate() != null)
-        .filter(dividend -> !dividend.getExDate().isBefore(firstPurchaseDate)
+        .filter(dividend -> BacktestCalculationUtils.receivesDividend(firstPurchaseDate, dividend.getExDate())
             && !dividend.getExDate().isAfter(LocalDate.now()))
         .sorted((d1, d2) -> d1.getExDate().compareTo(d2.getExDate()))
         .forEach(dividend -> {
           BigDecimal sharesAtDividendDate = transactions.stream()
-              .filter(tx -> !tx.getDate().isAfter(dividend.getExDate()))
+              .filter(tx -> BacktestCalculationUtils.receivesDividend(tx.tradedOn(), dividend.getExDate()))
               .map(StrategyTransaction::getShares)
               .reduce(BigDecimal.ZERO, BigDecimal::add);
 

@@ -180,7 +180,8 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
       // 배당 내역을 ex-date 순으로 정렬해 순차 재투자
       var dividends = context.dividendHistory().getDividends().stream()
         .filter(d -> d.getExDate() != null)
-        .filter(d -> !d.getExDate().isBefore(purchaseDate) && !d.getExDate().isAfter(context.valuationDate()))
+        .filter(d -> BacktestCalculationUtils.receivesDividend(purchaseDate, d.getExDate())
+          && !d.getExDate().isAfter(context.valuationDate()))
         .sorted((d1, d2) -> d1.getExDate().compareTo(d2.getExDate()))
         .toList();
 
