@@ -3,7 +3,9 @@ package com.muscat.marketdata.api.controller;
 import com.muscat.marketdata.domain.dto.DividendDto;
 import com.muscat.marketdata.domain.dto.OHLCPriceDto;
 import com.muscat.marketdata.domain.dto.StockPriceDto;
+import com.muscat.commonlib.dto.FxRateRangeDto;
 import com.muscat.marketdata.domain.entity.FxRate;
+import com.muscat.marketdata.domain.repository.FxRateRepository;
 import com.muscat.marketdata.domain.service.CandleService;
 import com.muscat.marketdata.domain.service.DividendService;
 import com.muscat.marketdata.domain.service.FxRateService;
@@ -38,6 +40,7 @@ public class InternalMarketController {
   private final CandleService candleService;
   private final DividendService dividendService;
   private final FxRateService fxRateService;
+  private final FxRateRepository fxRateRepository;
 
   @GetMapping("/ohlc/{symbol}")
   public ResponseEntity<OHLCPriceDto> getOHLCPrice(
@@ -129,6 +132,18 @@ public class InternalMarketController {
     }
 
     return ResponseEntity.status(HttpStatus.OK).body(fxRate.get());
+  }
+
+  // 저장된 환율 전체의 최저 · 최고. user-service 가 환전 환율의 허용 범위를 정할 때 쓴다. 데이터가 없으면 404
+  @GetMapping("/fx/range")
+  public ResponseEntity<FxRateRangeDto> getFxRateRange() {
+    var min = fxRateRepository.findFirstByOrderByRateAsc();
+    var max = fxRateRepository.findFirstByOrderByRateDesc();
+    if (min.isEmpty() || max.isEmpty()) {
+      return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+    }
+    return ResponseEntity.ok(new FxRateRangeDto(
+      min.get().getRate(), min.get().getDate(), max.get().getRate(), max.get().getDate()));
   }
 
   @PostMapping("/fx/bulk")

@@ -8,4 +8,8 @@ public class AccountException extends BusinessException {
   public AccountException(AccountResponse response) {
     super(response);
   }
+
+  public AccountException(AccountResponse response, String message) {
+    super(response, message);
+  }
 }

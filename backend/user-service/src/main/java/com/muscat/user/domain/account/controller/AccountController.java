@@ -10,6 +10,7 @@ import com.muscat.user.domain.account.dto.request.KrwDepositRequestDto;
 import com.muscat.user.domain.account.dto.response.AccountResponseDto;
 import com.muscat.user.domain.account.dto.response.AccountSummaryDto;
 import com.muscat.user.domain.account.dto.response.BalanceResponseDto;
+import com.muscat.user.domain.account.dto.response.ExchangeRateRangeDto;
 import com.muscat.user.domain.account.entity.Account;
 import com.muscat.user.domain.account.service.AccountService;
 import com.muscat.user.domain.user.mapper.UserMapper;
@@ -225,6 +226,15 @@ public class AccountController {
     BigDecimal currentRate = accountService.getCurrentExchangeRate();
 
     return ResponseEntity.ok(currentRate);
+  }
+
+  @Operation(summary = "환전 가능 환율 범위", description = "환전에 쓸 수 있는 환율 범위(저장된 환율의 최저 −5% ~ 최고 +5%)를 조회합니다")
+  @ApiResponses(value = {
+    @ApiResponse(responseCode = "200", description = "범위 조회 성공")
+  })
+  @GetMapping("/exchange-rates/range")
+  public ResponseEntity<ExchangeRateRangeDto> getExchangeRateRange() {
+    return ResponseEntity.ok(accountService.getExchangeRateRange());
   }
 
   @Operation(summary = "날짜별 환율 조회", description = "특정 날짜의 USD/KRW 환율을 조회합니다")

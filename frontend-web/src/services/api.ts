@@ -355,6 +355,12 @@ type AccountDetail = {
 };
 
 // 계좌 잔액 정보
+// 환전 가능 환율 범위 (user-service ExchangeRateRangeDto)
+export type ExchangeRateRange = {
+  min: number;
+  max: number;
+};
+
 export type AccountBalance = {
   accountName: string;                  // 계좌명
   accountNumber: string;                // 계좌번호
@@ -412,6 +418,10 @@ export const accountsApi = {
   // 현재 환율 조회
   getCurrentExchangeRate: () =>
     apiClient.get<number>('/accounts/exchange-rates/current'),
+
+  // 환전에 쓸 수 있는 환율 범위(저장된 환율의 최저 −5% ~ 최고 +5%, 정수)
+  getExchangeRateRange: () =>
+    apiClient.get<ExchangeRateRange>('/accounts/exchange-rates/range'),
 
   // Bulk 환율 조회 (여러 날짜 한 번에)
   getExchangeRatesBulk: (dates: string[]) =>

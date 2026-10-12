@@ -1,6 +1,7 @@
 package com.muscat.user.domain.account.service.impl;
 
 import com.muscat.commonlib.dto.FxRateDto;
+import com.muscat.commonlib.dto.FxRateRangeDto;
 import com.muscat.commonlib.util.MoneyUtils;
 import com.muscat.messaging.event.DividendReceivedEvent;
 import com.muscat.messaging.event.TradeCompletedEvent;
@@ -15,10 +16,13 @@ import com.muscat.user.common.util.AccountCalculatorUtil;
 import com.muscat.user.domain.account.dto.request.CreateAccountRequestDto;
 import com.muscat.user.domain.account.dto.response.BalanceResponseDto;
 import com.muscat.user.domain.account.dto.response.ExchangeCalculationResult;
+import com.muscat.user.domain.account.dto.response.ExchangeRateRangeDto;
 import com.muscat.user.domain.account.entity.Account;
 import com.muscat.user.domain.account.entity.AccountHistory;
+import com.muscat.user.domain.account.entity.DividendSettlement;
 import com.muscat.user.domain.account.repository.AccountHistoryRepository;
 import com.muscat.user.domain.account.repository.AccountRepository;
+import com.muscat.user.domain.account.repository.DividendSettlementRepository;
 import com.muscat.user.domain.account.service.AccountHistoryService;
 import com.muscat.user.domain.account.service.AccountService;
 import com.muscat.user.domain.user.entity.User;
@@ -27,7 +31,9 @@ import com.muscat.user.infra.client.MarketDataServiceClientWrapper;
 import com.muscat.user.infra.kafka.AccountEventProducer;
 import com.muscat.user.infra.kafka.DepositWithdrawalEventProducer;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -51,6 +57,7 @@ public class AccountServiceImpl implements AccountService {
   private final MarketDataServiceClientWrapper marketDataServiceClientWrapper;
   private final AccountEventProducer accountEventProducer;
   private final DepositWithdrawalEventProducer depositWithdrawalEventProducer;
+  private final DividendSettlementRepository dividendSettlementRepository;
 
   @Value("${app.account.initial-krw-amount:1000000}")
   private BigDecimal initialKrwAmount;
@@ -63,6 +70,18 @@ public class AccountServiceImpl implements AccountService {
 
   @Value("${app.exchange-rate.fallback-rate:1350}")
   private BigDecimal fallbackRate;
+
+  // 환전에 쓸 수 있는 환율은 저장된 환율의 (최저 − 이 비율) ~ (최고 + 이 비율). 사용자가 환율을 직접 넣을 수 있어
+  // 1원 같은 값으로 잔고를 늘리지 못하게 막는다. 범위가 데이터를 따라가 실제 환율이 새 기록을 내도 정상 환전은 막히지 않는다
+  @Value("${app.exchange-rate.exchange-tolerance:0.05}")
+  private BigDecimal exchangeTolerance;
+
+  // market-data 에서 범위를 못 받을 때(장애 · 환율 데이터 없음) 대신 쓰는 범위
+  @Value("${app.exchange-rate.exchange-fallback-min:1000}")
+  private BigDecimal exchangeFallbackMin;
+
+  @Value("${app.exchange-rate.exchange-fallback-max:1650}")
+  private BigDecimal exchangeFallbackMax;
 
   // 새 계좌 생성 (초기 KRW 잔액 설정)
   @Override
@@ -148,6 +167,7 @@ public class AccountServiceImpl implements AccountService {
   @Override
   public void exchangeKrwToUsd(Long accountId, Long userId, BigDecimal krwAmount,
     BigDecimal exchangeRate) {
+    validateExchangeRate(exchangeRate);
 
     Account account = accountRepository.findByIdAndUserIdWithLock(accountId, userId)
       .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
@@ -216,6 +236,7 @@ public class AccountServiceImpl implements AccountService {
   @Override
   public void exchangeUsdToKrw(Long accountId, Long userId, BigDecimal usdAmount,
     BigDecimal exchangeRate) {
+    validateExchangeRate(exchangeRate);
 
     Account account = accountRepository.findByIdAndUserIdWithLock(accountId, userId)
       .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
@@ -432,6 +453,21 @@ public class AccountServiceImpl implements AccountService {
     return getCurrentExchangeRate();
   }
 
+  // 범위는 정수로 둔다. 최저는 내리고 최고는 올려 ±허용 비율보다 좁아지지 않게 한다
+  @Override
+  public ExchangeRateRangeDto getExchangeRateRange() {
+    BigDecimal low = exchangeFallbackMin;
+    BigDecimal high = exchangeFallbackMax;
+    FxRateRangeDto stored = marketDataServiceClientWrapper.getFxRateRange();
+    if (stored != null && stored.min() != null && stored.max() != null) {
+      low = stored.min().multiply(BigDecimal.ONE.subtract(exchangeTolerance));
+      high = stored.max().multiply(BigDecimal.ONE.add(exchangeTolerance));
+    } else {
+      log.warn("환율 범위를 못 받아 대체 범위를 씀: {} ~ {}", low, high);
+    }
+    return new ExchangeRateRangeDto(low.setScale(0, RoundingMode.FLOOR), high.setScale(0, RoundingMode.CEILING));
+  }
+
   // 수동 환율 입력 (manual)
   @Override
   public BigDecimal createManualExchangeRate(BigDecimal manualRate) {
@@ -542,12 +578,22 @@ public class AccountServiceImpl implements AccountService {
       throw new AccountException(AccountResponse.ACCOUNT_ACCESS_DENIED);
     }
 
-    // 4. 배당금 입금
+    // 4. 이미 입금한 배당이면 건너뛴다. 같은 지급이 다시 와도(Kafka 재전달 · 배당 재수집) 한 번만 넣는다.
+    // 동시에 둘이 오면 아래 저장이 키 충돌로 실패해 입금까지 롤백되고, 재시도 때 여기서 걸러진다
+    LocalDate exDate = LocalDate.parse(event.getExDate());
+    if (dividendSettlementRepository.existsByAccountIdAndSymbolAndExDate(account.getId(), event.getSymbol(), exDate)) {
+      log.info("이미 입금한 배당이라 건너뜀: accountId={}, symbol={}, exDate={}", account.getId(), event.getSymbol(), exDate);
+      return;
+    }
+
+    // 5. 배당금 입금
     String description = String.format("배당금 수령: %s (기준일: %s, 주당: $%s × %s주)",
       event.getSymbol(), event.getExDate(), event.getDividendPerShare(), event.getQuantity());
 
     try {
       updateUsdBalance(account.getId(), userId, event.getTotalAmount(), description);
+      dividendSettlementRepository.saveAndFlush(DividendSettlement.of(
+        account.getId(), event.getSymbol(), exDate, event.getTotalAmount(), LocalDateTime.now()));
 
       log.info("배당금 입금 완료: userId={}, accountId={}, symbol={}, amount={}",
         userId, event.getAccountId(), event.getSymbol(), event.getTotalAmount());
@@ -560,6 +606,15 @@ public class AccountServiceImpl implements AccountService {
   }
 
   // ================== 내부 메서드 ================ //
+
+  // 환전 환율이 허용 범위 안인지 본다
+  private void validateExchangeRate(BigDecimal exchangeRate) {
+    ExchangeRateRangeDto range = getExchangeRateRange();
+    if (exchangeRate == null || exchangeRate.compareTo(range.min()) < 0 || exchangeRate.compareTo(range.max()) > 0) {
+      throw new AccountException(AccountResponse.INVALID_EXCHANGE_RATE,
+        String.format("환율은 %s ~ %s원 사이로 넣어 주세요.", range.min().toPlainString(), range.max().toPlainString()));
+    }
+  }
 
   // 중복되지 않는 계좌번호 생성 (최대 10번 시도)
   private String generateUniqueAccountNumber() {
