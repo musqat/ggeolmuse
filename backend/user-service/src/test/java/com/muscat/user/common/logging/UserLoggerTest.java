@@ -29,7 +29,7 @@ class UserLoggerTest {
   }
 
   @Test
-  @DisplayName("환전 시작 말고는 로그를 남긴 뒤 거래 MDC 값을 지우고, 원래 있던 값(traceId)은 남긴다")
+  @DisplayName("모든 로그 메서드가 로그를 남긴 뒤 거래 MDC 값을 지우고, 원래 있던 값(traceId)은 남긴다")
   void everyMethod_CleansTransactionMdc() {
     MDC.put("traceId", "trace-1");
     Account account = Account.builder().id(3L).balanceKrw(new BigDecimal("150000"))
@@ -39,6 +39,7 @@ class UserLoggerTest {
     List<Runnable> calls = List.of(
       () -> userLogger.logAccountCreation(7L, 3L, "100-1", BigDecimal.ZERO),
       () -> userLogger.logKrwDeposit(3L, new BigDecimal("50000"), "ref-1"),
+      () -> userLogger.logExchangeStart(3L, "KRW", "USD", new BigDecimal("13000"), new BigDecimal("1300")),
       () -> userLogger.logExchangeComplete(3L, result, account, "ref-2"),
       () -> userLogger.logExchangeFailure(3L, "KRW", "USD", new BigDecimal("13000"), "잔액 부족",
         new IllegalStateException("잔액 부족")),
@@ -56,17 +57,11 @@ class UserLoggerTest {
   }
 
   @Test
-  @DisplayName("환전 시작은 완료 로그까지 거래 MDC 를 유지하고, 완료 로그가 지운다")
-  void exchangeStart_KeepsMdcUntilComplete() {
+  @DisplayName("환전이 시작 로그 뒤에 실패해도(완료 로그 없음) 거래 MDC 가 남지 않는다")
+  void exchangeStartThenFailure_LeavesNoMdc() {
     userLogger.logExchangeStart(3L, "KRW", "USD", new BigDecimal("13000"), new BigDecimal("1300"));
 
-    assertThat(MDC.get("txType")).isEqualTo("KRW_TO_USD");
-    assertThat(MDC.get("txStatus")).isEqualTo("STARTED");
-
-    userLogger.logExchangeComplete(3L,
-      ExchangeCalculationResult.ofKrwToUsd(new BigDecimal("13000"), new BigDecimal("1300")),
-      Account.builder().id(3L).build(), "ref-2");
-
+    // 잔액 부족 등으로 완료 로그 없이 끝난 요청. 같은 스레드의 다음 요청에 값이 묻으면 안 된다
     assertTxKeysCleared();
   }
 }
