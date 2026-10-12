@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.atLeastOnce;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.never;
 import static org.mockito.BDDMockito.times;
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -407,6 +409,64 @@ class DividendServiceImplTest {
       // then
       assertThat(result).isEmpty();
       verify(marketServiceClient, never()).getDividends(anyString(), anyString(), anyString());
+    }
+  }
+
+  @Nested
+  @DisplayName("배당락일 전날 보유 수량 (입금과 같은 규칙)")
+  class ExDateEntitlementTests {
+
+    private final LocalDate exDate = LocalDate.of(2024, 3, 15);
+
+    private Trade trade(long id, TradeType type, String quantity, LocalDate date) {
+      return Trade.builder().id(id).userId(TEST_USER_ID).accountId(TEST_ACCOUNT_ID).symbol(TEST_SYMBOL)
+        .tradeType(type).quantity(new BigDecimal(quantity)).tradeDate(date).build();
+    }
+
+    // 저장된 배당을 "매수 id:수량" 으로
+    private List<String> savedDividends(Trade... trades) {
+      given(tradeRepository.findByUserIdAndSymbolAndStatusOrderByTradeDateAsc(TEST_USER_ID, TEST_SYMBOL, TradeStatus.COMPLETED))
+        .willReturn(List.of(trades));
+      given(marketServiceClient.getDividends(eq(TEST_SYMBOL), anyString(), anyString()))
+        .willReturn(List.of(new DividendDto(exDate.toString(), DIVIDEND_PER_SHARE)));
+      given(dividendRepository.findByUserIdAndSymbolOrderByDividendDateDesc(TEST_USER_ID, TEST_SYMBOL))
+        .willReturn(new ArrayList<>());
+
+      dividendService.getDividendsWithCache(TEST_USER_ID, TEST_SYMBOL, exDate.minusMonths(3), exDate.plusMonths(1));
+
+      ArgumentCaptor<Dividend> saved = ArgumentCaptor.forClass(Dividend.class);
+      verify(dividendRepository, atLeastOnce()).save(saved.capture());
+      return saved.getAllValues().stream()
+        .map(d -> d.getTradeId() + ":" + d.getShares().toPlainString())
+        .toList();
+    }
+
+    @Test
+    @DisplayName("배당락일 당일에 산 매수는 배당 기록이 생기지 않는다")
+    void buyOnExDate_Excluded() {
+      assertThat(savedDividends(
+        trade(1, TradeType.BUY, "10", exDate.minusDays(1)),
+        trade(2, TradeType.BUY, "10", exDate)))
+        .containsExactly("1:10");
+    }
+
+    @Test
+    @DisplayName("배당락일 당일에 판 수량은 빼지 않는다(전날까지 갖고 있었다)")
+    void sellOnExDate_NotSubtracted() {
+      assertThat(savedDividends(
+        trade(1, TradeType.BUY, "100", exDate.minusDays(10)),
+        trade(2, TradeType.SELL, "40", exDate)))
+        .containsExactly("1:100");
+    }
+
+    @Test
+    @DisplayName("매도는 먼저 산 매수에서만 한 번 뺀다")
+    void sellAllocatedFifoOnce() {
+      assertThat(savedDividends(
+        trade(1, TradeType.BUY, "10", exDate.minusDays(10)),
+        trade(2, TradeType.BUY, "10", exDate.minusDays(8)),
+        trade(3, TradeType.SELL, "5", exDate.minusDays(2))))
+        .containsExactly("1:5", "2:10");
     }
   }
 

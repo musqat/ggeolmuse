@@ -1,6 +1,7 @@
 package com.muscat.trade.domain.service.impl;
 
 import com.muscat.commonlib.constants.CommonConstants;
+import com.muscat.trade.common.constants.TradeConstants;
 import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.common.enums.type.TradeType;
 import com.muscat.trade.domain.dto.response.DividendResponseDto;
@@ -8,6 +9,7 @@ import com.muscat.trade.domain.entity.Dividend;
 import com.muscat.trade.domain.entity.Trade;
 import com.muscat.trade.domain.repository.DividendRepository;
 import com.muscat.trade.domain.repository.TradeRepository;
+import com.muscat.trade.domain.service.DividendEntitlement;
 import com.muscat.trade.domain.service.DividendService;
 import com.muscat.trade.infra.client.MarketServiceClient;
 import com.muscat.trade.infra.client.dto.DividendDto;
@@ -29,8 +31,6 @@ public class DividendServiceImpl implements DividendService {
   private final DividendRepository dividendRepository;
   private final TradeRepository tradeRepository;
   private final MarketServiceClient marketServiceClient;
-
-  private static final BigDecimal TAX_RATE = new BigDecimal("0.154"); // 15.4% 원천징수
 
   @Override
   @Transactional
@@ -70,14 +70,11 @@ public class DividendServiceImpl implements DividendService {
     log.debug("배당 조회 (Trade 단위 캐싱): userId={}, symbol={}, startDate={}, endDate={}",
         userId, symbol, startDate, endDate);
 
-    // 1. 해당 종목의 모든 BUY Trade 조회 (시간순)
-    List<Trade> buyTrades = tradeRepository
-        .findByUserIdAndSymbolAndStatusOrderByTradeDateAsc(userId, symbol, TradeStatus.COMPLETED)
-        .stream()
-        .filter(t -> t.getTradeType() == TradeType.BUY)
-        .toList();
+    // 1. 해당 종목의 체결된 거래 전부. 배당 수량을 매수 − 매도로 구하려고 매도도 함께 가져온다
+    List<Trade> trades = tradeRepository
+        .findByUserIdAndSymbolAndStatusOrderByTradeDateAsc(userId, symbol, TradeStatus.COMPLETED);
 
-    if (buyTrades.isEmpty()) {
+    if (trades.stream().noneMatch(t -> t.getTradeType() == TradeType.BUY)) {
       log.debug("매수 내역 없음: {}", symbol);
       return new ArrayList<>();
     }
@@ -103,15 +100,13 @@ public class DividendServiceImpl implements DividendService {
 
     log.info("배당 이벤트 {} 건 조회됨", marketDividends.size());
 
-    // 3. 각 배당일마다, 각 Trade별로 배당 레코드 생성
+    // 3. 각 배당일마다, 배당락일 전날까지 남은 매수 건별로 배당 레코드 생성 (입금과 같은 규칙)
     for (DividendDto marketDividend : marketDividends) {
       LocalDate dividendDate = LocalDate.parse(marketDividend.exDate());
 
-      for (Trade buyTrade : buyTrades) {
-        // 배당 기준일 이후에 매수한 경우 skip
-        if (buyTrade.getTradeDate().isAfter(dividendDate)) {
-          continue;
-        }
+      for (DividendEntitlement.HeldBuy held : DividendEntitlement.remainingByBuyBefore(trades, dividendDate)) {
+        Trade buyTrade = held.buy();
+        BigDecimal sharesRemaining = held.shares();
 
         // 이미 저장된 배당인지 확인 (Trade + 배당일 단위)
         if (dividendRepository.existsByTradeIdAndDividendDate(
@@ -119,18 +114,10 @@ public class DividendServiceImpl implements DividendService {
           continue;
         }
 
-        // 배당 기준일에 이 Trade의 주식이 얼마나 남아있는지 계산
-        BigDecimal sharesRemaining = calculateTradeSharesRemainingAt(
-            userId, symbol, buyTrade.getId(), dividendDate);
-
-        if (sharesRemaining.compareTo(BigDecimal.ZERO) <= 0) {
-          continue; // 이미 전량 매도됨
-        }
-
         // 배당금 계산 (이 Trade의 남은 주식에 대해서만)
         BigDecimal grossAmount = marketDividend.amount().multiply(sharesRemaining)
             .setScale(CommonConstants.DEFAULT_SCALE, CommonConstants.DEFAULT_ROUNDING_MODE);
-        BigDecimal taxAmount = grossAmount.multiply(TAX_RATE)
+        BigDecimal taxAmount = grossAmount.multiply(TradeConstants.DIVIDEND_TAX_RATE)
             .setScale(CommonConstants.DEFAULT_SCALE, CommonConstants.DEFAULT_ROUNDING_MODE);
         BigDecimal netAmount = grossAmount.subtract(taxAmount);
 
@@ -180,60 +167,6 @@ public class DividendServiceImpl implements DividendService {
       LocalDate firstPurchaseDate = getFirstPurchaseDate(userId, symbol);
       getDividendsWithCache(userId, symbol, firstPurchaseDate, LocalDate.now());
     }
-  }
-
-  /**
-   * 특정 Trade의 주식이 특정 날짜에 얼마나 남아있는지 계산 FIFO (First-In-First-Out) 방식으로 매도 처리
-   * <p>
-   * 예: Trade1 (10주 매수) → 매도 7주 → 배당일에 3주 남음
-   */
-  private BigDecimal calculateTradeSharesRemainingAt(
-    String userId, String symbol, Long targetTradeId, LocalDate targetDate) {
-
-    // 모든 거래 내역 조회 (시간순)
-    List<Trade> allTrades = tradeRepository
-      .findByUserIdAndSymbolAndStatusOrderByTradeDateAsc(userId, symbol, TradeStatus.COMPLETED);
-
-    // targetTradeId의 매수 수량
-    BigDecimal originalShares = allTrades.stream()
-      .filter(t -> t.getId().equals(targetTradeId) && t.getTradeType() == TradeType.BUY)
-      .map(Trade::getQuantity)
-      .findFirst()
-      .orElse(BigDecimal.ZERO);
-
-    if (originalShares.compareTo(BigDecimal.ZERO) <= 0) {
-      return BigDecimal.ZERO;
-    }
-
-    // targetDate까지의 매도를 FIFO로 처리하여 이 Trade의 남은 수량 계산
-    BigDecimal remainingShares = originalShares;
-    boolean reachedTargetTrade = false;
-
-    for (Trade trade : allTrades) {
-      // targetDate 이후의 거래는 무시
-      if (trade.getTradeDate().isAfter(targetDate)) {
-        break;
-      }
-
-      // targetTrade를 만나기 전까지는 skip
-      if (!reachedTargetTrade) {
-        if (trade.getId().equals(targetTradeId)) {
-          reachedTargetTrade = true;
-        }
-        continue;
-      }
-
-      // targetTrade 이후의 매도만 처리 (FIFO)
-      if (trade.getTradeType() == TradeType.SELL) {
-        remainingShares = remainingShares.subtract(trade.getQuantity());
-        if (remainingShares.compareTo(BigDecimal.ZERO) < 0) {
-          remainingShares = BigDecimal.ZERO;
-          break;
-        }
-      }
-    }
-
-    return remainingShares;
   }
 
   /**
