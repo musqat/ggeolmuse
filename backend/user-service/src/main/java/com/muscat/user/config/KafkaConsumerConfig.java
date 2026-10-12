@@ -1,8 +1,6 @@
 package com.muscat.user.config;
 
 import com.muscat.messaging.event.AccountBalanceUpdatedEvent;
-import com.muscat.messaging.event.AccountDepositCompletedEvent;
-import com.muscat.messaging.event.AccountWithdrawalCompletedEvent;
 import com.muscat.messaging.event.DividendReceivedEvent;
 import com.muscat.messaging.event.EmailSendEvent;
 import com.muscat.messaging.event.TradeCompletedEvent;
@@ -197,78 +195,6 @@ public class KafkaConsumerConfig {
     // (spring.kafka.consumer 설정)
 
     // 공통 에러 핸들러 설정 (DLQ 포함)
-    factory.setCommonErrorHandler(kafkaErrorHandler());
-
-    return factory;
-  }
-
-  @Bean
-  public ConsumerFactory<String, AccountDepositCompletedEvent> depositCompletedEventConsumerFactory() {
-    Map<String, Object> props = new HashMap<>();
-    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-    props.put(ConsumerConfig.GROUP_ID_CONFIG, applicationName + "-deposit-consumer");
-    props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
-    props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-
-    // Deserializer 설정
-    props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-    props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
-    props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class.getName());
-
-    // JSON Deserializer 추가 설정
-    props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, AccountDepositCompletedEvent.class.getName());
-    props.put(JsonDeserializer.TRUSTED_PACKAGES, "com.muscat.*");
-    props.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
-
-    return new DefaultKafkaConsumerFactory<>(props);
-  }
-
-  @Bean
-  public ConcurrentKafkaListenerContainerFactory<String, AccountDepositCompletedEvent>
-  depositCompletedEventKafkaListenerContainerFactory() {
-
-    ConcurrentKafkaListenerContainerFactory<String, AccountDepositCompletedEvent> factory =
-      new ConcurrentKafkaListenerContainerFactory<>();
-
-    factory.setConsumerFactory(depositCompletedEventConsumerFactory());
-    factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL);
-    factory.setConcurrency(3);
-    factory.setCommonErrorHandler(kafkaErrorHandler());
-
-    return factory;
-  }
-
-  @Bean
-  public ConsumerFactory<String, AccountWithdrawalCompletedEvent> withdrawalCompletedEventConsumerFactory() {
-    Map<String, Object> props = new HashMap<>();
-    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-    props.put(ConsumerConfig.GROUP_ID_CONFIG, applicationName + "-withdrawal-consumer");
-    props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
-    props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-
-    // Deserializer 설정
-    props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-    props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
-    props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class.getName());
-
-    // JSON Deserializer 추가 설정
-    props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, AccountWithdrawalCompletedEvent.class.getName());
-    props.put(JsonDeserializer.TRUSTED_PACKAGES, "com.muscat.*");
-    props.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
-
-    return new DefaultKafkaConsumerFactory<>(props);
-  }
-
-  @Bean
-  public ConcurrentKafkaListenerContainerFactory<String, AccountWithdrawalCompletedEvent>
-  withdrawalCompletedEventKafkaListenerContainerFactory() {
-
-    ConcurrentKafkaListenerContainerFactory<String, AccountWithdrawalCompletedEvent> factory =
-      new ConcurrentKafkaListenerContainerFactory<>();
-
-    factory.setConsumerFactory(withdrawalCompletedEventConsumerFactory());
-    factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL);
-    factory.setConcurrency(3);
     factory.setCommonErrorHandler(kafkaErrorHandler());
 
     return factory;
