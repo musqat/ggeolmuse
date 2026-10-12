@@ -4,6 +4,7 @@ import com.muscat.messaging.event.DividendReceivedEvent;
 import com.muscat.messaging.event.TradeCompletedEvent;
 import com.muscat.user.domain.account.dto.request.CreateAccountRequestDto;
 import com.muscat.user.domain.account.dto.response.BalanceResponseDto;
+import com.muscat.user.domain.account.dto.response.ExchangeRateRangeDto;
 import com.muscat.user.domain.account.entity.Account;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -41,6 +42,9 @@ public interface AccountService {
   BigDecimal getExchangeRateByDate(LocalDate date);
 
   BigDecimal createManualExchangeRate(BigDecimal manualRate);
+
+  // 환전에 쓸 수 있는 환율 범위. 환전 창이 수동 환율 칸에 보여 주고, 환전할 때 같은 범위로 검사한다
+  ExchangeRateRangeDto getExchangeRateRange();
 
   // Kafka 이벤트 처리
   void processTradeEvent(TradeCompletedEvent event);

@@ -12,6 +12,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.muscat.commonlib.dto.FxRateDto;
+import com.muscat.commonlib.dto.FxRateRangeDto;
 import com.muscat.messaging.event.DividendReceivedEvent;
 import com.muscat.messaging.event.TradeCompletedEvent;
 import com.muscat.user.common.enums.responses.AccountResponse;
@@ -81,6 +82,9 @@ class AccountServiceImplTest {
   @Mock
   private DepositWithdrawalEventProducer depositWithdrawalEventProducer;
 
+  @Mock
+  private com.muscat.user.domain.account.repository.DividendSettlementRepository dividendSettlementRepository;
+
   @InjectMocks
   private AccountServiceImpl accountService;
 
@@ -117,6 +121,9 @@ class AccountServiceImplTest {
     ReflectionTestUtils.setField(accountService, "minValidRate", new BigDecimal("1000"));
     ReflectionTestUtils.setField(accountService, "maxValidRate", new BigDecimal("2000"));
     ReflectionTestUtils.setField(accountService, "fallbackRate", new BigDecimal("1350"));
+    ReflectionTestUtils.setField(accountService, "exchangeTolerance", new BigDecimal("0.05"));
+    ReflectionTestUtils.setField(accountService, "exchangeFallbackMin", new BigDecimal("1000"));
+    ReflectionTestUtils.setField(accountService, "exchangeFallbackMax", new BigDecimal("1650"));
   }
 
   @Nested
@@ -458,6 +465,68 @@ class AccountServiceImplTest {
 
       verify(accountHistoryRepository, never()).deleteByAccount(any(Account.class));
       verify(accountRepository, never()).delete(any(Account.class));
+    }
+  }
+
+  @Nested
+  @DisplayName("환전 환율 범위 (저장된 환율 최저 −5% ~ 최고 +5%)")
+  class ExchangeRateRangeTests {
+
+    private static final String RANGE_MESSAGE = "환율은 1000 ~ 1633원 사이로 넣어 주세요.";
+
+    // 최저 1053.37 · 최고 1554.40 → ×0.95 · ×1.05 = 1000.70 · 1632.12 → 최저 내림 · 최고 올림으로 1000 ~ 1633
+    @BeforeEach
+    void storedRange() {
+      given(marketDataServiceClientWrapper.getFxRateRange()).willReturn(new FxRateRangeDto(
+        new BigDecimal("1053.37"), LocalDate.of(2018, 4, 3), new BigDecimal("1554.40"), LocalDate.of(2026, 7, 2)));
+    }
+
+    @Test
+    @DisplayName("범위 밖이거나 비면 계좌를 보기 전에 거절하고 범위를 알려준다")
+    void outOfRange_RejectedBeforeAccountLookup() {
+      for (String rate : new String[]{"1", "999.99", "1633.01"}) {
+        assertThatThrownBy(() -> accountService.exchangeKrwToUsd(accountId, userId, new BigDecimal("10000"), new BigDecimal(rate)))
+          .isInstanceOf(AccountException.class)
+          .hasMessage(RANGE_MESSAGE);
+        assertThatThrownBy(() -> accountService.exchangeUsdToKrw(accountId, userId, new BigDecimal("10"), new BigDecimal(rate)))
+          .isInstanceOf(AccountException.class)
+          .hasMessage(RANGE_MESSAGE);
+      }
+      assertThatThrownBy(() -> accountService.exchangeKrwToUsd(accountId, userId, new BigDecimal("10000"), null))
+        .isInstanceOf(AccountException.class);
+      verify(accountRepository, never()).findByIdAndUserIdWithLock(any(), any());
+    }
+
+    @Test
+    @DisplayName("경계값과 역대 최고를 넘은 새 환율(1600)은 통과해 계좌 조회로 넘어간다")
+    void insideRange_PassesToAccountLookup() {
+      given(accountRepository.findByIdAndUserIdWithLock(accountId, userId)).willReturn(Optional.empty());
+
+      for (String rate : new String[]{"1000", "1633", "1600"}) {
+        assertThatThrownBy(() -> accountService.exchangeKrwToUsd(accountId, userId, new BigDecimal("10000"), new BigDecimal(rate)))
+          .hasMessage(AccountResponse.ACCOUNT_NOT_FOUND.getMessage());
+        assertThatThrownBy(() -> accountService.exchangeUsdToKrw(accountId, userId, new BigDecimal("10"), new BigDecimal(rate)))
+          .hasMessage(AccountResponse.ACCOUNT_NOT_FOUND.getMessage());
+      }
+    }
+
+    @Test
+    @DisplayName("환전 창에 보여 줄 범위도 같은 정수 범위다")
+    void range_IsIntegerRange() {
+      assertThat(accountService.getExchangeRateRange())
+        .isEqualTo(new com.muscat.user.domain.account.dto.response.ExchangeRateRangeDto(new BigDecimal("1000"), new BigDecimal("1633")));
+    }
+
+    @Test
+    @DisplayName("범위를 못 받으면 설정의 대체 범위(1000 ~ 1650)로 본다")
+    void rangeUnavailable_UsesFallbackRange() {
+      given(marketDataServiceClientWrapper.getFxRateRange()).willReturn(null);
+      given(accountRepository.findByIdAndUserIdWithLock(accountId, userId)).willReturn(Optional.empty());
+
+      assertThatThrownBy(() -> accountService.exchangeKrwToUsd(accountId, userId, new BigDecimal("10000"), new BigDecimal("999.99")))
+        .hasMessage("환율은 1000 ~ 1650원 사이로 넣어 주세요.");
+      assertThatThrownBy(() -> accountService.exchangeKrwToUsd(accountId, userId, new BigDecimal("10000"), new BigDecimal("1650")))
+        .hasMessage(AccountResponse.ACCOUNT_NOT_FOUND.getMessage());
     }
   }
 
@@ -1002,6 +1071,29 @@ class AccountServiceImplTest {
       assertThatThrownBy(() -> accountService.processDividendReceivedEvent(event))
         .isInstanceOf(AccountException.class)
         .hasMessage(AccountResponse.ACCOUNT_ACCESS_DENIED.getMessage());
+    }
+
+    @Test
+    @DisplayName("이미 입금한 배당(같은 계좌 · 종목 · 배당락일)이면 입금하지 않고 넘어간다")
+    void processDividendReceivedEvent_AlreadySettled_Skips() {
+      DividendReceivedEvent event = DividendReceivedEvent.builder()
+        .userId(userId.toString())
+        .accountId(accountId)
+        .symbol("AAPL")
+        .quantity(new BigDecimal("10"))
+        .dividendPerShare(new BigDecimal("0.25"))
+        .totalAmount(new BigDecimal("2.50"))
+        .exDate("2024-11-08")
+        .currency("USD")
+        .build();
+      given(accountRepository.findById(accountId)).willReturn(Optional.of(testAccount));
+      given(dividendSettlementRepository.existsByAccountIdAndSymbolAndExDate(accountId, "AAPL", java.time.LocalDate.of(2024, 11, 8)))
+        .willReturn(true);
+
+      accountService.processDividendReceivedEvent(event);
+
+      assertThat(testAccount.getBalanceUsd()).isEqualByComparingTo("0");
+      verify(dividendSettlementRepository, never()).saveAndFlush(any());
     }
   }
 

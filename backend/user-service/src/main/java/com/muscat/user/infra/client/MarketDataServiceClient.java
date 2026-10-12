@@ -1,6 +1,7 @@
 package com.muscat.user.infra.client;
 
 import com.muscat.commonlib.dto.FxRateDto;
+import com.muscat.commonlib.dto.FxRateRangeDto;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -13,4 +14,7 @@ public interface MarketDataServiceClient {
 
   @GetMapping("/api/internal/market/fx/latest")
   FxRateDto getLatestFxRate();
+
+  @GetMapping("/api/internal/market/fx/range")
+  FxRateRangeDto getFxRateRange();
 }
