@@ -4,10 +4,13 @@
     <!-- User Service 간단한 로깅 설정 -->
     <property name="LOG_FILE" value="${LOG_FILE:-user}"/>
 
+    <!-- 메시지 속 이메일을 가리고 지문을 붙인다(MaskedEmailMessageConverter). 로그 82곳을 하나씩 고치지 않고 여기서 처리한다 -->
+    <conversionRule conversionWord="maskedMsg" class="com.muscat.user.common.logging.MaskedEmailMessageConverter"/>
+
     <!-- Console Appender -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %maskedMsg%n</pattern>
         </encoder>
     </appender>
 
