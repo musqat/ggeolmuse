@@ -115,8 +115,8 @@ jobs:
         run: |
           cd backend/${{ matrix.service }}
           # 단위 테스트(*Test)는 surefire, 통합 테스트(*IT)는 failsafe 가 verify 에서 돈다.
-          # user 커버리지 70% 검사는 아직 못 넘어 결과만 남기고 빌드는 막지 않는다
-          mvn -s $GITHUB_WORKSPACE/.mvn/ci-settings.xml clean verify -Djacoco.haltOnFailure=false
+          # 커버리지 검사(user)도 verify 에서 돌아 바닥 아래로 내려가면 막는다
+          mvn -s $GITHUB_WORKSPACE/.mvn/ci-settings.xml clean verify
       - uses: docker/setup-buildx-action@v3
 
       # 러너가 매번 새 머신이라 Docker 레이어를 Actions 캐시에 얹어 재사용한다
