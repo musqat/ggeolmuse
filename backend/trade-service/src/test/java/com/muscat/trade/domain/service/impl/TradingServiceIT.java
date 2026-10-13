@@ -50,10 +50,10 @@ import org.testcontainers.kafka.ConfluentKafkaContainer;
 @DisplayName("TradingService 통합 테스트 (TestContainers)")
 class TradingServiceIT {
 
-  // 운영과 같은 Postgres. 마이그레이션이 여기서 돈다
+  // 운영 RDS 와 같은 Postgres 15. 마이그레이션이 여기서 돈다
   @Container
   @ServiceConnection
-  static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
+  static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15-alpine");
 
   @Container
   static ConfluentKafkaContainer kafka = new ConfluentKafkaContainer("confluentinc/cp-kafka:7.6.0");

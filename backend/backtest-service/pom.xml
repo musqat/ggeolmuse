@@ -234,12 +234,46 @@
                             <goal>prepare-agent</goal>
                         </goals>
                     </execution>
+                    <!-- 통합 테스트(failsafe, integration-test 단계)까지 돈 뒤에 보고서를 만든다. 바닥 검사와 README 수치가 같은 값이 된다 -->
                     <execution>
                         <id>report</id>
-                        <phase>test</phase>
+                        <phase>verify</phase>
                         <goals>
                             <goal>report</goal>
                         </goals>
+                    </execution>
+                    <execution>
+                        <id>jacoco-check</id>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <configuration>
+                            <!-- README 커버리지와 같은 기준. 생성 코드 · 설정 · DTO · 엔티티는 뺀다. 롬복 생성 코드는 backend/lombok.config 로 빠진다 -->
+                            <excludes>
+                                <exclude>**/Q*.class</exclude>
+                                <exclude>**/*Config.class</exclude>
+                                <exclude>**/dto/**</exclude>
+                                <exclude>**/entity/**</exclude>
+                            </excludes>
+                            <rules>
+                                <!-- 서비스 전체 커버리지 바닥. 아래로 내려가면 빌드를 막는다. 테스트를 채우면 올린다 -->
+                                <rule>
+                                    <element>BUNDLE</element>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.73</minimum>
+                                        </limit>
+                                        <limit>
+                                            <counter>BRANCH</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.60</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
