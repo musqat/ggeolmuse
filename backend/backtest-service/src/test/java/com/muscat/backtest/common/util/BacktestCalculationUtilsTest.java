@@ -13,6 +13,8 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import com.muscat.backtest.domain.model.StrategyTransaction;
+import com.muscat.backtest.common.enums.BacktestResponse;
 
 @DisplayName("BacktestCalculationUtils 단위 테스트")
 class BacktestCalculationUtilsTest {
@@ -614,6 +616,116 @@ class BacktestCalculationUtilsTest {
       assertThat(BacktestCalculationUtils.calculateSharesAfterFee(amount, fxRate, price,
         BigDecimal.ZERO))
         .isEqualTo(BacktestCalculationUtils.calculateShares(amount, fxRate, price));
+    }
+  }
+
+  @Nested
+  @DisplayName("입력 경계")
+  class InputBoundaryTests {
+
+    @Test
+    @DisplayName("평균 단가 · 평균 환율 · 분할 금액은 null 을 받지 않는다")
+    void rejectsNull() {
+      assertThatThrownBy(() -> BacktestCalculationUtils.calculateAveragePrice(null, BigDecimal.ONE, BigDecimal.ONE))
+        .isInstanceOf(IllegalArgumentException.class);
+      assertThatThrownBy(() -> BacktestCalculationUtils.calculateAverageFxRate(null, BigDecimal.ONE))
+        .isInstanceOf(IllegalArgumentException.class);
+      assertThatThrownBy(() -> BacktestCalculationUtils.calculateInvestmentPerDivision(null, 10))
+        .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("배당 합계는 입력이 비면 0 이다")
+    void totalDividendsNullIsZero() {
+      List<StrategyTransaction> none = List.of();
+
+      assertThat(BacktestCalculationUtils.calculateTotalDividends(null, none, LocalDate.of(2024, 1, 1), LocalDate.of(2024, 12, 31)))
+        .isEqualByComparingTo("0");
+    }
+
+    @Test
+    @DisplayName("수수료 반영 주식 수: null 은 계산 오류, 수수료가 투자금 이상이거나 너무 적어 한 조각도 못 사면 투자금 부족")
+    void sharesWithFeeBoundaries() {
+      assertThatThrownBy(() -> BacktestCalculationUtils.calculateSharesWithFee(null, BigDecimal.TEN, BigDecimal.ZERO))
+        .isInstanceOf(BacktestException.class)
+        .extracting("code")
+        .isEqualTo(BacktestResponse.SHARES_CALCULATION_ERROR);
+      assertThatThrownBy(() -> BacktestCalculationUtils.calculateSharesWithFee(new BigDecimal("100"), BigDecimal.TEN, BigDecimal.ONE))
+        .isInstanceOf(BacktestException.class)
+        .extracting("code")
+        .isEqualTo(BacktestResponse.INSUFFICIENT_INVESTMENT);
+      assertThatThrownBy(() -> BacktestCalculationUtils.calculateSharesWithFee(new BigDecimal("0.000001"), new BigDecimal("1000"), BigDecimal.ZERO))
+        .isInstanceOf(BacktestException.class)
+        .extracting("code")
+        .isEqualTo(BacktestResponse.INSUFFICIENT_INVESTMENT);
+    }
+  }
+
+  @Nested
+  @DisplayName("배당 합계 · 배당 수익률의 걸러지는 경우")
+  class DividendFilterTests {
+
+    private final LocalDate start = LocalDate.of(2024, 1, 1);
+    private final LocalDate end = LocalDate.of(2024, 12, 31);
+
+    private DividendHistoryDto.DividendPayment pay(LocalDate exDate, String amount) {
+      DividendHistoryDto.DividendPayment pay = new DividendHistoryDto.DividendPayment();
+      pay.setExDate(exDate);
+      pay.setAmount(amount == null ? null : new BigDecimal(amount));
+      return pay;
+    }
+
+    // 권리락일 없음 · 기간 전 · 기간 뒤 · 금액 없음은 0 이고, 기간 안의 주당 1달러만 센다
+    private DividendHistoryDto mixed() {
+      DividendHistoryDto history = new DividendHistoryDto();
+      history.setDividends(List.of(pay(null, "5"), pay(LocalDate.of(2023, 12, 1), "5"), pay(LocalDate.of(2025, 1, 2), "5"),
+        pay(LocalDate.of(2024, 3, 1), null), pay(LocalDate.of(2024, 6, 1), "1")));
+      return history;
+    }
+
+    @Test
+    @DisplayName("거래 목록 기준: 기간 밖 · 권리락일 없음 · 금액 없음은 빼고 그날 보유 주식으로 센다")
+    void byTransactions() {
+      List<StrategyTransaction> txs = List.of(StrategyTransaction.builder().date(start).actualDate(start)
+        .shares(BigDecimal.TEN).amount(BigDecimal.ONE).fxRate(BigDecimal.ONE).build());
+
+      assertThat(BacktestCalculationUtils.calculateTotalDividends(mixed(), txs, start, end)).isEqualByComparingTo("10");
+    }
+
+    @Test
+    @DisplayName("고정 주식 수 기준도 같은 배당만 센다")
+    void byFixedShares() {
+      assertThat(BacktestCalculationUtils.calculateTotalDividends(mixed(), BigDecimal.TEN, start, end)).isEqualByComparingTo("10");
+    }
+
+    @Test
+    @DisplayName("배당 목록이 없거나 비면 두 방식 모두 0")
+    void emptyHistory() {
+      DividendHistoryDto nullList = new DividendHistoryDto();
+      DividendHistoryDto empty = new DividendHistoryDto();
+      empty.setDividends(List.of());
+      List<StrategyTransaction> none = List.of();
+
+      for (DividendHistoryDto history : List.of(nullList, empty)) {
+        assertThat(BacktestCalculationUtils.calculateTotalDividends(history, none, start, end)).isEqualByComparingTo("0");
+        assertThat(BacktestCalculationUtils.calculateTotalDividends(history, BigDecimal.TEN, start, end)).isEqualByComparingTo("0");
+      }
+      assertThat(BacktestCalculationUtils.calculateTotalDividends(mixed(), (BigDecimal) null, start, end)).isEqualByComparingTo("0");
+    }
+
+    @Test
+    @DisplayName("배당 수익률은 주식 수나 현재가가 0 이거나 없으면 0")
+    void dividendYieldGuards() {
+      assertThat(BacktestCalculationUtils.calculateDividendYield(BigDecimal.TEN, BigDecimal.ZERO, BigDecimal.TEN)).isEqualByComparingTo("0");
+      assertThat(BacktestCalculationUtils.calculateDividendYield(BigDecimal.TEN, BigDecimal.TEN, BigDecimal.ZERO)).isEqualByComparingTo("0");
+      assertThat(BacktestCalculationUtils.calculateDividendYield(BigDecimal.TEN, BigDecimal.TEN, null)).isEqualByComparingTo("0");
+    }
+
+    @Test
+    @DisplayName("거래일이나 권리락일이 없으면 배당을 받지 않는다")
+    void receivesDividendNulls() {
+      assertThat(BacktestCalculationUtils.receivesDividend(null, end)).isFalse();
+      assertThat(BacktestCalculationUtils.receivesDividend(start, null)).isFalse();
     }
   }
 }

@@ -753,4 +753,115 @@ class TradingSimulationServiceImplTest {
       .build();
   }
 
+  @Nested
+  @DisplayName("배당 재투자 세부 · 최적 시점 실패")
+  class ReinvestDetailTests {
+
+    private final LocalDate purchaseDate = LocalDate.of(2024, 1, 15);
+    private final LocalDate saleDate = LocalDate.of(2024, 6, 14);
+    private final LocalDate exDate = LocalDate.of(2024, 5, 10);
+    private TradingSimulationServiceImpl service;
+
+    @BeforeEach
+    void setUpService() {
+      service = new TradingSimulationServiceImpl(marketDataClientWrapper, new ResponseMapper(), backtestHistoryUtils);
+    }
+
+    // 130만원 · 환율 1300 · 매수가 100 → 10주. 매도일 평가가 150
+    private SimulationRequest request(boolean reinvest, String taxRate) {
+      return SimulationRequest.builder().symbol(TEST_SYMBOL).purchaseDate(purchaseDate).saleDate(saleDate)
+        .investmentAmount(new BigDecimal("1300000")).reinvestDividends(reinvest)
+        .dividendTaxRate(new BigDecimal(taxRate)).build();
+    }
+
+    private void stubPurchaseAndSale() {
+      given(marketDataClientWrapper.getOHLCPrice(TEST_SYMBOL, "2024-01-15"))
+        .willReturn(createOHLCPrice(TEST_SYMBOL, purchaseDate, new BigDecimal("100.00"), true));
+      given(marketDataClientWrapper.getFxRate("2024-01-15")).willReturn(new FxRateDto(purchaseDate, new BigDecimal("1300")));
+      given(marketDataClientWrapper.getOHLCPrice(TEST_SYMBOL, "2024-06-14"))
+        .willReturn(createOHLCPrice(TEST_SYMBOL, saleDate, new BigDecimal("150.00"), true));
+      given(marketDataClientWrapper.getFxRate("2024-06-14")).willReturn(new FxRateDto(saleDate, new BigDecimal("1300")));
+    }
+
+    private void stubDividend(String perShare) {
+      given(marketDataClientWrapper.getDividendHistory(TEST_SYMBOL, "2024-01-15", "2024-06-14"))
+        .willReturn(List.of(new DividendDto(TEST_SYMBOL, exDate, exDate.plusDays(5), null, new BigDecimal(perShare), "USD", "test")));
+    }
+
+    @Test
+    @DisplayName("원천징수 세율이 있으면 세후 배당으로만 다시 산다")
+    void reinvestsAfterTax() {
+      stubPurchaseAndSale();
+      stubDividend("1.00");
+      given(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
+        .willReturn(List.of(createOHLCPrice(TEST_SYMBOL, exDate, new BigDecimal("100.00"), true)));
+
+      SimulationResponse response = service.runSimulation(request(true, "0.15"), false);
+
+      // 배당 10달러 - 세금 1.5 = 8.5 달러 → 100 달러에 0.085주
+      assertThat(response.getDividendsReinvested()).isEqualByComparingTo("8.50");
+      assertThat(response.getShares()).isEqualByComparingTo("10.085");
+    }
+
+    @Test
+    @DisplayName("배당일 시세가 일괄 조회에 없으면 그날 시세를 따로 조회해 산다")
+    void fetchesMissingDividendDayPrice() {
+      stubPurchaseAndSale();
+      stubDividend("1.00");
+      given(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString())).willReturn(List.of());
+      given(marketDataClientWrapper.getOHLCPrice(TEST_SYMBOL, "2024-05-10"))
+        .willReturn(createOHLCPrice(TEST_SYMBOL, exDate, new BigDecimal("125.00"), true));
+
+      SimulationResponse response = service.runSimulation(request(true, "0"), false);
+
+      // 10달러 / 125 = 0.08주
+      assertThat(response.getShares()).isEqualByComparingTo("10.08");
+      assertThat(response.getDividendReinvestDates()).containsExactly(exDate);
+    }
+
+    @Test
+    @DisplayName("주당 배당이 0 이면 재투자하지 않는다")
+    void skipsZeroDividend() {
+      stubPurchaseAndSale();
+      stubDividend("0");
+      given(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString())).willReturn(List.of());
+
+      SimulationResponse response = service.runSimulation(request(true, "0"), false);
+
+      assertThat(response.getDividendReinvestDates()).isEmpty();
+      assertThat(response.getShares()).isEqualByComparingTo("10");
+    }
+
+    @Test
+    @DisplayName("최적 시점 계산이 실패해도 시뮬레이션 결과는 나오고 최적 시점만 빈다")
+    void optimalTimingFailureLeavesItEmpty() {
+      stubPurchaseAndSale();
+      given(marketDataClientWrapper.getDividendHistory(TEST_SYMBOL, "2024-01-15", "2024-06-14")).willReturn(List.of());
+      given(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
+        .willThrow(new RuntimeException("range down"));
+
+      SimulationResponse response = service.runSimulation(request(false, "0"), false);
+
+      assertThat(response.getCurrentPrice()).isEqualByComparingTo("150.00");
+      assertThat(response.getOptimalBuyDate()).isNull();
+      assertThat(response.getOptimalReturnPercent()).isNull();
+    }
+
+    @Test
+    @DisplayName("재투자를 켜도 배당이 없거나 권리락일 없는 배당뿐이면 주식 수가 그대로다")
+    void reinvestWithoutUsableDividends() {
+      stubPurchaseAndSale();
+      given(marketDataClientWrapper.getDividendHistory(TEST_SYMBOL, "2024-01-15", "2024-06-14"))
+        .willReturn(List.of())
+        .willReturn(List.of(new DividendDto(TEST_SYMBOL, null, null, null, BigDecimal.ONE, "USD", "test")));
+      given(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString())).willReturn(List.of());
+
+      SimulationResponse noDividends = service.runSimulation(request(true, "0"), false);
+      SimulationResponse noExDate = service.runSimulation(request(true, "0"), false);
+
+      assertThat(noDividends.getShares()).isEqualByComparingTo("10");
+      assertThat(noExDate.getShares()).isEqualByComparingTo("10");
+      assertThat(noExDate.getDividendReinvestDates()).isEmpty();
+    }
+  }
 }

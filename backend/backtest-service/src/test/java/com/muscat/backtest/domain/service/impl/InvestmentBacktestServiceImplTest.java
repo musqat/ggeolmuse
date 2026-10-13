@@ -41,6 +41,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.ArgumentCaptor;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("InvestmentBacktestService 단위 테스트")
@@ -346,5 +349,237 @@ class InvestmentBacktestServiceImplTest {
       .status("SUCCESS").message("투자 백테스트가 성공적으로 완료되었습니다")
       .portfolioCreated(true).portfolioStatus("ACTIVE")
       .build();
+  }
+
+  // 보유 종목 하나의 성과 계산에 필요한 시세 · 환율을 깔고, 응답 매퍼가 받은 계산 결과를 잡는다
+  private SimulationResponse capturedSimulation(HoldingDto holding) {
+    ArgumentCaptor<SimulationResponse> captor = ArgumentCaptor.forClass(SimulationResponse.class);
+    verify(responseMapper).toInvestmentResponse(eq(holding), captor.capture());
+    return captor.getValue();
+  }
+
+  private void stubSingleHolding(HoldingDto holding) {
+    given(tradeServiceClientWrapper.getPortfolio(TEST_AUTHORIZATION)).willReturn(List.of(holding));
+    given(tradeServiceClientWrapper.getTradeHistoryBySymbol(TEST_AUTHORIZATION, holding.symbol())).willReturn(List.of());
+    given(marketDataClientWrapper.getCurrentPrice(holding.symbol()))
+      .willReturn(createCurrentPrice(holding.symbol(), new BigDecimal("200.00")));
+    given(responseMapper.toInvestmentResponse(eq(holding), any(SimulationResponse.class)))
+      .willReturn(InvestmentResponse.builder().symbol(holding.symbol()).status("SUCCESS").build());
+  }
+
+  @Nested
+  @DisplayName("보유 종목 여럿의 포트폴리오 합산")
+  class PortfolioMergeTests {
+
+    private final HoldingDto aapl = createHoldingDto("AAPL", new BigDecimal("5"), new BigDecimal("150"), new BigDecimal("1000000"));
+    private final HoldingDto msft = createHoldingDto("MSFT", new BigDecimal("4"), new BigDecimal("300"), new BigDecimal("2000000"));
+
+    private SimulationResponse sim(LocalDate purchase, LocalDate current, String invested, String valueUsd, String valueKrw,
+      String dividends, String fee, String cash, String cashKrw, String fx) {
+      return SimulationResponse.builder().purchaseDate(purchase).currentDate(current)
+        .investmentAmount(new BigDecimal(invested)).currentValue(new BigDecimal(valueUsd))
+        .currentValueKrw(new BigDecimal(valueKrw)).totalDividends(new BigDecimal(dividends))
+        .tradingFee(new BigDecimal(fee)).remainingCash(new BigDecimal(cash))
+        .remainingCashKrw(new BigDecimal(cashKrw)).currentFxRate(new BigDecimal(fx)).build();
+    }
+
+    // AAPL 은 매수 이력에서 가장 이른 BUY(매도는 빼고), MSFT 는 이력이 없어 보유 생성일을 매수일로 쓴다
+    private void stubTwoHoldings(String aaplStatus, String msftStatus) throws JsonProcessingException {
+      given(tradeServiceClientWrapper.getPortfolio(TEST_AUTHORIZATION)).willReturn(List.of(aapl, msft));
+      given(tradeServiceClientWrapper.getTradeHistoryBySymbol(TEST_AUTHORIZATION, "AAPL")).willReturn(List.of(
+        createTradeDto("BUY", LocalDate.of(2024, 3, 1)), createTradeDto("SELL", LocalDate.of(2023, 12, 1)),
+        createTradeDto("BUY", LocalDate.of(2024, 1, 10))));
+      given(tradeServiceClientWrapper.getTradeHistoryBySymbol(TEST_AUTHORIZATION, "MSFT")).willReturn(List.of());
+      given(marketDataClientWrapper.getCurrentPrice(anyString())).willReturn(createCurrentPrice("ANY", new BigDecimal("200.00")));
+      given(marketDataClientWrapper.getFxRate(anyString())).willReturn(new FxRateDto(LocalDate.of(2024, 1, 10), new BigDecimal("1300")));
+      given(marketDataClientWrapper.getLatestFxRate()).willReturn(new FxRateDto(LocalDate.now(), new BigDecimal("1350")));
+      given(responseMapper.toInvestmentResponse(eq(aapl), any(SimulationResponse.class))).willReturn(InvestmentResponse.builder()
+        .symbol("AAPL").status(aaplStatus).simulation(sim(LocalDate.of(2024, 1, 10), LocalDate.of(2024, 6, 1),
+          "1000000", "800", "1100000", "5", "1", "10", "13000", "1350")).build());
+      given(responseMapper.toInvestmentResponse(eq(msft), any(SimulationResponse.class))).willReturn(InvestmentResponse.builder()
+        .symbol("MSFT").status(msftStatus).simulation(sim(LocalDate.of(2024, 1, 15), LocalDate.of(2024, 6, 2),
+          "2000000", "1500", "2000000", "3", "2", "20", "26000", "1360")).build());
+      given(objectMapper.writeValueAsString(any())).willReturn("{}");
+    }
+
+    @Test
+    @DisplayName("금액은 더하고, 매수일은 가장 이른 날 · 평가일과 환율은 가장 늦은 종목 것을 쓴다")
+    void mergesTwoHoldings() throws JsonProcessingException {
+      stubTwoHoldings("SUCCESS", "SUCCESS");
+
+      InvestmentResponse result = investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION);
+
+      SimulationResponse merged = result.getSimulation();
+      assertThat(merged.getSymbol()).isEqualTo("AAPL, MSFT");
+      assertThat(merged.getPurchaseDate()).isEqualTo(LocalDate.of(2024, 1, 10));
+      assertThat(merged.getCurrentDate()).isEqualTo(LocalDate.of(2024, 6, 2));
+      assertThat(merged.getCurrentFxRate()).isEqualByComparingTo("1360");
+      assertThat(merged.getInvestmentAmount()).isEqualByComparingTo("3000000");
+      assertThat(merged.getCurrentValue()).isEqualByComparingTo("2300");
+      assertThat(merged.getCurrentValueKrw()).isEqualByComparingTo("3100000");
+      assertThat(merged.getTotalDividends()).isEqualByComparingTo("8");
+      assertThat(merged.getTradingFee()).isEqualByComparingTo("3");
+      assertThat(merged.getRemainingCash()).isEqualByComparingTo("30");
+      assertThat(merged.getRemainingCashKrw()).isEqualByComparingTo("39000");
+      // 총자산 = 평가액 310만 + 남은 현금 3.9만, 수익 13.9만 / 투자 300만
+      assertThat(merged.getTotalAssetKrw()).isEqualByComparingTo("3139000");
+      assertThat(merged.getTotalReturnKrw()).isEqualByComparingTo("139000");
+      assertThat(merged.getTotalReturnPercent()).isEqualByComparingTo("4.63");
+      assertThat(result.getHoldingId()).isEqualTo("PORTFOLIO-2");
+      assertThat(result.getStatus()).isEqualTo("SUCCESS");
+      assertThat(result.getMessage()).isEqualTo("2개 종목 중 2개 성공");
+      verify(objectMapper).writeValueAsString(result);
+    }
+
+    @Test
+    @DisplayName("종목별 매수일은 가장 이른 BUY 거래일이고, 거래 이력이 없으면 보유 생성일이다")
+    void earliestBuyDatePerHolding() throws JsonProcessingException {
+      stubTwoHoldings("SUCCESS", "SUCCESS");
+
+      investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION);
+
+      assertThat(capturedSimulation(aapl).getPurchaseDate()).isEqualTo(LocalDate.of(2024, 1, 10));
+      assertThat(capturedSimulation(msft).getPurchaseDate()).isEqualTo(LocalDate.of(2024, 1, 15));
+    }
+
+    @Test
+    @DisplayName("실패한 종목이 있으면 부분 성공이다")
+    void partialSuccess() throws JsonProcessingException {
+      stubTwoHoldings("SUCCESS", "FAILED");
+
+      InvestmentResponse result = investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION);
+
+      assertThat(result.getStatus()).isEqualTo("PARTIAL_SUCCESS");
+      assertThat(result.getMessage()).isEqualTo("2개 종목 중 1개 성공");
+    }
+  }
+
+  @Nested
+  @DisplayName("환율 대체 · 0 투자금")
+  class FxFallbackTests {
+
+    private final HoldingDto holding = createHoldingDto("AAPL", new BigDecimal("10"), new BigDecimal("100"), new BigDecimal("1300000"));
+
+    @Test
+    @DisplayName("매수일 환율이 없으면 최신 환율을 매수 환율로 쓴다")
+    void purchaseFxFallsBackToLatest() {
+      stubSingleHolding(holding);
+      given(marketDataClientWrapper.getFxRate(anyString())).willThrow(new RuntimeException("no fx"));
+      given(marketDataClientWrapper.getLatestFxRate()).willReturn(new FxRateDto(LocalDate.now(), new BigDecimal("1350")));
+
+      investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION);
+
+      SimulationResponse sim = capturedSimulation(holding);
+      assertThat(sim.getPurchaseFxRate()).isEqualByComparingTo("1350");
+      assertThat(sim.getCurrentFxRate()).isEqualByComparingTo("1350");
+    }
+
+    @Test
+    @DisplayName("매수일 환율도 최신 환율도 없으면 둘 다 기본 환율 1300 이다")
+    void allFxFailUsesDefault() {
+      stubSingleHolding(holding);
+      given(marketDataClientWrapper.getFxRate(anyString())).willThrow(new RuntimeException("no fx"));
+      given(marketDataClientWrapper.getLatestFxRate()).willThrow(new RuntimeException("no latest"));
+
+      investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION);
+
+      SimulationResponse sim = capturedSimulation(holding);
+      assertThat(sim.getPurchaseFxRate()).isEqualByComparingTo("1300");
+      assertThat(sim.getCurrentFxRate()).isEqualByComparingTo("1300");
+    }
+
+    @Test
+    @DisplayName("매수일 환율은 있고 최신 환율만 없으면 현재 환율만 기본값이다")
+    void onlyCurrentFxFails() {
+      stubSingleHolding(holding);
+      given(marketDataClientWrapper.getFxRate(anyString())).willReturn(new FxRateDto(LocalDate.of(2024, 1, 15), new BigDecimal("1200")));
+      given(marketDataClientWrapper.getLatestFxRate()).willThrow(new RuntimeException("no latest"));
+
+      investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION);
+
+      SimulationResponse sim = capturedSimulation(holding);
+      assertThat(sim.getPurchaseFxRate()).isEqualByComparingTo("1200");
+      assertThat(sim.getCurrentFxRate()).isEqualByComparingTo("1300");
+    }
+
+    @Test
+    @DisplayName("투자금과 평균 단가가 0 이면 수익률은 나누지 않고 0 이다")
+    void zeroInvestment() {
+      HoldingDto free = createHoldingDto("AAPL", new BigDecimal("10"), BigDecimal.ZERO, BigDecimal.ZERO);
+      stubSingleHolding(free);
+      given(marketDataClientWrapper.getFxRate(anyString())).willReturn(new FxRateDto(LocalDate.of(2024, 1, 15), new BigDecimal("1300")));
+      given(marketDataClientWrapper.getLatestFxRate()).willReturn(new FxRateDto(LocalDate.now(), new BigDecimal("1300")));
+
+      investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION);
+
+      SimulationResponse sim = capturedSimulation(free);
+      assertThat(sim.getTotalReturnPercent()).isEqualByComparingTo("0");
+      assertThat(sim.getStockReturnPercent()).isEqualByComparingTo("0");
+    }
+  }
+
+  @Nested
+  @DisplayName("결과 저장 · 예외 분류")
+  class SaveAndErrorTests {
+
+    private final HoldingDto holding = createHoldingDto("AAPL", new BigDecimal("10"), new BigDecimal("100"), new BigDecimal("1300000"));
+
+    private void stubFx() {
+      given(marketDataClientWrapper.getFxRate(anyString())).willReturn(new FxRateDto(LocalDate.of(2024, 1, 15), new BigDecimal("1300")));
+      given(marketDataClientWrapper.getLatestFxRate()).willReturn(new FxRateDto(LocalDate.now(), new BigDecimal("1300")));
+    }
+
+    @Test
+    @DisplayName("이미 저장된 결과가 있으면 같은 행을 새 결과와 계산 시각으로 덮어쓴다")
+    void updatesExistingResult() throws JsonProcessingException {
+      stubSingleHolding(holding);
+      stubFx();
+      given(objectMapper.writeValueAsString(any())).willReturn("{\"new\":true}");
+      given(investmentBacktestResultRepository.findByUserId(TEST_USER_ID)).willReturn(Optional.of(
+        InvestmentBacktestResult.builder().id(7L).userId(TEST_USER_ID).resultData("{\"old\":true}")
+          .calculatedAt(LocalDateTime.of(2024, 1, 1, 0, 0)).build()));
+
+      investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION);
+
+      ArgumentCaptor<InvestmentBacktestResult> saved = ArgumentCaptor.forClass(InvestmentBacktestResult.class);
+      verify(investmentBacktestResultRepository).save(saved.capture());
+      assertThat(saved.getValue().getId()).isEqualTo(7L);
+      assertThat(saved.getValue().getResultData()).isEqualTo("{\"new\":true}");
+      assertThat(saved.getValue().getCalculatedAt()).isAfter(LocalDateTime.of(2024, 1, 1, 0, 0));
+    }
+
+    @Test
+    @DisplayName("결과를 JSON 으로 못 바꾸면 저장만 건너뛰고 결과는 돌려준다")
+    void skipsSaveOnJsonError() throws JsonProcessingException {
+      stubSingleHolding(holding);
+      stubFx();
+      given(objectMapper.writeValueAsString(any())).willThrow(new JsonProcessingException("boom") {});
+
+      InvestmentResponse result = investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION);
+
+      assertThat(result.getStatus()).isEqualTo("SUCCESS");
+      verify(investmentBacktestResultRepository, never()).save(any());
+      verify(backtestHistoryUtils).saveBacktestHistory(TEST_USER_ID, BacktestType.INVESTMENT_ANALYSIS, testInvestmentRequest);
+    }
+
+    @ParameterizedTest(name = "{0} → {1}")
+    @CsvSource({
+      "환율 서버 응답 없음, FX_CONVERSION_ERROR",
+      "FX feed timeout, FX_CONVERSION_ERROR",
+      "배당 원장 누락, DIVIDEND_CALCULATION_ERROR",
+      "return window overflow, RETURN_CALCULATION_ERROR",
+      "dividend feed down, DIVIDEND_CALCULATION_ERROR",
+      "수익률 범위 초과, RETURN_CALCULATION_ERROR",
+      "trade 연결 끊김, CALCULATION_ERROR"
+    })
+    @DisplayName("예상 못 한 예외는 메시지로 오류 종류를 가른다")
+    void classifiesUnexpectedErrors(String message, BacktestResponse expected) {
+      given(tradeServiceClientWrapper.getPortfolio(TEST_AUTHORIZATION)).willThrow(new IllegalStateException(message));
+
+      assertThatThrownBy(() -> investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION))
+        .isInstanceOf(BacktestException.class)
+        .extracting("code")
+        .isEqualTo(expected);
+    }
   }
 }

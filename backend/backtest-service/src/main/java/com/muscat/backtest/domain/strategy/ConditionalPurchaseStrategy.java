@@ -184,7 +184,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     ConditionalStrategyRequest request, LocalDate actualEndDate, InvestmentParams params) {
 
     List<StrategyTransaction> transactions = new ArrayList<>();
-    BigDecimal lastPrice = null;
+    BigDecimal lastPurchasePrice = null;
 
     //  BULK API 사용: 전체 기간의 가격 데이터를 한 번에 조회
     log.info("조건부 매수 전략 - Bulk 데이터 조회 시작: {} ~ {}", request.getStartDate(), actualEndDate);
@@ -209,7 +209,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
 
         if (priceData != null && priceData.available()) {
           BigDecimal currentPriceValue = PriceLookup.effectiveClose(priceData);
-          var purchaseDecision = evaluatePurchaseCondition(lastPrice, currentPriceValue,
+          var purchaseDecision = evaluatePurchaseCondition(lastPurchasePrice, currentPriceValue,
             request.getDropPercentage());
 
           if (purchaseDecision.shouldBuy()) {
@@ -246,10 +246,10 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
 
             transactions.add(transaction);
             purchaseCount++;
+            lastPurchasePrice = currentPriceValue;
             log.debug("조건부 매수 실행: {} - {} ({}원 투자, {}주 매수)",
               currentDate, purchaseDecision.trigger(), params.amountPerPurchase(), shares);
           }
-          lastPrice = currentPriceValue;
         }
 
       } catch (Exception e) {
@@ -263,14 +263,14 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     return transactions;
   }
 
-  private PurchaseDecision evaluatePurchaseCondition(BigDecimal lastPrice, BigDecimal currentPrice,
+  private PurchaseDecision evaluatePurchaseCondition(BigDecimal lastPurchasePrice, BigDecimal currentPrice,
     BigDecimal dropPercentage) {
-    if (lastPrice == null) {
+    if (lastPurchasePrice == null) {
       return new PurchaseDecision(true, "초기매수");
     }
 
-    // 하락률 계산 및 비교
-    BigDecimal dropPercent = MoneyUtils.calculateReturnRate(currentPrice, lastPrice).abs();
+    // 직전 매수가 대비 하락률. 오른 날은 음수라 사지 않는다
+    BigDecimal dropPercent = MoneyUtils.calculateReturnRate(lastPurchasePrice, currentPrice).negate();
     BigDecimal dropPercentageAsPercent = dropPercentage.multiply(BacktestConstants.Money.PERCENTAGE_MULTIPLIER);
 
     if (dropPercent.compareTo(dropPercentageAsPercent) >= 0) {
@@ -278,34 +278,5 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     }
 
     return new PurchaseDecision(false, "");
-  }
-
-  private StrategyTransaction createTransaction(ConditionalStrategyRequest request,
-    LocalDate currentDate, OHLCPriceDto priceData, BigDecimal investmentPerPurchase,
-    String trigger) {
-    // 환율 조회 (수동 설정 우선)
-    BigDecimal purchaseFxRate;
-    if (request.getPurchaseFxRate() != null) {
-      purchaseFxRate = request.getPurchaseFxRate();
-    } else {
-      var fxData = BacktestDataUtils.getHistoricalFxRate(marketDataClient, currentDate);
-      if (fxData == null) {
-        return null;
-      }
-      purchaseFxRate = fxData.rate();
-    }
-
-    BigDecimal shares = BacktestCalculationUtils.calculateShares(
-      investmentPerPurchase, purchaseFxRate, PriceLookup.effectiveClose(priceData));
-
-    return StrategyTransaction.builder()
-      .date(currentDate)
-      .actualDate(priceData.date())
-      .price(PriceLookup.effectiveClose(priceData))
-      .shares(shares)
-      .amount(investmentPerPurchase)
-      .fxRate(purchaseFxRate)
-      .trigger(trigger)
-      .build();
   }
 }

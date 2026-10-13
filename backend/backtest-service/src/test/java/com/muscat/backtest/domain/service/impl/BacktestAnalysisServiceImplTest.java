@@ -840,4 +840,97 @@ class BacktestAnalysisServiceImplTest {
       assertThat(simulations.getAllValues()).allSatisfy(this::assertSimulationOptions);
     }
   }
+
+  @Nested
+  @DisplayName("실패 경로")
+  class FailurePathTests {
+
+    private ConditionalStrategyRequest conditionalRequest() {
+      return ConditionalStrategyRequest.builder().symbol("AAPL").userId("user123")
+        .startDate(LocalDate.of(2023, 1, 1)).endDate(LocalDate.of(2024, 1, 1))
+        .totalInvestment(BigDecimal.valueOf(12000)).dropPercentage(BigDecimal.valueOf(0.1)).build();
+    }
+
+    @Test
+    @DisplayName("조건부 매수 전략이 실패하면 같은 예외를 올리고 이력은 남기지 않는다")
+    void conditionalFailureRethrows() {
+      BacktestException failure = new BacktestException(BacktestResponse.DATA_NOT_FOUND, "no data");
+      given(conditionalPurchaseStrategy.executeConditional(any())).willThrow(failure);
+
+      assertThatThrownBy(() -> backtestAnalysisService.runConditionalStrategy(conditionalRequest())).isSameAs(failure);
+
+      verify(backtestHistoryUtils, never()).saveBacktestHistory(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("등록된 전략이 없으면 STRATEGY_TYPE_MISMATCH")
+    void missingStrategy() {
+      BacktestAnalysisServiceImpl dcaOnly = new BacktestAnalysisServiceImpl(tradingSimulationService,
+        List.of(dcaStrategy), responseMapper, backtestHistoryUtils, optimalTimingStrategy);
+
+      assertThatThrownBy(() -> dcaOnly.runConditionalStrategy(conditionalRequest()))
+        .isInstanceOf(BacktestException.class)
+        .extracting("code")
+        .isEqualTo(BacktestResponse.STRATEGY_TYPE_MISMATCH);
+    }
+
+    @Test
+    @DisplayName("전략 비교에서 실패한 전략은 빼고 나머지로 비교한다")
+    void strategyComparisonSkipsFailed() {
+      StrategyParameter dca = new StrategyParameter();
+      dca.setStrategyType(StrategyType.DCA);
+      dca.setMonthlyAmount(BigDecimal.valueOf(1000));
+      dca.setPurchaseDay(1);
+      StrategyParameter conditional = new StrategyParameter();
+      conditional.setStrategyType(StrategyType.CONDITIONAL_PURCHASE);
+      conditional.setName("조건부 매수");
+      conditional.setTotalInvestment(BigDecimal.valueOf(12000));
+      conditional.setDropPercentage(BigDecimal.valueOf(0.1));
+
+      StrategyComparisonRequest request = new StrategyComparisonRequest();
+      request.setSymbol("AAPL");
+      request.setStartDate(LocalDate.of(2023, 1, 1));
+      request.setEndDate(LocalDate.of(2024, 1, 1));
+      request.setStrategies(List.of(dca, conditional));
+
+      StrategyResponse conditionalResult = StrategyResponse.builder().totalReturnPercent(BigDecimal.TEN).build();
+      ComparisonItem conditionalItem = ComparisonItem.builder().name("조건부 매수").totalReturnPercent(BigDecimal.TEN).build();
+      given(dcaStrategy.executeDca(any())).willThrow(new IllegalStateException("dca down"));
+      given(conditionalPurchaseStrategy.executeConditional(any())).willReturn(conditionalResult);
+      given(responseMapper.toComparisonItemFromStrategy(conditionalResult, "조건부 매수")).willReturn(conditionalItem);
+      given(responseMapper.toComparisonResponse(eq(request), any(), any())).willReturn(ComparisonResponse.builder().build());
+
+      backtestAnalysisService.compareStrategies(request);
+
+      @SuppressWarnings("unchecked")
+      ArgumentCaptor<List<ComparisonItem>> items = ArgumentCaptor.forClass(List.class);
+      verify(responseMapper).toComparisonResponse(eq(request), items.capture(), any());
+      assertThat(items.getValue()).containsExactly(conditionalItem);
+    }
+
+    @Test
+    @DisplayName("시점 비교에서 실패한 시점은 빼고, 사용자가 없으면 이력을 남기지 않는다")
+    void timingComparisonSkipsFailedWithoutHistory() {
+      TimingComparisonRequest request = new TimingComparisonRequest();
+      request.setSymbol("AAPL");
+      request.setPurchaseDates(List.of(LocalDate.of(2023, 1, 2), LocalDate.of(2023, 6, 1)));
+      request.setInvestmentAmount(BigDecimal.valueOf(10000));
+
+      SimulationResponse june = SimulationResponse.builder().totalReturnPercent(BigDecimal.ONE).build();
+      ComparisonItem juneItem = ComparisonItem.builder().name("2023-06-01 매수").totalReturnPercent(BigDecimal.ONE).build();
+      given(tradingSimulationService.runSimulation(any(), eq(false)))
+        .willThrow(new IllegalStateException("no price"))
+        .willReturn(june);
+      given(responseMapper.toComparisonItemFromSimulation(june, "2023-06-01 매수")).willReturn(juneItem);
+      given(responseMapper.toComparisonResponse(eq(request), any(), any())).willReturn(ComparisonResponse.builder().build());
+
+      backtestAnalysisService.compareTiming(request);
+
+      @SuppressWarnings("unchecked")
+      ArgumentCaptor<List<ComparisonItem>> items = ArgumentCaptor.forClass(List.class);
+      verify(responseMapper).toComparisonResponse(eq(request), items.capture(), any());
+      assertThat(items.getValue()).containsExactly(juneItem);
+      verify(backtestHistoryUtils, never()).saveBacktestHistory(any(), any(), any());
+    }
+  }
 }
