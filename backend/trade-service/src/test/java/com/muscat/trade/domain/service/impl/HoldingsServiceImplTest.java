@@ -32,6 +32,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import static org.mockito.Mockito.mock;
+import java.time.Duration;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("HoldingsService 단위 테스트")
@@ -142,6 +144,18 @@ class HoldingsServiceImplTest {
       List<HoldingResponseDto> result = holdingsService.getPortfolio(TEST_USER_ID, TEST_ACCOUNT_ID);
 
       // then
+      assertThat(result).hasSize(1);
+      assertThat(result.getFirst().currentPrice()).isNull();
+    }
+
+    @Test
+    @DisplayName("시세 응답에 현재가가 없으면 현재가 없이 돌려준다")
+    void getPortfolio_PriceMissingInResponse_ReturnsWithoutPrice() {
+      given(holdingsRepository.findByUserId(TEST_USER_ID)).willReturn(List.of(testHolding));
+      given(marketServiceClient.getCurrentPrice(TEST_SYMBOL)).willReturn(mock(StockPriceDto.class));
+
+      List<HoldingResponseDto> result = holdingsService.getPortfolio(TEST_USER_ID, null);
+
       assertThat(result).hasSize(1);
       assertThat(result.getFirst().currentPrice()).isNull();
     }
@@ -352,6 +366,43 @@ class HoldingsServiceImplTest {
       // then
       assertThat(result.isBacktestAvailable()).isFalse();
       assertThat(result).isNotNull();
+    }
+
+    @Test
+    @DisplayName("24시간이 지난 백테스트 캐시는 없는 것으로 본다")
+    void getPortfolioSummaryWithBacktest_ExpiredCache_NotAvailable() {
+      given(holdingsRepository.findByUserId(TEST_USER_ID)).willReturn(List.of(testHolding));
+      given(holdingsRepository.calculatePortfolioSummary(TEST_USER_ID))
+        .willReturn(new PortfolioSummaryProjection(TEST_QUANTITY.multiply(TEST_AVG_PRICE), 1));
+      given(backtestServiceClient.getCachedInvestmentBacktestResult(anyString(), eq(TEST_USER_ID)))
+        .willReturn(InvestmentBacktestResultDto.builder().status("COMPLETED").backtestResult("{}")
+          .calculatedAt(LocalDateTime.now().minusHours(25)).build());
+
+      PortfolioSummary result = holdingsService.getPortfolioSummaryWithBacktest(
+        TEST_USER_ID, testCurrentPrices, "Bearer token");
+
+      assertThat(result.isBacktestAvailable()).isFalse();
+      assertThat(result.getBacktestResult()).isNull();
+    }
+
+    @Test
+    @DisplayName("백테스트 조회가 1초 안에 안 끝나면 기다리지 않고 포트폴리오만 돌려준다")
+    void getPortfolioSummaryWithBacktest_Timeout_NotAvailable() {
+      given(holdingsRepository.findByUserId(TEST_USER_ID)).willReturn(List.of(testHolding));
+      given(holdingsRepository.calculatePortfolioSummary(TEST_USER_ID))
+        .willReturn(new PortfolioSummaryProjection(TEST_QUANTITY.multiply(TEST_AVG_PRICE), 1));
+      given(backtestServiceClient.getCachedInvestmentBacktestResult(anyString(), eq(TEST_USER_ID)))
+        .willAnswer(call -> {
+          Thread.sleep(1500);
+          return null;
+        });
+
+      long started = System.nanoTime();
+      PortfolioSummary result = holdingsService.getPortfolioSummaryWithBacktest(
+        TEST_USER_ID, testCurrentPrices, "Bearer token");
+
+      assertThat(result.isBacktestAvailable()).isFalse();
+      assertThat(Duration.ofNanos(System.nanoTime() - started)).isLessThan(Duration.ofMillis(1400));
     }
   }
 
