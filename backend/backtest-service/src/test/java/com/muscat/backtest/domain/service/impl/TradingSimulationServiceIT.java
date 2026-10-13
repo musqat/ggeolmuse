@@ -45,10 +45,10 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @DisplayName("TradingSimulationService 통합 테스트")
 class TradingSimulationServiceIT {
 
-  // 운영과 같은 Postgres. 마이그레이션이 여기서 돌고 엔티티 검사(validate)를 거친다
+  // 운영 RDS 와 같은 Postgres 15. 마이그레이션이 여기서 돌고 엔티티 검사(validate)를 거친다
   @Container
   @ServiceConnection
-  static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
+  static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15-alpine");
 
   @Autowired
   private TradingSimulationServiceImpl tradingSimulationService;

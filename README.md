@@ -164,16 +164,17 @@ E2E 는 `docker compose` 로 스택 전체를 띄우고 PR 과 `master` push 마
 
 <br>
 
-단위 테스트 수치다. `Q*`, `*Config`, DTO, entity 와 롬복이 만든 코드(게터 · 빌더 · equals)는 뺀다.
-롬복 코드는 `backend/lombok.config` 가 붙이는 표시로 JaCoCo 가 건너뛴다. user 는 CI 에서 라인 95% · 분기 85% 아래로
-내려가면 빌드를 막는다.
+단위 · 통합 테스트 수치다(user 는 통합 테스트가 없다). `Q*`, `*Config`, DTO, entity 와 롬복이 만든
+코드(게터 · 빌더 · equals)는 뺀다. 롬복 코드는 `backend/lombok.config` 가 붙이는 표시로 JaCoCo 가 건너뛴다.
+네 서비스 모두 CI 에서 바닥 아래로 내려가면 빌드를 막는다. 바닥은 user 95 · 85, trade 79 · 69, backtest 73 · 60,
+market-data 33 · 35 다(라인 · 분기, %). 테스트를 채울 때마다 올린다.
 
 | 서비스 | 라인 | 분기 |
 |---|---|---|
 | user | 97.8% | 86.4% |
-| trade | 74.3% | 68.4% |
-| backtest | 72.5% | 61.0% |
-| market-data | 34.0% | 36.6% |
+| trade | 80.1% | 70.0% |
+| backtest | 74.2% | 61.7% |
+| market-data | 34.6% | 36.7% |
 
 market-data 가 낮은 이유는 수집 파이프라인이 대부분 외부 API 호출이라서다.
 파서 · 매퍼와 캔들 저장 판단(덮어쓰기 · 분할 재수집)은 붙였고, 야후 호출과 컨슈머 흐름은 아직이다.
