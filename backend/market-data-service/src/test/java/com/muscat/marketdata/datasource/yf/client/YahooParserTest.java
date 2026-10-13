@@ -604,4 +604,53 @@ class YahooParserTest {
     }
   }
 
+  @Nested
+  @DisplayName("깨진 응답 방어")
+  class MalformedTests {
+
+    @Test
+    @DisplayName("배당 응답 JSON 이 깨지면 종목을 담은 파싱 예외")
+    void brokenDividendJson() {
+      assertThatThrownBy(() -> parser.parseDividends("{not json", SYMBOL, null, null))
+        .isInstanceOf(YahooFinanceException.class)
+        .hasMessageContaining(SYMBOL);
+    }
+
+    @Test
+    @DisplayName("배당 · 분할 이벤트 자리가 null 이면 그 건만 건너뛴다")
+    void nullEvents() {
+      String dividends = """
+        { "chart": { "result": [{
+            "meta": { "symbol": "AAPL" },
+            "events": { "dividends": { "1726444800": null, "1726531200": { "amount": 0.25, "date": 1726531200 } } }
+        }] } }
+        """;
+      String splits = chartWithSplits("""
+        { "1726444800": null, "1726531200": { "numerator": 2, "denominator": 1 } }
+        """);
+
+      assertThat(parser.parseDividends(dividends, SYMBOL, null, null)).hasSize(1);
+      // 분할에 date 가 없으면 키를 시각으로 쓴다
+      assertThat(parser.parseDailyAdjusted(splits, SYMBOL, null, null))
+        .extracting(CandleDto::getSplitCoefficient)
+        .containsExactly(null, new java.math.BigDecimal("2.00000000"), null);
+    }
+
+    @Test
+    @DisplayName("가격 자리에 숫자가 아닌 글자가 오면 그 필드만 비운다")
+    void nonNumericPrice() {
+      String json = """
+        { "chart": { "result": [{
+            "meta": { "symbol": "AAPL" },
+            "timestamp": [1726444800],
+            "indicators": { "quote": [{ "open": ["abc"], "high": [1], "low": [1], "close": [1], "volume": [10] }] }
+        }] } }
+        """;
+
+      CandleDto dto = parser.parseDailyAdjusted(json, SYMBOL, null, null).get(0);
+
+      assertThat(dto.getOpen()).isNull();
+      assertThat(dto.getClose()).isEqualByComparingTo("1");
+    }
+  }
 }
