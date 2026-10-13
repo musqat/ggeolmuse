@@ -45,16 +45,18 @@ public class TradeUtils {
 
   // 계좌 잔액 조회
   public AccountBalanceDto getAccountBalance(String accountId) {
+    AccountBalanceDto response;
     try {
-      var response = userServiceClientWrapper.getAccountBalance(Long.valueOf(accountId));
-      if (response == null) {
-        throw new TradeException(TradeResponse.ACCOUNT_NOT_FOUND);
-      }
-      return response;
+      response = userServiceClientWrapper.getAccountBalance(Long.valueOf(accountId));
     } catch (Exception e) {
       log.error("계좌 정보 조회 실패: accountId={}", accountId, e);
       throw new TradeException(TradeResponse.USER_SERVICE_ERROR);
     }
+    // 빈 응답은 호출 실패가 아니라 계좌 없음이다. try 안에서 던지면 아래 catch 가 서비스 오류로 바꿔 버린다
+    if (response == null) {
+      throw new TradeException(TradeResponse.ACCOUNT_NOT_FOUND);
+    }
+    return response;
   }
 
   // 매수 잔액 검증

@@ -1,63 +1,127 @@
 package com.muscat.trade.common.util;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
+import com.muscat.trade.common.enums.responses.TradeResponse;
+import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.common.logging.TradeLogger;
 import com.muscat.trade.config.TradeProperties;
 import com.muscat.trade.infra.client.UserServiceClientWrapper;
 import com.muscat.trade.infra.client.dto.AccountBalanceDto;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("거래 수수료 계산")
+@DisplayName("거래 공통 계산 · 검증")
 class TradeUtilsTest {
 
   private static final BigDecimal TRADE_AMOUNT = new BigDecimal("89.80");
 
-  private final TradeUtils tradeUtils = new TradeUtils(
-    mock(UserServiceClientWrapper.class), mock(TradeLogger.class), new TradeProperties());
+  private final UserServiceClientWrapper userServiceClientWrapper = mock(UserServiceClientWrapper.class);
+  private final TradeLogger tradeLogger = mock(TradeLogger.class);
+  private final TradeUtils tradeUtils = new TradeUtils(userServiceClientWrapper, tradeLogger, new TradeProperties());
 
   private static AccountBalanceDto balanceWithRate(BigDecimal commissionRate) {
     return AccountBalanceDto.builder().commissionRate(commissionRate).build();
   }
 
-  @Test
-  @DisplayName("계좌 수수료율로 계산한다")
-  void calculateFee_AccountRate_UsesAccountRate() {
-    AccountBalanceDto balance = balanceWithRate(new BigDecimal("0.001"));
+  @Nested
+  @DisplayName("수수료")
+  class Fee {
 
-    // 89.80 × 0.001 = 0.0898
-    BigDecimal fee = tradeUtils.calculateFee(balance, TRADE_AMOUNT);
+    @Test
+    @DisplayName("계좌 수수료율로 계산한다")
+    void calculateFee_AccountRate_UsesAccountRate() {
+      BigDecimal fee = tradeUtils.calculateFee(balanceWithRate(new BigDecimal("0.001")), TRADE_AMOUNT);
 
-    assertThat(fee).isEqualByComparingTo("0.09");
+      assertThat(fee).isEqualByComparingTo("0.09");
+    }
+
+    @Test
+    @DisplayName("계좌 수수료율이 0 이면 수수료도 0")
+    void calculateFee_ZeroRate_ReturnsZero() {
+      assertThat(tradeUtils.calculateFee(balanceWithRate(BigDecimal.ZERO), TRADE_AMOUNT)).isEqualByComparingTo("0");
+    }
+
+    @Test
+    @DisplayName("계좌 수수료율이 없으면 기본 0.25% 를 쓴다")
+    void calculateFee_NullRate_UsesDefaultRate() {
+      assertThat(tradeUtils.calculateFee(balanceWithRate(null), TRADE_AMOUNT)).isEqualByComparingTo("0.22");
+    }
+
+    @Test
+    @DisplayName("계좌 수수료율이 음수면 기본 0.25% 를 쓴다")
+    void calculateFee_NegativeRate_UsesDefaultRate() {
+      assertThat(tradeUtils.calculateFee(balanceWithRate(new BigDecimal("-0.1")), TRADE_AMOUNT)).isEqualByComparingTo("0.22");
+    }
   }
 
-  @Test
-  @DisplayName("계좌 수수료율이 0 이면 수수료도 0")
-  void calculateFee_ZeroRate_ReturnsZero() {
-    BigDecimal fee = tradeUtils.calculateFee(balanceWithRate(BigDecimal.ZERO), TRADE_AMOUNT);
+  @Nested
+  @DisplayName("계좌 잔액 조회")
+  class AccountBalance {
 
-    assertThat(fee).isEqualByComparingTo("0");
+    @Test
+    @DisplayName("사용자 서비스가 준 잔액을 돌려준다")
+    void returnsBalance() {
+      AccountBalanceDto balance = AccountBalanceDto.builder().balanceUsd(new BigDecimal("12.50")).build();
+      given(userServiceClientWrapper.getAccountBalance(20L)).willReturn(balance);
+
+      assertThat(tradeUtils.getAccountBalance("20")).isSameAs(balance);
+    }
+
+    @Test
+    @DisplayName("응답이 비면 계좌 없음(404)이다. 서비스 오류로 바꾸지 않는다")
+    void nullResponse_AccountNotFound() {
+      given(userServiceClientWrapper.getAccountBalance(20L)).willReturn(null);
+
+      assertThatThrownBy(() -> tradeUtils.getAccountBalance("20"))
+        .isInstanceOf(TradeException.class)
+        .hasMessage(TradeResponse.ACCOUNT_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    @DisplayName("호출이 실패하면 사용자 서비스 오류(502)다")
+    void clientFails_UserServiceError() {
+      given(userServiceClientWrapper.getAccountBalance(20L)).willThrow(new RuntimeException("down"));
+
+      assertThatThrownBy(() -> tradeUtils.getAccountBalance("20"))
+        .isInstanceOf(TradeException.class)
+        .hasMessage(TradeResponse.USER_SERVICE_ERROR.getMessage());
+    }
   }
 
-  @Test
-  @DisplayName("계좌 수수료율이 없으면 기본 0.25% 를 쓴다")
-  void calculateFee_NullRate_UsesDefaultRate() {
-    // 89.80 × 0.0025 = 0.2245
-    BigDecimal fee = tradeUtils.calculateFee(balanceWithRate(null), TRADE_AMOUNT);
+  @Nested
+  @DisplayName("매수 잔액 검증")
+  class BuyBalance {
 
-    assertThat(fee).isEqualByComparingTo("0.22");
-  }
+    private final AccountBalanceDto balance = AccountBalanceDto.builder().balanceUsd(new BigDecimal("100")).build();
 
-  @Test
-  @DisplayName("계좌 수수료율이 음수면 기본 0.25% 를 쓴다")
-  void calculateFee_NegativeRate_UsesDefaultRate() {
-    AccountBalanceDto balance = balanceWithRate(new BigDecimal("-0.001"));
+    @Test
+    @DisplayName("잔액이 모자라면 부족으로 기록하고 막는다")
+    void insufficient_LogsAndThrows() {
+      assertThatThrownBy(() -> tradeUtils.validateBuyBalance("user-1", "20", new BigDecimal("100.01"), balance))
+        .isInstanceOf(TradeException.class)
+        .hasMessage(TradeResponse.INSUFFICIENT_BALANCE.getMessage());
+      verify(tradeLogger).logBalanceCheck("user-1", "20", new BigDecimal("100.01"), new BigDecimal("100"), false);
+    }
 
-    BigDecimal fee = tradeUtils.calculateFee(balance, TRADE_AMOUNT);
-
-    assertThat(fee).isEqualByComparingTo("0.22");
+    @Test
+    @DisplayName("잔액이 딱 맞거나 남으면 충분으로 기록하고 통과한다")
+    void sufficient_LogsAndPasses() {
+      assertThatCode(() -> tradeUtils.validateBuyBalance("user-1", "20", new BigDecimal("100"), balance))
+        .doesNotThrowAnyException();
+      verify(tradeLogger).logBalanceCheck("user-1", "20", new BigDecimal("100"), new BigDecimal("100"), true);
+      verify(tradeLogger, never()).logBalanceCheck(anyString(), anyString(), any(), any(), eq(false));
+    }
   }
 }
