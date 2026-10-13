@@ -13,6 +13,8 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import com.muscat.backtest.domain.model.StrategyTransaction;
+import com.muscat.backtest.common.enums.BacktestResponse;
 
 @DisplayName("BacktestCalculationUtils 단위 테스트")
 class BacktestCalculationUtilsTest {
@@ -614,6 +616,48 @@ class BacktestCalculationUtilsTest {
       assertThat(BacktestCalculationUtils.calculateSharesAfterFee(amount, fxRate, price,
         BigDecimal.ZERO))
         .isEqualTo(BacktestCalculationUtils.calculateShares(amount, fxRate, price));
+    }
+  }
+
+  @Nested
+  @DisplayName("입력 경계")
+  class InputBoundaryTests {
+
+    @Test
+    @DisplayName("평균 단가 · 평균 환율 · 분할 금액은 null 을 받지 않는다")
+    void rejectsNull() {
+      assertThatThrownBy(() -> BacktestCalculationUtils.calculateAveragePrice(null, BigDecimal.ONE, BigDecimal.ONE))
+        .isInstanceOf(IllegalArgumentException.class);
+      assertThatThrownBy(() -> BacktestCalculationUtils.calculateAverageFxRate(null, BigDecimal.ONE))
+        .isInstanceOf(IllegalArgumentException.class);
+      assertThatThrownBy(() -> BacktestCalculationUtils.calculateInvestmentPerDivision(null, 10))
+        .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("배당 합계는 입력이 비면 0 이다")
+    void totalDividendsNullIsZero() {
+      List<StrategyTransaction> none = List.of();
+
+      assertThat(BacktestCalculationUtils.calculateTotalDividends(null, none, LocalDate.of(2024, 1, 1), LocalDate.of(2024, 12, 31)))
+        .isEqualByComparingTo("0");
+    }
+
+    @Test
+    @DisplayName("수수료 반영 주식 수: null 은 계산 오류, 수수료가 투자금 이상이거나 너무 적어 한 조각도 못 사면 투자금 부족")
+    void sharesWithFeeBoundaries() {
+      assertThatThrownBy(() -> BacktestCalculationUtils.calculateSharesWithFee(null, BigDecimal.TEN, BigDecimal.ZERO))
+        .isInstanceOf(BacktestException.class)
+        .extracting("code")
+        .isEqualTo(BacktestResponse.SHARES_CALCULATION_ERROR);
+      assertThatThrownBy(() -> BacktestCalculationUtils.calculateSharesWithFee(new BigDecimal("100"), BigDecimal.TEN, BigDecimal.ONE))
+        .isInstanceOf(BacktestException.class)
+        .extracting("code")
+        .isEqualTo(BacktestResponse.INSUFFICIENT_INVESTMENT);
+      assertThatThrownBy(() -> BacktestCalculationUtils.calculateSharesWithFee(new BigDecimal("0.000001"), new BigDecimal("1000"), BigDecimal.ZERO))
+        .isInstanceOf(BacktestException.class)
+        .extracting("code")
+        .isEqualTo(BacktestResponse.INSUFFICIENT_INVESTMENT);
     }
   }
 }
