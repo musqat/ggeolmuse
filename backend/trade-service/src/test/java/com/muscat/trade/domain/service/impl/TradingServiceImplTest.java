@@ -991,6 +991,51 @@ class TradingServiceImplTest {
     }
   }
 
+  @Nested
+  @DisplayName("실패 경로")
+  class FailurePathTests {
+
+    @Test
+    @DisplayName("잔액 응답이 비거나 조회가 실패하면 매수 불가로 본다")
+    void canBuyStock_NoBalanceOrFailure_ReturnsFalse() {
+      given(userServiceClientWrapper.getAccountBalance(TEST_ACCOUNT_ID))
+        .willReturn(null)
+        .willThrow(new RuntimeException("down"));
+
+      assertThat(tradingService.canBuyStock(TEST_USER_ID, TEST_ACCOUNT_ID, BigDecimal.ONE)).isFalse();
+      assertThat(tradingService.canBuyStock(TEST_USER_ID, TEST_ACCOUNT_ID, BigDecimal.ONE)).isFalse();
+    }
+
+    @Test
+    @DisplayName("매도 가능 수량 계산 중 조회가 실패하면 시장 데이터 오류로 바꿔 올린다")
+    void calculateSellingCapacity_Failure_ThrowsMarketDataError() {
+      TradingCapacityRequestDto request = TradingCapacityRequestDto.builder()
+        .accountId(String.valueOf(TEST_ACCOUNT_ID)).symbol(TEST_SYMBOL).tradeDate(TEST_TRADE_DATE).build();
+      given(holdingsRepository.findByUserIdAndAccountIdAndSymbol(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL))
+        .willThrow(new IllegalStateException("db down"));
+
+      assertThatThrownBy(() -> tradingService.calculateSellingCapacity(TEST_USER_ID, request))
+        .isInstanceOf(TradeException.class)
+        .hasMessage(TradeResponse.MARKET_DATA_SERVICE_ERROR.getMessage());
+    }
+
+    @Test
+    @DisplayName("거래 저장이 실패하면 거래 처리 오류로 올리고 체결 이벤트를 내지 않는다")
+    void buyStock_SaveFails_TransactionFailed() {
+      given(marketDataService.determineTradePrice(TEST_SYMBOL, TEST_TRADE_DATE, PriceType.CLOSE, null))
+        .willReturn(TEST_PRICE);
+      given(tradeUtils.getAccountBalance(String.valueOf(TEST_ACCOUNT_ID))).willReturn(testAccountBalance);
+      given(tradeUtils.calculateFee(any(), any())).willReturn(new BigDecimal("1.50"));
+      given(tradeRepository.save(any(Trade.class))).willThrow(new IllegalStateException("db down"));
+
+      assertThatThrownBy(() -> tradingService.buyStock(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL, TEST_QUANTITY,
+        TEST_TRADE_DATE, PriceType.CLOSE, null))
+        .isInstanceOf(TradeException.class)
+        .hasMessage(TradeResponse.TRANSACTION_FAILED.getMessage());
+      verify(eventPublisher, never()).publishEvent(any(TradeSavedEvent.class));
+    }
+  }
+
   // 헬퍼 메서드
   private Trade createTestTrade(Long id, TradeType tradeType) {
     return Trade.builder()

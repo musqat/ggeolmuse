@@ -26,6 +26,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.jwt.Jwt;
+import java.util.Objects;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("TransactionHistoryController 단위 테스트")
@@ -143,4 +144,31 @@ class TransactionHistoryControllerSimpleTest {
     assertThat(response.getStatusCode().value()).isEqualTo(200);
     assertThat(response.getBody()).isEmpty();
   }
+
+  @Test
+  @DisplayName("매매와 배당을 합쳐 거래일 최신순으로 정렬한다")
+  void getTransactionHistory_SortedNewestFirst() {
+    Trade older = trade(1L, LocalDate.of(2024, 1, 10));
+    Trade newer = trade(2L, LocalDate.of(2024, 1, 30));
+    DividendResponseDto dividend = new DividendResponseDto(1L, 100L, 1L, "AAPL", new BigDecimal("100"),
+      new BigDecimal("0.25"), new BigDecimal("30.00"), new BigDecimal("5.00"), new BigDecimal("25.00"),
+      LocalDate.of(2024, 1, 20), LocalDateTime.of(2024, 1, 20, 12, 0));
+    when(tradeRepository.findByUserIdOrderByExecutedAtDesc(eq("test-user-123"), any(Pageable.class)))
+      .thenReturn(new PageImpl<>(List.of(older, newer)));
+    when(dividendService.getUserDividends(eq("test-user-123"))).thenReturn(List.of(dividend));
+
+    List<Map<String, Object>> body =
+      Objects.requireNonNull(transactionHistoryController.getTransactionHistory(mockJwt).getBody());
+
+    assertThat(body).extracting(t -> t.get("date"))
+      .containsExactly(LocalDate.of(2024, 1, 30), LocalDate.of(2024, 1, 20), LocalDate.of(2024, 1, 10));
+    assertThat(body).extracting(t -> t.get("type")).containsExactly("BUY", "DIVIDEND", "BUY");
+  }
+
+  private static Trade trade(long id, LocalDate tradeDate) {
+    return Trade.builder().id(id).userId("test-user-123").accountId(1L).symbol("AAPL").tradeType(TradeType.BUY)
+      .quantity(BigDecimal.ONE).price(BigDecimal.TEN).totalAmount(BigDecimal.TEN).fee(BigDecimal.ZERO)
+      .tradeDate(tradeDate).executedAt(tradeDate.atTime(10, 0)).build();
+  }
+
 }

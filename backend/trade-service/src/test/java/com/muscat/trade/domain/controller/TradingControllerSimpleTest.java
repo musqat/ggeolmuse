@@ -26,6 +26,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.jwt.Jwt;
+import static org.mockito.ArgumentMatchers.same;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("TradingController 단위 테스트")
@@ -174,4 +175,20 @@ class TradingControllerSimpleTest {
     assertThat(response.getBody().symbol()).isEqualTo("AAPL");
     assertThat(response.getBody().maxShares()).isEqualByComparingTo(new BigDecimal("66"));
   }
+
+  @Test
+  @DisplayName("매도 가능 수량 계산은 토큰의 사용자로 서비스를 부른다")
+  void calculateSellingCapacity_DelegatesWithUser() {
+    TradingCapacityRequestDto request = TradingCapacityRequestDto.builder()
+      .accountId("1").symbol("AAPL").tradeDate(LocalDate.of(2024, 1, 15)).build();
+    TradingCapacityResponseDto expected = new TradingCapacityResponseDto("AAPL", LocalDate.of(2024, 1, 15),
+      new BigDecimal("150.00"), null, null, new BigDecimal("6000.00"), "USD", new BigDecimal("50"), new BigDecimal("40"));
+    when(tradingService.calculateSellingCapacity(eq("test-user-123"), same(request))).thenReturn(expected);
+
+    ResponseEntity<TradingCapacityResponseDto> response = tradingController.calculateSellingCapacity(mockJwt, request);
+
+    assertThat(response.getStatusCode().value()).isEqualTo(200);
+    assertThat(response.getBody()).isSameAs(expected);
+  }
+
 }
