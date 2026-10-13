@@ -7,10 +7,16 @@ import com.muscat.marketdata.api.controller.DataCollectionController;
 import com.muscat.marketdata.api.controller.MarketController;
 import com.muscat.marketdata.common.enums.response.MarketDataResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.ElementKind;
+import jakarta.validation.Path;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -95,7 +101,7 @@ public class GlobalExceptionHandler extends BaseExceptionHandler {
             "errorType", ErrorType.VALIDATION.name()
         );
         ProblemDetail problem = ProblemDetailUtils.createProblem(
-            MarketDataResponse.MISSING_REQUIRED_FIELDS.getHttpStatus(),
+            HttpStatus.BAD_REQUEST,
             message,
             "MISSING_PARAMETER",
             request.getRequestURI(),
@@ -104,6 +110,43 @@ public class GlobalExceptionHandler extends BaseExceptionHandler {
         );
 
         return ResponseEntity.badRequest().body(problem);
+    }
+
+    // 컨트롤러에 붙은 @Validated 가 경로 변수 · 쿼리 파라미터를 검사하다 던진다. 요청 값이 틀린 것이라 400 이다
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ProblemDetail> handleConstraintViolationException(ConstraintViolationException e, HttpServletRequest request) {
+        String parameters = e.getConstraintViolations().stream()
+            .map(GlobalExceptionHandler::parameterName)
+            .distinct()
+            .sorted()
+            .collect(Collectors.joining(", "));
+        log.warn("[INVALID PARAMETER] {}", parameters);
+
+        Map<String, Object> properties = Map.of(
+            "parameterName", parameters,
+            "errorType", ErrorType.VALIDATION.name()
+        );
+        ProblemDetail problem = ProblemDetailUtils.createProblem(
+            HttpStatus.BAD_REQUEST,
+            String.format("요청 값이 올바르지 않습니다: %s", parameters),
+            "INVALID_PARAMETER",
+            request.getRequestURI(),
+            "Invalid Parameter Error",
+            properties
+        );
+
+        return ResponseEntity.badRequest().body(problem);
+    }
+
+    // getCurrentPrice.symbol · getMultipleOHLCPrices.symbols[0].<list element> 에서 파라미터 이름만 꺼낸다
+    private static String parameterName(ConstraintViolation<?> violation) {
+        String name = violation.getPropertyPath().toString();
+        for (Path.Node node : violation.getPropertyPath()) {
+            if (node.getKind() == ElementKind.PARAMETER) {
+                name = node.getName();
+            }
+        }
+        return name;
     }
 
     @ExceptionHandler(Exception.class)

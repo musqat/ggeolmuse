@@ -10,6 +10,17 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.method.annotation.ExceptionHandlerMethodResolver;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Validation;
+import jakarta.validation.ValidatorFactory;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Positive;
+import java.lang.reflect.Method;
+import java.math.BigDecimal;
+import java.util.Objects;
+import java.util.Set;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 
 @DisplayName("market-data 예외 응답 변환")
 class GlobalExceptionHandlerTest {
@@ -44,5 +55,47 @@ class GlobalExceptionHandlerTest {
     assertThat(body.getProperties())
       .containsEntry("errorCode", "PRICE_DATA_NOT_FOUND")
       .containsEntry("errorType", "NOT_FOUND");
+  }
+
+  // 컨트롤러와 같은 모양의 파라미터 검사. @Validated 가 이 검사로 ConstraintViolationException 을 만든다
+  @SuppressWarnings("unused")
+  static class SampleController {
+    void price(@Pattern(regexp = "^[A-Z]{1,16}$") String symbol, @Positive BigDecimal minAmount) {
+    }
+  }
+
+  private static ConstraintViolationException violations(Object... args) throws NoSuchMethodException {
+    Method method = SampleController.class.getDeclaredMethod("price", String.class, BigDecimal.class);
+    try (ValidatorFactory factory = Validation.buildDefaultValidatorFactory()) {
+      Set<ConstraintViolation<SampleController>> found = factory.getValidator().forExecutables()
+        .validateParameters(new SampleController(), method, args);
+      return new ConstraintViolationException(found);
+    }
+  }
+
+  @Test
+  @DisplayName("경로 변수 · 쿼리 파라미터 검증 실패는 400 이고 걸린 파라미터 이름을 싣는다")
+  void constraintViolation_BadRequest() throws Exception {
+    assertThat(new ExceptionHandlerMethodResolver(GlobalExceptionHandler.class).resolveMethod(violations("aapl", BigDecimal.ONE)))
+      .extracting(Method::getName).isEqualTo("handleConstraintViolationException");
+
+    ResponseEntity<ProblemDetail> response = handler.handleConstraintViolationException(
+      violations("aapl", new BigDecimal("-1")), new MockHttpServletRequest("GET", "/api/market/price/aapl"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    ProblemDetail body = Objects.requireNonNull(response.getBody());
+    assertThat(body.getStatus()).isEqualTo(400);
+    assertThat(body.getDetail()).isEqualTo("요청 값이 올바르지 않습니다: minAmount, symbol");
+    assertThat(body.getProperties()).containsEntry("parameterName", "minAmount, symbol").containsEntry("errorType", "VALIDATION");
+  }
+
+  @Test
+  @DisplayName("필수 파라미터 누락은 HTTP 상태와 본문 status 가 둘 다 400 이다")
+  void missingParameter_StatusMatches() {
+    ResponseEntity<ProblemDetail> response = handler.handleMissingParameterException(
+      new MissingServletRequestParameterException("date", "LocalDate"), new MockHttpServletRequest("GET", "/api/market/ohlc/AAPL"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(Objects.requireNonNull(response.getBody()).getStatus()).isEqualTo(400);
   }
 }
