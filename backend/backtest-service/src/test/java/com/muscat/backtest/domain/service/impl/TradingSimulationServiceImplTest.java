@@ -846,5 +846,22 @@ class TradingSimulationServiceImplTest {
       assertThat(response.getOptimalBuyDate()).isNull();
       assertThat(response.getOptimalReturnPercent()).isNull();
     }
+
+    @Test
+    @DisplayName("재투자를 켜도 배당이 없거나 권리락일 없는 배당뿐이면 주식 수가 그대로다")
+    void reinvestWithoutUsableDividends() {
+      stubPurchaseAndSale();
+      given(marketDataClientWrapper.getDividendHistory(TEST_SYMBOL, "2024-01-15", "2024-06-14"))
+        .willReturn(List.of())
+        .willReturn(List.of(new DividendDto(TEST_SYMBOL, null, null, null, BigDecimal.ONE, "USD", "test")));
+      given(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString())).willReturn(List.of());
+
+      SimulationResponse noDividends = service.runSimulation(request(true, "0"), false);
+      SimulationResponse noExDate = service.runSimulation(request(true, "0"), false);
+
+      assertThat(noDividends.getShares()).isEqualByComparingTo("10");
+      assertThat(noExDate.getShares()).isEqualByComparingTo("10");
+      assertThat(noExDate.getDividendReinvestDates()).isEmpty();
+    }
   }
 }

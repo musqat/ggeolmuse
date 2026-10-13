@@ -565,6 +565,9 @@ class InvestmentBacktestServiceImplTest {
     @ParameterizedTest(name = "{0} → {1}")
     @CsvSource({
       "환율 서버 응답 없음, FX_CONVERSION_ERROR",
+      "FX feed timeout, FX_CONVERSION_ERROR",
+      "배당 원장 누락, DIVIDEND_CALCULATION_ERROR",
+      "return window overflow, RETURN_CALCULATION_ERROR",
       "dividend feed down, DIVIDEND_CALCULATION_ERROR",
       "수익률 범위 초과, RETURN_CALCULATION_ERROR",
       "trade 연결 끊김, CALCULATION_ERROR"

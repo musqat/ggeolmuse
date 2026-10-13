@@ -33,6 +33,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import com.muscat.backtest.common.exception.BacktestException;
+import com.muscat.backtest.common.enums.BacktestResponse;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("DCA 전략 단위 테스트")
@@ -569,5 +573,103 @@ class DCAStrategyTest {
       .totalReturnPercent(BigDecimal.ZERO)
       .totalReturnKrw(BigDecimal.ZERO)
       .build();
+  }
+
+  @Nested
+  @DisplayName("요청 검증 · 투자 주기 · 미래 종료일")
+  class ValidationAndScheduleTests {
+
+    private DcaStrategyRequest.DcaStrategyRequestBuilder base() {
+      return DcaStrategyRequest.builder().userId(userId).symbol(symbol)
+        .startDate(LocalDate.of(2024, 1, 1)).endDate(LocalDate.of(2024, 5, 31))
+        .monthlyAmount(new BigDecimal("1300000")).purchaseDay(15);
+    }
+
+    private List<StrategyTransaction> executed() {
+      @SuppressWarnings("unchecked")
+      ArgumentCaptor<List<StrategyTransaction>> captor = ArgumentCaptor.forClass(List.class);
+      verify(responseMapper).toStrategyResponse(any(DcaStrategyRequest.class), captor.capture(), any(), any());
+      return captor.getValue();
+    }
+
+    @Test
+    @DisplayName("월 투자금이 0 이면 STRATEGY_MONTHLY_AMOUNT_REQUIRED")
+    void zeroMonthlyAmount() {
+      DcaStrategyRequest request = base().monthlyAmount(BigDecimal.ZERO).build();
+
+      assertThatThrownBy(() -> dcaStrategy.executeDca(request))
+        .isInstanceOf(BacktestException.class)
+        .extracting("code")
+        .isEqualTo(BacktestResponse.STRATEGY_MONTHLY_AMOUNT_REQUIRED);
+    }
+
+    @ParameterizedTest(name = "투자일 {0}")
+    @ValueSource(ints = {0, 32})
+    @DisplayName("투자일이 1 ~ 31 밖이면 INVALID_PURCHASE_DAY")
+    void purchaseDayOutOfRange(int day) {
+      DcaStrategyRequest request = base().purchaseDay(day).build();
+
+      assertThatThrownBy(() -> dcaStrategy.executeDca(request))
+        .isInstanceOf(BacktestException.class)
+        .extracting("code")
+        .isEqualTo(BacktestResponse.INVALID_PURCHASE_DAY);
+    }
+
+    @Test
+    @DisplayName("투자일이 없으면 INVALID_PURCHASE_DAY")
+    void missingPurchaseDay() {
+      DcaStrategyRequest request = base().purchaseDay(null).build();
+
+      assertThatThrownBy(() -> dcaStrategy.executeDca(request))
+        .isInstanceOf(BacktestException.class)
+        .extracting("code")
+        .isEqualTo(BacktestResponse.INVALID_PURCHASE_DAY);
+    }
+
+    @Test
+    @DisplayName("투자 주기가 2개월이면 1 · 3 · 5월에만 사고, 주기를 비우면 매달 산다")
+    void investmentInterval() {
+      given(marketDataClient.getOHLCPriceRange(symbol, "2024-01-01", "2024-05-31")).willReturn(List.of(
+        createOHLC(LocalDate.of(2024, 1, 15), new BigDecimal("100")), createOHLC(LocalDate.of(2024, 2, 15), new BigDecimal("100")),
+        createOHLC(LocalDate.of(2024, 3, 15), new BigDecimal("100")), createOHLC(LocalDate.of(2024, 4, 15), new BigDecimal("100")),
+        createOHLC(LocalDate.of(2024, 5, 15), new BigDecimal("100"))));
+      given(marketDataClient.getBulkFxRates(any())).willReturn(java.util.Map.of());
+      given(marketDataClient.getOHLCPrice(eq(symbol), anyString())).willReturn(createOHLC(LocalDate.of(2024, 5, 31), new BigDecimal("100")));
+      given(marketDataClient.getFxRate(anyString())).willReturn(new FxRateDto(LocalDate.of(2024, 5, 31), new BigDecimal("1300")));
+      given(marketDataClient.getDividendHistory(eq(symbol), anyString(), anyString())).willReturn(List.of());
+      given(responseMapper.toStrategyResponse(any(DcaStrategyRequest.class), any(), any(), any()))
+        .willReturn(StrategyResponse.builder().build());
+
+      dcaStrategy.executeDca(base().investmentInterval(2).build());
+      dcaStrategy.executeDca(base().investmentInterval(null).build());
+
+      @SuppressWarnings("unchecked")
+      ArgumentCaptor<List<StrategyTransaction>> captor = ArgumentCaptor.forClass(List.class);
+      verify(responseMapper, times(2)).toStrategyResponse(any(DcaStrategyRequest.class), captor.capture(), any(), any());
+      assertThat(captor.getAllValues().get(0)).extracting(StrategyTransaction::getDate).containsExactly(
+        LocalDate.of(2024, 1, 15), LocalDate.of(2024, 3, 15), LocalDate.of(2024, 5, 15));
+      assertThat(captor.getAllValues().get(1)).hasSize(5);
+    }
+
+    @Test
+    @DisplayName("종료일이 오늘 이후면 오늘까지만 조회하고 현재가로 평가한다")
+    void futureEndDate() {
+      LocalDate today = LocalDate.now();
+      LocalDate start = today.withDayOfMonth(1);
+      DcaStrategyRequest request = base().startDate(start).endDate(today.plusMonths(3)).purchaseDay(1).build();
+      given(marketDataClient.getOHLCPriceRange(symbol, start.toString(), today.toString()))
+        .willReturn(List.of(createOHLC(start, new BigDecimal("100"))));
+      given(marketDataClient.getBulkFxRates(any())).willReturn(java.util.Map.of());
+      given(marketDataClient.getCurrentPrice(symbol)).willReturn(createStockPrice(new BigDecimal("110")));
+      given(marketDataClient.getLatestFxRate()).willReturn(new FxRateDto(today, new BigDecimal("1300")));
+      given(marketDataClient.getDividendHistory(eq(symbol), anyString(), anyString())).willReturn(List.of());
+      given(responseMapper.toStrategyResponse(any(DcaStrategyRequest.class), any(), any(), any()))
+        .willReturn(StrategyResponse.builder().build());
+
+      dcaStrategy.executeDca(request);
+
+      assertThat(executed()).hasSize(1);
+      verify(marketDataClient).getOHLCPriceRange(symbol, start.toString(), today.toString());
+    }
   }
 }

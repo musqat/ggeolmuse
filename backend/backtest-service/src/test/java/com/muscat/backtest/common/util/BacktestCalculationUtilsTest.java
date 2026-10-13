@@ -660,4 +660,72 @@ class BacktestCalculationUtilsTest {
         .isEqualTo(BacktestResponse.INSUFFICIENT_INVESTMENT);
     }
   }
+
+  @Nested
+  @DisplayName("배당 합계 · 배당 수익률의 걸러지는 경우")
+  class DividendFilterTests {
+
+    private final LocalDate start = LocalDate.of(2024, 1, 1);
+    private final LocalDate end = LocalDate.of(2024, 12, 31);
+
+    private DividendHistoryDto.DividendPayment pay(LocalDate exDate, String amount) {
+      DividendHistoryDto.DividendPayment pay = new DividendHistoryDto.DividendPayment();
+      pay.setExDate(exDate);
+      pay.setAmount(amount == null ? null : new BigDecimal(amount));
+      return pay;
+    }
+
+    // 권리락일 없음 · 기간 전 · 기간 뒤 · 금액 없음은 0 이고, 기간 안의 주당 1달러만 센다
+    private DividendHistoryDto mixed() {
+      DividendHistoryDto history = new DividendHistoryDto();
+      history.setDividends(List.of(pay(null, "5"), pay(LocalDate.of(2023, 12, 1), "5"), pay(LocalDate.of(2025, 1, 2), "5"),
+        pay(LocalDate.of(2024, 3, 1), null), pay(LocalDate.of(2024, 6, 1), "1")));
+      return history;
+    }
+
+    @Test
+    @DisplayName("거래 목록 기준: 기간 밖 · 권리락일 없음 · 금액 없음은 빼고 그날 보유 주식으로 센다")
+    void byTransactions() {
+      List<StrategyTransaction> txs = List.of(StrategyTransaction.builder().date(start).actualDate(start)
+        .shares(BigDecimal.TEN).amount(BigDecimal.ONE).fxRate(BigDecimal.ONE).build());
+
+      assertThat(BacktestCalculationUtils.calculateTotalDividends(mixed(), txs, start, end)).isEqualByComparingTo("10");
+    }
+
+    @Test
+    @DisplayName("고정 주식 수 기준도 같은 배당만 센다")
+    void byFixedShares() {
+      assertThat(BacktestCalculationUtils.calculateTotalDividends(mixed(), BigDecimal.TEN, start, end)).isEqualByComparingTo("10");
+    }
+
+    @Test
+    @DisplayName("배당 목록이 없거나 비면 두 방식 모두 0")
+    void emptyHistory() {
+      DividendHistoryDto nullList = new DividendHistoryDto();
+      DividendHistoryDto empty = new DividendHistoryDto();
+      empty.setDividends(List.of());
+      List<StrategyTransaction> none = List.of();
+
+      for (DividendHistoryDto history : List.of(nullList, empty)) {
+        assertThat(BacktestCalculationUtils.calculateTotalDividends(history, none, start, end)).isEqualByComparingTo("0");
+        assertThat(BacktestCalculationUtils.calculateTotalDividends(history, BigDecimal.TEN, start, end)).isEqualByComparingTo("0");
+      }
+      assertThat(BacktestCalculationUtils.calculateTotalDividends(mixed(), (BigDecimal) null, start, end)).isEqualByComparingTo("0");
+    }
+
+    @Test
+    @DisplayName("배당 수익률은 주식 수나 현재가가 0 이거나 없으면 0")
+    void dividendYieldGuards() {
+      assertThat(BacktestCalculationUtils.calculateDividendYield(BigDecimal.TEN, BigDecimal.ZERO, BigDecimal.TEN)).isEqualByComparingTo("0");
+      assertThat(BacktestCalculationUtils.calculateDividendYield(BigDecimal.TEN, BigDecimal.TEN, BigDecimal.ZERO)).isEqualByComparingTo("0");
+      assertThat(BacktestCalculationUtils.calculateDividendYield(BigDecimal.TEN, BigDecimal.TEN, null)).isEqualByComparingTo("0");
+    }
+
+    @Test
+    @DisplayName("거래일이나 권리락일이 없으면 배당을 받지 않는다")
+    void receivesDividendNulls() {
+      assertThat(BacktestCalculationUtils.receivesDividend(null, end)).isFalse();
+      assertThat(BacktestCalculationUtils.receivesDividend(start, null)).isFalse();
+    }
+  }
 }

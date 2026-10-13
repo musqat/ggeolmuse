@@ -547,5 +547,47 @@ class ConditionalPurchaseStrategyTest {
       assertThat(executed()).hasSize(1);
       verify(marketDataClient).getOHLCPriceRange(SYMBOL, today.minusDays(2).toString(), today.toString());
     }
+
+    @Test
+    @DisplayName("회당 고정 모드에서 회당 금액이 0 이거나 최대 횟수가 0 이면 막는다")
+    void perPurchaseZeroValues() {
+      ConditionalStrategyRequest zeroAmount = perPurchase(1, 3).amountPerPurchase(BigDecimal.ZERO).build();
+      ConditionalStrategyRequest zeroCount = perPurchase(1, 0).build();
+
+      assertThatThrownBy(() -> strategy.executeConditional(zeroAmount))
+        .isInstanceOf(BacktestException.class)
+        .extracting("code")
+        .isEqualTo(BacktestResponse.STRATEGY_TOTAL_INVESTMENT_REQUIRED);
+      assertThatThrownBy(() -> strategy.executeConditional(zeroCount))
+        .isInstanceOf(BacktestException.class)
+        .extracting("code")
+        .isEqualTo(BacktestResponse.INVALID_MAX_PURCHASES);
+    }
+
+    @Test
+    @DisplayName("총 예산 모드에 최대 횟수만 주면 예산을 그 횟수로 나눈다")
+    void totalBudgetSplitsByMaxPurchases() {
+      ConditionalStrategyRequest request = perPurchase(1, 4).investmentMode(InvestmentMode.TOTAL_BUDGET)
+        .amountPerPurchase(null).totalInvestment(new BigDecimal("1000000")).build();
+      stubMarket(request, List.of(day(0, "100")), true);
+
+      strategy.executeConditional(request);
+
+      assertThat(executed()).singleElement().extracting(StrategyTransaction::getAmount)
+        .satisfies(amount -> assertThat(amount).isEqualByComparingTo("250000"));
+    }
+
+    @Test
+    @DisplayName("총 예산 모드에서 회당 금액 0 은 없는 것으로 보고 10회로 나눈다")
+    void totalBudgetZeroAmountPerPurchase() {
+      ConditionalStrategyRequest request = perPurchase(1, 10).investmentMode(InvestmentMode.TOTAL_BUDGET)
+        .amountPerPurchase(BigDecimal.ZERO).maxPurchases(null).totalInvestment(new BigDecimal("1000000")).build();
+      stubMarket(request, List.of(day(0, "100")), true);
+
+      strategy.executeConditional(request);
+
+      assertThat(executed()).singleElement().extracting(StrategyTransaction::getAmount)
+        .satisfies(amount -> assertThat(amount).isEqualByComparingTo("100000"));
+    }
   }
 }
