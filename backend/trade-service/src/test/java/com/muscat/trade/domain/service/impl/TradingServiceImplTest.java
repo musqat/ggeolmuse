@@ -343,6 +343,36 @@ class TradingServiceImplTest {
   class SellStockTests {
 
     @Test
+    @DisplayName("락을 잡은 뒤 다른 매도가 보유를 가져갔으면 거래 처리 오류가 아니라 보유 부족으로 끝난다")
+    void sellStock_HoldingsTakenUnderLock_InsufficientHoldings() {
+      stubTradePropertiesForHoldingsUpdate();
+      Holdings beforeLock = Holdings.builder().id(1L).userId(TEST_USER_ID).accountId(TEST_ACCOUNT_ID)
+        .symbol(TEST_SYMBOL).totalQuantity(new BigDecimal("20")).avgPurchasePrice(new BigDecimal("140.00"))
+        .totalInvestedAmount(new BigDecimal("2800.00")).build();
+      Holdings underLock = Holdings.builder().id(1L).userId(TEST_USER_ID).accountId(TEST_ACCOUNT_ID)
+        .symbol(TEST_SYMBOL).totalQuantity(new BigDecimal("1")).avgPurchasePrice(new BigDecimal("140.00"))
+        .totalInvestedAmount(new BigDecimal("140.00")).build();
+
+      given(holdingsRepository.findByUserIdAndAccountIdAndSymbol(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL))
+        .willReturn(Optional.of(beforeLock));
+      given(tradeRepository.calculateSellableQuantity(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL, TEST_TRADE_DATE))
+        .willReturn(new BigDecimal("20"));
+      given(marketDataService.determineTradePrice(TEST_SYMBOL, TEST_TRADE_DATE, PriceType.CLOSE, null))
+        .willReturn(TEST_PRICE);
+      given(tradeUtils.getAccountBalance(String.valueOf(TEST_ACCOUNT_ID))).willReturn(testAccountBalance);
+      given(tradeUtils.calculateFee(any(), any())).willReturn(new BigDecimal("1.50"));
+      given(tradeRepository.save(any(Trade.class))).willAnswer(inv -> inv.getArgument(0));
+      given(holdingsRepository.findByUserIdAndAccountIdAndSymbolWithLock(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL))
+        .willReturn(Optional.of(underLock));
+
+      assertThatThrownBy(() -> tradingService.sellStock(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL,
+        new BigDecimal("10"), TEST_TRADE_DATE, PriceType.CLOSE, null))
+        .isInstanceOf(TradeException.class)
+        .hasMessage(TradeResponse.INSUFFICIENT_HOLDINGS.getMessage());
+      verify(eventPublisher, never()).publishEvent(any(TradeSavedEvent.class));
+    }
+
+    @Test
     @DisplayName("정상적으로 주식이 매도된다 (부분 매도)")
     void sellStock_PartialSell_Success() {
       // given

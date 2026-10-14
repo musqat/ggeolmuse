@@ -354,6 +354,9 @@ public class TradingServiceImpl implements TradingService {
 
       return result;
 
+    } catch (TradeException e) {
+      // 락을 잡은 뒤의 보유 부족 같은 도메인 오류는 원래 코드로 올린다
+      throw e;
     } catch (Exception e) {
       log.error("거래 DB 트랜잭션 실패: {}", e.getMessage(), e);
       throw new TradeException(TradeResponse.TRANSACTION_FAILED);
