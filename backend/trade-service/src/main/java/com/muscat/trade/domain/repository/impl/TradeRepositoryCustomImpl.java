@@ -77,10 +77,11 @@ public class TradeRepositoryCustomImpl implements TradeRepositoryCustom {
 
         long total = totalCount != null ? totalCount : 0L;
 
-        List<Trade> trades = query
-                .offset(pageable.getOffset())
-                .limit(pageable.getPageSize())
-                .fetch();
+        // unpaged 는 getOffset · getPageSize 가 예외를 던진다. 나눌 때만 건다
+        if (pageable.isPaged()) {
+            query.offset(pageable.getOffset()).limit(pageable.getPageSize());
+        }
+        List<Trade> trades = query.fetch();
 
         return new PageImpl<>(trades, pageable, total);
     }

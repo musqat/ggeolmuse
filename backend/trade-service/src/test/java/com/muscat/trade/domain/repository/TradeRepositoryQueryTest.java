@@ -18,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
 
@@ -133,6 +134,16 @@ class TradeRepositoryQueryTest {
 
       assertThat(totals(page)).containsExactly("500", "300");
       assertThat(find(20L, "MSFT", TradeType.SELL, d5, d7, "300", "500", 10).getTotalElements()).isZero();
+    }
+
+    @Test
+    @DisplayName("페이지를 나누지 않으면(unpaged) 기간 안 내 거래를 전부 준다")
+    void unpaged_ReturnsAllInRange() {
+      Page<Trade> page = tradeRepository.findTradesWithComplexFilters(USER, null, null, null, d1, d7,
+        null, null, Pageable.unpaged());
+
+      assertThat(totals(page)).containsExactly("500", "300", "50", "100");
+      assertThat(page.getTotalElements()).isEqualTo(4);
     }
   }
 
