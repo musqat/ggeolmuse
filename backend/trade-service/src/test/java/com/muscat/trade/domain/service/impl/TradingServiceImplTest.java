@@ -9,6 +9,8 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.never;
 import static org.mockito.BDDMockito.verify;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.calls;
+import static org.mockito.Mockito.inOrder;
 
 import com.muscat.trade.common.enums.responses.TradeResponse;
 import com.muscat.trade.common.enums.type.PriceType;
@@ -42,6 +44,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -370,6 +373,37 @@ class TradingServiceImplTest {
         .isInstanceOf(TradeException.class)
         .hasMessage(TradeResponse.INSUFFICIENT_HOLDINGS.getMessage());
       verify(eventPublisher, never()).publishEvent(any(TradeSavedEvent.class));
+    }
+
+    @Test
+    @DisplayName("락을 잡은 뒤 날짜 기준 매도 가능량을 다시 보고, 그 사이 다른 매도가 가져갔으면 저장하지 않고 막는다")
+    void sellStock_SellableTakenBeforeLock_Rejected() {
+      Holdings holdings = Holdings.builder().id(1L).userId(TEST_USER_ID).accountId(TEST_ACCOUNT_ID)
+        .symbol(TEST_SYMBOL).totalQuantity(new BigDecimal("20")).avgPurchasePrice(new BigDecimal("140.00"))
+        .totalInvestedAmount(new BigDecimal("2800.00")).build();
+
+      given(holdingsRepository.findByUserIdAndAccountIdAndSymbol(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL))
+        .willReturn(Optional.of(holdings));
+      // 사전 검사 때는 20, 락을 잡은 뒤에는 같은 날짜 매도가 먼저 커밋돼 5
+      given(tradeRepository.calculateSellableQuantity(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL, TEST_TRADE_DATE))
+        .willReturn(new BigDecimal("20"), new BigDecimal("5"));
+      given(marketDataService.determineTradePrice(TEST_SYMBOL, TEST_TRADE_DATE, PriceType.CLOSE, null))
+        .willReturn(TEST_PRICE);
+      given(tradeUtils.getAccountBalance(String.valueOf(TEST_ACCOUNT_ID))).willReturn(testAccountBalance);
+      given(tradeUtils.calculateFee(any(), any())).willReturn(new BigDecimal("1.50"));
+      given(holdingsRepository.findByUserIdAndAccountIdAndSymbolWithLock(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL))
+        .willReturn(Optional.of(holdings));
+
+      assertThatThrownBy(() -> tradingService.sellStock(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL,
+        new BigDecimal("10"), TEST_TRADE_DATE, PriceType.CLOSE, null))
+        .isInstanceOf(TradeException.class)
+        .hasMessage(TradeResponse.INSUFFICIENT_SELLABLE_QUANTITY.getMessage());
+
+      InOrder order = inOrder(holdingsRepository, tradeRepository);
+      order.verify(holdingsRepository).findByUserIdAndAccountIdAndSymbolWithLock(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL);
+      order.verify(tradeRepository, calls(1))
+        .calculateSellableQuantity(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL, TEST_TRADE_DATE);
+      verify(tradeRepository, never()).save(any(Trade.class));
     }
 
     @Test
