@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.muscat.messaging.event.AccountBalanceUpdatedEvent;
@@ -20,6 +21,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @DisplayName("계좌 잔액 변경 · 삭제 발행")
 class AccountEventProducerTest {
@@ -74,6 +77,55 @@ class AccountEventProducerTest {
     assertThat(sent.getValue().getAccountId()).isEqualTo(3L);
     assertThat(sent.getValue().getAccountName()).isEqualTo("연습");
     assertThat(sent.getValue().getDeletionReason()).isEqualTo("사용자 탈퇴");
+  }
+
+  @Test
+  @DisplayName("트랜잭션 안이면 커밋 뒤에 보낸다")
+  void deleted_InTransaction_SendsOnlyAfterCommit() {
+    given(deletedTemplate.send(anyString(), anyString(), any())).willReturn(sent(DELETED_TOPIC));
+    TransactionSynchronizationManager.initSynchronization();
+    try {
+      producer.publishAccountDeleted(account, "사용자 탈퇴");
+      verify(deletedTemplate, never()).send(anyString(), anyString(), any());
+
+      TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
+      verify(deletedTemplate).send(eq(DELETED_TOPIC), eq("7"), any());
+    } finally {
+      TransactionSynchronizationManager.clearSynchronization();
+    }
+  }
+
+  @Test
+  @DisplayName("트랜잭션이 롤백되면 보내지 않는다")
+  void deleted_RolledBack_NeverSends() {
+    given(deletedTemplate.send(anyString(), anyString(), any())).willReturn(sent(DELETED_TOPIC));
+    TransactionSynchronizationManager.initSynchronization();
+    try {
+      producer.publishAccountDeleted(account, "사용자 탈퇴");
+
+      TransactionSynchronizationManager.getSynchronizations()
+        .forEach(s -> s.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK));
+
+      verify(deletedTemplate, never()).send(anyString(), anyString(), any());
+    } finally {
+      TransactionSynchronizationManager.clearSynchronization();
+    }
+  }
+
+  @Test
+  @DisplayName("커밋 뒤 전송이 바로 실패해도 이미 끝난 삭제로 예외를 올리지 않는다")
+  void deleted_SendThrowsAfterCommit_DoesNotThrow() {
+    given(deletedTemplate.send(anyString(), anyString(), any())).willThrow(new IllegalStateException("metadata timeout"));
+    TransactionSynchronizationManager.initSynchronization();
+    try {
+      producer.publishAccountDeleted(account, "사용자 탈퇴");
+
+      assertThatCode(() -> TransactionSynchronizationManager.getSynchronizations()
+        .forEach(TransactionSynchronization::afterCommit)).doesNotThrowAnyException();
+    } finally {
+      TransactionSynchronizationManager.clearSynchronization();
+    }
   }
 
   @Test
