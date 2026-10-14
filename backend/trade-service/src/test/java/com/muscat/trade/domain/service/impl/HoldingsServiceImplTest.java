@@ -1,11 +1,14 @@
 package com.muscat.trade.domain.service.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.verify;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 
 import com.muscat.commonlib.dto.StockPriceDto;
 import com.muscat.trade.common.logging.TradeLogger;
@@ -15,7 +18,7 @@ import com.muscat.trade.domain.entity.Holdings;
 import com.muscat.trade.domain.repository.HoldingsRepository;
 import com.muscat.trade.domain.repository.PortfolioSummaryProjection;
 import com.muscat.trade.infra.client.BacktestServiceClient;
-import com.muscat.trade.infra.client.MarketServiceClient;
+import com.muscat.trade.infra.client.MarketServiceClientWrapper;
 import com.muscat.trade.infra.client.dto.InvestmentBacktestResultDto;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -46,7 +49,7 @@ class HoldingsServiceImplTest {
   @Mock
   private BacktestServiceClient backtestServiceClient;
   @Mock
-  private MarketServiceClient marketServiceClient;
+  private MarketServiceClientWrapper marketServiceClientWrapper;
 
   @InjectMocks
   private HoldingsServiceImpl holdingsService;
@@ -92,7 +95,7 @@ class HoldingsServiceImplTest {
       StockPriceDto priceDto = new StockPriceDto(
         TEST_SYMBOL, null, TEST_CURRENT_PRICE, null, null, null,
         null, null, null, null, null, null, null, null, "USD", true, null, null);
-      given(marketServiceClient.getCurrentPrice(TEST_SYMBOL)).willReturn(priceDto);
+      given(marketServiceClientWrapper.getCurrentPrices(List.of(TEST_SYMBOL))).willReturn(Map.of(TEST_SYMBOL, priceDto));
 
       // when
       List<HoldingResponseDto> result = holdingsService.getPortfolio(TEST_USER_ID, TEST_ACCOUNT_ID);
@@ -110,6 +113,57 @@ class HoldingsServiceImplTest {
     }
 
     @Test
+    @DisplayName("보유 종목이 여럿이어도 현재가는 한 번에 받는다")
+    void getPortfolio_ManySymbols_OneBatchCall() {
+      Holdings msft = Holdings.builder().userId(TEST_USER_ID).accountId(TEST_ACCOUNT_ID).symbol("MSFT")
+        .totalQuantity(new BigDecimal("2")).avgPurchasePrice(new BigDecimal("400.00"))
+        .totalInvestedAmount(new BigDecimal("800.00")).build();
+      given(holdingsRepository.findByUserIdAndAccountId(TEST_USER_ID, TEST_ACCOUNT_ID))
+        .willReturn(List.of(testHolding, msft));
+      StockPriceDto aapl = new StockPriceDto(
+        TEST_SYMBOL, null, TEST_CURRENT_PRICE, null, null, null,
+        null, null, null, null, null, null, null, null, "USD", true, null, null);
+      StockPriceDto msftPrice = new StockPriceDto(
+        "MSFT", null, new BigDecimal("410.00"), null, null, null,
+        null, null, null, null, null, null, null, null, "USD", true, null, null);
+      given(marketServiceClientWrapper.getCurrentPrices(List.of(TEST_SYMBOL, "MSFT")))
+        .willReturn(Map.of(TEST_SYMBOL, aapl, "MSFT", msftPrice));
+
+      List<HoldingResponseDto> result = holdingsService.getPortfolio(TEST_USER_ID, TEST_ACCOUNT_ID);
+
+      assertThat(result).extracting(HoldingResponseDto::currentPrice)
+        .usingElementComparator(BigDecimal::compareTo)
+        .containsExactly(TEST_CURRENT_PRICE, new BigDecimal("410.00"));
+      verify(marketServiceClientWrapper, times(1)).getCurrentPrices(List.of(TEST_SYMBOL, "MSFT"));
+    }
+
+    @Test
+    @DisplayName("보유가 없으면 시세를 부르지 않는다")
+    void getPortfolio_NoHoldings_NoPriceCall() {
+      given(holdingsRepository.findByUserId(TEST_USER_ID)).willReturn(List.of());
+
+      assertThat(holdingsService.getPortfolio(TEST_USER_ID, null)).isEmpty();
+      verify(marketServiceClientWrapper, never()).getCurrentPrices(anyList());
+    }
+
+    @Test
+    @DisplayName("두 계좌에 같은 종목이 있어도 종목마다 한 번만 묻는다")
+    void getPortfolio_SameSymbolInTwoAccounts_AskedOnce() {
+      Holdings otherAccount = Holdings.builder().userId(TEST_USER_ID).accountId(2L).symbol(TEST_SYMBOL)
+        .totalQuantity(new BigDecimal("1")).avgPurchasePrice(TEST_AVG_PRICE).totalInvestedAmount(TEST_AVG_PRICE).build();
+      given(holdingsRepository.findByUserId(TEST_USER_ID)).willReturn(List.of(testHolding, otherAccount));
+      StockPriceDto aapl = new StockPriceDto(
+        TEST_SYMBOL, null, TEST_CURRENT_PRICE, null, null, null,
+        null, null, null, null, null, null, null, null, "USD", true, null, null);
+      given(marketServiceClientWrapper.getCurrentPrices(List.of(TEST_SYMBOL))).willReturn(Map.of(TEST_SYMBOL, aapl));
+
+      List<HoldingResponseDto> result = holdingsService.getPortfolio(TEST_USER_ID, null);
+
+      assertThat(result).hasSize(2)
+        .allSatisfy(h -> assertThat(h.currentPrice()).isEqualByComparingTo(TEST_CURRENT_PRICE));
+    }
+
+    @Test
     @DisplayName("전체 포트폴리오가 정상 조회된다 (accountId null)")
     void getPortfolio_WithoutAccountId_Success() {
       // given
@@ -119,7 +173,7 @@ class HoldingsServiceImplTest {
       StockPriceDto priceDto = new StockPriceDto(
         TEST_SYMBOL, null, TEST_CURRENT_PRICE, null, null, null,
         null, null, null, null, null, null, null, null, "USD", true, null, null);
-      given(marketServiceClient.getCurrentPrice(TEST_SYMBOL)).willReturn(priceDto);
+      given(marketServiceClientWrapper.getCurrentPrices(List.of(TEST_SYMBOL))).willReturn(Map.of(TEST_SYMBOL, priceDto));
 
       // when
       List<HoldingResponseDto> result = holdingsService.getPortfolio(TEST_USER_ID, null);
@@ -137,7 +191,7 @@ class HoldingsServiceImplTest {
       List<Holdings> holdings = List.of(testHolding);
       given(holdingsRepository.findByUserIdAndAccountId(TEST_USER_ID, TEST_ACCOUNT_ID))
         .willReturn(holdings);
-      given(marketServiceClient.getCurrentPrice(TEST_SYMBOL))
+      given(marketServiceClientWrapper.getCurrentPrices(List.of(TEST_SYMBOL)))
         .willThrow(new RuntimeException("Market service unavailable"));
 
       // when
@@ -152,7 +206,8 @@ class HoldingsServiceImplTest {
     @DisplayName("시세 응답에 현재가가 없으면 현재가 없이 돌려준다")
     void getPortfolio_PriceMissingInResponse_ReturnsWithoutPrice() {
       given(holdingsRepository.findByUserId(TEST_USER_ID)).willReturn(List.of(testHolding));
-      given(marketServiceClient.getCurrentPrice(TEST_SYMBOL)).willReturn(mock(StockPriceDto.class));
+      given(marketServiceClientWrapper.getCurrentPrices(List.of(TEST_SYMBOL)))
+        .willReturn(Map.of(TEST_SYMBOL, mock(StockPriceDto.class)));
 
       List<HoldingResponseDto> result = holdingsService.getPortfolio(TEST_USER_ID, null);
 
