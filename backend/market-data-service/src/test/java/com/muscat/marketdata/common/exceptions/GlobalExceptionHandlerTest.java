@@ -21,6 +21,7 @@ import java.math.BigDecimal;
 import java.util.Objects;
 import java.util.Set;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import java.util.List;
 
 @DisplayName("market-data 예외 응답 변환")
 class GlobalExceptionHandlerTest {
@@ -97,5 +98,39 @@ class GlobalExceptionHandlerTest {
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(Objects.requireNonNull(response.getBody()).getStatus()).isEqualTo(400);
+  }
+
+  @Test
+  @DisplayName("야후 · AlphaVantage · 수출입은행 오류는 502 이고 외부 서비스 오류로 표시한다")
+  void externalServiceErrors() {
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/market/price/AAPL");
+
+    ResponseEntity<ProblemDetail> yahoo = handler.handleYahooFinanceException(new YahooFinanceException("429"), request);
+    ResponseEntity<ProblemDetail> av = handler.handleAlphaVantageException(new AlphaVantageException("limit"), request);
+    ResponseEntity<ProblemDetail> fx = handler.handleFxRateException(new FxRateException("no data"), request);
+
+    assertThat(List.of(yahoo, av, fx)).allSatisfy(response -> {
+      assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
+      assertThat(Objects.requireNonNull(response.getBody()).getProperties()).containsEntry("errorType", "EXTERNAL_SERVICE");
+    });
+    assertThat(Objects.requireNonNull(yahoo.getBody()).getDetail()).isEqualTo("Yahoo Finance 서비스 오류: 429");
+    assertThat(Objects.requireNonNull(av.getBody()).getDetail()).isEqualTo("Alpha Vantage 서비스 오류: limit");
+    assertThat(Objects.requireNonNull(fx.getBody()).getDetail()).isEqualTo("한국수출입은행 서비스 오류: no data");
+  }
+
+  @Test
+  @DisplayName("예상하지 못한 예외는 개발 프로필에서만 내용을 싣고, 운영에서는 감춘다")
+  void generalException_DetailByProfile() {
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/market/price/AAPL");
+    IllegalStateException leak = new IllegalStateException("jdbc:postgresql://db/secret");
+
+    org.springframework.test.util.ReflectionTestUtils.setField(handler, "currentProfile", "local");
+    ResponseEntity<ProblemDetail> local = handler.handleGeneralException(leak, request);
+    org.springframework.test.util.ReflectionTestUtils.setField(handler, "currentProfile", "prod");
+    ResponseEntity<ProblemDetail> prod = handler.handleGeneralException(leak, request);
+
+    assertThat(local.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+    assertThat(Objects.requireNonNull(local.getBody()).getDetail()).isEqualTo("jdbc:postgresql://db/secret - IllegalStateException");
+    assertThat(Objects.requireNonNull(prod.getBody()).getDetail()).isEqualTo("시장 데이터 서비스에 문제가 발생했습니다.");
   }
 }
