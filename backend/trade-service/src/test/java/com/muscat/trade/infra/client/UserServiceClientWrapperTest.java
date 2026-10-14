@@ -5,8 +5,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
+import com.muscat.trade.common.enums.responses.TradeResponse;
+import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.infra.client.dto.AccountBalanceDto;
+import feign.FeignException;
+import feign.Request;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -27,13 +33,24 @@ class UserServiceClientWrapperTest {
   }
 
   @Test
-  @DisplayName("잔액을 못 받으면 대체값 없이 원인을 담은 예외를 올린다(잔액 모르고 주문하지 않는다)")
+  @DisplayName("잔액을 못 받으면 대체값 없이 원인을 담아 사용자 서비스 오류로 올린다(잔액 모르고 주문하지 않는다)")
   void fallback_Throws() {
     RuntimeException down = new RuntimeException("down");
 
     assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(wrapper, "getAccountBalanceFallback", 20L, down))
-      .isInstanceOf(RuntimeException.class)
-      .hasMessageContaining("User service")
+      .isInstanceOf(TradeException.class)
+      .hasMessage(TradeResponse.USER_SERVICE_ERROR.getMessage())
       .hasCause(down);
+  }
+
+  @Test
+  @DisplayName("4xx 는 장애가 아니라 그대로 올린다. 계좌 없음 · 접근 거부를 서비스 불가로 바꾸지 않는다")
+  void fallback_ClientError_Rethrown() {
+    Request request = Request.create(Request.HttpMethod.GET, "/api/accounts/20/balance", Map.of(), null,
+      StandardCharsets.UTF_8, null);
+    FeignException.NotFound notFound = new FeignException.NotFound("Not Found", request, null, Map.of());
+
+    assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(wrapper, "getAccountBalanceFallback", 20L, notFound))
+      .isSameAs(notFound);
   }
 }

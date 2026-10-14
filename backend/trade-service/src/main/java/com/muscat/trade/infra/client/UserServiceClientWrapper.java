@@ -1,6 +1,9 @@
 package com.muscat.trade.infra.client;
 
+import com.muscat.trade.common.enums.responses.TradeResponse;
+import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.infra.client.dto.AccountBalanceDto;
+import feign.FeignException;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
@@ -28,8 +31,11 @@ public class UserServiceClientWrapper {
 
   // Fallback 메서드
   private AccountBalanceDto getAccountBalanceFallback(Long accountId, Exception ex) {
-    log.error("Fallback triggered for getAccountBalance. AccountId: {}, Error: {}",
-        accountId, ex.getMessage());
-    throw new RuntimeException("User service is currently unavailable. Please try again later.", ex);
+    // 4xx 는 장애가 아니다. 계좌 없음 · 접근 거부를 서비스 불가로 바꾸지 않고 그대로 올린다
+    if (ex instanceof FeignException.FeignClientException clientError) {
+      throw clientError;
+    }
+    log.error("계좌 잔액 조회 실패(대체 동작): accountId={}, error={}", accountId, ex.getMessage());
+    throw new TradeException(TradeResponse.USER_SERVICE_ERROR, ex);
   }
 }

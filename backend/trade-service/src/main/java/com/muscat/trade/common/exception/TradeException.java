@@ -8,4 +8,8 @@ public class TradeException extends BusinessException {
   public TradeException(TradeResponse response) {
     super(response);
   }
+
+  public TradeException(TradeResponse response, Throwable cause) {
+    super(response, cause);
+  }
 }
