@@ -211,4 +211,14 @@ class SymbolCatalogTest {
 
     assertThat(catalog.fetchAll()).hasSize(1);
   }
+
+  @Test
+  @DisplayName("폴백이 켜져 있어도 번들 CSV 까지 비면 빈 목록")
+  void fetchAll_BundledAlsoEmpty_ReturnsEmpty() {
+    ReflectionTestUtils.setField(catalog, "csvFallback", true);
+    given(listingSource.fetch()).willReturn(List.of());
+    given(bundledSource.fetch()).willReturn(List.of());
+
+    assertThat(catalog.fetchAll()).isEmpty();
+  }
 }

@@ -104,4 +104,30 @@ class AdminMarketControllerTest {
     assertThat(body.getLastRunAt()).isEqualTo(at);
     assertThat(body.getPublished()).isEqualTo(7812);
   }
+
+  @Test
+  @DisplayName("신규 종목 수집기가 없는 provider 면 503 이고 안내를 준다")
+  void collectorMissing() {
+    given(symbolCollectorProvider.getIfAvailable()).willReturn(null);
+
+    var response = controller.collectNewSymbols();
+
+    assertThat(response.getStatusCode().value()).isEqualTo(503);
+    assertThat(java.util.Objects.requireNonNull(response.getBody()).getMessage()).contains("yahoo");
+  }
+
+  @Test
+  @DisplayName("뒤에서 도는 전체 시총 갱신 · 신규 종목 수집이 실패해도 요청은 200 으로 끝난다")
+  void backgroundFailures() {
+    SymbolCollector collector = org.mockito.Mockito.mock(SymbolCollector.class);
+    given(symbolCollectorProvider.getIfAvailable()).willReturn(collector);
+    given(assetService.updateAllMarketCaps()).willThrow(new IllegalStateException("source down"));
+    org.mockito.BDDMockito.willThrow(new IllegalStateException("blocked")).given(collector).collectNewlyListedDaily();
+
+    assertThat(controller.updateMarketCaps().getStatusCode().value()).isEqualTo(200);
+    assertThat(controller.collectNewSymbols().getStatusCode().value()).isEqualTo(200);
+
+    org.mockito.Mockito.verify(assetService, org.mockito.Mockito.timeout(2000)).updateAllMarketCaps();
+    org.mockito.Mockito.verify(collector, org.mockito.Mockito.timeout(2000)).collectNewlyListedDaily();
+  }
 }

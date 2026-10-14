@@ -30,6 +30,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.junit.jupiter.api.Nested;
+import org.mockito.ArgumentCaptor;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -261,5 +263,79 @@ class YahooCandleUpdateServiceTest {
     service.saveCandles(SYMBOL, FULL_FROM, TO);
 
     assertThat(asset.getFullHistoryThrough()).isNull();
+  }
+
+  @Nested
+  @DisplayName("배당 저장 · 실패")
+  class DividendAndFailureTests {
+
+    private com.muscat.marketdata.domain.dto.DividendDto dividend(LocalDate exDate) {
+      return com.muscat.marketdata.domain.dto.DividendDto.builder().symbol(SYMBOL).exDate(exDate)
+        .amount(new BigDecimal("0.24")).currency("USD").build();
+    }
+
+    @Test
+    @DisplayName("캔들 받기가 실패하면 0 을 돌려주고 실패로 센다")
+    void candleFailure() {
+      given(candleRepository.findBySymbolAndDateBetweenOrderByDateAsc(SYMBOL, FROM, TO)).willReturn(List.of());
+      given(candleSource.fetchDailyAdjusted(SYMBOL, FROM, TO)).willThrow(new IllegalStateException("yahoo down"));
+
+      assertThat(service.saveCandles(SYMBOL, FROM, TO)).isZero();
+      verify(collectionStats).recordSymbolFailed();
+    }
+
+    @Test
+    @DisplayName("새 배당만 저장해 발행 · 집계하고, 이미 있는 배당은 건너뛴다")
+    void savesOnlyNewDividends() {
+      given(dividendSource.fetchDividends(SYMBOL, FROM, TO)).willReturn(List.of(dividend(D1), dividend(D2)));
+      given(dividendRepository.existsBySymbolAndExDate(SYMBOL, D1)).willReturn(true);
+      given(dividendRepository.existsBySymbolAndExDate(SYMBOL, D2)).willReturn(false);
+
+      assertThat(service.saveDividends(SYMBOL, FROM, TO)).isEqualTo(1);
+
+      @SuppressWarnings("unchecked")
+      ArgumentCaptor<List<com.muscat.marketdata.domain.entity.Dividend>> saved = ArgumentCaptor.forClass(List.class);
+      verify(dividendRepository).saveAll(saved.capture());
+      assertThat(saved.getValue()).extracting(com.muscat.marketdata.domain.entity.Dividend::getExDate).containsExactly(D2);
+      verify(dividendEventProducer).publishBatch(saved.getValue());
+      verify(collectionStats).recordDividends(1);
+    }
+
+    @Test
+    @DisplayName("배당이 없거나 모두 이미 있거나 받기가 실패하면 저장하지 않고 0")
+    void noNewDividends() {
+      given(dividendSource.fetchDividends(SYMBOL, FROM, TO))
+        .willReturn(List.of())
+        .willReturn(List.of(dividend(D1)))
+        .willThrow(new IllegalStateException("yahoo down"));
+      given(dividendRepository.existsBySymbolAndExDate(SYMBOL, D1)).willReturn(true);
+
+      for (int i = 0; i < 3; i++) {
+        assertThat(service.saveDividends(SYMBOL, FROM, TO)).isZero();
+      }
+      verify(dividendRepository, never()).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("캔들 · 배당을 같이 받으면 두 건수를 더한다")
+    void savesBoth() {
+      org.springframework.test.util.ReflectionTestUtils.setField(service, "self", service);
+      stub(FROM, List.of(), List.of(candle(D1, "100"), candle(D2, "101")));
+      given(dividendSource.fetchDividends(SYMBOL, FROM, TO)).willReturn(List.of(dividend(D2)));
+
+      assertThat(service.saveBoth(SYMBOL, FROM, TO)).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("저장된 봉의 값이 비어 있고 새 값이 오면 고친다")
+    void fillsMissingValue() {
+      Candle stored = candle(D1, "100");
+      stored.setDividendAmount(null);
+      stub(FROM, List.of(stored), List.of(candle(D1, "100")));
+
+      service.saveCandles(SYMBOL, FROM, TO);
+
+      verify(collectionStats).recordSymbol(0, 1);
+    }
   }
 }

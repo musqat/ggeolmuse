@@ -33,6 +33,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("AssetService  테스트")
@@ -837,6 +840,96 @@ class AssetServiceImplTest {
       // then
       assertThat(result).containsExactly("AAPL", "MSFT");
       verify(assetRepository).findActiveSymbols();
+    }
+  }
+
+  @Nested
+  @DisplayName("관리자 작업 · 소스 없음")
+  class AdminOperationTests {
+
+    @Test
+    @DisplayName("요약 정렬의 화면 필드 이름을 저장 필드 이름으로 바꿔 조회하고, 정렬이 없으면 그대로 넘긴다")
+    void remapsSummarySort() {
+      given(assetRepository.findSorted(any(), anyBoolean())).willReturn(new PageImpl<>(List.of(testAsset)));
+      Pageable byPrice = PageRequest.of(0, 20, Sort.by(Sort.Order.desc("currentPrice"), Sort.Order.asc("latestDataDate"),
+        Sort.Order.asc("name")));
+      Pageable unsorted = PageRequest.of(1, 5);
+
+      Page<AssetSummaryDto> page = assetService.getAllAssetSummaries(byPrice, true);
+      assetService.getAllAssetSummaries(unsorted, false);
+
+      assertThat(page.getContent()).extracting(AssetSummaryDto::getSymbol).containsExactly(TEST_SYMBOL);
+      verify(assetRepository).findSorted(PageRequest.of(0, 20,
+        Sort.by(Sort.Order.desc("latestClose"), Sort.Order.asc("latestDate"), Sort.Order.asc("name"))), true);
+      verify(assetRepository).findSorted(unsorted, false);
+    }
+
+    @Test
+    @DisplayName("일봉 · 시총 소스가 없으면 갱신을 막는다")
+    void sourcesMissing() {
+      given(assetRepository.findById(TEST_SYMBOL)).willReturn(Optional.of(testAsset));
+      setField(assetService, "candleSource", null);
+      setField(assetService, "marketCapSource", null);
+
+      assertThatThrownBy(() -> assetService.updateAssetPrice("aapl")).isInstanceOf(IllegalStateException.class)
+        .hasMessage("CandleSource not available");
+      assertThatThrownBy(() -> assetService.updateAssetMarketCap("aapl")).isInstanceOf(IllegalStateException.class)
+        .hasMessage("Market cap source not available");
+      assertThatThrownBy(() -> assetService.updateAllMarketCaps()).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    @DisplayName("한 종목 시총 갱신은 소스가 못 받으면 막고, 없는 종목이면 IllegalArgumentException")
+    void marketCapOne() {
+      given(assetRepository.findById(TEST_SYMBOL)).willReturn(Optional.of(testAsset));
+      given(assetRepository.findById("NOPE")).willReturn(Optional.empty());
+      given(marketCapSource.updateMarketCap(TEST_SYMBOL)).willReturn(true, false);
+
+      assetService.updateAssetMarketCap("aapl");
+      assertThatThrownBy(() -> assetService.updateAssetMarketCap("aapl")).isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining(TEST_SYMBOL);
+      assertThatThrownBy(() -> assetService.updateAssetMarketCap("nope")).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("전체 시총 갱신은 활성 종목을 소스에 넘기고 바꾼 수를 돌려준다")
+    void marketCapAll() {
+      given(assetRepository.findByActiveTrue()).willReturn(List.of(testAsset));
+      given(marketCapSource.updateAllMarketCaps(List.of(testAsset))).willReturn(1);
+
+      assertThat(assetService.updateAllMarketCaps()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("복구는 활성으로 돌리고 폐지일을 지우며, 없는 종목이면 IllegalArgumentException")
+    void restore() {
+      testAsset.setActive(false);
+      testAsset.setDelistedDate(LocalDate.of(2024, 1, 1));
+      given(assetRepository.findById(TEST_SYMBOL)).willReturn(Optional.of(testAsset));
+      given(assetRepository.findById("NOPE")).willReturn(Optional.empty());
+
+      assetService.restoreAsset("aapl");
+
+      assertThat(testAsset.getActive()).isTrue();
+      assertThat(testAsset.getDelistedDate()).isNull();
+      verify(assetRepository).save(testAsset);
+      assertThatThrownBy(() -> assetService.restoreAsset("nope")).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("일괄 삭제는 빈 값 · 중복을 빼고 대문자로 찾아 오늘 날짜로 폐지 처리하며, 목록이 비면 0")
+    void bulkDelete() {
+      Asset msft = Asset.builder().symbol("MSFT").build();
+      given(assetRepository.findAllById(List.of("AAPL", "MSFT", "NOPE"))).willReturn(List.of(testAsset, msft));
+
+      int deleted = assetService.deleteAssets(java.util.Arrays.asList("aapl", " ", null, "AAPL", "msft", "nope"));
+
+      assertThat(deleted).isEqualTo(2);
+      assertThat(testAsset.getActive()).isFalse();
+      assertThat(msft.getDelistedDate()).isEqualTo(LocalDate.now());
+      verify(assetRepository).saveAll(List.of(testAsset, msft));
+      assertThat(assetService.deleteAssets(null)).isZero();
+      assertThat(assetService.deleteAssets(List.of())).isZero();
     }
   }
 }
