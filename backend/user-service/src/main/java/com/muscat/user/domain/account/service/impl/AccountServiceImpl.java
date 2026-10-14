@@ -668,8 +668,14 @@ public class AccountServiceImpl implements AccountService {
   // 거래 내역 생성
   private void createTradeHistory(Account account, BigDecimal usdAmount,
     BigDecimal newBalance, String description) {
-    TransactionType transactionType = usdAmount.compareTo(BigDecimal.ZERO) > 0
-      ? TransactionType.TRADE_SELL : TransactionType.TRADE_BUY;
+    // 배당 입금도 양수라 부호만 보면 매도로 남는다. 위 이벤트 유형처럼 설명으로 먼저 가른다
+    TransactionType transactionType;
+    if (description.contains("배당금")) {
+      transactionType = TransactionType.DIVIDEND;
+    } else {
+      transactionType = usdAmount.compareTo(BigDecimal.ZERO) > 0
+        ? TransactionType.TRADE_SELL : TransactionType.TRADE_BUY;
+    }
     String referenceId = generateReferenceId(transactionType);
 
     AccountHistory history = AccountHistory.builder()

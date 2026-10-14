@@ -20,6 +20,7 @@ import com.muscat.commonlib.exception.ServiceException;
 import com.muscat.messaging.event.DividendReceivedEvent;
 import com.muscat.messaging.event.TradeCompletedEvent;
 import com.muscat.user.common.enums.responses.AccountResponse;
+import com.muscat.user.common.enums.type.TransactionType;
 import com.muscat.user.common.exceptions.AccountException;
 import com.muscat.user.common.logging.UserLogger;
 import com.muscat.user.common.util.AccountCalculatorUtil;
@@ -47,6 +48,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -722,6 +724,26 @@ class AccountServiceImplTest {
       assertThat(testAccount.getBalanceUsd())
         .isEqualByComparingTo(new BigDecimal("500.00"));
       verify(accountHistoryRepository).save(any(AccountHistory.class));
+    }
+
+    @Test
+    @DisplayName("배당 입금은 매도가 아니라 배당으로 남고, 매수 · 매도는 그대로다")
+    void updateUsdBalance_RecordsDividendType() {
+      testAccount.setBalanceUsd(new BigDecimal("1000.00"));
+      given(accountRepository.findByIdWithLock(accountId)).willReturn(Optional.of(testAccount));
+      given(accountRepository.save(testAccount)).willReturn(testAccount);
+
+      accountService.updateUsdBalance(accountId, userId, new BigDecimal("12.34"),
+        "배당금 수령: AAPL (기준일: 2026-01-10, 주당: $0.25 × 49주)");
+      accountService.updateUsdBalance(accountId, userId, new BigDecimal("500.00"),
+        "주식 매도: AAPL 1주 @ $500 (거래ID: 1)");
+      accountService.updateUsdBalance(accountId, userId, new BigDecimal("-100.00"),
+        "주식 매수: AAPL 1주 @ $100 (거래ID: 2)");
+
+      ArgumentCaptor<AccountHistory> saved = ArgumentCaptor.forClass(AccountHistory.class);
+      verify(accountHistoryRepository, times(3)).save(saved.capture());
+      assertThat(saved.getAllValues()).extracting(AccountHistory::getTransactionType)
+        .containsExactly(TransactionType.DIVIDEND, TransactionType.TRADE_SELL, TransactionType.TRADE_BUY);
     }
 
     @Test
