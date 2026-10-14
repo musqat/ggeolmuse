@@ -354,6 +354,9 @@ public class TradingServiceImpl implements TradingService {
 
       return result;
 
+    } catch (TradeException e) {
+      // 락을 잡은 뒤의 보유 부족 같은 도메인 오류는 원래 코드로 올린다
+      throw e;
     } catch (Exception e) {
       log.error("거래 DB 트랜잭션 실패: {}", e.getMessage(), e);
       throw new TradeException(TradeResponse.TRANSACTION_FAILED);
@@ -365,6 +368,17 @@ public class TradingServiceImpl implements TradingService {
   protected Trade executeTradeDbTransaction(String userId, String accountId, String symbol,
     BigDecimal quantity, BigDecimal tradePrice, BigDecimal totalAmount,
     BigDecimal fee, LocalDate tradeDate, TradeType tradeType) {
+    // 사전 검사는 락 밖이라 동시에 들어온 같은 종목 매도가 같은 날짜 물량을 함께 가져갈 수 있다.
+    // 매도끼리는 보유 행 락에서 줄을 세우고, 락을 잡은 뒤 날짜 기준 매도 가능량을 다시 본다
+    if (tradeType == TradeType.SELL) {
+      holdingsRepository.findByUserIdAndAccountIdAndSymbolWithLock(userId, Long.valueOf(accountId), symbol);
+      BigDecimal sellable = tradeRepository.calculateSellableQuantity(userId, Long.valueOf(accountId), symbol,
+        tradeDate);
+      if (sellable.compareTo(quantity) < 0) {
+        throw new TradeException(TradeResponse.INSUFFICIENT_SELLABLE_QUANTITY);
+      }
+    }
+
     Trade trade = Trade.builder()
       .userId(userId)
       .accountId(Long.valueOf(accountId))

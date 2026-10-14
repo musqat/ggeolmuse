@@ -9,7 +9,7 @@ import com.muscat.trade.domain.entity.Holdings;
 import com.muscat.trade.domain.repository.HoldingsRepository;
 import com.muscat.trade.domain.service.HoldingsService;
 import com.muscat.trade.infra.client.BacktestServiceClient;
-import com.muscat.trade.infra.client.MarketServiceClient;
+import com.muscat.trade.infra.client.MarketServiceClientWrapper;
 import com.muscat.trade.infra.client.dto.InvestmentBacktestResultDto;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -18,7 +18,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -37,7 +36,7 @@ public class HoldingsServiceImpl implements HoldingsService {
   private final HoldingsRepository holdingsRepository;
   private final TradeLogger tradeLogger;
   private final BacktestServiceClient backtestServiceClient;
-  private final MarketServiceClient marketServiceClient;
+  private final MarketServiceClientWrapper marketServiceClientWrapper;
 
   @Override
   @Transactional(readOnly = true)
@@ -52,27 +51,25 @@ public class HoldingsServiceImpl implements HoldingsService {
     tradeLogger.logPortfolioAccess(userId, logType, accountId != null ? accountId.toString() : null,
       holdings.size());
 
-    // 보유 종목의 현재가 조회 - 각 심볼별로 개별 조회
-    Set<String> symbols = holdings.stream()
+    // 보유 종목의 현재가는 한 번에 받는다. 시세 서비스가 안 되면(대체 동작은 빈 맵) 현재가 없이 돌려준다
+    List<String> symbols = holdings.stream()
       .map(Holdings::getSymbol)
-      .collect(Collectors.toSet());
+      .distinct()
+      .toList();
 
     Map<String, BigDecimal> currentPrices = new HashMap<>();
-    for (String symbol : symbols) {
+    if (!symbols.isEmpty()) {
       try {
-        log.debug("현재가 조회 시도: symbol={}", symbol);
-        StockPriceDto priceDto = marketServiceClient.getCurrentPrice(symbol);
-        log.debug("현재가 조회 응답: symbol={}, dto={}, currentPrice={}",
-          symbol, priceDto != null, priceDto != null ? priceDto.currentPrice() : null);
-        if (priceDto != null && priceDto.currentPrice() != null) {
-          currentPrices.put(symbol, priceDto.currentPrice());
-          log.debug("현재가 저장 성공: symbol={}, price={}", symbol, priceDto.currentPrice());
-        } else {
-          log.warn("현재가 정보 없음: symbol={}, dtoNull={}, priceNull={}",
-            symbol, priceDto == null, priceDto != null && priceDto.currentPrice() == null);
+        Map<String, StockPriceDto> prices = marketServiceClientWrapper.getCurrentPrices(symbols);
+        if (prices != null) {
+          prices.forEach((symbol, priceDto) -> {
+            if (priceDto != null && priceDto.currentPrice() != null) {
+              currentPrices.put(symbol, priceDto.currentPrice());
+            }
+          });
         }
       } catch (Exception e) {
-        log.warn("현재가 조회 실패: symbol={}, error={}", symbol, e.getMessage());
+        log.warn("현재가 일괄 조회 실패: symbols={}, error={}", symbols, e.getMessage());
       }
     }
     log.debug("현재가 조회 완료: totalSymbols={}, successCount={}", symbols.size(), currentPrices.size());

@@ -17,7 +17,11 @@ import com.muscat.trade.common.logging.TradeLogger;
 import com.muscat.trade.config.TradeProperties;
 import com.muscat.trade.infra.client.UserServiceClientWrapper;
 import com.muscat.trade.infra.client.dto.AccountBalanceDto;
+import feign.FeignException;
+import feign.Request;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -97,6 +101,42 @@ class TradeUtilsTest {
       assertThatThrownBy(() -> tradeUtils.getAccountBalance("20"))
         .isInstanceOf(TradeException.class)
         .hasMessage(TradeResponse.USER_SERVICE_ERROR.getMessage());
+    }
+
+    @Test
+    @DisplayName("대체 동작이 이미 오류 코드를 붙여 올리면 다시 감싸지 않고 그대로 올린다")
+    void codedError_PassedThrough() {
+      TradeException coded = new TradeException(TradeResponse.USER_SERVICE_ERROR, new RuntimeException("down"));
+      given(userServiceClientWrapper.getAccountBalance(20L)).willThrow(coded);
+
+      assertThatThrownBy(() -> tradeUtils.getAccountBalance("20")).isSameAs(coded);
+    }
+
+    @Test
+    @DisplayName("사용자 서비스가 404 면 서비스 오류가 아니라 계좌 없음이다(남의 계좌도 404 로 온다)")
+    void notFound_AccountNotFound() {
+      given(userServiceClientWrapper.getAccountBalance(20L))
+        .willThrow(new FeignException.NotFound("Not Found", balanceRequest(), null, Map.of()));
+
+      assertThatThrownBy(() -> tradeUtils.getAccountBalance("20"))
+        .isInstanceOf(TradeException.class)
+        .hasMessage(TradeResponse.ACCOUNT_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    @DisplayName("사용자 서비스가 403 이면 계좌 접근 거부다")
+    void forbidden_AccessDenied() {
+      given(userServiceClientWrapper.getAccountBalance(20L))
+        .willThrow(new FeignException.Forbidden("Forbidden", balanceRequest(), null, Map.of()));
+
+      assertThatThrownBy(() -> tradeUtils.getAccountBalance("20"))
+        .isInstanceOf(TradeException.class)
+        .hasMessage(TradeResponse.ACCOUNT_ACCESS_DENIED.getMessage());
+    }
+
+    private static Request balanceRequest() {
+      return Request.create(Request.HttpMethod.GET, "/api/accounts/20/balance", Map.of(), null,
+        StandardCharsets.UTF_8, null);
     }
   }
 

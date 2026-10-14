@@ -45,7 +45,7 @@ public class MarketDataServiceImpl implements MarketDataService {
     try {
       log.info("시장 데이터 조회 시도: symbol={}, date={}, priceType={}", symbol, tradeDate, priceType);
       var response = marketServiceClient.getOHLCPrice(symbol, tradeDate.toString());
-      log.info("Market data raw response: {}", response);
+      log.debug("Market data raw response: {}", response);
 
       if (response != null && response.available()) {
         BigDecimal price = switch (priceType) {

@@ -29,7 +29,7 @@ class HoldingsCalculatorTest {
   }
 
   @Test
-  @DisplayName("첫 매수는 체결가와 총액으로 새 보유를 만든다")
+  @DisplayName("첫 매수는 체결가로 새 보유를 만들고, 투자금은 평균 단가처럼 수수료를 뺀 체결 금액이다")
   void apply_FirstBuy_CreatesHoldings() {
     HoldingsCalculator.Applied applied =
       HoldingsCalculator.apply(null, trade(TradeType.BUY, "10", "150.00", "1501.50"), 2);
@@ -37,7 +37,18 @@ class HoldingsCalculatorTest {
     assertThat(applied.uncovered()).isFalse();
     assertThat(applied.holdings().getTotalQuantity()).isEqualByComparingTo("10");
     assertThat(applied.holdings().getAvgPurchasePrice()).isEqualByComparingTo("150.00");
-    assertThat(applied.holdings().getTotalInvestedAmount()).isEqualByComparingTo("1501.50");
+    assertThat(applied.holdings().getTotalInvestedAmount()).isEqualByComparingTo("1500.00");
+  }
+
+  @Test
+  @DisplayName("같은 체결이면 첫 매수와 추가 매수가 투자금에 같은 금액을 더한다")
+  void apply_FirstAndAdditionalBuy_SameBasis() {
+    Holdings first = HoldingsCalculator.apply(null, trade(TradeType.BUY, "10", "150.00", "1501.50"), 2).holdings();
+    HoldingsCalculator.apply(first, trade(TradeType.BUY, "10", "150.00", "1501.50"), 2);
+
+    assertThat(first.getTotalInvestedAmount()).isEqualByComparingTo("3000.00");
+    assertThat(first.getTotalInvestedAmount())
+      .isEqualByComparingTo(first.getAvgPurchasePrice().multiply(first.getTotalQuantity()));
   }
 
   @Test

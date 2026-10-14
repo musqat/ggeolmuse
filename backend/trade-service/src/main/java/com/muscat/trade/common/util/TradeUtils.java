@@ -7,6 +7,7 @@ import com.muscat.trade.common.logging.TradeLogger;
 import com.muscat.trade.config.TradeProperties;
 import com.muscat.trade.infra.client.UserServiceClientWrapper;
 import com.muscat.trade.infra.client.dto.AccountBalanceDto;
+import feign.FeignException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import lombok.RequiredArgsConstructor;
@@ -48,6 +49,14 @@ public class TradeUtils {
     AccountBalanceDto response;
     try {
       response = userServiceClientWrapper.getAccountBalance(Long.valueOf(accountId));
+    } catch (FeignException.NotFound e) {
+      // 사용자 서비스는 남의 계좌도 404 로 준다. 서비스 오류가 아니라 계좌 없음이다
+      throw new TradeException(TradeResponse.ACCOUNT_NOT_FOUND);
+    } catch (FeignException.Forbidden e) {
+      throw new TradeException(TradeResponse.ACCOUNT_ACCESS_DENIED);
+    } catch (TradeException e) {
+      // 대체 동작이 이미 사용자 서비스 오류로 바꿔 올린 것이다
+      throw e;
     } catch (Exception e) {
       log.error("계좌 정보 조회 실패: accountId={}", accountId, e);
       throw new TradeException(TradeResponse.USER_SERVICE_ERROR);

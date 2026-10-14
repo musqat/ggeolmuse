@@ -131,7 +131,7 @@ class DividendEventConsumerTest {
   }
 
   @Test
-  @DisplayName("한 계좌가 실패해도 나머지는 계속 지급한다")
+  @DisplayName("한 계좌가 실패해도 나머지는 지급하고, 커밋하지 않고 예외를 올려 다시 받는다")
   void 부분_실패() {
     tradesBeforeExDate(
       trade("user-1", 10L, TradeType.BUY, "10"),
@@ -143,18 +143,20 @@ class DividendEventConsumerTest {
       .when(dividendEventProducer).publishDividendReceived(
         eq("user-2"), any(), any(), any(), any(), any(), any());
 
-    consume(event("0.25"));
+    assertThatThrownBy(() -> consume(event("0.25")))
+      .isInstanceOf(IllegalStateException.class)
+      .hasMessageContaining("배당 지급 실패");
 
     verify(dividendEventProducer).publishDividendReceived(
       eq("user-1"), any(), any(), any(), any(), any(), any());
     verify(dividendEventProducer).publishDividendReceived(
       eq("user-3"), any(), any(), any(), any(), any(), any());
-    // 실패가 섞여도 커밋한다. 실패분은 재처리되지 않는다
-    verify(acknowledgment).acknowledge();
+    // 커밋하지 않아 Kafka 가 다시 준다. 이미 지급한 계좌는 user-service 가 같은 배당으로 걸러낸다
+    verify(acknowledgment, never()).acknowledge();
   }
 
   @Test
-  @DisplayName("전원 실패해도 커밋한다")
+  @DisplayName("전원 실패하면 커밋하지 않고 예외를 올린다")
   void 전원_실패() {
     tradesBeforeExDate(trade("user-1", 10L, TradeType.BUY, "10"));
 
@@ -162,9 +164,11 @@ class DividendEventConsumerTest {
       .given(dividendEventProducer).publishDividendReceived(
         any(), any(), any(), any(), any(), any(), any());
 
-    consume(event("0.25"));
+    assertThatThrownBy(() -> consume(event("0.25")))
+      .isInstanceOf(IllegalStateException.class)
+      .hasMessageContaining("배당 지급 실패");
 
-    verify(acknowledgment).acknowledge();
+    verify(acknowledgment, never()).acknowledge();
   }
 
   @Test

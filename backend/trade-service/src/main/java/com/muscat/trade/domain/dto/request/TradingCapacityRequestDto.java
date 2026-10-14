@@ -2,7 +2,9 @@ package com.muscat.trade.domain.dto.request;
 
 import com.muscat.trade.common.constants.TradeConstants;
 import com.muscat.trade.common.enums.type.PriceType;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -44,4 +46,12 @@ public class TradingCapacityRequestDto {
   @Schema(description = "직접입력 가격 (priceType이 MANUAL일 때 필수)", example = "238.15")
   @DecimalMin(value = "0.01", message = "직접입력 가격은 0.01 이상이어야 합니다")
   private BigDecimal manualPrice;
+
+  // 직접입력인데 가격이 없으면 가격 검증에서 NPE 가 나 시세 오류로 바뀌었다. 요청 단계에서 막는다
+  @JsonIgnore
+  @Schema(hidden = true)
+  @AssertTrue(message = "직접입력 가격은 필수입니다")
+  public boolean isManualPriceValid() {
+    return priceType != PriceType.MANUAL || manualPrice != null;
+  }
 }
