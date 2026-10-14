@@ -17,7 +17,6 @@ import com.muscat.commonlib.config.KeycloakProperties;
 import com.muscat.user.common.enums.responses.KeycloakResponse;
 import com.muscat.user.common.exceptions.KeycloakException;
 import com.muscat.user.config.AppProperties;
-import com.muscat.user.domain.user.dto.request.ChangePasswordRequestDto;
 import com.muscat.user.domain.user.dto.response.LoginResponseDto;
 import com.muscat.user.domain.user.dto.response.TokenResponseDto;
 import java.nio.charset.StandardCharsets;
@@ -252,49 +251,6 @@ class KeycloakServiceImplTest {
 
       // when & then
       assertThatThrownBy(() -> keycloakService.createUser(TEST_EMAIL, TEST_PASSWORD))
-        .isInstanceOf(KeycloakException.class)
-        .hasMessage(KeycloakResponse.API_ERROR.getMessage());
-    }
-  }
-
-  @Nested
-  @DisplayName("비밀번호 변경 테스트")
-  class ChangePasswordTests {
-
-    @Test
-    @DisplayName("정상적으로 비밀번호가 변경된다")
-    void changePassword_Success() {
-      // given
-      ChangePasswordRequestDto request = new ChangePasswordRequestDto();
-      request.setNewPassword("new_password");
-
-      Map<String, Object> adminTokenResponse = new HashMap<>();
-      adminTokenResponse.put("access_token", "admin_access_token");
-      ResponseEntity<Map> adminTokenEntity = ResponseEntity.ok(adminTokenResponse);
-
-      given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(Map.class)))
-        .willReturn(adminTokenEntity);
-      doNothing().when(restTemplate).put(anyString(), any(HttpEntity.class));
-
-      // when
-      keycloakService.changePassword(TEST_KEYCLOAK_ID, request);
-
-      // then
-      verify(restTemplate).put(anyString(), any(HttpEntity.class));
-    }
-
-    @Test
-    @DisplayName("Admin 토큰 획득 실패 시 예외가 발생한다")
-    void changePassword_AdminTokenFailed_ThrowsException() {
-      // given
-      ChangePasswordRequestDto request = new ChangePasswordRequestDto();
-      request.setNewPassword("new_password");
-
-      given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(Map.class)))
-        .willThrow(new HttpClientErrorException(HttpStatus.UNAUTHORIZED));
-
-      // when & then
-      assertThatThrownBy(() -> keycloakService.changePassword(TEST_KEYCLOAK_ID, request))
         .isInstanceOf(KeycloakException.class)
         .hasMessage(KeycloakResponse.API_ERROR.getMessage());
     }
@@ -559,6 +515,21 @@ class KeycloakServiceImplTest {
         .containsEntry("type", "password")
         .containsEntry("value", "N3w-pass!")
         .containsEntry("temporary", false);
+    }
+
+    @Test
+    @DisplayName("활성 상태 변경은 관리자 토큰으로 그 사용자에 enabled 만 보낸다")
+    @SuppressWarnings("unchecked")
+    void setEnabled_PutsEnabledFlag() {
+      adminTokenOk();
+
+      keycloakService.setEnabled(TEST_KEYCLOAK_ID, false);
+
+      ArgumentCaptor<HttpEntity<Map<String, Object>>> entity = ArgumentCaptor.forClass(HttpEntity.class);
+      verify(restTemplate).put(eq(AUTH_SERVER_URL + "/admin/realms/" + REALM + "/users/" + TEST_KEYCLOAK_ID),
+        entity.capture());
+      assertThat(entity.getValue().getHeaders().getFirst(HttpHeaders.AUTHORIZATION)).isEqualTo("Bearer admin_access_token");
+      assertThat(entity.getValue().getBody()).isEqualTo(Map.of("enabled", false));
     }
 
     @Test

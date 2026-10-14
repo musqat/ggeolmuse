@@ -3,6 +3,7 @@ package com.muscat.user.domain.user.service.impl;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -273,6 +274,24 @@ class UserServiceImplTest {
         .hasMessage(UserResponse.INVALID_CREDENTIALS.getMessage());
 
       verify(keycloakService, never()).login(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("비밀번호가 맞아도 비활성 계정이면 로그인할 수 없다")
+    void login_Disabled_Rejected() {
+      testUser.setPasswordHash("$2a$10$encodedPassword");
+      testUser.setEmailVerified(true);
+      testUser.changeEnabledStatus(false);
+      given(userRepository.findByEmail(testEmail)).willReturn(Optional.of(testUser));
+      given(passwordEncoder.matches(testPassword, testUser.getPasswordHash())).willReturn(true);
+
+      assertThatThrownBy(() -> userService.login(testEmail, testPassword))
+        .isInstanceOf(UserException.class)
+        .hasMessage(UserResponse.ACCOUNT_DISABLED.getMessage());
+
+      verify(keycloakService, never()).login(anyString(), anyString());
+      verify(loginEventProducer).publishLoginFailed(eq(testEmail), eq("ACCOUNT_DISABLED"), anyString(),
+        eq("PASSWORD"), any(), any());
     }
 
     @Test
@@ -870,7 +889,35 @@ class UserServiceImplTest {
 
       // then
       assertThat(result.isEnabled()).isFalse();
+      verify(keycloakService).setEnabled(keycloakId, false);
       verify(userRepository).save(testUser);
+    }
+
+    @Test
+    @DisplayName("Keycloak 활성 상태 변경이 실패하면 로컬도 그대로 둔다")
+    void updateUserEnabled_KeycloakFailure_KeepsLocal() {
+      given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
+      doThrow(new RuntimeException("keycloak down")).when(keycloakService).setEnabled(keycloakId, false);
+
+      assertThatThrownBy(() -> userService.updateUserEnabled(1L, false))
+        .isInstanceOf(UserException.class)
+        .hasMessage(UserResponse.INTERNAL_SERVER_ERROR.getMessage());
+
+      assertThat(testUser.isEnabled()).isTrue();
+      verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Keycloak id 가 없는 사용자는 로컬만 바꾼다")
+    void updateUserEnabled_NoKeycloakId_LocalOnly() {
+      testUser.setKeycloakId(null);
+      given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
+      given(userRepository.save(testUser)).willReturn(testUser);
+
+      userService.updateUserEnabled(1L, false);
+
+      verify(keycloakService, never()).setEnabled(any(), anyBoolean());
+      assertThat(testUser.isEnabled()).isFalse();
     }
 
     @Test
@@ -1047,6 +1094,68 @@ class UserServiceImplTest {
         userService.createUserFromKeycloak("keycloak-123", email, "nickname"))
         .isInstanceOf(UserException.class)
         .hasMessage(UserResponse.EMAIL_ALREADY_EXISTS.getMessage());
+    }
+  }
+
+  @Nested
+  @DisplayName("비밀번호 변경 테스트")
+  class ChangePasswordTests {
+
+    @Test
+    @DisplayName("현재 비밀번호가 맞으면 Keycloak 과 로컬 해시를 같이 바꾼다")
+    void changePassword_UpdatesKeycloakAndLocalHash() {
+      given(userRepository.findByEmail(testEmail)).willReturn(Optional.of(testUser));
+      given(passwordEncoder.matches(testPassword, "$2a$10$encodedPassword")).willReturn(true);
+      given(passwordEncoder.encode("newPassw0rd!")).willReturn("$2a$10$encodedNewPassword");
+
+      userService.changePassword(testEmail, testPassword, "newPassw0rd!");
+
+      verify(keycloakService).resetPassword(keycloakId, "newPassw0rd!");
+      assertThat(testUser.getPasswordHash()).isEqualTo("$2a$10$encodedNewPassword");
+      verify(userRepository).save(testUser);
+    }
+
+    @Test
+    @DisplayName("현재 비밀번호가 틀리면 400 으로 막고 아무것도 바꾸지 않는다")
+    void changePassword_WrongCurrent_Rejected() {
+      given(userRepository.findByEmail(testEmail)).willReturn(Optional.of(testUser));
+      given(passwordEncoder.matches("wrongPassword", "$2a$10$encodedPassword")).willReturn(false);
+
+      assertThatThrownBy(() -> userService.changePassword(testEmail, "wrongPassword", "newPassw0rd!"))
+        .isInstanceOf(UserException.class)
+        .hasMessage(UserResponse.INVALID_PASSWORD.getMessage());
+
+      verify(keycloakService, never()).resetPassword(anyString(), anyString());
+      assertThat(testUser.getPasswordHash()).isEqualTo("$2a$10$encodedPassword");
+    }
+
+    @Test
+    @DisplayName("비밀번호가 없는 소셜 사용자는 대조 없이 같은 응답으로 막는다")
+    void changePassword_SocialUser_Rejected() {
+      testUser.setPasswordHash(null);
+      given(userRepository.findByEmail(testEmail)).willReturn(Optional.of(testUser));
+
+      assertThatThrownBy(() -> userService.changePassword(testEmail, "anything", "newPassw0rd!"))
+        .isInstanceOf(UserException.class)
+        .hasMessage(UserResponse.INVALID_PASSWORD.getMessage());
+
+      verify(passwordEncoder, never()).matches(any(), any());
+      verify(keycloakService, never()).resetPassword(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("Keycloak 변경이 실패하면 로컬 해시도 그대로 둔다")
+    void changePassword_KeycloakFailure_KeepsLocalHash() {
+      given(userRepository.findByEmail(testEmail)).willReturn(Optional.of(testUser));
+      given(passwordEncoder.matches(testPassword, "$2a$10$encodedPassword")).willReturn(true);
+      doThrow(new RuntimeException("keycloak down")).when(keycloakService).resetPassword(keycloakId, "newPassw0rd!");
+
+      assertThatThrownBy(() -> userService.changePassword(testEmail, testPassword, "newPassw0rd!"))
+        .isInstanceOf(UserException.class)
+        .hasMessage(UserResponse.PASSWORD_CHANGE_FAILED.getMessage());
+
+      assertThat(testUser.getPasswordHash()).isEqualTo("$2a$10$encodedPassword");
+      verify(userRepository, never()).save(any());
     }
   }
 

@@ -171,6 +171,14 @@ public class UserServiceImpl implements UserService {
       throw new UserException(UserResponse.EMAIL_NOT_VERIFIED);
     }
 
+    if (!user.isEnabled()) {
+      log.warn("로그인 실패 - 비활성 계정: {}", email);
+      loginEventProducer.publishLoginFailed(
+        email, "ACCOUNT_DISABLED", "비활성화된 계정입니다",
+        "PASSWORD", null, null);
+      throw new UserException(UserResponse.ACCOUNT_DISABLED);
+    }
+
     TokenResponseDto token;
     try {
       token = keycloakService.login(email, password);
@@ -240,6 +248,30 @@ public class UserServiceImpl implements UserService {
     removeUser(user);
 
     log.info("계정 삭제 완료: {}", email);
+  }
+
+  @Override
+  public void changePassword(String email, String currentPassword, String newPassword) {
+    User user = userRepository.findByEmail(email)
+      .orElseThrow(() -> new UserException(UserResponse.USER_NOT_FOUND));
+
+    // 해시가 없는 소셜 사용자도 같은 응답. 401 은 프론트가 세션 만료로 처리하므로 400 을 준다
+    if (user.getPasswordHash() == null
+      || !passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+      log.warn("비밀번호 변경 실패 - 현재 비밀번호 불일치: {}", email);
+      throw new UserException(UserResponse.INVALID_PASSWORD);
+    }
+
+    // 로그인이 로컬 해시를 먼저 보므로 Keycloak 과 로컬을 같이 바꾼다
+    try {
+      keycloakService.resetPassword(user.getKeycloakId(), newPassword);
+    } catch (Exception e) {
+      log.error("Keycloak 비밀번호 변경 실패: {}", email, e);
+      throw new UserException(UserResponse.PASSWORD_CHANGE_FAILED);
+    }
+
+    user.changePassword(passwordEncoder.encode(newPassword));
+    userRepository.save(user);
   }
 
 
@@ -466,6 +498,16 @@ public class UserServiceImpl implements UserService {
 
     log.info("사용자 활성화 상태 변경: userId={}, oldEnabled={}, newEnabled={}",
       userId, user.isEnabled(), enabled);
+
+    // Keycloak 도 꺼야 이미 받은 refresh token 으로 새 토큰을 못 받는다
+    if (user.getKeycloakId() != null) {
+      try {
+        keycloakService.setEnabled(user.getKeycloakId(), enabled);
+      } catch (Exception e) {
+        log.error("Keycloak 활성화 상태 변경 실패: userId={}", userId, e);
+        throw new UserException(UserResponse.INTERNAL_SERVER_ERROR);
+      }
+    }
 
     user.changeEnabledStatus(enabled);
     return userRepository.save(user);

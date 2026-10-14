@@ -6,7 +6,6 @@ import com.muscat.commonlib.config.KeycloakProperties;
 import com.muscat.user.common.enums.responses.KeycloakResponse;
 import com.muscat.user.common.exceptions.KeycloakException;
 import com.muscat.user.config.AppProperties;
-import com.muscat.user.domain.user.dto.request.ChangePasswordRequestDto;
 import com.muscat.user.domain.user.dto.response.LoginResponseDto;
 import com.muscat.user.domain.user.dto.response.TokenResponseDto;
 import com.muscat.user.domain.user.service.KeycloakService;
@@ -141,31 +140,6 @@ public class KeycloakServiceImpl implements KeycloakService {
   }
 
   @Override
-  public void changePassword(String keycloakId, ChangePasswordRequestDto request) {
-    String adminToken = getAdminToken();
-    String passwordUrl =
-      keycloakProperties.getAuthServerUrl() + "/admin/realms/" + keycloakProperties.getRealm()
-        + "/users/" + keycloakId + "/reset-password";
-
-    log.debug("Keycloak 비밀번호 변경 요청: {} | URL: {}", keycloakId, passwordUrl);
-
-    HttpHeaders headers = new HttpHeaders();
-    headers.setContentType(MediaType.APPLICATION_JSON);
-    headers.setBearerAuth(adminToken);
-
-    Map<String, Object> passwordRequest = Map.of(
-      "type", "password",
-      "value", request.getNewPassword(),
-      "temporary", false
-    );
-
-    HttpEntity<Map<String, Object>> entity = new HttpEntity<>(passwordRequest, headers);
-    restTemplate.put(passwordUrl, entity);
-
-    log.info("Keycloak 사용자 비밀번호 변경 완료: {}", keycloakId);
-  }
-
-  @Override
   public void resetPassword(String keycloakId, String newPassword) {
     String adminToken = getAdminToken();
     String passwordUrl =
@@ -188,6 +162,23 @@ public class KeycloakServiceImpl implements KeycloakService {
     restTemplate.put(passwordUrl, entity);
 
     log.info("Keycloak 사용자 비밀번호 재설정 완료: {}", keycloakId);
+  }
+
+  @Override
+  public void setEnabled(String keycloakId, boolean enabled) {
+    String adminToken = getAdminToken();
+    String userUrl =
+      keycloakProperties.getAuthServerUrl() + "/admin/realms/" + keycloakProperties.getRealm()
+        + "/users/" + keycloakId;
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.setBearerAuth(adminToken);
+
+    HttpEntity<Map<String, Object>> entity = new HttpEntity<>(Map.of("enabled", enabled), headers);
+    restTemplate.put(userUrl, entity);
+
+    log.info("Keycloak 사용자 활성 상태 변경: {} -> {}", keycloakId, enabled);
   }
 
   @Override

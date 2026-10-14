@@ -1,91 +1,57 @@
 package com.muscat.user.common.util;
 
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 /**
  * 이메일 전송 Rate Limiting 서비스
- * 1분에 1번 제한
+ * 1분에 1번 제한. 파드가 여럿이어도 같은 한도를 보도록 Redis 에 두고, 지난 기록은 TTL 로 사라진다
  */
 @Slf4j
 @Service
 public class RateLimitService {
 
-  // 이메일 주소별 마지막 전송 시간 저장
-  private final Map<String, LocalDateTime> lastSendTimes = new ConcurrentHashMap<>();
+  private static final String KEY_PREFIX = "ratelimit:mail:";
+  private static final Duration RATE_LIMIT = Duration.ofMinutes(1);
 
-  // Rate limit 간격 (분)
-  private static final long RATE_LIMIT_MINUTES = 1;
+  private final StringRedisTemplate redisTemplate;
+
+  public RateLimitService(StringRedisTemplate redisTemplate) {
+    this.redisTemplate = redisTemplate;
+  }
 
   /**
-   * Rate limit 체크 및 기록
+   * Rate limit 체크 및 기록. 키가 없을 때만 1분짜리 키를 두고 통과시킨다
    */
   public boolean tryAcquire(String email) {
-    LocalDateTime now = LocalDateTime.now();
-    LocalDateTime lastSendTime = lastSendTimes.get(email);
-
-    if (lastSendTime == null) {
-      // 첫 전송
-      lastSendTimes.put(email, now);
+    try {
+      Boolean acquired = redisTemplate.opsForValue().setIfAbsent(KEY_PREFIX + email, "1", RATE_LIMIT);
+      if (Boolean.TRUE.equals(acquired)) {
+        return true;
+      }
+      log.warn("Rate limit exceeded for email: {}", email);
+      return false;
+    } catch (DataAccessException e) {
+      // Redis 가 잠깐 안 될 때 메일 재발송 · 재설정까지 막지 않는다. 게이트웨이도 IP 로 따로 막는다
+      log.warn("Rate limit 확인 실패, 통과시킴: email={}, error={}", email, e.getMessage());
       return true;
     }
-
-    long minutesSinceLastSend = ChronoUnit.MINUTES.between(lastSendTime, now);
-
-    if (minutesSinceLastSend >= RATE_LIMIT_MINUTES) {
-      // Rate limit 통과
-      lastSendTimes.put(email, now);
-      return true;
-    }
-
-    // Rate limit 걸림
-    log.warn("Rate limit exceeded for email: {}. Last send: {}, Minutes since: {}",
-             email, lastSendTime, minutesSinceLastSend);
-    return false;
   }
 
   /**
-   * 남은 대기 시간(초) 계산
+   * 남은 대기 시간(초)
    */
   public long getRemainingWaitSeconds(String email) {
-    LocalDateTime lastSendTime = lastSendTimes.get(email);
-
-    if (lastSendTime == null) {
+    try {
+      Long ttl = redisTemplate.getExpire(KEY_PREFIX + email, TimeUnit.SECONDS);
+      return ttl != null && ttl > 0 ? ttl : 0;
+    } catch (DataAccessException e) {
+      log.warn("Rate limit 대기 시간 확인 실패: email={}, error={}", email, e.getMessage());
       return 0;
     }
-
-    LocalDateTime now = LocalDateTime.now();
-    long secondsSinceLastSend = ChronoUnit.SECONDS.between(lastSendTime, now);
-    long requiredWaitSeconds = RATE_LIMIT_MINUTES * 60;
-
-    long remainingSeconds = requiredWaitSeconds - secondsSinceLastSend;
-    return Math.max(0, remainingSeconds);
-  }
-
-  /**
-   * 특정 이메일의 Rate limit 기록 삭제 (테스트용)
-   */
-  public void reset(String email) {
-    lastSendTimes.remove(email);
-  }
-
-  /**
-   * 모든 Rate limit 기록 삭제 (테스트용)
-   */
-  public void resetAll() {
-    lastSendTimes.clear();
-  }
-
-  /**
-   * 오래된 기록 정리 (24시간 이상 지난 기록)
-   */
-  public void cleanup() {
-    LocalDateTime cutoff = LocalDateTime.now().minusHours(24);
-    lastSendTimes.entrySet().removeIf(entry -> entry.getValue().isBefore(cutoff));
-    log.debug("Rate limit cleanup completed. Remaining entries: {}", lastSendTimes.size());
   }
 }

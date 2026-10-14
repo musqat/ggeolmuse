@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
@@ -12,12 +13,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.muscat.user.common.enums.responses.UserResponse;
 import com.muscat.user.common.exceptions.GlobalExceptionHandler;
+import com.muscat.user.common.exceptions.UserException;
 import com.muscat.user.config.security.SecurityConfig;
 import com.muscat.user.domain.user.dto.response.UserResponseDto;
 import com.muscat.user.domain.user.entity.User;
 import com.muscat.user.domain.user.mapper.UserMapper;
-import com.muscat.user.domain.user.service.KeycloakService;
 import com.muscat.user.domain.user.service.UserService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -42,9 +44,6 @@ class UserControllerRequestTest {
 
   @MockitoBean
   private UserService userService;
-
-  @MockitoBean
-  private KeycloakService keycloakService;
 
   @MockitoBean
   private UserMapper userMapper;
@@ -97,17 +96,40 @@ class UserControllerRequestTest {
   }
 
   @Test
-  @DisplayName("비밀번호 변경은 토큰의 Keycloak id 로 바꾸고, 형식이 틀리면 400 이다")
+  @DisplayName("비밀번호 변경은 토큰의 이메일과 현재 · 새 비밀번호를 넘기고, 새 비밀번호 형식이 틀리면 400 이다")
   void changePassword() throws Exception {
     mockMvc.perform(json("/api/users/me/password", """
-        {"newPassword":"Passw0rd!"}
+        {"currentPassword":"0ldPassw0rd!","newPassword":"Passw0rd!"}
         """).with(me()))
       .andExpect(status().isOk());
     mockMvc.perform(json("/api/users/me/password", """
-        {"newPassword":"password"}
+        {"currentPassword":"0ldPassw0rd!","newPassword":"password"}
         """).with(me()))
       .andExpect(status().isBadRequest());
 
-    verify(keycloakService).changePassword(eq("kc-1"), argThat(r -> "Passw0rd!".equals(r.getNewPassword())));
+    verify(userService).changePassword("user@example.com", "0ldPassw0rd!", "Passw0rd!");
+  }
+
+  @Test
+  @DisplayName("현재 비밀번호를 빼면 400 이고 바꾸지 않는다")
+  void changePassword_WithoutCurrent_BadRequest() throws Exception {
+    mockMvc.perform(json("/api/users/me/password", """
+        {"newPassword":"Passw0rd!"}
+        """).with(me()))
+      .andExpect(status().isBadRequest());
+
+    verify(userService, never()).changePassword(anyString(), anyString(), anyString());
+  }
+
+  @Test
+  @DisplayName("현재 비밀번호가 틀리면 401 이 아니라 400 이다(401 은 프론트가 세션 만료로 처리한다)")
+  void changePassword_WrongCurrent_BadRequestNotUnauthorized() throws Exception {
+    willThrow(new UserException(UserResponse.INVALID_PASSWORD))
+      .given(userService).changePassword(anyString(), anyString(), anyString());
+
+    mockMvc.perform(json("/api/users/me/password", """
+        {"currentPassword":"wr0ngPass!","newPassword":"Passw0rd!"}
+        """).with(me()))
+      .andExpect(status().isBadRequest());
   }
 }

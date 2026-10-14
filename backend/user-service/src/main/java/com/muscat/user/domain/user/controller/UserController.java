@@ -8,7 +8,6 @@ import com.muscat.user.domain.user.dto.request.UpdateProfileRequestDto;
 import com.muscat.user.domain.user.dto.response.UserResponseDto;
 import com.muscat.user.domain.user.entity.User;
 import com.muscat.user.domain.user.mapper.UserMapper;
-import com.muscat.user.domain.user.service.KeycloakService;
 import com.muscat.user.domain.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -38,7 +37,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class UserController {
 
   private final UserService userService;
-  private final KeycloakService keycloakService;
   private final UserMapper userMapper;
 
   @Operation(summary = "내 프로필 조회", description = "로그인한 사용자의 프로필 정보를 조회합니다")
@@ -105,19 +103,17 @@ public class UserController {
   @Operation(summary = "비밀번호 변경", description = "사용자의 비밀번호를 변경합니다")
   @ApiResponses(value = {
       @ApiResponse(responseCode = "200", description = "비밀번호 변경 성공"),
-      @ApiResponse(responseCode = "400", description = "잘못된 비밀번호 또는 요청 데이터"),
-      @ApiResponse(responseCode = "401", description = "인증 실패"),
-      @ApiResponse(responseCode = "403", description = "기존 비밀번호 불일치")
+      @ApiResponse(responseCode = "400", description = "현재 비밀번호 불일치 또는 잘못된 요청 데이터"),
+      @ApiResponse(responseCode = "401", description = "인증 실패")
   })
   @PutMapping("/me/password")
   public ResponseEntity<Void> changePassword(
       @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
       @Valid @RequestBody ChangePasswordRequestDto request) {
 
-    String keycloakId = jwt.getClaimAsString("sub");
     String email = jwt.getClaimAsString("email");
 
-    keycloakService.changePassword(keycloakId, request);
+    userService.changePassword(email, request.getCurrentPassword(), request.getNewPassword());
 
     log.info("비밀번호 변경 완료: {}", email);
     return ResponseEntity.ok().build();

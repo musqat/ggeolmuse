@@ -46,6 +46,9 @@ public interface UserService {
   // 닉네임 변경
   User updateProfile(String email, UpdateProfileRequestDto request);
 
+  // 비밀번호 변경. 현재 비밀번호를 대조한 뒤 Keycloak 과 로컬 해시를 같이 바꾼다
+  void changePassword(String email, String currentPassword, String newPassword);
+
   // 회원 탈퇴. 비밀번호가 있으면 비밀번호로, 없으면(구글) authTime(토큰의 로그인 시각)이 최근인지로 본인을 확인한다
   void deleteAccount(String email, String password, Instant authTime);
 

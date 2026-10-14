@@ -72,6 +72,18 @@ class AuthorizationUtilTest {
   }
 
   @Test
+  @DisplayName("비활성 사용자는 관리자여도 막는다")
+  void currentUser_Disabled_Rejected() {
+    signIn("kc-1");
+    User disabled = User.builder().id(7L).keycloakId("kc-1").role(UserRole.ADMIN).build();
+    disabled.changeEnabledStatus(false);
+    given(userRepository.findByKeycloakId("kc-1")).willReturn(Optional.of(disabled));
+
+    assertResponse(catchThrowable(authorizationUtil::getCurrentUser), UserResponse.ACCOUNT_DISABLED);
+    assertResponse(catchThrowable(authorizationUtil::requireAdmin), UserResponse.ACCOUNT_DISABLED);
+  }
+
+  @Test
   @DisplayName("관리자만 통과하고 일반 사용자는 FORBIDDEN 이다")
   void requireAdmin() {
     signIn("kc-admin");

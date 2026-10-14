@@ -13,6 +13,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * 계좌 관련 이벤트를 발행하는 Producer
@@ -139,23 +141,42 @@ public class AccountEventProducer {
     log.info("계좌 삭제 이벤트 발행 중: accountId={}, accountNumber={}, userId={}",
       account.getId(), account.getAccountNumber(), account.getUser().getId());
 
-    // 비동기로 Kafka에 전송
-    CompletableFuture<SendResult<String, AccountDeletedEvent>> future =
-      accountDeletedKafkaTemplate.send(ACCOUNT_DELETED_TOPIC,
-        String.valueOf(account.getUser().getId()), event);
+    // 삭제가 롤백되면 trade 가 거래 · 보유를 지우면 안 되므로 커밋 뒤에 보낸다.
+    // 이벤트는 엔티티가 살아 있는 지금 만들어 두고, 보낼 때는 엔티티를 읽지 않는다
+    if (TransactionSynchronizationManager.isSynchronizationActive()) {
+      TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        @Override
+        public void afterCommit() {
+          sendAccountDeleted(event);
+        }
+      });
+    } else {
+      sendAccountDeleted(event);
+    }
+  }
 
-    future.whenComplete((result, ex) -> {
-      if (ex == null) {
-        log.info(
-          "계좌 삭제 이벤트 발행 성공: topic={}, partition={}, offset={}, accountId={}, accountNumber={}",
-          ACCOUNT_DELETED_TOPIC,
-          result.getRecordMetadata().partition(),
-          result.getRecordMetadata().offset(),
-          account.getId(), account.getAccountNumber());
-      } else {
-        log.error("계좌 삭제 이벤트 발행 실패: accountId={}, accountNumber={}, error={}",
-          account.getId(), account.getAccountNumber(), ex.getMessage(), ex);
-      }
-    });
+  // 커밋이 끝난 뒤라 실패를 호출한 쪽으로 올리지 않는다
+  private void sendAccountDeleted(AccountDeletedEvent event) {
+    try {
+      CompletableFuture<SendResult<String, AccountDeletedEvent>> future =
+        accountDeletedKafkaTemplate.send(ACCOUNT_DELETED_TOPIC, event.getUserId(), event);
+
+      future.whenComplete((result, ex) -> {
+        if (ex == null) {
+          log.info(
+            "계좌 삭제 이벤트 발행 성공: topic={}, partition={}, offset={}, accountId={}, accountNumber={}",
+            ACCOUNT_DELETED_TOPIC,
+            result.getRecordMetadata().partition(),
+            result.getRecordMetadata().offset(),
+            event.getAccountId(), event.getAccountNumber());
+        } else {
+          log.error("계좌 삭제 이벤트 발행 실패: accountId={}, accountNumber={}, error={}",
+            event.getAccountId(), event.getAccountNumber(), ex.getMessage(), ex);
+        }
+      });
+    } catch (Exception e) {
+      log.error("계좌 삭제 이벤트 발행 실패: accountId={}, accountNumber={}, error={}",
+        event.getAccountId(), event.getAccountNumber(), e.getMessage(), e);
+    }
   }
 }
