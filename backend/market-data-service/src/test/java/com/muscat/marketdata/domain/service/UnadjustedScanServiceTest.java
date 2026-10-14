@@ -39,4 +39,31 @@ class UnadjustedScanServiceTest {
     assertThat(service.getLast().getSymbols()).containsExactly("AAPL", "NVDA");
     assertThat(service.getLast().getFrom()).isEqualTo(FROM);
   }
+
+  @Test
+  @DisplayName("시작하면 탐색을 돌리고, 이미 돌고 있으면 시작하지 않는다")
+  void startOnlyOnce() {
+    org.springframework.test.util.ReflectionTestUtils.setField(service, "self", service);
+    given(candleRepository.findSymbolsWithSplits(LocalDate.of(2020, 1, 1))).willReturn(List.of("NVDA"));
+
+    assertThat(service.start(LocalDate.of(2020, 1, 1))).isTrue();
+    assertThat(service.getLast().getSymbols()).containsExactly("NVDA");
+    assertThat(service.isRunning()).isFalse();
+
+    ((java.util.concurrent.atomic.AtomicBoolean) org.springframework.test.util.ReflectionTestUtils.getField(service, "running")).set(true);
+    assertThat(service.start(LocalDate.of(2020, 1, 1))).isFalse();
+  }
+
+  @Test
+  @DisplayName("조회가 실패하면 빈 결과에 오류를 담고 진행 표시를 내린다")
+  void failureRecorded() {
+    given(candleRepository.findSymbolsWithSplits(LocalDate.of(2020, 1, 1))).willThrow(new IllegalStateException("db down"));
+
+    service.scan(LocalDate.of(2020, 1, 1));
+
+    assertThat(service.getLast().getCount()).isZero();
+    assertThat(service.getLast().getSymbols()).isEmpty();
+    assertThat(service.getLast().getError()).isEqualTo("db down");
+    assertThat(service.isRunning()).isFalse();
+  }
 }
