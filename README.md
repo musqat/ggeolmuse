@@ -171,7 +171,7 @@ E2E 는 `docker compose` 로 스택 전체를 띄우고 PR 과 `master` push 마
 | 서비스 | 라인 | 분기 |
 |---|---|---|
 | user | 97.8% | 87.0% |
-| trade | 98.3% | 90.1% |
+| trade | 98.3% | 92.0% |
 | backtest | 98.4% | 89.2% |
 | market-data | 96.1% | 86.2% |
 
