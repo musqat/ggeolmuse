@@ -25,7 +25,8 @@ public final class HoldingsCalculator {
           .symbol(trade.getSymbol())
           .totalQuantity(trade.getQuantity())
           .avgPurchasePrice(trade.getPrice())
-          .totalInvestedAmount(trade.getTotalAmount())
+          // 평균 단가 · 추가 매수와 같이 수수료를 뺀 체결 금액으로 둔다
+          .totalInvestedAmount(trade.getQuantity().multiply(trade.getPrice()))
           .build(), false);
       }
       current.addPurchase(trade.getQuantity(), trade.getPrice(), pricePrecision);
