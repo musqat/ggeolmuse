@@ -35,6 +35,11 @@ public class AuthUtil {
     User user = userRepository.findByEmail(email)
         .orElseThrow(() -> new UserException(UserResponse.USER_NOT_FOUND));
 
+    // 이미 발급된 토큰은 만료 전까지 살아 있으므로 여기서 막는다
+    if (!user.isEnabled()) {
+      throw new UserException(UserResponse.ACCOUNT_DISABLED);
+    }
+
     return user.getId();
   }
 

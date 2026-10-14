@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
+import com.muscat.user.common.enums.responses.UserResponse;
 import com.muscat.user.common.exceptions.AuthenticationException;
 import com.muscat.user.common.exceptions.UserException;
 import com.muscat.user.domain.user.entity.User;
@@ -54,5 +55,17 @@ class AuthUtilTest {
       .isInstanceOf(AuthenticationException.class);
     assertThatThrownBy(() -> authUtil.requireUserId(jwt(b -> b.claim("email", "gone@example.com"))))
       .isInstanceOf(UserException.class);
+  }
+
+  @Test
+  @DisplayName("비활성 사용자는 토큰이 살아 있어도 막는다")
+  void disabled_Rejected() {
+    User disabled = User.builder().id(7L).build();
+    disabled.changeEnabledStatus(false);
+    given(userRepository.findByEmail("user@example.com")).willReturn(Optional.of(disabled));
+
+    assertThatThrownBy(() -> authUtil.requireUserId(jwt(b -> b.claim("email", "user@example.com"))))
+      .isInstanceOfSatisfying(UserException.class,
+        e -> assertThat(e.getCode()).isEqualTo(UserResponse.ACCOUNT_DISABLED));
   }
 }

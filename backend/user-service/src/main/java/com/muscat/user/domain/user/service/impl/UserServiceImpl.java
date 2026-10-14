@@ -171,6 +171,14 @@ public class UserServiceImpl implements UserService {
       throw new UserException(UserResponse.EMAIL_NOT_VERIFIED);
     }
 
+    if (!user.isEnabled()) {
+      log.warn("로그인 실패 - 비활성 계정: {}", email);
+      loginEventProducer.publishLoginFailed(
+        email, "ACCOUNT_DISABLED", "비활성화된 계정입니다",
+        "PASSWORD", null, null);
+      throw new UserException(UserResponse.ACCOUNT_DISABLED);
+    }
+
     TokenResponseDto token;
     try {
       token = keycloakService.login(email, password);
@@ -490,6 +498,16 @@ public class UserServiceImpl implements UserService {
 
     log.info("사용자 활성화 상태 변경: userId={}, oldEnabled={}, newEnabled={}",
       userId, user.isEnabled(), enabled);
+
+    // Keycloak 도 꺼야 이미 받은 refresh token 으로 새 토큰을 못 받는다
+    if (user.getKeycloakId() != null) {
+      try {
+        keycloakService.setEnabled(user.getKeycloakId(), enabled);
+      } catch (Exception e) {
+        log.error("Keycloak 활성화 상태 변경 실패: userId={}", userId, e);
+        throw new UserException(UserResponse.INTERNAL_SERVER_ERROR);
+      }
+    }
 
     user.changeEnabledStatus(enabled);
     return userRepository.save(user);

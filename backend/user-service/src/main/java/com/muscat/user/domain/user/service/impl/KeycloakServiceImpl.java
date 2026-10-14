@@ -165,6 +165,23 @@ public class KeycloakServiceImpl implements KeycloakService {
   }
 
   @Override
+  public void setEnabled(String keycloakId, boolean enabled) {
+    String adminToken = getAdminToken();
+    String userUrl =
+      keycloakProperties.getAuthServerUrl() + "/admin/realms/" + keycloakProperties.getRealm()
+        + "/users/" + keycloakId;
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.setBearerAuth(adminToken);
+
+    HttpEntity<Map<String, Object>> entity = new HttpEntity<>(Map.of("enabled", enabled), headers);
+    restTemplate.put(userUrl, entity);
+
+    log.info("Keycloak 사용자 활성 상태 변경: {} -> {}", keycloakId, enabled);
+  }
+
+  @Override
   public String createAdminUser(String email, String password) {
     // 1. 일반 사용자 생성
     String keycloakId = createUser(email, password);

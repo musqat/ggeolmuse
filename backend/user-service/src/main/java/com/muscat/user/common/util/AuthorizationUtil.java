@@ -51,11 +51,17 @@ public class AuthorizationUtil {
      */
     public User getCurrentUser() {
         String keycloakId = getCurrentKeycloakId();
-        return userRepository.findByKeycloakId(keycloakId)
+        User user = userRepository.findByKeycloakId(keycloakId)
                 .orElseThrow(() -> {
                     log.warn("DB에 사용자 없음: keycloakId={}", keycloakId);
                     return new UserException(UserResponse.USER_NOT_FOUND);
                 });
+
+        if (!user.isEnabled()) {
+            log.warn("비활성 사용자 요청: keycloakId={}", keycloakId);
+            throw new UserException(UserResponse.ACCOUNT_DISABLED);
+        }
+        return user;
     }
 
     /**

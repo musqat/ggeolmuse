@@ -3,6 +3,7 @@ package com.muscat.user.domain.user.service.impl;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -273,6 +274,24 @@ class UserServiceImplTest {
         .hasMessage(UserResponse.INVALID_CREDENTIALS.getMessage());
 
       verify(keycloakService, never()).login(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("비밀번호가 맞아도 비활성 계정이면 로그인할 수 없다")
+    void login_Disabled_Rejected() {
+      testUser.setPasswordHash("$2a$10$encodedPassword");
+      testUser.setEmailVerified(true);
+      testUser.changeEnabledStatus(false);
+      given(userRepository.findByEmail(testEmail)).willReturn(Optional.of(testUser));
+      given(passwordEncoder.matches(testPassword, testUser.getPasswordHash())).willReturn(true);
+
+      assertThatThrownBy(() -> userService.login(testEmail, testPassword))
+        .isInstanceOf(UserException.class)
+        .hasMessage(UserResponse.ACCOUNT_DISABLED.getMessage());
+
+      verify(keycloakService, never()).login(anyString(), anyString());
+      verify(loginEventProducer).publishLoginFailed(eq(testEmail), eq("ACCOUNT_DISABLED"), anyString(),
+        eq("PASSWORD"), any(), any());
     }
 
     @Test
@@ -870,7 +889,35 @@ class UserServiceImplTest {
 
       // then
       assertThat(result.isEnabled()).isFalse();
+      verify(keycloakService).setEnabled(keycloakId, false);
       verify(userRepository).save(testUser);
+    }
+
+    @Test
+    @DisplayName("Keycloak 활성 상태 변경이 실패하면 로컬도 그대로 둔다")
+    void updateUserEnabled_KeycloakFailure_KeepsLocal() {
+      given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
+      doThrow(new RuntimeException("keycloak down")).when(keycloakService).setEnabled(keycloakId, false);
+
+      assertThatThrownBy(() -> userService.updateUserEnabled(1L, false))
+        .isInstanceOf(UserException.class)
+        .hasMessage(UserResponse.INTERNAL_SERVER_ERROR.getMessage());
+
+      assertThat(testUser.isEnabled()).isTrue();
+      verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Keycloak id 가 없는 사용자는 로컬만 바꾼다")
+    void updateUserEnabled_NoKeycloakId_LocalOnly() {
+      testUser.setKeycloakId(null);
+      given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
+      given(userRepository.save(testUser)).willReturn(testUser);
+
+      userService.updateUserEnabled(1L, false);
+
+      verify(keycloakService, never()).setEnabled(any(), anyBoolean());
+      assertThat(testUser.isEnabled()).isFalse();
     }
 
     @Test

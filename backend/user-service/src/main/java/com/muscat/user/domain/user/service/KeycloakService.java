@@ -20,6 +20,9 @@ public interface KeycloakService {
   // Keycloak 사용자 비밀번호 재설정 (현재 비밀번호 불필요)
   void resetPassword(String keycloakId, String newPassword);
 
+  // Keycloak 사용자 활성 상태 변경. 끄면 새 로그인 · 토큰 갱신이 막힌다
+  void setEnabled(String keycloakId, boolean enabled);
+
   // Keycloak 사용자 삭제
   void deleteUser(String keycloakId);
 
