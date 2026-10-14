@@ -164,4 +164,16 @@ class ListingStatusSourceTest {
 
     assertThat(source.fetch()).extracting(Asset::getSymbol).containsExactly("OK");
   }
+
+  @Test
+  @DisplayName("CSV 가 아닌 안내문이 오면 빈 목록이고, 종목 코드가 빈 행은 버린다")
+  void nonCsvBodyAndBlankSymbol() {
+    String note = "{\"Information\": \"" + "Thank you for using Alpha Vantage! ".repeat(10) + "\"}";
+    given(client.getCsv(eq("LISTING_STATUS"), any()))
+      .willReturn(note)
+      .willReturn(HEADER + "\n,Nameless Inc,NYSE,Stock,2001-01-01,null,Active");
+
+    assertThat(source.fetch()).isEmpty();
+    assertThat(source.fetch()).isEmpty();
+  }
 }
