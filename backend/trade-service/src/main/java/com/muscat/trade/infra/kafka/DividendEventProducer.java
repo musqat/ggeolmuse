@@ -11,7 +11,9 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * 배당금 수령 이벤트를 Kafka에 발행하는 Producer
@@ -25,6 +27,8 @@ import java.util.concurrent.CompletableFuture;
 public class DividendEventProducer {
 
     private static final String DIVIDEND_RECEIVED_TOPIC = "trading.dividend.received";
+    // 체결 이벤트와 같은 값. 브로커가 이 안에 받지 못하면 실패로 본다
+    private static final long SEND_TIMEOUT_SECONDS = 5;
 
     private final KafkaTemplate<String, DividendReceivedEvent> dividendReceivedKafkaTemplate;
 
@@ -73,21 +77,21 @@ public class DividendEventProducer {
         log.info("배당금 수령 이벤트 발행 중: userId={}, accountId={}, symbol={}, amount={}",
                 userId, accountId, symbol, totalAmount);
 
-        // 비동기로 Kafka에 전송
-        CompletableFuture<SendResult<String, DividendReceivedEvent>> future =
-                dividendReceivedKafkaTemplate.send(DIVIDEND_RECEIVED_TOPIC, userId, event);
-
-        future.whenComplete((result, ex) -> {
-            if (ex == null) {
-                log.info("배당금 수령 이벤트 발행 성공: topic={}, partition={}, offset={}, userId={}, symbol={}",
-                        DIVIDEND_RECEIVED_TOPIC,
-                        result.getRecordMetadata().partition(),
-                        result.getRecordMetadata().offset(),
-                        userId, symbol);
-            } else {
-                log.error("배당금 수령 이벤트 발행 실패: userId={}, symbol={}, error={}",
-                        userId, symbol, ex.getMessage(), ex);
-            }
-        });
+        // 브로커가 받은 것까지 확인한다. 실패를 지급 루프가 알아야 커밋하지 않고 다시 받는다
+        try {
+            SendResult<String, DividendReceivedEvent> result = dividendReceivedKafkaTemplate
+                    .send(DIVIDEND_RECEIVED_TOPIC, userId, event)
+                    .get(SEND_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            log.info("배당금 수령 이벤트 발행 성공: topic={}, partition={}, offset={}, userId={}, symbol={}",
+                    DIVIDEND_RECEIVED_TOPIC,
+                    result.getRecordMetadata().partition(),
+                    result.getRecordMetadata().offset(),
+                    userId, symbol);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("배당금 수령 이벤트 발행 중단: accountId=" + accountId + ", symbol=" + symbol, e);
+        } catch (ExecutionException | TimeoutException e) {
+            throw new IllegalStateException("배당금 수령 이벤트 발행 실패: accountId=" + accountId + ", symbol=" + symbol, e);
+        }
     }
 }

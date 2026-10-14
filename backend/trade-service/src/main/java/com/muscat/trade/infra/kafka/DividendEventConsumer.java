@@ -103,12 +103,17 @@ public class DividendEventConsumer {
           failCount++;
           log.error("배당금 지급 실패: userId={}, accountId={}, symbol={}, error={}",
             userId, accountId, event.getSymbol(), e.getMessage(), e);
-          // 개별 지급 실패는 무시하고 계속 진행
+          // 나머지 계좌는 계속 지급하고, 끝에서 다시 받도록 예외를 올린다
         }
       }
 
       log.info("배당금 지급 완료: symbol={}, exDate={}, 성공={}, 실패={}",
         event.getSymbol(), event.getExDate(), successCount, failCount);
+
+      // 실패가 있으면 커밋하지 않는다. Kafka 가 다시 주고(재시도 뒤 DLT), 이미 지급한 계좌는 user-service 가 같은 배당으로 걸러낸다
+      if (failCount > 0) {
+        throw new IllegalStateException("배당 지급 실패 " + failCount + "건: symbol=" + event.getSymbol() + ", exDate=" + event.getExDate());
+      }
 
       // 4. 수동 커밋 (처리 성공시에만)
       acknowledgment.acknowledge();

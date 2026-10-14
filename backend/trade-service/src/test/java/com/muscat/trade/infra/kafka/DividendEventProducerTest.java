@@ -3,7 +3,7 @@ package com.muscat.trade.infra.kafka;
 import static com.muscat.trade.infra.kafka.KafkaSends.failed;
 import static com.muscat.trade.infra.kafka.KafkaSends.sent;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -54,11 +54,13 @@ class DividendEventProducerTest {
   }
 
   @Test
-  @DisplayName("브로커가 받지 못해도 호출한 쪽(배당 지급 루프)으로 예외를 올리지 않는다")
-  void sendFails_DoesNotThrow() {
+  @DisplayName("브로커가 받지 못하면 예외를 올린다. 지급 루프가 실패를 알아야 다시 받을 수 있다")
+  void sendFails_Throws() {
     given(template.send(anyString(), anyString(), any())).willReturn(failed());
 
-    assertThatCode(() -> producer.publishDividendReceived("user-1", 20L, "AAPL", "2024-09-16",
-      BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE)).doesNotThrowAnyException();
+    assertThatThrownBy(() -> producer.publishDividendReceived("user-1", 20L, "AAPL", "2024-09-16",
+      BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE))
+      .isInstanceOf(IllegalStateException.class)
+      .hasMessageContaining("AAPL");
   }
 }
