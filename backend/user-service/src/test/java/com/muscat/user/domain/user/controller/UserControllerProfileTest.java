@@ -14,7 +14,6 @@ import com.muscat.user.common.exceptions.UserException;
 import com.muscat.user.domain.user.dto.response.UserResponseDto;
 import com.muscat.user.domain.user.entity.User;
 import com.muscat.user.domain.user.mapper.UserMapper;
-import com.muscat.user.domain.user.service.KeycloakService;
 import com.muscat.user.domain.user.service.UserService;
 import java.time.Instant;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,9 +34,6 @@ class UserControllerProfileTest {
   private UserService userService;
 
   @Mock
-  private KeycloakService keycloakService;
-
-  @Mock
   private UserMapper userMapper;
 
   private UserController controller;
@@ -53,7 +49,7 @@ class UserControllerProfileTest {
 
   @BeforeEach
   void setUp() {
-    controller = new UserController(userService, keycloakService, userMapper);
+    controller = new UserController(userService, userMapper);
   }
 
   @Test

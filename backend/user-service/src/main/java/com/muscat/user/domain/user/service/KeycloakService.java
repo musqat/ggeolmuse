@@ -1,6 +1,5 @@
 package com.muscat.user.domain.user.service;
 
-import com.muscat.user.domain.user.dto.request.ChangePasswordRequestDto;
 import com.muscat.user.domain.user.dto.response.TokenResponseDto;
 
 // Keycloak 인증 서비스 인터페이스
@@ -17,9 +16,6 @@ public interface KeycloakService {
 
   // Keycloak에 관리자 사용자 생성 (admin role 부여)
   String createAdminUser(String email, String password);
-
-  // Keycloak 사용자 비밀번호 변경
-  void changePassword(String keycloakId, ChangePasswordRequestDto newPassword);
 
   // Keycloak 사용자 비밀번호 재설정 (현재 비밀번호 불필요)
   void resetPassword(String keycloakId, String newPassword);

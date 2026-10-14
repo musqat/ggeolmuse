@@ -242,6 +242,30 @@ public class UserServiceImpl implements UserService {
     log.info("계정 삭제 완료: {}", email);
   }
 
+  @Override
+  public void changePassword(String email, String currentPassword, String newPassword) {
+    User user = userRepository.findByEmail(email)
+      .orElseThrow(() -> new UserException(UserResponse.USER_NOT_FOUND));
+
+    // 해시가 없는 소셜 사용자도 같은 응답. 401 은 프론트가 세션 만료로 처리하므로 400 을 준다
+    if (user.getPasswordHash() == null
+      || !passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+      log.warn("비밀번호 변경 실패 - 현재 비밀번호 불일치: {}", email);
+      throw new UserException(UserResponse.INVALID_PASSWORD);
+    }
+
+    // 로그인이 로컬 해시를 먼저 보므로 Keycloak 과 로컬을 같이 바꾼다
+    try {
+      keycloakService.resetPassword(user.getKeycloakId(), newPassword);
+    } catch (Exception e) {
+      log.error("Keycloak 비밀번호 변경 실패: {}", email, e);
+      throw new UserException(UserResponse.PASSWORD_CHANGE_FAILED);
+    }
+
+    user.changePassword(passwordEncoder.encode(newPassword));
+    userRepository.save(user);
+  }
+
 
   @Override
   public User updateProfile(String email, UpdateProfileRequestDto request) {

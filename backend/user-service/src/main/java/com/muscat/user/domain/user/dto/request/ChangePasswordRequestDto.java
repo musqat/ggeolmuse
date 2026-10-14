@@ -13,6 +13,10 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class ChangePasswordRequestDto {
+  @Schema(description = "현재 비밀번호", example = "oldPassword123!", required = true)
+  @NotBlank(message = "현재 비밀번호는 필수입니다")
+  private String currentPassword;
+
   @Schema(description = "새 비밀번호", example = "newPassword123!", required = true)
   @NotBlank(message = "새 비밀번호는 필수입니다")
   @Size(min = 8, message = "비밀번호는 최소 8자 이상이어야 합니다")

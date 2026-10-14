@@ -11,7 +11,6 @@ import com.muscat.user.common.exceptions.GlobalExceptionHandler;
 import com.muscat.user.common.exceptions.UserException;
 import com.muscat.user.domain.user.dto.request.DeleteAccountRequestDto;
 import com.muscat.user.domain.user.mapper.UserMapper;
-import com.muscat.user.domain.user.service.KeycloakService;
 import com.muscat.user.domain.user.service.UserService;
 import java.time.Instant;
 import java.util.UUID;
@@ -39,9 +38,6 @@ class UserControllerDeleteTest {
   private UserService userService;
 
   @Mock
-  private KeycloakService keycloakService;
-
-  @Mock
   private UserMapper userMapper;
 
   private MockMvc mockMvc;
@@ -51,7 +47,7 @@ class UserControllerDeleteTest {
 
   @BeforeEach
   void setUp() {
-    mockMvc = MockMvcBuilders.standaloneSetup(new UserController(userService, keycloakService, userMapper))
+    mockMvc = MockMvcBuilders.standaloneSetup(new UserController(userService, userMapper))
       .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
       .setControllerAdvice(new GlobalExceptionHandler(new MockEnvironment()))
       .build();
