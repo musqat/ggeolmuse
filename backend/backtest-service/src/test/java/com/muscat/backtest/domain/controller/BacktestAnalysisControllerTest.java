@@ -178,4 +178,11 @@ class BacktestAnalysisControllerTest {
   void onlyPostIsOpen() throws Exception {
     mockMvc.perform(get(BASE + "/strategy/dca")).andExpect(status().isUnauthorized());
   }
+
+  @Test
+  @DisplayName("컨트롤러가 없는 옛 내부 경로는 열어 두지 않는다. 토큰이 없으면 401")
+  void oldInternalPathsAreClosed() throws Exception {
+    mockMvc.perform(post("/api/internal/analysis/strategy/dca")).andExpect(status().isUnauthorized());
+    mockMvc.perform(post("/api/internal/trading-simulation/simulation")).andExpect(status().isUnauthorized());
+  }
 }

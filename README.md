@@ -172,7 +172,7 @@ E2E 는 `docker compose` 로 스택 전체를 띄우고 PR 과 `master` push 마
 |---|---|---|
 | user | 97.8% | 87.0% |
 | trade | 98.3% | 92.0% |
-| backtest | 98.4% | 89.2% |
+| backtest | 98.5% | 88.9% |
 | market-data | 96.5% | 86.4% |
 
 market-data 의 외부 호출(야후 · NASDAQ · 수출입은행 · AlphaVantage)은 실제 네트워크 없이 RestTemplate 응답을 흉내 내
