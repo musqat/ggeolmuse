@@ -4,13 +4,15 @@ from __future__ import annotations
 from datetime import date
 from typing import Protocol
 
-from app.core.models import Bar, Completion, Conversation, Quote, Turn
+from app.core.models import Bar, Completion, Conversation, Dividend, Quote, Turn
 
 
 class MarketData(Protocol):
     async def quote(self, symbol: str) -> Quote | None: ...
 
     async def bars(self, symbol: str, start: date, end: date) -> list[Bar]: ...
+
+    async def dividends(self, symbol: str, start: date, end: date) -> list[Dividend]: ...
 
 
 class LanguageModel(Protocol):

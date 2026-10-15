@@ -1,4 +1,4 @@
-"""market-data 내부 API. JSON → Quote · Bar, 장애 → MarketUnavailable"""
+"""market-data 내부 API. JSON → Quote · Bar · Dividend, 장애 → MarketUnavailable"""
 from __future__ import annotations
 
 import time
@@ -6,7 +6,7 @@ from datetime import date
 
 import httpx
 
-from app.core.models import Bar, MarketUnavailable, Quote
+from app.core.models import Bar, Dividend, MarketUnavailable, Quote
 
 
 class MarketClient:
@@ -35,6 +35,19 @@ class MarketClient:
         )
         bars = [_bar(row) for row in data or []]
         return sorted((b for b in bars if b is not None), key=lambda b: b.date)
+
+    async def dividends(self, symbol: str, start: date, end: date) -> list[Dividend]:
+        data = await self._get(
+            f"/api/internal/market/dividend/{symbol}",
+            {"startDate": start.isoformat(), "endDate": end.isoformat()},
+        )
+        rows = [
+            Dividend(ex_date=date.fromisoformat(row["exDate"]), amount=float(row["amount"]),
+                     currency=row.get("currency") or "")
+            for row in data or []
+            if row.get("exDate") and row.get("amount") is not None
+        ]
+        return sorted(rows, key=lambda d: d.ex_date)
 
     async def fetch_supported_symbols(self) -> set[str]:
         now = time.monotonic()

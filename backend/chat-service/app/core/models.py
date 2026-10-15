@@ -28,6 +28,13 @@ class Quote:
 
 
 @dataclass(frozen=True)
+class Dividend:
+    ex_date: date
+    amount: float
+    currency: str
+
+
+@dataclass(frozen=True)
 class Evidence:
     """답변기에 넘기는 자료. lines 는 프롬프트에 한 줄씩 들어간다"""
     lines: tuple[str, ...]

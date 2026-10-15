@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Callable
 
-from app.core.models import Bar, Quote
+from app.core.models import Bar, Dividend, Quote
 from app.core.ports import MarketData
 
 
@@ -24,3 +24,8 @@ class MarketTools:
         """최근 days 일(달력)의 일봉, 오래된 것부터"""
         end = self._today()
         return await self._market.bars(symbol, end - timedelta(days=days), end)
+
+    async def dividends(self, symbol: str, years: int) -> list[Dividend]:
+        """최근 years 년의 배당, 오래된 것부터"""
+        end = self._today()
+        return await self._market.dividends(symbol, end - timedelta(days=365 * years), end)

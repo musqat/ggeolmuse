@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     daily_limit: int = 5
     daily_reject_limit: int = 20
     ohlc_lookback_days: int = 400
+    dividend_lookback_years: int = 3
     max_answer_tokens: int = 700
 
     conversation_ttl_hours: int = 5

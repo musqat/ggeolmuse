@@ -62,6 +62,19 @@ async def test_bars_use_close_price_and_sort(market):
 
 
 @respx.mock
+async def test_dividends_are_sorted_oldest_first(market):
+    route = respx.get(f"{BASE}/api/internal/market/dividend/AAPL").mock(return_value=httpx.Response(200, json=[
+        {"symbol": "AAPL", "exDate": "2026-08-10", "amount": 0.26, "currency": "USD"},
+        {"symbol": "AAPL", "exDate": "2026-05-11", "amount": 0.26, "currency": "USD"},
+    ]))
+    dividends = await market.dividends("AAPL", date(2023, 10, 17), date(2026, 10, 16))
+
+    assert route.calls[0].request.url.params["startDate"] == "2023-10-17"
+    assert [d.ex_date.isoformat() for d in dividends] == ["2026-05-11", "2026-08-10"]
+    assert dividends[0].currency == "USD"
+
+
+@respx.mock
 async def test_fetch_supported_symbols_caches(market):
     route = respx.get(f"{BASE}/api/market/symbols").mock(
         return_value=httpx.Response(200, json=[{"symbol": "AAPL"}, {"symbol": "MSFT"}])

@@ -5,7 +5,7 @@ import uuid
 from dataclasses import replace
 from datetime import date, timedelta
 
-from app.core.models import Bar, Completion, Conversation, Evidence, Quote, Turn
+from app.core.models import Bar, Completion, Conversation, Dividend, Evidence, Quote, Turn
 
 TODAY = date(2026, 10, 16)
 
@@ -46,6 +46,7 @@ class FakeMarket:
             "AAPL": Quote(symbol="AAPL", name="Apple Inc.", price=109.43, as_of=TODAY, active=True),
         }
         self.bar_rows: dict[str, list[Bar]] = {"AAPL": make_bars()}
+        self.dividend_rows: dict[str, list[Dividend]] = {}
         self.error: Exception | None = None
         self.calls: list[tuple] = []
 
@@ -60,6 +61,12 @@ class FakeMarket:
         if self.error:
             raise self.error
         return self.bar_rows.get(symbol, [])
+
+    async def dividends(self, symbol, start, end):
+        self.calls.append(("dividends", symbol, start, end))
+        if self.error:
+            raise self.error
+        return self.dividend_rows.get(symbol, [])
 
 
 class FakeModel:
