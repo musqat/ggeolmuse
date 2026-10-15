@@ -142,16 +142,16 @@ ggeolmuse/
 
 ## 테스트
 
-백엔드 **852 개**, 프론트 **387 개**, E2E **36 개**.
+백엔드 **1,367 개**, 프론트 **425 개**, E2E **36 개**.
 
 | 서비스 | 테스트 |
 |---|---|
-| market-data-service | 257 |
-| user-service | 235 |
-| backtest-service | 181 |
-| trade-service | 163 |
-| ggeolmuse-bom | 16 |
-| frontend-web | 387 |
+| market-data-service | 476 |
+| user-service | 341 |
+| backtest-service | 308 |
+| trade-service | 224 |
+| ggeolmuse-bom | 18 |
+| frontend-web | 425 |
 | E2E (Playwright) | 36 |
 
 <details>
