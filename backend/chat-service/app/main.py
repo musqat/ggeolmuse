@@ -4,7 +4,7 @@ from datetime import date, timedelta
 
 from fastapi import Depends, FastAPI, Header, HTTPException
 
-from app.auth import AuthError, extract_user_id
+from app.auth import AuthError, AuthUnavailable, extract_user_id
 from app.config import settings
 from app.deps import get_market_client, get_rate_limiter
 from app.indicators import build_indicator_summary
@@ -25,6 +25,8 @@ def health():
 def current_user_id(authorization: str | None = Header(default=None)) -> str:
     try:
         return extract_user_id(authorization)
+    except AuthUnavailable:
+        raise HTTPException(status_code=503, detail="인증 서버에 연결할 수 없습니다.")
     except AuthError as e:
         raise HTTPException(status_code=401, detail=str(e))
 
