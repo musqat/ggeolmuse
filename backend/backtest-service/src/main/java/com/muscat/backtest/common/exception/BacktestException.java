@@ -12,4 +12,8 @@ public class BacktestException extends BusinessException {
   public BacktestException(BacktestResponse errorCode, String details) {
     super(errorCode, details);
   }
+
+  public BacktestException(BacktestResponse errorCode, Throwable cause) {
+    super(errorCode, cause);
+  }
 }

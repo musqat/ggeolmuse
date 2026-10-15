@@ -1,10 +1,13 @@
 package com.muscat.backtest.infra.client;
 
+import com.muscat.backtest.common.enums.BacktestResponse;
+import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.config.CacheConfig;
 import com.muscat.backtest.infra.client.dto.DividendDto;
 import com.muscat.backtest.infra.client.dto.FxRateDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import com.muscat.commonlib.dto.StockPriceDto;
+import feign.FeignException;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import java.math.BigDecimal;
@@ -78,10 +81,10 @@ public class MarketDataClientWrapper {
 
   // Fallback 메서드
   private OHLCPriceDto getOHLCPriceFallback(String symbol, String date, Exception ex) {
+    rethrowClientError(ex);
     log.error("Fallback triggered for getOHLCPrice. Symbol: {}, Date: {}, Error: {}",
       symbol, date, ex.getMessage());
-    throw new RuntimeException(
-      "Market data service is currently unavailable. Cannot retrieve price data.", ex);
+    throw new BacktestException(BacktestResponse.MARKET_DATA_UNAVAILABLE, ex);
   }
 
   private List<OHLCPriceDto> getOHLCPriceRangeFallback(String symbol, String startDate,
@@ -92,10 +95,17 @@ public class MarketDataClientWrapper {
   }
 
   private StockPriceDto getCurrentPriceFallback(String symbol, Exception ex) {
+    rethrowClientError(ex);
     log.error("Fallback triggered for getCurrentPrice. Symbol: {}, Error: {}",
       symbol, ex.getMessage());
-    throw new RuntimeException("Market data service is currently unavailable for symbol: " + symbol,
-      ex);
+    throw new BacktestException(BacktestResponse.MARKET_DATA_UNAVAILABLE, ex);
+  }
+
+  // 4xx 는 장애가 아니다. 서비스 불가로 바꾸지 않고 그대로 올린다
+  private static void rethrowClientError(Exception ex) {
+    if (ex instanceof FeignException.FeignClientException clientError) {
+      throw clientError;
+    }
   }
 
   private List<DividendDto> getDividendHistoryFallback(String symbol, String startDate,

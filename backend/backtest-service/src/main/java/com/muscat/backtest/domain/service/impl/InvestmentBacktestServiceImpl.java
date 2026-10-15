@@ -77,20 +77,7 @@ public class InvestmentBacktestServiceImpl implements InvestmentBacktestService 
       throw e;
     } catch (Exception e) {
       log.error("과거 매수 백테스트 중 예상치 못한 오류: {}", e.getMessage(), e);
-
-      if (e.getMessage().contains("환율") || e.getMessage().contains("FX")) {
-        throw new BacktestException(BacktestResponse.FX_CONVERSION_ERROR,
-          "환율 변환 중 오류: " + e.getMessage());
-      } else if (e.getMessage().contains("배당") || e.getMessage().contains("dividend")) {
-        throw new BacktestException(BacktestResponse.DIVIDEND_CALCULATION_ERROR,
-          "배당금 계산 중 오류: " + e.getMessage());
-      } else if (e.getMessage().contains("수익률") || e.getMessage().contains("return")) {
-        throw new BacktestException(BacktestResponse.RETURN_CALCULATION_ERROR,
-          "수익률 계산 중 오류: " + e.getMessage());
-      } else {
-        throw new BacktestException(BacktestResponse.CALCULATION_ERROR,
-          "백테스트 계산 중 오류: " + e.getMessage());
-      }
+      throw new BacktestException(BacktestResponse.CALCULATION_ERROR, e);
     }
   }
 
@@ -326,6 +313,8 @@ public class InvestmentBacktestServiceImpl implements InvestmentBacktestService 
         currentValueKrw, stockReturn, stockReturnPercent, purchaseFxRate, currentFxRate,
         fxReturn, fxReturnPercent, totalReturnKrw, totalReturnPercent);
 
+    } catch (BacktestException e) {
+      throw e;
     } catch (Exception e) {
       log.error("Holdings 성과 계산 중 오류: {}", e.getMessage(), e);
       throw new BacktestException(BacktestResponse.CALCULATION_ERROR,

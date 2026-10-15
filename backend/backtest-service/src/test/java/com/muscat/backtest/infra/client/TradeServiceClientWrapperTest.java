@@ -5,9 +5,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
+import com.muscat.backtest.common.enums.BacktestResponse;
+import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.infra.client.dto.HoldingDto;
 import com.muscat.backtest.infra.client.dto.TradeDto;
+import feign.FeignException;
+import feign.Request;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,11 +42,23 @@ class TradeServiceClientWrapperTest {
   }
 
   @Test
-  @DisplayName("보유 종목을 못 받으면 원인을 담은 예외를 올린다")
+  @DisplayName("보유 종목을 못 받으면 거래 서비스 사용 불가 코드에 원인을 담아 올린다")
   void portfolioFallback_Throws() {
     assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(wrapper, "getPortfolioFallback", TOKEN, down))
-      .isInstanceOf(RuntimeException.class)
-      .hasCause(down);
+      .isInstanceOf(BacktestException.class)
+      .hasCause(down)
+      .extracting("code").isEqualTo(BacktestResponse.TRADE_SERVICE_UNAVAILABLE);
+  }
+
+  @Test
+  @DisplayName("보유 종목 조회의 4xx 는 장애가 아니라서 받은 예외를 그대로 올린다")
+  void portfolioFallback_ClientErrorRethrown() {
+    Request request = Request.create(Request.HttpMethod.GET, "/api/internal/portfolio", Map.of(), null,
+      StandardCharsets.UTF_8, null);
+    FeignException.Unauthorized unauthorized = new FeignException.Unauthorized("Unauthorized", request, null, Map.of());
+
+    assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(wrapper, "getPortfolioFallback", TOKEN, unauthorized))
+      .isSameAs(unauthorized);
   }
 
   @Test

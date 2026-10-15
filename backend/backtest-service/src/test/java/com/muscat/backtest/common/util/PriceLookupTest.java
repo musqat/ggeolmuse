@@ -3,9 +3,13 @@ package com.muscat.backtest.common.util;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.muscat.backtest.common.enums.BacktestResponse;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.commonlib.dto.OHLCPriceDto;
+import feign.FeignException;
+import feign.Request;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
@@ -54,6 +58,36 @@ class PriceLookupTest {
     assertThatThrownBy(() -> PriceLookup.withFallback((sym, dt) -> null, "AAPL", d("2025-06-05"), 5))
         .isInstanceOf(BacktestException.class)
         .hasMessageContaining("주가 데이터를 찾을 수 없습니다 (5일 검색)");
+  }
+
+  @Test
+  @DisplayName("withFallback: 매번 조회가 실패하면 데이터 없음이 아니라 시세 서비스 사용 불가로 올리고 마지막 원인을 붙인다")
+  void withFallback_allFailed_unavailable() {
+    RuntimeException down = new RuntimeException("down");
+
+    assertThatThrownBy(() -> PriceLookup.withFallback((sym, dt) -> { throw down; }, "AAPL", d("2025-06-05"), 5))
+        .isInstanceOf(BacktestException.class)
+        .hasCause(down)
+        .extracting("code").isEqualTo(BacktestResponse.MARKET_DATA_UNAVAILABLE);
+  }
+
+  @Test
+  @DisplayName("withFallback: 한 번이라도 답을 받았거나 4xx 면 데이터 없음으로 본다")
+  void withFallback_answered_notFound() {
+    Request request = Request.create(Request.HttpMethod.GET, "/api/internal/market/ohlc", Map.of(), null,
+        StandardCharsets.UTF_8, null);
+    FeignException.BadRequest badRequest = new FeignException.BadRequest("Bad Request", request, null, Map.of());
+
+    assertThatThrownBy(() -> PriceLookup.withFallback((sym, dt) -> { throw badRequest; }, "AAPL", d("2025-06-05"), 5))
+        .extracting("code").isEqualTo(BacktestResponse.STOCK_DATA_NOT_FOUND);
+    assertThatThrownBy(() -> PriceLookup.withFallback(
+        (sym, dt) -> {
+          if (d(dt).equals(d("2025-06-05"))) {
+            return price(dt, 1, false);
+          }
+          throw new RuntimeException("down");
+        }, "AAPL", d("2025-06-05"), 5))
+        .extracting("code").isEqualTo(BacktestResponse.STOCK_DATA_NOT_FOUND);
   }
 
   @Test
