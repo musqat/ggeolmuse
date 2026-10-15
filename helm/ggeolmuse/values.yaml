@@ -228,7 +228,6 @@ gatewayServer:
     # springProfiles: 환경별 (dev/prod)
     configUri: http://config-server:8888
     configUsername: config
-    configPassword: config123
   rbac:
     create: true
   strategy:

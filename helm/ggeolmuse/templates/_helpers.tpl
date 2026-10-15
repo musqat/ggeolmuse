@@ -93,6 +93,10 @@ app.kubernetes.io/instance: {{ .Release.Name }}
       name: ggeolmuse-secrets
       key: DB_PASSWORD
 {{- else }}
+- name: SPRING_CLOUD_CONFIG_USERNAME
+  {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "CONFIG_SERVER_USERNAME") | nindent 2 }}
+- name: SPRING_CLOUD_CONFIG_PASSWORD
+  {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "CONFIG_SERVER_PASSWORD") | nindent 2 }}
 - name: SPRING_DATASOURCE_USERNAME
   {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "DB_USERNAME") | nindent 2 }}
 - name: SPRING_DATASOURCE_PASSWORD
