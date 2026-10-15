@@ -7,10 +7,10 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 
 from app.auth import AuthError, AuthUnavailable, extract_user_id
 from app.config import settings
-from app.deps import get_market_client, get_rate_limiter
+from app.deps import get_chat_model, get_market_client, get_rate_limiter
 from app.indicators import build_indicator_summary
 from app.intent import extract_symbol, IntentResult
-from app.llm import call_analysis, call_router
+from app.llm import ChatModel
 from app.market_client import MarketClient
 from app.rate_limit import RateLimiter
 from app.schemas import ChatRequest, ChatResponse
@@ -38,13 +38,14 @@ async def chat(
     user_id: str = Depends(current_user_id),
     limiter: RateLimiter = Depends(get_rate_limiter),
     market: MarketClient = Depends(get_market_client),
+    model: ChatModel = Depends(get_chat_model),
 ):
     # 1. 일일 한도. 먼저 한 칸을 잡고, 답을 못 주면(거절 · 실패) 돌려준다
     slot = await limiter.try_acquire(user_id)
     if slot is None:
         raise HTTPException(status_code=429, detail="오늘 사용 한도를 초과했습니다.")
     try:
-        answer, symbol, answered = await _analyze(req, market)
+        answer, symbol, answered = await _analyze(req, market, model)
     except Exception:
         await limiter.release(slot)
         raise
@@ -59,7 +60,7 @@ async def chat(
 
 # 종목을 정하고 분석한다. 거절이면 answered=False
 async def _analyze(
-    req: ChatRequest, market: MarketClient
+    req: ChatRequest, market: MarketClient, model: ChatModel
 ) -> tuple[str, str | None, bool]:
     # 2. 종목 결정
     supported = await market.fetch_supported_symbols()
@@ -71,7 +72,7 @@ async def _analyze(
         intent = IntentResult(symbol=sym, valid=True, reason=None)
     else:
         # 자유 입력 → mini로 종목 추출 + 가드
-        intent = await extract_symbol(req.message, supported, mini_call=call_router)
+        intent = await extract_symbol(req.message, supported, mini_call=model.route)
         if not intent.valid:
             return intent.reason, intent.symbol, False
 
@@ -93,7 +94,7 @@ async def _analyze(
     # 5. 분석 생성
     try:
         # 동기 OpenAI 호출. 스레드에서 돌린다
-        answer = await asyncio.to_thread(call_analysis, intent.symbol, summary, req.message)
+        answer = await asyncio.to_thread(model.analyze, intent.symbol, summary, req.message)
     except Exception:
         raise HTTPException(status_code=503, detail="AI 응답 생성에 실패했습니다.")
     return answer, intent.symbol, True

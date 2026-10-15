@@ -28,16 +28,6 @@ SYSTEM_GUARD = (
     "- 제공된 지표 요약 범위 안에서만 한국어로 간결하게 설명하라"
 )
 
-_client: OpenAI | None = None
-
-
-def _get_client() -> OpenAI:
-    global _client
-    if _client is None:
-        _client = OpenAI(api_key=settings.openai_api_key)
-    return _client
-
-
 def build_router_messages(message: str) -> list[dict]:
     system = (
         "사용자 메시지에서 미국 주식 종목 1개를 식별해 JSON으로만 답하라. "
@@ -63,25 +53,35 @@ def build_analysis_messages(symbol: str, summary: str, question: str) -> list[di
     ]
 
 
-def call_router(message: str) -> str:
-    """gpt-4o-mini 종목 추출. JSON 문자열 반환."""
-    resp = _get_client().chat.completions.create(
-        model=settings.openai_model_router,
-        messages=build_router_messages(message),
-        temperature=0,
-        response_format={"type": "json_object"},
-        max_tokens=30,
-    )
-    return resp.choices[0].message.content or "{}"
+class ChatModel:
+    """종목 추출(mini) · 분석(main) OpenAI 호출. 클라이언트는 처음 부를 때 만든다"""
 
+    def __init__(self, client: OpenAI | None = None):
+        self._client = client
 
-def call_analysis(symbol: str, summary: str, question: str) -> str:
-    """gpt-4o 분석. 면책 문구 append."""
-    resp = _get_client().chat.completions.create(
-        model=settings.openai_model_main,
-        messages=build_analysis_messages(symbol, summary, question),
-        temperature=0.4,
-        max_tokens=settings.max_answer_tokens,
-    )
-    answer = _strip_markdown((resp.choices[0].message.content or "").strip())
-    return f"{answer}\n\n{DISCLAIMER}"
+    def _openai(self) -> OpenAI:
+        if self._client is None:
+            self._client = OpenAI(api_key=settings.openai_api_key)
+        return self._client
+
+    def route(self, message: str) -> str:
+        """gpt-4o-mini 종목 추출. JSON 문자열 반환."""
+        resp = self._openai().chat.completions.create(
+            model=settings.openai_model_router,
+            messages=build_router_messages(message),
+            temperature=0,
+            response_format={"type": "json_object"},
+            max_tokens=30,
+        )
+        return resp.choices[0].message.content or "{}"
+
+    def analyze(self, symbol: str, summary: str, question: str) -> str:
+        """gpt-4o 분석. 면책 문구 append."""
+        resp = self._openai().chat.completions.create(
+            model=settings.openai_model_main,
+            messages=build_analysis_messages(symbol, summary, question),
+            temperature=0.4,
+            max_tokens=settings.max_answer_tokens,
+        )
+        answer = _strip_markdown((resp.choices[0].message.content or "").strip())
+        return f"{answer}\n\n{DISCLAIMER}"
