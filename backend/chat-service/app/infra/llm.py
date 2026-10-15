@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import re
 
-from openai import OpenAI
+from openai import OpenAI, OpenAIError
 
-from app.config import settings
+from app.core.models import AiUnavailable
 
 
 def _strip_markdown(text: str) -> str:
@@ -54,34 +54,43 @@ def build_analysis_messages(symbol: str, summary: str, question: str) -> list[di
 
 
 class ChatModel:
-    """종목 추출(mini) · 분석(main) OpenAI 호출. 클라이언트는 처음 부를 때 만든다"""
+    """종목 추출(mini) · 분석(main) OpenAI 호출. 실패는 AiUnavailable"""
 
-    def __init__(self, client: OpenAI | None = None):
+    def __init__(self, client: OpenAI, *, router_model: str, main_model: str,
+                 router_timeout: float, answer_timeout: float, max_answer_tokens: int):
         self._client = client
-
-    def _openai(self) -> OpenAI:
-        if self._client is None:
-            self._client = OpenAI(api_key=settings.openai_api_key)
-        return self._client
+        self._router_model = router_model
+        self._main_model = main_model
+        self._router_timeout = router_timeout
+        self._answer_timeout = answer_timeout
+        self._max_answer_tokens = max_answer_tokens
 
     def route(self, message: str) -> str:
         """gpt-4o-mini 종목 추출. JSON 문자열 반환."""
-        resp = self._openai().chat.completions.create(
-            model=settings.openai_model_router,
+        resp = self._create(
+            model=self._router_model,
             messages=build_router_messages(message),
             temperature=0,
             response_format={"type": "json_object"},
             max_tokens=30,
+            timeout=self._router_timeout,
         )
         return resp.choices[0].message.content or "{}"
 
     def analyze(self, symbol: str, summary: str, question: str) -> str:
         """gpt-4o 분석. 면책 문구 append."""
-        resp = self._openai().chat.completions.create(
-            model=settings.openai_model_main,
+        resp = self._create(
+            model=self._main_model,
             messages=build_analysis_messages(symbol, summary, question),
             temperature=0.4,
-            max_tokens=settings.max_answer_tokens,
+            max_tokens=self._max_answer_tokens,
+            timeout=self._answer_timeout,
         )
         answer = _strip_markdown((resp.choices[0].message.content or "").strip())
         return f"{answer}\n\n{DISCLAIMER}"
+
+    def _create(self, **kwargs):
+        try:
+            return self._client.chat.completions.create(**kwargs)
+        except OpenAIError as e:
+            raise AiUnavailable(type(e).__name__) from e

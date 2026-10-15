@@ -11,6 +11,7 @@ from app.api.schemas import ChatRequest, ChatResponse
 from app.config import settings
 from app.core.analysis.indicators import build_indicator_summary
 from app.core.intent import IntentResult, extract_symbol
+from app.core.models import AiUnavailable, MarketUnavailable
 from app.infra.llm import ChatModel
 from app.infra.market_api import MarketClient
 from app.infra.quota import RateLimiter
@@ -32,6 +33,12 @@ async def chat(
         raise HTTPException(status_code=429, detail="오늘 사용 한도를 초과했습니다.")
     try:
         answer, symbol, answered = await _analyze(req, market, model)
+    except MarketUnavailable:
+        await limiter.release(slot)
+        raise HTTPException(status_code=503, detail="시세 데이터 조회에 실패했습니다.")
+    except AiUnavailable:
+        await limiter.release(slot)
+        raise HTTPException(status_code=503, detail="AI 응답 생성에 실패했습니다.")
     except Exception:
         await limiter.release(slot)
         raise
@@ -65,12 +72,7 @@ async def _analyze(
     # 3. OHLC 조회
     end = date.today()
     start = end - timedelta(days=settings.ohlc_lookback_days)
-    try:
-        ohlc = await market.fetch_ohlc_range(
-            intent.symbol, start.isoformat(), end.isoformat()
-        )
-    except Exception:
-        raise HTTPException(status_code=503, detail="시세 데이터 조회에 실패했습니다.")
+    ohlc = await market.fetch_ohlc_range(intent.symbol, start.isoformat(), end.isoformat())
 
     # 4. 지표 계산
     summary = build_indicator_summary(ohlc)
@@ -78,9 +80,6 @@ async def _analyze(
         return f"{intent.symbol}의 분석 가능한 데이터가 충분하지 않습니다.", intent.symbol, False
 
     # 5. 분석 생성
-    try:
-        # 동기 OpenAI 호출. 스레드에서 돌린다
-        answer = await asyncio.to_thread(model.analyze, intent.symbol, summary, req.message)
-    except Exception:
-        raise HTTPException(status_code=503, detail="AI 응답 생성에 실패했습니다.")
+    # 동기 OpenAI 호출. 스레드에서 돌린다
+    answer = await asyncio.to_thread(model.analyze, intent.symbol, summary, req.message)
     return answer, intent.symbol, True

@@ -21,5 +21,9 @@ class Settings(BaseSettings):
     ohlc_lookback_days: int = 300
     max_answer_tokens: int = 700
 
+    market_timeout_seconds: float = 5.0
+    router_timeout_seconds: float = 5.0
+    answer_timeout_seconds: float = 15.0
+
 
 settings = Settings()

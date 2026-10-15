@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 from app.api.auth import current_user_id
 from app.api.deps import get_chat_model, get_market_client, get_rate_limiter
+from app.core.models import AiUnavailable, MarketUnavailable
 from app.main import app
 
 
@@ -98,7 +99,7 @@ async def test_quota_exhausted_returns_429(client):
 
 class _DownMarket(_FakeMarket):
     async def fetch_ohlc_range(self, symbol, start, end):
-        raise RuntimeError("market-data down")
+        raise MarketUnavailable("market-data down")
 
 
 @pytest.mark.asyncio
@@ -115,7 +116,7 @@ async def test_analysis_failure_returns_slot(client):
     c, limiter, model = client
 
     def _fail(symbol, summary, question):
-        raise RuntimeError("openai down")
+        raise AiUnavailable("openai down")
     model.analyze_fn = _fail
     res = c.post("/api/chat", json={"message": "AAPL 어때?"})
     assert res.status_code == 503
