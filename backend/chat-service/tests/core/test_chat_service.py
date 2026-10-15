@@ -72,6 +72,13 @@ async def test_start_lets_unknown_listing_through_with_warning(caplog):
     assert "symbol=NEW" in caplog.text
 
 
+async def test_remaining_reads_quota_without_using_it():
+    env = Env()
+    env.quota.used["u1"] = 2
+    assert await env.service.remaining("u1") == 3
+    assert env.quota.used == {"u1": 2}
+
+
 async def test_ask_answers_and_uses_one_slot():
     env = Env()
     conversation_id = await env.conversation_id()

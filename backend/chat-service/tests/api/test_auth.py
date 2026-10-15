@@ -43,9 +43,14 @@ def client():
     del app.state.verify_token
 
 
-def test_requests_without_token_get_401_code(client):
+@pytest.mark.parametrize("method, path, body", [
+    ("POST", "/api/chat/conversations", {"symbol": "AAPL"}),
+    ("POST", "/api/chat", {"conversation_id": "c", "message": "hi"}),
+    ("GET", "/api/chat/quota", None),
+])
+def test_requests_without_token_get_401_code(client, method, path, body):
     app.state.verify_token = lambda token: {"sub": "u1"}
-    res = client.post("/api/chat", json={"conversation_id": "c", "message": "hi"})
+    res = client.request(method, path, json=body)
     assert res.status_code == 401
     assert res.json() == {"code": "unauthorized", "message": "로그인이 필요합니다."}
 

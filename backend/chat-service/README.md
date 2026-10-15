@@ -53,9 +53,13 @@ POST /api/chat { conversation_id, message }   (JWT)
   → 대화 불러오기 → 한도 한 칸 → gpt-4o-mini 스킬 고르기
   → 스킬이 market-data 자료로 계산 → gpt-4o 답 + 면책 → 턴 저장
   → { answer, remaining, conversation_id, symbol, rejected }
+
+GET /api/chat/quota   (JWT)
+  → 오늘 남은 질문 수. 한도를 쓰지 않는다
+  → { remaining }
 ```
 
-오류 본문은 `{ code, message }` 다. `symbol_not_found` · `conversation_not_found`(404), `quota_exceeded`(429), `market_unavailable` · `ai_unavailable` · `auth_unavailable`(503), `internal_error`(500).
+오류 본문은 `{ code, message }` 다. `unauthorized`(401), `symbol_not_found` · `conversation_not_found`(404), `quota_exceeded`(429), `market_unavailable` · `ai_unavailable` · `auth_unavailable`(503), `internal_error`(500).
 
 ## 기술 스택
 

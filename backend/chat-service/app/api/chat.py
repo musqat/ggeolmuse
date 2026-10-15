@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends
 from app.api.auth import current_user_id
 from app.api.deps import get_chat_service
 from app.api.errors import error_code, error_response, log_detail, log_level, log_value
-from app.api.schemas import AskRequest, AskResponse, StartRequest, StartResponse
+from app.api.schemas import AskRequest, AskResponse, QuotaResponse, StartRequest, StartResponse
 from app.core.chat_service import ChatService, Rejected
 
 log = logging.getLogger("chat")
@@ -75,3 +75,21 @@ async def ask(
     return AskResponse(answer=outcome.text, remaining=result.remaining,
                        conversation_id=result.conversation.id, symbol=result.conversation.symbol,
                        rejected=rejected)
+
+
+@router.get("/api/chat/quota", response_model=QuotaResponse)
+async def quota(
+    user_id: str = Depends(current_user_id),
+    service: ChatService = Depends(get_chat_service),
+):
+    started = time.perf_counter()
+    try:
+        remaining = await service.remaining(user_id)
+    except Exception as exc:
+        code = error_code(exc)[1]
+        log.log(log_level(exc), "quota user=%s outcome=error:%s ms=%d%s",
+                fingerprint(user_id), code, _ms(started), log_detail(exc),
+                exc_info=code == "internal_error")
+        return error_response(exc)
+    log.info("quota user=%s remaining=%d ms=%d", fingerprint(user_id), remaining, _ms(started))
+    return QuotaResponse(remaining=remaining)

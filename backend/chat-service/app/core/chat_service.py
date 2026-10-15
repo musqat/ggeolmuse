@@ -73,6 +73,10 @@ class ChatService:
         conversation = await self._store.create(user_id, symbol, quote.name)
         return StartResult(conversation=conversation, remaining=await self._quota.remaining(user_id))
 
+    async def remaining(self, user_id: str) -> int:
+        """오늘 남은 질문 수. 한도를 쓰지 않는다"""
+        return await self._quota.remaining(user_id)
+
     async def ask(self, user_id: str, conversation_id: str, question: str) -> AskResult:
         """한도 한 칸을 잡고 답한다. 거절 · 예외면 칸을 돌려준다(거절 한도를 넘으면 안 돌려줌)"""
         conversation = await self._store.load(user_id, conversation_id)

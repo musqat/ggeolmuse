@@ -130,6 +130,29 @@ def test_client_values_stay_on_one_log_line(env, caplog):
     assert all("\n" not in line for line in lines)
 
 
+def test_quota_returns_remaining_without_using_it(env):
+    env.quota.used["user-1"] = 2
+    responses = [env.client.get("/api/chat/quota") for _ in range(2)]
+    assert [(r.status_code, r.json()) for r in responses] == [(200, {"remaining": 3})] * 2
+
+
+def test_quota_log_line(env, caplog):
+    with caplog.at_level(logging.INFO, logger="chat"):
+        env.client.get("/api/chat/quota")
+    assert f"quota user={fingerprint('user-1')} remaining=5 ms=" in caplog.text
+
+
+def test_quota_error_is_500_with_code(env, monkeypatch, caplog):
+    async def down(user_id):
+        raise RuntimeError("redis down")
+
+    monkeypatch.setattr(env.quota, "remaining", down)
+    with caplog.at_level(logging.ERROR, logger="chat"):
+        res = env.client.get("/api/chat/quota")
+    assert (res.status_code, res.json()["code"]) == (500, "internal_error")
+    assert "quota user=" in caplog.text and "outcome=error:internal_error" in caplog.text
+
+
 def test_empty_message_is_422(env):
     assert env.ask("c", "").status_code == 422
 
