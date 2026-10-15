@@ -165,6 +165,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
 
     // 재투자된 배당금 추적
     BigDecimal dividendsReinvested = BigDecimal.ZERO;
+    BigDecimal grossDividends = BigDecimal.ZERO; // 배당마다 그때 주식 수로 받은 세전 배당의 합
     List<LocalDate> dividendReinvestDates = new ArrayList<>(); // 배당 재투자 날짜 목록
 
     // 배당금 재투자 처리 - 각 배당일에 순차적으로 재투자
@@ -206,6 +207,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
         if (!Decimals.isPositive(dividendAmount)) {
           continue;
         }
+        grossDividends = grossDividends.add(dividendAmount);
 
         // 배당 원천징수 적용 (설정된 경우)
         BigDecimal taxRate = context.request().getDividendTaxRate();
@@ -247,24 +249,32 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
     currentValueUsd = shares.multiply(currentPriceUsd);
     currentValueKrw = MoneyUtils.convertUsdToKrw(currentValueUsd, currentFxRate);
 
-    // 배당금 계산 (표시용 - 재투자 여부와 관계없이 총 배당금 계산)
-    BigDecimal totalDividends = BacktestCalculationUtils.calculateTotalDividends(
-      context.dividendHistory(), shares, context.request().getPurchaseDate(), context.valuationDate());
+    // 받은 배당 총액(세전). 재투자했으면 위에서 더한 값, 아니면 처음 주식 수로 구한다
+    boolean reinvested = Boolean.TRUE.equals(context.request().getReinvestDividends());
+    BigDecimal totalDividends = reinvested
+      ? grossDividends
+      : BacktestCalculationUtils.calculateTotalDividends(
+        context.dividendHistory(), shares, context.request().getPurchaseDate(), context.valuationDate());
 
     BigDecimal dividendYield = BacktestCalculationUtils.calculateDividendYield(
       totalDividends, shares, currentPriceUsd);
 
-    BigDecimal totalDividendsKrw = Decimals.isPositive(totalDividends)
-      ? MoneyUtils.convertUsdToKrw(totalDividends, currentFxRate)
-      : BigDecimal.ZERO;
+    // 재투자를 끄면 세후 배당을 현금으로 받는다. 켜면 이미 주식 수에 들어 있다
+    BigDecimal cashDividendKrw = BigDecimal.ZERO;
+    if (!reinvested && Decimals.isPositive(totalDividends)) {
+      BigDecimal dividendTaxRate = context.request().getDividendTaxRate();
+      BigDecimal afterTax = dividendTaxRate != null && Decimals.isPositive(dividendTaxRate)
+        ? totalDividends.subtract(totalDividends.multiply(dividendTaxRate))
+        : totalDividends;
+      cashDividendKrw = MoneyUtils.convertUsdToKrw(afterTax, currentFxRate);
+    }
 
     // 남은 현금도 자산에 포함 (USD → KRW 환산)
     BigDecimal remainingCashKrw = Decimals.isPositive(remainingCash)
       ? MoneyUtils.convertUsdToKrw(remainingCash, currentFxRate)
       : BigDecimal.ZERO;
 
-    // 매수가로 쓰는 조정 종가에 배당이 이미 반영돼 있다
-    BigDecimal totalAssetKrw = currentValueKrw.add(remainingCashKrw);
+    BigDecimal totalAssetKrw = currentValueKrw.add(remainingCashKrw).add(cashDividendKrw);
 
     // 총 수익 = 총 자산 - 투자금
     BigDecimal totalReturnKrw = totalAssetKrw.subtract(context.request().getInvestmentAmount());
