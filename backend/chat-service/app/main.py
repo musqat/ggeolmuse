@@ -38,32 +38,41 @@ async def chat(
     limiter: RateLimiter = Depends(get_rate_limiter),
     market: MarketClient = Depends(get_market_client),
 ):
-    # 1. 일일 한도
-    if not await limiter.is_allowed(user_id):
+    # 1. 일일 한도. 먼저 한 칸을 잡고, 답을 못 주면(거절 · 실패) 돌려준다
+    slot = await limiter.try_acquire(user_id)
+    if slot is None:
         raise HTTPException(status_code=429, detail="오늘 사용 한도를 초과했습니다.")
+    try:
+        answer, symbol, answered = await _analyze(req, market)
+    except Exception:
+        await limiter.release(slot)
+        raise
+    if not answered:
+        await limiter.release(slot)
+    return ChatResponse(
+        answer=answer,
+        remaining=await limiter.remaining(user_id),
+        symbol=symbol,
+    )
 
+
+# 종목을 정하고 분석한다. 거절이면 answered=False
+async def _analyze(
+    req: ChatRequest, market: MarketClient
+) -> tuple[str, str | None, bool]:
     # 2. 종목 결정
     supported = await market.fetch_supported_symbols()
     if req.symbol:
         # 차트 등에서 종목 확정 전달 → mini 추출 생략, 지원종목 가드만
         sym = req.symbol.strip().upper()
         if sym not in supported:
-            return ChatResponse(
-                answer=f"{sym}는 지원하지 않는 종목입니다.",
-                remaining=await limiter.remaining(user_id),
-                symbol=sym,
-            )
+            return f"{sym}는 지원하지 않는 종목입니다.", sym, False
         intent = IntentResult(symbol=sym, valid=True, reason=None)
     else:
         # 자유 입력 → mini로 종목 추출 + 가드
         intent = await extract_symbol(req.message, supported, mini_call=call_router)
         if not intent.valid:
-            # 거절 — 한도 차감 안 함
-            return ChatResponse(
-                answer=intent.reason,
-                remaining=await limiter.remaining(user_id),
-                symbol=intent.symbol,
-            )
+            return intent.reason, intent.symbol, False
 
     # 3. OHLC 조회
     end = date.today()
@@ -78,22 +87,11 @@ async def chat(
     # 4. 지표 계산
     summary = build_indicator_summary(ohlc)
     if summary is None:
-        return ChatResponse(
-            answer=f"{intent.symbol}의 분석 가능한 데이터가 충분하지 않습니다.",
-            remaining=await limiter.remaining(user_id),
-            symbol=intent.symbol,
-        )
+        return f"{intent.symbol}의 분석 가능한 데이터가 충분하지 않습니다.", intent.symbol, False
 
     # 5. 분석 생성
     try:
         answer = call_analysis(intent.symbol, summary, req.message)
     except Exception:
         raise HTTPException(status_code=503, detail="AI 응답 생성에 실패했습니다.")
-
-    # 6. 정상 완료 — 한도 차감
-    await limiter.increment(user_id)
-    return ChatResponse(
-        answer=answer,
-        remaining=await limiter.remaining(user_id),
-        symbol=intent.symbol,
-    )
+    return answer, intent.symbol, True
