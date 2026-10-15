@@ -13,6 +13,13 @@ export type IndicatorKey =
 
 export type IndicatorState = Record<IndicatorKey, boolean>;
 
+// 아래에 패널을 따로 붙이는 지표와 klinecharts 이름
+export const PANE_INDICATORS = { rsi: 'RSI', macd: 'MACD', kdj: 'KDJ', vol: 'VOL' } as const;
+export type PaneKey = keyof typeof PANE_INDICATORS;
+
+// 패널 지표의 계산 기간. RSI 는 목록 라벨대로 14 하나만 그린다(klinecharts 기본은 6 · 12 · 24)
+export const PANE_CALC_PARAMS: Partial<Record<PaneKey, number[]>> = { rsi: [14] };
+
 export interface IndicatorDef {
   key: IndicatorKey;
   label: string;
