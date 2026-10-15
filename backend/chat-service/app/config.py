@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     )
 
     daily_limit: int = 5
+    daily_reject_limit: int = 20
     ohlc_lookback_days: int = 300
     max_answer_tokens: int = 700
 

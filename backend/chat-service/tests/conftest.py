@@ -11,4 +11,4 @@ def fake_redis():
 
 @pytest.fixture
 def fake_rate_limiter(fake_redis):
-    return RateLimiter(fake_redis, limit=5)
+    return RateLimiter(fake_redis, limit=5, reject_limit=20)

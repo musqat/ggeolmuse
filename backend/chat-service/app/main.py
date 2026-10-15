@@ -23,7 +23,7 @@ async def lifespan(app: FastAPI):
     openai = OpenAI(api_key=settings.openai_api_key, max_retries=0)
     app.state.verify_token = JwksVerifier(settings.keycloak_jwks_url)
     app.state.market = MarketClient(http)
-    app.state.quota = RateLimiter(redis, limit=settings.daily_limit)
+    app.state.quota = RateLimiter(redis, limit=settings.daily_limit, reject_limit=settings.daily_reject_limit)
     app.state.model = ChatModel(
         openai,
         router_model=settings.openai_model_router,

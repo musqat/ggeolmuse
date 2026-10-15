@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from app.api.auth import current_user_id
 from app.api.deps import get_chat_model, get_market_client, get_rate_limiter
 from app.core.models import AiUnavailable, MarketUnavailable
+from app.infra.quota import RateLimiter
 from app.main import app
 
 
@@ -64,6 +65,15 @@ def test_no_symbol_does_not_consume_quota(client):
     res = c.post("/api/chat", json={"message": "PER이 뭐야?"})
     assert res.status_code == 200
     assert res.json()["remaining"] == 5  # 차감 안 됨
+
+
+def test_rejections_over_cap_use_quota(client, fake_redis):
+    c, _, model = client
+    app.dependency_overrides[get_rate_limiter] = lambda: RateLimiter(fake_redis, limit=5, reject_limit=1)
+    model.route_fn = lambda msg: '{"symbol": null}'
+    first = c.post("/api/chat", json={"message": "PER이 뭐야?"}).json()
+    second = c.post("/api/chat", json={"message": "PER이 뭐야?"}).json()
+    assert (first["remaining"], second["remaining"]) == (5, 4)
 
 
 def test_symbol_param_skips_mini(client):

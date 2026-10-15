@@ -27,7 +27,7 @@ async def chat(
     market: MarketClient = Depends(get_market_client),
     model: ChatModel = Depends(get_chat_model),
 ):
-    # 1. 일일 한도. 먼저 한 칸을 잡고, 답을 못 주면(거절 · 실패) 돌려준다
+    # 1. 일일 한도. 먼저 한 칸을 잡고, 답을 못 주면(거절 · 실패) 돌려준다. 거절이 하루 한도를 넘으면 안 돌려준다
     slot = await limiter.try_acquire(user_id)
     if slot is None:
         raise HTTPException(status_code=429, detail="오늘 사용 한도를 초과했습니다.")
@@ -42,7 +42,7 @@ async def chat(
     except Exception:
         await limiter.release(slot)
         raise
-    if not answered:
+    if not answered and await limiter.count_reject(user_id):
         await limiter.release(slot)
     return ChatResponse(
         answer=answer,
