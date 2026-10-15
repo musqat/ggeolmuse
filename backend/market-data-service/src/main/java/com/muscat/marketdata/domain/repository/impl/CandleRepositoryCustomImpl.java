@@ -6,6 +6,8 @@ import com.muscat.marketdata.domain.entity.QCandle;
 import com.muscat.marketdata.domain.repository.CandleRepositoryCustom;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
@@ -19,6 +21,9 @@ import java.util.Optional;
 public class CandleRepositoryCustomImpl implements CandleRepositoryCustom {
 
   private final JPAQueryFactory queryFactory;
+
+  @PersistenceContext
+  private EntityManager entityManager;
   private static final QCandle candle = QCandle.candle;
   private static final QAsset asset = QAsset.asset;
 
@@ -66,19 +71,25 @@ public class CandleRepositoryCustomImpl implements CandleRepositoryCustom {
     return Optional.ofNullable(result);
   }
 
+  // 종목마다 최근 N개 캔들을 한 쿼리로 조회(종목별 순위)
   @Override
+  @SuppressWarnings("unchecked")
   public List<Candle> findRecentBySymbols(List<String> symbols, int daysBack) {
-    List<Candle> result = new java.util.ArrayList<>();
-    for (String symbol : symbols) {
-      List<Candle> candles = queryFactory
-        .selectFrom(candle)
-        .where(candle.symbol.eq(symbol))
-        .orderBy(candle.date.desc())
-        .limit(daysBack)
-        .fetch();
-      result.addAll(candles);
+    if (symbols.isEmpty()) {
+      return List.of();
     }
-    return result;
+    return entityManager.createNativeQuery("""
+        SELECT * FROM (
+          SELECT c.*, ROW_NUMBER() OVER (PARTITION BY c.symbol ORDER BY c.date DESC) AS rn
+          FROM candle c
+          WHERE c.symbol IN (:symbols)
+        ) t
+        WHERE t.rn <= :daysBack
+        ORDER BY t.symbol, t.date DESC
+        """, Candle.class)
+      .setParameter("symbols", symbols)
+      .setParameter("daysBack", daysBack)
+      .getResultList();
   }
 
   @Override
@@ -92,16 +103,16 @@ public class CandleRepositoryCustomImpl implements CandleRepositoryCustom {
 
   @Override
   public List<String> findSymbolsWithSplits(LocalDate from) {
-    // 상장폐지 종목은 야후가 404 를 낸다. 다시 받을 수 없으니 목록에서 뺀다
+    // 상장폐지 종목 제외(야후 404 라 다시 못 받음)
     return queryFactory
       .select(candle.symbol).distinct()
       .from(candle)
       .join(asset).on(asset.symbol.eq(candle.symbol))
       .where(candle.date.goe(from)
-        // 1 을 파라미터로 넘기면 부분 인덱스 idx_candle_split_date 를 못 쓰는 계획이 나올 수 있다
+        // 1 은 SQL 에 직접 박음. 파라미터로 넘기면 부분 인덱스 idx_candle_split_date 를 못 탐
         .and(Expressions.booleanTemplate("{0} <> 1", candle.splitCoefficient))
         .and(asset.active.isTrue())
-        // 분할일 봉까지 전 기간을 받은 종목은 뺀다. 분할일과 기록 날짜가 같으면 받은 것으로 본다
+        // 분할일 봉까지 전 기간을 받은 종목 제외(분할일 = 기록 날짜면 받은 것)
         .and(asset.fullHistoryThrough.isNull().or(candle.date.gt(asset.fullHistoryThrough))))
       .orderBy(candle.symbol.asc())
       .fetch();

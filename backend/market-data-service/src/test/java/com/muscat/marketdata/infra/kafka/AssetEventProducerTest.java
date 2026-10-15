@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.muscat.marketdata.domain.entity.Asset;
@@ -23,6 +24,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 // 같은 서비스의 AssetEventConsumer 가 이 토픽을 읽어 캔들 · 배당을 모은다
 @DisplayName("종목 생성 이벤트 발행")
@@ -80,6 +83,55 @@ class AssetEventProducerTest {
     }
 
     assertThat(published().getTraceId()).isEqualTo(TRACE_ID);
+  }
+
+  @Test
+  @DisplayName("트랜잭션 안이면 커밋 뒤에 보낸다. 수집 컨슈머가 커밋 전에 받으면 종목이 비어 보인다")
+  void inTransaction_SendsOnlyAfterCommit() {
+    given(template.send(anyString(), anyString(), any())).willReturn(sent(TOPIC));
+    TransactionSynchronizationManager.initSynchronization();
+    try {
+      producer.publishAssetCreated(asset, true, null, null, false);
+      verify(template, never()).send(anyString(), anyString(), any());
+
+      TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
+      assertThat(published().getSymbol()).isEqualTo("AAPL");
+    } finally {
+      TransactionSynchronizationManager.clearSynchronization();
+    }
+  }
+
+  @Test
+  @DisplayName("트랜잭션이 롤백되면 보내지 않는다")
+  void rolledBack_NeverSends() {
+    given(template.send(anyString(), anyString(), any())).willReturn(sent(TOPIC));
+    TransactionSynchronizationManager.initSynchronization();
+    try {
+      producer.publishAssetCreated(asset, true, null, null, false);
+
+      TransactionSynchronizationManager.getSynchronizations()
+        .forEach(s -> s.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK));
+
+      verify(template, never()).send(anyString(), anyString(), any());
+    } finally {
+      TransactionSynchronizationManager.clearSynchronization();
+    }
+  }
+
+  @Test
+  @DisplayName("커밋 뒤 전송이 바로 실패해도 이미 끝난 종목 등록으로 예외를 올리지 않는다")
+  void sendThrowsAfterCommit_DoesNotThrow() {
+    given(template.send(anyString(), anyString(), any())).willThrow(new IllegalStateException("metadata timeout"));
+    TransactionSynchronizationManager.initSynchronization();
+    try {
+      producer.publishAssetCreated(asset, true, null, null, false);
+
+      assertThatCode(() -> TransactionSynchronizationManager.getSynchronizations()
+        .forEach(TransactionSynchronization::afterCommit)).doesNotThrowAnyException();
+    } finally {
+      TransactionSynchronizationManager.clearSynchronization();
+    }
   }
 
   @Test

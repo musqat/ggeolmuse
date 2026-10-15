@@ -191,6 +191,7 @@ class MarketRepositoryQueryTest {
       assertThat(candleRepository.findRecentBySymbols(List.of("AAPL", "MSFT"), 2))
         .extracting(Candle::getSymbol, Candle::getDate)
         .containsExactly(tuple("AAPL", D3), tuple("AAPL", D2), tuple("MSFT", D1));
+      assertThat(candleRepository.findRecentBySymbols(List.of(), 2)).isEmpty();
       assertThat(candleRepository.countDistinctSymbols()).isEqualTo(2);
     }
   }
