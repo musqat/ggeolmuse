@@ -31,6 +31,12 @@ def build_openai(config: Settings) -> OpenAI:
     return OpenAI(api_key=config.openai_api_key, max_retries=0)
 
 
+def build_redis(config: Settings) -> aioredis.Redis:
+    """Redis 클라이언트. 운영 · 로컬 Redis 는 비밀번호를 요구한다(requirepass)"""
+    return aioredis.Redis(host=config.redis_host, port=config.redis_port,
+                          password=config.redis_password or None, decode_responses=True)
+
+
 def build_chat_service(config: Settings, redis, http: httpx.AsyncClient, openai: OpenAI) -> ChatService:
     model = ChatModel(
         openai,
@@ -56,7 +62,7 @@ def build_chat_service(config: Settings, redis, http: httpx.AsyncClient, openai:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    redis = aioredis.Redis(host=settings.redis_host, port=settings.redis_port, decode_responses=True)
+    redis = build_redis(settings)
     http = httpx.AsyncClient(base_url=settings.market_data_base_url, timeout=settings.market_timeout_seconds)
     openai = build_openai(settings)
     app.state.verify_token = JwksVerifier(settings.keycloak_jwks_url)

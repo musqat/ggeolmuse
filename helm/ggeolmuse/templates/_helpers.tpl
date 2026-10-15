@@ -226,11 +226,11 @@ seccompProfile:
   emptyDir: {}
 {{- end }}
 
-{{/* Redis 비밀번호. 설정은 ${SPRING_REDIS_PASSWORD:} 로 읽는다.
-     config-server 는 Redis 를 쓰지 않아 빠진다. */}}
+{{/* Redis 비밀번호. 자바 서비스 설정은 ${SPRING_REDIS_PASSWORD:} 로 읽는다. 다른 이름이 필요하면 envName 을 준다
+     (chat-service 는 REDIS_PASSWORD). config-server 는 Redis 를 쓰지 않아 빠진다. */}}
 {{- define "ggeolmuse.redisPasswordEnv" -}}
 {{- if .Values.global.aws.secretsManager.enabled }}
-- name: SPRING_REDIS_PASSWORD
+- name: {{ if hasKey . "envName" }}{{ .envName }}{{ else }}SPRING_REDIS_PASSWORD{{ end }}
   valueFrom:
     secretKeyRef:
       name: ggeolmuse-secrets
