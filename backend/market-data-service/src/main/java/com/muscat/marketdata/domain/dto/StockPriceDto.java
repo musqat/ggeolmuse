@@ -45,6 +45,9 @@ public class StockPriceDto implements Serializable {
     @Schema(description = "데이터 유효성", example = "true")
     private boolean available;
 
+    @Schema(description = "상장 여부. 종목 정보가 없거나 상장폐지면 false", example = "true")
+    private Boolean active;
+
     @Schema(description = "시가총액", example = "3600000000000")
     private Long marketCap;
 

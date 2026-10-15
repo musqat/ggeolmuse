@@ -150,6 +150,7 @@ public class CandleServiceImpl implements CandleService {
     var asset = assetRepository.findById(upperSymbol).orElse(null);
     String name = asset != null ? asset.getName() : null;
     Long marketCap = asset != null ? asset.getMarketCap() : null;
+    boolean active = asset != null && Boolean.TRUE.equals(asset.getActive());
 
     // 주가 정보 DTO 생성 (adjustedClose 사용)
     StockPriceDto result = StockPriceDto.builder()
@@ -163,6 +164,7 @@ public class CandleServiceImpl implements CandleService {
       .currency(c.getCurrency())
       .marketCap(marketCap)
       .available(true)
+      .active(active)
       .build();
 
     log.debug("현재가 조회 성공: symbol={}, price={}, previousClose={}, change={}%",

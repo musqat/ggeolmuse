@@ -6,8 +6,11 @@ import { IndicatorSheet } from './indicators/IndicatorSheet';
 import {
   DEFAULT_INDICATORS,
   MA_LINES,
+  PANE_CALC_PARAMS,
+  PANE_INDICATORS,
   type IndicatorKey,
   type IndicatorState,
+  type PaneKey,
 } from './indicators/indicators';
 
 interface KLineChartComponentProps {
@@ -18,9 +21,6 @@ interface KLineChartComponentProps {
 
 const MA_PANE_ID = 'candle_pane';
 
-// 아래에 패널을 따로 붙이는 지표와 klinecharts 이름
-const PANE_INDICATORS = { rsi: 'RSI', macd: 'MACD', kdj: 'KDJ', vol: 'VOL' } as const;
-type PaneKey = keyof typeof PANE_INDICATORS;
 
 // 아래 패널 하나 높이. 좁은 화면은 줄인다
 const PANE_HEIGHT = 100;
@@ -323,7 +323,9 @@ const KLineChartComponent: React.FC<KLineChartComponentProps> = ({
     const paneKey = key as PaneKey;
     const name = PANE_INDICATORS[paneKey];
     if (next[paneKey]) {
-      panelIdsRef.current[paneKey] = chart.createIndicator(name, false, { height: paneHeight, gap: PANE_GAP });
+      const calcParams = PANE_CALC_PARAMS[paneKey];
+      const indicator = calcParams ? { name, calcParams: [...calcParams] } : name;
+      panelIdsRef.current[paneKey] = chart.createIndicator(indicator, false, { height: paneHeight, gap: PANE_GAP });
     } else if (panelIdsRef.current[paneKey]) {
       chart.removeIndicator(panelIdsRef.current[paneKey]!, name);
       panelIdsRef.current[paneKey] = null;

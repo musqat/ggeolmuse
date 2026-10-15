@@ -1,6 +1,7 @@
 package com.muscat.marketdata.config;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -41,21 +42,6 @@ public class CacheConfig {
   public CacheManager cacheManager() {
     log.info("Redis Cache Manager 시작");
 
-    // ObjectMapper 설정
-    ObjectMapper objectMapper = new ObjectMapper();
-    objectMapper.registerModule(new JavaTimeModule());
-    objectMapper.activateDefaultTyping(
-        BasicPolymorphicTypeValidator.builder()
-            .allowIfBaseType(Object.class)
-            .build(),
-        ObjectMapper.DefaultTyping.NON_FINAL,
-        JsonTypeInfo.As.PROPERTY
-    );
-
-    // Redis 직렬화 설정
-    GenericJackson2JsonRedisSerializer serializer =
-        new GenericJackson2JsonRedisSerializer(objectMapper);
-
     // 기본 캐시 설정 (TTL 10분)
     RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
         .entryTtl(Duration.ofMinutes(10))
@@ -63,7 +49,7 @@ public class CacheConfig {
             RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer())
         )
         .serializeValuesWith(
-            RedisSerializationContext.SerializationPair.fromSerializer(serializer)
+            RedisSerializationContext.SerializationPair.fromSerializer(valueSerializer())
         )
         .disableCachingNullValues(); // null 값은 캐싱하지 않음
 
@@ -100,5 +86,21 @@ public class CacheConfig {
         .cacheDefaults(defaultConfig)
         .withInitialCacheConfigurations(cacheConfigurations)
         .build();
+  }
+
+  // 캐시 값 직렬화. 값과 함께 타입 정보를 저장한다
+  // 모르는 필드는 무시. 되돌린 옛 코드가 새 코드가 넣은 값을 읽을 때 실패하지 않게
+  static GenericJackson2JsonRedisSerializer valueSerializer() {
+    ObjectMapper objectMapper = new ObjectMapper();
+    objectMapper.registerModule(new JavaTimeModule());
+    objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    objectMapper.activateDefaultTyping(
+        BasicPolymorphicTypeValidator.builder()
+            .allowIfBaseType(Object.class)
+            .build(),
+        ObjectMapper.DefaultTyping.NON_FINAL,
+        JsonTypeInfo.As.PROPERTY
+    );
+    return new GenericJackson2JsonRedisSerializer(objectMapper);
   }
 }

@@ -1,0 +1,39 @@
+"""core 가 쓰는 바깥 기능. infra 가 구현한다"""
+from __future__ import annotations
+
+from datetime import date
+from typing import Protocol
+
+from app.core.models import Bar, Completion, Conversation, Dividend, Quote, Turn
+
+
+class MarketData(Protocol):
+    async def quote(self, symbol: str) -> Quote | None: ...
+
+    async def bars(self, symbol: str, start: date, end: date) -> list[Bar]: ...
+
+    async def dividends(self, symbol: str, start: date, end: date) -> list[Dividend]: ...
+
+
+class LanguageModel(Protocol):
+    async def choose(self, messages: list[dict]) -> Completion: ...
+
+    async def answer(self, messages: list[dict]) -> Completion: ...
+
+
+class ConversationStore(Protocol):
+    async def create(self, user_id: str, symbol: str, name: str | None) -> Conversation: ...
+
+    async def load(self, user_id: str, conversation_id: str) -> Conversation | None: ...
+
+    async def append(self, conversation: Conversation, turn: Turn) -> None: ...
+
+
+class Quota(Protocol):
+    async def remaining(self, user_id: str) -> int: ...
+
+    async def try_acquire(self, user_id: str) -> str | None: ...
+
+    async def release(self, slot: str) -> None: ...
+
+    async def count_reject(self, user_id: str) -> bool: ...

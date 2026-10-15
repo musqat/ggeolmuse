@@ -65,6 +65,20 @@ describe('api 요청 인터셉터', () => {
     expect(calls[0].auth).toBeUndefined()
   })
 
+  it.each([
+    ['대화 시작', (chat: typeof import('./aiChatApi')) => chat.aiChatApi.startConversation('AAPL'), 'POST /chat/conversations'],
+    ['질문', (chat: typeof import('./aiChatApi')) => chat.aiChatApi.ask('c1', '안녕'), 'POST /chat'],
+    ['남은 횟수', (chat: typeof import('./aiChatApi')) => chat.aiChatApi.quota(), 'GET /chat/quota'],
+  ])('AI 채팅 %s 요청은 그 경로로 토큰을 실어 보낸다', async (_name, call, key) => {
+    localStorage.setItem('accessToken', 'A1')
+    const { chat, calls } = await setup({ [key]: [{ status: 200, data: {} }] })
+
+    await call(chat)
+
+    expect(calls.map((c) => `${c.method} ${c.url}`)).toEqual([key])
+    expect(calls[0].auth).toBe('Bearer A1')
+  })
+
   it('토큰이 없으면 헤더를 비운다', async () => {
     const { api, calls } = await setup({ 'GET /users/me': [{ status: 200, data: {} }] })
 
@@ -247,14 +261,14 @@ describe('api 응답 인터셉터 · 401', () => {
     const { api, admin, chat, calls } = await setup({
       'GET /users/me': [{ status: 401 }, { status: 200, data: { id: 7 } }],
       'GET /admin/users/stats': [{ status: 401 }, { status: 200, data: { totalUsers: 3 } }],
-      'POST /chat': [{ status: 401 }, { status: 200, data: { answer: 'ok', remaining: 4, symbol: null } }],
+      'POST /chat': [{ status: 401 }, { status: 200, data: { answer: 'ok', remaining: 4, conversation_id: 'c1', symbol: 'AAPL', rejected: null } }],
       'POST /auth/refresh': [async () => { await refreshGate; return { status: 200, data: { accessToken: 'NEW', expiresIn: 3600 } } }],
     })
 
     const me = api.authApi.getCurrentUser()
     await vi.waitFor(() => expect(calls.some((c) => c.url === '/auth/refresh')).toBe(true))
     const stats = admin.userAdminApi.getUserStats()
-    const answer = chat.aiChatApi.sendMessage('안녕')
+    const answer = chat.aiChatApi.ask('c1', '안녕')
     await vi.waitFor(() => expect(calls.filter((c) => c.url === '/admin/users/stats' || c.url === '/chat')).toHaveLength(2))
     releaseRefresh()
 

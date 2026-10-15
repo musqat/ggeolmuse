@@ -1,99 +1,77 @@
+"""앱 조립: 시작할 때 클라이언트를 만들어 흐름에 넣고, 끝날 때 닫는다"""
 from __future__ import annotations
 
-import asyncio
-from datetime import date, timedelta
+import logging
+from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+import httpx
+import redis.asyncio as aioredis
+from fastapi import FastAPI
+from openai import OpenAI
 
-from app.auth import AuthError, AuthUnavailable, extract_user_id
-from app.config import settings
-from app.deps import get_market_client, get_rate_limiter
-from app.indicators import build_indicator_summary
-from app.intent import extract_symbol, IntentResult
-from app.llm import call_analysis, call_router
-from app.market_client import MarketClient
-from app.rate_limit import RateLimiter
-from app.schemas import ChatRequest, ChatResponse
+from app.api.chat import router as chat_router
+from app.api.errors import register_error_handlers
+from app.config import Settings, settings
+from app.core.answerer import Answerer
+from app.core.chat_service import ChatService
+from app.core.router import Router
+from app.core.skills import build_skills
+from app.core.tools.market import MarketTools
+from app.infra.conversations import RedisConversationStore
+from app.infra.jwks import JwksVerifier
+from app.infra.llm import ChatModel
+from app.infra.market_api import MarketClient
+from app.infra.quota import RateLimiter
 
-app = FastAPI(title="ai-chat-service")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+
+
+def build_openai(config: Settings) -> OpenAI:
+    """OpenAI 클라이언트. 재시도 없이 호출마다 시간 제한만 둔다"""
+    return OpenAI(api_key=config.openai_api_key, max_retries=0)
+
+
+def build_chat_service(config: Settings, redis, http: httpx.AsyncClient, openai: OpenAI) -> ChatService:
+    model = ChatModel(
+        openai,
+        router_model=config.openai_model_router,
+        main_model=config.openai_model_main,
+        router_timeout=config.router_timeout_seconds,
+        answer_timeout=config.answer_timeout_seconds,
+        max_answer_tokens=config.max_answer_tokens,
+    )
+    return ChatService(
+        tools=MarketTools(MarketClient(http)),
+        store=RedisConversationStore(
+            redis,
+            ttl_seconds=config.conversation_ttl_hours * 3600,
+            max_turns=config.history_turns,
+            answer_chars=config.history_answer_chars,
+        ),
+        quota=RateLimiter(redis, limit=config.daily_limit, reject_limit=config.daily_reject_limit),
+        router=Router(model, build_skills(config.ohlc_lookback_days, config.dividend_lookback_years)),
+        answerer=Answerer(model, history_turns=config.history_turns),
+    )
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    redis = aioredis.Redis(host=settings.redis_host, port=settings.redis_port, decode_responses=True)
+    http = httpx.AsyncClient(base_url=settings.market_data_base_url, timeout=settings.market_timeout_seconds)
+    openai = build_openai(settings)
+    app.state.verify_token = JwksVerifier(settings.keycloak_jwks_url)
+    app.state.chat_service = build_chat_service(settings, redis, http, openai)
+    yield
+    await http.aclose()
+    await redis.aclose()
+    openai.close()
+
+
+app = FastAPI(title="ai-chat-service", lifespan=lifespan)
+register_error_handlers(app)
+app.include_router(chat_router)
 
 
 @app.get("/health")
 def health():
     return {"status": "UP"}
-
-
-def current_user_id(authorization: str | None = Header(default=None)) -> str:
-    try:
-        return extract_user_id(authorization)
-    except AuthUnavailable:
-        raise HTTPException(status_code=503, detail="인증 서버에 연결할 수 없습니다.")
-    except AuthError as e:
-        raise HTTPException(status_code=401, detail=str(e))
-
-
-@app.post("/api/chat", response_model=ChatResponse)
-async def chat(
-    req: ChatRequest,
-    user_id: str = Depends(current_user_id),
-    limiter: RateLimiter = Depends(get_rate_limiter),
-    market: MarketClient = Depends(get_market_client),
-):
-    # 1. 일일 한도. 먼저 한 칸을 잡고, 답을 못 주면(거절 · 실패) 돌려준다
-    slot = await limiter.try_acquire(user_id)
-    if slot is None:
-        raise HTTPException(status_code=429, detail="오늘 사용 한도를 초과했습니다.")
-    try:
-        answer, symbol, answered = await _analyze(req, market)
-    except Exception:
-        await limiter.release(slot)
-        raise
-    if not answered:
-        await limiter.release(slot)
-    return ChatResponse(
-        answer=answer,
-        remaining=await limiter.remaining(user_id),
-        symbol=symbol,
-    )
-
-
-# 종목을 정하고 분석한다. 거절이면 answered=False
-async def _analyze(
-    req: ChatRequest, market: MarketClient
-) -> tuple[str, str | None, bool]:
-    # 2. 종목 결정
-    supported = await market.fetch_supported_symbols()
-    if req.symbol:
-        # 차트 등에서 종목 확정 전달 → mini 추출 생략, 지원종목 가드만
-        sym = req.symbol.strip().upper()
-        if sym not in supported:
-            return f"{sym}는 지원하지 않는 종목입니다.", sym, False
-        intent = IntentResult(symbol=sym, valid=True, reason=None)
-    else:
-        # 자유 입력 → mini로 종목 추출 + 가드
-        intent = await extract_symbol(req.message, supported, mini_call=call_router)
-        if not intent.valid:
-            return intent.reason, intent.symbol, False
-
-    # 3. OHLC 조회
-    end = date.today()
-    start = end - timedelta(days=settings.ohlc_lookback_days)
-    try:
-        ohlc = await market.fetch_ohlc_range(
-            intent.symbol, start.isoformat(), end.isoformat()
-        )
-    except Exception:
-        raise HTTPException(status_code=503, detail="시세 데이터 조회에 실패했습니다.")
-
-    # 4. 지표 계산
-    summary = build_indicator_summary(ohlc)
-    if summary is None:
-        return f"{intent.symbol}의 분석 가능한 데이터가 충분하지 않습니다.", intent.symbol, False
-
-    # 5. 분석 생성
-    try:
-        # 동기 OpenAI 호출. 스레드에서 돌린다
-        answer = await asyncio.to_thread(call_analysis, intent.symbol, summary, req.message)
-    except Exception:
-        raise HTTPException(status_code=503, detail="AI 응답 생성에 실패했습니다.")
-    return answer, intent.symbol, True
