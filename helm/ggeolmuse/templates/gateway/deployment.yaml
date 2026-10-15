@@ -68,7 +68,7 @@ spec:
               name: ggeolmuse-secrets
               key: CONFIG_SERVER_PASSWORD
           {{- else }}
-          value: {{ .Values.gatewayServer.env.configPassword | quote }}
+          {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "CONFIG_SERVER_PASSWORD") | nindent 10 }}
           {{- end }}
         - name: KEYCLOAK_AUTH_SERVER_URL
           value: {{ .Values.global.keycloak.authServerUrl | quote }}
