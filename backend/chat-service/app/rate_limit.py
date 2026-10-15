@@ -20,12 +20,17 @@ class RateLimiter:
     async def remaining(self, user_id: str) -> int:
         return max(0, self._limit - await self._count(user_id))
 
-    async def is_allowed(self, user_id: str) -> bool:
-        return await self._count(user_id) < self._limit
-
-    async def increment(self, user_id: str) -> int:
+    # 오늘 한 칸을 잡고 그 키를 준다. 먼저 올려(INCR) 동시에 와도 한도를 안 넘는다. 넘으면 되돌리고 None
+    async def try_acquire(self, user_id: str) -> str | None:
         key = self._key(user_id)
-        new_val = await self._redis.incr(key)
-        if new_val == 1:
+        count = await self._redis.incr(key)
+        if count == 1:
             await self._redis.expire(key, self._ttl)
-        return new_val
+        if count > self._limit:
+            await self._redis.decr(key)
+            return None
+        return key
+
+    # 잡은 칸을 돌려준다. 자정을 넘겨도 잡은 날의 키를 쓴다
+    async def release(self, key: str) -> None:
+        await self._redis.decr(key)

@@ -1,3 +1,5 @@
+import asyncio
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -80,6 +82,60 @@ def test_symbol_param_unsupported_rejected(client):
 async def test_quota_exhausted_returns_429(client):
     c, limiter, _ = client
     for _ in range(5):
-        await limiter.increment("user-1")
+        await limiter.try_acquire("user-1")
     res = c.post("/api/chat", json={"message": "AAPL 어때?"})
     assert res.status_code == 429
+
+
+class _DownMarket(_FakeMarket):
+    async def fetch_ohlc_range(self, symbol, start, end):
+        raise RuntimeError("market-data down")
+
+
+@pytest.mark.asyncio
+async def test_market_failure_returns_slot(client):
+    c, limiter, _ = client
+    app.dependency_overrides[get_market_client] = lambda: _DownMarket()
+    res = c.post("/api/chat", json={"message": "AAPL 어때?"})
+    assert res.status_code == 503
+    assert await limiter.remaining("user-1") == 5
+
+
+@pytest.mark.asyncio
+async def test_analysis_failure_returns_slot(client):
+    c, limiter, monkeypatch = client
+
+    def _fail(symbol, summary, question):
+        raise RuntimeError("openai down")
+    monkeypatch.setattr(main, "call_analysis", _fail)
+    res = c.post("/api/chat", json={"message": "AAPL 어때?"})
+    assert res.status_code == 503
+    assert await limiter.remaining("user-1") == 5
+
+
+def _on_event_loop() -> bool:
+    try:
+        asyncio.get_running_loop()
+        return True
+    except RuntimeError:
+        return False
+
+
+def test_ai_calls_run_off_event_loop(client):
+    # 동기 OpenAI 호출을 루프에서 부르면 답을 기다리는 동안 다른 요청 · /health 가 멈춘다
+    c, _, monkeypatch = client
+    seen = []
+
+    def _router(msg):
+        seen.append(("router", _on_event_loop()))
+        return '{"symbol": "AAPL"}'
+
+    def _analysis(symbol, summary, question):
+        seen.append(("analysis", _on_event_loop()))
+        return "답"
+
+    monkeypatch.setattr(main, "call_router", _router)
+    monkeypatch.setattr(main, "call_analysis", _analysis)
+    res = c.post("/api/chat", json={"message": "AAPL 어때?"})
+    assert res.status_code == 200
+    assert seen == [("router", False), ("analysis", False)]
