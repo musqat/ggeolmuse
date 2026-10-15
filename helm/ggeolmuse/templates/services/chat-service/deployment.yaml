@@ -29,6 +29,7 @@ spec:
           value: {{ .Values.global.redis.host | quote }}
         - name: REDIS_PORT
           value: {{ .Values.global.redis.port | quote }}
+        {{- include "ggeolmuse.redisPasswordEnv" (dict "Values" .Values "envName" "REDIS_PASSWORD") | nindent 8 }}
         - name: MARKET_DATA_BASE_URL
           value: "http://market-data-service:8083"
         - name: KEYCLOAK_JWKS_URL

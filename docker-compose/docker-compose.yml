@@ -465,6 +465,7 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      REDIS_PASSWORD: "${REDIS_PASSWORD}"
       MARKET_DATA_BASE_URL: http://market-data-service:8083
       KEYCLOAK_JWKS_URL: http://keycloak:8080/realms/custom/protocol/openid-connect/certs
     depends_on:

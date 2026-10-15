@@ -10,6 +10,7 @@ class Settings(BaseSettings):
 
     redis_host: str = "redis"
     redis_port: int = 6379
+    redis_password: str = ""  # 비어 있으면 보내지 않는다
 
     market_data_base_url: str = "http://market-data-service:8083"
 
