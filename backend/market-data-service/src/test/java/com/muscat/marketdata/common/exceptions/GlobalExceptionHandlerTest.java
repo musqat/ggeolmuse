@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mock.env.MockEnvironment;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.method.annotation.ExceptionHandlerMethodResolver;
 import jakarta.validation.ConstraintViolation;
@@ -26,7 +27,7 @@ import java.util.List;
 @DisplayName("market-data 예외 응답 변환")
 class GlobalExceptionHandlerTest {
 
-  private final GlobalExceptionHandler handler = new GlobalExceptionHandler();
+  private final GlobalExceptionHandler handler = handlerWithProfiles();
 
   @Test
   @DisplayName("서비스 예외는 BOM 에서 상속한 핸들러가, 외부 API 예외와 그 밖의 예외는 서비스 핸들러가 받는다")
@@ -119,18 +120,28 @@ class GlobalExceptionHandlerTest {
   }
 
   @Test
-  @DisplayName("예상하지 못한 예외는 개발 프로필에서만 내용을 싣고, 운영에서는 감춘다")
+  @DisplayName("예상하지 못한 예외는 켜진 프로필 중 개발용이 있을 때만 내용을 싣고, 운영 · 프로필 없음에서는 감춘다")
   void generalException_DetailByProfile() {
     MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/market/price/AAPL");
     IllegalStateException leak = new IllegalStateException("jdbc:postgresql://db/secret");
+    String detail = "jdbc:postgresql://db/secret - IllegalStateException";
+    String hidden = "시장 데이터 서비스에 문제가 발생했습니다.";
 
-    org.springframework.test.util.ReflectionTestUtils.setField(handler, "currentProfile", "local");
-    ResponseEntity<ProblemDetail> local = handler.handleGeneralException(leak, request);
-    org.springframework.test.util.ReflectionTestUtils.setField(handler, "currentProfile", "prod");
-    ResponseEntity<ProblemDetail> prod = handler.handleGeneralException(leak, request);
+    ResponseEntity<ProblemDetail> dev = handlerWithProfiles("dev", "no-file-logging").handleGeneralException(leak, request);
+    ResponseEntity<ProblemDetail> local = handlerWithProfiles("local").handleGeneralException(leak, request);
+    ResponseEntity<ProblemDetail> prod = handlerWithProfiles("prod").handleGeneralException(leak, request);
+    ResponseEntity<ProblemDetail> none = handlerWithProfiles().handleGeneralException(leak, request);
 
-    assertThat(local.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-    assertThat(Objects.requireNonNull(local.getBody()).getDetail()).isEqualTo("jdbc:postgresql://db/secret - IllegalStateException");
-    assertThat(Objects.requireNonNull(prod.getBody()).getDetail()).isEqualTo("시장 데이터 서비스에 문제가 발생했습니다.");
+    assertThat(dev.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+    assertThat(Objects.requireNonNull(dev.getBody()).getDetail()).isEqualTo(detail);
+    assertThat(Objects.requireNonNull(local.getBody()).getDetail()).isEqualTo(detail);
+    assertThat(Objects.requireNonNull(prod.getBody()).getDetail()).isEqualTo(hidden);
+    assertThat(Objects.requireNonNull(none.getBody()).getDetail()).isEqualTo(hidden);
+  }
+
+  private static GlobalExceptionHandler handlerWithProfiles(String... profiles) {
+    MockEnvironment environment = new MockEnvironment();
+    environment.setActiveProfiles(profiles);
+    return new GlobalExceptionHandler(environment);
   }
 }

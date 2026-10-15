@@ -41,7 +41,8 @@ public class SecurityConfig {
     return NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
   }
 
-  //Keycloak JWT를 Spring Security 권한으로 변환  @Bean
+  // Keycloak JWT를 Spring Security 권한으로 변환
+  @Bean
   public KeycloakJwtAuthenticationConverter jwtAuthenticationConverter() {
     return new KeycloakJwtAuthenticationConverter();
   }
