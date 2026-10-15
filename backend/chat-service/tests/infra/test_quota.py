@@ -22,8 +22,8 @@ async def test_acquire_until_limit(fake_redis):
     assert await rl.remaining("user1") == 0
 
 
-async def test_concurrent_acquire_never_exceeds_limit(fake_redis):
-    rl = _limiter(fake_redis)
+async def test_concurrent_acquire_never_exceeds_limit(interleaving_redis):
+    rl = _limiter(interleaving_redis)
     slots = await asyncio.gather(*(rl.try_acquire("user1") for _ in range(12)))
     assert sum(slot is not None for slot in slots) == 5
     assert await rl.remaining("user1") == 0

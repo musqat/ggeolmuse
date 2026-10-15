@@ -45,8 +45,8 @@ async def test_append_keeps_last_turns_and_refreshes_ttl(fake_redis):
     assert 0 < await fake_redis.ttl(f"aichat:conv:u1:{conversation.id}:turns") <= 100
 
 
-async def test_concurrent_appends_keep_both(fake_redis):
-    store = _store(fake_redis)
+async def test_concurrent_appends_keep_both(interleaving_redis):
+    store = _store(interleaving_redis)
     conversation = await store.create("u1", "AAPL", None)
     await asyncio.gather(*(store.append(conversation, Turn(question=f"q{i}", answer="a", skill="trend"))
                            for i in range(2)))
