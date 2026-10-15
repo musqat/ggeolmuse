@@ -8,6 +8,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -77,20 +79,39 @@ public class AssetEventProducer {
         log.debug("종목 생성 이벤트 발행 중: symbol={}, collectData={}",
                 asset.getSymbol(), collectData);
 
-        CompletableFuture<SendResult<String, AssetCreatedEvent>> future =
-                assetCreatedKafkaTemplate.send(ASSET_CREATED_TOPIC, asset.getSymbol(), event);
+        // 트랜잭션 안이면 커밋 뒤에 전송. 먼저 보내면 수집 컨슈머가 빈 종목을 봄
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    sendAssetCreated(event);
+                }
+            });
+        } else {
+            sendAssetCreated(event);
+        }
+    }
 
-        future.whenComplete((result, ex) -> {
-            if (ex == null) {
-                log.debug("종목 생성 이벤트 발행 성공: topic={}, partition={}, offset={}, symbol={}",
-                        ASSET_CREATED_TOPIC,
-                        result.getRecordMetadata().partition(),
-                        result.getRecordMetadata().offset(),
-                        asset.getSymbol());
-            } else {
-                log.error("종목 생성 이벤트 발행 실패: symbol={}, error={}",
-                        asset.getSymbol(), ex.getMessage(), ex);
-            }
-        });
+    // 전송 실패는 로그만. 종목 등록은 이미 커밋됨
+    private void sendAssetCreated(AssetCreatedEvent event) {
+        try {
+            CompletableFuture<SendResult<String, AssetCreatedEvent>> future =
+                    assetCreatedKafkaTemplate.send(ASSET_CREATED_TOPIC, event.getSymbol(), event);
+
+            future.whenComplete((result, ex) -> {
+                if (ex == null) {
+                    log.debug("종목 생성 이벤트 발행 성공: topic={}, partition={}, offset={}, symbol={}",
+                            ASSET_CREATED_TOPIC,
+                            result.getRecordMetadata().partition(),
+                            result.getRecordMetadata().offset(),
+                            event.getSymbol());
+                } else {
+                    log.error("종목 생성 이벤트 발행 실패: symbol={}, error={}",
+                            event.getSymbol(), ex.getMessage(), ex);
+                }
+            });
+        } catch (Exception e) {
+            log.error("종목 생성 이벤트 발행 실패: symbol={}, error={}", event.getSymbol(), e.getMessage(), e);
+        }
     }
 }

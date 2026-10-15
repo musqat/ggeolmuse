@@ -3,6 +3,7 @@ package com.muscat.marketdata.config;
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.repository.AssetRepository;
 import com.muscat.marketdata.infra.kafka.AssetEventProducer;
+import com.muscat.marketdata.datasource.common.SymbolCatalog;
 import com.muscat.marketdata.datasource.yf.client.NasdaqScreenerClient;
 import com.muscat.marketdata.datasource.yf.client.NasdaqScreenerParser;
 import lombok.RequiredArgsConstructor;
@@ -56,6 +57,10 @@ public class SymbolFileLoader implements CommandLineRunner {
     @Value("${marketdata.symbol-loader.include-dividends:true}")
     private boolean includeDividends;
 
+    // 보통주가 아닌 종목을 거를 이름 패턴
+    @Value("${marketdata.symbol-loader.exclude-name-patterns:" + SymbolCatalog.DEFAULT_EXCLUDE_NAME_PATTERNS + "}")
+    private String excludeNamePatterns;
+
     @Value("${marketdata.symbol-loader.max-symbols:0}")
     private int maxSymbols;  // 0 = 무제한, N = 시가총액 상위 N개
 
@@ -82,6 +87,8 @@ public class SymbolFileLoader implements CommandLineRunner {
             log.warn("API 로드 실패, CSV 파일로 fallback");
             allAssets = loadFromCsvFiles();
         }
+
+        allAssets = SymbolCatalog.excludeByNamePatterns(allAssets, excludeNamePatterns);
 
         // 3. DB 저장
         if (!allAssets.isEmpty()) {
@@ -208,7 +215,8 @@ public class SymbolFileLoader implements CommandLineRunner {
                     }
 
                     // CSV 파싱
-                    String[] parts = line.split(",");
+                    // 끝의 빈 칸 유지(-1). 빼면 업종 · 산업이 빈 행이 빠짐
+                    String[] parts = line.split(",", -1);
                     if (parts.length < 11) {
                         log.warn("잘못된 CSV 라인 (컬럼 수 부족): {}", line);
                         continue;
@@ -220,6 +228,7 @@ public class SymbolFileLoader implements CommandLineRunner {
                         String marketCapStr = parts[5].trim();
                         String country = parts[6].trim();
                         String sector = parts[9].trim();
+                        String industry = parts[10].trim();
 
                         // Market Cap 파싱 (예: "3899609280300.00" -> Long)
                         Long marketCap = null;
@@ -237,7 +246,7 @@ public class SymbolFileLoader implements CommandLineRunner {
                         }
 
                         // Asset Type 판별 (EQUITY vs ETF)
-                        String assetType = determineAssetType(name);
+                        String assetType = NasdaqScreenerParser.determineAssetType(name, industry);
 
                         // Asset 생성
                         Asset asset = Asset.builder()
@@ -263,29 +272,5 @@ public class SymbolFileLoader implements CommandLineRunner {
         }
 
         return assets;
-    }
-
-    /**
-     * 종목명을 분석하여 Asset Type 판별 (EQUITY vs ETF)
-     */
-    private String determineAssetType(String name) {
-        if (name == null) {
-            return "EQUITY";
-        }
-
-        String nameLower = name.toLowerCase();
-
-        // ETF 관련 키워드 체크
-        if (nameLower.contains(" etf") ||
-            nameLower.contains("exchange traded fund") ||
-            nameLower.contains(" trust") ||
-            nameLower.contains(" fund") ||
-            nameLower.contains("index fund") ||
-            nameLower.endsWith(" etf")) {
-            return "ETF";
-        }
-
-        // 기본값: EQUITY
-        return "EQUITY";
     }
 }

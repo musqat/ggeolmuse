@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.regex.Pattern;
 import java.util.List;
 
 /**
@@ -85,8 +86,11 @@ public class NasdaqScreenerParser {
         // Sector (선택, 로그용)
         String sector = getTextValue(row, "sector");
 
+        // Industry (선택, ETF 판별용)
+        String industry = getTextValue(row, "industry");
+
         // Asset Type 판별 (EQUITY vs ETF)
-        String assetType = determineAssetType(name);
+        String assetType = determineAssetType(name, industry);
 
         // Asset 생성
         Asset asset = Asset.builder()
@@ -104,27 +108,24 @@ public class NasdaqScreenerParser {
         return asset;
     }
 
+    private static final Pattern ETF_WORD = Pattern.compile("\\betf\\b", Pattern.CASE_INSENSITIVE);
+
     /**
-     * 종목명을 분석하여 Asset Type 판별 (EQUITY vs ETF)
+     * 종목 유형 판별 (EQUITY vs ETF)
+     * 이름에 ETF 단어가 있으면 ETF. trust · fund 는 산업 칸이 빌 때만 ETF(은행 · 리츠 제외)
      */
-    private String determineAssetType(String name) {
+    public static String determineAssetType(String name, String industry) {
         if (name == null) {
             return "EQUITY";
         }
-
         String nameLower = name.toLowerCase();
-
-        // ETF 관련 키워드 체크
-        if (nameLower.contains(" etf") ||
-            nameLower.contains("exchange traded fund") ||
-            nameLower.contains(" trust") ||
-            nameLower.contains(" fund") ||
-            nameLower.contains("index fund") ||
-            nameLower.endsWith(" etf")) {
+        if (ETF_WORD.matcher(name).find() || nameLower.contains("exchange traded fund")) {
             return "ETF";
         }
-
-        // 기본값: EQUITY
+        boolean trustOrFund = nameLower.contains(" trust") || nameLower.contains(" fund");
+        if (trustOrFund && (industry == null || industry.isBlank())) {
+            return "ETF";
+        }
         return "EQUITY";
     }
 

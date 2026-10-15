@@ -11,6 +11,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import com.muscat.marketdata.datasource.common.SymbolCatalog;
 import com.muscat.marketdata.datasource.yf.client.NasdaqScreenerClient;
 import com.muscat.marketdata.datasource.yf.client.NasdaqScreenerParser;
 import com.muscat.marketdata.domain.entity.Asset;
@@ -41,6 +42,7 @@ class SymbolFileLoaderTest {
     ReflectionTestUtils.setField(loader, "collectDataEnabled", false);
     ReflectionTestUtils.setField(loader, "lookbackDays", 30);
     ReflectionTestUtils.setField(loader, "includeDividends", true);
+    ReflectionTestUtils.setField(loader, "excludeNamePatterns", SymbolCatalog.DEFAULT_EXCLUDE_NAME_PATTERNS);
   }
 
   @SuppressWarnings("unchecked")
@@ -66,11 +68,13 @@ class SymbolFileLoaderTest {
   void loadsFromScreener() throws Exception {
     given(nasdaqClient.getAllStocks("nyse", "mega|large")).willReturn("nyse");
     given(nasdaqClient.getAllStocks("nasdaq", "mega|large")).willReturn("nasdaq");
-    given(nasdaqParser.parseStocks("nyse")).willReturn(List.of(Asset.builder().symbol("JPM").build()));
+    given(nasdaqParser.parseStocks("nyse")).willReturn(List.of(Asset.builder().symbol("JPM").build(),
+      Asset.builder().symbol("XYZW").name("XYZ Acquisition Corp. Warrants").build()));
     given(nasdaqParser.parseStocks("nasdaq")).willReturn(List.of(Asset.builder().symbol("AAPL").build()));
 
     loader.run();
 
+    // 워런트 제외
     assertThat(saved()).extracting(Asset::getSymbol).containsExactly("JPM", "AAPL");
     verify(producer, never()).publishAssetCreated(any(), anyBoolean(), any(), any(), anyBoolean());
   }
@@ -89,6 +93,13 @@ class SymbolFileLoaderTest {
       assertThat(agilent.getCountry()).isEqualTo("US");
       assertThat(agilent.getAssetType()).isEqualTo("EQUITY");
     });
+    // 이름에 Trust 인 은행은 주식. 산업 칸 빈 ETF 행도 적재
+    assertThat(assets).filteredOn(asset -> asset.getSymbol().equals("NTRS")).singleElement()
+      .extracting(Asset::getAssetType).isEqualTo("EQUITY");
+    assertThat(assets).filteredOn(asset -> asset.getSymbol().equals("IBIT")).singleElement()
+      .extracting(Asset::getAssetType).isEqualTo("ETF");
+    // 워런트 · 우선주 예탁증서 제외
+    assertThat(assets).extracting(Asset::getSymbol).doesNotContain("EXEEL", "AGNCL");
   }
 
   @Test

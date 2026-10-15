@@ -35,7 +35,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 
-// provider=alphavantage 일 때만 뜨는 일괄 수집 컨트롤러. 경로가 /batch 라 보안 설정의 "그 밖은 모두 거부"에 걸려 밖에서는 닿지 않는다
+// provider=alphavantage 일 때만 뜨는 일괄 수집 컨트롤러. 관리자 경로 아래라 admin 만 닿음
 @DisplayName("일괄 수집 컨트롤러")
 class DataCollectionControllerTest {
 
@@ -126,15 +126,25 @@ class DataCollectionControllerTest {
     private JwtDecoder jwtDecoder;
 
     @Test
-    @DisplayName("/batch 는 토큰이 없으면 401, admin 토큰이어도 403 이고 서비스까지 가지 않는다")
-    void closed() throws Exception {
-      given(jwtDecoder.decode("admin-token")).willReturn(Jwt.withTokenValue("admin-token").header("alg", "none")
-        .subject("user-1").claim("realm_access", Map.of("roles", List.of("admin"))).build());
+    @DisplayName("일괄 수집은 토큰이 없으면 401, admin 이 아니면 403 이고 admin 이면 서비스까지 간다")
+    void adminOnly() throws Exception {
+      given(jwtDecoder.decode("admin-token")).willReturn(jwt("admin-token", "admin"));
+      given(jwtDecoder.decode("user-token")).willReturn(jwt("user-token", "user"));
+      given(batchService.loadSymbols()).willReturn(List.of("AAPL"));
 
-      mockMvc.perform(get("/batch/status")).andExpect(status().isUnauthorized());
-      mockMvc.perform(post("/batch/candles").header(HttpHeaders.AUTHORIZATION, "Bearer admin-token")).andExpect(status().isForbidden());
-
+      mockMvc.perform(get("/api/admin/market/batch/status")).andExpect(status().isUnauthorized());
+      mockMvc.perform(post("/api/admin/market/batch/candles").header(HttpHeaders.AUTHORIZATION, "Bearer user-token"))
+        .andExpect(status().isForbidden());
       verify(batchService, never()).loadSymbols();
+
+      mockMvc.perform(get("/api/admin/market/batch/status").header(HttpHeaders.AUTHORIZATION, "Bearer admin-token"))
+        .andExpect(status().isOk());
+      verify(batchService).loadSymbols();
+    }
+
+    private static Jwt jwt(String token, String role) {
+      return Jwt.withTokenValue(token).header("alg", "none")
+        .subject("user-1").claim("realm_access", Map.of("roles", List.of(role))).build();
     }
   }
 }

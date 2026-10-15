@@ -33,16 +33,17 @@ class DataCollectionServiceTest {
   }
 
   @Test
-  @DisplayName("배당을 넣으면 캔들 · 배당을 같이, 빼면 캔들만 받고 완료를 알린다")
+  @DisplayName("배당을 넣으면 캔들 · 배당 건수를 따로, 빼면 캔들만 받아 완료를 알린다")
   void collects() {
-    given(updateService.saveBoth("AAPL", FROM, TO)).willReturn(12);
     given(updateService.saveCandles("AAPL", FROM, TO)).willReturn(10);
+    given(updateService.saveDividends("AAPL", FROM, TO)).willReturn(2);
 
     service.collect(event(true));
     service.collect(event(false));
 
-    verify(producer).publishCompleted(eq("AAPL"), eq(FROM), eq(TO), eq(12), eq(0), anyLong());
+    verify(producer).publishCompleted(eq("AAPL"), eq(FROM), eq(TO), eq(10), eq(2), anyLong());
     verify(producer).publishCompleted(eq("AAPL"), eq(FROM), eq(TO), eq(10), eq(0), anyLong());
+    verify(updateService).saveDividends("AAPL", FROM, TO);
   }
 
   @Test

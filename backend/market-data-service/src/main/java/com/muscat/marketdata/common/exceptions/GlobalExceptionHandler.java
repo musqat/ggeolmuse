@@ -12,10 +12,12 @@ import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.ElementKind;
 import jakarta.validation.Path;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -29,10 +31,12 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
     DataCollectionController.class
 })
 @Slf4j
+@RequiredArgsConstructor
 public class GlobalExceptionHandler extends BaseExceptionHandler {
 
-    @Value("${spring.profiles.active:dev}")
-    private String currentProfile;
+    private static final List<String> DEVELOPMENT_PROFILES = List.of("dev", "development", "local");
+
+    private final Environment environment;
 
     @ExceptionHandler(YahooFinanceException.class)
     public ResponseEntity<ProblemDetail> handleYahooFinanceException(YahooFinanceException e, HttpServletRequest request) {
@@ -171,8 +175,8 @@ public class GlobalExceptionHandler extends BaseExceptionHandler {
         return ResponseEntity.status(MarketDataResponse.INTERNAL_SERVER_ERROR.getHttpStatus()).body(problem);
     }
 
+    // 켜진 프로필 중 하나라도 개발용이면 true
     private boolean isDevelopmentEnvironment() {
-        String[] activeProfiles = {"dev", "development", "local"};
-        return Arrays.asList(activeProfiles).contains(currentProfile);
+        return Arrays.stream(environment.getActiveProfiles()).anyMatch(DEVELOPMENT_PROFILES::contains);
     }
 }

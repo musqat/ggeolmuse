@@ -131,21 +131,22 @@ class AlphaVantageSourcesTest {
     private final FxSource source = new FxSource(client, limiter);
 
     private static final String FX = "{\"Time Series FX (Daily)\":{\"2024-03-05\":{\"4. close\":\"1331.5\"},"
-      + "\"2024-03-04\":{\"1. open\":\"1330\"}}}";
+      + "\"2024-03-04\":{\"1. open\":\"1330\"},\"2024-03-01\":{\"4. close\":\"13.315\"}}}";
 
     @Test
-    @DisplayName("그날 종가를 환율로 주고, 그날이 없거나 묶음이 없으면 비운다")
+    @DisplayName("그날 종가를 환율로 주고, 그날이 없거나 정상 범위 밖이거나 묶음이 없으면 비운다")
     void singleDay() {
       given(client.get("FX_DAILY", Map.of("from_symbol", "USD", "to_symbol", "KRW", "outputsize", "full")))
-        .willReturn(json(FX), json(FX), json("{}"));
+        .willReturn(json(FX), json(FX), json(FX), json("{}"));
 
       assertThat(source.fetchFx(LocalDate.of(2024, 3, 5))).hasValueSatisfying(rate -> assertThat(rate).isEqualByComparingTo("1331.5"));
       assertThat(source.fetchFx(LocalDate.of(2024, 3, 6))).isEmpty();
+      assertThat(source.fetchFx(LocalDate.of(2024, 3, 1))).isEmpty();
       assertThat(source.fetchFx(LocalDate.of(2024, 3, 5))).isEmpty();
     }
 
     @Test
-    @DisplayName("전체 환율은 날짜별로 모으고 종가가 없는 날은 건너뛰며, 묶음이 없으면 빈 맵")
+    @DisplayName("전체 환율은 날짜별로 모으고 종가가 없거나 정상 범위 밖인 날은 건너뛰며, 묶음이 없으면 빈 맵")
     void allDays() {
       given(client.get(anyString(), anyMap())).willReturn(json(FX), json("{}"));
 

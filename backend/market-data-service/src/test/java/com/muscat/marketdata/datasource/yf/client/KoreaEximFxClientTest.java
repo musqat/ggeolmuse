@@ -61,6 +61,16 @@ class KoreaEximFxClientTest {
   }
 
   @Test
+  @DisplayName("USD 기준환율이 정상 범위(500 ~ 2000원) 밖이면 버린다")
+  void dropsOutOfRange() {
+    respond("""
+      [ {"cur_unit":"USD","deal_bas_r":"13.315"} ]
+      """);
+
+    assertThat(client.fetchFx(LocalDate.of(2024, 3, 4))).isEmpty();
+  }
+
+  @Test
   @DisplayName("휴일처럼 빈 응답이거나 배열이 아니거나 서버 오류면 비운다")
   void emptyResults() {
     server.expect(requestTo(URL)).andRespond(withSuccess("", MediaType.APPLICATION_JSON));

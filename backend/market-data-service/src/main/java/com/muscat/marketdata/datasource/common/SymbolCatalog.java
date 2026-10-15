@@ -44,14 +44,11 @@ public class SymbolCatalog {
   @Value("${marketdata.symbol-listing.csv-fallback:false}")
   private boolean csvFallback;
 
-  // 보통주가 아닌 것을 이름으로 거른다. 백테스트는 주식을 전제하므로
-  // 워런트·유닛·신주인수권·우선주·채권이 섞이면 결과가 뒤틀린다.
-  //
-  // 티커 접미사(W, WS)로 거르면 안 된다. LOW(Lowe's), GLW(Corning) 처럼
-  // 정상 종목을 잡는다. 이름 기준이 안전하다.
-  //
-  // " units" 앞의 공백은 United 를 피하기 위한 것이다. 지우지 말 것.
-  @Value("${marketdata.symbol-loader.exclude-name-patterns:warrant, units,rights,preferred,depositary,notes due}")
+  // 보통주가 아닌 종목(워런트 · 유닛 · 우선주 · 채권)을 거를 이름 패턴. 티커 접미사(W, WS)는 LOW · GLW 도 잡아 안 씀
+  // " units" 앞 공백은 United 를 피하려는 것. 지우지 말 것
+  public static final String DEFAULT_EXCLUDE_NAME_PATTERNS = "warrant, units,rights,preferred,depositary,notes due";
+
+  @Value("${marketdata.symbol-loader.exclude-name-patterns:" + DEFAULT_EXCLUDE_NAME_PATTERNS + "}")
   private String excludeNamePatterns;
 
   // asset.symbol 칸 길이. 넘는 심볼은 INSERT 가 실패한다
@@ -136,17 +133,24 @@ public class SymbolCatalog {
     return kept;
   }
 
-  /**
-   * 이름으로 보통주가 아닌 것을 걸러낸다.
-   *
-   * 워런트는 만료일이 있어 그 구간을 지나면 데이터가 끊긴다. 백테스트에 넣으면
-   * 중간에 값이 사라져 수익률이 의미를 잃는다. 우선주와 채권은 배당 구조가 달라
-   * 주식 전제로 계산하면 틀린다.
-   *
-   * ETF 는 거르지 않는다. 만료되지 않고 주식처럼 거래되므로 백테스트에 유효하다.
-   */
+  // 보통주가 아닌 종목 제외. ETF 는 남김(만료 없이 주식처럼 거래)
   List<Asset> excludeNonCommonStock(List<Asset> assets) {
-    List<String> patterns = java.util.Arrays.stream(excludeNamePatterns.split(","))
+    List<Asset> kept = excludeByNamePatterns(assets, excludeNamePatterns);
+
+    int removed = assets.size() - kept.size();
+    if (removed > 0) {
+      log.info("[종목목록] 보통주가 아닌 종목 제외: {}개", removed);
+    }
+
+    return kept;
+  }
+
+  // 이름에 패턴(쉼표 구분)이 든 종목 제외
+  public static List<Asset> excludeByNamePatterns(List<Asset> assets, String patternsCsv) {
+    if (patternsCsv == null) {
+      return assets;
+    }
+    List<String> patterns = java.util.Arrays.stream(patternsCsv.split(","))
         .map(String::toLowerCase)
         .filter(p -> !p.isBlank())
         .toList();
@@ -155,7 +159,7 @@ public class SymbolCatalog {
       return assets;
     }
 
-    List<Asset> kept = assets.stream()
+    return assets.stream()
         .filter(a -> {
           String name = a.getName();
           if (name == null) {
@@ -165,12 +169,5 @@ public class SymbolCatalog {
           return patterns.stream().noneMatch(lower::contains);
         })
         .toList();
-
-    int removed = assets.size() - kept.size();
-    if (removed > 0) {
-      log.info("[종목목록] 보통주가 아닌 종목 제외: {}개", removed);
-    }
-
-    return kept;
   }
 }

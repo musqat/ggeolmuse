@@ -42,7 +42,9 @@ public class CandleServiceImpl implements CandleService {
   private final CacheManager cacheManager;
 
   @Override
-  @Cacheable(cacheNames = "ohlc", key = "#symbol.toUpperCase() + ':' + #date")
+  // 시세 있는 응답만 캐시. 없음까지 캐시하면 수집 직후에도 TTL 동안 없다고 답함
+  @Cacheable(cacheNames = "ohlc", key = "#symbol.toUpperCase() + ':' + #date",
+    unless = "#result == null || !#result.available")
   public OHLCPriceDto getOHLCPrice(String symbol, LocalDate date) {
     log.debug("OHLC 조회 요청: symbol={}, date={}", symbol, date);
 
@@ -114,7 +116,8 @@ public class CandleServiceImpl implements CandleService {
   }
 
   @Override
-  @Cacheable(cacheNames = "currentPrice", key = "#symbol.toUpperCase()")
+  @Cacheable(cacheNames = "currentPrice", key = "#symbol.toUpperCase()",
+    unless = "#result == null || !#result.available")
   public StockPriceDto getCurrentPrice(String symbol) {
     log.debug("현재가 조회 요청: symbol={}", symbol);
 
