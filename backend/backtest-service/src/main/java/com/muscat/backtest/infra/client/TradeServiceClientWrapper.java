@@ -1,7 +1,10 @@
 package com.muscat.backtest.infra.client;
 
+import com.muscat.backtest.common.enums.BacktestResponse;
+import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.infra.client.dto.HoldingDto;
 import com.muscat.backtest.infra.client.dto.TradeDto;
+import feign.FeignException;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
@@ -43,8 +46,12 @@ public class TradeServiceClientWrapper {
 
   // Fallback 메서드
   private List<HoldingDto> getPortfolioFallback(String authorization, Exception ex) {
+    // 4xx 는 장애가 아니다. 서비스 불가로 바꾸지 않고 그대로 올린다
+    if (ex instanceof FeignException.FeignClientException clientError) {
+      throw clientError;
+    }
     log.error("Fallback triggered for getPortfolio. Error: {}", ex.getMessage());
-    throw new RuntimeException("Trade service is currently unavailable. Cannot retrieve portfolio.", ex);
+    throw new BacktestException(BacktestResponse.TRADE_SERVICE_UNAVAILABLE, ex);
   }
 
   private List<TradeDto> getTradeHistoryBySymbolFallback(String authorization, String symbol, Exception ex) {

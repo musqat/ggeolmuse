@@ -652,6 +652,30 @@ class DCAStrategyTest {
     }
 
     @Test
+    @DisplayName("투자일이 그달에 없으면 말일에 사고, 환율도 같은 날짜로 받는다")
+    void purchaseDayClampedToMonthEnd() {
+      DcaStrategyRequest request = base().endDate(LocalDate.of(2024, 4, 30)).purchaseDay(31).build();
+      given(marketDataClient.getOHLCPriceRange(symbol, "2024-01-01", "2024-04-30")).willReturn(List.of(
+        createOHLC(LocalDate.of(2024, 1, 31), new BigDecimal("100")), createOHLC(LocalDate.of(2024, 2, 29), new BigDecimal("100")),
+        createOHLC(LocalDate.of(2024, 3, 31), new BigDecimal("100")), createOHLC(LocalDate.of(2024, 4, 30), new BigDecimal("100"))));
+      given(marketDataClient.getBulkFxRates(any())).willReturn(java.util.Map.of());
+      given(marketDataClient.getOHLCPrice(eq(symbol), anyString())).willReturn(createOHLC(LocalDate.of(2024, 4, 30), new BigDecimal("100")));
+      given(marketDataClient.getFxRate(anyString())).willReturn(new FxRateDto(LocalDate.of(2024, 4, 30), new BigDecimal("1300")));
+      given(marketDataClient.getDividendHistory(eq(symbol), anyString(), anyString())).willReturn(List.of());
+      given(responseMapper.toStrategyResponse(any(DcaStrategyRequest.class), any(), any(), any()))
+        .willReturn(StrategyResponse.builder().build());
+
+      dcaStrategy.executeDca(request);
+
+      @SuppressWarnings("unchecked")
+      ArgumentCaptor<List<String>> fxDates = ArgumentCaptor.forClass(List.class);
+      verify(marketDataClient).getBulkFxRates(fxDates.capture());
+      assertThat(fxDates.getValue()).containsExactly("2024-01-31", "2024-02-29", "2024-03-31", "2024-04-30");
+      assertThat(executed()).extracting(StrategyTransaction::getDate).containsExactly(
+        LocalDate.of(2024, 1, 31), LocalDate.of(2024, 2, 29), LocalDate.of(2024, 3, 31), LocalDate.of(2024, 4, 30));
+    }
+
+    @Test
     @DisplayName("종료일이 오늘 이후면 오늘까지만 조회하고 현재가로 평가한다")
     void futureEndDate() {
       LocalDate today = LocalDate.now();

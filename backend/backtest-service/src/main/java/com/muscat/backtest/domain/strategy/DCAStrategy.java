@@ -129,30 +129,19 @@ public class DCAStrategy implements InvestmentStrategy {
     Map<LocalDate, OHLCPriceDto> priceMap = BacktestDataUtils.buildPriceMap(
       marketDataClient, request.getSymbol(), request.getStartDate(), actualEndDate);
 
-    //  BULK API 사용: 매월 투자일의 환율 데이터를 한 번에 조회
+    // 투자일 목록. 환율 조회와 매수가 같은 날짜를 쓴다
+    List<LocalDate> investmentDates = investmentDates(
+      request.getStartDate(), actualEndDate, investmentDay, interval);
+
+    //  BULK API 사용: 투자일의 환율 데이터를 한 번에 조회
     Map<LocalDate, BigDecimal> fxRateMap = new HashMap<>();
     if (request.getPurchaseFxRate() == null) {
-      // 매월 투자일 계산
-      List<LocalDate> investmentDates = new ArrayList<>();
-      LocalDate date = request.getStartDate().withDayOfMonth(
-        Math.min(investmentDay, request.getStartDate().lengthOfMonth()));
-
-      while (!date.isAfter(actualEndDate)) {
-        investmentDates.add(date);
-        date = date.plusMonths(interval)
-          .withDayOfMonth(Math.min(investmentDay, date.plusMonths(interval).lengthOfMonth()));
-      }
-
       fxRateMap = BacktestDataUtils.getBulkFxRates(marketDataClient, investmentDates);
       log.info("환율 데이터 조회 완료: {}개", fxRateMap.size());
     }
 
-    // 정해진 날짜와 주기에 따라 투자 실행
-    LocalDate currentDate = request.getStartDate().withDayOfMonth(
-      Math.min(investmentDay, request.getStartDate().lengthOfMonth()));
-
     //  메모리에서 데이터 조회 (API 호출 없음)
-    while (!currentDate.isAfter(actualEndDate)) {
+    for (LocalDate currentDate : investmentDates) {
       // 총 투자금 한도 체크
       if (investmentLimit != null && totalInvestedSoFar.compareTo(investmentLimit) >= 0) {
         log.info("총 투자금 한도({})에 도달하여 투자 종료", investmentLimit);
@@ -200,13 +189,22 @@ public class DCAStrategy implements InvestmentStrategy {
       } catch (Exception e) {
         log.warn("적립식 투자 전략 - {} 날짜 데이터 처리 실패: {}", currentDate, e.getMessage());
       }
-
-      currentDate = currentDate.plusMonths(interval)
-        .withDayOfMonth(Math.min(investmentDay,
-          currentDate.plusMonths(interval).lengthOfMonth()));
     }
 
     return transactions;
+  }
+
+  // 시작일부터 종료일까지 주기마다의 투자일. 그달에 투자일이 없으면 말일
+  private static List<LocalDate> investmentDates(LocalDate startDate, LocalDate endDate,
+    int investmentDay, int interval) {
+    List<LocalDate> dates = new ArrayList<>();
+    LocalDate date = startDate.withDayOfMonth(Math.min(investmentDay, startDate.lengthOfMonth()));
+    while (!date.isAfter(endDate)) {
+      dates.add(date);
+      LocalDate next = date.plusMonths(interval);
+      date = next.withDayOfMonth(Math.min(investmentDay, next.lengthOfMonth()));
+    }
+    return dates;
   }
 
 }

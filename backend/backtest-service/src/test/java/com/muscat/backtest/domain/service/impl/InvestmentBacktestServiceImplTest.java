@@ -43,7 +43,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("InvestmentBacktestService 단위 테스트")
@@ -562,24 +563,31 @@ class InvestmentBacktestServiceImplTest {
       verify(backtestHistoryUtils).saveBacktestHistory(TEST_USER_ID, BacktestType.INVESTMENT_ANALYSIS, testInvestmentRequest);
     }
 
-    @ParameterizedTest(name = "{0} → {1}")
-    @CsvSource({
-      "환율 서버 응답 없음, FX_CONVERSION_ERROR",
-      "FX feed timeout, FX_CONVERSION_ERROR",
-      "배당 원장 누락, DIVIDEND_CALCULATION_ERROR",
-      "return window overflow, RETURN_CALCULATION_ERROR",
-      "dividend feed down, DIVIDEND_CALCULATION_ERROR",
-      "수익률 범위 초과, RETURN_CALCULATION_ERROR",
-      "trade 연결 끊김, CALCULATION_ERROR"
-    })
-    @DisplayName("예상 못 한 예외는 메시지로 오류 종류를 가른다")
-    void classifiesUnexpectedErrors(String message, BacktestResponse expected) {
-      given(tradeServiceClientWrapper.getPortfolio(TEST_AUTHORIZATION)).willThrow(new IllegalStateException(message));
+    @ParameterizedTest(name = "{0}")
+    @NullSource
+    @ValueSource(strings = {"환율 서버 응답 없음", "dividend feed down", "returned null"})
+    @DisplayName("예상 못 한 예외는 메시지와 상관없이 계산 오류로 감싸고 원인을 붙인다")
+    void wrapsUnexpectedErrors(String message) {
+      IllegalStateException cause = new IllegalStateException(message);
+      given(tradeServiceClientWrapper.getPortfolio(TEST_AUTHORIZATION)).willThrow(cause);
 
       assertThatThrownBy(() -> investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION))
         .isInstanceOf(BacktestException.class)
+        .hasCause(cause)
         .extracting("code")
-        .isEqualTo(expected);
+        .isEqualTo(BacktestResponse.CALCULATION_ERROR);
+    }
+
+    @Test
+    @DisplayName("보유 종목 시세를 못 받으면 계산 오류로 덮지 않고 시세 서비스 사용 불가로 올린다")
+    void marketDataOutagePassesThrough() {
+      BacktestException outage = new BacktestException(BacktestResponse.MARKET_DATA_UNAVAILABLE);
+      given(tradeServiceClientWrapper.getPortfolio(TEST_AUTHORIZATION)).willReturn(List.of(holding));
+      given(tradeServiceClientWrapper.getTradeHistoryBySymbol(TEST_AUTHORIZATION, holding.symbol())).willReturn(List.of());
+      given(marketDataClientWrapper.getCurrentPrice(holding.symbol())).willThrow(outage);
+
+      assertThatThrownBy(() -> investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION))
+        .isSameAs(outage);
     }
   }
 }

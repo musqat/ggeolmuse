@@ -801,6 +801,45 @@ class TradingSimulationServiceImplTest {
       // 배당 10달러 - 세금 1.5 = 8.5 달러 → 100 달러에 0.085주
       assertThat(response.getDividendsReinvested()).isEqualByComparingTo("8.50");
       assertThat(response.getShares()).isEqualByComparingTo("10.085");
+      // 배당은 주식 수에만 들어가고 현금으로 또 더하지 않는다: 10.085주 × 150달러 × 1300원
+      assertThat(response.getTotalAssetKrw()).isEqualByComparingTo("1966575");
+      // 총 배당금은 세전 10달러. 재투자로 늘어난 10.085주로 다시 곱하지 않는다
+      assertThat(response.getTotalDividends()).isEqualByComparingTo("10.00");
+    }
+
+    @Test
+    @DisplayName("재투자를 켜면 총 배당금은 배당마다 그때 주식 수로 받은 합이다")
+    void totalDividendsUseSharesAtEachExDate() {
+      LocalDate firstExDate = LocalDate.of(2024, 3, 8);
+      stubPurchaseAndSale();
+      given(marketDataClientWrapper.getDividendHistory(TEST_SYMBOL, "2024-01-15", "2024-06-14")).willReturn(List.of(
+        new DividendDto(TEST_SYMBOL, firstExDate, firstExDate.plusDays(5), null, new BigDecimal("1.00"), "USD", "test"),
+        new DividendDto(TEST_SYMBOL, exDate, exDate.plusDays(5), null, new BigDecimal("1.00"), "USD", "test")));
+      given(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString())).willReturn(List.of(
+        createOHLCPrice(TEST_SYMBOL, firstExDate, new BigDecimal("100.00"), true),
+        createOHLCPrice(TEST_SYMBOL, exDate, new BigDecimal("100.00"), true)));
+
+      SimulationResponse response = service.runSimulation(request(true, "0"), false);
+
+      // 10주에 1달러 → 0.1주를 더 사고, 다음 배당은 10.1주에 1달러. 마지막 10.201주로 두 번 곱하지 않는다
+      assertThat(response.getShares()).isEqualByComparingTo("10.201");
+      assertThat(response.getTotalDividends()).isEqualByComparingTo("20.10");
+    }
+
+    @Test
+    @DisplayName("재투자를 끄면 세후 배당을 원화로 바꿔 총자산에 더한다")
+    void cashDividendAddedToTotalAsset() {
+      stubPurchaseAndSale();
+      stubDividend("1.00");
+      given(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString())).willReturn(List.of());
+
+      SimulationResponse noTax = service.runSimulation(request(false, "0"), false);
+      SimulationResponse taxed = service.runSimulation(request(false, "0.15"), false);
+
+      // 10주 × 150달러 × 1300원 = 1,950,000원에 배당 10달러(세후 8.5달러) × 1300원을 더한다
+      assertThat(noTax.getShares()).isEqualByComparingTo("10");
+      assertThat(noTax.getTotalAssetKrw()).isEqualByComparingTo("1963000");
+      assertThat(taxed.getTotalAssetKrw()).isEqualByComparingTo("1961050");
     }
 
     @Test

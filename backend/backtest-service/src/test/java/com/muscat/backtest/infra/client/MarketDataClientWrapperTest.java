@@ -5,12 +5,18 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
+import com.muscat.backtest.common.enums.BacktestResponse;
+import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.infra.client.dto.DividendDto;
 import com.muscat.backtest.infra.client.dto.FxRateDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import com.muscat.commonlib.dto.StockPriceDto;
+import feign.FeignException;
+import feign.Request;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -53,15 +59,29 @@ class MarketDataClientWrapperTest {
   }
 
   @Test
-  @DisplayName("날짜 시세 · 현재가를 못 받으면 원인을 담은 예외를 올리고, 현재가 예외에는 종목이 들어 있다")
+  @DisplayName("날짜 시세 · 현재가를 못 받으면 시세 서비스 사용 불가 코드에 원인을 담아 올린다")
   void singlePriceFallbacks_Throw() {
     assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(wrapper, "getOHLCPriceFallback", "AAPL", "2024-03-04", down))
-      .isInstanceOf(RuntimeException.class)
-      .hasCause(down);
+      .isInstanceOf(BacktestException.class)
+      .hasCause(down)
+      .extracting("code").isEqualTo(BacktestResponse.MARKET_DATA_UNAVAILABLE);
     assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(wrapper, "getCurrentPriceFallback", "AAPL", down))
-      .isInstanceOf(RuntimeException.class)
-      .hasMessageContaining("AAPL")
-      .hasCause(down);
+      .isInstanceOf(BacktestException.class)
+      .hasCause(down)
+      .extracting("code").isEqualTo(BacktestResponse.MARKET_DATA_UNAVAILABLE);
+  }
+
+  @Test
+  @DisplayName("4xx 는 장애가 아니라서 날짜 시세 · 현재가 모두 받은 예외를 그대로 올린다")
+  void singlePriceFallbacks_ClientErrorRethrown() {
+    Request request = Request.create(Request.HttpMethod.GET, "/api/internal/market/price/AAPL", Map.of(), null,
+      StandardCharsets.UTF_8, null);
+    FeignException.BadRequest badRequest = new FeignException.BadRequest("Bad Request", request, null, Map.of());
+
+    assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(wrapper, "getOHLCPriceFallback", "AAPL", "2024-03-04", badRequest))
+      .isSameAs(badRequest);
+    assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(wrapper, "getCurrentPriceFallback", "AAPL", badRequest))
+      .isSameAs(badRequest);
   }
 
   @Test
