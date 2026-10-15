@@ -34,6 +34,9 @@ ERROR_CODES: dict[type[Exception], tuple[int, str]] = {
 }
 
 
+OUTAGES = ("auth_unavailable", "market_unavailable", "ai_unavailable")
+
+
 def error_code(exc: Exception) -> tuple[int, str]:
     """예외의 상태와 코드. 모르는 예외는 500 internal_error"""
     for kind, value in ERROR_CODES.items():
@@ -45,6 +48,16 @@ def error_code(exc: Exception) -> tuple[int, str]:
 def error_response(exc: Exception) -> JSONResponse:
     status, code = error_code(exc)
     return JSONResponse(status_code=status, content={"code": code, "message": ERRORS[code]})
+
+
+def log_value(value: str) -> str:
+    """로그에 넣는 값. 줄바꿈 · 공백이 있으면 repr 로 적어 한 줄 · 한 칸을 지킨다"""
+    return value if value.isprintable() and " " not in value else repr(value)
+
+
+def log_detail(exc: Exception) -> str:
+    """장애면 원인(' detail=…'), 아니면 빈 문자열. 사용자 값이 든 4xx 예외 문구는 남기지 않는다"""
+    return f" detail={log_value(str(exc))}" if error_code(exc)[1] in OUTAGES else ""
 
 
 def log_level(exc: Exception) -> int:
@@ -60,7 +73,8 @@ def register_error_handlers(app: FastAPI) -> None:
 
     async def handle(request: Request, exc: Exception) -> JSONResponse:
         if error_code(exc)[0] >= 500:
-            log.warning("request path=%s outcome=error:%s", request.url.path, error_code(exc)[1])
+            log.warning("request path=%s outcome=error:%s%s", request.url.path, error_code(exc)[1],
+                        log_detail(exc))
         return error_response(exc)
 
     for kind in ERROR_CODES:

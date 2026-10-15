@@ -109,6 +109,27 @@ def test_unexpected_error_is_500(env, caplog):
     assert "Traceback" in caplog.text
 
 
+def test_outage_log_keeps_cause(env, caplog):
+    conversation_id = env.start().json()["conversation_id"]
+    env.model.answer_error = AiUnavailable("APITimeoutError")
+    with caplog.at_level(logging.WARNING, logger="chat"):
+        env.ask(conversation_id)
+
+    line = [r.getMessage() for r in caplog.records if r.getMessage().startswith("ask ")][0]
+    assert "outcome=error:ai_unavailable" in line
+    assert "detail=APITimeoutError" in line
+
+
+def test_client_values_stay_on_one_log_line(env, caplog):
+    with caplog.at_level(logging.INFO, logger="chat"):
+        env.start("A\nB")
+        env.ask("c\nask user=forged outcome=answered")
+
+    lines = [r.getMessage() for r in caplog.records if r.name == "chat"]
+    assert len(lines) == 2
+    assert all("\n" not in line for line in lines)
+
+
 def test_empty_message_is_422(env):
     assert env.ask("c", "").status_code == 422
 

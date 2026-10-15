@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends
 
 from app.api.auth import current_user_id
 from app.api.deps import get_chat_service
-from app.api.errors import error_code, error_response, log_level
+from app.api.errors import error_code, error_response, log_detail, log_level, log_value
 from app.api.schemas import AskRequest, AskResponse, StartRequest, StartResponse
 from app.core.chat_service import ChatService, Rejected
 
@@ -39,10 +39,12 @@ async def start_conversation(
     except Exception as exc:
         code = error_code(exc)[1]
         outcome = code if code == "symbol_not_found" else f"error:{code}"
-        log.log(log_level(exc), "start user=%s symbol=%s outcome=%s ms=%d",
-                fingerprint(user_id), symbol, outcome, _ms(started), exc_info=code == "internal_error")
+        log.log(log_level(exc), "start user=%s symbol=%s outcome=%s ms=%d%s",
+                fingerprint(user_id), log_value(symbol), outcome, _ms(started), log_detail(exc),
+                exc_info=code == "internal_error")
         return error_response(exc)
-    log.info("start user=%s symbol=%s outcome=started ms=%d", fingerprint(user_id), symbol, _ms(started))
+    log.info("start user=%s symbol=%s outcome=started ms=%d", fingerprint(user_id), log_value(symbol),
+             _ms(started))
     conversation = result.conversation
     return StartResponse(conversation_id=conversation.id, symbol=conversation.symbol,
                          name=conversation.name, remaining=result.remaining)
@@ -59,8 +61,8 @@ async def ask(
         result = await service.ask(user_id, req.conversation_id, req.message)
     except Exception as exc:
         code = error_code(exc)[1]
-        log.log(log_level(exc), "ask user=%s conv=%s outcome=error:%s ms=%d",
-                fingerprint(user_id), req.conversation_id, code, _ms(started),
+        log.log(log_level(exc), "ask user=%s conv=%s outcome=error:%s ms=%d%s",
+                fingerprint(user_id), log_value(req.conversation_id), code, _ms(started), log_detail(exc),
                 exc_info=code == "internal_error")
         return error_response(exc)
     outcome = result.outcome

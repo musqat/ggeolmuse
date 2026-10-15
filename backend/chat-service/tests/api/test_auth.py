@@ -1,3 +1,5 @@
+import logging
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -48,12 +50,14 @@ def test_requests_without_token_get_401_code(client):
     assert res.json() == {"code": "unauthorized", "message": "로그인이 필요합니다."}
 
 
-def test_auth_server_down_gets_503_code(client):
+def test_auth_server_down_gets_503_code(client, caplog):
     def down(token):
         raise AuthUnavailable("keycloak down")
 
     app.state.verify_token = down
-    res = client.post("/api/chat", json={"conversation_id": "c", "message": "hi"},
-                      headers={"Authorization": "Bearer t"})
+    with caplog.at_level(logging.WARNING, logger="chat"):
+        res = client.post("/api/chat", json={"conversation_id": "c", "message": "hi"},
+                          headers={"Authorization": "Bearer t"})
     assert res.status_code == 503
     assert res.json()["code"] == "auth_unavailable"
+    assert "detail='keycloak down'" in caplog.text

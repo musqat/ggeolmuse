@@ -26,6 +26,11 @@ from app.infra.quota import RateLimiter
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
 
+def build_openai(config: Settings) -> OpenAI:
+    """OpenAI 클라이언트. 재시도 없이 호출마다 시간 제한만 둔다"""
+    return OpenAI(api_key=config.openai_api_key, max_retries=0)
+
+
 def build_chat_service(config: Settings, redis, http: httpx.AsyncClient, openai: OpenAI) -> ChatService:
     model = ChatModel(
         openai,
@@ -53,7 +58,7 @@ def build_chat_service(config: Settings, redis, http: httpx.AsyncClient, openai:
 async def lifespan(app: FastAPI):
     redis = aioredis.Redis(host=settings.redis_host, port=settings.redis_port, decode_responses=True)
     http = httpx.AsyncClient(base_url=settings.market_data_base_url, timeout=settings.market_timeout_seconds)
-    openai = OpenAI(api_key=settings.openai_api_key, max_retries=0)
+    openai = build_openai(settings)
     app.state.verify_token = JwksVerifier(settings.keycloak_jwks_url)
     app.state.chat_service = build_chat_service(settings, redis, http, openai)
     yield
