@@ -35,7 +35,7 @@ function errorText(e: unknown): string {
 }
 
 const AiChatModal: React.FC<AiChatModalProps> = ({ onRequireLogin }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { isOpen, autoSymbol, closeChat, consumeAutoSymbol } = useAiChat();
   const [session, setSession] = useState<ChatSession | null>(() => loadChatSession());
   const [input, setInput] = useState('');
@@ -49,6 +49,15 @@ const AiChatModal: React.FC<AiChatModalProps> = ({ onRequireLogin }) => {
   useEffect(() => {
     saveChatSession(session);
   }, [session]);
+
+  // 로그인이 풀리면 대화를 지운다. 같은 브라우저의 다음 사용자가 보지 않게. 로그인 확인 중에는 기다린다
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      setSession(null);
+      setRemaining(null);
+      setError('');
+    }
+  }, [authLoading, isAuthenticated]);
 
   // 새 메시지 시 맨 아래로 스크롤
   useEffect(() => {

@@ -173,6 +173,30 @@ describe('AiChatModal', () => {
     expect(ask).not.toHaveBeenCalled()
   })
 
+  it('로그인이 풀리면 대화 기록을 지운다', async () => {
+    startConversation.mockResolvedValueOnce(started('AAPL', 'Apple Inc.'))
+    const view = await openAndStart()
+    await screen.findByText('AAPL · Apple Inc.')
+    expect(localStorage.getItem('ggeolmuse_ai_chat')).not.toBeNull()
+
+    auth.isAuthenticated = false
+    view.rerender(tree())
+
+    expect(await screen.findByText('로그인하면 AI 종목 분석을 받아볼 수 있어요.')).toBeInTheDocument()
+    expect(localStorage.getItem('ggeolmuse_ai_chat')).toBeNull()
+  })
+
+  it('로그인을 확인하는 동안에는 기록을 지우지 않는다', () => {
+    const saved = JSON.stringify({ conversationId: 'c1', symbol: 'AAPL', name: null, turns: [] })
+    localStorage.setItem('ggeolmuse_ai_chat', saved)
+    auth.isAuthenticated = false
+    auth.isLoading = true
+
+    renderModal()
+
+    expect(localStorage.getItem('ggeolmuse_ai_chat')).toBe(saved)
+  })
+
   it('답을 기다리는 중에 차트 버튼을 누르면 답이 온 뒤 그 종목으로 바꾼다', async () => {
     let resolveAnswer!: (value: unknown) => void
     startConversation
