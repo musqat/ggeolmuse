@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     ohlc_lookback_days: int = 400
     max_answer_tokens: int = 700
 
+    conversation_ttl_hours: int = 5
+    history_turns: int = 3
+    history_answer_chars: int = 800
+
     market_timeout_seconds: float = 5.0
     router_timeout_seconds: float = 5.0
     answer_timeout_seconds: float = 15.0

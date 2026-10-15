@@ -17,6 +17,26 @@ class Bar:
     volume: float
 
 
+@dataclass(frozen=True)
+class Turn:
+    question: str
+    answer: str
+    skill: str
+
+
+@dataclass(frozen=True)
+class Conversation:
+    id: str
+    user_id: str
+    symbol: str
+    name: str | None
+    turns: tuple[Turn, ...] = ()
+
+    @property
+    def last_turn(self) -> Turn | None:
+        return self.turns[-1] if self.turns else None
+
+
 class MarketUnavailable(Exception):
     """시세 API 5xx · 시간 초과 · 연결 실패"""
 
