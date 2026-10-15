@@ -115,6 +115,19 @@ class InternalMarketControllerTest {
   }
 
   @Test
+  @DisplayName("현재가 응답에 상장 여부와 날짜 문자열이 실린다")
+  void priceCarriesListing() throws Exception {
+    given(candleService.getCurrentPrice("AAPL")).willReturn(StockPriceDto.builder()
+      .symbol("AAPL").currentPrice(new BigDecimal("230")).date(LocalDate.of(2026, 10, 15))
+      .available(true).active(true).build());
+
+    mockMvc.perform(get(BASE + "/price/AAPL"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.active").value(true))
+      .andExpect(jsonPath("$.date").value("2026-10-15"));
+  }
+
+  @Test
   @DisplayName("날짜 환율 · 최신 환율은 있으면 200, 없으면 404")
   void fxRates() throws Exception {
     given(fxRateService.findByDate(START)).willReturn(fx(START, "1300.5"));

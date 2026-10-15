@@ -277,6 +277,7 @@ class CandleServiceImplTest {
             assertThat(result.getCurrency()).isEqualTo("USD");
             assertThat(result.getMarketCap()).isEqualTo(3000000000000L);
             assertThat(result.isAvailable()).isTrue();
+            assertThat(result.getActive()).isTrue();
 
             // changePercent 계산 검증: (238.15 - 235.90) / 235.90 * 100 ≈ 0.95
             assertThat(result.getChangePercent()).isNotNull();
@@ -306,6 +307,38 @@ class CandleServiceImplTest {
             // changePercent: (238.15 - 238.15) / 238.15 * 100 = 0
             assertThat(result.getChangePercent()).isNotNull();
             assertThat(result.getChangePercent().doubleValue()).isCloseTo(0.0, within(0.001));
+        }
+
+        @Test
+        @DisplayName("상장폐지된 종목이면 active=false 를 준다")
+        void getCurrentPrice_DelistedAsset_NotActive() {
+            // given
+            Asset delisted = Asset.builder().symbol(TEST_SYMBOL).active(false).build();
+            given(candleRepository.findLatestBySymbol(TEST_SYMBOL)).willReturn(Optional.of(testCandle));
+            given(candleRepository.findLatestBySymbolBeforeDate(TEST_SYMBOL, TEST_DATE)).willReturn(Optional.empty());
+            given(assetRepository.findById(TEST_SYMBOL)).willReturn(Optional.of(delisted));
+
+            // when
+            StockPriceDto result = candleService.getCurrentPrice(TEST_SYMBOL);
+
+            // then
+            assertThat(result.isAvailable()).isTrue();
+            assertThat(result.getActive()).isFalse();
+        }
+
+        @Test
+        @DisplayName("종목 정보가 없으면 active=false 를 준다")
+        void getCurrentPrice_NoAsset_NotActive() {
+            // given
+            given(candleRepository.findLatestBySymbol(TEST_SYMBOL)).willReturn(Optional.of(testCandle));
+            given(candleRepository.findLatestBySymbolBeforeDate(TEST_SYMBOL, TEST_DATE)).willReturn(Optional.empty());
+            given(assetRepository.findById(TEST_SYMBOL)).willReturn(Optional.empty());
+
+            // when
+            StockPriceDto result = candleService.getCurrentPrice(TEST_SYMBOL);
+
+            // then
+            assertThat(result.getActive()).isFalse();
         }
 
         @Test
