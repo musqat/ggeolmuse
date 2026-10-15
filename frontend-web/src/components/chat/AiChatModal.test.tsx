@@ -17,6 +17,7 @@ const ask = vi.mocked(aiChatApi.ask)
 
 const SYMBOL_INPUT = '종목 코드를 입력해주세요 (예: AAPL)'
 const QUESTION_INPUT = '예: RSI 어때? · 1년 추이는? · 배당은?'
+const HOUR = 60 * 60 * 1000
 
 // jsdom 에는 scrollTo 가 없다
 Element.prototype.scrollTo = vi.fn()
@@ -140,6 +141,7 @@ describe('AiChatModal', () => {
   it('저장된 대화가 있으면 새로고침 뒤에도 그 종목 대화로 연다', async () => {
     localStorage.setItem('ggeolmuse_ai_chat', JSON.stringify({
       conversationId: 'c-AAPL', symbol: 'AAPL', name: 'Apple Inc.', turns: [{ role: 'ai', text: '이전 답' }],
+      updatedAt: Date.now() - HOUR,
     }))
     renderModal()
 
@@ -150,9 +152,22 @@ describe('AiChatModal', () => {
     expect(startConversation).not.toHaveBeenCalled()
   })
 
+  it('5시간이 지난 대화는 종목 입력부터 다시 묻는다', async () => {
+    localStorage.setItem('ggeolmuse_ai_chat', JSON.stringify({
+      conversationId: 'c-AAPL', symbol: 'AAPL', name: 'Apple Inc.', turns: [{ role: 'ai', text: '이전 답' }],
+      updatedAt: Date.now() - 6 * HOUR,
+    }))
+    renderModal()
+
+    await userEvent.click(screen.getByRole('button', { name: '채팅 열기' }))
+
+    expect(screen.getByPlaceholderText(SYMBOL_INPUT)).toBeInTheDocument()
+    expect(screen.queryByText('이전 답')).not.toBeInTheDocument()
+  })
+
   it('같은 종목 대화가 열려 있으면 차트 버튼이 새 대화를 만들지 않는다', async () => {
     localStorage.setItem('ggeolmuse_ai_chat', JSON.stringify({
-      conversationId: 'c-TSLA', symbol: 'TSLA', name: 'Tesla, Inc.', turns: [],
+      conversationId: 'c-TSLA', symbol: 'TSLA', name: 'Tesla, Inc.', turns: [], updatedAt: Date.now(),
     }))
     renderModal()
 
@@ -187,7 +202,7 @@ describe('AiChatModal', () => {
   })
 
   it('로그인을 확인하는 동안에는 기록을 지우지 않는다', () => {
-    const saved = JSON.stringify({ conversationId: 'c1', symbol: 'AAPL', name: null, turns: [] })
+    const saved = JSON.stringify({ conversationId: 'c1', symbol: 'AAPL', name: null, turns: [], updatedAt: Date.now() })
     localStorage.setItem('ggeolmuse_ai_chat', saved)
     auth.isAuthenticated = false
     auth.isLoading = true

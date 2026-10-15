@@ -72,7 +72,13 @@ const AiChatModal: React.FC<AiChatModalProps> = ({ onRequireLogin }) => {
     setLoading(true);
     try {
       const res = await aiChatApi.startConversation(symbol);
-      setSession({ conversationId: res.data.conversation_id, symbol: res.data.symbol, name: res.data.name, turns: [] });
+      setSession({
+        conversationId: res.data.conversation_id,
+        symbol: res.data.symbol,
+        name: res.data.name,
+        turns: [],
+        updatedAt: Date.now(),
+      });
       setRemaining(res.data.remaining);
     } catch (e: unknown) {
       setError(errorText(e));
@@ -93,7 +99,7 @@ const AiChatModal: React.FC<AiChatModalProps> = ({ onRequireLogin }) => {
       // 기다리는 동안 종목을 바꿨으면 옛 대화의 답은 버린다
       setSession((s) =>
         s && s.conversationId === current.conversationId
-          ? { ...s, turns: [...s.turns, { role: 'ai', text: res.data.answer }] }
+          ? { ...s, turns: [...s.turns, { role: 'ai', text: res.data.answer }], updatedAt: Date.now() }
           : s
       );
       setRemaining(res.data.remaining);
