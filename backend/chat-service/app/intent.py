@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from dataclasses import dataclass
 from typing import Callable
@@ -19,7 +20,8 @@ MiniCall = Callable[[str], str]
 async def extract_symbol(
     message: str, supported: set[str], mini_call: MiniCall
 ) -> IntentResult:
-    raw = mini_call(message)
+    # 동기 OpenAI 호출이라 스레드에서 돌려 이벤트 루프를 막지 않는다
+    raw = await asyncio.to_thread(mini_call, message)
     try:
         parsed = json.loads(raw)
         symbol = parsed.get("symbol")

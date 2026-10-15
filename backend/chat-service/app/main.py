@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import date, timedelta
 
 from fastapi import Depends, FastAPI, Header, HTTPException
@@ -91,7 +92,8 @@ async def _analyze(
 
     # 5. 분석 생성
     try:
-        answer = call_analysis(intent.symbol, summary, req.message)
+        # 동기 OpenAI 호출. 스레드에서 돌린다
+        answer = await asyncio.to_thread(call_analysis, intent.symbol, summary, req.message)
     except Exception:
         raise HTTPException(status_code=503, detail="AI 응답 생성에 실패했습니다.")
     return answer, intent.symbol, True
