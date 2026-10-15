@@ -1,4 +1,4 @@
-from app.schemas import ChatRequest, ChatResponse
+from app.api.schemas import ChatRequest, ChatResponse
 
 
 def test_chat_request_parses_message():

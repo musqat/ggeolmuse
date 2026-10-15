@@ -1,7 +1,7 @@
 import json
 import pytest
 
-from app.intent import extract_symbol, IntentResult
+from app.core.intent import extract_symbol, IntentResult
 
 
 class _FakeLLM:

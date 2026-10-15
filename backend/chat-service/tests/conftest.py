@@ -1,7 +1,7 @@
 import fakeredis.aioredis
 import pytest
 
-from app.rate_limit import RateLimiter
+from app.infra.quota import RateLimiter
 
 
 @pytest.fixture

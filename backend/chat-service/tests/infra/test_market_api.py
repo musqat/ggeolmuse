@@ -2,7 +2,7 @@ import httpx
 import respx
 import pytest
 
-from app.market_client import MarketClient
+from app.infra.market_api import MarketClient
 
 
 @pytest.mark.asyncio

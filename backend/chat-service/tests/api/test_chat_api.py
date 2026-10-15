@@ -3,9 +3,9 @@ import asyncio
 import pytest
 from fastapi.testclient import TestClient
 
-from app import deps
-from app.main import app, current_user_id
-from app.deps import get_chat_model, get_market_client, get_rate_limiter
+from app.api.auth import current_user_id
+from app.api.deps import get_chat_model, get_market_client, get_rate_limiter
+from app.main import app
 
 
 class _FakeMarket:

@@ -1,27 +1,17 @@
+"""Keycloak 공개키(JWKS) 조회 · 캐시와 토큰 검증"""
 from __future__ import annotations
 
 import time
-from typing import Callable
 
 import httpx
 from jose import jwt
 from jose.exceptions import JWTError
 
 from app.config import settings
-
-VerifyFn = Callable[[str], dict]
+from app.core.models import AuthUnavailable
 
 # 모르는 kid 가 와도 공개키를 이 간격(초)보다 자주 다시 받지 않는다
 JWKS_REFRESH_SECONDS = 60.0
-
-
-class AuthError(Exception):
-    pass
-
-
-class AuthUnavailable(Exception):
-    """인증 서버에서 공개키(JWKS)를 못 받음. 503 으로 보낸다"""
-
 
 _jwks_cache: dict | None = None
 _jwks_fetched_at: float = 0.0
@@ -49,7 +39,8 @@ def _jwks_for(kid: str | None) -> dict:
     return _jwks_cache
 
 
-def _default_verify(token: str) -> dict:
+def verify_token(token: str) -> dict:
+    """서명 · 만료를 확인한 클레임. 틀린 토큰은 ValueError"""
     try:
         kid = jwt.get_unverified_header(token).get("kid")
         return jwt.decode(
@@ -57,21 +48,3 @@ def _default_verify(token: str) -> dict:
         )
     except JWTError as e:
         raise ValueError(str(e)) from e
-
-
-def extract_user_id(
-    authorization: str | None, verify_fn: VerifyFn = _default_verify
-) -> str:
-    if not authorization or not authorization.startswith("Bearer "):
-        raise AuthError("Authorization 헤더 없음")
-    token = authorization[len("Bearer "):]
-    try:
-        claims = verify_fn(token)
-    except AuthUnavailable:
-        raise
-    except Exception as e:
-        raise AuthError(f"토큰 검증 실패: {e}") from e
-    sub = claims.get("sub")
-    if not sub:
-        raise AuthError("sub 클레임 없음")
-    return sub

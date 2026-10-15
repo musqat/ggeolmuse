@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
 from app.config import settings
-from app.llm import ChatModel, build_analysis_messages, DISCLAIMER, SYSTEM_GUARD
+from app.infra.llm import ChatModel, build_analysis_messages, DISCLAIMER, SYSTEM_GUARD
 
 
 def test_analysis_messages_include_system_guard():

@@ -1,4 +1,4 @@
-from app.indicators import build_indicator_summary
+from app.core.analysis.indicators import build_indicator_summary
 
 
 def _series(closes, volumes=None):

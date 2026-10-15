@@ -3,9 +3,9 @@ from __future__ import annotations
 import redis.asyncio as aioredis
 
 from app.config import settings
-from app.llm import ChatModel
-from app.market_client import MarketClient
-from app.rate_limit import RateLimiter
+from app.infra.llm import ChatModel
+from app.infra.market_api import MarketClient
+from app.infra.quota import RateLimiter
 
 _redis = aioredis.Redis(
     host=settings.redis_host, port=settings.redis_port, decode_responses=True
