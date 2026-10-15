@@ -19,7 +19,7 @@ class Settings(BaseSettings):
 
     daily_limit: int = 5
     daily_reject_limit: int = 20
-    ohlc_lookback_days: int = 300
+    ohlc_lookback_days: int = 400
     max_answer_tokens: int = 700
 
     market_timeout_seconds: float = 5.0

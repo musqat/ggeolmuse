@@ -9,9 +9,10 @@ from app.api.auth import current_user_id
 from app.api.deps import get_chat_model, get_market_client, get_rate_limiter
 from app.api.schemas import ChatRequest, ChatResponse
 from app.config import settings
-from app.core.analysis.indicators import build_indicator_summary
+from app.core.analysis.indicators import compute_indicators
 from app.core.intent import IntentResult, extract_symbol
 from app.core.models import AiUnavailable, MarketUnavailable
+from app.core.skills.indicators import indicator_lines
 from app.infra.llm import ChatModel
 from app.infra.market_api import MarketClient
 from app.infra.quota import RateLimiter
@@ -69,15 +70,15 @@ async def _analyze(
         if not intent.valid:
             return intent.reason, intent.symbol, False
 
-    # 3. OHLC 조회
+    # 3. 시세 조회
     end = date.today()
-    start = end - timedelta(days=settings.ohlc_lookback_days)
-    ohlc = await market.fetch_ohlc_range(intent.symbol, start.isoformat(), end.isoformat())
+    bars = await market.bars(intent.symbol, end - timedelta(days=settings.ohlc_lookback_days), end)
 
     # 4. 지표 계산
-    summary = build_indicator_summary(ohlc)
-    if summary is None:
+    snapshot = compute_indicators(bars)
+    if snapshot is None:
         return f"{intent.symbol}의 분석 가능한 데이터가 충분하지 않습니다.", intent.symbol, False
+    summary = "\n".join(indicator_lines(snapshot))
 
     # 5. 분석 생성
     # 동기 OpenAI 호출. 스레드에서 돌린다

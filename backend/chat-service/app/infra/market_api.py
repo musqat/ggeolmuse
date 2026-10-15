@@ -1,11 +1,12 @@
-"""market-data 내부 API. 장애 → MarketUnavailable"""
+"""market-data 내부 API. JSON → Bar, 장애 → MarketUnavailable"""
 from __future__ import annotations
 
 import time
+from datetime import date
 
 import httpx
 
-from app.core.models import MarketUnavailable
+from app.core.models import Bar, MarketUnavailable
 
 
 class MarketClient:
@@ -15,14 +16,13 @@ class MarketClient:
         self._symbols_cache: set[str] | None = None
         self._symbols_cached_at: float = 0.0
 
-    async def fetch_ohlc_range(
-        self, symbol: str, start_date: str, end_date: str
-    ) -> list[dict]:
+    async def bars(self, symbol: str, start: date, end: date) -> list[Bar]:
         data = await self._get(
             f"/api/internal/market/ohlc/{symbol}/range",
-            {"startDate": start_date, "endDate": end_date},
+            {"startDate": start.isoformat(), "endDate": end.isoformat()},
         )
-        return data or []
+        bars = [_bar(row) for row in data or []]
+        return sorted((b for b in bars if b is not None), key=lambda b: b.date)
 
     async def fetch_supported_symbols(self) -> set[str]:
         now = time.monotonic()
@@ -49,3 +49,23 @@ class MarketClient:
         if res.status_code >= 400:
             raise MarketUnavailable(f"{path} {res.status_code}")
         return res.json()
+
+
+def _bar(row: dict) -> Bar | None:
+    """종가는 차트처럼 closePrice, 없으면 adjustedClose"""
+    close = row.get("closePrice")
+    adjusted = row.get("adjustedClose")
+    if close is None:
+        close = adjusted
+    if close is None or not row.get("date"):
+        return None
+    close = float(close)
+    return Bar(
+        date=date.fromisoformat(row["date"]),
+        open=float(row.get("openPrice") or close),
+        high=float(row.get("highPrice") or close),
+        low=float(row.get("lowPrice") or close),
+        close=close,
+        adj_close=float(adjusted) if adjusted is not None else close,
+        volume=float(row.get("volume") or 0),
+    )

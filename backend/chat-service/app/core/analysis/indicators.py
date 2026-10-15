@@ -1,141 +1,196 @@
+"""기술 지표 계산. 식은 프론트 차트(klinecharts 9.8.12)와 같다"""
 from __future__ import annotations
 
-import pandas as pd
+from dataclasses import dataclass
+from datetime import date
+from math import sqrt
+
+from app.core.models import Bar
+
+MA_PERIODS = (5, 20, 60, 120, 200)
+EMA_PERIODS = (12, 26)
+VOLUME_MA_PERIODS = (5, 10, 20)
 
 
-def _to_dataframe(ohlc: list[dict]) -> pd.DataFrame:
-    df = pd.DataFrame(ohlc)
-    df["close"] = df["adjustedClose"].fillna(df["closePrice"]).astype(float)
-    df["high"] = df["highPrice"].astype(float)
-    df["low"] = df["lowPrice"].astype(float)
-    df["volume"] = df["volume"].astype(float)
-    return df
+@dataclass(frozen=True)
+class Bollinger:
+    upper: float
+    middle: float
+    lower: float
+    percent_b: float | None
 
 
-def _rsi(close: pd.Series, length: int = 14) -> pd.Series:
-    """Wilder RSI. 손실 0이면 RSI=100, 이득 0이면 RSI=0."""
-    delta = close.diff()
-    gain = delta.clip(lower=0)
-    loss = -delta.clip(upper=0)
-    avg_gain = gain.ewm(alpha=1 / length, min_periods=length, adjust=False).mean()
-    avg_loss = loss.ewm(alpha=1 / length, min_periods=length, adjust=False).mean()
-    rsi = 100 - (100 / (1 + avg_gain / avg_loss))
-    # avg_loss==0 (손실 없음) → RSI=100, avg_gain==0 (이득 없음) → RSI=0
-    rsi = rsi.where(avg_loss != 0, 100.0)
-    rsi = rsi.where(~((avg_loss == 0) & (avg_gain == 0)), float("nan"))
-    return rsi
+@dataclass(frozen=True)
+class Macd:
+    dif: float
+    dea: float
+    bar: float
 
 
-def _macd_hist(close: pd.Series) -> pd.Series:
-    ema12 = close.ewm(span=12, adjust=False).mean()
-    ema26 = close.ewm(span=26, adjust=False).mean()
-    macd_line = ema12 - ema26
-    signal = macd_line.ewm(span=9, adjust=False).mean()
-    return macd_line - signal
+@dataclass(frozen=True)
+class Kdj:
+    k: float
+    d: float
+    j: float
 
 
-def _bollinger(close: pd.Series, length: int = 20, mult: float = 2.0):
-    ma = close.rolling(length).mean()
-    std = close.rolling(length).std()
-    return ma + mult * std, ma - mult * std
+@dataclass(frozen=True)
+class Cross:
+    kind: str  # golden · dead
+    days_ago: int
 
 
-def _stoch_k(high: pd.Series, low: pd.Series, close: pd.Series, length: int = 14):
-    lowest = low.rolling(length).min()
-    highest = high.rolling(length).max()
-    rng = (highest - lowest).replace(0, float("nan"))
-    return (close - lowest) / rng * 100
+@dataclass(frozen=True)
+class IndicatorSnapshot:
+    as_of: date
+    bars: int
+    close: float
+    ma: dict[int, float]
+    ema: dict[int, float]
+    bollinger: Bollinger | None
+    rsi: float | None
+    macd: Macd | None
+    kdj: Kdj | None
+    volume: float
+    volume_ma: dict[int, float]
+    ma_cross: Cross | None
 
 
-def build_indicator_summary(ohlc: list[dict]) -> str | None:
-    """OHLC 리스트 → LLM 주입용 압축 지표 요약. 데이터 부족 시 None."""
-    if not ohlc or len(ohlc) < 35:
+def compute_indicators(bars: list[Bar]) -> IndicatorSnapshot | None:
+    """마지막 캔들 기준 지표. 가장 짧은 이동평균도 못 구하면 None"""
+    if len(bars) < MA_PERIODS[0]:
         return None
+    closes = [b.close for b in bars]
+    volumes = [b.volume for b in bars]
+    return IndicatorSnapshot(
+        as_of=bars[-1].date,
+        bars=len(bars),
+        close=closes[-1],
+        ma={p: sma(closes, p)[-1] for p in MA_PERIODS if len(closes) >= p},
+        ema={p: ema(closes, p)[-1] for p in EMA_PERIODS if len(closes) >= p},
+        bollinger=bollinger(closes),
+        rsi=rsi(closes),
+        macd=macd(closes),
+        kdj=kdj([b.high for b in bars], [b.low for b in bars], closes),
+        volume=volumes[-1],
+        volume_ma={p: sma(volumes, p)[-1] for p in VOLUME_MA_PERIODS if len(volumes) >= p},
+        ma_cross=ma_cross(closes),
+    )
 
-    df = _to_dataframe(ohlc)
-    close = df["close"]
-    last = float(close.iloc[-1])
 
-    parts: list[str] = []
-
-    # RSI(14)
-    rsi = _rsi(close, 14).dropna()
-    if not rsi.empty:
-        r = float(rsi.iloc[-1])
-        zone = "과매수" if r >= 70 else "과매도" if r <= 30 else "중립"
-        parts.append(f"RSI {r:.0f}({zone})")
-
-    # 이동평균 MA20 vs MA60 + 골든/데드크로스
-    ma20 = close.rolling(20).mean()
-    ma60 = close.rolling(60).mean() if len(close) >= 60 else None
-    if ma60 is not None and not ma60.dropna().empty:
-        diff = ma20 - ma60
-        rel = "MA20>MA60" if diff.iloc[-1] > 0 else "MA20<MA60"
-        cross = _detect_cross(diff)
-        parts.append(rel + (f" {cross}" if cross else ""))
-    elif not ma20.dropna().empty:
-        rel = "종가>MA20" if last > ma20.iloc[-1] else "종가<MA20"
-        parts.append(rel)
-
-    # MACD 히스토그램
-    hist = _macd_hist(close).dropna()
-    if not hist.empty:
-        h = float(hist.iloc[-1])
-        parts.append("MACD 양전환" if h > 0 else "MACD 음전환")
-
-    # 볼린저밴드 위치
-    upper, lower = _bollinger(close, 20)
-    if not upper.dropna().empty and not lower.dropna().empty:
-        u = float(upper.dropna().iloc[-1])
-        lo = float(lower.dropna().iloc[-1])
-        if last >= u * 0.98:
-            parts.append("BB 상단 근접")
-        elif last <= lo * 1.02:
-            parts.append("BB 하단 근접")
+def sma(values: list[float], period: int) -> list[float | None]:
+    """단순 이동평균. 앞 period - 1 개는 None"""
+    out: list[float | None] = []
+    total = 0.0
+    for i, value in enumerate(values):
+        total += value
+        if i >= period - 1:
+            out.append(total / period)
+            total -= values[i - (period - 1)]
         else:
-            parts.append("BB 중앙권")
-
-    # 스토캐스틱 %K
-    stoch = _stoch_k(df["high"], df["low"], close).dropna()
-    if not stoch.empty:
-        k = float(stoch.iloc[-1])
-        parts.append(f"Stoch%K {k:.0f}")
-
-    # 거래량 추세 (최근 5일 평균 vs 20일 평균)
-    vol = df["volume"]
-    if len(vol) >= 20:
-        v5 = vol.tail(5).mean()
-        v20 = vol.tail(20).mean()
-        if v20 > 0:
-            pct = (v5 / v20 - 1) * 100
-            parts.append(f"거래량 평균대비 {pct:+.0f}%")
-
-    # 기간 등락률 (20일)
-    if len(close) >= 21:
-        ago = float(close.iloc[-21])
-        if ago > 0:
-            chg = (last / ago - 1) * 100
-            parts.append(f"20일 {chg:+.1f}%")
-
-    # 지지/저항 (최근 60일 고저)
-    window = close.tail(60)
-    parts.append(f"최근저점 {window.min():.2f}/고점 {window.max():.2f}")
-
-    return ", ".join(parts)
+            out.append(None)
+    return out
 
 
-def _detect_cross(diff: pd.Series, lookback: int = 10) -> str | None:
-    """MA 차이 시계열에서 최근 lookback일 내 교차 감지."""
-    d = diff.dropna()
-    if len(d) < 2:
+def ema(values: list[float], period: int) -> list[float | None]:
+    """첫 값은 period 개 단순 평균, 그 뒤 (2 × 값 + (period − 1) × 직전) / (period + 1)"""
+    out: list[float | None] = []
+    total = 0.0
+    prev = 0.0
+    for i, value in enumerate(values):
+        total += value
+        if i < period - 1:
+            out.append(None)
+            continue
+        prev = total / period if i == period - 1 else (2 * value + (period - 1) * prev) / (period + 1)
+        out.append(prev)
+    return out
+
+
+def bollinger(closes: list[float], period: int = 20, width: float = 2.0) -> Bollinger | None:
+    """중간은 단순 평균, 폭은 모표준편차(÷ period)"""
+    if len(closes) < period:
         return None
-    recent = d.tail(lookback).reset_index(drop=True)
+    middle = sma(closes, period)[-1]
+    deviation = sqrt(sum((c - middle) ** 2 for c in closes[-period:]) / period)
+    upper = middle + width * deviation
+    lower = middle - width * deviation
+    percent_b = (closes[-1] - lower) / (upper - lower) if upper > lower else None
+    return Bollinger(upper=upper, middle=middle, lower=lower, percent_b=percent_b)
+
+
+def rsi(closes: list[float], period: int = 14) -> float | None:
+    """최근 period 개 상승폭 합과 하락폭 합의 비율. 하락이 없으면 100(차트는 0)"""
+    if len(closes) < period:
+        return None
+    up = down = 0.0
+    value = 0.0
+    for i, close in enumerate(closes):
+        diff = close - (closes[i - 1] if i > 0 else close)
+        if diff > 0:
+            up += diff
+        else:
+            down += abs(diff)
+        if i >= period - 1:
+            value = 100.0 if down == 0 else 100 - 100 / (1 + up / down)
+            ago = closes[i - (period - 1)]
+            ago_diff = ago - (closes[i - period] if i - period >= 0 else ago)
+            if ago_diff > 0:
+                up -= ago_diff
+            else:
+                down -= abs(ago_diff)
+    return value
+
+
+def macd(closes: list[float], short: int = 12, long: int = 26, signal: int = 9) -> Macd | None:
+    """EMA 는 단순 평균으로 시작. DEA 첫 값은 DIF signal 개 평균. 막대는 2 × (DIF − DEA)"""
+    longest = max(short, long)
+    if len(closes) < longest + signal - 1:
+        return None
+    total = 0.0
+    ema_short = ema_long = dif = dea = 0.0
+    dif_sum = 0.0
+    for i, close in enumerate(closes):
+        total += close
+        if i >= short - 1:
+            ema_short = total / short if i == short - 1 else (2 * close + (short - 1) * ema_short) / (short + 1)
+        if i >= long - 1:
+            ema_long = total / long if i == long - 1 else (2 * close + (long - 1) * ema_long) / (long + 1)
+        if i >= longest - 1:
+            dif = ema_short - ema_long
+            dif_sum += dif
+            if i == longest + signal - 2:
+                dea = dif_sum / signal
+            elif i > longest + signal - 2:
+                dea = (dif * 2 + dea * (signal - 1)) / (signal + 1)
+    return Macd(dif=dif, dea=dea, bar=(dif - dea) * 2)
+
+
+def kdj(highs: list[float], lows: list[float], closes: list[float],
+        n: int = 9, m1: int = 3, m2: int = 3) -> Kdj | None:
+    """RSV 를 K = (2 × 직전 K + RSV) / 3, D = (2 × 직전 D + K) / 3 로 평활. 처음 K · D 는 50"""
+    if len(closes) < n:
+        return None
+    k = d = 50.0
+    for i in range(n - 1, len(closes)):
+        high = max(highs[i - n + 1:i + 1])
+        low = min(lows[i - n + 1:i + 1])
+        span = high - low
+        rsv = (closes[i] - low) / (span if span != 0 else 1) * 100
+        k = ((m1 - 1) * k + rsv) / m1
+        d = ((m2 - 1) * d + k) / m2
+    return Kdj(k=k, d=d, j=3.0 * k - 2.0 * d)
+
+
+def ma_cross(closes: list[float], short: int = 20, long: int = 60, lookback: int = 10) -> Cross | None:
+    """최근 lookback 일 안의 단기 · 장기 이동평균 교차. 가장 최근 것 하나"""
+    diffs = [s - l for s, l in zip(sma(closes, short), sma(closes, long))
+             if s is not None and l is not None]
+    recent = diffs[-lookback:]
     for i in range(len(recent) - 1, 0, -1):
         prev, cur = recent[i - 1], recent[i]
         if prev <= 0 < cur:
-            days = len(recent) - 1 - i
-            return f"골든크로스 {days}일전"
+            return Cross(kind="golden", days_ago=len(recent) - 1 - i)
         if prev >= 0 > cur:
-            days = len(recent) - 1 - i
-            return f"데드크로스 {days}일전"
+            return Cross(kind="dead", days_ago=len(recent) - 1 - i)
     return None

@@ -1,3 +1,5 @@
+from datetime import date
+
 import httpx
 import pytest
 import respx
@@ -15,14 +17,22 @@ async def market():
 
 
 @respx.mock
-async def test_fetch_ohlc_range_returns_list(market):
+async def test_bars_use_close_price_and_sort(market):
     route = respx.get(f"{BASE}/api/internal/market/ohlc/AAPL/range").mock(return_value=httpx.Response(200, json=[
-        {"date": "2026-01-02", "closePrice": 101.0, "adjustedClose": 101.0,
-         "highPrice": 102.0, "lowPrice": 100.0, "volume": 1000000},
+        {"date": "2026-10-15", "openPrice": 10, "highPrice": 12, "lowPrice": 9, "closePrice": 11,
+         "adjustedClose": 10.5, "volume": 100},
+        {"date": "2026-10-14", "openPrice": None, "highPrice": None, "lowPrice": None, "closePrice": None,
+         "adjustedClose": 9.5, "volume": None},
+        {"date": "2026-10-13", "closePrice": None, "adjustedClose": None},
     ]))
-    data = await market.fetch_ohlc_range("AAPL", "2025-03-01", "2026-01-02")
-    assert route.calls[0].request.url.params["startDate"] == "2025-03-01"
-    assert data[0]["closePrice"] == 101.0
+    bars = await market.bars("AAPL", date(2025, 9, 11), date(2026, 10, 16))
+
+    assert route.calls[0].request.url.params["startDate"] == "2025-09-11"
+    assert route.calls[0].request.url.params["endDate"] == "2026-10-16"
+    assert [(b.date.isoformat(), b.close, b.adj_close, b.high, b.volume) for b in bars] == [
+        ("2026-10-14", 9.5, 9.5, 9.5, 0.0),
+        ("2026-10-15", 11.0, 10.5, 12.0, 100.0),
+    ]
 
 
 @respx.mock
@@ -38,7 +48,7 @@ async def test_fetch_supported_symbols_caches(market):
 @respx.mock
 async def test_404_is_empty(market):
     respx.get(f"{BASE}/api/internal/market/ohlc/ZZZZ/range").mock(return_value=httpx.Response(404))
-    assert await market.fetch_ohlc_range("ZZZZ", "2025-03-01", "2026-01-02") == []
+    assert await market.bars("ZZZZ", date(2025, 9, 11), date(2026, 10, 16)) == []
 
 
 @respx.mock
@@ -51,4 +61,4 @@ async def test_failures_become_market_unavailable(market, response):
     else:
         route.mock(side_effect=response)
     with pytest.raises(MarketUnavailable):
-        await market.fetch_ohlc_range("AAPL", "2025-03-01", "2026-01-02")
+        await market.bars("AAPL", date(2025, 9, 11), date(2026, 10, 16))

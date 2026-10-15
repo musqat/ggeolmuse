@@ -8,20 +8,15 @@ from app.api.deps import get_chat_model, get_market_client, get_rate_limiter
 from app.core.models import AiUnavailable, MarketUnavailable
 from app.infra.quota import RateLimiter
 from app.main import app
+from tests.core.fakes import make_bars
 
 
 class _FakeMarket:
     async def fetch_supported_symbols(self):
         return {"AAPL", "MSFT"}
 
-    async def fetch_ohlc_range(self, symbol, start, end):
-        return [
-            {"date": f"2026-01-{i + 1:02d}", "openPrice": 100 + i,
-             "highPrice": 101 + i, "lowPrice": 99 + i,
-             "closePrice": 100 + i, "adjustedClose": 100 + i,
-             "volume": 1_000_000}
-            for i in range(60)
-        ]
+    async def bars(self, symbol, start, end):
+        return make_bars(60)
 
 
 class _FakeModel:
@@ -108,7 +103,7 @@ async def test_quota_exhausted_returns_429(client):
 
 
 class _DownMarket(_FakeMarket):
-    async def fetch_ohlc_range(self, symbol, start, end):
+    async def bars(self, symbol, start, end):
         raise MarketUnavailable("market-data down")
 
 
