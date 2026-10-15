@@ -32,10 +32,16 @@ export interface AskResponse {
   rejected: string | null;
 }
 
+export interface QuotaResponse {
+  remaining: number;
+}
+
 export const aiChatApi = {
   // 종목을 확인하고 대화를 연다. 한도는 쓰지 않는다
   startConversation: (symbol: string) =>
     client.post<StartConversationResponse>('/chat/conversations', { symbol }),
   ask: (conversationId: string, message: string) =>
     client.post<AskResponse>('/chat', { conversation_id: conversationId, message }),
+  // 오늘 남은 질문 수. 한도는 쓰지 않는다
+  quota: () => client.get<QuotaResponse>('/chat/quota'),
 };

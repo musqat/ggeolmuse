@@ -13,6 +13,9 @@ interface AiChatModalProps {
 
 const SYMBOL_PLACEHOLDER = '종목 코드를 입력해주세요 (예: AAPL)';
 const QUESTION_PLACEHOLDER = '예: RSI 어때? · 1년 추이는? · 배당은?';
+// 서버 제한에 맞춘 입력 길이. 종목 코드는 영문 16자, 질문은 500자까지
+const SYMBOL_MAX_LENGTH = 16;
+const QUESTION_MAX_LENGTH = 500;
 
 // **굵게**만 <strong>으로 렌더, 나머지는 평문
 function renderWithBold(text: string): React.ReactNode[] {
@@ -29,6 +32,7 @@ function renderWithBold(text: string): React.ReactNode[] {
 function errorText(e: unknown): string {
   if (getApiErrorCode(e)) return getApiErrorMessage(e, '요청에 실패했습니다.');
   const status = getApiErrorStatus(e);
+  if (status === 422) return '입력 내용을 확인해 주세요.';
   if (status === 429) return '오늘 사용 한도(5회)를 모두 사용했습니다.';
   if (status === 404 || status === 503) return 'AI 분석 기능은 현재 환경에서 사용할 수 없습니다.';
   return '분석 요청에 실패했습니다. 잠시 후 다시 시도해주세요.';
@@ -39,11 +43,15 @@ const AiChatModal: React.FC<AiChatModalProps> = ({ onRequireLogin }) => {
   const { isOpen, autoSymbol, closeChat, consumeAutoSymbol } = useAiChat();
   const [session, setSession] = useState<ChatSession | null>(() => loadChatSession());
   const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
+  // 기다리는 요청. start 는 종목 확인, ask 는 답
+  const [pending, setPending] = useState<'start' | 'ask' | null>(null);
+  // 답을 기다리는 동안 차트에서 고른 종목. 답을 보인 뒤 바꾸기 버튼으로 옮긴다. 새 대화나 다음 질문이면 거둔다
+  const [nextSymbol, setNextSymbol] = useState<string | null>(null);
   const [remaining, setRemaining] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [expanded, setExpanded] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
+  const loading = pending !== null;
 
   // 대화 변경 시 localStorage 저장
   useEffect(() => {
@@ -59,17 +67,35 @@ const AiChatModal: React.FC<AiChatModalProps> = ({ onRequireLogin }) => {
     }
   }, [authLoading, isAuthenticated]);
 
+  // 남은 횟수를 모르면(새로고침 뒤 등) 열 때 서버에 묻는다. 실패하면 다음 응답까지 숨긴다
+  useEffect(() => {
+    if (!isOpen || !isAuthenticated || remaining !== null) return;
+    let stale = false;
+    aiChatApi
+      .quota()
+      .then((res) => {
+        if (!stale) setRemaining(res.data.remaining);
+      })
+      .catch(() => {});
+    return () => {
+      stale = true;
+    };
+  }, [isOpen, isAuthenticated, remaining]);
+
   // 새 메시지 시 맨 아래로 스크롤
   useEffect(() => {
     bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight });
-  }, [session, loading]);
+  }, [session, pending, nextSymbol]);
 
   // 종목을 확인하고 대화를 연다. 한도는 쓰지 않는다
+  // 대화 중에 다른 종목으로 바꾸다 실패하면 지금 대화는 두고, 오류 앞에 그 종목을 붙인다
   const start = async (rawSymbol: string) => {
     const symbol = rawSymbol.trim();
     if (!symbol || loading) return;
+    const switching = session !== null;
     setError('');
-    setLoading(true);
+    setNextSymbol(null);
+    setPending('start');
     try {
       const res = await aiChatApi.startConversation(symbol);
       setSession({
@@ -81,9 +107,9 @@ const AiChatModal: React.FC<AiChatModalProps> = ({ onRequireLogin }) => {
       });
       setRemaining(res.data.remaining);
     } catch (e: unknown) {
-      setError(errorText(e));
+      setError(switching ? `${symbol.toUpperCase()}: ${errorText(e)}` : errorText(e));
     } finally {
-      setLoading(false);
+      setPending(null);
     }
   };
 
@@ -92,11 +118,12 @@ const AiChatModal: React.FC<AiChatModalProps> = ({ onRequireLogin }) => {
     if (!msg || loading || !session) return;
     const current = session;
     setError('');
+    setNextSymbol(null);
     setSession({ ...current, turns: [...current.turns, { role: 'user', text: msg }] });
-    setLoading(true);
+    setPending('ask');
     try {
       const res = await aiChatApi.ask(current.conversationId, msg);
-      // 기다리는 동안 종목을 바꿨으면 옛 대화의 답은 버린다
+      // 기다리는 동안 대화가 지워졌으면(로그아웃) 답을 버린다. 대화 ID 도 맞춰 다른 대화에 붙지 않게 한다
       setSession((s) =>
         s && s.conversationId === current.conversationId
           ? { ...s, turns: [...s.turns, { role: 'ai', text: res.data.answer }], updatedAt: Date.now() }
@@ -107,18 +134,21 @@ const AiChatModal: React.FC<AiChatModalProps> = ({ onRequireLogin }) => {
       if (getApiErrorCode(e) === 'conversation_not_found') setSession(null);
       setError(errorText(e));
     } finally {
-      setLoading(false);
+      setPending(null);
     }
   };
 
   // 차트 등에서 종목을 지정해 열면 그 종목으로 대화를 시작한다. 질문은 보내지 않는다
+  // 답을 기다리는 중이면 바로 바꾸지 않는다. 답을 보인 뒤 바꾸기 버튼으로 옮기게 한다
   useEffect(() => {
-    if (isOpen && autoSymbol && isAuthenticated && !loading) {
-      if (session?.symbol !== autoSymbol.toUpperCase()) start(autoSymbol);
-      consumeAutoSymbol();
-    }
+    if (!isOpen || !autoSymbol || !isAuthenticated || pending === 'start') return;
+    const symbol = autoSymbol.trim().toUpperCase();
+    consumeAutoSymbol();
+    if (session?.symbol === symbol) return;
+    if (pending === 'ask') setNextSymbol(symbol);
+    else start(symbol);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, autoSymbol, isAuthenticated, loading]);
+  }, [isOpen, autoSymbol, isAuthenticated, pending]);
 
   if (!isOpen) return null;
 
@@ -217,7 +247,18 @@ const AiChatModal: React.FC<AiChatModalProps> = ({ onRequireLogin }) => {
               </div>
             ))
           )}
-          {loading && <div className="text-sm text-tx-3">{session ? '분석 중...' : '종목 확인 중...'}</div>}
+          {pending && (
+            <div className="text-sm text-tx-3">{pending === 'start' ? '종목 확인 중...' : '분석 중...'}</div>
+          )}
+          {session && nextSymbol && (
+            <button
+              onClick={() => start(nextSymbol)}
+              disabled={loading}
+              className="text-sm px-3 py-1.5 border border-line-strong text-tx-1 rounded-lg hover:bg-elevated disabled:opacity-50"
+            >
+              {nextSymbol} 대화로 바꾸기
+            </button>
+          )}
           {error && <div className="text-sm text-danger">{error}</div>}
         </div>
 
@@ -233,6 +274,7 @@ const AiChatModal: React.FC<AiChatModalProps> = ({ onRequireLogin }) => {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                 placeholder={session ? QUESTION_PLACEHOLDER : SYMBOL_PLACEHOLDER}
+                maxLength={session ? QUESTION_MAX_LENGTH : SYMBOL_MAX_LENGTH}
                 className="flex-1 px-3 py-2 border border-line-strong rounded-lg focus:outline-none focus:ring-2 focus:ring-brand"
                 disabled={loading}
               />

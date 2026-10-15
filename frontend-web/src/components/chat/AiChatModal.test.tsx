@@ -9,11 +9,12 @@ import { aiChatApi } from '../../services/aiChatApi'
 
 const auth = vi.hoisted(() => ({ isAuthenticated: true, isLoading: false }))
 
-vi.mock('../../services/aiChatApi', () => ({ aiChatApi: { startConversation: vi.fn(), ask: vi.fn() } }))
+vi.mock('../../services/aiChatApi', () => ({ aiChatApi: { startConversation: vi.fn(), ask: vi.fn(), quota: vi.fn() } }))
 vi.mock('../../hooks/useAuth', () => ({ useAuth: () => auth }))
 
 const startConversation = vi.mocked(aiChatApi.startConversation)
 const ask = vi.mocked(aiChatApi.ask)
+const quota = vi.mocked(aiChatApi.quota)
 
 const SYMBOL_INPUT = '종목 코드를 입력해주세요 (예: AAPL)'
 const QUESTION_INPUT = '예: RSI 어때? · 1년 추이는? · 배당은?'
@@ -70,9 +71,11 @@ async function openAndStart() {
 
 beforeEach(() => {
   localStorage.clear()
-  vi.clearAllMocks()
+  // 실패한 테스트가 남긴 mockResolvedValueOnce 가 다음 테스트로 새지 않게 구현까지 비운다
+  vi.resetAllMocks()
   auth.isAuthenticated = true
   auth.isLoading = false
+  quota.mockResolvedValue({ data: { remaining: 5 } } as never)
 })
 
 describe('AiChatModal', () => {
@@ -201,6 +204,20 @@ describe('AiChatModal', () => {
     expect(localStorage.getItem('ggeolmuse_ai_chat')).toBeNull()
   })
 
+  it('답을 기다리는 중에 로그인이 풀리면 늦게 온 답을 기록하지 않는다', async () => {
+    let resolveAnswer!: (value: unknown) => void
+    startConversation.mockResolvedValueOnce(started('AAPL', 'Apple Inc.'))
+    ask.mockReturnValueOnce(new Promise((resolve) => { resolveAnswer = resolve }) as never)
+    const view = await openAndStart()
+    await userEvent.type(await screen.findByPlaceholderText(QUESTION_INPUT), 'RSI 어때?{Enter}')
+
+    auth.isAuthenticated = false
+    view.rerender(tree())
+    await act(async () => { resolveAnswer(answered('늦은 답', 4)) })
+
+    expect(localStorage.getItem('ggeolmuse_ai_chat')).toBeNull()
+  })
+
   it('로그인을 확인하는 동안에는 기록을 지우지 않는다', () => {
     const saved = JSON.stringify({ conversationId: 'c1', symbol: 'AAPL', name: null, turns: [], updatedAt: Date.now() })
     localStorage.setItem('ggeolmuse_ai_chat', saved)
@@ -212,7 +229,7 @@ describe('AiChatModal', () => {
     expect(localStorage.getItem('ggeolmuse_ai_chat')).toBe(saved)
   })
 
-  it('답을 기다리는 중에 차트 버튼을 누르면 답이 온 뒤 그 종목으로 바꾼다', async () => {
+  it('답을 기다리는 중에 차트 버튼을 누르면 답을 보인 뒤 그 종목으로 바꿀 버튼을 띄운다', async () => {
     let resolveAnswer!: (value: unknown) => void
     startConversation
       .mockResolvedValueOnce(started('AAPL', 'Apple Inc.'))
@@ -222,12 +239,127 @@ describe('AiChatModal', () => {
     await userEvent.type(await screen.findByPlaceholderText(QUESTION_INPUT), 'RSI 어때?{Enter}')
 
     await userEvent.click(screen.getByRole('button', { name: 'TSLA 분석' }))
-    expect(startConversation).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('button', { name: 'TSLA 대화로 바꾸기' })).toBeDisabled()
 
     await act(async () => { resolveAnswer(answered('첫 답', 4)) })
 
+    expect(await screen.findByText('첫 답')).toBeInTheDocument()
+    expect(screen.getByText('AAPL · Apple Inc.')).toBeInTheDocument()
+    expect(startConversation).toHaveBeenCalledTimes(1)
+
+    await userEvent.click(screen.getByRole('button', { name: 'TSLA 대화로 바꾸기' }))
+
     expect(await screen.findByText('TSLA · Tesla, Inc.')).toBeInTheDocument()
     expect(startConversation).toHaveBeenLastCalledWith('TSLA')
-    expect(startConversation).toHaveBeenCalledTimes(2)
+    expect(screen.queryByRole('button', { name: 'TSLA 대화로 바꾸기' })).not.toBeInTheDocument()
+  })
+
+  it('바꾸기 버튼을 두고 질문을 이어 가면 버튼을 거둔다', async () => {
+    let resolveAnswer!: (value: unknown) => void
+    startConversation.mockResolvedValueOnce(started('AAPL', 'Apple Inc.'))
+    ask
+      .mockReturnValueOnce(new Promise((resolve) => { resolveAnswer = resolve }) as never)
+      .mockResolvedValueOnce(answered('둘째 답', 3))
+    await openAndStart()
+    await userEvent.type(await screen.findByPlaceholderText(QUESTION_INPUT), 'RSI 어때?{Enter}')
+    await userEvent.click(screen.getByRole('button', { name: 'TSLA 분석' }))
+    await act(async () => { resolveAnswer(answered('첫 답', 4)) })
+
+    await userEvent.type(screen.getByPlaceholderText(QUESTION_INPUT), '배당은?{Enter}')
+
+    expect(await screen.findByText('둘째 답')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'TSLA 대화로 바꾸기' })).not.toBeInTheDocument()
+  })
+
+  it('대화 중에 차트 버튼으로 다른 종목을 열면 종목을 확인하는 동안 그렇게 보인다', async () => {
+    localStorage.setItem('ggeolmuse_ai_chat', JSON.stringify({
+      conversationId: 'c-AAPL', symbol: 'AAPL', name: 'Apple Inc.', turns: [], updatedAt: Date.now(),
+    }))
+    startConversation.mockReturnValueOnce(new Promise(() => {}) as never)
+    renderModal()
+
+    await userEvent.click(screen.getByRole('button', { name: 'TSLA 분석' }))
+
+    expect(screen.getByText('종목 확인 중...')).toBeInTheDocument()
+    expect(screen.queryByText('분석 중...')).not.toBeInTheDocument()
+  })
+
+  it('대화 중에 차트 종목으로 시작하지 못하면 지금 대화를 두고 오류에 그 종목을 붙인다', async () => {
+    localStorage.setItem('ggeolmuse_ai_chat', JSON.stringify({
+      conversationId: 'c-AAPL', symbol: 'AAPL', name: 'Apple Inc.', turns: [{ role: 'ai', text: '이전 답' }],
+      updatedAt: Date.now(),
+    }))
+    startConversation.mockRejectedValueOnce(
+      apiError(404, { code: 'symbol_not_found', message: '종목을 찾을 수 없습니다. 종목 코드로 입력해 주세요 (예: AAPL).' })
+    )
+    renderModal()
+
+    await userEvent.click(screen.getByRole('button', { name: 'TSLA 분석' }))
+
+    expect(await screen.findByText('TSLA: 종목을 찾을 수 없습니다. 종목 코드로 입력해 주세요 (예: AAPL).')).toBeInTheDocument()
+    expect(screen.getByText('AAPL · Apple Inc.')).toBeInTheDocument()
+    expect(screen.getByText('이전 답')).toBeInTheDocument()
+  })
+
+  it('저장된 대화를 다시 열면 남은 횟수를 서버에 물어 보인다', async () => {
+    localStorage.setItem('ggeolmuse_ai_chat', JSON.stringify({
+      conversationId: 'c-AAPL', symbol: 'AAPL', name: 'Apple Inc.', turns: [], updatedAt: Date.now(),
+    }))
+    quota.mockResolvedValueOnce({ data: { remaining: 3 } } as never)
+    renderModal()
+
+    await userEvent.click(screen.getByRole('button', { name: '채팅 열기' }))
+
+    expect(await screen.findByText('오늘 남은 횟수: 3회')).toBeInTheDocument()
+  })
+
+  it('남은 횟수를 한 번 알면 다시 묻지 않는다', async () => {
+    startConversation.mockResolvedValueOnce(started('AAPL', 'Apple Inc.'))
+    await openAndStart()
+    await screen.findByText('AAPL · Apple Inc.')
+
+    expect(quota).toHaveBeenCalledTimes(1)
+  })
+
+  it('늦게 온 남은 횟수 응답은 그 사이 받은 값을 덮지 않는다', async () => {
+    let resolveQuota!: (value: unknown) => void
+    quota.mockReturnValueOnce(new Promise((resolve) => { resolveQuota = resolve }) as never)
+    startConversation.mockResolvedValueOnce(started('AAPL', 'Apple Inc.', 4))
+    await openAndStart()
+    expect(await screen.findByText('오늘 남은 횟수: 4회')).toBeInTheDocument()
+
+    await act(async () => { resolveQuota({ data: { remaining: 5 } }) })
+
+    expect(screen.getByText('오늘 남은 횟수: 4회')).toBeInTheDocument()
+  })
+
+  it('남은 횟수를 묻지 못하면 오류 없이 숨긴다', async () => {
+    quota.mockRejectedValueOnce(apiError(503, {}))
+    renderModal()
+
+    await userEvent.click(screen.getByRole('button', { name: '채팅 열기' }))
+    await act(async () => {})
+
+    expect(quota).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText(/오늘 남은 횟수/)).not.toBeInTheDocument()
+    expect(screen.queryByText('AI 분석 기능은 현재 환경에서 사용할 수 없습니다.')).not.toBeInTheDocument()
+  })
+
+  it('입력칸 길이를 서버 제한에 맞춘다', async () => {
+    startConversation.mockResolvedValueOnce(started('AAPL', 'Apple Inc.'))
+    renderModal()
+    await userEvent.click(screen.getByRole('button', { name: '채팅 열기' }))
+    expect(screen.getByPlaceholderText(SYMBOL_INPUT)).toHaveAttribute('maxlength', '16')
+
+    await userEvent.type(screen.getByPlaceholderText(SYMBOL_INPUT), 'aapl{Enter}')
+
+    expect(await screen.findByPlaceholderText(QUESTION_INPUT)).toHaveAttribute('maxlength', '500')
+  })
+
+  it('입력 검증(422)에 걸리면 입력을 확인하라고 보인다', async () => {
+    startConversation.mockRejectedValueOnce(apiError(422, { detail: [{ msg: 'String should have at most 32 characters' }] }))
+    await openAndStart()
+
+    expect(await screen.findByText('입력 내용을 확인해 주세요.')).toBeInTheDocument()
   })
 })
