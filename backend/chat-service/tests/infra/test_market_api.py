@@ -43,6 +43,19 @@ async def test_unavailable_or_404_quote_is_none(market):
 
 
 @respx.mock
+@pytest.mark.parametrize("response", [httpx.Response(500), httpx.Response(400), httpx.ReadTimeout("slow"),
+                                      httpx.ConnectError("down")])
+async def test_failures_become_market_unavailable(market, response):
+    route = respx.get(f"{BASE}/api/internal/market/price/AAPL")
+    if isinstance(response, httpx.Response):
+        route.mock(return_value=response)
+    else:
+        route.mock(side_effect=response)
+    with pytest.raises(MarketUnavailable):
+        await market.quote("AAPL")
+
+
+@respx.mock
 async def test_bars_use_close_price_and_sort(market):
     route = respx.get(f"{BASE}/api/internal/market/ohlc/AAPL/range").mock(return_value=httpx.Response(200, json=[
         {"date": "2026-10-15", "openPrice": 10, "highPrice": 12, "lowPrice": 9, "closePrice": 11,
@@ -72,32 +85,3 @@ async def test_dividends_are_sorted_oldest_first(market):
     assert route.calls[0].request.url.params["startDate"] == "2023-10-17"
     assert [d.ex_date.isoformat() for d in dividends] == ["2026-05-11", "2026-08-10"]
     assert dividends[0].currency == "USD"
-
-
-@respx.mock
-async def test_fetch_supported_symbols_caches(market):
-    route = respx.get(f"{BASE}/api/market/symbols").mock(
-        return_value=httpx.Response(200, json=[{"symbol": "AAPL"}, {"symbol": "MSFT"}])
-    )
-    assert await market.fetch_supported_symbols() == {"AAPL", "MSFT"}
-    assert await market.fetch_supported_symbols() == {"AAPL", "MSFT"}
-    assert route.call_count == 1
-
-
-@respx.mock
-async def test_404_is_empty(market):
-    respx.get(f"{BASE}/api/internal/market/ohlc/ZZZZ/range").mock(return_value=httpx.Response(404))
-    assert await market.bars("ZZZZ", date(2025, 9, 11), date(2026, 10, 16)) == []
-
-
-@respx.mock
-@pytest.mark.parametrize("response", [httpx.Response(500), httpx.Response(400), httpx.ReadTimeout("slow"),
-                                      httpx.ConnectError("down")])
-async def test_failures_become_market_unavailable(market, response):
-    route = respx.get(f"{BASE}/api/internal/market/ohlc/AAPL/range")
-    if isinstance(response, httpx.Response):
-        route.mock(return_value=response)
-    else:
-        route.mock(side_effect=response)
-    with pytest.raises(MarketUnavailable):
-        await market.bars("AAPL", date(2025, 9, 11), date(2026, 10, 16))

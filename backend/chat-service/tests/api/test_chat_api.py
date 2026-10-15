@@ -1,156 +1,125 @@
-import asyncio
+import logging
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app.api.auth import current_user_id
-from app.api.deps import get_chat_model, get_market_client, get_rate_limiter
+from app.api.chat import fingerprint
+from app.api.deps import get_chat_service
+from app.core.answerer import Answerer
+from app.core.chat_service import ChatService
+from app.core.messages import DISCLAIMER
 from app.core.models import AiUnavailable, MarketUnavailable
-from app.infra.quota import RateLimiter
+from app.core.router import Router
+from app.core.tools.market import MarketTools
 from app.main import app
-from tests.core.fakes import make_bars
+from tests.core.fakes import TODAY, FakeMarket, FakeModel, MemoryQuota, MemoryStore, StubSkill
 
 
-class _FakeMarket:
-    async def fetch_supported_symbols(self):
-        return {"AAPL", "MSFT"}
-
-    async def bars(self, symbol, start, end):
-        return make_bars(60)
-
-
-class _FakeModel:
-    """AI 호출 대신 쓴다. 테스트마다 route_fn · analyze_fn 을 바꿔 끼운다(기본: AAPL 추출 + 분석 응답)"""
-
+class Env:
     def __init__(self):
-        self.route_fn = lambda msg: '{"symbol": "AAPL"}'
-        self.analyze_fn = lambda s, summary, q: "상승 경향으로 해석될 수 있습니다.\n\n※ 면책"
+        self.market = FakeMarket()
+        self.model = FakeModel()
+        self.quota = MemoryQuota()
+        self.skill = StubSkill("indicators")
+        self.service = ChatService(
+            tools=MarketTools(self.market, today=lambda: TODAY),
+            store=MemoryStore(),
+            quota=self.quota,
+            router=Router(self.model, [self.skill]),
+            answerer=Answerer(self.model, history_turns=3),
+        )
+        self.client = TestClient(app)
 
-    def route(self, message):
-        return self.route_fn(message)
+    def start(self, symbol="AAPL"):
+        return self.client.post("/api/chat/conversations", json={"symbol": symbol})
 
-    def analyze(self, symbol, summary, question):
-        return self.analyze_fn(symbol, summary, question)
+    def ask(self, conversation_id, message="RSI 어때?"):
+        return self.client.post("/api/chat", json={"conversation_id": conversation_id, "message": message})
 
 
 @pytest.fixture
-def client(fake_rate_limiter):
-    model = _FakeModel()
+def env():
+    env = Env()
     app.dependency_overrides[current_user_id] = lambda: "user-1"
-    app.dependency_overrides[get_rate_limiter] = lambda: fake_rate_limiter
-    app.dependency_overrides[get_market_client] = lambda: _FakeMarket()
-    app.dependency_overrides[get_chat_model] = lambda: model
-    yield TestClient(app), fake_rate_limiter, model
+    app.dependency_overrides[get_chat_service] = lambda: env.service
+    yield env
     app.dependency_overrides.clear()
 
 
-def test_valid_symbol_returns_analysis(client):
-    c, _, _ = client
-    res = c.post("/api/chat", json={"message": "AAPL 어때?"})
-    assert res.status_code == 200
+def test_start_returns_conversation(env):
+    res = env.start("aapl")
+    assert res.status_code == 201
     body = res.json()
-    assert body["symbol"] == "AAPL"
-    assert "경향" in body["answer"]
-    assert body["remaining"] == 4
+    assert (body["symbol"], body["name"], body["remaining"]) == ("AAPL", "Apple Inc.", 5)
+    assert body["conversation_id"]
 
 
-def test_no_symbol_does_not_consume_quota(client):
-    c, _, model = client
-    model.route_fn = lambda msg: '{"symbol": null}'
-    res = c.post("/api/chat", json={"message": "PER이 뭐야?"})
+def test_start_unknown_symbol_is_404_with_code(env):
+    res = env.start("ZZZZ")
+    assert res.status_code == 404
+    assert res.json() == {"code": "symbol_not_found",
+                          "message": "종목을 찾을 수 없습니다. 종목 코드로 입력해 주세요 (예: AAPL)."}
+
+
+def test_ask_answers(env):
+    conversation_id = env.start().json()["conversation_id"]
+    res = env.ask(conversation_id)
     assert res.status_code == 200
-    assert res.json()["remaining"] == 5  # 차감 안 됨
+    assert res.json() == {"answer": f"상승 경향으로 해석될 수 있습니다.\n\n{DISCLAIMER}", "remaining": 4,
+                          "conversation_id": conversation_id, "symbol": "AAPL", "rejected": None}
 
 
-def test_rejections_over_cap_use_quota(client, fake_redis):
-    c, _, model = client
-    app.dependency_overrides[get_rate_limiter] = lambda: RateLimiter(fake_redis, limit=5, reject_limit=1)
-    model.route_fn = lambda msg: '{"symbol": null}'
-    first = c.post("/api/chat", json={"message": "PER이 뭐야?"}).json()
-    second = c.post("/api/chat", json={"message": "PER이 뭐야?"}).json()
-    assert (first["remaining"], second["remaining"]) == (5, 4)
+def test_ask_rejection_keeps_quota(env):
+    env.model.choose_text = '{"skill": null, "reason": "off_topic"}'
+    conversation_id = env.start().json()["conversation_id"]
+    body = env.ask(conversation_id, "날씨 어때?").json()
+    assert (body["rejected"], body["remaining"]) == ("off_topic", 5)
+    assert body["answer"] == "AAPL의 지표, 주가 추이, 배당에 대해 물어봐 주세요."
 
 
-def test_symbol_param_skips_mini(client):
-    c, _, model = client
-    # mini가 호출되면 실패하게 만들어 스킵 검증
-    def _boom(msg):
-        raise AssertionError("mini를 호출하면 안 됨")
-    model.route_fn = _boom
-    res = c.post("/api/chat", json={"message": "분석해줘", "symbol": "MSFT"})
-    assert res.status_code == 200
-    body = res.json()
-    assert body["symbol"] == "MSFT"
-    assert body["remaining"] == 4
+def test_ask_unknown_conversation_is_404(env):
+    res = env.ask("00000000-0000-0000-0000-000000000000")
+    assert (res.status_code, res.json()["code"]) == (404, "conversation_not_found")
 
 
-def test_symbol_param_unsupported_rejected(client):
-    c, _, _ = client
-    res = c.post("/api/chat", json={"message": "분석해줘", "symbol": "ZZZZ"})
-    assert res.status_code == 200
-    body = res.json()
-    assert "지원하지 않는" in body["answer"]
-    assert body["remaining"] == 5  # 차감 안 됨
+def test_quota_exceeded_is_429(env):
+    conversation_id = env.start().json()["conversation_id"]
+    env.quota.used["user-1"] = 5
+    res = env.ask(conversation_id)
+    assert (res.status_code, res.json()["code"]) == (429, "quota_exceeded")
 
 
-@pytest.mark.asyncio
-async def test_quota_exhausted_returns_429(client):
-    c, limiter, _ = client
-    for _ in range(5):
-        await limiter.try_acquire("user-1")
-    res = c.post("/api/chat", json={"message": "AAPL 어때?"})
-    assert res.status_code == 429
+def test_outages_are_503_with_source(env):
+    conversation_id = env.start().json()["conversation_id"]
+    env.model.answer_error = AiUnavailable("timeout")
+    assert env.ask(conversation_id).json()["code"] == "ai_unavailable"
+
+    env.model.answer_error = None
+    env.market.error = MarketUnavailable("down")
+    assert env.start().json()["code"] == "market_unavailable"
 
 
-class _DownMarket(_FakeMarket):
-    async def bars(self, symbol, start, end):
-        raise MarketUnavailable("market-data down")
+def test_unexpected_error_is_500(env, caplog):
+    conversation_id = env.start().json()["conversation_id"]
+    env.model.answer_error = RuntimeError("bug")
+    with caplog.at_level(logging.ERROR, logger="chat"):
+        res = env.ask(conversation_id)
+    assert (res.status_code, res.json()["code"]) == (500, "internal_error")
+    assert "Traceback" in caplog.text
 
 
-@pytest.mark.asyncio
-async def test_market_failure_returns_slot(client):
-    c, limiter, _ = client
-    app.dependency_overrides[get_market_client] = lambda: _DownMarket()
-    res = c.post("/api/chat", json={"message": "AAPL 어때?"})
-    assert res.status_code == 503
-    assert await limiter.remaining("user-1") == 5
+def test_empty_message_is_422(env):
+    assert env.ask("c", "").status_code == 422
 
 
-@pytest.mark.asyncio
-async def test_analysis_failure_returns_slot(client):
-    c, limiter, model = client
+def test_request_log_line(env, caplog):
+    conversation_id = env.start().json()["conversation_id"]
+    with caplog.at_level(logging.INFO, logger="chat"):
+        env.ask(conversation_id)
 
-    def _fail(symbol, summary, question):
-        raise AiUnavailable("openai down")
-    model.analyze_fn = _fail
-    res = c.post("/api/chat", json={"message": "AAPL 어때?"})
-    assert res.status_code == 503
-    assert await limiter.remaining("user-1") == 5
-
-
-def _on_event_loop() -> bool:
-    try:
-        asyncio.get_running_loop()
-        return True
-    except RuntimeError:
-        return False
-
-
-def test_ai_calls_run_off_event_loop(client):
-    # 동기 OpenAI 호출을 루프에서 부르면 답을 기다리는 동안 다른 요청 · /health 가 멈춘다
-    c, _, model = client
-    seen = []
-
-    def _router(msg):
-        seen.append(("router", _on_event_loop()))
-        return '{"symbol": "AAPL"}'
-
-    def _analysis(symbol, summary, question):
-        seen.append(("analysis", _on_event_loop()))
-        return "답"
-
-    model.route_fn = _router
-    model.analyze_fn = _analysis
-    res = c.post("/api/chat", json={"message": "AAPL 어때?"})
-    assert res.status_code == 200
-    assert seen == [("router", False), ("analysis", False)]
+    line = [r.getMessage() for r in caplog.records if r.getMessage().startswith("ask ")][0]
+    assert f"user={fingerprint('user-1')}" in line
+    assert "user-1" not in line
+    assert "symbol=AAPL skill=indicators outcome=answered" in line
+    assert "llm_calls=2 tokens=110" in line

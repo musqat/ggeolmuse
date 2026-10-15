@@ -1,13 +1,25 @@
 from pydantic import BaseModel, Field
 
 
-class ChatRequest(BaseModel):
+class StartRequest(BaseModel):
+    symbol: str = Field(min_length=1, max_length=32)
+
+
+class StartResponse(BaseModel):
+    conversation_id: str
+    symbol: str
+    name: str | None
+    remaining: int
+
+
+class AskRequest(BaseModel):
+    conversation_id: str = Field(min_length=1, max_length=64)
     message: str = Field(min_length=1, max_length=500)
-    # 종목이 확정된 경우(차트에서 분석 요청) 직접 전달 → mini 추출 생략
-    symbol: str | None = None
 
 
-class ChatResponse(BaseModel):
+class AskResponse(BaseModel):
     answer: str
     remaining: int
-    symbol: str | None = None
+    conversation_id: str
+    symbol: str
+    rejected: str | None  # off_topic · other_symbol · insufficient_data

@@ -6,23 +6,7 @@ import openai
 import pytest
 
 from app.core.models import AiUnavailable
-from app.infra.llm import ChatModel, build_analysis_messages, DISCLAIMER, SYSTEM_GUARD
-
-
-def test_analysis_messages_include_system_guard():
-    msgs = build_analysis_messages(
-        symbol="AAPL", summary="RSI 60(중립), MA20>MA60", question="어때?"
-    )
-    assert msgs[0]["role"] == "system"
-    assert SYSTEM_GUARD in msgs[0]["content"]
-    # 지표 요약과 종목이 유저 메시지에 포함
-    user = msgs[1]["content"]
-    assert "AAPL" in user
-    assert "RSI 60(중립)" in user
-
-
-def test_disclaimer_text_present():
-    assert "투자 조언이 아니" in DISCLAIMER
+from app.infra.llm import ChatModel
 
 
 class _FakeCompletions:
@@ -50,26 +34,6 @@ def _model(completions):
     client = SimpleNamespace(chat=SimpleNamespace(completions=completions))
     return ChatModel(client, router_model="mini", main_model="main", router_timeout=5.0,
                      answer_timeout=15.0, max_answer_tokens=700)
-
-
-def test_route_asks_router_model_for_json_with_timeout():
-    completions = _FakeCompletions('{"symbol": "AAPL"}')
-    assert _model(completions).route("애플 어때?") == '{"symbol": "AAPL"}'
-    call = completions.calls[0]
-    assert (call["model"], call["timeout"]) == ("mini", 5.0)
-    assert call["response_format"] == {"type": "json_object"}
-
-
-def test_route_without_content_returns_empty_object():
-    assert _model(_FakeCompletions(None)).route("x") == "{}"
-
-
-def test_analyze_strips_markdown_and_appends_disclaimer():
-    completions = _FakeCompletions("# 제목\n*기울임* **굵게**")
-    answer = _model(completions).analyze("AAPL", "RSI 60", "어때?")
-    assert answer == f"제목\n기울임 **굵게**\n\n{DISCLAIMER}"
-    call = completions.calls[0]
-    assert (call["model"], call["timeout"], call["max_tokens"]) == ("main", 15.0, 700)
 
 
 async def test_choose_uses_router_model_json_and_timeout():
