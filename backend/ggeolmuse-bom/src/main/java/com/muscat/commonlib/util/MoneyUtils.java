@@ -20,6 +20,10 @@ public final class MoneyUtils {
   public static final BigDecimal MIN_EXCHANGE_AMOUNT_USD = new BigDecimal("1.00");
   public static final BigDecimal MAX_SINGLE_EXCHANGE_KRW = new BigDecimal("50000000");
 
+  // USD/KRW 정상 범위(원)
+  private static final BigDecimal MIN_EXCHANGE_RATE = new BigDecimal("500");
+  private static final BigDecimal MAX_EXCHANGE_RATE = new BigDecimal("2000");
+
   private MoneyUtils() {
     throw new AssertionError("Utility class cannot be instantiated");
   }
@@ -190,13 +194,8 @@ public final class MoneyUtils {
       throw new ServiceException("INVALID_EXCHANGE_RATE", "환율은 0보다 커야 합니다: " + exchangeRate);
     }
 
-    if ("USD".equals(toCurrency) || "KRW".equals(toCurrency)) {
-      BigDecimal minRate = new BigDecimal("500");
-      BigDecimal maxRate = new BigDecimal("2000");
-
-      if (exchangeRate.compareTo(minRate) < 0 || exchangeRate.compareTo(maxRate) > 0) {
-        log.warn("비정상적인 환율 감지: {} (정상 범위: {}-{})", exchangeRate, minRate, maxRate);
-      }
+    if (("USD".equals(toCurrency) || "KRW".equals(toCurrency)) && !isExchangeRateInRange(exchangeRate)) {
+      log.warn("비정상적인 환율 감지: {} (정상 범위: {}-{})", exchangeRate, MIN_EXCHANGE_RATE, MAX_EXCHANGE_RATE);
     }
 
     validateMinimumExchangeAmount(amount, fromCurrency);
@@ -221,18 +220,21 @@ public final class MoneyUtils {
       .setScale(USD_SCALE, ROUND_MODE);
   }
 
-  // 환율 유효성 검증
+  // 환율이 정상 범위(500 ~ 2000원) 안인지
+  public static boolean isExchangeRateInRange(BigDecimal exchangeRate) {
+    return exchangeRate != null
+      && exchangeRate.compareTo(MIN_EXCHANGE_RATE) >= 0
+      && exchangeRate.compareTo(MAX_EXCHANGE_RATE) <= 0;
+  }
+
+  // 환율 검증. 0 이하거나 정상 범위 밖이면 예외
   public static void validateExchangeRate(BigDecimal exchangeRate) {
     if (exchangeRate == null || exchangeRate.compareTo(BigDecimal.ZERO) <= 0) {
       throw new ServiceException("INVALID_EXCHANGE_RATE", "환율은 0보다 커야 합니다: " + exchangeRate);
     }
-
-    // 정상적인 USD/KRW 환율 범위 체크 (500원 ~ 2000원)
-    BigDecimal minRate = new BigDecimal("500");
-    BigDecimal maxRate = new BigDecimal("2000");
-
-    if (exchangeRate.compareTo(minRate) < 0 || exchangeRate.compareTo(maxRate) > 0) {
-      log.warn("비정상적인 환율 감지: {} (정상 범위: {}-{})", exchangeRate, minRate, maxRate);
+    if (!isExchangeRateInRange(exchangeRate)) {
+      throw new ServiceException("INVALID_EXCHANGE_RATE",
+        "환율이 정상 범위(" + MIN_EXCHANGE_RATE + " ~ " + MAX_EXCHANGE_RATE + "원) 밖입니다: " + exchangeRate);
     }
   }
 }

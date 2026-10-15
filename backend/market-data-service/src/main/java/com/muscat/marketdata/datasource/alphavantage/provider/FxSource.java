@@ -1,6 +1,7 @@
 package com.muscat.marketdata.datasource.alphavantage.provider;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.muscat.commonlib.util.MoneyUtils;
 import com.muscat.marketdata.datasource.alphavantage.client.AlphaVantageClient;
 import com.muscat.marketdata.datasource.alphavantage.client.AlphaVantageRateLimiter;
 import com.muscat.marketdata.datasource.common.MarketDataProvider;
@@ -30,8 +31,16 @@ public class FxSource implements MarketDataProvider.FxSource {
 
     @Override
     public Optional<BigDecimal> fetchFx(LocalDate date) {
-        BigDecimal rate = fetchFxRate(date);
-        return Optional.ofNullable(rate);
+        return Optional.ofNullable(fetchFxRate(date)).filter(rate -> isInRange(date, rate));
+    }
+
+    // 정상 범위 밖 환율은 버림
+    private static boolean isInRange(LocalDate date, BigDecimal rate) {
+        if (MoneyUtils.isExchangeRateInRange(rate)) {
+            return true;
+        }
+        log.warn("[환율] 정상 범위 밖이라 버림: date={}, rate={}", date, rate);
+        return false;
     }
 
     public BigDecimal fetchFxRate(LocalDate date) {
@@ -76,8 +85,10 @@ public class FxSource implements MarketDataProvider.FxSource {
         timeSeries.fields().forEachRemaining(entry -> {
             try {
                 LocalDate date = LocalDate.parse(entry.getKey());
-                String closeValue = entry.getValue().get("4. close").asText();
-                rates.put(date, new BigDecimal(closeValue));
+                BigDecimal rate = new BigDecimal(entry.getValue().get("4. close").asText());
+                if (isInRange(date, rate)) {
+                    rates.put(date, rate);
+                }
             } catch (Exception e) {
                 log.warn("환율 데이터를 파싱에 실패했습니다. : {}", entry.getKey(), e);
             }

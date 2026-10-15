@@ -29,26 +29,19 @@ public class DataCollectionService {
         int dividendCount = 0;
 
         try {
+            candleCount = candleUpdateService.saveCandles(
+                    event.getSymbol(),
+                    event.getFromDate(),
+                    event.getToDate()
+            );
             if (event.isIncludeDividends()) {
-                // 캔들 + 배당 동시 수집
-                int totalRecords = candleUpdateService.saveBoth(
+                dividendCount = candleUpdateService.saveDividends(
                         event.getSymbol(),
                         event.getFromDate(),
                         event.getToDate()
                 );
-                candleCount = totalRecords;
-                log.debug("Data collection completed: symbol={}, totalRecords={}",
-                        event.getSymbol(), totalRecords);
-            } else {
-                // 캔들만 수집
-                candleCount = candleUpdateService.saveCandles(
-                        event.getSymbol(),
-                        event.getFromDate(),
-                        event.getToDate()
-                );
-                log.debug("Candle collection completed: symbol={}, candleCount={}",
-                        event.getSymbol(), candleCount);
             }
+            log.debug("수집 완료: symbol={}, 캔들={}, 배당={}", event.getSymbol(), candleCount, dividendCount);
 
             long executionTime = System.currentTimeMillis() - startTime;
 
@@ -74,7 +67,7 @@ public class DataCollectionService {
                     executionTime
             );
 
-            // 종목 하나의 실패는 saveCandles 가 이미 삼킨다. 여기까지 오면 예상 밖이라
+            // 종목 하나의 실패는 saveCandles · saveDividends 가 이미 삼킨다. 여기까지 오면 예상 밖이라
             // 재시도와 .DLT 로 보낸다
             throw e;
         }

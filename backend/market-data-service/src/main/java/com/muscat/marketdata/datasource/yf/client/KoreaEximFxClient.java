@@ -3,6 +3,7 @@ package com.muscat.marketdata.datasource.yf.client;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.muscat.commonlib.util.MoneyUtils;
 import com.muscat.marketdata.domain.dto.KoreaEximRateItem;
 import com.muscat.marketdata.datasource.common.MarketDataProvider;
 import lombok.RequiredArgsConstructor;
@@ -48,7 +49,17 @@ public class KoreaEximFxClient implements MarketDataProvider.FxSource {
     @Override
     public Optional<BigDecimal> fetchFx(LocalDate date) {
         return fetchFxRate(date)
-                .map(KoreaEximRateItem::parseRate);
+                .map(KoreaEximRateItem::parseRate)
+                .filter(rate -> isInRange(date, rate));
+    }
+
+    // 정상 범위 밖 환율은 버림
+    private static boolean isInRange(LocalDate date, BigDecimal rate) {
+        if (MoneyUtils.isExchangeRateInRange(rate)) {
+            return true;
+        }
+        log.warn("Korea Exim API - Rate out of range, ignored: date={}, rate={}", date, rate);
+        return false;
     }
 
     public Optional<KoreaEximRateItem> fetchFxRate(LocalDate date) {
