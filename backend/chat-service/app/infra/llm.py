@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 import re
 
 from openai import OpenAI, OpenAIError
 
-from app.core.models import AiUnavailable
+from app.core.models import AiUnavailable, Completion
 
 
 def _strip_markdown(text: str) -> str:
@@ -88,6 +89,35 @@ class ChatModel:
         )
         answer = _strip_markdown((resp.choices[0].message.content or "").strip())
         return f"{answer}\n\n{DISCLAIMER}"
+
+    async def choose(self, messages: list[dict]) -> Completion:
+        """작은 모델. JSON 한 덩어리로 답한다"""
+        return await self._call(
+            model=self._router_model,
+            messages=messages,
+            temperature=0,
+            response_format={"type": "json_object"},
+            max_tokens=30,
+            timeout=self._router_timeout,
+        )
+
+    async def answer(self, messages: list[dict]) -> Completion:
+        """큰 모델"""
+        return await self._call(
+            model=self._main_model,
+            messages=messages,
+            temperature=0.4,
+            max_tokens=self._max_answer_tokens,
+            timeout=self._answer_timeout,
+        )
+
+    async def _call(self, **kwargs) -> Completion:
+        resp = await asyncio.to_thread(self._create, **kwargs)
+        usage = getattr(resp, "usage", None)
+        return Completion(
+            text=resp.choices[0].message.content or "",
+            tokens=getattr(usage, "total_tokens", 0) or 0,
+        )
 
     def _create(self, **kwargs):
         try:

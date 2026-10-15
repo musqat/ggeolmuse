@@ -17,6 +17,32 @@ async def market():
 
 
 @respx.mock
+async def test_quote_maps_price_and_listing(market):
+    respx.get(f"{BASE}/api/internal/market/price/AAPL").mock(return_value=httpx.Response(200, json={
+        "symbol": "AAPL", "name": "Apple Inc.", "currentPrice": 238.15, "date": "2026-10-15",
+        "available": True, "active": True}))
+    quote = await market.quote("AAPL")
+    assert (quote.symbol, quote.name, quote.price, quote.as_of, quote.active) == (
+        "AAPL", "Apple Inc.", 238.15, date(2026, 10, 15), True)
+
+
+@respx.mock
+async def test_quote_without_listing_field_is_unknown(market):
+    respx.get(f"{BASE}/api/internal/market/price/AAPL").mock(return_value=httpx.Response(200, json={
+        "symbol": "AAPL", "name": None, "currentPrice": 1, "date": "2026-10-15", "available": True}))
+    assert (await market.quote("AAPL")).active is None
+
+
+@respx.mock
+async def test_unavailable_or_404_quote_is_none(market):
+    respx.get(f"{BASE}/api/internal/market/price/ZZZZ").mock(
+        return_value=httpx.Response(200, json={"symbol": "ZZZZ", "available": False}))
+    respx.get(f"{BASE}/api/internal/market/price/GONE").mock(return_value=httpx.Response(404))
+    assert await market.quote("ZZZZ") is None
+    assert await market.quote("GONE") is None
+
+
+@respx.mock
 async def test_bars_use_close_price_and_sort(market):
     route = respx.get(f"{BASE}/api/internal/market/ohlc/AAPL/range").mock(return_value=httpx.Response(200, json=[
         {"date": "2026-10-15", "openPrice": 10, "highPrice": 12, "lowPrice": 9, "closePrice": 11,

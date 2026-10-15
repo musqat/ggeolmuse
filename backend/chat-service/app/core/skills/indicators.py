@@ -1,7 +1,14 @@
 """지표 스킬. 차트 "지표 설정" 목록과 같은 지표를 자료로 만든다"""
 from __future__ import annotations
 
-from app.core.analysis.indicators import EMA_PERIODS, MA_PERIODS, IndicatorSnapshot
+from app.core.analysis.indicators import (
+    EMA_PERIODS,
+    MA_PERIODS,
+    IndicatorSnapshot,
+    compute_indicators,
+)
+from app.core.models import Evidence
+from app.core.tools.market import MarketTools
 
 
 def indicator_lines(s: IndicatorSnapshot) -> list[str]:
@@ -47,3 +54,21 @@ def _missing(s: IndicatorSnapshot) -> list[str]:
     missing += [f"EMA{p}" for p in EMA_PERIODS if p not in s.ema]
     optional = (("볼린저", s.bollinger), ("RSI", s.rsi), ("MACD", s.macd), ("스토캐스틱", s.kdj))
     return missing + [name for name, value in optional if value is None]
+
+
+class IndicatorsSkill:
+    name = "indicators"
+    description = "기술 지표(이동평균, EMA, 볼린저, RSI, MACD, 스토캐스틱, 거래량)와 지표 뜻 설명"
+    guide = (
+        "자료는 차트 '지표 설정'과 같은 식으로 계산한 기술 지표다. 지표 뜻을 물으면 짧게 설명하고 "
+        "지금 값으로 예를 든다. 자료에 없는 지표나 기간은 계산하지 않았다고 말한다."
+    )
+
+    def __init__(self, lookback_days: int):
+        self._lookback_days = lookback_days
+
+    async def gather(self, symbol: str, tools: MarketTools) -> Evidence | None:
+        snapshot = compute_indicators(await tools.bars(symbol, self._lookback_days))
+        if snapshot is None:
+            return None
+        return Evidence(lines=tuple(indicator_lines(snapshot)), as_of=snapshot.as_of)

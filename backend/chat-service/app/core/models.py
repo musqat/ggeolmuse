@@ -18,6 +18,29 @@ class Bar:
 
 
 @dataclass(frozen=True)
+class Quote:
+    """현재가. active 가 None 이면 상장 여부를 모름"""
+    symbol: str
+    name: str | None
+    price: float
+    as_of: date
+    active: bool | None
+
+
+@dataclass(frozen=True)
+class Evidence:
+    """답변기에 넘기는 자료. lines 는 프롬프트에 한 줄씩 들어간다"""
+    lines: tuple[str, ...]
+    as_of: date
+
+
+@dataclass(frozen=True)
+class Completion:
+    text: str
+    tokens: int
+
+
+@dataclass(frozen=True)
 class Turn:
     question: str
     answer: str
@@ -35,6 +58,18 @@ class Conversation:
     @property
     def last_turn(self) -> Turn | None:
         return self.turns[-1] if self.turns else None
+
+
+class SymbolNotFound(Exception):
+    """형식이 틀렸거나, 시세가 없거나, 상장폐지된 종목"""
+
+
+class ConversationNotFound(Exception):
+    """없는 · 만료된 · 다른 사용자의 대화"""
+
+
+class QuotaExceeded(Exception):
+    """오늘 한도를 다 씀"""
 
 
 class MarketUnavailable(Exception):

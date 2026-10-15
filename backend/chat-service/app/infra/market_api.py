@@ -1,4 +1,4 @@
-"""market-data 내부 API. JSON → Bar, 장애 → MarketUnavailable"""
+"""market-data 내부 API. JSON → Quote · Bar, 장애 → MarketUnavailable"""
 from __future__ import annotations
 
 import time
@@ -6,7 +6,7 @@ from datetime import date
 
 import httpx
 
-from app.core.models import Bar, MarketUnavailable
+from app.core.models import Bar, MarketUnavailable, Quote
 
 
 class MarketClient:
@@ -15,6 +15,18 @@ class MarketClient:
         self._cache_ttl = cache_ttl
         self._symbols_cache: set[str] | None = None
         self._symbols_cached_at: float = 0.0
+
+    async def quote(self, symbol: str) -> Quote | None:
+        data = await self._get(f"/api/internal/market/price/{symbol}")
+        if not data or not data.get("available"):
+            return None
+        return Quote(
+            symbol=data["symbol"],
+            name=data.get("name"),
+            price=float(data["currentPrice"]),
+            as_of=date.fromisoformat(data["date"]),
+            active=data.get("active"),
+        )
 
     async def bars(self, symbol: str, start: date, end: date) -> list[Bar]:
         data = await self._get(
