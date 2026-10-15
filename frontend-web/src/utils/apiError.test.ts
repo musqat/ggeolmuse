@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { AxiosError, AxiosHeaders } from 'axios'
-import { getApiErrorMessage, getApiErrorStatus } from './apiError'
+import { getApiErrorCode, getApiErrorMessage, getApiErrorStatus } from './apiError'
 
 /** axios 오류를 만든다. isAxiosError 가 참이 되려면 AxiosError 인스턴스여야 한다. */
 function axiosErrorWith(status: number, data: unknown, message = 'Request failed') {
@@ -49,6 +49,18 @@ describe('getApiErrorMessage', () => {
 
   it('message 가 빈 문자열이면 기본값을 쓴다', () => {
     expect(getApiErrorMessage(new Error(''), '기본값')).toBe('기본값')
+  })
+})
+
+describe('getApiErrorCode', () => {
+  it('본문의 code 를 준다', () => {
+    expect(getApiErrorCode(axiosErrorWith(404, { code: 'symbol_not_found', message: '없음' }))).toBe('symbol_not_found')
+  })
+
+  it('code 가 없거나 본문이 객체가 아니면 undefined', () => {
+    expect(getApiErrorCode(axiosErrorWith(503, { error: '서비스 사용 불가' }))).toBeUndefined()
+    expect(getApiErrorCode(axiosErrorWith(502, '<html>'))).toBeUndefined()
+    expect(getApiErrorCode(new Error('boom'))).toBeUndefined()
   })
 })
 

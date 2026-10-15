@@ -247,14 +247,14 @@ describe('api 응답 인터셉터 · 401', () => {
     const { api, admin, chat, calls } = await setup({
       'GET /users/me': [{ status: 401 }, { status: 200, data: { id: 7 } }],
       'GET /admin/users/stats': [{ status: 401 }, { status: 200, data: { totalUsers: 3 } }],
-      'POST /chat': [{ status: 401 }, { status: 200, data: { answer: 'ok', remaining: 4, symbol: null } }],
+      'POST /chat': [{ status: 401 }, { status: 200, data: { answer: 'ok', remaining: 4, conversation_id: 'c1', symbol: 'AAPL', rejected: null } }],
       'POST /auth/refresh': [async () => { await refreshGate; return { status: 200, data: { accessToken: 'NEW', expiresIn: 3600 } } }],
     })
 
     const me = api.authApi.getCurrentUser()
     await vi.waitFor(() => expect(calls.some((c) => c.url === '/auth/refresh')).toBe(true))
     const stats = admin.userAdminApi.getUserStats()
-    const answer = chat.aiChatApi.sendMessage('안녕')
+    const answer = chat.aiChatApi.ask('c1', '안녕')
     await vi.waitFor(() => expect(calls.filter((c) => c.url === '/admin/users/stats' || c.url === '/chat')).toHaveLength(2))
     releaseRefresh()
 
