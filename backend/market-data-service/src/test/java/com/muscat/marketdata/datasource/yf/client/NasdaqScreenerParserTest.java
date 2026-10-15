@@ -52,6 +52,22 @@ class NasdaqScreenerParserTest {
   }
 
   @Test
+  @DisplayName("이름에 trust · fund 가 있어도 산업 칸이 있으면 주식(은행 · 리츠), 이름에 ETF 단어가 있으면 산업 칸과 상관없이 ETF")
+  void trustOrFundWithIndustry_Equity() {
+    List<Asset> assets = parser.parseStocks(rows("""
+      [
+        {"symbol":"NTRS","name":"Northern Trust Corporation Common Stock","sector":"Finance","industry":"Major Banks"},
+        {"symbol":"FRT","name":"Federal Realty Investment Trust","sector":"Real Estate","industry":"Real Estate Investment Trusts"},
+        {"symbol":"ETHA","name":"iShares Ethereum Trust ETF","sector":"Finance","industry":"Investment Bankers/Brokers/Service"},
+        {"symbol":"NFLX","name":"Netflix, Inc. Common Stock","sector":"Consumer Discretionary","industry":"Consumer Electronics/Video Chains"}
+      ]
+      """));
+
+    assertThat(assets).extracting(Asset::getSymbol, Asset::getAssetType).containsExactly(
+      tuple("NTRS", "EQUITY"), tuple("FRT", "EQUITY"), tuple("ETHA", "ETF"), tuple("NFLX", "EQUITY"));
+  }
+
+  @Test
   @DisplayName("이름이 없으면 종목 코드를 이름으로, 국가가 없으면 US 로 둔다")
   void fallbacks() {
     List<Asset> assets = parser.parseStocks(rows("""
