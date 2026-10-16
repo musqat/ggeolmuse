@@ -57,6 +57,17 @@ class BacktestHistoryUtilsTest {
   }
 
   @Test
+  @DisplayName("이력 주인이 비어 있으면 저장하지 않는다")
+  void noOwner() {
+    BacktestHistoryUtils utils = new BacktestHistoryUtils(repository, objectMapper);
+
+    utils.saveBacktestHistory(null, BacktestType.COMPARISON, request(null, null));
+    utils.saveBacktestHistory(" ", BacktestType.COMPARISON, request(null, null));
+
+    verify(repository, never()).save(any());
+  }
+
+  @Test
   @DisplayName("매수 환율이나 현재 환율 중 하나라도 주면 manual")
   void manualFx() {
     BacktestHistoryUtils utils = new BacktestHistoryUtils(repository, objectMapper);

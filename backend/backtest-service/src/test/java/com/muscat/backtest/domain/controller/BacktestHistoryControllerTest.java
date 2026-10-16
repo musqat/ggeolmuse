@@ -64,7 +64,7 @@ class BacktestHistoryControllerTest {
   @Test
   @DisplayName("토큰이 없으면 401 이고 서비스까지 가지 않는다")
   void requiresToken() throws Exception {
-    mockMvc.perform(get(BASE).param("userId", EMAIL)).andExpect(status().isUnauthorized());
+    mockMvc.perform(get(BASE)).andExpect(status().isUnauthorized());
 
     verify(backtestHistoryService, never()).getUserBacktestHistory(anyString(), any());
   }
@@ -76,7 +76,7 @@ class BacktestHistoryControllerTest {
       .willReturn(new PageImpl<>(List.of(history()), PageRequest.of(2, 5), 11));
 
     mockMvc.perform(get(BASE).header(HttpHeaders.AUTHORIZATION, "Bearer " + TOKEN)
-        .param("userId", EMAIL).param("page", "2").param("size", "5"))
+        .param("page", "2").param("size", "5"))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.content[0].backtestType").value("COMPARISON"));
 
@@ -88,19 +88,34 @@ class BacktestHistoryControllerTest {
   void defaultPage() throws Exception {
     given(backtestHistoryService.getUserBacktestHistory(eq(EMAIL), any())).willReturn(new PageImpl<>(List.of()));
 
-    mockMvc.perform(get(BASE).header(HttpHeaders.AUTHORIZATION, "Bearer " + TOKEN).param("userId", EMAIL))
+    mockMvc.perform(get(BASE).header(HttpHeaders.AUTHORIZATION, "Bearer " + TOKEN))
       .andExpect(status().isOk());
 
     verify(backtestHistoryService).getUserBacktestHistory(EMAIL, PageRequest.of(0, 20));
   }
 
   @Test
-  @DisplayName("사용자를 주지 않으면 400")
-  void missingUser() throws Exception {
-    mockMvc.perform(get(BASE).header(HttpHeaders.AUTHORIZATION, "Bearer " + TOKEN))
-      .andExpect(status().isBadRequest())
-      .andExpect(jsonPath("$.parameterName").value("userId"));
+  @DisplayName("쿼리에 다른 사람의 userId 를 넣어도 토큰의 이메일로 조회한다")
+  void ignoresQueryUser() throws Exception {
+    given(backtestHistoryService.getUserBacktestHistory(eq(EMAIL), any())).willReturn(new PageImpl<>(List.of()));
 
-    verify(backtestHistoryService, never()).getUserBacktestHistory(anyString(), any());
+    mockMvc.perform(get(BASE).header(HttpHeaders.AUTHORIZATION, "Bearer " + TOKEN).param("userId", "other@example.com"))
+      .andExpect(status().isOk());
+
+    verify(backtestHistoryService).getUserBacktestHistory(EMAIL, PageRequest.of(0, 20));
+    verify(backtestHistoryService, never()).getUserBacktestHistory(eq("other@example.com"), any());
+  }
+
+  @Test
+  @DisplayName("토큰에 이메일이 없으면 빈 목록이고 서비스까지 가지 않는다")
+  void noEmailClaim() throws Exception {
+    given(jwtDecoder.decode("no-email")).willReturn(Jwt.withTokenValue("no-email").header("alg", "none").subject("svc")
+      .build());
+
+    mockMvc.perform(get(BASE).header(HttpHeaders.AUTHORIZATION, "Bearer no-email"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.content").isEmpty());
+
+    verify(backtestHistoryService, never()).getUserBacktestHistory(any(), any());
   }
 }
