@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willReturn;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
@@ -96,12 +97,24 @@ class AdminMarketControllerWebTest {
   private SymbolCollector symbolCollector;
 
   @MockitoBean
+  private AdminJobRunner jobRunner;
+
+  @MockitoBean
   private JwtDecoder jwtDecoder;
 
   @BeforeEach
   void decodeTokens() {
     given(jwtDecoder.decode("admin-token")).willReturn(token("admin-token", "admin"));
     given(jwtDecoder.decode("user-token")).willReturn(token("user-token", "user"));
+  }
+
+  // 실행기가 받은 일을 요청 안에서 바로 실행
+  @BeforeEach
+  void runJobsInline() {
+    given(jobRunner.submit(any())).willAnswer(invocation -> {
+      invocation.<Runnable>getArgument(0).run();
+      return true;
+    });
   }
 
   private static Jwt token(String value, String role) {
@@ -310,6 +323,18 @@ class AdminMarketControllerWebTest {
       verify(assetService, timeout(2000)).updateAllMarketCaps();
       verify(assetService, timeout(2000)).updateAssetPrice("AAPL");
       verify(symbolCollector, timeout(2000)).collectNewlyListedDaily();
+    }
+
+    @Test
+    @DisplayName("전체 갱신이 이미 돌고 하나가 기다리면 세 버튼 모두 409 와 안내를 준다")
+    void busy() throws Exception {
+      willReturn(false).given(jobRunner).submit(any());
+
+      for (String path : List.of("/update/market-cap", "/update/candles", "/update/symbols")) {
+        asAdmin(post(BASE + path)).andExpect(status().isConflict())
+          .andExpect(jsonPath("$.message").value("이미 다른 전체 갱신이 진행 중입니다. 끝난 뒤 다시 시도해 주세요."));
+      }
+      verify(assetService, never()).updateAllMarketCaps();
     }
   }
 

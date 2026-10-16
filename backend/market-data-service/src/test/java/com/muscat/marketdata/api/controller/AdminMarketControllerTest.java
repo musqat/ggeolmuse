@@ -49,9 +49,18 @@ class AdminMarketControllerTest {
   @Mock private ObjectProvider<SymbolCollector> symbolCollectorProvider;
   @Mock private AdminJobRunRepository adminJobRunRepository;
   @Mock private CandleRefreshAllPublisher refreshAllPublisher;
+  @Mock private AdminJobRunner jobRunner;
 
   @InjectMocks
   private AdminMarketController controller;
+
+  // 뒤에서 돌 일을 이 자리에서 바로 실행
+  private void runJobsInline() {
+    given(jobRunner.submit(any())).willAnswer(invocation -> {
+      invocation.<Runnable>getArgument(0).run();
+      return true;
+    });
+  }
 
   private static Asset asset(String symbol) {
     return Asset.builder().symbol(symbol).name(symbol).build();
@@ -119,6 +128,7 @@ class AdminMarketControllerTest {
   @Test
   @DisplayName("뒤에서 도는 전체 시총 갱신 · 신규 종목 수집이 실패해도 요청은 200 으로 끝난다")
   void backgroundFailures() {
+    runJobsInline();
     SymbolCollector collector = org.mockito.Mockito.mock(SymbolCollector.class);
     given(symbolCollectorProvider.getIfAvailable()).willReturn(collector);
     given(assetService.updateAllMarketCaps()).willThrow(new IllegalStateException("source down"));
@@ -129,5 +139,17 @@ class AdminMarketControllerTest {
 
     org.mockito.Mockito.verify(assetService, org.mockito.Mockito.timeout(2000)).updateAllMarketCaps();
     org.mockito.Mockito.verify(collector, org.mockito.Mockito.timeout(2000)).collectNewlyListedDaily();
+  }
+
+  @Test
+  @DisplayName("전체 갱신이 이미 돌고 하나가 기다리면 세 버튼 모두 409 이고 새로 돌리지 않는다")
+  void busy() {
+    given(symbolCollectorProvider.getIfAvailable()).willReturn(org.mockito.Mockito.mock(SymbolCollector.class));
+    given(jobRunner.submit(any())).willReturn(false);
+
+    assertThat(controller.updateMarketCaps().getStatusCode().value()).isEqualTo(409);
+    assertThat(controller.updateCandles().getStatusCode().value()).isEqualTo(409);
+    assertThat(controller.collectNewSymbols().getStatusCode().value()).isEqualTo(409);
+    verifyNoInteractions(assetService);
   }
 }
