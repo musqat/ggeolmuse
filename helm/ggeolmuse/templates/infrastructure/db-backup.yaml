@@ -29,6 +29,7 @@ spec:
           volumes:
             - name: dump
               emptyDir: {}
+            {{- include "ggeolmuse.tmpVolume" . | nindent 12 }}
           initContainers:
             - name: dump
               image: {{ $b.images.dump }}
@@ -92,7 +93,7 @@ spec:
               resources:
                 {{- toYaml $b.resources.dump | nindent 16 }}
               securityContext:
-                {{- include "ggeolmuse.baseSecurityContext" . | nindent 16 }}
+                {{- include "ggeolmuse.securityContext" . | nindent 16 }}
           containers:
             - name: upload
               image: {{ $b.images.upload }}
@@ -102,6 +103,9 @@ spec:
                   value: {{ $b.region | quote }}
                 - name: BUCKET
                   value: {{ $b.bucket | quote }}
+                # 루트 파일시스템이 읽기 전용이라 aws-cli 설정 · 캐시 자리를 /tmp 로
+                - name: HOME
+                  value: /tmp
               command:
                 - sh
                 - -eu
@@ -115,8 +119,9 @@ spec:
                 - name: dump
                   mountPath: /dump
                   readOnly: true
+                {{- include "ggeolmuse.tmpVolumeMount" . | nindent 16 }}
               resources:
                 {{- toYaml $b.resources.upload | nindent 16 }}
               securityContext:
-                {{- include "ggeolmuse.baseSecurityContext" . | nindent 16 }}
+                {{- include "ggeolmuse.securityContext" . | nindent 16 }}
 {{- end }}
