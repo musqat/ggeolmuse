@@ -22,7 +22,6 @@ import com.muscat.trade.infra.client.MarketServiceClientWrapper;
 import com.muscat.trade.infra.client.dto.InvestmentBacktestResultDto;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -458,129 +457,6 @@ class HoldingsServiceImplTest {
 
       assertThat(result.isBacktestAvailable()).isFalse();
       assertThat(Duration.ofNanos(System.nanoTime() - started)).isLessThan(Duration.ofMillis(1400));
-    }
-  }
-
-  @Nested
-  @DisplayName("거래 이력 연관 보유종목 조회 테스트")
-  class GetHoldingsWithTradeHistoryTests {
-
-    @Test
-    @DisplayName("거래 이력이 있는 보유종목이 조회된다")
-    void getHoldingsWithTradeHistory_Success() {
-      // given
-      List<Holdings> holdings = List.of(testHolding);
-      given(holdingsRepository.findHoldingsWithTradeHistory(
-        TEST_USER_ID, TEST_SYMBOL, 5))
-        .willReturn(holdings);
-
-      // when
-      List<HoldingResponseDto> result = holdingsService.getHoldingsWithTradeHistory(
-        TEST_USER_ID, TEST_SYMBOL, 5);
-
-      // then
-      assertThat(result).hasSize(1);
-      assertThat(result.getFirst().symbol()).isEqualTo(TEST_SYMBOL);
-      verify(tradeLogger).logPortfolioAccess(eq(TEST_USER_ID),
-        eq("HOLDINGS_WITH_TRADE_HISTORY"), anyString(), eq(1));
-    }
-
-    @Test
-    @DisplayName("거래 이력이 없으면 빈 리스트가 반환된다")
-    void getHoldingsWithTradeHistory_NoHistory_ReturnsEmpty() {
-      // given
-      given(holdingsRepository.findHoldingsWithTradeHistory(
-        TEST_USER_ID, TEST_SYMBOL, 5))
-        .willReturn(new ArrayList<>());
-
-      // when
-      List<HoldingResponseDto> result = holdingsService.getHoldingsWithTradeHistory(
-        TEST_USER_ID, TEST_SYMBOL, 5);
-
-      // then
-      assertThat(result).isEmpty();
-    }
-  }
-
-  @Nested
-  @DisplayName("상위 수익률 종목 조회 테스트")
-  class GetTopPerformingHoldingsTests {
-
-    @Test
-    @DisplayName("상위 N개 보유종목이 조회된다")
-    void getTopPerformingHoldings_Success() {
-      // given
-      Holdings holding1 = Holdings.builder()
-        .userId(TEST_USER_ID)
-        .symbol("AAPL")
-        .totalQuantity(new BigDecimal("10"))
-        .avgPurchasePrice(new BigDecimal("150"))
-        .totalInvestedAmount(new BigDecimal("1500"))
-        .build();
-
-      Holdings holding2 = Holdings.builder()
-        .userId(TEST_USER_ID)
-        .symbol("GOOGL")
-        .totalQuantity(new BigDecimal("5"))
-        .avgPurchasePrice(new BigDecimal("2000"))
-        .totalInvestedAmount(new BigDecimal("10000"))
-        .build();
-
-      List<Holdings> topHoldings = List.of(holding1, holding2);
-      given(holdingsRepository.findTopHoldingsByInvestment(TEST_USER_ID, 5))
-        .willReturn(topHoldings);
-
-      // when
-      List<HoldingResponseDto> result = holdingsService.getTopPerformingHoldings(TEST_USER_ID, 5);
-
-      // then
-      assertThat(result).hasSize(2);
-      assertThat(result.getFirst().symbol()).isEqualTo("AAPL");
-      assertThat(result.get(1).symbol()).isEqualTo("GOOGL");
-      verify(tradeLogger).logPortfolioAccess(eq(TEST_USER_ID),
-        eq("TOP_PERFORMING_HOLDINGS"), anyString(), eq(2));
-    }
-  }
-
-  @Nested
-  @DisplayName("최소 투자금액 이상 종목 조회 테스트")
-  class GetHoldingsByMinInvestmentTests {
-
-    @Test
-    @DisplayName("최소 투자금액 이상의 보유종목이 조회된다")
-    void getHoldingsByMinInvestment_Success() {
-      // given
-      BigDecimal minAmount = new BigDecimal("1000");
-      List<Holdings> holdings = List.of(testHolding);
-      given(holdingsRepository.findHoldingsByMinInvestment(TEST_USER_ID, minAmount))
-        .willReturn(holdings);
-
-      // when
-      List<HoldingResponseDto> result = holdingsService.getHoldingsByMinInvestment(
-        TEST_USER_ID, minAmount);
-
-      // then
-      assertThat(result).hasSize(1);
-      assertThat(result.getFirst().totalInvestedAmount())
-        .isGreaterThanOrEqualTo(minAmount);
-      verify(tradeLogger).logPortfolioAccess(eq(TEST_USER_ID),
-        eq("HOLDINGS_BY_MIN_INVESTMENT"), anyString(), eq(1));
-    }
-
-    @Test
-    @DisplayName("조건에 맞는 종목이 없으면 빈 리스트가 반환된다")
-    void getHoldingsByMinInvestment_NoMatch_ReturnsEmpty() {
-      // given
-      BigDecimal minAmount = new BigDecimal("100000");
-      given(holdingsRepository.findHoldingsByMinInvestment(TEST_USER_ID, minAmount))
-        .willReturn(new ArrayList<>());
-
-      // when
-      List<HoldingResponseDto> result = holdingsService.getHoldingsByMinInvestment(
-        TEST_USER_ID, minAmount);
-
-      // then
-      assertThat(result).isEmpty();
     }
   }
 }

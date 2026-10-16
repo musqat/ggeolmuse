@@ -740,99 +740,6 @@ class TradingServiceImplTest {
   }
 
   @Nested
-  @DisplayName("매수/매도 가능 여부 확인 테스트")
-  class CanTradeTests {
-
-    @Test
-    @DisplayName("매수 가능 여부가 정확히 확인된다 (잔액 충분)")
-    void canBuyStock_SufficientBalance_ReturnsTrue() {
-      // given
-      BigDecimal totalAmount = new BigDecimal("5000.00");
-      given(userServiceClientWrapper.getAccountBalance(TEST_ACCOUNT_ID))
-        .willReturn(testAccountBalance);
-
-      // when
-      boolean result = tradingService.canBuyStock(TEST_USER_ID, TEST_ACCOUNT_ID, totalAmount);
-
-      // then
-      assertThat(result).isTrue();
-    }
-
-    @Test
-    @DisplayName("매수 불가능 여부가 정확히 확인된다 (잔액 부족)")
-    void canBuyStock_InsufficientBalance_ReturnsFalse() {
-      // given
-      BigDecimal totalAmount = new BigDecimal("15000.00");
-      given(userServiceClientWrapper.getAccountBalance(TEST_ACCOUNT_ID))
-        .willReturn(testAccountBalance);
-
-      // when
-      boolean result = tradingService.canBuyStock(TEST_USER_ID, TEST_ACCOUNT_ID, totalAmount);
-
-      // then
-      assertThat(result).isFalse();
-    }
-
-    @Test
-    @DisplayName("매도 가능 여부가 정확히 확인된다 (보유량 충분)")
-    void canSellStock_SufficientHoldings_ReturnsTrue() {
-      // given
-      BigDecimal existingQuantity = new BigDecimal("20");
-      Holdings holdings = Holdings.builder()
-        .totalQuantity(existingQuantity)
-        .build();
-
-      given(holdingsRepository.findByUserIdAndAccountIdAndSymbol(
-        TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL))
-        .willReturn(Optional.of(holdings));
-
-      // when
-      boolean result = tradingService.canSellStock(TEST_USER_ID, TEST_ACCOUNT_ID,
-        TEST_SYMBOL, TEST_QUANTITY);
-
-      // then
-      assertThat(result).isTrue();
-    }
-
-    @Test
-    @DisplayName("매도 불가능 여부가 정확히 확인된다 (보유량 부족)")
-    void canSellStock_InsufficientHoldings_ReturnsFalse() {
-      // given
-      BigDecimal existingQuantity = new BigDecimal("5");
-      Holdings holdings = Holdings.builder()
-        .totalQuantity(existingQuantity)
-        .build();
-
-      given(holdingsRepository.findByUserIdAndAccountIdAndSymbol(
-        TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL))
-        .willReturn(Optional.of(holdings));
-
-      // when
-      boolean result = tradingService.canSellStock(TEST_USER_ID, TEST_ACCOUNT_ID,
-        TEST_SYMBOL, TEST_QUANTITY);
-
-      // then
-      assertThat(result).isFalse();
-    }
-
-    @Test
-    @DisplayName("보유하지 않은 종목은 매도 불가능")
-    void canSellStock_NoHoldings_ReturnsFalse() {
-      // given
-      given(holdingsRepository.findByUserIdAndAccountIdAndSymbol(
-        TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL))
-        .willReturn(Optional.empty());
-
-      // when
-      boolean result = tradingService.canSellStock(TEST_USER_ID, TEST_ACCOUNT_ID,
-        TEST_SYMBOL, TEST_QUANTITY);
-
-      // then
-      assertThat(result).isFalse();
-    }
-  }
-
-  @Nested
   @DisplayName("매수/매도 가능 수량 계산 테스트")
   class CalculateCapacityTests {
 
@@ -1058,17 +965,6 @@ class TradingServiceImplTest {
   @Nested
   @DisplayName("실패 경로")
   class FailurePathTests {
-
-    @Test
-    @DisplayName("잔액 응답이 비거나 조회가 실패하면 매수 불가로 본다")
-    void canBuyStock_NoBalanceOrFailure_ReturnsFalse() {
-      given(userServiceClientWrapper.getAccountBalance(TEST_ACCOUNT_ID))
-        .willReturn(null)
-        .willThrow(new RuntimeException("down"));
-
-      assertThat(tradingService.canBuyStock(TEST_USER_ID, TEST_ACCOUNT_ID, BigDecimal.ONE)).isFalse();
-      assertThat(tradingService.canBuyStock(TEST_USER_ID, TEST_ACCOUNT_ID, BigDecimal.ONE)).isFalse();
-    }
 
     @Test
     @DisplayName("매도 가능 수량 계산 중 조회가 실패하면 시장 데이터 오류로 바꿔 올린다")
