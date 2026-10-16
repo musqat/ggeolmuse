@@ -73,6 +73,6 @@ def _bar(row: dict) -> Bar | None:
         high=float(row.get("highPrice") or close),
         low=float(row.get("lowPrice") or close),
         close=close,
-        adj_close=float(adjusted) if adjusted is not None else close,
+        adj_close=float(adjusted) if adjusted is not None else None,
         volume=float(row.get("volume") or 0),
     )

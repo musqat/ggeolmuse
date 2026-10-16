@@ -50,7 +50,8 @@ public class CandleServiceImpl implements CandleService {
 
     // 종목코드 대문자 변환 및 DB 조회
     String upperSymbol = symbol.toUpperCase();
-    Optional<Candle> candle = candleRepository.findBySymbolAndDate(upperSymbol, date);
+    Optional<Candle> candle = candleRepository.findBySymbolAndDate(upperSymbol, date)
+      .filter(CandleServiceImpl::hasValidClose);
 
     // 데이터 없을 경우 비어있는 DTO 반환
     if (candle.isEmpty()) {
@@ -62,23 +63,9 @@ public class CandleServiceImpl implements CandleService {
         .build();
     }
 
-    // 캔들 데이터를 DTO로 변환 (adjustedClose 비율로 모든 OHLC 조정)
-    Candle c = candle.get();
+    OHLCPriceDto result = toOhlc(candle.get());
 
-    OHLCPriceDto result = OHLCPriceDto.builder()
-      .symbol(c.getSymbol())
-      .date(c.getDate())
-      .openPrice(c.getOpen())
-      .highPrice(c.getHigh())
-      .lowPrice(c.getLow())
-      .closePrice(c.getClose())
-      .adjustedClose(c.getAdjustedClose())
-      .volume(c.getVolume())
-      .currency(c.getCurrency())
-      .available(true)
-      .build();
-
-    log.debug("OHLC 조회 성공: symbol={}, date={}, close={}", symbol, date, c.getClose());
+    log.debug("OHLC 조회 성공: symbol={}, date={}, close={}", symbol, date, result.getClosePrice());
     return result;
   }
 
@@ -93,22 +80,7 @@ public class CandleServiceImpl implements CandleService {
     List<Candle> candles = candleRepository
       .findBySymbolAndDateBetweenOrderByDateAsc(upperSymbol, startDate, endDate);
 
-    List<OHLCPriceDto> result = candles.stream()
-      .map(c -> {
-        return OHLCPriceDto.builder()
-          .symbol(c.getSymbol())
-          .date(c.getDate())
-          .openPrice(c.getOpen())
-          .highPrice(c.getHigh())
-          .lowPrice(c.getLow())
-          .closePrice(c.getClose())
-          .adjustedClose(c.getAdjustedClose())
-          .volume(c.getVolume())
-          .currency(c.getCurrency())
-          .available(true)
-          .build();
-      })
-      .toList();
+    List<OHLCPriceDto> result = toOhlc(candles);
 
     log.info("OHLC 범위 조회 완료: symbol={}, total={}", upperSymbol, result.size());
 
@@ -182,23 +154,7 @@ public class CandleServiceImpl implements CandleService {
     List<Candle> candles = candleRepository.findBySymbolsAndDateRange(upperSymbols, startDate,
       endDate);
 
-    // 캔들 데이터 DTO 변환 (adjustedClose 비율로 모든 OHLC 조정)
-    List<OHLCPriceDto> result = candles.stream()
-      .map(c -> {
-        return OHLCPriceDto.builder()
-          .symbol(c.getSymbol())
-          .date(c.getDate())
-          .openPrice(c.getOpen())
-          .highPrice(c.getHigh())
-          .lowPrice(c.getLow())
-          .closePrice(c.getClose())
-          .adjustedClose(c.getAdjustedClose())
-          .volume(c.getVolume())
-          .currency(c.getCurrency())
-          .available(true)
-          .build();
-      })
-      .toList();
+    List<OHLCPriceDto> result = toOhlc(candles);
 
     log.debug("다중 OHLC 조회 성공: count={}", result.size());
     return result;
@@ -214,23 +170,7 @@ public class CandleServiceImpl implements CandleService {
     List<Candle> candlesWithDividends = candleRepository.findCandlesWithDividends(upperSymbol,
       startDate, endDate);
 
-    // 캔들 데이터 DTO 변환 (adjustedClose 비율로 모든 OHLC 조정)
-    List<OHLCPriceDto> result = candlesWithDividends.stream()
-      .map(c -> {
-        return OHLCPriceDto.builder()
-          .symbol(c.getSymbol())
-          .date(c.getDate())
-          .openPrice(c.getOpen())
-          .highPrice(c.getHigh())
-          .lowPrice(c.getLow())
-          .closePrice(c.getClose())
-          .adjustedClose(c.getAdjustedClose())
-          .volume(c.getVolume())
-          .currency(c.getCurrency())
-          .available(true)
-          .build();
-      })
-      .toList();
+    List<OHLCPriceDto> result = toOhlc(candlesWithDividends);
 
     log.debug("배당 포함 캔들 조회 성공: count={}", result.size());
     return result;
@@ -324,6 +264,32 @@ public class CandleServiceImpl implements CandleService {
 
     return new PageImpl<>(
       stockPrices, pageable, assetPage.getTotalElements());
+  }
+
+  // 종가가 비었거나 0 이하인 행은 잘못 수집된 값
+  private static boolean hasValidClose(Candle c) {
+    return c.getClose() != null && c.getClose().signum() > 0;
+  }
+
+  private static List<OHLCPriceDto> toOhlc(List<Candle> candles) {
+    return candles.stream().filter(CandleServiceImpl::hasValidClose).map(CandleServiceImpl::toOhlc).toList();
+  }
+
+  // 0 이하 조정 종가는 수익률을 못 구해 빈 값
+  private static OHLCPriceDto toOhlc(Candle c) {
+    BigDecimal adjusted = c.getAdjustedClose();
+    return OHLCPriceDto.builder()
+      .symbol(c.getSymbol())
+      .date(c.getDate())
+      .openPrice(c.getOpen())
+      .highPrice(c.getHigh())
+      .lowPrice(c.getLow())
+      .closePrice(c.getClose())
+      .adjustedClose(adjusted != null && adjusted.signum() > 0 ? adjusted : null)
+      .volume(c.getVolume())
+      .currency(c.getCurrency())
+      .available(true)
+      .build();
   }
 
   // 변화율 계산 메서드

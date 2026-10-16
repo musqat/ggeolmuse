@@ -111,6 +111,27 @@ class YahooParserTest {
     }
 
     @Test
+    @DisplayName("종가가 비었거나 0 이하인 날은 캔들을 만들지 않는다")
+    void 종가_없거나_0이하() {
+      String json = """
+        {
+          "chart": { "result": [{
+            "meta": { "symbol": "AAPL", "currency": "USD" },
+            "timestamp": [1726444800, 1726531200, 1726617600, 1726704000],
+            "indicators": { "quote": [{
+              "open": [1, 1, 1, 1], "high": [1, 1, 1, 1], "low": [1, 1, 1, 1],
+              "close": [null, 0, -1.5, 220.69], "volume": [1, 1, 1, 1]
+            }] }
+          }] }
+        }
+        """;
+
+      List<CandleDto> result = parser.parseDailyAdjusted(json, SYMBOL, null, null);
+
+      assertThat(result).extracting(CandleDto::getDate).containsExactly(LocalDate.of(2024, 9, 19));
+    }
+
+    @Test
     @DisplayName("배열 값이 null 인 자리는 필드도 null")
     void 값_null() {
       String json = """

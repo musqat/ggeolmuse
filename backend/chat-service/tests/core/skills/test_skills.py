@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import date, timedelta
 
 from app.core.models import Dividend, Quote
@@ -37,6 +38,19 @@ async def test_trend_skill_lists_returns():
     assert "1년 +10.0% / +10.0%" in text
     assert "52주 최고 111.00" in text
     assert "변동성" in text
+
+
+async def test_trend_skill_marks_values_it_cannot_compute():
+    market = FakeMarket()
+    bars = line_bars([100.0] * 253 + [110.0])
+    bars = [replace(b, adj_close=None) for b in bars[:-1]] + bars[-1:]
+    bars[-100] = replace(bars[-100], low=0.0)  # 워런트처럼 저가 0
+    market.bar_rows["AAPL"] = bars
+    evidence = await TrendSkill(lookback_days=400).gather("AAPL", _tools(market))
+
+    text = "\n".join(evidence.lines)
+    assert "1년 +10.0% / —" in text
+    assert "최저 0.00(지금 —)" in text
 
 
 async def test_trend_skill_names_missing_values():

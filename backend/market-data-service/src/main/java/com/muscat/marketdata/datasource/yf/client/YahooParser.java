@@ -196,6 +196,11 @@ public class YahooParser {
     BigDecimal close = getDecimalValueAt(data.close(), index);
     Long volume = getLongValueAt(data.volume(), index);
 
+    if (close == null || close.signum() <= 0) {
+      log.debug("종가가 비었거나 0 이하라 캔들을 건너뜀: symbol={}, date={}", metadata.symbol(), date);
+      return null;
+    }
+
     BigDecimal adjustedClose = data.adjustedClose() != null
       ? getDecimalValueAt(data.adjustedClose(), index)
       : null;

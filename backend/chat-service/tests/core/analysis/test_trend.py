@@ -3,7 +3,7 @@ from datetime import date
 
 import pytest
 
-from app.core.analysis.trend import compute_trend
+from app.core.analysis.trend import change, compute_trend
 from tests.core.fakes import line_bars
 
 
@@ -15,6 +15,29 @@ def test_price_and_total_returns_are_separate():
     assert [r.label for r in s.returns] == ["1주", "1달", "3달", "6달", "1년"]
     assert all(r.price == pytest.approx(10.0) for r in s.returns)
     assert all(r.total == pytest.approx((110 / 90 - 1) * 100) for r in s.returns)
+
+
+def test_change_needs_both_values_and_positive_start():
+    assert change(10.0, 11.0) == pytest.approx(10.0)
+    assert change(0.0, 11.0) is None
+    assert change(-2.0, 11.0) is None
+    assert change(None, 11.0) is None
+    assert change(10.0, None) is None
+
+
+def test_total_return_is_none_when_adjusted_close_is_missing():
+    bars = [replace(b, adj_close=None) for b in line_bars([100.0] * 253)] + line_bars([110.0])
+    s = compute_trend(bars)
+
+    assert all(r.price == pytest.approx(10.0) for r in s.returns)
+    assert all(r.total is None for r in s.returns)
+
+
+def test_drawdown_skips_a_zero_peak():
+    # 첫 종가 0 은 비교에서 빼고 다음 고점부터 계산
+    s = compute_trend(line_bars([0.0] + [100.0] * 250 + [80.0]))
+
+    assert s.drawdown.percent == pytest.approx(-20.0)
 
 
 def test_year_range_uses_last_252_bars():
