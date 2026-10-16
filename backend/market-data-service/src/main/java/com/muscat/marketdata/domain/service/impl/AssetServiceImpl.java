@@ -102,18 +102,18 @@ public class AssetServiceImpl implements AssetService {
         String finalSymbol = symbol.toUpperCase();
 
         if (assetRepository.findById(finalSymbol).isPresent()) {
-            throw new IllegalArgumentException("Already exists: " + finalSymbol);
+            throw new MarketDataException(MarketDataResponse.ASSET_ALREADY_EXISTS);
         }
 
         // 정보가 부족하면 SymbolSource에서 조회
         if (name == null || country == null || currency == null || assetType == null) {
             if (assetInfoSource == null) {
-                throw new IllegalArgumentException("AssetInfoSource not available");
+                throw new MarketDataException(MarketDataResponse.DATA_SOURCE_UNAVAILABLE);
             }
 
             Asset fetched = assetInfoSource.getAsset(finalSymbol);
             if (fetched == null) {
-                throw new IllegalArgumentException("Symbol not found: " + finalSymbol);
+                throw new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND);
             }
 
             name = name != null ? name : fetched.getName();
@@ -230,11 +230,11 @@ public class AssetServiceImpl implements AssetService {
 
         // Asset 존재 확인
         Asset asset = assetRepository.findById(upperSymbol)
-                .orElseThrow(() -> new IllegalArgumentException("Not found: " + upperSymbol));
+                .orElseThrow(() -> new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND));
 
         if (candleSource == null) {
             log.warn("CandleSource가 활성화되지 않음");
-            throw new IllegalStateException("CandleSource not available");
+            throw new MarketDataException(MarketDataResponse.DATA_SOURCE_UNAVAILABLE);
         }
 
         // 최근 1개월치 캔들 데이터 수집
@@ -279,17 +279,17 @@ public class AssetServiceImpl implements AssetService {
 
         // Asset 존재 확인
         assetRepository.findById(upperSymbol)
-                .orElseThrow(() -> new IllegalArgumentException("Not found: " + upperSymbol));
+                .orElseThrow(() -> new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND));
 
         if (marketCapSource == null) {
             log.warn("시가총액 소스가 활성화되지 않음");
-            throw new IllegalStateException("Market cap source not available");
+            throw new MarketDataException(MarketDataResponse.DATA_SOURCE_UNAVAILABLE);
         }
 
         // 활성 provider(Yahoo/AlphaVantage)에 위임
         boolean ok = marketCapSource.updateMarketCap(upperSymbol);
         if (!ok) {
-            throw new IllegalStateException("Market cap not available for: " + upperSymbol);
+            throw new MarketDataException(MarketDataResponse.MARKET_CAP_UNAVAILABLE);
         }
     }
 
@@ -299,7 +299,7 @@ public class AssetServiceImpl implements AssetService {
         log.info("전체 종목 시가총액 일괄 업데이트 요청");
 
         if (marketCapSource == null) {
-            throw new IllegalStateException("Market cap source not available");
+            throw new MarketDataException(MarketDataResponse.DATA_SOURCE_UNAVAILABLE);
         }
         return marketCapSource.updateAllMarketCaps(assetRepository.findByActiveTrue());
     }
@@ -310,12 +310,12 @@ public class AssetServiceImpl implements AssetService {
         log.info("종목 이름 수정 요청: symbol={}, name={}", symbol, name);
 
         if (name == null || name.isBlank()) {
-            throw new IllegalArgumentException("Asset name must not be blank");
+            throw new MarketDataException(MarketDataResponse.ASSET_NAME_REQUIRED);
         }
 
         String upperSymbol = symbol.toUpperCase();
         Asset asset = assetRepository.findById(upperSymbol)
-                .orElseThrow(() -> new IllegalArgumentException("Not found: " + upperSymbol));
+                .orElseThrow(() -> new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND));
 
         asset.setName(name.trim());
         Asset saved = assetRepository.save(asset);
@@ -332,7 +332,7 @@ public class AssetServiceImpl implements AssetService {
         String upperSymbol = symbol.toUpperCase();
 
         Asset asset = assetRepository.findById(upperSymbol)
-                .orElseThrow(() -> new IllegalArgumentException("Not found: " + upperSymbol));
+                .orElseThrow(() -> new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND));
 
         // Soft delete: active를 false로 설정하고 delistedDate 기록
         asset.setActive(false);
@@ -349,7 +349,7 @@ public class AssetServiceImpl implements AssetService {
         String upperSymbol = symbol.toUpperCase();
 
         Asset asset = assetRepository.findById(upperSymbol)
-                .orElseThrow(() -> new IllegalArgumentException("Not found: " + upperSymbol));
+                .orElseThrow(() -> new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND));
 
         asset.setActive(true);
         asset.setDelistedDate(null);

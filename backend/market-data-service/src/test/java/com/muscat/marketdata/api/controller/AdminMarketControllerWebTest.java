@@ -193,14 +193,14 @@ class AdminMarketControllerWebTest {
   class WriteTests {
 
     @Test
-    @DisplayName("종목 추가는 201 이고 수집 여부에 따라 안내가 다르며, 잘못된 값이면 400 과 이유를 준다")
+    @DisplayName("종목 추가는 201 이고 수집 여부에 따라 안내가 다르며, 이미 있는 종목이면 409 와 이유를 준다")
     void createAsset() throws Exception {
       given(assetService.createAsset(eq("AAPL"), any(), any(), any(), any(), eq(true), eq(LocalDate.of(2023, 1, 1)), any(), eq(true)))
         .willReturn(asset("AAPL", true));
       given(assetService.createAsset(eq("MSFT"), any(), any(), any(), any(), eq(false), any(), any(), eq(false)))
         .willReturn(asset("MSFT", true));
       given(assetService.createAsset(eq("DUP"), any(), any(), any(), any(), anyBoolean(), any(), any(), anyBoolean()))
-        .willThrow(new IllegalArgumentException("이미 있는 종목입니다: DUP"));
+        .willThrow(new MarketDataException(MarketDataResponse.ASSET_ALREADY_EXISTS));
 
       asAdminJson(post(BASE + "/assets"), "{\"symbol\":\"AAPL\",\"collectData\":true,\"fromDate\":\"2023-01-01\",\"includeDividends\":true}")
         .andExpect(status().isCreated())
@@ -209,28 +209,30 @@ class AdminMarketControllerWebTest {
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.message").value("심볼이 추가되었습니다."));
       asAdminJson(post(BASE + "/assets"), "{\"symbol\":\"DUP\"}")
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.message").value("이미 있는 종목입니다: DUP"));
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.message").value("이미 등록된 종목입니다: DUP"));
     }
 
     @Test
-    @DisplayName("이름 수정은 200, 없는 종목은 404, 그 밖의 잘못된 값은 400")
+    @DisplayName("이름 수정은 200, 없는 종목은 404, 빈 이름은 400 과 이유를 준다")
     void updateName() throws Exception {
       given(assetService.updateAssetName("AAPL", "Apple")).willReturn(asset("AAPL", true));
-      given(assetService.updateAssetName("NOPE", "X")).willThrow(new IllegalArgumentException("Not found: NOPE"));
-      given(assetService.updateAssetName("AAPL", "")).willThrow(new IllegalArgumentException("이름이 비었습니다"));
+      given(assetService.updateAssetName("NOPE", "X")).willThrow(new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND));
+      given(assetService.updateAssetName("AAPL", "")).willThrow(new MarketDataException(MarketDataResponse.ASSET_NAME_REQUIRED));
 
       asAdminJson(put(BASE + "/assets/AAPL"), "{\"name\":\"Apple\"}").andExpect(status().isOk())
         .andExpect(jsonPath("$.message").value("종목 이름이 수정되었습니다."));
-      asAdminJson(put(BASE + "/assets/NOPE"), "{\"name\":\"X\"}").andExpect(status().isNotFound());
-      asAdminJson(put(BASE + "/assets/AAPL"), "{\"name\":\"\"}").andExpect(status().isBadRequest());
+      asAdminJson(put(BASE + "/assets/NOPE"), "{\"name\":\"X\"}").andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.message").value("종목을 찾을 수 없습니다"));
+      asAdminJson(put(BASE + "/assets/AAPL"), "{\"name\":\"\"}").andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value("종목 이름이 비어 있습니다"));
     }
 
     @Test
     @DisplayName("삭제 · 복구는 204, 없는 종목은 404")
     void deleteAndRestore() throws Exception {
-      willThrow(new IllegalArgumentException("Not found: NOPE")).given(assetService).deleteAsset("NOPE");
-      willThrow(new IllegalArgumentException("Not found: NOPE")).given(assetService).restoreAsset("NOPE");
+      willThrow(new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND)).given(assetService).deleteAsset("NOPE");
+      willThrow(new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND)).given(assetService).restoreAsset("NOPE");
 
       asAdmin(delete(BASE + "/assets/AAPL")).andExpect(status().isNoContent());
       asAdmin(delete(BASE + "/assets/NOPE")).andExpect(status().isNotFound());
@@ -261,34 +263,36 @@ class AdminMarketControllerWebTest {
   class UpdateTests {
 
     @Test
-    @DisplayName("가격 갱신은 성공 200, 시세 예외는 그 상태, 없는 종목 400, 외부 장애 503, 그 밖 500")
+    @DisplayName("가격 갱신은 성공 200, 시세 예외는 그 코드의 상태와 이유, 그 밖 500")
     void updatePrice() throws Exception {
       willThrow(new MarketDataException(MarketDataResponse.PRICE_DATA_NOT_FOUND)).given(assetService).updateAssetPrice("EMPTY");
-      willThrow(new IllegalArgumentException("Not found")).given(assetService).updateAssetPrice("NOPE");
-      willThrow(new IllegalStateException("yahoo 429")).given(assetService).updateAssetPrice("BUSY");
+      willThrow(new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND)).given(assetService).updateAssetPrice("NOPE");
+      willThrow(new MarketDataException(MarketDataResponse.DATA_SOURCE_UNAVAILABLE)).given(assetService).updateAssetPrice("BUSY");
       willThrow(new RuntimeException("boom")).given(assetService).updateAssetPrice("BOOM");
 
       asAdmin(post(BASE + "/assets/AAPL/update-price")).andExpect(status().isOk())
         .andExpect(jsonPath("$.message").value("종목 가격 데이터가 업데이트되었습니다: AAPL"));
       asAdmin(post(BASE + "/assets/EMPTY/update-price")).andExpect(status().isNotFound())
         .andExpect(jsonPath("$.message").value("가격 데이터를 찾을 수 없습니다: EMPTY"));
-      asAdmin(post(BASE + "/assets/NOPE/update-price")).andExpect(status().isBadRequest());
+      asAdmin(post(BASE + "/assets/NOPE/update-price")).andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.message").value("종목을 찾을 수 없습니다: NOPE"));
       asAdmin(post(BASE + "/assets/BUSY/update-price")).andExpect(status().isServiceUnavailable())
-        .andExpect(jsonPath("$.message").value("yahoo 429"));
+        .andExpect(jsonPath("$.message").value("시세 공급원이 설정되지 않았습니다: BUSY"));
       asAdmin(post(BASE + "/assets/BOOM/update-price")).andExpect(status().isInternalServerError());
     }
 
     @Test
-    @DisplayName("시총 갱신은 성공 200, 없는 종목 400, 외부 장애 503, 그 밖 500")
+    @DisplayName("시총 갱신은 성공 200, 없는 종목 404, 시총을 못 받으면 502, 그 밖 500")
     void updateMarketCap() throws Exception {
-      willThrow(new IllegalArgumentException("Not found")).given(assetService).updateAssetMarketCap("NOPE");
-      willThrow(new IllegalStateException("yahoo 429")).given(assetService).updateAssetMarketCap("BUSY");
+      willThrow(new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND)).given(assetService).updateAssetMarketCap("NOPE");
+      willThrow(new MarketDataException(MarketDataResponse.MARKET_CAP_UNAVAILABLE)).given(assetService).updateAssetMarketCap("BUSY");
       willThrow(new RuntimeException("boom")).given(assetService).updateAssetMarketCap("BOOM");
 
       asAdmin(post(BASE + "/assets/AAPL/update-market-cap")).andExpect(status().isOk());
-      asAdmin(post(BASE + "/assets/NOPE/update-market-cap")).andExpect(status().isBadRequest())
+      asAdmin(post(BASE + "/assets/NOPE/update-market-cap")).andExpect(status().isNotFound())
         .andExpect(jsonPath("$.message").value("종목을 찾을 수 없습니다: NOPE"));
-      asAdmin(post(BASE + "/assets/BUSY/update-market-cap")).andExpect(status().isServiceUnavailable());
+      asAdmin(post(BASE + "/assets/BUSY/update-market-cap")).andExpect(status().isBadGateway())
+        .andExpect(jsonPath("$.message").value("시가총액을 가져오지 못했습니다: BUSY"));
       asAdmin(post(BASE + "/assets/BOOM/update-market-cap")).andExpect(status().isInternalServerError());
     }
 

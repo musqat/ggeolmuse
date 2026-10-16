@@ -19,7 +19,8 @@ public enum MarketDataResponse implements ErrorCode {
     // 클라이언트 오류
     INVALID_SYMBOL("유효하지 않은 종목 코드입니다", HttpStatus.BAD_REQUEST),
     INVALID_DATE_RANGE("유효하지 않은 날짜 범위입니다", HttpStatus.BAD_REQUEST),
-
+    ASSET_NAME_REQUIRED("종목 이름이 비어 있습니다", HttpStatus.BAD_REQUEST),
+    ASSET_ALREADY_EXISTS("이미 등록된 종목입니다", HttpStatus.CONFLICT),
 
     // 리소스 없음
     SYMBOL_NOT_FOUND("종목을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
@@ -34,6 +35,8 @@ public enum MarketDataResponse implements ErrorCode {
     YAHOO_FINANCE_ERROR("Yahoo Finance 서비스 오류", HttpStatus.BAD_GATEWAY),
     ALPHA_VANTAGE_ERROR("Alpha Vantage 서비스 오류", HttpStatus.BAD_GATEWAY),
     KOREA_EXIM_ERROR("한국수출입은행 서비스 오류", HttpStatus.BAD_GATEWAY),
+    MARKET_CAP_UNAVAILABLE("시가총액을 가져오지 못했습니다", HttpStatus.BAD_GATEWAY),
+    DATA_SOURCE_UNAVAILABLE("시세 공급원이 설정되지 않았습니다", HttpStatus.SERVICE_UNAVAILABLE),
 
     // 서버 내부 오류
     INTERNAL_SERVER_ERROR("시장 데이터 서비스 내부 오류", HttpStatus.INTERNAL_SERVER_ERROR);

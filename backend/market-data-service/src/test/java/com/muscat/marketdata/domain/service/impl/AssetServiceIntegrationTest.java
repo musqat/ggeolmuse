@@ -3,6 +3,7 @@ package com.muscat.marketdata.domain.service.impl;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.muscat.marketdata.common.exceptions.MarketDataException;
 import com.muscat.marketdata.datasource.alphavantage.scheduler.AlphaVantageScheduler;
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.repository.AssetRepository;
@@ -110,8 +111,8 @@ class AssetServiceIntegrationTest {
         assetService.createAsset(
           TEST_SYMBOL, "Different Name", TEST_COUNTRY, TEST_CURRENCY, TEST_ASSET_TYPE,
           false, null, null, false))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("Already exists");
+        .isInstanceOf(MarketDataException.class)
+        .hasFieldOrPropertyWithValue("errorCode", "ASSET_ALREADY_EXISTS");
 
       // DB에 하나만 존재하는지 확인
       List<Asset> allAssets = assetRepository.findAll();
