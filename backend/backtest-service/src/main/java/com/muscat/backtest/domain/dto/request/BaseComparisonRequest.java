@@ -25,7 +25,7 @@ public abstract class BaseComparisonRequest {
   @Positive(message = "투자금액은 0보다 커야 합니다")
   private BigDecimal investmentAmount;
 
-  @Schema(description = "사용자 아이디", example = "user123")
+  @Schema(description = "토큰의 이메일로 채움", accessMode = Schema.AccessMode.READ_ONLY)
   private String userId;
 
   @Schema(description = "매수 시 환율 (수동 설정 시, null이면 자동)", example = "1300.00")

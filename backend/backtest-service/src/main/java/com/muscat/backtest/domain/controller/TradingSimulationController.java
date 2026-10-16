@@ -1,5 +1,6 @@
 package com.muscat.backtest.domain.controller;
 
+import com.muscat.backtest.common.util.TokenOwner;
 import com.muscat.backtest.domain.dto.request.InvestmentRequest;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
 import com.muscat.backtest.domain.dto.response.InvestmentResponse;
@@ -79,10 +80,12 @@ public class TradingSimulationController {
   @PostMapping("/simulation")
   public ResponseEntity<SimulationResponse> runSimulation(
       @Parameter(description = "백테스팅 시뮬레이션 요청 정보", required = true)
-      @Valid @RequestBody SimulationRequest request) {
+      @Valid @RequestBody SimulationRequest request,
+      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
 
     log.info("백테스팅 시뮬레이션 요청: {}", request);
 
+    request.setUserId(TokenOwner.email(jwt));
     SimulationResponse result = tradingSimulationService.runSimulation(request);
 
     log.info("백테스팅 시뮬레이션 완료: {} 수익률 {}%, 보유주식 {}주, 재투자={}, 재투자날짜={}",
@@ -148,6 +151,8 @@ public class TradingSimulationController {
       @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
 
     log.info("투자 시뮬레이션 요청: {}", request);
+
+    request.setUserId(jwt.getSubject());
 
     // trade-service Feign @RequestHeader("Authorization")에 전달 → "Bearer " 접두사 필수
     String token = "Bearer " + jwt.getTokenValue();

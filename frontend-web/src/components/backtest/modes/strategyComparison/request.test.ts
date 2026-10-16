@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { buildStrategyComparisonRequest, type StrategyComparisonValues } from './request'
 
-const ctx = { userId: 'u@x.com', today: '2026-10-08' }
+const ctx = { today: '2026-10-08' }
 
 const values: StrategyComparisonValues = {
   symbol: 'AAPL',
@@ -20,7 +20,7 @@ const values: StrategyComparisonValues = {
 
 describe('buildStrategyComparisonRequest', () => {
   it('고른 순서대로 카탈로그 변환을 거친 전략을 보낸다', () => {
-    expect(buildStrategyComparisonRequest(values, ctx)).toEqual({
+    expect(buildStrategyComparisonRequest(values, ctx)).toStrictEqual({
       request: {
         symbol: 'AAPL',
         startDate: '2023-01-01',
@@ -40,7 +40,6 @@ describe('buildStrategyComparisonRequest', () => {
         reinvestDividends: false,
         tradingFeeRate: 0,
         dividendTaxRate: 0,
-        userId: 'u@x.com',
       },
     })
   })

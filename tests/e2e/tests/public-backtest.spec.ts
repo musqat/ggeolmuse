@@ -37,7 +37,7 @@ test.describe('비로그인 백테스트', () => {
     const api = await request.newContext();
 
     const res = await api.get(`${API_URL}/backtest/history`, {
-      params: { userId: 1, page: 0, size: 5 },
+      params: { page: 0, size: 5 },
     });
 
     expect(res.status(), '저장된 이력까지 열려 있으면 안 된다').toBe(401);

@@ -41,7 +41,6 @@ export const buildDcaRequest = (
     purchaseDay: day,
     investmentInterval: interval,
     ...toOptionFields(values),
-    userId: ctx.userId,
   };
   return { request };
 };

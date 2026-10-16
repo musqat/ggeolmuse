@@ -1,11 +1,13 @@
 package com.muscat.backtest.domain.dto.request;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import lombok.ToString;
 
 // 최적 매수 타이밍 분석 요청 DTO
@@ -17,6 +19,8 @@ import lombok.ToString;
 @ToString
 public class OptimalTimingRequest {
 
+  @Schema(description = "토큰의 이메일로 채움", accessMode = Schema.AccessMode.READ_ONLY)
+  @Setter
   private String userId;
 
   // 종목 심볼

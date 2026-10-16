@@ -30,7 +30,7 @@ public class DcaStrategyRequest {
   @NotNull(message = "종료일은 필수입니다")
   private LocalDate endDate;
 
-  @Schema(description = "사용자 아이디", example = "user123")
+  @Schema(description = "토큰의 이메일로 채움", accessMode = Schema.AccessMode.READ_ONLY)
   private String userId;
 
   // DCA 전략 전용 필드들

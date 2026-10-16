@@ -21,6 +21,10 @@ public class BacktestHistoryUtils {
     }
 
     public void saveBacktestHistory(String userId, BacktestType backtestType, Object requestParams) {
+        if (userId == null || userId.isBlank()) {
+            log.debug("이력 주인이 없어 저장하지 않음: type={}", backtestType);
+            return;
+        }
         executeWithFallback(() -> {
             try {
                 String paramsJson = objectMapper.writeValueAsString(requestParams);

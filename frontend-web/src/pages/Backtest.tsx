@@ -52,14 +52,7 @@ const Backtest: React.FC = () => {
   } = useQuery({
     queryKey: ["backtest", "history", user?.email, historyPage],
     queryFn: async () => {
-      if (!user?.email) {
-        throw new Error("로그인이 필요합니다.");
-      }
-      const response = await backtestApi.getHistory(
-        user.email,
-        historyPage,
-        20,
-      );
+      const response = await backtestApi.getHistory(historyPage, 20);
       return response.data;
     },
     enabled: mode === "history" && isAuthenticated && !!user?.email,
@@ -87,10 +80,7 @@ const Backtest: React.FC = () => {
 
   const runBacktest = async () => {
     if (!current) return;
-    const prepared = current.prepare({
-      userId: user?.email || "anonymous",
-      today: getTodayString(),
-    });
+    const prepared = current.prepare({ today: getTodayString() });
     if ("error" in prepared) {
       alert(prepared.error);
       return;

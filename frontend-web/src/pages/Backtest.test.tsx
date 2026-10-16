@@ -94,7 +94,7 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-const common = { reinvestDividends: false, tradingFeeRate: 0, dividendTaxRate: 0, userId: USER }
+const common = { reinvestDividends: false, tradingFeeRate: 0, dividendTaxRate: 0 }
 
 describe('Backtest 페이지', () => {
   it('단순: 기본값으로 실행하면 매도일을 오늘로 보낸다', async () => {
@@ -229,20 +229,26 @@ describe('Backtest 페이지', () => {
     })
   })
 
-  it('비로그인: userId 는 anonymous 이고 요청을 로컬 히스토리에 저장한다', async () => {
+  it('비로그인: 사용자 없이 요청하고 로컬 히스토리에 저장한다', async () => {
     auth.isAuthenticated = false
     auth.user = null
     renderPage()
     await runBacktest()
 
-    expect(backtestApi.runSimulation).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: 'anonymous' })
-    )
+    expect(vi.mocked(backtestApi.runSimulation).mock.calls[0][0]).not.toHaveProperty('userId')
     expect(saveLocalBacktestHistory).toHaveBeenCalledWith(
       'STRATEGY_SIMULATION',
-      expect.objectContaining({ symbol: 'AAPL', userId: 'anonymous' }),
+      expect.objectContaining({ symbol: 'AAPL' }),
       'auto'
     )
+  })
+
+  it('히스토리 탭은 페이지 번호와 크기만 보내 이력을 조회한다', async () => {
+    vi.mocked(backtestApi.getHistory).mockResolvedValue({ data: { content: [], totalPages: 0 } } as never)
+    renderPage()
+    await selectTab('히스토리')
+
+    await vi.waitFor(() => expect(backtestApi.getHistory).toHaveBeenCalledWith(0, 20))
   })
 
   it('API 가 실패하면 모드별 실패 문구를 보인다', async () => {

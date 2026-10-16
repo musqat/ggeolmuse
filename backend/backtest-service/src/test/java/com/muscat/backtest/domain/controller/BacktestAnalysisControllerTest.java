@@ -25,7 +25,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
@@ -42,6 +44,9 @@ class BacktestAnalysisControllerTest {
 
   private static final String BASE = "/api/analysis";
   private static final String PERIOD = "\"startDate\":\"2024-01-01\",\"endDate\":\"2024-06-30\"";
+  private static final String TOKEN = "good-token";
+  private static final String EMAIL = "user@example.com";
+  private static final String VICTIM = ",\"userId\":\"victim@example.com\"}";
 
   @Autowired
   private MockMvc mockMvc;
@@ -49,12 +54,17 @@ class BacktestAnalysisControllerTest {
   @MockitoBean
   private BacktestAnalysisService backtestAnalysisService;
 
-  // 분석은 토큰 없이 열려 있어 디코더를 부르지 않는다. 실제 Keycloak 에 붙지 않게 막아 둔다
+  // 실제 Keycloak 에 붙지 않게 바꿔 끼운 디코더
   @MockitoBean
   private JwtDecoder jwtDecoder;
 
   private ResultActions postJson(String path, String body) throws Exception {
     return mockMvc.perform(post(BASE + path).contentType(MediaType.APPLICATION_JSON).content(body));
+  }
+
+  private ResultActions postJsonWithToken(String path, String body) throws Exception {
+    return mockMvc.perform(post(BASE + path).header(HttpHeaders.AUTHORIZATION, "Bearer " + TOKEN)
+      .contentType(MediaType.APPLICATION_JSON).content(body));
   }
 
   private static StrategyResponse strategy(String symbol, StrategyType type, String returnPercent) {
@@ -68,7 +78,7 @@ class BacktestAnalysisControllerTest {
   }
 
   @Test
-  @DisplayName("적립식 전략은 토큰 없이 실행되고 요청 값을 그대로 넘긴다")
+  @DisplayName("적립식 전략은 토큰 없이 실행되고 종목 · 월 투자금 · 매수일을 그대로 넘긴다")
   void dca() throws Exception {
     given(backtestAnalysisService.runDcaStrategy(any())).willReturn(strategy("AAPL", StrategyType.DCA, "30.42"));
 
@@ -171,6 +181,55 @@ class BacktestAnalysisControllerTest {
       .andExpect(jsonPath("$.totalQualifyingDays").value(7));
 
     verify(backtestAnalysisService).analyzeOptimalTiming(argThat(r -> r.getTargetReturnPercent().intValue() == 10));
+  }
+
+  @Test
+  @DisplayName("분석 여섯 경로 모두 이력 주인을 본문이 아니라 토큰의 이메일로 정한다")
+  void ownerFromToken() throws Exception {
+    given(jwtDecoder.decode(TOKEN)).willReturn(Jwt.withTokenValue(TOKEN).header("alg", "none").subject("user-1")
+      .claim("email", EMAIL).build());
+    given(backtestAnalysisService.runDcaStrategy(any())).willReturn(strategy("AAPL", StrategyType.DCA, "1"));
+    given(backtestAnalysisService.runConditionalStrategy(any()))
+      .willReturn(strategy("TSLA", StrategyType.CONDITIONAL_PURCHASE, "1"));
+    given(backtestAnalysisService.compareSymbols(any())).willReturn(comparison("MSFT"));
+    given(backtestAnalysisService.compareStrategies(any())).willReturn(comparison("DCA"));
+    given(backtestAnalysisService.compareTiming(any())).willReturn(comparison("2024-03-01"));
+    given(backtestAnalysisService.analyzeOptimalTiming(any())).willReturn(OptimalTimingResponse.builder().symbol("AAPL").build());
+
+    postJsonWithToken("/strategy/dca", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"monthlyAmount\":100000,\"purchaseDay\":15" + VICTIM)
+      .andExpect(status().isOk());
+    postJsonWithToken("/strategy/conditional",
+      "{\"symbol\":\"TSLA\"," + PERIOD + ",\"totalInvestment\":1000000,\"dropPercentage\":5" + VICTIM)
+      .andExpect(status().isOk());
+    postJsonWithToken("/compare/symbols", "{\"symbols\":[\"AAPL\",\"MSFT\"]," + PERIOD + ",\"investmentAmount\":1000000" + VICTIM)
+      .andExpect(status().isOk());
+    postJsonWithToken("/compare/strategies", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":1000000,"
+      + "\"strategies\":[{\"strategyType\":\"DCA\",\"monthlyAmount\":100000},{\"strategyType\":\"SIMPLE\"}]" + VICTIM)
+      .andExpect(status().isOk());
+    postJsonWithToken("/compare/timing", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":1000000,"
+      + "\"purchaseDates\":[\"2024-01-02\",\"2024-03-01\"]" + VICTIM)
+      .andExpect(status().isOk());
+    postJsonWithToken("/timing/optimal", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":1000000,"
+      + "\"targetReturnPercent\":10" + VICTIM)
+      .andExpect(status().isOk());
+
+    verify(backtestAnalysisService).runDcaStrategy(argThat(r -> EMAIL.equals(r.getUserId())));
+    verify(backtestAnalysisService).runConditionalStrategy(argThat(r -> EMAIL.equals(r.getUserId())));
+    verify(backtestAnalysisService).compareSymbols(argThat(r -> EMAIL.equals(r.getUserId())));
+    verify(backtestAnalysisService).compareStrategies(argThat(r -> EMAIL.equals(r.getUserId())));
+    verify(backtestAnalysisService).compareTiming(argThat(r -> EMAIL.equals(r.getUserId())));
+    verify(backtestAnalysisService).analyzeOptimalTiming(argThat(r -> EMAIL.equals(r.getUserId())));
+  }
+
+  @Test
+  @DisplayName("토큰 없이 돌린 분석은 본문의 userId 를 버려 이력 주인이 없다")
+  void anonymousDropsBodyUser() throws Exception {
+    given(backtestAnalysisService.runDcaStrategy(any())).willReturn(strategy("AAPL", StrategyType.DCA, "1"));
+
+    postJson("/strategy/dca", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"monthlyAmount\":100000,\"purchaseDay\":15" + VICTIM)
+      .andExpect(status().isOk());
+
+    verify(backtestAnalysisService).runDcaStrategy(argThat(r -> r.getUserId() == null));
   }
 
   @Test

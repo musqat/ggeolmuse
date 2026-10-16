@@ -44,6 +44,7 @@ class TradingSimulationControllerTest {
   private static final String BASE = "/api/trading-simulation";
   private static final String TOKEN = "good-token";
   private static final String USER = "user-1";
+  private static final String EMAIL = "user@example.com";
 
   @Autowired
   private MockMvc mockMvc;
@@ -60,7 +61,8 @@ class TradingSimulationControllerTest {
 
   @BeforeEach
   void decodeToken() {
-    given(jwtDecoder.decode(TOKEN)).willReturn(Jwt.withTokenValue(TOKEN).header("alg", "none").subject(USER).build());
+    given(jwtDecoder.decode(TOKEN)).willReturn(Jwt.withTokenValue(TOKEN).header("alg", "none").subject(USER)
+      .claim("email", EMAIL).build());
   }
 
   private static InvestmentResponse investment(String status) {
@@ -68,7 +70,7 @@ class TradingSimulationControllerTest {
   }
 
   @Test
-  @DisplayName("시뮬레이션은 토큰 없이 실행되고 요청 값을 그대로 넘긴다")
+  @DisplayName("시뮬레이션은 토큰 없이 실행되고 종목 · 매수일 · 투자금을 그대로 넘긴다")
   void simulation() throws Exception {
     given(tradingSimulationService.runSimulation(any())).willReturn(SimulationResponse.builder()
       .symbol("AAPL").totalReturnPercent(new BigDecimal("52.38")).build());
@@ -93,6 +95,33 @@ class TradingSimulationControllerTest {
   }
 
   @Test
+  @DisplayName("로그인하고 돌린 시뮬레이션의 이력 주인은 본문이 아니라 토큰의 이메일이다")
+  void simulation_OwnerFromToken() throws Exception {
+    given(tradingSimulationService.runSimulation(any())).willReturn(SimulationResponse.builder().symbol("AAPL").build());
+
+    mockMvc.perform(post(BASE + "/simulation").header(HttpHeaders.AUTHORIZATION, "Bearer " + TOKEN)
+        .contentType(MediaType.APPLICATION_JSON)
+        .content("{\"symbol\":\"AAPL\",\"purchaseDate\":\"2023-01-02\",\"investmentAmount\":1000000,"
+          + "\"userId\":\"victim@example.com\"}"))
+      .andExpect(status().isOk());
+
+    verify(tradingSimulationService).runSimulation(argThat((SimulationRequest r) -> EMAIL.equals(r.getUserId())));
+  }
+
+  @Test
+  @DisplayName("토큰 없이 돌린 시뮬레이션은 본문의 userId 를 버려 이력 주인이 없다")
+  void simulation_AnonymousDropsBodyUser() throws Exception {
+    given(tradingSimulationService.runSimulation(any())).willReturn(SimulationResponse.builder().symbol("AAPL").build());
+
+    mockMvc.perform(post(BASE + "/simulation").contentType(MediaType.APPLICATION_JSON)
+        .content("{\"symbol\":\"AAPL\",\"purchaseDate\":\"2023-01-02\",\"investmentAmount\":1000000,"
+          + "\"userId\":\"victim@example.com\"}"))
+      .andExpect(status().isOk());
+
+    verify(tradingSimulationService).runSimulation(argThat((SimulationRequest r) -> r.getUserId() == null));
+  }
+
+  @Test
   @DisplayName("보유 주식 백테스트는 토큰이 없으면 401 이고 서비스까지 가지 않는다")
   void investment_RequiresToken() throws Exception {
     mockMvc.perform(get(BASE + "/investment")).andExpect(status().isUnauthorized());
@@ -113,12 +142,12 @@ class TradingSimulationControllerTest {
   }
 
   @Test
-  @DisplayName("투자 시뮬레이션은 요청의 사용자와 Bearer 토큰을 넘긴다")
+  @DisplayName("투자 시뮬레이션은 본문이 아니라 토큰의 사용자와 Bearer 토큰을 넘긴다")
   void simulate() throws Exception {
     given(investmentBacktestService.executeInvestment(any(), anyString())).willReturn(investment("SUCCESS"));
 
     mockMvc.perform(post(BASE + "/simulate").header(HttpHeaders.AUTHORIZATION, "Bearer " + TOKEN)
-        .contentType(MediaType.APPLICATION_JSON).content("{\"userId\":\"user-1\"}"))
+        .contentType(MediaType.APPLICATION_JSON).content("{\"userId\":\"someone-else\"}"))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.symbol").value("AAPL"));
 
@@ -126,11 +155,22 @@ class TradingSimulationControllerTest {
   }
 
   @Test
-  @DisplayName("투자 시뮬레이션에 사용자가 없으면 400")
-  void simulate_MissingUser() throws Exception {
+  @DisplayName("투자 시뮬레이션은 본문에 사용자가 없어도 토큰의 사용자로 실행된다")
+  void simulate_NoBodyUser() throws Exception {
+    given(investmentBacktestService.executeInvestment(any(), anyString())).willReturn(investment("SUCCESS"));
+
     mockMvc.perform(post(BASE + "/simulate").header(HttpHeaders.AUTHORIZATION, "Bearer " + TOKEN)
         .contentType(MediaType.APPLICATION_JSON).content("{}"))
-      .andExpect(status().isBadRequest());
+      .andExpect(status().isOk());
+
+    verify(investmentBacktestService).executeInvestment(argThat(r -> r.getUserId().equals(USER)), eq("Bearer " + TOKEN));
+  }
+
+  @Test
+  @DisplayName("투자 시뮬레이션은 토큰이 없으면 401 이고 서비스까지 가지 않는다")
+  void simulate_RequiresToken() throws Exception {
+    mockMvc.perform(post(BASE + "/simulate").contentType(MediaType.APPLICATION_JSON).content("{\"userId\":\"user-1\"}"))
+      .andExpect(status().isUnauthorized());
 
     verify(investmentBacktestService, never()).executeInvestment(any(), anyString());
   }

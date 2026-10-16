@@ -1,4 +1,4 @@
-import axios, { type AxiosInstance } from 'axios';
+import axios, { type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
 import type { ApiResponse } from '../types/api';
 import type { StockPrice } from '../types/stock';
 import type { OHLCData } from '../types/ohlc';
@@ -21,9 +21,7 @@ apiClient.interceptors.request.use(
     const isPublicApi = requestUrl.includes('/market/') ||
                         requestUrl.includes('/auth/login') ||
                         requestUrl.includes('/auth/register') ||
-                        requestUrl.includes('/auth/social') ||
-                        requestUrl.includes('/trading-simulation/') ||
-                        requestUrl.includes('/analysis/');
+                        requestUrl.includes('/auth/social');
 
     if (!isPublicApi) {
       const token = localStorage.getItem('accessToken');
@@ -72,6 +70,16 @@ export const refreshAccessToken = async (): Promise<string> => {
   return navigator.locks ? navigator.locks.request('ggeolmuse-token-refresh', refresh) : refresh();
 };
 
+// 토큰 없이도 되는 백테스트 경로
+const isOptionalAuthApi = (url: string) => url.includes('/trading-simulation/') || url.includes('/analysis/');
+
+const sendWithoutToken = (client: AxiosInstance, request: InternalAxiosRequestConfig & { _retry?: boolean }) => {
+  // 또 401 이면 갱신 없이 실패
+  request._retry = true;
+  delete request.headers.Authorization;
+  return client(request);
+};
+
 // 401 이면 refresh token 으로 갱신하고 원래 요청을 그 클라이언트로 다시 보낸다.
 // 클라이언트 셋(apiClient · 관리자 · AI 채팅)이 같이 쓰고, 갱신 중 여부와 대기열은 모듈에 하나라 갱신은 한 번만 한다
 export const attachTokenRefresh = (client: AxiosInstance) => {
@@ -106,7 +114,7 @@ export const attachTokenRefresh = (client: AxiosInstance) => {
         }).then(token => {
           originalRequest.headers.Authorization = `Bearer ${token}`;
           return client(originalRequest);
-        }).catch(err => Promise.reject(err));
+        }, err => (isOptionalAuthApi(requestUrl) ? sendWithoutToken(client, originalRequest) : Promise.reject(err)));
       }
 
       originalRequest._retry = true;
@@ -126,6 +134,7 @@ export const attachTokenRefresh = (client: AxiosInstance) => {
         processQueue(refreshError, null);
         localStorage.removeItem('accessToken');
         window.dispatchEvent(new CustomEvent('auth:logout'));
+        if (isOptionalAuthApi(requestUrl)) return sendWithoutToken(client, originalRequest);
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
@@ -564,7 +573,6 @@ type BacktestCommonRequest = {
   reinvestDividends?: boolean;          // 배당 재투자 여부
   tradingFeeRate?: number;              // 거래 수수료율 (0.001 = 0.1%)
   dividendTaxRate?: number;             // 배당 소득세율
-  userId?: string;                      // 히스토리 저장용
   purchaseFxRate?: number;              // 수동 환율 - 매수 시점
   currentFxRate?: number;               // 수동 환율 - 현재
 };
@@ -812,6 +820,6 @@ export const backtestApi = {
     apiClient.post<ComparisonResponse>('/analysis/compare/strategies', data),
 
   // 백테스트 히스토리 조회
-  getHistory: (userId: string, page: number = 0, size: number = 20) =>
-    apiClient.get<BacktestHistoryPage>('/backtest/history', { params: { userId, page, size } }),
+  getHistory: (page: number = 0, size: number = 20) =>
+    apiClient.get<BacktestHistoryPage>('/backtest/history', { params: { page, size } }),
 };

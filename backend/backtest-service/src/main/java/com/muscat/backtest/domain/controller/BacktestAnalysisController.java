@@ -1,5 +1,6 @@
 package com.muscat.backtest.domain.controller;
 
+import com.muscat.backtest.common.util.TokenOwner;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
 import com.muscat.backtest.domain.dto.request.OptimalTimingRequest;
@@ -23,6 +24,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -75,7 +78,9 @@ public class BacktestAnalysisController {
   @PostMapping("/strategy/dca")
   public ResponseEntity<StrategyResponse> runDcaStrategy(
       @Parameter(description = "DCA 전략 백테스팅 요청 정보", required = true)
-      @Valid @RequestBody DcaStrategyRequest request) {
+      @Valid @RequestBody DcaStrategyRequest request,
+      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
+    request.setUserId(TokenOwner.email(jwt));
 
     log.info("DCA 전략 백테스팅 요청: {} - 월{}원",
         request.getSymbol(), request.getMonthlyAmount());
@@ -113,7 +118,9 @@ public class BacktestAnalysisController {
   @PostMapping("/strategy/conditional")
   public ResponseEntity<StrategyResponse> runConditionalStrategy(
       @Parameter(description = "조건부 매수 전략 백테스팅 요청 정보", required = true)
-      @Valid @RequestBody ConditionalStrategyRequest request) {
+      @Valid @RequestBody ConditionalStrategyRequest request,
+      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
+    request.setUserId(TokenOwner.email(jwt));
 
     log.info("조건부 매수 전략 백테스팅 요청: {} - {}% 하락시 매수",
         request.getSymbol(), request.getDropPercentage());
@@ -152,7 +159,9 @@ public class BacktestAnalysisController {
   @PostMapping("/compare/symbols")
   public ResponseEntity<ComparisonResponse> compareSymbols(
       @Parameter(description = "종목별 비교 분석 요청 정보", required = true)
-      @Valid @RequestBody SymbolComparisonRequest request) {
+      @Valid @RequestBody SymbolComparisonRequest request,
+      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
+    request.setUserId(TokenOwner.email(jwt));
 
     log.info("종목 비교 분석 요청: {}", request.getSymbols());
 
@@ -189,7 +198,9 @@ public class BacktestAnalysisController {
   @PostMapping("/compare/strategies")
   public ResponseEntity<ComparisonResponse> compareStrategies(
       @Parameter(description = "전략별 비교 분석 요청 정보", required = true)
-      @Valid @RequestBody StrategyComparisonRequest request) {
+      @Valid @RequestBody StrategyComparisonRequest request,
+      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
+    request.setUserId(TokenOwner.email(jwt));
 
     log.info("전략 비교 분석 요청: {} - {}개 전략",
         request.getSymbol(),
@@ -228,7 +239,9 @@ public class BacktestAnalysisController {
   @PostMapping("/compare/timing")
   public ResponseEntity<ComparisonResponse> compareTiming(
       @Parameter(description = "타이밍별 비교 분석 요청 정보", required = true)
-      @Valid @RequestBody TimingComparisonRequest request) {
+      @Valid @RequestBody TimingComparisonRequest request,
+      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
+    request.setUserId(TokenOwner.email(jwt));
 
     log.info("타이밍 비교 분석 요청: {} - {}개 시점",
         request.getSymbol(),
@@ -267,7 +280,9 @@ public class BacktestAnalysisController {
   @PostMapping("/timing/optimal")
   public ResponseEntity<OptimalTimingResponse> analyzeOptimalTiming(
       @Parameter(description = "최적 타이밍 분석 요청 정보", required = true)
-      @Valid @RequestBody OptimalTimingRequest request) {
+      @Valid @RequestBody OptimalTimingRequest request,
+      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
+    request.setUserId(TokenOwner.email(jwt));
 
     log.info("최적 타이밍 분석 요청: {} - 목표 수익률 {}%",
         request.getSymbol(), request.getTargetReturnPercent());

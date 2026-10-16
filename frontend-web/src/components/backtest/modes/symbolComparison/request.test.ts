@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { buildSymbolComparisonRequest, type SymbolComparisonValues } from './request'
 
-const ctx = { userId: 'u@x.com', today: '2026-10-08' }
+const ctx = { today: '2026-10-08' }
 
 const values: SymbolComparisonValues = {
   symbols: ['AAPL', 'MSFT'],
@@ -18,7 +18,7 @@ const values: SymbolComparisonValues = {
 
 describe('buildSymbolComparisonRequest', () => {
   it('매도일이 비면 오늘로 채운다', () => {
-    expect(buildSymbolComparisonRequest(values, ctx)).toEqual({
+    expect(buildSymbolComparisonRequest(values, ctx)).toStrictEqual({
       request: {
         symbols: ['AAPL', 'MSFT'],
         startDate: '2023-01-01',
@@ -27,7 +27,6 @@ describe('buildSymbolComparisonRequest', () => {
         reinvestDividends: false,
         tradingFeeRate: 0,
         dividendTaxRate: 0,
-        userId: 'u@x.com',
       },
     })
   })
