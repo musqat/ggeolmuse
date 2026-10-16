@@ -29,20 +29,21 @@
         <jjwt.version>0.12.6</jjwt.version>
         <springdoc.version>2.8.17</springdoc.version>
         <testcontainers.version>1.20.4</testcontainers.version>
-        <jsoup.version>1.18.3</jsoup.version>
         <resilience4j.version>2.2.0</resilience4j.version>
 
-        <!-- Security patch: Spring Boot 가 지정한 버전에 CVE 가 있어 올려 잡는다.
-             프로퍼티만으로는 임포트된 BOM 에 안 먹는다. dependencyManagement 항목과 짝이어야 한다. -->
-        <netty.version>4.1.136.Final</netty.version>
-        <jackson-bom.version>2.18.8</jackson-bom.version>
+        <!-- 보안 패치.  Spring Boot BOM 의 버전은 프로퍼티로 못 바꿔 아래 dependencyManagement 항목과 짝으로 둠 -->
+        <netty.version>4.1.139.Final</netty.version>
+        <jackson-bom.version>2.18.11</jackson-bom.version>
+        <tomcat.version>10.1.61</tomcat.version>
+        <httpclient5.version>5.6.5</httpclient5.version>
+        <httpcore5.version>5.4.4</httpcore5.version>
         <postgresql.version>42.7.12</postgresql.version>
         <commons-io.version>2.14.0</commons-io.version>
         <commons-fileupload.version>1.6.0</commons-fileupload.version>
-        <lz4.version>1.8.1</lz4.version>
+        <lz4.version>1.11.4</lz4.version>
 
         <!-- spring-security-rsa 가 끌어온다. 직접 쓰는 곳은 없고 config 암복호화용이다 -->
-        <bouncycastle.version>1.84</bouncycastle.version>
+        <bouncycastle.version>1.86</bouncycastle.version>
 
     </properties>
 
@@ -167,13 +168,6 @@
                 <version>${testcontainers.version}</version>
             </dependency>
 
-            <!-- Jsoup -->
-            <dependency>
-                <groupId>org.jsoup</groupId>
-                <artifactId>jsoup</artifactId>
-                <version>${jsoup.version}</version>
-            </dependency>
-
             <!-- BouncyCastle - 전이 의존이라 여기서 버전을 올려 잡는다 -->
             <dependency>
                 <groupId>org.bouncycastle</groupId>
@@ -200,9 +194,39 @@
                 <version>${commons-fileupload.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.lz4</groupId>
+                <groupId>at.yawk.lz4</groupId>
                 <artifactId>lz4-java</artifactId>
                 <version>${lz4.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-core</artifactId>
+                <version>${tomcat.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-el</artifactId>
+                <version>${tomcat.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-websocket</artifactId>
+                <version>${tomcat.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.httpcomponents.client5</groupId>
+                <artifactId>httpclient5</artifactId>
+                <version>${httpclient5.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.httpcomponents.core5</groupId>
+                <artifactId>httpcore5</artifactId>
+                <version>${httpcore5.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.httpcomponents.core5</groupId>
+                <artifactId>httpcore5-h2</artifactId>
+                <version>${httpcore5.version}</version>
             </dependency>
 
         </dependencies>
@@ -313,13 +337,6 @@
             <artifactId>lombok</artifactId>
             <version>${lombok.version}</version>
             <scope>provided</scope>
-        </dependency>
-
-        <!-- Jsoup -->
-        <dependency>
-            <groupId>org.jsoup</groupId>
-            <artifactId>jsoup</artifactId>
-            <version>${jsoup.version}</version>
         </dependency>
 
         <!-- Test Dependencies -->

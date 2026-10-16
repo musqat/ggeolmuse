@@ -147,12 +147,6 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Jsoup for web scraping -->
-        <dependency>
-            <groupId>org.jsoup</groupId>
-            <artifactId>jsoup</artifactId>
-        </dependency>
-
         <!-- Lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>
