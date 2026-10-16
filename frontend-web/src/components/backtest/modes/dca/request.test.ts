@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { buildDcaRequest, type DcaValues } from './request'
 
-const ctx = { userId: 'u@x.com', today: '2026-10-08' }
+const ctx = { today: '2026-10-08' }
 
 const values: DcaValues = {
   startDate: '2023-01-01',
@@ -19,7 +19,7 @@ const values: DcaValues = {
 
 describe('buildDcaRequest', () => {
   it('종료일이 비면 오늘로 채운다', () => {
-    expect(buildDcaRequest(values, 'AAPL', ctx)).toEqual({
+    expect(buildDcaRequest(values, 'AAPL', ctx)).toStrictEqual({
       request: {
         symbol: 'AAPL',
         startDate: '2023-01-01',
@@ -30,7 +30,6 @@ describe('buildDcaRequest', () => {
         reinvestDividends: false,
         tradingFeeRate: 0,
         dividendTaxRate: 0,
-        userId: 'u@x.com',
       },
     })
   })

@@ -10,6 +10,7 @@ interface Call {
   auth?: string
   body?: unknown
   credentials?: boolean
+  params?: unknown
 }
 
 type Reply = { status: number; data?: unknown } | ((config: InternalAxiosRequestConfig) => { status: number; data?: unknown } | Promise<{ status: number; data?: unknown }>)
@@ -22,7 +23,7 @@ async function setup(routes: Record<string, Reply[]>) {
   const adapter: AxiosAdapter = async (config) => {
     const key = `${config.method?.toUpperCase()} ${config.url}`
     const body = typeof config.data === 'string' ? JSON.parse(config.data) : config.data
-    calls.push({ method: config.method!.toUpperCase(), url: config.url!, auth: config.headers?.Authorization as string | undefined, body, credentials: config.withCredentials })
+    calls.push({ method: config.method!.toUpperCase(), url: config.url!, auth: config.headers?.Authorization as string | undefined, body, credentials: config.withCredentials, params: config.params })
     const queue = routes[key]
     if (!queue?.length) throw new Error(`준비 안 된 요청: ${key}`)
     const next = queue.length > 1 ? queue.shift()! : queue[0]
@@ -55,7 +56,6 @@ describe('api 요청 인터셉터', () => {
     ['시세', (api: typeof import('./api')) => api.stockApi.getAllSymbols(), 'GET /market/symbols'],
     ['로그인', (api: typeof import('./api')) => api.authApi.login({ email: 'a@b.c', password: 'x' }), 'POST /auth/login'],
     ['구글 코드 교환', (api: typeof import('./api')) => api.authApi.exchangeGoogleCode({ code: 'c', codeVerifier: 'v', redirectUri: 'r' }), 'POST /auth/social/google/token'],
-    ['백테스트', (api: typeof import('./api')) => api.backtestApi.runSimulation({} as never), 'POST /trading-simulation/simulation'],
   ])('공개 API(%s)에는 토큰을 싣지 않는다', async (_name, call, key) => {
     localStorage.setItem('accessToken', 'A1')
     const { api, calls } = await setup({ [key]: [{ status: 200, data: {} }] })
@@ -63,6 +63,28 @@ describe('api 요청 인터셉터', () => {
     await call(api)
 
     expect(calls[0].auth).toBeUndefined()
+  })
+
+  it.each([
+    ['단순', (api: typeof import('./api')) => api.backtestApi.runSimulation({} as never), 'POST /trading-simulation/simulation'],
+    ['적립식', (api: typeof import('./api')) => api.backtestApi.runDcaStrategy({} as never), 'POST /analysis/strategy/dca'],
+  ])('백테스트(%s)는 로그인했으면 토큰을 실어 보낸다', async (_name, call, key) => {
+    localStorage.setItem('accessToken', 'A1')
+    const { api, calls } = await setup({ [key]: [{ status: 200, data: {} }] })
+
+    await call(api)
+
+    expect(calls[0].auth).toBe('Bearer A1')
+  })
+
+  it('이력 조회는 페이지 번호와 크기만 보내고 토큰을 싣는다', async () => {
+    localStorage.setItem('accessToken', 'A1')
+    const { api, calls } = await setup({ 'GET /backtest/history': [{ status: 200, data: { content: [] } }] })
+
+    await api.backtestApi.getHistory(2, 5)
+
+    expect(calls[0].params).toEqual({ page: 2, size: 5 })
+    expect(calls[0].auth).toBe('Bearer A1')
   })
 
   it.each([
@@ -230,6 +252,68 @@ describe('api 응답 인터셉터 · 401', () => {
     await expect(second).rejects.toMatchObject({ config: { url: '/auth/refresh' } })
     expect(localStorage.getItem('accessToken')).toBeNull()
     expect(logouts).toBe(1)
+  })
+
+  it('토큰 없이도 되는 백테스트는 갱신이 실패하면 로그아웃하고 토큰 없이 한 번 더 보낸다', async () => {
+    localStorage.setItem('accessToken', 'OLD')
+    const { api, calls } = await setup({
+      'POST /trading-simulation/simulation': [{ status: 401 }, { status: 200, data: { symbol: 'AAPL' } }],
+      'POST /auth/refresh': [{ status: 401 }],
+    })
+
+    const res = await api.backtestApi.runSimulation({} as never)
+
+    expect(res.data).toEqual({ symbol: 'AAPL' })
+    expect(calls.map((c) => `${c.method} ${c.url} ${c.auth ?? '-'}`)).toEqual([
+      'POST /trading-simulation/simulation Bearer OLD',
+      'POST /auth/refresh Bearer OLD',
+      'POST /trading-simulation/simulation -',
+    ])
+    expect(localStorage.getItem('accessToken')).toBeNull()
+    expect(logouts).toBe(1)
+  })
+
+  it('갱신을 기다리던 백테스트도 갱신이 실패하면 토큰 없이 다시 보낸다', async () => {
+    localStorage.setItem('accessToken', 'OLD')
+    let releaseRefresh!: () => void
+    const refreshGate = new Promise<void>((resolve) => { releaseRefresh = resolve })
+    const { api, calls } = await setup({
+      'GET /users/me': [{ status: 401 }],
+      'POST /analysis/strategy/dca': [{ status: 401 }, { status: 200, data: { strategyType: 'DCA' } }],
+      'POST /auth/refresh': [async () => { await refreshGate; return { status: 401 } }],
+    })
+
+    const first = api.authApi.getCurrentUser()
+    await vi.waitFor(() => expect(calls.some((c) => c.url === '/auth/refresh')).toBe(true))
+    const dca = api.backtestApi.runDcaStrategy({} as never)
+    await vi.waitFor(() => expect(calls.filter((c) => c.url === '/analysis/strategy/dca')).toHaveLength(1))
+    releaseRefresh()
+
+    await expect(first).rejects.toMatchObject({ config: { url: '/auth/refresh' } })
+    await expect(dca).resolves.toMatchObject({ data: { strategyType: 'DCA' } })
+    expect(calls.filter((c) => c.url === '/analysis/strategy/dca').map((c) => c.auth ?? '-')).toEqual(['Bearer OLD', '-'])
+    expect(logouts).toBe(1)
+  })
+
+  it('토큰 없이 다시 보낸 백테스트가 또 401 이면 갱신을 다시 하지 않고 실패한다', async () => {
+    localStorage.setItem('accessToken', 'OLD')
+    let releaseRefresh!: () => void
+    const refreshGate = new Promise<void>((resolve) => { releaseRefresh = resolve })
+    const { api, calls } = await setup({
+      'GET /users/me': [{ status: 401 }],
+      'POST /analysis/strategy/dca': [{ status: 401 }],
+      'POST /auth/refresh': [async () => { await refreshGate; return { status: 401 } }],
+    })
+
+    const first = api.authApi.getCurrentUser()
+    await vi.waitFor(() => expect(calls.some((c) => c.url === '/auth/refresh')).toBe(true))
+    const dca = api.backtestApi.runDcaStrategy({} as never)
+    await vi.waitFor(() => expect(calls.filter((c) => c.url === '/analysis/strategy/dca')).toHaveLength(1))
+    releaseRefresh()
+
+    await expect(first).rejects.toMatchObject({ config: { url: '/auth/refresh' } })
+    await expect(dca).rejects.toMatchObject({ response: { status: 401 } })
+    expect(calls.filter((c) => c.url === '/auth/refresh')).toHaveLength(1)
   })
 
   it('새 토큰으로 다시 보낸 요청도 401 이면 access token 을 지우고 로그아웃한다', async () => {

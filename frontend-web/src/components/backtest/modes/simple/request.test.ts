@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { buildSimpleRequest, type SimpleValues } from './request'
 
-const ctx = { userId: 'u@x.com', today: '2026-10-08' }
+const ctx = { today: '2026-10-08' }
 
 const values: SimpleValues = {
   purchaseDate: '2023-01-01',
@@ -17,7 +17,7 @@ const values: SimpleValues = {
 
 describe('buildSimpleRequest', () => {
   it('매도일이 비면 오늘로 채운다', () => {
-    expect(buildSimpleRequest(values, 'AAPL', ctx)).toEqual({
+    expect(buildSimpleRequest(values, 'AAPL', ctx)).toStrictEqual({
       request: {
         symbol: 'AAPL',
         purchaseDate: '2023-01-01',
@@ -26,7 +26,6 @@ describe('buildSimpleRequest', () => {
         reinvestDividends: false,
         tradingFeeRate: 0,
         dividendTaxRate: 0,
-        userId: 'u@x.com',
       },
     })
   })

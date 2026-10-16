@@ -38,7 +38,6 @@ export const buildSimpleRequest = (
     saleDate: effectiveSaleDate,
     investmentAmount: investment,
     ...toOptionFields(values),
-    userId: ctx.userId,
   };
   return { request };
 };

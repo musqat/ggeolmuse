@@ -7,7 +7,6 @@ export type RunMode = Exclude<BacktestMode, 'history'>;
 
 // 실행 순간에 정하는 값
 export interface RunContext {
-  userId: string;
   // 빈 종료일 · 매도일을 채우고 단순 매수일이 과거인지 본다 (YYYY-MM-DD, 로컬 날짜)
   today: string;
 }

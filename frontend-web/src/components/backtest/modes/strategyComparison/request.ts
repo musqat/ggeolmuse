@@ -50,7 +50,6 @@ export const buildStrategyComparisonRequest = (
     investmentAmount: parseFloat(values.investment),
     strategies,
     ...toOptionFields(values),
-    userId: ctx.userId,
   };
   return { request };
 };

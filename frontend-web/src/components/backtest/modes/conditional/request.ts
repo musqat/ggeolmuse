@@ -61,7 +61,6 @@ export const buildConditionalRequest = (
     investmentMode: values.investmentMode,
     dropPercentage: drop / 100,
     ...toOptionFields(values),
-    userId: ctx.userId,
   };
   if (values.investmentMode === 'TOTAL_BUDGET') {
     request.totalInvestment = parseFloat(values.totalInvestment);

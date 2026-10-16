@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { buildConditionalRequest, type ConditionalValues } from './request'
 
-const ctx = { userId: 'u@x.com', today: '2026-10-08' }
+const ctx = { today: '2026-10-08' }
 
 const values: ConditionalValues = {
   startDate: '2023-01-01',
@@ -27,12 +27,11 @@ const base = {
   reinvestDividends: false,
   tradingFeeRate: 0,
   dividendTaxRate: 0,
-  userId: 'u@x.com',
 }
 
 describe('buildConditionalRequest', () => {
   it('총 예산 모드는 총 투자금과 회당 금액을 보낸다', () => {
-    expect(buildConditionalRequest(values, 'AAPL', ctx)).toEqual({
+    expect(buildConditionalRequest(values, 'AAPL', ctx)).toStrictEqual({
       request: { ...base, investmentMode: 'TOTAL_BUDGET', totalInvestment: 1000000, amountPerPurchase: 100000 },
     })
   })
