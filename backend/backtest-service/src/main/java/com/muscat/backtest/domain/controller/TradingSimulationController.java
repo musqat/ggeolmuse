@@ -152,6 +152,8 @@ public class TradingSimulationController {
 
     log.info("투자 시뮬레이션 요청: {}", request);
 
+    request.setUserId(jwt.getSubject());
+
     // trade-service Feign @RequestHeader("Authorization")에 전달 → "Bearer " 접두사 필수
     String token = "Bearer " + jwt.getTokenValue();
     InvestmentResponse response = investmentBacktestService.executeInvestment(request, token);

@@ -142,12 +142,12 @@ class TradingSimulationControllerTest {
   }
 
   @Test
-  @DisplayName("투자 시뮬레이션은 요청의 사용자와 Bearer 토큰을 넘긴다")
+  @DisplayName("투자 시뮬레이션은 본문이 아니라 토큰의 사용자와 Bearer 토큰을 넘긴다")
   void simulate() throws Exception {
     given(investmentBacktestService.executeInvestment(any(), anyString())).willReturn(investment("SUCCESS"));
 
     mockMvc.perform(post(BASE + "/simulate").header(HttpHeaders.AUTHORIZATION, "Bearer " + TOKEN)
-        .contentType(MediaType.APPLICATION_JSON).content("{\"userId\":\"user-1\"}"))
+        .contentType(MediaType.APPLICATION_JSON).content("{\"userId\":\"someone-else\"}"))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.symbol").value("AAPL"));
 
@@ -155,11 +155,22 @@ class TradingSimulationControllerTest {
   }
 
   @Test
-  @DisplayName("투자 시뮬레이션에 사용자가 없으면 400")
-  void simulate_MissingUser() throws Exception {
+  @DisplayName("투자 시뮬레이션은 본문에 사용자가 없어도 토큰의 사용자로 실행된다")
+  void simulate_NoBodyUser() throws Exception {
+    given(investmentBacktestService.executeInvestment(any(), anyString())).willReturn(investment("SUCCESS"));
+
     mockMvc.perform(post(BASE + "/simulate").header(HttpHeaders.AUTHORIZATION, "Bearer " + TOKEN)
         .contentType(MediaType.APPLICATION_JSON).content("{}"))
-      .andExpect(status().isBadRequest());
+      .andExpect(status().isOk());
+
+    verify(investmentBacktestService).executeInvestment(argThat(r -> r.getUserId().equals(USER)), eq("Bearer " + TOKEN));
+  }
+
+  @Test
+  @DisplayName("투자 시뮬레이션은 토큰이 없으면 401 이고 서비스까지 가지 않는다")
+  void simulate_RequiresToken() throws Exception {
+    mockMvc.perform(post(BASE + "/simulate").contentType(MediaType.APPLICATION_JSON).content("{\"userId\":\"user-1\"}"))
+      .andExpect(status().isUnauthorized());
 
     verify(investmentBacktestService, never()).executeInvestment(any(), anyString());
   }
