@@ -216,6 +216,20 @@ class MarketRepositoryQueryTest {
     }
 
     @Test
+    @DisplayName("기간이 비면 그쪽 경계 없이 찾고, 둘 다 비면 그 종목 배당 전체를 준다")
+    void dividendsWithoutRange() {
+      dividend("AAPL", D1, "0.24");
+      dividend("AAPL", D3, "0.25");
+
+      assertThat(dividendRepository.findBySymbolsAndDateRange(List.of("AAPL"), null, null))
+        .extracting(Dividend::getExDate).containsExactly(D3, D1);
+      assertThat(dividendRepository.findBySymbolsAndDateRange(List.of("AAPL"), D2, null))
+        .extracting(Dividend::getExDate).containsExactly(D3);
+      assertThat(dividendRepository.findBySymbolsAndDateRange(List.of("AAPL"), null, D2))
+        .extracting(Dividend::getExDate).containsExactly(D1);
+    }
+
+    @Test
     @DisplayName("최신 환율은 날짜가 가장 늦은 값, 없으면 비운다")
     void latestFx() {
       assertThat(fxRateRepository.findLatestRate()).isEmpty();

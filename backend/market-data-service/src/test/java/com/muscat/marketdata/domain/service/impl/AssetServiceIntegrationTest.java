@@ -17,8 +17,8 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -31,10 +31,10 @@ class AssetServiceIntegrationTest {
   @Autowired
   private AssetRepository assetRepository;
 
-  @MockBean
+  @MockitoBean
   private AssetEventProducer assetEventProducer;
 
-  @MockBean
+  @MockitoBean
   private AlphaVantageScheduler alphaVantageScheduler;
 
   private static final String TEST_SYMBOL = "AAPL";
