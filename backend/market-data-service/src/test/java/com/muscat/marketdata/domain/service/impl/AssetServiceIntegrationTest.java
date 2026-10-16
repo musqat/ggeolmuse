@@ -3,6 +3,7 @@ package com.muscat.marketdata.domain.service.impl;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.muscat.marketdata.common.exceptions.MarketDataException;
 import com.muscat.marketdata.datasource.alphavantage.scheduler.AlphaVantageScheduler;
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.repository.AssetRepository;
@@ -16,8 +17,8 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -30,10 +31,10 @@ class AssetServiceIntegrationTest {
   @Autowired
   private AssetRepository assetRepository;
 
-  @MockBean
+  @MockitoBean
   private AssetEventProducer assetEventProducer;
 
-  @MockBean
+  @MockitoBean
   private AlphaVantageScheduler alphaVantageScheduler;
 
   private static final String TEST_SYMBOL = "AAPL";
@@ -110,8 +111,8 @@ class AssetServiceIntegrationTest {
         assetService.createAsset(
           TEST_SYMBOL, "Different Name", TEST_COUNTRY, TEST_CURRENCY, TEST_ASSET_TYPE,
           false, null, null, false))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("Already exists");
+        .isInstanceOf(MarketDataException.class)
+        .hasFieldOrPropertyWithValue("errorCode", "ASSET_ALREADY_EXISTS");
 
       // DB에 하나만 존재하는지 확인
       List<Asset> allAssets = assetRepository.findAll();

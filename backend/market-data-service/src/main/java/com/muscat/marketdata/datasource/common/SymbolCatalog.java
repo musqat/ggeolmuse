@@ -37,6 +37,12 @@ public class SymbolCatalog {
   // 티커에 쓰는 글자. CAPTW(EXP20260807) 처럼 만기 표기가 붙은 줄은 야후에서도 404 다
   private static final Pattern TICKER = Pattern.compile("[A-Za-z0-9.^/-]+");
 
+  // 거래소 시험 종목. 이름이 빈 줄이 많아 기호로 거름. ETF 인 TEST 는 앞 글자가 없어 안 걸림
+  private static final Pattern TEST_ISSUE_SYMBOL = Pattern.compile("[A-Z]TEST(-[A-Z])?|ZTST|Z[A-Z]ZZT");
+
+  // 기호가 평범한 시험 종목(CBO · CBX · IGZ · ZVV · ZBZX)은 이름으로 거름
+  private static final String TEST_ISSUE_NAMES = "listed test,test stock";
+
   private final ListingStatusSource listingSource;
   private final BundledSymbolSource bundledSource;
 
@@ -87,7 +93,8 @@ public class SymbolCatalog {
 
     List<Asset> deduped = dedupeBySymbol(fetched);
     List<Asset> storable = excludeUnstorableSymbols(deduped);
-    List<Asset> kept = excludeNonCommonStock(storable);
+    List<Asset> real = excludeTestIssues(storable);
+    List<Asset> kept = excludeNonCommonStock(real);
 
     log.info("[종목목록] 조회 {}개 -> 중복 제거 {}개 -> 최종 {}개",
         fetched.size(), deduped.size(), kept.size());
@@ -128,6 +135,20 @@ public class SymbolCatalog {
 
     if (!dropped.isEmpty()) {
       log.info("[종목목록] 저장할 수 없는 심볼 제외: {}개 {}", dropped.size(), dropped);
+    }
+
+    return kept;
+  }
+
+  List<Asset> excludeTestIssues(List<Asset> assets) {
+    List<Asset> bySymbol = assets.stream()
+        .filter(a -> !TEST_ISSUE_SYMBOL.matcher(a.getSymbol()).matches())
+        .toList();
+    List<Asset> kept = excludeByNamePatterns(bySymbol, TEST_ISSUE_NAMES);
+
+    int removed = assets.size() - kept.size();
+    if (removed > 0) {
+      log.info("[종목목록] 거래소 시험 종목 제외: {}개", removed);
     }
 
     return kept;

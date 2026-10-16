@@ -314,8 +314,8 @@ class AssetServiceImplTest {
       assertThatThrownBy(() -> assetService.createAsset(
         TEST_SYMBOL, TEST_NAME, TEST_COUNTRY, TEST_CURRENCY,
         TEST_ASSET_TYPE, false, null, null, false))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("Already exists");
+        .isInstanceOf(MarketDataException.class)
+        .hasFieldOrPropertyWithValue("errorCode", "ASSET_ALREADY_EXISTS");
 
       verify(assetRepository).findById(TEST_SYMBOL);
       verify(assetRepository, never()).save(any(Asset.class));
@@ -334,8 +334,8 @@ class AssetServiceImplTest {
       assertThatThrownBy(() -> serviceWithNullSource.createAsset(
         TEST_SYMBOL, null, null, null, null,
         false, null, null, false))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("AssetInfoSource not available");
+        .isInstanceOf(MarketDataException.class)
+        .hasFieldOrPropertyWithValue("errorCode", "DATA_SOURCE_UNAVAILABLE");
 
       verify(assetRepository).findById(TEST_SYMBOL);
     }
@@ -353,8 +353,8 @@ class AssetServiceImplTest {
       assertThatThrownBy(() -> assetService.createAsset(
         unknownSymbol, null, null, null, null,
         false, null, null, false))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("Symbol not found");
+        .isInstanceOf(MarketDataException.class)
+        .hasFieldOrPropertyWithValue("errorCode", "SYMBOL_NOT_FOUND");
 
       verify(assetInfoSource).getAsset("UNKNOWN");
     }
@@ -537,8 +537,8 @@ class AssetServiceImplTest {
 
       // when & then
       assertThatThrownBy(() -> assetService.deleteAsset(TEST_SYMBOL))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("Not found");
+        .isInstanceOf(MarketDataException.class)
+        .hasFieldOrPropertyWithValue("errorCode", "SYMBOL_NOT_FOUND");
 
       verify(assetRepository).findById(TEST_SYMBOL);
       verify(assetRepository, never()).save(any(Asset.class));
@@ -612,8 +612,8 @@ class AssetServiceImplTest {
 
       // when & then
       assertThatThrownBy(() -> assetService.updateAssetPrice(TEST_SYMBOL))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("Not found");
+        .isInstanceOf(MarketDataException.class)
+        .hasFieldOrPropertyWithValue("errorCode", "SYMBOL_NOT_FOUND");
 
       verify(assetRepository).findById(TEST_SYMBOL);
     }
@@ -760,8 +760,8 @@ class AssetServiceImplTest {
 
       // when & then
       assertThatThrownBy(() -> assetService.updateAssetName(TEST_SYMBOL, "SpaceX"))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("Not found");
+        .isInstanceOf(MarketDataException.class)
+        .hasFieldOrPropertyWithValue("errorCode", "SYMBOL_NOT_FOUND");
 
       verify(assetRepository).findById(TEST_SYMBOL);
       verify(assetRepository, never()).save(any(Asset.class));
@@ -772,8 +772,8 @@ class AssetServiceImplTest {
     void updateAssetName_BlankName_ThrowsException() {
       // when & then
       assertThatThrownBy(() -> assetService.updateAssetName(TEST_SYMBOL, "   "))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("name");
+        .isInstanceOf(MarketDataException.class)
+        .hasFieldOrPropertyWithValue("errorCode", "ASSET_NAME_REQUIRED");
 
       verify(assetRepository, never()).save(any(Asset.class));
     }
@@ -783,8 +783,8 @@ class AssetServiceImplTest {
     void updateAssetName_NullName_ThrowsException() {
       // when & then
       assertThatThrownBy(() -> assetService.updateAssetName(TEST_SYMBOL, null))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("name");
+        .isInstanceOf(MarketDataException.class)
+        .hasFieldOrPropertyWithValue("errorCode", "ASSET_NAME_REQUIRED");
 
       verify(assetRepository, never()).save(any(Asset.class));
     }
@@ -817,8 +817,8 @@ class AssetServiceImplTest {
 
       // when & then
       assertThatThrownBy(() -> assetService.updateAssetMarketCap(TEST_SYMBOL))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("Not found");
+        .isInstanceOf(MarketDataException.class)
+        .hasFieldOrPropertyWithValue("errorCode", "SYMBOL_NOT_FOUND");
 
       verify(assetRepository).findById(TEST_SYMBOL);
     }
@@ -871,24 +871,26 @@ class AssetServiceImplTest {
       setField(assetService, "candleSource", null);
       setField(assetService, "marketCapSource", null);
 
-      assertThatThrownBy(() -> assetService.updateAssetPrice("aapl")).isInstanceOf(IllegalStateException.class)
-        .hasMessage("CandleSource not available");
-      assertThatThrownBy(() -> assetService.updateAssetMarketCap("aapl")).isInstanceOf(IllegalStateException.class)
-        .hasMessage("Market cap source not available");
-      assertThatThrownBy(() -> assetService.updateAllMarketCaps()).isInstanceOf(IllegalStateException.class);
+      assertThatThrownBy(() -> assetService.updateAssetPrice("aapl")).isInstanceOf(MarketDataException.class)
+        .hasFieldOrPropertyWithValue("errorCode", "DATA_SOURCE_UNAVAILABLE");
+      assertThatThrownBy(() -> assetService.updateAssetMarketCap("aapl")).isInstanceOf(MarketDataException.class)
+        .hasFieldOrPropertyWithValue("errorCode", "DATA_SOURCE_UNAVAILABLE");
+      assertThatThrownBy(() -> assetService.updateAllMarketCaps()).isInstanceOf(MarketDataException.class)
+        .hasFieldOrPropertyWithValue("errorCode", "DATA_SOURCE_UNAVAILABLE");
     }
 
     @Test
-    @DisplayName("한 종목 시총 갱신은 소스가 못 받으면 막고, 없는 종목이면 IllegalArgumentException")
+    @DisplayName("한 종목 시총 갱신은 소스가 못 받으면 막고, 없는 종목이면 종목 없음 코드를 던진다")
     void marketCapOne() {
       given(assetRepository.findById(TEST_SYMBOL)).willReturn(Optional.of(testAsset));
       given(assetRepository.findById("NOPE")).willReturn(Optional.empty());
       given(marketCapSource.updateMarketCap(TEST_SYMBOL)).willReturn(true, false);
 
       assetService.updateAssetMarketCap("aapl");
-      assertThatThrownBy(() -> assetService.updateAssetMarketCap("aapl")).isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining(TEST_SYMBOL);
-      assertThatThrownBy(() -> assetService.updateAssetMarketCap("nope")).isInstanceOf(IllegalArgumentException.class);
+      assertThatThrownBy(() -> assetService.updateAssetMarketCap("aapl")).isInstanceOf(MarketDataException.class)
+        .hasFieldOrPropertyWithValue("errorCode", "MARKET_CAP_UNAVAILABLE");
+      assertThatThrownBy(() -> assetService.updateAssetMarketCap("nope")).isInstanceOf(MarketDataException.class)
+        .hasFieldOrPropertyWithValue("errorCode", "SYMBOL_NOT_FOUND");
     }
 
     @Test
@@ -901,7 +903,7 @@ class AssetServiceImplTest {
     }
 
     @Test
-    @DisplayName("복구는 활성으로 돌리고 폐지일을 지우며, 없는 종목이면 IllegalArgumentException")
+    @DisplayName("복구는 활성으로 돌리고 폐지일을 지우며, 없는 종목이면 종목 없음 코드를 던진다")
     void restore() {
       testAsset.setActive(false);
       testAsset.setDelistedDate(LocalDate.of(2024, 1, 1));
@@ -913,7 +915,8 @@ class AssetServiceImplTest {
       assertThat(testAsset.getActive()).isTrue();
       assertThat(testAsset.getDelistedDate()).isNull();
       verify(assetRepository).save(testAsset);
-      assertThatThrownBy(() -> assetService.restoreAsset("nope")).isInstanceOf(IllegalArgumentException.class);
+      assertThatThrownBy(() -> assetService.restoreAsset("nope")).isInstanceOf(MarketDataException.class)
+        .hasFieldOrPropertyWithValue("errorCode", "SYMBOL_NOT_FOUND");
     }
 
     @Test

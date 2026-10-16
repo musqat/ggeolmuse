@@ -1,7 +1,6 @@
 package com.muscat.marketdata.domain.service;
 
 import com.muscat.marketdata.domain.entity.FxRate;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -10,15 +9,6 @@ import java.util.Optional;
  * 환율 서비스 인터페이스
  */
 public interface FxRateService {
-
-  /**
-   * 환율 저장 또는 업데이트
-   *
-   * @param date      환율 날짜
-   * @param usdToKrw  USD->KRW 환율
-   * @return 저장된 환율 엔티티
-   */
-  FxRate saveRate(LocalDate date, BigDecimal usdToKrw);
 
   /**
    * 특정 날짜의 환율 조회

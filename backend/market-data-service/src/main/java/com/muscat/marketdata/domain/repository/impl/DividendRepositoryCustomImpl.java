@@ -3,6 +3,7 @@ package com.muscat.marketdata.domain.repository.impl;
 import com.muscat.marketdata.domain.entity.Dividend;
 import com.muscat.marketdata.domain.entity.QDividend;
 import com.muscat.marketdata.domain.repository.DividendRepositoryCustom;
+import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -25,10 +26,17 @@ public class DividendRepositoryCustomImpl implements DividendRepositoryCustom {
     public List<Dividend> findBySymbolsAndDateRange(List<String> symbols, LocalDate startDate, LocalDate endDate) {
         return queryFactory
             .selectFrom(dividend)
-            .where(dividend.symbol.in(symbols)
-                .and(dividend.exDate.between(startDate, endDate)))
+            .where(dividend.symbol.in(symbols), exDateWithin(startDate, endDate))
             .orderBy(dividend.symbol.asc(), dividend.exDate.desc())
             .fetch();
+    }
+
+    // 빈 쪽 경계는 걸지 않음. 둘 다 비면 조건 없음
+    private static BooleanExpression exDateWithin(LocalDate startDate, LocalDate endDate) {
+        if (startDate == null && endDate == null) {
+            return null;
+        }
+        return dividend.exDate.between(startDate, endDate);
     }
 
     @Override

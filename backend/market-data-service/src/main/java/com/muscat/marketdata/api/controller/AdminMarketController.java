@@ -75,6 +75,7 @@ public class AdminMarketController {
     private final UnadjustedScanService scanService;
     private final AdminJobRunRepository adminJobRunRepository;
     private final CandleRefreshAllPublisher refreshAllPublisher;
+    private final AdminJobRunner jobRunner;
 
     private static final String REFRESH_ALL_JOB = "candle-refresh-all";
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
@@ -200,10 +201,10 @@ public class AdminMarketController {
 
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
 
-        } catch (IllegalArgumentException e) {
-            log.warn("심볼 추가 실패: {}", e.getMessage());
-            return ResponseEntity.badRequest().body(AssetResponse.builder()
-                    .message(e.getMessage())
+        } catch (MarketDataException e) {
+            log.warn("심볼 추가 실패: symbol={}, code={}", request.getSymbol(), e.getErrorCode());
+            return ResponseEntity.status(e.getHttpStatus()).body(AssetResponse.builder()
+                    .message(e.getErrorMessage() + ": " + request.getSymbol().toUpperCase())
                     .build());
         }
     }
@@ -227,12 +228,10 @@ public class AdminMarketController {
                     .assetType(asset.getAssetType())
                     .message("종목 이름이 수정되었습니다.")
                     .build());
-        } catch (IllegalArgumentException e) {
-            log.warn("종목 이름 수정 실패: {}", e.getMessage());
-            HttpStatus status = e.getMessage() != null && e.getMessage().startsWith("Not found")
-                    ? HttpStatus.NOT_FOUND : HttpStatus.BAD_REQUEST;
-            return ResponseEntity.status(status)
-                    .body(AssetResponse.builder().message(e.getMessage()).build());
+        } catch (MarketDataException e) {
+            log.warn("종목 이름 수정 실패: symbol={}, code={}", symbol, e.getErrorCode());
+            return ResponseEntity.status(e.getHttpStatus())
+                    .body(AssetResponse.builder().message(e.getErrorMessage()).build());
         }
     }
 
@@ -248,9 +247,9 @@ public class AdminMarketController {
         try {
             assetService.deleteAsset(symbol);
             return ResponseEntity.noContent().build();
-        } catch (IllegalArgumentException e) {
-            log.warn("심볼 삭제 실패: {}", e.getMessage());
-            return ResponseEntity.notFound().build();
+        } catch (MarketDataException e) {
+            log.warn("심볼 삭제 실패: symbol={}, code={}", symbol, e.getErrorCode());
+            return ResponseEntity.status(e.getHttpStatus()).build();
         }
     }
 
@@ -266,9 +265,9 @@ public class AdminMarketController {
         try {
             assetService.restoreAsset(symbol);
             return ResponseEntity.noContent().build();
-        } catch (IllegalArgumentException e) {
-            log.warn("심볼 복구 실패: {}", e.getMessage());
-            return ResponseEntity.notFound().build();
+        } catch (MarketDataException e) {
+            log.warn("심볼 복구 실패: symbol={}, code={}", symbol, e.getErrorCode());
+            return ResponseEntity.status(e.getHttpStatus()).build();
         }
     }
 
@@ -311,18 +310,6 @@ public class AdminMarketController {
                     .body(UpdateResponse.builder()
                             .message(e.getErrorMessage() + ": " + symbol)
                             .build());
-        } catch (IllegalArgumentException e) {
-            log.warn("종목 가격 업데이트 실패: {}", e.getMessage());
-            return ResponseEntity.badRequest()
-                    .body(UpdateResponse.builder()
-                            .message("종목을 찾을 수 없습니다: " + symbol)
-                            .build());
-        } catch (IllegalStateException e) {
-            log.warn("종목 가격 업데이트 실패: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                    .body(UpdateResponse.builder()
-                            .message(e.getMessage())
-                            .build());
         } catch (Exception e) {
             log.error("종목 가격 업데이트 실패", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -346,17 +333,12 @@ public class AdminMarketController {
             return ResponseEntity.ok(UpdateResponse.builder()
                     .message("종목 시가총액이 업데이트되었습니다: " + symbol)
                     .build());
-        } catch (IllegalArgumentException e) {
-            log.warn("종목 시가총액 업데이트 실패: {}", e.getMessage());
-            return ResponseEntity.badRequest()
+        } catch (MarketDataException e) {
+            log.warn("종목 시가총액 업데이트 실패: symbol={}, code={}, message={}",
+                    symbol, e.getErrorCode(), e.getErrorMessage());
+            return ResponseEntity.status(e.getHttpStatus())
                     .body(UpdateResponse.builder()
-                            .message("종목을 찾을 수 없습니다: " + symbol)
-                            .build());
-        } catch (IllegalStateException e) {
-            log.warn("종목 시가총액 업데이트 실패: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                    .body(UpdateResponse.builder()
-                            .message(e.getMessage())
+                            .message(e.getErrorMessage() + ": " + symbol)
                             .build());
         } catch (Exception e) {
             log.error("종목 시가총액 업데이트 실패", e);
@@ -376,26 +358,21 @@ public class AdminMarketController {
     public ResponseEntity<UpdateResponse> updateMarketCaps() {
         log.info("시가총액 수동 업데이트 요청");
 
-        try {
-            new Thread(() -> {
-                try {
-                    int updated = assetService.updateAllMarketCaps();
-                    log.info("시가총액 전체 업데이트 완료: {}개", updated);
-                } catch (Exception e) {
-                    log.error("시가총액 전체 업데이트 실패", e);
-                }
-            }).start();
-
-            return ResponseEntity.ok(UpdateResponse.builder()
-                    .message("시가총액 업데이트가 백그라운드에서 시작되었습니다.")
-                    .build());
-        } catch (Exception e) {
-            log.error("시가총액 업데이트 요청 실패", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(UpdateResponse.builder()
-                            .message("시가총액 업데이트 요청 실패: " + e.getMessage())
-                            .build());
+        boolean started = jobRunner.submit(() -> {
+            try {
+                int updated = assetService.updateAllMarketCaps();
+                log.info("시가총액 전체 업데이트 완료: {}개", updated);
+            } catch (Exception e) {
+                log.error("시가총액 전체 업데이트 실패", e);
+            }
+        });
+        if (!started) {
+            return jobBusy();
         }
+
+        return ResponseEntity.ok(UpdateResponse.builder()
+                .message("시가총액 업데이트가 백그라운드에서 시작되었습니다.")
+                .build());
     }
 
     /**
@@ -407,32 +384,27 @@ public class AdminMarketController {
     public ResponseEntity<UpdateResponse> updateCandles() {
         log.info("캔들 데이터 수동 업데이트 요청");
 
-        try {
-            new Thread(() -> {
-                List<Asset> assets = assetService.getAllAssets();
-                for (Asset asset : assets) {
-                    try {
-                        assetService.updateAssetPrice(asset.getSymbol());
-                    } catch (MarketDataException e) {
-                        log.warn("캔들 데이터 업데이트 실패: symbol={}, code={}, message={}",
-                                asset.getSymbol(), e.getErrorCode(), e.getErrorMessage());
-                    } catch (Exception e) {
-                        log.warn("캔들 데이터 업데이트 실패: symbol={}", asset.getSymbol(), e);
-                    }
+        boolean started = jobRunner.submit(() -> {
+            List<Asset> assets = assetService.getAllAssets();
+            for (Asset asset : assets) {
+                try {
+                    assetService.updateAssetPrice(asset.getSymbol());
+                } catch (MarketDataException e) {
+                    log.warn("캔들 데이터 업데이트 실패: symbol={}, code={}, message={}",
+                            asset.getSymbol(), e.getErrorCode(), e.getErrorMessage());
+                } catch (Exception e) {
+                    log.warn("캔들 데이터 업데이트 실패: symbol={}", asset.getSymbol(), e);
                 }
-                log.info("캔들 전체 업데이트 완료: {}개", assets.size());
-            }).start();
-
-            return ResponseEntity.ok(UpdateResponse.builder()
-                    .message("캔들 데이터 업데이트가 백그라운드에서 시작되었습니다.")
-                    .build());
-        } catch (Exception e) {
-            log.error("캔들 데이터 업데이트 요청 실패", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(UpdateResponse.builder()
-                            .message("캔들 데이터 업데이트 요청 실패: " + e.getMessage())
-                            .build());
+            }
+            log.info("캔들 전체 업데이트 완료: {}개", assets.size());
+        });
+        if (!started) {
+            return jobBusy();
         }
+
+        return ResponseEntity.ok(UpdateResponse.builder()
+                .message("캔들 데이터 업데이트가 백그라운드에서 시작되었습니다.")
+                .build());
     }
 
     /**
@@ -459,25 +431,28 @@ public class AdminMarketController {
                             .build());
         }
 
-        try {
-            new Thread(() -> {
-                try {
-                    collector.collectNewlyListedDaily();
-                } catch (Exception e) {
-                    log.error("신규 종목 수집 실패", e);
-                }
-            }).start();
-
-            return ResponseEntity.ok(UpdateResponse.builder()
-                    .message("신규 종목 수집이 백그라운드에서 시작되었습니다.")
-                    .build());
-        } catch (Exception e) {
-            log.error("신규 종목 수집 요청 실패", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(UpdateResponse.builder()
-                            .message("신규 종목 수집 요청 실패: " + e.getMessage())
-                            .build());
+        boolean started = jobRunner.submit(() -> {
+            try {
+                collector.collectNewlyListedDaily();
+            } catch (Exception e) {
+                log.error("신규 종목 수집 실패", e);
+            }
+        });
+        if (!started) {
+            return jobBusy();
         }
+
+        return ResponseEntity.ok(UpdateResponse.builder()
+                .message("신규 종목 수집이 백그라운드에서 시작되었습니다.")
+                .build());
+    }
+
+    private ResponseEntity<UpdateResponse> jobBusy() {
+        log.warn("관리자 전체 갱신이 이미 돌고 하나가 기다리는 중이라 받지 않음");
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(UpdateResponse.builder()
+                        .message("이미 다른 전체 갱신이 진행 중입니다. 끝난 뒤 다시 시도해 주세요.")
+                        .build());
     }
 
     // ==================== DTO ====================

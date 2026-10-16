@@ -1,25 +1,19 @@
 package com.muscat.marketdata.datasource.yf.service;
 
-import com.muscat.commonlib.util.MoneyUtils;
 import com.muscat.marketdata.config.MarketDataProperties;
 import com.muscat.marketdata.domain.entity.FxRate;
 import com.muscat.marketdata.domain.repository.FxRateRepository;
 import com.muscat.marketdata.domain.service.FxRateService;
 import com.muscat.marketdata.datasource.yf.collector.FxDataCollector;
-import com.muscat.marketdata.infra.kafka.FxRateEventProducer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -37,52 +31,6 @@ public class YahooFxRateService implements FxRateService {
     private final FxRateRepository fxRateRepository;
     private final FxDataCollector dataCollector;
     private final MarketDataProperties properties;
-    private final FxRateEventProducer fxRateEventProducer;
-
-    @Override
-    @Transactional
-    @Caching(evict = {
-        @CacheEvict(cacheNames = "fxRate", key = "#date"),
-        @CacheEvict(cacheNames = "latestFxRate", allEntries = true)
-    })
-    public FxRate saveRate(LocalDate date, BigDecimal usdToKrw) {
-        Objects.requireNonNull(date, "날짜는 필수입니다");
-        Objects.requireNonNull(usdToKrw, "환율은 필수입니다");
-
-        // MoneyUtils를 사용한 환율 정규화 (소수점 6자리)
-        BigDecimal normalizedRate = MoneyUtils.roundExchangeRate(usdToKrw);
-
-        // 환율 유효성 검증
-        MoneyUtils.validateExchangeRate(normalizedRate);
-
-        Optional<FxRate> existing = fxRateRepository.findByDate(date);
-        BigDecimal previousRate = null;
-
-        if (existing.isEmpty()) {
-            FxRate newRate = FxRate.builder().date(date).rate(normalizedRate).build();
-            FxRate saved = fxRateRepository.save(newRate);
-            log.debug("[YF-환율저장] {} -> {}", date, normalizedRate);
-
-            // Kafka 이벤트 발행 (신규 환율)
-            fxRateEventProducer.publishFxRateUpdated(saved, null);
-
-            return saved;
-        } else {
-            FxRate existingRate = existing.get();
-            if (existingRate.getRate() == null || existingRate.getRate().compareTo(normalizedRate) != 0) {
-                previousRate = existingRate.getRate();
-                FxRate updatedRate = FxRate.builder().date(date).rate(normalizedRate).build();
-                FxRate saved = fxRateRepository.save(updatedRate);
-                log.debug("[YF-환율업데이트] {} -> {} (이전: {})", date, normalizedRate, previousRate);
-
-                // Kafka 이벤트 발행 (환율 변경)
-                fxRateEventProducer.publishFxRateUpdated(saved, previousRate);
-
-                return saved;
-            }
-            return existingRate;
-        }
-    }
 
     @Override
     @Transactional(readOnly = true)

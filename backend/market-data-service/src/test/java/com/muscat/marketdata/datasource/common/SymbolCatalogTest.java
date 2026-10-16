@@ -152,6 +152,34 @@ class SymbolCatalogTest {
   }
 
   @Test
+  @DisplayName("거래소 시험 종목은 이름이 비어도 기호로 거르고, 기호가 평범하면 이름으로 거른다")
+  void 시험_종목() {
+    given(listingSource.fetch()).willReturn(List.of(
+        asset("MTEST-A", ""),
+        asset("PTEST-X", ""),
+        asset("ZTST", ""),
+        asset("ZVZZT", "NASDAQ TEST STOCK"),
+        asset("ZBZZT", "ZBZZT"),
+        asset("CBO", "NYSE LISTED TEST STOCK FOR CTS AND CQS"),
+        asset("ZVV", "LISTED TEST SYMBOL"),
+        asset("AAPL", "Apple Inc")));
+
+    assertThat(catalog.fetchAll()).extracting(Asset::getSymbol).containsExactly("AAPL");
+  }
+
+  @Test
+  @DisplayName("TEST 가 든 진짜 종목은 남긴다")
+  void 시험_종목_오탐_없음() {
+    given(listingSource.fetch()).willReturn(List.of(
+        asset("TEST", "YIELDMAX(R) TSLA PERFORMANCE & DISTRIBUTION TARGET 25(TM) ETF"),
+        asset("AEHR", "Aehr Test Systems"),
+        asset("INTT", "Intest Corp"),
+        asset("HSCS", "Heart Test Laboratories Inc")));
+
+    assertThat(catalog.fetchAll()).extracting(Asset::getSymbol).containsExactly("TEST", "AEHR", "INTT", "HSCS");
+  }
+
+  @Test
   @DisplayName("저장 칸(16자)을 넘거나 티커에 안 쓰는 글자가 든 심볼은 거른다")
   void 심볼_형식() {
     // CAPTW(EXP20260807) 한 줄이 기동 때 신규 종목 저장을 통째로 실패시켰다

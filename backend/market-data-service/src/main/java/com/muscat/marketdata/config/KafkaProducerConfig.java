@@ -1,9 +1,7 @@
 package com.muscat.marketdata.config;
 
 import com.muscat.messaging.event.AssetCreatedEvent;
-import com.muscat.messaging.event.DataCollectionCompletedEvent;
 import com.muscat.messaging.event.DividendUpdatedEvent;
-import com.muscat.messaging.event.FxRateUpdatedEvent;
 import com.muscat.messaging.event.PriceUpdatedEvent;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
@@ -20,7 +18,7 @@ import java.util.Map;
 
 /**
  * Market Data Service Kafka Producer 설정
- * PriceUpdatedEvent, FxRateUpdatedEvent, DividendUpdatedEvent를 Kafka에 발행하기 위한 설정
+ * PriceUpdatedEvent, DividendUpdatedEvent, AssetCreatedEvent를 Kafka에 발행하기 위한 설정
  */
 @Configuration
 public class KafkaProducerConfig {
@@ -51,31 +49,6 @@ public class KafkaProducerConfig {
     @Bean
     public KafkaTemplate<String, PriceUpdatedEvent> priceEventKafkaTemplate() {
         return new KafkaTemplate<>(priceEventProducerFactory());
-    }
-
-    @Bean
-    public ProducerFactory<String, FxRateUpdatedEvent> fxRateEventProducerFactory() {
-        Map<String, Object> configProps = new HashMap<>();
-        configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
-
-        // Producer 안정성 설정
-        configProps.put(ProducerConfig.ACKS_CONFIG, "all");
-        configProps.put(ProducerConfig.RETRIES_CONFIG, 3);
-        configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
-
-        // 성능 최적화
-        configProps.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "gzip"); // Docker 호환성
-        configProps.put(ProducerConfig.LINGER_MS_CONFIG, 10);
-        configProps.put(ProducerConfig.BATCH_SIZE_CONFIG, 16384); // 16KB 배치
-
-        return new DefaultKafkaProducerFactory<>(configProps);
-    }
-
-    @Bean
-    public KafkaTemplate<String, FxRateUpdatedEvent> fxRateEventKafkaTemplate() {
-        return new KafkaTemplate<>(fxRateEventProducerFactory());
     }
 
     @Bean
@@ -126,31 +99,6 @@ public class KafkaProducerConfig {
     @Bean
     public KafkaTemplate<String, AssetCreatedEvent> assetCreatedKafkaTemplate() {
         return new KafkaTemplate<>(assetCreatedProducerFactory());
-    }
-
-    @Bean
-    public ProducerFactory<String, DataCollectionCompletedEvent> collectionEventProducerFactory() {
-        Map<String, Object> configProps = new HashMap<>();
-        configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
-
-        // Producer 안정성 설정
-        configProps.put(ProducerConfig.ACKS_CONFIG, "all");
-        configProps.put(ProducerConfig.RETRIES_CONFIG, 3);
-        configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
-
-        // 성능 최적화
-        configProps.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "gzip");
-        configProps.put(ProducerConfig.LINGER_MS_CONFIG, 10);
-        configProps.put(ProducerConfig.BATCH_SIZE_CONFIG, 16384);
-
-        return new DefaultKafkaProducerFactory<>(configProps);
-    }
-
-    @Bean
-    public KafkaTemplate<String, DataCollectionCompletedEvent> collectionEventKafkaTemplate() {
-        return new KafkaTemplate<>(collectionEventProducerFactory());
     }
 
     @Bean
