@@ -6,16 +6,20 @@ from app.core.models import Evidence
 from app.core.tools.market import MarketTools
 
 
+def _pct(value: float | None) -> str:
+    return "—" if value is None else f"{value:+.1f}%"
+
+
 def trend_lines(s: TrendSnapshot) -> list[str]:
     """추이 스냅숏 → 자료 줄"""
     lines = [f"기준일 {s.as_of.isoformat()} 종가 {s.close:.2f} (최근 {s.bars}거래일)"]
-    parts = [f"{r.label} {r.price:+.1f}% / {r.total:+.1f}%" for r in s.returns]
+    parts = [f"{r.label} {_pct(r.price)} / {_pct(r.total)}" for r in s.returns]
     lines.append("기간 수익률(가격 / 배당 포함): " + ", ".join(parts))
     if s.year_range:
         high, low = s.year_range.high, s.year_range.low
         lines.append(
-            f"52주 최고 {high:.2f}(지금 {change(high, s.close):+.1f}%), "
-            f"최저 {low:.2f}(지금 {change(low, s.close):+.1f}%)"
+            f"52주 최고 {high:.2f}(지금 {_pct(change(high, s.close))}), "
+            f"최저 {low:.2f}(지금 {_pct(change(low, s.close))})"
         )
     if s.drawdown:
         d = s.drawdown
@@ -43,7 +47,7 @@ class TrendSkill:
     guide = (
         "자료는 일봉으로 계산한 주가 흐름이다. 가격 수익률은 분할만 조정한 종가, 배당 포함 수익률은 "
         "배당까지 조정한 종가로 계산했다. 묻는 기간에 맞는 값을 골라 답하고, 자료에 없는 기간은 "
-        "계산하지 않았다고 말한다."
+        "계산하지 않았다고 말한다. 값이 — 이면 원본 가격이 비어 계산하지 못한 것이다."
     )
 
     def __init__(self, lookback_days: int):

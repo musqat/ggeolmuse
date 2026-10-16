@@ -7,13 +7,13 @@ from datetime import date
 
 @dataclass(frozen=True)
 class Bar:
-    """일봉. close 는 분할만 조정한 종가(차트와 같음), adj_close 는 배당까지 조정한 종가"""
+    """일봉. close 는 분할만 조정한 종가(차트와 같음), adj_close 는 배당까지 조정한 종가(없으면 None)"""
     date: date
     open: float
     high: float
     low: float
     close: float
-    adj_close: float
+    adj_close: float | None
     volume: float
 
 

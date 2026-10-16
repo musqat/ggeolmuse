@@ -75,6 +75,16 @@ async def test_bars_use_close_price_and_sort(market):
 
 
 @respx.mock
+async def test_bars_keep_missing_adjusted_close_empty(market):
+    respx.get(f"{BASE}/api/internal/market/ohlc/AAPL/range").mock(return_value=httpx.Response(200, json=[
+        {"date": "2026-10-15", "closePrice": 11, "adjustedClose": None},
+    ]))
+    bars = await market.bars("AAPL", date(2025, 9, 11), date(2026, 10, 16))
+
+    assert [(b.close, b.adj_close) for b in bars] == [(11.0, None)]
+
+
+@respx.mock
 async def test_dividends_are_sorted_oldest_first(market):
     route = respx.get(f"{BASE}/api/internal/market/dividend/AAPL").mock(return_value=httpx.Response(200, json=[
         {"symbol": "AAPL", "exDate": "2026-08-10", "amount": 0.26, "currency": "USD"},

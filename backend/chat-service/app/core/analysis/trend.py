@@ -15,8 +15,8 @@ YEAR = 252
 @dataclass(frozen=True)
 class PeriodReturn:
     label: str
-    price: float  # %, 분할만 조정한 종가
-    total: float  # %, 배당까지 조정한 종가
+    price: float | None  # %, 분할만 조정한 종가
+    total: float | None  # %, 배당까지 조정한 종가
 
 
 @dataclass(frozen=True)
@@ -65,7 +65,10 @@ def compute_trend(bars: list[Bar]) -> TrendSnapshot | None:
     )
 
 
-def change(start: float, end: float) -> float:
+def change(start: float | None, end: float | None) -> float | None:
+    """값이 비었거나 시작 값이 0 이하면 None"""
+    if start is None or end is None or start <= 0:
+        return None
     return (end / start - 1) * 100
 
 
@@ -77,7 +80,7 @@ def _drawdown(bars: list[Bar]) -> Drawdown:
         if bar.close > peak.close:
             peak = bar
         percent = change(peak.close, bar.close)
-        if percent < worst.percent:
+        if percent is not None and percent < worst.percent:
             worst = Drawdown(percent, peak.date, bar.date)
     return worst
 
