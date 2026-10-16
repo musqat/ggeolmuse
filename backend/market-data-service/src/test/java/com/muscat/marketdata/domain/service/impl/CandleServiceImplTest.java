@@ -79,6 +79,34 @@ class CandleServiceImplTest {
         lenient().when(properties.getCalculation()).thenReturn(calculationConfig);
     }
 
+    private static Candle candle(LocalDate date, String close, String adjustedClose) {
+        return Candle.builder()
+                .symbol(TEST_SYMBOL)
+                .date(date)
+                .close(close == null ? null : new BigDecimal(close))
+                .adjustedClose(adjustedClose == null ? null : new BigDecimal(adjustedClose))
+                .currency("USD")
+                .build();
+    }
+
+    // 종가가 비었거나 0 이하인 셋 + 조정 종가만 0 이하인 하나 + 정상 하나
+    private static List<Candle> mixedCandles() {
+        return List.of(
+                candle(LocalDate.of(2024, 10, 21), null, "10"),
+                candle(LocalDate.of(2024, 10, 22), "0", "0"),
+                candle(LocalDate.of(2024, 10, 23), "-1.5", "-1.5"),
+                candle(LocalDate.of(2024, 10, 24), "10", "-2.4"),
+                candle(LocalDate.of(2024, 10, 25), "11", "10.5"));
+    }
+
+    private static void assertCleaned(List<OHLCPriceDto> results) {
+        assertThat(results).extracting(OHLCPriceDto::getDate)
+                .containsExactly(LocalDate.of(2024, 10, 24), LocalDate.of(2024, 10, 25));
+        assertThat(results.get(0).getClosePrice()).isEqualByComparingTo("10");
+        assertThat(results.get(0).getAdjustedClose()).isNull();
+        assertThat(results.get(1).getAdjustedClose()).isEqualByComparingTo("10.5");
+    }
+
     @Nested
     @DisplayName("OHLC 가격 조회 테스트")
     class GetOHLCPriceTests {
@@ -144,6 +172,31 @@ class CandleServiceImplTest {
             // then
             assertThat(result.isAvailable()).isTrue();
             verify(candleRepository).findBySymbolAndDate("AAPL", TEST_DATE);
+        }
+
+        @Test
+        @DisplayName("종가가 0 이하인 캔들은 없는 것과 같이 available=false 다")
+        void getOHLCPrice_NonPositiveClose_ReturnsUnavailable() {
+            given(candleRepository.findBySymbolAndDate(TEST_SYMBOL, TEST_DATE))
+                    .willReturn(Optional.of(candle(TEST_DATE, "0", "0")));
+
+            OHLCPriceDto result = candleService.getOHLCPrice(TEST_SYMBOL, TEST_DATE);
+
+            assertThat(result.isAvailable()).isFalse();
+            assertThat(result.getClosePrice()).isNull();
+        }
+
+        @Test
+        @DisplayName("조정 종가가 0 이하면 조정 종가만 비우고 종가는 준다")
+        void getOHLCPrice_NonPositiveAdjustedClose_ReturnsNullAdjusted() {
+            given(candleRepository.findBySymbolAndDate(TEST_SYMBOL, TEST_DATE))
+                    .willReturn(Optional.of(candle(TEST_DATE, "10", "0")));
+
+            OHLCPriceDto result = candleService.getOHLCPrice(TEST_SYMBOL, TEST_DATE);
+
+            assertThat(result.isAvailable()).isTrue();
+            assertThat(result.getClosePrice()).isEqualByComparingTo("10");
+            assertThat(result.getAdjustedClose()).isNull();
         }
     }
 
@@ -235,6 +288,16 @@ class CandleServiceImplTest {
             // then
             assertThat(results).hasSize(1);
             verify(candleRepository).findBySymbolAndDateBetweenOrderByDateAsc("AAPL", startDate, endDate);
+        }
+
+        @Test
+        @DisplayName("종가가 비었거나 0 이하인 행은 빼고, 조정 종가 0 이하는 비운다")
+        void getOHLCPriceRange_InvalidPrices_Cleaned() {
+            LocalDate startDate = LocalDate.of(2024, 10, 21);
+            given(candleRepository.findBySymbolAndDateBetweenOrderByDateAsc(TEST_SYMBOL, startDate, TEST_DATE))
+                    .willReturn(mixedCandles());
+
+            assertCleaned(candleService.getOHLCPriceRange(TEST_SYMBOL, startDate, TEST_DATE));
         }
     }
 
@@ -473,6 +536,16 @@ class CandleServiceImplTest {
             // then
             assertThat(results).isEmpty();
         }
+
+        @Test
+        @DisplayName("종가가 비었거나 0 이하인 행은 빼고, 조정 종가 0 이하는 비운다")
+        void getMultipleOHLCPrices_InvalidPrices_Cleaned() {
+            LocalDate startDate = LocalDate.of(2024, 10, 21);
+            given(candleRepository.findBySymbolsAndDateRange(List.of(TEST_SYMBOL), startDate, TEST_DATE))
+                    .willReturn(mixedCandles());
+
+            assertCleaned(candleService.getMultipleOHLCPrices(List.of(TEST_SYMBOL), startDate, TEST_DATE));
+        }
     }
 
     @Nested
@@ -553,6 +626,16 @@ class CandleServiceImplTest {
             // then
             assertThat(results).hasSize(1);
             verify(candleRepository).findCandlesWithDividends("AAPL", startDate, endDate);
+        }
+
+        @Test
+        @DisplayName("종가가 비었거나 0 이하인 행은 빼고, 조정 종가 0 이하는 비운다")
+        void getCandlesWithDividends_InvalidPrices_Cleaned() {
+            LocalDate startDate = LocalDate.of(2024, 10, 21);
+            given(candleRepository.findCandlesWithDividends(TEST_SYMBOL, startDate, TEST_DATE))
+                    .willReturn(mixedCandles());
+
+            assertCleaned(candleService.getCandlesWithDividends(TEST_SYMBOL, startDate, TEST_DATE));
         }
     }
 

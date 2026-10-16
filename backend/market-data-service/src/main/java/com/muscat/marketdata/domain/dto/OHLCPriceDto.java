@@ -30,7 +30,7 @@ public class OHLCPriceDto implements Serializable {
     private BigDecimal lowPrice;
     @Schema(description = "종가", example = "238.15")
     private BigDecimal closePrice;
-    @Schema(description = "보정 종가 (배당/주식분할 반영)", example = "238.15")
+    @Schema(description = "보정 종가 (배당/주식분할 반영, 0 이하로 수집된 날은 비움)", example = "238.15")
     private BigDecimal adjustedClose;
     @Schema(description = "거래량", example = "45678900")
     private Long volume;
