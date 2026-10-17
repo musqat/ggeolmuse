@@ -18,10 +18,13 @@ import com.muscat.user.common.enums.type.UserRole;
 import com.muscat.user.common.util.AuthorizationUtil;
 import com.muscat.user.config.security.SecurityConfig;
 import com.muscat.user.domain.account.entity.Account;
+import com.muscat.user.domain.account.entity.DividendSettlement;
 import com.muscat.user.domain.account.service.AccountService;
 import com.muscat.user.domain.user.entity.User;
 import com.muscat.user.domain.user.service.UserService;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -174,5 +177,21 @@ class AdminUserControllerTest {
       .andExpect(jsonPath("$.adminUsers").value(1));
 
     verify(userService, never()).adminDeleteUser(anyLong());
+  }
+
+  @Test
+  @DisplayName("배당 정산 목록은 계좌 · 종목 · 배당락일 · 금액을 돌려준다")
+  void getDividendSettlements() throws Exception {
+    given(accountService.getAllDividendSettlements()).willReturn(List.of(DividendSettlement.of(
+      20L, "AAPL", LocalDate.of(2024, 2, 9), new BigDecimal("2.03"), LocalDateTime.of(2026, 10, 18, 9, 0))));
+
+    mockMvc.perform(get(BASE + "/dividend-settlements").with(admin()))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$[0].accountId").value(20))
+      .andExpect(jsonPath("$[0].symbol").value("AAPL"))
+      .andExpect(jsonPath("$[0].exDate").value("2024-02-09"))
+      .andExpect(jsonPath("$[0].amount").value(2.03));
+
+    verify(authorizationUtil).requireAdmin();
   }
 }

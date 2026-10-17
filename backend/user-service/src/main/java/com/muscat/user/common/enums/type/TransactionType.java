@@ -6,5 +6,6 @@ public enum TransactionType {
   EXCHANGE,     // 환전
   TRADE_BUY,    // 주식 매수
   TRADE_SELL,   // 주식 매도
-  DIVIDEND      // 배당 입금
+  DIVIDEND,     // 배당 입금
+  DIVIDEND_REVERSAL  // 배당 반환
 }

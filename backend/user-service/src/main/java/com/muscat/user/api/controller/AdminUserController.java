@@ -3,10 +3,12 @@ package com.muscat.user.api.controller;
 import com.muscat.user.common.enums.type.UserRole;
 import com.muscat.user.common.util.AuthorizationUtil;
 import com.muscat.user.domain.account.entity.Account;
+import com.muscat.user.domain.account.entity.DividendSettlement;
 import com.muscat.user.domain.account.service.AccountService;
 import com.muscat.user.domain.user.entity.User;
 import com.muscat.user.domain.user.service.UserService;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -166,6 +168,16 @@ public class AdminUserController {
       .build();
 
     return ResponseEntity.ok(summary);
+  }
+
+  // 계좌 · 종목 · 배당락일마다 지금까지 넣은 배당
+  @GetMapping("/dividend-settlements")
+  public ResponseEntity<List<DividendSettlementResponse>> getDividendSettlements() {
+    authorizationUtil.requireAdmin();
+    List<DividendSettlementResponse> settlements = accountService.getAllDividendSettlements().stream()
+      .map(DividendSettlementResponse::from)
+      .toList();
+    return ResponseEntity.ok(settlements);
   }
 
   /**
@@ -366,5 +378,13 @@ public class AdminUserController {
     private long activeUsers;
     private long inactiveUsers;
     private long adminUsers;
+  }
+
+  public record DividendSettlementResponse(Long accountId, String symbol, LocalDate exDate, BigDecimal amount) {
+
+    static DividendSettlementResponse from(DividendSettlement settlement) {
+      return new DividendSettlementResponse(settlement.getAccountId(), settlement.getSymbol(),
+        settlement.getExDate(), settlement.getAmount());
+    }
   }
 }

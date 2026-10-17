@@ -4,6 +4,7 @@ import com.muscat.commonlib.dto.FxRateDto;
 import com.muscat.commonlib.dto.FxRateRangeDto;
 import com.muscat.commonlib.exception.BaseException;
 import com.muscat.commonlib.util.MoneyUtils;
+import com.muscat.messaging.event.DividendPayoutEvent;
 import com.muscat.messaging.event.DividendReceivedEvent;
 import com.muscat.messaging.event.TradeCompletedEvent;
 import com.muscat.user.common.enums.responses.AccountResponse;
@@ -36,10 +37,12 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -351,6 +354,11 @@ public class AccountServiceImpl implements AccountService {
   @Transactional
   public void updateUsdBalance(Long accountId, Long userId, BigDecimal usdAmount,
     TransactionType type, String description) {
+    changeUsdBalance(accountId, userId, usdAmount, type, description, false);
+  }
+
+  private void changeUsdBalance(Long accountId, Long userId, BigDecimal usdAmount,
+    TransactionType type, String description, boolean allowNegative) {
     String updateType = balanceUpdateType(type);
     Account account = validateAccountAccess(accountId, userId);
     BigDecimal validatedAmount = validateUsdAmount(usdAmount);
@@ -360,7 +368,11 @@ public class AccountServiceImpl implements AccountService {
     BigDecimal previousBalanceUsd = account.getBalanceUsd();
 
     // 검증 + 상태 변경
-    account.adjustUsdBalance(validatedAmount);
+    if (allowNegative) {
+      account.applyDividendAdjustment(validatedAmount);
+    } else {
+      account.adjustUsdBalance(validatedAmount);
+    }
     BigDecimal newBalance = account.getBalanceUsd();
 
     // 인프라 처리 (Service 책임)
@@ -536,19 +548,8 @@ public class AccountServiceImpl implements AccountService {
     // 1. 사용자 ID 조회
     Long userId = resolveUserId(event.getUserId());
 
-    // 2. 계좌 조회
-    Account account = accountRepository.findById(event.getAccountId())
-      .orElseThrow(() -> {
-        log.error("계좌를 찾을 수 없음: accountId={}", event.getAccountId());
-        return new AccountException(AccountResponse.ACCOUNT_NOT_FOUND);
-      });
-
-    // 3. 계좌 소유자 확인
-    if (!account.getUser().getId().equals(userId)) {
-      log.error("계좌 소유자 불일치: accountId={}, userId={}, owner={}",
-        event.getAccountId(), userId, account.getUser().getId());
-      throw new AccountException(AccountResponse.ACCOUNT_ACCESS_DENIED);
-    }
+    // 2 · 3. 계좌 조회와 소유자 확인
+    Account account = findOwnedAccount(event.getAccountId(), userId);
 
     // 4. 이미 입금한 배당이면 건너뛴다. 같은 지급이 다시 와도(Kafka 재전달 · 배당 재수집) 한 번만 넣는다.
     // 동시에 둘이 오면 아래 저장이 키 충돌로 실패해 입금까지 롤백되고, 재시도 때 여기서 걸러진다
@@ -577,7 +578,49 @@ public class AccountServiceImpl implements AccountService {
     }
   }
 
+  @Override
+  public void applyDividendPayout(DividendPayoutEvent event) {
+    Long userId = resolveUserId(event.getUserId());
+    Account account = findOwnedAccount(event.getAccountId(), userId);
+    LocalDate exDate = LocalDate.parse(event.getExDate());
+    Optional<DividendSettlement> settlement = dividendSettlementRepository
+      .findByAccountIdAndSymbolAndExDate(account.getId(), event.getSymbol(), exDate);
+
+    BigDecimal target = MoneyUtils.roundUsd(event.getNetAmount());
+    BigDecimal delta = target.subtract(settlement.map(DividendSettlement::getAmount).orElse(BigDecimal.ZERO));
+    String basis = String.format("%s (기준일: %s, 주당: $%s × %s주)",
+      event.getSymbol(), event.getExDate(), event.getDividendPerShare(), event.getQuantity());
+
+    if (delta.signum() > 0) {
+      changeUsdBalance(account.getId(), userId, delta, TransactionType.DIVIDEND, "배당금 수령: " + basis, false);
+    } else if (delta.signum() < 0) {
+      changeUsdBalance(account.getId(), userId, delta, TransactionType.DIVIDEND_REVERSAL, "배당 반환: " + basis, true);
+    }
+
+    if (settlement.isPresent()) {
+      settlement.get().changeAmount(target, LocalDateTime.now());
+    } else if (target.signum() > 0) {
+      dividendSettlementRepository.saveAndFlush(
+        DividendSettlement.of(account.getId(), event.getSymbol(), exDate, target, LocalDateTime.now()));
+    }
+    log.info("배당 몫 반영: accountId={}, symbol={}, exDate={}, 목표={}, 차이={}",
+      account.getId(), event.getSymbol(), exDate, target, delta);
+  }
+
   // ================== 내부 메서드 ================ //
+
+  private Account findOwnedAccount(Long accountId, Long userId) {
+    Account account = accountRepository.findById(accountId)
+      .orElseThrow(() -> {
+        log.error("계좌를 찾을 수 없음: accountId={}", accountId);
+        return new AccountException(AccountResponse.ACCOUNT_NOT_FOUND);
+      });
+    if (!account.getUser().getId().equals(userId)) {
+      log.error("계좌 소유자 불일치: accountId={}, userId={}, owner={}", accountId, userId, account.getUser().getId());
+      throw new AccountException(AccountResponse.ACCOUNT_ACCESS_DENIED);
+    }
+    return account;
+  }
 
   // 환전 환율이 허용 범위 안인지 본다
   private void validateExchangeRate(BigDecimal exchangeRate) {
@@ -637,6 +680,7 @@ public class AccountServiceImpl implements AccountService {
     return switch (type) {
       case TRADE_BUY, TRADE_SELL -> "TRADE_COMPLETED";
       case DIVIDEND -> "DIVIDEND_RECEIVED";
+      case DIVIDEND_REVERSAL -> "DIVIDEND_REVERSED";
       case DEPOSIT, EXCHANGE -> throw new AccountException(AccountResponse.INVALID_TRANSACTION_TYPE);
     };
   }
@@ -687,5 +731,11 @@ public class AccountServiceImpl implements AccountService {
   @Transactional(readOnly = true)
   public List<Account> findAccountsByUserId(Long userId) {
     return accountRepository.findByUserIdWithUser(userId);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<DividendSettlement> getAllDividendSettlements() {
+    return dividendSettlementRepository.findAll(Sort.by("accountId", "symbol", "exDate"));
   }
 }
