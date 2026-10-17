@@ -14,7 +14,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
-// 서킷 브레이커가 부르는 대체 메서드는 private 이라 직접 불러 동작을 고정한다.
+// 날짜 시세는 ClientWrapperRetryTest 에서 봄
 // 단건 시세는 대체값 없이 예외(주문을 틀린 값으로 체결하면 안 된다), 목록은 빈 값으로 넘어간다
 @DisplayName("시세 서비스 호출과 대체 동작")
 class MarketServiceClientWrapperTest {
@@ -44,16 +44,12 @@ class MarketServiceClientWrapperTest {
   }
 
   @Test
-  @DisplayName("단건 현재가 · 날짜 시세를 못 받으면 종목(과 날짜)을 담은 예외를 올린다")
-  void singlePriceFallbacks_Throw() {
+  @DisplayName("단건 현재가를 못 받으면 종목을 담은 예외를 올린다")
+  void currentPriceFallback_Throws() {
     assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(wrapper, "getCurrentPriceFallback", "AAPL", down))
       .isInstanceOf(RuntimeException.class)
       .hasMessageContaining("AAPL")
       .hasCause(down);
-    assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(wrapper, "getOHLCPriceFallback", "AAPL", "2024-09-16", down))
-      .isInstanceOf(RuntimeException.class)
-      .hasMessageContaining("AAPL")
-      .hasMessageContaining("2024-09-16");
   }
 
   @Test

@@ -1,7 +1,9 @@
 package com.muscat.trade.infra.client;
 
-import com.muscat.trade.infra.client.dto.DividendDto;
 import com.muscat.commonlib.dto.StockPriceDto;
+import com.muscat.trade.common.enums.responses.TradeResponse;
+import com.muscat.trade.common.exception.TradeException;
+import com.muscat.trade.infra.client.dto.DividendDto;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import java.util.Collections;
@@ -19,37 +21,37 @@ public class MarketServiceClientWrapper {
 
   private final MarketServiceClient marketServiceClient;
 
-  @CircuitBreaker(name = "marketService", fallbackMethod = "getCurrentPriceFallback")
-  @Retry(name = "marketService")
+  @CircuitBreaker(name = "marketService")
+  @Retry(name = "marketService", fallbackMethod = "getCurrentPriceFallback")
   public StockPriceDto getCurrentPrice(String symbol) {
     log.debug("Calling market-data-service getCurrentPrice for symbol: {}", symbol);
     return marketServiceClient.getCurrentPrice(symbol);
   }
 
-  @CircuitBreaker(name = "marketService", fallbackMethod = "getCurrentPricesFallback")
-  @Retry(name = "marketService")
+  @CircuitBreaker(name = "marketService")
+  @Retry(name = "marketService", fallbackMethod = "getCurrentPricesFallback")
   public Map<String, StockPriceDto> getCurrentPrices(List<String> symbols) {
     log.debug("Calling market-data-service getCurrentPrices for symbols: {}", symbols);
     return marketServiceClient.getCurrentPrices(symbols);
   }
 
-  @CircuitBreaker(name = "marketService", fallbackMethod = "getOHLCPriceFallback")
-  @Retry(name = "marketService")
+  @CircuitBreaker(name = "marketService")
+  @Retry(name = "marketService", fallbackMethod = "getOHLCPriceFallback")
   public StockPriceDto getOHLCPrice(String symbol, String date) {
     log.debug("Calling market-data-service getOHLCPrice for symbol: {}, date: {}", symbol, date);
     return marketServiceClient.getOHLCPrice(symbol, date);
   }
 
-  @CircuitBreaker(name = "marketService", fallbackMethod = "getHistoricalPricesFallback")
-  @Retry(name = "marketService")
+  @CircuitBreaker(name = "marketService")
+  @Retry(name = "marketService", fallbackMethod = "getHistoricalPricesFallback")
   public List<StockPriceDto> getHistoricalPrices(String symbol, String startDate, String endDate) {
     log.debug("Calling market-data-service getHistoricalPrices for symbol: {}, period: {} to {}",
       symbol, startDate, endDate);
     return marketServiceClient.getHistoricalPrices(symbol, startDate, endDate);
   }
 
-  @CircuitBreaker(name = "marketService", fallbackMethod = "getDividendsFallback")
-  @Retry(name = "marketService")
+  @CircuitBreaker(name = "marketService")
+  @Retry(name = "marketService", fallbackMethod = "getDividendsFallback")
   public List<DividendDto> getDividends(String symbol, String startDate, String endDate) {
     log.debug("Calling market-data-service getDividends for symbol: {}", symbol);
     return marketServiceClient.getDividends(symbol, startDate, endDate);
@@ -72,9 +74,7 @@ public class MarketServiceClientWrapper {
   private StockPriceDto getOHLCPriceFallback(String symbol, String date, Exception ex) {
     log.error("Fallback triggered for getOHLCPrice. Symbol: {}, Date: {}, Error: {}",
       symbol, date, ex.getMessage());
-    throw new RuntimeException(
-      "Market data service is currently unavailable for symbol: " + symbol + " on date: " + date,
-      ex);
+    throw new TradeException(TradeResponse.MARKET_DATA_SERVICE_ERROR, ex);
   }
 
   private List<StockPriceDto> getHistoricalPricesFallback(String symbol, String startDate,
