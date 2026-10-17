@@ -1,6 +1,7 @@
 package com.muscat.trade.domain.repository;
 
 import com.muscat.trade.common.enums.type.TradeStatus;
+import com.muscat.trade.domain.dto.TradePosition;
 import com.muscat.trade.domain.entity.Trade;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
@@ -39,6 +40,11 @@ public interface TradeRepository extends JpaRepository<Trade, Long>, TradeReposi
   List<Trade> findByUserIdAndAccountIdAndSymbolAndStatusOrderByExecutedAtAscIdAsc(String userId,
     Long accountId, String symbol, TradeStatus status);
 
+  List<Trade> findByUserIdAndStatusOrderByExecutedAtAscIdAsc(String userId, TradeStatus status);
+
+  // 계좌 주인 찾기용. 취소된 체결도 봄
+  Optional<Trade> findFirstByAccountIdOrderByIdAsc(Long accountId);
+
   // 같은 체결을 동시에 취소하지 않게 잠가서 읽는다
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("select t from Trade t where t.id = :id")
@@ -57,4 +63,8 @@ public interface TradeRepository extends JpaRepository<Trade, Long>, TradeReposi
   @Modifying
   @Query("update Trade t set t.eventPublishedAt = :publishedAt where t.id = :id")
   int markEventPublished(@Param("id") Long id, @Param("publishedAt") LocalDateTime publishedAt);
+
+  @Query("select distinct new com.muscat.trade.domain.dto.TradePosition(t.userId, t.accountId, t.symbol) "
+    + "from Trade t where t.status = :status")
+  List<TradePosition> findDistinctPositions(@Param("status") TradeStatus status);
 }

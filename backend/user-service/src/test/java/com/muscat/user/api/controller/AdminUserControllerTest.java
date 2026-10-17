@@ -18,10 +18,13 @@ import com.muscat.user.common.enums.type.UserRole;
 import com.muscat.user.common.util.AuthorizationUtil;
 import com.muscat.user.config.security.SecurityConfig;
 import com.muscat.user.domain.account.entity.Account;
+import com.muscat.user.domain.account.entity.DividendSettlement;
 import com.muscat.user.domain.account.service.AccountService;
 import com.muscat.user.domain.user.entity.User;
 import com.muscat.user.domain.user.service.UserService;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,6 +32,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
@@ -174,5 +178,23 @@ class AdminUserControllerTest {
       .andExpect(jsonPath("$.adminUsers").value(1));
 
     verify(userService, never()).adminDeleteUser(anyLong());
+  }
+
+  @Test
+  @DisplayName("배당 정산은 쪽마다 계좌 · 종목 · 배당락일 · 금액을 돌려주고 마지막 쪽인지 알린다")
+  void getDividendSettlements() throws Exception {
+    given(accountService.getDividendSettlements(1, 2)).willReturn(new PageImpl<>(List.of(DividendSettlement.of(
+        20L, "AAPL", LocalDate.of(2024, 2, 9), new BigDecimal("2.03"), LocalDateTime.of(2026, 10, 18, 9, 0))),
+      PageRequest.of(1, 2), 3));
+
+    mockMvc.perform(get(BASE + "/dividend-settlements").param("page", "1").param("size", "2").with(admin()))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.content[0].accountId").value(20))
+      .andExpect(jsonPath("$.content[0].symbol").value("AAPL"))
+      .andExpect(jsonPath("$.content[0].exDate").value("2024-02-09"))
+      .andExpect(jsonPath("$.content[0].amount").value(2.03))
+      .andExpect(jsonPath("$.last").value(true));
+
+    verify(authorizationUtil).requireAdmin();
   }
 }

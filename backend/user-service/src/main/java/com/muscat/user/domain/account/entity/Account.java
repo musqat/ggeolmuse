@@ -149,6 +149,11 @@ public class Account {
     this.balanceUsd = newBalance;
   }
 
+  // 배당 몫 조정. 반환으로 잔액이 마이너스가 되어도 막지 않음
+  public void applyDividendAdjustment(BigDecimal amount) {
+    this.balanceUsd = this.balanceUsd.add(amount);
+  }
+
   // KRW -> USD 환전
   public void executeExchangeKrwToUsd(BigDecimal krwToDeduct, BigDecimal usdToAdd,
                                        BigDecimal newAvgRate, BigDecimal krwAmountForAvg) {

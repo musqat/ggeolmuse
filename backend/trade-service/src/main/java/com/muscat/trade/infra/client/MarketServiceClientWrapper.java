@@ -84,10 +84,11 @@ public class MarketServiceClientWrapper {
     return Collections.emptyList();
   }
 
+  // 못 받은 것과 배당이 없는 것을 가르려고 빈 목록 대신 오류
   private List<DividendDto> getDividendsFallback(String symbol, String startDate,
     String endDate, Exception ex) {
     log.error("Fallback triggered for getDividends. Symbol: {}, Error: {}",
       symbol, ex.getMessage());
-    return Collections.emptyList();
+    throw new TradeException(TradeResponse.MARKET_DATA_SERVICE_ERROR, ex);
   }
 }

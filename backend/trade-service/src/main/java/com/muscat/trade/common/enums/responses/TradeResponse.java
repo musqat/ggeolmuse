@@ -25,6 +25,7 @@ public enum TradeResponse implements ErrorCode {
     INVALID_SYMBOL("유효하지 않은 심볼입니다.", HttpStatus.BAD_REQUEST),
     INVALID_QUANTITY("수량은 0보다 큰 정수여야 합니다.", HttpStatus.BAD_REQUEST),
     INVALID_PRICE("가격은 0보다 큰 값이어야 합니다.", HttpStatus.BAD_REQUEST),
+    MANUAL_PRICE_OUT_OF_RANGE("입력한 가격이 그날 가격 범위를 벗어났습니다.", HttpStatus.BAD_REQUEST),
     INVALID_TRADE_TYPE("거래 유형이 올바르지 않습니다.", HttpStatus.BAD_REQUEST),
     INVALID_ACCOUNT_ID("계좌 ID가 올바르지 않습니다.", HttpStatus.BAD_REQUEST),
     INSUFFICIENT_BALANCE("잔액이 부족합니다.", HttpStatus.BAD_REQUEST),

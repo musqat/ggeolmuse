@@ -3,7 +3,7 @@ import { RefreshCw } from 'lucide-react';
 import type { TransactionHistoryItem } from '../../../services/api';
 import { parseLocalDate } from '../../../utils/dateUtils';
 import TradeCancelledBadge from '../TradeCancelledBadge';
-import { applyFilters, buyDates, groupByDay, summarize, type HistoryFilter } from './tradeHistory';
+import { applyFilters, groupByDay, summarize, type HistoryFilter } from './tradeHistory';
 
 interface AccountOption {
   accountId: number;
@@ -67,12 +67,10 @@ const detailParts = (item: TransactionHistoryItem): string[] =>
 
 interface HistoryRowProps {
   item: TransactionHistoryItem;
-  // 배당이면 연결된 매수의 거래일
-  buyDate?: string;
   accountName?: string;
 }
 
-const HistoryRow = ({ item, buyDate, accountName }: HistoryRowProps) => {
+const HistoryRow = ({ item, accountName }: HistoryRowProps) => {
   const style = TYPE_STYLE[item.type];
   const cancelled = item.status === 'CANCELLED';
 
@@ -90,11 +88,6 @@ const HistoryRow = ({ item, buyDate, accountName }: HistoryRowProps) => {
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className="font-semibold text-tx-1">{item.symbol}</span>
-          {buyDate && (
-            <span className="rounded border border-line-strong px-1.5 text-[11px] text-tx-2">
-              {buyDate.replaceAll('-', '.')} 매수분
-            </span>
-          )}
           {cancelled && <TradeCancelledBadge reason={item.cancelReason} />}
           {accountName && <span className="text-[11px] text-tx-3">{accountName}</span>}
         </div>
@@ -152,7 +145,6 @@ export const TradeHistoryList = ({ transactions, accounts, onRefresh, refreshing
   const inAccount = useMemo(() => applyFilters(transactions, 'ALL', accountId), [transactions, accountId]);
   const summary = useMemo(() => summarize(inAccount), [inAccount]);
   const days = useMemo(() => groupByDay(applyFilters(inAccount, filter, 'ALL')), [inAccount, filter]);
-  const buyDateById = useMemo(() => buyDates(transactions), [transactions]);
   const showAccounts = accounts.length > 1;
   const accountNameOf = (id?: number) =>
     showAccounts ? accounts.find((account) => account.accountId === id)?.accountName : undefined;
@@ -234,14 +226,13 @@ export const TradeHistoryList = ({ transactions, accounts, onRefresh, refreshing
               </h3>
               {day.items.map((item) => (
                 <HistoryRow
-                  key={`${item.type}-${item.tradeId}-${item.date}-${item.executedAt}`}
-                  item={item}
-                  buyDate={
-                    item.type === 'DIVIDEND' && item.tradeId !== undefined
-                      ? buyDateById.get(item.tradeId)
-                      : undefined
+                  key={
+                    item.type === 'DIVIDEND'
+                      ? `DIVIDEND-${item.accountId}-${item.symbol}-${item.date}`
+                      : `${item.type}-${item.tradeId}-${item.date}-${item.executedAt}`
                   }
-                  accountName={item.type === 'DIVIDEND' ? undefined : accountNameOf(item.accountId)}
+                  item={item}
+                  accountName={accountNameOf(item.accountId)}
                 />
               ))}
             </section>

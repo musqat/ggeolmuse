@@ -3,10 +3,12 @@ package com.muscat.trade.domain.service.impl;
 import com.muscat.commonlib.dto.StockPriceDto;
 import com.muscat.trade.common.constants.TradeConstants;
 import com.muscat.trade.common.logging.TradeLogger;
+import com.muscat.trade.domain.dto.TradePosition;
 import com.muscat.trade.domain.dto.response.HoldingResponseDto;
 import com.muscat.trade.domain.dto.response.PortfolioSummary;
 import com.muscat.trade.domain.entity.Holdings;
 import com.muscat.trade.domain.repository.HoldingsRepository;
+import com.muscat.trade.domain.service.DividendPayoutService;
 import com.muscat.trade.domain.service.HoldingsService;
 import com.muscat.trade.infra.client.BacktestServiceClient;
 import com.muscat.trade.infra.client.MarketServiceClientWrapper;
@@ -37,6 +39,7 @@ public class HoldingsServiceImpl implements HoldingsService {
   private final TradeLogger tradeLogger;
   private final BacktestServiceClient backtestServiceClient;
   private final MarketServiceClientWrapper marketServiceClientWrapper;
+  private final DividendPayoutService dividendPayoutService;
 
   @Override
   @Transactional(readOnly = true)
@@ -74,15 +77,19 @@ public class HoldingsServiceImpl implements HoldingsService {
     }
     log.debug("현재가 조회 완료: totalSymbols={}, successCount={}", symbols.size(), currentPrices.size());
 
+    Map<TradePosition, BigDecimal> dividends = holdings.isEmpty()
+      ? Map.of()
+      : dividendPayoutService.dividendsOnHeldShares(userId);
+
     // 현재가 정보와 함께 DTO 생성
     return holdings.stream()
       .map(holding -> {
         BigDecimal currentPrice = currentPrices.get(holding.getSymbol());
-        if (currentPrice != null) {
-          return HoldingResponseDto.of(holding, currentPrice);
-        } else {
-          return HoldingResponseDto.from(holding);
-        }
+        HoldingResponseDto dto = currentPrice != null
+          ? HoldingResponseDto.of(holding, currentPrice)
+          : HoldingResponseDto.from(holding);
+        return dto.withTotalDividends(dividends.getOrDefault(
+          new TradePosition(userId, holding.getAccountId(), holding.getSymbol()), BigDecimal.ZERO));
       })
       .collect(Collectors.toList());
   }

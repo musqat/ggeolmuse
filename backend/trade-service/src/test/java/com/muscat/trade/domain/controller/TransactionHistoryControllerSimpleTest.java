@@ -94,7 +94,6 @@ class TransactionHistoryControllerSimpleTest {
     // Given
     DividendResponseDto dividend = new DividendResponseDto(
       1L,                                    // id
-      100L,                                  // tradeId
       1L,                                    // accountId
       "AAPL",                               // symbol
       new BigDecimal("100"),                // shares
@@ -123,6 +122,8 @@ class TransactionHistoryControllerSimpleTest {
     assertThat(response.getBody().get(0).get("type")).isEqualTo("DIVIDEND");
     assertThat(response.getBody().get(0).get("symbol")).isEqualTo("AAPL");
     assertThat(response.getBody().get(0).get("totalAmount")).isEqualTo(new BigDecimal("25.00"));
+    assertThat(response.getBody().get(0).get("accountId")).isEqualTo(1L);
+    assertThat(response.getBody().get(0)).doesNotContainKey("tradeId");
   }
 
   @Test
@@ -150,7 +151,7 @@ class TransactionHistoryControllerSimpleTest {
   void getTransactionHistory_SortedNewestFirst() {
     Trade older = trade(1L, LocalDate.of(2024, 1, 10));
     Trade newer = trade(2L, LocalDate.of(2024, 1, 30));
-    DividendResponseDto dividend = new DividendResponseDto(1L, 100L, 1L, "AAPL", new BigDecimal("100"),
+    DividendResponseDto dividend = new DividendResponseDto(1L, 1L, "AAPL", new BigDecimal("100"),
       new BigDecimal("0.25"), new BigDecimal("30.00"), new BigDecimal("5.00"), new BigDecimal("25.00"),
       LocalDate.of(2024, 1, 20), LocalDateTime.of(2024, 1, 20, 12, 0));
     when(tradeRepository.findByUserIdOrderByExecutedAtDesc(eq("test-user-123"), any(Pageable.class)))

@@ -6,8 +6,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.muscat.messaging.event.AccountDeletedEvent;
-import com.muscat.trade.domain.repository.DividendRepository;
+import com.muscat.trade.domain.repository.DividendPayoutRepository;
 import com.muscat.trade.domain.repository.HoldingsRepository;
+import com.muscat.trade.domain.repository.LegacyDividendRepository;
 import com.muscat.trade.domain.repository.TradeRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,7 +31,10 @@ class AccountDeletedEventConsumerTest {
   private HoldingsRepository holdingsRepository;
 
   @Mock
-  private DividendRepository dividendRepository;
+  private DividendPayoutRepository dividendPayoutRepository;
+
+  @Mock
+  private LegacyDividendRepository legacyDividendRepository;
 
   @Mock
   private Acknowledgment acknowledgment;
@@ -43,20 +47,21 @@ class AccountDeletedEventConsumerTest {
   }
 
   @Test
-  @DisplayName("계좌의 거래 · 보유 · 배당을 지우고 커밋한다")
+  @DisplayName("계좌의 거래 · 보유 · 배당 몫 · 옛 배당 캐시를 지우고 커밋한다")
   void handle_DeletesTradesHoldingsDividends() {
     consumer.handleAccountDeleted(event(), 0, 0L, acknowledgment);
 
     verify(tradeRepository).deleteByAccountId(ACCOUNT_ID);
     verify(holdingsRepository).deleteByAccountId(ACCOUNT_ID);
-    verify(dividendRepository).deleteByAccountId(ACCOUNT_ID);
+    verify(dividendPayoutRepository).deleteByAccountId(ACCOUNT_ID);
+    verify(legacyDividendRepository).deleteByAccountId(ACCOUNT_ID);
     verify(acknowledgment).acknowledge();
   }
 
   @Test
   @DisplayName("지우다 실패하면 커밋하지 않고 다시 던져 Kafka 가 재시도한다")
   void handle_Failure_DoesNotAcknowledge() {
-    willThrow(new IllegalStateException("db down")).given(dividendRepository).deleteByAccountId(ACCOUNT_ID);
+    willThrow(new IllegalStateException("db down")).given(dividendPayoutRepository).deleteByAccountId(ACCOUNT_ID);
 
     assertThatThrownBy(() -> consumer.handleAccountDeleted(event(), 0, 0L, acknowledgment))
       .isInstanceOf(IllegalStateException.class);

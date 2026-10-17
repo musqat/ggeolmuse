@@ -1,5 +1,6 @@
 package com.muscat.trade.config.security;
 
+import com.muscat.commonlib.security.KeycloakJwtAuthenticationConverter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -56,9 +57,33 @@ public class SecurityConfig {
     return http.build();
   }
 
-  // Application port (8081) - JWT authentication required
+  @Bean
+  public KeycloakJwtAuthenticationConverter jwtAuthenticationConverter() {
+    return new KeycloakJwtAuthenticationConverter();
+  }
+
+  // 관리자 경로. Keycloak realm 역할 admin 이 있어야 함
   @Bean
   @Order(1)
+  public SecurityFilterChain adminSecurityFilterChain(HttpSecurity http) throws Exception {
+    http
+      .securityMatcher("/api/admin/**")
+      .csrf(AbstractHttpConfigurer::disable)
+      .cors(Customizer.withDefaults())
+      .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+      .authorizeHttpRequests(auth -> auth
+        .anyRequest().hasAuthority("admin")
+      )
+      .oauth2ResourceServer(oauth2 -> oauth2
+        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
+      );
+
+    return http.build();
+  }
+
+  // Application port (8081) - JWT authentication required
+  @Bean
+  @Order(2)
   public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
     http
       .csrf(AbstractHttpConfigurer::disable)

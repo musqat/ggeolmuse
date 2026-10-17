@@ -25,31 +25,13 @@ export interface HistorySummary {
 
 const isCancelled = (item: TransactionHistoryItem) => item.status === 'CANCELLED';
 
-// 매수 tradeId → 거래일. 배당이 어느 매수에서 나왔는지 보일 때 쓴다
-export function buyDates(items: TransactionHistoryItem[]): Map<number, string> {
-  const dates = new Map<number, string>();
-  items.forEach((item) => {
-    if (item.type === 'BUY' && item.tradeId !== undefined) dates.set(item.tradeId, item.date);
-  });
-  return dates;
-}
-
-// 유형과 계좌로 거른다. 배당은 accountId 가 없어 연결된 매수의 계좌를 따른다
 export function applyFilters(
   items: TransactionHistoryItem[],
   filter: HistoryFilter,
   accountId: number | 'ALL'
 ): TransactionHistoryItem[] {
-  const accountByTrade = new Map<number, number | undefined>();
-  items.forEach((item) => {
-    if (item.type !== 'DIVIDEND' && item.tradeId !== undefined) accountByTrade.set(item.tradeId, item.accountId);
-  });
-  const accountOf = (item: TransactionHistoryItem) =>
-    item.type === 'DIVIDEND' && item.tradeId !== undefined ? accountByTrade.get(item.tradeId) : item.accountId;
-
   return items.filter(
-    (item) =>
-      (filter === 'ALL' || item.type === filter) && (accountId === 'ALL' || accountOf(item) === accountId)
+    (item) => (filter === 'ALL' || item.type === filter) && (accountId === 'ALL' || item.accountId === accountId)
   );
 }
 

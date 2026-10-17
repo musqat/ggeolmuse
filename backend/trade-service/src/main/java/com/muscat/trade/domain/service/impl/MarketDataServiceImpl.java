@@ -2,7 +2,6 @@ package com.muscat.trade.domain.service.impl;
 
 import com.muscat.trade.common.enums.responses.TradeResponse;
 import com.muscat.trade.common.enums.type.PriceType;
-import com.muscat.trade.common.exception.MarketDataException;
 import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.common.logging.TradeLogger;
 import com.muscat.trade.domain.service.MarketDataService;
@@ -62,8 +61,10 @@ public class MarketDataServiceImpl implements MarketDataService {
       } else {
         String errorMsg = "Market data not available";
         tradeLogger.logMarketDataRequest(symbol, priceType.name(), false, errorMsg);
-        throw new TradeException(TradeResponse.MARKET_DATA_SERVICE_ERROR);
+        throw new TradeException(TradeResponse.PRICE_DATA_UNAVAILABLE);
       }
+    } catch (TradeException e) {
+      throw e;
     } catch (Exception e) {
       tradeLogger.logMarketDataRequest(symbol, priceType.name(), false, e.getMessage());
       log.error("시장 가격 조회 실패: symbol={}, date={}, priceType={}, error={}",
@@ -93,7 +94,7 @@ public class MarketDataServiceImpl implements MarketDataService {
           String errorMsg = String.format("입력 가격이 범위를 벗어남: 입력=%s, 범위=%s~%s",
             manualPrice, lowPrice, highPrice);
           tradeLogger.logMarketDataRequest(symbol, "MANUAL_VALIDATION", false, errorMsg);
-          throw new TradeException(TradeResponse.MARKET_DATA_SERVICE_ERROR);
+          throw new TradeException(TradeResponse.MANUAL_PRICE_OUT_OF_RANGE);
         }
 
         tradeLogger.logMarketDataRequest(symbol, "MANUAL_VALIDATION", true, null);
@@ -103,8 +104,10 @@ public class MarketDataServiceImpl implements MarketDataService {
       } else {
         String errorMsg = "Market data not available";
         tradeLogger.logMarketDataRequest(symbol, "MANUAL_VALIDATION", false, errorMsg);
-        throw new MarketDataException();
+        throw new TradeException(TradeResponse.PRICE_DATA_UNAVAILABLE);
       }
+    } catch (TradeException e) {
+      throw e;
     } catch (Exception e) {
       tradeLogger.logMarketDataRequest(symbol, "MANUAL_VALIDATION", false, e.getMessage());
       log.error("직접입력 가격 검증 실패: symbol={}, date={}, price={}, error={}",

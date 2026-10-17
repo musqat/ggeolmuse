@@ -285,8 +285,8 @@ export type TradingCapacityResponse = {
 // 통합 거래 내역 한 줄. 매수 · 매도 · 배당이 섞여 온다 (trade-service TransactionHistoryController)
 export type TransactionHistoryItem = {
   type: 'BUY' | 'SELL' | 'DIVIDEND';
-  tradeId?: number;                                  // 배당은 연결된 매수의 Trade ID
-  accountId?: number;                                // 매수 · 매도만
+  tradeId?: number;                                  // 매수 · 매도만
+  accountId?: number;
   symbol: string;
   quantity?: number | null;
   price?: number | null;

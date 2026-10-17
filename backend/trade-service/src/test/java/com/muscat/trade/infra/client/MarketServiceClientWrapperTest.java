@@ -14,8 +14,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
-// 날짜 시세는 ClientWrapperRetryTest 에서 봄
-// 단건 시세는 대체값 없이 예외(주문을 틀린 값으로 체결하면 안 된다), 목록은 빈 값으로 넘어간다
+// 날짜 시세 · 배당 목록은 ClientWrapperRetryTest 에서 봄
+// 단건 시세는 대체값 없이 예외(주문을 틀린 값으로 체결하면 안 된다), 현재가 · 과거 시세 목록은 빈 값으로 넘어간다
 @DisplayName("시세 서비스 호출과 대체 동작")
 class MarketServiceClientWrapperTest {
 
@@ -53,17 +53,14 @@ class MarketServiceClientWrapperTest {
   }
 
   @Test
-  @DisplayName("여러 종목 현재가 · 과거 시세 · 배당 목록을 못 받으면 빈 값으로 넘어간다")
+  @DisplayName("여러 종목 현재가 · 과거 시세를 못 받으면 빈 값으로 넘어간다")
   void listFallbacks_Empty() {
     Map<String, StockPriceDto> prices = ReflectionTestUtils.invokeMethod(wrapper, "getCurrentPricesFallback",
       List.of("AAPL", "MSFT"), down);
     List<StockPriceDto> history = ReflectionTestUtils.invokeMethod(wrapper, "getHistoricalPricesFallback",
       "AAPL", "2024-01-01", "2024-12-31", down);
-    List<DividendDto> dividends = ReflectionTestUtils.invokeMethod(wrapper, "getDividendsFallback",
-      "AAPL", "2024-01-01", "2024-12-31", down);
 
     assertThat(prices).isEmpty();
     assertThat(history).isEmpty();
-    assertThat(dividends).isEmpty();
   }
 }

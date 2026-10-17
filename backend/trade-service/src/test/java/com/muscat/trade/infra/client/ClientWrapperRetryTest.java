@@ -110,6 +110,19 @@ class ClientWrapperRetryTest {
   }
 
   @Test
+  @DisplayName("배당 목록이 세 번 다 5xx 면 빈 목록이 아니라 시장 데이터 오류 코드로 올린다")
+  void dividends_ServerErrorEveryTime_MarketDataError() {
+    FeignException last = serverError();
+    given(marketClient.getDividends("AAPL", "2024-01-01", "2024-12-31")).willThrow(serverError(), serverError(), last);
+
+    assertThatThrownBy(() -> marketWrapper.getDividends("AAPL", "2024-01-01", "2024-12-31"))
+      .isInstanceOf(TradeException.class)
+      .hasFieldOrPropertyWithValue("errorCode", "MARKET_DATA_SERVICE_ERROR")
+      .hasCause(last);
+    verify(marketClient, times(3)).getDividends("AAPL", "2024-01-01", "2024-12-31");
+  }
+
+  @Test
   @DisplayName("계좌 잔액이 5xx 로 두 번 실패해도 다시 불러 받은 값을 돌려준다")
   void accountBalance_RetriesServerError() {
     AccountBalanceDto balance = mock(AccountBalanceDto.class);

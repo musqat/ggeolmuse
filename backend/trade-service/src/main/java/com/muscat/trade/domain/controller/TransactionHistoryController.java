@@ -65,13 +65,13 @@ public class TransactionHistoryController {
       transactions.add(transaction);
     }
 
-    // 2. 배당 수령 내역 조회 (Trade 단위로 캐싱됨)
+    // 2. 배당 몫 (계좌 · 종목 · 배당락일)
     List<DividendResponseDto> dividends = dividendService.getUserDividends(userId);
 
     for (DividendResponseDto dividend : dividends) {
       Map<String, Object> transaction = new HashMap<>();
       transaction.put("type", "DIVIDEND"); // 배당
-      transaction.put("tradeId", dividend.tradeId()); // 연결된 Trade ID
+      transaction.put("accountId", dividend.accountId());
       transaction.put("symbol", dividend.symbol());
       transaction.put("quantity", null); // 배당은 수량 없음
       transaction.put("price", null); // 배당은 단가 없음

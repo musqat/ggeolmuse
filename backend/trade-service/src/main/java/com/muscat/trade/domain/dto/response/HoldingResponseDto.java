@@ -41,7 +41,10 @@ public record HoldingResponseDto(
   BigDecimal unrealizedPnL, // 평가손익
 
   @Schema(description = "수익률 (%)", example = "10.15")
-  BigDecimal returnRate // 수익률 (%)
+  BigDecimal returnRate, // 수익률 (%)
+
+  @Schema(description = "지금 들고 있는 주식이 받은 세후 배당 (USD)", example = "2.12")
+  BigDecimal totalDividends
 ) {
 
   // Entity to DTO 변환
@@ -57,7 +60,8 @@ public record HoldingResponseDto(
       null,  // currentPrice
       null,  // currentValue
       null,  // unrealizedPnL
-      null   // returnRate
+      null,  // returnRate
+      null
     );
   }
 
@@ -85,7 +89,13 @@ public record HoldingResponseDto(
       currentPrice,
       currentValue,
       unrealizedPnL,
-      returnRate
+      returnRate,
+      null
     );
+  }
+
+  public HoldingResponseDto withTotalDividends(BigDecimal dividends) {
+    return new HoldingResponseDto(id, accountId, symbol, totalQuantity, avgPurchasePrice, totalInvestedAmount,
+      createdAt, currentPrice, currentValue, unrealizedPnL, returnRate, dividends);
   }
 }

@@ -1,5 +1,6 @@
 package com.muscat.user.domain.account.service;
 
+import com.muscat.messaging.event.DividendPayoutEvent;
 import com.muscat.messaging.event.DividendReceivedEvent;
 import com.muscat.messaging.event.TradeCompletedEvent;
 import com.muscat.user.common.enums.type.TransactionType;
@@ -7,9 +8,11 @@ import com.muscat.user.domain.account.dto.request.CreateAccountRequestDto;
 import com.muscat.user.domain.account.dto.response.BalanceResponseDto;
 import com.muscat.user.domain.account.dto.response.ExchangeRateRangeDto;
 import com.muscat.user.domain.account.entity.Account;
+import com.muscat.user.domain.account.entity.DividendSettlement;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import org.springframework.data.domain.Page;
 
 public interface AccountService {
 
@@ -51,8 +54,14 @@ public interface AccountService {
 
   void processDividendReceivedEvent(DividendReceivedEvent event);
 
+  // 배당 몫 목표 금액을 정산 행과 견줘 차이만 반영
+  void applyDividendPayout(DividendPayoutEvent event);
+
   // ==================== ADMIN API ==================== //
 
   // 사용자 ID로 계좌 목록 조회 (관리자용)
   List<Account> findAccountsByUserId(Long userId);
+
+  // 배당 정산 행을 계좌 · 종목 · 배당락일 순으로 쪽마다 (관리자용)
+  Page<DividendSettlement> getDividendSettlements(int page, int size);
 }

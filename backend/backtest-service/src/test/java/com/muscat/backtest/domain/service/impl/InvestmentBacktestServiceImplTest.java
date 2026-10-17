@@ -512,4 +512,55 @@ class InvestmentBacktestServiceImplTest {
         .isSameAs(outage);
     }
   }
+
+  @Nested
+  @DisplayName("받은 배당")
+  class DividendsReceivedTests {
+
+    // 현재가는 stubSingleHolding 의 200, 매수 환율 1300, 현재 환율 1400
+    private void stubWithFx(HoldingDto holding) {
+      stubSingleHolding(holding);
+      given(marketDataClientWrapper.getFxRate(anyString()))
+        .willReturn(new FxRateDto(LocalDate.of(2024, 1, 15), new BigDecimal("1300")));
+      given(marketDataClientWrapper.getLatestFxRate()).willReturn(new FxRateDto(LocalDate.now(), new BigDecimal("1400")));
+    }
+
+    private HoldingDto holding(BigDecimal dividends) {
+      return new HoldingDto("holding-123", "account-456", "AAPL", new BigDecimal("10"), new BigDecimal("120.00"),
+        new BigDecimal("1800000"), dividends, null, LocalDateTime.of(2024, 1, 15, 10, 0));
+    }
+
+    @Test
+    @DisplayName("지금 들고 있는 주식이 받은 배당을 남은 현금으로 넣어 총수익에 더한다")
+    void addsDividendsReceived() {
+      HoldingDto holding = holding(new BigDecimal("20.00"));
+      stubWithFx(holding);
+
+      investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION, TEST_EMAIL);
+
+      // 평가액 10 × 200 × 1400 = 2,800,000 · 배당 20 × 1400 = 28,000 · 투자금 1,800,000
+      SimulationResponse sim = capturedSimulation(holding);
+      assertThat(sim.getTotalDividends()).isEqualByComparingTo("20.00");
+      assertThat(sim.getRemainingCash()).isEqualByComparingTo("20.00");
+      assertThat(sim.getRemainingCashKrw()).isEqualByComparingTo("28000");
+      assertThat(sim.getTotalReturnKrw()).isEqualByComparingTo("1028000");
+      assertThat(sim.getTotalReturnPercent()).isEqualByComparingTo("57.11");
+      assertThat(sim.getDividendYield()).isEqualByComparingTo("1.00");
+    }
+
+    @Test
+    @DisplayName("받은 배당이 비어 오면 0 으로 계산한다")
+    void noDividends_Zero() {
+      HoldingDto holding = holding(null);
+      stubWithFx(holding);
+
+      investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION, TEST_EMAIL);
+
+      SimulationResponse sim = capturedSimulation(holding);
+      assertThat(sim.getTotalDividends()).isEqualByComparingTo("0");
+      assertThat(sim.getRemainingCashKrw()).isEqualByComparingTo("0");
+      assertThat(sim.getTotalReturnKrw()).isEqualByComparingTo("1000000");
+      assertThat(sim.getTotalReturnPercent()).isEqualByComparingTo("55.56");
+    }
+  }
 }
