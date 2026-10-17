@@ -2,6 +2,7 @@ package com.muscat.user.domain.account.service;
 
 import com.muscat.messaging.event.DividendReceivedEvent;
 import com.muscat.messaging.event.TradeCompletedEvent;
+import com.muscat.user.common.enums.type.TransactionType;
 import com.muscat.user.domain.account.dto.request.CreateAccountRequestDto;
 import com.muscat.user.domain.account.dto.response.BalanceResponseDto;
 import com.muscat.user.domain.account.dto.response.ExchangeRateRangeDto;
@@ -34,7 +35,7 @@ public interface AccountService {
   void exchangeUsdToKrw(Long accountId, Long userId, BigDecimal usdAmount, BigDecimal exchangeRate);
 
   // Trade 서비스 전용: USD 잔고 직접 업데이트
-  void updateUsdBalance(Long accountId, Long userId, BigDecimal usdAmount, String description);
+  void updateUsdBalance(Long accountId, Long userId, BigDecimal usdAmount, TransactionType type, String description);
 
   // 환율 조회 관련
   BigDecimal getCurrentExchangeRate();

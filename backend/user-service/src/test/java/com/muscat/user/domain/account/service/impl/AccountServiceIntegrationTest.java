@@ -7,6 +7,7 @@ import static org.mockito.BDDMockito.given;
 
 import com.muscat.commonlib.dto.FxRateDto;
 import com.muscat.commonlib.exception.ServiceException;
+import com.muscat.user.common.enums.type.TransactionType;
 import com.muscat.user.common.exceptions.AccountException;
 import com.muscat.user.domain.account.dto.request.CreateAccountRequestDto;
 import com.muscat.user.domain.account.dto.response.BalanceResponseDto;
@@ -299,7 +300,7 @@ class AccountServiceIntegrationTest {
 
       // when
       accountService.updateUsdBalance(
-        testAccount.getId(), testUserId, increaseAmount, "주식 매도: AAPL");
+        testAccount.getId(), testUserId, increaseAmount, TransactionType.TRADE_SELL, "주식 매도: AAPL");
 
       // then
       Account afterUpdate = accountRepository.findById(testAccount.getId()).orElseThrow();
@@ -322,7 +323,7 @@ class AccountServiceIntegrationTest {
 
       // when
       accountService.updateUsdBalance(
-        testAccount.getId(), testUserId, decreaseAmount, "주식 매수: TSLA");
+        testAccount.getId(), testUserId, decreaseAmount, TransactionType.TRADE_BUY, "주식 매수: TSLA");
 
       // then
       Account afterUpdate = accountRepository.findById(testAccount.getId()).orElseThrow();
@@ -420,7 +421,7 @@ class AccountServiceIntegrationTest {
 
       // 4. USD 잔액 업데이트 (주식 거래 시뮬레이션)
       accountService.updateUsdBalance(
-        account.getId(), testUserId, new BigDecimal("-50.00"), "주식 매수: AAPL");
+        account.getId(), testUserId, new BigDecimal("-50.00"), TransactionType.TRADE_BUY, "주식 매수: AAPL");
       Account afterTrade = accountRepository.findById(account.getId()).orElseThrow();
 
       // 5. 최종 잔액 조회

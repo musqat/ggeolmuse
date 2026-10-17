@@ -350,7 +350,8 @@ public class AccountServiceImpl implements AccountService {
   @Override
   @Transactional
   public void updateUsdBalance(Long accountId, Long userId, BigDecimal usdAmount,
-    String description) {
+    TransactionType type, String description) {
+    String updateType = balanceUpdateType(type);
     Account account = validateAccountAccess(accountId, userId);
     BigDecimal validatedAmount = validateUsdAmount(usdAmount);
 
@@ -363,21 +364,7 @@ public class AccountServiceImpl implements AccountService {
     BigDecimal newBalance = account.getBalanceUsd();
 
     // 인프라 처리 (Service 책임)
-    createTradeHistory(account, validatedAmount, newBalance, description);
-
-    // 업데이트 타입 결정 (description에서 추론)
-    String updateType;
-    if (description.contains("주식 매수")) {
-      updateType = "TRADE_COMPLETED";
-    } else if (description.contains("주식 매도")) {
-      updateType = "TRADE_COMPLETED";
-    } else if (description.contains("거래 취소")) {
-      updateType = "TRADE_CANCELLED";
-    } else if (description.contains("배당금")) {
-      updateType = "DIVIDEND_RECEIVED";
-    } else {
-      updateType = "USD_BALANCE_UPDATE";
-    }
+    createTradeHistory(account, validatedAmount, newBalance, type, description);
 
     // Kafka 이벤트 발행: 계좌 잔액 변경
     accountEventProducer.publishAccountBalanceUpdated(
@@ -492,14 +479,17 @@ public class AccountServiceImpl implements AccountService {
     // BUY: 사용자가 USD를 지불하고 주식을 구매 -> USD 잔액 감소 (음수)
     // SELL: 사용자가 주식을 팔고 USD를 받음 -> USD 잔액 증가 (양수)
     BigDecimal balanceChange;
+    TransactionType type;
     String description;
 
     if ("BUY".equalsIgnoreCase(event.getTradeType())) {
       balanceChange = event.getTotalAmount().negate(); // 음수
+      type = TransactionType.TRADE_BUY;
       description = String.format("주식 매수: %s %s주 @ $%s (거래ID: %s)",
         event.getSymbol(), event.getQuantity(), event.getPrice(), event.getTradeId());
     } else if ("SELL".equalsIgnoreCase(event.getTradeType())) {
       balanceChange = event.getTotalAmount(); // 양수
+      type = TransactionType.TRADE_SELL;
       description = String.format("주식 매도: %s %s주 @ $%s (거래ID: %s)",
         event.getSymbol(), event.getQuantity(), event.getPrice(), event.getTradeId());
     } else {
@@ -511,7 +501,7 @@ public class AccountServiceImpl implements AccountService {
 
     // 4. 기존 updateUsdBalance 메서드 재사용
     try {
-      updateUsdBalance(accountId, userId, balanceChange, description);
+      updateUsdBalance(accountId, userId, balanceChange, type, description);
 
       log.info("거래 이벤트 처리 완료: tradeId={}, userId={}, accountId={}, balanceChange={}",
         event.getTradeId(), userId, accountId, balanceChange);
@@ -577,7 +567,7 @@ public class AccountServiceImpl implements AccountService {
       event.getSymbol(), event.getExDate(), event.getDividendPerShare(), event.getQuantity());
 
     try {
-      updateUsdBalance(account.getId(), userId, event.getTotalAmount(), description);
+      updateUsdBalance(account.getId(), userId, event.getTotalAmount(), TransactionType.DIVIDEND, description);
       dividendSettlementRepository.saveAndFlush(DividendSettlement.of(
         account.getId(), event.getSymbol(), exDate, event.getTotalAmount(), LocalDateTime.now()));
 
@@ -646,17 +636,18 @@ public class AccountServiceImpl implements AccountService {
     return MoneyUtils.roundUsd(usdAmount);
   }
 
+  // USD 잔액을 바로 바꾸는 매매 · 배당의 잔액 변경 이벤트 종류
+  private static String balanceUpdateType(TransactionType type) {
+    return switch (type) {
+      case TRADE_BUY, TRADE_SELL -> "TRADE_COMPLETED";
+      case DIVIDEND -> "DIVIDEND_RECEIVED";
+      case DEPOSIT, EXCHANGE -> throw new AccountException(AccountResponse.INVALID_TRANSACTION_TYPE);
+    };
+  }
+
   // 거래 내역 생성
   private void createTradeHistory(Account account, BigDecimal usdAmount,
-    BigDecimal newBalance, String description) {
-    // 배당 입금도 양수라 부호만 보면 매도로 남는다. 위 이벤트 유형처럼 설명으로 먼저 가른다
-    TransactionType transactionType;
-    if (description.contains("배당금")) {
-      transactionType = TransactionType.DIVIDEND;
-    } else {
-      transactionType = usdAmount.compareTo(BigDecimal.ZERO) > 0
-        ? TransactionType.TRADE_SELL : TransactionType.TRADE_BUY;
-    }
+    BigDecimal newBalance, TransactionType transactionType, String description) {
     String referenceId = generateReferenceId(transactionType);
 
     AccountHistory history = AccountHistory.builder()
