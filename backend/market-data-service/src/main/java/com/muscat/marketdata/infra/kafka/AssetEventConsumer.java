@@ -8,11 +8,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 
-/**
- * Asset 생성 이벤트를 처리하는 Consumer
- *
- * 비동기로 주가 및 배당 데이터를 수집합니다.
- */
+// 종목 생성 이벤트를 받아 캔들 · 배당을 수집
 @Slf4j
 @Component
 @RequiredArgsConstructor

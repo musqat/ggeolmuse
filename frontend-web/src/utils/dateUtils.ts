@@ -1,3 +1,4 @@
+// 날짜 유틸. 날짜는 로컬 기준 YYYY-MM-DD 문자열로 다룸
 export type Timeframe = '1주' | '1개월' | '3개월' | '6개월' | '1년' | '전체' | '직접설정';
 
 export function daysForTimeframe(tf: Timeframe): number {

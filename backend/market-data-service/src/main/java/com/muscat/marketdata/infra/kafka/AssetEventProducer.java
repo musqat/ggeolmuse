@@ -16,12 +16,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Asset 생성 이벤트를 Kafka에 발행하는 Producer
- *
- * 관리자가 새로운 심볼을 등록할 때 이벤트를 발행하여,
- * 데이터 수집이 필요한 경우 컨슈머가 비동기로 처리합니다.
- */
+// 종목 생성 이벤트 발행. 수집은 컨슈머가 비동기로
 @Slf4j
 @Component
 @RequiredArgsConstructor

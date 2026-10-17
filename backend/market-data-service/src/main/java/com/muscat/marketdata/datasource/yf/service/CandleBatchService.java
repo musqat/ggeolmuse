@@ -13,12 +13,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.util.List;
 
-/**
- * Yahoo Finance 배치 데이터 수집 서비스
- *
- * 여러 종목의 캔들 및 배당 데이터를 배치로 수집합니다.
- * Rate limit 및 재시도 로직을 포함합니다.
- */
+// 여러 종목의 캔들 · 배당을 묶어 받음(한도 · 재시도 포함)
 @Slf4j
 @Service("yfCandleBatchService")
 @ConditionalOnProperty(

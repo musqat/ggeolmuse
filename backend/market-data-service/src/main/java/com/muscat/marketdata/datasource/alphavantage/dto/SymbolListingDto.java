@@ -5,10 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * AlphaVantage LISTING_STATUS API CSV 응답 DTO
- * CSV 컬럼: symbol,name,exchange,assetType,ipoDate,delistingDate,status
- */
+// LISTING_STATUS CSV 한 행(symbol,name,exchange,assetType,ipoDate,delistingDate,status)
 @Data
 @Builder
 @NoArgsConstructor
@@ -22,11 +19,6 @@ public class SymbolListingDto {
     private String delistingDate;
     private String status;
 
-    /**
-     * CSV 행을 파싱하여 DTO 생성
-     * @param csvLine CSV 행
-     * @return SymbolListingDto
-     */
     public static SymbolListingDto fromCsvLine(String csvLine) {
         String[] fields = csvLine.split(",");
         if (fields.length < 7) {
@@ -67,10 +59,7 @@ public class SymbolListingDto {
         return assetType != null && assetType.equalsIgnoreCase("ETF");
     }
 
-    /**
-     * 미국 주요 거래소인지 확인 (NYSE, NASDAQ, NYSE ARCA)
-     * NYSE ARCA는 ETF의 주요 상장 거래소
-     */
+    // NYSE · NASDAQ · NYSE ARCA(ETF 주 상장처)
     public boolean isMajorExchange() {
         return exchange != null &&
                (exchange.equalsIgnoreCase("NYSE") ||

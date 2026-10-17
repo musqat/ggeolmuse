@@ -21,15 +21,7 @@ import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSeriali
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
-/**
- * Redis 기반 캐싱 설정
- *
- * - ohlcPriceRange: 과거 OHLC 데이터 (24시간) - 백테스트용
- * - stockPrices: 주식 목록 (5분) - 시가총액 업데이트 빈도 고려
- * - currentPrice: 현재가 (30초) - 실시간성 요구
- * - fxRate: 환율 데이터 (24시간) - 하루 1번 업데이트
- * - dividends: 배당 이력 (24시간) - 과거 데이터, 변경 드묾
- */
+// Redis 캐시 설정
 @Slf4j
 @Configuration
 @EnableCaching

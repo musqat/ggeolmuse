@@ -11,10 +11,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
 
-/**
- * NASDAQ Screener API 클라이언트
- * NASDAQ 공개 API를 통해 실시간 종목 리스트를 가져옵니다.
- */
+// NASDAQ Screener API 클라이언트
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -25,10 +22,6 @@ public class NasdaqScreenerClient {
 
     private final RestTemplate restTemplate;
 
-    /**
-     * NASDAQ 종목 리스트 조회
-     *
-     */
     public String getStocks(String exchange, String marketCap, int limit, int offset) {
         String url = buildUrl(exchange, marketCap, limit, offset);
         log.info("NASDAQ Screener API 호출: exchange={}, marketCap={}, limit={}, offset={}, url={}",
@@ -60,13 +53,7 @@ public class NasdaqScreenerClient {
         }
     }
 
-    /**
-     * 전체 종목 조회 (페이징 처리)
-     *
-     * @param exchange 거래소
-     * @param marketCap 시가총액 필터 (mega, large, mid, small, micro)
-     * @return 모든 종목의 JSON 응답 (배열)
-     */
+    // 페이지를 돌며 전체를 받음. marketCap: mega · large · mid · small · micro
     public String getAllStocks(String exchange, String marketCap) {
         log.info("NASDAQ Screener 전체 종목 조회 시작: exchange={}", exchange);
 
@@ -77,8 +64,7 @@ public class NasdaqScreenerClient {
 
 
     private String buildUrl(String exchange, String marketCap, int limit, int offset) {
-        // download=true 는 marketcap 필터와 조합 시 빈 결과(rows=null)를 반환함.
-        // data.table.rows 구조로 marketCap 포함 정상 응답.
+        // download=true 는 marketcap 필터와 함께 쓰면 빈 결과라 tableonly 로 받음
         StringBuilder url = new StringBuilder(BASE_URL);
         url.append("?tableonly=true");
         url.append("&limit=").append(limit);
@@ -88,16 +74,8 @@ public class NasdaqScreenerClient {
             url.append("&exchange=").append(exchange.toUpperCase());
         }
 
-        // 시가총액 필터 추가 (예: mega,large)
+        // 여러 값은 | 로 이음(쉼표면 0건). | 는 URI.create 가 거부해 %7C 로 넣음
         if (marketCap != null && !marketCap.isEmpty()) {
-            //   mega        47건
-            //   large      614건
-            //   mega|large 661건   (합과 일치)
-            //   mega,large   0건
-            //
-            // 파이프는 URI.create 가 거부하는 문자라 %7C 로 인코딩해서 넣는다.
-            //
-            // 참고 — getAllStocks 는 marketCap 을 null 로 넘겨 필터를 쓰지 않는다.
             String normalized = marketCap.toLowerCase()
                 .replace(",", "%7C")
                 .replace("|", "%7C");

@@ -24,6 +24,7 @@ interface UseModalStateReturn {
   clearSelectedAccount: () => void;
 }
 
+// 계좌 모달들의 열림 상태와 선택한 계좌
 export const useModalState = (): UseModalStateReturn => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDepositModal, setShowDepositModal] = useState(false);

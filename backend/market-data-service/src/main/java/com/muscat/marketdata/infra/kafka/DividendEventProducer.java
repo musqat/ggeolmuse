@@ -14,12 +14,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * 배당금 업데이트 이벤트를 Kafka에 발행하는 Producer
- *
- * 배당금 데이터가 저장될 때 DividendUpdatedEvent를 발행하여
- * trade-service 등이 포트폴리오에 배당금을 자동 반영할 수 있도록 합니다.
- */
+// 배당 저장 이벤트 발행
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -29,11 +24,6 @@ public class DividendEventProducer {
 
     private final KafkaTemplate<String, DividendUpdatedEvent> kafkaTemplate;
 
-    /**
-     * 배당금 업데이트 이벤트 발행
-     *
-     * @param dividend 저장된 배당금 데이터
-     */
     public void publishDividendUpdated(Dividend dividend) {
         String eventId = UUID.randomUUID().toString();
 
@@ -80,11 +70,6 @@ public class DividendEventProducer {
         });
     }
 
-    /**
-     * 여러 배당금 데이터에 대한 이벤트 일괄 발행
-     *
-     * @param dividends 저장된 배당금 데이터 리스트
-     */
     public void publishBatch(List<Dividend> dividends) {
         if (dividends == null || dividends.isEmpty()) {
             return;

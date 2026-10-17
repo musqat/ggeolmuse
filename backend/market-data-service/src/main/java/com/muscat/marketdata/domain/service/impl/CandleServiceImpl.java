@@ -26,10 +26,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Candle(캔들) 데이터 조회 서비스 구현체
- * OHLC 가격 데이터 및 주식 현재가 조회를 담당합니다.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor

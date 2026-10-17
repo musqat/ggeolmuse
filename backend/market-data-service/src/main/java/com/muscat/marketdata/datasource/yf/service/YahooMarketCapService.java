@@ -14,10 +14,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * NASDAQ Screener API를 이용한 시가총액 일괄 업데이트 서비스
- * Yahoo Finance quote API가 인증 필요하여 NASDAQ 공개 API 사용
- */
+// 시가총액은 NASDAQ Screener 로 한꺼번에(Yahoo quote API 는 인증 필요)
 @Slf4j
 @Service
 @ConditionalOnProperty(name = "marketdata.provider", havingValue = "yahoo")

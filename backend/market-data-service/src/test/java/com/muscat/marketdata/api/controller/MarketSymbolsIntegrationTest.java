@@ -22,10 +22,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-/**
- * 종목 목록은 자동완성용이라 티커만 준다. 필드가 하나라도 늘거나 상장폐지가 섞이면 여기서 걸린다.
- * 이 응답 모양이 바뀌었을 때 E2E 넷이 깨진 적이 있다.
- */
+// 종목 목록은 자동완성용이라 티커만 줌. 필드가 늘거나 상장폐지가 섞이면 걸림
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")

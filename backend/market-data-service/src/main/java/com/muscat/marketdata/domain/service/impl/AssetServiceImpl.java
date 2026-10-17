@@ -27,11 +27,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 
-/**
- * Asset(자산/종목) 관리 서비스 구현체
- *
- * 종목 CRUD 및 조회 기능을 제공합니다.
- */
 @Slf4j
 @Service
 public class AssetServiceImpl implements AssetService {
@@ -197,11 +192,7 @@ public class AssetServiceImpl implements AssetService {
         return new PageImpl<>(content, pageable, page.getTotalElements());
     }
 
-    /**
-     * 프론트엔드 정렬 필드명을 Asset 엔티티 필드명으로 매핑
-     * currentPrice → latestClose, latestDataDate → latestDate
-     * NULL 순서는 리포지토리가 QueryDSL 로 붙인다
-     */
+    // 요청의 정렬 필드를 엔티티 필드로(currentPrice → latestClose, latestDataDate → latestDate). NULL 순서는 저장소가 붙임
     private Pageable remapSort(Pageable pageable) {
         Sort sort = pageable.getSort();
         if (sort.isUnsorted()) {

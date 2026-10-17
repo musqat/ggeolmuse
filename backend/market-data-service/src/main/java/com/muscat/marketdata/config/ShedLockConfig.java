@@ -7,11 +7,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 
-/**
- * ShedLock 설정
- *
- * 분산 환경에서 스케줄러 중복 실행을 방지
- */
+// 스케줄 작업이 파드 하나에서만 돌게 함(ShedLock)
 @Configuration
 @EnableSchedulerLock(defaultLockAtMostFor = "10m")
 public class ShedLockConfig {

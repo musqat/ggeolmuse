@@ -12,23 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-/**
- * 상장 종목 목록을 한 곳에서 가져온다.
- *
- * 시세 프로바이더(yahoo / alphavantage)와 무관하게 목록은 여기서만 받는다.
- * 프로바이더는 캔들·배당·환율을 담당하고, "무슨 종목이 있는가" 는 이 클래스가 답한다.
- *
- * 출처는 AlphaVantage LISTING_STATUS 다. 무료로 전체 목록을 CSV 한 번에 준다.
- *
- * NASDAQ 스크리너를 쓰다 옮겼다. 그쪽은 이런 문제가 있었다.
- *   - ETF 는 엔드포인트가 따로이고 페이지당 50개라 106번을 불러야 했다
- *   - 페이징 중 목록이 재정렬돼 26% 가 중복이고 실제 커버리지는 75% 였다
- *   - SPY 가 stocks 에도 etf 에도 없었다
- *   - assetType 을 이름으로 추측해야 했다
- *   - 상장폐지 판정을 따로 해야 했다
- *
- * LISTING_STATUS 는 호출 한 번에 14,000건을 주고 assetType 과 status 를 필드로 준다.
- */
+// 상장 종목 목록의 유일한 출처(AlphaVantage LISTING_STATUS). 시세 공급원과 상관없이 목록은 여기서만 받음
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -61,12 +45,8 @@ public class SymbolCatalog {
   @Value("${marketdata.constants.database.symbol-max-length:16}")
   private int symbolMaxLength;
 
-  /**
-   * 상장 종목 전체를 받아온다. 중복, 저장할 수 없는 심볼, 보통주가 아닌 것은 걸러서 돌려준다.
-   *
-   * 실패하면 빈 목록을 돌려준다. 부분 목록으로 판정하면 받아오지 못한 종목이
-   * 상장폐지된 것처럼 보일 수 있다.
-   */
+  // 중복 · 저장 못 할 심볼 · 시험 종목 · 보통주 아닌 것을 거름
+  // 실패하면 빈 목록. 일부만 받으면 나머지가 상장폐지처럼 보임
   public List<Asset> fetchAll() {
     List<Asset> fetched;
 
@@ -114,12 +94,8 @@ public class SymbolCatalog {
             .values());
   }
 
-  /**
-   * asset.symbol 칸을 넘거나 티커에 안 쓰는 글자가 든 심볼을 뺀다.
-   *
-   * LISTING_STATUS 에는 CAPTW(EXP20260807) 이 Abcam plc 로 오는 것처럼 이름이 어긋난 줄도 있어
-   * 이름 필터와 따로 심볼을 본다.
-   */
+  // 칸 길이를 넘거나 티커에 안 쓰는 글자가 든 심볼을 뺌
+  // 이름이 어긋난 줄도 있어(CAPTW(EXP20260807) → Abcam plc) 이름 필터와 따로 봄
   List<Asset> excludeUnstorableSymbols(List<Asset> assets) {
     List<String> dropped = new ArrayList<>();
     List<Asset> kept = assets.stream()

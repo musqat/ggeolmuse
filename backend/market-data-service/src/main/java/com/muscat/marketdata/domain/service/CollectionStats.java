@@ -6,10 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-/**
- * 수집 결과를 모아 1분마다 한 줄로 남긴다.
- * 종목마다 로그를 찍으면 초당 수십 줄이 되어 긴 수집에서 앞부분이 회전으로 사라진다.
- */
+// 수집 결과를 모아 1분마다 한 줄로 남김. 종목마다 찍으면 긴 수집의 앞부분이 로그 회전으로 사라짐
 @Slf4j
 @Component
 public class CollectionStats {

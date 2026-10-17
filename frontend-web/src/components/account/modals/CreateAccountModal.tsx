@@ -17,6 +17,7 @@ const blockMinus = {
   },
 };
 
+// 계좌 생성 모달(계좌명 · 수수료율 · 슬리피지율)
 const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
   isOpen,
   onClose,

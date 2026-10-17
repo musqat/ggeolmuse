@@ -19,12 +19,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 
-/**
- * Yahoo Finance 데이터 스케줄러
- * - 캔들 업데이트: 매일 오전 7시 KST (평일)
- * - 시가총액 업데이트: 매일 오전 10시 KST (평일)
- * - 환율 업데이트: 매일 오전 11:10 KST (평일)
- */
+// Yahoo Finance 데이터 스케줄러(캔들 · 시가총액 · 환율)
 @Slf4j
 @Component
 @ConditionalOnProperty(name = "marketdata.provider", havingValue = "yahoo")

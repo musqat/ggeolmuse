@@ -8,11 +8,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * - yahoo: Yahoo Finance 스크래핑 (개발)
- * - KoreaExim : 한국 수출입 은행(개발)
- * - alphavantage, FX: AlphaVantage API (운영)
- */
+// 데이터 공급원 이름과 공급원별 소스 인터페이스
 public final class MarketDataProvider {
 
   private MarketDataProvider() {
@@ -42,18 +38,12 @@ public final class MarketDataProvider {
     List<Asset> fetchSymbols();
   }
 
-  /**
-   * 단일 종목 상세 조회 소스 (미리보기/등록용)
-   * AlphaVantage: OVERVIEW API 1콜로 전부. Yahoo: chart meta 사용.
-   */
+  // 종목 하나의 상세(미리보기 · 등록). AlphaVantage 는 OVERVIEW, Yahoo 는 chart meta
   public interface AssetInfoSource {
     Asset getAsset(String symbol);
   }
 
-  /**
-   * 시가총액 갱신 소스
-   * AlphaVantage: OVERVIEW per-symbol. Yahoo: NASDAQ Screener bulk.
-   */
+  // 시가총액. AlphaVantage 는 종목마다 OVERVIEW, Yahoo 는 NASDAQ Screener 로 한꺼번에
   public interface MarketCapSource {
     int updateAllMarketCaps(List<Asset> assets);
     boolean updateMarketCap(String symbol);

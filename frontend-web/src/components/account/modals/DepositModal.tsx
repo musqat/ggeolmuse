@@ -8,6 +8,7 @@ interface DepositModalProps {
   onSubmit: (amount: number) =>Promise<void>;
 }
 
+// KRW 입금 모달
 const DepositModal: React.FC<DepositModalProps> = ({
   isOpen,
   onClose,

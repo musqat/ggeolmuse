@@ -5,6 +5,7 @@ interface OrderTypeToggleProps {
   setOrderType: (type: 'buy' | 'sell') => void;
 }
 
+// 매수 · 매도 토글
 const OrderTypeToggle: React.FC<OrderTypeToggleProps> = ({ orderType, setOrderType }) => {
   return (
     <div className="flex rounded-lg bg-elevated p-1 mb-6">
