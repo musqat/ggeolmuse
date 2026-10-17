@@ -14,7 +14,7 @@ import com.muscat.commonlib.dto.StockPriceDto;
 import com.muscat.trade.common.enums.type.PriceType;
 import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.common.logging.TradeLogger;
-import com.muscat.trade.infra.client.MarketServiceClient;
+import com.muscat.trade.infra.client.MarketServiceClientWrapper;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import org.junit.jupiter.api.DisplayName;
@@ -35,7 +35,7 @@ class MarketDataServiceImplTest {
   private static final LocalDate TRADE_DATE = LocalDate.of(2024, 9, 18);
 
   @Mock
-  private MarketServiceClient marketServiceClient;
+  private MarketServiceClientWrapper marketServiceClientWrapper;
 
   @Mock
   private TradeLogger tradeLogger;
@@ -66,7 +66,7 @@ class MarketDataServiceImplTest {
     @Test
     @DisplayName("MANUAL 이면 범위 검증을 태운다")
     void manual_경로() {
-      given(marketServiceClient.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
+      given(marketServiceClientWrapper.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
         .willReturn(ohlc(true));
 
       BigDecimal result = marketDataService.determineTradePrice(
@@ -80,7 +80,7 @@ class MarketDataServiceImplTest {
     @Test
     @DisplayName("MANUAL 이 아니면 OHLC 조회로 간다")
     void ohlc_경로() {
-      given(marketServiceClient.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
+      given(marketServiceClientWrapper.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
         .willReturn(ohlc(true));
 
       BigDecimal result = marketDataService.determineTradePrice(
@@ -99,7 +99,7 @@ class MarketDataServiceImplTest {
     @CsvSource({"OPEN,216", "HIGH,222", "LOW,213", "CLOSE,220"})
     @DisplayName("가격 유형별로 해당 필드를 고른다")
     void 유형별_매핑(PriceType priceType, String expected) {
-      given(marketServiceClient.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
+      given(marketServiceClientWrapper.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
         .willReturn(ohlc(true));
 
       assertThat(marketDataService.getOHLCPrice(SYMBOL, TRADE_DATE, priceType))
@@ -109,7 +109,7 @@ class MarketDataServiceImplTest {
     @Test
     @DisplayName("응답이 null 이면 TradeException")
     void 응답_null() {
-      given(marketServiceClient.getOHLCPrice(SYMBOL, TRADE_DATE.toString())).willReturn(null);
+      given(marketServiceClientWrapper.getOHLCPrice(SYMBOL, TRADE_DATE.toString())).willReturn(null);
 
       assertThatThrownBy(
         () -> marketDataService.getOHLCPrice(SYMBOL, TRADE_DATE, PriceType.CLOSE))
@@ -119,7 +119,7 @@ class MarketDataServiceImplTest {
     @Test
     @DisplayName("available=false 면 TradeException")
     void 데이터_없음() {
-      given(marketServiceClient.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
+      given(marketServiceClientWrapper.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
         .willReturn(ohlc(false));
 
       assertThatThrownBy(
@@ -130,7 +130,7 @@ class MarketDataServiceImplTest {
     @Test
     @DisplayName("고른 가격 필드가 null 이면 TradeException")
     void 가격_null() {
-      given(marketServiceClient.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
+      given(marketServiceClientWrapper.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
         .willReturn(ohlcWith(null, new BigDecimal("222"), new BigDecimal("213"),
           new BigDecimal("220")));
 
@@ -142,7 +142,7 @@ class MarketDataServiceImplTest {
     @Test
     @DisplayName("MANUAL 을 직접 넘기면 지원하지 않는 유형으로 막는다")
     void manual_직접_호출() {
-      given(marketServiceClient.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
+      given(marketServiceClientWrapper.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
         .willReturn(ohlc(true));
 
       // switch default 의 IllegalArgumentException 도 catch 에서 TradeException 으로 바뀐다
@@ -152,9 +152,9 @@ class MarketDataServiceImplTest {
     }
 
     @Test
-    @DisplayName("Feign 이 터져도 TradeException 하나로 나간다")
-    void feign_실패() {
-      given(marketServiceClient.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
+    @DisplayName("시세 조회가 실패해도 TradeException 하나로 나간다")
+    void 시세조회_실패() {
+      given(marketServiceClientWrapper.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
         .willThrow(new IllegalStateException("connection refused"));
 
       assertThatThrownBy(
@@ -167,7 +167,7 @@ class MarketDataServiceImplTest {
     @Test
     @DisplayName("성공하면 성공 로그를 남긴다")
     void 성공_로그() {
-      given(marketServiceClient.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
+      given(marketServiceClientWrapper.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
         .willReturn(ohlc(true));
 
       marketDataService.getOHLCPrice(SYMBOL, TRADE_DATE, PriceType.HIGH);
@@ -179,7 +179,7 @@ class MarketDataServiceImplTest {
     @Test
     @DisplayName("실패하면 실패 로그를 남긴다")
     void 실패_로그() {
-      given(marketServiceClient.getOHLCPrice(SYMBOL, TRADE_DATE.toString())).willReturn(null);
+      given(marketServiceClientWrapper.getOHLCPrice(SYMBOL, TRADE_DATE.toString())).willReturn(null);
 
       assertThatThrownBy(
         () -> marketDataService.getOHLCPrice(SYMBOL, TRADE_DATE, PriceType.CLOSE))
@@ -199,7 +199,7 @@ class MarketDataServiceImplTest {
     @Test
     @DisplayName("범위 안이면 입력값을 그대로 돌려준다")
     void 범위_안() {
-      given(marketServiceClient.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
+      given(marketServiceClientWrapper.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
         .willReturn(ohlc(true));
 
       assertThat(marketDataService.validateManualPrice(SYMBOL, TRADE_DATE, new BigDecimal("218")))
@@ -209,7 +209,7 @@ class MarketDataServiceImplTest {
     @Test
     @DisplayName("저가·고가 경계는 통과시킨다")
     void 경계_포함() {
-      given(marketServiceClient.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
+      given(marketServiceClientWrapper.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
         .willReturn(ohlc(true));
 
       // 경계를 막으면 종가가 그날 고가인 날 주문을 넣을 수 없다
@@ -222,7 +222,7 @@ class MarketDataServiceImplTest {
     @Test
     @DisplayName("저가보다 낮으면 막는다")
     void 저가_미만() {
-      given(marketServiceClient.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
+      given(marketServiceClientWrapper.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
         .willReturn(ohlc(true));
 
       assertThatThrownBy(() ->
@@ -233,7 +233,7 @@ class MarketDataServiceImplTest {
     @Test
     @DisplayName("고가보다 높으면 막는다")
     void 고가_초과() {
-      given(marketServiceClient.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
+      given(marketServiceClientWrapper.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
         .willReturn(ohlc(true));
 
       assertThatThrownBy(() ->
@@ -244,7 +244,7 @@ class MarketDataServiceImplTest {
     @Test
     @DisplayName("고가·저가가 null 이면 막는다")
     void 고저가_null() {
-      given(marketServiceClient.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
+      given(marketServiceClientWrapper.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
         .willReturn(ohlcWith(new BigDecimal("216"), null, null, new BigDecimal("220")));
 
       assertThatThrownBy(() ->
@@ -255,7 +255,7 @@ class MarketDataServiceImplTest {
     @Test
     @DisplayName("응답이 없거나 available=false 면 막는다")
     void 데이터_없음() {
-      given(marketServiceClient.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
+      given(marketServiceClientWrapper.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
         .willReturn(ohlc(false));
 
       // 내부에서 MarketDataException 을 던지지만 catch 가 TradeException 으로 바꿔 내보낸다
@@ -265,9 +265,9 @@ class MarketDataServiceImplTest {
     }
 
     @Test
-    @DisplayName("Feign 이 터져도 TradeException")
-    void feign_실패() {
-      given(marketServiceClient.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
+    @DisplayName("시세 조회가 실패해도 TradeException")
+    void 시세조회_실패() {
+      given(marketServiceClientWrapper.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
         .willThrow(new IllegalStateException("timeout"));
 
       assertThatThrownBy(() ->
@@ -278,7 +278,7 @@ class MarketDataServiceImplTest {
     @Test
     @DisplayName("검증 로그는 MANUAL_VALIDATION 이름으로 남는다")
     void 로그_이름() {
-      given(marketServiceClient.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
+      given(marketServiceClientWrapper.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
         .willReturn(ohlc(true));
 
       marketDataService.validateManualPrice(SYMBOL, TRADE_DATE, new BigDecimal("218"));
@@ -289,7 +289,7 @@ class MarketDataServiceImplTest {
     @Test
     @DisplayName("범위를 벗어나면 실패 로그에 입력값과 범위를 담는다")
     void 범위_이탈_로그() {
-      given(marketServiceClient.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
+      given(marketServiceClientWrapper.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
         .willReturn(ohlc(true));
 
       assertThatThrownBy(() ->

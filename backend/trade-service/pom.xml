@@ -103,11 +103,7 @@
             <artifactId>resilience4j-spring-boot3</artifactId>
         </dependency>
 
-        <!-- Spring Retry -->
-        <dependency>
-            <groupId>org.springframework.retry</groupId>
-            <artifactId>spring-retry</artifactId>
-        </dependency>
+        <!-- AOP (Resilience4j 애노테이션) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-aop</artifactId>

@@ -18,8 +18,8 @@ public class UserServiceClientWrapper {
 
   private final UserServiceClient userServiceClient;
 
-  @CircuitBreaker(name = "userService", fallbackMethod = "getAccountBalanceFallback")
-  @Retry(name = "userService")
+  @CircuitBreaker(name = "userService")
+  @Retry(name = "userService", fallbackMethod = "getAccountBalanceFallback")
   public AccountBalanceDto getAccountBalance(Long accountId) {
     log.debug("Calling user-service getAccountBalance for accountId: {}", accountId);
     return userServiceClient.getAccountBalance(accountId);
