@@ -27,8 +27,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 // 반영 트랜잭션이 rollback-only 로 끝난 뒤 새 트랜잭션에서 REJECTED 가 커밋되는지 실제 트랜잭션으로 본다
 @SpringBootTest
@@ -54,16 +54,16 @@ class TradeSettlementIntegrationTest {
   @Autowired
   private UserRepository userRepository;
 
-  @MockBean
+  @MockitoBean
   private MarketDataServiceClientWrapper marketDataServiceClientWrapper;
 
-  @MockBean
+  @MockitoBean
   private AccountEventProducer accountEventProducer;
 
-  @MockBean
+  @MockitoBean
   private DepositWithdrawalEventProducer depositWithdrawalEventProducer;
 
-  @MockBean
+  @MockitoBean
   private TradeRejectedEventProducer tradeRejectedEventProducer;
 
   private Long userId;

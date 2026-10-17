@@ -32,8 +32,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -52,13 +52,13 @@ class AccountServiceIntegrationTest {
   @Autowired
   private UserRepository userRepository;
 
-  @MockBean
+  @MockitoBean
   private MarketDataServiceClientWrapper marketDataServiceClientWrapper;
 
-  @MockBean
+  @MockitoBean
   private AccountEventProducer accountEventProducer;
 
-  @MockBean
+  @MockitoBean
   private DepositWithdrawalEventProducer depositWithdrawalEventProducer;
 
   @Value("${app.account.initial-krw-amount:1000000}")
