@@ -1,8 +1,4 @@
-// 스모크. 스크립트가 맞게 도는지만 본다.
-//
-//   k6 run tests/k6/smoke.js
-//
-// VU 1명으로 30초. 여기서 실패하면 부하를 올려도 의미가 없다.
+// 스모크: VU 1명 30초로 스크립트가 맞게 도는지만 봄. 실행: k6 run tests/k6/smoke.js
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { randomSymbol, randomTradingDate } from './lib/symbols.js';

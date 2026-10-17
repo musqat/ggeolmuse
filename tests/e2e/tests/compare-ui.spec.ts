@@ -3,14 +3,7 @@ import { API_URL } from '../playwright.config';
 import { pickPricedSymbols, priceRange } from './fixtures';
 import { pickDate } from './datepicker';
 
-/**
- * 최적 타이밍 순서는 여기서 못 본다. 화면이 그 값을 텍스트로 안 띄운다.
- * 요약에 뜨는 건 서버 값이고(backtest-modes 가 본다), 프론트가 구한 optimalTiming.ts
- * 결과는 차트 마커로만 찍힌다. 매수·매도 마커가 색도 같고 차트도 달라 위치 비교는 잘 깨진다.
- * 그 계산은 optimalTiming.test.ts 가 본다.
- *
- * 요약의 프론트 폴백 블록은 !displayItem.optimalBuyDate 조건이라 지금은 절대 안 뜬다.
- */
+// 최적 타이밍 순서는 화면에 글자로 안 떠서 여기서 안 봄. 서버 값은 backtest-modes, 프론트 계산은 optimalTiming.test.ts
 test('종목 비교가 화면에서 끝까지 돈다', async ({ page }) => {
   const api = await request.newContext();
   const usable = (await pickPricedSymbols(api, 2)).slice(0, 2);

@@ -1,9 +1,6 @@
 import { Page, expect } from '@playwright/test';
 
-/**
- * DateField 팝오버에서 연 · 월 드롭다운으로 달을 옮기고 날짜를 누른다.
- * 연 · 월 이동은 화면만 바꾸고 값은 날짜를 누를 때 정해진다.
- */
+// DateField 팝오버에서 연 · 월로 달을 옮기고 날짜를 누름. 값은 날짜를 누를 때 정해짐
 export async function pickDate(page: Page, testId: string, target: Date) {
   await page.getByTestId(testId).click();
 

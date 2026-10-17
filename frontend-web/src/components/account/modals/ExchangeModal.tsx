@@ -17,11 +17,7 @@ interface ExchangeModalProps {
   currentExchangeRate: number;
 }
 
-/**
- * 환전 모달 컴포넌트
- * KRW ↔ USD 환전을 처리합니다.
- * 현재 환율 또는 수동 환율을 선택할 수 있습니다.
- */
+// KRW ↔ USD 환전. 현재 환율과 수동 환율 중 고름
 const ExchangeModal: React.FC<ExchangeModalProps> = ({
   isOpen,
   onClose,

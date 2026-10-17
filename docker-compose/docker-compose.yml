@@ -91,9 +91,7 @@ services:
           memory: 1g
 
   # Keycloak (로컬: realm import)
-  #   KC_HOSTNAME_URL 로 issuer를 항상 http://localhost:8080 으로 고정 발급.
-  #   => 브라우저는 localhost:8080 그대로 접속, 백엔드는 내부 keycloak:8080 으로 키(JWKS) fetch.
-  #      hosts 파일 수정 불필요.
+  # issuer 는 localhost:8080 고정. 브라우저는 localhost, 백엔드는 keycloak:8080 으로 JWKS 를 받음
   keycloak:
     image: quay.io/keycloak/keycloak:23.0
     container_name: ggeolmuse-keycloak

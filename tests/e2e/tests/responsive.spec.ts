@@ -1,9 +1,7 @@
 import { test, expect } from '@playwright/test';
 
-/**
- * 좁은 폭에서 지표 패널이 본문을 밀어내 캔들이 찌그러졌다. hidden md:block 으로 접었다.
- * devices[...] 는 describe 안에서 못 쓴다. 워커를 새로 띄우게 된다.
- */
+// 좁은 폭에서 지표 패널이 접혀 캔들이 안 찌그러지는지 봄
+// devices[...] 는 describe 안에서 쓰면 워커를 새로 띄워 안 씀
 const MOBILE = { width: 390, height: 844 };
 
 /** 가로 스크롤이 생기면 화면이 넘친 것이다. */

@@ -2,12 +2,8 @@ import { test, expect, request } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { API_URL, TOKEN_FILE } from '../playwright.config';
 
-/**
- * 인증 뒤로는 못 간다. 메일 토큰이 있어야 하고 그 메일은 설정된 계정으로 실제로 나간다.
- * forgot-password, resend-verification 도 같은 이유로 뺐다.
- * register 는 Keycloak 사용자와 DB 행만 만든다.
- * 탈퇴 테스트는 메일 대신 관리자(시드 계정)가 이메일 인증을 처리해 로그인까지 간다.
- */
+// 메일 토큰이 필요한 흐름(가입 인증 · 비밀번호 찾기 · 인증 메일 재발송)은 뺌. 메일이 실제로 나감
+// 탈퇴는 관리자(시드 계정)가 이메일 인증을 처리해 로그인까지 감
 
 /** 스택을 여러 번 돌려도 겹치지 않게 매번 다른 계정을 만든다. */
 function throwawayAccount() {

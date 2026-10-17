@@ -3,10 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { API_URL, TOKEN_FILE } from '../playwright.config';
 import { pickSymbol, priceRange } from './fixtures';
 
-/**
- * 홈 대시보드가 이 응답들로 그려진다.
- * 파이차트는 한 종류가 100% 일 때가 문제였다. 360도 원호는 시작점과 끝점이 같아 안 그려진다.
- */
+// 홈 대시보드가 쓰는 응답들. 한 종류가 100% 인 파이차트(360도 원호)도 봄
 
 async function authContext(): Promise<APIRequestContext> {
   const token = (await readFile(TOKEN_FILE, 'utf8')).trim();

@@ -32,24 +32,12 @@ interface UseAccountOperationsReturn {
   loading: boolean;
 }
 
-/**
- * 계좌 작업 훅
- *
- * @description 계좌 생성, 입금, 환전, 삭제 작업을 처리합니다
- * @param {() => Promise<void>} onSuccess - 작업 성공 시 실행할 콜백 (데이터 새로고침용)
- * @returns {UseAccountOperationsReturn} 계좌 작업 함수들과 로딩 상태
- */
+// 계좌 생성 · 입금 · 환전 · 삭제. 성공하면 onSuccess 로 다시 불러옴
 export const useAccountOperations = (
   onSuccess?: () => Promise<void>
 ): UseAccountOperationsReturn => {
   const [loading, setLoading] = useState(false);
 
-  /**
-   * 계좌 생성
-   *
-   * @param {CreateAccountParams} params - 계좌명, 수수료율, 슬리피지율
-   * @throws {Error} 계좌명이 없거나 수수료율·슬리피지율이 유효하지 않은 경우
-   */
   const createAccount = async ({ accountName, commissionRate, slippageRate }: CreateAccountParams) => {
     if (!accountName.trim()) {
       throw new Error('계좌명을 입력해주세요.');
@@ -86,12 +74,6 @@ export const useAccountOperations = (
     }
   };
 
-  /**
-   * KRW 입금
-   *
-   * @param {DepositKrwParams} params - 계좌 ID 및 입금 금액
-   * @throws {Error} 금액이 유효하지 않은 경우
-   */
   const depositKrw = async ({ accountId, amount }: DepositKrwParams) => {
     if (isNaN(amount) || amount <= 0) {
       throw new Error('올바른 금액을 입력해주세요.');
@@ -116,12 +98,6 @@ export const useAccountOperations = (
     }
   };
 
-  /**
-   * 환전 처리
-   *
-   * @param {ExchangeCurrencyParams} params - 계좌 ID, 출발 통화, 금액, 환율
-   * @throws {Error} 금액이나 환율이 유효하지 않은 경우
-   */
   const exchangeCurrency = async ({
     accountId,
     fromCurrency,
@@ -160,12 +136,6 @@ export const useAccountOperations = (
     }
   };
 
-  /**
-   * 계좌 삭제
-   *
-   * @param {DeleteAccountParams} params - 계좌 ID
-   * @throws {Error} 삭제 실패 시
-   */
   const deleteAccount = async ({ accountId }: DeleteAccountParams) => {
     try {
       setLoading(true);

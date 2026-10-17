@@ -17,14 +17,7 @@ interface UseAccountDataReturn {
   refetch: () => Promise<void>;
 }
 
-/**
- * 계좌 데이터 조회 훅
- *
- * @description 계좌 목록, 잔액, 포트폴리오 요약, 환율 정보를 조회합니다
- * @param {boolean} isAuthenticated - 인증 상태
- * @returns {UseAccountDataReturn} 계좌 데이터 및 로딩/에러 상태
- *
- */
+// 로그인했을 때 계좌 목록 · 잔액 · 포트폴리오 요약 · 환율을 불러옴
 export const useAccountData = (isAuthenticated: boolean): UseAccountDataReturn => {
   // React Query: 모든 계좌 데이터를 한 번에 조회 (순차 API 호출)
   const {

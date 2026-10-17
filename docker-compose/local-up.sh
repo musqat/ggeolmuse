@@ -1,15 +1,6 @@
 #!/usr/bin/env bash
-#
-# ggeolmuse 로컬 온보딩 (docker-compose).
-#   git clone 직후 한 번에 빌드 -> 기동 -> 시드 admin 로그인까지.
-#
-# 사용법:
-#   bash docker-compose/local-up.sh                 # 빌드 + 기동
-#   OPENAI_API_KEY=sk-... bash docker-compose/local-up.sh   # AI 챗봇까지
-#   bash docker-compose/local-up.sh down            # 종료
-#
-# 전제: Docker Desktop 실행 중.
-#
+# 로컬 온보딩(docker-compose): 빌드 → 기동 → 시드 admin 로그인까지 한 번에
+# 전제: Docker Desktop 실행 중
 set -euo pipefail
 
 COMPOSE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

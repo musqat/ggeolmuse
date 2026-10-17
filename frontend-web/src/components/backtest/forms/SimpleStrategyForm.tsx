@@ -21,10 +21,7 @@ interface SimpleStrategyFormProps {
   supportedSymbols: string[];
 }
 
-/**
- * 단순 백테스트 전략 입력 폼
- * 특정 날짜에 종목을 매수하여 보유한 경우의 수익률을 시뮬레이션
- */
+// 한 날 사서 들고 있는 경우
 export const SimpleStrategyForm: React.FC<SimpleStrategyFormProps> = ({
   symbol,
   setSymbol,

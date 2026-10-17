@@ -1,9 +1,5 @@
-# RDS 자동 시작/중지 스케줄러 (EventBridge Scheduler)
-# EC2 와 같은 방식이되 시각을 어긋나게 둔다.
-#   시작  RDS 06:50 -> EC2 07:00   기동에 5~10분 걸려 먼저 켠다
-#   중지  EC2 19:00 -> RDS 19:05   앱이 끊긴 뒤에 내린다
-#
-# rds_instance_id 값이 없으면 아무것도 만들지 않는다.
+# RDS 시작 · 중지 스케줄(EventBridge Scheduler). 기동이 느려 EC2 보다 먼저 켜고(06:50) 늦게 끔(19:05)
+# rds_instance_id 가 비면 만들지 않음
 
 locals {
   rds_enabled  = var.rds_instance_id != ""

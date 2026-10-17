@@ -1,11 +1,6 @@
 import { isAxiosError } from 'axios';
 
-/**
- * catch 블록에서 서버가 준 오류 메시지를 꺼낸다.
- *
- *
- * 백엔드는 ProblemDetail 을 쓰므로 detail 이 먼저고, 일부 경로가 message 를 준다.
- */
+// catch 에서 서버 오류 문구를 꺼냄. ProblemDetail 의 detail 이 먼저, 일부 경로는 message
 
 interface ServerErrorBody {
   detail?: string;

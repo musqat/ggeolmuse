@@ -1,18 +1,7 @@
 import React from 'react';
 import type { PriceType, OHLCData } from '@/utils/priceUtils';
 
-/**
- * 가격 유형 선택 컴포넌트
- *
- * 주문 가격 유형(시가/고가/저가/종가/지정가)을 선택할 수 있는 드롭다운과
- * 지정가 선택 시 가격 입력 필드를 제공하는 컴포넌트입니다.
- *
- * @param priceType - 현재 선택된 가격 유형
- * @param onPriceTypeChange - 가격 유형 변경 시 호출되는 콜백 함수
- * @param limitPrice - 지정가 입력값
- * @param onLimitPriceChange - 지정가 변경 시 호출되는 콜백 함수
- * @param ohlcData - 당일 OHLC 데이터 (지정가 범위 표시용)
- */
+// 지정가면 가격 입력 칸과 당일 OHLC 범위를 보여 줌
 interface PriceTypeSelectorProps {
   priceType: PriceType;
   onPriceTypeChange: (priceType: PriceType) => void;

@@ -2,10 +2,7 @@ import { test, expect, request } from '@playwright/test';
 import { API_URL } from '../playwright.config';
 import { pickSymbol, priceRange } from './fixtures';
 
-/**
- * 백테스트는 가입 전에 써보라고 열어둔 기능이다. 막히면 회귀다.
- * 저장(이력)은 계정이 있어야 한다. 그 경계를 같이 못박는다.
- */
+// 백테스트는 로그인 없이 열려 있고 이력 저장은 로그인해야 함. 그 경계를 봄
 test.describe('비로그인 백테스트', () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 

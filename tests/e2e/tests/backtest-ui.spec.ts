@@ -2,11 +2,7 @@ import { test, expect, request } from '@playwright/test';
 import { pickSymbol, priceRange } from './fixtures';
 import { pickDate } from './datepicker';
 
-/**
- * 요청 하나가 게이트웨이와 backtest-service 를 거쳐 market-data 를 여러 번 부른다.
- *
- * 기간은 스택이 가진 구간에서 뽑는다. 화면 기본 시작일 2023-01-01 은 로컬에 데이터가 없다.
- */
+// 기간은 스택이 가진 구간에서 뽑음. 화면 기본 시작일(2023-01-01)은 로컬에 데이터가 없음
 test('종목을 고르고 백테스트를 돌리면 수익률이 나온다', async ({ page }) => {
   const api = await request.newContext();
   const { symbol } = await pickSymbol(api);

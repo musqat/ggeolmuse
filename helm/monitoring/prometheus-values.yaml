@@ -99,10 +99,7 @@ grafana:
     datasources:
       enabled: false  # datasources는 아래에서 직접 정의
 
-  # 대시보드 설정
-  # Custom dashboards는 install-monitoring.sh/bat에서 ConfigMap으로 생성됨
-  # - business-metrics.json (백테스트, 거래량, 캐시 히트율 등)
-  # - resilience4j-metrics.json (Circuit Breaker, Retry, Bulkhead 등)
+  # 대시보드 JSON 은 install-monitoring 스크립트가 ConfigMap 으로 만듦
   dashboardProviders:
     dashboardproviders.yaml:
       apiVersion: 1

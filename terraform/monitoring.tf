@@ -1,11 +1,5 @@
-# 스케줄러 실패 알림
-#
-# EventBridge Scheduler 는 실패해도 조용하다. 재시도 3번을 다 쓰면 그대로 끝이고
-# 어디에도 안 남는다. 평일 아침에 인스턴스가 안 켜져도 알 방법이 없어서
-# CloudWatch 알람으로 잡는다.
-#
-# 정지 중에는 지표 자체가 안 나온다. 하루 대부분이 정지 상태라
-# treat_missing_data 를 notBreaching 으로 둬야 밤마다 울리지 않는다.
+# EventBridge Scheduler 실패 알림. 재시도를 다 써도 따로 남지 않아 CloudWatch 알람으로 잡음
+# 꺼져 있는 동안은 지표가 없어 treat_missing_data 는 notBreaching
 
 resource "aws_sns_topic" "alarms" {
   name = "${var.project_name}-alarms"

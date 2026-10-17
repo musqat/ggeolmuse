@@ -1,13 +1,5 @@
 import React from 'react';
 
-/**
- * 주문 타입 선택 토글 버튼
- *
- * 매수/매도 주문 타입을 선택할 수 있는 토글 버튼 컴포넌트입니다.
- *
- * @param orderType - 현재 선택된 주문 타입 ('buy' | 'sell')
- * @param setOrderType - 주문 타입을 변경하는 함수
- */
 interface OrderTypeToggleProps {
   orderType: 'buy' | 'sell';
   setOrderType: (type: 'buy' | 'sell') => void;

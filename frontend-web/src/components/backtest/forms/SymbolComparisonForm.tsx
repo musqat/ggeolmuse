@@ -24,11 +24,8 @@ interface SymbolComparisonFormProps {
   onAddSymbol: () => void;
   onRemoveSymbol: (symbol: string) => void;
 }
-/**
- * 종목 비교 백테스트 폼
- * 여러 종목에 동일한 투자금으로 매수했을 때의 성과를 비교
- * 최대 10개 종목
- */
+
+// 여러 종목(최대 10개)을 같은 투자금으로 견줌
 export const SymbolComparisonForm: React.FC<SymbolComparisonFormProps> = ({
   compareSymbols,
   compareSymbolInput,

@@ -1,19 +1,11 @@
-// 램프 부하. 숫자가 깨지는 지점을 찾는다.
-//
-//   k6 run tests/k6/load.js
-//   k6 run -e MAX_VUS=100 tests/k6/load.js
-//
-// 주의 — 부하 생성기와 대상이 같은 PC 를 쓴다. 절대 수치는 믿을 게 못 되고
-// 같은 조건에서 잰 before/after 비교만 의미가 있다.
+// 램프 부하로 숫자가 깨지는 지점을 찾음. 실행: k6 run [-e MAX_VUS=100] tests/k6/load.js
+// 부하 생성기와 대상이 같은 PC 라 절대 수치보다 같은 조건의 전후 비교만 봄
 import http from 'k6/http';
 import { check, group } from 'k6';
 import { Trend, Rate, Counter } from 'k6/metrics';
 import { randomSymbol, randomTradingDate } from './lib/symbols.js';
 
-// BASE_URL 을 8083 으로 주면 게이트웨이를 건너뛰고 앱만 잰다.
-//
-//   k6 run tests/k6/load.js                                        게이트웨이 경유
-//   k6 run -e BASE_URL=http://localhost:8083 tests/k6/load.js      우회
+// -e BASE_URL=http://localhost:8083 이면 게이트웨이를 건너뛰고 앱만 잼
 const BASE = __ENV.BASE_URL || 'http://localhost:8070';
 const MAX_VUS = Number(__ENV.MAX_VUS || 50);
 
