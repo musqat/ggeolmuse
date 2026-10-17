@@ -16,17 +16,10 @@ public interface InvestmentBacktestService {
    *
    * @param request 투자 요청 정보
    * @param authorization 사용자 인증 토큰
+   * @param historyOwner 이력 주인(토큰의 이메일). 비면 이력을 남기지 않음
    * @return 투자 백테스트 결과 (포트폴리오 성과)
    */
-  InvestmentResponse executeInvestment(InvestmentRequest request, String authorization);
-
-  /**
-   * 캐시된 투자 백테스트 결과를 조회
-   *
-   * @param userId 사용자 ID
-   * @return 캐시된 결과 (없으면 Empty)
-   */
-  Optional<InvestmentResponse> getCachedInvestmentResult(String userId);
+  InvestmentResponse executeInvestment(InvestmentRequest request, String authorization, String historyOwner);
 
   /**
    * 캐시된 투자 백테스트 결과 Entity를 조회(Trade 서비스)

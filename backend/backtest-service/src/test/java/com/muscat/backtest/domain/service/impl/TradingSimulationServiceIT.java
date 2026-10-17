@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.muscat.backtest.common.enums.BacktestResponse;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.domain.dto.request.InvestmentRequest;
@@ -59,6 +60,9 @@ class TradingSimulationServiceIT {
   @Autowired
   private InvestmentBacktestResultRepository investmentBacktestResultRepository;
 
+  @Autowired
+  private ObjectMapper objectMapper;
+
   @MockitoBean
   private MarketDataClientWrapper marketDataClientWrapper;
 
@@ -66,6 +70,7 @@ class TradingSimulationServiceIT {
   private TradeServiceClientWrapper tradeServiceClientWrapper;
 
   private static final String TEST_USER_ID = "integration-test-user@example.com";
+  private static final String TEST_EMAIL = "owner@example.com";
   private static final String TEST_SYMBOL = "AAPL";
   private static final String TEST_AUTHORIZATION = "Bearer integration-token";
 
@@ -116,7 +121,7 @@ class TradingSimulationServiceIT {
 
       // when
       InvestmentResponse result = investmentBacktestService.executeInvestment(
-        testInvestmentRequest, TEST_AUTHORIZATION);
+        testInvestmentRequest, TEST_AUTHORIZATION, TEST_EMAIL);
 
       // then
       assertThat(result).isNotNull();
@@ -170,7 +175,7 @@ class TradingSimulationServiceIT {
         .willReturn(currentFxRate);
 
       // when
-      investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION);
+      investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION, TEST_EMAIL);
 
       // then - 결과가 하나만 있고, 새로운 데이터로 업데이트되었는지 확인
       List<InvestmentBacktestResult> allResults = investmentBacktestResultRepository.findAll();
@@ -190,7 +195,7 @@ class TradingSimulationServiceIT {
 
       // when & then
       assertThatThrownBy(() ->
-        investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION))
+        investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION, TEST_EMAIL))
         .isInstanceOf(BacktestException.class)
         .extracting("code")
         .isEqualTo(BacktestResponse.HOLDING_DATA_NOT_FOUND);
@@ -207,7 +212,7 @@ class TradingSimulationServiceIT {
 
     @Test
     @DisplayName("실제 투자 실행 후 저장된 데이터를 조회할 수 있다")
-    void getCachedInvestmentResult_AfterExecution_Success() {
+    void cachedEntity_AfterExecution_Success() throws Exception {
       // given - 실제 투자 실행
       HoldingDto holding = createHoldingDto(TEST_SYMBOL, new BigDecimal("10.5"),
         new BigDecimal("180.00"), new BigDecimal("1890000"));
@@ -235,7 +240,7 @@ class TradingSimulationServiceIT {
 
       // when - 투자 실행
       InvestmentResponse executionResult = investmentBacktestService.executeInvestment(
-        testInvestmentRequest, TEST_AUTHORIZATION);
+        testInvestmentRequest, TEST_AUTHORIZATION, TEST_EMAIL);
 
       // DB에서 저장된 raw JSON 확인
       Optional<InvestmentBacktestResult> savedEntity =
@@ -244,43 +249,24 @@ class TradingSimulationServiceIT {
       System.out.println("Saved JSON: " + savedEntity.get().getResultData());
 
       // when - 캐시 조회
-      Optional<InvestmentResponse> cachedResult =
-        investmentBacktestService.getCachedInvestmentResult(TEST_USER_ID);
+      Optional<InvestmentBacktestResult> cached =
+        investmentBacktestService.getCachedInvestmentResultEntity(TEST_USER_ID);
 
-      // then
-      assertThat(cachedResult).as("캐시된 결과가 조회되어야 함").isPresent();
-      assertThat(cachedResult.get().getSymbol()).isEqualTo(TEST_SYMBOL);
-      assertThat(cachedResult.get().getStatus()).isEqualTo("SUCCESS");
+      // then - 저장된 JSON 을 응답 형태로 풀어 확인
+      assertThat(cached).as("캐시된 결과가 조회되어야 함").isPresent();
+      InvestmentResponse cachedResult = objectMapper.readValue(cached.get().getResultData(), InvestmentResponse.class);
+      assertThat(cachedResult.getSymbol()).isEqualTo(TEST_SYMBOL);
+      assertThat(cachedResult.getStatus()).isEqualTo("SUCCESS");
     }
 
     @Test
     @DisplayName("DB에 결과가 없을 때 Optional.empty를 반환한다")
-    void getCachedInvestmentResult_NotFound_ReturnsEmpty() {
+    void cachedEntity_NotFound_ReturnsEmpty() {
       // given - 아무것도 저장하지 않음
 
       // when
-      Optional<InvestmentResponse> result =
-        investmentBacktestService.getCachedInvestmentResult("non-existent-user");
-
-      // then
-      assertThat(result).isEmpty();
-    }
-
-    @Test
-    @DisplayName("잘못된 JSON 형식일 때 Optional.empty가 반환된다")
-    void getCachedInvestmentResult_InvalidJson_ReturnsEmpty() {
-      // given - 잘못된 JSON 형식으로 저장
-      InvestmentBacktestResult entity = InvestmentBacktestResult.builder()
-        .userId(TEST_USER_ID)
-        .resultData("invalid json format")
-        .calculatedAt(LocalDateTime.now())
-        .build();
-      investmentBacktestResultRepository.save(entity);
-      investmentBacktestResultRepository.flush();
-
-      // when
-      Optional<InvestmentResponse> result =
-        investmentBacktestService.getCachedInvestmentResult(TEST_USER_ID);
+      Optional<InvestmentBacktestResult> result =
+        investmentBacktestService.getCachedInvestmentResultEntity("non-existent-user");
 
       // then
       assertThat(result).isEmpty();
@@ -293,7 +279,7 @@ class TradingSimulationServiceIT {
 
     @Test
     @DisplayName("투자 실행 후 캐시된 결과를 조회할 수 있다")
-    void executeAndRetrieve_EndToEndFlow() {
+    void executeAndRetrieve_EndToEndFlow() throws Exception {
       // given - 투자 실행 준비
       HoldingDto holding = createHoldingDto(TEST_SYMBOL, new BigDecimal("10.5"),
         new BigDecimal("180.00"), new BigDecimal("1890000"));
@@ -321,20 +307,21 @@ class TradingSimulationServiceIT {
 
       // when - 투자 실행
       InvestmentResponse executionResult = investmentBacktestService.executeInvestment(
-        testInvestmentRequest, TEST_AUTHORIZATION);
+        testInvestmentRequest, TEST_AUTHORIZATION, TEST_EMAIL);
 
       // then - 실행 결과 확인
       assertThat(executionResult).isNotNull();
       assertThat(executionResult.getSymbol()).isEqualTo(TEST_SYMBOL);
 
       // when - 캐시된 결과 조회
-      Optional<InvestmentResponse> cachedResult =
-        investmentBacktestService.getCachedInvestmentResult(TEST_USER_ID);
+      Optional<InvestmentBacktestResult> cached =
+        investmentBacktestService.getCachedInvestmentResultEntity(TEST_USER_ID);
 
       // then - 조회된 결과가 실행 결과와 동일한지 확인
-      assertThat(cachedResult).isPresent();
-      assertThat(cachedResult.get().getSymbol()).isEqualTo(executionResult.getSymbol());
-      assertThat(cachedResult.get().getStatus()).isEqualTo(executionResult.getStatus());
+      assertThat(cached).isPresent();
+      InvestmentResponse cachedResult = objectMapper.readValue(cached.get().getResultData(), InvestmentResponse.class);
+      assertThat(cachedResult.getSymbol()).isEqualTo(executionResult.getSymbol());
+      assertThat(cachedResult.getStatus()).isEqualTo(executionResult.getStatus());
     }
 
     @Test
@@ -375,20 +362,20 @@ class TradingSimulationServiceIT {
         .willReturn(currentFxRate);
 
       // when - 두 사용자 모두 투자 실행
-      investmentBacktestService.executeInvestment(request1, "Bearer token1");
-      investmentBacktestService.executeInvestment(request2, "Bearer token2");
+      investmentBacktestService.executeInvestment(request1, "Bearer token1", user1);
+      investmentBacktestService.executeInvestment(request2, "Bearer token2", user2);
 
       // then - 두 결과가 각각 독립적으로 저장되었는지 확인
       List<InvestmentBacktestResult> allResults = investmentBacktestResultRepository.findAll();
       assertThat(allResults).hasSize(2);
 
-      Optional<InvestmentResponse> result1 =
-        investmentBacktestService.getCachedInvestmentResult(user1);
-      Optional<InvestmentResponse> result2 =
-        investmentBacktestService.getCachedInvestmentResult(user2);
+      Optional<InvestmentBacktestResult> result1 =
+        investmentBacktestService.getCachedInvestmentResultEntity(user1);
+      Optional<InvestmentBacktestResult> result2 =
+        investmentBacktestService.getCachedInvestmentResultEntity(user2);
 
-      assertThat(result1).isPresent();
-      assertThat(result2).isPresent();
+      assertThat(result1).hasValueSatisfying(r -> assertThat(r.getUserId()).isEqualTo(user1));
+      assertThat(result2).hasValueSatisfying(r -> assertThat(r.getUserId()).isEqualTo(user2));
     }
   }
 
