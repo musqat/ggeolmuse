@@ -1,9 +1,11 @@
 package com.muscat.trade.infra.kafka;
 
 import static com.muscat.trade.infra.kafka.KafkaSends.failed;
+import static com.muscat.trade.infra.kafka.KafkaSends.interrupted;
 import static com.muscat.trade.infra.kafka.KafkaSends.sent;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -12,6 +14,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import com.muscat.messaging.event.DividendReceivedEvent;
+import com.muscat.trade.common.exception.TradeException;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -54,13 +57,29 @@ class DividendEventProducerTest {
   }
 
   @Test
-  @DisplayName("브로커가 받지 못하면 예외를 올린다. 지급 루프가 실패를 알아야 다시 받을 수 있다")
+  @DisplayName("브로커가 받지 못하면 이벤트 발행 실패로 올린다. 지급 루프가 실패를 알아야 다시 받을 수 있다")
   void sendFails_Throws() {
     given(template.send(anyString(), anyString(), any())).willReturn(failed());
 
     assertThatThrownBy(() -> producer.publishDividendReceived("user-1", 20L, "AAPL", "2024-09-16",
       BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE))
-      .isInstanceOf(IllegalStateException.class)
-      .hasMessageContaining("AAPL");
+      .isInstanceOf(TradeException.class)
+      .hasFieldOrPropertyWithValue("errorCode", "EVENT_PUBLISH_FAILED")
+      .hasRootCauseMessage("broker down");
+  }
+
+  @Test
+  @DisplayName("기다리는 중에 인터럽트되면 인터럽트 상태를 되살리고 이벤트 발행 실패로 올린다")
+  void sendInterrupted_RestoresInterrupt() {
+    given(template.send(anyString(), anyString(), any())).willReturn(interrupted());
+
+    Throwable thrown = catchThrowable(() -> producer.publishDividendReceived("user-1", 20L, "AAPL",
+      "2024-09-16", BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE));
+
+    assertThat(Thread.interrupted()).isTrue();
+    assertThat(thrown)
+      .isInstanceOf(TradeException.class)
+      .hasFieldOrPropertyWithValue("errorCode", "EVENT_PUBLISH_FAILED")
+      .hasCauseInstanceOf(InterruptedException.class);
   }
 }

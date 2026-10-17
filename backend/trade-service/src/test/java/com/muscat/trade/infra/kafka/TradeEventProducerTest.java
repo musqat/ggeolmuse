@@ -1,7 +1,9 @@
 package com.muscat.trade.infra.kafka;
 
+import static com.muscat.trade.infra.kafka.KafkaSends.interrupted;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -11,6 +13,7 @@ import static org.mockito.Mockito.verify;
 
 import com.muscat.messaging.event.TradeCompletedEvent;
 import com.muscat.trade.common.enums.type.TradeType;
+import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.domain.entity.Trade;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -72,7 +75,7 @@ class TradeEventProducerTest {
   }
 
   @Test
-  @DisplayName("브로커가 받지 못하면 예외를 낸다")
+  @DisplayName("브로커가 받지 못하면 이벤트 발행 실패로 올린다")
   void publishTradeCompleted_SendFails_Throws() {
     // given
     given(completedTemplate.send(anyString(), anyString(), any()))
@@ -80,7 +83,25 @@ class TradeEventProducerTest {
 
     // when · then
     assertThatThrownBy(() -> producer.publishTradeCompleted(trade()))
-      .isInstanceOf(IllegalStateException.class)
-      .hasMessageContaining("tradeId=7");
+      .isInstanceOf(TradeException.class)
+      .hasFieldOrPropertyWithValue("errorCode", "EVENT_PUBLISH_FAILED")
+      .hasRootCauseMessage("broker down");
+  }
+
+  @Test
+  @DisplayName("기다리는 중에 인터럽트되면 인터럽트 상태를 되살리고 이벤트 발행 실패로 올린다")
+  void publishTradeCompleted_Interrupted_RestoresInterrupt() {
+    // given
+    given(completedTemplate.send(anyString(), anyString(), any())).willReturn(interrupted());
+
+    // when
+    Throwable thrown = catchThrowable(() -> producer.publishTradeCompleted(trade()));
+
+    // then
+    assertThat(Thread.interrupted()).isTrue();
+    assertThat(thrown)
+      .isInstanceOf(TradeException.class)
+      .hasFieldOrPropertyWithValue("errorCode", "EVENT_PUBLISH_FAILED")
+      .hasCauseInstanceOf(InterruptedException.class);
   }
 }

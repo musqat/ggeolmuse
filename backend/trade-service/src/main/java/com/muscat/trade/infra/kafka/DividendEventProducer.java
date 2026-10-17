@@ -1,6 +1,8 @@
 package com.muscat.trade.infra.kafka;
 
 import com.muscat.messaging.event.DividendReceivedEvent;
+import com.muscat.trade.common.enums.responses.TradeResponse;
+import com.muscat.trade.common.exception.TradeException;
 import io.opentelemetry.api.trace.Span;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -89,9 +91,9 @@ public class DividendEventProducer {
                     userId, symbol);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new IllegalStateException("배당금 수령 이벤트 발행 중단: accountId=" + accountId + ", symbol=" + symbol, e);
+            throw new TradeException(TradeResponse.EVENT_PUBLISH_FAILED, e);
         } catch (ExecutionException | TimeoutException e) {
-            throw new IllegalStateException("배당금 수령 이벤트 발행 실패: accountId=" + accountId + ", symbol=" + symbol, e);
+            throw new TradeException(TradeResponse.EVENT_PUBLISH_FAILED, e);
         }
     }
 }

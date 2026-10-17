@@ -87,6 +87,8 @@ public enum TradeResponse implements ErrorCode {
     BALANCE_UPDATE_FAILED("잔액 업데이트에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
     HOLDINGS_UPDATE_FAILED("보유 주식 업데이트에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
     TRADE_HISTORY_SAVE_FAILED("거래 내역 저장에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
+    EVENT_PUBLISH_FAILED("이벤트 발행에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
+    DIVIDEND_PAYMENT_FAILED("배당금 지급에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
     INTERNAL_SERVER_ERROR("서버에 예기치 못한 오류가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final String message;

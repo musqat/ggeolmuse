@@ -12,8 +12,10 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.muscat.messaging.event.DividendUpdatedEvent;
+import com.muscat.trade.common.enums.responses.TradeResponse;
 import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.common.enums.type.TradeType;
+import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.domain.entity.Trade;
 import com.muscat.trade.domain.repository.TradeRepository;
 import java.math.BigDecimal;
@@ -139,13 +141,13 @@ class DividendEventConsumerTest {
       trade("user-3", 30L, TradeType.BUY, "1"));
 
     // user-1, user-3 호출은 이 스텁과 안 맞는 게 정상이라 lenient 로 둔다
-    lenient().doThrow(new IllegalStateException("발행 실패"))
+    lenient().doThrow(new TradeException(TradeResponse.EVENT_PUBLISH_FAILED))
       .when(dividendEventProducer).publishDividendReceived(
         eq("user-2"), any(), any(), any(), any(), any(), any());
 
     assertThatThrownBy(() -> consume(event("0.25")))
-      .isInstanceOf(IllegalStateException.class)
-      .hasMessageContaining("배당 지급 실패");
+      .isInstanceOf(TradeException.class)
+      .hasFieldOrPropertyWithValue("errorCode", "DIVIDEND_PAYMENT_FAILED");
 
     verify(dividendEventProducer).publishDividendReceived(
       eq("user-1"), any(), any(), any(), any(), any(), any());
@@ -160,13 +162,13 @@ class DividendEventConsumerTest {
   void 전원_실패() {
     tradesBeforeExDate(trade("user-1", 10L, TradeType.BUY, "10"));
 
-    willThrow(new IllegalStateException("발행 실패"))
+    willThrow(new TradeException(TradeResponse.EVENT_PUBLISH_FAILED))
       .given(dividendEventProducer).publishDividendReceived(
         any(), any(), any(), any(), any(), any(), any());
 
     assertThatThrownBy(() -> consume(event("0.25")))
-      .isInstanceOf(IllegalStateException.class)
-      .hasMessageContaining("배당 지급 실패");
+      .isInstanceOf(TradeException.class)
+      .hasFieldOrPropertyWithValue("errorCode", "DIVIDEND_PAYMENT_FAILED");
 
     verify(acknowledgment, never()).acknowledge();
   }
