@@ -1,7 +1,11 @@
 package com.muscat.user.infra.kafka;
 
 import com.muscat.messaging.event.EmailSendEvent;
+import com.muscat.user.common.enums.responses.UserResponse;
+import com.muscat.user.common.exceptions.UserException;
+import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
+import java.io.UnsupportedEncodingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -65,7 +69,7 @@ public class EmailEventConsumer {
 
       // NOTE: 수동 커밋하지 않음 -> Kafka가 재시도
       // 재시도 실패시 DLQ로 이동
-      throw new RuntimeException("Email send failed", ex);
+      throw new UserException(UserResponse.EMAIL_SEND_FAILED, ex);
     }
   }
 
@@ -74,26 +78,19 @@ public class EmailEventConsumer {
    *
    * @param event 이메일 발송 이벤트
    */
-  private void sendEmail(EmailSendEvent event) {
-    try {
-      MimeMessage message = mailSender.createMimeMessage();
-      MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+  private void sendEmail(EmailSendEvent event) throws MessagingException, UnsupportedEncodingException {
+    MimeMessage message = mailSender.createMimeMessage();
+    MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-      String fromAddress = event.getFrom() != null ? event.getFrom() : defaultFromEmail;
-      helper.setFrom(fromAddress, "GGeolmuse");
-      helper.setTo(event.getTo());
-      helper.setSubject(event.getSubject());
-      helper.setText(event.getContent(), true); // HTML 지원
+    String fromAddress = event.getFrom() != null ? event.getFrom() : defaultFromEmail;
+    helper.setFrom(fromAddress, "GGeolmuse");
+    helper.setTo(event.getTo());
+    helper.setSubject(event.getSubject());
+    helper.setText(event.getContent(), true); // HTML 지원
 
-      mailSender.send(message);
+    mailSender.send(message);
 
-      log.debug("이메일 발송 성공: to={}, from={}, subject={}",
-        event.getTo(), fromAddress, event.getSubject());
-
-    } catch (Exception e) {
-      log.error("이메일 발송 실패: to={}, error={}",
-        event.getTo(), e.getMessage());
-      throw new RuntimeException("Email send failed", e);
-    }
+    log.debug("이메일 발송 성공: to={}, from={}, subject={}",
+      event.getTo(), fromAddress, event.getSubject());
   }
 }

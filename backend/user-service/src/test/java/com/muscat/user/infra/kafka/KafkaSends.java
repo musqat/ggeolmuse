@@ -1,6 +1,7 @@
 package com.muscat.user.infra.kafka;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.springframework.kafka.support.SendResult;
@@ -18,5 +19,14 @@ final class KafkaSends {
 
   static <V> CompletableFuture<SendResult<String, V>> failed() {
     return CompletableFuture.failedFuture(new RuntimeException("broker down"));
+  }
+
+  static <V> CompletableFuture<SendResult<String, V>> interrupted() {
+    return new CompletableFuture<>() {
+      @Override
+      public SendResult<String, V> get(long timeout, TimeUnit unit) throws InterruptedException {
+        throw new InterruptedException();
+      }
+    };
   }
 }
