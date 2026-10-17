@@ -23,14 +23,7 @@ public class FeignCorrelationInterceptor implements RequestInterceptor {
    */
   private static final String CORRELATION_ID_KEY = "correlationId";
 
-  /**
-   * Feign 요청 실행 전 호출되는 메서드
-   *
-   * <p>MDC에서 상관관계 ID를 가져와 요청 헤더에 추가합니다.
-   * 상관관계 ID가 없는 경우 (비동기 작업 등) 헤더를 추가하지 않습니다.
-   *
-   * @param template Feign 요청 템플릿 (헤더, URL 등 설정)
-   */
+  // MDC 의 상관관계 ID 를 헤더에 붙임. 없으면(비동기 작업 등) 안 붙임
   @Override
   public void apply(RequestTemplate template) {
     // MDC에서 현재 스레드의 상관관계 ID 가져오기

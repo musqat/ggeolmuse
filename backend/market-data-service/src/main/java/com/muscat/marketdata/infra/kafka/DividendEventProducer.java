@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-// 배당 저장 이벤트 발행
+// 배당금 업데이트 이벤트 발행
 @Slf4j
 @Component
 @RequiredArgsConstructor

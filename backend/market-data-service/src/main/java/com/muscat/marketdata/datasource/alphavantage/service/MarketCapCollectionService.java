@@ -16,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Map;
 
-// OVERVIEW API 로 시가총액을 조금씩 채움
+// AlphaVantage 시가총액 수집: OVERVIEW API 로 조금씩 채움
 @Slf4j
 @Service
 @ConditionalOnProperty(

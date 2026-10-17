@@ -27,11 +27,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-/**
- * DCA(Dollar Cost Averaging) 적립식 투자 전략
- * 매월 지정일 고정금액 자동 매수
- * 배당재투자·원천징수·환율변동 옵션
- */
+// DCA 적립식 투자 전략: 매월 지정일에 고정 금액 매수. 배당 재투자 · 원천징수 · 환율 변동은 옵션
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -45,12 +41,6 @@ public class DCAStrategy implements InvestmentStrategy {
     return StrategyType.DCA;
   }
 
-  /**
-   * DCA 전략 실행 → 백테스트 결과
-   * 시작일~종료일 매월 지정일 고정금액 매수, 배당재투자·환율·원천징수 반영
-   * @param request 종목·기간·월투자액·매수일
-   * @return 총투자금·수익률·거래내역·배당
-   */
   @Override
   public StrategyResponse executeDca(DcaStrategyRequest request) {
     validateDcaRequest(request);

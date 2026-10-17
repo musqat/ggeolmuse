@@ -13,11 +13,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * 이메일 발송 이벤트를 Kafka에 발행하는 Producer
- *
- * 이메일 발송을 비동기로 처리하여 사용자 응답 속도를 개선합니다.
- */
+// 이메일 발송 이벤트 발행. 발송은 컨슈머가 비동기로
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -27,29 +23,11 @@ public class EmailEventProducer {
 
     private final KafkaTemplate<String, EmailSendEvent> kafkaTemplate;
 
-    /**
-     * 이메일 발송 이벤트 발행
-     *
-     * @param to 수신자 이메일
-     * @param subject 이메일 제목
-     * @param content 이메일 내용
-     * @param emailType 이메일 타입
-     */
     public void publishEmailSend(String to, String subject, String content, String emailType) {
         publishEmailSend(to, null, subject, content, emailType, null, null);
     }
 
-    /**
-     * 이메일 발송 이벤트 발행 (전체 파라미터)
-     *
-     * @param to 수신자 이메일
-     * @param from 발신자 이메일 (null이면 기본값 사용)
-     * @param subject 이메일 제목
-     * @param content 이메일 내용
-     * @param emailType 이메일 타입
-     * @param templateVariables 템플릿 변수
-     * @param userId 사용자 ID
-     */
+    // from 이 비면 기본 발신자
     public void publishEmailSend(String to, String from, String subject, String content,
                                   String emailType, Map<String, String> templateVariables, String userId) {
         String eventId = UUID.randomUUID().toString();

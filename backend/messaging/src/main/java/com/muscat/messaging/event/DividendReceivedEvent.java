@@ -8,10 +8,7 @@ import lombok.experimental.SuperBuilder;
 
 import java.math.BigDecimal;
 
-/**
- * 배당금 수령 이벤트
- * trade-service에서 발행하며, user-service가 소비하여 사용자 계좌에 배당금을 입금
- */
+// 배당금 수령 이벤트
 @Data
 @SuperBuilder
 @NoArgsConstructor

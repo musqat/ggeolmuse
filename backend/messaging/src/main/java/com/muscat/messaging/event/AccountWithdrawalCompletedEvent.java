@@ -8,10 +8,7 @@ import lombok.experimental.SuperBuilder;
 
 import java.math.BigDecimal;
 
-/**
- * 계좌 출금 완료 이벤트
- * 사용자가 계좌에서 출금을 완료했을 때 발행 (자금 흐름 추적, 출금 통계, 대량 출금 모니터링 등에 활용)
- */
+// 계좌 출금 완료 이벤트
 @Data
 @SuperBuilder
 @NoArgsConstructor

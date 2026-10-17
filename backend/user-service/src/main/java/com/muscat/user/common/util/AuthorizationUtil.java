@@ -12,10 +12,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Component;
 
-/**
- * 권한 체크 유틸리티
- * JWT 토큰에서 keycloakId를 추출하고, DB에서 사용자 role을 확인합니다.
- */
+// 권한 체크 유틸: JWT 의 keycloakId 로 DB 사용자 역할을 확인
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -23,11 +20,7 @@ public class AuthorizationUtil {
 
     private final UserRepository userRepository;
 
-    /**
-     * 현재 인증된 사용자의 keycloakId 추출
-     *
-     * @return keycloakId (JWT의 sub claim)
-     */
+    // JWT 의 sub
     public String getCurrentKeycloakId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
@@ -44,11 +37,6 @@ public class AuthorizationUtil {
         throw new UserException(UserResponse.USER_NOT_FOUND);
     }
 
-    /**
-     * 현재 인증된 사용자 조회
-     *
-     * @return User 엔티티
-     */
     public User getCurrentUser() {
         String keycloakId = getCurrentKeycloakId();
         User user = userRepository.findByKeycloakId(keycloakId)

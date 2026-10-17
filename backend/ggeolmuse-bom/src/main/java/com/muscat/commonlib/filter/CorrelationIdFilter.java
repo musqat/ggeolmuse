@@ -71,14 +71,6 @@ public class CorrelationIdFilter implements Filter {
     }
   }
 
-  /**
-   * 새로운 상관관계 ID 생성
-   *
-   * <p>UUID Version 4 사용 (무작위 생성)
-   * 형식: 550e8400-e29b-41d4-a716-446655440000
-   *
-   * @return UUID 문자열
-   */
   private String generateCorrelationId() {
     return UUID.randomUUID().toString();
   }

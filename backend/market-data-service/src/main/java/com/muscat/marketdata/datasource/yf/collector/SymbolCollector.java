@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-// 목록은 SymbolCatalog, 캔들 · 배당은 Kafka 이벤트로 Yahoo 가 채움
+// 종목 자동 수집(이벤트 기반): 목록은 SymbolCatalog, 캔들 · 배당은 Kafka 이벤트로 Yahoo 가 채움
 @Slf4j
 @Component
 @ConditionalOnProperty(

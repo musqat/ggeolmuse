@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-// 앱 시작 때 과거 · 빠진 환율을 채움
+// AlphaVantage 환율 데이터 초기 수집: 앱 시작 때 과거 · 빠진 환율을 채움
 @Slf4j
 @Component
 @Order(2)

@@ -15,10 +15,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
-/**
- * 비밀번호 재설정 토큰 엔티티
- * 토큰 유효기간: 30분
- */
+// 비밀번호 재설정 토큰(30분 유효)
 @Entity
 @Table(name = "password_reset_tokens")
 @Getter
@@ -45,10 +42,6 @@ public class PasswordResetToken {
   @Column(nullable = false)
   private boolean used = false; // 사용 여부 (한 번 사용하면 재사용 불가)
 
-  /**
-   * 토큰 만료 체크
-   * @return 만료 여부
-   */
   public boolean isExpired() {
     return LocalDateTime.now().isAfter(expiryDate);
   }

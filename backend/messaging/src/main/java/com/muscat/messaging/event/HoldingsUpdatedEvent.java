@@ -8,10 +8,7 @@ import lombok.experimental.SuperBuilder;
 
 import java.math.BigDecimal;
 
-/**
- * 포트폴리오 보유 현황 변경 이벤트
- * trade-service에서 거래 체결 후 Holdings가 업데이트될 때 발행
- */
+// 포트폴리오 보유 현황 변경 이벤트
 @Data
 @SuperBuilder
 @NoArgsConstructor

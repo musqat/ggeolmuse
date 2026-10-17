@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-// 종목 생성 이벤트 발행. 수집은 컨슈머가 비동기로
+// Asset 생성 이벤트 발행. 수집은 컨슈머가 비동기로
 @Slf4j
 @Component
 @RequiredArgsConstructor

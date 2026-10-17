@@ -8,11 +8,7 @@ import lombok.experimental.SuperBuilder;
 
 import java.math.BigDecimal;
 
-/**
- * 계좌 잔액 변경 이벤트
- * user-service에서 계좌 잔액이 변경될 때 발행
- * 다른 서비스들이 실시간 자산 현황 모니터링, 이상 거래 탐지
- */
+// 계좌 잔액 변경 이벤트
 @Data
 @SuperBuilder
 @NoArgsConstructor

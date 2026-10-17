@@ -12,24 +12,12 @@ import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
-/**
- * 계좌 감사(Audit) Consumer
- *
- * 모든 잔액 변경 이벤트를 소비하여 감사 로그로 기록합니다.
- */
+// 계좌 감사(Audit): 잔액 변경 이벤트를 감사 로그로 남김
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class AccountAuditConsumer {
 
-    /**
-     * 잔액 변경 이벤트 처리
-     *
-     * @param event          잔액 변경 이벤트
-     * @param partition      Kafka 파티션 번호
-     * @param offset         메시지 오프셋
-     * @param acknowledgment 수동 커밋용 객체
-     */
     @KafkaListener(
             topics = "user.account.balance.updated",
             groupId = "${spring.application.name}-balance-audit-consumer",

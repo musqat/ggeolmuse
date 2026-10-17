@@ -6,10 +6,7 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
-/**
- * 계좌 삭제 이벤트
- * trade-service: 해당 계좌의 모든 거래 내역 삭제 (Holdings, TradeHistory 등 관련 데이터 정리)
- */
+// 계좌 삭제 이벤트
 @Data
 @SuperBuilder
 @NoArgsConstructor

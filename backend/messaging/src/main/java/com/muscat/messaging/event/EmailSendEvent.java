@@ -9,11 +9,7 @@ import lombok.experimental.SuperBuilder;
 import java.io.Serializable;
 import java.util.Map;
 
-/**
- * 이메일 발송 이벤트
- * user-service에서 이메일 발송 요청시 발행
- * 비동기 이메일 발송으로 사용자 응답 속도 개선
- */
+// 이메일 발송 이벤트
 @Data
 @SuperBuilder
 @NoArgsConstructor

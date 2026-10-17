@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 
-// 스케줄 작업이 파드 하나에서만 돌게 함(ShedLock)
+// ShedLock 설정: 스케줄 작업이 파드 하나에서만 돌게 함
 @Configuration
 @EnableSchedulerLock(defaultLockAtMostFor = "10m")
 public class ShedLockConfig {

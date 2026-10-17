@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-// LISTING_STATUS CSV 한 행(symbol,name,exchange,assetType,ipoDate,delistingDate,status)
+// AlphaVantage LISTING_STATUS CSV 한 행(symbol,name,exchange,assetType,ipoDate,delistingDate,status)
 @Data
 @Builder
 @NoArgsConstructor

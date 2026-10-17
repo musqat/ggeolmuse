@@ -11,7 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-// LISTING_STATUS 로 상장 목록을 받음. 공급원이 yahoo 여도 쓰도록 alphavantage 패키지 밖에 둠
+// 상장 종목 목록을 AlphaVantage LISTING_STATUS 로 받음. 공급원이 yahoo 여도 쓰도록 alphavantage 패키지 밖에 둠
 @Slf4j
 @Component
 @RequiredArgsConstructor

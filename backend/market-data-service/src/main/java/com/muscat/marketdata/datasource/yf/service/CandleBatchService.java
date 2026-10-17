@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.util.List;
 
-// 여러 종목의 캔들 · 배당을 묶어 받음(한도 · 재시도 포함)
+// Yahoo Finance 배치 수집: 여러 종목의 캔들 · 배당을 묶어 받음(한도 · 재시도 포함)
 @Slf4j
 @Service("yfCandleBatchService")
 @ConditionalOnProperty(

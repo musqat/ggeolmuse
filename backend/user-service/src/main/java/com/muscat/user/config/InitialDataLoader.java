@@ -19,11 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.Optional;
 
-/**
- * 애플리케이션 시작 시 초기 데이터를 로드하는 컴포넌트
- *
- * Admin 계정을 자동으로 생성하여 Keycloak realm 사용자와 동기화합니다.
- */
+// 시작 시 초기 데이터 로드: Admin 계정을 만들어 Keycloak realm 사용자와 맞춤
 @Slf4j
 @Component
 @RequiredArgsConstructor

@@ -11,11 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-/**
- * Resilience4j 패턴 적용 Wrapper
- * Circuit Breaker: 연속된 실패 시 호출 차단
- * Retry: 일시적 실패 시 재시도
- */
+// Resilience4j 패턴 적용 Wrapper(서킷브레이커 · 재시도)
 @Slf4j
 @Service
 @RequiredArgsConstructor

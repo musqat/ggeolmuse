@@ -14,11 +14,7 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * 계좌 삭제 이벤트를 소비하는 Consumer
- * user-service에서 발행한 AccountDeletedEvent를 소비하여
- * 해당 계좌의 모든 거래 내역 · 보유 자산 · 배당 내역을 삭제
- */
+// 계좌 삭제 이벤트를 받아 그 계좌의 거래 내역 · 보유 자산 · 배당 내역을 지움
 @Slf4j
 @Component
 @RequiredArgsConstructor

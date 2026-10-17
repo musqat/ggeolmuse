@@ -29,10 +29,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * 관리자용 사용자 관리 API
- * 사용자 목록 조회, 역할 변경, 계좌 조회 등의 관리 기능을 제공합니다.
- */
+// 관리자용 사용자 관리 API(목록 · 역할 변경 · 계좌 조회)
 @Slf4j
 @RestController
 @RequestMapping("/api/admin/users")

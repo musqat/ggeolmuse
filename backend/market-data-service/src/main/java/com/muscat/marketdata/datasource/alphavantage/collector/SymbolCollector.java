@@ -21,7 +21,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-// LISTING_STATUS 로 종목을 받음(시가총액 없음). 시가총액은 MarketCapCollectionService 가 나중에 채움
+// AlphaVantage 종목 자동 수집: LISTING_STATUS 로 받고(시가총액 없음) 시가총액은 MarketCapCollectionService 가 나중에 채움
 @Slf4j
 @Component
 @ConditionalOnProperty(

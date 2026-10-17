@@ -16,7 +16,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-// NASDAQ API 로 종목 정보를 받고 안 되면 CSV
+// Yahoo Finance 기반 종목 정보 제공자. NASDAQ API 로 받고 안 되면 CSV
 @Slf4j
 @Component
 @ConditionalOnProperty(

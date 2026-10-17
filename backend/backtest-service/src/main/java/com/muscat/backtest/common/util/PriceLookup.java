@@ -27,10 +27,8 @@ public final class PriceLookup {
     return price.closePrice() != null ? price.closePrice() : price.adjustedClose();
   }
 
-  /**
-   * fetcher로 maxDays 만큼 과거로 거슬러 available 데이터를 찾음(시장 휴일 대응)
-   * 못 찾으면 STOCK_DATA_NOT_FOUND. 한 번도 답을 못 받았으면 MARKET_DATA_UNAVAILABLE
-   */
+  // maxDays 만큼 거슬러 available 시세를 찾음(휴장일)
+  // 못 찾으면 STOCK_DATA_NOT_FOUND, 한 번도 답이 없으면 MARKET_DATA_UNAVAILABLE
   public static OHLCPriceDto withFallback(PriceFetcher fetcher, String symbol, LocalDate date, int maxDays) {
     LocalDate searchDate = date;
     boolean answered = false;

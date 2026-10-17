@@ -8,7 +8,7 @@ import org.springframework.scheduling.annotation.AsyncConfigurer;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
-// 데이터 수집용 @Async 스레드풀
+// 비동기 처리 설정(데이터 수집용 @Async 스레드풀)
 @Configuration
 @EnableAsync
 public class AsyncConfig implements AsyncConfigurer {

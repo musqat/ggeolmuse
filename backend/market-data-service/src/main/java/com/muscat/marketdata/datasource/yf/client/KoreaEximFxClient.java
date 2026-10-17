@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-// 수출입은행 USD/KRW 환율
+// 수출입은행(Korea Exim) USD/KRW 환율 제공자
 @Slf4j
 @Component
 @ConditionalOnProperty(

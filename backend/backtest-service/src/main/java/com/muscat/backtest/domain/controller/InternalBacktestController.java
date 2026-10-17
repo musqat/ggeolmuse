@@ -19,10 +19,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * 내부 서비스 간 통신용 백테스트 컨트롤러
- * Trade 서비스에서만 호출되는 API들
- */
+// 내부 서비스 간 통신용 백테스트 컨트롤러(캐시된 투자 결과)
 @RestController
 @RequestMapping("/api/internal/backtest")
 @RequiredArgsConstructor

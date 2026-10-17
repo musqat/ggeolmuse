@@ -28,7 +28,7 @@ import org.springframework.util.backoff.FixedBackOff;
 import java.util.HashMap;
 import java.util.Map;
 
-// Kafka 컨슈머 설정(종목 생성 이벤트를 받아 수집)
+// Market Data 서비스 Kafka 컨슈머 설정(종목 생성 이벤트를 받아 수집)
 @Slf4j
 @EnableKafka
 @Configuration

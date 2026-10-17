@@ -11,7 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-// 기본 배당 공급원. AlphaVantage 를 끄면 켜짐
+// Yahoo Finance 기반 배당 데이터 제공자(기본). AlphaVantage 를 끄면 켜짐
 @Slf4j
 @Component
 @ConditionalOnProperty(

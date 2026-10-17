@@ -21,7 +21,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-// 시작할 때 NASDAQ API(안 되면 CSV)에서 종목을 읽어 채움. marketdata.symbol-loader.enabled 로 켬
+// 시작할 때 NASDAQ API(안 되면 CSV)에서 종목을 읽어 Asset 테이블을 채움. marketdata.symbol-loader.enabled 로 켬
 @Slf4j
 @Component
 @RequiredArgsConstructor

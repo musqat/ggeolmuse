@@ -8,7 +8,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 
-// 종목 생성 이벤트를 받아 캔들 · 배당을 수집
+// Asset 생성 이벤트를 받아 캔들 · 배당을 수집
 @Slf4j
 @Component
 @RequiredArgsConstructor

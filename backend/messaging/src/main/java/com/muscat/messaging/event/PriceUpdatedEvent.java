@@ -10,11 +10,7 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-/**
- * 주가 업데이트 이벤트
- * market-data-service에서 주가 데이터 업데이트시 발행
- * trade-service, backtest-service 등에서 구독하여 실시간 주가 정보 반영
- */
+// 주가 업데이트 이벤트
 @Data
 @SuperBuilder
 @NoArgsConstructor

@@ -528,10 +528,6 @@ public class AccountServiceImpl implements AccountService {
     return accounts.getFirst().getId();
   }
 
-  /**
-   * 배당금 수령 이벤트 처리
-   * DividendReceivedEvent를 처리하여 사용자 계좌에 배당금을 입금합니다.
-   */
   @Override
   public void processDividendReceivedEvent(DividendReceivedEvent event) {
     log.info("처리 시작: DividendReceivedEvent - userId={}, accountId={}, symbol={}, amount={}",
