@@ -2,7 +2,6 @@ package com.muscat.trade.domain.service.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -10,18 +9,18 @@ import static org.mockito.Mockito.verify;
 import com.muscat.messaging.event.TradeRejectedEvent;
 import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.domain.entity.Trade;
-import com.muscat.trade.domain.repository.DividendRepository;
+import com.muscat.trade.domain.event.TradeCancelledEvent;
 import com.muscat.trade.domain.repository.TradeRepository;
 import com.muscat.trade.domain.service.HoldingsRebuilder;
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.LocalDateTime;
 import java.util.Optional;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("반영 실패 체결 취소")
@@ -31,34 +30,24 @@ class TradeCancellationServiceImplTest {
   private TradeRepository tradeRepository;
 
   @Mock
-  private DividendRepository dividendRepository;
-
-  @Mock
   private HoldingsRebuilder holdingsRebuilder;
 
-  private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
+  @Mock
+  private ApplicationEventPublisher eventPublisher;
+
+  @InjectMocks
   private TradeCancellationServiceImpl service;
 
   private final TradeRejectedEvent event = TradeRejectedEvent.builder()
     .tradeId(7L).userId("user-1").accountId(20L).reasonCode("INSUFFICIENT_USD_BALANCE").build();
-
-  @BeforeEach
-  void setUp() {
-    service = new TradeCancellationServiceImpl(tradeRepository, dividendRepository, holdingsRebuilder,
-      meterRegistry);
-  }
 
   private Trade trade(String userId) {
     return Trade.builder().id(7L).userId(userId).accountId(20L).symbol("AAPL")
       .executedAt(LocalDateTime.of(2026, 10, 8, 9, 0)).build();
   }
 
-  private double dividendRecordedCount() {
-    return meterRegistry.get("trade.cancel.review").tag("reason", "dividend_recorded").counter().count();
-  }
-
   @Test
-  @DisplayName("체결을 취소됨으로 바꾸고 그 종목 보유를 다시 쌓는다")
+  @DisplayName("체결을 취소됨으로 바꾸고 그 종목 보유를 다시 쌓은 뒤 배당 몫 재계산을 알린다")
   void cancel_MarksCancelledAndRebuilds() {
     Trade trade = trade("user-1");
     given(tradeRepository.findByIdForUpdate(7L)).willReturn(Optional.of(trade));
@@ -69,7 +58,7 @@ class TradeCancellationServiceImplTest {
     assertThat(trade.getCancelReason()).isEqualTo("INSUFFICIENT_USD_BALANCE");
     assertThat(trade.getCancelledAt()).isNotNull();
     verify(holdingsRebuilder).rebuild("user-1", 20L, "AAPL");
-    assertThat(dividendRecordedCount()).isZero();
+    verify(eventPublisher).publishEvent(new TradeCancelledEvent("user-1", 20L, "AAPL"));
   }
 
   @Test
@@ -80,6 +69,7 @@ class TradeCancellationServiceImplTest {
     service.cancel(event);
 
     verify(holdingsRebuilder, never()).rebuild(any(), any(), any());
+    verify(eventPublisher, never()).publishEvent(any(Object.class));
   }
 
   @Test
@@ -93,6 +83,7 @@ class TradeCancellationServiceImplTest {
 
     assertThat(trade.getCancelReason()).isEqualTo("ACCOUNT_NOT_FOUND");
     verify(holdingsRebuilder, never()).rebuild(any(), any(), any());
+    verify(eventPublisher, never()).publishEvent(any(Object.class));
   }
 
   @Test
@@ -105,16 +96,6 @@ class TradeCancellationServiceImplTest {
 
     assertThat(trade.getStatus()).isEqualTo(TradeStatus.COMPLETED);
     verify(holdingsRebuilder, never()).rebuild(any(), any(), any());
-  }
-
-  @Test
-  @DisplayName("이미 배당이 지급된 체결이면 확인 필요 카운터를 올린다")
-  void cancel_DividendRecorded_Counts() {
-    given(tradeRepository.findByIdForUpdate(7L)).willReturn(Optional.of(trade("user-1")));
-    given(dividendRepository.existsByTradeId(anyLong())).willReturn(true);
-
-    service.cancel(event);
-
-    assertThat(dividendRecordedCount()).isEqualTo(1.0);
+    verify(eventPublisher, never()).publishEvent(any(Object.class));
   }
 }

@@ -3,37 +3,26 @@ package com.muscat.trade.domain.service.impl;
 import com.muscat.messaging.event.TradeRejectedEvent;
 import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.domain.entity.Trade;
-import com.muscat.trade.domain.repository.DividendRepository;
+import com.muscat.trade.domain.event.TradeCancelledEvent;
 import com.muscat.trade.domain.repository.TradeRepository;
 import com.muscat.trade.domain.service.HoldingsRebuilder;
 import com.muscat.trade.domain.service.TradeCancellationService;
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.MeterRegistry;
 import java.time.LocalDateTime;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class TradeCancellationServiceImpl implements TradeCancellationService {
 
   private final TradeRepository tradeRepository;
-  private final DividendRepository dividendRepository;
   private final HoldingsRebuilder holdingsRebuilder;
-  private final Counter dividendRecorded;
-
-  public TradeCancellationServiceImpl(TradeRepository tradeRepository,
-    DividendRepository dividendRepository, HoldingsRebuilder holdingsRebuilder,
-    MeterRegistry meterRegistry) {
-    this.tradeRepository = tradeRepository;
-    this.dividendRepository = dividendRepository;
-    this.holdingsRebuilder = holdingsRebuilder;
-    // 시작 때 0 으로 등록. 첫 증가 때 생긴 시계열은 increase 가 첫 값을 못 센다
-    this.dividendRecorded = Counter.builder("trade.cancel.review").tag("reason", "dividend_recorded")
-      .register(meterRegistry);
-  }
+  private final ApplicationEventPublisher eventPublisher;
 
   // 체결을 잠가서 같은 반영 실패가 두 번 와도 한 번만 취소한다
   @Override
@@ -57,10 +46,7 @@ public class TradeCancellationServiceImpl implements TradeCancellationService {
 
     trade.cancel(event.getReasonCode(), LocalDateTime.now());
     holdingsRebuilder.rebuild(trade.getUserId(), trade.getAccountId(), trade.getSymbol());
-    if (dividendRepository.existsByTradeId(trade.getId())) {
-      dividendRecorded.increment();
-      log.warn("취소한 체결에 배당 기록이 있음. 잔액 확인 필요: tradeId={}", trade.getId());
-    }
+    eventPublisher.publishEvent(new TradeCancelledEvent(trade.getUserId(), trade.getAccountId(), trade.getSymbol()));
     log.info("잔액 반영 실패로 체결 취소: tradeId={}, reason={}", trade.getId(), event.getReasonCode());
   }
 }

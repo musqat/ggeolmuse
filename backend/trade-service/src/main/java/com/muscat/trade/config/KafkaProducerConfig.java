@@ -1,7 +1,8 @@
 package com.muscat.trade.config;
 
-import com.muscat.messaging.event.DividendReceivedEvent;
+import com.muscat.messaging.event.DividendPayoutEvent;
 import com.muscat.messaging.event.TradeCompletedEvent;
+import com.muscat.trade.domain.event.DividendReconcileRequest;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
@@ -56,12 +57,22 @@ public class KafkaProducerConfig {
     }
 
     @Bean
-    public ProducerFactory<String, DividendReceivedEvent> dividendReceivedEventProducerFactory() {
+    public ProducerFactory<String, DividendReconcileRequest> dividendReconcileProducerFactory() {
         return new DefaultKafkaProducerFactory<>(getCommonProducerConfig());
     }
 
     @Bean
-    public KafkaTemplate<String, DividendReceivedEvent> dividendReceivedKafkaTemplate() {
-        return new KafkaTemplate<>(dividendReceivedEventProducerFactory());
+    public KafkaTemplate<String, DividendReconcileRequest> dividendReconcileKafkaTemplate() {
+        return new KafkaTemplate<>(dividendReconcileProducerFactory());
+    }
+
+    @Bean
+    public ProducerFactory<String, DividendPayoutEvent> dividendPayoutEventProducerFactory() {
+        return new DefaultKafkaProducerFactory<>(getCommonProducerConfig());
+    }
+
+    @Bean
+    public KafkaTemplate<String, DividendPayoutEvent> dividendPayoutKafkaTemplate() {
+        return new KafkaTemplate<>(dividendPayoutEventProducerFactory());
     }
 }
