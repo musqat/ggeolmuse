@@ -64,7 +64,6 @@ public class TradeEventProducer {
                 .totalAmount(trade.getTotalAmount())
                 .currency("USD") // 모든 거래는 USD 기준
                 .fee(trade.getFee())
-                .priceType("MARKET") // 현재는 시장가 거래만 지원
                 .build();
 
         log.info("거래 완료 이벤트 발행 중: tradeId={}, userId={}, symbol={}, amount={}",
