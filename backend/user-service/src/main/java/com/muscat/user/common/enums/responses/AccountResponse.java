@@ -29,7 +29,6 @@ public enum AccountResponse implements ErrorCode {
   MAX_ACCOUNT_LIMIT_EXCEEDED("계좌 생성 한도를 초과했습니다.", HttpStatus.BAD_REQUEST),
   INVALID_CURRENCY("지원하지 않는 통화입니다.", HttpStatus.BAD_REQUEST),
   INVALID_REQUEST("잘못된 요청입니다.", HttpStatus.BAD_REQUEST),
-  CANNOT_DELETE_ACCOUNT_WITH_BALANCE("잔액이 있는 계좌는 삭제할 수 없습니다.", HttpStatus.BAD_REQUEST),
   INVALID_TRANSACTION_TYPE("유효하지 않은 거래 타입입니다.", HttpStatus.BAD_REQUEST),
   INVALID_AMOUNT("금액이 유효하지 않습니다.", HttpStatus.BAD_REQUEST),
   NEGATIVE_AMOUNT("금액은 0보다 커야 합니다.", HttpStatus.BAD_REQUEST),

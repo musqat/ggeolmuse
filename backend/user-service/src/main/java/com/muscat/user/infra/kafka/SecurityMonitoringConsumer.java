@@ -2,6 +2,8 @@ package com.muscat.user.infra.kafka;
 
 import com.muscat.messaging.event.UserLoginFailedEvent;
 import com.muscat.messaging.event.UserLoginSuccessEvent;
+import com.muscat.user.common.enums.responses.UserResponse;
+import com.muscat.user.common.exceptions.UserException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -60,7 +62,7 @@ public class SecurityMonitoringConsumer {
         } catch (Exception ex) {
             log.error("[SECURITY] 로그인 성공 이벤트 처리 실패: email={}, error={}",
                     event.getEmail(), ex.getMessage(), ex);
-            throw new RuntimeException("Login success event processing failed", ex);
+            throw new UserException(UserResponse.EVENT_PROCESSING_FAILED, ex);
         }
     }
 
@@ -100,7 +102,7 @@ public class SecurityMonitoringConsumer {
         } catch (Exception ex) {
             log.error("[SECURITY] 로그인 실패 이벤트 처리 실패: email={}, error={}",
                     event.getEmail(), ex.getMessage(), ex);
-            throw new RuntimeException("Login failed event processing failed", ex);
+            throw new UserException(UserResponse.EVENT_PROCESSING_FAILED, ex);
         }
     }
 }

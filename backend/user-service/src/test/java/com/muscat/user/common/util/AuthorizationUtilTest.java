@@ -22,7 +22,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 
-@DisplayName("관리자 · 본인 확인")
+@DisplayName("현재 사용자 · 관리자 확인")
 class AuthorizationUtilTest {
 
   private final UserRepository userRepository = mock(UserRepository.class);
@@ -103,18 +103,5 @@ class AuthorizationUtilTest {
     signIn("kc-unknown");
 
     assertThat(authorizationUtil.isAdmin()).isFalse();
-  }
-
-  @Test
-  @DisplayName("본인이거나 관리자면 통과하고, 남의 것이면 FORBIDDEN 이다")
-  void requireSelfOrAdmin() {
-    signIn("kc-1");
-    inDb("kc-1", 7L, UserRole.USER);
-    assertThatCode(() -> authorizationUtil.requireSelfOrAdmin(7L)).doesNotThrowAnyException();
-    assertResponse(catchThrowable(() -> authorizationUtil.requireSelfOrAdmin(8L)), UserResponse.FORBIDDEN);
-
-    signIn("kc-admin");
-    inDb("kc-admin", 1L, UserRole.ADMIN);
-    assertThatCode(() -> authorizationUtil.requireSelfOrAdmin(8L)).doesNotThrowAnyException();
   }
 }

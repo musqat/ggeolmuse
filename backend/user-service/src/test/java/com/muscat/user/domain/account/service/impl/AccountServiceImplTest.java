@@ -698,7 +698,7 @@ class AccountServiceImplTest {
       given(accountRepository.save(testAccount)).willReturn(testAccount);
 
       // when
-      accountService.updateUsdBalance(accountId, userId, sellAmount, "주식 매도");
+      accountService.updateUsdBalance(accountId, userId, sellAmount, TransactionType.TRADE_SELL, "주식 매도");
 
       // then
       assertThat(testAccount.getBalanceUsd())
@@ -718,7 +718,7 @@ class AccountServiceImplTest {
       given(accountRepository.save(testAccount)).willReturn(testAccount);
 
       // when
-      accountService.updateUsdBalance(accountId, userId, buyAmount, "주식 매수");
+      accountService.updateUsdBalance(accountId, userId, buyAmount, TransactionType.TRADE_BUY, "주식 매수");
 
       // then
       assertThat(testAccount.getBalanceUsd())
@@ -727,23 +727,27 @@ class AccountServiceImplTest {
     }
 
     @Test
-    @DisplayName("배당 입금은 매도가 아니라 배당으로 남고, 매수 · 매도는 그대로다")
-    void updateUsdBalance_RecordsDividendType() {
+    @DisplayName("이력 · 이벤트 종류는 넘긴 종류를 따르고 설명 문구는 보지 않는다")
+    void updateUsdBalance_UsesGivenType() {
       testAccount.setBalanceUsd(new BigDecimal("1000.00"));
       given(accountRepository.findByIdWithLock(accountId)).willReturn(Optional.of(testAccount));
       given(accountRepository.save(testAccount)).willReturn(testAccount);
 
-      accountService.updateUsdBalance(accountId, userId, new BigDecimal("12.34"),
-        "배당금 수령: AAPL (기준일: 2026-01-10, 주당: $0.25 × 49주)");
-      accountService.updateUsdBalance(accountId, userId, new BigDecimal("500.00"),
-        "주식 매도: AAPL 1주 @ $500 (거래ID: 1)");
-      accountService.updateUsdBalance(accountId, userId, new BigDecimal("-100.00"),
+      accountService.updateUsdBalance(accountId, userId, new BigDecimal("12.34"), TransactionType.DIVIDEND,
+        "AAPL 입금");
+      accountService.updateUsdBalance(accountId, userId, new BigDecimal("500.00"), TransactionType.TRADE_SELL,
+        "배당금 받은 종목 매도");
+      accountService.updateUsdBalance(accountId, userId, new BigDecimal("-100.00"), TransactionType.TRADE_BUY,
         "주식 매수: AAPL 1주 @ $100 (거래ID: 2)");
 
       ArgumentCaptor<AccountHistory> saved = ArgumentCaptor.forClass(AccountHistory.class);
       verify(accountHistoryRepository, times(3)).save(saved.capture());
       assertThat(saved.getAllValues()).extracting(AccountHistory::getTransactionType)
         .containsExactly(TransactionType.DIVIDEND, TransactionType.TRADE_SELL, TransactionType.TRADE_BUY);
+      verify(accountEventProducer).publishAccountBalanceUpdated(eq(testAccount), eq("DIVIDEND_RECEIVED"),
+        any(), any(), any(), any(), any(), any(), any());
+      verify(accountEventProducer, times(2)).publishAccountBalanceUpdated(eq(testAccount), eq("TRADE_COMPLETED"),
+        any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -758,7 +762,7 @@ class AccountServiceImplTest {
 
       // when & then
       assertThatThrownBy(() ->
-        accountService.updateUsdBalance(accountId, userId, excessiveAmount, "주식 매수")
+        accountService.updateUsdBalance(accountId, userId, excessiveAmount, TransactionType.TRADE_BUY, "주식 매수")
       ).isInstanceOf(AccountException.class)
         .hasMessage(AccountResponse.INSUFFICIENT_USD_BALANCE.getMessage());
 
@@ -774,7 +778,7 @@ class AccountServiceImplTest {
 
       // when & then
       assertThatThrownBy(() ->
-        accountService.updateUsdBalance(accountId, userId, BigDecimal.ZERO, "테스트")
+        accountService.updateUsdBalance(accountId, userId, BigDecimal.ZERO, TransactionType.TRADE_BUY, "테스트")
       ).isInstanceOf(AccountException.class)
         .hasMessage(AccountResponse.INVALID_DEPOSIT_AMOUNT.getMessage());
     }
@@ -792,7 +796,7 @@ class AccountServiceImplTest {
 
       // when & then
       assertThatThrownBy(() ->
-        accountService.updateUsdBalance(accountId, userId, new BigDecimal("100"), "테스트")
+        accountService.updateUsdBalance(accountId, userId, new BigDecimal("100"), TransactionType.TRADE_SELL, "테스트")
       ).isInstanceOf(AccountException.class)
         .hasMessage(AccountResponse.ACCOUNT_ACCESS_DENIED.getMessage());
     }
@@ -835,61 +839,6 @@ class AccountServiceImplTest {
       // then
       assertThat(rate).isEqualByComparingTo(new BigDecimal("1320.00"));
       verify(marketDataServiceClientWrapper).getLatestFxRate();
-    }
-  }
-
-  @Nested
-  @DisplayName("수동 환율 생성 테스트")
-  class CreateManualExchangeRateTests {
-
-    @Test
-    @DisplayName("유효한 수동 환율을 생성한다")
-    void createManualExchangeRate_Valid_Success() {
-      // given
-      BigDecimal manualRate = new BigDecimal("1330.50");
-
-      // when
-      BigDecimal result = accountService.createManualExchangeRate(manualRate);
-
-      // then
-      assertThat(result).isEqualByComparingTo(new BigDecimal("1330.50"));
-      verify(userLogger).logManualExchangeRate(any(BigDecimal.class), anyString());
-    }
-
-    @Test
-    @DisplayName("null 환율은 예외가 발생한다")
-    void createManualExchangeRate_Null_ThrowsException() {
-      // when & then
-      assertThatThrownBy(() ->
-        accountService.createManualExchangeRate(null)
-      ).isInstanceOf(AccountException.class)
-        .hasMessage(AccountResponse.INVALID_EXCHANGE_RATE.getMessage());
-    }
-
-    @Test
-    @DisplayName("최소값보다 낮은 환율은 예외가 발생한다")
-    void createManualExchangeRate_TooLow_ThrowsException() {
-      // given
-      BigDecimal tooLow = new BigDecimal("500");
-
-      // when & then
-      assertThatThrownBy(() ->
-        accountService.createManualExchangeRate(tooLow)
-      ).isInstanceOf(AccountException.class)
-        .hasMessage(AccountResponse.INVALID_EXCHANGE_RATE.getMessage());
-    }
-
-    @Test
-    @DisplayName("최대값보다 높은 환율은 예외가 발생한다")
-    void createManualExchangeRate_TooHigh_ThrowsException() {
-      // given
-      BigDecimal tooHigh = new BigDecimal("3000");
-
-      // when & then
-      assertThatThrownBy(() ->
-        accountService.createManualExchangeRate(tooHigh)
-      ).isInstanceOf(AccountException.class)
-        .hasMessage(AccountResponse.INVALID_EXCHANGE_RATE.getMessage());
     }
   }
 
@@ -1023,6 +972,24 @@ class AccountServiceImplTest {
         .hasMessage(AccountResponse.ACCOUNT_ACCESS_DENIED.getMessage());
       assertThat(othersAccount.getBalanceUsd()).isEqualByComparingTo("1000.00");
     }
+
+    @Test
+    @DisplayName("매수 · 매도 체결은 매수 · 매도 이력으로 남긴다")
+    void processTradeEvent_RecordsBuyAndSellType() {
+      // given
+      Account account = usdAccount(20L, testUser, "1000.00");
+      given(accountRepository.findByIdWithLock(20L)).willReturn(Optional.of(account));
+
+      // when
+      accountService.processTradeEvent(tradeEvent(20L, "BUY", "90.02"));
+      accountService.processTradeEvent(tradeEvent(20L, "SELL", "50.00"));
+
+      // then
+      ArgumentCaptor<AccountHistory> saved = ArgumentCaptor.forClass(AccountHistory.class);
+      verify(accountHistoryRepository, times(2)).save(saved.capture());
+      assertThat(saved.getAllValues()).extracting(AccountHistory::getTransactionType)
+        .containsExactly(TransactionType.TRADE_BUY, TransactionType.TRADE_SELL);
+    }
   }
 
   @Nested
@@ -1115,6 +1082,29 @@ class AccountServiceImplTest {
       assertThat(testAccount.getBalanceUsd()).isEqualByComparingTo("0");
       verify(dividendSettlementRepository, never()).saveAndFlush(any());
     }
+
+    @Test
+    @DisplayName("배당 입금은 배당 이력으로 남긴다")
+    void processDividendReceivedEvent_RecordsDividendType() {
+      DividendReceivedEvent event = DividendReceivedEvent.builder()
+        .userId(userId.toString())
+        .accountId(accountId)
+        .symbol("AAPL")
+        .quantity(new BigDecimal("10"))
+        .dividendPerShare(new BigDecimal("0.25"))
+        .totalAmount(new BigDecimal("2.50"))
+        .exDate("2024-11-08")
+        .currency("USD")
+        .build();
+      given(accountRepository.findById(accountId)).willReturn(Optional.of(testAccount));
+      given(accountRepository.findByIdWithLock(accountId)).willReturn(Optional.of(testAccount));
+
+      accountService.processDividendReceivedEvent(event);
+
+      ArgumentCaptor<AccountHistory> saved = ArgumentCaptor.forClass(AccountHistory.class);
+      verify(accountHistoryRepository).save(saved.capture());
+      assertThat(saved.getValue().getTransactionType()).isEqualTo(TransactionType.DIVIDEND);
+    }
   }
 
   @Nested
@@ -1169,12 +1159,16 @@ class AccountServiceImplTest {
   }
 
   private TradeCompletedEvent buyEvent(Long accountId, String totalAmount) {
+    return tradeEvent(accountId, "BUY", totalAmount);
+  }
+
+  private TradeCompletedEvent tradeEvent(Long accountId, String tradeType, String totalAmount) {
     return TradeCompletedEvent.builder()
       .userId(userId.toString())
       .accountId(accountId)
       .tradeId(7L)
       .symbol("TSLL")
-      .tradeType("BUY")
+      .tradeType(tradeType)
       .quantity(new BigDecimal("10"))
       .price(new BigDecimal("8.98"))
       .totalAmount(new BigDecimal(totalAmount))
@@ -1268,18 +1262,17 @@ class AccountServiceImplTest {
     }
 
     @Test
-    @DisplayName("잔액 반영 사유로 이벤트 종류를 정한다: 거래 취소 · 그 밖")
-    void updateUsdBalance_UpdateTypeFromDescription() {
+    @DisplayName("매매 · 배당이 아닌 종류로는 USD 잔액을 바꾸지 않는다")
+    void updateUsdBalance_OtherType_Rejected() {
       testAccount.setBalanceUsd(new BigDecimal("100"));
-      given(accountRepository.findByIdWithLock(accountId)).willReturn(Optional.of(testAccount));
 
-      accountService.updateUsdBalance(accountId, userId, new BigDecimal("10"), "거래 취소: AAPL");
-      accountService.updateUsdBalance(accountId, userId, new BigDecimal("5"), "수동 조정");
+      assertThatThrownBy(() -> accountService.updateUsdBalance(accountId, userId, new BigDecimal("10"),
+        TransactionType.DEPOSIT, "입금"))
+        .isInstanceOf(AccountException.class)
+        .hasMessage(AccountResponse.INVALID_TRANSACTION_TYPE.getMessage());
 
-      verify(accountEventProducer).publishAccountBalanceUpdated(eq(testAccount), eq("TRADE_CANCELLED"),
-        any(), any(), any(), any(), any(), any(), any());
-      verify(accountEventProducer).publishAccountBalanceUpdated(eq(testAccount), eq("USD_BALANCE_UPDATE"),
-        any(), any(), any(), any(), any(), any(), any());
+      assertThat(testAccount.getBalanceUsd()).isEqualByComparingTo("100");
+      verifyNoInteractions(accountHistoryRepository, accountEventProducer);
     }
 
     @Test

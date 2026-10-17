@@ -10,6 +10,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.muscat.messaging.event.EmailSendEvent;
+import com.muscat.user.common.exceptions.UserException;
 import jakarta.mail.Address;
 import jakarta.mail.Session;
 import jakarta.mail.internet.InternetAddress;
@@ -83,8 +84,9 @@ class EmailEventConsumerTest {
     willThrow(new MailSendException("smtp down")).given(mailSender).send(any(MimeMessage.class));
 
     assertThatThrownBy(() -> consumer.handleEmailSend(event(null), 0, 1L, acknowledgment))
-      .isInstanceOf(RuntimeException.class)
-      .hasMessage("Email send failed");
+      .isInstanceOf(UserException.class)
+      .hasFieldOrPropertyWithValue("errorCode", "EMAIL_SEND_FAILED")
+      .hasCauseInstanceOf(MailSendException.class);
     verify(acknowledgment, never()).acknowledge();
   }
 }

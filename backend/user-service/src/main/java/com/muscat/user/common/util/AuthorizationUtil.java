@@ -90,25 +90,4 @@ public class AuthorizationUtil {
             return false;
         }
     }
-
-    /**
-     * 특정 사용자가 본인 또는 ADMIN인지 확인
-     */
-    public void requireSelfOrAdmin(Long targetUserId) {
-        User currentUser = getCurrentUser();
-
-        if (currentUser.getId().equals(targetUserId)) {
-            log.debug("본인 접근: userId={}", currentUser.getId());
-            return;
-        }
-
-        if (currentUser.getRole() == UserRole.ADMIN) {
-            log.debug("ADMIN 접근: adminId={}, targetUserId={}", currentUser.getId(), targetUserId);
-            return;
-        }
-
-        log.warn("권한 없음: userId={}, targetUserId={}, role={}",
-                currentUser.getId(), targetUserId, currentUser.getRole());
-        throw new UserException(UserResponse.FORBIDDEN);
-    }
 }

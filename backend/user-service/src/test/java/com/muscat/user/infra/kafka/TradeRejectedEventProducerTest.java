@@ -1,7 +1,9 @@
 package com.muscat.user.infra.kafka;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static com.muscat.user.infra.kafka.KafkaSends.interrupted;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -11,6 +13,7 @@ import static org.mockito.Mockito.verify;
 
 import com.muscat.messaging.event.TradeCompletedEvent;
 import com.muscat.messaging.event.TradeRejectedEvent;
+import com.muscat.user.common.exceptions.UserException;
 import java.util.concurrent.CompletableFuture;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.TopicPartition;
@@ -49,13 +52,28 @@ class TradeRejectedEventProducerTest {
   }
 
   @Test
-  @DisplayName("브로커가 받지 못하면 예외를 낸다")
+  @DisplayName("브로커가 받지 못하면 이벤트 발행 실패로 올린다")
   void publish_SendFails_Throws() {
     given(template.send(anyString(), anyString(), any()))
       .willReturn(CompletableFuture.failedFuture(new RuntimeException("broker down")));
 
     assertThatThrownBy(() -> producer.publish(trade, "INSUFFICIENT_USD_BALANCE", "x"))
-      .isInstanceOf(IllegalStateException.class)
-      .hasMessageContaining("tradeId=7");
+      .isInstanceOf(UserException.class)
+      .hasFieldOrPropertyWithValue("errorCode", "EVENT_PUBLISH_FAILED")
+      .hasRootCauseMessage("broker down");
+  }
+
+  @Test
+  @DisplayName("기다리는 중에 인터럽트되면 인터럽트 상태를 되살리고 이벤트 발행 실패로 올린다")
+  void publish_Interrupted_RestoresInterrupt() {
+    given(template.send(anyString(), anyString(), any())).willReturn(interrupted());
+
+    Throwable thrown = catchThrowable(() -> producer.publish(trade, "INSUFFICIENT_USD_BALANCE", "x"));
+
+    assertThat(Thread.interrupted()).isTrue();
+    assertThat(thrown)
+      .isInstanceOf(UserException.class)
+      .hasFieldOrPropertyWithValue("errorCode", "EVENT_PUBLISH_FAILED")
+      .hasCauseInstanceOf(InterruptedException.class);
   }
 }

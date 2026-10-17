@@ -8,4 +8,8 @@ public class UserException extends BusinessException {
   public UserException(UserResponse response) {
     super(response);
   }
+
+  public UserException(UserResponse response, Throwable cause) {
+    super(response, cause);
+  }
 }

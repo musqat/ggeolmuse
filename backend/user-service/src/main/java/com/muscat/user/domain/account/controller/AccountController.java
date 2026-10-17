@@ -36,7 +36,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "Account Management", description = "계좌 관리 API")
@@ -89,10 +88,9 @@ public class AccountController {
     return ResponseEntity.ok(accountDtos);
   }
 
-  @Operation(summary = "계좌 삭제", description = "계좌를 삭제합니다. 잔액이 0이어야 삭제할 수 있습니다.")
+  @Operation(summary = "계좌 삭제", description = "계좌와 거래 내역을 삭제합니다. 잔액이 남아 있어도 삭제합니다.")
   @ApiResponses(value = {
     @ApiResponse(responseCode = "200", description = "삭제 성공"),
-    @ApiResponse(responseCode = "400", description = "잔액이 있는 계좌는 삭제할 수 없음"),
     @ApiResponse(responseCode = "403", description = "권한 없음"),
     @ApiResponse(responseCode = "404", description = "계좌를 찾을 수 없음"),
     @ApiResponse(responseCode = "401", description = "인증 실패")
@@ -253,22 +251,5 @@ public class AccountController {
     BigDecimal rate = accountService.getExchangeRateByDate(date);
 
     return ResponseEntity.ok(rate);
-  }
-
-  @Operation(summary = "수동 환율 검증", description = "사용자가 입력한 환율을 검증합니다")
-  @ApiResponses(value = {
-    @ApiResponse(responseCode = "200", description = "환율 검증 성공"),
-    @ApiResponse(responseCode = "400", description = "잘못된 환율 값")
-  })
-  @PostMapping("/exchange-rates/validate")
-  public ResponseEntity<BigDecimal> validateManualExchangeRate(
-    @Parameter(description = "검증할 환율 값", example = "1300.50")
-    @RequestParam BigDecimal rate) {
-
-    log.debug("수동 환율 검증 요청: {}", rate);
-
-    BigDecimal validatedRate = accountService.createManualExchangeRate(rate);
-
-    return ResponseEntity.ok(validatedRate);
   }
 }

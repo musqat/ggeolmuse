@@ -25,9 +25,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 // 같은 배당 지급이 두 번 와도 잔액이 한 번만 느는지 실제 트랜잭션 · DB 제약으로 본다
 @SpringBootTest
@@ -50,16 +50,16 @@ class DividendSettlementIntegrationTest {
   @Autowired
   private UserRepository userRepository;
 
-  @MockBean
+  @MockitoBean
   private MarketDataServiceClientWrapper marketDataServiceClientWrapper;
 
-  @MockBean
+  @MockitoBean
   private AccountEventProducer accountEventProducer;
 
-  @MockBean
+  @MockitoBean
   private DepositWithdrawalEventProducer depositWithdrawalEventProducer;
 
-  @MockBean
+  @MockitoBean
   private TradeRejectedEventProducer tradeRejectedEventProducer;
 
   private Long userId;

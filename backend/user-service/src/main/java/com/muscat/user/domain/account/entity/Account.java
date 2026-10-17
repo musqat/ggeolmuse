@@ -112,16 +112,6 @@ public class Account {
     }
   }
 
-  // 삭제 가능 여부 검증
-  public void validateDeletable() {
-    if (this.balanceKrw.compareTo(BigDecimal.ZERO) > 0 ||
-        this.balanceUsd.compareTo(BigDecimal.ZERO) > 0) {
-      throw new com.muscat.user.common.exceptions.AccountException(
-          com.muscat.user.common.enums.responses.AccountResponse.CANNOT_DELETE_ACCOUNT_WITH_BALANCE
-      );
-    }
-  }
-
   // KRW 입금
   public void depositKrw(BigDecimal amount) {
     com.muscat.commonlib.util.MoneyUtils.validatePositiveAmount(amount, "입금 금액");

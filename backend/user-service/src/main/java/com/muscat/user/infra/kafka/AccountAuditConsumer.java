@@ -1,6 +1,8 @@
 package com.muscat.user.infra.kafka;
 
 import com.muscat.messaging.event.AccountBalanceUpdatedEvent;
+import com.muscat.user.common.enums.responses.UserResponse;
+import com.muscat.user.common.exceptions.UserException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -63,7 +65,7 @@ public class AccountAuditConsumer {
         } catch (Exception ex) {
             log.error("[AUDIT] 잔액 변경 이벤트 처리 실패: accountId={}, error={}",
                     event.getAccountId(), ex.getMessage(), ex);
-            throw new RuntimeException("Balance update audit failed", ex);
+            throw new UserException(UserResponse.EVENT_PROCESSING_FAILED, ex);
         }
     }
 }
