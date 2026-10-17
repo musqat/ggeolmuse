@@ -146,8 +146,6 @@ gatewayServer:
     springProfiles: prod
     configUri: http://config-server:8888
     configUsername: config
-  rbac:
-    create: true
   strategy:
     rollingUpdate:
       maxUnavailable: 0

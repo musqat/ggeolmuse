@@ -25,7 +25,7 @@ spec:
       labels:
         app: {{ .Values.gatewayServer.name }}
     spec:
-      {{- if or .Values.gatewayServer.rbac.create .Values.global.aws.serviceAccount.create }}
+      {{- if .Values.global.aws.serviceAccount.create }}
       serviceAccountName: {{ .Values.gatewayServer.name }}
       {{- end }}
       initContainers:
