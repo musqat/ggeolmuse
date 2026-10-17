@@ -6,13 +6,11 @@ import com.muscat.trade.common.exception.MarketDataException;
 import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.common.logging.TradeLogger;
 import com.muscat.trade.domain.service.MarketDataService;
-import com.muscat.trade.infra.client.MarketServiceClient;
+import com.muscat.trade.infra.client.MarketServiceClientWrapper;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -20,7 +18,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class MarketDataServiceImpl implements MarketDataService {
 
-  private final MarketServiceClient marketServiceClient;
+  private final MarketServiceClientWrapper marketServiceClientWrapper;
   private final TradeLogger tradeLogger;
 
   @Override
@@ -36,15 +34,10 @@ public class MarketDataServiceImpl implements MarketDataService {
   }
 
   @Override
-  @Retryable(
-    retryFor = {Exception.class},
-    maxAttempts = 3,
-    backoff = @Backoff(delay = 500, multiplier = 2.0)
-  )
   public BigDecimal getOHLCPrice(String symbol, LocalDate tradeDate, PriceType priceType) {
     try {
       log.info("시장 데이터 조회 시도: symbol={}, date={}, priceType={}", symbol, tradeDate, priceType);
-      var response = marketServiceClient.getOHLCPrice(symbol, tradeDate.toString());
+      var response = marketServiceClientWrapper.getOHLCPrice(symbol, tradeDate.toString());
       log.debug("Market data raw response: {}", response);
 
       if (response != null && response.available()) {
@@ -80,16 +73,11 @@ public class MarketDataServiceImpl implements MarketDataService {
   }
 
   @Override
-  @Retryable(
-    retryFor = {Exception.class},
-    maxAttempts = 3,
-    backoff = @Backoff(delay = 500, multiplier = 2.0)
-  )
   public BigDecimal validateManualPrice(String symbol, LocalDate tradeDate,
     BigDecimal manualPrice) {
     try {
       log.info("수동 가격 검증을 위한 시장 데이터 조회 시도: symbol={}, date={}", symbol, tradeDate);
-      var response = marketServiceClient.getOHLCPrice(symbol, tradeDate.toString());
+      var response = marketServiceClientWrapper.getOHLCPrice(symbol, tradeDate.toString());
 
       if (response != null && response.available()) {
         BigDecimal lowPrice = response.lowPrice();
