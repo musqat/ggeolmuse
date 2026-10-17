@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import { applyFilters, buyDates, groupByDay, summarize } from './tradeHistory'
+import { applyFilters, groupByDay, summarize } from './tradeHistory'
 import type { TransactionHistoryItem } from '../../../services/api'
 
 const buy = (tradeId: number, date: string, executedAt: string, extra: Partial<TransactionHistoryItem> = {}) =>
   ({ type: 'BUY', tradeId, accountId: 1, symbol: 'AAPL', quantity: 2, price: 100, totalAmount: 200.4, fee: 0.4, date, executedAt, status: 'COMPLETED', ...extra }) as TransactionHistoryItem
 const sell = (tradeId: number, date: string, executedAt: string, extra: Partial<TransactionHistoryItem> = {}) =>
   ({ type: 'SELL', tradeId, accountId: 1, symbol: 'NVDA', quantity: 1, price: 150, totalAmount: 149.7, fee: 0.3, date, executedAt, status: 'COMPLETED', ...extra }) as TransactionHistoryItem
-const dividend = (tradeId: number, date: string) =>
-  ({ type: 'DIVIDEND', tradeId, symbol: 'AAPL', totalAmount: 0.44, grossAmount: 0.52, taxAmount: 0.08, dividendPerShare: 0.26, shares: 2, date, executedAt: `${date}T00:00:00` }) as TransactionHistoryItem
+const dividend = (accountId: number, date: string) =>
+  ({ type: 'DIVIDEND', accountId, symbol: 'AAPL', totalAmount: 0.44, grossAmount: 0.52, taxAmount: 0.08, dividendPerShare: 0.26, shares: 2, date, executedAt: `${date}T00:00:00` }) as TransactionHistoryItem
 
 describe('groupByDay', () => {
   it('매수 · 매도 · 배당을 거래일 최신순으로 섞어 묶고, 같은 날은 주문 시각 최신순이다', () => {
@@ -57,18 +57,9 @@ describe('applyFilters', () => {
     expect(applyFilters(items, 'DIVIDEND', 'ALL')).toHaveLength(2)
   })
 
-  it('계좌로 거르면 배당은 연결된 매수의 계좌를 따른다', () => {
+  it('계좌로 거르면 배당도 자기 계좌로 걸러진다', () => {
     const result = applyFilters(items, 'ALL', 1)
 
-    expect(result.map((t) => `${t.type}-${t.tradeId}`)).toEqual(['BUY-1', 'SELL-3', 'DIVIDEND-1'])
-  })
-})
-
-describe('buyDates', () => {
-  it('매수 tradeId 로 그 거래일을 찾는다', () => {
-    const dates = buyDates([buy(1, '2025-01-02', '2025-01-02T10:00:00'), sell(2, '2026-01-01', '2026-01-01T10:00:00')])
-
-    expect(dates.get(1)).toBe('2025-01-02')
-    expect(dates.has(2)).toBe(false)
+    expect(result.map((t) => `${t.type}-${t.tradeId ?? t.date}`)).toEqual(['BUY-1', 'SELL-3', 'DIVIDEND-2026-10-04'])
   })
 })

@@ -249,7 +249,7 @@ spec:
             description: '1분 넘게 못 보낸 체결 {{ `{{ $value | printf "%.0f" }}` }}건 · 10분 지속 · 카프카 상태 확인'
 
         - alert: TradeCancelNeedsReview
-          # 취소한 체결을 자동으로 다 되돌리지 못했다. 보유보다 많은 매도이거나 배당이 이미 지급됐다
+          # 취소한 체결을 자동으로 다 되돌리지 못함. 보유보다 많이 판 경우
           expr: sum by (reason) (increase(trade_cancel_review_total{job="trade-service"}[10m])) > 0
           labels:
             severity: warning

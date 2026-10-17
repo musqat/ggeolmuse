@@ -106,15 +106,19 @@ count(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_irate)
 `KafkaDeadLetter` 는 user · trade 가 재시도로 못 살린 메시지를 `<토픽>.DLT` 로 넘길 때 오르는
 `kafka_dlt_records_total` 을 본다. 원인은 그 서비스 로그의 `DLT 로 보냄` 줄과 DLT 메시지 헤더
 `kafka_dlt-exception-message` 에 있다. 원인을 고친 뒤 kafka-ui 에서 DLT 메시지 값을 원래 토픽에 같은
-키(userId)로 다시 넣는다. `trading.trade.completed` 는 user-service 가 처리한 체결을 `trade_settlements` 에
-남겨 다시 넣어도 한 번만 반영한다. 다른 토픽은 다시 넣기 전에 이미 반영됐는지 확인한다.
+키로 다시 넣는다. 키는 userId, `trading.dividend.reconcile` 만 accountId 다. `trading.trade.completed` 는
+user-service 가 처리한 체결을 `trade_settlements` 에 남겨 다시 넣어도 한 번만 반영한다.
+`trading.dividend.reconcile` 은 그때 거래로 다시 계산해 몇 번 넣어도 같다. `trading.dividend.payout` 은 목표
+금액이라 두 번 넣어도 한 번만 반영하지만, 같은 몫의 더 새 메시지가 이미 들어갔으면 옛 값으로 돌아간다. 다시 넣은
+뒤 `GET /api/admin/trade/dividends/payout-diff` 가 비었는지 본다. 다른 토픽은 다시 넣기 전에 이미 반영됐는지
+확인한다.
 
 `TradeEventsUnpublished` 는 trade-service 가 커밋한 체결 가운데 이벤트를 1분 넘게 못 보낸 수다. 스케줄러가
 30초마다 다시 보내므로 카프카가 돌아오면 0 으로 내려간다.
 
 `TradeCancelNeedsReview` 는 반영 실패로 체결을 취소했는데 자동으로 다 되돌리지 못한 경우다. `uncovered_sell` 은
-취소된 매수로 산 주식을 반영 실패가 오기 전에 판 경우로, 보유를 0 으로 두었다. `dividend_recorded` 는 그 체결로
-배당이 이미 지급된 경우다. 둘 다 사용자 잔액을 손으로 맞춘다.
+취소된 매수로 산 주식을 반영 실패가 오기 전에 판 경우로, 보유를 0 으로 두었다. 사용자 잔액을 손으로 맞춘다.
+배당은 경보 대상이 아니다. 취소하면 그 계좌 · 종목의 배당 몫을 다시 계산해 이미 넣은 배당을 돌려받는다.
 
 반복 주기는 critical 1시간, 나머지 4시간. `groupWait` 30초, `groupInterval` 5분.
 

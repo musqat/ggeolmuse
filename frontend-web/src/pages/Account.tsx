@@ -16,6 +16,7 @@ import CreateAccountModal from '../components/account/modals/CreateAccountModal'
 import DepositModal from '../components/account/modals/DepositModal';
 import ExchangeModal from '../components/account/modals/ExchangeModal';
 import DeleteAccountModal from '../components/account/modals/DeleteAccountModal';
+import { formatBalanceAmount } from '../utils/gainLoss';
 
 const Account: React.FC = () => {
   const { isAuthenticated, login } = useAuth();
@@ -81,13 +82,7 @@ const Account: React.FC = () => {
       return currency === 'KRW' ? '₩***,***' : '$***.**';
     }
 
-    const symbol = currency === 'KRW' ? '₩' : '$';
-    const formatted = amount.toLocaleString(undefined, {
-      minimumFractionDigits: currency === 'USD' ? 2 : 0,
-      maximumFractionDigits: currency === 'USD' ? 2 : 0
-    });
-
-    return `${symbol}${formatted}`;
+    return formatBalanceAmount(amount, currency);
   };
 
   // 로그인하지 않은 사용자

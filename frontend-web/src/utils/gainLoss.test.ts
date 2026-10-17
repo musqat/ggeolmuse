@@ -8,6 +8,7 @@ import {
   formatKrw,
   formatUsd,
   formatPercent,
+  formatBalanceAmount,
 } from './gainLoss'
 
 describe('gainLoss', () => {
@@ -48,5 +49,19 @@ describe('gainLoss', () => {
   it('값이 없으면 - 만 보여준다', () => {
     expect(formatSigned(undefined, formatKrw)).toBe('-')
     expect(formatSigned(null, formatPercent)).toBe('-')
+  })
+})
+
+describe('formatBalanceAmount', () => {
+  it('부호는 통화 기호 앞에 두고 달러는 센트까지, 원은 원 단위까지 보인다', () => {
+    expect(formatBalanceAmount(-12.3, 'USD')).toBe('-$12.30')
+    expect(formatBalanceAmount(1234.5, 'USD')).toBe('$1,234.50')
+    expect(formatBalanceAmount(1500, 'KRW')).toBe('₩1,500')
+    expect(formatBalanceAmount(-1500, 'KRW')).toBe('-₩1,500')
+  })
+
+  it('반올림해 0 이 되는 마이너스는 부호 없이 보인다', () => {
+    expect(formatBalanceAmount(-0.001, 'USD')).toBe('$0.00')
+    expect(formatBalanceAmount(-0.4, 'KRW')).toBe('₩0')
   })
 })

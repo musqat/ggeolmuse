@@ -6,6 +6,7 @@ import com.muscat.backtest.common.constants.BacktestConstants;
 import com.muscat.backtest.common.enums.BacktestResponse;
 import com.muscat.backtest.common.enums.type.BacktestType;
 import com.muscat.backtest.common.exception.BacktestException;
+import com.muscat.backtest.common.util.BacktestCalculationUtils;
 import com.muscat.backtest.common.util.BacktestHistoryUtils;
 import com.muscat.backtest.common.util.Decimals;
 import com.muscat.backtest.common.util.FxFallback;
@@ -281,13 +282,18 @@ public class InvestmentBacktestServiceImpl implements InvestmentBacktestService 
         currentFxRate.rate());
       BigDecimal fxReturn = currentFxRate.rate().subtract(purchaseFxRate.rate());
 
-      BigDecimal totalReturnKrw = currentValueKrw.subtract(holding.getTotalInvested());
+      // 지금 들고 있는 주식이 받은 배당. USD 잔액에 현금으로 있어 남은 현금으로 넣음
+      BigDecimal dividendsUsd = holding.totalDividends() != null ? holding.totalDividends() : BigDecimal.ZERO;
+      BigDecimal dividendsKrw = dividendsUsd.multiply(currentFxRate.rate()).setScale(0, MoneyUtils.ROUND_MODE);
+      BigDecimal totalAssetKrw = currentValueKrw.add(dividendsKrw);
+
+      BigDecimal totalReturnKrw = totalAssetKrw.subtract(holding.getTotalInvested());
       BigDecimal totalReturnPercent = calculateReturnRateWithZeroCheck(
-        holding.getTotalInvested(), currentValueKrw, "총 투자금액");
+        holding.getTotalInvested(), totalAssetKrw, "총 투자금액");
 
       return createHoldingSimulationResponse(holding, purchaseDate, currentPrice, currentValueUsd,
         currentValueKrw, stockReturn, stockReturnPercent, purchaseFxRate, currentFxRate,
-        fxReturn, fxReturnPercent, totalReturnKrw, totalReturnPercent);
+        fxReturn, fxReturnPercent, totalReturnKrw, totalReturnPercent, dividendsUsd, dividendsKrw);
 
     } catch (BacktestException e) {
       throw e;
@@ -338,7 +344,8 @@ public class InvestmentBacktestServiceImpl implements InvestmentBacktestService 
     StockPriceDto currentPrice, BigDecimal currentValueUsd, BigDecimal currentValueKrw,
     BigDecimal stockReturn, BigDecimal stockReturnPercent, FxRateDto purchaseFxRate,
     FxRateDto currentFxRate, BigDecimal fxReturn, BigDecimal fxReturnPercent,
-    BigDecimal totalReturnKrw, BigDecimal totalReturnPercent) {
+    BigDecimal totalReturnKrw, BigDecimal totalReturnPercent, BigDecimal dividendsUsd,
+    BigDecimal dividendsKrw) {
 
     return SimulationResponse.builder()
       .symbol(holding.symbol())
@@ -355,15 +362,16 @@ public class InvestmentBacktestServiceImpl implements InvestmentBacktestService 
       .currentFxRate(currentFxRate.rate())
       .fxReturn(MoneyUtils.roundUsd(fxReturn))
       .fxReturnPercent(MoneyUtils.roundUsd(fxReturnPercent))
-      .totalDividends(BigDecimal.ZERO)
-      .dividendYield(BigDecimal.ZERO)
+      .totalDividends(MoneyUtils.roundUsd(dividendsUsd))
+      .dividendYield(BacktestCalculationUtils.calculateDividendYield(dividendsUsd, holding.getShares(),
+        currentPrice.currentPrice()))
       .tradingFee(BigDecimal.ZERO)
-      .remainingCash(BigDecimal.ZERO)
+      .remainingCash(MoneyUtils.roundUsd(dividendsUsd))
       .totalReturn(MoneyUtils.roundUsd(totalReturnKrw))
       .totalReturnPercent(MoneyUtils.roundUsd(totalReturnPercent))
       .currentValueKrw(MoneyUtils.roundKrw(currentValueKrw))
       .totalReturnKrw(MoneyUtils.roundKrw(totalReturnKrw))
-      .remainingCashKrw(BigDecimal.ZERO)
+      .remainingCashKrw(MoneyUtils.roundKrw(dividendsKrw))
       .performanceSummary(
         createPerformanceSummary(stockReturn, totalReturnPercent, fxReturnPercent))
       .build();

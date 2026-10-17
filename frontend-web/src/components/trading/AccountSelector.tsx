@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Account } from '@/hooks/useAccounts';
+import { formatBalanceAmount } from '@/utils/gainLoss';
 
 interface AccountSelectorProps {
   accounts: Account[];
@@ -23,7 +24,7 @@ const AccountSelector: React.FC<AccountSelectorProps> = ({
         {accounts.length === 0 && <option value="">계좌 없음</option>}
         {accounts.map(acc => (
           <option key={acc.accountId} value={acc.accountId}>
-            {acc.accountName} - ${(acc.usdBalance || 0).toFixed(2)}
+            {acc.accountName} · {formatBalanceAmount(acc.usdBalance || 0, 'USD')}
           </option>
         ))}
       </select>

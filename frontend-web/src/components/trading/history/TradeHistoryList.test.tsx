@@ -6,7 +6,7 @@ import type { TransactionHistoryItem } from '../../../services/api'
 
 const items = [
   { type: 'BUY', tradeId: 1, accountId: 1, symbol: 'AAPL', quantity: 2, price: 227.52, totalAmount: 455.49, fee: 0.45, date: '2025-01-02', executedAt: '2025-01-02T10:00:00', status: 'COMPLETED' },
-  { type: 'DIVIDEND', tradeId: 1, symbol: 'AAPL', totalAmount: 0.44, grossAmount: 0.52, taxAmount: 0.08, dividendPerShare: 0.26, shares: 2, date: '2026-08-14', executedAt: '2026-08-15T00:00:00' },
+  { type: 'DIVIDEND', accountId: 2, symbol: 'AAPL', totalAmount: 0.44, grossAmount: 0.52, taxAmount: 0.08, dividendPerShare: 0.26, shares: 2, date: '2026-08-14', executedAt: '2026-08-15T00:00:00' },
   { type: 'SELL', tradeId: 2, accountId: 2, symbol: 'NVDA', quantity: 3, price: 182.4, totalAmount: 546.65, fee: 0.55, date: '2026-10-08', executedAt: '2026-10-09T15:12:00', status: 'COMPLETED' },
   { type: 'BUY', tradeId: 3, accountId: 1, symbol: 'MSFT', quantity: 1, price: 512.1, totalAmount: 512.61, fee: 0.51, date: '2026-08-14', executedAt: '2026-08-20T10:03:00', status: 'CANCELLED', cancelReason: '잔액 부족' },
 ] as TransactionHistoryItem[]
@@ -27,7 +27,7 @@ describe('TradeHistoryList', () => {
     expect(headers).toEqual(['2026. 10. 08. (목)', '2026. 08. 14. (금)', '2025. 01. 02. (목)'])
   })
 
-  it('나간 돈은 -, 들어온 돈은 + 를 붙이고 배당에는 어느 매수분인지 보인다', () => {
+  it('나간 돈은 -, 들어온 돈은 + 를 붙이고 배당 줄에도 계좌가 보인다', () => {
     renderList()
 
     expect(screen.getByText('+$546.65')).toBeInTheDocument()
@@ -35,7 +35,8 @@ describe('TradeHistoryList', () => {
     // 요약 칸에도 배당 합계 +$0.44 가 있어 배당 줄 안에서 찾는다
     const dividendRow = screen.getAllByTestId('history-row').find((row) => row.dataset.type === 'DIVIDEND')!
     expect(within(dividendRow).getByText('+$0.44')).toBeInTheDocument()
-    expect(screen.getByText('2025.01.02 매수분')).toBeInTheDocument()
+    expect(within(dividendRow).getByText('두번째')).toBeInTheDocument()
+    expect(screen.queryByText(/매수분/)).not.toBeInTheDocument()
     // 상세 줄은 조각 span 으로 나뉘어 p 전체 글자로 본다
     expect(
       screen.getByText((_, el) => el?.tagName === 'P' && el.textContent === '3주 × $182.40 · 수수료 $0.55')
@@ -60,13 +61,12 @@ describe('TradeHistoryList', () => {
     expect(screen.getByText('NVDA')).toBeInTheDocument()
   })
 
-  it('계좌를 고르면 그 계좌 매수에서 나온 배당도 남는다', async () => {
+  it('계좌를 고르면 그 계좌의 거래와 배당만 남는다', async () => {
     renderList()
 
-    await userEvent.selectOptions(screen.getByLabelText('계좌'), '1')
+    await userEvent.selectOptions(screen.getByLabelText('계좌'), '2')
 
     const rows = screen.getAllByTestId('history-row').map((el) => el.dataset.type)
-    // 08-14 은 주문 시각이 늦은 MSFT 매수가 배당보다 위
-    expect(rows).toEqual(['BUY', 'DIVIDEND', 'BUY'])
+    expect(rows).toEqual(['SELL', 'DIVIDEND'])
   })
 })
