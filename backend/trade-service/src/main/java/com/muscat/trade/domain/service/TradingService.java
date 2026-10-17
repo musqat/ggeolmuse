@@ -27,11 +27,6 @@ public interface TradingService {
   // 특정 기간 거래 내역 조회
   List<TradeResponseDto> getTradesByDateRange(String userId, LocalDate startDate, LocalDate endDate);
 
-  // 거래 가능 여부 검증 (잔액, 보유량 체크)
-  boolean canBuyStock(String userId, Long accountId, BigDecimal totalAmount);
-
-  boolean canSellStock(String userId, Long accountId, String symbol, BigDecimal quantity);
-
   // 매수 가능한 주식 수량 계산
   TradingCapacityResponseDto calculateBuyingCapacity(String userId, TradingCapacityRequestDto request);
 

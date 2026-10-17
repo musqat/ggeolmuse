@@ -3,7 +3,9 @@ package com.muscat.trade.infra.kafka;
 import com.muscat.commonlib.constants.CommonConstants;
 import com.muscat.messaging.event.DividendUpdatedEvent;
 import com.muscat.trade.common.constants.TradeConstants;
+import com.muscat.trade.common.enums.responses.TradeResponse;
 import com.muscat.trade.common.enums.type.TradeStatus;
+import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.domain.entity.Trade;
 import com.muscat.trade.domain.repository.TradeRepository;
 import com.muscat.trade.domain.service.DividendEntitlement;
@@ -112,7 +114,7 @@ public class DividendEventConsumer {
 
       // 실패가 있으면 커밋하지 않는다. Kafka 가 다시 주고(재시도 뒤 DLT), 이미 지급한 계좌는 user-service 가 같은 배당으로 걸러낸다
       if (failCount > 0) {
-        throw new IllegalStateException("배당 지급 실패 " + failCount + "건: symbol=" + event.getSymbol() + ", exDate=" + event.getExDate());
+        throw new TradeException(TradeResponse.DIVIDEND_PAYMENT_FAILED);
       }
 
       // 4. 수동 커밋 (처리 성공시에만)

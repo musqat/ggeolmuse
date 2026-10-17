@@ -1,6 +1,5 @@
 package com.muscat.trade.domain.service.impl;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -117,106 +116,5 @@ class TradingServiceSimpleTest {
     ).isInstanceOf(NotEnoughHoldingsException.class);
 
     verify(tradeRepository, never()).save(any(Trade.class));
-  }
-
-  @Test
-  @DisplayName("매도 가능 여부 확인 - 보유량이 정확히 일치")
-  void canSellStock_ExactQuantity_ReturnsTrue() {
-    // given
-    BigDecimal sellQuantity = new BigDecimal("10");
-    BigDecimal holdingQuantity = new BigDecimal("10");
-
-    Holdings holdings = Holdings.builder()
-      .id(1L)
-      .userId(userId)
-      .accountId(accountId)
-      .symbol(symbol)
-      .totalQuantity(holdingQuantity)
-      .avgPurchasePrice(new BigDecimal("150.00"))
-      .totalInvestedAmount(new BigDecimal("1500.00"))
-      .build();
-
-    given(holdingsRepository.findByUserIdAndAccountIdAndSymbol(
-      userId, accountId, symbol))
-      .willReturn(Optional.of(holdings));
-
-    // when
-    boolean canSell = tradingService.canSellStock(userId, accountId, symbol, sellQuantity);
-
-    // then
-    assertThat(canSell).isTrue();
-  }
-
-  @Test
-  @DisplayName("매도 가능 여부 확인 - 충분한 보유량")
-  void canSellStock_SufficientHoldings_ReturnsTrue() {
-    // given
-    BigDecimal sellQuantity = new BigDecimal("5");
-    BigDecimal holdingQuantity = new BigDecimal("10");
-
-    Holdings holdings = Holdings.builder()
-      .id(1L)
-      .userId(userId)
-      .accountId(accountId)
-      .symbol(symbol)
-      .totalQuantity(holdingQuantity)
-      .avgPurchasePrice(new BigDecimal("150.00"))
-      .totalInvestedAmount(new BigDecimal("1500.00"))
-      .build();
-
-    given(holdingsRepository.findByUserIdAndAccountIdAndSymbol(
-      userId, accountId, symbol))
-      .willReturn(Optional.of(holdings));
-
-    // when
-    boolean canSell = tradingService.canSellStock(userId, accountId, symbol, sellQuantity);
-
-    // then
-    assertThat(canSell).isTrue();
-  }
-
-  @Test
-  @DisplayName("매도 가능 여부 확인 - 보유 종목 없음")
-  void canSellStock_NoHoldings_ReturnsFalse() {
-    // given
-    BigDecimal quantity = new BigDecimal("10");
-
-    given(holdingsRepository.findByUserIdAndAccountIdAndSymbol(
-      userId, accountId, symbol))
-      .willReturn(Optional.empty());
-
-    // when
-    boolean canSell = tradingService.canSellStock(userId, accountId, symbol, quantity);
-
-    // then
-    assertThat(canSell).isFalse();
-  }
-
-  @Test
-  @DisplayName("매도 가능 여부 확인 - 수량 부족")
-  void canSellStock_InsufficientQuantity_ReturnsFalse() {
-    // given
-    BigDecimal sellQuantity = new BigDecimal("15");
-    BigDecimal holdingQuantity = new BigDecimal("10");
-
-    Holdings holdings = Holdings.builder()
-      .id(1L)
-      .userId(userId)
-      .accountId(accountId)
-      .symbol(symbol)
-      .totalQuantity(holdingQuantity)
-      .avgPurchasePrice(new BigDecimal("150.00"))
-      .totalInvestedAmount(new BigDecimal("1500.00"))
-      .build();
-
-    given(holdingsRepository.findByUserIdAndAccountIdAndSymbol(
-      userId, accountId, symbol))
-      .willReturn(Optional.of(holdings));
-
-    // when
-    boolean canSell = tradingService.canSellStock(userId, accountId, symbol, sellQuantity);
-
-    // then
-    assertThat(canSell).isFalse();
   }
 }

@@ -101,43 +101,6 @@ public class TradingServiceImpl implements TradingService {
 
   @Override
   @Transactional(readOnly = true)
-  public boolean canBuyStock(String userId, Long accountId, BigDecimal totalAmount) {
-    try {
-      var response = userServiceClientWrapper.getAccountBalance(accountId);
-      if (response != null) {
-        BigDecimal availableUsd = response.getBalanceUsd();
-        log.debug("매수 가능 여부 확인: 사용자={}, 필요금액={}, 보유USD={}",
-          userId, totalAmount, availableUsd);
-        return availableUsd.compareTo(totalAmount) >= 0;
-      }
-      log.warn("계좌 잔액 조회 실패: accountId={}", accountId);
-      return false;
-    } catch (Exception e) {
-      log.error("계좌 잔액 조회 중 오류 발생: accountId={}", accountId, e);
-      return false;
-    }
-  }
-
-  @Override
-  @Transactional(readOnly = true)
-  public boolean canSellStock(String userId, Long accountId, String symbol, BigDecimal quantity) {
-    Optional<Holdings> holdings = holdingsRepository
-      .findByUserIdAndAccountIdAndSymbol(userId, Long.valueOf(accountId), symbol);
-
-    if (holdings.isEmpty()) {
-      return false;
-    }
-
-    Holdings holding = holdings.get();
-    boolean canSell = holding.getTotalQuantity().compareTo(quantity) >= 0;
-    log.debug("매도 가능 여부: 종목={}, 보유량={}, 매도량={}, 가능={}",
-      symbol, holding.getTotalQuantity(), quantity, canSell);
-
-    return canSell;
-  }
-
-  @Override
-  @Transactional(readOnly = true)
   public TradingCapacityResponseDto calculateBuyingCapacity(String userId,
     TradingCapacityRequestDto request) {
     log.info("매수 가능 수량 계산 시작: userId={}, accountId={}, symbol={}, tradeDate={}",

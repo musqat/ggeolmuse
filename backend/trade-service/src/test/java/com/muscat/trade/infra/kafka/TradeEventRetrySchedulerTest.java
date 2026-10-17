@@ -7,6 +7,8 @@ import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import com.muscat.trade.common.enums.responses.TradeResponse;
+import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.domain.entity.Trade;
 import com.muscat.trade.domain.repository.TradeRepository;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -60,7 +62,7 @@ class TradeEventRetrySchedulerTest {
   void resend_StopsAtFirstFailure() {
     given(tradeRepository.findTop100ByEventPublishedAtIsNullAndCreatedAtBeforeOrderByIdAsc(any()))
       .willReturn(List.of(first, second));
-    willThrow(new IllegalStateException("broker down"))
+    willThrow(new TradeException(TradeResponse.EVENT_PUBLISH_FAILED))
       .given(tradeEventProducer).publishTradeCompleted(first);
 
     scheduler.resend();

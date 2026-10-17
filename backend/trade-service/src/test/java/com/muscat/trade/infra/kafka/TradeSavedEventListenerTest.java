@@ -5,6 +5,8 @@ import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import com.muscat.trade.common.enums.responses.TradeResponse;
+import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.domain.entity.Trade;
 import com.muscat.trade.domain.event.TradeSavedEvent;
 import org.junit.jupiter.api.DisplayName;
@@ -41,7 +43,7 @@ class TradeSavedEventListenerTest {
   @Test
   @DisplayName("못 보내면 기록하지 않고 예외도 내지 않는다")
   void onTradeSaved_SendFails_LeavesUnpublished() {
-    willThrow(new IllegalStateException("broker down"))
+    willThrow(new TradeException(TradeResponse.EVENT_PUBLISH_FAILED))
       .given(tradeEventProducer).publishTradeCompleted(trade);
 
     listener.onTradeSaved(new TradeSavedEvent(trade));

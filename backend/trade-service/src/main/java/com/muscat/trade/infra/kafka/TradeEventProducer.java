@@ -1,6 +1,8 @@
 package com.muscat.trade.infra.kafka;
 
 import com.muscat.messaging.event.TradeCompletedEvent;
+import com.muscat.trade.common.enums.responses.TradeResponse;
+import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.domain.entity.Trade;
 import io.opentelemetry.api.trace.Span;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +33,7 @@ public class TradeEventProducer {
     private final KafkaTemplate<String, TradeCompletedEvent> tradeCompletedKafkaTemplate;
 
     /**
-     * 거래 완료 이벤트 발행. 브로커 확인을 5초까지 기다리고, 받지 못하면 IllegalStateException 을 낸다.
+     * 브로커 확인을 5초까지 기다리고, 받지 못하면 EVENT_PUBLISH_FAILED 로 올림
      *
      * @param trade 체결된 거래 정보
      */
@@ -64,7 +66,6 @@ public class TradeEventProducer {
                 .totalAmount(trade.getTotalAmount())
                 .currency("USD") // 모든 거래는 USD 기준
                 .fee(trade.getFee())
-                .priceType("MARKET") // 현재는 시장가 거래만 지원
                 .build();
 
         log.info("거래 완료 이벤트 발행 중: tradeId={}, userId={}, symbol={}, amount={}",
@@ -81,9 +82,9 @@ public class TradeEventProducer {
                     trade.getId());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new IllegalStateException("거래 완료 이벤트 발행 중단: tradeId=" + trade.getId(), e);
+            throw new TradeException(TradeResponse.EVENT_PUBLISH_FAILED, e);
         } catch (ExecutionException | TimeoutException e) {
-            throw new IllegalStateException("거래 완료 이벤트 발행 실패: tradeId=" + trade.getId(), e);
+            throw new TradeException(TradeResponse.EVENT_PUBLISH_FAILED, e);
         }
     }
 }

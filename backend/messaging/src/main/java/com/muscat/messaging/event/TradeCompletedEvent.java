@@ -45,7 +45,4 @@ public class TradeCompletedEvent extends BaseEvent {
 
     // 거래 수수료
     private BigDecimal fee;
-
-    // 사용된 가격 타입: "CURRENT_PRICE" 또는 "AVERAGE_PRICE"
-    private String priceType;
 }
