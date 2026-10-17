@@ -46,7 +46,6 @@ class UserLoggerTest {
       () -> userLogger.logInsufficientBalance(3L, "KRW", new BigDecimal("200000"), new BigDecimal("150000")),
       () -> userLogger.logAbnormalExchangeRate(new BigDecimal("1"), "환전"),
       () -> userLogger.logLargeTransaction(3L, "KRW_DEPOSIT", new BigDecimal("100000000"), "KRW"),
-      () -> userLogger.logManualExchangeRate(new BigDecimal("1300"), "환전"),
       () -> userLogger.logExchangeRateFallback(new BigDecimal("1300"), "시세 서비스 응답 없음"));
 
     for (Runnable call : calls) {

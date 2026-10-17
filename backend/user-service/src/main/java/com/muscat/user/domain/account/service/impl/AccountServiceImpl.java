@@ -473,25 +473,6 @@ public class AccountServiceImpl implements AccountService {
     return new ExchangeRateRangeDto(low.setScale(0, RoundingMode.FLOOR), high.setScale(0, RoundingMode.CEILING));
   }
 
-  // 수동 환율 입력 (manual)
-  @Override
-  public BigDecimal createManualExchangeRate(BigDecimal manualRate) {
-    if (manualRate == null) {
-      throw new AccountException(AccountResponse.INVALID_EXCHANGE_RATE);
-    }
-
-    // 환율 유효성 검증
-    if (manualRate.compareTo(minValidRate) < 0 || manualRate.compareTo(maxValidRate) > 0) {
-      throw new AccountException(AccountResponse.INVALID_EXCHANGE_RATE);
-    }
-
-    BigDecimal rate = MoneyUtils.roundExchangeRate(manualRate);
-    log.info("수동 환율 입력: {}", rate);
-    userLogger.logManualExchangeRate(rate, "사용자 수동 입력");
-
-    return rate;
-  }
-
   /**
    * Kafka 이벤트로부터 거래 완료 정보를 받아 계좌 잔액 업데이트
    */

@@ -210,12 +210,11 @@ class AccountControllerTest {
   }
 
   @Test
-  @DisplayName("환율 조회: 현재 · 범위 · 날짜 · 수동 검증")
+  @DisplayName("환율 조회: 현재 · 범위 · 날짜")
   void exchangeRates() throws Exception {
     given(accountService.getCurrentExchangeRate()).willReturn(new BigDecimal("1350.5"));
     given(accountService.getExchangeRateRange()).willReturn(new ExchangeRateRangeDto(new BigDecimal("1000"), new BigDecimal("1633")));
     given(accountService.getExchangeRateByDate(LocalDate.of(2024, 1, 15))).willReturn(new BigDecimal("1310"));
-    given(accountService.createManualExchangeRate(new BigDecimal("1300.50"))).willReturn(new BigDecimal("1300.50"));
 
     mockMvc.perform(get(BASE + "/exchange-rates/current").with(jwt()))
       .andExpect(status().isOk()).andExpect(content().string("1350.5"));
@@ -225,8 +224,6 @@ class AccountControllerTest {
       .andExpect(jsonPath("$.max").value(1633));
     mockMvc.perform(get(BASE + "/exchange-rates/2024-01-15").with(jwt()))
       .andExpect(status().isOk()).andExpect(content().string("1310"));
-    mockMvc.perform(post(BASE + "/exchange-rates/validate").param("rate", "1300.50").with(jwt()))
-      .andExpect(status().isOk()).andExpect(content().string("1300.50"));
   }
 
   @Test

@@ -41,8 +41,6 @@ public interface AccountService {
 
   BigDecimal getExchangeRateByDate(LocalDate date);
 
-  BigDecimal createManualExchangeRate(BigDecimal manualRate);
-
   // 환전에 쓸 수 있는 환율 범위. 환전 창이 수동 환율 칸에 보여 주고, 환전할 때 같은 범위로 검사한다
   ExchangeRateRangeDto getExchangeRateRange();
 

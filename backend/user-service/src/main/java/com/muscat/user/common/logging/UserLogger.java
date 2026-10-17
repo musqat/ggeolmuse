@@ -103,12 +103,6 @@ public class UserLogger {
             accountId, txType, amount, currency));
   }
 
-  // 수동 환율 입력 로그
-  public void logManualExchangeRate(BigDecimal exchangeRate, String context) {
-    executeWithMDC("MANUAL_RATE", null, SUCCESS, null,
-        () -> USER_AUDIT_LOG.info("수동 환율 입력 - 환율: {}, 컨텍스트: {}", exchangeRate, context));
-  }
-
   // 환율 조회 fallback 로그
   public void logExchangeRateFallback(BigDecimal fallbackRate, String reason) {
     executeWithMDC("RATE_FALLBACK", null, WARNING, null,

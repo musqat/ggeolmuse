@@ -839,61 +839,6 @@ class AccountServiceImplTest {
   }
 
   @Nested
-  @DisplayName("수동 환율 생성 테스트")
-  class CreateManualExchangeRateTests {
-
-    @Test
-    @DisplayName("유효한 수동 환율을 생성한다")
-    void createManualExchangeRate_Valid_Success() {
-      // given
-      BigDecimal manualRate = new BigDecimal("1330.50");
-
-      // when
-      BigDecimal result = accountService.createManualExchangeRate(manualRate);
-
-      // then
-      assertThat(result).isEqualByComparingTo(new BigDecimal("1330.50"));
-      verify(userLogger).logManualExchangeRate(any(BigDecimal.class), anyString());
-    }
-
-    @Test
-    @DisplayName("null 환율은 예외가 발생한다")
-    void createManualExchangeRate_Null_ThrowsException() {
-      // when & then
-      assertThatThrownBy(() ->
-        accountService.createManualExchangeRate(null)
-      ).isInstanceOf(AccountException.class)
-        .hasMessage(AccountResponse.INVALID_EXCHANGE_RATE.getMessage());
-    }
-
-    @Test
-    @DisplayName("최소값보다 낮은 환율은 예외가 발생한다")
-    void createManualExchangeRate_TooLow_ThrowsException() {
-      // given
-      BigDecimal tooLow = new BigDecimal("500");
-
-      // when & then
-      assertThatThrownBy(() ->
-        accountService.createManualExchangeRate(tooLow)
-      ).isInstanceOf(AccountException.class)
-        .hasMessage(AccountResponse.INVALID_EXCHANGE_RATE.getMessage());
-    }
-
-    @Test
-    @DisplayName("최대값보다 높은 환율은 예외가 발생한다")
-    void createManualExchangeRate_TooHigh_ThrowsException() {
-      // given
-      BigDecimal tooHigh = new BigDecimal("3000");
-
-      // when & then
-      assertThatThrownBy(() ->
-        accountService.createManualExchangeRate(tooHigh)
-      ).isInstanceOf(AccountException.class)
-        .hasMessage(AccountResponse.INVALID_EXCHANGE_RATE.getMessage());
-    }
-  }
-
-  @Nested
   @DisplayName("거래 완료 이벤트 처리 테스트")
   class ProcessTradeEventTests {
 
