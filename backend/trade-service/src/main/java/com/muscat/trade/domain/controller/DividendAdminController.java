@@ -22,7 +22,8 @@ public class DividendAdminController {
 
   private final DividendBackfillService dividendBackfillService;
 
-  @Operation(summary = "배당 몫 백필", description = "거래 · 몫이 있는 모든 계좌 · 종목의 재계산을 요청합니다.")
+  @Operation(summary = "배당 몫 백필",
+    description = "거래 · 몫 · 넣은 배당이 있는 모든 계좌 · 종목을 다시 계산하고 지금 몫을 다시 보내도록 요청합니다.")
   @PostMapping("/reconcile")
   public ResponseEntity<Map<String, Integer>> reconcileAll() {
     return ResponseEntity.ok(Map.of("requested", dividendBackfillService.requestAll()));

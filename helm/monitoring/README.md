@@ -108,10 +108,10 @@ count(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_irate)
 `kafka_dlt-exception-message` 에 있다. 원인을 고친 뒤 kafka-ui 에서 DLT 메시지 값을 원래 토픽에 같은
 키로 다시 넣는다. 키는 userId, `trading.dividend.reconcile` 만 accountId 다. `trading.trade.completed` 는
 user-service 가 처리한 체결을 `trade_settlements` 에 남겨 다시 넣어도 한 번만 반영한다.
-`trading.dividend.reconcile` 은 그때 거래로 다시 계산해 몇 번 넣어도 같다. `trading.dividend.payout` 은 목표
-금액이라 두 번 넣어도 한 번만 반영하지만, 같은 몫의 더 새 메시지가 이미 들어갔으면 옛 값으로 돌아간다. 다시 넣은
-뒤 `GET /api/admin/trade/dividends/payout-diff` 가 비었는지 본다. 다른 토픽은 다시 넣기 전에 이미 반영됐는지
-확인한다.
+`trading.dividend.reconcile` 은 그때 거래로 다시 계산해 몇 번 넣어도 같다. `trading.dividend.payout` 은 다시 넣지
+않고 백필(`POST /api/admin/trade/dividends/reconcile`)을 돌린다. 지금 몫을 다 다시 보내 옛 메시지 값으로 돌아가지
+않는다. 끝나면 `GET /api/admin/trade/dividends/payout-diff` 가 비었는지 본다. 다른 토픽은 다시 넣기 전에 이미
+반영됐는지 확인한다.
 
 `TradeEventsUnpublished` 는 trade-service 가 커밋한 체결 가운데 이벤트를 1분 넘게 못 보낸 수다. 스케줄러가
 30초마다 다시 보내므로 카프카가 돌아오면 0 으로 내려간다.

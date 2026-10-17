@@ -2,6 +2,7 @@ package com.muscat.trade.infra.kafka;
 
 import com.muscat.trade.domain.event.DividendReconcileRequest;
 import com.muscat.trade.domain.service.DividendPayoutService;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -24,7 +25,8 @@ public class DividendReconcileConsumer {
   )
   public void handle(@Payload DividendReconcileRequest request, Acknowledgment acknowledgment) {
     try {
-      dividendPayoutService.reconcile(request.userId(), request.accountId(), request.symbol());
+      dividendPayoutService.reconcile(request.userId(), request.accountId(), request.symbol(), request.resend(),
+        request.settledExDates() != null ? request.settledExDates() : List.of());
       acknowledgment.acknowledge();
     } catch (RuntimeException e) {
       log.error("배당 몫 재계산 실패: accountId={}, symbol={}, error={}",

@@ -23,11 +23,15 @@ public class DividendReconcileProducer {
   private final KafkaTemplate<String, DividendReconcileRequest> dividendReconcileKafkaTemplate;
 
   public void request(String userId, Long accountId, String symbol) {
+    request(DividendReconcileRequest.of(userId, accountId, symbol));
+  }
+
+  public void request(DividendReconcileRequest request) {
     try {
-      dividendReconcileKafkaTemplate.send(DIVIDEND_RECONCILE_TOPIC, String.valueOf(accountId),
-          new DividendReconcileRequest(userId, accountId, symbol))
+      dividendReconcileKafkaTemplate.send(DIVIDEND_RECONCILE_TOPIC, String.valueOf(request.accountId()), request)
         .get(SEND_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-      log.info("배당 몫 재계산 요청: accountId={}, symbol={}", accountId, symbol);
+      log.info("배당 몫 재계산 요청: accountId={}, symbol={}, resend={}",
+        request.accountId(), request.symbol(), request.resend());
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new TradeException(TradeResponse.EVENT_PUBLISH_FAILED, e);

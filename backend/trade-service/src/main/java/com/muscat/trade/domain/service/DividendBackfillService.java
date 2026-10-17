@@ -4,12 +4,14 @@ import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.domain.dto.TradePosition;
 import com.muscat.trade.domain.dto.response.PayoutDiffResponse;
 import com.muscat.trade.domain.entity.Trade;
+import com.muscat.trade.domain.event.DividendReconcileRequest;
 import com.muscat.trade.domain.repository.DividendPayoutRepository;
 import com.muscat.trade.domain.repository.TradeRepository;
 import com.muscat.trade.infra.client.MarketServiceClientWrapper;
 import com.muscat.trade.infra.client.UserServiceClient;
 import com.muscat.trade.infra.client.dto.DividendDto;
 import com.muscat.trade.infra.client.dto.DividendSettlementDto;
+import com.muscat.trade.infra.client.dto.DividendSettlementPageDto;
 import com.muscat.trade.infra.kafka.DividendReconcileProducer;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -33,15 +35,46 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class DividendBackfillService {
 
+  private static final int SETTLEMENT_PAGE_SIZE = 500;
+
   private final TradeRepository tradeRepository;
   private final DividendPayoutRepository dividendPayoutRepository;
   private final MarketServiceClientWrapper marketServiceClientWrapper;
   private final UserServiceClient userServiceClient;
   private final DividendReconcileProducer dividendReconcileProducer;
 
+  // 자리마다 다시 보내기 재계산을 요청. 그 자리의 정산된 배당락일을 같이 실음
   public int requestAll() {
+    Map<AccountSymbol, List<LocalDate>> settledExDates = new LinkedHashMap<>();
+    for (DividendSettlementDto s : allSettlements()) {
+      if (s.amount().signum() > 0) {
+        settledExDates.computeIfAbsent(new AccountSymbol(s.accountId(), s.symbol()), k -> new ArrayList<>())
+          .add(s.exDate());
+      }
+    }
+
     Set<TradePosition> positions = positions();
-    positions.forEach(p -> dividendReconcileProducer.request(p.userId(), p.accountId(), p.symbol()));
+    Map<Long, String> userByAccount = new HashMap<>();
+    Set<AccountSymbol> covered = new HashSet<>();
+    positions.forEach(p -> {
+      userByAccount.put(p.accountId(), p.userId());
+      covered.add(new AccountSymbol(p.accountId(), p.symbol()));
+    });
+    for (AccountSymbol key : settledExDates.keySet()) {
+      if (covered.contains(key)) {
+        continue;
+      }
+      String userId = userByAccount.computeIfAbsent(key.accountId(),
+        id -> tradeRepository.findFirstByAccountIdOrderByIdAsc(id).map(Trade::getUserId).orElse(null));
+      if (userId == null) {
+        log.warn("배당 몫 백필: 계좌 주인을 못 찾아 건너뜀 accountId={}, symbol={}", key.accountId(), key.symbol());
+        continue;
+      }
+      positions.add(new TradePosition(userId, key.accountId(), key.symbol()));
+    }
+
+    positions.forEach(p -> dividendReconcileProducer.request(new DividendReconcileRequest(p.userId(), p.accountId(),
+      p.symbol(), true, settledExDates.getOrDefault(new AccountSymbol(p.accountId(), p.symbol()), List.of()))));
     log.info("배당 몫 백필 요청: {} 자리", positions.size());
     return positions.size();
   }
@@ -49,7 +82,7 @@ public class DividendBackfillService {
   @Transactional(readOnly = true)
   public List<PayoutDiffResponse> diff() {
     Map<PayoutKey, BigDecimal> settled = new HashMap<>();
-    for (DividendSettlementDto s : userServiceClient.getDividendSettlements()) {
+    for (DividendSettlementDto s : allSettlements()) {
       settled.merge(new PayoutKey(s.accountId(), s.symbol(), s.exDate()), s.amount(), BigDecimal::add);
     }
 
@@ -87,6 +120,18 @@ public class DividendBackfillService {
     return diff;
   }
 
+  // user 배당 정산을 마지막 쪽까지
+  private List<DividendSettlementDto> allSettlements() {
+    List<DividendSettlementDto> settlements = new ArrayList<>();
+    for (int page = 0; ; page++) {
+      DividendSettlementPageDto slice = userServiceClient.getDividendSettlements(page, SETTLEMENT_PAGE_SIZE);
+      settlements.addAll(slice.content());
+      if (slice.last() || slice.content().isEmpty()) {
+        return settlements;
+      }
+    }
+  }
+
   // 체결이 다 취소된 자리도 몫을 0 으로 돌리려고 몫 표의 자리를 같이 모음
   private Set<TradePosition> positions() {
     Set<TradePosition> positions = new LinkedHashSet<>(tradeRepository.findDistinctPositions(TradeStatus.COMPLETED));
@@ -104,6 +149,9 @@ public class DividendBackfillService {
     firstTradeDate.forEach((symbol, from) ->
       dividends.put(symbol, marketServiceClientWrapper.getDividends(symbol, from.toString(), today)));
     return dividends;
+  }
+
+  private record AccountSymbol(Long accountId, String symbol) {
   }
 
   private record PayoutKey(Long accountId, String symbol, LocalDate exDate) {

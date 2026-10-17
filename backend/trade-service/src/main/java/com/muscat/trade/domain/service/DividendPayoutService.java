@@ -1,6 +1,7 @@
 package com.muscat.trade.domain.service;
 
 import com.muscat.trade.common.enums.type.TradeStatus;
+import com.muscat.trade.domain.dto.TradePosition;
 import com.muscat.trade.domain.entity.DividendPayout;
 import com.muscat.trade.domain.entity.Trade;
 import com.muscat.trade.domain.repository.DividendPayoutRepository;
@@ -13,6 +14,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -36,22 +38,36 @@ public class DividendPayoutService {
 
   @Transactional
   public int reconcile(String userId, Long accountId, String symbol) {
+    return reconcile(userId, accountId, symbol, false, List.of());
+  }
+
+  // resend 면 바뀌지 않은 몫도 다시 보냄. settledExDates 는 user 가 넣은 배당락일로, 목표가 없으면 0 몫
+  @Transactional
+  public int reconcile(String userId, Long accountId, String symbol, boolean resend,
+    Collection<LocalDate> settledExDates) {
     List<Trade> trades = tradeRepository.findByUserIdAndAccountIdAndSymbolAndStatusOrderByExecutedAtAscIdAsc(
       userId, accountId, symbol, TradeStatus.COMPLETED);
     Map<LocalDate, DividendPayout> existing = dividendPayoutRepository.findByAccountIdAndSymbol(accountId, symbol)
       .stream()
       .collect(Collectors.toMap(DividendPayout::getExDate, Function.identity(), (a, b) -> a, TreeMap::new));
-    Map<LocalDate, DividendAmounts> targets = trades.isEmpty()
+    Map<LocalDate, DividendAmounts> targets = new TreeMap<>(trades.isEmpty()
       ? Map.of()
-      : computeTargets(trades, fetchDividends(symbol, trades));
+      : computeTargets(trades, fetchDividends(symbol, trades)));
+    for (LocalDate exDate : settledExDates) {
+      DividendPayout row = existing.get(exDate);
+      targets.putIfAbsent(exDate,
+        DividendAmounts.of(row != null ? row.getDividendPerShare() : BigDecimal.ZERO, BigDecimal.ZERO));
+    }
 
     LocalDateTime now = LocalDateTime.now();
     int changed = 0;
+    int resent = 0;
     for (Map.Entry<LocalDate, DividendAmounts> target : targets.entrySet()) {
       DividendPayout row = existing.remove(target.getKey());
       if (row == null) {
         row = DividendPayout.of(userId, accountId, symbol, target.getKey(), target.getValue(), now);
       } else if (row.matches(target.getValue())) {
+        resent += publishIf(resend, row);
         continue;
       } else {
         row.apply(target.getValue(), now);
@@ -59,29 +75,41 @@ public class DividendPayoutService {
       saveAndPublish(row);
       changed++;
     }
-    // 이제 받을 몫이 없는 배당락일
+    // 배당 목록에서 빠졌거나 체결이 다 없어진 배당락일
     for (DividendPayout row : existing.values()) {
       if (row.getShares().signum() == 0 && row.getNetAmount().signum() == 0) {
+        resent += publishIf(resend, row);
         continue;
       }
       row.apply(DividendAmounts.of(row.getDividendPerShare(), BigDecimal.ZERO), now);
       saveAndPublish(row);
       changed++;
     }
-    log.info("배당 몫 재계산: accountId={}, symbol={}, 바뀐 몫={}", accountId, symbol, changed);
+    log.info("배당 몫 재계산: accountId={}, symbol={}, 바뀐 몫={}, 다시 보낸 몫={}", accountId, symbol, changed, resent);
     return changed;
   }
 
-  // 지금 남은 매수 묶음은 매수일부터 계속 들고 있었으니 그 뒤 배당을 다 받은 셈. 판 주식이 받은 배당은 뺌
+  // 사용자 보유 전체의 받은 배당을 계좌 · 종목마다. 거래와 몫은 한 번씩만 읽음
   @Transactional(readOnly = true)
-  public BigDecimal dividendsOnHeldShares(String userId, Long accountId, String symbol) {
-    List<Trade> trades = tradeRepository.findByUserIdAndAccountIdAndSymbolAndStatusOrderByExecutedAtAscIdAsc(
-      userId, accountId, symbol, TradeStatus.COMPLETED);
-    Collection<DividendPayout> payouts = dividendPayoutRepository.findByAccountIdAndSymbol(accountId, symbol);
+  public Map<TradePosition, BigDecimal> dividendsOnHeldShares(String userId) {
+    Map<TradePosition, List<Trade>> tradesByPosition = tradeRepository
+      .findByUserIdAndStatusOrderByExecutedAtAscIdAsc(userId, TradeStatus.COMPLETED).stream()
+      .collect(Collectors.groupingBy(t -> new TradePosition(t.getUserId(), t.getAccountId(), t.getSymbol())));
+    Map<TradePosition, List<DividendPayout>> payoutsByPosition = dividendPayoutRepository.findByUserId(userId).stream()
+      .collect(Collectors.groupingBy(p -> new TradePosition(p.getUserId(), p.getAccountId(), p.getSymbol())));
+
+    Map<TradePosition, BigDecimal> totals = new HashMap<>();
+    tradesByPosition.forEach((position, trades) ->
+      totals.put(position, heldDividends(trades, payoutsByPosition.getOrDefault(position, List.of()))));
+    return totals;
+  }
+
+  // 지금 남은 매수 묶음은 매수일부터 계속 들고 있었으니 그 뒤 배당을 다 받은 셈. 판 주식이 받은 배당은 뺌
+  private static BigDecimal heldDividends(List<Trade> trades, List<DividendPayout> payouts) {
     BigDecimal total = BigDecimal.ZERO;
     for (DividendEntitlement.HeldBuy lot : DividendEntitlement.remainingByBuyBefore(trades, LocalDate.now().plusDays(1))) {
       for (DividendPayout payout : payouts) {
-        if (lot.buy().getTradeDate().isBefore(payout.getExDate())) {
+        if (payout.getShares().signum() > 0 && lot.buy().getTradeDate().isBefore(payout.getExDate())) {
           total = total.add(DividendAmounts.of(payout.getDividendPerShare(), lot.shares()).netAmount());
         }
       }
@@ -89,15 +117,12 @@ public class DividendPayoutService {
     return total;
   }
 
-  // 배당락일마다 그 전날 보유로 센 몫. 보유가 0 인 배당락일은 뺀다
+  // 배당락일마다 그 전날 보유로 센 몫. 보유가 0 이면 0 몫
   public static Map<LocalDate, DividendAmounts> computeTargets(List<Trade> trades, List<DividendDto> dividends) {
     Map<LocalDate, DividendAmounts> targets = new TreeMap<>();
     for (DividendDto dividend : dividends) {
       LocalDate exDate = LocalDate.parse(dividend.exDate());
-      BigDecimal shares = DividendEntitlement.sharesHeldBefore(trades, exDate);
-      if (shares.signum() > 0) {
-        targets.put(exDate, DividendAmounts.of(dividend.amount(), shares));
-      }
+      targets.put(exDate, DividendAmounts.of(dividend.amount(), DividendEntitlement.sharesHeldBefore(trades, exDate)));
     }
     return targets;
   }
@@ -110,5 +135,13 @@ public class DividendPayoutService {
   private void saveAndPublish(DividendPayout row) {
     dividendPayoutRepository.save(row);
     dividendPayoutProducer.publish(row);
+  }
+
+  private int publishIf(boolean resend, DividendPayout row) {
+    if (!resend) {
+      return 0;
+    }
+    dividendPayoutProducer.publish(row);
+    return 1;
   }
 }

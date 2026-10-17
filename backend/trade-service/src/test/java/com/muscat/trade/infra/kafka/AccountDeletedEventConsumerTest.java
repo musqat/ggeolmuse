@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import com.muscat.messaging.event.AccountDeletedEvent;
 import com.muscat.trade.domain.repository.DividendPayoutRepository;
 import com.muscat.trade.domain.repository.HoldingsRepository;
+import com.muscat.trade.domain.repository.LegacyDividendRepository;
 import com.muscat.trade.domain.repository.TradeRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,6 +34,9 @@ class AccountDeletedEventConsumerTest {
   private DividendPayoutRepository dividendPayoutRepository;
 
   @Mock
+  private LegacyDividendRepository legacyDividendRepository;
+
+  @Mock
   private Acknowledgment acknowledgment;
 
   @InjectMocks
@@ -43,13 +47,14 @@ class AccountDeletedEventConsumerTest {
   }
 
   @Test
-  @DisplayName("계좌의 거래 · 보유 · 배당을 지우고 커밋한다")
+  @DisplayName("계좌의 거래 · 보유 · 배당 몫 · 옛 배당 캐시를 지우고 커밋한다")
   void handle_DeletesTradesHoldingsDividends() {
     consumer.handleAccountDeleted(event(), 0, 0L, acknowledgment);
 
     verify(tradeRepository).deleteByAccountId(ACCOUNT_ID);
     verify(holdingsRepository).deleteByAccountId(ACCOUNT_ID);
     verify(dividendPayoutRepository).deleteByAccountId(ACCOUNT_ID);
+    verify(legacyDividendRepository).deleteByAccountId(ACCOUNT_ID);
     verify(acknowledgment).acknowledge();
   }
 

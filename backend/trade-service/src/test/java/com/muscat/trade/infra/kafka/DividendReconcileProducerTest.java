@@ -10,6 +10,8 @@ import static org.mockito.Mockito.verify;
 
 import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.domain.event.DividendReconcileRequest;
+import java.time.LocalDate;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -29,7 +31,19 @@ class DividendReconcileProducerTest {
 
     producer.request("user-1", 20L, "AAPL");
 
-    verify(template).send("trading.dividend.reconcile", "20", new DividendReconcileRequest("user-1", 20L, "AAPL"));
+    verify(template).send("trading.dividend.reconcile", "20", DividendReconcileRequest.of("user-1", 20L, "AAPL"));
+  }
+
+  @Test
+  @DisplayName("백필 요청도 계좌 ID 를 키로 다시 보내기와 넣은 배당락일을 싣는다")
+  void requestBackfill_KeyedByAccount() {
+    given(template.send(anyString(), anyString(), any())).willReturn(KafkaSends.sent("trading.dividend.reconcile"));
+    DividendReconcileRequest backfill = new DividendReconcileRequest("user-1", 20L, "AAPL", true,
+      List.of(LocalDate.of(2025, 5, 12)));
+
+    producer.request(backfill);
+
+    verify(template).send("trading.dividend.reconcile", "20", backfill);
   }
 
   @Test

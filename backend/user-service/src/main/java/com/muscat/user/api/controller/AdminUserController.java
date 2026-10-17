@@ -172,12 +172,13 @@ public class AdminUserController {
 
   // 계좌 · 종목 · 배당락일마다 지금까지 넣은 배당
   @GetMapping("/dividend-settlements")
-  public ResponseEntity<List<DividendSettlementResponse>> getDividendSettlements() {
+  public ResponseEntity<DividendSettlementPage> getDividendSettlements(
+    @RequestParam(defaultValue = "0") int page,
+    @RequestParam(defaultValue = "500") int size) {
     authorizationUtil.requireAdmin();
-    List<DividendSettlementResponse> settlements = accountService.getAllDividendSettlements().stream()
-      .map(DividendSettlementResponse::from)
-      .toList();
-    return ResponseEntity.ok(settlements);
+    Page<DividendSettlement> settlements = accountService.getDividendSettlements(page, size);
+    return ResponseEntity.ok(new DividendSettlementPage(
+      settlements.map(DividendSettlementResponse::from).getContent(), settlements.isLast()));
   }
 
   /**
@@ -386,5 +387,8 @@ public class AdminUserController {
       return new DividendSettlementResponse(settlement.getAccountId(), settlement.getSymbol(),
         settlement.getExDate(), settlement.getAmount());
     }
+  }
+
+  public record DividendSettlementPage(List<DividendSettlementResponse> content, boolean last) {
   }
 }

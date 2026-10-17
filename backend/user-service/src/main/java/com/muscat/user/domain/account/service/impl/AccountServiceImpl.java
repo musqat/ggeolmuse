@@ -42,6 +42,8 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -580,6 +582,12 @@ public class AccountServiceImpl implements AccountService {
 
   @Override
   public void applyDividendPayout(DividendPayoutEvent event) {
+    // 계좌를 지운 뒤 도착한 몫은 넣을 곳이 없어 건너뜀
+    if (!accountRepository.existsById(event.getAccountId())) {
+      log.warn("지운 계좌로 온 배당 몫 건너뜀: accountId={}, symbol={}, exDate={}",
+        event.getAccountId(), event.getSymbol(), event.getExDate());
+      return;
+    }
     Long userId = resolveUserId(event.getUserId());
     Account account = findOwnedAccount(event.getAccountId(), userId);
     LocalDate exDate = LocalDate.parse(event.getExDate());
@@ -735,7 +743,7 @@ public class AccountServiceImpl implements AccountService {
 
   @Override
   @Transactional(readOnly = true)
-  public List<DividendSettlement> getAllDividendSettlements() {
-    return dividendSettlementRepository.findAll(Sort.by("accountId", "symbol", "exDate"));
+  public Page<DividendSettlement> getDividendSettlements(int page, int size) {
+    return dividendSettlementRepository.findAll(PageRequest.of(page, size, Sort.by("accountId", "symbol", "exDate")));
   }
 }

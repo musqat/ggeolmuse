@@ -11,6 +11,8 @@ public interface DividendPayoutRepository extends JpaRepository<DividendPayout, 
 
   List<DividendPayout> findByAccountIdAndSymbol(Long accountId, String symbol);
 
+  List<DividendPayout> findByUserId(String userId);
+
   List<DividendPayout> findByUserIdAndNetAmountGreaterThanOrderByExDateDesc(String userId, BigDecimal netAmount);
 
   void deleteByAccountId(Long accountId);

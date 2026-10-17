@@ -32,6 +32,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
@@ -180,17 +181,19 @@ class AdminUserControllerTest {
   }
 
   @Test
-  @DisplayName("배당 정산 목록은 계좌 · 종목 · 배당락일 · 금액을 돌려준다")
+  @DisplayName("배당 정산은 쪽마다 계좌 · 종목 · 배당락일 · 금액을 돌려주고 마지막 쪽인지 알린다")
   void getDividendSettlements() throws Exception {
-    given(accountService.getAllDividendSettlements()).willReturn(List.of(DividendSettlement.of(
-      20L, "AAPL", LocalDate.of(2024, 2, 9), new BigDecimal("2.03"), LocalDateTime.of(2026, 10, 18, 9, 0))));
+    given(accountService.getDividendSettlements(1, 2)).willReturn(new PageImpl<>(List.of(DividendSettlement.of(
+        20L, "AAPL", LocalDate.of(2024, 2, 9), new BigDecimal("2.03"), LocalDateTime.of(2026, 10, 18, 9, 0))),
+      PageRequest.of(1, 2), 3));
 
-    mockMvc.perform(get(BASE + "/dividend-settlements").with(admin()))
+    mockMvc.perform(get(BASE + "/dividend-settlements").param("page", "1").param("size", "2").with(admin()))
       .andExpect(status().isOk())
-      .andExpect(jsonPath("$[0].accountId").value(20))
-      .andExpect(jsonPath("$[0].symbol").value("AAPL"))
-      .andExpect(jsonPath("$[0].exDate").value("2024-02-09"))
-      .andExpect(jsonPath("$[0].amount").value(2.03));
+      .andExpect(jsonPath("$.content[0].accountId").value(20))
+      .andExpect(jsonPath("$.content[0].symbol").value("AAPL"))
+      .andExpect(jsonPath("$.content[0].exDate").value("2024-02-09"))
+      .andExpect(jsonPath("$.content[0].amount").value(2.03))
+      .andExpect(jsonPath("$.last").value(true));
 
     verify(authorizationUtil).requireAdmin();
   }

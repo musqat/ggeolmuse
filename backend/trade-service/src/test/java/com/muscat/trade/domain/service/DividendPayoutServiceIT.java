@@ -120,4 +120,15 @@ class DividendPayoutServiceIT {
     assertThat(netAmounts(ACCOUNT_B)).containsExactly("2.03", "0.00", "0.00");
     assertThat(dividendPayoutRepository.findAll()).hasSize(6);
   }
+
+  @Test
+  @DisplayName("주당 배당이 소수 여덟째 자리까지여도 저장한 몫과 같아 다시 계산할 때 바뀌지 않는다")
+  void reconcile_EightDecimalDividend_StaysUnchanged() {
+    given(marketServiceClientWrapper.getDividends(eq(SYMBOL), eq("2024-01-02"), anyString())).willReturn(List.of(
+      new DividendDto("2024-02-09", new BigDecimal("0.24666667"))));
+    saveTrade(ACCOUNT_A, TradeType.BUY, LocalDate.of(2024, 1, 2));
+    dividendPayoutService.reconcile(USER, ACCOUNT_A, SYMBOL);
+
+    assertThat(dividendPayoutService.reconcile(USER, ACCOUNT_A, SYMBOL)).isZero();
+  }
 }

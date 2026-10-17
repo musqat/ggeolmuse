@@ -1,6 +1,8 @@
 package com.muscat.user.domain.account.service.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.groups.Tuple.tuple;
 
 import com.muscat.messaging.event.DividendPayoutEvent;
 import com.muscat.user.common.enums.type.TransactionType;
@@ -19,6 +21,7 @@ import com.muscat.user.infra.kafka.DepositWithdrawalEventProducer;
 import com.muscat.user.infra.kafka.TradeRejectedEventProducer;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
@@ -27,6 +30,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.Page;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
@@ -194,5 +198,34 @@ class DividendPayoutIntegrationTest {
     assertThat(settlement()).isEmpty();
     assertThat(histories(TransactionType.DIVIDEND)).isEmpty();
     assertThat(histories(TransactionType.DIVIDEND_REVERSAL)).isEmpty();
+  }
+
+  @Test
+  @DisplayName("배당 정산은 계좌 · 종목 · 배당락일 순으로 쪽을 나눈다")
+  void dividendSettlements_PagedInKeyOrder() {
+    LocalDateTime now = LocalDateTime.of(2026, 10, 18, 9, 0);
+    dividendSettlementRepository.save(DividendSettlement.of(account.getId(), "MSFT", EX_DATE, new BigDecimal("1.90"), now));
+    dividendSettlementRepository.save(
+      DividendSettlement.of(account.getId(), "AAPL", EX_DATE.plusMonths(3), new BigDecimal("2.11"), now));
+    dividendSettlementRepository.save(DividendSettlement.of(account.getId(), "AAPL", EX_DATE, new BigDecimal("2.03"), now));
+
+    Page<DividendSettlement> first = accountService.getDividendSettlements(0, 2);
+    Page<DividendSettlement> second = accountService.getDividendSettlements(1, 2);
+
+    assertThat(first.getContent()).extracting(DividendSettlement::getSymbol, DividendSettlement::getExDate)
+      .containsExactly(tuple("AAPL", EX_DATE), tuple("AAPL", EX_DATE.plusMonths(3)));
+    assertThat(first.isLast()).isFalse();
+    assertThat(second.getContent()).extracting(DividendSettlement::getSymbol).containsExactly("MSFT");
+    assertThat(second.isLast()).isTrue();
+  }
+
+  @Test
+  @DisplayName("지운 계좌로 온 목표 금액은 오류 없이 건너뛴다")
+  void deletedAccount_Skipped() {
+    DividendPayoutEvent event = payout("2.03");
+    event.setAccountId(account.getId() + 1000);
+
+    assertThatCode(() -> accountService.applyDividendPayout(event)).doesNotThrowAnyException();
+    assertThat(dividendSettlementRepository.findAll()).isEmpty();
   }
 }

@@ -12,6 +12,7 @@ import static org.mockito.Mockito.times;
 
 import com.muscat.commonlib.dto.StockPriceDto;
 import com.muscat.trade.common.logging.TradeLogger;
+import com.muscat.trade.domain.dto.TradePosition;
 import com.muscat.trade.domain.dto.response.HoldingResponseDto;
 import com.muscat.trade.domain.dto.response.PortfolioSummary;
 import com.muscat.trade.domain.entity.Holdings;
@@ -119,8 +120,8 @@ class HoldingsServiceImplTest {
     void getPortfolio_IncludesDividendsOnHeldShares() {
       given(holdingsRepository.findByUserIdAndAccountId(TEST_USER_ID, TEST_ACCOUNT_ID)).willReturn(List.of(testHolding));
       given(marketServiceClientWrapper.getCurrentPrices(List.of(TEST_SYMBOL))).willReturn(Map.of());
-      given(dividendPayoutService.dividendsOnHeldShares(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL))
-        .willReturn(new BigDecimal("2.12"));
+      given(dividendPayoutService.dividendsOnHeldShares(TEST_USER_ID))
+        .willReturn(Map.of(new TradePosition(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL), new BigDecimal("2.12")));
 
       List<HoldingResponseDto> result = holdingsService.getPortfolio(TEST_USER_ID, TEST_ACCOUNT_ID);
 

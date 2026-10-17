@@ -3,6 +3,7 @@ package com.muscat.trade.infra.kafka;
 import com.muscat.messaging.event.AccountDeletedEvent;
 import com.muscat.trade.domain.repository.DividendPayoutRepository;
 import com.muscat.trade.domain.repository.HoldingsRepository;
+import com.muscat.trade.domain.repository.LegacyDividendRepository;
 import com.muscat.trade.domain.repository.TradeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +24,7 @@ public class AccountDeletedEventConsumer {
   private final TradeRepository tradeRepository;
   private final HoldingsRepository holdingsRepository;
   private final DividendPayoutRepository dividendPayoutRepository;
+  private final LegacyDividendRepository legacyDividendRepository;
 
   /**
    * 계좌 삭제 이벤트 처리
@@ -55,6 +57,7 @@ public class AccountDeletedEventConsumer {
 
       // 3. 해당 계좌의 배당 내역 삭제(회원 탈퇴 뒤 남지 않게)
       dividendPayoutRepository.deleteByAccountId(event.getAccountId());
+      legacyDividendRepository.deleteByAccountId(event.getAccountId());
       log.info("배당 내역 삭제 완료: accountId={}", event.getAccountId());
 
       log.info("계좌 삭제 이벤트 처리 완료: userId={}, accountId={}, accountNumber={}",

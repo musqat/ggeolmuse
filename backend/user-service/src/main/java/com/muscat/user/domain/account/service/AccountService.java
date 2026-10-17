@@ -12,6 +12,7 @@ import com.muscat.user.domain.account.entity.DividendSettlement;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import org.springframework.data.domain.Page;
 
 public interface AccountService {
 
@@ -61,6 +62,6 @@ public interface AccountService {
   // 사용자 ID로 계좌 목록 조회 (관리자용)
   List<Account> findAccountsByUserId(Long userId);
 
-  // 배당 정산 행 전체 (관리자용)
-  List<DividendSettlement> getAllDividendSettlements();
+  // 배당 정산 행을 계좌 · 종목 · 배당락일 순으로 쪽마다 (관리자용)
+  Page<DividendSettlement> getDividendSettlements(int page, int size);
 }

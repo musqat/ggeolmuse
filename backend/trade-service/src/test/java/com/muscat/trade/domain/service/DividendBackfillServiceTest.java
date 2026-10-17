@@ -7,22 +7,26 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.common.enums.type.TradeType;
 import com.muscat.trade.domain.dto.TradePosition;
 import com.muscat.trade.domain.dto.response.PayoutDiffResponse;
 import com.muscat.trade.domain.entity.Trade;
+import com.muscat.trade.domain.event.DividendReconcileRequest;
 import com.muscat.trade.domain.repository.DividendPayoutRepository;
 import com.muscat.trade.domain.repository.TradeRepository;
 import com.muscat.trade.infra.client.MarketServiceClientWrapper;
 import com.muscat.trade.infra.client.UserServiceClient;
 import com.muscat.trade.infra.client.dto.DividendDto;
 import com.muscat.trade.infra.client.dto.DividendSettlementDto;
+import com.muscat.trade.infra.client.dto.DividendSettlementPageDto;
 import com.muscat.trade.infra.kafka.DividendReconcileProducer;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -65,20 +69,64 @@ class DividendBackfillServiceTest {
       userId, accountId, "AAPL", TradeStatus.COMPLETED)).willReturn(List.of(trades));
   }
 
+  private void givenSettlements(DividendSettlementDto... settlements) {
+    given(userServiceClient.getDividendSettlements(0, 500))
+      .willReturn(new DividendSettlementPageDto(List.of(settlements), true));
+  }
+
   @Test
-  @DisplayName("체결 기록과 몫 표의 자리를 겹치지 않게 모아 자리마다 재계산을 한 번씩 요청한다")
+  @DisplayName("체결 기록과 몫 표의 자리를 겹치지 않게 모아 자리마다 다시 보내기 재계산을 한 번씩 요청한다")
   void requestAll_OncePerPosition() {
     given(tradeRepository.findDistinctPositions(TradeStatus.COMPLETED)).willReturn(List.of(
       new TradePosition("user-1", 20L, "AAPL"), new TradePosition("user-2", 21L, "AAPL")));
     given(dividendPayoutRepository.findDistinctPositions()).willReturn(List.of(
       new TradePosition("user-1", 20L, "AAPL"), new TradePosition("user-3", 22L, "MSFT")));
+    givenSettlements(new DividendSettlementDto(21L, "AAPL", EX_DATE, new BigDecimal("2.03")));
 
     int requested = dividendBackfillService.requestAll();
 
     assertThat(requested).isEqualTo(3);
-    verify(dividendReconcileProducer).request("user-1", 20L, "AAPL");
-    verify(dividendReconcileProducer).request("user-2", 21L, "AAPL");
-    verify(dividendReconcileProducer).request("user-3", 22L, "MSFT");
+    verify(dividendReconcileProducer).request(new DividendReconcileRequest("user-1", 20L, "AAPL", true, List.of()));
+    verify(dividendReconcileProducer).request(
+      new DividendReconcileRequest("user-2", 21L, "AAPL", true, List.of(EX_DATE)));
+    verify(dividendReconcileProducer).request(new DividendReconcileRequest("user-3", 22L, "MSFT", true, List.of()));
+  }
+
+  @Test
+  @DisplayName("넣은 배당만 남은 자리는 그 계좌의 체결에서 사용자를 찾아 요청하고, 못 찾거나 0 이면 건너뛴다")
+  void requestAll_SettlementOnlyPositions() {
+    given(tradeRepository.findDistinctPositions(TradeStatus.COMPLETED)).willReturn(List.of());
+    given(dividendPayoutRepository.findDistinctPositions()).willReturn(List.of());
+    givenSettlements(
+      new DividendSettlementDto(23L, "AAPL", EX_DATE, new BigDecimal("2.03")),
+      new DividendSettlementDto(24L, "AAPL", EX_DATE, new BigDecimal("2.03")),
+      new DividendSettlementDto(25L, "AAPL", EX_DATE, BigDecimal.ZERO));
+    Trade cancelled = Trade.builder().userId("user-4").accountId(23L).symbol("AAPL").tradeType(TradeType.BUY)
+      .quantity(new BigDecimal("10")).tradeDate(LocalDate.of(2024, 1, 2)).status(TradeStatus.CANCELLED).build();
+    given(tradeRepository.findFirstByAccountIdOrderByIdAsc(23L)).willReturn(Optional.of(cancelled));
+    given(tradeRepository.findFirstByAccountIdOrderByIdAsc(24L)).willReturn(Optional.empty());
+
+    int requested = dividendBackfillService.requestAll();
+
+    assertThat(requested).isEqualTo(1);
+    verify(dividendReconcileProducer).request(
+      new DividendReconcileRequest("user-4", 23L, "AAPL", true, List.of(EX_DATE)));
+    verifyNoMoreInteractions(dividendReconcileProducer);
+  }
+
+  @Test
+  @DisplayName("넣은 배당은 마지막 쪽까지 쪽마다 읽는다")
+  void diff_ReadsEverySettlementPage() {
+    given(tradeRepository.findDistinctPositions(TradeStatus.COMPLETED)).willReturn(List.of());
+    given(dividendPayoutRepository.findDistinctPositions()).willReturn(List.of());
+    given(userServiceClient.getDividendSettlements(0, 500)).willReturn(new DividendSettlementPageDto(
+      List.of(new DividendSettlementDto(21L, "AAPL", EX_DATE, new BigDecimal("2.03"))), false));
+    given(userServiceClient.getDividendSettlements(1, 500)).willReturn(new DividendSettlementPageDto(
+      List.of(new DividendSettlementDto(22L, "AAPL", EX_DATE, new BigDecimal("2.12"))), true));
+
+    List<PayoutDiffResponse> diff = dividendBackfillService.diff();
+
+    assertThat(diff).extracting(PayoutDiffResponse::accountId).containsExactly(21L, 22L);
   }
 
   @Test
@@ -95,9 +143,9 @@ class DividendBackfillServiceTest {
       trade("user-3", 22L, TradeType.SELL, LocalDate.of(2024, 1, 5)));
     given(marketServiceClientWrapper.getDividends(eq("AAPL"), eq("2024-01-02"), anyString()))
       .willReturn(List.of(new DividendDto("2024-02-09", new BigDecimal("0.24"))));
-    given(userServiceClient.getDividendSettlements()).willReturn(List.of(
+    givenSettlements(
       new DividendSettlementDto(21L, "AAPL", EX_DATE, new BigDecimal("2.03")),
-      new DividendSettlementDto(22L, "AAPL", EX_DATE, new BigDecimal("2.12"))));
+      new DividendSettlementDto(22L, "AAPL", EX_DATE, new BigDecimal("2.12")));
 
     List<PayoutDiffResponse> diff = dividendBackfillService.diff();
 
@@ -106,7 +154,7 @@ class DividendBackfillServiceTest {
         d -> d.target().toPlainString(), d -> d.delta().toPlainString(), PayoutDiffResponse::differingRows)
       .containsExactly(
         tuple(20L, "0", "2.03", "2.03", 1),
-        tuple(22L, "2.12", "0", "-2.12", 1));
+        tuple(22L, "2.12", "0.00", "-2.12", 1));
     verify(marketServiceClientWrapper, times(1)).getDividends(eq("AAPL"), anyString(), anyString());
   }
 }

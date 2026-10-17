@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 @DisplayName("배당 금액 계산")
 class DividendAmountsTest {
@@ -25,5 +26,14 @@ class DividendAmountsTest {
     assertThat(amounts.grossAmount()).isEqualByComparingTo(gross);
     assertThat(amounts.taxAmount()).isEqualByComparingTo(tax);
     assertThat(amounts.netAmount()).isEqualByComparingTo(net);
+  }
+
+  @Test
+  @DisplayName("주당 배당이 소수 여섯째 자리를 넘으면 여섯째 자리로 반올림하고 짧은 값은 그대로 둔다")
+  void of_RoundsPerShareToSixDecimals() {
+    assertThat(DividendAmounts.of(new BigDecimal("0.24666667"), BigDecimal.TEN).dividendPerShare())
+      .isEqualTo(new BigDecimal("0.246667"));
+    assertThat(DividendAmounts.of(new BigDecimal("0.25"), BigDecimal.TEN).dividendPerShare())
+      .isEqualTo(new BigDecimal("0.25"));
   }
 }

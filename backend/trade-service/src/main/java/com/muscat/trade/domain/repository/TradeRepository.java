@@ -40,6 +40,11 @@ public interface TradeRepository extends JpaRepository<Trade, Long>, TradeReposi
   List<Trade> findByUserIdAndAccountIdAndSymbolAndStatusOrderByExecutedAtAscIdAsc(String userId,
     Long accountId, String symbol, TradeStatus status);
 
+  List<Trade> findByUserIdAndStatusOrderByExecutedAtAscIdAsc(String userId, TradeStatus status);
+
+  // 계좌 주인 찾기용. 취소된 체결도 봄
+  Optional<Trade> findFirstByAccountIdOrderByIdAsc(Long accountId);
+
   // 같은 체결을 동시에 취소하지 않게 잠가서 읽는다
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("select t from Trade t where t.id = :id")
