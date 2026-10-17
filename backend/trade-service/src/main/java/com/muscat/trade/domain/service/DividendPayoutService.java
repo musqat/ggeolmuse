@@ -11,6 +11,7 @@ import com.muscat.trade.infra.kafka.DividendPayoutProducer;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -69,6 +70,23 @@ public class DividendPayoutService {
     }
     log.info("배당 몫 재계산: accountId={}, symbol={}, 바뀐 몫={}", accountId, symbol, changed);
     return changed;
+  }
+
+  // 지금 남은 매수 묶음은 매수일부터 계속 들고 있었으니 그 뒤 배당을 다 받은 셈. 판 주식이 받은 배당은 뺌
+  @Transactional(readOnly = true)
+  public BigDecimal dividendsOnHeldShares(String userId, Long accountId, String symbol) {
+    List<Trade> trades = tradeRepository.findByUserIdAndAccountIdAndSymbolAndStatusOrderByExecutedAtAscIdAsc(
+      userId, accountId, symbol, TradeStatus.COMPLETED);
+    Collection<DividendPayout> payouts = dividendPayoutRepository.findByAccountIdAndSymbol(accountId, symbol);
+    BigDecimal total = BigDecimal.ZERO;
+    for (DividendEntitlement.HeldBuy lot : DividendEntitlement.remainingByBuyBefore(trades, LocalDate.now().plusDays(1))) {
+      for (DividendPayout payout : payouts) {
+        if (lot.buy().getTradeDate().isBefore(payout.getExDate())) {
+          total = total.add(DividendAmounts.of(payout.getDividendPerShare(), lot.shares()).netAmount());
+        }
+      }
+    }
+    return total;
   }
 
   // 배당락일마다 그 전날 보유로 센 몫. 보유가 0 인 배당락일은 뺀다

@@ -58,8 +58,9 @@ class PortfolioControllerSimpleTest {
         new BigDecimal("160.00"),
         new BigDecimal("8000.00"),
         new BigDecimal("500.00"),
-        new BigDecimal("6.67")
-      )
+        new BigDecimal("6.67"),
+      null
+    )
     );
 
     when(holdingsService.getPortfolio(eq("test-user-123"), isNull()))
@@ -90,8 +91,9 @@ class PortfolioControllerSimpleTest {
         new BigDecimal("320.00"),
         new BigDecimal("9600.00"),
         new BigDecimal("600.00"),
-        new BigDecimal("6.67")
-      )
+        new BigDecimal("6.67"),
+      null
+    )
     );
 
     when(holdingsService.getPortfolio(eq("test-user-123"), eq(1L)))
@@ -149,7 +151,8 @@ class PortfolioControllerSimpleTest {
       new BigDecimal("160.00"),
       new BigDecimal("16000.00"),
       new BigDecimal("1000.00"),
-      new BigDecimal("6.67")
+      new BigDecimal("6.67"),
+      null
     );
 
     when(holdingsService.getHoldingBySymbol(eq("test-user-123"), eq(1L), eq("AAPL")))

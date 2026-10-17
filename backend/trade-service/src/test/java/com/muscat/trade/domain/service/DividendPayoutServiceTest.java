@@ -203,4 +203,20 @@ class DividendPayoutServiceTest {
     assertThat(published(2)).extracting(p -> p.getNetAmount().toPlainString()).containsOnly("0.00");
     verifyNoInteractions(marketServiceClientWrapper);
   }
+
+  @Test
+  @DisplayName("지금 남은 매수 묶음만 그 매수일 뒤 배당을 받은 것으로 센다")
+  void dividendsOnHeldShares_OnlyRemainingLots() {
+    givenTrades(
+      trade(1, TradeType.BUY, "10", LocalDate.of(2024, 1, 2)),
+      trade(2, TradeType.BUY, "5", LocalDate.of(2025, 1, 2)),
+      trade(3, TradeType.SELL, "10", LocalDate.of(2025, 6, 1)));
+    given(dividendPayoutRepository.findByAccountIdAndSymbol(ACCOUNT, SYMBOL)).willReturn(List.of(
+      payout(LocalDate.of(2024, 2, 9), "0.24", "2.40", "0.37", "2.03"),
+      payout(LocalDate.of(2025, 2, 7), "0.25", "3.75", "0.58", "3.17"),
+      payout(LocalDate.of(2025, 5, 12), "0.25", "3.75", "0.58", "3.17")));
+
+    // 남은 건 2025-01-02 매수 5주. 주당 0.25 × 5주 → 세후 1.06, 배당락일 둘
+    assertThat(dividendPayoutService.dividendsOnHeldShares(USER, ACCOUNT, SYMBOL)).isEqualByComparingTo("2.12");
+  }
 }

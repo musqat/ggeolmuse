@@ -81,7 +81,8 @@ class MarketDataServiceRetryTest {
 
     assertThatThrownBy(() -> marketDataService.determineTradePrice("AAPL", TRADE_DATE, PriceType.MANUAL,
       new BigDecimal("230")))
-      .isInstanceOf(TradeException.class);
+      .isInstanceOf(TradeException.class)
+      .hasFieldOrPropertyWithValue("errorCode", "MANUAL_PRICE_OUT_OF_RANGE");
     verify(client, times(1)).getOHLCPrice("AAPL", "2024-09-18");
   }
 

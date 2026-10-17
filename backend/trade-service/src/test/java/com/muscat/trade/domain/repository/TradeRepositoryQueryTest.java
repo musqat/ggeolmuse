@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.muscat.jpatest.TradeJpaTestConfig;
 import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.common.enums.type.TradeType;
+import com.muscat.trade.domain.dto.TradePosition;
 import com.muscat.trade.domain.entity.Trade;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -59,6 +60,18 @@ class TradeRepositoryQueryTest {
 
     assertThat(tradeRepository.findDistinctSymbolsByUserId(USER)).containsExactlyInAnyOrder("AAPL", "MSFT");
     assertThat(tradeRepository.findDistinctSymbolsByUserId("nobody")).isEmpty();
+  }
+
+  @Test
+  @DisplayName("체결된 거래의 사용자 · 계좌 · 종목을 겹치지 않게 주고 취소만 있는 자리는 뺀다")
+  void distinctPositions_CompletedOnly() {
+    save(USER, 10, "AAPL", TradeType.BUY, "1", "100", LocalDate.of(2026, 10, 1), 9);
+    save(USER, 10, "AAPL", TradeType.SELL, "1", "100", LocalDate.of(2026, 10, 2), 9);
+    save(USER, 20, "AAPL", TradeType.BUY, "1", "100", LocalDate.of(2026, 10, 3), 9);
+    save(OTHER_USER, 30, "TSLA", TradeType.BUY, "1", "100", LocalDate.of(2026, 10, 3), 9, TradeStatus.CANCELLED);
+
+    assertThat(tradeRepository.findDistinctPositions(TradeStatus.COMPLETED)).containsExactlyInAnyOrder(
+      new TradePosition(USER, 10L, "AAPL"), new TradePosition(USER, 20L, "AAPL"));
   }
 
   @Nested

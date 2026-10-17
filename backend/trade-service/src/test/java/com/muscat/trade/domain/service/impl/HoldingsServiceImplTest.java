@@ -18,6 +18,7 @@ import com.muscat.trade.domain.entity.Holdings;
 import com.muscat.trade.domain.repository.HoldingsRepository;
 import com.muscat.trade.domain.repository.PortfolioSummaryProjection;
 import com.muscat.trade.infra.client.BacktestServiceClient;
+import com.muscat.trade.domain.service.DividendPayoutService;
 import com.muscat.trade.infra.client.MarketServiceClientWrapper;
 import com.muscat.trade.infra.client.dto.InvestmentBacktestResultDto;
 import java.math.BigDecimal;
@@ -49,6 +50,8 @@ class HoldingsServiceImplTest {
   private BacktestServiceClient backtestServiceClient;
   @Mock
   private MarketServiceClientWrapper marketServiceClientWrapper;
+  @Mock
+  private DividendPayoutService dividendPayoutService;
 
   @InjectMocks
   private HoldingsServiceImpl holdingsService;
@@ -109,6 +112,19 @@ class HoldingsServiceImplTest {
 
       verify(tradeLogger).logPortfolioAccess(eq(TEST_USER_ID), eq("ACCOUNT_PORTFOLIO"),
         eq(TEST_ACCOUNT_ID.toString()), eq(1));
+    }
+
+    @Test
+    @DisplayName("포트폴리오 줄에 지금 들고 있는 주식이 받은 배당을 싣는다")
+    void getPortfolio_IncludesDividendsOnHeldShares() {
+      given(holdingsRepository.findByUserIdAndAccountId(TEST_USER_ID, TEST_ACCOUNT_ID)).willReturn(List.of(testHolding));
+      given(marketServiceClientWrapper.getCurrentPrices(List.of(TEST_SYMBOL))).willReturn(Map.of());
+      given(dividendPayoutService.dividendsOnHeldShares(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL))
+        .willReturn(new BigDecimal("2.12"));
+
+      List<HoldingResponseDto> result = holdingsService.getPortfolio(TEST_USER_ID, TEST_ACCOUNT_ID);
+
+      assertThat(result.getFirst().totalDividends()).isEqualByComparingTo("2.12");
     }
 
     @Test

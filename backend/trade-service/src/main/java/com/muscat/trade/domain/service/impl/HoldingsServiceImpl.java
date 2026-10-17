@@ -7,6 +7,7 @@ import com.muscat.trade.domain.dto.response.HoldingResponseDto;
 import com.muscat.trade.domain.dto.response.PortfolioSummary;
 import com.muscat.trade.domain.entity.Holdings;
 import com.muscat.trade.domain.repository.HoldingsRepository;
+import com.muscat.trade.domain.service.DividendPayoutService;
 import com.muscat.trade.domain.service.HoldingsService;
 import com.muscat.trade.infra.client.BacktestServiceClient;
 import com.muscat.trade.infra.client.MarketServiceClientWrapper;
@@ -37,6 +38,7 @@ public class HoldingsServiceImpl implements HoldingsService {
   private final TradeLogger tradeLogger;
   private final BacktestServiceClient backtestServiceClient;
   private final MarketServiceClientWrapper marketServiceClientWrapper;
+  private final DividendPayoutService dividendPayoutService;
 
   @Override
   @Transactional(readOnly = true)
@@ -78,11 +80,11 @@ public class HoldingsServiceImpl implements HoldingsService {
     return holdings.stream()
       .map(holding -> {
         BigDecimal currentPrice = currentPrices.get(holding.getSymbol());
-        if (currentPrice != null) {
-          return HoldingResponseDto.of(holding, currentPrice);
-        } else {
-          return HoldingResponseDto.from(holding);
-        }
+        HoldingResponseDto dto = currentPrice != null
+          ? HoldingResponseDto.of(holding, currentPrice)
+          : HoldingResponseDto.from(holding);
+        return dto.withTotalDividends(
+          dividendPayoutService.dividendsOnHeldShares(userId, holding.getAccountId(), holding.getSymbol()));
       })
       .collect(Collectors.toList());
   }

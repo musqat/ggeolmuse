@@ -107,24 +107,26 @@ class MarketDataServiceImplTest {
     }
 
     @Test
-    @DisplayName("응답이 null 이면 TradeException")
+    @DisplayName("응답이 null 이면 시세 없음으로 막는다")
     void 응답_null() {
       given(marketServiceClientWrapper.getOHLCPrice(SYMBOL, TRADE_DATE.toString())).willReturn(null);
 
       assertThatThrownBy(
         () -> marketDataService.getOHLCPrice(SYMBOL, TRADE_DATE, PriceType.CLOSE))
-        .isInstanceOf(TradeException.class);
+        .isInstanceOf(TradeException.class)
+        .hasFieldOrPropertyWithValue("errorCode", "PRICE_DATA_UNAVAILABLE");
     }
 
     @Test
-    @DisplayName("available=false 면 TradeException")
+    @DisplayName("available=false 면 시세 없음으로 막는다")
     void 데이터_없음() {
       given(marketServiceClientWrapper.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
         .willReturn(ohlc(false));
 
       assertThatThrownBy(
         () -> marketDataService.getOHLCPrice(SYMBOL, TRADE_DATE, PriceType.CLOSE))
-        .isInstanceOf(TradeException.class);
+        .isInstanceOf(TradeException.class)
+        .hasFieldOrPropertyWithValue("errorCode", "PRICE_DATA_UNAVAILABLE");
     }
 
     @Test
@@ -220,25 +222,27 @@ class MarketDataServiceImplTest {
     }
 
     @Test
-    @DisplayName("저가보다 낮으면 막는다")
+    @DisplayName("저가보다 낮으면 입력 가격 범위 오류로 막는다")
     void 저가_미만() {
       given(marketServiceClientWrapper.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
         .willReturn(ohlc(true));
 
       assertThatThrownBy(() ->
         marketDataService.validateManualPrice(SYMBOL, TRADE_DATE, new BigDecimal("212.99")))
-        .isInstanceOf(TradeException.class);
+        .isInstanceOf(TradeException.class)
+        .hasFieldOrPropertyWithValue("errorCode", "MANUAL_PRICE_OUT_OF_RANGE");
     }
 
     @Test
-    @DisplayName("고가보다 높으면 막는다")
+    @DisplayName("고가보다 높으면 입력 가격 범위 오류로 막는다")
     void 고가_초과() {
       given(marketServiceClientWrapper.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
         .willReturn(ohlc(true));
 
       assertThatThrownBy(() ->
         marketDataService.validateManualPrice(SYMBOL, TRADE_DATE, new BigDecimal("222.01")))
-        .isInstanceOf(TradeException.class);
+        .isInstanceOf(TradeException.class)
+        .hasFieldOrPropertyWithValue("errorCode", "MANUAL_PRICE_OUT_OF_RANGE");
     }
 
     @Test
@@ -253,15 +257,15 @@ class MarketDataServiceImplTest {
     }
 
     @Test
-    @DisplayName("응답이 없거나 available=false 면 막는다")
+    @DisplayName("응답이 없거나 available=false 면 시세 없음으로 막는다")
     void 데이터_없음() {
       given(marketServiceClientWrapper.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
         .willReturn(ohlc(false));
 
-      // 내부에서 MarketDataException 을 던지지만 catch 가 TradeException 으로 바꿔 내보낸다
       assertThatThrownBy(() ->
         marketDataService.validateManualPrice(SYMBOL, TRADE_DATE, new BigDecimal("218")))
-        .isInstanceOf(TradeException.class);
+        .isInstanceOf(TradeException.class)
+        .hasFieldOrPropertyWithValue("errorCode", "PRICE_DATA_UNAVAILABLE");
     }
 
     @Test
