@@ -51,7 +51,8 @@ public class InvestmentBacktestServiceImpl implements InvestmentBacktestService 
 
   // Trade에서 과거에 매수한 주식의 현재까지 백테스트 결과 계산
   @Override
-  public InvestmentResponse executeInvestment(InvestmentRequest request, String authorization) {
+  public InvestmentResponse executeInvestment(InvestmentRequest request, String authorization,
+    String historyOwner) {
     log.info("과거 매수 백테스트 시작: {}", request);
 
     try {
@@ -69,8 +70,7 @@ public class InvestmentBacktestServiceImpl implements InvestmentBacktestService 
       InvestmentResponse finalResult = resolvePortfolioResult(results);
       saveInvestmentBacktestResult(request.getUserId(), finalResult);
 
-      backtestHistoryUtils.saveBacktestHistory(request.getUserId(),
-        BacktestType.INVESTMENT_ANALYSIS, request);
+      backtestHistoryUtils.saveBacktestHistory(historyOwner, BacktestType.INVESTMENT_ANALYSIS, request);
 
       return finalResult;
     } catch (BacktestException e) {

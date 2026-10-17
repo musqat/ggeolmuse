@@ -60,7 +60,8 @@ class InvestmentBacktestServiceImplTest {
   @InjectMocks
   private InvestmentBacktestServiceImpl investmentBacktestService;
 
-  private static final String TEST_USER_ID = "test-user@example.com";
+  private static final String TEST_USER_ID = "kc-subject-1";
+  private static final String TEST_EMAIL = "owner@example.com";
   private static final String TEST_SYMBOL = "AAPL";
   private static final String TEST_AUTHORIZATION = "Bearer token123";
 
@@ -77,7 +78,7 @@ class InvestmentBacktestServiceImplTest {
   class ExecuteInvestmentTests {
 
     @Test
-    @DisplayName("Holdings가 있을 때 투자 백테스트가 성공적으로 실행된다")
+    @DisplayName("보유 종목이 있으면 백테스트를 돌려 결과는 토큰 사용자로, 이력은 이메일로 남긴다")
     void executeInvestment_WithHoldings_Success() throws JsonProcessingException {
       HoldingDto holding = createHoldingDto("AAPL", new BigDecimal("10.5"),
         new BigDecimal("180.00"), new BigDecimal("1890000"));
@@ -104,13 +105,15 @@ class InvestmentBacktestServiceImplTest {
       given(objectMapper.writeValueAsString(any())).willReturn("{\"status\":\"SUCCESS\"}");
 
       InvestmentResponse result = investmentBacktestService.executeInvestment(
-        testInvestmentRequest, TEST_AUTHORIZATION);
+        testInvestmentRequest, TEST_AUTHORIZATION, TEST_EMAIL);
 
       assertThat(result).isNotNull();
       assertThat(result).isEqualTo(investmentResponse);
-      verify(backtestHistoryUtils).saveBacktestHistory(TEST_USER_ID,
+      verify(backtestHistoryUtils).saveBacktestHistory(TEST_EMAIL,
         BacktestType.INVESTMENT_ANALYSIS, testInvestmentRequest);
-      verify(investmentBacktestResultRepository).save(any(InvestmentBacktestResult.class));
+      ArgumentCaptor<InvestmentBacktestResult> saved = ArgumentCaptor.forClass(InvestmentBacktestResult.class);
+      verify(investmentBacktestResultRepository).save(saved.capture());
+      assertThat(saved.getValue().getUserId()).isEqualTo(TEST_USER_ID);
     }
 
     @Test
@@ -120,7 +123,7 @@ class InvestmentBacktestServiceImplTest {
         .willReturn(Collections.emptyList());
 
       assertThatThrownBy(() ->
-        investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION))
+        investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION, TEST_EMAIL))
         .isInstanceOf(BacktestException.class)
         .hasMessageContaining("보유 주식")
         .extracting("code")
@@ -147,7 +150,7 @@ class InvestmentBacktestServiceImplTest {
         .willThrow(new RuntimeException("Calculation error occurred"));
 
       assertThatThrownBy(() ->
-        investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION))
+        investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION, TEST_EMAIL))
         .isInstanceOf(BacktestException.class)
         .hasMessageContaining("계산")
         .extracting("code")
@@ -327,7 +330,7 @@ class InvestmentBacktestServiceImplTest {
     void mergesTwoHoldings() throws JsonProcessingException {
       stubTwoHoldings("SUCCESS", "SUCCESS");
 
-      InvestmentResponse result = investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION);
+      InvestmentResponse result = investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION, TEST_EMAIL);
 
       SimulationResponse merged = result.getSimulation();
       assertThat(merged.getSymbol()).isEqualTo("AAPL, MSFT");
@@ -356,7 +359,7 @@ class InvestmentBacktestServiceImplTest {
     void earliestBuyDatePerHolding() throws JsonProcessingException {
       stubTwoHoldings("SUCCESS", "SUCCESS");
 
-      investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION);
+      investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION, TEST_EMAIL);
 
       assertThat(capturedSimulation(aapl).getPurchaseDate()).isEqualTo(LocalDate.of(2024, 1, 10));
       assertThat(capturedSimulation(msft).getPurchaseDate()).isEqualTo(LocalDate.of(2024, 1, 15));
@@ -367,7 +370,7 @@ class InvestmentBacktestServiceImplTest {
     void partialSuccess() throws JsonProcessingException {
       stubTwoHoldings("SUCCESS", "FAILED");
 
-      InvestmentResponse result = investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION);
+      InvestmentResponse result = investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION, TEST_EMAIL);
 
       assertThat(result.getStatus()).isEqualTo("PARTIAL_SUCCESS");
       assertThat(result.getMessage()).isEqualTo("2개 종목 중 1개 성공");
@@ -387,7 +390,7 @@ class InvestmentBacktestServiceImplTest {
       given(marketDataClientWrapper.getFxRate(anyString())).willThrow(new RuntimeException("no fx"));
       given(marketDataClientWrapper.getLatestFxRate()).willReturn(new FxRateDto(LocalDate.now(), new BigDecimal("1350")));
 
-      investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION);
+      investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION, TEST_EMAIL);
 
       SimulationResponse sim = capturedSimulation(holding);
       assertThat(sim.getPurchaseFxRate()).isEqualByComparingTo("1350");
@@ -401,7 +404,7 @@ class InvestmentBacktestServiceImplTest {
       given(marketDataClientWrapper.getFxRate(anyString())).willThrow(new RuntimeException("no fx"));
       given(marketDataClientWrapper.getLatestFxRate()).willThrow(new RuntimeException("no latest"));
 
-      investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION);
+      investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION, TEST_EMAIL);
 
       SimulationResponse sim = capturedSimulation(holding);
       assertThat(sim.getPurchaseFxRate()).isEqualByComparingTo("1300");
@@ -415,7 +418,7 @@ class InvestmentBacktestServiceImplTest {
       given(marketDataClientWrapper.getFxRate(anyString())).willReturn(new FxRateDto(LocalDate.of(2024, 1, 15), new BigDecimal("1200")));
       given(marketDataClientWrapper.getLatestFxRate()).willThrow(new RuntimeException("no latest"));
 
-      investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION);
+      investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION, TEST_EMAIL);
 
       SimulationResponse sim = capturedSimulation(holding);
       assertThat(sim.getPurchaseFxRate()).isEqualByComparingTo("1200");
@@ -430,7 +433,7 @@ class InvestmentBacktestServiceImplTest {
       given(marketDataClientWrapper.getFxRate(anyString())).willReturn(new FxRateDto(LocalDate.of(2024, 1, 15), new BigDecimal("1300")));
       given(marketDataClientWrapper.getLatestFxRate()).willReturn(new FxRateDto(LocalDate.now(), new BigDecimal("1300")));
 
-      investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION);
+      investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION, TEST_EMAIL);
 
       SimulationResponse sim = capturedSimulation(free);
       assertThat(sim.getTotalReturnPercent()).isEqualByComparingTo("0");
@@ -459,7 +462,7 @@ class InvestmentBacktestServiceImplTest {
         InvestmentBacktestResult.builder().id(7L).userId(TEST_USER_ID).resultData("{\"old\":true}")
           .calculatedAt(LocalDateTime.of(2024, 1, 1, 0, 0)).build()));
 
-      investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION);
+      investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION, TEST_EMAIL);
 
       ArgumentCaptor<InvestmentBacktestResult> saved = ArgumentCaptor.forClass(InvestmentBacktestResult.class);
       verify(investmentBacktestResultRepository).save(saved.capture());
@@ -475,11 +478,11 @@ class InvestmentBacktestServiceImplTest {
       stubFx();
       given(objectMapper.writeValueAsString(any())).willThrow(new JsonProcessingException("boom") {});
 
-      InvestmentResponse result = investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION);
+      InvestmentResponse result = investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION, TEST_EMAIL);
 
       assertThat(result.getStatus()).isEqualTo("SUCCESS");
       verify(investmentBacktestResultRepository, never()).save(any());
-      verify(backtestHistoryUtils).saveBacktestHistory(TEST_USER_ID, BacktestType.INVESTMENT_ANALYSIS, testInvestmentRequest);
+      verify(backtestHistoryUtils).saveBacktestHistory(TEST_EMAIL, BacktestType.INVESTMENT_ANALYSIS, testInvestmentRequest);
     }
 
     @ParameterizedTest(name = "{0}")
@@ -490,7 +493,7 @@ class InvestmentBacktestServiceImplTest {
       IllegalStateException cause = new IllegalStateException(message);
       given(tradeServiceClientWrapper.getPortfolio(TEST_AUTHORIZATION)).willThrow(cause);
 
-      assertThatThrownBy(() -> investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION))
+      assertThatThrownBy(() -> investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION, TEST_EMAIL))
         .isInstanceOf(BacktestException.class)
         .hasCause(cause)
         .extracting("code")
@@ -505,7 +508,7 @@ class InvestmentBacktestServiceImplTest {
       given(tradeServiceClientWrapper.getTradeHistoryBySymbol(TEST_AUTHORIZATION, holding.symbol())).willReturn(List.of());
       given(marketDataClientWrapper.getCurrentPrice(holding.symbol())).willThrow(outage);
 
-      assertThatThrownBy(() -> investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION))
+      assertThatThrownBy(() -> investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION, TEST_EMAIL))
         .isSameAs(outage);
     }
   }
