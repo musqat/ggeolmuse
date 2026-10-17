@@ -11,34 +11,25 @@ import type { ComparisonStrategyType } from '../comparison/types';
 import { getTodayString } from '../../../utils/dateUtils';
 
 interface StrategyComparisonFormProps {
-  // Symbol selection
   symbol: string;
   setSymbol: (symbol: string) => void;
   supportedSymbols: string[];
 
-  // Date range
   startDate: string;
   setStartDate: (date: string) => void;
   endDate: string;
   setEndDate: (date: string) => void;
 
-  // Investment amount
   investment: string;
   setInvestment: (amount: string) => void;
 
-  // Strategy selection
   selectedStrategies: string[];
   toggleStrategy: (strategy: ComparisonStrategyType) => void;
 
-  // FX settings
   options: BacktestOptionsState;
-
-  // Dividend and fee options
 }
-/**
- * 전략 비교 폼 컴포넌트
- * 동일한 종목에 대해 여러 투자 전략(단순 매수, 적립식, 조건부 매수)의 성과를 비교
- */
+
+// 한 종목에 단순 · 적립식 · 조건부 매수를 견줌
 export const StrategyComparisonForm: React.FC<StrategyComparisonFormProps> = ({
   symbol,
   setSymbol,

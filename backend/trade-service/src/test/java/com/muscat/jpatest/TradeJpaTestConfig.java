@@ -7,10 +7,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
-/**
- * 레포지토리 테스트용 JPA 설정. 서비스 패키지 밖에 둔다.
- * 안에 두면 @SpringBootTest 가 설정을 찾다 이 클래스를 집고, TradeApplication 의 @ComponentScan 에도 걸린다.
- */
+// 저장소 시험용 JPA 설정. 서비스 패키지 안에 두면 @SpringBootTest · @ComponentScan 에 걸려 밖에 둠
 @Configuration
 @EntityScan(basePackages = "com.muscat.trade")
 @EnableJpaRepositories(basePackageClasses = TradeRepository.class)

@@ -2,10 +2,7 @@ import { test, expect, request } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { API_URL, TOKEN_FILE } from '../playwright.config';
 
-/**
- * 라우트가 붙어 있고 흰 화면이 아니고 콘솔이 조용한지까지만 본다.
- * /charts 가 통째로 빈 화면이 된 적이 있는데 이 정도로 잡혔다.
- */
+// 라우트가 붙고 흰 화면이 아니고 콘솔이 조용한지까지만 봄
 
 /** 로그인 없이 볼 수 있는 화면 */
 const PUBLIC_PAGES = ['/', '/stocks', '/charts', '/backtest'];

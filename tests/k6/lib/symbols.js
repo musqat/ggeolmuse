@@ -1,8 +1,5 @@
-// 로컬 스택이 수집하는 상위 50개 종목.
-// docker-compose 의 MARKETDATA_SYMBOLCOLLECTION_MAXSYMBOLS=50 과 맞춰뒀다.
-//
-// 부하 테스트에서 심볼을 하나로 고정하면 캐시가 전부 받아내서
-// 실제보다 훨씬 빠른 숫자가 나온다. 매 요청 무작위로 고른다.
+// 로컬 스택이 받는 상위 50종목(compose 의 MARKETDATA_SYMBOLCOLLECTION_MAXSYMBOLS=50 과 맞춤)
+// 하나로 고정하면 캐시만 재게 돼 요청마다 무작위로 고름
 export const SYMBOLS = [
   'NVDA', 'AAPL', 'GOOGL', 'GOOG', 'MSFT', 'AMZN', 'TSM', 'AVGO', 'META', 'TSLA',
   'LLY', 'MU', 'JPM', 'WMT', 'AMD', 'ASML', 'XOM', 'V', 'JNJ', 'INTC',

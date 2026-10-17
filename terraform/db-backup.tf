@@ -1,13 +1,5 @@
-# DB 논리 백업을 받는 S3 버킷과 EC2 쪽 쓰기 권한
-#
-# RDS 자동 스냅샷은 RDS 안에만 남는다. 계정 사고나 실수로 인스턴스를 지우면
-# 같이 사라지고, 다른 DB 로 옮기거나 로컬에서 실데이터로 디버깅할 때도 못 쓴다.
-# 그래서 k8s CronJob 이 매달 pg_dump 를 떠서 여기에 올린다.
-# CronJob 은 helm/ggeolmuse 의 dbBackup 값으로 켠다.
-#
-# 인증은 EC2 인스턴스 프로파일이다. 파드가 IMDSv2 로 인스턴스 역할 자격증명을
-# 받아 올린다. ESO 가 Secrets Manager 를 읽는 것과 같은 경로다.
-#
+# DB 논리 백업(k8s CronJob 이 매달 pg_dump)을 받는 S3 버킷과 EC2 쪽 쓰기 권한
+# CronJob 은 helm/ggeolmuse 의 dbBackup 으로 켜고, 파드는 IMDSv2 로 인스턴스 역할 자격증명을 받아 올림
 
 data "aws_instance" "ggeolmuse" {
   instance_id = var.ec2_instance_id

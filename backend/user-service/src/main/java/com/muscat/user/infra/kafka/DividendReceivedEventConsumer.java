@@ -11,12 +11,7 @@ import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
-/**
- * 배당금 수령 이벤트를 Kafka에서 소비하는 Consumer
- *
- * trade-service에서 발행한 DividendReceivedEvent를 소비하여
- * 사용자 계좌에 배당금을 입금합니다.
- */
+// 배당금 수령 이벤트를 받아 사용자 계좌에 배당금 입금
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -24,14 +19,6 @@ public class DividendReceivedEventConsumer {
 
     private final AccountService accountService;
 
-    /**
-     * 배당금 수령 이벤트 처리
-     *
-     * @param event          배당금 수령 이벤트
-     * @param partition      Kafka 파티션 번호
-     * @param offset         메시지 오프셋
-     * @param acknowledgment 수동 커밋용 객체
-     */
     @KafkaListener(
             topics = "trading.dividend.received",
             groupId = "${spring.application.name}-dividend-received-consumer",

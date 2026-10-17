@@ -24,9 +24,7 @@ interface UseModalStateReturn {
   clearSelectedAccount: () => void;
 }
 
-/**
- * 모달 상태 관리 훅
- */
+// 계좌 모달들의 열림 상태와 선택한 계좌
 export const useModalState = (): UseModalStateReturn => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDepositModal, setShowDepositModal] = useState(false);
@@ -34,74 +32,44 @@ export const useModalState = (): UseModalStateReturn => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
 
-  /**
-   * 계좌 생성 모달 열기
-   */
   const openCreateModal = () => {
     setShowCreateModal(true);
   };
 
-  /**
-   * 입금 모달 열기
-   * @param {number} accountId - 입금할 계좌 ID
-   */
   const openDepositModal = (accountId: number) => {
     setSelectedAccountId(accountId);
     setShowDepositModal(true);
   };
 
-  /**
-   * 환전 모달 열기
-   * @param {number} accountId - 환전할 계좌 ID
-   */
   const openExchangeModal = (accountId: number) => {
     setSelectedAccountId(accountId);
     setShowExchangeModal(true);
   };
 
-  /**
-   * 계좌 삭제 모달 열기
-   * @param {number} accountId - 삭제할 계좌 ID
-   */
   const openDeleteModal = (accountId: number) => {
     setSelectedAccountId(accountId);
     setShowDeleteModal(true);
   };
 
-  /**
-   * 계좌 생성 모달 닫기
-   */
   const closeCreateModal = () => {
     setShowCreateModal(false);
   };
 
-  /**
-   * 입금 모달 닫기
-   */
   const closeDepositModal = () => {
     setShowDepositModal(false);
     setSelectedAccountId(null);
   };
 
-  /**
-   * 환전 모달 닫기
-   */
   const closeExchangeModal = () => {
     setShowExchangeModal(false);
     setSelectedAccountId(null);
   };
 
-  /**
-   * 계좌 삭제 모달 닫기
-   */
   const closeDeleteModal = () => {
     setShowDeleteModal(false);
     setSelectedAccountId(null);
   };
 
-  /**
-   * 선택된 계좌 ID 초기화
-   */
   const clearSelectedAccount = () => {
     setSelectedAccountId(null);
   };

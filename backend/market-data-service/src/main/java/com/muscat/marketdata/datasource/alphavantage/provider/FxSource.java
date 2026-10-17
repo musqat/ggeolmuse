@@ -64,10 +64,7 @@ public class FxSource implements MarketDataProvider.FxSource {
         return new BigDecimal(closeValue);
     }
 
-    /**
-     * 전체 환율 데이터 수집 (초기 수집용)
-     * outputsize=full을 사용하여 20년치 환율 데이터를 한 번의 API 호출로 가져옵니다.
-     */
+    // outputsize=full 로 20년치를 한 번에 받음(초기 수집용)
     public Map<LocalDate, BigDecimal> fetchAllFxRates() {
         log.info("=== 전체 환율 데이터 수집 시작 (outputsize=full) ===");
         rateLimiter.waitIfNeeded();

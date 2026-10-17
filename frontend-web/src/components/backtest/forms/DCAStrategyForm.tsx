@@ -25,10 +25,7 @@ interface DCAStrategyFormProps {
   supportedSymbols: string[];
 }
 
-/**
- * 적립식 투자 전략 입력 폼 (DCA: Dollar Cost Averaging)
- * 정해진 날짜에 정해진 금액을 주기적으로 투자하는 전략의 수익률을 시뮬레이션
- */
+// 적립식(DCA): 정한 날 정한 금액을 주기적으로 삼
 export const DCAStrategyForm: React.FC<DCAStrategyFormProps> = ({
   symbol,
   setSymbol,

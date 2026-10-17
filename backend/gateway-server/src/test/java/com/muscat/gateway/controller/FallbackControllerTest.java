@@ -11,10 +11,7 @@ import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
 import org.springframework.http.HttpMethod;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
-/**
- * 타임아웃 때 게이트웨이는 원 요청 메서드 그대로 forward:/fallback 으로 넘긴다.
- * 컨트롤러가 GET 만 받으면 POST 백테스트는 503 대신 405 가 난다.
- */
+// 타임아웃 때 원래 메서드 그대로 forward:/fallback 으로 옴. GET 만 받으면 POST 는 503 대신 405
 @WebFluxTest(
     controllers = FallbackController.class,
     excludeAutoConfiguration = {

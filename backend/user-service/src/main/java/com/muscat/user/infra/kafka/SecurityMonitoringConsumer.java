@@ -13,28 +13,12 @@ import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
-/**
- * 보안 모니터링 Consumer
- *
- * 로그인 성공/실패 이벤트를 소비하여 보안 로그로 기록합니다.
- * 향후 확장:
- * - 실시간 이상 로그인 탐지 (같은 IP에서 짧은 시간에 여러 계정 로그인)
- * - 로그인 실패 횟수 추적 (계정 잠금 정책)
- * - 지역별 로그인 분석 (평소와 다른 국가에서 로그인)
- */
+// 보안 모니터링: 로그인 성공 · 실패 이벤트를 보안 로그로 남김
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class SecurityMonitoringConsumer {
 
-    /**
-     * 로그인 성공 이벤트 처리
-     *
-     * @param event          로그인 성공 이벤트
-     * @param partition      Kafka 파티션 번호
-     * @param offset         메시지 오프셋
-     * @param acknowledgment 수동 커밋용 객체
-     */
     @KafkaListener(
             topics = "user.login.success",
             groupId = "${spring.application.name}-login-success-consumer",
@@ -66,14 +50,6 @@ public class SecurityMonitoringConsumer {
         }
     }
 
-    /**
-     * 로그인 실패 이벤트 처리
-     *
-     * @param event          로그인 실패 이벤트
-     * @param partition      Kafka 파티션 번호
-     * @param offset         메시지 오프셋
-     * @param acknowledgment 수동 커밋용 객체
-     */
     @KafkaListener(
             topics = "user.login.failed",
             groupId = "${spring.application.name}-login-failed-consumer",

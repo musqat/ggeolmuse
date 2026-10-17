@@ -21,11 +21,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-/**
- * Korea Exim based FX rate provider
- *
- * USD/KRW 환율 데이터를 제공합니다.
- */
+// 수출입은행(Korea Exim) USD/KRW 환율 제공자
 @Slf4j
 @Component
 @ConditionalOnProperty(

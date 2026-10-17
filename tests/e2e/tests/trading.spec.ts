@@ -3,11 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { API_URL, TOKEN_FILE } from '../playwright.config';
 import { pickSymbol, priceRange } from './fixtures';
 
-/**
- * 계좌 잔고와 보유 종목을 실제로 바꾸는 유일한 흐름이다.
- * trade-service 가 계좌(user-service)와 시세(market-data)를 같이 봐야 성립한다.
- * 산 만큼 그대로 판다.
- */
+// 계좌 잔고 · 보유를 실제로 바꾸는 흐름(trade 가 user · market-data 를 같이 봄). 산 만큼 그대로 팖
 
 const KRW_DEPOSIT = 5_000_000;
 
@@ -48,10 +44,7 @@ test('입금하고 사면 보유 종목과 거래 내역에 남는다', async ()
   const { symbol } = await pickSymbol(plain);
   const { end: tradeDate } = await priceRange(plain, symbol);
 
-  // 환율은 스택이 들고 있으면 그걸 쓴다. 없으면 직접 넣는다.
-  // 환전 API 가 exchangeRate 를 받는 구조고, 화면에도 "수동" 환율 입력이 있다.
-  // 환율 수집은 Yahoo 를 타는데 응답이 비면 통째로 중단된다.
-  // 거래 경로를 확인하려는 테스트를 거기에 묶지 않는다.
+  // 환율은 스택에 있으면 쓰고 없으면 직접 넣음. 환율 수집(Yahoo)이 비어도 거래 확인이 막히지 않게
   const fxRes = await plain.post(`${API_URL}/market/fx/bulk`, { data: [tradeDate] });
   expect(fxRes.status(), '환율 조회가 실패했다').toBe(200);
   const collected = Object.values(await fxRes.json())[0] as number | undefined;

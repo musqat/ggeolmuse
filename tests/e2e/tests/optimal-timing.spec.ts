@@ -2,10 +2,7 @@ import { test, expect, request } from '@playwright/test';
 import { API_URL } from '../playwright.config';
 import { pickSymbol, priceRange } from './fixtures';
 
-/**
- * 전 구간 최저가와 최고가를 각각 뽑으면 8월에 사서 7월에 파는 답이 나온다.
- * 백엔드와 프론트에서 각각 고쳤다. 계산이 두 군데라 한쪽만 되돌아갈 수 있다.
- */
+// 매수일 <= 매도일인지 봄. 계산이 백엔드 · 프론트 두 곳이라 둘 다 봄
 test.describe('최적 타이밍', () => {
   test('매도일이 매수일보다 앞서지 않는다', async () => {
     const api = await request.newContext();

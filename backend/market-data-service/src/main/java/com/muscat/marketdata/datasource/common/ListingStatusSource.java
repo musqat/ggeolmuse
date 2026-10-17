@@ -11,15 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-/**
- * 상장 종목 목록을 AlphaVantage LISTING_STATUS 로 받아온다.
- *
- * 기존 alphavantage 패키지의 SymbolSource 는 {@code marketdata.provider=alphavantage}
- * 조건이 붙어 있어 yahoo 로 돌 때는 빈이 뜨지 않는다. 그래서 목록만 여기로 뗐다.
- *
- * LISTING_STATUS 는 호출 한 번에 CSV 로 14,000건을 준다. assetType 과 status 를
- * 필드로 주므로 이름으로 추측하거나 상장폐지를 따로 판정할 필요가 없다.
- */
+// 상장 종목 목록을 AlphaVantage LISTING_STATUS 로 받음. 공급원이 yahoo 여도 쓰도록 alphavantage 패키지 밖에 둠
 @Slf4j
 @Component
 @RequiredArgsConstructor

@@ -20,12 +20,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/**
- * 종목 자동 수집 (이벤트 기반)
- *
- * 목록은 {@link SymbolCatalog} 에서 받고, 캔들·배당은 Kafka 이벤트로 Yahoo 가 채운다.
- * 목록 출처와 시세 출처를 분리해 둔 것이라 프로바이더를 바꿔도 목록은 그대로다.
- */
+// 종목 자동 수집(이벤트 기반): 목록은 SymbolCatalog, 캔들 · 배당은 Kafka 이벤트로 Yahoo 가 채움
 @Slf4j
 @Component
 @ConditionalOnProperty(
@@ -137,13 +132,8 @@ public class SymbolCollector {
         }
     }
 
-    /**
-     * 신규 상장 확인 - 매일 오전 8시 KST (평일)
-     *
-     * 캔들 수집(07:30) 뒤, 시가총액 수집(10:00) 앞에 둔다
-     *
-     * 기동 시에도 한 번 돌지만(collectSymbols) 그것만으로는 재시작 전까지 목록이 굳는다.
-     */
+    // 신규 상장 확인. 캔들(07:30) 뒤 · 시가총액(10:00) 앞
+    // 기동 때만 돌면 재시작 전까지 목록이 굳음
     @Scheduled(cron = "${yahoo.scheduler.symbol.cron:0 0 8 * * MON-FRI}",
         zone = "${yahoo.scheduler.zone:Asia/Seoul}")
     @SchedulerLock(name = "yfCollectNewlyListed", lockAtMostFor = "20m", lockAtLeastFor = "1m")
@@ -160,12 +150,7 @@ public class SymbolCollector {
         collectNewlyListed(from, to);
     }
 
-    /**
-     * 목록을 다시 받아 DB 에 없는 심볼만 추가한다.
-     *
-     * 이미 있는 종목은 건드리지 않는다. 갱신은 호출부에서 이미 이벤트를 발행했다.
-     * 목록 조회가 실패해도 기존 종목 갱신은 끝난 뒤이므로 여기서 예외를 밖으로 내보내지 않는다.
-     */
+    // DB 에 없는 심볼만 추가. 목록 조회가 실패해도 예외를 밖으로 내지 않음(기존 종목 갱신은 끝난 뒤)
     private void collectNewlyListed(LocalDate from, LocalDate to) {
         try {
             // 카탈로그가 중복 제거와 보통주 필터까지 마친 목록을 준다

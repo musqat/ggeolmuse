@@ -26,13 +26,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-/**
- * 최적 매수 타이밍 분석
- * 기간 내 매일 "그날 매수했다면" 가정 → 현재 기준 수익률 계산
- * 목표 수익률(targetReturnPercent) 이상 달성일만 추려 수익률 내림차순 순위
- * 매수가 조정종가 기준
- * 실매매 아님 → 거래내역·배당재투자 없음
- */
+// 최적 매수 타이밍 분석: 기간 안 날마다 그날 샀다면의 지금 수익률을 구해 목표 이상만 수익률 순으로
+// 실제 매매가 아니라 거래 내역 · 배당 재투자는 없음
 @Component
 @RequiredArgsConstructor
 @Slf4j

@@ -1,10 +1,7 @@
 import { APIRequestContext } from '@playwright/test';
 import { API_URL } from '../playwright.config';
 
-/**
- * 로컬 compose 는 알파벳 앞쪽 38개만, 2년치만 시세를 받아둔다. AAPL 도 2023년도 없다.
- * 종목과 기간을 박아두면 새로 띄운 스택에서 깨진다.
- */
+// 로컬 compose 는 알파벳 앞쪽 38종목 · 2년치만 받아 종목 · 기간을 박지 않음
 
 export interface TestSymbol {
   symbol: string;

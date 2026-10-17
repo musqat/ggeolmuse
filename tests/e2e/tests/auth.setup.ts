@@ -2,10 +2,7 @@ import { test as setup, expect, request } from '@playwright/test';
 import { API_URL, BASE_URL, SEED_EMAIL, SEED_PASSWORD, STORAGE_STATE, TOKEN_FILE } from '../playwright.config';
 import { pickPricedSymbols } from './fixtures';
 
-/**
- * localStorage 의 accessToken 하나면 로그인한 상태가 된다. 인터셉터가 그걸 꺼내 쓴다.
- * 로그인 화면을 거치면 느리고 그 UI 가 바뀔 때 나머지가 같이 깨진다.
- */
+// 로그인 화면 대신 localStorage 의 accessToken 으로 로그인 상태를 만듦
 setup('시드 계정으로 토큰을 받아 저장한다', async () => {
   const api = await request.newContext();
 

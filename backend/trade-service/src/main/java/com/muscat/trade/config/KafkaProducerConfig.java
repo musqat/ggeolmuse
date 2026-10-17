@@ -15,11 +15,7 @@ import org.springframework.kafka.support.serializer.JsonSerializer;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Trade Service Kafka Producer 설정
- *
- * Trade 관련 이벤트들을 Kafka에 발행하기 위한 설정
- */
+// Trade 서비스 Kafka 프로듀서 설정
 @Configuration
 public class KafkaProducerConfig {
 

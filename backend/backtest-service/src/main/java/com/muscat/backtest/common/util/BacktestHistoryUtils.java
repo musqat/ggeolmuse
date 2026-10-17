@@ -46,10 +46,7 @@ public class BacktestHistoryUtils {
         }, "백테스트 히스토리 저장", userId);
     }
 
-    /**
-     * Request 객체에서 환율 모드를 판단합니다.
-     * purchaseFxRate 또는 currentFxRate가 null이 아니면 "manual", 그렇지 않으면 "auto"
-     */
+    // 매수 · 현재 환율 중 하나라도 있으면 manual, 없으면 auto
     private String determineFxRateMode(Object requestParams) {
         try {
             var jsonNode = objectMapper.valueToTree(requestParams);

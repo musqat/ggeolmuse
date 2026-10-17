@@ -13,10 +13,7 @@ import reactor.core.publisher.Mono;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
-/**
- * Gateway Rate Limiter 설정
- * Redis 기반 분산 Rate Limiting
- */
+// Gateway Rate Limiter 설정(Redis 기반 분산)
 @Configuration
 public class RateLimiterConfig {
 
@@ -26,12 +23,8 @@ public class RateLimiterConfig {
     /** 실 IP 나 라우트를 못 구했을 때 쓰는 키 */
     private static final String UNKNOWN_CLIENT = "unknown";
 
-    /**
-     * XFF 를 신뢰해 실 IP 로 나눈다. 소켓 주소만 보면 nginx 뒤에서 다같이 한 버킷을 쓴다.
-     *
-     * 라우트 ID 를 붙이는 이유 - Lua 스크립트가 저장된 토큰을 호출한 라우트의
-     * burstCapacity 로 자른다. IP 만 키로 쓰면 상한 낮은 라우트가 나머지 토큰을 깎는다.
-     */
+    // XFF 의 실 IP 로 나눔(소켓 주소면 nginx 뒤에서 다같이 한 버킷)
+    // 키에 라우트 ID 를 붙임. IP 만 쓰면 상한 낮은 라우트가 다른 라우트의 토큰을 깎음
     @Bean
     @Primary
     public KeyResolver ipKeyResolver() {
@@ -63,10 +56,7 @@ public class RateLimiterConfig {
         return route != null ? route.getId() : UNKNOWN_CLIENT;
     }
 
-    /**
-     * User ID 기반 Rate Limiting (JWT 토큰에서 추출)
-     * 인증된 사용자별로 별도 제한 적용 가능 (선택적 사용)
-     */
+    // JWT 사용자별 키(골라서 씀)
     @Bean
     public KeyResolver userKeyResolver() {
         return exchange -> exchange.getPrincipal()
@@ -74,10 +64,7 @@ public class RateLimiterConfig {
             .defaultIfEmpty("anonymous");
     }
 
-    /**
-     * API Path 기반 Rate Limiting
-     * 특정 경로별로 다른 제한 적용 (선택적 사용)
-     */
+    // 경로별 키(골라서 씀)
     @Bean
     public KeyResolver pathKeyResolver() {
         return exchange -> {

@@ -9,11 +9,7 @@ import lombok.experimental.SuperBuilder;
 import java.io.Serializable;
 import java.time.LocalDate;
 
-/**
- * 심볼(Asset) 생성 이벤트
- * 관리자가 새로운 심볼을 등록할 때 발행
- * collectData=true인 경우 컨슈머가 데이터 수집 시작
- */
+// 심볼(Asset) 생성 이벤트. collectData 가 true 면 받는 쪽이 데이터 수집
 @Data
 @SuperBuilder
 @NoArgsConstructor

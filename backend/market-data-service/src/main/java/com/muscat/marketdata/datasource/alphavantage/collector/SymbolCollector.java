@@ -21,11 +21,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * AlphaVantage 종목 자동 수집 (이벤트 기반)
- * Phase 1: LISTING_STATUS API로 전체 종목 수집 (시가총액 없음)
- * Phase 2: MarketCapCollectionService로 시가총액 점진적 수집
- */
+// AlphaVantage 종목 자동 수집: LISTING_STATUS 로 받고(시가총액 없음) 시가총액은 MarketCapCollectionService 가 나중에 채움
 @Slf4j
 @Component
 @ConditionalOnProperty(

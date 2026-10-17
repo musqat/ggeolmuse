@@ -16,11 +16,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-/**
- * Yahoo Finance 기반 종목 정보 제공자
- * <p>
- * NASDAQ API를 우선 시도하고, 실패 시 CSV 파일로 fallback합니다.
- */
+// Yahoo Finance 기반 종목 정보 제공자. NASDAQ API 로 받고 안 되면 CSV
 @Slf4j
 @Component
 @ConditionalOnProperty(
@@ -70,10 +66,6 @@ public class YfSymbolSource implements MarketDataProvider.SymbolSource,
     return List.of();
   }
 
-  /**
-   * Yahoo Finance Chart API로 단일 종목 정보 조회 (미리보기용)
-   * Quote API(/v7)는 401을 반환하므로 동작하는 Chart API(/v8) meta를 사용한다.
-   */
   @Override
   public Asset getAsset(String symbol) {
     try {

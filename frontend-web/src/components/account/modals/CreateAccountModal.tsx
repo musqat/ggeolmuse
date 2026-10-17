@@ -17,11 +17,7 @@ const blockMinus = {
   },
 };
 
-/**
- * 계좌 생성 모달 컴포넌트
- * 계좌명, 거래 수수료율, 슬리피지율을 입력받아 새 계좌를 생성합니다.
- */
-
+// 계좌 생성 모달(계좌명 · 수수료율 · 슬리피지율)
 const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
   isOpen,
   onClose,

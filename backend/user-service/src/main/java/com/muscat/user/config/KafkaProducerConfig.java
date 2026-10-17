@@ -20,10 +20,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 
-/**
- * User Service Kafka Producer 설정
- * EmailSendEvent, TradeRejectedEvent
- */
+// User 서비스 Kafka 프로듀서 설정
 @Configuration
 public class KafkaProducerConfig {
 

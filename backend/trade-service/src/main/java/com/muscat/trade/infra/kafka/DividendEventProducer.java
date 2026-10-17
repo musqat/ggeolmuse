@@ -17,12 +17,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-/**
- * 배당금 수령 이벤트를 Kafka에 발행하는 Producer
- *
- * user-service의 동기 REST API 호출을 비동기 이벤트로 전환하여
- * 서비스 간 결합도를 낮추고 장애 격리를 구현합니다.
- */
+// 배당금 수령 이벤트 발행
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -34,17 +29,6 @@ public class DividendEventProducer {
 
     private final KafkaTemplate<String, DividendReceivedEvent> dividendReceivedKafkaTemplate;
 
-    /**
-     * 배당금 수령 이벤트 발행
-     *
-     * @param userId 사용자 ID
-     * @param accountId 계좌 ID
-     * @param symbol 종목 심볼
-     * @param exDate 배당 기준일
-     * @param dividendPerShare 주당 배당금
-     * @param quantity 보유 수량
-     * @param totalAmount 총 배당금
-     */
     public void publishDividendReceived(String userId, Long accountId, String symbol,
                                          String exDate, BigDecimal dividendPerShare,
                                          BigDecimal quantity, BigDecimal totalAmount) {

@@ -19,10 +19,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * 데이터 수집 관리용 컨트롤러 (관리자 전용 API)
- * 시가총액 업데이트는 Scheduler가 자동으로 처리합니다.
- */
+// 관리자 전용 데이터 수집 API
 @Slf4j
 @RestController
 @RequestMapping("/api/admin/market/batch")

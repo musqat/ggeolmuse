@@ -160,10 +160,7 @@ public final class BacktestDataUtils {
     }
   }
 
-  /**
-   * 전체 기간 OHLC를 BULK 조회해 날짜→가격 Map으로 구성(available만, 중복 날짜는 뒤 값 우선).
-   * DCA/조건부/최적타이밍 3개 전략이 복붙하던 priceMap 빌드 블록을 단일화.
-   */
+  // 기간 OHLC 를 한 번에 받아 날짜 → 가격 맵(available 만, 같은 날짜는 뒤 값)
   public static java.util.Map<LocalDate, OHLCPriceDto> buildPriceMap(
     MarketDataClient marketDataClient, String symbol, LocalDate startDate, LocalDate endDate) {
     java.util.List<OHLCPriceDto> allPrices = marketDataClient.getOHLCPriceRange(
@@ -178,10 +175,7 @@ public final class BacktestDataUtils {
     return priceMap;
   }
 
-  /**
-   * start~end 일 단위 전체 날짜의 환율을 BULK 조회해 Map으로 구성.
-   * 조건부/최적타이밍이 복붙하던 일별 fxRateMap 빌드 블록을 단일화(DCA는 월별이라 별도).
-   */
+  // start ~ end 의 날마다 환율을 한 번에 받아 맵으로(DCA 는 월별이라 따로)
   public static Map<LocalDate, BigDecimal> buildDailyFxRateMap(
     MarketDataClient marketDataClient, LocalDate startDate, LocalDate endDate) {
     List<LocalDate> allDates = new java.util.ArrayList<>();

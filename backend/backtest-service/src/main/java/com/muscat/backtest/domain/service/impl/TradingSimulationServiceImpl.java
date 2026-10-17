@@ -32,13 +32,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-/**
- * 단일 시점 매수 시뮬레이션
- * "특정 과거일 1회 매수 후 현재까지 보유" 손익 계산
- * 매수가 조정종가 기준, 배당 옵션 시 재투자(보유주 × 주당배당 → 세후 → 그날 조정종가 추가매수)
- * 환차익·수수료·잔여현금 합산 → 총자산/수익률, 기간 내 최적 매수/매도 타이밍 분석
- * 다종목 holdings 백테스트는 {@link InvestmentBacktestServiceImpl}로 분리
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -48,23 +41,11 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
   private final ResponseMapper responseMapper;
   private final BacktestHistoryUtils backtestHistoryUtils;
 
-  /**
-   * 단일 매수 시뮬레이션 실행 (이력 기록 포함)
-   * @param request 종목·매수일·투자금·환율/배당 옵션
-   * @return 평가금액·수익률·배당·최적타이밍
-   */
   @Override
   public SimulationResponse runSimulation(SimulationRequest request) {
     return runSimulation(request, true);
   }
 
-  /**
-   * 단일 매수 시뮬레이션 실행 (recordHistory=false면 이력 미기록)
-   * 비교/분석(BacktestAnalysisService)이 다수 시뮬을 돌릴 때 false로 호출
-   * @param request 종목·매수일·투자금·환율/배당 옵션
-   * @param recordHistory 백테스트 이력 저장 여부
-   * @return 평가금액·수익률·배당·최적타이밍
-   */
   @Override
   public SimulationResponse runSimulation(SimulationRequest request, boolean recordHistory) {
     BacktestLogger.setBacktestContext(request.getUserId(), "SIMULATION", request.getSymbol());

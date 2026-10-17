@@ -37,10 +37,7 @@ class FxDataCollectorTest {
   private static final LocalDate SAT = LocalDate.of(2024, 9, 21);
   private static final LocalDate SUN = LocalDate.of(2024, 9, 22);
 
-  /**
-   * FxDataCollector 는 LocalDate.now(KST) 를 쓴다. 테스트가 JVM 기본 타임존의
-   * LocalDate.now() 를 쓰면 UTC 러너에서 하루 어긋나 깨진다.
-   */
+  // 수집기와 같은 KST 오늘. JVM 기본 타임존이면 UTC 러너에서 하루 어긋남
   private static LocalDate today() {
     return LocalDate.now(java.time.ZoneId.of("Asia/Seoul"));
   }

@@ -27,12 +27,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * AlphaVantage 데이터 통합 스케줄러
- * - 모든 AlphaVantage 데이터 소스의 일일 업데이트를 담당합니다:
- * - 환율(FX) 업데이트: 매일 오전 11:10 KST (평일) - 캔들 데이터 업데이트: 매일 오전
- * 7시 KST (평일) - 시가총액 업데이트: 매일 오전 10시 KST (평일)
- */
+// AlphaVantage 데이터 통합 스케줄러(환율 · 캔들 · 시가총액)
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -54,11 +49,7 @@ public class AlphaVantageScheduler {
   private static final double INITIAL_COLLECTION_THRESHOLD = 0.95;  // 95% 수집 완료 기준
   private static final int MIN_FX_RATES_FOR_INITIAL_COLLECTION = 365;  // 1년치 미만이면 full로 수집
 
-  /**
-   * 애플리케이션 시작 시 초기 환율 데이터 수집
-   * <p>
-   * DB에 1년치 미만의 환율 데이터가 있으면 outputsize=full로 데이터를 한 번에 수집합니다.
-   */
+  // DB 환율이 1년치 미만이면 시작할 때 outputsize=full 로 한 번에 채움
   @PostConstruct
   @Transactional
   public void collectInitialFxRatesIfNeeded() {
@@ -98,11 +89,7 @@ public class AlphaVantageScheduler {
     }
   }
 
-  /**
-   * 환율 업데이트 스케줄러
-   * <p>
-   * 매일 오전 11:10 KST에 USD/KRW 환율 데이터를 수집합니다. 주말/휴일의 경우 이전 영업일 데이터로 폴백합니다.
-   */
+  // 주말 · 휴일이면 이전 영업일 환율로 채움
   @Scheduled(cron = "${alphavantage.scheduler.fx.cron:0 10 11 * * MON-FRI}",
     zone = "${alphavantage.scheduler.zone:Asia/Seoul}")
   @SchedulerLock(
@@ -135,12 +122,7 @@ public class AlphaVantageScheduler {
     }
   }
 
-  /**
-   * 캔들 데이터 업데이트 스케줄러
-   * 매일 오전 7시 KST에 모든 종목의 최신 캔들 데이터를 수집합니다.
-   * 이벤트 기반 아키텍처를 사용하여 비동기로 처리됩니다.
-   * CandleUpdateService가 각 종목의 마지막 수집 날짜를 확인하여 자동으로 증분 업데이트를 수행합니다.
-   */
+  // 종목마다 이벤트로 넘겨 비동기로 증분 수집(마지막 수집일 이후만)
   @Scheduled(cron = "${alphavantage.scheduler.candle.cron:0 0 7 * * MON-FRI}",
     zone = "${alphavantage.scheduler.zone:Asia/Seoul}")
   @SchedulerLock(
@@ -192,11 +174,7 @@ public class AlphaVantageScheduler {
     }
   }
 
-  /**
-   * 시가총액 업데이트 스케줄러
-   * 매일 오전 10시 KST에 모든 종목의 시가총액을 업데이트합니다.
-   * AlphaVantage OVERVIEW API를 사용합니다.
-   */
+  // OVERVIEW API 로 시가총액 갱신
   @Scheduled(cron = "${alphavantage.scheduler.marketcap.cron:0 0 10 * * MON-FRI}",
     zone = "${alphavantage.scheduler.zone:Asia/Seoul}")
   @SchedulerLock(
@@ -274,11 +252,7 @@ public class AlphaVantageScheduler {
     return prev;
   }
 
-  /**
-   * 초기 데이터 수집이 진행 중인지 확인
-   * 95% 이상의 Asset에 Candle 데이터가 있으면 초기 수집 완료로 간주합니다.
-   * 초기 수집 중에는 스케줄러가 API 요청을 경쟁하지 않도록 자동으로 스킵됩니다.
-   */
+  // 캔들이 있는 종목이 95% 미만이면 초기 수집 중으로 보고 건너뜀(API 한도 경쟁 방지)
   private boolean isInitialCollectionInProgress() {
     try {
       long totalAssets = assetRepository.count();

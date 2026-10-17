@@ -17,11 +17,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-/**
- * Trade 이벤트를 Kafka에 발행하는 Producer
- *
- * 체결 완료 이벤트를 발행
- */
+// Trade 체결 완료 이벤트 발행
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -32,11 +28,7 @@ public class TradeEventProducer {
 
     private final KafkaTemplate<String, TradeCompletedEvent> tradeCompletedKafkaTemplate;
 
-    /**
-     * 브로커 확인을 5초까지 기다리고, 받지 못하면 EVENT_PUBLISH_FAILED 로 올림
-     *
-     * @param trade 체결된 거래 정보
-     */
+    // 브로커 확인을 5초까지 기다리고, 받지 못하면 EVENT_PUBLISH_FAILED 로 올림
     public void publishTradeCompleted(Trade trade) {
         String eventId = UUID.randomUUID().toString();
 

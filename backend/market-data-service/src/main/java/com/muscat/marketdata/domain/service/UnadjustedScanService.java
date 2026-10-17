@@ -15,10 +15,7 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
-/**
- * 시작일 이후 분할 계수가 기록된 종목 탐색. 3천만 행을 훑어 몇 분 걸려 게이트웨이 30초 제한을 넘는다.
- * 백그라운드로 돌리고 마지막 결과를 들고 있는다.
- */
+// 분할 계수가 기록된 종목 탐색. 몇 분 걸려(게이트웨이 30초 제한) 백그라운드로 돌리고 마지막 결과를 들고 있음
 @Slf4j
 @Service
 @RequiredArgsConstructor

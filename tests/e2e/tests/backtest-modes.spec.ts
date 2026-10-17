@@ -2,10 +2,7 @@ import { test, expect, request, APIRequestContext } from '@playwright/test';
 import { API_URL } from '../playwright.config';
 import { pickPricedSymbols, pickSymbol, priceRange } from './fixtures';
 
-/**
- * 모드마다 컨트롤러와 요청 DTO 가 따로다. 배선이 붙어있는지 확인
- * 계산이 맞는지는 단위 테스트 몫이다.
- */
+// 모드마다 컨트롤러 · 요청 DTO 가 따로라 배선만 봄. 계산은 단위 시험 몫
 
 let api: APIRequestContext;
 let symbol: string;

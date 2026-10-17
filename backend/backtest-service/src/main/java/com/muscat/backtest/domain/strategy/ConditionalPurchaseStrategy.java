@@ -29,13 +29,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-/**
- * 조건부 매수(저점 분할매수) 전략
- * 직전 매수가 대비 dropPercentage 이상 하락 시마다 분할 매수
- * 하락 판정·매수가 모두 조정종가 기준
- * 투자모드: TOTAL_BUDGET(총예산 회차분할) / PER_PURCHASE(회당 고정금액 × 최대횟수)
- * 배당재투자·환율·원천징수는
- */
+// 조건부 매수(저점 분할 매수) 전략: 직전 매수가보다 dropPercentage 이상 떨어질 때마다 삼(판정 · 매수가 모두 조정종가)
+// 투자 방식은 TOTAL_BUDGET(총예산을 회차로 나눔) · PER_PURCHASE(회당 고정 금액 × 최대 횟수)
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -49,10 +44,6 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     return StrategyType.CONDITIONAL_PURCHASE;
   }
 
-  /**
-   * 조건부 매수 실행 → 백테스트 결과
-   * 시작일~종료일 순회, 직전 매수가 대비 하락률 기준 이상이면 매수
-   */
   @Override
   public StrategyResponse executeConditional(ConditionalStrategyRequest request) {
     validateConditionalRequest(request);

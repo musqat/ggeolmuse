@@ -10,11 +10,7 @@ import java.util.ArrayList;
 import java.util.regex.Pattern;
 import java.util.List;
 
-/**
- * NASDAQ Screener API 응답 파서
- *
- * JSON 응답을 Asset 엔티티 리스트로 변환합니다.
- */
+// NASDAQ Screener 응답을 Asset 목록으로 바꿈
 @Slf4j
 @Component
 public class NasdaqScreenerParser {
@@ -110,10 +106,7 @@ public class NasdaqScreenerParser {
 
     private static final Pattern ETF_WORD = Pattern.compile("\\betf\\b", Pattern.CASE_INSENSITIVE);
 
-    /**
-     * 종목 유형 판별 (EQUITY vs ETF)
-     * 이름에 ETF 단어가 있으면 ETF. trust · fund 는 산업 칸이 빌 때만 ETF(은행 · 리츠 제외)
-     */
+    // 이름에 ETF 가 있으면 ETF. trust · fund 는 산업 칸이 빌 때만 ETF(은행 · 리츠 제외)
     public static String determineAssetType(String name, String industry) {
         if (name == null) {
             return "EQUITY";

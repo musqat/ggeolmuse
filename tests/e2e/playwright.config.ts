@@ -1,14 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-/**
- * 스택 전체를 띄운 상태를 전제한다.
- *
- *   docker compose -f docker-compose/docker-compose.yml up -d --build
- *
- * 프론트는 3000, 게이트웨이는 8070 이다. compose 가 프론트를 빌드할 때
- * VITE_API_URL 을 http://localhost:8070/api 로 박으므로 브라우저가 게이트웨이를
- * 직접 부른다. 둘 다 환경 변수로 덮을 수 있다.
- */
+// 스택 전체가 떠 있는 상태 전제(띄우는 법 · 포트 · 환경 변수는 tests/e2e/README.md)
 export const BASE_URL = process.env.E2E_BASE_URL ?? 'http://localhost:3000';
 export const API_URL = process.env.E2E_API_URL ?? 'http://localhost:8070/api';
 

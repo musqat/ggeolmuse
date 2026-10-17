@@ -58,10 +58,7 @@ class PageResponse<T> {
     }
 }
 
-/**
- * 관리자용 마켓 데이터 관리 API
- * 심볼 추가/삭제, 데이터 수집 등의 관리 기능
- */
+// 관리자용 종목 · 시세 관리 API
 @Slf4j
 @RestController
 @RequestMapping("/api/admin/market")
@@ -84,11 +81,6 @@ public class AdminMarketController {
     // 직접 주입하면 alphavantage 프로파일에서 기동이 깨지므로 선택 주입한다.
     private final ObjectProvider<SymbolCollector> symbolCollectorProvider;
 
-    /**
-     * 키워드로 심볼 검색
-     *
-     * GET /api/admin/market/assets/search?keyword=Tesla
-     */
     @GetMapping("/assets/search")
     public ResponseEntity<List<Asset>> searchSymbols(@RequestParam String keyword) {
         log.info("심볼 검색 요청: keyword={}", keyword);
@@ -96,11 +88,6 @@ public class AdminMarketController {
         return ResponseEntity.ok(results);
     }
 
-    /**
-     * 심볼로 회사 정보 미리보기
-     *
-     * GET /api/admin/market/assets/preview/AAPL
-     */
     @GetMapping("/assets/preview/{symbol}")
     public ResponseEntity<Asset> previewSymbol(@PathVariable String symbol) {
         log.info("심볼 미리보기 요청: symbol={}", symbol);
@@ -109,11 +96,6 @@ public class AdminMarketController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    /**
-     * 전체 심볼 목록 조회 (기본 정보)
-     *
-     * GET /api/admin/market/assets
-     */
     @GetMapping("/assets")
     public ResponseEntity<List<Asset>> getAllAssets() {
         log.info("전체 심볼 목록 조회");
@@ -121,11 +103,6 @@ public class AdminMarketController {
         return ResponseEntity.ok(assets);
     }
 
-    /**
-     * 전체 심볼 요약 정보 조회 (가격, 최신 데이터 날짜 포함, 페이지네이션)
-     *
-     * GET /api/admin/market/assets/summary?page=0&size=20&sort=symbol,asc
-     */
     @GetMapping("/assets/summary")
     public ResponseEntity<PageResponse<AssetSummaryDto>> getAllAssetSummaries(
             @RequestParam(defaultValue = "0") int page,
@@ -145,11 +122,6 @@ public class AdminMarketController {
         return ResponseEntity.ok(PageResponse.from(summaries));
     }
 
-    /**
-     * 특정 심볼 조회
-     *
-     * GET /api/admin/market/assets/AAPL
-     */
     @GetMapping("/assets/{symbol}")
     public ResponseEntity<Asset> getAsset(@PathVariable String symbol) {
         log.info("심볼 조회: symbol={}", symbol);
@@ -158,19 +130,7 @@ public class AdminMarketController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    /**
-     * 새로운 심볼 추가
-     *
-     * POST /api/admin/market/assets
-     * {
-     *   "symbol": "AAPL",
-     *   "name": "Apple Inc",  // optional (null이면 Alpha Vantage에서 자동 조회)
-     *   "collectData": true,
-     *   "fromDate": "2023-01-01",
-     *   "toDate": "2025-10-22",
-     *   "includeDividends": true
-     * }
-     */
+    // 이름이 비면 공급원에서 채움
     @PostMapping("/assets")
     public ResponseEntity<AssetResponse> createAsset(@RequestBody CreateAssetRequest request) {
         log.info("심볼 추가 요청: symbol={}, collectData={}", request.getSymbol(), request.isCollectData());
@@ -235,11 +195,7 @@ public class AdminMarketController {
         }
     }
 
-    /**
-     * 심볼 삭제 (soft delete)
-     *
-     * DELETE /api/admin/market/assets/AAPL
-     */
+    // 비활성으로 돌림(soft delete)
     @DeleteMapping("/assets/{symbol}")
     public ResponseEntity<Void> deleteAsset(@PathVariable String symbol) {
         log.info("심볼 삭제 요청: symbol={}", symbol);
@@ -253,11 +209,6 @@ public class AdminMarketController {
         }
     }
 
-    /**
-     * 상장폐지 처리한 종목 복구
-     *
-     * POST /api/admin/market/assets/AAPL/restore
-     */
     @PostMapping("/assets/{symbol}/restore")
     public ResponseEntity<Void> restoreAsset(@PathVariable String symbol) {
         log.info("심볼 복구 요청: symbol={}", symbol);
@@ -271,11 +222,7 @@ public class AdminMarketController {
         }
     }
 
-    /**
-     * 여러 종목 일괄 삭제 (soft delete)
-     *
-     * POST /api/admin/market/assets/bulk-delete
-     */
+    // 여러 종목을 비활성으로 돌림(soft delete)
     @PostMapping("/assets/bulk-delete")
     public ResponseEntity<BulkDeleteResponse> bulkDeleteAssets(@RequestBody BulkDeleteRequest request) {
         int size = request.getSymbols() == null ? 0 : request.getSymbols().size();
@@ -289,11 +236,6 @@ public class AdminMarketController {
                 .build());
     }
 
-    /**
-     * 특정 종목의 가격 데이터 업데이트
-     *
-     * POST /api/admin/market/assets/AAPL/update-price
-     */
     @PostMapping("/assets/{symbol}/update-price")
     public ResponseEntity<UpdateResponse> updateAssetPrice(@PathVariable String symbol) {
         log.info("종목 가격 업데이트 요청: symbol={}", symbol);
@@ -319,11 +261,6 @@ public class AdminMarketController {
         }
     }
 
-    /**
-     * 특정 종목의 시가총액 업데이트
-     *
-     * POST /api/admin/market/assets/AAPL/update-market-cap
-     */
     @PostMapping("/assets/{symbol}/update-market-cap")
     public ResponseEntity<UpdateResponse> updateAssetMarketCap(@PathVariable String symbol) {
         log.info("종목 시가총액 업데이트 요청: symbol={}", symbol);
@@ -349,11 +286,6 @@ public class AdminMarketController {
         }
     }
 
-    /**
-     * 시가총액 업데이트 (수동 트리거 - 전체)
-     *
-     * POST /api/admin/market/update/market-cap
-     */
     @PostMapping("/update/market-cap")
     public ResponseEntity<UpdateResponse> updateMarketCaps() {
         log.info("시가총액 수동 업데이트 요청");
@@ -375,11 +307,6 @@ public class AdminMarketController {
                 .build());
     }
 
-    /**
-     * 캔들 데이터 업데이트 (수동 트리거)
-     *
-     * POST /api/admin/market/update/candles
-     */
     @PostMapping("/update/candles")
     public ResponseEntity<UpdateResponse> updateCandles() {
         log.info("캔들 데이터 수동 업데이트 요청");
@@ -407,17 +334,7 @@ public class AdminMarketController {
                 .build());
     }
 
-    /**
-     * 신규 상장 종목 수집 (수동 트리거)
-     *
-     * POST /api/admin/market/update/symbols
-     *
-     * 평일 08:00 스케줄과 같은 일을 한다. 목록을 다시 받아 DB 에 없는 심볼만 추가한다.
-     * 기존 종목은 건드리지 않는다.
-     *
-     * 필터를 조정한 뒤 결과를 바로 보고 싶을 때 쓴다. 스케줄을 기다리거나
-     * 파드를 재시작할 필요가 없다.
-     */
+    // 평일 08:00 스케줄과 같은 일. DB 에 없는 심볼만 추가하고 기존 종목은 그대로
     @PostMapping("/update/symbols")
     public ResponseEntity<UpdateResponse> collectNewSymbols() {
         log.info("신규 종목 수동 수집 요청");
@@ -518,13 +435,7 @@ public class AdminMarketController {
         private String message;
     }
 
-    /**
-     * 시작일 이후 분할 계수가 기록된 종목 목록
-     *
-     * GET /api/admin/market/candles/unadjusted
-     *
-     * 탐색은 3천만 행을 훑어 몇 분 걸린다. 여기서는 마지막 결과만 준다.
-     */
+    // 분할 계수가 기록된 종목. 탐색이 몇 분 걸려 마지막 결과만 줌
     @GetMapping("/candles/unadjusted")
     public ResponseEntity<UnadjustedResponse> findUnadjusted() {
         UnadjustedScanService.Result last = scanService.getLast();
@@ -546,11 +457,7 @@ public class AdminMarketController {
             .build());
     }
 
-    /**
-     * 분할 종목 탐색을 시작한다. 결과는 GET 으로 받는다.
-     *
-     * POST /api/admin/market/candles/unadjusted/scan?from=2026-08-01
-     */
+    // 분할 종목 탐색 시작. 결과는 GET 으로
     @PostMapping("/candles/unadjusted/scan")
     public ResponseEntity<UnadjustedResponse> scanUnadjusted(
         @RequestParam(defaultValue = "1970-01-01") LocalDate from) {
@@ -564,12 +471,7 @@ public class AdminMarketController {
             .build());
     }
 
-    /**
-     * 지정한 종목만 다시 수집한다. 수집은 Kafka 컨슈머가 비동기로 처리한다.
-     *
-     * POST /api/admin/market/candles/refresh
-     * { "symbols": ["NVDA","TSLA"], "from": "1970-01-01" }
-     */
+    // 지정한 종목만 다시 수집. Kafka 컨슈머가 비동기로 처리
     @PostMapping("/candles/refresh")
     public ResponseEntity<RefreshResponse> refreshCandles(@RequestBody RefreshRequest request) {
         LocalDate from = request.getFrom() != null ? request.getFrom() : LocalDate.of(1970, 1, 1);
@@ -608,11 +510,7 @@ public class AdminMarketController {
             .build());
     }
 
-    /**
-     * 활성 종목 전체를 1970-01-01 부터 다시 수집한다. 실행 기록을 먼저 남기고 발행은 뒤에서 한다.
-     *
-     * POST /api/admin/market/candles/refresh-all
-     */
+    // 활성 종목 전체를 1970-01-01 부터 다시 수집. 실행 기록을 먼저 남기고 발행은 뒤에서
     @PostMapping("/candles/refresh-all")
     public ResponseEntity<RefreshAllResponse> refreshAllCandles() {
         LocalDate from = LocalDate.of(1970, 1, 1);
@@ -629,11 +527,7 @@ public class AdminMarketController {
         return ResponseEntity.ok(RefreshAllResponse.of(run));
     }
 
-    /**
-     * 마지막 전체 재수집 기록. 한 번도 하지 않았으면 lastRunAt 이 비어 있다
-     *
-     * GET /api/admin/market/candles/refresh-all
-     */
+    // 마지막 전체 재수집 기록. 한 번도 안 했으면 lastRunAt 이 빔
     @GetMapping("/candles/refresh-all")
     public ResponseEntity<RefreshAllResponse> lastRefreshAll() {
         return ResponseEntity.ok(adminJobRunRepository.findById(REFRESH_ALL_JOB)

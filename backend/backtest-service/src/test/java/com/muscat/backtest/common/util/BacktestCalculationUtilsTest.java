@@ -113,10 +113,7 @@ class BacktestCalculationUtilsTest {
     @DisplayName("정상적인 평균 환율 계산 (가중평균)")
     void calculateAverageFxRate_Success() {
       // given
-      // 투자금액: 1000만, 2000만, 1000만 (총 4000만)
-      // 환율: 1300, 1400, 1200
-      // totalFxRateSum = (1000 × 1300) + (2000 × 1400) + (1000 × 1200) = 5,300,000
-      // 가중평균 환율 = 5,300,000 / 4000 = 1325
+      // (1000 × 1300 + 2000 × 1400 + 1000 × 1200) / 4000 = 1325
       BigDecimal totalFxRateSum = new BigDecimal("5300000");
       BigDecimal totalInvested = new BigDecimal("4000");
 

@@ -17,12 +17,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
-/**
- * LISTING_STATUS CSV 파싱.
- *
- * 본문은 실제 AlphaVantage 응답에서 그대로 잘라왔다.
- * NASDAQ 스크리너에서 옮긴 이유가 SPY 때문이라 그 행을 고정해 둔다.
- */
+// LISTING_STATUS CSV 파싱. 본문은 실제 응답에서 잘라 왔고 SPY 행을 고정해 둠
 @ExtendWith(MockitoExtension.class)
 @DisplayName("ListingStatusSource 단위 테스트")
 class ListingStatusSourceTest {

@@ -24,10 +24,7 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * 배당금 업데이트 이벤트를 Kafka에서 소비하는 Consumer market-data-service에서 발행한 DividendUpdatedEvent를 소비하여 해당 종목을
- * 보유한 사용자에게 자동으로 배당금을 지급합니다.
- */
+// 배당금 업데이트 이벤트를 받아 배당락일 전날 보유한 계좌에 배당금 지급
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -36,14 +33,6 @@ public class DividendEventConsumer {
   private final TradeRepository tradeRepository;
   private final DividendEventProducer dividendEventProducer;
 
-  /**
-   * 배당금 업데이트 이벤트 처리
-   *
-   * @param event          배당금 업데이트 이벤트
-   * @param partition      Kafka 파티션 번호
-   * @param offset         메시지 오프셋
-   * @param acknowledgment 수동 커밋용 객체
-   */
   @KafkaListener(
     topics = "market.dividend.updated",
     groupId = "${spring.application.name}-dividend-consumer",

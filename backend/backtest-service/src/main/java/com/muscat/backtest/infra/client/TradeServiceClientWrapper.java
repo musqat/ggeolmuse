@@ -15,12 +15,7 @@ import org.springframework.stereotype.Service;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Resilience4j 패턴 적용 Wrapper
- * Circuit Breaker: 연속된 실패 시 호출 차단
- * Retry: 일시적 실패 시 재시도
- * Time Limiter: 타임아웃 설정
- */
+// Resilience4j 패턴 적용 Wrapper(서킷브레이커 · 재시도 · 시간 제한)
 @Slf4j
 @Service
 @RequiredArgsConstructor

@@ -34,10 +34,7 @@ import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 import org.springframework.util.backoff.FixedBackOff;
 
-/**
- * User Service Kafka Consumer 설정
- * TradeCompletedEvent, EmailSendEvent, 입출금 · 배당, 잔액 변경 감사, 로그인 감시
- */
+// User 서비스 Kafka 컨슈머 설정
 @Slf4j
 @EnableKafka
 @Configuration

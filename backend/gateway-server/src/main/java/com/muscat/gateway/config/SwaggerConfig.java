@@ -9,12 +9,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 
-/**
- * Gateway Swagger 통합 설정
- * 모든 마이크로서비스의 API 문서를 Gateway에서 통합하여 제공
- * 접속 URL: http://localhost:8070/swagger-ui.html - 서비스별 API
- * 문서를 드롭다운으로 선택 가능
- */
+// Gateway Swagger 통합 설정. 서비스별 API 문서를 드롭다운으로 고름
 @Configuration
 public class SwaggerConfig {
 

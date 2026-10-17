@@ -13,11 +13,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Dividend(배당) 데이터 조회 서비스 구현체
- *
- * 배당 이력 조회 및 고배당주 검색을 담당합니다.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor

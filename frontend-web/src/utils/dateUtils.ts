@@ -1,12 +1,6 @@
-/**
- * 날짜 관련 유틸리티 함수
- */
-
+// 날짜 유틸. 날짜는 로컬 기준 YYYY-MM-DD 문자열로 다룸
 export type Timeframe = '1주' | '1개월' | '3개월' | '6개월' | '1년' | '전체' | '직접설정';
 
-/**
- * 기간에 따른 일수를 반환합니다
- */
 export function daysForTimeframe(tf: Timeframe): number {
   switch (tf) {
     case '1주': return 7;
@@ -20,11 +14,7 @@ export function daysForTimeframe(tf: Timeframe): number {
   }
 }
 
-/**
- * Date를 로컬 기준 YYYY-MM-DD 문자열로 만듭니다
- *
- * toISOString()은 UTC라 한국(UTC+9)에서는 오전 9시 전에 하루 밀립니다.
- */
+/** 로컬 기준 YYYY-MM-DD. toISOString 은 UTC 라 한국에서 오전 9시 전엔 하루 밀림 */
 export function toLocalDateString(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -32,16 +22,11 @@ export function toLocalDateString(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-/**
- * 오늘 날짜를 YYYY-MM-DD 형식으로 반환합니다
- */
+/** 로컬 기준 오늘 YYYY-MM-DD */
 export function getTodayString(): string {
   return toLocalDateString(new Date());
 }
 
-/**
- * 특정 기간의 날짜 범위를 계산합니다
- */
 export function getDateRangeForTimeframe(
   timeframe: Timeframe,
   customStartDate?: string,
@@ -56,37 +41,25 @@ export function getDateRangeForTimeframe(
 
   const endDate = getTodayString();
   const days = daysForTimeframe(timeframe);
-  // 종료일과 같은 로컬 기준을 써야 두 날짜가 어긋나지 않는다
+  // 종료일과 같은 로컬 기준으로 만듦
   const startDate = toLocalDateString(new Date(Date.now() - days * 24 * 60 * 60 * 1000));
 
   return { startDate, endDate };
 }
 
-/**
- * YYYY-MM-DD 문자열을 로컬 자정 Date로 파싱합니다
- *
- * new Date('2026-08-13')은 UTC 자정으로 읽힙니다. 이후 setDate/setMonth는
- * 로컬 기준으로 움직여서 두 기준이 섞이면 타임존에 따라 하루가 어긋납니다.
- */
+/** YYYY-MM-DD 를 로컬 자정으로. new Date('2026-08-13') 은 UTC 자정이라 setDate 와 섞으면 하루 어긋남 */
 export function parseLocalDate(dateString: string): Date {
   const [year, month, day] = dateString.split('-').map(Number);
   return new Date(year, month - 1, day);
 }
 
-/**
- * 날짜에서 지정된 일수만큼 이전 날짜를 반환합니다
- */
 export function subtractDays(dateString: string, days: number): string {
   const date = parseLocalDate(dateString);
   date.setDate(date.getDate() - days);
   return toLocalDateString(date);
 }
 
-/**
- * 날짜에서 지정된 개월수만큼 이전 날짜를 반환합니다
- *
- * 대상 달에 그 날이 없으면 그 달 말일로 맞춥니다 (3/31 → 2/28).
- */
+/** 그 달에 그날이 없으면 말일로 맞춤(3/31 → 2/28) */
 export function subtractMonths(dateString: string, months: number): string {
   const date = parseLocalDate(dateString);
   const day = date.getDate();

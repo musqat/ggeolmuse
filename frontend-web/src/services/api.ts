@@ -566,7 +566,6 @@ export const authApi = {
 
 // ===== 백테스트 타입 =====
 
-// 단순 시뮬레이션 요청
 // 백테스트 요청 다섯 종류가 공통으로 보내는 것.
 // 환율은 fxMode 가 manual 일 때만 붙는다.
 type BacktestCommonRequest = {
@@ -577,6 +576,7 @@ type BacktestCommonRequest = {
   currentFxRate?: number;               // 수동 환율 - 현재
 };
 
+// 단순 시뮬레이션 요청
 export type SimulationRequest = BacktestCommonRequest & {
   symbol: string;                       // 종목 심볼
   purchaseDate: string;                 // 매수일 (YYYY-MM-DD)
@@ -584,7 +584,6 @@ export type SimulationRequest = BacktestCommonRequest & {
   investmentAmount: number;             // 투자 금액
 };
 
-// 단순 시뮬레이션 응답
 // 단순 시뮬레이션 응답. backtest-service SimulationResponse 와 같은 칸이다.
 // 백엔드가 빈 칸을 null 로 보내서 숫자 · 날짜 칸은 null 일 수 있다. 날짜는 YYYY-MM-DD 문자열이다
 export type SimulationResponse = {

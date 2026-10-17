@@ -32,10 +32,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-/**
- * Yahoo Finance 캔들 및 배당 데이터 업데이트 서비스
- * 데이터 저장 및 Kafka 이벤트 발행을 처리합니다.
- */
+// Yahoo 캔들 · 배당을 저장하고 이벤트를 발행
 @Slf4j
 @Service
 @ConditionalOnProperty(
@@ -169,10 +166,7 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
             .collect(Collectors.toMap(YahooCandleUpdateService::key, c -> c, (a, b) -> a));
     }
 
-    /**
-     * 받아온 캔들을 기존 행과 대조해 없는 것만 넣고 값이 달라진 것만 고친다.
-     * adjusted_close 는 배당이 나올 때마다 과거 날짜까지 바뀌므로 기존 행도 다시 본다.
-     */
+    // 없는 행만 넣고 값이 달라진 행만 고침. adjusted_close 는 배당 때마다 과거까지 바뀌어 기존 행도 봄
     private Merged mergeIntoExisting(Map<String, Candle> existing, List<Candle> candles) {
         List<Candle> inserts = new ArrayList<>();
         int updated = 0;

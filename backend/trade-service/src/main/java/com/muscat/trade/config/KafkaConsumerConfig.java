@@ -32,10 +32,7 @@ import org.springframework.util.backoff.FixedBackOff;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Trade Service Kafka Consumer 설정
- * DividendUpdatedEvent, AccountDeletedEvent, TradeRejectedEvent 설정
- */
+// Trade 서비스 Kafka 컨슈머 설정
 @Slf4j
 @EnableKafka
 @Configuration

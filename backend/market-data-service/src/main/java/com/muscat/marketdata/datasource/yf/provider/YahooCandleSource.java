@@ -13,11 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-/**
- * Yahoo Finance 기반 일봉 데이터 제공자 (기본 Provider)
- *  OHLCV, Adjusted Close, 배당 정보를 제공합니다.
- * AlphaVantage가 비활성화되면 자동으로 활성화됩니다.
- */
+// Yahoo Finance 기반 일봉 데이터 제공자(기본). AlphaVantage 를 끄면 켜짐
 @Slf4j
 @Component
 @ConditionalOnProperty(

@@ -8,10 +8,7 @@ interface DepositModalProps {
   onSubmit: (amount: number) =>Promise<void>;
 }
 
-/**
- * 입금 모달 컴포넌트
- * KRW 금액을 입력받아 계좌에 입금합니다.
- */
+// KRW 입금 모달
 const DepositModal: React.FC<DepositModalProps> = ({
   isOpen,
   onClose,

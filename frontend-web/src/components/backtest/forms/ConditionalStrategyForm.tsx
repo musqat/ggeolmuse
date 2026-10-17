@@ -29,10 +29,7 @@ interface ConditionalStrategyFormProps {
   supportedSymbols: string[];
 }
 
-/**
- * 조건부 매수 전략 입력 폼
- * 가격이 지정된 비율만큼 하락했을 때 자동으로 매수하는 전략의 수익률을 시뮬레이션
- */
+// 정한 비율만큼 떨어질 때마다 사는 전략
 export const ConditionalStrategyForm: React.FC<ConditionalStrategyFormProps> = ({
   symbol,
   setSymbol,

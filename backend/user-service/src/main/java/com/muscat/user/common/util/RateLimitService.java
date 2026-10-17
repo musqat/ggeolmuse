@@ -7,10 +7,7 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
-/**
- * 이메일 전송 Rate Limiting 서비스
- * 1분에 1번 제한. 파드가 여럿이어도 같은 한도를 보도록 Redis 에 두고, 지난 기록은 TTL 로 사라진다
- */
+// 이메일 전송 Rate Limiting(1분 1번). 파드가 여럿이어도 같은 한도를 보게 Redis 에 두고 TTL 로 지움
 @Slf4j
 @Service
 public class RateLimitService {

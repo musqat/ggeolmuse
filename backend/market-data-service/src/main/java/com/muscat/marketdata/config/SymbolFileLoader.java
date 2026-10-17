@@ -21,15 +21,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * NASDAQ API 또는 CSV 파일에서 종목 정보를 읽어서 Asset 테이블에 초기화
- *
- * 1. NASDAQ API 호출 (우선)
- * 2. CSV 파일 (fallback)
- *
- * application.yml에서 활성화:
- *   marketdata.symbol-loader.enabled: true
- */
+// 시작할 때 NASDAQ API(안 되면 CSV)에서 종목을 읽어 Asset 테이블을 채움. marketdata.symbol-loader.enabled 로 켬
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -185,10 +177,7 @@ public class SymbolFileLoader implements CommandLineRunner {
         return allAssets;
     }
 
-    /**
-     * NASDAQ CSV 형식 파일 로드
-     * 형식: Symbol,Name,Last Sale,Net Change,% Change,Market Cap,Country,IPO Year,Volume,Sector,Industry
-     */
+    // 열: Symbol,Name,Last Sale,Net Change,% Change,Market Cap,Country,IPO Year,Volume,Sector,Industry
     private List<Asset> loadNasdaqCsv(String filePath) {
         List<Asset> assets = new ArrayList<>();
 

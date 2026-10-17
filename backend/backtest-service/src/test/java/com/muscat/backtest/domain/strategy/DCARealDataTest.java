@@ -31,12 +31,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-/**
- * 야후 실데이터로 DCA 전체 경로를 검증한다.
- * 기대값은 같은 데이터로 따로 계산했다 — 분할 조정 close 로 매수하고 배당은 락일 종가로 재투자한다.
- * 같은 데이터를 adjustedClose 로 계산하면 13.86% 가 나온다. 야후가 준 계열이라 우리 계산과
- * 독립이고, 두 방식이 0.01%p 안에서 만나는 것이 기대값의 근거다.
- */
+// 야후 실데이터로 DCA 전체 경로를 검증. 기대값은 분할 조정 close 매수 · 락일 종가 재투자로 따로 계산
+// 야후 adjustedClose 로 따로 계산한 13.86% 와 0.01%p 안에서 맞음
 @ExtendWith(MockitoExtension.class)
 @DisplayName("DCA 실데이터 회귀 (KO 2022-09 ~ 2025-09)")
 class DCARealDataTest {

@@ -16,12 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Map;
 
-/**
- * AlphaVantage 시가총액 수집 서비스
- * OVERVIEW API를 호출하여 시가총액을 수집합니다.
- * Rate Limit: 75 calls/min (무료 플랜)
- * - Background job으로 실행하여 점진적으로 업데이트
- */
+// AlphaVantage 시가총액 수집: OVERVIEW API 로 조금씩 채움
 @Slf4j
 @Service
 @ConditionalOnProperty(
@@ -45,10 +40,7 @@ public class MarketCapCollectionService implements
     @Value("${marketdata.market-cap-collection.log-interval:10}")
     private int logInterval;
 
-    /**
-     * 시가총액이 null인 종목들에 대해 시가총액 수집
-     * 비동기로 실행되며, Rate Limit을 준수합니다.
-     */
+    // 시가총액이 빈 종목만 채움
     @Async
     @Transactional
     public void collectMarketCaps() {
@@ -193,10 +185,6 @@ public class MarketCapCollectionService implements
         return updated;
     }
 
-    /**
-     * 모든 활성 종목의 시가총액 업데이트
-     * 스케줄러에서 호출되며, Rate Limit을 준수합니다.
-     */
     @Transactional
     public void updateAllMarketCaps() {
         List<Asset> assets = assetRepository.findByActiveTrue();

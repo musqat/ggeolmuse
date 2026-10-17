@@ -6,10 +6,7 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
-/*
- * 사용자 로그인 성공 이벤트
- * 보안 모니터링, 접속 통계, 사용자 활동 추적 등에 활용
- */
+// 사용자 로그인 성공 이벤트
 @Data
 @SuperBuilder
 @NoArgsConstructor

@@ -285,9 +285,7 @@ class AccountCalculatorUtilTest {
         account, newKrwAmount, newRate);
 
       // then
-      // 기존: 1,300,000 KRW / 1,000 USD = 1,300
-      // 추가: 1,400,000 KRW / 1,000 USD = 1,400
-      // 총계: 2,700,000 KRW / 2,000 USD = 1,350
+      // (1,300,000 + 1,400,000) KRW / (1,000 + 1,000) USD = 1,350
       assertThat(newAvgRate).isEqualByComparingTo(new BigDecimal("1350.00"));
     }
 

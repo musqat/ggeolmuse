@@ -10,27 +10,12 @@ import java.util.Optional;
  */
 public interface FxRateService {
 
-  /**
-   * 특정 날짜의 환율 조회
-   *
-   * @param date 조회할 날짜
-   * @return 환율 엔티티 (없으면 null)
-   */
+  // 없으면 null
   FxRate findByDate(LocalDate date);
 
-  /**
-   * 여러 날짜의 환율 조회
-   *
-   * @param dates 조회할 날짜 목록
-   * @return 환율 엔티티 목록
-   */
   List<FxRate> findByDates(List<LocalDate> dates);
 
-  /**
-   * 가장 최근 환율 조회
-   *
-   * @return 최근 환율 (없으면 API에서 가져옴)
-   */
+  // 없으면 API 에서 받아옴
   Optional<FxRate> getLatestRate();
 
 }

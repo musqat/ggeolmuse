@@ -6,10 +6,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 
-/**
- * AlphaVantage API Rate Limiter
- * 무료: 5 calls/min, Premium: 75 calls/min
- */
+// AlphaVantage API Rate Limiter(무료 분당 5회 · 프리미엄 분당 75회)
 @Slf4j
 @Component
 public class AlphaVantageRateLimiter {

@@ -279,10 +279,7 @@ public class YahooParser {
       .build();
   }
 
-  /**
-   * Chart API(/v8/finance/chart) 응답의 meta 블록에서 자산 정보 추출 (미리보기용)
-   * Quote API(/v7)가 401을 반환하므로 동작하는 Chart API를 사용한다.
-   */
+  // 미리보기용 자산 정보를 chart API meta 에서 꺼냄. quote API(/v7)는 401
   public Asset parseAssetInfoFromChart(String rawJson, String symbol) {
     if (rawJson == null || rawJson.isBlank()) {
       return null;

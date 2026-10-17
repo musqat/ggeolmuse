@@ -31,14 +31,6 @@ public class EmailEventConsumer {
   @Value("${app.mail.from:noreply@example.com}")
   private String defaultFromEmail;
 
-  /**
-   * 이메일 발송 이벤트 처리
-   *
-   * @param event          이메일 발송 이벤트
-   * @param partition      Kafka 파티션 번호
-   * @param offset         메시지 오프셋
-   * @param acknowledgment 수동 커밋용 객체
-   */
   @KafkaListener(
     topics = "user.email.send",
     groupId = "${spring.application.name}-email-consumer",
@@ -73,11 +65,6 @@ public class EmailEventConsumer {
     }
   }
 
-  /**
-   * 실제 이메일 발송 로직
-   *
-   * @param event 이메일 발송 이벤트
-   */
   private void sendEmail(EmailSendEvent event) throws MessagingException, UnsupportedEncodingException {
     MimeMessage message = mailSender.createMimeMessage();
     MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");

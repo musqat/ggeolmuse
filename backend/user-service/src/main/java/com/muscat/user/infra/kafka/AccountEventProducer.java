@@ -16,10 +16,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-/**
- * 계좌 관련 이벤트를 발행하는 Producer
- * 계좌 잔액 변경 등의 이벤트를 발행하여 다른 서비스들이 계좌 상태 변경을 추적
- */
+// 계좌 잔액 변경 · 삭제 이벤트 발행
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -31,19 +28,7 @@ public class AccountEventProducer {
   private final KafkaTemplate<String, AccountBalanceUpdatedEvent> accountBalanceUpdatedKafkaTemplate;
   private final KafkaTemplate<String, AccountDeletedEvent> accountDeletedKafkaTemplate;
 
-  /**
-   * 계좌 잔액 업데이트 이벤트 발행
-   *
-   * @param account            계좌 정보
-   * @param updateType         업데이트 타입
-   * @param previousBalanceKrw 변경 전 KRW 잔액
-   * @param previousBalanceUsd 변경 전 USD 잔액
-   * @param krwChange          KRW 변화량
-   * @param usdChange          USD 변화량
-   * @param description        변경 사유
-   * @param relatedTradeId     관련 거래 ID
-   * @param exchangeRate       환율 (환전 시)
-   */
+  // exchangeRate 는 환전일 때만
   public void publishAccountBalanceUpdated(Account account, String updateType,
     BigDecimal previousBalanceKrw, BigDecimal previousBalanceUsd,
     BigDecimal krwChange, BigDecimal usdChange,
@@ -106,12 +91,6 @@ public class AccountEventProducer {
     });
   }
 
-  /**
-   * 계좌 삭제 이벤트 발행
-   *
-   * @param account        삭제된 계좌 정보
-   * @param deletionReason 삭제 사유 (선택사항)
-   */
   public void publishAccountDeleted(Account account, String deletionReason) {
     String eventId = UUID.randomUUID().toString();
 

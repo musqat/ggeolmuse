@@ -22,12 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * AlphaVantage 환율 데이터 초기 수집
- *
- * 앱 시작시 과거 데이터 및 증분 데이터를 수집
- * 일일 스케줄 업데이트는 AlphaVantageScheduler가 담당
- */
+// AlphaVantage 환율 데이터 초기 수집: 앱 시작 때 과거 · 빠진 환율을 채움
 @Slf4j
 @Component
 @Order(2)

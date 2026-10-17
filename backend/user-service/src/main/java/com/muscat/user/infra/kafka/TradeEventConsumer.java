@@ -11,12 +11,7 @@ import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
-/**
- * Trade 이벤트를 Kafka에서 소비하는 Consumer
- *
- * trade-service에서 발행한 TradeCompletedEvent를 소비하여
- * 사용자 계좌 잔액을 비동기로 업데이트합니다.
- */
+// Trade 체결 완료 이벤트를 받아 계좌 잔액에 반영
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -24,14 +19,6 @@ public class TradeEventConsumer {
 
     private final TradeSettlementService tradeSettlementService;
 
-    /**
-     * 거래 완료 이벤트 처리
-     *
-     * @param event          거래 완료 이벤트
-     * @param partition      Kafka 파티션 번호
-     * @param offset         메시지 오프셋
-     * @param acknowledgment 수동 커밋용 객체
-     */
     @KafkaListener(
             topics = "trading.trade.completed",
             groupId = "${spring.application.name}-trade-consumer",

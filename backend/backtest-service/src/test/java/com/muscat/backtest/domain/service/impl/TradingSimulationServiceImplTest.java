@@ -417,11 +417,7 @@ class TradingSimulationServiceImplTest {
   @DisplayName("최적 타이밍 계산 테스트")
   class OptimalTimingTests {
 
-    /**
-     * responseMapper 로 넘어가는 최적 타이밍 인자를 잡는다.
-     * 위치는 toSimulationResponse 시그니처 기준으로
-     * optimalBuyDate, optimalBuyPrice, optimalSellDate, optimalSellPrice, optimalReturn 이다.
-     */
+    // responseMapper.toSimulationResponse 로 넘어가는 최적 타이밍 인자(매수일 · 매수가 · 매도일 · 매도가 · 수익률 순)
     private void runWith(List<OHLCPriceDto> range) {
       OHLCPriceDto purchasePrice = range.get(0);
 

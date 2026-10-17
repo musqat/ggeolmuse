@@ -9,20 +9,7 @@ const PRICE_LABELS: Record<PriceType, string> = {
   limit: '지정가',
 };
 
-/**
- * 주문 요약 패널
- *
- * 주문 내역을 요약해서 보여주는 패널 컴포넌트입니다.
- * 종목, 거래일, 수량, 기준가, 주문 금액을 표시합니다.
- * 실제 체결에는 슬리피지와 수수료가 붙고, 지정가에는 슬리피지가 붙지 않습니다.
- *
- * @param selectedStock - 선택된 종목 심볼
- * @param tradeDate - 거래일
- * @param quantity - 주문 수량
- * @param priceType - 가격 유형
- * @param currentPrice - 기준가 (지정가면 입력한 가격)
- * @param totalAmount - 주문 금액 (기준가 × 수량)
- */
+// 기준가는 지정가면 입력한 가격, 금액은 기준가 × 수량. 실제 체결엔 슬리피지(지정가 제외)와 수수료가 더 붙음
 interface OrderSummaryPanelProps {
   selectedStock: string;
   tradeDate: string;

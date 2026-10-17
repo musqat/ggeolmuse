@@ -20,14 +20,7 @@ import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * Gateway Security Configuration
- *
- * - Public API: 인증 불필요 (/api/auth/**, /api/market/**, /swagger-ui/**)
- * - Private API: JWT 인증 필요 (/api/users/**, /api/trade/**, /api/portfolio/** 등)
- * - Admin API: ADMIN 권한 필요 (/api/admin/**)
- * - CORS 설정: 프론트엔드 도메인 허용
- */
+// Gateway 보안 설정(공개 · 인증 · 관리자 경로와 CORS)
 @Configuration
 @EnableWebFluxSecurity
 public class SecurityConfig {
@@ -114,20 +107,13 @@ public class SecurityConfig {
         return NimbusReactiveJwtDecoder.withJwkSetUri(jwkSetUri).build();
     }
 
-    /**
-     * Keycloak JWT를 Spring Security 권한으로 변환
-     * realm_access.roles를 GrantedAuthority로 매핑
-     */
+    // Keycloak realm_access.roles 를 권한으로
     @Bean
     public Converter<Jwt, Mono<AbstractAuthenticationToken>> jwtAuthenticationConverter() {
         return new KeycloakReactiveJwtAuthenticationConverter();
 
     }
 
-    /**
-     * CORS 설정
-     * 프론트엔드에서 Gateway로 Cross-Origin 요청 허용
-     */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();

@@ -31,10 +31,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-/**
- * 분할이 낀 구간을 야후 실데이터로 검증한다. AAPL 은 2020-08-31 에 4:1 분할했다.
- * 같은 데이터를 adjustedClose 로 계산하면 96.77% 로 같다. 분할이 계산을 깨뜨리지 않는다는 뜻이다.
- */
+// 분할이 낀 구간을 야후 실데이터로 검증(AAPL 2020-08-31 4:1 분할)
+// 같은 데이터를 adjustedClose 로 계산해도 96.77% 로 같음
 @ExtendWith(MockitoExtension.class)
 @DisplayName("DCA 실데이터 회귀 - 분할 구간 (AAPL 2018-09 ~ 2022-09)")
 class DCASplitRealDataTest {

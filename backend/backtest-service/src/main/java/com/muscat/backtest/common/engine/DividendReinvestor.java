@@ -16,10 +16,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * 배당 재투자 처리 단일화. DCA/조건부 전략이 복붙하던 ~110줄 블록을 추출(동작 불변).
- * 각 배당일(ex-date)의 보유 주식수 × 주당배당 → 세후 → 그날 종가로 추가 매수하여 transactions에 기록.
- */
+// 배당 재투자: 배당락일마다 보유 주식 수 × 주당 배당 → 세후 → 그날 종가로 더 사서 transactions 에 기록
 @Slf4j
 public final class DividendReinvestor {
 

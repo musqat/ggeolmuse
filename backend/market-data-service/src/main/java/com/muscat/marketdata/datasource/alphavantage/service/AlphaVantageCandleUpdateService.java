@@ -93,12 +93,7 @@ public class AlphaVantageCandleUpdateService implements com.muscat.marketdata.do
         return newCandles.size();
     }
 
-    /**
-     * 기대되는 최신 거래일 계산 (주말 제외)
-     *
-     * @param requestedDate 요청된 종료 날짜
-     * @return 실제 기대되는 최신 거래일
-     */
+    // 주말을 뺀 최신 거래일
     private LocalDate getExpectedLatestTradingDate(LocalDate requestedDate) {
         LocalDate date = requestedDate;
 

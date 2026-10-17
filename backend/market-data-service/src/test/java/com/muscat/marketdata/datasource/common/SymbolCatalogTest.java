@@ -16,11 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
-/**
- * 목록을 받아 중복과 보통주가 아닌 것을 걸러내는 부분.
- *
- * 오탐이 나면 정상 종목이 목록에서 사라지므로 그쪽을 중점적으로 고정한다.
- */
+// 중복 · 보통주 아닌 것 거르기. 정상 종목이 빠지는 오탐 쪽을 중점으로 봄
 @ExtendWith(MockitoExtension.class)
 @DisplayName("SymbolCatalog 단위 테스트")
 class SymbolCatalogTest {

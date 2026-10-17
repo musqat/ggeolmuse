@@ -15,10 +15,7 @@ public class DataCollectionService {
 
     private final CandleUpdateService candleUpdateService;
 
-    /**
-     * 컨슈머 스레드에서 그대로 수집한다.
-     * 병렬도는 리스너 동시성이 정하고, 그래야 ACK 를 수집 뒤로 미룰 수 있다.
-     */
+    // 컨슈머 스레드에서 그대로 수집. 병렬도는 리스너 동시성이 정하고 ACK 는 수집 뒤
     public void collect(AssetCreatedEvent event) {
         log.debug("수집 시작: symbol={}", event.getSymbol());
 

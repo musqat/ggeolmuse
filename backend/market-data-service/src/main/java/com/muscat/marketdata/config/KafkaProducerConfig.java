@@ -16,10 +16,7 @@ import org.springframework.kafka.support.serializer.JsonSerializer;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Market Data Service Kafka Producer 설정
- * PriceUpdatedEvent, DividendUpdatedEvent, AssetCreatedEvent를 Kafka에 발행하기 위한 설정
- */
+// Market Data 서비스 Kafka 프로듀서 설정
 @Configuration
 public class KafkaProducerConfig {
 
