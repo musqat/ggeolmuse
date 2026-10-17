@@ -81,29 +81,6 @@ public class InvestmentBacktestServiceImpl implements InvestmentBacktestService 
     }
   }
 
-  // 캐시된 투자 백테스트 결과 조회 (JSON → InvestmentResponse 역직렬화)
-  @Override
-  public Optional<InvestmentResponse> getCachedInvestmentResult(String userId) {
-    Optional<Optional<InvestmentResponse>> result = executeWithFallback(() -> {
-      Optional<InvestmentBacktestResult> cachedResult = getValidCachedEntity(userId);
-      if (cachedResult.isEmpty()) {
-        return Optional.empty();
-      }
-
-      try {
-        InvestmentResponse response = objectMapper.readValue(
-          cachedResult.get().getResultData(), InvestmentResponse.class);
-        log.debug("캐시된 투자 백테스트 결과 조회 성공: userId={}", userId);
-        return Optional.of(response);
-      } catch (JsonProcessingException e) {
-        log.warn("JSON 파싱 오류: userId={}, error={}", userId, e.getMessage());
-        return Optional.empty();
-      }
-    }, "캐시된 투자 백테스트 결과 조회", userId);
-
-    return result.orElse(Optional.empty());
-  }
-
   // 캐시된 투자 백테스트 Entity 조회 (Trade 서비스 내부 통신용)
   @Override
   public Optional<InvestmentBacktestResult> getCachedInvestmentResultEntity(String userId) {
@@ -193,7 +170,6 @@ public class InvestmentBacktestServiceImpl implements InvestmentBacktestService 
       }
     }
 
-    // 매수가로 쓰는 조정 종가에 배당이 이미 반영돼 있다. 여기서 또 더하면 두 번 세는 것이다
     BigDecimal totalAssetKrw = totalCurrentValueKrw.add(totalRemainingCashKrw);
     BigDecimal totalReturnKrw = totalAssetKrw.subtract(totalInvestment);
     BigDecimal totalReturnPercent = Decimals.isPositive(totalInvestment)

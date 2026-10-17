@@ -21,14 +21,6 @@ public interface InvestmentBacktestService {
   InvestmentResponse executeInvestment(InvestmentRequest request, String authorization);
 
   /**
-   * 캐시된 투자 백테스트 결과를 조회
-   *
-   * @param userId 사용자 ID
-   * @return 캐시된 결과 (없으면 Empty)
-   */
-  Optional<InvestmentResponse> getCachedInvestmentResult(String userId);
-
-  /**
    * 캐시된 투자 백테스트 결과 Entity를 조회(Trade 서비스)
    *
    * @param userId 사용자 ID

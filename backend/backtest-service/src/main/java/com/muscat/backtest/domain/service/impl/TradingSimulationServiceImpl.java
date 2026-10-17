@@ -134,7 +134,6 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
 
   // 손익 계산 (매수가·주식수·수수료·배당재투자·환차익 → 총자산/수익률)
   private SimulationCalculationResult calculateSimulation(SimulationContext context) {
-    // adjustedClose 사용 (액면분할/배당 반영), 없으면 closePrice fallback
     BigDecimal purchasePriceUsd = PriceLookup.effectiveClose(context.purchaseData());
     BigDecimal purchaseFxRate = context.purchaseFxRate().rate();
     BigDecimal currentFxRate = context.currentFxRate().rate();
@@ -341,11 +340,8 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
         return OptimalTiming.empty();
       }
 
-      // 전 구간 최저가와 최고가를 각각 뽑으면 최고가가 최저가보다 먼저 오는 날이 생긴다.
-      // 8월에 사서 7월에 파는 답이 나오는데, 그건 할 수 없는 매매다.
-      // 매수일 <= 매도일 제약을 지키려면 앞에서부터 훑으며 그때까지의 최저가를 들고 가야 한다.
-      //
-      // 날짜 오름차순 전제라 여기서 한 번 더 정렬한다.
+      // 전 구간 최저가 · 최고가를 따로 뽑으면 매도일이 매수일보다 앞설 수 있음
+      // 날짜순으로 훑으며 그때까지의 최저가에 산 수익률만 봄
       List<OHLCPriceDto> ordered = prices.stream()
         .sorted(Comparator.comparing(OHLCPriceDto::date))
         .toList();
@@ -356,7 +352,6 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
       BigDecimal bestReturn = BigDecimal.ZERO;
 
       for (OHLCPriceDto candle : ordered) {
-        // 분할·배당 반영을 위해 effectiveClose 기준
         if (PriceLookup.effectiveClose(candle)
           .compareTo(PriceLookup.effectiveClose(minSoFar)) < 0) {
           minSoFar = candle;
