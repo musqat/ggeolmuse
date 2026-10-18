@@ -20,6 +20,7 @@ import com.muscat.trade.infra.client.UserServiceClientWrapper;
 import com.muscat.trade.infra.client.dto.AccountBalanceDto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
@@ -34,6 +35,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -365,6 +367,34 @@ class TradingServiceIT {
 
       assertThat(msftHoldings).isPresent();
       assertThat(msftHoldings.get().getTotalQuantity()).isEqualByComparingTo("5");
+    }
+  }
+
+  @Nested
+  @DisplayName("트랜잭션 범위")
+  class TransactionScopeTests {
+
+    @Test
+    @DisplayName("시세 · 계좌 잔액은 트랜잭션 밖에서 부르고, 체결 이벤트는 커밋 뒤 발행돼 발행 시각이 남는다")
+    void remoteCallsOutsideTransaction() {
+      List<Boolean> inTransaction = new ArrayList<>();
+      given(marketDataService.determineTradePrice(eq(TEST_SYMBOL), any(LocalDate.class), any(PriceType.class), any()))
+        .willAnswer(invocation -> {
+          inTransaction.add(TransactionSynchronizationManager.isActualTransactionActive());
+          return STOCK_PRICE;
+        });
+      given(userServiceClientWrapper.getAccountBalance(any(Long.class)))
+        .willAnswer(invocation -> {
+          inTransaction.add(TransactionSynchronizationManager.isActualTransactionActive());
+          return testAccountBalance;
+        });
+
+      TradeResponseDto response = tradingService.buyStock(
+        TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL, new BigDecimal("10"), LocalDate.now(), PriceType.CLOSE, null);
+
+      assertThat(inTransaction).hasSize(2).containsOnly(false);
+      assertThat(tradeRepository.findById(response.id())).get()
+        .satisfies(trade -> assertThat(trade.getEventPublishedAt()).isNotNull());
     }
   }
 }
