@@ -61,7 +61,7 @@ class YahooSchedulerTest {
   }
 
   @Test
-  @DisplayName("캔들 갱신은 활성 종목마다 최근 기간 수집을 발행하고, 한 종목이 실패해도 다음으로 간다")
+  @DisplayName("캔들 갱신은 활성 종목마다 최근 기간 수집을 배당까지 발행하고, 한 종목이 실패해도 다음으로 간다")
   void publishesCandleCollection() {
     collected(100, 95);
     Asset fail = Asset.builder().symbol("FAIL").build();
@@ -72,7 +72,7 @@ class YahooSchedulerTest {
 
     scheduler.updateCandles();
 
-    verify(producer).publishAssetCreated(aapl, true, today.minusDays(30), today, false);
+    verify(producer).publishAssetCreated(aapl, true, today.minusDays(30), today, true);
   }
 
   @Test

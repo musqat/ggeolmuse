@@ -19,7 +19,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 
-// Yahoo Finance 데이터 스케줄러(캔들 · 시가총액 · 환율)
+// Yahoo Finance 데이터 스케줄러(캔들 · 배당 · 시가총액 · 환율)
 @Slf4j
 @Component
 @ConditionalOnProperty(name = "marketdata.provider", havingValue = "yahoo")
@@ -41,7 +41,7 @@ public class YahooScheduler {
     private static final double INITIAL_COLLECTION_THRESHOLD = 0.95;
 
     /**
-     * 캔들 데이터 업데이트 - 매일 오전 7시 KST (평일)
+     * 캔들 · 배당 업데이트 - 매일 오전 7시 KST (평일)
      */
     @Scheduled(cron = "${yahoo.scheduler.candle.cron:0 0 7 * * MON-FRI}",
         zone = "${yahoo.scheduler.zone:Asia/Seoul}")
@@ -64,7 +64,7 @@ public class YahooScheduler {
         int published = 0;
         for (Asset asset : assets) {
             try {
-                assetEventProducer.publishAssetCreated(asset, true, from, today, false);
+                assetEventProducer.publishAssetCreated(asset, true, from, today, true);
                 published++;
             } catch (Exception e) {
                 log.warn("[YF 스케줄러] 캔들 이벤트 발행 실패: symbol={}", asset.getSymbol(), e);

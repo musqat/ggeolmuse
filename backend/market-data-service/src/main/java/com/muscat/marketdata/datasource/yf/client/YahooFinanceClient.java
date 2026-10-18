@@ -7,6 +7,9 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.zip.GZIPInputStream;
@@ -38,13 +41,35 @@ public class YahooFinanceClient {
   private static final byte GZIP_MAGIC_BYTE_1 = (byte) 0x1F;
   private static final byte GZIP_MAGIC_BYTE_2 = (byte) 0x8B;
   private static final int MAX_PREVIEW_LENGTH = 200;
+  private static final Duration REUSE_WINDOW = Duration.ofMinutes(1);
 
   private final RestTemplate restTemplate;
   private final CollectionStats collectionStats;
+  // 같은 스레드가 같은 차트를 곧바로 다시 부르면(캔들 뒤 배당) 받은 응답을 다시 씀
+  private final ThreadLocal<LastChart> lastChart = new ThreadLocal<>();
+  private Clock clock = Clock.systemUTC();
+
+  private record LastChart(String url, String content, Instant fetchedAt) {
+  }
 
   // ===== Public API =====
   public String getDailyChartRaw(String symbol, LocalDate fromDate, LocalDate toDate) {
     String url = buildChartUrl(symbol, fromDate, toDate);
+    Instant now = clock.instant();
+    LastChart last = lastChart.get();
+    if (last != null && last.url().equals(url) && now.isBefore(last.fetchedAt().plus(REUSE_WINDOW))) {
+      return last.content();
+    }
+    String content = fetchChart(symbol, url);
+    if (looksLikeJson(content)) {
+      lastChart.set(new LastChart(url, content, now));
+    } else {
+      lastChart.remove();
+    }
+    return content;
+  }
+
+  private String fetchChart(String symbol, String url) {
     log.debug("Yahoo Finance 차트 API 호출: symbol={}, url={}", symbol, url);
     try {
       HttpHeaders headers = createHeaders();
@@ -132,14 +157,17 @@ public class YahooFinanceClient {
   }
 
   private void validateJsonResponse(String content) {
-    if (content.isBlank()) {
+    if (content.isBlank() || looksLikeJson(content)) {
       return;
     }
     String trimmed = content.stripLeading();
-    if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
-      String preview = trimmed.length() > MAX_PREVIEW_LENGTH ?
-        trimmed.substring(0, MAX_PREVIEW_LENGTH) + "..." : trimmed;
-      log.warn("Yahoo Finance JSON 아님 응답: {}", preview);
-    }
+    String preview = trimmed.length() > MAX_PREVIEW_LENGTH ?
+      trimmed.substring(0, MAX_PREVIEW_LENGTH) + "..." : trimmed;
+    log.warn("Yahoo Finance JSON 아님 응답: {}", preview);
+  }
+
+  private static boolean looksLikeJson(String content) {
+    String trimmed = content.stripLeading();
+    return trimmed.startsWith("{") || trimmed.startsWith("[");
   }
 }

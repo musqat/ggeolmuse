@@ -368,7 +368,7 @@ class AdminMarketControllerWebTest {
     }
 
     @Test
-    @DisplayName("재수집은 대문자로 바꿔 찾고, 활성 종목만 발행하며 없는 종목은 따로 알려 준다")
+    @DisplayName("재수집은 대문자로 바꿔 찾고, 활성 종목만 배당까지 발행하며 없는 종목은 따로 알려 준다")
     void refresh() throws Exception {
       Asset aapl = asset("AAPL", true);
       given(assetRepository.findById("AAPL")).willReturn(Optional.of(aapl));
@@ -383,7 +383,7 @@ class AdminMarketControllerWebTest {
         .andExpect(jsonPath("$.notFound[0]").value("GONE"))
         .andExpect(jsonPath("$.from").value("2020-01-01"));
 
-      verify(assetEventProducer).publishAssetCreated(aapl, true, LocalDate.of(2020, 1, 1), today, false);
+      verify(assetEventProducer).publishAssetCreated(aapl, true, LocalDate.of(2020, 1, 1), today, true);
       verify(assetEventProducer, never()).publishAssetCreated(argThat(a -> a.getSymbol().equals("DEAD")), anyBoolean(), any(), any(), anyBoolean());
     }
 
