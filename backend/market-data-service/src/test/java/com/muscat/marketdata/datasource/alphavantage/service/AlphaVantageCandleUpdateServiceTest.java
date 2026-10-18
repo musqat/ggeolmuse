@@ -96,21 +96,25 @@ class AlphaVantageCandleUpdateServiceTest {
   }
 
   @Test
-  @DisplayName("새 배당만 저장 · 발행하고, 없거나 모두 이미 있으면 0")
+  @DisplayName("새 배당은 넣고 주당 금액이 바뀐 배당은 고쳐 발행하고, 없거나 모두 같으면 0")
   void dividends() {
     given(dividendSource.fetchDividends(SYMBOL, FROM, SUNDAY))
       .willReturn(List.of(dividend(FRIDAY), dividend(FROM.plusDays(10))), List.of(), List.of(dividend(FRIDAY)));
-    given(dividendRepository.existsBySymbolAndExDate(SYMBOL, FRIDAY)).willReturn(true);
-    given(dividendRepository.existsBySymbolAndExDate(SYMBOL, FROM.plusDays(10))).willReturn(false);
+    Dividend storedFriday = Dividend.builder().symbol(SYMBOL).exDate(FRIDAY).amount(new BigDecimal("0.12")).currency("USD")
+      .build();
+    given(dividendRepository.findBySymbolAndExDate(SYMBOL, FRIDAY)).willReturn(Optional.of(storedFriday));
+    given(dividendRepository.findBySymbolAndExDate(SYMBOL, FROM.plusDays(10))).willReturn(Optional.empty());
 
-    assertThat(service.saveDividends(SYMBOL, FROM, SUNDAY)).isEqualTo(1);
+    assertThat(service.saveDividends(SYMBOL, FROM, SUNDAY)).isEqualTo(2);
     assertThat(service.saveDividends(SYMBOL, FROM, SUNDAY)).isZero();
+    // 첫 번째에서 0.24 로 고쳐져 세 번째는 같은 금액
     assertThat(service.saveDividends(SYMBOL, FROM, SUNDAY)).isZero();
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<Dividend>> saved = ArgumentCaptor.forClass(List.class);
     verify(dividendRepository).saveAll(saved.capture());
-    assertThat(saved.getValue()).extracting(Dividend::getExDate).containsExactly(FROM.plusDays(10));
+    assertThat(saved.getValue()).extracting(Dividend::getExDate).containsExactly(FRIDAY, FROM.plusDays(10));
+    assertThat(storedFriday.getAmount()).isEqualByComparingTo("0.24");
     verify(producer).publishBatch(saved.getValue());
   }
 

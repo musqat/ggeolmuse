@@ -3,9 +3,9 @@ package com.muscat.marketdata.datasource.alphavantage.service;
 import com.muscat.marketdata.domain.dto.DividendDto;
 import com.muscat.marketdata.domain.entity.Candle;
 import com.muscat.marketdata.domain.entity.Dividend;
-import com.muscat.marketdata.domain.mapper.MarketDataMapper;
 import com.muscat.marketdata.domain.repository.CandleRepository;
 import com.muscat.marketdata.domain.repository.DividendRepository;
+import com.muscat.marketdata.domain.service.DividendMerge;
 import com.muscat.marketdata.infra.kafka.DividendEventProducer;
 import com.muscat.marketdata.datasource.common.MarketDataProvider.CandleSource;
 import com.muscat.marketdata.datasource.common.MarketDataProvider.DividendSource;
@@ -111,25 +111,19 @@ public class AlphaVantageCandleUpdateService implements com.muscat.marketdata.do
         if (dtos == null || dtos.isEmpty()) {
             return 0;
         }
-        var entities = MarketDataMapper.toDividends(dtos);
-
-        // 중복 배당 필터링 (이미 존재하는 배당은 제외)
-        List<Dividend> newDividends = entities.stream()
-            .filter(dividend -> !dividendRepository.existsBySymbolAndExDate(dividend.getSymbol(), dividend.getExDate()))
-            .toList();
-
-        if (newDividends.isEmpty()) {
-            log.debug("[배당금] {} - 모두 기존 데이터, 저장 스킵", symbol);
+        List<Dividend> rows = DividendMerge.changedRows(dividendRepository, dtos);
+        if (rows.isEmpty()) {
+            log.debug("[배당금] {} - 바뀐 배당 없음, 저장 스킵", symbol);
             return 0;
         }
 
-        dividendRepository.saveAll(newDividends);
+        dividendRepository.saveAll(rows);
 
         //Kafka 이벤트 발행 (배치로 처리)
-        dividendEventProducer.publishBatch(newDividends);
-        log.debug("[배당금 이벤트 발행] symbol={}, count={}", symbol, newDividends.size());
+        dividendEventProducer.publishBatch(rows);
+        log.debug("[배당금 이벤트 발행] symbol={}, count={}", symbol, rows.size());
 
-        return newDividends.size();
+        return rows.size();
     }
 
     @Transactional

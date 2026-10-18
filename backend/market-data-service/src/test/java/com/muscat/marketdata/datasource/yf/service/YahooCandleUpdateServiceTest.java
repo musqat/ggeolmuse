@@ -79,7 +79,7 @@ class YahooCandleUpdateServiceTest {
   }
 
   @Test
-  @DisplayName("받는 기간 일부 · 가장 이른 날 4배 차이 · 기간 밖 데이터 있음 → 덮어쓰지 않고 전 기간 재수집을 요청한다")
+  @DisplayName("받는 기간 일부 · 가장 이른 날 4배 차이 · 기간 밖 데이터 있음 → 덮어쓰지 않고 배당까지 전 기간 재수집을 요청한다")
   void 종가가_바뀌면_재수집() {
     Candle storedD1 = candle(D1, "400");
     stub(FROM, List.of(storedD1, candle(D2, "404")), List.of(candle(D1, "100"), candle(D2, "101")));
@@ -87,21 +87,21 @@ class YahooCandleUpdateServiceTest {
 
     service.saveCandles(SYMBOL, FROM, TO);
 
-    verify(assetEventProducer).publishAssetCreated(asset, true, FULL_FROM, TO, false);
+    verify(assetEventProducer).publishAssetCreated(asset, true, FULL_FROM, TO, true);
     verify(collectionStats).recordSplitResync();
     verify(candleRepository, never()).saveAll(any());
     assertThat(storedD1.getClose()).isEqualByComparingTo("400");
   }
 
   @Test
-  @DisplayName("역분할 0.1배도 전 기간 재수집을 요청한다")
+  @DisplayName("역분할 0.1배도 배당까지 전 기간 재수집을 요청한다")
   void 역분할도_재수집() {
     stub(FROM, List.of(candle(D1, "1")), List.of(candle(D1, "10")));
     given(candleRepository.existsBySymbolAndDateBefore(SYMBOL, FROM)).willReturn(true);
 
     service.saveCandles(SYMBOL, FROM, TO);
 
-    verify(assetEventProducer).publishAssetCreated(asset, true, FULL_FROM, TO, false);
+    verify(assetEventProducer).publishAssetCreated(asset, true, FULL_FROM, TO, true);
   }
 
   @Test
@@ -284,31 +284,42 @@ class YahooCandleUpdateServiceTest {
       verify(collectionStats).recordSymbolFailed();
     }
 
-    @Test
-    @DisplayName("새 배당만 저장해 발행 · 집계하고, 이미 있는 배당은 건너뛴다")
-    void savesOnlyNewDividends() {
-      given(dividendSource.fetchDividends(SYMBOL, FROM, TO)).willReturn(List.of(dividend(D1), dividend(D2)));
-      given(dividendRepository.existsBySymbolAndExDate(SYMBOL, D1)).willReturn(true);
-      given(dividendRepository.existsBySymbolAndExDate(SYMBOL, D2)).willReturn(false);
+    private void givenStored(LocalDate exDate, String amount) {
+      given(dividendRepository.findBySymbolAndExDate(SYMBOL, exDate)).willReturn(Optional.of(
+        com.muscat.marketdata.domain.entity.Dividend.builder().symbol(SYMBOL).exDate(exDate)
+          .amount(new BigDecimal(amount)).currency("USD").build()));
+    }
 
-      assertThat(service.saveDividends(SYMBOL, FROM, TO)).isEqualTo(1);
+    @Test
+    @DisplayName("새 배당은 넣고 주당 금액이 바뀐 배당은 고쳐 발행 · 집계하고, 같은 배당은 건너뛴다")
+    void savesNewAndChangedDividends() {
+      LocalDate d3 = D2.plusDays(1);
+      given(dividendSource.fetchDividends(SYMBOL, FROM, TO))
+        .willReturn(List.of(dividend(D1), dividend(D2), dividend(d3)));
+      givenStored(D1, "0.24000000");
+      givenStored(D2, "0.96");
+      given(dividendRepository.findBySymbolAndExDate(SYMBOL, d3)).willReturn(Optional.empty());
+
+      assertThat(service.saveDividends(SYMBOL, FROM, TO)).isEqualTo(2);
 
       @SuppressWarnings("unchecked")
       ArgumentCaptor<List<com.muscat.marketdata.domain.entity.Dividend>> saved = ArgumentCaptor.forClass(List.class);
       verify(dividendRepository).saveAll(saved.capture());
-      assertThat(saved.getValue()).extracting(com.muscat.marketdata.domain.entity.Dividend::getExDate).containsExactly(D2);
+      assertThat(saved.getValue())
+        .extracting(com.muscat.marketdata.domain.entity.Dividend::getExDate, d -> d.getAmount().toPlainString())
+        .containsExactly(org.assertj.core.groups.Tuple.tuple(D2, "0.24"), org.assertj.core.groups.Tuple.tuple(d3, "0.24"));
       verify(dividendEventProducer).publishBatch(saved.getValue());
-      verify(collectionStats).recordDividends(1);
+      verify(collectionStats).recordDividends(2);
     }
 
     @Test
-    @DisplayName("배당이 없거나 모두 이미 있거나 받기가 실패하면 저장하지 않고 0")
+    @DisplayName("배당이 없거나 모두 같거나 받기가 실패하면 저장하지 않고 0")
     void noNewDividends() {
       given(dividendSource.fetchDividends(SYMBOL, FROM, TO))
         .willReturn(List.of())
         .willReturn(List.of(dividend(D1)))
         .willThrow(new IllegalStateException("yahoo down"));
-      given(dividendRepository.existsBySymbolAndExDate(SYMBOL, D1)).willReturn(true);
+      givenStored(D1, "0.24000000");
 
       for (int i = 0; i < 3; i++) {
         assertThat(service.saveDividends(SYMBOL, FROM, TO)).isZero();

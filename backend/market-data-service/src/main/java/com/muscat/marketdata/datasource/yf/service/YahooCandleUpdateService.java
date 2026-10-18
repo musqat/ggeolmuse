@@ -2,11 +2,11 @@ package com.muscat.marketdata.datasource.yf.service;
 
 import com.muscat.marketdata.domain.dto.DividendDto;
 import com.muscat.marketdata.domain.entity.Candle;
-import com.muscat.marketdata.domain.mapper.MarketDataMapper;
 import com.muscat.marketdata.domain.repository.AssetRepository;
 import com.muscat.marketdata.domain.repository.CandleRepository;
 import com.muscat.marketdata.domain.repository.DividendRepository;
 import com.muscat.marketdata.domain.service.CollectionStats;
+import com.muscat.marketdata.domain.service.DividendMerge;
 import com.muscat.marketdata.domain.service.SplitScale;
 import com.muscat.marketdata.infra.kafka.AssetEventProducer;
 import com.muscat.marketdata.infra.kafka.DividendEventProducer;
@@ -126,26 +126,20 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
                 return 0;
             }
 
-            var entities = MarketDataMapper.toDividends(dtos);
-
-            // 중복 배당 필터링 (이미 존재하는 배당은 제외)
-            var newDividends = entities.stream()
-                .filter(d -> !dividendRepository.existsBySymbolAndExDate(d.getSymbol(), d.getExDate()))
-                .toList();
-
-            if (newDividends.isEmpty()) {
-                log.debug("[YF-배당저장] 모두 기존 데이터, 저장 스킵: symbol={}", symbol);
+            var rows = DividendMerge.changedRows(dividendRepository, dtos);
+            if (rows.isEmpty()) {
+                log.debug("[YF-배당저장] 바뀐 배당 없음, 저장 스킵: symbol={}", symbol);
                 return 0;
             }
 
-            dividendRepository.saveAll(newDividends);
+            dividendRepository.saveAll(rows);
 
             // Kafka 이벤트 발행 (배치로 처리)
-            dividendEventProducer.publishBatch(newDividends);
-            collectionStats.recordDividends(newDividends.size());
-            log.debug("[YF-배당저장] 완료: symbol={}, count={}", symbol, newDividends.size());
+            dividendEventProducer.publishBatch(rows);
+            collectionStats.recordDividends(rows.size());
+            log.debug("[YF-배당저장] 완료: symbol={}, count={}", symbol, rows.size());
 
-            return newDividends.size();
+            return rows.size();
         } catch (Exception e) {
             log.warn("[YF-배당저장] 실패: symbol={}, error={}", symbol, e.getMessage());
             return 0;
@@ -203,12 +197,12 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
             && candleRepository.existsBySymbolAndDateBefore(symbol, from);
     }
 
-    // 덮어쓰지 않으므로 재수집 요청이 실패해도 다음 수집에서 같은 차이가 다시 보인다
+    // 덮어쓰지 않으므로 재수집 요청이 실패해도 다음 수집에서 같은 차이가 다시 보인다. 주당 배당도 분할 기준으로 바뀌어 같이 받음
     private void resyncFullHistory(String symbol, LocalDate to) {
         assetRepository.findById(symbol).ifPresent(asset ->
-            assetEventProducer.publishAssetCreated(asset, true, FULL_HISTORY_FROM, to, false));
+            assetEventProducer.publishAssetCreated(asset, true, FULL_HISTORY_FROM, to, true));
         collectionStats.recordSplitResync();
-        log.info("[YF-캔들저장] 분할로 과거 종가가 바뀌어 전 기간을 다시 받는다: symbol={}", symbol);
+        log.info("[YF-캔들저장] 분할로 과거 종가가 바뀌어 배당까지 전 기간을 다시 받는다: symbol={}", symbol);
     }
 
     private record Merged(int inserted, int updated) {}
