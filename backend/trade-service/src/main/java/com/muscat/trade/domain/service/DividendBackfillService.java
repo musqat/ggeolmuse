@@ -27,7 +27,6 @@ import java.util.TreeMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 // 배당 몫 백필과 어긋남 미리 보기
 @Slf4j
@@ -79,7 +78,6 @@ public class DividendBackfillService {
     return positions.size();
   }
 
-  @Transactional(readOnly = true)
   public List<PayoutDiffResponse> diff() {
     Map<PayoutKey, BigDecimal> settled = new HashMap<>();
     for (DividendSettlementDto s : allSettlements()) {

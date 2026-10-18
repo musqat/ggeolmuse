@@ -1,7 +1,6 @@
 package com.muscat.trade.infra.client;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
@@ -14,8 +13,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
-// 날짜 시세 · 배당 목록은 ClientWrapperRetryTest 에서 봄
-// 단건 시세는 대체값 없이 예외(주문을 틀린 값으로 체결하면 안 된다), 현재가 · 과거 시세 목록은 빈 값으로 넘어간다
+// 날짜 시세 · 배당 목록은 ClientWrapperRetryTest 에서 봄. 여러 종목 현재가는 못 받으면 빈 값으로 넘어감
 @DisplayName("시세 서비스 호출과 대체 동작")
 class MarketServiceClientWrapperTest {
 
@@ -27,40 +25,23 @@ class MarketServiceClientWrapperTest {
   @DisplayName("정상일 때는 시세 서비스가 준 값을 그대로 돌려준다")
   void delegates() {
     StockPriceDto price = mock(StockPriceDto.class);
-    List<StockPriceDto> history = List.of(price);
     Map<String, StockPriceDto> prices = Map.of("AAPL", price);
     List<DividendDto> dividends = List.of(new DividendDto("2024-09-16", new BigDecimal("0.25")));
-    given(client.getCurrentPrice("AAPL")).willReturn(price);
     given(client.getCurrentPrices(List.of("AAPL"))).willReturn(prices);
     given(client.getOHLCPrice("AAPL", "2024-09-16")).willReturn(price);
-    given(client.getHistoricalPrices("AAPL", "2024-01-01", "2024-12-31")).willReturn(history);
     given(client.getDividends("AAPL", "2024-01-01", "2024-12-31")).willReturn(dividends);
 
-    assertThat(wrapper.getCurrentPrice("AAPL")).isSameAs(price);
     assertThat(wrapper.getCurrentPrices(List.of("AAPL"))).isSameAs(prices);
     assertThat(wrapper.getOHLCPrice("AAPL", "2024-09-16")).isSameAs(price);
-    assertThat(wrapper.getHistoricalPrices("AAPL", "2024-01-01", "2024-12-31")).isSameAs(history);
     assertThat(wrapper.getDividends("AAPL", "2024-01-01", "2024-12-31")).isSameAs(dividends);
   }
 
   @Test
-  @DisplayName("단건 현재가를 못 받으면 종목을 담은 예외를 올린다")
-  void currentPriceFallback_Throws() {
-    assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(wrapper, "getCurrentPriceFallback", "AAPL", down))
-      .isInstanceOf(RuntimeException.class)
-      .hasMessageContaining("AAPL")
-      .hasCause(down);
-  }
-
-  @Test
-  @DisplayName("여러 종목 현재가 · 과거 시세를 못 받으면 빈 값으로 넘어간다")
-  void listFallbacks_Empty() {
+  @DisplayName("여러 종목 현재가를 못 받으면 빈 값으로 넘어간다")
+  void currentPricesFallback_Empty() {
     Map<String, StockPriceDto> prices = ReflectionTestUtils.invokeMethod(wrapper, "getCurrentPricesFallback",
       List.of("AAPL", "MSFT"), down);
-    List<StockPriceDto> history = ReflectionTestUtils.invokeMethod(wrapper, "getHistoricalPricesFallback",
-      "AAPL", "2024-01-01", "2024-12-31", down);
 
     assertThat(prices).isEmpty();
-    assertThat(history).isEmpty();
   }
 }

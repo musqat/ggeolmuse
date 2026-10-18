@@ -37,10 +37,11 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
+// 매수 · 매도 체결. 시세 · 잔액 조회는 트랜잭션 밖, 체결 저장 · 보유 반영만 트랜잭션 안
 @Service
 @RequiredArgsConstructor
-@Transactional
 @Slf4j
 public class TradingServiceImpl implements TradingService {
 
@@ -52,6 +53,7 @@ public class TradingServiceImpl implements TradingService {
   private final TradeProperties tradeProperties;
   private final TradeUtils tradeUtils;
   private final ApplicationEventPublisher eventPublisher;
+  private final TransactionTemplate transactionTemplate;
 
   @Override
   public TradeResponseDto buyStock(String userId, Long accountId, String symbol,
@@ -100,7 +102,6 @@ public class TradingServiceImpl implements TradingService {
   }
 
   @Override
-  @Transactional(readOnly = true)
   public TradingCapacityResponseDto calculateBuyingCapacity(String userId,
     TradingCapacityRequestDto request) {
     log.info("매수 가능 수량 계산 시작: userId={}, accountId={}, symbol={}, tradeDate={}",
@@ -147,7 +148,6 @@ public class TradingServiceImpl implements TradingService {
   }
 
   @Override
-  @Transactional(readOnly = true)
   public TradingCapacityResponseDto calculateSellingCapacity(String userId,
     TradingCapacityRequestDto request) {
     log.info("매도 가능 수량 계산 시작: userId={}, accountId={}, symbol={}, tradeDate={}",
@@ -306,14 +306,15 @@ public class TradingServiceImpl implements TradingService {
     BigDecimal fee, LocalDate tradeDate, TradeType tradeType) {
 
     try {
-      // DB 트랜잭션으로 거래 기록 및 Holdings 업데이트
       log.info("거래 DB 트랜잭션 시작: userId={}, symbol={}, amount={}", userId, symbol, totalAmount);
-      Trade result = executeTradeDbTransaction(userId, accountId, symbol, quantity, tradePrice,
-        totalAmount, fee, tradeDate, tradeType);
+      Trade result = transactionTemplate.execute(status -> {
+        Trade saved = executeTradeDbTransaction(userId, accountId, symbol, quantity, tradePrice,
+          totalAmount, fee, tradeDate, tradeType);
+        // 트랜잭션 안에서 알려야 커밋 뒤 리스너가 받음
+        eventPublisher.publishEvent(new TradeSavedEvent(saved));
+        return saved;
+      });
       log.info("거래 DB 트랜잭션 완료: tradeId={}", result.getId());
-
-      // trading.trade.completed 발행은 커밋 뒤로 미룬다
-      eventPublisher.publishEvent(new TradeSavedEvent(result));
 
       return result;
 
@@ -326,9 +327,8 @@ public class TradingServiceImpl implements TradingService {
     }
   }
 
-  // DB 트랜잭션으로 거래 기록 및 Holdings 업데이트 실행
-  @Transactional(rollbackFor = Exception.class)
-  protected Trade executeTradeDbTransaction(String userId, String accountId, String symbol,
+  // 거래 기록 저장과 보유 반영
+  private Trade executeTradeDbTransaction(String userId, String accountId, String symbol,
     BigDecimal quantity, BigDecimal tradePrice, BigDecimal totalAmount,
     BigDecimal fee, LocalDate tradeDate, TradeType tradeType) {
     // 사전 검사는 락 밖이라 동시에 들어온 같은 종목 매도가 같은 날짜 물량을 함께 가져갈 수 있다.

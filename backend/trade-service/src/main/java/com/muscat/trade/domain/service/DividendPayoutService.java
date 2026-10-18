@@ -24,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 // 계좌 · 종목의 배당 몫을 거래 기록으로 다시 계산해 바뀐 몫만 저장하고 목표 금액을 보냄
 @Slf4j
@@ -35,24 +36,31 @@ public class DividendPayoutService {
   private final DividendPayoutRepository dividendPayoutRepository;
   private final MarketServiceClientWrapper marketServiceClientWrapper;
   private final DividendPayoutProducer dividendPayoutProducer;
+  private final TransactionTemplate transactionTemplate;
 
-  @Transactional
   public int reconcile(String userId, Long accountId, String symbol) {
     return reconcile(userId, accountId, symbol, false, List.of());
   }
 
   // resend 면 바뀌지 않은 몫도 다시 보냄. settledExDates 는 user 가 넣은 배당락일로, 목표가 없으면 0 몫
-  @Transactional
+  // 배당 목록은 트랜잭션 밖에서 받고 몫 저장 · 발행만 트랜잭션 안
   public int reconcile(String userId, Long accountId, String symbol, boolean resend,
     Collection<LocalDate> settledExDates) {
     List<Trade> trades = tradeRepository.findByUserIdAndAccountIdAndSymbolAndStatusOrderByExecutedAtAscIdAsc(
       userId, accountId, symbol, TradeStatus.COMPLETED);
-    Map<LocalDate, DividendPayout> existing = dividendPayoutRepository.findByAccountIdAndSymbol(accountId, symbol)
-      .stream()
-      .collect(Collectors.toMap(DividendPayout::getExDate, Function.identity(), (a, b) -> a, TreeMap::new));
     Map<LocalDate, DividendAmounts> targets = new TreeMap<>(trades.isEmpty()
       ? Map.of()
       : computeTargets(trades, fetchDividends(symbol, trades)));
+    Integer changed = transactionTemplate.execute(status ->
+      apply(userId, accountId, symbol, resend, settledExDates, targets));
+    return changed == null ? 0 : changed;
+  }
+
+  private int apply(String userId, Long accountId, String symbol, boolean resend,
+    Collection<LocalDate> settledExDates, Map<LocalDate, DividendAmounts> targets) {
+    Map<LocalDate, DividendPayout> existing = dividendPayoutRepository.findByAccountIdAndSymbol(accountId, symbol)
+      .stream()
+      .collect(Collectors.toMap(DividendPayout::getExDate, Function.identity(), (a, b) -> a, TreeMap::new));
     for (LocalDate exDate : settledExDates) {
       DividendPayout row = existing.get(exDate);
       targets.putIfAbsent(exDate,

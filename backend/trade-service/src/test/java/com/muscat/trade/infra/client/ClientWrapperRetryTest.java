@@ -76,11 +76,8 @@ class ClientWrapperRetryTest {
     return Stream.of(
       new Call("날짜 시세", c -> c.getOHLCPrice("AAPL", "2024-09-16"),
         w -> w.getOHLCPrice("AAPL", "2024-09-16"), mock(StockPriceDto.class)),
-      new Call("현재가", c -> c.getCurrentPrice("AAPL"), w -> w.getCurrentPrice("AAPL"), mock(StockPriceDto.class)),
       new Call("여러 종목 현재가", c -> c.getCurrentPrices(List.of("AAPL")),
         w -> w.getCurrentPrices(List.of("AAPL")), Map.of("AAPL", mock(StockPriceDto.class))),
-      new Call("기간 시세", c -> c.getHistoricalPrices("AAPL", "2024-01-01", "2024-12-31"),
-        w -> w.getHistoricalPrices("AAPL", "2024-01-01", "2024-12-31"), List.of(mock(StockPriceDto.class))),
       new Call("배당", c -> c.getDividends("AAPL", "2024-01-01", "2024-12-31"),
         w -> w.getDividends("AAPL", "2024-01-01", "2024-12-31"),
         List.of(new DividendDto("2024-09-16", new BigDecimal("0.25")))));

@@ -47,10 +47,13 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("TradingService 단위 테스트")
@@ -72,6 +75,9 @@ class TradingServiceImplTest {
   private TradeUtils tradeUtils;
   @Mock
   private ApplicationEventPublisher eventPublisher;
+  @Spy
+  private TransactionTemplate transactionTemplate =
+    new TransactionTemplate(org.mockito.Mockito.mock(PlatformTransactionManager.class));
 
   @InjectMocks
   private TradingServiceImpl tradingService;

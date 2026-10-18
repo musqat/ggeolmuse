@@ -36,7 +36,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("배당 몫 재계산")
@@ -62,6 +65,10 @@ class DividendPayoutServiceTest {
 
   @Mock
   private DividendPayoutProducer dividendPayoutProducer;
+
+  @Spy
+  private TransactionTemplate transactionTemplate =
+    new TransactionTemplate(org.mockito.Mockito.mock(PlatformTransactionManager.class));
 
   @InjectMocks
   private DividendPayoutService dividendPayoutService;
@@ -244,18 +251,17 @@ class DividendPayoutServiceTest {
   }
 
   @Test
-  @DisplayName("시세 서비스에서 배당을 못 받으면 몫을 건드리지 않고 오류를 올린다")
+  @DisplayName("시세 서비스에서 배당을 못 받으면 트랜잭션을 열지 않고 몫도 건드리지 않은 채 오류를 올린다")
   void reconcile_DividendFetchFails_KeepsPayouts() {
     givenTrades(trade(1, TradeType.BUY, "10", LocalDate.of(2024, 1, 2)));
     given(marketServiceClientWrapper.getDividends(eq(SYMBOL), eq("2024-01-02"), anyString()))
       .willThrow(new TradeException(TradeResponse.MARKET_DATA_SERVICE_ERROR));
-    List<DividendPayout> existing = paidThreeTimes();
-    given(dividendPayoutRepository.findByAccountIdAndSymbol(ACCOUNT, SYMBOL)).willReturn(existing);
 
     assertThatThrownBy(() -> dividendPayoutService.reconcile(USER, ACCOUNT, SYMBOL))
       .isInstanceOf(TradeException.class)
       .hasFieldOrPropertyWithValue("errorCode", "MARKET_DATA_SERVICE_ERROR");
-    assertThat(existing).extracting(p -> p.getNetAmount().toPlainString()).containsExactly("2.03", "2.11", "2.20");
+    verify(transactionTemplate, never()).execute(any());
+    verify(dividendPayoutRepository, never()).findByAccountIdAndSymbol(any(), any());
     verify(dividendPayoutRepository, never()).save(any());
     verifyNoInteractions(dividendPayoutProducer);
   }
