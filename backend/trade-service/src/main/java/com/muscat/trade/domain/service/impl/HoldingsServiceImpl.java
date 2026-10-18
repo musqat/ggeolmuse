@@ -31,7 +31,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-@Transactional
 @Slf4j
 public class HoldingsServiceImpl implements HoldingsService {
 
@@ -42,7 +41,6 @@ public class HoldingsServiceImpl implements HoldingsService {
   private final DividendPayoutService dividendPayoutService;
 
   @Override
-  @Transactional(readOnly = true)
   public List<HoldingResponseDto> getPortfolio(String userId, Long accountId) {
     log.debug("포트폴리오 조회: userId={}, accountId={}", userId, accountId);
 
@@ -195,7 +193,6 @@ public class HoldingsServiceImpl implements HoldingsService {
   }
 
   @Override
-  @Transactional(readOnly = true)
   public PortfolioSummary getPortfolioSummaryWithBacktest(String userId,
     Map<String, BigDecimal> currentPrices, String authorization) {
     log.debug("백테스트 포함 포트폴리오 조회: userId={}", userId);

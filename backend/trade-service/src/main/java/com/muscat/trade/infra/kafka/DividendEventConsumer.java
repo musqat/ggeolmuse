@@ -18,7 +18,6 @@ import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 // 배당 공시를 받아 배당락일 전에 그 종목을 거래한 계좌마다 배당 몫 재계산을 요청
 @Slf4j
@@ -34,7 +33,6 @@ public class DividendEventConsumer {
     groupId = "${spring.application.name}-dividend-consumer",
     containerFactory = "dividendEventKafkaListenerContainerFactory"
   )
-  @Transactional(readOnly = true)
   public void handleDividendUpdated(
     @Payload DividendUpdatedEvent event,
     @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
