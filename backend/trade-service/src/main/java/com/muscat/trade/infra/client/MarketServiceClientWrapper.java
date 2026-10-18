@@ -22,13 +22,6 @@ public class MarketServiceClientWrapper {
   private final MarketServiceClient marketServiceClient;
 
   @CircuitBreaker(name = "marketService")
-  @Retry(name = "marketService", fallbackMethod = "getCurrentPriceFallback")
-  public StockPriceDto getCurrentPrice(String symbol) {
-    log.debug("Calling market-data-service getCurrentPrice for symbol: {}", symbol);
-    return marketServiceClient.getCurrentPrice(symbol);
-  }
-
-  @CircuitBreaker(name = "marketService")
   @Retry(name = "marketService", fallbackMethod = "getCurrentPricesFallback")
   public Map<String, StockPriceDto> getCurrentPrices(List<String> symbols) {
     log.debug("Calling market-data-service getCurrentPrices for symbols: {}", symbols);
@@ -43,14 +36,6 @@ public class MarketServiceClientWrapper {
   }
 
   @CircuitBreaker(name = "marketService")
-  @Retry(name = "marketService", fallbackMethod = "getHistoricalPricesFallback")
-  public List<StockPriceDto> getHistoricalPrices(String symbol, String startDate, String endDate) {
-    log.debug("Calling market-data-service getHistoricalPrices for symbol: {}, period: {} to {}",
-      symbol, startDate, endDate);
-    return marketServiceClient.getHistoricalPrices(symbol, startDate, endDate);
-  }
-
-  @CircuitBreaker(name = "marketService")
   @Retry(name = "marketService", fallbackMethod = "getDividendsFallback")
   public List<DividendDto> getDividends(String symbol, String startDate, String endDate) {
     log.debug("Calling market-data-service getDividends for symbol: {}", symbol);
@@ -58,13 +43,6 @@ public class MarketServiceClientWrapper {
   }
 
   // Fallback 메서드
-  private StockPriceDto getCurrentPriceFallback(String symbol, Exception ex) {
-    log.error("Fallback triggered for getCurrentPrice. Symbol: {}, Error: {}",
-      symbol, ex.getMessage());
-    throw new RuntimeException("Market data service is currently unavailable for symbol: " + symbol,
-      ex);
-  }
-
   private Map<String, StockPriceDto> getCurrentPricesFallback(List<String> symbols, Exception ex) {
     log.error("Fallback triggered for getCurrentPrices. Symbols: {}, Error: {}",
       symbols, ex.getMessage());
@@ -75,13 +53,6 @@ public class MarketServiceClientWrapper {
     log.error("Fallback triggered for getOHLCPrice. Symbol: {}, Date: {}, Error: {}",
       symbol, date, ex.getMessage());
     throw new TradeException(TradeResponse.MARKET_DATA_SERVICE_ERROR, ex);
-  }
-
-  private List<StockPriceDto> getHistoricalPricesFallback(String symbol, String startDate,
-    String endDate, Exception ex) {
-    log.error("Fallback triggered for getHistoricalPrices. Symbol: {}, Error: {}",
-      symbol, ex.getMessage());
-    return Collections.emptyList();
   }
 
   // 못 받은 것과 배당이 없는 것을 가르려고 빈 목록 대신 오류
