@@ -14,11 +14,13 @@ import com.muscat.trade.common.enums.type.TradeType;
 import com.muscat.trade.common.logging.TradeLogger;
 import com.muscat.trade.domain.entity.Holdings;
 import com.muscat.trade.domain.entity.Trade;
+import com.muscat.trade.domain.repository.DividendPayoutRepository;
 import com.muscat.trade.domain.repository.HoldingsRepository;
 import com.muscat.trade.domain.repository.TradeRepository;
 import com.muscat.trade.infra.client.BacktestServiceClient;
 import com.muscat.trade.infra.client.MarketServiceClientWrapper;
 import com.muscat.trade.infra.client.UserServiceClient;
+import com.muscat.trade.infra.client.dto.DividendDto;
 import com.muscat.trade.infra.client.dto.DividendSettlementPageDto;
 import com.muscat.trade.infra.kafka.DividendEventConsumer;
 import com.muscat.trade.infra.kafka.DividendReconcileProducer;
@@ -77,6 +79,12 @@ class RemoteCallTransactionIT {
   private DividendBackfillService dividendBackfillService;
 
   @Autowired
+  private DividendPayoutService dividendPayoutService;
+
+  @Autowired
+  private DividendPayoutRepository dividendPayoutRepository;
+
+  @Autowired
   private DividendEventConsumer dividendEventConsumer;
 
   @Autowired
@@ -120,6 +128,7 @@ class RemoteCallTransactionIT {
   void tearDown() {
     tradeRepository.deleteAll();
     holdingsRepository.deleteAll();
+    dividendPayoutRepository.deleteAll();
   }
 
   @Test
@@ -157,6 +166,20 @@ class RemoteCallTransactionIT {
       .build(), 0, 0L, mock(Acknowledgment.class));
 
     assertThat(inTransaction).containsExactly(false);
+  }
+
+  @Test
+  @DisplayName("배당 몫 재계산은 배당 목록을 트랜잭션 밖에서 받고 몫을 저장한다")
+  void reconcile_DividendsFetchedOutsideTransaction() {
+    saveBuy();
+    given(marketServiceClientWrapper.getDividends(eq(SYMBOL), anyString(), anyString()))
+      .willAnswer(invocation -> record(List.of(new DividendDto("2024-02-09", new BigDecimal("0.24")))));
+
+    dividendPayoutService.reconcile(USER, ACCOUNT, SYMBOL);
+
+    assertThat(inTransaction).containsExactly(false);
+    assertThat(dividendPayoutRepository.findByAccountIdAndSymbol(ACCOUNT, SYMBOL))
+      .singleElement().satisfies(payout -> assertThat(payout.getNetAmount()).isEqualByComparingTo("2.03"));
   }
 
   @Test
