@@ -21,7 +21,7 @@ public class CandleRefreshAllPublisher {
   public void publish(List<Asset> assets, LocalDate from, LocalDate to) {
     long started = System.currentTimeMillis();
     for (Asset asset : assets) {
-      assetEventProducer.publishAssetCreated(asset, true, from, to, false);
+      assetEventProducer.publishAssetCreated(asset, true, from, to, true);
     }
     log.info("전체 캔들 재수집 발행 끝: {}개, {}초, from={}",
         assets.size(), (System.currentTimeMillis() - started) / 1000, from);

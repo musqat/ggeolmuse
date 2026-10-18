@@ -16,7 +16,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.zip.GZIPOutputStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -37,6 +41,7 @@ class YahooFinanceClientTest {
   private static final String URL = BASE + "/v8/finance/chart/AAPL?interval=1d&events=div,splits&includeAdjustedClose=true"
     + "&period1=1709528400&period2=1709701199";
   private static final String JSON = "{\"chart\":{\"result\":[]}}";
+  private static final Instant T0 = Instant.parse("2024-03-06T00:00:00Z");
 
   private final RestTemplate restTemplate = new RestTemplate();
   private final CollectionStats stats = mock(CollectionStats.class);
@@ -47,11 +52,16 @@ class YahooFinanceClientTest {
   void setUp() {
     ReflectionTestUtils.setField(client, "baseUrl", BASE);
     ReflectionTestUtils.setField(client, "userAgent", "test-agent");
+    ReflectionTestUtils.setField(client, "clock", Clock.fixed(T0, ZoneOffset.UTC));
     server = MockRestServiceServer.bindTo(restTemplate).build();
   }
 
   private String fetch() {
     return client.getDailyChartRaw("AAPL", LocalDate.of(2024, 3, 4), LocalDate.of(2024, 3, 5));
+  }
+
+  private void advance(Duration duration) {
+    ReflectionTestUtils.setField(client, "clock", Clock.fixed(T0.plus(duration), ZoneOffset.UTC));
   }
 
   private static byte[] gzip(String text) throws IOException {
@@ -82,7 +92,47 @@ class YahooFinanceClientTest {
     server.expect(requestTo(URL)).andRespond(withSuccess(gzip(JSON), MediaType.APPLICATION_OCTET_STREAM));
 
     assertThat(fetch()).isEqualTo(JSON);
+    advance(Duration.ofMinutes(2));
     assertThat(fetch()).isEqualTo(JSON);
+    server.verify();
+  }
+
+  @Test
+  @DisplayName("같은 스레드가 같은 차트를 1분 안에 다시 부르면 받은 응답을 다시 쓴다")
+  void sameChartWithinWindow_FetchedOnce() {
+    server.expect(once(), requestTo(URL)).andRespond(withSuccess(JSON, MediaType.APPLICATION_JSON));
+
+    assertThat(fetch()).isEqualTo(JSON);
+    advance(Duration.ofSeconds(59));
+    assertThat(fetch()).isEqualTo(JSON);
+    server.verify();
+  }
+
+  @Test
+  @DisplayName("1분이 지나거나 기간이 다르면 다시 받는다")
+  void afterWindowOrOtherPeriod_FetchedAgain() {
+    String otherPeriod = BASE + "/v8/finance/chart/AAPL?interval=1d&events=div,splits&includeAdjustedClose=true"
+      + "&period1=1709528400&period2=1709787599";
+    server.expect(requestTo(URL)).andRespond(withSuccess(JSON, MediaType.APPLICATION_JSON));
+    server.expect(requestTo(URL)).andRespond(withSuccess(JSON, MediaType.APPLICATION_JSON));
+    server.expect(requestTo(otherPeriod)).andRespond(withSuccess(JSON, MediaType.APPLICATION_JSON));
+
+    fetch();
+    advance(Duration.ofSeconds(61));
+    fetch();
+    client.getDailyChartRaw("AAPL", LocalDate.of(2024, 3, 4), LocalDate.of(2024, 3, 6));
+    server.verify();
+  }
+
+  @Test
+  @DisplayName("JSON 이 아닌 응답은 다시 쓰지 않는다")
+  void nonJson_NotReused() {
+    server.expect(requestTo(URL)).andRespond(withSuccess("<html>Too Many Requests</html>", MediaType.TEXT_HTML));
+    server.expect(requestTo(URL)).andRespond(withSuccess(JSON, MediaType.APPLICATION_JSON));
+
+    fetch();
+    assertThat(fetch()).isEqualTo(JSON);
+    server.verify();
   }
 
   @Test

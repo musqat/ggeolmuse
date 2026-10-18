@@ -26,15 +26,15 @@ class CandleRefreshAllPublisherTest {
   @InjectMocks private CandleRefreshAllPublisher publisher;
 
   @Test
-  @DisplayName("받은 종목마다 기간을 붙여 수집 이벤트를 발행한다")
+  @DisplayName("받은 종목마다 기간을 붙여 배당까지 수집 이벤트를 발행한다")
   void 종목마다_발행() {
     Asset aapl = Asset.builder().symbol("AAPL").name("AAPL").build();
     Asset nvda = Asset.builder().symbol("NVDA").name("NVDA").build();
 
     publisher.publish(List.of(aapl, nvda), FROM, TO);
 
-    verify(assetEventProducer).publishAssetCreated(aapl, true, FROM, TO, false);
-    verify(assetEventProducer).publishAssetCreated(nvda, true, FROM, TO, false);
+    verify(assetEventProducer).publishAssetCreated(aapl, true, FROM, TO, true);
+    verify(assetEventProducer).publishAssetCreated(nvda, true, FROM, TO, true);
     verifyNoMoreInteractions(assetEventProducer);
   }
 }

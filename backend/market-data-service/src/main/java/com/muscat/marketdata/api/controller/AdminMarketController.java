@@ -471,7 +471,7 @@ public class AdminMarketController {
             .build());
     }
 
-    // 지정한 종목만 다시 수집. Kafka 컨슈머가 비동기로 처리
+    // 지정한 종목만 배당까지 다시 수집. Kafka 컨슈머가 비동기로 처리
     @PostMapping("/candles/refresh")
     public ResponseEntity<RefreshResponse> refreshCandles(@RequestBody RefreshRequest request) {
         LocalDate from = request.getFrom() != null ? request.getFrom() : LocalDate.of(1970, 1, 1);
@@ -494,7 +494,7 @@ public class AdminMarketController {
                 delisted++;
                 continue;
             }
-            assetEventProducer.publishAssetCreated(asset, true, from, to, false);
+            assetEventProducer.publishAssetCreated(asset, true, from, to, true);
             published++;
         }
 
