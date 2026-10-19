@@ -20,6 +20,9 @@ spring:
     driver-class-name: org.h2.Driver
     username: sa
     password:
+    # 클래스가 끝나 컨테이너가 내려간 뒤에도 남은 컨텍스트가 커넥션을 기다리며 시험 JVM 종료를 붙잡지 않게 짧게 둠
+    hikari:
+      connection-timeout: 3000
 
   jpa:
     hibernate:
