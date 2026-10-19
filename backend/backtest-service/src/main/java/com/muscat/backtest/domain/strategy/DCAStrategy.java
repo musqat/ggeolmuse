@@ -12,6 +12,7 @@ import com.muscat.backtest.common.util.Decimals;
 import com.muscat.backtest.common.util.PriceLookup;
 import com.muscat.backtest.common.validation.BacktestRequestValidator;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
+import com.muscat.backtest.domain.dto.request.StrategyRequest;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.domain.model.StrategyTransaction;
@@ -42,7 +43,16 @@ public class DCAStrategy implements InvestmentStrategy {
   }
 
   @Override
-  public StrategyResponse executeDca(DcaStrategyRequest request) {
+  public StrategyResponse execute(StrategyRequest request) {
+    // null 은 검증이 막음
+    if (request != null && !(request instanceof DcaStrategyRequest)) {
+      throw new BacktestException(BacktestResponse.STRATEGY_TYPE_MISMATCH,
+        "적립식 전략에 다른 요청이 왔습니다: " + request.getStrategyType());
+    }
+    return runDca((DcaStrategyRequest) request);
+  }
+
+  private StrategyResponse runDca(DcaStrategyRequest request) {
     validateDcaRequest(request);
 
     BacktestLogger.setStrategyContext(request.getUserId(), "DCA", request.getSymbol());

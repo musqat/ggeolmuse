@@ -128,7 +128,7 @@ class DCARealDataTest {
 
   @Test
   @DisplayName("매월 10만원 3년, 배당 재투자 켜고 세금 0")
-  void executeDca_realData() {
+  void execute_realData() {
     DcaStrategyRequest request = DcaStrategyRequest.builder()
       .userId("test-user")
       .symbol(SYMBOL)
@@ -155,7 +155,7 @@ class DCARealDataTest {
     given(responseMapper.toStrategyResponse(any(DcaStrategyRequest.class), any(), any(), any()))
       .willReturn(StrategyResponse.builder().strategyType(StrategyType.DCA).build());
 
-    dcaStrategy.executeDca(request);
+    dcaStrategy.execute(request);
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<StrategyTransaction>> txCaptor = ArgumentCaptor.forClass(List.class);
@@ -179,7 +179,7 @@ class DCARealDataTest {
 
   @Test
   @DisplayName("원천징수 15.4% 를 물리면 재투자액이 줄고 수익률도 낮아진다")
-  void executeDca_realData_withTax() {
+  void execute_realData_withTax() {
     DcaStrategyRequest request = DcaStrategyRequest.builder()
       .userId("test-user")
       .symbol(SYMBOL)
@@ -206,7 +206,7 @@ class DCARealDataTest {
     given(responseMapper.toStrategyResponse(any(DcaStrategyRequest.class), any(), any(), any()))
       .willReturn(StrategyResponse.builder().strategyType(StrategyType.DCA).build());
 
-    dcaStrategy.executeDca(request);
+    dcaStrategy.execute(request);
 
     ArgumentCaptor<StrategyCalculationResult> calcCaptor =
         ArgumentCaptor.forClass(StrategyCalculationResult.class);
@@ -225,7 +225,7 @@ class DCARealDataTest {
 
   @Test
   @DisplayName("재투자를 끄면 배당을 현금으로 받되 원천징수를 뗀다")
-  void executeDca_realData_cashDividendWithTax() {
+  void execute_realData_cashDividendWithTax() {
     BigDecimal taxRate = new BigDecimal("0.154");
 
     DcaStrategyRequest request = DcaStrategyRequest.builder()
@@ -254,7 +254,7 @@ class DCARealDataTest {
     given(responseMapper.toStrategyResponse(any(DcaStrategyRequest.class), any(), any(), any()))
       .willReturn(StrategyResponse.builder().strategyType(StrategyType.DCA).build());
 
-    dcaStrategy.executeDca(request);
+    dcaStrategy.execute(request);
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<StrategyTransaction>> txCaptor = ArgumentCaptor.forClass(List.class);

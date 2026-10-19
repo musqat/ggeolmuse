@@ -13,6 +13,7 @@ import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
 import com.muscat.backtest.domain.dto.request.OptimalTimingRequest;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
 import com.muscat.backtest.domain.dto.request.StrategyComparisonRequest;
+import com.muscat.backtest.domain.dto.request.StrategyRequest;
 import com.muscat.backtest.domain.dto.request.SymbolComparisonRequest;
 import com.muscat.backtest.domain.dto.request.TimingComparisonRequest;
 import com.muscat.backtest.domain.dto.response.ComparisonResponse;
@@ -69,8 +70,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
     try {
       log.info("DCA 전략 백테스팅 시작: backtestId={}, symbol={}", backtestId, request.getSymbol());
 
-      InvestmentStrategy strategy = getStrategy(StrategyType.DCA, "DCA 전략을 찾을 수 없습니다");
-      StrategyResponse result = strategy.executeDca(request);
+      StrategyResponse result = execute(request);
 
       saveBacktestHistory(request.getUserId(), BacktestType.STRATEGY_SIMULATION, request);
 
@@ -96,9 +96,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
     try {
       log.info("조건부 매수 전략 백테스팅 시작: backtestId={}, symbol={}", backtestId, request.getSymbol());
 
-      InvestmentStrategy strategy = getStrategy(StrategyType.CONDITIONAL_PURCHASE,
-        "조건부 매수 전략을 찾을 수 없습니다");
-      StrategyResponse result = strategy.executeConditional(request);
+      StrategyResponse result = execute(request);
 
       saveBacktestHistory(request.getUserId(), BacktestType.STRATEGY_SIMULATION, request);
 
@@ -201,12 +199,14 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
     return response;
   }
 
-  private InvestmentStrategy getStrategy(StrategyType strategyType, String errorMessage) {
-    InvestmentStrategy strategy = strategyMap.get(strategyType);
+  // 요청의 전략 타입에 맞는 전략으로 실행
+  private StrategyResponse execute(StrategyRequest request) {
+    InvestmentStrategy strategy = strategyMap.get(request.getStrategyType());
     if (strategy == null) {
-      throw new BacktestException(BacktestResponse.STRATEGY_TYPE_MISMATCH, errorMessage);
+      throw new BacktestException(BacktestResponse.STRATEGY_TYPE_MISMATCH,
+        "등록된 전략이 없습니다: " + request.getStrategyType());
     }
-    return strategy;
+    return strategy.execute(request);
   }
 
   private void saveBacktestHistory(String userId, BacktestType backtestType,
@@ -293,8 +293,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
         .tradingFeeRate(orZero(request.getTradingFeeRate()))
         .build();
 
-      InvestmentStrategy strategy = getStrategy(StrategyType.DCA, "DCA 전략을 찾을 수 없습니다");
-      StrategyResponse result = strategy.executeDca(dcaRequest);
+      StrategyResponse result = execute(dcaRequest);
       return responseMapper.toComparisonItemFromStrategy(result, strategyName);
     }
 
@@ -314,9 +313,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
         .tradingFeeRate(orZero(request.getTradingFeeRate()))
         .build();
 
-      InvestmentStrategy strategy = getStrategy(StrategyType.CONDITIONAL_PURCHASE,
-        "조건부 매수 전략을 찾을 수 없습니다");
-      StrategyResponse result = strategy.executeConditional(conditionalRequest);
+      StrategyResponse result = execute(conditionalRequest);
       return responseMapper.toComparisonItemFromStrategy(result, strategyName);
     }
 

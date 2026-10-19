@@ -13,6 +13,7 @@ import com.muscat.backtest.common.util.BacktestDataUtils;
 import com.muscat.backtest.common.util.Decimals;
 import com.muscat.backtest.common.util.PriceLookup;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
+import com.muscat.backtest.domain.dto.request.StrategyRequest;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.domain.model.InvestmentParams;
@@ -45,7 +46,16 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
   }
 
   @Override
-  public StrategyResponse executeConditional(ConditionalStrategyRequest request) {
+  public StrategyResponse execute(StrategyRequest request) {
+    // null 은 검증이 막음
+    if (request != null && !(request instanceof ConditionalStrategyRequest)) {
+      throw new BacktestException(BacktestResponse.STRATEGY_TYPE_MISMATCH,
+        "조건부 매수 전략에 다른 요청이 왔습니다: " + request.getStrategyType());
+    }
+    return runConditional((ConditionalStrategyRequest) request);
+  }
+
+  private StrategyResponse runConditional(ConditionalStrategyRequest request) {
     validateConditionalRequest(request);
 
     BacktestLogger.setStrategyContext(request.getUserId(), "CONDITIONAL", request.getSymbol());

@@ -114,7 +114,7 @@ class BacktestAnalysisServiceImplTest {
         .totalReturnPercent(BigDecimal.valueOf(15.5))
         .build();
 
-      given(dcaStrategy.executeDca(request)).willReturn(expectedResponse);
+      given(dcaStrategy.execute(request)).willReturn(expectedResponse);
       willDoNothing().given(backtestHistoryUtils)
         .saveBacktestHistory(any(), any(BacktestType.class), any());
 
@@ -125,7 +125,7 @@ class BacktestAnalysisServiceImplTest {
       assertThat(result).isNotNull();
       assertThat(result.getSymbol()).isEqualTo("AAPL");
       assertThat(result.getTotalReturnPercent()).isEqualByComparingTo(BigDecimal.valueOf(15.5));
-      verify(dcaStrategy).executeDca(request);
+      verify(dcaStrategy).execute(request);
       verify(backtestHistoryUtils).saveBacktestHistory(
         eq("user123"),
         eq(BacktestType.STRATEGY_SIMULATION),
@@ -145,7 +145,7 @@ class BacktestAnalysisServiceImplTest {
         .userId("user123")
         .build();
 
-      given(dcaStrategy.executeDca(request))
+      given(dcaStrategy.execute(request))
         .willThrow(new BacktestException(BacktestResponse.DATA_NOT_FOUND, "데이터 없음"));
 
       // When & Then
@@ -171,7 +171,7 @@ class BacktestAnalysisServiceImplTest {
         .totalReturnPercent(BigDecimal.valueOf(15.5))
         .build();
 
-      given(dcaStrategy.executeDca(request)).willReturn(expectedResponse);
+      given(dcaStrategy.execute(request)).willReturn(expectedResponse);
       willThrow(new RuntimeException("DB 연결 실패"))
         .given(backtestHistoryUtils)
         .saveBacktestHistory(any(), any(BacktestType.class), any());
@@ -209,7 +209,7 @@ class BacktestAnalysisServiceImplTest {
         .totalReturnPercent(BigDecimal.valueOf(25.0))
         .build();
 
-      given(conditionalPurchaseStrategy.executeConditional(request))
+      given(conditionalPurchaseStrategy.execute(request))
         .willReturn(expectedResponse);
 
       // When
@@ -219,7 +219,7 @@ class BacktestAnalysisServiceImplTest {
       assertThat(result).isNotNull();
       assertThat(result.getSymbol()).isEqualTo("TSLA");
       assertThat(result.getTotalReturnPercent()).isEqualByComparingTo(BigDecimal.valueOf(25.0));
-      verify(conditionalPurchaseStrategy).executeConditional(request);
+      verify(conditionalPurchaseStrategy).execute(request);
       verify(backtestHistoryUtils).saveBacktestHistory(
         eq("user456"),
         eq(BacktestType.STRATEGY_SIMULATION),
@@ -429,8 +429,8 @@ class BacktestAnalysisServiceImplTest {
         .totalReturnPercent(BigDecimal.valueOf(20))
         .build();
 
-      given(dcaStrategy.executeDca(any())).willReturn(dcaResponse);
-      given(conditionalPurchaseStrategy.executeConditional(any())).willReturn(conditionalResponse);
+      given(dcaStrategy.execute(any())).willReturn(dcaResponse);
+      given(conditionalPurchaseStrategy.execute(any())).willReturn(conditionalResponse);
       given(responseMapper.toComparisonItemFromStrategy(dcaResponse, "DCA 전략"))
         .willReturn(dcaItem);
       given(responseMapper.toComparisonItemFromStrategy(conditionalResponse, "조건부 매수"))
@@ -450,8 +450,8 @@ class BacktestAnalysisServiceImplTest {
       // Then
       assertThat(result).isNotNull();
       assertThat(result.getBestPerformer().getName()).isEqualTo("조건부 매수");
-      verify(dcaStrategy).executeDca(any());
-      verify(conditionalPurchaseStrategy).executeConditional(any());
+      verify(dcaStrategy).execute(any());
+      verify(conditionalPurchaseStrategy).execute(any());
     }
 
     @Test
@@ -718,8 +718,8 @@ class BacktestAnalysisServiceImplTest {
       withOptions(request);
 
       stubSimulation();
-      given(dcaStrategy.executeDca(any())).willReturn(StrategyResponse.builder().build());
-      given(conditionalPurchaseStrategy.executeConditional(any()))
+      given(dcaStrategy.execute(any())).willReturn(StrategyResponse.builder().build());
+      given(conditionalPurchaseStrategy.execute(any()))
         .willReturn(StrategyResponse.builder().build());
       given(responseMapper.toComparisonItemFromStrategy(any(), any())).willReturn(item);
       stubComparisonResponse();
@@ -733,7 +733,7 @@ class BacktestAnalysisServiceImplTest {
       assertSimulationOptions(simulation.getValue());
 
       ArgumentCaptor<DcaStrategyRequest> dcaRequest = ArgumentCaptor.forClass(DcaStrategyRequest.class);
-      verify(dcaStrategy).executeDca(dcaRequest.capture());
+      verify(dcaStrategy).execute(dcaRequest.capture());
       assertThat(dcaRequest.getValue().getInvestmentInterval()).isEqualTo(2);
       assertThat(dcaRequest.getValue().getTotalInvestmentLimit())
         .isEqualByComparingTo(BigDecimal.valueOf(1_000_000));
@@ -745,7 +745,7 @@ class BacktestAnalysisServiceImplTest {
 
       ArgumentCaptor<ConditionalStrategyRequest> conditionalRequest =
         ArgumentCaptor.forClass(ConditionalStrategyRequest.class);
-      verify(conditionalPurchaseStrategy).executeConditional(conditionalRequest.capture());
+      verify(conditionalPurchaseStrategy).execute(conditionalRequest.capture());
       assertThat(conditionalRequest.getValue().getPurchaseFxRate())
         .isEqualByComparingTo(new BigDecimal("1300"));
       assertThat(conditionalRequest.getValue().getCurrentFxRate())
@@ -768,7 +768,7 @@ class BacktestAnalysisServiceImplTest {
       StrategyComparisonRequest request = strategyRequest(simple, dca);
 
       stubSimulation();
-      given(dcaStrategy.executeDca(any())).willReturn(StrategyResponse.builder().build());
+      given(dcaStrategy.execute(any())).willReturn(StrategyResponse.builder().build());
       given(responseMapper.toComparisonItemFromStrategy(any(), any())).willReturn(item);
       stubComparisonResponse();
 
@@ -782,7 +782,7 @@ class BacktestAnalysisServiceImplTest {
       assertThat(simulation.getValue().getPurchaseFxRate()).isNull();
 
       ArgumentCaptor<DcaStrategyRequest> dcaRequest = ArgumentCaptor.forClass(DcaStrategyRequest.class);
-      verify(dcaStrategy).executeDca(dcaRequest.capture());
+      verify(dcaStrategy).execute(dcaRequest.capture());
       assertThat(dcaRequest.getValue().getInvestmentInterval()).isEqualTo(1);
       assertThat(dcaRequest.getValue().getTotalInvestmentLimit()).isNull();
       assertThat(dcaRequest.getValue().getReinvestDividends()).isFalse();
@@ -855,7 +855,7 @@ class BacktestAnalysisServiceImplTest {
     @DisplayName("조건부 매수 전략이 실패하면 같은 예외를 올리고 이력은 남기지 않는다")
     void conditionalFailureRethrows() {
       BacktestException failure = new BacktestException(BacktestResponse.DATA_NOT_FOUND, "no data");
-      given(conditionalPurchaseStrategy.executeConditional(any())).willThrow(failure);
+      given(conditionalPurchaseStrategy.execute(any())).willThrow(failure);
 
       assertThatThrownBy(() -> backtestAnalysisService.runConditionalStrategy(conditionalRequest())).isSameAs(failure);
 
@@ -895,8 +895,8 @@ class BacktestAnalysisServiceImplTest {
 
       StrategyResponse conditionalResult = StrategyResponse.builder().totalReturnPercent(BigDecimal.TEN).build();
       ComparisonItem conditionalItem = ComparisonItem.builder().name("조건부 매수").totalReturnPercent(BigDecimal.TEN).build();
-      given(dcaStrategy.executeDca(any())).willThrow(new IllegalStateException("dca down"));
-      given(conditionalPurchaseStrategy.executeConditional(any())).willReturn(conditionalResult);
+      given(dcaStrategy.execute(any())).willThrow(new IllegalStateException("dca down"));
+      given(conditionalPurchaseStrategy.execute(any())).willReturn(conditionalResult);
       given(responseMapper.toComparisonItemFromStrategy(conditionalResult, "조건부 매수")).willReturn(conditionalItem);
       given(responseMapper.toComparisonResponse(eq(request), any(), any())).willReturn(ComparisonResponse.builder().build());
 
@@ -930,6 +930,26 @@ class BacktestAnalysisServiceImplTest {
       ArgumentCaptor<List<ComparisonItem>> items = ArgumentCaptor.forClass(List.class);
       verify(responseMapper).toComparisonResponse(eq(request), items.capture(), any());
       assertThat(items.getValue()).containsExactly(juneItem);
+      verify(backtestHistoryUtils, never()).saveBacktestHistory(any(), any(), any());
+    }
+  }
+
+  @Nested
+  @DisplayName("전략 등록")
+  class StrategyRegistryTests {
+
+    @Test
+    @DisplayName("요청 타입의 전략이 등록되지 않았으면 전략 타입 불일치로 막는다")
+    void runDcaStrategy_NoRegisteredStrategy_Rejected() {
+      BacktestAnalysisServiceImpl onlyConditional = new BacktestAnalysisServiceImpl(tradingSimulationService,
+        List.of(conditionalPurchaseStrategy), responseMapper, backtestHistoryUtils, optimalTimingStrategy);
+      DcaStrategyRequest request = DcaStrategyRequest.builder().symbol("AAPL").startDate(LocalDate.of(2023, 1, 1))
+        .endDate(LocalDate.of(2024, 1, 1)).monthlyAmount(BigDecimal.valueOf(1000)).purchaseDay(1).userId("user123").build();
+
+      assertThatThrownBy(() -> onlyConditional.runDcaStrategy(request))
+        .isInstanceOf(BacktestException.class)
+        .extracting("code")
+        .isEqualTo(BacktestResponse.STRATEGY_TYPE_MISMATCH);
       verify(backtestHistoryUtils, never()).saveBacktestHistory(any(), any(), any());
     }
   }

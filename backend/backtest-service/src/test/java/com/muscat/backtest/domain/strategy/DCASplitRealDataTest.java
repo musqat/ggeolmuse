@@ -149,7 +149,7 @@ class DCASplitRealDataTest {
 
   @Test
   @DisplayName("4:1 분할을 사이에 두고도 매수가가 이어지고 수익률이 맞는다")
-  void executeDca_acrossSplit() {
+  void execute_acrossSplit() {
     DcaStrategyRequest request = DcaStrategyRequest.builder()
       .userId("test-user")
       .symbol(SYMBOL)
@@ -176,7 +176,7 @@ class DCASplitRealDataTest {
     given(responseMapper.toStrategyResponse(any(DcaStrategyRequest.class), any(), any(), any()))
       .willReturn(StrategyResponse.builder().strategyType(StrategyType.DCA).build());
 
-    dcaStrategy.executeDca(request);
+    dcaStrategy.execute(request);
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<StrategyTransaction>> txCaptor = ArgumentCaptor.forClass(List.class);
