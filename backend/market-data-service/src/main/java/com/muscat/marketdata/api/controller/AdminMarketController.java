@@ -5,13 +5,10 @@ import com.muscat.marketdata.datasource.yf.collector.SymbolCollector;
 import com.muscat.marketdata.domain.dto.AssetSummaryDto;
 import com.muscat.marketdata.domain.entity.AdminJobRun;
 import com.muscat.marketdata.domain.entity.Asset;
-import com.muscat.marketdata.domain.repository.AdminJobRunRepository;
-import com.muscat.marketdata.domain.repository.AssetRepository;
-import com.muscat.marketdata.domain.repository.CandleRepository;
+import com.muscat.marketdata.domain.service.AssetPriceBatchUpdater;
 import com.muscat.marketdata.domain.service.AssetService;
-import com.muscat.marketdata.domain.service.CandleRefreshAllPublisher;
+import com.muscat.marketdata.domain.service.CandleRefreshService;
 import com.muscat.marketdata.domain.service.UnadjustedScanService;
-import com.muscat.marketdata.infra.kafka.AssetEventProducer;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -29,7 +26,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.List;
 
 @Data
@@ -66,16 +62,10 @@ class PageResponse<T> {
 public class AdminMarketController {
 
     private final AssetService assetService;
-    private final AssetRepository assetRepository;
-    private final CandleRepository candleRepository;
-    private final AssetEventProducer assetEventProducer;
+    private final AssetPriceBatchUpdater priceBatchUpdater;
     private final UnadjustedScanService scanService;
-    private final AdminJobRunRepository adminJobRunRepository;
-    private final CandleRefreshAllPublisher refreshAllPublisher;
+    private final CandleRefreshService candleRefreshService;
     private final AdminJobRunner jobRunner;
-
-    private static final String REFRESH_ALL_JOB = "candle-refresh-all";
-    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     // SymbolCollector 는 marketdata.provider=yahoo 일 때만 뜬다.
     // 직접 주입하면 alphavantage 프로파일에서 기동이 깨지므로 선택 주입한다.
@@ -252,12 +242,6 @@ public class AdminMarketController {
                     .body(UpdateResponse.builder()
                             .message(e.getErrorMessage() + ": " + symbol)
                             .build());
-        } catch (Exception e) {
-            log.error("종목 가격 업데이트 실패", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(UpdateResponse.builder()
-                            .message("가격 업데이트 실패: " + e.getMessage())
-                            .build());
         }
     }
 
@@ -277,12 +261,6 @@ public class AdminMarketController {
                     .body(UpdateResponse.builder()
                             .message(e.getErrorMessage() + ": " + symbol)
                             .build());
-        } catch (Exception e) {
-            log.error("종목 시가총액 업데이트 실패", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(UpdateResponse.builder()
-                            .message("시가총액 업데이트 실패: " + e.getMessage())
-                            .build());
         }
     }
 
@@ -290,14 +268,7 @@ public class AdminMarketController {
     public ResponseEntity<UpdateResponse> updateMarketCaps() {
         log.info("시가총액 수동 업데이트 요청");
 
-        boolean started = jobRunner.submit(() -> {
-            try {
-                int updated = assetService.updateAllMarketCaps();
-                log.info("시가총액 전체 업데이트 완료: {}개", updated);
-            } catch (Exception e) {
-                log.error("시가총액 전체 업데이트 실패", e);
-            }
-        });
+        boolean started = jobRunner.submit("시가총액 전체 갱신", assetService::updateAllMarketCaps);
         if (!started) {
             return jobBusy();
         }
@@ -311,20 +282,7 @@ public class AdminMarketController {
     public ResponseEntity<UpdateResponse> updateCandles() {
         log.info("캔들 데이터 수동 업데이트 요청");
 
-        boolean started = jobRunner.submit(() -> {
-            List<Asset> assets = assetService.getAllAssets();
-            for (Asset asset : assets) {
-                try {
-                    assetService.updateAssetPrice(asset.getSymbol());
-                } catch (MarketDataException e) {
-                    log.warn("캔들 데이터 업데이트 실패: symbol={}, code={}, message={}",
-                            asset.getSymbol(), e.getErrorCode(), e.getErrorMessage());
-                } catch (Exception e) {
-                    log.warn("캔들 데이터 업데이트 실패: symbol={}", asset.getSymbol(), e);
-                }
-            }
-            log.info("캔들 전체 업데이트 완료: {}개", assets.size());
-        });
+        boolean started = jobRunner.submit("캔들 전체 갱신", priceBatchUpdater::updateAllPrices);
         if (!started) {
             return jobBusy();
         }
@@ -348,13 +306,7 @@ public class AdminMarketController {
                             .build());
         }
 
-        boolean started = jobRunner.submit(() -> {
-            try {
-                collector.collectNewlyListedDaily();
-            } catch (Exception e) {
-                log.error("신규 종목 수집 실패", e);
-            }
-        });
+        boolean started = jobRunner.submit("신규 종목 수집", collector::collectNewlyListedDaily);
         if (!started) {
             return jobBusy();
         }
@@ -471,66 +423,26 @@ public class AdminMarketController {
             .build());
     }
 
-    // 지정한 종목만 배당까지 다시 수집. Kafka 컨슈머가 비동기로 처리
     @PostMapping("/candles/refresh")
     public ResponseEntity<RefreshResponse> refreshCandles(@RequestBody RefreshRequest request) {
-        LocalDate from = request.getFrom() != null ? request.getFrom() : LocalDate.of(1970, 1, 1);
-        LocalDate to = LocalDate.now(ZoneId.of("America/New_York"));
-
-        List<String> requested = request.getSymbols() != null ? request.getSymbols() : List.of();
-        int published = 0;
-        int delisted = 0;
-        List<String> notFound = new java.util.ArrayList<>();
-
-        for (String raw : requested) {
-            String symbol = raw.trim().toUpperCase();
-            Asset asset = assetRepository.findById(symbol).orElse(null);
-            if (asset == null) {
-                notFound.add(symbol);
-                continue;
-            }
-            // 상장폐지 종목은 야후가 404 를 낸다. 발행해봐야 빈 응답만 받는다
-            if (!Boolean.TRUE.equals(asset.getActive())) {
-                delisted++;
-                continue;
-            }
-            assetEventProducer.publishAssetCreated(asset, true, from, to, true);
-            published++;
-        }
-
-        log.info("캔들 재수집 요청: 요청 {}개, 발행 {}개, 상장폐지 {}개, 없는 종목 {}개, from={}",
-            requested.size(), published, delisted, notFound.size(), from);
-
+        CandleRefreshService.RefreshResult result = candleRefreshService.refresh(request.getSymbols(), request.getFrom());
         return ResponseEntity.ok(RefreshResponse.builder()
-            .requested(requested.size())
-            .published(published)
-            .notFound(notFound)
-            .from(from)
-            .to(to)
+            .requested(result.requested())
+            .published(result.published())
+            .notFound(result.notFound())
+            .from(result.from())
+            .to(result.to())
             .build());
     }
 
-    // 활성 종목 전체를 1970-01-01 부터 다시 수집. 실행 기록을 먼저 남기고 발행은 뒤에서
     @PostMapping("/candles/refresh-all")
     public ResponseEntity<RefreshAllResponse> refreshAllCandles() {
-        LocalDate from = LocalDate.of(1970, 1, 1);
-        LocalDate to = LocalDate.now(ZoneId.of("America/New_York"));
-
-        List<Asset> assets = assetRepository.findByActiveTrue();
-        AdminJobRun run = adminJobRunRepository.save(
-            new AdminJobRun(REFRESH_ALL_JOB, LocalDateTime.now(KST), assets.size()));
-
-        // 1만 건 넘게 발행하면 게이트웨이 30초를 넘긴다. 요청은 먼저 돌려준다
-        refreshAllPublisher.publish(assets, from, to);
-        log.info("전체 캔들 재수집 요청: 대상 {}개, from={}", assets.size(), from);
-
-        return ResponseEntity.ok(RefreshAllResponse.of(run));
+        return ResponseEntity.ok(RefreshAllResponse.of(candleRefreshService.refreshAll()));
     }
 
-    // 마지막 전체 재수집 기록. 한 번도 안 했으면 lastRunAt 이 빔
     @GetMapping("/candles/refresh-all")
     public ResponseEntity<RefreshAllResponse> lastRefreshAll() {
-        return ResponseEntity.ok(adminJobRunRepository.findById(REFRESH_ALL_JOB)
+        return ResponseEntity.ok(candleRefreshService.lastRefreshAll()
             .map(RefreshAllResponse::of)
             .orElseGet(RefreshAllResponse::new));
     }

@@ -2,8 +2,6 @@ package com.muscat.marketdata.api.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willReturn;
@@ -26,13 +24,10 @@ import com.muscat.marketdata.datasource.yf.collector.SymbolCollector;
 import com.muscat.marketdata.domain.dto.AssetSummaryDto;
 import com.muscat.marketdata.domain.entity.AdminJobRun;
 import com.muscat.marketdata.domain.entity.Asset;
-import com.muscat.marketdata.domain.repository.AdminJobRunRepository;
-import com.muscat.marketdata.domain.repository.AssetRepository;
-import com.muscat.marketdata.domain.repository.CandleRepository;
+import com.muscat.marketdata.domain.service.AssetPriceBatchUpdater;
 import com.muscat.marketdata.domain.service.AssetService;
-import com.muscat.marketdata.domain.service.CandleRefreshAllPublisher;
+import com.muscat.marketdata.domain.service.CandleRefreshService;
 import com.muscat.marketdata.domain.service.UnadjustedScanService;
-import com.muscat.marketdata.infra.kafka.AssetEventProducer;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -76,22 +71,13 @@ class AdminMarketControllerWebTest {
   private AssetService assetService;
 
   @MockitoBean
-  private AssetRepository assetRepository;
-
-  @MockitoBean
-  private CandleRepository candleRepository;
-
-  @MockitoBean
-  private AssetEventProducer assetEventProducer;
-
-  @MockitoBean
   private UnadjustedScanService scanService;
 
   @MockitoBean
-  private AdminJobRunRepository adminJobRunRepository;
+  private CandleRefreshService candleRefreshService;
 
   @MockitoBean
-  private CandleRefreshAllPublisher refreshAllPublisher;
+  private AssetPriceBatchUpdater priceBatchUpdater;
 
   @MockitoBean
   private SymbolCollector symbolCollector;
@@ -111,8 +97,8 @@ class AdminMarketControllerWebTest {
   // 실행기가 받은 일을 요청 안에서 바로 실행
   @BeforeEach
   void runJobsInline() {
-    given(jobRunner.submit(any())).willAnswer(invocation -> {
-      invocation.<Runnable>getArgument(0).run();
+    given(jobRunner.submit(any(), any())).willAnswer(invocation -> {
+      invocation.<Runnable>getArgument(1).run();
       return true;
     });
   }
@@ -310,25 +296,21 @@ class AdminMarketControllerWebTest {
     }
 
     @Test
-    @DisplayName("전체 시총 · 전체 캔들 · 신규 종목 수집은 바로 200 을 주고 뒤에서 돈다. 캔들은 한 종목이 실패해도 다음 종목으로 간다")
+    @DisplayName("전체 시총 · 전체 캔들 · 신규 종목 수집은 바로 200 을 주고 뒤에서 돈다")
     void backgroundJobs() throws Exception {
-      given(assetService.getAllAssets()).willReturn(List.of(asset("EMPTY", true), asset("BOOM", true), asset("AAPL", true)));
-      willThrow(new MarketDataException(MarketDataResponse.PRICE_DATA_NOT_FOUND)).given(assetService).updateAssetPrice("EMPTY");
-      willThrow(new RuntimeException("boom")).given(assetService).updateAssetPrice("BOOM");
-
       asAdmin(post(BASE + "/update/market-cap")).andExpect(status().isOk());
       asAdmin(post(BASE + "/update/candles")).andExpect(status().isOk());
       asAdmin(post(BASE + "/update/symbols")).andExpect(status().isOk());
 
       verify(assetService, timeout(2000)).updateAllMarketCaps();
-      verify(assetService, timeout(2000)).updateAssetPrice("AAPL");
+      verify(priceBatchUpdater, timeout(2000)).updateAllPrices();
       verify(symbolCollector, timeout(2000)).collectNewlyListedDaily();
     }
 
     @Test
     @DisplayName("전체 갱신이 이미 돌고 하나가 기다리면 세 버튼 모두 409 와 안내를 준다")
     void busy() throws Exception {
-      willReturn(false).given(jobRunner).submit(any());
+      willReturn(false).given(jobRunner).submit(any(), any());
 
       for (String path : List.of("/update/market-cap", "/update/candles", "/update/symbols")) {
         asAdmin(post(BASE + path)).andExpect(status().isConflict())
@@ -368,40 +350,40 @@ class AdminMarketControllerWebTest {
     }
 
     @Test
-    @DisplayName("재수집은 대문자로 바꿔 찾고, 활성 종목만 배당까지 발행하며 없는 종목은 따로 알려 준다")
+    @DisplayName("재수집은 요청 종목 · 시작일을 서비스에 넘기고 결과를 그대로 준다")
     void refresh() throws Exception {
-      Asset aapl = asset("AAPL", true);
-      given(assetRepository.findById("AAPL")).willReturn(Optional.of(aapl));
-      given(assetRepository.findById("DEAD")).willReturn(Optional.of(asset("DEAD", false)));
-      given(assetRepository.findById("GONE")).willReturn(Optional.empty());
       LocalDate today = LocalDate.now(ZoneId.of("America/New_York"));
+      given(candleRefreshService.refresh(List.of(" aapl ", "DEAD", "gone"), LocalDate.of(2020, 1, 1)))
+        .willReturn(new CandleRefreshService.RefreshResult(3, 1, List.of("GONE"), LocalDate.of(2020, 1, 1), today));
 
       asAdminJson(post(BASE + "/candles/refresh"), "{\"symbols\":[\" aapl \",\"DEAD\",\"gone\"],\"from\":\"2020-01-01\"}")
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.requested").value(3))
         .andExpect(jsonPath("$.published").value(1))
         .andExpect(jsonPath("$.notFound[0]").value("GONE"))
-        .andExpect(jsonPath("$.from").value("2020-01-01"));
+        .andExpect(jsonPath("$.from").value("2020-01-01"))
+        .andExpect(jsonPath("$.to").value(today.toString()));
 
-      verify(assetEventProducer).publishAssetCreated(aapl, true, LocalDate.of(2020, 1, 1), today, true);
-      verify(assetEventProducer, never()).publishAssetCreated(argThat(a -> a.getSymbol().equals("DEAD")), anyBoolean(), any(), any(), anyBoolean());
+      verify(candleRefreshService).refresh(List.of(" aapl ", "DEAD", "gone"), LocalDate.of(2020, 1, 1));
     }
 
     @Test
-    @DisplayName("재수집 시작일을 주지 않으면 1970-01-01, 종목이 없으면 아무것도 발행하지 않는다")
+    @DisplayName("재수집 본문이 비면 종목 · 시작일 없이 넘기고 서비스가 준 기본값을 돌려준다")
     void refreshDefaults() throws Exception {
+      given(candleRefreshService.refresh(null, null))
+        .willReturn(new CandleRefreshService.RefreshResult(0, 0, List.of(), LocalDate.of(1970, 1, 1), LocalDate.of(2026, 10, 20)));
       asAdminJson(post(BASE + "/candles/refresh"), "{}")
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.requested").value(0))
         .andExpect(jsonPath("$.from").value("1970-01-01"));
 
-      verify(assetEventProducer, never()).publishAssetCreated(any(), anyBoolean(), any(), any(), anyBoolean());
+      verify(candleRefreshService).refresh(null, null);
     }
 
     @Test
     @DisplayName("전체 재수집 기록을 조회하면 마지막 실행 시각과 건수를, 기록이 없으면 빈 값을 준다")
     void lastRefreshAll() throws Exception {
-      given(adminJobRunRepository.findById("candle-refresh-all"))
+      given(candleRefreshService.lastRefreshAll())
         .willReturn(Optional.of(new AdminJobRun("candle-refresh-all", LocalDateTime.of(2026, 10, 1, 9, 0), 10432)), Optional.empty());
 
       asAdmin(get(BASE + "/candles/refresh-all")).andExpect(status().isOk())
@@ -412,16 +394,16 @@ class AdminMarketControllerWebTest {
     }
 
     @Test
-    @DisplayName("전체 재수집은 활성 종목 수를 기록하고 발행을 넘긴 뒤 바로 돌려준다")
+    @DisplayName("전체 재수집은 서비스가 남긴 기록을 돌려준다")
     void refreshAll() throws Exception {
-      List<Asset> active = List.of(asset("AAPL", true), asset("MSFT", true));
-      given(assetRepository.findByActiveTrue()).willReturn(active);
-      given(adminJobRunRepository.save(any())).willAnswer(invocation -> invocation.getArgument(0));
+      given(candleRefreshService.refreshAll())
+        .willReturn(new AdminJobRun("candle-refresh-all", LocalDateTime.of(2026, 10, 1, 9, 0), 2));
 
       asAdmin(post(BASE + "/candles/refresh-all")).andExpect(status().isOk())
-        .andExpect(jsonPath("$.published").value(2));
+        .andExpect(jsonPath("$.published").value(2))
+        .andExpect(jsonPath("$.lastRunAt").value("2026-10-01T09:00:00"));
 
-      verify(refreshAllPublisher).publish(eq(active), eq(LocalDate.of(1970, 1, 1)), any());
+      verify(candleRefreshService).refreshAll();
     }
   }
 }
