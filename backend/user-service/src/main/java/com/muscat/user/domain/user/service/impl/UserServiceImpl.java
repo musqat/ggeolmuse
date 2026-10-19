@@ -57,6 +57,8 @@ public class UserServiceImpl implements UserService {
 
   // 비밀번호 없는 사용자(구글)는 이 시간 안에 로그인한 토큰이어야 탈퇴할 수 있다. 훔친 access token 만으로는 못 지운다
   private static final Duration REAUTH_WINDOW = Duration.ofMinutes(5);
+  // 관리자 권한을 정하는 Keycloak realm role
+  private static final String ADMIN_REALM_ROLE = "admin";
 
   @Value("${app.mail.verification.expiry-hours:24}")
   private int expiryHours;
@@ -225,40 +227,57 @@ public class UserServiceImpl implements UserService {
   }
 
   @Override
-  public User getProfile(String email) {
-    return userRepository.findByEmail(email)
-      .orElseThrow(() -> new UserException(UserResponse.USER_NOT_FOUND));
+  public User getOrCreateProfile(String keycloakId, String email, String nickname) {
+    Optional<User> found = userRepository.findByKeycloakId(keycloakId);
+    if (found.isEmpty()) {
+      if (email == null || email.isBlank()) {
+        throw new UserException(UserResponse.USER_NOT_FOUND);
+      }
+      return createUserFromKeycloak(keycloakId, email, nickname);
+    }
+
+    User user = found.get();
+    if (email != null && !email.isBlank() && !email.equalsIgnoreCase(user.getEmail())) {
+      // 그 email 을 다른 사용자가 쓰면 바꾸지 않음
+      if (userRepository.existsByEmail(email)) {
+        log.warn("email 을 맞추지 못함 - 다른 사용자가 사용 중: keycloakId={}", keycloakId);
+      } else {
+        user.changeEmail(email);
+        userRepository.save(user);
+      }
+    }
+    return user;
   }
 
   @Override
-  public void deleteAccount(String email, String password, Instant authTime) {
-    User user = userRepository.findByEmailWithAccounts(email)
+  public void deleteAccount(String keycloakId, String password, Instant authTime) {
+    User user = userRepository.findByKeycloakIdWithAccounts(keycloakId)
       .orElseThrow(() -> new UserException(UserResponse.USER_NOT_FOUND));
 
     if (user.getPasswordHash() != null) {
       if (password == null || !passwordEncoder.matches(password, user.getPasswordHash())) {
-        log.warn("계정 삭제 실패 - 비밀번호 불일치: {}", email);
+        log.warn("계정 삭제 실패 - 비밀번호 불일치: keycloakId={}", keycloakId);
         throw new UserException(UserResponse.INVALID_PASSWORD);
       }
     } else if (authTime == null || authTime.isBefore(Instant.now().minus(REAUTH_WINDOW))) {
-      log.warn("계정 삭제 실패 - 다시 로그인 필요: {}", email);
+      log.warn("계정 삭제 실패 - 다시 로그인 필요: keycloakId={}", keycloakId);
       throw new UserException(UserResponse.REAUTH_REQUIRED);
     }
 
     removeUser(user);
 
-    log.info("계정 삭제 완료: {}", email);
+    log.info("계정 삭제 완료: keycloakId={}", keycloakId);
   }
 
   @Override
-  public void changePassword(String email, String currentPassword, String newPassword) {
-    User user = userRepository.findByEmail(email)
+  public void changePassword(String keycloakId, String currentPassword, String newPassword) {
+    User user = userRepository.findByKeycloakId(keycloakId)
       .orElseThrow(() -> new UserException(UserResponse.USER_NOT_FOUND));
 
     // 해시가 없는 소셜 사용자도 같은 응답. 401 은 프론트가 세션 만료로 처리하므로 400 을 준다
     if (user.getPasswordHash() == null
       || !passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
-      log.warn("비밀번호 변경 실패 - 현재 비밀번호 불일치: {}", email);
+      log.warn("비밀번호 변경 실패 - 현재 비밀번호 불일치: keycloakId={}", keycloakId);
       throw new UserException(UserResponse.INVALID_PASSWORD);
     }
 
@@ -266,7 +285,7 @@ public class UserServiceImpl implements UserService {
     try {
       keycloakService.resetPassword(user.getKeycloakId(), newPassword);
     } catch (Exception e) {
-      log.error("Keycloak 비밀번호 변경 실패: {}", email, e);
+      log.error("Keycloak 비밀번호 변경 실패: keycloakId={}", keycloakId, e);
       throw new UserException(UserResponse.PASSWORD_CHANGE_FAILED);
     }
 
@@ -276,10 +295,10 @@ public class UserServiceImpl implements UserService {
 
 
   @Override
-  public User updateProfile(String email, UpdateProfileRequestDto request) {
-    User user = userRepository.findByEmail(email)
+  public User updateProfile(String keycloakId, UpdateProfileRequestDto request) {
+    User user = userRepository.findByKeycloakId(keycloakId)
       .orElseThrow(() -> {
-        log.warn("프로필 수정 실패 - 사용자 없음: {}", email);
+        log.warn("프로필 수정 실패 - 사용자 없음: keycloakId={}", keycloakId);
         return new UserException(UserResponse.USER_NOT_FOUND);
       });
 
@@ -293,7 +312,7 @@ public class UserServiceImpl implements UserService {
     }
 
     User updatedUser = userRepository.save(user);
-    log.debug("프로필 수정 완료: {}", email);
+    log.debug("프로필 수정 완료: keycloakId={}", keycloakId);
 
     return updatedUser;
   }
@@ -411,13 +430,11 @@ public class UserServiceImpl implements UserService {
     accountRepository.deleteAll(accounts);
     log.debug("사용자 계좌 삭제: userId={}, 계좌수={}", user.getId(), accounts.size());
 
-    if (user.getKeycloakId() != null) {
-      try {
-        keycloakService.deleteUser(user.getKeycloakId());
-        log.info("Keycloak 사용자 삭제 완료: {}", user.getKeycloakId());
-      } catch (Exception e) {
-        log.warn("Keycloak 사용자 삭제 실패하지만 로컬 계정 삭제 진행: {}", e.getMessage());
-      }
+    try {
+      keycloakService.deleteUser(user.getKeycloakId());
+      log.info("Keycloak 사용자 삭제 완료: {}", user.getKeycloakId());
+    } catch (Exception e) {
+      log.warn("Keycloak 사용자 삭제 실패하지만 로컬 계정 삭제 진행: {}", e.getMessage());
     }
 
     userRepository.delete(user);
@@ -482,11 +499,21 @@ public class UserServiceImpl implements UserService {
   }
 
   @Override
-  public User updateUserRole(Long userId, UserRole role) {
+  public User updateUserRole(Long userId, UserRole role, String actorKeycloakId) {
     User user = findById(userId);
+    if (user.getKeycloakId().equals(actorKeycloakId)) {
+      throw new UserException(UserResponse.CANNOT_CHANGE_OWN_ROLE);
+    }
 
     log.info("사용자 역할 변경: userId={}, oldRole={}, newRole={}",
       userId, user.getRole(), role);
+
+    if (role == UserRole.ADMIN) {
+      keycloakService.assignRealmRole(user.getKeycloakId(), ADMIN_REALM_ROLE);
+    } else {
+      keycloakService.removeRealmRole(user.getKeycloakId(), ADMIN_REALM_ROLE);
+      keycloakService.logoutUserSessions(user.getKeycloakId());
+    }
 
     user.changeRole(role);
     return userRepository.save(user);
@@ -500,13 +527,11 @@ public class UserServiceImpl implements UserService {
       userId, user.isEnabled(), enabled);
 
     // Keycloak 도 꺼야 이미 받은 refresh token 으로 새 토큰을 못 받는다
-    if (user.getKeycloakId() != null) {
-      try {
-        keycloakService.setEnabled(user.getKeycloakId(), enabled);
-      } catch (Exception e) {
-        log.error("Keycloak 활성화 상태 변경 실패: userId={}", userId, e);
-        throw new UserException(UserResponse.INTERNAL_SERVER_ERROR);
-      }
+    try {
+      keycloakService.setEnabled(user.getKeycloakId(), enabled);
+    } catch (Exception e) {
+      log.error("Keycloak 활성화 상태 변경 실패: userId={}", userId, e);
+      throw new UserException(UserResponse.INTERNAL_SERVER_ERROR);
     }
 
     user.changeEnabledStatus(enabled);

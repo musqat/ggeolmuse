@@ -1,6 +1,7 @@
 package com.muscat.user.domain.user.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.muscat.user.domain.account.entity.Account;
 import com.muscat.user.domain.account.repository.AccountRepository;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.ActiveProfiles;
 
 // 트랜잭션 없이 부른다. fetch join 이 빠지면 지연 로딩한 연관을 읽을 때 오류가 나 테스트가 실패한다
@@ -78,17 +80,33 @@ class UserQueryRepositoryIntegrationTest {
   }
 
   @Test
-  @DisplayName("이메일로 사용자를 계좌와 함께 찾는다. 계좌가 없어도 사용자는 나온다")
+  @DisplayName("Keycloak ID 로 사용자를 계좌와 함께 찾는다. 계좌가 없어도 사용자는 나온다")
   void userWithAccounts() {
-    assertThat(userRepository.findByEmailWithAccounts("query@example.com"))
+    assertThat(userRepository.findByKeycloakIdWithAccounts("kc-query"))
       .hasValueSatisfying(found -> assertThat(found.getAccounts()).isEmpty());
 
     accountRepository.save(Account.builder().user(user).accountNumber("ACC0000000000101").accountName("하나").build());
     accountRepository.save(Account.builder().user(user).accountNumber("ACC0000000000102").accountName("둘").build());
 
-    assertThat(userRepository.findByEmailWithAccounts("query@example.com"))
+    assertThat(userRepository.findByKeycloakIdWithAccounts("kc-query"))
       .hasValueSatisfying(found -> assertThat(found.getAccounts()).extracting(Account::getAccountName)
         .containsExactlyInAnyOrder("하나", "둘"));
-    assertThat(userRepository.findByEmailWithAccounts("none@example.com")).isEmpty();
+    assertThat(userRepository.findByKeycloakIdWithAccounts("kc-none")).isEmpty();
+  }
+
+  @Test
+  @DisplayName("같은 Keycloak ID 로 다른 사용자를 저장하면 막는다")
+  void save_DuplicateKeycloakId_Rejected() {
+    assertThatThrownBy(() -> userRepository.saveAndFlush(
+      User.builder().email("other@example.com").nickname("다른").keycloakId("kc-query").build()))
+      .isInstanceOf(DataIntegrityViolationException.class);
+  }
+
+  @Test
+  @DisplayName("Keycloak ID 없는 사용자는 저장하지 않는다")
+  void save_NullKeycloakId_Rejected() {
+    assertThatThrownBy(() -> userRepository.saveAndFlush(
+      User.builder().email("nokc@example.com").nickname("없음").build()))
+      .isInstanceOf(DataIntegrityViolationException.class);
   }
 }

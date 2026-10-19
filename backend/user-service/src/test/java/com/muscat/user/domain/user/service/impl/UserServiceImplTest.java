@@ -8,10 +8,13 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willDoNothing;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.muscat.user.common.enums.responses.KeycloakResponse;
 import com.muscat.user.common.enums.responses.UserResponse;
@@ -47,6 +50,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
@@ -410,36 +414,111 @@ class UserServiceImplTest {
   }
 
   @Nested
-  @DisplayName("프로필 조회 테스트")
-  class GetProfileTests {
+  @DisplayName("내 프로필 찾기 · 만들기")
+  class GetOrCreateProfileTests {
+
+    private static final String NEW_EMAIL = "new@example.com";
 
     @Test
-    @DisplayName("정상적으로 프로필을 조회한다")
-    void getProfile_Success() {
-      // given
-      given(userRepository.findByEmail(testEmail)).willReturn(Optional.of(testUser));
+    @DisplayName("Keycloak ID 로 찾은 사용자를 돌려주고, email 이 같으면 저장하지 않는다")
+    void getOrCreateProfile_Existing_ReturnsUser() {
+      given(userRepository.findByKeycloakId(keycloakId)).willReturn(Optional.of(testUser));
 
-      // when
-      User result = userService.getProfile(testEmail);
+      User result = userService.getOrCreateProfile(keycloakId, testEmail, testNickname);
 
-      // then
-      assertThat(result).isNotNull();
-      assertThat(result.getEmail()).isEqualTo(testEmail);
-      assertThat(result.getNickname()).isEqualTo(testNickname);
-      verify(userRepository).findByEmail(testEmail);
+      assertThat(result).isSameAs(testUser);
+      verify(userRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("존재하지 않는 사용자면 예외가 발생한다")
-    void getProfile_UserNotFound_ThrowsException() {
-      // given
-      given(userRepository.findByEmail(testEmail)).willReturn(Optional.empty());
+    @DisplayName("Keycloak ID 로 없으면 토큰 정보로 만든다")
+    void getOrCreateProfile_Missing_CreatesFromToken() {
+      User created = User.builder().id(2L).keycloakId(keycloakId).email(testEmail).nickname(testNickname).build();
+      given(userRepository.findByKeycloakId(keycloakId)).willReturn(Optional.empty());
+      given(userRepository.existsByEmail(testEmail)).willReturn(false);
+      given(userMapper.createLocalUser(testEmail, testNickname, keycloakId)).willReturn(created);
+      given(userRepository.save(created)).willReturn(created);
 
-      // when & then
-      assertThatThrownBy(() ->
-        userService.getProfile(testEmail)
-      ).isInstanceOf(UserException.class)
+      User result = userService.getOrCreateProfile(keycloakId, testEmail, testNickname);
+
+      assertThat(result.getKeycloakId()).isEqualTo(keycloakId);
+      assertThat(result.getEmail()).isEqualTo(testEmail);
+      assertThat(result.getNickname()).isEqualTo(testNickname);
+      verify(userRepository).save(created);
+    }
+
+    @Test
+    @DisplayName("Keycloak 에서 email 이 바뀌었으면 새 행을 만들지 않고 DB email 을 토큰 값으로 바꾼다")
+    void getOrCreateProfile_EmailChanged_UpdatesEmail() {
+      given(userRepository.findByKeycloakId(keycloakId)).willReturn(Optional.of(testUser));
+      given(userRepository.existsByEmail(NEW_EMAIL)).willReturn(false);
+      given(userRepository.save(testUser)).willReturn(testUser);
+
+      User result = userService.getOrCreateProfile(keycloakId, NEW_EMAIL, testNickname);
+
+      assertThat(result.getEmail()).isEqualTo(NEW_EMAIL);
+      verify(userRepository).save(testUser);
+      verify(userMapper, never()).createLocalUser(anyString(), anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("토큰 email 을 다른 사용자가 쓰고 있으면 바꾸지 않고 그대로 돌려준다")
+    void getOrCreateProfile_EmailTakenByOther_KeepsEmail() {
+      given(userRepository.findByKeycloakId(keycloakId)).willReturn(Optional.of(testUser));
+      given(userRepository.existsByEmail(NEW_EMAIL)).willReturn(true);
+
+      User result = userService.getOrCreateProfile(keycloakId, NEW_EMAIL, testNickname);
+
+      assertThat(result.getEmail()).isEqualTo(testEmail);
+      verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("대소문자만 다르면 같은 email 로 보고 바꾸지 않는다")
+    void getOrCreateProfile_CaseOnlyDifference_KeepsEmail() {
+      testUser.changeEmail("Test@Example.com");
+      given(userRepository.findByKeycloakId(keycloakId)).willReturn(Optional.of(testUser));
+
+      User result = userService.getOrCreateProfile(keycloakId, "test@example.com", testNickname);
+
+      assertThat(result.getEmail()).isEqualTo("Test@Example.com");
+      verify(userRepository, never()).existsByEmail(anyString());
+      verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("토큰에 email 이 없으면 찾은 사용자를 그대로 돌려준다")
+    void getOrCreateProfile_NoEmailClaim_ReturnsExisting() {
+      given(userRepository.findByKeycloakId(keycloakId)).willReturn(Optional.of(testUser));
+
+      User result = userService.getOrCreateProfile(keycloakId, null, null);
+
+      assertThat(result).isSameAs(testUser);
+      verify(userRepository, never()).existsByEmail(anyString());
+      verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Keycloak ID 로 없고 토큰에 email 도 없으면 사용자 없음이다")
+    void getOrCreateProfile_MissingWithoutEmail_NotFound() {
+      given(userRepository.findByKeycloakId(keycloakId)).willReturn(Optional.empty());
+
+      assertThatThrownBy(() -> userService.getOrCreateProfile(keycloakId, null, null))
+        .isInstanceOf(UserException.class)
         .hasMessage(UserResponse.USER_NOT_FOUND.getMessage());
+      verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Keycloak ID 로 없고 그 email 을 다른 사용자가 쓰면 잇지 않고 중복으로 막는다")
+    void getOrCreateProfile_MissingEmailTakenByOther_Conflict() {
+      given(userRepository.findByKeycloakId(keycloakId)).willReturn(Optional.empty());
+      given(userRepository.existsByEmail(testEmail)).willReturn(true);
+
+      assertThatThrownBy(() -> userService.getOrCreateProfile(keycloakId, testEmail, testNickname))
+        .isInstanceOf(UserException.class)
+        .hasMessage(UserResponse.EMAIL_ALREADY_EXISTS.getMessage());
+      verify(userRepository, never()).save(any());
     }
   }
 
@@ -454,13 +533,13 @@ class UserServiceImplTest {
       testUser.setPasswordHash("$2a$10$encodedPassword");
       testUser.setAccounts(new ArrayList<>());
 
-      given(userRepository.findByEmailWithAccounts(testEmail)).willReturn(Optional.of(testUser));
+      given(userRepository.findByKeycloakIdWithAccounts(keycloakId)).willReturn(Optional.of(testUser));
       given(passwordEncoder.matches(testPassword, testUser.getPasswordHash())).willReturn(true);
       given(accountRepository.findByUserIdWithUser(testUser.getId())).willReturn(new ArrayList<>());
       doNothing().when(keycloakService).deleteUser(keycloakId);
 
       // when
-      userService.deleteAccount(testEmail, testPassword, null);
+      userService.deleteAccount(keycloakId, testPassword, null);
 
       // then
       verify(emailTokenRepository).deleteByUser(testUser);
@@ -475,12 +554,12 @@ class UserServiceImplTest {
       String wrongPassword = "wrongPassword";
       testUser.setPasswordHash("$2a$10$encodedPassword");
 
-      given(userRepository.findByEmailWithAccounts(testEmail)).willReturn(Optional.of(testUser));
+      given(userRepository.findByKeycloakIdWithAccounts(keycloakId)).willReturn(Optional.of(testUser));
       given(passwordEncoder.matches(wrongPassword, testUser.getPasswordHash())).willReturn(false);
 
       // when & then
       assertThatThrownBy(() ->
-        userService.deleteAccount(testEmail, wrongPassword, null)
+        userService.deleteAccount(keycloakId, wrongPassword, null)
       ).isInstanceOf(UserException.class)
         .hasMessage(UserResponse.INVALID_PASSWORD.getMessage());
 
@@ -492,11 +571,11 @@ class UserServiceImplTest {
     void deleteAccount_WithBalance_DeletesAndPublishesPerAccount() {
       Account first = Account.builder().id(1L).user(testUser).balanceKrw(new BigDecimal("1000000")).balanceUsd(BigDecimal.ZERO).build();
       Account second = Account.builder().id(2L).user(testUser).balanceKrw(BigDecimal.ZERO).balanceUsd(new BigDecimal("12.5")).build();
-      given(userRepository.findByEmailWithAccounts(testEmail)).willReturn(Optional.of(testUser));
+      given(userRepository.findByKeycloakIdWithAccounts(keycloakId)).willReturn(Optional.of(testUser));
       given(passwordEncoder.matches(testPassword, testUser.getPasswordHash())).willReturn(true);
       given(accountRepository.findByUserIdWithUser(testUser.getId())).willReturn(Arrays.asList(first, second));
 
-      userService.deleteAccount(testEmail, testPassword, null);
+      userService.deleteAccount(keycloakId, testPassword, null);
 
       verify(accountEventProducer).publishAccountDeleted(first, "회원 탈퇴");
       verify(accountEventProducer).publishAccountDeleted(second, "회원 탈퇴");
@@ -508,9 +587,9 @@ class UserServiceImplTest {
     @Test
     @DisplayName("비밀번호가 있는 사용자가 비밀번호 없이 보내면 거절한다")
     void deleteAccount_PasswordUserWithoutPassword_Rejected() {
-      given(userRepository.findByEmailWithAccounts(testEmail)).willReturn(Optional.of(testUser));
+      given(userRepository.findByKeycloakIdWithAccounts(keycloakId)).willReturn(Optional.of(testUser));
 
-      assertThatThrownBy(() -> userService.deleteAccount(testEmail, null, Instant.now()))
+      assertThatThrownBy(() -> userService.deleteAccount(keycloakId, null, Instant.now()))
         .isInstanceOf(UserException.class)
         .hasMessage(UserResponse.INVALID_PASSWORD.getMessage());
       verify(userRepository, never()).delete(any(User.class));
@@ -520,10 +599,10 @@ class UserServiceImplTest {
     @DisplayName("비밀번호 없는 사용자(구글)는 방금 로그인한 토큰이면 지운다")
     void deleteAccount_SocialUserRecentLogin_Deletes() {
       testUser.setPasswordHash(null);
-      given(userRepository.findByEmailWithAccounts(testEmail)).willReturn(Optional.of(testUser));
+      given(userRepository.findByKeycloakIdWithAccounts(keycloakId)).willReturn(Optional.of(testUser));
       given(accountRepository.findByUserIdWithUser(testUser.getId())).willReturn(new ArrayList<>());
 
-      userService.deleteAccount(testEmail, null, Instant.now().minus(Duration.ofMinutes(1)));
+      userService.deleteAccount(keycloakId, null, Instant.now().minus(Duration.ofMinutes(1)));
 
       verify(userRepository).delete(testUser);
     }
@@ -532,10 +611,10 @@ class UserServiceImplTest {
     @DisplayName("비밀번호 없는 사용자(구글)는 로그인한 지 오래됐거나 시각이 없으면 다시 로그인하라고 한다")
     void deleteAccount_SocialUserStaleLogin_RequiresReauth() {
       testUser.setPasswordHash(null);
-      given(userRepository.findByEmailWithAccounts(testEmail)).willReturn(Optional.of(testUser));
+      given(userRepository.findByKeycloakIdWithAccounts(keycloakId)).willReturn(Optional.of(testUser));
 
       for (Instant authTime : Arrays.asList(Instant.now().minus(Duration.ofMinutes(6)), null)) {
-        assertThatThrownBy(() -> userService.deleteAccount(testEmail, null, authTime))
+        assertThatThrownBy(() -> userService.deleteAccount(keycloakId, null, authTime))
           .isInstanceOf(UserException.class)
           .hasMessage(UserResponse.REAUTH_REQUIRED.getMessage());
       }
@@ -549,36 +628,16 @@ class UserServiceImplTest {
       testUser.setPasswordHash("$2a$10$encodedPassword");
       testUser.setAccounts(new ArrayList<>());
 
-      given(userRepository.findByEmailWithAccounts(testEmail)).willReturn(Optional.of(testUser));
+      given(userRepository.findByKeycloakIdWithAccounts(keycloakId)).willReturn(Optional.of(testUser));
       given(passwordEncoder.matches(testPassword, testUser.getPasswordHash())).willReturn(true);
       given(accountRepository.findByUserIdWithUser(testUser.getId())).willReturn(new ArrayList<>());
       doThrow(new RuntimeException("Keycloak unavailable"))
         .when(keycloakService).deleteUser(keycloakId);
 
       // when
-      userService.deleteAccount(testEmail, testPassword, null);
+      userService.deleteAccount(keycloakId, testPassword, null);
 
       // then
-      verify(userRepository).delete(testUser);
-    }
-
-    @Test
-    @DisplayName("Keycloak ID가 없어도 로컬 계정은 삭제된다")
-    void deleteAccount_NoKeycloakId_StillDeletesLocal() {
-      // given
-      testUser.setPasswordHash("$2a$10$encodedPassword");
-      testUser.setKeycloakId(null);
-      testUser.setAccounts(new ArrayList<>());
-
-      given(userRepository.findByEmailWithAccounts(testEmail)).willReturn(Optional.of(testUser));
-      given(passwordEncoder.matches(testPassword, testUser.getPasswordHash())).willReturn(true);
-      given(accountRepository.findByUserIdWithUser(testUser.getId())).willReturn(new ArrayList<>());
-
-      // when
-      userService.deleteAccount(testEmail, testPassword, null);
-
-      // then
-      verify(keycloakService, never()).deleteUser(anyString());
       verify(userRepository).delete(testUser);
     }
   }
@@ -595,12 +654,12 @@ class UserServiceImplTest {
       UpdateProfileRequestDto request = new UpdateProfileRequestDto();
       request.setNickname(newNickname);
 
-      given(userRepository.findByEmail(testEmail)).willReturn(Optional.of(testUser));
+      given(userRepository.findByKeycloakId(keycloakId)).willReturn(Optional.of(testUser));
       given(userRepository.existsByNickname(newNickname)).willReturn(false);
       given(userRepository.save(testUser)).willReturn(testUser);
 
       // when
-      User result = userService.updateProfile(testEmail, request);
+      User result = userService.updateProfile(keycloakId, request);
 
       // then
       assertThat(result.getNickname()).isEqualTo(newNickname);
@@ -615,12 +674,12 @@ class UserServiceImplTest {
       UpdateProfileRequestDto request = new UpdateProfileRequestDto();
       request.setNickname(duplicateNickname);
 
-      given(userRepository.findByEmail(testEmail)).willReturn(Optional.of(testUser));
+      given(userRepository.findByKeycloakId(keycloakId)).willReturn(Optional.of(testUser));
       given(userRepository.existsByNickname(duplicateNickname)).willReturn(true);
 
       // when & then
       assertThatThrownBy(() ->
-        userService.updateProfile(testEmail, request)
+        userService.updateProfile(keycloakId, request)
       ).isInstanceOf(UserException.class)
         .hasMessage(UserResponse.NICKNAME_ALREADY_EXISTS.getMessage());
 
@@ -634,12 +693,12 @@ class UserServiceImplTest {
       UpdateProfileRequestDto request = new UpdateProfileRequestDto();
       request.setNickname(testNickname); // Same as current
 
-      given(userRepository.findByEmail(testEmail)).willReturn(Optional.of(testUser));
+      given(userRepository.findByKeycloakId(keycloakId)).willReturn(Optional.of(testUser));
       given(userRepository.existsByNickname(testNickname)).willReturn(true);
       given(userRepository.save(testUser)).willReturn(testUser);
 
       // when
-      User result = userService.updateProfile(testEmail, request);
+      User result = userService.updateProfile(keycloakId, request);
 
       // then
       assertThat(result.getNickname()).isEqualTo(testNickname);
@@ -653,11 +712,11 @@ class UserServiceImplTest {
       UpdateProfileRequestDto request = new UpdateProfileRequestDto();
       request.setNickname(null);
 
-      given(userRepository.findByEmail(testEmail)).willReturn(Optional.of(testUser));
+      given(userRepository.findByKeycloakId(keycloakId)).willReturn(Optional.of(testUser));
       given(userRepository.save(testUser)).willReturn(testUser);
 
       // when
-      User result = userService.updateProfile(testEmail, request);
+      User result = userService.updateProfile(keycloakId, request);
 
       // then
       assertThat(result.getNickname()).isEqualTo(testNickname);
@@ -857,21 +916,72 @@ class UserServiceImplTest {
     }
 
     @Test
-    @DisplayName("사용자 역할을 변경한다")
-    void updateUserRole_Success() {
-      // given
-      Long userId = 1L;
-      UserRole newRole = UserRole.ADMIN;
-
-      given(userRepository.findById(userId)).willReturn(Optional.of(testUser));
+    @DisplayName("관리자로 승격하면 Keycloak admin 역할을 부여한 뒤 저장한다")
+    void updateUserRole_Promote_AssignsThenSaves() {
+      given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
       given(userRepository.save(testUser)).willReturn(testUser);
 
-      // when
-      User result = userService.updateUserRole(userId, newRole);
+      User result = userService.updateUserRole(1L, UserRole.ADMIN, "kc-admin");
 
-      // then
       assertThat(result.getRole()).isEqualTo(UserRole.ADMIN);
-      verify(userRepository).save(testUser);
+      InOrder order = inOrder(keycloakService, userRepository);
+      order.verify(keycloakService).assignRealmRole(keycloakId, "admin");
+      order.verify(userRepository).save(testUser);
+    }
+
+    @Test
+    @DisplayName("사용자로 강등하면 admin 역할을 해제하고 세션을 종료한 뒤 저장한다")
+    void updateUserRole_Demote_RemovesLogsOutThenSaves() {
+      testUser.changeRole(UserRole.ADMIN);
+      given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
+      given(userRepository.save(testUser)).willReturn(testUser);
+
+      User result = userService.updateUserRole(1L, UserRole.USER, "kc-admin");
+
+      assertThat(result.getRole()).isEqualTo(UserRole.USER);
+      InOrder order = inOrder(keycloakService, userRepository);
+      order.verify(keycloakService).removeRealmRole(keycloakId, "admin");
+      order.verify(keycloakService).logoutUserSessions(keycloakId);
+      order.verify(userRepository).save(testUser);
+    }
+
+    @Test
+    @DisplayName("Keycloak 역할 해제 실패 시 DB 역할을 바꾸지 않는다")
+    void updateUserRole_KeycloakFails_KeepsRole() {
+      testUser.changeRole(UserRole.ADMIN);
+      given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
+      willThrow(new KeycloakException(KeycloakResponse.API_ERROR)).given(keycloakService).removeRealmRole(keycloakId, "admin");
+
+      assertThatThrownBy(() -> userService.updateUserRole(1L, UserRole.USER, "kc-admin"))
+        .isInstanceOf(KeycloakException.class);
+      assertThat(testUser.getRole()).isEqualTo(UserRole.ADMIN);
+      verify(keycloakService, never()).logoutUserSessions(anyString());
+      verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("세션 종료 실패 시 DB 역할을 바꾸지 않는다")
+    void updateUserRole_LogoutFails_KeepsRole() {
+      testUser.changeRole(UserRole.ADMIN);
+      given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
+      willThrow(new KeycloakException(KeycloakResponse.API_ERROR)).given(keycloakService).logoutUserSessions(keycloakId);
+
+      assertThatThrownBy(() -> userService.updateUserRole(1L, UserRole.USER, "kc-admin"))
+        .isInstanceOf(KeycloakException.class);
+      assertThat(testUser.getRole()).isEqualTo(UserRole.ADMIN);
+      verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("관리자는 자기 역할을 바꿀 수 없다")
+    void updateUserRole_Self_Rejected() {
+      given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
+
+      assertThatThrownBy(() -> userService.updateUserRole(1L, UserRole.USER, keycloakId))
+        .isInstanceOf(UserException.class)
+        .hasMessage(UserResponse.CANNOT_CHANGE_OWN_ROLE.getMessage());
+      verifyNoInteractions(keycloakService);
+      verify(userRepository, never()).save(any());
     }
 
     @Test
@@ -905,19 +1015,6 @@ class UserServiceImplTest {
 
       assertThat(testUser.isEnabled()).isTrue();
       verify(userRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("Keycloak id 가 없는 사용자는 로컬만 바꾼다")
-    void updateUserEnabled_NoKeycloakId_LocalOnly() {
-      testUser.setKeycloakId(null);
-      given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
-      given(userRepository.save(testUser)).willReturn(testUser);
-
-      userService.updateUserEnabled(1L, false);
-
-      verify(keycloakService, never()).setEnabled(any(), anyBoolean());
-      assertThat(testUser.isEnabled()).isFalse();
     }
 
     @Test
@@ -1104,11 +1201,11 @@ class UserServiceImplTest {
     @Test
     @DisplayName("현재 비밀번호가 맞으면 Keycloak 과 로컬 해시를 같이 바꾼다")
     void changePassword_UpdatesKeycloakAndLocalHash() {
-      given(userRepository.findByEmail(testEmail)).willReturn(Optional.of(testUser));
+      given(userRepository.findByKeycloakId(keycloakId)).willReturn(Optional.of(testUser));
       given(passwordEncoder.matches(testPassword, "$2a$10$encodedPassword")).willReturn(true);
       given(passwordEncoder.encode("newPassw0rd!")).willReturn("$2a$10$encodedNewPassword");
 
-      userService.changePassword(testEmail, testPassword, "newPassw0rd!");
+      userService.changePassword(keycloakId, testPassword, "newPassw0rd!");
 
       verify(keycloakService).resetPassword(keycloakId, "newPassw0rd!");
       assertThat(testUser.getPasswordHash()).isEqualTo("$2a$10$encodedNewPassword");
@@ -1118,10 +1215,10 @@ class UserServiceImplTest {
     @Test
     @DisplayName("현재 비밀번호가 틀리면 400 으로 막고 아무것도 바꾸지 않는다")
     void changePassword_WrongCurrent_Rejected() {
-      given(userRepository.findByEmail(testEmail)).willReturn(Optional.of(testUser));
+      given(userRepository.findByKeycloakId(keycloakId)).willReturn(Optional.of(testUser));
       given(passwordEncoder.matches("wrongPassword", "$2a$10$encodedPassword")).willReturn(false);
 
-      assertThatThrownBy(() -> userService.changePassword(testEmail, "wrongPassword", "newPassw0rd!"))
+      assertThatThrownBy(() -> userService.changePassword(keycloakId, "wrongPassword", "newPassw0rd!"))
         .isInstanceOf(UserException.class)
         .hasMessage(UserResponse.INVALID_PASSWORD.getMessage());
 
@@ -1133,9 +1230,9 @@ class UserServiceImplTest {
     @DisplayName("비밀번호가 없는 소셜 사용자는 대조 없이 같은 응답으로 막는다")
     void changePassword_SocialUser_Rejected() {
       testUser.setPasswordHash(null);
-      given(userRepository.findByEmail(testEmail)).willReturn(Optional.of(testUser));
+      given(userRepository.findByKeycloakId(keycloakId)).willReturn(Optional.of(testUser));
 
-      assertThatThrownBy(() -> userService.changePassword(testEmail, "anything", "newPassw0rd!"))
+      assertThatThrownBy(() -> userService.changePassword(keycloakId, "anything", "newPassw0rd!"))
         .isInstanceOf(UserException.class)
         .hasMessage(UserResponse.INVALID_PASSWORD.getMessage());
 
@@ -1146,11 +1243,11 @@ class UserServiceImplTest {
     @Test
     @DisplayName("Keycloak 변경이 실패하면 로컬 해시도 그대로 둔다")
     void changePassword_KeycloakFailure_KeepsLocalHash() {
-      given(userRepository.findByEmail(testEmail)).willReturn(Optional.of(testUser));
+      given(userRepository.findByKeycloakId(keycloakId)).willReturn(Optional.of(testUser));
       given(passwordEncoder.matches(testPassword, "$2a$10$encodedPassword")).willReturn(true);
       doThrow(new RuntimeException("keycloak down")).when(keycloakService).resetPassword(keycloakId, "newPassw0rd!");
 
-      assertThatThrownBy(() -> userService.changePassword(testEmail, testPassword, "newPassw0rd!"))
+      assertThatThrownBy(() -> userService.changePassword(keycloakId, testPassword, "newPassw0rd!"))
         .isInstanceOf(UserException.class)
         .hasMessage(UserResponse.PASSWORD_CHANGE_FAILED.getMessage());
 
@@ -1363,9 +1460,9 @@ class UserServiceImplTest {
     @Test
     @DisplayName("없는 사용자의 프로필은 고치지 않는다")
     void updateProfile_UserNotFound() {
-      given(userRepository.findByEmail(testEmail)).willReturn(Optional.empty());
+      given(userRepository.findByKeycloakId(keycloakId)).willReturn(Optional.empty());
 
-      assertThatThrownBy(() -> userService.updateProfile(testEmail, new UpdateProfileRequestDto()))
+      assertThatThrownBy(() -> userService.updateProfile(keycloakId, new UpdateProfileRequestDto()))
         .isInstanceOf(UserException.class)
         .hasMessage(UserResponse.USER_NOT_FOUND.getMessage());
       verify(userRepository, never()).save(any());

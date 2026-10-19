@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -14,8 +15,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.muscat.user.common.enums.responses.UserResponse;
 import com.muscat.user.common.enums.type.UserRole;
-import com.muscat.user.common.util.AuthorizationUtil;
+import com.muscat.user.common.exceptions.GlobalExceptionHandler;
+import com.muscat.user.common.exceptions.UserException;
+import com.muscat.user.common.util.AuthUtil;
+import com.muscat.user.config.security.AdminAccessConfig;
 import com.muscat.user.config.security.SecurityConfig;
 import com.muscat.user.domain.account.entity.Account;
 import com.muscat.user.domain.account.entity.DividendSettlement;
@@ -46,7 +51,8 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 // AccountControllerTest 와 같은 이유로 띄울 클래스를 직접 고른다. 관리자 경로는 실제 보안 설정이 admin 권한을 요구한다
 @WebMvcTest(AdminUserController.class)
-@ContextConfiguration(classes = {AdminUserController.class, SecurityConfig.class})
+@ContextConfiguration(classes = {AdminUserController.class, SecurityConfig.class, GlobalExceptionHandler.class,
+  AdminAccessConfig.class})
 @ActiveProfiles("test")
 @DisplayName("AdminUserController 요청 · 응답")
 class AdminUserControllerTest {
@@ -64,11 +70,11 @@ class AdminUserControllerTest {
   private AccountService accountService;
 
   @MockitoBean
-  private AuthorizationUtil authorizationUtil;
+  private AuthUtil authUtil;
 
   // Keycloak realm 역할 admin 이 권한 admin 으로 바뀐 토큰
   private static RequestPostProcessor admin() {
-    return jwt().authorities(new SimpleGrantedAuthority("admin"));
+    return jwt().jwt(j -> j.subject("kc-admin")).authorities(new SimpleGrantedAuthority("admin"));
   }
 
   private static MockHttpServletRequestBuilder json(MockHttpServletRequestBuilder request, String body) {
@@ -125,7 +131,7 @@ class AdminUserControllerTest {
   @Test
   @DisplayName("역할 · 활성 · 닉네임 · 이메일 인증 변경은 바뀐 사용자를 돌려준다")
   void updates_ReturnUpdatedUser() throws Exception {
-    given(userService.updateUserRole(USER_ID, UserRole.ADMIN)).willReturn(user());
+    given(userService.updateUserRole(USER_ID, UserRole.ADMIN, "kc-admin")).willReturn(user());
     given(userService.updateUserEnabled(USER_ID, false)).willReturn(user());
     given(userService.adminUpdateNickname(USER_ID, "새이름")).willReturn(user());
     given(userService.adminVerifyEmail(USER_ID)).willReturn(user());
@@ -145,7 +151,7 @@ class AdminUserControllerTest {
     mockMvc.perform(patch(BASE + "/" + USER_ID + "/verify-email").with(admin()))
       .andExpect(status().isOk());
 
-    verify(userService).updateUserRole(USER_ID, UserRole.ADMIN);
+    verify(userService).updateUserRole(USER_ID, UserRole.ADMIN, "kc-admin");
     verify(userService).updateUserEnabled(USER_ID, false);
     verify(userService).adminUpdateNickname(USER_ID, "새이름");
     verify(userService).adminVerifyEmail(USER_ID);
@@ -194,7 +200,35 @@ class AdminUserControllerTest {
       .andExpect(jsonPath("$.content[0].exDate").value("2024-02-09"))
       .andExpect(jsonPath("$.content[0].amount").value(2.03))
       .andExpect(jsonPath("$.last").value(true));
+  }
 
-    verify(authorizationUtil).requireAdmin();
+  @Test
+  @DisplayName("정지된 관리자는 토큰이 유효해도 관리자 API 를 쓰지 못한다")
+  void disabledAdmin_Forbidden() throws Exception {
+    willThrow(new UserException(UserResponse.ACCOUNT_DISABLED)).given(authUtil).requireUserId(any());
+
+    mockMvc.perform(get(BASE + "/stats").with(admin())).andExpect(status().isForbidden());
+
+    verify(userService, never()).countTotalUsers();
+  }
+
+  @Test
+  @DisplayName("역할 없이 바꾸려 하면 400 이고 역할 변경을 부르지 않는다")
+  void updateRole_WithoutRole_BadRequest() throws Exception {
+    mockMvc.perform(json(patch(BASE + "/" + USER_ID + "/role"), "{}")).andExpect(status().isBadRequest());
+
+    verify(userService, never()).updateUserRole(anyLong(), any(), any());
+  }
+
+  @Test
+  @DisplayName("자기 역할을 바꾸려 하면 400 이다")
+  void updateRole_Self_BadRequest() throws Exception {
+    willThrow(new UserException(UserResponse.CANNOT_CHANGE_OWN_ROLE))
+      .given(userService).updateUserRole(USER_ID, UserRole.USER, "kc-admin");
+
+    mockMvc.perform(json(patch(BASE + "/" + USER_ID + "/role"), """
+        {"role":"USER"}
+        """))
+      .andExpect(status().isBadRequest());
   }
 }

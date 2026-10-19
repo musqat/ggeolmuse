@@ -1,7 +1,6 @@
 package com.muscat.user.api.controller;
 
 import com.muscat.user.common.enums.type.UserRole;
-import com.muscat.user.common.util.AuthorizationUtil;
 import com.muscat.user.domain.account.entity.Account;
 import com.muscat.user.domain.account.entity.DividendSettlement;
 import com.muscat.user.domain.account.service.AccountService;
@@ -10,6 +9,8 @@ import com.muscat.user.domain.user.service.UserService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -22,6 +23,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -40,7 +43,6 @@ public class AdminUserController {
 
   private final UserService userService;
   private final AccountService accountService;
-  private final AuthorizationUtil authorizationUtil;
 
   /**
    * 전체 사용자 목록 조회 (페이징)
@@ -50,8 +52,6 @@ public class AdminUserController {
     @RequestParam(defaultValue = "0") int page,
     @RequestParam(defaultValue = "20") int size,
     @RequestParam(defaultValue = "createdAt,desc") String[] sort) {
-
-    authorizationUtil.requireAdmin();
 
     log.info("전체 사용자 목록 조회: page={}, size={}", page, size);
 
@@ -83,8 +83,6 @@ public class AdminUserController {
    */
   @GetMapping("/{userId}")
   public ResponseEntity<UserDetail> getUser(@PathVariable Long userId) {
-    authorizationUtil.requireAdmin();
-
     log.info("사용자 상세 조회: userId={}", userId);
 
     User user = userService.findById(userId);
@@ -120,13 +118,12 @@ public class AdminUserController {
   @PatchMapping("/{userId}/role")
   public ResponseEntity<UserSummary> updateUserRole(
     @PathVariable Long userId,
-    @RequestBody UpdateRoleRequest request) {
-
-    authorizationUtil.requireAdmin();
+    @Valid @RequestBody UpdateRoleRequest request,
+    @AuthenticationPrincipal Jwt jwt) {
 
     log.info("사용자 역할 변경: userId={}, newRole={}", userId, request.getRole());
 
-    User updatedUser = userService.updateUserRole(userId, request.getRole());
+    User updatedUser = userService.updateUserRole(userId, request.getRole(), jwt.getSubject());
 
     UserSummary summary = UserSummary.builder()
       .userId(updatedUser.getId())
@@ -149,8 +146,6 @@ public class AdminUserController {
   public ResponseEntity<UserSummary> updateUserEnabled(
     @PathVariable Long userId,
     @RequestBody UpdateEnabledRequest request) {
-
-    authorizationUtil.requireAdmin();
 
     log.info("사용자 활성화 상태 변경: userId={}, enabled={}", userId, request.isEnabled());
 
@@ -175,7 +170,6 @@ public class AdminUserController {
   public ResponseEntity<DividendSettlementPage> getDividendSettlements(
     @RequestParam(defaultValue = "0") int page,
     @RequestParam(defaultValue = "500") int size) {
-    authorizationUtil.requireAdmin();
     Page<DividendSettlement> settlements = accountService.getDividendSettlements(page, size);
     return ResponseEntity.ok(new DividendSettlementPage(
       settlements.map(DividendSettlementResponse::from).getContent(), settlements.isLast()));
@@ -186,8 +180,6 @@ public class AdminUserController {
    */
   @GetMapping("/stats")
   public ResponseEntity<UserStats> getUserStats() {
-    authorizationUtil.requireAdmin();
-
     log.info("사용자 통계 조회");
 
     long totalUsers = userService.countTotalUsers();
@@ -211,8 +203,6 @@ public class AdminUserController {
   public ResponseEntity<UserSummary> updateNickname(
     @PathVariable Long userId,
     @RequestBody UpdateNicknameRequest request) {
-
-    authorizationUtil.requireAdmin();
 
     log.info("Admin이 사용자 닉네임 강제 변경: userId={}, newNickname={}", userId, request.getNickname());
 
@@ -240,8 +230,6 @@ public class AdminUserController {
     @PathVariable Long userId,
     @RequestBody UpdatePasswordRequest request) {
 
-    authorizationUtil.requireAdmin();
-
     log.info("Admin이 사용자 비밀번호 강제 변경: userId={}", userId);
 
     userService.adminUpdatePassword(userId, request.getNewPassword());
@@ -254,8 +242,6 @@ public class AdminUserController {
    */
   @PatchMapping("/{userId}/verify-email")
   public ResponseEntity<UserSummary> verifyEmail(@PathVariable Long userId) {
-    authorizationUtil.requireAdmin();
-
     log.info("Admin이 사용자 이메일 강제 인증: userId={}", userId);
 
     User updatedUser = userService.adminVerifyEmail(userId);
@@ -279,8 +265,6 @@ public class AdminUserController {
    */
   @DeleteMapping("/{userId}")
   public ResponseEntity<Void> deleteUser(@PathVariable Long userId) {
-    authorizationUtil.requireAdmin();
-
     log.info("Admin이 사용자 강제 탈퇴: userId={}", userId);
 
     userService.adminDeleteUser(userId);
@@ -342,6 +326,7 @@ public class AdminUserController {
   @AllArgsConstructor
   public static class UpdateRoleRequest {
 
+    @NotNull
     private UserRole role;
   }
 

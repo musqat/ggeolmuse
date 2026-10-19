@@ -68,10 +68,10 @@ class UserControllerRequestTest {
   }
 
   @Test
-  @DisplayName("프로필 수정은 토큰의 이메일로 바꾸고 바뀐 프로필을 돌려준다")
-  void updateProfile_UsesTokenEmail() throws Exception {
+  @DisplayName("프로필 수정은 토큰의 sub 로 찾아 바꾸고 바뀐 프로필을 돌려준다")
+  void updateProfile_UsesTokenSubject() throws Exception {
     User updated = User.builder().email("user@example.com").nickname("새이름").build();
-    given(userService.updateProfile(eq("user@example.com"), any())).willReturn(updated);
+    given(userService.updateProfile(eq("kc-1"), any())).willReturn(updated);
     UserResponseDto dto = new UserResponseDto(1L, "user@example.com", "새이름", null, null, "LOCAL", true, null, null, true);
     given(userMapper.toResponseDto(updated)).willReturn(dto);
 
@@ -81,7 +81,7 @@ class UserControllerRequestTest {
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.nickname").value("새이름"));
 
-    verify(userService).updateProfile(eq("user@example.com"), argThat(r -> "새이름".equals(r.getNickname())));
+    verify(userService).updateProfile(eq("kc-1"), argThat(r -> "새이름".equals(r.getNickname())));
   }
 
   @Test
@@ -96,7 +96,7 @@ class UserControllerRequestTest {
   }
 
   @Test
-  @DisplayName("비밀번호 변경은 토큰의 이메일과 현재 · 새 비밀번호를 넘기고, 새 비밀번호 형식이 틀리면 400 이다")
+  @DisplayName("비밀번호 변경은 토큰의 sub 와 현재 · 새 비밀번호를 넘기고, 새 비밀번호 형식이 틀리면 400 이다")
   void changePassword() throws Exception {
     mockMvc.perform(json("/api/users/me/password", """
         {"currentPassword":"0ldPassw0rd!","newPassword":"Passw0rd!"}
@@ -107,7 +107,7 @@ class UserControllerRequestTest {
         """).with(me()))
       .andExpect(status().isBadRequest());
 
-    verify(userService).changePassword("user@example.com", "0ldPassw0rd!", "Passw0rd!");
+    verify(userService).changePassword("kc-1", "0ldPassw0rd!", "Passw0rd!");
   }
 
   @Test

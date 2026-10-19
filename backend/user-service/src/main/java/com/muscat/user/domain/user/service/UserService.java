@@ -40,17 +40,17 @@ public interface UserService {
   // 구글 로그인 인가 코드(PKCE) → 토큰
   TokenResponseDto exchangeGoogleCode(String code, String codeVerifier, String redirectUri);
 
-  // 조회
-  User getProfile(String email);
+  // 내 프로필. Keycloak ID 로 찾고, 없으면 토큰 정보로 만들고, 토큰 email 이 다르면 맞춤
+  User getOrCreateProfile(String keycloakId, String email, String nickname);
 
   // 닉네임 변경
-  User updateProfile(String email, UpdateProfileRequestDto request);
+  User updateProfile(String keycloakId, UpdateProfileRequestDto request);
 
   // 비밀번호 변경. 현재 비밀번호를 대조한 뒤 Keycloak 과 로컬 해시를 같이 바꾼다
-  void changePassword(String email, String currentPassword, String newPassword);
+  void changePassword(String keycloakId, String currentPassword, String newPassword);
 
   // 회원 탈퇴. 비밀번호가 있으면 비밀번호로, 없으면(구글) authTime(토큰의 로그인 시각)이 최근인지로 본인을 확인한다
-  void deleteAccount(String email, String password, Instant authTime);
+  void deleteAccount(String keycloakId, String password, Instant authTime);
 
   // ==================== ADMIN APIs ====================
 
@@ -60,8 +60,8 @@ public interface UserService {
   // 사용자 ID로 조회
   User findById(Long userId);
 
-  // 사용자 역할 변경
-  User updateUserRole(Long userId, UserRole role);
+  // 사용자 역할 변경. Keycloak realm role 을 먼저 바꾸고 DB 역할을 맞춤. 자기 역할은 못 바꿈
+  User updateUserRole(Long userId, UserRole role, String actorKeycloakId);
 
   // 사용자 활성화/비활성화
   User updateUserEnabled(Long userId, boolean enabled);
