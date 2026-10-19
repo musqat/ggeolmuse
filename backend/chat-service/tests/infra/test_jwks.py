@@ -42,8 +42,8 @@ def test_only_rs256_is_accepted():
             verifier(token(pem, "k1", "RS512"))
 
 
-def test_issuer_must_be_one_of_ours():
-    # 운영 Keycloak 은 iss 가 공개 주소, compose 는 내부 주소다
+def test_issuer_must_be_allowed():
+    # Keycloak hostname 이 있으면(운영 · compose) iss 가 공개 주소, 없으면(helm dev) 내부 주소다
     pem, public_jwk = rsa_key("k1")
     with respx.mock:
         respx.get(URL).mock(return_value=httpx.Response(200, json={"keys": [public_jwk]}))
@@ -55,7 +55,7 @@ def test_issuer_must_be_one_of_ours():
                 verifier(token(pem, "k1", iss=issuer))
 
 
-def test_token_must_be_issued_to_our_clients():
+def test_client_must_be_allowed():
     # 같은 realm 의 다른 클라이언트(admin-cli 등)로 받은 토큰은 막는다
     pem, public_jwk = rsa_key("k1")
     with respx.mock:

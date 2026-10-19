@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.security.oauth2.jwt.JwtValidationException;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
 
-// 운영 Keycloak 은 iss 가 공개 주소, compose 는 내부 주소. 서명은 이 시험이 띄운 JWKS 의 키로 함
+// Keycloak hostname 이 있으면(운영 · compose) iss 가 공개 주소, 없으면(helm dev) 내부 주소. 서명은 이 시험이 띄운 JWKS 의 키로 함
 class JwtDecoderTest {
 
   private static final String PUBLIC_ISSUER = "https://example.test/auth/realms/r";
@@ -62,7 +62,7 @@ class JwtDecoderTest {
 
   @Test
   @DisplayName("허용한 두 issuer 와 두 클라이언트의 토큰은 통과한다")
-  void ourIssuersAndClientsPass() throws JOSEException {
+  void allowedIssuersAndClientsPass() throws JOSEException {
     for (String issuer : List.of(PUBLIC_ISSUER, INTERNAL_ISSUER)) {
       for (String clientId : CLIENT_IDS) {
         assertThat(decoder.decode(token(issuer, clientId)).block().getSubject()).isEqualTo("user-1");

@@ -188,7 +188,8 @@ services:
       SPRING_PROFILES_ACTIVE: dev
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
       KEYCLOAK_REALM: custom
-      KEYCLOAK_ISSUERS: http://keycloak:8080/realms/custom
+      # iss 는 keycloak 의 KC_HOSTNAME_URL 주소
+      KEYCLOAK_ISSUERS: http://localhost:8080/realms/custom,http://keycloak:8080/realms/custom
       KEYCLOAK_CLIENT_IDS: ggeolmuse-client,ggeolmuse-frontend
       KEYCLOAK_SECRET: local-client-secret
     healthcheck:
@@ -468,7 +469,8 @@ services:
       REDIS_PASSWORD: "${REDIS_PASSWORD}"
       MARKET_DATA_BASE_URL: http://market-data-service:8083
       KEYCLOAK_JWKS_URL: http://keycloak:8080/realms/custom/protocol/openid-connect/certs
-      KEYCLOAK_ISSUERS: http://keycloak:8080/realms/custom
+      # iss 는 keycloak 의 KC_HOSTNAME_URL 주소
+      KEYCLOAK_ISSUERS: http://localhost:8080/realms/custom,http://keycloak:8080/realms/custom
       KEYCLOAK_CLIENT_IDS: ggeolmuse-client,ggeolmuse-frontend
     depends_on:
       redis:
