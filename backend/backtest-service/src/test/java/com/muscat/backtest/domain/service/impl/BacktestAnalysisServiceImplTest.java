@@ -16,6 +16,7 @@ import com.muscat.backtest.common.enums.type.BacktestType;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.util.BacktestHistoryUtils;
+import com.muscat.backtest.domain.analysis.OptimalTimingAnalyzer;
 import com.muscat.backtest.domain.dto.request.BaseComparisonRequest;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
@@ -35,7 +36,6 @@ import com.muscat.backtest.domain.service.TradingSimulationService;
 import com.muscat.backtest.domain.strategy.ConditionalPurchaseStrategy;
 import com.muscat.backtest.domain.strategy.DCAStrategy;
 import com.muscat.backtest.domain.strategy.InvestmentStrategy;
-import com.muscat.backtest.domain.strategy.OptimalTimingStrategy;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Arrays;
@@ -70,7 +70,7 @@ class BacktestAnalysisServiceImplTest {
   private BacktestHistoryUtils backtestHistoryUtils;
 
   @Mock
-  private OptimalTimingStrategy optimalTimingStrategy;
+  private OptimalTimingAnalyzer optimalTimingAnalyzer;
 
   private BacktestAnalysisServiceImpl backtestAnalysisService;
 
@@ -87,7 +87,7 @@ class BacktestAnalysisServiceImplTest {
       strategies,
       responseMapper,
       backtestHistoryUtils,
-      optimalTimingStrategy
+      optimalTimingAnalyzer
     );
   }
 
@@ -597,7 +597,7 @@ class BacktestAnalysisServiceImplTest {
         .totalQualifyingDays(200)
         .build();
 
-      given(optimalTimingStrategy.analyzeOptimalTiming(request)).willReturn(expectedResponse);
+      given(optimalTimingAnalyzer.analyzeOptimalTiming(request)).willReturn(expectedResponse);
 
       // When
       OptimalTimingResponse result = backtestAnalysisService.analyzeOptimalTiming(request);
@@ -607,7 +607,7 @@ class BacktestAnalysisServiceImplTest {
       assertThat(result.getSymbol()).isEqualTo("AAPL");
       assertThat(result.getTotalAnalyzedDays()).isEqualTo(365);
       assertThat(result.getTotalQualifyingDays()).isEqualTo(200);
-      verify(optimalTimingStrategy).analyzeOptimalTiming(request);
+      verify(optimalTimingAnalyzer).analyzeOptimalTiming(request);
       verify(backtestHistoryUtils).saveBacktestHistory(
         eq("user123"),
         eq(BacktestType.STRATEGY_SIMULATION),
@@ -634,14 +634,14 @@ class BacktestAnalysisServiceImplTest {
         .totalQualifyingDays(200)
         .build();
 
-      given(optimalTimingStrategy.analyzeOptimalTiming(request)).willReturn(expectedResponse);
+      given(optimalTimingAnalyzer.analyzeOptimalTiming(request)).willReturn(expectedResponse);
 
       // When
       OptimalTimingResponse result = backtestAnalysisService.analyzeOptimalTiming(request);
 
       // Then
       assertThat(result).isNotNull();
-      verify(optimalTimingStrategy).analyzeOptimalTiming(request);
+      verify(optimalTimingAnalyzer).analyzeOptimalTiming(request);
       verify(backtestHistoryUtils, never()).saveBacktestHistory(any(), any(), any());
     }
   }
@@ -866,7 +866,7 @@ class BacktestAnalysisServiceImplTest {
     @DisplayName("등록된 전략이 없으면 STRATEGY_TYPE_MISMATCH")
     void missingStrategy() {
       BacktestAnalysisServiceImpl dcaOnly = new BacktestAnalysisServiceImpl(tradingSimulationService,
-        List.of(dcaStrategy), responseMapper, backtestHistoryUtils, optimalTimingStrategy);
+        List.of(dcaStrategy), responseMapper, backtestHistoryUtils, optimalTimingAnalyzer);
 
       assertThatThrownBy(() -> dcaOnly.runConditionalStrategy(conditionalRequest()))
         .isInstanceOf(BacktestException.class)
@@ -942,7 +942,7 @@ class BacktestAnalysisServiceImplTest {
     @DisplayName("요청 타입의 전략이 등록되지 않았으면 전략 타입 불일치로 막는다")
     void runDcaStrategy_NoRegisteredStrategy_Rejected() {
       BacktestAnalysisServiceImpl onlyConditional = new BacktestAnalysisServiceImpl(tradingSimulationService,
-        List.of(conditionalPurchaseStrategy), responseMapper, backtestHistoryUtils, optimalTimingStrategy);
+        List.of(conditionalPurchaseStrategy), responseMapper, backtestHistoryUtils, optimalTimingAnalyzer);
       DcaStrategyRequest request = DcaStrategyRequest.builder().symbol("AAPL").startDate(LocalDate.of(2023, 1, 1))
         .endDate(LocalDate.of(2024, 1, 1)).monthlyAmount(BigDecimal.valueOf(1000)).purchaseDay(1).userId("user123").build();
 

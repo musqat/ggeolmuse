@@ -7,6 +7,7 @@ import com.muscat.backtest.common.enums.type.BacktestType;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.util.BacktestHistoryUtils;
+import com.muscat.backtest.domain.analysis.OptimalTimingAnalyzer;
 import com.muscat.backtest.domain.dto.request.BaseComparisonRequest;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
@@ -26,7 +27,6 @@ import com.muscat.backtest.domain.model.StrategyParameter;
 import com.muscat.backtest.domain.service.BacktestAnalysisService;
 import com.muscat.backtest.domain.service.TradingSimulationService;
 import com.muscat.backtest.domain.strategy.InvestmentStrategy;
-import com.muscat.backtest.domain.strategy.OptimalTimingStrategy;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -47,15 +47,15 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
   private final Map<StrategyType, InvestmentStrategy> strategyMap;
   private final ResponseMapper responseMapper;
   private final BacktestHistoryUtils backtestHistoryUtils;
-  private final OptimalTimingStrategy optimalTimingStrategy;
+  private final OptimalTimingAnalyzer optimalTimingAnalyzer;
 
   public BacktestAnalysisServiceImpl(TradingSimulationService tradingSimulationService,
     List<InvestmentStrategy> strategies, ResponseMapper responseMapper,
-    BacktestHistoryUtils backtestHistoryUtils, OptimalTimingStrategy optimalTimingStrategy) {
+    BacktestHistoryUtils backtestHistoryUtils, OptimalTimingAnalyzer optimalTimingAnalyzer) {
     this.tradingSimulationService = tradingSimulationService;
     this.responseMapper = responseMapper;
     this.backtestHistoryUtils = backtestHistoryUtils;
-    this.optimalTimingStrategy = optimalTimingStrategy;
+    this.optimalTimingAnalyzer = optimalTimingAnalyzer;
     // this.backtestEventProducer = backtestEventProducer;
     this.strategyMap = strategies.stream()
       .collect(Collectors.toMap(InvestmentStrategy::getStrategyType, Function.identity()));
@@ -355,7 +355,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
     log.info("최적 타이밍 분석 시작: {} - 목표 수익률 {}%",
       request.getSymbol(), request.getTargetReturnPercent());
 
-    OptimalTimingResponse result = optimalTimingStrategy.analyzeOptimalTiming(request);
+    OptimalTimingResponse result = optimalTimingAnalyzer.analyzeOptimalTiming(request);
 
     if (request.getUserId() != null) {
       saveBacktestHistory(request.getUserId(), BacktestType.STRATEGY_SIMULATION, request);

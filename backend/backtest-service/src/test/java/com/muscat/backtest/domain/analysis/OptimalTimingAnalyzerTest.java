@@ -1,4 +1,4 @@
-package com.muscat.backtest.domain.strategy;
+package com.muscat.backtest.domain.analysis;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -28,17 +28,17 @@ import com.muscat.backtest.domain.dto.response.OptimalTimingResponse;
 import com.muscat.backtest.domain.dto.response.TimingResult;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("OptimalTimingStrategy 테스트")
-class OptimalTimingStrategyTest {
+@DisplayName("OptimalTimingAnalyzer 테스트")
+class OptimalTimingAnalyzerTest {
 
   @Mock
   private MarketDataClient marketDataClient;
 
-  private OptimalTimingStrategy strategy;
+  private OptimalTimingAnalyzer analyzer;
 
   @BeforeEach
   void setUp() {
-    strategy = new OptimalTimingStrategy(marketDataClient);
+    analyzer = new OptimalTimingAnalyzer(marketDataClient);
   }
 
   @Nested
@@ -48,7 +48,7 @@ class OptimalTimingStrategyTest {
     @Test
     @DisplayName("요청이 null이면 예외 발생")
     void validateRequest_Null_ThrowsException() {
-      assertThatThrownBy(() -> strategy.analyzeOptimalTiming(null))
+      assertThatThrownBy(() -> analyzer.analyzeOptimalTiming(null))
         .isInstanceOf(BacktestException.class)
         .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_REQUEST_NULL);
@@ -65,7 +65,7 @@ class OptimalTimingStrategyTest {
         .targetReturnPercent(BigDecimal.valueOf(10))
         .build();
 
-      assertThatThrownBy(() -> strategy.analyzeOptimalTiming(request))
+      assertThatThrownBy(() -> analyzer.analyzeOptimalTiming(request))
         .isInstanceOf(BacktestException.class)
         .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_SYMBOL_REQUIRED);
@@ -82,7 +82,7 @@ class OptimalTimingStrategyTest {
         .targetReturnPercent(BigDecimal.valueOf(10))
         .build();
 
-      assertThatThrownBy(() -> strategy.analyzeOptimalTiming(request))
+      assertThatThrownBy(() -> analyzer.analyzeOptimalTiming(request))
         .isInstanceOf(BacktestException.class)
         .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_SYMBOL_REQUIRED);
@@ -99,7 +99,7 @@ class OptimalTimingStrategyTest {
         .targetReturnPercent(BigDecimal.valueOf(10))
         .build();
 
-      assertThatThrownBy(() -> strategy.analyzeOptimalTiming(request))
+      assertThatThrownBy(() -> analyzer.analyzeOptimalTiming(request))
         .isInstanceOf(BacktestException.class)
         .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_START_DATE_REQUIRED);
@@ -116,7 +116,7 @@ class OptimalTimingStrategyTest {
         .targetReturnPercent(BigDecimal.valueOf(10))
         .build();
 
-      assertThatThrownBy(() -> strategy.analyzeOptimalTiming(request))
+      assertThatThrownBy(() -> analyzer.analyzeOptimalTiming(request))
         .isInstanceOf(BacktestException.class)
         .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_END_DATE_REQUIRED);
@@ -133,7 +133,7 @@ class OptimalTimingStrategyTest {
         .targetReturnPercent(BigDecimal.valueOf(10))
         .build();
 
-      assertThatThrownBy(() -> strategy.analyzeOptimalTiming(request))
+      assertThatThrownBy(() -> analyzer.analyzeOptimalTiming(request))
         .isInstanceOf(BacktestException.class)
         .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_DATE_RANGE_INVALID);
@@ -150,7 +150,7 @@ class OptimalTimingStrategyTest {
         .targetReturnPercent(BigDecimal.valueOf(10))
         .build();
 
-      assertThatThrownBy(() -> strategy.analyzeOptimalTiming(request))
+      assertThatThrownBy(() -> analyzer.analyzeOptimalTiming(request))
         .isInstanceOf(BacktestException.class)
         .extracting("code")
         .isEqualTo(BacktestResponse.INVALID_REQUEST);
@@ -167,7 +167,7 @@ class OptimalTimingStrategyTest {
         .targetReturnPercent(BigDecimal.valueOf(10))
         .build();
 
-      assertThatThrownBy(() -> strategy.analyzeOptimalTiming(request))
+      assertThatThrownBy(() -> analyzer.analyzeOptimalTiming(request))
         .isInstanceOf(BacktestException.class)
         .extracting("code")
         .isEqualTo(BacktestResponse.INVALID_REQUEST);
@@ -184,7 +184,7 @@ class OptimalTimingStrategyTest {
         .targetReturnPercent(BigDecimal.valueOf(10))
         .build();
 
-      assertThatThrownBy(() -> strategy.analyzeOptimalTiming(request))
+      assertThatThrownBy(() -> analyzer.analyzeOptimalTiming(request))
         .isInstanceOf(BacktestException.class)
         .extracting("code")
         .isEqualTo(BacktestResponse.INVALID_REQUEST);
@@ -201,7 +201,7 @@ class OptimalTimingStrategyTest {
         .targetReturnPercent(null)
         .build();
 
-      assertThatThrownBy(() -> strategy.analyzeOptimalTiming(request))
+      assertThatThrownBy(() -> analyzer.analyzeOptimalTiming(request))
         .isInstanceOf(BacktestException.class)
         .extracting("code")
         .isEqualTo(BacktestResponse.INVALID_REQUEST);
@@ -314,7 +314,7 @@ class OptimalTimingStrategyTest {
       stubCurrent();
       stubFiveDays();
 
-      OptimalTimingResponse response = strategy.analyzeOptimalTiming(request(START, END, "10"));
+      OptimalTimingResponse response = analyzer.analyzeOptimalTiming(request(START, END, "10"));
 
       assertThat(response.getQualifyingTimings())
         .extracting(TimingResult::getPurchaseDate, TimingResult::getRank)
@@ -332,7 +332,7 @@ class OptimalTimingStrategyTest {
       stubCurrent();
       stubFiveDays();
 
-      OptimalTimingResponse response = strategy.analyzeOptimalTiming(request(START, END, "50"));
+      OptimalTimingResponse response = analyzer.analyzeOptimalTiming(request(START, END, "50"));
 
       assertThat(response.getQualifyingTimings()).isEmpty();
       assertThat(response.getBestTiming()).isNull();
@@ -346,7 +346,7 @@ class OptimalTimingStrategyTest {
       stubCurrent();
       given(marketDataClient.getOHLCPriceRange(SYMBOL, START.toString(), END.toString())).willReturn(List.of());
 
-      assertThatThrownBy(() -> strategy.analyzeOptimalTiming(request(START, END, "10")))
+      assertThatThrownBy(() -> analyzer.analyzeOptimalTiming(request(START, END, "10")))
         .isInstanceOf(BacktestException.class)
         .extracting("code")
         .isEqualTo(BacktestResponse.DATA_NOT_FOUND);
@@ -357,7 +357,7 @@ class OptimalTimingStrategyTest {
     void noCurrentPrice() {
       given(marketDataClient.getCurrentPrice(SYMBOL)).willReturn(null);
 
-      assertThatThrownBy(() -> strategy.analyzeOptimalTiming(request(START, END, "10")))
+      assertThatThrownBy(() -> analyzer.analyzeOptimalTiming(request(START, END, "10")))
         .isInstanceOf(BacktestException.class)
         .extracting("code")
         .isEqualTo(BacktestResponse.STOCK_DATA_NOT_FOUND);
@@ -371,7 +371,7 @@ class OptimalTimingStrategyTest {
       given(marketDataClient.getOHLCPriceRange(SYMBOL, today.minusDays(1).toString(), today.toString()))
         .willReturn(List.of(day(today.minusDays(1), "100")));
 
-      OptimalTimingResponse response = strategy.analyzeOptimalTiming(request(today.minusDays(1), today.plusDays(30), "0"));
+      OptimalTimingResponse response = analyzer.analyzeOptimalTiming(request(today.minusDays(1), today.plusDays(30), "0"));
 
       assertThat(response.getTotalAnalyzedDays()).isEqualTo(1);
       assertThat(response.getAnalysisDate()).isEqualTo(today);

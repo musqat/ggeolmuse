@@ -1,4 +1,4 @@
-package com.muscat.backtest.domain.strategy;
+package com.muscat.backtest.domain.analysis;
 
 import com.muscat.backtest.common.constants.BacktestConstants;
 import com.muscat.backtest.common.enums.BacktestResponse;
@@ -31,7 +31,7 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class OptimalTimingStrategy {
+public class OptimalTimingAnalyzer {
 
   private final MarketDataClient marketDataClient;
 
