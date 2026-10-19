@@ -240,81 +240,101 @@ public class KeycloakServiceImpl implements KeycloakService {
   }
 
   @Override
-  public String findUserByEmail(String email) {
+  public String findUserIdByUsername(String username) {
     try {
-      String adminToken = getAdminToken();
-      String searchUrl =
-        keycloakProperties.getAuthServerUrl() + "/admin/realms/" + keycloakProperties.getRealm()
-          + "/users?email=" + email + "&exact=true";
-
-      log.debug("Keycloak 사용자 조회: {} | URL: {}", email, searchUrl);
-
       HttpHeaders headers = new HttpHeaders();
-      headers.setBearerAuth(adminToken);
-      HttpEntity<Void> entity = new HttpEntity<>(headers);
-
-      ResponseEntity<List> response = restTemplate.exchange(searchUrl,
-        org.springframework.http.HttpMethod.GET, entity, List.class);
-
-      if (response.getBody() == null || response.getBody().isEmpty()) {
-        log.warn("Keycloak에서 사용자를 찾을 수 없음: {}", email);
-        return null;
-      }
-
-      Map<String, Object> user = (Map<String, Object>) response.getBody().getFirst();
-      String keycloakId = (String) user.get("id");
-
-      log.info("Keycloak 사용자 조회 완료: {} | ID: {}", email, keycloakId);
-      return keycloakId;
+      headers.setBearerAuth(getAdminToken());
+      ResponseEntity<List> response = restTemplate.exchange(
+        getAdminRealmUrl() + "/users?username=" + username + "&exact=true", HttpMethod.GET,
+        new HttpEntity<>(headers), List.class);
+      List<?> users = response.getBody() == null ? List.of() : response.getBody();
+      return users.isEmpty() ? null : (String) ((Map<?, ?>) users.getFirst()).get("id");
 
     } catch (Exception e) {
-      log.error("Keycloak 사용자 조회 실패: {} | Error: {}", email, e.getMessage(), e);
-      return null;
+      log.error("Keycloak 사용자 이름 조회 실패: {} | Error: {}", username, e.getMessage(), e);
+      throw new KeycloakException(KeycloakResponse.API_ERROR);
     }
   }
 
+  // 역할 표현은 사용자의 역할 매핑 API 에서 받음(realm 역할 목록은 view-realm 이 필요)
   @Override
   public void assignRealmRole(String keycloakId, String roleName) {
     try {
-      String adminToken = getAdminToken();
-
-      // 1. Realm role 가져오기
-      String roleUrl =
-        keycloakProperties.getAuthServerUrl() + "/admin/realms/" + keycloakProperties.getRealm()
-          + "/roles/" + roleName;
-
       HttpHeaders headers = new HttpHeaders();
-      headers.setBearerAuth(adminToken);
-      HttpEntity<Void> getRoleRequest = new HttpEntity<>(headers);
-
-      ResponseEntity<Map> roleResponse = restTemplate.exchange(roleUrl, HttpMethod.GET,
-        getRoleRequest, Map.class);
-      Map<String, Object> role = roleResponse.getBody();
-
+      headers.setBearerAuth(getAdminToken());
+      String mappingsUrl = getAdminRealmUrl() + "/users/" + keycloakId + "/role-mappings/realm";
+      if (findRole(mappingsUrl, roleName, headers) != null) {
+        log.info("이미 가진 Keycloak realm role: Role: {} | Keycloak ID: {}", roleName, keycloakId);
+        return;
+      }
+      Map<String, Object> role = findRole(mappingsUrl + "/available", roleName, headers);
       if (role == null) {
-        log.error("Keycloak role을 찾을 수 없음: {}", roleName);
+        log.error("부여할 수 있는 Keycloak realm role 이 아님: {}", roleName);
         throw new KeycloakException(KeycloakResponse.API_ERROR);
       }
 
-      // 2. 사용자에게 role 할당
-      String assignRoleUrl =
-        keycloakProperties.getAuthServerUrl() + "/admin/realms/" + keycloakProperties.getRealm()
-          + "/users/" + keycloakId + "/role-mappings/realm";
-
       headers.setContentType(MediaType.APPLICATION_JSON);
-      HttpEntity<List<Map<String, Object>>> assignRoleRequest = new HttpEntity<>(List.of(role),
-        headers);
+      restTemplate.postForEntity(mappingsUrl, new HttpEntity<>(List.of(role), headers), Void.class);
 
-      restTemplate.postForEntity(assignRoleUrl, assignRoleRequest, Void.class);
-
-      log.info("Keycloak realm role 할당 완료: {} | Role: {} | Keycloak ID: {}", keycloakId, roleName,
-        keycloakId);
+      log.info("Keycloak realm role 할당 완료: Role: {} | Keycloak ID: {}", roleName, keycloakId);
 
     } catch (Exception e) {
       log.error("Keycloak realm role 할당 실패: {} | Role: {} | Error: {}", keycloakId, roleName,
         e.getMessage(), e);
       throw new KeycloakException(KeycloakResponse.API_ERROR);
     }
+  }
+
+  @Override
+  public void removeRealmRole(String keycloakId, String roleName) {
+    try {
+      HttpHeaders headers = new HttpHeaders();
+      headers.setBearerAuth(getAdminToken());
+      String mappingsUrl = getAdminRealmUrl() + "/users/" + keycloakId + "/role-mappings/realm";
+      Map<String, Object> role = findRole(mappingsUrl, roleName, headers);
+      if (role == null) {
+        log.info("이미 없는 Keycloak realm role: Role: {} | Keycloak ID: {}", roleName, keycloakId);
+        return;
+      }
+
+      headers.setContentType(MediaType.APPLICATION_JSON);
+      restTemplate.exchange(mappingsUrl, HttpMethod.DELETE, new HttpEntity<>(List.of(role), headers), Void.class);
+
+      log.info("Keycloak realm role 해제 완료: Role: {} | Keycloak ID: {}", roleName, keycloakId);
+
+    } catch (Exception e) {
+      log.error("Keycloak realm role 해제 실패: {} | Role: {} | Error: {}", keycloakId, roleName,
+        e.getMessage(), e);
+      throw new KeycloakException(KeycloakResponse.API_ERROR);
+    }
+  }
+
+  @Override
+  public void logoutUserSessions(String keycloakId) {
+    try {
+      HttpHeaders headers = new HttpHeaders();
+      headers.setBearerAuth(getAdminToken());
+      restTemplate.postForEntity(getAdminRealmUrl() + "/users/" + keycloakId + "/logout",
+        new HttpEntity<>(headers), Void.class);
+
+      log.info("Keycloak 사용자 세션 종료 완료: Keycloak ID: {}", keycloakId);
+
+    } catch (Exception e) {
+      log.error("Keycloak 사용자 세션 종료 실패: {} | Error: {}", keycloakId, e.getMessage(), e);
+      throw new KeycloakException(KeycloakResponse.API_ERROR);
+    }
+  }
+
+  // 역할 목록 API 에서 그 이름의 역할 표현. 없으면 null
+  @SuppressWarnings("unchecked")
+  private Map<String, Object> findRole(String url, String roleName, HttpHeaders headers) {
+    ResponseEntity<List> response = restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(headers), List.class);
+    List<?> roles = response.getBody() == null ? List.of() : response.getBody();
+    return roles.stream()
+      .map(role -> (Map<String, Object>) role)
+      .filter(role -> roleName.equals(role.get("name")))
+      .findFirst()
+      .orElse(null);
   }
 
   @Override
@@ -398,6 +418,11 @@ public class KeycloakServiceImpl implements KeycloakService {
   private String getLogoutUrl() {
     return keycloakProperties.getAuthServerUrl() + "/realms/" + keycloakProperties.getRealm()
       + "/protocol/openid-connect/logout";
+  }
+
+  // realm 관리 API 주소
+  private String getAdminRealmUrl() {
+    return keycloakProperties.getAuthServerUrl() + "/admin/realms/" + keycloakProperties.getRealm();
   }
 
   // refresh token 은 받은 client 로 보내야 한다. 다르면 Keycloak 이 400 "Token client and authorized client don't match".

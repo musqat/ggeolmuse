@@ -53,6 +53,7 @@ class UserControllerDeleteTest {
       .build();
     Jwt jwt = Jwt.withTokenValue("t")
       .header("alg", "none")
+      .subject("kc-1")
       .claim("email", "u@example.local")
       .claim("auth_time", AUTH_TIME)
       .build();
@@ -70,7 +71,7 @@ class UserControllerDeleteTest {
     mockMvc.perform(delete("/api/users/me"))
       .andExpect(status().isOk());
 
-    verify(userService).deleteAccount("u@example.local", null, Instant.ofEpochSecond(AUTH_TIME));
+    verify(userService).deleteAccount("kc-1", null, Instant.ofEpochSecond(AUTH_TIME));
   }
 
   @Test
@@ -84,14 +85,14 @@ class UserControllerDeleteTest {
         .content(new ObjectMapper().writeValueAsString(body)))
       .andExpect(status().isOk());
 
-    verify(userService).deleteAccount("u@example.local", typed, Instant.ofEpochSecond(AUTH_TIME));
+    verify(userService).deleteAccount("kc-1", typed, Instant.ofEpochSecond(AUTH_TIME));
   }
 
   @Test
   @DisplayName("다시 로그인이 필요하면 403 이다(401 이면 프론트가 갱신 뒤 같은 요청을 되풀이한다)")
   void delete_ReauthRequired_Returns403() throws Exception {
     willThrow(new UserException(UserResponse.REAUTH_REQUIRED))
-      .given(userService).deleteAccount("u@example.local", null, Instant.ofEpochSecond(AUTH_TIME));
+      .given(userService).deleteAccount("kc-1", null, Instant.ofEpochSecond(AUTH_TIME));
 
     mockMvc.perform(delete("/api/users/me"))
       .andExpect(status().isForbidden());

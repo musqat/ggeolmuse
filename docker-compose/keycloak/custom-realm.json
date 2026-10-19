@@ -82,7 +82,6 @@
       {
         "client": "ggeolmuse-client",
         "roles": [
-          "realm-admin",
           "manage-users",
           "create-client",
           "manage-clients"
@@ -109,7 +108,6 @@
       "serviceAccountClientId": "ggeolmuse-client",
       "clientRoles": {
         "realm-management": [
-          "realm-admin",
           "manage-users",
           "create-client",
           "manage-clients"

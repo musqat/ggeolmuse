@@ -21,18 +21,18 @@ public class AuthUtil {
     this.jwtDecoder = jwtDecoder;
   }
 
-  // JWT에서 직접 Long userId 추출
+  // 토큰 sub(Keycloak ID)로 찾은 사용자 id
   public Long requireUserId(Jwt jwt) {
     if (jwt == null) {
       throw new AuthenticationException(UserResponse.AUTHENTICATION_FAILED);
     }
 
-    String email = resolveLoginEmail(jwt);
-    if (email == null || email.isBlank()) {
+    String keycloakId = jwt.getSubject();
+    if (keycloakId == null || keycloakId.isBlank()) {
       throw new AuthenticationException(UserResponse.USER_NOT_FOUND);
     }
 
-    User user = userRepository.findByEmail(email)
+    User user = userRepository.findByKeycloakId(keycloakId)
         .orElseThrow(() -> new UserException(UserResponse.USER_NOT_FOUND));
 
     // 이미 발급된 토큰은 만료 전까지 살아 있으므로 여기서 막는다
@@ -41,15 +41,6 @@ public class AuthUtil {
     }
 
     return user.getId();
-  }
-
-  // JWT에서 email/username 클레임 추출
-  private String resolveLoginEmail(Jwt jwt) {
-    String email = jwt.getClaimAsString("email");
-    if (email == null || email.isBlank()) {
-      email = jwt.getClaimAsString("preferred_username"); // 폴백
-    }
-    return email;
   }
 
 }

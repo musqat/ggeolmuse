@@ -1,7 +1,5 @@
 package com.muscat.user.domain.user.controller;
 
-import com.muscat.user.common.enums.responses.UserResponse;
-import com.muscat.user.common.exceptions.UserException;
 import com.muscat.user.domain.user.dto.request.ChangePasswordRequestDto;
 import com.muscat.user.domain.user.dto.request.DeleteAccountRequestDto;
 import com.muscat.user.domain.user.dto.request.UpdateProfileRequestDto;
@@ -50,30 +48,7 @@ public class UserController {
       @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
 
     String email = jwt.getClaimAsString("email");
-
-    User user;
-    try {
-      user = userService.getProfile(email);
-    } catch (UserException e) {
-      // 사용자가 로컬 DB에 없지만 Keycloak에는 있음 (Google OAuth 등)
-      // JWT 토큰에서 정보를 추출하여 자동으로 동기화. DB 오류 같은 다른 실패는 사용자를 새로 만들지 않고 그대로 올린다
-      if (e.getCode() != UserResponse.USER_NOT_FOUND) {
-        throw e;
-      }
-      log.info("로컬 DB에 사용자 없음, Keycloak에서 동기화 시작: {}", email);
-
-      String keycloakId = jwt.getClaimAsString("sub");
-      String name = jwt.getClaimAsString("name");
-      String givenName = jwt.getClaimAsString("given_name");
-      String familyName = jwt.getClaimAsString("family_name");
-
-      // nickname 생성: name > givenName > email prefix
-      String nickname = name != null ? name :
-                       (givenName != null ? givenName : email.split("@")[0]);
-
-      user = userService.createUserFromKeycloak(keycloakId, email, nickname);
-      log.info("Keycloak 사용자 동기화 완료: {}", email);
-    }
+    User user = userService.getOrCreateProfile(jwt.getSubject(), email, nickname(jwt, email));
 
     UserResponseDto userDto = userMapper.toResponseDto(user);
 
@@ -92,11 +67,11 @@ public class UserController {
       @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
       @Valid @RequestBody UpdateProfileRequestDto request) {
 
-    String email = jwt.getClaimAsString("email");
-    User updatedUser = userService.updateProfile(email, request);
+    String keycloakId = jwt.getSubject();
+    User updatedUser = userService.updateProfile(keycloakId, request);
     UserResponseDto userDto = userMapper.toResponseDto(updatedUser);
 
-    log.info("프로필 수정 완료: {}", email);
+    log.info("프로필 수정 완료: keycloakId={}", keycloakId);
     return ResponseEntity.ok(userDto);
   }
 
@@ -111,11 +86,11 @@ public class UserController {
       @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
       @Valid @RequestBody ChangePasswordRequestDto request) {
 
-    String email = jwt.getClaimAsString("email");
+    String keycloakId = jwt.getSubject();
 
-    userService.changePassword(email, request.getCurrentPassword(), request.getNewPassword());
+    userService.changePassword(keycloakId, request.getCurrentPassword(), request.getNewPassword());
 
-    log.info("비밀번호 변경 완료: {}", email);
+    log.info("비밀번호 변경 완료: keycloakId={}", keycloakId);
     return ResponseEntity.ok().build();
   }
 
@@ -131,11 +106,24 @@ public class UserController {
       @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
       @RequestBody(required = false) DeleteAccountRequestDto request) {
 
-    String email = jwt.getClaimAsString("email");
+    String keycloakId = jwt.getSubject();
     String password = request != null ? request.getPassword() : null;
-    userService.deleteAccount(email, password, jwt.getClaimAsInstant("auth_time"));
+    userService.deleteAccount(keycloakId, password, jwt.getClaimAsInstant("auth_time"));
 
-    log.info("계정 삭제 완료: {}", email);
+    log.info("계정 삭제 완료: keycloakId={}", keycloakId);
     return ResponseEntity.ok().build();
+  }
+
+  // 처음 만들 때 쓰는 닉네임. 이름 > given_name > email 앞부분
+  private static String nickname(Jwt jwt, String email) {
+    String name = jwt.getClaimAsString("name");
+    if (name != null) {
+      return name;
+    }
+    String givenName = jwt.getClaimAsString("given_name");
+    if (givenName != null) {
+      return givenName;
+    }
+    return email != null ? email.split("@")[0] : null;
   }
 }

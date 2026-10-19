@@ -16,11 +16,11 @@ public class UserRepositoryCustomImpl implements UserRepositoryCustom {
   private static final QUser user = QUser.user;
 
   @Override
-  public Optional<User> findByEmailWithAccounts(String email) {
+  public Optional<User> findByKeycloakIdWithAccounts(String keycloakId) {
     User result = queryFactory
       .selectFrom(user)
       .leftJoin(user.accounts).fetchJoin()
-      .where(user.email.eq(email))
+      .where(user.keycloakId.eq(keycloakId))
       .fetchOne();
     return Optional.ofNullable(result);
   }

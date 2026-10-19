@@ -45,6 +45,7 @@ public class User {
 
   private String nickname;
 
+  @Column(nullable = false, unique = true)
   private String keycloakId; // Keycloak 연동용
 
   @Enumerated(EnumType.STRING)
@@ -103,6 +104,11 @@ public class User {
   // 닉네임 변경
   public void changeNickname(String newNickname) {
     this.nickname = newNickname;
+  }
+
+  // 이메일 변경
+  public void changeEmail(String newEmail) {
+    this.email = newEmail;
   }
 
   // 역할 변경 (관리자용)
