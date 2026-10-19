@@ -29,8 +29,17 @@ public interface KeycloakService {
   // 이메일로 Keycloak 사용자 조회
   String findUserByEmail(String email);
 
+  // 사용자 이름이 정확히 같은 Keycloak 사용자 ID. 없으면 null, 조회가 실패하면 예외
+  String findUserIdByUsername(String username);
+
   // Keycloak 사용자에게 realm role 할당
   void assignRealmRole(String keycloakId, String roleName);
+
+  // Keycloak 사용자의 realm role 해제
+  void removeRealmRole(String keycloakId, String roleName);
+
+  // 사용자의 Keycloak 세션 전체 종료. 이미 받은 refresh token 으로 새 토큰을 못 받음
+  void logoutUserSessions(String keycloakId);
 
   // Refresh token 으로 새 토큰을 받는다. Keycloak 이 주는 새 refresh token 도 같이 돌려준다
   TokenResponseDto refreshToken(String refreshToken);

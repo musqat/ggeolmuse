@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.endsWith;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
@@ -41,6 +42,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.util.MultiValueMap;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
 @ExtendWith(MockitoExtension.class)
@@ -565,28 +567,45 @@ class KeycloakServiceImplTest {
     }
 
     @Test
-    @DisplayName("realm 역할을 조회해 그대로 사용자 역할 매핑에 넣는다")
+    @DisplayName("사용자에게 부여할 수 있는 역할 중 그 역할을 사용자 역할 매핑에 추가하고, realm 역할 목록은 읽지 않는다")
     @SuppressWarnings("unchecked")
     void assignRealmRole_PostsRoleMapping() {
       adminTokenOk();
       Map<String, Object> role = Map.of("id", "role-1", "name", "admin");
-      given(restTemplate.exchange(eq(AUTH_SERVER_URL + "/admin/realms/" + REALM + "/roles/admin"), eq(HttpMethod.GET),
-        any(HttpEntity.class), eq(Map.class))).willReturn(ResponseEntity.ok(role));
+      String mappings = AUTH_SERVER_URL + "/admin/realms/" + REALM + "/users/" + TEST_KEYCLOAK_ID + "/role-mappings/realm";
+      given(restTemplate.exchange(eq(mappings), eq(HttpMethod.GET), any(HttpEntity.class), eq(List.class)))
+        .willReturn(ResponseEntity.ok(List.of()));
+      given(restTemplate.exchange(eq(mappings + "/available"), eq(HttpMethod.GET), any(HttpEntity.class), eq(List.class)))
+        .willReturn(ResponseEntity.ok(List.of(Map.of("id", "role-2", "name", "user"), role)));
 
       keycloakService.assignRealmRole(TEST_KEYCLOAK_ID, "admin");
 
       ArgumentCaptor<HttpEntity<List<Map<String, Object>>>> entity = ArgumentCaptor.forClass(HttpEntity.class);
-      verify(restTemplate).postForEntity(eq(AUTH_SERVER_URL + "/admin/realms/" + REALM + "/users/" + TEST_KEYCLOAK_ID
-        + "/role-mappings/realm"), entity.capture(), eq(Void.class));
+      verify(restTemplate).postForEntity(eq(mappings), entity.capture(), eq(Void.class));
       assertThat(entity.getValue().getBody()).containsExactly(role);
+      verify(restTemplate, never()).exchange(contains("/roles/"), any(HttpMethod.class), any(HttpEntity.class), eq(Map.class));
     }
 
     @Test
-    @DisplayName("역할이 없거나 조회가 실패하면 역할을 넣지 않고 API_ERROR 다")
+    @DisplayName("이미 그 역할을 가진 사용자면 다시 넣지 않는다")
+    void assignRealmRole_AlreadyMapped_NoPost() {
+      adminTokenOk();
+      given(restTemplate.exchange(endsWith("/role-mappings/realm"), eq(HttpMethod.GET), any(HttpEntity.class), eq(List.class)))
+        .willReturn(ResponseEntity.ok(List.of(Map.of("id", "role-1", "name", "admin"))));
+
+      keycloakService.assignRealmRole(TEST_KEYCLOAK_ID, "admin");
+
+      verify(restTemplate, never()).postForEntity(contains("/role-mappings/realm"), any(), eq(Void.class));
+    }
+
+    @Test
+    @DisplayName("부여할 수 있는 역할에 없거나 조회가 실패하면 역할을 추가하지 않고 API_ERROR 다")
     void assignRealmRole_RoleMissing_ApiError() {
       adminTokenOk();
-      given(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(Map.class)))
-        .willReturn(ResponseEntity.ok(null))
+      given(restTemplate.exchange(endsWith("/role-mappings/realm"), eq(HttpMethod.GET), any(HttpEntity.class), eq(List.class)))
+        .willReturn(ResponseEntity.ok(List.of()));
+      given(restTemplate.exchange(endsWith("/available"), eq(HttpMethod.GET), any(HttpEntity.class), eq(List.class)))
+        .willReturn(ResponseEntity.ok(List.of()))
         .willThrow(new HttpClientErrorException(HttpStatus.NOT_FOUND));
 
       for (int i = 0; i < 2; i++) {
@@ -605,9 +624,11 @@ class KeycloakServiceImplTest {
       created.add("Location", AUTH_SERVER_URL + "/admin/realms/" + REALM + "/users/" + TEST_KEYCLOAK_ID);
       given(restTemplate.postForEntity(contains("/users"), any(HttpEntity.class), eq(Void.class)))
         .willReturn(new ResponseEntity<>(created, HttpStatus.CREATED));
-      given(restTemplate.exchange(contains("/roles/admin"), eq(HttpMethod.GET), any(HttpEntity.class), eq(Map.class)))
-        .willReturn(ResponseEntity.ok(Map.of("id", "role-1", "name", "admin")))
-        .willReturn(ResponseEntity.ok(null));
+      given(restTemplate.exchange(endsWith("/role-mappings/realm"), eq(HttpMethod.GET), any(HttpEntity.class), eq(List.class)))
+        .willReturn(ResponseEntity.ok(List.of()));
+      given(restTemplate.exchange(endsWith("/available"), eq(HttpMethod.GET), any(HttpEntity.class), eq(List.class)))
+        .willReturn(ResponseEntity.ok(List.of(Map.of("id", "role-1", "name", "admin"))))
+        .willReturn(ResponseEntity.ok(List.of()));
 
       assertThat(keycloakService.createAdminUser("admin@example.com", "Adm1n-pass!")).isEqualTo(TEST_KEYCLOAK_ID);
       assertThatThrownBy(() -> keycloakService.createAdminUser("admin@example.com", "Adm1n-pass!"))
@@ -640,6 +661,101 @@ class KeycloakServiceImplTest {
       MultiValueMap<String, String> body = capturedForm(LoginResponseDto.class);
       assertThat(body.getFirst("client_id")).isEqualTo(CLIENT_ID);
       assertThat(body.getFirst("client_secret")).isEqualTo(CLIENT_SECRET);
+    }
+  }
+
+  @Nested
+  @DisplayName("realm role 해제 · 사용자 세션 종료")
+  class RealmRoleRemovalTests {
+
+    private final String usersUrl = AUTH_SERVER_URL + "/admin/realms/" + REALM + "/users/" + TEST_KEYCLOAK_ID;
+    private final Map<String, Object> adminRole = Map.of("id", "role-1", "name", "admin");
+
+    private void givenAdminToken() {
+      given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(Map.class)))
+        .willReturn(ResponseEntity.ok(Map.of("access_token", "admin_access_token")));
+    }
+
+    @Test
+    @DisplayName("사용자가 가진 realm 역할에서 그 역할을 찾아 본문에 담고 역할 매핑에서 DELETE 한다")
+    void removeRealmRole_DeletesRoleMapping() {
+      givenAdminToken();
+      given(restTemplate.exchange(eq(usersUrl + "/role-mappings/realm"), eq(HttpMethod.GET), any(HttpEntity.class),
+        eq(List.class))).willReturn(ResponseEntity.ok(List.of(adminRole)));
+
+      keycloakService.removeRealmRole(TEST_KEYCLOAK_ID, "admin");
+
+      ArgumentCaptor<HttpEntity> request = ArgumentCaptor.forClass(HttpEntity.class);
+      verify(restTemplate).exchange(eq(usersUrl + "/role-mappings/realm"), eq(HttpMethod.DELETE), request.capture(),
+        eq(Void.class));
+      assertThat(request.getValue().getBody()).isEqualTo(List.of(adminRole));
+      assertThat(request.getValue().getHeaders().getFirst(HttpHeaders.AUTHORIZATION)).isEqualTo("Bearer admin_access_token");
+      verify(restTemplate, never()).exchange(contains("/roles/"), any(HttpMethod.class), any(HttpEntity.class), eq(Map.class));
+    }
+
+    @Test
+    @DisplayName("그 역할이 없는 사용자면 지우지 않는다")
+    void removeRealmRole_NotMapped_NoDelete() {
+      givenAdminToken();
+      given(restTemplate.exchange(eq(usersUrl + "/role-mappings/realm"), eq(HttpMethod.GET), any(HttpEntity.class),
+        eq(List.class))).willReturn(ResponseEntity.ok(List.of()));
+
+      keycloakService.removeRealmRole(TEST_KEYCLOAK_ID, "admin");
+
+      verify(restTemplate, never()).exchange(anyString(), eq(HttpMethod.DELETE), any(HttpEntity.class), eq(Void.class));
+    }
+
+    @Test
+    @DisplayName("사용자 이름이 정확히 같은 Keycloak 사용자의 ID 를 돌려주고, 없으면 null, 조회가 실패하면 Keycloak 오류다")
+    void findUserIdByUsername() {
+      givenAdminToken();
+      given(restTemplate.exchange(contains("username=found@example.com&exact=true"), eq(HttpMethod.GET), any(HttpEntity.class),
+        eq(List.class))).willReturn(ResponseEntity.ok(List.of(Map.of("id", TEST_KEYCLOAK_ID, "username", "found@example.com"))));
+      given(restTemplate.exchange(contains("username=none@example.com"), eq(HttpMethod.GET), any(HttpEntity.class),
+        eq(List.class))).willReturn(ResponseEntity.ok(List.of()));
+      given(restTemplate.exchange(contains("username=down@example.com"), eq(HttpMethod.GET), any(HttpEntity.class),
+        eq(List.class))).willThrow(new ResourceAccessException("down"));
+
+      assertThat(keycloakService.findUserIdByUsername("found@example.com")).isEqualTo(TEST_KEYCLOAK_ID);
+      assertThat(keycloakService.findUserIdByUsername("none@example.com")).isNull();
+      assertThatThrownBy(() -> keycloakService.findUserIdByUsername("down@example.com"))
+        .isInstanceOf(KeycloakException.class);
+    }
+
+    @Test
+    @DisplayName("역할 해제 실패 시 Keycloak 예외가 발생한다")
+    void removeRealmRole_Fails_Throws() {
+      givenAdminToken();
+      given(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(List.class)))
+        .willReturn(ResponseEntity.ok(List.of(adminRole)));
+      given(restTemplate.exchange(anyString(), eq(HttpMethod.DELETE), any(HttpEntity.class), eq(Void.class)))
+        .willThrow(new ResourceAccessException("down"));
+
+      assertThatThrownBy(() -> keycloakService.removeRealmRole(TEST_KEYCLOAK_ID, "admin"))
+        .isInstanceOf(KeycloakException.class);
+    }
+
+    @Test
+    @DisplayName("사용자 세션 전체를 종료하는 admin logout 을 POST 한다")
+    void logoutUserSessions_PostsUserLogout() {
+      givenAdminToken();
+      given(restTemplate.postForEntity(eq(usersUrl + "/logout"), any(HttpEntity.class), eq(Void.class)))
+        .willReturn(ResponseEntity.noContent().build());
+
+      keycloakService.logoutUserSessions(TEST_KEYCLOAK_ID);
+
+      verify(restTemplate).postForEntity(eq(usersUrl + "/logout"), any(HttpEntity.class), eq(Void.class));
+    }
+
+    @Test
+    @DisplayName("세션 종료 실패 시 Keycloak 예외가 발생한다")
+    void logoutUserSessions_Fails_Throws() {
+      givenAdminToken();
+      given(restTemplate.postForEntity(eq(usersUrl + "/logout"), any(HttpEntity.class), eq(Void.class)))
+        .willThrow(new ResourceAccessException("down"));
+
+      assertThatThrownBy(() -> keycloakService.logoutUserSessions(TEST_KEYCLOAK_ID))
+        .isInstanceOf(KeycloakException.class);
     }
   }
 }
