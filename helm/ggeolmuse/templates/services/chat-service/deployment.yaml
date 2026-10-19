@@ -34,6 +34,10 @@ spec:
           value: "http://market-data-service:8083"
         - name: KEYCLOAK_JWKS_URL
           value: "{{ .Values.global.keycloak.authServerUrl }}/realms/{{ .Values.global.keycloak.realm }}/protocol/openid-connect/certs"
+        - name: KEYCLOAK_ISSUERS
+          value: {{ include "ggeolmuse.keycloakIssuers" . | quote }}
+        - name: KEYCLOAK_CLIENT_IDS
+          value: {{ include "ggeolmuse.keycloakClientIds" . | quote }}
         - name: OPENAI_API_KEY
           {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "OPENAI_API_KEY") | nindent 10 }}
         readinessProbe:

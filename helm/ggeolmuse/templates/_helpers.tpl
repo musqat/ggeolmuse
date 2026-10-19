@@ -47,6 +47,16 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 {{- end }}
 
+{{/* 받는 토큰의 iss. Keycloak hostname 이 있으면 공개 주소, 없으면 토큰을 받은 요청의 주소 */}}
+{{- define "ggeolmuse.keycloakIssuers" -}}
+{{ .Values.global.keycloak.publicUrl }}/realms/{{ .Values.global.keycloak.realm }},{{ .Values.global.keycloak.authServerUrl }}/realms/{{ .Values.global.keycloak.realm }}
+{{- end }}
+
+{{/* 받는 토큰의 azp. 이메일 로그인 · 구글 로그인 클라이언트 */}}
+{{- define "ggeolmuse.keycloakClientIds" -}}
+{{ .Values.global.keycloak.clientId }},{{ .Values.global.keycloak.frontendClientId }}
+{{- end }}
+
 {{/* Spring 환경변수 */}}
 {{- define "ggeolmuse.springEnv" -}}
 - name: SPRING_PROFILES_ACTIVE

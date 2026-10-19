@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     keycloak_jwks_url: str = (
         "http://keycloak:8080/realms/muscathan/protocol/openid-connect/certs"
     )
+    keycloak_issuers: str = "http://keycloak:8080/realms/muscathan"  # 받는 토큰의 iss, 쉼표로 여럿
+    keycloak_client_ids: str = "ggeolmuse-client,ggeolmuse-frontend"  # 받는 토큰의 azp, 쉼표로 여럿
 
     daily_limit: int = 5
     daily_reject_limit: int = 20
