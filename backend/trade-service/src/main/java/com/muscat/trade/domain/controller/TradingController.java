@@ -36,7 +36,8 @@ public class TradingController {
 
   @Operation(
     summary = "주식 매수",
-    description = "지정된 계좌에서 주식을 매수합니다. 시장가 또는 지정가 주문이 가능합니다."
+    description = "지정된 계좌에서 주식을 매수합니다. 시장가 또는 지정가 주문이 가능합니다. "
+      + "체결은 잔액 정산이 끝날 때까지 PENDING 이고, 정산되면 보유에 들어갑니다."
   )
   @ApiResponses(value = {
     @ApiResponse(
@@ -48,14 +49,15 @@ public class TradingController {
         examples = @ExampleObject(
           value = """
             {
-              "tradeId": 12345,
+              "id": 12345,
               "symbol": "AAPL",
               "tradeType": "BUY",
               "quantity": 10,
               "price": 238.15,
               "totalAmount": 2381.50,
               "tradeDate": "2024-09-18",
-              "accountId": 1
+              "accountId": 1,
+              "status": "PENDING"
             }
             """
         )
@@ -118,14 +120,15 @@ public class TradingController {
         examples = @ExampleObject(
           value = """
             {
-              "tradeId": 12346,
+              "id": 12346,
               "symbol": "AAPL",
               "tradeType": "SELL",
               "quantity": 5,
               "price": 238.15,
               "totalAmount": 1190.75,
               "tradeDate": "2024-09-18",
-              "accountId": 1
+              "accountId": 1,
+              "status": "COMPLETED"
             }
             """
         )

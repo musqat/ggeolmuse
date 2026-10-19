@@ -93,6 +93,42 @@ describe('Trading 주문', () => {
     expect(screen.getByRole('spinbutton')).toHaveValue(1)
   })
 
+  it('정산 전 매수면 접수 문구를 띄우고 2초 뒤 보유 · 거래 조회를 한 번 더 받는다', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      vi.mocked(tradeApi.buy).mockResolvedValue({ data: { ...TRADE, status: 'PENDING' } } as never)
+      const { invalidate } = renderPage()
+      await waitForChart()
+
+      await userEvent.click(submitButton())
+      await waitFor(() => expect(alertSpy).toHaveBeenCalledWith(expect.stringContaining('매수 주문을 받았습니다.')))
+      expect(invalidate).not.toHaveBeenCalledWith({ queryKey: ['portfolio'] })
+
+      await vi.advanceTimersByTimeAsync(2000)
+
+      expect(invalidate).toHaveBeenCalledWith({ queryKey: ['portfolio'] })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('완료된 체결이면 보유 조회를 다시 받지 않는다', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      vi.mocked(tradeApi.buy).mockResolvedValue({ data: { ...TRADE, status: 'COMPLETED' } } as never)
+      const { invalidate } = renderPage()
+      await waitForChart()
+
+      await userEvent.click(submitButton())
+      await waitFor(() => expect(alertSpy).toHaveBeenCalled())
+      await vi.advanceTimersByTimeAsync(2000)
+
+      expect(invalidate).not.toHaveBeenCalledWith({ queryKey: ['portfolio'] })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('매도로 바꾸면 매도 API 로 보낸다', async () => {
     vi.mocked(tradeApi.sell).mockResolvedValue({ data: { ...TRADE, tradeType: 'SELL' } } as never)
     renderPage()

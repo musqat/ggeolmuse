@@ -7,10 +7,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.muscat.trade.common.enums.responses.TradeResponse;
+import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.common.enums.type.TradeType;
 import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.domain.entity.Trade;
 import com.muscat.trade.domain.event.TradeCancelledEvent;
+import com.muscat.trade.domain.event.TradeConfirmedEvent;
 import com.muscat.trade.domain.event.TradeSavedEvent;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -47,9 +49,31 @@ class DividendReconcileTriggerTest {
   }
 
   @Test
+  @DisplayName("대기 매수 저장은 보유가 그대로라 재계산을 요청하지 않는다")
+  void onTradeSaved_PendingBuy_NoRequest() {
+    Trade pending = trade();
+    pending.setStatus(TradeStatus.PENDING);
+
+    trigger.onTradeSaved(new TradeSavedEvent(pending));
+
+    runTasks();
+    verifyNoInteractions(producer);
+  }
+
+  @Test
   @DisplayName("체결 취소가 커밋되면 그 계좌 · 종목의 재계산 요청을 실행기에 넘겨 따로 보낸다")
   void onTradeCancelled_RequestsReconcileOnExecutor() {
     trigger.onTradeCancelled(new TradeCancelledEvent("user-1", 20L, "AAPL"));
+
+    verifyNoInteractions(producer);
+    runTasks();
+    verify(producer).request("user-1", 20L, "AAPL");
+  }
+
+  @Test
+  @DisplayName("대기 매수가 완료되면 그 계좌 · 종목의 재계산 요청을 실행기에 넘겨 따로 보낸다")
+  void onTradeConfirmed_RequestsReconcileOnExecutor() {
+    trigger.onTradeConfirmed(new TradeConfirmedEvent("user-1", 20L, "AAPL"));
 
     verifyNoInteractions(producer);
     runTasks();

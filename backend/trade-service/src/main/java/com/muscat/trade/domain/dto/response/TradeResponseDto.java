@@ -40,7 +40,8 @@ public record TradeResponseDto(
   @Schema(description = "실행일시", example = "2024-09-18T14:30:00")
   LocalDateTime executedAt, // 실행일시
 
-  @Schema(description = "체결 상태", example = "COMPLETED", allowableValues = {"COMPLETED", "CANCELLED"})
+  @Schema(description = "체결 상태. 매수는 잔액 정산 전까지 PENDING", example = "COMPLETED",
+    allowableValues = {"PENDING", "COMPLETED", "CANCELLED"})
   TradeStatus status, // 체결 상태
 
   @Schema(description = "취소 사유 코드", example = "INSUFFICIENT_USD_BALANCE")

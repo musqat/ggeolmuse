@@ -98,13 +98,14 @@ public class InvestmentBacktestServiceImpl implements InvestmentBacktestService 
     return responseMapper.toInvestmentResponse(holding, backtestResult);
   }
 
-  // 종목 최초 BUY 거래일 (없으면 보유 매수일 fallback)
+  // 종목의 완료된 첫 BUY 거래일 (없으면 보유 매수일 fallback)
   private LocalDate findEarliestBuyDate(String authorization, HoldingDto holding) {
     List<TradeDto> tradeHistory = tradeServiceClientWrapper.getTradeHistoryBySymbol(authorization,
       holding.symbol());
 
     return tradeHistory.stream()
       .filter(trade -> "BUY".equals(trade.getTradeType()))
+      .filter(trade -> "COMPLETED".equals(trade.getStatus()))
       .map(TradeDto::getTradeDate)
       .min(LocalDate::compareTo)
       .orElse(holding.getPurchaseDate());

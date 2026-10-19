@@ -248,6 +248,17 @@ spec:
             summary: "못 보낸 체결 이벤트"
             description: '1분 넘게 못 보낸 체결 {{ `{{ $value | printf "%.0f" }}` }}건 · 10분 지속 · 카프카 상태 확인'
 
+        - alert: TradeBuysPending
+          # 5분 넘게 정산을 기다리는 매수. 5분마다 다시 보내도 안 풀림
+          expr: max(trade_buys_pending{job="trade-service"}) > 0
+          for: 10m
+          labels:
+            severity: warning
+            category: messaging
+          annotations:
+            summary: "정산을 기다리는 매수"
+            description: '5분 넘게 대기 중인 매수 {{ `{{ $value | printf "%.0f" }}` }}건 · 10분 지속 · user 체결 소비자와 trading.trade.completed.DLT · user.trade.settled.DLT 확인'
+
         - alert: TradeCancelNeedsReview
           # 취소한 체결을 자동으로 다 되돌리지 못함. 보유보다 많이 판 경우
           expr: sum by (reason) (increase(trade_cancel_review_total{job="trade-service"}[10m])) > 0

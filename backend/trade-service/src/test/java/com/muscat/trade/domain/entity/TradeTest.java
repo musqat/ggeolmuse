@@ -149,4 +149,25 @@ class TradeTest {
     assertThat(trade.getCancelReason()).isEqualTo("INSUFFICIENT_USD_BALANCE");
     assertThat(trade.getCancelledAt()).isEqualTo(at);
   }
+
+  @Test
+  @DisplayName("대기 체결을 완료하면 COMPLETED 가 된다")
+  void complete_Pending_BecomesCompleted() {
+    Trade trade = Trade.builder().status(TradeStatus.PENDING).build();
+
+    trade.complete();
+
+    assertThat(trade.getStatus()).isEqualTo(TradeStatus.COMPLETED);
+  }
+
+  @Test
+  @DisplayName("취소된 체결은 완료로 바꾸지 않는다")
+  void complete_Cancelled_Unchanged() {
+    Trade trade = Trade.builder().build();
+    trade.cancel("INSUFFICIENT_USD_BALANCE", LocalDateTime.of(2026, 10, 19, 9, 0));
+
+    trade.complete();
+
+    assertThat(trade.getStatus()).isEqualTo(TradeStatus.CANCELLED);
+  }
 }

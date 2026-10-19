@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { applyFilters, groupByDay, summarize } from './tradeHistory'
+import { applyFilters, groupByDay, historyRefetchInterval, summarize } from './tradeHistory'
 import type { TransactionHistoryItem } from '../../../services/api'
 
 const buy = (tradeId: number, date: string, executedAt: string, extra: Partial<TransactionHistoryItem> = {}) =>
@@ -40,6 +40,33 @@ describe('summarize', () => {
     expect(summary.dividend.total).toBeCloseTo(0.88)
     expect(summary.fee).toBeCloseTo(0.7)
     expect(summary.cancelled).toBe(1)
+  })
+
+  it('정산 전 매수는 합계에서 빼고 따로 센다', () => {
+    const summary = summarize([
+      buy(1, '2026-10-01', '2026-10-01T10:00:00'),
+      buy(2, '2026-10-02', '2026-10-02T10:00:00', { status: 'PENDING', totalAmount: 500, fee: 5 }),
+    ])
+
+    expect(summary.buy).toEqual({ total: 200.4, count: 1 })
+    expect(summary.fee).toBeCloseTo(0.4)
+    expect(summary.pending).toBe(1)
+    expect(summary.cancelled).toBe(0)
+  })
+})
+
+describe('historyRefetchInterval', () => {
+  const now = Date.parse('2026-10-19T10:00:30')
+
+  it('주문한 지 1분 안의 정산 전 매수가 있으면 2초마다 다시 불러온다', () => {
+    expect(historyRefetchInterval([buy(1, '2026-10-19', '2026-10-19T10:00:00', { status: 'PENDING' })], now)).toBe(2000)
+  })
+
+  it('1분 넘은 정산 전 매수만 있거나, 정산 전 매수가 없거나, 내역이 비면 멈춘다', () => {
+    expect(historyRefetchInterval([buy(1, '2026-10-19', '2026-10-19T09:58:00', { status: 'PENDING' })], now)).toBe(false)
+    expect(historyRefetchInterval([buy(1, '2026-10-19', '2026-10-19T10:00:00')], now)).toBe(false)
+    expect(historyRefetchInterval([], now)).toBe(false)
+    expect(historyRefetchInterval(undefined, now)).toBe(false)
   })
 })
 

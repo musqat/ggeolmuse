@@ -3,6 +3,7 @@ import { RefreshCw } from 'lucide-react';
 import type { TransactionHistoryItem } from '../../../services/api';
 import { parseLocalDate } from '../../../utils/dateUtils';
 import TradeCancelledBadge from '../TradeCancelledBadge';
+import TradePendingBadge from '../TradePendingBadge';
 import { applyFilters, groupByDay, summarize, type HistoryFilter } from './tradeHistory';
 
 interface AccountOption {
@@ -13,8 +14,7 @@ interface AccountOption {
 interface TradeHistoryListProps {
   transactions: TransactionHistoryItem[];
   accounts: AccountOption[];
-  onRefresh: () => void;
-  refreshing: boolean;
+  onRefresh: () => unknown;
 }
 
 const FILTERS: { value: HistoryFilter; label: string }[] = [
@@ -65,6 +65,15 @@ const detailParts = (item: TransactionHistoryItem): string[] =>
         ...(item.fee ? [`수수료 ${usd(item.fee)}`] : []),
       ];
 
+// 요약에서 뺀 거래 수. 예: 취소 1건 · 정산 중 1건 제외
+const excludedNote = (cancelled: number, pending: number) => {
+  const parts = [
+    ...(cancelled > 0 ? [`취소 ${cancelled}건`] : []),
+    ...(pending > 0 ? [`정산 중 ${pending}건`] : []),
+  ];
+  return parts.length > 0 ? `${parts.join(' · ')} 제외` : '취소 없음';
+};
+
 interface HistoryRowProps {
   item: TransactionHistoryItem;
   accountName?: string;
@@ -89,6 +98,7 @@ const HistoryRow = ({ item, accountName }: HistoryRowProps) => {
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className="font-semibold text-tx-1">{item.symbol}</span>
           {cancelled && <TradeCancelledBadge reason={item.cancelReason} />}
+          {item.status === 'PENDING' && <TradePendingBadge />}
           {accountName && <span className="text-[11px] text-tx-3">{accountName}</span>}
         </div>
         <p className="text-xs text-tx-2">
@@ -136,10 +146,20 @@ const SummaryCell = ({
 );
 
 // 거래내역 페이지와 거래 화면 탭이 같이 쓰는 목록. 거래일(배당은 배당일) 최신순으로 날짜마다 묶는다
-export const TradeHistoryList = ({ transactions, accounts, onRefresh, refreshing }: TradeHistoryListProps) => {
+export const TradeHistoryList = ({ transactions, accounts, onRefresh }: TradeHistoryListProps) => {
   const accountSelectId = useId();
   const [filter, setFilter] = useState<HistoryFilter>('ALL');
   const [accountId, setAccountId] = useState<number | 'ALL'>('ALL');
+  // 직접 누른 새로고침이 끝날 때까지만 돎(뒤에서 다시 불러올 때는 그대로)
+  const [refreshing, setRefreshing] = useState(false);
+  const refresh = async () => {
+    setRefreshing(true);
+    try {
+      await onRefresh();
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   // 요약은 계좌만 거르고 유형은 거르지 않는다. 유형을 바꿔도 네 칸이 다 보인다
   const inAccount = useMemo(() => applyFilters(transactions, 'ALL', accountId), [transactions, accountId]);
@@ -163,7 +183,7 @@ export const TradeHistoryList = ({ transactions, accounts, onRefresh, refreshing
         <SummaryCell
           label="수수료"
           value={usd(summary.fee)}
-          note={summary.cancelled > 0 ? `취소 ${summary.cancelled}건 제외` : '취소 없음'}
+          note={excludedNote(summary.cancelled, summary.pending)}
         />
       </div>
 
@@ -204,7 +224,7 @@ export const TradeHistoryList = ({ transactions, accounts, onRefresh, refreshing
         )}
         <button
           type="button"
-          onClick={onRefresh}
+          onClick={() => void refresh()}
           disabled={refreshing}
           className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-sm text-tx-2 hover:text-tx-1 rounded-md hover:bg-hover transition-colors disabled:opacity-50"
         >

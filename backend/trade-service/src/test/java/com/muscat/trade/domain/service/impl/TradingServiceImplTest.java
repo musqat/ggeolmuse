@@ -14,6 +14,7 @@ import static org.mockito.Mockito.inOrder;
 
 import com.muscat.trade.common.enums.responses.TradeResponse;
 import com.muscat.trade.common.enums.type.PriceType;
+import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.common.enums.type.TradeType;
 import com.muscat.trade.common.exception.NotEnoughHoldingsException;
 import com.muscat.trade.common.exception.TradeException;
@@ -114,60 +115,32 @@ class TradingServiceImplTest {
   class BuyStockTests {
 
     @Test
-    @DisplayName("정상적으로 주식이 매수된다 (신규 Holdings 생성)")
-    void buyStock_NewHoldings_Success() {
+    @DisplayName("매수는 대기로 저장하고 보유는 그대로 둔 채 체결 이벤트를 알린다")
+    void buyStock_SavesPendingWithoutHoldings() {
       // given
-      stubTradePropertiesForHoldingsUpdate();
-      BigDecimal tradeAmount = TEST_QUANTITY.multiply(TEST_PRICE); // 1500.00
-      BigDecimal fee = new BigDecimal("1.50");
-      BigDecimal totalAmount = tradeAmount.add(fee); // 1501.50
-
       given(marketDataService.determineTradePrice(TEST_SYMBOL, TEST_TRADE_DATE,
         PriceType.CLOSE, null))
         .willReturn(TEST_PRICE);
       given(tradeUtils.getAccountBalance(String.valueOf(TEST_ACCOUNT_ID)))
         .willReturn(testAccountBalance);
-      given(tradeUtils.calculateFee(any(), any())).willReturn(fee);
-      given(holdingsRepository.findByUserIdAndAccountIdAndSymbolWithLock(
-        TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL))
-        .willReturn(Optional.empty());
-
-      Trade savedTrade = Trade.builder()
-        .id(1L)
-        .userId(TEST_USER_ID)
-        .accountId(TEST_ACCOUNT_ID)
-        .symbol(TEST_SYMBOL)
-        .tradeType(TradeType.BUY)
-        .quantity(TEST_QUANTITY)
-        .price(TEST_PRICE)
-        .totalAmount(totalAmount)
-        .fee(fee)
-        .tradeDate(TEST_TRADE_DATE)
-        .executedAt(LocalDateTime.now())
-        .build();
-      given(tradeRepository.save(any(Trade.class))).willReturn(savedTrade);
+      given(tradeUtils.calculateFee(any(), any())).willReturn(new BigDecimal("1.50"));
+      given(tradeRepository.save(any(Trade.class)))
+        .willAnswer(invocation -> invocation.getArgument(0));
 
       // when
       TradeResponseDto result = tradingService.buyStock(TEST_USER_ID, TEST_ACCOUNT_ID,
         TEST_SYMBOL, TEST_QUANTITY, TEST_TRADE_DATE, PriceType.CLOSE, null);
 
       // then
-      assertThat(result).isNotNull();
-      assertThat(result.id()).isEqualTo(1L);
-      assertThat(result.symbol()).isEqualTo(TEST_SYMBOL);
+      ArgumentCaptor<Trade> tradeCaptor = ArgumentCaptor.forClass(Trade.class);
+      verify(tradeRepository).save(tradeCaptor.capture());
+      assertThat(tradeCaptor.getValue().getStatus()).isEqualTo(TradeStatus.PENDING);
+      assertThat(tradeCaptor.getValue().getTotalAmount()).isEqualByComparingTo("1501.50");
+      assertThat(result.status()).isEqualTo(TradeStatus.PENDING);
       assertThat(result.quantity()).isEqualByComparingTo(TEST_QUANTITY);
-      assertThat(result.price()).isEqualByComparingTo(TEST_PRICE);
 
-      // Holdings 생성 확인
-      ArgumentCaptor<Holdings> holdingsCaptor = ArgumentCaptor.forClass(Holdings.class);
-      verify(holdingsRepository).save(holdingsCaptor.capture());
-      Holdings capturedHoldings = holdingsCaptor.getValue();
-      assertThat(capturedHoldings.getUserId()).isEqualTo(TEST_USER_ID);
-      assertThat(capturedHoldings.getSymbol()).isEqualTo(TEST_SYMBOL);
-      assertThat(capturedHoldings.getTotalQuantity()).isEqualByComparingTo(TEST_QUANTITY);
-      assertThat(capturedHoldings.getAvgPurchasePrice()).isEqualByComparingTo(TEST_PRICE);
-
-      // 이벤트 발행 확인
+      verify(holdingsRepository, never()).findByUserIdAndAccountIdAndSymbolWithLock(any(), any(), any());
+      verify(holdingsRepository, never()).save(any(Holdings.class));
       verify(eventPublisher).publishEvent(any(TradeSavedEvent.class));
     }
 
@@ -192,9 +165,6 @@ class TradingServiceImplTest {
       given(tradeUtils.getAccountBalance(String.valueOf(TEST_ACCOUNT_ID)))
         .willReturn(testAccountBalance);
       given(tradeUtils.calculateFee(any(), any())).willReturn(fee);
-      given(holdingsRepository.findByUserIdAndAccountIdAndSymbolWithLock(
-        TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL))
-        .willReturn(Optional.empty());
       given(tradeRepository.save(any(Trade.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
 
@@ -217,7 +187,6 @@ class TradingServiceImplTest {
     @DisplayName("직접 입력 가격에는 슬리피지를 붙이지 않는다")
     void buyStock_ManualPrice_KeepsInputPrice() {
       // given
-      stubTradePropertiesForHoldingsUpdate();
       BigDecimal manualPrice = new BigDecimal("100.00");
       testAccountBalance = AccountBalanceDto.builder()
         .accountId(String.valueOf(TEST_ACCOUNT_ID))
@@ -233,9 +202,6 @@ class TradingServiceImplTest {
       given(tradeUtils.getAccountBalance(String.valueOf(TEST_ACCOUNT_ID)))
         .willReturn(testAccountBalance);
       given(tradeUtils.calculateFee(any(), any())).willReturn(new BigDecimal("1.00"));
-      given(holdingsRepository.findByUserIdAndAccountIdAndSymbolWithLock(
-        TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL))
-        .willReturn(Optional.empty());
       given(tradeRepository.save(any(Trade.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
 
@@ -247,74 +213,6 @@ class TradingServiceImplTest {
       ArgumentCaptor<Trade> tradeCaptor = ArgumentCaptor.forClass(Trade.class);
       verify(tradeRepository).save(tradeCaptor.capture());
       assertThat(tradeCaptor.getValue().getPrice()).isEqualByComparingTo(manualPrice);
-    }
-
-    @Test
-    @DisplayName("기존 Holdings에 추가 매수된다 (평균 단가 재계산)")
-    void buyStock_ExistingHoldings_Success() {
-      // given
-      stubTradePropertiesForHoldingsUpdate();
-      BigDecimal existingQuantity = new BigDecimal("5");
-      BigDecimal existingAvgPrice = new BigDecimal("140.00");
-      BigDecimal existingInvestedAmount = existingQuantity.multiply(existingAvgPrice);
-
-      Holdings existingHoldings = Holdings.builder()
-        .id(1L)
-        .userId(TEST_USER_ID)
-        .accountId(TEST_ACCOUNT_ID)
-        .symbol(TEST_SYMBOL)
-        .totalQuantity(existingQuantity)
-        .avgPurchasePrice(existingAvgPrice)
-        .totalInvestedAmount(existingInvestedAmount)
-        .build();
-
-      BigDecimal tradeAmount = TEST_QUANTITY.multiply(TEST_PRICE);
-      BigDecimal fee = new BigDecimal("1.50");
-      BigDecimal totalAmount = tradeAmount.add(fee);
-
-      given(marketDataService.determineTradePrice(TEST_SYMBOL, TEST_TRADE_DATE,
-        PriceType.CLOSE, null))
-        .willReturn(TEST_PRICE);
-      given(tradeUtils.getAccountBalance(String.valueOf(TEST_ACCOUNT_ID)))
-        .willReturn(testAccountBalance);
-      given(tradeUtils.calculateFee(any(), any())).willReturn(fee);
-      given(holdingsRepository.findByUserIdAndAccountIdAndSymbolWithLock(
-        TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL))
-        .willReturn(Optional.of(existingHoldings));
-
-      Trade savedTrade = Trade.builder()
-        .id(1L)
-        .userId(TEST_USER_ID)
-        .accountId(TEST_ACCOUNT_ID)
-        .symbol(TEST_SYMBOL)
-        .tradeType(TradeType.BUY)
-        .quantity(TEST_QUANTITY)
-        .price(TEST_PRICE)
-        .totalAmount(totalAmount)
-        .fee(fee)
-        .tradeDate(TEST_TRADE_DATE)
-        .executedAt(LocalDateTime.now())
-        .build();
-      given(tradeRepository.save(any(Trade.class))).willReturn(savedTrade);
-
-      // when
-      TradeResponseDto result = tradingService.buyStock(TEST_USER_ID, TEST_ACCOUNT_ID,
-        TEST_SYMBOL, TEST_QUANTITY, TEST_TRADE_DATE, PriceType.CLOSE, null);
-
-      // then
-      assertThat(result).isNotNull();
-
-      // 평균 단가 재계산 확인
-      // (5 * 140 + 10 * 150) / 15 = (700 + 1500) / 15 = 146.67
-      BigDecimal newTotalQuantity = existingQuantity.add(TEST_QUANTITY);
-      assertThat(existingHoldings.getTotalQuantity()).isEqualByComparingTo(newTotalQuantity);
-
-      BigDecimal expectedAvgPrice = existingInvestedAmount.add(tradeAmount)
-        .divide(newTotalQuantity, 2, RoundingMode.HALF_UP);
-      assertThat(existingHoldings.getAvgPurchasePrice()).isEqualByComparingTo(expectedAvgPrice);
-
-      verify(holdingsRepository, never()).save(any(Holdings.class));
-      verify(eventPublisher).publishEvent(any(TradeSavedEvent.class));
     }
 
     @Test

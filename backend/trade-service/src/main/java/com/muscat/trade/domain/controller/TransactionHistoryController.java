@@ -60,7 +60,7 @@ public class TransactionHistoryController {
       transaction.put("fee", trade.getFee());
       transaction.put("date", trade.getTradeDate());
       transaction.put("executedAt", trade.getExecutedAt());
-      transaction.put("status", trade.getStatus().name()); // COMPLETED · CANCELLED
+      transaction.put("status", trade.getStatus().name()); // PENDING · COMPLETED · CANCELLED
       transaction.put("cancelReason", trade.getCancelReason());
       transactions.add(transaction);
     }

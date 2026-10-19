@@ -3,6 +3,7 @@ package com.muscat.trade.domain.service.impl;
 import com.muscat.commonlib.util.MoneyUtils;
 import com.muscat.trade.common.enums.responses.TradeResponse;
 import com.muscat.trade.common.enums.type.PriceType;
+import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.common.enums.type.TradeType;
 import com.muscat.trade.common.exception.NotEnoughHoldingsException;
 import com.muscat.trade.common.exception.TradeException;
@@ -39,7 +40,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
-// 매수 · 매도 체결. 시세 · 잔액 조회는 트랜잭션 밖, 체결 저장 · 보유 반영만 트랜잭션 안
+// 매수 · 매도 체결. 시세 · 잔액 조회는 트랜잭션 밖, 체결 저장 · 매도의 보유 반영만 트랜잭션 안
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -327,7 +328,7 @@ public class TradingServiceImpl implements TradingService {
     }
   }
 
-  // 거래 기록 저장과 보유 반영
+  // 체결 저장. 매도만 보유에 바로 반영하고 매수는 정산된 뒤 보유에 들어감
   private Trade executeTradeDbTransaction(String userId, String accountId, String symbol,
     BigDecimal quantity, BigDecimal tradePrice, BigDecimal totalAmount,
     BigDecimal fee, LocalDate tradeDate, TradeType tradeType) {
@@ -353,10 +354,13 @@ public class TradingServiceImpl implements TradingService {
       .fee(fee)
       .tradeDate(tradeDate)
       .executedAt(LocalDateTime.now())
+      .status(tradeType == TradeType.BUY ? TradeStatus.PENDING : TradeStatus.COMPLETED)
       .build();
 
     Trade savedTrade = tradeRepository.save(trade);
-    updateHoldings(savedTrade);
+    if (tradeType == TradeType.SELL) {
+      updateHoldings(savedTrade);
+    }
 
     return savedTrade;
   }

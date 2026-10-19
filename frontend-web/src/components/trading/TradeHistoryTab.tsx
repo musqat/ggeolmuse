@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { tradeApi, accountsApi, type TransactionHistoryItem } from '../../services/api';
 import { TradeHistoryList } from './history/TradeHistoryList';
+import { historyRefetchInterval } from './history/tradeHistory';
 
 // 거래 화면의 거래내역 탭. 목록은 거래내역 페이지와 같은 것을 쓴다
 const TradeHistoryTab: React.FC = () => {
@@ -19,7 +20,6 @@ const TradeHistoryTab: React.FC = () => {
   const {
     data: transactions = [],
     isLoading: loading,
-    isFetching,
     error,
     refetch
   } = useQuery({
@@ -29,6 +29,7 @@ const TradeHistoryTab: React.FC = () => {
       return response.data || [];
     },
     staleTime: 2 * 60 * 1000, // 2분
+    refetchInterval: (query) => historyRefetchInterval(query.state.data),
   });
 
   if (loading) {
@@ -58,7 +59,6 @@ const TradeHistoryTab: React.FC = () => {
       transactions={transactions}
       accounts={accounts}
       onRefresh={() => refetch()}
-      refreshing={isFetching}
     />
   );
 };

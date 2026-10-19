@@ -50,6 +50,42 @@ class TradeRepositoryQueryTest {
     return save(userId, accountId, symbol, type, quantity, totalAmount, tradeDate, hour, TradeStatus.COMPLETED);
   }
 
+  private Trade saveBuy(TradeStatus status, LocalDateTime eventPublishedAt) {
+    return tradeRepository.save(Trade.builder()
+      .userId(USER).accountId(10L).symbol("AAPL").tradeType(TradeType.BUY)
+      .quantity(BigDecimal.ONE).price(new BigDecimal("10")).totalAmount(new BigDecimal("10")).fee(BigDecimal.ZERO)
+      .tradeDate(LocalDate.of(2026, 10, 19)).executedAt(LocalDateTime.of(2026, 10, 19, 9, 0))
+      .status(status).eventPublishedAt(eventPublishedAt)
+      .build());
+  }
+
+  @Test
+  @DisplayName("발행 시각이 기준보다 앞선 대기 매수만 다시 보낼 대상으로 준다")
+  void findStalePendingBuys_PublishedBeforeCutoffOnly() {
+    LocalDateTime publishedAt = LocalDateTime.of(2026, 10, 19, 9, 0);
+    Trade stale = saveBuy(TradeStatus.PENDING, publishedAt);
+    saveBuy(TradeStatus.COMPLETED, publishedAt);
+    saveBuy(TradeStatus.PENDING, null);
+
+    assertThat(tradeRepository.findTop100ByTradeTypeAndStatusAndEventPublishedAtBeforeOrderByIdAsc(
+      TradeType.BUY, TradeStatus.PENDING, publishedAt.plusMinutes(5)))
+      .extracting(Trade::getId).containsExactly(stale.getId());
+    assertThat(tradeRepository.findTop100ByTradeTypeAndStatusAndEventPublishedAtBeforeOrderByIdAsc(
+      TradeType.BUY, TradeStatus.PENDING, publishedAt.minusMinutes(5))).isEmpty();
+  }
+
+  @Test
+  @DisplayName("기준 시각 전에 만든 대기 매수만 센다")
+  void countPendingBuys_BeforeCutoffOnly() {
+    saveBuy(TradeStatus.PENDING, null);
+    saveBuy(TradeStatus.COMPLETED, null);
+
+    assertThat(tradeRepository.countByTradeTypeAndStatusAndCreatedAtBefore(
+      TradeType.BUY, TradeStatus.PENDING, LocalDateTime.now().plusMinutes(1))).isEqualTo(1);
+    assertThat(tradeRepository.countByTradeTypeAndStatusAndCreatedAtBefore(
+      TradeType.BUY, TradeStatus.PENDING, LocalDateTime.now().minusMinutes(1))).isZero();
+  }
+
   @Test
   @DisplayName("거래한 종목을 사용자별로 중복 없이 준다")
   void distinctSymbols_PerUser() {

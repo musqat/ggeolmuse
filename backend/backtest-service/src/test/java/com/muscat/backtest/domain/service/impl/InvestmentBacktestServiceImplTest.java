@@ -256,10 +256,15 @@ class InvestmentBacktestServiceImplTest {
   }
 
   private TradeDto createTradeDto(String tradeType, LocalDate tradeDate) {
+    return createTradeDto(tradeType, tradeDate, "COMPLETED");
+  }
+
+  private TradeDto createTradeDto(String tradeType, LocalDate tradeDate, String status) {
     TradeDto dto = new TradeDto();
     dto.setTradeId("trade-123");
     dto.setTradeType(tradeType);
     dto.setTradeDate(tradeDate);
+    dto.setStatus(status);
     return dto;
   }
 
@@ -374,6 +379,31 @@ class InvestmentBacktestServiceImplTest {
 
       assertThat(result.getStatus()).isEqualTo("PARTIAL_SUCCESS");
       assertThat(result.getMessage()).isEqualTo("2개 종목 중 1개 성공");
+    }
+  }
+
+  @Nested
+  @DisplayName("첫 매수일")
+  class EarliestBuyDateTests {
+
+    private final HoldingDto holding = createHoldingDto("AAPL", new BigDecimal("10"), new BigDecimal("100"), new BigDecimal("1300000"));
+
+    @Test
+    @DisplayName("취소 · 대기 매수는 빼고 완료된 매수 가운데 가장 이른 날을 쓴다")
+    void earliestBuyDate_SkipsCancelledAndPendingBuys() {
+      given(tradeServiceClientWrapper.getPortfolio(TEST_AUTHORIZATION)).willReturn(List.of(holding));
+      given(tradeServiceClientWrapper.getTradeHistoryBySymbol(TEST_AUTHORIZATION, "AAPL")).willReturn(List.of(
+        createTradeDto("BUY", LocalDate.of(2024, 1, 2), "CANCELLED"),
+        createTradeDto("BUY", LocalDate.of(2024, 1, 3), "PENDING"),
+        createTradeDto("BUY", LocalDate.of(2024, 1, 10))));
+      given(marketDataClientWrapper.getCurrentPrice("AAPL"))
+        .willReturn(createCurrentPrice("AAPL", new BigDecimal("200.00")));
+      given(responseMapper.toInvestmentResponse(eq(holding), any(SimulationResponse.class)))
+        .willReturn(InvestmentResponse.builder().symbol("AAPL").status("SUCCESS").build());
+
+      investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION, TEST_EMAIL);
+
+      assertThat(capturedSimulation(holding).getPurchaseDate()).isEqualTo(LocalDate.of(2024, 1, 10));
     }
   }
 

@@ -31,6 +31,17 @@ describe('formatTradeResult', () => {
     )
   })
 
+  it('정산 전 매수는 주문 접수 문구를 보여준다', () => {
+    const message = formatTradeResult({ ...buy, status: 'PENDING' })
+
+    expect(message.split('\n')[0]).toBe('매수 주문을 받았습니다. 잔액 정산이 끝나면 보유에 반영됩니다.')
+    expect(message).toContain('총액: $90.02')
+  })
+
+  it('완료된 매수는 체결 문구 그대로다', () => {
+    expect(formatTradeResult({ ...buy, status: 'COMPLETED' }).split('\n')[0]).toBe('매수 주문이 체결되었습니다.')
+  })
+
   it('매도는 수수료를 뺀 받는 금액을 보여준다', () => {
     const sell: TradeResult = { ...buy, tradeType: 'SELL', price: 8.96, totalAmount: 89.38 }
 

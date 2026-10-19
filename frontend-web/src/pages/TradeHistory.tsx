@@ -5,6 +5,7 @@ import { LogIn } from 'lucide-react';
 import { tradeApi, accountsApi, type TransactionHistoryItem } from '../services/api';
 import LoginModal from '../components/auth/LoginModal';
 import { TradeHistoryList } from '../components/trading/history/TradeHistoryList';
+import { historyRefetchInterval } from '../components/trading/history/tradeHistory';
 
 const TradeHistory: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading, login } = useAuth();
@@ -14,7 +15,6 @@ const TradeHistory: React.FC = () => {
   const {
     data: transactions = [],
     isLoading: loading,
-    isFetching,
     error,
     refetch
   } = useQuery({
@@ -25,6 +25,7 @@ const TradeHistory: React.FC = () => {
     },
     enabled: isAuthenticated,
     staleTime: 2 * 60 * 1000, // 2분 (거래내역은 자주 변경됨)
+    refetchInterval: (query) => historyRefetchInterval(query.state.data),
   });
 
   // React Query: 계좌 목록 조회. 계좌 필터와 계좌 이름에 쓴다
@@ -112,7 +113,6 @@ const TradeHistory: React.FC = () => {
           transactions={transactions}
           accounts={accounts}
           onRefresh={() => refetch()}
-          refreshing={isFetching}
         />
       </div>
     </div>

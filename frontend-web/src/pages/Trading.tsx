@@ -29,6 +29,9 @@ import StockSelectionPanel from '@/components/trading/StockSelectionPanel';
 import TradingChartSection from '@/components/trading/TradingChartSection';
 import { getApiErrorMessage } from '@/utils/apiError';
 
+// 정산 전 매수 뒤 보유 · 거래를 한 번 더 받을 때까지
+const SETTLE_REFRESH_MS = 2000;
+
 const Trading: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -199,6 +202,13 @@ const Trading: React.FC = () => {
         : await tradeApi.sell(order);
       // 잔고와 보유가 바뀌어 매수·매도 가능 수량과 거래 내역을 다시 받는다
       void queryClient.invalidateQueries({ queryKey: ['trade'] });
+      // 정산 전 매수는 정산이 끝나야 보유에 들어가 잠시 뒤 한 번 더 받음
+      if (trade.status === 'PENDING') {
+        setTimeout(() => {
+          void queryClient.invalidateQueries({ queryKey: ['trade'] });
+          void queryClient.invalidateQueries({ queryKey: ['portfolio'] });
+        }, SETTLE_REFRESH_MS);
+      }
       alert(formatTradeResult(trade));
 
       // 주문 성공 후 초기화
