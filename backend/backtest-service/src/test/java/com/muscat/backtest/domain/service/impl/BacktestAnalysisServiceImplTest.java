@@ -3,6 +3,7 @@ package com.muscat.backtest.domain.service.impl;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.never;
@@ -455,49 +456,62 @@ class BacktestAnalysisServiceImplTest {
     }
 
     @Test
-    @DisplayName("전략 타입이 없는 경우 일반 시뮬레이션 실행")
-    void compareStrategies_NoStrategyType_RunsSimulation() {
-      // Given
-      StrategyParameter customConfig = new StrategyParameter();
-      customConfig.setName("커스텀 전략");
-      customConfig.setPurchaseDate(LocalDate.of(2023, 6, 1));
-
+    @DisplayName("전략 타입이 없는 항목은 실패로 빼고 나머지로 비교한다")
+    void compareStrategies_NoStrategyType_SkipsThatStrategy() {
+      StrategyParameter dcaConfig = new StrategyParameter();
+      dcaConfig.setStrategyType(StrategyType.DCA);
+      dcaConfig.setName("DCA 전략");
+      dcaConfig.setMonthlyAmount(BigDecimal.valueOf(1000));
+      dcaConfig.setPurchaseDay(1);
+      StrategyParameter noType = new StrategyParameter();
+      noType.setName("타입 없음");
+      noType.setPurchaseDate(LocalDate.of(2023, 6, 1));
       StrategyComparisonRequest request = new StrategyComparisonRequest();
       request.setSymbol("AAPL");
       request.setStartDate(LocalDate.of(2023, 1, 1));
       request.setEndDate(LocalDate.of(2024, 1, 1));
       request.setInvestmentAmount(BigDecimal.valueOf(10000));
-      request.setStrategies(Collections.singletonList(customConfig));
       request.setUserId("user123");
+      request.setStrategies(List.of(dcaConfig, noType));
 
-      SimulationResponse simulationResponse = SimulationResponse.builder()
-        .symbol("AAPL")
-        .totalReturnPercent(BigDecimal.valueOf(18))
-        .build();
-
-      ComparisonItem customItem = ComparisonItem.builder()
-        .name("커스텀 전략")
-        .totalReturnPercent(BigDecimal.valueOf(18))
-        .build();
-
-      given(tradingSimulationService.runSimulation(any(), eq(false)))
-        .willReturn(simulationResponse);
-      given(responseMapper.toComparisonItemFromSimulation(simulationResponse, "커스텀 전략"))
-        .willReturn(customItem);
-
-      ComparisonResponse expectedResponse = ComparisonResponse.builder()
-        .bestPerformer(customItem)
-        .build();
-
+      StrategyResponse dcaResponse = StrategyResponse.builder().symbol("AAPL").totalReturnPercent(BigDecimal.valueOf(12)).build();
+      ComparisonItem dcaItem = ComparisonItem.builder().name("DCA 전략").totalReturnPercent(BigDecimal.valueOf(12)).build();
+      given(dcaStrategy.execute(any())).willReturn(dcaResponse);
+      given(responseMapper.toComparisonItemFromStrategy(dcaResponse, "DCA 전략")).willReturn(dcaItem);
       given(responseMapper.toComparisonResponse(eq(request), any(), any()))
-        .willReturn(expectedResponse);
+        .willReturn(ComparisonResponse.builder().bestPerformer(dcaItem).build());
 
-      // When
       ComparisonResponse result = backtestAnalysisService.compareStrategies(request);
 
-      // Then
-      assertThat(result).isNotNull();
-      verify(tradingSimulationService).runSimulation(any(), eq(false));
+      assertThat(result.getBestPerformer()).isEqualTo(dcaItem);
+      verify(responseMapper).toComparisonResponse(eq(request), argThat(items -> items.size() == 1 && items.get(0) == dcaItem), any());
+      verify(tradingSimulationService, never()).runSimulation(any(), eq(false));
+    }
+
+    @Test
+    @DisplayName("단순 매수 전략은 시뮬레이션으로 돈다")
+    void compareStrategies_Simple_RunsSimulation() {
+      StrategyParameter simple = new StrategyParameter();
+      simple.setStrategyType(StrategyType.SIMPLE);
+      simple.setName("단순 매수");
+      simple.setPurchaseDate(LocalDate.of(2023, 6, 1));
+      StrategyComparisonRequest request = new StrategyComparisonRequest();
+      request.setSymbol("AAPL");
+      request.setStartDate(LocalDate.of(2023, 1, 1));
+      request.setEndDate(LocalDate.of(2024, 1, 1));
+      request.setInvestmentAmount(BigDecimal.valueOf(10000));
+      request.setUserId("user123");
+      request.setStrategies(List.of(simple));
+
+      SimulationResponse simulationResponse = SimulationResponse.builder().symbol("AAPL").totalReturnPercent(BigDecimal.valueOf(18)).build();
+      ComparisonItem item = ComparisonItem.builder().name("단순 매수").totalReturnPercent(BigDecimal.valueOf(18)).build();
+      given(tradingSimulationService.runSimulation(any(), eq(false))).willReturn(simulationResponse);
+      given(responseMapper.toComparisonItemFromSimulation(simulationResponse, "단순 매수")).willReturn(item);
+      given(responseMapper.toComparisonResponse(eq(request), any(), any()))
+        .willReturn(ComparisonResponse.builder().bestPerformer(item).build());
+
+      assertThat(backtestAnalysisService.compareStrategies(request).getBestPerformer()).isEqualTo(item);
+      verify(tradingSimulationService).runSimulation(argThat(s -> LocalDate.of(2023, 6, 1).equals(s.getPurchaseDate())), eq(false));
     }
   }
 

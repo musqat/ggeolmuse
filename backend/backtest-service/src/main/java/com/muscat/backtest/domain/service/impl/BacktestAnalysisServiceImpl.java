@@ -317,14 +317,18 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
       return responseMapper.toComparisonItemFromStrategy(result, strategyName);
     }
 
-    SimulationRequest simulationRequest = simulationWithOptions(request)
-      .symbol(request.getSymbol())
-      .purchaseDate(strategyConfig.getPurchaseDate())
-      .build();
+    if (strategyType == StrategyType.SIMPLE) {
+      SimulationRequest simulationRequest = simulationWithOptions(request)
+        .symbol(request.getSymbol())
+        .purchaseDate(strategyConfig.getPurchaseDate())
+        .build();
 
-    SimulationResponse result = tradingSimulationService.runSimulation(simulationRequest,
-      false);
-    return responseMapper.toComparisonItemFromSimulation(result, strategyName);
+      SimulationResponse result = tradingSimulationService.runSimulation(simulationRequest,
+        false);
+      return responseMapper.toComparisonItemFromSimulation(result, strategyName);
+    }
+
+    throw new BacktestException(BacktestResponse.STRATEGY_TYPE_MISMATCH, "비교할 수 없는 전략 타입: " + strategyType);
   }
 
   private <T> List<ComparisonItem> collectComparisonItems(List<T> sources,
