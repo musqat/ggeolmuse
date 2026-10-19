@@ -21,9 +21,16 @@ export interface HistorySummary {
   fee: number;
   // 합계에서 뺀 취소 거래 수
   cancelled: number;
+  // 합계에서 뺀 정산 전 매수 수
+  pending: number;
 }
 
+// 정산 전 매수가 있으면 이 간격으로 다시 불러옴. 주문한 지 이만큼 지나면 멈춤
+const PENDING_REFETCH_MS = 2000;
+const PENDING_WATCH_MS = 60_000;
+
 const isCancelled = (item: TransactionHistoryItem) => item.status === 'CANCELLED';
+const isPending = (item: TransactionHistoryItem) => item.status === 'PENDING';
 
 export function applyFilters(
   items: TransactionHistoryItem[],
@@ -56,10 +63,15 @@ export function summarize(items: TransactionHistoryItem[]): HistorySummary {
     dividend: { total: 0, count: 0 },
     fee: 0,
     cancelled: 0,
+    pending: 0,
   };
   items.forEach((item) => {
     if (isCancelled(item)) {
       summary.cancelled += 1;
+      return;
+    }
+    if (isPending(item)) {
+      summary.pending += 1;
       return;
     }
     const tally = item.type === 'BUY' ? summary.buy : item.type === 'SELL' ? summary.sell : summary.dividend;
@@ -68,4 +80,12 @@ export function summarize(items: TransactionHistoryItem[]): HistorySummary {
     summary.fee += item.fee ?? 0;
   });
   return summary;
+}
+
+// 주문 시각과 지금이 1분 넘게 벌어진 대기는 세지 않음(시간대가 다른 브라우저에서 끝없이 부르지 않게)
+export function historyRefetchInterval(items?: TransactionHistoryItem[], now = Date.now()): number | false {
+  const watching = items?.some(
+    (item) => isPending(item) && Math.abs(now - Date.parse(item.executedAt)) < PENDING_WATCH_MS
+  );
+  return watching ? PENDING_REFETCH_MS : false;
 }

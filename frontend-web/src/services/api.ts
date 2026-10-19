@@ -298,7 +298,7 @@ export type TransactionHistoryItem = {
   shares?: number;                                   // 배당만: 배당 받은 주식 수
   date: string;
   executedAt: string;
-  status?: 'COMPLETED' | 'CANCELLED';                // 매수 · 매도만. 잔액 반영 실패면 CANCELLED
+  status?: 'PENDING' | 'COMPLETED' | 'CANCELLED';    // 매수 · 매도만. 정산 전 매수는 PENDING, 잔액 반영 실패면 CANCELLED
   cancelReason?: string | null;
 };
 
@@ -314,6 +314,7 @@ export type TradeResult = {
   fee: number;                                       // 수수료
   tradeDate: string;                                 // 거래일 (YYYY-MM-DD)
   executedAt: string;                                // 체결 일시
+  status?: 'PENDING' | 'COMPLETED' | 'CANCELLED';    // 매수는 잔액 정산 전까지 PENDING
 };
 
 export const tradeApi = {

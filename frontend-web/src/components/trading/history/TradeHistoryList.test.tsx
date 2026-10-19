@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TradeHistoryList } from './TradeHistoryList'
 import type { TransactionHistoryItem } from '../../../services/api'
@@ -17,9 +17,24 @@ const accounts = [
 ]
 
 const renderList = () =>
-  render(<TradeHistoryList transactions={items} accounts={accounts} onRefresh={vi.fn()} refreshing={false} />)
+  render(<TradeHistoryList transactions={items} accounts={accounts} onRefresh={vi.fn()} />)
 
 describe('TradeHistoryList', () => {
+  it('새로고침은 직접 누른 동안만 돌고, 끝나면 다시 누를 수 있다', async () => {
+    let finish = () => {}
+    const onRefresh = vi.fn(() => new Promise<void>((resolve) => { finish = resolve }))
+    render(<TradeHistoryList transactions={items} accounts={accounts} onRefresh={onRefresh} />)
+    const button = screen.getByRole('button', { name: '새로고침' })
+    expect(button).toBeEnabled()
+
+    await userEvent.click(button)
+    expect(onRefresh).toHaveBeenCalledTimes(1)
+    expect(button).toBeDisabled()
+
+    finish()
+    await waitFor(() => expect(button).toBeEnabled())
+  })
+
   it('거래일 최신순으로 날짜마다 묶고 매도도 그 사이에 넣는다', () => {
     renderList()
 
@@ -50,6 +65,15 @@ describe('TradeHistoryList', () => {
 
     expect(within(summary).getByText('$455.49')).toBeInTheDocument()
     expect(within(summary).getByText('취소 1건 제외')).toBeInTheDocument()
+  })
+
+  it('정산 전 매수 줄에 정산 중을 붙이고, 요약에서는 취소와 같이 빼고 센다', () => {
+    const pending = { type: 'BUY', tradeId: 4, accountId: 1, symbol: 'TSLA', quantity: 1, price: 250, totalAmount: 250.25, fee: 0.25, date: '2026-10-19', executedAt: '2026-10-19T10:00:00', status: 'PENDING' } as TransactionHistoryItem
+    render(<TradeHistoryList transactions={[...items, pending]} accounts={accounts} onRefresh={vi.fn()} />)
+
+    const pendingRow = screen.getAllByTestId('history-row').find((row) => within(row).queryByText('TSLA'))!
+    expect(within(pendingRow).getByText('정산 중')).toBeInTheDocument()
+    expect(within(screen.getByTestId('history-summary')).getByText('취소 1건 · 정산 중 1건 제외')).toBeInTheDocument()
   })
 
   it('유형 필터를 누르면 그 유형만 남는다', async () => {
