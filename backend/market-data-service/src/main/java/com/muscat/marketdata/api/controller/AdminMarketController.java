@@ -1,21 +1,23 @@
 package com.muscat.marketdata.api.controller;
 
-import com.muscat.marketdata.common.exceptions.MarketDataException;
 import com.muscat.marketdata.datasource.yf.collector.SymbolCollector;
 import com.muscat.marketdata.domain.dto.AssetSummaryDto;
-import com.muscat.marketdata.domain.entity.AdminJobRun;
+import com.muscat.marketdata.domain.dto.admin.AssetResponse;
+import com.muscat.marketdata.domain.dto.admin.BulkDeleteRequest;
+import com.muscat.marketdata.domain.dto.admin.BulkDeleteResponse;
+import com.muscat.marketdata.domain.dto.admin.CreateAssetRequest;
+import com.muscat.marketdata.domain.dto.admin.PageResponse;
+import com.muscat.marketdata.domain.dto.admin.RefreshAllResponse;
+import com.muscat.marketdata.domain.dto.admin.RefreshRequest;
+import com.muscat.marketdata.domain.dto.admin.RefreshResponse;
+import com.muscat.marketdata.domain.dto.admin.UnadjustedResponse;
+import com.muscat.marketdata.domain.dto.admin.UpdateAssetRequest;
+import com.muscat.marketdata.domain.dto.admin.UpdateResponse;
 import com.muscat.marketdata.domain.entity.Asset;
-import com.muscat.marketdata.domain.repository.AdminJobRunRepository;
-import com.muscat.marketdata.domain.repository.AssetRepository;
-import com.muscat.marketdata.domain.repository.CandleRepository;
+import com.muscat.marketdata.domain.service.AssetPriceBatchUpdater;
 import com.muscat.marketdata.domain.service.AssetService;
-import com.muscat.marketdata.domain.service.CandleRefreshAllPublisher;
+import com.muscat.marketdata.domain.service.CandleRefreshService;
 import com.muscat.marketdata.domain.service.UnadjustedScanService;
-import com.muscat.marketdata.infra.kafka.AssetEventProducer;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -28,35 +30,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.List;
-
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-class PageResponse<T> {
-    private List<T> content;
-    private int number;
-    private int size;
-    private long totalElements;
-    private int totalPages;
-    private boolean first;
-    private boolean last;
-
-    static <T> PageResponse<T> from(Page<T> page) {
-        return PageResponse.<T>builder()
-            .content(page.getContent())
-            .number(page.getNumber())
-            .size(page.getSize())
-            .totalElements(page.getTotalElements())
-            .totalPages(page.getTotalPages())
-            .first(page.isFirst())
-            .last(page.isLast())
-            .build();
-    }
-}
 
 // 관리자용 종목 · 시세 관리 API
 @Slf4j
@@ -66,19 +40,12 @@ class PageResponse<T> {
 public class AdminMarketController {
 
     private final AssetService assetService;
-    private final AssetRepository assetRepository;
-    private final CandleRepository candleRepository;
-    private final AssetEventProducer assetEventProducer;
+    private final AssetPriceBatchUpdater priceBatchUpdater;
     private final UnadjustedScanService scanService;
-    private final AdminJobRunRepository adminJobRunRepository;
-    private final CandleRefreshAllPublisher refreshAllPublisher;
+    private final CandleRefreshService candleRefreshService;
     private final AdminJobRunner jobRunner;
 
-    private static final String REFRESH_ALL_JOB = "candle-refresh-all";
-    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
-
-    // SymbolCollector 는 marketdata.provider=yahoo 일 때만 뜬다.
-    // 직접 주입하면 alphavantage 프로파일에서 기동이 깨지므로 선택 주입한다.
+    // yahoo 프로바이더에서만 뜨는 빈이라 선택 주입
     private final ObjectProvider<SymbolCollector> symbolCollectorProvider;
 
     @GetMapping("/assets/search")
@@ -135,64 +102,31 @@ public class AdminMarketController {
     public ResponseEntity<AssetResponse> createAsset(@RequestBody CreateAssetRequest request) {
         log.info("심볼 추가 요청: symbol={}, collectData={}", request.getSymbol(), request.isCollectData());
 
-        try {
-            Asset asset = assetService.createAsset(
-                    request.getSymbol(),
-                    request.getName(),
-                    request.getCountry(),
-                    request.getCurrency(),
-                    request.getAssetType(),
-                    request.isCollectData(),
-                    request.getFromDate(),
-                    request.getToDate(),
-                    request.isIncludeDividends()
-            );
+        Asset asset = assetService.createAsset(
+                request.getSymbol(),
+                request.getName(),
+                request.getCountry(),
+                request.getCurrency(),
+                request.getAssetType(),
+                request.isCollectData(),
+                request.getFromDate(),
+                request.getToDate(),
+                request.isIncludeDividends()
+        );
 
-            AssetResponse response = AssetResponse.builder()
-                    .symbol(asset.getSymbol())
-                    .name(asset.getName())
-                    .country(asset.getCountry())
-                    .currency(asset.getCurrency())
-                    .assetType(asset.getAssetType())
-                    .message(request.isCollectData()
-                            ? "심볼이 추가되었고 데이터 수집이 시작되었습니다."
-                            : "심볼이 추가되었습니다.")
-                    .build();
-
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
-
-        } catch (MarketDataException e) {
-            log.warn("심볼 추가 실패: symbol={}, code={}", request.getSymbol(), e.getErrorCode());
-            return ResponseEntity.status(e.getHttpStatus()).body(AssetResponse.builder()
-                    .message(e.getErrorMessage() + ": " + request.getSymbol().toUpperCase())
-                    .build());
-        }
+        String message = request.isCollectData() ? "심볼이 추가되었고 데이터 수집이 시작되었습니다." : "심볼이 추가되었습니다.";
+        return ResponseEntity.status(HttpStatus.CREATED).body(AssetResponse.of(asset, message));
     }
 
-    /**
-     * 종목 이름 수정 (잘못 수집된 회사명 교정)
-     */
+    // 종목 이름 수정(잘못 수집된 회사명 교정)
     @PutMapping("/assets/{symbol}")
     public ResponseEntity<AssetResponse> updateAsset(
             @PathVariable String symbol,
             @RequestBody UpdateAssetRequest request) {
         log.info("종목 이름 수정 요청: symbol={}, name={}", symbol, request.getName());
 
-        try {
-            Asset asset = assetService.updateAssetName(symbol, request.getName());
-            return ResponseEntity.ok(AssetResponse.builder()
-                    .symbol(asset.getSymbol())
-                    .name(asset.getName())
-                    .country(asset.getCountry())
-                    .currency(asset.getCurrency())
-                    .assetType(asset.getAssetType())
-                    .message("종목 이름이 수정되었습니다.")
-                    .build());
-        } catch (MarketDataException e) {
-            log.warn("종목 이름 수정 실패: symbol={}, code={}", symbol, e.getErrorCode());
-            return ResponseEntity.status(e.getHttpStatus())
-                    .body(AssetResponse.builder().message(e.getErrorMessage()).build());
-        }
+        Asset asset = assetService.updateAssetName(symbol, request.getName());
+        return ResponseEntity.ok(AssetResponse.of(asset, "종목 이름이 수정되었습니다."));
     }
 
     // 비활성으로 돌림(soft delete)
@@ -200,26 +134,16 @@ public class AdminMarketController {
     public ResponseEntity<Void> deleteAsset(@PathVariable String symbol) {
         log.info("심볼 삭제 요청: symbol={}", symbol);
 
-        try {
-            assetService.deleteAsset(symbol);
-            return ResponseEntity.noContent().build();
-        } catch (MarketDataException e) {
-            log.warn("심볼 삭제 실패: symbol={}, code={}", symbol, e.getErrorCode());
-            return ResponseEntity.status(e.getHttpStatus()).build();
-        }
+        assetService.deleteAsset(symbol);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/assets/{symbol}/restore")
     public ResponseEntity<Void> restoreAsset(@PathVariable String symbol) {
         log.info("심볼 복구 요청: symbol={}", symbol);
 
-        try {
-            assetService.restoreAsset(symbol);
-            return ResponseEntity.noContent().build();
-        } catch (MarketDataException e) {
-            log.warn("심볼 복구 실패: symbol={}, code={}", symbol, e.getErrorCode());
-            return ResponseEntity.status(e.getHttpStatus()).build();
-        }
+        assetService.restoreAsset(symbol);
+        return ResponseEntity.noContent().build();
     }
 
     // 여러 종목을 비활성으로 돌림(soft delete)
@@ -240,98 +164,40 @@ public class AdminMarketController {
     public ResponseEntity<UpdateResponse> updateAssetPrice(@PathVariable String symbol) {
         log.info("종목 가격 업데이트 요청: symbol={}", symbol);
 
-        try {
-            assetService.updateAssetPrice(symbol);
-            return ResponseEntity.ok(UpdateResponse.builder()
-                    .message("종목 가격 데이터가 업데이트되었습니다: " + symbol)
-                    .build());
-        } catch (MarketDataException e) {
-            log.warn("종목 가격 업데이트 실패: symbol={}, code={}, message={}",
-                    symbol, e.getErrorCode(), e.getErrorMessage());
-            return ResponseEntity.status(e.getHttpStatus())
-                    .body(UpdateResponse.builder()
-                            .message(e.getErrorMessage() + ": " + symbol)
-                            .build());
-        } catch (Exception e) {
-            log.error("종목 가격 업데이트 실패", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(UpdateResponse.builder()
-                            .message("가격 업데이트 실패: " + e.getMessage())
-                            .build());
-        }
+        assetService.updateAssetPrice(symbol);
+        return ResponseEntity.ok(UpdateResponse.of("종목 가격 데이터가 업데이트되었습니다: " + symbol));
     }
 
     @PostMapping("/assets/{symbol}/update-market-cap")
     public ResponseEntity<UpdateResponse> updateAssetMarketCap(@PathVariable String symbol) {
         log.info("종목 시가총액 업데이트 요청: symbol={}", symbol);
 
-        try {
-            assetService.updateAssetMarketCap(symbol);
-            return ResponseEntity.ok(UpdateResponse.builder()
-                    .message("종목 시가총액이 업데이트되었습니다: " + symbol)
-                    .build());
-        } catch (MarketDataException e) {
-            log.warn("종목 시가총액 업데이트 실패: symbol={}, code={}, message={}",
-                    symbol, e.getErrorCode(), e.getErrorMessage());
-            return ResponseEntity.status(e.getHttpStatus())
-                    .body(UpdateResponse.builder()
-                            .message(e.getErrorMessage() + ": " + symbol)
-                            .build());
-        } catch (Exception e) {
-            log.error("종목 시가총액 업데이트 실패", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(UpdateResponse.builder()
-                            .message("시가총액 업데이트 실패: " + e.getMessage())
-                            .build());
-        }
+        assetService.updateAssetMarketCap(symbol);
+        return ResponseEntity.ok(UpdateResponse.of("종목 시가총액이 업데이트되었습니다: " + symbol));
     }
 
     @PostMapping("/update/market-cap")
     public ResponseEntity<UpdateResponse> updateMarketCaps() {
         log.info("시가총액 수동 업데이트 요청");
 
-        boolean started = jobRunner.submit(() -> {
-            try {
-                int updated = assetService.updateAllMarketCaps();
-                log.info("시가총액 전체 업데이트 완료: {}개", updated);
-            } catch (Exception e) {
-                log.error("시가총액 전체 업데이트 실패", e);
-            }
-        });
+        boolean started = jobRunner.submit("시가총액 전체 갱신", assetService::updateAllMarketCaps);
         if (!started) {
             return jobBusy();
         }
 
-        return ResponseEntity.ok(UpdateResponse.builder()
-                .message("시가총액 업데이트가 백그라운드에서 시작되었습니다.")
-                .build());
+        return ResponseEntity.ok(UpdateResponse.of("시가총액 업데이트가 백그라운드에서 시작되었습니다."));
     }
 
     @PostMapping("/update/candles")
     public ResponseEntity<UpdateResponse> updateCandles() {
         log.info("캔들 데이터 수동 업데이트 요청");
 
-        boolean started = jobRunner.submit(() -> {
-            List<Asset> assets = assetService.getAllAssets();
-            for (Asset asset : assets) {
-                try {
-                    assetService.updateAssetPrice(asset.getSymbol());
-                } catch (MarketDataException e) {
-                    log.warn("캔들 데이터 업데이트 실패: symbol={}, code={}, message={}",
-                            asset.getSymbol(), e.getErrorCode(), e.getErrorMessage());
-                } catch (Exception e) {
-                    log.warn("캔들 데이터 업데이트 실패: symbol={}", asset.getSymbol(), e);
-                }
-            }
-            log.info("캔들 전체 업데이트 완료: {}개", assets.size());
-        });
+        boolean started = jobRunner.submit("캔들 전체 갱신", priceBatchUpdater::updateAllPrices);
         if (!started) {
             return jobBusy();
         }
 
-        return ResponseEntity.ok(UpdateResponse.builder()
-                .message("캔들 데이터 업데이트가 백그라운드에서 시작되었습니다.")
-                .build());
+        return ResponseEntity.ok(UpdateResponse.of("캔들 데이터 업데이트가 백그라운드에서 시작되었습니다."));
     }
 
     // 평일 08:00 스케줄과 같은 일. DB 에 없는 심볼만 추가하고 기존 종목은 그대로
@@ -341,98 +207,22 @@ public class AdminMarketController {
 
         SymbolCollector collector = symbolCollectorProvider.getIfAvailable();
         if (collector == null) {
-            // marketdata.provider 가 yahoo 가 아니면 이 수집기가 없다
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                    .body(UpdateResponse.builder()
-                            .message("신규 종목 수집은 yahoo 프로바이더에서만 지원합니다.")
-                            .build());
+                    .body(UpdateResponse.of("신규 종목 수집은 yahoo 프로바이더에서만 지원합니다."));
         }
 
-        boolean started = jobRunner.submit(() -> {
-            try {
-                collector.collectNewlyListedDaily();
-            } catch (Exception e) {
-                log.error("신규 종목 수집 실패", e);
-            }
-        });
+        boolean started = jobRunner.submit("신규 종목 수집", collector::collectNewlyListedDaily);
         if (!started) {
             return jobBusy();
         }
 
-        return ResponseEntity.ok(UpdateResponse.builder()
-                .message("신규 종목 수집이 백그라운드에서 시작되었습니다.")
-                .build());
+        return ResponseEntity.ok(UpdateResponse.of("신규 종목 수집이 백그라운드에서 시작되었습니다."));
     }
 
     private ResponseEntity<UpdateResponse> jobBusy() {
         log.warn("관리자 전체 갱신이 이미 돌고 하나가 기다리는 중이라 받지 않음");
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(UpdateResponse.builder()
-                        .message("이미 다른 전체 갱신이 진행 중입니다. 끝난 뒤 다시 시도해 주세요.")
-                        .build());
-    }
-
-    // ==================== DTO ====================
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class CreateAssetRequest {
-        private String symbol;
-        private String name;      // optional
-        private String country;   // optional
-        private String currency;  // optional
-        private String assetType; // optional
-
-        private boolean collectData = false;
-        private LocalDate fromDate;
-        private LocalDate toDate;
-        private boolean includeDividends = false;
-    }
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class UpdateAssetRequest {
-        private String name;
-    }
-
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class AssetResponse {
-        private String symbol;
-        private String name;
-        private String country;
-        private String currency;
-        private String assetType;
-        private String message;
-    }
-
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class UpdateResponse {
-        private String message;
-    }
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class BulkDeleteRequest {
-        private List<String> symbols;
-    }
-
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class BulkDeleteResponse {
-        private int requested;
-        private int deleted;
-        private String message;
+                .body(UpdateResponse.of("이미 다른 전체 갱신이 진행 중입니다. 끝난 뒤 다시 시도해 주세요."));
     }
 
     // 분할 계수가 기록된 종목. 탐색이 몇 분 걸려 마지막 결과만 줌
@@ -471,114 +261,27 @@ public class AdminMarketController {
             .build());
     }
 
-    // 지정한 종목만 배당까지 다시 수집. Kafka 컨슈머가 비동기로 처리
     @PostMapping("/candles/refresh")
     public ResponseEntity<RefreshResponse> refreshCandles(@RequestBody RefreshRequest request) {
-        LocalDate from = request.getFrom() != null ? request.getFrom() : LocalDate.of(1970, 1, 1);
-        LocalDate to = LocalDate.now(ZoneId.of("America/New_York"));
-
-        List<String> requested = request.getSymbols() != null ? request.getSymbols() : List.of();
-        int published = 0;
-        int delisted = 0;
-        List<String> notFound = new java.util.ArrayList<>();
-
-        for (String raw : requested) {
-            String symbol = raw.trim().toUpperCase();
-            Asset asset = assetRepository.findById(symbol).orElse(null);
-            if (asset == null) {
-                notFound.add(symbol);
-                continue;
-            }
-            // 상장폐지 종목은 야후가 404 를 낸다. 발행해봐야 빈 응답만 받는다
-            if (!Boolean.TRUE.equals(asset.getActive())) {
-                delisted++;
-                continue;
-            }
-            assetEventProducer.publishAssetCreated(asset, true, from, to, true);
-            published++;
-        }
-
-        log.info("캔들 재수집 요청: 요청 {}개, 발행 {}개, 상장폐지 {}개, 없는 종목 {}개, from={}",
-            requested.size(), published, delisted, notFound.size(), from);
-
+        CandleRefreshService.RefreshResult result = candleRefreshService.refresh(request.getSymbols(), request.getFrom());
         return ResponseEntity.ok(RefreshResponse.builder()
-            .requested(requested.size())
-            .published(published)
-            .notFound(notFound)
-            .from(from)
-            .to(to)
+            .requested(result.requested())
+            .published(result.published())
+            .notFound(result.notFound())
+            .from(result.from())
+            .to(result.to())
             .build());
     }
 
-    // 활성 종목 전체를 1970-01-01 부터 다시 수집. 실행 기록을 먼저 남기고 발행은 뒤에서
     @PostMapping("/candles/refresh-all")
     public ResponseEntity<RefreshAllResponse> refreshAllCandles() {
-        LocalDate from = LocalDate.of(1970, 1, 1);
-        LocalDate to = LocalDate.now(ZoneId.of("America/New_York"));
-
-        List<Asset> assets = assetRepository.findByActiveTrue();
-        AdminJobRun run = adminJobRunRepository.save(
-            new AdminJobRun(REFRESH_ALL_JOB, LocalDateTime.now(KST), assets.size()));
-
-        // 1만 건 넘게 발행하면 게이트웨이 30초를 넘긴다. 요청은 먼저 돌려준다
-        refreshAllPublisher.publish(assets, from, to);
-        log.info("전체 캔들 재수집 요청: 대상 {}개, from={}", assets.size(), from);
-
-        return ResponseEntity.ok(RefreshAllResponse.of(run));
+        return ResponseEntity.ok(RefreshAllResponse.of(candleRefreshService.refreshAll()));
     }
 
-    // 마지막 전체 재수집 기록. 한 번도 안 했으면 lastRunAt 이 빔
     @GetMapping("/candles/refresh-all")
     public ResponseEntity<RefreshAllResponse> lastRefreshAll() {
-        return ResponseEntity.ok(adminJobRunRepository.findById(REFRESH_ALL_JOB)
+        return ResponseEntity.ok(candleRefreshService.lastRefreshAll()
             .map(RefreshAllResponse::of)
             .orElseGet(RefreshAllResponse::new));
-    }
-
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class UnadjustedResponse {
-        private boolean running;
-        private LocalDate from;
-        private int count;
-        private List<String> symbols;
-        private String finishedAt;
-        private long tookMillis;
-        private String error;
-    }
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class RefreshRequest {
-        private List<String> symbols;
-        private LocalDate from;
-    }
-
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class RefreshResponse {
-        private int requested;
-        private int published;
-        private List<String> notFound;
-        private LocalDate from;
-        private LocalDate to;
-    }
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class RefreshAllResponse {
-        // 서울 시각
-        private LocalDateTime lastRunAt;
-        private int published;
-
-        static RefreshAllResponse of(AdminJobRun run) {
-            return new RefreshAllResponse(run.getLastRunAt(), run.getPublished());
-        }
     }
 }

@@ -11,4 +11,9 @@ public class MarketDataException extends BusinessException {
     public MarketDataException(MarketDataResponse response) {
         super(response);
     }
+
+    // 문구 뒤에 종목 코드를 붙임
+    public MarketDataException(MarketDataResponse response, String symbol) {
+        super(response, response.getMessage() + ": " + symbol);
+    }
 }

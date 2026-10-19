@@ -18,21 +18,21 @@ class AdminJobRunnerTest {
     CountDownLatch release = new CountDownLatch(1);
     CountDownLatch finished = new CountDownLatch(2);
 
-    assertThat(runner.submit(() -> {
+    assertThat(runner.submit("일", () -> {
       started.countDown();
       awaitQuietly(release);
       finished.countDown();
     })).isTrue();
     assertThat(started.await(2, TimeUnit.SECONDS)).isTrue();
 
-    assertThat(runner.submit(finished::countDown)).isTrue();
-    assertThat(runner.submit(finished::countDown)).isFalse();
+    assertThat(runner.submit("일", finished::countDown)).isTrue();
+    assertThat(runner.submit("일", finished::countDown)).isFalse();
 
     release.countDown();
     assertThat(finished.await(2, TimeUnit.SECONDS)).isTrue();
 
     CountDownLatch again = new CountDownLatch(1);
-    assertThat(runner.submit(again::countDown)).isTrue();
+    assertThat(runner.submit("일", again::countDown)).isTrue();
     assertThat(again.await(2, TimeUnit.SECONDS)).isTrue();
   }
 
@@ -42,5 +42,17 @@ class AdminJobRunnerTest {
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     }
+  }
+
+  @Test
+  @DisplayName("일이 실패해도 실행기는 다음 일을 받는다")
+  void failingJobDoesNotStopRunner() throws Exception {
+    AdminJobRunner runner = new AdminJobRunner();
+    CountDownLatch next = new CountDownLatch(1);
+
+    assertThat(runner.submit("실패하는 일", () -> { throw new IllegalStateException("boom"); })).isTrue();
+    assertThat(runner.submit("다음 일", next::countDown)).isTrue();
+
+    assertThat(next.await(2, TimeUnit.SECONDS)).isTrue();
   }
 }

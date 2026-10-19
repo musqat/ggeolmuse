@@ -2,8 +2,6 @@ package com.muscat.marketdata.api.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willReturn;
@@ -26,13 +24,10 @@ import com.muscat.marketdata.datasource.yf.collector.SymbolCollector;
 import com.muscat.marketdata.domain.dto.AssetSummaryDto;
 import com.muscat.marketdata.domain.entity.AdminJobRun;
 import com.muscat.marketdata.domain.entity.Asset;
-import com.muscat.marketdata.domain.repository.AdminJobRunRepository;
-import com.muscat.marketdata.domain.repository.AssetRepository;
-import com.muscat.marketdata.domain.repository.CandleRepository;
+import com.muscat.marketdata.domain.service.AssetPriceBatchUpdater;
 import com.muscat.marketdata.domain.service.AssetService;
-import com.muscat.marketdata.domain.service.CandleRefreshAllPublisher;
+import com.muscat.marketdata.domain.service.CandleRefreshService;
 import com.muscat.marketdata.domain.service.UnadjustedScanService;
-import com.muscat.marketdata.infra.kafka.AssetEventProducer;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -76,22 +71,13 @@ class AdminMarketControllerWebTest {
   private AssetService assetService;
 
   @MockitoBean
-  private AssetRepository assetRepository;
-
-  @MockitoBean
-  private CandleRepository candleRepository;
-
-  @MockitoBean
-  private AssetEventProducer assetEventProducer;
-
-  @MockitoBean
   private UnadjustedScanService scanService;
 
   @MockitoBean
-  private AdminJobRunRepository adminJobRunRepository;
+  private CandleRefreshService candleRefreshService;
 
   @MockitoBean
-  private CandleRefreshAllPublisher refreshAllPublisher;
+  private AssetPriceBatchUpdater priceBatchUpdater;
 
   @MockitoBean
   private SymbolCollector symbolCollector;
@@ -111,8 +97,8 @@ class AdminMarketControllerWebTest {
   // 실행기가 받은 일을 요청 안에서 바로 실행
   @BeforeEach
   void runJobsInline() {
-    given(jobRunner.submit(any())).willAnswer(invocation -> {
-      invocation.<Runnable>getArgument(0).run();
+    given(jobRunner.submit(any(), any())).willAnswer(invocation -> {
+      invocation.<Runnable>getArgument(1).run();
       return true;
     });
   }
@@ -130,9 +116,8 @@ class AdminMarketControllerWebTest {
     return asAdmin(request.contentType(MediaType.APPLICATION_JSON).content(body));
   }
 
-  private static Asset asset(String symbol, boolean active) {
-    return Asset.builder().symbol(symbol).name(symbol + " Inc.").country("US").currency("USD").assetType("EQUITY")
-      .active(active).build();
+  private static Asset asset(String symbol) {
+    return Asset.builder().symbol(symbol).name(symbol + " Inc.").country("US").currency("USD").assetType("EQUITY").build();
   }
 
   @Test
@@ -151,8 +136,8 @@ class AdminMarketControllerWebTest {
     @Test
     @DisplayName("전체 목록 · 키워드 검색은 서비스가 준 종목을 돌려준다")
     void listAndSearch() throws Exception {
-      given(assetService.getAllAssets()).willReturn(List.of(asset("AAPL", true)));
-      given(assetService.searchSymbols("Apple")).willReturn(List.of(asset("AAPL", true)));
+      given(assetService.getAllAssets()).willReturn(List.of(asset("AAPL")));
+      given(assetService.searchSymbols("Apple")).willReturn(List.of(asset("AAPL")));
 
       asAdmin(get(BASE + "/assets")).andExpect(status().isOk()).andExpect(jsonPath("$[0].symbol").value("AAPL"));
       asAdmin(get(BASE + "/assets/search").param("keyword", "Apple")).andExpect(status().isOk())
@@ -162,9 +147,9 @@ class AdminMarketControllerWebTest {
     @Test
     @DisplayName("미리보기 · 단건 조회는 있으면 200, 없으면 404")
     void previewAndGet() throws Exception {
-      given(assetService.previewSymbol("AAPL")).willReturn(Optional.of(asset("AAPL", true)));
+      given(assetService.previewSymbol("AAPL")).willReturn(Optional.of(asset("AAPL")));
       given(assetService.previewSymbol("NOPE")).willReturn(Optional.empty());
-      given(assetService.getAsset("AAPL")).willReturn(Optional.of(asset("AAPL", true)));
+      given(assetService.getAsset("AAPL")).willReturn(Optional.of(asset("AAPL")));
       given(assetService.getAsset("NOPE")).willReturn(Optional.empty());
 
       asAdmin(get(BASE + "/assets/preview/AAPL")).andExpect(status().isOk());
@@ -206,14 +191,14 @@ class AdminMarketControllerWebTest {
   class WriteTests {
 
     @Test
-    @DisplayName("종목 추가는 201 이고 수집 여부에 따라 안내가 다르며, 이미 있는 종목이면 409 와 이유를 준다")
+    @DisplayName("종목 추가는 201 이고 수집 여부에 따라 안내가 다르며, 이미 있는 종목이면 공통 오류 응답으로 409 와 이유를 준다")
     void createAsset() throws Exception {
       given(assetService.createAsset(eq("AAPL"), any(), any(), any(), any(), eq(true), eq(LocalDate.of(2023, 1, 1)), any(), eq(true)))
-        .willReturn(asset("AAPL", true));
+        .willReturn(asset("AAPL"));
       given(assetService.createAsset(eq("MSFT"), any(), any(), any(), any(), eq(false), any(), any(), eq(false)))
-        .willReturn(asset("MSFT", true));
+        .willReturn(asset("MSFT"));
       given(assetService.createAsset(eq("DUP"), any(), any(), any(), any(), anyBoolean(), any(), any(), anyBoolean()))
-        .willThrow(new MarketDataException(MarketDataResponse.ASSET_ALREADY_EXISTS));
+        .willThrow(new MarketDataException(MarketDataResponse.ASSET_ALREADY_EXISTS, "DUP"));
 
       asAdminJson(post(BASE + "/assets"), "{\"symbol\":\"AAPL\",\"collectData\":true,\"fromDate\":\"2023-01-01\",\"includeDividends\":true}")
         .andExpect(status().isCreated())
@@ -223,22 +208,22 @@ class AdminMarketControllerWebTest {
         .andExpect(jsonPath("$.message").value("심볼이 추가되었습니다."));
       asAdminJson(post(BASE + "/assets"), "{\"symbol\":\"DUP\"}")
         .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.message").value("이미 등록된 종목입니다: DUP"));
+        .andExpect(jsonPath("$.detail").value("이미 등록된 종목입니다: DUP"));
     }
 
     @Test
     @DisplayName("이름 수정은 200, 없는 종목은 404, 빈 이름은 400 과 이유를 준다")
     void updateName() throws Exception {
-      given(assetService.updateAssetName("AAPL", "Apple")).willReturn(asset("AAPL", true));
-      given(assetService.updateAssetName("NOPE", "X")).willThrow(new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND));
+      given(assetService.updateAssetName("AAPL", "Apple")).willReturn(asset("AAPL"));
+      given(assetService.updateAssetName("NOPE", "X")).willThrow(new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND, "NOPE"));
       given(assetService.updateAssetName("AAPL", "")).willThrow(new MarketDataException(MarketDataResponse.ASSET_NAME_REQUIRED));
 
       asAdminJson(put(BASE + "/assets/AAPL"), "{\"name\":\"Apple\"}").andExpect(status().isOk())
         .andExpect(jsonPath("$.message").value("종목 이름이 수정되었습니다."));
       asAdminJson(put(BASE + "/assets/NOPE"), "{\"name\":\"X\"}").andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.message").value("종목을 찾을 수 없습니다"));
+        .andExpect(jsonPath("$.detail").value("종목을 찾을 수 없습니다: NOPE"));
       asAdminJson(put(BASE + "/assets/AAPL"), "{\"name\":\"\"}").andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.message").value("종목 이름이 비어 있습니다"));
+        .andExpect(jsonPath("$.detail").value("종목 이름이 비어 있습니다"));
     }
 
     @Test
@@ -278,57 +263,53 @@ class AdminMarketControllerWebTest {
     @Test
     @DisplayName("가격 갱신은 성공 200, 시세 예외는 그 코드의 상태와 이유, 그 밖 500")
     void updatePrice() throws Exception {
-      willThrow(new MarketDataException(MarketDataResponse.PRICE_DATA_NOT_FOUND)).given(assetService).updateAssetPrice("EMPTY");
-      willThrow(new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND)).given(assetService).updateAssetPrice("NOPE");
+      willThrow(new MarketDataException(MarketDataResponse.PRICE_DATA_NOT_FOUND, "EMPTY")).given(assetService).updateAssetPrice("EMPTY");
+      willThrow(new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND, "NOPE")).given(assetService).updateAssetPrice("NOPE");
       willThrow(new MarketDataException(MarketDataResponse.DATA_SOURCE_UNAVAILABLE)).given(assetService).updateAssetPrice("BUSY");
       willThrow(new RuntimeException("boom")).given(assetService).updateAssetPrice("BOOM");
 
       asAdmin(post(BASE + "/assets/AAPL/update-price")).andExpect(status().isOk())
         .andExpect(jsonPath("$.message").value("종목 가격 데이터가 업데이트되었습니다: AAPL"));
       asAdmin(post(BASE + "/assets/EMPTY/update-price")).andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.message").value("가격 데이터를 찾을 수 없습니다: EMPTY"));
+        .andExpect(jsonPath("$.detail").value("가격 데이터를 찾을 수 없습니다: EMPTY"));
       asAdmin(post(BASE + "/assets/NOPE/update-price")).andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.message").value("종목을 찾을 수 없습니다: NOPE"));
+        .andExpect(jsonPath("$.detail").value("종목을 찾을 수 없습니다: NOPE"));
       asAdmin(post(BASE + "/assets/BUSY/update-price")).andExpect(status().isServiceUnavailable())
-        .andExpect(jsonPath("$.message").value("시세 공급원이 설정되지 않았습니다: BUSY"));
+        .andExpect(jsonPath("$.detail").value("시세 공급원이 설정되지 않았습니다"));
       asAdmin(post(BASE + "/assets/BOOM/update-price")).andExpect(status().isInternalServerError());
     }
 
     @Test
     @DisplayName("시총 갱신은 성공 200, 없는 종목 404, 시총을 못 받으면 502, 그 밖 500")
     void updateMarketCap() throws Exception {
-      willThrow(new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND)).given(assetService).updateAssetMarketCap("NOPE");
-      willThrow(new MarketDataException(MarketDataResponse.MARKET_CAP_UNAVAILABLE)).given(assetService).updateAssetMarketCap("BUSY");
+      willThrow(new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND, "NOPE")).given(assetService).updateAssetMarketCap("NOPE");
+      willThrow(new MarketDataException(MarketDataResponse.MARKET_CAP_UNAVAILABLE, "BUSY")).given(assetService).updateAssetMarketCap("BUSY");
       willThrow(new RuntimeException("boom")).given(assetService).updateAssetMarketCap("BOOM");
 
       asAdmin(post(BASE + "/assets/AAPL/update-market-cap")).andExpect(status().isOk());
       asAdmin(post(BASE + "/assets/NOPE/update-market-cap")).andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.message").value("종목을 찾을 수 없습니다: NOPE"));
+        .andExpect(jsonPath("$.detail").value("종목을 찾을 수 없습니다: NOPE"));
       asAdmin(post(BASE + "/assets/BUSY/update-market-cap")).andExpect(status().isBadGateway())
-        .andExpect(jsonPath("$.message").value("시가총액을 가져오지 못했습니다: BUSY"));
+        .andExpect(jsonPath("$.detail").value("시가총액을 가져오지 못했습니다: BUSY"));
       asAdmin(post(BASE + "/assets/BOOM/update-market-cap")).andExpect(status().isInternalServerError());
     }
 
     @Test
-    @DisplayName("전체 시총 · 전체 캔들 · 신규 종목 수집은 바로 200 을 주고 뒤에서 돈다. 캔들은 한 종목이 실패해도 다음 종목으로 간다")
+    @DisplayName("전체 시총 · 전체 캔들 · 신규 종목 수집은 바로 200 을 주고 뒤에서 돈다")
     void backgroundJobs() throws Exception {
-      given(assetService.getAllAssets()).willReturn(List.of(asset("EMPTY", true), asset("BOOM", true), asset("AAPL", true)));
-      willThrow(new MarketDataException(MarketDataResponse.PRICE_DATA_NOT_FOUND)).given(assetService).updateAssetPrice("EMPTY");
-      willThrow(new RuntimeException("boom")).given(assetService).updateAssetPrice("BOOM");
-
       asAdmin(post(BASE + "/update/market-cap")).andExpect(status().isOk());
       asAdmin(post(BASE + "/update/candles")).andExpect(status().isOk());
       asAdmin(post(BASE + "/update/symbols")).andExpect(status().isOk());
 
       verify(assetService, timeout(2000)).updateAllMarketCaps();
-      verify(assetService, timeout(2000)).updateAssetPrice("AAPL");
+      verify(priceBatchUpdater, timeout(2000)).updateAllPrices();
       verify(symbolCollector, timeout(2000)).collectNewlyListedDaily();
     }
 
     @Test
     @DisplayName("전체 갱신이 이미 돌고 하나가 기다리면 세 버튼 모두 409 와 안내를 준다")
     void busy() throws Exception {
-      willReturn(false).given(jobRunner).submit(any());
+      willReturn(false).given(jobRunner).submit(any(), any());
 
       for (String path : List.of("/update/market-cap", "/update/candles", "/update/symbols")) {
         asAdmin(post(BASE + path)).andExpect(status().isConflict())
@@ -368,41 +349,42 @@ class AdminMarketControllerWebTest {
     }
 
     @Test
-    @DisplayName("재수집은 대문자로 바꿔 찾고, 활성 종목만 배당까지 발행하며 없는 종목은 따로 알려 준다")
+    @DisplayName("재수집은 요청 종목 · 시작일을 서비스에 넘기고 결과를 그대로 준다")
     void refresh() throws Exception {
-      Asset aapl = asset("AAPL", true);
-      given(assetRepository.findById("AAPL")).willReturn(Optional.of(aapl));
-      given(assetRepository.findById("DEAD")).willReturn(Optional.of(asset("DEAD", false)));
-      given(assetRepository.findById("GONE")).willReturn(Optional.empty());
       LocalDate today = LocalDate.now(ZoneId.of("America/New_York"));
+      given(candleRefreshService.refresh(List.of(" aapl ", "DEAD", "gone"), LocalDate.of(2020, 1, 1)))
+        .willReturn(new CandleRefreshService.RefreshResult(3, 1, List.of("GONE"), LocalDate.of(2020, 1, 1), today));
 
       asAdminJson(post(BASE + "/candles/refresh"), "{\"symbols\":[\" aapl \",\"DEAD\",\"gone\"],\"from\":\"2020-01-01\"}")
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.requested").value(3))
         .andExpect(jsonPath("$.published").value(1))
         .andExpect(jsonPath("$.notFound[0]").value("GONE"))
-        .andExpect(jsonPath("$.from").value("2020-01-01"));
+        .andExpect(jsonPath("$.from").value("2020-01-01"))
+        .andExpect(jsonPath("$.to").value(today.toString()));
 
-      verify(assetEventProducer).publishAssetCreated(aapl, true, LocalDate.of(2020, 1, 1), today, true);
-      verify(assetEventProducer, never()).publishAssetCreated(argThat(a -> a.getSymbol().equals("DEAD")), anyBoolean(), any(), any(), anyBoolean());
+      verify(candleRefreshService).refresh(List.of(" aapl ", "DEAD", "gone"), LocalDate.of(2020, 1, 1));
     }
 
     @Test
-    @DisplayName("재수집 시작일을 주지 않으면 1970-01-01, 종목이 없으면 아무것도 발행하지 않는다")
+    @DisplayName("재수집 본문이 비면 종목 · 시작일 없이 넘기고 서비스가 준 기본값을 돌려준다")
     void refreshDefaults() throws Exception {
+      given(candleRefreshService.refresh(null, null))
+        .willReturn(new CandleRefreshService.RefreshResult(0, 0, List.of(), LocalDate.of(1970, 1, 1), LocalDate.of(2026, 10, 20)));
       asAdminJson(post(BASE + "/candles/refresh"), "{}")
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.requested").value(0))
         .andExpect(jsonPath("$.from").value("1970-01-01"));
 
-      verify(assetEventProducer, never()).publishAssetCreated(any(), anyBoolean(), any(), any(), anyBoolean());
+      verify(candleRefreshService).refresh(null, null);
     }
 
     @Test
     @DisplayName("전체 재수집 기록을 조회하면 마지막 실행 시각과 건수를, 기록이 없으면 빈 값을 준다")
     void lastRefreshAll() throws Exception {
-      given(adminJobRunRepository.findById("candle-refresh-all"))
-        .willReturn(Optional.of(new AdminJobRun("candle-refresh-all", LocalDateTime.of(2026, 10, 1, 9, 0), 10432)), Optional.empty());
+      given(candleRefreshService.lastRefreshAll())
+        .willReturn(Optional.of(new AdminJobRun("candle-refresh-all", LocalDateTime.of(2026, 10, 1, 9, 0), 10432)))
+        .willReturn(Optional.empty());
 
       asAdmin(get(BASE + "/candles/refresh-all")).andExpect(status().isOk())
         .andExpect(jsonPath("$.published").value(10432))
@@ -412,16 +394,16 @@ class AdminMarketControllerWebTest {
     }
 
     @Test
-    @DisplayName("전체 재수집은 활성 종목 수를 기록하고 발행을 넘긴 뒤 바로 돌려준다")
+    @DisplayName("전체 재수집은 서비스가 남긴 기록을 돌려준다")
     void refreshAll() throws Exception {
-      List<Asset> active = List.of(asset("AAPL", true), asset("MSFT", true));
-      given(assetRepository.findByActiveTrue()).willReturn(active);
-      given(adminJobRunRepository.save(any())).willAnswer(invocation -> invocation.getArgument(0));
+      given(candleRefreshService.refreshAll())
+        .willReturn(new AdminJobRun("candle-refresh-all", LocalDateTime.of(2026, 10, 1, 9, 0), 2));
 
       asAdmin(post(BASE + "/candles/refresh-all")).andExpect(status().isOk())
-        .andExpect(jsonPath("$.published").value(2));
+        .andExpect(jsonPath("$.published").value(2))
+        .andExpect(jsonPath("$.lastRunAt").value("2026-10-01T09:00:00"));
 
-      verify(refreshAllPublisher).publish(eq(active), eq(LocalDate.of(1970, 1, 1)), any());
+      verify(candleRefreshService).refreshAll();
     }
   }
 }

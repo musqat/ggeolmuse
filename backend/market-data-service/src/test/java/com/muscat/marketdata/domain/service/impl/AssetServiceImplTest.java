@@ -315,7 +315,8 @@ class AssetServiceImplTest {
         TEST_SYMBOL, TEST_NAME, TEST_COUNTRY, TEST_CURRENCY,
         TEST_ASSET_TYPE, false, null, null, false))
         .isInstanceOf(MarketDataException.class)
-        .hasFieldOrPropertyWithValue("errorCode", "ASSET_ALREADY_EXISTS");
+        .hasFieldOrPropertyWithValue("errorCode", "ASSET_ALREADY_EXISTS")
+        .hasMessage("이미 등록된 종목입니다: AAPL");
 
       verify(assetRepository).findById(TEST_SYMBOL);
       verify(assetRepository, never()).save(any(Asset.class));
@@ -354,7 +355,8 @@ class AssetServiceImplTest {
         unknownSymbol, null, null, null, null,
         false, null, null, false))
         .isInstanceOf(MarketDataException.class)
-        .hasFieldOrPropertyWithValue("errorCode", "SYMBOL_NOT_FOUND");
+        .hasFieldOrPropertyWithValue("errorCode", "SYMBOL_NOT_FOUND")
+        .hasMessageEndingWith(": UNKNOWN");
 
       verify(assetInfoSource).getAsset("UNKNOWN");
     }
@@ -538,7 +540,8 @@ class AssetServiceImplTest {
       // when & then
       assertThatThrownBy(() -> assetService.deleteAsset(TEST_SYMBOL))
         .isInstanceOf(MarketDataException.class)
-        .hasFieldOrPropertyWithValue("errorCode", "SYMBOL_NOT_FOUND");
+        .hasFieldOrPropertyWithValue("errorCode", "SYMBOL_NOT_FOUND")
+        .hasMessageEndingWith(": AAPL");
 
       verify(assetRepository).findById(TEST_SYMBOL);
       verify(assetRepository, never()).save(any(Asset.class));
@@ -613,7 +616,8 @@ class AssetServiceImplTest {
       // when & then
       assertThatThrownBy(() -> assetService.updateAssetPrice(TEST_SYMBOL))
         .isInstanceOf(MarketDataException.class)
-        .hasFieldOrPropertyWithValue("errorCode", "SYMBOL_NOT_FOUND");
+        .hasFieldOrPropertyWithValue("errorCode", "SYMBOL_NOT_FOUND")
+        .hasMessageEndingWith(": AAPL");
 
       verify(assetRepository).findById(TEST_SYMBOL);
     }
@@ -630,7 +634,8 @@ class AssetServiceImplTest {
       // when & then
       assertThatThrownBy(() -> assetService.updateAssetPrice(TEST_SYMBOL))
         .isInstanceOf(MarketDataException.class)
-        .hasFieldOrPropertyWithValue("errorCode", "PRICE_DATA_NOT_FOUND");
+        .hasFieldOrPropertyWithValue("errorCode", "PRICE_DATA_NOT_FOUND")
+        .hasMessage("가격 데이터를 찾을 수 없습니다: AAPL");
 
       verify(candleRepository, never()).save(any());
     }
@@ -888,9 +893,11 @@ class AssetServiceImplTest {
 
       assetService.updateAssetMarketCap("aapl");
       assertThatThrownBy(() -> assetService.updateAssetMarketCap("aapl")).isInstanceOf(MarketDataException.class)
-        .hasFieldOrPropertyWithValue("errorCode", "MARKET_CAP_UNAVAILABLE");
+        .hasFieldOrPropertyWithValue("errorCode", "MARKET_CAP_UNAVAILABLE")
+        .hasMessage("시가총액을 가져오지 못했습니다: AAPL");
       assertThatThrownBy(() -> assetService.updateAssetMarketCap("nope")).isInstanceOf(MarketDataException.class)
-        .hasFieldOrPropertyWithValue("errorCode", "SYMBOL_NOT_FOUND");
+        .hasFieldOrPropertyWithValue("errorCode", "SYMBOL_NOT_FOUND")
+        .hasMessageEndingWith(": NOPE");
     }
 
     @Test
