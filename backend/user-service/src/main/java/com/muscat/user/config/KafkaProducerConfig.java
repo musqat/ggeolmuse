@@ -6,6 +6,7 @@ import com.muscat.messaging.event.AccountDepositCompletedEvent;
 import com.muscat.messaging.event.AccountWithdrawalCompletedEvent;
 import com.muscat.messaging.event.EmailSendEvent;
 import com.muscat.messaging.event.TradeRejectedEvent;
+import com.muscat.messaging.event.TradeSettledEvent;
 import com.muscat.messaging.event.UserLoginFailedEvent;
 import com.muscat.messaging.event.UserLoginSuccessEvent;
 import java.util.HashMap;
@@ -204,5 +205,23 @@ public class KafkaProducerConfig {
   @Bean
   public KafkaTemplate<String, TradeRejectedEvent> tradeRejectedKafkaTemplate() {
     return new KafkaTemplate<>(tradeRejectedEventProducerFactory());
+  }
+
+  @Bean
+  public ProducerFactory<String, TradeSettledEvent> tradeSettledEventProducerFactory() {
+    Map<String, Object> configProps = new HashMap<>();
+    configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+    configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+    configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+    configProps.put(ProducerConfig.ACKS_CONFIG, "all");
+    configProps.put(ProducerConfig.RETRIES_CONFIG, 3);
+    configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
+    configProps.put(ProducerConfig.MAX_BLOCK_MS_CONFIG, 5000);
+    return new DefaultKafkaProducerFactory<>(configProps);
+  }
+
+  @Bean
+  public KafkaTemplate<String, TradeSettledEvent> tradeSettledKafkaTemplate() {
+    return new KafkaTemplate<>(tradeSettledEventProducerFactory());
   }
 }

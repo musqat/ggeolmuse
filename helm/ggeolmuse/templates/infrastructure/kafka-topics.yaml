@@ -63,6 +63,7 @@ spec:
               user.login.failed                   3      2592000000
               user.email.send                     3      604800000
               user.trade.rejected                 3      2592000000
+              user.trade.settled                  3      2592000000
 
               # 구독하는 토픽마다 하나씩. DeadLetterPublishingRecoverer 가 여기로 보낸다
               trading.trade.completed.DLT         3      2592000000
@@ -79,6 +80,7 @@ spec:
               user.login.failed.DLT               3      2592000000
               user.email.send.DLT                 3      2592000000
               user.trade.rejected.DLT             3      2592000000
+              user.trade.settled.DLT              3      2592000000
 
               '
               echo "$TOPICS" > /tmp/topics.txt
