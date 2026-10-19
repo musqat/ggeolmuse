@@ -87,6 +87,13 @@ public class Trade {
 
   private LocalDateTime cancelledAt; // 취소 시각
 
+  // 잔액 정산이 끝난 대기 체결만 완료
+  public void complete() {
+    if (this.status == TradeStatus.PENDING) {
+      this.status = TradeStatus.COMPLETED;
+    }
+  }
+
   // 잔액 반영 실패로 취소
   public void cancel(String reason, LocalDateTime at) {
     this.status = TradeStatus.CANCELLED;

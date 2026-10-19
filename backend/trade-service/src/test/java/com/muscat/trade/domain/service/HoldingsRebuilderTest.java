@@ -132,4 +132,19 @@ class HoldingsRebuilderTest {
     assertThat(saved.getValue().getAvgPurchasePrice()).isEqualByComparingTo("100.00");
     assertThat(uncoveredCount()).isEqualTo(1.0);
   }
+
+  @Test
+  @DisplayName("검토를 끄고 다시 쌓으면 보유보다 많은 매도를 만나도 카운터를 올리지 않는다")
+  void rebuild_WithoutReview_DoesNotCountUncovered() {
+    givenHoldings(null);
+    givenTrades(trade(1, TradeType.BUY, "5", "140.00"), trade(2, TradeType.SELL, "7", "150.00"),
+      trade(3, TradeType.BUY, "2", "100.00"));
+
+    rebuilder.rebuild("user-1", 20L, "AAPL", false);
+
+    ArgumentCaptor<Holdings> saved = ArgumentCaptor.forClass(Holdings.class);
+    verify(holdingsRepository).save(saved.capture());
+    assertThat(saved.getValue().getTotalQuantity()).isEqualByComparingTo("2");
+    assertThat(uncoveredCount()).isZero();
+  }
 }

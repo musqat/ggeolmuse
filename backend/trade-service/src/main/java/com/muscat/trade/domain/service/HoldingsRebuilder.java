@@ -14,7 +14,7 @@ import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-// 취소 안 된 체결을 반영 순서대로 다시 쌓아 한 종목 보유를 덮어쓴다
+// 완료된 체결을 반영 순서대로 다시 쌓아 한 종목 보유를 덮어쓴다
 @Slf4j
 @Component
 public class HoldingsRebuilder {
@@ -38,6 +38,11 @@ public class HoldingsRebuilder {
 
   // 보유 행을 잠가 같은 종목 주문과 차례를 맞춘다. 보유보다 많은 매도는 보유를 비우고 이어 쌓는다
   public void rebuild(String userId, Long accountId, String symbol) {
+    rebuild(userId, accountId, symbol, true);
+  }
+
+  // reviewUncovered 가 false 면 보유보다 많은 매도를 검토 카운터에 세지 않음
+  public void rebuild(String userId, Long accountId, String symbol, boolean reviewUncovered) {
     Optional<Holdings> existing =
       holdingsRepository.findByUserIdAndAccountIdAndSymbolWithLock(userId, accountId, symbol);
     int pricePrecision = tradeProperties.getCalculation().getPricePrecision();
@@ -47,7 +52,9 @@ public class HoldingsRebuilder {
       userId, accountId, symbol, TradeStatus.COMPLETED)) {
       HoldingsCalculator.Applied applied = HoldingsCalculator.apply(rebuilt, trade, pricePrecision);
       if (applied.uncovered()) {
-        uncoveredSells.increment();
+        if (reviewUncovered) {
+          uncoveredSells.increment();
+        }
         log.error("보유보다 많은 매도라 보유를 비우고 이어 쌓음: tradeId={}, userId={}, symbol={}",
           trade.getId(), userId, symbol);
       }

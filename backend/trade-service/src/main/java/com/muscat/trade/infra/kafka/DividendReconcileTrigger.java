@@ -1,7 +1,9 @@
 package com.muscat.trade.infra.kafka;
 
+import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.domain.entity.Trade;
 import com.muscat.trade.domain.event.TradeCancelledEvent;
+import com.muscat.trade.domain.event.TradeConfirmedEvent;
 import com.muscat.trade.domain.event.TradeSavedEvent;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
@@ -11,7 +13,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
-// 체결 · 취소가 커밋되면 그 계좌 · 종목의 배당 몫 재계산을 요청. 거래 응답이 브로커를 기다리지 않게 실행기에서 보냄
+// 체결 · 완료 · 취소가 커밋되면 그 계좌 · 종목의 배당 몫 재계산을 요청. 거래 응답이 브로커를 기다리지 않게 실행기에서 보냄
 @Slf4j
 @Component
 public class DividendReconcileTrigger {
@@ -28,11 +30,20 @@ public class DividendReconcileTrigger {
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
   public void onTradeSaved(TradeSavedEvent event) {
     Trade trade = event.trade();
+    // 대기 매수는 보유가 그대로라 완료할 때 요청
+    if (trade.getStatus() == TradeStatus.PENDING) {
+      return;
+    }
     request(trade.getUserId(), trade.getAccountId(), trade.getSymbol());
   }
 
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
   public void onTradeCancelled(TradeCancelledEvent event) {
+    request(event.userId(), event.accountId(), event.symbol());
+  }
+
+  @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+  public void onTradeConfirmed(TradeConfirmedEvent event) {
     request(event.userId(), event.accountId(), event.symbol());
   }
 
