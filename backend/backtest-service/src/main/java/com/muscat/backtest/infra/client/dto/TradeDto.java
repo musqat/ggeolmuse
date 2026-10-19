@@ -18,4 +18,5 @@ public class TradeDto {
   private BigDecimal fee;
   private LocalDate tradeDate;
   private LocalDateTime executedAt;
+  private String status; // COMPLETED · PENDING · CANCELLED
 }
