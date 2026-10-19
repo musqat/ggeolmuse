@@ -37,6 +37,16 @@ def build_redis(config: Settings) -> aioredis.Redis:
                           password=config.redis_password or None, decode_responses=True)
 
 
+def build_verifier(config: Settings) -> JwksVerifier:
+    """토큰 검증. 받는 iss · azp 는 설정에서 쉼표로 나눈 값"""
+    return JwksVerifier(config.keycloak_jwks_url, issuers=_csv(config.keycloak_issuers),
+                        client_ids=_csv(config.keycloak_client_ids))
+
+
+def _csv(value: str) -> tuple[str, ...]:
+    return tuple(part.strip() for part in value.split(",") if part.strip())
+
+
 def build_chat_service(config: Settings, redis, http: httpx.AsyncClient, openai: OpenAI) -> ChatService:
     model = ChatModel(
         openai,
@@ -65,7 +75,7 @@ async def lifespan(app: FastAPI):
     redis = build_redis(settings)
     http = httpx.AsyncClient(base_url=settings.market_data_base_url, timeout=settings.market_timeout_seconds)
     openai = build_openai(settings)
-    app.state.verify_token = JwksVerifier(settings.keycloak_jwks_url)
+    app.state.verify_token = build_verifier(settings)
     app.state.chat_service = build_chat_service(settings, redis, http, openai)
     yield
     await http.aclose()

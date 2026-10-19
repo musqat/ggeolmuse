@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import time
-from typing import Callable
+from typing import Callable, Iterable
 
 import httpx
 from jose import jwt
@@ -12,22 +12,28 @@ from app.core.models import AuthUnavailable
 
 
 class JwksVerifier:
-    def __init__(self, jwks_url: str, refresh_seconds: float = 60.0,
-                 clock: Callable[[], float] = time.monotonic):
+    def __init__(self, jwks_url: str, *, issuers: Iterable[str], client_ids: Iterable[str],
+                 refresh_seconds: float = 60.0, clock: Callable[[], float] = time.monotonic):
         self._url = jwks_url
+        self._issuers = tuple(issuers)
+        self._client_ids = tuple(client_ids)
         self._refresh_seconds = refresh_seconds
         self._clock = clock
         self._keys: dict | None = None
         self._fetched_at = 0.0
 
     def __call__(self, token: str) -> dict:
-        """서명 · 만료를 확인한 클레임. 틀린 토큰은 ValueError"""
+        """서명 · 만료 · 발급자(iss) · 받은 클라이언트(azp)를 확인한 클레임. 틀린 토큰은 ValueError"""
         try:
             kid = jwt.get_unverified_header(token).get("kid")
-            return jwt.decode(token, self._keys_for(kid), algorithms=["RS256"],
-                              options={"verify_aud": False})
+            claims = jwt.decode(token, self._keys_for(kid), algorithms=["RS256"], issuer=self._issuers,
+                                options={"verify_aud": False})
         except JWTError as e:
             raise ValueError(str(e)) from e
+        # aud 에는 Keycloak 기본값(account)만 실려 받은 클라이언트는 azp 로 봄
+        if claims.get("azp") not in self._client_ids:
+            raise ValueError(f"받지 않는 클라이언트의 토큰: {claims.get('azp')}")
+        return claims
 
     # 처음이거나, 모르는 키 ID 인데 받은 지 refresh_seconds 가 지났으면 다시 받는다(키 교체)
     def _keys_for(self, kid: str | None) -> dict:

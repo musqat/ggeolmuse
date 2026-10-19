@@ -18,7 +18,8 @@ cd e2e && npm install && npx playwright install chromium
 npx playwright test
 ```
 
-프론트는 3000, 게이트웨이는 8070 이다. `E2E_BASE_URL` / `E2E_API_URL` 로 덮을 수 있다.
+프론트는 3000, 게이트웨이는 8070, Keycloak 은 8080(realm `custom`) 이다. `E2E_BASE_URL` / `E2E_API_URL` /
+`E2E_KEYCLOAK_URL` / `E2E_KEYCLOAK_REALM` 으로 덮을 수 있다.
 
 ## 무엇을 보나
 
@@ -33,7 +34,7 @@ npx playwright test
 | `trading` | 입금 -> 환전 -> 매수 -> 보유·내역 -> 매도 가 도는가 |
 | `portfolio` | 요약이 오는가. 현금만 있어도 자산 구성 원이 그려지는가 |
 | `backtest-modes` | 적립식·조건부·종목비교·전략비교 가 도는가 |
-| `account-lifecycle` | 가입되는가. 이메일 인증 전에 로그인이 막히는가 |
+| `account-lifecycle` | 가입되는가. 이메일 인증 전에 로그인이 막히는가. 탈퇴 · 관리자 승격 · 강등이 되는가. 앱을 거치지 않고 Keycloak 에서 바로 받은 토큰이 막히는가 |
 | `pages` | 남은 화면 10개가 흰 화면 없이 열리는가 |
 | `compare-ui` | 종목 비교가 화면에서 끝까지 도는가 |
 
@@ -63,7 +64,7 @@ market-data 는 아직 Yahoo 에서 시세를 받는 중이다. 그 틈에 시�
 
 **되돌려서 확인한다.** 회귀 테스트를 쓰면 옛 코드로 되돌려 실제로 실패하는지 본다.
 파이차트 테스트는 처음에 옛 로직에서도 통과했다. 시드 계좌가 두 조각이라 문제였던
-100% 한 조각 경우를 안 탔기 때문이다. 현금만 든 계좌를 따로 만들어 고쳤다.
+100% 한 조각 경우를 타지 않았다. 현금만 든 계좌를 따로 만들어 고쳤다.
 
 **메일이 나가는 경로는 건드리지 않는다.** `forgot-password` 와 `resend-verification` 은
 설정된 계정으로 실제 메일을 보낸다. 로컬 테스트가 남의 편지함에 메일을 넣으면 안 된다.

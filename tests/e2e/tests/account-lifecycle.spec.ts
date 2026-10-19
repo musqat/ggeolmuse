@@ -1,6 +1,6 @@
 import { test, expect, request, type APIRequestContext, type APIResponse } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
-import { API_URL, TOKEN_FILE } from '../playwright.config';
+import { API_URL, KEYCLOAK_REALM, KEYCLOAK_URL, TOKEN_FILE } from '../playwright.config';
 
 // 메일 토큰이 필요한 흐름(가입 인증 · 비밀번호 찾기 · 인증 메일 재발송)은 뺌. 메일이 실제로 나감
 // 탈퇴는 관리자(시드 계정)가 이메일 인증을 처리해 로그인까지 감
@@ -150,4 +150,32 @@ test('관리자로 승격하면 관리자 API 가 열리고, 강등 뒤 다시 �
   expect((await asUser.api.delete(`${API_URL}/users/me`, { data: { password: user.password } })).status()).toBe(200);
 
   await Promise.all([plain.dispose(), admin.dispose(), asUser.api.dispose()]);
+});
+
+test('앱을 거치지 않고 Keycloak 에서 바로 받은 토큰은 게이트웨이가 막는다', async () => {
+  const plain = await request.newContext();
+  const user = throwawayAccount();
+  expect((await plain.post(`${API_URL}/auth/register`, { data: user })).status()).toBe(201);
+
+  const adminToken = (await readFile(TOKEN_FILE, 'utf8')).trim();
+  const admin = await request.newContext({ extraHTTPHeaders: { Authorization: `Bearer ${adminToken}` } });
+  const users = await (await admin.get(`${API_URL}/admin/users?size=50`)).json();
+  const found = users.content.find((u: { email: string }) => u.email === user.email);
+  expect(found, '가입한 사용자가 관리자 목록에 없다').toBeTruthy();
+  expect((await admin.patch(`${API_URL}/admin/users/${found.userId}/verify-email`)).status()).toBe(200);
+
+  // 같은 계정이지만 Keycloak 기본 클라이언트(admin-cli)로 받은 토큰
+  const issued = await plain.post(`${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/token`, {
+    form: { grant_type: 'password', client_id: 'admin-cli', username: user.email, password: user.password },
+  });
+  expect(issued.status(), `Keycloak 이 토큰을 주지 않는다: ${await issued.text()}`).toBe(200);
+  const { access_token: foreignToken } = await issued.json();
+
+  const me = await plain.get(`${API_URL}/users/me`, { headers: { Authorization: `Bearer ${foreignToken}` } });
+  expect(me.status(), '앱을 거치지 않은 토큰으로 내 정보가 열린다').toBe(401);
+
+  // 남는 계정이 없게 관리자가 지움
+  expect((await admin.delete(`${API_URL}/admin/users/${found.userId}`)).status()).toBe(200);
+
+  await Promise.all([plain.dispose(), admin.dispose()]);
 });
