@@ -44,8 +44,10 @@ public class TradeCancellationServiceImpl implements TradeCancellationService {
       return;
     }
 
+    // 대기 매수는 보유에 들어간 적이 없어, 다시 쌓다 찾은 보유보다 많은 매도는 옛것이라 세지 않음
+    boolean reviewUncovered = trade.getStatus() != TradeStatus.PENDING;
     trade.cancel(event.getReasonCode(), LocalDateTime.now());
-    holdingsRebuilder.rebuild(trade.getUserId(), trade.getAccountId(), trade.getSymbol());
+    holdingsRebuilder.rebuild(trade.getUserId(), trade.getAccountId(), trade.getSymbol(), reviewUncovered);
     eventPublisher.publishEvent(new TradeCancelledEvent(trade.getUserId(), trade.getAccountId(), trade.getSymbol()));
     log.info("잔액 반영 실패로 체결 취소: tradeId={}, reason={}", trade.getId(), event.getReasonCode());
   }

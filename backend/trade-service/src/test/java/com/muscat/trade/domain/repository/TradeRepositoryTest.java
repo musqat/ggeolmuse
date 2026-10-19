@@ -94,10 +94,11 @@ class TradeRepositoryTest {
   }
 
   @Test
-  @DisplayName("보유 다시 쌓기용 조회는 취소 안 된 체결만 반영 순서대로 준다")
+  @DisplayName("보유 다시 쌓기용 조회는 완료된 체결만 반영 순서대로 준다")
   void findCompleted_InExecutionOrder() {
     Trade later = saveTrade(TradeType.BUY, "1", TradeStatus.COMPLETED, LocalDateTime.of(2026, 10, 7, 10, 0));
     saveTrade(TradeType.BUY, "2", TradeStatus.CANCELLED, LocalDateTime.of(2026, 10, 7, 9, 0));
+    saveTrade(TradeType.BUY, "3", TradeStatus.PENDING, LocalDateTime.of(2026, 10, 7, 9, 30));
     Trade earlier = saveTrade(TradeType.SELL, "1", TradeStatus.COMPLETED, LocalDateTime.of(2026, 10, 7, 9, 0));
 
     List<Trade> found = tradeRepository.findByUserIdAndAccountIdAndSymbolAndStatusOrderByExecutedAtAscIdAsc(
@@ -107,10 +108,11 @@ class TradeRepositoryTest {
   }
 
   @Test
-  @DisplayName("매도 가능 수량에서 취소된 체결을 뺀다")
-  void calculateSellableQuantity_ExcludesCancelled() {
+  @DisplayName("매도 가능 수량에서 취소된 체결과 정산 전 매수를 뺀다")
+  void calculateSellableQuantity_ExcludesCancelledAndPending() {
     saveTrade(TradeType.BUY, "10", TradeStatus.COMPLETED, LocalDateTime.of(2026, 10, 7, 9, 0));
     saveTrade(TradeType.BUY, "5", TradeStatus.CANCELLED, LocalDateTime.of(2026, 10, 7, 9, 1));
+    saveTrade(TradeType.BUY, "4", TradeStatus.PENDING, LocalDateTime.of(2026, 10, 7, 9, 1));
     saveTrade(TradeType.SELL, "3", TradeStatus.COMPLETED, LocalDateTime.of(2026, 10, 7, 9, 2));
 
     assertThat(tradeRepository.calculateSellableQuantity("user-1", 20L, "AAPL", LocalDate.of(2026, 10, 7)))

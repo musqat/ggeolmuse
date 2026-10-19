@@ -2,6 +2,7 @@ package com.muscat.trade.domain.service.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -57,8 +58,21 @@ class TradeCancellationServiceImplTest {
     assertThat(trade.getStatus()).isEqualTo(TradeStatus.CANCELLED);
     assertThat(trade.getCancelReason()).isEqualTo("INSUFFICIENT_USD_BALANCE");
     assertThat(trade.getCancelledAt()).isNotNull();
-    verify(holdingsRebuilder).rebuild("user-1", 20L, "AAPL");
+    verify(holdingsRebuilder).rebuild("user-1", 20L, "AAPL", true);
     verify(eventPublisher).publishEvent(new TradeCancelledEvent("user-1", 20L, "AAPL"));
+  }
+
+  @Test
+  @DisplayName("대기 매수는 보유에 들어간 적이 없어, 다시 쌓을 때 보유보다 많은 옛 매도를 검토로 세지 않는다")
+  void cancel_PendingBuy_DoesNotReviewUncoveredSells() {
+    Trade trade = Trade.builder().id(7L).userId("user-1").accountId(20L).symbol("AAPL")
+      .status(TradeStatus.PENDING).executedAt(LocalDateTime.of(2026, 10, 8, 9, 0)).build();
+    given(tradeRepository.findByIdForUpdate(7L)).willReturn(Optional.of(trade));
+
+    service.cancel(event);
+
+    assertThat(trade.getStatus()).isEqualTo(TradeStatus.CANCELLED);
+    verify(holdingsRebuilder).rebuild("user-1", 20L, "AAPL", false);
   }
 
   @Test
@@ -68,7 +82,7 @@ class TradeCancellationServiceImplTest {
 
     service.cancel(event);
 
-    verify(holdingsRebuilder, never()).rebuild(any(), any(), any());
+    verify(holdingsRebuilder, never()).rebuild(any(), any(), any(), anyBoolean());
     verify(eventPublisher, never()).publishEvent(any(Object.class));
   }
 
@@ -82,7 +96,7 @@ class TradeCancellationServiceImplTest {
     service.cancel(event);
 
     assertThat(trade.getCancelReason()).isEqualTo("ACCOUNT_NOT_FOUND");
-    verify(holdingsRebuilder, never()).rebuild(any(), any(), any());
+    verify(holdingsRebuilder, never()).rebuild(any(), any(), any(), anyBoolean());
     verify(eventPublisher, never()).publishEvent(any(Object.class));
   }
 
@@ -95,7 +109,7 @@ class TradeCancellationServiceImplTest {
     service.cancel(event);
 
     assertThat(trade.getStatus()).isEqualTo(TradeStatus.COMPLETED);
-    verify(holdingsRebuilder, never()).rebuild(any(), any(), any());
+    verify(holdingsRebuilder, never()).rebuild(any(), any(), any(), anyBoolean());
     verify(eventPublisher, never()).publishEvent(any(Object.class));
   }
 }

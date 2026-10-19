@@ -6,7 +6,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 
+import com.muscat.messaging.event.TradeRejectedEvent;
+import com.muscat.messaging.event.TradeSettledEvent;
 import com.muscat.trade.common.enums.type.PriceType;
+import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.common.enums.type.TradeType;
 import com.muscat.trade.common.exception.NotEnoughHoldingsException;
 import com.muscat.trade.common.exception.TradeException;
@@ -16,6 +19,8 @@ import com.muscat.trade.domain.entity.Trade;
 import com.muscat.trade.domain.repository.HoldingsRepository;
 import com.muscat.trade.domain.repository.TradeRepository;
 import com.muscat.trade.domain.service.MarketDataService;
+import com.muscat.trade.domain.service.TradeCancellationService;
+import com.muscat.trade.domain.service.TradeConfirmationService;
 import com.muscat.trade.infra.client.UserServiceClientWrapper;
 import com.muscat.trade.infra.client.dto.AccountBalanceDto;
 import java.math.BigDecimal;
@@ -70,6 +75,12 @@ class TradingServiceIT {
   private TradingServiceImpl tradingService;
 
   @Autowired
+  private TradeConfirmationService tradeConfirmationService;
+
+  @Autowired
+  private TradeCancellationService tradeCancellationService;
+
+  @Autowired
   private TradeRepository tradeRepository;
 
   @Autowired
@@ -110,20 +121,48 @@ class TradingServiceIT {
     holdingsRepository.deleteAll();
   }
 
+  private TradeResponseDto buy(String symbol, String quantity) {
+    return tradingService.buyStock(TEST_USER_ID, TEST_ACCOUNT_ID, symbol,
+      new BigDecimal(quantity), LocalDate.now(), PriceType.CLOSE, null);
+  }
+
+  // 정산됨 이벤트를 받은 것처럼 완료
+  private void settle(Long tradeId) {
+    tradeConfirmationService.confirm(TradeSettledEvent.builder()
+      .tradeId(tradeId).userId(TEST_USER_ID).accountId(TEST_ACCOUNT_ID).build());
+  }
+
+  private TradeResponseDto buyAndSettle(String symbol, String quantity) {
+    TradeResponseDto response = buy(symbol, quantity);
+    settle(response.id());
+    return response;
+  }
+
+  private TradeStatus statusOf(Long tradeId) {
+    return tradeRepository.findById(tradeId).orElseThrow().getStatus();
+  }
+
   @Nested
   @DisplayName("매수 거래 통합 테스트")
   class BuyTradeIntegrationTests {
 
     @Test
-    @DisplayName("매수 거래 실행 시 Trade와 Holdings가 DB에 저장된다")
-    void buyStock_SavesTradeAndHoldings() {
+    @DisplayName("매수는 대기로 저장되고 보유는 그대로다")
+    void buyStock_SavesPendingAndKeepsHoldings() {
+      TradeResponseDto response = buy(TEST_SYMBOL, "10");
+
+      assertThat(response.status()).isEqualTo(TradeStatus.PENDING);
+      assertThat(statusOf(response.id())).isEqualTo(TradeStatus.PENDING);
+      assertThat(holdingsRepository.findByUserIdAndSymbol(TEST_USER_ID, TEST_SYMBOL)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("정산된 매수는 완료되고 Holdings 가 DB 에 저장된다")
+    void buyStock_Settled_SavesTradeAndHoldings() {
       // when
-      TradeResponseDto response = tradingService.buyStock(
-        TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL,
-        new BigDecimal("10"), LocalDate.now(), PriceType.CLOSE, null);
+      TradeResponseDto response = buyAndSettle(TEST_SYMBOL, "10");
 
       // then
-      assertThat(response).isNotNull();
       assertThat(response.tradeType()).isEqualTo(TradeType.BUY);
       assertThat(response.symbol()).isEqualTo(TEST_SYMBOL);
       assertThat(response.quantity()).isEqualByComparingTo("10");
@@ -133,7 +172,7 @@ class TradingServiceIT {
       assertThat(trades).hasSize(1);
       assertThat(trades.get(0).getSymbol()).isEqualTo(TEST_SYMBOL);
       assertThat(trades.get(0).getQuantity()).isEqualByComparingTo("10");
-      assertThat(trades.get(0).getTradeType()).isEqualTo(TradeType.BUY);
+      assertThat(trades.get(0).getStatus()).isEqualTo(TradeStatus.COMPLETED);
 
       // Holdings가 DB에 생성되었는지 확인
       Optional<Holdings> holdings = holdingsRepository.findByUserIdAndSymbol(
@@ -144,15 +183,10 @@ class TradingServiceIT {
     }
 
     @Test
-    @DisplayName("동일 종목 연속 매수 시 Holdings 수량이 누적된다")
+    @DisplayName("동일 종목 연속 매수가 정산되면 Holdings 수량이 누적된다")
     void buyStock_AccumulatesHoldings() {
-      // given - 첫 번째 매수
-      tradingService.buyStock(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL,
-        new BigDecimal("10"), LocalDate.now(), PriceType.CLOSE, null);
-
-      // when - 두 번째 매수
-      tradingService.buyStock(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL,
-        new BigDecimal("5"), LocalDate.now(), PriceType.CLOSE, null);
+      buyAndSettle(TEST_SYMBOL, "10");
+      buyAndSettle(TEST_SYMBOL, "5");
 
       // then - Trade는 2개
       List<Trade> trades = tradeRepository.findAll();
@@ -173,14 +207,87 @@ class TradingServiceIT {
       long holdingsCountBefore = holdingsRepository.count();
 
       // when & then - 잔고보다 큰 금액 매수 시도
-      assertThatThrownBy(() ->
-        tradingService.buyStock(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL,
-          new BigDecimal("1000"), LocalDate.now(), PriceType.CLOSE, null))
+      assertThatThrownBy(() -> buy(TEST_SYMBOL, "1000"))
         .isInstanceOf(TradeException.class);
 
       // DB에 저장되지 않았는지 확인
       assertThat(tradeRepository.count()).isEqualTo(tradesCountBefore);
       assertThat(holdingsRepository.count()).isEqualTo(holdingsCountBefore);
+    }
+  }
+
+  @Nested
+  @DisplayName("정산 전 매수")
+  class PendingBuyTests {
+
+    @Test
+    @DisplayName("정산 전 매수의 주식은 보유에 없어 팔 수 없다")
+    void pendingBuy_CannotBeSold() {
+      buy(TEST_SYMBOL, "10");
+      long tradesCountBefore = tradeRepository.count();
+
+      assertThatThrownBy(() -> tradingService.sellStock(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL,
+        new BigDecimal("10"), LocalDate.now(), PriceType.CLOSE, null))
+        .isInstanceOf(NotEnoughHoldingsException.class);
+      assertThat(tradeRepository.count()).isEqualTo(tradesCountBefore);
+    }
+
+    @Test
+    @DisplayName("연달아 넣은 매수 둘 중 하나만 정산되고 하나는 반영 실패면 보유는 정산된 만큼만 남는다")
+    void racingBuys_OneSettledOneRejected() {
+      TradeResponseDto first = buy(TEST_SYMBOL, "10");
+      TradeResponseDto second = buy(TEST_SYMBOL, "10");
+      assertThat(statusOf(first.id())).isEqualTo(TradeStatus.PENDING);
+      assertThat(statusOf(second.id())).isEqualTo(TradeStatus.PENDING);
+
+      settle(first.id());
+      tradeCancellationService.cancel(TradeRejectedEvent.builder()
+        .tradeId(second.id()).userId(TEST_USER_ID).accountId(TEST_ACCOUNT_ID)
+        .reasonCode("INSUFFICIENT_USD_BALANCE").build());
+
+      assertThat(statusOf(first.id())).isEqualTo(TradeStatus.COMPLETED);
+      assertThat(statusOf(second.id())).isEqualTo(TradeStatus.CANCELLED);
+      assertThat(holdingsRepository.findByUserIdAndSymbol(TEST_USER_ID, TEST_SYMBOL)).get()
+        .satisfies(holdings -> assertThat(holdings.getTotalQuantity()).isEqualByComparingTo("10"));
+    }
+
+    @Test
+    @DisplayName("늦은 매수의 반영 실패가 먼저 오고 앞 매수가 뒤에 정산돼도 보유는 정산된 만큼만 남는다")
+    void racingBuys_RejectedFirstThenSettled() {
+      TradeResponseDto first = buy(TEST_SYMBOL, "10");
+      TradeResponseDto second = buy(TEST_SYMBOL, "10");
+
+      tradeCancellationService.cancel(TradeRejectedEvent.builder()
+        .tradeId(second.id()).userId(TEST_USER_ID).accountId(TEST_ACCOUNT_ID)
+        .reasonCode("INSUFFICIENT_USD_BALANCE").build());
+      assertThat(holdingsRepository.findByUserIdAndSymbol(TEST_USER_ID, TEST_SYMBOL)).isEmpty();
+      settle(first.id());
+
+      assertThat(statusOf(first.id())).isEqualTo(TradeStatus.COMPLETED);
+      assertThat(statusOf(second.id())).isEqualTo(TradeStatus.CANCELLED);
+      assertThat(holdingsRepository.findByUserIdAndSymbol(TEST_USER_ID, TEST_SYMBOL)).get()
+        .satisfies(holdings -> assertThat(holdings.getTotalQuantity()).isEqualByComparingTo("10"));
+    }
+
+    @Test
+    @DisplayName("대기 중에 같은 종목을 팔고 나서 정산되면 보유를 체결 시각 순으로 다시 쌓는다(10주@100, 대기 10주@200, 10주 매도 → 10주@150)")
+    void pendingBuy_SellInBetween_RebuildsInExecutionOrder() {
+      given(marketDataService.determineTradePrice(eq(TEST_SYMBOL), any(LocalDate.class),
+        any(PriceType.class), any())).willReturn(new BigDecimal("100.00"));
+      buyAndSettle(TEST_SYMBOL, "10");
+      given(marketDataService.determineTradePrice(eq(TEST_SYMBOL), any(LocalDate.class),
+        any(PriceType.class), any())).willReturn(new BigDecimal("200.00"));
+      TradeResponseDto pending = buy(TEST_SYMBOL, "10");
+
+      tradingService.sellStock(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL,
+        new BigDecimal("10"), LocalDate.now(), PriceType.CLOSE, null);
+      settle(pending.id());
+
+      assertThat(holdingsRepository.findByUserIdAndSymbol(TEST_USER_ID, TEST_SYMBOL)).get()
+        .satisfies(holdings -> {
+          assertThat(holdings.getTotalQuantity()).isEqualByComparingTo("10");
+          assertThat(holdings.getAvgPurchasePrice()).isEqualByComparingTo("150");
+        });
     }
   }
 
@@ -192,8 +299,7 @@ class TradingServiceIT {
     @DisplayName("매도 거래 실행 시 Holdings 수량이 감소한다")
     void sellStock_DecreasesHoldings() {
       // given - 먼저 매수하여 Holdings 생성 (FIFO 검증을 위해 실제 매수 거래 필요)
-      tradingService.buyStock(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL,
-        new BigDecimal("20"), LocalDate.now(), PriceType.CLOSE, null);
+      buyAndSettle(TEST_SYMBOL, "20");
 
       // when - 매도
       TradeResponseDto response = tradingService.sellStock(
@@ -221,8 +327,7 @@ class TradingServiceIT {
     @DisplayName("전량 매도 시 Holdings가 삭제된다")
     void sellStock_FullAmount_DeletesHoldings() {
       // given - 매수하여 Holdings 생성 (FIFO 검증을 위해 실제 매수 거래 필요)
-      tradingService.buyStock(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL,
-        new BigDecimal("10"), LocalDate.now(), PriceType.CLOSE, null);
+      buyAndSettle(TEST_SYMBOL, "10");
 
       // when - 전량 매도
       tradingService.sellStock(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL,
@@ -244,8 +349,7 @@ class TradingServiceIT {
     @DisplayName("보유 수량보다 많이 매도 시 예외 발생하고 rollback된다")
     void sellStock_ExceedsHoldings_ThrowsExceptionAndRollback() {
       // given - 매수하여 Holdings 생성 (수량 5)
-      tradingService.buyStock(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL,
-        new BigDecimal("5"), LocalDate.now(), PriceType.CLOSE, null);
+      buyAndSettle(TEST_SYMBOL, "5");
 
       Holdings saved = holdingsRepository.findByUserIdAndSymbol(TEST_USER_ID, TEST_SYMBOL)
         .orElseThrow();
@@ -291,8 +395,7 @@ class TradingServiceIT {
     @DisplayName("매수 → 추가 매수 → 부분 매도 → 전량 매도 플로우가 정상 동작한다")
     void buyBuySellSell_EndToEndFlow() {
       // 1. 첫 번째 매수 (10주)
-      tradingService.buyStock(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL,
-        new BigDecimal("10"), LocalDate.now(), PriceType.CLOSE, null);
+      buyAndSettle(TEST_SYMBOL, "10");
 
       Optional<Holdings> holdings1 = holdingsRepository.findByUserIdAndSymbol(
         TEST_USER_ID, TEST_SYMBOL);
@@ -300,8 +403,7 @@ class TradingServiceIT {
       assertThat(holdings1.get().getTotalQuantity()).isEqualByComparingTo("10");
 
       // 2. 두 번째 매수 (5주)
-      tradingService.buyStock(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL,
-        new BigDecimal("5"), LocalDate.now(), PriceType.CLOSE, null);
+      buyAndSettle(TEST_SYMBOL, "5");
 
       Optional<Holdings> holdings2 = holdingsRepository.findByUserIdAndSymbol(
         TEST_USER_ID, TEST_SYMBOL);
@@ -346,12 +448,10 @@ class TradingServiceIT {
         any(PriceType.class), any())).willReturn(new BigDecimal("300.00"));
 
       // 1. AAPL 매수
-      tradingService.buyStock(TEST_USER_ID, TEST_ACCOUNT_ID, "AAPL",
-        new BigDecimal("10"), LocalDate.now(), PriceType.CLOSE, null);
+      buyAndSettle("AAPL", "10");
 
       // 2. MSFT 매수
-      tradingService.buyStock(TEST_USER_ID, TEST_ACCOUNT_ID, "MSFT",
-        new BigDecimal("5"), LocalDate.now(), PriceType.CLOSE, null);
+      buyAndSettle("MSFT", "5");
 
       // then - 각각 독립적인 Holdings 생성
       List<Holdings> allHoldings = holdingsRepository.findAll();
