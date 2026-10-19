@@ -60,7 +60,7 @@ class AlphaVantageSourcesTest {
   @DisplayName("일봉")
   class CandleTests {
 
-    private final CandleSource source = new CandleSource(client, limiter);
+    private final AlphaVantageCandleSource source = new AlphaVantageCandleSource(client, limiter);
 
     @Test
     @DisplayName("100일 미만은 compact 로 받아 기간 안만 쓰고, 기간보다 이른 날을 만나면 멈춘다")
@@ -97,7 +97,7 @@ class AlphaVantageSourcesTest {
   @DisplayName("배당")
   class DividendTests {
 
-    private final DividendSource source = new DividendSource(client, limiter);
+    private final AlphaVantageDividendSource source = new AlphaVantageDividendSource(client, limiter);
 
     @Test
     @DisplayName("기간 안에서 배당이 0 보다 큰 날만 배당으로 뽑는다")
@@ -128,7 +128,7 @@ class AlphaVantageSourcesTest {
   @DisplayName("환율")
   class FxTests {
 
-    private final FxSource source = new FxSource(client, limiter);
+    private final AlphaVantageFxSource source = new AlphaVantageFxSource(client, limiter);
 
     private static final String FX = "{\"Time Series FX (Daily)\":{\"2024-03-05\":{\"4. close\":\"1331.5\"},"
       + "\"2024-03-04\":{\"1. open\":\"1330\"},\"2024-03-01\":{\"4. close\":\"13.315\"}}}";
@@ -159,7 +159,7 @@ class AlphaVantageSourcesTest {
   @DisplayName("종목 목록 · 종목 정보")
   class SymbolTests {
 
-    private final SymbolSource source = new SymbolSource(client, limiter);
+    private final AlphaVantageSymbolSource source = new AlphaVantageSymbolSource(client, limiter);
 
     private static final String LISTING = """
       symbol,name,exchange,assetType,ipoDate,delistingDate,status

@@ -10,7 +10,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.muscat.marketdata.config.MarketDataProperties;
-import com.muscat.marketdata.datasource.alphavantage.provider.FxSource;
+import com.muscat.marketdata.datasource.alphavantage.provider.AlphaVantageFxSource;
 import com.muscat.marketdata.domain.entity.FxRate;
 import com.muscat.marketdata.domain.repository.FxRateRepository;
 import java.math.BigDecimal;
@@ -43,7 +43,7 @@ class FxDataCollectorTest {
   }
 
   @Mock
-  private FxSource fxSource;
+  private AlphaVantageFxSource fxSource;
 
   @Mock
   private FxRateRepository fxRateRepository;

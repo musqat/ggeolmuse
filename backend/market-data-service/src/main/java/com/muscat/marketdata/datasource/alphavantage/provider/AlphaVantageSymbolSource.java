@@ -25,7 +25,7 @@ import org.springframework.stereotype.Component;
     havingValue = "alphavantage"
 )
 @RequiredArgsConstructor
-public class SymbolSource implements MarketDataProvider.SymbolSource,
+public class AlphaVantageSymbolSource implements MarketDataProvider.SymbolSource,
     MarketDataProvider.AssetInfoSource {
 
     private final AlphaVantageClient client;

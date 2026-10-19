@@ -24,7 +24,7 @@ import org.springframework.stereotype.Component;
     havingValue = "alphavantage"
 )
 @RequiredArgsConstructor
-public class FxSource implements MarketDataProvider.FxSource {
+public class AlphaVantageFxSource implements MarketDataProvider.FxSource {
 
     private final AlphaVantageClient client;
     private final AlphaVantageRateLimiter rateLimiter;

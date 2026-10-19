@@ -1,6 +1,6 @@
 package com.muscat.marketdata;
 
-import com.muscat.marketdata.datasource.alphavantage.provider.CandleSource;
+import com.muscat.marketdata.datasource.alphavantage.provider.AlphaVantageCandleSource;
 import com.muscat.marketdata.datasource.common.MarketDataProvider.DividendSource;
 import com.muscat.marketdata.datasource.common.MarketDataProvider.SymbolSource;
 import org.mockito.Mockito;
@@ -19,8 +19,8 @@ public class MarketDataTestConfiguration {
 
   @Bean
   @Primary
-  public CandleSource mockCandleSource() {
-    return Mockito.mock(CandleSource.class);
+  public AlphaVantageCandleSource mockCandleSource() {
+    return Mockito.mock(AlphaVantageCandleSource.class);
   }
 
   @Bean
