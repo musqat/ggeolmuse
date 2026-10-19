@@ -87,7 +87,7 @@ count(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_irate)
 
 ## 알림
 
-`helm/ggeolmuse/templates/monitoring/prometheusrule.yaml` 에 16개. ggeolmuse 차트
+`helm/ggeolmuse/templates/monitoring/prometheusrule.yaml` 에 17개. ggeolmuse 차트
 안에 있어 ArgoCD 가 배포한다.
 
 | 그룹 | 규칙 |
@@ -98,7 +98,7 @@ count(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_irate)
 | config-server | ConfigServerDown, ConfigServerHighLatency, ConfigServerUnauthorized |
 | gateway | GatewayHighErrorRate |
 | resilience | CircuitBreakerOpen, CircuitBreakerMissing |
-| trade-settlement | KafkaDeadLetter, TradeEventsUnpublished, TradeCancelNeedsReview |
+| trade-settlement | KafkaDeadLetter, TradeEventsUnpublished, TradeBuysPending, TradeCancelNeedsReview |
 
 파드·노드 수준은 차트 내장 규칙이 맡는다. Redis·Kafka·Keycloak 은 exporter 가 없어
 `up` 시계열 자체가 없다.
@@ -107,7 +107,8 @@ count(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_irate)
 `kafka_dlt_records_total` 을 본다. 원인은 그 서비스 로그의 `DLT 로 보냄` 줄과 DLT 메시지 헤더
 `kafka_dlt-exception-message` 에 있다. 원인을 고친 뒤 kafka-ui 에서 DLT 메시지 값을 원래 토픽에 같은
 키로 다시 넣는다. 키는 userId, `trading.dividend.reconcile` 만 accountId 다. `trading.trade.completed` 는
-user-service 가 처리한 체결을 `trade_settlements` 에 남겨 다시 넣어도 한 번만 반영한다.
+user-service 가 처리한 체결을 `trade_settlements` 에 남겨 다시 넣어도 한 번만 반영하고, 남긴 결과를 다시 알린다.
+`user.trade.settled` 는 trade-service 가 대기 매수만 완료로 바꿔 다시 넣어도 한 번만 반영한다.
 `trading.dividend.reconcile` 은 그때 거래로 다시 계산해 몇 번 넣어도 같다. `trading.dividend.payout` 은 다시 넣지
 않고 백필(`POST /api/admin/trade/dividends/reconcile`)을 돌린다. 지금 몫을 다 다시 보내 옛 메시지 값으로 돌아가지
 않는다. 끝나면 `GET /api/admin/trade/dividends/payout-diff` 가 비었는지 본다. 다른 토픽은 다시 넣기 전에 이미
@@ -116,8 +117,18 @@ user-service 가 처리한 체결을 `trade_settlements` 에 남겨 다시 넣�
 `TradeEventsUnpublished` 는 trade-service 가 커밋한 체결 가운데 이벤트를 1분 넘게 못 보낸 수다. 스케줄러가
 30초마다 다시 보내므로 카프카가 돌아오면 0 으로 내려간다.
 
+`TradeBuysPending` 은 5분 넘게 정산을 기다리는 매수 수다. 매수는 user-service 가 잔액을 뺀 뒤 보낸 정산됨을
+받아야 보유에 들어간다. 스케줄러가 발행한 지 5분 넘은 대기 매수의 체결 이벤트를 다시 보내고, user-service 는
+이미 처리한 체결이면 남긴 결과를 다시 알리므로 대개 저절로 풀린다. 10분 넘게 남으면 user-service 의 체결
+소비자와 `trading.trade.completed.DLT` · `user.trade.settled.DLT` 를 본다. user-service 가 정산됨을 보내기 전
+버전이면 다시 보내도 결과를 알리지 않아 풀리지 않는다. user-service 를 올리면 다음 다시 보내기에 풀린다. 올릴 수
+없으면 그 체결 ID 로 `trade_settlements` 를 보고, APPLIED 면 `tradeId` · `userId` · `accountId` 를 담은 값을
+`user.trade.settled` 에, REJECTED 면 저장된 사유 코드를 담아 `user.trade.rejected` 에 키 userId 로 넣는다. 기록이
+없으면 user-service 가 아직 그 체결을 처리하지 못한 것이라 위의 소비자 · DLT 쪽을 본다.
+
 `TradeCancelNeedsReview` 는 반영 실패로 체결을 취소했는데 자동으로 다 되돌리지 못한 경우다. `uncovered_sell` 은
 취소된 매수로 산 주식을 반영 실패가 오기 전에 판 경우로, 보유를 0 으로 두었다. 사용자 잔액을 손으로 맞춘다.
+매수가 정산 뒤에 보유에 들어가면서 정산 전 주식은 팔 수 없어, 이 경우는 그 전에 저장된 체결에서만 남는다.
 배당은 경보 대상이 아니다. 취소하면 그 계좌 · 종목의 배당 몫을 다시 계산해 이미 넣은 배당을 돌려받는다.
 
 반복 주기는 critical 1시간, 나머지 4시간. `groupWait` 30초, `groupInterval` 5분.

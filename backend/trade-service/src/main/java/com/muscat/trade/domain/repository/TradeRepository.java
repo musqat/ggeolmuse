@@ -1,6 +1,7 @@
 package com.muscat.trade.domain.repository;
 
 import com.muscat.trade.common.enums.type.TradeStatus;
+import com.muscat.trade.common.enums.type.TradeType;
 import com.muscat.trade.domain.dto.TradePosition;
 import com.muscat.trade.domain.entity.Trade;
 import jakarta.persistence.LockModeType;
@@ -58,6 +59,13 @@ public interface TradeRepository extends JpaRepository<Trade, Long>, TradeReposi
 
   // 못 보낸 체결 수 (trade.events.unpublished)
   long countByEventPublishedAtIsNullAndCreatedAtBefore(LocalDateTime before);
+
+  // 기준 시각 전에 발행하고도 아직 그 상태인 체결 100건 (id 순)
+  List<Trade> findTop100ByTradeTypeAndStatusAndEventPublishedAtBeforeOrderByIdAsc(TradeType tradeType,
+    TradeStatus status, LocalDateTime before);
+
+  // 기준 시각 전에 만들고 아직 그 상태인 체결 수 (trade.buys.pending)
+  long countByTradeTypeAndStatusAndCreatedAtBefore(TradeType tradeType, TradeStatus status, LocalDateTime cutoff);
 
   // 체결 이벤트 발행 시각 저장
   @Modifying
