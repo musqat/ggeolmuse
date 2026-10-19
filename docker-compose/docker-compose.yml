@@ -188,6 +188,8 @@ services:
       SPRING_PROFILES_ACTIVE: dev
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
       KEYCLOAK_REALM: custom
+      KEYCLOAK_ISSUERS: http://keycloak:8080/realms/custom
+      KEYCLOAK_CLIENT_IDS: ggeolmuse-client,ggeolmuse-frontend
       KEYCLOAK_SECRET: local-client-secret
     healthcheck:
       test: ["NONE"]

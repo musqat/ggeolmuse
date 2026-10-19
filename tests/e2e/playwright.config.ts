@@ -4,6 +4,10 @@ import { defineConfig, devices } from '@playwright/test';
 export const BASE_URL = process.env.E2E_BASE_URL ?? 'http://localhost:3000';
 export const API_URL = process.env.E2E_API_URL ?? 'http://localhost:8070/api';
 
+/** compose 의 Keycloak. 앱을 거치지 않은 토큰을 받을 때만 쓴다. */
+export const KEYCLOAK_URL = process.env.E2E_KEYCLOAK_URL ?? 'http://localhost:8080';
+export const KEYCLOAK_REALM = process.env.E2E_KEYCLOAK_REALM ?? 'custom';
+
 /** 시드 admin. compose 가 user-service 기동 때 만든다. 로컬 체험용 더미다. */
 export const SEED_EMAIL = process.env.E2E_EMAIL ?? 'admin@test.com';
 export const SEED_PASSWORD = process.env.E2E_PASSWORD ?? 'Admin123!';

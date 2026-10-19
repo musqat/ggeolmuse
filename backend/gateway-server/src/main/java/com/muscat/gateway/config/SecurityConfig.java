@@ -7,6 +7,9 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtClaimNames;
+import org.springframework.security.oauth2.jwt.JwtClaimValidator;
+import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder;
 import org.springframework.security.web.server.SecurityWebFilterChain;
@@ -30,6 +33,14 @@ public class SecurityConfig {
 
     @Value("${keycloak.realm:ggeolmuse}")
     private String realm;
+
+    // 받는 토큰의 iss. 없으면 JWKS 를 받는 내부 주소의 issuer
+    @Value("${keycloak.issuers:${keycloak.auth-server-url:http://keycloak:8080}/realms/${keycloak.realm:ggeolmuse}}")
+    private List<String> issuers;
+
+    // 받는 토큰의 azp. 이메일 로그인 · 구글 로그인 클라이언트
+    @Value("${keycloak.client-ids:ggeolmuse-client,ggeolmuse-frontend}")
+    private List<String> clientIds;
 
     @Value("${gateway.cors.allowed-origins:http://localhost:3000,http://localhost:5173}")
     private String allowedOrigins;
@@ -104,7 +115,17 @@ public class SecurityConfig {
     @Bean
     public ReactiveJwtDecoder jwtDecoder() {
         String jwkSetUri = keycloakUrl + "/realms/" + realm + "/protocol/openid-connect/certs";
-        return NimbusReactiveJwtDecoder.withJwkSetUri(jwkSetUri).build();
+        return buildJwtDecoder(jwkSetUri, issuers, clientIds);
+    }
+
+    // 서명 · 만료에 더해 iss · azp 가 허용 목록에 있는 토큰만 통과
+    static ReactiveJwtDecoder buildJwtDecoder(String jwkSetUri, List<String> issuers, List<String> clientIds) {
+        NimbusReactiveJwtDecoder decoder = NimbusReactiveJwtDecoder.withJwkSetUri(jwkSetUri).build();
+        decoder.setJwtValidator(JwtValidators.createDefaultWithValidators(List.of(
+            new JwtClaimValidator<Object>(JwtClaimNames.ISS, iss -> iss != null && issuers.contains(iss.toString())),
+            // aud 에는 Keycloak 기본값(account)만 실려 받은 클라이언트는 azp 로 봄
+            new JwtClaimValidator<Object>("azp", azp -> azp != null && clientIds.contains(azp.toString())))));
+        return decoder;
     }
 
     // Keycloak realm_access.roles 를 권한으로

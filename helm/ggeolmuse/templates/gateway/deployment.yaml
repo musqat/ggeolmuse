@@ -74,6 +74,10 @@ spec:
           value: {{ .Values.global.keycloak.authServerUrl | quote }}
         - name: KEYCLOAK_REALM
           value: {{ .Values.global.keycloak.realm | quote }}
+        - name: KEYCLOAK_ISSUERS
+          value: {{ include "ggeolmuse.keycloakIssuers" . | quote }}
+        - name: KEYCLOAK_CLIENT_IDS
+          value: {{ include "ggeolmuse.keycloakClientIds" . | quote }}
         - name: JAVA_OPTS
           value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" .Values.gatewayServer.name "xmx" "192m") }}
         {{- if .Values.gatewayServer.resources }}
