@@ -207,7 +207,6 @@ class UserServiceImplTest {
       assertThatThrownBy(() -> userService.registerUser(testEmail, testPassword, testNickname))
         .isInstanceOf(UserException.class)
         .hasMessage(UserResponse.EMAIL_ALREADY_EXISTS.getMessage());
-      verify(keycloakService, never()).findUserByEmail(anyString());
       verify(userRepository, never()).save(any(User.class));
     }
 

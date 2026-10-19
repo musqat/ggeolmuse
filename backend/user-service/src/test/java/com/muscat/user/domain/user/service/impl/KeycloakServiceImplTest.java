@@ -551,22 +551,6 @@ class KeycloakServiceImplTest {
     }
 
     @Test
-    @DisplayName("이메일로 사용자를 찾으면 id, 없거나 조회가 실패하면 null 이다")
-    void findUserByEmail() {
-      adminTokenOk();
-      given(restTemplate.exchange(contains("email=found@example.com"), eq(HttpMethod.GET), any(HttpEntity.class), eq(List.class)))
-        .willReturn(ResponseEntity.ok(List.of(Map.of("id", TEST_KEYCLOAK_ID))));
-      given(restTemplate.exchange(contains("email=none@example.com"), eq(HttpMethod.GET), any(HttpEntity.class), eq(List.class)))
-        .willReturn(ResponseEntity.ok(List.of()));
-      given(restTemplate.exchange(contains("email=down@example.com"), eq(HttpMethod.GET), any(HttpEntity.class), eq(List.class)))
-        .willThrow(new HttpClientErrorException(HttpStatus.SERVICE_UNAVAILABLE));
-
-      assertThat(keycloakService.findUserByEmail("found@example.com")).isEqualTo(TEST_KEYCLOAK_ID);
-      assertThat(keycloakService.findUserByEmail("none@example.com")).isNull();
-      assertThat(keycloakService.findUserByEmail("down@example.com")).isNull();
-    }
-
-    @Test
     @DisplayName("사용자에게 부여할 수 있는 역할 중 그 역할을 사용자 역할 매핑에 추가하고, realm 역할 목록은 읽지 않는다")
     @SuppressWarnings("unchecked")
     void assignRealmRole_PostsRoleMapping() {

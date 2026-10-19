@@ -110,7 +110,6 @@ class InitialDataLoaderTest {
 
     verify(keycloakService, never()).createAdminUser(anyString(), anyString());
     verify(keycloakService, never()).assignRealmRole(anyString(), anyString());
-    verify(keycloakService, never()).findUserByEmail(anyString());
     verify(userRepository, never()).save(any());
   }
 
@@ -124,7 +123,6 @@ class InitialDataLoaderTest {
 
     verify(keycloakService).assignRealmRole("kc-admin", "admin");
     verify(keycloakService, never()).createAdminUser(anyString(), anyString());
-    verify(keycloakService, never()).findUserByEmail(anyString());
     assertThat(savedAdmin().getKeycloakId()).isEqualTo("kc-admin");
   }
 

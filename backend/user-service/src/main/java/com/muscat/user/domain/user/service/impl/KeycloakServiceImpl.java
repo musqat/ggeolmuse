@@ -240,40 +240,6 @@ public class KeycloakServiceImpl implements KeycloakService {
   }
 
   @Override
-  public String findUserByEmail(String email) {
-    try {
-      String adminToken = getAdminToken();
-      String searchUrl =
-        keycloakProperties.getAuthServerUrl() + "/admin/realms/" + keycloakProperties.getRealm()
-          + "/users?email=" + email + "&exact=true";
-
-      log.debug("Keycloak 사용자 조회: {} | URL: {}", email, searchUrl);
-
-      HttpHeaders headers = new HttpHeaders();
-      headers.setBearerAuth(adminToken);
-      HttpEntity<Void> entity = new HttpEntity<>(headers);
-
-      ResponseEntity<List> response = restTemplate.exchange(searchUrl,
-        org.springframework.http.HttpMethod.GET, entity, List.class);
-
-      if (response.getBody() == null || response.getBody().isEmpty()) {
-        log.warn("Keycloak에서 사용자를 찾을 수 없음: {}", email);
-        return null;
-      }
-
-      Map<String, Object> user = (Map<String, Object>) response.getBody().getFirst();
-      String keycloakId = (String) user.get("id");
-
-      log.info("Keycloak 사용자 조회 완료: {} | ID: {}", email, keycloakId);
-      return keycloakId;
-
-    } catch (Exception e) {
-      log.error("Keycloak 사용자 조회 실패: {} | Error: {}", email, e.getMessage(), e);
-      return null;
-    }
-  }
-
-  @Override
   public String findUserIdByUsername(String username) {
     try {
       HttpHeaders headers = new HttpHeaders();
