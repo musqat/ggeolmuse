@@ -24,7 +24,7 @@ import java.util.Map;
     havingValue = "alphavantage"
 )
 @RequiredArgsConstructor
-public class DividendSource implements MarketDataProvider.DividendSource {
+public class AlphaVantageDividendSource implements MarketDataProvider.DividendSource {
 
     private final AlphaVantageClient client;
     private final AlphaVantageRateLimiter rateLimiter;

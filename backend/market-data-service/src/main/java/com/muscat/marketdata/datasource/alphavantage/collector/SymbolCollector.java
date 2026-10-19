@@ -1,6 +1,6 @@
 package com.muscat.marketdata.datasource.alphavantage.collector;
 
-import com.muscat.marketdata.datasource.alphavantage.provider.SymbolSource;
+import com.muscat.marketdata.datasource.alphavantage.provider.AlphaVantageSymbolSource;
 import com.muscat.marketdata.datasource.alphavantage.service.MarketCapCollectionService;
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.repository.AssetRepository;
@@ -31,7 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class SymbolCollector {
 
-  private final SymbolSource symbolSource;
+  private final AlphaVantageSymbolSource symbolSource;
   private final AssetRepository assetRepository;
   private final AssetEventProducer assetEventProducer;
   private final MarketCapCollectionService marketCapCollectionService;

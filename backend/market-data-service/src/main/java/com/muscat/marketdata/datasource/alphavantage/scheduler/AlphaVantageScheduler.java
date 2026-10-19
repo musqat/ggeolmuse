@@ -1,8 +1,8 @@
 package com.muscat.marketdata.datasource.alphavantage.scheduler;
 
 import com.muscat.commonlib.util.MoneyUtils;
-import com.muscat.marketdata.datasource.alphavantage.provider.CandleSource;
-import com.muscat.marketdata.datasource.alphavantage.provider.SymbolSource;
+import com.muscat.marketdata.datasource.alphavantage.provider.AlphaVantageCandleSource;
+import com.muscat.marketdata.datasource.alphavantage.provider.AlphaVantageSymbolSource;
 import com.muscat.marketdata.datasource.alphavantage.service.MarketCapCollectionService;
 import com.muscat.marketdata.datasource.common.MarketDataProvider.FxSource;
 import com.muscat.marketdata.domain.entity.Asset;
@@ -35,8 +35,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class AlphaVantageScheduler {
 
   private final FxSource fxSource;
-  private final CandleSource candleSource;
-  private final SymbolSource symbolSource;
+  private final AlphaVantageCandleSource candleSource;
+  private final AlphaVantageSymbolSource symbolSource;
 
   private final AssetRepository assetRepository;
   private final FxRateRepository fxRateRepository;
@@ -64,7 +64,7 @@ public class AlphaVantageScheduler {
       log.info("=== [초기 환율] 데이터 수집 시작 (기존: {}개) ===", existingCount);
 
       // outputsize=full로  환율 데이터를 1번의 API 호출로 가져옴
-      Map<LocalDate, BigDecimal> allRates = ((com.muscat.marketdata.datasource.alphavantage.provider.FxSource) fxSource)
+      Map<LocalDate, BigDecimal> allRates = ((com.muscat.marketdata.datasource.alphavantage.provider.AlphaVantageFxSource) fxSource)
         .fetchAllFxRates();
 
       if (allRates.isEmpty()) {

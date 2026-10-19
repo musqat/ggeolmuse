@@ -10,9 +10,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import com.muscat.marketdata.datasource.alphavantage.provider.CandleSource;
-import com.muscat.marketdata.datasource.alphavantage.provider.FxSource;
-import com.muscat.marketdata.datasource.alphavantage.provider.SymbolSource;
+import com.muscat.marketdata.datasource.alphavantage.provider.AlphaVantageCandleSource;
+import com.muscat.marketdata.datasource.alphavantage.provider.AlphaVantageFxSource;
+import com.muscat.marketdata.datasource.alphavantage.provider.AlphaVantageSymbolSource;
 import com.muscat.marketdata.datasource.alphavantage.service.MarketCapCollectionService;
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.entity.FxRate;
@@ -37,14 +37,14 @@ import org.mockito.ArgumentCaptor;
 @DisplayName("AlphaVantage 스케줄러")
 class AlphaVantageSchedulerTest {
 
-  private final FxSource fxSource = mock(FxSource.class);
+  private final AlphaVantageFxSource fxSource = mock(AlphaVantageFxSource.class);
   private final AssetRepository assetRepository = mock(AssetRepository.class);
   private final FxRateRepository fxRateRepository = mock(FxRateRepository.class);
   private final CandleRepository candleRepository = mock(CandleRepository.class);
   private final AssetEventProducer producer = mock(AssetEventProducer.class);
   private final MarketCapCollectionService marketCapService = mock(MarketCapCollectionService.class);
-  private final AlphaVantageScheduler scheduler = new AlphaVantageScheduler(fxSource, mock(CandleSource.class),
-    mock(SymbolSource.class), assetRepository, fxRateRepository, candleRepository, producer, marketCapService);
+  private final AlphaVantageScheduler scheduler = new AlphaVantageScheduler(fxSource, mock(AlphaVantageCandleSource.class),
+    mock(AlphaVantageSymbolSource.class), assetRepository, fxRateRepository, candleRepository, producer, marketCapService);
 
   private void collected(long total, long withCandles) {
     given(assetRepository.count()).willReturn(total);

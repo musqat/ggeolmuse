@@ -28,7 +28,7 @@ import org.springframework.stereotype.Component;
     havingValue = "alphavantage"
 )
 @RequiredArgsConstructor
-public class CandleSource implements MarketDataProvider.CandleSource {
+public class AlphaVantageCandleSource implements MarketDataProvider.CandleSource {
 
     private final AlphaVantageClient client;
     private final AlphaVantageRateLimiter rateLimiter;

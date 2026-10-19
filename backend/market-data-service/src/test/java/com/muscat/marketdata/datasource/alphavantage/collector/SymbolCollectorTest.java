@@ -11,7 +11,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import com.muscat.marketdata.datasource.alphavantage.provider.SymbolSource;
+import com.muscat.marketdata.datasource.alphavantage.provider.AlphaVantageSymbolSource;
 import com.muscat.marketdata.datasource.alphavantage.service.MarketCapCollectionService;
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.repository.AssetRepository;
@@ -27,7 +27,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 @DisplayName("AlphaVantage 종목 동기화")
 class SymbolCollectorTest {
 
-  private final SymbolSource symbolSource = mock(SymbolSource.class);
+  private final AlphaVantageSymbolSource symbolSource = mock(AlphaVantageSymbolSource.class);
   private final AssetRepository assetRepository = mock(AssetRepository.class);
   private final AssetEventProducer producer = mock(AssetEventProducer.class);
   private final MarketCapCollectionService marketCapService = mock(MarketCapCollectionService.class);
