@@ -64,32 +64,18 @@ public class InitialDataLoader implements ApplicationRunner {
         log.info("Admin 사용자 생성 중: {}", adminEmail);
 
         try {
-            // 1. Keycloak에 Admin 사용자 생성
-            String keycloakId;
-            try {
+            // 1. Keycloak 사용자 이름은 처음 email 그대로라, Keycloak 에서 email 을 바꾼 관리자도 같은 계정으로 찾음
+            String keycloakId = keycloakService.findUserIdByUsername(adminEmail);
+            if (keycloakId != null && userRepository.findByKeycloakId(keycloakId).isPresent()) {
+                log.info("Admin 사용자가 이미 존재합니다: keycloakId={}", keycloakId);
+                return;
+            }
+            if (keycloakId == null) {
                 keycloakId = keycloakService.createAdminUser(adminEmail, adminPassword);
                 log.info("Keycloak에 Admin 사용자 생성 완료: keycloakId={}", keycloakId);
-            } catch (org.springframework.web.client.HttpClientErrorException.Conflict e) {
-                // Keycloak에 이미 존재하는 경우 (409 Conflict), 기존 유저 조회
-                log.warn("Keycloak에 Admin 사용자가 이미 존재합니다 (409 Conflict). 기존 유저를 조회합니다.");
-                keycloakId = keycloakService.findUserByEmail(adminEmail);
-                if (keycloakId == null) {
-                    log.error("Keycloak에서 Admin 사용자를 찾을 수 없습니다.");
-                    throw new RuntimeException("Keycloak Admin 사용자 조회 실패");
-                }
-                log.info("Keycloak 기존 Admin 사용자 조회 완료: keycloakId={}", keycloakId);
-
-                // 기존 사용자에게도 admin role 할당 (없을 경우를 대비)
-                try {
-                    keycloakService.assignRealmRole(keycloakId, "admin");
-                    log.info("기존 Admin 사용자에게 admin role 할당 완료: keycloakId={}", keycloakId);
-                } catch (Exception roleEx) {
-                    log.warn("admin role 할당 실패 (이미 할당되어 있을 수 있음): {}", roleEx.getMessage());
-                }
-            } catch (org.springframework.web.client.HttpClientErrorException.Forbidden e) {
-                // Keycloak 권한 부족 (403 Forbidden) - service account에 권한 없음
-                log.warn("Keycloak API 호출 권한 부족 (403 Forbidden). Keycloak 동기화를 건너뛰고 로컬 DB에만 Admin 생성합니다.");
-                keycloakId = null; // Keycloak 동기화 실패, null로 설정
+            } else {
+                keycloakService.assignRealmRole(keycloakId, "admin");
+                log.info("Keycloak 기존 Admin 사용자에게 admin role 할당 완료: keycloakId={}", keycloakId);
             }
 
             // 2. user-service DB에 Admin 사용자 저장
