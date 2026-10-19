@@ -244,4 +244,14 @@ class BacktestAnalysisControllerTest {
     mockMvc.perform(post("/api/internal/analysis/strategy/dca")).andExpect(status().isUnauthorized());
     mockMvc.perform(post("/api/internal/trading-simulation/simulation")).andExpect(status().isUnauthorized());
   }
+
+  @Test
+  @DisplayName("전략 비교에 전략 타입이 없는 항목이 있으면 400")
+  void compareStrategies_MissingStrategyType() throws Exception {
+    postJson("/compare/strategies", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":1000000,"
+      + "\"strategies\":[{\"strategyType\":\"DCA\",\"monthlyAmount\":100000},{\"name\":\"타입 없음\"}]}")
+      .andExpect(status().isBadRequest());
+
+    verify(backtestAnalysisService, never()).compareStrategies(any());
+  }
 }

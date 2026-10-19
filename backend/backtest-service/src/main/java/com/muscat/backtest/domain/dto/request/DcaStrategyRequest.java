@@ -1,5 +1,7 @@
 package com.muscat.backtest.domain.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.muscat.backtest.common.enums.type.StrategyType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -16,7 +18,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class DcaStrategyRequest {
+public class DcaStrategyRequest implements StrategyRequest {
 
   @Schema(description = "종목 코드", example = "AAPL", required = true)
   @NotBlank(message = "종목 코드는 필수입니다")
@@ -68,4 +70,11 @@ public class DcaStrategyRequest {
   @Schema(description = "배당 원천징수세율 (미국 원천징수 15% = 0.15, 미적용 시 0)", example = "0.15")
   @Builder.Default
   private BigDecimal dividendTaxRate = BigDecimal.ZERO;  // 배당 원천징수 세율
+
+  // 이력 저장 JSON 에는 넣지 않음
+  @JsonIgnore
+  @Override
+  public StrategyType getStrategyType() {
+    return StrategyType.DCA;
+  }
 }

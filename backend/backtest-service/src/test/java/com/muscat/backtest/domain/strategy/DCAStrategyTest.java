@@ -8,9 +8,11 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.muscat.backtest.common.calculation.StrategyCalculationResult;
 import com.muscat.backtest.common.enums.type.StrategyType;
+import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
@@ -70,7 +72,7 @@ class DCAStrategyTest {
 
     @Test
     @DisplayName("매월 정기 매수가 실행된다")
-    void executeDca_MonthlyPurchase_Success() {
+    void execute_MonthlyPurchase_Success() {
       // given
       BigDecimal monthlyAmount = new BigDecimal("1000.00");
       Integer purchaseDay = 15;
@@ -131,7 +133,7 @@ class DCAStrategyTest {
         .willReturn(expectedResponse);
 
       // when
-      StrategyResponse result = dcaStrategy.executeDca(request);
+      StrategyResponse result = dcaStrategy.execute(request);
 
       // then
       assertThat(result).isNotNull();
@@ -146,7 +148,7 @@ class DCAStrategyTest {
 
     @Test
     @DisplayName("매수일이 주말/공휴일이면 다음 영업일에 매수한다")
-    void executeDca_WeekendPurchaseDay_ShiftsToNextBusinessDay() {
+    void execute_WeekendPurchaseDay_ShiftsToNextBusinessDay() {
       // given
       BigDecimal monthlyAmount = new BigDecimal("1000.00");
       Integer purchaseDay = 1; // 토요일인 경우
@@ -196,7 +198,7 @@ class DCAStrategyTest {
         .willReturn(expectedResponse);
 
       // when
-      StrategyResponse result = dcaStrategy.executeDca(request);
+      StrategyResponse result = dcaStrategy.execute(request);
 
       // then
       assertThat(result).isNotNull();
@@ -205,7 +207,7 @@ class DCAStrategyTest {
 
     @Test
     @DisplayName("매수가는 분할만 조정된 closePrice 를 쓴다. 배당 조정된 adjustedClose 가 아니다")
-    void executeDca_UsesClosePrice_NotAdjustedClose() {
+    void execute_UsesClosePrice_NotAdjustedClose() {
       // given: 분할 조정된 종가 100, 배당까지 조정된 값 25
       DcaStrategyRequest request = DcaStrategyRequest.builder()
         .userId(userId)
@@ -235,7 +237,7 @@ class DCAStrategyTest {
         .willReturn(StrategyResponse.builder().strategyType(StrategyType.DCA).build());
 
       // when
-      dcaStrategy.executeDca(request);
+      dcaStrategy.execute(request);
 
       // then: 매수가가 closePrice(100) 여야 함 (adjustedClose 25 아님)
       @SuppressWarnings("unchecked")
@@ -248,7 +250,7 @@ class DCAStrategyTest {
 
     @Test
     @DisplayName("가격 데이터가 없으면 예외가 발생한다")
-    void executeDca_NoPriceData_ThrowsException() {
+    void execute_NoPriceData_ThrowsException() {
       // given
       DcaStrategyRequest request = DcaStrategyRequest.builder()
         .userId(userId)
@@ -267,7 +269,7 @@ class DCAStrategyTest {
         .willReturn(java.util.Collections.emptyMap());
 
       // when & then
-      assertThatThrownBy(() -> dcaStrategy.executeDca(request))
+      assertThatThrownBy(() -> dcaStrategy.execute(request))
         .isInstanceOf(com.muscat.backtest.common.exception.BacktestException.class)
         .hasMessageContaining("적립식 투자 전략 실행 가능한 데이터가 없습니다");
     }
@@ -294,7 +296,7 @@ class DCAStrategyTest {
 
     @Test
     @DisplayName("재투자를 켜면 배당으로 추가 매수한다")
-    void executeDca_WithDividendReinvestment_BuysExtraShares() {
+    void execute_WithDividendReinvestment_BuysExtraShares() {
       // given
       BigDecimal monthlyAmount = new BigDecimal("1000.00");
       DcaStrategyRequest request = DcaStrategyRequest.builder()
@@ -353,7 +355,7 @@ class DCAStrategyTest {
         .willReturn(expectedResponse);
 
       // when
-      StrategyResponse result = dcaStrategy.executeDca(request);
+      StrategyResponse result = dcaStrategy.execute(request);
 
       // then
       assertThat(result).isNotNull();
@@ -376,7 +378,7 @@ class DCAStrategyTest {
 
     @Test
     @DisplayName("총 투자금 한도에 도달하면 투자를 중단한다")
-    void executeDca_WithInvestmentLimit_StopsAtLimit() {
+    void execute_WithInvestmentLimit_StopsAtLimit() {
       // given
       BigDecimal monthlyAmount = new BigDecimal("1000.00");
       BigDecimal investmentLimit = new BigDecimal("2500.00"); // 3개월치보다 적게 설정
@@ -436,7 +438,7 @@ class DCAStrategyTest {
         .willReturn(expectedResponse);
 
       // when
-      StrategyResponse result = dcaStrategy.executeDca(request);
+      StrategyResponse result = dcaStrategy.execute(request);
 
       // then
       assertThat(result).isNotNull();
@@ -450,7 +452,7 @@ class DCAStrategyTest {
 
     @Test
     @DisplayName("매수마다 수수료를 떼고 남은 달러로 산다. 투자금은 그대로 둔다")
-    void executeDca_DeductsFeePerPurchase() {
+    void execute_DeductsFeePerPurchase() {
       DcaStrategyRequest request = DcaStrategyRequest.builder()
         .userId(userId)
         .symbol(symbol)
@@ -477,7 +479,7 @@ class DCAStrategyTest {
       given(responseMapper.toStrategyResponse(any(DcaStrategyRequest.class), any(), any(), any()))
         .willReturn(StrategyResponse.builder().build());
 
-      dcaStrategy.executeDca(request);
+      dcaStrategy.execute(request);
 
       @SuppressWarnings("unchecked")
       ArgumentCaptor<List<StrategyTransaction>> captor = ArgumentCaptor.forClass(List.class);
@@ -597,7 +599,7 @@ class DCAStrategyTest {
     void zeroMonthlyAmount() {
       DcaStrategyRequest request = base().monthlyAmount(BigDecimal.ZERO).build();
 
-      assertThatThrownBy(() -> dcaStrategy.executeDca(request))
+      assertThatThrownBy(() -> dcaStrategy.execute(request))
         .isInstanceOf(BacktestException.class)
         .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_MONTHLY_AMOUNT_REQUIRED);
@@ -609,7 +611,7 @@ class DCAStrategyTest {
     void purchaseDayOutOfRange(int day) {
       DcaStrategyRequest request = base().purchaseDay(day).build();
 
-      assertThatThrownBy(() -> dcaStrategy.executeDca(request))
+      assertThatThrownBy(() -> dcaStrategy.execute(request))
         .isInstanceOf(BacktestException.class)
         .extracting("code")
         .isEqualTo(BacktestResponse.INVALID_PURCHASE_DAY);
@@ -620,7 +622,7 @@ class DCAStrategyTest {
     void missingPurchaseDay() {
       DcaStrategyRequest request = base().purchaseDay(null).build();
 
-      assertThatThrownBy(() -> dcaStrategy.executeDca(request))
+      assertThatThrownBy(() -> dcaStrategy.execute(request))
         .isInstanceOf(BacktestException.class)
         .extracting("code")
         .isEqualTo(BacktestResponse.INVALID_PURCHASE_DAY);
@@ -640,8 +642,8 @@ class DCAStrategyTest {
       given(responseMapper.toStrategyResponse(any(DcaStrategyRequest.class), any(), any(), any()))
         .willReturn(StrategyResponse.builder().build());
 
-      dcaStrategy.executeDca(base().investmentInterval(2).build());
-      dcaStrategy.executeDca(base().investmentInterval(null).build());
+      dcaStrategy.execute(base().investmentInterval(2).build());
+      dcaStrategy.execute(base().investmentInterval(null).build());
 
       @SuppressWarnings("unchecked")
       ArgumentCaptor<List<StrategyTransaction>> captor = ArgumentCaptor.forClass(List.class);
@@ -665,7 +667,7 @@ class DCAStrategyTest {
       given(responseMapper.toStrategyResponse(any(DcaStrategyRequest.class), any(), any(), any()))
         .willReturn(StrategyResponse.builder().build());
 
-      dcaStrategy.executeDca(request);
+      dcaStrategy.execute(request);
 
       @SuppressWarnings("unchecked")
       ArgumentCaptor<List<String>> fxDates = ArgumentCaptor.forClass(List.class);
@@ -690,10 +692,28 @@ class DCAStrategyTest {
       given(responseMapper.toStrategyResponse(any(DcaStrategyRequest.class), any(), any(), any()))
         .willReturn(StrategyResponse.builder().build());
 
-      dcaStrategy.executeDca(request);
+      dcaStrategy.execute(request);
 
       assertThat(executed()).hasSize(1);
       verify(marketDataClient).getOHLCPriceRange(symbol, start.toString(), today.toString());
+    }
+  }
+
+  @Nested
+  @DisplayName("요청 타입 검사")
+  class RequestTypeTests {
+
+    @Test
+    @DisplayName("조건부 매수 요청이 오면 전략 타입 불일치로 막는다")
+    void execute_OtherRequestType_Rejected() {
+      ConditionalStrategyRequest other = ConditionalStrategyRequest.builder().symbol("AAPL")
+        .startDate(LocalDate.of(2023, 1, 1)).endDate(LocalDate.of(2024, 1, 1)).build();
+
+      assertThatThrownBy(() -> dcaStrategy.execute(other))
+        .isInstanceOf(BacktestException.class)
+        .extracting("code")
+        .isEqualTo(BacktestResponse.STRATEGY_TYPE_MISMATCH);
+      verifyNoInteractions(marketDataClient);
     }
   }
 }

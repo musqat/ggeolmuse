@@ -7,12 +7,14 @@ import com.muscat.backtest.common.enums.type.BacktestType;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.util.BacktestHistoryUtils;
+import com.muscat.backtest.domain.analysis.OptimalTimingAnalyzer;
 import com.muscat.backtest.domain.dto.request.BaseComparisonRequest;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
 import com.muscat.backtest.domain.dto.request.OptimalTimingRequest;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
 import com.muscat.backtest.domain.dto.request.StrategyComparisonRequest;
+import com.muscat.backtest.domain.dto.request.StrategyRequest;
 import com.muscat.backtest.domain.dto.request.SymbolComparisonRequest;
 import com.muscat.backtest.domain.dto.request.TimingComparisonRequest;
 import com.muscat.backtest.domain.dto.response.ComparisonResponse;
@@ -25,7 +27,6 @@ import com.muscat.backtest.domain.model.StrategyParameter;
 import com.muscat.backtest.domain.service.BacktestAnalysisService;
 import com.muscat.backtest.domain.service.TradingSimulationService;
 import com.muscat.backtest.domain.strategy.InvestmentStrategy;
-import com.muscat.backtest.domain.strategy.OptimalTimingStrategy;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -46,15 +47,15 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
   private final Map<StrategyType, InvestmentStrategy> strategyMap;
   private final ResponseMapper responseMapper;
   private final BacktestHistoryUtils backtestHistoryUtils;
-  private final OptimalTimingStrategy optimalTimingStrategy;
+  private final OptimalTimingAnalyzer optimalTimingAnalyzer;
 
   public BacktestAnalysisServiceImpl(TradingSimulationService tradingSimulationService,
     List<InvestmentStrategy> strategies, ResponseMapper responseMapper,
-    BacktestHistoryUtils backtestHistoryUtils, OptimalTimingStrategy optimalTimingStrategy) {
+    BacktestHistoryUtils backtestHistoryUtils, OptimalTimingAnalyzer optimalTimingAnalyzer) {
     this.tradingSimulationService = tradingSimulationService;
     this.responseMapper = responseMapper;
     this.backtestHistoryUtils = backtestHistoryUtils;
-    this.optimalTimingStrategy = optimalTimingStrategy;
+    this.optimalTimingAnalyzer = optimalTimingAnalyzer;
     // this.backtestEventProducer = backtestEventProducer;
     this.strategyMap = strategies.stream()
       .collect(Collectors.toMap(InvestmentStrategy::getStrategyType, Function.identity()));
@@ -69,8 +70,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
     try {
       log.info("DCA 전략 백테스팅 시작: backtestId={}, symbol={}", backtestId, request.getSymbol());
 
-      InvestmentStrategy strategy = getStrategy(StrategyType.DCA, "DCA 전략을 찾을 수 없습니다");
-      StrategyResponse result = strategy.executeDca(request);
+      StrategyResponse result = execute(request);
 
       saveBacktestHistory(request.getUserId(), BacktestType.STRATEGY_SIMULATION, request);
 
@@ -96,9 +96,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
     try {
       log.info("조건부 매수 전략 백테스팅 시작: backtestId={}, symbol={}", backtestId, request.getSymbol());
 
-      InvestmentStrategy strategy = getStrategy(StrategyType.CONDITIONAL_PURCHASE,
-        "조건부 매수 전략을 찾을 수 없습니다");
-      StrategyResponse result = strategy.executeConditional(request);
+      StrategyResponse result = execute(request);
 
       saveBacktestHistory(request.getUserId(), BacktestType.STRATEGY_SIMULATION, request);
 
@@ -201,12 +199,14 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
     return response;
   }
 
-  private InvestmentStrategy getStrategy(StrategyType strategyType, String errorMessage) {
-    InvestmentStrategy strategy = strategyMap.get(strategyType);
+  // 요청의 전략 타입에 맞는 전략으로 실행
+  private StrategyResponse execute(StrategyRequest request) {
+    InvestmentStrategy strategy = strategyMap.get(request.getStrategyType());
     if (strategy == null) {
-      throw new BacktestException(BacktestResponse.STRATEGY_TYPE_MISMATCH, errorMessage);
+      throw new BacktestException(BacktestResponse.STRATEGY_TYPE_MISMATCH,
+        "등록된 전략이 없습니다: " + request.getStrategyType());
     }
-    return strategy;
+    return strategy.execute(request);
   }
 
   private void saveBacktestHistory(String userId, BacktestType backtestType,
@@ -293,8 +293,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
         .tradingFeeRate(orZero(request.getTradingFeeRate()))
         .build();
 
-      InvestmentStrategy strategy = getStrategy(StrategyType.DCA, "DCA 전략을 찾을 수 없습니다");
-      StrategyResponse result = strategy.executeDca(dcaRequest);
+      StrategyResponse result = execute(dcaRequest);
       return responseMapper.toComparisonItemFromStrategy(result, strategyName);
     }
 
@@ -314,20 +313,22 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
         .tradingFeeRate(orZero(request.getTradingFeeRate()))
         .build();
 
-      InvestmentStrategy strategy = getStrategy(StrategyType.CONDITIONAL_PURCHASE,
-        "조건부 매수 전략을 찾을 수 없습니다");
-      StrategyResponse result = strategy.executeConditional(conditionalRequest);
+      StrategyResponse result = execute(conditionalRequest);
       return responseMapper.toComparisonItemFromStrategy(result, strategyName);
     }
 
-    SimulationRequest simulationRequest = simulationWithOptions(request)
-      .symbol(request.getSymbol())
-      .purchaseDate(strategyConfig.getPurchaseDate())
-      .build();
+    if (strategyType == StrategyType.SIMPLE) {
+      SimulationRequest simulationRequest = simulationWithOptions(request)
+        .symbol(request.getSymbol())
+        .purchaseDate(strategyConfig.getPurchaseDate())
+        .build();
 
-    SimulationResponse result = tradingSimulationService.runSimulation(simulationRequest,
-      false);
-    return responseMapper.toComparisonItemFromSimulation(result, strategyName);
+      SimulationResponse result = tradingSimulationService.runSimulation(simulationRequest,
+        false);
+      return responseMapper.toComparisonItemFromSimulation(result, strategyName);
+    }
+
+    throw new BacktestException(BacktestResponse.STRATEGY_TYPE_MISMATCH, "비교할 수 없는 전략 타입: " + strategyType);
   }
 
   private <T> List<ComparisonItem> collectComparisonItems(List<T> sources,
@@ -358,7 +359,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
     log.info("최적 타이밍 분석 시작: {} - 목표 수익률 {}%",
       request.getSymbol(), request.getTargetReturnPercent());
 
-    OptimalTimingResponse result = optimalTimingStrategy.analyzeOptimalTiming(request);
+    OptimalTimingResponse result = optimalTimingAnalyzer.analyzeOptimalTiming(request);
 
     if (request.getUserId() != null) {
       saveBacktestHistory(request.getUserId(), BacktestType.STRATEGY_SIMULATION, request);

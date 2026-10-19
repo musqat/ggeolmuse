@@ -1,6 +1,7 @@
 package com.muscat.backtest.domain.model;
 
 import com.muscat.backtest.common.enums.type.StrategyType;
+import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import lombok.Data;
@@ -9,6 +10,7 @@ import lombok.Data;
 @Data
 public class StrategyParameter {
 
+  @NotNull(message = "전략 타입은 필수입니다")
   private StrategyType strategyType;
   private String name;
 

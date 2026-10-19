@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.Mockito.never;
 
@@ -15,6 +16,7 @@ import com.muscat.backtest.common.enums.type.InvestmentMode;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
+import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.domain.model.StrategyTransaction;
@@ -69,7 +71,7 @@ class ConditionalPurchaseStrategyTest {
 
     @Test
     @DisplayName("분할일을 폭락으로 오인해 유령매수하지 않는다 - closePrice 가 분할 조정된 값이라")
-    void executeConditional_SplitDay_NoPhantomDropBuy() {
+    void execute_SplitDay_NoPhantomDropBuy() {
       // given: PER_PURCHASE, 20% 하락시 매수, 최대 5회
       ConditionalStrategyRequest request = ConditionalStrategyRequest.builder()
         .userId("test-user")
@@ -105,7 +107,7 @@ class ConditionalPurchaseStrategyTest {
         .willReturn(StrategyResponse.builder().strategyType(StrategyType.CONDITIONAL_PURCHASE).build());
 
       // when
-      strategy.executeConditional(request);
+      strategy.execute(request);
 
       // then: 거래는 초기매수 1건뿐(분할일 유령매수 없음), 매수가는 조정종가 25
       @SuppressWarnings("unchecked")
@@ -124,7 +126,7 @@ class ConditionalPurchaseStrategyTest {
 
     @Test
     @DisplayName("매수마다 수수료를 떼고 남은 달러로 산다")
-    void executeConditional_DeductsFee() {
+    void execute_DeductsFee() {
       ConditionalStrategyRequest request = ConditionalStrategyRequest.builder()
         .userId("test-user")
         .symbol("FEE-TEST")
@@ -155,7 +157,7 @@ class ConditionalPurchaseStrategyTest {
       given(responseMapper.toStrategyResponse(any(ConditionalStrategyRequest.class), any(), any(), any()))
         .willReturn(StrategyResponse.builder().build());
 
-      strategy.executeConditional(request);
+      strategy.execute(request);
 
       @SuppressWarnings("unchecked")
       ArgumentCaptor<List<StrategyTransaction>> captor = ArgumentCaptor.forClass(List.class);
@@ -175,7 +177,7 @@ class ConditionalPurchaseStrategyTest {
     @Test
     @DisplayName("요청이 null이면 예외 발생")
     void validateRequest_Null_ThrowsException() {
-      assertThatThrownBy(() -> strategy.executeConditional(null))
+      assertThatThrownBy(() -> strategy.execute(null))
         .isInstanceOf(BacktestException.class)
         .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_REQUEST_NULL);
@@ -192,7 +194,7 @@ class ConditionalPurchaseStrategyTest {
         .dropPercentage(BigDecimal.valueOf(10))
         .build();
 
-      assertThatThrownBy(() -> strategy.executeConditional(request))
+      assertThatThrownBy(() -> strategy.execute(request))
         .isInstanceOf(BacktestException.class)
         .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_SYMBOL_REQUIRED);
@@ -209,7 +211,7 @@ class ConditionalPurchaseStrategyTest {
         .dropPercentage(BigDecimal.valueOf(10))
         .build();
 
-      assertThatThrownBy(() -> strategy.executeConditional(request))
+      assertThatThrownBy(() -> strategy.execute(request))
         .isInstanceOf(BacktestException.class)
         .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_SYMBOL_REQUIRED);
@@ -226,7 +228,7 @@ class ConditionalPurchaseStrategyTest {
         .dropPercentage(BigDecimal.valueOf(10))
         .build();
 
-      assertThatThrownBy(() -> strategy.executeConditional(request))
+      assertThatThrownBy(() -> strategy.execute(request))
         .isInstanceOf(BacktestException.class)
         .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_START_DATE_REQUIRED);
@@ -243,7 +245,7 @@ class ConditionalPurchaseStrategyTest {
         .dropPercentage(BigDecimal.valueOf(10))
         .build();
 
-      assertThatThrownBy(() -> strategy.executeConditional(request))
+      assertThatThrownBy(() -> strategy.execute(request))
         .isInstanceOf(BacktestException.class)
         .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_END_DATE_REQUIRED);
@@ -260,7 +262,7 @@ class ConditionalPurchaseStrategyTest {
         .dropPercentage(BigDecimal.valueOf(10))
         .build();
 
-      assertThatThrownBy(() -> strategy.executeConditional(request))
+      assertThatThrownBy(() -> strategy.execute(request))
         .isInstanceOf(BacktestException.class)
         .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_DATE_RANGE_INVALID);
@@ -278,7 +280,7 @@ class ConditionalPurchaseStrategyTest {
         .dropPercentage(BigDecimal.valueOf(10))
         .build();
 
-      assertThatThrownBy(() -> strategy.executeConditional(request))
+      assertThatThrownBy(() -> strategy.execute(request))
         .isInstanceOf(BacktestException.class)
         .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_TOTAL_INVESTMENT_REQUIRED);
@@ -296,7 +298,7 @@ class ConditionalPurchaseStrategyTest {
         .dropPercentage(BigDecimal.valueOf(10))
         .build();
 
-      assertThatThrownBy(() -> strategy.executeConditional(request))
+      assertThatThrownBy(() -> strategy.execute(request))
         .isInstanceOf(BacktestException.class)
         .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_TOTAL_INVESTMENT_REQUIRED);
@@ -315,7 +317,7 @@ class ConditionalPurchaseStrategyTest {
         .dropPercentage(BigDecimal.valueOf(10))
         .build();
 
-      assertThatThrownBy(() -> strategy.executeConditional(request))
+      assertThatThrownBy(() -> strategy.execute(request))
         .isInstanceOf(BacktestException.class)
         .hasMessageContaining("회당 투자금액은 필수입니다");
     }
@@ -333,7 +335,7 @@ class ConditionalPurchaseStrategyTest {
         .dropPercentage(BigDecimal.valueOf(10))
         .build();
 
-      assertThatThrownBy(() -> strategy.executeConditional(request))
+      assertThatThrownBy(() -> strategy.execute(request))
         .isInstanceOf(BacktestException.class)
         .hasMessageContaining("최대 매수 횟수가 필수입니다");
     }
@@ -349,7 +351,7 @@ class ConditionalPurchaseStrategyTest {
         .dropPercentage(null)
         .build();
 
-      assertThatThrownBy(() -> strategy.executeConditional(request))
+      assertThatThrownBy(() -> strategy.execute(request))
         .isInstanceOf(BacktestException.class)
         .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_DROP_PERCENTAGE_REQUIRED);
@@ -366,7 +368,7 @@ class ConditionalPurchaseStrategyTest {
         .dropPercentage(BigDecimal.ZERO)
         .build();
 
-      assertThatThrownBy(() -> strategy.executeConditional(request))
+      assertThatThrownBy(() -> strategy.execute(request))
         .isInstanceOf(BacktestException.class)
         .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_DROP_PERCENTAGE_REQUIRED);
@@ -384,7 +386,7 @@ class ConditionalPurchaseStrategyTest {
         .maxPurchases(0)
         .build();
 
-      assertThatThrownBy(() -> strategy.executeConditional(request))
+      assertThatThrownBy(() -> strategy.execute(request))
         .isInstanceOf(BacktestException.class)
         .extracting("code")
         .isEqualTo(BacktestResponse.INVALID_MAX_PURCHASES);
@@ -439,7 +441,7 @@ class ConditionalPurchaseStrategyTest {
       // 100 매수 → 95(-5%) 안 삼 → 89(100 대비 -11%) 매수 → 85(89 대비 -4.5%) 안 삼 → 80(89 대비 -10.1%) 매수
       stubMarket(request, List.of(day(0, "100"), day(1, "95"), day(2, "89"), day(3, "85"), day(4, "80")), true);
 
-      strategy.executeConditional(request);
+      strategy.execute(request);
 
       assertThat(executed()).extracting(StrategyTransaction::getPrice, StrategyTransaction::getTrigger)
         .containsExactly(
@@ -454,7 +456,7 @@ class ConditionalPurchaseStrategyTest {
       ConditionalStrategyRequest request = perPurchase(3, 10).build();
       stubMarket(request, List.of(day(0, "100"), day(1, "120"), day(2, "130")), true);
 
-      strategy.executeConditional(request);
+      strategy.execute(request);
 
       assertThat(executed()).singleElement().extracting(StrategyTransaction::getTrigger).isEqualTo("초기매수");
     }
@@ -466,7 +468,7 @@ class ConditionalPurchaseStrategyTest {
         .maxPurchases(null).totalInvestment(new BigDecimal("3900000")).build();
       stubMarket(request, List.of(day(0, "100"), day(1, "80"), day(2, "64"), day(3, "50")), true);
 
-      strategy.executeConditional(request);
+      strategy.execute(request);
 
       assertThat(executed()).hasSize(3).allSatisfy(tx -> assertThat(tx.getAmount()).isEqualByComparingTo("1300000"));
     }
@@ -478,7 +480,7 @@ class ConditionalPurchaseStrategyTest {
         .maxPurchases(null).totalInvestment(new BigDecimal("1000000")).build();
       stubMarket(request, List.of(day(0, "100")), true);
 
-      strategy.executeConditional(request);
+      strategy.execute(request);
 
       assertThat(executed()).singleElement().extracting(StrategyTransaction::getAmount)
         .satisfies(amount -> assertThat(amount).isEqualByComparingTo("100000"));
@@ -490,7 +492,7 @@ class ConditionalPurchaseStrategyTest {
       ConditionalStrategyRequest request = perPurchase(1, 10).purchaseFxRate(new BigDecimal("1200")).build();
       stubMarket(request, List.of(day(0, "100")), false);
 
-      strategy.executeConditional(request);
+      strategy.execute(request);
 
       assertThat(executed()).singleElement().extracting(StrategyTransaction::getFxRate)
         .satisfies(rate -> assertThat(rate).isEqualByComparingTo("1200"));
@@ -504,7 +506,7 @@ class ConditionalPurchaseStrategyTest {
       // 가격 0 은 주식 수 계산에서 예외가 난다
       stubMarket(request, List.of(day(0, "0"), day(1, "100")), true);
 
-      strategy.executeConditional(request);
+      strategy.execute(request);
 
       assertThat(executed()).singleElement().satisfies(tx -> {
         assertThat(tx.getDate()).isEqualTo(START.plusDays(1));
@@ -519,7 +521,7 @@ class ConditionalPurchaseStrategyTest {
       given(marketDataClient.getOHLCPriceRange(eq(SYMBOL), anyString(), anyString())).willReturn(List.of());
       given(marketDataClient.getBulkFxRates(any())).willReturn(Map.of());
 
-      assertThatThrownBy(() -> strategy.executeConditional(request))
+      assertThatThrownBy(() -> strategy.execute(request))
         .isInstanceOf(BacktestException.class)
         .extracting("code")
         .isEqualTo(BacktestResponse.DATA_NOT_FOUND);
@@ -542,7 +544,7 @@ class ConditionalPurchaseStrategyTest {
       given(responseMapper.toStrategyResponse(any(ConditionalStrategyRequest.class), any(), any(), any()))
         .willReturn(StrategyResponse.builder().build());
 
-      strategy.executeConditional(request);
+      strategy.execute(request);
 
       assertThat(executed()).hasSize(1);
       verify(marketDataClient).getOHLCPriceRange(SYMBOL, today.minusDays(2).toString(), today.toString());
@@ -554,11 +556,11 @@ class ConditionalPurchaseStrategyTest {
       ConditionalStrategyRequest zeroAmount = perPurchase(1, 3).amountPerPurchase(BigDecimal.ZERO).build();
       ConditionalStrategyRequest zeroCount = perPurchase(1, 0).build();
 
-      assertThatThrownBy(() -> strategy.executeConditional(zeroAmount))
+      assertThatThrownBy(() -> strategy.execute(zeroAmount))
         .isInstanceOf(BacktestException.class)
         .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_TOTAL_INVESTMENT_REQUIRED);
-      assertThatThrownBy(() -> strategy.executeConditional(zeroCount))
+      assertThatThrownBy(() -> strategy.execute(zeroCount))
         .isInstanceOf(BacktestException.class)
         .extracting("code")
         .isEqualTo(BacktestResponse.INVALID_MAX_PURCHASES);
@@ -571,7 +573,7 @@ class ConditionalPurchaseStrategyTest {
         .amountPerPurchase(null).totalInvestment(new BigDecimal("1000000")).build();
       stubMarket(request, List.of(day(0, "100")), true);
 
-      strategy.executeConditional(request);
+      strategy.execute(request);
 
       assertThat(executed()).singleElement().extracting(StrategyTransaction::getAmount)
         .satisfies(amount -> assertThat(amount).isEqualByComparingTo("250000"));
@@ -584,10 +586,28 @@ class ConditionalPurchaseStrategyTest {
         .amountPerPurchase(BigDecimal.ZERO).maxPurchases(null).totalInvestment(new BigDecimal("1000000")).build();
       stubMarket(request, List.of(day(0, "100")), true);
 
-      strategy.executeConditional(request);
+      strategy.execute(request);
 
       assertThat(executed()).singleElement().extracting(StrategyTransaction::getAmount)
         .satisfies(amount -> assertThat(amount).isEqualByComparingTo("100000"));
+    }
+  }
+
+  @Nested
+  @DisplayName("요청 타입 검사")
+  class RequestTypeTests {
+
+    @Test
+    @DisplayName("적립식 요청이 오면 전략 타입 불일치로 막는다")
+    void execute_OtherRequestType_Rejected() {
+      DcaStrategyRequest other = DcaStrategyRequest.builder().symbol("AAPL")
+        .startDate(LocalDate.of(2023, 1, 1)).endDate(LocalDate.of(2024, 1, 1)).build();
+
+      assertThatThrownBy(() -> strategy.execute(other))
+        .isInstanceOf(BacktestException.class)
+        .extracting("code")
+        .isEqualTo(BacktestResponse.STRATEGY_TYPE_MISMATCH);
+      verifyNoInteractions(marketDataClient);
     }
   }
 }
