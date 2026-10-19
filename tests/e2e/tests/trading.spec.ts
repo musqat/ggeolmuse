@@ -79,15 +79,23 @@ test('입금하고 사면 보유 종목과 거래 내역에 남는다', async ()
 
   const buy = await auth.post(`${API_URL}/trade/buy`, { data: order });
   expect(buy.status(), `매수가 실패했다: ${await buy.text()}`).toBeLessThan(300);
+  // 매수는 잔액 정산 전까지 대기
+  expect(['PENDING', 'COMPLETED'], '매수 응답 상태가 대기도 완료도 아니다').toContain(
+    (await buy.json()).status
+  );
 
-  // 보유 종목에 잡히는가
-  const holdings = await auth.get(`${API_URL}/portfolio/account/${accountId}`);
-  expect(holdings.status()).toBe(200);
-  const held = (await holdings.json()) as Array<{ symbol: string; quantity?: number }>;
-  expect(
-    held.some((h) => h.symbol === symbol),
-    `${symbol} 을 샀는데 보유 목록에 없다`
-  ).toBe(true);
+  // 보유 종목에 잡히는가. 매수는 잔액 정산 뒤에 보유에 들어가 기다렸다 봄
+  await expect
+    .poll(
+      async () => {
+        const holdings = await auth.get(`${API_URL}/portfolio/account/${accountId}`);
+        expect(holdings.status()).toBe(200);
+        const held = (await holdings.json()) as Array<{ symbol: string; quantity?: number }>;
+        return held.some((h) => h.symbol === symbol);
+      },
+      { message: `${symbol} 을 샀는데 보유 목록에 없다`, timeout: 10_000 }
+    )
+    .toBe(true);
 
   // 거래 내역에 남는가.
   // 이 엔드포인트는 page/size 를 받지만 배열을 그대로 준다. Page 로 감싸지 않는다.
