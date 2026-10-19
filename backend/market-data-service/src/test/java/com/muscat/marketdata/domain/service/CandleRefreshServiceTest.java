@@ -97,7 +97,7 @@ class CandleRefreshServiceTest {
   @DisplayName("마지막 전체 재수집 기록은 있으면 그대로, 없으면 비어 있다")
   void lastRefreshAll() {
     AdminJobRun run = new AdminJobRun(JOB, LocalDateTime.of(2026, 9, 12, 14, 3), 7812);
-    given(adminJobRunRepository.findById(JOB)).willReturn(Optional.of(run), Optional.empty());
+    given(adminJobRunRepository.findById(JOB)).willReturn(Optional.of(run)).willReturn(Optional.empty());
 
     assertThat(service.lastRefreshAll()).contains(run);
     assertThat(service.lastRefreshAll()).isEmpty();
