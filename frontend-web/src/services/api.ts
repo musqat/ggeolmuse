@@ -169,7 +169,11 @@ export interface AssetSummary {
   currentPrice?: number;
   date?: string;
   available?: boolean;
+  dividendYieldPercent?: number | null;
 }
+
+// 종목 목록 정렬 기준. 시가총액 큰 순 · 최근 1년 배당수익률 높은 순
+export type StockSort = 'marketCap' | 'dividendYield';
 
 export const stockApi = {
   // 전체 종목 목록 조회
@@ -186,10 +190,10 @@ export const stockApi = {
       params: { symbols }
     }),
 
-  // 모든 종목의 현재가 조회 (페이지네이션) - 시가총액 큰 순으로 고정
-  getAllStocksWithPrices: (page: number = 0, size: number = 50, assetType?: string) =>
+  // 종목 목록 페이지. 현재가 · 시총 · 배당수익률
+  getAllStocksWithPrices: (page: number = 0, size: number = 50, assetType?: string, sort: StockSort = 'marketCap') =>
     apiClient.get<{ content: AssetSummary[]; totalPages: number; totalElements: number }>(`/market/stocks`, {
-      params: { page, size, assetType }
+      params: { page, size, assetType, sort }
     }),
 
   // 특정 종목의 OHLC 데이터 조회

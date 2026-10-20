@@ -78,4 +78,15 @@ test.describe('공개 시장 데이터', () => {
       timeout: 30_000,
     });
   });
+
+  test('종목 목록 화면에서 배당수익률 높은 순을 고르면 그 기준으로 다시 받는다', async ({ page }) => {
+    await page.goto('/stocks');
+    await expect(page.getByRole('columnheader', { name: '배당수익률' })).toBeVisible({ timeout: 30_000 });
+
+    const sorted = page.waitForResponse((res) => res.url().includes('/market/stocks') && res.url().includes('sort=dividendYield'));
+    await page.getByLabel('정렬').selectOption('dividendYield');
+
+    expect((await sorted).status()).toBe(200);
+    await expect(page.getByRole('columnheader', { name: '배당수익률' })).toBeVisible();
+  });
 });

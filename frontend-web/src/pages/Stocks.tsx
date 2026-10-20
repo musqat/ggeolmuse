@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { stockApi } from '../services/api';
+import { stockApi, type StockSort } from '../services/api';
 import { formatMarketCap } from '../utils/formatNumber';
 
 interface StockSymbol {
@@ -11,12 +11,14 @@ interface StockSymbol {
   currentPrice?: number;
   latestDate?: string;
   assetType?: string;
+  dividendYieldPercent?: number | null;
 }
 
 const Stocks: React.FC = () => {
   const navigate = useNavigate();
   const [currentPage, setCurrentPage] = useState(0); // API page (0-based)
   const [assetFilter, setAssetFilter] = useState<'ALL' | 'EQUITY' | 'ETF'>('ALL');
+  const [sort, setSort] = useState<StockSort>('marketCap');
 
   const PAGE_SIZE = 50;
 
@@ -26,12 +28,13 @@ const Stocks: React.FC = () => {
     isLoading: loading,
     error: queryError
   } = useQuery({
-    queryKey: ['stocks', 'list', currentPage, assetFilter],
+    queryKey: ['stocks', 'list', currentPage, assetFilter, sort],
     queryFn: async () => {
       const response = await stockApi.getAllStocksWithPrices(
         currentPage,
         PAGE_SIZE,
-        assetFilter === 'ALL' ? undefined : assetFilter
+        assetFilter === 'ALL' ? undefined : assetFilter,
+        sort
       );
       return response.data;
     },
@@ -48,8 +51,14 @@ const Stocks: React.FC = () => {
       marketCap: stock.marketCap,
       currentPrice: stock.currentPrice,
       latestDate: stock.date,
-      assetType: stock.assetType || 'EQUITY'
+      assetType: stock.assetType || 'EQUITY',
+      dividendYieldPercent: stock.dividendYieldPercent
     }));
+  // 목록에서 가장 늦은 시세 날짜
+  const latestDate = symbols.reduce<string | undefined>(
+    (latest, s) => (s.latestDate && (!latest || s.latestDate > latest) ? s.latestDate : latest),
+    undefined
+  );
   const totalPages = stocksResponse?.totalPages || 0;
   const totalElements = stocksResponse?.totalElements || 0;
   const error = queryError ? '종목 목록을 불러오는데 실패했습니다.' : null;
@@ -121,6 +130,12 @@ const Stocks: React.FC = () => {
     setCurrentPage(0); // 필터 변경 시 첫 페이지로
   };
 
+  // 정렬 변경 시 첫 페이지로
+  const handleSortChange = (newSort: StockSort) => {
+    setSort(newSort);
+    setCurrentPage(0);
+  };
+
   // 페이지 변경 시
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -167,9 +182,9 @@ const Stocks: React.FC = () => {
           <h2 className="text-2xl font-bold text-tx-1 flex items-center gap-3">
             지원 종목 ({totalElements}개)
           </h2>
-          {symbols.length > 0 && symbols[0].latestDate && (
+          {latestDate && (
             <div className="text-sm text-tx-2">
-              데이터 갱신: {new Date(symbols[0].latestDate).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
+              데이터 갱신: {new Date(latestDate).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
             </div>
           )}
         </div>
@@ -210,10 +225,15 @@ const Stocks: React.FC = () => {
           </button>
           </div>
 
-          {/* 정렬 안내 텍스트 */}
-          <div className="text-sm text-tx-2">
-            시가총액 큰 순서로 정렬
-          </div>
+          <select
+            aria-label="정렬"
+            value={sort}
+            onChange={(e) => handleSortChange(e.target.value as StockSort)}
+            className="px-3 py-2 border border-line-strong rounded-lg text-sm bg-surface text-tx-1 focus:ring-2 focus:ring-brand"
+          >
+            <option value="marketCap">시가총액 큰 순</option>
+            <option value="dividendYield">배당수익률 높은 순</option>
+          </select>
         </div>
 
         <div className="overflow-x-auto">
@@ -224,6 +244,7 @@ const Stocks: React.FC = () => {
                 <th className="text-left py-3 px-4 text-sm font-semibold text-tx-1">티커</th>
                 <th className="text-right py-3 px-4 text-sm font-semibold text-tx-1">주가</th>
                 <th className="text-right py-3 px-4 text-sm font-semibold text-tx-1">시가총액</th>
+                <th className="text-right py-3 px-4 text-sm font-semibold text-tx-1">배당수익률</th>
               </tr>
             </thead>
             <tbody>
@@ -269,6 +290,9 @@ const Stocks: React.FC = () => {
                   </td>
                   <td className="py-3 px-4 text-right text-tx-2">
                     {formatMarketCap(stock.marketCap, 1)}
+                  </td>
+                  <td className="py-3 px-4 text-right text-tx-2">
+                    {stock.dividendYieldPercent != null ? `${stock.dividendYieldPercent.toFixed(2)}%` : '-'}
                   </td>
                 </tr>
               ))}
