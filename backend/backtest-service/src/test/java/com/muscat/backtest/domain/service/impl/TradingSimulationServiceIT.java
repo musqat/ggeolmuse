@@ -70,7 +70,6 @@ class TradingSimulationServiceIT {
   private TradeServiceClientWrapper tradeServiceClientWrapper;
 
   private static final String TEST_USER_ID = "integration-test-user@example.com";
-  private static final String TEST_EMAIL = "owner@example.com";
   private static final String TEST_SYMBOL = "AAPL";
   private static final String TEST_AUTHORIZATION = "Bearer integration-token";
 
@@ -121,7 +120,7 @@ class TradingSimulationServiceIT {
 
       // when
       InvestmentResponse result = investmentBacktestService.executeInvestment(
-        testInvestmentRequest, TEST_AUTHORIZATION, TEST_EMAIL);
+        testInvestmentRequest, TEST_AUTHORIZATION);
 
       // then
       assertThat(result).isNotNull();
@@ -175,7 +174,7 @@ class TradingSimulationServiceIT {
         .willReturn(currentFxRate);
 
       // when
-      investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION, TEST_EMAIL);
+      investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION);
 
       // then - 결과가 하나만 있고, 새로운 데이터로 업데이트되었는지 확인
       List<InvestmentBacktestResult> allResults = investmentBacktestResultRepository.findAll();
@@ -195,7 +194,7 @@ class TradingSimulationServiceIT {
 
       // when & then
       assertThatThrownBy(() ->
-        investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION, TEST_EMAIL))
+        investmentBacktestService.executeInvestment(testInvestmentRequest, TEST_AUTHORIZATION))
         .isInstanceOf(BacktestException.class)
         .extracting("code")
         .isEqualTo(BacktestResponse.HOLDING_DATA_NOT_FOUND);
@@ -240,7 +239,7 @@ class TradingSimulationServiceIT {
 
       // when - 투자 실행
       InvestmentResponse executionResult = investmentBacktestService.executeInvestment(
-        testInvestmentRequest, TEST_AUTHORIZATION, TEST_EMAIL);
+        testInvestmentRequest, TEST_AUTHORIZATION);
 
       // DB에서 저장된 raw JSON 확인
       Optional<InvestmentBacktestResult> savedEntity =
@@ -307,7 +306,7 @@ class TradingSimulationServiceIT {
 
       // when - 투자 실행
       InvestmentResponse executionResult = investmentBacktestService.executeInvestment(
-        testInvestmentRequest, TEST_AUTHORIZATION, TEST_EMAIL);
+        testInvestmentRequest, TEST_AUTHORIZATION);
 
       // then - 실행 결과 확인
       assertThat(executionResult).isNotNull();
@@ -362,8 +361,8 @@ class TradingSimulationServiceIT {
         .willReturn(currentFxRate);
 
       // when - 두 사용자 모두 투자 실행
-      investmentBacktestService.executeInvestment(request1, "Bearer token1", user1);
-      investmentBacktestService.executeInvestment(request2, "Bearer token2", user2);
+      investmentBacktestService.executeInvestment(request1, "Bearer token1");
+      investmentBacktestService.executeInvestment(request2, "Bearer token2");
 
       // then - 두 결과가 각각 독립적으로 저장되었는지 확인
       List<InvestmentBacktestResult> allResults = investmentBacktestResultRepository.findAll();

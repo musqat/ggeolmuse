@@ -46,6 +46,7 @@ class BacktestAnalysisControllerTest {
   private static final String PERIOD = "\"startDate\":\"2024-01-01\",\"endDate\":\"2024-06-30\"";
   private static final String TOKEN = "good-token";
   private static final String EMAIL = "user@example.com";
+  private static final String USER = "user-1";
   private static final String VICTIM = ",\"userId\":\"victim@example.com\"}";
 
   @Autowired
@@ -186,7 +187,7 @@ class BacktestAnalysisControllerTest {
   @Test
   @DisplayName("분석 여섯 경로 모두 이력 주인을 본문이 아니라 토큰의 이메일로 정한다")
   void ownerFromToken() throws Exception {
-    given(jwtDecoder.decode(TOKEN)).willReturn(Jwt.withTokenValue(TOKEN).header("alg", "none").subject("user-1")
+    given(jwtDecoder.decode(TOKEN)).willReturn(Jwt.withTokenValue(TOKEN).header("alg", "none").subject(USER)
       .claim("email", EMAIL).build());
     given(backtestAnalysisService.runDcaStrategy(any())).willReturn(strategy("AAPL", StrategyType.DCA, "1"));
     given(backtestAnalysisService.runConditionalStrategy(any()))
@@ -213,12 +214,12 @@ class BacktestAnalysisControllerTest {
       + "\"targetReturnPercent\":10" + VICTIM)
       .andExpect(status().isOk());
 
-    verify(backtestAnalysisService).runDcaStrategy(argThat(r -> EMAIL.equals(r.getUserId())));
-    verify(backtestAnalysisService).runConditionalStrategy(argThat(r -> EMAIL.equals(r.getUserId())));
-    verify(backtestAnalysisService).compareSymbols(argThat(r -> EMAIL.equals(r.getUserId())));
-    verify(backtestAnalysisService).compareStrategies(argThat(r -> EMAIL.equals(r.getUserId())));
-    verify(backtestAnalysisService).compareTiming(argThat(r -> EMAIL.equals(r.getUserId())));
-    verify(backtestAnalysisService).analyzeOptimalTiming(argThat(r -> EMAIL.equals(r.getUserId())));
+    verify(backtestAnalysisService).runDcaStrategy(argThat(r -> USER.equals(r.getUserId())));
+    verify(backtestAnalysisService).runConditionalStrategy(argThat(r -> USER.equals(r.getUserId())));
+    verify(backtestAnalysisService).compareSymbols(argThat(r -> USER.equals(r.getUserId())));
+    verify(backtestAnalysisService).compareStrategies(argThat(r -> USER.equals(r.getUserId())));
+    verify(backtestAnalysisService).compareTiming(argThat(r -> USER.equals(r.getUserId())));
+    verify(backtestAnalysisService).analyzeOptimalTiming(argThat(r -> USER.equals(r.getUserId())));
   }
 
   @Test
