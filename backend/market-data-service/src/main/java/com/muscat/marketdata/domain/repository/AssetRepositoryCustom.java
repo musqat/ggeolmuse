@@ -1,7 +1,7 @@
 package com.muscat.marketdata.domain.repository;
 
 import com.muscat.marketdata.domain.entity.Asset;
-import java.time.LocalDate;
+import com.muscat.marketdata.domain.model.DividendYieldRule;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -15,8 +15,8 @@ public interface AssetRepositoryCustom {
   // ascending: true면 오름차순, false면 내림차순 / assetType: null이면 전체
   Page<Asset> findActiveSortedByMarketCap(Pageable pageable, boolean ascending, String assetType);
 
-  // 활성 종목을 배당수익률(from 이후 배당 합 ÷ 최신 종가)로 정렬해 페이징. 수익률을 못 구하는 종목은 맨 뒤
-  Page<Asset> findActiveSortedByDividendYield(Pageable pageable, boolean ascending, String assetType, LocalDate from);
+  // 활성 종목을 배당수익률(특별 배당을 뺀 배당 합 ÷ 최신 종가)로 정렬해 페이징. 못 구하거나 상한을 넘는 종목은 맨 뒤
+  Page<Asset> findActiveSortedByDividendYield(Pageable pageable, boolean ascending, String assetType, DividendYieldRule rule);
 
   // 상장 중인 종목의 티커만 조회. 검색용
   List<String> findActiveSymbols();

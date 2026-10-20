@@ -6,6 +6,7 @@ import com.muscat.marketdata.domain.dto.OHLCPriceDto;
 import com.muscat.marketdata.domain.dto.StockPriceDto;
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.entity.Candle;
+import com.muscat.marketdata.domain.model.DividendYieldRule;
 import com.muscat.marketdata.domain.repository.AssetRepository;
 import com.muscat.marketdata.domain.repository.CandleRepository;
 import com.muscat.marketdata.domain.repository.DividendRepository;
@@ -16,7 +17,6 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.CacheManager;
@@ -185,16 +185,16 @@ public class CandleServiceImpl implements CandleService {
 
     // DB 레벨 페이징 + 정렬 + 필터링
     boolean ascending = "asc".equalsIgnoreCase(direction);
-    LocalDate yieldFrom = LocalDate.now().minusYears(1);
+    DividendYieldRule yieldRule = dividendYieldRule();
     Page<Asset> assetPage = sort == StockSort.DIVIDEND_YIELD
-      ? assetRepository.findActiveSortedByDividendYield(pageable, ascending, assetType, yieldFrom)
+      ? assetRepository.findActiveSortedByDividendYield(pageable, ascending, assetType, yieldRule)
       : assetRepository.findActiveSortedByMarketCap(pageable, ascending, assetType);
     List<Asset> assets = assetPage.getContent();
     List<String> symbols = assets.stream().map(Asset::getSymbol).toList();
-    Map<String, BigDecimal> yearlyDividends = yearlyDividends(symbols, yieldFrom);
+    Map<String, BigDecimal> yearlyDividends = yearlyDividends(symbols, yieldRule);
 
     List<StockPriceDto> stockPrices = assets.stream()
-      .map(asset -> toStockPrice(asset, yearlyDividends.get(asset.getSymbol())))
+      .map(asset -> toStockPrice(asset, yearlyDividends.get(asset.getSymbol()), yieldRule.maxRatio()))
       .toList();
 
     log.debug("전체 종목 목록과 주가 조회 성공: {} 개 (전체 {}개 중)",
@@ -232,7 +232,7 @@ public class CandleServiceImpl implements CandleService {
 
   // 변화율 계산 메서드
   // 종목 테이블의 최신 종가 · 날짜로 목록 한 줄. 전일 종가 · 등락률 · 거래량은 비움
-  private StockPriceDto toStockPrice(Asset asset, BigDecimal yearlyDividend) {
+  private StockPriceDto toStockPrice(Asset asset, BigDecimal yearlyDividend, BigDecimal maxYieldRatio) {
     BigDecimal latestClose = asset.getLatestClose();
     boolean available = latestClose != null && latestClose.signum() > 0;
     return StockPriceDto.builder()
@@ -241,25 +241,31 @@ public class CandleServiceImpl implements CandleService {
       .currentPrice(available ? latestClose : null)
       .date(asset.getLatestDate())
       .marketCap(asset.getMarketCap())
-      .dividendYieldPercent(dividendYieldPercent(yearlyDividend, latestClose))
+      .dividendYieldPercent(dividendYieldPercent(yearlyDividend, latestClose, maxYieldRatio))
       .assetType(asset.getAssetType())
       .currency(asset.getCurrency())
       .available(available)
       .build();
   }
 
-  // 종목별 최근 1년 배당 합. 빈 페이지면 조회 안 함
-  private Map<String, BigDecimal> yearlyDividends(List<String> symbols, LocalDate from) {
+  // 최근 1년, 특별 배당 · 수익률 상한은 설정의 % 를 비율로
+  private DividendYieldRule dividendYieldRule() {
+    MarketDataProperties.DividendYield limits = properties.getDividendYield();
+    return new DividendYieldRule(LocalDate.now().minusYears(1),
+      limits.getSpecialPaymentPercent().movePointLeft(2), limits.getMaxYieldPercent().movePointLeft(2));
+  }
+
+  // 종목별 최근 1년 배당 합(특별 배당 뺌). 빈 페이지면 조회 안 함
+  private Map<String, BigDecimal> yearlyDividends(List<String> symbols, DividendYieldRule rule) {
     if (symbols.isEmpty()) {
       return Map.of();
     }
-    return dividendRepository.sumAmountBySymbolsSince(symbols, from).stream()
-      .collect(Collectors.toMap(DividendRepository.SymbolAmount::getSymbol, DividendRepository.SymbolAmount::getAmount));
+    return dividendRepository.sumRegularAmountBySymbolsSince(symbols, rule.from(), rule.specialRatio());
   }
 
-  // 1년 배당 합 ÷ 최신 종가 × 100, 소수 둘째 자리. 둘 중 하나가 없거나 종가가 0 이하면 null
-  private BigDecimal dividendYieldPercent(BigDecimal yearly, BigDecimal latestClose) {
-    if (yearly == null || latestClose == null || latestClose.signum() <= 0) {
+  // 1년 배당 합 ÷ 최신 종가 × 100, 소수 둘째 자리. 둘 중 하나가 없거나 종가가 0 이하거나 상한을 넘으면 null
+  private BigDecimal dividendYieldPercent(BigDecimal yearly, BigDecimal latestClose, BigDecimal maxYieldRatio) {
+    if (yearly == null || latestClose == null || latestClose.signum() <= 0 || yearly.compareTo(latestClose.multiply(maxYieldRatio)) > 0) {
       return null;
     }
     return yearly.multiply(BigDecimal.valueOf(100)).divide(latestClose, 2, RoundingMode.HALF_UP);

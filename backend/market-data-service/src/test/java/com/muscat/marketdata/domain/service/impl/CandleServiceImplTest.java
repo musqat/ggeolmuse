@@ -6,6 +6,7 @@ import com.muscat.marketdata.domain.dto.OHLCPriceDto;
 import com.muscat.marketdata.domain.dto.StockPriceDto;
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.entity.Candle;
+import com.muscat.marketdata.domain.model.DividendYieldRule;
 import com.muscat.marketdata.domain.repository.AssetRepository;
 import com.muscat.marketdata.domain.repository.CandleRepository;
 import com.muscat.marketdata.domain.repository.DividendRepository;
@@ -22,6 +23,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
@@ -647,18 +649,9 @@ class CandleServiceImplTest {
     @DisplayName("전체 종목 가격 조회 테스트")
     class GetAllStocksWithPricesTests {
 
-        private DividendRepository.SymbolAmount yearly(String symbol, String amount) {
-            return new DividendRepository.SymbolAmount() {
-                @Override
-                public String getSymbol() {
-                    return symbol;
-                }
-
-                @Override
-                public BigDecimal getAmount() {
-                    return new BigDecimal(amount);
-                }
-            };
+        @BeforeEach
+        void yieldRule() {
+            given(properties.getDividendYield()).willReturn(new MarketDataProperties.DividendYield());
         }
 
         @Test
@@ -716,7 +709,7 @@ class CandleServiceImplTest {
         }
 
         @Test
-        @DisplayName("배당수익률 정렬이면 수익률 순 조회를 쓰고, 최근 1년 배당 합 ÷ 최신 종가를 소수 둘째 자리 % 로 채운다. 종가 · 배당이 없거나 종가가 0 이면 비운다")
+        @DisplayName("배당수익률 정렬이면 설정의 기준으로 수익률 순 조회를 쓰고, 특별 배당을 뺀 1년 배당 합 ÷ 최신 종가를 소수 둘째 자리 % 로 채운다. 종가 · 배당이 없거나 종가가 0 이거나 50% 를 넘으면 비운다")
         void getAllStocksWithPrices_DividendYieldSort_FillsYield() {
             // given
             Pageable pageable = PageRequest.of(0, 10);
@@ -727,21 +720,26 @@ class CandleServiceImplTest {
                     Asset.builder().symbol("AAPL").name("Apple Inc.").currency("USD").latestClose(new BigDecimal("200")).build(),
                     Asset.builder().symbol("NOCLOSE").name("No Close").currency("USD").build(),
                     Asset.builder().symbol("NODIV").name("No Dividend").currency("USD").latestClose(new BigDecimal("10")).build(),
-                    Asset.builder().symbol("ZERO").name("Zero Close").currency("USD").latestClose(BigDecimal.ZERO).build());
-            given(assetRepository.findActiveSortedByDividendYield(pageable, false, null, from))
+                    Asset.builder().symbol("ZERO").name("Zero Close").currency("USD").latestClose(BigDecimal.ZERO).build(),
+                    Asset.builder().symbol("EDGE").name("Edge").currency("USD").latestClose(new BigDecimal("10")).build(),
+                    Asset.builder().symbol("OVER").name("Over").currency("USD").latestClose(new BigDecimal("10")).build());
+            DividendYieldRule rule = new DividendYieldRule(from, new BigDecimal("0.20"), new BigDecimal("0.50"));
+            given(assetRepository.findActiveSortedByDividendYield(pageable, false, null, rule))
                     .willReturn(new PageImpl<>(assets, pageable, assets.size()));
-            given(dividendRepository.sumAmountBySymbolsSince(List.of("T", "KO", "AAPL", "NOCLOSE", "NODIV", "ZERO"), from))
-                    .willReturn(List.of(yearly("T", "1.0"), yearly("KO", "1.5"), yearly("AAPL", "4.0"), yearly("NOCLOSE", "9.0"),
-                            yearly("ZERO", "1.0")));
+            given(dividendRepository.sumRegularAmountBySymbolsSince(List.of("T", "KO", "AAPL", "NOCLOSE", "NODIV", "ZERO", "EDGE", "OVER"), from,
+                    new BigDecimal("0.20")))
+                    .willReturn(Map.of("T", new BigDecimal("1.0"), "KO", new BigDecimal("1.5"), "AAPL", new BigDecimal("4.0"),
+                            "NOCLOSE", new BigDecimal("9.0"), "ZERO", new BigDecimal("1.0"), "EDGE", new BigDecimal("5.0"), "OVER", new BigDecimal("5.01")));
 
             // when
             Page<StockPriceDto> results = candleService.getAllStocksWithPrices(pageable, "desc", null, StockSort.DIVIDEND_YIELD);
 
             // then
             assertThat(results.getContent()).extracting(StockPriceDto::getSymbol)
-                    .containsExactly("T", "KO", "AAPL", "NOCLOSE", "NODIV", "ZERO");
+                    .containsExactly("T", "KO", "AAPL", "NOCLOSE", "NODIV", "ZERO", "EDGE", "OVER");
             assertThat(results.getContent()).extracting(StockPriceDto::getDividendYieldPercent)
-                    .containsExactly(new BigDecimal("3.33"), new BigDecimal("2.50"), new BigDecimal("2.00"), null, null, null);
+                    .containsExactly(new BigDecimal("3.33"), new BigDecimal("2.50"), new BigDecimal("2.00"), null, null, null,
+                            new BigDecimal("50.00"), null);
             verify(assetRepository, never()).findActiveSortedByMarketCap(any(), anyBoolean(), any());
         }
 
