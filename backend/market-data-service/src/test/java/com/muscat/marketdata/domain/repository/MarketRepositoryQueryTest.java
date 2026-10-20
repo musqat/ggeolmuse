@@ -218,7 +218,7 @@ class MarketRepositoryQueryTest {
     }
 
     @Test
-    @DisplayName("최신 캔들 · 어떤 날 이전의 최신 캔들 · 종목별 최근 N 개 · 캔들 있는 종목 수")
+    @DisplayName("최신 캔들 · 어떤 날 이전의 최신 캔들 · 캔들 있는 종목 수")
     void latestAndRecent() {
       candle("AAPL", D1, "0");
       candle("AAPL", D2, "0");
@@ -229,10 +229,6 @@ class MarketRepositoryQueryTest {
       assertThat(candleRepository.findLatestBySymbol("NONE")).isEmpty();
       assertThat(candleRepository.findLatestBySymbolBeforeDate("AAPL", D3)).hasValueSatisfying(c -> assertThat(c.getDate()).isEqualTo(D2));
       assertThat(candleRepository.findLatestBySymbolBeforeDate("AAPL", D1)).isEmpty();
-      assertThat(candleRepository.findRecentBySymbols(List.of("AAPL", "MSFT"), 2))
-        .extracting(Candle::getSymbol, Candle::getDate)
-        .containsExactly(tuple("AAPL", D3), tuple("AAPL", D2), tuple("MSFT", D1));
-      assertThat(candleRepository.findRecentBySymbols(List.of(), 2)).isEmpty();
       assertThat(candleRepository.countDistinctSymbols()).isEqualTo(2);
     }
   }

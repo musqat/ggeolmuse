@@ -13,7 +13,6 @@ import com.muscat.marketdata.domain.service.CandleService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -194,75 +193,9 @@ public class CandleServiceImpl implements CandleService {
     List<String> symbols = assets.stream().map(Asset::getSymbol).toList();
     Map<String, BigDecimal> yearlyDividends = yearlyDividends(symbols, yieldFrom);
 
-    // 해당 페이지 심볼들의 최근 2일 캔들 데이터를 일괄 조회 (최신가 + 전일가)
-    List<Candle> recentCandles = candleRepository.findRecentBySymbols(symbols, 2);
-
-    // 심볼별로 캔들 그룹화 (날짜 내림차순 정렬 상태 유지)
-    var candlesBySymbol = recentCandles.stream()
-      .collect(Collectors.groupingBy(Candle::getSymbol));
-
-    List<StockPriceDto> stockPrices = new ArrayList<>();
-
-    for (Asset asset : assets) {
-      try {
-        List<Candle> symbolCandles = candlesBySymbol.get(asset.getSymbol());
-
-        if (symbolCandles == null || symbolCandles.isEmpty()) {
-          // 데이터가 없는 경우
-          StockPriceDto stockPrice = StockPriceDto.builder()
-            .symbol(asset.getSymbol())
-            .name(asset.getName())
-            .currentPrice(null)
-            .previousClose(null)
-            .changePercent(null)
-            .volume(null)
-            .marketCap(asset.getMarketCap())
-            .dividendYieldPercent(dividendYieldPercent(yearlyDividends.get(asset.getSymbol()), asset.getLatestClose()))
-            .assetType(asset.getAssetType())
-            .date(LocalDate.now())
-            .currency(asset.getCurrency())
-            .available(false)
-            .build();
-          stockPrices.add(stockPrice);
-          continue;
-        }
-
-        // 이미 날짜 내림차순 정렬되어 있으므로 첫 번째가 최신, 두 번째가 전일
-        Candle latest = symbolCandles.getFirst();
-
-        // adjustedClose 사용 (주식 분할/배당 반영)
-        BigDecimal currentPrice = latest.getAdjustedClose() != null
-          ? latest.getAdjustedClose()
-          : latest.getClose();
-
-        BigDecimal previousClose = symbolCandles.size() > 1
-          ? (symbolCandles.get(1).getAdjustedClose() != null
-          ? symbolCandles.get(1).getAdjustedClose()
-          : symbolCandles.get(1).getClose())
-          : currentPrice;
-
-        BigDecimal changePercent = calculateChangePercent(currentPrice, previousClose);
-
-        StockPriceDto stockPrice = StockPriceDto.builder()
-          .symbol(asset.getSymbol())
-          .name(asset.getName())
-          .currentPrice(currentPrice)        // 조정 종가
-          .previousClose(previousClose)      // 전일 조정 종가
-          .changePercent(changePercent)      // (조정 종가 - 전일 조정 종가) / 전일 조정 종가
-          .volume(latest.getVolume())
-          .marketCap(asset.getMarketCap())
-          .dividendYieldPercent(dividendYieldPercent(yearlyDividends.get(asset.getSymbol()), asset.getLatestClose()))
-          .assetType(asset.getAssetType())
-          .date(latest.getDate())            // 최신 데이터의 날짜
-          .currency(asset.getCurrency())
-          .available(true)
-          .build();
-
-        stockPrices.add(stockPrice);
-      } catch (Exception e) {
-        log.warn("종목 가격 정보 조회 실패: symbol={}", asset.getSymbol(), e);
-      }
-    }
+    List<StockPriceDto> stockPrices = assets.stream()
+      .map(asset -> toStockPrice(asset, yearlyDividends.get(asset.getSymbol())))
+      .toList();
 
     log.debug("전체 종목 목록과 주가 조회 성공: {} 개 (전체 {}개 중)",
       stockPrices.size(), assetPage.getTotalElements());
@@ -298,6 +231,23 @@ public class CandleServiceImpl implements CandleService {
   }
 
   // 변화율 계산 메서드
+  // 종목 테이블의 최신 종가 · 날짜로 목록 한 줄. 전일 종가 · 등락률 · 거래량은 비움
+  private StockPriceDto toStockPrice(Asset asset, BigDecimal yearlyDividend) {
+    BigDecimal latestClose = asset.getLatestClose();
+    boolean available = latestClose != null && latestClose.signum() > 0;
+    return StockPriceDto.builder()
+      .symbol(asset.getSymbol())
+      .name(asset.getName())
+      .currentPrice(available ? latestClose : null)
+      .date(asset.getLatestDate())
+      .marketCap(asset.getMarketCap())
+      .dividendYieldPercent(dividendYieldPercent(yearlyDividend, latestClose))
+      .assetType(asset.getAssetType())
+      .currency(asset.getCurrency())
+      .available(available)
+      .build();
+  }
+
   // 종목별 최근 1년 배당 합. 빈 페이지면 조회 안 함
   private Map<String, BigDecimal> yearlyDividends(List<String> symbols, LocalDate from) {
     if (symbols.isEmpty()) {

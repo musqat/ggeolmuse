@@ -10,8 +10,10 @@ import static org.mockito.Mockito.verify;
 import com.muscat.marketdata.datasource.common.MarketDataProvider.CandleSource;
 import com.muscat.marketdata.datasource.common.MarketDataProvider.DividendSource;
 import com.muscat.marketdata.domain.dto.DividendDto;
+import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.entity.Candle;
 import com.muscat.marketdata.domain.entity.Dividend;
+import com.muscat.marketdata.domain.repository.AssetRepository;
 import com.muscat.marketdata.domain.repository.CandleRepository;
 import com.muscat.marketdata.domain.repository.DividendRepository;
 import com.muscat.marketdata.infra.kafka.DividendEventProducer;
@@ -37,9 +39,10 @@ class AlphaVantageCandleUpdateServiceTest {
   private final DividendSource dividendSource = mock(DividendSource.class);
   private final CandleRepository candleRepository = mock(CandleRepository.class);
   private final DividendRepository dividendRepository = mock(DividendRepository.class);
+  private final AssetRepository assetRepository = mock(AssetRepository.class);
   private final DividendEventProducer producer = mock(DividendEventProducer.class);
   private final AlphaVantageCandleUpdateService service = new AlphaVantageCandleUpdateService(candleSource, dividendSource,
-    candleRepository, dividendRepository, producer);
+    candleRepository, dividendRepository, assetRepository, producer);
 
   private static Candle candle(LocalDate date) {
     return Candle.builder().symbol(SYMBOL).date(date).close(BigDecimal.TEN).build();
@@ -62,6 +65,27 @@ class AlphaVantageCandleUpdateServiceTest {
     ArgumentCaptor<List<Candle>> saved = ArgumentCaptor.forClass(List.class);
     verify(candleRepository).saveAll(saved.capture());
     assertThat(saved.getValue()).extracting(Candle::getDate).containsExactly(FRIDAY);
+  }
+
+  @Test
+  @DisplayName("저장한 봉 중 가장 늦은 날의 종가와 날짜를 종목에 남기고, 종목에 더 늦은 날짜가 있으면 그대로 둔다")
+  void latestCloseOnAsset() {
+    Asset behind = Asset.builder().symbol(SYMBOL).latestClose(BigDecimal.ONE).latestDate(FRIDAY.minusDays(7)).build();
+    Asset ahead = Asset.builder().symbol(SYMBOL).latestClose(BigDecimal.ONE).latestDate(SUNDAY.plusDays(7)).build();
+    given(candleRepository.findFirstBySymbolOrderByDateDesc(SYMBOL)).willReturn(Optional.empty());
+    given(candleSource.fetchDailyAdjusted(SYMBOL, FROM, SUNDAY)).willReturn(List.of(candle(FRIDAY), candle(FRIDAY.minusDays(1))));
+    given(candleRepository.findBySymbol(SYMBOL)).willReturn(List.of());
+    given(assetRepository.findById(SYMBOL)).willReturn(Optional.of(behind)).willReturn(Optional.of(ahead));
+
+    service.saveCandles(SYMBOL, FROM, SUNDAY);
+    service.saveCandles(SYMBOL, FROM, SUNDAY);
+
+    assertThat(behind.getLatestDate()).isEqualTo(FRIDAY);
+    assertThat(behind.getLatestClose()).isEqualByComparingTo(BigDecimal.TEN);
+    assertThat(ahead.getLatestDate()).isEqualTo(SUNDAY.plusDays(7));
+    assertThat(ahead.getLatestClose()).isEqualByComparingTo(BigDecimal.ONE);
+    verify(assetRepository).save(behind);
+    verify(assetRepository, never()).save(ahead);
   }
 
   @Test

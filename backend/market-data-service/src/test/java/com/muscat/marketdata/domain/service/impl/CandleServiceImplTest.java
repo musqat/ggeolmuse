@@ -21,7 +21,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
@@ -648,108 +647,6 @@ class CandleServiceImplTest {
     @DisplayName("전체 종목 가격 조회 테스트")
     class GetAllStocksWithPricesTests {
 
-        @Test
-        @DisplayName("전체 종목의 가격 정보를 조회한다")
-        void getAllStocksWithPrices_MultipleAssets_Success() {
-            // given
-            Pageable pageable = PageRequest.of(0, 10);
-            List<Asset> assets = new ArrayList<>(List.of(
-                    Asset.builder()
-                            .symbol("AAPL")
-                            .name("Apple Inc.")
-                            .currency("USD")
-                            .marketCap(3000000000000L)
-                            .build(),
-                    Asset.builder()
-                            .symbol("GOOGL")
-                            .name("Alphabet Inc.")
-                            .currency("USD")
-                            .marketCap(1800000000000L)
-                            .build()
-            ));
-            Page<Asset> assetPage = new PageImpl<>(assets, pageable, assets.size());
-
-            Candle aaplCandle = testCandle;
-            Candle googlCandle = Candle.builder()
-                    .symbol("GOOGL")
-                    .date(TEST_DATE)
-                    .close(new BigDecimal("141.50"))
-                    .volume(25000000L)
-                    .currency("USD")
-                    .build();
-
-            Candle aaplPrevious = Candle.builder()
-                    .symbol("AAPL")
-                    .date(TEST_DATE.minusDays(1))
-                    .close(new BigDecimal("235.90"))
-                    .build();
-
-            Candle googlPrevious = Candle.builder()
-                    .symbol("GOOGL")
-                    .date(TEST_DATE.minusDays(1))
-                    .close(new BigDecimal("140.00"))
-                    .build();
-
-            given(assetRepository.findActiveSortedByMarketCap(any(Pageable.class), anyBoolean(), any()))
-                    .willReturn(assetPage);
-            given(candleRepository.findRecentBySymbols(anyList(), anyInt()))
-                    .willReturn(List.of(aaplCandle, googlCandle, aaplPrevious, googlPrevious));
-
-            // when
-            Page<StockPriceDto> results = candleService.getAllStocksWithPrices(pageable, "desc", null, StockSort.MARKET_CAP);
-
-            // then
-            assertThat(results.getContent()).hasSize(2);
-            assertThat(results.getContent()).allMatch(StockPriceDto::isAvailable);
-            assertThat(results.getContent()).extracting(StockPriceDto::getSymbol)
-                    .containsExactly("AAPL", "GOOGL");
-            assertThat(results.getContent()).extracting(StockPriceDto::getDividendYieldPercent).containsOnlyNulls();
-
-            // AAPL 가격 검증
-            StockPriceDto aaplPrice = results.getContent().getFirst();
-            assertThat(aaplPrice.getCurrentPrice()).isEqualByComparingTo(TEST_CLOSE);
-            assertThat(aaplPrice.getPreviousClose()).isEqualByComparingTo(new BigDecimal("235.90"));
-            assertThat(aaplPrice.getMarketCap()).isEqualTo(3000000000000L);
-
-            // GOOGL 가격 검증
-            StockPriceDto googlPrice = results.getContent().get(1);
-            assertThat(googlPrice.getCurrentPrice()).isEqualByComparingTo(new BigDecimal("141.50"));
-            assertThat(googlPrice.getPreviousClose()).isEqualByComparingTo(new BigDecimal("140.00"));
-
-            verify(assetRepository).findActiveSortedByMarketCap(any(Pageable.class), anyBoolean(), any());
-        }
-
-        @Test
-        @DisplayName("캔들 데이터가 없는 종목은 available=false로 반환한다")
-        void getAllStocksWithPrices_MissingCandles_ReturnsUnavailable() {
-            // given
-            Pageable pageable = PageRequest.of(0, 10);
-            List<Asset> assets = new ArrayList<>(List.of(
-                    Asset.builder()
-                            .symbol("NEWSTOCK")
-                            .name("New Stock")
-                            .currency("USD")
-                            .build()
-            ));
-            Page<Asset> assetPage = new PageImpl<>(assets, pageable, assets.size());
-
-            given(assetRepository.findActiveSortedByMarketCap(any(Pageable.class), anyBoolean(), any()))
-                    .willReturn(assetPage);
-            given(candleRepository.findRecentBySymbols(anyList(), anyInt()))
-                    .willReturn(new ArrayList<>());
-
-            // when
-            Page<StockPriceDto> results = candleService.getAllStocksWithPrices(pageable, "desc", null, StockSort.MARKET_CAP);
-
-            // then
-            assertThat(results.getContent()).hasSize(1);
-            StockPriceDto newStockPrice = results.getContent().getFirst();
-            assertThat(newStockPrice.getSymbol()).isEqualTo("NEWSTOCK");
-            assertThat(newStockPrice.isAvailable()).isFalse();
-            assertThat(newStockPrice.getCurrentPrice()).isNull();
-            assertThat(newStockPrice.getPreviousClose()).isNull();
-        }
-
         private DividendRepository.SymbolAmount yearly(String symbol, String amount) {
             return new DividendRepository.SymbolAmount() {
                 @Override
@@ -762,6 +659,60 @@ class CandleServiceImplTest {
                     return new BigDecimal(amount);
                 }
             };
+        }
+
+        @Test
+        @DisplayName("목록은 종목 테이블의 최신 종가 · 날짜 · 시총으로 만들고 일봉은 읽지 않는다")
+        void getAllStocksWithPrices_UsesAssetLatestClose() {
+            // given
+            Pageable pageable = PageRequest.of(0, 10);
+            List<Asset> assets = List.of(
+                    Asset.builder().symbol("AAPL").name("Apple Inc.").currency("USD").assetType("EQUITY")
+                            .marketCap(3000000000000L).latestClose(TEST_CLOSE).latestDate(TEST_DATE).build(),
+                    Asset.builder().symbol("SPY").name("SPDR S&P 500 ETF").currency("USD").assetType("ETF")
+                            .marketCap(500000000000L).latestClose(new BigDecimal("580.10")).latestDate(TEST_DATE.minusDays(1)).build());
+            given(assetRepository.findActiveSortedByMarketCap(pageable, false, null))
+                    .willReturn(new PageImpl<>(assets, pageable, 41));
+
+            // when
+            Page<StockPriceDto> results = candleService.getAllStocksWithPrices(pageable, "desc", null, StockSort.MARKET_CAP);
+
+            // then
+            assertThat(results.getTotalElements()).isEqualTo(41);
+            assertThat(results.getContent())
+                    .extracting(StockPriceDto::getSymbol, StockPriceDto::getCurrentPrice, StockPriceDto::getDate,
+                            StockPriceDto::getMarketCap, StockPriceDto::getAssetType, StockPriceDto::isAvailable)
+                    .containsExactly(
+                            tuple("AAPL", TEST_CLOSE, TEST_DATE, 3000000000000L, "EQUITY", true),
+                            tuple("SPY", new BigDecimal("580.10"), TEST_DATE.minusDays(1), 500000000000L, "ETF", true));
+            assertThat(results.getContent()).allSatisfy(price -> {
+                assertThat(price.getPreviousClose()).isNull();
+                assertThat(price.getChangePercent()).isNull();
+                assertThat(price.getVolume()).isNull();
+                assertThat(price.getDividendYieldPercent()).isNull();
+            });
+            verifyNoInteractions(candleRepository);
+        }
+
+        @Test
+        @DisplayName("최신 종가가 없거나 0 이하인 종목은 available=false 이고 가격을 비운다")
+        void getAllStocksWithPrices_NoLatestClose_ReturnsUnavailable() {
+            // given
+            Pageable pageable = PageRequest.of(0, 10);
+            List<Asset> assets = List.of(
+                    Asset.builder().symbol("NEWSTOCK").name("New Stock").currency("USD").build(),
+                    Asset.builder().symbol("BROKEN").name("Broken Close").currency("USD")
+                            .latestClose(BigDecimal.ZERO).latestDate(TEST_DATE).build());
+            given(assetRepository.findActiveSortedByMarketCap(pageable, false, null))
+                    .willReturn(new PageImpl<>(assets, pageable, assets.size()));
+
+            // when
+            Page<StockPriceDto> results = candleService.getAllStocksWithPrices(pageable, "desc", null, StockSort.MARKET_CAP);
+
+            // then
+            assertThat(results.getContent())
+                    .extracting(StockPriceDto::getSymbol, StockPriceDto::isAvailable, StockPriceDto::getCurrentPrice, StockPriceDto::getDate)
+                    .containsExactly(tuple("NEWSTOCK", false, null, null), tuple("BROKEN", false, null, TEST_DATE));
         }
 
         @Test
@@ -779,8 +730,6 @@ class CandleServiceImplTest {
                     Asset.builder().symbol("ZERO").name("Zero Close").currency("USD").latestClose(BigDecimal.ZERO).build());
             given(assetRepository.findActiveSortedByDividendYield(pageable, false, null, from))
                     .willReturn(new PageImpl<>(assets, pageable, assets.size()));
-            given(candleRepository.findRecentBySymbols(anyList(), anyInt())).willReturn(List.of(
-                    Candle.builder().symbol("T").date(TEST_DATE).close(new BigDecimal("30")).volume(1L).currency("USD").build()));
             given(dividendRepository.sumAmountBySymbolsSince(List.of("T", "KO", "AAPL", "NOCLOSE", "NODIV", "ZERO"), from))
                     .willReturn(List.of(yearly("T", "1.0"), yearly("KO", "1.5"), yearly("AAPL", "4.0"), yearly("NOCLOSE", "9.0"),
                             yearly("ZERO", "1.0")));
@@ -801,50 +750,15 @@ class CandleServiceImplTest {
         void getAllStocksWithPrices_NoAssets_ReturnsEmpty() {
             // given
             Pageable pageable = PageRequest.of(0, 10);
-            List<Asset> emptyList = new ArrayList<>();
-            Page<Asset> emptyPage = new PageImpl<>(emptyList, pageable, 0);
             given(assetRepository.findActiveSortedByMarketCap(any(Pageable.class), anyBoolean(), any()))
-                    .willReturn(emptyPage);
+                    .willReturn(new PageImpl<>(List.of(), pageable, 0));
 
             // when
             Page<StockPriceDto> results = candleService.getAllStocksWithPrices(pageable, "desc", null, StockSort.MARKET_CAP);
 
             // then
             assertThat(results.getContent()).isEmpty();
-            verify(assetRepository).findActiveSortedByMarketCap(any(Pageable.class), anyBoolean(), any());
-            verifyNoInteractions(dividendRepository);
-        }
-
-        @Test
-        @DisplayName("조회 중 예외가 발생한 종목은 건너뛴다")
-        void getAllStocksWithPrices_ExceptionInProcessing_SkipsAsset() {
-            // given
-            Pageable pageable = PageRequest.of(0, 10);
-            List<Asset> assets = new ArrayList<>(List.of(
-                    Asset.builder()
-                            .symbol("AAPL")
-                            .name("Apple Inc.")
-                            .currency("USD")
-                            .build(),
-                    Asset.builder()
-                            .symbol("ERROR")
-                            .name("Error Stock")
-                            .currency("USD")
-                            .build()
-            ));
-            Page<Asset> assetPage = new PageImpl<>(assets, pageable, assets.size());
-
-            given(assetRepository.findActiveSortedByMarketCap(any(Pageable.class), anyBoolean(), any()))
-                    .willReturn(assetPage);
-            given(candleRepository.findRecentBySymbols(anyList(), anyInt()))
-                    .willReturn(List.of(testCandle));
-
-            // when
-            Page<StockPriceDto> results = candleService.getAllStocksWithPrices(pageable, "desc", null, StockSort.MARKET_CAP);
-
-            // then - ERROR 종목은 캔들이 없어서 available=false로 추가됨
-            assertThat(results.getContent()).hasSize(2);
-            assertThat(results.getContent().stream().filter(StockPriceDto::isAvailable).count()).isEqualTo(1);
+            verifyNoInteractions(dividendRepository, candleRepository);
         }
     }
 }
