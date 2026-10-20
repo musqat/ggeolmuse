@@ -1,6 +1,7 @@
 package com.muscat.marketdata.datasource.common;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -170,5 +171,16 @@ class ListingStatusSourceTest {
 
     assertThat(source.fetch()).isEmpty();
     assertThat(source.fetch()).isEmpty();
+  }
+
+  @Test
+  @DisplayName("Stock 으로 와도 이름이 ETF 낱말이나 money market 이면 ETF, Netflix 처럼 낱말 안에 든 etf 는 주식")
+  void fundNameOverridesStock() {
+    givenCsv("YBST,GraniteShares YieldBoost Single Stock Universe ETF,NASDAQ,Stock,2025-01-01,null,Active",
+        "JMMF,JPMorgan 100 U.S. Treasury Securities Money Market,NYSE,Stock,2025-01-01,null,Active",
+        "NFLX,Netflix Inc,NASDAQ,Stock,2002-05-23,null,Active");
+
+    assertThat(source.fetch()).extracting(Asset::getSymbol, Asset::getAssetType)
+        .containsExactly(tuple("YBST", "ETF"), tuple("JMMF", "ETF"), tuple("NFLX", "EQUITY"));
   }
 }

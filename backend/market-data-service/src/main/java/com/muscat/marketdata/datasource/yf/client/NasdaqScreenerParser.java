@@ -2,12 +2,12 @@ package com.muscat.marketdata.datasource.yf.client;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.muscat.marketdata.datasource.common.AssetTypeRule;
 import com.muscat.marketdata.domain.entity.Asset;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
-import java.util.regex.Pattern;
 import java.util.List;
 
 // NASDAQ Screener 응답을 Asset 목록으로 바꿈
@@ -104,17 +104,15 @@ public class NasdaqScreenerParser {
         return asset;
     }
 
-    private static final Pattern ETF_WORD = Pattern.compile("\\betf\\b", Pattern.CASE_INSENSITIVE);
-
-    // 이름에 ETF 가 있으면 ETF. trust · fund 는 산업 칸이 빌 때만 ETF(은행 · 리츠 제외)
+    // 이름이 펀드(ETF 낱말 · exchange traded fund · money market)면 ETF. trust · fund 는 산업 칸이 빌 때만 ETF(은행 · 리츠 제외)
     public static String determineAssetType(String name, String industry) {
         if (name == null) {
             return "EQUITY";
         }
-        String nameLower = name.toLowerCase();
-        if (ETF_WORD.matcher(name).find() || nameLower.contains("exchange traded fund")) {
+        if (AssetTypeRule.isFundName(name)) {
             return "ETF";
         }
+        String nameLower = name.toLowerCase();
         boolean trustOrFund = nameLower.contains(" trust") || nameLower.contains(" fund");
         if (trustOrFund && (industry == null || industry.isBlank())) {
             return "ETF";

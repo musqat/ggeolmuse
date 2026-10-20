@@ -111,7 +111,7 @@ public class ListingStatusSource {
         .name(name.isEmpty() ? symbol : name)
         .country("US")
         .currency("USD")
-        .assetType(isEtf ? "ETF" : "EQUITY")
+        .assetType(AssetTypeRule.resolve(isEtf, name))
         .marketCap(null)   // LISTING_STATUS 에는 없다. 시가총액은 따로 채운다
         .build();
   }
