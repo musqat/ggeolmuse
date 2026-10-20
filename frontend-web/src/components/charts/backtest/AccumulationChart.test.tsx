@@ -1,8 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type { ReactElement } from 'react'
 import { AccumulationChart } from './AccumulationChart'
 import { stockApi } from '../../../services/api'
 import { readCharts } from '../../../test/readCharts'
+
+// 차트가 react-query 로 받으니 테스트마다 새 클라이언트로 감싼다
+const renderWithQuery = (ui: ReactElement) =>
+  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{ui}</QueryClientProvider>)
 
 vi.mock('recharts', () => import('../../../test/rechartsProbe'))
 vi.mock('../../../services/api', () => ({
@@ -49,7 +55,7 @@ describe('AccumulationChart', () => {
   })
 
   it('첫 매수일부터 오늘까지 받고, 그 종목 날짜로만 환율을 묻는다', async () => {
-    render(<AccumulationChart {...props} />)
+    renderWithQuery(<AccumulationChart {...props} />)
 
     await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(2))
     expect(getOHLCData).toHaveBeenCalledWith('AAPL', '2026-03-01', '2026-03-10')
@@ -57,7 +63,7 @@ describe('AccumulationChart', () => {
   })
 
   it('주가 · 포트폴리오 차트의 데이터와 마커', async () => {
-    render(<AccumulationChart {...props} />)
+    renderWithQuery(<AccumulationChart {...props} />)
 
     await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(2))
     expect(readCharts()).toMatchInlineSnapshot(`
@@ -210,7 +216,7 @@ describe('AccumulationChart', () => {
   })
 
   it('평가일이 있으면 그날까지 받는다', async () => {
-    render(<AccumulationChart {...props} endDate="2026-03-06" />)
+    renderWithQuery(<AccumulationChart {...props} endDate="2026-03-06" />)
 
     await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(2))
     expect(getOHLCData).toHaveBeenCalledWith('AAPL', '2026-03-01', '2026-03-06')
@@ -223,7 +229,7 @@ describe('AccumulationChart', () => {
       { date: '2026-03-06', price: 100, shares: 1, amount: 140000, fxRate: 1400 },
       { date: '2026-03-07', price: 100, shares: 0.1, amount: 14000, fxRate: 1400, trigger: '배당 재투자' },
     ]
-    render(<AccumulationChart {...props} transactions={weekendDividend} />)
+    renderWithQuery(<AccumulationChart {...props} transactions={weekendDividend} />)
 
     await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(2))
     const [price, portfolio] = readCharts()

@@ -1,8 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type { ReactElement } from 'react'
 import { CompareStrategiesChart } from './CompareStrategiesChart'
 import { stockApi } from '../../../services/api'
 import { readCharts } from '../../../test/readCharts'
+
+// 차트가 react-query 로 받으니 테스트마다 새 클라이언트로 감싼다
+const renderWithQuery = (ui: ReactElement) =>
+  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{ui}</QueryClientProvider>)
 
 vi.mock('recharts', () => import('../../../test/rechartsProbe'))
 vi.mock('../../../services/api', () => ({
@@ -46,7 +52,7 @@ describe('CompareStrategiesChart', () => {
   })
 
   it('첫 전략 기간으로 받고, 전략별 평가 · 투자금과 매수 마커를 낸다', async () => {
-    render(<CompareStrategiesChart strategies={strategies} strategyNames={{ SIMPLE: '단순 매수', DCA: '적립식' }} />)
+    renderWithQuery(<CompareStrategiesChart strategies={strategies} strategyNames={{ SIMPLE: '단순 매수', DCA: '적립식' }} />)
 
     await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(2))
     expect(getOHLCData).toHaveBeenCalledWith('AAPL', '2026-03-01', '2026-03-04')

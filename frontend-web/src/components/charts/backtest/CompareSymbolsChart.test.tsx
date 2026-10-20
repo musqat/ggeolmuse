@@ -1,8 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type { ReactElement } from 'react'
 import { CompareSymbolsChart } from './CompareSymbolsChart'
 import { stockApi } from '../../../services/api'
 import { readCharts } from '../../../test/readCharts'
+
+// 차트가 react-query 로 받으니 테스트마다 새 클라이언트로 감싼다
+const renderWithQuery = (ui: ReactElement) =>
+  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{ui}</QueryClientProvider>)
 
 vi.mock('recharts', () => import('../../../test/rechartsProbe'))
 vi.mock('../../../services/api', () => ({
@@ -37,7 +43,7 @@ describe('CompareSymbolsChart 차트', () => {
 
   it('종목마다 같은 기간으로 받고, 데이터 · 마커 · 범위 · 최적 시점을 낸다', async () => {
     const onOptimal = vi.fn()
-    render(<CompareSymbolsChart symbols={symbols} startDate="2026-03-02" endDate="2026-03-04" onOptimalPointsCalculated={onOptimal} />)
+    renderWithQuery(<CompareSymbolsChart symbols={symbols} startDate="2026-03-02" endDate="2026-03-04" onOptimalPointsCalculated={onOptimal} />)
 
     await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(2))
     expect(getOHLCData).toHaveBeenCalledWith('AAPL', '2026-03-02', '2026-03-04')
