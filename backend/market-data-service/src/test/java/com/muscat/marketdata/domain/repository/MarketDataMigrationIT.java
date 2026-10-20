@@ -184,6 +184,29 @@ class MarketDataMigrationIT {
       .isEqualTo("Apple Inc");
   }
 
+  @Test
+  @DisplayName("V13 은 최근 평균 거래량이 기준 아래인 ETF 만 비활성으로 돌린다")
+  void thinEtfsDeactivated() throws IOException {
+    assetRepository.save(typedAsset("THIN", "Thin Volume ETF", "ETF"));
+    assetRepository.save(typedAsset("SPY", "SPDR S&P 500 ETF Trust", "ETF"));
+    assetRepository.save(typedAsset("TINY", "Tiny Corp", "EQUITY"));
+    for (int daysAgo = 1; daysAgo <= 20; daysAgo++) {
+      candle("THIN", daysAgo, 100L);
+      candle("SPY", daysAgo, 1_000_000L);
+      candle("TINY", daysAgo, 100L);
+    }
+
+    jdbcTemplate.execute(migration("V13__Deactivate_Thin_Etfs.sql"));
+
+    assertThat(assetRepository.findAll()).extracting(Asset::getSymbol, Asset::getActive).containsExactlyInAnyOrder(
+      tuple("THIN", false), tuple("SPY", true), tuple("TINY", true));
+  }
+
+  private void candle(String symbol, int daysAgo, long volume) {
+    jdbcTemplate.update("INSERT INTO candle (symbol, date, currency, adjusted_close, volume) VALUES (?, ?, 'USD', 1, ?)",
+      symbol, LocalDate.now().minusDays(daysAgo), volume);
+  }
+
   private static Asset typedAsset(String symbol, String name, String type) {
     return Asset.builder().symbol(symbol).name(name).country("US").currency("USD").assetType(type).build();
   }

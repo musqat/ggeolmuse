@@ -1,8 +1,15 @@
 package com.muscat.marketdata.domain.service;
 
+import com.muscat.marketdata.config.MarketDataProperties;
+import com.muscat.marketdata.domain.entity.Asset;
+import com.muscat.marketdata.domain.entity.Candle;
+import com.muscat.marketdata.domain.repository.AssetRepository;
+import com.muscat.marketdata.domain.repository.CandleRepository;
 import com.muscat.messaging.event.AssetCreatedEvent;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 /**
@@ -14,6 +21,9 @@ import org.springframework.stereotype.Service;
 public class DataCollectionService {
 
     private final CandleUpdateService candleUpdateService;
+    private final AssetRepository assetRepository;
+    private final CandleRepository candleRepository;
+    private final MarketDataProperties properties;
 
     // 컨슈머 스레드에서 그대로 수집. 병렬도는 리스너 동시성이 정하고 ACK 는 수집 뒤
     public void collect(AssetCreatedEvent event) {
@@ -35,6 +45,9 @@ public class DataCollectionService {
                         event.getToDate()
                 );
             }
+            if (candleCount > 0) {
+                deactivateThinEtf(event.getSymbol());
+            }
             log.debug("수집 완료: symbol={}, 캔들={}, 배당={}", event.getSymbol(), candleCount, dividendCount);
         } catch (Exception e) {
             log.error("수집 실패: symbol={}, error={}", event.getSymbol(), e.getMessage(), e);
@@ -42,6 +55,25 @@ public class DataCollectionService {
             // 종목 하나의 실패는 saveCandles · saveDividends 가 이미 삼킨다. 여기까지 오면 예상 밖이라
             // 재시도와 .DLT 로 보낸다
             throw e;
+        }
+    }
+
+    // 거래가 거의 없는 ETF 는 첫 수집 뒤 내림. 갱신 대상과 화면에서 빠짐
+    private void deactivateThinEtf(String symbol) {
+        Asset asset = assetRepository.findById(symbol).orElse(null);
+        if (asset == null || !"ETF".equals(asset.getAssetType()) || !Boolean.TRUE.equals(asset.getActive())) {
+            return;
+        }
+        MarketDataProperties.Etf rule = properties.getEtf();
+        List<Candle> recent = candleRepository.findBySymbolOrderByDateDesc(symbol, PageRequest.of(0, rule.getVolumeWindow()));
+        if (recent.isEmpty()) {
+            return;
+        }
+        double average = recent.stream().mapToLong(c -> c.getVolume() == null ? 0L : c.getVolume()).average().orElse(0);
+        if (average < rule.getMinAverageVolume()) {
+            asset.setActive(false);
+            assetRepository.save(asset);
+            log.info("평균 거래량이 기준 아래라 ETF 비활성: symbol={}, 평균={}", symbol, (long) average);
         }
     }
 }

@@ -16,6 +16,7 @@ public class MarketDataProperties {
   private Calculation calculation = new Calculation();
   private FxIngest fxIngest = new FxIngest();
   private DividendYield dividendYield = new DividendYield();
+  private Etf etf = new Etf();
 
   @Data
   public static class Fx {
@@ -37,6 +38,13 @@ public class MarketDataProperties {
   public static class DividendYield {
     private BigDecimal specialPaymentPercent = new BigDecimal("20");
     private BigDecimal maxYieldPercent = new BigDecimal("50");
+  }
+
+  // ETF 비활성 기준. 최근 volumeWindow 봉의 평균 거래량이 minAverageVolume 아래면 내림
+  @Data
+  public static class Etf {
+    private int volumeWindow = 20;
+    private long minAverageVolume = 10000L;
   }
 
   @Data
