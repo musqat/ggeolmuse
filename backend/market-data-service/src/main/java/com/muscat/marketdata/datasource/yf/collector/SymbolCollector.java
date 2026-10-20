@@ -16,7 +16,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -162,14 +164,15 @@ public class SymbolCollector {
                 return;
             }
 
-            Set<String> known = assetRepository.findAll().stream()
-                .map(Asset::getSymbol)
-                .collect(Collectors.toSet());
+            Map<String, Asset> known = assetRepository.findAll().stream()
+                .collect(Collectors.toMap(Asset::getSymbol, a -> a, (first, dup) -> first));
+
+            refreshListingNames(fetched, known);
 
             // 카탈로그가 중복을 걸러 주지만 경계에서 한 번 더 본다.
             Set<String> seen = new java.util.HashSet<>();
             List<Asset> newcomers = fetched.stream()
-                .filter(a -> !known.contains(a.getSymbol()))
+                .filter(a -> !known.containsKey(a.getSymbol()))
                 .filter(a -> seen.add(a.getSymbol()))
                 .toList();
 
@@ -194,6 +197,29 @@ public class SymbolCollector {
 
         } catch (Exception e) {
             log.error("[YF-신규종목] 실패", e);
+        }
+    }
+
+    // 상장 목록 이름이 바뀐 기존 종목을 따라 고침. 손으로 고친 이름(목록 이름과 다른 name)은 두고 목록 이름만 갱신
+    private void refreshListingNames(List<Asset> fetched, Map<String, Asset> known) {
+        List<Asset> changed = new ArrayList<>();
+        int renamed = 0;
+        for (Asset listed : fetched) {
+            Asset asset = known.get(listed.getSymbol());
+            if (asset == null || listed.getName().equals(asset.getSourceName())) {
+                continue;
+            }
+            if (asset.getSourceName() != null && asset.getSourceName().equals(asset.getName())) {
+                asset.setName(listed.getName());
+                asset.setAssetType(listed.getAssetType());
+                renamed++;
+            }
+            asset.setSourceName(listed.getName());
+            changed.add(asset);
+        }
+        if (!changed.isEmpty()) {
+            assetRepository.saveAll(changed);
+            log.info("[YF-신규종목] 목록 이름이 바뀐 종목 {}개(이름 · 유형 갱신 {}개)", changed.size(), renamed);
         }
     }
 }

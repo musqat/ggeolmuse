@@ -173,6 +173,17 @@ class MarketDataMigrationIT {
       tuple("MTEST-A", false), tuple("ZTST", false), tuple("CBO", false), tuple("TEST", true), tuple("AAPL", true));
   }
 
+  @Test
+  @DisplayName("V12 는 상장 목록 이름이 빈 행을 지금 이름으로 채운다")
+  void sourceNameBackfilled() throws IOException {
+    assetRepository.save(typedAsset("AAPL", "Apple Inc", "EQUITY"));
+
+    jdbcTemplate.execute(migration("V12__Add_Asset_Source_Name.sql"));
+
+    assertThat(jdbcTemplate.queryForObject("SELECT source_name FROM asset WHERE symbol = 'AAPL'", String.class))
+      .isEqualTo("Apple Inc");
+  }
+
   private static Asset typedAsset(String symbol, String name, String type) {
     return Asset.builder().symbol(symbol).name(name).country("US").currency("USD").assetType(type).build();
   }

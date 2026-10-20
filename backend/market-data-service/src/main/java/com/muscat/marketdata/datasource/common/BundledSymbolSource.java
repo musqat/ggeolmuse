@@ -82,6 +82,7 @@ public class BundledSymbolSource {
       return Asset.builder()
           .symbol(symbol)
           .name(name)
+          .sourceName(name)
           .country(country)
           .currency("USD")
           .assetType(AssetTypeRule.resolve(false, name))
