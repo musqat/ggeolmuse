@@ -41,6 +41,7 @@ class BacktestHistoryControllerTest {
   private static final String BASE = "/api/backtest/history";
   private static final String TOKEN = "good-token";
   private static final String EMAIL = "user@example.com";
+  private static final String USER = "user-1";
 
   @Autowired
   private MockMvc mockMvc;
@@ -53,12 +54,12 @@ class BacktestHistoryControllerTest {
 
   @BeforeEach
   void decodeToken() {
-    given(jwtDecoder.decode(TOKEN)).willReturn(Jwt.withTokenValue(TOKEN).header("alg", "none").subject("user-1")
+    given(jwtDecoder.decode(TOKEN)).willReturn(Jwt.withTokenValue(TOKEN).header("alg", "none").subject(USER)
       .claim("email", EMAIL).build());
   }
 
   private static BacktestHistoryDto history() {
-    return new BacktestHistoryDto(1L, EMAIL, BacktestType.COMPARISON, "{}", "auto", LocalDateTime.of(2024, 5, 1, 9, 30));
+    return new BacktestHistoryDto(1L, USER, BacktestType.COMPARISON, "{}", "auto", LocalDateTime.of(2024, 5, 1, 9, 30));
   }
 
   @Test
@@ -72,7 +73,7 @@ class BacktestHistoryControllerTest {
   @Test
   @DisplayName("페이지 번호와 크기를 넘기고 이력을 돌려준다")
   void paged() throws Exception {
-    given(backtestHistoryService.getUserBacktestHistory(eq(EMAIL), any()))
+    given(backtestHistoryService.getUserBacktestHistory(eq(USER), any()))
       .willReturn(new PageImpl<>(List.of(history()), PageRequest.of(2, 5), 11));
 
     mockMvc.perform(get(BASE).header(HttpHeaders.AUTHORIZATION, "Bearer " + TOKEN)
@@ -80,39 +81,39 @@ class BacktestHistoryControllerTest {
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.content[0].backtestType").value("COMPARISON"));
 
-    verify(backtestHistoryService).getUserBacktestHistory(EMAIL, PageRequest.of(2, 5));
+    verify(backtestHistoryService).getUserBacktestHistory(USER, PageRequest.of(2, 5));
   }
 
   @Test
   @DisplayName("페이지를 주지 않으면 첫 페이지 20건이다")
   void defaultPage() throws Exception {
-    given(backtestHistoryService.getUserBacktestHistory(eq(EMAIL), any())).willReturn(new PageImpl<>(List.of()));
+    given(backtestHistoryService.getUserBacktestHistory(eq(USER), any())).willReturn(new PageImpl<>(List.of()));
 
     mockMvc.perform(get(BASE).header(HttpHeaders.AUTHORIZATION, "Bearer " + TOKEN))
       .andExpect(status().isOk());
 
-    verify(backtestHistoryService).getUserBacktestHistory(EMAIL, PageRequest.of(0, 20));
+    verify(backtestHistoryService).getUserBacktestHistory(USER, PageRequest.of(0, 20));
   }
 
   @Test
-  @DisplayName("쿼리에 다른 사람의 userId 를 넣어도 토큰의 이메일로 조회한다")
+  @DisplayName("쿼리에 다른 사람의 userId 를 넣어도 토큰의 사용자로 조회한다")
   void ignoresQueryUser() throws Exception {
-    given(backtestHistoryService.getUserBacktestHistory(eq(EMAIL), any())).willReturn(new PageImpl<>(List.of()));
+    given(backtestHistoryService.getUserBacktestHistory(eq(USER), any())).willReturn(new PageImpl<>(List.of()));
 
     mockMvc.perform(get(BASE).header(HttpHeaders.AUTHORIZATION, "Bearer " + TOKEN).param("userId", "other@example.com"))
       .andExpect(status().isOk());
 
-    verify(backtestHistoryService).getUserBacktestHistory(EMAIL, PageRequest.of(0, 20));
+    verify(backtestHistoryService).getUserBacktestHistory(USER, PageRequest.of(0, 20));
     verify(backtestHistoryService, never()).getUserBacktestHistory(eq("other@example.com"), any());
   }
 
   @Test
-  @DisplayName("토큰에 이메일이 없으면 빈 목록이고 서비스까지 가지 않는다")
-  void noEmailClaim() throws Exception {
-    given(jwtDecoder.decode("no-email")).willReturn(Jwt.withTokenValue("no-email").header("alg", "none").subject("svc")
-      .build());
+  @DisplayName("토큰에 subject 가 없으면 빈 목록이고 서비스까지 가지 않는다")
+  void noSubject() throws Exception {
+    given(jwtDecoder.decode("no-sub")).willReturn(Jwt.withTokenValue("no-sub").header("alg", "none")
+      .claim("email", EMAIL).build());
 
-    mockMvc.perform(get(BASE).header(HttpHeaders.AUTHORIZATION, "Bearer no-email"))
+    mockMvc.perform(get(BASE).header(HttpHeaders.AUTHORIZATION, "Bearer no-sub"))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.content").isEmpty());
 

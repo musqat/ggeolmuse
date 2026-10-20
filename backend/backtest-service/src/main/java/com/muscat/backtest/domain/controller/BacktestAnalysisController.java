@@ -80,7 +80,7 @@ public class BacktestAnalysisController {
       @Parameter(description = "DCA 전략 백테스팅 요청 정보", required = true)
       @Valid @RequestBody DcaStrategyRequest request,
       @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
-    request.setUserId(TokenOwner.email(jwt));
+    request.setUserId(TokenOwner.sub(jwt));
 
     log.info("DCA 전략 백테스팅 요청: {} - 월{}원",
         request.getSymbol(), request.getMonthlyAmount());
@@ -120,7 +120,7 @@ public class BacktestAnalysisController {
       @Parameter(description = "조건부 매수 전략 백테스팅 요청 정보", required = true)
       @Valid @RequestBody ConditionalStrategyRequest request,
       @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
-    request.setUserId(TokenOwner.email(jwt));
+    request.setUserId(TokenOwner.sub(jwt));
 
     log.info("조건부 매수 전략 백테스팅 요청: {} - {}% 하락시 매수",
         request.getSymbol(), request.getDropPercentage());
@@ -161,7 +161,7 @@ public class BacktestAnalysisController {
       @Parameter(description = "종목별 비교 분석 요청 정보", required = true)
       @Valid @RequestBody SymbolComparisonRequest request,
       @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
-    request.setUserId(TokenOwner.email(jwt));
+    request.setUserId(TokenOwner.sub(jwt));
 
     log.info("종목 비교 분석 요청: {}", request.getSymbols());
 
@@ -200,7 +200,7 @@ public class BacktestAnalysisController {
       @Parameter(description = "전략별 비교 분석 요청 정보", required = true)
       @Valid @RequestBody StrategyComparisonRequest request,
       @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
-    request.setUserId(TokenOwner.email(jwt));
+    request.setUserId(TokenOwner.sub(jwt));
 
     log.info("전략 비교 분석 요청: {} - {}개 전략",
         request.getSymbol(),
@@ -241,7 +241,7 @@ public class BacktestAnalysisController {
       @Parameter(description = "타이밍별 비교 분석 요청 정보", required = true)
       @Valid @RequestBody TimingComparisonRequest request,
       @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
-    request.setUserId(TokenOwner.email(jwt));
+    request.setUserId(TokenOwner.sub(jwt));
 
     log.info("타이밍 비교 분석 요청: {} - {}개 시점",
         request.getSymbol(),
@@ -282,7 +282,7 @@ public class BacktestAnalysisController {
       @Parameter(description = "최적 타이밍 분석 요청 정보", required = true)
       @Valid @RequestBody OptimalTimingRequest request,
       @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
-    request.setUserId(TokenOwner.email(jwt));
+    request.setUserId(TokenOwner.sub(jwt));
 
     log.info("최적 타이밍 분석 요청: {} - 목표 수익률 {}%",
         request.getSymbol(), request.getTargetReturnPercent());

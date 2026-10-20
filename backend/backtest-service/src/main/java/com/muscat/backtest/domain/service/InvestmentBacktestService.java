@@ -8,8 +8,7 @@ import java.util.Optional;
 // 보유 종목(holdings) 기반 투자 백테스트: 매수 시점부터 지금까지 성과를 계산해 저장
 public interface InvestmentBacktestService {
 
-  // historyOwner 는 이력 주인(토큰의 이메일). 비면 이력을 남기지 않음
-  InvestmentResponse executeInvestment(InvestmentRequest request, String authorization, String historyOwner);
+  InvestmentResponse executeInvestment(InvestmentRequest request, String authorization);
 
   Optional<InvestmentBacktestResult> getCachedInvestmentResultEntity(String userId);
 }

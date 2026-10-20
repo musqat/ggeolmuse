@@ -85,7 +85,7 @@ public class TradingSimulationController {
 
     log.info("백테스팅 시뮬레이션 요청: {}", request);
 
-    request.setUserId(TokenOwner.email(jwt));
+    request.setUserId(TokenOwner.sub(jwt));
     SimulationResponse result = tradingSimulationService.runSimulation(request);
 
     log.info("백테스팅 시뮬레이션 완료: {} 수익률 {}%, 보유주식 {}주, 재투자={}, 재투자날짜={}",
@@ -123,7 +123,7 @@ public class TradingSimulationController {
     // JWT 토큰 값을 그대로 사용 (이미 Bearer 형식으로 전달됨)
     String token = "Bearer " + jwt.getTokenValue();
 
-    InvestmentResponse result = investmentBacktestService.executeInvestment(request, token, TokenOwner.email(jwt));
+    InvestmentResponse result = investmentBacktestService.executeInvestment(request, token);
 
     log.info("보유 주식 백테스트 완료: 사용자 {} - {}",
         userId, result.getStatus());
@@ -156,7 +156,7 @@ public class TradingSimulationController {
 
     // trade-service Feign @RequestHeader("Authorization")에 전달 → "Bearer " 접두사 필수
     String token = "Bearer " + jwt.getTokenValue();
-    InvestmentResponse response = investmentBacktestService.executeInvestment(request, token, TokenOwner.email(jwt));
+    InvestmentResponse response = investmentBacktestService.executeInvestment(request, token);
     return ResponseEntity.ok(response);
   }
 }
