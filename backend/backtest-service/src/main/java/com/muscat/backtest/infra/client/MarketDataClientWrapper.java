@@ -27,38 +27,38 @@ public class MarketDataClientWrapper {
 
   private final MarketDataClient marketDataClient;
 
-  @CircuitBreaker(name = "marketDataService", fallbackMethod = "getOHLCPriceFallback")
-  @Retry(name = "marketDataService")
+  @CircuitBreaker(name = "marketDataService")
+  @Retry(name = "marketDataService", fallbackMethod = "getOHLCPriceFallback")
   public OHLCPriceDto getOHLCPrice(String symbol, String date) {
     log.debug("Calling market-data-service getOHLCPrice for symbol: {}, date: {}", symbol, date);
     return marketDataClient.getOHLCPrice(symbol, date);
   }
 
-  @CircuitBreaker(name = "marketDataService", fallbackMethod = "getOHLCPriceRangeFallback")
-  @Retry(name = "marketDataService")
+  @CircuitBreaker(name = "marketDataService")
+  @Retry(name = "marketDataService", fallbackMethod = "getOHLCPriceRangeFallback")
   public List<OHLCPriceDto> getOHLCPriceRange(String symbol, String startDate, String endDate) {
     log.debug("Calling market-data-service getOHLCPriceRange for symbol: {}, period: {} to {}",
       symbol, startDate, endDate);
     return marketDataClient.getOHLCPriceRange(symbol, startDate, endDate);
   }
 
-  @CircuitBreaker(name = "marketDataService", fallbackMethod = "getCurrentPriceFallback")
-  @Retry(name = "marketDataService")
+  @CircuitBreaker(name = "marketDataService")
+  @Retry(name = "marketDataService", fallbackMethod = "getCurrentPriceFallback")
   public StockPriceDto getCurrentPrice(String symbol) {
     log.debug("Calling market-data-service getCurrentPrice for symbol: {}", symbol);
     return marketDataClient.getCurrentPrice(symbol);
   }
 
-  @CircuitBreaker(name = "marketDataService", fallbackMethod = "getDividendHistoryFallback")
-  @Retry(name = "marketDataService")
+  @CircuitBreaker(name = "marketDataService")
+  @Retry(name = "marketDataService", fallbackMethod = "getDividendHistoryFallback")
   public List<DividendDto> getDividendHistory(String symbol, String startDate, String endDate) {
     log.debug("Calling market-data-service getDividendHistory for symbol: {}, period: {} to {}",
       symbol, startDate, endDate);
     return marketDataClient.getDividendHistory(symbol, startDate, endDate);
   }
 
-  @CircuitBreaker(name = "marketDataService", fallbackMethod = "getFxRateFallback")
-  @Retry(name = "marketDataService")
+  @CircuitBreaker(name = "marketDataService")
+  @Retry(name = "marketDataService", fallbackMethod = "getFxRateFallback")
   public FxRateDto getFxRate(String date) {
     log.debug("Calling market-data-service getFxRate for date: {}", date);
     return marketDataClient.getFxRate(date);
@@ -68,8 +68,8 @@ public class MarketDataClientWrapper {
    * 최신 환율은 요청과 무관하게 값이 하나다.
    */
   @Cacheable(cacheNames = CacheConfig.LATEST_FX_RATE, key = "'latest'")
-  @CircuitBreaker(name = "marketDataService", fallbackMethod = "getLatestFxRateFallback")
-  @Retry(name = "marketDataService")
+  @CircuitBreaker(name = "marketDataService")
+  @Retry(name = "marketDataService", fallbackMethod = "getLatestFxRateFallback")
   public FxRateDto getLatestFxRate() {
     log.debug("Calling market-data-service getLatestFxRate");
     return marketDataClient.getLatestFxRate();

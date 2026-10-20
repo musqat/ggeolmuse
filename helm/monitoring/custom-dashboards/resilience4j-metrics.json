@@ -94,18 +94,9 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "resilience4j_circuitbreaker_state{name=\"marketDataService\"}",
-          "legendFormat": "Market Data Service",
+          "expr": "max((resilience4j_circuitbreaker_state{state=\"closed\"} == 1) * 0 or (resilience4j_circuitbreaker_state{state=\"half_open\"} == 1) or (resilience4j_circuitbreaker_state{state=~\"open|forced_open\"} == 1) * 2) by (job, name)",
+          "legendFormat": "{{job}} / {{name}}",
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "resilience4j_circuitbreaker_state{name=\"userService\"}",
-          "legendFormat": "User Service",
-          "refId": "B"
         }
       ],
       "title": "Circuit Breaker States",
@@ -191,8 +182,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "rate(resilience4j_circuitbreaker_failure_rate{name=~\".*\"}[5m]) * 100",
-          "legendFormat": "{{name}}",
+          "expr": "max(resilience4j_circuitbreaker_failure_rate >= 0) by (job, name)",
+          "legendFormat": "{{job}} / {{name}}",
           "refId": "A"
         }
       ],
@@ -254,8 +245,8 @@
         "overrides": [
           {
             "matcher": {
-              "id": "byName",
-              "options": "Successful"
+              "id": "byRegexp",
+              "options": ".* - Successful"
             },
             "properties": [
               {
@@ -269,8 +260,8 @@
           },
           {
             "matcher": {
-              "id": "byName",
-              "options": "Failed"
+              "id": "byRegexp",
+              "options": ".* - Failed"
             },
             "properties": [
               {
@@ -310,8 +301,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(increase(resilience4j_circuitbreaker_calls_total{kind=\"successful\"}[5m])) by (name)",
-          "legendFormat": "{{name}} - Successful",
+          "expr": "sum(increase(resilience4j_circuitbreaker_calls_seconds_count{kind=\"successful\"}[5m])) by (job, name)",
+          "legendFormat": "{{job}} / {{name}} - Successful",
           "refId": "A"
         },
         {
@@ -319,8 +310,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(increase(resilience4j_circuitbreaker_calls_total{kind=\"failed\"}[5m])) by (name)",
-          "legendFormat": "{{name}} - Failed",
+          "expr": "sum(increase(resilience4j_circuitbreaker_calls_seconds_count{kind=\"failed\"}[5m])) by (job, name)",
+          "legendFormat": "{{job}} / {{name}} - Failed",
           "refId": "B"
         }
       ],
@@ -648,12 +639,12 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "resilience4j_ratelimiter_available_permissions{name=~\".*\"}",
-          "legendFormat": "{{name}}",
+          "expr": "sum(increase(spring_cloud_gateway_requests_seconds_count{httpStatusCode=\"429\"}[5m])) by (routeId)",
+          "legendFormat": "{{routeId}}",
           "refId": "A"
         }
       ],
-      "title": "Rate Limiter Available Permissions",
+      "title": "Gateway 429 by Route (5min)",
       "type": "timeseries"
     }
   ],
