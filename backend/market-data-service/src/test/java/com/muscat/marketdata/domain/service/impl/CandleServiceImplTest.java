@@ -1,5 +1,6 @@
 package com.muscat.marketdata.domain.service.impl;
 
+import com.muscat.marketdata.common.enums.StockSort;
 import com.muscat.marketdata.config.MarketDataProperties;
 import com.muscat.marketdata.domain.dto.OHLCPriceDto;
 import com.muscat.marketdata.domain.dto.StockPriceDto;
@@ -7,6 +8,7 @@ import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.entity.Candle;
 import com.muscat.marketdata.domain.repository.AssetRepository;
 import com.muscat.marketdata.domain.repository.CandleRepository;
+import com.muscat.marketdata.domain.repository.DividendRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -44,6 +46,9 @@ class CandleServiceImplTest {
 
     @Mock
     private MarketDataProperties properties;
+
+    @Mock
+    private DividendRepository dividendRepository;
 
     @InjectMocks
     private CandleServiceImpl candleService;
@@ -691,13 +696,14 @@ class CandleServiceImplTest {
                     .willReturn(List.of(aaplCandle, googlCandle, aaplPrevious, googlPrevious));
 
             // when
-            Page<StockPriceDto> results = candleService.getAllStocksWithPrices(pageable, "desc", null);
+            Page<StockPriceDto> results = candleService.getAllStocksWithPrices(pageable, "desc", null, StockSort.MARKET_CAP);
 
             // then
             assertThat(results.getContent()).hasSize(2);
             assertThat(results.getContent()).allMatch(StockPriceDto::isAvailable);
             assertThat(results.getContent()).extracting(StockPriceDto::getSymbol)
                     .containsExactly("AAPL", "GOOGL");
+            assertThat(results.getContent()).extracting(StockPriceDto::getDividendYieldPercent).containsOnlyNulls();
 
             // AAPL 가격 검증
             StockPriceDto aaplPrice = results.getContent().getFirst();
@@ -733,7 +739,7 @@ class CandleServiceImplTest {
                     .willReturn(new ArrayList<>());
 
             // when
-            Page<StockPriceDto> results = candleService.getAllStocksWithPrices(pageable, "desc", null);
+            Page<StockPriceDto> results = candleService.getAllStocksWithPrices(pageable, "desc", null, StockSort.MARKET_CAP);
 
             // then
             assertThat(results.getContent()).hasSize(1);
@@ -742,6 +748,52 @@ class CandleServiceImplTest {
             assertThat(newStockPrice.isAvailable()).isFalse();
             assertThat(newStockPrice.getCurrentPrice()).isNull();
             assertThat(newStockPrice.getPreviousClose()).isNull();
+        }
+
+        private DividendRepository.SymbolAmount yearly(String symbol, String amount) {
+            return new DividendRepository.SymbolAmount() {
+                @Override
+                public String getSymbol() {
+                    return symbol;
+                }
+
+                @Override
+                public BigDecimal getAmount() {
+                    return new BigDecimal(amount);
+                }
+            };
+        }
+
+        @Test
+        @DisplayName("배당수익률 정렬이면 수익률 순 조회를 쓰고, 최근 1년 배당 합 ÷ 최신 종가를 소수 둘째 자리 % 로 채운다. 종가 · 배당이 없거나 종가가 0 이면 비운다")
+        void getAllStocksWithPrices_DividendYieldSort_FillsYield() {
+            // given
+            Pageable pageable = PageRequest.of(0, 10);
+            LocalDate from = LocalDate.now().minusYears(1);
+            List<Asset> assets = List.of(
+                    Asset.builder().symbol("T").name("AT&T").currency("USD").latestClose(new BigDecimal("30")).build(),
+                    Asset.builder().symbol("KO").name("Coca-Cola").currency("USD").latestClose(new BigDecimal("60")).build(),
+                    Asset.builder().symbol("AAPL").name("Apple Inc.").currency("USD").latestClose(new BigDecimal("200")).build(),
+                    Asset.builder().symbol("NOCLOSE").name("No Close").currency("USD").build(),
+                    Asset.builder().symbol("NODIV").name("No Dividend").currency("USD").latestClose(new BigDecimal("10")).build(),
+                    Asset.builder().symbol("ZERO").name("Zero Close").currency("USD").latestClose(BigDecimal.ZERO).build());
+            given(assetRepository.findActiveSortedByDividendYield(pageable, false, null, from))
+                    .willReturn(new PageImpl<>(assets, pageable, assets.size()));
+            given(candleRepository.findRecentBySymbols(anyList(), anyInt())).willReturn(List.of(
+                    Candle.builder().symbol("T").date(TEST_DATE).close(new BigDecimal("30")).volume(1L).currency("USD").build()));
+            given(dividendRepository.sumAmountBySymbolsSince(List.of("T", "KO", "AAPL", "NOCLOSE", "NODIV", "ZERO"), from))
+                    .willReturn(List.of(yearly("T", "1.0"), yearly("KO", "1.5"), yearly("AAPL", "4.0"), yearly("NOCLOSE", "9.0"),
+                            yearly("ZERO", "1.0")));
+
+            // when
+            Page<StockPriceDto> results = candleService.getAllStocksWithPrices(pageable, "desc", null, StockSort.DIVIDEND_YIELD);
+
+            // then
+            assertThat(results.getContent()).extracting(StockPriceDto::getSymbol)
+                    .containsExactly("T", "KO", "AAPL", "NOCLOSE", "NODIV", "ZERO");
+            assertThat(results.getContent()).extracting(StockPriceDto::getDividendYieldPercent)
+                    .containsExactly(new BigDecimal("3.33"), new BigDecimal("2.50"), new BigDecimal("2.00"), null, null, null);
+            verify(assetRepository, never()).findActiveSortedByMarketCap(any(), anyBoolean(), any());
         }
 
         @Test
@@ -755,11 +807,12 @@ class CandleServiceImplTest {
                     .willReturn(emptyPage);
 
             // when
-            Page<StockPriceDto> results = candleService.getAllStocksWithPrices(pageable, "desc", null);
+            Page<StockPriceDto> results = candleService.getAllStocksWithPrices(pageable, "desc", null, StockSort.MARKET_CAP);
 
             // then
             assertThat(results.getContent()).isEmpty();
             verify(assetRepository).findActiveSortedByMarketCap(any(Pageable.class), anyBoolean(), any());
+            verifyNoInteractions(dividendRepository);
         }
 
         @Test
@@ -787,7 +840,7 @@ class CandleServiceImplTest {
                     .willReturn(List.of(testCandle));
 
             // when
-            Page<StockPriceDto> results = candleService.getAllStocksWithPrices(pageable, "desc", null);
+            Page<StockPriceDto> results = candleService.getAllStocksWithPrices(pageable, "desc", null, StockSort.MARKET_CAP);
 
             // then - ERROR 종목은 캔들이 없어서 available=false로 추가됨
             assertThat(results.getContent()).hasSize(2);

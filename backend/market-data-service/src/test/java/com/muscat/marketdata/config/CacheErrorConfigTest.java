@@ -10,6 +10,7 @@ import com.muscat.marketdata.domain.dto.OHLCPriceDto;
 import com.muscat.marketdata.domain.entity.Candle;
 import com.muscat.marketdata.domain.repository.AssetRepository;
 import com.muscat.marketdata.domain.repository.CandleRepository;
+import com.muscat.marketdata.domain.repository.DividendRepository;
 import com.muscat.marketdata.domain.service.CandleService;
 import com.muscat.marketdata.domain.service.impl.CandleServiceImpl;
 import java.math.BigDecimal;
@@ -73,7 +74,8 @@ class CacheErrorConfigTest {
 
     @Bean
     CandleService candleService(CandleRepository candleRepository, CacheManager cacheManager) {
-      return new CandleServiceImpl(candleRepository, mock(AssetRepository.class), new MarketDataProperties(), cacheManager);
+      return new CandleServiceImpl(candleRepository, mock(AssetRepository.class), mock(DividendRepository.class),
+          new MarketDataProperties(), cacheManager);
     }
   }
 

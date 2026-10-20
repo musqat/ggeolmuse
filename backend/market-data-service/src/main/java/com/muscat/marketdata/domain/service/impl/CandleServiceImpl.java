@@ -1,5 +1,6 @@
 package com.muscat.marketdata.domain.service.impl;
 
+import com.muscat.marketdata.common.enums.StockSort;
 import com.muscat.marketdata.config.MarketDataProperties;
 import com.muscat.marketdata.domain.dto.OHLCPriceDto;
 import com.muscat.marketdata.domain.dto.StockPriceDto;
@@ -7,13 +8,14 @@ import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.entity.Candle;
 import com.muscat.marketdata.domain.repository.AssetRepository;
 import com.muscat.marketdata.domain.repository.CandleRepository;
+import com.muscat.marketdata.domain.repository.DividendRepository;
 import com.muscat.marketdata.domain.service.CandleService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +36,7 @@ public class CandleServiceImpl implements CandleService {
 
   private final CandleRepository candleRepository;
   private final AssetRepository assetRepository;
+  private final DividendRepository dividendRepository;
   private final MarketDataProperties properties;
   private final CacheManager cacheManager;
 
@@ -176,16 +179,20 @@ public class CandleServiceImpl implements CandleService {
   public Page<StockPriceDto> getAllStocksWithPrices(
     Pageable pageable,
     String direction,
-    String assetType) {
-    log.debug("전체 종목 목록과 주가 조회 요청: page={}, size={}, direction={}, assetType={}",
-      pageable.getPageNumber(), pageable.getPageSize(), direction, assetType);
+    String assetType,
+    StockSort sort) {
+    log.debug("전체 종목 목록과 주가 조회 요청: page={}, size={}, direction={}, assetType={}, sort={}",
+      pageable.getPageNumber(), pageable.getPageSize(), direction, assetType, sort);
 
-    // DB 레벨 페이징 + 정렬 + 필터링 (QueryDSL)
+    // DB 레벨 페이징 + 정렬 + 필터링
     boolean ascending = "asc".equalsIgnoreCase(direction);
-    Page<Asset> assetPage = assetRepository.findActiveSortedByMarketCap(pageable, ascending,
-      assetType);
+    LocalDate yieldFrom = LocalDate.now().minusYears(1);
+    Page<Asset> assetPage = sort == StockSort.DIVIDEND_YIELD
+      ? assetRepository.findActiveSortedByDividendYield(pageable, ascending, assetType, yieldFrom)
+      : assetRepository.findActiveSortedByMarketCap(pageable, ascending, assetType);
     List<Asset> assets = assetPage.getContent();
     List<String> symbols = assets.stream().map(Asset::getSymbol).toList();
+    Map<String, BigDecimal> yearlyDividends = yearlyDividends(symbols, yieldFrom);
 
     // 해당 페이지 심볼들의 최근 2일 캔들 데이터를 일괄 조회 (최신가 + 전일가)
     List<Candle> recentCandles = candleRepository.findRecentBySymbols(symbols, 2);
@@ -210,6 +217,7 @@ public class CandleServiceImpl implements CandleService {
             .changePercent(null)
             .volume(null)
             .marketCap(asset.getMarketCap())
+            .dividendYieldPercent(dividendYieldPercent(yearlyDividends.get(asset.getSymbol()), asset.getLatestClose()))
             .assetType(asset.getAssetType())
             .date(LocalDate.now())
             .currency(asset.getCurrency())
@@ -243,6 +251,7 @@ public class CandleServiceImpl implements CandleService {
           .changePercent(changePercent)      // (조정 종가 - 전일 조정 종가) / 전일 조정 종가
           .volume(latest.getVolume())
           .marketCap(asset.getMarketCap())
+          .dividendYieldPercent(dividendYieldPercent(yearlyDividends.get(asset.getSymbol()), asset.getLatestClose()))
           .assetType(asset.getAssetType())
           .date(latest.getDate())            // 최신 데이터의 날짜
           .currency(asset.getCurrency())
@@ -289,6 +298,23 @@ public class CandleServiceImpl implements CandleService {
   }
 
   // 변화율 계산 메서드
+  // 종목별 최근 1년 배당 합. 빈 페이지면 조회 안 함
+  private Map<String, BigDecimal> yearlyDividends(List<String> symbols, LocalDate from) {
+    if (symbols.isEmpty()) {
+      return Map.of();
+    }
+    return dividendRepository.sumAmountBySymbolsSince(symbols, from).stream()
+      .collect(Collectors.toMap(DividendRepository.SymbolAmount::getSymbol, DividendRepository.SymbolAmount::getAmount));
+  }
+
+  // 1년 배당 합 ÷ 최신 종가 × 100, 소수 둘째 자리. 둘 중 하나가 없거나 종가가 0 이하면 null
+  private BigDecimal dividendYieldPercent(BigDecimal yearly, BigDecimal latestClose) {
+    if (yearly == null || latestClose == null || latestClose.signum() <= 0) {
+      return null;
+    }
+    return yearly.multiply(BigDecimal.valueOf(100)).divide(latestClose, 2, RoundingMode.HALF_UP);
+  }
+
   private BigDecimal calculateChangePercent(BigDecimal currentPrice, BigDecimal previousClose) {
     if (currentPrice == null || previousClose == null ||
       previousClose.compareTo(BigDecimal.ZERO) == 0) {

@@ -1,5 +1,6 @@
 package com.muscat.marketdata.api.controller;
 
+import com.muscat.marketdata.common.enums.StockSort;
 import com.muscat.marketdata.domain.dto.DividendDto;
 import com.muscat.marketdata.domain.dto.OHLCPriceDto;
 import com.muscat.marketdata.domain.dto.StockPriceDto;
@@ -287,7 +288,7 @@ public class MarketController {
 
   @Operation(
     summary = "종목 목록과 현재가 조회 (페이지네이션)",
-    description = "시스템에 등록된 종목의 기본 정보와 최신 종가를 페이지 단위로 조회합니다"
+    description = "시스템에 등록된 종목의 기본 정보와 최신 종가를 페이지 단위로 조회합니다. 시가총액 또는 최근 1년 배당수익률로 정렬합니다"
   )
   @ApiResponses(value = {
     @ApiResponse(
@@ -305,17 +306,19 @@ public class MarketController {
       @RequestParam(defaultValue = "0") int page,
       @Parameter(description = "페이지 크기", example = "50")
       @RequestParam(defaultValue = "50") int size,
-      @Parameter(description = "정렬 방향 (asc: 오름차순, desc: 내림차순) - 시가총액 기준", example = "desc")
+      @Parameter(description = "정렬 방향 (asc: 오름차순, desc: 내림차순)", example = "desc")
       @RequestParam(defaultValue = "desc") String direction,
       @Parameter(description = "자산 유형 필터 (ALL, EQUITY, ETF)", example = "ALL")
-      @RequestParam(required = false) String assetType) {
-    log.debug("종목 목록과 현재가 조회 요청: page={}, size={}, direction={}, assetType={}",
-        page, size, direction, assetType);
+      @RequestParam(required = false) String assetType,
+      @Parameter(description = "정렬 기준 (marketCap: 시가총액, dividendYield: 최근 1년 배당수익률)", example = "marketCap")
+      @RequestParam(defaultValue = "marketCap") String sort) {
+    log.debug("종목 목록과 현재가 조회 요청: page={}, size={}, direction={}, assetType={}, sort={}",
+        page, size, direction, assetType, sort);
 
     org.springframework.data.domain.Pageable pageable =
         org.springframework.data.domain.PageRequest.of(page, size);
     org.springframework.data.domain.Page<StockPriceDto> stocks =
-        candleService.getAllStocksWithPrices(pageable, direction, assetType);
+        candleService.getAllStocksWithPrices(pageable, direction, assetType, StockSort.from(sort));
 
     log.debug("종목 목록과 현재가 조회 완료: {} 개 (전체 {}개 중)", stocks.getNumberOfElements(), stocks.getTotalElements());
     return ResponseEntity.status(HttpStatus.OK).body(stocks);

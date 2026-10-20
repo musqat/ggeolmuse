@@ -6,6 +6,7 @@ import com.muscat.marketdata.domain.repository.AssetRepositoryCustom;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.ComparableExpressionBase;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -13,6 +14,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -24,6 +26,7 @@ import java.util.List;
 public class AssetRepositoryCustomImpl implements AssetRepositoryCustom {
 
     private final JPAQueryFactory queryFactory;
+    private final EntityManager entityManager;
     private static final QAsset asset = QAsset.asset;
 
     @Override
@@ -81,6 +84,33 @@ public class AssetRepositoryCustomImpl implements AssetRepositoryCustom {
             .fetchOne();
 
         return new PageImpl<>(content, pageable, total != null ? total : 0L);
+    }
+
+    // 종목별 from 이후 배당 합을 left join. 종가가 0 이면 NULLIF 로 나누지 않음
+    private static final String YIELD_FROM = """
+        FROM asset a
+        LEFT JOIN (SELECT symbol, SUM(amount) AS yearly FROM dividend WHERE ex_date >= :from GROUP BY symbol) d ON d.symbol = a.symbol
+        WHERE a.active = true AND (:assetType = 'ALL' OR a.asset_type = :assetType)
+        """;
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Page<Asset> findActiveSortedByDividendYield(Pageable pageable, boolean ascending, String assetType, LocalDate from) {
+        String type = assetType == null || "ALL".equalsIgnoreCase(assetType) ? "ALL" : assetType.toUpperCase();
+        String order = " ORDER BY CASE WHEN d.yearly IS NULL OR a.latest_close IS NULL OR a.latest_close <= 0 THEN 1 ELSE 0 END,"
+            + " d.yearly / NULLIF(a.latest_close, 0) " + (ascending ? "ASC" : "DESC") + ", a.symbol ASC";
+
+        List<Asset> content = entityManager.createNativeQuery("SELECT a.* " + YIELD_FROM + order, Asset.class)
+            .setParameter("from", from)
+            .setParameter("assetType", type)
+            .setFirstResult((int) pageable.getOffset())
+            .setMaxResults(pageable.getPageSize())
+            .getResultList();
+        Number total = (Number) entityManager.createNativeQuery("SELECT COUNT(*) " + YIELD_FROM)
+            .setParameter("from", from)
+            .setParameter("assetType", type)
+            .getSingleResult();
+        return new PageImpl<>(content, pageable, total.longValue());
     }
 
   // 파생 쿼리에 nullsLast 를 붙이면 Criteria 가 못 다뤄 터진다. QueryDSL 은 SQL 을 직접 만들어 된다.

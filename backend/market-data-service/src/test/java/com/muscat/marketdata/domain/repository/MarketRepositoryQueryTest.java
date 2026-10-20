@@ -67,6 +67,13 @@ class MarketRepositoryQueryTest {
     assetRepository.save(asset);
   }
 
+  private void yieldAsset(String symbol, String type, String latestClose, boolean active) {
+    Asset asset = Asset.builder().symbol(symbol).name(symbol).country("US").currency("USD").assetType(type)
+      .latestClose(latestClose == null ? null : new BigDecimal(latestClose)).build();
+    asset.setActive(active);
+    assetRepository.save(asset);
+  }
+
   private void candle(String symbol, LocalDate date, String dividend) {
     candleRepository.save(Candle.builder().symbol(symbol).date(date).currency("USD")
       .open(BigDecimal.TEN).high(BigDecimal.TEN).low(BigDecimal.TEN).close(BigDecimal.TEN).adjustedClose(BigDecimal.TEN)
@@ -131,6 +138,40 @@ class MarketRepositoryQueryTest {
       assertThat(etf.getContent()).extracting(Asset::getSymbol).containsExactly("SPY");
       assertThat(second.getContent()).extracting(Asset::getSymbol).containsExactly("SPY", "NOCAP");
       assertThat(second.getTotalElements()).isEqualTo(4);
+    }
+
+    @Test
+    @DisplayName("배당수익률 정렬은 최근 1년 배당 합 ÷ 최신 종가 순이고, 수익률을 못 구하는 종목은 뒤에 종목 코드순이며, 비활성은 빼고 유형으로 거른다")
+    void sortedByDividendYield() {
+      LocalDate today = LocalDate.now();
+      yieldAsset("AAPL", "EQUITY", "200", true);
+      yieldAsset("MSFT", "EQUITY", "400", true);
+      yieldAsset("KO", "EQUITY", "60", true);
+      yieldAsset("NOCLOSE", "EQUITY", null, true);
+      yieldAsset("OLD", "EQUITY", "100", true);
+      yieldAsset("SPY", "ETF", "500", true);
+      yieldAsset("GONE", "EQUITY", "10", false);
+      for (int m = 2; m <= 8; m += 2) {
+        dividend("AAPL", today.minusMonths(m), "1.0");
+      }
+      dividend("MSFT", today.minusMonths(3), "3.0");
+      dividend("KO", today.minusMonths(1), "1.5");
+      dividend("NOCLOSE", today.minusMonths(1), "9.0");
+      dividend("OLD", today.minusYears(2), "50.0");
+      dividend("GONE", today.minusMonths(1), "5.0");
+      LocalDate from = today.minusYears(1);
+
+      Page<Asset> desc = assetRepository.findActiveSortedByDividendYield(PageRequest.of(0, 10), false, "ALL", from);
+      Page<Asset> asc = assetRepository.findActiveSortedByDividendYield(PageRequest.of(0, 10), true, null, from);
+      Page<Asset> etf = assetRepository.findActiveSortedByDividendYield(PageRequest.of(0, 10), false, "etf", from);
+
+      assertThat(desc.getContent()).extracting(Asset::getSymbol).containsExactly("KO", "AAPL", "MSFT", "NOCLOSE", "OLD", "SPY");
+      assertThat(asc.getContent()).extracting(Asset::getSymbol).containsExactly("MSFT", "AAPL", "KO", "NOCLOSE", "OLD", "SPY");
+      assertThat(etf.getContent()).extracting(Asset::getSymbol).containsExactly("SPY");
+      assertThat(desc.getTotalElements()).isEqualTo(6);
+      assertThat(dividendRepository.sumAmountBySymbolsSince(List.of("AAPL", "KO", "SPY", "OLD"), from))
+        .extracting(DividendRepository.SymbolAmount::getSymbol, sum -> sum.getAmount().stripTrailingZeros())
+        .containsExactlyInAnyOrder(tuple("AAPL", new BigDecimal("4")), tuple("KO", new BigDecimal("1.5")));
     }
 
     @Test

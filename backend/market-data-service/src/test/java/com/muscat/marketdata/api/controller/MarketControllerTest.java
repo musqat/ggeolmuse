@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.muscat.marketdata.common.enums.StockSort;
 import com.muscat.marketdata.common.exceptions.GlobalExceptionHandler;
 import com.muscat.marketdata.config.security.SecurityConfig;
 import com.muscat.marketdata.domain.dto.DividendDto;
@@ -176,24 +177,35 @@ class MarketControllerTest {
   @Test
   @DisplayName("종목 목록은 기본이 첫 페이지 50건 · 시총 내림차순 · 유형 전체")
   void stocksDefaults() throws Exception {
-    given(candleService.getAllStocksWithPrices(any(), eq("desc"), eq(null))).willReturn(new PageImpl<>(List.of(price("AAPL", "230"))));
+    given(candleService.getAllStocksWithPrices(any(), eq("desc"), eq(null), eq(StockSort.MARKET_CAP))).willReturn(new PageImpl<>(List.of(price("AAPL", "230"))));
 
     mockMvc.perform(get(BASE + "/stocks"))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.content[0].symbol").value("AAPL"));
 
-    verify(candleService).getAllStocksWithPrices(PageRequest.of(0, 50), "desc", null);
+    verify(candleService).getAllStocksWithPrices(PageRequest.of(0, 50), "desc", null, StockSort.MARKET_CAP);
   }
 
   @Test
-  @DisplayName("종목 목록은 페이지 · 정렬 · 유형을 그대로 넘긴다")
+  @DisplayName("종목 목록은 페이지 · 정렬 방향 · 유형 · 정렬 기준을 그대로 넘긴다")
   void stocksWithParams() throws Exception {
-    given(candleService.getAllStocksWithPrices(any(), anyString(), anyString())).willReturn(new PageImpl<>(List.of()));
+    given(candleService.getAllStocksWithPrices(any(), anyString(), anyString(), any())).willReturn(new PageImpl<>(List.of()));
 
-    mockMvc.perform(get(BASE + "/stocks").param("page", "2").param("size", "10").param("direction", "asc").param("assetType", "ETF"))
+    mockMvc.perform(get(BASE + "/stocks").param("page", "2").param("size", "10").param("direction", "asc").param("assetType", "ETF")
+        .param("sort", "dividendYield"))
       .andExpect(status().isOk());
 
-    verify(candleService).getAllStocksWithPrices(PageRequest.of(2, 10), "asc", "ETF");
+    verify(candleService).getAllStocksWithPrices(PageRequest.of(2, 10), "asc", "ETF", StockSort.DIVIDEND_YIELD);
+  }
+
+  @Test
+  @DisplayName("종목 목록의 정렬 기준이 시가총액 · 배당수익률이 아니면 400 이고 서비스를 부르지 않는다")
+  void stocksUnknownSort() throws Exception {
+    mockMvc.perform(get(BASE + "/stocks").param("sort", "price"))
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.detail").value("유효하지 않은 정렬 기준입니다"));
+
+    verify(candleService, never()).getAllStocksWithPrices(any(), any(), any(), any());
   }
 
   @Test
