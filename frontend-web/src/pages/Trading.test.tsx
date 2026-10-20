@@ -8,6 +8,7 @@ import { stockApi, tradeApi } from '../services/api'
 import { useAuth } from '../hooks/useAuth'
 import { useAccounts } from '@/hooks/useAccounts'
 import Trading from './Trading'
+import { notify } from '@/components/common/notify'
 
 vi.mock('../services/api', () => ({
   stockApi: { getAllSymbols: vi.fn(), getOHLCData: vi.fn() },
@@ -29,6 +30,7 @@ const httpError = (detail: string) =>
   new AxiosError('fail', 'ERR', undefined, undefined, { status: 400, data: { detail }, statusText: '', headers: {}, config: {} } as AxiosResponse)
 
 let alertSpy: ReturnType<typeof vi.spyOn>
+let errorSpy: ReturnType<typeof vi.spyOn>
 
 function renderPage({ authenticated = true, accounts = [{ accountId: 3, accountName: '연습' }] } = {}) {
   vi.mocked(useAuth).mockReturnValue({ isAuthenticated: authenticated, login: vi.fn() } as never)
@@ -61,7 +63,8 @@ beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(stockApi.getAllSymbols).mockResolvedValue({ data: [{ symbol: 'aapl' }, { symbol: 'msft' }] } as never)
   vi.mocked(stockApi.getOHLCData).mockResolvedValue({ data: OHLC } as never)
-  alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {})
+  alertSpy = vi.spyOn(notify, 'success').mockImplementation(() => {})
+  errorSpy = vi.spyOn(notify, 'error').mockImplementation(() => {})
 })
 afterEach(() => vi.restoreAllMocks())
 
@@ -149,8 +152,8 @@ describe('Trading 주문', () => {
     await userEvent.click(submitButton())
 
     expect(tradeApi.buy).not.toHaveBeenCalled()
-    expect(alertSpy).toHaveBeenCalledTimes(1)
-    expect(alertSpy.mock.calls[0][0]).toMatch(/101/)
+    expect(errorSpy).toHaveBeenCalledTimes(1)
+    expect(errorSpy.mock.calls[0][0]).toMatch(/101/)
   })
 
   it('지정가가 범위 안이면 MANUAL 과 그 가격으로 보낸다', async () => {
@@ -171,7 +174,7 @@ describe('Trading 주문', () => {
 
     await userEvent.click(submitButton())
 
-    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith('주문 실패: 잔액이 부족합니다'))
+    await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('주문 실패: 잔액이 부족합니다'))
   })
 
   it('계좌가 없으면 주문 버튼을 막는다', async () => {

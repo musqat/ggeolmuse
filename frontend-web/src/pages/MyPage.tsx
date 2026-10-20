@@ -15,6 +15,7 @@ import {
 import { authApi } from "../services/api";
 import { getApiErrorMessage, getApiErrorStatus } from '../utils/apiError';
 import { tokenManager } from '../utils/auth';
+import { notify } from '@/components/common/notify';
 
 // 비밀번호 없는 사용자(구글)는 이 시간 안에 로그인한 토큰이어야 서버가 탈퇴를 받는다(user-service 와 같은 5분)
 const REAUTH_WINDOW_MS = 5 * 60 * 1000;
@@ -68,13 +69,13 @@ const MyPage: React.FC = () => {
 
   const handleChangeNickname = async () => {
     if (!newNickname.trim()) {
-      alert("닉네임을 입력해주세요.");
+      notify.error("닉네임을 입력해주세요.");
       return;
     }
 
     try {
       await authApi.changeNickname({ nickname: newNickname });
-      alert("닉네임이 변경되었습니다.");
+      notify.success("닉네임이 변경되었습니다.");
 
       // React Query 캐시 새로고침
       refetchUser();
@@ -82,23 +83,23 @@ const MyPage: React.FC = () => {
       setShowNicknameModal(false);
       setNewNickname("");
     } catch (err: unknown) {
-      alert("닉네임 변경에 실패했습니다:" + getApiErrorMessage(err, "알 수 없는 오류"));
+      notify.error("닉네임 변경에 실패했습니다:" + getApiErrorMessage(err, "알 수 없는 오류"));
     }
   };
 
   const handleChangePassword = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
-      alert("모든 필드를 입력해주세요.");
+      notify.error("모든 필드를 입력해주세요.");
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      alert("새 비밀번호가 일치하지 않습니다.");
+      notify.error("새 비밀번호가 일치하지 않습니다.");
       return;
     }
 
     if (newPassword.length < 8) {
-      alert("비밀번호는 최소 8자 이상이어야 합니다.");
+      notify.error("비밀번호는 최소 8자 이상이어야 합니다.");
       return;
     }
 
@@ -107,32 +108,32 @@ const MyPage: React.FC = () => {
         currentPassword,
         newPassword,
       });
-      alert("비밀번호가 변경되었습니다.");
+      notify.success("비밀번호가 변경되었습니다.");
 
       setShowPasswordModal(false);
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
     } catch (err: unknown) {
-      alert("비밀번호 변경에 실패했습니다:" + getApiErrorMessage(err, "알 수 없는 오류"));
+      notify.error("비밀번호 변경에 실패했습니다:" + getApiErrorMessage(err, "알 수 없는 오류"));
     }
   };
 
   const handleDeleteAccount = async () => {
     if (deleteConfirmText !== "회원탈퇴") {
-      alert('"회원탈퇴"를 정확히 입력해주세요.');
+      notify.error('"회원탈퇴"를 정확히 입력해주세요.');
       return;
     }
 
     if (
-      !window.confirm("정말로 탈퇴하시겠습니까? 이 작업은 되돌릴 수 없습니다.")
+      !(await notify.confirm("정말로 탈퇴하시겠습니까? 이 작업은 되돌릴 수 없습니다.", { danger: true, confirmText: "탈퇴" }))
     ) {
       return;
     }
 
     try {
       await authApi.deleteAccount(user?.hasPassword ? deletePassword : undefined);
-      alert("회원 탈퇴가 완료되었습니다.");
+      notify.success("회원 탈퇴가 완료되었습니다.");
       logout();
       navigate("/");
     } catch (err: unknown) {
@@ -141,7 +142,7 @@ const MyPage: React.FC = () => {
         setReauthRejected(true);
         return;
       }
-      alert("회원 탈퇴에 실패했습니다:" + getApiErrorMessage(err, "알 수 없는 오류"));
+      notify.error("회원 탈퇴에 실패했습니다:" + getApiErrorMessage(err, "알 수 없는 오류"));
     }
   };
 

@@ -6,6 +6,7 @@ import type { OptimalPointsBySymbol } from '../../shared/backtestDisplay';
 import type { ModeController } from '../types';
 import { buildSymbolComparisonRequest } from './request';
 import { useBacktestOptions } from '../../shared/backtestOptions';
+import { notify } from '@/components/common/notify';
 
 export const useSymbolComparisonMode = ({
   supportedSymbols,
@@ -22,7 +23,7 @@ export const useSymbolComparisonMode = ({
 
   const addSymbol = () => {
     if (symbols.length >= 10) {
-      alert('최대 10개까지만 비교할 수 있습니다.');
+      notify.error('최대 10개까지만 비교할 수 있습니다.');
       return;
     }
     if (symbolInput && !symbols.includes(symbolInput)) {

@@ -6,6 +6,7 @@ import { MemoryRouter } from 'react-router-dom'
 import Backtest from './Backtest'
 import { backtestApi, stockApi } from '../services/api'
 import { saveLocalBacktestHistory } from '../utils/localBacktestHistory'
+import { notify } from '@/components/common/notify'
 
 vi.mock('../services/api', () => ({
   backtestApi: {
@@ -47,7 +48,7 @@ vi.mock('@components/backtest/results/StrategyComparisonResult', () => ({
 const USER = 'tester@example.com'
 const TODAY = '2026-10-08'
 
-let alertSpy: MockInstance<typeof window.alert>
+let alertSpy: MockInstance<typeof notify.error>
 
 function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -80,7 +81,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   auth.isAuthenticated = true
   auth.user = { email: USER }
-  alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {})
+  alertSpy = vi.spyOn(notify, 'error').mockImplementation(() => {})
   vi.mocked(stockApi.getAllSymbols).mockResolvedValue({ data: [] } as never)
   vi.mocked(backtestApi.runSimulation).mockResolvedValue({ data: {} } as never)
   vi.mocked(backtestApi.runDcaStrategy).mockResolvedValue({ data: {} } as never)
@@ -188,7 +189,7 @@ describe('Backtest 페이지', () => {
     expect(await screen.findByText('결과: compare-strategies')).toBeInTheDocument()
   })
 
-  it('단순: 10만원 아래면 alert 로 막는다', async () => {
+  it('단순: 10만원 아래면 알림으로 막는다', async () => {
     renderPage()
     const input = screen.getByPlaceholderText('300,000')
     await userEvent.clear(input)
@@ -201,7 +202,7 @@ describe('Backtest 페이지', () => {
     expect(backtestApi.runSimulation).not.toHaveBeenCalled()
   })
 
-  it('전략 비교: 전략이 하나면 alert 로 막는다', async () => {
+  it('전략 비교: 전략이 하나면 알림으로 막는다', async () => {
     renderPage()
     await selectTab('전략 비교')
     await toggleStrategy('적립식')

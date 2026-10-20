@@ -8,6 +8,7 @@ import type { ComparisonStrategyType, StrategyParams } from '../../comparison/ty
 import type { ModeController } from '../types';
 import { buildStrategyComparisonRequest } from './request';
 import { useBacktestOptions } from '../../shared/backtestOptions';
+import { notify } from '@/components/common/notify';
 
 export const useStrategyComparisonMode = ({
   supportedSymbols,
@@ -60,7 +61,7 @@ export const useStrategyComparisonMode = ({
       strategyParameters[modalStrategyType] || {},
     );
     if (message) {
-      alert(message);
+      notify.error(message);
       return;
     }
 
