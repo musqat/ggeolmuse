@@ -177,7 +177,7 @@ AlertmanagerConfig 가 `secretKeyRef` 로 참조한다.
 `grafana_dashboard=1` 레이블이 붙은 ConfigMap 을 읽는다.
 
 - `business-metrics.json` — 백테스트, 거래, 캐시 히트율
-- `resilience4j-metrics.json` — 서킷브레이커, 재시도, 벌크헤드
+- `resilience4j-metrics.json` — 서킷브레이커, 재시도, 벌크헤드, 시간 초과, 게이트웨이 경로별 429
 
 <br>
 
