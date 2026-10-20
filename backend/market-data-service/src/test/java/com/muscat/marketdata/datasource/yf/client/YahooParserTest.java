@@ -496,6 +496,16 @@ class YahooParserTest {
     }
 
     @Test
+    @DisplayName("instrumentType 이 ETF 가 아니어도 이름이 펀드면 ETF")
+    void fundName_etf() {
+      String json = """
+        { "chart": { "result": [{ "meta": { "instrumentType": "EQUITY", "longName": "GraniteShares YieldBoost Single Stock Universe ETF" } }] } }
+        """;
+
+      assertThat(parser.parseAssetInfoFromChart(json, "YBST").getAssetType()).isEqualTo("ETF");
+    }
+
+    @Test
     @DisplayName("ETF 가 아닌 타입은 전부 EQUITY")
     void 그외_equity() {
       String json = """

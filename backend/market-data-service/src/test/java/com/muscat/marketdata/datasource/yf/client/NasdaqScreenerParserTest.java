@@ -35,7 +35,7 @@ class NasdaqScreenerParserTest {
   }
 
   @Test
-  @DisplayName("이름에 ETF · fund · trust · exchange traded fund 가 들어 있으면 ETF, 아니면 EQUITY")
+  @DisplayName("이름에 ETF · fund · trust · exchange traded fund · money market 이 들어 있으면 ETF, 아니면 EQUITY")
   void assetType() {
     List<Asset> assets = parser.parseStocks(rows("""
       [
@@ -43,12 +43,14 @@ class NasdaqScreenerParserTest {
         {"symbol":"VFIAX","name":"Vanguard 500 Index Fund"},
         {"symbol":"GLD","name":"SPDR Gold Trust"},
         {"symbol":"XYZ","name":"Some Exchange Traded Fund"},
+        {"symbol":"JMMF","name":"JPMorgan 100 U.S. Treasury Securities Money Market"},
         {"symbol":"MSFT","name":"Microsoft Corporation"}
       ]
       """));
 
     assertThat(assets).extracting(Asset::getSymbol, Asset::getAssetType).containsExactly(
-      tuple("SPY", "ETF"), tuple("VFIAX", "ETF"), tuple("GLD", "ETF"), tuple("XYZ", "ETF"), tuple("MSFT", "EQUITY"));
+      tuple("SPY", "ETF"), tuple("VFIAX", "ETF"), tuple("GLD", "ETF"), tuple("XYZ", "ETF"), tuple("JMMF", "ETF"),
+      tuple("MSFT", "EQUITY"));
   }
 
   @Test

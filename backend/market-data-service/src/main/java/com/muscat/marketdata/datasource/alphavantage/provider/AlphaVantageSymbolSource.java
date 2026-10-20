@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.muscat.marketdata.datasource.alphavantage.client.AlphaVantageClient;
 import com.muscat.marketdata.datasource.alphavantage.client.AlphaVantageRateLimiter;
 import com.muscat.marketdata.datasource.alphavantage.dto.SymbolListingDto;
+import com.muscat.marketdata.datasource.common.AssetTypeRule;
 import com.muscat.marketdata.datasource.common.MarketDataProvider;
 import com.muscat.marketdata.domain.entity.Asset;
 import java.util.ArrayList;
@@ -113,7 +114,7 @@ public class AlphaVantageSymbolSource implements MarketDataProvider.SymbolSource
             .name(dto.getName())
             .country(mapExchangeToCountry(dto.getExchange()))
             .currency("USD")
-            .assetType(dto.isETF() ? "ETF" : "EQUITY")
+            .assetType(AssetTypeRule.resolve(dto.isETF(), dto.getName()))
             .marketCap(null)
             .build();
     }
@@ -143,7 +144,7 @@ public class AlphaVantageSymbolSource implements MarketDataProvider.SymbolSource
             .name(getString(response, "Name"))
             .country(mapCountry(getString(response, "Country")))
             .currency(getString(response, "Currency"))
-            .assetType(mapAssetType(getString(response, "AssetType")))
+            .assetType(AssetTypeRule.resolve("ETF".equals(getString(response, "AssetType")), getString(response, "Name")))
             .marketCap(getLong(response, "MarketCapitalization"))
             .build();
     }
@@ -169,10 +170,4 @@ public class AlphaVantageSymbolSource implements MarketDataProvider.SymbolSource
         return country.substring(0, 2).toUpperCase();
     }
 
-    private String mapAssetType(String type) {
-        if (type == null) return "EQUITY";
-        if (type.contains("Stock") || type.equals("Common Stock")) return "EQUITY";
-        if (type.equals("ETF")) return "ETF";
-        return "EQUITY";
-    }
 }

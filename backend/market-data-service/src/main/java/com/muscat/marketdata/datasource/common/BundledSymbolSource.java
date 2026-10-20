@@ -84,7 +84,7 @@ public class BundledSymbolSource {
           .name(name)
           .country(country)
           .currency("USD")
-          .assetType("EQUITY")
+          .assetType(AssetTypeRule.resolve(false, name))
           .marketCap(parseMarketCap(parts[5].trim(), symbol))
           .build();
 

@@ -1,6 +1,7 @@
 package com.muscat.marketdata.datasource.common;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import com.muscat.marketdata.domain.entity.Asset;
 import java.util.List;
@@ -43,5 +44,12 @@ class BundledSymbolSourceTest {
     List<Asset> assets = source.load("symbols/does-not-exist.csv");
 
     assertThat(assets).isEmpty();
+  }
+
+  @Test
+  @DisplayName("이름이 ETF 낱말이면 ETF, 낱말 안에 든 etf 는 주식")
+  void load_FundNameIsEtf() {
+    assertThat(source.load("symbols/fund-names.csv")).extracting(Asset::getSymbol, Asset::getAssetType)
+      .containsExactly(tuple("YBST", "ETF"), tuple("NFLX", "EQUITY"));
   }
 }

@@ -3,9 +3,10 @@ package com.muscat.marketdata.datasource.yf.client;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.muscat.marketdata.common.exceptions.YahooFinanceException;
+import com.muscat.marketdata.datasource.common.AssetTypeRule;
 import com.muscat.marketdata.domain.dto.CandleDto;
-import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.dto.DividendDto;
+import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.model.ChartMetadata;
 import com.muscat.marketdata.domain.model.TimeSeriesData;
 import java.math.BigDecimal;
@@ -305,21 +306,13 @@ public class YahooParser {
         .name(name)
         .country("US")
         .currency(currency != null ? currency : DEFAULT_CURRENCY)
-        .assetType(mapQuoteType(instrumentType))
+        .assetType(AssetTypeRule.resolve("ETF".equalsIgnoreCase(instrumentType), name))
         .marketCap(null)
         .build();
     } catch (Exception e) {
       log.error("Yahoo Chart 자산 정보 파싱 실패: symbol={}", symbol, e);
       return null;
     }
-  }
-
-  private String mapQuoteType(String quoteType) {
-    if (quoteType == null) return "EQUITY";
-    return switch (quoteType.toUpperCase()) {
-      case "ETF" -> "ETF";
-      default -> "EQUITY";
-    };
   }
 
   // ===== 내부 메서드 =====
