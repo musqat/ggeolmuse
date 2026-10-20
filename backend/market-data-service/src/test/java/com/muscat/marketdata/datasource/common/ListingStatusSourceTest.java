@@ -55,6 +55,7 @@ class ListingStatusSourceTest {
     Asset spy = result.get(0);
     assertThat(spy.getSymbol()).isEqualTo("SPY");
     assertThat(spy.getName()).isEqualTo("SPDR S&P 500 ETF Trust");
+    assertThat(spy.getSourceName()).isEqualTo("SPDR S&P 500 ETF Trust");
     assertThat(spy.getAssetType()).isEqualTo("ETF");
   }
 

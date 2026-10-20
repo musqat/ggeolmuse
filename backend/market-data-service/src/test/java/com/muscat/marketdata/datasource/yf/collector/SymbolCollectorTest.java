@@ -63,6 +63,11 @@ class SymbolCollectorTest {
       .currency("USD").assetType("EQUITY").marketCap(marketCap).build();
   }
 
+  private static Asset listed(String symbol, String name, String type) {
+    return Asset.builder().symbol(symbol).name(name).sourceName(name).country("US")
+      .currency("USD").assetType(type).build();
+  }
+
   private static List<Asset> assets(int count) {
     return IntStream.range(0, count)
       .mapToObj(i -> asset("SYM" + i, (long) i))
@@ -133,6 +138,68 @@ class SymbolCollectorTest {
       // 신규 1건만. 기존 종목은 기동 시 발행하지 않는다
       verify(assetEventProducer, times(1))
         .publishAssetCreated(any(), anyBoolean(), any(), any(), anyBoolean());
+    }
+
+    @Test
+    @DisplayName("상장 목록 이름이 바뀐 종목은 이름 · 유형을 따라 고친다")
+    void 목록_이름_갱신() {
+      Asset crco = listed("CRCO", "Carolco Pictures", "EQUITY");
+      given(assetRepository.count()).willReturn(1L);
+      given(assetRepository.findAll()).willReturn(List.of(crco));
+      given(symbolCatalog.fetchAll()).willReturn(List.of(listed("CRCO", "YieldMax CRCO Option Income ETF", "ETF")));
+
+      symbolCollector.collectSymbols();
+
+      assertThat(crco.getName()).isEqualTo("YieldMax CRCO Option Income ETF");
+      assertThat(crco.getAssetType()).isEqualTo("ETF");
+      assertThat(crco.getSourceName()).isEqualTo("YieldMax CRCO Option Income ETF");
+      verify(assetRepository).saveAll(List.of(crco));
+      verify(assetRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("관리자가 고친 이름은 두고 목록 이름만 갱신한다")
+    void 손_수정_이름_보호() {
+      Asset crco = listed("CRCO", "Carolco Pictures", "EQUITY");
+      crco.setName("카롤코 픽처스");
+      given(assetRepository.count()).willReturn(1L);
+      given(assetRepository.findAll()).willReturn(List.of(crco));
+      given(symbolCatalog.fetchAll()).willReturn(List.of(listed("CRCO", "YieldMax CRCO Option Income ETF", "ETF")));
+
+      symbolCollector.collectSymbols();
+
+      assertThat(crco.getName()).isEqualTo("카롤코 픽처스");
+      assertThat(crco.getAssetType()).isEqualTo("EQUITY");
+      assertThat(crco.getSourceName()).isEqualTo("YieldMax CRCO Option Income ETF");
+      verify(assetRepository).saveAll(List.of(crco));
+    }
+
+    @Test
+    @DisplayName("목록 이름이 없던 종목은 목록 이름만 채운다")
+    void 목록_이름_없던_종목() {
+      Asset manual = asset("MYCO", 1L);
+      given(assetRepository.count()).willReturn(1L);
+      given(assetRepository.findAll()).willReturn(List.of(manual));
+      given(symbolCatalog.fetchAll()).willReturn(List.of(listed("MYCO", "My Company Inc", "EQUITY")));
+
+      symbolCollector.collectSymbols();
+
+      assertThat(manual.getName()).isEqualTo("MYCO");
+      assertThat(manual.getSourceName()).isEqualTo("My Company Inc");
+      verify(assetRepository).saveAll(List.of(manual));
+    }
+
+    @Test
+    @DisplayName("목록 이름이 같으면 저장하지 않는다")
+    void 목록_이름_같음() {
+      Asset apple = listed("AAPL", "Apple Inc", "EQUITY");
+      given(assetRepository.count()).willReturn(1L);
+      given(assetRepository.findAll()).willReturn(List.of(apple));
+      given(symbolCatalog.fetchAll()).willReturn(List.of(listed("AAPL", "Apple Inc", "EQUITY")));
+
+      symbolCollector.collectSymbols();
+
+      verify(assetRepository, never()).saveAll(any());
     }
 
     @Test

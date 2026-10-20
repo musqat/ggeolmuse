@@ -109,6 +109,7 @@ public class ListingStatusSource {
     return Asset.builder()
         .symbol(symbol)
         .name(name.isEmpty() ? symbol : name)
+        .sourceName(name.isEmpty() ? symbol : name)
         .country("US")
         .currency("USD")
         .assetType(AssetTypeRule.resolve(isEtf, name))

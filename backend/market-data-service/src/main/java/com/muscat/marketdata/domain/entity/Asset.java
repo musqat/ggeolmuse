@@ -52,4 +52,8 @@ public class Asset {
   // 1970 부터 전 기간을 받았을 때 받은 봉 중 가장 최근 날짜 (V8). 분할 찾기가 이 날짜 뒤의 분할만 본다
   @Column(name = "full_history_through")
   private LocalDate fullHistoryThrough;
+
+  // 상장 목록이 준 이름 (V12). 손으로 고친 이름과 구분
+  @Column(name = "source_name", length = 256)
+  private String sourceName;
 }
