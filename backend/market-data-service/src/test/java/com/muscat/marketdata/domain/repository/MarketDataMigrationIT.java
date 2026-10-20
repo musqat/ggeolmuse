@@ -1,6 +1,7 @@
 package com.muscat.marketdata.domain.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import com.muscat.marketdata.datasource.alphavantage.scheduler.AlphaVantageScheduler;
 import com.muscat.marketdata.domain.entity.Asset;
@@ -8,7 +9,9 @@ import com.muscat.marketdata.domain.entity.Candle;
 import com.muscat.marketdata.domain.entity.Dividend;
 import com.muscat.marketdata.domain.model.DividendYieldRule;
 import com.muscat.marketdata.infra.kafka.AssetEventProducer;
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
@@ -17,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -137,5 +141,28 @@ class MarketDataMigrationIT {
   private static Asset yieldAsset(String symbol, String type, String latestClose) {
     return Asset.builder().symbol(symbol).name(symbol).country("US").currency("USD").assetType(type)
       .latestClose(new BigDecimal(latestClose)).build();
+  }
+
+  @Test
+  @DisplayName("V10 은 이름이 펀드인데 주식으로 든 종목만 ETF 로 바꾸고, Netflix 처럼 낱말 안에 든 etf 는 그대로 둔다")
+  void fundAssetTypesFixed() throws IOException {
+    assetRepository.save(typedAsset("YBST", "GraniteShares YieldBoost Single Stock Universe ETF", "EQUITY"));
+    assetRepository.save(typedAsset("JMMF", "JPMorgan 100 U.S. Treasury Securities Money Market", "EQUITY"));
+    assetRepository.save(typedAsset("XYZ", "Some Exchange Traded Fund", "EQUITY"));
+    assetRepository.save(typedAsset("NFLX", "Netflix Inc", "EQUITY"));
+    assetRepository.save(typedAsset("SPY", "SPDR S&P 500 ETF Trust", "ETF"));
+
+    jdbcTemplate.execute(migration("V10__Fix_Fund_Asset_Types.sql"));
+
+    assertThat(assetRepository.findAll()).extracting(Asset::getSymbol, Asset::getAssetType).containsExactlyInAnyOrder(
+      tuple("YBST", "ETF"), tuple("JMMF", "ETF"), tuple("XYZ", "ETF"), tuple("NFLX", "EQUITY"), tuple("SPY", "ETF"));
+  }
+
+  private static Asset typedAsset(String symbol, String name, String type) {
+    return Asset.builder().symbol(symbol).name(name).country("US").currency("USD").assetType(type).build();
+  }
+
+  private static String migration(String file) throws IOException {
+    return new ClassPathResource("db/migration/" + file).getContentAsString(StandardCharsets.UTF_8);
   }
 }
