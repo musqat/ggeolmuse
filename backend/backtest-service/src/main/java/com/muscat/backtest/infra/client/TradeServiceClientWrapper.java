@@ -7,7 +7,6 @@ import com.muscat.backtest.infra.client.dto.TradeDto;
 import feign.FeignException;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
-import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -15,7 +14,7 @@ import org.springframework.stereotype.Service;
 import java.util.Collections;
 import java.util.List;
 
-// Resilience4j 패턴 적용 Wrapper(서킷브레이커 · 재시도 · 시간 제한)
+// Resilience4j 패턴 적용 Wrapper(서킷브레이커 · 재시도). 대체 동작은 재시도가 다 실패한 뒤
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -23,17 +22,15 @@ public class TradeServiceClientWrapper {
 
   private final TradeServiceClient tradeServiceClient;
 
-  @CircuitBreaker(name = "tradeService", fallbackMethod = "getPortfolioFallback")
-  @Retry(name = "tradeService")
-  @TimeLimiter(name = "tradeService")
+  @CircuitBreaker(name = "tradeService")
+  @Retry(name = "tradeService", fallbackMethod = "getPortfolioFallback")
   public List<HoldingDto> getPortfolio(String authorization) {
     log.debug("Calling trade-service getPortfolio");
     return tradeServiceClient.getPortfolio(authorization);
   }
 
-  @CircuitBreaker(name = "tradeService", fallbackMethod = "getTradeHistoryBySymbolFallback")
-  @Retry(name = "tradeService")
-  @TimeLimiter(name = "tradeService")
+  @CircuitBreaker(name = "tradeService")
+  @Retry(name = "tradeService", fallbackMethod = "getTradeHistoryBySymbolFallback")
   public List<TradeDto> getTradeHistoryBySymbol(String authorization, String symbol) {
     log.debug("Calling trade-service getTradeHistoryBySymbol for symbol: {}", symbol);
     return tradeServiceClient.getTradeHistoryBySymbol(authorization, symbol);
