@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -225,18 +226,12 @@ class MarketControllerTest {
   }
 
   @Test
-  @DisplayName("고배당 검색은 시작일을 주지 않으면 1년 전부터 찾는다")
-  void highYieldDefaultFrom() throws Exception {
-    given(dividendService.findHighDividendStocks(any(), any())).willReturn(List.of());
+  @DisplayName("배당 경로의 high-yield 는 종목 코드 형식이 아니라 400 이고 배당을 조회하지 않는다")
+  void highYieldRemoved() throws Exception {
+    mockMvc.perform(get(BASE + "/dividend/high-yield").param("minAmount", "1.5")).andExpect(status().isBadRequest());
 
-    mockMvc.perform(get(BASE + "/dividend/high-yield").param("minAmount", "1.5")).andExpect(status().isOk());
-    mockMvc.perform(get(BASE + "/dividend/high-yield").param("minAmount", "1.5").param("fromDate", "2023-06-01"))
-      .andExpect(status().isOk());
-
-    verify(dividendService).findHighDividendStocks(new BigDecimal("1.5"), LocalDate.now().minusYears(1));
-    verify(dividendService).findHighDividendStocks(new BigDecimal("1.5"), LocalDate.of(2023, 6, 1));
+    verifyNoInteractions(dividendService);
   }
-
   @Test
   @DisplayName("일괄 환율은 토큰 없이 POST 로 받고, 날짜 문자열을 키로 돌려준다")
   void bulkFx() throws Exception {

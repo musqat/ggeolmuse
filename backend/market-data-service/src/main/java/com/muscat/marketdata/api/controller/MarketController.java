@@ -20,7 +20,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -386,38 +385,6 @@ public class MarketController {
     log.debug("배당 포함 캔들 조회 요청: symbol={}, startDate={}, endDate={}", symbol, startDate, endDate);
 
     List<OHLCPriceDto> result = candleService.getCandlesWithDividends(symbol, startDate, endDate);
-
-    return ResponseEntity.status(HttpStatus.OK).body(result);
-  }
-
-  @Operation(
-    summary = "고배당주 검색",
-    description = "지정된 최소 배당금 이상의 고배당주를 검색합니다"
-  )
-  @ApiResponses(value = {
-    @ApiResponse(
-      responseCode = "200",
-      description = "고배당주 검색 성공",
-      content = @Content(
-        mediaType = "application/json",
-        schema = @Schema(implementation = DividendDto.class)
-      )
-    ),
-    @ApiResponse(
-      responseCode = "400",
-      description = "잘못된 배당금 값"
-    )
-  })
-  @GetMapping("/dividend/high-yield")
-  public ResponseEntity<List<DividendDto>> findHighDividendStocks(
-    @Parameter(description = "최소 배당금 ($)", example = "1.0", required = true)
-    @RequestParam @Positive BigDecimal minAmount,
-    @Parameter(description = "검색 시작 날짜 (기본: 1년 전)", example = "2024-01-01")
-    @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate) {
-    log.debug("고배당주 검색 요청: minAmount={}, fromDate={}", minAmount, fromDate);
-
-    LocalDate searchFromDate = fromDate != null ? fromDate : LocalDate.now().minusYears(1);
-    List<DividendDto> result = dividendService.findHighDividendStocks(minAmount, searchFromDate);
 
     return ResponseEntity.status(HttpStatus.OK).body(result);
   }

@@ -4,7 +4,6 @@ import com.muscat.marketdata.domain.dto.DividendDto;
 import com.muscat.marketdata.domain.entity.Dividend;
 import com.muscat.marketdata.domain.repository.DividendRepository;
 import com.muscat.marketdata.domain.service.DividendService;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -43,29 +42,6 @@ public class DividendServiceImpl implements DividendService {
         .collect(Collectors.toList());
 
     log.debug("배당 이력 조회 성공: symbol={}, count={}", symbol, result.size());
-    return result;
-  }
-
-  @Override
-  public List<DividendDto> findHighDividendStocks(BigDecimal minAmount, LocalDate fromDate) {
-    log.debug("고배당주 검색 요청: minAmount={}, fromDate={}", minAmount, fromDate);
-
-    // 최소 금액 이상의 배당 데이터 검색
-    List<Dividend> highDividends = dividendRepository.findHighDividendStocks(minAmount,
-        fromDate);
-
-    // 배당 데이터 DTO 변환
-    List<DividendDto> result = highDividends.stream()
-        .map(dividend -> DividendDto.builder()
-            .symbol(dividend.getSymbol())
-            .exDate(dividend.getExDate())
-            .amount(dividend.getAmount())
-            .currency(dividend.getCurrency())
-            .source("MarketData")
-            .build())
-        .toList();
-
-    log.debug("고배당주 검색 성공: count={}", result.size());
     return result;
   }
 }

@@ -8,7 +8,6 @@ import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -37,15 +36,5 @@ public class DividendRepositoryCustomImpl implements DividendRepositoryCustom {
             return null;
         }
         return dividend.exDate.between(startDate, endDate);
-    }
-
-    @Override
-    public List<Dividend> findHighDividendStocks(BigDecimal minAmount, LocalDate fromDate) {
-        return queryFactory
-            .selectFrom(dividend)
-            .where(dividend.amount.goe(minAmount)
-                .and(dividend.exDate.goe(fromDate)))
-            .orderBy(dividend.amount.desc(), dividend.exDate.desc())
-            .fetch();
     }
 }

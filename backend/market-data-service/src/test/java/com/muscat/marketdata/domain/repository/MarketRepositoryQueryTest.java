@@ -238,18 +238,15 @@ class MarketRepositoryQueryTest {
   class DividendAndFxQueries {
 
     @Test
-    @DisplayName("여러 종목 배당은 종목순 · 최신 배당락일 먼저, 고배당은 금액 큰 순으로 시작일 이후만")
+    @DisplayName("여러 종목 배당은 종목순 · 최신 배당락일 먼저")
     void dividends() {
       dividend("AAPL", D1, "0.24");
       dividend("AAPL", D3, "0.25");
       dividend("KO", D2, "0.48");
-      dividend("T", LocalDate.of(2023, 1, 1), "1.00");
 
       assertThat(dividendRepository.findBySymbolsAndDateRange(List.of("AAPL", "KO"), D1, D3))
         .extracting(Dividend::getSymbol, Dividend::getExDate)
         .containsExactly(tuple("AAPL", D3), tuple("AAPL", D1), tuple("KO", D2));
-      assertThat(dividendRepository.findHighDividendStocks(new BigDecimal("0.25"), D1))
-        .extracting(Dividend::getSymbol).containsExactly("KO", "AAPL");
     }
 
     @Test
