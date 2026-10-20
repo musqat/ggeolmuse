@@ -18,6 +18,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -302,9 +304,9 @@ public class MarketController {
   @GetMapping("/stocks")
   public ResponseEntity<org.springframework.data.domain.Page<StockPriceDto>> getAllStocksWithPrices(
       @Parameter(description = "페이지 번호 (0부터 시작)", example = "0")
-      @RequestParam(defaultValue = "0") int page,
-      @Parameter(description = "페이지 크기", example = "50")
-      @RequestParam(defaultValue = "50") int size,
+      @RequestParam(defaultValue = "0") @Min(0) int page,
+      @Parameter(description = "페이지 크기 (1~200)", example = "50")
+      @RequestParam(defaultValue = "50") @Min(1) @Max(200) int size,
       @Parameter(description = "정렬 방향 (asc: 오름차순, desc: 내림차순)", example = "desc")
       @RequestParam(defaultValue = "desc") String direction,
       @Parameter(description = "자산 유형 필터 (ALL, EQUITY, ETF)", example = "ALL")

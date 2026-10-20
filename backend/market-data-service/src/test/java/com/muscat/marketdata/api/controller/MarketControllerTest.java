@@ -210,6 +210,16 @@ class MarketControllerTest {
   }
 
   @Test
+  @DisplayName("종목 목록의 페이지 번호가 음수이거나 크기가 1~200 밖이면 400 이고 서비스를 부르지 않는다")
+  void stocksPageBounds() throws Exception {
+    mockMvc.perform(get(BASE + "/stocks").param("page", "-1")).andExpect(status().isBadRequest());
+    mockMvc.perform(get(BASE + "/stocks").param("size", "0")).andExpect(status().isBadRequest());
+    mockMvc.perform(get(BASE + "/stocks").param("size", "201")).andExpect(status().isBadRequest());
+
+    verify(candleService, never()).getAllStocksWithPrices(any(), any(), any(), any());
+  }
+
+  @Test
   @DisplayName("여러 종목 기간 시세 · 배당 포함 캔들은 종목과 기간을 넘긴다")
   void multipleAndWithDividends() throws Exception {
     LocalDate start = LocalDate.of(2024, 1, 1);
