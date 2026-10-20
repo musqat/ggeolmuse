@@ -8,12 +8,21 @@ import { randomSymbol, randomTradingDate } from './lib/symbols.js';
 // -e BASE_URL=http://localhost:8083 이면 게이트웨이를 건너뛰고 앱만 잼
 const BASE = __ENV.BASE_URL || 'http://localhost:8070';
 const MAX_VUS = Number(__ENV.MAX_VUS || 50);
+// -e ONLY=symbols|stocks|price|ohlc 면 그 그룹만 돌려 경로 하나의 상한을 잼. 혼합 run 의 병목이 어느 경로인지 가를 때
+const ONLY = __ENV.ONLY || '';
+const wants = (name) => !ONLY || ONLY === name;
+// -e HOST=ggeolmuse.com 이면 Host 헤더를 붙임. 같은 VPC 에서 EC2 사설 IP 로 Traefik 을 칠 때
+const HOST = __ENV.HOST || '';
+const params = (endpoint) => ({ tags: { endpoint }, headers: HOST ? { Host: HOST } : {} });
 
 // 엔드포인트별로 따로 재야 어디가 느린지 보인다.
 // 전체 p95 하나만 보면 빠른 요청이 느린 요청을 가린다.
 const symbolsTrend = new Trend('dur_symbols', true);
 const priceTrend = new Trend('dur_price', true);
 const ohlcTrend = new Trend('dur_ohlc', true);
+// 종목 목록(현재가 · 배당수익률 정렬). 일봉 이력 대신 종목 테이블의 최신 종가로 만든 뒤와 전을 견줌
+const stocksTrend = new Trend('dur_stocks', true);
+const stocksYieldTrend = new Trend('dur_stocks_yield', true);
 
 // 429 는 서버 오류가 아니라 rate limiter 가 설계대로 막은 것이다.
 // 실패로 세면 부하를 올릴수록 실패율만 오르고 앱 한계를 못 본다.
@@ -22,6 +31,8 @@ const throttledRate = new Rate('rate_limited_ratio');
 const serverErrors = new Counter('server_errors');
 
 export const options = {
+  // 꼬리까지 보이게 p99 를 찍음
+  summaryTrendStats: ['avg', 'med', 'p(95)', 'p(99)', 'max'],
   stages: [
     { duration: '30s', target: Math.round(MAX_VUS * 0.2) },
     { duration: '30s', target: Math.round(MAX_VUS * 0.6) },
@@ -35,6 +46,7 @@ export const options = {
     'dur_symbols': ['p(95)<500'],
     'dur_price': ['p(95)<500'],
     'dur_ohlc': ['p(95)<800'],
+    // 목록은 전후 비교가 목적이라 기준값을 두지 않음
   },
 };
 
@@ -48,26 +60,32 @@ function classify(res, trend) {
 }
 
 export default function () {
-  group('목록 조회', () => {
-    const res = http.get(`${BASE}/api/market/symbols`, {
-      tags: { endpoint: 'symbols' },
-    });
+  if (wants('symbols')) group('목록 조회', () => {
+    const res = http.get(`${BASE}/api/market/symbols`, params('symbols'));
     classify(res, symbolsTrend);
     check(res, { 'symbols 5xx 아님': (r) => r.status < 500 });
   });
 
-  group('단일 시세', () => {
-    const res = http.get(`${BASE}/api/market/price/${randomSymbol()}`, {
-      tags: { endpoint: 'price' },
-    });
+  if (wants('stocks')) group('종목 목록', () => {
+    const res = http.get(`${BASE}/api/market/stocks?page=0&size=50`, params('stocks'));
+    classify(res, stocksTrend);
+    check(res, { 'stocks 5xx 아님': (r) => r.status < 500 });
+
+    const byYield = http.get(`${BASE}/api/market/stocks?page=0&size=50&sort=dividendYield`, params('stocks_yield'));
+    classify(byYield, stocksYieldTrend);
+    check(byYield, { 'stocks_yield 5xx 아님': (r) => r.status < 500 });
+  });
+
+  if (wants('price')) group('단일 시세', () => {
+    const res = http.get(`${BASE}/api/market/price/${randomSymbol()}`, params('price'));
     classify(res, priceTrend);
     check(res, { 'price 5xx 아님': (r) => r.status < 500 });
   });
 
-  group('일자별 OHLC', () => {
+  if (wants('ohlc')) group('일자별 OHLC', () => {
     const res = http.get(
       `${BASE}/api/market/ohlc/${randomSymbol()}?date=${randomTradingDate()}`,
-      { tags: { endpoint: 'ohlc' } }
+      params('ohlc')
     );
     classify(res, ohlcTrend);
     // 휴장일은 데이터가 없어 404 가 정상이다
