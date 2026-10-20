@@ -50,11 +50,6 @@ public enum BacktestResponse implements ErrorCode {
   MISSING_DIVIDEND_DATA("배당 데이터가 누락되었습니다.", HttpStatus.UNPROCESSABLE_ENTITY),
   INVALID_FX_RATE_DATA("유효하지 않은 환율 데이터입니다.", HttpStatus.UNPROCESSABLE_ENTITY),
 
-  // === 요청 한도 초과 (429) ===
-  BACKTEST_RATE_LIMIT_EXCEEDED("백테스트 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.", HttpStatus.TOO_MANY_REQUESTS),
-  DAILY_BACKTEST_LIMIT_EXCEEDED("일일 백테스트 한도를 초과했습니다.", HttpStatus.TOO_MANY_REQUESTS),
-  CONCURRENT_BACKTEST_LIMIT("동시 백테스트 실행 한도를 초과했습니다.", HttpStatus.TOO_MANY_REQUESTS),
-
   // === 외부 서비스 오류 (502, 503) ===
   MARKET_DATA_SERVICE_ERROR("시장 데이터 서비스에 오류가 발생했습니다.", HttpStatus.BAD_GATEWAY),
   TRADE_SERVICE_ERROR("거래 서비스에 오류가 발생했습니다.", HttpStatus.BAD_GATEWAY),

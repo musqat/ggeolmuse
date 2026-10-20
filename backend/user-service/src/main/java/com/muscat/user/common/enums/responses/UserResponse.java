@@ -54,8 +54,6 @@ public enum UserResponse implements ErrorCode {
   NICKNAME_LENGTH_INVALID("닉네임은 2-20자 사이여야 합니다.", HttpStatus.UNPROCESSABLE_ENTITY),
 
   // 429 Too Many Requests
-  EMAIL_SEND_LIMIT_EXCEEDED("이메일 발송 한도를 초과했습니다. 잠시 후 다시 시도해주세요.", HttpStatus.TOO_MANY_REQUESTS),
-  LOGIN_ATTEMPT_LIMIT_EXCEEDED("로그인 시도 횟수를 초과했습니다. 잠시 후 다시 시도해주세요.", HttpStatus.TOO_MANY_REQUESTS),
   RATE_LIMIT_EXCEEDED("요청 횟수를 초과했습니다. 잠시 후 다시 시도해주세요.", HttpStatus.TOO_MANY_REQUESTS),
 
   // 500 Internal Server Error

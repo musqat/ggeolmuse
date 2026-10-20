@@ -65,10 +65,6 @@ public enum TradeResponse implements ErrorCode {
     WEEKEND_TRADING_NOT_ALLOWED("주말에는 거래할 수 없습니다.", HttpStatus.UNPROCESSABLE_ENTITY),
     HOLIDAY_TRADING_NOT_ALLOWED("휴일에는 거래할 수 없습니다.", HttpStatus.UNPROCESSABLE_ENTITY),
 
-    // === 요청 한도 초과 (429) ===
-    TRADE_REQUEST_RATE_LIMIT("거래 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.", HttpStatus.TOO_MANY_REQUESTS),
-    API_RATE_LIMIT_EXCEEDED("API 호출 한도를 초과했습니다.", HttpStatus.TOO_MANY_REQUESTS),
-
     // === 외부 서비스 오류 (502, 503) ===
     MARKET_DATA_SERVICE_ERROR("시장 데이터 서비스 오류가 발생했습니다.", HttpStatus.BAD_GATEWAY),
     USER_SERVICE_ERROR("유저 서비스 오류가 발생했습니다.", HttpStatus.BAD_GATEWAY),
