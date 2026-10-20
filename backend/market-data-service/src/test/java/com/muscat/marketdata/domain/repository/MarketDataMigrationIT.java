@@ -6,6 +6,7 @@ import com.muscat.marketdata.datasource.alphavantage.scheduler.AlphaVantageSched
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.entity.Candle;
 import com.muscat.marketdata.domain.entity.Dividend;
+import com.muscat.marketdata.domain.model.DividendYieldRule;
 import com.muscat.marketdata.infra.kafka.AssetEventProducer;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -95,24 +96,33 @@ class MarketDataMigrationIT {
   }
 
   @Test
-  @DisplayName("배당수익률 정렬 쿼리는 Postgres 에서도 수익률 순이고 수익률 없는 종목은 뒤에 두며, 유형 필터와 개수를 지킨다")
+  @DisplayName("배당수익률 정렬 쿼리는 Postgres 에서도 특별 배당을 뺀 수익률 순이고, 못 구하거나 상한을 넘는 종목은 뒤에 두며, 유형 필터와 개수를 지킨다")
   void dividendYieldSortOnPostgres() {
     LocalDate today = LocalDate.now();
     assetRepository.save(yieldAsset("AAPL", "EQUITY", "200"));
     assetRepository.save(yieldAsset("KO", "EQUITY", "60"));
     assetRepository.save(yieldAsset("NODIV", "EQUITY", "10"));
     assetRepository.save(yieldAsset("SPY", "ETF", "500"));
+    assetRepository.save(yieldAsset("SPECIAL", "EQUITY", "10"));
+    assetRepository.save(yieldAsset("OUTLIER", "ETF", "10"));
     dividendRepository.save(Dividend.builder().symbol("AAPL").exDate(today.minusMonths(2)).amount(new BigDecimal("4.0")).currency("USD").build());
     dividendRepository.save(Dividend.builder().symbol("KO").exDate(today.minusMonths(1)).amount(new BigDecimal("1.5")).currency("USD").build());
+    dividendRepository.save(Dividend.builder().symbol("SPECIAL").exDate(today.minusMonths(5)).amount(new BigDecimal("5.0")).currency("USD").build());
+    dividendRepository.save(Dividend.builder().symbol("SPECIAL").exDate(today.minusMonths(1)).amount(new BigDecimal("0.3")).currency("USD").build());
+    for (int m = 1; m <= 4; m++) {
+      dividendRepository.save(Dividend.builder().symbol("OUTLIER").exDate(today.minusMonths(m)).amount(new BigDecimal("1.5")).currency("USD").build());
+    }
     LocalDate from = today.minusYears(1);
+    DividendYieldRule rule = new DividendYieldRule(from, new BigDecimal("0.20"), new BigDecimal("0.50"));
 
-    Page<Asset> all = assetRepository.findActiveSortedByDividendYield(PageRequest.of(0, 10), false, "ALL", from);
-    Page<Asset> etf = assetRepository.findActiveSortedByDividendYield(PageRequest.of(0, 10), false, "etf", from);
+    Page<Asset> all = assetRepository.findActiveSortedByDividendYield(PageRequest.of(0, 10), false, "ALL", rule);
+    Page<Asset> etf = assetRepository.findActiveSortedByDividendYield(PageRequest.of(0, 10), false, "etf", rule);
 
-    assertThat(all.getContent()).extracting(Asset::getSymbol).containsExactly("KO", "AAPL", "NODIV", "SPY");
-    assertThat(all.getTotalElements()).isEqualTo(4);
-    assertThat(etf.getContent()).extracting(Asset::getSymbol).containsExactly("SPY");
-    assertThat(dividendRepository.sumAmountBySymbolsSince(List.of("AAPL", "KO", "SPY"), from)).hasSize(2);
+    assertThat(all.getContent()).extracting(Asset::getSymbol).containsExactly("SPECIAL", "KO", "AAPL", "NODIV", "OUTLIER", "SPY");
+    assertThat(all.getTotalElements()).isEqualTo(6);
+    assertThat(etf.getContent()).extracting(Asset::getSymbol).containsExactly("OUTLIER", "SPY");
+    assertThat(dividendRepository.sumRegularAmountBySymbolsSince(List.of("AAPL", "KO", "SPY", "SPECIAL"), from, rule.specialRatio()))
+      .containsOnlyKeys("AAPL", "KO", "SPECIAL");
   }
 
   @Test

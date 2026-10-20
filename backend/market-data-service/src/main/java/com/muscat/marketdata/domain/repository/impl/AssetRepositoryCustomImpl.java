@@ -2,11 +2,15 @@ package com.muscat.marketdata.domain.repository.impl;
 
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.entity.QAsset;
+import com.muscat.marketdata.domain.entity.QDividend;
+import com.muscat.marketdata.domain.model.DividendYieldRule;
 import com.muscat.marketdata.domain.repository.AssetRepositoryCustom;
 import com.querydsl.core.types.OrderSpecifier;
+import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.CaseBuilder;
 import com.querydsl.core.types.dsl.ComparableExpressionBase;
+import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -14,9 +18,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDate;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * AssetRepositoryCustom 구현체
@@ -26,8 +33,8 @@ import java.util.List;
 public class AssetRepositoryCustomImpl implements AssetRepositoryCustom {
 
     private final JPAQueryFactory queryFactory;
-    private final EntityManager entityManager;
     private static final QAsset asset = QAsset.asset;
+    private static final QDividend dividend = QDividend.dividend;
 
     @Override
     public List<String> findActiveSymbols() {
@@ -61,11 +68,7 @@ public class AssetRepositoryCustomImpl implements AssetRepositoryCustom {
             ? new OrderSpecifier[]{asset.marketCap.asc().nullsLast(), asset.symbol.asc()}
             : new OrderSpecifier[]{asset.marketCap.desc().nullsLast(), asset.symbol.asc()};
 
-        // assetType 필터 조건 생성
-        var whereClause = asset.active.isTrue();
-        if (assetType != null && !"ALL".equalsIgnoreCase(assetType)) {
-            whereClause = whereClause.and(asset.assetType.eq(assetType.toUpperCase()));
-        }
+        BooleanExpression whereClause = activeOfType(assetType);
 
         // 페이징 조회
         List<Asset> content = queryFactory
@@ -86,31 +89,56 @@ public class AssetRepositoryCustomImpl implements AssetRepositoryCustom {
         return new PageImpl<>(content, pageable, total != null ? total : 0L);
     }
 
-    // 종목별 from 이후 배당 합
-    private static final String YEARLY_DIVIDENDS =
-        " LEFT JOIN (SELECT symbol, SUM(amount) AS yearly FROM dividend WHERE ex_date >= :from GROUP BY symbol) d ON d.symbol = a.symbol";
-
-    // 상장 중이고 유형이 맞는 종목. ALL 이면 유형 무시
-    private static final String ACTIVE_OF_TYPE = " WHERE a.active = true AND (:assetType = 'ALL' OR a.asset_type = :assetType)";
-
     @Override
-    @SuppressWarnings("unchecked")
-    public Page<Asset> findActiveSortedByDividendYield(Pageable pageable, boolean ascending, String assetType, LocalDate from) {
-        String type = assetType == null || "ALL".equalsIgnoreCase(assetType) ? "ALL" : assetType.toUpperCase();
-        // 수익률을 못 구하는 종목은 뒤로. 종가 0 은 NULLIF 로 나누지 않음
-        String order = " ORDER BY CASE WHEN d.yearly IS NULL OR a.latest_close IS NULL OR a.latest_close <= 0 THEN 1 ELSE 0 END,"
-            + " d.yearly / NULLIF(a.latest_close, 0) " + (ascending ? "ASC" : "DESC") + ", a.symbol ASC";
+    public Page<Asset> findActiveSortedByDividendYield(Pageable pageable, boolean ascending, String assetType, DividendYieldRule rule) {
+        BooleanExpression whereClause = activeOfType(assetType);
+        NumberExpression<BigDecimal> yearly = dividend.amount.sum();
+        // 수익률을 못 구하거나(배당 없음 · 종가 없음 · 0 이하) 상한을 넘는 종목
+        BooleanExpression noYield = yearly.isNull()
+            .or(asset.latestClose.isNull())
+            .or(asset.latestClose.loe(BigDecimal.ZERO))
+            .or(yearly.gt(asset.latestClose.multiply(rule.maxRatio())));
+        NumberExpression<Integer> tail = new CaseBuilder().when(noYield).then(1).otherwise(0);
+        // 뒤로 보낸 종목은 둘째 기준을 0 으로 둬 종목 코드순
+        NumberExpression<BigDecimal> yield = new CaseBuilder().when(noYield).then(BigDecimal.ZERO)
+            .otherwise(yearly.divide(asset.latestClose));
 
-        List<Asset> content = entityManager.createNativeQuery("SELECT a.* FROM asset a" + YEARLY_DIVIDENDS + ACTIVE_OF_TYPE + order, Asset.class)
-            .setParameter("from", from)
-            .setParameter("assetType", type)
-            .setFirstResult((int) pageable.getOffset())
-            .setMaxResults(pageable.getPageSize())
-            .getResultList();
-        Number total = (Number) entityManager.createNativeQuery("SELECT COUNT(*) FROM asset a" + ACTIVE_OF_TYPE)
-            .setParameter("assetType", type)
-            .getSingleResult();
-        return new PageImpl<>(content, pageable, total.longValue());
+        // 묶은 조회로 페이지의 종목 코드를 정하고, 종목은 그 순서대로 다시 받음
+        List<String> symbols = queryFactory
+            .select(asset.symbol)
+            .from(asset)
+            .leftJoin(dividend).on(dividend.symbol.eq(asset.symbol),
+                dividend.exDate.goe(rule.from()),
+                dividend.amount.loe(asset.latestClose.multiply(rule.specialRatio())))
+            .where(whereClause)
+            .groupBy(asset.symbol, asset.latestClose)
+            .orderBy(tail.asc(), ascending ? yield.asc() : yield.desc(), asset.symbol.asc())
+            .offset(pageable.getOffset())
+            .limit(pageable.getPageSize())
+            .fetch();
+        Map<String, Asset> bySymbol = symbols.isEmpty() ? Map.of() : queryFactory
+            .selectFrom(asset)
+            .where(asset.symbol.in(symbols))
+            .fetch()
+            .stream()
+            .collect(Collectors.toMap(Asset::getSymbol, Function.identity()));
+        List<Asset> content = symbols.stream().map(bySymbol::get).toList();
+
+        Long total = queryFactory
+            .select(asset.count())
+            .from(asset)
+            .where(whereClause)
+            .fetchOne();
+        return new PageImpl<>(content, pageable, total != null ? total : 0L);
+    }
+
+    // 상장 중이고 유형이 맞는 종목. 비었거나 ALL 이면 유형 무시
+    private static BooleanExpression activeOfType(String assetType) {
+        BooleanExpression active = asset.active.isTrue();
+        if (assetType == null || "ALL".equalsIgnoreCase(assetType)) {
+            return active;
+        }
+        return active.and(asset.assetType.eq(assetType.toUpperCase()));
     }
 
   // 파생 쿼리의 nullsLast 는 Criteria 가 처리하지 못해 QueryDSL 로 SQL 을 직접 만듦

@@ -8,10 +8,12 @@ import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.entity.Candle;
 import com.muscat.marketdata.domain.entity.Dividend;
 import com.muscat.marketdata.domain.entity.FxRate;
+import com.muscat.marketdata.domain.model.DividendYieldRule;
 import com.muscat.marketdata.infra.kafka.AssetEventProducer;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -141,7 +143,7 @@ class MarketRepositoryQueryTest {
     }
 
     @Test
-    @DisplayName("배당수익률 정렬은 최근 1년 배당 합 ÷ 최신 종가 순이고, 수익률을 못 구하는 종목은 뒤에 종목 코드순이며, 비활성은 빼고 유형으로 거른다")
+    @DisplayName("배당수익률 정렬은 특별 배당을 뺀 최근 1년 배당 합 ÷ 최신 종가 순이고, 못 구하거나 상한을 넘는 종목은 뒤에 종목 코드순이며, 비활성은 빼고 유형으로 거른다")
     void sortedByDividendYield() {
       LocalDate today = LocalDate.now();
       yieldAsset("AAPL", "EQUITY", "200", true);
@@ -151,6 +153,8 @@ class MarketRepositoryQueryTest {
       yieldAsset("OLD", "EQUITY", "100", true);
       yieldAsset("SPY", "ETF", "500", true);
       yieldAsset("GONE", "EQUITY", "10", false);
+      yieldAsset("SPECIAL", "EQUITY", "10", true);
+      yieldAsset("OUTLIER", "ETF", "10", true);
       for (int m = 2; m <= 8; m += 2) {
         dividend("AAPL", today.minusMonths(m), "1.0");
       }
@@ -159,19 +163,33 @@ class MarketRepositoryQueryTest {
       dividend("NOCLOSE", today.minusMonths(1), "9.0");
       dividend("OLD", today.minusYears(2), "50.0");
       dividend("GONE", today.minusMonths(1), "5.0");
+      // 한 번에 종가의 50% 는 특별 배당이라 빠지고 0.3(3%)만 남음
+      dividend("SPECIAL", today.minusMonths(5), "5.0");
+      dividend("SPECIAL", today.minusMonths(1), "0.3");
+      // 한 번에 15% 씩 네 번이라 남지만 합 60% 가 상한 50% 를 넘음
+      for (int m = 1; m <= 4; m++) {
+        dividend("OUTLIER", today.minusMonths(m), "1.5");
+      }
       LocalDate from = today.minusYears(1);
+      DividendYieldRule rule = new DividendYieldRule(from, new BigDecimal("0.20"), new BigDecimal("0.50"));
 
-      Page<Asset> desc = assetRepository.findActiveSortedByDividendYield(PageRequest.of(0, 10), false, "ALL", from);
-      Page<Asset> asc = assetRepository.findActiveSortedByDividendYield(PageRequest.of(0, 10), true, null, from);
-      Page<Asset> etf = assetRepository.findActiveSortedByDividendYield(PageRequest.of(0, 10), false, "etf", from);
+      Page<Asset> desc = assetRepository.findActiveSortedByDividendYield(PageRequest.of(0, 10), false, "ALL", rule);
+      Page<Asset> asc = assetRepository.findActiveSortedByDividendYield(PageRequest.of(0, 10), true, null, rule);
+      Page<Asset> etf = assetRepository.findActiveSortedByDividendYield(PageRequest.of(0, 10), false, "etf", rule);
 
-      assertThat(desc.getContent()).extracting(Asset::getSymbol).containsExactly("KO", "AAPL", "MSFT", "NOCLOSE", "OLD", "SPY");
-      assertThat(asc.getContent()).extracting(Asset::getSymbol).containsExactly("MSFT", "AAPL", "KO", "NOCLOSE", "OLD", "SPY");
-      assertThat(etf.getContent()).extracting(Asset::getSymbol).containsExactly("SPY");
-      assertThat(desc.getTotalElements()).isEqualTo(6);
-      assertThat(dividendRepository.sumAmountBySymbolsSince(List.of("AAPL", "KO", "SPY", "OLD"), from))
-        .extracting(DividendRepository.SymbolAmount::getSymbol, sum -> sum.getAmount().stripTrailingZeros())
-        .containsExactlyInAnyOrder(tuple("AAPL", new BigDecimal("4")), tuple("KO", new BigDecimal("1.5")));
+      assertThat(desc.getContent()).extracting(Asset::getSymbol)
+        .containsExactly("SPECIAL", "KO", "AAPL", "MSFT", "NOCLOSE", "OLD", "OUTLIER", "SPY");
+      assertThat(asc.getContent()).extracting(Asset::getSymbol)
+        .containsExactly("MSFT", "AAPL", "KO", "SPECIAL", "NOCLOSE", "OLD", "OUTLIER", "SPY");
+      assertThat(etf.getContent()).extracting(Asset::getSymbol).containsExactly("OUTLIER", "SPY");
+      assertThat(desc.getTotalElements()).isEqualTo(8);
+      Map<String, BigDecimal> sums = dividendRepository.sumRegularAmountBySymbolsSince(
+        List.of("AAPL", "KO", "SPY", "OLD", "SPECIAL", "OUTLIER"), from, rule.specialRatio());
+      assertThat(sums).containsOnlyKeys("AAPL", "KO", "SPECIAL", "OUTLIER");
+      assertThat(sums.get("AAPL")).isEqualByComparingTo("4");
+      assertThat(sums.get("KO")).isEqualByComparingTo("1.5");
+      assertThat(sums.get("SPECIAL")).isEqualByComparingTo("0.3");
+      assertThat(sums.get("OUTLIER")).isEqualByComparingTo("6");
     }
 
     @Test
