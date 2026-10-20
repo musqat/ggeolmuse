@@ -158,6 +158,21 @@ class MarketDataMigrationIT {
       tuple("YBST", "ETF"), tuple("JMMF", "ETF"), tuple("XYZ", "ETF"), tuple("NFLX", "EQUITY"), tuple("SPY", "ETF"));
   }
 
+  @Test
+  @DisplayName("V11 은 거래소 시험 종목을 기호 · 이름으로 찾아 비활성으로 바꾸고, ETF 인 TEST 와 다른 종목은 그대로 둔다")
+  void testIssuesDeactivated() throws IOException {
+    assetRepository.save(typedAsset("MTEST-A", "Nasdaq Test Issue", "EQUITY"));
+    assetRepository.save(typedAsset("ZTST", "Ztst", "EQUITY"));
+    assetRepository.save(typedAsset("CBO", "Listed Test Security", "EQUITY"));
+    assetRepository.save(typedAsset("TEST", "Test Ticker ETF", "ETF"));
+    assetRepository.save(typedAsset("AAPL", "Apple Inc", "EQUITY"));
+
+    jdbcTemplate.execute(migration("V11__Deactivate_Test_Issues.sql"));
+
+    assertThat(assetRepository.findAll()).extracting(Asset::getSymbol, Asset::getActive).containsExactlyInAnyOrder(
+      tuple("MTEST-A", false), tuple("ZTST", false), tuple("CBO", false), tuple("TEST", true), tuple("AAPL", true));
+  }
+
   private static Asset typedAsset(String symbol, String name, String type) {
     return Asset.builder().symbol(symbol).name(name).country("US").currency("USD").assetType(type).build();
   }
