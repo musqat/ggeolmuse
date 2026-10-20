@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Modal } from '@/components/common/Modal';
 import { addAmount } from '@/utils/amount';
+import { notify } from '@/components/common/notify';
 
 interface DepositModalProps {
   isOpen: boolean;
@@ -27,7 +28,7 @@ const DepositModal: React.FC<DepositModalProps> = ({
   const handleSubmit = async () => {
     const amount = parseFloat(depositAmount);
     if (isNaN(amount) || amount <= 0) {
-      alert('올바른 금액을 입력해주세요.');
+      notify.error('올바른 금액을 입력해주세요.');
       return;
     }
 

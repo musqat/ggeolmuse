@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Edit2, Lock, CheckCircle, Trash2 } from 'lucide-react';
 import type { UserDetail } from '@services/adminApi';
+import { notify } from '@/components/common/notify';
 
 interface UserDetailSectionProps {
   user: UserDetail | null;
@@ -42,7 +43,7 @@ export default function UserDetailSection({
 
   const handleUpdateNickname = () => {
     if (!newNickname.trim()) {
-      alert('닉네임을 입력하세요.');
+      notify.error('닉네임을 입력하세요.');
       return;
     }
     onUpdateNickname(user.userId, newNickname);
@@ -52,15 +53,15 @@ export default function UserDetailSection({
 
   const handleUpdatePassword = () => {
     if (!newPassword || !confirmPassword) {
-      alert('모든 필드를 입력하세요.');
+      notify.error('모든 필드를 입력하세요.');
       return;
     }
     if (newPassword !== confirmPassword) {
-      alert('비밀번호가 일치하지 않습니다.');
+      notify.error('비밀번호가 일치하지 않습니다.');
       return;
     }
     if (newPassword.length < 8) {
-      alert('비밀번호는 최소 8자 이상이어야 합니다.');
+      notify.error('비밀번호는 최소 8자 이상이어야 합니다.');
       return;
     }
     onUpdatePassword(user.userId, newPassword);
@@ -69,15 +70,15 @@ export default function UserDetailSection({
     setConfirmPassword('');
   };
 
-  const handleVerifyEmail = () => {
-    if (!confirm('이 사용자의 이메일을 강제로 인증하시겠습니까?')) {
+  const handleVerifyEmail = async () => {
+    if (!(await notify.confirm('이 사용자의 이메일을 강제로 인증하시겠습니까?'))) {
       return;
     }
     onVerifyEmail(user.userId);
   };
 
-  const handleDeleteUser = () => {
-    if (!confirm(`정말로 ${user.email} 사용자를 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없으며, 모든 계좌와 데이터가 삭제됩니다.`)) {
+  const handleDeleteUser = async () => {
+    if (!(await notify.confirm(`정말로 ${user.email} 사용자를 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없으며, 모든 계좌와 데이터가 삭제됩니다.`, { danger: true }))) {
       return;
     }
     onDeleteUser(user.userId);

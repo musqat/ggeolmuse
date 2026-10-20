@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './contexts/AuthContext';
 import { AiChatProvider } from './contexts/AiChatContext';
+import { Notifications } from './components/common/Notifications';
 import Header from '@components/common/Header';
 import Footer from '@components/layout/Footer';
 import AiChatButton from '@components/chat/AiChatButton';
@@ -46,6 +47,7 @@ function App() {
         <Router>
           <div className="App min-h-screen bg-surface/50">
             <Header />
+            <Notifications />
             <main>
             <Suspense fallback={
               <div className="flex items-center justify-center min-h-screen">

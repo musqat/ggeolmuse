@@ -3,6 +3,7 @@ import { marketAdminApi } from '@services/adminApi';
 import type { Asset, CompanyOverview } from '@services/adminApi';
 import { getApiErrorMessage } from '../utils/apiError';
 import { getTodayString, subtractDays } from '../utils/dateUtils';
+import { notify } from '@/components/common/notify';
 
 export const useAdminMarket = () => {
   const [searchKeyword, setSearchKeyword] = useState('');
@@ -89,7 +90,7 @@ export const useAdminMarket = () => {
         includeDividends: true,
       });
 
-      alert('심볼이 추가되었고 데이터 수집이 시작되었습니다.');
+      notify.success('심볼이 추가되었고 데이터 수집이 시작되었습니다.');
       setPreview(null);
       loadAssets();
     } catch (err) {
@@ -122,12 +123,12 @@ export const useAdminMarket = () => {
   // 일괄 삭제
   const handleBulkDelete = async () => {
     if (selected.size === 0) return;
-    if (!confirm(`${selected.size}개 종목을 비활성화하시겠습니까?`)) return;
+    if (!(await notify.confirm(`${selected.size}개 종목을 비활성화하시겠습니까?`, { danger: true }))) return;
     setLoading(true);
     setError(null);
     try {
       const res = await marketAdminApi.bulkDeleteAssets([...selected]);
-      alert(res.message);
+      notify.success(res.message);
       setSelected(new Set());
       await loadAssets();
     } catch (err) {
@@ -141,7 +142,7 @@ export const useAdminMarket = () => {
   // 심볼 삭제
   // 상장폐지 처리한 종목을 되돌린다. 되돌리면 수집 대상에 다시 들어간다
   const handleRestoreAsset = async (symbol: string) => {
-    if (!confirm(`${symbol}을(를) 상장 상태로 되돌립니다. 계속할까요?`)) return;
+    if (!(await notify.confirm(`${symbol}을(를) 상장 상태로 되돌립니다. 계속할까요?`))) return;
 
     setLoading(true);
     setError(null);
@@ -165,13 +166,13 @@ export const useAdminMarket = () => {
   };
 
   const handleDeleteAsset = async (symbol: string) => {
-    if (!confirm(`${symbol}을(를) 삭제하시겠습니까?`)) return;
+    if (!(await notify.confirm(`${symbol}을(를) 삭제하시겠습니까?`, { danger: true }))) return;
 
     setLoading(true);
     setError(null);
     try {
       await marketAdminApi.deleteAsset(symbol);
-      alert('심볼이 삭제되었습니다.');
+      notify.success('심볼이 삭제되었습니다.');
       loadAssets();
     } catch (err) {
       setError('심볼 삭제에 실패했습니다.');
@@ -255,13 +256,13 @@ export const useAdminMarket = () => {
 
   // 가격 업데이트
   const handleUpdatePrice = async (symbol: string) => {
-    if (!confirm(`${symbol}의 가격 데이터를 업데이트하시겠습니까?`)) return;
+    if (!(await notify.confirm(`${symbol}의 가격 데이터를 업데이트하시겠습니까?`))) return;
 
     setLoading(true);
     setError(null);
     try {
       await marketAdminApi.updateAssetPrice(symbol);
-      alert('가격 데이터가 업데이트되었습니다.');
+      notify.success('가격 데이터가 업데이트되었습니다.');
       loadAssets();
     } catch (err: unknown) {
       const message = getApiErrorMessage(err, '가격 업데이트에 실패했습니다.');
@@ -274,13 +275,13 @@ export const useAdminMarket = () => {
 
   // 시가총액 업데이트
   const handleUpdateMarketCap = async (symbol: string) => {
-    if (!confirm(`${symbol}의 시가총액을 업데이트하시겠습니까?`)) return;
+    if (!(await notify.confirm(`${symbol}의 시가총액을 업데이트하시겠습니까?`))) return;
 
     setLoading(true);
     setError(null);
     try {
       await marketAdminApi.updateAssetMarketCap(symbol);
-      alert('시가총액이 업데이트되었습니다.');
+      notify.success('시가총액이 업데이트되었습니다.');
       loadAssets();
     } catch (err: unknown) {
       const message = getApiErrorMessage(err, '시가총액 업데이트에 실패했습니다.');
@@ -293,13 +294,13 @@ export const useAdminMarket = () => {
 
   // 전체 가격 업데이트
   const handleUpdateAllPrices = async () => {
-    if (!confirm('모든 종목의 가격 데이터를 업데이트하시겠습니까? 시간이 다소 걸릴 수 있습니다.')) return;
+    if (!(await notify.confirm('모든 종목의 가격 데이터를 업데이트하시겠습니까? 시간이 다소 걸릴 수 있습니다.'))) return;
 
     setLoading(true);
     setError(null);
     try {
       await marketAdminApi.updateAllPrices();
-      alert('전체 가격 데이터 업데이트가 백그라운드에서 시작되었습니다.');
+      notify.success('전체 가격 데이터 업데이트가 백그라운드에서 시작되었습니다.');
     } catch (err: unknown) {
       const message = getApiErrorMessage(err, '전체 가격 업데이트에 실패했습니다.');
       setError(message);
@@ -311,13 +312,13 @@ export const useAdminMarket = () => {
 
   // 전체 시가총액 업데이트
   const handleUpdateAllMarketCaps = async () => {
-    if (!confirm('모든 종목의 시가총액을 업데이트하시겠습니까? 시간이 다소 걸릴 수 있습니다.')) return;
+    if (!(await notify.confirm('모든 종목의 시가총액을 업데이트하시겠습니까? 시간이 다소 걸릴 수 있습니다.'))) return;
 
     setLoading(true);
     setError(null);
     try {
       await marketAdminApi.updateAllMarketCaps();
-      alert('전체 시가총액 업데이트가 백그라운드에서 시작되었습니다.');
+      notify.success('전체 시가총액 업데이트가 백그라운드에서 시작되었습니다.');
     } catch (err: unknown) {
       const message = getApiErrorMessage(err, '전체 시가총액 업데이트에 실패했습니다.');
       setError(message);
@@ -329,13 +330,13 @@ export const useAdminMarket = () => {
 
   // 신규 상장 종목 수집
   const handleCollectNewSymbols = async () => {
-    if (!confirm('신규 상장 종목을 지금 받아오시겠습니까? 기존 종목은 건드리지 않습니다.')) return;
+    if (!(await notify.confirm('신규 상장 종목을 지금 받아오시겠습니까? 기존 종목은 건드리지 않습니다.'))) return;
 
     setLoading(true);
     setError(null);
     try {
       await marketAdminApi.collectNewSymbols();
-      alert('신규 종목 수집이 백그라운드에서 시작되었습니다. 잠시 뒤 목록을 새로고침해 주세요.');
+      notify.success('신규 종목 수집이 백그라운드에서 시작되었습니다. 잠시 뒤 목록을 새로고침해 주세요.');
     } catch (err: unknown) {
       const message = getApiErrorMessage(err, '신규 종목 수집에 실패했습니다.');
       setError(message);

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vite
 import { renderHook, waitFor, act } from '@testing-library/react'
 import { userAdminApi } from '@services/adminApi'
 import { useAdminUsers } from './useAdminUsers'
+import { notify } from '@/components/common/notify'
 
 vi.mock('@services/adminApi', () => ({
   userAdminApi: {
@@ -30,7 +31,7 @@ beforeEach(() => {
   api.getUsers.mockImplementation(async (page = 0) => ({ content: [user(page + 1)], totalPages: 3, totalElements: 41, number: page, size: 20 }) as never)
   api.getUserStats.mockResolvedValue(STATS as never)
   api.getUserDetail.mockImplementation(async (userId) => ({ ...(user(userId) as object), accounts: [] }) as never)
-  alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {})
+  alertSpy = vi.spyOn(notify, 'success').mockImplementation(() => {})
   vi.spyOn(console, 'error').mockImplementation(() => {})
 })
 afterEach(() => vi.restoreAllMocks())
@@ -88,7 +89,7 @@ describe('useAdminUsers 불러오기', () => {
 })
 
 describe('useAdminUsers 바꾸기', () => {
-  // [이름, 부르기, API 와 인자, 성공 alert, 실패 문구]
+  // [이름, 부르기, API 와 인자, 성공 알림, 실패 문구]
   const cases = [
     ['역할', (h: ReturnType<typeof useAdminUsers>) => h.updateRole(5, 'ADMIN'), 'updateUserRole', [5, 'ADMIN'], '역할이 변경되었습니다.', '역할 변경에 실패했습니다.'],
     ['비활성화', (h: ReturnType<typeof useAdminUsers>) => h.updateEnabled(5, false), 'updateUserEnabled', [5, false], '사용자가 비활성화되었습니다.', '활성화 상태 변경에 실패했습니다.'],

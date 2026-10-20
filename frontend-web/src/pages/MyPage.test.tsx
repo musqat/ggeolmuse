@@ -7,6 +7,7 @@ import { AxiosError, type AxiosResponse } from 'axios'
 import { authApi, type User } from '../services/api'
 import { useAuth } from '../hooks/useAuth'
 import MyPage from './MyPage'
+import { notify } from '@/components/common/notify'
 
 vi.mock('../services/api', () => ({ authApi: { getCurrentUser: vi.fn(), deleteAccount: vi.fn() } }))
 vi.mock('../hooks/useAuth', () => ({ useAuth: vi.fn() }))
@@ -50,8 +51,9 @@ beforeEach(() => {
   localStorage.clear()
   logout = vi.fn()
   loginWithGoogle = vi.fn()
-  vi.spyOn(window, 'confirm').mockReturnValue(true)
-  vi.spyOn(window, 'alert').mockImplementation(() => {})
+  vi.spyOn(notify, 'confirm').mockResolvedValue(true)
+  vi.spyOn(notify, 'success').mockImplementation(() => {})
+  vi.spyOn(notify, 'error').mockImplementation(() => {})
 })
 afterEach(() => vi.restoreAllMocks())
 
@@ -103,7 +105,8 @@ describe('MyPage 회원 탈퇴', () => {
     await user.click(deleteButton())
 
     expect(await screen.findByRole('button', { name: '구글로 다시 로그인' })).toBeInTheDocument()
-    expect(window.alert).not.toHaveBeenCalled()
+    expect(notify.error).not.toHaveBeenCalled()
+    expect(notify.success).not.toHaveBeenCalled()
     expect(logout).not.toHaveBeenCalled()
   })
 

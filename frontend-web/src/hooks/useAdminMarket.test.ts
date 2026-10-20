@@ -3,6 +3,7 @@ import { renderHook, waitFor, act } from '@testing-library/react'
 import { AxiosError, type AxiosResponse } from 'axios'
 import { marketAdminApi } from '@services/adminApi'
 import { useAdminMarket } from './useAdminMarket'
+import { notify } from '@/components/common/notify'
 
 vi.mock('@services/adminApi', () => ({
   marketAdminApi: {
@@ -36,8 +37,8 @@ beforeEach(() => {
   getAll.mockImplementation(async (page = 0, size = 20) => ({
     content: [], totalPages: 1, totalElements: 0, number: page, size,
   }) as never)
-  confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
-  alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {})
+  confirmSpy = vi.spyOn(notify, 'confirm').mockResolvedValue(true)
+  alertSpy = vi.spyOn(notify, 'success').mockImplementation(() => {})
   vi.spyOn(console, 'error').mockImplementation(() => {})
 })
 afterEach(() => vi.restoreAllMocks())
@@ -170,7 +171,7 @@ describe('useAdminMarket 검색 · 추가', () => {
 })
 
 describe('useAdminMarket 종목 하나 작업', () => {
-  // [이름, 부를 함수, API, 성공 alert, 목록을 다시 받나, 실패 문구]
+  // [이름, 부를 함수, API, 성공 알림, 목록을 다시 받나, 실패 문구]
   const cases = [
     ['가격 업데이트', 'handleUpdatePrice', 'updateAssetPrice', '가격 데이터가 업데이트되었습니다.', true],
     ['시가총액 업데이트', 'handleUpdateMarketCap', 'updateAssetMarketCap', '시가총액이 업데이트되었습니다.', true],
@@ -191,7 +192,7 @@ describe('useAdminMarket 종목 하나 작업', () => {
   })
 
   it.each(cases)('%s: 확인을 취소하면 아무것도 안 한다', async (_name, handler, method) => {
-    confirmSpy.mockReturnValue(false)
+    confirmSpy.mockResolvedValue(false)
     const { result } = await renderLoaded()
 
     await act(() => result.current[handler]('AAPL'))

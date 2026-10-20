@@ -28,6 +28,7 @@ import OrderSummaryPanel from '@/components/trading/OrderSummaryPanel';
 import StockSelectionPanel from '@/components/trading/StockSelectionPanel';
 import TradingChartSection from '@/components/trading/TradingChartSection';
 import { getApiErrorMessage } from '@/utils/apiError';
+import { notify } from '@/components/common/notify';
 
 // 정산 전 매수 뒤 보유 · 거래를 한 번 더 받을 때까지
 const SETTLE_REFRESH_MS = 2000;
@@ -171,7 +172,7 @@ const Trading: React.FC = () => {
     const result = validatePriceRange(price, ohlc);
 
     if (!result.isValid) {
-      alert(result.message);
+      notify.error(result.message ?? '가격이 허용 범위를 벗어났습니다.');
       return false;
     }
 
@@ -209,14 +210,14 @@ const Trading: React.FC = () => {
           void queryClient.invalidateQueries({ queryKey: ['portfolio'] });
         }, SETTLE_REFRESH_MS);
       }
-      alert(formatTradeResult(trade));
+      notify.success(formatTradeResult(trade));
 
       // 주문 성공 후 초기화
       setQuantity('1');
       setLimitPrice('');
     } catch (error: unknown) {
       const errorMessage = getApiErrorMessage(error, '알 수 없는 오류');
-      alert(`주문 실패: ${errorMessage}`);
+      notify.error(`주문 실패: ${errorMessage}`);
     }
   };
 

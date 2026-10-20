@@ -21,6 +21,7 @@ import { useConditionalMode } from "@components/backtest/modes/conditional/useCo
 import { useSymbolComparisonMode } from "@components/backtest/modes/symbolComparison/useSymbolComparisonMode";
 import { useStrategyComparisonMode } from "@components/backtest/modes/strategyComparison/useStrategyComparisonMode";
 import { getTodayString } from "../utils/dateUtils";
+import { notify } from '@/components/common/notify';
 
 const Backtest: React.FC = () => {
   const navigate = useNavigate();
@@ -82,7 +83,7 @@ const Backtest: React.FC = () => {
     if (!current) return;
     const prepared = current.prepare({ today: getTodayString() });
     if ("error" in prepared) {
-      alert(prepared.error);
+      notify.error(prepared.error);
       return;
     }
     await runner.run(prepared);
