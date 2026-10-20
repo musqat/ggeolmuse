@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Modal } from '@/components/common/Modal';
+import { notify } from '@/components/common/notify';
 
 interface CreateAccountModalProps {
   isOpen: boolean;
@@ -37,41 +38,41 @@ const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
   const handleSubmit = async () => {
     // 폼 검증
     if (!accountName.trim()) {
-      alert('계좌명을 입력해주세요.');
+      notify.error('계좌명을 입력해주세요.');
       return;
     }
 
     // 수수료율 검증 - 빈 문자열 체크 추가
     if (!commissionRate || commissionRate.trim() === '') {
-      alert('수수료율을 입력해주세요.');
+      notify.error('수수료율을 입력해주세요.');
       return;
     }
 
     const commissionRatePercent = parseFloat(commissionRate);
     if (isNaN(commissionRatePercent)) {
-      alert('수수료율은 숫자로 입력해주세요.');
+      notify.error('수수료율은 숫자로 입력해주세요.');
       return;
     }
 
     if (commissionRatePercent < 0 || commissionRatePercent > 5) {
-      alert(`수수료율은 0 ~ 5% 사이여야 합니다. (입력값: ${commissionRatePercent}%)`);
+      notify.error(`수수료율은 0 ~ 5% 사이여야 합니다. (입력값: ${commissionRatePercent}%)`);
       return;
     }
 
     // 슬리피지율 검증
     if (!slippageRate || slippageRate.trim() === '') {
-      alert('슬리피지율을 입력해주세요.');
+      notify.error('슬리피지율을 입력해주세요.');
       return;
     }
 
     const slippageRatePercent = parseFloat(slippageRate);
     if (isNaN(slippageRatePercent)) {
-      alert('슬리피지율은 숫자로 입력해주세요.');
+      notify.error('슬리피지율은 숫자로 입력해주세요.');
       return;
     }
 
     if (slippageRatePercent < 0 || slippageRatePercent > 1) {
-      alert(`슬리피지율은 0 ~ 1% 사이여야 합니다. (입력값: ${slippageRatePercent}%)`);
+      notify.error(`슬리피지율은 0 ~ 1% 사이여야 합니다. (입력값: ${slippageRatePercent}%)`);
       return;
     }
 

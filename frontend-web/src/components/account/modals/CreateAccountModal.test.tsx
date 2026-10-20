@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import CreateAccountModal from './CreateAccountModal'
+import { notify } from '@/components/common/notify'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -26,7 +27,7 @@ describe('CreateAccountModal', () => {
   })
 
   it('슬리피지율이 1% 를 넘으면 제출하지 않는다', async () => {
-    const alert = vi.spyOn(window, 'alert').mockImplementation(() => {})
+    const alert = vi.spyOn(notify, 'error').mockImplementation(() => {})
     const onSubmit = renderModal()
 
     await userEvent.type(screen.getByPlaceholderText('예: 주식 투자 계좌'), '테스트 계좌')

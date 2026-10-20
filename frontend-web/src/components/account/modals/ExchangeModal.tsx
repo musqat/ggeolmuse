@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { addAmount } from '@/utils/amount';
 import { Modal } from '@/components/common/Modal';
 import { accountsApi, type AccountBalance } from '@/services/api';
+import { notify } from '@/components/common/notify';
 
 interface ExchangeModalProps {
   isOpen: boolean;
@@ -49,7 +50,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
   const handleSubmit = async () => {
     const amount = parseFloat(exchangeAmount);
     if (isNaN(amount) || amount <= 0) {
-      alert('올바른 금액을 입력해주세요.');
+      notify.error('올바른 금액을 입력해주세요.');
       return;
     }
 
@@ -58,16 +59,16 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
     if (useManualRate) {
       exchangeRate = parseFloat(manualExchangeRate);
       if (isNaN(exchangeRate) || exchangeRate <= 0) {
-        alert('올바른 환율을 입력해주세요.');
+        notify.error('올바른 환율을 입력해주세요.');
         return;
       }
       if (rateRange && (exchangeRate < rateRange.min || exchangeRate > rateRange.max)) {
-        alert(`환율은 ${rateRange.min} ~ ${rateRange.max}원 사이로 넣어 주세요.`);
+        notify.error(`환율은 ${rateRange.min} ~ ${rateRange.max}원 사이로 넣어 주세요.`);
         return;
       }
     } else {
       if (!currentExchangeRate || currentExchangeRate <= 0) {
-        alert('환율 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
+        notify.error('환율 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
         return;
       }
       exchangeRate = currentExchangeRate;

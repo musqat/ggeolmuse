@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { accountsApi } from '@/services/api'
 import ExchangeModal from './ExchangeModal'
+import { notify } from '@/components/common/notify'
 
 vi.mock('@/services/api', () => ({ accountsApi: { getExchangeRateRange: vi.fn() } }))
 
@@ -41,7 +42,7 @@ describe('ExchangeModal 수동 환율 범위', () => {
   })
 
   it('범위 밖 환율은 제출하지 않고 범위를 알려 준다', async () => {
-    const alert = vi.spyOn(window, 'alert').mockImplementation(() => {})
+    const alert = vi.spyOn(notify, 'error').mockImplementation(() => {})
     const onSubmit = renderModal()
     await typeManualRate('1')
     await screen.findByText(/가능 범위/)
