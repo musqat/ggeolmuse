@@ -93,36 +93,16 @@ infrastructure:
     enabled: false  # Tempo는 monitoring 네임스페이스에서 별도 실행
     resources:
       limits:
-        memory: 1Gi
         cpu: 500m
       requests:
-        memory: 512Mi
         cpu: 250m
 
 # Config Server
 configServer:
-  enabled: true
-  name: config-server
-  replicaCount: 1  # 단일 노드
   image:
-    repository: config-server
-    tag: "1.5.0"
-  service:
-    type: ClusterIP
-    port: 8888
-  git:
-    uri: https://github.com/musqat/ggeolmuse-config.git
-    label: main
-    searchPaths: .
+    tag: "1.5.1"
   env:
     springProfiles: git,prod
-  probes:
-    readiness:
-      initialDelaySeconds: 60
-      periodSeconds: 5
-    liveness:
-      initialDelaySeconds: 120
-      periodSeconds: 15
   resources:
     limits:
       memory: 512Mi
@@ -133,23 +113,10 @@ configServer:
 
 # Gateway Server
 gatewayServer:
-  enabled: true
-  name: gateway-server
-  replicaCount: 1
   image:
-    repository: gateway-server
-    tag: "1.5.0"
-  service:
-    type: LoadBalancer
-    port: 8070
+    tag: "1.5.1"
   env:
     springProfiles: prod
-    configUri: http://config-server:8888
-    configUsername: config
-  strategy:
-    rollingUpdate:
-      maxUnavailable: 0
-      maxSurge: 1
   probes:
     readiness:
       initialDelaySeconds: 120  # 2분 (Keycloak JWK + Redis)
@@ -168,35 +135,19 @@ gatewayServer:
 # 비즈니스 서비스
 services:
   userService:
-    enabled: true
-    name: user-service
-    replicaCount: 1
     image:
-      repository: user-service
-      tag: "1.5.0"
-    service:
-      type: ClusterIP
-      port: 8080
-    labels:
-      tier: business-service
+      tag: "1.5.1"
     env:
       # market-data 와 같은 한국 시각. 저장 시각 · 오늘 날짜가 이 시간대를 따른다(이전 UTC 시각은 Flyway V6 이 옮김)
       TZ: "Asia/Seoul"
       appBaseUrl: https://ggeolmuse.com
       appFrontendUrl: https://ggeolmuse.com
       mailVerificationBaseUrl: https://ggeolmuse.com
-    secrets:
-      keycloakSecret: true
-      mailUsername: true
-      mailPassword: true
-      mailFrom: true
     probes:
       readiness:
         initialDelaySeconds: 180
-        periodSeconds: 10
       liveness:
         initialDelaySeconds: 600
-        periodSeconds: 20
     resources:
       limits:
         memory: 1024Mi
@@ -206,28 +157,15 @@ services:
         cpu: 100m
 
   tradeService:
-    enabled: true
-    name: trade-service
-    replicaCount: 1
     image:
-      repository: trade-service
-      tag: "1.5.0"
-    service:
-      type: ClusterIP
-      port: 8081
-    labels:
-      tier: business-service
+      tag: "1.5.1"
     env:
       TZ: "Asia/Seoul"
-    secrets:
-      keycloakSecret: true
     probes:
       readiness:
         initialDelaySeconds: 180
-        periodSeconds: 10
       liveness:
         initialDelaySeconds: 600
-        periodSeconds: 20
     resources:
       limits:
         memory: 1024Mi
@@ -237,17 +175,8 @@ services:
         cpu: 100m
 
   marketDataService:
-    enabled: true
-    name: market-data-service
-    replicaCount: 1
     image:
-      repository: market-data-service
-      tag: "1.5.0"
-    service:
-      type: ClusterIP
-      port: 8083
-    labels:
-      tier: business-service
+      tag: "1.5.1"
     env:
       TZ: "Asia/Seoul"
       # 마켓 데이터 설정
@@ -256,14 +185,10 @@ services:
       SYMBOL_COLLECT_DATA: "false"
       # 심볼 수집 최대 개수 (0 = 무제한, 기본값 100)
       SYMBOL_LISTING_MAX: "0"
-    secrets:
-      keycloakSecret: true
-      koreaexImApiKey: true
     probes:
       readiness:
         initialDelaySeconds: 180
         periodSeconds: 10
-        timeoutSeconds: 3
       liveness:
         initialDelaySeconds: 600
         periodSeconds: 20
@@ -276,28 +201,15 @@ services:
         cpu: 100m
 
   backtestService:
-    enabled: true
-    name: backtest-service
-    replicaCount: 1
     image:
-      repository: backtest-service
-      tag: "1.5.0"
-    service:
-      type: ClusterIP
-      port: 8082
-    labels:
-      tier: business-service
+      tag: "1.5.1"
     env:
       TZ: "Asia/Seoul"
-    secrets:
-      keycloakSecret: true
     probes:
       readiness:
         initialDelaySeconds: 180
-        periodSeconds: 10
       liveness:
         initialDelaySeconds: 600
-        periodSeconds: 20
     resources:
       limits:
         memory: 896Mi
@@ -307,24 +219,13 @@ services:
         cpu: 100m
 
   chatService:
-    enabled: true
-    name: chat-service
-    replicaCount: 1
     image:
-      repository: chat-service
-      tag: "1.5.0"
-    service:
-      type: ClusterIP
-      port: 8000
-    labels:
-      tier: business-service
+      tag: "1.5.1"
     probes:
       readiness:
         initialDelaySeconds: 15
-        periodSeconds: 10
       liveness:
         initialDelaySeconds: 30
-        periodSeconds: 20
     resources:
       limits:
         memory: 512Mi
@@ -335,21 +236,11 @@ services:
 
 # 프론트엔드
 frontend:
-  enabled: true
-  name: frontend-web
-  replicaCount: 1
   image:
-    repository: frontend-web
-    tag: "1.5.0"
-  service:
-    type: LoadBalancer
-    port: 3000
-    targetPort: 8080
+    tag: "1.5.1"
   env:
     apiUrl: https://ggeolmuse.com/api
     keycloakUrl: https://ggeolmuse.com/auth
-    keycloakRealm: muscathan
-    keycloakClientId: ggeolmuse-frontend
   resources:
     limits:
       memory: 256Mi
@@ -360,11 +251,8 @@ frontend:
 
 # 네트워크 정책
 networkPolicy:
-  enabled: true
   policyTypes:
     - Ingress
-  businessServiceTier: business-service
-  gatewayApp: gateway-server
   ports:
     - 8000
     - 8080
@@ -414,21 +302,12 @@ ingress:
 
 # Secret 설정
 secrets:
-  enabled: false
-  name: ggeolmuse-secrets
   data: {}
 
 # ConfigMap 설정
 configMap:
-  enabled: true
   data:
     appBaseUrl: "https://ggeolmuse.com"
-    emailExpiryHours: "24"
-    exchangeRateMin: "0"
-    exchangeRateMax: "3000"
-    exchangeRateFallback: "1300.00"
-    redisHost: "redis"
-    redisPort: "6379"
 
 # DB 백업
 dbBackup:
@@ -436,9 +315,6 @@ dbBackup:
 
 # Monitoring - Prometheus ServiceMonitor
 monitoring:
-  serviceMonitor:
-    enabled: true
   slack:
     # 웹훅 URL 은 ggeolmuse-secrets 의 SLACK_WEBHOOK_URL 을 쓴다.
     enabled: true
-    channel: "#ggeolmuse-alerts"

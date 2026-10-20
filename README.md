@@ -118,7 +118,9 @@ ggeolmuse/
 └── terraform/            EC2 · RDS 스케줄러 · 알람
 ```
 
-<img width="850" height="600" alt="아키텍처" src="https://github.com/user-attachments/assets/e54861a9-3a24-40f5-bf48-c0e0c55ada22" />
+<img src=".github/images/infra/architecture.png" alt="서비스 구성" width="850"/>
+
+<img src=".github/images/infra/aws-deploy.png" alt="AWS 배포 구성" width="850"/>
 
 </details>
 
@@ -142,16 +144,16 @@ ggeolmuse/
 
 ## 테스트
 
-백엔드 **1,367 개**, 프론트 **425 개**, E2E **36 개**.
+백엔드 **1,489 개**, 프론트 **451 개**, E2E **40 개**.
 
 | 서비스 | 테스트 |
 |---|---|
-| market-data-service | 476 |
-| user-service | 341 |
-| backtest-service | 308 |
-| trade-service | 224 |
+| market-data-service | 501 |
+| user-service | 379 |
+| backtest-service | 332 |
+| trade-service | 259 |
 | ggeolmuse-bom | 18 |
-| frontend-web | 425 |
+| frontend-web | 451 |
 | E2E (Playwright) | 36 |
 
 <details>
