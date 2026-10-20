@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { marketAdminApi, type UnadjustedResponse, type RefreshAllResponse } from '@services/adminApi';
+import { notify } from '@/components/common/notify';
 
 // 한 번에 보내는 종목 수. 요청 본문이 지나치게 커지지 않게 끊는다
 const CHUNK = 200;
@@ -90,7 +91,7 @@ export default function CandleRefreshSection() {
   const refresh = async () => {
     const symbols = scan?.symbols ?? [];
     if (symbols.length === 0) return;
-    if (!confirm(`${symbols.length}개 종목을 ${FULL_FROM} 부터 다시 받습니다. 계속할까요?`)) return;
+    if (!(await notify.confirm(`${symbols.length}개 종목을 ${FULL_FROM} 부터 다시 받습니다. 계속할까요?`))) return;
 
     setLoading(true);
     setError(null);
@@ -112,7 +113,7 @@ export default function CandleRefreshSection() {
   };
 
   const refreshAll = async () => {
-    if (!confirm(`활성 종목 전체를 ${FULL_FROM} 부터 다시 받습니다. 수집에 몇 시간 걸립니다. 계속할까요?`)) return;
+    if (!(await notify.confirm(`활성 종목 전체를 ${FULL_FROM} 부터 다시 받습니다. 수집에 몇 시간 걸립니다. 계속할까요?`))) return;
 
     setLoading(true);
     setError(null);

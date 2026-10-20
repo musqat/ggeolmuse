@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { userAdminApi } from '@services/adminApi';
 import type { UserSummary, UserStats, UserDetail } from '@services/adminApi';
+import { notify } from '@/components/common/notify';
 
 export const useAdminUsers = () => {
   const [users, setUsers] = useState<UserSummary[]>([]);
@@ -59,7 +60,7 @@ export const useAdminUsers = () => {
     setError(null);
     try {
       await userAdminApi.updateUserRole(userId, role);
-      alert('역할이 변경되었습니다.');
+      notify.success('역할이 변경되었습니다.');
       loadUsers(page);
       if (selectedUser && selectedUser.userId === userId) {
         loadUserDetail(userId);
@@ -78,7 +79,7 @@ export const useAdminUsers = () => {
     setError(null);
     try {
       await userAdminApi.updateUserEnabled(userId, enabled);
-      alert(`사용자가 ${enabled ? '활성화' : '비활성화'}되었습니다.`);
+      notify.success(`사용자가 ${enabled ? '활성화' : '비활성화'}되었습니다.`);
       loadUsers(page);
       if (selectedUser && selectedUser.userId === userId) {
         loadUserDetail(userId);
@@ -97,7 +98,7 @@ export const useAdminUsers = () => {
     setError(null);
     try {
       await userAdminApi.updateNickname(userId, nickname);
-      alert('닉네임이 변경되었습니다.');
+      notify.success('닉네임이 변경되었습니다.');
       loadUsers(page);
       if (selectedUser && selectedUser.userId === userId) {
         loadUserDetail(userId);
@@ -116,7 +117,7 @@ export const useAdminUsers = () => {
     setError(null);
     try {
       await userAdminApi.updatePassword(userId, newPassword);
-      alert('비밀번호가 변경되었습니다.');
+      notify.success('비밀번호가 변경되었습니다.');
     } catch (err) {
       setError('비밀번호 변경에 실패했습니다.');
       console.error('Update password failed:', err);
@@ -131,7 +132,7 @@ export const useAdminUsers = () => {
     setError(null);
     try {
       await userAdminApi.verifyEmail(userId);
-      alert('이메일이 인증되었습니다.');
+      notify.success('이메일이 인증되었습니다.');
       loadUsers(page);
       if (selectedUser && selectedUser.userId === userId) {
         loadUserDetail(userId);
@@ -150,7 +151,7 @@ export const useAdminUsers = () => {
     setError(null);
     try {
       await userAdminApi.deleteUser(userId);
-      alert('사용자가 삭제되었습니다.');
+      notify.success('사용자가 삭제되었습니다.');
       setSelectedUser(null);
       loadUsers(page);
       loadStats();
