@@ -4,13 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 
 import com.muscat.marketdata.common.exceptions.YahooFinanceException;
-import com.muscat.marketdata.datasource.common.BundledSymbolSource;
-import com.muscat.marketdata.datasource.yf.client.NasdaqScreenerClient;
-import com.muscat.marketdata.datasource.yf.client.NasdaqScreenerParser;
 import com.muscat.marketdata.datasource.yf.client.YahooFinanceClient;
 import com.muscat.marketdata.datasource.yf.client.YahooParser;
 import com.muscat.marketdata.domain.dto.CandleDto;
@@ -23,7 +18,6 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 
 // 야후 응답을 받아 파서로 넘기는 provider 셋. 실패는 모두 빈 값(또는 null)으로 넘겨 수집 루프가 다음 종목으로 간다
 @DisplayName("야후 provider")
@@ -94,48 +88,10 @@ class YahooSourcesTest {
   @DisplayName("종목 목록 · 종목 정보")
   class SymbolSourceTests {
 
-    private final BundledSymbolSource bundled = mock(BundledSymbolSource.class);
-    private final NasdaqScreenerClient nasdaqClient = mock(NasdaqScreenerClient.class);
-    private final NasdaqScreenerParser nasdaqParser = mock(NasdaqScreenerParser.class);
-    private final YfSymbolSource source = new YfSymbolSource(bundled, nasdaqClient, nasdaqParser, yahooClient, yahooParser);
-
-    {
-      ReflectionTestUtils.setField(source, "marketCapFilter", "mega,large");
-    }
+    private final YfSymbolSource source = new YfSymbolSource(yahooClient, yahooParser);
 
     private Asset asset(String symbol) {
       return Asset.builder().symbol(symbol).build();
-    }
-
-    @Test
-    @DisplayName("NASDAQ 스크리너에서 NYSE · NASDAQ 종목을 합쳐 받으면 번들 CSV 는 보지 않는다")
-    void fromNasdaq() {
-      given(nasdaqClient.getAllStocks("nyse", "mega,large")).willReturn("nyse");
-      given(nasdaqClient.getAllStocks("nasdaq", "mega,large")).willReturn("nasdaq");
-      given(nasdaqParser.parseStocks("nyse")).willReturn(List.of(asset("JPM")));
-      given(nasdaqParser.parseStocks("nasdaq")).willReturn(List.of(asset("AAPL")));
-
-      assertThat(source.fetchSymbols()).extracting(Asset::getSymbol).containsExactly("JPM", "AAPL");
-      verify(bundled, never()).fetch();
-    }
-
-    @Test
-    @DisplayName("스크리너가 실패하거나 비면 번들 CSV 로, 둘 다 안 되면 빈 목록")
-    void fallsBackToBundled() {
-      given(nasdaqClient.getAllStocks("nyse", "mega,large")).willThrow(new IllegalStateException("blocked"));
-      given(bundled.fetch()).willReturn(List.of(asset("MSFT")), List.of());
-
-      assertThat(source.fetchSymbols()).extracting(Asset::getSymbol).containsExactly("MSFT");
-      assertThat(source.fetchSymbols()).isEmpty();
-    }
-
-    @Test
-    @DisplayName("번들 CSV 도 실패하면 빈 목록")
-    void bundledFailure() {
-      given(nasdaqClient.getAllStocks("nyse", "mega,large")).willThrow(new IllegalStateException("blocked"));
-      given(bundled.fetch()).willThrow(new IllegalStateException("missing csv"));
-
-      assertThat(source.fetchSymbols()).isEmpty();
     }
 
     @Test
