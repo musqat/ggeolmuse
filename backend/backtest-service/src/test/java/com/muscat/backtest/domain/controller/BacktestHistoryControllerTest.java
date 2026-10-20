@@ -1,7 +1,6 @@
 package com.muscat.backtest.domain.controller;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -67,13 +66,13 @@ class BacktestHistoryControllerTest {
   void requiresToken() throws Exception {
     mockMvc.perform(get(BASE)).andExpect(status().isUnauthorized());
 
-    verify(backtestHistoryService, never()).getUserBacktestHistory(anyString(), any());
+    verify(backtestHistoryService, never()).getUserBacktestHistory(any(), any(), any());
   }
 
   @Test
   @DisplayName("페이지 번호와 크기를 넘기고 이력을 돌려준다")
   void paged() throws Exception {
-    given(backtestHistoryService.getUserBacktestHistory(eq(USER), any()))
+    given(backtestHistoryService.getUserBacktestHistory(eq(USER), eq(EMAIL), any()))
       .willReturn(new PageImpl<>(List.of(history()), PageRequest.of(2, 5), 11));
 
     mockMvc.perform(get(BASE).header(HttpHeaders.AUTHORIZATION, "Bearer " + TOKEN)
@@ -81,30 +80,30 @@ class BacktestHistoryControllerTest {
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.content[0].backtestType").value("COMPARISON"));
 
-    verify(backtestHistoryService).getUserBacktestHistory(USER, PageRequest.of(2, 5));
+    verify(backtestHistoryService).getUserBacktestHistory(USER, EMAIL, PageRequest.of(2, 5));
   }
 
   @Test
   @DisplayName("페이지를 주지 않으면 첫 페이지 20건이다")
   void defaultPage() throws Exception {
-    given(backtestHistoryService.getUserBacktestHistory(eq(USER), any())).willReturn(new PageImpl<>(List.of()));
+    given(backtestHistoryService.getUserBacktestHistory(eq(USER), eq(EMAIL), any())).willReturn(new PageImpl<>(List.of()));
 
     mockMvc.perform(get(BASE).header(HttpHeaders.AUTHORIZATION, "Bearer " + TOKEN))
       .andExpect(status().isOk());
 
-    verify(backtestHistoryService).getUserBacktestHistory(USER, PageRequest.of(0, 20));
+    verify(backtestHistoryService).getUserBacktestHistory(USER, EMAIL, PageRequest.of(0, 20));
   }
 
   @Test
   @DisplayName("쿼리에 다른 사람의 userId 를 넣어도 토큰의 사용자로 조회한다")
   void ignoresQueryUser() throws Exception {
-    given(backtestHistoryService.getUserBacktestHistory(eq(USER), any())).willReturn(new PageImpl<>(List.of()));
+    given(backtestHistoryService.getUserBacktestHistory(eq(USER), eq(EMAIL), any())).willReturn(new PageImpl<>(List.of()));
 
     mockMvc.perform(get(BASE).header(HttpHeaders.AUTHORIZATION, "Bearer " + TOKEN).param("userId", "other@example.com"))
       .andExpect(status().isOk());
 
-    verify(backtestHistoryService).getUserBacktestHistory(USER, PageRequest.of(0, 20));
-    verify(backtestHistoryService, never()).getUserBacktestHistory(eq("other@example.com"), any());
+    verify(backtestHistoryService).getUserBacktestHistory(USER, EMAIL, PageRequest.of(0, 20));
+    verify(backtestHistoryService, never()).getUserBacktestHistory(eq("other@example.com"), any(), any());
   }
 
   @Test
@@ -117,6 +116,6 @@ class BacktestHistoryControllerTest {
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.content").isEmpty());
 
-    verify(backtestHistoryService, never()).getUserBacktestHistory(any(), any());
+    verify(backtestHistoryService, never()).getUserBacktestHistory(any(), any(), any());
   }
 }

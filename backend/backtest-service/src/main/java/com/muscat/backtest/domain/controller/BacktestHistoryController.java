@@ -40,6 +40,6 @@ public class BacktestHistoryController {
             return ResponseEntity.ok(Page.empty(pageable));
         }
         log.debug("백테스트 히스토리 조회 요청: page={}, size={}", page, size);
-        return ResponseEntity.ok(backtestHistoryService.getUserBacktestHistory(owner, pageable));
+        return ResponseEntity.ok(backtestHistoryService.getUserBacktestHistory(owner, TokenOwner.email(jwt), pageable));
     }
 }
