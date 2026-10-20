@@ -11,6 +11,7 @@ import com.muscat.marketdata.config.MarketDataProperties;
 import com.muscat.marketdata.domain.entity.Candle;
 import com.muscat.marketdata.domain.repository.AssetRepository;
 import com.muscat.marketdata.domain.repository.CandleRepository;
+import com.muscat.marketdata.domain.repository.DividendRepository;
 import com.muscat.marketdata.domain.service.CandleService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -55,7 +56,8 @@ class CandleServiceCacheTest {
     @Bean
     CandleService candleService(CandleRepository candleRepository, AssetRepository assetRepository,
       CacheManager cacheManager) {
-      return new CandleServiceImpl(candleRepository, assetRepository, new MarketDataProperties(), cacheManager);
+      return new CandleServiceImpl(candleRepository, assetRepository, mock(DividendRepository.class),
+        new MarketDataProperties(), cacheManager);
     }
   }
 

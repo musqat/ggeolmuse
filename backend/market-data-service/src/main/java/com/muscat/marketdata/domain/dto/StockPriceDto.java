@@ -53,4 +53,7 @@ public class StockPriceDto implements Serializable {
 
     @Schema(description = "자산 유형", example = "EQUITY")
     private String assetType;
+
+    @Schema(description = "연 배당수익률(%). 최근 1년 배당 합 ÷ 최신 종가, 못 구하면 null", example = "0.45")
+    private BigDecimal dividendYieldPercent;
 }

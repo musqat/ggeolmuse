@@ -3,6 +3,7 @@ package com.muscat.marketdata.datasource.alphavantage.service;
 import com.muscat.marketdata.domain.dto.DividendDto;
 import com.muscat.marketdata.domain.entity.Candle;
 import com.muscat.marketdata.domain.entity.Dividend;
+import com.muscat.marketdata.domain.repository.AssetRepository;
 import com.muscat.marketdata.domain.repository.CandleRepository;
 import com.muscat.marketdata.domain.repository.DividendRepository;
 import com.muscat.marketdata.domain.service.DividendMerge;
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -38,6 +40,7 @@ public class AlphaVantageCandleUpdateService implements com.muscat.marketdata.do
 
     private final CandleRepository candleRepository;
     private final DividendRepository dividendRepository;
+    private final AssetRepository assetRepository;
 
     private final DividendEventProducer dividendEventProducer;
 
@@ -88,6 +91,17 @@ public class AlphaVantageCandleUpdateService implements com.muscat.marketdata.do
 
         // DB에 저장
         candleRepository.saveAll(newCandles);
+
+        // 저장한 봉 중 가장 늦은 날의 종가 · 날짜를 종목에 남김
+        newCandles.stream()
+            .max(Comparator.comparing(Candle::getDate))
+            .ifPresent(latest -> assetRepository.findById(symbol)
+                .filter(asset -> asset.getLatestDate() == null || !latest.getDate().isBefore(asset.getLatestDate()))
+                .ifPresent(asset -> {
+                    asset.setLatestClose(latest.getClose());
+                    asset.setLatestDate(latest.getDate());
+                    assetRepository.save(asset);
+                }));
 
         log.info("[캔들 저장 완료] symbol={}, count={}", symbol, newCandles.size());
         return newCandles.size();

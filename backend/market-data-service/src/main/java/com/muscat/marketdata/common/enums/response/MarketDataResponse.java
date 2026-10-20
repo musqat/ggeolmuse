@@ -19,6 +19,7 @@ public enum MarketDataResponse implements ErrorCode {
     // 클라이언트 오류
     INVALID_SYMBOL("유효하지 않은 종목 코드입니다", HttpStatus.BAD_REQUEST),
     INVALID_DATE_RANGE("유효하지 않은 날짜 범위입니다", HttpStatus.BAD_REQUEST),
+    INVALID_SORT("유효하지 않은 정렬 기준입니다", HttpStatus.BAD_REQUEST),
     ASSET_NAME_REQUIRED("종목 이름이 비어 있습니다", HttpStatus.BAD_REQUEST),
     ASSET_ALREADY_EXISTS("이미 등록된 종목입니다", HttpStatus.CONFLICT),
 

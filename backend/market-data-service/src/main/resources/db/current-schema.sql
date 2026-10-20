@@ -1,7 +1,7 @@
 -- 참고용 스냅샷
 -- 스키마를 바꾸는 것은 db/migration 뿐이다. 마이그레이션을 더할 때 이 파일도 같이 고친다.
 --
--- V1 ~ V8 을 적용한 결과다. 운영 DB 한 곳만 다르다 — idx_asset_active 가
+-- V1 ~ V9 를 적용한 결과다. 운영 DB 한 곳만 다르다 — idx_asset_active 가
 -- WHERE active = true 가 붙은 부분 인덱스다. 마이그레이션 이전에 만들어진 것이라 그대로 둔다.
 
 -- ============================================================
@@ -90,7 +90,6 @@ CREATE INDEX idx_asset_market_cap        ON asset(market_cap DESC NULLS LAST);
 CREATE INDEX idx_asset_active_market_cap ON asset(active, market_cap DESC NULLS LAST);
 
 -- dividend: symbol + ex_date 는 UNIQUE 제약이 인덱스를 겸한다. V3 에서 중복분을 지웠다
-CREATE INDEX idx_dividend_amount_date    ON dividend(amount DESC, ex_date);
 CREATE INDEX idx_dividend_ex_date        ON dividend(ex_date);
 
 -- fx_rate

@@ -73,26 +73,6 @@ public class CandleRepositoryCustomImpl implements CandleRepositoryCustom {
 
   // 종목마다 최근 N개 캔들을 한 쿼리로 조회(종목별 순위)
   @Override
-  @SuppressWarnings("unchecked")
-  public List<Candle> findRecentBySymbols(List<String> symbols, int daysBack) {
-    if (symbols.isEmpty()) {
-      return List.of();
-    }
-    return entityManager.createNativeQuery("""
-        SELECT * FROM (
-          SELECT c.*, ROW_NUMBER() OVER (PARTITION BY c.symbol ORDER BY c.date DESC) AS rn
-          FROM candle c
-          WHERE c.symbol IN (:symbols)
-        ) t
-        WHERE t.rn <= :daysBack
-        ORDER BY t.symbol, t.date DESC
-        """, Candle.class)
-      .setParameter("symbols", symbols)
-      .setParameter("daysBack", daysBack)
-      .getResultList();
-  }
-
-  @Override
   public long countDistinctSymbols() {
     Long count = queryFactory
       .select(candle.symbol.countDistinct())

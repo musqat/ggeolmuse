@@ -19,9 +19,6 @@ public interface CandleRepositoryCustom {
     // 특정 날짜 이전의 최신 캔들 조회
     Optional<Candle> findLatestBySymbolBeforeDate(String symbol, LocalDate date);
 
-    // 여러 심볼의 최근 N일 캔들 데이터를 일괄 조회
-    List<Candle> findRecentBySymbols(List<String> symbols, int daysBack);
-
     // 캔들 데이터를 가진 고유 종목 개수 조회
     long countDistinctSymbols();
 

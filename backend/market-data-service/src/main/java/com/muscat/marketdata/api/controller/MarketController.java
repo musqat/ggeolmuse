@@ -1,5 +1,6 @@
 package com.muscat.marketdata.api.controller;
 
+import com.muscat.marketdata.common.enums.StockSort;
 import com.muscat.marketdata.domain.dto.DividendDto;
 import com.muscat.marketdata.domain.dto.OHLCPriceDto;
 import com.muscat.marketdata.domain.dto.StockPriceDto;
@@ -17,9 +18,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -287,7 +289,7 @@ public class MarketController {
 
   @Operation(
     summary = "종목 목록과 현재가 조회 (페이지네이션)",
-    description = "시스템에 등록된 종목의 기본 정보와 최신 종가를 페이지 단위로 조회합니다"
+    description = "시스템에 등록된 종목의 기본 정보와 최신 종가를 페이지 단위로 조회합니다. 시가총액 또는 최근 1년 배당수익률로 정렬하고, 전일 종가 · 등락률 · 거래량은 비워 둡니다"
   )
   @ApiResponses(value = {
     @ApiResponse(
@@ -302,20 +304,22 @@ public class MarketController {
   @GetMapping("/stocks")
   public ResponseEntity<org.springframework.data.domain.Page<StockPriceDto>> getAllStocksWithPrices(
       @Parameter(description = "페이지 번호 (0부터 시작)", example = "0")
-      @RequestParam(defaultValue = "0") int page,
-      @Parameter(description = "페이지 크기", example = "50")
-      @RequestParam(defaultValue = "50") int size,
-      @Parameter(description = "정렬 방향 (asc: 오름차순, desc: 내림차순) - 시가총액 기준", example = "desc")
+      @RequestParam(defaultValue = "0") @Min(0) int page,
+      @Parameter(description = "페이지 크기 (1~200)", example = "50")
+      @RequestParam(defaultValue = "50") @Min(1) @Max(200) int size,
+      @Parameter(description = "정렬 방향 (asc: 오름차순, desc: 내림차순)", example = "desc")
       @RequestParam(defaultValue = "desc") String direction,
       @Parameter(description = "자산 유형 필터 (ALL, EQUITY, ETF)", example = "ALL")
-      @RequestParam(required = false) String assetType) {
-    log.debug("종목 목록과 현재가 조회 요청: page={}, size={}, direction={}, assetType={}",
-        page, size, direction, assetType);
+      @RequestParam(required = false) String assetType,
+      @Parameter(description = "정렬 기준 (marketCap: 시가총액, dividendYield: 최근 1년 배당수익률)", example = "marketCap")
+      @RequestParam(defaultValue = "marketCap") String sort) {
+    log.debug("종목 목록과 현재가 조회 요청: page={}, size={}, direction={}, assetType={}, sort={}",
+        page, size, direction, assetType, sort);
 
     org.springframework.data.domain.Pageable pageable =
         org.springframework.data.domain.PageRequest.of(page, size);
     org.springframework.data.domain.Page<StockPriceDto> stocks =
-        candleService.getAllStocksWithPrices(pageable, direction, assetType);
+        candleService.getAllStocksWithPrices(pageable, direction, assetType, StockSort.from(sort));
 
     log.debug("종목 목록과 현재가 조회 완료: {} 개 (전체 {}개 중)", stocks.getNumberOfElements(), stocks.getTotalElements());
     return ResponseEntity.status(HttpStatus.OK).body(stocks);
@@ -383,38 +387,6 @@ public class MarketController {
     log.debug("배당 포함 캔들 조회 요청: symbol={}, startDate={}, endDate={}", symbol, startDate, endDate);
 
     List<OHLCPriceDto> result = candleService.getCandlesWithDividends(symbol, startDate, endDate);
-
-    return ResponseEntity.status(HttpStatus.OK).body(result);
-  }
-
-  @Operation(
-    summary = "고배당주 검색",
-    description = "지정된 최소 배당금 이상의 고배당주를 검색합니다"
-  )
-  @ApiResponses(value = {
-    @ApiResponse(
-      responseCode = "200",
-      description = "고배당주 검색 성공",
-      content = @Content(
-        mediaType = "application/json",
-        schema = @Schema(implementation = DividendDto.class)
-      )
-    ),
-    @ApiResponse(
-      responseCode = "400",
-      description = "잘못된 배당금 값"
-    )
-  })
-  @GetMapping("/dividend/high-yield")
-  public ResponseEntity<List<DividendDto>> findHighDividendStocks(
-    @Parameter(description = "최소 배당금 ($)", example = "1.0", required = true)
-    @RequestParam @Positive BigDecimal minAmount,
-    @Parameter(description = "검색 시작 날짜 (기본: 1년 전)", example = "2024-01-01")
-    @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate) {
-    log.debug("고배당주 검색 요청: minAmount={}, fromDate={}", minAmount, fromDate);
-
-    LocalDate searchFromDate = fromDate != null ? fromDate : LocalDate.now().minusYears(1);
-    List<DividendDto> result = dividendService.findHighDividendStocks(minAmount, searchFromDate);
 
     return ResponseEntity.status(HttpStatus.OK).body(result);
   }

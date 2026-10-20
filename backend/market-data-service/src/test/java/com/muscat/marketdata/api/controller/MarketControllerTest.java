@@ -6,11 +6,13 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.muscat.marketdata.common.enums.StockSort;
 import com.muscat.marketdata.common.exceptions.GlobalExceptionHandler;
 import com.muscat.marketdata.config.security.SecurityConfig;
 import com.muscat.marketdata.domain.dto.DividendDto;
@@ -176,24 +178,45 @@ class MarketControllerTest {
   @Test
   @DisplayName("종목 목록은 기본이 첫 페이지 50건 · 시총 내림차순 · 유형 전체")
   void stocksDefaults() throws Exception {
-    given(candleService.getAllStocksWithPrices(any(), eq("desc"), eq(null))).willReturn(new PageImpl<>(List.of(price("AAPL", "230"))));
+    given(candleService.getAllStocksWithPrices(any(), eq("desc"), eq(null), eq(StockSort.MARKET_CAP))).willReturn(new PageImpl<>(List.of(price("AAPL", "230"))));
 
     mockMvc.perform(get(BASE + "/stocks"))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.content[0].symbol").value("AAPL"));
 
-    verify(candleService).getAllStocksWithPrices(PageRequest.of(0, 50), "desc", null);
+    verify(candleService).getAllStocksWithPrices(PageRequest.of(0, 50), "desc", null, StockSort.MARKET_CAP);
   }
 
   @Test
-  @DisplayName("종목 목록은 페이지 · 정렬 · 유형을 그대로 넘긴다")
+  @DisplayName("종목 목록은 페이지 · 정렬 방향 · 유형 · 정렬 기준을 그대로 넘긴다")
   void stocksWithParams() throws Exception {
-    given(candleService.getAllStocksWithPrices(any(), anyString(), anyString())).willReturn(new PageImpl<>(List.of()));
+    given(candleService.getAllStocksWithPrices(any(), anyString(), anyString(), any())).willReturn(new PageImpl<>(List.of()));
 
-    mockMvc.perform(get(BASE + "/stocks").param("page", "2").param("size", "10").param("direction", "asc").param("assetType", "ETF"))
+    mockMvc.perform(get(BASE + "/stocks").param("page", "2").param("size", "10").param("direction", "asc").param("assetType", "ETF")
+        .param("sort", "dividendYield"))
       .andExpect(status().isOk());
 
-    verify(candleService).getAllStocksWithPrices(PageRequest.of(2, 10), "asc", "ETF");
+    verify(candleService).getAllStocksWithPrices(PageRequest.of(2, 10), "asc", "ETF", StockSort.DIVIDEND_YIELD);
+  }
+
+  @Test
+  @DisplayName("종목 목록의 정렬 기준이 시가총액 · 배당수익률이 아니면 400 이고 서비스를 부르지 않는다")
+  void stocksUnknownSort() throws Exception {
+    mockMvc.perform(get(BASE + "/stocks").param("sort", "price"))
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.detail").value("유효하지 않은 정렬 기준입니다"));
+
+    verify(candleService, never()).getAllStocksWithPrices(any(), any(), any(), any());
+  }
+
+  @Test
+  @DisplayName("종목 목록의 페이지 번호가 음수이거나 크기가 1~200 밖이면 400 이고 서비스를 부르지 않는다")
+  void stocksPageBounds() throws Exception {
+    mockMvc.perform(get(BASE + "/stocks").param("page", "-1")).andExpect(status().isBadRequest());
+    mockMvc.perform(get(BASE + "/stocks").param("size", "0")).andExpect(status().isBadRequest());
+    mockMvc.perform(get(BASE + "/stocks").param("size", "201")).andExpect(status().isBadRequest());
+
+    verify(candleService, never()).getAllStocksWithPrices(any(), any(), any(), any());
   }
 
   @Test
@@ -213,18 +236,12 @@ class MarketControllerTest {
   }
 
   @Test
-  @DisplayName("고배당 검색은 시작일을 주지 않으면 1년 전부터 찾는다")
-  void highYieldDefaultFrom() throws Exception {
-    given(dividendService.findHighDividendStocks(any(), any())).willReturn(List.of());
+  @DisplayName("배당 경로의 high-yield 는 종목 코드 형식이 아니라 400 이고 배당을 조회하지 않는다")
+  void highYieldRemoved() throws Exception {
+    mockMvc.perform(get(BASE + "/dividend/high-yield").param("minAmount", "1.5")).andExpect(status().isBadRequest());
 
-    mockMvc.perform(get(BASE + "/dividend/high-yield").param("minAmount", "1.5")).andExpect(status().isOk());
-    mockMvc.perform(get(BASE + "/dividend/high-yield").param("minAmount", "1.5").param("fromDate", "2023-06-01"))
-      .andExpect(status().isOk());
-
-    verify(dividendService).findHighDividendStocks(new BigDecimal("1.5"), LocalDate.now().minusYears(1));
-    verify(dividendService).findHighDividendStocks(new BigDecimal("1.5"), LocalDate.of(2023, 6, 1));
+    verifyNoInteractions(dividendService);
   }
-
   @Test
   @DisplayName("일괄 환율은 토큰 없이 POST 로 받고, 날짜 문자열을 키로 돌려준다")
   void bulkFx() throws Exception {

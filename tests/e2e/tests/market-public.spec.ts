@@ -27,6 +27,28 @@ test.describe('공개 시장 데이터', () => {
     await api.dispose();
   });
 
+  test('종목 목록을 배당수익률 높은 순으로 받고, 수익률이 없는 종목은 뒤에 온다', async () => {
+    const api = await request.newContext();
+
+    const res = await api.get(`${API_URL}/market/stocks`, { params: { page: 0, size: 50, sort: 'dividendYield' } });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    const yields: (number | null)[] = (body.content ?? []).map(
+      (stock: { dividendYieldPercent?: number | null }) => stock.dividendYieldPercent ?? null,
+    );
+    const firstEmpty = yields.indexOf(null);
+    const withYield = (firstEmpty === -1 ? yields : yields.slice(0, firstEmpty)) as number[];
+    expect(yields.slice(withYield.length).every((y) => y === null), '수익률 없는 종목 뒤에 수익률 있는 종목이 섞였다').toBe(true);
+    for (let i = 1; i < withYield.length; i++) {
+      expect(withYield[i - 1]).toBeGreaterThanOrEqual(withYield[i]);
+    }
+
+    const unknown = await api.get(`${API_URL}/market/stocks`, { params: { sort: 'price' } });
+    expect(unknown.status()).toBe(400);
+
+    await api.dispose();
+  });
+
   test('OHLC 가 날짜 오름차순으로 온다', async () => {
     const api = await request.newContext();
     const { symbol } = await pickSymbol(api);
@@ -55,5 +77,16 @@ test.describe('공개 시장 데이터', () => {
     await expect(page.getByText(/\$\d+\.\d{2}/).first(), '시세가 하나도 안 찍힌다').toBeVisible({
       timeout: 30_000,
     });
+  });
+
+  test('종목 목록 화면에서 배당수익률 높은 순을 고르면 그 기준으로 다시 받는다', async ({ page }) => {
+    await page.goto('/stocks');
+    await expect(page.getByRole('columnheader', { name: '배당수익률' })).toBeVisible({ timeout: 30_000 });
+
+    const sorted = page.waitForResponse((res) => res.url().includes('/market/stocks') && res.url().includes('sort=dividendYield'));
+    await page.getByLabel('정렬').selectOption('dividendYield');
+
+    expect((await sorted).status()).toBe(200);
+    await expect(page.getByRole('columnheader', { name: '배당수익률' })).toBeVisible();
   });
 });
