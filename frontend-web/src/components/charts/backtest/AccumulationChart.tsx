@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   LineChart,
   Line,
@@ -65,6 +66,8 @@ interface ChartDataPoint {
 }
 
 // 적립식 · 조건부 결과 차트. 두 전략 모두 거래 목록을 받아 같은 것을 그린다
+const EMPTY_CHART_DATA: ChartDataPoint[] = [];
+
 export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
   symbol,
   transactions,
@@ -73,10 +76,6 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
   startDate,
   endDate,
 }) => {
-  const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
   // 공통 차트 기간 훅 사용
   const {
     chartPeriod,
@@ -99,78 +98,75 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
     );
   }, [chartPeriod, customStartDate, firstPurchaseDate, getStartDateFromPeriod]);
 
-  useEffect(() => {
-    const fetchChartData = async () => {
-      setLoading(true);
-      setError(null);
+  // 가격 · 환율만 받고, 거래를 얹은 차트 데이터는 아래에서 만듦
+  const { data: fetched, isLoading: loading, error } = useQuery({
+    queryKey: ["backtest", "chart", "accumulation", symbol, chartStartDate, endDate],
+    enabled: Boolean(symbol) && transactions.length > 0,
+    queryFn: async () => {
+      const priceData = await fetchSymbolPrices<OHLCData>(symbol, chartStartDate, endDate || getTodayString());
+      const fxRateMap = await fetchFxRates(priceData.map((item) => item.date));
+      return { priceData, fxRateMap };
+    },
+  });
+  const errorMessage = error ? getApiErrorMessage(error, "차트 데이터를 불러오는데 실패했습니다") : null;
 
-      try {
-        const priceData = await fetchSymbolPrices<OHLCData>(symbol, chartStartDate, endDate || getTodayString());
-        const fxRateMap = await fetchFxRates(priceData.map((item) => item.date));
+  const chartData = useMemo(() => {
+    if (!fetched) return EMPTY_CHART_DATA;
+    const { priceData, fxRateMap } = fetched;
 
-        // priceData에서 사용 가능한 날짜들을 먼저 추출
-        const availableDates = priceData.map((item) => item.date).sort();
+    // priceData에서 사용 가능한 날짜들을 먼저 추출
+    const availableDates = priceData.map((item) => item.date).sort();
 
-        // 거래를 실제 거래일에 붙인다 (주말/휴일 -> 다음 영업일). 일반 매수와 배당 재투자를 따로 센다
-        const purchaseDates = new Set<string>();
-        const dividendDates = new Set<string>();
-        transactions.forEach((tx) => {
-          const txDate = tx.actualDate || tx.date;
-          const tradingDate = availableDates.find((d) => d >= txDate);
-          if (!tradingDate) return;
-          if (tx.trigger === DIVIDEND_REINVEST) {
-            dividendDates.add(tradingDate);
-          } else {
-            purchaseDates.add(tradingDate);
-          }
-        });
-
-        // 차트 데이터 생성
-        const data: ChartDataPoint[] = priceData.map((item) => {
-          const dateStr = item.date;
-
-          // 이 날짜까지의 누적 투자금과 보유 주식 계산
-          let investedSoFar = 0;
-          let sharesSoFar = 0;
-
-          for (const tx of transactions) {
-            const txDate = tx.actualDate || tx.date;
-            if (txDate <= dateStr) {
-              investedSoFar += tx.amount;
-              sharesSoFar += tx.shares;
-            }
-          }
-
-          // 해당 날짜의 환율 사용 (각 날짜마다 다른 환율 적용)
-          const historicalFxRate = fxRateMap.get(dateStr) || DEFAULT_FX_RATE;
-
-          // 포트폴리오 가치 = 보유주식 * 현재가격 (원화 환산)
-          const adjustedPrice = item.adjustedClose || item.closePrice;
-          const portfolioValueUsd = sharesSoFar * adjustedPrice;
-          const portfolioValueKrw = portfolioValueUsd * historicalFxRate;
-
-          return {
-            date: dateStr,
-            stockPrice: adjustedPrice,
-            portfolioValue: portfolioValueKrw,
-            investedAmount: investedSoFar,
-            isPurchase: purchaseDates.has(dateStr),
-            isDividendReinvest: dividendDates.has(dateStr),
-          };
-        });
-
-        setChartData(data);
-      } catch (err: unknown) {
-        setError(getApiErrorMessage(err, "차트 데이터를 불러오는데 실패했습니다"));
-      } finally {
-        setLoading(false);
+    // 거래를 실제 거래일에 붙인다 (주말/휴일 -> 다음 영업일). 일반 매수와 배당 재투자를 따로 센다
+    const purchaseDates = new Set<string>();
+    const dividendDates = new Set<string>();
+    transactions.forEach((tx) => {
+      const txDate = tx.actualDate || tx.date;
+      const tradingDate = availableDates.find((d) => d >= txDate);
+      if (!tradingDate) return;
+      if (tx.trigger === DIVIDEND_REINVEST) {
+        dividendDates.add(tradingDate);
+      } else {
+        purchaseDates.add(tradingDate);
       }
-    };
+    });
 
-    if (symbol && transactions.length > 0) {
-      fetchChartData();
-    }
-  }, [symbol, chartStartDate, endDate, transactions]);
+    // 차트 데이터 생성
+    const data: ChartDataPoint[] = priceData.map((item) => {
+      const dateStr = item.date;
+
+      // 이 날짜까지의 누적 투자금과 보유 주식 계산
+      let investedSoFar = 0;
+      let sharesSoFar = 0;
+
+      for (const tx of transactions) {
+        const txDate = tx.actualDate || tx.date;
+        if (txDate <= dateStr) {
+          investedSoFar += tx.amount;
+          sharesSoFar += tx.shares;
+        }
+      }
+
+      // 해당 날짜의 환율 사용 (각 날짜마다 다른 환율 적용)
+      const historicalFxRate = fxRateMap.get(dateStr) || DEFAULT_FX_RATE;
+
+      // 포트폴리오 가치 = 보유주식 * 현재가격 (원화 환산)
+      const adjustedPrice = item.adjustedClose || item.closePrice;
+      const portfolioValueUsd = sharesSoFar * adjustedPrice;
+      const portfolioValueKrw = portfolioValueUsd * historicalFxRate;
+
+      return {
+        date: dateStr,
+        stockPrice: adjustedPrice,
+        portfolioValue: portfolioValueKrw,
+        investedAmount: investedSoFar,
+        isPurchase: purchaseDates.has(dateStr),
+        isDividendReinvest: dividendDates.has(dateStr),
+      };
+    });
+
+    return data;
+  }, [fetched, transactions]);
 
   // Y축 범위 계산 (±50 여유)
   const priceRange = useMemo(() => {
@@ -211,11 +207,11 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
     );
   }
 
-  if (error) {
+  if (errorMessage) {
     return (
       <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-6">
         <div className="flex justify-center items-center h-64">
-          <div className="text-danger">{error}</div>
+          <div className="text-danger">{errorMessage}</div>
         </div>
       </div>
     );

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   LineChart,
   Line,
@@ -58,21 +59,19 @@ interface ChartDataPoint {
   [key: string]: string | number; // Dynamic keys for each symbol's price and portfolio value
 }
 
+type OptimalPoints = ReturnType<typeof calculateOptimalPoints>;
+
+const EMPTY_CHART_DATA: ChartDataPoint[] = [];
+const EMPTY_OPTIMAL_POINTS: OptimalPoints = {};
+const DEFAULT_PRICE_DOMAIN: [number, number] = [0, 100];
+const DEFAULT_PORTFOLIO_DOMAIN: [number, number] = [0, 1000000];
+
 export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
   symbols,
   startDate,
   endDate,
   onOptimalPointsCalculated
 }) => {
-  const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [optimalPoints, setOptimalPoints] = useState<{
-    [symbol: string]: { buyDate: string; sellDate: string; minPrice: number; maxValue: number };
-  }>({});
-  const [priceDomain, setPriceDomain] = useState<[number, number]>([0, 100]);
-  const [portfolioDomain, setPortfolioDomain] = useState<[number, number]>([0, 1000000]);
-
   // 공통 차트 기간 훅 사용
   const {
     chartPeriod,
@@ -82,21 +81,17 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
     getStartDateFromPeriod
   } = useChartPeriod('purchase');
 
-  // 클라이언트 측 필터링 불필요 - API가 선택된 기간의 데이터를 반환
+  // 차트 기간에 따른 시작일. 조회 키에 들어가 기간을 바꾸면 다시 받음
+  const apiStartDate = getStartDateFromPeriod(chartPeriod, startDate, customStartDate);
+  const today = endDate || getTodayString();
 
-  useEffect(() => {
-    const fetchChartData = async () => {
-      if (symbols.length === 0) return;
-
-      setLoading(true);
-      setError(null);
-
+  // 모든 종목의 가격 · 환율을 받아 차트 데이터 · 최적 시점 · 축 범위까지 만듦
+  const { data, isLoading: loading, error } = useQuery({
+    queryKey: ['backtest', 'chart', 'symbols',
+      symbols.map((s) => [s.symbol, s.purchaseDate, s.shares, s.investmentAmount]), startDate, apiStartDate, today],
+    enabled: symbols.length > 0,
+    queryFn: async () => {
       try {
-        const today = endDate || getTodayString();
-
-        // 공통 훅을 사용하여 시작일 계산
-        const apiStartDate = getStartDateFromPeriod(chartPeriod, startDate, customStartDate);
-
         // 모든 종목의 OHLC 데이터를 병렬로 조회
         const dataPromises = symbols.map(symbolData =>
           fetchSymbolPrices<OHLCData>(symbolData.symbol, apiStartDate, today)
@@ -244,25 +239,31 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
           Math.ceil(globalMaxValue + valueMargin)
         ];
 
-        setOptimalPoints(optimalPointsData);
-        setPriceDomain(calculatedPriceDomain);
-        setPortfolioDomain(calculatedPortfolioDomain);
-        setChartData(chartDataArray);
-
-        // 부모 컴포넌트에 알림
-        if (onOptimalPointsCalculated) {
-          onOptimalPointsCalculated(optimalPointsData);
-        }
+        return {
+          chartData: chartDataArray,
+          optimalPoints: optimalPointsData,
+          priceDomain: calculatedPriceDomain,
+          portfolioDomain: calculatedPortfolioDomain,
+        };
       } catch (err) {
         console.error('비교 차트 데이터 조회 실패', err);
-        setError('차트 데이터를 가져오는데 실패했습니다.');
-      } finally {
-        setLoading(false);
+        throw err;
       }
-    };
+    },
+  });
 
-    fetchChartData();
-  }, [symbols, startDate, endDate, chartPeriod, customStartDate, getStartDateFromPeriod, onOptimalPointsCalculated]);
+  const chartData = data?.chartData ?? EMPTY_CHART_DATA;
+  const optimalPoints = data?.optimalPoints ?? EMPTY_OPTIMAL_POINTS;
+  const priceDomain = data?.priceDomain ?? DEFAULT_PRICE_DOMAIN;
+  const portfolioDomain = data?.portfolioDomain ?? DEFAULT_PORTFOLIO_DOMAIN;
+  const errorMessage = error ? '차트 데이터를 가져오는데 실패했습니다.' : null;
+
+  // 부모 컴포넌트에 알림
+  useEffect(() => {
+    if (data && onOptimalPointsCalculated) {
+      onOptimalPointsCalculated(data.optimalPoints);
+    }
+  }, [data, onOptimalPointsCalculated]);
 
   if (loading) {
     return (
@@ -274,11 +275,11 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
     );
   }
 
-  if (error) {
+  if (errorMessage) {
     return (
       <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-6">
         <div className="flex items-center justify-center h-64">
-          <div className="text-danger">{error}</div>
+          <div className="text-danger">{errorMessage}</div>
         </div>
       </div>
     );

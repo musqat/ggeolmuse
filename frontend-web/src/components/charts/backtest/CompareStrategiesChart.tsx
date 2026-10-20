@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   LineChart,
   Line,
@@ -58,14 +59,13 @@ interface StockPriceWithStrategyChartProps {
   strategyNames: Record<string, string>;
 }
 
+const EMPTY_PRICES: OHLCData[] = [];
+const EMPTY_FX_RATES = new Map<string, number>();
+
 export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> = ({
   strategies,
   strategyNames
 }) => {
-  const [priceData, setPriceData] = useState<OHLCData[]>([]);
-  const [fxRates, setFxRates] = useState<Map<string, number>>(new Map());
-  const [loading, setLoading] = useState(true);
-
   // 공통 차트 기간 훅 사용
   const {
     chartPeriod,
@@ -75,47 +75,30 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
     getStartDateFromPeriod
   } = useChartPeriod('purchase');
 
-  // 차트 기간에 따라 가격 데이터 조회
-  useEffect(() => {
-    const fetchPriceData = async () => {
-      if (strategies.length === 0) return;
+  // 첫 전략의 종목 · 기간으로 가격을 받음
+  const first = strategies[0]?.additionalData;
+  const symbol = first?.symbol;
+  const originalStartDate = first?.startDate || first?.purchaseDate;
+  const endDate = first?.endDate || first?.currentDate;
+  const apiStartDate = originalStartDate ? getStartDateFromPeriod(chartPeriod, originalStartDate, customStartDate) : undefined;
 
-      const firstStrategy = strategies[0];
-      if (!firstStrategy.additionalData) {
-        setLoading(false);
-        return;
-      }
-
-      const data = firstStrategy.additionalData;
-      const symbol = data.symbol;
-      const originalStartDate = data.startDate || data.purchaseDate;
-      const endDate = data.endDate || data.currentDate;
-
-      if (!symbol || !originalStartDate) {
-        setLoading(false);
-        return;
-      }
-
+  // 평가금액은 다른 결과 차트처럼 그날 환율로 원화 환산. 가격을 못 받으면 차트는 비어 보이고 이유를 남김
+  const { data: fetched, isLoading: loading } = useQuery({
+    queryKey: ['backtest', 'chart', 'strategies', symbol, apiStartDate, endDate],
+    enabled: Boolean(symbol && apiStartDate),
+    queryFn: async () => {
       try {
-        setLoading(true);
-
-        // 공통 훅을 사용하여 시작일 계산
-        const apiStartDate = getStartDateFromPeriod(chartPeriod, originalStartDate, customStartDate);
-
-        const prices = await fetchSymbolPrices<OHLCData>(symbol, apiStartDate, endDate || getTodayString());
-        // 평가금액은 다른 결과 차트처럼 그날 환율로 원화 환산한다
-        setFxRates(await fetchFxRates(prices.map((item) => item.date)));
-        setPriceData(prices);
+        const prices = await fetchSymbolPrices<OHLCData>(symbol!, apiStartDate!, endDate || getTodayString());
+        const fxRates = await fetchFxRates(prices.map((item) => item.date));
+        return { prices, fxRates };
       } catch (error) {
-        // 가격 데이터가 없으면 차트는 비어 보인다. 이유를 알 수 있게 남긴다.
         console.warn('비교 차트의 가격 데이터를 불러오지 못했습니다', symbol, error);
-      } finally {
-        setLoading(false);
+        return { prices: EMPTY_PRICES, fxRates: EMPTY_FX_RATES };
       }
-    };
-
-    fetchPriceData();
-  }, [strategies, chartPeriod, customStartDate, getStartDateFromPeriod]);
+    },
+  });
+  const priceData = fetched?.prices ?? EMPTY_PRICES;
+  const fxRates = fetched?.fxRates ?? EMPTY_FX_RATES;
 
   // 매수 포인트를 포함한 차트 데이터 계산
   const { priceChartData, portfolioChartData, purchasePoints } = useMemo(() => {
