@@ -11,15 +11,15 @@ docker compose -f docker-compose/docker-compose.yml up -d --build
 ```
 
 ```bash
-cd e2e && npm install && npx playwright install chromium
+cd tests/e2e && npm install && npx playwright install chromium
 ```
 
 ```bash
 npx playwright test
 ```
 
-프론트는 3000, 게이트웨이는 8070, Keycloak 은 8080(realm `custom`) 이다. `E2E_BASE_URL` / `E2E_API_URL` /
-`E2E_KEYCLOAK_URL` / `E2E_KEYCLOAK_REALM` 으로 덮을 수 있다.
+프론트는 3000, 게이트웨이는 8070, market-data 는 8083, Keycloak 은 8080(realm `custom`) 이다. `E2E_BASE_URL` /
+`E2E_API_URL` / `E2E_MARKET_URL` / `E2E_KEYCLOAK_URL` / `E2E_KEYCLOAK_REALM` 으로 덮을 수 있다.
 
 ## 무엇을 보나
 
@@ -54,9 +54,14 @@ market-data 를 여러 번 부른다. 여기가 초록이면 시스템이 살아
 시세를 받아둔다. AAPL 은 없고 2023년도 없다. 박아두면 새로 띄운 스택에서
 "주가 데이터를 찾을 수 없습니다" 로 깨진다. `fixtures.ts` 가 스택에서 받아 고른다.
 
-**스택이 시세를 다 받을 때까지 기다린다.** 게이트웨이가 200 을 주기 시작해도
-market-data 는 아직 Yahoo 에서 시세를 받는 중이다. 그 틈에 시작하면 종목을 못 고르거나
+**스택이 시세를 다 받을 때까지 기다린다.** market-data 가 200 을 주기 시작해도
+아직 Yahoo 에서 시세를 받는 중이다. 그 틈에 시작하면 종목을 못 고르거나
 차트가 빈 채로 그려져서 엉뚱하게 깨진다. setup 이 가격 붙은 종목이 10개 이상 생길 때까지 본다.
+
+**기다리는 동안은 게이트웨이를 거치지 않는다.** setup 은 market-data(8083)를 바로 불러 시세를 보고, 다 받은 뒤에
+게이트웨이 경로를 한 번 확인한다. 덜 뜬 market-data 로 가는 호출은 게이트웨이 서킷이 실패로 센다. 서킷은 호출이
+정해진 수만큼 쌓여야 열지 말지 정한다. setup 이 실패를 쌓아 둔 채 그 수 전에 끝나면 테스트의 market 호출이 그 수를
+채우는 순간 서킷이 열리고, 열린 동안은 market 경로가 전부 503 이다.
 
 **환율은 없으면 직접 넣는다.** 환율 수집은 `FX_BACKFILL_ENABLED` 가 켜져야 돌고,
 켜도 Yahoo 응답이 비면 통째로 중단된다. 거래 경로를 보려는 테스트가 거기 묶이면 안 된다.
