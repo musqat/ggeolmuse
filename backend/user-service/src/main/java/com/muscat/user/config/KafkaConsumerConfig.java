@@ -2,7 +2,6 @@ package com.muscat.user.config;
 
 import com.muscat.messaging.event.AccountBalanceUpdatedEvent;
 import com.muscat.messaging.event.DividendPayoutEvent;
-import com.muscat.messaging.event.DividendReceivedEvent;
 import com.muscat.messaging.event.EmailSendEvent;
 import com.muscat.messaging.event.TradeCompletedEvent;
 import com.muscat.messaging.event.UserLoginFailedEvent;
@@ -96,52 +95,6 @@ public class KafkaConsumerConfig {
 
     // Consumer 재시도 설정은 Config Server의 공통 설정 사용
     // (spring.kafka.consumer 설정)
-
-    // 공통 에러 핸들러 설정 (DLQ 포함)
-    factory.setCommonErrorHandler(kafkaErrorHandler());
-
-    return factory;
-  }
-
-  @Bean
-  public ConsumerFactory<String, DividendReceivedEvent> dividendReceivedEventConsumerFactory() {
-    Map<String, Object> props = new HashMap<>();
-    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-    props.put(ConsumerConfig.GROUP_ID_CONFIG, applicationName + "-dividend-received-consumer");
-
-    // 수동 커밋 모드 (메시지 처리 성공시에만 커밋)
-    props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
-
-    // 컨슈머 그룹 최초 실행시 earliest부터 읽기
-    props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-
-    // Deserializer 설정
-    props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-    props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
-    props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class.getName());
-
-    // JSON Deserializer 추가 설정
-    props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, DividendReceivedEvent.class.getName());
-    props.put(JsonDeserializer.TRUSTED_PACKAGES, "com.muscat.*");
-    props.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
-
-    return new DefaultKafkaConsumerFactory<>(props);
-  }
-
-  @Bean
-  public ConcurrentKafkaListenerContainerFactory<String, DividendReceivedEvent>
-  dividendReceivedEventKafkaListenerContainerFactory() {
-
-    ConcurrentKafkaListenerContainerFactory<String, DividendReceivedEvent> factory =
-      new ConcurrentKafkaListenerContainerFactory<>();
-
-    factory.setConsumerFactory(dividendReceivedEventConsumerFactory());
-
-    // 수동 커밋 모드 설정
-    factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL);
-
-    // 동시성 레벨 (병렬 Consumer 스레드 수)
-    factory.setConcurrency(3);
 
     // 공통 에러 핸들러 설정 (DLQ 포함)
     factory.setCommonErrorHandler(kafkaErrorHandler());

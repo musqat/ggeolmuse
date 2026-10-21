@@ -17,7 +17,6 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import com.muscat.commonlib.dto.FxRateDto;
 import com.muscat.commonlib.dto.FxRateRangeDto;
 import com.muscat.commonlib.exception.ServiceException;
-import com.muscat.messaging.event.DividendReceivedEvent;
 import com.muscat.messaging.event.TradeCompletedEvent;
 import com.muscat.user.common.enums.responses.AccountResponse;
 import com.muscat.user.common.enums.type.TransactionType;
@@ -993,121 +992,6 @@ class AccountServiceImplTest {
   }
 
   @Nested
-  @DisplayName("배당금 수령 이벤트 처리 테스트")
-  class ProcessDividendReceivedEventTests {
-
-    @Test
-    @DisplayName("배당금 수령 - 계좌 없을 때 예외 발생")
-    void processDividendReceivedEvent_AccountNotFound_ThrowsException() {
-      // given
-      DividendReceivedEvent event =
-        com.muscat.messaging.event.DividendReceivedEvent.builder()
-          .userId(userId.toString())
-          .accountId(999L)
-          .symbol("GOOGL")
-          .quantity(new BigDecimal("50"))
-          .dividendPerShare(new BigDecimal("0.50"))
-          .totalAmount(new BigDecimal("25.00"))
-          .exDate("2024-11-01")
-          .currency("USD")
-          .build();
-
-      given(accountRepository.findById(999L))
-        .willReturn(Optional.empty());
-
-      // when & then
-      assertThatThrownBy(() -> accountService.processDividendReceivedEvent(event))
-        .isInstanceOf(AccountException.class)
-        .hasMessage(AccountResponse.ACCOUNT_NOT_FOUND.getMessage());
-    }
-
-    @Test
-    @DisplayName("배당금 수령 - 계좌 소유자 불일치 시 예외 발생")
-    void processDividendReceivedEvent_OwnerMismatch_ThrowsException() {
-      // given
-      User otherUser = User.builder()
-        .id(999L)
-        .email("other@example.com")
-        .nickname("otheruser")
-        .build();
-
-      Account otherAccount = Account.builder()
-        .id(accountId)
-        .user(otherUser)
-        .accountNumber("987654321")
-        .balanceKrw(BigDecimal.ZERO)
-        .balanceUsd(BigDecimal.ZERO)
-        .build();
-
-      DividendReceivedEvent event =
-        com.muscat.messaging.event.DividendReceivedEvent.builder()
-          .userId(userId.toString())
-          .accountId(accountId)
-          .symbol("MSFT")
-          .quantity(new BigDecimal("20"))
-          .dividendPerShare(new BigDecimal("0.68"))
-          .totalAmount(new BigDecimal("13.60"))
-          .exDate("2024-11-01")
-          .currency("USD")
-          .build();
-
-      given(accountRepository.findById(accountId))
-        .willReturn(Optional.of(otherAccount));
-
-      // when & then
-      assertThatThrownBy(() -> accountService.processDividendReceivedEvent(event))
-        .isInstanceOf(AccountException.class)
-        .hasMessage(AccountResponse.ACCOUNT_ACCESS_DENIED.getMessage());
-    }
-
-    @Test
-    @DisplayName("이미 입금한 배당(같은 계좌 · 종목 · 배당락일)이면 입금하지 않고 넘어간다")
-    void processDividendReceivedEvent_AlreadySettled_Skips() {
-      DividendReceivedEvent event = DividendReceivedEvent.builder()
-        .userId(userId.toString())
-        .accountId(accountId)
-        .symbol("AAPL")
-        .quantity(new BigDecimal("10"))
-        .dividendPerShare(new BigDecimal("0.25"))
-        .totalAmount(new BigDecimal("2.50"))
-        .exDate("2024-11-08")
-        .currency("USD")
-        .build();
-      given(accountRepository.findById(accountId)).willReturn(Optional.of(testAccount));
-      given(dividendSettlementRepository.existsByAccountIdAndSymbolAndExDate(accountId, "AAPL", java.time.LocalDate.of(2024, 11, 8)))
-        .willReturn(true);
-
-      accountService.processDividendReceivedEvent(event);
-
-      assertThat(testAccount.getBalanceUsd()).isEqualByComparingTo("0");
-      verify(dividendSettlementRepository, never()).saveAndFlush(any());
-    }
-
-    @Test
-    @DisplayName("배당 입금은 배당 이력으로 남긴다")
-    void processDividendReceivedEvent_RecordsDividendType() {
-      DividendReceivedEvent event = DividendReceivedEvent.builder()
-        .userId(userId.toString())
-        .accountId(accountId)
-        .symbol("AAPL")
-        .quantity(new BigDecimal("10"))
-        .dividendPerShare(new BigDecimal("0.25"))
-        .totalAmount(new BigDecimal("2.50"))
-        .exDate("2024-11-08")
-        .currency("USD")
-        .build();
-      given(accountRepository.findById(accountId)).willReturn(Optional.of(testAccount));
-      given(accountRepository.findByIdWithLock(accountId)).willReturn(Optional.of(testAccount));
-
-      accountService.processDividendReceivedEvent(event);
-
-      ArgumentCaptor<AccountHistory> saved = ArgumentCaptor.forClass(AccountHistory.class);
-      verify(accountHistoryRepository).save(saved.capture());
-      assertThat(saved.getValue().getTransactionType()).isEqualTo(TransactionType.DIVIDEND);
-    }
-  }
-
-  @Nested
   @DisplayName("사용자 ID로 계좌 조회 테스트")
   class FindAccountsByUserIdTests {
 
@@ -1187,12 +1071,6 @@ class AccountServiceImplTest {
 
     private void lockedAccount() {
       given(accountRepository.findByIdAndUserIdWithLock(accountId, userId)).willReturn(Optional.of(testAccount));
-    }
-
-    private DividendReceivedEvent dividend(String eventUserId) {
-      return DividendReceivedEvent.builder().userId(eventUserId).accountId(accountId).symbol("AAPL")
-        .quantity(BigDecimal.TEN).dividendPerShare(new BigDecimal("0.25")).totalAmount(new BigDecimal("2.12"))
-        .exDate("2024-11-01").currency("USD").build();
     }
 
     @Test
@@ -1289,34 +1167,6 @@ class AccountServiceImplTest {
       assertThat(accountService.getExchangeRateByDate(abnormalDay)).isEqualByComparingTo("1320.00");
       assertThat(accountService.getExchangeRateByDate(failingDay)).isEqualByComparingTo("1320.00");
       verify(userLogger).logAbnormalExchangeRate(argThat(rate -> rate.compareTo(new BigDecimal("5000")) == 0), anyString());
-    }
-
-    @Test
-    @DisplayName("배당 입금이 실패하면 예외를 올리고 입금 기록을 남기지 않는다")
-    void dividend_DepositFails_NoSettlement() {
-      given(accountRepository.findById(accountId)).willReturn(Optional.of(testAccount));
-      // 잔액 반영 단계의 잠금 조회가 비어 계좌 없음으로 실패한다
-      given(accountRepository.findByIdWithLock(accountId)).willReturn(Optional.empty());
-
-      assertThatThrownBy(() -> accountService.processDividendReceivedEvent(dividend(userId.toString())))
-        .isInstanceOf(AccountException.class);
-
-      verify(dividendSettlementRepository, never()).saveAndFlush(any());
-    }
-
-    @Test
-    @DisplayName("이벤트의 사용자가 Keycloak UUID 면 사용자 id 로 바꾸고, 없는 사용자면 계좌 없음이다")
-    void dividend_KeycloakUserId() {
-      given(userRepository.findByKeycloakId("kc-uuid-1")).willReturn(Optional.of(testUser));
-      given(accountRepository.findById(accountId)).willReturn(Optional.of(testAccount));
-      given(accountRepository.findByIdWithLock(accountId)).willReturn(Optional.of(testAccount));
-
-      accountService.processDividendReceivedEvent(dividend("kc-uuid-1"));
-
-      assertThat(testAccount.getBalanceUsd()).isEqualByComparingTo("2.12");
-      assertThatThrownBy(() -> accountService.processDividendReceivedEvent(dividend("kc-unknown")))
-        .isInstanceOf(AccountException.class)
-        .hasMessage(AccountResponse.ACCOUNT_NOT_FOUND.getMessage());
     }
 
     @Test

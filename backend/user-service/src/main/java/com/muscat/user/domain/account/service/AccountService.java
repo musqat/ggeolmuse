@@ -1,7 +1,6 @@
 package com.muscat.user.domain.account.service;
 
 import com.muscat.messaging.event.DividendPayoutEvent;
-import com.muscat.messaging.event.DividendReceivedEvent;
 import com.muscat.messaging.event.TradeCompletedEvent;
 import com.muscat.user.common.enums.type.TransactionType;
 import com.muscat.user.domain.account.dto.request.CreateAccountRequestDto;
@@ -50,9 +49,6 @@ public interface AccountService {
 
   // Kafka 이벤트 처리
   void processTradeEvent(TradeCompletedEvent event);
-
-
-  void processDividendReceivedEvent(DividendReceivedEvent event);
 
   // 배당 몫 목표 금액을 정산 행과 견줘 차이만 반영
   void applyDividendPayout(DividendPayoutEvent event);
