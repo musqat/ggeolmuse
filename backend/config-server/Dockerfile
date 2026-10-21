@@ -5,10 +5,9 @@ WORKDIR /app
 # jboss 저장소는 응답이 없는데 keycloak 부모 pom 이 끌고 온다. Central 로 미러링해 막는다.
 COPY .mvn/ci-settings.xml /root/.m2/settings.xml
 
-# ggeolmuse-bom (common-lib 포함) 설치
+# ggeolmuse-bom(의존성 버전) 설치
 COPY backend/ggeolmuse-bom/pom.xml /bom/pom.xml
-COPY backend/ggeolmuse-bom/src /bom/src
-RUN mvn -f /bom/pom.xml install -DskipTests -q
+RUN mvn -f /bom/pom.xml install -q
 
 # 서비스 빌드
 COPY backend/config-server/pom.xml .
