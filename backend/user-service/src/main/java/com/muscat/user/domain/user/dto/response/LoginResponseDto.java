@@ -13,7 +13,7 @@ public record LoginResponseDto(
   @Schema(description = "리프레시 토큰", example = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
   String refreshToken,
 
-  @Schema(description = "토큰 만료 시간 (초)", example = "3600")
+  @Schema(description = "토큰 만료 시간 (초)", example = "900")
   int expiresIn,
 
   @Schema(description = "토큰 타입", example = "Bearer")

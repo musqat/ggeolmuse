@@ -8,7 +8,7 @@ public record AccessTokenResponseDto(
   @Schema(description = "액세스 토큰", example = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...")
   String accessToken,
 
-  @Schema(description = "액세스 토큰 만료까지 남은 초", example = "3600")
+  @Schema(description = "액세스 토큰 만료까지 남은 초", example = "900")
   int expiresIn
 ) {
 
