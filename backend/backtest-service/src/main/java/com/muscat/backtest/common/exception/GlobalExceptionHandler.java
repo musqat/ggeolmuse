@@ -1,6 +1,6 @@
 package com.muscat.backtest.common.exception;
 
-import com.muscat.backtest.common.enums.BacktestResponse;
+import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.commonlib.exception.BaseExceptionHandler;
 import com.muscat.commonlib.util.ProblemDetailUtils;
 import com.muscat.commonlib.enums.ErrorType;
@@ -16,8 +16,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice(basePackageClasses = {
-    com.muscat.backtest.domain.controller.BacktestAnalysisController.class,
-    com.muscat.backtest.domain.controller.TradingSimulationController.class
+    com.muscat.backtest.api.controller.BacktestAnalysisController.class,
+    com.muscat.backtest.api.controller.TradingSimulationController.class
 })
 @Slf4j
 public class GlobalExceptionHandler extends BaseExceptionHandler {

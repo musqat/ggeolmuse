@@ -14,7 +14,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import com.muscat.backtest.domain.model.StrategyTransaction;
-import com.muscat.backtest.common.enums.BacktestResponse;
+import com.muscat.backtest.common.enums.response.BacktestResponse;
 
 @DisplayName("BacktestCalculationUtils 단위 테스트")
 class BacktestCalculationUtilsTest {

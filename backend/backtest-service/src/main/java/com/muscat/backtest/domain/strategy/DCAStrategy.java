@@ -1,7 +1,7 @@
 package com.muscat.backtest.domain.strategy;
 
 import com.muscat.backtest.common.constants.BacktestConstants;
-import com.muscat.backtest.common.enums.BacktestResponse;
+import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.logging.BacktestLogger;

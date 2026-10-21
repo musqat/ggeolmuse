@@ -2,7 +2,7 @@ package com.muscat.backtest.common.exception;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.muscat.backtest.common.enums.BacktestResponse;
+import com.muscat.backtest.common.enums.response.BacktestResponse;
 import java.util.Objects;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

@@ -1,4 +1,4 @@
-package com.muscat.backtest.domain.controller;
+package com.muscat.backtest.api.controller;
 
 import com.muscat.backtest.domain.entity.InvestmentBacktestResult;
 import com.muscat.backtest.domain.service.InvestmentBacktestService;

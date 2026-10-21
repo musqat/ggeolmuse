@@ -1,4 +1,4 @@
-package com.muscat.backtest.domain.controller;
+package com.muscat.backtest.api.controller;
 
 import com.muscat.backtest.common.util.TokenOwner;
 import com.muscat.backtest.domain.dto.request.InvestmentRequest;

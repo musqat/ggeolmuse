@@ -1,4 +1,4 @@
-package com.muscat.backtest.domain.controller;
+package com.muscat.backtest.api.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;

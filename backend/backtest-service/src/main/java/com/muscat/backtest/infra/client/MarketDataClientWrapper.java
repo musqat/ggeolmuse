@@ -1,6 +1,6 @@
 package com.muscat.backtest.infra.client;
 
-import com.muscat.backtest.common.enums.BacktestResponse;
+import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.config.CacheConfig;
 import com.muscat.backtest.infra.client.dto.DividendDto;
