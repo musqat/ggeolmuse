@@ -11,15 +11,15 @@ docker compose -f docker-compose/docker-compose.yml up -d --build
 ```
 
 ```bash
-cd e2e && npm install && npx playwright install chromium
+cd tests/e2e && npm install && npx playwright install chromium
 ```
 
 ```bash
 npx playwright test
 ```
 
-프론트는 3000, 게이트웨이는 8070, Keycloak 은 8080(realm `custom`) 이다. `E2E_BASE_URL` / `E2E_API_URL` /
-`E2E_KEYCLOAK_URL` / `E2E_KEYCLOAK_REALM` 으로 덮을 수 있다.
+프론트는 3000, 게이트웨이는 8070, market-data 는 8083, Keycloak 은 8080(realm `custom`) 이다. `E2E_BASE_URL` /
+`E2E_API_URL` / `E2E_MARKET_URL` / `E2E_KEYCLOAK_URL` / `E2E_KEYCLOAK_REALM` 으로 덮을 수 있다.
 
 ## 무엇을 보나
 
@@ -50,13 +50,18 @@ market-data 를 여러 번 부른다. 여기가 초록이면 시스템이 살아
 **로그인은 한 번만 한다.** 게이트웨이가 로그인을 IP 당 분당 6회로 막는다. setup 이 받은
 토큰을 파일로 남겨 다른 테스트가 그걸 쓴다.
 
-**종목과 기간을 코드에 박지 않는다.** 로컬 compose 는 알파벳 앞쪽 38개만, 그것도 2년치만
-시세를 받아둔다. AAPL 은 없고 2023년도 없다. 박아두면 새로 띄운 스택에서
+**종목과 기간을 코드에 박지 않는다.** 로컬 compose 는 상장 목록 앞쪽 50개에서 보통주만 남긴 38개 안팎,
+그것도 2년치만 시세를 받아둔다. 목록은 AlphaVantage 상장 목록을 따라 바뀌고 2023년은 없다. 박아두면 새로 띄운 스택에서
 "주가 데이터를 찾을 수 없습니다" 로 깨진다. `fixtures.ts` 가 스택에서 받아 고른다.
 
-**스택이 시세를 다 받을 때까지 기다린다.** 게이트웨이가 200 을 주기 시작해도
-market-data 는 아직 Yahoo 에서 시세를 받는 중이다. 그 틈에 시작하면 종목을 못 고르거나
+**스택이 시세를 다 받을 때까지 기다린다.** market-data 가 200 을 주기 시작해도
+아직 Yahoo 에서 시세를 받는 중이다. 그 틈에 시작하면 종목을 못 고르거나
 차트가 빈 채로 그려져서 엉뚱하게 깨진다. setup 이 가격 붙은 종목이 10개 이상 생길 때까지 본다.
+
+**기다리는 동안은 게이트웨이를 거치지 않는다.** setup 은 market-data(8083)를 바로 불러 시세를 보고, 다 받은 뒤에
+게이트웨이 경로를 한 번 확인한다. 덜 뜬 market-data 로 가는 호출은 게이트웨이 서킷이 실패로 센다. 서킷은 호출이
+정해진 수만큼 쌓여야 열지 말지 정한다. setup 이 실패를 쌓아 둔 채 그 수 전에 끝나면 테스트의 market 호출이 그 수를
+채우는 순간 서킷이 열리고, 열린 동안은 market 경로가 전부 503 이다.
 
 **환율은 없으면 직접 넣는다.** 환율 수집은 `FX_BACKFILL_ENABLED` 가 켜져야 돌고,
 켜도 Yahoo 응답이 비면 통째로 중단된다. 거래 경로를 보려는 테스트가 거기 묶이면 안 된다.
@@ -75,16 +80,15 @@ market-data 는 아직 Yahoo 에서 시세를 받는 중이다. 그 틈에 시�
 
 ## CI
 
-`e2e.yml` 이 master push 마다 돈다. PR 게이트로 두지 않는 이유는 스위트가
-Yahoo Finance 에 의존해서다. 우리 코드와 무관하게 Yahoo 가 흔들리면 머지가 막힌다.
-머지 뒤 이미지를 만들기까지 8분이면 신호가 온다.
+`e2e.yml` 이 PR 과 master push 에서 돈다. 필수 체크로 두지 않는 이유는 스위트가
+Yahoo Finance 에 의존해서다. 코드와 무관하게 Yahoo 가 흔들리면 머지가 막힌다.
+머지 뒤 이미지를 만들기까지 8분이면 신호가 온다. 손으로 돌리려면 Actions 에서 workflow_dispatch 로 실행한다.
 
 **시크릿이 필요 없다.** `.env.example` 의 기본값만으로 뜬다.
 시세와 환율은 Yahoo 에서 받고 키를 요구하지 않으며, KEYCLOAK_SECRET 은 compose 에 박혀 있다.
 
-빈 `.env.example` 로 스택을 새로 띄워 15개가 통과하는 것을 확인했다.
- PR 마다 돌리면 이미지 빌드 때문에 기다리는 시간이
-크게 는다. 손으로 돌리려면 Actions 에서 workflow_dispatch 로 실행한다.
+**실패하면 로그를 남긴다.** 컨테이너마다 마지막 200줄, market-data 기동 구간, 게이트웨이 경로별 서킷 상태와
+성공 · 실패 · 거절 수를 찍는다. 게이트웨이가 서킷 때문에 돌려주는 503 은 따로 로그가 없어 서킷 수치로 본다.
 
 ## 선택자
 

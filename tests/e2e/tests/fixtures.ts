@@ -11,13 +11,14 @@ export interface TestSymbol {
 /** 시세가 붙은 종목을 골라 모은다. symbols 는 티커만 줘서 stocks 를 쓴다. */
 export async function pickPricedSymbols(
   api: APIRequestContext,
-  count: number
+  count: number,
+  baseUrl: string = API_URL
 ): Promise<TestSymbol[]> {
   const found: TestSymbol[] = [];
 
   // 시가총액 순이라 시세 있는 종목이 앞쪽에 몰려 있지 않다
   for (let page = 0; page < 10 && found.length < count; page++) {
-    const res = await api.get(`${API_URL}/market/stocks`, { params: { page, size: 200 } });
+    const res = await api.get(`${baseUrl}/market/stocks`, { params: { page, size: 200 } });
     if (!res.ok()) throw new Error(`종목 목록 조회 실패: ${res.status()}`);
 
     const body = (await res.json()) as {

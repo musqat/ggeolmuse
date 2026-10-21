@@ -1,28 +1,36 @@
 import { test as setup, expect, request } from '@playwright/test';
-import { API_URL, BASE_URL, SEED_EMAIL, SEED_PASSWORD, STORAGE_STATE, TOKEN_FILE } from '../playwright.config';
+import { API_URL, BASE_URL, MARKET_URL, SEED_EMAIL, SEED_PASSWORD, STORAGE_STATE, TOKEN_FILE } from '../playwright.config';
 import { pickPricedSymbols } from './fixtures';
 
 // 로그인 화면 대신 localStorage 의 accessToken 으로 로그인 상태를 만듦
 setup('시드 계정으로 토큰을 받아 저장한다', async () => {
   const api = await request.newContext();
 
-  // 200 만 봐서는 모자란다. 게이트웨이가 뜬 뒤에도 market-data 는
-  // 아직 시세를 받는 중이라 종목에 가격이 비어 있다.
+  // 그 주소로 받은 시세 붙은 종목 수(조회 실패는 0)
+  const pricedCount = (baseUrl: string) => async () => {
+    try {
+      return (await pickPricedSymbols(api, 10, baseUrl)).length;
+    } catch {
+      return 0;
+    }
+  };
+
+  // 게이트웨이를 거치지 않는 market-data 시세 대기
   await expect
-    .poll(
-      async () => {
-        try {
-          return (await pickPricedSymbols(api, 10)).length;
-        } catch {
-          return 0;
-        }
-      },
-      {
-        timeout: 300_000,
-        intervals: [2000],
-        message: '시세가 붙은 종목이 생기지 않는다. 스택이 덜 떴다',
-      }
-    )
+    .poll(pricedCount(MARKET_URL), {
+      timeout: 300_000,
+      intervals: [2000],
+      message: '시세가 붙은 종목이 생기지 않는다. 스택이 덜 떴다',
+    })
+    .toBeGreaterThanOrEqual(10);
+
+  // 게이트웨이 경로 확인
+  await expect
+    .poll(pricedCount(API_URL), {
+      timeout: 20_000,
+      intervals: [2000],
+      message: '게이트웨이가 market-data 로 보내지 못한다',
+    })
     .toBeGreaterThanOrEqual(10);
 
   const res = await api.post(`${API_URL}/auth/login`, {

@@ -157,12 +157,11 @@ ggeolmuse/
 | frontend-web | 451 |
 | E2E (Playwright) | 36 |
 
-<details>
-
 E2E 는 `docker compose` 로 스택 전체를 띄우고 PR 과 `master` push 마다 돈다.
-필수 체크로 두지 않은 이유는 시세를 Yahoo Finance 에서 받아서다 — 우리 코드와
+필수 체크로 두지 않은 이유는 시세를 Yahoo Finance 에서 받아서다 — 코드와
 무관하게 외부가 흔들리면 머지가 막힌다.
 
+<details>
 <summary><b>커버리지와 그 한계</b></summary>
 
 <br>
