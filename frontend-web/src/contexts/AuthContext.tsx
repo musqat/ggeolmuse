@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { authApi, refreshAccessToken, type User } from '../services/api';
 import { tokenManager, checkAuthStatus } from '../utils/auth';
 import { buildGoogleLoginUrl, type GoogleLoginOptions } from '../utils/googleLogin';
@@ -8,6 +9,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
+  // 사용자별 조회 결과(계좌 · 보유 등)가 다음 사용자에게 보이지 않게 로그아웃 때 비움
+  const queryClient = useQueryClient();
 
   // 전역 로그아웃 이벤트 리스너
   useEffect(() => {
@@ -15,11 +18,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsAuthenticated(false);
       setUser(null);
       tokenManager.removeTokens();
+      queryClient.clear();
     };
 
     window.addEventListener('auth:logout', handleGlobalLogout);
     return () => window.removeEventListener('auth:logout', handleGlobalLogout);
-  }, []);
+  }, [queryClient]);
 
   // 초기 인증 상태 확인
   useEffect(() => {
@@ -94,6 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     tokenManager.removeTokens();
     setIsAuthenticated(false);
     setUser(null);
+    queryClient.clear();
     authApi.logout().catch((error) => console.warn('서버 로그아웃 실패', error));
   };
 
