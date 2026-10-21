@@ -202,9 +202,48 @@ class MarketDataMigrationIT {
       tuple("THIN", false), tuple("SPY", true), tuple("TINY", true));
   }
 
+  @Test
+  @DisplayName("V14 는 10-20 이후 수집 때 내려간 기존 ETF 중 그 전 20봉 평균이 기준 위이거나 판단할 봉이 없는 것만 되돌린다")
+  void refreshedEtfsReactivated() throws IOException {
+    LocalDate cutoff = LocalDate.of(2026, 10, 20);
+    for (String symbol : List.of("DRIFT", "THIN", "STALE", "V13", "NEW")) {
+      assetRepository.save(inactiveAsset(symbol, "ETF", null));
+    }
+    assetRepository.save(inactiveAsset("GONE", "ETF", cutoff.plusDays(1)));
+    assetRepository.save(inactiveAsset("STOCK", "EQUITY", null));
+    for (int daysBefore = 1; daysBefore <= 25; daysBefore++) {
+      LocalDate day = cutoff.minusDays(daysBefore);
+      candleOn("DRIFT", day, 20_000L);
+      candleOn("THIN", day, 100L);
+      candleOn("V13", day, 100L);
+      candleOn("GONE", day, 20_000L);
+      candleOn("STOCK", day, 20_000L);
+    }
+    candleOn("STALE", LocalDate.of(2026, 7, 1), 20_000L);
+    for (String symbol : List.of("DRIFT", "THIN", "STALE", "GONE", "STOCK")) {
+      candleOn(symbol, cutoff, 100L);
+    }
+    candleOn("NEW", cutoff.plusDays(1), 100L);
+
+    jdbcTemplate.execute(migration("V14__Reactivate_Etfs_Deactivated_On_Refresh.sql"));
+
+    assertThat(assetRepository.findAll()).extracting(Asset::getSymbol, Asset::getActive).containsExactlyInAnyOrder(
+      tuple("DRIFT", true), tuple("STALE", true), tuple("THIN", false), tuple("V13", false), tuple("NEW", false),
+      tuple("GONE", false), tuple("STOCK", false));
+  }
+
   private void candle(String symbol, int daysAgo, long volume) {
+    candleOn(symbol, LocalDate.now().minusDays(daysAgo), volume);
+  }
+
+  private void candleOn(String symbol, LocalDate date, long volume) {
     jdbcTemplate.update("INSERT INTO candle (symbol, date, currency, adjusted_close, volume) VALUES (?, ?, 'USD', 1, ?)",
-      symbol, LocalDate.now().minusDays(daysAgo), volume);
+      symbol, date, volume);
+  }
+
+  private static Asset inactiveAsset(String symbol, String type, LocalDate delistedDate) {
+    return Asset.builder().symbol(symbol).name(symbol).country("US").currency("USD").assetType(type)
+      .active(false).delistedDate(delistedDate).build();
   }
 
   private static Asset typedAsset(String symbol, String name, String type) {
