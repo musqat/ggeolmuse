@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { accountsApi } from '../services/api';
 
 export interface Account {
@@ -15,53 +16,38 @@ interface UseAccountsReturn {
   error: string | null;
 }
 
-export function useAccounts(isAuthenticated: boolean): UseAccountsReturn {
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+const EMPTY_ACCOUNTS: Account[] = [];
 
+// 로그인했을 때 계좌 목록을 받고 첫 계좌를 고름
+export function useAccounts(isAuthenticated: boolean): UseAccountsReturn {
+  const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['accounts', 'list'],
+    enabled: isAuthenticated,
+    queryFn: async () => {
+      const response = await accountsApi.getAccounts();
+      return Array.isArray(response.data) ? (response.data as Account[]) : EMPTY_ACCOUNTS;
+    },
+  });
+  const accounts = isAuthenticated ? (data ?? EMPTY_ACCOUNTS) : EMPTY_ACCOUNTS;
+
+  // 첫 계좌를 자동 선택. 로그아웃하면 선택을 비움
   useEffect(() => {
     if (!isAuthenticated) {
-      setAccounts([]);
       setSelectedAccountId(null);
       return;
     }
-
-    const loadAccounts = async () => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        // apiClient 를 거쳐야 VITE_API_URL 을 따르고, 토큰이 만료되면 인터셉터가 갱신한다
-        const response = await accountsApi.getAccounts();
-
-        if (response.data && Array.isArray(response.data)) {
-          setAccounts(response.data);
-
-          // 첫 번째 계좌를 자동 선택.
-          // 함수형 갱신을 쓰면 현재 선택값을 effect 밖에서 읽지 않아도 된다.
-          // selectedAccountId 를 의존성에 넣으면 계좌를 바꿀 때마다 목록을 다시 부른다.
-          if (response.data.length > 0) {
-            setSelectedAccountId((prev) => prev ?? response.data[0].accountId);
-          }
-        }
-      } catch (err) {
-        console.error('계좌 조회 실패:', err);
-        setError('계좌 목록을 불러오는데 실패했습니다.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadAccounts();
-  }, [isAuthenticated]);
+    if (accounts.length > 0) {
+      setSelectedAccountId((prev) => prev ?? accounts[0].accountId);
+    }
+  }, [isAuthenticated, accounts]);
 
   return {
     accounts,
     selectedAccountId,
     setSelectedAccountId,
-    loading,
-    error,
+    loading: isLoading,
+    error: error ? '계좌 목록을 불러오는데 실패했습니다.' : null,
   };
 }

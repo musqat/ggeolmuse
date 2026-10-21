@@ -165,6 +165,7 @@ export type ComparisonDetail = Partial<SimulationResponse> & Partial<StrategyRes
 // 비교 항목
 export type ComparisonItem = {
   name: string;                         // 항목명
+  code: string;                         // 종목 코드
   totalInvested?: number;               // 총 투자액
   currentValueKrw?: number;             // 현재 가치 (KRW)
   totalInvestment?: number;             // 총 투자액 (레거시)
@@ -174,7 +175,6 @@ export type ComparisonItem = {
   totalReturnKrw?: number;              // 총 수익 (KRW)
 
   // 종목 비교에서만 채워지는 것들. 전략 비교 응답에는 없다.
-  symbol?: string;
   purchaseDate?: string;
   currentDate?: string;
   purchasePrice?: number;               // 단순 매수

@@ -4,6 +4,7 @@ import { renderHook, waitFor, act } from '@testing-library/react'
 import { AxiosError, type AxiosResponse } from 'axios'
 import { authApi, refreshAccessToken } from '../services/api'
 import { useAuth } from '../hooks/useAuth'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from './AuthContext'
 
 vi.mock('../services/api', () => ({
@@ -30,7 +31,13 @@ const httpError = (status: number) =>
   new AxiosError('fail', 'ERR', undefined, undefined, { status, data: {}, statusText: '', headers: {}, config: {} } as AxiosResponse)
 const ok = <T,>(data: T) => ({ data }) as AxiosResponse<T>
 
-const wrapper = ({ children }: { children: React.ReactNode }) => <AuthProvider>{children}</AuthProvider>
+// 로그아웃 뒤 캐시를 볼 수 있게 테스트마다 새 클라이언트
+let client: QueryClient
+const wrapper = ({ children }: { children: React.ReactNode }) => (
+  <QueryClientProvider client={client}>
+    <AuthProvider>{children}</AuthProvider>
+  </QueryClientProvider>
+)
 // 첫 확인이 끝날 때까지 기다린다
 const renderAuth = async () => {
   const hook = renderHook(() => useAuth(), { wrapper })
@@ -39,6 +46,7 @@ const renderAuth = async () => {
 }
 
 beforeEach(() => {
+  client = new QueryClient()
   localStorage.clear()
   vi.clearAllMocks()
   api.logout.mockResolvedValue(ok(undefined) as never)
@@ -190,6 +198,25 @@ describe('AuthProvider 로그아웃', () => {
     expect(result.current.isAuthenticated).toBe(false)
     expect(result.current.user).toBeNull()
     expect(localStorage.getItem('accessToken')).toBeNull()
+  })
+
+  it('logout 하면 앞 사용자의 조회 결과(쿼리 캐시)를 비운다', async () => {
+    const { result } = await loggedIn()
+    client.setQueryData(['accounts', 'list'], [{ accountId: 1 }])
+
+    act(() => result.current.logout())
+
+    expect(client.getQueryData(['accounts', 'list'])).toBeUndefined()
+  })
+
+  it('auth:logout 이벤트로 로그아웃해도 쿼리 캐시를 비운다', async () => {
+    const { result } = await loggedIn()
+    client.setQueryData(['accounts', 'list'], [{ accountId: 1 }])
+
+    act(() => { window.dispatchEvent(new CustomEvent('auth:logout')) })
+
+    expect(result.current.isAuthenticated).toBe(false)
+    expect(client.getQueryData(['accounts', 'list'])).toBeUndefined()
   })
 })
 

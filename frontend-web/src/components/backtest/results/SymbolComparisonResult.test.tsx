@@ -7,7 +7,7 @@ vi.mock('./CompareSymbolsChartMemoized', () => ({
 }))
 
 const item = (symbol: string, totalReturnKrw: number, totalReturnPercent: number) => ({
-  symbol,
+  code: symbol,
   name: symbol,
   purchaseDate: '2023-01-03',
   currentDate: '2024-01-03',
@@ -24,7 +24,7 @@ const item = (symbol: string, totalReturnKrw: number, totalReturnPercent: number
 
 const result = {
   mode: 'compare-symbols',
-  bestPerformer: { name: 'AAPL', totalReturnPercent: 12 },
+  bestPerformer: { name: 'AAPL', code: 'AAPL', totalReturnPercent: 12 },
   items: [item('AAPL', 120000, 12), item('MSFT', 80000, 8)],
 }
 
@@ -62,5 +62,44 @@ describe('SymbolComparisonResult 값이 없을 때', () => {
     const box = label.parentElement
     expect(box).toHaveClass('bg-brand-bg')
     expect(box).toHaveTextContent('-')
+  })
+})
+
+describe('SymbolComparisonResult 최적 타이밍', () => {
+  const chartPoint = { buyDate: '2023-03-01', sellDate: '2023-11-01', minPrice: 145.5, sellPrice: 190.25 }
+
+  it('서버 값이 없으면 차트가 계산한 매수 · 매도 시점을 서버 값과 같은 칸으로 보여준다', () => {
+    const one = { ...result, items: [item('AAPL', 120000, 12)] }
+    render(
+      <SymbolComparisonResult
+        result={one}
+        comparePurchaseDate="2023-01-03"
+        compareSaleDate=""
+        symbolOptimalPoints={{ AAPL: chartPoint }}
+        setSymbolOptimalPoints={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText('2023-03-01')).toBeInTheDocument()
+    expect(screen.getByText('$145.50')).toBeInTheDocument()
+    expect(screen.getByText('2023-11-01')).toBeInTheDocument()
+    expect(screen.getByText('최적 매도가')).toBeInTheDocument()
+    expect(screen.getByText('$190.25')).toBeInTheDocument()
+    expect(screen.queryByText('최적 평가금액')).not.toBeInTheDocument()
+  })
+
+  it('항목 이름이 종목 코드와 달라도 종목 코드로 차트 값을 찾는다', () => {
+    const named = { ...result, items: [{ ...item('AAPL', 120000, 12), name: '애플' }] }
+    render(
+      <SymbolComparisonResult
+        result={named}
+        comparePurchaseDate="2023-01-03"
+        compareSaleDate=""
+        symbolOptimalPoints={{ AAPL: chartPoint }}
+        setSymbolOptimalPoints={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText('2023-03-01')).toBeInTheDocument()
   })
 })

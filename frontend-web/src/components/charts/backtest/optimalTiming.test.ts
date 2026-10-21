@@ -40,6 +40,19 @@ describe('calculateOptimalPoints', () => {
     expect(point.sellDate).toBe('2026-07-28')
   })
 
+  it('매도일의 주가를 매도가로 준다', () => {
+    const data = [
+      row('2025-01-02', 248.62),
+      row('2025-04-08', 171.37),
+      row('2026-07-28', 339.79),
+    ]
+
+    const { AAPL: point } = calculateOptimalPoints(AAPL, data)
+
+    expect(point.minPrice).toBe(171.37)
+    expect(point.sellPrice).toBe(339.79)
+  })
+
   it('내내 하락하면 매수일과 매도일이 같다', () => {
     // 살 이유가 없는 구간이다. 손실을 최적이라고 부르지 않는다.
     const data = [
@@ -52,6 +65,7 @@ describe('calculateOptimalPoints', () => {
 
     expect(point.buyDate).toBe('2026-01-02')
     expect(point.sellDate).toBe('2026-01-02')
+    expect(point.sellPrice).toBe(300)
   })
 
   it('종목마다 따로 계산한다', () => {

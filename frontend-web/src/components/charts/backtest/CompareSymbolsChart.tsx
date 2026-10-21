@@ -31,7 +31,7 @@ import { useChartPeriod } from '../common/hooks/useChartPeriod';
 import { ChartPeriodSelector } from '../common/components/ChartPeriodSelector';
 import { CHART_COLORS } from '../common/constants';
 import type { OHLCData } from '../../../types/ohlc';
-import { calculateOptimalPoints } from './optimalTiming';
+import { calculateOptimalPoints, type OptimalPointsBySymbol } from './optimalTiming';
 import { getTodayString } from '../../../utils/dateUtils';
 
 interface SymbolData {
@@ -49,9 +49,7 @@ interface SymbolComparisonChartProps {
   symbols: SymbolData[];
   startDate: string;
   endDate?: string;
-  onOptimalPointsCalculated?: (points: {
-    [symbol: string]: { buyDate: string; sellDate: string; minPrice: number; maxValue: number };
-  }) => void;
+  onOptimalPointsCalculated?: (points: OptimalPointsBySymbol) => void;
 }
 
 interface ChartDataPoint {

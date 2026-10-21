@@ -52,15 +52,15 @@ describe('CompareSymbolsChart 차트', () => {
       {
         "AAPL": {
           "buyDate": "2026-03-03",
-          "maxValue": 286000,
           "minPrice": 90,
           "sellDate": "2026-03-04",
+          "sellPrice": 110,
         },
         "MSFT": {
           "buyDate": "2026-03-02",
-          "maxValue": 289050,
           "minPrice": 400,
           "sellDate": "2026-03-03",
+          "sellPrice": 410,
         },
       }
     `)
