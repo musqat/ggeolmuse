@@ -13,7 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.muscat.marketdata.common.enums.StockSort;
-import com.muscat.marketdata.common.exceptions.GlobalExceptionHandler;
+import com.muscat.marketdata.common.exception.GlobalExceptionHandler;
 import com.muscat.marketdata.config.security.SecurityConfig;
 import com.muscat.marketdata.domain.dto.DividendDto;
 import com.muscat.marketdata.domain.dto.OHLCPriceDto;

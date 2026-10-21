@@ -1,4 +1,4 @@
-package com.muscat.marketdata.common.exceptions;
+package com.muscat.marketdata.common.exception;
 
 import com.muscat.commonlib.exception.BaseExceptionHandler;
 import com.muscat.commonlib.util.ProblemDetailUtils;

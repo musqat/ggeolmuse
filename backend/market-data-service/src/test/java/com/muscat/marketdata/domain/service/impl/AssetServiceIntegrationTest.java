@@ -3,7 +3,7 @@ package com.muscat.marketdata.domain.service.impl;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.muscat.marketdata.common.exceptions.MarketDataException;
+import com.muscat.marketdata.common.exception.MarketDataException;
 import com.muscat.marketdata.datasource.alphavantage.scheduler.AlphaVantageScheduler;
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.repository.AssetRepository;

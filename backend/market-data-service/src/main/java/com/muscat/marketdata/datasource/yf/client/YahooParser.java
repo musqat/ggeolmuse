@@ -2,7 +2,7 @@ package com.muscat.marketdata.datasource.yf.client;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.muscat.marketdata.common.exceptions.YahooFinanceException;
+import com.muscat.marketdata.common.exception.YahooFinanceException;
 import com.muscat.marketdata.datasource.common.AssetTypeRule;
 import com.muscat.marketdata.domain.dto.CandleDto;
 import com.muscat.marketdata.domain.dto.DividendDto;

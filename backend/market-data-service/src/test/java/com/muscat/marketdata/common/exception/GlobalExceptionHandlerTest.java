@@ -1,4 +1,4 @@
-package com.muscat.marketdata.common.exceptions;
+package com.muscat.marketdata.common.exception;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

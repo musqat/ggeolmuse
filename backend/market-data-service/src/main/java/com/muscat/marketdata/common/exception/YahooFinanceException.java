@@ -1,4 +1,4 @@
-package com.muscat.marketdata.common.exceptions;
+package com.muscat.marketdata.common.exception;
 
 /**
  * Yahoo Finance API 호출 중 발생하는 예외

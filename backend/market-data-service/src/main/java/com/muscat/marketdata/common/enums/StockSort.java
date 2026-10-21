@@ -1,7 +1,7 @@
 package com.muscat.marketdata.common.enums;
 
 import com.muscat.marketdata.common.enums.response.MarketDataResponse;
-import com.muscat.marketdata.common.exceptions.MarketDataException;
+import com.muscat.marketdata.common.exception.MarketDataException;
 
 // 종목 목록 정렬 기준. 요청 값은 marketCap · dividendYield
 public enum StockSort {

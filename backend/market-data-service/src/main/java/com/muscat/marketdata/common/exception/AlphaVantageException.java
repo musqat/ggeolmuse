@@ -1,4 +1,4 @@
-package com.muscat.marketdata.common.exceptions;
+package com.muscat.marketdata.common.exception;
 
 public class AlphaVantageException extends RuntimeException {
 

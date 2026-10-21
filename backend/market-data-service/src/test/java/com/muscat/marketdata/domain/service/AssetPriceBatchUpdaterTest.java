@@ -6,7 +6,7 @@ import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verify;
 
 import com.muscat.marketdata.common.enums.response.MarketDataResponse;
-import com.muscat.marketdata.common.exceptions.MarketDataException;
+import com.muscat.marketdata.common.exception.MarketDataException;
 import com.muscat.marketdata.domain.entity.Asset;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;

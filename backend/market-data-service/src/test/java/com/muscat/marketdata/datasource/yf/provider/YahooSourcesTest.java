@@ -5,7 +5,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
-import com.muscat.marketdata.common.exceptions.YahooFinanceException;
+import com.muscat.marketdata.common.exception.YahooFinanceException;
 import com.muscat.marketdata.datasource.yf.client.YahooFinanceClient;
 import com.muscat.marketdata.datasource.yf.client.YahooParser;
 import com.muscat.marketdata.domain.dto.CandleDto;

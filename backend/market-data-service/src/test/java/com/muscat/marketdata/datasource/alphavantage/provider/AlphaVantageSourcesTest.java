@@ -10,7 +10,7 @@ import static org.mockito.Mockito.verify;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.muscat.marketdata.common.exceptions.AlphaVantageException;
+import com.muscat.marketdata.common.exception.AlphaVantageException;
 import com.muscat.marketdata.datasource.alphavantage.client.AlphaVantageClient;
 import com.muscat.marketdata.datasource.alphavantage.client.AlphaVantageRateLimiter;
 import com.muscat.marketdata.domain.dto.DividendDto;

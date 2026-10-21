@@ -10,7 +10,7 @@ import static org.mockito.BDDMockito.never;
 import static org.mockito.BDDMockito.verify;
 import static org.springframework.test.util.ReflectionTestUtils.setField;
 
-import com.muscat.marketdata.common.exceptions.MarketDataException;
+import com.muscat.marketdata.common.exception.MarketDataException;
 import com.muscat.marketdata.datasource.common.MarketDataProvider.AssetInfoSource;
 import com.muscat.marketdata.datasource.common.MarketDataProvider.CandleSource;
 import com.muscat.marketdata.datasource.common.MarketDataProvider.MarketCapSource;
