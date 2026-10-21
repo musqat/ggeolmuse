@@ -25,8 +25,8 @@ public class AssetEventConsumer {
             containerFactory = "assetEventListenerFactory"
     )
     public void handleAssetCreated(AssetCreatedEvent event, Acknowledgment acknowledgment) {
-        // TraceId 로깅 (BATCH_COLLECTION은 초기 수집)
-        String traceInfo = "BATCH_COLLECTION".equals(event.getTraceId()) ? "batch" : event.getTraceId();
+        // 추적 id 가 없으면 배치 수집
+        String traceInfo = event.getTraceId() == null ? "batch" : event.getTraceId();
         log.debug("종목 생성 이벤트 수신: symbol={}, collectData={}, trace={}",
                 event.getSymbol(), event.isCollectData(), traceInfo);
 

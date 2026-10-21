@@ -2,18 +2,15 @@ package com.muscat.marketdata.config;
 
 import com.muscat.messaging.event.AssetCreatedEvent;
 import com.muscat.messaging.event.DividendUpdatedEvent;
-import com.muscat.messaging.event.PriceUpdatedEvent;
+import com.muscat.messaging.kafka.KafkaFactories;
 import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
-import org.springframework.kafka.support.serializer.JsonSerializer;
 
-import java.util.HashMap;
 import java.util.Map;
 
 // Market Data 서비스 Kafka 프로듀서 설정
@@ -24,48 +21,8 @@ public class KafkaProducerConfig {
     private String bootstrapServers;
 
     @Bean
-    public ProducerFactory<String, PriceUpdatedEvent> priceEventProducerFactory() {
-        Map<String, Object> configProps = new HashMap<>();
-        configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
-
-        // Producer 안정성 설정
-        configProps.put(ProducerConfig.ACKS_CONFIG, "all"); // 모든 replica 확인
-        configProps.put(ProducerConfig.RETRIES_CONFIG, 3); // 3번 재시도
-        configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true); // 멱등성 보장
-
-        // 성능 최적화 (대량 주가 데이터 전송)
-        configProps.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "gzip"); // 압축 (Docker 호환성)
-        configProps.put(ProducerConfig.LINGER_MS_CONFIG, 10); // 10ms 배치 대기
-        configProps.put(ProducerConfig.BATCH_SIZE_CONFIG, 32768); // 32KB 배치
-
-        return new DefaultKafkaProducerFactory<>(configProps);
-    }
-
-    @Bean
-    public KafkaTemplate<String, PriceUpdatedEvent> priceEventKafkaTemplate() {
-        return new KafkaTemplate<>(priceEventProducerFactory());
-    }
-
-    @Bean
     public ProducerFactory<String, DividendUpdatedEvent> dividendEventProducerFactory() {
-        Map<String, Object> configProps = new HashMap<>();
-        configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
-
-        // Producer 안정성 설정
-        configProps.put(ProducerConfig.ACKS_CONFIG, "all");
-        configProps.put(ProducerConfig.RETRIES_CONFIG, 3);
-        configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
-
-        // 성능 최적화
-        configProps.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "gzip"); // Docker 호환성
-        configProps.put(ProducerConfig.LINGER_MS_CONFIG, 10);
-        configProps.put(ProducerConfig.BATCH_SIZE_CONFIG, 16384); // 16KB 배치
-
-        return new DefaultKafkaProducerFactory<>(configProps);
+        return new DefaultKafkaProducerFactory<>(producerProps());
     }
 
     @Bean
@@ -75,22 +32,7 @@ public class KafkaProducerConfig {
 
     @Bean
     public ProducerFactory<String, AssetCreatedEvent> assetCreatedProducerFactory() {
-        Map<String, Object> configProps = new HashMap<>();
-        configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
-
-        // Producer 안정성 설정
-        configProps.put(ProducerConfig.ACKS_CONFIG, "all");
-        configProps.put(ProducerConfig.RETRIES_CONFIG, 3);
-        configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
-
-        // 성능 최적화
-        configProps.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "gzip");
-        configProps.put(ProducerConfig.LINGER_MS_CONFIG, 10);
-        configProps.put(ProducerConfig.BATCH_SIZE_CONFIG, 16384);
-
-        return new DefaultKafkaProducerFactory<>(configProps);
+        return new DefaultKafkaProducerFactory<>(producerProps());
     }
 
     @Bean
@@ -98,28 +40,11 @@ public class KafkaProducerConfig {
         return new KafkaTemplate<>(assetCreatedProducerFactory());
     }
 
-    @Bean
-    public ProducerFactory<String, Object> genericProducerFactory() {
-        Map<String, Object> configProps = new HashMap<>();
-        configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
-
-        // Producer 안정성 설정
-        configProps.put(ProducerConfig.ACKS_CONFIG, "all");
-        configProps.put(ProducerConfig.RETRIES_CONFIG, 3);
-        configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
-
-        // 성능 최적화
-        configProps.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "gzip");
-        configProps.put(ProducerConfig.LINGER_MS_CONFIG, 10);
-        configProps.put(ProducerConfig.BATCH_SIZE_CONFIG, 16384);
-
-        return new DefaultKafkaProducerFactory<>(configProps);
-    }
-
-    @Bean
-    public KafkaTemplate<String, Object> kafkaTemplate() {
-        return new KafkaTemplate<>(genericProducerFactory());
+    private Map<String, Object> producerProps() {
+        Map<String, Object> props = KafkaFactories.producerProps(bootstrapServers);
+        props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "gzip");
+        props.put(ProducerConfig.LINGER_MS_CONFIG, 10);
+        props.put(ProducerConfig.BATCH_SIZE_CONFIG, 16384);
+        return props;
     }
 }

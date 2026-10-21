@@ -1,12 +1,10 @@
 package com.muscat.marketdata.config;
 
 import com.muscat.messaging.event.AssetCreatedEvent;
-import lombok.extern.slf4j.Slf4j;
+import com.muscat.messaging.kafka.KafkaFactories;
+import io.micrometer.core.instrument.MeterRegistry;
+import lombok.RequiredArgsConstructor;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.serialization.StringDeserializer;
-import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,29 +12,17 @@ import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
-import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.listener.CommonErrorHandler;
-import org.springframework.kafka.listener.ContainerProperties;
-import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
-import org.springframework.kafka.listener.DefaultErrorHandler;
-import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
-import org.springframework.kafka.support.serializer.JsonDeserializer;
-import org.springframework.kafka.support.serializer.JsonSerializer;
-import org.springframework.util.backoff.FixedBackOff;
 
-import java.util.HashMap;
 import java.util.Map;
 
 // Market Data 서비스 Kafka 컨슈머 설정(종목 생성 이벤트를 받아 수집)
-@Slf4j
 @EnableKafka
 @Configuration
+@RequiredArgsConstructor
 public class KafkaConsumerConfig {
 
-    // 첫 전달이 실패하면 1초 간격으로 세 번 더 보낸다
-    private static final long RETRY_INTERVAL_MS = 1000L;
-    private static final long MAX_RETRIES = 3L;
+    private final MeterRegistry meterRegistry;
 
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
@@ -52,53 +38,24 @@ public class KafkaConsumerConfig {
 
     @Bean
     public ConsumerFactory<String, AssetCreatedEvent> assetEventConsumerFactory() {
-        Map<String, Object> props = new HashMap<>();
-        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        props.put(ConsumerConfig.GROUP_ID_CONFIG, "market-data-collection-group");
-
-        // 수동 커밋 모드 (메시지 처리 성공시에만 커밋)
-        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
-
-        // 컨슈머 그룹 최초 실행시 earliest부터 읽기
-        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        Map<String, Object> props = KafkaFactories.jsonConsumerProps(
+                bootstrapServers, "market-data-collection-group", AssetCreatedEvent.class);
 
         // 리스너 안에서 수집을 끝내므로 한 번에 받는 건수가 곧 poll 주기가 된다.
         // 여러 건을 받으면 느린 종목 하나에 나머지가 묶여 max.poll.interval.ms 를 넘긴다. 한 건씩 받는다
         props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, maxPollRecords);
         props.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, maxPollIntervalMs);
 
-        // Deserializer 설정
-        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
-        props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class.getName());
-
-        // JSON Deserializer 추가 설정
-        props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, AssetCreatedEvent.class.getName());
-        props.put(JsonDeserializer.TRUSTED_PACKAGES, "com.muscat.*");
-        props.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
-
         return new DefaultKafkaConsumerFactory<>(props);
     }
 
+    // market.asset.created 의 파티션 수와 같게 둔다. 넘으면 남는 스레드가 논다.
+    // DB 커넥션 풀(20)보다 작아야 스레드가 커넥션을 다 쥐지 않는다
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, AssetCreatedEvent>
     assetEventListenerFactory() {
-
-        ConcurrentKafkaListenerContainerFactory<String, AssetCreatedEvent> factory =
-                new ConcurrentKafkaListenerContainerFactory<>();
-
-        factory.setConsumerFactory(assetEventConsumerFactory());
-
-        // 수동 커밋 모드 설정
-        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL);
-
-        // market.asset.created 의 파티션 수와 같게 둔다. 넘으면 남는 스레드가 논다.
-        // DB 커넥션 풀(20)보다 작아야 스레드가 커넥션을 다 쥐지 않는다
-        factory.setConcurrency(concurrency);
-
-        factory.setCommonErrorHandler(kafkaErrorHandler());
-
-        return factory;
+        return KafkaFactories.manualAckContainer(assetEventConsumerFactory(), concurrency,
+                KafkaFactories.deadLetterErrorHandler(dltKafkaTemplate(), meterRegistry));
     }
 
     /**
@@ -106,32 +63,6 @@ public class KafkaConsumerConfig {
      */
     @Bean
     public KafkaTemplate<String, Object> dltKafkaTemplate() {
-        Map<String, Object> props = new HashMap<>();
-        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
-        props.put(ProducerConfig.ACKS_CONFIG, "all");
-        return new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(props));
-    }
-
-    /**
-     * 첫 전달까지 넣어 최대 네 번 보낸다. 다 실패하면 토픽 이름에 .DLT 를 붙인 곳으로 보낸다.
-     */
-    private CommonErrorHandler kafkaErrorHandler() {
-        // 파티션을 -1 로 두면 카프카가 고른다. DLT 파티션 수가 원본보다 적어도 된다
-        DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(
-                dltKafkaTemplate(),
-                (record, ex) -> new TopicPartition(record.topic() + ".DLT", -1));
-
-        DefaultErrorHandler errorHandler =
-                new DefaultErrorHandler(recoverer, new FixedBackOff(RETRY_INTERVAL_MS, MAX_RETRIES));
-
-        errorHandler.setRetryListeners((record, ex, deliveryAttempt) -> {
-            log.warn("전달 {}/{} 실패: topic={}, partition={}, offset={}, error={}",
-                    deliveryAttempt, MAX_RETRIES + 1, record.topic(), record.partition(),
-                    record.offset(), ex.getMessage());
-        });
-
-        return errorHandler;
+        return KafkaFactories.dltTemplate(bootstrapServers);
     }
 }
