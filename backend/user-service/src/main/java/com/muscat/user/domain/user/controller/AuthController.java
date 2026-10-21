@@ -283,7 +283,7 @@ public class AuthController {
       content = @Content(
         mediaType = "application/json",
         examples = @ExampleObject(
-          value = "{\"accessToken\": \"eyJhbGciOiJSUzI1NiJ9...\", \"expiresIn\": 3600}"
+          value = "{\"accessToken\": \"eyJhbGciOiJSUzI1NiJ9...\", \"expiresIn\": 900}"
         )
       )
     ),
@@ -325,7 +325,7 @@ public class AuthController {
       content = @Content(
         mediaType = "application/json",
         examples = @ExampleObject(
-          value = "{\"accessToken\": \"eyJhbGciOiJSUzI1NiJ9...\", \"expiresIn\": 3600}"
+          value = "{\"accessToken\": \"eyJhbGciOiJSUzI1NiJ9...\", \"expiresIn\": 900}"
         )
       )
     ),

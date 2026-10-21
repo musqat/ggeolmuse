@@ -12,7 +12,7 @@ public record TokenResponseDto(
   @Schema(description = "리프레시 토큰. 갱신할 때마다 새로 받는다", example = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
   String refreshToken,
 
-  @Schema(description = "액세스 토큰 만료까지 남은 초", example = "3600")
+  @Schema(description = "액세스 토큰 만료까지 남은 초", example = "900")
   int expiresIn,
 
   @Schema(description = "리프레시 토큰 만료까지 남은 초", example = "7200")
