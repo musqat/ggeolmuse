@@ -1,11 +1,10 @@
 package com.muscat.trade.infra.kafka;
 
+import com.muscat.messaging.kafka.EventPublishing;
 import com.muscat.trade.common.enums.responses.TradeResponse;
 import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.domain.event.DividendReconcileRequest;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.time.Duration;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -18,7 +17,7 @@ import org.springframework.stereotype.Component;
 public class DividendReconcileProducer {
 
   private static final String DIVIDEND_RECONCILE_TOPIC = "trading.dividend.reconcile";
-  private static final long SEND_TIMEOUT_SECONDS = 5;
+  private static final Duration SEND_TIMEOUT = Duration.ofSeconds(5);
 
   private final KafkaTemplate<String, DividendReconcileRequest> dividendReconcileKafkaTemplate;
 
@@ -27,16 +26,10 @@ public class DividendReconcileProducer {
   }
 
   public void request(DividendReconcileRequest request) {
-    try {
-      dividendReconcileKafkaTemplate.send(DIVIDEND_RECONCILE_TOPIC, String.valueOf(request.accountId()), request)
-        .get(SEND_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-      log.info("배당 몫 재계산 요청: accountId={}, symbol={}, resend={}",
-        request.accountId(), request.symbol(), request.resend());
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new TradeException(TradeResponse.EVENT_PUBLISH_FAILED, e);
-    } catch (ExecutionException | TimeoutException e) {
-      throw new TradeException(TradeResponse.EVENT_PUBLISH_FAILED, e);
-    }
+    EventPublishing.sendAndWait(dividendReconcileKafkaTemplate, DIVIDEND_RECONCILE_TOPIC,
+      String.valueOf(request.accountId()), request, SEND_TIMEOUT,
+      e -> new TradeException(TradeResponse.EVENT_PUBLISH_FAILED, e));
+    log.info("배당 몫 재계산 요청: accountId={}, symbol={}, resend={}",
+      request.accountId(), request.symbol(), request.resend());
   }
 }

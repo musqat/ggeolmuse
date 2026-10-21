@@ -42,7 +42,7 @@ class AssetEventConsumerTest {
   @Test
   @DisplayName("수집 요청이 없으면 수집하지 않고 ack 만 한다")
   void noCollectJustAcks() {
-    consumer.handleAssetCreated(event(false, "BATCH_COLLECTION"), ack);
+    consumer.handleAssetCreated(event(false, null), ack);
 
     verify(dataCollectionService, never()).collect(any());
     verify(ack).acknowledge();
@@ -51,7 +51,7 @@ class AssetEventConsumerTest {
   @Test
   @DisplayName("수집이 실패하면 예외를 그대로 올리고 ack 하지 않는다")
   void failureDoesNotAck() {
-    AssetCreatedEvent event = event(true, "BATCH_COLLECTION");
+    AssetCreatedEvent event = event(true, null);
     willThrow(new IllegalStateException("yahoo down")).given(dataCollectionService).collect(event);
 
     assertThatThrownBy(() -> consumer.handleAssetCreated(event, ack)).isInstanceOf(IllegalStateException.class);

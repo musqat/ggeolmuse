@@ -9,17 +9,15 @@ import com.muscat.messaging.event.TradeRejectedEvent;
 import com.muscat.messaging.event.TradeSettledEvent;
 import com.muscat.messaging.event.UserLoginFailedEvent;
 import com.muscat.messaging.event.UserLoginSuccessEvent;
-import java.util.HashMap;
+import com.muscat.messaging.kafka.KafkaFactories;
 import java.util.Map;
 import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
-import org.springframework.kafka.support.serializer.JsonSerializer;
 
 // User 서비스 Kafka 프로듀서 설정
 @Configuration
@@ -30,20 +28,7 @@ public class KafkaProducerConfig {
 
   @Bean
   public ProducerFactory<String, EmailSendEvent> emailEventProducerFactory() {
-    Map<String, Object> configProps = new HashMap<>();
-    configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-    configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-    configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
-
-    // Producer 안정성 설정
-    configProps.put(ProducerConfig.ACKS_CONFIG, "all");
-    configProps.put(ProducerConfig.RETRIES_CONFIG, 3);
-    configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
-
-    // 성능 최적화
-    configProps.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "gzip"); // Docker 호환성
-
-    return new DefaultKafkaProducerFactory<>(configProps);
+    return new DefaultKafkaProducerFactory<>(gzipProps());
   }
 
   @Bean
@@ -53,20 +38,7 @@ public class KafkaProducerConfig {
 
   @Bean
   public ProducerFactory<String, AccountBalanceUpdatedEvent> accountBalanceUpdatedEventProducerFactory() {
-    Map<String, Object> configProps = new HashMap<>();
-    configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-    configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-    configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
-
-    // Producer 안정성 설정
-    configProps.put(ProducerConfig.ACKS_CONFIG, "all");
-    configProps.put(ProducerConfig.RETRIES_CONFIG, 3);
-    configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
-
-    // 성능 최적화
-    configProps.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "gzip");
-
-    return new DefaultKafkaProducerFactory<>(configProps);
+    return new DefaultKafkaProducerFactory<>(gzipProps());
   }
 
   @Bean
@@ -76,20 +48,7 @@ public class KafkaProducerConfig {
 
   @Bean
   public ProducerFactory<String, UserLoginSuccessEvent> loginSuccessEventProducerFactory() {
-    Map<String, Object> configProps = new HashMap<>();
-    configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-    configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-    configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
-
-    // Producer 안정성 설정
-    configProps.put(ProducerConfig.ACKS_CONFIG, "all");
-    configProps.put(ProducerConfig.RETRIES_CONFIG, 3);
-    configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
-
-    // 성능 최적화
-    configProps.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "gzip");
-
-    return new DefaultKafkaProducerFactory<>(configProps);
+    return new DefaultKafkaProducerFactory<>(gzipProps());
   }
 
   @Bean
@@ -99,20 +58,7 @@ public class KafkaProducerConfig {
 
   @Bean
   public ProducerFactory<String, UserLoginFailedEvent> loginFailedEventProducerFactory() {
-    Map<String, Object> configProps = new HashMap<>();
-    configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-    configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-    configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
-
-    // Producer 안정성 설정
-    configProps.put(ProducerConfig.ACKS_CONFIG, "all");
-    configProps.put(ProducerConfig.RETRIES_CONFIG, 3);
-    configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
-
-    // 성능 최적화
-    configProps.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "gzip");
-
-    return new DefaultKafkaProducerFactory<>(configProps);
+    return new DefaultKafkaProducerFactory<>(gzipProps());
   }
 
   @Bean
@@ -122,20 +68,7 @@ public class KafkaProducerConfig {
 
   @Bean
   public ProducerFactory<String, AccountDepositCompletedEvent> depositCompletedEventProducerFactory() {
-    Map<String, Object> configProps = new HashMap<>();
-    configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-    configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-    configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
-
-    // Producer 안정성 설정
-    configProps.put(ProducerConfig.ACKS_CONFIG, "all");
-    configProps.put(ProducerConfig.RETRIES_CONFIG, 3);
-    configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
-
-    // 성능 최적화
-    configProps.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "gzip");
-
-    return new DefaultKafkaProducerFactory<>(configProps);
+    return new DefaultKafkaProducerFactory<>(gzipProps());
   }
 
   @Bean
@@ -145,20 +78,7 @@ public class KafkaProducerConfig {
 
   @Bean
   public ProducerFactory<String, AccountWithdrawalCompletedEvent> withdrawalCompletedEventProducerFactory() {
-    Map<String, Object> configProps = new HashMap<>();
-    configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-    configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-    configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
-
-    // Producer 안정성 설정
-    configProps.put(ProducerConfig.ACKS_CONFIG, "all");
-    configProps.put(ProducerConfig.RETRIES_CONFIG, 3);
-    configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
-
-    // 성능 최적화
-    configProps.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "gzip");
-
-    return new DefaultKafkaProducerFactory<>(configProps);
+    return new DefaultKafkaProducerFactory<>(gzipProps());
   }
 
   @Bean
@@ -168,20 +88,7 @@ public class KafkaProducerConfig {
 
   @Bean
   public ProducerFactory<String, AccountDeletedEvent> accountDeletedEventProducerFactory() {
-    Map<String, Object> configProps = new HashMap<>();
-    configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-    configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-    configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
-
-    // Producer 설정
-    configProps.put(ProducerConfig.ACKS_CONFIG, "all");
-    configProps.put(ProducerConfig.RETRIES_CONFIG, 3);
-    configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
-
-    // 성능 최적화
-    configProps.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "gzip");
-
-    return new DefaultKafkaProducerFactory<>(configProps);
+    return new DefaultKafkaProducerFactory<>(gzipProps());
   }
 
   @Bean
@@ -191,15 +98,7 @@ public class KafkaProducerConfig {
 
   @Bean
   public ProducerFactory<String, TradeRejectedEvent> tradeRejectedEventProducerFactory() {
-    Map<String, Object> configProps = new HashMap<>();
-    configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-    configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-    configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
-    configProps.put(ProducerConfig.ACKS_CONFIG, "all");
-    configProps.put(ProducerConfig.RETRIES_CONFIG, 3);
-    configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
-    configProps.put(ProducerConfig.MAX_BLOCK_MS_CONFIG, 5000); // 브로커를 못 찾으면 5초 안에 실패 (기본 60초)
-    return new DefaultKafkaProducerFactory<>(configProps);
+    return new DefaultKafkaProducerFactory<>(fastFailProps());
   }
 
   @Bean
@@ -209,19 +108,24 @@ public class KafkaProducerConfig {
 
   @Bean
   public ProducerFactory<String, TradeSettledEvent> tradeSettledEventProducerFactory() {
-    Map<String, Object> configProps = new HashMap<>();
-    configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-    configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-    configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
-    configProps.put(ProducerConfig.ACKS_CONFIG, "all");
-    configProps.put(ProducerConfig.RETRIES_CONFIG, 3);
-    configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
-    configProps.put(ProducerConfig.MAX_BLOCK_MS_CONFIG, 5000);
-    return new DefaultKafkaProducerFactory<>(configProps);
+    return new DefaultKafkaProducerFactory<>(fastFailProps());
   }
 
   @Bean
   public KafkaTemplate<String, TradeSettledEvent> tradeSettledKafkaTemplate() {
     return new KafkaTemplate<>(tradeSettledEventProducerFactory());
+  }
+
+  private Map<String, Object> gzipProps() {
+    Map<String, Object> props = KafkaFactories.producerProps(bootstrapServers);
+    props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "gzip");
+    return props;
+  }
+
+  // 브로커를 못 찾으면 5초 안에 실패 (기본 60초)
+  private Map<String, Object> fastFailProps() {
+    Map<String, Object> props = KafkaFactories.producerProps(bootstrapServers);
+    props.put(ProducerConfig.MAX_BLOCK_MS_CONFIG, 5000);
+    return props;
   }
 }

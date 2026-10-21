@@ -49,7 +49,7 @@ class AssetEventProducerTest {
   }
 
   @Test
-  @DisplayName("종목 코드를 키로 종목 정보와 수집 범위를 보내고, 추적 중이 아니면 BATCH_COLLECTION 으로 표시한다")
+  @DisplayName("종목 코드를 키로 종목 정보와 수집 범위를 보내고, 추적 중이 아니면 추적 id 를 비운다")
   void publishesAssetWithCollectRange() {
     given(template.send(anyString(), anyString(), any())).willReturn(sent(TOPIC));
 
@@ -58,7 +58,7 @@ class AssetEventProducerTest {
     AssetCreatedEvent event = published();
     assertThat(event.getEventType()).isEqualTo("ASSET_CREATED");
     assertThat(event.getSource()).isEqualTo("market-data-service");
-    assertThat(event.getTraceId()).isEqualTo("BATCH_COLLECTION");
+    assertThat(event.getTraceId()).isNull();
     assertThat(event.getSymbol()).isEqualTo("AAPL");
     assertThat(event.getName()).isEqualTo("Apple Inc.");
     assertThat(event.getCountry()).isEqualTo("US");

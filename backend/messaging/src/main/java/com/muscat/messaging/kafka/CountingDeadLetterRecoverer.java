@@ -1,4 +1,4 @@
-package com.muscat.trade.config;
+package com.muscat.messaging.kafka;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;

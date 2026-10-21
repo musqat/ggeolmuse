@@ -22,6 +22,19 @@
     <jackson.version>2.17.0</jackson.version>
   </properties>
 
+  <!-- spring-kafka · Micrometer · OpenTelemetry · 테스트 라이브러리 버전 -->
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>com.muscat</groupId>
+        <artifactId>ggeolmuse-bom</artifactId>
+        <version>1.4.0</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
   <dependencies>
     <!-- Lombok for reducing boilerplate -->
     <dependency>
@@ -43,11 +56,42 @@
       <version>${jackson.version}</version>
     </dependency>
 
+    <!-- Kafka 설정 · 발행 헬퍼. 실행 때는 서비스 클래스패스의 것 -->
+    <dependency>
+      <groupId>org.springframework.kafka</groupId>
+      <artifactId>spring-kafka</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-core</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-api</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
     <!-- Test Dependencies -->
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
-      <version>5.10.2</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

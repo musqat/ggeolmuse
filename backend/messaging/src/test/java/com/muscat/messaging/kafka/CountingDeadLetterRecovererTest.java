@@ -1,4 +1,4 @@
-package com.muscat.trade.config;
+package com.muscat.messaging.kafka;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -29,7 +29,7 @@ class CountingDeadLetterRecovererTest {
     void accept_IncrementsAndDelegates() {
         CountingDeadLetterRecoverer recoverer = new CountingDeadLetterRecoverer(delegate, meterRegistry);
         ConsumerRecord<String, String> record =
-                new ConsumerRecord<>("user.account.deleted", 0, 5L, "user-1", "{}");
+                new ConsumerRecord<>("trading.trade.completed", 0, 5L, "user-1", "{}");
         RuntimeException failure = new RuntimeException("db down");
 
         recoverer.accept(record, null, failure);
