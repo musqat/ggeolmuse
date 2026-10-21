@@ -2,18 +2,14 @@ package com.muscat.user.infra.kafka;
 
 import com.muscat.messaging.event.AccountDepositCompletedEvent;
 import com.muscat.messaging.event.AccountWithdrawalCompletedEvent;
+import com.muscat.messaging.kafka.EventPublishing;
 import com.muscat.user.domain.account.entity.Account;
-import io.opentelemetry.api.trace.Span;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 
 // 입금 · 출금 완료 이벤트 발행
 @Slf4j
@@ -30,28 +26,11 @@ public class DepositWithdrawalEventProducer {
     public void publishDepositCompleted(Account account, String currency, BigDecimal depositAmount,
                                          BigDecimal balanceBefore, String depositMethod,
                                          String referenceId, String description) {
-        String eventId = UUID.randomUUID().toString();
-
-        // OpenTelemetry trace ID 추출
-        String traceId = null;
-        try {
-            traceId = Span.current().getSpanContext().getTraceId();
-        } catch (Exception e) {
-            log.debug("TraceID 추출 실패: {}", e.getMessage());
-        }
-
         // 입금 후 잔액 계산
         BigDecimal balanceAfter = "KRW".equals(currency) ?
             account.getBalanceKrw() : account.getBalanceUsd();
 
         AccountDepositCompletedEvent event = AccountDepositCompletedEvent.builder()
-                .eventId(eventId)
-                .eventType("ACCOUNT_DEPOSIT_COMPLETED")
-                .timestamp(LocalDateTime.now())
-                .version("1.0")
-                .traceId(traceId)
-                .source("user-service")
-                // Deposit 정보
                 .userId(String.valueOf(account.getUser().getId()))
                 .accountId(account.getId())
                 .accountNumber(account.getAccountNumber())
@@ -63,54 +42,22 @@ public class DepositWithdrawalEventProducer {
                 .referenceId(referenceId)
                 .description(description)
                 .build();
+        EventPublishing.stamp(event, "ACCOUNT_DEPOSIT_COMPLETED", "user-service");
 
         log.info("입금 완료 이벤트 발행 중: accountId={}, currency={}, amount={}, method={}",
                 account.getId(), currency, depositAmount, depositMethod);
 
-        // 비동기로 Kafka에 전송
-        CompletableFuture<SendResult<String, AccountDepositCompletedEvent>> future =
-                depositCompletedKafkaTemplate.send(DEPOSIT_COMPLETED_TOPIC,
-                        String.valueOf(account.getUser().getId()), event);
-
-        future.whenComplete((result, ex) -> {
-            if (ex == null) {
-                log.info("입금 완료 이벤트 발행 성공: topic={}, partition={}, offset={}, accountId={}, amount={}",
-                        DEPOSIT_COMPLETED_TOPIC,
-                        result.getRecordMetadata().partition(),
-                        result.getRecordMetadata().offset(),
-                        account.getId(), depositAmount);
-            } else {
-                log.error("입금 완료 이벤트 발행 실패: accountId={}, amount={}, error={}",
-                        account.getId(), depositAmount, ex.getMessage(), ex);
-            }
-        });
+        EventPublishing.send(depositCompletedKafkaTemplate, DEPOSIT_COMPLETED_TOPIC, event.getUserId(), event);
     }
 
     public void publishWithdrawalCompleted(Account account, String currency, BigDecimal withdrawalAmount,
                                             BigDecimal balanceBefore, String withdrawalMethod,
                                             String referenceId, String description, Boolean approved) {
-        String eventId = UUID.randomUUID().toString();
-
-        // OpenTelemetry trace ID 추출
-        String traceId = null;
-        try {
-            traceId = Span.current().getSpanContext().getTraceId();
-        } catch (Exception e) {
-            log.debug("TraceID 추출 실패: {}", e.getMessage());
-        }
-
         // 출금 후 잔액 계산
         BigDecimal balanceAfter = "KRW".equals(currency) ?
             account.getBalanceKrw() : account.getBalanceUsd();
 
         AccountWithdrawalCompletedEvent event = AccountWithdrawalCompletedEvent.builder()
-                .eventId(eventId)
-                .eventType("ACCOUNT_WITHDRAWAL_COMPLETED")
-                .timestamp(LocalDateTime.now())
-                .version("1.0")
-                .traceId(traceId)
-                .source("user-service")
-                // Withdrawal 정보
                 .userId(String.valueOf(account.getUser().getId()))
                 .accountId(account.getId())
                 .accountNumber(account.getAccountNumber())
@@ -123,26 +70,11 @@ public class DepositWithdrawalEventProducer {
                 .description(description)
                 .approved(approved)
                 .build();
+        EventPublishing.stamp(event, "ACCOUNT_WITHDRAWAL_COMPLETED", "user-service");
 
         log.info("출금 완료 이벤트 발행 중: accountId={}, currency={}, amount={}, method={}",
                 account.getId(), currency, withdrawalAmount, withdrawalMethod);
 
-        // 비동기로 Kafka에 전송
-        CompletableFuture<SendResult<String, AccountWithdrawalCompletedEvent>> future =
-                withdrawalCompletedKafkaTemplate.send(WITHDRAWAL_COMPLETED_TOPIC,
-                        String.valueOf(account.getUser().getId()), event);
-
-        future.whenComplete((result, ex) -> {
-            if (ex == null) {
-                log.info("출금 완료 이벤트 발행 성공: topic={}, partition={}, offset={}, accountId={}, amount={}",
-                        WITHDRAWAL_COMPLETED_TOPIC,
-                        result.getRecordMetadata().partition(),
-                        result.getRecordMetadata().offset(),
-                        account.getId(), withdrawalAmount);
-            } else {
-                log.error("출금 완료 이벤트 발행 실패: accountId={}, amount={}, error={}",
-                        account.getId(), withdrawalAmount, ex.getMessage(), ex);
-            }
-        });
+        EventPublishing.send(withdrawalCompletedKafkaTemplate, WITHDRAWAL_COMPLETED_TOPIC, event.getUserId(), event);
     }
 }
