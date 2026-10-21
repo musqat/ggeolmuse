@@ -8,9 +8,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import com.muscat.user.common.enums.responses.UserResponse;
-import com.muscat.user.common.exceptions.AuthenticationException;
-import com.muscat.user.common.exceptions.UserException;
+import com.muscat.user.common.enums.response.UserResponse;
+import com.muscat.user.common.exception.AuthenticationException;
+import com.muscat.user.common.exception.UserException;
 import com.muscat.user.domain.user.entity.User;
 import com.muscat.user.domain.user.repository.UserRepository;
 import java.time.Instant;

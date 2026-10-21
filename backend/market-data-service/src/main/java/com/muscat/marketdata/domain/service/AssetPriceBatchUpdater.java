@@ -1,6 +1,6 @@
 package com.muscat.marketdata.domain.service;
 
-import com.muscat.marketdata.common.exceptions.MarketDataException;
+import com.muscat.marketdata.common.exception.MarketDataException;
 import com.muscat.marketdata.domain.entity.Asset;
 import java.util.List;
 import lombok.RequiredArgsConstructor;

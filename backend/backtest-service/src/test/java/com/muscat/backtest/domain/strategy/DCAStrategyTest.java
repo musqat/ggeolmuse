@@ -38,7 +38,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import com.muscat.backtest.common.exception.BacktestException;
-import com.muscat.backtest.common.enums.BacktestResponse;
+import com.muscat.backtest.common.enums.response.BacktestResponse;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("DCA 전략 단위 테스트")

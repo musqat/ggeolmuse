@@ -3,7 +3,7 @@ package com.muscat.backtest.common.validation;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.muscat.backtest.common.enums.BacktestResponse;
+import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.exception.BacktestException;
 import java.time.LocalDate;
 import org.junit.jupiter.api.DisplayName;

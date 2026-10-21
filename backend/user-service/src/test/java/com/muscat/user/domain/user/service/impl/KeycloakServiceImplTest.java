@@ -15,8 +15,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.muscat.commonlib.config.KeycloakProperties;
-import com.muscat.user.common.enums.responses.KeycloakResponse;
-import com.muscat.user.common.exceptions.KeycloakException;
+import com.muscat.user.common.enums.response.KeycloakResponse;
+import com.muscat.user.common.exception.KeycloakException;
 import com.muscat.user.config.AppProperties;
 import com.muscat.user.domain.user.dto.response.LoginResponseDto;
 import com.muscat.user.domain.user.dto.response.TokenResponseDto;

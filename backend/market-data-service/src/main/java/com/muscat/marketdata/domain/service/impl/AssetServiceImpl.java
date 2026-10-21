@@ -1,7 +1,7 @@
 package com.muscat.marketdata.domain.service.impl;
 
 import com.muscat.marketdata.common.enums.response.MarketDataResponse;
-import com.muscat.marketdata.common.exceptions.MarketDataException;
+import com.muscat.marketdata.common.exception.MarketDataException;
 import com.muscat.marketdata.datasource.common.MarketDataProvider.AssetInfoSource;
 import com.muscat.marketdata.datasource.common.MarketDataProvider.CandleSource;
 import com.muscat.marketdata.datasource.common.MarketDataProvider.MarketCapSource;

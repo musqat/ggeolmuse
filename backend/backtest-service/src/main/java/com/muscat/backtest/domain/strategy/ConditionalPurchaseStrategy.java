@@ -2,7 +2,7 @@ package com.muscat.backtest.domain.strategy;
 
 import com.muscat.backtest.common.constants.BacktestConstants;
 import com.muscat.backtest.common.engine.StrategyFinalizer;
-import com.muscat.backtest.common.enums.BacktestResponse;
+import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.validation.BacktestRequestValidator;
 import com.muscat.backtest.common.enums.type.InvestmentMode;
 import com.muscat.backtest.common.enums.type.StrategyType;

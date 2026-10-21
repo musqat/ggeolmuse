@@ -10,7 +10,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.muscat.marketdata.common.exceptions.GlobalExceptionHandler;
+import com.muscat.marketdata.common.exception.GlobalExceptionHandler;
 import com.muscat.marketdata.config.security.SecurityConfig;
 import com.muscat.marketdata.datasource.alphavantage.service.AlphaVantageCandleUpdateService;
 import com.muscat.marketdata.datasource.alphavantage.service.CandleBatchService;

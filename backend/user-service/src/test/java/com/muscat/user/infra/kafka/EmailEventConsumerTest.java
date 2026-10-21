@@ -10,7 +10,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.muscat.messaging.event.EmailSendEvent;
-import com.muscat.user.common.exceptions.UserException;
+import com.muscat.user.common.exception.UserException;
 import jakarta.mail.Address;
 import jakarta.mail.Session;
 import jakarta.mail.internet.InternetAddress;

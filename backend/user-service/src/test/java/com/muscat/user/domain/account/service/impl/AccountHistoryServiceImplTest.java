@@ -8,11 +8,11 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.muscat.commonlib.exception.ServiceException;
-import com.muscat.user.common.enums.responses.AccountHistoryResponse;
-import com.muscat.user.common.enums.responses.AccountResponse;
+import com.muscat.user.common.enums.response.AccountHistoryResponse;
+import com.muscat.user.common.enums.response.AccountResponse;
 import com.muscat.user.common.enums.type.TransactionType;
-import com.muscat.user.common.exceptions.AccountException;
-import com.muscat.user.common.exceptions.AccountHistoryException;
+import com.muscat.user.common.exception.AccountException;
+import com.muscat.user.common.exception.AccountHistoryException;
 import com.muscat.user.domain.account.dto.response.HistoryResponseDto;
 import com.muscat.user.domain.account.entity.Account;
 import com.muscat.user.domain.account.entity.AccountHistory;

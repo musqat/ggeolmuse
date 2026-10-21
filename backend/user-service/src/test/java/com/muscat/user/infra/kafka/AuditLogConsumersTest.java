@@ -10,7 +10,7 @@ import static org.mockito.Mockito.verify;
 import com.muscat.messaging.event.AccountBalanceUpdatedEvent;
 import com.muscat.messaging.event.UserLoginFailedEvent;
 import com.muscat.messaging.event.UserLoginSuccessEvent;
-import com.muscat.user.common.exceptions.UserException;
+import com.muscat.user.common.exception.UserException;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;

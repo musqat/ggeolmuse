@@ -1,7 +1,7 @@
 package com.muscat.trade.infra.kafka;
 
 import com.muscat.messaging.kafka.EventPublishing;
-import com.muscat.trade.common.enums.responses.TradeResponse;
+import com.muscat.trade.common.enums.response.TradeResponse;
 import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.domain.event.DividendReconcileRequest;
 import java.time.Duration;

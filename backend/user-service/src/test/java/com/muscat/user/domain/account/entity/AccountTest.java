@@ -3,7 +3,7 @@ package com.muscat.user.domain.account.entity;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.muscat.user.common.exceptions.AccountException;
+import com.muscat.user.common.exception.AccountException;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

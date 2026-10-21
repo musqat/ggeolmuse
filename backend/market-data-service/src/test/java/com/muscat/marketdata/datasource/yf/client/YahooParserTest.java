@@ -3,7 +3,7 @@ package com.muscat.marketdata.datasource.yf.client;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.muscat.marketdata.common.exceptions.YahooFinanceException;
+import com.muscat.marketdata.common.exception.YahooFinanceException;
 import com.muscat.marketdata.domain.dto.CandleDto;
 import com.muscat.marketdata.domain.dto.DividendDto;
 import com.muscat.marketdata.domain.entity.Asset;

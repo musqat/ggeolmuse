@@ -10,10 +10,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
-import com.muscat.user.common.enums.responses.KeycloakResponse;
+import com.muscat.user.common.enums.response.KeycloakResponse;
 import com.muscat.user.common.enums.type.AuthType;
 import com.muscat.user.common.enums.type.UserRole;
-import com.muscat.user.common.exceptions.KeycloakException;
+import com.muscat.user.common.exception.KeycloakException;
 import com.muscat.user.domain.account.entity.Account;
 import com.muscat.user.domain.account.repository.AccountRepository;
 import com.muscat.user.domain.user.entity.User;

@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
-import com.muscat.backtest.common.enums.BacktestResponse;
+import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.infra.client.dto.HoldingDto;
 import com.muscat.backtest.infra.client.dto.TradeDto;

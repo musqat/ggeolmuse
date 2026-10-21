@@ -17,8 +17,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.muscat.marketdata.common.enums.response.MarketDataResponse;
-import com.muscat.marketdata.common.exceptions.GlobalExceptionHandler;
-import com.muscat.marketdata.common.exceptions.MarketDataException;
+import com.muscat.marketdata.common.exception.GlobalExceptionHandler;
+import com.muscat.marketdata.common.exception.MarketDataException;
 import com.muscat.marketdata.config.security.SecurityConfig;
 import com.muscat.marketdata.datasource.yf.collector.SymbolCollector;
 import com.muscat.marketdata.domain.dto.AssetSummaryDto;

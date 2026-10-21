@@ -15,7 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.muscat.user.common.exceptions.GlobalExceptionHandler;
+import com.muscat.user.common.exception.GlobalExceptionHandler;
 import com.muscat.user.common.util.AuthUtil;
 import com.muscat.user.config.security.SecurityConfig;
 import com.muscat.user.domain.account.dto.response.AccountResponseDto;

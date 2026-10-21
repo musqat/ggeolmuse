@@ -1,6 +1,6 @@
 package com.muscat.trade.common.exception;
 
-import com.muscat.trade.common.enums.responses.TradeResponse;
+import com.muscat.trade.common.enums.response.TradeResponse;
 
 public class NotEnoughHoldingsException extends TradeException {
 

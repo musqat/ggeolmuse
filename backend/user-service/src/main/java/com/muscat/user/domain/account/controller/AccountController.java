@@ -1,7 +1,7 @@
 package com.muscat.user.domain.account.controller;
 
-import com.muscat.user.common.enums.responses.AccountResponse;
-import com.muscat.user.common.exceptions.AccountException;
+import com.muscat.user.common.enums.response.AccountResponse;
+import com.muscat.user.common.exception.AccountException;
 import com.muscat.user.common.util.AuthUtil;
 import com.muscat.user.domain.account.dto.request.CreateAccountRequestDto;
 import com.muscat.user.domain.account.dto.request.ExchangeByDateRequestDto;

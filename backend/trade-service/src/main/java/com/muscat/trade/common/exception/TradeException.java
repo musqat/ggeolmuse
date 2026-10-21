@@ -1,7 +1,7 @@
 package com.muscat.trade.common.exception;
 
 import com.muscat.commonlib.exception.BusinessException;
-import com.muscat.trade.common.enums.responses.TradeResponse;
+import com.muscat.trade.common.enums.response.TradeResponse;
 
 public class TradeException extends BusinessException {
 
