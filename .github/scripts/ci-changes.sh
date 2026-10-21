@@ -21,11 +21,10 @@ if [ "$all" = false ] && grep -qE '^(\.github/workflows/ci\.yml|\.github/actions
   all=true
 fi
 
-# 서비스는 자기 폴더가 바뀌면 빌드한다. BOM · messaging · backend/pom.xml 은 백엔드 서비스가 모두 같이 쓰므로
-# 이 셋이 바뀌면 백엔드 서비스를 전부 빌드한다
+# 서비스는 자기 폴더가 바뀔 때 빌드. BOM · common · messaging · backend/pom.xml 이 바뀌면 백엔드 서비스 전부
 picked=()
 for s in "${SERVICES[@]}"; do
-  if [ "$all" = true ] || grep -qE "^backend/(${s}/|ggeolmuse-bom/|messaging/|pom\.xml$)" <<<"$files"; then
+  if [ "$all" = true ] || grep -qE "^backend/(${s}/|ggeolmuse-bom/|ggeolmuse-common/|messaging/|pom\.xml$)" <<<"$files"; then
     picked+=("\"$s\"")
   fi
 done

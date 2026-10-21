@@ -48,9 +48,11 @@ jobs:
           path: ~/.m2
           key: ${{ runner.os }}-m2-bom-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2-bom-
-      - name: Build & Install ggeolmuse-bom
+      - name: Build & Install ggeolmuse-bom · ggeolmuse-common
         run: |
           cd backend/ggeolmuse-bom
+          mvn -s $GITHUB_WORKSPACE/.mvn/ci-settings.xml clean install
+          cd ../ggeolmuse-common
           mvn -s $GITHUB_WORKSPACE/.mvn/ci-settings.xml clean install
 
   build-messaging:
@@ -99,6 +101,10 @@ jobs:
       - name: Build & Install ggeolmuse-bom (for dependencies)
         run: |
           cd backend/ggeolmuse-bom
+          mvn -s $GITHUB_WORKSPACE/.mvn/ci-settings.xml install -DskipTests
+      - name: Build & Install ggeolmuse-common (for dependencies)
+        run: |
+          cd backend/ggeolmuse-common
           mvn -s $GITHUB_WORKSPACE/.mvn/ci-settings.xml install -DskipTests
       - name: Build & Install messaging (for dependencies)
         run: |

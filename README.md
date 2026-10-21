@@ -108,7 +108,8 @@ ggeolmuse/
 │   ├── market-data-service/  시세 수집 · 제공
 │   ├── backtest-service/     전략 시뮬레이션
 │   ├── chat-service/         AI 기술 분석 (FastAPI)
-│   ├── ggeolmuse-bom/        공통 라이브러리 (예외 · 로깅 · 유틸)
+│   ├── ggeolmuse-bom/        의존성 버전 (BOM)
+│   ├── ggeolmuse-common/     공통 라이브러리 (예외 · 로깅 · 유틸)
 │   └── messaging/            Kafka 공통 라이브러리
 ├── frontend-web/         React
 ├── helm/                 Helm 차트 · ArgoCD
@@ -152,7 +153,7 @@ ggeolmuse/
 | user-service | 379 |
 | backtest-service | 332 |
 | trade-service | 259 |
-| ggeolmuse-bom | 18 |
+| ggeolmuse-common | 18 |
 | frontend-web | 451 |
 | E2E (Playwright) | 36 |
 

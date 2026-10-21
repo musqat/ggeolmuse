@@ -15,4 +15,5 @@
 - [ ] chat-service
 - [ ] messaging
 - [ ] ggeolmuse-bom
+- [ ] ggeolmuse-common
 - [ ] frontend-web
