@@ -1,9 +1,9 @@
-package com.muscat.user.common.exceptions;
+package com.muscat.user.common.exception;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.muscat.commonlib.exception.ServiceException;
-import com.muscat.user.common.enums.responses.UserResponse;
+import com.muscat.user.common.enums.response.UserResponse;
 import java.util.Objects;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

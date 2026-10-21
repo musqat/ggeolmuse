@@ -10,11 +10,11 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.muscat.messaging.event.TradeCompletedEvent;
-import com.muscat.user.common.enums.responses.AccountResponse;
-import com.muscat.user.common.enums.responses.UserResponse;
+import com.muscat.user.common.enums.response.AccountResponse;
+import com.muscat.user.common.enums.response.UserResponse;
 import com.muscat.user.common.enums.type.SettlementStatus;
-import com.muscat.user.common.exceptions.AccountException;
-import com.muscat.user.common.exceptions.UserException;
+import com.muscat.user.common.exception.AccountException;
+import com.muscat.user.common.exception.UserException;
 import com.muscat.user.domain.account.entity.TradeSettlement;
 import com.muscat.user.domain.account.repository.TradeSettlementRepository;
 import com.muscat.user.domain.account.service.AccountService;

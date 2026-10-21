@@ -1,7 +1,7 @@
-package com.muscat.user.common.exceptions;
+package com.muscat.user.common.exception;
 
 import com.muscat.commonlib.exception.BusinessException;
-import com.muscat.user.common.enums.responses.UserResponse;
+import com.muscat.user.common.enums.response.UserResponse;
 
 /**
  * 인증 관련 예외

@@ -1,8 +1,8 @@
 package com.muscat.user.infra.kafka;
 
 import com.muscat.messaging.event.EmailSendEvent;
-import com.muscat.user.common.enums.responses.UserResponse;
-import com.muscat.user.common.exceptions.UserException;
+import com.muscat.user.common.enums.response.UserResponse;
+import com.muscat.user.common.exception.UserException;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import java.io.UnsupportedEncodingException;

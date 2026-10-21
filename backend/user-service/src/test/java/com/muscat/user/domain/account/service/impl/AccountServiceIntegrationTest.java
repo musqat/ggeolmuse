@@ -8,7 +8,7 @@ import static org.mockito.BDDMockito.given;
 import com.muscat.commonlib.dto.FxRateDto;
 import com.muscat.commonlib.exception.ServiceException;
 import com.muscat.user.common.enums.type.TransactionType;
-import com.muscat.user.common.exceptions.AccountException;
+import com.muscat.user.common.exception.AccountException;
 import com.muscat.user.domain.account.dto.request.CreateAccountRequestDto;
 import com.muscat.user.domain.account.dto.response.BalanceResponseDto;
 import com.muscat.user.domain.account.entity.Account;

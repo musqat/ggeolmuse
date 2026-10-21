@@ -2,8 +2,8 @@ package com.muscat.user.infra.kafka;
 
 import com.muscat.messaging.event.UserLoginFailedEvent;
 import com.muscat.messaging.event.UserLoginSuccessEvent;
-import com.muscat.user.common.enums.responses.UserResponse;
-import com.muscat.user.common.exceptions.UserException;
+import com.muscat.user.common.enums.response.UserResponse;
+import com.muscat.user.common.exception.UserException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;

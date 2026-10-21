@@ -1,9 +1,9 @@
-package com.muscat.user.common.exceptions;
+package com.muscat.user.common.exception;
 
 import com.muscat.commonlib.exception.BaseExceptionHandler;
 import com.muscat.commonlib.util.ProblemDetailUtils;
 import com.muscat.commonlib.enums.ErrorType;
-import com.muscat.user.common.enums.responses.UserResponse;
+import com.muscat.user.common.enums.response.UserResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;

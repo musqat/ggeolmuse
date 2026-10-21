@@ -1,10 +1,10 @@
 package com.muscat.user.domain.user.service.impl;
 
-import com.muscat.user.common.enums.responses.UserResponse;
+import com.muscat.user.common.enums.response.UserResponse;
 import com.muscat.user.common.enums.type.UserRole;
-import com.muscat.user.common.exceptions.AuthenticationException;
-import com.muscat.user.common.exceptions.KeycloakException;
-import com.muscat.user.common.exceptions.UserException;
+import com.muscat.user.common.exception.AuthenticationException;
+import com.muscat.user.common.exception.KeycloakException;
+import com.muscat.user.common.exception.UserException;
 import com.muscat.user.common.util.RateLimitService;
 import com.muscat.user.config.mail.MailService;
 import com.muscat.user.domain.account.entity.Account;

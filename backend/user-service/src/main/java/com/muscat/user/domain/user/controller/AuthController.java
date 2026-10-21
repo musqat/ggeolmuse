@@ -1,14 +1,14 @@
 package com.muscat.user.domain.user.controller;
 
-import com.muscat.user.common.exceptions.UserException;
+import com.muscat.user.common.exception.UserException;
 import com.muscat.user.domain.user.dto.request.ForgotPasswordRequestDto;
 import com.muscat.user.domain.user.dto.request.LoginRequestDto;
 import com.muscat.user.domain.user.dto.request.GoogleTokenRequestDto;
 import com.muscat.user.domain.user.dto.request.RegisterRequestDto;
 import com.muscat.user.domain.user.dto.request.ResendRequestDto;
 import com.muscat.user.domain.user.dto.request.ResetPasswordRequestDto;
-import com.muscat.user.common.enums.responses.KeycloakResponse;
-import com.muscat.user.common.exceptions.KeycloakException;
+import com.muscat.user.common.enums.response.KeycloakResponse;
+import com.muscat.user.common.exception.KeycloakException;
 import com.muscat.user.domain.user.dto.response.AccessTokenResponseDto;
 import com.muscat.user.domain.user.dto.response.TokenResponseDto;
 import org.springframework.http.HttpHeaders;

@@ -1,9 +1,9 @@
 package com.muscat.user.domain.account.service.impl;
 
 import com.muscat.messaging.event.TradeCompletedEvent;
-import com.muscat.user.common.enums.responses.AccountResponse;
+import com.muscat.user.common.enums.response.AccountResponse;
 import com.muscat.user.common.enums.type.SettlementStatus;
-import com.muscat.user.common.exceptions.AccountException;
+import com.muscat.user.common.exception.AccountException;
 import com.muscat.user.domain.account.entity.TradeSettlement;
 import com.muscat.user.domain.account.repository.TradeSettlementRepository;
 import com.muscat.user.domain.account.service.AccountService;

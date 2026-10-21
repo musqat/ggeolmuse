@@ -1,4 +1,4 @@
-package com.muscat.user.common.enums.responses;
+package com.muscat.user.common.enums.response;
 
 import com.muscat.commonlib.exception.ErrorCode;
 import lombok.AllArgsConstructor;

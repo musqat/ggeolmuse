@@ -15,7 +15,7 @@ import static org.mockito.Mockito.verify;
 
 import com.muscat.messaging.event.TradeCompletedEvent;
 import com.muscat.messaging.event.TradeSettledEvent;
-import com.muscat.user.common.exceptions.UserException;
+import com.muscat.user.common.exception.UserException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;

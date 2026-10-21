@@ -15,10 +15,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.muscat.user.common.enums.responses.UserResponse;
+import com.muscat.user.common.enums.response.UserResponse;
 import com.muscat.user.common.enums.type.UserRole;
-import com.muscat.user.common.exceptions.GlobalExceptionHandler;
-import com.muscat.user.common.exceptions.UserException;
+import com.muscat.user.common.exception.GlobalExceptionHandler;
+import com.muscat.user.common.exception.UserException;
 import com.muscat.user.common.util.AuthUtil;
 import com.muscat.user.config.security.AdminAccessConfig;
 import com.muscat.user.config.security.SecurityConfig;

@@ -10,9 +10,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.muscat.messaging.event.TradeCompletedEvent;
-import com.muscat.user.common.enums.responses.UserResponse;
+import com.muscat.user.common.enums.response.UserResponse;
 import com.muscat.user.common.enums.type.SettlementStatus;
-import com.muscat.user.common.exceptions.UserException;
+import com.muscat.user.common.exception.UserException;
 import com.muscat.user.domain.account.dto.request.CreateAccountRequestDto;
 import com.muscat.user.domain.account.entity.Account;
 import com.muscat.user.domain.account.entity.TradeSettlement;
