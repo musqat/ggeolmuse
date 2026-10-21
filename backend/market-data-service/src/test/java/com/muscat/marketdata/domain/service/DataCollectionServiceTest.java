@@ -68,9 +68,10 @@ class DataCollectionServiceTest {
   }
 
   @Test
-  @DisplayName("캔들을 받은 ETF 의 최근 평균 거래량이 기준 아래면 비활성으로 돌린다")
+  @DisplayName("캔들을 처음 받은 ETF 의 최근 평균 거래량이 기준 아래면 비활성으로 돌린다")
   void thinEtfDeactivated() {
     Asset etf = asset("ETF");
+    given(candleRepository.findFirstBySymbolOrderByDateDesc("AAPL")).willReturn(Optional.empty());
     given(updateService.saveCandles("AAPL", FROM, TO)).willReturn(2);
     given(assetRepository.findById("AAPL")).willReturn(Optional.of(etf));
     given(candleRepository.findBySymbolOrderByDateDesc("AAPL", PageRequest.of(0, 20))).willReturn(candles(100L));
@@ -95,6 +96,39 @@ class DataCollectionServiceTest {
 
     assertThat(etf.getActive()).isTrue();
     assertThat(stock.getActive()).isTrue();
+    verify(assetRepository, never()).save(any());
+  }
+
+  @Test
+  @DisplayName("캔들이 이미 있는 ETF 는 갱신 수집에서 거래량이 적어도 그대로 둔다")
+  void refreshKeepsThinEtf() {
+    Asset etf = asset("ETF");
+    given(candleRepository.findFirstBySymbolOrderByDateDesc("AAPL"))
+      .willReturn(Optional.of(Candle.builder().symbol("AAPL").volume(100L).build()));
+    given(updateService.saveCandles("AAPL", FROM, TO)).willReturn(2);
+    given(assetRepository.findById("AAPL")).willReturn(Optional.of(etf));
+    given(candleRepository.findBySymbolOrderByDateDesc("AAPL", PageRequest.of(0, 20))).willReturn(candles(100L));
+
+    service.collect(event(false));
+
+    assertThat(etf.getActive()).isTrue();
+    verify(assetRepository, never()).save(any());
+  }
+
+  @Test
+  @DisplayName("거래량이 빈 봉은 평균에서 뺀다")
+  void emptyVolumesSkipped() {
+    Asset etf = asset("ETF");
+    given(updateService.saveCandles("AAPL", FROM, TO)).willReturn(3);
+    given(assetRepository.findById("AAPL")).willReturn(Optional.of(etf));
+    given(candleRepository.findBySymbolOrderByDateDesc("AAPL", PageRequest.of(0, 20))).willReturn(List.of(
+      Candle.builder().symbol("AAPL").volume(15_000L).build(),
+      Candle.builder().symbol("AAPL").build(),
+      Candle.builder().symbol("AAPL").build()));
+
+    service.collect(event(false));
+
+    assertThat(etf.getActive()).isTrue();
     verify(assetRepository, never()).save(any());
   }
 }

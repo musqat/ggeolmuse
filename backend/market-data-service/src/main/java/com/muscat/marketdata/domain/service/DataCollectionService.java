@@ -7,6 +7,8 @@ import com.muscat.marketdata.domain.repository.AssetRepository;
 import com.muscat.marketdata.domain.repository.CandleRepository;
 import com.muscat.messaging.event.AssetCreatedEvent;
 import java.util.List;
+import java.util.Objects;
+import java.util.OptionalDouble;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -33,6 +35,8 @@ public class DataCollectionService {
         int dividendCount = 0;
 
         try {
+            // 이 종목의 캔들이 처음 들어오는 수집인지
+            boolean firstCollection = candleRepository.findFirstBySymbolOrderByDateDesc(event.getSymbol()).isEmpty();
             candleCount = candleUpdateService.saveCandles(
                     event.getSymbol(),
                     event.getFromDate(),
@@ -45,7 +49,7 @@ public class DataCollectionService {
                         event.getToDate()
                 );
             }
-            if (candleCount > 0) {
+            if (firstCollection && candleCount > 0) {
                 deactivateThinEtf(event.getSymbol());
             }
             log.debug("수집 완료: symbol={}, 캔들={}, 배당={}", event.getSymbol(), candleCount, dividendCount);
@@ -66,14 +70,12 @@ public class DataCollectionService {
         }
         MarketDataProperties.Etf rule = properties.getEtf();
         List<Candle> recent = candleRepository.findBySymbolOrderByDateDesc(symbol, PageRequest.of(0, rule.getVolumeWindow()));
-        if (recent.isEmpty()) {
-            return;
-        }
-        double average = recent.stream().mapToLong(c -> c.getVolume() == null ? 0L : c.getVolume()).average().orElse(0);
-        if (average < rule.getMinAverageVolume()) {
+        OptionalDouble average = recent.stream().map(Candle::getVolume).filter(Objects::nonNull)
+            .mapToLong(Long::longValue).average();
+        if (average.isPresent() && average.getAsDouble() < rule.getMinAverageVolume()) {
             asset.setActive(false);
             assetRepository.save(asset);
-            log.info("평균 거래량이 기준 아래라 ETF 비활성: symbol={}, 평균={}", symbol, (long) average);
+            log.info("평균 거래량이 기준 아래라 ETF 비활성: symbol={}, 평균={}", symbol, (long) average.getAsDouble());
         }
     }
 }
