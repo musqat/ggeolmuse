@@ -82,6 +82,10 @@ jobs:
           docker compose logs --tail 200
           # 기동 구간이 폴링 로그에 밀려 나가 앞쪽을 따로 남긴다
           docker compose logs market-data-service | head -400
+          # 게이트웨이 경로별 서킷 상태 · 성공 · 실패 · 거절 수(관리 포트는 컨테이너 안에서만 열림)
+          docker compose exec -T gateway-server wget -qO- http://localhost:9090/actuator/prometheus \
+            | grep -E '^resilience4j_circuitbreaker_(state|calls_seconds_count|not_permitted_calls_total)' \
+            | grep -vE ' 0(\.0)?$' || true
 
       - name: 스택 정리
         if: always()
