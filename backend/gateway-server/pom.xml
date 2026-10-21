@@ -36,7 +36,14 @@
     <!-- Spring Cloud Gateway -->
     <dependency>
       <groupId>org.springframework.cloud</groupId>
-      <artifactId>spring-cloud-starter-gateway</artifactId>
+      <artifactId>spring-cloud-starter-gateway-server-webflux</artifactId>
+      <!-- 설정 키는 새 이름만 씀. 기동 때 옛 키를 옮기는 도구는 뺌 -->
+      <exclusions>
+        <exclusion>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-properties-migrator</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <!-- Spring Cloud Config Client -->
