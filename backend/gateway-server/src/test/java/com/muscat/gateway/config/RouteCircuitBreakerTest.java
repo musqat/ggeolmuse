@@ -38,8 +38,6 @@ class RouteCircuitBreakerTest {
           "resilience4j.circuitbreaker.configs.default.slidingWindowSize=50",
           "resilience4j.circuitbreaker.configs.default.minimumNumberOfCalls=20",
           "resilience4j.circuitbreaker.configs.default.failureRateThreshold=50",
-          "resilience4j.circuitbreaker.configs.default.slowCallDurationThreshold=5s",
-          "resilience4j.circuitbreaker.configs.default.slowCallRateThreshold=80",
           "resilience4j.circuitbreaker.configs.default.waitDurationInOpenState=10s",
           "resilience4j.circuitbreaker.configs.default.automaticTransitionFromOpenToHalfOpenEnabled=true",
           "resilience4j.circuitbreaker.configs.default.permittedNumberOfCallsInHalfOpenState=5",

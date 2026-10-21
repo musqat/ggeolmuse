@@ -13,7 +13,8 @@ const ONLY = __ENV.ONLY || '';
 const wants = (name) => !ONLY || ONLY === name;
 // -e HOST=ggeolmuse.com 이면 Host 헤더를 붙임. 같은 VPC 에서 EC2 사설 IP 로 Traefik 을 칠 때
 const HOST = __ENV.HOST || '';
-const params = (endpoint) => ({ tags: { endpoint }, headers: HOST ? { Host: HOST } : {} });
+// URL 에 종목 · 날짜가 들어도 지표를 경로 이름 하나로 묶는 name 태그
+const params = (endpoint) => ({ tags: { endpoint, name: endpoint }, headers: HOST ? { Host: HOST } : {} });
 
 // 엔드포인트별로 따로 재야 어디가 느린지 보인다.
 // 전체 p95 하나만 보면 빠른 요청이 느린 요청을 가린다.
