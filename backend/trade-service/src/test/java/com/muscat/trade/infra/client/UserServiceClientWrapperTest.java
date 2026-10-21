@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
-import com.muscat.trade.common.enums.responses.TradeResponse;
+import com.muscat.trade.common.enums.response.TradeResponse;
 import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.infra.client.dto.AccountBalanceDto;
 import feign.FeignException;

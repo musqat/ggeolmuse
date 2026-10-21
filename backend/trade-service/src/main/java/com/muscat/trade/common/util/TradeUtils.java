@@ -1,7 +1,7 @@
 package com.muscat.trade.common.util;
 
 import com.muscat.trade.common.constants.TradeConstants;
-import com.muscat.trade.common.enums.responses.TradeResponse;
+import com.muscat.trade.common.enums.response.TradeResponse;
 import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.common.logging.TradeLogger;
 import com.muscat.trade.config.TradeProperties;

@@ -1,7 +1,7 @@
 package com.muscat.trade.domain.service.impl;
 
 import com.muscat.commonlib.util.MoneyUtils;
-import com.muscat.trade.common.enums.responses.TradeResponse;
+import com.muscat.trade.common.enums.response.TradeResponse;
 import com.muscat.trade.common.enums.type.PriceType;
 import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.common.enums.type.TradeType;

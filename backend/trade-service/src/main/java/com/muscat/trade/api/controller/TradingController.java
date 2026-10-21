@@ -1,4 +1,4 @@
-package com.muscat.trade.domain.controller;
+package com.muscat.trade.api.controller;
 
 import com.muscat.trade.domain.dto.request.TradeRequestDto;
 import com.muscat.trade.domain.dto.request.TradingCapacityRequestDto;

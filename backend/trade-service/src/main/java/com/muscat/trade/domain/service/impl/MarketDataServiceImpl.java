@@ -1,6 +1,6 @@
 package com.muscat.trade.domain.service.impl;
 
-import com.muscat.trade.common.enums.responses.TradeResponse;
+import com.muscat.trade.common.enums.response.TradeResponse;
 import com.muscat.trade.common.enums.type.PriceType;
 import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.common.logging.TradeLogger;

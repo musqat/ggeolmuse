@@ -1,4 +1,4 @@
-package com.muscat.trade.domain.controller;
+package com.muscat.trade.api.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;

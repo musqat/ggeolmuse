@@ -11,7 +11,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import com.muscat.trade.common.enums.responses.TradeResponse;
+import com.muscat.trade.common.enums.response.TradeResponse;
 import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.common.logging.TradeLogger;
 import com.muscat.trade.config.TradeProperties;

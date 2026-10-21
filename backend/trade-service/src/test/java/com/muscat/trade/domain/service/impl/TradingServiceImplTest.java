@@ -12,7 +12,7 @@ import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.calls;
 import static org.mockito.Mockito.inOrder;
 
-import com.muscat.trade.common.enums.responses.TradeResponse;
+import com.muscat.trade.common.enums.response.TradeResponse;
 import com.muscat.trade.common.enums.type.PriceType;
 import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.common.enums.type.TradeType;

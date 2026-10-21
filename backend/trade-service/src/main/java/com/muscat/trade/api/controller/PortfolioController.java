@@ -1,4 +1,4 @@
-package com.muscat.trade.domain.controller;
+package com.muscat.trade.api.controller;
 
 import com.muscat.trade.domain.dto.response.HoldingResponseDto;
 import com.muscat.trade.domain.dto.response.PortfolioSummary;

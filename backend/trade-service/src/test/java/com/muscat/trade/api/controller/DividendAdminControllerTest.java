@@ -1,4 +1,4 @@
-package com.muscat.trade.domain.controller;
+package com.muscat.trade.api.controller;
 
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verifyNoInteractions;

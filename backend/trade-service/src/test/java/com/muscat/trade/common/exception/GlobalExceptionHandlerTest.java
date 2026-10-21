@@ -2,7 +2,7 @@ package com.muscat.trade.common.exception;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.muscat.trade.common.enums.responses.TradeResponse;
+import com.muscat.trade.common.enums.response.TradeResponse;
 import java.util.Objects;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

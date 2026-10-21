@@ -2,7 +2,7 @@ package com.muscat.trade.infra.kafka;
 
 import com.muscat.messaging.event.DividendPayoutEvent;
 import com.muscat.messaging.kafka.EventPublishing;
-import com.muscat.trade.common.enums.responses.TradeResponse;
+import com.muscat.trade.common.enums.response.TradeResponse;
 import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.domain.entity.DividendPayout;
 import java.time.Duration;

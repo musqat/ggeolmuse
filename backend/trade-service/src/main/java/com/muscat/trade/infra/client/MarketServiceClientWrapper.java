@@ -1,7 +1,7 @@
 package com.muscat.trade.infra.client;
 
 import com.muscat.commonlib.dto.StockPriceDto;
-import com.muscat.trade.common.enums.responses.TradeResponse;
+import com.muscat.trade.common.enums.response.TradeResponse;
 import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.infra.client.dto.DividendDto;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
