@@ -34,13 +34,13 @@ class FlywayMigrationIT {
   }
 
   @Test
-  @DisplayName("이전 이미지가 뜨도록 옛 dividends 표를 한 릴리스 남긴다")
-  void migrate_KeepsOldDividendsTable() throws Exception {
+  @DisplayName("배당 몫 표로 옮긴 옛 dividends 표를 지운다")
+  void migrate_DropsOldDividendsTable() throws Exception {
     migrate();
 
     try (Connection connection = connect();
          ResultSet tables = connection.getMetaData().getTables(null, "public", "dividends", new String[] {"TABLE"})) {
-      assertThat(tables.next()).isTrue();
+      assertThat(tables.next()).isFalse();
     }
   }
 
