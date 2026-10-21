@@ -5,7 +5,6 @@ import com.muscat.commonlib.dto.FxRateRangeDto;
 import com.muscat.commonlib.exception.BaseException;
 import com.muscat.commonlib.util.MoneyUtils;
 import com.muscat.messaging.event.DividendPayoutEvent;
-import com.muscat.messaging.event.DividendReceivedEvent;
 import com.muscat.messaging.event.TradeCompletedEvent;
 import com.muscat.user.common.enums.responses.AccountResponse;
 import com.muscat.user.common.enums.responses.UserResponse;
@@ -540,44 +539,6 @@ public class AccountServiceImpl implements AccountService {
       throw new AccountException(AccountResponse.ACCOUNT_NOT_FOUND);
     }
     return accounts.getFirst().getId();
-  }
-
-  @Override
-  public void processDividendReceivedEvent(DividendReceivedEvent event) {
-    log.info("처리 시작: DividendReceivedEvent - userId={}, accountId={}, symbol={}, amount={}",
-      event.getUserId(), event.getAccountId(), event.getSymbol(), event.getTotalAmount());
-
-    // 1. 사용자 ID 조회
-    Long userId = resolveUserId(event.getUserId());
-
-    // 2 · 3. 계좌 조회와 소유자 확인
-    Account account = findOwnedAccount(event.getAccountId(), userId);
-
-    // 4. 이미 입금한 배당이면 건너뛴다. 같은 지급이 다시 와도(Kafka 재전달 · 배당 재수집) 한 번만 넣는다.
-    // 동시에 둘이 오면 아래 저장이 키 충돌로 실패해 입금까지 롤백되고, 재시도 때 여기서 걸러진다
-    LocalDate exDate = LocalDate.parse(event.getExDate());
-    if (dividendSettlementRepository.existsByAccountIdAndSymbolAndExDate(account.getId(), event.getSymbol(), exDate)) {
-      log.info("이미 입금한 배당이라 건너뜀: accountId={}, symbol={}, exDate={}", account.getId(), event.getSymbol(), exDate);
-      return;
-    }
-
-    // 5. 배당금 입금
-    String description = String.format("배당금 수령: %s (기준일: %s, 주당: $%s × %s주)",
-      event.getSymbol(), event.getExDate(), event.getDividendPerShare(), event.getQuantity());
-
-    try {
-      updateUsdBalance(account.getId(), userId, event.getTotalAmount(), TransactionType.DIVIDEND, description);
-      dividendSettlementRepository.saveAndFlush(DividendSettlement.of(
-        account.getId(), event.getSymbol(), exDate, event.getTotalAmount(), LocalDateTime.now()));
-
-      log.info("배당금 입금 완료: userId={}, accountId={}, symbol={}, amount={}",
-        userId, event.getAccountId(), event.getSymbol(), event.getTotalAmount());
-
-    } catch (AccountException e) {
-      log.error("배당금 입금 실패: userId={}, accountId={}, symbol={}, error={}",
-        userId, event.getAccountId(), event.getSymbol(), e.getMessage());
-      throw e;
-    }
   }
 
   @Override

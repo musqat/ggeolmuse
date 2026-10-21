@@ -7,7 +7,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface DividendSettlementRepository extends JpaRepository<DividendSettlement, Long> {
 
-  boolean existsByAccountIdAndSymbolAndExDate(Long accountId, String symbol, LocalDate exDate);
-
   Optional<DividendSettlement> findByAccountIdAndSymbolAndExDate(Long accountId, String symbol, LocalDate exDate);
 }

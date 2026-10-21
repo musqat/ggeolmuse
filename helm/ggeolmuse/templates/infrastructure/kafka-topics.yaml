@@ -47,7 +47,6 @@ spec:
               # 토픽                              파티션 보존(ms)     추가설정
               TOPICS='
               trading.trade.completed             3      604800000    --config segment.bytes=1073741824
-              trading.dividend.received           3      7776000000
               trading.dividend.payout             3      7776000000
               trading.dividend.reconcile          3      604800000
 
@@ -67,7 +66,6 @@ spec:
 
               # 구독하는 토픽마다 하나씩. DeadLetterPublishingRecoverer 가 여기로 보낸다
               trading.trade.completed.DLT         3      2592000000
-              trading.dividend.received.DLT       3      2592000000
               trading.dividend.payout.DLT         3      2592000000
               trading.dividend.reconcile.DLT      3      2592000000
               market.asset.created.DLT            3      2592000000
