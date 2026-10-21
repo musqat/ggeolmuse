@@ -145,17 +145,18 @@ ggeolmuse/
 
 ## 테스트
 
-백엔드 **1,489 개**, 프론트 **451 개**, E2E **40 개**.
+백엔드 **1,507 개**, 프론트 **457 개**, E2E **40 개**.
 
 | 서비스 | 테스트 |
 |---|---|
-| market-data-service | 501 |
-| user-service | 379 |
-| backtest-service | 332 |
-| trade-service | 259 |
+| market-data-service | 506 |
+| user-service | 369 |
+| backtest-service | 335 |
+| trade-service | 260 |
 | ggeolmuse-common | 18 |
-| frontend-web | 451 |
-| E2E (Playwright) | 36 |
+| messaging | 19 |
+| frontend-web | 457 |
+| E2E (Playwright) | 40 |
 
 E2E 는 `docker compose` 로 스택 전체를 띄우고 PR 과 `master` push 마다 돈다.
 필수 체크로 두지 않은 이유는 시세를 Yahoo Finance 에서 받아서다 — 코드와
@@ -191,6 +192,19 @@ market-data 의 외부 호출(야후 · NASDAQ · 수출입은행 · AlphaVantag
 ## 성능
 
 [성능 튜닝](docs/performance-tuning.md) 에 적었다. 수치마다 잰 조건을 붙였다.
+
+운영 부하는 2026-10-21 에 1.5.1 로 쟀다. 같은 VPC 의 c5.xlarge 에서 k6 VU 50 으로, Traefik → 게이트웨이 → market-data 를
+그대로 거쳤다.
+
+| 부하 | 처리량 | p95 | p99 |
+|---|---|---|---|
+| 다섯 경로 섞어서(데운 뒤) | 64.8 rps | 1.64초 | 2.05초 |
+| 시세 하나만 | 약 200 rps(IP 당 한도) | 274ms | 321ms |
+| 일자별 OHLC 하나만 | 약 194 rps(IP 당 한도) | 282ms | 330ms |
+| 전체 종목 목록 하나만 | 24.4 rps | 1.99초 | 2.18초 |
+
+부하 중 게이트웨이와 market-data 가 CPU 한도(0.6 · 0.7코어)에 붙었다. 처리량의 상한은 이 한도다. 처음 걸었을 때는
+게이트웨이 서킷이 열려 모두가 503 을 받았고, 그 경위는 [문제 해결](docs/problem-solving.md#부하-테스트에-게이트웨이-서킷이-열려-모두가-503-을-받았다) 에 있다.
 
 <br>
 
