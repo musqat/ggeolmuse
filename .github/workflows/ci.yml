@@ -77,7 +77,7 @@ jobs:
       - name: Build & Install messaging
         run: |
           cd backend/messaging
-          mvn -s $GITHUB_WORKSPACE/.mvn/ci-settings.xml clean install -DskipTests
+          mvn -s $GITHUB_WORKSPACE/.mvn/ci-settings.xml clean install
 
   build-services:
     runs-on: ubuntu-latest
