@@ -8,10 +8,10 @@ vi.mock('@components/charts/backtest/CompareStrategiesChart', () => ({
 
 const result = {
   mode: 'compare-strategies',
-  bestPerformer: { name: 'SIMPLE', totalReturnPercent: 10 },
+  bestPerformer: { name: 'SIMPLE', code: 'AAPL', totalReturnPercent: 10 },
   items: [
-    { name: 'SIMPLE', totalInvested: 1000000, currentValueKrw: 1100000, totalReturnKrw: 100000, totalReturnPercent: 10 },
-    { name: 'DCA', totalInvested: 1000000, currentValueKrw: 995000, totalReturnKrw: -5000, totalReturnPercent: -0.5 },
+    { name: 'SIMPLE', code: 'AAPL', totalInvested: 1000000, currentValueKrw: 1100000, totalReturnKrw: 100000, totalReturnPercent: 10 },
+    { name: 'DCA', code: 'AAPL', totalInvested: 1000000, currentValueKrw: 995000, totalReturnKrw: -5000, totalReturnPercent: -0.5 },
   ],
 }
 
@@ -28,7 +28,7 @@ describe('StrategyComparisonResult 값이 없을 때', () => {
   it('수익이 비어 있으면 회색 - 로 보여준다', () => {
     const missing = {
       ...result,
-      items: [{ name: 'CONDITIONAL_PURCHASE', totalInvested: 1000000, currentValueKrw: 1000000, totalReturnPercent: 0 }],
+      items: [{ name: 'CONDITIONAL_PURCHASE', code: 'AAPL', totalInvested: 1000000, currentValueKrw: 1000000, totalReturnPercent: 0 }],
     }
     render(<StrategyComparisonResult result={missing} />)
 

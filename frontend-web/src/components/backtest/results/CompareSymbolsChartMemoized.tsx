@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { CompareSymbolsChart } from '@components/charts/backtest/CompareSymbolsChart';
 import type { ComparisonItem } from '../../../services/api';
 import { CHART_COLORS } from '@components/charts/common/constants';
-import type { OptimalPointsBySymbol } from '../shared/backtestDisplay';
+import type { OptimalPointsBySymbol } from '@components/charts/backtest/optimalTiming';
 
 // 무한 리렌더링 방지를 위한 메모이제이션 래퍼 컴포넌트
 export const CompareSymbolsChartMemoized: React.FC<{
@@ -32,7 +32,7 @@ export const CompareSymbolsChartMemoized: React.FC<{
         additionalData.currentPrice || item.currentPrice || 0;
 
       return {
-        symbol: item.symbol || item.name,
+        symbol: item.code,
         purchaseDate: purchaseDate,
         purchasePrice: purchasePrice,
         shares: shares,

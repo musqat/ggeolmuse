@@ -5,7 +5,7 @@ interface OptimalPoint {
   buyDate: string;
   sellDate: string;
   minPrice: number;
-  maxValue: number;
+  sellPrice: number;
 }
 
 export type OptimalPointsBySymbol = Record<string, OptimalPoint>;
@@ -27,14 +27,13 @@ export function calculateOptimalPoints(
     let minSoFarDate = '';
 
     let minPrice = Infinity;
-    let maxValue = 0;
+    let sellPrice = 0;
     let buyDate = '';
     let sellDate = '';
     let bestGain = 0;
 
     chartData.forEach((point) => {
       const price = point[`${symbol}_price`] as number;
-      const portfolioValue = point[`${symbol}_portfolio`] as number;
       if (!price) return;
 
       if (price < minSoFar) {
@@ -49,7 +48,7 @@ export function calculateOptimalPoints(
         buyDate = minSoFarDate;
         minPrice = minSoFar;
         sellDate = point.date;
-        maxValue = portfolioValue || maxValue;
+        sellPrice = price;
       }
     });
 
@@ -60,10 +59,10 @@ export function calculateOptimalPoints(
       buyDate = first.date;
       sellDate = first.date;
       minPrice = (first[`${symbol}_price`] as number) || 0;
-      maxValue = (first[`${symbol}_portfolio`] as number) || 0;
+      sellPrice = minPrice;
     }
 
-    result[symbol] = { buyDate, sellDate, minPrice, maxValue };
+    result[symbol] = { buyDate, sellDate, minPrice, sellPrice };
   });
 
   return result;

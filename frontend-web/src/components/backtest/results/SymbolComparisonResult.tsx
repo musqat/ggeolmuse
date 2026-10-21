@@ -9,7 +9,7 @@ import {
   type GainLossTone,
 } from '../../../utils/gainLoss';
 import type { ComparisonItem, ComparisonResponse } from '../../../services/api';
-import type { OptimalPointsBySymbol } from '../shared/backtestDisplay';
+import type { OptimalPointsBySymbol } from '@components/charts/backtest/optimalTiming';
 import { CompareSymbolsChartMemoized } from './CompareSymbolsChartMemoized';
 import { getTodayString } from '../../../utils/dateUtils';
 
@@ -92,7 +92,7 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
             <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-4 mb-3">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-xl font-bold text-tx-1">
-                  {displayItem.name || displayItem.symbol}
+                  {displayItem.name}
                 </h3>
                 <p className="text-sm text-tx-2">
                   {displayItem.purchaseDate} →{" "}
@@ -157,7 +157,7 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
                     <div className="flex justify-between">
                       <span className="text-tx-2">종목</span>
                       <span className="font-medium">
-                        {displayItem.symbol || displayItem.name}
+                        {displayItem.code}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -235,15 +235,13 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
 
                 {/* Optimal Timing */}
                 {(() => {
-                  // Simple 전략의 최적 시점 확인
-                  const hasSimpleOptimal =
+                  const hasServerOptimal =
                     displayItem.optimalBuyDate ||
                     displayItem.optimalSellDate;
-                  // 종목 비교의 최적 시점 확인
-                  const symbolKey = item.symbol || item.name;
-                  const optimalPoint = symbolOptimalPoints[symbolKey];
+                  // 서버 값이 비면 차트가 같은 방식으로 계산한 값으로 채움
+                  const optimalPoint = symbolOptimalPoints[item.code];
 
-                  if (!hasSimpleOptimal && !optimalPoint) return null;
+                  if (!hasServerOptimal && !optimalPoint) return null;
 
                   return (
                     <div className="bg-surface rounded-lg border border-brand/25 p-3">
@@ -252,7 +250,6 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
                         최적 타이밍
                       </h4>
                       <div className="space-y-1 text-xs">
-                        {/* Simple strategy optimal buy */}
                         {displayItem.optimalBuyDate && (
                           <>
                             <div className="flex justify-between">
@@ -273,7 +270,6 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
                             )}
                           </>
                         )}
-                        {/* Symbol Comparison optimal buy */}
                         {!displayItem.optimalBuyDate && optimalPoint && (
                           <>
                             <div className="flex justify-between">
@@ -291,7 +287,6 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
                           </>
                         )}
 
-                        {/* Simple strategy optimal sell */}
                         {displayItem.optimalSellDate && (
                           <>
                             <div className="flex justify-between">
@@ -313,7 +308,6 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
                             )}
                           </>
                         )}
-                        {/* Symbol Comparison optimal sell */}
                         {!displayItem.optimalSellDate && optimalPoint && (
                           <>
                             <div className="flex justify-between">
@@ -323,21 +317,9 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
                               </span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-tx-2">
-                                최적 평가금액
-                              </span>
+                              <span className="text-tx-2">최적 매도가</span>
                               <span className="font-medium text-loss">
-                                ₩
-                                {Math.floor(
-                                  optimalPoint.maxValue,
-                                ).toLocaleString()}
-                                <span className="text-xs text-tx-2 ml-1">
-                                  (
-                                  {(optimalPoint.maxValue / 10000).toFixed(
-                                    0,
-                                  )}
-                                  만원)
-                                </span>
+                                ${optimalPoint.sellPrice.toFixed(2)}
                               </span>
                             </div>
                           </>
