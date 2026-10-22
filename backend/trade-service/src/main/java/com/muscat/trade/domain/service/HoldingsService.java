@@ -18,7 +18,4 @@ public interface HoldingsService {
   // 포트폴리오 요약 정보 계산 (총 투자금, 평가액, 수익률 등)
   PortfolioSummary getPortfolioSummary(String userId, Map<String, BigDecimal> currentPrices);
 
-  // 백테스트 결과와 함께 포트폴리오 요약 정보 조회 (직접 백테스트 클라이언트 호출)
-  PortfolioSummary getPortfolioSummaryWithBacktest(String userId, Map<String, BigDecimal> currentPrices, String authorization);
-
 }

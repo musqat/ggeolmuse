@@ -18,12 +18,9 @@ import com.muscat.trade.domain.dto.response.PortfolioSummary;
 import com.muscat.trade.domain.entity.Holdings;
 import com.muscat.trade.domain.repository.HoldingsRepository;
 import com.muscat.trade.domain.repository.PortfolioSummaryProjection;
-import com.muscat.trade.infra.client.BacktestServiceClient;
 import com.muscat.trade.domain.service.DividendPayoutService;
 import com.muscat.trade.infra.client.MarketServiceClientWrapper;
-import com.muscat.trade.infra.client.dto.InvestmentBacktestResultDto;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,7 +34,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import static org.mockito.Mockito.mock;
-import java.time.Duration;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("HoldingsService 단위 테스트")
@@ -47,8 +43,6 @@ class HoldingsServiceImplTest {
   private HoldingsRepository holdingsRepository;
   @Mock
   private TradeLogger tradeLogger;
-  @Mock
-  private BacktestServiceClient backtestServiceClient;
   @Mock
   private MarketServiceClientWrapper marketServiceClientWrapper;
   @Mock
@@ -341,139 +335,6 @@ class HoldingsServiceImplTest {
       assertThat(result.getTotalCurrentValue()).isEqualByComparingTo(BigDecimal.ZERO);
       assertThat(result.getTotalUnrealizedPnL())
         .isEqualByComparingTo(BigDecimal.ZERO.subtract(TEST_QUANTITY.multiply(TEST_AVG_PRICE)));
-    }
-  }
-
-  @Nested
-  @DisplayName("백테스트 포함 포트폴리오 조회 테스트")
-  class GetPortfolioSummaryWithBacktestTests {
-
-    @Test
-    @DisplayName("백테스트 결과와 함께 포트폴리오가 조회된다")
-    void getPortfolioSummaryWithBacktest_WithBacktestResult_Success() {
-      // given
-      List<Holdings> portfolio = List.of(testHolding);
-      given(holdingsRepository.findByUserId(TEST_USER_ID)).willReturn(portfolio);
-
-      PortfolioSummaryProjection projection =
-        new PortfolioSummaryProjection(
-          TEST_QUANTITY.multiply(TEST_AVG_PRICE), // totalInvestedAmount
-          1 // holdingCount
-        );
-      given(holdingsRepository.calculatePortfolioSummary(TEST_USER_ID))
-        .willReturn(projection);
-
-      InvestmentBacktestResultDto backtestResult = InvestmentBacktestResultDto.builder()
-        .userId(TEST_USER_ID)
-        .status("COMPLETED")
-        .backtestResult("{\"sharpeRatio\": 1.5}")
-        .calculatedAt(LocalDateTime.now().minusHours(1))
-        .build();
-      given(backtestServiceClient.getCachedInvestmentBacktestResult(anyString(), eq(TEST_USER_ID)))
-        .willReturn(backtestResult);
-
-      // when
-      PortfolioSummary result = holdingsService.getPortfolioSummaryWithBacktest(
-        TEST_USER_ID, testCurrentPrices, "Bearer token");
-
-      // then
-      assertThat(result.isBacktestAvailable()).isTrue();
-      assertThat(result.getBacktestStatus()).isEqualTo("COMPLETED");
-      assertThat(result.getBacktestResult()).contains("sharpeRatio");
-
-      verify(tradeLogger).logPortfolioAccess(eq(TEST_USER_ID), eq("PORTFOLIO_WITH_BACKTEST"),
-        anyString(), eq(1));
-    }
-
-    @Test
-    @DisplayName("백테스트 결과가 없어도 포트폴리오는 정상 조회된다")
-    void getPortfolioSummaryWithBacktest_NoBacktestResult_ReturnsPortfolioOnly() {
-      // given
-      List<Holdings> portfolio = List.of(testHolding);
-      given(holdingsRepository.findByUserId(TEST_USER_ID)).willReturn(portfolio);
-
-      PortfolioSummaryProjection projection =
-        new PortfolioSummaryProjection(
-          TEST_QUANTITY.multiply(TEST_AVG_PRICE), // totalInvestedAmount
-          1 // holdingCount
-        );
-      given(holdingsRepository.calculatePortfolioSummary(TEST_USER_ID))
-        .willReturn(projection);
-
-      given(backtestServiceClient.getCachedInvestmentBacktestResult(anyString(), eq(TEST_USER_ID)))
-        .willReturn(null);
-
-      // when
-      PortfolioSummary result = holdingsService.getPortfolioSummaryWithBacktest(
-        TEST_USER_ID, testCurrentPrices, "Bearer token");
-
-      // then
-      assertThat(result.isBacktestAvailable()).isFalse();
-      assertThat(result.getBacktestStatus()).isNull();
-    }
-
-    @Test
-    @DisplayName("백테스트 조회 실패 시 포트폴리오만 반환한다")
-    void getPortfolioSummaryWithBacktest_BacktestFailed_ReturnsPortfolioOnly() {
-      // given
-      List<Holdings> portfolio = List.of(testHolding);
-      given(holdingsRepository.findByUserId(TEST_USER_ID)).willReturn(portfolio);
-
-      PortfolioSummaryProjection projection =
-        new PortfolioSummaryProjection(
-          TEST_QUANTITY.multiply(TEST_AVG_PRICE), // totalInvestedAmount
-          1 // holdingCount
-        );
-      given(holdingsRepository.calculatePortfolioSummary(TEST_USER_ID))
-        .willReturn(projection);
-
-      given(backtestServiceClient.getCachedInvestmentBacktestResult(anyString(), eq(TEST_USER_ID)))
-        .willThrow(new RuntimeException("Backtest service unavailable"));
-
-      // when
-      PortfolioSummary result = holdingsService.getPortfolioSummaryWithBacktest(
-        TEST_USER_ID, testCurrentPrices, "Bearer token");
-
-      // then
-      assertThat(result.isBacktestAvailable()).isFalse();
-      assertThat(result).isNotNull();
-    }
-
-    @Test
-    @DisplayName("24시간이 지난 백테스트 캐시는 없는 것으로 본다")
-    void getPortfolioSummaryWithBacktest_ExpiredCache_NotAvailable() {
-      given(holdingsRepository.findByUserId(TEST_USER_ID)).willReturn(List.of(testHolding));
-      given(holdingsRepository.calculatePortfolioSummary(TEST_USER_ID))
-        .willReturn(new PortfolioSummaryProjection(TEST_QUANTITY.multiply(TEST_AVG_PRICE), 1));
-      given(backtestServiceClient.getCachedInvestmentBacktestResult(anyString(), eq(TEST_USER_ID)))
-        .willReturn(InvestmentBacktestResultDto.builder().status("COMPLETED").backtestResult("{}")
-          .calculatedAt(LocalDateTime.now().minusHours(25)).build());
-
-      PortfolioSummary result = holdingsService.getPortfolioSummaryWithBacktest(
-        TEST_USER_ID, testCurrentPrices, "Bearer token");
-
-      assertThat(result.isBacktestAvailable()).isFalse();
-      assertThat(result.getBacktestResult()).isNull();
-    }
-
-    @Test
-    @DisplayName("백테스트 조회가 1초 안에 안 끝나면 기다리지 않고 포트폴리오만 돌려준다")
-    void getPortfolioSummaryWithBacktest_Timeout_NotAvailable() {
-      given(holdingsRepository.findByUserId(TEST_USER_ID)).willReturn(List.of(testHolding));
-      given(holdingsRepository.calculatePortfolioSummary(TEST_USER_ID))
-        .willReturn(new PortfolioSummaryProjection(TEST_QUANTITY.multiply(TEST_AVG_PRICE), 1));
-      given(backtestServiceClient.getCachedInvestmentBacktestResult(anyString(), eq(TEST_USER_ID)))
-        .willAnswer(call -> {
-          Thread.sleep(1500);
-          return null;
-        });
-
-      long started = System.nanoTime();
-      PortfolioSummary result = holdingsService.getPortfolioSummaryWithBacktest(
-        TEST_USER_ID, testCurrentPrices, "Bearer token");
-
-      assertThat(result.isBacktestAvailable()).isFalse();
-      assertThat(Duration.ofNanos(System.nanoTime() - started)).isLessThan(Duration.ofMillis(1400));
     }
   }
 }

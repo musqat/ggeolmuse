@@ -7,16 +7,13 @@ import com.muscat.backtest.common.calculation.StrategyCalculationResult;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
-import com.muscat.backtest.domain.dto.request.InvestmentRequest;
 import com.muscat.backtest.domain.dto.request.SymbolComparisonRequest;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
 import com.muscat.backtest.domain.dto.response.ComparisonResponse;
-import com.muscat.backtest.domain.dto.response.InvestmentResponse;
 import com.muscat.backtest.domain.dto.response.SimulationResponse;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.model.ComparisonItem;
 import com.muscat.backtest.domain.model.StrategyTransaction;
-import com.muscat.backtest.infra.client.dto.HoldingDto;
 import com.muscat.commonlib.dto.StockPriceDto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -440,62 +437,6 @@ class ResponseMapperTest {
   }
 
   @Nested
-  @DisplayName("toInvestmentResponse")
-  class ToInvestmentResponse {
-
-    private SimulationResponse backtest() {
-      return SimulationResponse.builder()
-        .symbol(SYMBOL)
-        .purchaseDate(START)
-        .investmentAmount(new BigDecimal("1000000"))
-        .purchasePrice(new BigDecimal("100.00"))
-        .shares(new BigDecimal("12.345679"))
-        .build();
-    }
-
-    @Test
-    @DisplayName("과거 매수 경로는 시뮬레이션 값을 그대로 쓴다")
-    void 과거_매수() {
-      InvestmentResponse result = mapper.toInvestmentResponse(new InvestmentRequest(), backtest());
-
-      assertThat(result.getSymbol()).isEqualTo(SYMBOL);
-      assertThat(result.getTotalCost()).isEqualByComparingTo("1000000");
-      assertThat(result.getStatus()).isEqualTo("SUCCESS");
-      assertThat(result.getMessage()).isEqualTo("과거 매수 백테스트가 완료되었습니다");
-      assertThat(result.isPortfolioCreated()).isFalse();
-      assertThat(result.getPortfolioStatus()).isEqualTo("BACKTEST_COMPLETED");
-      assertThat(result.getHoldingId()).isNull();
-    }
-
-    @Test
-    @DisplayName("보유 주식 경로는 보유 정보를 우선한다")
-    void 보유_주식() {
-      HoldingDto holding = holding();
-
-      InvestmentResponse result = mapper.toInvestmentResponse(holding, backtest());
-
-      assertThat(result.getHoldingId()).isEqualTo(holding.holdingId());
-      assertThat(result.getSymbol()).isEqualTo(holding.symbol());
-      // 매수일·수량·투자금은 시뮬레이션이 아니라 보유 기록에서 온다
-      assertThat(result.getPurchaseDate()).isEqualTo(holding.getPurchaseDate());
-      assertThat(result.getShares()).isEqualByComparingTo(holding.getShares());
-      assertThat(result.getInvestmentAmount()).isEqualByComparingTo(holding.getTotalInvested());
-      assertThat(result.getMessage()).isEqualTo("보유 주식 백테스트가 완료되었습니다");
-    }
-
-    @Test
-    @DisplayName("두 경로 모두 시뮬레이션 결과를 함께 담는다")
-    void 시뮬레이션_포함() {
-      SimulationResponse backtest = backtest();
-
-      assertThat(mapper.toInvestmentResponse(new InvestmentRequest(), backtest).getSimulation())
-        .isSameAs(backtest);
-      assertThat(mapper.toInvestmentResponse(holding(), backtest).getSimulation())
-        .isSameAs(backtest);
-    }
-  }
-
-  @Nested
   @DisplayName("toComparisonItem")
   class ToComparisonItem {
 
@@ -571,18 +512,5 @@ class ResponseMapperTest {
       // 전략에는 최적 매매 개념이 없다
       assertThat(item.getOptimalBuyDate()).isNull();
     }
-  }
-
-  private static HoldingDto holding() {
-    return new HoldingDto(
-      "holding-1",
-      "account-1",
-      SYMBOL,
-      new BigDecimal("5.5"),           // totalQuantity
-      new BigDecimal("90.00"),         // avgPurchasePrice
-      new BigDecimal("495000"),        // totalInvestedAmount
-      new BigDecimal("3.20"),          // totalDividends
-      LocalDate.of(2024, 6, 1),        // lastDividendCalculated
-      LocalDate.of(2024, 3, 10).atStartOfDay());
   }
 }

@@ -8,15 +8,12 @@ import com.muscat.backtest.common.util.Decimals;
 import com.muscat.backtest.domain.dto.request.BaseComparisonRequest;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
-import com.muscat.backtest.domain.dto.request.InvestmentRequest;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
 import com.muscat.backtest.domain.dto.response.ComparisonResponse;
-import com.muscat.backtest.domain.dto.response.InvestmentResponse;
 import com.muscat.backtest.domain.dto.response.SimulationResponse;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.model.ComparisonItem;
 import com.muscat.backtest.domain.model.StrategyTransaction;
-import com.muscat.backtest.infra.client.dto.HoldingDto;
 import com.muscat.commonlib.dto.StockPriceDto;
 import com.muscat.commonlib.util.MoneyUtils;
 import java.math.BigDecimal;
@@ -135,45 +132,6 @@ public class ResponseMapper {
       .dividendsReinvested(
         dividendsReinvested != null ? MoneyUtils.roundUsd(dividendsReinvested) : null)
       .dividendReinvestDates(dividendReinvestDates)
-      .build();
-  }
-
-  public InvestmentResponse toInvestmentResponse(
-    InvestmentRequest request,
-    SimulationResponse backtestResult) {
-
-    return InvestmentResponse.builder()
-      .simulation(backtestResult)
-      .symbol(backtestResult.getSymbol())
-      .purchaseDate(backtestResult.getPurchaseDate())
-      .investmentAmount(backtestResult.getInvestmentAmount())
-      .purchasePrice(backtestResult.getPurchasePrice())
-      .shares(backtestResult.getShares())
-      .totalCost(backtestResult.getInvestmentAmount())
-      .status("SUCCESS")
-      .message("과거 매수 백테스트가 완료되었습니다")
-      .portfolioCreated(false)
-      .portfolioStatus("BACKTEST_COMPLETED")
-      .build();
-  }
-
-  public InvestmentResponse toInvestmentResponse(
-    HoldingDto holding,
-    SimulationResponse backtestResult) {
-
-    return InvestmentResponse.builder()
-      .simulation(backtestResult)
-      .holdingId(holding.holdingId())
-      .symbol(holding.symbol())
-      .purchaseDate(holding.getPurchaseDate())
-      .investmentAmount(holding.getTotalInvested())
-      .purchasePrice(backtestResult.getPurchasePrice())
-      .shares(holding.getShares())
-      .totalCost(holding.getTotalInvested())
-      .status("SUCCESS")
-      .message("보유 주식 백테스트가 완료되었습니다")
-      .portfolioCreated(false)
-      .portfolioStatus("BACKTEST_COMPLETED")
       .build();
   }
 

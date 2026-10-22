@@ -20,7 +20,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.jwt.Jwt;
-import java.util.Map;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("PortfolioController 단위 테스트")
@@ -178,20 +177,6 @@ class PortfolioControllerSimpleTest {
 
     assertThat(response.getStatusCode().value()).isEqualTo(404);
     assertThat(response.getBody()).isNull();
-  }
-
-  @Test
-  @DisplayName("백테스트 포함 요약은 현재가와 Authorization 헤더를 그대로 넘긴다")
-  void getPortfolioSummaryWithBacktest_DelegatesPricesAndAuthorization() {
-    Map<String, BigDecimal> prices = Map.of("AAPL", new BigDecimal("160.00"));
-    PortfolioSummary summary = PortfolioSummary.builder().holdingCount(1).backtestAvailable(true).build();
-    when(holdingsService.getPortfolioSummaryWithBacktest("test-user-123", prices, "Bearer t")).thenReturn(summary);
-
-    ResponseEntity<PortfolioSummary> response =
-      portfolioController.getPortfolioSummaryWithBacktest(mockJwt, prices, "Bearer t");
-
-    assertThat(response.getStatusCode().value()).isEqualTo(200);
-    assertThat(response.getBody()).isSameAs(summary);
   }
 
 }

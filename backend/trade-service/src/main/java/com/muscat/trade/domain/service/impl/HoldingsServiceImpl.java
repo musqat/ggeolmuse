@@ -10,9 +10,7 @@ import com.muscat.trade.domain.entity.Holdings;
 import com.muscat.trade.domain.repository.HoldingsRepository;
 import com.muscat.trade.domain.service.DividendPayoutService;
 import com.muscat.trade.domain.service.HoldingsService;
-import com.muscat.trade.infra.client.BacktestServiceClient;
 import com.muscat.trade.infra.client.MarketServiceClientWrapper;
-import com.muscat.trade.infra.client.dto.InvestmentBacktestResultDto;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -20,9 +18,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,7 +31,6 @@ public class HoldingsServiceImpl implements HoldingsService {
 
   private final HoldingsRepository holdingsRepository;
   private final TradeLogger tradeLogger;
-  private final BacktestServiceClient backtestServiceClient;
   private final MarketServiceClientWrapper marketServiceClientWrapper;
   private final DividendPayoutService dividendPayoutService;
 
@@ -177,7 +171,6 @@ public class HoldingsServiceImpl implements HoldingsService {
       .holdings(holdings)
       .symbolReturnRates(symbolReturnRates)
       .symbolUnrealizedPnL(symbolUnrealizedPnL)
-      .backtestAvailable(false) // 기본값
       .build();
 
     log.info("포트폴리오 종합 정보: userId={}, 투자={}, 평가={}, 손익={}, 수익률={}%, 종목수={}",
@@ -190,96 +183,6 @@ public class HoldingsServiceImpl implements HoldingsService {
       portfolio.size());
 
     return summary;
-  }
-
-  @Override
-  public PortfolioSummary getPortfolioSummaryWithBacktest(String userId,
-    Map<String, BigDecimal> currentPrices, String authorization) {
-    log.debug("백테스트 포함 포트폴리오 조회: userId={}", userId);
-
-    // 1. 기본 포트폴리오 정보 조회
-    PortfolioSummary summary = getPortfolioSummary(userId, currentPrices);
-
-    // 2. 백테스트 결과 조회 (BacktestServiceClient 호출)
-    try {
-      Optional<InvestmentBacktestResultDto> backtestResult = getCachedBacktestResult(userId,
-        authorization);
-
-      if (backtestResult.isPresent()) {
-        InvestmentBacktestResultDto result = backtestResult.get();
-
-        // 백테스트 결과 설정
-        summary.setBacktestAvailable(true);
-        summary.setBacktestResult(result.getBacktestResult());
-        summary.setBacktestCalculatedAt(result.getCalculatedAt());
-        summary.setBacktestStatus(result.getStatus());
-
-        log.info("백테스트 결과 포함 포트폴리오 조회 성공: userId={}, 백테스트계산일={}",
-          userId, result.getCalculatedAt());
-      } else {
-        // 백테스트 결과 없음
-        summary.setBacktestAvailable(false);
-        log.debug("백테스트 결과 없음: userId={}", userId);
-      }
-
-    } catch (Exception e) {
-      log.warn("백테스트 결과 조회 실패, 포트폴리오만 반환: userId={}, error={}", userId, e.getMessage());
-      summary.setBacktestAvailable(false);
-    }
-
-    tradeLogger.logPortfolioAccess(userId, "PORTFOLIO_WITH_BACKTEST",
-      String.format("symbols:%d,backtest:%s", summary.getHoldingCount(),
-        summary.isBacktestAvailable()),
-      summary.getHoldingCount());
-
-    return summary;
-  }
-
-  private Optional<InvestmentBacktestResultDto> getCachedBacktestResult(String userId,
-    String authorization) {
-    try {
-      log.debug("백테스트 결과 조회 시도 (로컬 캐시 우선): userId={}", userId);
-
-      CompletableFuture<Optional<InvestmentBacktestResultDto>> future =
-        CompletableFuture.supplyAsync(() -> {
-          try {
-            // 백테스트 서비스에서 로컬 캐시된 결과 조회
-            InvestmentBacktestResultDto response =
-              backtestServiceClient.getCachedInvestmentBacktestResult(authorization, userId);
-
-            if (response != null) {
-              // 결과 유효성 확인 (24시간 이내 계산된 결과인지 체크)
-              if (response.getCalculatedAt() != null &&
-                response.getCalculatedAt()
-                  .isAfter(java.time.LocalDateTime.now().minusHours(24))) {
-                log.debug("유효한 백테스트 캐시 결과 조회 성공: userId={}, calculatedAt={}",
-                  userId, response.getCalculatedAt());
-                return Optional.of(response);
-              } else {
-                log.debug("백테스트 캐시 결과 만료됨: userId={}, calculatedAt={}",
-                  userId, response.getCalculatedAt());
-              }
-            }
-
-            log.debug("백테스트 캐시 결과 없음, 새로 계산 요청: userId={}", userId);
-            return Optional.empty();
-
-          } catch (Exception e) {
-            log.warn("백테스트 서비스 호출 실패: userId={}, error={}", userId, e.getMessage());
-            return Optional.empty();
-          }
-        });
-
-      // 1초 타임아웃으로 단축 (로컬 DB 조회이므로 빠름)
-      return future.get(1, TimeUnit.SECONDS);
-
-    } catch (TimeoutException e) {
-      log.warn("백테스트 캐시 조회 타임아웃 (1초): userId={}", userId);
-      return Optional.empty();
-    } catch (Exception e) {
-      log.warn("백테스트 캐시 조회 중 예외 발생: userId={}, error={}", userId, e.getMessage());
-      return Optional.empty();
-    }
   }
 
 }

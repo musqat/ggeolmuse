@@ -24,7 +24,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -178,35 +177,6 @@ public class PortfolioController {
 
     String userId = jwt.getSubject();
     PortfolioSummary summary = holdingsService.getPortfolioSummary(userId, currentPrices);
-    return ResponseEntity.ok(summary);
-  }
-
-  @Operation(
-    summary = "백테스트 결과 포함 포트폴리오 종합 정보 조회",
-    description = "백테스트 분석 결과를 포함한 포트폴리오 종합 정보를 조회합니다"
-  )
-  @ApiResponses(value = {
-    @ApiResponse(
-      responseCode = "200",
-      description = "백테스트 포함 포트폴리오 정보 조회 성공",
-      content = @Content(
-        mediaType = "application/json",
-        schema = @Schema(implementation = PortfolioSummary.class)
-      )
-    )
-  })
-  @PostMapping("/summary-with-backtest")
-  public ResponseEntity<PortfolioSummary> getPortfolioSummaryWithBacktest(
-    @Parameter(description = "JWT 토큰에서 추출되는 사용자 ID", hidden = true)
-    @AuthenticationPrincipal Jwt jwt,
-    @Parameter(description = "종목별 현재가 정보", required = true)
-    @RequestBody Map<String, BigDecimal> currentPrices,
-    @Parameter(description = "백테스트 서비스 호출용 Authorization 헤더", required = true)
-    @RequestHeader("Authorization") String authorization) {
-
-    String userId = jwt.getSubject();
-    PortfolioSummary summary = holdingsService.getPortfolioSummaryWithBacktest(userId,
-      currentPrices, authorization);
     return ResponseEntity.ok(summary);
   }
 

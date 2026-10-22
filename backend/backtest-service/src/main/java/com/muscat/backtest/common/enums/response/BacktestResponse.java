@@ -35,7 +35,6 @@ public enum BacktestResponse implements ErrorCode {
   // === 리소스 없음 (404) ===
   DATA_NOT_FOUND("백테스트에 필요한 데이터를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
   STOCK_DATA_NOT_FOUND("주가 데이터를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
-  HOLDING_DATA_NOT_FOUND("보유 주식 데이터를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
 
   // === 충돌 오류 (409) ===
   BACKTEST_IN_PROGRESS("이미 백테스트가 진행 중입니다.", HttpStatus.CONFLICT),
@@ -56,7 +55,6 @@ public enum BacktestResponse implements ErrorCode {
   USER_SERVICE_ERROR("사용자 서비스에 오류가 발생했습니다.", HttpStatus.BAD_GATEWAY),
   EXTERNAL_API_ERROR("외부 API 서비스에 오류가 발생했습니다.", HttpStatus.BAD_GATEWAY),
   MARKET_DATA_UNAVAILABLE("시장 데이터 서비스를 사용할 수 없습니다.", HttpStatus.SERVICE_UNAVAILABLE),
-  TRADE_SERVICE_UNAVAILABLE("거래 서비스를 사용할 수 없습니다.", HttpStatus.SERVICE_UNAVAILABLE),
   BACKTEST_SERVICE_MAINTENANCE("백테스트 서비스가 점검 중입니다.", HttpStatus.SERVICE_UNAVAILABLE),
 
   // === 게이트웨이 시간 초과 (504) ===
@@ -65,7 +63,6 @@ public enum BacktestResponse implements ErrorCode {
   EXTERNAL_API_TIMEOUT("외부 API 응답 시간이 초과되었습니다.", HttpStatus.GATEWAY_TIMEOUT),
 
   // === 서버 내부 오류 (500) ===
-  CALCULATION_ERROR("백테스트 계산 중 오류가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
   DIVIDEND_CALCULATION_ERROR("배당금 계산 중 오류가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
   RETURN_CALCULATION_ERROR("수익률 계산 중 오류가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
   FX_CONVERSION_ERROR("환율 변환 중 오류가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
