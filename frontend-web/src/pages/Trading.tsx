@@ -201,13 +201,16 @@ const Trading: React.FC = () => {
       const { data: trade } = orderType === 'buy'
         ? await tradeApi.buy(order)
         : await tradeApi.sell(order);
-      // 잔고와 보유가 바뀌어 매수·매도 가능 수량과 거래 내역을 다시 받는다
+      // 잔고와 보유가 바뀌어 매수·매도 가능 수량 · 거래 내역 · 계좌 잔액과 총자산을 다시 받음
       void queryClient.invalidateQueries({ queryKey: ['trade'] });
+      void queryClient.invalidateQueries({ queryKey: ['account'] });
+      void queryClient.invalidateQueries({ queryKey: ['accounts'] });
       // 정산 전 매수는 정산이 끝나야 보유에 들어가 잠시 뒤 한 번 더 받음
       if (trade.status === 'PENDING') {
         setTimeout(() => {
           void queryClient.invalidateQueries({ queryKey: ['trade'] });
           void queryClient.invalidateQueries({ queryKey: ['portfolio'] });
+          void queryClient.invalidateQueries({ queryKey: ['account'] });
         }, SETTLE_REFRESH_MS);
       }
       notify.success(formatTradeResult(trade));
