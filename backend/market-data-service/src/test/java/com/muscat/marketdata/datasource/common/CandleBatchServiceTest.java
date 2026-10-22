@@ -83,13 +83,13 @@ class CandleBatchServiceTest {
   }
 
   @Test
-  @DisplayName("저장한 기록이 있으면 끝에 일자별 캔들 캐시를 한 번 비우고, 없으면 그대로 둔다")
-  void evictsOhlcCacheOnceWhenSaved() {
+  @DisplayName("저장한 기록이 있으면 끝에 캔들 캐시를 한 번 비우고, 없으면 그대로 둔다")
+  void evictsCandleCachesOnceWhenSaved() {
     given(updateService.saveCandles(anyString(), any(), any())).willReturn(7).willReturn(7).willReturn(0).willReturn(0);
 
     service.collectAll(FROM, TO, false);
     service.collectAll(FROM, TO, false);
 
-    verify(candleService, times(1)).evictOhlcCache();
+    verify(candleService, times(1)).evictCandleCaches();
   }
 }

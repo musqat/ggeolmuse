@@ -21,9 +21,6 @@ import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 /**
  * AssetRepositoryCustom 구현체
@@ -100,8 +97,7 @@ public class AssetRepositoryCustomImpl implements AssetRepositoryCustom {
     }
 
     @Override
-    public Page<Asset> findActiveSortedByDividendYield(Pageable pageable, boolean ascending, String assetType, DividendYieldRule rule) {
-        BooleanExpression whereClause = activeOfType(assetType);
+    public List<String> findActiveSymbolsByDividendYield(boolean ascending, String assetType, DividendYieldRule rule) {
         NumberExpression<BigDecimal> yearly = dividend.amount.sum();
         // 수익률을 못 구하거나(배당 없음 · 종가 없음 · 0 이하) 상한을 넘는 종목
         BooleanExpression noYield = yearly.isNull()
@@ -113,33 +109,16 @@ public class AssetRepositoryCustomImpl implements AssetRepositoryCustom {
         NumberExpression<BigDecimal> yield = new CaseBuilder().when(noYield).then(BigDecimal.ZERO)
             .otherwise(yearly.divide(asset.latestClose));
 
-        // 묶은 조회로 페이지의 종목 코드를 정하고, 종목은 그 순서대로 다시 받음
-        List<String> symbols = queryFactory
+        return queryFactory
             .select(asset.symbol)
             .from(asset)
             .leftJoin(dividend).on(dividend.symbol.eq(asset.symbol),
                 dividend.exDate.goe(rule.from()),
                 dividend.amount.loe(asset.latestClose.multiply(rule.specialRatio())))
-            .where(whereClause)
+            .where(activeOfType(assetType))
             .groupBy(asset.symbol, asset.latestClose)
             .orderBy(tail.asc(), ascending ? yield.asc() : yield.desc(), asset.symbol.asc())
-            .offset(pageable.getOffset())
-            .limit(pageable.getPageSize())
             .fetch();
-        Map<String, Asset> bySymbol = symbols.isEmpty() ? Map.of() : queryFactory
-            .selectFrom(asset)
-            .where(asset.symbol.in(symbols))
-            .fetch()
-            .stream()
-            .collect(Collectors.toMap(Asset::getSymbol, Function.identity()));
-        List<Asset> content = symbols.stream().map(bySymbol::get).toList();
-
-        Long total = queryFactory
-            .select(asset.count())
-            .from(asset)
-            .where(whereClause)
-            .fetchOne();
-        return new PageImpl<>(content, pageable, total != null ? total : 0L);
     }
 
     // 상장 중이고 유형이 맞는 종목. 비었거나 ALL 이면 유형 무시

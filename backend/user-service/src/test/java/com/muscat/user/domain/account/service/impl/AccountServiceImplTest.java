@@ -35,7 +35,6 @@ import com.muscat.user.domain.user.entity.User;
 import com.muscat.user.domain.user.repository.UserRepository;
 import com.muscat.user.infra.client.MarketDataServiceClientWrapper;
 import com.muscat.user.infra.kafka.AccountEventProducer;
-import com.muscat.user.infra.kafka.DepositWithdrawalEventProducer;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -83,9 +82,6 @@ class AccountServiceImplTest {
 
   @Mock
   private AccountEventProducer accountEventProducer;
-
-  @Mock
-  private DepositWithdrawalEventProducer depositWithdrawalEventProducer;
 
   @Mock
   private com.muscat.user.domain.account.repository.DividendSettlementRepository dividendSettlementRepository;
@@ -1085,7 +1081,7 @@ class AccountServiceImplTest {
 
       verify(userLogger).logInsufficientBalance(accountId, "KRW", amount, new BigDecimal("1000000"));
       assertThat(testAccount.getBalanceKrw()).isEqualByComparingTo("1000000");
-      verifyNoInteractions(accountHistoryService, accountEventProducer, depositWithdrawalEventProducer);
+      verifyNoInteractions(accountHistoryService, accountEventProducer);
     }
 
     @Test
@@ -1099,7 +1095,7 @@ class AccountServiceImplTest {
         .isInstanceOf(ServiceException.class);
 
       verify(userLogger).logInsufficientBalance(accountId, "USD", amount, BigDecimal.ZERO);
-      verifyNoInteractions(accountHistoryService, depositWithdrawalEventProducer);
+      verifyNoInteractions(accountHistoryService);
     }
 
     @Test

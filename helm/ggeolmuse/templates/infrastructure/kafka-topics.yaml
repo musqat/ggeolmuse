@@ -56,8 +56,6 @@ spec:
 
               user.account.deleted                3      2592000000
               user.account.balance.updated        3      2592000000
-              user.account.deposit.completed      3      2592000000
-              user.account.withdrawal.completed   3      2592000000
               user.login.success                  3      2592000000
               user.login.failed                   3      2592000000
               user.email.send                     3      604800000
@@ -72,8 +70,6 @@ spec:
               market.dividend.updated.DLT         3      2592000000
               user.account.deleted.DLT            3      2592000000
               user.account.balance.updated.DLT    3      2592000000
-              user.account.deposit.completed.DLT  3      2592000000
-              user.account.withdrawal.completed.DLT 3    2592000000
               user.login.success.DLT              3      2592000000
               user.login.failed.DLT               3      2592000000
               user.email.send.DLT                 3      2592000000

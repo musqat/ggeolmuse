@@ -21,8 +21,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -100,7 +98,7 @@ class MarketDataMigrationIT {
   }
 
   @Test
-  @DisplayName("배당수익률 정렬 쿼리는 Postgres 에서도 특별 배당을 뺀 수익률 순이고, 못 구하거나 상한을 넘는 종목은 뒤에 두며, 유형 필터와 개수를 지킨다")
+  @DisplayName("배당수익률 정렬 순서는 Postgres 에서도 특별 배당을 뺀 수익률 순이고, 못 구하거나 상한을 넘는 종목은 뒤에 두며, 유형 필터를 지킨다")
   void dividendYieldSortOnPostgres() {
     LocalDate today = LocalDate.now();
     assetRepository.save(yieldAsset("AAPL", "EQUITY", "200"));
@@ -119,12 +117,11 @@ class MarketDataMigrationIT {
     LocalDate from = today.minusYears(1);
     DividendYieldRule rule = new DividendYieldRule(from, new BigDecimal("0.20"), new BigDecimal("0.50"));
 
-    Page<Asset> all = assetRepository.findActiveSortedByDividendYield(PageRequest.of(0, 10), false, "ALL", rule);
-    Page<Asset> etf = assetRepository.findActiveSortedByDividendYield(PageRequest.of(0, 10), false, "etf", rule);
+    List<String> all = assetRepository.findActiveSymbolsByDividendYield(false, "ALL", rule);
+    List<String> etf = assetRepository.findActiveSymbolsByDividendYield(false, "etf", rule);
 
-    assertThat(all.getContent()).extracting(Asset::getSymbol).containsExactly("SPECIAL", "KO", "AAPL", "NODIV", "OUTLIER", "SPY");
-    assertThat(all.getTotalElements()).isEqualTo(6);
-    assertThat(etf.getContent()).extracting(Asset::getSymbol).containsExactly("OUTLIER", "SPY");
+    assertThat(all).containsExactly("SPECIAL", "KO", "AAPL", "NODIV", "OUTLIER", "SPY");
+    assertThat(etf).containsExactly("OUTLIER", "SPY");
     assertThat(dividendRepository.sumRegularAmountBySymbolsSince(List.of("AAPL", "KO", "SPY", "SPECIAL"), from, rule.specialRatio()))
       .containsOnlyKeys("AAPL", "KO", "SPECIAL");
   }

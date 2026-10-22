@@ -2,8 +2,6 @@ package com.muscat.user.config;
 
 import com.muscat.messaging.event.AccountBalanceUpdatedEvent;
 import com.muscat.messaging.event.AccountDeletedEvent;
-import com.muscat.messaging.event.AccountDepositCompletedEvent;
-import com.muscat.messaging.event.AccountWithdrawalCompletedEvent;
 import com.muscat.messaging.event.EmailSendEvent;
 import com.muscat.messaging.event.TradeRejectedEvent;
 import com.muscat.messaging.event.TradeSettledEvent;
@@ -64,26 +62,6 @@ public class KafkaProducerConfig {
   @Bean
   public KafkaTemplate<String, UserLoginFailedEvent> loginFailedKafkaTemplate() {
     return new KafkaTemplate<>(loginFailedEventProducerFactory());
-  }
-
-  @Bean
-  public ProducerFactory<String, AccountDepositCompletedEvent> depositCompletedEventProducerFactory() {
-    return new DefaultKafkaProducerFactory<>(gzipProps());
-  }
-
-  @Bean
-  public KafkaTemplate<String, AccountDepositCompletedEvent> depositCompletedKafkaTemplate() {
-    return new KafkaTemplate<>(depositCompletedEventProducerFactory());
-  }
-
-  @Bean
-  public ProducerFactory<String, AccountWithdrawalCompletedEvent> withdrawalCompletedEventProducerFactory() {
-    return new DefaultKafkaProducerFactory<>(gzipProps());
-  }
-
-  @Bean
-  public KafkaTemplate<String, AccountWithdrawalCompletedEvent> withdrawalCompletedKafkaTemplate() {
-    return new KafkaTemplate<>(withdrawalCompletedEventProducerFactory());
   }
 
   @Bean

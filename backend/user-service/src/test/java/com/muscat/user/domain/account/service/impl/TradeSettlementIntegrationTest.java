@@ -24,7 +24,6 @@ import com.muscat.user.domain.user.entity.User;
 import com.muscat.user.domain.user.repository.UserRepository;
 import com.muscat.user.infra.client.MarketDataServiceClientWrapper;
 import com.muscat.user.infra.kafka.AccountEventProducer;
-import com.muscat.user.infra.kafka.DepositWithdrawalEventProducer;
 import com.muscat.user.infra.kafka.TradeRejectedEventProducer;
 import com.muscat.user.infra.kafka.TradeSettledEventProducer;
 import java.math.BigDecimal;
@@ -66,9 +65,6 @@ class TradeSettlementIntegrationTest {
 
   @MockitoBean
   private AccountEventProducer accountEventProducer;
-
-  @MockitoBean
-  private DepositWithdrawalEventProducer depositWithdrawalEventProducer;
 
   @MockitoBean
   private TradeRejectedEventProducer tradeRejectedEventProducer;

@@ -43,9 +43,6 @@ public class DataCollectionService {
                     event.getFromDate(),
                     event.getToDate()
             );
-            if (candleCount > 0) {
-                candleService.evictOhlcCache();
-            }
             if (event.isIncludeDividends()) {
                 dividendCount = candleUpdateService.saveDividends(
                         event.getSymbol(),
@@ -55,6 +52,9 @@ public class DataCollectionService {
             }
             if (firstCollection && candleCount > 0) {
                 deactivateThinEtf(event.getSymbol());
+            }
+            if (candleCount > 0 || dividendCount > 0) {
+                candleService.evictCandleCaches();
             }
             log.debug("수집 완료: symbol={}, 캔들={}, 배당={}", event.getSymbol(), candleCount, dividendCount);
         } catch (Exception e) {

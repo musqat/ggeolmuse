@@ -12,6 +12,7 @@ import com.muscat.marketdata.domain.repository.AssetRepository;
 import com.muscat.marketdata.domain.repository.CandleRepository;
 import com.muscat.marketdata.domain.repository.DividendRepository;
 import com.muscat.marketdata.domain.service.CandleService;
+import com.muscat.marketdata.domain.service.DividendYieldOrder;
 import com.muscat.marketdata.domain.service.impl.CandleServiceImpl;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -75,7 +76,7 @@ class CacheErrorConfigTest {
     @Bean
     CandleService candleService(CandleRepository candleRepository) {
       return new CandleServiceImpl(candleRepository, mock(AssetRepository.class), mock(DividendRepository.class),
-          new MarketDataProperties());
+          new MarketDataProperties(), mock(DividendYieldOrder.class));
     }
   }
 

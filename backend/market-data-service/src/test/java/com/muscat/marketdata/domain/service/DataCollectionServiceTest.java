@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -20,6 +21,7 @@ import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import org.springframework.data.domain.PageRequest;
 
 // 종목 생성 이벤트 하나를 받아 캔들 · 배당을 수집. 실패는 다시 올려 ack 하지 않게 함
@@ -69,7 +71,7 @@ class DataCollectionServiceTest {
   }
 
   @Test
-  @DisplayName("캔들을 처음 받은 ETF 의 최근 평균 거래량이 기준 아래면 비활성으로 돌린다")
+  @DisplayName("캔들을 처음 받은 ETF 의 최근 평균 거래량이 기준 아래면 비활성으로 돌리고, 돌린 뒤에 캔들 캐시를 비운다")
   void thinEtfDeactivated() {
     Asset etf = asset("ETF");
     given(candleRepository.findFirstBySymbolOrderByDateDesc("AAPL")).willReturn(Optional.empty());
@@ -80,7 +82,9 @@ class DataCollectionServiceTest {
     service.collect(event(false));
 
     assertThat(etf.getActive()).isFalse();
-    verify(assetRepository).save(etf);
+    InOrder order = inOrder(assetRepository, candleService);
+    order.verify(assetRepository).save(etf);
+    order.verify(candleService).evictCandleCaches();
   }
 
   @Test
@@ -134,14 +138,25 @@ class DataCollectionServiceTest {
   }
 
   @Test
-  @DisplayName("캔들을 저장했으면 일자별 캔들 캐시를 비우고, 저장한 캔들이 없으면 그대로 둔다")
-  void evictsOhlcCacheWhenCandlesSaved() {
+  @DisplayName("캔들을 저장했으면 캔들 캐시를 비우고, 저장한 게 없으면 그대로 둔다")
+  void evictsCandleCachesWhenCandlesSaved() {
     given(updateService.saveCandles("AAPL", FROM, TO)).willReturn(2).willReturn(0);
     given(assetRepository.findById("AAPL")).willReturn(Optional.of(asset("EQUITY")));
 
     service.collect(event(false));
     service.collect(event(false));
 
-    verify(candleService, times(1)).evictOhlcCache();
+    verify(candleService, times(1)).evictCandleCaches();
+  }
+
+  @Test
+  @DisplayName("캔들은 그대로이고 배당만 저장해도 캔들 캐시를 비운다")
+  void evictsCandleCachesWhenOnlyDividendsSaved() {
+    given(updateService.saveCandles("AAPL", FROM, TO)).willReturn(0);
+    given(updateService.saveDividends("AAPL", FROM, TO)).willReturn(3);
+
+    service.collect(event(true));
+
+    verify(candleService, times(1)).evictCandleCaches();
   }
 }

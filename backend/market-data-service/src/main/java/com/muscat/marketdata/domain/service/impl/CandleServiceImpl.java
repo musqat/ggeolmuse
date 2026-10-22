@@ -11,16 +11,21 @@ import com.muscat.marketdata.domain.repository.AssetRepository;
 import com.muscat.marketdata.domain.repository.CandleRepository;
 import com.muscat.marketdata.domain.repository.DividendRepository;
 import com.muscat.marketdata.domain.service.CandleService;
+import com.muscat.marketdata.domain.service.DividendYieldOrder;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -37,6 +42,7 @@ public class CandleServiceImpl implements CandleService {
   private final AssetRepository assetRepository;
   private final DividendRepository dividendRepository;
   private final MarketDataProperties properties;
+  private final DividendYieldOrder dividendYieldOrder;
 
   @Override
   // 시세 있는 응답만 캐시. 없음까지 캐시하면 수집 직후에도 TTL 동안 없다고 답함
@@ -67,8 +73,11 @@ public class CandleServiceImpl implements CandleService {
   }
 
   @Override
-  @CacheEvict(cacheNames = "ohlc", allEntries = true)
-  public void evictOhlcCache() {
+  @Caching(evict = {
+    @CacheEvict(cacheNames = "ohlc", allEntries = true),
+    @CacheEvict(cacheNames = "dividendYieldOrder", allEntries = true)
+  })
+  public void evictCandleCaches() {
   }
 
   @Override
@@ -191,7 +200,7 @@ public class CandleServiceImpl implements CandleService {
     boolean ascending = "asc".equalsIgnoreCase(direction);
     DividendYieldRule yieldRule = dividendYieldRule();
     Page<Asset> assetPage = sort == StockSort.DIVIDEND_YIELD
-      ? assetRepository.findActiveSortedByDividendYield(pageable, ascending, assetType, yieldRule)
+      ? pageByDividendYield(pageable, ascending, assetType, yieldRule)
       : assetRepository.findActiveSortedByMarketCap(pageable, ascending, assetType);
     List<Asset> assets = assetPage.getContent();
     List<String> symbols = assets.stream().map(Asset::getSymbol).toList();
@@ -206,6 +215,22 @@ public class CandleServiceImpl implements CandleService {
 
     return new PageImpl<>(
       stockPrices, pageable, assetPage.getTotalElements());
+  }
+
+  // 캐시한 전 종목 순서에서 이 페이지 몫을 잘라 그 순서대로 종목을 받음
+  private Page<Asset> pageByDividendYield(Pageable pageable, boolean ascending, String assetType,
+    DividendYieldRule rule) {
+    String type = assetType == null || "ALL".equalsIgnoreCase(assetType) ? "ALL" : assetType.toUpperCase();
+    List<String> order = dividendYieldOrder.symbols(type, ascending, rule);
+    int from = (int) Math.min(pageable.getOffset(), order.size());
+    List<String> symbols = order.subList(from, Math.min(from + pageable.getPageSize(), order.size()));
+    if (symbols.isEmpty()) {
+      return new PageImpl<>(List.of(), pageable, order.size());
+    }
+    Map<String, Asset> bySymbol = assetRepository.findAllById(symbols).stream()
+      .collect(Collectors.toMap(Asset::getSymbol, Function.identity()));
+    List<Asset> assets = symbols.stream().map(bySymbol::get).filter(Objects::nonNull).toList();
+    return new PageImpl<>(assets, pageable, order.size());
   }
 
   // 종가가 비었거나 0 이하인 행은 잘못 수집된 값

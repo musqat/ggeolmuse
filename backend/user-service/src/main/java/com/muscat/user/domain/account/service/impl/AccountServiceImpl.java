@@ -30,7 +30,6 @@ import com.muscat.user.domain.user.entity.User;
 import com.muscat.user.domain.user.repository.UserRepository;
 import com.muscat.user.infra.client.MarketDataServiceClientWrapper;
 import com.muscat.user.infra.kafka.AccountEventProducer;
-import com.muscat.user.infra.kafka.DepositWithdrawalEventProducer;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -64,7 +63,6 @@ public class AccountServiceImpl implements AccountService {
   private final UserLogger userLogger;
   private final MarketDataServiceClientWrapper marketDataServiceClientWrapper;
   private final AccountEventProducer accountEventProducer;
-  private final DepositWithdrawalEventProducer depositWithdrawalEventProducer;
   private final DividendSettlementRepository dividendSettlementRepository;
 
   @Value("${app.account.initial-krw-amount:1000000}")
@@ -229,12 +227,6 @@ public class AccountServiceImpl implements AccountService {
       String.format("KRW → USD 환전 (환율: %s)", exchangeRate),
       null, exchangeRate);
 
-    // Kafka 이벤트 발행: KRW 출금 (환전)
-    depositWithdrawalEventProducer.publishWithdrawalCompleted(
-      account, "KRW", totalDeduction, previousBalanceKrw,
-      "EXCHANGE", referenceId,
-      String.format("KRW → USD 환전 (환율: %s)", exchangeRate), true);
-
     userLogger.logExchangeComplete(accountId, calculation, account, referenceId);
 
     log.info("KRW→USD 환전 완료: 계좌={}, {}, 평균환율={}",
@@ -296,12 +288,6 @@ public class AccountServiceImpl implements AccountService {
       String.format("USD → KRW 환전 (환율: %s)", exchangeRate),
       null, exchangeRate);
 
-    // Kafka 이벤트 발행: USD 출금 (환전)
-    depositWithdrawalEventProducer.publishWithdrawalCompleted(
-      account, "USD", usdAmount, previousBalanceUsd,
-      "EXCHANGE", referenceId,
-      String.format("USD → KRW 환전 (환율: %s)", exchangeRate), true);
-
     userLogger.logExchangeComplete(accountId, calculation, account, referenceId);
 
     log.info("USD→KRW 환전 완료: 계좌={}, {}",
@@ -339,11 +325,6 @@ public class AccountServiceImpl implements AccountService {
       previousBalanceKrw, previousBalanceUsd,
       krwAmount, BigDecimal.ZERO,
       "KRW 입금", null, null);
-
-    // Kafka 이벤트 발행: 입금 완료
-    depositWithdrawalEventProducer.publishDepositCompleted(
-      account, "KRW", krwAmount, previousBalanceKrw,
-      "MANUAL", referenceId, "KRW 입금");
 
     userLogger.logKrwDeposit(accountId, krwAmount, referenceId);
 

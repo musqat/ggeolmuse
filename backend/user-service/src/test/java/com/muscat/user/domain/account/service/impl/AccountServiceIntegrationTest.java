@@ -19,7 +19,6 @@ import com.muscat.user.domain.user.entity.User;
 import com.muscat.user.domain.user.repository.UserRepository;
 import com.muscat.user.infra.client.MarketDataServiceClientWrapper;
 import com.muscat.user.infra.kafka.AccountEventProducer;
-import com.muscat.user.infra.kafka.DepositWithdrawalEventProducer;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -57,9 +56,6 @@ class AccountServiceIntegrationTest {
 
   @MockitoBean
   private AccountEventProducer accountEventProducer;
-
-  @MockitoBean
-  private DepositWithdrawalEventProducer depositWithdrawalEventProducer;
 
   @Value("${app.account.initial-krw-amount:1000000}")
   private BigDecimal initialKrwAmount;

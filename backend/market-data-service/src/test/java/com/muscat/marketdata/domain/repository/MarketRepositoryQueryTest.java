@@ -194,16 +194,13 @@ class MarketRepositoryQueryTest {
       LocalDate from = today.minusYears(1);
       DividendYieldRule rule = new DividendYieldRule(from, new BigDecimal("0.20"), new BigDecimal("0.50"));
 
-      Page<Asset> desc = assetRepository.findActiveSortedByDividendYield(PageRequest.of(0, 10), false, "ALL", rule);
-      Page<Asset> asc = assetRepository.findActiveSortedByDividendYield(PageRequest.of(0, 10), true, null, rule);
-      Page<Asset> etf = assetRepository.findActiveSortedByDividendYield(PageRequest.of(0, 10), false, "etf", rule);
+      List<String> desc = assetRepository.findActiveSymbolsByDividendYield(false, "ALL", rule);
+      List<String> asc = assetRepository.findActiveSymbolsByDividendYield(true, null, rule);
+      List<String> etf = assetRepository.findActiveSymbolsByDividendYield(false, "etf", rule);
 
-      assertThat(desc.getContent()).extracting(Asset::getSymbol)
-        .containsExactly("SPECIAL", "KO", "AAPL", "MSFT", "NOCLOSE", "OLD", "OUTLIER", "SPY");
-      assertThat(asc.getContent()).extracting(Asset::getSymbol)
-        .containsExactly("MSFT", "AAPL", "KO", "SPECIAL", "NOCLOSE", "OLD", "OUTLIER", "SPY");
-      assertThat(etf.getContent()).extracting(Asset::getSymbol).containsExactly("OUTLIER", "SPY");
-      assertThat(desc.getTotalElements()).isEqualTo(8);
+      assertThat(desc).containsExactly("SPECIAL", "KO", "AAPL", "MSFT", "NOCLOSE", "OLD", "OUTLIER", "SPY");
+      assertThat(asc).containsExactly("MSFT", "AAPL", "KO", "SPECIAL", "NOCLOSE", "OLD", "OUTLIER", "SPY");
+      assertThat(etf).containsExactly("OUTLIER", "SPY");
       Map<String, BigDecimal> sums = dividendRepository.sumRegularAmountBySymbolsSince(
         List.of("AAPL", "KO", "SPY", "OLD", "SPECIAL", "OUTLIER"), from, rule.specialRatio());
       assertThat(sums).containsOnlyKeys("AAPL", "KO", "SPECIAL", "OUTLIER");

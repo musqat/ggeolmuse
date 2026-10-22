@@ -10,6 +10,7 @@ import com.muscat.marketdata.domain.model.DividendYieldRule;
 import com.muscat.marketdata.domain.repository.AssetRepository;
 import com.muscat.marketdata.domain.repository.CandleRepository;
 import com.muscat.marketdata.domain.repository.DividendRepository;
+import com.muscat.marketdata.domain.service.DividendYieldOrder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -50,6 +51,9 @@ class CandleServiceImplTest {
 
     @Mock
     private DividendRepository dividendRepository;
+
+    @Mock
+    private DividendYieldOrder dividendYieldOrder;
 
     @InjectMocks
     private CandleServiceImpl candleService;
@@ -709,7 +713,7 @@ class CandleServiceImplTest {
         }
 
         @Test
-        @DisplayName("배당수익률 정렬이면 설정의 기준으로 수익률 순 조회를 쓰고, 특별 배당을 뺀 1년 배당 합 ÷ 최신 종가를 소수 둘째 자리 % 로 채운다. 종가 · 배당이 없거나 종가가 0 이거나 50% 를 넘으면 비운다")
+        @DisplayName("배당수익률 정렬이면 설정의 기준으로 받은 수익률 순서대로 종목을 놓고, 특별 배당을 뺀 1년 배당 합 ÷ 최신 종가를 소수 둘째 자리 % 로 채운다. 종가 · 배당이 없거나 종가가 0 이거나 50% 를 넘으면 비운다")
         void getAllStocksWithPrices_DividendYieldSort_FillsYield() {
             // given
             Pageable pageable = PageRequest.of(0, 10);
@@ -724,8 +728,9 @@ class CandleServiceImplTest {
                     Asset.builder().symbol("EDGE").name("Edge").currency("USD").latestClose(new BigDecimal("10")).build(),
                     Asset.builder().symbol("OVER").name("Over").currency("USD").latestClose(new BigDecimal("10")).build());
             DividendYieldRule rule = new DividendYieldRule(from, new BigDecimal("0.20"), new BigDecimal("0.50"));
-            given(assetRepository.findActiveSortedByDividendYield(pageable, false, null, rule))
-                    .willReturn(new PageImpl<>(assets, pageable, assets.size()));
+            List<String> order = assets.stream().map(Asset::getSymbol).toList();
+            given(dividendYieldOrder.symbols("ALL", false, rule)).willReturn(order);
+            given(assetRepository.findAllById(order)).willReturn(assets.reversed());
             given(dividendRepository.sumRegularAmountBySymbolsSince(List.of("T", "KO", "AAPL", "NOCLOSE", "NODIV", "ZERO", "EDGE", "OVER"), from,
                     new BigDecimal("0.20")))
                     .willReturn(Map.of("T", new BigDecimal("1.0"), "KO", new BigDecimal("1.5"), "AAPL", new BigDecimal("4.0"),
@@ -741,6 +746,40 @@ class CandleServiceImplTest {
                     .containsExactly(new BigDecimal("3.33"), new BigDecimal("2.50"), new BigDecimal("2.00"), null, null, null,
                             new BigDecimal("50.00"), null);
             verify(assetRepository, never()).findActiveSortedByMarketCap(any(), anyBoolean(), any());
+        }
+
+        @Test
+        @DisplayName("배당수익률 정렬은 전 종목 순서에서 이 페이지 몫의 종목만 읽고, 전체 개수는 순서의 길이다")
+        void getAllStocksWithPrices_DividendYieldSort_SlicesOrder() {
+            // given
+            DividendYieldRule rule = new DividendYieldRule(LocalDate.now().minusYears(1), new BigDecimal("0.20"), new BigDecimal("0.50"));
+            given(dividendYieldOrder.symbols("ETF", true, rule)).willReturn(List.of("A", "B", "C", "D", "E"));
+            given(assetRepository.findAllById(List.of("C", "D"))).willReturn(List.of(
+                    Asset.builder().symbol("D").name("D").currency("USD").build(),
+                    Asset.builder().symbol("C").name("C").currency("USD").build()));
+
+            // when
+            Page<StockPriceDto> results = candleService.getAllStocksWithPrices(PageRequest.of(1, 2), "asc", "etf", StockSort.DIVIDEND_YIELD);
+
+            // then
+            assertThat(results.getContent()).extracting(StockPriceDto::getSymbol).containsExactly("C", "D");
+            assertThat(results.getTotalElements()).isEqualTo(5);
+        }
+
+        @Test
+        @DisplayName("배당수익률 정렬에서 순서보다 뒤 페이지면 빈 목록이고 종목을 읽지 않는다")
+        void getAllStocksWithPrices_DividendYieldSort_PastEnd() {
+            // given
+            DividendYieldRule rule = new DividendYieldRule(LocalDate.now().minusYears(1), new BigDecimal("0.20"), new BigDecimal("0.50"));
+            given(dividendYieldOrder.symbols("ALL", false, rule)).willReturn(List.of("A", "B"));
+
+            // when
+            Page<StockPriceDto> results = candleService.getAllStocksWithPrices(PageRequest.of(3, 2), "desc", "ALL", StockSort.DIVIDEND_YIELD);
+
+            // then
+            assertThat(results.getContent()).isEmpty();
+            assertThat(results.getTotalElements()).isEqualTo(2);
+            verify(assetRepository, never()).findAllById(any());
         }
 
         @Test
