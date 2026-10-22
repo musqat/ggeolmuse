@@ -151,13 +151,9 @@ public class InternalMarketController {
     @RequestBody List<LocalDate> dates) {
     log.debug("내부 Bulk 환율 조회 요청: dates size={}", dates.size());
 
-    List<FxRate> fxRates = fxRateService.findByDates(dates);
-
     // 날짜 문자열 -> 환율
     java.util.Map<String, java.math.BigDecimal> result = new java.util.HashMap<>();
-    for (FxRate rate : fxRates) {
-      result.put(rate.getDate().toString(), rate.getRate());
-    }
+    fxRateService.findByDates(dates).forEach((date, rate) -> result.put(date.toString(), rate));
 
     log.debug("Bulk 환율 조회 완료: {}개 요청, {}개 반환", dates.size(), result.size());
 

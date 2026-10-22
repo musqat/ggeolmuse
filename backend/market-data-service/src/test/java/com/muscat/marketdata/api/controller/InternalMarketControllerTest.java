@@ -22,6 +22,7 @@ import com.muscat.marketdata.domain.service.FxRateService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -146,7 +147,7 @@ class InternalMarketControllerTest {
   @Test
   @DisplayName("일괄 환율은 날짜 목록을 받아 찾은 날만 날짜 문자열을 키로 돌려준다")
   void bulkFx() throws Exception {
-    given(fxRateService.findByDates(List.of(START, END))).willReturn(List.of(fx(END, "1330")));
+    given(fxRateService.findByDates(List.of(START, END))).willReturn(Map.of(END, new BigDecimal("1330")));
 
     mockMvc.perform(post(BASE + "/fx/bulk").contentType(MediaType.APPLICATION_JSON).content("[\"2024-01-01\",\"2024-03-31\"]"))
       .andExpect(status().isOk())
