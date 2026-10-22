@@ -28,8 +28,8 @@ const Account: React.FC = () => {
   const {
     accounts,
     accountBalances,
-    portfolioSummary,
     currentExchangeRate,
+    totalAssets,
     loading,
     error,
     refetch
@@ -57,24 +57,6 @@ const Account: React.FC = () => {
     closeExchangeModal,
     closeDeleteModal
   } = useModalState();
-
-  // 총 자산 계산 (현금 + 주식 평가금액)
-  const calculateTotalAssets = (): number => {
-    if (!currentExchangeRate) return 0;
-
-    // 1. 모든 계좌의 현금 합계 (KRW + USD를 KRW로 환산)
-    let cashTotal = 0;
-    accountBalances.forEach((balance) => {
-      cashTotal += balance.balanceKrw + (balance.balanceUsd * currentExchangeRate);
-    });
-
-    // 2. 주식 평가금액 (USD를 KRW로 환산)
-    const stockValue = portfolioSummary && portfolioSummary.totalCurrentValue
-      ? portfolioSummary.totalCurrentValue * currentExchangeRate
-      : 0;
-
-    return cashTotal + stockValue;
-  };
 
   // 잔액 포맷팅
   const formatBalance = (amount: number, currency: 'KRW' | 'USD') => {
@@ -149,7 +131,7 @@ const Account: React.FC = () => {
 
         {/* 총 자산 요약 */}
         <TotalAssetsSummary
-          totalAssets={calculateTotalAssets()}
+          totalAssets={totalAssets}
           accountCount={accounts.length}
           currentExchangeRate={currentExchangeRate}
           formatBalance={formatBalance}

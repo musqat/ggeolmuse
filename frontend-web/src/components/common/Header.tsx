@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { TrendingUp, Search, Menu, LogOut, User } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { accountsApi, stockApi, portfolioApi } from '../../services/api';
+import { useAccountData } from '../../hooks/useAccountData';
+import { stockApi } from '../../services/api';
 import LoginModal from '../auth/LoginModal';
 import SignupModal from '../auth/SignupModal';
 import SignupSuccessModal from '../auth/SignupSuccessModal';
@@ -19,8 +20,6 @@ const Header: React.FC = () => {
   const [isSignupSuccessModalOpen, setIsSignupSuccessModalOpen] = useState(false);
   const [signupSuccessEmail, setSignupSuccessEmail] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [totalAssets, setTotalAssets] = useState<number>(0);
-  const [isLoadingAssets, setIsLoadingAssets] = useState<boolean>(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
 
   const navigation = [
@@ -45,40 +44,7 @@ const Header: React.FC = () => {
     staleTime: 10 * 60 * 1000, // 10분
   });
 
-  useEffect(() => {
-    const fetchTotalAssets = async () => {
-      if (!isAuthenticated || !user) { setTotalAssets(0); return; }
-      setIsLoadingAssets(true);
-      try {
-        const accountsRes = await accountsApi.getAccounts();
-        const accounts = accountsRes.data;
-        if (!accounts?.length) { setTotalAssets(0); setIsLoadingAssets(false); return; }
-        const rate = (await accountsApi.getCurrentExchangeRate()).data;
-        let cash = 0;
-        for (const acc of accounts) {
-          const bal = (await accountsApi.getAccountBalance(acc.accountId)).data;
-          cash += bal.balanceKrw + bal.balanceUsd * rate;
-        }
-        let stocks = 0;
-        try {
-          const holdings = (await portfolioApi.getPortfolio()).data;
-          if (holdings?.length) {
-            const prices: Record<string, number> = {};
-            holdings.forEach((h) => { if (h.currentPrice !== undefined && h.currentPrice > 0) prices[h.symbol] = h.currentPrice; });
-            const summary = (await portfolioApi.getPortfolioSummary(prices)).data;
-            stocks = summary.totalCurrentValue * rate;
-          }
-        } catch (e) {
-          // 주식 평가액을 못 구하면 현금만 보여준다. 실패를 삼키면
-          // 총자산이 왜 적게 나오는지 알 수 없다.
-          console.warn('포트폴리오 평가액을 불러오지 못했습니다', e);
-        }
-        setTotalAssets(cash + stocks);
-      } catch { setTotalAssets(0); }
-      finally { setIsLoadingAssets(false); }
-    };
-    fetchTotalAssets();
-  }, [isAuthenticated, user]);
+  const { totalAssets, loading: isLoadingAssets } = useAccountData(isAuthenticated);
 
   return (
     <header className="bg-canvas/90 backdrop-blur-md border-b border-line/60 sticky top-0 z-50">

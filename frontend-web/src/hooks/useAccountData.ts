@@ -12,10 +12,29 @@ interface UseAccountDataReturn {
   accountBalances: Map<number, AccountBalance>;
   portfolioSummary: PortfolioSummaryResponse | null;
   currentExchangeRate: number;
+  // 현금 + 주식 평가액(원화)
+  totalAssets: number;
   loading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
 }
+
+// 계좌마다 원화 + 달러 × 환율을 더한 현금에 주식 평가액(달러) × 환율을 더함. 환율이 없으면 0
+const calculateTotalAssets = (
+  accountBalances: Map<number, AccountBalance>,
+  portfolioSummary: PortfolioSummaryResponse | null,
+  exchangeRate: number
+): number => {
+  if (!exchangeRate) return 0;
+
+  let cash = 0;
+  accountBalances.forEach((balance) => {
+    cash += balance.balanceKrw + balance.balanceUsd * exchangeRate;
+  });
+  const stocks = portfolioSummary?.totalCurrentValue ? portfolioSummary.totalCurrentValue * exchangeRate : 0;
+
+  return cash + stocks;
+};
 
 // 로그인했을 때 계좌 목록 · 잔액 · 포트폴리오 요약 · 환율을 불러옴
 export const useAccountData = (isAuthenticated: boolean): UseAccountDataReturn => {
@@ -83,11 +102,16 @@ export const useAccountData = (isAuthenticated: boolean): UseAccountDataReturn =
     staleTime: 1 * 60 * 1000, // 1분 (계좌 잔액은 자주 변경될 수 있음)
   });
 
+  const accountBalances = data?.accountBalances || new Map<number, AccountBalance>();
+  const portfolioSummary = data?.portfolioSummary || null;
+  const currentExchangeRate = data?.currentExchangeRate || 0;
+
   return {
     accounts: data?.accounts || [],
-    accountBalances: data?.accountBalances || new Map(),
-    portfolioSummary: data?.portfolioSummary || null,
-    currentExchangeRate: data?.currentExchangeRate || 0,
+    accountBalances,
+    portfolioSummary,
+    currentExchangeRate,
+    totalAssets: calculateTotalAssets(accountBalances, portfolioSummary, currentExchangeRate),
     loading,
     error: queryError ? '계좌 정보를 불러오는데 실패했습니다.' : null,
     refetch: async () => { await refetch(); }
