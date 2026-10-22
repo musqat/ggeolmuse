@@ -27,6 +27,10 @@ async def test_messages_have_rules_history_and_evidence():
     assert last.endswith("질문: 더 자세히")
 
 
+def test_rules_ask_for_polite_answers():
+    assert "존댓말" in ANSWER_RULES
+
+
 async def test_answer_strips_markdown_but_keeps_bold():
     model = FakeModel(answer="# 제목\n*기울임* **굵게**\n- 항목")
     completion = await Answerer(model, history_turns=3).answer(_conversation(), StubSkill(), EVIDENCE, "어때?")
