@@ -14,8 +14,10 @@ import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.cache.BatchStrategies;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
+import org.springframework.data.redis.cache.RedisCacheWriter;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
@@ -56,9 +58,17 @@ public class CacheConfig {
     cacheConfigurations.put("latestFxRate",
         defaultConfig.entryTtl(Duration.ofHours(1)));
 
+    // 3. 일자별 캔들 조회 - 12시간 TTL (캔들을 저장하면 비움)
+    cacheConfigurations.put("ohlc",
+        defaultConfig.entryTtl(Duration.ofHours(12)));
+
     log.info("Configured caches: {}", cacheConfigurations.keySet());
 
-    return RedisCacheManager.builder(redisConnectionFactory)
+    // 캐시 비우기는 KEYS 대신 SCAN 으로. KEYS 는 키가 많으면 그동안 Redis 를 막음
+    RedisCacheWriter cacheWriter = RedisCacheWriter.nonLockingRedisCacheWriter(
+        redisConnectionFactory, BatchStrategies.scan(1000));
+
+    return RedisCacheManager.builder(cacheWriter)
         .cacheDefaults(defaultConfig)
         .withInitialCacheConfigurations(cacheConfigurations)
         .build();

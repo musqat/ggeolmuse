@@ -2,6 +2,7 @@ package com.muscat.marketdata.api.controller;
 
 import com.muscat.marketdata.domain.dto.BatchResult;
 import com.muscat.marketdata.datasource.common.CandleBatchService;
+import com.muscat.marketdata.domain.service.CandleService;
 import com.muscat.marketdata.domain.service.CandleUpdateService;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -40,6 +41,7 @@ public class DataCollectionController {
 
   private final CandleBatchService batchService;
   private final CandleUpdateService candleUpdateService;
+  private final CandleService candleService;
 
   @PostMapping("/candles")
   public ResponseEntity<Map<String, Object>> collectAllSymbols(
@@ -92,6 +94,9 @@ public class DataCollectionController {
       int savedRecords = includeDividends
         ? candleUpdateService.saveBoth(symbol, startDate, endDate)
         : candleUpdateService.saveCandles(symbol, startDate, endDate);
+      if (savedRecords > 0) {
+        candleService.evictOhlcCache();
+      }
 
       Map<String, Object> responseData = Map.of(
         "symbol", symbol.toUpperCase(),

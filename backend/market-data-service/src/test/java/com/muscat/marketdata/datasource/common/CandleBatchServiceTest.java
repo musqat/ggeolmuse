@@ -13,6 +13,7 @@ import com.muscat.marketdata.config.MarketDataProperties;
 import com.muscat.marketdata.domain.dto.BatchResult;
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.repository.AssetRepository;
+import com.muscat.marketdata.domain.service.CandleService;
 import com.muscat.marketdata.domain.service.CandleUpdateService;
 import java.time.LocalDate;
 import java.util.List;
@@ -31,7 +32,8 @@ class CandleBatchServiceTest {
   private final AssetRepository assetRepository = mock(AssetRepository.class);
   private final CandleUpdateService updateService = mock(CandleUpdateService.class);
   private final MarketDataProperties properties = new MarketDataProperties();
-  private final CandleBatchService service = new CandleBatchService(assetRepository, updateService, properties);
+  private final CandleService candleService = mock(CandleService.class);
+  private final CandleBatchService service = new CandleBatchService(assetRepository, updateService, properties, candleService);
 
   @BeforeEach
   void setUp() {
@@ -78,5 +80,16 @@ class CandleBatchServiceTest {
     verify(updateService, times(3)).saveCandles("AAPL", FROM, TO);
     verify(updateService, times(3)).saveCandles("MSFT", FROM, TO);
     verify(updateService, never()).saveBoth(anyString(), any(), any());
+  }
+
+  @Test
+  @DisplayName("저장한 기록이 있으면 끝에 일자별 캔들 캐시를 한 번 비우고, 없으면 그대로 둔다")
+  void evictsOhlcCacheOnceWhenSaved() {
+    given(updateService.saveCandles(anyString(), any(), any())).willReturn(7).willReturn(7).willReturn(0).willReturn(0);
+
+    service.collectAll(FROM, TO, false);
+    service.collectAll(FROM, TO, false);
+
+    verify(candleService, times(1)).evictOhlcCache();
   }
 }

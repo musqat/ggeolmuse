@@ -26,6 +26,7 @@ public class DataCollectionService {
     private final AssetRepository assetRepository;
     private final CandleRepository candleRepository;
     private final MarketDataProperties properties;
+    private final CandleService candleService;
 
     // 컨슈머 스레드에서 그대로 수집. 병렬도는 리스너 동시성이 정하고 ACK 는 수집 뒤
     public void collect(AssetCreatedEvent event) {
@@ -42,6 +43,9 @@ public class DataCollectionService {
                     event.getFromDate(),
                     event.getToDate()
             );
+            if (candleCount > 0) {
+                candleService.evictOhlcCache();
+            }
             if (event.isIncludeDividends()) {
                 dividendCount = candleUpdateService.saveDividends(
                         event.getSymbol(),

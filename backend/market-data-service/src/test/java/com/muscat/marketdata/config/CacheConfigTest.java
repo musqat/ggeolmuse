@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import com.muscat.marketdata.domain.dto.StockPriceDto;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -44,6 +45,16 @@ class CacheConfigTest {
     manager.afterPropertiesSet();
 
     assertThat(manager.getCacheNames()).isNotEmpty().isSubsetOf(cacheNamesInUse());
+  }
+
+  @Test
+  @DisplayName("일자별 캔들 캐시는 12시간 둔다")
+  void ohlcCachedForTwelveHours() {
+    RedisCacheManager manager = (RedisCacheManager) new CacheConfig(mock(RedisConnectionFactory.class)).cacheManager();
+    manager.afterPropertiesSet();
+
+    assertThat(manager.getCacheConfigurations().get("ohlc").getTtlFunction().getTimeToLive("AAPL:2026-01-09", null))
+        .isEqualTo(Duration.ofHours(12));
   }
 
   // market-data 패키지 클래스의 @Cacheable 캐시 이름

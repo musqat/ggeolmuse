@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -14,6 +15,7 @@ import com.muscat.marketdata.common.exception.GlobalExceptionHandler;
 import com.muscat.marketdata.config.security.SecurityConfig;
 import com.muscat.marketdata.datasource.common.CandleBatchService;
 import com.muscat.marketdata.domain.dto.BatchResult;
+import com.muscat.marketdata.domain.service.CandleService;
 import com.muscat.marketdata.domain.service.CandleUpdateService;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -45,7 +47,8 @@ class DataCollectionControllerTest {
 
     private final CandleBatchService batchService = mock(CandleBatchService.class);
     private final CandleUpdateService updateService = mock(CandleUpdateService.class);
-    private final DataCollectionController controller = new DataCollectionController(batchService, updateService);
+    private final CandleService candleService = mock(CandleService.class);
+    private final DataCollectionController controller = new DataCollectionController(batchService, updateService, candleService);
     private final LocalDate today = LocalDate.now(ZoneId.of("America/New_York"));
 
     {
@@ -66,7 +69,7 @@ class DataCollectionControllerTest {
     }
 
     @Test
-    @DisplayName("종목 하나는 기본 90일이고, 배당 포함 여부로 저장 방식이 갈리며 종목 코드를 대문자로 돌려준다")
+    @DisplayName("종목 하나는 기본 90일이고, 배당 포함 여부로 저장 방식이 갈리며 종목 코드를 대문자로 돌려주고 일자별 캔들 캐시를 비운다")
     void collectSingle() {
       LocalDate from = LocalDate.of(2024, 1, 1);
       LocalDate to = LocalDate.of(2024, 3, 31);
@@ -79,6 +82,7 @@ class DataCollectionControllerTest {
       assertThat(both.getBody()).containsEntry("symbol", "AAPL")
         .containsEntry("result", Map.of("savedRecords", 12, "includeDividends", true));
       assertThat(candles.getBody()).containsEntry("result", Map.of("savedRecords", 7, "includeDividends", false));
+      verify(candleService, times(2)).evictOhlcCache();
     }
 
     @Test
@@ -121,6 +125,9 @@ class DataCollectionControllerTest {
 
     @MockitoBean
     private CandleUpdateService updateService;
+
+    @MockitoBean
+    private CandleService candleService;
 
     @MockitoBean
     private JwtDecoder jwtDecoder;

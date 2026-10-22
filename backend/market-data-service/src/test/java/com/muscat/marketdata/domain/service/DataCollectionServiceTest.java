@@ -33,8 +33,9 @@ class DataCollectionServiceTest {
   private final AssetRepository assetRepository = mock(AssetRepository.class);
   private final CandleRepository candleRepository = mock(CandleRepository.class);
   private final MarketDataProperties properties = new MarketDataProperties();
+  private final CandleService candleService = mock(CandleService.class);
   private final DataCollectionService service =
-    new DataCollectionService(updateService, assetRepository, candleRepository, properties);
+    new DataCollectionService(updateService, assetRepository, candleRepository, properties, candleService);
 
   private static AssetCreatedEvent event(boolean includeDividends) {
     return AssetCreatedEvent.builder().symbol("AAPL").fromDate(FROM).toDate(TO).collectData(true)
@@ -130,5 +131,17 @@ class DataCollectionServiceTest {
 
     assertThat(etf.getActive()).isTrue();
     verify(assetRepository, never()).save(any());
+  }
+
+  @Test
+  @DisplayName("캔들을 저장했으면 일자별 캔들 캐시를 비우고, 저장한 캔들이 없으면 그대로 둔다")
+  void evictsOhlcCacheWhenCandlesSaved() {
+    given(updateService.saveCandles("AAPL", FROM, TO)).willReturn(2).willReturn(0);
+    given(assetRepository.findById("AAPL")).willReturn(Optional.of(asset("EQUITY")));
+
+    service.collect(event(false));
+    service.collect(event(false));
+
+    verify(candleService, times(1)).evictOhlcCache();
   }
 }

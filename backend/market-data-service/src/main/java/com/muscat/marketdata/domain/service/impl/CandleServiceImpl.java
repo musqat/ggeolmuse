@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -63,6 +64,11 @@ public class CandleServiceImpl implements CandleService {
 
     log.debug("OHLC 조회 성공: symbol={}, date={}, close={}", symbol, date, result.getClosePrice());
     return result;
+  }
+
+  @Override
+  @CacheEvict(cacheNames = "ohlc", allEntries = true)
+  public void evictOhlcCache() {
   }
 
   @Override

@@ -4,6 +4,7 @@ import com.muscat.marketdata.config.MarketDataProperties;
 import com.muscat.marketdata.domain.dto.BatchResult;
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.repository.AssetRepository;
+import com.muscat.marketdata.domain.service.CandleService;
 import com.muscat.marketdata.domain.service.CandleUpdateService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +23,7 @@ public class CandleBatchService {
     private final AssetRepository assetRepository;
     private final CandleUpdateService candleUpdateService;
     private final MarketDataProperties properties;
+    private final CandleService candleService;
 
     private static final int BACKOFF_MULTIPLIER = 2;
 
@@ -72,6 +74,10 @@ public class CandleBatchService {
             } finally {
                 sleepQuietly(sleepIntervalMs);
             }
+        }
+
+        if (totalSavedRecords > 0) {
+            candleService.evictOhlcCache();
         }
 
         BatchResult result = new BatchResult(
