@@ -59,7 +59,7 @@ def test_start_unknown_symbol_is_404_with_code(env):
     res = env.start("ZZZZ")
     assert res.status_code == 404
     assert res.json() == {"code": "symbol_not_found",
-                          "message": "종목을 찾을 수 없습니다. 종목 코드로 입력해 주세요 (예: AAPL)."}
+                          "message": "종목을 찾을 수 없습니다. 종목 코드로 입력해 주세요. (예: AAPL)"}
 
 
 def test_ask_answers(env):

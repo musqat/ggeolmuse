@@ -7,7 +7,7 @@ REJECTIONS = {
 }
 
 ERRORS = {
-    "symbol_not_found": "종목을 찾을 수 없습니다. 종목 코드로 입력해 주세요 (예: AAPL).",
+    "symbol_not_found": "종목을 찾을 수 없습니다. 종목 코드로 입력해 주세요. (예: AAPL)",
     "conversation_not_found": "대화가 만료되었습니다. 종목을 다시 입력해 주세요.",
     "quota_exceeded": "오늘 사용 한도를 초과했습니다.",
     "unauthorized": "로그인이 필요합니다.",
