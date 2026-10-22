@@ -11,18 +11,12 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.ElementKind;
 import jakarta.validation.Path;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -31,12 +25,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
     DataCollectionController.class
 })
 @Slf4j
-@RequiredArgsConstructor
 public class GlobalExceptionHandler extends BaseExceptionHandler {
-
-    private static final List<String> DEVELOPMENT_PROFILES = List.of("dev", "development", "local");
-
-    private final Environment environment;
 
     @ExceptionHandler(YahooFinanceException.class)
     public ResponseEntity<ProblemDetail> handleYahooFinanceException(YahooFinanceException e, HttpServletRequest request) {
@@ -89,33 +78,6 @@ public class GlobalExceptionHandler extends BaseExceptionHandler {
         return ResponseEntity.status(MarketDataResponse.KOREA_EXIM_ERROR.getHttpStatus()).body(problem);
     }
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ProblemDetail> handleValidationException(MethodArgumentNotValidException e, HttpServletRequest request) {
-        return super.handleValidationException(e, request);
-    }
-
-    @ExceptionHandler(MissingServletRequestParameterException.class)
-    public ResponseEntity<ProblemDetail> handleMissingParameterException(MissingServletRequestParameterException e, HttpServletRequest request) {
-        log.warn("[MISSING PARAMETER] {}", e.getParameterName());
-
-        String message = String.format("필수 파라미터가 누락되었습니다: %s", e.getParameterName());
-
-        Map<String, Object> properties = Map.of(
-            "parameterName", e.getParameterName(),
-            "errorType", ErrorType.VALIDATION.name()
-        );
-        ProblemDetail problem = ProblemDetailUtils.createProblem(
-            HttpStatus.BAD_REQUEST,
-            message,
-            "MISSING_PARAMETER",
-            request.getRequestURI(),
-            "Missing Parameter Error",
-            properties
-        );
-
-        return ResponseEntity.badRequest().body(problem);
-    }
-
     // 컨트롤러에 붙은 @Validated 가 경로 변수 · 쿼리 파라미터를 검사하다 던진다. 요청 값이 틀린 것이라 400 이다
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ProblemDetail> handleConstraintViolationException(ConstraintViolationException e, HttpServletRequest request) {
@@ -155,28 +117,6 @@ public class GlobalExceptionHandler extends BaseExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ProblemDetail> handleGeneralException(Exception e, HttpServletRequest request) {
-        log.error("[SYSTEM ERROR] 예상치 못한 오류 발생", e);
-
-        // 개발 환경에서는 상세한 에러 메시지 제공
-        String message = isDevelopmentEnvironment() 
-            ? String.format("%s - %s", e.getMessage(), e.getClass().getSimpleName())
-            : "시장 데이터 서비스에 문제가 발생했습니다.";
-
-        Map<String, Object> properties = Map.of("errorType", ErrorType.SYSTEM.name());
-        ProblemDetail problem = ProblemDetailUtils.createProblem(
-            MarketDataResponse.INTERNAL_SERVER_ERROR.getHttpStatus(),
-            message,
-            "INTERNAL_SERVER_ERROR",
-            request.getRequestURI(),
-            "Internal Server Error",
-            properties
-        );
-
-        return ResponseEntity.status(MarketDataResponse.INTERNAL_SERVER_ERROR.getHttpStatus()).body(problem);
-    }
-
-    // 켜진 프로필 중 하나라도 개발용이면 true
-    private boolean isDevelopmentEnvironment() {
-        return Arrays.stream(environment.getActiveProfiles()).anyMatch(DEVELOPMENT_PROFILES::contains);
+        return systemError(e, request, "시장 데이터 서비스에 문제가 발생했습니다.");
     }
 }

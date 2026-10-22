@@ -52,17 +52,6 @@ public final class ProblemDetailUtils {
     return problem;
   }
 
-  // 내부 서버 오류용 ProblemDetail 생성
-  public static ProblemDetail createInternalServerError(String path) {
-    return createProblem(
-      HttpStatus.INTERNAL_SERVER_ERROR,
-      "서버 내부 오류가 발생했습니다",
-      "INTERNAL_SERVER_ERROR",
-      path,
-      "Internal Server Error"
-    );
-  }
-
   // 잘못된 요청용 ProblemDetail 생성
   public static ProblemDetail createBadRequestProblem(String detail, String errorCode,
     String path) {

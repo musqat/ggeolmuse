@@ -1,6 +1,6 @@
 package com.muscat.backtest.config;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import com.muscat.commonlib.security.ServiceSecurity;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -9,64 +9,32 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer.FrameOptionsConfig;
-import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
-  @Autowired
-  private Environment environment;
-
-  private String getKeycloakAuthServerUrl() {
-    return environment.getProperty("KEYCLOAK_AUTH_SERVER_URL", "http://localhost:8080");
-  }
-
-  private String getKeycloakRealm() {
-    return environment.getProperty("KEYCLOAK_REALM", "muscathan");
-  }
-
   @Bean
-  public JwtDecoder jwtDecoder() {
-    String authServerUrl = getKeycloakAuthServerUrl();
-    String realm = getKeycloakRealm();
-    String jwkSetUri = authServerUrl + "/realms/" + realm + "/protocol/openid-connect/certs";
-    return NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
+  public JwtDecoder jwtDecoder(Environment environment) {
+    return ServiceSecurity.keycloakJwtDecoder(environment);
   }
 
-  // Management port (9090) - Health, Metrics, Actuator endpoints
   @Bean
   @Order(0)
   public SecurityFilterChain managementSecurityFilterChain(HttpSecurity http) throws Exception {
-    http
-        .securityMatcher(request -> request.getServerPort() == 9090)
-        .authorizeHttpRequests(auth -> auth
-            .anyRequest().permitAll()
-        )
-        .csrf(AbstractHttpConfigurer::disable)
-        .headers(headers -> headers
-            .frameOptions(FrameOptionsConfig::disable)
-        );
-    return http.build();
+    return ServiceSecurity.managementChain(http);
   }
 
   // Application port (8082) - JWT authentication required
   @Bean
   @Order(1)
   public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-    http
-        .csrf(AbstractHttpConfigurer::disable)
-        .cors(Customizer.withDefaults())
-        .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+    ServiceSecurity.statelessApi(http)
         .authorizeHttpRequests(auth -> auth
             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-            .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**",
-                "/swagger-resources/**", "/webjars/**").permitAll()
+            .requestMatchers(ServiceSecurity.SWAGGER_PATHS).permitAll()
             // 먼저 맞는 규칙이 적용되어 아래 공개 규칙보다 앞에 둠
             .requestMatchers(HttpMethod.POST, "/api/trading-simulation/simulate").authenticated()
             // 백테스트(시뮬레이션/분석)는 비로그인 허용 — gateway·프론트와 일치. 히스토리(/api/backtest/**)는 인증 유지
@@ -77,9 +45,6 @@ public class SecurityConfig {
         )
         .oauth2ResourceServer(oauth2 -> oauth2
             .jwt(Customizer.withDefaults())
-        )
-        .headers(headers -> headers
-            .frameOptions(FrameOptionsConfig::disable)
         );
     return http.build();
   }

@@ -22,7 +22,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
-import org.springframework.mock.env.MockEnvironment;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
@@ -49,7 +48,7 @@ class UserControllerDeleteTest {
   void setUp() {
     mockMvc = MockMvcBuilders.standaloneSetup(new UserController(userService, userMapper))
       .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
-      .setControllerAdvice(new GlobalExceptionHandler(new MockEnvironment()))
+      .setControllerAdvice(new GlobalExceptionHandler())
       .build();
     Jwt jwt = Jwt.withTokenValue("t")
       .header("alg", "none")

@@ -8,9 +8,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.env.MockEnvironment;
+import org.springframework.mock.http.MockHttpInputMessage;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
@@ -30,7 +32,9 @@ class GlobalExceptionHandlerTest {
   private static GlobalExceptionHandler handler(String... profiles) {
     MockEnvironment environment = new MockEnvironment();
     environment.setActiveProfiles(profiles);
-    return new GlobalExceptionHandler(environment);
+    GlobalExceptionHandler handler = new GlobalExceptionHandler();
+    handler.setEnvironment(environment);
+    return handler;
   }
 
   private String handlerFor(Exception e) {
@@ -42,42 +46,29 @@ class GlobalExceptionHandlerTest {
   }
 
   @Test
-  @DisplayName("서비스 예외는 BOM 에서 상속한 핸들러가, 그 밖의 예외는 서비스 500 핸들러가 받는다")
-  void resolvesInheritedBusinessHandler() {
-    assertThat(handlerFor(new TradeException(TradeResponse.INSUFFICIENT_BALANCE))).isEqualTo("handleBusinessException");
-    assertThat(handlerFor(new NotEnoughHoldingsException())).isEqualTo("handleBusinessException");
-    assertThat(handlerFor(new IllegalStateException("원인"))).isEqualTo("handleGeneralException");
-  }
-
-  @Test
-  @DisplayName("운영에서는 예상하지 못한 예외의 내용을 응답에 싣지 않고, 개발 프로필에서만 보여 준다")
-  void generalException_DetailByProfile() {
-    ResponseEntity<ProblemDetail> prod = handler("prod")
-      .handleGeneralException(new IllegalStateException("jdbc:postgresql://db/secret"), request);
-    ResponseEntity<ProblemDetail> dev = handler("dev")
-      .handleGeneralException(new IllegalStateException("원인"), request);
-
-    assertThat(prod.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-    assertThat(prod.getBody()).extracting(ProblemDetail::getDetail).isEqualTo("거래 서비스에 문제가 발생했습니다.");
-    assertThat(dev.getBody()).extracting(ProblemDetail::getDetail).isEqualTo("원인 - IllegalStateException");
-  }
-
-  @Test
-  @DisplayName("필수 파라미터 누락과 요청 본문 검증 실패는 400 이다")
-  void clientErrors_BadRequest() throws Exception {
-    GlobalExceptionHandler handler = handler();
+  @DisplayName("서비스 예외 · 요청 값 오류는 공통 모듈에서 상속한 핸들러가, 그 밖의 예외는 서비스 500 핸들러가 받는다")
+  void resolvesInheritedHandlers() throws Exception {
     BeanPropertyBindingResult binding = new BeanPropertyBindingResult(new Object(), "tradeRequestDto");
     binding.addError(new FieldError("tradeRequestDto", "quantity", "수량은 0보다 커야 합니다"));
     MethodParameter parameter = new MethodParameter(GlobalExceptionHandlerTest.class.getDeclaredMethod("buy", Object.class), 0);
 
-    ResponseEntity<ProblemDetail> missing = handler.handleMissingParameterException(
-      new MissingServletRequestParameterException("startDate", "LocalDate"), request);
-    ResponseEntity<ProblemDetail> invalid = handler.handleValidationException(
-      new MethodArgumentNotValidException(parameter, binding), request);
+    assertThat(handlerFor(new TradeException(TradeResponse.INSUFFICIENT_BALANCE))).isEqualTo("handleBusinessException");
+    assertThat(handlerFor(new NotEnoughHoldingsException())).isEqualTo("handleBusinessException");
+    assertThat(handlerFor(new MissingServletRequestParameterException("startDate", "LocalDate")))
+      .isEqualTo("handleMissingParameterException");
+    assertThat(handlerFor(new MethodArgumentNotValidException(parameter, binding))).isEqualTo("handleValidationException");
+    assertThat(handlerFor(new HttpMessageNotReadableException("JSON parse error", new MockHttpInputMessage(new byte[0]))))
+      .isEqualTo("handleNotReadable");
+    assertThat(handlerFor(new IllegalStateException("원인"))).isEqualTo("handleGeneralException");
+  }
 
-    assertThat(missing.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(missing.getBody()).extracting(ProblemDetail::getDetail).isEqualTo("필수 파라미터가 누락되었습니다: startDate");
-    assertThat(invalid.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(invalid.getBody()).isNotNull();
+  @Test
+  @DisplayName("운영에서는 예상하지 못한 예외의 내용을 응답에 싣지 않는다")
+  void generalException_Production_HidesDetail() {
+    ResponseEntity<ProblemDetail> prod = handler("prod")
+      .handleGeneralException(new IllegalStateException("jdbc:postgresql://db/secret"), request);
+
+    assertThat(prod.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+    assertThat(prod.getBody()).extracting(ProblemDetail::getDetail).isEqualTo("거래 서비스에 문제가 발생했습니다.");
   }
 }

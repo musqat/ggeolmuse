@@ -80,8 +80,7 @@ public enum BacktestResponse implements ErrorCode {
   RESULT_SAVE_ERROR("백테스트 결과 저장 중 오류가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
   CONFIGURATION_ERROR("백테스트 설정 오류가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
   MEMORY_ERROR("메모리 부족으로 백테스트를 완료할 수 없습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
-  THREAD_POOL_ERROR("백테스트 처리 스레드 풀 오류가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
-  INTERNAL_SERVER_ERROR("백테스트 서비스에 예기치 못한 오류가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR);
+  THREAD_POOL_ERROR("백테스트 처리 스레드 풀 오류가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR);
 
   private final String message;
   private final HttpStatus httpStatus;

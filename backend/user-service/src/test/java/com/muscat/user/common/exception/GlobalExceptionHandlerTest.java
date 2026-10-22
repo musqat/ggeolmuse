@@ -31,7 +31,9 @@ class GlobalExceptionHandlerTest {
   private static GlobalExceptionHandler handler(String... profiles) {
     MockEnvironment environment = new MockEnvironment();
     environment.setActiveProfiles(profiles);
-    return new GlobalExceptionHandler(environment);
+    GlobalExceptionHandler handler = new GlobalExceptionHandler();
+    handler.setEnvironment(environment);
+    return handler;
   }
 
   private String handlerFor(Exception e) {
@@ -43,55 +45,31 @@ class GlobalExceptionHandlerTest {
   }
 
   @Test
-  @DisplayName("서비스 예외는 BOM 에서 상속한 핸들러가, 그 밖의 예외는 서비스 500 핸들러가 받는다")
-  void resolvesInheritedBusinessHandler() {
+  @DisplayName("서비스 예외 · 요청 값 오류는 공통 모듈에서 상속한 핸들러가, 그 밖의 예외는 서비스 500 핸들러가 받는다")
+  void resolvesInheritedHandlers() throws Exception {
+    MethodParameter accountId = new MethodParameter(
+      GlobalExceptionHandlerTest.class.getDeclaredMethod("accountPath", Long.class), 0);
+
     assertThat(handlerFor(new UserException(UserResponse.USER_NOT_FOUND))).isEqualTo("handleBusinessException");
     assertThat(handlerFor(new AuthenticationException(UserResponse.AUTHENTICATION_FAILED)))
       .isEqualTo("handleBusinessException");
     assertThat(handlerFor(new ServiceException("EXCESSIVE_AMOUNT", "한도 초과"))).isEqualTo("handleServiceException");
-    assertThat(handlerFor(new IllegalStateException("원인"))).isEqualTo("handleGenericException");
+    assertThat(handlerFor(new MissingServletRequestParameterException("rate", "BigDecimal")))
+      .isEqualTo("handleMissingParameterException");
+    assertThat(handlerFor(new MethodArgumentTypeMismatchException("abc", Long.class, "accountId", accountId, null)))
+      .isEqualTo("handleTypeMismatch");
+    assertThat(handlerFor(new HttpMessageNotReadableException("JSON parse error", new MockHttpInputMessage(new byte[0]))))
+      .isEqualTo("handleNotReadable");
+    assertThat(handlerFor(new IllegalStateException("원인"))).isEqualTo("handleGeneralException");
   }
 
   @Test
   @DisplayName("운영에서는 예상하지 못한 예외의 내용을 응답에 싣지 않는다")
-  void generic_Production_HidesDetail() {
+  void general_Production_HidesDetail() {
     ResponseEntity<ProblemDetail> response = handler("prod")
-      .handleGenericException(new IllegalStateException("jdbc:postgresql://db/secret"), request);
+      .handleGeneralException(new IllegalStateException("jdbc:postgresql://db/secret"), request);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
     assertThat(response.getBody()).extracting(ProblemDetail::getDetail).isEqualTo("서버에 문제가 발생했습니다.");
-  }
-
-  @Test
-  @DisplayName("개발 프로필에서는 예외 메시지와 종류를 보여 준다")
-  void generic_Development_ShowsDetail() {
-    ResponseEntity<ProblemDetail> response = handler("dev")
-      .handleGenericException(new IllegalStateException("원인"), request);
-
-    assertThat(response.getBody()).extracting(ProblemDetail::getDetail).isEqualTo("원인 - IllegalStateException");
-  }
-
-  @Test
-  @DisplayName("필수 파라미터 누락 · 형식 오류 · 깨진 본문은 400 이고 파싱 예외 내용은 감춘다")
-  void clientErrors_BadRequest() throws Exception {
-    GlobalExceptionHandler handler = handler();
-    MethodParameter accountId = new MethodParameter(
-      GlobalExceptionHandlerTest.class.getDeclaredMethod("accountPath", Long.class), 0);
-
-    ResponseEntity<ProblemDetail> missing = handler.handleMissingParameterException(
-      new MissingServletRequestParameterException("rate", "BigDecimal"), request);
-    ResponseEntity<ProblemDetail> mismatch = handler.handleTypeMismatch(
-      new MethodArgumentTypeMismatchException("abc", Long.class, "accountId", accountId,
-        new NumberFormatException("For input string: \"abc\"")), request);
-    ResponseEntity<ProblemDetail> malformed = handler.handleNotReadable(
-      new HttpMessageNotReadableException("JSON parse error: Unexpected character",
-        new IllegalArgumentException("Unexpected character"), new MockHttpInputMessage(new byte[0])), request);
-
-    assertThat(missing.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(missing.getBody()).extracting(ProblemDetail::getDetail).isEqualTo("필수 파라미터가 누락되었습니다: rate");
-    assertThat(mismatch.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(mismatch.getBody()).extracting(ProblemDetail::getDetail).isEqualTo("요청 파라미터 형식이 올바르지 않습니다");
-    assertThat(malformed.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(malformed.getBody()).extracting(ProblemDetail::getDetail).isEqualTo("요청 본문을 읽을 수 없습니다");
   }
 }

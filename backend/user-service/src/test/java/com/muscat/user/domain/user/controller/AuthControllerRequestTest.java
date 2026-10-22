@@ -83,7 +83,7 @@ class AuthControllerRequestTest {
   @DisplayName("이메일 인증은 성공하면 200, 토큰이 틀리면 400 으로 HTML 을 돌려준다")
   void verifyEmail_Html() throws Exception {
     given(userService.verifyEmail("good")).willReturn(User.builder().email("user@example.com").build());
-    given(userService.verifyEmail("bad")).willThrow(new UserException(UserResponse.INVALID_INPUT));
+    given(userService.verifyEmail("bad")).willThrow(new UserException(UserResponse.EMAIL_TOKEN_INVALID));
 
     mockMvc.perform(get(BASE + "/verify-email").param("token", "good"))
       .andExpect(status().isOk())

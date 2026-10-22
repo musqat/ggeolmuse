@@ -19,7 +19,6 @@ public enum UserResponse implements ErrorCode {
   ACCOUNT_DELETED("계정이 삭제되었습니다.", HttpStatus.OK),
 
   // 400 Bad Request
-  INVALID_INPUT("입력값을 확인해주세요.", HttpStatus.BAD_REQUEST),
   EMAIL_NOT_VERIFIED("이메일 인증이 완료되지 않았습니다.", HttpStatus.BAD_REQUEST),
   INVALID_PASSWORD("비밀번호가 올바르지 않습니다.", HttpStatus.BAD_REQUEST),
   CANNOT_CHANGE_OWN_ROLE("자기 역할은 바꿀 수 없습니다.", HttpStatus.BAD_REQUEST),

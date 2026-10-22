@@ -37,10 +37,7 @@ public enum MarketDataResponse implements ErrorCode {
     ALPHA_VANTAGE_ERROR("Alpha Vantage 서비스 오류", HttpStatus.BAD_GATEWAY),
     KOREA_EXIM_ERROR("한국수출입은행 서비스 오류", HttpStatus.BAD_GATEWAY),
     MARKET_CAP_UNAVAILABLE("시가총액을 가져오지 못했습니다", HttpStatus.BAD_GATEWAY),
-    DATA_SOURCE_UNAVAILABLE("시세 공급원이 설정되지 않았습니다", HttpStatus.SERVICE_UNAVAILABLE),
-
-    // 서버 내부 오류
-    INTERNAL_SERVER_ERROR("시장 데이터 서비스 내부 오류", HttpStatus.INTERNAL_SERVER_ERROR);
+    DATA_SOURCE_UNAVAILABLE("시세 공급원이 설정되지 않았습니다", HttpStatus.SERVICE_UNAVAILABLE);
 
     private final String message;
     private final HttpStatus httpStatus;
