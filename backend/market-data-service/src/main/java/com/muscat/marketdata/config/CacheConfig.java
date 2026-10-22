@@ -48,27 +48,11 @@ public class CacheConfig {
     // 캐시별 개별 설정
     Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
 
-    // 1. OHLC 범위 조회 (백테스트용) - 24시간 TTL
-    cacheConfigurations.put("ohlcPriceRange",
-        defaultConfig.entryTtl(Duration.ofHours(24)));
-
-    // 2. 주식 목록 (페이지별) - 5분 TTL
-    cacheConfigurations.put("stockPrices",
-        defaultConfig.entryTtl(Duration.ofMinutes(5)));
-
-    // 3. 현재가 조회 - 30초 TTL (실시간성)
+    // 1. 현재가 조회 - 30초 TTL (실시간성)
     cacheConfigurations.put("currentPrice",
         defaultConfig.entryTtl(Duration.ofSeconds(30)));
 
-    // 4. 환율 조회 - 24시간 TTL
-    cacheConfigurations.put("fxRate",
-        defaultConfig.entryTtl(Duration.ofHours(24)));
-
-    // 5. 배당 이력 조회 - 24시간 TTL
-    cacheConfigurations.put("dividends",
-        defaultConfig.entryTtl(Duration.ofHours(24)));
-
-    // 6. 최신 환율 조회 - 1시간 TTL (빈번한 조회 최적화)
+    // 2. 최신 환율 조회 - 1시간 TTL (빈번한 조회 최적화)
     cacheConfigurations.put("latestFxRate",
         defaultConfig.entryTtl(Duration.ofHours(1)));
 

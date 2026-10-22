@@ -54,10 +54,9 @@ class CandleServiceCacheTest {
     }
 
     @Bean
-    CandleService candleService(CandleRepository candleRepository, AssetRepository assetRepository,
-      CacheManager cacheManager) {
+    CandleService candleService(CandleRepository candleRepository, AssetRepository assetRepository) {
       return new CandleServiceImpl(candleRepository, assetRepository, mock(DividendRepository.class),
-        new MarketDataProperties(), cacheManager);
+        new MarketDataProperties());
     }
   }
 
