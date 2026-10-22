@@ -8,7 +8,6 @@ import com.muscat.marketdata.datasource.common.MarketDataProvider.FxSource;
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.entity.FxRate;
 import com.muscat.marketdata.domain.repository.AssetRepository;
-import com.muscat.marketdata.domain.repository.CandleRepository;
 import com.muscat.marketdata.domain.repository.FxRateRepository;
 import com.muscat.marketdata.infra.kafka.AssetEventProducer;
 import jakarta.annotation.PostConstruct;
@@ -40,7 +39,6 @@ public class AlphaVantageScheduler {
 
   private final AssetRepository assetRepository;
   private final FxRateRepository fxRateRepository;
-  private final CandleRepository candleRepository;
   private final AssetEventProducer assetEventProducer;
   private final MarketCapCollectionService marketCapCollectionService;
 
@@ -256,7 +254,7 @@ public class AlphaVantageScheduler {
   private boolean isInitialCollectionInProgress() {
     try {
       long totalAssets = assetRepository.count();
-      long assetsWithCandles = candleRepository.countDistinctSymbols();
+      long assetsWithCandles = assetRepository.countWithCandles();
 
       if (totalAssets == 0) {
         log.debug("[스케줄러 체크] Asset 없음, 스케줄러 실행");

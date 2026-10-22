@@ -100,6 +100,27 @@ class MarketRepositoryQueryTest {
     }
 
     @Test
+    @DisplayName("캔들 있는 종목 수는 종목 테이블의 최신 캔들 날짜가 채워진 종목을 센다")
+    void countWithCandles() {
+      latestAsset("AAPL", D2);
+      latestAsset("MSFT", D1);
+      asset("OLD", "Old Corp", "EQUITY", 1L, false);
+      asset("NVDA", "Nvidia", "EQUITY", 1L, true);
+      candle("AAPL", D1, "0");
+      candle("AAPL", D2, "0");
+      candle("MSFT", D1, "0");
+      candle("OLD", D1, "0");
+
+      assertThat(assetRepository.countWithCandles()).isEqualTo(2);
+    }
+
+    // 캔들을 저장할 때처럼 최신 캔들 날짜를 채운 종목
+    private void latestAsset(String symbol, LocalDate latestDate) {
+      assetRepository.save(Asset.builder().symbol(symbol).name(symbol).country("US").currency("USD")
+        .assetType("EQUITY").latestDate(latestDate).build());
+    }
+
+    @Test
     @DisplayName("활성 종목 코드만 이름순으로 준다")
     void activeSymbols() {
       assets();
@@ -236,7 +257,7 @@ class MarketRepositoryQueryTest {
     }
 
     @Test
-    @DisplayName("최신 캔들 · 어떤 날 이전의 최신 캔들 · 캔들 있는 종목 수")
+    @DisplayName("최신 캔들 · 어떤 날 이전의 최신 캔들")
     void latestAndRecent() {
       candle("AAPL", D1, "0");
       candle("AAPL", D2, "0");
@@ -247,7 +268,6 @@ class MarketRepositoryQueryTest {
       assertThat(candleRepository.findLatestBySymbol("NONE")).isEmpty();
       assertThat(candleRepository.findLatestBySymbolBeforeDate("AAPL", D3)).hasValueSatisfying(c -> assertThat(c.getDate()).isEqualTo(D2));
       assertThat(candleRepository.findLatestBySymbolBeforeDate("AAPL", D1)).isEmpty();
-      assertThat(candleRepository.countDistinctSymbols()).isEqualTo(2);
     }
   }
 

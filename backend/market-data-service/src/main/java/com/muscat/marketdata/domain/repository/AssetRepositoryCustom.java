@@ -21,6 +21,9 @@ public interface AssetRepositoryCustom {
   // 상장 중인 종목의 티커만 조회. 검색용
   List<String> findActiveSymbols();
 
+  // 최신 캔들 날짜가 채워진 종목 수(캔들을 저장할 때 같이 채움)
+  long countWithCandles();
+
   // 상장 여부로 걸러 임의 정렬로 페이징 조회. NULL 은 항상 마지막
   Page<Asset> findSorted(Pageable pageable, boolean active);
 }

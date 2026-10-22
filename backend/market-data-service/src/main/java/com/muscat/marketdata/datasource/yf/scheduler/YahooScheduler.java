@@ -4,7 +4,6 @@ import com.muscat.marketdata.datasource.yf.collector.FxDataCollector;
 import com.muscat.marketdata.datasource.yf.service.YahooMarketCapService;
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.repository.AssetRepository;
-import com.muscat.marketdata.domain.repository.CandleRepository;
 import com.muscat.marketdata.domain.repository.FxRateRepository;
 import com.muscat.marketdata.infra.kafka.AssetEventProducer;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +26,6 @@ import java.util.List;
 public class YahooScheduler {
 
     private final AssetRepository assetRepository;
-    private final CandleRepository candleRepository;
     private final FxRateRepository fxRateRepository;
     private final AssetEventProducer assetEventProducer;
     private final YahooMarketCapService marketCapService;
@@ -116,7 +114,7 @@ public class YahooScheduler {
     private boolean isInitialCollectionInProgress() {
         try {
             long totalAssets = assetRepository.count();
-            long assetsWithCandles = candleRepository.countDistinctSymbols();
+            long assetsWithCandles = assetRepository.countWithCandles();
 
             if (totalAssets == 0) {
                 return false;
