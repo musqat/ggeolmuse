@@ -8,7 +8,7 @@
   "resetPasswordAllowed": true,
   "editUsernameAllowed": false,
   "accessTokenLifespan": 900,
-  "accessTokenLifespanForImplicitFlow": 3600,
+  "accessTokenLifespanForImplicitFlow": 900,
   "ssoSessionIdleTimeout": 7200,
   "ssoSessionMaxLifespan": 86400,
   "revokeRefreshToken": true,
