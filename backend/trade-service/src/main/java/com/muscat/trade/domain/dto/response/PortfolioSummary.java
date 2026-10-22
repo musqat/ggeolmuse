@@ -2,7 +2,6 @@ package com.muscat.trade.domain.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import lombok.AllArgsConstructor;
@@ -42,18 +41,4 @@ public class PortfolioSummary {
 
   @Schema(description = "종목별 평가손익", example = "{\"AAPL\": 2500.00, \"GOOGL\": 1200.00}")
   private Map<String, BigDecimal> symbolUnrealizedPnL; // 종목별 평가손익
-
-  // 백테스트 관련 정보
-  @Schema(description = "백테스트 결과 사용 가능 여부", example = "true")
-  private boolean backtestAvailable;              // 백테스트 결과 사용 가능 여부
-
-  @Schema(description = "백테스트 결과 (JSON)", example = "{\"totalReturn\": 15.2, \"sharpeRatio\": 1.3}")
-  private String backtestResult;                  // 백테스트 결과 (JSON)
-
-  @Schema(description = "백테스트 계산 시간", example = "2024-09-18T16:45:00")
-  private LocalDateTime backtestCalculatedAt;     // 백테스트 계산 시간
-
-  @Schema(description = "백테스트 상태", example = "COMPLETED", allowableValues = {"PENDING", "RUNNING",
-    "COMPLETED", "FAILED"})
-  private String backtestStatus;                  // 백테스트 상태
 }

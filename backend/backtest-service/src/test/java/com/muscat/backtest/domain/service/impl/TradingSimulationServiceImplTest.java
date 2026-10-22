@@ -12,25 +12,16 @@ import static org.mockito.BDDMockito.verify;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.times;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.BacktestType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.util.BacktestHistoryUtils;
-import com.muscat.backtest.domain.dto.request.InvestmentRequest;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
-import com.muscat.backtest.domain.dto.response.InvestmentResponse;
 import com.muscat.backtest.domain.dto.response.SimulationResponse;
-import com.muscat.backtest.domain.entity.InvestmentBacktestResult;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
-import com.muscat.backtest.domain.repository.InvestmentBacktestResultRepository;
 import com.muscat.backtest.infra.client.MarketDataClientWrapper;
 import com.muscat.backtest.infra.client.dto.DividendDto;
 import com.muscat.backtest.infra.client.dto.FxRateDto;
-import com.muscat.backtest.infra.client.TradeServiceClientWrapper;
-import com.muscat.backtest.infra.client.dto.HoldingDto;
-import com.muscat.backtest.infra.client.dto.TradeDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import com.muscat.commonlib.dto.StockPriceDto;
 
@@ -39,7 +30,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -59,29 +49,18 @@ class TradingSimulationServiceImplTest {
   private MarketDataClientWrapper marketDataClientWrapper;
 
   @Mock
-  private TradeServiceClientWrapper tradeServiceClientWrapper;
-
-  @Mock
   private ResponseMapper responseMapper;
 
   @Mock
   private BacktestHistoryUtils backtestHistoryUtils;
-
-  @Mock
-  private InvestmentBacktestResultRepository investmentBacktestResultRepository;
-
-  @Mock
-  private ObjectMapper objectMapper;
 
   @InjectMocks
   private TradingSimulationServiceImpl tradingSimulationService;
 
   private static final String TEST_USER_ID = "test-user@example.com";
   private static final String TEST_SYMBOL = "AAPL";
-  private static final String TEST_AUTHORIZATION = "Bearer token123";
 
   private SimulationRequest testSimulationRequest;
-  private InvestmentRequest testInvestmentRequest;
 
   @BeforeEach
   void setUp() {
@@ -95,8 +74,6 @@ class TradingSimulationServiceImplTest {
       .dividendTaxRate(BigDecimal.ZERO)
       .build();
 
-    testInvestmentRequest = new InvestmentRequest();
-    testInvestmentRequest.setUserId(TEST_USER_ID);
   }
 
   @Nested

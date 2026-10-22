@@ -1,7 +1,6 @@
 package com.muscat.trade.domain.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -17,7 +16,6 @@ import com.muscat.trade.domain.entity.Trade;
 import com.muscat.trade.domain.repository.DividendPayoutRepository;
 import com.muscat.trade.domain.repository.HoldingsRepository;
 import com.muscat.trade.domain.repository.TradeRepository;
-import com.muscat.trade.infra.client.BacktestServiceClient;
 import com.muscat.trade.infra.client.MarketServiceClientWrapper;
 import com.muscat.trade.infra.client.UserServiceClient;
 import com.muscat.trade.infra.client.dto.DividendDto;
@@ -97,9 +95,6 @@ class RemoteCallTransactionIT {
   private MarketServiceClientWrapper marketServiceClientWrapper;
 
   @MockitoBean
-  private BacktestServiceClient backtestServiceClient;
-
-  @MockitoBean
   private UserServiceClient userServiceClient;
 
   @MockitoBean
@@ -140,17 +135,6 @@ class RemoteCallTransactionIT {
     given(marketServiceClientWrapper.getCurrentPrices(anyList())).willAnswer(invocation -> record(Map.of()));
 
     holdingsService.getPortfolio(USER, ACCOUNT);
-
-    assertThat(inTransaction).containsExactly(false);
-  }
-
-  @Test
-  @DisplayName("백테스트 포함 포트폴리오는 백테스트 결과를 기다리는 동안 트랜잭션을 잡지 않는다")
-  void portfolioWithBacktest_WaitsOutsideTransaction() {
-    willAnswer(invocation -> record(null)).given(tradeLogger)
-      .logPortfolioAccess(eq(USER), eq("PORTFOLIO_WITH_BACKTEST"), anyString(), anyInt());
-
-    holdingsService.getPortfolioSummaryWithBacktest(USER, Map.of(), "Bearer token");
 
     assertThat(inTransaction).containsExactly(false);
   }

@@ -25,10 +25,6 @@ export type PortfolioSummaryResponse = {
   holdings: HoldingResponse[];
   symbolReturnRates: { [symbol: string]: number };      // 종목별 수익률
   symbolUnrealizedPnL: { [symbol: string]: number };    // 종목별 미실현 손익
-  backtestAvailable?: boolean;        // 백테스트 가능 여부
-  backtestResult?: string;            // 백테스트 결과
-  backtestCalculatedAt?: string;      // 백테스트 계산 일시
-  backtestStatus?: string;            // 백테스트 상태
 };
 
 export const portfolioApi = {

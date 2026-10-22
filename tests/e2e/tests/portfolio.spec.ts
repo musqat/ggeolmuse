@@ -29,11 +29,6 @@ test('포트폴리오 요약이 온다', async () => {
   const body = await summary.json();
   expect(body, '요약이 비어 있다').toBeTruthy();
 
-  const withBacktest = await auth.post(`${API_URL}/portfolio/summary-with-backtest`, {
-    data: { [symbol]: price },
-  });
-  expect(withBacktest.status(), '백테스트 포함 요약이 실패했다').toBe(200);
-
   await auth.dispose();
   await plain.dispose();
 });

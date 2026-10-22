@@ -209,7 +209,6 @@ spec:
           # 콜드 부팅 7분 동안은 메트릭이 없으니 15분 유예.
           expr: |
             absent(resilience4j_circuitbreaker_state{job="backtest-service", name="marketDataService"})
-            or absent(resilience4j_circuitbreaker_state{job="backtest-service", name="tradeService"})
             or absent(resilience4j_circuitbreaker_state{job="trade-service", name="marketService"})
             or absent(resilience4j_circuitbreaker_state{job="trade-service", name="userService"})
             or absent(resilience4j_circuitbreaker_state{job="user-service", name="marketDataService"})

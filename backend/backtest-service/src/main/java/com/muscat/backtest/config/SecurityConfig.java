@@ -35,8 +35,6 @@ public class SecurityConfig {
         .authorizeHttpRequests(auth -> auth
             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
             .requestMatchers(ServiceSecurity.SWAGGER_PATHS).permitAll()
-            // 먼저 맞는 규칙이 적용되어 아래 공개 규칙보다 앞에 둠
-            .requestMatchers(HttpMethod.POST, "/api/trading-simulation/simulate").authenticated()
             // 백테스트(시뮬레이션/분석)는 비로그인 허용 — gateway·프론트와 일치. 히스토리(/api/backtest/**)는 인증 유지
             .requestMatchers(HttpMethod.POST, "/api/trading-simulation/**").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/analysis/**").permitAll()

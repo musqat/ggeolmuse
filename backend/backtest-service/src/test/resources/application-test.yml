@@ -25,7 +25,6 @@ keycloak:
 # 테스트용 외부 서비스 URL
 app:
   services:
-    trade-service: http://localhost:8081
     market-data-service: http://localhost:8083
 
 logging:
