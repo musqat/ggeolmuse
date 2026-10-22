@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
+  daysBetween,
   daysForTimeframe,
   getTodayString,
   getDateRangeForTimeframe,
@@ -112,6 +113,17 @@ describe('subtractDays', () => {
 
   it('0일이면 그대로', () => {
     expect(subtractDays('2026-08-13', 0)).toBe('2026-08-13')
+  })
+})
+
+describe('daysBetween', () => {
+  it('두 날짜 사이 일수를 센다', () => {
+    expect(daysBetween('2023-01-03', '2024-01-03')).toBe(365)
+    expect(daysBetween('2024-01-01', '2024-03-01')).toBe(60)
+  })
+
+  it('같은 날은 0 이다', () => {
+    expect(daysBetween('2026-10-22', '2026-10-22')).toBe(0)
   })
 })
 

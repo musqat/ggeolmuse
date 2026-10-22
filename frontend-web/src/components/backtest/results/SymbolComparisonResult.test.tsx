@@ -43,6 +43,20 @@ describe('SymbolComparisonResult', () => {
     expect(screen.getAllByText('AAPL').length).toBeGreaterThan(0)
     expect(screen.getAllByText('MSFT').length).toBeGreaterThan(0)
   })
+
+  it('보유일은 매수일부터 기준일까지 센다', () => {
+    render(
+      <SymbolComparisonResult
+        result={result}
+        comparePurchaseDate="2023-01-03"
+        compareSaleDate=""
+        symbolOptimalPoints={{}}
+        setSymbolOptimalPoints={vi.fn()}
+      />
+    )
+
+    expect(screen.getAllByText('365일')).toHaveLength(2)
+  })
 })
 
 describe('SymbolComparisonResult 값이 없을 때', () => {
@@ -62,6 +76,21 @@ describe('SymbolComparisonResult 값이 없을 때', () => {
     const box = label.parentElement
     expect(box).toHaveClass('bg-brand-bg')
     expect(box).toHaveTextContent('-')
+  })
+
+  it('매수일이 없으면 보유일은 - 로 둔다', () => {
+    const missing = { ...result, items: [{ ...item('AAPL', 0, 0), purchaseDate: undefined }] }
+    render(
+      <SymbolComparisonResult
+        result={missing}
+        comparePurchaseDate="2023-01-03"
+        compareSaleDate=""
+        symbolOptimalPoints={{}}
+        setSymbolOptimalPoints={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText('보유일').nextElementSibling).toHaveTextContent('-')
   })
 })
 
