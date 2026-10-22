@@ -1,8 +1,8 @@
 package com.muscat.marketdata.api.controller;
 
 import com.muscat.marketdata.domain.dto.BatchResult;
-import com.muscat.marketdata.datasource.alphavantage.service.CandleBatchService;
-import com.muscat.marketdata.datasource.alphavantage.service.AlphaVantageCandleUpdateService;
+import com.muscat.marketdata.datasource.common.CandleBatchService;
+import com.muscat.marketdata.domain.service.CandleUpdateService;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
@@ -39,7 +39,7 @@ public class DataCollectionController {
   private int defaultLookbackDaysSingle;
 
   private final CandleBatchService batchService;
-  private final AlphaVantageCandleUpdateService candleUpdateService;
+  private final CandleUpdateService candleUpdateService;
 
   @PostMapping("/candles")
   public ResponseEntity<Map<String, Object>> collectAllSymbols(

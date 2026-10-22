@@ -1,4 +1,4 @@
-package com.muscat.marketdata.datasource.alphavantage.service;
+package com.muscat.marketdata.datasource.common;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -13,6 +13,7 @@ import com.muscat.marketdata.config.MarketDataProperties;
 import com.muscat.marketdata.domain.dto.BatchResult;
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.repository.AssetRepository;
+import com.muscat.marketdata.domain.service.CandleUpdateService;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,15 +21,15 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
-// 종목마다 최대 3번 재시도하고 실패한 종목은 세고 넘어간다. 대기 시간은 0 으로 두고 본다
-@DisplayName("AlphaVantage 일괄 수집")
+// 종목마다 최대 3번 재시도, 실패한 종목은 세고 넘어감. 대기 시간은 0
+@DisplayName("캔들 일괄 수집")
 class CandleBatchServiceTest {
 
   private static final LocalDate FROM = LocalDate.of(2024, 1, 1);
   private static final LocalDate TO = LocalDate.of(2024, 3, 31);
 
   private final AssetRepository assetRepository = mock(AssetRepository.class);
-  private final AlphaVantageCandleUpdateService updateService = mock(AlphaVantageCandleUpdateService.class);
+  private final CandleUpdateService updateService = mock(CandleUpdateService.class);
   private final MarketDataProperties properties = new MarketDataProperties();
   private final CandleBatchService service = new CandleBatchService(assetRepository, updateService, properties);
 

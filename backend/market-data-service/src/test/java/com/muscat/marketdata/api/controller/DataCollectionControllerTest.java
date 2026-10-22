@@ -12,9 +12,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.muscat.marketdata.common.exception.GlobalExceptionHandler;
 import com.muscat.marketdata.config.security.SecurityConfig;
-import com.muscat.marketdata.datasource.alphavantage.service.AlphaVantageCandleUpdateService;
-import com.muscat.marketdata.datasource.alphavantage.service.CandleBatchService;
+import com.muscat.marketdata.datasource.common.CandleBatchService;
 import com.muscat.marketdata.domain.dto.BatchResult;
+import com.muscat.marketdata.domain.service.CandleUpdateService;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
@@ -44,7 +44,7 @@ class DataCollectionControllerTest {
   class BehaviorTests {
 
     private final CandleBatchService batchService = mock(CandleBatchService.class);
-    private final AlphaVantageCandleUpdateService updateService = mock(AlphaVantageCandleUpdateService.class);
+    private final CandleUpdateService updateService = mock(CandleUpdateService.class);
     private final DataCollectionController controller = new DataCollectionController(batchService, updateService);
     private final LocalDate today = LocalDate.now(ZoneId.of("America/New_York"));
 
@@ -120,7 +120,7 @@ class DataCollectionControllerTest {
     private CandleBatchService batchService;
 
     @MockitoBean
-    private AlphaVantageCandleUpdateService updateService;
+    private CandleUpdateService updateService;
 
     @MockitoBean
     private JwtDecoder jwtDecoder;

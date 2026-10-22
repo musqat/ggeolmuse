@@ -1,30 +1,26 @@
-package com.muscat.marketdata.datasource.yf.service;
+package com.muscat.marketdata.datasource.common;
 
 import com.muscat.marketdata.config.MarketDataProperties;
 import com.muscat.marketdata.domain.dto.BatchResult;
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.repository.AssetRepository;
+import com.muscat.marketdata.domain.service.CandleUpdateService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.List;
 
-// Yahoo Finance 배치 수집: 여러 종목의 캔들 · 배당을 묶어 받음(한도 · 재시도 포함)
+// 공급원의 캔들 저장 서비스로 여러 종목의 캔들 · 배당을 묶어 받는 일괄 수집기(한도 · 재시도 포함)
 @Slf4j
-@Service("yfCandleBatchService")
-@ConditionalOnProperty(
-    name = "marketdata.provider",
-    havingValue = "yahoo"
-)
+@Service
 @RequiredArgsConstructor
 public class CandleBatchService {
 
     private final AssetRepository assetRepository;
-    private final YahooCandleUpdateService candleUpdateService;
+    private final CandleUpdateService candleUpdateService;
     private final MarketDataProperties properties;
 
     private static final int BACKOFF_MULTIPLIER = 2;
@@ -58,7 +54,7 @@ public class CandleBatchService {
         int failureCount = 0;
         int totalSavedRecords = 0;
 
-        log.info("[YF-배치수집] 시작: 심볼수={}, 기간=[{}~{}], RPM={}, 배당포함={}",
+        log.info("[배치수집] 시작: 심볼수={}, 기간=[{}~{}], RPM={}, 배당포함={}",
                 symbols.size(), fromDate, toDate, requestsPerMinute, includeDividends);
 
         for (String symbol : symbols) {
@@ -72,7 +68,7 @@ public class CandleBatchService {
                 successCount++;
             } catch (Exception e) {
                 failureCount++;
-                log.warn("[YF-배치수집] 심볼 {} 수집 실패: {}", symbol, e.getMessage());
+                log.warn("[배치수집] 심볼 {} 수집 실패: {}", symbol, e.getMessage());
             } finally {
                 sleepQuietly(sleepIntervalMs);
             }
@@ -87,7 +83,7 @@ public class CandleBatchService {
                 toDate
         );
 
-        log.info("[YF-배치수집] 완료: {}", result);
+        log.info("[배치수집] 완료: {}", result);
         return result;
     }
 
@@ -113,7 +109,7 @@ public class CandleBatchService {
                     break;
                 }
 
-                log.debug("[YF-배치수집] 재시도 {}/{}: {}", attempt, maxRetryAttempts, e.getMessage());
+                log.debug("[배치수집] 재시도 {}/{}: {}", attempt, maxRetryAttempts, e.getMessage());
                 sleepQuietly(currentBackoff);
                 currentBackoff = Math.min(currentBackoff * BACKOFF_MULTIPLIER,
                         properties.getBatch().getMaxBackoffMs());
@@ -132,7 +128,7 @@ public class CandleBatchService {
             Thread.sleep(milliseconds);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            log.warn("[YF-배치수집] Sleep 중단됨");
+            log.warn("[배치수집] Sleep 중단됨");
         }
     }
 
