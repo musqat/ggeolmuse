@@ -6,13 +6,12 @@ import com.muscat.backtest.common.enums.response.BacktestResponse;
 import java.util.Objects;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.core.MethodParameter;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.mock.env.MockEnvironment;
+import org.springframework.mock.http.MockHttpInputMessage;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
@@ -34,7 +33,9 @@ class GlobalExceptionHandlerTest {
   private static GlobalExceptionHandler handler(String... profiles) {
     MockEnvironment environment = new MockEnvironment();
     environment.setActiveProfiles(profiles);
-    return new GlobalExceptionHandler(environment);
+    GlobalExceptionHandler handler = new GlobalExceptionHandler();
+    handler.setEnvironment(environment);
+    return handler;
   }
 
   private String handlerFor(Exception e) {
@@ -50,20 +51,19 @@ class GlobalExceptionHandlerTest {
   }
 
   @Test
-  @DisplayName("서비스 예외는 BOM 에서 상속한 핸들러가, 그 밖의 예외는 서비스 500 핸들러가 받는다")
-  void resolvesInheritedBusinessHandler() {
+  @DisplayName("서비스 예외 · 요청 값 오류는 공통 모듈에서 상속한 핸들러가, 그 밖의 예외는 서비스 500 핸들러가 받는다")
+  void resolvesInheritedHandlers() throws Exception {
+    BeanPropertyBindingResult binding = new BeanPropertyBindingResult(new Object(), "dcaStrategyRequest");
+    binding.addError(new FieldError("dcaStrategyRequest", "symbol", "종목 코드는 필수입니다"));
+    MethodParameter parameter = new MethodParameter(GlobalExceptionHandlerTest.class.getDeclaredMethod("dca", Object.class), 0);
+
     assertThat(handlerFor(new BacktestException(BacktestResponse.INVALID_REQUEST))).isEqualTo("handleBusinessException");
+    assertThat(handlerFor(new MissingServletRequestParameterException("userId", "String")))
+      .isEqualTo("handleMissingParameterException");
+    assertThat(handlerFor(new MethodArgumentNotValidException(parameter, binding))).isEqualTo("handleValidationException");
+    assertThat(handlerFor(new HttpMessageNotReadableException("JSON parse error", new MockHttpInputMessage(new byte[0]))))
+      .isEqualTo("handleNotReadable");
     assertThat(handlerFor(new IllegalStateException("원인"))).isEqualTo("handleGeneralException");
-  }
-
-  @ParameterizedTest(name = "{0}")
-  @ValueSource(strings = {"dev", "development", "local"})
-  @DisplayName("개발 프로필에서는 예상하지 못한 예외의 내용을 보여 준다")
-  void generalException_DevShowsDetail(String profile) {
-    ResponseEntity<ProblemDetail> response = handler(profile).handleGeneralException(new IllegalStateException("원인"), request);
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-    assertThat(detail(response)).isEqualTo("원인 - IllegalStateException");
   }
 
   @Test
@@ -74,24 +74,5 @@ class GlobalExceptionHandlerTest {
     assertThat(detail(handler("prod").handleGeneralException(leak, request))).isEqualTo(HIDDEN);
     assertThat(detail(handler().handleGeneralException(leak, request))).isEqualTo(HIDDEN);
     assertThat(detail(handler("test", "docker").handleGeneralException(leak, request))).isEqualTo(HIDDEN);
-  }
-
-  @Test
-  @DisplayName("필수 파라미터 누락과 요청 본문 검증 실패는 400 이다")
-  void clientErrors_BadRequest() throws Exception {
-    GlobalExceptionHandler handler = handler();
-    BeanPropertyBindingResult binding = new BeanPropertyBindingResult(new Object(), "dcaStrategyRequest");
-    binding.addError(new FieldError("dcaStrategyRequest", "symbol", "종목 코드는 필수입니다"));
-    MethodParameter parameter = new MethodParameter(GlobalExceptionHandlerTest.class.getDeclaredMethod("dca", Object.class), 0);
-
-    ResponseEntity<ProblemDetail> missing = handler.handleMissingParameterException(
-      new MissingServletRequestParameterException("userId", "String"), request);
-    ResponseEntity<ProblemDetail> invalid = handler.handleValidationException(
-      new MethodArgumentNotValidException(parameter, binding), request);
-
-    assertThat(missing.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(detail(missing)).isEqualTo("필수 파라미터가 누락되었습니다: userId");
-    assertThat(Objects.requireNonNull(missing.getBody()).getProperties()).containsEntry("parameterName", "userId");
-    assertThat(invalid.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
   }
 }

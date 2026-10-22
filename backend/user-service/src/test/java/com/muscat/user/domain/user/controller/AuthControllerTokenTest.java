@@ -27,7 +27,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.mock.env.MockEnvironment;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -47,7 +46,7 @@ class AuthControllerTokenTest {
     RefreshTokenCookie cookie = new RefreshTokenCookie(new AppProperties());
     AuthController controller = new AuthController(userService, cookie);
     mockMvc = MockMvcBuilders.standaloneSetup(controller)
-      .setControllerAdvice(new GlobalExceptionHandler(new MockEnvironment()))
+      .setControllerAdvice(new GlobalExceptionHandler())
       .build();
   }
 

@@ -8,7 +8,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.mock.env.MockEnvironment;
+import org.springframework.mock.http.MockHttpInputMessage;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.method.annotation.ExceptionHandlerMethodResolver;
 import jakarta.validation.ConstraintViolation;
@@ -30,13 +32,17 @@ class GlobalExceptionHandlerTest {
   private final GlobalExceptionHandler handler = handlerWithProfiles();
 
   @Test
-  @DisplayName("서비스 예외는 BOM 에서 상속한 핸들러가, 외부 API 예외와 그 밖의 예외는 서비스 핸들러가 받는다")
-  void resolvesInheritedBusinessHandler() {
+  @DisplayName("서비스 예외 · 요청 값 오류는 공통 모듈에서 상속한 핸들러가, 외부 API 예외와 그 밖의 예외는 서비스 핸들러가 받는다")
+  void resolvesInheritedHandlers() {
     // 스프링이 advice 마다 만드는 resolver. 같은 예외에 메서드가 둘 걸리면 생성에서 실패한다
     ExceptionHandlerMethodResolver resolver = new ExceptionHandlerMethodResolver(GlobalExceptionHandler.class);
 
     assertThat(resolver.resolveMethod(new MarketDataException(MarketDataResponse.PRICE_DATA_NOT_FOUND)).getName())
       .isEqualTo("handleBusinessException");
+    assertThat(resolver.resolveMethod(new MissingServletRequestParameterException("date", "LocalDate")).getName())
+      .isEqualTo("handleMissingParameterException");
+    assertThat(resolver.resolveMethod(new HttpMessageNotReadableException("JSON parse error", new MockHttpInputMessage(new byte[0]))).getName())
+      .isEqualTo("handleNotReadable");
     assertThat(resolver.resolveMethod(new YahooFinanceException("원인")).getName())
       .isEqualTo("handleYahooFinanceException");
     assertThat(resolver.resolveMethod(new IllegalStateException("원인")).getName())
@@ -92,16 +98,6 @@ class GlobalExceptionHandlerTest {
   }
 
   @Test
-  @DisplayName("필수 파라미터 누락은 HTTP 상태와 본문 status 가 둘 다 400 이다")
-  void missingParameter_StatusMatches() {
-    ResponseEntity<ProblemDetail> response = handler.handleMissingParameterException(
-      new MissingServletRequestParameterException("date", "LocalDate"), new MockHttpServletRequest("GET", "/api/market/ohlc/AAPL"));
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(Objects.requireNonNull(response.getBody()).getStatus()).isEqualTo(400);
-  }
-
-  @Test
   @DisplayName("야후 · AlphaVantage · 수출입은행 오류는 502 이고 외부 서비스 오류로 표시한다")
   void externalServiceErrors() {
     MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/market/price/AAPL");
@@ -120,21 +116,16 @@ class GlobalExceptionHandlerTest {
   }
 
   @Test
-  @DisplayName("예상하지 못한 예외는 켜진 프로필 중 개발용이 있을 때만 내용을 싣고, 운영 · 프로필 없음에서는 감춘다")
-  void generalException_DetailByProfile() {
+  @DisplayName("예상하지 못한 예외는 운영 · 프로필 없음에서 내용을 감춘다")
+  void generalException_Production_HidesDetail() {
     MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/market/price/AAPL");
     IllegalStateException leak = new IllegalStateException("jdbc:postgresql://db/secret");
-    String detail = "jdbc:postgresql://db/secret - IllegalStateException";
     String hidden = "시장 데이터 서비스에 문제가 발생했습니다.";
 
-    ResponseEntity<ProblemDetail> dev = handlerWithProfiles("dev", "no-file-logging").handleGeneralException(leak, request);
-    ResponseEntity<ProblemDetail> local = handlerWithProfiles("local").handleGeneralException(leak, request);
     ResponseEntity<ProblemDetail> prod = handlerWithProfiles("prod").handleGeneralException(leak, request);
     ResponseEntity<ProblemDetail> none = handlerWithProfiles().handleGeneralException(leak, request);
 
-    assertThat(dev.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-    assertThat(Objects.requireNonNull(dev.getBody()).getDetail()).isEqualTo(detail);
-    assertThat(Objects.requireNonNull(local.getBody()).getDetail()).isEqualTo(detail);
+    assertThat(prod.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
     assertThat(Objects.requireNonNull(prod.getBody()).getDetail()).isEqualTo(hidden);
     assertThat(Objects.requireNonNull(none.getBody()).getDetail()).isEqualTo(hidden);
   }
@@ -142,6 +133,8 @@ class GlobalExceptionHandlerTest {
   private static GlobalExceptionHandler handlerWithProfiles(String... profiles) {
     MockEnvironment environment = new MockEnvironment();
     environment.setActiveProfiles(profiles);
-    return new GlobalExceptionHandler(environment);
+    GlobalExceptionHandler handler = new GlobalExceptionHandler();
+    handler.setEnvironment(environment);
+    return handler;
   }
 }
