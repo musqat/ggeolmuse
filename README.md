@@ -145,17 +145,17 @@ ggeolmuse/
 
 ## 테스트
 
-백엔드 **1,507 개**, 프론트 **457 개**, E2E **40 개**.
+백엔드 **1,461 개**, 프론트 **465 개**, E2E **40 개**.
 
 | 서비스 | 테스트 |
 |---|---|
-| market-data-service | 506 |
-| user-service | 369 |
-| backtest-service | 335 |
-| trade-service | 260 |
-| ggeolmuse-common | 18 |
+| market-data-service | 505 |
+| user-service | 363 |
+| backtest-service | 289 |
+| trade-service | 253 |
+| ggeolmuse-common | 32 |
 | messaging | 19 |
-| frontend-web | 457 |
+| frontend-web | 465 |
 | E2E (Playwright) | 40 |
 
 E2E 는 `docker compose` 로 스택 전체를 띄우고 PR 과 `master` push 마다 돈다.
