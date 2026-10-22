@@ -1,6 +1,7 @@
 package com.muscat.marketdata.datasource.yf.scheduler;
 
 import com.muscat.marketdata.datasource.common.FxDataCollector;
+import com.muscat.marketdata.datasource.common.InitialCollectionCheck;
 import com.muscat.marketdata.datasource.yf.service.YahooMarketCapService;
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.repository.AssetRepository;
@@ -30,13 +31,13 @@ public class YahooScheduler {
     private final AssetEventProducer assetEventProducer;
     private final YahooMarketCapService marketCapService;
     private final FxDataCollector fxDataCollector;
+    private final InitialCollectionCheck initialCollectionCheck;
 
     // 평소에는 1년. 전 기간 백필은 이 값을 크게 잡고 한 번 돌린 뒤 되돌린다
     @Value("${yahoo.scheduler.candle.lookback-days:365}")
     private int candleLookbackDays;
 
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
-    private static final double INITIAL_COLLECTION_THRESHOLD = 0.95;
 
     /**
      * 캔들 · 배당 업데이트 - 매일 오전 7시 KST (평일)
@@ -46,7 +47,7 @@ public class YahooScheduler {
     // 전 종목을 초당 10건으로 받으면 한 바퀴가 25분을 넘는다
     @SchedulerLock(name = "yahooUpdateCandles", lockAtMostFor = "50m", lockAtLeastFor = "1m")
     public void updateCandles() {
-        if (isInitialCollectionInProgress()) {
+        if (initialCollectionCheck.inProgress()) {
             log.info("=== [YF 스케줄러] 초기 수집 진행 중 - 캔들 업데이트 스킵 ===");
             return;
         }
@@ -79,7 +80,7 @@ public class YahooScheduler {
         zone = "${yahoo.scheduler.zone:Asia/Seoul}")
     @SchedulerLock(name = "yahooUpdateMarketCaps", lockAtMostFor = "30m", lockAtLeastFor = "5m")
     public void updateMarketCaps() {
-        if (isInitialCollectionInProgress()) {
+        if (initialCollectionCheck.inProgress()) {
             log.info("=== [YF 스케줄러] 초기 수집 진행 중 - 시가총액 업데이트 스킵 ===");
             return;
         }
@@ -109,29 +110,5 @@ public class YahooScheduler {
             },
             () -> log.warn("[YF 스케줄러] 환율 데이터를 가져올 수 없음: date={}", today)
         );
-    }
-
-    private boolean isInitialCollectionInProgress() {
-        try {
-            long totalAssets = assetRepository.count();
-            long assetsWithCandles = assetRepository.countWithCandles();
-
-            if (totalAssets == 0) {
-                return false;
-            }
-
-            double completionRate = (double) assetsWithCandles / totalAssets;
-            boolean inProgress = completionRate < INITIAL_COLLECTION_THRESHOLD;
-
-            if (inProgress) {
-                log.info("[스케줄러 체크] 초기 수집 진행 중: {}/{}개 ({}%), 스케줄러 스킵",
-                    assetsWithCandles, totalAssets, String.format("%.1f", completionRate * 100));
-            }
-
-            return inProgress;
-        } catch (Exception e) {
-            log.warn("[스케줄러 체크] 확인 실패, 안전하게 스케줄러 실행", e);
-            return false;
-        }
     }
 }

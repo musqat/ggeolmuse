@@ -10,6 +10,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.muscat.marketdata.datasource.common.FxDataCollector;
+import com.muscat.marketdata.datasource.common.InitialCollectionCheck;
 import com.muscat.marketdata.datasource.yf.service.YahooMarketCapService;
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.entity.FxRate;
@@ -35,7 +36,7 @@ class YahooSchedulerTest {
   private final YahooMarketCapService marketCapService = mock(YahooMarketCapService.class);
   private final FxDataCollector fxDataCollector = mock(FxDataCollector.class);
   private final YahooScheduler scheduler = new YahooScheduler(assetRepository, fxRateRepository, producer,
-    marketCapService, fxDataCollector);
+    marketCapService, fxDataCollector, new InitialCollectionCheck(assetRepository));
 
   {
     ReflectionTestUtils.setField(scheduler, "candleLookbackDays", 30);

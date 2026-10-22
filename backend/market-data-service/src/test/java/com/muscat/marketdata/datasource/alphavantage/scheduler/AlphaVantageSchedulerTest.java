@@ -16,6 +16,7 @@ import com.muscat.marketdata.datasource.alphavantage.provider.AlphaVantageSymbol
 import com.muscat.marketdata.config.MarketDataProperties;
 import com.muscat.marketdata.datasource.alphavantage.service.MarketCapCollectionService;
 import com.muscat.marketdata.datasource.common.FxDataCollector;
+import com.muscat.marketdata.datasource.common.InitialCollectionCheck;
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.entity.FxRate;
 import com.muscat.marketdata.domain.repository.AssetRepository;
@@ -45,7 +46,8 @@ class AlphaVantageSchedulerTest {
   private final MarketCapCollectionService marketCapService = mock(MarketCapCollectionService.class);
   private final AlphaVantageScheduler scheduler = new AlphaVantageScheduler(fxSource,
     new FxDataCollector(fxSource, fxRateRepository, new MarketDataProperties()), mock(AlphaVantageCandleSource.class),
-    mock(AlphaVantageSymbolSource.class), assetRepository, fxRateRepository, producer, marketCapService);
+    mock(AlphaVantageSymbolSource.class), assetRepository, fxRateRepository, producer, marketCapService,
+    new InitialCollectionCheck(assetRepository));
 
   private void collected(long total, long withCandles) {
     given(assetRepository.count()).willReturn(total);

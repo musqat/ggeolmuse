@@ -5,6 +5,7 @@ import com.muscat.marketdata.datasource.alphavantage.provider.AlphaVantageCandle
 import com.muscat.marketdata.datasource.alphavantage.provider.AlphaVantageSymbolSource;
 import com.muscat.marketdata.datasource.alphavantage.service.MarketCapCollectionService;
 import com.muscat.marketdata.datasource.common.FxDataCollector;
+import com.muscat.marketdata.datasource.common.InitialCollectionCheck;
 import com.muscat.marketdata.datasource.common.MarketDataProvider.FxSource;
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.entity.FxRate;
@@ -42,9 +43,9 @@ public class AlphaVantageScheduler {
   private final FxRateRepository fxRateRepository;
   private final AssetEventProducer assetEventProducer;
   private final MarketCapCollectionService marketCapCollectionService;
+  private final InitialCollectionCheck initialCollectionCheck;
 
   private static final ZoneId KST = ZoneId.of("Asia/Seoul");
-  private static final double INITIAL_COLLECTION_THRESHOLD = 0.95;  // 95% 수집 완료 기준
   private static final int MIN_FX_RATES_FOR_INITIAL_COLLECTION = 365;  // 1년치 미만이면 full로 수집
 
   // DB 환율이 1년치 미만이면 시작할 때 outputsize=full 로 한 번에 채움
@@ -97,8 +98,7 @@ public class AlphaVantageScheduler {
   )
   @Transactional
   public void updateFxRates() {
-    // 초기 수집 진행 중이면 스케줄러 스킵
-    if (isInitialCollectionInProgress()) {
+    if (initialCollectionCheck.inProgress()) {
       log.info("=== [AV 스케줄러] 초기 수집 진행 중 - 환율 업데이트 스킵 ===");
       return;
     }
@@ -130,8 +130,7 @@ public class AlphaVantageScheduler {
   )
   @Transactional(readOnly = true)
   public void updateCandles() {
-    // 초기 수집 진행 중이면 스케줄러 스킵
-    if (isInitialCollectionInProgress()) {
+    if (initialCollectionCheck.inProgress()) {
       log.info("=== [AV 스케줄러] 초기 수집 진행 중 - 캔들 업데이트 스킵 ===");
       return;
     }
@@ -181,8 +180,7 @@ public class AlphaVantageScheduler {
     lockAtLeastFor = "5m"
   )
   public void updateMarketCaps() {
-    // 초기 수집 진행 중이면 스케줄러 스킵
-    if (isInitialCollectionInProgress()) {
+    if (initialCollectionCheck.inProgress()) {
       log.info("=== [AV 스케줄러] 초기 수집 진행 중 - 시가총액 업데이트 스킵 ===");
       return;
     }
@@ -196,36 +194,5 @@ public class AlphaVantageScheduler {
     }
 
     log.info("=== [AV 스케줄러] 시가총액 업데이트 완료 ===");
-  }
-
-  // ==================== Helper Methods ====================
-
-  // 캔들이 있는 종목이 95% 미만이면 초기 수집 중으로 보고 건너뜀(API 한도 경쟁 방지)
-  private boolean isInitialCollectionInProgress() {
-    try {
-      long totalAssets = assetRepository.count();
-      long assetsWithCandles = assetRepository.countWithCandles();
-
-      if (totalAssets == 0) {
-        log.debug("[스케줄러 체크] Asset 없음, 스케줄러 실행");
-        return false;
-      }
-
-      double completionRate = (double) assetsWithCandles / totalAssets;
-      boolean inProgress = completionRate < INITIAL_COLLECTION_THRESHOLD;
-
-      if (inProgress) {
-        log.info("[스케줄러 체크] 초기 수집 진행 중: {}/{}개 ({}%), 스케줄러 스킵",
-          assetsWithCandles, totalAssets, String.format("%.1f", completionRate * 100));
-      } else {
-        log.debug("[스케줄러 체크] 초기 수집 완료: {}/{}개 ({}%), 스케줄러 실행",
-          assetsWithCandles, totalAssets, String.format("%.1f", completionRate * 100));
-      }
-
-      return inProgress;
-    } catch (Exception e) {
-      log.warn("[스케줄러 체크] 초기 수집 여부 확인 실패, 안전하게 스케줄러 실행", e);
-      return false;  // 에러 시 안전하게 스케줄러 실행
-    }
   }
 }
