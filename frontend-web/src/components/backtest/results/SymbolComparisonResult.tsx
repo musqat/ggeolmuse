@@ -11,7 +11,7 @@ import {
 import type { ComparisonItem, ComparisonResponse } from '../../../services/api';
 import type { OptimalPointsBySymbol } from '@components/charts/backtest/optimalTiming';
 import { CompareSymbolsChartMemoized } from './CompareSymbolsChartMemoized';
-import { getTodayString } from '../../../utils/dateUtils';
+import { daysBetween, getTodayString } from '../../../utils/dateUtils';
 
 // 종목 카드의 수익 칸 배경. 값이 없으면 중립 배경
 const SOFT_BOX: Record<GainLossTone, string> = {
@@ -83,6 +83,10 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
             additionalData.purchaseFxRate || item.purchaseFxRate,
           currentFxRate: additionalData.currentFxRate || item.currentFxRate,
         };
+        // 보유일. 없으면 매수일부터 기준일까지 일수
+        const daysHeld = displayItem.daysHeld ?? (displayItem.purchaseDate
+          ? daysBetween(displayItem.purchaseDate, displayItem.currentDate || getTodayString())
+          : undefined);
 
         return (
           <div
@@ -169,7 +173,7 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
                     <div className="flex justify-between">
                       <span className="text-tx-2">보유일</span>
                       <span className="font-medium">
-                        {displayItem.daysHeld}일
+                        {daysHeld != null ? `${daysHeld.toLocaleString()}일` : '-'}
                       </span>
                     </div>
                   </div>

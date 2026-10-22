@@ -59,6 +59,11 @@ export function subtractDays(dateString: string, days: number): string {
   return toLocalDateString(date);
 }
 
+/** 두 YYYY-MM-DD 날짜 사이 일수 */
+export function daysBetween(start: string, end: string): number {
+  return Math.round((parseLocalDate(end).getTime() - parseLocalDate(start).getTime()) / 86_400_000);
+}
+
 /** 그 달에 그날이 없으면 말일로 맞춤(3/31 → 2/28) */
 export function subtractMonths(dateString: string, months: number): string {
   const date = parseLocalDate(dateString);
