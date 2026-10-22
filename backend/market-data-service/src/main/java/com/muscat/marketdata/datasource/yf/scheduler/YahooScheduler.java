@@ -1,6 +1,6 @@
 package com.muscat.marketdata.datasource.yf.scheduler;
 
-import com.muscat.marketdata.datasource.yf.collector.FxDataCollector;
+import com.muscat.marketdata.datasource.common.FxDataCollector;
 import com.muscat.marketdata.datasource.yf.service.YahooMarketCapService;
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.repository.AssetRepository;

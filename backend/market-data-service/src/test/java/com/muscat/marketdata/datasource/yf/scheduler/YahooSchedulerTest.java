@@ -9,7 +9,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import com.muscat.marketdata.datasource.yf.collector.FxDataCollector;
+import com.muscat.marketdata.datasource.common.FxDataCollector;
 import com.muscat.marketdata.datasource.yf.service.YahooMarketCapService;
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.entity.FxRate;

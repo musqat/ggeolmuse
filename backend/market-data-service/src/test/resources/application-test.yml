@@ -49,8 +49,7 @@ keycloak:
 
 # Market Data 테스트 설정
 marketdata:
-  # FxRateService 구현체가 @ConditionalOnProperty(marketdata.provider) 라
-  # 값이 없으면 빈이 하나도 뜨지 않고 컨텍스트 로딩이 실패한다.
+  # 공급원별 빈(FxSource 등)이 이 값으로 켜짐. 없으면 그 빈을 쓰는 수집기가 안 떠 컨텍스트 로딩 실패
   provider: yahoo
   constants:
     fx-ingest:

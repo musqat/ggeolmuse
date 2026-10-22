@@ -4,6 +4,7 @@ import com.muscat.commonlib.util.MoneyUtils;
 import com.muscat.marketdata.datasource.alphavantage.provider.AlphaVantageCandleSource;
 import com.muscat.marketdata.datasource.alphavantage.provider.AlphaVantageSymbolSource;
 import com.muscat.marketdata.datasource.alphavantage.service.MarketCapCollectionService;
+import com.muscat.marketdata.datasource.common.FxDataCollector;
 import com.muscat.marketdata.datasource.common.MarketDataProvider.FxSource;
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.entity.FxRate;
@@ -12,7 +13,6 @@ import com.muscat.marketdata.domain.repository.FxRateRepository;
 import com.muscat.marketdata.infra.kafka.AssetEventProducer;
 import jakarta.annotation.PostConstruct;
 import java.math.BigDecimal;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
@@ -34,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AlphaVantageScheduler {
 
   private final FxSource fxSource;
+  private final FxDataCollector fxDataCollector;
   private final AlphaVantageCandleSource candleSource;
   private final AlphaVantageSymbolSource symbolSource;
 
@@ -43,7 +44,6 @@ public class AlphaVantageScheduler {
   private final MarketCapCollectionService marketCapCollectionService;
 
   private static final ZoneId KST = ZoneId.of("Asia/Seoul");
-  private static final int MAX_FALLBACK_DAYS = 7;
   private static final double INITIAL_COLLECTION_THRESHOLD = 0.95;  // 95% 수집 완료 기준
   private static final int MIN_FX_RATES_FOR_INITIAL_COLLECTION = 365;  // 1년치 미만이면 full로 수집
 
@@ -107,7 +107,7 @@ public class AlphaVantageScheduler {
 
     try {
       LocalDate today = LocalDate.now(KST);
-      Optional<FxRate> rate = collectFxRate(today, true);
+      Optional<FxRate> rate = fxDataCollector.collectSingleDate(today, true);
 
       if (rate.isPresent()) {
         FxRate saved = fxRateRepository.save(rate.get());
@@ -199,56 +199,6 @@ public class AlphaVantageScheduler {
   }
 
   // ==================== Helper Methods ====================
-
-  /**
-   * 특정 날짜의 환율 데이터 수집 (주말 fallback 지원)
-   */
-  private Optional<FxRate> collectFxRate(LocalDate targetDate, boolean useBusinessDayFallback) {
-    LocalDate currentDate = targetDate;
-    int attempts = 0;
-
-    while (attempts <= MAX_FALLBACK_DAYS) {
-      try {
-        Optional<BigDecimal> rateOpt = fxSource.fetchFx(currentDate);
-        if (rateOpt.isPresent()) {
-          BigDecimal rate = MoneyUtils.roundExchangeRate(rateOpt.get());
-          return Optional.of(FxRate.builder()
-            .date(targetDate)
-            .rate(rate)
-            .currencyPair("USD/KRW")
-            .build());
-        }
-      } catch (Exception e) {
-        log.warn("환율 데이터 수집 실패: date={}, error={}", currentDate, e.getMessage());
-      }
-
-      if (!useBusinessDayFallback) {
-        break;
-      }
-
-      currentDate = getPreviousBusinessDay(currentDate);
-      attempts++;
-
-      if (attempts > MAX_FALLBACK_DAYS) {
-        throw new IllegalStateException("환율 폴백 기간 초과: " + targetDate);
-      }
-    }
-
-    return Optional.empty();
-  }
-
-  /**
-   * 이전 영업일 계산
-   */
-  private static LocalDate getPreviousBusinessDay(LocalDate date) {
-    LocalDate prev = date.minusDays(1);
-
-    while (prev.getDayOfWeek() == DayOfWeek.SATURDAY || prev.getDayOfWeek() == DayOfWeek.SUNDAY) {
-      prev = prev.minusDays(1);
-    }
-
-    return prev;
-  }
 
   // 캔들이 있는 종목이 95% 미만이면 초기 수집 중으로 보고 건너뜀(API 한도 경쟁 방지)
   private boolean isInitialCollectionInProgress() {
