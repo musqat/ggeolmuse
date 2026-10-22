@@ -73,7 +73,9 @@ class ClientWrapperRetryTest {
         w -> w.getDividendHistory("AAPL", "2024-01-01", "2024-12-31"), List.of(mock(DividendDto.class))),
       new Call<>("날짜 환율", c -> c.getFxRate("2024-09-16"), w -> w.getFxRate("2024-09-16"), mock(FxRateDto.class)),
       new Call<>("최신 환율", MarketDataClient::getLatestFxRate, MarketDataClientWrapper::getLatestFxRate,
-        mock(FxRateDto.class)));
+        mock(FxRateDto.class)),
+      new Call<>("여러 날짜 환율", c -> c.getBulkFxRates(List.of("2024-09-16")),
+        w -> w.getBulkFxRates(List.of("2024-09-16")), Map.of("2024-09-16", java.math.BigDecimal.TEN)));
   }
 
   @ParameterizedTest(name = "{0}")

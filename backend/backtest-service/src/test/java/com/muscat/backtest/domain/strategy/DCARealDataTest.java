@@ -32,7 +32,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 // 야후 실데이터로 DCA 전체 경로를 검증. 기대값은 분할 조정 close 매수 · 락일 종가 재투자로 따로 계산
-// 야후 adjustedClose 로 따로 계산한 13.86% 와 0.01%p 안에서 맞음
+// 야후 adjustedClose 로 따로 계산한 13.78% 와 0.01%p 안에서 맞음
 @ExtendWith(MockitoExtension.class)
 @DisplayName("DCA 실데이터 회귀 (KO 2022-09 ~ 2025-09)")
 class DCARealDataTest {
@@ -53,47 +53,60 @@ class DCARealDataTest {
       bar("2022-09-01", "62.0000", "55.1078"),
       bar("2022-09-15", "59.5300", "53.2982"),
       bar("2022-09-30", "56.0200", "50.1556"),
+      bar("2022-10-03", "56.6500", "50.7196"),
       bar("2022-11-01", "59.6400", "53.3967"),
       bar("2022-11-30", "63.6100", "57.3550"),
       bar("2022-12-01", "63.7900", "57.5173"),
       bar("2022-12-30", "63.6100", "57.3550"),
+      bar("2023-01-03", "62.9500", "56.7598"),
       bar("2023-02-01", "61.3300", "55.2992"),
       bar("2023-03-01", "58.8600", "53.0721"),
       bar("2023-03-16", "60.3000", "54.7875"),
       bar("2023-03-31", "62.0300", "56.3594"),
+      bar("2023-04-03", "62.4000", "56.6955"),
       bar("2023-05-01", "64.3000", "58.4219"),
       bar("2023-06-01", "60.0000", "54.5150"),
       bar("2023-06-15", "61.2300", "56.0562"),
       bar("2023-06-30", "60.2200", "55.1315"),
+      bar("2023-07-03", "60.5800", "55.4611"),
       bar("2023-08-01", "61.7700", "56.5506"),
       bar("2023-09-01", "59.3100", "54.2984"),
       bar("2023-09-14", "58.4600", "53.9449"),
       bar("2023-09-29", "55.9800", "51.6564"),
+      bar("2023-10-02", "55.4800", "51.1950"),
       bar("2023-11-01", "56.4400", "52.0809"),
       bar("2023-11-30", "58.4400", "54.3558"),
       bar("2023-12-01", "58.6400", "54.5418"),
       bar("2023-12-29", "58.9300", "54.8116"),
+      bar("2024-01-02", "59.8200", "55.6393"),
       bar("2024-02-01", "60.9800", "56.7183"),
       bar("2024-03-01", "59.5300", "55.3696"),
       bar("2024-03-14", "60.5000", "56.7220"),
       bar("2024-04-01", "60.6800", "56.8907"),
       bar("2024-05-01", "61.9300", "58.0627"),
       bar("2024-05-31", "62.9300", "59.0002"),
+      bar("2024-06-03", "62.9300", "59.0002"),
       bar("2024-06-14", "62.5500", "59.0990"),
       bar("2024-07-01", "63.2800", "59.7887"),
       bar("2024-08-01", "67.9600", "64.2105"),
       bar("2024-08-30", "72.4700", "68.4717"),
+      bar("2024-09-03", "73.0100", "68.9818"),
       bar("2024-09-13", "71.4100", "67.9327"),
       bar("2024-10-01", "71.7100", "68.2181"),
       bar("2024-11-01", "65.0100", "61.8443"),
       bar("2024-11-29", "64.0800", "61.4220"),
+      bar("2024-12-02", "63.6500", "61.0098"),
       bar("2024-12-31", "62.2600", "59.6775"),
+      bar("2025-01-02", "61.8400", "59.2749"),
       bar("2025-01-31", "63.4800", "60.8469"),
+      bar("2025-02-03", "63.3500", "60.7222"),
       bar("2025-02-28", "71.2100", "68.2562"),
+      bar("2025-03-03", "72.3200", "69.3201"),
       bar("2025-03-14", "69.1600", "66.7805"),
       bar("2025-04-01", "71.8700", "69.3972"),
       bar("2025-05-01", "71.2900", "68.8372"),
       bar("2025-05-30", "72.1000", "69.6193"),
+      bar("2025-06-02", "72.0000", "69.5227"),
       bar("2025-06-13", "71.0200", "69.0640"),
       bar("2025-07-01", "71.6700", "69.6961"),
       bar("2025-08-01", "68.8600", "66.9635"),
@@ -169,9 +182,9 @@ class DCARealDataTest {
     // 매수 37 + 배당 재투자 12
     assertThat(txCaptor.getValue()).hasSize(49);
     assertThat(calc.getTotalInvested()).isEqualByComparingTo("3700000");
-    assertThat(calc.getTotalShares().doubleValue()).isCloseTo(46.9666, within(0.01));
-    assertThat(calc.getDividendsReinvested().doubleValue()).isCloseTo(129.82, within(0.5));
-    assertThat(calc.getTotalReturnPercent().doubleValue()).isCloseTo(13.85, within(0.1));
+    assertThat(calc.getTotalShares().doubleValue()).isCloseTo(46.9364, within(0.01));
+    assertThat(calc.getDividendsReinvested().doubleValue()).isCloseTo(129.71, within(0.5));
+    assertThat(calc.getTotalReturnPercent().doubleValue()).isCloseTo(13.77, within(0.1));
 
     // 재투자를 했으므로 배당을 자산에 또 더하지 않는다
     assertThat(calc.getTotalAssetKrw()).isEqualByComparingTo(calc.getCurrentValueKrw());
@@ -215,12 +228,12 @@ class DCARealDataTest {
 
     StrategyCalculationResult calc = calcCaptor.getValue();
 
-    assertThat(calc.getTotalShares().doubleValue()).isCloseTo(46.6527, within(0.01));
-    assertThat(calc.getDividendsReinvested().doubleValue()).isCloseTo(109.37, within(0.5));
-    assertThat(calc.getTotalReturnPercent().doubleValue()).isCloseTo(13.08, within(0.1));
+    assertThat(calc.getTotalShares().doubleValue()).isCloseTo(46.6229, within(0.01));
+    assertThat(calc.getDividendsReinvested().doubleValue()).isCloseTo(109.29, within(0.5));
+    assertThat(calc.getTotalReturnPercent().doubleValue()).isCloseTo(13.01, within(0.1));
 
     // 세후 재투자액이 세전의 84.6% 보다 낮다. 재투자 주식이 줄어 다음 배당 기준도 같이 줄기 때문
-    assertThat(calc.getDividendsReinvested().doubleValue()).isLessThan(129.82 * 0.846);
+    assertThat(calc.getDividendsReinvested().doubleValue()).isLessThan(129.71 * 0.846);
   }
 
   @Test

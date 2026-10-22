@@ -10,6 +10,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.never;
 import static org.mockito.BDDMockito.verify;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 
 import com.muscat.backtest.common.enums.response.BacktestResponse;
@@ -30,6 +31,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -396,7 +398,15 @@ class TradingSimulationServiceImplTest {
 
     // responseMapper.toSimulationResponse 로 넘어가는 최적 타이밍 인자(매수일 · 매수가 · 매도일 · 매도가 · 수익률 순)
     private void runWith(List<OHLCPriceDto> range) {
+      runWith(range, Map.of());
+    }
+
+    // 일자별 환율이 비면 모든 날이 기본 환율
+    private void runWith(List<OHLCPriceDto> range, Map<String, BigDecimal> fxRates) {
       OHLCPriceDto purchasePrice = range.get(0);
+      if (!fxRates.isEmpty()) {
+        given(marketDataClientWrapper.getBulkFxRates(anyList())).willReturn(fxRates);
+      }
 
       given(marketDataClientWrapper.getOHLCPrice(eq(TEST_SYMBOL), anyString()))
         .willReturn(purchasePrice);
@@ -512,6 +522,46 @@ class TradingSimulationServiceImplTest {
 
       assertThat(buyDate.getValue()).isEqualTo(sellDate.getValue());
       assertThat(optimalReturn.getValue()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
+    @DisplayName("원화 주가(종가 × 그날 환율)로 가장 싸게 사서 가장 비싸게 파는 날을 고르고 수익률도 원화로 낸다")
+    void optimalTiming_KrwPrice() {
+      // 달러로는 1/5 최저 · 10/13 최고, 환율을 곱하면 1/9 가 더 싸고 10/28 이 더 비쌈
+      runWith(List.of(
+        candle("2023-01-05", "222.31"),
+        candle("2023-01-09", "227.12"),
+        candle("2025-10-28", "542.07"),
+        candle("2026-10-13", "543.45")
+      ), Map.of(
+        "2023-01-05", new BigDecimal("1274.16"),
+        "2023-01-09", new BigDecimal("1239.25"),
+        "2025-10-28", new BigDecimal("1431.40"),
+        "2026-10-13", new BigDecimal("1335.80")));
+
+      ArgumentCaptor<LocalDate> buyDate = ArgumentCaptor.forClass(LocalDate.class);
+      ArgumentCaptor<BigDecimal> buyPrice = ArgumentCaptor.forClass(BigDecimal.class);
+      ArgumentCaptor<LocalDate> sellDate = ArgumentCaptor.forClass(LocalDate.class);
+      ArgumentCaptor<BigDecimal> sellPrice = ArgumentCaptor.forClass(BigDecimal.class);
+      ArgumentCaptor<BigDecimal> optimalReturn = ArgumentCaptor.forClass(BigDecimal.class);
+
+      verify(responseMapper).toSimulationResponse(
+        any(SimulationRequest.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), buyDate.capture(), buyPrice.capture(),
+        sellDate.capture(), sellPrice.capture(), optimalReturn.capture(), any(BigDecimal.class),
+        anyList());
+
+      assertThat(buyDate.getValue()).isEqualTo(LocalDate.parse("2023-01-09"));
+      assertThat(sellDate.getValue()).isEqualTo(LocalDate.parse("2025-10-28"));
+      // 매수가 · 매도가는 그날 달러 종가
+      assertThat(buyPrice.getValue()).isEqualByComparingTo("227.12");
+      assertThat(sellPrice.getValue()).isEqualByComparingTo("542.07");
+      // 542.07 × 1431.40 / (227.12 × 1239.25) - 1
+      assertThat(optimalReturn.getValue()).isEqualByComparingTo("175.68");
     }
 
     @Test
@@ -724,6 +774,80 @@ class TradingSimulationServiceImplTest {
       .totalReturnKrw(new BigDecimal("3317708"))
       .performanceSummary("총 수익: $2583.17 (29.32%), 환차익: 1.54%")
       .build();
+  }
+
+  @Nested
+  @DisplayName("휴장일 매수")
+  class HolidayPurchaseTests {
+
+    private TradingSimulationServiceImpl service;
+
+    @BeforeEach
+    void setUpService() {
+      service = new TradingSimulationServiceImpl(marketDataClientWrapper, new ResponseMapper(), backtestHistoryUtils);
+    }
+
+    private void stubPrice(String date, String close) {
+      given(marketDataClientWrapper.getOHLCPrice(TEST_SYMBOL, date))
+        .willReturn(createOHLCPrice(TEST_SYMBOL, LocalDate.parse(date), new BigDecimal(close), true));
+    }
+
+    private void stubClosed(String date) {
+      given(marketDataClientWrapper.getOHLCPrice(TEST_SYMBOL, date))
+        .willReturn(createOHLCPrice(TEST_SYMBOL, LocalDate.parse(date), BigDecimal.TEN, false));
+    }
+
+    private void stubFx(String date, String rate) {
+      given(marketDataClientWrapper.getFxRate(date)).willReturn(new FxRateDto(LocalDate.parse(date), new BigDecimal(rate)));
+    }
+
+    private SimulationResponse run(String purchaseDate, String saleDate, String amount) {
+      return service.runSimulation(SimulationRequest.builder().symbol(TEST_SYMBOL)
+        .purchaseDate(LocalDate.parse(purchaseDate)).saleDate(LocalDate.parse(saleDate))
+        .investmentAmount(new BigDecimal(amount)).build(), false);
+    }
+
+    @Test
+    @DisplayName("휴장일에 사면 다음 거래일 종가 · 환율로 사고, 응답의 매수일도 그날이다")
+    void buysOnNextTradingDay() {
+      // 1/1(일) · 1/2(휴장) 다음 거래일 1/3, 그 전 거래일 12/30 시세 · 환율은 안 씀
+      stubClosed("2023-01-01");
+      stubClosed("2023-01-02");
+      stubPrice("2023-01-03", "125.00");
+      stubFx("2023-01-03", "1250");
+      lenient().when(marketDataClientWrapper.getOHLCPrice(TEST_SYMBOL, "2022-12-30"))
+        .thenReturn(createOHLCPrice(TEST_SYMBOL, LocalDate.of(2022, 12, 30), new BigDecimal("129.93"), true));
+      lenient().when(marketDataClientWrapper.getFxRate("2023-01-01"))
+        .thenReturn(new FxRateDto(LocalDate.of(2023, 1, 1), new BigDecimal("1261.87")));
+      stubPrice("2023-06-30", "190.00");
+      stubFx("2023-06-30", "1300");
+
+      SimulationResponse response = run("2023-01-01", "2023-06-30", "1250000");
+
+      // 125만원 ÷ 1250 = 1000달러 → 125달러에 8주
+      assertThat(response.getPurchasePrice()).isEqualByComparingTo("125.00");
+      assertThat(response.getPurchaseFxRate()).isEqualByComparingTo("1250");
+      assertThat(response.getShares()).isEqualByComparingTo("8");
+      assertThat(response.getPurchaseDate()).isEqualTo(LocalDate.of(2023, 1, 3));
+    }
+
+    @Test
+    @DisplayName("평가일까지 다음 거래일이 없으면 그 전 거래일 종가로 산다")
+    void buysOnPreviousTradingDayWhenNoNextBeforeValuation() {
+      // 6/3(토)에 사서 6/4(일)에 평가, 그 사이 거래일이 없어 6/2(금) 종가
+      stubClosed("2023-06-03");
+      stubClosed("2023-06-04");
+      stubPrice("2023-06-02", "180.00");
+      stubFx("2023-06-02", "1300");
+      stubFx("2023-06-04", "1300");
+      lenient().when(marketDataClientWrapper.getFxRate("2023-06-03"))
+        .thenReturn(new FxRateDto(LocalDate.of(2023, 6, 3), new BigDecimal("1300")));
+
+      SimulationResponse response = run("2023-06-03", "2023-06-04", "1300000");
+
+      assertThat(response.getPurchasePrice()).isEqualByComparingTo("180.00");
+      assertThat(response.getPurchaseDate()).isEqualTo(LocalDate.of(2023, 6, 2));
+    }
   }
 
   @Nested

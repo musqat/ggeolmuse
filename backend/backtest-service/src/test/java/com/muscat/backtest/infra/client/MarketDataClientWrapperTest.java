@@ -49,6 +49,8 @@ class MarketDataClientWrapperTest {
     given(client.getDividendHistory("AAPL", "2024-01-01", "2024-12-31")).willReturn(dividends);
     given(client.getFxRate("2024-03-04")).willReturn(fx);
     given(client.getLatestFxRate()).willReturn(fx);
+    Map<String, java.math.BigDecimal> fxRates = Map.of("2024-03-04", java.math.BigDecimal.TEN);
+    given(client.getBulkFxRates(List.of("2024-03-04"))).willReturn(fxRates);
 
     assertThat(wrapper.getOHLCPrice("AAPL", "2024-03-04")).isSameAs(ohlc);
     assertThat(wrapper.getOHLCPriceRange("AAPL", "2024-01-01", "2024-12-31")).isSameAs(range);
@@ -56,6 +58,7 @@ class MarketDataClientWrapperTest {
     assertThat(wrapper.getDividendHistory("AAPL", "2024-01-01", "2024-12-31")).isSameAs(dividends);
     assertThat(wrapper.getFxRate("2024-03-04")).isSameAs(fx);
     assertThat(wrapper.getLatestFxRate()).isSameAs(fx);
+    assertThat(wrapper.getBulkFxRates(List.of("2024-03-04"))).isSameAs(fxRates);
   }
 
   @Test
@@ -85,13 +88,15 @@ class MarketDataClientWrapperTest {
   }
 
   @Test
-  @DisplayName("기간 시세 · 배당 목록을 못 받으면 빈 값으로 넘어간다")
+  @DisplayName("기간 시세 · 배당 목록 · 여러 날짜 환율을 못 받으면 빈 값으로 넘어간다")
   void listFallbacks_Empty() {
     List<OHLCPriceDto> range = fallback("getOHLCPriceRangeFallback", "AAPL", "2024-01-01", "2024-12-31", down);
     List<DividendDto> dividends = fallback("getDividendHistoryFallback", "AAPL", "2024-01-01", "2024-12-31", down);
+    Map<String, java.math.BigDecimal> fxRates = fallback("getBulkFxRatesFallback", List.of("2024-03-04"), down);
 
     assertThat(range).isEmpty();
     assertThat(dividends).isEmpty();
+    assertThat(fxRates).isEmpty();
   }
 
   @Test

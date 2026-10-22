@@ -129,14 +129,27 @@ public class DCAStrategy implements InvestmentStrategy {
     Map<LocalDate, OHLCPriceDto> priceMap = BacktestDataUtils.buildPriceMap(
       marketDataClient, request.getSymbol(), request.getStartDate(), actualEndDate);
 
-    // 투자일 목록. 환율 조회와 매수가 같은 날짜를 쓴다
+    // 투자일 목록
     List<LocalDate> investmentDates = investmentDates(
       request.getStartDate(), actualEndDate, investmentDay, interval);
 
-    //  BULK API 사용: 투자일의 환율 데이터를 한 번에 조회
+    // 투자일마다 실제로 사는 날 시세, 휴장일이면 종료일까지 다음 거래일 · 그런 날이 없으면 그 전 거래일
+    Map<LocalDate, OHLCPriceDto> tradeByDate = new HashMap<>();
+    for (LocalDate date : investmentDates) {
+      OHLCPriceDto trade = PriceLookup.nextFromMap(priceMap, date, actualEndDate, 7);
+      if (trade == null) {
+        trade = PriceLookup.fromMap(priceMap, date, 5);
+      }
+      if (trade != null) {
+        tradeByDate.put(date, trade);
+      }
+    }
+
+    //  BULK API 사용: 실제로 사는 날의 환율 데이터를 한 번에 조회
     Map<LocalDate, BigDecimal> fxRateMap = new HashMap<>();
     if (request.getPurchaseFxRate() == null) {
-      fxRateMap = BacktestDataUtils.getBulkFxRates(marketDataClient, investmentDates);
+      fxRateMap = BacktestDataUtils.getBulkFxRates(marketDataClient,
+        tradeByDate.values().stream().map(OHLCPriceDto::date).distinct().sorted().toList());
       log.info("환율 데이터 조회 완료: {}개", fxRateMap.size());
     }
 
@@ -149,15 +162,14 @@ public class DCAStrategy implements InvestmentStrategy {
       }
 
       try {
-        // 메모리에서 주가 조회 (시장 휴일 대응: 최대 5일 전까지 검색)
-        OHLCPriceDto priceData = PriceLookup.fromMap(priceMap, currentDate, 5);
+        OHLCPriceDto priceData = tradeByDate.get(currentDate);
 
-        // 환율 조회 (메모리에서)
+        // 환율 조회 (메모리에서, 실제로 사는 날)
         BigDecimal purchaseFxRate;
         if (request.getPurchaseFxRate() != null) {
           purchaseFxRate = request.getPurchaseFxRate();
         } else {
-          purchaseFxRate = fxRateMap.get(currentDate);
+          purchaseFxRate = priceData != null ? fxRateMap.get(priceData.date()) : null;
         }
 
         if (priceData != null && priceData.available() && purchaseFxRate != null) {
