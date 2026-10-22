@@ -26,8 +26,9 @@ ingressController:
 infrastructure:
   redis:
     resources:
+      # maxmemory 256mb 위로 메모리 조각 · AOF 다시 쓰기 몫
       limits:
-        memory: 256Mi
+        memory: 384Mi
         cpu: 300m
       requests:
         memory: 128Mi

@@ -1,4 +1,4 @@
-package com.muscat.marketdata.datasource.alphavantage.collector;
+package com.muscat.marketdata.datasource.common;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -10,7 +10,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.muscat.marketdata.config.MarketDataProperties;
-import com.muscat.marketdata.datasource.alphavantage.provider.AlphaVantageFxSource;
+import com.muscat.marketdata.datasource.common.MarketDataProvider.FxSource;
 import com.muscat.marketdata.domain.entity.FxRate;
 import com.muscat.marketdata.domain.repository.FxRateRepository;
 import java.math.BigDecimal;
@@ -27,7 +27,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("AlphaVantage FxDataCollector 단위 테스트")
+@DisplayName("FxDataCollector 단위 테스트")
 class FxDataCollectorTest {
 
   // 2024-09-16(월) ~ 09-22(일). PREV_FRI 는 MON 의 이전 영업일
@@ -43,7 +43,7 @@ class FxDataCollectorTest {
   }
 
   @Mock
-  private AlphaVantageFxSource fxSource;
+  private FxSource fxSource;
 
   @Mock
   private FxRateRepository fxRateRepository;
@@ -53,7 +53,6 @@ class FxDataCollectorTest {
 
   @BeforeEach
   void setUp() {
-    // 실제 프로퍼티 객체를 쓰면 중첩 구조를 목으로 흉내 낼 필요가 없다
     properties = new MarketDataProperties();
     properties.getFx().setMaxFallbackDays(2);
     properties.getFxIngest().getBackfill().setEnabled(false);
@@ -93,13 +92,13 @@ class FxDataCollectorTest {
     @Test
     @DisplayName("데이터가 없으면 이전 영업일로 거슬러 올라간다")
     void 폴백_성공() {
-      // 월요일 데이터가 없으면 토·일을 건너뛰고 직전 금요일을 본다
+      // 월요일 값이 없으면 토·일을 건너뛰고 직전 금요일 조회
       given(fxSource.fetchFx(MON)).willReturn(Optional.empty());
       given(fxSource.fetchFx(PREV_FRI)).willReturn(Optional.of(new BigDecimal("1340")));
 
       FxRate result = collector.collectSingleDate(MON, true).orElseThrow();
 
-      // 금요일 값을 가져와도 저장 날짜는 원래 요청한 월요일이다
+      // 값은 금요일 것이어도 날짜는 요청한 월요일
       assertThat(result.getDate()).isEqualTo(MON);
       assertThat(result.getRate()).isEqualByComparingTo("1340");
     }
@@ -118,7 +117,6 @@ class FxDataCollectorTest {
     void 폴백_초과() {
       given(fxSource.fetchFx(any())).willReturn(Optional.empty());
 
-      // 빈 Optional 이 아니라 예외로 끝난다. 호출부가 이걸 안 잡으면 배치 전체가 멈춘다
       assertThatThrownBy(() -> collector.collectSingleDate(MON, true))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("환율 폴백 기간 초과");
@@ -190,7 +188,7 @@ class FxDataCollectorTest {
       collector.run();
 
       verify(fxRateRepository).saveAll(any());
-      // 증분 경로에서만 쓰는 findAll 은 호출되지 않는다
+      // findAll 은 증분 수집에서만 씀
       verify(fxRateRepository, never()).findAll();
     }
 
@@ -198,9 +196,7 @@ class FxDataCollectorTest {
     @DisplayName("증분 수집만 켜면 마지막 날짜부터 이어간다")
     void 증분만() {
       properties.getFxIngest().getIncremental().setEnabled(true);
-      // 마지막 저장일을 일주일 전으로 둔다. 하루 전으로 잡으면 수집 범위가
-      // 오늘 하루뿐이라, 오늘이 주말이면 fetchFx 가 한 번도 불리지 않아
-      // 테스트가 요일에 따라 깨진다.
+      // 오늘이 주말이어도 수집 범위에 평일이 들어가게 일주일 전
       LocalDate lastSaved = today().minusDays(7);
       given(fxRateRepository.findAll())
         .willReturn(List.of(FxRate.builder().date(lastSaved).rate(BigDecimal.ONE).build()));
@@ -209,7 +205,6 @@ class FxDataCollectorTest {
       collector.run();
 
       verify(fxRateRepository).saveAll(any());
-      // 일주일이면 평일이 반드시 들어간다
       verify(fxSource, atLeastOnce()).fetchFx(any());
     }
 
@@ -251,7 +246,7 @@ class FxDataCollectorTest {
       properties.getFxIngest().getIncremental().setEnabled(true);
       given(fxRateRepository.findAll()).willThrow(new IllegalStateException("DB 다운"));
 
-      // CommandLineRunner 라 예외가 나가면 애플리케이션 기동이 실패한다
+      // CommandLineRunner 라 예외가 나가면 앱 기동 실패
       assertThatCode(() -> collector.run()).doesNotThrowAnyException();
     }
   }

@@ -19,7 +19,7 @@ import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -37,7 +37,6 @@ public class CandleServiceImpl implements CandleService {
   private final AssetRepository assetRepository;
   private final DividendRepository dividendRepository;
   private final MarketDataProperties properties;
-  private final CacheManager cacheManager;
 
   @Override
   // 시세 있는 응답만 캐시. 없음까지 캐시하면 수집 직후에도 TTL 동안 없다고 답함
@@ -65,6 +64,11 @@ public class CandleServiceImpl implements CandleService {
 
     log.debug("OHLC 조회 성공: symbol={}, date={}, close={}", symbol, date, result.getClosePrice());
     return result;
+  }
+
+  @Override
+  @CacheEvict(cacheNames = "ohlc", allEntries = true)
+  public void evictOhlcCache() {
   }
 
   @Override

@@ -1,4 +1,4 @@
-package com.muscat.marketdata.datasource.yf.service;
+package com.muscat.marketdata.domain.service.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -6,8 +6,6 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-import com.muscat.marketdata.config.MarketDataProperties;
-import com.muscat.marketdata.datasource.yf.collector.FxDataCollector;
 import com.muscat.marketdata.domain.entity.FxRate;
 import com.muscat.marketdata.domain.repository.FxRateRepository;
 import java.math.BigDecimal;
@@ -17,14 +15,13 @@ import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("야후 환율 서비스")
-class YahooFxRateServiceTest {
+@DisplayName("환율 서비스")
+class FxRateServiceImplTest {
 
   private static final LocalDate DATE = LocalDate.of(2024, 3, 4);
 
   private final FxRateRepository repository = mock(FxRateRepository.class);
-  private final YahooFxRateService service = new YahooFxRateService(repository, mock(FxDataCollector.class),
-    new MarketDataProperties());
+  private final FxRateServiceImpl service = new FxRateServiceImpl(repository);
 
   private static FxRate rate(String value) {
     return FxRate.builder().date(DATE).rate(new BigDecimal(value)).build();

@@ -79,7 +79,7 @@ class MarketDataMigrationIT {
   @DisplayName("마이그레이션으로 만든 테이블에 종목 · 봉을 쓰고 QueryDSL 조회로 읽는다")
   void writesAndReadsThroughMigratedSchema() {
     assetRepository.save(Asset.builder().symbol("AAPL").name("Apple").country("US").currency("USD")
-      .assetType("EQUITY").build());
+      .assetType("EQUITY").latestDate(LocalDate.of(2024, 3, 15)).build());
     candleRepository.save(Candle.builder().symbol("AAPL").date(LocalDate.of(2024, 3, 14)).currency("USD")
       .open(BigDecimal.TEN).high(BigDecimal.TEN).low(BigDecimal.TEN).close(new BigDecimal("172.50"))
       .adjustedClose(new BigDecimal("172.50")).volume(1L).build());
@@ -89,7 +89,7 @@ class MarketDataMigrationIT {
 
     assertThat(candleRepository.findLatestBySymbol("AAPL"))
       .hasValueSatisfying(candle -> assertThat(candle.getDate()).isEqualTo(LocalDate.of(2024, 3, 15)));
-    assertThat(candleRepository.countDistinctSymbols()).isEqualTo(1);
+    assertThat(assetRepository.countWithCandles()).isEqualTo(1);
     assertThat(assetRepository.findActiveSymbols()).containsExactly("AAPL");
   }
 

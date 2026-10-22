@@ -14,8 +14,10 @@ import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.cache.BatchStrategies;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
+import org.springframework.data.redis.cache.RedisCacheWriter;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
@@ -48,33 +50,25 @@ public class CacheConfig {
     // 캐시별 개별 설정
     Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
 
-    // 1. OHLC 범위 조회 (백테스트용) - 24시간 TTL
-    cacheConfigurations.put("ohlcPriceRange",
-        defaultConfig.entryTtl(Duration.ofHours(24)));
-
-    // 2. 주식 목록 (페이지별) - 5분 TTL
-    cacheConfigurations.put("stockPrices",
-        defaultConfig.entryTtl(Duration.ofMinutes(5)));
-
-    // 3. 현재가 조회 - 30초 TTL (실시간성)
+    // 1. 현재가 조회 - 30초 TTL (실시간성)
     cacheConfigurations.put("currentPrice",
         defaultConfig.entryTtl(Duration.ofSeconds(30)));
 
-    // 4. 환율 조회 - 24시간 TTL
-    cacheConfigurations.put("fxRate",
-        defaultConfig.entryTtl(Duration.ofHours(24)));
-
-    // 5. 배당 이력 조회 - 24시간 TTL
-    cacheConfigurations.put("dividends",
-        defaultConfig.entryTtl(Duration.ofHours(24)));
-
-    // 6. 최신 환율 조회 - 1시간 TTL (빈번한 조회 최적화)
+    // 2. 최신 환율 조회 - 1시간 TTL (빈번한 조회 최적화)
     cacheConfigurations.put("latestFxRate",
         defaultConfig.entryTtl(Duration.ofHours(1)));
 
+    // 3. 일자별 캔들 조회 - 12시간 TTL (캔들을 저장하면 비움)
+    cacheConfigurations.put("ohlc",
+        defaultConfig.entryTtl(Duration.ofHours(12)));
+
     log.info("Configured caches: {}", cacheConfigurations.keySet());
 
-    return RedisCacheManager.builder(redisConnectionFactory)
+    // 캐시 비우기는 KEYS 대신 SCAN 으로. KEYS 는 키가 많으면 그동안 Redis 를 막음
+    RedisCacheWriter cacheWriter = RedisCacheWriter.nonLockingRedisCacheWriter(
+        redisConnectionFactory, BatchStrategies.scan(1000));
+
+    return RedisCacheManager.builder(cacheWriter)
         .cacheDefaults(defaultConfig)
         .withInitialCacheConfigurations(cacheConfigurations)
         .build();

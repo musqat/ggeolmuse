@@ -47,6 +47,16 @@ public class AssetRepositoryCustomImpl implements AssetRepositoryCustom {
     }
 
     @Override
+    public long countWithCandles() {
+        Long count = queryFactory
+            .select(asset.count())
+            .from(asset)
+            .where(asset.latestDate.isNotNull())
+            .fetchOne();
+        return count != null ? count : 0L;
+    }
+
+    @Override
     public List<Asset> searchByKeyword(String keyword, int limit) {
         String upperKeyword = keyword.toUpperCase();
 

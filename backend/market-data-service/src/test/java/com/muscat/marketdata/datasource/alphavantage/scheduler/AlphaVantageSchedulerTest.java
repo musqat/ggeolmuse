@@ -13,11 +13,13 @@ import static org.mockito.Mockito.verify;
 import com.muscat.marketdata.datasource.alphavantage.provider.AlphaVantageCandleSource;
 import com.muscat.marketdata.datasource.alphavantage.provider.AlphaVantageFxSource;
 import com.muscat.marketdata.datasource.alphavantage.provider.AlphaVantageSymbolSource;
+import com.muscat.marketdata.config.MarketDataProperties;
 import com.muscat.marketdata.datasource.alphavantage.service.MarketCapCollectionService;
+import com.muscat.marketdata.datasource.common.FxDataCollector;
+import com.muscat.marketdata.datasource.common.InitialCollectionCheck;
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.entity.FxRate;
 import com.muscat.marketdata.domain.repository.AssetRepository;
-import com.muscat.marketdata.domain.repository.CandleRepository;
 import com.muscat.marketdata.domain.repository.FxRateRepository;
 import com.muscat.marketdata.infra.kafka.AssetEventProducer;
 import java.math.BigDecimal;
@@ -40,15 +42,16 @@ class AlphaVantageSchedulerTest {
   private final AlphaVantageFxSource fxSource = mock(AlphaVantageFxSource.class);
   private final AssetRepository assetRepository = mock(AssetRepository.class);
   private final FxRateRepository fxRateRepository = mock(FxRateRepository.class);
-  private final CandleRepository candleRepository = mock(CandleRepository.class);
   private final AssetEventProducer producer = mock(AssetEventProducer.class);
   private final MarketCapCollectionService marketCapService = mock(MarketCapCollectionService.class);
-  private final AlphaVantageScheduler scheduler = new AlphaVantageScheduler(fxSource, mock(AlphaVantageCandleSource.class),
-    mock(AlphaVantageSymbolSource.class), assetRepository, fxRateRepository, candleRepository, producer, marketCapService);
+  private final AlphaVantageScheduler scheduler = new AlphaVantageScheduler(fxSource,
+    new FxDataCollector(fxSource, fxRateRepository, new MarketDataProperties()), mock(AlphaVantageCandleSource.class),
+    mock(AlphaVantageSymbolSource.class), assetRepository, fxRateRepository, producer, marketCapService,
+    new InitialCollectionCheck(assetRepository));
 
   private void collected(long total, long withCandles) {
     given(assetRepository.count()).willReturn(total);
-    given(candleRepository.countDistinctSymbols()).willReturn(withCandles);
+    given(assetRepository.countWithCandles()).willReturn(withCandles);
   }
 
   private static LocalDate previousBusinessDay(LocalDate date) {

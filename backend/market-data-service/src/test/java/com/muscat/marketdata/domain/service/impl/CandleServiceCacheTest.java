@@ -26,9 +26,9 @@ import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
-// unless 는 캐시 프록시에서만 동작해 스프링 컨텍스트로 확인
+// unless · 비우기는 캐시 프록시에서만 동작해 스프링 컨텍스트로 확인
 @SpringJUnitConfig(CandleServiceCacheTest.Config.class)
-@DisplayName("시세 캐시 - 시세 없는 응답은 남기지 않는다")
+@DisplayName("시세 캐시 - 시세 없는 응답은 남기지 않고, 비우면 다시 읽는다")
 class CandleServiceCacheTest {
 
   private static final String SYMBOL = "AAPL";
@@ -54,10 +54,9 @@ class CandleServiceCacheTest {
     }
 
     @Bean
-    CandleService candleService(CandleRepository candleRepository, AssetRepository assetRepository,
-      CacheManager cacheManager) {
+    CandleService candleService(CandleRepository candleRepository, AssetRepository assetRepository) {
       return new CandleServiceImpl(candleRepository, assetRepository, mock(DividendRepository.class),
-        new MarketDataProperties(), cacheManager);
+        new MarketDataProperties());
     }
   }
 
@@ -96,6 +95,19 @@ class CandleServiceCacheTest {
     assertThat(candleService.getOHLCPrice(SYMBOL, DATE).isAvailable()).isFalse();
     assertThat(candleService.getOHLCPrice(SYMBOL, DATE).isAvailable()).isTrue();
     assertThat(candleService.getOHLCPrice(SYMBOL, DATE).isAvailable()).isTrue();
+
+    verify(candleRepository, times(2)).findBySymbolAndDate(SYMBOL, DATE);
+  }
+
+  @Test
+  @DisplayName("OHLC: 캐시를 비우면 다음 조회는 저장소에서 다시 읽는다")
+  void ohlc_EvictedReadsAgain() {
+    given(candleRepository.findBySymbolAndDate(SYMBOL, DATE)).willReturn(Optional.of(candle()));
+
+    candleService.getOHLCPrice(SYMBOL, DATE);
+    candleService.getOHLCPrice(SYMBOL, DATE);
+    candleService.evictOhlcCache();
+    candleService.getOHLCPrice(SYMBOL, DATE);
 
     verify(candleRepository, times(2)).findBySymbolAndDate(SYMBOL, DATE);
   }

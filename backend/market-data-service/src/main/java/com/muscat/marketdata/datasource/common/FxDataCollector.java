@@ -1,4 +1,4 @@
-package com.muscat.marketdata.datasource.yf.collector;
+package com.muscat.marketdata.datasource.common;
 
 import com.muscat.marketdata.config.MarketDataProperties;
 import com.muscat.commonlib.util.MoneyUtils;
@@ -9,7 +9,6 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,14 +21,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-// 환율 데이터 초기 수집: 앱 시작 때 수출입은행 USD/KRW 로 과거 · 빠진 환율을 채움
+// 공급원별 FxSource 로 앱 시작 때 과거 · 빠진 환율을 채우고 하루치를 받는 수집기
 @Slf4j
 @Component
 @Order(2)
-@ConditionalOnProperty(
-    name = "marketdata.provider",
-    havingValue = "yahoo"
-)
 @RequiredArgsConstructor
 public class FxDataCollector implements CommandLineRunner {
 
@@ -41,7 +36,7 @@ public class FxDataCollector implements CommandLineRunner {
 
     @PostConstruct
     void logSettings() {
-        log.info("[YF-환율수집] 초기화 설정: 과거데이터={}, 증분={}",
+        log.info("[환율수집] 초기화 설정: 과거데이터={}, 증분={}",
                 properties.getFxIngest().getBackfill().isEnabled(),
                 properties.getFxIngest().getIncremental().isEnabled());
     }
@@ -58,7 +53,7 @@ public class FxDataCollector implements CommandLineRunner {
                 runIncrementalCollection();
             }
         } catch (Exception e) {
-            log.error("[YF-환율수집] 실패 - 서비스는 계속 실행됩니다", e);
+            log.error("[환율수집] 실패 - 서비스는 계속 실행됩니다", e);
         }
     }
 
@@ -67,7 +62,7 @@ public class FxDataCollector implements CommandLineRunner {
         LocalDate endDate = LocalDate.now(KST);
         LocalDate startDate = endDate.minusDays(properties.getFxIngest().getBackfill().getLookbackDays());
 
-        log.info("[YF-환율수집] 과거데이터 시작: {} ~ {}", startDate, endDate);
+        log.info("[환율수집] 과거데이터 시작: {} ~ {}", startDate, endDate);
 
         int totalSaved = 0;
         LocalDate currentDate = startDate;
@@ -82,11 +77,11 @@ public class FxDataCollector implements CommandLineRunner {
             fxRateRepository.saveAll(collected);
             totalSaved += collected.size();
 
-            log.info("[YF-환율수집] 배치 완료: {} ~ {}, 저장={}", currentDate, batchEndDate, collected.size());
+            log.info("[환율수집] 배치 완료: {} ~ {}, 저장={}", currentDate, batchEndDate, collected.size());
             currentDate = batchEndDate.plusDays(1);
         }
 
-        log.info("[YF-환율수집] 과거데이터 완료: 총 {}건", totalSaved);
+        log.info("[환율수집] 과거데이터 완료: 총 {}건", totalSaved);
     }
 
     @Transactional
@@ -102,12 +97,12 @@ public class FxDataCollector implements CommandLineRunner {
                 : lastDate.plusDays(1);
 
         if (!fromDate.isAfter(today)) {
-            log.info("[YF-환율수집] 증분수집: {} ~ {}", fromDate, today);
+            log.info("[환율수집] 증분수집: {} ~ {}", fromDate, today);
             List<FxRate> collected = collectDateRange(fromDate, today);
             fxRateRepository.saveAll(collected);
-            log.info("[YF-환율수집] 증분수집 완료: {}건", collected.size());
+            log.info("[환율수집] 증분수집 완료: {}건", collected.size());
         } else {
-            log.info("[YF-환율수집] 증분수집 스킵: 최신 데이터 (마지막={}, 오늘={})", lastDate, today);
+            log.info("[환율수집] 증분수집 스킵: 최신 데이터 (마지막={}, 오늘={})", lastDate, today);
         }
     }
 
@@ -130,7 +125,7 @@ public class FxDataCollector implements CommandLineRunner {
                         .build());
                 }
             } catch (Exception e) {
-                log.warn("[YF-환율수집] 실패: date={}, error={}", currentDate, e.getMessage());
+                log.warn("[환율수집] 실패: date={}, error={}", currentDate, e.getMessage());
             }
 
             if (!useBusinessDayFallback) {
@@ -163,9 +158,6 @@ public class FxDataCollector implements CommandLineRunner {
         return collected;
     }
 
-    /**
-     * 이전 영업일 계산
-     */
     private static LocalDate getPreviousBusinessDay(LocalDate date) {
         LocalDate prev = date.minusDays(1);
 

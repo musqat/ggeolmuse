@@ -13,6 +13,9 @@ public interface CandleService {
 
   OHLCPriceDto getOHLCPrice(String symbol, LocalDate date);
 
+  // 일자별 캔들 캐시를 모두 비움
+  void evictOhlcCache();
+
   List<OHLCPriceDto> getOHLCPriceRange(String symbol, LocalDate startDate, LocalDate endDate);
 
   // 최신 캔들과 전일 대비 변화율

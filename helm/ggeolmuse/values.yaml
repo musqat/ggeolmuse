@@ -74,6 +74,9 @@ infrastructure:
     enabled: true
     image: redis:7-alpine
     port: 6379
+    # 이 크기를 넘으면 만료 시간이 있는 키(캐시)부터 오래 안 쓴 것을 지움
+    maxmemory: 256mb
+    maxmemoryPolicy: volatile-lru
     service:
       type: ClusterIP
 

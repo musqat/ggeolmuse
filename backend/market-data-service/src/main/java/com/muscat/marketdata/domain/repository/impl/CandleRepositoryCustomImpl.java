@@ -71,16 +71,6 @@ public class CandleRepositoryCustomImpl implements CandleRepositoryCustom {
     return Optional.ofNullable(result);
   }
 
-  // 종목마다 최근 N개 캔들을 한 쿼리로 조회(종목별 순위)
-  @Override
-  public long countDistinctSymbols() {
-    Long count = queryFactory
-      .select(candle.symbol.countDistinct())
-      .from(candle)
-      .fetchOne();
-    return count != null ? count : 0L;
-  }
-
   @Override
   public List<String> findSymbolsWithSplits(LocalDate from) {
     // 상장폐지 종목 제외(야후 404 라 다시 못 받음)

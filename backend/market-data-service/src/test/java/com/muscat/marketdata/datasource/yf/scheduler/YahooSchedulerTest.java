@@ -9,12 +9,12 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import com.muscat.marketdata.datasource.yf.collector.FxDataCollector;
+import com.muscat.marketdata.datasource.common.FxDataCollector;
+import com.muscat.marketdata.datasource.common.InitialCollectionCheck;
 import com.muscat.marketdata.datasource.yf.service.YahooMarketCapService;
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.entity.FxRate;
 import com.muscat.marketdata.domain.repository.AssetRepository;
-import com.muscat.marketdata.domain.repository.CandleRepository;
 import com.muscat.marketdata.domain.repository.FxRateRepository;
 import com.muscat.marketdata.infra.kafka.AssetEventProducer;
 import java.math.BigDecimal;
@@ -31,13 +31,12 @@ import org.springframework.test.util.ReflectionTestUtils;
 class YahooSchedulerTest {
 
   private final AssetRepository assetRepository = mock(AssetRepository.class);
-  private final CandleRepository candleRepository = mock(CandleRepository.class);
   private final FxRateRepository fxRateRepository = mock(FxRateRepository.class);
   private final AssetEventProducer producer = mock(AssetEventProducer.class);
   private final YahooMarketCapService marketCapService = mock(YahooMarketCapService.class);
   private final FxDataCollector fxDataCollector = mock(FxDataCollector.class);
-  private final YahooScheduler scheduler = new YahooScheduler(assetRepository, candleRepository, fxRateRepository, producer,
-    marketCapService, fxDataCollector);
+  private final YahooScheduler scheduler = new YahooScheduler(assetRepository, fxRateRepository, producer,
+    marketCapService, fxDataCollector, new InitialCollectionCheck(assetRepository));
 
   {
     ReflectionTestUtils.setField(scheduler, "candleLookbackDays", 30);
@@ -45,7 +44,7 @@ class YahooSchedulerTest {
 
   private void collected(long total, long withCandles) {
     given(assetRepository.count()).willReturn(total);
-    given(candleRepository.countDistinctSymbols()).willReturn(withCandles);
+    given(assetRepository.countWithCandles()).willReturn(withCandles);
   }
 
   @Test

@@ -29,7 +29,7 @@ spec:
         - containerPort: {{ .Values.infrastructure.redis.port }}
         {{- if .Values.global.aws.secretsManager.enabled }}
         # --requirepass 는 인자라 환경변수가 안 풀린다. 셸을 거쳐 넘긴다.
-        command: ["sh", "-c", "exec redis-server --appendonly yes --requirepass \"$REDIS_PASSWORD\""]
+        command: ["sh", "-c", "exec redis-server --appendonly yes --maxmemory {{ .Values.infrastructure.redis.maxmemory }} --maxmemory-policy {{ .Values.infrastructure.redis.maxmemoryPolicy }} --requirepass \"$REDIS_PASSWORD\""]
         env:
         - name: REDIS_PASSWORD
           valueFrom:
@@ -37,7 +37,7 @@ spec:
               name: ggeolmuse-secrets
               key: REDIS_PASSWORD
         {{- else }}
-        command: ["redis-server", "--appendonly", "yes"]
+        command: ["redis-server", "--appendonly", "yes", "--maxmemory", {{ .Values.infrastructure.redis.maxmemory | quote }}, "--maxmemory-policy", {{ .Values.infrastructure.redis.maxmemoryPolicy | quote }}]
         {{- end }}
         resources:
           {{- toYaml .Values.infrastructure.redis.resources | nindent 10 }}
