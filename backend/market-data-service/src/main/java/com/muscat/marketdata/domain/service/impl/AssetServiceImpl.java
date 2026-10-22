@@ -14,6 +14,7 @@ import com.muscat.marketdata.domain.service.AssetService;
 import com.muscat.marketdata.infra.kafka.AssetEventProducer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -214,6 +215,7 @@ public class AssetServiceImpl implements AssetService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "dividendYieldOrder", allEntries = true)
     public void updateAssetPrice(String symbol) {
         log.info("종목 가격 업데이트 요청: symbol={}", symbol);
 
@@ -317,6 +319,7 @@ public class AssetServiceImpl implements AssetService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "dividendYieldOrder", allEntries = true)
     public void deleteAsset(String symbol) {
         log.info("종목 삭제 요청 (soft delete): symbol={}", symbol);
 
@@ -336,6 +339,7 @@ public class AssetServiceImpl implements AssetService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "dividendYieldOrder", allEntries = true)
     public void restoreAsset(String symbol) {
         String upperSymbol = symbol.toUpperCase();
 
@@ -351,6 +355,7 @@ public class AssetServiceImpl implements AssetService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "dividendYieldOrder", allEntries = true)
     public int deleteAssets(List<String> symbols) {
         if (symbols == null || symbols.isEmpty()) {
             return 0;

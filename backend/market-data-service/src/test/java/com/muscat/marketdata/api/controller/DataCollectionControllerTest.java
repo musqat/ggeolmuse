@@ -69,7 +69,7 @@ class DataCollectionControllerTest {
     }
 
     @Test
-    @DisplayName("종목 하나는 기본 90일이고, 배당 포함 여부로 저장 방식이 갈리며 종목 코드를 대문자로 돌려주고 일자별 캔들 캐시를 비운다")
+    @DisplayName("종목 하나는 기본 90일이고, 배당 포함 여부로 저장 방식이 갈리며 종목 코드를 대문자로 돌려주고 캔들 캐시를 비운다")
     void collectSingle() {
       LocalDate from = LocalDate.of(2024, 1, 1);
       LocalDate to = LocalDate.of(2024, 3, 31);
@@ -82,7 +82,7 @@ class DataCollectionControllerTest {
       assertThat(both.getBody()).containsEntry("symbol", "AAPL")
         .containsEntry("result", Map.of("savedRecords", 12, "includeDividends", true));
       assertThat(candles.getBody()).containsEntry("result", Map.of("savedRecords", 7, "includeDividends", false));
-      verify(candleService, times(2)).evictOhlcCache();
+      verify(candleService, times(2)).evictCandleCaches();
     }
 
     @Test

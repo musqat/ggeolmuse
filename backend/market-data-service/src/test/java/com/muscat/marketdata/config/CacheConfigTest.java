@@ -1,14 +1,21 @@
 package com.muscat.marketdata.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
 import com.muscat.marketdata.domain.dto.StockPriceDto;
+import com.muscat.marketdata.domain.model.DividendYieldRule;
+import com.muscat.marketdata.domain.repository.AssetRepository;
+import com.muscat.marketdata.domain.service.DividendYieldOrder;
 import java.lang.reflect.Method;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -55,6 +62,29 @@ class CacheConfigTest {
 
     assertThat(manager.getCacheConfigurations().get("ohlc").getTtlFunction().getTimeToLive("AAPL:2026-01-09", null))
         .isEqualTo(Duration.ofHours(12));
+  }
+
+  @Test
+  @DisplayName("배당수익률 정렬 순서 캐시는 12시간 둔다")
+  void dividendYieldOrderCachedForTwelveHours() {
+    RedisCacheManager manager = (RedisCacheManager) new CacheConfig(mock(RedisConnectionFactory.class)).cacheManager();
+    manager.afterPropertiesSet();
+
+    assertThat(manager.getCacheConfigurations().get("dividendYieldOrder").getTtlFunction().getTimeToLive("ALL:false", null))
+        .isEqualTo(Duration.ofHours(12));
+  }
+
+  @Test
+  @DisplayName("배당수익률 정렬 순서는 캐시 값으로 저장했다가 그대로 다시 읽힌다")
+  void dividendYieldOrderSurvivesSerialization() {
+    AssetRepository assetRepository = mock(AssetRepository.class);
+    DividendYieldRule rule = new DividendYieldRule(LocalDate.of(2026, 1, 9), new BigDecimal("0.20"), new BigDecimal("0.50"));
+    given(assetRepository.findActiveSymbolsByDividendYield(false, "ALL", rule)).willReturn(List.of("KO", "T"));
+    List<String> order = new DividendYieldOrder(assetRepository).symbols("ALL", false, rule);
+
+    GenericJackson2JsonRedisSerializer serializer = CacheConfig.valueSerializer();
+
+    assertThat(serializer.deserialize(serializer.serialize(order))).isEqualTo(List.of("KO", "T"));
   }
 
   // market-data 패키지 클래스의 @Cacheable 캐시 이름

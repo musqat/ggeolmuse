@@ -95,7 +95,7 @@ public class DataCollectionController {
         ? candleUpdateService.saveBoth(symbol, startDate, endDate)
         : candleUpdateService.saveCandles(symbol, startDate, endDate);
       if (savedRecords > 0) {
-        candleService.evictOhlcCache();
+        candleService.evictCandleCaches();
       }
 
       Map<String, Object> responseData = Map.of(

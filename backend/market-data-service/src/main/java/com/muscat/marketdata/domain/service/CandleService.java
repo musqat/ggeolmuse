@@ -13,8 +13,8 @@ public interface CandleService {
 
   OHLCPriceDto getOHLCPrice(String symbol, LocalDate date);
 
-  // 일자별 캔들 캐시를 모두 비움
-  void evictOhlcCache();
+  // 일자별 캔들 · 배당수익률 정렬 순서 캐시를 모두 비움
+  void evictCandleCaches();
 
   List<OHLCPriceDto> getOHLCPriceRange(String symbol, LocalDate startDate, LocalDate endDate);
 

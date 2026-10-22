@@ -77,7 +77,7 @@ public class CandleBatchService {
         }
 
         if (totalSavedRecords > 0) {
-            candleService.evictOhlcCache();
+            candleService.evictCandleCaches();
         }
 
         BatchResult result = new BatchResult(

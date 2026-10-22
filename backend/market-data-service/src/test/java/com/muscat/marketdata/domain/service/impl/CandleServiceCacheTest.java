@@ -9,12 +9,15 @@ import static org.mockito.Mockito.verify;
 
 import com.muscat.marketdata.config.MarketDataProperties;
 import com.muscat.marketdata.domain.entity.Candle;
+import com.muscat.marketdata.domain.model.DividendYieldRule;
 import com.muscat.marketdata.domain.repository.AssetRepository;
 import com.muscat.marketdata.domain.repository.CandleRepository;
 import com.muscat.marketdata.domain.repository.DividendRepository;
 import com.muscat.marketdata.domain.service.CandleService;
+import com.muscat.marketdata.domain.service.DividendYieldOrder;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -40,7 +43,7 @@ class CandleServiceCacheTest {
 
     @Bean
     CacheManager cacheManager() {
-      return new ConcurrentMapCacheManager("ohlc", "currentPrice");
+      return new ConcurrentMapCacheManager("ohlc", "currentPrice", "dividendYieldOrder");
     }
 
     @Bean
@@ -54,9 +57,15 @@ class CandleServiceCacheTest {
     }
 
     @Bean
-    CandleService candleService(CandleRepository candleRepository, AssetRepository assetRepository) {
+    DividendYieldOrder dividendYieldOrder(AssetRepository assetRepository) {
+      return new DividendYieldOrder(assetRepository);
+    }
+
+    @Bean
+    CandleService candleService(CandleRepository candleRepository, AssetRepository assetRepository,
+      DividendYieldOrder dividendYieldOrder) {
       return new CandleServiceImpl(candleRepository, assetRepository, mock(DividendRepository.class),
-        new MarketDataProperties());
+        new MarketDataProperties(), dividendYieldOrder);
     }
   }
 
@@ -68,6 +77,9 @@ class CandleServiceCacheTest {
 
   @Autowired
   private AssetRepository assetRepository;
+
+  @Autowired
+  private DividendYieldOrder dividendYieldOrder;
 
   @Autowired
   private CacheManager cacheManager;
@@ -106,10 +118,24 @@ class CandleServiceCacheTest {
 
     candleService.getOHLCPrice(SYMBOL, DATE);
     candleService.getOHLCPrice(SYMBOL, DATE);
-    candleService.evictOhlcCache();
+    candleService.evictCandleCaches();
     candleService.getOHLCPrice(SYMBOL, DATE);
 
     verify(candleRepository, times(2)).findBySymbolAndDate(SYMBOL, DATE);
+  }
+
+  @Test
+  @DisplayName("배당수익률 정렬 순서는 캐시하고, 캔들 캐시를 비우면 다시 계산한다")
+  void dividendYieldOrder_CachedUntilEvicted() {
+    DividendYieldRule rule = new DividendYieldRule(DATE, new BigDecimal("0.20"), new BigDecimal("0.50"));
+    given(assetRepository.findActiveSymbolsByDividendYield(false, "ALL", rule)).willReturn(List.of("KO", "AAPL"));
+
+    dividendYieldOrder.symbols("ALL", false, rule);
+    dividendYieldOrder.symbols("ALL", false, rule);
+    candleService.evictCandleCaches();
+    dividendYieldOrder.symbols("ALL", false, rule);
+
+    verify(assetRepository, times(2)).findActiveSymbolsByDividendYield(false, "ALL", rule);
   }
 
   @Test
