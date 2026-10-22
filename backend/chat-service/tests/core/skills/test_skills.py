@@ -83,9 +83,13 @@ async def test_dividend_skill_lists_year_total_and_yield():
     ]
     evidence = await DividendSkill(lookback_years=3).gather("AAPL", _tools(market))
 
-    assert "지급 주기: 분기" in evidence.lines
+    assert "배당 주기: 분기" in evidence.lines
     assert "최근 1년 치 합계 1.04, 배당 수익률 1.00%" in evidence.lines
     assert ("dividends", "AAPL", TODAY - timedelta(days=365 * 3), TODAY) in market.calls
+
+
+def test_dividend_guide_keeps_ex_date_apart_from_payment():
+    assert "지급일로 말하지 않는다" in DividendSkill.guide
 
 
 async def test_dividend_skill_notes_changed_base():

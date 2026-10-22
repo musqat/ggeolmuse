@@ -17,7 +17,7 @@ def dividend_lines(s: DividendSnapshot, quote: Quote, years: int) -> list[str]:
     currency = s.recent[0].currency
     recent = ", ".join(f"{d.ex_date.isoformat()} {d.amount:g}" for d in s.recent)
     lines.append(f"최근 배당락일과 주당 금액({currency}): {recent}")
-    lines.append(f"지급 주기: {s.frequency or '알 수 없음'}")
+    lines.append(f"배당 주기: {s.frequency or '알 수 없음'}")
     if s.stopped:
         lines.append("마지막 배당락일이 1년보다 오래됨. 1년 치 합계는 계산하지 않음")
     elif s.base_changed_in_year:
@@ -34,9 +34,9 @@ def dividend_lines(s: DividendSnapshot, quote: Quote, years: int) -> list[str]:
 
 class DividendSkill:
     name = "dividend"
-    description = "배당: 최근 배당락일과 금액, 최근 1년 합계, 배당 수익률, 지급 주기, 증감"
+    description = "배당: 최근 배당락일과 금액, 최근 1년 합계, 배당 수익률, 배당 주기, 증감"
     guide = (
-        "자료는 최근 배당 기록과 현재가로 계산한 값이다. 지급일은 자료에 없어 배당락일 기준으로 말한다. "
+        "자료는 최근 배당 기록과 현재가로 계산한 값이다. 날짜는 모두 배당락일이고 지급일은 자료에 없어, 날짜를 지급일로 말하지 않는다. "
         "자료에 없는 값은 계산하지 않았다고 말한다."
     )
 
