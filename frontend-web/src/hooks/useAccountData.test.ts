@@ -34,6 +34,13 @@ describe('useAccountData 총자산', () => {
     await waitFor(() => expect(result.current.totalAssets).toBe(1_905_000))
   })
 
+  it('현금은 계좌마다 원화와 달러 × 환율을 더한다', async () => {
+    const { result } = renderHook(() => useAccountData(true), { wrapper })
+
+    // 1,000,000 + 100 × 1,350 + 500,000
+    await waitFor(() => expect(result.current.cashKrw).toBe(1_635_000))
+  })
+
   it('포트폴리오를 못 받으면 현금만 더한다', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {})
     vi.mocked(portfolioApi.getPortfolio).mockRejectedValue(new Error('down'))
