@@ -5,6 +5,7 @@ import { ko } from 'react-day-picker/locale';
 import 'react-day-picker/style.css';
 import { autoUpdate, flip, offset, shift, useFloating } from '@floating-ui/react-dom';
 import { CalendarDays } from 'lucide-react';
+import { LAYER } from '@/styles/layers';
 import {
   getTodayString,
   parseLocalDate,
@@ -140,7 +141,7 @@ export const DateField = ({
           <div
             ref={refs.setFloating}
             // 화면 구석의 AI 채팅 버튼(z-index 9000)보다 위에 띄운다
-            style={{ ...floatingStyles, zIndex: 9050 }}
+            style={{ ...floatingStyles, zIndex: LAYER.popover }}
             role="dialog"
             className="rounded-lg border border-line bg-surface p-3 text-tx-1 shadow-2xl"
           >

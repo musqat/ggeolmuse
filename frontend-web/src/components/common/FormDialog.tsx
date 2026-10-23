@@ -1,5 +1,6 @@
 import React from 'react';
 import { SOLID_BUTTON } from '@/styles/buttons';
+import { LAYER } from '@/styles/layers';
 
 type DialogTone = 'default' | 'danger';
 
@@ -36,7 +37,7 @@ export const FormDialog: React.FC<FormDialogProps> = ({
   onCancel,
   children,
 }) => (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center" style={{ zIndex: LAYER.modal }}>
     <div className="bg-surface rounded-xl p-6 w-full max-w-md mx-4">
       <h3 className={`text-lg font-semibold ${TITLE_COLOR[tone]} mb-4`}>{title}</h3>
 

@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import { X, Search, TrendingUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { searchSymbols, type SymbolMatch } from '../../utils/symbolSearch';
+import { LAYER } from '@/styles/layers';
 
 interface SearchModalProps {
   isOpen: boolean;
@@ -73,7 +74,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, supportedSym
   if (!isOpen) return null;
 
   return ReactDOM.createPortal(
-    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '80px' }} onClick={onClose}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: LAYER.modal, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '80px' }} onClick={onClose}>
       <div className="bg-surface rounded-lg shadow-xl w-full max-w-2xl mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
         {/* 검색 입력 */}
         <div className="p-4 border-b border-line">

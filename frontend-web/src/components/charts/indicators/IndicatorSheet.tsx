@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { SlidersHorizontal, X } from 'lucide-react';
 import { INDICATOR_GROUPS, type IndicatorKey, type IndicatorState } from './indicators';
+import { LAYER } from '@/styles/layers';
 
 interface IndicatorSheetProps {
   indicators: IndicatorState;
@@ -48,7 +49,7 @@ export const IndicatorSheet = ({ indicators, onToggle }: IndicatorSheetProps) =>
           // 화면 구석의 AI 채팅 버튼(z-index 9000)보다 위에 띄운다
           <div
             className="fixed inset-0 md:hidden"
-            style={{ zIndex: 9050 }}
+            style={{ zIndex: LAYER.popover }}
             role="dialog"
             aria-modal="true"
             aria-label="지표 설정"

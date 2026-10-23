@@ -6,6 +6,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useAiChat } from '../../hooks/useAiChat';
 import { loadChatSession, saveChatSession, type ChatSession } from '../../utils/aiChatHistory';
 import { getApiErrorCode, getApiErrorMessage, getApiErrorStatus } from '../../utils/apiError';
+import { LAYER } from '@/styles/layers';
 
 interface AiChatModalProps {
   onRequireLogin: () => void;
@@ -166,7 +167,7 @@ const AiChatModal: React.FC<AiChatModalProps> = ({ onRequireLogin }) => {
 
   return ReactDOM.createPortal(
     <div
-      style={{ position: 'fixed', inset: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', padding: '24px' }}
+      style={{ position: 'fixed', inset: 0, zIndex: LAYER.modal, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', padding: '24px' }}
       onClick={closeChat}
     >
       <div

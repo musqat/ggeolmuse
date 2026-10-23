@@ -1,5 +1,6 @@
 import React from 'react';
 import { X } from 'lucide-react';
+import { LAYER } from '@/styles/layers';
 
 interface ModalProps {
   isOpen: boolean;
@@ -8,6 +9,8 @@ interface ModalProps {
   children: React.ReactNode;
   footer?: React.ReactNode;
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl';
+  // 확인 창이면 다른 창 위에 띄움
+  layer?: 'modal' | 'confirm';
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -17,6 +20,7 @@ export const Modal: React.FC<ModalProps> = ({
   children,
   footer,
   maxWidth = 'md',
+  layer = 'modal',
 }) => {
   if (!isOpen) return null;
 
@@ -28,7 +32,10 @@ export const Modal: React.FC<ModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
+      style={{ zIndex: LAYER[layer] }}
+    >
       <div className={`bg-surface rounded-lg shadow-xl ${widthClasses[maxWidth]} w-full max-h-[90vh] flex flex-col`}>
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-line">

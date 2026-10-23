@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import { X, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { LAYER } from '@/styles/layers';
 
 const LABEL_CLASS = 'block text-sm font-medium text-tx-1 mb-1';
 const INPUT_CLASS = 'w-full px-3 py-2 border border-line-strong rounded-md focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent';
@@ -15,7 +16,7 @@ interface AuthModalFrameProps {
 // 로그인 · 가입 창의 틀(화면을 덮는 바탕 · 제목 · 닫기 버튼)
 export const AuthModalFrame: React.FC<AuthModalFrameProps> = ({ title, onClose, children }) =>
   ReactDOM.createPortal(
-    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.5)', overflowY: 'auto' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: LAYER.modal, backgroundColor: 'rgba(0,0,0,0.5)', overflowY: 'auto' }}>
       <div className="flex min-h-full items-center justify-center p-4">
         <div className="bg-surface rounded-lg shadow-xl w-full max-w-md">
           <div className="flex items-center justify-between p-6 border-b">

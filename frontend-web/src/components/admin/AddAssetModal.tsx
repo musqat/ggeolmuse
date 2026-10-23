@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import { X, Plus, Search } from 'lucide-react';
 import type { CompanyOverview } from '@services/adminApi';
 import { SOLID_BUTTON } from '@/styles/buttons';
+import { LAYER } from '@/styles/layers';
 
 interface AddAssetModalProps {
   isOpen: boolean;
@@ -42,7 +43,7 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({
 
   return ReactDOM.createPortal(
     <div
-      style={{ position: 'fixed', inset: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.5)' }}
+      style={{ position: 'fixed', inset: 0, zIndex: LAYER.modal, backgroundColor: 'rgba(0,0,0,0.5)' }}
       className="flex items-start justify-center p-4 overflow-y-auto"
       onClick={handleClose}
     >

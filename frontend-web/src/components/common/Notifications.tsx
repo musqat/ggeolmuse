@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { Modal } from './Modal';
 import { dismissToast, settleConfirm, useConfirmRequest, useToasts } from './notify';
 import { SOLID_BUTTON } from '@/styles/buttons';
+import { LAYER } from '@/styles/layers';
 
 const kindClass = {
   success: 'border-success',
@@ -17,7 +18,12 @@ export const Notifications: React.FC = () => {
 
   return (
     <>
-      <div className="fixed top-4 right-4 z-[60] flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2" role="status" aria-live="polite">
+      <div
+        className="fixed top-4 right-4 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2"
+        style={{ zIndex: LAYER.toast }}
+        role="status"
+        aria-live="polite"
+      >
         {toasts.map((toast) => (
           <div
             key={toast.id}
@@ -33,6 +39,7 @@ export const Notifications: React.FC = () => {
       {confirm && (
         <Modal
           isOpen
+          layer="confirm"
           onClose={() => settleConfirm(false)}
           title={confirm.title ?? '확인'}
           maxWidth="sm"
