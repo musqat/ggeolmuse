@@ -5,6 +5,7 @@ import { ko } from 'react-day-picker/locale';
 import 'react-day-picker/style.css';
 import { autoUpdate, flip, offset, shift, useFloating } from '@floating-ui/react-dom';
 import { CalendarDays } from 'lucide-react';
+import { LAYER } from '@/styles/layers';
 import {
   getTodayString,
   parseLocalDate,
@@ -15,7 +16,7 @@ import {
 // 한 칸이 열릴 때 다른 칸을 닫으라고 보내는 이벤트
 const OPEN_EVENT = 'datefield:open';
 
-// 팝오버 위 빠른 이동. 달력을 오늘에서 이만큼 전 달로 넘긴다
+// 팝오버 위 빠른 이동(오늘에서 이만큼 전 달로)
 const PRESETS = [
   { label: '1개월 전', months: 1 },
   { label: '3개월 전', months: 3 },
@@ -23,7 +24,7 @@ const PRESETS = [
   { label: '1년 전', months: 12 },
 ];
 
-// 한 칸 40px 라 7칸과 여백이 320px 화면에 들어간다
+// 한 칸 40px(한 주와 여백이 320px 화면에 들어감)
 const calendarStyle = {
   '--rdp-accent-color': '#F59E0B',
   '--rdp-accent-background-color': 'rgba(245, 158, 11, 0.12)',
@@ -34,18 +35,18 @@ const calendarStyle = {
 } as CSSProperties;
 
 interface DateFieldProps {
-  // YYYY-MM-DD. 비면 placeholder 를 보인다
+  // YYYY-MM-DD(비면 placeholder)
   value: string;
   onChange: (value: string) => void;
   min?: string;
   max?: string;
   placeholder?: string;
-  // 팝오버 위 1개월 · 3개월 · 6개월 · 1년 전 이동 버튼. 기본으로 보이고 false 면 숨긴다
+  // 팝오버 위 1개월 · 3개월 · 6개월 · 1년 전 이동 버튼(false 면 숨김)
   presets?: boolean;
   testId?: string;
 }
 
-// 날짜 칸 + 달력 팝오버. 문자열만 주고받아 쓰는 쪽이 Date 변환을 하지 않는다
+// 날짜 칸 + 달력 팝오버(문자열로만 주고받아 Date 변환 없음)
 export const DateField = ({
   value,
   onChange,
@@ -57,13 +58,13 @@ export const DateField = ({
 }: DateFieldProps) => {
   const id = useId();
   const [open, setOpen] = useState(false);
-  // 달력이 보여 주는 달. 열 때 값의 달로 맞추고 빠른 선택이 옮긴다
+  // 달력이 보여 주는 달(열 때 값의 달, 빠른 선택이 옮김)
   const [month, setMonth] = useState<Date>();
   const selected = value ? parseLocalDate(value) : undefined;
   const minDate = min ? parseLocalDate(min) : undefined;
   const maxDate = max ? parseLocalDate(max) : undefined;
 
-  // 화면 밖으로 나가면 위로 뒤집거나 안쪽으로 민다
+  // 화면 밖으로 나가면 위로 뒤집거나 안쪽으로 밀기
   const { refs, floatingStyles } = useFloating({
     open,
     placement: 'bottom-start',
@@ -72,7 +73,7 @@ export const DateField = ({
     whileElementsMounted: autoUpdate,
   });
 
-  // 다른 칸이 열리면 닫는다
+  // 다른 칸이 열리면 닫기
   useEffect(() => {
     const onOtherOpen = (event: Event) => {
       if ((event as CustomEvent<string>).detail !== id) setOpen(false);
@@ -81,7 +82,7 @@ export const DateField = ({
     return () => window.removeEventListener(OPEN_EVENT, onOtherOpen);
   }, [id]);
 
-  // 바깥을 누르거나 Esc 면 닫는다
+  // 바깥을 누르거나 Esc 면 닫기
   useEffect(() => {
     if (!open) return;
     const onMouseDown = (event: MouseEvent) => {
@@ -139,15 +140,14 @@ export const DateField = ({
         createPortal(
           <div
             ref={refs.setFloating}
-            // 화면 구석의 AI 채팅 버튼(z-index 9000)보다 위에 띄운다
-            style={{ ...floatingStyles, zIndex: 9050 }}
+            style={{ ...floatingStyles, zIndex: LAYER.popover }}
             role="dialog"
             className="rounded-lg border border-line bg-surface p-3 text-tx-1 shadow-2xl"
           >
             {presets && (
               <div className="mb-2 grid grid-cols-4 gap-1">
                 {PRESETS.map(({ label, months }) => {
-                  // 달만 비교한다. min 이 그 달 중간이어도 그 달은 열 수 있다
+                  // 달만 비교(min 이 그 달 중간이어도 그 달은 열림)
                   const target = subtractMonths(today, months).slice(0, 7);
                   const outOfRange =
                     (!!min && target < min.slice(0, 7)) || (!!max && target > max.slice(0, 7));

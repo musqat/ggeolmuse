@@ -15,6 +15,20 @@ function renderModal() {
 }
 
 describe('CreateAccountModal', () => {
+  it('생성이 실패하면 창과 입력을 그대로 둔다', async () => {
+    const onClose = vi.fn()
+    const onSubmit = vi.fn().mockRejectedValue(new Error('down'))
+    render(<CreateAccountModal isOpen onClose={onClose} onSubmit={onSubmit} />)
+
+    await userEvent.type(screen.getByPlaceholderText('예: 주식 투자 계좌'), '테스트 계좌')
+    await userEvent.click(screen.getByRole('button', { name: '생성하기' }))
+
+    expect(onSubmit).toHaveBeenCalled()
+    expect(screen.getByRole('heading', { name: '새 계좌 생성' })).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('예: 주식 투자 계좌')).toHaveValue('테스트 계좌')
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
   it('슬리피지 기본값 0.1% 를 채워 두고 그대로 제출한다', async () => {
     const onSubmit = renderModal()
 

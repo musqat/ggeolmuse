@@ -4,6 +4,7 @@ import { authApi } from '../services/api';
 import { tokenManager } from '../utils/auth';
 import { getApiErrorMessage } from '../utils/apiError';
 import { OAUTH_STATE_KEY, oauthRedirectUri, PKCE_VERIFIER_KEY, takeOAuthReturnPath } from '../utils/googleLogin';
+import { Spinner } from '../components/common/Spinner';
 
 const OAuthCallback: React.FC = () => {
   const navigate = useNavigate();
@@ -50,7 +51,7 @@ const OAuthCallback: React.FC = () => {
         // 사용 후 code_verifier 삭제
         sessionStorage.removeItem(PKCE_VERIFIER_KEY);
 
-        // 인가 코드는 user-service 가 토큰으로 바꾼다. refresh token 은 httpOnly 쿠키로 오고 access token 만 받는다
+        // 인가 코드를 토큰으로 바꿈(refresh token 은 httpOnly 쿠키, 응답은 access token)
         const { data } = await authApi.exchangeGoogleCode({
           code,
           codeVerifier,
@@ -58,7 +59,7 @@ const OAuthCallback: React.FC = () => {
         });
         tokenManager.setToken(data.accessToken);
 
-        // 홈(또는 로그인 전에 정해 둔 화면)을 새로 연다. 첫 로그인이면 AuthContext 가 부르는 /users/me 가 DB 에 사용자를 만든다
+        // 홈(또는 로그인 전에 정해 둔 화면)을 새로 열기
         window.location.href = takeOAuthReturnPath();
       } catch (err: unknown) {
         console.error('OAuth callback error:', err);
@@ -84,7 +85,7 @@ const OAuthCallback: React.FC = () => {
             </>
           ) : (
             <>
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand mx-auto"></div>
+              <Spinner className="mx-auto" />
               <p className="mt-4 text-tx-2">Google 로그인 처리 중...</p>
             </>
           )}

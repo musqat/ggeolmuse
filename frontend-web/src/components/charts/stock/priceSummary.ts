@@ -2,12 +2,12 @@ import type { CandlestickChartData } from '../../../types/ohlc';
 
 export interface PriceSummary {
   last: CandlestickChartData;
-  // 전일 종가 대비. 캔들이 하나뿐이면 null
+  // 전일 종가 대비(캔들이 하나뿐이면 null)
   change: number | null;
   changePercent: number | null;
 }
 
-// 마지막 캔들과 그 전 캔들 종가로 등락을 낸다
+// 마지막 캔들과 그 전 캔들 종가로 낸 등락
 export function priceSummary(candles: CandlestickChartData[]): PriceSummary | null {
   if (candles.length === 0) return null;
 

@@ -1,34 +1,21 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  LineChart,
-  Line,
-  ReferenceDot,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer
-} from 'recharts';
+import { Line, ReferenceDot, YAxis, Tooltip } from 'recharts';
 import { DEFAULT_FX_RATE, fetchFxRates } from './shared/fxRates';
 import { closeOf, fetchSymbolPrices } from './shared/prices';
 import {
   AXIS_PROPS,
-  CHART_HEIGHT,
-  CHART_MARGIN,
   dateAxis,
   formatKrwTick,
   formatTooltipDate,
   formatUsdTick,
-  GRID_PROPS,
   MARKER_COLORS,
-  MARKER_PROPS,
   OPTIMAL_MARKER_PROPS,
   TOOLTIP_PROPS,
 } from './shared/chartStyle';
+import { ChartCard, ChartMessage, ChartPanel } from './shared/ChartPanel';
+import { markerDots } from './shared/markers';
 import { useChartPeriod } from '../common/hooks/useChartPeriod';
-import { ChartPeriodSelector } from '../common/components/ChartPeriodSelector';
 import { CHART_COLORS } from '../common/constants';
 import type { OHLCData } from '../../../types/ohlc';
 import { getTodayString } from '../../../utils/dateUtils';
@@ -42,7 +29,7 @@ interface SymbolData {
   investmentAmount: number;
   currentPrice: number;
   currentValueKrw: number;
-  color: string; // Chart line color
+  color: string; // 선 색
   // 원화 주가 기준 최적 매수 · 매도일
   optimalBuyDate?: string | null;
   optimalSellDate?: string | null;
@@ -56,7 +43,7 @@ interface SymbolComparisonChartProps {
 
 interface ChartDataPoint {
   date: string;
-  [key: string]: string | number; // Dynamic keys for each symbol's price and portfolio value
+  [key: string]: string | number; // 종목마다 `${symbol}_price` · `${symbol}_portfolio`
 }
 
 const EMPTY_CHART_DATA: ChartDataPoint[] = [];
@@ -68,16 +55,10 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
   startDate,
   endDate,
 }) => {
-  // 공통 차트 기간 훅 사용
-  const {
-    chartPeriod,
-    customStartDate,
-    setChartPeriod,
-    setCustomStartDate,
-    getStartDateFromPeriod
-  } = useChartPeriod('purchase');
+  const period = useChartPeriod('purchase');
+  const { chartPeriod, customStartDate, getStartDateFromPeriod } = period;
 
-  // 차트 기간에 따른 시작일. 조회 키에 들어가 기간을 바꾸면 다시 받음
+  // 차트 기간에 따른 시작일(조회 키라 기간을 바꾸면 다시 받음)
   const apiStartDate = getStartDateFromPeriod(chartPeriod, startDate, customStartDate);
   const today = endDate || getTodayString();
 
@@ -93,7 +74,7 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
           fetchSymbolPrices<OHLCData>(symbolData.symbol, apiStartDate, today)
             .then(data => ({ symbol: symbolData.symbol, data }))
             .catch(err => {
-              // 한 종목이 실패해도 나머지는 그린다
+              // 한 종목이 실패해도 나머지는 그림
               console.warn('종목 데이터 조회 실패', symbolData.symbol, err);
               return { symbol: symbolData.symbol, data: [] };
             })
@@ -101,7 +82,7 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
 
         const results = await Promise.all(dataPromises);
 
-        // 모든 종목의 모든 날짜 환율을 한 번에 받는다
+        // 모든 종목 날짜의 환율을 한 번에 받음
         const allDates = new Set<string>();
         results.forEach(({ data }) => {
           data.forEach((item: OHLCData) => {
@@ -248,198 +229,125 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
   const portfolioDomain = data?.portfolioDomain ?? DEFAULT_PORTFOLIO_DOMAIN;
   const errorMessage = error ? '차트 데이터를 가져오는데 실패했습니다.' : null;
 
+  // 종목마다 매수일(또는 그 뒤 첫 거래일)의 주가 · 평가금
+  const purchasePoints = symbols.flatMap((symbolData) => {
+    const point = chartData.find((d) => d.date >= symbolData.purchaseDate);
+    if (!point) return [];
+    return [{
+      date: point.date,
+      price: point[`${symbolData.symbol}_price`] as number,
+      portfolio: point[`${symbolData.symbol}_portfolio`] as number,
+    }];
+  });
+
   if (loading) {
-    return (
-      <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-tx-2">차트 데이터 로딩 중...</div>
-        </div>
-      </div>
-    );
+    return <ChartMessage>차트 데이터 로딩 중...</ChartMessage>;
   }
 
   if (errorMessage) {
-    return (
-      <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-danger">{errorMessage}</div>
-        </div>
-      </div>
-    );
+    return <ChartMessage tone="error">{errorMessage}</ChartMessage>;
   }
 
   if (chartData.length === 0) {
-    return (
-      <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-tx-2">차트 데이터가 없습니다.</div>
-        </div>
-      </div>
-    );
+    return <ChartMessage>차트 데이터가 없습니다.</ChartMessage>;
   }
 
   return (
-    <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-6 space-y-6">
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-tx-1">종목별 비교 차트</h3>
-        <ChartPeriodSelector
-          chartPeriod={chartPeriod}
-          customStartDate={customStartDate}
-          onPeriodChange={setChartPeriod}
-          onCustomDateChange={setCustomStartDate}
+    <ChartCard title="종목별 비교 차트" period={period}>
+      <ChartPanel title="주가 추이 비교" data={chartData} xAxis={xAxis} className="mt-6">
+        <YAxis
+          domain={priceDomain}
+          {...AXIS_PROPS}
+          tickFormatter={formatUsdTick}
         />
-      </div>
+        <Tooltip
+          {...TOOLTIP_PROPS}
+          formatter={(value: number | string) => formatUsd(Number(value))}
+          labelFormatter={formatTooltipDate}
+        />
+        {symbols.map((symbolData, index) => (
+          <Line
+            key={symbolData.symbol}
+            type="monotone"
+            dataKey={`${symbolData.symbol}_price`}
+            stroke={symbolData.color || CHART_COLORS[index % CHART_COLORS.length]}
+            strokeWidth={2}
+            dot={false}
+            name={`${symbolData.symbol} 주가`}
+            isAnimationActive={false}
+          />
+        ))}
 
-      {/* Stock Price Comparison Chart */}
-      <div>
-        <h4 className="text-sm font-medium text-tx-1 mb-3">주가 추이 비교</h4>
-        <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
-          <LineChart data={chartData} margin={CHART_MARGIN}>
-            <CartesianGrid {...GRID_PROPS} />
-            <XAxis
-              dataKey="date"
-              {...AXIS_PROPS}
-              {...xAxis}
-            />
-            <YAxis
-              domain={priceDomain}
-              {...AXIS_PROPS}
-              tickFormatter={formatUsdTick}
-            />
-            <Tooltip
-              {...TOOLTIP_PROPS}
-              formatter={(value: number | string) => formatUsd(Number(value))}
-              labelFormatter={formatTooltipDate}
-            />
-            <Legend />
-            {symbols.map((symbolData, index) => (
-              <Line
-                key={symbolData.symbol}
-                type="monotone"
-                dataKey={`${symbolData.symbol}_price`}
-                stroke={symbolData.color || CHART_COLORS[index % CHART_COLORS.length]}
-                strokeWidth={2}
-                dot={false}
-                name={`${symbolData.symbol} 주가`}
-                isAnimationActive={false}
+        {/* 매수 포인트 마커 */}
+        {markerDots(purchasePoints, 'price', MARKER_COLORS.purchase, 'purchase')}
+      </ChartPanel>
+
+      <ChartPanel title="종목별 평가금액 추이" data={chartData} xAxis={xAxis} className="mt-6">
+        <YAxis
+          domain={portfolioDomain}
+          {...AXIS_PROPS}
+          tickFormatter={formatKrwTick}
+        />
+        <Tooltip
+          {...TOOLTIP_PROPS}
+          formatter={(value: number | string) => formatKrw(Math.round(Number(value)))}
+          labelFormatter={formatTooltipDate}
+        />
+
+        {/* 투자금 기준선 */}
+        <Line
+          type="monotone"
+          dataKey="totalInvestment"
+          name="투자금"
+          stroke="#10b981"
+          strokeWidth={2}
+          dot={false}
+          strokeDasharray="5 5"
+          isAnimationActive={false}
+        />
+
+        {/* 개별 포트폴리오 가치 */}
+        {symbols.map((symbolData, index) => (
+          <Line
+            key={symbolData.symbol}
+            type="monotone"
+            dataKey={`${symbolData.symbol}_portfolio`}
+            stroke={symbolData.color || CHART_COLORS[index % CHART_COLORS.length]}
+            strokeWidth={2}
+            dot={false}
+            name={`${symbolData.symbol} 평가금`}
+            isAnimationActive={false}
+          />
+        ))}
+
+        {/* 매수 포인트 마커 - 포트폴리오 차트 */}
+        {markerDots(purchasePoints, 'portfolio', MARKER_COLORS.purchase, 'purchase-portfolio')}
+
+        {/* 최적 매수 · 매도 마커 (평가금 위) */}
+        {symbols.flatMap((symbolData) =>
+          [symbolData.optimalBuyDate, symbolData.optimalSellDate].map((date, i) => {
+            const point = date ? chartData.find(d => d.date === date) : undefined;
+            if (!point) return null;
+
+            return (
+              <ReferenceDot
+                key={`${symbolData.symbol}-optimal-${i === 0 ? 'buy' : 'sell'}`}
+                x={point.date}
+                y={point[`${symbolData.symbol}_portfolio`]}
+                {...OPTIMAL_MARKER_PROPS}
+                label={{ value: '', position: 'top' }}
               />
-            ))}
-
-            {/* 매수 포인트 마커 */}
-            {symbols.map((symbolData) => {
-              // 정확한 날짜 또는 매수일 이후 첫 번째 날짜 찾기
-              const purchasePoint = chartData.find(d => d.date >= symbolData.purchaseDate);
-              if (!purchasePoint) return null;
-
-              return (
-                <ReferenceDot
-                  key={`${symbolData.symbol}-purchase`}
-                  x={purchasePoint.date}
-                  y={purchasePoint[`${symbolData.symbol}_price`]}
-                  {...MARKER_PROPS}
-                  fill={MARKER_COLORS.purchase}
-                  label={{ value: '', position: 'top' }}
-                />
-              );
-            })}
-          </LineChart>
-        </ResponsiveContainer>
+            );
+          })
+        )}
+      </ChartPanel>
+      <div className="mt-3 p-3 bg-warning-soft/10 border border-warning-soft/40 rounded-lg">
+        <p className="text-xs text-tx-1">
+          <span className="font-semibold">차트 마커 안내:</span><br/>
+          <span className="inline-block w-3 h-3 rounded-full mr-1 align-middle" style={{ backgroundColor: MARKER_COLORS.purchase }}></span> 보라 점 = 실제 매수 시점 |
+          <span className="inline-block w-3 h-3 rounded-full mr-1 ml-2 align-middle" style={{ backgroundColor: MARKER_COLORS.optimal }}></span> 금색 점 = 최적 매수 · 매도 시점 (원화로 가장 싸게 사서 가장 비싸게 파는 날)
+        </p>
       </div>
-
-      {/* Portfolio Value Comparison Chart */}
-      <div>
-        <h4 className="text-sm font-medium text-tx-1 mb-3">종목별 평가금액 추이</h4>
-        <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
-          <LineChart data={chartData} margin={CHART_MARGIN}>
-            <CartesianGrid {...GRID_PROPS} />
-            <XAxis
-              dataKey="date"
-              {...AXIS_PROPS}
-              {...xAxis}
-            />
-            <YAxis
-              domain={portfolioDomain}
-              {...AXIS_PROPS}
-              tickFormatter={formatKrwTick}
-            />
-            <Tooltip
-              {...TOOLTIP_PROPS}
-              formatter={(value: number | string) => formatKrw(Math.round(Number(value)))}
-              labelFormatter={formatTooltipDate}
-            />
-            <Legend />
-
-            {/* 투자금 기준선 */}
-            <Line
-              type="monotone"
-              dataKey="totalInvestment"
-              name="투자금"
-              stroke="#10b981"
-              strokeWidth={2}
-              dot={false}
-              strokeDasharray="5 5"
-              isAnimationActive={false}
-            />
-
-            {/* 개별 포트폴리오 가치 */}
-            {symbols.map((symbolData, index) => (
-              <Line
-                key={symbolData.symbol}
-                type="monotone"
-                dataKey={`${symbolData.symbol}_portfolio`}
-                stroke={symbolData.color || CHART_COLORS[index % CHART_COLORS.length]}
-                strokeWidth={2}
-                dot={false}
-                name={`${symbolData.symbol} 평가금`}
-                isAnimationActive={false}
-              />
-            ))}
-
-            {/* 매수 포인트 마커 - 포트폴리오 차트 */}
-            {symbols.map((symbolData) => {
-              // 정확한 날짜 또는 매수일 이후 첫 번째 날짜 찾기
-              const purchasePoint = chartData.find(d => d.date >= symbolData.purchaseDate);
-              if (!purchasePoint) return null;
-
-              return (
-                <ReferenceDot
-                  key={`${symbolData.symbol}-purchase-portfolio`}
-                  x={purchasePoint.date}
-                  y={purchasePoint[`${symbolData.symbol}_portfolio`]}
-                  {...MARKER_PROPS}
-                  fill={MARKER_COLORS.purchase}
-                  label={{ value: '', position: 'top' }}
-                />
-              );
-            })}
-
-            {/* 최적 매수 · 매도 마커 (평가금 위) */}
-            {symbols.flatMap((symbolData) =>
-              [symbolData.optimalBuyDate, symbolData.optimalSellDate].map((date, i) => {
-                const point = date ? chartData.find(d => d.date === date) : undefined;
-                if (!point) return null;
-
-                return (
-                  <ReferenceDot
-                    key={`${symbolData.symbol}-optimal-${i === 0 ? 'buy' : 'sell'}`}
-                    x={point.date}
-                    y={point[`${symbolData.symbol}_portfolio`]}
-                    {...OPTIMAL_MARKER_PROPS}
-                    label={{ value: '', position: 'top' }}
-                  />
-                );
-              })
-            )}
-          </LineChart>
-        </ResponsiveContainer>
-        <div className="mt-3 p-3 bg-warning-soft/10 border border-warning-soft/40 rounded-lg">
-          <p className="text-xs text-tx-1">
-            <span className="font-semibold">차트 마커 안내:</span><br/>
-            <span className="inline-block w-3 h-3 rounded-full mr-1 align-middle" style={{ backgroundColor: MARKER_COLORS.purchase }}></span> 보라 점 = 실제 매수 시점 |
-            <span className="inline-block w-3 h-3 rounded-full mr-1 ml-2 align-middle" style={{ backgroundColor: MARKER_COLORS.optimal }}></span> 금색 점 = 최적 매수 · 매도 시점 (원화로 가장 싸게 사서 가장 비싸게 파는 날)
-          </p>
-        </div>
-      </div>
-    </div>
+    </ChartCard>
   );
 };

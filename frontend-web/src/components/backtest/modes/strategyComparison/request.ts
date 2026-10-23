@@ -13,7 +13,7 @@ export interface StrategyComparisonValues extends BacktestOptions {
   strategyParameters: Record<string, StrategyParams>;
 }
 
-// 전략 비교 요청. 검사에 걸리면 alert 문구를 돌려준다
+// 전략 비교 요청(검사에 걸리면 alert 문구)
 export const buildStrategyComparisonRequest = (
   values: StrategyComparisonValues,
   ctx: RunContext,
@@ -22,7 +22,7 @@ export const buildStrategyComparisonRequest = (
     return { error: '최소 2개 이상의 전략을 선택해주세요.' };
   }
 
-  // 종료일이 비어있으면 오늘. 채운 날짜로 검사한다(빈 종료일과 비교하면 늘 통과했다)
+  // 빈 종료일은 오늘로 채워 검사
   const effectiveEndDate = values.endDate || ctx.today;
   if (values.startDate >= effectiveEndDate) {
     return { error: '시작일은 종료일보다 빠른 날짜여야 합니다.' };

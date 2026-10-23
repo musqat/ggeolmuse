@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   accountsApi,
   portfolioApi,
@@ -6,12 +6,15 @@ import {
   type AccountBalance,
   type PortfolioSummaryResponse
 } from '../services/api';
+import { accountListQuery } from './useAccounts';
 
 interface UseAccountDataReturn {
   accounts: AccountSummary[];
   accountBalances: Map<number, AccountBalance>;
   portfolioSummary: PortfolioSummaryResponse | null;
   currentExchangeRate: number;
+  // 계좌마다 원화 + 달러 × 환율(원화)
+  cashKrw: number;
   // 현금 + 주식 평가액(원화)
   totalAssets: number;
   loading: boolean;
@@ -19,7 +22,18 @@ interface UseAccountDataReturn {
   refetch: () => Promise<void>;
 }
 
-// 계좌마다 원화 + 달러 × 환율을 더한 현금에 주식 평가액(달러) × 환율을 더함. 환율이 없으면 0
+// 계좌마다 원화 + 달러 × 환율(환율이 없으면 0)
+const calculateCash = (accountBalances: Map<number, AccountBalance>, exchangeRate: number): number => {
+  if (!exchangeRate) return 0;
+
+  let cash = 0;
+  accountBalances.forEach((balance) => {
+    cash += balance.balanceKrw + balance.balanceUsd * exchangeRate;
+  });
+  return cash;
+};
+
+// 현금 + 주식 평가액(달러) × 환율(환율이 없으면 0)
 const calculateTotalAssets = (
   accountBalances: Map<number, AccountBalance>,
   portfolioSummary: PortfolioSummaryResponse | null,
@@ -27,18 +41,15 @@ const calculateTotalAssets = (
 ): number => {
   if (!exchangeRate) return 0;
 
-  let cash = 0;
-  accountBalances.forEach((balance) => {
-    cash += balance.balanceKrw + balance.balanceUsd * exchangeRate;
-  });
   const stocks = portfolioSummary?.totalCurrentValue ? portfolioSummary.totalCurrentValue * exchangeRate : 0;
-
-  return cash + stocks;
+  return calculateCash(accountBalances, exchangeRate) + stocks;
 };
 
 // 로그인했을 때 계좌 목록 · 잔액 · 포트폴리오 요약 · 환율을 불러옴
 export const useAccountData = (isAuthenticated: boolean): UseAccountDataReturn => {
-  // React Query: 모든 계좌 데이터를 한 번에 조회 (순차 API 호출)
+  const queryClient = useQueryClient();
+
+  // 계좌 목록 · 환율 · 잔액 · 포트폴리오를 한 번에 조회
   const {
     data,
     isLoading: loading,
@@ -47,15 +58,14 @@ export const useAccountData = (isAuthenticated: boolean): UseAccountDataReturn =
   } = useQuery({
     queryKey: ['account', 'data'],
     queryFn: async () => {
-      // 1. 계좌 목록 조회
-      const accountsResponse = await accountsApi.getAccounts();
-      const accountList = accountsResponse.data;
+      // 계좌 목록(진행 중인 같은 요청이 있으면 같이 씀)
+      const accountList = await queryClient.fetchQuery({ ...accountListQuery, staleTime: 0 });
 
-      // 2. 현재 환율 조회
+      // 현재 환율
       const rateResponse = await accountsApi.getCurrentExchangeRate();
       const exchangeRate = rateResponse.data;
 
-      // 3. 각 계좌의 잔액 조회 (병렬 처리)
+      // 계좌마다 잔액(병렬)
       const balancePromises = accountList.map(account =>
         accountsApi.getAccountBalance(account.accountId)
           .then(response => ({ accountId: account.accountId, balance: response.data }))
@@ -66,7 +76,7 @@ export const useAccountData = (isAuthenticated: boolean): UseAccountDataReturn =
         balanceMap.set(result.accountId, result.balance);
       });
 
-      // 4. 포트폴리오 전체 조회 (총자산 계산용, 선택적)
+      // 포트폴리오 전체(총자산 계산용, 실패해도 계속)
       let portfolioSummary: PortfolioSummaryResponse | null = null;
       try {
         const portfolioResponse = await portfolioApi.getPortfolio();
@@ -99,7 +109,7 @@ export const useAccountData = (isAuthenticated: boolean): UseAccountDataReturn =
       };
     },
     enabled: isAuthenticated,
-    staleTime: 1 * 60 * 1000, // 1분 (계좌 잔액은 자주 변경될 수 있음)
+    staleTime: 1 * 60 * 1000,
   });
 
   const accountBalances = data?.accountBalances || new Map<number, AccountBalance>();
@@ -111,6 +121,7 @@ export const useAccountData = (isAuthenticated: boolean): UseAccountDataReturn =
     accountBalances,
     portfolioSummary,
     currentExchangeRate,
+    cashKrw: calculateCash(accountBalances, currentExchangeRate),
     totalAssets: calculateTotalAssets(accountBalances, portfolioSummary, currentExchangeRate),
     loading,
     error: queryError ? '계좌 정보를 불러오는데 실패했습니다.' : null,

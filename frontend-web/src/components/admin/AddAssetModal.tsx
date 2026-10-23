@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import { X, Plus, Search } from 'lucide-react';
 import type { CompanyOverview } from '@services/adminApi';
+import { SOLID_BUTTON } from '@/styles/buttons';
+import { LAYER } from '@/styles/layers';
 
 interface AddAssetModalProps {
   isOpen: boolean;
@@ -41,7 +43,7 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({
 
   return ReactDOM.createPortal(
     <div
-      style={{ position: 'fixed', inset: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.5)' }}
+      style={{ position: 'fixed', inset: 0, zIndex: LAYER.modal, backgroundColor: 'rgba(0,0,0,0.5)' }}
       className="flex items-start justify-center p-4 overflow-y-auto"
       onClick={handleClose}
     >
@@ -52,7 +54,7 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({
         {/* 헤더 */}
         <div className="flex items-center justify-between p-4 border-b border-line">
           <h2 className="text-lg font-bold text-tx-1">신규 종목 추가</h2>
-          <button onClick={handleClose} className="text-tx-3 hover:text-tx-1">
+          <button onClick={handleClose} aria-label="닫기" className="text-tx-3 hover:text-tx-1">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -123,7 +125,7 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({
               <button
                 onClick={onAdd}
                 disabled={loading}
-                className="mt-4 w-full py-2.5 bg-green-700 text-white rounded-lg hover:bg-green-800 disabled:opacity-50 flex items-center justify-center gap-2"
+                className={`mt-4 w-full py-2.5 ${SOLID_BUTTON.confirm} rounded-lg disabled:opacity-50 flex items-center justify-center gap-2`}
               >
                 <Plus className="w-5 h-5" />
                 추가 및 데이터 수집 시작

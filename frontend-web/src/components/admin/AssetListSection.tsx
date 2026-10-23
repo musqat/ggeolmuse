@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { RefreshCw, Trash2, DollarSign, TrendingUp, ArrowUpDown, ChevronLeft, ChevronRight, Pencil, Check, X, PlusCircle, Undo2 } from 'lucide-react';
 import type { Asset } from '@services/adminApi';
 import { formatMarketCap } from '../../utils/formatNumber';
+import { SOLID_BUTTON } from '@/styles/buttons';
 
 interface AssetListSectionProps {
   assets: Asset[];
@@ -19,7 +20,7 @@ interface AssetListSectionProps {
   onUpdateAllPrices: () => void;
   onUpdateAllMarketCaps: () => void;
   onCollectNewSymbols: () => void;
-  // Pagination props
+  // 페이지 이동
   currentPage: number;
   pageSize: number;
   totalPages: number;
@@ -29,7 +30,7 @@ interface AssetListSectionProps {
   onPageChange: (page: number) => void;
   onPageSizeChange: (size: number) => void;
   onSortChange: (field: string, direction: 'asc' | 'desc') => void;
-  // Bulk selection
+  // 여러 개 고르기
   selected: Set<string>;
   onToggleOne: (symbol: string) => void;
   onToggleAll: (symbols: string[]) => void;
@@ -90,10 +91,10 @@ export default function AssetListSection({
 
   const handleSort = (field: string) => {
     if (sortBy === field) {
-      // Toggle direction
+      // 같은 칸이면 방향만 바꿈
       onSortChange(field, sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
-      // New field, default to asc
+      // 다른 칸이면 오름차순부터
       onSortChange(field, 'asc');
     }
   };
@@ -187,7 +188,7 @@ export default function AssetListSection({
             <button
               onClick={onBulkDelete}
               disabled={loading}
-              className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg flex items-center gap-2 transition disabled:opacity-50"
+              className={`px-4 py-2 ${SOLID_BUTTON.danger} rounded-lg flex items-center gap-2 transition disabled:opacity-50`}
             >
               <Trash2 className="w-5 h-5" />
               선택 삭제 ({selected.size})
@@ -204,7 +205,7 @@ export default function AssetListSection({
           <button
             onClick={onUpdateAllPrices}
             disabled={loading}
-            className="px-4 py-2 bg-green-700 text-white hover:bg-green-800 rounded-lg flex items-center gap-2 transition disabled:opacity-50"
+            className={`px-4 py-2 ${SOLID_BUTTON.confirm} rounded-lg flex items-center gap-2 transition disabled:opacity-50`}
           >
             <DollarSign className="w-5 h-5" />
             전체 가격 업데이트
@@ -212,7 +213,7 @@ export default function AssetListSection({
           <button
             onClick={onUpdateAllMarketCaps}
             disabled={loading}
-            className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg flex items-center gap-2 transition disabled:opacity-50"
+            className={`px-4 py-2 ${SOLID_BUTTON.info} rounded-lg flex items-center gap-2 transition disabled:opacity-50`}
           >
             <TrendingUp className="w-5 h-5" />
             전체 시가총액 업데이트
@@ -221,7 +222,7 @@ export default function AssetListSection({
             onClick={onCollectNewSymbols}
             disabled={loading}
             title="목록을 다시 받아 DB 에 없는 종목만 추가합니다. 평일 08:00 스케줄과 같은 일입니다."
-            className="px-4 py-2 bg-purple-600 text-white hover:bg-purple-700 rounded-lg flex items-center gap-2 transition disabled:opacity-50"
+            className={`px-4 py-2 ${SOLID_BUTTON.accent} rounded-lg flex items-center gap-2 transition disabled:opacity-50`}
           >
             <PlusCircle className="w-5 h-5" />
             신규 종목 수집
@@ -391,7 +392,7 @@ export default function AssetListSection({
         )}
       </div>
 
-      {/* Pagination Controls (검색 모드에선 숨김) */}
+      {/* 페이지 이동(검색 모드에선 숨김) */}
       {!searchMode && totalPages > 1 && (
         <div className="mt-6 flex items-center justify-between border-t pt-4">
           <div className="text-sm text-tx-2">
@@ -407,6 +408,7 @@ export default function AssetListSection({
             </button>
             <button
               onClick={() => onPageChange(currentPage - 1)}
+              aria-label="이전 페이지"
               disabled={currentPage === 0 || loading}
               className="px-3 py-1 border rounded-lg hover:bg-surface/50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -430,6 +432,7 @@ export default function AssetListSection({
 
             <button
               onClick={() => onPageChange(currentPage + 1)}
+              aria-label="다음 페이지"
               disabled={currentPage >= totalPages - 1 || loading}
               className="px-3 py-1 border rounded-lg hover:bg-surface/50 disabled:opacity-50 disabled:cursor-not-allowed"
             >

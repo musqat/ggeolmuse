@@ -29,7 +29,7 @@ const Home: React.FC = () => {
   const topSymbol = topStocks[0]?.symbol;
   const listStocks = topStocks.slice(1, 5); // #2~5
 
-  // changePercent
+  // 등락률
   const { data: prices } = useQuery({
     queryKey: ['home', 'prices', topStocks.map(s => s.symbol)],
     queryFn: async () => {
@@ -84,7 +84,7 @@ const Home: React.FC = () => {
   }, [ohlcRaw]);
 
   const topUp = topChange === null ? true : topChange >= 0;
-  // 꼬리표와 같은 등락 색(상승 빨강 · 하락 파랑). 테마마다 바뀐다
+  // 꼬리표와 같은 등락 색(상승 빨강 · 하락 파랑, 테마마다 바뀜)
   const sparkColor = topUp ? 'rgb(var(--up))' : 'rgb(var(--down))';
 
   // 데이터 기준 날짜 (OHLC 마지막 데이터)

@@ -4,29 +4,11 @@ import UserListSection from '@components/admin/UserListSection';
 import UserDetailSection from '@components/admin/UserDetailSection';
 
 export default function AdminUsers() {
-  const {
-    users,
-    stats,
-    selectedUser,
-    page,
-    totalPages,
-    loading,
-    error,
-    loadUsers,
-    loadUserDetail,
-    updateRole,
-    updateEnabled,
-    updateNickname,
-    updatePassword,
-    verifyEmail,
-    deleteUser,
-    goToPage,
-  } = useAdminUsers();
+  const userAdmin = useAdminUsers();
 
   return (
     <div className="min-h-screen bg-surface/50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-tx-1">사용자 관리</h1>
           <p className="mt-2 text-tx-2">
@@ -34,40 +16,35 @@ export default function AdminUsers() {
           </p>
         </div>
 
-        {/* Error Alert */}
-        {error && (
+        {userAdmin.error && (
           <div className="mb-6 p-4 bg-danger/10 border border-danger/25 rounded-lg">
-            <p className="text-danger">{error}</p>
+            <p className="text-danger">{userAdmin.error}</p>
           </div>
         )}
 
-        {/* Stats Cards */}
-        {stats && <UserStatsCards stats={stats} />}
+        {userAdmin.stats && <UserStatsCards stats={userAdmin.stats} />}
 
-        {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Users List */}
           <UserListSection
-            users={users}
-            selectedUserId={selectedUser?.userId || null}
-            page={page}
-            totalPages={totalPages}
-            loading={loading}
-            onSelectUser={loadUserDetail}
-            onRefresh={() => loadUsers(page)}
-            onPageChange={goToPage}
+            users={userAdmin.users}
+            selectedUserId={userAdmin.selectedUser?.userId || null}
+            page={userAdmin.page}
+            totalPages={userAdmin.totalPages}
+            loading={userAdmin.loading}
+            onSelectUser={userAdmin.loadUserDetail}
+            onRefresh={() => userAdmin.loadUsers(userAdmin.page)}
+            onPageChange={userAdmin.goToPage}
           />
 
-          {/* User Detail */}
           <UserDetailSection
-            user={selectedUser}
-            loading={loading}
-            onUpdateRole={updateRole}
-            onUpdateEnabled={updateEnabled}
-            onUpdateNickname={updateNickname}
-            onUpdatePassword={updatePassword}
-            onVerifyEmail={verifyEmail}
-            onDeleteUser={deleteUser}
+            user={userAdmin.selectedUser}
+            loading={userAdmin.loading}
+            onUpdateRole={userAdmin.updateRole}
+            onUpdateEnabled={userAdmin.updateEnabled}
+            onUpdateNickname={userAdmin.updateNickname}
+            onUpdatePassword={userAdmin.updatePassword}
+            onVerifyEmail={userAdmin.verifyEmail}
+            onDeleteUser={userAdmin.deleteUser}
           />
         </div>
       </div>

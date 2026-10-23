@@ -1,11 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Search, X } from 'lucide-react';
-import { type SupportedSymbol } from '../../types/stock';
-
-interface StockInfo {
-  symbol: SupportedSymbol;
-  name: string;
-}
+import { searchSymbols, type SymbolMatch } from '../../utils/symbolSearch';
 
 interface StockSearchInputProps {
   value: string;
@@ -14,33 +9,6 @@ interface StockSearchInputProps {
   className?: string;
   supportedSymbols?: string[];
 }
-
-// 회사명 조회 헬퍼 함수 (등록되지 않은 종목은 빈 문자열 반환)
-const getSymbolName = (symbol: string): string => {
-  const names: { [key: string]: string } = {
-    'AAPL': 'Apple Inc.',
-    'MSFT': 'Microsoft Corporation',
-    'NVDA': 'NVIDIA Corporation',
-    'GOOGL': 'Alphabet Inc.',
-    'TSLA': 'Tesla Inc.',
-    'AMZN': 'Amazon.com Inc.',
-    'META': 'Meta Platforms Inc.',
-    'BRK.B': 'Berkshire Hathaway Inc.',
-    'AVGO': 'Broadcom Inc.',
-    'JPM': 'JPMorgan Chase & Co.',
-    'LLY': 'Eli Lilly and Company',
-    'UNH': 'UnitedHealth Group Inc.',
-    'XOM': 'Exxon Mobil Corporation',
-    'V': 'Visa Inc.',
-    'PG': 'Procter & Gamble Co.',
-    'MA': 'Mastercard Incorporated',
-    'HD': 'Home Depot Inc.',
-    'JNJ': 'Johnson & Johnson',
-    'ABBV': 'AbbVie Inc.',
-    'NFLX': 'Netflix Inc.'
-  };
-  return names[symbol] || ''; // 회사명이 없으면 빈 문자열 반환 (티커 티커 문제 해결)
-};
 
 const StockSearchInput: React.FC<StockSearchInputProps> = ({
   value,
@@ -51,57 +19,10 @@ const StockSearchInput: React.FC<StockSearchInputProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filteredStocks, setFilteredStocks] = useState<StockInfo[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // supportedSymbols을 StockInfo 형태로 변환 (useMemo로 최적화)
-  const dynamicStockList = useMemo(() => {
-    return supportedSymbols.map(symbol => ({
-      symbol: symbol,
-      name: getSymbolName(symbol)
-    }));
-  }, [supportedSymbols]);
-
-  // 필터링 로직을 useMemo로 처리하여 useEffect 없이 계산
-  const filteredStocksResult = useMemo(() => {
-    if (searchTerm.trim() === '') {
-      return dynamicStockList.slice(0, 20);
-    } else {
-      const searchLower = searchTerm.toLowerCase();
-      const filtered = dynamicStockList.filter(
-        stock =>
-          stock.symbol.toLowerCase().includes(searchLower) ||
-          stock.name.toLowerCase().includes(searchLower)
-      );
-
-      // 정확히 일치하는 티커를 우선적으로 정렬 (1-2글자 티커 검색 개선)
-      const sorted = filtered.sort((a, b) => {
-        const aSymbolMatch = a.symbol.toLowerCase() === searchLower;
-        const bSymbolMatch = b.symbol.toLowerCase() === searchLower;
-        const aStartsWith = a.symbol.toLowerCase().startsWith(searchLower);
-        const bStartsWith = b.symbol.toLowerCase().startsWith(searchLower);
-
-        // 1. 정확히 일치하는 티커가 최우선
-        if (aSymbolMatch && !bSymbolMatch) return -1;
-        if (!aSymbolMatch && bSymbolMatch) return 1;
-
-        // 2. 티커가 검색어로 시작하는 것이 두 번째 우선
-        if (aStartsWith && !bStartsWith) return -1;
-        if (!aStartsWith && bStartsWith) return 1;
-
-        // 3. 나머지는 알파벳 순
-        return a.symbol.localeCompare(b.symbol);
-      });
-
-      return sorted.slice(0, 20);
-    }
-  }, [searchTerm, dynamicStockList]);
-
-  // filteredStocks 상태를 filteredStocksResult로 동기화
-  useEffect(() => {
-    setFilteredStocks(filteredStocksResult);
-  }, [filteredStocksResult]);
+  const filteredStocks = useMemo(() => searchSymbols(supportedSymbols, searchTerm, 20), [supportedSymbols, searchTerm]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -125,7 +46,7 @@ const StockSearchInput: React.FC<StockSearchInputProps> = ({
     setIsOpen(true);
   };
 
-  const handleSelectStock = (stock: StockInfo) => {
+  const handleSelectStock = (stock: SymbolMatch) => {
     onChange(stock.symbol);
     setSearchTerm(stock.symbol);
     setIsOpen(false);
@@ -142,9 +63,7 @@ const StockSearchInput: React.FC<StockSearchInputProps> = ({
     setIsOpen(true);
   };
 
-  // value prop 이 변경되면 searchTerm 도 업데이트.
-  // 함수형 갱신을 쓰면 searchTerm 을 읽지 않아 의존성에 넣을 필요가 없다.
-  // 넣으면 사용자가 타이핑할 때마다 effect 가 돌아 입력을 value 로 되돌린다.
+  // value 가 바뀌면 searchTerm 도 맞춤(함수형 갱신이라 searchTerm 은 의존성에 없음, 넣으면 타이핑이 되돌아감)
   useEffect(() => {
     setSearchTerm((prev) => (prev !== value ? value : prev));
   }, [value]);
@@ -168,6 +87,7 @@ const StockSearchInput: React.FC<StockSearchInputProps> = ({
           <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
             <button
               onClick={handleClear}
+              aria-label="검색어 지우기"
               className="h-4 w-4 text-tx-3 hover:text-tx-2"
             >
               <X className="h-4 w-4" />

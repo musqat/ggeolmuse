@@ -1,39 +1,25 @@
 import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  ReferenceDot
-} from 'recharts';
+import { Line, YAxis, Tooltip, ReferenceDot } from 'recharts';
 import type { ComparisonDetail } from '../../../services/api';
 import { DEFAULT_FX_RATE, fetchFxRates } from './shared/fxRates';
 import { closeOf, fetchSymbolPrices } from './shared/prices';
 import {
   AXIS_PROPS,
-  CHART_HEIGHT,
-  CHART_MARGIN,
   dateAxis,
   formatKrwTick,
   formatTooltipDate,
   formatUsdTick,
-  GRID_PROPS,
   MARKER_PROPS,
   TOOLTIP_PROPS,
 } from './shared/chartStyle';
+import { ChartCard, ChartMessage, ChartPanel } from './shared/ChartPanel';
 import type { OHLCData } from '../../../types/ohlc';
 import { useChartPeriod } from '../common/hooks/useChartPeriod';
-import { ChartPeriodSelector } from '../common/components/ChartPeriodSelector';
 import { CHART_COLORS } from '../common/constants';
 import { getTodayString } from '../../../utils/dateUtils';
 
-// 전략 이름이 그대로 컬럼이 된다 (`${name}_portfolio`). 키를 미리 적을 수 없어
-// 인덱스 시그니처를 쓴다.
+// 전략 이름이 그대로 컬럼(`${name}_portfolio`)이라 인덱스 시그니처
 interface ChartRow {
   date: string;
   [column: string]: string | number;
@@ -50,7 +36,7 @@ interface StrategyItem {
   name: string;
   totalInvested?: number | null;
   currentValueKrw?: number | null;
-  // 적립식 · 조건부는 StrategyResponse, 단순 매수는 SimulationResponse 칸이 온다
+  // 적립식 · 조건부는 StrategyResponse, 단순 매수는 SimulationResponse 칸
   additionalData?: ComparisonDetail | null;
 }
 
@@ -66,14 +52,8 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
   strategies,
   strategyNames
 }) => {
-  // 공통 차트 기간 훅 사용
-  const {
-    chartPeriod,
-    customStartDate,
-    setChartPeriod,
-    setCustomStartDate,
-    getStartDateFromPeriod
-  } = useChartPeriod('purchase');
+  const period = useChartPeriod('purchase');
+  const { chartPeriod, customStartDate, getStartDateFromPeriod } = period;
 
   // 첫 전략의 종목 · 기간으로 가격을 받음
   const first = strategies[0]?.additionalData;
@@ -82,7 +62,7 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
   const endDate = first?.endDate || first?.currentDate;
   const apiStartDate = originalStartDate ? getStartDateFromPeriod(chartPeriod, originalStartDate, customStartDate) : undefined;
 
-  // 평가금액은 다른 결과 차트처럼 그날 환율로 원화 환산. 가격을 못 받으면 차트는 비어 보이고 이유를 남김
+  // 평가금액은 그날 환율로 원화 환산(가격을 못 받으면 빈 차트와 경고 로그)
   const { data: fetched, isLoading: loading } = useQuery({
     queryKey: ['backtest', 'chart', 'strategies', symbol, apiStartDate, endDate],
     enabled: Boolean(symbol && apiStartDate),
@@ -231,175 +211,141 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
   const xAxis = dateAxis(priceChartData.map((d) => d.date));
 
   if (loading) {
-    return (
-      <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-6">
-        <h3 className="text-lg font-semibold text-tx-1 mb-4">전략별 비교 차트</h3>
-        <div className="flex items-center justify-center h-80">
-          <div className="text-tx-2">데이터 로딩 중...</div>
-        </div>
-      </div>
-    );
+    return <ChartMessage>데이터 로딩 중...</ChartMessage>;
   }
 
   if (priceChartData.length === 0) {
     return null;
   }
 
+  // 범례에는 전략 이름만(평가금액 선)
+  const legendName = (value: string) => {
+    if (value.endsWith('_portfolio')) {
+      const strategyName = value.replace('_portfolio', '');
+      return `${strategyNames[strategyName] || strategyName}`;
+    }
+    return value;
+  };
+
   return (
-    <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-6 space-y-6">
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-tx-1">전략별 비교 차트</h3>
-        <ChartPeriodSelector
-          chartPeriod={chartPeriod}
-          customStartDate={customStartDate}
-          onPeriodChange={setChartPeriod}
-          onCustomDateChange={setCustomStartDate}
-        />
-      </div>
-
+    <ChartCard title="전략별 비교 차트" period={period}>
       {/* 주가 추이 비교 */}
-      <div>
-        <h4 className="text-sm font-medium text-tx-1 mb-3">주가 추이 비교</h4>
-        <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
-          <LineChart data={priceChartData} margin={CHART_MARGIN}>
-            <CartesianGrid {...GRID_PROPS} />
-            <XAxis
-              dataKey="date"
-              {...AXIS_PROPS}
-              {...xAxis}
-            />
-            <YAxis
-              {...AXIS_PROPS}
-              tickFormatter={formatUsdTick}
-            />
-            <Tooltip
-              {...TOOLTIP_PROPS}
-              formatter={(value: number | string, name: string) => {
-                if (name === '주가') {
-                  return [`$${Number(value).toFixed(2)}`, '주가'];
-                }
-                return [value, name];
-              }}
-              labelFormatter={formatTooltipDate}
-            />
-            <Legend />
+      <ChartPanel title="주가 추이 비교" data={priceChartData} xAxis={xAxis} className="mt-6">
+        <YAxis
+          {...AXIS_PROPS}
+          tickFormatter={formatUsdTick}
+        />
+        <Tooltip
+          {...TOOLTIP_PROPS}
+          formatter={(value: number | string, name: string) => {
+            if (name === '주가') {
+              return [`$${Number(value).toFixed(2)}`, '주가'];
+            }
+            return [value, name];
+          }}
+          labelFormatter={formatTooltipDate}
+        />
 
-            {/* 주가 라인 */}
-            <Line
-              type="monotone"
-              dataKey="stockPrice"
-              stroke="rgb(var(--text-2))"
-              strokeWidth={2}
-              dot={false}
-              name="주가"
-              isAnimationActive={false}
-            />
+        {/* 주가 라인 */}
+        <Line
+          type="monotone"
+          dataKey="stockPrice"
+          stroke="rgb(var(--text-2))"
+          strokeWidth={2}
+          dot={false}
+          name="주가"
+          isAnimationActive={false}
+        />
 
-            {/* 매수 포인트 마커 (전략별 색상) */}
-            {purchasePoints.map((point, index) => (
-              <ReferenceDot
-                key={`purchase-${index}`}
-                x={point.date}
-                y={point.stockPrice}
-                {...MARKER_PROPS}
-                fill={CHART_COLORS[point.strategyIdx % CHART_COLORS.length]}
-              />
-            ))}
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+        {/* 매수 포인트 마커 (전략별 색상) */}
+        {purchasePoints.map((point, index) => (
+          <ReferenceDot
+            key={`purchase-${index}`}
+            x={point.date}
+            y={point.stockPrice}
+            {...MARKER_PROPS}
+            fill={CHART_COLORS[point.strategyIdx % CHART_COLORS.length]}
+          />
+        ))}
+      </ChartPanel>
 
       {/* 전략별 평가금액 추이 */}
-      <div>
-        <h4 className="text-sm font-medium text-tx-1 mb-3">전략별 평가금액 추이</h4>
-        <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
-          <LineChart data={portfolioChartData} margin={CHART_MARGIN}>
-            <CartesianGrid {...GRID_PROPS} />
-            <XAxis
-              dataKey="date"
-              {...AXIS_PROPS}
-              {...xAxis}
+      <ChartPanel
+        title="전략별 평가금액 추이"
+        data={portfolioChartData}
+        xAxis={xAxis}
+        className="mt-6"
+        legendFormatter={legendName}
+      >
+        <YAxis
+          {...AXIS_PROPS}
+          tickFormatter={formatKrwTick}
+        />
+        <Tooltip
+          {...TOOLTIP_PROPS}
+          formatter={(value: number | string, name: string) => {
+            if (name.endsWith('_portfolio')) {
+              const strategyName = name.replace('_portfolio', '');
+              return [`₩${Math.floor(Number(value)).toLocaleString()}`, `${strategyNames[strategyName] || strategyName}`];
+            }
+            if (name.endsWith('_invested')) {
+              const strategyName = name.replace('_invested', '');
+              return [`₩${Math.floor(Number(value)).toLocaleString()}`, `${strategyNames[strategyName] || strategyName} (투자금)`];
+            }
+            return [value, name];
+          }}
+          labelFormatter={formatTooltipDate}
+        />
+
+        {/* 투자금 선(점선, 범례에는 평가금액 선만) */}
+        {strategies.map((strategy, index) => (
+          <Line
+            key={`${strategy.name}_invested`}
+            type="monotone"
+            dataKey={`${strategy.name}_invested`}
+            stroke={CHART_COLORS[index % CHART_COLORS.length]}
+            strokeWidth={2}
+            dot={false}
+            strokeDasharray="5 5"
+            name={`${strategy.name}_invested`}
+            legendType="none"
+            isAnimationActive={false}
+          />
+        ))}
+
+        {/* 포트폴리오 가치 라인 (실선) */}
+        {strategies.map((strategy, index) => (
+          <Line
+            key={`${strategy.name}_portfolio`}
+            type="monotone"
+            dataKey={`${strategy.name}_portfolio`}
+            stroke={CHART_COLORS[index % CHART_COLORS.length]}
+            strokeWidth={2}
+            dot={false}
+            name={`${strategy.name}_portfolio`}
+            isAnimationActive={false}
+          />
+        ))}
+
+        {/* 매수 포인트 마커 (전략 색상) */}
+        {purchasePoints.map((point, index) => {
+          const dataPoint = portfolioChartData.find(d => d.date === point.date);
+          if (!dataPoint) return null;
+
+          const portfolioValue = dataPoint[`${point.strategyName}_portfolio`];
+          if (!portfolioValue) return null;
+
+          return (
+            <ReferenceDot
+              key={`purchase-portfolio-${index}`}
+              x={point.date}
+              y={portfolioValue}
+              {...MARKER_PROPS}
+              fill={CHART_COLORS[point.strategyIdx % CHART_COLORS.length]}
             />
-            <YAxis
-              {...AXIS_PROPS}
-              tickFormatter={formatKrwTick}
-            />
-            <Tooltip
-              {...TOOLTIP_PROPS}
-              formatter={(value: number | string, name: string) => {
-                if (name.endsWith('_portfolio')) {
-                  const strategyName = name.replace('_portfolio', '');
-                  return [`₩${Math.floor(Number(value)).toLocaleString()}`, `${strategyNames[strategyName] || strategyName}`];
-                }
-                if (name.endsWith('_invested')) {
-                  const strategyName = name.replace('_invested', '');
-                  return [`₩${Math.floor(Number(value)).toLocaleString()}`, `${strategyNames[strategyName] || strategyName} (투자금)`];
-                }
-                return [value, name];
-              }}
-              labelFormatter={formatTooltipDate}
-            />
-            <Legend
-              formatter={(value) => {
-                if (value.endsWith('_portfolio')) {
-                  const strategyName = value.replace('_portfolio', '');
-                  return `${strategyNames[strategyName] || strategyName}`;
-                }
-                return value;
-              }}
-            />
-
-            {/* 투자금 라인 (점선). 범례에는 평가금액 선만 둔다 */}
-            {strategies.map((strategy, index) => (
-              <Line
-                key={`${strategy.name}_invested`}
-                type="monotone"
-                dataKey={`${strategy.name}_invested`}
-                stroke={CHART_COLORS[index % CHART_COLORS.length]}
-                strokeWidth={2}
-                dot={false}
-                strokeDasharray="5 5"
-                name={`${strategy.name}_invested`}
-                legendType="none"
-                isAnimationActive={false}
-              />
-            ))}
-
-            {/* 포트폴리오 가치 라인 (실선) */}
-            {strategies.map((strategy, index) => (
-              <Line
-                key={`${strategy.name}_portfolio`}
-                type="monotone"
-                dataKey={`${strategy.name}_portfolio`}
-                stroke={CHART_COLORS[index % CHART_COLORS.length]}
-                strokeWidth={2}
-                dot={false}
-                name={`${strategy.name}_portfolio`}
-                isAnimationActive={false}
-              />
-            ))}
-
-            {/* 매수 포인트 마커 (전략 색상) */}
-            {purchasePoints.map((point, index) => {
-              const dataPoint = portfolioChartData.find(d => d.date === point.date);
-              if (!dataPoint) return null;
-
-              const portfolioValue = dataPoint[`${point.strategyName}_portfolio`];
-              if (!portfolioValue) return null;
-
-              return (
-                <ReferenceDot
-                  key={`purchase-portfolio-${index}`}
-                  x={point.date}
-                  y={portfolioValue}
-                  {...MARKER_PROPS}
-                  fill={CHART_COLORS[point.strategyIdx % CHART_COLORS.length]}
-                />
-              );
-            })}
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
+          );
+        })}
+      </ChartPanel>
+    </ChartCard>
   );
 };

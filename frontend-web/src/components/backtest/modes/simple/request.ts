@@ -8,7 +8,7 @@ export interface SimpleValues extends BacktestOptions {
   initialInvestment: string;
 }
 
-// 단순 매수 요청. 검사에 걸리면 alert 문구를 돌려준다
+// 단순 매수 요청(검사에 걸리면 alert 문구)
 export const buildSimpleRequest = (
   values: SimpleValues,
   symbol: string,
@@ -21,7 +21,7 @@ export const buildSimpleRequest = (
   if (investment < 100000) {
     return { error: '최소 10만원 이상 투자해주세요. (미국 주식 1주 구매를 위해 약 30만원 권장)' };
   }
-  // 둘 다 YYYY-MM-DD 라 문자열로 비교한다. Date 로 바꾸면 UTC 자정이 되어 한국 오전 9시 전후로 오늘이 막히다 말다 한다
+  // YYYY-MM-DD 문자열로 비교(Date 로 바꾸면 UTC 자정이라 한국 오전 9시 전후로 오늘이 막히다 풀림)
   if (values.purchaseDate >= ctx.today) {
     return { error: '매수일은 과거 날짜여야 합니다.' };
   }

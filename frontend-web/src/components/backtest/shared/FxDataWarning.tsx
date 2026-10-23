@@ -1,9 +1,9 @@
 import React from 'react';
 
-// 이 날짜 앞은 환율 자료가 비어 있을 수 있다
+// 이 날짜 앞은 환율 자료가 비어 있을 수 있음
 const FX_DATA_FROM = '2014-01-01';
 
-// 시작일이 2014년 이전이면 수동 환율을 권한다. 아니면 아무것도 그리지 않는다
+// 시작일이 2014년 이전이면 수동 환율 권유(아니면 안 그림)
 export const FxDataWarning: React.FC<{ startDate: string; className?: string }> = ({ startDate, className }) => {
   if (!startDate || startDate >= FX_DATA_FROM) return null;
   return (

@@ -1,33 +1,20 @@
 import React, { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  ReferenceDot,
-} from "recharts";
+import { Line, YAxis, Tooltip } from "recharts";
 import { DEFAULT_FX_RATE, fetchFxRates } from './shared/fxRates';
 import { closeOf, fetchSymbolPrices } from './shared/prices';
 import {
   AXIS_PROPS,
-  CHART_HEIGHT,
-  CHART_MARGIN,
   dateAxis,
   formatKrwTick,
   formatTooltipDate,
   formatUsdTick,
-  GRID_PROPS,
   MARKER_COLORS,
-  MARKER_PROPS,
   TOOLTIP_PROPS,
 } from './shared/chartStyle';
+import { ChartCard, ChartMessage, ChartPanel } from './shared/ChartPanel';
+import { markerDots } from './shared/markers';
 import { useChartPeriod } from "../common/hooks/useChartPeriod";
-import { ChartPeriodSelector } from "../common/components/ChartPeriodSelector";
 import { getApiErrorMessage } from '../../../utils/apiError';
 import type { OHLCData } from '../../../types/ohlc';
 import { getTodayString } from "../../../utils/dateUtils";
@@ -51,7 +38,7 @@ interface StrategyBacktestChartProps {
   currentValueKrw: number;
   totalInvested: number;
   startDate: string;
-  // 평가일. 없으면 오늘까지 그린다
+  // 평가일(없으면 오늘까지)
   endDate?: string;
 }
 
@@ -65,7 +52,7 @@ interface ChartDataPoint {
   isDividendReinvest: boolean;
 }
 
-// 적립식 · 조건부 결과 차트. 두 전략 모두 거래 목록을 받아 같은 것을 그린다
+// 적립식 · 조건부 결과 차트(두 전략 모두 거래 목록으로 같은 차트)
 const EMPTY_CHART_DATA: ChartDataPoint[] = [];
 
 export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
@@ -76,14 +63,8 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
   startDate,
   endDate,
 }) => {
-  // 공통 차트 기간 훅 사용
-  const {
-    chartPeriod,
-    customStartDate,
-    setChartPeriod,
-    setCustomStartDate,
-    getStartDateFromPeriod,
-  } = useChartPeriod("purchase");
+  const period = useChartPeriod("purchase");
+  const { chartPeriod, customStartDate, getStartDateFromPeriod } = period;
 
   // 첫 매수일과 마지막 매수일
   const firstPurchaseDate =
@@ -117,7 +98,7 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
     // priceData에서 사용 가능한 날짜들을 먼저 추출
     const availableDates = priceData.map((item) => item.date).sort();
 
-    // 거래를 실제 거래일에 붙인다 (주말/휴일 -> 다음 영업일). 일반 매수와 배당 재투자를 따로 센다
+    // 거래를 실제 거래일(주말 · 휴일이면 다음 영업일)에 맞추고 일반 매수 · 배당 재투자를 따로 셈
     const purchaseDates = new Set<string>();
     const dividendDates = new Set<string>();
     transactions.forEach((tx) => {
@@ -200,179 +181,92 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
   const dividendReinvestPoints = useMemo(() => chartData.filter((d) => d.isDividendReinvest), [chartData]);
 
   if (loading) {
-    return (
-      <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-6">
-        <div className="flex justify-center items-center h-64">
-          <div className="text-tx-2">차트 데이터를 불러오는 중...</div>
-        </div>
-      </div>
-    );
+    return <ChartMessage>차트 데이터를 불러오는 중...</ChartMessage>;
   }
 
   if (errorMessage) {
-    return (
-      <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-6">
-        <div className="flex justify-center items-center h-64">
-          <div className="text-danger">{errorMessage}</div>
-        </div>
-      </div>
-    );
+    return <ChartMessage tone="error">{errorMessage}</ChartMessage>;
   }
 
+  const totalShares = transactions.reduce((sum, t) => sum + t.shares, 0);
+
   return (
-    <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-6 mt-6">
-      <div className="mb-4">
-        <h3 className="text-lg font-semibold text-tx-1 mb-2">투자 성과 차트</h3>
-        <p className="text-sm text-tx-2">
-          {transactions.length}회 매수 • 총{" "}
-          {transactions.reduce((sum, t) => sum + t.shares, 0).toFixed(2)}주 보유
-        </p>
-      </div>
-
-      {/* 기간 선택 */}
-      <ChartPeriodSelector
-        chartPeriod={chartPeriod}
-        customStartDate={customStartDate}
-        onPeriodChange={setChartPeriod}
-        onCustomDateChange={setCustomStartDate}
-      />
-
+    <ChartCard
+      title="투자 성과 차트"
+      subtitle={`${transactions.length}회 매수 • 총 ${totalShares.toFixed(2)}주 보유`}
+      period={period}
+      className="mt-6"
+    >
       {/* 주가 추이 차트 */}
-      <div className="mb-8">
-        <h4 className="text-sm font-medium text-tx-1 mb-3">주가 추이</h4>
-        <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
-          <LineChart
-            data={chartData}
-            margin={CHART_MARGIN}
-          >
-            <CartesianGrid {...GRID_PROPS} />
-            <XAxis
-              dataKey="date"
-              {...AXIS_PROPS}
-              {...xAxis}
-            />
-            <YAxis
-              {...AXIS_PROPS}
-              tickFormatter={formatUsdTick}
-              domain={priceRange}
-              allowDecimals={false}
-            />
-            <Tooltip
-              {...TOOLTIP_PROPS}
-              formatter={(value: number | string, name: string) => {
-                if (name === "주가")
-                  return [`$${Number(value).toFixed(2)}`, name];
-                return [value, name];
-              }}
-              labelFormatter={formatTooltipDate}
-            />
-            <Legend />
-            <Line
-              type="monotone"
-              dataKey="stockPrice"
-              stroke="#3b82f6"
-              strokeWidth={2}
-              dot={false}
-              name="주가"
-              isAnimationActive={false}
-            />
+      <ChartPanel title="주가 추이" data={chartData} xAxis={xAxis} className="mb-8">
+        <YAxis
+          {...AXIS_PROPS}
+          tickFormatter={formatUsdTick}
+          domain={priceRange}
+          allowDecimals={false}
+        />
+        <Tooltip
+          {...TOOLTIP_PROPS}
+          formatter={(value: number | string, name: string) => {
+            if (name === "주가")
+              return [`$${Number(value).toFixed(2)}`, name];
+            return [value, name];
+          }}
+          labelFormatter={formatTooltipDate}
+        />
+        <Line
+          type="monotone"
+          dataKey="stockPrice"
+          stroke="#3b82f6"
+          strokeWidth={2}
+          dot={false}
+          name="주가"
+          isAnimationActive={false}
+        />
 
-            {/* 일반 매수 시점 마커 */}
-            {purchasePoints.map((point, index) => (
-              <ReferenceDot
-                key={`purchase-${index}`}
-                x={point.date}
-                y={point.stockPrice}
-                {...MARKER_PROPS}
-                fill={MARKER_COLORS.purchase}
-              />
-            ))}
-
-            {/* 배당 재투자 시점 마커 */}
-            {dividendReinvestPoints.map((point, index) => (
-              <ReferenceDot
-                key={`dividend-${index}`}
-                x={point.date}
-                y={point.stockPrice}
-                {...MARKER_PROPS}
-                fill={MARKER_COLORS.dividend}
-              />
-            ))}
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+        {/* 일반 매수 · 배당 재투자 시점 마커 */}
+        {markerDots(purchasePoints, "stockPrice", MARKER_COLORS.purchase, "purchase")}
+        {markerDots(dividendReinvestPoints, "stockPrice", MARKER_COLORS.dividend, "dividend")}
+      </ChartPanel>
 
       {/* 포트폴리오 가치 vs 투자금 차트 */}
-      <div>
-        <h4 className="text-sm font-medium text-tx-1 mb-3">
-          포트폴리오 가치 vs 투자금
-        </h4>
-        <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
-          <LineChart
-            data={chartData}
-            margin={CHART_MARGIN}
-          >
-            <CartesianGrid {...GRID_PROPS} />
-            <XAxis
-              dataKey="date"
-              {...AXIS_PROPS}
-              {...xAxis}
-            />
-            <YAxis
-              {...AXIS_PROPS}
-              tickFormatter={formatKrwTick}
-              domain={valueRange}
-            />
-            <Tooltip
-              {...TOOLTIP_PROPS}
-              formatter={(value: number | string, name: string) => {
-                return [`₩${Math.round(Number(value)).toLocaleString()}`, name];
-              }}
-              labelFormatter={formatTooltipDate}
-            />
-            <Legend />
-            <Line
-              type="stepAfter"
-              dataKey="investedAmount"
-              stroke="#10b981"
-              strokeWidth={2}
-              dot={false}
-              strokeDasharray="5 5"
-              name="누적 투자금"
-              isAnimationActive={false}
-            />
-            <Line
-              type="monotone"
-              dataKey="portfolioValue"
-              stroke="#3b82f6"
-              strokeWidth={2}
-              dot={false}
-              name="포트폴리오 가치"
-              isAnimationActive={false}
-            />
+      <ChartPanel title="포트폴리오 가치 vs 투자금" data={chartData} xAxis={xAxis}>
+        <YAxis
+          {...AXIS_PROPS}
+          tickFormatter={formatKrwTick}
+          domain={valueRange}
+        />
+        <Tooltip
+          {...TOOLTIP_PROPS}
+          formatter={(value: number | string, name: string) => {
+            return [`₩${Math.round(Number(value)).toLocaleString()}`, name];
+          }}
+          labelFormatter={formatTooltipDate}
+        />
+        <Line
+          type="stepAfter"
+          dataKey="investedAmount"
+          stroke="#10b981"
+          strokeWidth={2}
+          dot={false}
+          strokeDasharray="5 5"
+          name="누적 투자금"
+          isAnimationActive={false}
+        />
+        <Line
+          type="monotone"
+          dataKey="portfolioValue"
+          stroke="#3b82f6"
+          strokeWidth={2}
+          dot={false}
+          name="포트폴리오 가치"
+          isAnimationActive={false}
+        />
 
-            {/* 매수 · 배당 재투자 시점 마커 - 포트폴리오 값 기준 */}
-            {purchasePoints.map((point, index) => (
-              <ReferenceDot
-                key={`portfolio-purchase-${index}`}
-                x={point.date}
-                y={point.portfolioValue}
-                {...MARKER_PROPS}
-                fill={MARKER_COLORS.purchase}
-              />
-            ))}
-            {dividendReinvestPoints.map((point, index) => (
-              <ReferenceDot
-                key={`portfolio-dividend-${index}`}
-                x={point.date}
-                y={point.portfolioValue}
-                {...MARKER_PROPS}
-                fill={MARKER_COLORS.dividend}
-              />
-            ))}
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+        {/* 매수 · 배당 재투자 시점 마커 - 포트폴리오 값 기준 */}
+        {markerDots(purchasePoints, "portfolioValue", MARKER_COLORS.purchase, "portfolio-purchase")}
+        {markerDots(dividendReinvestPoints, "portfolioValue", MARKER_COLORS.dividend, "portfolio-dividend")}
+      </ChartPanel>
 
       <div className="mt-4 text-xs text-tx-2">
         <p>• 보라 점: 매수 ({purchasePoints.length}개)</p>
@@ -382,6 +276,6 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
         <p>• 녹색 점선: 누적 투자금 (₩{totalInvested.toLocaleString()})</p>
         <p>• 파란 선: 포트폴리오 가치 (₩{currentValueKrw.toLocaleString()})</p>
       </div>
-    </div>
+    </ChartCard>
   );
 };

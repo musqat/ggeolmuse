@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Modal } from '@/components/common/Modal';
 import { notify } from '@/components/common/notify';
+import { ModalActions } from './ModalActions';
 
 interface CreateAccountModalProps {
   isOpen: boolean;
@@ -8,7 +9,7 @@ interface CreateAccountModalProps {
   onSubmit: (accountName: string, commissionRate: number, slippageRate: number) => Promise<void>;
 }
 
-// 비율 칸에 음수가 들어가지 않게 '-' 입력과 '-' 가 든 붙여넣기를 막는다
+// 비율 칸의 '-' 입력과 '-' 가 든 붙여넣기 막기(음수 방지)
 const blockMinus = {
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === '-') e.preventDefault();
@@ -77,26 +78,16 @@ const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
     }
 
     // 제출
-    await onSubmit(accountName, commissionRatePercent, slippageRatePercent);
-    handleClose();
+    try {
+      await onSubmit(accountName, commissionRatePercent, slippageRatePercent);
+      handleClose();
+    } catch {
+      // 실패하면 창과 입력을 그대로 둠
+    }
   };
 
   const footer = (
-    <div className="flex space-x-3">
-      <button
-        onClick={handleClose}
-        className="flex-1 px-4 py-2 border border-line-strong text-tx-1 rounded-lg hover:bg-surface/50 transition-colors"
-      >
-        취소
-      </button>
-      <button
-        onClick={handleSubmit}
-        disabled={!accountName.trim()}
-        className="flex-1 px-4 py-2 bg-brand text-brand-ink rounded-lg hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-      >
-        생성하기
-      </button>
-    </div>
+    <ModalActions onCancel={handleClose} onSubmit={handleSubmit} submitLabel="생성하기" disabled={!accountName.trim()} />
   );
 
   return (

@@ -13,21 +13,21 @@ export type IndicatorKey =
 
 export type IndicatorState = Record<IndicatorKey, boolean>;
 
-// 아래에 패널을 따로 붙이는 지표와 klinecharts 이름
+// 아래 패널로 따로 그리는 지표와 klinecharts 이름
 export const PANE_INDICATORS = { rsi: 'RSI', macd: 'MACD', kdj: 'KDJ', vol: 'VOL' } as const;
 export type PaneKey = keyof typeof PANE_INDICATORS;
 
-// 패널 지표의 계산 기간. RSI 는 목록 라벨대로 14 하나만 그린다(klinecharts 기본은 6 · 12 · 24)
+// 패널 지표 계산 기간(RSI 는 목록 라벨대로 14 하나, klinecharts 기본은 6 · 12 · 24)
 export const PANE_CALC_PARAMS: Partial<Record<PaneKey, number[]>> = { rsi: [14] };
 
 export interface IndicatorDef {
   key: IndicatorKey;
   label: string;
-  // 차트에 그리는 선 색. 이동평균에만 있다
+  // 차트 선 색(이동평균에만)
   color?: string;
 }
 
-// 이동평균 기간과 선 색. 차트 선 색과 목록의 점 · 글자 색을 이 값 하나로 맞춘다
+// 이동평균 기간과 선 색(차트 선 · 목록 점 · 글자 색을 이 값 하나로)
 export const MA_LINES: { key: IndicatorKey; period: number; color: string }[] = [
   { key: 'ma5', period: 5, color: '#60a5fa' },
   { key: 'ma20', period: 20, color: '#f59e0b' },

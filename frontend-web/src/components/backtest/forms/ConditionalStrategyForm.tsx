@@ -1,12 +1,13 @@
 import React from 'react';
-import StockSearchInput from '../../common/StockSearchInput';
 import { NumberInput } from '../../common/NumberInput';
-import { FxModeToggle } from '../shared/FxModeToggle';
-import { DividendFeeOptions } from '../shared/DividendFeeOptions';
-import { FxDataWarning } from '../shared/FxDataWarning';
 import type { BacktestOptionsState } from '../shared/backtestOptions';
-import { DateField } from '../../common/DateField';
-import { getTodayString } from '../../../utils/dateUtils';
+import {
+  DropPercentField,
+  FormField,
+  PeriodFields,
+  StrategyOptions,
+  SymbolField,
+} from '../shared/StrategyFields';
 
 interface ConditionalStrategyFormProps {
   symbol: string;
@@ -50,44 +51,18 @@ export const ConditionalStrategyForm: React.FC<ConditionalStrategyFormProps> = (
   options,
   supportedSymbols,
 }) => {
-
-  const today = getTodayString();
-
   return (
     <div className="space-y-4">
       {/* 기본 설정 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-        {/* 종목 */}
-        <div>
-          <label className="block text-sm font-medium text-tx-1 mb-2">종목</label>
-          <StockSearchInput
-            value={symbol}
-            onChange={setSymbol}
-            supportedSymbols={supportedSymbols}
-            placeholder="종목 검색"
-          />
-        </div>
+        <SymbolField value={symbol} onChange={setSymbol} supportedSymbols={supportedSymbols} />
 
-        {/* 시작일 */}
-        <div>
-          <label className="block text-sm font-medium text-tx-1 mb-2">시작일</label>
-          <DateField
-            value={conditionalStartDate}
-            onChange={setConditionalStartDate}
-            max={conditionalEndDate || today}
-          />
-        </div>
-
-        {/* 종료일 */}
-        <div>
-          <label className="block text-sm font-medium text-tx-1 mb-2">종료일</label>
-          <DateField
-            value={conditionalEndDate || today}
-            onChange={setConditionalEndDate}
-            min={conditionalStartDate}
-            max={today}
-          />
-        </div>
+        <PeriodFields
+          start={conditionalStartDate}
+          end={conditionalEndDate}
+          onStartChange={setConditionalStartDate}
+          onEndChange={setConditionalEndDate}
+        />
 
         {/* 투자 모드 선택 */}
         <div className="col-span-2">
@@ -123,8 +98,7 @@ export const ConditionalStrategyForm: React.FC<ConditionalStrategyFormProps> = (
         {/* 모드별 입력 필드 */}
         {investmentMode === 'TOTAL_BUDGET' ? (
           <>
-            <div>
-              <label className="block text-sm font-medium text-tx-1 mb-2">총 투자금 (₩)</label>
+            <FormField label="총 투자금 (₩)">
               <NumberInput
                 value={totalInvestment}
                 onChange={setTotalInvestment}
@@ -132,10 +106,9 @@ export const ConditionalStrategyForm: React.FC<ConditionalStrategyFormProps> = (
                 className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
               />
               <p className="text-xs text-tx-3 mt-1">전체 투자 예산</p>
-            </div>
+            </FormField>
 
-            <div>
-              <label className="block text-sm font-medium text-tx-1 mb-2">회당 투자금 (₩)</label>
+            <FormField label="회당 투자금 (₩)">
               <NumberInput
                 value={amountPerPurchase}
                 onChange={setAmountPerPurchase}
@@ -145,12 +118,11 @@ export const ConditionalStrategyForm: React.FC<ConditionalStrategyFormProps> = (
               <p className="text-xs text-tx-3 mt-1">
                 최대 {Math.floor(parseFloat(totalInvestment || '0') / parseFloat(amountPerPurchase || '1'))}회 투자 가능
               </p>
-            </div>
+            </FormField>
           </>
         ) : (
           <>
-            <div>
-              <label className="block text-sm font-medium text-tx-1 mb-2">회당 투자금 (₩)</label>
+            <FormField label="회당 투자금 (₩)">
               <NumberInput
                 value={amountPerPurchase}
                 onChange={setAmountPerPurchase}
@@ -158,10 +130,9 @@ export const ConditionalStrategyForm: React.FC<ConditionalStrategyFormProps> = (
                 className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
               />
               <p className="text-xs text-tx-3 mt-1">조건 만족 시마다 투자할 금액</p>
-            </div>
+            </FormField>
 
-            <div>
-              <label className="block text-sm font-medium text-tx-1 mb-2">최대 매수 횟수</label>
+            <FormField label="최대 매수 횟수">
               <input
                 type="number"
                 value={maxPurchases}
@@ -174,39 +145,18 @@ export const ConditionalStrategyForm: React.FC<ConditionalStrategyFormProps> = (
               <p className="text-xs text-tx-2 mt-1">
                 최대 ₩{(parseFloat(amountPerPurchase || '0') * parseInt(maxPurchases || '0')).toLocaleString()} 투자
               </p>
-            </div>
+            </FormField>
           </>
         )}
 
-        <div>
-          <label className="block text-sm font-medium text-tx-1 mb-2">하락률 (%)</label>
-          <input
-            type="number"
-            value={dropPercentage}
-            onChange={(e) => setDropPercentage(e.target.value)}
-            placeholder="5"
-            step="1"
-            min="0.1"
-            max="100"
-            className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
-          />
-          <p className="text-xs text-tx-2 mt-1">가격이 이만큼 하락 시 매수</p>
-        </div>
+        <DropPercentField value={dropPercentage} onChange={setDropPercentage} />
       </div>
 
-      {/* 환율 데이터 부족 경고 */}
-      <FxDataWarning startDate={conditionalStartDate} />
-
-      {/* 환율 설정 */}
-      <FxModeToggle
+      <StrategyOptions
         options={options}
+        startDate={conditionalStartDate}
         purchaseLabel="시작일 환율"
         currentLabel="현재 환율"
-      />
-
-      {/* 배당 및 수수료 옵션 */}
-      <DividendFeeOptions
-        options={options}
       />
     </div>
   );

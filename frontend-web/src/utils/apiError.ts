@@ -1,6 +1,6 @@
 import { isAxiosError } from 'axios';
 
-// catch 에서 서버 오류 문구를 꺼냄. ProblemDetail 의 detail 이 먼저, 일부 경로는 message
+// catch 에서 서버 오류 문구 꺼내기(ProblemDetail 의 detail 먼저, 일부 경로는 message)
 
 interface ServerErrorBody {
   detail?: string;

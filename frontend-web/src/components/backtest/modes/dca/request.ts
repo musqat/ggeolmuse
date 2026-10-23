@@ -10,7 +10,7 @@ export interface DcaValues extends BacktestOptions {
   investmentInterval: string;
 }
 
-// 적립식 요청. 검사에 걸리면 alert 문구를 돌려준다
+// 적립식 요청(검사에 걸리면 alert 문구)
 export const buildDcaRequest = (
   values: DcaValues,
   symbol: string,

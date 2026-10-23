@@ -17,11 +17,11 @@ type TradingCapacityRequest = {
   tradeDate: string;                                 // 거래일 (YYYY-MM-DD)
   totalAmount?: number;                              // 매수 시: 총 금액
   quantity?: number;                                 // 매도 시: 수량
-  priceType?: 'OPEN' | 'HIGH' | 'LOW' | 'CLOSE' | 'MANUAL';  // 매수 시: 가격 유형. 비우면 CLOSE
+  priceType?: 'OPEN' | 'HIGH' | 'LOW' | 'CLOSE' | 'MANUAL';  // 가격 유형(비우면 CLOSE)
   manualPrice?: number;                              // 매수 시: 지정가 입력 가격
 };
 
-// 매수 · 매도 가능 수량. trade-service TradingCapacityResponseDto 와 같은 칸이다
+// 매수 · 매도 가능 수량
 export type TradingCapacityResponse = {
   symbol: string;
   tradeDate: string;                                 // 거래일 (YYYY-MM-DD)
@@ -34,7 +34,7 @@ export type TradingCapacityResponse = {
   maxSellableShares?: number | null;                 // 매도 때만
 };
 
-// 통합 거래 내역 한 줄. 매수 · 매도 · 배당이 섞여 온다 (trade-service TransactionHistoryController)
+// 통합 거래 내역 한 줄(매수 · 매도 · 배당이 섞여 옴)
 export type TransactionHistoryItem = {
   type: 'BUY' | 'SELL' | 'DIVIDEND';
   tradeId?: number;                                  // 매수 · 매도만
@@ -50,11 +50,11 @@ export type TransactionHistoryItem = {
   shares?: number;                                   // 배당만: 배당 받은 주식 수
   date: string;
   executedAt: string;
-  status?: 'PENDING' | 'COMPLETED' | 'CANCELLED';    // 매수 · 매도만. 정산 전 매수는 PENDING, 잔액 반영 실패면 CANCELLED
+  status?: 'PENDING' | 'COMPLETED' | 'CANCELLED';    // 매수 · 매도만(정산 전 매수는 PENDING, 잔액 반영 실패면 CANCELLED)
   cancelReason?: string | null;
 };
 
-// 매수 · 매도 체결 결과. trade-service TradeResponseDto 와 같은 칸이다
+// 매수 · 매도 체결 결과
 export type TradeResult = {
   id: number;
   accountId: number;

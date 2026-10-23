@@ -7,6 +7,7 @@ import { AxiosError, type AxiosResponse } from 'axios'
 import { stockApi, tradeApi } from '../services/api'
 import { useAuth } from '../hooks/useAuth'
 import { useAccounts } from '@/hooks/useAccounts'
+import { AuthModalProvider } from '@/contexts/AuthModalContext'
 import Trading from './Trading'
 import { notify } from '@/components/common/notify'
 
@@ -42,7 +43,9 @@ function renderPage({ authenticated = true, accounts = [{ accountId: 3, accountN
   render(
     <QueryClientProvider client={client}>
       <MemoryRouter>
-        <Trading />
+        <AuthModalProvider>
+          <Trading />
+        </AuthModalProvider>
       </MemoryRouter>
     </QueryClientProvider>
   )
@@ -76,6 +79,8 @@ describe('Trading 로그인 전', () => {
     await userEvent.click(screen.getByRole('button', { name: /로그인하기/ }))
 
     expect(screen.getByRole('button', { name: /구글로 로그인/ })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '회원가입' }))
+    expect(await screen.findByLabelText('닉네임')).toBeInTheDocument()
   })
 })
 
@@ -94,8 +99,25 @@ describe('Trading 주문', () => {
     // 잔고 · 보유가 바뀌어 거래 · 계좌 쪽 조회를 다시 받음
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['trade'] })
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['account'] })
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['accounts'] })
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['accounts'] }, { cancelRefetch: false })
     expect(screen.getByRole('spinbutton')).toHaveValue(1)
+  })
+
+  it('시세가 없는 종목으로 바꾸면 이전 종목 가격으로 주문 금액을 셈하지 않는다', async () => {
+    const user = userEvent.setup()
+    vi.mocked(stockApi.getOHLCData).mockImplementation(async (symbol: string) => ({ data: symbol === 'AAPL' ? OHLC : [] }) as never)
+    renderPage()
+    await waitForChart()
+    // 종가 108 × 10주
+    expect(screen.getByText('$1080.00')).toBeInTheDocument()
+
+    const search = screen.getByPlaceholderText('종목명 또는 티커 입력')
+    await user.clear(search)
+    await user.type(search, 'MSFT')
+    await user.click(screen.getAllByTestId('symbol-option').find((option) => option.textContent?.startsWith('MSFT'))!)
+
+    await waitFor(() => expect(stockApi.getOHLCData).toHaveBeenCalledWith('MSFT', expect.any(String), expect.any(String)))
+    await waitFor(() => expect(screen.queryByText('$1080.00')).toBeNull())
   })
 
   it('정산 전 매수면 접수 문구를 띄우고 2초 뒤 보유 · 거래 · 계좌 조회를 한 번 더 받는다', async () => {

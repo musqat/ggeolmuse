@@ -27,7 +27,7 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
         returnRateTestId="backtest-return-rate"
       />
 
-      {/* Detailed Results - 4 Sections: Investment, Stock Performance, FX Impact, Optimal Timing */}
+      {/* 상세 결과(투자 정보 · 주식 수익 · 환율 영향 · 최적 시점) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
         <DetailSection title="투자 정보" icon={DollarSign}>
           <DetailRow label="종목" value={result.symbol} />

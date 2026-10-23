@@ -3,6 +3,7 @@ import { backtestApi } from '@services/api';
 import { ConditionalStrategyForm } from '../../forms/ConditionalStrategyForm';
 import { DcaConditionalResult } from '../../results/DcaConditionalResult';
 import type { ModeController, SharedSymbolProps } from '../types';
+import { strategyRun } from '../strategyRun';
 import { buildConditionalRequest } from './request';
 import { useBacktestOptions } from '../../shared/backtestOptions';
 
@@ -62,28 +63,17 @@ export const useConditionalMode = ({
         ctx,
       );
       if ('error' in built) return built;
-      const { request } = built;
-      return {
-        execute: async () => ({
-          ...(await backtestApi.runConditionalStrategy(request)).data,
-          mode: 'conditional' as const,
-        }),
-        historyType: 'STRATEGY_SIMULATION',
-        params: request,
+      return strategyRun({
+        request: built.request,
+        call: backtestApi.runConditionalStrategy,
+        mode: 'conditional',
         fxMode: options.fxMode,
         failureMessage: '조건부 전략 실행에 실패했습니다.',
-      };
+      });
     },
-    // dcaStartDate 는 mode 가 conditional 이면 읽지 않는다
     renderResult: (result) =>
       result.mode === 'conditional' ? (
-        <DcaConditionalResult
-          result={result}
-          mode="conditional"
-          symbol={symbol}
-          dcaStartDate=""
-          conditionalStartDate={startDate}
-        />
+        <DcaConditionalResult result={result} symbol={symbol} startDate={startDate} />
       ) : null,
   };
 };

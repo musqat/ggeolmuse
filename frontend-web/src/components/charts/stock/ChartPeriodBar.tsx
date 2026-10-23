@@ -17,7 +17,7 @@ const buttonClass = (active: boolean) =>
     active ? 'bg-brand text-brand-ink shadow-sm' : 'text-tx-2 hover:text-tx-1 hover:bg-hover'
   }`;
 
-// 기간 버튼 한 줄과 직접설정 날짜 칸. 좁은 화면에서는 버튼 줄을 옆으로 민다
+// 기간 버튼 한 줄과 직접설정 날짜 칸(좁은 화면은 버튼 줄 가로 스크롤)
 export const ChartPeriodBar = ({
   period,
   onPeriodChange,

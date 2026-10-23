@@ -1,14 +1,12 @@
 import React, { useState } from 'react';
-import { RefreshCw, LogIn } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-import LoginModal from '../components/auth/LoginModal';
+import { LoginRequired } from '../components/common/LoginRequired';
+import { PageSpinner } from '../components/common/Spinner';
 
-// Hook imports
 import { useAccountData } from '../hooks/useAccountData';
 import { useAccountOperations } from '../hooks/useAccountOperations';
-import { useModalState } from '../hooks/useModalState';
+import { useAccountModals } from '../hooks/useAccountModals';
 
-// Component imports
 import { AccountPageHeader } from '../components/account/AccountPageHeader';
 import { TotalAssetsSummary } from '../components/account/TotalAssetsSummary';
 import { AccountCard } from '../components/account/AccountCard';
@@ -19,12 +17,10 @@ import DeleteAccountModal from '../components/account/modals/DeleteAccountModal'
 import { formatBalanceAmount } from '../utils/gainLoss';
 
 const Account: React.FC = () => {
-  const { isAuthenticated, login } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   const [hideBalances, setHideBalances] = useState(false);
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
-  // Custom hooks for data and operations
   const {
     accounts,
     accountBalances,
@@ -42,21 +38,8 @@ const Account: React.FC = () => {
     deleteAccount
   } = useAccountOperations(refetch);
 
-  const {
-    showCreateModal,
-    showDepositModal,
-    showExchangeModal,
-    showDeleteModal,
-    selectedAccountId,
-    openCreateModal,
-    openDepositModal,
-    openExchangeModal,
-    openDeleteModal,
-    closeCreateModal,
-    closeDepositModal,
-    closeExchangeModal,
-    closeDeleteModal
-  } = useModalState();
+  const modals = useAccountModals();
+  const selectedAccountId = modals.accountId;
 
   // 잔액 포맷팅
   const formatBalance = (amount: number, currency: 'KRW' | 'USD') => {
@@ -69,48 +52,11 @@ const Account: React.FC = () => {
 
   // 로그인하지 않은 사용자
   if (!isAuthenticated) {
-    return (
-      <>
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="min-h-[60vh] flex items-center justify-center">
-            <div className="text-center">
-              <h1 className="text-3xl font-bold text-tx-1 mb-4">로그인이 필요한 서비스입니다</h1>
-              <p className="text-lg text-tx-2 mb-6">
-                계좌 관리 기능을 이용하시려면 먼저 로그인해주세요
-              </p>
-              <button
-                onClick={() => setIsLoginModalOpen(true)}
-                className="flex items-center space-x-2 bg-brand text-brand-ink px-6 py-3 rounded-lg hover:bg-brand-dark transition-colors mx-auto"
-              >
-                <LogIn className="w-5 h-5" />
-                <span>로그인하기</span>
-              </button>
-            </div>
-          </div>
-        </div>
-        <LoginModal
-          isOpen={isLoginModalOpen}
-          onClose={() => setIsLoginModalOpen(false)}
-          onSwitchToSignup={() => {
-            setIsLoginModalOpen(false);
-            // 회원가입은 Header에서 관리되므로 단순히 모달만 닫음
-          }}
-          onLogin={async (email: string, password: string) => {
-            await login(email, password);
-          }}
-        />
-      </>
-    );
+    return <LoginRequired description="계좌 관리 기능을 이용하시려면 먼저 로그인해주세요" />;
   }
 
   if (loading) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="flex items-center justify-center h-64">
-          <RefreshCw className="w-8 h-8 animate-spin text-brand" />
-        </div>
-      </div>
-    );
+    return <PageSpinner />;
   }
 
   return (
@@ -120,7 +66,7 @@ const Account: React.FC = () => {
         <AccountPageHeader
           hideBalances={hideBalances}
           onToggleBalances={() => setHideBalances(!hideBalances)}
-          onCreateAccount={openCreateModal}
+          onCreateAccount={() => modals.show('create')}
         />
 
         {error && (
@@ -149,9 +95,9 @@ const Account: React.FC = () => {
                 account={account}
                 balance={balance}
                 formatBalance={formatBalance}
-                onDeposit={() => openDepositModal(account.accountId)}
-                onExchange={() => openExchangeModal(account.accountId)}
-                onDelete={() => openDeleteModal(account.accountId)}
+                onDeposit={() => modals.show('deposit', account.accountId)}
+                onExchange={() => modals.show('exchange', account.accountId)}
+                onDelete={() => modals.show('delete', account.accountId)}
               />
             );
           })}
@@ -163,7 +109,7 @@ const Account: React.FC = () => {
             <h3 className="text-lg font-semibold text-tx-1 mb-2">계좌가 없습니다</h3>
             <p className="text-tx-2 mb-6">첫 번째 계좌를 생성하여 투자를 시작해보세요</p>
             <button
-              onClick={openCreateModal}
+              onClick={() => modals.show('create')}
               className="px-6 py-3 bg-brand text-brand-ink rounded-lg hover:bg-brand-dark transition-colors"
             >
               계좌 생성하기
@@ -172,18 +118,17 @@ const Account: React.FC = () => {
         )}
       </div>
 
-      {/* Modals */}
       <CreateAccountModal
-        isOpen={showCreateModal}
-        onClose={closeCreateModal}
+        isOpen={modals.open === 'create'}
+        onClose={modals.close}
         onSubmit={async (accountName: string, commissionRate: number, slippageRate: number) => {
           await createAccount({ accountName, commissionRate, slippageRate });
         }}
       />
 
       <DepositModal
-        isOpen={showDepositModal}
-        onClose={closeDepositModal}
+        isOpen={modals.open === 'deposit'}
+        onClose={modals.close}
         onSubmit={async (amount: number) => {
           if (selectedAccountId) {
             await depositKrw({ accountId: selectedAccountId, amount });
@@ -192,8 +137,8 @@ const Account: React.FC = () => {
       />
 
       <ExchangeModal
-        isOpen={showExchangeModal}
-        onClose={closeExchangeModal}
+        isOpen={modals.open === 'exchange'}
+        onClose={modals.close}
         onSubmit={async (params) => {
           if (selectedAccountId) {
             await exchangeCurrency({
@@ -209,8 +154,8 @@ const Account: React.FC = () => {
       />
 
       <DeleteAccountModal
-        isOpen={showDeleteModal}
-        onClose={closeDeleteModal}
+        isOpen={modals.open === 'delete'}
+        onClose={modals.close}
         onConfirm={async () => {
           if (selectedAccountId) {
             await deleteAccount({ accountId: selectedAccountId });

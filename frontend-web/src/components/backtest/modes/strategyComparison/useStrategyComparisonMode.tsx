@@ -28,7 +28,7 @@ export const useStrategyComparisonMode = ({
   // 전략 파라미터 모달
   const [showStrategyModal, setShowStrategyModal] = useState(false);
   const [modalStrategyType, setModalStrategyType] = useState<ComparisonStrategyType | null>(null);
-  // 폼이 입력값을 문자열로 담고, 실행 직전에 숫자로 바꾼다.
+  // 폼은 문자열로 담고 실행 직전에 숫자로 바꿈
   const [strategyParameters, setStrategyParameters] = useState<Record<string, StrategyParams>>({});
 
   const toggleStrategy = (strategy: ComparisonStrategyType) => {

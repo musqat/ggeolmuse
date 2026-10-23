@@ -4,6 +4,7 @@ import { addAmount } from '@/utils/amount';
 import { Modal } from '@/components/common/Modal';
 import { accountsApi, type AccountBalance } from '@/services/api';
 import { notify } from '@/components/common/notify';
+import { ModalActions } from './ModalActions';
 
 interface ExchangeModalProps {
   isOpen: boolean;
@@ -18,7 +19,7 @@ interface ExchangeModalProps {
   currentExchangeRate: number;
 }
 
-// KRW ↔ USD 환전. 현재 환율과 수동 환율 중 고름
+// KRW ↔ USD 환전 창(현재 환율 · 수동 환율 중 고름)
 const ExchangeModal: React.FC<ExchangeModalProps> = ({
   isOpen,
   onClose,
@@ -31,7 +32,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
   const [useManualRate, setUseManualRate] = useState(false);
   const [manualExchangeRate, setManualExchangeRate] = useState('');
 
-  // 수동 환율로 넣을 수 있는 범위. 서버도 같은 범위로 검사한다
+  // 수동 환율 입력 범위(서버 검사 범위와 같음)
   const { data: rateRange } = useQuery({
     queryKey: ['exchange-rate-range'],
     queryFn: async () => (await accountsApi.getExchangeRateRange()).data,
@@ -76,14 +77,17 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
 
     const toCurrency = exchangeFromCurrency === 'KRW' ? 'USD' : 'KRW';
 
-    await onSubmit({
-      fromCurrency: exchangeFromCurrency,
-      toCurrency: toCurrency,
-      originalAmount: amount,
-      exchangeRate: exchangeRate,
-    });
-
-    handleClose();
+    try {
+      await onSubmit({
+        fromCurrency: exchangeFromCurrency,
+        toCurrency: toCurrency,
+        originalAmount: amount,
+        exchangeRate: exchangeRate,
+      });
+      handleClose();
+    } catch {
+      // 실패하면 창과 입력을 그대로 둠
+    }
   };
 
   // 예상 환전 금액 계산
@@ -107,21 +111,13 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
   const expectedAmount = calculateExpectedAmount();
 
   const footer = (
-    <div className="flex space-x-3">
-      <button
-        onClick={handleClose}
-        className="flex-1 px-4 py-2 border border-line-strong text-tx-1 rounded-lg hover:bg-surface/50 transition-colors"
-      >
-        취소
-      </button>
-      <button
-        onClick={handleSubmit}
-        disabled={!exchangeAmount || parseFloat(exchangeAmount) <= 0}
-        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-      >
-        환전하기
-      </button>
-    </div>
+    <ModalActions
+      onCancel={handleClose}
+      onSubmit={handleSubmit}
+      submitLabel="환전하기"
+      tone="info"
+      disabled={!exchangeAmount || parseFloat(exchangeAmount) <= 0}
+    />
   );
 
   return (
@@ -163,7 +159,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
             className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
           />
 
-          {/* 빠른 금액 버튼. 누를 때마다 더한다 */}
+          {/* 빠른 금액 버튼(누를 때마다 더함) */}
           <div className="grid grid-cols-3 gap-2 mt-2">
             {exchangeFromCurrency === 'KRW' ? (
               <>

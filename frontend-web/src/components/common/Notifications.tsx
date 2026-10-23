@@ -2,6 +2,8 @@ import React from 'react';
 import { X } from 'lucide-react';
 import { Modal } from './Modal';
 import { dismissToast, settleConfirm, useConfirmRequest, useToasts } from './notify';
+import { SOLID_BUTTON } from '@/styles/buttons';
+import { LAYER } from '@/styles/layers';
 
 const kindClass = {
   success: 'border-success',
@@ -9,14 +11,19 @@ const kindClass = {
   info: 'border-info',
 };
 
-// 알림 더미와 확인 창. App 에 한 번 둔다
+// 알림 더미와 확인 창(App 에 하나)
 export const Notifications: React.FC = () => {
   const toasts = useToasts();
   const confirm = useConfirmRequest();
 
   return (
     <>
-      <div className="fixed top-4 right-4 z-[60] flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2" role="status" aria-live="polite">
+      <div
+        className="fixed top-4 right-4 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2"
+        style={{ zIndex: LAYER.toast }}
+        role="status"
+        aria-live="polite"
+      >
         {toasts.map((toast) => (
           <div
             key={toast.id}
@@ -32,6 +39,7 @@ export const Notifications: React.FC = () => {
       {confirm && (
         <Modal
           isOpen
+          layer="confirm"
           onClose={() => settleConfirm(false)}
           title={confirm.title ?? '확인'}
           maxWidth="sm"
@@ -46,7 +54,7 @@ export const Notifications: React.FC = () => {
               <button
                 onClick={() => settleConfirm(true)}
                 className={`flex-1 rounded-lg px-4 py-2 transition-colors ${
-                  confirm.danger ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-brand text-brand-ink hover:bg-brand-dark'
+                  confirm.danger ? SOLID_BUTTON.danger : 'bg-brand text-brand-ink hover:bg-brand-dark'
                 }`}
               >
                 {confirm.confirmText ?? '확인'}

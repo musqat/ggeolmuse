@@ -9,7 +9,7 @@ const PRICE_LABELS: Record<PriceType, string> = {
   limit: '지정가',
 };
 
-// 기준가는 지정가면 입력한 가격, 금액은 기준가 × 수량. 실제 체결엔 슬리피지(지정가 제외)와 수수료가 더 붙음
+// 기준가(지정가면 입력 가격) × 수량 금액(실제 체결은 슬리피지 · 수수료를 더함, 지정가는 슬리피지 없음)
 interface OrderSummaryPanelProps {
   selectedStock: string;
   tradeDate: string;

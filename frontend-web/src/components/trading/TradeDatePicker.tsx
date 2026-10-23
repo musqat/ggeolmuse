@@ -20,13 +20,13 @@ const TradeDatePicker: React.FC<TradeDatePickerProps> = ({
 }) => {
   const latest = chartData.length > 0 ? chartData[chartData.length - 1].time : null;
 
-  // 그날과 같거나 앞선 가장 가까운 거래일로 옮긴다
+  // 그날이나 그 전 가장 가까운 거래일로 옮기기
   const moveToClosest = (target: string) => {
     const closest = onFindClosestPastDate(target);
     if (closest) onTradeDateChange(closest.time);
   };
 
-  // 빠른 선택. 1주전 · 1달전은 마지막 캔들에서 거슬러 간다
+  // 빠른 선택(1주전 · 1달전은 마지막 캔들에서 거슬러 감)
   const quickPicks = [
     { label: '최신', pick: (last: string) => onTradeDateChange(last) },
     { label: '1주전', pick: (last: string) => moveToClosest(subtractDays(last, 7)) },
@@ -38,7 +38,6 @@ const TradeDatePicker: React.FC<TradeDatePickerProps> = ({
     <div className="mb-4">
       <label className="block text-sm font-medium text-tx-1 mb-2">거래일</label>
 
-      {/* Quick Select Buttons */}
       <div className="grid grid-cols-4 gap-2 mb-2">
         {quickPicks.map(({ label, pick }) => (
           <button
@@ -53,7 +52,7 @@ const TradeDatePicker: React.FC<TradeDatePickerProps> = ({
         ))}
       </div>
 
-      {/* 미래 날짜는 고를 수 없다 */}
+      {/* 미래 날짜는 못 고름 */}
       <DateField
         value={tradeDate}
         onChange={onTradeDateChange}
@@ -62,7 +61,7 @@ const TradeDatePicker: React.FC<TradeDatePickerProps> = ({
         testId="trade-date"
       />
 
-      {/* Selected Date OHLC Info */}
+      {/* 고른 날 시가 · 고가 · 저가 · 종가 */}
       {selectedDateOHLC && (
         <div className="mt-2 p-3 bg-brand-bg rounded-lg">
           <div className="text-xs text-brand font-medium mb-1">

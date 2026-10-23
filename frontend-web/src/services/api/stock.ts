@@ -3,8 +3,7 @@ import type { StockPrice } from '../../types/stock';
 import type { OHLCData } from '../../types/ohlc';
 import { apiClient } from './client';
 
-// /market/stocks 가 주는 종목 한 건.
-// /market/symbols 는 자동완성용이라 symbol 만 준다.
+// 종목 한 건(/market/symbols 는 자동완성용이라 symbol 만)
 export interface AssetSummary {
   symbol: string;
   name?: string;
@@ -16,7 +15,7 @@ export interface AssetSummary {
   dividendYieldPercent?: number | null;
 }
 
-// 종목 목록 정렬 기준. 시가총액 큰 순 · 최근 1년 배당수익률 높은 순
+// 종목 목록 정렬 기준(시가총액 큰 순 · 최근 1년 배당수익률 높은 순)
 export type StockSort = 'marketCap' | 'dividendYield';
 
 export const stockApi = {
@@ -34,7 +33,7 @@ export const stockApi = {
       params: { symbols }
     }),
 
-  // 종목 목록 페이지. 현재가 · 시총 · 배당수익률
+  // 종목 목록 페이지(현재가 · 시총 · 배당수익률)
   getAllStocksWithPrices: (page: number = 0, size: number = 50, assetType?: string, sort: StockSort = 'marketCap') =>
     apiClient.get<{ content: AssetSummary[]; totalPages: number; totalElements: number }>(`/market/stocks`, {
       params: { page, size, assetType, sort }

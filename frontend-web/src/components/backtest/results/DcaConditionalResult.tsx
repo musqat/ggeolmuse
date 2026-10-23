@@ -2,7 +2,6 @@ import React from 'react';
 import { TrendingUp, DollarSign } from 'lucide-react';
 import { AccumulationChart } from '@components/charts/backtest/AccumulationChart';
 import type { StrategyResponse } from '../../../services/api';
-import type { BacktestMode } from '../shared/backtestDisplay';
 import { formatBalanceAmount, formatKrw, formatPercent, formatSigned, gainLossClass } from '../../../utils/gainLoss';
 import { SummaryCards } from './SummaryCards';
 import { FxImpactSection } from './FxImpactSection';
@@ -10,18 +9,15 @@ import { DetailRow, DetailSection } from './DetailSection';
 
 interface DcaConditionalResultProps {
   result: StrategyResponse;
-  mode: BacktestMode;
   symbol: string;
-  dcaStartDate: string;
-  conditionalStartDate: string;
+  // 결과에 시작일이 없을 때 차트 시작일
+  startDate: string;
 }
 
 export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
   result,
-  mode,
   symbol,
-  dcaStartDate,
-  conditionalStartDate,
+  startDate,
 }) => {
   // 투자일이 휴장일이라 다른 날 산 번수
   const moved = result.transactions?.filter((tx) => tx.actualDate && tx.actualDate !== tx.date).length ?? 0;
@@ -35,7 +31,7 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
       )}
       <SummaryCards result={result} investedLabel="총 투자금" invested={result.totalInvested} />
 
-      {/* Detailed Results - 3 Columns like Simple */}
+      {/* 상세 결과(투자 정보 · 주식 수익 · 환율 영향) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <DetailSection title="투자 정보" icon={DollarSign}>
           <DetailRow label="종목" value={result.symbol} />
@@ -101,7 +97,7 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
           transactions={result.transactions}
           currentValueKrw={result.currentValueKrw || 0}
           totalInvested={result.totalInvested || 0}
-          startDate={result.startDate || (mode === "dca" ? dcaStartDate : conditionalStartDate)}
+          startDate={result.startDate || startDate}
           endDate={result.endDate ?? undefined}
         />
       )}

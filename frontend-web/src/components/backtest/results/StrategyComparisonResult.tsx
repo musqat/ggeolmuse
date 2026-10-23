@@ -15,7 +15,7 @@ export const StrategyComparisonResult: React.FC<StrategyComparisonResultProps> =
         전략 비교 결과
       </h3>
 
-      {/* Best Performer Highlight */}
+      {/* 수익률 1위 전략 */}
       {result.bestPerformer && (
         <div className="mb-6 p-4 bg-warning-soft/10 border border-warning-soft/40 rounded-lg">
           <div className="flex items-center justify-between">
@@ -97,7 +97,6 @@ export const StrategyComparisonResult: React.FC<StrategyComparisonResultProps> =
       </div>
     </div>
 
-    {/* Strategy Comparison Charts */}
     <CompareStrategiesChart
       strategies={result.items || []}
       strategyNames={STRATEGY_NAMES}

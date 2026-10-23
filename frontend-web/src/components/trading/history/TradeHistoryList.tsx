@@ -24,7 +24,7 @@ const FILTERS: { value: HistoryFilter; label: string }[] = [
   { value: 'DIVIDEND', label: '배당' },
 ];
 
-// 유형별 꼬리표 색과 금액 부호. 나간 돈은 -, 들어온 돈은 +. 바탕은 10% 라 작은 글자도 대비 4.5 를 넘는다
+// 유형별 꼬리표 색과 금액 부호(나간 돈 -, 들어온 돈 +, 바탕 10% 라 작은 글자도 대비 4.5 이상)
 const TYPE_STYLE = {
   BUY: { label: '매수', chip: 'bg-buy/10 text-buy', sign: '-' },
   SELL: { label: '매도', chip: 'bg-loss/10 text-loss', sign: '+' },
@@ -34,7 +34,7 @@ const TYPE_STYLE = {
 const usd = (value: number) =>
   `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-// 소수 주식이 있어 넷째 자리까지, 끝의 0 은 뺀다
+// 소수 주식이라 넷째 자리까지(끝의 0 은 뺌)
 const shares = (value: number) => value.toLocaleString('en-US', { maximumFractionDigits: 4 });
 
 // 2026. 10. 08. (목)
@@ -52,7 +52,7 @@ const orderTime = (executedAt: string | undefined) =>
     ? `주문 ${executedAt.slice(5, 7)}/${executedAt.slice(8, 10)} ${executedAt.slice(11, 16)}`
     : '';
 
-// 상세 줄 조각. 화면에서는 ' · ' 로 잇고 조각 안에서는 줄을 바꾸지 않는다
+// 상세 줄 조각(' · ' 로 잇고 조각 안은 줄바꿈 없음)
 const detailParts = (item: TransactionHistoryItem): string[] =>
   item.type === 'DIVIDEND'
     ? [
@@ -65,7 +65,7 @@ const detailParts = (item: TransactionHistoryItem): string[] =>
         ...(item.fee ? [`수수료 ${usd(item.fee)}`] : []),
       ];
 
-// 요약에서 뺀 거래 수. 예: 취소 1건 · 정산 중 1건 제외
+// 요약에서 뺀 거래 수(예: 취소 1건 · 정산 중 1건 제외)
 const excludedNote = (cancelled: number, pending: number) => {
   const parts = [
     ...(cancelled > 0 ? [`취소 ${cancelled}건`] : []),
@@ -145,7 +145,7 @@ const SummaryCell = ({
   </div>
 );
 
-// 거래내역 페이지와 거래 화면 탭이 같이 쓰는 목록. 거래일(배당은 배당일) 최신순으로 날짜마다 묶는다
+// 거래 내역 목록(거래일 · 배당일 최신순, 날짜마다 묶음)
 export const TradeHistoryList = ({ transactions, accounts, onRefresh }: TradeHistoryListProps) => {
   const accountSelectId = useId();
   const [filter, setFilter] = useState<HistoryFilter>('ALL');
@@ -161,7 +161,7 @@ export const TradeHistoryList = ({ transactions, accounts, onRefresh }: TradeHis
     }
   };
 
-  // 요약은 계좌만 거르고 유형은 거르지 않는다. 유형을 바꿔도 네 칸이 다 보인다
+  // 요약은 계좌만 거름(유형을 바꿔도 요약 칸이 다 보임)
   const inAccount = useMemo(() => applyFilters(transactions, 'ALL', accountId), [transactions, accountId]);
   const summary = useMemo(() => summarize(inAccount), [inAccount]);
   const days = useMemo(() => groupByDay(applyFilters(inAccount, filter, 'ALL')), [inAccount, filter]);

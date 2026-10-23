@@ -31,8 +31,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(true);
       tokenManager.clearLegacyRefreshToken();
 
-      // access 가 유효하거나, 만료됐어도 refresh token 쿠키로 갱신되면 로그인 상태를 이어 간다(새로고침해도 유지).
-      // access 가 아예 없으면 로그인한 적이 없거나 로그아웃한 것이라 갱신을 묻지 않는다
+      // access 가 유효하거나 refresh 쿠키로 갱신되면 로그인 유지(access 가 아예 없으면 갱신을 묻지 않음)
       if (checkAuthStatus() || (tokenManager.getToken() !== null && (await refreshStoredSession()))) {
         try {
           // 토큰이 유효하면 사용자 정보 가져오기
@@ -56,7 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initializeAuth();
   }, []);
 
-  // refresh token 쿠키로 갱신해 본다. 쿠키가 없거나 세션이 끝났으면 false
+  // refresh token 쿠키로 갱신 시도(쿠키가 없거나 세션이 끝났으면 false)
   const refreshStoredSession = async () => {
     try {
       await refreshAccessToken();
@@ -93,7 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // 화면은 바로 로그아웃시키고, 서버에는 쿠키의 Keycloak 세션 종료와 쿠키 지우기를 뒤에서 보낸다
+  // 화면은 바로 로그아웃, 서버 세션 종료 · 쿠키 지우기는 뒤에서
   const logout = () => {
     tokenManager.removeTokens();
     setIsAuthenticated(false);
@@ -139,7 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // 구글 로그인(Keycloak)으로 보낸다. 로그인 · 회원가입 모달이 같이 쓴다
+  // 구글 로그인(Keycloak)으로 보내기
   const loginWithGoogle = async (options?: GoogleLoginOptions) => {
     window.location.href = await buildGoogleLoginUrl(window.location.origin, options);
   };

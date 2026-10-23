@@ -34,7 +34,6 @@ const Backtest: React.FC = () => {
   // 히스토리 페이지 상태만 유지 (React Query가 데이터/로딩 상태 관리)
   const [historyPage, setHistoryPage] = useState(0);
 
-  // React Query: 지원 종목 조회
   const { data: supportedSymbols = ["AAPL", "MSFT", "GOOGL", "TSLA", "NVDA"] } =
     useQuery({
       queryKey: ["stock", "symbols"],
@@ -43,10 +42,10 @@ const Backtest: React.FC = () => {
         const assets = Array.isArray(response.data) ? response.data : [];
         return assets.map((asset) => String(asset.symbol).toUpperCase());
       },
-      staleTime: 10 * 60 * 1000, // 10분 (종목 목록은 자주 안 바뀜)
+      staleTime: 10 * 60 * 1000,
     });
 
-  // React Query: 백테스트 히스토리 조회 (페이지네이션)
+  // 백테스트 이력 한 페이지
   const {
     data: historyResponse,
     isLoading: historyLoading,
@@ -57,7 +56,7 @@ const Backtest: React.FC = () => {
       return response.data;
     },
     enabled: mode === "history" && isAuthenticated && !!user?.email,
-    staleTime: 1 * 60 * 1000, // 1분 (히스토리는 자주 변경될 수 있음)
+    staleTime: 1 * 60 * 1000,
   });
 
   const localHistory = !isAuthenticated ? getLocalBacktestHistory() : [];
@@ -101,13 +100,12 @@ const Backtest: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
-      {/* Header */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-tx-1 mb-2">백테스트</h1>
         <p className="text-tx-2">과거 데이터로 투자 전략을 검증해보세요</p>
       </div>
 
-      {/* Mode Selection Tabs */}
+      {/* 모드 탭 */}
       <BacktestModeTabs
         tabs={[
           ...modes.map(({ id, label }) => ({ id, label })),
@@ -117,7 +115,7 @@ const Backtest: React.FC = () => {
         onChange={handleModeChange}
       />
 
-      {/* History Section */}
+      {/* 이력 탭 */}
       {mode === "history" && (
         <BacktestHistoryPanel
           historyData={historyData}
@@ -147,7 +145,7 @@ const Backtest: React.FC = () => {
 
           {current.form}
 
-          {/* Action Buttons */}
+          {/* 실행 · 초기화 버튼 */}
           <div className="flex space-x-3 mt-6">
             <button
               onClick={runBacktest}
@@ -170,7 +168,6 @@ const Backtest: React.FC = () => {
         </div>
       )}
 
-      {/* Error Display */}
       {error && (
         <div className="bg-danger/10 border border-danger/25 text-danger px-6 py-4 rounded-lg mb-6">
           <p className="font-medium">오류 발생</p>
@@ -178,10 +175,10 @@ const Backtest: React.FC = () => {
         </div>
       )}
 
-      {/* Results Section */}
+      {/* 결과 */}
       {result && modes.find((m) => m.id === result.mode)?.renderResult(result)}
 
-      {/* Empty State */}
+      {/* 결과 없음 */}
       {!result && !error && !isRunning && mode !== "history" && (
         <div
           data-testid="backtest-empty"

@@ -6,7 +6,7 @@ import { DetailRow, DetailSection } from './DetailSection';
 
 interface FxImpactSectionProps {
   result: Pick<StrategyResponse, 'currentFxRate' | 'fxReturn' | 'fxReturnPercent'>;
-  // 첫 줄. 단순은 시작일 환율, 적립식 · 조건부는 평균 환율
+  // 첫 줄 라벨(단순은 시작일 환율, 적립식 · 조건부는 평균 환율)
   startLabel: string;
   startRate: number | null | undefined;
 }

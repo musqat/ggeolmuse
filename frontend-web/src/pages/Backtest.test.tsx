@@ -36,7 +36,7 @@ vi.mock('@components/backtest/results/SimpleResult', () => ({
   SimpleResult: () => <div>결과: simple</div>,
 }))
 vi.mock('@components/backtest/results/DcaConditionalResult', () => ({
-  DcaConditionalResult: ({ mode }: { mode: string }) => <div>결과: {mode}</div>,
+  DcaConditionalResult: ({ result }: { result: { mode: string } }) => <div>결과: {result.mode}</div>,
 }))
 vi.mock('@components/backtest/results/SymbolComparisonResult', () => ({
   SymbolComparisonResult: () => <div>결과: compare-symbols</div>,

@@ -11,9 +11,7 @@ export interface OHLCData {
   close: number;
 }
 
-/**
- * 주문 유형에 따른 체결 가격을 계산합니다
- */
+// 주문 유형에 따른 체결 가격
 export function calculateExecutionPrice(
   priceType: PriceType,
   ohlcData: OHLCData | null,
@@ -31,9 +29,7 @@ export function calculateExecutionPrice(
   }
 }
 
-/**
- * 가격이 유효한 범위 내에 있는지 검증합니다
- */
+// 가격이 저가 ~ 고가 안인지 검사
 export function validatePriceRange(
   price: number,
   ohlcData: OHLCData | null
@@ -59,9 +55,7 @@ export function validatePriceRange(
 
 export type BackendPriceType = 'OPEN' | 'HIGH' | 'LOW' | 'CLOSE' | 'MANUAL';
 
-/**
- * 화면의 가격 유형을 trade-service 가 받는 값으로 바꿉니다. 지정가는 MANUAL 입니다
- */
+// 화면 가격 유형을 서버 값으로(지정가는 MANUAL)
 export function toBackendPriceType(priceType: PriceType): BackendPriceType {
   return priceType === 'limit' ? 'MANUAL' : (priceType.toUpperCase() as BackendPriceType);
 }

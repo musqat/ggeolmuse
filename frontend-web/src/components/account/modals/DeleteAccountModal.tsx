@@ -1,6 +1,7 @@
 import React from "react";
 import { Modal } from "@/components/common/Modal";
 import { Trash2 } from "lucide-react";
+import { ModalActions } from "./ModalActions";
 
 interface DeleteAccountModalProps {
   isOpen: boolean;
@@ -14,25 +15,16 @@ const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
   onConfirm,
 }) => {
   const handleConfirm = async () => {
-    await onConfirm();
-    onClose();
+    try {
+      await onConfirm();
+      onClose();
+    } catch {
+      // 실패하면 창을 그대로 둠
+    }
   };
 
   const footer = (
-    <div className="flex space-x-3">
-      <button
-        onClick={onClose}
-        className="flex-1 px-4 py-2 border border-line-strong text-tx-1 rounded-lg hover:bg-surface/50 transition-colors"
-      >
-        취소
-      </button>
-      <button
-        onClick={handleConfirm}
-        className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-      >
-        삭제하기
-      </button>
-    </div>
+    <ModalActions onCancel={onClose} onSubmit={handleConfirm} submitLabel="삭제하기" tone="danger" />
   );
 
   return (

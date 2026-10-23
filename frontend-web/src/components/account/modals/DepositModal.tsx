@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Modal } from '@/components/common/Modal';
 import { addAmount } from '@/utils/amount';
 import { notify } from '@/components/common/notify';
+import { ModalActions } from './ModalActions';
 
 interface DepositModalProps {
   isOpen: boolean;
@@ -17,7 +18,7 @@ const DepositModal: React.FC<DepositModalProps> = ({
 }) => {
   const [depositAmount, setDepositAmount] = useState('');
 
-  // 빠른 금액 버튼. 누를 때마다 더한다
+  // 빠른 금액 버튼(누를 때마다 더함)
   const quickAmounts = [100000, 1000000, 10000000];
 
   const handleClose = () => {
@@ -32,26 +33,22 @@ const DepositModal: React.FC<DepositModalProps> = ({
       return;
     }
 
-    await onSubmit(amount);
-    handleClose();
+    try {
+      await onSubmit(amount);
+      handleClose();
+    } catch {
+      // 실패하면 창과 입력을 그대로 둠
+    }
   };
 
   const footer = (
-    <div className="flex space-x-3">
-      <button
-        onClick={handleClose}
-        className="flex-1 px-4 py-2 border border-line-strong text-tx-1 rounded-lg hover:bg-surface/50 transition-colors"
-      >
-        취소
-      </button>
-      <button
-        onClick={handleSubmit}
-        disabled={!depositAmount || parseFloat(depositAmount) <= 0}
-        className="flex-1 px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-      >
-        입금하기
-      </button>
-    </div>
+    <ModalActions
+      onCancel={handleClose}
+      onSubmit={handleSubmit}
+      submitLabel="입금하기"
+      tone="confirm"
+      disabled={!depositAmount || parseFloat(depositAmount) <= 0}
+    />
   );
 
   return (

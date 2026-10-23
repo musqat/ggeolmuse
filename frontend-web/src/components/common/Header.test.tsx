@@ -13,9 +13,7 @@ vi.mock('../../services/api', () => ({
   stockApi: { getAllSymbols: vi.fn() },
 }))
 vi.mock('../../hooks/useAuth', () => ({ useAuth: vi.fn() }))
-vi.mock('../auth/LoginModal', () => ({ default: () => null }))
-vi.mock('../auth/SignupModal', () => ({ default: () => null }))
-vi.mock('../auth/SignupSuccessModal', () => ({ default: () => null }))
+vi.mock('../../hooks/useAuthModal', () => ({ useAuthModal: () => ({ openLogin: vi.fn(), openSignup: vi.fn() }) }))
 vi.mock('./SearchModal', () => ({ default: () => null }))
 vi.mock('./ThemeToggle', () => ({ default: () => null }))
 
@@ -36,8 +34,8 @@ beforeEach(() => {
   vi.mocked(portfolioApi.getPortfolioSummary).mockResolvedValue({ data: { totalCurrentValue: 200 } } as never)
 })
 
-describe('Header 총자산', () => {
-  it('계좌 화면과 같은 계좌 데이터를 한 번만 불러 현금과 주식 평가액을 더한 총자산을 보여 준다', async () => {
+describe('Header 현금', () => {
+  it('계좌 화면과 같은 계좌 데이터를 한 번만 불러 헤더에 현금을 보여 준다', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(
       <QueryClientProvider client={client}>
@@ -48,8 +46,8 @@ describe('Header 총자산', () => {
       </QueryClientProvider>
     )
 
-    // 1,000,000 + 100 × 1,350 + 200 × 1,350
-    expect(await screen.findByText('₩1,405,000')).toBeInTheDocument()
+    // 1,000,000 + 100 × 1,350
+    expect(await screen.findByText('현금 ₩1,135,000')).toBeInTheDocument()
     expect(await screen.findByText('계좌 1개')).toBeInTheDocument()
     expect(accountsApi.getAccounts).toHaveBeenCalledTimes(1)
     expect(portfolioApi.getPortfolioSummary).toHaveBeenCalledTimes(1)

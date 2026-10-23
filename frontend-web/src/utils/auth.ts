@@ -4,12 +4,12 @@ export interface JwtPayload {
   exp?: number;
   sub?: string;
   email?: string;
-  auth_time?: number; // 로그인한 시각(초). 토큰을 갱신해도 그대로다
+  auth_time?: number; // 로그인한 시각(초, 토큰을 갱신해도 그대로)
   [claim: string]: unknown;
 }
 
 export const TOKEN_STORAGE_KEY = 'accessToken';
-// 예전 버전이 refresh token 을 두던 키. 지금은 httpOnly 쿠키라 남은 값을 지울 때만 쓴다
+// 남은 refresh token 값을 지울 때만 쓰는 옛 키
 export const REFRESH_TOKEN_STORAGE_KEY = 'refreshToken';
 
 // 토큰 저장/조회/삭제
@@ -26,7 +26,7 @@ export const tokenManager = {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
   },
 
-  // access token 과 예전 버전이 남긴 refresh token 을 지운다
+  // access token 과 남은 옛 refresh token 지우기
   removeTokens: (): void => {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
     localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
@@ -38,7 +38,7 @@ export const tokenManager = {
   },
 
   // JWT 토큰에서 payload 디코딩 (간단한 구현)
-  // JWT payload 는 발급자가 정한다. 공통으로 쓰는 것만 적고 나머지는 열어 둔다.
+  // JWT payload(공통 칸만 적고 나머지는 열어 둠)
   decodeToken: (token: string): JwtPayload | null => {
     try {
       const payload = token.split('.')[1];
@@ -47,7 +47,7 @@ export const tokenManager = {
       const decoded = atob(payload);
       return JSON.parse(decoded);
     } catch {
-      // 토큰 형식이 아니면 payload 를 못 읽는다
+      // 토큰 형식이 아니면 payload 를 못 읽음
       return null;
     }
   },

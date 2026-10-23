@@ -3,22 +3,17 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { TrendingUp, Search, Menu, LogOut, User } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { useAuthModal } from '../../hooks/useAuthModal';
 import { useAccountData } from '../../hooks/useAccountData';
 import { stockApi } from '../../services/api';
-import LoginModal from '../auth/LoginModal';
-import SignupModal from '../auth/SignupModal';
-import SignupSuccessModal from '../auth/SignupSuccessModal';
 import SearchModal from './SearchModal';
 import ThemeToggle from './ThemeToggle';
 
 const Header: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isAuthenticated, user, login, logout, signup } = useAuth();
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
-  const [isSignupSuccessModalOpen, setIsSignupSuccessModalOpen] = useState(false);
-  const [signupSuccessEmail, setSignupSuccessEmail] = useState('');
+  const { isAuthenticated, user, logout } = useAuth();
+  const { openLogin, openSignup } = useAuthModal();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
 
@@ -33,7 +28,7 @@ const Header: React.FC = () => {
 
   const isActive = (path: string) => location.pathname === path;
 
-  // Charts, Backtest, Trading 과 같은 키를 써서 캐시를 나눈다
+  // 차트 · 백테스트 · 거래 화면과 같은 키(캐시 공유)
   const { data: supportedSymbols = [] } = useQuery({
     queryKey: ['stock', 'symbols'],
     queryFn: async () => {
@@ -41,10 +36,10 @@ const Header: React.FC = () => {
       return (Array.isArray(response.data) ? response.data : [])
         .map((a) => String(a.symbol).toUpperCase());
     },
-    staleTime: 10 * 60 * 1000, // 10분
+    staleTime: 10 * 60 * 1000,
   });
 
-  const { totalAssets, loading: isLoadingAssets } = useAccountData(isAuthenticated);
+  const { cashKrw, loading: isLoadingAssets } = useAccountData(isAuthenticated);
 
   return (
     <header className="bg-canvas/90 backdrop-blur-md border-b border-line/60 sticky top-0 z-50">
@@ -93,13 +88,13 @@ const Header: React.FC = () => {
             {!isAuthenticated ? (
               <div className="hidden sm:flex items-center gap-1">
                 <button
-                  onClick={() => setIsLoginModalOpen(true)}
+                  onClick={openLogin}
                   className="px-3 py-[5px] text-[13px] font-medium text-tx-2 hover:text-tx-1 hover:bg-elevated rounded-[6px] transition-all"
                 >
                   로그인
                 </button>
                 <button
-                  onClick={() => setIsSignupModalOpen(true)}
+                  onClick={openSignup}
                   className="px-3 py-[6px] text-[13px] font-semibold bg-brand text-brand-ink rounded-[7px] hover:bg-brand-dark transition-all"
                 >
                   시작하기
@@ -110,7 +105,7 @@ const Header: React.FC = () => {
                 <div className="hidden md:block text-right">
                   <p className="text-[13px] font-semibold text-tx-1 leading-tight">{user?.nickname || '사용자'}</p>
                   <p className="text-[11px] text-tx-3 leading-tight">
-                    {isLoadingAssets ? '...' : `₩${Math.floor(totalAssets).toLocaleString()}`}
+                    {isLoadingAssets ? '...' : `현금 ₩${Math.floor(cashKrw).toLocaleString()}`}
                   </p>
                 </div>
                 <button
@@ -132,6 +127,7 @@ const Header: React.FC = () => {
 
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              aria-label="메뉴"
               className="md:hidden p-2 text-tx-3 hover:text-tx-1 hover:bg-elevated rounded-[7px] transition-all"
             >
               <Menu className="w-4 h-4" />
@@ -160,13 +156,13 @@ const Header: React.FC = () => {
             {!isAuthenticated && (
               <div className="pt-3 mt-3 border-t border-line flex gap-2">
                 <button
-                  onClick={() => { setIsLoginModalOpen(true); setIsMobileMenuOpen(false); }}
+                  onClick={() => { openLogin(); setIsMobileMenuOpen(false); }}
                   className="flex-1 py-2 text-[13px] font-medium text-tx-2 border border-line-strong rounded-[7px]"
                 >
                   로그인
                 </button>
                 <button
-                  onClick={() => { setIsSignupModalOpen(true); setIsMobileMenuOpen(false); }}
+                  onClick={() => { openSignup(); setIsMobileMenuOpen(false); }}
                   className="flex-1 py-2 text-[13px] font-semibold bg-brand text-brand-ink rounded-[7px]"
                 >
                   시작하기
@@ -178,7 +174,7 @@ const Header: React.FC = () => {
                 <div className="px-3 py-2">
                   <p className="text-[13px] font-semibold text-tx-1">{user?.nickname || '사용자'}</p>
                   <p className="text-[11px] text-tx-3">
-                    {isLoadingAssets ? '...' : `₩${Math.floor(totalAssets).toLocaleString()}`}
+                    {isLoadingAssets ? '...' : `현금 ₩${Math.floor(cashKrw).toLocaleString()}`}
                   </p>
                 </div>
                 <button onClick={() => { navigate('/mypage'); setIsMobileMenuOpen(false); }}
@@ -191,24 +187,6 @@ const Header: React.FC = () => {
         </div>
       )}
 
-      <LoginModal
-        isOpen={isLoginModalOpen}
-        onClose={() => setIsLoginModalOpen(false)}
-        onSwitchToSignup={() => { setIsLoginModalOpen(false); setIsSignupModalOpen(true); }}
-        onLogin={async (email, password) => { await login(email, password); }}
-      />
-      <SignupModal
-        isOpen={isSignupModalOpen}
-        onClose={() => setIsSignupModalOpen(false)}
-        onSwitchToLogin={() => { setIsSignupModalOpen(false); setIsLoginModalOpen(true); }}
-        onSignup={async (email, password, nickname) => { await signup(email, password, nickname); }}
-        onSignupSuccess={(email) => { setSignupSuccessEmail(email); setIsSignupSuccessModalOpen(true); }}
-      />
-      <SignupSuccessModal
-        isOpen={isSignupSuccessModalOpen}
-        onClose={() => { setIsSignupSuccessModalOpen(false); setSignupSuccessEmail(''); }}
-        email={signupSuccessEmail}
-      />
       <SearchModal
         isOpen={isSearchModalOpen}
         onClose={() => setIsSearchModalOpen(false)}

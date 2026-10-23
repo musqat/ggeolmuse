@@ -11,7 +11,7 @@ interface ChartPeriodSelectorProps {
   onCustomDateChange: (date: string) => void;
 }
 
-// 백테스트 결과 차트의 기간 버튼. 직접설정이면 옆에 시작일 칸을 보인다
+// 백테스트 결과 차트 기간 버튼(직접설정이면 옆에 시작일 칸)
 export const ChartPeriodSelector: React.FC<ChartPeriodSelectorProps> = ({
   chartPeriod,
   customStartDate,

@@ -3,7 +3,7 @@ export interface ChatTurn {
   text: string;
 }
 
-// 지금 대화. 서버 대화 ID 와 종목, 화면에 보인 말풍선, 마지막 응답 시각(ms)
+// 지금 대화(서버 대화 ID · 종목 · 말풍선 · 마지막 응답 시각 ms)
 export interface ChatSession {
   conversationId: string;
   symbol: string;
@@ -26,7 +26,7 @@ export function loadChatSession(): ChatSession | null {
     if (typeof saved.conversationId !== 'string' || typeof saved.symbol !== 'string' || !Array.isArray(saved.turns)) {
       return null;
     }
-    // 서버에서 끝난 대화는 읽지 않고 지운다
+    // 서버에서 끝난 대화는 읽지 않고 지움
     if (typeof saved.updatedAt !== 'number' || Date.now() - saved.updatedAt > SESSION_TTL_MS) {
       localStorage.removeItem(KEY);
       return null;

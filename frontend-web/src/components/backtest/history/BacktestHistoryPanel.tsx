@@ -63,12 +63,12 @@ export const BacktestHistoryPanel: React.FC<BacktestHistoryPanelProps> = ({
               </thead>
               <tbody className="bg-surface divide-y divide-line">
                 {historyData.map((history) => {
-                  // 저장된 요청 파라미터를 JSON.parse 한 것이라 값 모양이 섞여 있다.
+                  // 저장된 요청 파라미터(JSON.parse 결과라 값 모양이 섞임)
                   let params: Record<string, string | number | boolean | string[]> = {};
                   try {
                     params = JSON.parse(history.requestParams);
                   } catch (e) {
-                    // 파라미터가 깨져도 나머지 내역은 보여준다. params 는 {} 로 둔다.
+                    // 파라미터가 깨지면 {} 로 두고 나머지 내역은 보임
                     console.warn('백테스트 내역의 파라미터를 읽지 못했습니다', history.backtestId, e);
                   }
 
@@ -138,7 +138,6 @@ export const BacktestHistoryPanel: React.FC<BacktestHistoryPanelProps> = ({
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-tx-2">
-                        {/* Symbol(s) display */}
                         {params.symbol && (
                           <span className="font-medium">
                             {params.symbol}
@@ -150,7 +149,6 @@ export const BacktestHistoryPanel: React.FC<BacktestHistoryPanelProps> = ({
                           </span>
                         )}
 
-                        {/* Date range display */}
                         {(params.startDate || params.purchaseDate) && (
                           <span className="ml-2 text-tx-2">
                             ({params.startDate || params.purchaseDate}

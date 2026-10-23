@@ -33,7 +33,7 @@ export function getLocalBacktestHistory(): LocalBacktestEntry[] {
     if (!raw) return [];
     return JSON.parse(raw) as LocalBacktestEntry[];
   } catch {
-    // 저장된 값이 깨졌으면 빈 목록으로 시작한다
+    // 저장된 값이 깨졌으면 빈 목록부터
     return [];
   }
 }

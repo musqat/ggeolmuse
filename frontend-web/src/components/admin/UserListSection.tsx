@@ -28,6 +28,7 @@ export default function UserListSection({
         <h2 className="text-xl font-semibold">사용자 목록</h2>
         <button
           onClick={onRefresh}
+          aria-label="새로고침"
           disabled={loading}
           className="p-2 text-brand hover:bg-brand-bg rounded-lg transition"
         >
@@ -91,7 +92,7 @@ export default function UserListSection({
         ))}
       </div>
 
-      {/* Pagination */}
+      {/* 페이지 이동 */}
       <div className="flex items-center justify-between mt-4 pt-4 border-t">
         <button
           onClick={() => onPageChange(page - 1)}

@@ -41,8 +41,8 @@ const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({ data }) => {
     );
   }
 
-  // 부모가 금액 순으로 세워 색을 준다. 받은 순서대로 그려야 이웃한 조각의 색이 갈린다.
-  // 앞 다섯 개만 따로 그리고 나머지는 ETC 로 묶는다
+  // 금액순으로 받은 순서 그대로 그림(이웃 조각 색이 갈리게)
+  // 앞 다섯 개만 따로, 나머지는 ETC 로 묶음
   const top5 = data.slice(0, 5);
   const others = data.slice(5);
 
@@ -60,7 +60,7 @@ const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({ data }) => {
   // SVG 원형 차트 생성
   const size = 280;
   const center = size / 2;
-  // 툴팁 크기(네 줄까지 들어가는 높이). SVG 가 overflow hidden 이라 밖으로 나가면 잘리므로 안쪽에 둔다
+  // 툴팁 크기(네 줄 높이, SVG 가 overflow hidden 이라 안쪽에 둠)
   const tooltipWidth = 200;
   const tooltipHeight = 120;
   const radius = size / 2 - 20;
@@ -113,7 +113,7 @@ const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({ data }) => {
     };
   });
 
-  // 커서 오른쪽에 두고, 넘치면 왼쪽으로 돌린 뒤 SVG 안으로 자른다
+  // 커서 오른쪽, 넘치면 왼쪽으로 돌린 뒤 SVG 안으로 자름
   const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max);
   const tooltipX = clamp(
     mousePosition.x + 10 + tooltipWidth <= size ? mousePosition.x + 10 : mousePosition.x - 10 - tooltipWidth,

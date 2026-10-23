@@ -13,7 +13,6 @@ export default function AdminLayout() {
 
   return (
     <div className="min-h-screen bg-elevated">
-      {/* Admin Header */}
       <header className="bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
@@ -21,7 +20,7 @@ export default function AdminLayout() {
 
             <div className="flex items-center gap-6">
               <span className="text-sm">
-                <span className="opacity-75">관리자:</span>{''}
+                <span className="opacity-75">관리자:</span>{' '}
                 <span className="font-semibold">{user?.nickname}</span>
               </span>
               <button
@@ -43,7 +42,6 @@ export default function AdminLayout() {
         </div>
       </header>
 
-      {/* Admin Navigation */}
       <nav className="bg-surface border-b border-line shadow-sm">
         <div className="container mx-auto px-4">
           <div className="flex gap-1">
@@ -65,12 +63,10 @@ export default function AdminLayout() {
         </div>
       </nav>
 
-      {/* Admin Content */}
       <main className="container mx-auto px-4 py-8">
         <Outlet />
       </main>
 
-      {/* Admin Footer */}
       <footer className="bg-surface border-t border-line mt-auto">
         <div className="container mx-auto px-4 py-4 text-center text-sm text-tx-2">
           <p>© 2025 GGeolmuse Admin Panel. All rights reserved.</p>

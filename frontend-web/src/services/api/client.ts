@@ -34,7 +34,7 @@ apiClient.interceptors.request.use(
 
 // 토큰 갱신 중인지 추적
 let isRefreshing = false;
-// 토큰 갱신을 기다리는 요청들. 갱신이 끝나면 resolve, 실패하면 reject 한다.
+// 토큰 갱신을 기다리는 요청(끝나면 resolve, 실패하면 reject)
 interface PendingRequest {
   resolve: (token: string | null) => void;
   reject: (reason: unknown) => void;
@@ -52,22 +52,21 @@ const processQueue = (error: unknown, token: string | null = null) => {
   failedQueue = [];
 };
 
-// 로그인 · 토큰 갱신 · 구글 교환 응답 (user-service AccessTokenResponseDto). refresh token 은 httpOnly 쿠키로 온다
+// 로그인 · 토큰 갱신 · 구글 교환 응답(refresh token 은 httpOnly 쿠키)
 export type AccessTokenResponse = {
   accessToken: string;
   expiresIn: number;                    // access token 만료까지 남은 초
 };
 
-// refresh token 쿠키를 주고받는 인증 요청. 운영은 같은 출처지만 로컬 compose 는 게이트웨이가 다른 포트라 명시한다
+// refresh token 쿠키를 주고받는 인증 요청(로컬 compose 는 게이트웨이 포트가 달라 명시)
 export const withRefreshCookie = { withCredentials: true };
 
 // 토큰 갱신: refresh token 쿠키로 새 access token 을 받는다(쿠키도 새것으로 바뀐다)
 export const requestNewAccessToken = () =>
   apiClient.post<AccessTokenResponse>('/auth/refresh', null, withRefreshCookie);
 
-// refresh token 쿠키로 새 access token 을 받아 저장하고 돌려준다. 401 인터셉터와 첫 화면 확인(AuthContext)이 같이 쓴다.
-// refresh token 은 갱신마다 바뀌고 옛것은 거절된다(회전). 탭 여러 개가 같이 갱신하면 늦은 탭이 이미 쓴 토큰을 보내게 되니
-// 브라우저 잠금으로 한 번에 한 탭만 갱신하고, 기다린 탭은 그사이 다른 탭이 저장한 access token 을 그대로 쓴다
+// refresh token 쿠키로 새 access token 받아 저장
+// 한 번에 한 탭만 갱신(refresh token 이 회전해 늦은 탭은 다른 탭이 저장한 access token 을 씀)
 export const refreshAccessToken = async (): Promise<string> => {
   const staleToken = localStorage.getItem('accessToken');
   const refresh = async () => {
@@ -90,8 +89,7 @@ const sendWithoutToken = (client: AxiosInstance, request: InternalAxiosRequestCo
   return client(request);
 };
 
-// 401 이면 refresh token 으로 갱신하고 원래 요청을 그 클라이언트로 다시 보낸다.
-// 클라이언트 셋(apiClient · 관리자 · AI 채팅)이 같이 쓰고, 갱신 중 여부와 대기열은 모듈에 하나라 갱신은 한 번만 한다
+// 401 이면 refresh token 으로 갱신하고 원래 요청을 다시 보냄(갱신 중 여부 · 대기열이 모듈에 하나라 갱신은 한 번만)
 export const attachTokenRefresh = (client: AxiosInstance) => {
   client.interceptors.response.use(
     (response) => response,
