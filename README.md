@@ -148,7 +148,7 @@ ggeolmuse/
 
 ## 테스트
 
-백엔드 **1,467 개**, 프론트 **481 개**, E2E **41 개**.
+백엔드 **1,603 개**, 프론트 **610 개**, E2E **41 개**.
 
 | 서비스 | 테스트 |
 |---|---|
@@ -158,7 +158,8 @@ ggeolmuse/
 | trade-service | 253 |
 | ggeolmuse-common | 32 |
 | messaging | 19 |
-| frontend-web | 481 |
+| chat-service | 136 |
+| frontend-web | 610 |
 | E2E (Playwright) | 41 |
 
 E2E 는 `docker compose` 로 스택 전체를 띄우고 PR 과 `master` push 마다 돈다.
@@ -170,9 +171,8 @@ E2E 는 `docker compose` 로 스택 전체를 띄우고 PR 과 `master` push 마
 
 <br>
 
-단위 · 통합 테스트 수치다(user 는 통합 테스트가 없다). `Q*`, `*Config`, DTO, entity 와 롬복이 만든
-코드(게터 · 빌더 · equals)는 뺀다. 롬복 코드는 `backend/lombok.config` 가 붙이는 표시로 JaCoCo 가 건너뛴다.
-네 서비스 모두 CI 에서 바닥 아래로 내려가면 빌드를 막는다. 바닥은 네 서비스 모두 라인 90 · 분기 80 이다(%).
+자바 서비스는 `Q*` · `*Config` · DTO · entity · 롬복이 만든 코드를 뺀 값이다. 최소 커버리지는 라인 90 · 분기 80 이고 JaCoCo 검사가
+CI 에서 그 아래면 빌드를 실패시킨다. chat · frontend-web 은 이 검사가 없다.
 
 | 서비스 | 라인 | 분기 |
 |---|---|---|
@@ -180,13 +180,10 @@ E2E 는 `docker compose` 로 스택 전체를 띄우고 PR 과 `master` push 마
 | trade | 99.4% | 92.2% |
 | backtest | 98.3% | 88.3% |
 | market-data | 97.7% | 87.3% |
+| chat | 98.9% | 90.9% |
+| frontend-web | 86.7% | 78.2% |
 
-market-data 의 외부 호출(야후 · NASDAQ · 수출입은행 · AlphaVantage)은 실제 네트워크 없이 RestTemplate 응답을 흉내 내
-테스트한다.
-
-프론트 테스트는 화면 개수가 아니라 **실제로 틀렸던 곳**을 기준으로 골랐다.
-`toISOString()` 이 UTC 라 날짜가 밀리던 것 같은 결함들이고
-전부 [문제 해결](docs/problem-solving.md) 에 기록돼 있다.
+market-data 의 외부 API 호출은 응답을 흉내 낸 테스트라 실제 API 가 바뀌는 것은 못 잡는다.
 
 </details>
 
@@ -201,7 +198,7 @@ market-data 의 외부 호출(야후 · NASDAQ · 수출입은행 · AlphaVantag
 
 | 부하 | 처리량 | p95 | p99 |
 |---|---|---|---|
-| 다섯 경로 섞어서(데운 뒤) | 64.8 rps | 1.64초 | 2.05초 |
+| 다섯 경로 섞어서(웜업 뒤) | 64.8 rps | 1.64초 | 2.06초 |
 | 시세 하나만 | 약 200 rps(IP 당 한도) | 274ms | 321ms |
 | 일자별 OHLC 하나만 | 약 194 rps(IP 당 한도) | 282ms | 330ms |
 | 전체 종목 목록 하나만 | 24.4 rps | 1.99초 | 2.18초 |
