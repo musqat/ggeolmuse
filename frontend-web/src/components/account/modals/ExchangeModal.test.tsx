@@ -63,3 +63,23 @@ describe('ExchangeModal 수동 환율 범위', () => {
     expect(onSubmit).toHaveBeenCalledWith({ fromCurrency: 'KRW', toCurrency: 'USD', originalAmount: 100000, exchangeRate: 1350.5 })
   })
 })
+
+describe('ExchangeModal 실패', () => {
+  it('환전이 실패하면 창과 금액을 그대로 둔다', async () => {
+    const onClose = vi.fn()
+    const onSubmit = vi.fn().mockRejectedValue(new Error('down'))
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <ExchangeModal isOpen onClose={onClose} onSubmit={onSubmit} accountBalance={BALANCE as never} currentExchangeRate={1339.2} />
+      </QueryClientProvider>
+    )
+
+    await userEvent.type(screen.getByPlaceholderText('환전할 KRW 금액'), '100000')
+    await userEvent.click(screen.getByRole('button', { name: '환전하기' }))
+
+    expect(onSubmit).toHaveBeenCalledWith({ fromCurrency: 'KRW', toCurrency: 'USD', originalAmount: 100000, exchangeRate: 1339.2 })
+    expect(screen.getByRole('heading', { name: '환전' })).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('환전할 KRW 금액')).toHaveValue(100000)
+    expect(onClose).not.toHaveBeenCalled()
+  })
+})

@@ -14,8 +14,12 @@ const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
   onConfirm,
 }) => {
   const handleConfirm = async () => {
-    await onConfirm();
-    onClose();
+    try {
+      await onConfirm();
+      onClose();
+    } catch {
+      // 실패하면 창을 그대로 둠
+    }
   };
 
   const footer = (

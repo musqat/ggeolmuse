@@ -32,8 +32,12 @@ const DepositModal: React.FC<DepositModalProps> = ({
       return;
     }
 
-    await onSubmit(amount);
-    handleClose();
+    try {
+      await onSubmit(amount);
+      handleClose();
+    } catch {
+      // 실패하면 창과 입력을 그대로 둠
+    }
   };
 
   const footer = (

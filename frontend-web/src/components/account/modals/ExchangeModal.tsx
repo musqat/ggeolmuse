@@ -76,14 +76,17 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
 
     const toCurrency = exchangeFromCurrency === 'KRW' ? 'USD' : 'KRW';
 
-    await onSubmit({
-      fromCurrency: exchangeFromCurrency,
-      toCurrency: toCurrency,
-      originalAmount: amount,
-      exchangeRate: exchangeRate,
-    });
-
-    handleClose();
+    try {
+      await onSubmit({
+        fromCurrency: exchangeFromCurrency,
+        toCurrency: toCurrency,
+        originalAmount: amount,
+        exchangeRate: exchangeRate,
+      });
+      handleClose();
+    } catch {
+      // 실패하면 창과 입력을 그대로 둠
+    }
   };
 
   // 예상 환전 금액 계산

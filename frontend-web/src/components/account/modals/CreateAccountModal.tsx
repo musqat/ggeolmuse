@@ -77,8 +77,12 @@ const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
     }
 
     // 제출
-    await onSubmit(accountName, commissionRatePercent, slippageRatePercent);
-    handleClose();
+    try {
+      await onSubmit(accountName, commissionRatePercent, slippageRatePercent);
+      handleClose();
+    } catch {
+      // 실패하면 창과 입력을 그대로 둠
+    }
   };
 
   const footer = (
