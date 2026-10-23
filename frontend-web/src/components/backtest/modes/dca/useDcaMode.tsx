@@ -3,6 +3,7 @@ import { backtestApi } from '@services/api';
 import { DCAStrategyForm } from '../../forms/DCAStrategyForm';
 import { DcaConditionalResult } from '../../results/DcaConditionalResult';
 import type { ModeController, SharedSymbolProps } from '../types';
+import { strategyRun } from '../strategyRun';
 import { buildDcaRequest } from './request';
 import { useBacktestOptions } from '../../shared/backtestOptions';
 
@@ -54,28 +55,17 @@ export const useDcaMode = ({
         ctx,
       );
       if ('error' in built) return built;
-      const { request } = built;
-      return {
-        execute: async () => ({
-          ...(await backtestApi.runDcaStrategy(request)).data,
-          mode: 'dca' as const,
-        }),
-        historyType: 'STRATEGY_SIMULATION',
-        params: request,
+      return strategyRun({
+        request: built.request,
+        call: backtestApi.runDcaStrategy,
+        mode: 'dca',
         fxMode: options.fxMode,
         failureMessage: 'DCA 전략 실행에 실패했습니다.',
-      };
+      });
     },
-    // conditionalStartDate 는 mode 가 dca 면 읽지 않는다
     renderResult: (result) =>
       result.mode === 'dca' ? (
-        <DcaConditionalResult
-          result={result}
-          mode="dca"
-          symbol={symbol}
-          dcaStartDate={startDate}
-          conditionalStartDate=""
-        />
+        <DcaConditionalResult result={result} symbol={symbol} startDate={startDate} />
       ) : null,
   };
 };
