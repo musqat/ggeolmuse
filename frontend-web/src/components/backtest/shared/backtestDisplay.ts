@@ -15,6 +15,10 @@ export const formatSavedDate = (iso: string) => {
   return d.getFullYear() === new Date().getFullYear() ? monthDay : `${d.getFullYear()}.${monthDay}`;
 };
 
+// 평가 가치 중 주식이 아닌 몫(남은 현금 · 현금 배당), 값이 비면 0
+export const cashKrw = (values: { totalAssetKrw?: number | null; currentValueKrw?: number | null }) =>
+  values.totalAssetKrw != null && values.currentValueKrw != null ? values.totalAssetKrw - values.currentValueKrw : 0;
+
 export { STRATEGY_NAMES } from "../comparison/catalog";
 
 // 실행한 모드를 붙여 들고 있는 결과. mode 로 어떤 응답인지 가른다

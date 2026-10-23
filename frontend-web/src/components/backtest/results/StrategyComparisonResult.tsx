@@ -77,7 +77,7 @@ export const StrategyComparisonResult: React.FC<StrategyComparisonResultProps> =
                     ₩{item.totalInvested?.toLocaleString()}
                   </td>
                   <td className="py-3 px-4 text-right text-tx-1 font-medium">
-                    ₩{item.currentValueKrw?.toLocaleString()}
+                    ₩{(item.additionalData?.totalAssetKrw ?? item.currentValueKrw)?.toLocaleString()}
                   </td>
                   <td
                     className={`py-3 px-4 text-right font-medium ${gainLossClass(item.totalReturnKrw)}`}

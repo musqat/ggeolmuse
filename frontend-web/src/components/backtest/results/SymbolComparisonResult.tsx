@@ -1,17 +1,20 @@
 import React from 'react';
 import { TrendingUp, DollarSign, Zap, Activity } from 'lucide-react';
 import {
+  formatFxRate,
   formatKrw,
   formatPercent,
   formatSigned,
   gainLossClass,
   gainLossTone,
+  hasValue,
   type GainLossTone,
 } from '../../../utils/gainLoss';
 import type { ComparisonItem, ComparisonResponse } from '../../../services/api';
-import type { OptimalPointsBySymbol } from '@components/charts/backtest/optimalTiming';
 import { CompareSymbolsChartMemoized } from './CompareSymbolsChartMemoized';
 import { daysBetween, getTodayString } from '../../../utils/dateUtils';
+import { cashKrw } from '../shared/backtestDisplay';
+import { HolidayNotice } from './HolidayNotice';
 
 // 종목 카드의 수익 칸 배경. 값이 없으면 중립 배경
 const SOFT_BOX: Record<GainLossTone, string> = {
@@ -24,19 +27,21 @@ interface SymbolComparisonResultProps {
   result: ComparisonResponse;
   comparePurchaseDate: string;
   compareSaleDate: string;
-  symbolOptimalPoints: OptimalPointsBySymbol;
-  setSymbolOptimalPoints: React.Dispatch<React.SetStateAction<OptimalPointsBySymbol>>;
 }
 
 export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
   result,
   comparePurchaseDate,
   compareSaleDate,
-  symbolOptimalPoints,
-  setSymbolOptimalPoints,
 }) => {
   return (
     <div className="space-y-6">
+      <HolidayNotice
+        label="시작일"
+        chosen={comparePurchaseDate}
+        traded={result.items?.[0]?.additionalData?.purchaseDate || result.items?.[0]?.purchaseDate}
+      />
+
       {/* Best Performer Summary */}
       {result.bestPerformer && (
         <div className="bg-warning-soft/10 rounded-xl shadow-sm border border-warning-soft/40 p-6">
@@ -82,6 +87,7 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
           purchaseFxRate:
             additionalData.purchaseFxRate || item.purchaseFxRate,
           currentFxRate: additionalData.currentFxRate || item.currentFxRate,
+          totalAssetKrw: additionalData.totalAssetKrw ?? item.currentValueKrw,
         };
         // 보유일. 없으면 매수일부터 기준일까지 일수
         const daysHeld = displayItem.daysHeld ?? (displayItem.purchaseDate
@@ -116,7 +122,11 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
                 <div className="bg-brand/10 rounded-lg p-3">
                   <p className="text-xs text-brand">현재 가치</p>
                   <p className="text-lg font-bold text-brand-light">
-                    ₩{displayItem.currentValueKrw?.toLocaleString()}
+                    ₩{displayItem.totalAssetKrw?.toLocaleString()}
+                  </p>
+                  <p className="text-xs text-tx-2">
+                    주식 ₩{displayItem.currentValueKrw?.toLocaleString()} · 현금 ₩
+                    {cashKrw(displayItem).toLocaleString()}
                   </p>
                 </div>
                 <div
@@ -201,7 +211,7 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
                     <div className="flex justify-between">
                       <span className="text-tx-2">보유 주식</span>
                       <span className="font-medium">
-                        {displayItem.shares?.toFixed(4)}주
+                        {displayItem.shares?.toFixed(2)}주
                       </span>
                     </div>
                   </div>
@@ -217,13 +227,13 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
                     <div className="flex justify-between">
                       <span className="text-tx-2">매수 환율</span>
                       <span className="font-medium">
-                        ₩{displayItem.purchaseFxRate?.toLocaleString()}
+                        {hasValue(displayItem.purchaseFxRate) ? formatFxRate(displayItem.purchaseFxRate) : '-'}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-tx-2">현재 환율</span>
                       <span className="font-medium">
-                        ₩{displayItem.currentFxRate?.toLocaleString()}
+                        {hasValue(displayItem.currentFxRate) ? formatFxRate(displayItem.currentFxRate) : '-'}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -238,100 +248,58 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
                 </div>
 
                 {/* Optimal Timing */}
-                {(() => {
-                  const hasServerOptimal =
-                    displayItem.optimalBuyDate ||
-                    displayItem.optimalSellDate;
-                  // 서버 값이 비면 차트가 같은 방식으로 계산한 값으로 채움
-                  const optimalPoint = symbolOptimalPoints[item.code];
-
-                  if (!hasServerOptimal && !optimalPoint) return null;
-
-                  return (
-                    <div className="bg-surface rounded-lg border border-brand/25 p-3">
-                      <h4 className="text-xs font-semibold text-tx-1 mb-2 flex items-center">
-                        <Zap className="w-3 h-3 mr-1 text-brand" />
-                        최적 타이밍
-                      </h4>
-                      <div className="space-y-1 text-xs">
-                        {displayItem.optimalBuyDate && (
-                          <>
+                {(displayItem.optimalBuyDate || displayItem.optimalSellDate) && (
+                  <div className="bg-surface rounded-lg border border-brand/25 p-3">
+                    <h4 className="text-xs font-semibold text-tx-1 mb-2 flex items-center">
+                      <Zap className="w-3 h-3 mr-1 text-brand" />
+                      최적 타이밍
+                    </h4>
+                    <div className="space-y-1 text-xs">
+                      {displayItem.optimalBuyDate && (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="text-tx-2">최적 매수일</span>
+                            <span className="font-medium">
+                              {displayItem.optimalBuyDate}
+                            </span>
+                          </div>
+                          {displayItem.optimalBuyPrice && (
                             <div className="flex justify-between">
-                              <span className="text-tx-2">최적 매수일</span>
-                              <span className="font-medium">
-                                {displayItem.optimalBuyDate}
+                              <span className="text-tx-2">
+                                최적 매수가
                               </span>
-                            </div>
-                            {displayItem.optimalBuyPrice && (
-                              <div className="flex justify-between">
-                                <span className="text-tx-2">
-                                  최적 매수가
-                                </span>
-                                <span className="font-medium text-gain">
-                                  ${displayItem.optimalBuyPrice?.toFixed(2)}
-                                </span>
-                              </div>
-                            )}
-                          </>
-                        )}
-                        {!displayItem.optimalBuyDate && optimalPoint && (
-                          <>
-                            <div className="flex justify-between">
-                              <span className="text-tx-2">최적 매수일</span>
-                              <span className="font-medium">
-                                {optimalPoint.buyDate}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-tx-2">최적 매수가</span>
                               <span className="font-medium text-gain">
-                                ${optimalPoint.minPrice.toFixed(2)}
+                                ${displayItem.optimalBuyPrice?.toFixed(2)}
                               </span>
                             </div>
-                          </>
-                        )}
+                          )}
+                        </>
+                      )}
 
-                        {displayItem.optimalSellDate && (
-                          <>
+                      {displayItem.optimalSellDate && (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="text-tx-2">최적 매도일</span>
+                            <span className="font-medium">
+                              {displayItem.optimalSellDate}
+                            </span>
+                          </div>
+                          {displayItem.optimalSellPrice && (
                             <div className="flex justify-between">
-                              <span className="text-tx-2">최적 매도일</span>
-                              <span className="font-medium">
-                                {displayItem.optimalSellDate}
+                              <span className="text-tx-2">
+                                최적 매도가
                               </span>
-                            </div>
-                            {displayItem.optimalSellPrice && (
-                              <div className="flex justify-between">
-                                <span className="text-tx-2">
-                                  최적 매도가
-                                </span>
-                                <span className="font-medium text-loss">
-                                  $
-                                  {displayItem.optimalSellPrice?.toFixed(2)}
-                                </span>
-                              </div>
-                            )}
-                          </>
-                        )}
-                        {!displayItem.optimalSellDate && optimalPoint && (
-                          <>
-                            <div className="flex justify-between">
-                              <span className="text-tx-2">최적 매도일</span>
-                              <span className="font-medium">
-                                {optimalPoint.sellDate}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-tx-2">최적 매도가</span>
                               <span className="font-medium text-loss">
-                                ${optimalPoint.sellPrice.toFixed(2)}
+                                $
+                                {displayItem.optimalSellPrice?.toFixed(2)}
                               </span>
                             </div>
-                          </>
-                        )}
-                      </div>
+                          )}
+                        </>
+                      )}
                     </div>
-                  );
-                })()}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -344,7 +312,6 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
           items={result.items}
           comparePurchaseDate={comparePurchaseDate}
           compareSaleDate={compareSaleDate}
-          onOptimalPointsCalculated={setSymbolOptimalPoints}
         />
       )}
     </div>

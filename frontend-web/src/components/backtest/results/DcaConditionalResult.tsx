@@ -3,7 +3,7 @@ import { TrendingUp, DollarSign } from 'lucide-react';
 import { AccumulationChart } from '@components/charts/backtest/AccumulationChart';
 import type { StrategyResponse } from '../../../services/api';
 import type { BacktestMode } from '../shared/backtestDisplay';
-import { formatKrw, formatPercent, formatSigned, gainLossClass } from '../../../utils/gainLoss';
+import { formatBalanceAmount, formatKrw, formatPercent, formatSigned, gainLossClass } from '../../../utils/gainLoss';
 import { SummaryCards } from './SummaryCards';
 import { FxImpactSection } from './FxImpactSection';
 import { DetailRow, DetailSection } from './DetailSection';
@@ -23,8 +23,16 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
   dcaStartDate,
   conditionalStartDate,
 }) => {
+  // 투자일이 휴장일이라 다른 날 산 번수
+  const moved = result.transactions?.filter((tx) => tx.actualDate && tx.actualDate !== tx.date).length ?? 0;
+
   return (
     <div className="space-y-6">
+      {moved > 0 && (
+        <p className="text-sm text-warning bg-warning-soft/10 border border-warning-soft/40 rounded-lg px-3 py-2">
+          투자일이 휴장일이면 다음 거래일 종가로 삽니다(이번 결과 {moved}번).
+        </p>
+      )}
       <SummaryCards result={result} investedLabel="총 투자금" invested={result.totalInvested} />
 
       {/* Detailed Results - 3 Columns like Simple */}
@@ -46,20 +54,20 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
             value={<>₩{result.totalInvested?.toLocaleString()}</>}
           />
           <div className="flex justify-between py-2">
-            <span className="text-tx-2">평가 가치</span>
+            <span className="text-tx-2">주식 평가액</span>
             <div className="text-right">
               <div className="font-medium text-tx-1">
                 ₩{result.currentValueKrw?.toLocaleString()}
               </div>
               <div className="text-xs text-tx-2">
-                ${result.currentValue?.toLocaleString()}
+                {result.currentValue != null && formatBalanceAmount(result.currentValue, "USD")}
               </div>
             </div>
           </div>
         </DetailSection>
 
         <DetailSection title="주식 수익" icon={TrendingUp} iconClassName="text-gain">
-          <DetailRow label="보유 주식수" value={<>{result.totalShares?.toFixed(6)} 주</>} />
+          <DetailRow label="보유 주식수" value={<>{result.totalShares?.toFixed(2)} 주</>} />
           <DetailRow label="평균 매수가" value={<>${result.averagePrice?.toFixed(2)}</>} />
           <DetailRow label="평가일 가격" value={<>${result.currentPrice?.toFixed(2)}</>} />
           <DetailRow

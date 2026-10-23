@@ -34,4 +34,19 @@ describe('BacktestHistoryPanel', () => {
 
     expect(screen.getByText(/이 기기에 저장됩니다/)).toBeInTheDocument()
   })
+
+  it('단순 실행은 단순으로, 기간 끝은 평가일로 보여준다', () => {
+    const simple = {
+      backtestId: '1',
+      userId: 'u',
+      backtestType: 'COMPARISON' as const,
+      requestParams: JSON.stringify({ symbol: 'AAPL', purchaseDate: '2023-01-01', saleDate: '2026-10-23', investmentAmount: 300000 }),
+      fxRateMode: 'auto' as const,
+      createdAt: '2026-10-23T09:00:00',
+    }
+    renderPanel({ historyData: [simple], historyTotalPages: 1 })
+
+    expect(screen.getByText('단순')).toBeInTheDocument()
+    expect(screen.getByText('(2023-01-01 ~ 2026-10-23)')).toBeInTheDocument()
+  })
 })

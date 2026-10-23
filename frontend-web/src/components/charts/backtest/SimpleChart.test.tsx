@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SimpleChart } from './SimpleChart'
 import { stockApi } from '../../../services/api'
-import { readCharts } from '../../../test/readCharts'
+import { readCharts, readXAxes } from '../../../test/readCharts'
 
 vi.mock('recharts', () => import('../../../test/rechartsProbe'))
 vi.mock('../../../services/api', () => ({
@@ -56,15 +56,16 @@ describe('SimpleChart 가격 구간', () => {
 
 // 매수는 보라, 배당 재투자는 녹색, 최적 시점은 금색 점
 describe('SimpleChart 차트', () => {
-  it('가격 · 평가금액 데이터와 매수 · 최적 · 배당 재투자 마커', async () => {
+  it('종가로 그린 가격 · 평가금액 데이터와 매수 · 배당 재투자 마커, 최적 매수 · 매도 점은 평가금액 차트에', async () => {
     // 날짜가 배열로 오는 줄과 다른 종목 줄이 섞여 온다. 03-04 환율은 빠져 대체값을 쓴다
+    // 수정 종가는 배당만큼 낮게, 그리는 값은 종가
     getOHLCData.mockResolvedValue({
       data: [
-        { symbol: 'AAPL', date: '2026-03-02', closePrice: 100, adjustedClose: 100 },
-        { symbol: 'AAPL', date: [2026, 3, 3], closePrice: 102, adjustedClose: 102 },
-        { symbol: 'AAPL', date: '2026-03-04', closePrice: 101, adjustedClose: 101 },
-        { symbol: 'AAPL', date: '2026-03-05', closePrice: 105, adjustedClose: 105 },
-        { symbol: 'MSFT', date: '2026-03-02', closePrice: 400, adjustedClose: 400 },
+        { symbol: 'AAPL', date: '2026-03-02', closePrice: 100, adjustedClose: 99 },
+        { symbol: 'AAPL', date: [2026, 3, 3], closePrice: 102, adjustedClose: 101 },
+        { symbol: 'AAPL', date: '2026-03-04', closePrice: 101, adjustedClose: 100 },
+        { symbol: 'AAPL', date: '2026-03-05', closePrice: 105, adjustedClose: 104 },
+        { symbol: 'MSFT', date: '2026-03-02', closePrice: 400, adjustedClose: 399 },
       ],
     } as never)
     vi.mocked(stockApi.getExchangeRatesBulk).mockResolvedValue({
@@ -96,11 +97,6 @@ describe('SimpleChart 차트', () => {
               "fill": "#8b5cf6",
               "x": "2026-03-02",
               "y": 100,
-            },
-            {
-              "fill": "#fbbf24",
-              "x": "2026-03-04",
-              "y": 101,
             },
             {
               "fill": "#10b981",
@@ -158,6 +154,11 @@ describe('SimpleChart 차트', () => {
             },
             {
               "fill": "#fbbf24",
+              "x": "2026-03-04",
+              "y": 262600,
+            },
+            {
+              "fill": "#fbbf24",
               "x": "2026-03-05",
               "y": 298200,
             },
@@ -208,5 +209,22 @@ describe('SimpleChart 차트', () => {
         },
       ]
     `)
+  })
+})
+
+describe('SimpleChart 날짜 축', () => {
+  it('기간이 1년을 넘으면 달마다 연.월 눈금', async () => {
+    getOHLCData.mockResolvedValue({
+      data: [
+        { symbol: 'AAPL', date: '2024-01-16', closePrice: 180, adjustedClose: 179 },
+        { symbol: 'AAPL', date: '2025-03-03', closePrice: 240, adjustedClose: 239 },
+      ],
+    } as never)
+    vi.mocked(stockApi.getExchangeRatesBulk).mockResolvedValue({ data: {} } as never)
+    renderChart('2025-03-03')
+
+    await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(2))
+    const axis = { ticks: ['2024-01-16', '2025-03-03'], first: '24.1' }
+    expect(readXAxes()).toEqual([axis, axis])
   })
 })

@@ -79,7 +79,6 @@ test('종목 비교가 돌고 최적 타이밍 순서가 지켜진다', async ()
   expect(items.length, '비교 결과가 두 종목만큼 안 온다').toBeGreaterThanOrEqual(2);
   expect(body.bestPerformer, '최고 성과 종목이 비어 있다').toBeTruthy();
 
-  // 백엔드와 프론트에서 각각 고쳤는데 계산이 두 군데라 한쪽만 되돌아갈 수 있다.
   for (const item of items) {
     if (!item.optimalBuyDate || !item.optimalSellDate) continue;
     expect(

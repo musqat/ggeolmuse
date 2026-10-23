@@ -2,7 +2,7 @@ import { test, expect, request } from '@playwright/test';
 import { API_URL } from '../playwright.config';
 import { pickSymbol, priceRange } from './fixtures';
 
-// 매수일 <= 매도일인지 봄. 계산이 백엔드 · 프론트 두 곳이라 둘 다 봄
+// 매수일 <= 매도일인지 봄
 test.describe('최적 타이밍', () => {
   test('매도일이 매수일보다 앞서지 않는다', async () => {
     const api = await request.newContext();
@@ -29,7 +29,7 @@ test.describe('최적 타이밍', () => {
       `매수 ${body.optimalBuyDate} / 매도 ${body.optimalSellDate} — 살 수 없는 매매다`
     ).toBe(true);
 
-    // 최적 구간의 수익률은 그냥 사서 들고 간 것보다 나쁠 수 없다.
+    // 사지 않는 것(수익률 0)보다 나쁠 수 없음
     expect(body.optimalReturnPercent).toBeGreaterThanOrEqual(0);
 
     await api.dispose();

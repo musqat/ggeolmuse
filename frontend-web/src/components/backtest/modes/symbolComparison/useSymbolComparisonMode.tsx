@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { backtestApi } from '@services/api';
 import { SymbolComparisonForm } from '../../forms/SymbolComparisonForm';
 import { SymbolComparisonResult } from '../../results/SymbolComparisonResult';
-import type { OptimalPointsBySymbol } from '@components/charts/backtest/optimalTiming';
 import type { ModeController } from '../types';
 import { buildSymbolComparisonRequest } from './request';
 import { useBacktestOptions } from '../../shared/backtestOptions';
@@ -19,7 +18,6 @@ export const useSymbolComparisonMode = ({
   const [saleDate, setSaleDate] = useState(''); // 비어있으면 최신 데이터
   const [investment, setInvestment] = useState('1000000');
   const options = useBacktestOptions();
-  const [symbolOptimalPoints, setSymbolOptimalPoints] = useState<OptimalPointsBySymbol>({});
 
   const addSymbol = () => {
     if (symbols.length >= 10) {
@@ -88,8 +86,6 @@ export const useSymbolComparisonMode = ({
           result={result}
           comparePurchaseDate={purchaseDate}
           compareSaleDate={saleDate}
-          symbolOptimalPoints={symbolOptimalPoints}
-          setSymbolOptimalPoints={setSymbolOptimalPoints}
         />
       ) : null,
   };

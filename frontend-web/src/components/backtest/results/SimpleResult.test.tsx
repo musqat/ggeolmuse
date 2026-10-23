@@ -45,6 +45,30 @@ describe('SimpleResult', () => {
     expect(screen.getByText('평가일 환율')).toBeInTheDocument()
     expect(screen.queryByText('현재 가격')).toBeNull()
   })
+
+  it('평가 가치의 현금은 총자산에서 주식을 뺀 값이라 받은 배당이 들어간다', () => {
+    render(<SimpleResult result={{ ...result, remainingCashKrw: 0 }} symbol="AAPL" purchaseDate="2023-01-03" />)
+
+    expect(screen.getAllByText('주식: ₩440,000, 현금: ₩10,000')).toHaveLength(2)
+  })
+
+  it('고른 매수일이 휴장일이라 다른 날 샀으면 알린다', () => {
+    render(<SimpleResult result={{ ...result, purchaseDate: '2023-01-03' }} symbol="AAPL" purchaseDate="2023-01-01" />)
+
+    expect(screen.getByText('선택한 매수일(2023-01-01)은 휴장일이라 다음 거래일(2023-01-03) 종가로 샀습니다.')).toBeInTheDocument()
+  })
+
+  it('고른 날에 샀으면 알리지 않는다', () => {
+    render(<SimpleResult result={result} symbol="AAPL" purchaseDate="2023-01-03" />)
+
+    expect(screen.queryByText(/휴장일이라/)).toBeNull()
+  })
+
+  it('보유 주식수는 소수 둘째 자리까지 보여준다', () => {
+    render(<SimpleResult result={{ ...result, shares: 3.141592 }} symbol="AAPL" purchaseDate="2023-01-03" />)
+
+    expect(screen.getByText('3.14 주')).toBeInTheDocument()
+  })
 })
 
 describe('SimpleResult 값이 없을 때', () => {

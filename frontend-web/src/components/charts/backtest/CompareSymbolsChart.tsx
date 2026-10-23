@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   LineChart,
@@ -12,13 +12,13 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { DEFAULT_FX_RATE, fetchFxRates } from './shared/fxRates';
-import { fetchSymbolPrices } from './shared/prices';
+import { closeOf, fetchSymbolPrices } from './shared/prices';
 import {
   AXIS_PROPS,
   CHART_HEIGHT,
   CHART_MARGIN,
-  formatDayTick,
-  formatManwonTick,
+  dateAxis,
+  formatKrwTick,
   formatTooltipDate,
   formatUsdTick,
   GRID_PROPS,
@@ -31,8 +31,8 @@ import { useChartPeriod } from '../common/hooks/useChartPeriod';
 import { ChartPeriodSelector } from '../common/components/ChartPeriodSelector';
 import { CHART_COLORS } from '../common/constants';
 import type { OHLCData } from '../../../types/ohlc';
-import { calculateOptimalPoints, type OptimalPointsBySymbol } from './optimalTiming';
 import { getTodayString } from '../../../utils/dateUtils';
+import { formatKrw, formatUsd } from '../../../utils/gainLoss';
 
 interface SymbolData {
   symbol: string;
@@ -43,13 +43,15 @@ interface SymbolData {
   currentPrice: number;
   currentValueKrw: number;
   color: string; // Chart line color
+  // 원화 주가 기준 최적 매수 · 매도일
+  optimalBuyDate?: string | null;
+  optimalSellDate?: string | null;
 }
 
 interface SymbolComparisonChartProps {
   symbols: SymbolData[];
   startDate: string;
   endDate?: string;
-  onOptimalPointsCalculated?: (points: OptimalPointsBySymbol) => void;
 }
 
 interface ChartDataPoint {
@@ -57,10 +59,7 @@ interface ChartDataPoint {
   [key: string]: string | number; // Dynamic keys for each symbol's price and portfolio value
 }
 
-type OptimalPoints = ReturnType<typeof calculateOptimalPoints>;
-
 const EMPTY_CHART_DATA: ChartDataPoint[] = [];
-const EMPTY_OPTIMAL_POINTS: OptimalPoints = {};
 const DEFAULT_PRICE_DOMAIN: [number, number] = [0, 100];
 const DEFAULT_PORTFOLIO_DOMAIN: [number, number] = [0, 1000000];
 
@@ -68,7 +67,6 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
   symbols,
   startDate,
   endDate,
-  onOptimalPointsCalculated
 }) => {
   // 공통 차트 기간 훅 사용
   const {
@@ -83,7 +81,7 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
   const apiStartDate = getStartDateFromPeriod(chartPeriod, startDate, customStartDate);
   const today = endDate || getTodayString();
 
-  // 모든 종목의 가격 · 환율을 받아 차트 데이터 · 최적 시점 · 축 범위까지 만듦
+  // 모든 종목의 가격 · 환율을 받아 차트 데이터 · 축 범위까지 만듦
   const { data, isLoading: loading, error } = useQuery({
     queryKey: ['backtest', 'chart', 'symbols',
       symbols.map((s) => [s.symbol, s.purchaseDate, s.shares, s.investmentAmount]), startDate, apiStartDate, today],
@@ -127,9 +125,8 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
 
             const point = dateMap.get(dateStr)!;
 
-            // 주가 저장 (adjustedClose 사용)
-            const adjustedPrice = item.adjustedClose || item.closePrice;
-            point[`${symbol}_price`] = adjustedPrice;
+            const price = closeOf(item);
+            point[`${symbol}_price`] = price;
 
             // 매수일 이후에만 포트폴리오 가치 계산
             // purchaseDate가 비어있거나 undefined인 경우 startDate를 대체값으로 사용
@@ -138,7 +135,7 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
             if (dateStr >= effectivePurchaseDate) {
               // 해당 날짜의 환율 사용 (각 날짜마다 다른 환율 적용)
               const historicalFxRate = fxRateMap.get(dateStr) || DEFAULT_FX_RATE;
-              const portfolioValueKrw = symbolData.shares * adjustedPrice * historicalFxRate;
+              const portfolioValueKrw = symbolData.shares * price * historicalFxRate;
               point[`${symbol}_portfolio`] = portfolioValueKrw;
             } else {
               // 매수일 이전에는 0으로 설정
@@ -147,7 +144,7 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
 
             // 산점도를 위한 매수 포인트 표시
             if (dateStr === effectivePurchaseDate) {
-              point[`${symbol}_purchasePrice`] = adjustedPrice;
+              point[`${symbol}_purchasePrice`] = price;
             }
           });
         });
@@ -184,10 +181,6 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
             point['totalPortfolio'] = totalPortfolio;
           }
         });
-
-        // 최적 매수/매도 포인트. 계산은 optimalTiming.ts 에 있다.
-        // 매수일 <= 매도일 제약이 걸려 있어야 하고, 백엔드와 같은 방식이라 따로 뺐다.
-        const optimalPointsData = calculateOptimalPoints(symbols, chartDataArray);
 
         // 더 나은 차트 렌더링을 위한 Y축 범위 계산
         // 가격 차트 범위
@@ -239,7 +232,6 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
 
         return {
           chartData: chartDataArray,
-          optimalPoints: optimalPointsData,
           priceDomain: calculatedPriceDomain,
           portfolioDomain: calculatedPortfolioDomain,
         };
@@ -251,17 +243,10 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
   });
 
   const chartData = data?.chartData ?? EMPTY_CHART_DATA;
-  const optimalPoints = data?.optimalPoints ?? EMPTY_OPTIMAL_POINTS;
+  const xAxis = dateAxis(chartData.map((d) => d.date));
   const priceDomain = data?.priceDomain ?? DEFAULT_PRICE_DOMAIN;
   const portfolioDomain = data?.portfolioDomain ?? DEFAULT_PORTFOLIO_DOMAIN;
   const errorMessage = error ? '차트 데이터를 가져오는데 실패했습니다.' : null;
-
-  // 부모 컴포넌트에 알림
-  useEffect(() => {
-    if (data && onOptimalPointsCalculated) {
-      onOptimalPointsCalculated(data.optimalPoints);
-    }
-  }, [data, onOptimalPointsCalculated]);
 
   if (loading) {
     return (
@@ -314,7 +299,7 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
             <XAxis
               dataKey="date"
               {...AXIS_PROPS}
-              tickFormatter={formatDayTick}
+              {...xAxis}
             />
             <YAxis
               domain={priceDomain}
@@ -323,13 +308,7 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
             />
             <Tooltip
               {...TOOLTIP_PROPS}
-              formatter={(value: number | string, name: string) => {
-                if (name.endsWith('_price')) {
-                  const symbol = name.replace('_price', '');
-                  return [`$${Number(value).toFixed(2)}`, `${symbol} 주가`];
-                }
-                return [value, name];
-              }}
+              formatter={(value: number | string) => formatUsd(Number(value))}
               labelFormatter={formatTooltipDate}
             />
             <Legend />
@@ -363,25 +342,6 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
                 />
               );
             })}
-
-            {/* 최적 매수 포인트 마커 */}
-            {symbols.map((symbolData) => {
-              const optimalPoint = optimalPoints[symbolData.symbol];
-              if (!optimalPoint) return null;
-
-              const buyPoint = chartData.find(d => d.date === optimalPoint.buyDate);
-              if (!buyPoint) return null;
-
-              return (
-                <ReferenceDot
-                  key={`${symbolData.symbol}-optimal-buy`}
-                  x={buyPoint.date}
-                  y={buyPoint[`${symbolData.symbol}_price`]}
-                  {...OPTIMAL_MARKER_PROPS}
-                  label={{ value: '', position: 'top' }}
-                />
-              );
-            })}
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -395,25 +355,16 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
             <XAxis
               dataKey="date"
               {...AXIS_PROPS}
-              tickFormatter={formatDayTick}
+              {...xAxis}
             />
             <YAxis
               domain={portfolioDomain}
               {...AXIS_PROPS}
-              tickFormatter={formatManwonTick}
+              tickFormatter={formatKrwTick}
             />
             <Tooltip
               {...TOOLTIP_PROPS}
-              formatter={(value: number | string, name: string) => {
-                if (name.endsWith('_portfolio')) {
-                  const symbol = name.replace('_portfolio', '');
-                  return [`₩${Number(value).toLocaleString()}`, `${symbol} 평가금`];
-                }
-                if (name === '투자금') {
-                  return [`₩${Number(value).toLocaleString()}`, name];
-                }
-                return [value, name];
-              }}
+              formatter={(value: number | string) => formatKrw(Math.round(Number(value)))}
               labelFormatter={formatTooltipDate}
             />
             <Legend />
@@ -462,31 +413,30 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
               );
             })}
 
-            {/* 최적 매도 포인트 마커 */}
-            {symbols.map((symbolData) => {
-              const optimalPoint = optimalPoints[symbolData.symbol];
-              if (!optimalPoint) return null;
+            {/* 최적 매수 · 매도 마커 (평가금 위) */}
+            {symbols.flatMap((symbolData) =>
+              [symbolData.optimalBuyDate, symbolData.optimalSellDate].map((date, i) => {
+                const point = date ? chartData.find(d => d.date === date) : undefined;
+                if (!point) return null;
 
-              const sellPoint = chartData.find(d => d.date === optimalPoint.sellDate);
-              if (!sellPoint) return null;
-
-              return (
-                <ReferenceDot
-                  key={`${symbolData.symbol}-optimal-sell`}
-                  x={sellPoint.date}
-                  y={sellPoint[`${symbolData.symbol}_portfolio`]}
-                  {...OPTIMAL_MARKER_PROPS}
-                  label={{ value: '', position: 'top' }}
-                />
-              );
-            })}
+                return (
+                  <ReferenceDot
+                    key={`${symbolData.symbol}-optimal-${i === 0 ? 'buy' : 'sell'}`}
+                    x={point.date}
+                    y={point[`${symbolData.symbol}_portfolio`]}
+                    {...OPTIMAL_MARKER_PROPS}
+                    label={{ value: '', position: 'top' }}
+                  />
+                );
+              })
+            )}
           </LineChart>
         </ResponsiveContainer>
         <div className="mt-3 p-3 bg-warning-soft/10 border border-warning-soft/40 rounded-lg">
           <p className="text-xs text-tx-1">
             <span className="font-semibold">차트 마커 안내:</span><br/>
             <span className="inline-block w-3 h-3 rounded-full mr-1 align-middle" style={{ backgroundColor: MARKER_COLORS.purchase }}></span> 보라 점 = 실제 매수 시점 |
-            <span className="inline-block w-3 h-3 rounded-full mr-1 ml-2 align-middle" style={{ backgroundColor: MARKER_COLORS.optimal }}></span> 금색 점 = 최적 매수/매도 시점 (가장 낮은 가격 / 가장 높은 평가금액)
+            <span className="inline-block w-3 h-3 rounded-full mr-1 ml-2 align-middle" style={{ backgroundColor: MARKER_COLORS.optimal }}></span> 금색 점 = 최적 매수 · 매도 시점 (원화로 가장 싸게 사서 가장 비싸게 파는 날)
           </p>
         </div>
       </div>

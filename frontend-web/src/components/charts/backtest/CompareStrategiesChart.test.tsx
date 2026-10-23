@@ -18,7 +18,8 @@ vi.mock('../../../services/api', () => ({
 const getOHLCData = vi.mocked(stockApi.getOHLCData)
 const getExchangeRatesBulk = vi.mocked(stockApi.getExchangeRatesBulk)
 
-const candle = (date: string, close: number) => ({ symbol: 'AAPL', date, closePrice: close, adjustedClose: close })
+// 수정 종가는 배당만큼 낮게, 차트가 그리는 값은 종가
+const candle = (date: string, close: number) => ({ symbol: 'AAPL', date, closePrice: close, adjustedClose: close - 1 })
 
 // 단순 매수는 일요일(03-01)에 사서 다음 거래일 03-02 에 마커가 찍힌다
 const strategies = [

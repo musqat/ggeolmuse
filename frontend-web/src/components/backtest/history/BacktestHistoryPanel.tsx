@@ -88,10 +88,10 @@ export const BacktestHistoryPanel: React.FC<BacktestHistoryPanelProps> = ({
                     ) {
                       backtestTypeLabel = "조건부 매수";
                     } else {
-                      backtestTypeLabel = "심플";
+                      backtestTypeLabel = "단순";
                     }
                   } else if (history.backtestType === "COMPARISON") {
-                    // 종목 비교인지 전략 비교인지 확인
+                    // 종목 비교 · 전략 비교 · 단순(매수일만 있는 시뮬레이션) 구분
                     if (params.symbols && Array.isArray(params.symbols)) {
                       backtestTypeLabel = "종목 비교";
                     } else if (
@@ -99,6 +99,8 @@ export const BacktestHistoryPanel: React.FC<BacktestHistoryPanelProps> = ({
                       Array.isArray(params.strategies)
                     ) {
                       backtestTypeLabel = "전략 비교";
+                    } else if (params.purchaseDate) {
+                      backtestTypeLabel = "단순";
                     } else {
                       backtestTypeLabel = "비교 분석";
                     }
@@ -152,8 +154,7 @@ export const BacktestHistoryPanel: React.FC<BacktestHistoryPanelProps> = ({
                         {(params.startDate || params.purchaseDate) && (
                           <span className="ml-2 text-tx-2">
                             ({params.startDate || params.purchaseDate}
-                            {params.endDate && ` ~ ${params.endDate}`}
-                            {!params.endDate && " ~ 현재"})
+                            {` ~ ${params.endDate || params.saleDate || "현재"}`})
                           </span>
                         )}
                       </td>

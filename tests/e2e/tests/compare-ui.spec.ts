@@ -3,7 +3,7 @@ import { API_URL } from '../playwright.config';
 import { pickPricedSymbols, priceRange } from './fixtures';
 import { pickDate } from './datepicker';
 
-// 최적 타이밍 순서는 화면에 글자로 안 떠서 여기서 안 봄. 서버 값은 backtest-modes, 프론트 계산은 optimalTiming.test.ts
+// 최적 타이밍 순서는 backtest-modes 에서 서버 값으로 봄
 test('종목 비교가 화면에서 끝까지 돈다', async ({ page }) => {
   const api = await request.newContext();
   const usable = (await pickPricedSymbols(api, 2)).slice(0, 2);
@@ -14,8 +14,7 @@ test('종목 비교가 화면에서 끝까지 돈다', async ({ page }) => {
   await page.goto('/backtest');
   await page.getByRole('button', { name: '종목 비교', exact: true }).click();
 
-  // 기본으로 AAPL, MSFT 가 담겨 있다. 로컬 스택에는 그 시세가 없어서
-  // 그대로 두면 빈 계열이 섞여 최적 타이밍이 안 나온다. 먼저 비운다.
+  // 기본으로 담긴 AAPL, MSFT 는 로컬 스택에 시세가 없어 먼저 비움
   const chips = page.getByTestId('compare-symbol-remove');
   for (let guard = 0; guard < 20 && (await chips.count()) > 0; guard++) {
     await chips.first().click();

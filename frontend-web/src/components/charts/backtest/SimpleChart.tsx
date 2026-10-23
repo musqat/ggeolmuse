@@ -12,13 +12,13 @@ import {
   ReferenceDot,
 } from "recharts";
 import { DEFAULT_FX_RATE, fetchFxRates } from './shared/fxRates';
-import { fetchSymbolPrices } from './shared/prices';
+import { closeOf, fetchSymbolPrices } from './shared/prices';
 import {
   AXIS_PROPS,
   CHART_HEIGHT,
   CHART_MARGIN,
-  formatDayTick,
-  formatManwonTick,
+  dateAxis,
+  formatKrwTick,
   formatUsdTick,
   GRID_PROPS,
   MARKER_COLORS,
@@ -40,7 +40,6 @@ interface RawOhlc {
   date: RawOhlcDate;
   closePrice?: number;
   adjustedClose?: number;
-  close?: number;
 }
 
 // [2025, 1, 8] → "2025-01-08"
@@ -122,10 +121,7 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
     }
 
     const result = priceData.map((candle: OhlcWithFx) => {
-      // OHLCPriceDto: adjustedClose (배당/주식분할 반영된 보정 종가)
-      // 0 이면 다음 값으로 넘어간다. 주가 0 은 유효한 값이 아니라 원래 동작을 유지한다.
-      const dailyPrice =
-        candle.adjustedClose || candle.closePrice || candle.close || 0;
+      const dailyPrice = closeOf(candle);
 
       const dateStr = toDateString(candle.date);
 
@@ -150,6 +146,8 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
 
     return result;
   }, [priceData, shares, investmentAmount, purchaseDate]);
+
+  const xAxis = dateAxis(chartData.map((d) => d.date));
 
   // 매수 시점 마커 - chartData에서 매수일 찾기 또는 다음 영업일 찾기
   const purchasePoint = useMemo(() => {
@@ -292,7 +290,7 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
             <XAxis
               dataKey="date"
               {...AXIS_PROPS}
-              tickFormatter={formatDayTick}
+              {...xAxis}
             />
             <YAxis
               {...AXIS_PROPS}
@@ -326,17 +324,6 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
               />
             )}
 
-            {/* 최적 매수 시점 마커 (금색) - 주가 차트에만 표시 */}
-            {optimalBuyPoint && (
-              <ReferenceDot
-                x={optimalBuyPoint.date}
-                y={optimalBuyPoint.price}
-                {...OPTIMAL_MARKER_PROPS}
-                r={6}
-                label={{ value: "최적 매수", position: "top", ...MARKER_LABEL_STYLE }}
-              />
-            )}
-
             {/* 배당 재투자 시점 마커들 */}
             {dividendReinvestPoints.map((point, idx) => (
               <ReferenceDot
@@ -350,7 +337,7 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
           </LineChart>
         </ResponsiveContainer>
         <p className="text-xs text-tx-2 mt-2 text-center">
-          파란 선 = 주가 | 보라 점 = 매수 | 녹색 점 = 배당 재투자 | 금색 점 = 최적 매수
+          파란 선 = 주가 | 보라 점 = 매수 | 녹색 점 = 배당 재투자
         </p>
       </div>
 
@@ -368,11 +355,11 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
             <XAxis
               dataKey="date"
               {...AXIS_PROPS}
-              tickFormatter={formatDayTick}
+              {...xAxis}
             />
             <YAxis
               {...AXIS_PROPS}
-              tickFormatter={formatManwonTick}
+              tickFormatter={formatKrwTick}
             />
             <Tooltip content={<CustomTooltip />} />
             <Legend />
@@ -412,7 +399,16 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
               />
             )}
 
-            {/* 최적 매도 시점 마커 (평가금액 기준) - 평가금액 차트에만 표시 */}
+            {/* 최적 매수 · 매도 시점 마커 (원화 주가 기준) */}
+            {optimalBuyPoint && (
+              <ReferenceDot
+                x={optimalBuyPoint.date}
+                y={optimalBuyPoint.평가금액}
+                {...OPTIMAL_MARKER_PROPS}
+                r={6}
+                label={{ value: "최적 매수", position: "bottom", ...MARKER_LABEL_STYLE }}
+              />
+            )}
             {optimalSellPoint && (
               <ReferenceDot
                 x={optimalSellPoint.date}
@@ -437,7 +433,7 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
         </ResponsiveContainer>
         <p className="text-xs text-tx-2 mt-2 text-center">
           녹색 점선 = 투자금 | 파란 선 = 평가금액 | 보라 점 = 매수 | 녹색 점 = 배당
-          재투자 | 금색 점 = 최적 매도
+          재투자 | 금색 점 = 최적 매수 · 매도
         </p>
       </div>
     </div>
