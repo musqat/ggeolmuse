@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Modal } from '@/components/common/Modal';
 import { notify } from '@/components/common/notify';
+import { ModalActions } from './ModalActions';
 
 interface CreateAccountModalProps {
   isOpen: boolean;
@@ -86,21 +87,7 @@ const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
   };
 
   const footer = (
-    <div className="flex space-x-3">
-      <button
-        onClick={handleClose}
-        className="flex-1 px-4 py-2 border border-line-strong text-tx-1 rounded-lg hover:bg-surface/50 transition-colors"
-      >
-        취소
-      </button>
-      <button
-        onClick={handleSubmit}
-        disabled={!accountName.trim()}
-        className="flex-1 px-4 py-2 bg-brand text-brand-ink rounded-lg hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-      >
-        생성하기
-      </button>
-    </div>
+    <ModalActions onCancel={handleClose} onSubmit={handleSubmit} submitLabel="생성하기" disabled={!accountName.trim()} />
   );
 
   return (

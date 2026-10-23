@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Modal } from '@/components/common/Modal';
 import { addAmount } from '@/utils/amount';
 import { notify } from '@/components/common/notify';
-import { SOLID_BUTTON } from '@/styles/buttons';
+import { ModalActions } from './ModalActions';
 
 interface DepositModalProps {
   isOpen: boolean;
@@ -42,21 +42,13 @@ const DepositModal: React.FC<DepositModalProps> = ({
   };
 
   const footer = (
-    <div className="flex space-x-3">
-      <button
-        onClick={handleClose}
-        className="flex-1 px-4 py-2 border border-line-strong text-tx-1 rounded-lg hover:bg-surface/50 transition-colors"
-      >
-        취소
-      </button>
-      <button
-        onClick={handleSubmit}
-        disabled={!depositAmount || parseFloat(depositAmount) <= 0}
-        className={`flex-1 px-4 py-2 ${SOLID_BUTTON.confirm} rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors`}
-      >
-        입금하기
-      </button>
-    </div>
+    <ModalActions
+      onCancel={handleClose}
+      onSubmit={handleSubmit}
+      submitLabel="입금하기"
+      tone="confirm"
+      disabled={!depositAmount || parseFloat(depositAmount) <= 0}
+    />
   );
 
   return (

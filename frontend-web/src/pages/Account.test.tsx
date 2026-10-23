@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
@@ -85,5 +85,33 @@ describe('Account', () => {
 
     expect(accountsApi.depositKrw).toHaveBeenCalledWith(3, { krwAmount: 100000 })
     expect(notify.success).toHaveBeenCalledWith('입금이 완료되었습니다.')
+  })
+
+  it('카드의 환전은 그 계좌로 환전 창을 열고 보낸다', async () => {
+    const user = userEvent.setup()
+    vi.mocked(accountsApi.exchangeCurrency).mockResolvedValue({} as never)
+    vi.mocked(accountsApi.getExchangeRateRange).mockResolvedValue({ data: { min: 1000, max: 2000 } } as never)
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: '환전' }))
+    await user.type(screen.getByPlaceholderText('환전할 KRW 금액'), '135000')
+    await user.click(screen.getByRole('button', { name: '환전하기' }))
+
+    await waitFor(() => expect(notify.success).toHaveBeenCalledWith('환전이 완료되었습니다.'))
+    expect(accountsApi.exchangeCurrency).toHaveBeenCalledWith(3, {
+      fromCurrency: 'KRW', toCurrency: 'USD', originalAmount: 135000, exchangeRate: 1350,
+    })
+  })
+
+  it('카드의 삭제는 확인 창을 거쳐 그 계좌를 지운다', async () => {
+    const user = userEvent.setup()
+    vi.mocked(accountsApi.deleteAccount).mockResolvedValue({} as never)
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: '삭제' }))
+    await user.click(screen.getByRole('button', { name: '삭제하기' }))
+
+    await waitFor(() => expect(notify.success).toHaveBeenCalledWith('계좌가 삭제되었습니다.'))
+    expect(accountsApi.deleteAccount).toHaveBeenCalledWith(3)
   })
 })
