@@ -1,21 +1,11 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest'
-import { readdirSync, readFileSync } from 'node:fs'
-import { dirname, join, relative, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { readFileSync } from 'node:fs'
 import ts from 'typescript'
+import { sourceFiles, srcPath } from './sourceFiles'
 
-const SRC = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const ICON = /<[A-Z][A-Za-z0-9]*\b[^>]*\/>/g
 const NAME_ATTRS = ['aria-label', 'aria-labelledby', 'title']
-
-// src 의 .tsx(테스트 제외)
-const sourceFiles = (dir: string): string[] =>
-  readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    const path = join(dir, entry.name)
-    if (entry.isDirectory()) return sourceFiles(path)
-    return entry.name.endsWith('.tsx') && !entry.name.includes('.test.') ? [path] : []
-  })
 
 // 아이콘 요소 하나 또는 아이콘끼리 고르는 조건식
 const isIconChild = (child: ts.JsxChild) => {
@@ -28,7 +18,7 @@ const isIconChild = (child: ts.JsxChild) => {
 
 // 아이콘만 있고 이름이 없는 button 의 파일:줄
 const unnamedIconButtons = (): string[] =>
-  sourceFiles(SRC).flatMap((file) => {
+  sourceFiles(/\.tsx$/).flatMap((file) => {
     const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
     const found: string[] = []
     const visit = (node: ts.Node) => {
@@ -39,7 +29,7 @@ const unnamedIconButtons = (): string[] =>
         const children = node.children.filter((child) => !(ts.isJsxText(child) && child.getText().trim() === ''))
         if (!named && children.length > 0 && children.every(isIconChild)) {
           const line = source.getLineAndCharacterOfPosition(node.getStart()).line + 1
-          found.push(`${relative(SRC, file).replace(/\\/g, '/')}:${line}`)
+          found.push(`${srcPath(file)}:${line}`)
         }
       }
       ts.forEachChild(node, visit)

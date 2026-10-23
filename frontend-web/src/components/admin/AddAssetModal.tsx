@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import { X, Plus, Search } from 'lucide-react';
 import type { CompanyOverview } from '@services/adminApi';
+import { SOLID_BUTTON } from '@/styles/buttons';
 
 interface AddAssetModalProps {
   isOpen: boolean;
@@ -123,7 +124,7 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({
               <button
                 onClick={onAdd}
                 disabled={loading}
-                className="mt-4 w-full py-2.5 bg-green-700 text-white rounded-lg hover:bg-green-800 disabled:opacity-50 flex items-center justify-center gap-2"
+                className={`mt-4 w-full py-2.5 ${SOLID_BUTTON.confirm} rounded-lg disabled:opacity-50 flex items-center justify-center gap-2`}
               >
                 <Plus className="w-5 h-5" />
                 추가 및 데이터 수집 시작

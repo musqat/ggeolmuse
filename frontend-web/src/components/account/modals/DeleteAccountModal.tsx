@@ -1,6 +1,7 @@
 import React from "react";
 import { Modal } from "@/components/common/Modal";
 import { Trash2 } from "lucide-react";
+import { SOLID_BUTTON } from "@/styles/buttons";
 
 interface DeleteAccountModalProps {
   isOpen: boolean;
@@ -32,7 +33,7 @@ const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
       </button>
       <button
         onClick={handleConfirm}
-        className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+        className={`flex-1 px-4 py-2 ${SOLID_BUTTON.danger} rounded-lg transition-colors`}
       >
         삭제하기
       </button>

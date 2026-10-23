@@ -4,6 +4,7 @@ import { addAmount } from '@/utils/amount';
 import { Modal } from '@/components/common/Modal';
 import { accountsApi, type AccountBalance } from '@/services/api';
 import { notify } from '@/components/common/notify';
+import { SOLID_BUTTON } from '@/styles/buttons';
 
 interface ExchangeModalProps {
   isOpen: boolean;
@@ -120,7 +121,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
       <button
         onClick={handleSubmit}
         disabled={!exchangeAmount || parseFloat(exchangeAmount) <= 0}
-        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className={`flex-1 px-4 py-2 ${SOLID_BUTTON.info} rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors`}
       >
         환전하기
       </button>

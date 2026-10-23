@@ -1,4 +1,5 @@
 import React from 'react';
+import { SOLID_FILL } from '@/styles/buttons';
 
 interface OrderTypeToggleProps {
   orderType: 'buy' | 'sell';
@@ -13,7 +14,7 @@ const OrderTypeToggle: React.FC<OrderTypeToggleProps> = ({ orderType, setOrderTy
         onClick={() => setOrderType('buy')}
         className={`flex-1 py-2 rounded-md font-medium transition-colors ${
           orderType === 'buy'
-            ? 'bg-green-700 text-white shadow-sm'
+            ? `${SOLID_FILL.confirm} shadow-sm`
             : 'text-tx-2'
         }`}
       >
@@ -23,7 +24,7 @@ const OrderTypeToggle: React.FC<OrderTypeToggleProps> = ({ orderType, setOrderTy
         onClick={() => setOrderType('sell')}
         className={`flex-1 py-2 rounded-md font-medium transition-colors ${
           orderType === 'sell'
-            ? 'bg-red-600 text-white shadow-sm'
+            ? `${SOLID_FILL.danger} shadow-sm`
             : 'text-tx-2'
         }`}
       >

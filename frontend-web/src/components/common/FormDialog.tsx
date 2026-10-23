@@ -1,4 +1,5 @@
 import React from 'react';
+import { SOLID_BUTTON } from '@/styles/buttons';
 
 type DialogTone = 'default' | 'danger';
 
@@ -8,7 +9,7 @@ const TITLE_COLOR: Record<DialogTone, string> = {
 };
 const CONFIRM_COLOR: Record<DialogTone, string> = {
   default: 'bg-brand text-brand-ink hover:bg-brand-dark',
-  danger: 'bg-red-600 text-white hover:bg-red-700',
+  danger: SOLID_BUTTON.danger,
 };
 const FOCUS_COLOR: Record<DialogTone, string> = {
   default: 'focus:ring-brand focus:border-brand',

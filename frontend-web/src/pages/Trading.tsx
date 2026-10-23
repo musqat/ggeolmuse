@@ -28,6 +28,7 @@ import StockSelectionPanel from '@/components/trading/StockSelectionPanel';
 import TradingChartSection from '@/components/trading/TradingChartSection';
 import { getApiErrorMessage } from '@/utils/apiError';
 import { notify } from '@/components/common/notify';
+import { SOLID_BUTTON } from '@/styles/buttons';
 
 // 정산 전 매수 뒤 보유 · 거래를 한 번 더 받을 때까지
 const SETTLE_REFRESH_MS = 2000;
@@ -361,8 +362,8 @@ const Trading: React.FC = () => {
               disabled={!selectedStock || !quantity || !selectedAccountId || (priceType === 'limit' && !limitPrice)}
               className={`w-full py-3 px-4 rounded-md font-medium transition-colors ${
                 orderType === 'buy'
-                  ? 'bg-green-700 hover:bg-green-800 text-white'
-                  : 'bg-red-600 hover:bg-red-700 text-white'
+                  ? SOLID_BUTTON.confirm
+                  : SOLID_BUTTON.danger
               } disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               {orderType === 'buy' ? '매수' : '매도'}

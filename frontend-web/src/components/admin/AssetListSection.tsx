@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { RefreshCw, Trash2, DollarSign, TrendingUp, ArrowUpDown, ChevronLeft, ChevronRight, Pencil, Check, X, PlusCircle, Undo2 } from 'lucide-react';
 import type { Asset } from '@services/adminApi';
 import { formatMarketCap } from '../../utils/formatNumber';
+import { SOLID_BUTTON } from '@/styles/buttons';
 
 interface AssetListSectionProps {
   assets: Asset[];
@@ -187,7 +188,7 @@ export default function AssetListSection({
             <button
               onClick={onBulkDelete}
               disabled={loading}
-              className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg flex items-center gap-2 transition disabled:opacity-50"
+              className={`px-4 py-2 ${SOLID_BUTTON.danger} rounded-lg flex items-center gap-2 transition disabled:opacity-50`}
             >
               <Trash2 className="w-5 h-5" />
               선택 삭제 ({selected.size})
@@ -204,7 +205,7 @@ export default function AssetListSection({
           <button
             onClick={onUpdateAllPrices}
             disabled={loading}
-            className="px-4 py-2 bg-green-700 text-white hover:bg-green-800 rounded-lg flex items-center gap-2 transition disabled:opacity-50"
+            className={`px-4 py-2 ${SOLID_BUTTON.confirm} rounded-lg flex items-center gap-2 transition disabled:opacity-50`}
           >
             <DollarSign className="w-5 h-5" />
             전체 가격 업데이트
@@ -212,7 +213,7 @@ export default function AssetListSection({
           <button
             onClick={onUpdateAllMarketCaps}
             disabled={loading}
-            className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg flex items-center gap-2 transition disabled:opacity-50"
+            className={`px-4 py-2 ${SOLID_BUTTON.info} rounded-lg flex items-center gap-2 transition disabled:opacity-50`}
           >
             <TrendingUp className="w-5 h-5" />
             전체 시가총액 업데이트
@@ -221,7 +222,7 @@ export default function AssetListSection({
             onClick={onCollectNewSymbols}
             disabled={loading}
             title="목록을 다시 받아 DB 에 없는 종목만 추가합니다. 평일 08:00 스케줄과 같은 일입니다."
-            className="px-4 py-2 bg-purple-600 text-white hover:bg-purple-700 rounded-lg flex items-center gap-2 transition disabled:opacity-50"
+            className={`px-4 py-2 ${SOLID_BUTTON.accent} rounded-lg flex items-center gap-2 transition disabled:opacity-50`}
           >
             <PlusCircle className="w-5 h-5" />
             신규 종목 수집

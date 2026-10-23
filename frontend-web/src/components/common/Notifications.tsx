@@ -2,6 +2,7 @@ import React from 'react';
 import { X } from 'lucide-react';
 import { Modal } from './Modal';
 import { dismissToast, settleConfirm, useConfirmRequest, useToasts } from './notify';
+import { SOLID_BUTTON } from '@/styles/buttons';
 
 const kindClass = {
   success: 'border-success',
@@ -46,7 +47,7 @@ export const Notifications: React.FC = () => {
               <button
                 onClick={() => settleConfirm(true)}
                 className={`flex-1 rounded-lg px-4 py-2 transition-colors ${
-                  confirm.danger ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-brand text-brand-ink hover:bg-brand-dark'
+                  confirm.danger ? SOLID_BUTTON.danger : 'bg-brand text-brand-ink hover:bg-brand-dark'
                 }`}
               >
                 {confirm.confirmText ?? '확인'}

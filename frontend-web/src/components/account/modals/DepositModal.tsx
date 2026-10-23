@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Modal } from '@/components/common/Modal';
 import { addAmount } from '@/utils/amount';
 import { notify } from '@/components/common/notify';
+import { SOLID_BUTTON } from '@/styles/buttons';
 
 interface DepositModalProps {
   isOpen: boolean;
@@ -51,7 +52,7 @@ const DepositModal: React.FC<DepositModalProps> = ({
       <button
         onClick={handleSubmit}
         disabled={!depositAmount || parseFloat(depositAmount) <= 0}
-        className="flex-1 px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className={`flex-1 px-4 py-2 ${SOLID_BUTTON.confirm} rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors`}
       >
         입금하기
       </button>

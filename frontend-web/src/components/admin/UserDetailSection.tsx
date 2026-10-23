@@ -3,6 +3,7 @@ import { Edit2, Lock, CheckCircle, Trash2 } from 'lucide-react';
 import type { UserDetail } from '@services/adminApi';
 import { notify } from '@/components/common/notify';
 import { DialogField, FormDialog } from '@/components/common/FormDialog';
+import { SOLID_BUTTON } from '@/styles/buttons';
 
 interface UserDetailSectionProps {
   user: UserDetail | null;
@@ -192,14 +193,14 @@ export default function UserDetailSection({
             <button
               onClick={() => onUpdateEnabled(user.userId, true)}
               disabled={user.enabled || loading}
-              className="flex-1 px-4 py-2 bg-green-700 text-white rounded-lg disabled:opacity-50 hover:bg-green-800 transition"
+              className={`flex-1 px-4 py-2 ${SOLID_BUTTON.confirm} rounded-lg disabled:opacity-50 transition`}
             >
               활성화
             </button>
             <button
               onClick={() => onUpdateEnabled(user.userId, false)}
               disabled={!user.enabled || loading}
-              className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg disabled:opacity-50 hover:bg-red-700 transition"
+              className={`flex-1 px-4 py-2 ${SOLID_BUTTON.danger} rounded-lg disabled:opacity-50 transition`}
             >
               비활성화
             </button>
@@ -244,7 +245,7 @@ export default function UserDetailSection({
           <button
             onClick={handleDeleteUser}
             disabled={loading}
-            className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2"
+            className={`w-full px-4 py-2 ${SOLID_BUTTON.danger} rounded-lg disabled:opacity-50 flex items-center justify-center gap-2`}
           >
             <Trash2 className="w-4 h-4" />
             사용자 강제 탈퇴
