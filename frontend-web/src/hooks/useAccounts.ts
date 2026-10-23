@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { accountsApi } from '../services/api';
+import { queryOptions, useQuery } from '@tanstack/react-query';
+import { accountsApi, type AccountSummary } from '../services/api';
 
 export interface Account {
   accountId: number;
@@ -16,21 +16,23 @@ interface UseAccountsReturn {
   error: string | null;
 }
 
-const EMPTY_ACCOUNTS: Account[] = [];
+const EMPTY_ACCOUNTS: AccountSummary[] = [];
+
+// 계좌 목록 조회(응답이 배열이 아니면 빈 목록)
+export const accountListQuery = queryOptions({
+  queryKey: ['accounts', 'list'],
+  queryFn: async (): Promise<AccountSummary[]> => {
+    const response = await accountsApi.getAccounts();
+    return Array.isArray(response.data) ? response.data : EMPTY_ACCOUNTS;
+  },
+});
 
 // 로그인했을 때 계좌 목록을 받고 첫 계좌를 고름
 export function useAccounts(isAuthenticated: boolean): UseAccountsReturn {
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['accounts', 'list'],
-    enabled: isAuthenticated,
-    queryFn: async () => {
-      const response = await accountsApi.getAccounts();
-      return Array.isArray(response.data) ? (response.data as Account[]) : EMPTY_ACCOUNTS;
-    },
-  });
-  const accounts = isAuthenticated ? (data ?? EMPTY_ACCOUNTS) : EMPTY_ACCOUNTS;
+  const { data, isLoading, error } = useQuery({ ...accountListQuery, enabled: isAuthenticated });
+  const accounts: Account[] = isAuthenticated ? (data ?? EMPTY_ACCOUNTS) : EMPTY_ACCOUNTS;
 
   // 첫 계좌를 자동 선택. 로그아웃하면 선택을 비움
   useEffect(() => {

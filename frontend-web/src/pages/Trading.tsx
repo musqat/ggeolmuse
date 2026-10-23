@@ -204,7 +204,8 @@ const Trading: React.FC = () => {
       // 잔고와 보유가 바뀌어 매수·매도 가능 수량 · 거래 내역 · 계좌 잔액과 총자산을 다시 받음
       void queryClient.invalidateQueries({ queryKey: ['trade'] });
       void queryClient.invalidateQueries({ queryKey: ['account'] });
-      void queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      // 진행 중인 계좌 목록 요청은 취소하지 않고 같이 씀
+      void queryClient.invalidateQueries({ queryKey: ['accounts'] }, { cancelRefetch: false });
       // 정산 전 매수는 정산이 끝나야 보유에 들어가 잠시 뒤 한 번 더 받음
       if (trade.status === 'PENDING') {
         setTimeout(() => {

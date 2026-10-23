@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createElement, type ReactNode } from 'react'
 import { accountsApi, portfolioApi } from '../services/api'
 import { useAccountData } from './useAccountData'
+import { useAccounts } from './useAccounts'
 
 vi.mock('../services/api', () => ({
   accountsApi: { getAccounts: vi.fn(), getCurrentExchangeRate: vi.fn(), getAccountBalance: vi.fn() },
@@ -47,5 +48,50 @@ describe('useAccountData 총자산', () => {
 
     expect(accountsApi.getAccounts).not.toHaveBeenCalled()
     expect(result.current.totalAssets).toBe(0)
+  })
+})
+
+// 앱과 같은 신선 기간(5분)
+const appClient = () => new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 5 * 60 * 1000 } } })
+const withClient = (client: QueryClient) => ({ children }: { children: ReactNode }) =>
+  createElement(QueryClientProvider, { client }, children)
+const useHeaderFirst = () => { const data = useAccountData(true); const list = useAccounts(true); return { data, list } }
+const useScreenFirst = () => { const list = useAccounts(true); const data = useAccountData(true); return { data, list } }
+const zeroBalance = () =>
+  vi.mocked(accountsApi.getAccountBalance).mockResolvedValue({ data: { balanceKrw: 0, balanceUsd: 0 } } as never)
+
+describe('useAccountData 계좌 목록', () => {
+  it.each([['헤더', useHeaderFirst], ['화면', useScreenFirst]])('%s 쪽이 먼저 불러도 계좌 목록은 한 번만 부른다', async (_, hooks) => {
+    const { result } = renderHook(hooks, { wrapper: withClient(appClient()) })
+
+    await waitFor(() => expect(result.current.data.accounts).toHaveLength(2))
+    expect(result.current.list.accounts).toHaveLength(2)
+    expect(accountsApi.getAccounts).toHaveBeenCalledTimes(1)
+  })
+
+  it('다시 불러오면 계좌 목록도 새로 받는다', async () => {
+    const { result } = renderHook(() => useAccountData(true), { wrapper: withClient(appClient()) })
+    await waitFor(() => expect(result.current.accounts).toHaveLength(2))
+    vi.mocked(accountsApi.getAccounts).mockResolvedValue({ data: [{ accountId: 1 }, { accountId: 2 }, { accountId: 3 }] } as never)
+    zeroBalance()
+
+    await act(() => result.current.refetch())
+
+    await waitFor(() => expect(result.current.accounts).toHaveLength(3))
+  })
+
+  it('거래 뒤 계좌 쿼리 둘을 같이 무효화해도 계좌 목록은 한 번만 다시 부른다', async () => {
+    const client = appClient()
+    const { result } = renderHook(useHeaderFirst, { wrapper: withClient(client) })
+    await waitFor(() => expect(result.current.data.accounts).toHaveLength(2))
+    zeroBalance()
+    vi.mocked(accountsApi.getAccounts).mockClear()
+
+    await act(() => Promise.all([
+      client.invalidateQueries({ queryKey: ['account'] }),
+      client.invalidateQueries({ queryKey: ['accounts'] }, { cancelRefetch: false }),
+    ]))
+
+    expect(accountsApi.getAccounts).toHaveBeenCalledTimes(1)
   })
 })

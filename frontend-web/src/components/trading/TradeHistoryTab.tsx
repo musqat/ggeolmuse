@@ -1,20 +1,14 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { tradeApi, accountsApi, type TransactionHistoryItem } from '../../services/api';
+import { tradeApi, type TransactionHistoryItem } from '../../services/api';
+import { accountListQuery } from '../../hooks/useAccounts';
 import { TradeHistoryList } from './history/TradeHistoryList';
 import { historyRefetchInterval } from './history/tradeHistory';
 
 // 거래 화면의 거래내역 탭. 목록은 거래내역 페이지와 같은 것을 쓴다
 const TradeHistoryTab: React.FC = () => {
   // React Query: 계좌 목록 조회
-  const { data: accounts = [] } = useQuery({
-    queryKey: ['accounts', 'list'],
-    queryFn: async () => {
-      const response = await accountsApi.getAccounts();
-      return response.data || [];
-    },
-    staleTime: 5 * 60 * 1000, // 5분
-  });
+  const { data: accounts = [] } = useQuery(accountListQuery);
 
   // React Query: 거래내역 조회
   const {

@@ -94,7 +94,7 @@ describe('Trading 주문', () => {
     // 잔고 · 보유가 바뀌어 거래 · 계좌 쪽 조회를 다시 받음
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['trade'] })
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['account'] })
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['accounts'] })
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['accounts'] }, { cancelRefetch: false })
     expect(screen.getByRole('spinbutton')).toHaveValue(1)
   })
 

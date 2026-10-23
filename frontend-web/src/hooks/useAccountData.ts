@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   accountsApi,
   portfolioApi,
@@ -6,6 +6,7 @@ import {
   type AccountBalance,
   type PortfolioSummaryResponse
 } from '../services/api';
+import { accountListQuery } from './useAccounts';
 
 interface UseAccountDataReturn {
   accounts: AccountSummary[];
@@ -38,6 +39,8 @@ const calculateTotalAssets = (
 
 // 로그인했을 때 계좌 목록 · 잔액 · 포트폴리오 요약 · 환율을 불러옴
 export const useAccountData = (isAuthenticated: boolean): UseAccountDataReturn => {
+  const queryClient = useQueryClient();
+
   // React Query: 모든 계좌 데이터를 한 번에 조회 (순차 API 호출)
   const {
     data,
@@ -47,9 +50,8 @@ export const useAccountData = (isAuthenticated: boolean): UseAccountDataReturn =
   } = useQuery({
     queryKey: ['account', 'data'],
     queryFn: async () => {
-      // 1. 계좌 목록 조회
-      const accountsResponse = await accountsApi.getAccounts();
-      const accountList = accountsResponse.data;
+      // 1. 계좌 목록 조회(진행 중인 같은 요청이 있으면 같이 씀)
+      const accountList = await queryClient.fetchQuery({ ...accountListQuery, staleTime: 0 });
 
       // 2. 현재 환율 조회
       const rateResponse = await accountsApi.getCurrentExchangeRate();

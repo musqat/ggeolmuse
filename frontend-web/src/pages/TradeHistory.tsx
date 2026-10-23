@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../hooks/useAuth';
 import { LogIn } from 'lucide-react';
-import { tradeApi, accountsApi, type TransactionHistoryItem } from '../services/api';
+import { tradeApi, type TransactionHistoryItem } from '../services/api';
+import { accountListQuery } from '../hooks/useAccounts';
 import LoginModal from '../components/auth/LoginModal';
 import { TradeHistoryList } from '../components/trading/history/TradeHistoryList';
 import { historyRefetchInterval } from '../components/trading/history/tradeHistory';
@@ -29,15 +30,7 @@ const TradeHistory: React.FC = () => {
   });
 
   // React Query: 계좌 목록 조회. 계좌 필터와 계좌 이름에 쓴다
-  const { data: accounts = [] } = useQuery({
-    queryKey: ['accounts', 'list'],
-    queryFn: async () => {
-      const response = await accountsApi.getAccounts();
-      return response.data || [];
-    },
-    enabled: isAuthenticated,
-    staleTime: 5 * 60 * 1000, // 5분
-  });
+  const { data: accounts = [] } = useQuery({ ...accountListQuery, enabled: isAuthenticated });
 
   if (authLoading) {
     return (
