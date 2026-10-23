@@ -11,3 +11,7 @@ export async function fetchSymbolPrices<T extends { symbol: string }>(
     ? (response.data as unknown as T[]).filter((row) => row.symbol === symbol)
     : [];
 }
+
+// 차트가 그리는 주가, 분할만 조정된 종가 · 없으면 수정 종가
+export const closeOf = (row: { closePrice?: number; adjustedClose?: number }) =>
+  row.closePrice || row.adjustedClose || 0;

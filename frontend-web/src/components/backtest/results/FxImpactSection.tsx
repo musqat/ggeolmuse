@@ -1,7 +1,7 @@
 import React from 'react';
 import { Repeat } from 'lucide-react';
 import type { StrategyResponse } from '../../../services/api';
-import { formatPercent, formatSigned, gainLossClass } from '../../../utils/gainLoss';
+import { formatFxRate, formatPercent, formatSigned, gainLossClass, hasValue } from '../../../utils/gainLoss';
 import { DetailRow, DetailSection } from './DetailSection';
 
 interface FxImpactSectionProps {
@@ -16,17 +16,17 @@ export const FxImpactSection: React.FC<FxImpactSectionProps> = ({ result, startL
   <DetailSection title="환율 영향" icon={Repeat} borderClassName="border-brand/25">
     <DetailRow
       label={startLabel}
-      value={<>₩{startRate?.toLocaleString()}</>}
+      value={hasValue(startRate) ? formatFxRate(startRate) : '-'}
       dividerClassName="border-line"
     />
     <DetailRow
       label="평가일 환율"
-      value={<>₩{result.currentFxRate?.toLocaleString()}</>}
+      value={hasValue(result.currentFxRate) ? formatFxRate(result.currentFxRate) : '-'}
       dividerClassName="border-line"
     />
     <DetailRow
       label="환율 변동"
-      value={formatSigned(result.fxReturn, (v) => `₩${v.toFixed(2)}`)}
+      value={formatSigned(result.fxReturn, formatFxRate)}
       valueClassName={`font-medium ${gainLossClass(result.fxReturn)}`}
       dividerClassName="border-line"
     />

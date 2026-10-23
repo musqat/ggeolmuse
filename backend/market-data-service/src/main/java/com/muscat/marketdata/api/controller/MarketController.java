@@ -393,7 +393,7 @@ public class MarketController {
 
   @Operation(
     summary = "Bulk 환율 조회",
-    description = "여러 날짜의 USD/KRW 환율을 한 번에 조회합니다. 백테스트 차트 등에서 사용됩니다. URL 길이 제한을 피하기 위해 POST 요청을 사용합니다."
+    description = "여러 날짜의 USD/KRW 환율을 한 번에 조회합니다. 그날 환율이 없으면 이전 가장 가까운 영업일 환율을 줍니다. 백테스트 차트 등에서 사용됩니다. URL 길이 제한을 피하기 위해 POST 요청을 사용합니다."
   )
   @ApiResponses(value = {
     @ApiResponse(
@@ -417,13 +417,9 @@ public class MarketController {
       .map(LocalDate::parse)
       .toList();
 
-    List<FxRate> fxRates = fxRateService.findByDates(localDates);
-
-    // Map으로 변환: 날짜 문자열 -> 환율
+    // 날짜 문자열 -> 환율
     Map<String, BigDecimal> result = new java.util.HashMap<>();
-    for (FxRate rate : fxRates) {
-      result.put(rate.getDate().toString(), rate.getRate());
-    }
+    fxRateService.findByDates(localDates).forEach((date, rate) -> result.put(date.toString(), rate));
 
     log.debug("Bulk 환율 조회 완료: {}개 요청, {}개 반환", dates.size(), result.size());
 

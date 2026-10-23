@@ -28,49 +28,55 @@ const result = {
   items: [item('AAPL', 120000, 12), item('MSFT', 80000, 8)],
 }
 
+const renderResult = (value: typeof result) =>
+  render(<SymbolComparisonResult result={value} comparePurchaseDate="2023-01-03" compareSaleDate="" />)
+
 describe('SymbolComparisonResult', () => {
   it('비교한 종목을 모두 보여준다', () => {
-    render(
-      <SymbolComparisonResult
-        result={result}
-        comparePurchaseDate="2023-01-03"
-        compareSaleDate=""
-        symbolOptimalPoints={{}}
-        setSymbolOptimalPoints={vi.fn()}
-      />
-    )
+    renderResult(result)
 
     expect(screen.getAllByText('AAPL').length).toBeGreaterThan(0)
     expect(screen.getAllByText('MSFT').length).toBeGreaterThan(0)
   })
 
   it('보유일은 매수일부터 기준일까지 센다', () => {
-    render(
-      <SymbolComparisonResult
-        result={result}
-        comparePurchaseDate="2023-01-03"
-        compareSaleDate=""
-        symbolOptimalPoints={{}}
-        setSymbolOptimalPoints={vi.fn()}
-      />
-    )
+    renderResult(result)
 
     expect(screen.getAllByText('365일')).toHaveLength(2)
+  })
+
+  it('보유 주식은 소수 둘째 자리까지 보여준다', () => {
+    renderResult({ ...result, items: [{ ...item('AAPL', 120000, 12), shares: 6.0992 }] })
+
+    expect(screen.getByText('6.10주')).toBeInTheDocument()
+  })
+
+  it('현재 가치는 배당 현금까지 넣은 총자산이고 주식 · 현금으로 나눠 보여준다', () => {
+    const withCash = { ...item('AAPL', 1845657, 184.57), currentValueKrw: 2815184, additionalData: { totalAssetKrw: 2845657 } }
+    renderResult({ ...result, items: [withCash] })
+
+    expect(screen.getByText('₩2,845,657')).toBeInTheDocument()
+    expect(screen.getByText('주식 ₩2,815,184 · 현금 ₩30,473')).toBeInTheDocument()
+  })
+
+  it('고른 시작일이 휴장일이라 다른 날 샀으면 한 번 알린다', () => {
+    render(<SymbolComparisonResult result={result} comparePurchaseDate="2023-01-01" compareSaleDate="" />)
+
+    expect(screen.getAllByText('선택한 시작일(2023-01-01)은 휴장일이라 다음 거래일(2023-01-03) 종가로 샀습니다.')).toHaveLength(1)
+  })
+
+  it('환율은 소수 둘째 자리까지 보여준다', () => {
+    renderResult({ ...result, items: [{ ...item('AAPL', 120000, 12), purchaseFxRate: 1261.87, currentFxRate: 1325.5 }] })
+
+    expect(screen.getByText('₩1,261.87')).toBeInTheDocument()
+    expect(screen.getByText('₩1,325.50')).toBeInTheDocument()
   })
 })
 
 describe('SymbolComparisonResult 값이 없을 때', () => {
   it('총 수익이 비어 있으면 - 와 중립 배경을 쓴다', () => {
     const missing = { ...result, items: [{ ...item('AAPL', 0, 0), totalReturnKrw: undefined }] }
-    render(
-      <SymbolComparisonResult
-        result={missing}
-        comparePurchaseDate="2023-01-03"
-        compareSaleDate=""
-        symbolOptimalPoints={{}}
-        setSymbolOptimalPoints={vi.fn()}
-      />
-    )
+    render(<SymbolComparisonResult result={missing} comparePurchaseDate="2023-01-03" compareSaleDate="" />)
 
     const label = screen.getAllByText('총 수익')[0]
     const box = label.parentElement
@@ -80,55 +86,26 @@ describe('SymbolComparisonResult 값이 없을 때', () => {
 
   it('매수일이 없으면 보유일은 - 로 둔다', () => {
     const missing = { ...result, items: [{ ...item('AAPL', 0, 0), purchaseDate: undefined }] }
-    render(
-      <SymbolComparisonResult
-        result={missing}
-        comparePurchaseDate="2023-01-03"
-        compareSaleDate=""
-        symbolOptimalPoints={{}}
-        setSymbolOptimalPoints={vi.fn()}
-      />
-    )
+    render(<SymbolComparisonResult result={missing} comparePurchaseDate="2023-01-03" compareSaleDate="" />)
 
     expect(screen.getByText('보유일').nextElementSibling).toHaveTextContent('-')
   })
 })
 
 describe('SymbolComparisonResult 최적 타이밍', () => {
-  const chartPoint = { buyDate: '2023-03-01', sellDate: '2023-11-01', minPrice: 145.5, sellPrice: 190.25 }
+  it('항목의 최적 매수 · 매도일과 그날 종가를 보여준다', () => {
+    const optimal = { optimalBuyDate: '2023-01-05', optimalBuyPrice: 125.02, optimalSellDate: '2026-07-28', optimalSellPrice: 340.08 }
+    renderResult({ ...result, items: [{ ...item('AAPL', 120000, 12), ...optimal }] })
 
-  it('서버 값이 없으면 차트가 계산한 매수 · 매도 시점을 서버 값과 같은 칸으로 보여준다', () => {
-    const one = { ...result, items: [item('AAPL', 120000, 12)] }
-    render(
-      <SymbolComparisonResult
-        result={one}
-        comparePurchaseDate="2023-01-03"
-        compareSaleDate=""
-        symbolOptimalPoints={{ AAPL: chartPoint }}
-        setSymbolOptimalPoints={vi.fn()}
-      />
-    )
-
-    expect(screen.getByText('2023-03-01')).toBeInTheDocument()
-    expect(screen.getByText('$145.50')).toBeInTheDocument()
-    expect(screen.getByText('2023-11-01')).toBeInTheDocument()
-    expect(screen.getByText('최적 매도가')).toBeInTheDocument()
-    expect(screen.getByText('$190.25')).toBeInTheDocument()
-    expect(screen.queryByText('최적 평가금액')).not.toBeInTheDocument()
+    expect(screen.getByText('2023-01-05')).toBeInTheDocument()
+    expect(screen.getByText('$125.02')).toBeInTheDocument()
+    expect(screen.getByText('2026-07-28')).toBeInTheDocument()
+    expect(screen.getByText('$340.08')).toBeInTheDocument()
   })
 
-  it('항목 이름이 종목 코드와 달라도 종목 코드로 차트 값을 찾는다', () => {
-    const named = { ...result, items: [{ ...item('AAPL', 120000, 12), name: '애플' }] }
-    render(
-      <SymbolComparisonResult
-        result={named}
-        comparePurchaseDate="2023-01-03"
-        compareSaleDate=""
-        symbolOptimalPoints={{ AAPL: chartPoint }}
-        setSymbolOptimalPoints={vi.fn()}
-      />
-    )
+  it('최적 시점이 없으면 최적 타이밍 칸이 없다', () => {
+    renderResult({ ...result, items: [item('AAPL', 120000, 12)] })
 
-    expect(screen.getByText('2023-03-01')).toBeInTheDocument()
+    expect(screen.queryByText('최적 타이밍')).not.toBeInTheDocument()
   })
 })

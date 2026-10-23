@@ -18,7 +18,8 @@ vi.mock('../../../services/api', () => ({
 const getOHLCData = vi.mocked(stockApi.getOHLCData)
 const getExchangeRatesBulk = vi.mocked(stockApi.getExchangeRatesBulk)
 
-const candle = (symbol: string, date: string, close: number) => ({ symbol, date, closePrice: close, adjustedClose: close })
+// 수정 종가는 배당만큼 낮게, 차트가 그리는 값은 종가
+const candle = (symbol: string, date: string, close: number) => ({ symbol, date, closePrice: close, adjustedClose: close - 1 })
 
 // 2026-03-01 은 일요일. 매수 마커는 다음 거래일 03-02 에 찍힌다
 const transactions = [
@@ -238,5 +239,11 @@ describe('AccumulationChart', () => {
       { x: '2026-03-09', y: 110, fill: '#10b981' },
     ])
     expect(portfolio.dots.map((dot: { fill: string }) => dot.fill)).toEqual(['#8b5cf6', '#10b981'])
+  })
+
+  it('보유 주식 합은 소수 둘째 자리까지 보여준다', async () => {
+    renderWithQuery(<AccumulationChart {...props} />)
+
+    expect(await screen.findByText('3회 매수 • 총 2.10주 보유')).toBeInTheDocument()
   })
 })

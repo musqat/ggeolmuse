@@ -9,6 +9,7 @@ import {
   formatUsd,
   formatPercent,
   formatBalanceAmount,
+  formatFxRate,
 } from './gainLoss'
 
 describe('gainLoss', () => {
@@ -39,11 +40,18 @@ describe('gainLoss', () => {
     expect(gainLossBoxClass(undefined)).toBe('bg-brand-bg')
   })
 
-  it('부호를 붙여 형식에 맞춘다', () => {
+  it('부호를 통화 기호 앞에 붙여 형식에 맞춘다', () => {
     expect(formatSigned(150000, formatKrw)).toBe('+₩150,000')
-    // 음수는 지금 화면처럼 통화 기호 뒤에 부호가 붙는다
-    expect(formatSigned(-12.345, formatUsd)).toBe('$-12.35')
+    expect(formatSigned(-12.345, formatUsd)).toBe('-$12.35')
+    expect(formatSigned(-123456, formatKrw)).toBe('-₩123,456')
+    expect(formatSigned(-30.02, formatFxRate)).toBe('-₩30.02')
     expect(formatSigned(0, formatPercent)).toBe('+0.00%')
+    expect(formatSigned(-2.21, formatPercent)).toBe('-2.21%')
+  })
+
+  it('환율은 쉼표를 넣어 소수 둘째 자리까지 보인다', () => {
+    expect(formatFxRate(1325.5)).toBe('₩1,325.50')
+    expect(formatFxRate(1261.87)).toBe('₩1,261.87')
   })
 
   it('값이 없으면 - 만 보여준다', () => {

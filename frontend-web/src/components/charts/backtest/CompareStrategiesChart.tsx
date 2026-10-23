@@ -13,13 +13,13 @@ import {
 } from 'recharts';
 import type { ComparisonDetail } from '../../../services/api';
 import { DEFAULT_FX_RATE, fetchFxRates } from './shared/fxRates';
-import { fetchSymbolPrices } from './shared/prices';
+import { closeOf, fetchSymbolPrices } from './shared/prices';
 import {
   AXIS_PROPS,
   CHART_HEIGHT,
   CHART_MARGIN,
-  formatDayTick,
-  formatManwonTick,
+  dateAxis,
+  formatKrwTick,
   formatTooltipDate,
   formatUsdTick,
   GRID_PROPS,
@@ -113,10 +113,9 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
 
     // 가격 데이터로 초기화
     priceData.forEach((price) => {
-      const adjustedPrice = price.adjustedClose || price.closePrice;
       priceDataMap.set(price.date, {
         date: price.date,
-        stockPrice: adjustedPrice
+        stockPrice: closeOf(price)
       });
       portfolioDataMap.set(price.date, {
         date: price.date
@@ -142,12 +141,11 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
 
         const priceAtPurchase = priceData.find((p) => p.date === tradingDate);
         if (priceAtPurchase) {
-          const adjustedPrice = priceAtPurchase.adjustedClose || priceAtPurchase.closePrice;
           allPurchasePoints.push({
             date: tradingDate,
             strategyName: strategy.name,
             strategyIdx: strategyIdx,
-            stockPrice: adjustedPrice
+            stockPrice: closeOf(priceAtPurchase)
           });
         }
 
@@ -156,8 +154,7 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
 
         priceData.forEach((price) => {
           if (price.date >= tradingDate) {
-            const adjustedPrice = price.adjustedClose || price.closePrice;
-            const portfolioValueUSD = shares * adjustedPrice;
+            const portfolioValueUSD = shares * closeOf(price);
             const portfolioValueKRW = portfolioValueUSD * (fxRates.get(price.date) || DEFAULT_FX_RATE);
 
             const existing = portfolioDataMap.get(price.date);
@@ -192,12 +189,11 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
 
         const priceAtPurchase = priceData.find((p) => p.date === tradingDate);
         if (priceAtPurchase) {
-          const adjustedPrice = priceAtPurchase.adjustedClose || priceAtPurchase.closePrice;
           allPurchasePoints.push({
             date: tradingDate,
             strategyName: strategy.name,
             strategyIdx: strategyIdx,
-            stockPrice: adjustedPrice
+            stockPrice: closeOf(priceAtPurchase)
           });
         }
       });
@@ -213,8 +209,7 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
         });
 
         if (cumulativeShares > 0) {
-          const adjustedPrice = price.adjustedClose || price.closePrice;
-          const portfolioValueUSD = cumulativeShares * adjustedPrice;
+          const portfolioValueUSD = cumulativeShares * closeOf(price);
           const portfolioValueKRW = portfolioValueUSD * (fxRates.get(price.date) || DEFAULT_FX_RATE);
 
           const existing = portfolioDataMap.get(price.date);
@@ -232,6 +227,8 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
       purchasePoints: allPurchasePoints
     };
   }, [priceData, fxRates, strategies]);
+
+  const xAxis = dateAxis(priceChartData.map((d) => d.date));
 
   if (loading) {
     return (
@@ -269,7 +266,7 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
             <XAxis
               dataKey="date"
               {...AXIS_PROPS}
-              tickFormatter={formatDayTick}
+              {...xAxis}
             />
             <YAxis
               {...AXIS_PROPS}
@@ -321,11 +318,11 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
             <XAxis
               dataKey="date"
               {...AXIS_PROPS}
-              tickFormatter={formatDayTick}
+              {...xAxis}
             />
             <YAxis
               {...AXIS_PROPS}
-              tickFormatter={formatManwonTick}
+              tickFormatter={formatKrwTick}
             />
             <Tooltip
               {...TOOLTIP_PROPS}

@@ -147,62 +147,46 @@ class DCAStrategyTest {
     }
 
     @Test
-    @DisplayName("매수일이 주말/공휴일이면 다음 영업일에 매수한다")
-    void execute_WeekendPurchaseDay_ShiftsToNextBusinessDay() {
-      // given
-      BigDecimal monthlyAmount = new BigDecimal("1000.00");
-      Integer purchaseDay = 1; // 토요일인 경우
-
+    @DisplayName("투자일이 휴장일이면 다음 거래일 종가 · 환율로 산다")
+    void execute_HolidayInvestmentDay_BuysOnNextTradingDay() {
+      // given: 6/1 은 토요일, 그 전 금요일(5/31) 시세도 오지만 다음 거래일 6/3 에 삼
       DcaStrategyRequest request = DcaStrategyRequest.builder()
         .userId(userId)
         .symbol(symbol)
-        .startDate(LocalDate.of(2024, 6, 1)) // 토요일
+        .startDate(LocalDate.of(2024, 6, 1))
         .endDate(LocalDate.of(2024, 6, 30))
-        .monthlyAmount(monthlyAmount)
-        .purchaseDay(purchaseDay)
+        .monthlyAmount(new BigDecimal("1380000"))
+        .purchaseDay(1)
         .build();
 
-      // BULK API: getOHLCPriceRange() Mock - 주말 제외하고 영업일 데이터만 반환
-      List<OHLCPriceDto> ohlcPrices = List.of(
-        createOHLC(LocalDate.of(2024, 5, 31), new BigDecimal("100.00")) // 금요일
-      );
       given(marketDataClient.getOHLCPriceRange(eq(symbol), eq("2024-06-01"), eq("2024-06-30")))
-        .willReturn(ohlcPrices);
-
-      // BULK API: getBulkFxRates() Mock
-      java.util.Map<String, BigDecimal> fxRates = java.util.Map.of(
-        "2024-06-01", new BigDecimal("1300.00")
-      );
-      given(marketDataClient.getBulkFxRates(any())).willReturn(fxRates);
-
-      // 환율 데이터 Mock
-      FxRateDto fxRate = new FxRateDto(LocalDate.now(),
-        new BigDecimal("1300.00"));
-      given(marketDataClient.getFxRate(anyString())).willReturn(fxRate);
-
-      // 평가일 시세 Mock
+        .willReturn(List.of(
+          createOHLC(LocalDate.of(2024, 5, 31), new BigDecimal("100.00")),
+          createOHLC(LocalDate.of(2024, 6, 3), new BigDecimal("125.00"))));
+      given(marketDataClient.getBulkFxRates(any())).willReturn(java.util.Map.of(
+        "2024-06-01", new BigDecimal("1300"),
+        "2024-06-03", new BigDecimal("1380")));
+      given(marketDataClient.getFxRate(anyString()))
+        .willReturn(new FxRateDto(LocalDate.now(), new BigDecimal("1380")));
       given(marketDataClient.getOHLCPrice(eq(symbol), anyString()))
-        .willReturn(createOHLC(request.getEndDate(), new BigDecimal("100.00")));
-
-      // 배당 데이터 Mock
+        .willReturn(createOHLC(request.getEndDate(), new BigDecimal("125.00")));
       given(marketDataClient.getDividendHistory(eq(symbol), anyString(), anyString()))
         .willReturn(java.util.Collections.emptyList());
 
-      StrategyResponse expectedResponse = StrategyResponse.builder()
-        .strategyType(StrategyType.DCA)
-        .transactions(createDcaTransactions())
-        .build();
-
-      given(responseMapper.toStrategyResponse(any(DcaStrategyRequest.class),
-        any(), any(StrategyCalculationResult.class), any()))
-        .willReturn(expectedResponse);
-
       // when
-      StrategyResponse result = dcaStrategy.execute(request);
+      dcaStrategy.execute(request);
 
-      // then
-      assertThat(result).isNotNull();
-      // 주말을 건너뛰고 이전 영업일에 매수했는지 검증
+      // then: 138만원 ÷ 1380 = 1000달러 → 125달러에 8주
+      @SuppressWarnings("unchecked")
+      ArgumentCaptor<List<StrategyTransaction>> transactions = ArgumentCaptor.forClass(List.class);
+      verify(responseMapper).toStrategyResponse(any(DcaStrategyRequest.class), transactions.capture(),
+        any(StrategyCalculationResult.class), any());
+      StrategyTransaction first = transactions.getValue().get(0);
+      assertThat(first.getDate()).isEqualTo(LocalDate.of(2024, 6, 1));
+      assertThat(first.getActualDate()).isEqualTo(LocalDate.of(2024, 6, 3));
+      assertThat(first.getPrice()).isEqualByComparingTo("125.00");
+      assertThat(first.getFxRate()).isEqualByComparingTo("1380");
+      assertThat(first.getShares()).isEqualByComparingTo("8");
     }
 
     @Test

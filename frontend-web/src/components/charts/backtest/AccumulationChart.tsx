@@ -12,13 +12,13 @@ import {
   ReferenceDot,
 } from "recharts";
 import { DEFAULT_FX_RATE, fetchFxRates } from './shared/fxRates';
-import { fetchSymbolPrices } from './shared/prices';
+import { closeOf, fetchSymbolPrices } from './shared/prices';
 import {
   AXIS_PROPS,
   CHART_HEIGHT,
   CHART_MARGIN,
-  formatDayTick,
-  formatManwonTick,
+  dateAxis,
+  formatKrwTick,
   formatTooltipDate,
   formatUsdTick,
   GRID_PROPS,
@@ -151,13 +151,13 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
       const historicalFxRate = fxRateMap.get(dateStr) || DEFAULT_FX_RATE;
 
       // 포트폴리오 가치 = 보유주식 * 현재가격 (원화 환산)
-      const adjustedPrice = item.adjustedClose || item.closePrice;
-      const portfolioValueUsd = sharesSoFar * adjustedPrice;
+      const price = closeOf(item);
+      const portfolioValueUsd = sharesSoFar * price;
       const portfolioValueKrw = portfolioValueUsd * historicalFxRate;
 
       return {
         date: dateStr,
-        stockPrice: adjustedPrice,
+        stockPrice: price,
         portfolioValue: portfolioValueKrw,
         investedAmount: investedSoFar,
         isPurchase: purchaseDates.has(dateStr),
@@ -167,6 +167,8 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
 
     return data;
   }, [fetched, transactions]);
+
+  const xAxis = dateAxis(chartData.map((d) => d.date));
 
   // Y축 범위 계산 (±50 여유)
   const priceRange = useMemo(() => {
@@ -223,7 +225,7 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
         <h3 className="text-lg font-semibold text-tx-1 mb-2">투자 성과 차트</h3>
         <p className="text-sm text-tx-2">
           {transactions.length}회 매수 • 총{" "}
-          {transactions.reduce((sum, t) => sum + t.shares, 0).toFixed(4)}주 보유
+          {transactions.reduce((sum, t) => sum + t.shares, 0).toFixed(2)}주 보유
         </p>
       </div>
 
@@ -247,7 +249,7 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
             <XAxis
               dataKey="date"
               {...AXIS_PROPS}
-              tickFormatter={formatDayTick}
+              {...xAxis}
             />
             <YAxis
               {...AXIS_PROPS}
@@ -314,11 +316,11 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
             <XAxis
               dataKey="date"
               {...AXIS_PROPS}
-              tickFormatter={formatDayTick}
+              {...xAxis}
             />
             <YAxis
               {...AXIS_PROPS}
-              tickFormatter={formatManwonTick}
+              tickFormatter={formatKrwTick}
               domain={valueRange}
             />
             <Tooltip

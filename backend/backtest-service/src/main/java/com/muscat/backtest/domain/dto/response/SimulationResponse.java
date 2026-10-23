@@ -86,15 +86,15 @@ public class SimulationResponse {
   private String performanceSummary;
 
   // 최적 타이밍 정보
-  @Schema(description = "최적 매수일", example = "2024-01-10")
+  @Schema(description = "최적 매수일 (원화 주가 기준)", example = "2024-01-10")
   private LocalDate optimalBuyDate;
-  @Schema(description = "최적 매수 가격 (USD)", example = "175.20")
+  @Schema(description = "최적 매수일 종가 (USD)", example = "175.20")
   private BigDecimal optimalBuyPrice;
-  @Schema(description = "최적 매도일", example = "2024-09-15")
+  @Schema(description = "최적 매도일 (원화 주가 기준)", example = "2024-09-15")
   private LocalDate optimalSellDate;
-  @Schema(description = "최적 매도 가격 (USD)", example = "245.80")
+  @Schema(description = "최적 매도일 종가 (USD)", example = "245.80")
   private BigDecimal optimalSellPrice;
-  @Schema(description = "최적 수익률 (%)", example = "40.31")
+  @Schema(description = "최적 수익률 (원화 기준, %)", example = "40.31")
   private BigDecimal optimalReturnPercent;
 
   // 재투자 정보

@@ -26,6 +26,7 @@ import com.muscat.marketdata.domain.service.FxRateService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -246,7 +247,7 @@ class MarketControllerTest {
   @DisplayName("일괄 환율은 토큰 없이 POST 로 받고, 날짜 문자열을 키로 돌려준다")
   void bulkFx() throws Exception {
     given(fxRateService.findByDates(List.of(LocalDate.of(2024, 3, 4), LocalDate.of(2024, 3, 5))))
-      .willReturn(List.of(fx(LocalDate.of(2024, 3, 4), "1330.5")));
+      .willReturn(Map.of(LocalDate.of(2024, 3, 4), new BigDecimal("1330.5")));
 
     mockMvc.perform(post(BASE + "/fx/bulk").contentType(MediaType.APPLICATION_JSON).content("[\"2024-03-04\",\"2024-03-05\"]"))
       .andExpect(status().isOk())

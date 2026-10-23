@@ -66,4 +66,35 @@ describe('DcaConditionalResult', () => {
     expect(screen.getByText('평가일 환율')).toBeInTheDocument()
     expect(screen.queryByText('현재 가격')).toBeNull()
   })
+
+  it('보유 주식수 · 달러 주식 평가액은 소수 둘째 자리까지 보여준다', () => {
+    render(<DcaConditionalResult result={{ ...result, totalShares: 8.123456, currentValue: 1234.5678 }} mode="dca" {...props} />)
+
+    expect(screen.getByText('8.12 주')).toBeInTheDocument()
+    expect(screen.getByText('$1,234.57')).toBeInTheDocument()
+  })
+
+  it('위 카드 평가 가치는 배당 현금까지 넣은 총자산, 투자 정보는 주식 평가액만 보여준다', () => {
+    render(<DcaConditionalResult result={{ ...result, currentValueKrw: 1300000 }} mode="dca" {...props} />)
+
+    expect(screen.getByText('주식: ₩1,300,000, 현금: ₩50,000')).toBeInTheDocument()
+    expect(screen.getByText('주식 평가액').nextElementSibling).toHaveTextContent('₩1,300,000')
+  })
+
+  it('투자일이 휴장일이라 다른 날 산 번수를 알린다', () => {
+    const transactions = [
+      { date: '2023-01-15', actualDate: '2023-01-17', shares: 1, price: 140, amount: 100000, fxRate: 1300 },
+      { date: '2023-02-15', actualDate: '2023-02-15', shares: 1, price: 145, amount: 100000, fxRate: 1300 },
+    ]
+    render(<DcaConditionalResult result={{ ...result, transactions }} mode="dca" {...props} />)
+
+    expect(screen.getByText('투자일이 휴장일이면 다음 거래일 종가로 삽니다(이번 결과 1번).')).toBeInTheDocument()
+  })
+
+  it('환율은 소수 둘째 자리까지, 하락은 부호를 통화 앞에 둔다', () => {
+    render(<DcaConditionalResult result={{ ...result, currentFxRate: 1325.5, fxReturn: -30.02 }} mode="dca" {...props} />)
+
+    expect(screen.getByText('₩1,325.50')).toBeInTheDocument()
+    expect(screen.getByText('-₩30.02')).toBeInTheDocument()
+  })
 })

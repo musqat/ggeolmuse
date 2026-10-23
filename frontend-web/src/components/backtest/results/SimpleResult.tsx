@@ -7,6 +7,8 @@ import { SummaryCards } from './SummaryCards';
 import { FxImpactSection } from './FxImpactSection';
 import { DetailRow, DetailSection } from './DetailSection';
 import { getTodayString } from '../../../utils/dateUtils';
+import { cashKrw } from '../shared/backtestDisplay';
+import { HolidayNotice } from './HolidayNotice';
 
 interface SimpleResultProps {
   result: SimulationResponse;
@@ -17,6 +19,7 @@ interface SimpleResultProps {
 export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purchaseDate }) => {
   return (
     <div className="space-y-6">
+      <HolidayNotice label="매수일" chosen={purchaseDate} traded={result.purchaseDate} />
       <SummaryCards
         result={result}
         investedLabel="초기 투자금"
@@ -45,7 +48,7 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
               </div>
               <div className="text-xs text-tx-2">
                 주식: ₩{result.currentValueKrw?.toLocaleString()}, 현금: ₩
-                {result.remainingCashKrw?.toLocaleString()}
+                {cashKrw(result).toLocaleString()}
               </div>
             </div>
           </div>
@@ -60,7 +63,7 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
         </DetailSection>
 
         <DetailSection title="주식 수익" icon={TrendingUp} iconClassName="text-gain">
-          <DetailRow label="보유 주식수" value={<>{result.shares?.toFixed(6)} 주</>} />
+          <DetailRow label="보유 주식수" value={<>{result.shares?.toFixed(2)} 주</>} />
           <DetailRow label="매수 가격" value={<>${result.purchasePrice?.toFixed(2)}</>} />
           <DetailRow label="평가일 가격" value={<>${result.currentPrice?.toFixed(2)}</>} />
           <DetailRow

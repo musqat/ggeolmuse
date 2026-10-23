@@ -14,6 +14,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
@@ -62,6 +63,13 @@ public class MarketDataClientWrapper {
   public FxRateDto getFxRate(String date) {
     log.debug("Calling market-data-service getFxRate for date: {}", date);
     return marketDataClient.getFxRate(date);
+  }
+
+  @CircuitBreaker(name = "marketDataService")
+  @Retry(name = "marketDataService", fallbackMethod = "getBulkFxRatesFallback")
+  public Map<String, BigDecimal> getBulkFxRates(List<String> dates) {
+    log.debug("Calling market-data-service getBulkFxRates for {} dates", dates.size());
+    return marketDataClient.getBulkFxRates(dates);
   }
 
   /**
@@ -115,6 +123,11 @@ public class MarketDataClientWrapper {
     log.error("Fallback triggered for getFxRate. Date: {}, Error: {}. Using default FX rate: 1300",
       date, ex.getMessage());
     return new FxRateDto(LocalDate.parse(date), BigDecimal.valueOf(1300));
+  }
+
+  private Map<String, BigDecimal> getBulkFxRatesFallback(List<String> dates, Exception ex) {
+    log.error("Fallback triggered for getBulkFxRates. Dates: {}, Error: {}", dates.size(), ex.getMessage());
+    return Collections.emptyMap();
   }
 
   private FxRateDto getLatestFxRateFallback(Exception ex) {

@@ -10,10 +10,11 @@ import {
   gainLossTone,
 } from '../../../utils/gainLoss';
 import { StatCard } from './StatCard';
+import { cashKrw } from '../shared/backtestDisplay';
 
 type SummaryValues = Pick<
   StrategyResponse,
-  'totalAssetKrw' | 'currentValueKrw' | 'remainingCashKrw' | 'totalReturnKrw' | 'totalReturnPercent'
+  'totalAssetKrw' | 'currentValueKrw' | 'totalReturnKrw' | 'totalReturnPercent'
 >;
 
 interface SummaryCardsProps {
@@ -39,7 +40,7 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ result, investedLabe
       sub={
         <>
           주식: ₩{result.currentValueKrw?.toLocaleString()}, 현금: ₩
-          {result.remainingCashKrw?.toLocaleString()}
+          {cashKrw(result).toLocaleString()}
         </>
       }
       icon={TrendingUp}

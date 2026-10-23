@@ -22,6 +22,23 @@ describe('StrategyComparisonResult', () => {
     expect(screen.getAllByText('단순 매수').length).toBeGreaterThan(0)
     expect(screen.getAllByText('적립식').length).toBeGreaterThan(0)
   })
+
+  it('최종 가치는 배당 현금까지 넣은 총자산이라 투자금 + 총 수익과 맞는다', () => {
+    const withCash = {
+      ...result,
+      items: [{ ...result.items[0], totalReturnKrw: 130000, additionalData: { totalAssetKrw: 1130000 } }],
+    }
+    render(<StrategyComparisonResult result={withCash} />)
+
+    expect(screen.getByText('₩1,130,000')).toBeInTheDocument()
+    expect(screen.getByText('+₩130,000')).toBeInTheDocument()
+  })
+
+  it('손실은 부호를 통화 앞에 둔다', () => {
+    render(<StrategyComparisonResult result={result} />)
+
+    expect(screen.getByText('-₩5,000')).toBeInTheDocument()
+  })
 })
 
 describe('StrategyComparisonResult 값이 없을 때', () => {

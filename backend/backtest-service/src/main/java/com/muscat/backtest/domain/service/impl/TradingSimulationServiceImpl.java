@@ -6,6 +6,7 @@ import com.muscat.backtest.common.logging.BacktestLogger;
 import com.muscat.backtest.common.util.BacktestCalculationUtils;
 import com.muscat.backtest.common.util.BacktestHistoryUtils;
 import com.muscat.backtest.common.util.Decimals;
+import com.muscat.backtest.common.util.FxFallback;
 import com.muscat.backtest.common.util.PriceLookup;
 import com.muscat.backtest.common.validation.BacktestRequestValidator;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
@@ -77,17 +78,16 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
     LocalDate valuationDate = request.valuationDate(today);
     boolean valuedToday = valuationDate.equals(today);
 
-    // 주가 데이터 조회 - Wrapper 직접 호출로 resilience 패턴 적용
-    OHLCPriceDto purchaseData = getHistoricalPriceWithRetry(request.getSymbol(),
-      request.getPurchaseDate());
+    OHLCPriceDto purchaseData = getPurchasePrice(request.getSymbol(),
+      request.getPurchaseDate(), valuationDate);
+    LocalDate tradeDate = purchaseData.date();
 
-    // 수동 환율이 설정되어 있으면 사용, 없으면 자동 조회
+    // 수동 환율이 설정되어 있으면 사용, 없으면 실제로 산 날 환율
     FxRateDto purchaseFxRate;
     if (request.getPurchaseFxRate() != null) {
-      purchaseFxRate = new FxRateDto(request.getPurchaseDate(),
-        request.getPurchaseFxRate());
+      purchaseFxRate = new FxRateDto(tradeDate, request.getPurchaseFxRate());
     } else {
-      purchaseFxRate = marketDataClientWrapper.getFxRate(request.getPurchaseDate().toString());
+      purchaseFxRate = marketDataClientWrapper.getFxRate(tradeDate.toString());
     }
 
     // 평가일 시세. 오늘이면 현재가, 과거면 그날 조정 종가
@@ -104,9 +104,9 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
       currentFxRate = marketDataClientWrapper.getFxRate(valuationDate.toString());
     }
 
-    // 배당 이력 조회 (매수일 ~ 평가일)
+    // 배당 이력 조회 (실제 매수일 ~ 평가일)
     List<DividendDto> dividendList = marketDataClientWrapper.getDividendHistory(
-      request.getSymbol(), request.getPurchaseDate().toString(), valuationDate.toString());
+      request.getSymbol(), tradeDate.toString(), valuationDate.toString());
     DividendHistoryDto dividendHistory = DividendHistoryDto.of(request.getSymbol(), dividendList);
 
     return new SimulationContext(request, purchaseData, purchaseFxRate, valuationPrice,
@@ -156,7 +156,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
 
       log.info("배당금 재투자 실행 시작: {} 개의 배당 내역", context.dividendHistory().getDividends().size());
 
-      LocalDate purchaseDate = context.request().getPurchaseDate();
+      LocalDate purchaseDate = context.purchaseData().date();
 
       // 배당 내역을 ex-date 순으로 정렬해 순차 재투자
       var dividends = context.dividendHistory().getDividends().stream()
@@ -234,7 +234,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
     BigDecimal totalDividends = reinvested
       ? grossDividends
       : BacktestCalculationUtils.calculateTotalDividends(
-        context.dividendHistory(), shares, context.request().getPurchaseDate(), context.valuationDate());
+        context.dividendHistory(), shares, context.purchaseData().date(), context.valuationDate());
 
     BigDecimal dividendYield = BacktestCalculationUtils.calculateDividendYield(
       totalDividends, shares, currentPriceUsd);
@@ -278,10 +278,10 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
     // 최적 타이밍 계산 (매수일 ~ 평가일)
     OptimalTiming optimalTiming = calculateOptimalTiming(
       context.request().getSymbol(),
-      context.request().getPurchaseDate(),
+      context.purchaseData().date(),
       context.valuationDate());
 
-    return responseMapper.toSimulationResponse(
+    SimulationResponse response = responseMapper.toSimulationResponse(
       context.request(),
       calculation.purchasePriceUsd(),
       calculation.shares(),
@@ -308,9 +308,12 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
       optimalTiming.returnPercent(),
       calculation.dividendsReinvested(),
       calculation.dividendReinvestDates());
+    // 응답의 매수일은 실제로 산 날
+    response.setPurchaseDate(context.purchaseData().date());
+    return response;
   }
 
-  // 최적 타이밍 계산 (매수일 <= 매도일 제약 아래 최대 수익)
+  // 최적 타이밍 계산 (원화 주가 기준, 매수일 <= 매도일 제약 아래 최대 수익)
   private OptimalTiming calculateOptimalTiming(String symbol, LocalDate startDate,
     LocalDate endDate) {
     try {
@@ -322,10 +325,14 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
       }
 
       // 전 구간 최저가 · 최고가를 따로 뽑으면 매도일이 매수일보다 앞설 수 있음
-      // 날짜순으로 훑으며 그때까지의 최저가에 산 수익률만 봄
+      // 날짜순으로 훑으며 그때까지 원화 주가가 가장 낮은 날에 산 수익률만 봄
       List<OHLCPriceDto> ordered = prices.stream()
         .sorted(Comparator.comparing(OHLCPriceDto::date))
         .toList();
+
+      // 환율이 빠진 날은 기본 환율이라, 하나도 못 받으면 달러 주가 기준과 같음
+      Map<String, BigDecimal> fxRates = marketDataClientWrapper.getBulkFxRates(
+        ordered.stream().map(candle -> candle.date().toString()).toList());
 
       OHLCPriceDto minSoFar = ordered.get(0);
       OHLCPriceDto bestBuy = ordered.get(0);
@@ -333,13 +340,12 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
       BigDecimal bestReturn = BigDecimal.ZERO;
 
       for (OHLCPriceDto candle : ordered) {
-        if (PriceLookup.effectiveClose(candle)
-          .compareTo(PriceLookup.effectiveClose(minSoFar)) < 0) {
+        if (krwPrice(candle, fxRates).compareTo(krwPrice(minSoFar, fxRates)) < 0) {
           minSoFar = candle;
         }
 
         BigDecimal ret = MoneyUtils.calculateReturnRate(
-          PriceLookup.effectiveClose(minSoFar), PriceLookup.effectiveClose(candle));
+          krwPrice(minSoFar, fxRates), krwPrice(candle, fxRates));
 
         if (ret.compareTo(bestReturn) > 0) {
           bestReturn = ret;
@@ -363,6 +369,12 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
     }
   }
 
+  // 그날 종가 × 그날 환율, 환율이 없으면 기본 환율
+  private static BigDecimal krwPrice(OHLCPriceDto candle, Map<String, BigDecimal> fxRates) {
+    return PriceLookup.effectiveClose(candle)
+      .multiply(fxRates.getOrDefault(candle.date().toString(), FxFallback.DEFAULT_RATE));
+  }
+
   // 백테스트 이력 저장 (userId 없으면 skip)
   private void recordSimulationHistory(SimulationRequest request) {
     if (request.getUserId() == null) {
@@ -371,6 +383,13 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
     backtestHistoryUtils.saveBacktestHistory(request.getUserId(), BacktestType.COMPARISON, request);
   }
 
+
+  // 매수 시세, 휴장일이면 평가일까지 다음 거래일(7일 안) · 그런 날이 없으면 그 전 거래일
+  private OHLCPriceDto getPurchasePrice(String symbol, LocalDate purchaseDate, LocalDate valuationDate) {
+    OHLCPriceDto next = PriceLookup.nextAvailable(
+      marketDataClientWrapper::getOHLCPrice, symbol, purchaseDate, valuationDate, 7);
+    return next != null ? next : getHistoricalPriceWithRetry(symbol, purchaseDate);
+  }
 
   // 주가 데이터 조회 with retry (시장 휴일 대응)
   private OHLCPriceDto getHistoricalPriceWithRetry(String symbol, LocalDate date) {

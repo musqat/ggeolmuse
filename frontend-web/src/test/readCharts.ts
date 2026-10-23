@@ -15,3 +15,18 @@ export function readCharts() {
       .map((axis) => JSON.parse(axis.dataset.domain ?? 'null')),
   }));
 }
+
+// 차트마다 날짜 축 눈금과 첫 눈금 글자
+export function readXAxes() {
+  return screen.getAllByTestId('line-chart').map((chart) => {
+    const axis = within(chart).queryByTestId('x-axis');
+    return { ticks: JSON.parse(axis?.dataset.ticks ?? 'null'), first: axis?.dataset.first ?? '' };
+  });
+}
+
+// 차트마다 툴팁 서식에 긴 소수를 넣은 값
+export function readTooltips() {
+  return screen
+    .getAllByTestId('line-chart')
+    .map((chart) => JSON.parse(within(chart).queryByTestId('tooltip')?.dataset.sample ?? 'null'));
+}

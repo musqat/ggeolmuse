@@ -2,19 +2,16 @@ import React, { useMemo } from 'react';
 import { CompareSymbolsChart } from '@components/charts/backtest/CompareSymbolsChart';
 import type { ComparisonItem } from '../../../services/api';
 import { CHART_COLORS } from '@components/charts/common/constants';
-import type { OptimalPointsBySymbol } from '@components/charts/backtest/optimalTiming';
 
 // 무한 리렌더링 방지를 위한 메모이제이션 래퍼 컴포넌트
 export const CompareSymbolsChartMemoized: React.FC<{
   items: ComparisonItem[];
   comparePurchaseDate: string;
   compareSaleDate: string;
-  onOptimalPointsCalculated: (points: OptimalPointsBySymbol) => void;
 }> = ({
   items,
   comparePurchaseDate,
   compareSaleDate,
-  onOptimalPointsCalculated,
 }) => {
   const symbolsData = useMemo(() => {
     return items.map((item: ComparisonItem, index: number) => {
@@ -40,6 +37,8 @@ export const CompareSymbolsChartMemoized: React.FC<{
         currentPrice: currentPrice,
         currentValueKrw: item.currentValueKrw || 0,
         color: CHART_COLORS[index % CHART_COLORS.length],
+        optimalBuyDate: item.optimalBuyDate,
+        optimalSellDate: item.optimalSellDate,
       };
     });
   }, [items, comparePurchaseDate]);
@@ -49,7 +48,6 @@ export const CompareSymbolsChartMemoized: React.FC<{
       symbols={symbolsData}
       startDate={comparePurchaseDate}
       endDate={compareSaleDate || undefined}
-      onOptimalPointsCalculated={onOptimalPointsCalculated}
     />
   );
 };

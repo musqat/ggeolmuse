@@ -9,9 +9,14 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 
 // DB 에 쌓인 환율만 읽는 환율 조회 서비스
 @Slf4j
@@ -30,11 +35,28 @@ public class FxRateServiceImpl implements FxRateService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<FxRate> findByDates(List<LocalDate> dates) {
+    public Map<LocalDate, BigDecimal> findByDates(List<LocalDate> dates) {
         if (dates == null || dates.isEmpty()) {
-            return List.of();
+            return Map.of();
         }
-        return fxRateRepository.findByDateIn(dates);
+        LocalDate from = Collections.min(dates);
+        LocalDate to = Collections.max(dates);
+
+        // 첫 날 이전 가장 가까운 값과 기간 안 값에서 날짜마다 그날 이하 가장 늦은 환율
+        TreeMap<LocalDate, BigDecimal> known = new TreeMap<>();
+        fxRateRepository.findFirstByDateLessThanEqualOrderByDateDesc(from)
+            .ifPresent(rate -> known.put(rate.getDate(), rate.getRate()));
+        fxRateRepository.findByDateBetween(from, to)
+            .forEach(rate -> known.put(rate.getDate(), rate.getRate()));
+
+        Map<LocalDate, BigDecimal> result = new HashMap<>();
+        for (LocalDate date : dates) {
+            Map.Entry<LocalDate, BigDecimal> found = known.floorEntry(date);
+            if (found != null) {
+                result.put(date, found.getValue());
+            }
+        }
+        return result;
     }
 
     // 캐시는 Optional 을 벗겨 저장해 빈 값이 null 이 되고 거부돼 500 이 남. 그래서 null 이면 캐시하지 않음

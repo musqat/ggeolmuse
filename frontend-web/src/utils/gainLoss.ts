@@ -44,8 +44,12 @@ export const formatBalanceAmount = (amount: number, currency: "KRW" | "USD") => 
 
 export const formatPercent = (value: number) => `${value.toFixed(2)}%`;
 
-// 값이 없으면 '-', 있으면 부호를 붙여 형식에 맞춘다
+// 환율은 소수 둘째 자리까지(₩1,325.50)
+export const formatFxRate = (value: number) =>
+  `₩${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+// 값이 없으면 '-', 있으면 부호를 통화 기호 앞에 붙인 형식
 export const formatSigned = (value: MaybeNumber, format: (value: number) => string) => {
   if (!hasValue(value)) return "-";
-  return `${value >= 0 ? "+" : ""}${format(value)}`;
+  return `${value >= 0 ? "+" : "-"}${format(Math.abs(value))}`;
 };

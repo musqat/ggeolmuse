@@ -26,8 +26,20 @@ export const YAxis = ({ domain }: { domain?: unknown }) => (
   <i data-testid="y-axis" data-domain={JSON.stringify(domain ?? null)} />
 );
 
+// 툴팁 서식에 긴 소수 하나를 넣어 본 값, readTooltips 로 읽음
+export const Tooltip = ({ formatter }: { formatter?: (value: number, name: string) => unknown }) => (
+  <i data-testid="tooltip" data-sample={JSON.stringify(formatter ? formatter(1234567.891, '샘플') : null)} />
+);
+
+// 날짜 축 눈금과 첫 눈금 글자, readXAxes 로 읽음
+export const XAxis = ({ ticks, tickFormatter }: { ticks?: string[]; tickFormatter?: (value: string) => string }) => (
+  <i
+    data-testid="x-axis"
+    data-ticks={JSON.stringify(ticks ?? null)}
+    data-first={ticks?.length && tickFormatter ? tickFormatter(ticks[0]) : ''}
+  />
+);
+
 const Nothing = () => null;
-export const XAxis = Nothing;
 export const CartesianGrid = Nothing;
-export const Tooltip = Nothing;
 export const Legend = Nothing;

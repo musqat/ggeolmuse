@@ -35,10 +35,29 @@ export const MARKER_LABEL_STYLE = { fill: 'rgb(var(--text-1))', fontSize: 12, fo
 
 export const formatTooltipDate = (label: string) => `날짜: ${label}`;
 export const formatUsdTick = (value: number) => `$${Math.round(value)}`;
-export const formatManwonTick = (value: number) => `₩${(value / 10000).toFixed(0)}만`;
+// 원화 축 눈금, 1억부터 억 단위(₩1.2억) · 그 아래 만 단위(₩140만)
+export const formatKrwTick = (value: number) =>
+  Math.abs(value) >= 100000000 ? `₩${Number((value / 100000000).toFixed(1))}억` : `₩${(value / 10000).toFixed(0)}만`;
 
 // "2026-03-02" → "3/2". Date 로 바꾸지 않아 시간대에 따라 하루 밀리지 않는다
 export const formatDayTick = (value: string) => {
   const [, month, day] = value.split('-');
   return `${Number(month)}/${Number(day)}`;
+};
+
+// "2023-01-03" → "23.1"
+export const formatMonthTick = (value: string) => {
+  const [year, month] = value.split('-');
+  return `${year.slice(2)}.${Number(month)}`;
+};
+
+const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
+
+// 날짜 축 눈금(날짜순 입력), 1년이 넘으면 달마다 첫 날에 연.월 · 아니면 날짜마다 월/일
+export const dateAxis = (dates: string[]): { ticks?: string[]; tickFormatter: (value: string) => string } => {
+  if (dates.length < 2 || Date.parse(dates[dates.length - 1]) - Date.parse(dates[0]) <= ONE_YEAR_MS) {
+    return { tickFormatter: formatDayTick };
+  }
+  const ticks = dates.filter((date, i) => i === 0 || date.slice(0, 7) !== dates[i - 1].slice(0, 7));
+  return { ticks, tickFormatter: formatMonthTick };
 };
