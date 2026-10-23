@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../hooks/useAuth';
-import { useAuthModal } from '../hooks/useAuthModal';
-import { TrendingUp, TrendingDown, DollarSign, ArrowUpCircle, ArrowDownCircle, LogIn } from 'lucide-react';
+import { LoginRequired } from '../components/common/LoginRequired';
+import { PageSpinner } from '../components/common/Spinner';
+import { TrendingUp, TrendingDown, DollarSign, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 import { portfolioApi, accountsApi } from '../services/api';
 import PortfolioPieChart, { type PieChartData } from '../components/charts/portfolio/PortfolioPieChart';
 
@@ -17,7 +18,6 @@ const Portfolio: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
-  const { openLogin } = useAuthModal();
   const accountId = searchParams.get('accountId');
 
   const [exchangeRate, setExchangeRate] = useState<number>(1400); // 기본 환율
@@ -88,27 +88,7 @@ const Portfolio: React.FC = () => {
 
   // 로그인 안 됨
   if (!isAuthenticated) {
-    return (
-      <>
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="min-h-[60vh] flex items-center justify-center">
-            <div className="text-center">
-              <h1 className="text-3xl font-bold text-tx-1 mb-4">로그인이 필요한 서비스입니다</h1>
-              <p className="text-lg text-tx-2 mb-6">
-                포트폴리오 기능을 이용하시려면 먼저 로그인해주세요
-              </p>
-              <button
-                onClick={openLogin}
-                className="flex items-center space-x-2 bg-brand text-brand-ink px-6 py-3 rounded-lg hover:bg-brand-dark transition-colors mx-auto"
-              >
-                <LogIn className="w-5 h-5" />
-                <span>로그인하기</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </>
-    );
+    return <LoginRequired description="포트폴리오 기능을 이용하시려면 먼저 로그인해주세요" />;
   }
 
   // 계좌 ID 없음
@@ -153,13 +133,7 @@ const Portfolio: React.FC = () => {
     allocationItems.find((item) => item.symbol === symbol)?.color ?? ALLOCATION_ETC_COLOR;
 
   if (loading) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand"></div>
-        </div>
-      </div>
-    );
+    return <PageSpinner />;
   }
 
   return (

@@ -1,8 +1,8 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../hooks/useAuth';
-import { useAuthModal } from '../hooks/useAuthModal';
-import { LogIn } from 'lucide-react';
+import { LoginRequired } from '../components/common/LoginRequired';
+import { PageSpinner } from '../components/common/Spinner';
 import { tradeApi, type TransactionHistoryItem } from '../services/api';
 import { accountListQuery } from '../hooks/useAccounts';
 import { TradeHistoryList } from '../components/trading/history/TradeHistoryList';
@@ -10,7 +10,6 @@ import { historyRefetchInterval } from '../components/trading/history/tradeHisto
 
 const TradeHistory: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const { openLogin } = useAuthModal();
 
   // React Query: 거래내역 조회
   const {
@@ -33,48 +32,16 @@ const TradeHistory: React.FC = () => {
   const { data: accounts = [] } = useQuery({ ...accountListQuery, enabled: isAuthenticated });
 
   if (authLoading) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand"></div>
-        </div>
-      </div>
-    );
+    return <PageSpinner />;
   }
 
   // 로그인 안 됨
   if (!isAuthenticated) {
-    return (
-      <>
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="min-h-[60vh] flex items-center justify-center">
-            <div className="text-center">
-              <h1 className="text-3xl font-bold text-tx-1 mb-4">로그인이 필요한 서비스입니다</h1>
-              <p className="text-lg text-tx-2 mb-6">
-                거래내역을 확인하시려면 먼저 로그인해주세요
-              </p>
-              <button
-                onClick={openLogin}
-                className="flex items-center space-x-2 bg-brand text-brand-ink px-6 py-3 rounded-lg hover:bg-brand-dark transition-colors mx-auto"
-              >
-                <LogIn className="w-5 h-5" />
-                <span>로그인하기</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </>
-    );
+    return <LoginRequired description="거래내역을 확인하시려면 먼저 로그인해주세요" />;
   }
 
   if (loading) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand"></div>
-        </div>
-      </div>
-    );
+    return <PageSpinner />;
   }
 
   return (

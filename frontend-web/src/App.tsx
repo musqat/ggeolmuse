@@ -5,6 +5,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { AiChatProvider } from './contexts/AiChatContext';
 import { AuthModalProvider } from './contexts/AuthModalContext';
 import { Notifications } from './components/common/Notifications';
+import { Spinner } from './components/common/Spinner';
 import Header from '@components/common/Header';
 import Footer from '@components/layout/Footer';
 import AiChatButton from '@components/chat/AiChatButton';
@@ -53,7 +54,7 @@ function App() {
             <main>
             <Suspense fallback={
               <div className="flex items-center justify-center min-h-screen">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand"></div>
+                <Spinner />
               </div>
             }>
               <Routes>

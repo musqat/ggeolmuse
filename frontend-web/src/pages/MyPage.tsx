@@ -15,6 +15,7 @@ import { authApi } from "../services/api";
 import { getApiErrorMessage, getApiErrorStatus } from '../utils/apiError';
 import { tokenManager } from '../utils/auth';
 import { notify } from '@/components/common/notify';
+import { PageSpinner } from '@/components/common/Spinner';
 
 // 비밀번호 없는 사용자(구글)는 이 시간 안에 로그인한 토큰이어야 서버가 탈퇴를 받는다(user-service 와 같은 5분)
 const REAUTH_WINDOW_MS = 5 * 60 * 1000;
@@ -47,13 +48,7 @@ const MyPage: React.FC = () => {
 
   // 로그인 확인 중
   if (isLoading) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand"></div>
-        </div>
-      </div>
-    );
+    return <PageSpinner />;
   }
 
   // 로그인되지 않은 경우 홈으로 리다이렉트

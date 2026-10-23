@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { RefreshCw, LogIn } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-import { useAuthModal } from '../hooks/useAuthModal';
+import { LoginRequired } from '../components/common/LoginRequired';
 
 // Hook imports
 import { useAccountData } from '../hooks/useAccountData';
@@ -20,7 +20,6 @@ import { formatBalanceAmount } from '../utils/gainLoss';
 
 const Account: React.FC = () => {
   const { isAuthenticated } = useAuth();
-  const { openLogin } = useAuthModal();
 
   const [hideBalances, setHideBalances] = useState(false);
 
@@ -69,27 +68,7 @@ const Account: React.FC = () => {
 
   // 로그인하지 않은 사용자
   if (!isAuthenticated) {
-    return (
-      <>
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="min-h-[60vh] flex items-center justify-center">
-            <div className="text-center">
-              <h1 className="text-3xl font-bold text-tx-1 mb-4">로그인이 필요한 서비스입니다</h1>
-              <p className="text-lg text-tx-2 mb-6">
-                계좌 관리 기능을 이용하시려면 먼저 로그인해주세요
-              </p>
-              <button
-                onClick={openLogin}
-                className="flex items-center space-x-2 bg-brand text-brand-ink px-6 py-3 rounded-lg hover:bg-brand-dark transition-colors mx-auto"
-              >
-                <LogIn className="w-5 h-5" />
-                <span>로그인하기</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </>
-    );
+    return <LoginRequired description="계좌 관리 기능을 이용하시려면 먼저 로그인해주세요" />;
   }
 
   if (loading) {

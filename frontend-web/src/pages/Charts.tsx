@@ -10,6 +10,7 @@ import { useChartRange } from '../components/charts/stock/useChartRange';
 import { priceSummary } from '../components/charts/stock/priceSummary';
 import { convertOHLCToCandlestick, type CandlestickChartData } from '../types/ohlc';
 import { useAiChat } from '../hooks/useAiChat';
+import { Spinner } from '../components/common/Spinner';
 
 // 데이터가 없을 때 넘기는 빈 배열. 렌더마다 새 배열이 되지 않게 하나로 둔다
 const NO_CANDLES: CandlestickChartData[] = [];
@@ -141,7 +142,7 @@ const Charts: React.FC = () => {
         {loading ? (
           <div className="flex items-center justify-center h-[412px] md:h-[620px]">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand mx-auto mb-4"></div>
+              <Spinner className="mx-auto mb-4" />
               <p className="text-tx-2">차트 데이터 로딩 중...</p>
             </div>
           </div>

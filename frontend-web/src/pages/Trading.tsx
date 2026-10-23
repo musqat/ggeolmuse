@@ -1,9 +1,8 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { LogIn } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../hooks/useAuth';
-import { useAuthModal } from '../hooks/useAuthModal';
+import { LoginRequired } from '../components/common/LoginRequired';
 import TradeHistoryTab from '../components/trading/TradeHistoryTab';
 import TradingCapacityPanel from '../components/trading/TradingCapacityPanel';
 import { stockApi, tradeApi } from '../services/api';
@@ -37,7 +36,6 @@ const Trading: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { isAuthenticated } = useAuth();
-  const { openLogin } = useAuthModal();
   const [activeTab, setActiveTab] = useState<'order' | 'history'>('order');
   const [selectedStock, setSelectedStock] = useState('AAPL');
   const [orderType, setOrderType] = useState<'buy' | 'sell'>('buy');
@@ -227,27 +225,7 @@ const Trading: React.FC = () => {
 
   // 인증되지 않은 사용자를 위한 안내 화면
   if (!isAuthenticated) {
-    return (
-      <>
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="min-h-[60vh] flex items-center justify-center">
-            <div className="text-center">
-              <h1 className="text-3xl font-bold text-tx-1 mb-4">로그인이 필요한 서비스입니다</h1>
-              <p className="text-lg text-tx-2 mb-6">
-                가상 거래 서비스를 이용하시려면 먼저 로그인해주세요
-              </p>
-              <button
-                onClick={openLogin}
-                className="flex items-center space-x-2 bg-brand text-brand-ink px-6 py-3 rounded-lg hover:bg-brand-dark transition-colors mx-auto"
-              >
-                <LogIn className="w-5 h-5" />
-                <span>로그인하기</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </>
-    );
+    return <LoginRequired description="가상 거래 서비스를 이용하시려면 먼저 로그인해주세요" />;
   }
 
   const currentPrice = getExecutionPrice();
