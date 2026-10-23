@@ -5,8 +5,7 @@ import { FxModeToggle } from '../shared/FxModeToggle';
 import { DividendFeeOptions } from '../shared/DividendFeeOptions';
 import { FxDataWarning } from '../shared/FxDataWarning';
 import type { BacktestOptionsState } from '../shared/backtestOptions';
-import { DateField } from '../../common/DateField';
-import { getTodayString } from '../../../utils/dateUtils';
+import { FormField, PeriodFields } from '../shared/StrategyFields';
 
 interface SymbolComparisonFormProps {
   compareSymbols: string[];
@@ -41,44 +40,24 @@ export const SymbolComparisonForm: React.FC<SymbolComparisonFormProps> = ({
   onAddSymbol,
   onRemoveSymbol,
 }) => {
-  const today = getTodayString();
-
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {/* 시작일 */}
-        <div>
-          <label className="block text-sm font-medium text-tx-1 mb-2">시작일</label>
-          <DateField
-            value={comparePurchaseDate}
-            onChange={setComparePurchaseDate}
-            max={compareSaleDate || today}
-            testId="date-start"
-          />
-        </div>
+        <PeriodFields
+          start={comparePurchaseDate}
+          end={compareSaleDate}
+          onStartChange={setComparePurchaseDate}
+          onEndChange={setCompareSaleDate}
+        />
 
-        {/* 종료일 */}
-        <div>
-          <label className="block text-sm font-medium text-tx-1 mb-2">종료일</label>
-          <DateField
-            value={compareSaleDate || today}
-            onChange={setCompareSaleDate}
-            min={comparePurchaseDate}
-            max={today}
-            testId="date-end"
-          />
-        </div>
-
-        {/* 투자금 */}
-        <div>
-          <label className="block text-sm font-medium text-tx-1 mb-2">투자금 (₩)</label>
+        <FormField label="투자금 (₩)">
           <NumberInput
             value={compareInvestment}
             onChange={setCompareInvestment}
             placeholder="1,000,000"
             className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
           />
-        </div>
+        </FormField>
 
         {/* 종목 추가 */}
         <div className="col-span-full">

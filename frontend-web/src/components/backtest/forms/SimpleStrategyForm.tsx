@@ -1,12 +1,7 @@
 import React from 'react';
-import StockSearchInput from '../../common/StockSearchInput';
 import { NumberInput } from '../../common/NumberInput';
-import { FxModeToggle } from '../shared/FxModeToggle';
-import { DividendFeeOptions } from '../shared/DividendFeeOptions';
-import { FxDataWarning } from '../shared/FxDataWarning';
 import type { BacktestOptionsState } from '../shared/backtestOptions';
-import { DateField } from '../../common/DateField';
-import { getTodayString } from '../../../utils/dateUtils';
+import { FormField, PeriodFields, StrategyOptions, SymbolField } from '../shared/StrategyFields';
 
 interface SimpleStrategyFormProps {
   symbol: string;
@@ -34,26 +29,13 @@ export const SimpleStrategyForm: React.FC<SimpleStrategyFormProps> = ({
   options,
   supportedSymbols,
 }) => {
-  const today = getTodayString();
-
   return (
     <div className="space-y-4">
       {/* 기본 설정 - 모바일 완전 세로 배치 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-        {/* 종목 */}
-        <div>
-          <label className="block text-sm font-medium text-tx-1 mb-2">종목</label>
-          <StockSearchInput
-            value={symbol}
-            onChange={setSymbol}
-            supportedSymbols={supportedSymbols}
-            placeholder="종목 검색"
-          />
-        </div>
+        <SymbolField value={symbol} onChange={setSymbol} supportedSymbols={supportedSymbols} />
 
-        {/* 초기 투자금 */}
-        <div>
-          <label className="block text-sm font-medium text-tx-1 mb-2">초기 투자금 (₩)</label>
+        <FormField label="초기 투자금 (₩)">
           <NumberInput
             value={initialInvestment}
             onChange={setInitialInvestment}
@@ -61,45 +43,21 @@ export const SimpleStrategyForm: React.FC<SimpleStrategyFormProps> = ({
             className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
           />
           <p className="text-xs text-tx-3 mt-1">최소 약 30만원 권장</p>
-        </div>
+        </FormField>
 
-        {/* 시작일 */}
-        <div>
-          <label className="block text-sm font-medium text-tx-1 mb-2">시작일</label>
-          <DateField
-            value={purchaseDate}
-            onChange={setPurchaseDate}
-            max={saleDate || today}
-            testId="date-start"
-          />
-        </div>
-
-        {/* 종료일. 비어 있으면 오늘로 보이고 오늘로 계산한다 */}
-        <div>
-          <label className="block text-sm font-medium text-tx-1 mb-2">종료일</label>
-          <DateField
-            value={saleDate || today}
-            onChange={setSaleDate}
-            min={purchaseDate}
-            max={today}
-            testId="date-end"
-          />
-        </div>
+        <PeriodFields
+          start={purchaseDate}
+          end={saleDate}
+          onStartChange={setPurchaseDate}
+          onEndChange={setSaleDate}
+        />
       </div>
 
-      {/* 환율 데이터 부족 경고 */}
-      <FxDataWarning startDate={purchaseDate} />
-
-      {/* 환율 설정 */}
-      <FxModeToggle
+      <StrategyOptions
         options={options}
+        startDate={purchaseDate}
         purchaseLabel="매수일 환율"
         currentLabel="매도일 환율"
-      />
-
-      {/* 배당 및 수수료 옵션 */}
-      <DividendFeeOptions
-        options={options}
       />
     </div>
   );

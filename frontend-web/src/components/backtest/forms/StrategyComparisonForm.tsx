@@ -1,14 +1,9 @@
 import React from 'react';
-import StockSearchInput from '../../common/StockSearchInput';
 import { NumberInput } from '../../common/NumberInput';
-import { FxModeToggle } from '../shared/FxModeToggle';
-import { DividendFeeOptions } from '../shared/DividendFeeOptions';
-import { FxDataWarning } from '../shared/FxDataWarning';
 import type { BacktestOptionsState } from '../shared/backtestOptions';
-import { DateField } from '../../common/DateField';
 import { COMPARISON_STRATEGIES } from '../comparison/catalog';
 import type { ComparisonStrategyType } from '../comparison/types';
-import { getTodayString } from '../../../utils/dateUtils';
+import { FormField, PeriodFields, StrategyOptions, SymbolField } from '../shared/StrategyFields';
 
 interface StrategyComparisonFormProps {
   symbol: string;
@@ -44,53 +39,29 @@ export const StrategyComparisonForm: React.FC<StrategyComparisonFormProps> = ({
   toggleStrategy,
   options,
 }) => {
-  const today = getTodayString();
-
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-tx-1 mb-2">종목</label>
-          <StockSearchInput
-            value={symbol}
-            onChange={setSymbol}
-            supportedSymbols={supportedSymbols}
-            placeholder="종목 검색"
-          />
-        </div>
+        <SymbolField value={symbol} onChange={setSymbol} supportedSymbols={supportedSymbols} />
 
-        <div>
-          <label className="block text-sm font-medium text-tx-1 mb-2">시작일</label>
-          <DateField
-            value={startDate}
-            onChange={setStartDate}
-            max={endDate || today}
-          />
-        </div>
+        <PeriodFields
+          start={startDate}
+          end={endDate}
+          onStartChange={setStartDate}
+          onEndChange={setEndDate}
+        />
 
-        <div>
-          <label className="block text-sm font-medium text-tx-1 mb-2">종료일</label>
-          <DateField
-            value={endDate || today}
-            onChange={setEndDate}
-            min={startDate}
-            max={today}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-tx-1 mb-2">투자금 (₩)</label>
+        <FormField label="투자금 (₩)">
           <NumberInput
             value={investment}
             onChange={setInvestment}
             placeholder="1,000,000"
             className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
           />
-        </div>
+        </FormField>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-tx-1 mb-2">비교할 전략 선택 (최소 2개)</label>
+      <FormField label="비교할 전략 선택 (최소 2개)">
         <div className="flex flex-wrap gap-2">
           {COMPARISON_STRATEGIES.map(({ type, name }) => (
             <button
@@ -106,21 +77,13 @@ export const StrategyComparisonForm: React.FC<StrategyComparisonFormProps> = ({
             </button>
           ))}
         </div>
-      </div>
+      </FormField>
 
-      {/* 환율 데이터 부족 경고 */}
-      <FxDataWarning startDate={startDate} />
-
-      {/* FX Mode Toggle */}
-      <FxModeToggle
+      <StrategyOptions
         options={options}
+        startDate={startDate}
         purchaseLabel="시작일 환율 (₩/USD)"
         currentLabel="현재 환율 (₩/USD)"
-      />
-
-      {/* Dividend and Fee Options */}
-      <DividendFeeOptions
-        options={options}
       />
     </div>
   );
