@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import {
   User as UserIcon,
@@ -27,23 +26,8 @@ const loggedInRecently = () => {
 
 const MyPage: React.FC = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, logout, loginWithGoogle } = useAuth();
+  const { isAuthenticated, isLoading, user, refreshUserData, logout, loginWithGoogle } = useAuth();
   const [searchParams] = useSearchParams();
-
-  // React Query: 사용자 정보 조회
-  const {
-    data: user = null,
-    isLoading: loading,
-    refetch: refetchUser,
-  } = useQuery({
-    queryKey: ["user", "profile"],
-    queryFn: async () => {
-      const response = await authApi.getCurrentUser();
-      return response.data;
-    },
-    enabled: isAuthenticated,
-    staleTime: 5 * 60 * 1000, // 5분 (사용자 정보는 자주 안 바뀜)
-  });
 
   // 닉네임 변경
   const [showNicknameModal, setShowNicknameModal] = useState(false);
@@ -61,10 +45,20 @@ const MyPage: React.FC = () => {
   const [deletePassword, setDeletePassword] = useState("");
   const [reauthRejected, setReauthRejected] = useState(false);
 
+  // 로그인 확인 중
+  if (isLoading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand"></div>
+        </div>
+      </div>
+    );
+  }
+
   // 로그인되지 않은 경우 홈으로 리다이렉트
   if (!isAuthenticated) {
-    navigate("/");
-    return null;
+    return <Navigate to="/" replace />;
   }
 
   const handleChangeNickname = async () => {
@@ -77,8 +71,8 @@ const MyPage: React.FC = () => {
       await authApi.changeNickname({ nickname: newNickname });
       notify.success("닉네임이 변경되었습니다.");
 
-      // React Query 캐시 새로고침
-      refetchUser();
+      // 다시 받지 못하면 이전 정보 유지
+      void refreshUserData().catch(() => undefined);
 
       setShowNicknameModal(false);
       setNewNickname("");
@@ -154,16 +148,6 @@ const MyPage: React.FC = () => {
   };
 
   const needsReauth = !user?.hasPassword && (reauthRejected || !loggedInRecently());
-
-  if (loading) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand"></div>
-        </div>
-      </div>
-    );
-  }
 
   if (!user) {
     return (

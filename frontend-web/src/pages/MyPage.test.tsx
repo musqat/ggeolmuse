@@ -1,15 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { AxiosError, type AxiosResponse } from 'axios'
 import { authApi, type User } from '../services/api'
 import { useAuth } from '../hooks/useAuth'
 import MyPage from './MyPage'
 import { notify } from '@/components/common/notify'
 
-vi.mock('../services/api', () => ({ authApi: { getCurrentUser: vi.fn(), deleteAccount: vi.fn() } }))
+vi.mock('../services/api', () => ({ authApi: { getCurrentUser: vi.fn(), deleteAccount: vi.fn(), changeNickname: vi.fn() } }))
 vi.mock('../hooks/useAuth', () => ({ useAuth: vi.fn() }))
 
 const BASE_USER: User = {
@@ -24,19 +23,34 @@ const forbidden = new AxiosError('fail', 'ERR', undefined, undefined, {
 
 let logout: ReturnType<typeof vi.fn>
 let loginWithGoogle: ReturnType<typeof vi.fn>
+let refreshUserData: ReturnType<typeof vi.fn>
 
-function renderPage(user: Partial<User>, { authTime = minutesAgo(1), path = '/mypage' } = {}) {
+function renderPage(
+  user: Partial<User>,
+  { authTime = minutesAgo(1), path = '/mypage', auth = {} }: { authTime?: number; path?: string; auth?: object } = {}
+) {
   localStorage.setItem('accessToken', jwt({ exp: minutesAgo(-60), auth_time: authTime }))
   vi.mocked(authApi.getCurrentUser).mockResolvedValue({ data: { ...BASE_USER, ...user } } as never)
-  vi.mocked(useAuth).mockReturnValue({ isAuthenticated: true, logout, loginWithGoogle } as never)
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  vi.mocked(useAuth).mockReturnValue({
+    isAuthenticated: true, isLoading: false, user: { ...BASE_USER, ...user }, refreshUserData, logout, loginWithGoogle, ...auth,
+  } as never)
   render(
-    <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={[path]}>
-        <MyPage />
-      </MemoryRouter>
-    </QueryClientProvider>
+    <MemoryRouter initialEntries={[path]}>
+      <Routes>
+        <Route path="/" element={<p>홈</p>} />
+        <Route path="/mypage" element={<MyPage />} />
+      </Routes>
+    </MemoryRouter>
   )
+}
+
+// 닉네임 창에서 칸을 비우고 새 닉네임으로 변경
+async function changeNickname(user: ReturnType<typeof userEvent.setup>, name: string) {
+  await user.click(await screen.findByText('닉네임 변경', { selector: 'p' }))
+  const input = screen.getByPlaceholderText('변경할 닉네임 입력')
+  await user.clear(input)
+  await user.type(input, name)
+  await user.click(screen.getByRole('button', { name: '변경하기' }))
 }
 
 // 탈퇴 모달을 열고 확인 문구를 넣는다
@@ -51,6 +65,7 @@ beforeEach(() => {
   localStorage.clear()
   logout = vi.fn()
   loginWithGoogle = vi.fn()
+  refreshUserData = vi.fn().mockResolvedValue(undefined)
   vi.spyOn(notify, 'confirm').mockResolvedValue(true)
   vi.spyOn(notify, 'success').mockImplementation(() => {})
   vi.spyOn(notify, 'error').mockImplementation(() => {})
@@ -120,5 +135,49 @@ describe('MyPage 회원 탈퇴', () => {
     renderPage({ hasPassword: false, provider: 'LOCAL' })
     await screen.findByText('닉네임 변경')
     expect(screen.queryByText('비밀번호 변경')).toBeNull()
+  })
+})
+
+describe('MyPage 사용자 정보', () => {
+  it('로그인 상태의 사용자 정보를 보여 주고 다시 부르지 않는다', async () => {
+    renderPage({ nickname: '머스캣' })
+
+    expect(await screen.findByRole('heading', { name: '머스캣' })).toBeInTheDocument()
+    expect(authApi.getCurrentUser).not.toHaveBeenCalled()
+  })
+
+  it('닉네임을 바꾸면 로그인 상태의 사용자 정보를 새로 받는다', async () => {
+    const user = userEvent.setup()
+    vi.mocked(authApi.changeNickname).mockResolvedValue({} as never)
+    renderPage({})
+
+    await changeNickname(user, '새이름')
+
+    await waitFor(() => expect(refreshUserData).toHaveBeenCalledTimes(1))
+    expect(authApi.changeNickname).toHaveBeenCalledWith({ nickname: '새이름' })
+  })
+
+  it('닉네임은 바뀌고 다시 받기만 실패하면 실패 알림을 띄우지 않는다', async () => {
+    const user = userEvent.setup()
+    vi.mocked(authApi.changeNickname).mockResolvedValue({} as never)
+    refreshUserData.mockRejectedValue(new Error('down'))
+    renderPage({})
+
+    await changeNickname(user, '새이름')
+
+    await waitFor(() => expect(notify.success).toHaveBeenCalledWith('닉네임이 변경되었습니다.'))
+    expect(notify.error).not.toHaveBeenCalled()
+  })
+
+  it('로그인하지 않았으면 홈으로 보낸다', async () => {
+    renderPage({}, { auth: { isAuthenticated: false, user: null } })
+
+    expect(await screen.findByText('홈')).toBeInTheDocument()
+  })
+
+  it('로그인 확인 중이면 홈으로 보내지 않는다', () => {
+    renderPage({}, { auth: { isAuthenticated: false, isLoading: true, user: null } })
+
+    expect(screen.queryByText('홈')).toBeNull()
   })
 })
