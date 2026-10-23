@@ -1,90 +1,21 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../hooks/useAuth';
+import { usePortfolioData } from '../hooks/usePortfolioData';
 import { LoginRequired } from '../components/common/LoginRequired';
 import { PageSpinner } from '../components/common/Spinner';
-import { TrendingUp, TrendingDown, DollarSign, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
-import { portfolioApi, accountsApi } from '../services/api';
-import PortfolioPieChart, { type PieChartData } from '../components/charts/portfolio/PortfolioPieChart';
-
-// 자산 구성 파이와 자산 배분 목록이 같이 쓰는 색(index.css). 금액 큰 순서로 다섯 자리를 주고 그 뒤는 회색.
-// 돌려 쓰지 않는다 — 여섯 번째부터는 파이에서도 ETC 로 묶인다
-const ALLOCATION_COLORS = ['var(--alloc-1)', 'var(--alloc-2)', 'var(--alloc-3)', 'var(--alloc-4)', 'var(--alloc-5)'];
-const ALLOCATION_ETC_COLOR = 'var(--alloc-etc)';
-const allocationColor = (index: number) => ALLOCATION_COLORS[index] ?? ALLOCATION_ETC_COLOR;
+import PortfolioPieChart from '../components/charts/portfolio/PortfolioPieChart';
+import { SummaryCards } from '../components/portfolio/SummaryCards';
+import { AllocationList } from '../components/portfolio/AllocationList';
+import { HoldingsTable } from '../components/portfolio/HoldingsTable';
+import { allocationItems, totalAssetsUsd } from '../utils/portfolioAllocation';
 
 const Portfolio: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const accountId = searchParams.get('accountId');
-
-  const [exchangeRate, setExchangeRate] = useState<number>(1400); // 기본 환율
-
-  // React Query: 계좌별 포트폴리오 조회
-  const {
-    data: holdings = [],
-    isLoading: isLoadingHoldings
-  } = useQuery({
-    queryKey: ['portfolio', 'holdings', accountId],
-    queryFn: async () => {
-      const response = await portfolioApi.getAccountPortfolio(parseInt(accountId!));
-      return response.data;
-    },
-    enabled: isAuthenticated && !!accountId,
-    staleTime: 2 * 60 * 1000, // 2분 (포트폴리오는 자주 변경됨)
-  });
-
-  // React Query: 포트폴리오 종합 정보 (holdings에서 현재가 추출 후 조회)
-  const {
-    data: portfolioSummary,
-    isLoading: isLoadingSummary
-  } = useQuery({
-    queryKey: ['portfolio', 'summary', holdings],
-    queryFn: async () => {
-      // holdings에서 currentPrice 추출
-      const currentPrices: { [symbol: string]: number } = {};
-      holdings.forEach(holding => {
-        if (holding.currentPrice && holding.currentPrice > 0) {
-          currentPrices[holding.symbol] = holding.currentPrice;
-        }
-      });
-
-      if (Object.keys(currentPrices).length === 0) {
-        return null;
-      }
-
-      const response = await portfolioApi.getPortfolioSummary(currentPrices);
-      return response.data;
-    },
-    enabled: isAuthenticated && !!accountId && holdings.length > 0,
-    staleTime: 2 * 60 * 1000,
-  });
-
-  // React Query: 계좌 잔액 정보 조회
-  const {
-    data: balanceInfo,
-    isLoading: isLoadingBalance
-  } = useQuery({
-    queryKey: ['account', 'balance', accountId],
-    queryFn: async () => {
-      const response = await accountsApi.getAccountBalance(parseInt(accountId!));
-      const data = response.data;
-
-      // 환율 정보 업데이트
-      if (data.currentExchangeRate) {
-        setExchangeRate(Number(data.currentExchangeRate));
-      }
-
-      return data;
-    },
-    enabled: isAuthenticated && !!accountId,
-    staleTime: 2 * 60 * 1000,
-  });
-
-  // 통합 로딩 상태
-  const loading = isLoadingHoldings || isLoadingSummary || isLoadingBalance;
+  const { holdings, summary, balance, exchangeRate, loading } = usePortfolioData(accountId, isAuthenticated);
 
   // 로그인 안 됨
   if (!isAuthenticated) {
@@ -111,30 +42,12 @@ const Portfolio: React.FC = () => {
     );
   }
 
-  // 주식 · USD 현금 · KRW 현금(USD 로 환산)을 금액 큰 순으로 세우고 그 순서로 색을 준다
-  const allocationItems: PieChartData[] = [
-    ...holdings.map((holding) => ({
-      symbol: holding.symbol,
-      value: holding.currentValue || holding.totalInvestedAmount,
-      color: '',
-      quantity: holding.totalQuantity,
-      currentPrice: holding.currentPrice,
-    })),
-    ...(balanceInfo && Number(balanceInfo.balanceUsd) > 0
-      ? [{ symbol: 'USD 현금', value: Number(balanceInfo.balanceUsd), color: '' }]
-      : []),
-    ...(balanceInfo && Number(balanceInfo.balanceKrw) > 0
-      ? [{ symbol: 'KRW 현금', value: Number(balanceInfo.balanceKrw) / exchangeRate, color: '' }]
-      : []),
-  ]
-    .sort((a, b) => b.value - a.value)
-    .map((item, index) => ({ ...item, color: allocationColor(index) }));
-  const allocationColorOf = (symbol: string) =>
-    allocationItems.find((item) => item.symbol === symbol)?.color ?? ALLOCATION_ETC_COLOR;
-
   if (loading) {
     return <PageSpinner />;
   }
+
+  const items = allocationItems(holdings, balance, exchangeRate);
+  const totalAssets = totalAssetsUsd(summary, balance, exchangeRate);
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
@@ -144,74 +57,18 @@ const Portfolio: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold text-tx-1">포트폴리오</h1>
             <p className="text-tx-2 mt-1">
-              {balanceInfo?.accountName || `계좌 #${accountId}`} - 투자 현황과 수익률을 한눈에 확인하세요
+              {balance?.accountName || `계좌 #${accountId}`} - 투자 현황과 수익률을 한눈에 확인하세요
             </p>
-            {balanceInfo && (
+            {balance && (
               <p className="text-sm text-tx-2 mt-1">
-                KRW: ₩{Number(balanceInfo.balanceKrw)?.toLocaleString() ?? 0} |
-                USD: ${Number(balanceInfo.balanceUsd)?.toFixed(2) ?? 0}
+                KRW: ₩{Number(balance.balanceKrw).toLocaleString()} |
+                USD: ${Number(balance.balanceUsd).toFixed(2)}
               </p>
             )}
           </div>
         </div>
 
-        {/* 포트폴리오 요약 카드 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-surface rounded-xl shadow-sm p-6 border border-line/50">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-tx-2">총 자산</p>
-                <p className="text-2xl font-bold text-tx-1">
-                  ${(() => {
-                    const stockValue = portfolioSummary?.totalCurrentValue || 0;
-                    const usdCash = Number(balanceInfo?.balanceUsd) || 0;
-                    const krwCash = (Number(balanceInfo?.balanceKrw) || 0) / exchangeRate;
-                    return (stockValue + usdCash + krwCash).toFixed(2);
-                  })()}
-                </p>
-              </div>
-              <div className="bg-info/10 p-3 rounded-lg">
-                <DollarSign className="w-6 h-6 text-info" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-surface rounded-xl shadow-sm p-6 border border-line/50">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-tx-2">평가손익</p>
-                <p className={`text-2xl font-bold ${(portfolioSummary?.totalUnrealizedPnL ?? 0) >= 0 ? 'text-gain':'text-loss'}`}>
-                  {(portfolioSummary?.totalUnrealizedPnL ?? 0) >= 0 ? '+' : ''}${portfolioSummary?.totalUnrealizedPnL?.toFixed(2) ?? '0.00'}
-                </p>
-              </div>
-              <div className={`p-3 rounded-lg ${(portfolioSummary?.totalUnrealizedPnL ?? 0) >= 0 ? 'bg-gain/15':'bg-loss/15'}`}>
-                {(portfolioSummary?.totalUnrealizedPnL ?? 0) >= 0 ? (
-                  <TrendingUp className="w-6 h-6 text-gain" />
-                ) : (
-                  <TrendingDown className="w-6 h-6 text-loss" />
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-surface rounded-xl shadow-sm p-6 border border-line/50">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-tx-2">수익률</p>
-                <p className={`text-2xl font-bold ${(portfolioSummary?.totalReturnRate ?? 0) >= 0 ? 'text-gain':'text-loss'}`}>
-                  {(portfolioSummary?.totalReturnRate ?? 0) >= 0 ? '+' : ''}{portfolioSummary?.totalReturnRate?.toFixed(2) ?? '0.00'}%
-                </p>
-              </div>
-              <div className={`p-3 rounded-lg ${(portfolioSummary?.totalReturnRate ?? 0) >= 0 ? 'bg-gain/15':'bg-loss/15'}`}>
-                {(portfolioSummary?.totalReturnRate ?? 0) >= 0 ? (
-                  <ArrowUpCircle className="w-6 h-6 text-gain" />
-                ) : (
-                  <ArrowDownCircle className="w-6 h-6 text-loss" />
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+        <SummaryCards totalAssets={totalAssets} summary={summary} />
 
         {/* 포트폴리오 차트 & 보유 종목 */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -222,10 +79,8 @@ const Portfolio: React.FC = () => {
 
               {/* 차트 영역 */}
               <div className="bg-surface/50 rounded-lg p-4 sm:p-6 min-h-64 flex items-center justify-center">
-                {(holdings.length > 0 || (balanceInfo && (Number(balanceInfo.balanceKrw) > 0 || Number(balanceInfo.balanceUsd) > 0))) ? (
-                  <PortfolioPieChart
-                    data={allocationItems}
-                  />
+                {items.length > 0 ? (
+                  <PortfolioPieChart data={items} />
                 ) : (
                   <div className="text-center">
                     <p className="text-tx-2">포트폴리오 성과 차트</p>
@@ -236,197 +91,16 @@ const Portfolio: React.FC = () => {
             </div>
           </div>
 
-          {/* 자산 배분 */}
-          <div className="bg-surface rounded-xl shadow-sm p-6 border border-line/50">
-            <h3 className="text-lg font-semibold text-tx-1 mb-4">자산 배분</h3>
-            {/* portfolioSummary 는 보유 종목이 있을 때만 조회된다(enabled 조건).
-                여기에 걸면 현금만 있는 계좌가 "보유 자산이 없습니다" 로 떨어진다.
-                주식 몫 계산에만 쓰이므로 없으면 0 으로 두면 된다. */}
-            {(holdings.length > 0 || (balanceInfo && (Number(balanceInfo.balanceUsd) > 0 || Number(balanceInfo.balanceKrw) > 0))) ? (
-              <div className="space-y-4">
-                {(() => {
-                  // 전체 자산 계산 (주식 + USD 현금 + KRW 현금을 USD로 환산)
-                  const totalAssets =
-                    (portfolioSummary?.totalCurrentValue || 0) +
-                    (Number(balanceInfo?.balanceUsd) || 0) +
-                    ((Number(balanceInfo?.balanceKrw) || 0) / exchangeRate);
-
-                  return (
-                    <>
-                      {/* 주식 자산 */}
-                      {holdings.map((holding) => {
-                        const allocation = totalAssets > 0 && holding.currentValue
-                          ? ((holding.currentValue / totalAssets) * 100).toFixed(1)
-                          : '0.0';
-
-                        return (
-                          <div key={holding.holdingId} className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: allocationColorOf(holding.symbol) }}></div>
-                              <div>
-                                <p className="font-medium text-tx-1 text-sm">{holding.symbol}</p>
-                                <p className="text-xs text-tx-2">{holding.totalQuantity}주</p>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-medium text-tx-1 text-sm">{allocation}%</p>
-                              <p className="text-xs text-tx-2">
-                                ${holding.currentValue ? holding.currentValue.toFixed(2) : holding.totalInvestedAmount.toFixed(2)}
-                              </p>
-                            </div>
-                          </div>
-                        );
-                      })}
-
-                      {/* USD 현금 */}
-                      {balanceInfo && Number(balanceInfo.balanceUsd) > 0 && (
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: allocationColorOf('USD 현금') }}></div>
-                            <div>
-                              <p className="font-medium text-tx-1 text-sm">USD 현금</p>
-                              <p className="text-xs text-tx-2">달러 잔액</p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-medium text-tx-1 text-sm">
-                              {totalAssets > 0
-                                ? ((Number(balanceInfo.balanceUsd) / totalAssets) * 100).toFixed(1)
-                                : '0.0'}%
-                            </p>
-                            <p className="text-xs text-tx-2">
-                              ${Number(balanceInfo.balanceUsd).toFixed(2)}
-                            </p>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* KRW 현금 */}
-                      {balanceInfo && Number(balanceInfo.balanceKrw) > 0 && (
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            <div
-                              className="w-3 h-3 rounded-full"
-                              style={{ backgroundColor: allocationColorOf('KRW 현금') }}
-                            ></div>
-                            <div>
-                              <p className="font-medium text-tx-1 text-sm">KRW 현금</p>
-                              <p className="text-xs text-tx-2">원화 잔액</p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-medium text-tx-1 text-sm">
-                              {totalAssets > 0
-                                ? ((Number(balanceInfo.balanceKrw) / exchangeRate / totalAssets) * 100).toFixed(1)
-                                : '0.0'}%
-                            </p>
-                            <p className="text-xs text-tx-2">
-                              ₩{Number(balanceInfo.balanceKrw).toLocaleString()}
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  );
-                })()}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-tx-2">
-                <p>보유 자산이 없습니다</p>
-              </div>
-            )}
-          </div>
+          <AllocationList
+            items={items}
+            holdings={holdings}
+            balance={balance}
+            exchangeRate={exchangeRate}
+            totalAssets={totalAssets}
+          />
         </div>
 
-        {/* 보유 종목 테이블 */}
-        <div className="bg-surface rounded-xl shadow-sm border border-line/50 overflow-hidden">
-          <div className="px-6 py-4 border-b border-line">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-tx-1">보유 종목</h3>
-              <p className="text-xs text-tx-2">* 수수료가 포함되지 않은 수익률입니다</p>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-surface/50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-tx-2 uppercase tracking-wider">
-                    종목
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-tx-2 uppercase tracking-wider">
-                    보유량
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-tx-2 uppercase tracking-wider">
-                    평균단가
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-tx-2 uppercase tracking-wider">
-                    현재가
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-tx-2 uppercase tracking-wider">
-                    평가금액
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-tx-2 uppercase tracking-wider">
-                    손익
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-surface divide-y divide-line">
-                {holdings.length > 0 ? (
-                  holdings.map((holding) => (
-                    <tr key={holding.holdingId} className="hover:bg-surface/50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-tx-1">{holding.symbol}</div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-tx-1">{holding.totalQuantity}주</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-tx-1">${holding.avgPurchasePrice.toFixed(2)}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-tx-1">
-                          {holding.currentPrice ? `$${holding.currentPrice.toFixed(2)}` : '-'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-tx-1">
-                          {holding.currentValue ? `$${holding.currentValue.toFixed(2)}` : '-'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {holding.unrealizedPnL !== null && holding.unrealizedPnL !== undefined &&
-                         holding.returnRate !== null && holding.returnRate !== undefined ? (
-                          <div className={`text-sm font-medium flex items-center ${
-                            holding.unrealizedPnL >= 0 ? 'text-gain' : 'text-loss'
-                          }`}>
-                            {holding.unrealizedPnL >= 0 ? (
-                              <ArrowUpCircle className="w-4 h-4 mr-1" />
-                            ) : (
-                              <ArrowDownCircle className="w-4 h-4 mr-1" />
-                            )}
-                            {holding.unrealizedPnL >= 0 ? '+' : ''}${holding.unrealizedPnL.toFixed(2)}
-                            <span className="ml-1">({holding.returnRate >= 0 ? '+' : ''}{holding.returnRate.toFixed(2)}%)</span>
-                          </div>
-                        ) : (
-                          <div className="text-sm text-tx-3">-</div>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-tx-2">
-                      <p>보유 종목이 없습니다</p>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <HoldingsTable holdings={holdings} />
       </div>
     </div>
   );

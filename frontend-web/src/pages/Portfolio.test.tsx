@@ -30,10 +30,13 @@ function Where() {
   return <p>{useLocation().pathname}</p>
 }
 
-function renderPage({ path = '/portfolio?accountId=3', isAuthenticated = true } = {}) {
+function renderPage({
+  path = '/portfolio?accountId=3',
+  isAuthenticated = true,
+  client = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+} = {}) {
   vi.mocked(useAuth).mockReturnValue({ isAuthenticated } as never)
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  render(
+  const view = render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[path]}>
         <Routes>
@@ -43,6 +46,7 @@ function renderPage({ path = '/portfolio?accountId=3', isAuthenticated = true } 
       </MemoryRouter>
     </QueryClientProvider>
   )
+  return { client, unmount: view.unmount }
 }
 
 beforeEach(() => {
@@ -76,6 +80,17 @@ describe('Portfolio', () => {
 
     // 200 + 100 + 135,000 ÷ 1,350
     expect(await screen.findByText('$400.00')).toBeInTheDocument()
+  })
+
+  it('다른 화면에 갔다 바로 돌아와도 받아 둔 환율로 총 자산을 계산한다', async () => {
+    const { client, unmount } = renderPage()
+    expect(await screen.findByText('$400.00')).toBeInTheDocument()
+    unmount()
+
+    renderPage({ client })
+
+    expect(await screen.findByText('$400.00')).toBeInTheDocument()
+    expect(accountsApi.getAccountBalance).toHaveBeenCalledTimes(1)
   })
 
   it('자산 배분은 금액 큰 순으로 색을 주고 비율을 보인다', async () => {
