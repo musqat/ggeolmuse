@@ -209,6 +209,16 @@ describe('useAdminMarket 종목 하나 작업', () => {
     expect(result.current.error).toBe('야후 응답이 비었습니다')
     expect(result.current.loading).toBe(false)
   })
+
+  it('삭제가 실패하면 고정 문구를 보인다', async () => {
+    api.deleteAsset.mockRejectedValue(serverError('참조 중인 데이터가 있습니다'))
+    const { result } = await renderLoaded()
+
+    await act(() => result.current.handleDeleteAsset('AAPL'))
+
+    expect(result.current.error).toBe('심볼 삭제에 실패했습니다.')
+    expect(result.current.loading).toBe(false)
+  })
 })
 
 describe('useAdminMarket 이름 수정', () => {

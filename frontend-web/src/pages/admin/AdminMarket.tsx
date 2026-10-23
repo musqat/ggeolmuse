@@ -6,50 +6,11 @@ import AddAssetModal from '@components/admin/AddAssetModal';
 import CandleRefreshSection from '@components/admin/CandleRefreshSection';
 
 export default function AdminMarket() {
-  const {
-    searchKeyword,
-    setSearchKeyword,
-    searchResults,
-    searchActive,
-    clearSearch,
-    preview,
-    resetPreview,
-    assets,
-    loading,
-    error,
-    handleSearch,
-    handlePreview,
-    handleAddAsset,
-    handleDeleteAsset,
-    handleRestoreAsset,
-    listActive,
-    handleListActiveChange,
-    handleBulkDelete,
-    handleUpdatePrice,
-    handleUpdateMarketCap,
-    handleUpdateName,
-    handleUpdateAllPrices,
-    handleUpdateAllMarketCaps,
-    handleCollectNewSymbols,
-    loadAssets,
-    currentPage,
-    pageSize,
-    totalPages,
-    totalElements,
-    sortBy,
-    sortDirection,
-    handlePageChange,
-    handlePageSizeChange,
-    handleSortChange,
-    selected,
-    toggleOne,
-    toggleAll,
-  } = useAdminMarket();
-
+  const market = useAdminMarket();
   const [addOpen, setAddOpen] = useState(false);
 
   // 검색 모드면 검색 결과, 아니면 페이지네이션 목록
-  const displayAssets = searchActive ? searchResults : assets;
+  const displayAssets = market.searchActive ? market.searchResults : market.assets;
 
   return (
     <div className="min-h-screen bg-surface/50 py-8">
@@ -70,9 +31,9 @@ export default function AdminMarket() {
         </div>
 
         {/* Error Alert */}
-        {error && (
+        {market.error && (
           <div className="mb-6 p-4 bg-danger/10 border border-danger/25 rounded-lg">
-            <p className="text-danger">{error}</p>
+            <p className="text-danger">{market.error}</p>
           </div>
         )}
 
@@ -86,15 +47,15 @@ export default function AdminMarket() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-tx-3" />
               <input
                 type="text"
-                value={searchKeyword}
-                onChange={(e) => setSearchKeyword(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                value={market.searchKeyword}
+                onChange={(e) => market.setSearchKeyword(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && market.handleSearch()}
                 placeholder="보유 종목 검색 (티커 또는 회사명, 예: AAPL / Apple)"
                 className="w-full pl-9 pr-9 py-2 border border-line-strong rounded-lg focus:outline-none focus:ring-2 focus:ring-brand"
               />
-              {searchActive && (
+              {market.searchActive && (
                 <button
-                  onClick={clearSearch}
+                  onClick={market.clearSearch}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-tx-3 hover:text-tx-1"
                   title="검색 해제"
                 >
@@ -103,18 +64,18 @@ export default function AdminMarket() {
               )}
             </div>
             <button
-              onClick={handleSearch}
-              disabled={loading}
+              onClick={market.handleSearch}
+              disabled={market.loading}
               className="px-5 py-2 bg-brand text-brand-ink rounded-lg hover:bg-brand-dark disabled:opacity-50 flex items-center gap-1.5"
             >
               <Search className="w-4 h-4" />
               검색
             </button>
           </div>
-          {searchActive && (
+          {market.searchActive && (
             <p className="mt-2 text-sm text-tx-2">
-              "{searchKeyword}" 검색 결과 {searchResults.length}개
-              {searchResults.length === 0 && ' — 보유 종목에 없습니다. 신규 종목 추가를 이용하세요.'}
+              "{market.searchKeyword}" 검색 결과 {market.searchResults.length}개
+              {market.searchResults.length === 0 && ' — 보유 종목에 없습니다. 신규 종목 추가를 이용하세요.'}
             </p>
           )}
         </div>
@@ -122,32 +83,32 @@ export default function AdminMarket() {
         {/* 종목 목록 (검색 결과 or 전체) */}
         <AssetListSection
           assets={displayAssets}
-          loading={loading}
-          searchMode={searchActive}
-          onRefresh={searchActive ? handleSearch : loadAssets}
-          onDelete={handleDeleteAsset}
-          onRestore={handleRestoreAsset}
-          listActive={listActive}
-          onListActiveChange={handleListActiveChange}
-          onBulkDelete={handleBulkDelete}
-          onUpdatePrice={handleUpdatePrice}
-          onUpdateMarketCap={handleUpdateMarketCap}
-          onUpdateName={handleUpdateName}
-          onUpdateAllPrices={handleUpdateAllPrices}
-          onUpdateAllMarketCaps={handleUpdateAllMarketCaps}
-          onCollectNewSymbols={handleCollectNewSymbols}
-          currentPage={currentPage}
-          pageSize={pageSize}
-          totalPages={totalPages}
-          totalElements={totalElements}
-          sortBy={sortBy}
-          sortDirection={sortDirection}
-          onPageChange={handlePageChange}
-          onPageSizeChange={handlePageSizeChange}
-          onSortChange={handleSortChange}
-          selected={selected}
-          onToggleOne={toggleOne}
-          onToggleAll={toggleAll}
+          loading={market.loading}
+          searchMode={market.searchActive}
+          onRefresh={market.searchActive ? market.handleSearch : market.loadAssets}
+          onDelete={market.handleDeleteAsset}
+          onRestore={market.handleRestoreAsset}
+          listActive={market.listActive}
+          onListActiveChange={market.handleListActiveChange}
+          onBulkDelete={market.handleBulkDelete}
+          onUpdatePrice={market.handleUpdatePrice}
+          onUpdateMarketCap={market.handleUpdateMarketCap}
+          onUpdateName={market.handleUpdateName}
+          onUpdateAllPrices={market.handleUpdateAllPrices}
+          onUpdateAllMarketCaps={market.handleUpdateAllMarketCaps}
+          onCollectNewSymbols={market.handleCollectNewSymbols}
+          currentPage={market.currentPage}
+          pageSize={market.pageSize}
+          totalPages={market.totalPages}
+          totalElements={market.totalElements}
+          sortBy={market.sortBy}
+          sortDirection={market.sortDirection}
+          onPageChange={market.handlePageChange}
+          onPageSizeChange={market.handlePageSizeChange}
+          onSortChange={market.handleSortChange}
+          selected={market.selected}
+          onToggleOne={market.toggleOne}
+          onToggleAll={market.toggleAll}
         />
       </div>
 
@@ -155,14 +116,14 @@ export default function AdminMarket() {
       <AddAssetModal
         isOpen={addOpen}
         onClose={() => setAddOpen(false)}
-        preview={preview}
-        loading={loading}
-        onPreview={handlePreview}
+        preview={market.preview}
+        loading={market.loading}
+        onPreview={market.handlePreview}
         onAdd={async () => {
-          await handleAddAsset();
+          await market.handleAddAsset();
           setAddOpen(false);
         }}
-        onResetPreview={resetPreview}
+        onResetPreview={market.resetPreview}
       />
     </div>
   );
