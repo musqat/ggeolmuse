@@ -59,6 +59,16 @@ describe('TradeHistoryList', () => {
     expect(screen.getByText('주문 10/09 15:12')).toBeInTheDocument()
   })
 
+  it('꼬리표는 매수 수익 색 · 매도 손실 색 · 배당 안내 색이다', () => {
+    renderList()
+
+    const chip = (type: string, label: string) =>
+      within(screen.getAllByTestId('history-row').find((row) => row.dataset.type === type)!).getByText(label)
+    expect(chip('BUY', '매수')).toHaveClass('text-gain')
+    expect(chip('SELL', '매도')).toHaveClass('text-loss')
+    expect(chip('DIVIDEND', '배당')).toHaveClass('text-info')
+  })
+
   it('요약은 취소된 거래를 빼고 센다', () => {
     renderList()
     const summary = screen.getByTestId('history-summary')

@@ -18,13 +18,9 @@ export default {
           // 주황 바탕 위 글자. 흰 글자는 대비 2.15 라 진한 갈색(6.97)을 쓴다
           ink: '#451A03',
         },
-        // 등락(상승 빨강 · 하락 파랑). 테마마다 바뀐다 (index.css)
-        up:   'rgb(var(--up)   / <alpha-value>)',
-        down: 'rgb(var(--down) / <alpha-value>)',
-        // 테마마다 바뀌는 수익 · 손실 · 매수 색 (index.css)
+        // 테마마다 바뀌는 수익 · 손실과 등락 색(index.css)
         gain: 'rgb(var(--gain) / <alpha-value>)',
         loss: 'rgb(var(--loss) / <alpha-value>)',
-        buy:  'rgb(var(--buy)  / <alpha-value>)',
         // 오류 · 성공 · 안내 · 경고. 등락과 값이 같아도 뜻으로 고른다
         danger:  'rgb(var(--danger)  / <alpha-value>)',
         success: 'rgb(var(--success) / <alpha-value>)',
