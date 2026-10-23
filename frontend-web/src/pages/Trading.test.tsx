@@ -103,6 +103,23 @@ describe('Trading 주문', () => {
     expect(screen.getByRole('spinbutton')).toHaveValue(1)
   })
 
+  it('시세가 없는 종목으로 바꾸면 이전 종목 가격으로 주문 금액을 셈하지 않는다', async () => {
+    const user = userEvent.setup()
+    vi.mocked(stockApi.getOHLCData).mockImplementation(async (symbol: string) => ({ data: symbol === 'AAPL' ? OHLC : [] }) as never)
+    renderPage()
+    await waitForChart()
+    // 종가 108 × 10주
+    expect(screen.getByText('$1080.00')).toBeInTheDocument()
+
+    const search = screen.getByPlaceholderText('종목명 또는 티커 입력')
+    await user.clear(search)
+    await user.type(search, 'MSFT')
+    await user.click(screen.getAllByTestId('symbol-option').find((option) => option.textContent?.startsWith('MSFT'))!)
+
+    await waitFor(() => expect(stockApi.getOHLCData).toHaveBeenCalledWith('MSFT', expect.any(String), expect.any(String)))
+    await waitFor(() => expect(screen.queryByText('$1080.00')).toBeNull())
+  })
+
   it('정산 전 매수면 접수 문구를 띄우고 2초 뒤 보유 · 거래 · 계좌 조회를 한 번 더 받는다', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     try {

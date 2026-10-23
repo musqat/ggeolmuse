@@ -1,22 +1,20 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../hooks/useAuth';
 import { LoginRequired } from '../components/common/LoginRequired';
 import TradeHistoryTab from '../components/trading/TradeHistoryTab';
 import TradingCapacityPanel from '../components/trading/TradingCapacityPanel';
-import { stockApi, tradeApi } from '../services/api';
-import { convertOHLCToCandlestick, type CandlestickChartData } from '../types/ohlc';
+import { stockApi } from '../services/api';
 
 // Utility imports
-import { getDateRangeForTimeframe, getTodayString, subtractDays } from '@/utils/dateUtils';
-import { calculateExecutionPrice, toBackendPriceType, validatePriceRange } from '@/utils/priceUtils';
-import { formatTradeResult } from '@/utils/tradeResult';
 import type { Timeframe } from '@/utils/dateUtils';
 import type { PriceType } from '@/utils/priceUtils';
 
 // Hook imports
 import { useAccounts } from '@/hooks/useAccounts';
+import { useTradingChart } from '@/hooks/useTradingChart';
+import { useTradeOrder } from '@/hooks/useTradeOrder';
 
 // Component imports
 import OrderTypeToggle from '@/components/trading/OrderTypeToggle';
@@ -26,16 +24,10 @@ import PriceTypeSelector from '@/components/trading/PriceTypeSelector';
 import OrderSummaryPanel from '@/components/trading/OrderSummaryPanel';
 import StockSelectionPanel from '@/components/trading/StockSelectionPanel';
 import TradingChartSection from '@/components/trading/TradingChartSection';
-import { getApiErrorMessage } from '@/utils/apiError';
-import { notify } from '@/components/common/notify';
 import { SOLID_BUTTON } from '@/styles/buttons';
-
-// 정산 전 매수 뒤 보유 · 거래를 한 번 더 받을 때까지
-const SETTLE_REFRESH_MS = 2000;
 
 const Trading: React.FC = () => {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState<'order' | 'history'>('order');
   const [selectedStock, setSelectedStock] = useState('AAPL');
@@ -48,9 +40,6 @@ const Trading: React.FC = () => {
   // 커스텀 날짜 범위
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
-
-  const [selectedDateOHLC, setSelectedDateOHLC] = useState<CandlestickChartData | null>(null);
-  const [tradeDate, setTradeDate] = useState(() => subtractDays(getTodayString(), 1));
 
   // Use custom hook for account management
   const { accounts, selectedAccountId, setSelectedAccountId } = useAccounts(isAuthenticated);
@@ -67,90 +56,26 @@ const Trading: React.FC = () => {
     staleTime: 10 * 60 * 1000, // 10분 (종목 목록은 자주 변경 안 됨)
   });
 
-  // 날짜 범위 계산 (useMemo로 최적화)
-  const dateRange = useMemo(
-    () => getDateRangeForTimeframe(timeframe, customStartDate, customEndDate),
-    [timeframe, customStartDate, customEndDate]
-  );
-
-  // React Query: 차트 데이터 로드
   const {
-    data: chartData = [],
-    isLoading: chartLoading
-  } = useQuery({
-    queryKey: ['stock', 'ohlc', selectedStock, dateRange],
-    queryFn: async () => {
-      if (!dateRange) return [];
+    chartData,
+    loading: chartLoading,
+    latestOHLC,
+    tradeDate,
+    setTradeDate,
+    selectedDateOHLC,
+    findClosestPastDate,
+  } = useTradingChart({ symbol: selectedStock, timeframe, customStartDate, customEndDate });
 
-      const chartResponse = await stockApi.getOHLCData(
-        selectedStock,
-        dateRange.startDate,
-        dateRange.endDate
-      );
-
-      if (chartResponse.data && Array.isArray(chartResponse.data)) {
-        const convertedData = convertOHLCToCandlestick(chartResponse.data);
-        return convertedData;
-      }
-
-      return [];
-    },
-    enabled: !!selectedStock && !!dateRange,
-    staleTime: 5 * 60 * 1000, // 5분
+  const order = useTradeOrder({
+    accountId: selectedAccountId,
+    symbol: selectedStock,
+    orderType,
+    priceType,
+    quantity,
+    limitPrice,
+    tradeDate,
+    ohlc: selectedDateOHLC || latestOHLC,
   });
-
-  // 최신 OHLC 데이터 계산
-  const latestOHLC = useMemo(() => {
-    if (chartData.length === 0) return null;
-
-    const latest = chartData[chartData.length - 1];
-    return {
-      open: latest.open,
-      high: latest.high,
-      low: latest.low,
-      close: latest.close
-    };
-  }, [chartData]);
-
-  // 차트 데이터 변경 시 tradeDate 자동 설정
-  useEffect(() => {
-    if (chartData.length > 0) {
-      const latest = chartData[chartData.length - 1];
-      setTradeDate(latest.time);
-    }
-  }, [chartData]);
-
-  // 가장 가까운 과거 거래일 찾기.
-  // chartData 만 쓰므로 useCallback 으로 묶어 아래 effect 의 의존성에 그대로 넣는다.
-  const findClosestPastDate = useCallback((targetDate: string): CandlestickChartData | null => {
-    if (chartData.length === 0) return null;
-
-    const target = new Date(targetDate);
-    const pastDates = chartData.filter(d =>new Date(d.time)<= target);
-
-    if (pastDates.length === 0) return null;
-    return pastDates[pastDates.length - 1];
-  }, [chartData]);
-
-  // 선택된 날짜의 OHLC 데이터 업데이트 (차트 표시용)
-  useEffect(() => {
-    if (!tradeDate || chartData.length === 0) return;
-
-    const dateData = chartData.find(d => d.time === tradeDate);
-    if (dateData) {
-      setSelectedDateOHLC(dateData);
-    } else {
-      // 차트 범위 밖의 날짜 선택 시: selectedDateOHLC은 null (차트에 표시 안 함)
-      // 하지만 tradeDate는 유지 (거래 가능 정보 조회는 가능)
-      const closest = findClosestPastDate(tradeDate);
-      if (closest) {
-        setSelectedDateOHLC(closest);
-        // tradeDate는 사용자가 선택한 날짜 그대로 유지 (조정하지 않음)
-      } else {
-        setSelectedDateOHLC(null);
-      }
-    }
-  }, [tradeDate, chartData, findClosestPastDate]);
 
   const handleStockSelect = (symbol: string) => {
     setSelectedStock(symbol);
@@ -160,67 +85,11 @@ const Trading: React.FC = () => {
     navigate(`/charts/${selectedStock}`);
   };
 
-  const getExecutionPrice = (): number => {
-    const ohlc = selectedDateOHLC || latestOHLC;
-    return calculateExecutionPrice(priceType, ohlc, Number(limitPrice));
-  };
-
-  // 가격 유효성 검증
-  const validatePrice = (price: number): boolean => {
-    const ohlc = selectedDateOHLC || latestOHLC;
-    const result = validatePriceRange(price, ohlc);
-
-    if (!result.isValid) {
-      notify.error(result.message ?? '가격이 허용 범위를 벗어났습니다.');
-      return false;
-    }
-
-    return true;
-  };
-
   const handleSubmitOrder = async () => {
-    // 1. 가격 검증
-    const price = getExecutionPrice();
-
-    if (priceType === 'limit' && !validatePrice(price)) {
-      return;
-    }
-
-    // 2. 거래 실행. 잔액은 trade-service 가 슬리피지·수수료까지 넣어 검사한다
-    try {
-      const order = {
-        accountId: selectedAccountId!,
-        symbol: selectedStock,
-        quantity: Number(quantity),
-        tradeDate,
-        priceType: toBackendPriceType(priceType),
-        manualPrice: priceType === 'limit' ? price : undefined,
-      };
-
-      const { data: trade } = orderType === 'buy'
-        ? await tradeApi.buy(order)
-        : await tradeApi.sell(order);
-      // 잔고와 보유가 바뀌어 매수·매도 가능 수량 · 거래 내역 · 계좌 잔액과 총자산을 다시 받음
-      void queryClient.invalidateQueries({ queryKey: ['trade'] });
-      void queryClient.invalidateQueries({ queryKey: ['account'] });
-      // 진행 중인 계좌 목록 요청은 취소하지 않고 같이 씀
-      void queryClient.invalidateQueries({ queryKey: ['accounts'] }, { cancelRefetch: false });
-      // 정산 전 매수는 정산이 끝나야 보유에 들어가 잠시 뒤 한 번 더 받음
-      if (trade.status === 'PENDING') {
-        setTimeout(() => {
-          void queryClient.invalidateQueries({ queryKey: ['trade'] });
-          void queryClient.invalidateQueries({ queryKey: ['portfolio'] });
-          void queryClient.invalidateQueries({ queryKey: ['account'] });
-        }, SETTLE_REFRESH_MS);
-      }
-      notify.success(formatTradeResult(trade));
-
+    if (await order.submit()) {
       // 주문 성공 후 초기화
       setQuantity('1');
       setLimitPrice('');
-    } catch (error: unknown) {
-      const errorMessage = getApiErrorMessage(error, '알 수 없는 오류');
-      notify.error(`주문 실패: ${errorMessage}`);
     }
   };
 
@@ -229,7 +98,7 @@ const Trading: React.FC = () => {
     return <LoginRequired description="가상 거래 서비스를 이용하시려면 먼저 로그인해주세요" />;
   }
 
-  const currentPrice = getExecutionPrice();
+  const currentPrice = order.executionPrice;
   const totalAmount = currentPrice * Number(quantity || 0);
 
   return (
