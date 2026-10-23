@@ -89,6 +89,7 @@ const StockSearchInput: React.FC<StockSearchInputProps> = ({
           <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
             <button
               onClick={handleClear}
+              aria-label="검색어 지우기"
               className="h-4 w-4 text-tx-3 hover:text-tx-2"
             >
               <X className="h-4 w-4" />

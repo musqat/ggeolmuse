@@ -39,6 +39,7 @@ const SignupSuccessModal: React.FC<SignupSuccessModalProps> = ({ isOpen, onClose
           <h2 className="text-xl font-semibold text-tx-1">회원가입 완료</h2>
           <button
             onClick={onClose}
+            aria-label="닫기"
             className="text-tx-3 hover:text-tx-2 transition-colors"
           >
             <X className="w-6 h-6" />

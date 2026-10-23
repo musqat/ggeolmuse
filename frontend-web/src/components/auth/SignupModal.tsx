@@ -131,6 +131,7 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
           <h2 className="text-xl font-semibold text-tx-1">회원가입</h2>
           <button
             onClick={onClose}
+            aria-label="닫기"
             className="text-tx-3 hover:text-tx-2 transition-colors"
           >
             <X className="w-6 h-6" />
@@ -190,6 +191,7 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
                   className="absolute inset-y-0 right-0 pr-3 flex items-center text-tx-3 hover:text-tx-2"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" />:<Eye className="w-5 h-5" />}
@@ -215,6 +217,7 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  aria-label={showConfirmPassword ? '비밀번호 확인 숨기기' : '비밀번호 확인 보기'}
                   className="absolute inset-y-0 right-0 pr-3 flex items-center text-tx-3 hover:text-tx-2"
                 >
                   {showConfirmPassword ? <EyeOff className="w-5 h-5" />:<Eye className="w-5 h-5" />}

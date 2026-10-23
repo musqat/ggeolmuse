@@ -98,6 +98,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
           </h2>
           <button
             onClick={onClose}
+            aria-label="닫기"
             className="text-tx-3 hover:text-tx-2 transition-colors"
           >
             <X className="w-6 h-6" />
@@ -211,6 +212,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
                   className="absolute inset-y-0 right-0 pr-3 flex items-center text-tx-3 hover:text-tx-2"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" />:<Eye className="w-5 h-5" />}

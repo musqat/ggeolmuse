@@ -127,6 +127,7 @@ const Header: React.FC = () => {
 
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              aria-label="메뉴"
               className="md:hidden p-2 text-tx-3 hover:text-tx-1 hover:bg-elevated rounded-[7px] transition-all"
             >
               <Menu className="w-4 h-4" />

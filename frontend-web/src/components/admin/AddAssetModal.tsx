@@ -52,7 +52,7 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({
         {/* 헤더 */}
         <div className="flex items-center justify-between p-4 border-b border-line">
           <h2 className="text-lg font-bold text-tx-1">신규 종목 추가</h2>
-          <button onClick={handleClose} className="text-tx-3 hover:text-tx-1">
+          <button onClick={handleClose} aria-label="닫기" className="text-tx-3 hover:text-tx-1">
             <X className="w-5 h-5" />
           </button>
         </div>

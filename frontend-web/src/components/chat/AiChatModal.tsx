@@ -185,7 +185,7 @@ const AiChatModal: React.FC<AiChatModalProps> = ({ onRequireLogin }) => {
             >
               {expanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </button>
-            <button onClick={closeChat} className="text-tx-3 hover:text-tx-1 p-1">
+            <button onClick={closeChat} aria-label="닫기" className="text-tx-3 hover:text-tx-1 p-1">
               <X className="w-5 h-5" />
             </button>
           </div>

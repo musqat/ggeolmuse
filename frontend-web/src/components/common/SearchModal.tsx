@@ -93,6 +93,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, supportedSym
             {searchTerm && (
               <button
                 onClick={() => changeSearchTerm('')}
+                aria-label="검색어 지우기"
                 className="absolute inset-y-0 right-0 pr-3 flex items-center text-tx-3 hover:text-tx-2"
               >
                 <X className="h-5 w-5" />

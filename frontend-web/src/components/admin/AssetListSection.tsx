@@ -407,6 +407,7 @@ export default function AssetListSection({
             </button>
             <button
               onClick={() => onPageChange(currentPage - 1)}
+              aria-label="이전 페이지"
               disabled={currentPage === 0 || loading}
               className="px-3 py-1 border rounded-lg hover:bg-surface/50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -430,6 +431,7 @@ export default function AssetListSection({
 
             <button
               onClick={() => onPageChange(currentPage + 1)}
+              aria-label="다음 페이지"
               disabled={currentPage >= totalPages - 1 || loading}
               className="px-3 py-1 border rounded-lg hover:bg-surface/50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
