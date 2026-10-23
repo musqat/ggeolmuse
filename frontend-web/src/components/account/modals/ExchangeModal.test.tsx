@@ -64,15 +64,44 @@ describe('ExchangeModal 수동 환율 범위', () => {
   })
 })
 
+// 환율 · 제출 결과를 정해 창을 그림
+function renderWith({ onSubmit = vi.fn().mockResolvedValue(undefined), rate = 1339.2 } = {}) {
+  const onClose = vi.fn()
+  render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <ExchangeModal isOpen onClose={onClose} onSubmit={onSubmit} accountBalance={BALANCE as never} currentExchangeRate={rate} />
+    </QueryClientProvider>
+  )
+  return { onClose, onSubmit }
+}
+
+describe('ExchangeModal 현재 환율', () => {
+  it('원화를 달러로 바꿀 때 예상 금액을 보이고 현재 환율로 넘긴 뒤 닫는다', async () => {
+    const { onClose, onSubmit } = renderWith({ rate: 1350 })
+
+    await userEvent.type(screen.getByPlaceholderText('환전할 KRW 금액'), '135000')
+    expect(screen.getByText('예상 환전 금액: $100.00')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '환전하기' }))
+
+    expect(onSubmit).toHaveBeenCalledWith({ fromCurrency: 'KRW', toCurrency: 'USD', originalAmount: 135000, exchangeRate: 1350 })
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('환율을 아직 못 받았으면 막는다', async () => {
+    const alert = vi.spyOn(notify, 'error').mockImplementation(() => {})
+    const { onSubmit } = renderWith({ rate: 0 })
+
+    await userEvent.type(screen.getByPlaceholderText('환전할 KRW 금액'), '135000')
+    await userEvent.click(screen.getByRole('button', { name: '환전하기' }))
+
+    expect(alert).toHaveBeenCalledWith('환율 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요.')
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+})
+
 describe('ExchangeModal 실패', () => {
   it('환전이 실패하면 창과 금액을 그대로 둔다', async () => {
-    const onClose = vi.fn()
-    const onSubmit = vi.fn().mockRejectedValue(new Error('down'))
-    render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <ExchangeModal isOpen onClose={onClose} onSubmit={onSubmit} accountBalance={BALANCE as never} currentExchangeRate={1339.2} />
-      </QueryClientProvider>
-    )
+    const { onClose, onSubmit } = renderWith({ onSubmit: vi.fn().mockRejectedValue(new Error('down')) })
 
     await userEvent.type(screen.getByPlaceholderText('환전할 KRW 금액'), '100000')
     await userEvent.click(screen.getByRole('button', { name: '환전하기' }))
