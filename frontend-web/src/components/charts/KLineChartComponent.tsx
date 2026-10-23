@@ -28,6 +28,15 @@ const NARROW_PANE_HEIGHT = 80;
 // 아래 패널 위 여백 px(범례 한 줄이 막대 · 선과 겹치지 않게)
 const PANE_GAP = { top: 32 };
 
+// 캔들 · 거래량 막대의 오름 · 내림 색(오름 빨강 · 내림 파랑)
+const UP_COLOR = '#ef4444';
+const DOWN_COLOR = '#3b82f6';
+
+// 거래량 막대(캔들 색에 불투명도 70%)
+const volumeBars = (noChangeColor: string) => [
+  { upColor: `${UP_COLOR}b3`, downColor: `${DOWN_COLOR}b3`, noChangeColor },
+];
+
 function convertData(data: CandlestickChartData[]) {
   return data.map(d => ({
     timestamp: new Date(d.time).getTime(),
@@ -65,14 +74,14 @@ function getDarkStyles() {
     },
     candle: {
       bar: {
-        upColor: '#ef4444',
-        downColor: '#3b82f6',
+        upColor: UP_COLOR,
+        downColor: DOWN_COLOR,
         noChangeColor: '#94a3b8',
-        upBorderColor: '#ef4444',
-        downBorderColor: '#3b82f6',
+        upBorderColor: UP_COLOR,
+        downBorderColor: DOWN_COLOR,
         noChangeBorderColor: '#94a3b8',
-        upWickColor: '#ef4444',
-        downWickColor: '#3b82f6',
+        upWickColor: UP_COLOR,
+        downWickColor: DOWN_COLOR,
         noChangeWickColor: '#94a3b8',
       },
       tooltip: {
@@ -82,9 +91,10 @@ function getDarkStyles() {
       },
     },
     indicator: {
+      bars: volumeBars('#94a3b8'),
       ohlc: {
-        upColor: '#ef4444',
-        downColor: '#3b82f6',
+        upColor: UP_COLOR,
+        downColor: DOWN_COLOR,
         noChangeColor: '#94a3b8',
       },
     },
@@ -116,16 +126,19 @@ function getLightStyles() {
     },
     candle: {
       bar: {
-        upColor: '#ef4444',
-        downColor: '#3b82f6',
+        upColor: UP_COLOR,
+        downColor: DOWN_COLOR,
         noChangeColor: '#64748b',
-        upBorderColor: '#ef4444',
-        downBorderColor: '#3b82f6',
+        upBorderColor: UP_COLOR,
+        downBorderColor: DOWN_COLOR,
         noChangeBorderColor: '#64748b',
-        upWickColor: '#ef4444',
-        downWickColor: '#3b82f6',
+        upWickColor: UP_COLOR,
+        downWickColor: DOWN_COLOR,
         noChangeWickColor: '#64748b',
       },
+    },
+    indicator: {
+      bars: volumeBars('#64748b'),
     },
     xAxis: {
       axisLine: { color: '#cbd5e1' },

@@ -84,8 +84,8 @@ const Home: React.FC = () => {
   }, [ohlcRaw]);
 
   const topUp = topChange === null ? true : topChange >= 0;
-  // 꼬리표와 같은 등락 색(상승 빨강 · 하락 파랑, 테마마다 바뀜)
-  const sparkColor = topUp ? 'rgb(var(--up))' : 'rgb(var(--down))';
+  // 꼬리표와 같은 수익 · 손실 색(테마마다 바뀜)
+  const sparkColor = topUp ? 'rgb(var(--gain))' : 'rgb(var(--loss))';
 
   // 데이터 기준 날짜 (OHLC 마지막 데이터)
   const dataDate = useMemo(() => {
@@ -145,7 +145,7 @@ const Home: React.FC = () => {
               <span className="text-[13px] font-bold text-tx-1">
                 {topSymbol && dataDate ? `${topSymbol} · ${dataDate} 종가` : topSymbol || '시총 1위'}
               </span>
-              <span className={`text-[11.5px] font-semibold px-2 py-0.5 rounded-[5px] ${topUp ? 'text-up bg-up/10' : 'text-down bg-down/10'}`}>
+              <span className={`text-[11.5px] font-semibold px-2 py-0.5 rounded-[5px] ${topUp ? 'text-gain bg-gain/10' : 'text-loss bg-loss/10'}`}>
                 {topChange !== null ? `${topUp ? '▲' : '▼'} ${Math.abs(topChange).toFixed(2)}%` : '—'}
               </span>
             </div>
@@ -184,7 +184,7 @@ const Home: React.FC = () => {
                 return (
                   <div key={s.symbol} className="flex items-center justify-between px-3 py-2.5 bg-surface/50 rounded-[9px] border border-line/50 cursor-pointer hover:border-brand/30 transition-colors" onClick={() => navigate(`/charts/${s.symbol}`)}>
                     <div className="flex items-center gap-2.5">
-                      <span className={`w-2 h-2 rounded-full ${up ? 'bg-up' : 'bg-down'}`} />
+                      <span className={`w-2 h-2 rounded-full ${up ? 'bg-gain' : 'bg-loss'}`} />
                       <div>
                         <div className="text-[13px] font-bold text-tx-1 leading-tight">{s.symbol}</div>
                         <div className="text-[11px] text-tx-3 leading-tight">{s.name}</div>
@@ -194,7 +194,7 @@ const Home: React.FC = () => {
                       <div className="text-[13px] font-semibold text-tx-1">
                         {s.currentPrice > 0 ? `$${s.currentPrice.toFixed(2)}` : '—'}
                       </div>
-                      <div className={`text-[11.5px] font-semibold ${up ? 'text-up' : 'text-down'}`}>
+                      <div className={`text-[11.5px] font-semibold ${up ? 'text-gain' : 'text-loss'}`}>
                         {cp !== null ? `${up ? '▲' : '▼'} ${Math.abs(cp).toFixed(2)}%` : `${up ? '▲' : '▼'} 변동`}
                       </div>
                     </div>

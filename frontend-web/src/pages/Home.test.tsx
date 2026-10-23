@@ -62,6 +62,14 @@ describe('Home', () => {
     expect(screen.getByText('▼ 0.50%')).toBeInTheDocument()
   })
 
+  it('오른 등락은 수익 색, 내린 등락은 손실 색이다', async () => {
+    renderHome()
+
+    expect(await screen.findByText('▲ 5.00%')).toHaveClass('text-gain')
+    expect(await screen.findByText('▲ 1.20%')).toHaveClass('text-gain')
+    expect(screen.getByText('▼ 0.50%')).toHaveClass('text-loss')
+  })
+
   it('거래할 수 없거나 가격이 없는 종목은 뺀다', async () => {
     vi.mocked(stockApi.getAllStocksWithPrices).mockResolvedValue({
       data: {

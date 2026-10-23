@@ -26,9 +26,9 @@ const FILTERS: { value: HistoryFilter; label: string }[] = [
 
 // 유형별 꼬리표 색과 금액 부호(나간 돈 -, 들어온 돈 +, 바탕 10% 라 작은 글자도 대비 4.5 이상)
 const TYPE_STYLE = {
-  BUY: { label: '매수', chip: 'bg-buy/10 text-buy', sign: '-' },
+  BUY: { label: '매수', chip: 'bg-gain/10 text-gain', sign: '-' },
   SELL: { label: '매도', chip: 'bg-loss/10 text-loss', sign: '+' },
-  DIVIDEND: { label: '배당', chip: 'bg-gain/10 text-gain', sign: '+' },
+  DIVIDEND: { label: '배당', chip: 'bg-info/10 text-info', sign: '+' },
 } as const;
 
 const usd = (value: number) =>
