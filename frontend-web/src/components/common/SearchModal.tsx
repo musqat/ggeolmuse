@@ -2,11 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { X, Search, TrendingUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-
-interface StockInfo {
-  symbol: string;
-  name: string;
-}
+import { searchSymbols, type SymbolMatch } from '../../utils/symbolSearch';
 
 interface SearchModalProps {
   isOpen: boolean;
@@ -15,49 +11,19 @@ interface SearchModalProps {
   onSelectStock?: (symbol: string) => void;
 }
 
-// 종목명 매핑
-const getSymbolName = (symbol: string): string => {
-  const names: { [key: string]: string } = {
-    'AAPL': 'Apple Inc.',
-    'MSFT': 'Microsoft Corporation',
-    'NVDA': 'NVIDIA Corporation',
-    'GOOGL': 'Alphabet Inc.',
-    'TSLA': 'Tesla Inc.',
-    'AMZN': 'Amazon.com Inc.',
-    'META': 'Meta Platforms Inc.',
-    'BRK.B': 'Berkshire Hathaway Inc.',
-    'AVGO': 'Broadcom Inc.',
-    'JPM': 'JPMorgan Chase & Co.',
-    'LLY': 'Eli Lilly and Company',
-    'UNH': 'UnitedHealth Group Inc.',
-    'XOM': 'Exxon Mobil Corporation',
-    'V': 'Visa Inc.',
-    'PG': 'Procter & Gamble Co.',
-    'MA': 'Mastercard Incorporated',
-    'HD': 'Home Depot Inc.',
-    'JNJ': 'Johnson & Johnson',
-    'ABBV': 'AbbVie Inc.',
-    'NFLX': 'Netflix Inc.'
-  };
-  return names[symbol] || symbol;
-};
-
 const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, supportedSymbols = [], onSelectStock }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [filteredStocks, setFilteredStocks] = useState<StockInfo[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
-  // 지원 종목 리스트 생성
-  // 매 렌더 새 배열을 만들면 아래 effect 의 의존성이 매번 바뀐다.
-  const stockList: StockInfo[] = useMemo(
-    () => supportedSymbols.map((symbol) => ({
-      symbol: symbol,
-      name: getSymbolName(symbol)
-    })),
-    [supportedSymbols]
-  );
+  const filteredStocks = useMemo(() => searchSymbols(supportedSymbols, searchTerm, 10), [supportedSymbols, searchTerm]);
+
+  // 검색어가 바뀌면 첫 결과를 고름
+  const changeSearchTerm = (term: string) => {
+    setSearchTerm(term);
+    setSelectedIndex(0);
+  };
 
   // 모달이 열릴 때 입력창에 포커스
   useEffect(() => {
@@ -78,21 +44,6 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, supportedSym
     return () => document.removeEventListener('keydown', handleEsc);
   }, [isOpen, onClose]);
 
-  // 검색어 필터링
-  useEffect(() => {
-    if (searchTerm.trim() === '') {
-      setFilteredStocks(stockList.slice(0, 10));
-    } else {
-      const filtered = stockList.filter(
-        stock =>
-          stock.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          stock.name.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      setFilteredStocks(filtered.slice(0, 10));
-    }
-    setSelectedIndex(0);
-  }, [searchTerm, stockList]);
-
   // 키보드 네비게이션
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
@@ -110,7 +61,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, supportedSym
   };
 
   // 종목 선택 시 차트 페이지로 이동 or 콜백 호출
-  const handleSelectStock = (stock: StockInfo) => {
+  const handleSelectStock = (stock: SymbolMatch) => {
     if (onSelectStock) {
       onSelectStock(stock.symbol);
     } else {
@@ -134,14 +85,14 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, supportedSym
               ref={inputRef}
               type="text"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => changeSearchTerm(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="종목명 또는 티커 검색..."
               className="block w-full pl-10 pr-10 py-3 border-0 text-lg focus:outline-none focus:ring-0"
             />
             {searchTerm && (
               <button
-                onClick={() => setSearchTerm('')}
+                onClick={() => changeSearchTerm('')}
                 className="absolute inset-y-0 right-0 pr-3 flex items-center text-tx-3 hover:text-tx-2"
               >
                 <X className="h-5 w-5" />
@@ -171,7 +122,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, supportedSym
                       </div>
                       <div>
                         <div className="font-semibold text-tx-1">{stock.symbol}</div>
-                        <div className="text-sm text-tx-2">{stock.name}</div>
+                        <div className="text-sm text-tx-2">{stock.name || stock.symbol}</div>
                       </div>
                     </div>
                     <div className="text-xs text-tx-3">
