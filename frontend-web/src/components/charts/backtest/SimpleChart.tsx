@@ -1,33 +1,21 @@
 import React, { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  ReferenceDot,
-} from "recharts";
+import { Line, YAxis, Tooltip, ReferenceDot } from "recharts";
 import { DEFAULT_FX_RATE, fetchFxRates } from './shared/fxRates';
 import { closeOf, fetchSymbolPrices } from './shared/prices';
 import {
   AXIS_PROPS,
-  CHART_HEIGHT,
-  CHART_MARGIN,
   dateAxis,
   formatKrwTick,
   formatUsdTick,
-  GRID_PROPS,
   MARKER_COLORS,
   MARKER_LABEL_STYLE,
   MARKER_PROPS,
   OPTIMAL_MARKER_PROPS,
 } from './shared/chartStyle';
+import { ChartCard, ChartMessage, ChartPanel } from './shared/ChartPanel';
+import { markerDots } from './shared/markers';
 import { useChartPeriod } from "../common/hooks/useChartPeriod";
-import { ChartPeriodSelector } from "../common/components/ChartPeriodSelector";
 import { getTodayString } from "../../../utils/dateUtils";
 
 // 가격·환율·평가액은 받지 않는다. 차트가 일자별 캔들에서 직접 구한다.
@@ -73,14 +61,8 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
   dividendReinvestDates,
   endDate,
 }) => {
-  // 공통 차트 기간 훅 사용
-  const {
-    chartPeriod,
-    customStartDate,
-    setChartPeriod,
-    setCustomStartDate,
-    getStartDateFromPeriod,
-  } = useChartPeriod("purchase");
+  const period = useChartPeriod("purchase");
+  const { chartPeriod, customStartDate, getStartDateFromPeriod } = period;
 
   // 차트 기간에 따른 시작일 계산
   const getChartStartDate = () => {
@@ -255,187 +237,129 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
   };
 
   if (loading) {
-    return (
-      <div className="text-center py-8 text-tx-2">
-        차트 데이터를 불러오는 중...
-      </div>
-    );
+    return <ChartMessage>차트 데이터를 불러오는 중...</ChartMessage>;
   }
 
   if (!chartData || chartData.length === 0) {
-    return (
-      <div className="text-center py-8 text-tx-2">차트 데이터가 없습니다.</div>
-    );
+    return <ChartMessage>차트 데이터가 없습니다.</ChartMessage>;
   }
 
   return (
     <div className="space-y-6 mt-6">
       {/* 주가 차트 */}
-      <div className="bg-surface rounded-lg border border-line p-4">
-        <h3 className="text-lg font-semibold text-tx-1 mb-4">
-          {symbol} 주가 추이
-        </h3>
-        <ChartPeriodSelector
-          chartPeriod={chartPeriod}
-          customStartDate={customStartDate}
-          onPeriodChange={setChartPeriod}
-          onCustomDateChange={setCustomStartDate}
-        />
-        <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
-          <LineChart
-            data={chartData}
-            margin={CHART_MARGIN}
-          >
-            <CartesianGrid {...GRID_PROPS} />
-            <XAxis
-              dataKey="date"
-              {...AXIS_PROPS}
-              {...xAxis}
-            />
-            <YAxis
-              {...AXIS_PROPS}
-              tickFormatter={formatUsdTick}
-              domain={priceRange}
-              allowDecimals={false}
-            />
-            <Tooltip content={<CustomTooltip />} />
-            <Legend />
+      <ChartCard title={`${symbol} 주가 추이`} period={period}>
+        <ChartPanel data={chartData} xAxis={xAxis}>
+          <YAxis
+            {...AXIS_PROPS}
+            tickFormatter={formatUsdTick}
+            domain={priceRange}
+            allowDecimals={false}
+          />
+          <Tooltip content={<CustomTooltip />} />
 
-            {/* 주가 라인 */}
-            <Line
-              type="monotone"
-              dataKey="price"
-              name={`${symbol} 주가`}
-              stroke="#3b82f6"
-              strokeWidth={2}
-              dot={false}
-              isAnimationActive={false}
+          {/* 주가 라인 */}
+          <Line
+            type="monotone"
+            dataKey="price"
+            name={`${symbol} 주가`}
+            stroke="#3b82f6"
+            strokeWidth={2}
+            dot={false}
+            isAnimationActive={false}
+          />
+
+          {/* 매수 시점 마커 */}
+          {purchasePoint && (
+            <ReferenceDot
+              x={purchasePoint.date}
+              y={purchasePoint.price}
+              {...MARKER_PROPS}
+              r={6}
+              fill={MARKER_COLORS.purchase}
+              label={{ value: "매수", position: "top", ...MARKER_LABEL_STYLE }}
             />
+          )}
 
-            {/* 매수 시점 마커 */}
-            {purchasePoint && (
-              <ReferenceDot
-                x={purchasePoint.date}
-                y={purchasePoint.price}
-                {...MARKER_PROPS}
-                r={6}
-                fill={MARKER_COLORS.purchase}
-                label={{ value: "매수", position: "top", ...MARKER_LABEL_STYLE }}
-              />
-            )}
-
-            {/* 배당 재투자 시점 마커들 */}
-            {dividendReinvestPoints.map((point, idx) => (
-              <ReferenceDot
-                key={`dividend-${idx}`}
-                x={point.date}
-                y={point.price}
-                {...MARKER_PROPS}
-                fill={MARKER_COLORS.dividend}
-              />
-            ))}
-          </LineChart>
-        </ResponsiveContainer>
+          {/* 배당 재투자 시점 마커들 */}
+          {markerDots(dividendReinvestPoints, "price", MARKER_COLORS.dividend, "dividend")}
+        </ChartPanel>
         <p className="text-xs text-tx-2 mt-2 text-center">
           파란 선 = 주가 | 보라 점 = 매수 | 녹색 점 = 배당 재투자
         </p>
-      </div>
+      </ChartCard>
 
       {/* 포트폴리오 가치 차트 */}
-      <div className="bg-surface rounded-lg border border-line p-4">
-        <h3 className="text-lg font-semibold text-tx-1 mb-4">
-          투자금 vs 평가금액
-        </h3>
-        <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
-          <LineChart
-            data={chartData}
-            margin={CHART_MARGIN}
-          >
-            <CartesianGrid {...GRID_PROPS} />
-            <XAxis
-              dataKey="date"
-              {...AXIS_PROPS}
-              {...xAxis}
+      <ChartCard title="투자금 vs 평가금액">
+        <ChartPanel data={chartData} xAxis={xAxis}>
+          <YAxis
+            {...AXIS_PROPS}
+            tickFormatter={formatKrwTick}
+          />
+          <Tooltip content={<CustomTooltip />} />
+
+          {/* 투자금 라인 (수평선) */}
+          <Line
+            type="monotone"
+            dataKey="투자금"
+            name="투자금"
+            stroke="#10b981"
+            strokeWidth={2}
+            dot={false}
+            strokeDasharray="5 5"
+            isAnimationActive={false}
+          />
+
+          {/* 평가금액 라인 */}
+          <Line
+            type="monotone"
+            dataKey="평가금액"
+            name="평가금액"
+            stroke="#3b82f6"
+            strokeWidth={2}
+            dot={false}
+            isAnimationActive={false}
+          />
+
+          {/* 매수 시점 마커 */}
+          {purchasePoint && (
+            <ReferenceDot
+              x={purchasePoint.date}
+              y={purchasePoint.투자금}
+              {...MARKER_PROPS}
+              r={6}
+              fill={MARKER_COLORS.purchase}
+              label={{ value: "매수", position: "top", ...MARKER_LABEL_STYLE }}
             />
-            <YAxis
-              {...AXIS_PROPS}
-              tickFormatter={formatKrwTick}
+          )}
+
+          {/* 최적 매수 · 매도 시점 마커 (원화 주가 기준) */}
+          {optimalBuyPoint && (
+            <ReferenceDot
+              x={optimalBuyPoint.date}
+              y={optimalBuyPoint.평가금액}
+              {...OPTIMAL_MARKER_PROPS}
+              r={6}
+              label={{ value: "최적 매수", position: "bottom", ...MARKER_LABEL_STYLE }}
             />
-            <Tooltip content={<CustomTooltip />} />
-            <Legend />
-
-            {/* 투자금 라인 (수평선) */}
-            <Line
-              type="monotone"
-              dataKey="투자금"
-              name="투자금"
-              stroke="#10b981"
-              strokeWidth={2}
-              dot={false}
-              strokeDasharray="5 5"
-              isAnimationActive={false}
+          )}
+          {optimalSellPoint && (
+            <ReferenceDot
+              x={optimalSellPoint.date}
+              y={optimalSellPoint.평가금액}
+              {...OPTIMAL_MARKER_PROPS}
+              r={6}
+              label={{ value: "최적 매도", position: "bottom", ...MARKER_LABEL_STYLE }}
             />
+          )}
 
-            {/* 평가금액 라인 */}
-            <Line
-              type="monotone"
-              dataKey="평가금액"
-              name="평가금액"
-              stroke="#3b82f6"
-              strokeWidth={2}
-              dot={false}
-              isAnimationActive={false}
-            />
-
-            {/* 매수 시점 마커 */}
-            {purchasePoint && (
-              <ReferenceDot
-                x={purchasePoint.date}
-                y={purchasePoint.투자금}
-                {...MARKER_PROPS}
-                r={6}
-                fill={MARKER_COLORS.purchase}
-                label={{ value: "매수", position: "top", ...MARKER_LABEL_STYLE }}
-              />
-            )}
-
-            {/* 최적 매수 · 매도 시점 마커 (원화 주가 기준) */}
-            {optimalBuyPoint && (
-              <ReferenceDot
-                x={optimalBuyPoint.date}
-                y={optimalBuyPoint.평가금액}
-                {...OPTIMAL_MARKER_PROPS}
-                r={6}
-                label={{ value: "최적 매수", position: "bottom", ...MARKER_LABEL_STYLE }}
-              />
-            )}
-            {optimalSellPoint && (
-              <ReferenceDot
-                x={optimalSellPoint.date}
-                y={optimalSellPoint.평가금액}
-                {...OPTIMAL_MARKER_PROPS}
-                r={6}
-                label={{ value: "최적 매도", position: "bottom", ...MARKER_LABEL_STYLE }}
-              />
-            )}
-
-            {/* 배당 재투자 시점 마커들 */}
-            {dividendReinvestPoints.map((point, idx) => (
-              <ReferenceDot
-                key={`dividend-portfolio-${idx}`}
-                x={point.date}
-                y={point.평가금액}
-                {...MARKER_PROPS}
-                fill={MARKER_COLORS.dividend}
-              />
-            ))}
-          </LineChart>
-        </ResponsiveContainer>
+          {/* 배당 재투자 시점 마커들 */}
+          {markerDots(dividendReinvestPoints, "평가금액", MARKER_COLORS.dividend, "dividend-portfolio")}
+        </ChartPanel>
         <p className="text-xs text-tx-2 mt-2 text-center">
           녹색 점선 = 투자금 | 파란 선 = 평가금액 | 보라 점 = 매수 | 녹색 점 = 배당
           재투자 | 금색 점 = 최적 매수 · 매도
         </p>
-      </div>
+      </ChartCard>
     </div>
   );
 };
