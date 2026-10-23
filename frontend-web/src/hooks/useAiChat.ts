@@ -1,9 +1,9 @@
 import { createContext, useContext } from 'react';
 
-// AI 채팅 창 컨텍스트와 훅. Provider 는 contexts/AiChatContext.tsx 에 있다
+// AI 채팅 창 컨텍스트와 훅(Provider 는 contexts/AiChatContext.tsx)
 export interface AiChatContextValue {
   isOpen: boolean;
-  // 자동 분석할 종목 (버튼으로 열 때 설정). null이면 일반 채팅.
+  // 자동 분석할 종목(null 이면 일반 채팅)
   autoSymbol: string | null;
   openChat: (symbol?: string) => void;
   closeChat: () => void;

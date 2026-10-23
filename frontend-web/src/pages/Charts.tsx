@@ -12,7 +12,7 @@ import { convertOHLCToCandlestick, type CandlestickChartData } from '../types/oh
 import { useAiChat } from '../hooks/useAiChat';
 import { Spinner } from '../components/common/Spinner';
 
-// 데이터가 없을 때 넘기는 빈 배열. 렌더마다 새 배열이 되지 않게 하나로 둔다
+// 데이터가 없을 때 넘기는 빈 배열(렌더마다 새 배열이 되지 않게 하나)
 const NO_CANDLES: CandlestickChartData[] = [];
 
 const isValidSymbol = (s: string) => /^[A-Z]{1,6}(\.[A-Z]{1,2})?$/.test(s.toUpperCase());
@@ -25,16 +25,13 @@ const Charts: React.FC = () => {
 
   const symbol = (paramSymbol && isValidSymbol(paramSymbol)) ? paramSymbol.toUpperCase() : null;
 
-  // 심볼이 없거나 형식이 틀리면 AAPL 로 보낸다. 리다이렉트는 훅을 전부 부른 뒤
-  // 아래에서 <Navigate> 로 한다. 여기서 조기 return 하면 렌더마다 훅 개수가 달라져
-  // React 가 훅 순서를 못 맞춘다.
+  // 심볼이 없거나 형식이 틀리면 AAPL 로 보냄(훅을 다 부른 뒤 아래 <Navigate> 로, 조기 return 이면 훅 순서가 어긋남)
 
   const [showSearchModal, setShowSearchModal] = useState(false);
   const { period, customStart, customEnd, today, range, setPeriod, setCustomStart, setCustomEnd } =
     useChartRange();
   const ready = range.status === 'ready' ? range : null;
 
-  // React Query: 지원하는 종목 목록 로드
   const { data: supportedSymbols = ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'TSLA'] } = useQuery({
     queryKey: ['stock', 'symbols'],
     queryFn: async () => {
@@ -43,10 +40,10 @@ const Charts: React.FC = () => {
         .map((a) => String(a.symbol).toUpperCase());
       return symbols;
     },
-    staleTime: 10 * 60 * 1000, // 10분
+    staleTime: 10 * 60 * 1000,
   });
 
-  // React Query: 차트 데이터 로드. 받은 배열을 그대로 차트에 넘겨 렌더마다 다시 그리지 않는다
+  // 차트 데이터(받은 배열을 그대로 넘겨 렌더마다 다시 그리지 않음)
   const {
     data: ohlcData = NO_CANDLES,
     isLoading: loading,
@@ -54,19 +51,17 @@ const Charts: React.FC = () => {
   } = useQuery({
     queryKey: ['stock', 'ohlc', symbol, ready?.startDate, ready?.endDate],
     queryFn: async () => {
-      // enabled 가 symbol · 기간 없음을 막으므로 여기서는 항상 값이 있다
+      // enabled 가 막아 여기서는 symbol · 기간이 늘 있음
       const response = await stockApi.getOHLCData(symbol!, ready!.startDate, ready!.endDate);
       return convertOHLCToCandlestick(response.data || []);
     },
     enabled: !!symbol && !!ready,
-    staleTime: 5 * 60 * 1000, // 5분
-    // 같은 종목에서 기간만 바꾸면 새 데이터가 올 때까지 이전 차트를 둔다.
-    // 차트가 다시 만들어지지 않아 켜 둔 지표가 남는다
+    staleTime: 5 * 60 * 1000,
+    // 같은 종목에서 기간만 바꾸면 새 데이터까지 이전 차트 유지(켜 둔 지표가 남음)
     placeholderData: (previous, previousQuery) =>
       previousQuery?.queryKey[2] === symbol ? previous : undefined,
   });
 
-  // React Query: 회사명 조회
   const { data: companyName = '' } = useQuery({
     queryKey: ['stock', 'companyName', symbol],
     queryFn: async () => {
@@ -80,18 +75,17 @@ const Charts: React.FC = () => {
       }
     },
     enabled: !!symbol,
-    staleTime: 30 * 60 * 1000, // 30분 (회사명은 거의 안 바뀜)
+    staleTime: 30 * 60 * 1000,
   });
 
   const summary = useMemo(() => priceSummary(ohlcData), [ohlcData]);
 
-  // 훅을 전부 부른 뒤에 리다이렉트한다. <Navigate> 는 렌더 결과라 부수효과가 아니다.
-  // navigate() 를 렌더 중에 부르면 React Router 가 무시하고 화면이 비어 버린다.
+  // 훅을 다 부른 뒤 <Navigate> 로 이동(렌더 중 navigate() 는 무시돼 빈 화면)
   if (symbol === null) {
     return <Navigate to="/charts/AAPL" replace />;
   }
 
-  // 차트 대신 보일 안내. null 이면 차트를 그린다
+  // 차트 대신 보일 안내(null 이면 차트)
   const notice: { title?: string; message: string } | null =
     range.status === 'incomplete'
       ? { message: '시작일과 종료일을 고르세요' }
@@ -124,7 +118,7 @@ const Charts: React.FC = () => {
         />
       </div>
 
-      {/* 검색 모달. 기간 쿼리를 그대로 붙여 종목을 바꿔도 기간이 남는다 */}
+      {/* 검색 창(기간 쿼리를 이어 받아 종목을 바꿔도 기간 유지) */}
       <SearchModal
         isOpen={showSearchModal}
         onClose={() => setShowSearchModal(false)}
@@ -136,8 +130,7 @@ const Charts: React.FC = () => {
         }}
       />
 
-      {/* 로딩 · 안내 칸은 차트와 같은 높이라 바뀔 때 화면이 밀리지 않는다.
-          좁은 화면은 차트 380px 에 지표 버튼 줄 32px 를 더한 높이 */}
+      {/* 로딩 · 안내 칸은 차트와 같은 높이(좁은 화면은 차트 380px + 지표 버튼 줄 32px) */}
       <div className="bg-surface rounded-lg shadow-md border border-line p-1.5 sm:p-4">
         {loading ? (
           <div className="flex items-center justify-center h-[412px] md:h-[620px]">

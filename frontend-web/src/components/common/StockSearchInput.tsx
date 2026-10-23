@@ -63,9 +63,7 @@ const StockSearchInput: React.FC<StockSearchInputProps> = ({
     setIsOpen(true);
   };
 
-  // value prop 이 변경되면 searchTerm 도 업데이트.
-  // 함수형 갱신을 쓰면 searchTerm 을 읽지 않아 의존성에 넣을 필요가 없다.
-  // 넣으면 사용자가 타이핑할 때마다 effect 가 돌아 입력을 value 로 되돌린다.
+  // value 가 바뀌면 searchTerm 도 맞춤(함수형 갱신이라 searchTerm 은 의존성에 없음, 넣으면 타이핑이 되돌아감)
   useEffect(() => {
     setSearchTerm((prev) => (prev !== value ? value : prev));
   }, [value]);

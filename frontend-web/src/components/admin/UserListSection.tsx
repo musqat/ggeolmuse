@@ -92,7 +92,7 @@ export default function UserListSection({
         ))}
       </div>
 
-      {/* Pagination */}
+      {/* 페이지 이동 */}
       <div className="flex items-center justify-between mt-4 pt-4 border-t">
         <button
           onClick={() => onPageChange(page - 1)}

@@ -13,7 +13,7 @@ export const useAdminMarket = () => {
   const [assets, setAssets] = useState<Asset[]>([]);
   const { loading, error, setError, run } = useAdminAction();
 
-  // Pagination state
+  // 페이지
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize, setPageSize] = useState(20);
   const [totalPages, setTotalPages] = useState(0);
@@ -23,7 +23,7 @@ export const useAdminMarket = () => {
 
   const [searchActive, setSearchActive] = useState(false);
 
-  // 상장 목록과 상장폐지 목록을 오간다
+  // 상장 목록 · 상장폐지 목록 중 보는 쪽
   const [listActive, setListActive] = useState(true);
 
   // 보유 종목 검색 (DB) — 등록된 종목에서 키워드 매칭
@@ -120,7 +120,7 @@ export const useAdminMarket = () => {
     });
   };
 
-  // 상장폐지 처리한 종목을 되돌린다. 되돌리면 수집 대상에 다시 들어간다
+  // 상장폐지 종목 되돌리기(수집 대상에 다시 들어감)
   const handleRestoreAsset = async (symbol: string) => {
     await run({
       confirm: { text: `${symbol}을(를) 상장 상태로 되돌립니다. 계속할까요?` },
@@ -132,7 +132,7 @@ export const useAdminMarket = () => {
     });
   };
 
-  // 상장 목록과 상장폐지 목록을 바꾼다
+  // 상장 목록 ↔ 상장폐지 목록 바꾸기
   const handleListActiveChange = (active: boolean) => {
     setListActive(active);
     setCurrentPage(0);
@@ -201,7 +201,7 @@ export const useAdminMarket = () => {
     loadAssets(newPage);
   };
 
-  // 페이지 크기 변경. 목록은 아래 effect 가 새 크기로 받는다
+  // 페이지 크기 변경(목록은 아래 effect 가 새 크기로 받음)
   const handlePageSizeChange = (newSize: number) => {
     setPageSize(newSize);
     setCurrentPage(0);
@@ -277,8 +277,7 @@ export const useAdminMarket = () => {
   };
 
 
-  // 처음 열 때와 정렬 · 페이지 크기가 바뀔 때 첫 페이지부터 받는다.
-  // 처음 불러오기를 따로 두면 첫 렌더에서 이것과 같이 돌아 같은 요청이 두 번 간다
+  // 처음 열 때와 정렬 · 페이지 크기가 바뀔 때 첫 페이지부터(처음 불러오기를 따로 두면 같은 요청이 두 번 감)
   useEffect(() => {
     loadAssets(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -310,7 +309,7 @@ export const useAdminMarket = () => {
     handleUpdateAllMarketCaps,
     handleCollectNewSymbols,
     loadAssets,
-    // Pagination
+    // 페이지
     currentPage,
     pageSize,
     totalPages,
@@ -320,7 +319,7 @@ export const useAdminMarket = () => {
     handlePageChange,
     handlePageSizeChange,
     handleSortChange,
-    // Bulk selection
+    // 여러 개 고르기
     selected,
     toggleOne,
     toggleAll,

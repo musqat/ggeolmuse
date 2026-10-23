@@ -4,7 +4,7 @@ import { getApiErrorMessage } from '@utils/apiError';
 import type { BacktestResult } from '../shared/backtestDisplay';
 import type { PreparedRun } from './types';
 
-// 실행 상태 · 결과 · 오류. 비로그인이면 성공한 요청을 로컬 히스토리에 저장한다
+// 실행 상태 · 결과 · 오류(비로그인이면 성공한 요청을 로컬 히스토리에 저장)
 export const useBacktestRunner = (isAuthenticated: boolean) => {
   const [isRunning, setIsRunning] = useState(false);
   const [result, setResult] = useState<BacktestResult | null>(null);

@@ -29,7 +29,7 @@ const TradingChartSection: React.FC<TradingChartSectionProps> = ({
   onCustomEndDateChange,
 }) => {
   const today = getTodayString();
-  // 직접설정에서 날짜를 다 고르지 않으면 요청을 안 보낸다
+  // 직접설정에서 날짜를 다 고르지 않으면 요청 안 보냄
   const customIncomplete = timeframe === '직접설정' && (!customStartDate || !customEndDate);
 
   return (
@@ -55,7 +55,7 @@ const TradingChartSection: React.FC<TradingChartSectionProps> = ({
         </div>
       </div>
 
-      {/* Custom Date Inputs */}
+      {/* 직접설정 날짜 칸 */}
       {timeframe === '직접설정' && (
         <div className="flex flex-wrap items-center gap-2 mb-4 p-3 bg-surface/50 rounded-lg">
           <div className="w-40">
@@ -81,8 +81,7 @@ const TradingChartSection: React.FC<TradingChartSectionProps> = ({
         </div>
       )}
 
-      {/* Chart Display — 높이는 CandlestickChart 가 정한다. 여기서 고정하면 차트가 넘친다.
-          로딩 · 안내 칸은 차트와 같은 높이(좁은 화면 380px, 768px 이상 400px) */}
+      {/* 차트 높이는 CandlestickChart 가 정함(로딩 · 안내 칸도 같은 높이: 좁은 화면 380px, 768px 이상 400px) */}
       <div>
         {chartLoading ? (
           <div className="h-[380px] md:h-[400px] flex items-center justify-center">

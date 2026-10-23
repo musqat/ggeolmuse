@@ -18,7 +18,7 @@ const DepositModal: React.FC<DepositModalProps> = ({
 }) => {
   const [depositAmount, setDepositAmount] = useState('');
 
-  // 빠른 금액 버튼. 누를 때마다 더한다
+  // 빠른 금액 버튼(누를 때마다 더함)
   const quickAmounts = [100000, 1000000, 10000000];
 
   const handleClose = () => {

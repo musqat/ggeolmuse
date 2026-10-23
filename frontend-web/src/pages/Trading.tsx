@@ -7,16 +7,13 @@ import TradeHistoryTab from '../components/trading/TradeHistoryTab';
 import TradingCapacityPanel from '../components/trading/TradingCapacityPanel';
 import { stockApi } from '../services/api';
 
-// Utility imports
 import type { Timeframe } from '@/utils/dateUtils';
 import type { PriceType } from '@/utils/priceUtils';
 
-// Hook imports
 import { useAccounts } from '@/hooks/useAccounts';
 import { useTradingChart } from '@/hooks/useTradingChart';
 import { useTradeOrder } from '@/hooks/useTradeOrder';
 
-// Component imports
 import OrderTypeToggle from '@/components/trading/OrderTypeToggle';
 import AccountSelector from '@/components/trading/AccountSelector';
 import TradeDatePicker from '@/components/trading/TradeDatePicker';
@@ -41,10 +38,8 @@ const Trading: React.FC = () => {
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
 
-  // Use custom hook for account management
   const { accounts, selectedAccountId, setSelectedAccountId } = useAccounts(isAuthenticated);
 
-  // React Query: 지원하는 종목 목록 로드
   const { data: supportedSymbols = ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'TSLA'] } = useQuery({
     queryKey: ['stock', 'symbols'],
     queryFn: async () => {
@@ -53,7 +48,7 @@ const Trading: React.FC = () => {
         .map((a) => String(a.symbol).toUpperCase());
       return allSymbols;
     },
-    staleTime: 10 * 60 * 1000, // 10분 (종목 목록은 자주 변경 안 됨)
+    staleTime: 10 * 60 * 1000,
   });
 
   const {
@@ -103,13 +98,11 @@ const Trading: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
-      {/* Header */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-tx-1 mb-2">가상 거래</h1>
         <p className="text-tx-2">과거 주식을 매매해보세요</p>
       </div>
 
-      {/* Tabs */}
       <div className="mb-6 border-b border-line">
         <nav className="-mb-px flex space-x-8">
           <button
@@ -135,12 +128,11 @@ const Trading: React.FC = () => {
         </nav>
       </div>
 
-      {/* Tab Content */}
       {activeTab === 'history' ? (
         <TradeHistoryTab />
       ) : (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Stock Selection & Chart */}
+        {/* 왼쪽: 종목 선택 · 차트 */}
         <div className="lg:col-span-2 space-y-6">
           <StockSelectionPanel
             selectedStock={selectedStock}
@@ -162,7 +154,7 @@ const Trading: React.FC = () => {
           />
         </div>
 
-        {/* Right Column - Order Panel */}
+        {/* 오른쪽: 주문 */}
         <div className="lg:col-span-1">
           <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-6 sticky top-6">
             <h3 className="text-xl font-semibold text-tx-1 mb-6">주문하기</h3>
@@ -194,7 +186,6 @@ const Trading: React.FC = () => {
               ohlcData={selectedDateOHLC || latestOHLC}
             />
 
-            {/* Quantity */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-tx-1 mb-2">수량</label>
               <input
@@ -205,7 +196,6 @@ const Trading: React.FC = () => {
                 min="1"
               />
 
-            {/* Trading Capacity Panel */}
             <TradingCapacityPanel
               accountId={selectedAccountId}
               symbol={selectedStock}
@@ -225,7 +215,6 @@ const Trading: React.FC = () => {
               totalAmount={totalAmount}
             />
 
-            {/* Submit Button */}
             <button
               onClick={handleSubmitOrder}
               disabled={!selectedStock || !quantity || !selectedAccountId || (priceType === 'limit' && !limitPrice)}

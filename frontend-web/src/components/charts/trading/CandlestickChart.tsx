@@ -18,7 +18,7 @@ const CandlestickChart: React.FC<CandlestickChartProps> = ({ data, className = '
 
   return (
     <div className={className}>
-      {/* 받은 배열을 그대로 넘긴다. 새 배열을 만들면 렌더마다 차트를 다시 그린다 */}
+      {/* 받은 배열 그대로(새 배열이면 렌더마다 다시 그림) */}
       <KLineChartComponent
         data={data}
         showIndicatorPanel={false}

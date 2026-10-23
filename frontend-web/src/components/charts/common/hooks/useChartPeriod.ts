@@ -15,8 +15,7 @@ export const useChartPeriod = (initialPeriod: ChartPeriod = 'purchase') => {
   const [chartPeriod, setChartPeriod] = useState<ChartPeriod>(initialPeriod);
   const [customStartDate, setCustomStartDate] = useState('');
 
-  // 훅의 상태를 읽지 않는 순수 함수다. useCallback 으로 참조를 고정해야
-  // 이 함수를 쓰는 effect 들이 의존성에 그대로 넣을 수 있다.
+  // 상태를 읽지 않는 순수 함수(useCallback 으로 참조를 고정해 effect 의존성에 그대로 넣음)
   const getStartDateFromPeriod = useCallback((
     period: ChartPeriod,
     originalStartDate: string,

@@ -12,7 +12,7 @@ export interface ConditionalValues extends BacktestOptions {
   dropPercentage: string;
 }
 
-// 조건부 매수 요청. 검사에 걸리면 alert 문구를 돌려준다
+// 조건부 매수 요청(검사에 걸리면 alert 문구)
 export const buildConditionalRequest = (
   values: ConditionalValues,
   symbol: string,

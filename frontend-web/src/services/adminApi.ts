@@ -19,10 +19,10 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// 401 이면 메인 클라이언트와 같은 방식으로 토큰을 갱신하고 다시 보낸다
+// 401 이면 토큰을 갱신하고 다시 보냄(메인 클라이언트와 같은 방식)
 attachTokenRefresh(api);
 
-// Response interceptor for error handling
+// 오류 응답 처리
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -152,7 +152,7 @@ export const marketAdminApi = {
     await api.post('/admin/market/update/market-cap');
   },
 
-  // 탐색을 시작만 한다. 3천만 행 집계라 몇 분 걸려 게이트웨이 30초 제한을 넘는다
+  // 탐색 시작만(3천만 행 집계라 몇 분 걸려 게이트웨이 30초 제한을 넘음)
   startUnadjustedScan: async (from: string): Promise<UnadjustedResponse> => {
     const { data } = await api.post<UnadjustedResponse>(
       '/admin/market/candles/unadjusted/scan',
@@ -162,13 +162,13 @@ export const marketAdminApi = {
     return data;
   },
 
-  // 마지막 탐색 결과. running 이 true 면 아직 도는 중이다
+  // 마지막 탐색 결과(running 이 true 면 도는 중)
   findUnadjustedSymbols: async (): Promise<UnadjustedResponse> => {
     const { data } = await api.get<UnadjustedResponse>('/admin/market/candles/unadjusted');
     return data;
   },
 
-  // 지정 종목만 다시 받는다. 수집은 백그라운드로 돈다
+  // 지정 종목만 다시 받기(수집은 백그라운드)
   refreshCandles: async (symbols: string[], from: string): Promise<RefreshResponse> => {
     const { data } = await api.post<RefreshResponse>("/admin/market/candles/refresh", {
       symbols,
@@ -177,20 +177,19 @@ export const marketAdminApi = {
     return data;
   },
 
-  // 활성 종목 전체를 1970-01-01 부터 다시 받는다. 요청은 바로 돌아오고 발행과 수집은 백그라운드로 돈다
+  // 활성 종목 전체를 1970-01-01 부터 다시 받기(요청은 바로 돌아오고 수집은 백그라운드)
   refreshAllCandles: async (): Promise<RefreshAllResponse> => {
     const { data } = await api.post<RefreshAllResponse>('/admin/market/candles/refresh-all');
     return data;
   },
 
-  // 마지막 전체 다시 받기 기록. 한 번도 안 했으면 lastRunAt 이 null
+  // 마지막 전체 다시 받기 기록(한 번도 안 했으면 lastRunAt null)
   findLastRefreshAll: async (): Promise<RefreshAllResponse> => {
     const { data } = await api.get<RefreshAllResponse>('/admin/market/candles/refresh-all');
     return data;
   },
 
-  // 신규 상장 종목을 지금 받아온다. 평일 08:00 스케줄과 같은 일을 한다.
-  // 목록을 다시 받아 DB 에 없는 심볼만 추가하고 기존 종목은 건드리지 않는다.
+  // 신규 상장 종목 지금 받기(평일 08:00 스케줄과 같은 일, 없는 심볼만 추가)
   collectNewSymbols: async (): Promise<void> => {
     await api.post('/admin/market/update/symbols');
   },
@@ -214,7 +213,7 @@ export interface RefreshResponse {
   to: string;
 }
 
-// lastRunAt 은 서버가 KST 로 남긴 시각이다
+// lastRunAt 은 KST 시각
 export interface RefreshAllResponse {
   lastRunAt: string | null;
   published: number;

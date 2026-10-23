@@ -37,7 +37,6 @@ export const Modal: React.FC<ModalProps> = ({
       style={{ zIndex: LAYER[layer] }}
     >
       <div className={`bg-surface rounded-lg shadow-xl ${widthClasses[maxWidth]} w-full max-h-[90vh] flex flex-col`}>
-        {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-line">
           <h2 className="text-xl font-bold text-tx-1">{title}</h2>
           <button
@@ -49,12 +48,10 @@ export const Modal: React.FC<ModalProps> = ({
           </button>
         </div>
 
-        {/* Content */}
         <div className="p-6 overflow-y-auto flex-1">
           {children}
         </div>
 
-        {/* Footer */}
         {footer && (
           <div className="p-6 border-t border-line bg-surface/50">
             {footer}

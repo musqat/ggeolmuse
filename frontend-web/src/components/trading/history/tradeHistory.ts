@@ -3,7 +3,7 @@ import type { TransactionHistoryItem } from '../../../services/api';
 export type HistoryFilter = 'ALL' | 'BUY' | 'SELL' | 'DIVIDEND';
 
 export interface HistoryDay {
-  // 거래일. 배당은 배당일
+  // 거래일(배당은 배당일)
   date: string;
   items: TransactionHistoryItem[];
 }
@@ -25,7 +25,7 @@ export interface HistorySummary {
   pending: number;
 }
 
-// 정산 전 매수가 있으면 이 간격으로 다시 불러옴. 주문한 지 이만큼 지나면 멈춤
+// 정산 전 매수가 있을 때 다시 부르는 간격과 지켜보는 시간(주문 뒤 이만큼 지나면 멈춤)
 const PENDING_REFETCH_MS = 2000;
 const PENDING_WATCH_MS = 60_000;
 
@@ -42,7 +42,7 @@ export function applyFilters(
   );
 }
 
-// 날짜 최신순으로 묶는다. 같은 날 안은 주문 시각 최신순. 처리 시각이 비어 오는 배당은 뒤로 간다
+// 날짜 최신순 묶음(같은 날은 주문 시각 최신순, 처리 시각이 빈 배당은 뒤로)
 export function groupByDay(items: TransactionHistoryItem[]): HistoryDay[] {
   const sorted = [...items].sort(
     (a, b) => b.date.localeCompare(a.date) || (b.executedAt ?? '').localeCompare(a.executedAt ?? '')

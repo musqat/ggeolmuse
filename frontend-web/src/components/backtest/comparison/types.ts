@@ -12,7 +12,7 @@ export interface ComparisonCommon {
   investment: string;
 }
 
-// 모달 입력칸. params 는 그 전략의 저장값(없으면 {})
+// 모달 입력칸(params 는 그 전략의 저장값, 없으면 {})
 export interface StrategyFieldsProps {
   params: StrategyParams;
   onChange: (key: string, value: string) => void;
@@ -24,9 +24,9 @@ export interface ComparisonStrategyDef {
   name: string;
   // 고를 때 채우는 값
   defaultParams: StrategyParams;
-  // 모달 저장 검사. 통과하면 null
+  // 모달 저장 검사(통과하면 null)
   checkOnSave: (params: StrategyParams) => string | null;
-  // 실행 전 검사. 빈 값은 기본값으로 본다. 통과하면 null
+  // 실행 전 검사(빈 값은 기본값으로 보고 통과하면 null)
   checkOnRun: (params: StrategyParams, common: ComparisonCommon) => string | null;
   toRequest: (params: StrategyParams, common: ComparisonCommon) => StrategyParameter;
   Fields: FC<StrategyFieldsProps>;

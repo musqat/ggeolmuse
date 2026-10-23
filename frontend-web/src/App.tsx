@@ -13,19 +13,18 @@ import AdminLayout from '@components/layout/AdminLayout';
 import ProtectedRoute from '@components/ProtectedRoute';
 import './styles/datepicker.css';
 
-// React Query Client 설정
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000,  // 5분간 fresh 상태 유지
-      gcTime: 10 * 60 * 1000, // 10분간 캐시 유지 (v5: cacheTime → gcTime)
+      staleTime: 5 * 60 * 1000,
+      gcTime: 10 * 60 * 1000,
       retry: 1,                  // 실패 시 1번 재시도
       refetchOnWindowFocus: false, // 윈도우 포커스 시 자동 재요청 비활성화
     },
   },
 });
 
-// Lazy load pages for code splitting
+// 화면별 코드 분할(lazy)
 const Home = lazy(() => import('./pages/Home'));
 const Stocks = lazy(() => import('./pages/Stocks'));
 const Portfolio = lazy(() => import('@pages/Portfolio'));
@@ -58,7 +57,7 @@ function App() {
               </div>
             }>
               <Routes>
-                {/* Public Routes */}
+                {/* 공개 경로 */}
                 <Route path="/" element={<Home />} />
                 <Route path="/stocks" element={<Stocks />} />
                 <Route path="/dashboard" element={<Navigate to="/stocks" replace />} />
@@ -75,7 +74,7 @@ function App() {
                 <Route path="/unauthorized" element={<Unauthorized />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
 
-                {/* Admin Routes - 별도 레이아웃, ADMIN 권한 필요 */}
+                {/* 관리자 경로(별도 레이아웃 · ADMIN 권한) */}
                 <Route
                   path="/admin"
                   element={

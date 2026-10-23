@@ -6,7 +6,7 @@ import { parseLocalDate } from '../../../utils/dateUtils';
 interface ChartHeaderProps {
   symbol: string;
   companyName: string;
-  // 로딩 중이거나 캔들이 없으면 null 이고 가격 줄을 숨긴다
+  // 로딩 중이거나 캔들이 없으면 null(가격 줄 숨김)
   summary: PriceSummary | null;
   onSearch: () => void;
   onAiAnalysis: () => void;
@@ -60,7 +60,7 @@ const PriceBlock = ({ summary: { last, change, changePercent } }: { summary: Pri
 // 검색 · 종목 · AI 분석 줄과 마지막 캔들 가격
 export const ChartHeader = ({ symbol, companyName, summary, onSearch, onAiAnalysis }: ChartHeaderProps) => (
   <div className="min-w-0">
-    {/* AI 버튼을 종목 이름 뒤에 두어 검색 버튼과 떨어뜨린다 */}
+    {/* AI 버튼은 종목 이름 뒤(검색 버튼과 떨어지게) */}
     <div className="flex items-center gap-3">
       <button
         type="button"

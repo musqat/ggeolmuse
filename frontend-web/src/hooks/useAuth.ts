@@ -2,7 +2,7 @@ import { createContext, useContext } from 'react';
 import type { User } from '../services/api';
 import type { GoogleLoginOptions } from '../utils/googleLogin';
 
-// 로그인 상태 컨텍스트와 훅. Provider 는 contexts/AuthContext.tsx 에 있다.
+// 로그인 상태 컨텍스트와 훅(Provider 는 contexts/AuthContext.tsx)
 // Provider 파일이 컴포넌트만 내보내야 개발 서버가 그 파일만 갈아 끼운다(react-refresh)
 export interface AuthContextType {
   isAuthenticated: boolean;

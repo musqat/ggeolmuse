@@ -22,10 +22,10 @@ interface KLineChartComponentProps {
 const MA_PANE_ID = 'candle_pane';
 
 
-// 아래 패널 하나 높이. 좁은 화면은 줄인다
+// 아래 패널 하나 높이(좁은 화면은 줄임)
 const PANE_HEIGHT = 100;
 const NARROW_PANE_HEIGHT = 80;
-// 아래 패널 위 여백(px). 범례 한 줄이 막대 · 선과 겹치지 않게 비운다
+// 아래 패널 위 여백 px(범례 한 줄이 막대 · 선과 겹치지 않게)
 const PANE_GAP = { top: 32 };
 
 function convertData(data: CandlestickChartData[]) {
@@ -39,7 +39,7 @@ function convertData(data: CandlestickChartData[]) {
   }));
 }
 
-// 켜진 이동평균을 MA 지표 하나로 묶는다. 선 색을 지표 목록 색에 맞춘다
+// 켜진 이동평균을 MA 지표 하나로(선 색은 지표 목록 색)
 function maIndicator(state: IndicatorState) {
   const active = MA_LINES.filter(({ key }) => state[key]);
   return {
@@ -162,7 +162,7 @@ const KLineChartComponent: React.FC<KLineChartComponentProps> = ({
   showIndicatorPanel = false,
   height = 600,
 }) => {
-  // 모바일에서는 600px 차트가 화면을 다 먹는다. 폭 기준으로 줄인다.
+  // 좁은 화면은 폭 기준으로 줄인 높이(600px 이면 화면을 다 차지)
   const [isNarrow, setIsNarrow] = useState(
     typeof window !== 'undefined' && window.innerWidth < 768
   );
@@ -184,7 +184,7 @@ const KLineChartComponent: React.FC<KLineChartComponentProps> = ({
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [indicators, setIndicators] = useState<IndicatorState>(DEFAULT_INDICATORS);
 
-  // height 는 거래량 패널 하나가 붙은 높이. 아래 패널이 늘면 그만큼 키워 캔들 영역이 줄지 않게 한다
+  // height 는 거래량 패널 하나를 포함한 높이(아래 패널이 늘면 그만큼 키워 캔들 영역 유지)
   const paneHeight = isNarrow ? NARROW_PANE_HEIGHT : PANE_HEIGHT;
   const baseHeight = isNarrow ? Math.min(height, 380) : height;
   const paneCount = (Object.keys(PANE_INDICATORS) as PaneKey[]).filter((key) => indicators[key]).length;
@@ -207,11 +207,11 @@ const KLineChartComponent: React.FC<KLineChartComponentProps> = ({
     setActiveTool(null);
   };
 
-  // Initialize chart
+  // 차트 만들기
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
-    // cleanup 시점에는 ref 가 이미 바뀌어 있을 수 있다. 지금 값을 붙잡아 둔다.
+    // cleanup 때 ref 가 바뀌어 있을 수 있어 지금 값을 잡아 둠
     const container = chartContainerRef.current;
 
     const originalLog = console.log;
@@ -235,9 +235,7 @@ const KLineChartComponent: React.FC<KLineChartComponentProps> = ({
       console.warn('[KLineChart] setStyles failed:', e);
     }
 
-    // 초기 데이터는 아래 "Update data when it changes" effect 가 마운트 직후에도
-    // 한 번 돌면서 넣는다. 여기서 또 넣으면 data 가 의존성이 되어 데이터가 바뀔 때마다
-    // 차트를 다시 만들게 된다.
+    // 첫 데이터도 아래 데이터 effect 가 넣음(여기서 넣으면 data 가 의존성이 되어 바뀔 때마다 차트를 다시 만듦)
 
     // Default: MA20 + VOL (서브패널)
     try {
@@ -248,8 +246,7 @@ const KLineChartComponent: React.FC<KLineChartComponentProps> = ({
       console.warn('[KLineChart] createIndicator failed:', e);
     }
 
-    // 컨테이너 폭이 바뀌면 캔버스를 다시 잡아야 한다. 안 부르면 화면을 돌리거나
-    // 지표 패널이 사라져도 캔버스가 옛 크기로 남는다.
+    // 컨테이너 폭이 바뀌면 캔버스 크기 다시 잡기(안 하면 화면 회전 · 지표 패널 변화 뒤 옛 크기로 남음)
     const observer = new ResizeObserver(() => {
       chartRef.current?.resize();
     });
@@ -262,24 +259,23 @@ const KLineChartComponent: React.FC<KLineChartComponentProps> = ({
     };
   }, []);
 
-  // Update data when it changes. 쓰는 쪽이 같은 배열을 넘기면 다시 그리지 않는다
+  // 데이터 effect(같은 배열이면 다시 그리지 않음)
   useEffect(() => {
     chartRef.current?.applyNewData(convertData(data));
   }, [data]);
 
-  // 좁은 화면은 범례 글자가 여러 줄로 감겨 캔들을 덮는다. 차트를 눌러 십자선이 뜰 때만 보인다
+  // 좁은 화면 범례는 십자선이 뜰 때만(여러 줄로 감겨 캔들을 덮음)
   useEffect(() => {
     const showRule = isNarrow ? TooltipShowRule.FollowCross : TooltipShowRule.Always;
     chartRef.current?.setStyles({ candle: { tooltip: { showRule } }, indicator: { tooltip: { showRule } } });
   }, [isNarrow]);
 
-  // 높이가 바뀌면(모바일 <-> 데스크탑, 아래 패널 수) 캔버스를 다시 잡는다.
-  // 위 ResizeObserver 가 폭을 맡고, 이쪽이 높이를 맡는다.
+  // 높이가 바뀌면(모바일 ↔ 데스크탑, 아래 패널 수) 캔버스 다시 잡기(폭은 위 ResizeObserver)
   useEffect(() => {
     chartRef.current?.resize();
   }, [chartHeight]);
 
-  // Update theme
+  // 테마 바꾸기
   useEffect(() => {
     const observer = new MutationObserver(() => {
       if (chartRef.current) {
@@ -290,7 +286,7 @@ const KLineChartComponent: React.FC<KLineChartComponentProps> = ({
     return () => observer.disconnect();
   }, []);
 
-  // 지표 하나를 켜거나 끈다. next 는 바꾼 뒤 상태
+  // 지표 하나 켜고 끄기(next 는 바꾼 뒤 상태)
   const applyIndicator = (chart: Chart, key: IndicatorKey, next: IndicatorState) => {
     // MA 계열 — 한 번에 재생성
     if (MA_LINES.some((line) => line.key === key)) {
@@ -332,8 +328,7 @@ const KLineChartComponent: React.FC<KLineChartComponentProps> = ({
     }
   };
 
-  // 다음 상태를 먼저 정하고 차트는 setState 밖에서 바꾼다.
-  // 업데이터 함수는 StrictMode 에서 두 번 불려 그 안에서 바꾸면 패널이 두 번 생긴다.
+  // 차트는 setState 밖에서 바꿈(업데이터 함수는 StrictMode 에서 두 번 불려 패널이 두 번 생김)
   const toggleIndicator = (key: IndicatorKey) => {
     const chart = chartRef.current;
     if (!chart) return;

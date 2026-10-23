@@ -9,7 +9,6 @@ export default function AdminUsers() {
   return (
     <div className="min-h-screen bg-surface/50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-tx-1">사용자 관리</h1>
           <p className="mt-2 text-tx-2">
@@ -17,19 +16,15 @@ export default function AdminUsers() {
           </p>
         </div>
 
-        {/* Error Alert */}
         {userAdmin.error && (
           <div className="mb-6 p-4 bg-danger/10 border border-danger/25 rounded-lg">
             <p className="text-danger">{userAdmin.error}</p>
           </div>
         )}
 
-        {/* Stats Cards */}
         {userAdmin.stats && <UserStatsCards stats={userAdmin.stats} />}
 
-        {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Users List */}
           <UserListSection
             users={userAdmin.users}
             selectedUserId={userAdmin.selectedUser?.userId || null}
@@ -41,7 +36,6 @@ export default function AdminUsers() {
             onPageChange={userAdmin.goToPage}
           />
 
-          {/* User Detail */}
           <UserDetailSection
             user={userAdmin.selectedUser}
             loading={userAdmin.loading}

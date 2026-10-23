@@ -18,7 +18,7 @@ const AiChatButton: React.FC = () => {
 
   return (
     <>
-      {/* 플로팅 버튼 (admin/콜백 페이지선 숨김). 모달은 Context라 항상 마운트 */}
+      {/* 떠 있는 버튼(관리자 · 콜백 화면에선 숨김, 창은 항상 마운트) */}
       {!hideButton && (
         <button
           onClick={() => openChat()}

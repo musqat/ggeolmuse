@@ -28,7 +28,7 @@ const Header: React.FC = () => {
 
   const isActive = (path: string) => location.pathname === path;
 
-  // Charts, Backtest, Trading 과 같은 키를 써서 캐시를 나눈다
+  // 차트 · 백테스트 · 거래 화면과 같은 키(캐시 공유)
   const { data: supportedSymbols = [] } = useQuery({
     queryKey: ['stock', 'symbols'],
     queryFn: async () => {
@@ -36,7 +36,7 @@ const Header: React.FC = () => {
       return (Array.isArray(response.data) ? response.data : [])
         .map((a) => String(a.symbol).toUpperCase());
     },
-    staleTime: 10 * 60 * 1000, // 10분
+    staleTime: 10 * 60 * 1000,
   });
 
   const { cashKrw, loading: isLoadingAssets } = useAccountData(isAuthenticated);

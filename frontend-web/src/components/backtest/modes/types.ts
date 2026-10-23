@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import type { BacktestHistoryDto } from '@services/api';
 import type { BacktestMode, BacktestResult } from '../shared/backtestDisplay';
 
-// 실행 모드. history 는 실행이 없어 뺀다
+// 실행 모드(history 는 실행이 없어 뺌)
 export type RunMode = Exclude<BacktestMode, 'history'>;
 
 // 실행 순간에 정하는 값

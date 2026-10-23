@@ -1,5 +1,4 @@
-// 구글 로그인(Keycloak 구글 IdP + PKCE). 시작하는 쪽(로그인 · 회원가입)과 /oauth/callback 이 같은 값을 쓴다.
-// 인가 코드는 콜백이 user-service(/auth/social/google/token)로 보내 토큰으로 바꾼다
+// 구글 로그인(Keycloak 구글 IdP + PKCE, 시작하는 쪽과 /oauth/callback 이 같은 값을 씀)
 
 export const PKCE_VERIFIER_KEY = 'pkce_code_verifier';
 export const OAUTH_STATE_KEY = 'oauth_state';
@@ -9,16 +8,16 @@ const authEndpoint = (origin: string) => `${origin}/auth/realms/muscathan/protoc
 
 export const oauthRedirectUri = (origin: string) => `${origin}/oauth/callback`;
 
-// 콜백이 끝나고 돌아갈 화면. 탈퇴하려고 다시 로그인하면 마이페이지로 돌아온다
+// 콜백 뒤 돌아갈 화면(탈퇴 재로그인이면 마이페이지)
 export const OAUTH_RETURN_KEY = 'oauth_return_to';
 
 export type GoogleLoginOptions = {
-  // 구글 세션이 남아 있어도 Keycloak 이 다시 인증하게 한다. 토큰의 auth_time 이 새로 찍힌다
+  // 구글 세션이 남아 있어도 다시 인증(토큰 auth_time 갱신)
   reauth?: boolean;
   returnTo?: string;
 };
 
-// 저장해 둔 돌아갈 경로를 꺼낸다. 같은 출처 경로("/...")만 쓰고 "//host" 같은 바깥 주소는 홈으로 돌린다
+// 저장해 둔 돌아갈 경로 꺼내기(같은 출처 경로 "/..." 만, "//host" 같은 바깥 주소는 홈)
 export const takeOAuthReturnPath = (): string => {
   const path = sessionStorage.getItem(OAUTH_RETURN_KEY);
   sessionStorage.removeItem(OAUTH_RETURN_KEY);
@@ -43,11 +42,11 @@ export const createCodeChallenge = async (verifier: string): Promise<string> => 
     .replace(/=/g, '');
 };
 
-// verifier · state 를 sessionStorage 에 두고(콜백이 꺼내 쓴다) Keycloak 인증 주소를 만든다
+// verifier · state 를 sessionStorage 에 두고 Keycloak 인증 주소 만들기
 export const buildGoogleLoginUrl = async (origin: string, { reauth = false, returnTo }: GoogleLoginOptions = {}): Promise<string> => {
   const codeVerifier = createCodeVerifier();
   const codeChallenge = await createCodeChallenge(codeVerifier);
-  // CSRF 방어. 콜백이 돌아온 state 와 비교한다
+  // CSRF 방어(콜백이 돌아온 state 와 비교)
   const state = crypto.randomUUID();
 
   sessionStorage.setItem(PKCE_VERIFIER_KEY, codeVerifier);

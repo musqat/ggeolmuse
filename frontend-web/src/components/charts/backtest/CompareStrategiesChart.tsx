@@ -19,8 +19,7 @@ import { useChartPeriod } from '../common/hooks/useChartPeriod';
 import { CHART_COLORS } from '../common/constants';
 import { getTodayString } from '../../../utils/dateUtils';
 
-// 전략 이름이 그대로 컬럼이 된다 (`${name}_portfolio`). 키를 미리 적을 수 없어
-// 인덱스 시그니처를 쓴다.
+// 전략 이름이 그대로 컬럼(`${name}_portfolio`)이라 인덱스 시그니처
 interface ChartRow {
   date: string;
   [column: string]: string | number;
@@ -37,7 +36,7 @@ interface StrategyItem {
   name: string;
   totalInvested?: number | null;
   currentValueKrw?: number | null;
-  // 적립식 · 조건부는 StrategyResponse, 단순 매수는 SimulationResponse 칸이 온다
+  // 적립식 · 조건부는 StrategyResponse, 단순 매수는 SimulationResponse 칸
   additionalData?: ComparisonDetail | null;
 }
 
@@ -63,7 +62,7 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
   const endDate = first?.endDate || first?.currentDate;
   const apiStartDate = originalStartDate ? getStartDateFromPeriod(chartPeriod, originalStartDate, customStartDate) : undefined;
 
-  // 평가금액은 다른 결과 차트처럼 그날 환율로 원화 환산. 가격을 못 받으면 차트는 비어 보이고 이유를 남김
+  // 평가금액은 그날 환율로 원화 환산(가격을 못 받으면 빈 차트와 경고 로그)
   const { data: fetched, isLoading: loading } = useQuery({
     queryKey: ['backtest', 'chart', 'strategies', symbol, apiStartDate, endDate],
     enabled: Boolean(symbol && apiStartDate),
@@ -298,7 +297,7 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
           labelFormatter={formatTooltipDate}
         />
 
-        {/* 투자금 라인 (점선). 범례에는 평가금액 선만 둔다 */}
+        {/* 투자금 선(점선, 범례에는 평가금액 선만) */}
         {strategies.map((strategy, index) => (
           <Line
             key={`${strategy.name}_invested`}

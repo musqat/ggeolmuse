@@ -19,7 +19,6 @@ const PriceTypeSelector: React.FC<PriceTypeSelectorProps> = ({
 }) => {
   return (
     <>
-      {/* Price Type */}
       <div className="mb-4">
         <label className="block text-sm font-medium text-tx-1 mb-2">주문 유형</label>
         <select
@@ -35,7 +34,6 @@ const PriceTypeSelector: React.FC<PriceTypeSelectorProps> = ({
         </select>
       </div>
 
-      {/* Limit Price Input */}
       {priceType === 'limit' && ohlcData && (
         <div className="mb-4">
           <label className="block text-sm font-medium text-tx-1 mb-2">

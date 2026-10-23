@@ -9,12 +9,12 @@ interface IndicatorSheetProps {
   onToggle: (key: IndicatorKey) => void;
 }
 
-// 768px 미만에서 옆 패널 대신 쓴다. 버튼 줄에 켜진 지표를 보이고, 누르면 아래에서 시트가 올라온다
+// 768px 미만의 지표 시트(버튼 줄에 켜진 지표, 누르면 아래에서 올라옴)
 export const IndicatorSheet = ({ indicators, onToggle }: IndicatorSheetProps) => {
   const [open, setOpen] = useState(false);
   const active = INDICATOR_GROUPS.flatMap((group) => group.items).filter((item) => indicators[item.key]);
 
-  // Esc 로 닫는다
+  // Esc 로 닫기
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
@@ -46,7 +46,6 @@ export const IndicatorSheet = ({ indicators, onToggle }: IndicatorSheetProps) =>
 
       {open &&
         createPortal(
-          // 화면 구석의 AI 채팅 버튼(z-index 9000)보다 위에 띄운다
           <div
             className="fixed inset-0 md:hidden"
             style={{ zIndex: LAYER.popover }}
@@ -75,7 +74,7 @@ export const IndicatorSheet = ({ indicators, onToggle }: IndicatorSheetProps) =>
               {INDICATOR_GROUPS.map(({ title, items }) => (
                 <div key={title} className="mt-3">
                   <p className="text-[11px] text-tx-3 mb-0.5">{title}</p>
-                  {/* 두 열로 놓아 시트 높이를 줄이고 위로 차트가 보이게 한다 */}
+                  {/* 두 열(시트 높이를 줄여 위로 차트가 보임) */}
                   <div className="grid grid-cols-2 gap-x-4">
                     {items.map(({ key, label, color }) => (
                       <button

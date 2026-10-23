@@ -20,7 +20,7 @@ interface AssetListSectionProps {
   onUpdateAllPrices: () => void;
   onUpdateAllMarketCaps: () => void;
   onCollectNewSymbols: () => void;
-  // Pagination props
+  // 페이지 이동
   currentPage: number;
   pageSize: number;
   totalPages: number;
@@ -30,7 +30,7 @@ interface AssetListSectionProps {
   onPageChange: (page: number) => void;
   onPageSizeChange: (size: number) => void;
   onSortChange: (field: string, direction: 'asc' | 'desc') => void;
-  // Bulk selection
+  // 여러 개 고르기
   selected: Set<string>;
   onToggleOne: (symbol: string) => void;
   onToggleAll: (symbols: string[]) => void;
@@ -91,10 +91,10 @@ export default function AssetListSection({
 
   const handleSort = (field: string) => {
     if (sortBy === field) {
-      // Toggle direction
+      // 같은 칸이면 방향만 바꿈
       onSortChange(field, sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
-      // New field, default to asc
+      // 다른 칸이면 오름차순부터
       onSortChange(field, 'asc');
     }
   };
@@ -392,7 +392,7 @@ export default function AssetListSection({
         )}
       </div>
 
-      {/* Pagination Controls (검색 모드에선 숨김) */}
+      {/* 페이지 이동(검색 모드에선 숨김) */}
       {!searchMode && totalPages > 1 && (
         <div className="mt-6 flex items-center justify-between border-t pt-4">
           <div className="text-sm text-tx-2">

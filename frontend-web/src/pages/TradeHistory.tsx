@@ -11,7 +11,6 @@ import { historyRefetchInterval } from '../components/trading/history/tradeHisto
 const TradeHistory: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
 
-  // React Query: 거래내역 조회
   const {
     data: transactions = [],
     isLoading: loading,
@@ -24,11 +23,11 @@ const TradeHistory: React.FC = () => {
       return response.data || [];
     },
     enabled: isAuthenticated,
-    staleTime: 2 * 60 * 1000, // 2분 (거래내역은 자주 변경됨)
+    staleTime: 2 * 60 * 1000,
     refetchInterval: (query) => historyRefetchInterval(query.state.data),
   });
 
-  // React Query: 계좌 목록 조회. 계좌 필터와 계좌 이름에 쓴다
+  // 계좌 목록(계좌 필터 · 계좌 이름)
   const { data: accounts = [] } = useQuery({ ...accountListQuery, enabled: isAuthenticated });
 
   if (authLoading) {

@@ -11,7 +11,7 @@ const kindClass = {
   info: 'border-info',
 };
 
-// 알림 더미와 확인 창. App 에 한 번 둔다
+// 알림 더미와 확인 창(App 에 하나)
 export const Notifications: React.FC = () => {
   const toasts = useToasts();
   const confirm = useConfirmRequest();

@@ -33,7 +33,7 @@ interface UseAccountOperationsReturn {
   loading: boolean;
 }
 
-// 계좌 생성 · 입금 · 환전 · 삭제. 성공하면 onSuccess 로 다시 불러옴
+// 계좌 생성 · 입금 · 환전 · 삭제(성공하면 onSuccess 로 다시 불러옴)
 export const useAccountOperations = (
   onSuccess?: () => Promise<void>
 ): UseAccountOperationsReturn => {

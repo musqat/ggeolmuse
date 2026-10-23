@@ -1,7 +1,7 @@
 import type { FC } from 'react';
 import type { StrategyFieldsProps } from '../types';
 
-// 단순 매수는 입력칸 없이 안내만 보인다
+// 단순 매수 칸(입력 없이 안내만)
 export const SimpleFields: FC<StrategyFieldsProps> = ({ common }) => (
   <div className="p-4 bg-elevated/50 border border-brand/30 rounded-md">
     <p className="text-sm text-brand/90">

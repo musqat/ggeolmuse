@@ -99,7 +99,7 @@ export default function UserDetailSection({
       <h2 className="text-xl font-semibold mb-4">사용자 상세</h2>
 
       <div className="space-y-6">
-        {/* Basic Info */}
+        {/* 기본 정보 */}
         <div className="space-y-3">
           <div>
             <p className="text-sm text-tx-2">이메일</p>
@@ -152,7 +152,6 @@ export default function UserDetailSection({
           )}
         </div>
 
-        {/* Password Management */}
         <div className="border-t pt-4">
           <p className="text-sm text-tx-2 mb-2">비밀번호 관리</p>
           <button
@@ -165,7 +164,6 @@ export default function UserDetailSection({
           </button>
         </div>
 
-        {/* Role Management */}
         <div className="border-t pt-4">
           <p className="text-sm text-tx-2 mb-2">역할 관리</p>
           <div className="flex gap-2">
@@ -186,7 +184,6 @@ export default function UserDetailSection({
           </div>
         </div>
 
-        {/* Enable/Disable */}
         <div className="border-t pt-4">
           <p className="text-sm text-tx-2 mb-2">계정 상태</p>
           <div className="flex gap-2">
@@ -207,7 +204,6 @@ export default function UserDetailSection({
           </div>
         </div>
 
-        {/* Accounts */}
         <div className="border-t pt-4">
           <p className="text-sm text-tx-2 mb-2">계좌 정보</p>
           {user.accounts.length > 0 ? (
@@ -239,7 +235,6 @@ export default function UserDetailSection({
           )}
         </div>
 
-        {/* Danger Zone */}
         <div className="border-t border-danger/25 pt-4">
           <p className="text-sm text-danger font-semibold mb-2">위험 구역</p>
           <button

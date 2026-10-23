@@ -14,7 +14,7 @@ interface AiChatModalProps {
 
 const SYMBOL_PLACEHOLDER = '종목 코드를 입력해주세요 (예: AAPL)';
 const QUESTION_PLACEHOLDER = '예: RSI 어때? · 1년 추이는? · 배당은?';
-// 서버 제한에 맞춘 입력 길이. 종목 코드는 영문 16자, 질문은 500자까지
+// 입력 길이 제한(서버와 같게 종목 코드 16자 · 질문 500자)
 const SYMBOL_MAX_LENGTH = 16;
 const QUESTION_MAX_LENGTH = 500;
 
@@ -29,7 +29,7 @@ function renderWithBold(text: string): React.ReactNode[] {
   );
 }
 
-// 오류 문구. 이유 코드가 있으면 서버 문구, 없으면(게이트웨이 대체 응답 등) 상태 코드로 고른다
+// 오류 문구(이유 코드가 있으면 서버 문구, 없으면 상태 코드로)
 function errorText(e: unknown): string {
   if (getApiErrorCode(e)) return getApiErrorMessage(e, '요청에 실패했습니다.');
   const status = getApiErrorStatus(e);
@@ -44,9 +44,9 @@ const AiChatModal: React.FC<AiChatModalProps> = ({ onRequireLogin }) => {
   const { isOpen, autoSymbol, closeChat, consumeAutoSymbol } = useAiChat();
   const [session, setSession] = useState<ChatSession | null>(() => loadChatSession());
   const [input, setInput] = useState('');
-  // 기다리는 요청. start 는 종목 확인, ask 는 답
+  // 기다리는 요청(start 는 종목 확인, ask 는 답)
   const [pending, setPending] = useState<'start' | 'ask' | null>(null);
-  // 답을 기다리는 동안 차트에서 고른 종목. 답을 보인 뒤 바꾸기 버튼으로 옮긴다. 새 대화나 다음 질문이면 거둔다
+  // 답을 기다리는 동안 차트에서 고른 종목(답 뒤 바꾸기 버튼으로, 새 대화 · 다음 질문이면 거둠)
   const [nextSymbol, setNextSymbol] = useState<string | null>(null);
   const [remaining, setRemaining] = useState<number | null>(null);
   const [error, setError] = useState('');
@@ -59,7 +59,7 @@ const AiChatModal: React.FC<AiChatModalProps> = ({ onRequireLogin }) => {
     saveChatSession(session);
   }, [session]);
 
-  // 로그인이 풀리면 대화를 지운다. 같은 브라우저의 다음 사용자가 보지 않게. 로그인 확인 중에는 기다린다
+  // 로그인이 풀리면 대화 지우기(같은 브라우저의 다음 사용자가 못 보게, 확인 중에는 기다림)
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       setSession(null);
@@ -68,7 +68,7 @@ const AiChatModal: React.FC<AiChatModalProps> = ({ onRequireLogin }) => {
     }
   }, [authLoading, isAuthenticated]);
 
-  // 남은 횟수를 모르면(새로고침 뒤 등) 열 때 서버에 묻는다. 실패하면 다음 응답까지 숨긴다
+  // 남은 횟수를 모르면 열 때 묻기(실패하면 다음 응답까지 숨김)
   useEffect(() => {
     if (!isOpen || !isAuthenticated || remaining !== null) return;
     let stale = false;
@@ -88,8 +88,8 @@ const AiChatModal: React.FC<AiChatModalProps> = ({ onRequireLogin }) => {
     bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight });
   }, [session, pending, nextSymbol]);
 
-  // 종목을 확인하고 대화를 연다. 한도는 쓰지 않는다
-  // 대화 중에 다른 종목으로 바꾸다 실패하면 지금 대화는 두고, 오류 앞에 그 종목을 붙인다
+  // 종목 확인과 대화 열기(한도 차감 없음)
+  // 대화 중 다른 종목으로 바꾸다 실패하면 지금 대화를 두고 오류 앞에 그 종목 표시
   const start = async (rawSymbol: string) => {
     const symbol = rawSymbol.trim();
     if (!symbol || loading) return;
@@ -124,7 +124,7 @@ const AiChatModal: React.FC<AiChatModalProps> = ({ onRequireLogin }) => {
     setPending('ask');
     try {
       const res = await aiChatApi.ask(current.conversationId, msg);
-      // 기다리는 동안 대화가 지워졌으면(로그아웃) 답을 버린다. 대화 ID 도 맞춰 다른 대화에 붙지 않게 한다
+      // 기다리는 동안 대화가 지워졌거나(로그아웃) 대화 ID 가 다르면 답을 버림
       setSession((s) =>
         s && s.conversationId === current.conversationId
           ? { ...s, turns: [...s.turns, { role: 'ai', text: res.data.answer }], updatedAt: Date.now() }
@@ -139,8 +139,8 @@ const AiChatModal: React.FC<AiChatModalProps> = ({ onRequireLogin }) => {
     }
   };
 
-  // 차트 등에서 종목을 지정해 열면 그 종목으로 대화를 시작한다. 질문은 보내지 않는다
-  // 답을 기다리는 중이면 바로 바꾸지 않는다. 답을 보인 뒤 바꾸기 버튼으로 옮기게 한다
+  // 종목을 지정해 열면 그 종목으로 대화 시작(질문은 안 보냄)
+  // 답을 기다리는 중이면 바로 바꾸지 않고 답 뒤 바꾸기 버튼으로
   useEffect(() => {
     if (!isOpen || !autoSymbol || !isAuthenticated || pending === 'start') return;
     const symbol = autoSymbol.trim().toUpperCase();

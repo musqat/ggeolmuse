@@ -16,13 +16,13 @@ interface StockSymbol {
 
 const Stocks: React.FC = () => {
   const navigate = useNavigate();
-  const [currentPage, setCurrentPage] = useState(0); // API page (0-based)
+  const [currentPage, setCurrentPage] = useState(0); // 0부터 세는 페이지
   const [assetFilter, setAssetFilter] = useState<'ALL' | 'EQUITY' | 'ETF'>('ALL');
   const [sort, setSort] = useState<StockSort>('marketCap');
 
   const PAGE_SIZE = 50;
 
-  // React Query: 종목 목록 조회 (페이지네이션 + 필터)
+  // 종목 목록(페이지 · 필터)
   const {
     data: stocksResponse,
     isLoading: loading,
@@ -38,7 +38,7 @@ const Stocks: React.FC = () => {
       );
       return response.data;
     },
-    staleTime: 2 * 60 * 1000, // 2분 (주가 데이터는 자주 변경됨)
+    staleTime: 2 * 60 * 1000,
   });
 
   // 응답 데이터 파싱

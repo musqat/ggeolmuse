@@ -34,7 +34,7 @@ export function useAccounts(isAuthenticated: boolean): UseAccountsReturn {
   const { data, isLoading, error } = useQuery({ ...accountListQuery, enabled: isAuthenticated });
   const accounts: Account[] = isAuthenticated ? (data ?? EMPTY_ACCOUNTS) : EMPTY_ACCOUNTS;
 
-  // 첫 계좌를 자동 선택. 로그아웃하면 선택을 비움
+  // 첫 계좌 자동 선택(로그아웃하면 비움)
   useEffect(() => {
     if (!isAuthenticated) {
       setSelectedAccountId(null);

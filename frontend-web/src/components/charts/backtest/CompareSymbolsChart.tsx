@@ -29,7 +29,7 @@ interface SymbolData {
   investmentAmount: number;
   currentPrice: number;
   currentValueKrw: number;
-  color: string; // Chart line color
+  color: string; // 선 색
   // 원화 주가 기준 최적 매수 · 매도일
   optimalBuyDate?: string | null;
   optimalSellDate?: string | null;
@@ -43,7 +43,7 @@ interface SymbolComparisonChartProps {
 
 interface ChartDataPoint {
   date: string;
-  [key: string]: string | number; // Dynamic keys for each symbol's price and portfolio value
+  [key: string]: string | number; // 종목마다 `${symbol}_price` · `${symbol}_portfolio`
 }
 
 const EMPTY_CHART_DATA: ChartDataPoint[] = [];
@@ -58,7 +58,7 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
   const period = useChartPeriod('purchase');
   const { chartPeriod, customStartDate, getStartDateFromPeriod } = period;
 
-  // 차트 기간에 따른 시작일. 조회 키에 들어가 기간을 바꾸면 다시 받음
+  // 차트 기간에 따른 시작일(조회 키라 기간을 바꾸면 다시 받음)
   const apiStartDate = getStartDateFromPeriod(chartPeriod, startDate, customStartDate);
   const today = endDate || getTodayString();
 
@@ -74,7 +74,7 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
           fetchSymbolPrices<OHLCData>(symbolData.symbol, apiStartDate, today)
             .then(data => ({ symbol: symbolData.symbol, data }))
             .catch(err => {
-              // 한 종목이 실패해도 나머지는 그린다
+              // 한 종목이 실패해도 나머지는 그림
               console.warn('종목 데이터 조회 실패', symbolData.symbol, err);
               return { symbol: symbolData.symbol, data: [] };
             })
@@ -82,7 +82,7 @@ export const CompareSymbolsChart: React.FC<SymbolComparisonChartProps> = ({
 
         const results = await Promise.all(dataPromises);
 
-        // 모든 종목의 모든 날짜 환율을 한 번에 받는다
+        // 모든 종목 날짜의 환율을 한 번에 받음
         const allDates = new Set<string>();
         results.forEach(({ data }) => {
           data.forEach((item: OHLCData) => {

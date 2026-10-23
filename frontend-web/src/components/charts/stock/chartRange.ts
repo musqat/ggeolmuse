@@ -1,6 +1,6 @@
 import { subtractMonths } from '../../../utils/dateUtils';
 
-// 주소 쿼리 period 값과 버튼 이름. months 만큼 오늘에서 거슬러 간다
+// 주소 쿼리 period 값과 버튼 이름(months 만큼 오늘에서 거슬러 감)
 export const PERIODS = [
   { code: '1m', label: '1개월', months: 1 },
   { code: '3m', label: '3개월', months: 3 },
@@ -16,12 +16,12 @@ export type PeriodCode = (typeof PERIODS)[number]['code'] | 'custom';
 
 export const DEFAULT_PERIOD: PeriodCode = '1y';
 
-// 전체는 DB 에 있는 가장 오래된 데이터부터 받는다
+// 전체는 가장 오래된 데이터부터
 const ALL_START = '1970-01-01';
 
 export type ChartRange =
   | { status: 'ready'; startDate: string; endDate: string }
-  // 직접설정에서 날짜를 다 고르지 않았다
+  // 직접설정에서 날짜를 다 고르지 않음
   | { status: 'incomplete' }
   | { status: 'invalid'; message: string };
 

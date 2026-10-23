@@ -31,7 +31,7 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
       )}
       <SummaryCards result={result} investedLabel="총 투자금" invested={result.totalInvested} />
 
-      {/* Detailed Results - 3 Columns like Simple */}
+      {/* 상세 결과(투자 정보 · 주식 수익 · 환율 영향) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <DetailSection title="투자 정보" icon={DollarSign}>
           <DetailRow label="종목" value={result.symbol} />

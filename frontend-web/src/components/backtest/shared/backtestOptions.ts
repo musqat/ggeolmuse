@@ -44,7 +44,7 @@ export const useBacktestOptions = (): BacktestOptionsState => {
   };
 };
 
-// 옵션을 요청 필드로. 수수료는 퍼센트를 비율로, 배당세는 15%, 수동 환율일 때만 두 환율을 싣는다
+// 옵션을 요청 필드로(수수료는 퍼센트 → 비율, 배당세 15%, 수동 환율일 때만 두 환율)
 export const toOptionFields = (options: BacktestOptions) => ({
   reinvestDividends: options.reinvestDividends,
   tradingFeeRate: parseFloat(options.tradingFeeRate) / 100,

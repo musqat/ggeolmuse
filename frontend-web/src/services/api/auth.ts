@@ -89,11 +89,11 @@ export const authApi = {
   // 토큰 갱신
   refreshToken: () => requestNewAccessToken(),
 
-  // 로그아웃: 쿠키의 Keycloak 세션을 끊고 쿠키를 지운다
+  // 로그아웃(서버 세션 종료 · 쿠키 지우기)
   logout: () =>
     apiClient.post<void>('/auth/logout', null, withRefreshCookie),
 
-  // 구글 로그인 콜백의 인가 코드를 user-service 가 토큰으로 바꾼다
+  // 구글 로그인 인가 코드를 토큰으로 바꾸기
   exchangeGoogleCode: (data: GoogleTokenRequest) =>
     apiClient.post<AccessTokenResponse>('/auth/social/google/token', data, withRefreshCookie),
 
@@ -106,7 +106,7 @@ export const authApi = {
     apiClient.put<void>('/users/me', data),
 
   // 회원 탈퇴
-  // 비밀번호로 가입한 사용자는 비밀번호를 싣는다. 구글 사용자는 본문 없이 보내고 서버가 최근 로그인인지 본다
+  // 비밀번호 사용자는 비밀번호를 싣고 구글 사용자는 본문 없이(서버가 최근 로그인 확인)
   deleteAccount: (password?: string) =>
     apiClient.delete<void>('/users/me', password ? { data: { password } } : undefined),
 };

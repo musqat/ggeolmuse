@@ -23,7 +23,7 @@ const TradingCapacityPanel: React.FC<TradingCapacityPanelProps> = ({
 }) => {
   const isLimit = priceType === "limit";
 
-  // React Query: 거래 가능 수량 조회. 매수 수량은 주문과 같은 가격 유형으로 센다
+  // 거래 가능 수량(매수 수량은 주문과 같은 가격 유형으로 셈)
   const { data: capacity = null, isLoading: loading } = useQuery({
     queryKey: [
       "trade", "capacity", accountId, symbol, tradeDate, orderType, priceType,
@@ -47,7 +47,7 @@ const TradingCapacityPanel: React.FC<TradingCapacityPanelProps> = ({
       }
     },
     enabled: !!accountId && !!symbol && !!tradeDate && currentPrice > 0,
-    staleTime: 30 * 1000, // 30초 (실시간 데이터이므로 짧게)
+    staleTime: 30 * 1000,
   });
 
   if (!accountId || !capacity) {

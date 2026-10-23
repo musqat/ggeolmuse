@@ -19,7 +19,7 @@ type SummaryValues = Pick<
 
 interface SummaryCardsProps {
   result: SummaryValues;
-  // 첫 칸. 단순은 초기 투자금, 적립식 · 조건부는 총 투자금
+  // 첫 칸 라벨(단순은 초기 투자금, 적립식 · 조건부는 총 투자금)
   investedLabel: string;
   invested: number | null | undefined;
   returnRateTestId?: string;

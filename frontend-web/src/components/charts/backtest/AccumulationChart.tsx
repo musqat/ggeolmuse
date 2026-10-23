@@ -38,7 +38,7 @@ interface StrategyBacktestChartProps {
   currentValueKrw: number;
   totalInvested: number;
   startDate: string;
-  // 평가일. 없으면 오늘까지 그린다
+  // 평가일(없으면 오늘까지)
   endDate?: string;
 }
 
@@ -52,7 +52,7 @@ interface ChartDataPoint {
   isDividendReinvest: boolean;
 }
 
-// 적립식 · 조건부 결과 차트. 두 전략 모두 거래 목록을 받아 같은 것을 그린다
+// 적립식 · 조건부 결과 차트(두 전략 모두 거래 목록으로 같은 차트)
 const EMPTY_CHART_DATA: ChartDataPoint[] = [];
 
 export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
@@ -98,7 +98,7 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
     // priceData에서 사용 가능한 날짜들을 먼저 추출
     const availableDates = priceData.map((item) => item.date).sort();
 
-    // 거래를 실제 거래일에 붙인다 (주말/휴일 -> 다음 영업일). 일반 매수와 배당 재투자를 따로 센다
+    // 거래를 실제 거래일(주말 · 휴일이면 다음 영업일)에 맞추고 일반 매수 · 배당 재투자를 따로 셈
     const purchaseDates = new Set<string>();
     const dividendDates = new Set<string>();
     transactions.forEach((tx) => {

@@ -3,14 +3,14 @@ import { RefreshCw } from 'lucide-react';
 import { marketAdminApi, type UnadjustedResponse, type RefreshAllResponse } from '@services/adminApi';
 import { notify } from '@/components/common/notify';
 
-// 한 번에 보내는 종목 수. 요청 본문이 지나치게 커지지 않게 끊는다
+// 한 번에 보내는 종목 수(요청 본문이 너무 커지지 않게 나눔)
 const CHUNK = 200;
-// 탐색이 몇 분 걸려 폴링으로 결과를 받는다
+// 탐색 결과 폴링 간격(탐색이 몇 분 걸림)
 const POLL_MS = 5000;
-// 다시 받기는 늘 이 날부터. 분할은 과거 가격 전체를 바꾼다
+// 다시 받기 시작일(분할은 과거 가격 전체를 바꿈)
 const FULL_FROM = '1970-01-01';
 
-// 시작일 기본값. 매달 점검하는 기간
+// 시작일 기본값(매달 점검하는 기간)
 const monthAgo = () => {
   const d = new Date();
   d.setMonth(d.getMonth() - 1);
@@ -34,7 +34,7 @@ export default function CandleRefreshSection() {
     }
   };
 
-  // 화면에 들어오면 마지막 결과부터 받아온다. 돌고 있으면 폴링을 잇는다
+  // 들어오면 마지막 결과부터 받고 도는 중이면 폴링을 이어 감
   useEffect(() => {
     let alive = true;
     marketAdminApi

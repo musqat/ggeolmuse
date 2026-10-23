@@ -15,7 +15,6 @@ export default function AdminMarket() {
   return (
     <div className="min-h-screen bg-surface/50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="mb-8 flex items-start justify-between">
           <div>
             <h1 className="text-3xl font-bold text-tx-1">Market Data 관리</h1>
@@ -30,7 +29,6 @@ export default function AdminMarket() {
           </button>
         </div>
 
-        {/* Error Alert */}
         {market.error && (
           <div className="mb-6 p-4 bg-danger/10 border border-danger/25 rounded-lg">
             <p className="text-danger">{market.error}</p>

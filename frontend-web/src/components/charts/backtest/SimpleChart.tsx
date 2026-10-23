@@ -18,9 +18,8 @@ import { markerDots } from './shared/markers';
 import { useChartPeriod } from "../common/hooks/useChartPeriod";
 import { getTodayString } from "../../../utils/dateUtils";
 
-// 가격·환율·평가액은 받지 않는다. 차트가 일자별 캔들에서 직접 구한다.
-// 최적 매수·매도도 날짜만 받아 그 날의 데이터를 chartData 에서 찾는다.
-// 서버가 date 를 "2025-01-08" 로도, [2025, 1, 8] 배열로도 준다.
+// 가격 · 환율 · 평가액은 일자별 캔들로 직접 구하고 최적 매수 · 매도는 날짜로 chartData 에서 찾음
+// 서버 date 는 "2025-01-08" 문자열 또는 [2025, 1, 8] 배열
 type RawOhlcDate = string | [number, number, number];
 
 interface RawOhlc {
@@ -47,7 +46,7 @@ interface SimpleBacktestChartProps {
   optimalBuyDate?: string;
   optimalSellDate?: string;
   dividendReinvestDates?: string[];
-  // 평가일(매도일). 없으면 오늘까지 그린다
+  // 평가일(매도일, 없으면 오늘까지)
   endDate?: string;
 }
 
@@ -70,7 +69,7 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
     return getStartDateFromPeriod(chartPeriod, purchaseDate, customStartDate);
   };
 
-  // React Query: 차트 데이터 조회 (OHLC + 환율)
+  // 차트 데이터(OHLC + 환율)
   const { data: priceData = [], isLoading: loading } = useQuery({
     queryKey: [
       "backtest",
@@ -86,14 +85,14 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
       const ohlcData = await fetchSymbolPrices<RawOhlc>(symbol, getChartStartDate(), endDate || getTodayString());
       if (ohlcData.length === 0) return [];
 
-      // 일자별 환율을 얹는다
+      // 일자별 환율 얹기
       const fxRateMap = await fetchFxRates(ohlcData.map((item) => toDateString(item.date)));
       return ohlcData.map((item) => ({
         ...item,
         fxRate: fxRateMap.get(toDateString(item.date)) || DEFAULT_FX_RATE,
       }));
     },
-    staleTime: 5 * 60 * 1000, // 5분
+    staleTime: 5 * 60 * 1000,
   });
 
   // 차트 데이터 생성
@@ -195,7 +194,7 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
   }, [chartData]);
 
   // 커스텀 툴팁
-  // recharts 가 넘기는 값이라 payload 모양은 차트 데이터에 달려 있다.
+  // payload 모양은 차트 데이터를 따름(recharts 가 넘기는 값)
   const CustomTooltip = ({ active, payload, label }: {
     active?: boolean;
     payload?: Array<{ payload: { date: string; price: number; 투자금: number; 평가금액: number } }>;
@@ -211,7 +210,6 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
           {isPurchaseDate && (
             <p className="text-xs text-brand mb-1">매수 시점</p>
           )}
-          {/* data.price가 있으면 직접 표시, 없으면 payload에서 찾기 */}
           <p className="text-sm text-tx-1">
             주가: ${data.price?.toFixed(2) || "-"}
           </p>

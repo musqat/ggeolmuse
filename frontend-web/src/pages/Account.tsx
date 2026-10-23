@@ -3,12 +3,10 @@ import { RefreshCw } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { LoginRequired } from '../components/common/LoginRequired';
 
-// Hook imports
 import { useAccountData } from '../hooks/useAccountData';
 import { useAccountOperations } from '../hooks/useAccountOperations';
 import { useAccountModals } from '../hooks/useAccountModals';
 
-// Component imports
 import { AccountPageHeader } from '../components/account/AccountPageHeader';
 import { TotalAssetsSummary } from '../components/account/TotalAssetsSummary';
 import { AccountCard } from '../components/account/AccountCard';
@@ -23,7 +21,6 @@ const Account: React.FC = () => {
 
   const [hideBalances, setHideBalances] = useState(false);
 
-  // Custom hooks for data and operations
   const {
     accounts,
     accountBalances,
@@ -127,7 +124,6 @@ const Account: React.FC = () => {
         )}
       </div>
 
-      {/* Modals */}
       <CreateAccountModal
         isOpen={modals.open === 'create'}
         onClose={modals.close}

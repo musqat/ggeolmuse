@@ -9,7 +9,7 @@ interface CreateAccountModalProps {
   onSubmit: (accountName: string, commissionRate: number, slippageRate: number) => Promise<void>;
 }
 
-// 비율 칸에 음수가 들어가지 않게 '-' 입력과 '-' 가 든 붙여넣기를 막는다
+// 비율 칸의 '-' 입력과 '-' 가 든 붙여넣기 막기(음수 방지)
 const blockMinus = {
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === '-') e.preventDefault();

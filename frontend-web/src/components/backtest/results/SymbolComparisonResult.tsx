@@ -16,7 +16,7 @@ import { daysBetween, getTodayString } from '../../../utils/dateUtils';
 import { cashKrw } from '../shared/backtestDisplay';
 import { HolidayNotice } from './HolidayNotice';
 
-// 종목 카드의 수익 칸 배경. 값이 없으면 중립 배경
+// 종목 카드 수익 칸 배경(값이 없으면 중립)
 const SOFT_BOX: Record<GainLossTone, string> = {
   gain: "bg-gain/10",
   loss: "bg-loss/10",
@@ -42,7 +42,7 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
         traded={result.items?.[0]?.additionalData?.purchaseDate || result.items?.[0]?.purchaseDate}
       />
 
-      {/* Best Performer Summary */}
+      {/* 수익률 1위 종목 */}
       {result.bestPerformer && (
         <div className="bg-warning-soft/10 rounded-xl shadow-sm border border-warning-soft/40 p-6">
           <div className="flex items-center justify-between">
@@ -64,7 +64,7 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
         </div>
       )}
 
-      {/* Each Symbol Results */}
+      {/* 종목별 결과 */}
       {result.items?.map((item: ComparisonItem, index: number) => {
         const isBest = item.name === result.bestPerformer?.name;
 
@@ -89,7 +89,7 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
           currentFxRate: additionalData.currentFxRate || item.currentFxRate,
           totalAssetKrw: additionalData.totalAssetKrw ?? item.currentValueKrw,
         };
-        // 보유일. 없으면 매수일부터 기준일까지 일수
+        // 보유일(없으면 매수일부터 기준일까지 일수)
         const daysHeld = displayItem.daysHeld ?? (displayItem.purchaseDate
           ? daysBetween(displayItem.purchaseDate, displayItem.currentDate || getTodayString())
           : undefined);
@@ -111,7 +111,7 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
                 </p>
               </div>
 
-              {/* Summary Cards */}
+              {/* 요약 카드 */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
                 <div className="bg-elevated/50 rounded-lg p-3">
                   <p className="text-xs text-brand">초기 투자금</p>
@@ -159,9 +159,8 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
                 </div>
               </div>
 
-              {/* Detailed Cards */}
+              {/* 상세 카드 */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
-                {/* Investment Info */}
                 <div className="bg-surface rounded-lg border border-line p-3">
                   <h4 className="text-xs font-semibold text-tx-1 mb-2 flex items-center">
                     <DollarSign className="w-3 h-3 mr-1 text-brand" />
@@ -189,7 +188,6 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
                   </div>
                 </div>
 
-                {/* Stock Performance */}
                 <div className="bg-surface rounded-lg border border-line p-3">
                   <h4 className="text-xs font-semibold text-tx-1 mb-2 flex items-center">
                     <TrendingUp className="w-3 h-3 mr-1 text-gain" />
@@ -217,7 +215,6 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
                   </div>
                 </div>
 
-                {/* FX Impact */}
                 <div className="bg-surface rounded-lg border border-line p-3">
                   <h4 className="text-xs font-semibold text-tx-1 mb-2 flex items-center">
                     <Activity className="w-3 h-3 mr-1 text-brand" />
@@ -247,7 +244,6 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
                   </div>
                 </div>
 
-                {/* Optimal Timing */}
                 {(displayItem.optimalBuyDate || displayItem.optimalSellDate) && (
                   <div className="bg-surface rounded-lg border border-brand/25 p-3">
                     <h4 className="text-xs font-semibold text-tx-1 mb-2 flex items-center">
@@ -306,7 +302,6 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
         );
       })}
 
-      {/* Unified Comparison Chart - at the end */}
       {result.items && result.items.length > 0 && (
         <CompareSymbolsChartMemoized
           items={result.items}

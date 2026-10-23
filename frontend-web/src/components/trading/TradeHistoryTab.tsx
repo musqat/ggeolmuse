@@ -5,12 +5,10 @@ import { accountListQuery } from '../../hooks/useAccounts';
 import { TradeHistoryList } from './history/TradeHistoryList';
 import { historyRefetchInterval } from './history/tradeHistory';
 
-// 거래 화면의 거래내역 탭. 목록은 거래내역 페이지와 같은 것을 쓴다
+// 거래 화면의 거래 내역 탭(거래 내역 페이지와 같은 목록)
 const TradeHistoryTab: React.FC = () => {
-  // React Query: 계좌 목록 조회
   const { data: accounts = [] } = useQuery(accountListQuery);
 
-  // React Query: 거래내역 조회
   const {
     data: transactions = [],
     isLoading: loading,
@@ -22,7 +20,7 @@ const TradeHistoryTab: React.FC = () => {
       const response = await tradeApi.history();
       return response.data || [];
     },
-    staleTime: 2 * 60 * 1000, // 2분
+    staleTime: 2 * 60 * 1000,
     refetchInterval: (query) => historyRefetchInterval(query.state.data),
   });
 

@@ -51,21 +51,18 @@ const SignupSuccessModal: React.FC<SignupSuccessModalProps> = ({ isOpen, onClose
         </p>
       </div>
 
-      {/* Resend Success Message */}
       {resendMessage && (
         <div className="text-success text-sm bg-success/10 p-3 rounded-md mb-4 border border-success/25">
           {resendMessage}
         </div>
       )}
 
-      {/* Resend Error Message */}
       {resendError && (
         <div className="text-danger text-sm bg-danger/10 p-3 rounded-md mb-4 border border-danger/25">
           {resendError}
         </div>
       )}
 
-      {/* Resend Button */}
       <div className="mb-6">
         <p className="text-xs text-tx-2 mb-2 text-center">
           이메일을 받지 못하셨나요?
@@ -80,7 +77,6 @@ const SignupSuccessModal: React.FC<SignupSuccessModalProps> = ({ isOpen, onClose
         </button>
       </div>
 
-      {/* Close Button */}
       <button
         onClick={onClose}
         className="w-full bg-brand text-brand-ink py-2 px-4 rounded-md hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 transition-colors"
@@ -88,7 +84,6 @@ const SignupSuccessModal: React.FC<SignupSuccessModalProps> = ({ isOpen, onClose
         확인
       </button>
 
-      {/* Additional Info */}
       <div className="mt-4 text-center">
         <p className="text-xs text-tx-2">
           인증 이메일이 스팸함에 있을 수 있습니다.

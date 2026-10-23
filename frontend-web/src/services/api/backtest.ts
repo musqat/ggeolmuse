@@ -2,8 +2,7 @@ import { apiClient } from './client';
 
 // ===== 백테스트 타입 =====
 
-// 백테스트 요청 다섯 종류가 공통으로 보내는 것.
-// 환율은 fxMode 가 manual 일 때만 붙는다.
+// 백테스트 요청 공통 칸(환율은 fxMode 가 manual 일 때만)
 type BacktestCommonRequest = {
   reinvestDividends?: boolean;          // 배당 재투자 여부
   tradingFeeRate?: number;              // 거래 수수료율 (0.001 = 0.1%)
@@ -20,8 +19,7 @@ export type SimulationRequest = BacktestCommonRequest & {
   investmentAmount: number;             // 투자 금액
 };
 
-// 단순 시뮬레이션 응답. backtest-service SimulationResponse 와 같은 칸이다.
-// 백엔드가 빈 칸을 null 로 보내서 숫자 · 날짜 칸은 null 일 수 있다. 날짜는 YYYY-MM-DD 문자열이다
+// 단순 시뮬레이션 응답(숫자 · 날짜 칸은 null 일 수 있음, 날짜는 YYYY-MM-DD)
 export type SimulationResponse = {
   symbol: string;
   purchaseDate?: string | null;
@@ -72,7 +70,7 @@ export type ConditionalStrategyRequest = BacktestCommonRequest & {
   symbol: string;                       // 종목 심볼
   startDate: string;                    // 시작일
   endDate: string;                      // 종료일
-  // 투자 모드에 따라 둘 중 하나만 보낸다.
+  // 투자 모드에 따라 둘 중 하나만
   totalInvestment?: number;             // investmentMode 가 TOTAL_BUDGET 일 때
   amountPerPurchase?: number;           // PER_PURCHASE 일 때           // 투자 모드가 회당 금액일 때
   investmentMode?: string;              // total | perPurchase              // 총 투자 금액
@@ -115,7 +113,7 @@ export type StrategyComparisonRequest = BacktestCommonRequest & {
 };
 
 // 전략 응답
-// 적립식 · 조건부 전략의 매수 한 건. 거래가 일어난 건만 오므로 날짜 · 가격 · 수량은 늘 있다
+// 적립식 · 조건부 전략의 매수 한 건(거래가 일어난 건만이라 날짜 · 가격 · 수량은 늘 있음)
 export type StrategyTransaction = {
   date: string;                         // 계획된 매수일
   actualDate?: string;                  // 실제 거래일 (주말 · 휴장일 조정)
@@ -127,7 +125,7 @@ export type StrategyTransaction = {
   fee?: number | null;                  // 매매 수수료 (USD, 배당 재투자는 없음)
 };
 
-// 적립식 · 조건부 전략 응답. backtest-service StrategyResponse 와 같은 칸이다
+// 적립식 · 조건부 전략 응답
 export type StrategyResponse = {
   symbol: string;
   startDate?: string | null;
@@ -158,8 +156,7 @@ export type StrategyResponse = {
   performanceSummary?: string | null;
 };
 
-// 비교 항목에 실린 원래 응답. 종목 비교는 SimulationResponse, 전략 비교는 전략마다
-// SimulationResponse 나 StrategyResponse 다. 화면이 칸이 있는지로 읽어서 두 쪽 칸을 모두 선택으로 둔다
+// 비교 항목의 원래 응답(SimulationResponse 또는 StrategyResponse 라 두 쪽 칸 모두 선택)
 export type ComparisonDetail = Partial<SimulationResponse> & Partial<StrategyResponse>;
 
 // 비교 항목
@@ -174,7 +171,7 @@ export type ComparisonItem = {
   totalReturnPercent: number;           // 총 수익률
   totalReturnKrw?: number;              // 총 수익 (KRW)
 
-  // 종목 비교에서만 채워지는 것들. 전략 비교 응답에는 없다.
+  // 종목 비교에서만 채워지는 칸
   purchaseDate?: string;
   currentDate?: string;
   purchasePrice?: number;               // 단순 매수
@@ -188,7 +185,7 @@ export type ComparisonItem = {
   fxReturnPercent?: number;             // 환차익 비중
   daysHeld?: number;
 
-  // 최적 타이밍을 요청했을 때만 온다.
+  // 최적 타이밍을 요청했을 때만
   optimalBuyDate?: string;
   optimalBuyPrice?: number;
   optimalSellDate?: string;
@@ -198,7 +195,7 @@ export type ComparisonItem = {
 };
 
 // 비교 응답
-// 종목 · 전략 비교 응답. backtest-service ComparisonResponse 와 같은 칸이다
+// 종목 · 전략 비교 응답
 export type ComparisonResponse = {
   comparisonType?: string | null;
   startDate?: string | null;

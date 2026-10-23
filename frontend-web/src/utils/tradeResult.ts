@@ -1,8 +1,6 @@
 import type { TradeResult } from '../services/api';
 
-/**
- * 체결 응답으로 주문 완료 알림 문구를 만듭니다
- */
+// 체결 응답으로 만든 주문 완료 알림 문구
 export function formatTradeResult(trade: TradeResult): string {
   const isBuy = trade.tradeType === 'BUY';
   const headline = trade.status === 'PENDING'
