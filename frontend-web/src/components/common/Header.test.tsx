@@ -13,9 +13,7 @@ vi.mock('../../services/api', () => ({
   stockApi: { getAllSymbols: vi.fn() },
 }))
 vi.mock('../../hooks/useAuth', () => ({ useAuth: vi.fn() }))
-vi.mock('../auth/LoginModal', () => ({ default: () => null }))
-vi.mock('../auth/SignupModal', () => ({ default: () => null }))
-vi.mock('../auth/SignupSuccessModal', () => ({ default: () => null }))
+vi.mock('../../hooks/useAuthModal', () => ({ useAuthModal: () => ({ openLogin: vi.fn(), openSignup: vi.fn() }) }))
 vi.mock('./SearchModal', () => ({ default: () => null }))
 vi.mock('./ThemeToggle', () => ({ default: () => null }))
 

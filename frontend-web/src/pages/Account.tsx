@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { RefreshCw, LogIn } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-import LoginModal from '../components/auth/LoginModal';
+import { useAuthModal } from '../hooks/useAuthModal';
 
 // Hook imports
 import { useAccountData } from '../hooks/useAccountData';
@@ -19,10 +19,10 @@ import DeleteAccountModal from '../components/account/modals/DeleteAccountModal'
 import { formatBalanceAmount } from '../utils/gainLoss';
 
 const Account: React.FC = () => {
-  const { isAuthenticated, login } = useAuth();
+  const { isAuthenticated } = useAuth();
+  const { openLogin } = useAuthModal();
 
   const [hideBalances, setHideBalances] = useState(false);
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   // Custom hooks for data and operations
   const {
@@ -79,7 +79,7 @@ const Account: React.FC = () => {
                 계좌 관리 기능을 이용하시려면 먼저 로그인해주세요
               </p>
               <button
-                onClick={() => setIsLoginModalOpen(true)}
+                onClick={openLogin}
                 className="flex items-center space-x-2 bg-brand text-brand-ink px-6 py-3 rounded-lg hover:bg-brand-dark transition-colors mx-auto"
               >
                 <LogIn className="w-5 h-5" />
@@ -88,17 +88,6 @@ const Account: React.FC = () => {
             </div>
           </div>
         </div>
-        <LoginModal
-          isOpen={isLoginModalOpen}
-          onClose={() => setIsLoginModalOpen(false)}
-          onSwitchToSignup={() => {
-            setIsLoginModalOpen(false);
-            // 회원가입은 Header에서 관리되므로 단순히 모달만 닫음
-          }}
-          onLogin={async (email: string, password: string) => {
-            await login(email, password);
-          }}
-        />
       </>
     );
   }

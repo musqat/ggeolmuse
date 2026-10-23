@@ -3,7 +3,7 @@ import { LogIn } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../hooks/useAuth';
-import LoginModal from '../components/auth/LoginModal';
+import { useAuthModal } from '../hooks/useAuthModal';
 import TradeHistoryTab from '../components/trading/TradeHistoryTab';
 import TradingCapacityPanel from '../components/trading/TradingCapacityPanel';
 import { stockApi, tradeApi } from '../services/api';
@@ -36,7 +36,8 @@ const SETTLE_REFRESH_MS = 2000;
 const Trading: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { isAuthenticated, login } = useAuth();
+  const { isAuthenticated } = useAuth();
+  const { openLogin } = useAuthModal();
   const [activeTab, setActiveTab] = useState<'order' | 'history'>('order');
   const [selectedStock, setSelectedStock] = useState('AAPL');
   const [orderType, setOrderType] = useState<'buy' | 'sell'>('buy');
@@ -44,7 +45,6 @@ const Trading: React.FC = () => {
   const [quantity, setQuantity] = useState('10');
   const [limitPrice, setLimitPrice] = useState('0');
   const [timeframe, setTimeframe] = useState<Timeframe>('1년');
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   // 커스텀 날짜 범위
   const [customStartDate, setCustomStartDate] = useState('');
@@ -237,7 +237,7 @@ const Trading: React.FC = () => {
                 가상 거래 서비스를 이용하시려면 먼저 로그인해주세요
               </p>
               <button
-                onClick={() => setIsLoginModalOpen(true)}
+                onClick={openLogin}
                 className="flex items-center space-x-2 bg-brand text-brand-ink px-6 py-3 rounded-lg hover:bg-brand-dark transition-colors mx-auto"
               >
                 <LogIn className="w-5 h-5" />
@@ -246,17 +246,6 @@ const Trading: React.FC = () => {
             </div>
           </div>
         </div>
-        <LoginModal
-          isOpen={isLoginModalOpen}
-          onClose={() => setIsLoginModalOpen(false)}
-          onSwitchToSignup={() => {
-            setIsLoginModalOpen(false);
-            // 회원가입은 Header에서 관리되므로 단순히 모달만 닫음
-          }}
-          onLogin={async (email: string, password: string) => {
-            await login(email, password);
-          }}
-        />
       </>
     );
   }

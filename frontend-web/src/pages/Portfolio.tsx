@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../hooks/useAuth';
+import { useAuthModal } from '../hooks/useAuthModal';
 import { TrendingUp, TrendingDown, DollarSign, ArrowUpCircle, ArrowDownCircle, LogIn } from 'lucide-react';
 import { portfolioApi, accountsApi } from '../services/api';
 import PortfolioPieChart, { type PieChartData } from '../components/charts/portfolio/PortfolioPieChart';
-import LoginModal from '../components/auth/LoginModal';
 
 // 자산 구성 파이와 자산 배분 목록이 같이 쓰는 색(index.css). 금액 큰 순서로 다섯 자리를 주고 그 뒤는 회색.
 // 돌려 쓰지 않는다 — 여섯 번째부터는 파이에서도 ETC 로 묶인다
@@ -16,11 +16,11 @@ const allocationColor = (index: number) => ALLOCATION_COLORS[index] ?? ALLOCATIO
 const Portfolio: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { isAuthenticated, login } = useAuth();
+  const { isAuthenticated } = useAuth();
+  const { openLogin } = useAuthModal();
   const accountId = searchParams.get('accountId');
 
   const [exchangeRate, setExchangeRate] = useState<number>(1400); // 기본 환율
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   // React Query: 계좌별 포트폴리오 조회
   const {
@@ -98,7 +98,7 @@ const Portfolio: React.FC = () => {
                 포트폴리오 기능을 이용하시려면 먼저 로그인해주세요
               </p>
               <button
-                onClick={() => setIsLoginModalOpen(true)}
+                onClick={openLogin}
                 className="flex items-center space-x-2 bg-brand text-brand-ink px-6 py-3 rounded-lg hover:bg-brand-dark transition-colors mx-auto"
               >
                 <LogIn className="w-5 h-5" />
@@ -107,17 +107,6 @@ const Portfolio: React.FC = () => {
             </div>
           </div>
         </div>
-        <LoginModal
-          isOpen={isLoginModalOpen}
-          onClose={() => setIsLoginModalOpen(false)}
-          onSwitchToSignup={() => {
-            setIsLoginModalOpen(false);
-            // 회원가입은 Header에서 관리되므로 단순히 모달만 닫음
-          }}
-          onLogin={async (email: string, password: string) => {
-            await login(email, password);
-          }}
-        />
       </>
     );
   }

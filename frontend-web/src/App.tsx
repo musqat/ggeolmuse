@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './contexts/AuthContext';
 import { AiChatProvider } from './contexts/AiChatContext';
+import { AuthModalProvider } from './contexts/AuthModalContext';
 import { Notifications } from './components/common/Notifications';
 import Header from '@components/common/Header';
 import Footer from '@components/layout/Footer';
@@ -43,6 +44,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <AuthModalProvider>
         <AiChatProvider>
         <Router>
           <div className="App min-h-screen bg-surface/50">
@@ -92,6 +94,7 @@ function App() {
         </div>
       </Router>
         </AiChatProvider>
+        </AuthModalProvider>
       </AuthProvider>
   </QueryClientProvider>
   );

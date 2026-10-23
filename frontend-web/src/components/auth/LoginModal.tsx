@@ -277,7 +277,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
           {/* Footer */}
           <div className="mt-6 text-center">
             <p className="text-sm text-tx-2">
-              계정이 없으신가요?{''}
+              계정이 없으신가요?{' '}
               <button
                 onClick={onSwitchToSignup}
                 className="text-brand hover:text-brand font-medium"

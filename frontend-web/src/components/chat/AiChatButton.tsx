@@ -1,19 +1,17 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useLocation } from 'react-router-dom';
 import { MessageCircle } from 'lucide-react';
 import AiChatModal from './AiChatModal';
-import LoginModal from '../auth/LoginModal';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuthModal } from '../../hooks/useAuthModal';
 import { useAiChat } from '../../hooks/useAiChat';
 
 // 버튼을 숨길 경로 (admin, 인증 콜백 등) — 모달은 Context라 전역 동작
 const HIDDEN_PREFIXES = ['/admin', '/auth/', '/oauth/', '/reset-password', '/unauthorized'];
 
 const AiChatButton: React.FC = () => {
-  const { login } = useAuth();
+  const { openLogin } = useAuthModal();
   const { openChat, closeChat } = useAiChat();
   const location = useLocation();
-  const [loginOpen, setLoginOpen] = useState(false);
 
   const hideButton = HIDDEN_PREFIXES.some((p) => location.pathname.startsWith(p));
 
@@ -34,16 +32,7 @@ const AiChatButton: React.FC = () => {
       <AiChatModal
         onRequireLogin={() => {
           closeChat();
-          setLoginOpen(true);
-        }}
-      />
-
-      <LoginModal
-        isOpen={loginOpen}
-        onClose={() => setLoginOpen(false)}
-        onSwitchToSignup={() => setLoginOpen(false)}
-        onLogin={async (email: string, password: string) => {
-          await login(email, password);
+          openLogin();
         }}
       />
     </>

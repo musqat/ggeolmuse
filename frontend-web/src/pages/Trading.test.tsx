@@ -7,6 +7,7 @@ import { AxiosError, type AxiosResponse } from 'axios'
 import { stockApi, tradeApi } from '../services/api'
 import { useAuth } from '../hooks/useAuth'
 import { useAccounts } from '@/hooks/useAccounts'
+import { AuthModalProvider } from '@/contexts/AuthModalContext'
 import Trading from './Trading'
 import { notify } from '@/components/common/notify'
 
@@ -42,7 +43,9 @@ function renderPage({ authenticated = true, accounts = [{ accountId: 3, accountN
   render(
     <QueryClientProvider client={client}>
       <MemoryRouter>
-        <Trading />
+        <AuthModalProvider>
+          <Trading />
+        </AuthModalProvider>
       </MemoryRouter>
     </QueryClientProvider>
   )
@@ -76,6 +79,8 @@ describe('Trading 로그인 전', () => {
     await userEvent.click(screen.getByRole('button', { name: /로그인하기/ }))
 
     expect(screen.getByRole('button', { name: /구글로 로그인/ })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '회원가입' }))
+    expect(await screen.findByLabelText('닉네임')).toBeInTheDocument()
   })
 })
 
