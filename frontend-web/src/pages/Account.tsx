@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { RefreshCw } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { LoginRequired } from '../components/common/LoginRequired';
+import { PageSpinner } from '../components/common/Spinner';
 
 import { useAccountData } from '../hooks/useAccountData';
 import { useAccountOperations } from '../hooks/useAccountOperations';
@@ -56,13 +56,7 @@ const Account: React.FC = () => {
   }
 
   if (loading) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="flex items-center justify-center h-64">
-          <RefreshCw className="w-8 h-8 animate-spin text-brand" />
-        </div>
-      </div>
-    );
+    return <PageSpinner />;
   }
 
   return (

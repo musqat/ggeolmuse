@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { getApiErrorMessage, getApiErrorStatus } from '../../utils/apiError';
+import { PASSWORD_HINT, PASSWORD_RULE, PASSWORD_RULE_MESSAGE } from '../../utils/password';
 import {
   AuthModalFrame,
   AuthTextField,
@@ -45,8 +46,8 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
       setError('비밀번호가 일치하지 않습니다.');
       return false;
     }
-    if (formData.password.length < 8) {
-      setError('비밀번호는 8자 이상이어야 합니다.');
+    if (!PASSWORD_RULE.test(formData.password)) {
+      setError(PASSWORD_RULE_MESSAGE);
       return false;
     }
     return true;
@@ -137,7 +138,7 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
           label="비밀번호"
           value={formData.password}
           onChange={handleInputChange('password')}
-          placeholder="8자 이상 입력하세요"
+          placeholder={PASSWORD_HINT}
         />
         <PasswordField
           id="confirmPassword"

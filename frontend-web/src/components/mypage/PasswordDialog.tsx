@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { authApi } from '../../services/api';
 import { getApiErrorMessage } from '../../utils/apiError';
+import { PASSWORD_HINT, PASSWORD_RULE, PASSWORD_RULE_MESSAGE } from '../../utils/password';
 import { notify } from '../common/notify';
 import { DialogField, FormDialog } from '../common/FormDialog';
 
@@ -21,8 +22,8 @@ export const PasswordDialog: React.FC<{ onClose: () => void }> = ({ onClose }) =
       return;
     }
 
-    if (newPassword.length < 8) {
-      notify.error('비밀번호는 최소 8자 이상이어야 합니다.');
+    if (!PASSWORD_RULE.test(newPassword)) {
+      notify.error(PASSWORD_RULE_MESSAGE);
       return;
     }
 
@@ -53,7 +54,7 @@ export const PasswordDialog: React.FC<{ onClose: () => void }> = ({ onClose }) =
       <DialogField
         id="mypage-new-password"
         label="새 비밀번호"
-        hint="최소 8자 이상"
+        hint={PASSWORD_HINT}
         type="password"
         value={newPassword}
         onChange={(e) => setNewPassword(e.target.value)}

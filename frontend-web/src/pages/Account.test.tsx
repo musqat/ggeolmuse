@@ -53,6 +53,14 @@ describe('Account', () => {
     expect(accountsApi.getAccounts).not.toHaveBeenCalled()
   })
 
+  it('불러오는 동안 화면 읽기용 상태 표시를 보인다', async () => {
+    renderPage()
+
+    expect(screen.getByRole('status', { name: '불러오는 중' })).toBeInTheDocument()
+    expect(await screen.findByText('₩1,000,000')).toBeInTheDocument()
+    expect(screen.queryByRole('status')).toBeNull()
+  })
+
   it('계좌 카드마다 잔액을 보이고 숨기기를 누르면 가린다', async () => {
     const user = userEvent.setup()
     renderPage()

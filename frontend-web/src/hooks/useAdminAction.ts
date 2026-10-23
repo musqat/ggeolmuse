@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { notify } from '@/components/common/notify';
 
 interface AdminAction {
@@ -14,6 +14,8 @@ interface AdminAction {
 export const useAdminAction = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 진행 중인 작업 수(작업 안에서 부른 다시 불러오기가 끝날 때까지 로딩 유지)
+  const running = useRef(0);
 
   const run = async ({ confirm, call, failure }: AdminAction): Promise<boolean> => {
     if (confirm) {
@@ -23,6 +25,7 @@ export const useAdminAction = () => {
       if (!ok) return false;
     }
 
+    running.current += 1;
     setLoading(true);
     setError(null);
     try {
@@ -34,7 +37,8 @@ export const useAdminAction = () => {
       console.error(message, err);
       return false;
     } finally {
-      setLoading(false);
+      running.current -= 1;
+      if (running.current === 0) setLoading(false);
     }
   };
 

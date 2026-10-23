@@ -54,11 +54,11 @@ describe('AuthModalProvider', () => {
     await user.click(screen.getByRole('button', { name: '가입 열기' }))
     await user.type(screen.getByLabelText('닉네임'), '새이름')
     await user.type(screen.getByLabelText('이메일'), 'new@example.local')
-    await user.type(screen.getByLabelText('비밀번호'), 'abcd1234')
-    await user.type(screen.getByLabelText('비밀번호 확인'), 'abcd1234')
+    await user.type(screen.getByLabelText('비밀번호'), 'abcd123!')
+    await user.type(screen.getByLabelText('비밀번호 확인'), 'abcd123!')
     await user.click(screen.getByRole('button', { name: '회원가입' }))
 
-    expect(signup).toHaveBeenCalledWith('new@example.local', 'abcd1234', '새이름')
+    expect(signup).toHaveBeenCalledWith('new@example.local', 'abcd123!', '새이름')
     expect(await screen.findByText('회원가입 완료')).toBeInTheDocument()
   })
 

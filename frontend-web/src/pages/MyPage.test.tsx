@@ -172,6 +172,16 @@ describe('MyPage 비밀번호 변경', () => {
     expect(notify.error).toHaveBeenCalledWith('새 비밀번호가 일치하지 않습니다.')
     expect(authApi.changePassword).not.toHaveBeenCalled()
   })
+
+  it('새 비밀번호에 특수문자가 없으면 보내지 않고 서버와 같은 규칙을 알린다', async () => {
+    const user = userEvent.setup()
+    renderPage({ hasPassword: true })
+
+    await changePassword(user, 'old-pass1', 'abcd1234')
+
+    expect(notify.error).toHaveBeenCalledWith('비밀번호는 8자 이상이며, 영문, 숫자, 특수문자를 포함해야 합니다.')
+    expect(authApi.changePassword).not.toHaveBeenCalled()
+  })
 })
 
 describe('MyPage 사용자 정보', () => {

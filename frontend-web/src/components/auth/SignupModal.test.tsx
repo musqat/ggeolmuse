@@ -44,13 +44,13 @@ describe('SignupModal', () => {
     expect(onSignup).not.toHaveBeenCalled()
   })
 
-  it('8자보다 짧으면 보내지 않고 알린다', async () => {
+  it.each([['8자보다 짧으면', 'abc12'], ['특수문자가 없으면', 'abcd1234']])('%s 보내지 않고 서버와 같은 규칙을 알린다', async (_, password) => {
     const user = userEvent.setup()
     const { onSignup } = renderModal()
 
-    await signup(user, 'abc12')
+    await signup(user, password)
 
-    expect(screen.getByText('비밀번호는 8자 이상이어야 합니다.')).toBeInTheDocument()
+    expect(screen.getByText('비밀번호는 8자 이상이며, 영문, 숫자, 특수문자를 포함해야 합니다.')).toBeInTheDocument()
     expect(onSignup).not.toHaveBeenCalled()
   })
 
@@ -58,9 +58,9 @@ describe('SignupModal', () => {
     const user = userEvent.setup()
     const { onClose, onSignup, onSignupSuccess } = renderModal()
 
-    await signup(user, 'abcd1234')
+    await signup(user, 'abcd123!')
 
-    expect(onSignup).toHaveBeenCalledWith('new@example.local', 'abcd1234', '새이름')
+    expect(onSignup).toHaveBeenCalledWith('new@example.local', 'abcd123!', '새이름')
     expect(onClose).toHaveBeenCalledTimes(1)
     expect(onSignupSuccess).toHaveBeenCalledWith('new@example.local')
   })
@@ -71,7 +71,7 @@ describe('SignupModal', () => {
       status: 409, data: {}, statusText: '', headers: {}, config: {},
     } as AxiosResponse)))
 
-    await signup(user, 'abcd1234')
+    await signup(user, 'abcd123!')
 
     expect(await screen.findByText('이미 가입된 이메일입니다.')).toBeInTheDocument()
   })

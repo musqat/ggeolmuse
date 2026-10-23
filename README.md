@@ -148,7 +148,7 @@ ggeolmuse/
 
 ## 테스트
 
-백엔드 **1,603 개**, 프론트 **610 개**, E2E **41 개**.
+백엔드 **1,603 개**, 프론트 **626 개**, E2E **41 개**.
 
 | 서비스 | 테스트 |
 |---|---|
@@ -159,7 +159,7 @@ ggeolmuse/
 | ggeolmuse-common | 32 |
 | messaging | 19 |
 | chat-service | 136 |
-| frontend-web | 610 |
+| frontend-web | 626 |
 | E2E (Playwright) | 41 |
 
 E2E 는 `docker compose` 로 스택 전체를 띄우고 PR 과 `master` push 마다 돈다.
@@ -181,7 +181,7 @@ CI 에서 그 아래면 빌드를 실패시킨다. chat · frontend-web 은 이 
 | backtest | 98.3% | 88.3% |
 | market-data | 97.7% | 87.3% |
 | chat | 98.9% | 90.9% |
-| frontend-web | 86.7% | 78.2% |
+| frontend-web | 86.7% | 78.3% |
 
 market-data 의 외부 API 호출은 응답을 흉내 낸 테스트라 실제 API 가 바뀌는 것은 못 잡는다.
 

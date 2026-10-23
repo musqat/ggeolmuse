@@ -3,9 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useAuthModal } from '../hooks/useAuthModal';
 import { getApiErrorMessage } from '../utils/apiError';
+import { PASSWORD_HINT, PASSWORD_RULE, PASSWORD_RULE_MESSAGE } from '../utils/password';
 
-// 서버와 같은 비밀번호 규칙(영문 · 숫자 · 특수문자 하나 이상, 8 ~ 100자)
-const PASSWORD_RULE = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,100}$/;
 const INPUT_CLASS =
   'w-full px-3 py-3 text-sm bg-surface text-tx-1 border border-line-strong rounded-md focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent';
 const LABEL_CLASS = 'block text-sm font-medium text-tx-2 mb-2';
@@ -50,7 +49,7 @@ const PasswordReset: React.FC = () => {
     }
 
     if (!PASSWORD_RULE.test(newPassword)) {
-      setError('비밀번호는 8자 이상이며, 영문, 숫자, 특수문자를 포함해야 합니다.');
+      setError(PASSWORD_RULE_MESSAGE);
       return;
     }
 
@@ -116,7 +115,7 @@ const PasswordReset: React.FC = () => {
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="영문, 숫자, 특수문자 포함 8자 이상"
+              placeholder={PASSWORD_HINT}
               className={INPUT_CLASS}
             />
           </div>
