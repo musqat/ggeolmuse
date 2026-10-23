@@ -8,7 +8,9 @@ import { useAuth } from '../hooks/useAuth'
 import MyPage from './MyPage'
 import { notify } from '@/components/common/notify'
 
-vi.mock('../services/api', () => ({ authApi: { getCurrentUser: vi.fn(), deleteAccount: vi.fn(), changeNickname: vi.fn() } }))
+vi.mock('../services/api', () => ({
+  authApi: { getCurrentUser: vi.fn(), deleteAccount: vi.fn(), changeNickname: vi.fn(), changePassword: vi.fn() },
+}))
 vi.mock('../hooks/useAuth', () => ({ useAuth: vi.fn() }))
 
 const BASE_USER: User = {
@@ -50,6 +52,16 @@ async function changeNickname(user: ReturnType<typeof userEvent.setup>, name: st
   const input = screen.getByPlaceholderText('변경할 닉네임 입력')
   await user.clear(input)
   await user.type(input, name)
+  await user.click(screen.getByRole('button', { name: '변경하기' }))
+}
+
+// 비밀번호 창을 열고 현재 · 새 · 확인 칸을 차례로 채워 변경
+async function changePassword(user: ReturnType<typeof userEvent.setup>, current: string, next: string, confirm = next) {
+  await user.click(await screen.findByText('비밀번호 변경', { selector: 'p' }))
+  const [currentInput, newInput, confirmInput] = document.querySelectorAll<HTMLInputElement>('input[type="password"]')
+  await user.type(currentInput, current)
+  await user.type(newInput, next)
+  await user.type(confirmInput, confirm)
   await user.click(screen.getByRole('button', { name: '변경하기' }))
 }
 
@@ -135,6 +147,30 @@ describe('MyPage 회원 탈퇴', () => {
     renderPage({ hasPassword: false, provider: 'LOCAL' })
     await screen.findByText('닉네임 변경')
     expect(screen.queryByText('비밀번호 변경')).toBeNull()
+  })
+})
+
+describe('MyPage 비밀번호 변경', () => {
+  it('비밀번호를 바꾸면 현재 · 새 비밀번호를 보낸다', async () => {
+    const user = userEvent.setup()
+    vi.mocked(authApi.changePassword).mockResolvedValue({} as never)
+    renderPage({ hasPassword: true })
+
+    await changePassword(user, 'old-pass1', 'new-pass1')
+
+    await waitFor(() => expect(notify.success).toHaveBeenCalledWith('비밀번호가 변경되었습니다.'))
+    expect(authApi.changePassword).toHaveBeenCalledWith({ currentPassword: 'old-pass1', newPassword: 'new-pass1' })
+    expect(screen.queryByRole('button', { name: '변경하기' })).toBeNull()
+  })
+
+  it('새 비밀번호가 다르면 보내지 않는다', async () => {
+    const user = userEvent.setup()
+    renderPage({ hasPassword: true })
+
+    await changePassword(user, 'old-pass1', 'new-pass1', 'new-pass2')
+
+    expect(notify.error).toHaveBeenCalledWith('새 비밀번호가 일치하지 않습니다.')
+    expect(authApi.changePassword).not.toHaveBeenCalled()
   })
 })
 

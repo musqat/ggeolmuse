@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Edit2, Lock, CheckCircle, Trash2 } from 'lucide-react';
 import type { UserDetail } from '@services/adminApi';
 import { notify } from '@/components/common/notify';
+import { DialogField, FormDialog } from '@/components/common/FormDialog';
 
 interface UserDetailSectionProps {
   user: UserDetail | null;
@@ -41,14 +42,24 @@ export default function UserDetailSection({
     );
   }
 
+  const closeNicknameModal = () => {
+    setShowNicknameModal(false);
+    setNewNickname('');
+  };
+
+  const closePasswordModal = () => {
+    setShowPasswordModal(false);
+    setNewPassword('');
+    setConfirmPassword('');
+  };
+
   const handleUpdateNickname = () => {
     if (!newNickname.trim()) {
       notify.error('닉네임을 입력하세요.');
       return;
     }
     onUpdateNickname(user.userId, newNickname);
-    setShowNicknameModal(false);
-    setNewNickname('');
+    closeNicknameModal();
   };
 
   const handleUpdatePassword = () => {
@@ -65,9 +76,7 @@ export default function UserDetailSection({
       return;
     }
     onUpdatePassword(user.userId, newPassword);
-    setShowPasswordModal(false);
-    setNewPassword('');
-    setConfirmPassword('');
+    closePasswordModal();
   };
 
   const handleVerifyEmail = async () => {
@@ -243,92 +252,49 @@ export default function UserDetailSection({
         </div>
       </div>
 
-      {/* Nickname Modal */}
       {showNicknameModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-surface rounded-xl p-6 w-full max-w-md mx-4">
-            <h3 className="text-lg font-semibold text-tx-1 mb-4">닉네임 변경</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-tx-1 mb-2">새 닉네임</label>
-                <input
-                  type="text"
-                  value={newNickname}
-                  onChange={(e) => setNewNickname(e.target.value)}
-                  placeholder="새 닉네임 입력"
-                  className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
-                />
-              </div>
-            </div>
-            <div className="flex space-x-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowNicknameModal(false);
-                  setNewNickname('');
-                }}
-                className="flex-1 px-4 py-2 border border-line-strong text-tx-1 rounded-lg hover:bg-surface/50"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleUpdateNickname}
-                disabled={!newNickname.trim()}
-                className="flex-1 px-4 py-2 bg-brand text-brand-ink rounded-lg hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                변경하기
-              </button>
-            </div>
-          </div>
-        </div>
+        <FormDialog
+          title="닉네임 변경"
+          confirmLabel="변경하기"
+          confirmDisabled={!newNickname.trim()}
+          onConfirm={handleUpdateNickname}
+          onCancel={closeNicknameModal}
+        >
+          <DialogField
+            id="admin-nickname"
+            label="새 닉네임"
+            type="text"
+            value={newNickname}
+            onChange={(e) => setNewNickname(e.target.value)}
+            placeholder="새 닉네임 입력"
+          />
+        </FormDialog>
       )}
 
-      {/* Password Modal */}
       {showPasswordModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-surface rounded-xl p-6 w-full max-w-md mx-4">
-            <h3 className="text-lg font-semibold text-tx-1 mb-4">비밀번호 강제 변경</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-tx-1 mb-2">새 비밀번호</label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
-                />
-                <p className="text-xs text-tx-2 mt-1">최소 8자 이상</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-tx-1 mb-2">새 비밀번호 확인</label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
-                />
-              </div>
-            </div>
-            <div className="flex space-x-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowPasswordModal(false);
-                  setNewPassword('');
-                  setConfirmPassword('');
-                }}
-                className="flex-1 px-4 py-2 border border-line-strong text-tx-1 rounded-lg hover:bg-surface/50"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleUpdatePassword}
-                disabled={!newPassword || !confirmPassword}
-                className="flex-1 px-4 py-2 bg-brand text-brand-ink rounded-lg hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                변경하기
-              </button>
-            </div>
-          </div>
-        </div>
+        <FormDialog
+          title="비밀번호 강제 변경"
+          confirmLabel="변경하기"
+          confirmDisabled={!newPassword || !confirmPassword}
+          onConfirm={handleUpdatePassword}
+          onCancel={closePasswordModal}
+        >
+          <DialogField
+            id="admin-new-password"
+            label="새 비밀번호"
+            hint="최소 8자 이상"
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+          />
+          <DialogField
+            id="admin-confirm-password"
+            label="새 비밀번호 확인"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+          />
+        </FormDialog>
       )}
     </div>
   );
