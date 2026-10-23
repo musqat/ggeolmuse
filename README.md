@@ -36,12 +36,13 @@ NYSE · NASDAQ · NYSE ARCA 상장 12,000+ 종목의 일별 가격으로 투자 
 
 <br>
 
-- 실시간 시세 조회와 과거 OHLC 데이터 제공
+- 일별 시세(평일 아침 수집)와 과거 OHLC 데이터 제공
 - 투자 전략 다섯 가지 (단순, 적립식, 조건부 매매, 전략 비교, 종목 비교)
 - 환율을 반영한 원화·달러 수익률
 - 배당금 자동 재투자 시뮬레이션
-- 거래 수수료와 슬리피지 반영
-- AI 종목 기술 분석 — 지표 기반 챗봇, 차트에서 원클릭
+- 최적 매수 · 매도 시점 — 원화 주가(종가 × 그날 환율) 기준
+- 거래 수수료 반영. 모의 매매는 슬리피지까지
+- AI 종목 대화 — 기술 지표 · 주가 추이 · 배당을 묻는 챗봇, 차트에서 원클릭
 
 </details>
 
@@ -86,7 +87,7 @@ Feign 은 답이 있어야 다음 줄이 진행되는 조회에 쓰고 Kafka 는
 | **Trade Service** | 거래 실행, 포트폴리오 | [📄](backend/trade-service/README.md) |
 | **Market Data Service** | 시세 수집·제공 | [📄](backend/market-data-service/README.md) |
 | **Backtest Service** | 전략 백테스팅 | [📄](backend/backtest-service/README.md) |
-| **Chat Service** | AI 기술 분석 (FastAPI) | [📄](backend/chat-service/README.md) |
+| **Chat Service** | AI 종목 대화 (FastAPI) | [📄](backend/chat-service/README.md) |
 
 인프라 구성은 [helm/README.md](helm/README.md) 에 있다.
 서비스 설정은 별도 저장소 [ggeolmuse-config](https://github.com/musqat/ggeolmuse-config) 에 있다.
@@ -107,11 +108,13 @@ ggeolmuse/
 │   ├── trade-service/        거래 · 포트폴리오
 │   ├── market-data-service/  시세 수집 · 제공
 │   ├── backtest-service/     전략 시뮬레이션
-│   ├── chat-service/         AI 기술 분석 (FastAPI)
+│   ├── chat-service/         AI 종목 대화 (FastAPI)
 │   ├── ggeolmuse-bom/        의존성 버전 (BOM)
 │   ├── ggeolmuse-common/     공통 라이브러리 (예외 · 로깅 · 유틸)
 │   └── messaging/            Kafka 공통 라이브러리
 ├── frontend-web/         React
+├── docker-compose/       로컬 스택
+├── cloudflare/           꺼져 있을 때 안내 페이지 (Worker)
 ├── helm/                 Helm 차트 · ArgoCD
 ├── tests/
 │   ├── e2e/              Playwright
@@ -139,24 +142,24 @@ ggeolmuse/
 | Resilience | Resilience4j — CircuitBreaker · Retry · TimeLimiter · Bulkhead |
 | Infra | Kubernetes (K3s) · Helm · ArgoCD · Docker |
 | 관측 | Prometheus · Grafana · Tempo (OpenTelemetry) · Loki |
-| Test | JUnit 5 · Mockito · Vitest · k6 |
+| Test | JUnit 5 · Mockito · Testcontainers · Vitest · Playwright · k6 |
 
 <br>
 
 ## 테스트
 
-백엔드 **1,461 개**, 프론트 **465 개**, E2E **40 개**.
+백엔드 **1,467 개**, 프론트 **481 개**, E2E **41 개**.
 
 | 서비스 | 테스트 |
 |---|---|
-| market-data-service | 505 |
+| market-data-service | 507 |
 | user-service | 363 |
-| backtest-service | 289 |
+| backtest-service | 293 |
 | trade-service | 253 |
 | ggeolmuse-common | 32 |
 | messaging | 19 |
-| frontend-web | 465 |
-| E2E (Playwright) | 40 |
+| frontend-web | 481 |
+| E2E (Playwright) | 41 |
 
 E2E 는 `docker compose` 로 스택 전체를 띄우고 PR 과 `master` push 마다 돈다.
 필수 체크로 두지 않은 이유는 시세를 Yahoo Finance 에서 받아서다 — 코드와
@@ -173,10 +176,10 @@ E2E 는 `docker compose` 로 스택 전체를 띄우고 PR 과 `master` push 마
 
 | 서비스 | 라인 | 분기 |
 |---|---|---|
-| user | 97.8% | 87.0% |
-| trade | 98.3% | 92.0% |
-| backtest | 98.5% | 88.9% |
-| market-data | 96.5% | 86.4% |
+| user | 98.4% | 86.5% |
+| trade | 99.4% | 92.2% |
+| backtest | 98.3% | 88.3% |
+| market-data | 97.7% | 87.3% |
 
 market-data 의 외부 호출(야후 · NASDAQ · 수출입은행 · AlphaVantage)은 실제 네트워크 없이 RestTemplate 응답을 흉내 내
 테스트한다.
