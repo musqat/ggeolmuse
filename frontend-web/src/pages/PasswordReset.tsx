@@ -1,18 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import Header from '../components/common/Header';
+import { useAuthModal } from '../hooks/useAuthModal';
 import { getApiErrorMessage } from '../utils/apiError';
+
+// 서버와 같은 비밀번호 규칙(영문 · 숫자 · 특수문자 하나 이상, 8 ~ 100자)
+const PASSWORD_RULE = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,100}$/;
+const INPUT_CLASS =
+  'w-full px-3 py-3 text-sm bg-surface text-tx-1 border border-line-strong rounded-md focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent';
+const LABEL_CLASS = 'block text-sm font-medium text-tx-2 mb-2';
 
 const PasswordReset: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { resetPassword, isLoading } = useAuth();
+  const { resetPassword } = useAuth();
+  const { openLogin } = useAuthModal();
 
   const token = searchParams.get('token');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
 
   // 토큰이 없으면 홈으로 리다이렉트
@@ -22,23 +30,26 @@ const PasswordReset: React.FC = () => {
     }
   }, [token, navigate]);
 
-  const validatePassword = (password: string): boolean => {
-    // 비밀번호 검증: 8자 이상, 영문, 숫자, 특수문자 포함
-    const passwordRegex = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-    return passwordRegex.test(password);
-  };
+  // 완료 3초 뒤 홈으로 가서 로그인 창 열기
+  useEffect(() => {
+    if (!success) return;
+    const timer = setTimeout(() => {
+      navigate('/');
+      openLogin();
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [success, navigate, openLogin]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    // 유효성 검사
     if (!newPassword || !confirmPassword) {
       setError('모든 필드를 입력해주세요.');
       return;
     }
 
-    if (!validatePassword(newPassword)) {
+    if (!PASSWORD_RULE.test(newPassword)) {
       setError('비밀번호는 8자 이상이며, 영문, 숫자, 특수문자를 포함해야 합니다.');
       return;
     }
@@ -48,16 +59,14 @@ const PasswordReset: React.FC = () => {
       return;
     }
 
+    setSubmitting(true);
     try {
       await resetPassword(token!, newPassword);
       setSuccess(true);
-      // 3초 후 로그인 페이지로 이동
-      setTimeout(() => {
-        navigate('/');
-      }, 3000);
     } catch (err: unknown) {
-      const errorMessage = getApiErrorMessage(err, '비밀번호 재설정에 실패했습니다.');
-      setError(errorMessage);
+      setError(getApiErrorMessage(err, '비밀번호 재설정에 실패했습니다.'));
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -67,19 +76,10 @@ const PasswordReset: React.FC = () => {
 
   if (success) {
     return (
-      <div style={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
-        <Header />
-        <div style={{
-          maxWidth: '500px',
-          margin: '80px auto',
-          padding: '40px',
-          backgroundColor: 'white',
-          borderRadius: '12px',
-          boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-          textAlign: 'center'
-        }}>
-          <h2 style={{ color: '#28a745', marginBottom: '20px', fontSize: '24px' }}>비밀번호 재설정 완료</h2>
-          <p style={{ color: '#6c757d', fontSize: '16px', lineHeight: '1.6' }}>
+      <div className="max-w-md mx-auto px-4 py-20">
+        <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-10 text-center">
+          <h2 className="text-2xl font-semibold text-success mb-5">비밀번호 재설정 완료</h2>
+          <p className="text-tx-2 leading-relaxed">
             비밀번호가 성공적으로 변경되었습니다.<br />
             3초 후 로그인 페이지로 이동합니다...
           </p>
@@ -89,140 +89,65 @@ const PasswordReset: React.FC = () => {
   }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
-      <Header />
-      <div style={{
-        maxWidth: '500px',
-        margin: '80px auto',
-        padding: '40px',
-        backgroundColor: 'white',
-        borderRadius: '12px',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
-      }}>
-        <h2 style={{ marginBottom: '30px', fontSize: '24px', color: '#333', textAlign: 'center' }}>
-          비밀번호 재설정
-        </h2>
+    <div className="max-w-md mx-auto px-4 py-20">
+      <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-10">
+        <h2 className="text-2xl font-semibold text-tx-1 text-center mb-8">비밀번호 재설정</h2>
 
-        <form onSubmit={handleSubmit}>
-          {/* 이메일 (placeholder로 표시) */}
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#495057', fontWeight: '500' }}>
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <label htmlFor="reset-email" className={LABEL_CLASS}>
               이메일
             </label>
             <input
+              id="reset-email"
               type="email"
               placeholder="재설정하는 이메일 주소"
               disabled
-              style={{
-                width: '100%',
-                padding: '12px',
-                fontSize: '14px',
-                border: '1px solid #dee2e6',
-                borderRadius: '6px',
-                backgroundColor: '#e9ecef',
-                color: '#6c757d',
-                cursor: 'not-allowed'
-              }}
+              className={`${INPUT_CLASS} opacity-60 cursor-not-allowed`}
             />
           </div>
 
-          {/* 새 비밀번호 */}
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#495057', fontWeight: '500' }}>
+          <div>
+            <label htmlFor="reset-new-password" className={LABEL_CLASS}>
               새 비밀번호
             </label>
             <input
+              id="reset-new-password"
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="영문, 숫자, 특수문자 포함 8자 이상"
-              style={{
-                width: '100%',
-                padding: '12px',
-                fontSize: '14px',
-                border: '1px solid #dee2e6',
-                borderRadius: '6px',
-                transition: 'border-color 0.15s'
-              }}
-              onFocus={(e) => e.target.style.borderColor = '#80bdff'}
-              onBlur={(e) => e.target.style.borderColor = '#dee2e6'}
+              className={INPUT_CLASS}
             />
           </div>
 
-          {/* 비밀번호 확인 */}
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#495057', fontWeight: '500' }}>
+          <div>
+            <label htmlFor="reset-confirm-password" className={LABEL_CLASS}>
               비밀번호 확인
             </label>
             <input
+              id="reset-confirm-password"
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="비밀번호를 다시 입력하세요"
-              style={{
-                width: '100%',
-                padding: '12px',
-                fontSize: '14px',
-                border: '1px solid #dee2e6',
-                borderRadius: '6px',
-                transition: 'border-color 0.15s'
-              }}
-              onFocus={(e) => e.target.style.borderColor = '#80bdff'}
-              onBlur={(e) => e.target.style.borderColor = '#dee2e6'}
+              className={INPUT_CLASS}
             />
           </div>
 
-          {/* 에러 메시지 */}
-          {error && (
-            <div style={{
-              padding: '12px',
-              marginBottom: '20px',
-              backgroundColor: '#f8d7da',
-              border: '1px solid #f5c6cb',
-              borderRadius: '6px',
-              color: '#721c24',
-              fontSize: '14px'
-            }}>
-              {error}
-            </div>
-          )}
+          {error && <div className="text-danger text-sm bg-danger/10 p-3 rounded-md">{error}</div>}
 
-          {/* 제출 버튼 */}
           <button
             type="submit"
-            disabled={isLoading}
-            style={{
-              width: '100%',
-              padding: '14px',
-              fontSize: '16px',
-              fontWeight: '600',
-              color: 'white',
-              backgroundColor: isLoading ? '#6c757d' : '#007bff',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-              transition: 'background-color 0.15s'
-            }}
-            onMouseEnter={(e) => {
-              if (!isLoading) e.currentTarget.style.backgroundColor = '#0056b3';
-            }}
-            onMouseLeave={(e) => {
-              if (!isLoading) e.currentTarget.style.backgroundColor = '#007bff';
-            }}
+            disabled={submitting}
+            className="w-full py-3 text-base font-semibold bg-brand text-brand-ink rounded-md hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {isLoading ? '처리 중...' : '비밀번호 재설정'}
+            {submitting ? '처리 중...' : '비밀번호 재설정'}
           </button>
         </form>
 
-        <div style={{
-          marginTop: '20px',
-          textAlign: 'center',
-          fontSize: '14px',
-          color: '#6c757d',
-          borderTop: '1px solid #dee2e6',
-          paddingTop: '20px'
-        }}>
-          <p style={{ margin: 0, lineHeight: '1.6' }}>
+        <div className="mt-5 pt-5 border-t border-line text-center text-sm text-tx-2">
+          <p className="leading-relaxed">
             링크는 30분 후 만료됩니다.<br />
             링크는 한 번만 사용할 수 있습니다.
           </p>

@@ -5,7 +5,7 @@ export default function Unauthorized() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-orange-50">
+    <div className="min-h-screen flex items-center justify-center bg-canvas">
       <div className="max-w-md w-full bg-surface rounded-xl shadow-2xl p-8 text-center">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-tx-1 mb-2">
