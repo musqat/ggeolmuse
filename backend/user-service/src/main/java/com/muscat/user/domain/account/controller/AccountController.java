@@ -4,7 +4,6 @@ import com.muscat.user.common.enums.response.AccountResponse;
 import com.muscat.user.common.exception.AccountException;
 import com.muscat.user.common.util.AuthUtil;
 import com.muscat.user.domain.account.dto.request.CreateAccountRequestDto;
-import com.muscat.user.domain.account.dto.request.ExchangeByDateRequestDto;
 import com.muscat.user.domain.account.dto.request.ExchangeRequestDto;
 import com.muscat.user.domain.account.dto.request.KrwDepositRequestDto;
 import com.muscat.user.domain.account.dto.response.AccountResponseDto;
@@ -22,11 +21,9 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -179,39 +176,6 @@ public class AccountController {
     return ResponseEntity.ok().build();
   }
 
-  @Operation(summary = "날짜 기반 환전", description = "특정 날짜의 환율을 자동으로 조회하여 환전을 수행합니다")
-  @ApiResponses(value = {
-    @ApiResponse(responseCode = "200", description = "환전 성공"),
-    @ApiResponse(responseCode = "400", description = "잘못된 요청 또는 지원하지 않는 통화"),
-    @ApiResponse(responseCode = "404", description = "계좌를 찾을 수 없음 또는 해당 날짜 환율 없음"),
-    @ApiResponse(responseCode = "401", description = "인증 실패")
-  })
-  @PostMapping("/{accountId}/exchange/by-date")
-  public ResponseEntity<Void> exchangeCurrencyByDate(
-    @Parameter(description = "계좌 ID") @PathVariable Long accountId,
-    @Valid @RequestBody ExchangeByDateRequestDto request,
-    @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
-
-    Long userId = authUtil.requireUserId(jwt);
-
-    // 해당 날짜의 환율 자동 조회
-    BigDecimal exchangeRate = accountService.getExchangeRateByDate(request.getExchangeDate());
-
-    if ("KRW".equals(request.getFromCurrency()) && "USD".equals(request.getToCurrency())) {
-      accountService.exchangeKrwToUsd(accountId, userId, request.getOriginalAmount(), exchangeRate);
-    } else if ("USD".equals(request.getFromCurrency()) && "KRW".equals(request.getToCurrency())) {
-      accountService.exchangeUsdToKrw(accountId, userId, request.getOriginalAmount(), exchangeRate);
-    } else {
-      throw new AccountException(AccountResponse.INVALID_CURRENCY);
-    }
-
-    log.info("날짜 기반 환전 완료: 사용자={}, 계좌={}, {} {} → {} (날짜: {}, 환율: {})",
-      userId, accountId, request.getOriginalAmount(), request.getFromCurrency(),
-      request.getToCurrency(), request.getExchangeDate(), exchangeRate);
-
-    return ResponseEntity.ok().build();
-  }
-
   @Operation(summary = "현재 환율 조회", description = "실시간 USD/KRW 환율을 조회합니다")
   @ApiResponses(value = {
     @ApiResponse(responseCode = "200", description = "환율 조회 성공"),
@@ -233,23 +197,5 @@ public class AccountController {
   @GetMapping("/exchange-rates/range")
   public ResponseEntity<ExchangeRateRangeDto> getExchangeRateRange() {
     return ResponseEntity.ok(accountService.getExchangeRateRange());
-  }
-
-  @Operation(summary = "날짜별 환율 조회", description = "특정 날짜의 USD/KRW 환율을 조회합니다")
-  @ApiResponses(value = {
-    @ApiResponse(responseCode = "200", description = "환율 조회 성공"),
-    @ApiResponse(responseCode = "404", description = "해당 날짜 환율 데이터 없음"),
-    @ApiResponse(responseCode = "503", description = "외부 서비스 연결 실패")
-  })
-  @GetMapping("/exchange-rates/{date}")
-  public ResponseEntity<BigDecimal> getExchangeRateByDate(
-    @Parameter(description = "조회할 날짜 (YYYY-MM-DD)", example = "2024-01-15")
-    @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-
-    log.debug("날짜별 환율 조회 요청: {}", date);
-
-    BigDecimal rate = accountService.getExchangeRateByDate(date);
-
-    return ResponseEntity.ok(rate);
   }
 }

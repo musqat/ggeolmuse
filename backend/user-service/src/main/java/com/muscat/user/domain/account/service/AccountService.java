@@ -9,7 +9,6 @@ import com.muscat.user.domain.account.dto.response.ExchangeRateRangeDto;
 import com.muscat.user.domain.account.entity.Account;
 import com.muscat.user.domain.account.entity.DividendSettlement;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.List;
 import org.springframework.data.domain.Page;
 
@@ -41,8 +40,6 @@ public interface AccountService {
 
   // 환율 조회 관련
   BigDecimal getCurrentExchangeRate();
-
-  BigDecimal getExchangeRateByDate(LocalDate date);
 
   // 환전에 쓸 수 있는 환율 범위. 환전 창이 수동 환율 칸에 보여 주고, 환전할 때 같은 범위로 검사한다
   ExchangeRateRangeDto getExchangeRateRange();

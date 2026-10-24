@@ -415,37 +415,6 @@ public class AccountServiceImpl implements AccountService {
     return null;
   }
 
-  // 특정 날짜의 USD/KRW 환율 조회
-  @Override
-  public BigDecimal getExchangeRateByDate(LocalDate date) {
-    try {
-      // 1. 특정 날짜 환율 조회 시도
-      log.debug("특정 날짜 환율 조회 시도: {}", date);
-      FxRateDto response = marketDataServiceClientWrapper.getFxRate(date.toString());
-
-      if (response != null && response.rate() != null) {
-        BigDecimal rate = MoneyUtils.roundExchangeRate(response.rate());
-
-        // 환율 유효성 검증
-        if (rate.compareTo(minValidRate) >= 0 && rate.compareTo(maxValidRate) <= 0) {
-          log.info("특정 날짜 환율 조회 성공: {} (일자: {})", rate, date);
-          return rate;
-        } else {
-          log.warn("비정상적인 환율 감지: {}, 최신 환율로 fallback", rate);
-          userLogger.logAbnormalExchangeRate(rate, "특정 날짜(" + date + ") 환율");
-        }
-      } else {
-        log.info("특정 날짜({}) 환율 데이터 없음, 최신 환율로 fallback", date);
-      }
-
-    } catch (Exception e) {
-      log.warn("특정 날짜({}) 환율 조회 실패, 최신 환율로 fallback: {}", date, e.getMessage());
-    }
-
-    // 2. Fallback: 최신 환율 사용
-    return currentRateOrFallback();
-  }
-
   // 범위는 정수로 둔다. 최저는 내리고 최고는 올려 ±허용 비율보다 좁아지지 않게 한다
   @Override
   public ExchangeRateRangeDto getExchangeRateRange() {

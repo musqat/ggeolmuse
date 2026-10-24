@@ -2,7 +2,6 @@ package com.muscat.user.domain.account.service.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
 import com.muscat.commonlib.dto.FxRateDto;
@@ -86,7 +85,6 @@ class AccountServiceIntegrationTest {
       "TEST_SOURCE"
     );
     given(marketDataServiceClientWrapper.getLatestFxRate()).willReturn(mockFxRate);
-    given(marketDataServiceClientWrapper.getFxRate(any(String.class))).willReturn(mockFxRate);
   }
 
   @AfterEach

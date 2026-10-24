@@ -83,12 +83,6 @@ class AccountControllerTest {
       """.formatted(from, to);
   }
 
-  private static String exchangeByDateBody(String from, String to) {
-    return """
-      {"fromCurrency":"%s","toCurrency":"%s","originalAmount":100,"exchangeDate":"2024-03-15"}
-      """.formatted(from, to);
-  }
-
   @Test
   @DisplayName("토큰이 없으면 401 이고 서비스까지 가지 않는다")
   void noToken_Unauthorized() throws Exception {
@@ -190,33 +184,16 @@ class AccountControllerTest {
   void exchange_UnsupportedCurrency_BadRequest() throws Exception {
     mockMvc.perform(json(post(BASE + "/" + ACCOUNT_ID + "/exchange"), exchangeBody("KRW", "KRW")))
       .andExpect(status().isBadRequest());
-    mockMvc.perform(json(post(BASE + "/" + ACCOUNT_ID + "/exchange/by-date"), exchangeByDateBody("USD", "JPY")))
-      .andExpect(status().isBadRequest());
 
     verify(accountService, never()).exchangeKrwToUsd(anyLong(), anyLong(), any(), any());
     verify(accountService, never()).exchangeUsdToKrw(anyLong(), anyLong(), any(), any());
   }
 
   @Test
-  @DisplayName("날짜 환전은 그날 환율을 조회해 그 환율로 바꾼다")
-  void exchangeByDate_UsesRateOfDate() throws Exception {
-    given(accountService.getExchangeRateByDate(LocalDate.of(2024, 3, 15))).willReturn(new BigDecimal("1330"));
-
-    mockMvc.perform(json(post(BASE + "/" + ACCOUNT_ID + "/exchange/by-date"), exchangeByDateBody("USD", "KRW")))
-      .andExpect(status().isOk());
-    mockMvc.perform(json(post(BASE + "/" + ACCOUNT_ID + "/exchange/by-date"), exchangeByDateBody("KRW", "USD")))
-      .andExpect(status().isOk());
-
-    verify(accountService).exchangeUsdToKrw(ACCOUNT_ID, USER_ID, new BigDecimal("100"), new BigDecimal("1330"));
-    verify(accountService).exchangeKrwToUsd(ACCOUNT_ID, USER_ID, new BigDecimal("100"), new BigDecimal("1330"));
-  }
-
-  @Test
-  @DisplayName("환율 조회: 현재 · 범위 · 날짜")
+  @DisplayName("환율 조회: 현재 · 범위")
   void exchangeRates() throws Exception {
     given(accountService.getCurrentExchangeRate()).willReturn(new BigDecimal("1350.5"));
     given(accountService.getExchangeRateRange()).willReturn(new ExchangeRateRangeDto(new BigDecimal("1000"), new BigDecimal("1633")));
-    given(accountService.getExchangeRateByDate(LocalDate.of(2024, 1, 15))).willReturn(new BigDecimal("1310"));
 
     mockMvc.perform(get(BASE + "/exchange-rates/current").with(jwt()))
       .andExpect(status().isOk()).andExpect(content().string("1350.5"));
@@ -224,8 +201,6 @@ class AccountControllerTest {
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.min").value(1000))
       .andExpect(jsonPath("$.max").value(1633));
-    mockMvc.perform(get(BASE + "/exchange-rates/2024-01-15").with(jwt()))
-      .andExpect(status().isOk()).andExpect(content().string("1310"));
   }
 
   @Test
@@ -237,14 +212,5 @@ class AccountControllerTest {
     mockMvc.perform(get(BASE + "/exchange-rates/current").with(jwt()))
       .andExpect(status().isServiceUnavailable())
       .andExpect(jsonPath("$.detail").value("환율을 불러오지 못했습니다."));
-  }
-
-  @Test
-  @DisplayName("날짜 형식이 틀리면 400 이다")
-  void exchangeRateByDate_BadDate() throws Exception {
-    mockMvc.perform(get(BASE + "/exchange-rates/2024-13-01").with(jwt()))
-      .andExpect(status().isBadRequest());
-
-    verify(accountService, never()).getExchangeRateByDate(any());
   }
 }

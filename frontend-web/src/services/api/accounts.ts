@@ -94,12 +94,6 @@ export const accountsApi = {
   getExchangeRateRange: () =>
     apiClient.get<ExchangeRateRange>('/accounts/exchange-rates/range'),
 
-  // Bulk 환율 조회 (여러 날짜 한 번에)
-  getExchangeRatesBulk: (dates: string[]) =>
-    apiClient.get<Record<string, number>>('/accounts/exchange-rates/bulk', {
-      params: { dates }
-    }),
-
   // 계좌 삭제
   deleteAccount: (accountId: number) =>
     apiClient.delete<void>(`/accounts/${accountId}`),

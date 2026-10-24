@@ -823,46 +823,6 @@ class AccountServiceImplTest {
   }
 
   @Nested
-  @DisplayName("특정 날짜 환율 조회 테스트")
-  class GetExchangeRateByDateTests {
-
-    @Test
-    @DisplayName("특정 날짜의 환율을 조회한다")
-    void getExchangeRateByDate_Success() {
-      // given
-      LocalDate testDate = LocalDate.of(2025, 1, 15);
-      FxRateDto fxRate = new FxRateDto(testDate, new BigDecimal("1315.50"), "KOREAEXIM");
-
-      given(marketDataServiceClientWrapper.getFxRate(testDate.toString())).willReturn(fxRate);
-
-      // when
-      BigDecimal rate = accountService.getExchangeRateByDate(testDate);
-
-      // then
-      assertThat(rate).isEqualByComparingTo(new BigDecimal("1315.50"));
-    }
-
-    @Test
-    @DisplayName("데이터가 없으면 최신 환율로 fallback한다")
-    void getExchangeRateByDate_NoData_FallbackToLatest() {
-      // given
-      LocalDate testDate = LocalDate.of(2025, 1, 1);
-      FxRateDto latestRate = new FxRateDto(LocalDate.now(), new BigDecimal("1320.00"), "KOREAEXIM");
-
-      given(marketDataServiceClientWrapper.getFxRate(testDate.toString()))
-        .willReturn(null);
-      given(marketDataServiceClientWrapper.getLatestFxRate()).willReturn(latestRate);
-
-      // when
-      BigDecimal rate = accountService.getExchangeRateByDate(testDate);
-
-      // then
-      assertThat(rate).isEqualByComparingTo(new BigDecimal("1320.00"));
-      verify(marketDataServiceClientWrapper).getLatestFxRate();
-    }
-  }
-
-  @Nested
   @DisplayName("거래 완료 이벤트 처리 테스트")
   class ProcessTradeEventTests {
 
@@ -1172,22 +1132,6 @@ class AccountServiceImplTest {
 
       assertThat(testAccount.getBalanceUsd()).isEqualByComparingTo("100");
       verifyNoInteractions(accountHistoryRepository, accountEventProducer);
-    }
-
-    @Test
-    @DisplayName("날짜 환율이 정상 범위를 벗어나면 기록하고 최신 환율을, 조회가 실패해도 최신 환율을 쓴다")
-    void rateByDate_AbnormalOrFailure_FallsBackToLatest() {
-      LocalDate abnormalDay = LocalDate.of(2025, 1, 2);
-      LocalDate failingDay = LocalDate.of(2025, 1, 3);
-      given(marketDataServiceClientWrapper.getFxRate(abnormalDay.toString()))
-        .willReturn(new FxRateDto(abnormalDay, new BigDecimal("5000"), "KOREAEXIM"));
-      given(marketDataServiceClientWrapper.getFxRate(failingDay.toString())).willThrow(new IllegalStateException("down"));
-      given(marketDataServiceClientWrapper.getLatestFxRate())
-        .willReturn(new FxRateDto(LocalDate.now(), new BigDecimal("1320.00"), "KOREAEXIM"));
-
-      assertThat(accountService.getExchangeRateByDate(abnormalDay)).isEqualByComparingTo("1320.00");
-      assertThat(accountService.getExchangeRateByDate(failingDay)).isEqualByComparingTo("1320.00");
-      verify(userLogger).logAbnormalExchangeRate(argThat(rate -> rate.compareTo(new BigDecimal("5000")) == 0), anyString());
     }
 
     @Test

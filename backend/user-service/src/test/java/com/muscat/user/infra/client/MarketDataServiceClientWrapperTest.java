@@ -8,7 +8,6 @@ import com.muscat.commonlib.dto.FxRateDto;
 import com.muscat.commonlib.dto.FxRateRangeDto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.Objects;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -26,24 +25,11 @@ class MarketDataServiceClientWrapperTest {
     FxRateDto rate = new FxRateDto(LocalDate.of(2024, 3, 15), new BigDecimal("1330"), "KOREAEXIM");
     FxRateRangeDto range = new FxRateRangeDto(new BigDecimal("1053.37"), LocalDate.of(2024, 1, 2),
       new BigDecimal("1554.10"), LocalDate.of(2026, 7, 2));
-    given(client.getFxRate("2024-03-15")).willReturn(rate);
     given(client.getLatestFxRate()).willReturn(rate);
     given(client.getFxRateRange()).willReturn(range);
 
-    assertThat(wrapper.getFxRate("2024-03-15")).isSameAs(rate);
     assertThat(wrapper.getLatestFxRate()).isSameAs(rate);
     assertThat(wrapper.getFxRateRange()).isSameAs(range);
-  }
-
-  @Test
-  @DisplayName("날짜 환율을 못 받으면 그 날짜로 기본 환율 1300 을 쓴다")
-  void fxRateFallback() {
-    FxRateDto fallback = Objects.requireNonNull(ReflectionTestUtils.invokeMethod(wrapper, "getFxRateFallback",
-      "2024-03-15", new RuntimeException("down")));
-
-    assertThat(fallback.date()).isEqualTo(LocalDate.of(2024, 3, 15));
-    assertThat(fallback.rate()).isEqualByComparingTo("1300");
-    assertThat(fallback.source()).isEqualTo("FALLBACK");
   }
 
   @Test
