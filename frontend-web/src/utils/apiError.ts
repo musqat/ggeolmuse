@@ -20,6 +20,13 @@ export function getApiErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
+/** 서버가 준 문구(detail · message)만. 없으면 undefined(axios 자체 문구는 안 씀). */
+export function getServerMessage(error: unknown): string | undefined {
+  if (!isAxiosError<ServerErrorBody>(error)) return undefined;
+  const body = error.response?.data;
+  return body?.detail || body?.message || undefined;
+}
+
 /** 서버가 준 오류 코드(chat-service 의 code). 없으면 undefined. */
 export function getApiErrorCode(error: unknown): string | undefined {
   if (!isAxiosError<ServerErrorBody>(error)) return undefined;

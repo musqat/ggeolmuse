@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { authApi } from '../../services/api';
 import { getApiErrorMessage } from '../../utils/apiError';
+import { NICKNAME_HINT, NICKNAME_RULE, NICKNAME_RULE_MESSAGE } from '../../utils/nickname';
 import { notify } from '../common/notify';
 import { DialogField, FormDialog } from '../common/FormDialog';
 
@@ -17,6 +18,10 @@ export const NicknameDialog: React.FC<NicknameDialogProps> = ({ initialNickname,
   const handleChange = async () => {
     if (!nickname.trim()) {
       notify.error('닉네임을 입력해주세요.');
+      return;
+    }
+    if (!NICKNAME_RULE.test(nickname)) {
+      notify.error(NICKNAME_RULE_MESSAGE);
       return;
     }
 
@@ -44,7 +49,7 @@ export const NicknameDialog: React.FC<NicknameDialogProps> = ({ initialNickname,
         type="text"
         value={nickname}
         onChange={(e) => setNickname(e.target.value)}
-        placeholder="변경할 닉네임 입력"
+        placeholder={NICKNAME_HINT}
       />
     </FormDialog>
   );

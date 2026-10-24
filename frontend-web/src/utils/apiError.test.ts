@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { AxiosError, AxiosHeaders } from 'axios'
-import { getApiErrorCode, getApiErrorMessage, getApiErrorStatus } from './apiError'
+import { getApiErrorCode, getApiErrorMessage, getApiErrorStatus, getServerMessage } from './apiError'
 
 /** axios 오류를 만든다. isAxiosError 가 참이 되려면 AxiosError 인스턴스여야 한다. */
 function axiosErrorWith(status: number, data: unknown, message = 'Request failed') {
@@ -13,6 +13,15 @@ function axiosErrorWith(status: number, data: unknown, message = 'Request failed
     data,
   })
 }
+
+describe('getServerMessage', () => {
+  it('서버가 준 detail · message 만 쓰고 없으면 비운다', () => {
+    expect(getServerMessage(axiosErrorWith(409, { detail: '이미 사용 중인 닉네임입니다.' }))).toBe('이미 사용 중인 닉네임입니다.')
+    expect(getServerMessage(axiosErrorWith(409, { message: '이미 사용 중인 이메일입니다.' }))).toBe('이미 사용 중인 이메일입니다.')
+    expect(getServerMessage(axiosErrorWith(409, {}, 'Request failed with status code 409'))).toBeUndefined()
+    expect(getServerMessage(new Error('boom'))).toBeUndefined()
+  })
+})
 
 describe('getApiErrorMessage', () => {
   it('서버가 준 detail 을 쓴다', () => {
