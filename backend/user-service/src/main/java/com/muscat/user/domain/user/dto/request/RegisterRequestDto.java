@@ -1,10 +1,11 @@
 package com.muscat.user.domain.user.dto.request;
 
+import com.muscat.user.common.validation.ValidNickname;
 import com.muscat.user.common.validation.ValidPassword;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -24,9 +25,9 @@ public class RegisterRequestDto {
   @ValidPassword
   private String password;
 
-  @Schema(description = "사용자 닉네임", example = "투자왕김과장", required = true, minLength = 2, maxLength = 20)
-  @NotBlank
-  @Size(min = 2, max = 20, message = "닉네임은 2자 이상 20자 이하이어야 합니다")
+  @Schema(description = "사용자 닉네임(영문 · 숫자 · 한글 · _)", example = "투자왕김과장", required = true, minLength = 2, maxLength = 20)
+  @NotNull(message = "닉네임은 필수입니다")
+  @ValidNickname
   private String nickname;
 
 }

@@ -103,6 +103,21 @@ class UserQueryRepositoryIntegrationTest {
   }
 
   @Test
+  @DisplayName("같은 닉네임으로 다른 사용자를 저장하면 막고, 대소문자가 다르거나 닉네임이 비면 저장한다")
+  void save_DuplicateNickname_Rejected() {
+    assertThatThrownBy(() -> userRepository.saveAndFlush(
+      User.builder().email("same@example.com").nickname("조회").keycloakId("kc-same").build()))
+      .isInstanceOf(DataIntegrityViolationException.class);
+
+    userRepository.saveAndFlush(User.builder().email("upper@example.com").nickname("Query").keycloakId("kc-upper").build());
+    userRepository.saveAndFlush(User.builder().email("lower@example.com").nickname("query").keycloakId("kc-lower").build());
+    userRepository.saveAndFlush(User.builder().email("none1@example.com").keycloakId("kc-none1").build());
+    userRepository.saveAndFlush(User.builder().email("none2@example.com").keycloakId("kc-none2").build());
+
+    assertThat(userRepository.count()).isEqualTo(5);
+  }
+
+  @Test
   @DisplayName("Keycloak ID 없는 사용자는 저장하지 않는다")
   void save_NullKeycloakId_Rejected() {
     assertThatThrownBy(() -> userRepository.saveAndFlush(

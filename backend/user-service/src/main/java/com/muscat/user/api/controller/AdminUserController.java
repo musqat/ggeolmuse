@@ -1,6 +1,7 @@
 package com.muscat.user.api.controller;
 
 import com.muscat.user.common.enums.type.UserRole;
+import com.muscat.user.common.validation.ValidNickname;
 import com.muscat.user.common.validation.ValidPassword;
 import com.muscat.user.domain.account.entity.Account;
 import com.muscat.user.domain.account.entity.DividendSettlement;
@@ -203,7 +204,7 @@ public class AdminUserController {
   @PatchMapping("/{userId}/nickname")
   public ResponseEntity<UserSummary> updateNickname(
     @PathVariable Long userId,
-    @RequestBody UpdateNicknameRequest request) {
+    @Valid @RequestBody UpdateNicknameRequest request) {
 
     log.info("Admin이 사용자 닉네임 강제 변경: userId={}, newNickname={}", userId, request.getNickname());
 
@@ -344,6 +345,8 @@ public class AdminUserController {
   @AllArgsConstructor
   public static class UpdateNicknameRequest {
 
+    @NotNull(message = "닉네임은 필수입니다")
+    @ValidNickname
     private String nickname;
   }
 

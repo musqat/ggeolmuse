@@ -171,6 +171,18 @@ class AdminUserControllerTest {
   }
 
   @Test
+  @DisplayName("관리자 닉네임 변경이 규칙에 안 맞거나 비어 있으면 400 이고 바꾸지 않는다")
+  void updateNickname_BreaksRule_BadRequest() throws Exception {
+    mockMvc.perform(json(patch(BASE + "/" + USER_ID + "/nickname"), """
+        {"nickname":"가 나"}
+        """))
+      .andExpect(status().isBadRequest());
+    mockMvc.perform(json(patch(BASE + "/" + USER_ID + "/nickname"), "{}")).andExpect(status().isBadRequest());
+
+    verify(userService, never()).adminUpdateNickname(anyLong(), any());
+  }
+
+  @Test
   @DisplayName("관리자 비밀번호 변경이 규칙에 안 맞거나 비어 있으면 400 이고 바꾸지 않는다")
   void updatePassword_BreaksRule_BadRequest() throws Exception {
     mockMvc.perform(json(patch(BASE + "/" + USER_ID + "/password"), """
