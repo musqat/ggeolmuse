@@ -1,6 +1,7 @@
 package com.muscat.user.api.controller;
 
 import com.muscat.user.common.enums.type.UserRole;
+import com.muscat.user.common.validation.ValidPassword;
 import com.muscat.user.domain.account.entity.Account;
 import com.muscat.user.domain.account.entity.DividendSettlement;
 import com.muscat.user.domain.account.service.AccountService;
@@ -228,7 +229,7 @@ public class AdminUserController {
   @PatchMapping("/{userId}/password")
   public ResponseEntity<Void> updatePassword(
     @PathVariable Long userId,
-    @RequestBody UpdatePasswordRequest request) {
+    @Valid @RequestBody UpdatePasswordRequest request) {
 
     log.info("Admin이 사용자 비밀번호 강제 변경: userId={}", userId);
 
@@ -351,6 +352,7 @@ public class AdminUserController {
   @AllArgsConstructor
   public static class UpdatePasswordRequest {
 
+    @ValidPassword
     private String newPassword;
   }
 

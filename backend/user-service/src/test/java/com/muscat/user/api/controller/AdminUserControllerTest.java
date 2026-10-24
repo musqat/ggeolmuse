@@ -171,6 +171,18 @@ class AdminUserControllerTest {
   }
 
   @Test
+  @DisplayName("관리자 비밀번호 변경이 규칙에 안 맞거나 비어 있으면 400 이고 바꾸지 않는다")
+  void updatePassword_BreaksRule_BadRequest() throws Exception {
+    mockMvc.perform(json(patch(BASE + "/" + USER_ID + "/password"), """
+        {"newPassword":"short"}
+        """))
+      .andExpect(status().isBadRequest());
+    mockMvc.perform(json(patch(BASE + "/" + USER_ID + "/password"), "{}")).andExpect(status().isBadRequest());
+
+    verify(userService, never()).adminUpdatePassword(anyLong(), any());
+  }
+
+  @Test
   @DisplayName("통계의 비활성 수는 전체 − 활성이다")
   void stats_InactiveIsTotalMinusActive() throws Exception {
     given(userService.countTotalUsers()).willReturn(10L);
