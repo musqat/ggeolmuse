@@ -47,6 +47,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
@@ -85,6 +86,17 @@ class AdminUserControllerTest {
   private static User user() {
     return User.builder().id(USER_ID).email("user@example.com").nickname("투자자").role(UserRole.USER)
       .enabled(true).emailVerified(true).build();
+  }
+
+  // 변경 응답에 user() 의 요약이 그대로 담겼는지 확인
+  private static void expectSummary(ResultActions result) throws Exception {
+    result.andExpect(status().isOk())
+      .andExpect(jsonPath("$.userId").value(USER_ID))
+      .andExpect(jsonPath("$.email").value("user@example.com"))
+      .andExpect(jsonPath("$.username").value("투자자"))
+      .andExpect(jsonPath("$.role").value("USER"))
+      .andExpect(jsonPath("$.enabled").value(true))
+      .andExpect(jsonPath("$.emailVerified").value(true));
   }
 
   @Test
@@ -137,20 +149,16 @@ class AdminUserControllerTest {
     given(userService.adminUpdateNickname(USER_ID, "새이름")).willReturn(user());
     given(userService.adminVerifyEmail(USER_ID)).willReturn(user());
 
-    mockMvc.perform(json(patch(BASE + "/" + USER_ID + "/role"), """
+    expectSummary(mockMvc.perform(json(patch(BASE + "/" + USER_ID + "/role"), """
         {"role":"ADMIN"}
-        """))
-      .andExpect(status().isOk()).andExpect(jsonPath("$.userId").value(USER_ID));
-    mockMvc.perform(json(patch(BASE + "/" + USER_ID + "/enabled"), """
+        """)));
+    expectSummary(mockMvc.perform(json(patch(BASE + "/" + USER_ID + "/enabled"), """
         {"enabled":false}
-        """))
-      .andExpect(status().isOk());
-    mockMvc.perform(json(patch(BASE + "/" + USER_ID + "/nickname"), """
+        """)));
+    expectSummary(mockMvc.perform(json(patch(BASE + "/" + USER_ID + "/nickname"), """
         {"nickname":"새이름"}
-        """))
-      .andExpect(status().isOk());
-    mockMvc.perform(patch(BASE + "/" + USER_ID + "/verify-email").with(admin()))
-      .andExpect(status().isOk());
+        """)));
+    expectSummary(mockMvc.perform(patch(BASE + "/" + USER_ID + "/verify-email").with(admin())));
 
     verify(userService).updateUserRole(USER_ID, UserRole.ADMIN, "kc-admin");
     verify(userService).updateUserEnabled(USER_ID, false);

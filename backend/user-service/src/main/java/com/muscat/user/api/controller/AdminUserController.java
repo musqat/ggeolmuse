@@ -66,16 +66,7 @@ public class AdminUserController {
     Pageable pageable = PageRequest.of(page, size, Sort.by(direction, property));
     Page<User> users = userService.getAllUsers(pageable);
 
-    Page<UserSummary> userSummaries = users.map(user -> UserSummary.builder()
-      .userId(user.getId())
-      .email(user.getEmail())
-      .username(user.getNickname())
-      .role(user.getRole())
-      .enabled(user.isEnabled())
-      .emailVerified(user.isEmailVerified())
-      .createdAt(user.getCreatedAt())
-      .lastLoginAt(user.getLastLoginAt())
-      .build());
+    Page<UserSummary> userSummaries = users.map(UserSummary::from);
 
     return ResponseEntity.ok(userSummaries);
   }
@@ -127,18 +118,7 @@ public class AdminUserController {
 
     User updatedUser = userService.updateUserRole(userId, request.getRole(), jwt.getSubject());
 
-    UserSummary summary = UserSummary.builder()
-      .userId(updatedUser.getId())
-      .email(updatedUser.getEmail())
-      .username(updatedUser.getNickname())
-      .role(updatedUser.getRole())
-      .enabled(updatedUser.isEnabled())
-      .emailVerified(updatedUser.isEmailVerified())
-      .createdAt(updatedUser.getCreatedAt())
-      .lastLoginAt(updatedUser.getLastLoginAt())
-      .build();
-
-    return ResponseEntity.ok(summary);
+    return ResponseEntity.ok(UserSummary.from(updatedUser));
   }
 
   /**
@@ -153,18 +133,7 @@ public class AdminUserController {
 
     User updatedUser = userService.updateUserEnabled(userId, request.getEnabled());
 
-    UserSummary summary = UserSummary.builder()
-      .userId(updatedUser.getId())
-      .email(updatedUser.getEmail())
-      .username(updatedUser.getNickname())
-      .role(updatedUser.getRole())
-      .enabled(updatedUser.isEnabled())
-      .emailVerified(updatedUser.isEmailVerified())
-      .createdAt(updatedUser.getCreatedAt())
-      .lastLoginAt(updatedUser.getLastLoginAt())
-      .build();
-
-    return ResponseEntity.ok(summary);
+    return ResponseEntity.ok(UserSummary.from(updatedUser));
   }
 
   // 계좌 · 종목 · 배당락일마다 지금까지 넣은 배당
@@ -210,18 +179,7 @@ public class AdminUserController {
 
     User updatedUser = userService.adminUpdateNickname(userId, request.getNickname());
 
-    UserSummary summary = UserSummary.builder()
-      .userId(updatedUser.getId())
-      .email(updatedUser.getEmail())
-      .username(updatedUser.getNickname())
-      .role(updatedUser.getRole())
-      .enabled(updatedUser.isEnabled())
-      .emailVerified(updatedUser.isEmailVerified())
-      .createdAt(updatedUser.getCreatedAt())
-      .lastLoginAt(updatedUser.getLastLoginAt())
-      .build();
-
-    return ResponseEntity.ok(summary);
+    return ResponseEntity.ok(UserSummary.from(updatedUser));
   }
 
   /**
@@ -248,18 +206,7 @@ public class AdminUserController {
 
     User updatedUser = userService.adminVerifyEmail(userId);
 
-    UserSummary summary = UserSummary.builder()
-      .userId(updatedUser.getId())
-      .email(updatedUser.getEmail())
-      .username(updatedUser.getNickname())
-      .role(updatedUser.getRole())
-      .enabled(updatedUser.isEnabled())
-      .emailVerified(updatedUser.isEmailVerified())
-      .createdAt(updatedUser.getCreatedAt())
-      .lastLoginAt(updatedUser.getLastLoginAt())
-      .build();
-
-    return ResponseEntity.ok(summary);
+    return ResponseEntity.ok(UserSummary.from(updatedUser));
   }
 
   /**
@@ -290,6 +237,19 @@ public class AdminUserController {
     private boolean emailVerified;
     private LocalDateTime createdAt;
     private LocalDateTime lastLoginAt;
+
+    public static UserSummary from(User user) {
+      return UserSummary.builder()
+        .userId(user.getId())
+        .email(user.getEmail())
+        .username(user.getNickname())
+        .role(user.getRole())
+        .enabled(user.isEnabled())
+        .emailVerified(user.isEmailVerified())
+        .createdAt(user.getCreatedAt())
+        .lastLoginAt(user.getLastLoginAt())
+        .build();
+    }
   }
 
   @Data
