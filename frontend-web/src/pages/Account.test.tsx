@@ -39,7 +39,7 @@ beforeEach(() => {
   vi.mocked(accountsApi.getAccounts).mockResolvedValue({ data: [ACCOUNT] } as never)
   vi.mocked(accountsApi.getCurrentExchangeRate).mockResolvedValue({ data: 1350 } as never)
   vi.mocked(accountsApi.getAccountBalance).mockResolvedValue({
-    data: { balanceKrw: 1_000_000, balanceUsd: 100, slippageRate: 0.001 },
+    data: { balanceKrw: 1_000_000, balanceUsd: 100, slippageRate: 0.001, currentExchangeRate: 1350 },
   } as never)
   vi.mocked(portfolioApi.getPortfolio).mockResolvedValue({ data: [] } as never)
 })

@@ -45,11 +45,11 @@ const calculateTotalAssets = (
   return calculateCash(accountBalances, exchangeRate) + stocks;
 };
 
-// 로그인했을 때 계좌 목록 · 잔액 · 포트폴리오 요약 · 환율을 불러옴
+// 로그인했을 때 계좌 목록 · 잔액(현재 환율 포함) · 포트폴리오 요약을 불러옴
 export const useAccountData = (isAuthenticated: boolean): UseAccountDataReturn => {
   const queryClient = useQueryClient();
 
-  // 계좌 목록 · 환율 · 잔액 · 포트폴리오를 한 번에 조회
+  // 계좌 목록 · 잔액 · 포트폴리오를 한 번에 조회
   const {
     data,
     isLoading: loading,
@@ -61,10 +61,6 @@ export const useAccountData = (isAuthenticated: boolean): UseAccountDataReturn =
       // 계좌 목록(진행 중인 같은 요청이 있으면 같이 씀)
       const accountList = await queryClient.fetchQuery({ ...accountListQuery, staleTime: 0 });
 
-      // 현재 환율
-      const rateResponse = await accountsApi.getCurrentExchangeRate();
-      const exchangeRate = rateResponse.data;
-
       // 계좌마다 잔액(병렬)
       const balancePromises = accountList.map(account =>
         accountsApi.getAccountBalance(account.accountId)
@@ -75,6 +71,9 @@ export const useAccountData = (isAuthenticated: boolean): UseAccountDataReturn =
       balanceResults.forEach(result => {
         balanceMap.set(result.accountId, result.balance);
       });
+
+      // 원화 환산 환율은 잔액 응답의 현재 환율
+      const exchangeRate = balanceResults[0]?.balance.currentExchangeRate ?? 0;
 
       // 포트폴리오 전체(총자산 계산용, 실패해도 계속)
       let portfolioSummary: PortfolioSummaryResponse | null = null;

@@ -29,7 +29,7 @@ beforeEach(() => {
   vi.mocked(stockApi.getAllSymbols).mockResolvedValue({ data: [] } as never)
   vi.mocked(accountsApi.getAccounts).mockResolvedValue({ data: [{ accountId: 1 }] } as never)
   vi.mocked(accountsApi.getCurrentExchangeRate).mockResolvedValue({ data: 1350 } as never)
-  vi.mocked(accountsApi.getAccountBalance).mockResolvedValue({ data: { balanceKrw: 1_000_000, balanceUsd: 100 } } as never)
+  vi.mocked(accountsApi.getAccountBalance).mockResolvedValue({ data: { balanceKrw: 1_000_000, balanceUsd: 100, currentExchangeRate: 1350 } } as never)
   vi.mocked(portfolioApi.getPortfolio).mockResolvedValue({ data: [{ symbol: 'AAPL', currentPrice: 200 }] } as never)
   vi.mocked(portfolioApi.getPortfolioSummary).mockResolvedValue({ data: { totalCurrentValue: 200 } } as never)
 })
