@@ -157,3 +157,84 @@ test('입금하고 사면 보유 종목과 거래 내역에 남는다', async ()
   await auth.dispose();
   await plain.dispose();
 });
+
+test('판 만큼 매도 가능 금액이 그대로 들어오고 보유 · 거래 내역이 바뀐다', async () => {
+  const auth = await authContext();
+  const plain = await request.newContext();
+
+  // 수수료 · 슬리피지가 붙는 새 계좌. 끝에 지움
+  const accountName = `E2E 매도 ${process.hrtime.bigint().toString(36).slice(-6)}`;
+  const created = await auth.post(`${API_URL}/accounts`, { data: { accountName, commissionRate: 0.002 } });
+  expect(created.status(), `계좌 생성이 실패했다: ${await created.text()}`).toBe(201);
+  const accountId: number = (await created.json()).id;
+
+  const usdBalance = async () => {
+    const res = await auth.get(`${API_URL}/accounts/${accountId}/balance`);
+    expect(res.status()).toBe(200);
+    return Number((await res.json()).balanceUsd);
+  };
+  const holds = async (symbol: string) => {
+    const res = await auth.get(`${API_URL}/portfolio/account/${accountId}`);
+    expect(res.status()).toBe(200);
+    return ((await res.json()) as Array<{ symbol: string }>).some((h) => h.symbol === symbol);
+  };
+
+  try {
+    // 입금 뒤 허용 범위 가운데 환율로 전부 환전
+    const deposit = await auth.post(`${API_URL}/accounts/${accountId}/deposit`, { data: { krwAmount: KRW_DEPOSIT } });
+    expect(deposit.status(), '입금이 실패했다').toBeLessThan(300);
+    const range = await (await auth.get(`${API_URL}/accounts/exchange-rates/range`)).json();
+    const rate = Math.round((Number(range.min) + Number(range.max)) / 2);
+    const exchange = await auth.post(`${API_URL}/accounts/${accountId}/exchange`, {
+      data: { fromCurrency: 'KRW', toCurrency: 'USD', originalAmount: KRW_DEPOSIT, exchangeRate: rate },
+    });
+    expect(exchange.status(), `환전이 실패했다: ${await exchange.text()}`).toBeLessThan(300);
+
+    const { symbol } = await pickSymbol(plain);
+    const { end: tradeDate } = await priceRange(plain, symbol);
+    const order = { accountId, symbol, quantity: 1, tradeDate, priceType: 'CLOSE' as const };
+
+    // 사고 정산될 때까지 기다림
+    const buy = await auth.post(`${API_URL}/trade/buy`, { data: order });
+    expect(buy.status(), `매수가 실패했다: ${await buy.text()}`).toBeLessThan(300);
+    await expect.poll(() => holds(symbol), { message: `${symbol} 매수가 정산되지 않는다`, timeout: 10_000 }).toBe(true);
+
+    // 팔면 받을 금액(슬리피지로 싸진 체결가에서 수수료를 뺀 값)
+    const canSell = await auth.post(`${API_URL}/trade/can-sell`, { data: { accountId, symbol, tradeDate, quantity: 1 } });
+    expect(canSell.status(), `can-sell 이 실패했다: ${await canSell.text()}`).toBe(200);
+    const sellCap = await canSell.json();
+    expect(Number(sellCap.maxSellableShares), '산 한 주를 팔 수 없다고 한다').toBe(1);
+    const proceeds = Number(Number(sellCap.totalValue).toFixed(2));
+
+    const before = await usdBalance();
+    const sell = await auth.post(`${API_URL}/trade/sell`, { data: order });
+    expect(sell.status(), `매도가 실패했다: ${await sell.text()}`).toBeLessThan(300);
+
+    // 판 돈은 user-service 가 체결 이벤트로 넣어 기다렸다 봄
+    await expect
+      .poll(async () => Number(((await usdBalance()) - before).toFixed(2)), {
+        message: '판 돈이 매도 가능 금액과 다르게 들어온다',
+        timeout: 10_000,
+      })
+      .toBe(proceeds);
+
+    expect(await holds(symbol), '다 팔았는데 보유 목록에 남아 있다').toBe(false);
+
+    const history = await auth.get(`${API_URL}/trade-history/history`, { params: { page: 0, size: 20 } });
+    expect(history.status()).toBe(200);
+    const body = await history.json();
+    const rows = (Array.isArray(body) ? body : (body.content ?? [])) as Array<{
+      accountId: number;
+      symbol: string;
+      tradeType: string;
+    }>;
+    expect(
+      rows.some((r) => r.accountId === accountId && r.symbol === symbol && r.tradeType === 'SELL'),
+      '판 거래가 거래 내역에 없다'
+    ).toBe(true);
+  } finally {
+    await auth.delete(`${API_URL}/accounts/${accountId}`);
+    await auth.dispose();
+    await plain.dispose();
+  }
+});
