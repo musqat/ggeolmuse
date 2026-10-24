@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { getApiErrorMessage, getApiErrorStatus } from '../../utils/apiError';
+import { getApiErrorMessage, getApiErrorStatus, getServerMessage } from '../../utils/apiError';
+import { NICKNAME_HINT, NICKNAME_RULE, NICKNAME_RULE_MESSAGE } from '../../utils/nickname';
 import { PASSWORD_HINT, PASSWORD_RULE, PASSWORD_RULE_MESSAGE } from '../../utils/password';
 import {
   AuthModalFrame,
@@ -42,6 +43,10 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
   };
 
   const validateForm = () => {
+    if (!NICKNAME_RULE.test(formData.nickname)) {
+      setError(NICKNAME_RULE_MESSAGE);
+      return false;
+    }
     if (formData.password !== formData.confirmPassword) {
       setError('비밀번호가 일치하지 않습니다.');
       return false;
@@ -82,7 +87,8 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
       let errorMessage = '회원가입에 실패했습니다. 다시 시도해주세요.';
 
       if (status === 409) {
-        errorMessage = '이미 가입된 이메일입니다.';
+        // 409 는 서버 문구 그대로(이메일 · 닉네임 중 겹친 쪽)
+        errorMessage = getServerMessage(err) ?? '이미 가입된 이메일입니다.';
       } else if (status === 400) {
         errorMessage = '입력한 정보가 올바르지 않습니다. 다시 확인해주세요.';
       } else {
@@ -123,7 +129,7 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
           label="닉네임"
           value={formData.nickname}
           onChange={handleInputChange('nickname')}
-          placeholder="사용할 닉네임을 입력하세요"
+          placeholder={NICKNAME_HINT}
         />
         <AuthTextField
           id="email"

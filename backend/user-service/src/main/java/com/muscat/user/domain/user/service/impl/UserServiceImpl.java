@@ -6,6 +6,7 @@ import com.muscat.user.common.exception.AuthenticationException;
 import com.muscat.user.common.exception.KeycloakException;
 import com.muscat.user.common.exception.UserException;
 import com.muscat.user.common.util.RateLimitService;
+import com.muscat.user.common.validation.NicknameRule;
 import com.muscat.user.config.mail.MailService;
 import com.muscat.user.domain.account.entity.Account;
 import com.muscat.user.domain.account.repository.AccountRepository;
@@ -72,6 +73,10 @@ public class UserServiceImpl implements UserService {
       log.warn("회원가입 실패 - 이미 존재하는 이메일: {}", email);
       throw new UserException(UserResponse.EMAIL_ALREADY_EXISTS);
     }
+    if (userRepository.existsByNickname(nickname)) {
+      log.warn("회원가입 실패 - 이미 쓰는 닉네임: {}", nickname);
+      throw new UserException(UserResponse.NICKNAME_ALREADY_EXISTS);
+    }
 
     String keycloakId;
 
@@ -105,7 +110,27 @@ public class UserServiceImpl implements UserService {
 
     } catch (Exception e) {
       log.error("로컬 DB 저장 중 오류: {}", e.getMessage(), e);
+      deleteKeycloakUserQuietly(keycloakId);
       throw new UserException(UserResponse.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  // 구글 이름을 닉네임 규칙에 맞게 다듬은 값. 규칙에 못 맞추거나 다른 사용자가 쓰면 null
+  private String availableNickname(String name) {
+    String cleaned = NicknameRule.clean(name);
+    if (cleaned == null || userRepository.existsByNickname(cleaned)) {
+      log.info("구글 이름을 닉네임으로 못 씀 - 비워 두고 만듦");
+      return null;
+    }
+    return cleaned;
+  }
+
+  // DB 저장이 실패한 가입의 Keycloak 계정 삭제(삭제도 실패하면 로그만)
+  private void deleteKeycloakUserQuietly(String keycloakId) {
+    try {
+      keycloakService.deleteUser(keycloakId);
+    } catch (Exception e) {
+      log.error("가입 되돌리기 실패 - Keycloak 계정이 남음: keycloakId={}", keycloakId, e);
     }
   }
 
@@ -118,7 +143,7 @@ public class UserServiceImpl implements UserService {
     }
 
     try {
-      User user = userMapper.createLocalUser(email, nickname, keycloakId);
+      User user = userMapper.createLocalUser(email, availableNickname(nickname), keycloakId);
       user.verifyEmail(); // OAuth 사용자는 이미 이메일 인증됨
 
       // OAuth 사용자는 비밀번호 없음 (null로 유지)
@@ -563,6 +588,9 @@ public class UserServiceImpl implements UserService {
     log.info("Admin이 사용자 닉네임 강제 변경: userId={}, oldNickname={}, newNickname={}",
       userId, user.getNickname(), nickname);
 
+    if (!nickname.equals(user.getNickname()) && userRepository.existsByNickname(nickname)) {
+      throw new UserException(UserResponse.NICKNAME_ALREADY_EXISTS);
+    }
     user.changeNickname(nickname);
     return userRepository.save(user);
   }

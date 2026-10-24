@@ -19,8 +19,8 @@ function renderModal(onSignup = vi.fn().mockResolvedValue(undefined)) {
 }
 
 // 칸을 모두 채우고 회원가입을 누름
-async function signup(user: ReturnType<typeof userEvent.setup>, password: string, confirm = password) {
-  await user.type(screen.getByLabelText('닉네임'), '새이름')
+async function signup(user: ReturnType<typeof userEvent.setup>, password: string, confirm = password, nickname = '새이름') {
+  await user.type(screen.getByLabelText('닉네임'), nickname)
   await user.type(screen.getByLabelText('이메일'), 'new@example.local')
   await user.type(screen.getByLabelText('비밀번호'), password)
   await user.type(screen.getByLabelText('비밀번호 확인'), confirm)
@@ -50,7 +50,7 @@ describe('SignupModal', () => {
 
     await signup(user, password)
 
-    expect(screen.getByText('비밀번호는 8자 이상이며, 영문, 숫자, 특수문자를 포함해야 합니다.')).toBeInTheDocument()
+    expect(screen.getByText('비밀번호는 8 ~ 100자이고 영문, 숫자, 특수문자를 각각 하나 이상 포함해야 합니다.')).toBeInTheDocument()
     expect(onSignup).not.toHaveBeenCalled()
   })
 
@@ -74,6 +74,27 @@ describe('SignupModal', () => {
     await signup(user, 'abcd123!')
 
     expect(await screen.findByText('이미 가입된 이메일입니다.')).toBeInTheDocument()
+  })
+
+  it.each([['띄어쓰기가 있으면', '투자 자'], ['한 글자면', '새'], ['기호가 있으면', '투자자!']])('닉네임에 %s 보내지 않고 서버와 같은 규칙을 알린다', async (_, nickname) => {
+    const user = userEvent.setup()
+    const { onSignup } = renderModal()
+
+    await signup(user, 'abcd123!', 'abcd123!', nickname)
+
+    expect(screen.getByText('닉네임은 2 ~ 20자의 영문, 숫자, 한글, _ 만 쓸 수 있습니다.')).toBeInTheDocument()
+    expect(onSignup).not.toHaveBeenCalled()
+  })
+
+  it('409 에 서버 문구가 있으면 그 문구(닉네임 중복 등)를 보인다', async () => {
+    const user = userEvent.setup()
+    renderModal(vi.fn().mockRejectedValue(new AxiosError('fail', 'ERR', undefined, undefined, {
+      status: 409, data: { detail: '이미 사용 중인 닉네임입니다.' }, statusText: '', headers: {}, config: {},
+    } as AxiosResponse)))
+
+    await signup(user, 'abcd123!')
+
+    expect(await screen.findByText('이미 사용 중인 닉네임입니다.')).toBeInTheDocument()
   })
 
   it('인증 메일을 다시 보내면 보냈다고 보인다', async () => {

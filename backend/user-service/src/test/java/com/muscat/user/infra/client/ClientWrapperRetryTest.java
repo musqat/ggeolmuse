@@ -13,9 +13,7 @@ import feign.Request;
 import feign.Response;
 import io.github.resilience4j.springboot3.circuitbreaker.autoconfigure.CircuitBreakerAutoConfiguration;
 import io.github.resilience4j.springboot3.retry.autoconfigure.RetryAutoConfiguration;
-import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
-import java.time.LocalDate;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -61,7 +59,6 @@ class ClientWrapperRetryTest {
 
   static Stream<Call> calls() {
     return Stream.of(
-      new Call("날짜 환율", c -> c.getFxRate("2024-09-16"), w -> w.getFxRate("2024-09-16"), mock(FxRateDto.class)),
       new Call("최신 환율", MarketDataServiceClient::getLatestFxRate, MarketDataServiceClientWrapper::getLatestFxRate,
         mock(FxRateDto.class)),
       new Call("환율 범위", MarketDataServiceClient::getFxRateRange, MarketDataServiceClientWrapper::getFxRateRange,
@@ -79,15 +76,12 @@ class ClientWrapperRetryTest {
   }
 
   @Test
-  @DisplayName("날짜 환율이 세 번 다 5xx 면 그 날짜의 기본 환율 1300 으로 넘어간다")
-  void fxRate_ServerErrorEveryTime_DefaultRate() {
-    given(client.getFxRate("2024-09-16")).willThrow(serverError(), serverError(), serverError());
+  @DisplayName("최신 환율이 세 번 다 5xx 면 지어낸 환율 없이 비워 둔다")
+  void latestFxRate_ServerErrorEveryTime_Empty() {
+    given(client.getLatestFxRate()).willThrow(serverError(), serverError(), serverError());
 
-    FxRateDto fallback = wrapper.getFxRate("2024-09-16");
-
-    assertThat(fallback.date()).isEqualTo(LocalDate.of(2024, 9, 16));
-    assertThat(fallback.rate()).isEqualByComparingTo(BigDecimal.valueOf(1300));
-    verify(client, times(3)).getFxRate("2024-09-16");
+    assertThat(wrapper.getLatestFxRate()).isNull();
+    verify(client, times(3)).getLatestFxRate();
   }
 
   private static FeignException serverError() {

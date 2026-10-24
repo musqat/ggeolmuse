@@ -370,34 +370,59 @@ class AccountServiceImplTest {
     }
 
     @Test
-    @DisplayName("환율 조회 실패 시 Fallback 환율을 반환한다")
-    void getCurrentExchangeRate_Failure_ReturnsFallback() {
+    @DisplayName("환율을 못 받으면 고정 환율 대신 환율 서비스 오류를 낸다")
+    void getCurrentExchangeRate_Failure_Throws() {
       // given
       given(marketDataServiceClientWrapper.getLatestFxRate())
         .willThrow(new RuntimeException("Service unavailable"));
 
-      // when
-      BigDecimal rate = accountService.getCurrentExchangeRate();
-
-      // then
-      assertThat(rate).isEqualByComparingTo(new BigDecimal("1350")); // fallback
-      verify(userLogger).logExchangeRateFallback(any(BigDecimal.class), anyString());
+      // when & then
+      assertThatThrownBy(() -> accountService.getCurrentExchangeRate())
+        .isInstanceOf(AccountException.class)
+        .hasMessage(AccountResponse.EXCHANGE_RATE_SERVICE_ERROR.getMessage());
     }
 
     @Test
-    @DisplayName("비정상적인 환율은 Fallback으로 대체된다")
-    void getCurrentExchangeRate_AbnormalRate_ReturnsFallback() {
+    @DisplayName("시세 서비스가 환율을 비워 주면(재시도까지 실패) 환율 서비스 오류를 낸다")
+    void getCurrentExchangeRate_NoRate_Throws() {
+      // given
+      given(marketDataServiceClientWrapper.getLatestFxRate()).willReturn(null);
+
+      // when & then
+      assertThatThrownBy(() -> accountService.getCurrentExchangeRate())
+        .isInstanceOf(AccountException.class)
+        .hasMessage(AccountResponse.EXCHANGE_RATE_SERVICE_ERROR.getMessage());
+    }
+
+    @Test
+    @DisplayName("받은 환율이 정상 범위 밖이면 고정 환율 대신 환율 서비스 오류를 낸다")
+    void getCurrentExchangeRate_AbnormalRate_Throws() {
       // given
       FxRateDto fxRate = new FxRateDto(LocalDate.now(), new BigDecimal("5000"), "KOREAEXIM"); // 비정상
 
       given(marketDataServiceClientWrapper.getLatestFxRate()).willReturn(fxRate);
 
+      // when & then
+      assertThatThrownBy(() -> accountService.getCurrentExchangeRate())
+        .isInstanceOf(AccountException.class)
+        .hasMessage(AccountResponse.EXCHANGE_RATE_SERVICE_ERROR.getMessage());
+      verify(userLogger).logAbnormalExchangeRate(any(BigDecimal.class), anyString());
+    }
+
+    @Test
+    @DisplayName("잔액 화면의 원화 환산은 환율을 못 받아도 고정 환율로 보여 준다")
+    void getAccountBalance_RateFailure_UsesFallbackForDisplay() {
+      // given
+      given(accountRepository.findByIdAndUserId(accountId, userId)).willReturn(Optional.of(testAccount));
+      given(marketDataServiceClientWrapper.getLatestFxRate())
+        .willThrow(new RuntimeException("Service unavailable"));
+
       // when
-      BigDecimal rate = accountService.getCurrentExchangeRate();
+      BalanceResponseDto result = accountService.getAccountBalance(accountId, userId);
 
       // then
-      assertThat(rate).isEqualByComparingTo(new BigDecimal("1350")); // fallback
-      verify(userLogger).logAbnormalExchangeRate(any(BigDecimal.class), anyString());
+      assertThat(result).isNotNull();
+      verify(userLogger).logExchangeRateFallback(any(BigDecimal.class), anyString());
     }
   }
 
@@ -798,46 +823,6 @@ class AccountServiceImplTest {
   }
 
   @Nested
-  @DisplayName("특정 날짜 환율 조회 테스트")
-  class GetExchangeRateByDateTests {
-
-    @Test
-    @DisplayName("특정 날짜의 환율을 조회한다")
-    void getExchangeRateByDate_Success() {
-      // given
-      LocalDate testDate = LocalDate.of(2025, 1, 15);
-      FxRateDto fxRate = new FxRateDto(testDate, new BigDecimal("1315.50"), "KOREAEXIM");
-
-      given(marketDataServiceClientWrapper.getFxRate(testDate.toString())).willReturn(fxRate);
-
-      // when
-      BigDecimal rate = accountService.getExchangeRateByDate(testDate);
-
-      // then
-      assertThat(rate).isEqualByComparingTo(new BigDecimal("1315.50"));
-    }
-
-    @Test
-    @DisplayName("데이터가 없으면 최신 환율로 fallback한다")
-    void getExchangeRateByDate_NoData_FallbackToLatest() {
-      // given
-      LocalDate testDate = LocalDate.of(2025, 1, 1);
-      FxRateDto latestRate = new FxRateDto(LocalDate.now(), new BigDecimal("1320.00"), "KOREAEXIM");
-
-      given(marketDataServiceClientWrapper.getFxRate(testDate.toString()))
-        .willReturn(null);
-      given(marketDataServiceClientWrapper.getLatestFxRate()).willReturn(latestRate);
-
-      // when
-      BigDecimal rate = accountService.getExchangeRateByDate(testDate);
-
-      // then
-      assertThat(rate).isEqualByComparingTo(new BigDecimal("1320.00"));
-      verify(marketDataServiceClientWrapper).getLatestFxRate();
-    }
-  }
-
-  @Nested
   @DisplayName("거래 완료 이벤트 처리 테스트")
   class ProcessTradeEventTests {
 
@@ -1147,22 +1132,6 @@ class AccountServiceImplTest {
 
       assertThat(testAccount.getBalanceUsd()).isEqualByComparingTo("100");
       verifyNoInteractions(accountHistoryRepository, accountEventProducer);
-    }
-
-    @Test
-    @DisplayName("날짜 환율이 정상 범위를 벗어나면 기록하고 최신 환율을, 조회가 실패해도 최신 환율을 쓴다")
-    void rateByDate_AbnormalOrFailure_FallsBackToLatest() {
-      LocalDate abnormalDay = LocalDate.of(2025, 1, 2);
-      LocalDate failingDay = LocalDate.of(2025, 1, 3);
-      given(marketDataServiceClientWrapper.getFxRate(abnormalDay.toString()))
-        .willReturn(new FxRateDto(abnormalDay, new BigDecimal("5000"), "KOREAEXIM"));
-      given(marketDataServiceClientWrapper.getFxRate(failingDay.toString())).willThrow(new IllegalStateException("down"));
-      given(marketDataServiceClientWrapper.getLatestFxRate())
-        .willReturn(new FxRateDto(LocalDate.now(), new BigDecimal("1320.00"), "KOREAEXIM"));
-
-      assertThat(accountService.getExchangeRateByDate(abnormalDay)).isEqualByComparingTo("1320.00");
-      assertThat(accountService.getExchangeRateByDate(failingDay)).isEqualByComparingTo("1320.00");
-      verify(userLogger).logAbnormalExchangeRate(argThat(rate -> rate.compareTo(new BigDecimal("5000")) == 0), anyString());
     }
 
     @Test

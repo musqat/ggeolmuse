@@ -20,8 +20,8 @@ beforeEach(() => {
   vi.mocked(accountsApi.getAccounts).mockResolvedValue({ data: [{ accountId: 1 }, { accountId: 2 }] } as never)
   vi.mocked(accountsApi.getCurrentExchangeRate).mockResolvedValue({ data: 1350 } as never)
   vi.mocked(accountsApi.getAccountBalance)
-    .mockResolvedValueOnce({ data: { balanceKrw: 1_000_000, balanceUsd: 100 } } as never)
-    .mockResolvedValueOnce({ data: { balanceKrw: 500_000, balanceUsd: 0 } } as never)
+    .mockResolvedValueOnce({ data: { balanceKrw: 1_000_000, balanceUsd: 100, currentExchangeRate: 1350 } } as never)
+    .mockResolvedValueOnce({ data: { balanceKrw: 500_000, balanceUsd: 0, currentExchangeRate: 1350 } } as never)
   vi.mocked(portfolioApi.getPortfolio).mockResolvedValue({ data: [{ symbol: 'AAPL', currentPrice: 200 }] } as never)
   vi.mocked(portfolioApi.getPortfolioSummary).mockResolvedValue({ data: { totalCurrentValue: 200 } } as never)
 })
@@ -39,6 +39,16 @@ describe('useAccountData 총자산', () => {
 
     // 1,000,000 + 100 × 1,350 + 500,000
     await waitFor(() => expect(result.current.cashKrw).toBe(1_635_000))
+  })
+
+  it('환율은 따로 받지 않고 잔액 응답의 현재 환율로 세어, 현재 환율 API 가 안 돼도 보인다', async () => {
+    vi.mocked(accountsApi.getCurrentExchangeRate).mockRejectedValue(new Error('503'))
+
+    const { result } = renderHook(() => useAccountData(true), { wrapper })
+
+    await waitFor(() => expect(result.current.totalAssets).toBe(1_905_000))
+    expect(result.current.currentExchangeRate).toBe(1350)
+    expect(accountsApi.getCurrentExchangeRate).not.toHaveBeenCalled()
   })
 
   it('포트폴리오를 못 받으면 현금만 더한다', async () => {

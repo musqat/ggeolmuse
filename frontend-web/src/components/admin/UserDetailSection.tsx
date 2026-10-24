@@ -4,6 +4,8 @@ import type { UserDetail } from '@services/adminApi';
 import { notify } from '@/components/common/notify';
 import { DialogField, FormDialog } from '@/components/common/FormDialog';
 import { SOLID_BUTTON } from '@/styles/buttons';
+import { NICKNAME_RULE, NICKNAME_RULE_MESSAGE } from '@/utils/nickname';
+import { PASSWORD_RULE, PASSWORD_RULE_MESSAGE } from '@/utils/password';
 
 interface UserDetailSectionProps {
   user: UserDetail | null;
@@ -59,6 +61,10 @@ export default function UserDetailSection({
       notify.error('닉네임을 입력하세요.');
       return;
     }
+    if (!NICKNAME_RULE.test(newNickname)) {
+      notify.error(NICKNAME_RULE_MESSAGE);
+      return;
+    }
     onUpdateNickname(user.userId, newNickname);
     closeNicknameModal();
   };
@@ -72,8 +78,8 @@ export default function UserDetailSection({
       notify.error('비밀번호가 일치하지 않습니다.');
       return;
     }
-    if (newPassword.length < 8) {
-      notify.error('비밀번호는 최소 8자 이상이어야 합니다.');
+    if (!PASSWORD_RULE.test(newPassword)) {
+      notify.error(PASSWORD_RULE_MESSAGE);
       return;
     }
     onUpdatePassword(user.userId, newPassword);

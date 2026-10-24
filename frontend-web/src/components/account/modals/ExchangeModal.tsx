@@ -16,8 +16,9 @@ interface ExchangeModalProps {
     exchangeRate: number;
   }) =>Promise<void>;
   accountBalance: AccountBalance | undefined;
-  currentExchangeRate: number;
 }
+
+const RATE_FAILED_MESSAGE = '환율을 불러오지 못했습니다. 다시 시도하거나 수동 환율 입력으로 넣어 주세요.';
 
 // KRW ↔ USD 환전 창(현재 환율 · 수동 환율 중 고름)
 const ExchangeModal: React.FC<ExchangeModalProps> = ({
@@ -25,12 +26,21 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
   onClose,
   onSubmit,
   accountBalance,
-  currentExchangeRate,
 }) => {
   const [exchangeFromCurrency, setExchangeFromCurrency] = useState<'KRW' | 'USD'>('KRW');
   const [exchangeAmount, setExchangeAmount] = useState('');
   const [useManualRate, setUseManualRate] = useState(false);
   const [manualExchangeRate, setManualExchangeRate] = useState('');
+
+  // 환전에 쓸 현재 환율(못 받으면 다시 시도 · 수동 환율 안내)
+  const rateQuery = useQuery({
+    queryKey: ['exchange-rate', 'current'],
+    queryFn: async () => (await accountsApi.getCurrentExchangeRate()).data,
+    enabled: isOpen,
+    staleTime: 60 * 1000,
+    retry: false,
+  });
+  const currentExchangeRate = rateQuery.data;
 
   // 수동 환율 입력 범위(서버 검사 범위와 같음)
   const { data: rateRange } = useQuery({
@@ -68,6 +78,10 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
         return;
       }
     } else {
+      if (rateQuery.isError) {
+        notify.error(RATE_FAILED_MESSAGE);
+        return;
+      }
       if (!currentExchangeRate || currentExchangeRate <= 0) {
         notify.error('환율 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
         return;
@@ -128,11 +142,24 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
       footer={footer}
       maxWidth="md"
     >
-      <div className="mb-4 p-3 bg-info/10 rounded-lg">
-        <p className="text-sm text-info">
-          현재 환율: ₩{currentExchangeRate.toLocaleString()}/USD
-        </p>
-      </div>
+      {rateQuery.isError ? (
+        <div role="alert" className="mb-4 p-3 bg-danger/10 rounded-lg flex items-center justify-between gap-3">
+          <p className="text-sm text-danger">{RATE_FAILED_MESSAGE}</p>
+          <button
+            type="button"
+            onClick={() => void rateQuery.refetch()}
+            className="shrink-0 py-1 px-3 bg-elevated text-tx-1 rounded-md hover:bg-hover transition-colors text-sm"
+          >
+            다시 시도
+          </button>
+        </div>
+      ) : (
+        <div className="mb-4 p-3 bg-info/10 rounded-lg">
+          <p className="text-sm text-info">
+            현재 환율: {currentExchangeRate ? `₩${currentExchangeRate.toLocaleString()}/USD` : '불러오는 중'}
+          </p>
+        </div>
+      )}
 
       <div className="space-y-4">
         <div>

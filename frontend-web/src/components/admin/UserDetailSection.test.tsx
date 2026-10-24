@@ -39,17 +39,31 @@ describe('UserDetailSection', () => {
     expect(screen.queryByRole('button', { name: '변경하기' })).toBeNull()
   })
 
-  it('비밀번호가 8자보다 짧으면 넘기지 않는다', async () => {
+  it('닉네임이 규칙에 안 맞으면 넘기지 않고 서버와 같은 규칙을 알린다', async () => {
+    const user = userEvent.setup()
+    const { onUpdateNickname } = renderSection()
+
+    await user.click(screen.getByRole('button', { name: '변경' }))
+    const input = screen.getByPlaceholderText('새 닉네임 입력')
+    await user.clear(input)
+    await user.type(input, '가 나')
+    await user.click(screen.getByRole('button', { name: '변경하기' }))
+
+    expect(notify.error).toHaveBeenCalledWith('닉네임은 2 ~ 20자의 영문, 숫자, 한글, _ 만 쓸 수 있습니다.')
+    expect(onUpdateNickname).not.toHaveBeenCalled()
+  })
+
+  it.each([['8자보다 짧으면', 'abc12!'], ['특수문자가 없으면', 'abcd1234']])('비밀번호가 %s 넘기지 않고 서버와 같은 규칙을 알린다', async (_, password) => {
     const user = userEvent.setup()
     const { onUpdatePassword } = renderSection()
 
     await user.click(screen.getByRole('button', { name: '비밀번호 강제 변경' }))
     const [newInput, confirmInput] = document.querySelectorAll<HTMLInputElement>('input[type="password"]')
-    await user.type(newInput, 'abc12')
-    await user.type(confirmInput, 'abc12')
+    await user.type(newInput, password)
+    await user.type(confirmInput, password)
     await user.click(screen.getByRole('button', { name: '변경하기' }))
 
-    expect(notify.error).toHaveBeenCalledWith('비밀번호는 최소 8자 이상이어야 합니다.')
+    expect(notify.error).toHaveBeenCalledWith('비밀번호는 8 ~ 100자이고 영문, 숫자, 특수문자를 각각 하나 이상 포함해야 합니다.')
     expect(onUpdatePassword).not.toHaveBeenCalled()
   })
 })

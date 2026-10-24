@@ -66,7 +66,7 @@ describe('PasswordReset', () => {
 
     await submit(user, 'abcdefgh')
 
-    expect(screen.getByText('비밀번호는 8자 이상이며, 영문, 숫자, 특수문자를 포함해야 합니다.')).toBeInTheDocument()
+    expect(screen.getByText('비밀번호는 8 ~ 100자이고 영문, 숫자, 특수문자를 각각 하나 이상 포함해야 합니다.')).toBeInTheDocument()
     expect(resetPassword).not.toHaveBeenCalled()
   })
 

@@ -1,6 +1,8 @@
 package com.muscat.user.api.controller;
 
 import com.muscat.user.common.enums.type.UserRole;
+import com.muscat.user.common.validation.ValidNickname;
+import com.muscat.user.common.validation.ValidPassword;
 import com.muscat.user.domain.account.entity.Account;
 import com.muscat.user.domain.account.entity.DividendSettlement;
 import com.muscat.user.domain.account.service.AccountService;
@@ -64,16 +66,7 @@ public class AdminUserController {
     Pageable pageable = PageRequest.of(page, size, Sort.by(direction, property));
     Page<User> users = userService.getAllUsers(pageable);
 
-    Page<UserSummary> userSummaries = users.map(user -> UserSummary.builder()
-      .userId(user.getId())
-      .email(user.getEmail())
-      .username(user.getNickname())
-      .role(user.getRole())
-      .enabled(user.isEnabled())
-      .emailVerified(user.isEmailVerified())
-      .createdAt(user.getCreatedAt())
-      .lastLoginAt(user.getLastLoginAt())
-      .build());
+    Page<UserSummary> userSummaries = users.map(UserSummary::from);
 
     return ResponseEntity.ok(userSummaries);
   }
@@ -125,18 +118,7 @@ public class AdminUserController {
 
     User updatedUser = userService.updateUserRole(userId, request.getRole(), jwt.getSubject());
 
-    UserSummary summary = UserSummary.builder()
-      .userId(updatedUser.getId())
-      .email(updatedUser.getEmail())
-      .username(updatedUser.getNickname())
-      .role(updatedUser.getRole())
-      .enabled(updatedUser.isEnabled())
-      .emailVerified(updatedUser.isEmailVerified())
-      .createdAt(updatedUser.getCreatedAt())
-      .lastLoginAt(updatedUser.getLastLoginAt())
-      .build();
-
-    return ResponseEntity.ok(summary);
+    return ResponseEntity.ok(UserSummary.from(updatedUser));
   }
 
   /**
@@ -145,24 +127,13 @@ public class AdminUserController {
   @PatchMapping("/{userId}/enabled")
   public ResponseEntity<UserSummary> updateUserEnabled(
     @PathVariable Long userId,
-    @RequestBody UpdateEnabledRequest request) {
+    @Valid @RequestBody UpdateEnabledRequest request) {
 
-    log.info("사용자 활성화 상태 변경: userId={}, enabled={}", userId, request.isEnabled());
+    log.info("사용자 활성화 상태 변경: userId={}, enabled={}", userId, request.getEnabled());
 
-    User updatedUser = userService.updateUserEnabled(userId, request.isEnabled());
+    User updatedUser = userService.updateUserEnabled(userId, request.getEnabled());
 
-    UserSummary summary = UserSummary.builder()
-      .userId(updatedUser.getId())
-      .email(updatedUser.getEmail())
-      .username(updatedUser.getNickname())
-      .role(updatedUser.getRole())
-      .enabled(updatedUser.isEnabled())
-      .emailVerified(updatedUser.isEmailVerified())
-      .createdAt(updatedUser.getCreatedAt())
-      .lastLoginAt(updatedUser.getLastLoginAt())
-      .build();
-
-    return ResponseEntity.ok(summary);
+    return ResponseEntity.ok(UserSummary.from(updatedUser));
   }
 
   // 계좌 · 종목 · 배당락일마다 지금까지 넣은 배당
@@ -202,24 +173,13 @@ public class AdminUserController {
   @PatchMapping("/{userId}/nickname")
   public ResponseEntity<UserSummary> updateNickname(
     @PathVariable Long userId,
-    @RequestBody UpdateNicknameRequest request) {
+    @Valid @RequestBody UpdateNicknameRequest request) {
 
     log.info("Admin이 사용자 닉네임 강제 변경: userId={}, newNickname={}", userId, request.getNickname());
 
     User updatedUser = userService.adminUpdateNickname(userId, request.getNickname());
 
-    UserSummary summary = UserSummary.builder()
-      .userId(updatedUser.getId())
-      .email(updatedUser.getEmail())
-      .username(updatedUser.getNickname())
-      .role(updatedUser.getRole())
-      .enabled(updatedUser.isEnabled())
-      .emailVerified(updatedUser.isEmailVerified())
-      .createdAt(updatedUser.getCreatedAt())
-      .lastLoginAt(updatedUser.getLastLoginAt())
-      .build();
-
-    return ResponseEntity.ok(summary);
+    return ResponseEntity.ok(UserSummary.from(updatedUser));
   }
 
   /**
@@ -228,7 +188,7 @@ public class AdminUserController {
   @PatchMapping("/{userId}/password")
   public ResponseEntity<Void> updatePassword(
     @PathVariable Long userId,
-    @RequestBody UpdatePasswordRequest request) {
+    @Valid @RequestBody UpdatePasswordRequest request) {
 
     log.info("Admin이 사용자 비밀번호 강제 변경: userId={}", userId);
 
@@ -246,18 +206,7 @@ public class AdminUserController {
 
     User updatedUser = userService.adminVerifyEmail(userId);
 
-    UserSummary summary = UserSummary.builder()
-      .userId(updatedUser.getId())
-      .email(updatedUser.getEmail())
-      .username(updatedUser.getNickname())
-      .role(updatedUser.getRole())
-      .enabled(updatedUser.isEnabled())
-      .emailVerified(updatedUser.isEmailVerified())
-      .createdAt(updatedUser.getCreatedAt())
-      .lastLoginAt(updatedUser.getLastLoginAt())
-      .build();
-
-    return ResponseEntity.ok(summary);
+    return ResponseEntity.ok(UserSummary.from(updatedUser));
   }
 
   /**
@@ -288,6 +237,19 @@ public class AdminUserController {
     private boolean emailVerified;
     private LocalDateTime createdAt;
     private LocalDateTime lastLoginAt;
+
+    public static UserSummary from(User user) {
+      return UserSummary.builder()
+        .userId(user.getId())
+        .email(user.getEmail())
+        .username(user.getNickname())
+        .role(user.getRole())
+        .enabled(user.isEnabled())
+        .emailVerified(user.isEmailVerified())
+        .createdAt(user.getCreatedAt())
+        .lastLoginAt(user.getLastLoginAt())
+        .build();
+    }
   }
 
   @Data
@@ -335,7 +297,8 @@ public class AdminUserController {
   @AllArgsConstructor
   public static class UpdateEnabledRequest {
 
-    private boolean enabled;
+    @NotNull
+    private Boolean enabled;
   }
 
   @Data
@@ -343,6 +306,8 @@ public class AdminUserController {
   @AllArgsConstructor
   public static class UpdateNicknameRequest {
 
+    @NotNull(message = "닉네임은 필수입니다")
+    @ValidNickname
     private String nickname;
   }
 
@@ -351,6 +316,7 @@ public class AdminUserController {
   @AllArgsConstructor
   public static class UpdatePasswordRequest {
 
+    @ValidPassword
     private String newPassword;
   }
 

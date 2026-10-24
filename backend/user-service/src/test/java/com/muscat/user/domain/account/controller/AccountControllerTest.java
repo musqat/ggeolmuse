@@ -15,6 +15,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.muscat.user.common.enums.response.AccountResponse;
+import com.muscat.user.common.exception.AccountException;
 import com.muscat.user.common.exception.GlobalExceptionHandler;
 import com.muscat.user.common.util.AuthUtil;
 import com.muscat.user.config.security.SecurityConfig;
@@ -78,12 +80,6 @@ class AccountControllerTest {
   private static String exchangeBody(String from, String to) {
     return """
       {"fromCurrency":"%s","toCurrency":"%s","originalAmount":100,"exchangeRate":1300}
-      """.formatted(from, to);
-  }
-
-  private static String exchangeByDateBody(String from, String to) {
-    return """
-      {"fromCurrency":"%s","toCurrency":"%s","originalAmount":100,"exchangeDate":"2024-03-15"}
       """.formatted(from, to);
   }
 
@@ -188,33 +184,16 @@ class AccountControllerTest {
   void exchange_UnsupportedCurrency_BadRequest() throws Exception {
     mockMvc.perform(json(post(BASE + "/" + ACCOUNT_ID + "/exchange"), exchangeBody("KRW", "KRW")))
       .andExpect(status().isBadRequest());
-    mockMvc.perform(json(post(BASE + "/" + ACCOUNT_ID + "/exchange/by-date"), exchangeByDateBody("USD", "JPY")))
-      .andExpect(status().isBadRequest());
 
     verify(accountService, never()).exchangeKrwToUsd(anyLong(), anyLong(), any(), any());
     verify(accountService, never()).exchangeUsdToKrw(anyLong(), anyLong(), any(), any());
   }
 
   @Test
-  @DisplayName("날짜 환전은 그날 환율을 조회해 그 환율로 바꾼다")
-  void exchangeByDate_UsesRateOfDate() throws Exception {
-    given(accountService.getExchangeRateByDate(LocalDate.of(2024, 3, 15))).willReturn(new BigDecimal("1330"));
-
-    mockMvc.perform(json(post(BASE + "/" + ACCOUNT_ID + "/exchange/by-date"), exchangeByDateBody("USD", "KRW")))
-      .andExpect(status().isOk());
-    mockMvc.perform(json(post(BASE + "/" + ACCOUNT_ID + "/exchange/by-date"), exchangeByDateBody("KRW", "USD")))
-      .andExpect(status().isOk());
-
-    verify(accountService).exchangeUsdToKrw(ACCOUNT_ID, USER_ID, new BigDecimal("100"), new BigDecimal("1330"));
-    verify(accountService).exchangeKrwToUsd(ACCOUNT_ID, USER_ID, new BigDecimal("100"), new BigDecimal("1330"));
-  }
-
-  @Test
-  @DisplayName("환율 조회: 현재 · 범위 · 날짜")
+  @DisplayName("환율 조회: 현재 · 범위")
   void exchangeRates() throws Exception {
     given(accountService.getCurrentExchangeRate()).willReturn(new BigDecimal("1350.5"));
     given(accountService.getExchangeRateRange()).willReturn(new ExchangeRateRangeDto(new BigDecimal("1000"), new BigDecimal("1633")));
-    given(accountService.getExchangeRateByDate(LocalDate.of(2024, 1, 15))).willReturn(new BigDecimal("1310"));
 
     mockMvc.perform(get(BASE + "/exchange-rates/current").with(jwt()))
       .andExpect(status().isOk()).andExpect(content().string("1350.5"));
@@ -222,16 +201,16 @@ class AccountControllerTest {
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.min").value(1000))
       .andExpect(jsonPath("$.max").value(1633));
-    mockMvc.perform(get(BASE + "/exchange-rates/2024-01-15").with(jwt()))
-      .andExpect(status().isOk()).andExpect(content().string("1310"));
   }
 
   @Test
-  @DisplayName("날짜 형식이 틀리면 400 이다")
-  void exchangeRateByDate_BadDate() throws Exception {
-    mockMvc.perform(get(BASE + "/exchange-rates/2024-13-01").with(jwt()))
-      .andExpect(status().isBadRequest());
+  @DisplayName("현재 환율을 못 받으면 503 과 환율을 못 불러왔다는 문구를 준다")
+  void currentExchangeRate_Unavailable_ServiceUnavailable() throws Exception {
+    given(accountService.getCurrentExchangeRate())
+      .willThrow(new AccountException(AccountResponse.EXCHANGE_RATE_SERVICE_ERROR));
 
-    verify(accountService, never()).getExchangeRateByDate(any());
+    mockMvc.perform(get(BASE + "/exchange-rates/current").with(jwt()))
+      .andExpect(status().isServiceUnavailable())
+      .andExpect(jsonPath("$.detail").value("환율을 불러오지 못했습니다."));
   }
 }

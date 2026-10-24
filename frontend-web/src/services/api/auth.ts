@@ -29,7 +29,7 @@ type ResendVerificationRequest = {
 export type User = {
   id: number;
   email: string;
-  nickname: string;                     // 닉네임
+  nickname: string | null;              // 닉네임(아직 안 정했으면 null)
   role: 'USER' | 'ADMIN';               // 사용자 역할
   provider: string;                     // 로그인 제공자 (LOCAL, GOOGLE)
   emailVerified: boolean;               // 이메일 인증 여부

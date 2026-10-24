@@ -37,6 +37,7 @@ npx playwright test
 | `account-lifecycle` | 가입되는가. 이메일 인증 전에 로그인이 막히는가. 탈퇴 · 관리자 승격 · 강등이 되는가. 앱을 거치지 않고 Keycloak 에서 바로 받은 토큰이 막히는가 |
 | `pages` | 남은 화면 10개가 흰 화면 없이 열리는가 |
 | `compare-ui` | 종목 비교가 화면에서 끝까지 도는가 |
+| `exchange-ui` | 화면에서 입금 · 환전하면 잔액이 바뀌는가. 환전 창이 서버의 현재 환율이나 못 받았다는 안내를 보이는가 |
 
 `backtest-ui` 가 가장 중요하다. 요청 하나가 게이트웨이와 backtest-service 를 거쳐
 market-data 를 여러 번 부른다. 여기가 초록이면 시스템이 살아 있다는 뜻이다.

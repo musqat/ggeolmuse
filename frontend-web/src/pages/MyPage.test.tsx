@@ -49,7 +49,7 @@ function renderPage(
 // 닉네임 창에서 칸을 비우고 새 닉네임으로 변경
 async function changeNickname(user: ReturnType<typeof userEvent.setup>, name: string) {
   await user.click(await screen.findByText('닉네임 변경', { selector: 'p' }))
-  const input = screen.getByPlaceholderText('변경할 닉네임 입력')
+  const input = screen.getByLabelText('새 닉네임')
   await user.clear(input)
   await user.type(input, name)
   await user.click(screen.getByRole('button', { name: '변경하기' }))
@@ -179,7 +179,7 @@ describe('MyPage 비밀번호 변경', () => {
 
     await changePassword(user, 'old-pass1', 'abcd1234')
 
-    expect(notify.error).toHaveBeenCalledWith('비밀번호는 8자 이상이며, 영문, 숫자, 특수문자를 포함해야 합니다.')
+    expect(notify.error).toHaveBeenCalledWith('비밀번호는 8 ~ 100자이고 영문, 숫자, 특수문자를 각각 하나 이상 포함해야 합니다.')
     expect(authApi.changePassword).not.toHaveBeenCalled()
   })
 })
@@ -190,6 +190,13 @@ describe('MyPage 사용자 정보', () => {
 
     expect(await screen.findByRole('heading', { name: '머스캣' })).toBeInTheDocument()
     expect(authApi.getCurrentUser).not.toHaveBeenCalled()
+  })
+
+  it('닉네임이 비어 있으면 닉네임 없음으로 보인다', async () => {
+    renderPage({ nickname: null })
+
+    expect(await screen.findByRole('heading', { name: '닉네임 없음' })).toBeInTheDocument()
+    expect(screen.getByText('현재: 없음')).toBeInTheDocument()
   })
 
   it('닉네임을 바꾸면 로그인 상태의 사용자 정보를 새로 받는다', async () => {

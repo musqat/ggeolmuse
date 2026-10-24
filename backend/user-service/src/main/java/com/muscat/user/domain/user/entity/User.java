@@ -43,6 +43,8 @@ public class User {
   @Column(name = "password_hash")
   private String passwordHash; // Primary password
 
+  // 사용자마다 다름(대소문자 구분), 비면 아직 안 정함
+  @Column(unique = true)
   private String nickname;
 
   @Column(nullable = false, unique = true)
@@ -119,21 +121,6 @@ public class User {
   // 계정 활성화/비활성화 (관리자용)
   public void changeEnabledStatus(boolean enabled) {
     this.enabled = enabled;
-  }
-
-  // 소셜 정보 업데이트
-  public void updateSocialInfo(String socialEmail, String profileImageUrl) {
-    this.socialEmail = socialEmail;
-    this.profileImageUrl = profileImageUrl;
-  }
-
-  // 소셜 정보 업데이트 (닉네임 포함)
-  public void updateSocialInfoWithNickname(String socialEmail, String profileImageUrl, String nickname) {
-    this.socialEmail = socialEmail;
-    this.profileImageUrl = profileImageUrl;
-    if (nickname != null && !nickname.isBlank()) {
-      this.nickname = nickname;
-    }
   }
 
 }

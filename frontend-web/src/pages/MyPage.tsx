@@ -77,7 +77,7 @@ const MyPage: React.FC = () => {
               <UserIcon className="w-12 h-12 text-brand" />
             </div>
             <div className="flex-1">
-              <h2 className="text-2xl font-bold text-tx-1">{user.nickname}</h2>
+              <h2 className="text-2xl font-bold text-tx-1">{user.nickname ?? '닉네임 없음'}</h2>
               <p className="text-tx-2">{user.email}</p>
             </div>
             {user.emailVerified && (
@@ -125,7 +125,7 @@ const MyPage: React.FC = () => {
                 <Edit2 className="w-5 h-5 text-brand" />
                 <div className="text-left">
                   <p className="font-medium text-tx-1">닉네임 변경</p>
-                  <p className="text-sm text-tx-2">현재: {user.nickname}</p>
+                  <p className="text-sm text-tx-2">현재: {user.nickname ?? '없음'}</p>
                 </div>
               </div>
               <span className="text-tx-3">›</span>
@@ -196,7 +196,7 @@ const MyPage: React.FC = () => {
 
       {showNicknameModal && (
         <NicknameDialog
-          initialNickname={user.nickname}
+          initialNickname={user.nickname ?? ''}
           onClose={() => setShowNicknameModal(false)}
           onChanged={refreshAfterNicknameChange}
         />

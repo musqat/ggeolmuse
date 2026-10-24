@@ -211,6 +211,57 @@ class UserServiceImplTest {
     }
 
     @Test
+    @DisplayName("다른 사용자가 쓰는 닉네임이면 Keycloak 계정을 만들기 전에 막는다")
+    void registerUser_NicknameTaken_Rejected() {
+      // given
+      given(userRepository.existsByEmail(testEmail)).willReturn(false);
+      given(userRepository.existsByNickname(testNickname)).willReturn(true);
+
+      // when & then
+      assertThatThrownBy(() -> userService.registerUser(testEmail, testPassword, testNickname))
+        .isInstanceOf(UserException.class)
+        .hasMessage(UserResponse.NICKNAME_ALREADY_EXISTS.getMessage());
+      verify(keycloakService, never()).createUser(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("DB 저장이 실패하면 먼저 만든 Keycloak 계정을 지운다")
+    void registerUser_LocalSaveFailure_DeletesKeycloakUser() {
+      // given
+      given(userRepository.existsByEmail(testEmail)).willReturn(false);
+      given(keycloakService.createUser(testEmail, testPassword)).willReturn(keycloakId);
+      given(userMapper.createLocalUser(testEmail, testNickname, keycloakId)).willReturn(testUser);
+      given(passwordEncoder.encode(testPassword)).willReturn("$2a$10$encodedPassword");
+      given(userRepository.save(any(User.class)))
+        .willThrow(new org.springframework.dao.DataAccessResourceFailureException("DB 연결 실패"));
+
+      // when & then
+      assertThatThrownBy(() -> userService.registerUser(testEmail, testPassword, testNickname))
+        .isInstanceOf(UserException.class)
+        .hasMessage(UserResponse.INTERNAL_SERVER_ERROR.getMessage());
+      verify(keycloakService).deleteUser(keycloakId);
+    }
+
+    @Test
+    @DisplayName("Keycloak 계정 지우기까지 실패해도 처음 오류로 응답한다")
+    void registerUser_LocalSaveAndCleanupFailure_KeepsOriginalError() {
+      // given
+      given(userRepository.existsByEmail(testEmail)).willReturn(false);
+      given(keycloakService.createUser(testEmail, testPassword)).willReturn(keycloakId);
+      given(userMapper.createLocalUser(testEmail, testNickname, keycloakId)).willReturn(testUser);
+      given(passwordEncoder.encode(testPassword)).willReturn("$2a$10$encodedPassword");
+      given(userRepository.save(any(User.class)))
+        .willThrow(new org.springframework.dao.DataAccessResourceFailureException("DB 연결 실패"));
+      willThrow(new KeycloakException(KeycloakResponse.USER_DELETE_FAILED))
+        .given(keycloakService).deleteUser(keycloakId);
+
+      // when & then
+      assertThatThrownBy(() -> userService.registerUser(testEmail, testPassword, testNickname))
+        .isInstanceOf(UserException.class)
+        .hasMessage(UserResponse.INTERNAL_SERVER_ERROR.getMessage());
+    }
+
+    @Test
     @DisplayName("이메일 발송 실패 시에도 사용자 등록은 성공한다")
     void registerUser_EmailSendFailure_StillSucceeds() {
       // given
@@ -444,6 +495,51 @@ class UserServiceImplTest {
       assertThat(result.getEmail()).isEqualTo(testEmail);
       assertThat(result.getNickname()).isEqualTo(testNickname);
       verify(userRepository).save(created);
+    }
+
+    @Test
+    @DisplayName("구글 이름은 띄어쓰기 · 기호를 빼고 20자까지 닉네임으로 쓴다")
+    void getOrCreateProfile_GoogleName_CleanedToRule() {
+      User created = User.builder().id(2L).keycloakId(keycloakId).email(testEmail).nickname("HongGildong").build();
+      given(userRepository.findByKeycloakId(keycloakId)).willReturn(Optional.empty());
+      given(userRepository.existsByEmail(testEmail)).willReturn(false);
+      given(userMapper.createLocalUser(testEmail, "HongGildong", keycloakId)).willReturn(created);
+      given(userRepository.save(created)).willReturn(created);
+
+      userService.getOrCreateProfile(keycloakId, testEmail, "Hong Gildong!");
+
+      verify(userMapper).createLocalUser(testEmail, "HongGildong", keycloakId);
+      verify(userMapper, never()).createLocalUser(testEmail, "Hong Gildong!", keycloakId);
+    }
+
+    @Test
+    @DisplayName("구글 이름이 다른 사용자의 닉네임이면 닉네임을 비워 두고 만든다")
+    void getOrCreateProfile_GoogleNameTaken_LeavesNicknameEmpty() {
+      User created = User.builder().id(2L).keycloakId(keycloakId).email(testEmail).build();
+      given(userRepository.findByKeycloakId(keycloakId)).willReturn(Optional.empty());
+      given(userRepository.existsByEmail(testEmail)).willReturn(false);
+      given(userRepository.existsByNickname("홍길동")).willReturn(true);
+      given(userMapper.createLocalUser(testEmail, null, keycloakId)).willReturn(created);
+      given(userRepository.save(created)).willReturn(created);
+
+      User result = userService.getOrCreateProfile(keycloakId, testEmail, "홍길동");
+
+      assertThat(result.getNickname()).isNull();
+      verify(userMapper).createLocalUser(testEmail, null, keycloakId);
+    }
+
+    @Test
+    @DisplayName("구글 이름을 다듬어 2자가 안 되면 닉네임을 비워 두고 만든다")
+    void getOrCreateProfile_GoogleNameTooShort_LeavesNicknameEmpty() {
+      User created = User.builder().id(2L).keycloakId(keycloakId).email(testEmail).build();
+      given(userRepository.findByKeycloakId(keycloakId)).willReturn(Optional.empty());
+      given(userRepository.existsByEmail(testEmail)).willReturn(false);
+      given(userMapper.createLocalUser(testEmail, null, keycloakId)).willReturn(created);
+      given(userRepository.save(created)).willReturn(created);
+
+      userService.getOrCreateProfile(keycloakId, testEmail, "J!");
+
+      verify(userMapper).createLocalUser(testEmail, null, keycloakId);
     }
 
     @Test
@@ -1073,6 +1169,30 @@ class UserServiceImplTest {
 
       // then
       assertThat(result.getNickname()).isEqualTo(newNickname);
+      verify(userRepository).save(testUser);
+    }
+
+    @Test
+    @DisplayName("관리자도 다른 사용자가 쓰는 닉네임으로는 바꾸지 못한다")
+    void adminUpdateNickname_TakenByOther_Rejected() {
+      given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
+      given(userRepository.existsByNickname("Taken")).willReturn(true);
+
+      assertThatThrownBy(() -> userService.adminUpdateNickname(1L, "Taken"))
+        .isInstanceOf(UserException.class)
+        .hasMessage(UserResponse.NICKNAME_ALREADY_EXISTS.getMessage());
+      verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("관리자가 지금 닉네임 그대로 저장하면 중복으로 보지 않는다")
+    void adminUpdateNickname_SameNickname_Saves() {
+      given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
+      given(userRepository.save(testUser)).willReturn(testUser);
+
+      userService.adminUpdateNickname(1L, testNickname);
+
+      verify(userRepository, never()).existsByNickname(anyString());
       verify(userRepository).save(testUser);
     }
 

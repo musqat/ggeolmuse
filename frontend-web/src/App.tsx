@@ -5,6 +5,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { AiChatProvider } from './contexts/AiChatContext';
 import { AuthModalProvider } from './contexts/AuthModalContext';
 import { Notifications } from './components/common/Notifications';
+import { NicknameRequiredPrompt } from './components/auth/NicknameRequiredPrompt';
 import { Spinner } from './components/common/Spinner';
 import Header from '@components/common/Header';
 import Footer from '@components/layout/Footer';
@@ -50,6 +51,7 @@ function App() {
           <div className="App min-h-screen bg-surface/50">
             <Header />
             <Notifications />
+            <NicknameRequiredPrompt />
             <main>
             <Suspense fallback={
               <div className="flex items-center justify-center min-h-screen">

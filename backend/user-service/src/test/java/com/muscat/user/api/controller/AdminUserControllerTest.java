@@ -2,6 +2,7 @@ package com.muscat.user.api.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
@@ -46,6 +47,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
@@ -84,6 +86,17 @@ class AdminUserControllerTest {
   private static User user() {
     return User.builder().id(USER_ID).email("user@example.com").nickname("투자자").role(UserRole.USER)
       .enabled(true).emailVerified(true).build();
+  }
+
+  // 변경 응답에 user() 의 요약이 그대로 담겼는지 확인
+  private static void expectSummary(ResultActions result) throws Exception {
+    result.andExpect(status().isOk())
+      .andExpect(jsonPath("$.userId").value(USER_ID))
+      .andExpect(jsonPath("$.email").value("user@example.com"))
+      .andExpect(jsonPath("$.username").value("투자자"))
+      .andExpect(jsonPath("$.role").value("USER"))
+      .andExpect(jsonPath("$.enabled").value(true))
+      .andExpect(jsonPath("$.emailVerified").value(true));
   }
 
   @Test
@@ -136,20 +149,16 @@ class AdminUserControllerTest {
     given(userService.adminUpdateNickname(USER_ID, "새이름")).willReturn(user());
     given(userService.adminVerifyEmail(USER_ID)).willReturn(user());
 
-    mockMvc.perform(json(patch(BASE + "/" + USER_ID + "/role"), """
+    expectSummary(mockMvc.perform(json(patch(BASE + "/" + USER_ID + "/role"), """
         {"role":"ADMIN"}
-        """))
-      .andExpect(status().isOk()).andExpect(jsonPath("$.userId").value(USER_ID));
-    mockMvc.perform(json(patch(BASE + "/" + USER_ID + "/enabled"), """
+        """)));
+    expectSummary(mockMvc.perform(json(patch(BASE + "/" + USER_ID + "/enabled"), """
         {"enabled":false}
-        """))
-      .andExpect(status().isOk());
-    mockMvc.perform(json(patch(BASE + "/" + USER_ID + "/nickname"), """
+        """)));
+    expectSummary(mockMvc.perform(json(patch(BASE + "/" + USER_ID + "/nickname"), """
         {"nickname":"새이름"}
-        """))
-      .andExpect(status().isOk());
-    mockMvc.perform(patch(BASE + "/" + USER_ID + "/verify-email").with(admin()))
-      .andExpect(status().isOk());
+        """)));
+    expectSummary(mockMvc.perform(patch(BASE + "/" + USER_ID + "/verify-email").with(admin())));
 
     verify(userService).updateUserRole(USER_ID, UserRole.ADMIN, "kc-admin");
     verify(userService).updateUserEnabled(USER_ID, false);
@@ -168,6 +177,42 @@ class AdminUserControllerTest {
 
     verify(userService).adminUpdatePassword(USER_ID, "N3w-pass!");
     verify(userService).adminDeleteUser(USER_ID);
+  }
+
+  @Test
+  @DisplayName("활성 변경 본문에 값이 없으면 400 이고 계정 상태를 바꾸지 않는다")
+  void updateEnabled_WithoutValue_BadRequest() throws Exception {
+    mockMvc.perform(json(patch(BASE + "/" + USER_ID + "/enabled"), "{}")).andExpect(status().isBadRequest());
+    mockMvc.perform(json(patch(BASE + "/" + USER_ID + "/enabled"), """
+        {"enabled":null}
+        """))
+      .andExpect(status().isBadRequest());
+
+    verify(userService, never()).updateUserEnabled(anyLong(), anyBoolean());
+  }
+
+  @Test
+  @DisplayName("관리자 닉네임 변경이 규칙에 안 맞거나 비어 있으면 400 이고 바꾸지 않는다")
+  void updateNickname_BreaksRule_BadRequest() throws Exception {
+    mockMvc.perform(json(patch(BASE + "/" + USER_ID + "/nickname"), """
+        {"nickname":"가 나"}
+        """))
+      .andExpect(status().isBadRequest());
+    mockMvc.perform(json(patch(BASE + "/" + USER_ID + "/nickname"), "{}")).andExpect(status().isBadRequest());
+
+    verify(userService, never()).adminUpdateNickname(anyLong(), any());
+  }
+
+  @Test
+  @DisplayName("관리자 비밀번호 변경이 규칙에 안 맞거나 비어 있으면 400 이고 바꾸지 않는다")
+  void updatePassword_BreaksRule_BadRequest() throws Exception {
+    mockMvc.perform(json(patch(BASE + "/" + USER_ID + "/password"), """
+        {"newPassword":"short"}
+        """))
+      .andExpect(status().isBadRequest());
+    mockMvc.perform(json(patch(BASE + "/" + USER_ID + "/password"), "{}")).andExpect(status().isBadRequest());
+
+    verify(userService, never()).adminUpdatePassword(anyLong(), any());
   }
 
   @Test

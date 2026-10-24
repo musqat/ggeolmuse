@@ -21,7 +21,7 @@ export default function AdminLayout() {
             <div className="flex items-center gap-6">
               <span className="text-sm">
                 <span className="opacity-75">관리자:</span>{' '}
-                <span className="font-semibold">{user?.nickname}</span>
+                <span className="font-semibold">{user?.nickname ?? user?.email}</span>
               </span>
               <button
                 onClick={() => navigate('/')}
