@@ -105,7 +105,17 @@ public class UserServiceImpl implements UserService {
 
     } catch (Exception e) {
       log.error("로컬 DB 저장 중 오류: {}", e.getMessage(), e);
+      deleteKeycloakUserQuietly(keycloakId);
       throw new UserException(UserResponse.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  // DB 저장이 실패한 가입의 Keycloak 계정 삭제(삭제도 실패하면 로그만)
+  private void deleteKeycloakUserQuietly(String keycloakId) {
+    try {
+      keycloakService.deleteUser(keycloakId);
+    } catch (Exception e) {
+      log.error("가입 되돌리기 실패 - Keycloak 계정이 남음: keycloakId={}", keycloakId, e);
     }
   }
 

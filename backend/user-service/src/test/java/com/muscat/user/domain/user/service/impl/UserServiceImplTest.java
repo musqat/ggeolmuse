@@ -211,6 +211,43 @@ class UserServiceImplTest {
     }
 
     @Test
+    @DisplayName("DB 저장이 실패하면 먼저 만든 Keycloak 계정을 지운다")
+    void registerUser_LocalSaveFailure_DeletesKeycloakUser() {
+      // given
+      given(userRepository.existsByEmail(testEmail)).willReturn(false);
+      given(keycloakService.createUser(testEmail, testPassword)).willReturn(keycloakId);
+      given(userMapper.createLocalUser(testEmail, testNickname, keycloakId)).willReturn(testUser);
+      given(passwordEncoder.encode(testPassword)).willReturn("$2a$10$encodedPassword");
+      given(userRepository.save(any(User.class)))
+        .willThrow(new org.springframework.dao.DataAccessResourceFailureException("DB 연결 실패"));
+
+      // when & then
+      assertThatThrownBy(() -> userService.registerUser(testEmail, testPassword, testNickname))
+        .isInstanceOf(UserException.class)
+        .hasMessage(UserResponse.INTERNAL_SERVER_ERROR.getMessage());
+      verify(keycloakService).deleteUser(keycloakId);
+    }
+
+    @Test
+    @DisplayName("Keycloak 계정 지우기까지 실패해도 처음 오류로 응답한다")
+    void registerUser_LocalSaveAndCleanupFailure_KeepsOriginalError() {
+      // given
+      given(userRepository.existsByEmail(testEmail)).willReturn(false);
+      given(keycloakService.createUser(testEmail, testPassword)).willReturn(keycloakId);
+      given(userMapper.createLocalUser(testEmail, testNickname, keycloakId)).willReturn(testUser);
+      given(passwordEncoder.encode(testPassword)).willReturn("$2a$10$encodedPassword");
+      given(userRepository.save(any(User.class)))
+        .willThrow(new org.springframework.dao.DataAccessResourceFailureException("DB 연결 실패"));
+      willThrow(new KeycloakException(KeycloakResponse.USER_DELETE_FAILED))
+        .given(keycloakService).deleteUser(keycloakId);
+
+      // when & then
+      assertThatThrownBy(() -> userService.registerUser(testEmail, testPassword, testNickname))
+        .isInstanceOf(UserException.class)
+        .hasMessage(UserResponse.INTERNAL_SERVER_ERROR.getMessage());
+    }
+
+    @Test
     @DisplayName("이메일 발송 실패 시에도 사용자 등록은 성공한다")
     void registerUser_EmailSendFailure_StillSucceeds() {
       // given
