@@ -50,7 +50,7 @@ const TradingCapacityPanel: React.FC<TradingCapacityPanelProps> = ({
     staleTime: 30 * 1000,
   });
 
-  if (!accountId || !capacity) {
+  if (!accountId) {
     return null;
   }
 
@@ -65,6 +65,10 @@ const TradingCapacityPanel: React.FC<TradingCapacityPanelProps> = ({
         </div>
       </div>
     );
+  }
+
+  if (!capacity) {
+    return null;
   }
 
   if (orderType === "buy") {
@@ -155,7 +159,9 @@ const TradingCapacityPanel: React.FC<TradingCapacityPanelProps> = ({
               capacity.totalValue !== null && (
                 <div className="mt-3 grid grid-cols-1 gap-2">
                   <div className="bg-surface/60 rounded-lg p-3">
-                    <p className="text-xs text-tx-2 mb-1">현재 평가액</p>
+                    <p className="text-xs text-tx-2 mb-1">
+                      {`받을 금액(${isLimit ? "수수료" : "슬리피지·수수료"} 뺌)`}
+                    </p>
                     <p className="text-xl font-bold text-loss">
                       ${capacity.totalValue.toFixed(2)}
                     </p>

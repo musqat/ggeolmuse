@@ -10,13 +10,16 @@ vi.mock('../../services/api', () => ({
 }))
 
 const canBuy = vi.mocked(tradeApi.canBuy)
+const canSell = vi.mocked(tradeApi.canSell)
 
 beforeEach(() => {
   canBuy.mockReset()
   canBuy.mockResolvedValue({ data: { maxShares: 9, availableBalance: 90 } } as never)
+  canSell.mockReset()
+  canSell.mockResolvedValue({ data: { currentHoldings: 10, maxSellableShares: 10, totalValue: 996.5 } } as never)
 })
 
-function renderBuyPanel(priceType: PriceType, currentPrice: number) {
+function renderPanel(orderType: 'buy' | 'sell', priceType: PriceType, currentPrice: number) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={client}>
@@ -24,7 +27,7 @@ function renderBuyPanel(priceType: PriceType, currentPrice: number) {
         accountId={3}
         symbol="TSLL"
         tradeDate="2026-10-05"
-        orderType="buy"
+        orderType={orderType}
         priceType={priceType}
         currentPrice={currentPrice}
       />
@@ -32,6 +35,8 @@ function renderBuyPanel(priceType: PriceType, currentPrice: number) {
   )
   return client
 }
+
+const renderBuyPanel = (priceType: PriceType, currentPrice: number) => renderPanel('buy', priceType, currentPrice)
 
 describe('TradingCapacityPanel', () => {
   it('고른 가격 유형을 매수 가능 수량 요청에 싣는다', async () => {
@@ -79,5 +84,26 @@ describe('TradingCapacityPanel', () => {
     expect(
       await screen.findByText('지정가 $9.00 · 수수료 포함 최대 9.00주 매수 가능')
     ).toBeInTheDocument()
+  })
+
+  it('가능 수량을 세는 동안 계산 중이라고 알린다', () => {
+    canBuy.mockReturnValue(new Promise(() => {}) as never)
+    renderBuyPanel('close', 8.97)
+
+    expect(screen.getByText('거래 가능 수량 계산 중...')).toBeInTheDocument()
+  })
+
+  it('매도 칸은 슬리피지 · 수수료를 뺀 받을 금액을 보인다', async () => {
+    renderPanel('sell', 'close', 100)
+
+    expect(await screen.findByText('받을 금액(슬리피지·수수료 뺌)')).toBeInTheDocument()
+    expect(screen.getByText('$996.50')).toBeInTheDocument()
+    expect(screen.queryByText('현재 평가액')).toBeNull()
+  })
+
+  it('지정가 매도는 수수료만 뺐다고 알린다', async () => {
+    renderPanel('sell', 'limit', 100)
+
+    expect(await screen.findByText('받을 금액(수수료 뺌)')).toBeInTheDocument()
   })
 })
