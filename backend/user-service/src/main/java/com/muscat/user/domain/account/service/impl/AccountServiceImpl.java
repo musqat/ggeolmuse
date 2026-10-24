@@ -164,7 +164,7 @@ public class AccountServiceImpl implements AccountService {
     Account account = accountRepository.findByIdAndUserId(accountId, userId)
       .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
 
-    BigDecimal currentExchangeRate = getCurrentExchangeRate();
+    BigDecimal currentExchangeRate = currentRateOrFallback();
 
     return BalanceResponseDto.of(account, currentExchangeRate, accountCalculator);
   }
@@ -371,41 +371,48 @@ public class AccountServiceImpl implements AccountService {
       accountId, validatedAmount, newBalance);
   }
 
-  // 현재 USD/KRW 환율 조회
+  // 현재 USD/KRW 환율. 못 받거나 정상 범위 밖이면 환율 서비스 오류
   @Override
   public BigDecimal getCurrentExchangeRate() {
-    try {
-      // 1. 최신 환율 조회 시도
-      log.debug("최신 환율 조회 시도");
-      FxRateDto response = marketDataServiceClientWrapper.getLatestFxRate();
+    BigDecimal rate = latestValidRate();
+    if (rate == null) {
+      throw new AccountException(AccountResponse.EXCHANGE_RATE_SERVICE_ERROR);
+    }
+    return rate;
+  }
 
-      // 디버그: 응답 확인
+  // 최신 환율, 못 받으면 설정의 고정 대체 환율
+  private BigDecimal currentRateOrFallback() {
+    BigDecimal rate = latestValidRate();
+    if (rate != null) {
+      return rate;
+    }
+    log.info("Fallback 환율 사용: {}", fallbackRate);
+    userLogger.logExchangeRateFallback(fallbackRate, "Market-data 서비스 연결 실패");
+    return MoneyUtils.roundExchangeRate(fallbackRate);
+  }
+
+  // market-data 의 최신 환율. 못 받거나 정상 범위 밖이면 null
+  private BigDecimal latestValidRate() {
+    try {
+      FxRateDto response = marketDataServiceClientWrapper.getLatestFxRate();
       log.debug("Market-data 응답: response={}, rate={}",
         response,
         response != null ? response.rate() : "null");
 
       if (response != null && response.rate() != null) {
         BigDecimal rate = MoneyUtils.roundExchangeRate(response.rate());
-
-        // 환율 유효성 검증
         if (rate.compareTo(minValidRate) >= 0 && rate.compareTo(maxValidRate) <= 0) {
           log.info("환율 조회 성공: {} (일자: {})", rate, response.date());
           return rate;
-        } else {
-          log.warn("비정상적인 환율 감지: {}, fallback으로 전환", rate);
-          userLogger.logAbnormalExchangeRate(rate, "MarketDataService에서 조회된 환율");
         }
+        log.warn("비정상적인 환율 감지: {}", rate);
+        userLogger.logAbnormalExchangeRate(rate, "MarketDataService에서 조회된 환율");
       }
-
     } catch (Exception e) {
-      log.warn("환율 조회 실패, fallback으로 전환: {}", e.getMessage());
+      log.warn("환율 조회 실패: {}", e.getMessage());
     }
-
-    // 2. Fallback: 고정 환율 사용
-    log.info("Fallback 환율 사용: {}", fallbackRate);
-    userLogger.logExchangeRateFallback(fallbackRate, "Market-data 서비스 연결 실패");
-
-    return MoneyUtils.roundExchangeRate(fallbackRate);
+    return null;
   }
 
   // 특정 날짜의 USD/KRW 환율 조회
@@ -436,7 +443,7 @@ public class AccountServiceImpl implements AccountService {
     }
 
     // 2. Fallback: 최신 환율 사용
-    return getCurrentExchangeRate();
+    return currentRateOrFallback();
   }
 
   // 범위는 정수로 둔다. 최저는 내리고 최고는 올려 ±허용 비율보다 좁아지지 않게 한다

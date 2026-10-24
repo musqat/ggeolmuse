@@ -90,6 +90,15 @@ class ClientWrapperRetryTest {
     verify(client, times(3)).getFxRate("2024-09-16");
   }
 
+  @Test
+  @DisplayName("최신 환율이 세 번 다 5xx 면 지어낸 환율 없이 비워 둔다")
+  void latestFxRate_ServerErrorEveryTime_Empty() {
+    given(client.getLatestFxRate()).willThrow(serverError(), serverError(), serverError());
+
+    assertThat(wrapper.getLatestFxRate()).isNull();
+    verify(client, times(3)).getLatestFxRate();
+  }
+
   private static FeignException serverError() {
     Request request = Request.create(Request.HttpMethod.GET, "/api/internal", Map.of(), null,
       StandardCharsets.UTF_8, null);

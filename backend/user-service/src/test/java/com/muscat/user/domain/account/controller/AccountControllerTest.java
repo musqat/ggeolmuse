@@ -15,6 +15,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.muscat.user.common.enums.response.AccountResponse;
+import com.muscat.user.common.exception.AccountException;
 import com.muscat.user.common.exception.GlobalExceptionHandler;
 import com.muscat.user.common.util.AuthUtil;
 import com.muscat.user.config.security.SecurityConfig;
@@ -224,6 +226,17 @@ class AccountControllerTest {
       .andExpect(jsonPath("$.max").value(1633));
     mockMvc.perform(get(BASE + "/exchange-rates/2024-01-15").with(jwt()))
       .andExpect(status().isOk()).andExpect(content().string("1310"));
+  }
+
+  @Test
+  @DisplayName("현재 환율을 못 받으면 503 과 환율을 못 불러왔다는 문구를 준다")
+  void currentExchangeRate_Unavailable_ServiceUnavailable() throws Exception {
+    given(accountService.getCurrentExchangeRate())
+      .willThrow(new AccountException(AccountResponse.EXCHANGE_RATE_SERVICE_ERROR));
+
+    mockMvc.perform(get(BASE + "/exchange-rates/current").with(jwt()))
+      .andExpect(status().isServiceUnavailable())
+      .andExpect(jsonPath("$.detail").value("환율을 불러오지 못했습니다."));
   }
 
   @Test

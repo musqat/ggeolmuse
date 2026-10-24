@@ -370,34 +370,59 @@ class AccountServiceImplTest {
     }
 
     @Test
-    @DisplayName("환율 조회 실패 시 Fallback 환율을 반환한다")
-    void getCurrentExchangeRate_Failure_ReturnsFallback() {
+    @DisplayName("환율을 못 받으면 고정 환율 대신 환율 서비스 오류를 낸다")
+    void getCurrentExchangeRate_Failure_Throws() {
       // given
       given(marketDataServiceClientWrapper.getLatestFxRate())
         .willThrow(new RuntimeException("Service unavailable"));
 
-      // when
-      BigDecimal rate = accountService.getCurrentExchangeRate();
-
-      // then
-      assertThat(rate).isEqualByComparingTo(new BigDecimal("1350")); // fallback
-      verify(userLogger).logExchangeRateFallback(any(BigDecimal.class), anyString());
+      // when & then
+      assertThatThrownBy(() -> accountService.getCurrentExchangeRate())
+        .isInstanceOf(AccountException.class)
+        .hasMessage(AccountResponse.EXCHANGE_RATE_SERVICE_ERROR.getMessage());
     }
 
     @Test
-    @DisplayName("비정상적인 환율은 Fallback으로 대체된다")
-    void getCurrentExchangeRate_AbnormalRate_ReturnsFallback() {
+    @DisplayName("시세 서비스가 환율을 비워 주면(재시도까지 실패) 환율 서비스 오류를 낸다")
+    void getCurrentExchangeRate_NoRate_Throws() {
+      // given
+      given(marketDataServiceClientWrapper.getLatestFxRate()).willReturn(null);
+
+      // when & then
+      assertThatThrownBy(() -> accountService.getCurrentExchangeRate())
+        .isInstanceOf(AccountException.class)
+        .hasMessage(AccountResponse.EXCHANGE_RATE_SERVICE_ERROR.getMessage());
+    }
+
+    @Test
+    @DisplayName("받은 환율이 정상 범위 밖이면 고정 환율 대신 환율 서비스 오류를 낸다")
+    void getCurrentExchangeRate_AbnormalRate_Throws() {
       // given
       FxRateDto fxRate = new FxRateDto(LocalDate.now(), new BigDecimal("5000"), "KOREAEXIM"); // 비정상
 
       given(marketDataServiceClientWrapper.getLatestFxRate()).willReturn(fxRate);
 
+      // when & then
+      assertThatThrownBy(() -> accountService.getCurrentExchangeRate())
+        .isInstanceOf(AccountException.class)
+        .hasMessage(AccountResponse.EXCHANGE_RATE_SERVICE_ERROR.getMessage());
+      verify(userLogger).logAbnormalExchangeRate(any(BigDecimal.class), anyString());
+    }
+
+    @Test
+    @DisplayName("잔액 화면의 원화 환산은 환율을 못 받아도 고정 환율로 보여 준다")
+    void getAccountBalance_RateFailure_UsesFallbackForDisplay() {
+      // given
+      given(accountRepository.findByIdAndUserId(accountId, userId)).willReturn(Optional.of(testAccount));
+      given(marketDataServiceClientWrapper.getLatestFxRate())
+        .willThrow(new RuntimeException("Service unavailable"));
+
       // when
-      BigDecimal rate = accountService.getCurrentExchangeRate();
+      BalanceResponseDto result = accountService.getAccountBalance(accountId, userId);
 
       // then
-      assertThat(rate).isEqualByComparingTo(new BigDecimal("1350")); // fallback
-      verify(userLogger).logAbnormalExchangeRate(any(BigDecimal.class), anyString());
+      assertThat(result).isNotNull();
+      verify(userLogger).logExchangeRateFallback(any(BigDecimal.class), anyString());
     }
   }
 

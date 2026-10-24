@@ -53,9 +53,9 @@ public class MarketDataServiceClientWrapper {
     return null;
   }
 
+  // 최신 환율을 못 받으면 null
   private FxRateDto getLatestFxRateFallback(Exception ex) {
-    log.warn("Fallback triggered for getLatestFxRate. Error: {}. Using default FX rate: {}",
-      ex.getMessage(), DEFAULT_FX_RATE);
-    return new FxRateDto(LocalDate.now(), DEFAULT_FX_RATE, "FALLBACK");
+    log.warn("Fallback triggered for getLatestFxRate. Error: {}", ex.getMessage());
+    return null;
   }
 }

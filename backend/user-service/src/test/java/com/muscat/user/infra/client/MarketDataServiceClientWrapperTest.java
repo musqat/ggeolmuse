@@ -47,15 +47,12 @@ class MarketDataServiceClientWrapperTest {
   }
 
   @Test
-  @DisplayName("최신 환율을 못 받으면 오늘 날짜로 기본 환율을 쓰고, 범위를 못 받으면 비워 둔다")
+  @DisplayName("최신 환율 · 범위를 못 받으면 지어낸 값 없이 비워 둔다")
   void latestAndRangeFallback() {
-    FxRateDto latest = Objects.requireNonNull(
-      ReflectionTestUtils.invokeMethod(wrapper, "getLatestFxRateFallback", new RuntimeException("down")));
+    FxRateDto latest = ReflectionTestUtils.invokeMethod(wrapper, "getLatestFxRateFallback", new RuntimeException("down"));
     FxRateRangeDto range = ReflectionTestUtils.invokeMethod(wrapper, "getFxRateRangeFallback", new RuntimeException("down"));
 
-    assertThat(latest.date()).isEqualTo(LocalDate.now());
-    assertThat(latest.rate()).isEqualByComparingTo("1300");
-    // 쓰는 쪽(환전 범위 검사)이 설정의 대체 범위로 넘어간다
+    assertThat(latest).isNull();
     assertThat(range).isNull();
   }
 }

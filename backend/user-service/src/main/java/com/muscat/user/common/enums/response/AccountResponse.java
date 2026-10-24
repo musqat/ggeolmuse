@@ -45,7 +45,9 @@ public enum AccountResponse implements ErrorCode {
 
   // 500 Internal Server Error
   ACCOUNT_CREATION_FAILED("계좌 생성에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
-  EXCHANGE_RATE_SERVICE_ERROR("환율 서비스에 문제가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR);
+
+  // 503 Service Unavailable
+  EXCHANGE_RATE_SERVICE_ERROR("환율을 불러오지 못했습니다.", HttpStatus.SERVICE_UNAVAILABLE);
 
   private final String message;
   private final HttpStatus httpStatus;
