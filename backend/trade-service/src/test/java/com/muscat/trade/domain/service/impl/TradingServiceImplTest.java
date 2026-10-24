@@ -30,7 +30,6 @@ import com.muscat.trade.domain.event.TradeSavedEvent;
 import com.muscat.trade.domain.repository.HoldingsRepository;
 import com.muscat.trade.domain.repository.TradeRepository;
 import com.muscat.trade.domain.service.MarketDataService;
-import com.muscat.trade.infra.client.UserServiceClientWrapper;
 import com.muscat.trade.infra.client.dto.AccountBalanceDto;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -64,8 +63,6 @@ class TradingServiceImplTest {
   private TradeRepository tradeRepository;
   @Mock
   private HoldingsRepository holdingsRepository;
-  @Mock
-  private UserServiceClientWrapper userServiceClientWrapper;
   @Mock
   private MarketDataService marketDataService;
   @Mock
@@ -657,7 +654,7 @@ class TradingServiceImplTest {
         .tradeDate(TEST_TRADE_DATE)
         .build();
 
-      given(userServiceClientWrapper.getAccountBalance(TEST_ACCOUNT_ID))
+      given(tradeUtils.getAccountBalance(String.valueOf(TEST_ACCOUNT_ID)))
         .willReturn(testAccountBalance);
       given(marketDataService.determineTradePrice(
         TEST_SYMBOL, TEST_TRADE_DATE, PriceType.CLOSE, null)).willReturn(TEST_PRICE);
@@ -683,7 +680,7 @@ class TradingServiceImplTest {
     @DisplayName("슬리피지를 붙인 체결가와 수수료까지 넣어 센다")
     void calculateBuyingCapacity_SlippageAndFee_CountsTradeTotal() {
       // given
-      given(userServiceClientWrapper.getAccountBalance(TEST_ACCOUNT_ID))
+      given(tradeUtils.getAccountBalance(String.valueOf(TEST_ACCOUNT_ID)))
         .willReturn(balance("90.00", "0.001"));
       given(marketDataService.determineTradePrice(
         TEST_SYMBOL, TEST_TRADE_DATE, PriceType.CLOSE, null)).willReturn(new BigDecimal("8.97"));
@@ -705,7 +702,7 @@ class TradingServiceImplTest {
     @DisplayName("가격 유형을 고르면 그 가격으로 센다")
     void calculateBuyingCapacity_PriceType_UsesThatPrice() {
       // given
-      given(userServiceClientWrapper.getAccountBalance(TEST_ACCOUNT_ID))
+      given(tradeUtils.getAccountBalance(String.valueOf(TEST_ACCOUNT_ID)))
         .willReturn(balance("100.00", null));
       given(marketDataService.determineTradePrice(
         TEST_SYMBOL, TEST_TRADE_DATE, PriceType.HIGH, null)).willReturn(new BigDecimal("10.00"));
@@ -725,7 +722,7 @@ class TradingServiceImplTest {
     void calculateBuyingCapacity_Manual_SkipsSlippage() {
       // given
       BigDecimal manualPrice = new BigDecimal("9.00");
-      given(userServiceClientWrapper.getAccountBalance(TEST_ACCOUNT_ID))
+      given(tradeUtils.getAccountBalance(String.valueOf(TEST_ACCOUNT_ID)))
         .willReturn(balance("90.00", "0.001"));
       given(marketDataService.determineTradePrice(
         TEST_SYMBOL, TEST_TRADE_DATE, PriceType.MANUAL, manualPrice)).willReturn(manualPrice);
@@ -744,7 +741,7 @@ class TradingServiceImplTest {
     @DisplayName("수수료 반올림까지 체결 때와 같게 센다")
     void calculateBuyingCapacity_FeeRounding_MatchesTradeTotal() {
       // given
-      given(userServiceClientWrapper.getAccountBalance(TEST_ACCOUNT_ID))
+      given(tradeUtils.getAccountBalance(String.valueOf(TEST_ACCOUNT_ID)))
         .willReturn(balance("100.35", null));
       given(marketDataService.determineTradePrice(
         TEST_SYMBOL, TEST_TRADE_DATE, PriceType.CLOSE, null)).willReturn(new BigDecimal("10.01"));
@@ -764,7 +761,7 @@ class TradingServiceImplTest {
     @DisplayName("잔액이 한 주 값보다 적으면 0주")
     void calculateBuyingCapacity_NotEnoughForOneShare_ReturnsZero() {
       // given
-      given(userServiceClientWrapper.getAccountBalance(TEST_ACCOUNT_ID))
+      given(tradeUtils.getAccountBalance(String.valueOf(TEST_ACCOUNT_ID)))
         .willReturn(balance("5.00", null));
       given(marketDataService.determineTradePrice(
         TEST_SYMBOL, TEST_TRADE_DATE, PriceType.CLOSE, null)).willReturn(new BigDecimal("8.97"));
@@ -828,8 +825,11 @@ class TradingServiceImplTest {
       given(tradeRepository.calculateSellableQuantity(
         TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL, TEST_TRADE_DATE))
         .willReturn(sellableQuantity);
-      given(marketDataService.getOHLCPrice(TEST_SYMBOL, TEST_TRADE_DATE, PriceType.CLOSE))
-        .willReturn(TEST_PRICE);
+      given(tradeUtils.getAccountBalance(String.valueOf(TEST_ACCOUNT_ID)))
+        .willReturn(testAccountBalance);
+      given(marketDataService.determineTradePrice(
+        TEST_SYMBOL, TEST_TRADE_DATE, PriceType.CLOSE, null)).willReturn(TEST_PRICE);
+      stubFeeRate("0.001");
 
       // when
       TradingCapacityResponseDto result = tradingService.calculateSellingCapacity(
@@ -841,28 +841,152 @@ class TradingServiceImplTest {
       assertThat(result.currentHoldings()).isEqualByComparingTo(currentHoldings);
       assertThat(result.maxSellableShares()).isEqualByComparingTo(sellableQuantity);
       assertThat(result.currentPrice()).isEqualByComparingTo(TEST_PRICE);
+      // 40주 × 150 = 6,000 에서 수수료 6.00 을 뺌
+      assertThat(result.totalValue()).isEqualByComparingTo("5994.00");
     }
 
     @Test
-    @DisplayName("시장 데이터 조회 실패 시 예외 발생")
-    void calculateBuyingCapacity_MarketDataError_ThrowsException() {
+    @DisplayName("매도 가능 금액은 슬리피지로 싸진 체결가에서 수수료를 빼고 센다")
+    void calculateSellingCapacity_SlippageAndFee_CountsProceeds() {
       // given
-      TradingCapacityRequestDto request = TradingCapacityRequestDto.builder()
-        .accountId(String.valueOf(TEST_ACCOUNT_ID))
-        .symbol(TEST_SYMBOL)
-        .tradeDate(TEST_TRADE_DATE)
-        .build();
-
-      given(userServiceClientWrapper.getAccountBalance(TEST_ACCOUNT_ID))
-        .willReturn(testAccountBalance);
+      stubSellable("10");
+      given(tradeUtils.getAccountBalance(String.valueOf(TEST_ACCOUNT_ID)))
+        .willReturn(balance("0.00", "0.001"));
       given(marketDataService.determineTradePrice(
-        TEST_SYMBOL, TEST_TRADE_DATE, PriceType.CLOSE, null))
-        .willThrow(new RuntimeException("Market data unavailable"));
+        TEST_SYMBOL, TEST_TRADE_DATE, PriceType.CLOSE, null)).willReturn(new BigDecimal("100.00"));
+      given(tradeProperties.getCalculation()).willReturn(calculationProps);
+      stubFeeRate("0.0025");
+
+      // when
+      TradingCapacityResponseDto result = tradingService.calculateSellingCapacity(
+        TEST_USER_ID, capacityRequest(null, null));
+
+      // then
+      // 체결가 100 × 0.999 = 99.90. 10주는 999.00 에서 수수료 2.4975 → 2.50 을 빼 996.50
+      assertThat(result.currentPrice()).isEqualByComparingTo("100.00");
+      assertThat(result.totalValue()).isEqualByComparingTo("996.50");
+    }
+
+    @Test
+    @DisplayName("매도 가능 금액도 가격 유형을 고르면 그 가격으로 센다")
+    void calculateSellingCapacity_PriceType_UsesThatPrice() {
+      // given
+      stubSellable("10");
+      given(tradeUtils.getAccountBalance(String.valueOf(TEST_ACCOUNT_ID)))
+        .willReturn(balance("0.00", null));
+      given(marketDataService.determineTradePrice(
+        TEST_SYMBOL, TEST_TRADE_DATE, PriceType.HIGH, null)).willReturn(new BigDecimal("10.00"));
+      stubFeeRate("0");
+
+      // when
+      TradingCapacityResponseDto result = tradingService.calculateSellingCapacity(
+        TEST_USER_ID, capacityRequest(PriceType.HIGH, null));
+
+      // then
+      assertThat(result.currentPrice()).isEqualByComparingTo("10.00");
+      assertThat(result.totalValue()).isEqualByComparingTo("100.00");
+    }
+
+    @Test
+    @DisplayName("지정가 매도는 슬리피지 없이 입력한 가격으로 센다")
+    void calculateSellingCapacity_Manual_SkipsSlippage() {
+      // given
+      BigDecimal manualPrice = new BigDecimal("9.00");
+      stubSellable("10");
+      given(tradeUtils.getAccountBalance(String.valueOf(TEST_ACCOUNT_ID)))
+        .willReturn(balance("0.00", "0.001"));
+      given(marketDataService.determineTradePrice(
+        TEST_SYMBOL, TEST_TRADE_DATE, PriceType.MANUAL, manualPrice)).willReturn(manualPrice);
+      stubFeeRate("0");
+
+      // when
+      TradingCapacityResponseDto result = tradingService.calculateSellingCapacity(
+        TEST_USER_ID, capacityRequest(PriceType.MANUAL, manualPrice));
+
+      // then
+      // 슬리피지가 붙었으면 8.99 라 89.90
+      assertThat(result.totalValue()).isEqualByComparingTo("90.00");
+    }
+
+    @Test
+    @DisplayName("매도 가능 수량도 계좌가 없거나 남의 계좌면 계좌 오류를 그대로 돌려준다")
+    void calculateSellingCapacity_AccountNotFound_KeepsError() {
+      // given
+      TradeException notFound = new TradeException(TradeResponse.ACCOUNT_NOT_FOUND);
+      given(tradeUtils.getAccountBalance(String.valueOf(TEST_ACCOUNT_ID))).willThrow(notFound);
 
       // when & then
-      assertThatThrownBy(() -> tradingService.calculateBuyingCapacity(TEST_USER_ID, request))
-        .isInstanceOf(TradeException.class)
-        .hasMessageContaining("시장");
+      assertThatThrownBy(() -> tradingService.calculateSellingCapacity(
+        TEST_USER_ID, capacityRequest(null, null))).isSameAs(notFound);
+    }
+
+    // 보유 · 매도 가능 수량을 같은 값으로 둔다
+    private void stubSellable(String quantity) {
+      given(holdingsRepository.findByUserIdAndAccountIdAndSymbol(
+        TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL))
+        .willReturn(Optional.of(Holdings.builder().totalQuantity(new BigDecimal(quantity)).build()));
+      given(tradeRepository.calculateSellableQuantity(
+        TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL, TEST_TRADE_DATE))
+        .willReturn(new BigDecimal(quantity));
+    }
+
+    @Test
+    @DisplayName("그날 가격이 없으면 가격 없음 오류를 그대로 돌려준다")
+    void calculateBuyingCapacity_PriceUnavailable_KeepsError() {
+      // given
+      TradeException unavailable = new TradeException(TradeResponse.PRICE_DATA_UNAVAILABLE);
+      given(tradeUtils.getAccountBalance(String.valueOf(TEST_ACCOUNT_ID)))
+        .willReturn(testAccountBalance);
+      given(marketDataService.determineTradePrice(
+        TEST_SYMBOL, TEST_TRADE_DATE, PriceType.CLOSE, null)).willThrow(unavailable);
+
+      // when & then
+      assertThatThrownBy(() -> tradingService.calculateBuyingCapacity(
+        TEST_USER_ID, capacityRequest(null, null))).isSameAs(unavailable);
+    }
+
+    @Test
+    @DisplayName("지정가가 그날 가격 범위를 벗어나면 그 오류를 그대로 돌려준다")
+    void calculateBuyingCapacity_ManualOutOfRange_KeepsError() {
+      // given
+      BigDecimal manualPrice = new BigDecimal("999.00");
+      TradeException outOfRange = new TradeException(TradeResponse.MANUAL_PRICE_OUT_OF_RANGE);
+      given(tradeUtils.getAccountBalance(String.valueOf(TEST_ACCOUNT_ID)))
+        .willReturn(testAccountBalance);
+      given(marketDataService.determineTradePrice(
+        TEST_SYMBOL, TEST_TRADE_DATE, PriceType.MANUAL, manualPrice)).willThrow(outOfRange);
+
+      // when & then
+      assertThatThrownBy(() -> tradingService.calculateBuyingCapacity(
+        TEST_USER_ID, capacityRequest(PriceType.MANUAL, manualPrice))).isSameAs(outOfRange);
+    }
+
+    @Test
+    @DisplayName("계좌가 없거나 남의 계좌면 계좌 오류를 그대로 돌려준다")
+    void calculateBuyingCapacity_AccountNotFound_KeepsError() {
+      // given
+      TradeException notFound = new TradeException(TradeResponse.ACCOUNT_NOT_FOUND);
+      given(tradeUtils.getAccountBalance(String.valueOf(TEST_ACCOUNT_ID))).willThrow(notFound);
+
+      // when & then
+      assertThatThrownBy(() -> tradingService.calculateBuyingCapacity(
+        TEST_USER_ID, capacityRequest(null, null))).isSameAs(notFound);
+    }
+
+    @Test
+    @DisplayName("매도 가능 수량도 가격 없음 오류를 그대로 돌려준다")
+    void calculateSellingCapacity_PriceUnavailable_KeepsError() {
+      // given
+      TradeException unavailable = new TradeException(TradeResponse.PRICE_DATA_UNAVAILABLE);
+      stubSellable("10");
+      given(tradeUtils.getAccountBalance(String.valueOf(TEST_ACCOUNT_ID)))
+        .willReturn(testAccountBalance);
+      given(marketDataService.determineTradePrice(
+        TEST_SYMBOL, TEST_TRADE_DATE, PriceType.CLOSE, null)).willThrow(unavailable);
+
+      // when & then
+      assertThatThrownBy(() -> tradingService.calculateSellingCapacity(
+        TEST_USER_ID, capacityRequest(null, null))).isSameAs(unavailable);
     }
   }
 
@@ -871,16 +995,16 @@ class TradingServiceImplTest {
   class FailurePathTests {
 
     @Test
-    @DisplayName("매도 가능 수량 계산 중 조회가 실패하면 시장 데이터 오류로 바꿔 올린다")
-    void calculateSellingCapacity_Failure_ThrowsMarketDataError() {
+    @DisplayName("매도 가능 수량 계산 중 보유 조회가 실패하면 시장 데이터 오류로 바꾸지 않는다")
+    void calculateSellingCapacity_HoldingsLookupFails_NotMarketDataError() {
       TradingCapacityRequestDto request = TradingCapacityRequestDto.builder()
         .accountId(String.valueOf(TEST_ACCOUNT_ID)).symbol(TEST_SYMBOL).tradeDate(TEST_TRADE_DATE).build();
+      IllegalStateException dbDown = new IllegalStateException("db down");
       given(holdingsRepository.findByUserIdAndAccountIdAndSymbol(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL))
-        .willThrow(new IllegalStateException("db down"));
+        .willThrow(dbDown);
 
       assertThatThrownBy(() -> tradingService.calculateSellingCapacity(TEST_USER_ID, request))
-        .isInstanceOf(TradeException.class)
-        .hasMessage(TradeResponse.MARKET_DATA_SERVICE_ERROR.getMessage());
+        .isSameAs(dbDown);
     }
 
     @Test
