@@ -150,7 +150,6 @@ const Account: React.FC = () => {
           }
         }}
         accountBalance={selectedAccountId ? accountBalances.get(selectedAccountId) : undefined}
-        currentExchangeRate={currentExchangeRate}
       />
 
       <DeleteAccountModal
