@@ -11,7 +11,7 @@ function throwawayAccount() {
   return {
     email: `e2e-${tag}@example.com`,
     password: 'E2ePass123!',
-    nickname: `e2e-${tag}`,
+    nickname: `e2e_${tag}`,
   };
 }
 
