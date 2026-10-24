@@ -9,10 +9,20 @@ interface NicknameDialogProps {
   initialNickname: string;
   onClose: () => void;
   onChanged: () => void;
+  title?: string;
+  description?: string;
+  confirmLabel?: string;
 }
 
-// 마이페이지 닉네임 변경 창
-export const NicknameDialog: React.FC<NicknameDialogProps> = ({ initialNickname, onClose, onChanged }) => {
+// 닉네임 변경 창(제목 · 설명 · 버튼 문구를 바꿀 수 있음)
+export const NicknameDialog: React.FC<NicknameDialogProps> = ({
+  initialNickname,
+  onClose,
+  onChanged,
+  title = '닉네임 변경',
+  description,
+  confirmLabel = '변경하기',
+}) => {
   const [nickname, setNickname] = useState(initialNickname);
 
   const handleChange = async () => {
@@ -37,12 +47,13 @@ export const NicknameDialog: React.FC<NicknameDialogProps> = ({ initialNickname,
 
   return (
     <FormDialog
-      title="닉네임 변경"
-      confirmLabel="변경하기"
+      title={title}
+      confirmLabel={confirmLabel}
       confirmDisabled={!nickname.trim()}
       onConfirm={handleChange}
       onCancel={onClose}
     >
+      {description && <p className="text-sm text-tx-2">{description}</p>}
       <DialogField
         id="mypage-nickname"
         label="새 닉네임"

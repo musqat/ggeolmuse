@@ -192,6 +192,13 @@ describe('MyPage 사용자 정보', () => {
     expect(authApi.getCurrentUser).not.toHaveBeenCalled()
   })
 
+  it('닉네임이 비어 있으면 닉네임 없음으로 보인다', async () => {
+    renderPage({ nickname: null })
+
+    expect(await screen.findByRole('heading', { name: '닉네임 없음' })).toBeInTheDocument()
+    expect(screen.getByText('현재: 없음')).toBeInTheDocument()
+  })
+
   it('닉네임을 바꾸면 로그인 상태의 사용자 정보를 새로 받는다', async () => {
     const user = userEvent.setup()
     vi.mocked(authApi.changeNickname).mockResolvedValue({} as never)
