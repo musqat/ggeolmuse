@@ -147,11 +147,11 @@ public class AdminUserController {
   @PatchMapping("/{userId}/enabled")
   public ResponseEntity<UserSummary> updateUserEnabled(
     @PathVariable Long userId,
-    @RequestBody UpdateEnabledRequest request) {
+    @Valid @RequestBody UpdateEnabledRequest request) {
 
-    log.info("사용자 활성화 상태 변경: userId={}, enabled={}", userId, request.isEnabled());
+    log.info("사용자 활성화 상태 변경: userId={}, enabled={}", userId, request.getEnabled());
 
-    User updatedUser = userService.updateUserEnabled(userId, request.isEnabled());
+    User updatedUser = userService.updateUserEnabled(userId, request.getEnabled());
 
     UserSummary summary = UserSummary.builder()
       .userId(updatedUser.getId())
@@ -337,7 +337,8 @@ public class AdminUserController {
   @AllArgsConstructor
   public static class UpdateEnabledRequest {
 
-    private boolean enabled;
+    @NotNull
+    private Boolean enabled;
   }
 
   @Data

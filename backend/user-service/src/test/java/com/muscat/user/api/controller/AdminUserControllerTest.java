@@ -2,6 +2,7 @@ package com.muscat.user.api.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
@@ -168,6 +169,18 @@ class AdminUserControllerTest {
 
     verify(userService).adminUpdatePassword(USER_ID, "N3w-pass!");
     verify(userService).adminDeleteUser(USER_ID);
+  }
+
+  @Test
+  @DisplayName("활성 변경 본문에 값이 없으면 400 이고 계정 상태를 바꾸지 않는다")
+  void updateEnabled_WithoutValue_BadRequest() throws Exception {
+    mockMvc.perform(json(patch(BASE + "/" + USER_ID + "/enabled"), "{}")).andExpect(status().isBadRequest());
+    mockMvc.perform(json(patch(BASE + "/" + USER_ID + "/enabled"), """
+        {"enabled":null}
+        """))
+      .andExpect(status().isBadRequest());
+
+    verify(userService, never()).updateUserEnabled(anyLong(), anyBoolean());
   }
 
   @Test
