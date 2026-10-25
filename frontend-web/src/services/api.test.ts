@@ -101,6 +101,15 @@ describe('api 요청 인터셉터', () => {
     expect(calls[0].auth).toBe('Bearer A1')
   })
 
+  it('관리자 시장 요청은 주소에 /market/ 이 있어도 토큰을 실어 보낸다', async () => {
+    localStorage.setItem('accessToken', 'A1')
+    const { admin, calls } = await setup({ 'GET /admin/market/fx/collect': [{ status: 200, data: {} }] })
+
+    await admin.marketAdminApi.findFxCollect()
+
+    expect(calls[0].auth).toBe('Bearer A1')
+  })
+
   it('토큰이 없으면 헤더를 비운다', async () => {
     const { api, calls } = await setup({ 'GET /users/me': [{ status: 200, data: {} }] })
 
