@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { stockApi, type StockSort } from '../services/api';
 import { formatMarketCap } from '../utils/formatNumber';
 import { Spinner } from '../components/common/Spinner';
+import { StockLogo } from '../components/common/StockLogo';
 
 interface StockSymbol {
   symbol: string;
@@ -63,67 +64,6 @@ const Stocks: React.FC = () => {
   const totalPages = stocksResponse?.totalPages || 0;
   const totalElements = stocksResponse?.totalElements || 0;
   const error = queryError ? '종목 목록을 불러오는데 실패했습니다.' : null;
-
-  // 회사 logo — Google favicon API 우선, 실패 시 직접 favicon.ico
-  const getFaviconUrl = (symbol: string) => {
-    const domain = getCompanyDomain(symbol);
-    if (domain) {
-      return `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
-    }
-    return null;
-  };
-
-  const getCompanyFaviconUrl = (symbol: string) => {
-    const domain = getCompanyDomain(symbol);
-    if (domain) {
-      return `https://${domain}/favicon.ico`;
-    }
-    return null;
-  };
-
-  const getCompanyDomain = (symbol: string): string | null => {
-    const domainMap: Record<string, string> = {
-      'AAPL': 'apple.com',
-      'MSFT': 'microsoft.com',
-      'GOOGL': 'google.com',
-      'GOOG': 'google.com',
-      'AMZN': 'amazon.com',
-      'TSLA': 'tesla.com',
-      'META': 'meta.com',
-      'NVDA': 'nvidia.com',
-      'NFLX': 'netflix.com',
-      'INTC': 'intel.com',
-      'AMD': 'amd.com',
-      'BABA': 'alibaba.com',
-      'TSM': 'tsmc.com',
-      'V': 'visa.com',
-      'JNJ': 'jnj.com',
-      'WMT': 'walmart.com',
-      'JPM': 'jpmorganchase.com',
-      'MA': 'mastercard.com',
-      'PG': 'pg.com',
-      'UNH': 'unitedhealthgroup.com',
-      'HD': 'homedepot.com',
-      'DIS': 'disney.com',
-      'PYPL': 'paypal.com',
-      'BAC': 'bankofamerica.com',
-      'ADBE': 'adobe.com',
-      'CRM': 'salesforce.com',
-      'XOM': 'exxonmobil.com',
-      'VZ': 'verizon.com',
-      'CMCSA': 'comcast.com',
-      'KO': 'coca-cola.com',
-      'PEP': 'pepsi.com',
-      'T': 'att.com',
-      'CVX': 'chevron.com',
-      'MRK': 'merck.com',
-      'ABT': 'abbott.com',
-      'COST': 'costco.com',
-      'TMO': 'thermofisher.com'
-    };
-
-    return domainMap[symbol] || null;
-  };
 
   // 필터 변경 시 페이지 초기화
   const handleFilterChange = (newFilter: 'ALL' | 'EQUITY' | 'ETF') => {
@@ -257,27 +197,7 @@ const Stocks: React.FC = () => {
                 >
                   <td className="py-3 px-4">
                     <div className="flex items-center space-x-3">
-                      {getFaviconUrl(stock.symbol) ? (
-                        <img
-                          src={getFaviconUrl(stock.symbol)!}
-                          alt={`${stock.symbol} logo`}
-                          className="w-6 h-6 rounded"
-                          onError={(e) => {
-                            const companyUrl = getCompanyFaviconUrl(stock.symbol);
-                            if (companyUrl && e.currentTarget.src !== companyUrl) {
-                              e.currentTarget.src = companyUrl;
-                              return;
-                            }
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
-                      ) : (
-                        <div className="w-6 h-6 bg-brand-bg rounded flex items-center justify-center">
-                          <span className="text-xs font-bold text-brand">
-                            {stock.symbol.charAt(0)}
-                          </span>
-                        </div>
-                      )}
+                      <StockLogo symbol={stock.symbol} />
                       <span className="text-sm text-tx-1">{stock.name}</span>
                     </div>
                   </td>
