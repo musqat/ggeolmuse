@@ -171,6 +171,14 @@ valueFrom:
     key: {{ .key }}
 {{- end }}
 
+{{/* OTel 자원 속성(환경 · 판). 비어 있는 값은 뺌 */}}
+{{- define "ggeolmuse.otelResourceAttributes" -}}
+{{- $attrs := list -}}
+{{- with .Values.global.otel.environment }}{{ $attrs = append $attrs (printf "deployment.environment.name=%s" .) }}{{ end -}}
+{{- with .version }}{{ $attrs = append $attrs (printf "service.version=%s" .) }}{{ end -}}
+{{- join "," $attrs -}}
+{{- end }}
+
 {{/* OpenTelemetry JAVA_OPTS 생성 (JVM 힙 메모리 제한 포함) */}}
 {{- define "ggeolmuse.otelJavaOpts" -}}
 {{- $serviceName := .serviceName -}}
@@ -179,7 +187,7 @@ valueFrom:
 {{- $otel := .Values.global.otel -}}
 -Xmx{{ $xmx }} -Xms{{ $xmx }} {{ if $extraOpts }}{{ $extraOpts }} {{ end -}}
 {{- if $otel.enabled -}}
--javaagent:/app/opentelemetry-javaagent.jar -Dotel.service.name={{ $serviceName }} -Dotel.traces.exporter={{ $otel.tracesExporter }} -Dotel.metrics.exporter={{ $otel.metricsExporter }} -Dotel.logs.exporter={{ $otel.logsExporter }} -Dotel.exporter.otlp.endpoint={{ $otel.endpoint }} -Dotel.exporter.otlp.protocol={{ $otel.protocol }}
+-javaagent:/app/opentelemetry-javaagent.jar -Dotel.service.name={{ $serviceName }}{{ with include "ggeolmuse.otelResourceAttributes" . }} -Dotel.resource.attributes={{ . }}{{ end }} -Dotel.traces.sampler={{ $otel.sampler }}{{ with $otel.samplerArg }} -Dotel.traces.sampler.arg={{ . }}{{ end }} -Dotel.traces.exporter={{ $otel.tracesExporter }} -Dotel.metrics.exporter={{ $otel.metricsExporter }} -Dotel.logs.exporter={{ $otel.logsExporter }} -Dotel.exporter.otlp.endpoint={{ $otel.endpoint }} -Dotel.exporter.otlp.protocol={{ $otel.protocol }}
 {{- end -}}
 {{- end }}
 

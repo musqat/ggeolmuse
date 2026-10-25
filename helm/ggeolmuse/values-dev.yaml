@@ -11,6 +11,7 @@ global:
 
   otel:
     endpoint: http://tempo:4318
+    environment: dev
 
   aws:
     enabled: false

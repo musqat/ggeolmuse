@@ -11,6 +11,7 @@ global:
   # OpenTelemetry - Tempo in monitoring namespace
   otel:
     endpoint: http://tempo.monitoring.svc.cluster.local:4318
+    environment: prod
 
   # AWS Secrets Manager
   aws:
