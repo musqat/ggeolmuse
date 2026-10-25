@@ -1,5 +1,5 @@
 import React from 'react';
-import { SOLID_BUTTON } from '@/styles/buttons';
+import { DialogActions } from './DialogActions';
 import { LAYER } from '@/styles/layers';
 
 type DialogTone = 'default' | 'danger';
@@ -7,10 +7,6 @@ type DialogTone = 'default' | 'danger';
 const TITLE_COLOR: Record<DialogTone, string> = {
   default: 'text-tx-1',
   danger: 'text-danger',
-};
-const CONFIRM_COLOR: Record<DialogTone, string> = {
-  default: 'bg-brand text-brand-ink hover:bg-brand-dark',
-  danger: SOLID_BUTTON.danger,
 };
 const FOCUS_COLOR: Record<DialogTone, string> = {
   default: 'focus:ring-brand focus:border-brand',
@@ -43,21 +39,14 @@ export const FormDialog: React.FC<FormDialogProps> = ({
 
       <div className="space-y-4">{children}</div>
 
-      <div className="flex space-x-3 mt-6">
-        <button
-          onClick={onCancel}
-          className="flex-1 px-4 py-2 border border-line-strong text-tx-1 rounded-lg hover:bg-surface/50 transition-colors"
-        >
-          취소
-        </button>
-        <button
-          onClick={onConfirm}
-          disabled={confirmDisabled}
-          className={`flex-1 px-4 py-2 ${CONFIRM_COLOR[tone]} rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors`}
-        >
-          {confirmLabel}
-        </button>
-      </div>
+      <DialogActions
+        className="mt-6"
+        onCancel={onCancel}
+        onSubmit={onConfirm}
+        submitLabel={confirmLabel}
+        tone={tone === 'danger' ? 'danger' : undefined}
+        disabled={confirmDisabled}
+      />
     </div>
   </div>
 );

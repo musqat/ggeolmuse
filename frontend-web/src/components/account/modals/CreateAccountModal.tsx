@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Modal } from '@/components/common/Modal';
 import { notify } from '@/components/common/notify';
-import { ModalActions } from './ModalActions';
+import { DialogActions } from '@/components/common/DialogActions';
 
 interface CreateAccountModalProps {
   isOpen: boolean;
@@ -87,7 +87,7 @@ const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
   };
 
   const footer = (
-    <ModalActions onCancel={handleClose} onSubmit={handleSubmit} submitLabel="생성하기" disabled={!accountName.trim()} />
+    <DialogActions onCancel={handleClose} onSubmit={handleSubmit} submitLabel="생성하기" disabled={!accountName.trim()} />
   );
 
   return (

@@ -4,7 +4,7 @@ import { addAmount } from '@/utils/amount';
 import { Modal } from '@/components/common/Modal';
 import { accountsApi, type AccountBalance } from '@/services/api';
 import { notify } from '@/components/common/notify';
-import { ModalActions } from './ModalActions';
+import { DialogActions } from '@/components/common/DialogActions';
 
 interface ExchangeModalProps {
   isOpen: boolean;
@@ -125,7 +125,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
   const expectedAmount = calculateExpectedAmount();
 
   const footer = (
-    <ModalActions
+    <DialogActions
       onCancel={handleClose}
       onSubmit={handleSubmit}
       submitLabel="환전하기"

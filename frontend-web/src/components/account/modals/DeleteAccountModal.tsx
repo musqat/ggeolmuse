@@ -1,7 +1,7 @@
 import React from "react";
 import { Modal } from "@/components/common/Modal";
 import { Trash2 } from "lucide-react";
-import { ModalActions } from "./ModalActions";
+import { DialogActions } from '@/components/common/DialogActions';
 
 interface DeleteAccountModalProps {
   isOpen: boolean;
@@ -24,7 +24,7 @@ const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
   };
 
   const footer = (
-    <ModalActions onCancel={onClose} onSubmit={handleConfirm} submitLabel="삭제하기" tone="danger" />
+    <DialogActions onCancel={onClose} onSubmit={handleConfirm} submitLabel="삭제하기" tone="danger" />
   );
 
   return (
