@@ -64,17 +64,6 @@
       <artifactId>micrometer-registry-prometheus</artifactId>
     </dependency>
 
-    <!-- 분산 추적 라이브러리는 직접 적음. ggeolmuse-common 은 spring-boot-starter-web · data-jpa 를 같이 가져와
-         WebFlux 가 서블릿으로 바뀌고 DataSource 자동설정에 걸림. 버전은 BOM import -->
-    <dependency>
-      <groupId>io.micrometer</groupId>
-      <artifactId>micrometer-tracing-bridge-otel</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.opentelemetry</groupId>
-      <artifactId>opentelemetry-exporter-otlp</artifactId>
-    </dependency>
-
     <!-- Data Redis for Rate Limiting -->
     <dependency>
       <groupId>org.springframework.boot</groupId>

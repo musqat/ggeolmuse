@@ -14,7 +14,7 @@ tempo:
   livenessProbe:
     failureThreshold: 12
 
-# OTLP 프로토콜 활성화 (Micrometer Tracing 사용)
+# OTLP 받기(자바 OTel 에이전트)
 traces:
   otlp:
     http:

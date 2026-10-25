@@ -74,14 +74,10 @@
             <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
 
-        <!-- Micrometer Tracing -->
-        <dependency>
-            <groupId>io.micrometer</groupId>
-            <artifactId>micrometer-tracing-bridge-otel</artifactId>
-        </dependency>
+        <!-- OpenTelemetry API(이벤트에 넣을 추적 ID 읽기) -->
         <dependency>
             <groupId>io.opentelemetry</groupId>
-            <artifactId>opentelemetry-exporter-otlp</artifactId>
+            <artifactId>opentelemetry-api</artifactId>
         </dependency>
 
         <!-- Jakarta -->

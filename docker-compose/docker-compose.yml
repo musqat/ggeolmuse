@@ -1,3 +1,11 @@
+# 자바 서비스 트레이스(OTel 에이전트 → Tempo)
+x-otel-agent: &otel-agent
+  JAVA_TOOL_OPTIONS: "-javaagent:/app/opentelemetry-javaagent.jar"
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
+  OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+  OTEL_METRICS_EXPORTER: none
+  OTEL_LOGS_EXPORTER: none
+
 services:
 
   # Redis
@@ -176,9 +184,8 @@ services:
     environment:
       SPRING_APPLICATION_NAME: "gateway-server"
       SERVER_PORT: 8070
-      # config repo 기본값은 k8s 내부 주소라 로컬에서 안 잡힌다.
-      # spring.config.import 방식이라 환경변수가 원격 설정을 이긴다.
-      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://tempo:4318/v1/traces
+      <<: *otel-agent
+      OTEL_SERVICE_NAME: gateway-server
       SPRING_MAIN_WEB_APPLICATION_TYPE: reactive
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       SPRING_CLOUD_CONFIG_USERNAME: config
@@ -221,7 +228,8 @@ services:
     environment:
       TZ: "Asia/Seoul"
       JAVA_OPTS: "-Dh2.webAllowOthers=true"
-      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://tempo:4318/v1/traces
+      <<: *otel-agent
+      OTEL_SERVICE_NAME: user-service
       SPRING_PROFILES_ACTIVE: "dev,no-file-logging"
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       SPRING_CLOUD_CONFIG_USERNAME: config
@@ -283,7 +291,8 @@ services:
       SPRING_CLOUD_CONFIG_RETRY_MAX_ATTEMPTS: "20"
       SPRING_CLOUD_CONFIG_RETRY_INITIAL_INTERVAL: "2000"
       SPRING_CLOUD_CONFIG_RETRY_MAX_INTERVAL: "10000"
-      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://tempo:4318/v1/traces
+      <<: *otel-agent
+      OTEL_SERVICE_NAME: trade-service
       SPRING_PROFILES_ACTIVE: "dev,no-file-logging"
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       SPRING_CLOUD_CONFIG_USERNAME: config
@@ -341,7 +350,8 @@ services:
       SPRING_CLOUD_CONFIG_RETRY_MAX_ATTEMPTS: "20"
       SPRING_CLOUD_CONFIG_RETRY_INITIAL_INTERVAL: "2000"
       SPRING_CLOUD_CONFIG_RETRY_MAX_INTERVAL: "10000"
-      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://tempo:4318/v1/traces
+      <<: *otel-agent
+      OTEL_SERVICE_NAME: market-data-service
       # yahoo = 키 불필요·무료. 부팅 후 소수 종목 OHLC 자동 수집 → 차트/백테스트 데이터 확보
       MARKETDATA_PROVIDER: yahoo
       # 로컬(H2 in-mem): 전체 ~6700종목 수집은 무겁고 재시작마다 재수집 → 상위 50개만 수집(시총 desc, AAPL 등 포함).
@@ -358,7 +368,7 @@ services:
       # 비동기 수집이 커넥션을 다 잡아 API가 503나는 것 방지
       SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "30"
       # 컨테이너 2g 한도 내 heap 명시 (기본 25%로는 부족 → OOM)
-      JAVA_TOOL_OPTIONS: "-Xmx1536m"
+      JAVA_TOOL_OPTIONS: "-Xmx1536m -javaagent:/app/opentelemetry-javaagent.jar"
       ALPHAVANTAGE_API_KEY: ${ALPHAVANTAGE_API_KEY:-demo}
       KOREAEXIM_API_KEY: ${KOREAEXIM_API_KEY:-demo}
       SPRING_PROFILES_ACTIVE: "dev,no-file-logging"
@@ -414,7 +424,8 @@ services:
       SPRING_CLOUD_CONFIG_RETRY_MAX_ATTEMPTS: "20"
       SPRING_CLOUD_CONFIG_RETRY_INITIAL_INTERVAL: "2000"
       SPRING_CLOUD_CONFIG_RETRY_MAX_INTERVAL: "10000"
-      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://tempo:4318/v1/traces
+      <<: *otel-agent
+      OTEL_SERVICE_NAME: backtest-service
       SPRING_PROFILES_ACTIVE: "dev,no-file-logging"
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       SPRING_CLOUD_CONFIG_USERNAME: config
