@@ -64,3 +64,22 @@ describe('TradingChartSection 직접설정', () => {
     expect(screen.getByText('차트 데이터가 없습니다')).toBeInTheDocument()
   })
 })
+
+describe('TradingChartSection 불러오는 중', () => {
+  it('차트를 받는 동안 불러오는 중 표시를 보인다', () => {
+    render(
+      <TradingChartSection
+        chartData={[]}
+        chartLoading
+        timeframe="1개월"
+        onTimeframeChange={vi.fn()}
+        customStartDate=""
+        customEndDate=""
+        onCustomStartDateChange={vi.fn()}
+        onCustomEndDateChange={vi.fn()}
+      />
+    )
+
+    expect(screen.getByRole('status', { name: '불러오는 중' })).toHaveClass('h-8')
+  })
+})

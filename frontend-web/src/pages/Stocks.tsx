@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { stockApi, type StockSort } from '../services/api';
 import { formatMarketCap } from '../utils/formatNumber';
+import { Spinner } from '../components/common/Spinner';
 
 interface StockSymbol {
   symbol: string;
@@ -150,7 +151,7 @@ const Stocks: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-brand mx-auto mb-4"></div>
+          <Spinner className="mx-auto mb-4" />
           <p className="text-tx-2 text-lg">시장 데이터를 불러오는 중입니다...</p>
           <p className="text-tx-3 text-sm mt-2">잠시만 기다려주세요</p>
         </div>

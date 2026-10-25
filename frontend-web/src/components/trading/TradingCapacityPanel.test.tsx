@@ -91,6 +91,7 @@ describe('TradingCapacityPanel', () => {
     renderBuyPanel('close', 8.97)
 
     expect(screen.getByText('거래 가능 수량 계산 중...')).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: '불러오는 중' })).toHaveClass('h-6')
   })
 
   it('매도 칸은 슬리피지 · 수수료를 뺀 받을 금액을 보인다', async () => {

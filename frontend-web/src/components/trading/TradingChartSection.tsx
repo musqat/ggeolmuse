@@ -4,6 +4,7 @@ import CandlestickChart from '@/components/charts/trading/CandlestickChart';
 import type { CandlestickChartData } from '@/types/ohlc';
 import { getTodayString, type Timeframe } from '@/utils/dateUtils';
 import { DateField } from '../common/DateField';
+import { Spinner } from '../common/Spinner';
 
 interface TradingChartSectionProps {
   chartData: CandlestickChartData[];
@@ -85,7 +86,7 @@ const TradingChartSection: React.FC<TradingChartSectionProps> = ({
       <div>
         {chartLoading ? (
           <div className="h-[380px] md:h-[400px] flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand"></div>
+            <Spinner size="md" />
           </div>
         ) : chartData.length > 0 ? (
           <CandlestickChart data={chartData} />
