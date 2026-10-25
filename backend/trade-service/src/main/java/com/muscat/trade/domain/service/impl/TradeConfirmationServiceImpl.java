@@ -2,6 +2,7 @@ package com.muscat.trade.domain.service.impl;
 
 import com.muscat.messaging.event.TradeSettledEvent;
 import com.muscat.trade.common.enums.type.TradeStatus;
+import com.muscat.trade.common.metrics.TradeMetrics;
 import com.muscat.trade.domain.entity.Trade;
 import com.muscat.trade.domain.event.TradeConfirmedEvent;
 import com.muscat.trade.domain.repository.TradeRepository;
@@ -22,6 +23,7 @@ public class TradeConfirmationServiceImpl implements TradeConfirmationService {
   private final TradeRepository tradeRepository;
   private final HoldingsRebuilder holdingsRebuilder;
   private final ApplicationEventPublisher eventPublisher;
+  private final TradeMetrics tradeMetrics;
 
   // 체결을 잠가 같은 정산됨이 두 번 와도 한 번만 완료
   @Override
@@ -46,6 +48,7 @@ public class TradeConfirmationServiceImpl implements TradeConfirmationService {
     trade.complete();
     holdingsRebuilder.rebuild(trade.getUserId(), trade.getAccountId(), trade.getSymbol(), false);
     eventPublisher.publishEvent(new TradeConfirmedEvent(trade.getUserId(), trade.getAccountId(), trade.getSymbol()));
+    tradeMetrics.recordCompleted(trade);
     log.info("정산된 매수 완료: tradeId={}", trade.getId());
   }
 }

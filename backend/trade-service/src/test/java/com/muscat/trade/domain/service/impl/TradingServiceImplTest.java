@@ -16,6 +16,7 @@ import com.muscat.trade.common.enums.response.TradeResponse;
 import com.muscat.trade.common.enums.type.PriceType;
 import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.common.enums.type.TradeType;
+import com.muscat.trade.common.metrics.TradeMetrics;
 import com.muscat.trade.common.exception.NotEnoughHoldingsException;
 import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.common.logging.TradeLogger;
@@ -73,6 +74,8 @@ class TradingServiceImplTest {
   private TradeUtils tradeUtils;
   @Mock
   private ApplicationEventPublisher eventPublisher;
+  @Mock
+  private TradeMetrics tradeMetrics;
   @Spy
   private TransactionTemplate transactionTemplate =
     new TransactionTemplate(org.mockito.Mockito.mock(PlatformTransactionManager.class));
@@ -139,6 +142,7 @@ class TradingServiceImplTest {
       verify(holdingsRepository, never()).findByUserIdAndAccountIdAndSymbolWithLock(any(), any(), any());
       verify(holdingsRepository, never()).save(any(Holdings.class));
       verify(eventPublisher).publishEvent(any(TradeSavedEvent.class));
+      verify(tradeMetrics, never()).recordCompleted(any());
     }
 
     @Test
@@ -378,6 +382,7 @@ class TradingServiceImplTest {
 
       verify(holdingsRepository, never()).delete(any());
       verify(eventPublisher).publishEvent(any(TradeSavedEvent.class));
+      verify(tradeMetrics).recordCompleted(savedTrade);
     }
 
     @Test

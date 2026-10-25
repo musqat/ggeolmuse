@@ -8,6 +8,7 @@ import com.muscat.trade.common.enums.type.TradeType;
 import com.muscat.trade.common.exception.NotEnoughHoldingsException;
 import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.common.logging.TradeLogger;
+import com.muscat.trade.common.metrics.TradeMetrics;
 import com.muscat.trade.common.util.SlippagePricing;
 import com.muscat.trade.common.util.TradeUtils;
 import com.muscat.trade.config.TradeProperties;
@@ -53,6 +54,7 @@ public class TradingServiceImpl implements TradingService {
   private final TradeUtils tradeUtils;
   private final ApplicationEventPublisher eventPublisher;
   private final TransactionTemplate transactionTemplate;
+  private final TradeMetrics tradeMetrics;
 
   @Override
   public TradeResponseDto buyStock(String userId, Long accountId, String symbol,
@@ -312,6 +314,9 @@ public class TradingServiceImpl implements TradingService {
         return saved;
       });
       log.info("거래 DB 트랜잭션 완료: tradeId={}", result.getId());
+      if (result.getStatus() == TradeStatus.COMPLETED) {
+        tradeMetrics.recordCompleted(result);
+      }
 
       return result;
 
