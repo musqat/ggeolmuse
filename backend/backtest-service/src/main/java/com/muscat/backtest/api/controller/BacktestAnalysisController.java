@@ -1,5 +1,6 @@
 package com.muscat.backtest.api.controller;
 
+import com.muscat.backtest.common.metrics.BacktestMetrics;
 import com.muscat.backtest.common.util.TokenOwner;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
@@ -39,6 +40,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class BacktestAnalysisController {
 
   private final BacktestAnalysisService backtestAnalysisService;
+  private final BacktestMetrics backtestMetrics;
 
   @Operation(
       summary = "DCA 투자 전략 백테스팅",
@@ -85,7 +87,7 @@ public class BacktestAnalysisController {
     log.info("DCA 전략 백테스팅 요청: {} - 월{}원",
         request.getSymbol(), request.getMonthlyAmount());
 
-    StrategyResponse result = backtestAnalysisService.runDcaStrategy(request);
+    StrategyResponse result = backtestMetrics.record("dca", () -> backtestAnalysisService.runDcaStrategy(request));
 
     log.info("DCA 전략 완료: {} - 수익률 {}%",
         request.getSymbol(), result.getTotalReturnPercent());
@@ -125,7 +127,7 @@ public class BacktestAnalysisController {
     log.info("조건부 매수 전략 백테스팅 요청: {} - {}% 하락시 매수",
         request.getSymbol(), request.getDropPercentage());
 
-    StrategyResponse result = backtestAnalysisService.runConditionalStrategy(request);
+    StrategyResponse result = backtestMetrics.record("conditional", () -> backtestAnalysisService.runConditionalStrategy(request));
 
     log.info("조건부 매수 전략 완료: {} - 수익률 {}%",
         request.getSymbol(), result.getTotalReturnPercent());
@@ -165,7 +167,7 @@ public class BacktestAnalysisController {
 
     log.info("종목 비교 분석 요청: {}", request.getSymbols());
 
-    ComparisonResponse result = backtestAnalysisService.compareSymbols(request);
+    ComparisonResponse result = backtestMetrics.record("compare_symbols", () -> backtestAnalysisService.compareSymbols(request));
 
     log.info("종목 비교 분석 완료: {}개 종목, 최고 수익률 {}%",
         result.getItems().size(), result.getBestPerformer().getTotalReturnPercent());
@@ -206,7 +208,7 @@ public class BacktestAnalysisController {
         request.getSymbol(),
         request.getStrategies() != null ? request.getStrategies().size() : 0);
 
-    ComparisonResponse result = backtestAnalysisService.compareStrategies(request);
+    ComparisonResponse result = backtestMetrics.record("compare_strategies", () -> backtestAnalysisService.compareStrategies(request));
 
     log.info("전략 비교 분석 완료: {}개 전략, 최고 수익률 {}%",
         result.getItems().size(), result.getBestPerformer().getTotalReturnPercent());
@@ -247,9 +249,9 @@ public class BacktestAnalysisController {
         request.getSymbol(),
         request.getPurchaseDates() != null ? request.getPurchaseDates().size() : 0);
 
-    ComparisonResponse result = backtestAnalysisService.compareTiming(request);
+    ComparisonResponse result = backtestMetrics.record("compare_timing", () -> backtestAnalysisService.compareTiming(request));
 
-    log.info("타이밍 비교 분석 완룄: {}개 시점, 최고 수익률 {}%",
+    log.info("타이밍 비교 분석 완료: {}개 시점, 최고 수익률 {}%",
         result.getItems().size(), result.getBestPerformer().getTotalReturnPercent());
 
     return ResponseEntity.ok(result);
@@ -287,7 +289,7 @@ public class BacktestAnalysisController {
     log.info("최적 타이밍 분석 요청: {} - 목표 수익률 {}%",
         request.getSymbol(), request.getTargetReturnPercent());
 
-    OptimalTimingResponse result = backtestAnalysisService.analyzeOptimalTiming(request);
+    OptimalTimingResponse result = backtestMetrics.record("optimal_timing", () -> backtestAnalysisService.analyzeOptimalTiming(request));
 
     log.info("최적 타이밍 분석 완료: {} - {}일 중 {}일 목표 달성",
         request.getSymbol(), result.getTotalAnalyzedDays(), result.getTotalQualifyingDays());
