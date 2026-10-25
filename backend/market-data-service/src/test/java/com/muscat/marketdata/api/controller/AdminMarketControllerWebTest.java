@@ -27,6 +27,7 @@ import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.service.AssetPriceBatchUpdater;
 import com.muscat.marketdata.domain.service.AssetService;
 import com.muscat.marketdata.domain.service.CandleRefreshService;
+import com.muscat.marketdata.domain.service.FxCollectionService;
 import com.muscat.marketdata.domain.service.UnadjustedScanService;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -75,6 +76,9 @@ class AdminMarketControllerWebTest {
 
   @MockitoBean
   private CandleRefreshService candleRefreshService;
+
+  @MockitoBean
+  private FxCollectionService fxCollectionService;
 
   @MockitoBean
   private AssetPriceBatchUpdater priceBatchUpdater;
@@ -404,6 +408,69 @@ class AdminMarketControllerWebTest {
         .andExpect(jsonPath("$.lastRunAt").value("2026-10-01T09:00:00"));
 
       verify(candleRefreshService).refreshAll();
+    }
+  }
+
+  @Nested
+  @DisplayName("환율 수집")
+  class FxCollectTests {
+
+    private FxCollectionService.Status fxStatus() {
+      return new FxCollectionService.Status(3, List.of(LocalDate.of(2026, 6, 25)), true,
+        FxCollectionService.Progress.builder().mode(FxCollectionService.Mode.MISSING)
+          .startedAt(LocalDateTime.of(2026, 10, 25, 3, 0)).total(3).processed(1).filled(1).build());
+    }
+
+    @Test
+    @DisplayName("상태는 빈 날 수 · 최근 빈 날 · 진행을 준다")
+    void statusShape() throws Exception {
+      given(fxCollectionService.status()).willReturn(fxStatus());
+
+      asAdmin(get(BASE + "/fx/collect")).andExpect(status().isOk())
+        .andExpect(jsonPath("$.missingCount").value(3))
+        .andExpect(jsonPath("$.missingDates[0]").value("2026-06-25"))
+        .andExpect(jsonPath("$.running").value(true))
+        .andExpect(jsonPath("$.mode").value("MISSING"))
+        .andExpect(jsonPath("$.processed").value(1))
+        .andExpect(jsonPath("$.startedAt").value("2026-10-25T03:00:00"));
+    }
+
+    @Test
+    @DisplayName("빠진 날 채우기 · 전체 받기는 202 와 상태를 주고 그 모드로 시작한다")
+    void start() throws Exception {
+      given(fxCollectionService.start(any())).willReturn(true);
+      given(fxCollectionService.status()).willReturn(fxStatus());
+
+      asAdmin(post(BASE + "/fx/collect").param("mode", "missing")).andExpect(status().isAccepted())
+        .andExpect(jsonPath("$.running").value(true));
+      asAdmin(post(BASE + "/fx/collect").param("mode", "all")).andExpect(status().isAccepted());
+
+      verify(fxCollectionService).start(FxCollectionService.Mode.MISSING);
+      verify(fxCollectionService).start(FxCollectionService.Mode.ALL);
+    }
+
+    @Test
+    @DisplayName("이미 돌고 있으면 409 와 안내를 주고, 모르는 모드는 400 이고 시작하지 않는다")
+    void busyOrUnknownMode() throws Exception {
+      given(fxCollectionService.start(any())).willReturn(false);
+      given(fxCollectionService.status()).willReturn(fxStatus());
+
+      asAdmin(post(BASE + "/fx/collect").param("mode", "missing")).andExpect(status().isConflict())
+        .andExpect(jsonPath("$.message").value("이미 환율 수집이 진행 중입니다. 끝난 뒤 다시 시도해 주세요."));
+      asAdmin(post(BASE + "/fx/collect").param("mode", "everything")).andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value("모드는 missing 또는 all 입니다."));
+
+      verify(fxCollectionService).start(FxCollectionService.Mode.MISSING);
+    }
+
+    @Test
+    @DisplayName("관리자가 아니면 막고 시작하지 않는다")
+    void requiresAdmin() throws Exception {
+      mockMvc.perform(post(BASE + "/fx/collect")).andExpect(status().isUnauthorized());
+      mockMvc.perform(post(BASE + "/fx/collect").header(HttpHeaders.AUTHORIZATION, "Bearer user-token"))
+        .andExpect(status().isForbidden());
+
+      verify(fxCollectionService, never()).start(any());
     }
   }
 }

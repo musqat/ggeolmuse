@@ -118,13 +118,7 @@ public class FxDataCollector implements CommandLineRunner {
         Set<LocalDate> stored = fxRateRepository.findByDateBetween(from, to).stream()
                 .map(FxRate::getDate)
                 .collect(Collectors.toSet());
-        List<LocalDate> missing = new ArrayList<>();
-        for (LocalDate date = from; !date.isAfter(to); date = date.plusDays(1)) {
-            if (isWeekday(date) && !stored.contains(date)) {
-                missing.add(date);
-            }
-        }
-        return missing;
+        return weekdays(from, to).stream().filter(date -> !stored.contains(date)).toList();
     }
 
     /**
@@ -177,6 +171,17 @@ public class FxDataCollector implements CommandLineRunner {
         }
 
         return collected;
+    }
+
+    // from ~ to 의 평일
+    public static List<LocalDate> weekdays(LocalDate from, LocalDate to) {
+        List<LocalDate> days = new ArrayList<>();
+        for (LocalDate date = from; !date.isAfter(to); date = date.plusDays(1)) {
+            if (isWeekday(date)) {
+                days.add(date);
+            }
+        }
+        return days;
     }
 
     private static boolean isWeekday(LocalDate date) {
