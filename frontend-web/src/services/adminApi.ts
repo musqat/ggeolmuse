@@ -193,6 +193,18 @@ export const marketAdminApi = {
   collectNewSymbols: async (): Promise<void> => {
     await api.post('/admin/market/update/symbols');
   },
+
+  // 환율 빈 날과 진행 중이거나 마지막 수집
+  findFxCollect: async (): Promise<FxCollectResponse> => {
+    const { data } = await api.get<FxCollectResponse>('/admin/market/fx/collect');
+    return data;
+  },
+
+  // 환율 빠진 날 채우기(missing) · 전체 다시 받기(all) 시작(수집은 백그라운드)
+  startFxCollect: async (mode: 'missing' | 'all'): Promise<FxCollectResponse> => {
+    const { data } = await api.post<FxCollectResponse>('/admin/market/fx/collect', null, { params: { mode } });
+    return data;
+  },
 };
 
 export interface UnadjustedResponse {
@@ -217,6 +229,24 @@ export interface RefreshResponse {
 export interface RefreshAllResponse {
   lastRunAt: string | null;
   published: number;
+}
+
+// startedAt · finishedAt 은 KST 시각, mode 는 서버를 다시 띄운 뒤 null
+export interface FxCollectResponse {
+  missingCount: number;
+  // 최근 빈 날(최근부터 최대 열 개)
+  missingDates: string[] | null;
+  running: boolean;
+  mode: 'MISSING' | 'ALL' | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  total: number;
+  processed: number;
+  filled: number;
+  failed: number;
+  lastDate: string | null;
+  stoppedReason: string | null;
+  message: string | null;
 }
 
 // ==================== User Admin APIs ====================

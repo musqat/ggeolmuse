@@ -20,6 +20,8 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 // 공급원별 FxSource 로 앱 시작 때 과거 · 빠진 환율을 채우고 하루치를 받는 수집기
 @Slf4j
@@ -84,26 +86,39 @@ public class FxDataCollector implements CommandLineRunner {
         log.info("[환율수집] 과거데이터 완료: 총 {}건", totalSaved);
     }
 
+    // 시작일 ~ 오늘 평일 중 저장 안 된 날을 최근 날부터 최대 defaultDays 일
     @Transactional
     protected void runIncrementalCollection() {
         LocalDate today = LocalDate.now(KST);
-        LocalDate lastDate = fxRateRepository.findAll().stream()
-                .map(FxRate::getDate)
-                .max(LocalDate::compareTo)
-                .orElse(null);
-
-        LocalDate fromDate = (lastDate == null)
-                ? today.minusDays(properties.getFxIngest().getIncremental().getDefaultDays())
-                : lastDate.plusDays(1);
-
-        if (!fromDate.isAfter(today)) {
-            log.info("[환율수집] 증분수집: {} ~ {}", fromDate, today);
-            List<FxRate> collected = collectDateRange(fromDate, today);
-            fxRateRepository.saveAll(collected);
-            log.info("[환율수집] 증분수집 완료: {}건", collected.size());
-        } else {
-            log.info("[환율수집] 증분수집 스킵: 최신 데이터 (마지막={}, 오늘={})", lastDate, today);
+        List<LocalDate> missing = missingWeekdays(properties.getFxIngest().getStartDate(), today);
+        if (missing.isEmpty()) {
+            log.info("[환율수집] 증분수집 스킵: 빈 날 없음 (오늘={})", today);
+            return;
         }
+
+        int limit = properties.getFxIngest().getIncremental().getDefaultDays();
+        List<LocalDate> targets = missing.subList(Math.max(0, missing.size() - limit), missing.size());
+        log.info("[환율수집] 증분수집: 빈 날 {}일 중 {}일 ({} ~ {})",
+                missing.size(), targets.size(), targets.get(0), targets.get(targets.size() - 1));
+
+        List<FxRate> collected = new ArrayList<>();
+        for (LocalDate date : targets) {
+            try {
+                collectSingleDate(date, true).ifPresent(collected::add);
+            } catch (Exception e) {
+                log.warn("[환율수집] 빈 날 수집 실패: date={}, error={}", date, e.getMessage());
+            }
+        }
+        fxRateRepository.saveAll(collected);
+        log.info("[환율수집] 증분수집 완료: {}건", collected.size());
+    }
+
+    // from ~ to 평일 중 저장 안 된 날(오래된 날부터)
+    public List<LocalDate> missingWeekdays(LocalDate from, LocalDate to) {
+        Set<LocalDate> stored = fxRateRepository.findByDateBetween(from, to).stream()
+                .map(FxRate::getDate)
+                .collect(Collectors.toSet());
+        return weekdays(from, to).stream().filter(date -> !stored.contains(date)).toList();
     }
 
     /**
@@ -150,12 +165,27 @@ public class FxDataCollector implements CommandLineRunner {
         List<FxRate> collected = new ArrayList<>();
 
         for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
-            if (date.getDayOfWeek() != DayOfWeek.SATURDAY && date.getDayOfWeek() != DayOfWeek.SUNDAY) {
+            if (isWeekday(date)) {
                 collectSingleDate(date, true).ifPresent(collected::add);
             }
         }
 
         return collected;
+    }
+
+    // from ~ to 의 평일
+    public static List<LocalDate> weekdays(LocalDate from, LocalDate to) {
+        List<LocalDate> days = new ArrayList<>();
+        for (LocalDate date = from; !date.isAfter(to); date = date.plusDays(1)) {
+            if (isWeekday(date)) {
+                days.add(date);
+            }
+        }
+        return days;
+    }
+
+    private static boolean isWeekday(LocalDate date) {
+        return date.getDayOfWeek() != DayOfWeek.SATURDAY && date.getDayOfWeek() != DayOfWeek.SUNDAY;
     }
 
     private static LocalDate getPreviousBusinessDay(LocalDate date) {

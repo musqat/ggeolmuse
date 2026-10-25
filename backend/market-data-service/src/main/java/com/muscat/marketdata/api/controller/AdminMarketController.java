@@ -6,6 +6,7 @@ import com.muscat.marketdata.domain.dto.admin.AssetResponse;
 import com.muscat.marketdata.domain.dto.admin.BulkDeleteRequest;
 import com.muscat.marketdata.domain.dto.admin.BulkDeleteResponse;
 import com.muscat.marketdata.domain.dto.admin.CreateAssetRequest;
+import com.muscat.marketdata.domain.dto.admin.FxCollectResponse;
 import com.muscat.marketdata.domain.dto.admin.PageResponse;
 import com.muscat.marketdata.domain.dto.admin.RefreshAllResponse;
 import com.muscat.marketdata.domain.dto.admin.RefreshRequest;
@@ -17,6 +18,7 @@ import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.service.AssetPriceBatchUpdater;
 import com.muscat.marketdata.domain.service.AssetService;
 import com.muscat.marketdata.domain.service.CandleRefreshService;
+import com.muscat.marketdata.domain.service.FxCollectionService;
 import com.muscat.marketdata.domain.service.UnadjustedScanService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +33,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Locale;
 
 // 관리자용 종목 · 시세 관리 API
 @Slf4j
@@ -43,6 +46,7 @@ public class AdminMarketController {
     private final AssetPriceBatchUpdater priceBatchUpdater;
     private final UnadjustedScanService scanService;
     private final CandleRefreshService candleRefreshService;
+    private final FxCollectionService fxCollectionService;
     private final AdminJobRunner jobRunner;
 
     // yahoo 프로바이더에서만 뜨는 빈이라 선택 주입
@@ -283,5 +287,34 @@ public class AdminMarketController {
         return ResponseEntity.ok(candleRefreshService.lastRefreshAll()
             .map(RefreshAllResponse::of)
             .orElseGet(RefreshAllResponse::new));
+    }
+
+    // 환율 빈 날과 진행 중이거나 마지막 수집
+    @GetMapping("/fx/collect")
+    public ResponseEntity<FxCollectResponse> fxCollectStatus() {
+        return ResponseEntity.ok(FxCollectResponse.of(fxCollectionService.status()));
+    }
+
+    // 환율 빠진 날 채우기(missing) · 전체 다시 받기(all). 백그라운드로 돌고 진행은 GET 으로
+    @PostMapping("/fx/collect")
+    public ResponseEntity<FxCollectResponse> startFxCollect(@RequestParam(defaultValue = "missing") String mode) {
+        FxCollectionService.Mode parsed = switch (mode.toLowerCase(Locale.ROOT)) {
+            case "missing" -> FxCollectionService.Mode.MISSING;
+            case "all" -> FxCollectionService.Mode.ALL;
+            default -> null;
+        };
+        if (parsed == null) {
+            return ResponseEntity.badRequest().body(FxCollectResponse.message("모드는 missing 또는 all 입니다."));
+        }
+
+        boolean started = fxCollectionService.start(parsed);
+        log.info("환율 수집 요청: mode={}, started={}", parsed, started);
+
+        FxCollectResponse body = FxCollectResponse.of(fxCollectionService.status());
+        if (!started) {
+            body.setMessage("이미 환율 수집이 진행 중입니다. 끝난 뒤 다시 시도해 주세요.");
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+        }
+        return ResponseEntity.accepted().body(body);
     }
 }

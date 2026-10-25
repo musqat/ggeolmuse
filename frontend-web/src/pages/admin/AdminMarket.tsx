@@ -4,6 +4,7 @@ import { useAdminMarket } from '@hooks/useAdminMarket';
 import AssetListSection from '@components/admin/AssetListSection';
 import AddAssetModal from '@components/admin/AddAssetModal';
 import CandleRefreshSection from '@components/admin/CandleRefreshSection';
+import FxCollectSection from '@components/admin/FxCollectSection';
 
 export default function AdminMarket() {
   const market = useAdminMarket();
@@ -37,6 +38,9 @@ export default function AdminMarket() {
 
         {/* 분할 미반영 종목 정비 */}
         <CandleRefreshSection />
+
+        {/* 환율 빠진 날 */}
+        <FxCollectSection />
 
         {/* 보유 종목 검색 (DB) */}
         <div className="bg-surface rounded-lg shadow-md p-4 mb-6">
