@@ -47,12 +47,23 @@ async def test_start_creates_conversation_without_using_quota():
     assert env.model.chosen == [] and env.model.answered == []
 
 
-@pytest.mark.parametrize("raw", ["애플", "BRK.B", "", "A" * 17])
+@pytest.mark.parametrize("raw", ["애플", "BRK/B", "", "A" * 17])
 async def test_start_rejects_bad_format_without_market_call(raw):
     env = Env()
     with pytest.raises(SymbolNotFound):
         await env.service.start("u1", raw)
     assert env.market.calls == []
+
+
+@pytest.mark.parametrize("symbol", ["BRK-B", "BRK.B", "^GSPC"])
+async def test_start_accepts_dot_hyphen_caret_symbols(symbol):
+    env = Env()
+    env.market.quotes[symbol] = Quote(symbol=symbol, name="Listed", price=1.0, as_of=TODAY, active=True)
+
+    result = await env.service.start("u1", symbol.lower())
+
+    assert result.conversation.symbol == symbol
+    assert env.market.calls == [("quote", symbol)]
 
 
 async def test_start_rejects_unknown_and_delisted():

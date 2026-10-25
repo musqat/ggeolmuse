@@ -20,7 +20,7 @@ from app.core.tools.market import MarketTools
 
 log = logging.getLogger(__name__)
 
-SYMBOL_PATTERN = re.compile(r"^[A-Z]{1,16}$")
+SYMBOL_PATTERN = re.compile(r"^[A-Z0-9.^-]{1,16}$")
 
 
 @dataclass(frozen=True)
