@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { authApi } from '../../services/api';
-import { getApiErrorMessage } from '../../utils/apiError';
+import { getServerMessage } from '../../utils/apiError';
 import { NICKNAME_HINT, NICKNAME_RULE, NICKNAME_RULE_MESSAGE } from '../../utils/nickname';
 import { notify } from '../common/notify';
 import { DialogField, FormDialog } from '../common/FormDialog';
@@ -41,7 +41,7 @@ export const NicknameDialog: React.FC<NicknameDialogProps> = ({
       onChanged();
       onClose();
     } catch (err: unknown) {
-      notify.error('닉네임 변경에 실패했습니다:' + getApiErrorMessage(err, '알 수 없는 오류'));
+      notify.error(getServerMessage(err) ?? '닉네임 변경에 실패했습니다.');
     }
   };
 

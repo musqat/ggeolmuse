@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Modal } from '@/components/common/Modal';
 import { addAmount } from '@/utils/amount';
 import { notify } from '@/components/common/notify';
-import { ModalActions } from './ModalActions';
+import { DialogActions } from '@/components/common/DialogActions';
 
 interface DepositModalProps {
   isOpen: boolean;
@@ -42,7 +42,7 @@ const DepositModal: React.FC<DepositModalProps> = ({
   };
 
   const footer = (
-    <ModalActions
+    <DialogActions
       onCancel={handleClose}
       onSubmit={handleSubmit}
       submitLabel="입금하기"

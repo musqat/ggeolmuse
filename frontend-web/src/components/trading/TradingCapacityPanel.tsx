@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { TrendingUp, TrendingDown, DollarSign, Package } from "lucide-react";
 import { tradeApi } from "../../services/api";
 import { toBackendPriceType, type PriceType } from "@/utils/priceUtils";
+import { Spinner } from "../common/Spinner";
 
 interface TradingCapacityPanelProps {
   accountId: number | null;
@@ -58,7 +59,7 @@ const TradingCapacityPanel: React.FC<TradingCapacityPanelProps> = ({
     return (
       <div className="bg-elevated border border-brand/25 rounded-lg p-4 mb-4">
         <div className="flex items-center justify-center">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand"></div>
+          <Spinner size="sm" />
           <span className="ml-2 text-sm text-brand">
             거래 가능 수량 계산 중...
           </span>

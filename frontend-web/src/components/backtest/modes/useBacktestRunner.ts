@@ -19,7 +19,6 @@ export const useBacktestRunner = (isAuthenticated: boolean) => {
       if (!isAuthenticated) {
         saveLocalBacktestHistory(prepared.historyType, prepared.params, prepared.fxMode);
       }
-      // TODO: 로그인 후 sync API 생기면 여기서 처리
       setResult(next);
     } catch (err: unknown) {
       setError(getApiErrorMessage(err, prepared.failureMessage));

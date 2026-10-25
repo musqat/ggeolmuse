@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { attachTokenRefresh } from './api';
+import { attachAccessToken, attachTokenRefresh } from './api';
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? '').trim() || '/api';
 
@@ -8,16 +8,7 @@ const api = axios.create({
   timeout: 30000,
 });
 
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+attachAccessToken(api);
 
 // 401 이면 토큰을 갱신하고 다시 보냄(메인 클라이언트와 같은 방식)
 attachTokenRefresh(api);

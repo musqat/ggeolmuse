@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { authApi } from '../../services/api';
-import { getApiErrorMessage } from '../../utils/apiError';
+import { getServerMessage } from '../../utils/apiError';
 import { PASSWORD_HINT, PASSWORD_RULE, PASSWORD_RULE_MESSAGE } from '../../utils/password';
 import { notify } from '../common/notify';
 import { DialogField, FormDialog } from '../common/FormDialog';
@@ -32,7 +32,7 @@ export const PasswordDialog: React.FC<{ onClose: () => void }> = ({ onClose }) =
       notify.success('비밀번호가 변경되었습니다.');
       onClose();
     } catch (err: unknown) {
-      notify.error('비밀번호 변경에 실패했습니다:' + getApiErrorMessage(err, '알 수 없는 오류'));
+      notify.error(getServerMessage(err) ?? '비밀번호 변경에 실패했습니다.');
     }
   };
 

@@ -2,7 +2,7 @@ import React from 'react';
 import { X } from 'lucide-react';
 import { Modal } from './Modal';
 import { dismissToast, settleConfirm, useConfirmRequest, useToasts } from './notify';
-import { SOLID_BUTTON } from '@/styles/buttons';
+import { DialogActions } from './DialogActions';
 import { LAYER } from '@/styles/layers';
 
 const kindClass = {
@@ -44,22 +44,12 @@ export const Notifications: React.FC = () => {
           title={confirm.title ?? '확인'}
           maxWidth="sm"
           footer={
-            <div className="flex space-x-3">
-              <button
-                onClick={() => settleConfirm(false)}
-                className="flex-1 rounded-lg border border-line-strong px-4 py-2 text-tx-1 transition-colors hover:bg-surface/50"
-              >
-                취소
-              </button>
-              <button
-                onClick={() => settleConfirm(true)}
-                className={`flex-1 rounded-lg px-4 py-2 transition-colors ${
-                  confirm.danger ? SOLID_BUTTON.danger : 'bg-brand text-brand-ink hover:bg-brand-dark'
-                }`}
-              >
-                {confirm.confirmText ?? '확인'}
-              </button>
-            </div>
+            <DialogActions
+              onCancel={() => settleConfirm(false)}
+              onSubmit={() => settleConfirm(true)}
+              submitLabel={confirm.confirmText ?? '확인'}
+              tone={confirm.danger ? 'danger' : undefined}
+            />
           }
         >
           <p className="whitespace-pre-line text-tx-1">{confirm.message}</p>

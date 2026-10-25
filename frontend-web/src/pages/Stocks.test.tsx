@@ -70,3 +70,13 @@ describe('Stocks 정렬과 배당수익률', () => {
     expect(await screen.findByText(/데이터 갱신: 2026년 10월 19일/)).toBeInTheDocument()
   })
 })
+
+describe('Stocks 불러오는 중', () => {
+  it('처음 목록을 받는 동안 다른 화면과 같은 크기의 불러오는 중 표시를 보인다', () => {
+    getAllStocksWithPrices.mockReturnValue(new Promise(() => {}) as never)
+    renderStocks()
+
+    expect(screen.getByRole('status', { name: '불러오는 중' })).toHaveClass('h-12')
+    expect(screen.getByText('시장 데이터를 불러오는 중입니다...')).toBeInTheDocument()
+  })
+})

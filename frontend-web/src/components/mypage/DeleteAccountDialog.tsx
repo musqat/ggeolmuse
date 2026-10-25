@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { authApi } from '../../services/api';
-import { getApiErrorMessage, getApiErrorStatus } from '../../utils/apiError';
+import { getServerMessage, getApiErrorStatus } from '../../utils/apiError';
 import { tokenManager } from '../../utils/auth';
 import { notify } from '../common/notify';
 import { DialogField, FormDialog } from '../common/FormDialog';
@@ -51,7 +51,7 @@ export const DeleteAccountDialog: React.FC<DeleteAccountDialogProps> = ({ hasPas
         setReauthRejected(true);
         return;
       }
-      notify.error('회원 탈퇴에 실패했습니다:' + getApiErrorMessage(err, '알 수 없는 오류'));
+      notify.error(getServerMessage(err) ?? '회원 탈퇴에 실패했습니다.');
     }
   };
 
