@@ -8,6 +8,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.muscat.messaging.event.TradeSettledEvent;
+import com.muscat.trade.common.metrics.TradeMetrics;
 import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.common.enums.type.TradeType;
 import com.muscat.trade.domain.entity.Trade;
@@ -37,6 +38,9 @@ class TradeConfirmationServiceImplTest {
   @Mock
   private ApplicationEventPublisher eventPublisher;
 
+  @Mock
+  private TradeMetrics tradeMetrics;
+
   @InjectMocks
   private TradeConfirmationServiceImpl service;
 
@@ -51,10 +55,11 @@ class TradeConfirmationServiceImplTest {
   private void verifyNothingDone() {
     verify(holdingsRebuilder, never()).rebuild(any(), any(), any(), anyBoolean());
     verify(eventPublisher, never()).publishEvent(any(Object.class));
+    verify(tradeMetrics, never()).recordCompleted(any());
   }
 
   @Test
-  @DisplayName("대기 매수를 완료로 바꾸고 그 종목 보유를 다시 쌓은 뒤 배당 몫 재계산을 알린다")
+  @DisplayName("대기 매수를 완료로 바꾸고 그 종목 보유를 다시 쌓은 뒤 배당 몫 재계산을 알리고 완료 지표에 남긴다")
   void confirm_Pending_CompletesRebuildsAndPublishes() {
     Trade trade = trade("user-1", TradeStatus.PENDING);
     given(tradeRepository.findByIdForUpdate(7L)).willReturn(Optional.of(trade));
@@ -64,6 +69,7 @@ class TradeConfirmationServiceImplTest {
     assertThat(trade.getStatus()).isEqualTo(TradeStatus.COMPLETED);
     verify(holdingsRebuilder).rebuild("user-1", 20L, "AAPL", false);
     verify(eventPublisher).publishEvent(new TradeConfirmedEvent("user-1", 20L, "AAPL"));
+    verify(tradeMetrics).recordCompleted(trade);
   }
 
   @Test

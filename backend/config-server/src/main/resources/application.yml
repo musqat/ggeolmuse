@@ -44,3 +44,8 @@ management:
     tags:
       application: ${spring.application.name}
 
+logging:
+  structured:
+    format:
+      # 콘솔 로그를 JSON(ECS) 한 줄로
+      console: ecs

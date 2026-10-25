@@ -1,5 +1,6 @@
 package com.muscat.backtest.api.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
@@ -10,8 +11,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.StrategyType;
+import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.exception.GlobalExceptionHandler;
+import com.muscat.backtest.common.metrics.BacktestMetrics;
 import com.muscat.backtest.config.SecurityConfig;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
 import com.muscat.backtest.domain.model.ComparisonItem;
@@ -19,8 +23,11 @@ import com.muscat.backtest.domain.dto.response.ComparisonResponse;
 import com.muscat.backtest.domain.dto.response.OptimalTimingResponse;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.service.BacktestAnalysisService;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.math.BigDecimal;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,7 +44,8 @@ import org.springframework.test.web.servlet.ResultActions;
 
 // BacktestApplication 의 @ComponentScan 이 슬라이스 필터를 덮어써서 띄울 클래스를 직접 고른다. 보안은 실제 설정을 쓴다
 @WebMvcTest(BacktestAnalysisController.class)
-@ContextConfiguration(classes = {BacktestAnalysisController.class, GlobalExceptionHandler.class, SecurityConfig.class})
+@ContextConfiguration(classes = {BacktestAnalysisController.class, GlobalExceptionHandler.class, SecurityConfig.class,
+  BacktestMetrics.class, SimpleMeterRegistry.class})
 @ActiveProfiles("test")
 @DisplayName("BacktestAnalysisController 요청 · 응답")
 class BacktestAnalysisControllerTest {
@@ -51,6 +59,14 @@ class BacktestAnalysisControllerTest {
 
   @Autowired
   private MockMvc mockMvc;
+
+  @Autowired
+  private MeterRegistry meterRegistry;
+
+  @BeforeEach
+  void clearMetrics() {
+    meterRegistry.clear();
+  }
 
   @MockitoBean
   private BacktestAnalysisService backtestAnalysisService;
@@ -90,6 +106,31 @@ class BacktestAnalysisControllerTest {
 
     verify(backtestAnalysisService).runDcaStrategy(argThat((DcaStrategyRequest r) ->
       r.getSymbol().equals("AAPL") && r.getMonthlyAmount().intValue() == 100000 && r.getPurchaseDay() == 15));
+  }
+
+  @Test
+  @DisplayName("적립식 전략 한 번이 끝나면 종류 dca · 성공으로 소요 시간 지표에 한 건 남는다")
+  void dca_RecordsSuccessMetric() throws Exception {
+    given(backtestAnalysisService.runDcaStrategy(any())).willReturn(strategy("AAPL", StrategyType.DCA, "30.42"));
+
+    postJson("/strategy/dca", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"monthlyAmount\":100000,\"purchaseDay\":15}")
+      .andExpect(status().isOk());
+
+    assertThat(meterRegistry.get("backtest.run").tags("kind", "dca", "outcome", "success").timer().count())
+      .isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName("전략이 실패하면 종류 conditional · 실패로 한 건 남는다")
+  void conditional_RecordsFailureMetric() throws Exception {
+    given(backtestAnalysisService.runConditionalStrategy(any()))
+      .willThrow(new BacktestException(BacktestResponse.INVALID_REQUEST));
+
+    postJson("/strategy/conditional", "{\"symbol\":\"TSLA\"," + PERIOD + ",\"totalInvestment\":1000000,\"dropPercentage\":5}")
+      .andExpect(status().isBadRequest());
+
+    assertThat(meterRegistry.get("backtest.run").tags("kind", "conditional", "outcome", "failure").timer().count())
+      .isEqualTo(1);
   }
 
   @Test

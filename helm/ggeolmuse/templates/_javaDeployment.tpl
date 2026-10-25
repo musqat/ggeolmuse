@@ -100,7 +100,7 @@ spec:
         {{- end }}
         {{- end }}
         - name: JAVA_OPTS
-          value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" $svc.name "xmx" $svc.xmx) }}
+          value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" $svc.name "version" $svc.image.tag "xmx" $svc.xmx) }}
         {{- range $k, $v := $svc.env }}
         - name: {{ $k }}
           value: {{ $v | quote }}

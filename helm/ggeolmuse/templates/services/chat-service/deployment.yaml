@@ -40,6 +40,20 @@ spec:
           value: {{ include "ggeolmuse.keycloakClientIds" . | quote }}
         - name: OPENAI_API_KEY
           {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "OPENAI_API_KEY") | nindent 10 }}
+        {{- if .Values.global.otel.enabled }}
+        - name: OTEL_SERVICE_NAME
+          value: {{ .Values.services.chatService.name | quote }}
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: {{ .Values.global.otel.endpoint | quote }}
+        - name: OTEL_RESOURCE_ATTRIBUTES
+          value: {{ include "ggeolmuse.otelResourceAttributes" (dict "Values" .Values "version" .Values.services.chatService.image.tag) | quote }}
+        - name: OTEL_TRACES_SAMPLER
+          value: {{ .Values.global.otel.sampler | quote }}
+        {{- with .Values.global.otel.samplerArg }}
+        - name: OTEL_TRACES_SAMPLER_ARG
+          value: {{ . | quote }}
+        {{- end }}
+        {{- end }}
         readinessProbe:
           httpGet:
             path: /health

@@ -1,5 +1,6 @@
 package com.muscat.backtest.api.controller;
 
+import com.muscat.backtest.common.metrics.BacktestMetrics;
 import com.muscat.backtest.common.util.TokenOwner;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
 import com.muscat.backtest.domain.dto.response.SimulationResponse;
@@ -32,6 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class TradingSimulationController {
 
   private final TradingSimulationService tradingSimulationService;
+  private final BacktestMetrics backtestMetrics;
 
   @Operation(
       summary = "백테스팅 시뮬레이션 실행",
@@ -81,7 +83,7 @@ public class TradingSimulationController {
     log.info("백테스팅 시뮬레이션 요청: {}", request);
 
     request.setUserId(TokenOwner.sub(jwt));
-    SimulationResponse result = tradingSimulationService.runSimulation(request);
+    SimulationResponse result = backtestMetrics.record("simulation", () -> tradingSimulationService.runSimulation(request));
 
     log.info("백테스팅 시뮬레이션 완료: {} 수익률 {}%, 보유주식 {}주, 재투자={}, 재투자날짜={}",
         request.getSymbol(), result.getTotalReturnPercent(), result.getShares(),

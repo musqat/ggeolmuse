@@ -79,7 +79,7 @@ spec:
         - name: KEYCLOAK_CLIENT_IDS
           value: {{ include "ggeolmuse.keycloakClientIds" . | quote }}
         - name: JAVA_OPTS
-          value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" .Values.gatewayServer.name "xmx" "192m") }}
+          value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" .Values.gatewayServer.name "version" .Values.gatewayServer.image.tag "xmx" "192m") }}
         {{- if .Values.gatewayServer.resources }}
         resources:
           {{- toYaml .Values.gatewayServer.resources | nindent 10 }}

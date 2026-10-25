@@ -62,7 +62,10 @@ global:
     tracesExporter: otlp
     metricsExporter: none  # Tempo는 traces만 지원
     logsExporter: none     # Loki 사용 시 변경 가능
-    serviceName: ""        # 각 서비스에서 override
+    environment: ""        # deployment.environment.name(환경별)
+    # 샘플링(자바 에이전트 · chat 공통)
+    sampler: parentbased_always_on
+    samplerArg: ""
 
 # Ingress Controller (enabled: 환경별 - dev만 사용)
 ingressController:

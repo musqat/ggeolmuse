@@ -1,5 +1,6 @@
 package com.muscat.backtest.api.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
@@ -10,10 +11,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.muscat.backtest.common.exception.GlobalExceptionHandler;
+import com.muscat.backtest.common.metrics.BacktestMetrics;
 import com.muscat.backtest.config.SecurityConfig;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
 import com.muscat.backtest.domain.dto.response.SimulationResponse;
 import com.muscat.backtest.domain.service.TradingSimulationService;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,7 +35,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(TradingSimulationController.class)
-@ContextConfiguration(classes = {TradingSimulationController.class, GlobalExceptionHandler.class, SecurityConfig.class})
+@ContextConfiguration(classes = {TradingSimulationController.class, GlobalExceptionHandler.class, SecurityConfig.class,
+  BacktestMetrics.class, SimpleMeterRegistry.class})
 @ActiveProfiles("test")
 @DisplayName("TradingSimulationController 요청 · 응답")
 class TradingSimulationControllerTest {
@@ -43,6 +48,14 @@ class TradingSimulationControllerTest {
 
   @Autowired
   private MockMvc mockMvc;
+
+  @Autowired
+  private MeterRegistry meterRegistry;
+
+  @BeforeEach
+  void clearMetrics() {
+    meterRegistry.clear();
+  }
 
   @MockitoBean
   private TradingSimulationService tradingSimulationService;
@@ -70,6 +83,8 @@ class TradingSimulationControllerTest {
 
     verify(tradingSimulationService).runSimulation(argThat((SimulationRequest r) -> r.getSymbol().equals("AAPL")
       && r.getPurchaseDate().equals(LocalDate.of(2023, 1, 2)) && r.getInvestmentAmount().intValue() == 1000000));
+    assertThat(meterRegistry.get("backtest.run").tags("kind", "simulation", "outcome", "success").timer().count())
+      .isEqualTo(1);
   }
 
   @Test

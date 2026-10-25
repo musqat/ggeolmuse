@@ -4,7 +4,7 @@
 {{ include "ggeolmuse.javaPodHeader" (dict "svc" .Values.services.userService "Values" .Values "Chart" .Chart "Release" .Release) }}
         {{- include "ggeolmuse.springEnv" . | nindent 8 }}
         - name: JAVA_OPTS
-          value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" .Values.services.userService.name "extraOpts" "-Dh2.webAllowOthers=true" "xmx" "256m") }}
+          value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" .Values.services.userService.name "version" .Values.services.userService.image.tag "extraOpts" "-Dh2.webAllowOthers=true" "xmx" "256m") }}
         - name: KEYCLOAK_PUBLIC_URL
           value: {{ .Values.global.keycloak.publicUrl | quote }}
         - name: KEYCLOAK_RESOURCE
