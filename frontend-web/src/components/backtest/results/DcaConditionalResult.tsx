@@ -6,6 +6,7 @@ import { formatBalanceAmount, formatKrw, formatPercent, formatSigned, gainLossCl
 import { SummaryCards } from './SummaryCards';
 import { FxImpactSection } from './FxImpactSection';
 import { DetailRow, DetailSection } from './DetailSection';
+import { PurchaseHistory } from './PurchaseHistory';
 
 interface DcaConditionalResultProps {
   result: StrategyResponse;
@@ -89,6 +90,8 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
 
         <FxImpactSection result={result} startLabel="평균 환율" startRate={result.averageFxRate} />
       </div>
+
+      <PurchaseHistory transactions={result.transactions ?? []} skippedRounds={result.skippedRounds ?? []} />
 
       {/* 차트 섹션 추가 */}
       {result.transactions && result.transactions.length > 0 && (

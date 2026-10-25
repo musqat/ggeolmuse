@@ -1,6 +1,7 @@
 package com.muscat.backtest.domain.dto.response;
 
 import com.muscat.backtest.common.enums.type.StrategyType;
+import com.muscat.backtest.domain.model.SkippedRound;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
@@ -77,6 +78,10 @@ public class StrategyResponse {
 
   @Schema(description = "매매 수수료 합계 (USD)", example = "12.50")
   private BigDecimal totalTradingFee;
+
+  // 미매수 회차
+  @Schema(description = "미매수 회차(계획된 매수일 · 이유)")
+  private List<SkippedRound> skippedRounds;
 
   // 전략별 특화 정보
   @Schema(description = "전략 상세 정보", example = "DCA: 매월 15일 900,000원 투자")

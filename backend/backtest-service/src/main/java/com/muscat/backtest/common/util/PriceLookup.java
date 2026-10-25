@@ -27,6 +27,15 @@ public final class PriceLookup {
     return price.closePrice() != null ? price.closePrice() : price.adjustedClose();
   }
 
+  // available 이고 종가가 0 보다 큰 시세
+  public static boolean isUsable(OHLCPriceDto price) {
+    if (price == null || !price.available()) {
+      return false;
+    }
+    java.math.BigDecimal close = effectiveClose(price);
+    return close != null && close.signum() > 0;
+  }
+
   // maxDays 만큼 거슬러 available 시세를 찾음(휴장일)
   // 못 찾으면 STOCK_DATA_NOT_FOUND, 한 번도 답이 없으면 MARKET_DATA_UNAVAILABLE
   public static OHLCPriceDto withFallback(PriceFetcher fetcher, String symbol, LocalDate date, int maxDays) {

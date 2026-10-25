@@ -102,6 +102,15 @@ class BacktestAnalysisControllerTest {
   }
 
   @Test
+  @DisplayName("적립식 전략의 수동 환율이 0 이면 400 이고 서비스까지 가지 않는다")
+  void dca_ZeroFxRate() throws Exception {
+    postJson("/strategy/dca", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"monthlyAmount\":100000,\"purchaseDay\":15,\"purchaseFxRate\":0}")
+      .andExpect(status().isBadRequest());
+
+    verify(backtestAnalysisService, never()).runDcaStrategy(any());
+  }
+
+  @Test
   @DisplayName("조건부 매수 전략은 하락률을 넘긴다")
   void conditional() throws Exception {
     given(backtestAnalysisService.runConditionalStrategy(any()))

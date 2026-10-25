@@ -13,12 +13,14 @@ import static org.mockito.Mockito.never;
 
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.InvestmentMode;
+import com.muscat.backtest.common.enums.type.SkipReason;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
+import com.muscat.backtest.domain.model.SkippedRound;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.backtest.infra.client.MarketDataClient;
 import com.muscat.backtest.infra.client.dto.FxRateDto;
@@ -103,7 +105,7 @@ class ConditionalPurchaseStrategyTest {
         .willReturn(day2);
       given(marketDataClient.getDividendHistory(eq("SPLIT-TEST"), anyString(), anyString()))
         .willReturn(java.util.Collections.emptyList());
-      given(responseMapper.toStrategyResponse(any(ConditionalStrategyRequest.class), any(), any(), any()))
+      given(responseMapper.toStrategyResponse(any(ConditionalStrategyRequest.class), any(), any(), any(), any()))
         .willReturn(StrategyResponse.builder().strategyType(StrategyType.CONDITIONAL_PURCHASE).build());
 
       // when
@@ -113,7 +115,7 @@ class ConditionalPurchaseStrategyTest {
       @SuppressWarnings("unchecked")
       ArgumentCaptor<List<StrategyTransaction>> captor = ArgumentCaptor.forClass(List.class);
       verify(responseMapper).toStrategyResponse(
-        any(ConditionalStrategyRequest.class), captor.capture(), any(), any());
+        any(ConditionalStrategyRequest.class), captor.capture(), any(), any(), any());
       List<StrategyTransaction> txs = captor.getValue();
       assertThat(txs).hasSize(1);
       assertThat(txs.getFirst().getPrice()).isEqualByComparingTo("25.00");
@@ -154,7 +156,7 @@ class ConditionalPurchaseStrategyTest {
         .willReturn(day1);
       given(marketDataClient.getDividendHistory(eq("FEE-TEST"), anyString(), anyString()))
         .willReturn(java.util.Collections.emptyList());
-      given(responseMapper.toStrategyResponse(any(ConditionalStrategyRequest.class), any(), any(), any()))
+      given(responseMapper.toStrategyResponse(any(ConditionalStrategyRequest.class), any(), any(), any(), any()))
         .willReturn(StrategyResponse.builder().build());
 
       strategy.execute(request);
@@ -162,7 +164,7 @@ class ConditionalPurchaseStrategyTest {
       @SuppressWarnings("unchecked")
       ArgumentCaptor<List<StrategyTransaction>> captor = ArgumentCaptor.forClass(List.class);
       verify(responseMapper).toStrategyResponse(
-        any(ConditionalStrategyRequest.class), captor.capture(), any(), any());
+        any(ConditionalStrategyRequest.class), captor.capture(), any(), any(), any());
       assertThat(captor.getValue()).singleElement().satisfies(tx -> {
         assertThat(tx.getFee()).isEqualByComparingTo("10.00");
         assertThat(tx.getShares()).isEqualByComparingTo("9.9");
@@ -423,14 +425,21 @@ class ConditionalPurchaseStrategyTest {
       given(marketDataClient.getOHLCPrice(eq(SYMBOL), anyString())).willReturn(prices.getLast());
       given(marketDataClient.getFxRate(anyString())).willReturn(new FxRateDto(request.getEndDate(), new BigDecimal("1300")));
       given(marketDataClient.getDividendHistory(eq(SYMBOL), anyString(), anyString())).willReturn(List.of());
-      given(responseMapper.toStrategyResponse(any(ConditionalStrategyRequest.class), any(), any(), any()))
+      given(responseMapper.toStrategyResponse(any(ConditionalStrategyRequest.class), any(), any(), any(), any()))
         .willReturn(StrategyResponse.builder().build());
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<SkippedRound> skippedRounds() {
+      ArgumentCaptor<List<SkippedRound>> captor = ArgumentCaptor.forClass(List.class);
+      verify(responseMapper).toStrategyResponse(any(ConditionalStrategyRequest.class), any(), any(), any(), captor.capture());
+      return captor.getValue();
     }
 
     private List<StrategyTransaction> executed() {
       @SuppressWarnings("unchecked")
       ArgumentCaptor<List<StrategyTransaction>> captor = ArgumentCaptor.forClass(List.class);
-      verify(responseMapper).toStrategyResponse(any(ConditionalStrategyRequest.class), captor.capture(), any(), any());
+      verify(responseMapper).toStrategyResponse(any(ConditionalStrategyRequest.class), captor.capture(), any(), any(), any());
       return captor.getValue();
     }
 
@@ -500,10 +509,9 @@ class ConditionalPurchaseStrategyTest {
     }
 
     @Test
-    @DisplayName("계산에 실패한 날은 건너뛰고 다음 날 첫 매수를 한다")
-    void skipsFailedDay() {
+    @DisplayName("종가가 0 이하인 깨진 날은 시세 없음으로 세고 다음 날 첫 매수를 한다")
+    void skipsBrokenPriceDay() {
       ConditionalStrategyRequest request = perPurchase(2, 10).build();
-      // 가격 0 은 주식 수 계산에서 예외가 난다
       stubMarket(request, List.of(day(0, "0"), day(1, "100")), true);
 
       strategy.execute(request);
@@ -512,6 +520,20 @@ class ConditionalPurchaseStrategyTest {
         assertThat(tx.getDate()).isEqualTo(START.plusDays(1));
         assertThat(tx.getTrigger()).isEqualTo("초기매수");
       });
+      assertThat(skippedRounds()).containsExactly(new SkippedRound(START, SkipReason.NO_PRICE));
+    }
+
+    @Test
+    @DisplayName("살 날의 계산이 실패하면(환율 0) 사지 않고 계산 오류로 남긴 뒤 다음 날 첫 매수를 한다")
+    void countsCalculationFailure() {
+      ConditionalStrategyRequest request = perPurchase(2, 10).build();
+      stubMarket(request, List.of(day(0, "100"), day(1, "100")), false);
+      given(marketDataClient.getBulkFxRates(any())).willReturn(Map.of(START.toString(), BigDecimal.ZERO));
+
+      strategy.execute(request);
+
+      assertThat(executed()).singleElement().satisfies(tx -> assertThat(tx.getDate()).isEqualTo(START.plusDays(1)));
+      assertThat(skippedRounds()).containsExactly(new SkippedRound(START, SkipReason.CALCULATION_ERROR));
     }
 
     @Test
@@ -541,7 +563,7 @@ class ConditionalPurchaseStrategyTest {
         null, null, null, null, today, null, null, null, null, null, null, "USD", true, null, null));
       given(marketDataClient.getLatestFxRate()).willReturn(new FxRateDto(today, new BigDecimal("1300")));
       given(marketDataClient.getDividendHistory(eq(SYMBOL), anyString(), anyString())).willReturn(List.of());
-      given(responseMapper.toStrategyResponse(any(ConditionalStrategyRequest.class), any(), any(), any()))
+      given(responseMapper.toStrategyResponse(any(ConditionalStrategyRequest.class), any(), any(), any(), any()))
         .willReturn(StrategyResponse.builder().build());
 
       strategy.execute(request);

@@ -2,6 +2,7 @@ package com.muscat.backtest.domain.strategy;
 
 import com.muscat.backtest.common.constants.BacktestConstants;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
+import com.muscat.backtest.common.enums.type.SkipReason;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.logging.BacktestLogger;
@@ -15,6 +16,7 @@ import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
 import com.muscat.backtest.domain.dto.request.StrategyRequest;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
+import com.muscat.backtest.domain.model.SkippedRound;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.backtest.infra.client.MarketDataClient;
 import com.muscat.commonlib.dto.OHLCPriceDto;
@@ -70,13 +72,15 @@ public class DCAStrategy implements InvestmentStrategy {
       int investmentDay = request.getPurchaseDay() != null ? request.getPurchaseDay() : 1;
       log.info("적립식 투자 전략 실행: 월{}원씩 {}일에 매수", request.getMonthlyAmount(), investmentDay);
 
-      List<StrategyTransaction> transactions = executeRegularInvestments(
-        request, actualEndDate, investmentDay);
+      StrategyPurchases purchases = executeRegularInvestments(request, actualEndDate, investmentDay);
+      List<StrategyTransaction> transactions = purchases.transactions();
 
       if (transactions.isEmpty()) {
         throw new BacktestException(BacktestResponse.DATA_NOT_FOUND,
           "적립식 투자 전략 실행 가능한 데이터가 없습니다");
       }
+
+      List<SkippedRound> skippedRounds = purchases.skippedRounds();
 
       // 마무리(평가일 시세/환율/배당재투자/계산) — 공통 로직 위임
       StrategyFinalizer.Result finalized = StrategyFinalizer.run(
@@ -89,7 +93,7 @@ public class DCAStrategy implements InvestmentStrategy {
         finalized.calculation().getTotalReturnPercent());
 
       return responseMapper.toStrategyResponse(
-        request, finalized.transactions(), finalized.calculation(), finalized.currentPrice());
+        request, finalized.transactions(), finalized.calculation(), finalized.currentPrice(), skippedRounds);
 
     } finally {
       BacktestLogger.remove("operation");
@@ -111,8 +115,8 @@ public class DCAStrategy implements InvestmentStrategy {
     }
   }
 
-  // 정기 적립식 투자 실행
-  private List<StrategyTransaction> executeRegularInvestments(
+  // 정기 적립식 투자 실행. 투자일에 쓸 시세가 없거나 계산이 실패한 회차는 사지 않고 이유와 함께 남김
+  private StrategyPurchases executeRegularInvestments(
     DcaStrategyRequest request, LocalDate actualEndDate, int investmentDay) {
 
     List<StrategyTransaction> transactions = new ArrayList<>();
@@ -153,6 +157,8 @@ public class DCAStrategy implements InvestmentStrategy {
       log.info("환율 데이터 조회 완료: {}개", fxRateMap.size());
     }
 
+    List<SkippedRound> skippedRounds = new ArrayList<>();
+
     //  메모리에서 데이터 조회 (API 호출 없음)
     for (LocalDate currentDate : investmentDates) {
       // 총 투자금 한도 체크
@@ -161,49 +167,50 @@ public class DCAStrategy implements InvestmentStrategy {
         break;
       }
 
+      OHLCPriceDto priceData = tradeByDate.get(currentDate);
+      if (!PriceLookup.isUsable(priceData)) {
+        skippedRounds.add(new SkippedRound(currentDate, SkipReason.NO_PRICE));
+        continue;
+      }
+
+      // 환율 조회 (메모리에서, 실제로 사는 날)
+      BigDecimal purchaseFxRate = request.getPurchaseFxRate() != null
+        ? request.getPurchaseFxRate() : fxRateMap.get(priceData.date());
+
       try {
-        OHLCPriceDto priceData = tradeByDate.get(currentDate);
+        // 매수 실행. 수수료를 떼고 남은 달러로 산다
+        BigDecimal fee = BacktestCalculationUtils.calculatePurchaseFee(
+          request.getMonthlyAmount(), purchaseFxRate, request.getTradingFeeRate());
+        BigDecimal shares = BacktestCalculationUtils.calculateSharesAfterFee(
+          request.getMonthlyAmount(), purchaseFxRate, PriceLookup.effectiveClose(priceData), fee);
 
-        // 환율 조회 (메모리에서, 실제로 사는 날)
-        BigDecimal purchaseFxRate;
-        if (request.getPurchaseFxRate() != null) {
-          purchaseFxRate = request.getPurchaseFxRate();
-        } else {
-          purchaseFxRate = priceData != null ? fxRateMap.get(priceData.date()) : null;
-        }
+        // 거래 기록 생성
+        StrategyTransaction transaction = StrategyTransaction.builder()
+          .date(currentDate)              // 계획된 매수일
+          .actualDate(priceData.date())   // 실제 거래일
+          .price(PriceLookup.effectiveClose(priceData))
+          .shares(shares)
+          .fee(fee)
+          .amount(request.getMonthlyAmount())
+          .fxRate(purchaseFxRate)
+          .trigger(BacktestConstants.TransactionTrigger.MONTHLY_INVESTMENT)
+          .build();
 
-        if (priceData != null && priceData.available() && purchaseFxRate != null) {
-          // 매수 실행. 수수료를 떼고 남은 달러로 산다
-          BigDecimal fee = BacktestCalculationUtils.calculatePurchaseFee(
-            request.getMonthlyAmount(), purchaseFxRate, request.getTradingFeeRate());
-          BigDecimal shares = BacktestCalculationUtils.calculateSharesAfterFee(
-            request.getMonthlyAmount(), purchaseFxRate, PriceLookup.effectiveClose(priceData), fee);
+        transactions.add(transaction);
+        totalInvestedSoFar = totalInvestedSoFar.add(request.getMonthlyAmount());
 
-          // 거래 기록 생성
-          StrategyTransaction transaction = StrategyTransaction.builder()
-            .date(currentDate)              // 계획된 매수일
-            .actualDate(priceData.date())   // 실제 거래일
-            .price(PriceLookup.effectiveClose(priceData))
-            .shares(shares)
-            .fee(fee)
-            .amount(request.getMonthlyAmount())
-            .fxRate(purchaseFxRate)
-            .trigger(BacktestConstants.TransactionTrigger.MONTHLY_INVESTMENT)
-            .build();
-
-          transactions.add(transaction);
-          totalInvestedSoFar = totalInvestedSoFar.add(request.getMonthlyAmount());
-
-          log.debug("DCA 투자 실행: {} - {}원 투자, {}주 매수 (총 {}원)",
-            currentDate, request.getMonthlyAmount(), shares, totalInvestedSoFar);
-        }
-
-      } catch (Exception e) {
-        log.warn("적립식 투자 전략 - {} 날짜 데이터 처리 실패: {}", currentDate, e.getMessage());
+        log.debug("DCA 투자 실행: {} - {}원 투자, {}주 매수 (총 {}원)",
+          currentDate, request.getMonthlyAmount(), shares, totalInvestedSoFar);
+      } catch (RuntimeException e) {
+        skippedRounds.add(new SkippedRound(currentDate, SkipReason.CALCULATION_ERROR));
+        log.warn("적립식 {} 회차 계산 실패, 사지 않음: {}", currentDate, e.getMessage());
       }
     }
 
-    return transactions;
+    if (!skippedRounds.isEmpty()) {
+      log.info("적립식 못 산 회차 {}", skippedRounds.size());
+    }
+    return new StrategyPurchases(transactions, skippedRounds);
   }
 
   // 시작일부터 종료일까지 주기마다의 투자일. 그달에 투자일이 없으면 말일

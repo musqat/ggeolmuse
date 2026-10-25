@@ -3,6 +3,8 @@ package com.muscat.backtest.domain.dto.request;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -54,9 +56,11 @@ public class DcaStrategyRequest implements StrategyRequest {
   private BigDecimal totalInvestmentLimit;  // 총 투자 금액 제한
 
   @Schema(description = "매수 시 환율 (수동 설정 시, null이면 자동)", example = "1300.00")
+  @Positive(message = "매수 환율은 0보다 커야 합니다")
   private BigDecimal purchaseFxRate;  // 매수 시 환율 (수동)
 
   @Schema(description = "현재 환율 (수동 설정 시, null이면 자동)", example = "1350.00")
+  @Positive(message = "현재 환율은 0보다 커야 합니다")
   private BigDecimal currentFxRate;  // 현재 환율 (수동)
 
   @Schema(description = "배당금 재투자 여부", example = "false")
@@ -64,6 +68,8 @@ public class DcaStrategyRequest implements StrategyRequest {
   private Boolean reinvestDividends = false;  // 배당금 자동 재투자 여부
 
   @Schema(description = "매매 수수료율 (0.25% = 0.0025, 매수마다 뗀다)", example = "0.0025")
+  @DecimalMin(value = "0", message = "수수료율은 0 이상 1 미만이어야 합니다")
+  @DecimalMax(value = "1", inclusive = false, message = "수수료율은 0 이상 1 미만이어야 합니다")
   @Builder.Default
   private BigDecimal tradingFeeRate = BigDecimal.ZERO;  // 매매 수수료율
 

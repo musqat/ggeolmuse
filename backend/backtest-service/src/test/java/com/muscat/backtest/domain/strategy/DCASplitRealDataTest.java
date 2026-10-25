@@ -189,7 +189,7 @@ class DCASplitRealDataTest {
       .willReturn(DIVIDENDS);
     given(marketDataClient.getOHLCPrice(eq(SYMBOL), anyString()))
       .willAnswer(inv -> byDate.get(LocalDate.parse(inv.getArgument(1))));
-    given(responseMapper.toStrategyResponse(any(DcaStrategyRequest.class), any(), any(), any()))
+    given(responseMapper.toStrategyResponse(any(DcaStrategyRequest.class), any(), any(), any(), any()))
       .willReturn(StrategyResponse.builder().strategyType(StrategyType.DCA).build());
 
     dcaStrategy.execute(request);
@@ -199,7 +199,7 @@ class DCASplitRealDataTest {
     ArgumentCaptor<StrategyCalculationResult> calcCaptor =
         ArgumentCaptor.forClass(StrategyCalculationResult.class);
     verify(responseMapper).toStrategyResponse(
-        any(DcaStrategyRequest.class), txCaptor.capture(), calcCaptor.capture(), any());
+        any(DcaStrategyRequest.class), txCaptor.capture(), calcCaptor.capture(), any(), any());
 
     StrategyCalculationResult calc = calcCaptor.getValue();
     List<StrategyTransaction> txs = txCaptor.getValue();

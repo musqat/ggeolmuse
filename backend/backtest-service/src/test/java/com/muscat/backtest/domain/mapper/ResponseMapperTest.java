@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.muscat.backtest.common.calculation.ComparisonCalculationResult;
 import com.muscat.backtest.common.calculation.StrategyCalculationResult;
+import com.muscat.backtest.common.enums.type.SkipReason;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
@@ -13,6 +14,7 @@ import com.muscat.backtest.domain.dto.response.ComparisonResponse;
 import com.muscat.backtest.domain.dto.response.SimulationResponse;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.model.ComparisonItem;
+import com.muscat.backtest.domain.model.SkippedRound;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.commonlib.dto.StockPriceDto;
 import java.math.BigDecimal;
@@ -30,6 +32,8 @@ class ResponseMapperTest {
   private static final String SYMBOL = "AAPL";
   private static final LocalDate START = LocalDate.of(2024, 1, 1);
   private static final LocalDate END = LocalDate.of(2024, 9, 18);
+  // 못 산 회차 없음
+  private static final List<SkippedRound> NONE = List.of();
 
   private ResponseMapper mapper;
 
@@ -95,7 +99,7 @@ class ResponseMapperTest {
         .build();
 
       StrategyResponse result =
-        mapper.toStrategyResponse(request, transactions(3), calculation(), price("120.5"));
+        mapper.toStrategyResponse(request, transactions(3), calculation(), price("120.5"), NONE);
 
       assertThat(result.getStrategyType()).isEqualTo(StrategyType.DCA);
       assertThat(result.getSymbol()).isEqualTo(SYMBOL);
@@ -112,16 +116,27 @@ class ResponseMapperTest {
       request.setEndDate(END);
 
       StrategyResponse result =
-        mapper.toStrategyResponse(request, transactions(2), calculation(), price("120.5"));
+        mapper.toStrategyResponse(request, transactions(2), calculation(), price("120.5"), NONE);
 
       assertThat(result.getStrategyType()).isEqualTo(StrategyType.CONDITIONAL_PURCHASE);
+    }
+
+    @Test
+    @DisplayName("미매수 회차(날짜 · 이유)를 그대로 싣는다")
+    void 못산_회차() {
+      List<SkippedRound> rounds = List.of(new SkippedRound(LocalDate.of(2024, 1, 15), SkipReason.NO_PRICE),
+        new SkippedRound(LocalDate.of(2024, 2, 15), SkipReason.CALCULATION_ERROR));
+      StrategyResponse result = mapper.toStrategyResponse(dcaRequest(), transactions(3), calculation(), price("120.5"),
+        rounds);
+
+      assertThat(result.getSkippedRounds()).isEqualTo(rounds);
     }
 
     @Test
     @DisplayName("거래 건수는 목록 크기를 따라간다")
     void 거래_건수() {
       StrategyResponse result = mapper.toStrategyResponse(
-        dcaRequest(), transactions(7), calculation(), price("120.5"));
+        dcaRequest(), transactions(7), calculation(), price("120.5"), NONE);
 
       assertThat(result.getTotalTransactions()).isEqualTo(7);
       assertThat(result.getTransactions()).hasSize(7);
@@ -136,7 +151,7 @@ class ResponseMapperTest {
         StrategyTransaction.builder().shares(BigDecimal.ONE).build());
 
       StrategyResponse result = mapper.toStrategyResponse(
-        dcaRequest(), txs, calculation(), price("120.5"));
+        dcaRequest(), txs, calculation(), price("120.5"), NONE);
 
       assertThat(result.getTotalTradingFee()).isEqualByComparingTo("15.00");
     }
@@ -145,7 +160,7 @@ class ResponseMapperTest {
     @DisplayName("거래가 없어도 0건으로 처리한다")
     void 거래_없음() {
       StrategyResponse result = mapper.toStrategyResponse(
-        dcaRequest(), List.of(), calculation(), price("120.5"));
+        dcaRequest(), List.of(), calculation(), price("120.5"), NONE);
 
       assertThat(result.getTotalTransactions()).isZero();
       assertThat(result.getTransactions()).isEmpty();
@@ -155,7 +170,7 @@ class ResponseMapperTest {
     @DisplayName("KRW 금액은 소수점을 버리고 정수로 만든다")
     void krw_반올림() {
       StrategyResponse result = mapper.toStrategyResponse(
-        dcaRequest(), transactions(1), calculation(), price("120.5"));
+        dcaRequest(), transactions(1), calculation(), price("120.5"), NONE);
 
       // 1000000.678 → 1000001 (HALF_UP)
       assertThat(result.getTotalInvested()).isEqualByComparingTo("1000001");
@@ -170,7 +185,7 @@ class ResponseMapperTest {
     @DisplayName("USD 금액은 소수 두 자리로 맞춘다")
     void usd_반올림() {
       StrategyResponse result = mapper.toStrategyResponse(
-        dcaRequest(), transactions(1), calculation(), price("120.5"));
+        dcaRequest(), transactions(1), calculation(), price("120.5"), NONE);
 
       assertThat(result.getCurrentValue()).isEqualByComparingTo("1234.57");
       assertThat(result.getCurrentValue().scale()).isEqualTo(2);
@@ -183,7 +198,7 @@ class ResponseMapperTest {
     @DisplayName("주식 수는 소수 여섯 자리를 유지한다")
     void 주식수_자릿수() {
       StrategyResponse result = mapper.toStrategyResponse(
-        dcaRequest(), transactions(1), calculation(), price("120.5"));
+        dcaRequest(), transactions(1), calculation(), price("120.5"), NONE);
 
       // 소수점 이하를 잘라버리면 소액 적립식에서 수량이 통째로 사라진다
       assertThat(result.getTotalShares().scale()).isEqualTo(6);
@@ -194,7 +209,7 @@ class ResponseMapperTest {
     @DisplayName("환율은 반올림하지 않고 그대로 넘긴다")
     void 환율_원본_유지() {
       StrategyResponse result = mapper.toStrategyResponse(
-        dcaRequest(), transactions(1), calculation(), price("120.5"));
+        dcaRequest(), transactions(1), calculation(), price("120.5"), NONE);
 
       assertThat(result.getAverageFxRate()).isEqualByComparingTo("1300.123456");
       assertThat(result.getCurrentFxRate()).isEqualByComparingTo("1350.0");
@@ -204,7 +219,7 @@ class ResponseMapperTest {
     @DisplayName("현재가는 시세를 그대로 쓴다")
     void 현재가() {
       StrategyResponse result = mapper.toStrategyResponse(
-        dcaRequest(), transactions(1), calculation(), price("120.5"));
+        dcaRequest(), transactions(1), calculation(), price("120.5"), NONE);
 
       assertThat(result.getCurrentPrice()).isEqualByComparingTo("120.5");
     }
@@ -213,7 +228,7 @@ class ResponseMapperTest {
     @DisplayName("배당수익률을 현재 평가금액 기준으로 계산한다")
     void 배당수익률() {
       StrategyResponse result = mapper.toStrategyResponse(
-        dcaRequest(), transactions(1), calculation(), price("120.5"));
+        dcaRequest(), transactions(1), calculation(), price("120.5"), NONE);
 
       // 12.344 / (12.3456789 * 120.5) * 100 = 0.8297... → 0.83
       assertThat(result.getDividendYield()).isEqualByComparingTo("0.83");
@@ -223,13 +238,13 @@ class ResponseMapperTest {
     @DisplayName("전략 설명에 전략명과 거래 건수가 들어간다")
     void 전략_설명() {
       StrategyResponse dca = mapper.toStrategyResponse(
-        dcaRequest(), transactions(5), calculation(), price("120.5"));
+        dcaRequest(), transactions(5), calculation(), price("120.5"), NONE);
       assertThat(dca.getStrategyDetails()).isEqualTo("DCA 전략 - 5회 투자 실행");
 
       ConditionalStrategyRequest conditional = new ConditionalStrategyRequest();
       conditional.setSymbol(SYMBOL);
       StrategyResponse cond = mapper.toStrategyResponse(
-        conditional, transactions(2), calculation(), price("120.5"));
+        conditional, transactions(2), calculation(), price("120.5"), NONE);
       assertThat(cond.getStrategyDetails()).isEqualTo("조건부매수 전략 - 2회 투자 실행");
     }
 
@@ -237,7 +252,7 @@ class ResponseMapperTest {
     @DisplayName("성과 요약 문자열 형식")
     void 성과_요약() {
       StrategyResponse result = mapper.toStrategyResponse(
-        dcaRequest(), transactions(1), calculation(), price("120.5"));
+        dcaRequest(), transactions(1), calculation(), price("120.5"), NONE);
 
       assertThat(result.getPerformanceSummary())
         .isEqualTo("총 수익: $234.57 (23.46%), 환차익: 3.85%");

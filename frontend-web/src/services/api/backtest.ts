@@ -125,6 +125,15 @@ export type StrategyTransaction = {
   fee?: number | null;                  // 매매 수수료 (USD, 배당 재투자는 없음)
 };
 
+// 회차를 사지 못한 이유
+export type SkipReason = 'NO_PRICE' | 'CALCULATION_ERROR';
+
+// 사지 못한 회차(계획된 매수일)와 이유
+export type SkippedRound = {
+  date: string;
+  reason: SkipReason;
+};
+
 // 적립식 · 조건부 전략 응답
 export type StrategyResponse = {
   symbol: string;
@@ -133,6 +142,7 @@ export type StrategyResponse = {
   strategyType?: string | null;
   transactions?: StrategyTransaction[] | null;
   totalTransactions?: number | null;
+  skippedRounds?: SkippedRound[] | null;   // 사지 못한 회차
   totalInvested?: number | null;        // 총 투자금 (KRW)
   totalShares?: number | null;
   averagePrice?: number | null;         // 평균 단가 (USD)

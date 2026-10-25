@@ -13,6 +13,7 @@ import com.muscat.backtest.domain.dto.response.ComparisonResponse;
 import com.muscat.backtest.domain.dto.response.SimulationResponse;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.model.ComparisonItem;
+import com.muscat.backtest.domain.model.SkippedRound;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.commonlib.dto.StockPriceDto;
 import com.muscat.commonlib.util.MoneyUtils;
@@ -29,20 +30,22 @@ public class ResponseMapper {
     DcaStrategyRequest request,
     List<StrategyTransaction> transactions,
     StrategyCalculationResult calculation,
-    StockPriceDto currentPrice) {
+    StockPriceDto currentPrice,
+    List<SkippedRound> skippedRounds) {
 
     return buildStrategyResponse(StrategyType.DCA, request.getSymbol(), request.getStartDate(),
-      request.getEndDate(), transactions, calculation, currentPrice);
+      request.getEndDate(), transactions, calculation, currentPrice, skippedRounds);
   }
 
   public StrategyResponse toStrategyResponse(
     ConditionalStrategyRequest request,
     List<StrategyTransaction> transactions,
     StrategyCalculationResult calculation,
-    StockPriceDto currentPrice) {
+    StockPriceDto currentPrice,
+    List<SkippedRound> skippedRounds) {
 
     return buildStrategyResponse(StrategyType.CONDITIONAL_PURCHASE, request.getSymbol(),
-      request.getStartDate(), request.getEndDate(), transactions, calculation, currentPrice);
+      request.getStartDate(), request.getEndDate(), transactions, calculation, currentPrice, skippedRounds);
   }
 
   public ComparisonResponse toComparisonResponse(
@@ -142,7 +145,8 @@ public class ResponseMapper {
     LocalDate endDate,
     List<StrategyTransaction> transactions,
     StrategyCalculationResult calculation,
-    StockPriceDto currentPrice) {
+    StockPriceDto currentPrice,
+    List<SkippedRound> skippedRounds) {
 
     return StrategyResponse.builder()
       .symbol(symbol)
@@ -172,6 +176,7 @@ public class ResponseMapper {
         calculation.getTotalDividends(), calculation.getTotalShares(),
         currentPrice.currentPrice())))
       .totalTradingFee(MoneyUtils.roundUsd(totalTradingFee(transactions)))
+      .skippedRounds(skippedRounds)
       .strategyDetails(createStrategyDetails(strategyType, transactions.size()))
       .performanceSummary(createPerformanceSummary(calculation))
       .build();
