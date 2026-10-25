@@ -6,8 +6,9 @@
 
     <!-- Console Appender -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder>
-            <pattern>%d{MM-dd HH:mm:ss} %-5level %logger{0} - %msg%n</pattern>
+        <encoder class="org.springframework.boot.logging.logback.StructuredLogEncoder">
+            <format>ecs</format>
+            <charset>UTF-8</charset>
         </encoder>
     </appender>
 

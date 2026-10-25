@@ -17,6 +17,12 @@ spring:
 server:
   port: 8070
 
+logging:
+  structured:
+    format:
+      # 콘솔 로그를 JSON(ECS) 한 줄로
+      console: ecs
+
 ---
 # prod 프로파일에서만 AWS Secrets Manager (dev/로컬은 AWS 미사용)
 spring:
