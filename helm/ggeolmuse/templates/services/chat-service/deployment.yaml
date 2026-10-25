@@ -40,6 +40,12 @@ spec:
           value: {{ include "ggeolmuse.keycloakClientIds" . | quote }}
         - name: OPENAI_API_KEY
           {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "OPENAI_API_KEY") | nindent 10 }}
+        {{- if .Values.global.otel.enabled }}
+        - name: OTEL_SERVICE_NAME
+          value: {{ .Values.services.chatService.name | quote }}
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: {{ .Values.global.otel.endpoint | quote }}
+        {{- end }}
         readinessProbe:
           httpGet:
             path: /health

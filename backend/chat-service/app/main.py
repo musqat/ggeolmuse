@@ -22,6 +22,7 @@ from app.infra.jwks import JwksVerifier
 from app.infra.llm import ChatModel
 from app.infra.market_api import MarketClient
 from app.infra.quota import RateLimiter
+from app.infra.tracing import instrument_app, instrument_client, provider_from_env
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
@@ -70,10 +71,15 @@ def build_chat_service(config: Settings, redis, http: httpx.AsyncClient, openai:
     )
 
 
+tracer_provider = provider_from_env()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     redis = build_redis(settings)
     http = httpx.AsyncClient(base_url=settings.market_data_base_url, timeout=settings.market_timeout_seconds)
+    if tracer_provider:
+        instrument_client(http, tracer_provider)
     openai = build_openai(settings)
     app.state.verify_token = build_verifier(settings)
     app.state.chat_service = build_chat_service(settings, redis, http, openai)
@@ -81,11 +87,15 @@ async def lifespan(app: FastAPI):
     await http.aclose()
     await redis.aclose()
     openai.close()
+    if tracer_provider:
+        tracer_provider.shutdown()
 
 
 app = FastAPI(title="ai-chat-service", lifespan=lifespan)
 register_error_handlers(app)
 app.include_router(chat_router)
+if tracer_provider:
+    instrument_app(app, tracer_provider)
 
 
 @app.get("/health")

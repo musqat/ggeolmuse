@@ -483,6 +483,8 @@ services:
       # iss 는 keycloak 의 KC_HOSTNAME_URL 주소
       KEYCLOAK_ISSUERS: http://localhost:8080/realms/custom,http://keycloak:8080/realms/custom
       KEYCLOAK_CLIENT_IDS: ggeolmuse-client,ggeolmuse-frontend
+      OTEL_SERVICE_NAME: chat-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
     depends_on:
       redis:
         condition: service_started
