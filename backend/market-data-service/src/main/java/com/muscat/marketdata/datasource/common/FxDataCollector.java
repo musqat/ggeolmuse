@@ -8,8 +8,9 @@ import com.muscat.marketdata.datasource.common.MarketDataProvider.FxSource;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.core.annotation.Order;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,9 +27,8 @@ import java.util.stream.Collectors;
 // 공급원별 FxSource 로 앱 시작 때 과거 · 빠진 환율을 채우고 하루치를 받는 수집기
 @Slf4j
 @Component
-@Order(2)
 @RequiredArgsConstructor
-public class FxDataCollector implements CommandLineRunner {
+public class FxDataCollector {
 
     private final FxSource fxSource;
     private final FxRateRepository fxRateRepository;
@@ -43,9 +43,11 @@ public class FxDataCollector implements CommandLineRunner {
                 properties.getFxIngest().getIncremental().isEnabled());
     }
 
-    @Override
+    // 앱이 준비된 뒤 다른 스레드에서 과거 · 빠진 환율 채우기(실패는 로그만)
+    @Async
+    @EventListener(ApplicationReadyEvent.class)
     @Transactional
-    public void run(String... args) {
+    public void collectOnStartup() {
         try {
             if (properties.getFxIngest().getBackfill().isEnabled()) {
                 runHistoricalCollection();

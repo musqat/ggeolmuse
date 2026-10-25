@@ -194,13 +194,13 @@ class FxDataCollectorTest {
   }
 
   @Nested
-  @DisplayName("run")
-  class Run {
+  @DisplayName("시작 때 채우기")
+  class CollectOnStartup {
 
     @Test
     @DisplayName("둘 다 꺼져 있으면 저장하지 않는다")
     void 전부_비활성() {
-      collector.run();
+      collector.collectOnStartup();
 
       verify(fxRateRepository, never()).saveAll(any());
     }
@@ -212,7 +212,7 @@ class FxDataCollectorTest {
       properties.getFxIngest().getBackfill().setLookbackDays(2);
       given(fxSource.fetchFx(any())).willReturn(Optional.of(new BigDecimal("1350")));
 
-      collector.run();
+      collector.collectOnStartup();
 
       verify(fxRateRepository).saveAll(any());
       // 저장된 날짜는 증분 수집에서만 봄
@@ -231,7 +231,7 @@ class FxDataCollectorTest {
         .willReturn(stored(all.stream().filter(d -> !d.equals(gap)).toList()));
       given(fxSource.fetchFx(gap)).willReturn(Optional.of(new BigDecimal("1350")));
 
-      collector.run();
+      collector.collectOnStartup();
 
       assertThat(savedDates()).containsExactly(gap);
     }
@@ -247,7 +247,7 @@ class FxDataCollectorTest {
       given(fxRateRepository.findByDateBetween(start, today())).willReturn(List.of());
       given(fxSource.fetchFx(any())).willReturn(Optional.of(new BigDecimal("1350")));
 
-      collector.run();
+      collector.collectOnStartup();
 
       assertThat(savedDates()).containsExactlyElementsOf(all.subList(all.size() - 3, all.size()));
     }
@@ -267,7 +267,7 @@ class FxDataCollectorTest {
       given(fxSource.fetchFx(any())).willReturn(Optional.empty());
       given(fxSource.fetchFx(eq(gap))).willReturn(Optional.of(new BigDecimal("1350")));
 
-      collector.run();
+      collector.collectOnStartup();
 
       assertThat(savedDates()).containsExactly(gap);
     }
@@ -280,7 +280,7 @@ class FxDataCollectorTest {
       properties.getFxIngest().setStartDate(start);
       given(fxRateRepository.findByDateBetween(start, today())).willReturn(stored(weekdays(start, today())));
 
-      collector.run();
+      collector.collectOnStartup();
 
       verify(fxRateRepository, never()).saveAll(any());
       verify(fxSource, never()).fetchFx(any());
@@ -292,8 +292,7 @@ class FxDataCollectorTest {
       properties.getFxIngest().getIncremental().setEnabled(true);
       given(fxRateRepository.findByDateBetween(any(), any())).willThrow(new IllegalStateException("DB 다운"));
 
-      // CommandLineRunner 라 예외가 나가면 앱 기동 실패
-      assertThatCode(() -> collector.run()).doesNotThrowAnyException();
+      assertThatCode(() -> collector.collectOnStartup()).doesNotThrowAnyException();
     }
   }
 }
