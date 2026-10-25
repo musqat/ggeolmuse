@@ -234,3 +234,51 @@ describe('MyPage 사용자 정보', () => {
     expect(screen.queryByText('홈')).toBeNull()
   })
 })
+
+describe('MyPage 실패 문구', () => {
+  const badRequest = (detail?: string) => new AxiosError('fail', 'ERR', undefined, undefined, {
+    status: 400, data: detail ? { detail } : {}, statusText: '', headers: {}, config: {},
+  } as AxiosResponse)
+
+  it('닉네임 변경이 막히면 앞말 없이 서버 문구만 보인다', async () => {
+    const user = userEvent.setup()
+    vi.mocked(authApi.changeNickname).mockRejectedValue(badRequest('이미 사용 중인 닉네임입니다.'))
+    renderPage({})
+
+    await changeNickname(user, '새이름')
+
+    await waitFor(() => expect(notify.error).toHaveBeenCalledWith('이미 사용 중인 닉네임입니다.'))
+  })
+
+  it('서버 문구가 없으면 닉네임 변경 대체 문구를 보인다', async () => {
+    const user = userEvent.setup()
+    vi.mocked(authApi.changeNickname).mockRejectedValue(new Error('Network Error'))
+    renderPage({})
+
+    await changeNickname(user, '새이름')
+
+    await waitFor(() => expect(notify.error).toHaveBeenCalledWith('닉네임 변경에 실패했습니다.'))
+  })
+
+  it('비밀번호 변경이 막히면 서버 문구만 보인다', async () => {
+    const user = userEvent.setup()
+    vi.mocked(authApi.changePassword).mockRejectedValue(badRequest('현재 비밀번호가 올바르지 않습니다.'))
+    renderPage({ hasPassword: true })
+
+    await changePassword(user, 'old-pass1', 'new-pass1')
+
+    await waitFor(() => expect(notify.error).toHaveBeenCalledWith('현재 비밀번호가 올바르지 않습니다.'))
+  })
+
+  it('탈퇴가 서버 문구 없이 실패하면 탈퇴 대체 문구를 보인다', async () => {
+    const user = userEvent.setup()
+    vi.mocked(authApi.deleteAccount).mockRejectedValue(badRequest())
+    renderPage({ hasPassword: true })
+
+    await openDeleteModal(user)
+    await user.type(screen.getByLabelText('비밀번호'), 'typed-secret')
+    await user.click(deleteButton())
+
+    await waitFor(() => expect(notify.error).toHaveBeenCalledWith('회원 탈퇴에 실패했습니다.'))
+  })
+})
