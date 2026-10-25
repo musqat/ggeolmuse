@@ -112,6 +112,21 @@ class MarketControllerTest {
   }
 
   @Test
+  @DisplayName("점 · 하이픈 · ^ 이 든 종목도 받는다(BRK-B · BRK.B · ^GSPC)")
+  void symbolsWithDotHyphenCaret() throws Exception {
+    for (String symbol : List.of("BRK-B", "BRK.B", "^GSPC")) {
+      given(candleService.getCurrentPrice(symbol)).willReturn(price(symbol, "500"));
+
+      mockMvc.perform(get(BASE + "/price/{symbol}", symbol))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.currentPrice").value(500));
+    }
+    given(candleService.getOHLCPrice("BRK-B", LocalDate.of(2024, 3, 4))).willReturn(candle("BRK-B", "410"));
+    mockMvc.perform(get(BASE + "/ohlc/{symbol}", "BRK-B").param("date", "2024-03-04"))
+      .andExpect(status().isOk());
+  }
+
+  @Test
   @DisplayName("현재가는 종목을 넘겨 받는다")
   void currentPrice() throws Exception {
     given(candleService.getCurrentPrice("AAPL")).willReturn(price("AAPL", "230"));

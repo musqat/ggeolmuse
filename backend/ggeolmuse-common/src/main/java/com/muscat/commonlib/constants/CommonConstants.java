@@ -34,6 +34,7 @@ public final class CommonConstants {
   public static final int USD_SCALE = 2;  // USD는 소수점 2자리
 
   // === 검증 관련 ===
+  public static final String SYMBOL_PATTERN = "^[A-Z0-9.^-]{1,16}$";
   public static final String EMAIL_PATTERN = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$";
   public static final String PHONE_PATTERN = "^[0-9]{10,11}$";
   public static final int MIN_PASSWORD_LENGTH = 8;
