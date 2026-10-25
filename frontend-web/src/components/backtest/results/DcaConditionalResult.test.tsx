@@ -39,6 +39,15 @@ const props = {
 }
 
 describe('DcaConditionalResult', () => {
+  it('결과 카드와 차트 사이에 매수 · 미매수 회차를 합친 매수 내역을 둔다', () => {
+    render(<DcaConditionalResult result={{ ...result, skippedRounds: [{ date: '2022-12-15', reason: 'NO_PRICE' }] }} {...props} />)
+
+    const history = screen.getByRole('heading', { name: '매수 내역' })
+    const chart = screen.getByText('차트 시작 2023-01-01')
+    expect(history.compareDocumentPosition(chart) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getByText('매수 1회 · 미매수 1회')).toBeInTheDocument()
+  })
+
   it('결과의 시작일부터 평가일까지 차트를 그린다', () => {
     render(<DcaConditionalResult result={result} {...props} />)
 
