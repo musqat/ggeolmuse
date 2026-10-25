@@ -88,10 +88,6 @@ async def test_dividend_skill_lists_year_total_and_yield():
     assert ("dividends", "AAPL", TODAY - timedelta(days=365 * 3), TODAY) in market.calls
 
 
-def test_dividend_guide_keeps_ex_date_apart_from_payment():
-    assert "지급일로 말하지 않는다" in DividendSkill.guide
-
-
 async def test_dividend_skill_notes_changed_base():
     market = FakeMarket()
     market.dividend_rows["AAPL"] = [
@@ -107,3 +103,10 @@ async def test_dividend_skill_notes_changed_base():
 
 def test_build_skills_names():
     assert [s.name for s in build_skills(400, 3)] == ["indicators", "trend", "dividend"]
+
+
+def test_dividend_guide_forbids_payment_wording_with_example():
+    guide = DividendSkill.guide
+    assert "'지급' 이라는 말은 쓰지 않는다" in guide
+    assert "최근 배당락일은 2026-08-10, 주당 0.27 USD입니다" in guide
+    assert "지급일" not in guide
