@@ -1,5 +1,6 @@
 package com.muscat.trade.domain.dto.request;
 
+import com.muscat.commonlib.constants.CommonConstants;
 import com.muscat.trade.common.constants.TradeConstants;
 import com.muscat.trade.common.enums.type.PriceType;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -30,7 +31,7 @@ public class TradeRequestDto {
   @Schema(description = "종목 심볼", example = "AAPL", required = true)
   @NotBlank(message = "종목 심볼은 필수입니다")
   @Size(min = TradeConstants.MIN_SYMBOL_LENGTH, max = TradeConstants.MAX_SYMBOL_LENGTH, message = "종목 심볼은 1-16자 이내여야 합니다")
-  @Pattern(regexp = TradeConstants.SYMBOL_PATTERN, message = "종목 심볼은 대문자, 숫자, 마침표만 허용됩니다")
+  @Pattern(regexp = CommonConstants.SYMBOL_PATTERN, message = "종목 심볼은 대문자, 숫자, 마침표, 하이픈, ^ 만 허용됩니다")
   private String symbol;
 
   @Schema(description = "거래 수량", example = "10.5", required = true)
