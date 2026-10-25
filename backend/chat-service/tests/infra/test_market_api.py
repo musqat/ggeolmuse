@@ -95,3 +95,18 @@ async def test_dividends_are_sorted_oldest_first(market):
     assert route.calls[0].request.url.params["startDate"] == "2023-10-17"
     assert [d.ex_date.isoformat() for d in dividends] == ["2026-05-11", "2026-08-10"]
     assert dividends[0].currency == "USD"
+
+
+@respx.mock
+async def test_symbol_is_percent_encoded_in_every_path(market):
+    route = respx.get(url__startswith=f"{BASE}/api/internal/market/").mock(return_value=httpx.Response(404))
+
+    await market.quote("^GSPC")
+    await market.bars("^GSPC", date(2026, 10, 1), date(2026, 10, 15))
+    await market.dividends("^GSPC", date(2026, 10, 1), date(2026, 10, 15))
+
+    assert [call.request.url.raw_path.split(b"?")[0] for call in route.calls] == [
+        b"/api/internal/market/price/%5EGSPC",
+        b"/api/internal/market/ohlc/%5EGSPC/range",
+        b"/api/internal/market/dividend/%5EGSPC",
+    ]

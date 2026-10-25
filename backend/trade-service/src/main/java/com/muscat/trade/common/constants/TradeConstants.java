@@ -11,7 +11,6 @@ public final class TradeConstants {
   public static final BigDecimal DIVIDEND_TAX_RATE = new BigDecimal("0.154");
 
   // 검증 패턴
-  public static final String SYMBOL_PATTERN = "^[A-Z0-9.]+$";
   public static final String ACCOUNT_ID_PATTERN = "^[0-9]+$";
   public static final int MAX_SYMBOL_LENGTH = 16;
   public static final int MIN_SYMBOL_LENGTH = 1;

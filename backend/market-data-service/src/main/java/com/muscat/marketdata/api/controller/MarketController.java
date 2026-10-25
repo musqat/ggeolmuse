@@ -1,5 +1,6 @@
 package com.muscat.marketdata.api.controller;
 
+import com.muscat.commonlib.constants.CommonConstants;
 import com.muscat.marketdata.common.enums.StockSort;
 import com.muscat.marketdata.domain.dto.DividendDto;
 import com.muscat.marketdata.domain.dto.OHLCPriceDto;
@@ -79,7 +80,7 @@ public class MarketController {
   @GetMapping("/ohlc/{symbol}")
   public ResponseEntity<OHLCPriceDto> getOHLCPrice(
     @Parameter(description = "종목 코드 (예: AAPL, MSFT)", example = "AAPL", required = true)
-    @PathVariable @NotBlank @Pattern(regexp = "^[A-Z]{1,16}$") String symbol,
+    @PathVariable @NotBlank @Pattern(regexp = CommonConstants.SYMBOL_PATTERN) String symbol,
     @Parameter(description = "조회할 날짜", example = "2024-01-15", required = true)
     @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
 
@@ -124,7 +125,7 @@ public class MarketController {
   @GetMapping("/price/{symbol}")
   public ResponseEntity<StockPriceDto> getCurrentPrice(
     @Parameter(description = "종목 코드 (예: AAPL, MSFT)", example = "AAPL", required = true)
-    @PathVariable @NotBlank @Pattern(regexp = "^[A-Z]{1,16}$") String symbol) {
+    @PathVariable @NotBlank @Pattern(regexp = CommonConstants.SYMBOL_PATTERN) String symbol) {
     log.debug("현재가 조회 요청: symbol={}", symbol);
 
     StockPriceDto result = candleService.getCurrentPrice(symbol);
@@ -143,12 +144,16 @@ public class MarketController {
       content = @Content(
         mediaType = "application/json"
       )
+    ),
+    @ApiResponse(
+      responseCode = "400",
+      description = "잘못된 요청 (종목 수 초과)"
     )
   })
   @GetMapping("/prices")
   public ResponseEntity<Map<String, StockPriceDto>> getCurrentPrices(
-    @Parameter(description = "종목 코드 리스트 (예: AAPL,MSFT,GOOGL)", required = true)
-    @RequestParam("symbols") List<String> symbols) {
+    @Parameter(description = "종목 코드 리스트 (1-50개, 예: AAPL,MSFT,GOOGL)", required = true)
+    @RequestParam("symbols") @Size(min = 1, max = 50) List<String> symbols) {
     log.debug("다중 현재가 조회 요청: symbols={}", symbols);
 
     Map<String, StockPriceDto> results = new java.util.HashMap<>();
@@ -249,7 +254,7 @@ public class MarketController {
   @GetMapping("/dividend/{symbol}")
   public ResponseEntity<List<DividendDto>> getDividendHistory(
     @Parameter(description = "종목 코드 (예: AAPL, MSFT)", example = "AAPL", required = true)
-    @PathVariable @NotBlank @Pattern(regexp = "^[A-Z]{1,16}$") String symbol,
+    @PathVariable @NotBlank @Pattern(regexp = CommonConstants.SYMBOL_PATTERN) String symbol,
     @Parameter(description = "시작 날짜 (선택사항)", example = "2024-01-01")
     @RequestParam(required = false) LocalDate startDate,
     @Parameter(description = "종료 날짜 (선택사항)", example = "2024-12-31")
@@ -346,7 +351,7 @@ public class MarketController {
   @GetMapping("/ohlc/multiple")
   public ResponseEntity<List<OHLCPriceDto>> getMultipleOHLCPrices(
     @Parameter(description = "종목 코드 목록 (1-50개)", example = "[\"AAPL\", \"MSFT\", \"GOOGL\"]", required = true)
-    @RequestParam @Size(min = 1, max = 50) List<@Pattern(regexp = "^[A-Z]{1,16}$") String> symbols,
+    @RequestParam @Size(min = 1, max = 50) List<@Pattern(regexp = CommonConstants.SYMBOL_PATTERN) String> symbols,
     @Parameter(description = "시작 날짜", example = "2024-01-01", required = true)
     @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
     @Parameter(description = "종료 날짜", example = "2024-12-31", required = true)
@@ -379,7 +384,7 @@ public class MarketController {
   @GetMapping("/ohlc/{symbol}/with-dividends")
   public ResponseEntity<List<OHLCPriceDto>> getCandlesWithDividends(
     @Parameter(description = "종목 코드 (예: AAPL, MSFT)", example = "AAPL", required = true)
-    @PathVariable @NotBlank @Pattern(regexp = "^[A-Z]{1,16}$") String symbol,
+    @PathVariable @NotBlank @Pattern(regexp = CommonConstants.SYMBOL_PATTERN) String symbol,
     @Parameter(description = "시작 날짜", example = "2024-01-01", required = true)
     @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
     @Parameter(description = "종료 날짜", example = "2024-12-31", required = true)

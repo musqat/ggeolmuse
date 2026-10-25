@@ -3,6 +3,7 @@ package com.muscat.marketdata.api.controller;
 import com.muscat.marketdata.domain.dto.DividendDto;
 import com.muscat.marketdata.domain.dto.OHLCPriceDto;
 import com.muscat.marketdata.domain.dto.StockPriceDto;
+import com.muscat.commonlib.constants.CommonConstants;
 import com.muscat.commonlib.dto.FxRateRangeDto;
 import com.muscat.marketdata.domain.entity.FxRate;
 import com.muscat.marketdata.domain.repository.FxRateRepository;
@@ -44,7 +45,7 @@ public class InternalMarketController {
 
   @GetMapping("/ohlc/{symbol}")
   public ResponseEntity<OHLCPriceDto> getOHLCPrice(
-    @PathVariable @NotBlank @Pattern(regexp = "^[A-Z]{1,16}$") String symbol,
+    @PathVariable @NotBlank @Pattern(regexp = CommonConstants.SYMBOL_PATTERN) String symbol,
     @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
 
     log.debug("내부 OHLC 조회 요청: symbol={}, date={}", symbol, date);
@@ -56,7 +57,7 @@ public class InternalMarketController {
 
   @GetMapping("/ohlc/{symbol}/range")
   public ResponseEntity<List<OHLCPriceDto>> getOHLCPriceRange(
-    @PathVariable @NotBlank @Pattern(regexp = "^[A-Z]{1,16}$") String symbol,
+    @PathVariable @NotBlank @Pattern(regexp = CommonConstants.SYMBOL_PATTERN) String symbol,
     @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
     @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
 
@@ -69,7 +70,7 @@ public class InternalMarketController {
 
   @GetMapping("/ohlc/{symbol}/with-dividends")
   public ResponseEntity<List<OHLCPriceDto>> getCandlesWithDividends(
-    @PathVariable @NotBlank @Pattern(regexp = "^[A-Z]{1,16}$") String symbol,
+    @PathVariable @NotBlank @Pattern(regexp = CommonConstants.SYMBOL_PATTERN) String symbol,
     @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
     @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
     log.debug("내부 배당 포함 캔들 조회 요청: symbol={}, startDate={}, endDate={}", symbol, startDate, endDate);
@@ -81,7 +82,7 @@ public class InternalMarketController {
 
   @GetMapping("/price/{symbol}")
   public ResponseEntity<StockPriceDto> getCurrentPrice(
-    @PathVariable @NotBlank @Pattern(regexp = "^[A-Z]{1,16}$") String symbol) {
+    @PathVariable @NotBlank @Pattern(regexp = CommonConstants.SYMBOL_PATTERN) String symbol) {
     log.debug("내부 현재가 조회 요청: symbol={}", symbol);
 
     StockPriceDto result = candleService.getCurrentPrice(symbol);
@@ -162,7 +163,7 @@ public class InternalMarketController {
 
   @GetMapping("/dividend/{symbol}")
   public ResponseEntity<List<DividendDto>> getDividendHistory(
-    @PathVariable @NotBlank @Pattern(regexp = "^[A-Z]{1,16}$") String symbol,
+    @PathVariable @NotBlank @Pattern(regexp = CommonConstants.SYMBOL_PATTERN) String symbol,
     @RequestParam(required = false) LocalDate startDate,
     @RequestParam(required = false) LocalDate endDate) {
     log.debug("내부 배당 이력 조회 요청: symbol={}, startDate={}, endDate={}", symbol, startDate, endDate);

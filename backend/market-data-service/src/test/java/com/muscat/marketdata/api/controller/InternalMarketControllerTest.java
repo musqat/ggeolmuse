@@ -73,6 +73,15 @@ class InternalMarketControllerTest {
   }
 
   @Test
+  @DisplayName("내부 시세 조회도 하이픈 · 점이 든 종목을 받는다")
+  void symbolsWithDotHyphen() throws Exception {
+    mockMvc.perform(get(BASE + "/ohlc/{symbol}/range", "BRK-B").param("startDate", "2024-01-01").param("endDate", "2024-03-31"))
+      .andExpect(status().isOk());
+    mockMvc.perform(get(BASE + "/ohlc/{symbol}/range", "BRK.B").param("startDate", "2024-01-01").param("endDate", "2024-03-31"))
+      .andExpect(status().isOk());
+  }
+
+  @Test
   @DisplayName("날짜 시세 · 기간 시세 · 배당 포함 캔들은 토큰 없이 종목과 날짜를 넘겨 받는다")
   void candles() throws Exception {
     given(candleService.getOHLCPrice("AAPL", START)).willReturn(candle(START, "185.6"));

@@ -1,6 +1,7 @@
 """market-data 내부 API. JSON → Quote · Bar · Dividend, 장애 → MarketUnavailable"""
 from __future__ import annotations
 
+import urllib.parse
 from datetime import date
 
 import httpx
@@ -13,7 +14,7 @@ class MarketClient:
         self._http = http
 
     async def quote(self, symbol: str) -> Quote | None:
-        data = await self._get(f"/api/internal/market/price/{symbol}")
+        data = await self._get(f"/api/internal/market/price/{_segment(symbol)}")
         if not data or not data.get("available"):
             return None
         return Quote(
@@ -26,7 +27,7 @@ class MarketClient:
 
     async def bars(self, symbol: str, start: date, end: date) -> list[Bar]:
         data = await self._get(
-            f"/api/internal/market/ohlc/{symbol}/range",
+            f"/api/internal/market/ohlc/{_segment(symbol)}/range",
             {"startDate": start.isoformat(), "endDate": end.isoformat()},
         )
         bars = [_bar(row) for row in data or []]
@@ -34,7 +35,7 @@ class MarketClient:
 
     async def dividends(self, symbol: str, start: date, end: date) -> list[Dividend]:
         data = await self._get(
-            f"/api/internal/market/dividend/{symbol}",
+            f"/api/internal/market/dividend/{_segment(symbol)}",
             {"startDate": start.isoformat(), "endDate": end.isoformat()},
         )
         rows = [
@@ -56,6 +57,11 @@ class MarketClient:
         if res.status_code >= 400:
             raise MarketUnavailable(f"{path} {res.status_code}")
         return res.json()
+
+
+def _segment(symbol: str) -> str:
+    """경로 한 칸에 넣는 종목 코드(^ 같은 문자는 퍼센트 인코딩)"""
+    return urllib.parse.quote(symbol, safe="")
 
 
 def _bar(row: dict) -> Bar | None:
