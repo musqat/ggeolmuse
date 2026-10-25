@@ -1,6 +1,7 @@
 package com.muscat.marketdata.config;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
@@ -67,6 +68,8 @@ public class MarketDataProperties {
   @Data
   public static class FxIngest {
 
+    // 환율을 채울 첫날
+    private LocalDate startDate = LocalDate.of(2014, 1, 1);
     private Backfill backfill = new Backfill();
     private Incremental incremental = new Incremental();
     private Scheduler scheduler = new Scheduler();
@@ -82,6 +85,7 @@ public class MarketDataProperties {
     public static class Incremental {
 
       private boolean enabled = true;
+      // 시작 때 받을 빈 평일 최대 수(최근 날부터)
       private int defaultDays = 30;
     }
 

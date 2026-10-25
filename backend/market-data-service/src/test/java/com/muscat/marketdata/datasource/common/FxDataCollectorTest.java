@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
@@ -14,7 +15,9 @@ import com.muscat.marketdata.datasource.common.MarketDataProvider.FxSource;
 import com.muscat.marketdata.domain.entity.FxRate;
 import com.muscat.marketdata.domain.repository.FxRateRepository;
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,6 +43,30 @@ class FxDataCollectorTest {
   // 수집기와 같은 KST 오늘. JVM 기본 타임존이면 UTC 러너에서 하루 어긋남
   private static LocalDate today() {
     return LocalDate.now(java.time.ZoneId.of("Asia/Seoul"));
+  }
+
+  // from ~ to 의 평일
+  private static List<LocalDate> weekdays(LocalDate from, LocalDate to) {
+    List<LocalDate> days = new ArrayList<>();
+    for (LocalDate d = from; !d.isAfter(to); d = d.plusDays(1)) {
+      if (d.getDayOfWeek() != DayOfWeek.SATURDAY && d.getDayOfWeek() != DayOfWeek.SUNDAY) {
+        days.add(d);
+      }
+    }
+    return days;
+  }
+
+  // 그 날짜들에 저장된 환율 행
+  private static List<FxRate> stored(List<LocalDate> dates) {
+    return dates.stream().map(d -> FxRate.builder().date(d).rate(BigDecimal.ONE).build()).toList();
+  }
+
+  // saveAll 로 저장한 날짜
+  @SuppressWarnings("unchecked")
+  private List<LocalDate> savedDates() {
+    ArgumentCaptor<List<FxRate>> saved = ArgumentCaptor.forClass(List.class);
+    verify(fxRateRepository).saveAll(saved.capture());
+    return saved.getValue().stream().map(FxRate::getDate).toList();
   }
 
   @Mock
@@ -188,32 +215,70 @@ class FxDataCollectorTest {
       collector.run();
 
       verify(fxRateRepository).saveAll(any());
-      // findAll 은 증분 수집에서만 씀
-      verify(fxRateRepository, never()).findAll();
+      // 저장된 날짜는 증분 수집에서만 봄
+      verify(fxRateRepository, never()).findByDateBetween(any(), any());
     }
 
     @Test
-    @DisplayName("증분 수집만 켜면 마지막 날짜부터 이어간다")
-    void 증분만() {
+    @DisplayName("증분 수집은 시작일 ~ 오늘 평일 중 저장 안 된 날만 받는다(중간 빈 날 포함)")
+    void 증분_빈날만() {
       properties.getFxIngest().getIncremental().setEnabled(true);
-      // 오늘이 주말이어도 수집 범위에 평일이 들어가게 일주일 전
-      LocalDate lastSaved = today().minusDays(7);
-      given(fxRateRepository.findAll())
-        .willReturn(List.of(FxRate.builder().date(lastSaved).rate(BigDecimal.ONE).build()));
+      LocalDate start = today().minusDays(21);
+      properties.getFxIngest().setStartDate(start);
+      List<LocalDate> all = weekdays(start, today());
+      LocalDate gap = all.get(all.size() / 2);
+      given(fxRateRepository.findByDateBetween(start, today()))
+        .willReturn(stored(all.stream().filter(d -> !d.equals(gap)).toList()));
+      given(fxSource.fetchFx(gap)).willReturn(Optional.of(new BigDecimal("1350")));
+
+      collector.run();
+
+      assertThat(savedDates()).containsExactly(gap);
+    }
+
+    @Test
+    @DisplayName("빈 날이 시작 때 최대 수보다 많으면 최근 날부터 그만큼만 받는다")
+    void 증분_최대수() {
+      properties.getFxIngest().getIncremental().setEnabled(true);
+      properties.getFxIngest().getIncremental().setDefaultDays(3);
+      LocalDate start = today().minusDays(30);
+      properties.getFxIngest().setStartDate(start);
+      List<LocalDate> all = weekdays(start, today());
+      given(fxRateRepository.findByDateBetween(start, today())).willReturn(List.of());
       given(fxSource.fetchFx(any())).willReturn(Optional.of(new BigDecimal("1350")));
 
       collector.run();
 
-      verify(fxRateRepository).saveAll(any());
-      verify(fxSource, atLeastOnce()).fetchFx(any());
+      assertThat(savedDates()).containsExactlyElementsOf(all.subList(all.size() - 3, all.size()));
     }
 
     @Test
-    @DisplayName("이미 오늘까지 있으면 증분 수집을 건너뛴다")
+    @DisplayName("빈 날 하나를 못 받아도 나머지 빈 날은 받는다")
+    void 증분_하루실패() {
+      properties.getFxIngest().getIncremental().setEnabled(true);
+      LocalDate start = today().minusDays(21);
+      properties.getFxIngest().setStartDate(start);
+      List<LocalDate> all = weekdays(start, today());
+      LocalDate failing = all.get(2);
+      LocalDate gap = all.get(all.size() / 2);
+      given(fxRateRepository.findByDateBetween(start, today()))
+        .willReturn(stored(all.stream().filter(d -> !d.equals(failing) && !d.equals(gap)).toList()));
+      // 폴백 한도(2)를 넘게 비어 있어 그날은 예외
+      given(fxSource.fetchFx(any())).willReturn(Optional.empty());
+      given(fxSource.fetchFx(eq(gap))).willReturn(Optional.of(new BigDecimal("1350")));
+
+      collector.run();
+
+      assertThat(savedDates()).containsExactly(gap);
+    }
+
+    @Test
+    @DisplayName("이미 오늘까지 다 있으면 증분 수집을 건너뛴다")
     void 증분_스킵() {
       properties.getFxIngest().getIncremental().setEnabled(true);
-      given(fxRateRepository.findAll())
-        .willReturn(List.of(FxRate.builder().date(today()).rate(BigDecimal.ONE).build()));
+      LocalDate start = today().minusDays(10);
+      properties.getFxIngest().setStartDate(start);
+      given(fxRateRepository.findByDateBetween(start, today())).willReturn(stored(weekdays(start, today())));
 
       collector.run();
 
@@ -222,29 +287,10 @@ class FxDataCollectorTest {
     }
 
     @Test
-    @DisplayName("저장된 게 없으면 defaultDays 만큼 거슬러 수집한다")
-    void 증분_최초() {
-      properties.getFxIngest().getIncremental().setEnabled(true);
-      properties.getFxIngest().getIncremental().setDefaultDays(3);
-      given(fxRateRepository.findAll()).willReturn(List.of());
-      given(fxSource.fetchFx(any())).willReturn(Optional.of(new BigDecimal("1350")));
-
-      collector.run();
-
-      ArgumentCaptor<List<FxRate>> saved = ArgumentCaptor.forClass(List.class);
-      verify(fxRateRepository).saveAll(saved.capture());
-      assertThat(saved.getValue()).isNotEmpty();
-      assertThat(saved.getValue())
-        .allSatisfy(r -> assertThat(r.getDate())
-          .isAfterOrEqualTo(today().minusDays(3))
-          .isBeforeOrEqualTo(today()));
-    }
-
-    @Test
     @DisplayName("수집이 실패해도 예외를 밖으로 내보내지 않는다")
     void 실패_삼킴() {
       properties.getFxIngest().getIncremental().setEnabled(true);
-      given(fxRateRepository.findAll()).willThrow(new IllegalStateException("DB 다운"));
+      given(fxRateRepository.findByDateBetween(any(), any())).willThrow(new IllegalStateException("DB 다운"));
 
       // CommandLineRunner 라 예외가 나가면 앱 기동 실패
       assertThatCode(() -> collector.run()).doesNotThrowAnyException();
