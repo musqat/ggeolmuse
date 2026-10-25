@@ -127,6 +127,17 @@ class MarketControllerTest {
   }
 
   @Test
+  @DisplayName("여러 종목 현재가는 한 번에 50개까지만 받는다")
+  void currentPricesLimit() throws Exception {
+    String[] symbols = java.util.stream.IntStream.range(0, 51).mapToObj(i -> "S" + i).toArray(String[]::new);
+
+    mockMvc.perform(get(BASE + "/prices").param("symbols", symbols))
+      .andExpect(status().isBadRequest());
+
+    verify(candleService, never()).getCurrentPrice(anyString());
+  }
+
+  @Test
   @DisplayName("현재가는 종목을 넘겨 받는다")
   void currentPrice() throws Exception {
     given(candleService.getCurrentPrice("AAPL")).willReturn(price("AAPL", "230"));

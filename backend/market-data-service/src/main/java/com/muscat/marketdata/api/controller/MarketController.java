@@ -144,12 +144,16 @@ public class MarketController {
       content = @Content(
         mediaType = "application/json"
       )
+    ),
+    @ApiResponse(
+      responseCode = "400",
+      description = "잘못된 요청 (종목 수 초과)"
     )
   })
   @GetMapping("/prices")
   public ResponseEntity<Map<String, StockPriceDto>> getCurrentPrices(
-    @Parameter(description = "종목 코드 리스트 (예: AAPL,MSFT,GOOGL)", required = true)
-    @RequestParam("symbols") List<String> symbols) {
+    @Parameter(description = "종목 코드 리스트 (1-50개, 예: AAPL,MSFT,GOOGL)", required = true)
+    @RequestParam("symbols") @Size(min = 1, max = 50) List<String> symbols) {
     log.debug("다중 현재가 조회 요청: symbols={}", symbols);
 
     Map<String, StockPriceDto> results = new java.util.HashMap<>();
