@@ -11,11 +11,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.muscat.backtest.common.calculation.StrategyCalculationResult;
+import com.muscat.backtest.common.enums.type.SkipReason;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
+import com.muscat.backtest.domain.model.SkippedRound;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.backtest.infra.client.MarketDataClient;
 import com.muscat.backtest.infra.client.dto.DividendDto;
@@ -129,7 +131,7 @@ class DCAStrategyTest {
         .build();
 
       given(responseMapper.toStrategyResponse(any(DcaStrategyRequest.class),
-        any(), any(StrategyCalculationResult.class), any()))
+        any(), any(StrategyCalculationResult.class), any(), any()))
         .willReturn(expectedResponse);
 
       // when
@@ -180,7 +182,7 @@ class DCAStrategyTest {
       @SuppressWarnings("unchecked")
       ArgumentCaptor<List<StrategyTransaction>> transactions = ArgumentCaptor.forClass(List.class);
       verify(responseMapper).toStrategyResponse(any(DcaStrategyRequest.class), transactions.capture(),
-        any(StrategyCalculationResult.class), any());
+        any(StrategyCalculationResult.class), any(), any());
       StrategyTransaction first = transactions.getValue().get(0);
       assertThat(first.getDate()).isEqualTo(LocalDate.of(2024, 6, 1));
       assertThat(first.getActualDate()).isEqualTo(LocalDate.of(2024, 6, 3));
@@ -217,7 +219,7 @@ class DCAStrategyTest {
         .willReturn(createOHLC(request.getEndDate(), new BigDecimal("30.00")));
       given(marketDataClient.getDividendHistory(eq(symbol), anyString(), anyString()))
         .willReturn(java.util.Collections.emptyList());
-      given(responseMapper.toStrategyResponse(any(DcaStrategyRequest.class), any(), any(), any()))
+      given(responseMapper.toStrategyResponse(any(DcaStrategyRequest.class), any(), any(), any(), any()))
         .willReturn(StrategyResponse.builder().strategyType(StrategyType.DCA).build());
 
       // when
@@ -226,7 +228,7 @@ class DCAStrategyTest {
       // then: 매수가가 closePrice(100) 여야 함 (adjustedClose 25 아님)
       @SuppressWarnings("unchecked")
       ArgumentCaptor<List<StrategyTransaction>> captor = ArgumentCaptor.forClass(List.class);
-      verify(responseMapper).toStrategyResponse(any(DcaStrategyRequest.class), captor.capture(), any(), any());
+      verify(responseMapper).toStrategyResponse(any(DcaStrategyRequest.class), captor.capture(), any(), any(), any());
       List<StrategyTransaction> txs = captor.getValue();
       assertThat(txs).hasSize(1);
       assertThat(txs.getFirst().getPrice()).isEqualByComparingTo("100.00");
@@ -335,7 +337,7 @@ class DCAStrategyTest {
         .strategyType(StrategyType.DCA)
         .build();
       given(responseMapper.toStrategyResponse(
-        any(DcaStrategyRequest.class), any(), any(), any()))
+        any(DcaStrategyRequest.class), any(), any(), any(), any()))
         .willReturn(expectedResponse);
 
       // when
@@ -349,7 +351,7 @@ class DCAStrategyTest {
       @SuppressWarnings("unchecked")
       ArgumentCaptor<List<StrategyTransaction>> txCaptor = ArgumentCaptor.forClass(List.class);
       verify(responseMapper).toStrategyResponse(
-        any(DcaStrategyRequest.class), txCaptor.capture(), calcCaptor.capture(), any());
+        any(DcaStrategyRequest.class), txCaptor.capture(), calcCaptor.capture(), any(), any());
 
       assertThat(calcCaptor.getValue().getDividendsReinvested()).isGreaterThan(BigDecimal.ZERO);
       assertThat(txCaptor.getValue()).hasSize(5);
@@ -418,7 +420,7 @@ class DCAStrategyTest {
         .totalInvested(new BigDecimal("2000.00")) // 2개월치만 투자
         .build();
       given(responseMapper.toStrategyResponse(
-        any(DcaStrategyRequest.class), any(), any(), any()))
+        any(DcaStrategyRequest.class), any(), any(), any(), any()))
         .willReturn(expectedResponse);
 
       // when
@@ -460,7 +462,7 @@ class DCAStrategyTest {
         .willReturn(createOHLC(request.getEndDate(), new BigDecimal("100.00")));
       given(marketDataClient.getDividendHistory(eq(symbol), anyString(), anyString()))
         .willReturn(java.util.Collections.emptyList());
-      given(responseMapper.toStrategyResponse(any(DcaStrategyRequest.class), any(), any(), any()))
+      given(responseMapper.toStrategyResponse(any(DcaStrategyRequest.class), any(), any(), any(), any()))
         .willReturn(StrategyResponse.builder().build());
 
       dcaStrategy.execute(request);
@@ -468,7 +470,7 @@ class DCAStrategyTest {
       @SuppressWarnings("unchecked")
       ArgumentCaptor<List<StrategyTransaction>> captor = ArgumentCaptor.forClass(List.class);
       verify(responseMapper).toStrategyResponse(
-        any(DcaStrategyRequest.class), captor.capture(), any(), any());
+        any(DcaStrategyRequest.class), captor.capture(), any(), any(), any());
       assertThat(captor.getValue()).hasSize(2).allSatisfy(tx -> {
         assertThat(tx.getFee()).isEqualByComparingTo("10.00");
         assertThat(tx.getShares()).isEqualByComparingTo("9.9");
@@ -478,6 +480,96 @@ class DCAStrategyTest {
   }
 
   // 내부 메서드
+  @Nested
+  @DisplayName("못 산 회차")
+  class SkippedRoundsTests {
+
+    private DcaStrategyRequest request() {
+      return DcaStrategyRequest.builder()
+        .userId(userId)
+        .symbol(symbol)
+        .startDate(LocalDate.of(2024, 1, 1))
+        .endDate(LocalDate.of(2024, 3, 31))
+        .monthlyAmount(new BigDecimal("1300000"))
+        .purchaseDay(15)
+        .build();
+    }
+
+    // 평가일 시세 · 환율 · 배당
+    private void stubValuation() {
+      given(marketDataClient.getFxRate(anyString()))
+        .willReturn(new FxRateDto(LocalDate.now(), new BigDecimal("1300")));
+      given(marketDataClient.getOHLCPrice(eq(symbol), anyString()))
+        .willReturn(createOHLC(LocalDate.of(2024, 3, 29), new BigDecimal("100.00")));
+      given(marketDataClient.getDividendHistory(eq(symbol), anyString(), anyString()))
+        .willReturn(java.util.Collections.emptyList());
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<SkippedRound> skipped() {
+      ArgumentCaptor<List<SkippedRound>> captor = ArgumentCaptor.forClass(List.class);
+      verify(responseMapper).toStrategyResponse(any(DcaStrategyRequest.class), any(), any(), any(), captor.capture());
+      return captor.getValue();
+    }
+
+    @Test
+    @DisplayName("투자일에 시세가 없으면 시세 없음으로 세고 첫 매수일을 싣는다")
+    void noPrice() {
+      given(marketDataClient.getOHLCPriceRange(eq(symbol), eq("2024-01-01"), eq("2024-03-31")))
+        .willReturn(List.of(createOHLC(LocalDate.of(2024, 3, 15), new BigDecimal("100.00"))));
+      given(marketDataClient.getBulkFxRates(any()))
+        .willReturn(java.util.Map.of("2024-03-15", new BigDecimal("1300")));
+      stubValuation();
+
+      dcaStrategy.execute(request());
+
+      assertThat(skipped()).containsExactly(
+        new SkippedRound(LocalDate.of(2024, 1, 15), SkipReason.NO_PRICE),
+        new SkippedRound(LocalDate.of(2024, 2, 15), SkipReason.NO_PRICE));
+    }
+
+    @Test
+    @DisplayName("투자일 종가가 0 이하인 깨진 시세도 시세 없음으로 센다")
+    void brokenPrice() {
+      given(marketDataClient.getOHLCPriceRange(eq(symbol), eq("2024-01-01"), eq("2024-03-31")))
+        .willReturn(List.of(
+          createOHLC(LocalDate.of(2024, 1, 15), BigDecimal.ZERO),
+          createOHLC(LocalDate.of(2024, 2, 15), new BigDecimal("100.00")),
+          createOHLC(LocalDate.of(2024, 3, 15), new BigDecimal("100.00"))));
+      given(marketDataClient.getBulkFxRates(any())).willReturn(java.util.Map.of(
+        "2024-02-15", new BigDecimal("1300"),
+        "2024-03-15", new BigDecimal("1300")));
+      stubValuation();
+
+      dcaStrategy.execute(request());
+
+      assertThat(skipped()).containsExactly(new SkippedRound(LocalDate.of(2024, 1, 15), SkipReason.NO_PRICE));
+    }
+
+    // 수수료가 있으면 수수료 계산에서 0 으로 나누고, 없으면 주식 수 계산이 환율 0 을 막는다
+    @ParameterizedTest
+    @ValueSource(strings = {"0.001", "0"})
+    @DisplayName("한 회차 계산이 실패하면(1월 환율 0) 그 회차는 사지 않고 계산 오류로 남긴 뒤 다음 회차를 산다")
+    void calculationFailure(String feeRate) {
+      DcaStrategyRequest request = request();
+      request.setTradingFeeRate(new BigDecimal(feeRate));
+      given(marketDataClient.getOHLCPriceRange(eq(symbol), eq("2024-01-01"), eq("2024-03-31")))
+        .willReturn(List.of(
+          createOHLC(LocalDate.of(2024, 1, 15), new BigDecimal("100.00")),
+          createOHLC(LocalDate.of(2024, 2, 15), new BigDecimal("100.00")),
+          createOHLC(LocalDate.of(2024, 3, 15), new BigDecimal("100.00"))));
+      given(marketDataClient.getBulkFxRates(any())).willReturn(java.util.Map.of(
+        "2024-01-15", BigDecimal.ZERO,
+        "2024-02-15", new BigDecimal("1300"),
+        "2024-03-15", new BigDecimal("1300")));
+      stubValuation();
+
+      dcaStrategy.execute(request);
+
+      assertThat(skipped()).containsExactly(new SkippedRound(LocalDate.of(2024, 1, 15), SkipReason.CALCULATION_ERROR));
+    }
+  }
+
   private OHLCPriceDto createOHLC(LocalDate date, BigDecimal closePrice) {
     return new OHLCPriceDto(
       symbol,
@@ -574,7 +666,7 @@ class DCAStrategyTest {
     private List<StrategyTransaction> executed() {
       @SuppressWarnings("unchecked")
       ArgumentCaptor<List<StrategyTransaction>> captor = ArgumentCaptor.forClass(List.class);
-      verify(responseMapper).toStrategyResponse(any(DcaStrategyRequest.class), captor.capture(), any(), any());
+      verify(responseMapper).toStrategyResponse(any(DcaStrategyRequest.class), captor.capture(), any(), any(), any());
       return captor.getValue();
     }
 
@@ -623,7 +715,7 @@ class DCAStrategyTest {
       given(marketDataClient.getOHLCPrice(eq(symbol), anyString())).willReturn(createOHLC(LocalDate.of(2024, 5, 31), new BigDecimal("100")));
       given(marketDataClient.getFxRate(anyString())).willReturn(new FxRateDto(LocalDate.of(2024, 5, 31), new BigDecimal("1300")));
       given(marketDataClient.getDividendHistory(eq(symbol), anyString(), anyString())).willReturn(List.of());
-      given(responseMapper.toStrategyResponse(any(DcaStrategyRequest.class), any(), any(), any()))
+      given(responseMapper.toStrategyResponse(any(DcaStrategyRequest.class), any(), any(), any(), any()))
         .willReturn(StrategyResponse.builder().build());
 
       dcaStrategy.execute(base().investmentInterval(2).build());
@@ -631,7 +723,7 @@ class DCAStrategyTest {
 
       @SuppressWarnings("unchecked")
       ArgumentCaptor<List<StrategyTransaction>> captor = ArgumentCaptor.forClass(List.class);
-      verify(responseMapper, times(2)).toStrategyResponse(any(DcaStrategyRequest.class), captor.capture(), any(), any());
+      verify(responseMapper, times(2)).toStrategyResponse(any(DcaStrategyRequest.class), captor.capture(), any(), any(), any());
       assertThat(captor.getAllValues().get(0)).extracting(StrategyTransaction::getDate).containsExactly(
         LocalDate.of(2024, 1, 15), LocalDate.of(2024, 3, 15), LocalDate.of(2024, 5, 15));
       assertThat(captor.getAllValues().get(1)).hasSize(5);
@@ -648,7 +740,7 @@ class DCAStrategyTest {
       given(marketDataClient.getOHLCPrice(eq(symbol), anyString())).willReturn(createOHLC(LocalDate.of(2024, 4, 30), new BigDecimal("100")));
       given(marketDataClient.getFxRate(anyString())).willReturn(new FxRateDto(LocalDate.of(2024, 4, 30), new BigDecimal("1300")));
       given(marketDataClient.getDividendHistory(eq(symbol), anyString(), anyString())).willReturn(List.of());
-      given(responseMapper.toStrategyResponse(any(DcaStrategyRequest.class), any(), any(), any()))
+      given(responseMapper.toStrategyResponse(any(DcaStrategyRequest.class), any(), any(), any(), any()))
         .willReturn(StrategyResponse.builder().build());
 
       dcaStrategy.execute(request);
@@ -673,7 +765,7 @@ class DCAStrategyTest {
       given(marketDataClient.getCurrentPrice(symbol)).willReturn(createStockPrice(new BigDecimal("110")));
       given(marketDataClient.getLatestFxRate()).willReturn(new FxRateDto(today, new BigDecimal("1300")));
       given(marketDataClient.getDividendHistory(eq(symbol), anyString(), anyString())).willReturn(List.of());
-      given(responseMapper.toStrategyResponse(any(DcaStrategyRequest.class), any(), any(), any()))
+      given(responseMapper.toStrategyResponse(any(DcaStrategyRequest.class), any(), any(), any(), any()))
         .willReturn(StrategyResponse.builder().build());
 
       dcaStrategy.execute(request);

@@ -3,6 +3,7 @@ package com.muscat.backtest.domain.strategy;
 import com.muscat.backtest.common.constants.BacktestConstants;
 import com.muscat.backtest.common.engine.StrategyFinalizer;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
+import com.muscat.backtest.common.enums.type.SkipReason;
 import com.muscat.backtest.common.validation.BacktestRequestValidator;
 import com.muscat.backtest.common.enums.type.InvestmentMode;
 import com.muscat.backtest.common.enums.type.StrategyType;
@@ -18,6 +19,7 @@ import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.domain.model.InvestmentParams;
 import com.muscat.backtest.domain.model.PurchaseDecision;
+import com.muscat.backtest.domain.model.SkippedRound;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.backtest.infra.client.MarketDataClient;
 import com.muscat.commonlib.dto.OHLCPriceDto;
@@ -78,13 +80,15 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
       log.info("조건부 매수 전략 실행: {}% 하락시 매수, 회당 {}원, 최대 {}회",
         request.getDropPercentage(), params.amountPerPurchase(), params.maxPurchases());
 
-      List<StrategyTransaction> transactions = executeConditionalPurchases(
-        request, actualEndDate, params);
+      StrategyPurchases purchases = executeConditionalPurchases(request, actualEndDate, params);
+      List<StrategyTransaction> transactions = purchases.transactions();
 
       if (transactions.isEmpty()) {
         throw new BacktestException(BacktestResponse.DATA_NOT_FOUND,
           "조건부 매수 전략 실행 가능한 데이터가 없습니다");
       }
+
+      List<SkippedRound> skippedRounds = purchases.skippedRounds();
 
       // 마무리(평가일 시세/환율/배당재투자/계산) — 공통 로직 위임
       StrategyFinalizer.Result finalized = StrategyFinalizer.run(
@@ -97,7 +101,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
         finalized.calculation().getTotalReturnPercent());
 
       return responseMapper.toStrategyResponse(
-        request, finalized.transactions(), finalized.calculation(), finalized.currentPrice());
+        request, finalized.transactions(), finalized.calculation(), finalized.currentPrice(), skippedRounds);
 
     } finally {
       BacktestLogger.remove("operation");
@@ -180,8 +184,8 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     }
   }
 
-  // 조건부 매수 실행
-  private List<StrategyTransaction> executeConditionalPurchases(
+  // 조건부 매수 실행. 시세가 깨진 날(종가 0 이하) · 계산이 실패한 날은 사지 않고 이유와 함께 남긴 뒤 다음 날 다시 봄
+  private StrategyPurchases executeConditionalPurchases(
     ConditionalStrategyRequest request, LocalDate actualEndDate, InvestmentParams params) {
 
     List<StrategyTransaction> transactions = new ArrayList<>();
@@ -202,30 +206,24 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
 
     LocalDate currentDate = request.getStartDate();
     int purchaseCount = 0;
+    List<SkippedRound> skippedRounds = new ArrayList<>();
 
     // 메모리에서 데이터 조회 (API 호출 없음)
     while (!currentDate.isAfter(actualEndDate) && purchaseCount < params.maxPurchases()) {
       try {
         OHLCPriceDto priceData = priceMap.get(currentDate);
 
-        if (priceData != null && priceData.available()) {
+        if (priceData != null && priceData.available() && !PriceLookup.isUsable(priceData)) {
+          skippedRounds.add(new SkippedRound(currentDate, SkipReason.NO_PRICE));
+        } else if (priceData != null && priceData.available()) {
           BigDecimal currentPriceValue = PriceLookup.effectiveClose(priceData);
           var purchaseDecision = evaluatePurchaseCondition(lastPurchasePrice, currentPriceValue,
             request.getDropPercentage());
 
           if (purchaseDecision.shouldBuy()) {
             // 환율 조회 (메모리에서)
-            BigDecimal purchaseFxRate;
-            if (request.getPurchaseFxRate() != null) {
-              purchaseFxRate = request.getPurchaseFxRate();
-            } else {
-              purchaseFxRate = fxRateMap.get(currentDate);
-              if (purchaseFxRate == null) {
-                log.warn("환율 데이터 없음: {}", currentDate);
-                currentDate = currentDate.plusDays(1);
-                continue;
-              }
-            }
+            BigDecimal purchaseFxRate = request.getPurchaseFxRate() != null
+              ? request.getPurchaseFxRate() : fxRateMap.get(currentDate);
 
             // 수수료를 떼고 남은 달러로 산다
             BigDecimal fee = BacktestCalculationUtils.calculatePurchaseFee(
@@ -253,15 +251,16 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
           }
         }
 
-      } catch (Exception e) {
-        log.warn("조건부 매수 전략 - {} 날짜 데이터 처리 실패: {}", currentDate, e.getMessage());
+      } catch (RuntimeException e) {
+        skippedRounds.add(new SkippedRound(currentDate, SkipReason.CALCULATION_ERROR));
+        log.warn("조건부 {} 매수 계산 실패, 사지 않음: {}", currentDate, e.getMessage());
       }
 
       currentDate = currentDate.plusDays(1);
     }
 
-    log.info("조건부 매수 전략 완료: {}회 매수", transactions.size());
-    return transactions;
+    log.info("조건부 매수 전략 완료: {}회 매수, 사지 못한 날 {}", transactions.size(), skippedRounds.size());
+    return new StrategyPurchases(transactions, skippedRounds);
   }
 
   private PurchaseDecision evaluatePurchaseCondition(BigDecimal lastPurchasePrice, BigDecimal currentPrice,
