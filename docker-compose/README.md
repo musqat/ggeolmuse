@@ -49,14 +49,25 @@ docker-compose up -d  # 전체 스택 한 번에 실행
 | chat-service | 8000 | AI 챗봇 (`--profile ai`) |
 | keycloak | 8080 | 인증 서버 |
 | redis | 6379 | 캐시 |
+| postgres | - | 서비스 넷의 DB (호스트로 열지 않음) |
 | zookeeper | 2181 | Kafka 코디네이터 |
 | kafka | 9092 / 9094 | 이벤트 브로커 |
 
-user-service가 8085인 건 호스트 8080을 keycloak이 쓰기 때문이다.
+호스트 8080은 keycloak이 써서 user-service는 8085로 연다.
 게이트웨이가 라우팅하므로 평소엔 8070만 쓰면 된다.
 
 각 서비스의 actuator는 management 포트 9090에 있고 호스트로 열지 않는다.
 컨테이너 네트워크 안에서 `user-service:9090/actuator/prometheus` 처럼 접근한다.
+
+### DB
+
+user · trade · market-data · backtest 는 Postgres 컨테이너 하나에 DB 를 하나씩 쓴다
+(`userdb` · `tradedb` · `marketdb` · `backtestdb`). 스키마는 운영과 같은 Flyway 마이그레이션으로 만든다.
+데이터는 tmpfs 에 있어 `docker compose down` 하면 사라진다. 서비스 하나만 다시 띄우면 남아 있다.
+
+```bash
+docker exec -it ggeolmuse-postgres psql -U ggeolmuse -d tradedb
+```
 
 ### 관측성
 
