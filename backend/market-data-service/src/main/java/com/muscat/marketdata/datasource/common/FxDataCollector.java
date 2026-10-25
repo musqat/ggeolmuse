@@ -8,8 +8,9 @@ import com.muscat.marketdata.datasource.common.MarketDataProvider.FxSource;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.core.annotation.Order;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,15 +27,16 @@ import java.util.stream.Collectors;
 // 공급원별 FxSource 로 앱 시작 때 과거 · 빠진 환율을 채우고 하루치를 받는 수집기
 @Slf4j
 @Component
-@Order(2)
 @RequiredArgsConstructor
-public class FxDataCollector implements CommandLineRunner {
+public class FxDataCollector {
 
     private final FxSource fxSource;
     private final FxRateRepository fxRateRepository;
     private final MarketDataProperties properties;
 
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+    // 시작 때 채우기를 멈추는 연속 실패 날 수(공휴일은 폴백이 앞 영업일 값으로 채워 실패로 안 셈)
+    static final int MAX_CONSECUTIVE_FAILURES = 3;
 
     @PostConstruct
     void logSettings() {
@@ -43,9 +45,11 @@ public class FxDataCollector implements CommandLineRunner {
                 properties.getFxIngest().getIncremental().isEnabled());
     }
 
-    @Override
+    // 앱이 준비된 뒤 다른 스레드에서 과거 · 빠진 환율 채우기(실패는 로그만)
+    @Async
+    @EventListener(ApplicationReadyEvent.class)
     @Transactional
-    public void run(String... args) {
+    public void collectOnStartup() {
         try {
             if (properties.getFxIngest().getBackfill().isEnabled()) {
                 runHistoricalCollection();
@@ -102,11 +106,19 @@ public class FxDataCollector implements CommandLineRunner {
                 missing.size(), targets.size(), targets.get(0), targets.get(targets.size() - 1));
 
         List<FxRate> collected = new ArrayList<>();
+        int consecutiveFailures = 0;
         for (LocalDate date : targets) {
             try {
                 collectSingleDate(date, true).ifPresent(collected::add);
+                consecutiveFailures = 0;
             } catch (Exception e) {
+                consecutiveFailures++;
                 log.warn("[환율수집] 빈 날 수집 실패: date={}, error={}", date, e.getMessage());
+                if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+                    log.warn("[환율수집] 원천이 연속 {}일 환율을 주지 않아 시작 때 채우기를 멈춤(마지막 {})",
+                            MAX_CONSECUTIVE_FAILURES, date);
+                    break;
+                }
             }
         }
         fxRateRepository.saveAll(collected);
