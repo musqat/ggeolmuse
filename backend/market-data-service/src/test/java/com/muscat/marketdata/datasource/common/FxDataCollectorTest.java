@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.muscat.marketdata.config.MarketDataProperties;
@@ -270,6 +271,22 @@ class FxDataCollectorTest {
       collector.collectOnStartup();
 
       assertThat(savedDates()).containsExactly(gap);
+    }
+
+    @Test
+    @DisplayName("원천이 빈 날 셋을 연달아 못 주면 남은 빈 날은 받지 않고 멈춘다")
+    void 증분_연속실패_멈춤() {
+      properties.getFxIngest().getIncremental().setEnabled(true);
+      LocalDate start = today().minusDays(21);
+      properties.getFxIngest().setStartDate(start);
+      given(fxRateRepository.findByDateBetween(start, today())).willReturn(List.of());
+      given(fxSource.fetchFx(any())).willThrow(new IllegalStateException("Connect timed out"));
+
+      collector.collectOnStartup();
+
+      // 날짜마다 폴백 한도(2)까지 세 번씩, 세 날짜
+      verify(fxSource, times(9)).fetchFx(any());
+      assertThat(savedDates()).isEmpty();
     }
 
     @Test

@@ -35,6 +35,8 @@ public class FxDataCollector {
     private final MarketDataProperties properties;
 
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+    // 시작 때 채우기를 멈추는 연속 실패 날 수(공휴일은 폴백이 앞 영업일 값으로 채워 실패로 안 셈)
+    static final int MAX_CONSECUTIVE_FAILURES = 3;
 
     @PostConstruct
     void logSettings() {
@@ -104,11 +106,19 @@ public class FxDataCollector {
                 missing.size(), targets.size(), targets.get(0), targets.get(targets.size() - 1));
 
         List<FxRate> collected = new ArrayList<>();
+        int consecutiveFailures = 0;
         for (LocalDate date : targets) {
             try {
                 collectSingleDate(date, true).ifPresent(collected::add);
+                consecutiveFailures = 0;
             } catch (Exception e) {
+                consecutiveFailures++;
                 log.warn("[환율수집] 빈 날 수집 실패: date={}, error={}", date, e.getMessage());
+                if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+                    log.warn("[환율수집] 원천이 연속 {}일 환율을 주지 않아 시작 때 채우기를 멈춤(마지막 {})",
+                            MAX_CONSECUTIVE_FAILURES, date);
+                    break;
+                }
             }
         }
         fxRateRepository.saveAll(collected);
