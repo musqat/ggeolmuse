@@ -148,7 +148,7 @@ ggeolmuse/
 
 ## 테스트
 
-백엔드 **1,692 개**, 프론트 **690 개**, E2E **43 개**.
+백엔드 **1,692 개**, 프론트 **757 개**, E2E **43 개**.
 
 | 서비스 | 테스트 |
 |---|---|
@@ -159,7 +159,7 @@ ggeolmuse/
 | ggeolmuse-common | 35 |
 | messaging | 19 |
 | chat-service | 143 |
-| frontend-web | 690 |
+| frontend-web | 757 |
 | E2E (Playwright) | 43 |
 
 E2E 는 `docker compose` 로 스택 전체를 띄우고 PR 과 `master` push 마다 돈다.
