@@ -1,0 +1,4 @@
+# 커버리지 측정 범위(CI 최소치 줄 90 · 분기 80)
+[run]
+branch = True
+source = app

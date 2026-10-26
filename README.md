@@ -172,7 +172,7 @@ E2E 는 `docker compose` 로 스택 전체를 띄우고 PR 과 `master` push 마
 <br>
 
 자바 서비스는 `Q*` · `*Config` · DTO · entity · 롬복이 만든 코드를 뺀 값이다. 최소 커버리지는 라인 90 · 분기 80 이고 JaCoCo 검사가
-CI 에서 그 아래면 빌드를 실패시킨다. chat · frontend-web 은 이 검사가 없다.
+CI 에서 그 아래면 빌드를 실패시킨다. chat 도 같은 최소치를 coverage.py 로 검사한다. frontend-web 은 이 검사가 없다.
 
 | 서비스 | 라인 | 분기 |
 |---|---|---|
@@ -180,7 +180,7 @@ CI 에서 그 아래면 빌드를 실패시킨다. chat · frontend-web 은 이 
 | trade | 99.4% | 92.2% |
 | backtest | 98.3% | 88.3% |
 | market-data | 97.7% | 87.3% |
-| chat | 98.9% | 90.9% |
+| chat | 98.3% | 89.1% |
 | frontend-web | 86.8% | 78.4% |
 
 market-data 의 외부 API 호출은 응답을 흉내 낸 테스트라 실제 API 가 바뀌는 것은 못 잡는다.
