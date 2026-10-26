@@ -148,7 +148,7 @@ ggeolmuse/
 
 ## 테스트
 
-백엔드 **1,692 개**, 프론트 **690 개**, E2E **43 개**.
+백엔드 **1,692 개**, 프론트 **757 개**, E2E **43 개**.
 
 | 서비스 | 테스트 |
 |---|---|
@@ -159,7 +159,7 @@ ggeolmuse/
 | ggeolmuse-common | 35 |
 | messaging | 19 |
 | chat-service | 143 |
-| frontend-web | 690 |
+| frontend-web | 757 |
 | E2E (Playwright) | 43 |
 
 E2E 는 `docker compose` 로 스택 전체를 띄우고 PR 과 `master` push 마다 돈다.
@@ -171,8 +171,8 @@ E2E 는 `docker compose` 로 스택 전체를 띄우고 PR 과 `master` push 마
 
 <br>
 
-자바 서비스는 `Q*` · `*Config` · DTO · entity · 롬복이 만든 코드를 뺀 값이다. 최소 커버리지는 라인 90 · 분기 80 이고 JaCoCo 검사가
-CI 에서 그 아래면 빌드를 실패시킨다. chat 도 같은 최소치를 coverage.py 로 검사한다. frontend-web 은 이 검사가 없다.
+자바 서비스는 `Q*` · `*Config` · DTO · entity · 롬복이 만든 코드를 뺀 값이다. 최소 커버리지는 모든 서비스가 라인 90 · 분기 80 이고,
+CI 에서 그 아래면 빌드를 실패시킨다(자바 JaCoCo · chat coverage.py · frontend-web vitest).
 
 | 서비스 | 라인 | 분기 |
 |---|---|---|
@@ -181,7 +181,7 @@ CI 에서 그 아래면 빌드를 실패시킨다. chat 도 같은 최소치를 
 | backtest | 98.3% | 88.3% |
 | market-data | 97.7% | 87.3% |
 | chat | 98.3% | 89.1% |
-| frontend-web | 86.8% | 78.4% |
+| frontend-web | 90.3% | 81.2% |
 
 market-data 의 외부 API 호출은 응답을 흉내 낸 테스트라 실제 API 가 바뀌는 것은 못 잡는다.
 
