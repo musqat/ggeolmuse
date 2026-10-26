@@ -45,8 +45,6 @@ public class StrategyResponse {
   private BigDecimal currentValue;
   @Schema(description = "현재 주식 가치 (KRW)", example = "118,025,128")
   private BigDecimal currentValueKrw;
-  @Schema(description = "잔액 (KRW)", example = "125,430")
-  private BigDecimal remainingCashKrw;        // 잔액 KRW 환산
   @Schema(description = "총 자산 (주식+잔액+배당, KRW)", example = "118,150,558")
   private BigDecimal totalAssetKrw;           // 총 자산 = 주식가치 + 잔액 + 배당금
 
@@ -71,21 +69,14 @@ public class StrategyResponse {
   // 배당금 (추후 확장)
   @Schema(description = "총 배당금 (USD)", example = "125.50")
   private BigDecimal totalDividends;
-  @Schema(description = "재투자된 배당금 (USD)", example = "125.50")
-  private BigDecimal dividendsReinvested;
   @Schema(description = "배당 수익률 (%)", example = "1.67")
   private BigDecimal dividendYield;
-
-  @Schema(description = "매매 수수료 합계 (USD)", example = "12.50")
-  private BigDecimal totalTradingFee;
 
   // 미매수 회차
   @Schema(description = "미매수 회차(계획된 매수일 · 이유)")
   private List<SkippedRound> skippedRounds;
 
   // 전략별 특화 정보
-  @Schema(description = "전략 상세 정보", example = "DCA: 매월 15일 900,000원 투자")
-  private String strategyDetails;          // 전략 상세 정보
   @Schema(description = "성과 요약 메시지", example = "9개월 간 25.05% 수익 달성")
   private String performanceSummary;       // 성과 요약
 

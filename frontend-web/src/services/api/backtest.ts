@@ -149,7 +149,6 @@ export type StrategyResponse = {
   currentPrice?: number | null;
   currentValue?: number | null;         // 현재 가치 (USD)
   currentValueKrw?: number | null;
-  remainingCashKrw?: number | null;
   totalAssetKrw?: number | null;
   totalReturn?: number | null;          // 총 수익 (USD)
   totalReturnPercent?: number | null;
@@ -159,10 +158,7 @@ export type StrategyResponse = {
   fxReturn?: number | null;
   fxReturnPercent?: number | null;
   totalDividends?: number | null;
-  dividendsReinvested?: number | null;
   dividendYield?: number | null;
-  totalTradingFee?: number | null;      // 매매 수수료 합계 (USD)
-  strategyDetails?: string | null;
   performanceSummary?: string | null;
 };
 

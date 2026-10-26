@@ -2,6 +2,9 @@ package com.muscat.backtest.domain.mapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.muscat.backtest.common.calculation.ComparisonCalculationResult;
 import com.muscat.backtest.common.calculation.StrategyCalculationResult;
 import com.muscat.backtest.common.enums.type.SkipReason;
@@ -143,17 +146,18 @@ class ResponseMapperTest {
     }
 
     @Test
-    @DisplayName("거래 수수료를 더해 달러 둘째 자리로 싣는다. 수수료 없는 거래는 건너뛴다")
-    void 수수료_합계() {
-      List<StrategyTransaction> txs = List.of(
-        StrategyTransaction.builder().shares(BigDecimal.ONE).fee(new BigDecimal("10.004")).build(),
-        StrategyTransaction.builder().shares(BigDecimal.ONE).fee(new BigDecimal("5")).build(),
-        StrategyTransaction.builder().shares(BigDecimal.ONE).build());
-
+    @DisplayName("화면이 읽지 않는 전략 설명 · 재투자 배당 · 원화 잔액 · 수수료 합계는 응답에 없다")
+    void 안_읽는_칸_없음() throws Exception {
       StrategyResponse result = mapper.toStrategyResponse(
-        dcaRequest(), txs, calculation(), price("120.5"), NONE);
+        dcaRequest(), transactions(3), calculation(), price("120.5"), NONE);
 
-      assertThat(result.getTotalTradingFee()).isEqualByComparingTo("15.00");
+      JsonNode json = new ObjectMapper().registerModule(new JavaTimeModule()).valueToTree(result);
+
+      assertThat(json.has("totalInvested")).isTrue();
+      assertThat(json.has("strategyDetails")).isFalse();
+      assertThat(json.has("dividendsReinvested")).isFalse();
+      assertThat(json.has("remainingCashKrw")).isFalse();
+      assertThat(json.has("totalTradingFee")).isFalse();
     }
 
     @Test
@@ -177,8 +181,6 @@ class ResponseMapperTest {
       assertThat(result.getTotalInvested().scale()).isZero();
       // 1666666.5 → 1666667
       assertThat(result.getCurrentValueKrw()).isEqualByComparingTo("1666667");
-      // 1234.4 → 1234
-      assertThat(result.getRemainingCashKrw()).isEqualByComparingTo("1234");
     }
 
     @Test
@@ -232,20 +234,6 @@ class ResponseMapperTest {
 
       // 12.344 / (12.3456789 * 120.5) * 100 = 0.8297... → 0.83
       assertThat(result.getDividendYield()).isEqualByComparingTo("0.83");
-    }
-
-    @Test
-    @DisplayName("전략 설명에 전략명과 거래 건수가 들어간다")
-    void 전략_설명() {
-      StrategyResponse dca = mapper.toStrategyResponse(
-        dcaRequest(), transactions(5), calculation(), price("120.5"), NONE);
-      assertThat(dca.getStrategyDetails()).isEqualTo("DCA 전략 - 5회 투자 실행");
-
-      ConditionalStrategyRequest conditional = new ConditionalStrategyRequest();
-      conditional.setSymbol(SYMBOL);
-      StrategyResponse cond = mapper.toStrategyResponse(
-        conditional, transactions(2), calculation(), price("120.5"), NONE);
-      assertThat(cond.getStrategyDetails()).isEqualTo("조건부매수 전략 - 2회 투자 실행");
     }
 
     @Test
