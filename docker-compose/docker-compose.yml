@@ -6,6 +6,16 @@ x-otel-agent: &otel-agent
   OTEL_METRICS_EXPORTER: none
   OTEL_LOGS_EXPORTER: none
 
+# 서비스 넷의 DB 를 로컬 Postgres 로(설정 리포 dev 의 H2 값을 덮어씀)
+x-postgres: &postgres
+  SPRING_DATASOURCE_USERNAME: ggeolmuse
+  SPRING_DATASOURCE_PASSWORD: "${POSTGRES_PASSWORD}"
+  SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+  SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
+  SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+  SPRING_FLYWAY_ENABLED: "true"
+  SPRING_H2_CONSOLE_ENABLED: "false"
+
 services:
 
   # Redis
@@ -213,6 +223,32 @@ services:
         reservations:
           memory: 512m
 
+  # 서비스 넷의 DB(userdb · tradedb · marketdb · backtestdb). 데이터는 컨테이너와 함께 사라짐
+  postgres:
+    image: postgres:15-alpine
+    container_name: ggeolmuse-postgres
+    environment:
+      POSTGRES_USER: ggeolmuse
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DB: ggeolmuse
+    volumes:
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "ggeolmuse", "-d", "ggeolmuse"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - ggeolmuse-network
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+        reservations:
+          memory: 256m
+
   #### BUSINESS MICROSERVICES ####
 
   # User Management Service (시드 admin 자동 생성: admin@test.com / Admin123!)
@@ -227,9 +263,9 @@ services:
       - "8085:8080"
     environment:
       TZ: "Asia/Seoul"
-      JAVA_OPTS: "-Dh2.webAllowOthers=true"
-      <<: *otel-agent
+      <<: [*otel-agent, *postgres]
       OTEL_SERVICE_NAME: user-service
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/userdb
       SPRING_PROFILES_ACTIVE: "dev,no-file-logging"
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       SPRING_CLOUD_CONFIG_USERNAME: config
@@ -263,6 +299,8 @@ services:
         condition: service_started
       kafka:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
     networks:
       - ggeolmuse-network
     deploy:
@@ -291,8 +329,9 @@ services:
       SPRING_CLOUD_CONFIG_RETRY_MAX_ATTEMPTS: "20"
       SPRING_CLOUD_CONFIG_RETRY_INITIAL_INTERVAL: "2000"
       SPRING_CLOUD_CONFIG_RETRY_MAX_INTERVAL: "10000"
-      <<: *otel-agent
+      <<: [*otel-agent, *postgres]
       OTEL_SERVICE_NAME: trade-service
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tradedb
       SPRING_PROFILES_ACTIVE: "dev,no-file-logging"
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       SPRING_CLOUD_CONFIG_USERNAME: config
@@ -305,8 +344,6 @@ services:
       KEYCLOAK_SECRET: local-client-secret
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://localhost:8080/realms/custom
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/custom/protocol/openid-connect/certs
-      # dev는 H2 + ddl-auto create-drop로 스키마 생성. flyway 마이그레이션(PostgreSQL용)은 H2서 충돌 → 끔
-      SPRING_FLYWAY_ENABLED: "false"
     healthcheck:
       # actuator/health는 보안(401)이라 TCP 포트 응답으로 liveness 체크
       test: ["CMD", "sh", "-c", "nc -z localhost 8081"]
@@ -320,6 +357,8 @@ services:
       gateway-server:
         condition: service_started
       kafka:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     networks:
       - ggeolmuse-network
@@ -350,11 +389,12 @@ services:
       SPRING_CLOUD_CONFIG_RETRY_MAX_ATTEMPTS: "20"
       SPRING_CLOUD_CONFIG_RETRY_INITIAL_INTERVAL: "2000"
       SPRING_CLOUD_CONFIG_RETRY_MAX_INTERVAL: "10000"
-      <<: *otel-agent
+      <<: [*otel-agent, *postgres]
       OTEL_SERVICE_NAME: market-data-service
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/marketdb
       # yahoo = 키 불필요·무료. 부팅 후 소수 종목 OHLC 자동 수집 → 차트/백테스트 데이터 확보
       MARKETDATA_PROVIDER: yahoo
-      # 로컬(H2 in-mem): 전체 ~6700종목 수집은 무겁고 재시작마다 재수집 → 상위 50개만 수집(시총 desc, AAPL 등 포함).
+      # 로컬: 전체 ~6700종목 수집은 무겁고 스택을 올릴 때마다 재수집 → 상위 50개만 수집(시총 desc, AAPL 등 포함).
       MARKETDATA_SYMBOLCOLLECTION_MAXSYMBOLS: "50"
       # 50종목뿐이라 메모리 여유 → 2년치 수집(1년+ 기간 백테스트/비교 가능)
       SYMBOL_LOOKBACK_DAYS: "730"
@@ -396,6 +436,8 @@ services:
         condition: service_started
       kafka:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
     networks:
       - ggeolmuse-network
     deploy:
@@ -424,8 +466,9 @@ services:
       SPRING_CLOUD_CONFIG_RETRY_MAX_ATTEMPTS: "20"
       SPRING_CLOUD_CONFIG_RETRY_INITIAL_INTERVAL: "2000"
       SPRING_CLOUD_CONFIG_RETRY_MAX_INTERVAL: "10000"
-      <<: *otel-agent
+      <<: [*otel-agent, *postgres]
       OTEL_SERVICE_NAME: backtest-service
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/backtestdb
       SPRING_PROFILES_ACTIVE: "dev,no-file-logging"
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       SPRING_CLOUD_CONFIG_USERNAME: config
@@ -438,8 +481,6 @@ services:
       KEYCLOAK_SECRET: local-client-secret
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://localhost:8080/realms/custom
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/custom/protocol/openid-connect/certs
-      # dev는 H2 + ddl-auto create-drop로 스키마 생성. flyway 마이그레이션(PostgreSQL용)은 H2서 충돌 → 끔
-      SPRING_FLYWAY_ENABLED: "false"
     healthcheck:
       # actuator/health는 보안(401)이라 TCP 포트 응답으로 liveness 체크
       test: ["CMD", "sh", "-c", "nc -z localhost 8082"]
@@ -453,6 +494,8 @@ services:
       gateway-server:
         condition: service_started
       kafka:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     networks:
       - ggeolmuse-network
