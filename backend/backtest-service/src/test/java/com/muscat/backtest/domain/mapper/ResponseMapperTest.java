@@ -23,7 +23,6 @@ import com.muscat.commonlib.dto.StockPriceDto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -47,6 +46,11 @@ class ResponseMapperTest {
 
   // ===== 픽스처 =====
 
+  // 응답이 실제로 내보내는 JSON(값이 null 인 칸도 키로 남음)
+  private static JsonNode toJson(Object response) {
+    return new ObjectMapper().registerModule(new JavaTimeModule()).valueToTree(response);
+  }
+
   private static StockPriceDto price(String currentPrice) {
     return new StockPriceDto(
       SYMBOL, "Apple Inc.", new BigDecimal(currentPrice), null, null, null, null,
@@ -64,9 +68,7 @@ class ResponseMapperTest {
       .currentValueKrw(new BigDecimal("1666666.5"))
       .totalDividends(new BigDecimal("12.344"))
       .dividendsReinvested(new BigDecimal("5.678"))
-      .remainingCashKrw(new BigDecimal("1234.4"))
       .totalAssetKrw(new BigDecimal("1667900.9"))
-      .totalReturnUsd(new BigDecimal("234.567"))
       .totalReturnPercent(new BigDecimal("23.456"))
       .totalReturnKrw(new BigDecimal("667900.4"))
       .fxReturn(new BigDecimal("38.461"))
@@ -146,18 +148,20 @@ class ResponseMapperTest {
     }
 
     @Test
-    @DisplayName("화면이 읽지 않는 전략 설명 · 재투자 배당 · 원화 잔액 · 수수료 합계는 응답에 없다")
+    @DisplayName("화면이 읽지 않는 칸(전략 설명 · 재투자 배당 · 원화 잔액 · 수수료 합계 · 달러 총 수익 · 성과 요약)은 응답에 없다")
     void 안_읽는_칸_없음() throws Exception {
       StrategyResponse result = mapper.toStrategyResponse(
         dcaRequest(), transactions(3), calculation(), price("120.5"), NONE);
 
-      JsonNode json = new ObjectMapper().registerModule(new JavaTimeModule()).valueToTree(result);
+      JsonNode json = toJson(result);
 
       assertThat(json.has("totalInvested")).isTrue();
       assertThat(json.has("strategyDetails")).isFalse();
       assertThat(json.has("dividendsReinvested")).isFalse();
       assertThat(json.has("remainingCashKrw")).isFalse();
       assertThat(json.has("totalTradingFee")).isFalse();
+      assertThat(json.has("totalReturn")).isFalse();
+      assertThat(json.has("performanceSummary")).isFalse();
     }
 
     @Test
@@ -191,7 +195,6 @@ class ResponseMapperTest {
 
       assertThat(result.getCurrentValue()).isEqualByComparingTo("1234.57");
       assertThat(result.getCurrentValue().scale()).isEqualTo(2);
-      assertThat(result.getTotalReturn()).isEqualByComparingTo("234.57");
       assertThat(result.getTotalReturnPercent()).isEqualByComparingTo("23.46");
       assertThat(result.getFxReturn()).isEqualByComparingTo("38.46");
     }
@@ -236,16 +239,6 @@ class ResponseMapperTest {
       assertThat(result.getDividendYield()).isEqualByComparingTo("0.83");
     }
 
-    @Test
-    @DisplayName("성과 요약 문자열 형식")
-    void 성과_요약() {
-      StrategyResponse result = mapper.toStrategyResponse(
-        dcaRequest(), transactions(1), calculation(), price("120.5"), NONE);
-
-      assertThat(result.getPerformanceSummary())
-        .isEqualTo("총 수익: $234.57 (23.46%), 환차익: 3.85%");
-    }
-
     private DcaStrategyRequest dcaRequest() {
       return DcaStrategyRequest.builder()
         .symbol(SYMBOL).startDate(START).endDate(END)
@@ -274,8 +267,6 @@ class ResponseMapperTest {
         .worstPerformer(worst)
         .averageReturn(new BigDecimal("12.34"))
         .medianReturn(new BigDecimal("10.00"))
-        .summary("요약")
-        .analysisDetails(Map.of("k", "v"))
         .build();
 
       ComparisonResponse result =
@@ -289,8 +280,24 @@ class ResponseMapperTest {
       assertThat(result.getWorstPerformer()).isSameAs(worst);
       assertThat(result.getAverageReturn()).isEqualByComparingTo("12.34");
       assertThat(result.getMedianReturn()).isEqualByComparingTo("10.00");
-      assertThat(result.getSummary()).isEqualTo("요약");
-      assertThat(result.getAnalysisDetails()).containsEntry("k", "v");
+    }
+
+    @Test
+    @DisplayName("화면이 읽지 않는 요약 문장 · 상세 맵은 응답에 없다")
+    void 안_읽는_칸_없음() {
+      SymbolComparisonRequest request = new SymbolComparisonRequest();
+      request.setStartDate(START);
+      request.setEndDate(END);
+      ComparisonCalculationResult calc = ComparisonCalculationResult.builder()
+        .averageReturn(BigDecimal.ONE)
+        .medianReturn(BigDecimal.ONE)
+        .build();
+
+      JsonNode json = toJson(mapper.toComparisonResponse(request, List.of(), calc));
+
+      assertThat(json.has("averageReturn")).isTrue();
+      assertThat(json.has("summary")).isFalse();
+      assertThat(json.has("analysisDetails")).isFalse();
     }
 
     @Test
@@ -378,12 +385,13 @@ class ResponseMapperTest {
     }
 
     @Test
-    @DisplayName("성과 요약 문자열 형식")
-    void 성과_요약() {
-      SimulationResponse result = simulate(BigDecimal.TEN, null, null, null, null, null);
+    @DisplayName("화면이 읽지 않는 달러 총 수익 · 성과 요약은 응답에 없다")
+    void 안_읽는_칸_없음() {
+      JsonNode json = toJson(simulate(BigDecimal.TEN, null, null, null, null, null));
 
-      assertThat(result.getPerformanceSummary())
-        .isEqualTo("총 수익: $234.57 (23.46%), 환차익: 3.85%");
+      assertThat(json.has("totalReturnKrw")).isTrue();
+      assertThat(json.has("totalReturn")).isFalse();
+      assertThat(json.has("performanceSummary")).isFalse();
     }
 
     @Test
@@ -453,7 +461,6 @@ class ResponseMapperTest {
         .purchasePrice(new BigDecimal("100.00"))
         .currentValue(new BigDecimal("1234.57"))
         .currentValueKrw(new BigDecimal("1666667"))
-        .totalReturn(new BigDecimal("234.57"))
         .totalReturnPercent(new BigDecimal("23.46"))
         .totalReturnKrw(new BigDecimal("667900"))
         .fxReturn(new BigDecimal("38.46"))
@@ -476,6 +483,21 @@ class ResponseMapperTest {
     }
 
     @Test
+    @DisplayName("비교 항목에는 화면이 읽지 않는 달러 총 수익 · 성과 메모를 싣지 않는다")
+    void 안_읽는_칸_없음() {
+      JsonNode fromSimulation = toJson(
+        mapper.toComparisonItemFromSimulation(SimulationResponse.builder().symbol(SYMBOL).build(), "애플"));
+      JsonNode fromStrategy = toJson(
+        mapper.toComparisonItemFromStrategy(StrategyResponse.builder().symbol(SYMBOL).build(), "DCA"));
+
+      for (JsonNode item : List.of(fromSimulation, fromStrategy)) {
+        assertThat(item.has("totalReturnPercent")).isTrue();
+        assertThat(item.has("totalReturn")).isFalse();
+        assertThat(item.has("performanceNote")).isFalse();
+      }
+    }
+
+    @Test
     @DisplayName("최적 매매일이 없으면 문자열도 null")
     void 최적일_없음() {
       SimulationResponse simulation = SimulationResponse.builder().symbol(SYMBOL).build();
@@ -487,7 +509,7 @@ class ResponseMapperTest {
     }
 
     @Test
-    @DisplayName("전략은 category 가 STRATEGY 이고 성과 요약을 note 로 옮긴다")
+    @DisplayName("전략은 category 가 STRATEGY")
     void 전략_변환() {
       StrategyResponse strategy = StrategyResponse.builder()
         .symbol(SYMBOL)
@@ -496,21 +518,17 @@ class ResponseMapperTest {
         .averagePrice(new BigDecimal("81.01"))
         .currentValue(new BigDecimal("1234.57"))
         .currentValueKrw(new BigDecimal("1666667"))
-        .totalReturn(new BigDecimal("234.57"))
         .totalReturnPercent(new BigDecimal("23.46"))
         .totalReturnKrw(new BigDecimal("667900"))
         .fxReturn(new BigDecimal("38.46"))
         .fxReturnPercent(new BigDecimal("3.85"))
         .totalDividends(new BigDecimal("12.34"))
-        .performanceSummary("총 수익: $234.57 (23.46%), 환차익: 3.85%")
         .build();
 
       ComparisonItem item = mapper.toComparisonItemFromStrategy(strategy, "DCA");
 
       assertThat(item.getName()).isEqualTo("DCA");
       assertThat(item.getCategory()).isEqualTo("STRATEGY");
-      assertThat(item.getPerformanceNote())
-        .isEqualTo("총 수익: $234.57 (23.46%), 환차익: 3.85%");
       assertThat(item.getAdditionalData()).isSameAs(strategy);
       // 전략에는 최적 매매 개념이 없다
       assertThat(item.getOptimalBuyDate()).isNull();

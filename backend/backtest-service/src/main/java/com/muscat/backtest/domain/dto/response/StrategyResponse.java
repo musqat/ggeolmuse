@@ -49,8 +49,6 @@ public class StrategyResponse {
   private BigDecimal totalAssetKrw;           // 총 자산 = 주식가치 + 잔액 + 배당금
 
   // 수익률 분석
-  @Schema(description = "총 수익 (USD)", example = "18,833.58")
-  private BigDecimal totalReturn;          // 총 수익 (USD)
   @Schema(description = "총 수익률 (%)", example = "25.05")
   private BigDecimal totalReturnPercent;   // 총 수익률
   @Schema(description = "총 수익 (KRW)", example = "24,861,238")
@@ -75,9 +73,5 @@ public class StrategyResponse {
   // 미매수 회차
   @Schema(description = "미매수 회차(계획된 매수일 · 이유)")
   private List<SkippedRound> skippedRounds;
-
-  // 전략별 특화 정보
-  @Schema(description = "성과 요약 메시지", example = "9개월 간 25.05% 수익 달성")
-  private String performanceSummary;       // 성과 요약
 
 }

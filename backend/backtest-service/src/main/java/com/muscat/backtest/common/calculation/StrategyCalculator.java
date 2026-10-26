@@ -38,7 +38,6 @@ public class StrategyCalculator {
         BigDecimal currentValueKrw = MoneyUtils.convertUsdToKrw(currentValue, currentFxRate.rate());
 
         BigDecimal totalInvestedUsd = MoneyUtils.convertKrwToUsd(totalInvested, averageFxRate);
-        BigDecimal totalReturnUsd = MoneyUtils.subtract(currentValue, totalInvestedUsd);
         
         // 수익률 계산 - MoneyUtils의 백분율 계산 사용
         BigDecimal totalReturnPercent = MoneyUtils.calculateReturnRate(totalInvestedUsd, currentValue);
@@ -46,10 +45,6 @@ public class StrategyCalculator {
 
         BigDecimal fxReturn = MoneyUtils.subtract(currentFxRate.rate(), averageFxRate);
         BigDecimal fxReturnPercent = MoneyUtils.calculateReturnRate(averageFxRate, currentFxRate.rate());
-
-        // DCA/Conditional은 소수점 거래를 하므로 투자금을 전액 사용 (남은 현금 = 0)
-        // 각 거래에서 amount만큼 정확히 주식을 매수하므로 잔액이 남지 않음
-        BigDecimal remainingCashKrw = BigDecimal.ZERO;
 
         // 재투자했으면 배당이 이미 주식으로 들어가 있고, 안 했으면 현금으로 남는다
         boolean reinvested = dividendsReinvested != null
@@ -82,9 +77,7 @@ public class StrategyCalculator {
             .currentValueKrw(currentValueKrw)
             .totalDividends(totalDividends != null ? totalDividends : BigDecimal.ZERO)
             .dividendsReinvested(dividendsReinvested != null ? dividendsReinvested : BigDecimal.ZERO)
-            .remainingCashKrw(remainingCashKrw)
             .totalAssetKrw(totalAssetKrw)
-            .totalReturnUsd(totalReturnUsd)
             .totalReturnPercent(adjustedTotalReturnPercent)
             .totalReturnKrw(adjustedTotalReturnKrw)
             .fxReturn(fxReturn)

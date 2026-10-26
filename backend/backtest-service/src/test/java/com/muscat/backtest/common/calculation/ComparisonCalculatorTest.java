@@ -18,26 +18,23 @@ class ComparisonCalculatorTest {
     // Given
     ComparisonItem item1 = ComparisonItem.builder()
       .name("AAPL")
-      .totalReturn(BigDecimal.valueOf(2000))
       .totalReturnPercent(BigDecimal.valueOf(20.0))
       .build();
 
     ComparisonItem item2 = ComparisonItem.builder()
       .name("GOOGL")
-      .totalReturn(BigDecimal.valueOf(1500))
       .totalReturnPercent(BigDecimal.valueOf(15.0))
       .build();
 
     ComparisonItem item3 = ComparisonItem.builder()
       .name("MSFT")
-      .totalReturn(BigDecimal.valueOf(2500))
       .totalReturnPercent(BigDecimal.valueOf(25.0))
       .build();
 
     List<ComparisonItem> items = Arrays.asList(item1, item2, item3);
 
     // When
-    ComparisonCalculationResult result = ComparisonCalculator.calculate(items, "종목 비교");
+    ComparisonCalculationResult result = ComparisonCalculator.calculate(items);
 
     // Then
     assertThat(result).isNotNull();
@@ -51,15 +48,6 @@ class ComparisonCalculatorTest {
 
     assertThat(result.getAverageReturn()).isEqualByComparingTo(BigDecimal.valueOf(20.0));
     assertThat(result.getMedianReturn()).isEqualByComparingTo(BigDecimal.valueOf(20.0));
-    assertThat(result.getPerformanceSpread()).isEqualByComparingTo(BigDecimal.valueOf(10.0));
-
-    assertThat(result.getSummary()).contains("종목 비교");
-    assertThat(result.getSummary()).contains("MSFT");
-    assertThat(result.getSummary()).contains("GOOGL");
-
-    assertThat(result.getAnalysisDetails()).isNotNull();
-    assertThat(result.getAnalysisDetails().get("totalItems")).isEqualTo(3);
-    assertThat(result.getAnalysisDetails().get("analysisType")).isEqualTo("종목 비교");
   }
 
   @Test
@@ -68,27 +56,24 @@ class ComparisonCalculatorTest {
     // Given
     ComparisonItem item1 = ComparisonItem.builder()
       .name("DCA 전략")
-      .totalReturn(BigDecimal.valueOf(1000))
       .totalReturnPercent(BigDecimal.valueOf(10.0))
       .build();
 
     ComparisonItem item2 = ComparisonItem.builder()
       .name("조건부 매수 전략")
-      .totalReturn(BigDecimal.valueOf(1200))
       .totalReturnPercent(BigDecimal.valueOf(12.0))
       .build();
 
     List<ComparisonItem> items = Arrays.asList(item1, item2);
 
     // When
-    ComparisonCalculationResult result = ComparisonCalculator.calculate(items, "전략 비교");
+    ComparisonCalculationResult result = ComparisonCalculator.calculate(items);
 
     // Then
     assertThat(result.getBestPerformer().getName()).isEqualTo("조건부 매수 전략");
     assertThat(result.getWorstPerformer().getName()).isEqualTo("DCA 전략");
     assertThat(result.getAverageReturn()).isEqualByComparingTo(BigDecimal.valueOf(11.0));
     assertThat(result.getMedianReturn()).isEqualByComparingTo(BigDecimal.valueOf(11.0));
-    assertThat(result.getPerformanceSpread()).isEqualByComparingTo(BigDecimal.valueOf(2.0));
   }
 
   @Test
@@ -97,26 +82,23 @@ class ComparisonCalculatorTest {
     // Given - 의도적으로 순서를 섞음
     ComparisonItem itemLow = ComparisonItem.builder()
       .name("Low")
-      .totalReturn(BigDecimal.valueOf(100))
       .totalReturnPercent(BigDecimal.valueOf(5.0))
       .build();
 
     ComparisonItem itemHigh = ComparisonItem.builder()
       .name("High")
-      .totalReturn(BigDecimal.valueOf(300))
       .totalReturnPercent(BigDecimal.valueOf(15.0))
       .build();
 
     ComparisonItem itemMid = ComparisonItem.builder()
       .name("Mid")
-      .totalReturn(BigDecimal.valueOf(200))
       .totalReturnPercent(BigDecimal.valueOf(10.0))
       .build();
 
     List<ComparisonItem> items = Arrays.asList(itemLow, itemHigh, itemMid);
 
     // When
-    ComparisonCalculationResult result = ComparisonCalculator.calculate(items, "순위 테스트");
+    ComparisonCalculationResult result = ComparisonCalculator.calculate(items);
 
     // Then - 정렬 확인
     assertThat(items.get(0).getName()).isEqualTo("High");
@@ -135,21 +117,19 @@ class ComparisonCalculatorTest {
     // Given
     ComparisonItem item = ComparisonItem.builder()
       .name("AAPL")
-      .totalReturn(BigDecimal.valueOf(1000))
       .totalReturnPercent(BigDecimal.valueOf(10.0))
       .build();
 
     List<ComparisonItem> items = Arrays.asList(item);
 
     // When
-    ComparisonCalculationResult result = ComparisonCalculator.calculate(items, "단일 항목");
+    ComparisonCalculationResult result = ComparisonCalculator.calculate(items);
 
     // Then
     assertThat(result.getBestPerformer()).isSameAs(result.getWorstPerformer());
     assertThat(result.getBestPerformer().getName()).isEqualTo("AAPL");
     assertThat(result.getAverageReturn()).isEqualByComparingTo(BigDecimal.valueOf(10.0));
     assertThat(result.getMedianReturn()).isEqualByComparingTo(BigDecimal.valueOf(10.0));
-    assertThat(result.getPerformanceSpread()).isEqualByComparingTo(BigDecimal.ZERO);
   }
 
   @Test
@@ -158,32 +138,27 @@ class ComparisonCalculatorTest {
     // Given
     ComparisonItem item1 = ComparisonItem.builder()
       .name("Loser")
-      .totalReturn(BigDecimal.valueOf(-500))
       .totalReturnPercent(BigDecimal.valueOf(-10.0))
       .build();
 
     ComparisonItem item2 = ComparisonItem.builder()
       .name("Winner")
-      .totalReturn(BigDecimal.valueOf(300))
       .totalReturnPercent(BigDecimal.valueOf(5.0))
       .build();
 
     ComparisonItem item3 = ComparisonItem.builder()
       .name("BigLoser")
-      .totalReturn(BigDecimal.valueOf(-1000))
       .totalReturnPercent(BigDecimal.valueOf(-20.0))
       .build();
 
     List<ComparisonItem> items = Arrays.asList(item1, item2, item3);
 
     // When
-    ComparisonCalculationResult result = ComparisonCalculator.calculate(items, "손실 포함 비교");
+    ComparisonCalculationResult result = ComparisonCalculator.calculate(items);
 
     // Then
     assertThat(result.getBestPerformer().getName()).isEqualTo("Winner");
-    assertThat(result.getWorstPerformer().getName()).isEqualTo("BigLoser");
-    assertThat(result.getPerformanceSpread()).isEqualByComparingTo(
-      BigDecimal.valueOf(25.0)); // 5 - (-20)
+    assertThat(result.getWorstPerformer().getName()).isEqualTo("BigLoser"); // 5 - (-20)
   }
 
   @Test
@@ -192,31 +167,27 @@ class ComparisonCalculatorTest {
     // Given
     ComparisonItem item1 = ComparisonItem.builder()
       .name("A")
-      .totalReturn(BigDecimal.valueOf(1000))
       .totalReturnPercent(BigDecimal.valueOf(10.0))
       .build();
 
     ComparisonItem item2 = ComparisonItem.builder()
       .name("B")
-      .totalReturn(BigDecimal.valueOf(1000))
       .totalReturnPercent(BigDecimal.valueOf(10.0))
       .build();
 
     ComparisonItem item3 = ComparisonItem.builder()
       .name("C")
-      .totalReturn(BigDecimal.valueOf(1000))
       .totalReturnPercent(BigDecimal.valueOf(10.0))
       .build();
 
     List<ComparisonItem> items = Arrays.asList(item1, item2, item3);
 
     // When
-    ComparisonCalculationResult result = ComparisonCalculator.calculate(items, "동일 수익률");
+    ComparisonCalculationResult result = ComparisonCalculator.calculate(items);
 
     // Then
     assertThat(result.getAverageReturn()).isEqualByComparingTo(BigDecimal.valueOf(10.0));
     assertThat(result.getMedianReturn()).isEqualByComparingTo(BigDecimal.valueOf(10.0));
-    assertThat(result.getPerformanceSpread()).isEqualByComparingTo(BigDecimal.ZERO);
     assertThat(items.get(0).getRank()).isEqualTo(1);
     assertThat(items.get(1).getRank()).isEqualTo(2);
     assertThat(items.get(2).getRank()).isEqualTo(3);

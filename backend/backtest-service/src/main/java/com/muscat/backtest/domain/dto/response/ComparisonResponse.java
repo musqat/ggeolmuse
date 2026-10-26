@@ -6,7 +6,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
 import lombok.Builder;
 import lombok.Data;
 
@@ -39,11 +38,5 @@ public class ComparisonResponse {
   private BigDecimal averageReturn;          // 평균 수익률
   @Schema(description = "중간값 수익률", example = "12.80")
   private BigDecimal medianReturn;           // 중간값 수익률
-  @Schema(description = "비교 요약 메시지", example = "DCA 전략이 가장 우수한 성과를 보였습니다")
-  private String summary;                    // 비교 요약
-
-  // 상세 분석
-  @Schema(description = "상세 분석 데이터")
-  private Map<String, Object> analysisDetails;
 
 }

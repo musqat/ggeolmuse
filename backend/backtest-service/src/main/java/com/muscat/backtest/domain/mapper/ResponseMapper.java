@@ -62,8 +62,6 @@ public class ResponseMapper {
       .worstPerformer(calculation.getWorstPerformer())
       .averageReturn(calculation.getAverageReturn())
       .medianReturn(calculation.getMedianReturn())
-      .summary(calculation.getSummary())
-      .analysisDetails(calculation.getAnalysisDetails())
       .build();
   }
 
@@ -114,7 +112,6 @@ public class ResponseMapper {
       .dividendYield(MoneyUtils.roundUsd(dividendYield))
       .tradingFee(MoneyUtils.roundUsd(tradingFee))
       .remainingCash(MoneyUtils.roundUsd(remainingCash))
-      .totalReturn(MoneyUtils.roundUsd(totalReturnKrw))
       .totalReturnPercent(MoneyUtils.roundUsd(totalReturnPercent))
       .currentValueKrw(MoneyUtils.roundKrw(currentValueKrw))
       .remainingCashKrw(MoneyUtils.roundKrw(
@@ -123,8 +120,6 @@ public class ResponseMapper {
           : BigDecimal.ZERO))
       .totalAssetKrw(MoneyUtils.roundKrw(totalAssetKrw))
       .totalReturnKrw(MoneyUtils.roundKrw(totalReturnKrw))
-      .performanceSummary(
-        createSimulationPerformanceSummary(stockReturn, totalReturnPercent, fxReturnPercent))
       .optimalBuyDate(optimalBuyDate)
       .optimalBuyPrice(optimalBuyPrice != null ? MoneyUtils.roundUsd(optimalBuyPrice) : null)
       .optimalSellDate(optimalSellDate)
@@ -161,7 +156,6 @@ public class ResponseMapper {
       .currentValue(MoneyUtils.roundUsd(calculation.getCurrentValue()))
       .currentValueKrw(MoneyUtils.roundKrw(calculation.getCurrentValueKrw()))
       .totalAssetKrw(MoneyUtils.roundKrw(calculation.getTotalAssetKrw()))
-      .totalReturn(MoneyUtils.roundUsd(calculation.getTotalReturnUsd()))
       .totalReturnPercent(MoneyUtils.roundUsd(calculation.getTotalReturnPercent()))
       .totalReturnKrw(MoneyUtils.roundKrw(calculation.getTotalReturnKrw()))
       .averageFxRate(calculation.getAverageFxRate())
@@ -173,20 +167,7 @@ public class ResponseMapper {
         calculation.getTotalDividends(), calculation.getTotalShares(),
         currentPrice.currentPrice())))
       .skippedRounds(skippedRounds)
-      .performanceSummary(createPerformanceSummary(calculation))
       .build();
-  }
-
-  private String createPerformanceSummary(StrategyCalculationResult calculation) {
-    return String.format("총 수익: $%.2f (%.2f%%), 환차익: %.2f%%",
-      calculation.getTotalReturnUsd(), calculation.getTotalReturnPercent(),
-      calculation.getFxReturnPercent());
-  }
-
-  private String createSimulationPerformanceSummary(BigDecimal totalReturn,
-    BigDecimal totalReturnPercent, BigDecimal fxReturnPercent) {
-    return String.format("총 수익: $%.2f (%.2f%%), 환차익: %.2f%%",
-      totalReturn, totalReturnPercent, fxReturnPercent);
   }
 
   // ComparisonItem 생성 메서드들
@@ -200,7 +181,6 @@ public class ResponseMapper {
       .averagePrice(simulation.getPurchasePrice())
       .currentValue(simulation.getCurrentValue())
       .currentValueKrw(simulation.getCurrentValueKrw())
-      .totalReturn(simulation.getTotalReturn())
       .totalReturnPercent(simulation.getTotalReturnPercent())
       .totalReturnKrw(simulation.getTotalReturnKrw())
       .fxReturn(simulation.getFxReturn())
@@ -227,14 +207,12 @@ public class ResponseMapper {
       .averagePrice(strategy.getAveragePrice())
       .currentValue(strategy.getCurrentValue())
       .currentValueKrw(strategy.getCurrentValueKrw())
-      .totalReturn(strategy.getTotalReturn())
       .totalReturnPercent(strategy.getTotalReturnPercent())
       .totalReturnKrw(strategy.getTotalReturnKrw())
       .fxReturn(strategy.getFxReturn())
       .fxReturnPercent(strategy.getFxReturnPercent())
       .dividends(strategy.getTotalDividends())
       .additionalData(strategy)
-      .performanceNote(strategy.getPerformanceSummary())
       .build();
   }
 }

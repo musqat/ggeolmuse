@@ -39,13 +39,11 @@ export type SimulationResponse = {
   dividendYield?: number | null;
   tradingFee?: number | null;           // 매매 수수료 (USD)
   remainingCash?: number | null;        // 매수 후 잔액 (USD)
-  totalReturn?: number | null;
   totalReturnPercent?: number | null;
   currentValueKrw?: number | null;
   remainingCashKrw?: number | null;
   totalAssetKrw?: number | null;        // 주식 가치 + 잔액 + 배당금 (KRW)
   totalReturnKrw?: number | null;
-  performanceSummary?: string | null;
   optimalBuyDate?: string | null;
   optimalBuyPrice?: number | null;
   optimalSellDate?: string | null;
@@ -150,7 +148,6 @@ export type StrategyResponse = {
   currentValue?: number | null;         // 현재 가치 (USD)
   currentValueKrw?: number | null;
   totalAssetKrw?: number | null;
-  totalReturn?: number | null;          // 총 수익 (USD)
   totalReturnPercent?: number | null;
   totalReturnKrw?: number | null;
   averageFxRate?: number | null;
@@ -159,7 +156,6 @@ export type StrategyResponse = {
   fxReturnPercent?: number | null;
   totalDividends?: number | null;
   dividendYield?: number | null;
-  performanceSummary?: string | null;
 };
 
 // 비교 항목의 원래 응답(SimulationResponse 또는 StrategyResponse 라 두 쪽 칸 모두 선택)
@@ -173,7 +169,6 @@ export type ComparisonItem = {
   currentValueKrw?: number;             // 현재 가치 (KRW)
   totalInvestment?: number;             // 총 투자액 (레거시)
   finalValue?: number;                  // 최종 가치 (레거시)
-  totalReturn?: number;                 // 총 수익
   totalReturnPercent: number;           // 총 수익률
   totalReturnKrw?: number;              // 총 수익 (KRW)
 
@@ -212,7 +207,6 @@ export type ComparisonResponse = {
   worstPerformer?: ComparisonItem | null;
   averageReturn?: number | null;
   medianReturn?: number | null;
-  summary?: string | null;
 };
 
 // 백테스트 히스토리

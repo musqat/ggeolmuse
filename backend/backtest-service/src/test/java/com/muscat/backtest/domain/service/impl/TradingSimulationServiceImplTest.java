@@ -766,13 +766,11 @@ class TradingSimulationServiceImplTest {
       .dividendYield(BigDecimal.ZERO)
       .tradingFee(new BigDecimal("18.82"))
       .remainingCash(new BigDecimal("498.17"))
-      .totalReturn(new BigDecimal("2583.17"))
       .totalReturnPercent(new BigDecimal("29.32"))
       .currentValueKrw(new BigDecimal("12660120"))
       .remainingCashKrw(new BigDecimal("657588"))
       .totalAssetKrw(new BigDecimal("13317708"))
       .totalReturnKrw(new BigDecimal("3317708"))
-      .performanceSummary("총 수익: $2583.17 (29.32%), 환차익: 1.54%")
       .build();
   }
 

@@ -24,7 +24,6 @@ public class ComparisonItem {
   private BigDecimal currentValueKrw;
 
   // 수익률 분석
-  private BigDecimal totalReturn;
   private BigDecimal totalReturnPercent;
   private BigDecimal totalReturnKrw;
 
@@ -47,6 +46,5 @@ public class ComparisonItem {
 
   // 추가 메타데이터
   private Object additionalData;         // SimulationResponse, StrategyResponse 등
-  private String performanceNote;        // 성과 특이사항
 
 }

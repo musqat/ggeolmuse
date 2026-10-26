@@ -135,7 +135,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
       );
 
       ComparisonResponse response = buildComparisonResponse(request, items,
-        "모든 종목의 데이터를 찾을 수 없습니다", "종목 비교");
+        "모든 종목의 데이터를 찾을 수 없습니다");
       recordComparisonHistory(request);
 
       if (response.getBestPerformer() != null) {
@@ -170,7 +170,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
     );
 
     ComparisonResponse response = buildComparisonResponse(request, items,
-      "모든 전략의 실행에 실패했습니다", "전략 비교");
+      "모든 전략의 실행에 실패했습니다");
     recordComparisonHistory(request);
     return response;
   }
@@ -194,7 +194,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
     );
 
     ComparisonResponse response = buildComparisonResponse(request, items,
-      "타이밍의 데이터를 찾을 수 없습니다", "타이밍 비교");
+      "타이밍의 데이터를 찾을 수 없습니다");
     recordComparisonHistory(request);
     return response;
   }
@@ -219,13 +219,12 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
   }
 
   private ComparisonResponse buildComparisonResponse(BaseComparisonRequest request,
-    List<ComparisonItem> items, String emptyDataMessage, String calculationType) {
+    List<ComparisonItem> items, String emptyDataMessage) {
     if (items.isEmpty()) {
       throw new BacktestException(BacktestResponse.DATA_NOT_FOUND, emptyDataMessage);
     }
 
-    ComparisonCalculationResult calculation = ComparisonCalculator.calculate(items,
-      calculationType);
+    ComparisonCalculationResult calculation = ComparisonCalculator.calculate(items);
     return responseMapper.toComparisonResponse(request, items, calculation);
   }
 
