@@ -57,12 +57,13 @@ public class BacktestAnalysisController {
                   value = """
                       {
                         "symbol": "AAPL",
-                        "strategyName": "DCA",
-                        "totalInvestment": 12000.00,
-                        "finalValue": 15650.00,
-                        "totalReturn": 3650.00,
-                        "totalReturnPercent": 30.42,
-                        "transactions": 12
+                        "strategyType": "DCA",
+                        "totalTransactions": 12,
+                        "totalInvested": 1200000,
+                        "totalShares": 6.523481,
+                        "currentValueKrw": 1565040,
+                        "totalReturnKrw": 365040,
+                        "totalReturnPercent": 30.42
                       }
                       """
               )

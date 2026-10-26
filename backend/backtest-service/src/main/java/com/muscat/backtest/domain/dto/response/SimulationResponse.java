@@ -66,8 +66,6 @@ public class SimulationResponse {
   private BigDecimal remainingCash; // 매수 후 잔액 (USD)
 
   // 총 수익
-  @Schema(description = "총 수익 (USD)", example = "2437.85")
-  private BigDecimal totalReturn;
   @Schema(description = "총 수익률 (%)", example = "32.42")
   private BigDecimal totalReturnPercent;
 
@@ -80,10 +78,6 @@ public class SimulationResponse {
   private BigDecimal totalAssetKrw; // 총 자산 = 주식가치 + 잔액 + 배당금
   @Schema(description = "총 수익 (KRW)", example = "3,218,442")
   private BigDecimal totalReturnKrw;
-
-  // 성과 요약
-  @Schema(description = "성과 요약 메시지", example = "8개월 간 32.42% 수익 달성")
-  private String performanceSummary;
 
   // 최적 타이밍 정보
   @Schema(description = "최적 매수일 (원화 주가 기준)", example = "2024-01-10")

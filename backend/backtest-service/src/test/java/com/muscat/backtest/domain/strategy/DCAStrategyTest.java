@@ -125,7 +125,6 @@ class DCAStrategyTest {
         .totalShares(new BigDecimal("28.96"))
         .averagePrice(new BigDecimal("103.59"))
         .currentValue(new BigDecimal("3185.60"))
-        .totalReturn(new BigDecimal("185.60"))
         .totalReturnPercent(new BigDecimal("6.19"))
         .transactions(createDcaTransactions())
         .build();
@@ -647,7 +646,6 @@ class DCAStrategyTest {
       .averagePrice(new BigDecimal("100.00"))
       .currentValue(new BigDecimal("1000.00"))
       .currentValueKrw(new BigDecimal("1300000.00"))
-      .totalReturnUsd(BigDecimal.ZERO)
       .totalReturnPercent(BigDecimal.ZERO)
       .totalReturnKrw(BigDecimal.ZERO)
       .build();
