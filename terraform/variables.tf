@@ -118,7 +118,7 @@ variable "rds_start_hour" {
 variable "rds_start_minute" {
   description = "RDS 시작 시각 (분)"
   type        = number
-  default     = 50
+  default     = 40
 
   validation {
     condition     = var.rds_start_minute >= 0 && var.rds_start_minute <= 59

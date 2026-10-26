@@ -1,4 +1,4 @@
-# RDS 시작 · 중지 스케줄(EventBridge Scheduler). 기동이 느려 EC2 보다 먼저 켜고(06:50) 늦게 끔(19:05)
+# RDS 시작 · 중지 스케줄(EventBridge Scheduler). 기동이 느려 EC2 보다 먼저 켜고(06:40) 늦게 끔(19:05)
 # rds_instance_id 가 비면 만들지 않음
 
 locals {

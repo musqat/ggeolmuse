@@ -14,6 +14,6 @@ ec2_instance_id = "i-xxxxxxxxxxxxxxxxx"
 # scheduler_start_hour = 7
 # scheduler_stop_hour  = 19
 # rds_start_hour       = 6
-# rds_start_minute     = 50
+# rds_start_minute     = 40
 # rds_stop_hour        = 19
 # rds_stop_minute      = 5
