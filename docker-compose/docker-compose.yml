@@ -9,7 +9,7 @@ x-otel-agent: &otel-agent
 # 서비스 넷의 DB 를 로컬 Postgres 로(설정 리포 dev 의 H2 값을 덮어씀)
 x-postgres: &postgres
   SPRING_DATASOURCE_USERNAME: ggeolmuse
-  SPRING_DATASOURCE_PASSWORD: ggeolmuse
+  SPRING_DATASOURCE_PASSWORD: "${POSTGRES_PASSWORD}"
   SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
   SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
   SPRING_JPA_HIBERNATE_DDL_AUTO: validate
@@ -229,7 +229,7 @@ services:
     container_name: ggeolmuse-postgres
     environment:
       POSTGRES_USER: ggeolmuse
-      POSTGRES_PASSWORD: ggeolmuse
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
       POSTGRES_DB: ggeolmuse
     volumes:
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
