@@ -211,7 +211,12 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements-dev.txt
       - name: Test
-        run: pytest -q
+        run: coverage run -m pytest -q
+      # 줄 90 · 분기 80 아래면 실패, 표는 잡 요약에
+      - name: Coverage
+        run: |
+          coverage json -q -o coverage.json
+          python "$GITHUB_WORKSPACE/.github/scripts/chat-coverage.py" coverage.json 90 80
 
   # 파이썬이라 build-services 의 메이븐 잡에 안 들어간다.
   scan-images:

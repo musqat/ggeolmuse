@@ -71,6 +71,8 @@ pytest -q
 테스트 도구는 `requirements-dev.txt` 에 따로 둔다. 운영 이미지는 `requirements.txt` 만 설치한다. CI 는 chat 이 바뀐 PR 에서 테스트가
 통과해야 이미지를 빌드한다.
 
+커버리지는 `coverage run -m pytest` 뒤 `coverage report` 로 본다(범위는 `.coveragerc`). CI 는 줄 90% · 분기 80% 아래면 실패한다.
+
 ## 기술 스택
 
 Python 3.12 · FastAPI · OpenAI SDK(gpt-4o / gpt-4o-mini) · Redis · python-jose(JWT) · httpx
