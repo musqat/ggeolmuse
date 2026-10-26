@@ -1,0 +1,6 @@
+# 테스트 도구(운영 이미지에는 requirements.txt 만 들어감)
+-r requirements.txt
+pytest==8.3.4
+pytest-asyncio==0.25.2
+fakeredis==2.26.2
+respx==0.22.0
