@@ -168,8 +168,8 @@ jobs:
       - name: Lint
         run: npx eslint . --max-warnings 0
       - name: Test
-        # vitest run. 날짜 테스트가 TZ 에 의존해 vitest.config.ts 에서 Asia/Seoul 로 고정된다
-        run: npm test
+        # vitest run + 커버리지(줄 90 · 분기 80 아래면 실패). 날짜 테스트가 TZ 에 의존해 vitest.config.ts 에서 Asia/Seoul 로 고정된다
+        run: npm run test:coverage
       - name: Build
         # tsc -b 를 포함하므로 타입 오류도 여기서 걸린다
         run: npm run build

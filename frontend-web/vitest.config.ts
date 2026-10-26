@@ -21,6 +21,8 @@ export default mergeConfig(
         // src 전체를 잰다. 테스트 도구 · 테스트 파일 · 진입점 · 타입 선언만 뺀다
         include: ['src/**'],
         exclude: ['src/test/**', 'src/**/*.test.*', 'src/main.tsx', 'src/**/*.d.ts'],
+        // CI 최소치(다른 서비스와 같은 줄 90 · 분기 80). 아래면 test:coverage 가 실패
+        thresholds: { lines: 90, branches: 80 },
       },
     },
   })
