@@ -18,6 +18,9 @@ RUN mvn -B clean package -DskipTests -q
 # 런타임 스테이지
 FROM eclipse-temurin:21-jre-alpine
 
+# 베이스 이미지가 늦게 따라오는 알파인 보안 패치를 빌드 때 받음
+RUN apk upgrade --no-cache
+
 WORKDIR /app
 
 ADD --checksum=sha256:cc4af5966ab72109cacc962ba3b9f99b3e88caf064c3144a451bcfe0f4950f19 https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.26.1/opentelemetry-javaagent.jar opentelemetry-javaagent.jar

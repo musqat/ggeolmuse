@@ -30,6 +30,9 @@ RUN npm run build
 # Nginx 서버
 FROM nginx:alpine
 
+# 베이스 이미지가 늦게 따라오는 알파인 보안 패치를 빌드 때 받음
+RUN apk upgrade --no-cache
+
 # 빌드된 파일을 nginx로 복사
 COPY --from=build /app/dist /usr/share/nginx/html
 
