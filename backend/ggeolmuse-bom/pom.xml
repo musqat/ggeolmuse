@@ -39,6 +39,7 @@
         <commons-io.version>2.14.0</commons-io.version>
         <commons-fileupload.version>1.6.0</commons-fileupload.version>
         <lz4.version>1.11.4</lz4.version>
+        <snappy.version>1.1.10.9</snappy.version>
 
         <!-- spring-security-rsa 가 끌어온다. 직접 쓰는 곳은 없고 config 암복호화용이다 -->
         <bouncycastle.version>1.86</bouncycastle.version>
@@ -202,6 +203,11 @@
                 <groupId>at.yawk.lz4</groupId>
                 <artifactId>lz4-java</artifactId>
                 <version>${lz4.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.xerial.snappy</groupId>
+                <artifactId>snappy-java</artifactId>
+                <version>${snappy.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.tomcat.embed</groupId>
