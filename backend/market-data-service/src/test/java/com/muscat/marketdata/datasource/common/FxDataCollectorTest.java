@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -21,6 +22,8 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import net.javacrumbs.shedlock.core.LockProvider;
+import net.javacrumbs.shedlock.core.SimpleLock;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -76,6 +79,12 @@ class FxDataCollectorTest {
   @Mock
   private FxRateRepository fxRateRepository;
 
+  @Mock
+  private LockProvider lockProvider;
+
+  @Mock
+  private SimpleLock startupLock;
+
   private MarketDataProperties properties;
   private FxDataCollector collector;
 
@@ -86,7 +95,10 @@ class FxDataCollectorTest {
     properties.getFxIngest().getBackfill().setEnabled(false);
     properties.getFxIngest().getIncremental().setEnabled(false);
 
-    collector = new FxDataCollector(fxSource, fxRateRepository, properties);
+    // 기본은 이 파드가 기동 수집 락을 얻음
+    lenient().when(lockProvider.lock(any())).thenReturn(Optional.of(startupLock));
+
+    collector = new FxDataCollector(fxSource, fxRateRepository, properties, lockProvider);
   }
 
   @Nested
@@ -197,6 +209,32 @@ class FxDataCollectorTest {
   @Nested
   @DisplayName("시작 때 채우기")
   class CollectOnStartup {
+
+    @Test
+    @DisplayName("다른 파드가 기동 수집 중이라 락을 못 얻으면 환율을 받지도 저장하지도 않는다")
+    void 락_없음() {
+      properties.getFxIngest().getIncremental().setEnabled(true);
+      given(lockProvider.lock(any())).willReturn(Optional.empty());
+
+      collector.collectOnStartup();
+
+      verify(fxSource, never()).fetchFx(any());
+      verify(fxRateRepository, never()).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("락을 얻으면 수집하고 끝나면 락을 푼다")
+    void 락_해제() {
+      properties.getFxIngest().getIncremental().setEnabled(true);
+      LocalDate start = today().minusDays(7);
+      properties.getFxIngest().setStartDate(start);
+      given(fxRateRepository.findByDateBetween(start, today())).willReturn(stored(weekdays(start, today())));
+
+      collector.collectOnStartup();
+
+      verify(fxRateRepository).findByDateBetween(start, today());
+      verify(startupLock).unlock();
+    }
 
     @Test
     @DisplayName("둘 다 꺼져 있으면 저장하지 않는다")
