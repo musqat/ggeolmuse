@@ -266,7 +266,9 @@ user · trade · market-data · backtest 도 리소스 서버로 다시 검증�
 
 **요청 상한** — 게이트웨이가 Redis 토큰 버킷으로 경로마다 상한을 둔다. 시세 조회는 초당 200, 백테스트는 요청 하나에 토큰 10개라 초당 50,
 로그인 · 비밀번호 찾기는 10초에 한 번꼴(연속 세 번)이다. 버킷은 Cloudflare 가 넣은 실 클라이언트 IP(`CF-Connecting-IP`)와 경로로 나눈다.
-경로를 키에 넣은 이유는 [문제 해결](docs/problem-solving.md#로그인-한-번이-다른-라우트의-토큰을-깎았다) 에 있다.
+EC2 는 Cloudflare 대역에서 온 요청만 받아서 밖에서 이 헤더를 지어 넣을 수 없다. 경로를 키에 넣은 이유는
+[문제 해결](docs/problem-solving.md#로그인-한-번이-다른-라우트의-토큰을-깎았다) 에, 이 헤더를 쓰는 이유는
+[같은 문서](docs/problem-solving.md#레이트-리밋-버킷이-운영에서는-여전히-하나였다) 에 있다.
 
 **응답 · 로그** — 로그인 실패는 가입 여부와 상관없이 같은 401 이다([가입 여부 노출](docs/problem-solving.md#로그인-응답이-가입-여부를-드러냈다)).
 로그의 이메일은 가린다.
@@ -278,7 +280,7 @@ user · trade · market-data · backtest 도 리소스 서버로 다시 검증�
 
 **공급망** — CI 가 이미지와 매니페스트를 Trivy 로 검사해 CRITICAL · HIGH 를 GitHub Security 탭에 올린다. 빌드를 막지는 않고 보고만 한다.
 
-**진행 중** — Cloudflare 에서 EC2 까지는 아직 HTTP 다(Flexible). Origin 인증서로 Full (strict) 로 옮기고, EC2 가 Cloudflare 대역만 받게 하는 중이다.
+**진행 중** — Cloudflare 에서 EC2 까지는 아직 HTTP 다(Flexible). Origin 인증서로 Full (strict) 로 옮기는 중이다.
 
 </details>
 
