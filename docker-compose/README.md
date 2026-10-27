@@ -158,6 +158,17 @@ docker compose ps -a
 docker compose up -d
 ```
 
+### Keycloak 이 `Wrong user name or password` 로 죽는다
+
+Keycloak 23 때 만든 `keycloak_data` 볼륨을 26 이 그대로 열면 나온다. 26 의 dev-file DB 계정이 바뀌어 옛 DB 에 접속하지
+못한다. 로컬 Keycloak 데이터는 realm 파일로 다시 만들어지니 볼륨을 한 번 지운다.
+
+```bash
+docker compose rm -sf keycloak
+docker volume rm docker-compose_keycloak_data
+docker compose up -d
+```
+
 ### Windows에서 `local-up.sh`가 안 돈다
 
 PowerShell의 `bash`는 Git Bash가 아니라 WSL bash(`C:\Windows\system32\bash.exe`)다.

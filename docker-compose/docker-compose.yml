@@ -111,14 +111,15 @@ services:
   # Keycloak (로컬: realm import)
   # issuer 는 localhost:8080 고정. 브라우저는 localhost, 백엔드는 keycloak:8080 으로 JWKS 를 받음
   keycloak:
-    image: quay.io/keycloak/keycloak:23.0
+    image: quay.io/keycloak/keycloak:26.8.1
     container_name: ggeolmuse-keycloak
     environment:
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
       KC_DB: dev-file
-      KC_HOSTNAME_STRICT: "false"
-      KC_HOSTNAME_URL: http://localhost:8080
+      # 브라우저가 보는 주소(토큰 iss). 서비스끼리는 keycloak:8080 으로 부름
+      KC_HOSTNAME: http://localhost:8080
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
       KC_HTTP_ENABLED: "true"
     ports:
       - "8080:8080"
@@ -205,7 +206,7 @@ services:
       SPRING_PROFILES_ACTIVE: dev
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
       KEYCLOAK_REALM: custom
-      # iss 는 keycloak 의 KC_HOSTNAME_URL 주소
+      # iss 는 keycloak 의 KC_HOSTNAME 주소
       KEYCLOAK_ISSUERS: http://localhost:8080/realms/custom,http://keycloak:8080/realms/custom
       KEYCLOAK_CLIENT_IDS: ggeolmuse-client,ggeolmuse-frontend
       KEYCLOAK_SECRET: local-client-secret
@@ -523,7 +524,7 @@ services:
       REDIS_PASSWORD: "${REDIS_PASSWORD}"
       MARKET_DATA_BASE_URL: http://market-data-service:8083
       KEYCLOAK_JWKS_URL: http://keycloak:8080/realms/custom/protocol/openid-connect/certs
-      # iss 는 keycloak 의 KC_HOSTNAME_URL 주소
+      # iss 는 keycloak 의 KC_HOSTNAME 주소
       KEYCLOAK_ISSUERS: http://localhost:8080/realms/custom,http://keycloak:8080/realms/custom
       KEYCLOAK_CLIENT_IDS: ggeolmuse-client,ggeolmuse-frontend
       OTEL_SERVICE_NAME: chat-service
