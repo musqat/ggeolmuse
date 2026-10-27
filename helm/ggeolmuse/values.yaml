@@ -85,7 +85,7 @@ infrastructure:
 
   keycloak:
     enabled: true
-    image: quay.io/keycloak/keycloak:23.0
+    image: quay.io/keycloak/keycloak:26.8.1
     port: 8080
     replicas: 1
     env:

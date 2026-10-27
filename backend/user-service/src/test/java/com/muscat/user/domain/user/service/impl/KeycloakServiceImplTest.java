@@ -8,7 +8,6 @@ import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.endsWith;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -263,6 +262,26 @@ class KeycloakServiceImplTest {
   class DeleteUserTests {
 
     @Test
+    @DisplayName("삭제 요청에 관리자 토큰을 싣는다")
+    void deleteUser_SendsAdminToken() {
+      // given
+      Map<String, Object> adminTokenResponse = new HashMap<>();
+      adminTokenResponse.put("access_token", "admin_access_token");
+      given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(Map.class)))
+        .willReturn(ResponseEntity.ok(adminTokenResponse));
+
+      // when
+      keycloakService.deleteUser(TEST_KEYCLOAK_ID);
+
+      // then
+      ArgumentCaptor<HttpEntity> entity = ArgumentCaptor.forClass(HttpEntity.class);
+      verify(restTemplate).exchange(endsWith("/users/" + TEST_KEYCLOAK_ID), eq(HttpMethod.DELETE),
+        entity.capture(), eq(Void.class));
+      assertThat(entity.getValue().getHeaders().getFirst(HttpHeaders.AUTHORIZATION))
+        .isEqualTo("Bearer admin_access_token");
+    }
+
+    @Test
     @DisplayName("정상적으로 사용자가 삭제된다")
     void deleteUser_Success() {
       // given
@@ -272,13 +291,12 @@ class KeycloakServiceImplTest {
 
       given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(Map.class)))
         .willReturn(adminTokenEntity);
-      doNothing().when(restTemplate).delete(anyString(), any(HttpEntity.class));
 
       // when
       keycloakService.deleteUser(TEST_KEYCLOAK_ID);
 
       // then
-      verify(restTemplate).delete(anyString(), any(HttpEntity.class));
+      verify(restTemplate).exchange(anyString(), eq(HttpMethod.DELETE), any(HttpEntity.class), eq(Void.class));
     }
 
     @Test
@@ -288,7 +306,7 @@ class KeycloakServiceImplTest {
       keycloakService.deleteUser(null);
 
       // then
-      verify(restTemplate, never()).delete(anyString(), any(HttpEntity.class));
+      verify(restTemplate, never()).exchange(anyString(), eq(HttpMethod.DELETE), any(HttpEntity.class), eq(Void.class));
     }
 
     @Test
@@ -298,7 +316,7 @@ class KeycloakServiceImplTest {
       keycloakService.deleteUser("   ");
 
       // then
-      verify(restTemplate, never()).delete(anyString(), any(HttpEntity.class));
+      verify(restTemplate, never()).exchange(anyString(), eq(HttpMethod.DELETE), any(HttpEntity.class), eq(Void.class));
     }
 
     @Test
@@ -312,13 +330,13 @@ class KeycloakServiceImplTest {
       given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(Map.class)))
         .willReturn(adminTokenEntity);
       doThrow(new HttpClientErrorException(HttpStatus.NOT_FOUND))
-        .when(restTemplate).delete(anyString(), any(HttpEntity.class));
+        .when(restTemplate).exchange(anyString(), eq(HttpMethod.DELETE), any(HttpEntity.class), eq(Void.class));
 
       // when
       keycloakService.deleteUser(TEST_KEYCLOAK_ID);
 
       // then - 예외 없이 정상 종료
-      verify(restTemplate).delete(anyString(), any(HttpEntity.class));
+      verify(restTemplate).exchange(anyString(), eq(HttpMethod.DELETE), any(HttpEntity.class), eq(Void.class));
     }
 
     @Test
@@ -332,7 +350,7 @@ class KeycloakServiceImplTest {
       given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(Map.class)))
         .willReturn(adminTokenEntity);
       doThrow(new HttpClientErrorException(HttpStatus.INTERNAL_SERVER_ERROR))
-        .when(restTemplate).delete(anyString(), any(HttpEntity.class));
+        .when(restTemplate).exchange(anyString(), eq(HttpMethod.DELETE), any(HttpEntity.class), eq(Void.class));
 
       // when & then
       assertThatThrownBy(() -> keycloakService.deleteUser(TEST_KEYCLOAK_ID))
@@ -351,7 +369,7 @@ class KeycloakServiceImplTest {
       given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(Map.class)))
         .willReturn(adminTokenEntity);
       doThrow(new RuntimeException("Unexpected error"))
-        .when(restTemplate).delete(anyString(), any(HttpEntity.class));
+        .when(restTemplate).exchange(anyString(), eq(HttpMethod.DELETE), any(HttpEntity.class), eq(Void.class));
 
       // when & then
       assertThatThrownBy(() -> keycloakService.deleteUser(TEST_KEYCLOAK_ID))
