@@ -44,6 +44,15 @@ class PackageLayoutTest {
       .containsExactly(BASE + ".common.enums.response");
   }
 
+  @Test
+  @DisplayName("domain 아래는 기능 폴더(account · user)이고 그 안을 계층으로 나눈다")
+  void domainByFeature() {
+    assertThat(packagesOf((reader, factory) -> true))
+      .filteredOn(name -> name.startsWith(BASE + ".domain"))
+      .isNotEmpty()
+      .allMatch(name -> name.matches("com\\.muscat\\.user\\.domain\\.(account|user)\\.(controller|dto|entity|mapper|repository|service)(\\..+)?"));
+  }
+
   // 본 코드 클래스만 보고 테스트 클래스는 뺌
   private static List<String> packagesOf(TypeFilter filter) {
     ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false) {

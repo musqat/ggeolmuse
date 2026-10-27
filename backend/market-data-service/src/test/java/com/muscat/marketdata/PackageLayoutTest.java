@@ -43,6 +43,15 @@ class PackageLayoutTest {
       .containsExactly(BASE + ".common.enums.response");
   }
 
+  @Test
+  @DisplayName("domain 아래는 계층 폴더(dto · entity · mapper · model · repository · service)만 둔다")
+  void domainByLayer() {
+    assertThat(packagesOf((reader, factory) -> true))
+      .filteredOn(name -> name.startsWith(BASE + ".domain"))
+      .isNotEmpty()
+      .allMatch(name -> name.matches("com\\.muscat\\.marketdata\\.domain\\.(dto|entity|mapper|model|repository|service)(\\..+)?"));
+  }
+
   // 본 코드 클래스만 보고 테스트 클래스는 뺌
   private static List<String> packagesOf(TypeFilter filter) {
     ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false) {
