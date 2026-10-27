@@ -30,7 +30,7 @@ spec:
       {{- end }}
       initContainers:
       - name: wait-for-config-server
-        image: busybox:1.35
+        image: {{ .Values.global.initContainer.image }}
         command:
         - sh
         - -c

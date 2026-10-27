@@ -12,6 +12,7 @@ global:
 
   # config-server 를 기다리는 초기 컨테이너
   initContainer:
+    image: busybox:1.38.0
     resources:
       limits:
         cpu: 100m
