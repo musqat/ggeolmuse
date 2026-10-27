@@ -34,6 +34,7 @@ AWS EC2 (t3a.xlarge, 16GB RAM)
         ├── trade-service
         ├── market-data-service
         ├── backtest-service
+        ├── chat-service
         └── frontend
 
 AWS RDS (db.t3.micro)
@@ -94,17 +95,22 @@ values 파일만 수정하면 EKS 전환 가능.
 ### 전체 흐름
 
 ```
-코드 푸시 (GitHub)
+코드 푸시 · PR (GitHub)
     │
     ▼
 GitHub Actions (CI)
-    ├── Maven 빌드 & 테스트
-    ├── 보안 스캔 (Trivy, OWASP)
-    └── Docker 이미지 빌드 → GHCR 푸시
+    ├── 서비스 빌드 · 테스트 · 커버리지 최소치 검사
+    ├── Docker 이미지 빌드 → Trivy 스캔 (푸시하지 않음)
+    └── E2E (docker compose)
+    │
+    ▼
+릴리스
+    ├── master 에서 이미지 빌드 → Docker Hub (muscathan/*) 푸시
+    └── values-prod.yaml 이미지 태그 PR
     │
     ▼
 ArgoCD (CD)
-    ├── Git 변경 감지 (values-prod.yaml)
+    ├── master 의 helm/ggeolmuse 변경 감지 (자동 동기화)
     └── Helm 배포 → K3s 클러스터
 ```
 
@@ -137,16 +143,16 @@ cp helm/ggeolmuse/values-secret.yaml.example helm/ggeolmuse/values-secret.yaml
 ```bash
 # Java 6개 — 멀티스테이지, 컨텍스트는 레포 루트
 for svc in config-server gateway-server user-service trade-service market-data-service backtest-service; do
-  docker build -f $svc/Dockerfile -t muscathan/$svc:1.1.3 .
+  docker build -f backend/$svc/Dockerfile -t muscathan/$svc:1.2.0 .
 done
 
 # chat-service (Python) — 컨텍스트는 자기 폴더
-docker build -t muscathan/chat-service:1.1.3 chat-service
+docker build -t muscathan/chat-service:1.2.0 backend/chat-service
 
 # frontend-web — 컨텍스트는 자기 폴더
-docker build -t muscathan/frontend-web:1.1.3 frontend-web
+docker build -t muscathan/frontend-web:1.2.0 frontend-web
 ```
-> 태그(`1.1.3`)는 `helm/ggeolmuse/Chart.yaml`의 `appVersion`과 일치시킨다. base values는 tag 미지정 → 이 값 사용.
+> 태그(`1.2.0`)는 `helm/ggeolmuse/Chart.yaml`의 `appVersion`과 일치시킨다. base values는 tag 미지정 → 이 값 사용.
 
 **3. helm 배포**
 ```bash
@@ -168,14 +174,15 @@ kubectl port-forward svc/gateway-server 8070:8070 # API
 
 ### ArgoCD GitOps
 
-values-prod.yaml 변경사항을 Git에 커밋하면 ArgoCD가 자동으로 감지하여 배포.
+master 의 `helm/ggeolmuse` 가 바뀌면(이미지 태그는 values-prod.yaml) ArgoCD 가 자동으로 맞춘다. 지운 리소스도 걷고(prune),
+클러스터에서 손으로 바꾼 것은 되돌린다(selfHeal).
 
 <div align="center">
   <img src="../.github/images/infra/아르고.png" alt="ArgoCD Status" width="500"/>
 </div>
 
 ```yaml
-# argocd/application-ggeolmuse.yaml
+# 클러스터의 Application(리포에는 없음)
 spec:
   source:
     repoURL: https://github.com/musqat/ggeolmuse
@@ -233,14 +240,14 @@ jvm_memory_used_bytes{area="heap"} / jvm_memory_max_bytes{area="heap"} * 100
 | **문제** | `helm upgrade` 실행 후 EC2 응답 불능 |
 | **원인** | Kubernetes 기본 `maxSurge: 25%`로 배포 중 Pod 추가 생성 → 메모리 급증 |
 | **해결** | `maxSurge: 0`, `maxUnavailable: 1`로 변경 |
+| **지금** | 09-10 에 `maxUnavailable: 0`, `maxSurge: 1` 로 바꿨다. `maxSurge: 0` 은 옛 파드를 먼저 내려 새 파드가 준비될 때까지(readiness 약 3분) 엔드포인트가 비었다. 새 파드가 준비된 뒤 옛 파드를 내린다 |
 
 ```yaml
-# values.yaml
-deploymentStrategy:
-  type: RollingUpdate
+# values.yaml (서비스마다)
+strategy:
   rollingUpdate:
-    maxSurge: 0        # 새 Pod 추가 생성 안 함
-    maxUnavailable: 1  # 기존 Pod 1개 종료 후 새 Pod 생성
+    maxUnavailable: 0  # 새 파드가 준비된 뒤 옛 파드를 내림
+    maxSurge: 1        # 여분 파드 하나
 ```
 
 ### JVM 메모리 과다 할당
@@ -267,4 +274,4 @@ gateway: 실제 75MB 사용 중인데 384MB 할당
 | gateway | 384m | 192m |
 | config-server | 256m | 128m |
 
-**결과**: t3.xlarge → t3.large 다운그레이드. 실제로 쓰는 양이 그만큼이었다.
+**결과**: t3.xlarge → t3.large 로 내렸다. 실제로 쓰는 양이 그만큼이었다. 08-31 에 t3a.xlarge(16GB)로 다시 올렸다.
