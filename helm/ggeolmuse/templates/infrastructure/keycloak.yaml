@@ -9,6 +9,9 @@ metadata:
     {{- include "ggeolmuse.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.infrastructure.keycloak.replicas }}
+  # 판을 올릴 때 DB 마이그레이션이 옛 파드와 겹치지 않게 옛 파드를 먼저 내림
+  strategy:
+    type: Recreate
   revisionHistoryLimit: {{ .Values.global.revisionHistoryLimit | default 5 }}
   selector:
     matchLabels:
@@ -25,12 +28,12 @@ spec:
         ports:
         - containerPort: {{ .Values.infrastructure.keycloak.port }}
         env:
-        - name: KEYCLOAK_ADMIN
+        - name: KC_BOOTSTRAP_ADMIN_USERNAME
           valueFrom:
             secretKeyRef:
               name: {{ .Values.secrets.name }}
               key: KEYCLOAK_ADMIN_USERNAME
-        - name: KEYCLOAK_ADMIN_PASSWORD
+        - name: KC_BOOTSTRAP_ADMIN_PASSWORD
           valueFrom:
             secretKeyRef:
               name: {{ .Values.secrets.name }}
@@ -52,10 +55,14 @@ spec:
               key: DB_PASSWORD
         - name: KC_HTTP_RELATIVE_PATH
           value: {{ .Values.infrastructure.keycloak.env.kcHttpRelativePath | quote }}
-        - name: KC_HOSTNAME_URL
+        # 브라우저 · 토큰 iss 는 공개 주소, 서비스끼리는 keycloak:8080 으로 부름
+        - name: KC_HOSTNAME
           value: "https://{{ .Values.global.domain }}/auth"
-        - name: KC_HOSTNAME_ADMIN_URL
-          value: "https://{{ .Values.global.domain }}/auth"
+        - name: KC_HOSTNAME_BACKCHANNEL_DYNAMIC
+          value: "true"
+        # HTTP 로 받음(TLS 는 앞단). X-Forwarded 를 믿지 않아 요청이 사설 IP 로 보여 realm 의 외부 HTTPS 요구를 통과
+        - name: KC_HTTP_ENABLED
+          value: "true"
         {{- end }}
         - name: KEYCLOAK_CLIENT_SECRET
           valueFrom:
@@ -70,7 +77,11 @@ spec:
           {{- end }}
           sed -e "s/\${KEYCLOAK_CLIENT_SECRET}/${KEYCLOAK_CLIENT_SECRET}/g" \
               /opt/keycloak/data/import-template/muscathan-realm.json > /opt/keycloak/data/import/muscathan-realm.json
+          {{- if eq .Values.infrastructure.keycloak.env.kcDbVendor "postgres" }}
+          /opt/keycloak/bin/kc.sh start --import-realm
+          {{- else }}
           /opt/keycloak/bin/kc.sh start-dev --import-realm
+          {{- end }}
         volumeMounts:
         - name: keycloak-realm-template
           mountPath: /opt/keycloak/data/import-template
@@ -81,6 +92,13 @@ spec:
           {{- toYaml .Values.infrastructure.keycloak.resources | nindent 10 }}
         securityContext:
           {{- include "ggeolmuse.baseSecurityContext" . | nindent 10 }}
+        # 판을 올린 첫 기동은 DB 이전 · 빌드가 길어 끝날 때까지 liveness 를 미룸(최대 5분)
+        startupProbe:
+          httpGet:
+            path: /auth/realms/master
+            port: {{ .Values.infrastructure.keycloak.port }}
+          periodSeconds: 10
+          failureThreshold: 30
         readinessProbe:
           httpGet:
             path: /auth/realms/master
