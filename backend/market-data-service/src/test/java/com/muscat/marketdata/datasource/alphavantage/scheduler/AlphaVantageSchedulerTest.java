@@ -34,6 +34,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import net.javacrumbs.shedlock.core.LockProvider;
 
 // 초기 수집(캔들 있는 종목 95% 미만) 중에는 환율 · 캔들 · 시총 갱신을 건너뛴다
 @DisplayName("AlphaVantage 스케줄러")
@@ -45,7 +46,7 @@ class AlphaVantageSchedulerTest {
   private final AssetEventProducer producer = mock(AssetEventProducer.class);
   private final MarketCapCollectionService marketCapService = mock(MarketCapCollectionService.class);
   private final AlphaVantageScheduler scheduler = new AlphaVantageScheduler(fxSource,
-    new FxDataCollector(fxSource, fxRateRepository, new MarketDataProperties()), mock(AlphaVantageCandleSource.class),
+    new FxDataCollector(fxSource, fxRateRepository, new MarketDataProperties(), mock(LockProvider.class)), mock(AlphaVantageCandleSource.class),
     mock(AlphaVantageSymbolSource.class), assetRepository, fxRateRepository, producer, marketCapService,
     new InitialCollectionCheck(assetRepository));
 

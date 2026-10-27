@@ -152,12 +152,12 @@ repository · service)이고, 기능 하나를 단계로 나누는 trade · mark
 
 ## 테스트
 
-백엔드 **1,697 개**, 프론트 **757 개**, E2E **43 개**.
+백엔드 **1,703 개**, 프론트 **757 개**, E2E **43 개**.
 
 | 서비스 | 테스트 |
 |---|---|
-| market-data-service | 526 |
-| user-service | 392 |
+| market-data-service | 528 |
+| user-service | 396 |
 | backtest-service | 311 |
 | trade-service | 271 |
 | ggeolmuse-common | 35 |
@@ -248,6 +248,39 @@ K3s (EC2 단일 노드)      Traefik IngressRoute 로 진입
 
 **안정성** — Resilience4j 로 CircuitBreaker · Retry · TimeLimiter · Bulkhead 를 걸었다.
 서킷은 market-data 를 내렸다 올리며 OPEN → CLOSED 전이를 실제로 확인했다.
+
+</details>
+
+<br>
+
+## 보안
+
+<details>
+<summary><b>인증 · 요청 상한 · 응답 · 파드 · 공급망</b></summary>
+
+<br>
+
+**인증** — Keycloak 이 토큰을 발급하고, 게이트웨이가 서명 · 만료와 함께 발급자(`iss`)와 발급 클라이언트(`azp`)를 허용 목록으로 검사한다.
+user · trade · market-data · backtest 도 리소스 서버로 다시 검증한다. access token 은 15분이다. refresh token 은 httpOnly 쿠키로 주고,
+재발급할 때마다 새것으로 바꿔 옛것은 다시 쓰지 못한다.
+
+**요청 상한** — 게이트웨이가 Redis 토큰 버킷으로 경로마다 상한을 둔다. 시세 조회는 초당 200, 백테스트는 요청 하나에 토큰 10개라 초당 50,
+로그인 · 비밀번호 찾기는 10초에 한 번꼴(연속 세 번)이다. 버킷은 Cloudflare 가 넣은 실 클라이언트 IP(`CF-Connecting-IP`)와 경로로 나눈다.
+EC2 는 Cloudflare 대역에서 온 요청만 받아서 밖에서 이 헤더를 지어 넣을 수 없다. 경로를 키에 넣은 이유는
+[문제 해결](docs/problem-solving.md#로그인-한-번이-다른-라우트의-토큰을-깎았다) 에, 이 헤더를 쓰는 이유는
+[같은 문서](docs/problem-solving.md#레이트-리밋-버킷이-운영에서는-여전히-하나였다) 에 있다.
+
+**응답 · 로그** — 로그인 실패는 가입 여부와 상관없이 같은 401 이다([가입 여부 노출](docs/problem-solving.md#로그인-응답이-가입-여부를-드러냈다)).
+로그의 이메일은 가린다.
+
+**브라우저** — nginx 가 CSP · X-Frame-Options · X-Content-Type-Options(nosniff) · Referrer-Policy 를 붙인다.
+
+**파드 · 비밀값** — 앱 파드는 공용 securityContext 로 비root(10001) · 읽기 전용 루트 · 권한 상승 금지 · capabilities 전부 제거로 돈다.
+비밀값은 AWS Secrets Manager 에서 ExternalSecret 으로 받고, Redis 에는 비밀번호를 건다.
+
+**공급망** — CI 가 이미지와 매니페스트를 Trivy 로 검사해 CRITICAL · HIGH 를 GitHub Security 탭에 올린다. 빌드를 막지는 않고 보고만 한다.
+
+**진행 중** — Cloudflare 에서 EC2 까지는 아직 HTTP 다(Flexible). Origin 인증서로 Full (strict) 로 옮기는 중이다.
 
 </details>
 

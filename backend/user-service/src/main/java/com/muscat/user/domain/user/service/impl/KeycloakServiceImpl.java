@@ -48,6 +48,11 @@ public class KeycloakServiceImpl implements KeycloakService {
   }
 
   @Override
+  public void warmUp() {
+    getAdminToken();
+  }
+
+  @Override
   public TokenResponseDto login(String email, String password) {
     log.info("Keycloak 로그인 시도: {}", email);
 

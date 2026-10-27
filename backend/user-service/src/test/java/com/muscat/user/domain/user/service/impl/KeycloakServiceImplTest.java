@@ -87,6 +87,26 @@ class KeycloakServiceImplTest {
   }
 
   @Nested
+  @DisplayName("데우기 테스트")
+  class WarmUpTests {
+
+    @Test
+    @DisplayName("데우기는 서비스 토큰을 한 번 받아 토큰 발급 경로를 열어 둔다")
+    @SuppressWarnings("unchecked")
+    void warmUp_RequestsServiceToken() {
+      given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(Map.class)))
+        .willReturn(ResponseEntity.ok(Map.of("access_token", "admin_access_token")));
+
+      keycloakService.warmUp();
+
+      ArgumentCaptor<HttpEntity> request = ArgumentCaptor.forClass(HttpEntity.class);
+      verify(restTemplate).postForEntity(endsWith("/protocol/openid-connect/token"), request.capture(), eq(Map.class));
+      MultiValueMap<String, String> body = (MultiValueMap<String, String>) request.getValue().getBody();
+      assertThat(body.getFirst("grant_type")).isEqualTo("client_credentials");
+    }
+  }
+
+  @Nested
   @DisplayName("로그인 테스트")
   class LoginTests {
 

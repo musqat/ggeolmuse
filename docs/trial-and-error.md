@@ -239,7 +239,7 @@ OPEN → CLOSED 를 눈으로 보고서야 확인이 끝났다.
 
 ## rate limit 은 전체 합쳐 200/s 였다
 
-`날짜` 2026-08-26 · `그 뒤로` maxTrustedIndex(1) 로 XFF 신뢰. 앱 한계 측정은 아직
+`날짜` 2026-08-26 · `그 뒤로` maxTrustedIndex(1) 로 XFF 신뢰. 운영에서는 그 홉도 파드 대역 주소라 10-28 에 `CF-Connecting-IP` 로 바꿈
 
 `ipKeyResolver` 를 `@Primary` 로 두었으니 IP 하나당 200/s 로 걸릴 터였다.
 

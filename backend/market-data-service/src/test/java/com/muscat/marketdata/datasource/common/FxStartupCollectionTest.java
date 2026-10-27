@@ -15,6 +15,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
+import net.javacrumbs.shedlock.core.LockProvider;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.DisplayName;
@@ -51,6 +52,8 @@ class FxStartupCollectionTest {
       .withBean(FxSource.class, () -> source)
       .withBean(FxRateRepository.class, () -> repository)
       .withBean(MarketDataProperties.class, () -> properties)
+      // 이 파드가 기동 수집 락을 늘 얻음
+      .withBean(LockProvider.class, () -> config -> Optional.of(() -> { }))
       .withBean(FxDataCollector.class)
       .run(context -> {
         long begin = System.nanoTime();

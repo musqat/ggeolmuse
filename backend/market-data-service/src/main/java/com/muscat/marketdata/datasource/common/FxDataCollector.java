@@ -8,6 +8,10 @@ import com.muscat.marketdata.datasource.common.MarketDataProvider.FxSource;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.core.DefaultLockingTaskExecutor;
+import net.javacrumbs.shedlock.core.LockConfiguration;
+import net.javacrumbs.shedlock.core.LockProvider;
+import net.javacrumbs.shedlock.core.LockingTaskExecutor.TaskResult;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
@@ -16,6 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -33,10 +39,14 @@ public class FxDataCollector {
     private final FxSource fxSource;
     private final FxRateRepository fxRateRepository;
     private final MarketDataProperties properties;
+    private final LockProvider lockProvider;
 
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
     // 시작 때 채우기를 멈추는 연속 실패 날 수(공휴일은 폴백이 앞 영업일 값으로 채워 실패로 안 셈)
     static final int MAX_CONSECUTIVE_FAILURES = 3;
+    // 롤링 배포로 두 파드가 함께 떠도 시작 때 채우기는 한 파드만
+    private static final String STARTUP_LOCK = "fxCollectOnStartup";
+    private static final Duration STARTUP_LOCK_AT_MOST = Duration.ofMinutes(30);
 
     @PostConstruct
     void logSettings() {
@@ -45,21 +55,31 @@ public class FxDataCollector {
                 properties.getFxIngest().getIncremental().isEnabled());
     }
 
-    // 앱이 준비된 뒤 다른 스레드에서 과거 · 빠진 환율 채우기(실패는 로그만)
+    // 앱이 준비된 뒤 다른 스레드에서 과거 · 빠진 환율 채우기(실패는 로그만). 저장은 락을 풀기 전에 커밋됨
     @Async
     @EventListener(ApplicationReadyEvent.class)
-    @Transactional
     public void collectOnStartup() {
+        LockConfiguration lock = new LockConfiguration(Instant.now(), STARTUP_LOCK, STARTUP_LOCK_AT_MOST, Duration.ZERO);
         try {
-            if (properties.getFxIngest().getBackfill().isEnabled()) {
-                runHistoricalCollection();
+            TaskResult<Void> result = new DefaultLockingTaskExecutor(lockProvider).executeWithLock(() -> {
+                collectAll();
+                return null;
+            }, lock);
+            if (!result.wasExecuted()) {
+                log.info("[환율수집] 다른 파드가 시작 때 채우기 중이라 건너뜀");
             }
-
-            if (properties.getFxIngest().getIncremental().isEnabled()) {
-                runIncrementalCollection();
-            }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             log.error("[환율수집] 실패 - 서비스는 계속 실행됩니다", e);
+        }
+    }
+
+    private void collectAll() {
+        if (properties.getFxIngest().getBackfill().isEnabled()) {
+            runHistoricalCollection();
+        }
+
+        if (properties.getFxIngest().getIncremental().isEnabled()) {
+            runIncrementalCollection();
         }
     }
 
