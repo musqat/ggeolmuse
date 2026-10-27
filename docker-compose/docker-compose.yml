@@ -161,8 +161,6 @@ services:
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
       KEYCLOAK_REALM: custom
       KEYCLOAK_SECRET: local-client-secret
-      KEYCLOAK_ADMIN_USERNAME: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
     healthcheck:
       test: ["CMD", "sh", "-c", "wget --spider --quiet http://localhost:9090/actuator/health || exit 1"]
       interval: 10s
@@ -277,8 +275,6 @@ services:
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
       KEYCLOAK_REALM: custom
       KEYCLOAK_SECRET: local-client-secret
-      KEYCLOAK_ADMIN_USERNAME: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
       # 시드 admin 계정 (로컬 체험용 더미)
       APP_ADMIN_EMAIL: admin@test.com
       ADMIN_PASSWORD: Admin123!
