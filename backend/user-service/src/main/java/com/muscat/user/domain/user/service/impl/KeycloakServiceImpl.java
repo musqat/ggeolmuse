@@ -217,7 +217,7 @@ public class KeycloakServiceImpl implements KeycloakService {
       headers.setBearerAuth(adminToken);
 
       HttpEntity<Void> entity = new HttpEntity<>(headers);
-      restTemplate.delete(deleteUrl, entity);
+      restTemplate.exchange(deleteUrl, HttpMethod.DELETE, entity, Void.class);
 
       log.info("Keycloak 사용자 삭제 완료: {}", keycloakId);
 

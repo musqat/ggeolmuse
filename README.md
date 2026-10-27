@@ -148,12 +148,12 @@ ggeolmuse/
 
 ## 테스트
 
-백엔드 **1,692 개**, 프론트 **757 개**, E2E **43 개**.
+백엔드 **1,693 개**, 프론트 **757 개**, E2E **43 개**.
 
 | 서비스 | 테스트 |
 |---|---|
 | market-data-service | 525 |
-| user-service | 390 |
+| user-service | 391 |
 | backtest-service | 310 |
 | trade-service | 270 |
 | ggeolmuse-common | 35 |

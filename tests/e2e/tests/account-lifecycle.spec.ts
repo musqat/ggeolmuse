@@ -71,7 +71,14 @@ test('구글 인가 코드 교환은 잘못된 코드를 400 으로 막는다', 
   await api.dispose();
 });
 
-test('이메일 사용자는 비밀번호로 탈퇴하고, 탈퇴하면 다시 로그인되지 않는다', async () => {
+/** 앱을 거치지 않고 Keycloak 에 직접 비밀번호로 토큰을 청한 응답. 계정이 지워졌으면 토큰을 주지 않음(200 아님). */
+function keycloakPasswordGrant(api: APIRequestContext, user: { email: string; password: string }): Promise<APIResponse> {
+  return api.post(`${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/token`, {
+    form: { grant_type: 'password', client_id: 'admin-cli', username: user.email, password: user.password },
+  });
+}
+
+test('이메일 사용자는 비밀번호로 탈퇴하고, 탈퇴하면 로그인은 막히고 같은 이메일로 다시 가입된다', async () => {
   const plain = await request.newContext();
   const user = throwawayAccount();
   expect((await plain.post(`${API_URL}/auth/register`, { data: user })).status()).toBe(201);
@@ -99,6 +106,17 @@ test('이메일 사용자는 비밀번호로 탈퇴하고, 탈퇴하면 다시 �
 
   const again = await postLogin(plain, user);
   expect(again.status(), '탈퇴한 계정이 로그인된다').toBeGreaterThanOrEqual(400);
+  expect((await keycloakPasswordGrant(plain, user)).status(), '탈퇴한 계정이 Keycloak 에 남아 있다').not.toBe(200);
+
+  const rejoined = await plain.post(`${API_URL}/auth/register`, { data: user });
+  expect(rejoined.status(), `탈퇴한 이메일로 다시 가입되지 않는다: ${await rejoined.text()}`).toBe(201);
+
+  // 다시 만든 계정은 관리자가 강제 탈퇴. 이때도 Keycloak 계정이 지워짐
+  const rejoinedUsers = await (await admin.get(`${API_URL}/admin/users?size=50`)).json();
+  const rejoinedUser = rejoinedUsers.content.find((u: { email: string }) => u.email === user.email);
+  expect(rejoinedUser, '다시 가입한 사용자가 관리자 목록에 없다').toBeTruthy();
+  expect((await admin.delete(`${API_URL}/admin/users/${rejoinedUser.userId}`)).status()).toBe(200);
+  expect((await keycloakPasswordGrant(plain, user)).status(), '강제 탈퇴한 계정이 Keycloak 에 남아 있다').not.toBe(200);
 
   await Promise.all([plain.dispose(), admin.dispose(), me.dispose()]);
 });
