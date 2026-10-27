@@ -122,6 +122,10 @@ ggeolmuse/
 └── terraform/            EC2 · RDS 스케줄러 · 알람
 ```
 
+서비스 안 패키지는 두 가지다. 독립된 기능이 둘인 user-service 는 기능별(`domain/account` · `domain/user` 아래 controller · dto · entity ·
+repository · service)이고, 기능 하나를 단계로 나누는 trade · market-data · backtest 는 계층별(`api/controller`, `domain/dto` · `entity` ·
+`repository` · `service`)이다. 서비스마다 `PackageLayoutTest` 가 이 모양을 지킨다.
+
 <img src=".github/images/infra/architecture.png" alt="서비스 구성" width="850"/>
 
 <img src=".github/images/infra/aws-deploy.png" alt="AWS 배포 구성" width="850"/>
@@ -148,14 +152,14 @@ ggeolmuse/
 
 ## 테스트
 
-백엔드 **1,693 개**, 프론트 **757 개**, E2E **43 개**.
+백엔드 **1,697 개**, 프론트 **757 개**, E2E **43 개**.
 
 | 서비스 | 테스트 |
 |---|---|
-| market-data-service | 525 |
-| user-service | 391 |
-| backtest-service | 310 |
-| trade-service | 270 |
+| market-data-service | 526 |
+| user-service | 392 |
+| backtest-service | 311 |
+| trade-service | 271 |
 | ggeolmuse-common | 35 |
 | messaging | 19 |
 | chat-service | 143 |
