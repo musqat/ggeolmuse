@@ -22,31 +22,9 @@ spec:
       {{- if .Values.global.aws.serviceAccount.create }}
       serviceAccountName: {{ .Values.configServer.name }}
       {{- end }}
-      # emptyDir 은 root 소유로 생긴다. fsGroup 이 있어야 10001 이 clone 할 수 있다.
+      # emptyDir(/tmp)은 root 소유로 생김. 앱(10001)이 설정 리포를 받아 둘 수 있게 fsGroup
       securityContext:
         fsGroup: 10001
-      initContainers:
-      - name: git-clone
-        image: alpine/git:v2.54.0
-        command:
-        - sh
-        - -c
-        - |
-          cd /config-repo
-          if [ -d .git ]; then
-            # 디렉터리 주인은 root 인데 프로세스는 10001 이라 git 이 거부한다.
-            # --global 은 읽기전용 루트의 $HOME 에 쓰려 해서 못 쓴다.
-            git -c safe.directory=/config-repo pull
-          else
-            git clone --branch {{ .Values.configServer.git.label | default "main" }} {{ .Values.configServer.git.uri }} .
-          fi
-        securityContext:
-          {{- include "ggeolmuse.securityContext" . | nindent 10 }}
-        resources:
-          {{- toYaml .Values.global.initContainer.resources | nindent 10 }}
-        volumeMounts:
-        - name: config-repo-volume
-          mountPath: /config-repo
       containers:
       - name: {{ .Values.configServer.name }}
         image: {{ include "ggeolmuse.image" (dict "Values" .Values "repository" .Values.configServer.image.repository "tag" .Values.configServer.image.tag "Chart" .Chart) }}
@@ -77,9 +55,6 @@ spec:
         - name: HOME
           value: /tmp
         volumeMounts:
-        - name: config-repo-volume
-          mountPath: /config-repo
-          readOnly: true
         {{- include "ggeolmuse.tmpVolumeMount" . | nindent 8 }}
         {{- if .Values.configServer.resources }}
         resources:
@@ -94,7 +69,5 @@ spec:
         livenessProbe:
           {{- include "ggeolmuse.livenessProbe" (dict "port" 9090 "initialDelaySeconds" .Values.configServer.probes.liveness.initialDelaySeconds "periodSeconds" .Values.configServer.probes.liveness.periodSeconds) | nindent 10 }}
       volumes:
-      - name: config-repo-volume
-        emptyDir: {}
       {{- include "ggeolmuse.tmpVolume" . | nindent 6 }}
 {{- end }}

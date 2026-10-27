@@ -135,6 +135,14 @@ spec:
               if [ "$mismatch" -gt 0 ] && [ "$ALIGN" != "true" ]; then
                 echo "alignPartitions=true 로 올리면 맞춘다"
               fi
+
+              # 선언에 없는 토픽(내부 __ 토픽 제외)은 지우지 않고 알림
+              awk '$1 != "" && $1 !~ /^#/ { print $1 }' /tmp/topics.txt | sort -u > /tmp/declared.txt
+              awk '$1 == "Topic:" { print $2 }' /tmp/current.txt | grep -v '^__' | sort -u > /tmp/existing.txt
+              undeclared=$(comm -23 /tmp/existing.txt /tmp/declared.txt)
+              if [ -n "$undeclared" ]; then
+                echo "선언에 없는 토픽 $(echo "$undeclared" | wc -l)개(지우지 않음):" $undeclared
+              fi
           resources:
             {{- toYaml .Values.infrastructure.kafka.topicsInit.resources | nindent 12 }}
           securityContext:
