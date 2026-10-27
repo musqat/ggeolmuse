@@ -53,11 +53,15 @@ spec:
             {{- toYaml .Values.infrastructure.zookeeper.resources | nindent 12 }}
           securityContext:
             {{- include "ggeolmuse.baseSecurityContext" . | nindent 12 }}
+            readOnlyRootFilesystem: true
           volumeMounts:
             - name: zookeeper-data
               mountPath: /var/lib/zookeeper/data
             - name: zookeeper-log
               mountPath: /var/lib/zookeeper/log
+            {{- include "ggeolmuse.confluentWritableMounts" . | nindent 12 }}
+      volumes:
+        {{- include "ggeolmuse.confluentWritableVolumes" . | nindent 8 }}
   volumeClaimTemplates:
     - metadata:
         name: zookeeper-data

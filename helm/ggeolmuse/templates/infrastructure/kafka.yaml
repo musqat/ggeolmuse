@@ -93,9 +93,11 @@ spec:
             {{- toYaml .Values.infrastructure.kafka.resources | nindent 12 }}
           securityContext:
             {{- include "ggeolmuse.baseSecurityContext" . | nindent 12 }}
+            readOnlyRootFilesystem: true
           volumeMounts:
             - name: kafka-data
               mountPath: /var/lib/kafka/data
+            {{- include "ggeolmuse.confluentWritableMounts" . | nindent 12 }}
           readinessProbe:
             tcpSocket:
               port: {{ .Values.infrastructure.kafka.ports.internal }}
@@ -110,6 +112,8 @@ spec:
             periodSeconds: 20
             timeoutSeconds: 5
             failureThreshold: 3
+      volumes:
+        {{- include "ggeolmuse.confluentWritableVolumes" . | nindent 8 }}
   volumeClaimTemplates:
     - metadata:
         name: kafka-data

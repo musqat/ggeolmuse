@@ -244,6 +244,25 @@ seccompProfile:
   emptyDir: {}
 {{- end }}
 
+{{/* Confluent 이미지(kafka · zookeeper)가 기동 때 쓰는 곳(설정 파일 · GC 로그 · 임시). 읽기 전용 루트와 짝 */}}
+{{- define "ggeolmuse.confluentWritableMounts" -}}
+- name: etc-kafka
+  mountPath: /etc/kafka
+- name: var-log-kafka
+  mountPath: /var/log/kafka
+- name: tmp
+  mountPath: /tmp
+{{- end }}
+
+{{- define "ggeolmuse.confluentWritableVolumes" -}}
+- name: etc-kafka
+  emptyDir: {}
+- name: var-log-kafka
+  emptyDir: {}
+- name: tmp
+  emptyDir: {}
+{{- end }}
+
 {{/* Redis 비밀번호. 자바 서비스 설정은 ${SPRING_REDIS_PASSWORD:} 로 읽는다. 다른 이름이 필요하면 envName 을 준다
      (chat-service 는 REDIS_PASSWORD). config-server 는 Redis 를 쓰지 않아 빠진다. */}}
 {{- define "ggeolmuse.redisPasswordEnv" -}}
