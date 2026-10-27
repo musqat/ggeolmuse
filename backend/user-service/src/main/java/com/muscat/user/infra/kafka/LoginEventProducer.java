@@ -22,6 +22,11 @@ public class LoginEventProducer {
     private final KafkaTemplate<String, UserLoginFailedEvent> loginFailedKafkaTemplate;
 
     // loginMethod: PASSWORD · GOOGLE_OAUTH
+    // 로그인 성공 토픽의 메타데이터를 받아 프로듀서 연결을 열어 둠
+    public void warmUp() {
+        loginSuccessKafkaTemplate.partitionsFor(LOGIN_SUCCESS_TOPIC);
+    }
+
     public void publishLoginSuccess(User user, String loginMethod, String ipAddress,
                                       String userAgent, Boolean tokenIssued) {
         UserLoginSuccessEvent event = UserLoginSuccessEvent.builder()

@@ -51,6 +51,14 @@ class LoginEventProducerTest {
   }
 
   @Test
+  @DisplayName("데우기는 로그인 성공 토픽의 메타데이터를 받아 연결을 열어 둔다")
+  void warmUp() {
+    producer.warmUp();
+
+    verify(successTemplate).partitionsFor(SUCCESS_TOPIC);
+  }
+
+  @Test
   @DisplayName("로그인 실패는 이메일을 키로 실패 사유를 보낸다(보안 감시가 읽는다)")
   void loginFailed() {
     given(failedTemplate.send(anyString(), anyString(), any())).willReturn(sent(FAILED_TOPIC));
