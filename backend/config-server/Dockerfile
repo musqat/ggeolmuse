@@ -4,6 +4,8 @@ WORKDIR /app
 
 # jboss 저장소는 응답이 없는데 keycloak 부모 pom 이 끌고 온다. Central 로 미러링해 막는다.
 COPY .mvn/ci-settings.xml /root/.m2/settings.xml
+# Central 이 잠깐 5xx 를 줘도 다시 받음(기본은 429 · 503 만 재시도)
+ENV MAVEN_ARGS="-Daether.connector.http.retryHandler.count=3 -Daether.connector.http.retryHandler.serviceUnavailable=429,500,502,503,504"
 
 # ggeolmuse-bom(의존성 버전) 설치
 COPY backend/ggeolmuse-bom/pom.xml /bom/pom.xml
