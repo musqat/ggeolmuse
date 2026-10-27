@@ -204,10 +204,6 @@ configServer:
   service:
     type: ClusterIP
     port: 8888
-  git:
-    uri: https://github.com/musqat/ggeolmuse-config.git
-    label: main
-    searchPaths: .
   # env.springProfiles: 환경별 (dev/prod)
   probes:
     readiness:
