@@ -142,9 +142,9 @@ services:
     env:
       # market-data 와 같은 한국 시각. 저장 시각 · 오늘 날짜가 이 시간대를 따른다(이전 UTC 시각은 Flyway V6 이 옮김)
       TZ: "Asia/Seoul"
-      appBaseUrl: https://ggeolmuse.com
-      appFrontendUrl: https://ggeolmuse.com
-      mailVerificationBaseUrl: https://ggeolmuse.com
+      APP_BASE_URL: https://ggeolmuse.com
+      APP_FRONTEND_URL: https://ggeolmuse.com
+      APP_MAIL_VERIFICATION_BASE_URL: https://ggeolmuse.com
     probes:
       readiness:
         initialDelaySeconds: 180

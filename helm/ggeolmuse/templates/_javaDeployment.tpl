@@ -62,7 +62,8 @@ spec:
 {{- end }}
 
 {{/*
-자바 서비스 Deployment 전체. user-service 는 env 배치가 달라 자기 파일을 쓴다.
+자바 서비스 Deployment 전체
+svc 값: extraSecrets(env 이름 = 비밀 키) · secretEnv(env 이름 → 비밀 키) · keycloakClientEnv(공개 주소 · 클라이언트 ID) · env
 인자: svc · Values · Chart
 */}}
 {{- define "ggeolmuse.javaDeployment" -}}
@@ -91,6 +92,13 @@ spec:
               name: ggeolmuse-secrets
               key: {{ . }}
         {{- end }}
+        {{- range $name, $key := $svc.secretEnv }}
+        - name: {{ $name }}
+          valueFrom:
+            secretKeyRef:
+              name: ggeolmuse-secrets
+              key: {{ $key }}
+        {{- end }}
         {{- else }}
         - name: KEYCLOAK_SECRET
           {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "KEYCLOAK_SECRET") | nindent 10 }}
@@ -98,9 +106,19 @@ spec:
         - name: {{ . }}
           {{- include "ggeolmuse.secretRef" (dict "Values" $.Values "key" .) | nindent 10 }}
         {{- end }}
+        {{- range $name, $key := $svc.secretEnv }}
+        - name: {{ $name }}
+          {{- include "ggeolmuse.secretRef" (dict "Values" $.Values "key" $key) | nindent 10 }}
+        {{- end }}
         {{- end }}
         - name: JAVA_OPTS
           value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" $svc.name "version" $svc.image.tag "xmx" $svc.xmx) }}
+        {{- if $svc.keycloakClientEnv }}
+        - name: KEYCLOAK_PUBLIC_URL
+          value: {{ .Values.global.keycloak.publicUrl | quote }}
+        - name: KEYCLOAK_RESOURCE
+          value: {{ .Values.global.keycloak.clientId | quote }}
+        {{- end }}
         {{- range $k, $v := $svc.env }}
         - name: {{ $k }}
           value: {{ $v | quote }}

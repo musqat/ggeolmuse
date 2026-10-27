@@ -36,9 +36,9 @@ gatewayServer:
 services:
   userService:
     env:
-      appBaseUrl: http://app.localhost
-      appFrontendUrl: http://app.localhost
-      mailVerificationBaseUrl: http://app.localhost
+      APP_BASE_URL: http://app.localhost
+      APP_FRONTEND_URL: http://app.localhost
+      APP_MAIL_VERIFICATION_BASE_URL: http://app.localhost
 
 # 프론트엔드 - dev URL
 frontend:

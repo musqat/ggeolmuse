@@ -258,12 +258,16 @@ services:
       port: 8080
     labels:
       tier: business-service
-    # env.appBaseUrl/appFrontendUrl/mailVerificationBaseUrl: 환경별 (dev/prod)
-    secrets:
-      keycloakSecret: true
-      mailUsername: true
-      mailPassword: true
-      mailFrom: true
+    xmx: 256m
+    extraSecrets:
+      - MAIL_USERNAME
+      - MAIL_PASSWORD
+      - MAIL_FROM
+    # 시드 관리자 비밀번호
+    secretEnv:
+      ADMIN_PASSWORD: KEYCLOAK_ADMIN_USER_PASSWORD
+    keycloakClientEnv: true
+    # env.APP_BASE_URL · APP_FRONTEND_URL · APP_MAIL_VERIFICATION_BASE_URL: 환경별 (dev/prod)
     strategy:
       rollingUpdate:
         maxUnavailable: 0
