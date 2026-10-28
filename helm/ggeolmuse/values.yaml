@@ -449,6 +449,10 @@ secrets:
 monitoring:
   serviceMonitor:
     enabled: true
+  # dashboards/*.json 을 파일마다 Grafana 대시보드 ConfigMap 으로
+  dashboards:
+    enabled: false
+    namespace: monitoring
   slack:
     # 웹훅 URL 은 ggeolmuse-secrets 의 SLACK_WEBHOOK_URL 을 쓴다.
     enabled: false

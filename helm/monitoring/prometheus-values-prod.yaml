@@ -18,6 +18,9 @@ prometheus:
     # 메트릭 보관 기간
     retention: 15d  # 15일
 
+    # 서비스 그래프 · 스팬 지표를 remote write 로 받음
+    enableRemoteWriteReceiver: true
+
     # 스토리지 설정
     storageSpec:
       volumeClaimTemplate:
@@ -64,14 +67,15 @@ grafana:
       cpu: 500m
     requests:
       memory: 256Mi
-      cpu: 250m
+      cpu: 50m
 
-  # 모든 데이터소스 통합 관리 (Prometheus + Tempo)
+  # 데이터소스 셋(Prometheus · Loki · Tempo). 서로 uid 로 이어짐
   datasources:
     datasources.yaml:
       apiVersion: 1
       datasources:
         - name: Prometheus
+          uid: Prometheus
           type: prometheus
           access: proxy
           url: http://prometheus-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090
@@ -79,44 +83,37 @@ grafana:
           jsonData:
             timeInterval: 30s
 
-        - name: Tempo
-          type: tempo
+        # 로그 줄의 trace_id 에서 Tempo 트레이스로
+        - name: Loki
+          uid: Loki
+          type: loki
           access: proxy
-          url: http://tempo.default.svc.cluster.local:3100
+          url: http://loki.monitoring.svc.cluster.local:3100
           isDefault: false
           jsonData:
-            tracesToLogs:
-              datasourceUid: 'Loki'
+            derivedFields:
+              - name: TraceID
+                matcherRegex: '"trace_id":"(\w+)"'
+                datasourceUid: Tempo
+                url: '$${__value.raw}'
+
+        # 트레이스에서 그 시간 · 그 trace_id 의 로그와 서비스 그래프로
+        - name: Tempo
+          uid: Tempo
+          type: tempo
+          access: proxy
+          url: http://tempo.monitoring.svc.cluster.local:3200
+          isDefault: false
+          jsonData:
+            tracesToLogsV2:
+              datasourceUid: Loki
+              spanStartTimeShift: '-5m'
+              spanEndTimeShift: '5m'
+              filterByTraceID: true
             serviceMap:
-              datasourceUid: 'Prometheus'
+              datasourceUid: Prometheus
             nodeGraph:
               enabled: true
-
-  # 대시보드 자동 로드 설정
-  dashboardProviders:
-    dashboardproviders.yaml:
-      apiVersion: 1
-      providers:
-        - name: 'default'
-          orgId: 1
-          folder: ''
-          type: file
-          disableDeletion: false
-          editable: true
-          options:
-            path: /var/lib/grafana/dashboards/default
-
-  # Spring Boot 대시보드
-  dashboards:
-    default:
-      spring-boot-dashboard:
-        gnetId: 12900
-        revision: 1
-        datasource: Prometheus
-      jvm-dashboard:
-        gnetId: 4701
-        revision: 6
-        datasource: Prometheus
 
 # Alertmanager 설정
 alertmanager:

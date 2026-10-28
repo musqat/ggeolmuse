@@ -45,7 +45,7 @@ kubectl -n monitoring get secret grafana-admin -o jsonpath='{.data.admin-passwor
 
 ```bash
 helm -n monitoring upgrade prometheus prometheus-community/kube-prometheus-stack \
-  -f prometheus-values-ec2.yaml
+  -f prometheus-values-prod.yaml
 ```
 
 `-f` 를 빼면 릴리스에 저장된 옛 값이 다시 올라간다. 저장된 값은
@@ -168,17 +168,29 @@ AlertmanagerConfig 가 `secretKeyRef` 로 참조한다.
 | OTEL_SERVICE_NAME | 서비스별 자동 |
 | OTEL_TRACES_SAMPLER | 샘플링 비율 |
 
-트레이스는 Tempo 로 가고 Grafana 에서 조회한다. `persistence: false` 라 Tempo 가
-재시작하면 사라진다.
+트레이스는 Tempo 로 가고 Grafana 에서 조회한다. 노드 디스크(local-path 5Gi)에 3일 둔다. Tempo 는 트레이스에서
+서비스 그래프 · 스팬 지표를 만들어 Prometheus 로 보낸다(remote write). Grafana 에서 로그 줄의 `trace_id` 를 누르면
+트레이스로, 트레이스에서는 그 시간의 로그로 넘어간다.
+
+영구 저장을 켜거나 끌 때는 StatefulSet 의 볼륨 정의가 바뀌어 `helm upgrade` 가 거절된다. 그때는 StatefulSet 만 먼저 지운다.
+
+```bash
+kubectl -n monitoring delete statefulset tempo --cascade=orphan
+helm -n monitoring upgrade tempo grafana/tempo -f tempo-values.yaml
+```
 
 <br>
 
 ## 커스텀 대시보드
 
-`custom-dashboards/` 의 JSON 은 ConfigMap 으로 배포된다. Grafana sidecar 가
-`grafana_dashboard=1` 레이블이 붙은 ConfigMap 을 읽는다.
+대시보드 JSON 은 ggeolmuse 차트의 `dashboards/` 에 있다. ArgoCD 가 파일마다 `monitoring` 네임스페이스에
+`grafana-dashboard-<파일 이름>` ConfigMap 을 만들고, Grafana sidecar 가 `grafana_dashboard=1` 레이블을 보고 읽는다.
+새 대시보드는 JSON 을 그 폴더에 넣고 머지하면 된다(`monitoring.dashboards.enabled`, 운영만 켬).
 
-- `business-metrics.json` — 백테스트, 거래, 캐시 히트율
+- `business-metrics.json` — 백테스트 실행 수 · 소요 시간, 체결 수 · 금액
+- `ggeolmuse-services.json` — 서비스별 요청 · 5xx 비율 · 평균과 최대 응답 시간 · 느린 경로, 게이트웨이 경로별 요청 · 4xx/5xx, DB 연결 풀,
+  DLT · 못 보낸 거래 이벤트 · Kafka 리스너 성공/실패, 오류 · 경고 로그, Traefik 진입점 요청 · p50/p95. 응답 시간 분포 구간을 켜지 않아 앱 쪽은 평균 · 최대만
+- `jvm-micrometer.json` — JVM 메모리 · GC · 스레드 · CPU. grafana.com 4701(리비전 10)을 받아 서비스를 `job` 레이블로 고르게 고침
 - `resilience4j-metrics.json` — 서킷브레이커, 재시도, 벌크헤드, 시간 초과, 게이트웨이 경로별 429
 
 <br>
@@ -194,13 +206,13 @@ helm repo add grafana https://grafana.github.io/helm-charts
 helm repo update
 
 helm install prometheus prometheus-community/kube-prometheus-stack \
-  -n monitoring --create-namespace -f prometheus-values-ec2.yaml
+  -n monitoring --create-namespace -f prometheus-values-prod.yaml
 
 helm install loki grafana/loki-stack -n monitoring -f loki-values.yaml
 
 helm install tempo grafana/tempo -n monitoring -f tempo-values.yaml
 ```
 
-로컬은 `prometheus-values-ec2.yaml` 대신 `prometheus-values.yaml` 을 쓴다.
+로컬은 `prometheus-values-prod.yaml` 대신 `prometheus-values.yaml` 을 쓴다.
 
 </details>
