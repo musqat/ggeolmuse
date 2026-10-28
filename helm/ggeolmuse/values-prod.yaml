@@ -317,6 +317,8 @@ dbBackup:
 
 # Monitoring - Prometheus ServiceMonitor
 monitoring:
+  dashboards:
+    enabled: true
   slack:
     # 웹훅 URL 은 ggeolmuse-secrets 의 SLACK_WEBHOOK_URL 을 쓴다.
     enabled: true

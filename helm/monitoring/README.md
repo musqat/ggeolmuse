@@ -183,10 +183,12 @@ helm -n monitoring upgrade tempo grafana/tempo -f tempo-values.yaml
 
 ## 커스텀 대시보드
 
-`custom-dashboards/` 의 JSON 은 ConfigMap 으로 배포된다. Grafana sidecar 가
-`grafana_dashboard=1` 레이블이 붙은 ConfigMap 을 읽는다.
+대시보드 JSON 은 ggeolmuse 차트의 `dashboards/` 에 있다. ArgoCD 가 파일마다 `monitoring` 네임스페이스에
+`grafana-dashboard-<파일 이름>` ConfigMap 을 만들고, Grafana sidecar 가 `grafana_dashboard=1` 레이블을 보고 읽는다.
+새 대시보드는 JSON 을 그 폴더에 넣고 머지하면 된다(`monitoring.dashboards.enabled`, 운영만 켬).
 
-- `business-metrics.json` — 백테스트, 거래, 캐시 히트율
+- `business-metrics.json` — 백테스트 실행 수 · 소요 시간, 체결 수 · 금액
+- `jvm-micrometer.json` — JVM 메모리 · GC · 스레드 · CPU. grafana.com 4701(리비전 10)을 받아 서비스를 `job` 레이블로 고르게 고침
 - `resilience4j-metrics.json` — 서킷브레이커, 재시도, 벌크헤드, 시간 초과, 게이트웨이 경로별 429
 
 <br>
