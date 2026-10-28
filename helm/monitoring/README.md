@@ -45,7 +45,7 @@ kubectl -n monitoring get secret grafana-admin -o jsonpath='{.data.admin-passwor
 
 ```bash
 helm -n monitoring upgrade prometheus prometheus-community/kube-prometheus-stack \
-  -f prometheus-values-ec2.yaml
+  -f prometheus-values-prod.yaml
 ```
 
 `-f` 를 빼면 릴리스에 저장된 옛 값이 다시 올라간다. 저장된 값은
@@ -206,13 +206,13 @@ helm repo add grafana https://grafana.github.io/helm-charts
 helm repo update
 
 helm install prometheus prometheus-community/kube-prometheus-stack \
-  -n monitoring --create-namespace -f prometheus-values-ec2.yaml
+  -n monitoring --create-namespace -f prometheus-values-prod.yaml
 
 helm install loki grafana/loki-stack -n monitoring -f loki-values.yaml
 
 helm install tempo grafana/tempo -n monitoring -f tempo-values.yaml
 ```
 
-로컬은 `prometheus-values-ec2.yaml` 대신 `prometheus-values.yaml` 을 쓴다.
+로컬은 `prometheus-values-prod.yaml` 대신 `prometheus-values.yaml` 을 쓴다.
 
 </details>
