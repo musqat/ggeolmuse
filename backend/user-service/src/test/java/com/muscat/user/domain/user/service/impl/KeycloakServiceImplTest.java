@@ -87,11 +87,11 @@ class KeycloakServiceImplTest {
   }
 
   @Nested
-  @DisplayName("데우기 테스트")
+  @DisplayName("웜업 테스트")
   class WarmUpTests {
 
     @Test
-    @DisplayName("데우기는 서비스 토큰을 한 번 받아 토큰 발급 경로를 열어 둔다")
+    @DisplayName("웜업은 서비스 토큰을 한 번 받아 토큰 발급 경로를 열어 둔다")
     @SuppressWarnings("unchecked")
     void warmUp_RequestsServiceToken() {
       given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(Map.class)))

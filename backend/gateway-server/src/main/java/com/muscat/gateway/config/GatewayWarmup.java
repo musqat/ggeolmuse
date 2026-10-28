@@ -21,10 +21,13 @@ public class GatewayWarmup {
 
     private static final Logger log = LoggerFactory.getLogger(GatewayWarmup.class);
 
-    /** 레이트 리밋 데우기 키. 실 클라이언트 버킷과 겹치지 않음 */
+    /** 레이트 리밋 웜업 키. 실 클라이언트 버킷과 겹치지 않음 */
     private static final String WARMUP_KEY = "warmup";
 
-    private static final Duration TIMEOUT = Duration.ofSeconds(5);
+    /** 첫 Redis 연결 · 스크립트 적재까지 기다리는 시간 */
+    private static final Duration RATE_LIMITER_TIMEOUT = Duration.ofSeconds(15);
+
+    private static final Duration BACKEND_TIMEOUT = Duration.ofSeconds(5);
 
     private final RouteLocator routeLocator;
     private final RedisRateLimiter rateLimiter;
@@ -51,31 +54,31 @@ public class GatewayWarmup {
             .collectList()
             .flatMap(backends -> Mono.when(warmRateLimiter(), warmBackends(backends)))
             .onErrorResume(e -> {
-                log.warn("[데우기] 라우트 읽기 실패: {}", e.toString());
+                log.warn("[웜업] 라우트 읽기 실패: {}", e.toString());
                 return Mono.empty();
             });
     }
 
     private Mono<Void> warmRateLimiter() {
         return Mono.defer(() -> rateLimiter.getConfig().keySet().stream().findFirst()
-            .map(routeId -> timed("레이트 리밋", rateLimiter.isAllowed(routeId, WARMUP_KEY)))
+            .map(routeId -> timed("레이트 리밋", rateLimiter.isAllowed(routeId, WARMUP_KEY), RATE_LIMITER_TIMEOUT))
             .orElseGet(Mono::empty));
     }
 
     private Mono<Void> warmBackends(List<URI> backends) {
         return Flux.fromIterable(backends)
             .flatMap(uri -> timed("백엔드 " + uri.getAuthority(),
-                httpClient.responseTimeout(TIMEOUT).get().uri(uri).response()))
+                httpClient.responseTimeout(BACKEND_TIMEOUT).get().uri(uri).response(), BACKEND_TIMEOUT))
             .then();
     }
 
-    private Mono<Void> timed(String name, Mono<?> task) {
+    private Mono<Void> timed(String name, Mono<?> task, Duration timeout) {
         return Mono.defer(() -> {
             long started = System.nanoTime();
-            return task.timeout(TIMEOUT)
-                .doOnSuccess(ignored -> log.info("[데우기] {} {}ms", name, (System.nanoTime() - started) / 1_000_000))
+            return task.timeout(timeout)
+                .doOnSuccess(ignored -> log.info("[웜업] {} {}ms", name, (System.nanoTime() - started) / 1_000_000))
                 .onErrorResume(e -> {
-                    log.warn("[데우기] {} 실패: {}", name, e.toString());
+                    log.warn("[웜업] {} 실패: {}", name, e.toString());
                     return Mono.empty();
                 })
                 .then();
