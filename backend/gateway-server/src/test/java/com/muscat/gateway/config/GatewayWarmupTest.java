@@ -12,6 +12,7 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,6 +25,7 @@ import org.springframework.cloud.gateway.route.RouteLocator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.netty.http.client.HttpClient;
+import reactor.test.StepVerifier;
 
 // 백엔드는 이 테스트가 띄운 HTTP 서버, fallback 처럼 http 가 아닌 경로는 건너뜀
 class GatewayWarmupTest {
@@ -74,6 +76,25 @@ class GatewayWarmupTest {
 
     assertThatCode(() -> warmup.warmUp().block(Duration.ofSeconds(10))).doesNotThrowAnyException();
     assertThat(hits.get()).isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName("레이트 리밋 웜업은 첫 Redis 응답이 5초를 넘겨도 끝까지 기다린다")
+  void rateLimiterWaitsPastFiveSeconds() {
+    AtomicBoolean answered = new AtomicBoolean();
+    RouteLocator noBackend = () -> Flux.just(route("fallback", URI.create("forward:/fallback")));
+    GatewayWarmup rateLimiterOnly = new GatewayWarmup(noBackend, rateLimiter, HttpClient.create());
+
+    StepVerifier.withVirtualTime(() -> {
+          given(rateLimiter.isAllowed(ROUTE, "warmup")).willReturn(Mono.delay(Duration.ofSeconds(8))
+              .map(tick -> new RateLimiter.Response(true, Map.of()))
+              .doOnNext(response -> answered.set(true)));
+          return rateLimiterOnly.warmUp();
+        })
+        .thenAwait(Duration.ofSeconds(20))
+        .verifyComplete();
+
+    assertThat(answered).isTrue();
   }
 
   private static Route route(String id, URI uri) {
