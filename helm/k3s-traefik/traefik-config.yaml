@@ -19,3 +19,7 @@ spec:
     api:
       insecure: false
       dashboard: true
+    # Prometheus 지표를 metrics 진입점으로 냄
+    metrics:
+      prometheus:
+        entryPoint: metrics
