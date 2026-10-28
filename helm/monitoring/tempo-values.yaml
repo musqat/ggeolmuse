@@ -14,6 +14,14 @@ tempo:
   livenessProbe:
     failureThreshold: 12
 
+  # 트레이스 3일 보관
+  retention: 72h
+
+  # 서비스 그래프 · 스팬 지표를 Prometheus 로 보냄
+  metricsGenerator:
+    enabled: true
+    remoteWriteUrl: http://prometheus-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090/api/v1/write
+
 # OTLP 받기(자바 OTel 에이전트)
 traces:
   otlp:
@@ -26,9 +34,12 @@ traces:
 zipkin:
   enabled: true
 
-# 저장소 설정 (로컬 파일시스템)
+# 트레이스를 노드 디스크(local-path)에 저장
 persistence:
-  enabled: false
+  enabled: true
+  storageClassName: local-path
+  size: 5Gi
 
+# Tempo 자체 지표
 serviceMonitor:
-  enabled: false
+  enabled: true

@@ -18,6 +18,9 @@ prometheus:
     # 메트릭 보관 기간
     retention: 15d  # 15일
 
+    # 서비스 그래프 · 스팬 지표를 remote write 로 받음
+    enableRemoteWriteReceiver: true
+
     # 스토리지 설정
     storageSpec:
       volumeClaimTemplate:
