@@ -68,7 +68,7 @@ class GatewayWarmupTest {
   }
 
   @Test
-  @DisplayName("레이트 리밋 데우기가 실패해도 백엔드는 데우고 예외를 내지 않는다")
+  @DisplayName("레이트 리밋 웜업이 실패해도 백엔드는 웜업하고 예외를 내지 않는다")
   void rateLimiterFailureIsLoggedOnly() {
     given(rateLimiter.isAllowed(ROUTE, "warmup")).willReturn(Mono.error(new IllegalStateException("Redis 안 뜸")));
 

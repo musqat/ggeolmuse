@@ -21,7 +21,7 @@ public class GatewayWarmup {
 
     private static final Logger log = LoggerFactory.getLogger(GatewayWarmup.class);
 
-    /** 레이트 리밋 데우기 키. 실 클라이언트 버킷과 겹치지 않음 */
+    /** 레이트 리밋 웜업 키. 실 클라이언트 버킷과 겹치지 않음 */
     private static final String WARMUP_KEY = "warmup";
 
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
@@ -51,7 +51,7 @@ public class GatewayWarmup {
             .collectList()
             .flatMap(backends -> Mono.when(warmRateLimiter(), warmBackends(backends)))
             .onErrorResume(e -> {
-                log.warn("[데우기] 라우트 읽기 실패: {}", e.toString());
+                log.warn("[웜업] 라우트 읽기 실패: {}", e.toString());
                 return Mono.empty();
             });
     }
@@ -73,9 +73,9 @@ public class GatewayWarmup {
         return Mono.defer(() -> {
             long started = System.nanoTime();
             return task.timeout(TIMEOUT)
-                .doOnSuccess(ignored -> log.info("[데우기] {} {}ms", name, (System.nanoTime() - started) / 1_000_000))
+                .doOnSuccess(ignored -> log.info("[웜업] {} {}ms", name, (System.nanoTime() - started) / 1_000_000))
                 .onErrorResume(e -> {
-                    log.warn("[데우기] {} 실패: {}", name, e.toString());
+                    log.warn("[웜업] {} 실패: {}", name, e.toString());
                     return Mono.empty();
                 })
                 .then();

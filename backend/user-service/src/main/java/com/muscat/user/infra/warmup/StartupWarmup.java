@@ -24,7 +24,7 @@ public class StartupWarmup {
     CompletableFuture.runAsync(this::warmUp);
   }
 
-  // 하나가 실패해도 나머지를 데움(실패는 로그만)
+  // 하나가 실패해도 나머지를 웜업(실패는 로그만)
   public void warmUp() {
     run("Keycloak 토큰", keycloakService::warmUp);
     run("로그인 이벤트 Kafka", loginEventProducer::warmUp);
@@ -34,9 +34,9 @@ public class StartupWarmup {
     long started = System.nanoTime();
     try {
       task.run();
-      log.info("[데우기] {} {}ms", name, (System.nanoTime() - started) / 1_000_000);
+      log.info("[웜업] {} {}ms", name, (System.nanoTime() - started) / 1_000_000);
     } catch (Exception e) {
-      log.warn("[데우기] {} 실패: {}", name, e.getMessage());
+      log.warn("[웜업] {} 실패: {}", name, e.getMessage());
     }
   }
 }

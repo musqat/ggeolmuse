@@ -51,7 +51,7 @@ class LoginEventProducerTest {
   }
 
   @Test
-  @DisplayName("데우기는 로그인 성공 토픽의 메타데이터를 받아 연결을 열어 둔다")
+  @DisplayName("웜업은 로그인 성공 토픽의 메타데이터를 받아 연결을 열어 둔다")
   void warmUp() {
     producer.warmUp();
 
