@@ -174,7 +174,7 @@ kubectl port-forward svc/gateway-server 8070:8070 # API
 
 ### ArgoCD GitOps
 
-master 의 `helm/ggeolmuse` 가 바뀌면(이미지 태그는 values-prod.yaml) ArgoCD 가 자동으로 맞춘다. 지운 리소스도 걷고(prune),
+master 의 `helm/ggeolmuse` 가 바뀌면(이미지 태그는 values-prod.yaml) ArgoCD 가 자동으로 맞춘다. 리포에서 지운 리소스는 클러스터에서도 지우고(prune),
 클러스터에서 손으로 바꾼 것은 되돌린다(selfHeal).
 
 <div align="center">
