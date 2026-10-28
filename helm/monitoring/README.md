@@ -188,6 +188,8 @@ helm -n monitoring upgrade tempo grafana/tempo -f tempo-values.yaml
 새 대시보드는 JSON 을 그 폴더에 넣고 머지하면 된다(`monitoring.dashboards.enabled`, 운영만 켬).
 
 - `business-metrics.json` — 백테스트 실행 수 · 소요 시간, 체결 수 · 금액
+- `ggeolmuse-services.json` — 서비스별 요청 · 5xx 비율 · 평균과 최대 응답 시간 · 느린 경로, 게이트웨이 경로별 요청 · 4xx/5xx, DB 연결 풀,
+  DLT · 못 보낸 거래 이벤트 · Kafka 리스너 성공/실패, 오류 · 경고 로그, Traefik 진입점 요청 · p50/p95. 응답 시간 분포 구간을 켜지 않아 앱 쪽은 평균 · 최대만
 - `jvm-micrometer.json` — JVM 메모리 · GC · 스레드 · CPU. grafana.com 4701(리비전 10)을 받아 서비스를 `job` 레이블로 고르게 고침
 - `resilience4j-metrics.json` — 서킷브레이커, 재시도, 벌크헤드, 시간 초과, 게이트웨이 경로별 429
 
