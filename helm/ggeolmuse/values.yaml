@@ -59,12 +59,8 @@ global:
   # OpenTelemetry 설정 (endpoint: 환경별)
   otel:
     enabled: true
-    protocol: http/protobuf
-    tracesExporter: otlp
-    metricsExporter: none  # Tempo는 traces만 지원
-    logsExporter: none     # Loki 사용 시 변경 가능
     environment: ""        # deployment.environment.name(환경별)
-    # 샘플링(자바 에이전트 · chat 공통)
+    # 샘플링. chat 은 sampler · samplerArg, 자바 에이전트는 부모 따름 + samplerArg 비율(비면 1.0)
     sampler: parentbased_always_on
     samplerArg: ""
 

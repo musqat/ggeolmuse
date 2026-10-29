@@ -79,7 +79,8 @@ spec:
         - name: KEYCLOAK_CLIENT_IDS
           value: {{ include "ggeolmuse.keycloakClientIds" . | quote }}
         - name: JAVA_OPTS
-          value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" .Values.gatewayServer.name "version" .Values.gatewayServer.image.tag "xmx" "192m") }}
+          value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "xmx" "192m") }}
+        {{- include "ggeolmuse.otelEnv" (dict "Values" .Values "serviceName" .Values.gatewayServer.name "version" .Values.gatewayServer.image.tag) | nindent 8 }}
         {{- if .Values.gatewayServer.resources }}
         resources:
           {{- toYaml .Values.gatewayServer.resources | nindent 10 }}
@@ -88,6 +89,7 @@ spec:
           {{- include "ggeolmuse.securityContext" . | nindent 10 }}
         volumeMounts:
           {{- include "ggeolmuse.tmpVolumeMount" . | nindent 10 }}
+          {{- include "ggeolmuse.otelVolumeMount" . | nindent 10 }}
         startupProbe:
           {{- include "ggeolmuse.startupProbe" (dict "port" 9090 "failureThreshold" .Values.gatewayServer.probes.startup.failureThreshold "periodSeconds" .Values.gatewayServer.probes.startup.periodSeconds) | nindent 10 }}
         readinessProbe:
@@ -96,4 +98,5 @@ spec:
           {{- include "ggeolmuse.livenessProbe" (dict "port" 9090 "initialDelaySeconds" .Values.gatewayServer.probes.liveness.initialDelaySeconds "periodSeconds" .Values.gatewayServer.probes.liveness.periodSeconds) | nindent 10 }}
       volumes:
         {{- include "ggeolmuse.tmpVolume" . | nindent 8 }}
+        {{- include "ggeolmuse.otelVolume" . | nindent 8 }}
 {{- end }}

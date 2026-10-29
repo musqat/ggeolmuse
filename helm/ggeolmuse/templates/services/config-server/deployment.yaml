@@ -50,12 +50,14 @@ spec:
               key: CONFIG_SERVER_PASSWORD
         {{- end }}
         - name: JAVA_OPTS
-          value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" .Values.configServer.name "version" .Values.configServer.image.tag "xmx" "128m") }}
+          value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "xmx" "128m") }}
+        {{- include "ggeolmuse.otelEnv" (dict "Values" .Values "serviceName" .Values.configServer.name "version" .Values.configServer.image.tag) | nindent 8 }}
         # UID 10001 은 홈이 없어 HOME 이 / 로 잡힌다. JGit 이 거기 설정을 쓴다
         - name: HOME
           value: /tmp
         volumeMounts:
         {{- include "ggeolmuse.tmpVolumeMount" . | nindent 8 }}
+        {{- include "ggeolmuse.otelVolumeMount" . | nindent 8 }}
         {{- if .Values.configServer.resources }}
         resources:
           {{- toYaml .Values.configServer.resources | nindent 10 }}
@@ -70,4 +72,5 @@ spec:
           {{- include "ggeolmuse.livenessProbe" (dict "port" 9090 "initialDelaySeconds" .Values.configServer.probes.liveness.initialDelaySeconds "periodSeconds" .Values.configServer.probes.liveness.periodSeconds) | nindent 10 }}
       volumes:
       {{- include "ggeolmuse.tmpVolume" . | nindent 6 }}
+      {{- include "ggeolmuse.otelVolume" . | nindent 6 }}
 {{- end }}
