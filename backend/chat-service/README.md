@@ -20,8 +20,11 @@ app/
   main.py   조립: 시작할 때 클라이언트를 만들어 흐름에 넣고, 끝날 때 닫는다
   api/      HTTP. 요청 · 응답 변환, 예외 → {code, message}, 요청 로그
   core/     흐름 · 스킬 고르기 · 답변 · 스킬 · 계산. FastAPI · OpenAI · Redis 를 모른다
-  infra/    OpenAI · market-data · Redis · Keycloak 어댑터
+  infra/    OpenAI · market-data · Redis · Keycloak 어댑터, 트레이스 · 요청 지표
 ```
+
+요청 지표는 `/metrics` 로 낸다. 이름 · 레이블이 자바 서비스(`http_server_requests_seconds`)와 같아 Grafana 서비스 대시보드에 그대로
+들어간다. 헬스 체크와 지표 수집 요청은 지표 · 트레이스에 남기지 않는다.
 
 의존 방향은 `api → core ← infra` 다. core 는 `core/ports.py` 의 Protocol 만 보고 infra 가 구현한다.
 스킬을 더할 때는 `core/skills/` 에 파일 하나를 더하고 `build_skills` 에 넣는다. 스킬 고르기 프롬프트는 스킬의 이름 · 설명으로 만든다.

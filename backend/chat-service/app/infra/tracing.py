@@ -13,7 +13,7 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-EXCLUDED_URLS = "/health"
+EXCLUDED_URLS = "/health,/metrics"
 
 
 def provider_from_env() -> TracerProvider | None:
@@ -27,7 +27,7 @@ def provider_from_env() -> TracerProvider | None:
 
 
 def instrument_app(app: FastAPI, provider: TracerProvider) -> None:
-    """요청마다 서버 스팬 하나(헬스 체크 · ASGI 송수신 스팬 제외)"""
+    """요청마다 서버 스팬 하나(헬스 체크 · 지표 수집 · ASGI 송수신 스팬 제외)"""
     FastAPIInstrumentor.instrument_app(app, tracer_provider=provider, excluded_urls=EXCLUDED_URLS,
                                        exclude_spans=["receive", "send"])
 

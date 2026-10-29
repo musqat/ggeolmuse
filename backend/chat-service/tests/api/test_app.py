@@ -14,6 +14,16 @@ def test_health_returns_ok():
     assert TestClient(app).get("/health").json() == {"status": "UP"}
 
 
+def test_scrape_serves_request_metrics():
+    client = TestClient(app)
+    client.get("/health")
+
+    res = client.get("/metrics")
+
+    assert res.status_code == 200
+    assert "# TYPE http_server_requests_seconds summary" in res.text
+
+
 def test_openai_client_does_not_retry():
     # 재시도하면 시간 초과도 다시 기다려 게이트웨이 30초를 넘긴다
     assert build_openai(Settings(openai_api_key="test")).max_retries == 0

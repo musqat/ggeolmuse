@@ -1,4 +1,5 @@
 import httpx
+import pytest
 import respx
 from fastapi import FastAPI
 from opentelemetry.sdk.trace import TracerProvider
@@ -30,6 +31,10 @@ def _traced_app():
     def health():
         return {"status": "UP"}
 
+    @app.get("/metrics")
+    def scrape():
+        return ""
+
     instrument_app(app, provider)
     return app, exporter
 
@@ -53,10 +58,11 @@ async def test_request_and_market_call_continue_incoming_trace():
     assert market.calls.last.request.headers["traceparent"].split("-")[1] == TRACE_ID
 
 
-async def test_health_is_not_traced():
+@pytest.mark.parametrize("path", ["/health", "/metrics"])
+async def test_probe_and_scrape_are_not_traced(path):
     app, exporter = _traced_app()
 
-    await _get(app, "/health")
+    await _get(app, path)
 
     assert exporter.get_finished_spans() == ()
 
