@@ -112,7 +112,8 @@ svc 값: extraSecrets(env 이름 = 비밀 키) · secretEnv(env 이름 → 비�
         {{- end }}
         {{- end }}
         - name: JAVA_OPTS
-          value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "serviceName" $svc.name "version" $svc.image.tag "xmx" $svc.xmx) }}
+          value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "xmx" $svc.xmx) }}
+        {{- include "ggeolmuse.otelEnv" (dict "Values" .Values "serviceName" $svc.name "version" $svc.image.tag) | nindent 8 }}
         {{- if $svc.keycloakClientEnv }}
         - name: KEYCLOAK_PUBLIC_URL
           value: {{ .Values.global.keycloak.publicUrl | quote }}
@@ -131,6 +132,7 @@ svc 값: extraSecrets(env 이름 = 비밀 키) · secretEnv(env 이름 → 비�
           {{- include "ggeolmuse.securityContext" . | nindent 10 }}
         volumeMounts:
           {{- include "ggeolmuse.tmpVolumeMount" . | nindent 10 }}
+          {{- include "ggeolmuse.otelVolumeMount" . | nindent 10 }}
         startupProbe:
           {{- include "ggeolmuse.startupProbe" (merge (dict "port" .Values.global.management.port) $svc.probes.startup) | nindent 10 }}
         readinessProbe:
@@ -139,4 +141,5 @@ svc 값: extraSecrets(env 이름 = 비밀 키) · secretEnv(env 이름 → 비�
           {{- include "ggeolmuse.livenessProbe" (merge (dict "port" .Values.global.management.port) $svc.probes.liveness) | nindent 10 }}
       volumes:
         {{- include "ggeolmuse.tmpVolume" . | nindent 8 }}
+        {{- include "ggeolmuse.otelVolume" . | nindent 8 }}
 {{- end }}

@@ -8,6 +8,7 @@ import httpx
 import redis.asyncio as aioredis
 from fastapi import FastAPI
 from openai import OpenAI
+from prometheus_client import REGISTRY
 
 from app.api.chat import router as chat_router
 from app.api.errors import register_error_handlers
@@ -21,6 +22,7 @@ from app.infra.conversations import RedisConversationStore
 from app.infra.jwks import JwksVerifier
 from app.infra.llm import ChatModel
 from app.infra.market_api import MarketClient
+from app.infra.metrics import MetricsMiddleware, RequestMetrics
 from app.infra.quota import RateLimiter
 from app.infra.tracing import instrument_app, instrument_client, provider_from_env
 
@@ -72,6 +74,7 @@ def build_chat_service(config: Settings, redis, http: httpx.AsyncClient, openai:
 
 
 tracer_provider = provider_from_env()
+request_metrics = RequestMetrics(REGISTRY)
 
 
 @asynccontextmanager
@@ -94,6 +97,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="ai-chat-service", lifespan=lifespan)
 register_error_handlers(app)
 app.include_router(chat_router)
+app.add_middleware(MetricsMiddleware, metrics=request_metrics)
 if tracer_provider:
     instrument_app(app, tracer_provider)
 
@@ -101,3 +105,8 @@ if tracer_provider:
 @app.get("/health")
 def health():
     return {"status": "UP"}
+
+
+@app.get("/metrics", include_in_schema=False)
+def metrics():
+    return request_metrics.response()

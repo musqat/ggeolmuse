@@ -46,6 +46,10 @@ spec:
     ports:
     - protocol: TCP
       port: 9090
+    {{- if .Values.services.chatService.metrics.enabled }}
+    - protocol: TCP
+      port: {{ .Values.services.chatService.service.port }}
+    {{- end }}
 {{- end }}
 {{- if and .Values.networkPolicy.enabled .Values.infrastructure.redis.enabled }}
 ---

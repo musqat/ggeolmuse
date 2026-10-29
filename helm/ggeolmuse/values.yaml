@@ -59,12 +59,8 @@ global:
   # OpenTelemetry 설정 (endpoint: 환경별)
   otel:
     enabled: true
-    protocol: http/protobuf
-    tracesExporter: otlp
-    metricsExporter: none  # Tempo는 traces만 지원
-    logsExporter: none     # Loki 사용 시 변경 가능
     environment: ""        # deployment.environment.name(환경별)
-    # 샘플링(자바 에이전트 · chat 공통)
+    # 샘플링. chat 은 sampler · samplerArg, 자바 에이전트는 부모 따름 + samplerArg 비율(비면 1.0)
     sampler: parentbased_always_on
     samplerArg: ""
 
@@ -384,6 +380,9 @@ services:
     service:
       type: ClusterIP
       port: 8000
+    # /metrics 수집(ServiceMonitor · monitoring 에서 서비스 포트 접근)
+    metrics:
+      enabled: false
     labels:
       tier: business-service
     probes:
@@ -448,6 +447,8 @@ secrets:
 # 모니터링 설정
 monitoring:
   serviceMonitor:
+    enabled: true
+  prometheusRule:
     enabled: true
   # dashboards/*.json 을 파일마다 Grafana 대시보드 ConfigMap 으로
   dashboards:

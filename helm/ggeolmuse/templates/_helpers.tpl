@@ -181,14 +181,46 @@ valueFrom:
 
 {{/* OpenTelemetry JAVA_OPTS 생성 (JVM 힙 메모리 제한 포함) */}}
 {{- define "ggeolmuse.otelJavaOpts" -}}
-{{- $serviceName := .serviceName -}}
 {{- $extraOpts := .extraOpts | default "" -}}
 {{- $xmx := .xmx | default "384m" -}}
 {{- $otel := .Values.global.otel -}}
 -Xmx{{ $xmx }} -Xms{{ $xmx }} {{ if $extraOpts }}{{ $extraOpts }} {{ end -}}
 {{- if $otel.enabled -}}
--javaagent:/app/opentelemetry-javaagent.jar -Dotel.service.name={{ $serviceName }}{{ with include "ggeolmuse.otelResourceAttributes" . }} -Dotel.resource.attributes={{ . }}{{ end }} -Dotel.traces.sampler={{ $otel.sampler }}{{ with $otel.samplerArg }} -Dotel.traces.sampler.arg={{ . }}{{ end }} -Dotel.traces.exporter={{ $otel.tracesExporter }} -Dotel.metrics.exporter={{ $otel.metricsExporter }} -Dotel.logs.exporter={{ $otel.logsExporter }} -Dotel.exporter.otlp.endpoint={{ $otel.endpoint }} -Dotel.exporter.otlp.protocol={{ $otel.protocol }}
+-javaagent:/app/opentelemetry-javaagent.jar -Dotel.config.file=/otel/agent.yaml
 {{- end -}}
+{{- end }}
+
+{{/* 자바 에이전트 설정 파일이 치환해 읽는 환경변수 */}}
+{{- define "ggeolmuse.otelEnv" -}}
+{{- $otel := .Values.global.otel -}}
+{{- if $otel.enabled -}}
+- name: OTEL_SERVICE_NAME
+  value: {{ .serviceName | quote }}
+{{- with include "ggeolmuse.otelResourceAttributes" . }}
+- name: OTEL_RESOURCE_ATTRIBUTES
+  value: {{ . | quote }}
+{{- end }}
+- name: OTEL_EXPORTER_OTLP_ENDPOINT
+  value: {{ $otel.endpoint | quote }}
+- name: OTEL_TRACES_SAMPLER_ARG
+  value: {{ $otel.samplerArg | default "1.0" | quote }}
+{{- end }}
+{{- end }}
+
+{{- define "ggeolmuse.otelVolumeMount" -}}
+{{- if .Values.global.otel.enabled -}}
+- name: otel-agent
+  mountPath: /otel
+  readOnly: true
+{{- end }}
+{{- end }}
+
+{{- define "ggeolmuse.otelVolume" -}}
+{{- if .Values.global.otel.enabled -}}
+- name: otel-agent
+  configMap:
+    name: ggeolmuse-otel-agent
+{{- end }}
 {{- end }}
 
 {{/* 서비스별 데이터베이스 URL Secret Key 반환 */}}

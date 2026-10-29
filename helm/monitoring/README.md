@@ -160,23 +160,27 @@ AlertmanagerConfig 가 `secretKeyRef` 로 참조한다.
 
 ## 트레이싱
 
-`global.otel.enabled: true` 면 자바 서비스에 Agent 가 붙는다.
+`global.otel.enabled: true` 면 자바 서비스에 Agent 가 붙는다. Agent 는 ConfigMap `ggeolmuse-otel-agent` 의 설정 파일을 읽고,
+그 파일이 아래 환경변수를 치환해 쓴다. 프로브 · 지표 수집 요청(`/actuator`)은 트레이스로 남기지 않는다.
 
 | 변수 | 값 |
 |---|---|
 | OTEL_EXPORTER_OTLP_ENDPOINT | Tempo 주소 |
 | OTEL_SERVICE_NAME | 서비스별 자동 |
-| OTEL_TRACES_SAMPLER | 샘플링 비율 |
+| OTEL_RESOURCE_ATTRIBUTES | 환경 · 이미지 판 |
+| OTEL_TRACES_SAMPLER_ARG | 샘플링 비율(부모 따름, 기본 1.0) |
 
 트레이스는 Tempo 로 가고 Grafana 에서 조회한다. 노드 디스크(local-path 5Gi)에 3일 둔다. Tempo 는 트레이스에서
 서비스 그래프 · 스팬 지표를 만들어 Prometheus 로 보낸다(remote write). Grafana 에서 로그 줄의 `trace_id` 를 누르면
 트레이스로, 트레이스에서는 그 시간의 로그로 넘어간다.
 
-영구 저장을 켜거나 끌 때는 StatefulSet 의 볼륨 정의가 바뀌어 `helm upgrade` 가 거절된다. 그때는 StatefulSet 만 먼저 지운다.
+영구 저장을 켜거나 끌 때는 StatefulSet 의 볼륨 정의가 바뀌어 `helm upgrade` 가 거절된다. 그때는 StatefulSet 만 먼저 지우고, 올린 뒤 남은 파드를 지워 새 볼륨으로 다시 띄운다.
+새 StatefulSet 은 남은 파드를 넘겨받기만 하고 다시 띄우지 않는다.
 
 ```bash
 kubectl -n monitoring delete statefulset tempo --cascade=orphan
-helm -n monitoring upgrade tempo grafana/tempo -f tempo-values.yaml
+helm -n monitoring upgrade tempo grafana/tempo --version 1.24.0 -f tempo-values.yaml
+kubectl -n monitoring delete pod tempo-0
 ```
 
 <br>
@@ -205,13 +209,16 @@ helm repo add prometheus-community https://prometheus-community.github.io/helm-c
 helm repo add grafana https://grafana.github.io/helm-charts
 helm repo update
 
-helm install prometheus prometheus-community/kube-prometheus-stack \
+helm install prometheus prometheus-community/kube-prometheus-stack --version 79.5.0 \
   -n monitoring --create-namespace -f prometheus-values-prod.yaml
 
-helm install loki grafana/loki-stack -n monitoring -f loki-values.yaml
+helm install loki grafana/loki-stack --version 2.10.2 -n monitoring -f loki-values.yaml
 
-helm install tempo grafana/tempo -n monitoring -f tempo-values.yaml
+helm install tempo grafana/tempo --version 1.24.0 -n monitoring -f tempo-values.yaml
 ```
+
+올릴 때도 같은 판 · 같은 값 파일로 `helm upgrade` 한다. 값 파일을 빼면 릴리스에 남은 옛 값으로 돌아간다. loki-stack 2.10.3 은
+StatefulSet 의 바꿀 수 없는 필드를 바꿔 upgrade 가 거절된다.
 
 로컬은 `prometheus-values-prod.yaml` 대신 `prometheus-values.yaml` 을 쓴다.
 
