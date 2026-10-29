@@ -102,7 +102,9 @@ configMap:
   data:
     appBaseUrl: "http://app.localhost"
 
-# 로컬은 Prometheus Operator(ServiceMonitor CRD) 없으므로 비활성화
+# 로컬은 Prometheus Operator(ServiceMonitor · PrometheusRule CRD) 없으므로 비활성화
 monitoring:
   serviceMonitor:
+    enabled: false
+  prometheusRule:
     enabled: false

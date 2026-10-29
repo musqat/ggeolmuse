@@ -11,6 +11,7 @@ spec:
   selector:
     app: {{ .Values.services.chatService.name }}
   ports:
-  - port: {{ .Values.services.chatService.service.port }}
+  - name: http
+    port: {{ .Values.services.chatService.service.port }}
     targetPort: {{ .Values.services.chatService.service.port }}
 {{- end }}

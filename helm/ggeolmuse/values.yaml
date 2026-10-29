@@ -380,6 +380,9 @@ services:
     service:
       type: ClusterIP
       port: 8000
+    # /metrics 수집(ServiceMonitor · monitoring 에서 서비스 포트 접근)
+    metrics:
+      enabled: false
     labels:
       tier: business-service
     probes:
@@ -444,6 +447,8 @@ secrets:
 # 모니터링 설정
 monitoring:
   serviceMonitor:
+    enabled: true
+  prometheusRule:
     enabled: true
   # dashboards/*.json 을 파일마다 Grafana 대시보드 ConfigMap 으로
   dashboards:
