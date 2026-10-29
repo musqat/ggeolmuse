@@ -3,6 +3,9 @@
 loki:
   enabled: true
   isDefault: true
+  # Grafana 상태 확인 쿼리(vector)를 읽는 판
+  image:
+    tag: 2.9.17
 
 promtail:
   enabled: true
