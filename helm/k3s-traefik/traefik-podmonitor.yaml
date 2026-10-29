@@ -1,4 +1,4 @@
-# kube-system 의 Traefik 파드 지표를 Prometheus 로 걷는 PodMonitor
+# kube-system 의 Traefik 파드 지표를 Prometheus 로 수집하는 PodMonitor
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:

@@ -22,6 +22,14 @@ tempo:
     enabled: true
     remoteWriteUrl: http://prometheus-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090/api/v1/write
 
+  # 만들 지표 종류(서비스 그래프 · 스팬 지표)
+  overrides:
+    defaults:
+      metrics_generator:
+        processors:
+          - service-graphs
+          - span-metrics
+
 # OTLP 받기(자바 OTel 에이전트)
 traces:
   otlp:
