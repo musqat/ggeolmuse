@@ -43,6 +43,10 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+    # 지연 경보(p95 2초 · 5초)가 읽는 응답 시간 구간
+    distribution:
+      slo:
+        http.server.requests: 100ms,300ms,1s,2s,5s
 
 logging:
   structured:
