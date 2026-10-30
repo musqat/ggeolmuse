@@ -135,6 +135,17 @@ user-service 가 처리한 체결을 `trade_settlements` 에 남겨 다시 넣�
 
 반복 주기는 critical 1시간, 나머지 4시간. `groupWait` 30초, `groupInterval` 5분.
 
+**아침 기동 확인** — 평일 07:20 에 CronJob `morning-check`(`helm/ggeolmuse/templates/monitoring/morning-check.yaml`)가
+디플로이먼트 Ready, 공개 주소의 시세 한 번(`/api/market/price/AAPL`), Alertmanager 의 Watchdog 을 보고 같은 웹훅으로
+슬랙에 보낸다. 다 괜찮으면 `:white_check_mark: up` 한 줄, 아니면 해당하는 것만 붙인다(`down: <디플로이먼트>` ·
+`시세 <코드>` · `Prometheus 응답 없음` · `Alertmanager 에 Watchdog 없음`). 아침에 이 한 줄이 없으면 예약 기동 · 앱 ·
+바깥 경로 · 슬랙 중 어딘가가 멈춘 것이다. 수동 실행과 정리:
+
+```bash
+kubectl create job --from=cronjob/morning-check morning-check-manual
+kubectl delete job morning-check-manual
+```
+
 <details>
 <summary><b>Slack 라우팅</b></summary>
 
