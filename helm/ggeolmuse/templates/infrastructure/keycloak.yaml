@@ -60,9 +60,14 @@ spec:
           value: "https://{{ .Values.global.domain }}/auth"
         - name: KC_HOSTNAME_BACKCHANNEL_DYNAMIC
           value: "true"
-        # HTTP 로 받음(TLS 는 앞단). X-Forwarded 를 믿지 않아 요청이 사설 IP 로 보여 realm 의 외부 HTTPS 요구를 통과
+        # HTTP 로 받음(TLS 는 앞단)
         - name: KC_HTTP_ENABLED
           value: "true"
+        # Traefik 이 넘긴 X-Forwarded-Proto · Host 로 https 요청을 구분해 쿠키에 Secure. 파드 대역에서 온 전달 헤더만 사용
+        - name: KC_PROXY_HEADERS
+          value: xforwarded
+        - name: KC_PROXY_TRUSTED_ADDRESSES
+          value: {{ .Values.infrastructure.keycloak.env.kcProxyTrustedAddresses | quote }}
         {{- end }}
         - name: KEYCLOAK_CLIENT_SECRET
           valueFrom:

@@ -39,6 +39,7 @@ infrastructure:
     env:
       kcDbVendor: postgres  # RDS PostgreSQL 사용
       kcHttpRelativePath: /auth
+      kcProxyTrustedAddresses: 10.42.0.0/16  # k3s 파드 대역
     resources:
       limits:
         memory: 768Mi
