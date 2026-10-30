@@ -109,7 +109,7 @@ configServer:
   resources:
     limits:
       memory: 512Mi
-      cpu: 300m
+      cpu: 1000m
     requests:
       memory: 256Mi
       cpu: 200m
