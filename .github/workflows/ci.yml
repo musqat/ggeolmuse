@@ -269,6 +269,10 @@ jobs:
           helm template ggeolmuse helm/ggeolmuse \
             -f helm/ggeolmuse/values-prod.yaml > rendered.yaml
 
+      # 환경별 파일 없이 기본 값만으로 렌더되는지 확인
+      - name: 기본 값만으로도 렌더되는지 본다
+        run: helm template ggeolmuse helm/ggeolmuse > /dev/null
+
       # 새 서비스 포트가 NetworkPolicy 허용 목록에 없으면 여기서 잡는다
       - name: NetworkPolicy 가 서비스 포트를 전부 여는지 본다
         run: bash .github/scripts/check-netpol-ports.sh rendered.yaml
