@@ -6,6 +6,17 @@ loki:
   # Grafana 상태 확인 쿼리(vector)를 읽는 판
   image:
     tag: 2.9.17
+  # 로그 · WAL 을 노드 디스크(local-path)에 저장
+  persistence:
+    enabled: true
+    storageClassName: local-path
+    size: 5Gi
+  # 7일 지난 로그는 compactor 가 지움
+  config:
+    compactor:
+      retention_enabled: true
+    limits_config:
+      retention_period: 168h
 
 promtail:
   enabled: true

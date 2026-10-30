@@ -158,6 +158,19 @@ AlertmanagerConfig 가 `secretKeyRef` 로 참조한다.
 
 <br>
 
+## 로그
+
+promtail 이 파드 로그를 Loki 로 보낸다. Loki 는 노드 디스크(local-path 5Gi)에 7일 두고, 지난 로그는 compactor 가 지운다.
+영구 저장을 켜거나 끌 때는 아래 트레이싱 절의 Tempo 와 같은 절차로 StatefulSet 을 바꾼다.
+
+```bash
+kubectl -n monitoring delete statefulset loki --cascade=orphan
+helm -n monitoring upgrade loki grafana/loki-stack --version 2.10.2 -f loki-values.yaml
+kubectl -n monitoring delete pod loki-0
+```
+
+<br>
+
 ## 트레이싱
 
 `global.otel.enabled: true` 면 자바 서비스에 Agent 가 붙는다. Agent 는 ConfigMap `ggeolmuse-otel-agent` 의 설정 파일을 읽고,
