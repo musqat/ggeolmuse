@@ -299,8 +299,10 @@ ingress:
             service: frontend-web
             port: 3000
 
-  # TLS는 CloudFlare에서 처리 (Flexible SSL)
-  tls: []
+  # Cloudflare Full (strict) 의 origin 인증서. Secrets Manager 의 이 이름에 PEM 둘(tls.crt · tls.key)
+  originTls:
+    enabled: true
+    secretsManagerKey: ggeolmuse/origin-tls
 
 # Secret 설정
 secrets:
