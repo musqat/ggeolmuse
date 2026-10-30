@@ -109,7 +109,7 @@ configServer:
   resources:
     limits:
       memory: 512Mi
-      cpu: 300m
+      cpu: 1000m
     requests:
       memory: 256Mi
       cpu: 200m
@@ -130,7 +130,7 @@ gatewayServer:
   resources:
     limits:
       memory: 768Mi
-      cpu: 600m
+      cpu: 1000m
     requests:
       memory: 384Mi
       cpu: 100m
@@ -198,7 +198,7 @@ services:
     resources:
       limits:
         memory: 1536Mi
-        cpu: 700m
+        cpu: 1000m
       requests:
         memory: 768Mi
         cpu: 100m
