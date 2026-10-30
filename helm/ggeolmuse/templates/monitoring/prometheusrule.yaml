@@ -237,6 +237,28 @@ spec:
             summary: "DLT 로 간 메시지: {{ `{{ $labels.job }}` }}"
             description: '{{ `{{ $labels.job }}` }} 최근 10분 {{ `{{ $value | printf "%.0f" }}` }}건 · 로그 "DLT 로 보냄" 확인'
 
+        - alert: KafkaConsumerLag
+          # 소비자가 안 읽은 레코드가 쌓임. 종목 수집 토픽은 아래 규칙이 따로 봄
+          expr: sum by (job, topic) (kafka_consumer_fetch_manager_records_lag{topic!="market.asset.created"}) > 100
+          for: 10m
+          labels:
+            severity: warning
+            category: messaging
+          annotations:
+            summary: "소비자 지연: {{ `{{ $labels.job }}` }} {{ `{{ $labels.topic }}` }}"
+            description: '{{ `{{ $labels.topic }}` }} 에 안 읽은 레코드 {{ `{{ $value | printf "%.0f" }}` }}건 · 10분 지속 · {{ `{{ $labels.job }}` }} 리스너 로그 · 처리 시간 확인'
+
+        - alert: KafkaCollectionLag
+          # 종목 수집은 한 건씩 오래 처리해 종목을 한꺼번에 더하면 쌓이는 게 정상. 1시간 넘게 2000건 위면 경보
+          expr: sum by (job, topic) (kafka_consumer_fetch_manager_records_lag{topic="market.asset.created"}) > 2000
+          for: 1h
+          labels:
+            severity: warning
+            category: messaging
+          annotations:
+            summary: "종목 수집 지연: {{ `{{ $labels.job }}` }}"
+            description: '종목 수집 대기 {{ `{{ $value | printf "%.0f" }}` }}건 · 1시간 지속 · 종목을 한꺼번에 더했는지, market-data 수집 로그 확인'
+
         - alert: TradeEventsUnpublished
           # 커밋한 체결의 이벤트를 1분 넘게 못 보냈다. 그만큼 잔액 반영이 밀린다
           expr: max(trade_events_unpublished{job="trade-service"}) > 0
