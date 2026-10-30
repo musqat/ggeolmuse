@@ -4,11 +4,12 @@ import com.muscat.messaging.event.DividendPayoutEvent;
 import com.muscat.messaging.event.TradeCompletedEvent;
 import com.muscat.messaging.kafka.KafkaFactories;
 import com.muscat.trade.domain.event.DividendReconcileRequest;
+import io.micrometer.core.instrument.MeterRegistry;
+import lombok.RequiredArgsConstructor;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 
@@ -16,7 +17,10 @@ import java.util.Map;
 
 // Trade 서비스 Kafka 프로듀서 설정
 @Configuration
+@RequiredArgsConstructor
 public class KafkaProducerConfig {
+
+    private final MeterRegistry meterRegistry;
 
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
@@ -35,7 +39,7 @@ public class KafkaProducerConfig {
 
     @Bean
     public ProducerFactory<String, TradeCompletedEvent> tradeEventProducerFactory() {
-        return new DefaultKafkaProducerFactory<>(getCommonProducerConfig());
+        return KafkaFactories.producerFactory(getCommonProducerConfig(), meterRegistry);
     }
 
     @Bean
@@ -45,7 +49,7 @@ public class KafkaProducerConfig {
 
     @Bean
     public ProducerFactory<String, DividendReconcileRequest> dividendReconcileProducerFactory() {
-        return new DefaultKafkaProducerFactory<>(getCommonProducerConfig());
+        return KafkaFactories.producerFactory(getCommonProducerConfig(), meterRegistry);
     }
 
     @Bean
@@ -55,7 +59,7 @@ public class KafkaProducerConfig {
 
     @Bean
     public ProducerFactory<String, DividendPayoutEvent> dividendPayoutEventProducerFactory() {
-        return new DefaultKafkaProducerFactory<>(getCommonProducerConfig());
+        return KafkaFactories.producerFactory(getCommonProducerConfig(), meterRegistry);
     }
 
     @Bean
