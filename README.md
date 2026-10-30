@@ -256,9 +256,12 @@ K3s (EC2 단일 노드)      Traefik IngressRoute 로 진입
 ## 보안
 
 <details>
-<summary><b>인증 · 요청 상한 · 응답 · 파드 · 공급망</b></summary>
+<summary><b>전송 · 인증 · 요청 상한 · 응답 · 파드 · 공급망</b></summary>
 
 <br>
+
+**전송** — 브라우저에서 EC2 까지 전 구간이 HTTPS 다. Cloudflare 는 Full (strict) 로 EC2 의 Cloudflare Origin CA 인증서를 검증하고,
+EC2 는 Cloudflare 대역에서 온 요청만 받는다. Keycloak 은 Traefik 이 넘긴 전달 헤더로 https 요청을 구분해 쿠키에 Secure 를 붙인다.
 
 **인증** — Keycloak 이 토큰을 발급하고, 게이트웨이가 서명 · 만료와 함께 발급자(`iss`)와 발급 클라이언트(`azp`)를 허용 목록으로 검사한다.
 user · trade · market-data · backtest 도 리소스 서버로 다시 검증한다. access token 은 15분이다. refresh token 은 httpOnly 쿠키로 주고,
@@ -279,8 +282,6 @@ EC2 는 Cloudflare 대역에서 온 요청만 받아서 밖에서 이 헤더를 
 비밀값은 AWS Secrets Manager 에서 ExternalSecret 으로 받고, Redis 에는 비밀번호를 건다.
 
 **공급망** — CI 가 이미지와 매니페스트를 Trivy 로 검사해 CRITICAL · HIGH 를 GitHub Security 탭에 올린다. 빌드를 막지는 않고 보고만 한다.
-
-**진행 중** — Cloudflare 에서 EC2 까지는 아직 HTTP 다(Flexible). Origin 인증서로 Full (strict) 로 옮기는 중이다.
 
 </details>
 
