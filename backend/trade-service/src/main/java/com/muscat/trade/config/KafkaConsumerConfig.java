@@ -92,11 +92,11 @@ public class KafkaConsumerConfig {
      */
     @Bean
     public KafkaTemplate<String, Object> dltKafkaTemplate() {
-        return KafkaFactories.dltTemplate(bootstrapServers);
+        return KafkaFactories.dltTemplate(bootstrapServers, meterRegistry);
     }
 
     private <T> ConsumerFactory<String, T> consumerFactory(Class<T> type, String groupSuffix) {
-        return KafkaFactories.jsonConsumerFactory(bootstrapServers, applicationName + groupSuffix, type);
+        return KafkaFactories.jsonConsumerFactory(bootstrapServers, applicationName + groupSuffix, type, meterRegistry);
     }
 
     private CommonErrorHandler kafkaErrorHandler() {

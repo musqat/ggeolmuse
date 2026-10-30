@@ -63,6 +63,6 @@ public class KafkaConsumerConfig {
      */
     @Bean
     public KafkaTemplate<String, Object> dltKafkaTemplate() {
-        return KafkaFactories.dltTemplate(bootstrapServers);
+        return KafkaFactories.dltTemplate(bootstrapServers, meterRegistry);
     }
 }

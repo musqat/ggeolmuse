@@ -91,12 +91,12 @@ public class KafkaConsumerConfig {
    */
   @Bean
   public KafkaTemplate<String, Object> dltKafkaTemplate() {
-    return KafkaFactories.dltTemplate(bootstrapServers);
+    return KafkaFactories.dltTemplate(bootstrapServers, meterRegistry);
   }
 
   // 값 하나의 타입으로 역직렬화. 리스너 @Payload 와 타입이 다르면 첫 시도에 DLT 로 감
   private <T> ConsumerFactory<String, T> consumerFactory(Class<T> type, String groupSuffix) {
-    return KafkaFactories.jsonConsumerFactory(bootstrapServers, applicationName + groupSuffix, type);
+    return KafkaFactories.jsonConsumerFactory(bootstrapServers, applicationName + groupSuffix, type, meterRegistry);
   }
 
   private CommonErrorHandler kafkaErrorHandler() {
