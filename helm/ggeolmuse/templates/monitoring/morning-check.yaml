@@ -1,0 +1,78 @@
+{{- /* 평일 아침 기동 확인: 디플로이먼트 Ready · 시세 한 번 · Alertmanager 의 Watchdog 을 보고 슬랙으로 */ -}}
+{{- $m := .Values.morningCheck }}
+{{- if $m.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: morning-check
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  schedule: {{ $m.schedule | quote }}
+  timeZone: {{ $m.timeZone | quote }}
+  # 클러스터가 늦게 떠도 이 안이면 돌림
+  startingDeadlineSeconds: {{ $m.startingDeadlineSeconds }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 120
+      template:
+        metadata:
+          labels:
+            app: morning-check
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          containers:
+            - name: check
+              image: {{ $m.image }}
+              env:
+                - name: PROM_URL
+                  value: {{ $m.prometheusUrl | quote }}
+                - name: AM_URL
+                  value: {{ $m.alertmanagerUrl | quote }}
+                - name: SITE_URL
+                  value: {{ printf "https://%s%s" .Values.global.domain $m.sitePath | quote }}
+                - name: SLACK_WEBHOOK_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.secrets.name }}
+                      key: SLACK_WEBHOOK_URL
+              command: ["sh", "-c"]
+              args:
+                - |
+                  set -u
+                  q() { curl -s --max-time 10 --data-urlencode "query=$1" "$PROM_URL/api/v1/query"; }
+                  val() { q "$1" | sed -n 's/.*"value":\[[^,]*,"\([^"]*\)"\].*/\1/p'; }
+                  SPEC='kube_deployment_spec_replicas{namespace="default"}'
+                  AVAIL='kube_deployment_status_replicas_available{namespace="default"}'
+                  total=$(val "count($SPEC)")
+                  down=$(q "$SPEC unless ($AVAIL >= $SPEC)" | grep -o '"deployment":"[^"]*"' | cut -d'"' -f4 | tr '\n' ',' | sed 's/,$//; s/,/, /g')
+                  code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$SITE_URL")
+                  # 늘 울리는 Watchdog 이 Alertmanager 에 있으면 규칙 평가와 경보 전달은 정상
+                  wd=$(curl -s -G --max-time 10 --data-urlencode 'filter=alertname="Watchdog"' "$AM_URL/api/v2/alerts" | grep -c '"alertname":"Watchdog"')
+                  if [ -n "$total" ] && [ -z "$down" ] && [ "$code" = 200 ] && [ "$wd" -gt 0 ]; then
+                    msg=":white_check_mark: up"
+                  else
+                    p=""
+                    add() { p="${p:+$p · }$1"; }
+                    [ -n "$total" ] || add "Prometheus 응답 없음"
+                    [ -z "$down" ] || add "down: $down"
+                    [ "$code" = 200 ] || add "시세 $code"
+                    [ "$wd" -gt 0 ] || add "Alertmanager 에 Watchdog 없음"
+                    msg=":warning: $p"
+                  fi
+                  echo "$msg"
+                  sent=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 -H 'Content-Type: application/json' \
+                    --data "{\"text\":\"$msg\"}" "$SLACK_WEBHOOK_URL")
+                  echo "slack $sent"
+                  [ "$sent" = 200 ]
+              resources:
+                {{- toYaml $m.resources | nindent 16 }}
+              securityContext:
+                {{- include "ggeolmuse.securityContext" . | nindent 16 }}
+{{- end }}

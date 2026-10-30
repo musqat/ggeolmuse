@@ -466,6 +466,25 @@ monitoring:
     enabled: false
     channel: "#ggeolmuse-alerts"
 
+# 평일 아침 기동 확인 (enabled: 환경별. 슬랙 웹훅이 있는 prod 만)
+morningCheck:
+  enabled: false
+  # EC2 07:00 기동 · 앱 준비가 끝난 뒤
+  schedule: "20 7 * * 1-5"
+  timeZone: Asia/Seoul
+  startingDeadlineSeconds: 1800
+  image: curlimages/curl:8.11.1
+  prometheusUrl: http://prometheus-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090
+  alertmanagerUrl: http://prometheus-kube-prometheus-alertmanager.monitoring.svc.cluster.local:9093
+  sitePath: /api/market/price/AAPL
+  resources:
+    requests:
+      cpu: 10m
+      memory: 16Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+
 # DB 백업 (enabled: 환경별. RDS 를 쓰는 prod 만)
 dbBackup:
   enabled: false
