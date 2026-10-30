@@ -87,7 +87,7 @@ count(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_irate)
 
 ## 알림
 
-`helm/ggeolmuse/templates/monitoring/prometheusrule.yaml` 에 17개. ggeolmuse 차트
+`helm/ggeolmuse/templates/monitoring/prometheusrule.yaml` 에 19개. ggeolmuse 차트
 안에 있어 ArgoCD 가 배포한다.
 
 | 그룹 | 규칙 |
@@ -98,7 +98,7 @@ count(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_irate)
 | config-server | ConfigServerDown, ConfigServerHighLatency, ConfigServerUnauthorized |
 | gateway | GatewayHighErrorRate |
 | resilience | CircuitBreakerOpen, CircuitBreakerMissing |
-| trade-settlement | KafkaDeadLetter, TradeEventsUnpublished, TradeBuysPending, TradeCancelNeedsReview |
+| trade-settlement | KafkaDeadLetter, KafkaConsumerLag, KafkaCollectionLag, TradeEventsUnpublished, TradeBuysPending, TradeCancelNeedsReview |
 
 파드·노드 수준은 차트 내장 규칙이 맡는다. Redis·Kafka·Keycloak 은 exporter 가 없어
 `up` 시계열 자체가 없다.
@@ -115,6 +115,10 @@ user-service 가 처리한 체결을 `trade_settlements` 에 남겨 다시 넣�
 않고 백필(`POST /api/admin/trade/dividends/reconcile`)을 돌린다. 지금 몫을 다 다시 보내 옛 메시지 값으로 돌아가지
 않는다. 끝나면 `GET /api/admin/trade/dividends/payout-diff` 가 비었는지 본다. 다른 토픽은 다시 넣기 전에 이미
 반영됐는지 확인한다.
+
+`KafkaConsumerLag` 는 토픽별 안 읽은 레코드(`kafka_consumer_fetch_manager_records_lag` 합)가 100건 넘게 10분, `KafkaCollectionLag` 는
+종목 수집 토픽 `market.asset.created` 가 2000건 넘게 1시간 이어지면 경보를 보낸다. 종목 수집은 한 건씩 오래 처리해 종목을 한꺼번에 더하면
+쌓이는 게 정상이라 따로 둔다. 기준은 지표가 나온 뒤 실제 값을 보고 다시 잡는다.
 
 `TradeEventsUnpublished` 는 trade-service 가 커밋한 체결 가운데 이벤트를 1분 넘게 못 보낸 수다. 스케줄러가
 30초마다 다시 보내므로 카프카가 돌아오면 0 으로 내려간다.
@@ -134,6 +138,17 @@ user-service 가 처리한 체결을 `trade_settlements` 에 남겨 다시 넣�
 배당은 경보 대상이 아니다. 취소하면 그 계좌 · 종목의 배당 몫을 다시 계산해 이미 넣은 배당을 돌려받는다.
 
 반복 주기는 critical 1시간, 나머지 4시간. `groupWait` 30초, `groupInterval` 5분.
+
+**아침 기동 확인** — 평일 07:20 에 CronJob `morning-check`(`helm/ggeolmuse/templates/monitoring/morning-check.yaml`)가
+디플로이먼트 Ready, 공개 주소의 시세 한 번(`/api/market/price/AAPL`), Alertmanager 의 Watchdog 을 보고 같은 웹훅으로
+슬랙에 보낸다. 다 괜찮으면 `:white_check_mark: up` 한 줄, 아니면 해당하는 것만 붙인다(`down: <디플로이먼트>` ·
+`시세 <코드>` · `Prometheus 응답 없음` · `Alertmanager 에 Watchdog 없음`). 아침에 이 한 줄이 없으면 예약 기동 · 앱 ·
+바깥 경로 · 슬랙 중 어딘가가 멈춘 것이다. 수동 실행과 정리:
+
+```bash
+kubectl create job --from=cronjob/morning-check morning-check-manual
+kubectl delete job morning-check-manual
+```
 
 <details>
 <summary><b>Slack 라우팅</b></summary>

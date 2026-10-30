@@ -64,6 +64,11 @@ global:
     sampler: parentbased_always_on
     samplerArg: ""
 
+# 외부 진입(IngressRoute · Origin 인증서). 환경별 파일이 켬
+ingress:
+  enabled: false
+  className: traefik
+
 # Ingress Controller (enabled: 환경별 - dev만 사용)
 ingressController:
   image: registry.k8s.io/ingress-nginx/controller:v1.9.4
@@ -201,7 +206,9 @@ configServer:
   service:
     type: ClusterIP
     port: 8888
-  # env.springProfiles: 환경별 (dev/prod)
+  # 환경별 파일(dev · prod)이 덮어씀
+  env:
+    springProfiles: git
   probes:
     readiness:
       initialDelaySeconds: 60
@@ -458,6 +465,25 @@ monitoring:
     # 웹훅 URL 은 ggeolmuse-secrets 의 SLACK_WEBHOOK_URL 을 쓴다.
     enabled: false
     channel: "#ggeolmuse-alerts"
+
+# 평일 아침 기동 확인 (enabled: 환경별. 슬랙 웹훅이 있는 prod 만)
+morningCheck:
+  enabled: false
+  # EC2 07:00 기동 · 앱 준비가 끝난 뒤
+  schedule: "20 7 * * 1-5"
+  timeZone: Asia/Seoul
+  startingDeadlineSeconds: 1800
+  image: curlimages/curl:8.11.1
+  prometheusUrl: http://prometheus-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090
+  alertmanagerUrl: http://prometheus-kube-prometheus-alertmanager.monitoring.svc.cluster.local:9093
+  sitePath: /api/market/price/AAPL
+  resources:
+    requests:
+      cpu: 10m
+      memory: 16Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
 
 # DB 백업 (enabled: 환경별. RDS 를 쓰는 prod 만)
 dbBackup:

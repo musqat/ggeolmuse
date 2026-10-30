@@ -318,6 +318,10 @@ configMap:
 dbBackup:
   enabled: true
 
+# 평일 아침 기동 확인(슬랙)
+morningCheck:
+  enabled: true
+
 # Monitoring - Prometheus ServiceMonitor
 monitoring:
   dashboards:
