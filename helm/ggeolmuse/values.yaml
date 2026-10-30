@@ -64,6 +64,11 @@ global:
     sampler: parentbased_always_on
     samplerArg: ""
 
+# 외부 진입(IngressRoute · Origin 인증서). 환경별 파일이 켬
+ingress:
+  enabled: false
+  className: traefik
+
 # Ingress Controller (enabled: 환경별 - dev만 사용)
 ingressController:
   image: registry.k8s.io/ingress-nginx/controller:v1.9.4
@@ -201,7 +206,9 @@ configServer:
   service:
     type: ClusterIP
     port: 8888
-  # env.springProfiles: 환경별 (dev/prod)
+  # 환경별 파일(dev · prod)이 덮어씀
+  env:
+    springProfiles: git
   probes:
     readiness:
       initialDelaySeconds: 60
