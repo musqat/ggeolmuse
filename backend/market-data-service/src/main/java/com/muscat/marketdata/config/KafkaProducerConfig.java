@@ -3,11 +3,12 @@ package com.muscat.marketdata.config;
 import com.muscat.messaging.event.AssetCreatedEvent;
 import com.muscat.messaging.event.DividendUpdatedEvent;
 import com.muscat.messaging.kafka.KafkaFactories;
+import io.micrometer.core.instrument.MeterRegistry;
+import lombok.RequiredArgsConstructor;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 
@@ -15,14 +16,17 @@ import java.util.Map;
 
 // Market Data 서비스 Kafka 프로듀서 설정
 @Configuration
+@RequiredArgsConstructor
 public class KafkaProducerConfig {
+
+    private final MeterRegistry meterRegistry;
 
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
 
     @Bean
     public ProducerFactory<String, DividendUpdatedEvent> dividendEventProducerFactory() {
-        return new DefaultKafkaProducerFactory<>(producerProps());
+        return KafkaFactories.producerFactory(producerProps(), meterRegistry);
     }
 
     @Bean
@@ -32,7 +36,7 @@ public class KafkaProducerConfig {
 
     @Bean
     public ProducerFactory<String, AssetCreatedEvent> assetCreatedProducerFactory() {
-        return new DefaultKafkaProducerFactory<>(producerProps());
+        return KafkaFactories.producerFactory(producerProps(), meterRegistry);
     }
 
     @Bean

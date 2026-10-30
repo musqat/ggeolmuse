@@ -14,6 +14,8 @@ import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.core.MicrometerConsumerListener;
+import org.springframework.kafka.core.MicrometerProducerListener;
 import org.springframework.kafka.listener.CommonErrorHandler;
 import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
@@ -62,9 +64,25 @@ public final class KafkaFactories {
         return props;
     }
 
+    // 클라이언트 지표(소비자 지연 등)를 Micrometer 로 내는 컨슈머 팩토리
+    public static <K, V> DefaultKafkaConsumerFactory<K, V> consumerFactory(
+            Map<String, Object> props, MeterRegistry meterRegistry) {
+        DefaultKafkaConsumerFactory<K, V> factory = new DefaultKafkaConsumerFactory<>(props);
+        factory.addListener(new MicrometerConsumerListener<>(meterRegistry));
+        return factory;
+    }
+
+    // 클라이언트 지표(전송 실패 · 지연 등)를 Micrometer 로 내는 프로듀서 팩토리
+    public static <K, V> DefaultKafkaProducerFactory<K, V> producerFactory(
+            Map<String, Object> props, MeterRegistry meterRegistry) {
+        DefaultKafkaProducerFactory<K, V> factory = new DefaultKafkaProducerFactory<>(props);
+        factory.addListener(new MicrometerProducerListener<>(meterRegistry));
+        return factory;
+    }
+
     public static <V> ConsumerFactory<String, V> jsonConsumerFactory(
-            String bootstrapServers, String groupId, Class<V> type) {
-        return new DefaultKafkaConsumerFactory<>(jsonConsumerProps(bootstrapServers, groupId, type));
+            String bootstrapServers, String groupId, Class<V> type, MeterRegistry meterRegistry) {
+        return consumerFactory(jsonConsumerProps(bootstrapServers, groupId, type), meterRegistry);
     }
 
     // 처리가 끝난 뒤 리스너가 직접 커밋하는 컨테이너
@@ -79,13 +97,13 @@ public final class KafkaFactories {
     }
 
     // 재시도로 못 살린 메시지를 .DLT 토픽에 넣는 템플릿
-    public static KafkaTemplate<String, Object> dltTemplate(String bootstrapServers) {
+    public static KafkaTemplate<String, Object> dltTemplate(String bootstrapServers, MeterRegistry meterRegistry) {
         Map<String, Object> props = new HashMap<>();
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
         props.put(ProducerConfig.ACKS_CONFIG, "all");
-        return new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(props));
+        return new KafkaTemplate<>(producerFactory(props, meterRegistry));
     }
 
     // 첫 전달까지 최대 네 번. 다 실패하면 <토픽>.DLT 로 넘기고 kafka.dlt.records 올림

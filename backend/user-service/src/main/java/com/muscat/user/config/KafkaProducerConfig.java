@@ -8,25 +8,29 @@ import com.muscat.messaging.event.TradeSettledEvent;
 import com.muscat.messaging.event.UserLoginFailedEvent;
 import com.muscat.messaging.event.UserLoginSuccessEvent;
 import com.muscat.messaging.kafka.KafkaFactories;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.util.Map;
+import lombok.RequiredArgsConstructor;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 
 // User 서비스 Kafka 프로듀서 설정
 @Configuration
+@RequiredArgsConstructor
 public class KafkaProducerConfig {
+
+  private final MeterRegistry meterRegistry;
 
   @Value("${spring.kafka.bootstrap-servers}")
   private String bootstrapServers;
 
   @Bean
   public ProducerFactory<String, EmailSendEvent> emailEventProducerFactory() {
-    return new DefaultKafkaProducerFactory<>(gzipProps());
+    return KafkaFactories.producerFactory(gzipProps(), meterRegistry);
   }
 
   @Bean
@@ -36,7 +40,7 @@ public class KafkaProducerConfig {
 
   @Bean
   public ProducerFactory<String, AccountBalanceUpdatedEvent> accountBalanceUpdatedEventProducerFactory() {
-    return new DefaultKafkaProducerFactory<>(gzipProps());
+    return KafkaFactories.producerFactory(gzipProps(), meterRegistry);
   }
 
   @Bean
@@ -46,7 +50,7 @@ public class KafkaProducerConfig {
 
   @Bean
   public ProducerFactory<String, UserLoginSuccessEvent> loginSuccessEventProducerFactory() {
-    return new DefaultKafkaProducerFactory<>(gzipProps());
+    return KafkaFactories.producerFactory(gzipProps(), meterRegistry);
   }
 
   @Bean
@@ -56,7 +60,7 @@ public class KafkaProducerConfig {
 
   @Bean
   public ProducerFactory<String, UserLoginFailedEvent> loginFailedEventProducerFactory() {
-    return new DefaultKafkaProducerFactory<>(gzipProps());
+    return KafkaFactories.producerFactory(gzipProps(), meterRegistry);
   }
 
   @Bean
@@ -66,7 +70,7 @@ public class KafkaProducerConfig {
 
   @Bean
   public ProducerFactory<String, AccountDeletedEvent> accountDeletedEventProducerFactory() {
-    return new DefaultKafkaProducerFactory<>(gzipProps());
+    return KafkaFactories.producerFactory(gzipProps(), meterRegistry);
   }
 
   @Bean
@@ -76,7 +80,7 @@ public class KafkaProducerConfig {
 
   @Bean
   public ProducerFactory<String, TradeRejectedEvent> tradeRejectedEventProducerFactory() {
-    return new DefaultKafkaProducerFactory<>(fastFailProps());
+    return KafkaFactories.producerFactory(fastFailProps(), meterRegistry);
   }
 
   @Bean
@@ -86,7 +90,7 @@ public class KafkaProducerConfig {
 
   @Bean
   public ProducerFactory<String, TradeSettledEvent> tradeSettledEventProducerFactory() {
-    return new DefaultKafkaProducerFactory<>(fastFailProps());
+    return KafkaFactories.producerFactory(fastFailProps(), meterRegistry);
   }
 
   @Bean
