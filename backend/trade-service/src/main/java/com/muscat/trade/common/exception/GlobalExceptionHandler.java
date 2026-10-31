@@ -1,20 +1,15 @@
 package com.muscat.trade.common.exception;
 
 import com.muscat.commonlib.exception.BaseExceptionHandler;
-import com.muscat.trade.api.controller.PortfolioController;
-import com.muscat.trade.api.controller.TradeApiController;
-import com.muscat.trade.api.controller.TradingController;
+import com.muscat.trade.TradeApplication;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-@RestControllerAdvice(basePackageClasses = {
-    TradingController.class,
-    PortfolioController.class,
-    TradeApiController.class
-})
+// 모든 컨트롤러의 예외 응답
+@RestControllerAdvice(basePackageClasses = TradeApplication.class)
 public class GlobalExceptionHandler extends BaseExceptionHandler {
 
   @ExceptionHandler(Exception.class)
