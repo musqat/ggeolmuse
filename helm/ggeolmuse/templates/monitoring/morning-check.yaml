@@ -37,15 +37,11 @@ spec:
                   value: {{ $m.alertmanagerUrl | quote }}
                 - name: SITE_URL
                   value: {{ printf "https://%s%s" .Values.global.domain $m.sitePath | quote }}
-                - name: SLACK_WEBHOOK_URL
-                  valueFrom:
-                    secretKeyRef:
-                      name: {{ .Values.secrets.name }}
-                      key: SLACK_WEBHOOK_URL
               command: ["sh", "-c"]
               args:
                 - |
                   set -u
+                  webhook=$(cat /etc/secrets/SLACK_WEBHOOK_URL)
                   q() { curl -s --max-time 10 --data-urlencode "query=$1" "$PROM_URL/api/v1/query"; }
                   val() { q "$1" | sed -n 's/.*"value":\[[^,]*,"\([^"]*\)"\].*/\1/p'; }
                   SPEC='kube_deployment_spec_replicas{namespace="default"}'
@@ -68,11 +64,22 @@ spec:
                   fi
                   echo "$msg"
                   sent=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 -H 'Content-Type: application/json' \
-                    --data "{\"text\":\"$msg\"}" "$SLACK_WEBHOOK_URL")
+                    --data "{\"text\":\"$msg\"}" "$webhook")
                   echo "slack $sent"
                   [ "$sent" = 200 ]
               resources:
                 {{- toYaml $m.resources | nindent 16 }}
               securityContext:
                 {{- include "ggeolmuse.securityContext" . | nindent 16 }}
+              volumeMounts:
+                - name: secrets
+                  mountPath: /etc/secrets
+                  readOnly: true
+          volumes:
+            - name: secrets
+              secret:
+                secretName: {{ .Values.secrets.name }}
+                items:
+                  - key: SLACK_WEBHOOK_URL
+                    path: SLACK_WEBHOOK_URL
 {{- end }}
