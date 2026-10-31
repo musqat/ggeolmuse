@@ -1,4 +1,5 @@
 {{- if .Values.infrastructure.keycloak.enabled }}
+{{- $secretFiles := .Values.global.aws.secretsManager.enabled }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -28,6 +29,7 @@ spec:
         ports:
         - containerPort: {{ .Values.infrastructure.keycloak.port }}
         env:
+        {{- if not $secretFiles }}
         - name: KC_BOOTSTRAP_ADMIN_USERNAME
           valueFrom:
             secretKeyRef:
@@ -38,11 +40,13 @@ spec:
             secretKeyRef:
               name: {{ .Values.secrets.name }}
               key: KEYCLOAK_ADMIN_PASSWORD
+        {{- end }}
         - name: KC_DB
           value: {{ .Values.infrastructure.keycloak.env.kcDbVendor | quote }}
         {{- if eq .Values.infrastructure.keycloak.env.kcDbVendor "postgres" }}
         - name: KC_DB_URL
           value: "jdbc:postgresql://ggeolmuse-postgres.cxa6ioco4fhg.ap-northeast-2.rds.amazonaws.com:5432/keycloak"
+        {{- if not $secretFiles }}
         - name: KC_DB_USERNAME
           valueFrom:
             secretKeyRef:
@@ -53,6 +57,7 @@ spec:
             secretKeyRef:
               name: {{ .Values.secrets.name }}
               key: DB_PASSWORD
+        {{- end }}
         - name: KC_HTTP_RELATIVE_PATH
           value: {{ .Values.infrastructure.keycloak.env.kcHttpRelativePath | quote }}
         # 브라우저 · 토큰 iss 는 공개 주소, 서비스끼리는 keycloak:8080 으로 부름
@@ -69,23 +74,40 @@ spec:
         - name: KC_PROXY_TRUSTED_ADDRESSES
           value: {{ .Values.infrastructure.keycloak.env.kcProxyTrustedAddresses | quote }}
         {{- end }}
+        {{- if not $secretFiles }}
         - name: KEYCLOAK_CLIENT_SECRET
           valueFrom:
             secretKeyRef:
               name: {{ .Values.secrets.name }}
               key: KEYCLOAK_CLIENT_SECRET
+        {{- end }}
         command: ["sh", "-c"]
         args:
         - |
           {{- if ne .Values.infrastructure.keycloak.env.kcDbVendor "postgres" }}
           rm -rf /opt/keycloak/data/h2/*
           {{- end }}
+          {{- if $secretFiles }}
+          # 시크릿은 파일에서 읽어 메모리 볼륨의 설정 파일로. 환경변수 · 프로세스 인자에 안 남음
+          # 설정 파일이 값을 그대로 읽게 하는 이스케이프
+          v() { sed -e 's/\\/\\\\/g' -e 's/\$/\\\\$/g' "/etc/secrets/$1"; }
+          umask 077
+          cat > /run/keycloak/keycloak.conf <<EOF
+          bootstrap-admin-username=$(v KEYCLOAK_ADMIN_USERNAME)
+          bootstrap-admin-password=$(v KEYCLOAK_ADMIN_PASSWORD)
+          db-username=$(v DB_USERNAME)
+          db-password=$(v DB_PASSWORD)
+          EOF
+          sed -e "s/\${KEYCLOAK_CLIENT_SECRET}/$(cat /etc/secrets/KEYCLOAK_CLIENT_SECRET)/g" \
+              /opt/keycloak/data/import-template/muscathan-realm.json > /opt/keycloak/data/import/muscathan-realm.json
+          {{- else }}
           sed -e "s/\${KEYCLOAK_CLIENT_SECRET}/${KEYCLOAK_CLIENT_SECRET}/g" \
               /opt/keycloak/data/import-template/muscathan-realm.json > /opt/keycloak/data/import/muscathan-realm.json
+          {{- end }}
           {{- if eq .Values.infrastructure.keycloak.env.kcDbVendor "postgres" }}
-          /opt/keycloak/bin/kc.sh start --import-realm
+          /opt/keycloak/bin/kc.sh {{ if $secretFiles }}--config-file=/run/keycloak/keycloak.conf {{ end }}start --import-realm
           {{- else }}
-          /opt/keycloak/bin/kc.sh start-dev --import-realm
+          /opt/keycloak/bin/kc.sh {{ if $secretFiles }}--config-file=/run/keycloak/keycloak.conf {{ end }}start-dev --import-realm
           {{- end }}
         volumeMounts:
         - name: keycloak-realm-template
@@ -93,6 +115,13 @@ spec:
           readOnly: true
         - name: keycloak-realm-output
           mountPath: /opt/keycloak/data/import
+        {{- if $secretFiles }}
+        - name: secrets
+          mountPath: /etc/secrets
+          readOnly: true
+        - name: keycloak-conf
+          mountPath: /run/keycloak
+        {{- end }}
         resources:
           {{- toYaml .Values.infrastructure.keycloak.resources | nindent 10 }}
         securityContext:
@@ -122,6 +151,20 @@ spec:
           name: keycloak-realm-config
       - name: keycloak-realm-output
         emptyDir: {}
+      {{- if $secretFiles }}
+      - name: secrets
+        secret:
+          secretName: {{ .Values.secrets.name }}
+          items:
+          {{- range list "KEYCLOAK_ADMIN_USERNAME" "KEYCLOAK_ADMIN_PASSWORD" "DB_USERNAME" "DB_PASSWORD" "KEYCLOAK_CLIENT_SECRET" }}
+          - key: {{ . }}
+            path: {{ . }}
+          {{- end }}
+      - name: keycloak-conf
+        emptyDir:
+          medium: Memory
+          sizeLimit: 1Mi
+      {{- end }}
 ---
 apiVersion: v1
 kind: Service
