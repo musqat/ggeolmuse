@@ -43,7 +43,7 @@ terraform apply
 
 ## 관리되는 리소스
 
-- IAM Role: `ggeolmuse-ec2-secrets-role`
+- IAM Role: `ggeolmuse-ec2-secrets-role` — 시크릿 두 개(`node_secret_names`) 읽기만
 - IAM Instance Profile: `ggeolmuse-ec2-profile`
 - Instance Profile Association: EC2 인스턴스에 IAM Role 부착
 - EventBridge 스케줄러: EC2 / RDS 평일 시작·중지 (`scheduler.tf`, `rds-scheduler.tf`)
