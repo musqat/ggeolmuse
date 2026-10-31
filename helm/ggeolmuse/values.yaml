@@ -434,6 +434,11 @@ networkPolicy:
     - 8081
     - 8082
     - 8083
+  # 노드 IAM 역할(인스턴스 메타데이터)로 가는 egress 차단. 역할로 S3 에 올리는 파드만 예외
+  instanceMetadata:
+    block: true
+    exemptApps:
+      - db-backup
 
 # Ingress 설정: 환경별 (values-dev.yaml = nginx/app.localhost, values-prod.yaml = traefik/ggeolmuse.com)
 
