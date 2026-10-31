@@ -15,7 +15,6 @@ global:
 
   # AWS Secrets Manager
   aws:
-    enabled: true
     secretsManager:
       enabled: true
 

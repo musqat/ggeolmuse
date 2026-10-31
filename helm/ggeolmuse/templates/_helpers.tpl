@@ -202,22 +202,6 @@ valueFrom:
 {{- end }}
 {{- end }}
 
-{{/* 서비스별 데이터베이스 URL Secret Key 반환 */}}
-{{- define "ggeolmuse.dbUrlSecretKey" -}}
-{{- $serviceName := .serviceName -}}
-{{- if eq $serviceName "user-service" -}}
-DB_URL_USER
-{{- else if eq $serviceName "trade-service" -}}
-DB_URL_TRADE
-{{- else if eq $serviceName "market-data-service" -}}
-DB_URL_MARKET
-{{- else if eq $serviceName "backtest-service" -}}
-DB_URL_BACKTEST
-{{- else -}}
-DB_URL
-{{- end -}}
-{{- end }}
-
 {{/* 서드파티 이미지용
      이미지가 자기 비root 사용자로 돌고, PVC 안 파일이 그 uid 소유라
      10001 로 바꾸면 기존 데이터에 못 쓴다. */}}
