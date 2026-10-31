@@ -161,3 +161,17 @@ variable "db_backup_retention_days" {
   type        = number
   default     = 400
 }
+
+# EC2 종료 알림 (ec2-stop-alert.tf)
+
+variable "slack_webhook_url" {
+  description = "EC2 종료 알림을 받을 슬랙 웹훅. 값이 없으면 알림을 만들지 않는다"
+  type        = string
+  default     = ""
+  sensitive   = true
+
+  validation {
+    condition     = var.slack_webhook_url == "" || startswith(var.slack_webhook_url, "https://hooks.slack.com/")
+    error_message = "slack_webhook_url은 비어 있거나 https://hooks.slack.com/ 으로 시작해야 합니다."
+  }
+}
