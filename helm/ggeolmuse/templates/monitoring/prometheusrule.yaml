@@ -97,39 +97,85 @@ spec:
             instance: "{{ `{{ $labels.instance }}` }}"
 
     # ========================================
-    # API 성능 알림
+    # SLO: 게이트웨이 요청 가용성 99.5% · 95% 1초 안
     # ========================================
-    - name: api-performance
+    # 창별 5xx 비율 · 1초 넘은 비율(백테스트 · 채팅 제외) · 요청 수
+    - name: slo-recording
       interval: 30s
       rules:
-        - alert: HighErrorRate
-          # /fallback 은 503 이 정상이라 uri 별 비율이 늘 100% 다
+        {{- range list "5m" "30m" "1h" "6h" }}
+        - record: slo:gateway_errors:ratio_rate{{ . }}
           expr: |
-            (
-              sum(rate(http_server_requests_seconds_count{job=~"(gateway-server|user-service|trade-service|market-data-service|backtest-service)", uri!="/fallback", status=~"5.."}[5m])) by (job, uri)
-              / sum(rate(http_server_requests_seconds_count{job=~"(gateway-server|user-service|trade-service|market-data-service|backtest-service)", uri!="/fallback"}[5m])) by (job, uri)
-              * 100
-            ) > 5
-          for: 3m
+            sum(rate(spring_cloud_gateway_requests_seconds_count{job="gateway-server", httpStatusCode=~"5.."}[{{ . }}]))
+            / sum(rate(spring_cloud_gateway_requests_seconds_count{job="gateway-server"}[{{ . }}]))
+        - record: slo:gateway_slow:ratio_rate{{ . }}
+          expr: |
+            1 - (
+              sum(rate(spring_cloud_gateway_requests_seconds_bucket{job="gateway-server", routeId!~"backtest-route|chat-route", le="1.0"}[{{ . }}]))
+              / sum(rate(spring_cloud_gateway_requests_seconds_count{job="gateway-server", routeId!~"backtest-route|chat-route"}[{{ . }}]))
+            )
+        - record: slo:gateway_requests:increase{{ . }}
+          expr: sum(increase(spring_cloud_gateway_requests_seconds_count{job="gateway-server"}[{{ . }}]))
+        {{- end }}
+
+    # 빠른 소진: 30일 예산의 2% 를 1시간에 쓰는 속도(14.4배), 짧은 창은 회복 뒤 빠른 해제용
+    # 느린 소진: 5% 를 6시간에 쓰는 속도(6배)
+    # 요청 20건 미만인 창은 제외(한두 건 실패로 비율이 크게 뜀)
+    - name: slo
+      interval: 30s
+      rules:
+        - alert: AvailabilityBurnFast
+          expr: |
+            slo:gateway_errors:ratio_rate1h > (14.4 * 0.005)
+            and slo:gateway_errors:ratio_rate5m > (14.4 * 0.005)
+            and slo:gateway_requests:increase1h >= 20
+          for: 2m
           labels:
             severity: critical
-            category: performance
+            category: slo
           annotations:
-            summary: "높은 에러율: {{ `{{ $labels.job }}` }} {{ `{{ $labels.uri }}` }}"
-            description: '{{ `{{ $labels.job }}` }} {{ `{{ $labels.uri }}` }} 5xx 비율 5% 초과 · 3분 지속 · 현재 {{ `{{ $value | printf "%.1f" }}` }}%'
+            summary: "가용성 예산 빠른 소진"
+            description: '게이트웨이 5xx 비율 1시간 {{ `{{ $value | humanizePercentage }}` }} · 5분 창도 넘음 · 예산(0.5%)을 14.4배 속도로 씀'
 
-        - alert: SlowResponseTime
+        - alert: AvailabilityBurnSlow
           expr: |
-            histogram_quantile(0.95,
-              sum(rate(http_server_requests_seconds_bucket{job=~"(gateway-server|user-service|trade-service|market-data-service|backtest-service)"}[5m])) by (job, uri, le)
-            ) > 2
-          for: 5m
+            slo:gateway_errors:ratio_rate6h > (6 * 0.005)
+            and slo:gateway_errors:ratio_rate30m > (6 * 0.005)
+            and slo:gateway_requests:increase6h >= 20
+          for: 15m
           labels:
             severity: warning
-            category: performance
+            category: slo
           annotations:
-            summary: "느린 응답 시간: {{ `{{ $labels.job }}` }} {{ `{{ $labels.uri }}` }}"
-            description: '{{ `{{ $labels.job }}` }} {{ `{{ $labels.uri }}` }} P95 응답 2초 초과 · 5분 지속 · 현재 {{ `{{ $value | printf "%.2f" }}` }}초'
+            summary: "가용성 예산 소진"
+            description: '게이트웨이 5xx 비율 6시간 {{ `{{ $value | humanizePercentage }}` }} · 30분 창도 넘음 · 예산(0.5%)을 6배 속도로 씀'
+
+        - alert: LatencyBurnFast
+          expr: |
+            slo:gateway_slow:ratio_rate1h > (14.4 * 0.05)
+            and slo:gateway_slow:ratio_rate5m > (14.4 * 0.05)
+            and slo:gateway_requests:increase1h >= 20
+          for: 2m
+          labels:
+            severity: critical
+            category: slo
+          annotations:
+            summary: "지연 예산 빠른 소진"
+            description: '게이트웨이 1초 넘은 요청 1시간 {{ `{{ $value | humanizePercentage }}` }} · 5분 창도 넘음 · 예산(5%)을 14.4배 속도로 씀'
+
+        - alert: LatencyBurnSlow
+          expr: |
+            slo:gateway_slow:ratio_rate6h > (6 * 0.05)
+            and slo:gateway_slow:ratio_rate30m > (6 * 0.05)
+            and slo:gateway_requests:increase6h >= 20
+          for: 15m
+          labels:
+            severity: warning
+            category: slo
+          annotations:
+            summary: "지연 예산 소진"
+            description: '게이트웨이 1초 넘은 요청 6시간 {{ `{{ $value | humanizePercentage }}` }} · 30분 창도 넘음 · 예산(5%)을 6배 속도로 씀'
+
     - name: config-server
       interval: 30s
       rules:
@@ -166,27 +212,6 @@ spec:
           annotations:
             summary: "Config Server 인증 실패"
             description: 'config-server 401 응답 · 5분 지속 · 분당 {{ `{{ $value | printf "%.0f" }}` }}회 · 클라이언트 비밀번호 불일치 의심'
-
-    # ========================================
-    # Gateway 알림
-    # ========================================
-    - name: gateway
-      interval: 30s
-      rules:
-        - alert: GatewayHighErrorRate
-          expr: |
-            (
-              sum(rate(http_server_requests_seconds_count{job="gateway-server", status=~"5.."}[5m]))
-              / sum(rate(http_server_requests_seconds_count{job="gateway-server"}[5m]))
-              * 100
-            ) > 3
-          for: 3m
-          labels:
-            severity: critical
-            category: gateway
-          annotations:
-            summary: "Gateway 높은 에러율"
-            description: 'gateway-server 5xx 비율 3% 초과 · 3분 지속 · 현재 {{ `{{ $value | printf "%.1f" }}` }}%'
 
     # ========================================
     # 서킷브레이커
