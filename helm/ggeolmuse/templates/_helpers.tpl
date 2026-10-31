@@ -78,30 +78,9 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 - name: KEYCLOAK_REALM
   value: {{ .Values.global.keycloak.realm | quote }}
 {{- if .Values.global.aws.secretsManager.enabled }}
-# Config Server 인증 (Bootstrap 단계 필요)
+# 시크릿은 /etc/secrets 파일(secretFiles)
 - name: SPRING_CLOUD_CONFIG_URI
   value: "http://config-server:8888"
-- name: SPRING_CLOUD_CONFIG_USERNAME
-  valueFrom:
-    secretKeyRef:
-      name: ggeolmuse-secrets
-      key: CONFIG_SERVER_USERNAME
-- name: SPRING_CLOUD_CONFIG_PASSWORD
-  valueFrom:
-    secretKeyRef:
-      name: ggeolmuse-secrets
-      key: CONFIG_SERVER_PASSWORD
-# Database credentials (URL은 Config Server에서 가져옴)
-- name: SPRING_DATASOURCE_USERNAME
-  valueFrom:
-    secretKeyRef:
-      name: ggeolmuse-secrets
-      key: DB_USERNAME
-- name: SPRING_DATASOURCE_PASSWORD
-  valueFrom:
-    secretKeyRef:
-      name: ggeolmuse-secrets
-      key: DB_PASSWORD
 {{- else }}
 - name: SPRING_CLOUD_CONFIG_USERNAME
   {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "CONFIG_SERVER_USERNAME") | nindent 2 }}

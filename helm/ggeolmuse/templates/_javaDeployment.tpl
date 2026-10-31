@@ -115,44 +115,19 @@ spec:
 
 {{/*
 자바 서비스 Deployment 전체
-svc 값: extraSecrets(env 이름 = 비밀 키) · secretEnv(env 이름 → 비밀 키) · keycloakClientEnv(공개 주소 · 클라이언트 ID) · env
+svc 값: secretFiles(prod 파일 이름 → 비밀 키) · extraSecrets(dev env 이름 = 비밀 키) · secretEnv(dev env 이름 → 비밀 키) ·
+keycloakClientEnv(공개 주소 · 클라이언트 ID) · env
 인자: svc · Values · Chart
 */}}
 {{- define "ggeolmuse.javaDeployment" -}}
 {{- $svc := .svc -}}
 {{- include "ggeolmuse.javaPodHeader" . }}
-        {{- include "ggeolmuse.redisPasswordEnv" . | nindent 8 }}
         - name: SERVER_PORT
           value: {{ $svc.service.port | quote }}
         - name: SPRING_APPLICATION_NAME
           value: {{ $svc.name | quote }}
         {{- include "ggeolmuse.springEnv" . | nindent 8 }}
-        {{- if .Values.global.aws.secretsManager.enabled }}
-        - name: SPRING_DATASOURCE_URL
-          valueFrom:
-            secretKeyRef:
-              name: ggeolmuse-secrets
-              key: {{ include "ggeolmuse.dbUrlSecretKey" (dict "serviceName" $svc.name) }}
-        - name: KEYCLOAK_SECRET
-          valueFrom:
-            secretKeyRef:
-              name: ggeolmuse-secrets
-              key: KEYCLOAK_SECRET
-        {{- range $svc.extraSecrets }}
-        - name: {{ . }}
-          valueFrom:
-            secretKeyRef:
-              name: ggeolmuse-secrets
-              key: {{ . }}
-        {{- end }}
-        {{- range $name, $key := $svc.secretEnv }}
-        - name: {{ $name }}
-          valueFrom:
-            secretKeyRef:
-              name: ggeolmuse-secrets
-              key: {{ $key }}
-        {{- end }}
-        {{- else }}
+        {{- if not .Values.global.aws.secretsManager.enabled }}
         - name: KEYCLOAK_SECRET
           {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "KEYCLOAK_SECRET") | nindent 10 }}
         {{- range $svc.extraSecrets }}
