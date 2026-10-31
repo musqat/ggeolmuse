@@ -21,6 +21,12 @@ variable "environment" {
   default     = "production"
 }
 
+variable "node_secret_names" {
+  description = "노드 역할이 읽는 Secrets Manager 시크릿 이름 (External Secrets 가 쓴다)"
+  type        = list(string)
+  default     = ["ggeolmuse/production", "ggeolmuse/origin-tls"]
+}
+
 # --- EC2 스케줄러 ---
 
 variable "scheduler_enabled" {
