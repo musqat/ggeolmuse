@@ -77,3 +77,34 @@ spec:
     - protocol: TCP
       port: {{ .Values.infrastructure.redis.port }}
 {{- end }}
+{{- with .Values.networkPolicy.instanceMetadata }}
+{{- if and $.Values.networkPolicy.enabled .block }}
+---
+# app 레이블이 있는 이 차트의 파드만
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-instance-metadata
+  labels:
+    {{- include "ggeolmuse.labels" $ | nindent 4 }}
+spec:
+  podSelector:
+    matchExpressions:
+    - key: app
+      operator: Exists
+    - key: app
+      operator: NotIn
+      values:
+      {{- range .exemptApps }}
+      - {{ . }}
+      {{- end }}
+  policyTypes:
+    - Egress
+  egress:
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        except:
+        - 169.254.169.254/32
+{{- end }}
+{{- end }}
