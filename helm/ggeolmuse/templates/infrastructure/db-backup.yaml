@@ -30,28 +30,23 @@ spec:
             - name: dump
               emptyDir: {}
             {{- include "ggeolmuse.tmpVolume" . | nindent 12 }}
+            - name: secrets
+              secret:
+                secretName: ggeolmuse-secrets
+                items:
+                  {{- range concat (list "DB_USERNAME" "DB_PASSWORD") $b.databaseSecretKeys }}
+                  - key: {{ . }}
+                    path: {{ . }}
+                  {{- end }}
+            - name: pgpass
+              emptyDir:
+                medium: Memory
+                sizeLimit: 1Mi
           initContainers:
             - name: dump
               image: {{ $b.images.dump }}
               imagePullPolicy: {{ .Values.global.imagePullPolicy }}
               env:
-                - name: PGUSER
-                  valueFrom:
-                    secretKeyRef:
-                      name: ggeolmuse-secrets
-                      key: DB_USERNAME
-                - name: PGPASSWORD
-                  valueFrom:
-                    secretKeyRef:
-                      name: ggeolmuse-secrets
-                      key: DB_PASSWORD
-                {{- range $b.databaseSecretKeys }}
-                - name: {{ . }}
-                  valueFrom:
-                    secretKeyRef:
-                      name: ggeolmuse-secrets
-                      key: {{ . }}
-                {{- end }}
                 - name: DB_SECRET_KEYS
                   value: {{ join " " $b.databaseSecretKeys | quote }}
                 - name: EXTRA_DB_NAMES
@@ -63,6 +58,11 @@ spec:
                 - |
                   STAMP=$(date -u +%Y%m%dT%H%M%SZ)
                   echo "$STAMP" > /dump/.stamp
+
+                  # 시크릿은 파일에서 읽고 비밀번호는 메모리 볼륨의 pg_dump 비밀번호 파일로. 환경변수 · 프로세스 인자에 안 남음
+                  s=/etc/secrets
+                  (umask 077; printf '*:*:*:*:%s\n' "$(sed -e 's/\\/\\\\/g' -e 's/:/\\:/g' "$s/DB_PASSWORD")" > /run/pg/pgpass)
+                  export PGPASSFILE=/run/pg/pgpass PGUSER="$(cat "$s/DB_USERNAME")"
 
                   to_conn() {
                     conn="${1#jdbc:}"
@@ -76,11 +76,11 @@ spec:
                   }
 
                   for key in $DB_SECRET_KEYS; do
-                    dump_one "$(to_conn "$(printenv "$key")")"
+                    dump_one "$(to_conn "$(cat "$s/$key")")"
                   done
 
                   if [ -n "${EXTRA_DB_NAMES}" ]; then
-                    base="$(to_conn "$(printenv "{{ $firstKey }}")")"
+                    base="$(to_conn "$(cat "$s/{{ $firstKey }}")")"
                     for db in $EXTRA_DB_NAMES; do
                       dump_one "${base%/*}/${db}"
                     done
@@ -90,6 +90,11 @@ spec:
               volumeMounts:
                 - name: dump
                   mountPath: /dump
+                - name: secrets
+                  mountPath: /etc/secrets
+                  readOnly: true
+                - name: pgpass
+                  mountPath: /run/pg
               resources:
                 {{- toYaml $b.resources.dump | nindent 16 }}
               securityContext:
