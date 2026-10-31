@@ -26,9 +26,6 @@ public class CacheConfig {
         .expireAfterWrite(30, TimeUnit.MINUTES)
         .recordStats()),
       buildCache(LATEST_FX_RATE, Caffeine.newBuilder()
-        // 값이 하나뿐이라 크기는 의미가 없다.
-        // 60초면 환율 갱신 주기에 비해 충분히 짧고, 백테스트 한 판에서
-        // 반복되는 호출은 전부 걸러진다.
         .maximumSize(1)
         .expireAfterWrite(60, TimeUnit.SECONDS)
         .recordStats())
