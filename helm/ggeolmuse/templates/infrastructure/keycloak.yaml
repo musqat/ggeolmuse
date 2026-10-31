@@ -10,7 +10,7 @@ metadata:
     {{- include "ggeolmuse.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.infrastructure.keycloak.replicas }}
-  # 판을 올릴 때 DB 마이그레이션이 옛 파드와 겹치지 않게 옛 파드를 먼저 내림
+  # 버전을 올릴 때 DB 마이그레이션이 옛 파드와 겹치지 않게 옛 파드를 먼저 내림
   strategy:
     type: Recreate
   revisionHistoryLimit: {{ .Values.global.revisionHistoryLimit | default 5 }}
@@ -126,13 +126,13 @@ spec:
           {{- toYaml .Values.infrastructure.keycloak.resources | nindent 10 }}
         securityContext:
           {{- include "ggeolmuse.baseSecurityContext" . | nindent 10 }}
-        # 판을 올린 첫 기동은 DB 이전 · 빌드가 길어 끝날 때까지 liveness 를 미룸(최대 5분)
+        # 기동 때 빌드 · 버전을 올린 첫 기동의 DB 이전이 끝날 때까지 liveness 를 미룸(최대 10분)
         startupProbe:
           httpGet:
             path: /auth/realms/master
             port: {{ .Values.infrastructure.keycloak.port }}
           periodSeconds: 10
-          failureThreshold: 30
+          failureThreshold: 60
         readinessProbe:
           httpGet:
             path: /auth/realms/master
