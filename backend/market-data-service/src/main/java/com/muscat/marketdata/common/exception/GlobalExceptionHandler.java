@@ -3,8 +3,7 @@ package com.muscat.marketdata.common.exception;
 import com.muscat.commonlib.exception.BaseExceptionHandler;
 import com.muscat.commonlib.util.ProblemDetailUtils;
 import com.muscat.commonlib.enums.ErrorType;
-import com.muscat.marketdata.api.controller.DataCollectionController;
-import com.muscat.marketdata.api.controller.MarketController;
+import com.muscat.marketdata.MarketDataApplication;
 import com.muscat.marketdata.common.enums.response.MarketDataResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
@@ -20,10 +19,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-@RestControllerAdvice(basePackageClasses = {
-    MarketController.class,
-    DataCollectionController.class
-})
+// 모든 컨트롤러의 예외 응답
+@RestControllerAdvice(basePackageClasses = MarketDataApplication.class)
 @Slf4j
 public class GlobalExceptionHandler extends BaseExceptionHandler {
 

@@ -1,18 +1,15 @@
 package com.muscat.user.common.exception;
 
 import com.muscat.commonlib.exception.BaseExceptionHandler;
+import com.muscat.user.UserApplication;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-@RestControllerAdvice(basePackageClasses = {
-    com.muscat.user.domain.user.controller.AuthController.class,
-    com.muscat.user.domain.user.controller.UserController.class,
-    com.muscat.user.domain.account.controller.AccountController.class,
-    com.muscat.user.api.controller.AdminUserController.class
-})
+// 모든 컨트롤러의 예외 응답
+@RestControllerAdvice(basePackageClasses = UserApplication.class)
 public class GlobalExceptionHandler extends BaseExceptionHandler {
 
   @ExceptionHandler(Exception.class)

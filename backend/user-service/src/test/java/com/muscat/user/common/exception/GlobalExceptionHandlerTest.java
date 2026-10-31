@@ -3,10 +3,17 @@ package com.muscat.user.common.exception;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.muscat.commonlib.exception.ServiceException;
+import com.muscat.user.api.controller.AdminUserController;
 import com.muscat.user.common.enums.response.UserResponse;
+import com.muscat.user.domain.account.controller.AccountController;
+import com.muscat.user.domain.user.controller.AuthController;
+import com.muscat.user.domain.user.controller.UserController;
+import java.util.List;
 import java.util.Objects;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.autoconfigure.web.servlet.error.BasicErrorController;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -15,9 +22,11 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.mock.env.MockEnvironment;
 import org.springframework.mock.http.MockHttpInputMessage;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.ExceptionHandlerMethodResolver;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.method.ControllerAdviceBean;
 
 @DisplayName("user 예외 핸들러 선택")
 class GlobalExceptionHandlerTest {
@@ -71,5 +80,24 @@ class GlobalExceptionHandlerTest {
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
     assertThat(response.getBody()).extracting(ProblemDetail::getDetail).isEqualTo("서버에 문제가 발생했습니다.");
+  }
+
+  // 컨트롤러 패키지 밖에 둔 컨트롤러
+  @RestController
+  static class TestPackageController {
+  }
+
+  @Test
+  @DisplayName("서비스 패키지 아래 모든 컨트롤러에 적용되고 스프링 기본 오류 컨트롤러에는 적용되지 않는다")
+  void appliesToEveryServiceController() {
+    ControllerAdviceBean advice;
+    try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(GlobalExceptionHandler.class)) {
+      advice = ControllerAdviceBean.findAnnotatedBeans(context).get(0);
+    }
+
+    assertThat(List.of(AuthController.class, UserController.class, AccountController.class,
+      AdminUserController.class, TestPackageController.class))
+      .allMatch(advice::isApplicableToBeanType);
+    assertThat(advice.isApplicableToBeanType(BasicErrorController.class)).isFalse();
   }
 }

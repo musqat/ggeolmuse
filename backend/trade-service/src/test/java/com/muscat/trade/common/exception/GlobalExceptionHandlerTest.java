@@ -2,10 +2,18 @@ package com.muscat.trade.common.exception;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.muscat.trade.api.controller.DividendAdminController;
+import com.muscat.trade.api.controller.PortfolioController;
+import com.muscat.trade.api.controller.TradeApiController;
+import com.muscat.trade.api.controller.TradingController;
+import com.muscat.trade.api.controller.TransactionHistoryController;
 import com.muscat.trade.common.enums.response.TradeResponse;
+import java.util.List;
 import java.util.Objects;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.autoconfigure.web.servlet.error.BasicErrorController;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -16,9 +24,11 @@ import org.springframework.mock.http.MockHttpInputMessage;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.ExceptionHandlerMethodResolver;
+import org.springframework.web.method.ControllerAdviceBean;
 
 @DisplayName("trade 예외 핸들러")
 class GlobalExceptionHandlerTest {
@@ -70,5 +80,24 @@ class GlobalExceptionHandlerTest {
 
     assertThat(prod.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
     assertThat(prod.getBody()).extracting(ProblemDetail::getDetail).isEqualTo("거래 서비스에 문제가 발생했습니다.");
+  }
+
+  // 컨트롤러 패키지 밖에 둔 컨트롤러
+  @RestController
+  static class TestPackageController {
+  }
+
+  @Test
+  @DisplayName("서비스 패키지 아래 모든 컨트롤러에 적용되고 스프링 기본 오류 컨트롤러에는 적용되지 않는다")
+  void appliesToEveryServiceController() {
+    ControllerAdviceBean advice;
+    try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(GlobalExceptionHandler.class)) {
+      advice = ControllerAdviceBean.findAnnotatedBeans(context).get(0);
+    }
+
+    assertThat(List.of(TradingController.class, PortfolioController.class, TradeApiController.class,
+      TransactionHistoryController.class, DividendAdminController.class, TestPackageController.class))
+      .allMatch(advice::isApplicableToBeanType);
+    assertThat(advice.isApplicableToBeanType(BasicErrorController.class)).isFalse();
   }
 }
