@@ -64,6 +64,10 @@ spec:
         ports:
         - containerPort: {{ $svc.service.port }}
         env:
+        {{- if and .Values.global.aws.secretsManager.enabled $svc.secretFiles }}
+        - name: SPRING_CONFIG_ADDITIONAL_LOCATION
+          value: optional:configtree:/etc/secrets/
+        {{- end }}
 {{- end }}
 
 {{/*
@@ -72,6 +76,7 @@ spec:
 */}}
 {{- define "ggeolmuse.javaPodTail" -}}
 {{- $svc := .svc -}}
+{{- $secretFiles := and .Values.global.aws.secretsManager.enabled $svc.secretFiles -}}
         {{- if $svc.resources }}
         resources:
           {{- toYaml $svc.resources | nindent 10 }}
@@ -81,6 +86,11 @@ spec:
         volumeMounts:
           {{- include "ggeolmuse.tmpVolumeMount" . | nindent 10 }}
           {{- include "ggeolmuse.otelVolumeMount" . | nindent 10 }}
+          {{- if $secretFiles }}
+          - name: secrets
+            mountPath: /etc/secrets
+            readOnly: true
+          {{- end }}
         startupProbe:
           {{- include "ggeolmuse.startupProbe" (merge (dict "port" .Values.global.management.port) $svc.probes.startup) | nindent 10 }}
         readinessProbe:
@@ -90,6 +100,17 @@ spec:
       volumes:
         {{- include "ggeolmuse.tmpVolume" . | nindent 8 }}
         {{- include "ggeolmuse.otelVolume" . | nindent 8 }}
+        {{- /* 파일 이름은 앱이 읽는 플레이스홀더 이름 */}}
+        {{- with $secretFiles }}
+        - name: secrets
+          secret:
+            secretName: ggeolmuse-secrets
+            items:
+              {{- range $path, $key := . }}
+              - key: {{ $key }}
+                path: {{ $path }}
+              {{- end }}
+        {{- end }}
 {{- end }}
 
 {{/*

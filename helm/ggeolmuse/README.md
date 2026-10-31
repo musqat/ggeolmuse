@@ -9,6 +9,8 @@ prod 는 ArgoCD 가 master 의 `values-prod.yaml` 을 읽어 배포하므로 커
 
 - dev: `values-secret.yaml.example` 을 `values-secret.yaml` 로 복사해 채운다. `.gitignore` 에 걸려 있다.
 - prod: AWS Secrets Manager `ggeolmuse/production` 을 External Secrets 가 `ggeolmuse-secrets` 로 내려준다.
+  자바 서비스는 그중 자기 키만 `/etc/secrets` 파일로도 받는다(값의 `secretFiles`, 파일 이름은 앱이 읽는 플레이스홀더 이름).
+  같은 키를 환경변수로도 받아서 지금은 환경변수 값이 쓰인다.
 
 ```bash
 # dev
