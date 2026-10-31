@@ -4,7 +4,7 @@ from __future__ import annotations
 import time
 from collections.abc import Callable, Iterator
 
-from prometheus_client import CONTENT_TYPE_LATEST, CollectorRegistry, Summary, generate_latest
+from prometheus_client import CONTENT_TYPE_LATEST, CollectorRegistry, Histogram, generate_latest
 from prometheus_client.core import GaugeMetricFamily
 from starlette.responses import Response
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -12,15 +12,19 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 LABELS = ("method", "uri", "status")
 SKIPPED_PATHS = ("/health", "/metrics")
 WINDOW_SECONDS = 120.0
+# 응답 시간 구간(자바 서비스와 같음)
+BUCKETS = (0.1, 0.3, 1.0, 2.0, 5.0)
 
 
 class RequestMetrics:
-    """요청 수 · 처리 시간 합계와 최근 2분 최대 처리 시간"""
+    """요청 수 · 처리 시간 합계 · 구간과 최근 2분 최대 처리 시간"""
 
     def __init__(self, registry: CollectorRegistry, clock: Callable[[], float] = time.monotonic):
         self._registry = registry
         self._clock = clock
-        self._seconds = Summary("http_server_requests_seconds", "HTTP 요청 처리 시간", LABELS, registry=registry)
+        self._seconds = Histogram(
+            "http_server_requests_seconds", "HTTP 요청 처리 시간", LABELS, registry=registry, buckets=BUCKETS
+        )
         self._max: dict[tuple[str, str, str], tuple[float, float]] = {}
         registry.register(self)
 

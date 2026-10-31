@@ -21,7 +21,7 @@ def test_scrape_serves_request_metrics():
     res = client.get("/metrics")
 
     assert res.status_code == 200
-    assert "# TYPE http_server_requests_seconds summary" in res.text
+    assert "# TYPE http_server_requests_seconds histogram" in res.text
 
 
 def test_openai_client_does_not_retry():

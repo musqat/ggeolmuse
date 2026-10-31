@@ -6,6 +6,7 @@ from app.infra.metrics import MetricsMiddleware, RequestMetrics
 
 COUNT = "http_server_requests_seconds_count"
 MAX = "http_server_requests_seconds_max"
+BUCKET = "http_server_requests_seconds_bucket"
 
 
 def _app(clock=None):
@@ -98,3 +99,14 @@ def test_scrape_returns_prometheus_text():
 
     assert res.headers["content-type"].startswith("text/plain")
     assert 'http_server_requests_seconds_count{method="GET",status="200",uri="/api/chat/items/{item_id}"}' in res.text
+
+
+def test_latency_buckets_match_java_services():
+    _, registry, metrics = _app()
+    labels = {"method": "POST", "uri": "/api/chat", "status": "200"}
+
+    metrics.observe(("POST", "/api/chat", "200"), 0.5)
+    metrics.observe(("POST", "/api/chat", "200"), 3.0)
+
+    counts = [registry.get_sample_value(BUCKET, {**labels, "le": le}) for le in ("0.1", "0.3", "1.0", "2.0", "5.0", "+Inf")]
+    assert counts == [0, 0, 1, 1, 2, 2]
