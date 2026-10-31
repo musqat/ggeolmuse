@@ -1,37 +1,8 @@
 {{- if .Values.configServer.enabled }}
 {{- include "ggeolmuse.serviceAccount" (dict "name" .Values.configServer.name "Values" .Values) }}
 ---
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ .Values.configServer.name }}
-  labels:
-    app: {{ .Values.configServer.name }}
-    {{- include "ggeolmuse.labels" . | nindent 4 }}
-spec:
-  replicas: {{ .Values.configServer.replicaCount }}
-  revisionHistoryLimit: {{ .Values.global.revisionHistoryLimit | default 5 }}
-  selector:
-    matchLabels:
-      app: {{ .Values.configServer.name }}
-  template:
-    metadata:
-      labels:
-        app: {{ .Values.configServer.name }}
-    spec:
-      {{- if .Values.global.aws.serviceAccount.create }}
-      serviceAccountName: {{ .Values.configServer.name }}
-      {{- end }}
-      # emptyDir(/tmp)은 root 소유로 생김. 앱(10001)이 설정 리포를 받아 둘 수 있게 fsGroup
-      securityContext:
-        fsGroup: 10001
-      containers:
-      - name: {{ .Values.configServer.name }}
-        image: {{ include "ggeolmuse.image" (dict "Values" .Values "repository" .Values.configServer.image.repository "tag" .Values.configServer.image.tag "Chart" .Chart) }}
-        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
-        ports:
-        - containerPort: {{ .Values.configServer.service.port }}
-        env:
+{{- $ctx := dict "svc" .Values.configServer "Values" .Values "Chart" .Chart "Release" .Release }}
+{{ include "ggeolmuse.javaPodHeader" $ctx }}
         - name: SPRING_PROFILES_ACTIVE
           value: {{ .Values.configServer.env.springProfiles | quote }}
         - name: SERVER_PORT
@@ -50,27 +21,10 @@ spec:
               key: CONFIG_SERVER_PASSWORD
         {{- end }}
         - name: JAVA_OPTS
-          value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "xmx" "128m") }}
+          value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "xmx" .Values.configServer.xmx) }}
         {{- include "ggeolmuse.otelEnv" (dict "Values" .Values "serviceName" .Values.configServer.name "version" .Values.configServer.image.tag) | nindent 8 }}
         # UID 10001 은 홈이 없어 HOME 이 / 로 잡힌다. JGit 이 거기 설정을 쓴다
         - name: HOME
           value: /tmp
-        volumeMounts:
-        {{- include "ggeolmuse.tmpVolumeMount" . | nindent 8 }}
-        {{- include "ggeolmuse.otelVolumeMount" . | nindent 8 }}
-        {{- if .Values.configServer.resources }}
-        resources:
-          {{- toYaml .Values.configServer.resources | nindent 10 }}
-        {{- end }}
-        securityContext:
-          {{- include "ggeolmuse.securityContext" . | nindent 10 }}
-        startupProbe:
-          {{- include "ggeolmuse.startupProbe" (dict "port" 9090 "failureThreshold" .Values.configServer.probes.startup.failureThreshold "periodSeconds" .Values.configServer.probes.startup.periodSeconds) | nindent 10 }}
-        readinessProbe:
-          {{- include "ggeolmuse.readinessProbe" (dict "port" 9090 "initialDelaySeconds" .Values.configServer.probes.readiness.initialDelaySeconds "periodSeconds" .Values.configServer.probes.readiness.periodSeconds) | nindent 10 }}
-        livenessProbe:
-          {{- include "ggeolmuse.livenessProbe" (dict "port" 9090 "initialDelaySeconds" .Values.configServer.probes.liveness.initialDelaySeconds "periodSeconds" .Values.configServer.probes.liveness.periodSeconds) | nindent 10 }}
-      volumes:
-      {{- include "ggeolmuse.tmpVolume" . | nindent 6 }}
-      {{- include "ggeolmuse.otelVolume" . | nindent 6 }}
+{{- include "ggeolmuse.javaPodTail" $ctx }}
 {{- end }}

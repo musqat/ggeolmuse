@@ -1,58 +1,8 @@
 {{- if .Values.gatewayServer.enabled }}
 {{- include "ggeolmuse.serviceAccount" (dict "name" .Values.gatewayServer.name "Values" .Values) }}
 ---
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ .Values.gatewayServer.name }}
-  labels:
-    app: {{ .Values.gatewayServer.name }}
-    {{- include "ggeolmuse.labels" . | nindent 4 }}
-spec:
-  replicas: {{ .Values.gatewayServer.replicaCount }}
-  revisionHistoryLimit: {{ .Values.global.revisionHistoryLimit | default 5 }}
-  {{- with .Values.gatewayServer.strategy }}
-  strategy:
-    rollingUpdate:
-      maxUnavailable: {{ .rollingUpdate.maxUnavailable }}
-      maxSurge: {{ .rollingUpdate.maxSurge }}
-  {{- end }}
-  selector:
-    matchLabels:
-      app: {{ .Values.gatewayServer.name }}
-  template:
-    metadata:
-      labels:
-        app: {{ .Values.gatewayServer.name }}
-    spec:
-      {{- if .Values.global.aws.serviceAccount.create }}
-      serviceAccountName: {{ .Values.gatewayServer.name }}
-      {{- end }}
-      initContainers:
-      - name: wait-for-config-server
-        image: {{ .Values.global.initContainer.image }}
-        command:
-        - sh
-        - -c
-        - |
-          echo "Waiting for Config Server to be ready..."
-          # 시도마다 3초 제한, 응답 없는 연결을 TCP 시간 제한(약 2분)까지 기다리지 않음
-          until timeout 3 wget -q --spider http://config-server:9090/actuator/health 2>/dev/null; do
-            echo "Config Server is not ready yet. Retrying in 5 seconds..."
-            sleep 5
-          done
-          echo "Config Server is ready!"
-        securityContext:
-          {{- include "ggeolmuse.securityContext" . | nindent 10 }}
-        resources:
-          {{- toYaml .Values.global.initContainer.resources | nindent 10 }}
-      containers:
-      - name: {{ .Values.gatewayServer.name }}
-        image: {{ include "ggeolmuse.image" (dict "Values" .Values "repository" .Values.gatewayServer.image.repository "tag" .Values.gatewayServer.image.tag "Chart" .Chart) }}
-        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
-        ports:
-        - containerPort: {{ .Values.gatewayServer.service.port }}
-        env:
+{{- $ctx := dict "svc" .Values.gatewayServer "Values" .Values "Chart" .Chart "Release" .Release }}
+{{ include "ggeolmuse.javaPodHeader" $ctx }}
         {{- include "ggeolmuse.redisPasswordEnv" . | nindent 8 }}
         - name: SPRING_PROFILES_ACTIVE
           value: {{ .Values.gatewayServer.env.springProfiles | quote }}
@@ -80,24 +30,7 @@ spec:
         - name: KEYCLOAK_CLIENT_IDS
           value: {{ include "ggeolmuse.keycloakClientIds" . | quote }}
         - name: JAVA_OPTS
-          value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "xmx" "192m") }}
+          value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "xmx" .Values.gatewayServer.xmx) }}
         {{- include "ggeolmuse.otelEnv" (dict "Values" .Values "serviceName" .Values.gatewayServer.name "version" .Values.gatewayServer.image.tag) | nindent 8 }}
-        {{- if .Values.gatewayServer.resources }}
-        resources:
-          {{- toYaml .Values.gatewayServer.resources | nindent 10 }}
-        {{- end }}
-        securityContext:
-          {{- include "ggeolmuse.securityContext" . | nindent 10 }}
-        volumeMounts:
-          {{- include "ggeolmuse.tmpVolumeMount" . | nindent 10 }}
-          {{- include "ggeolmuse.otelVolumeMount" . | nindent 10 }}
-        startupProbe:
-          {{- include "ggeolmuse.startupProbe" (dict "port" 9090 "failureThreshold" .Values.gatewayServer.probes.startup.failureThreshold "periodSeconds" .Values.gatewayServer.probes.startup.periodSeconds) | nindent 10 }}
-        readinessProbe:
-          {{- include "ggeolmuse.readinessProbe" (dict "port" 9090 "initialDelaySeconds" .Values.gatewayServer.probes.readiness.initialDelaySeconds "periodSeconds" .Values.gatewayServer.probes.readiness.periodSeconds) | nindent 10 }}
-        livenessProbe:
-          {{- include "ggeolmuse.livenessProbe" (dict "port" 9090 "initialDelaySeconds" .Values.gatewayServer.probes.liveness.initialDelaySeconds "periodSeconds" .Values.gatewayServer.probes.liveness.periodSeconds) | nindent 10 }}
-      volumes:
-        {{- include "ggeolmuse.tmpVolume" . | nindent 8 }}
-        {{- include "ggeolmuse.otelVolume" . | nindent 8 }}
+{{- include "ggeolmuse.javaPodTail" $ctx }}
 {{- end }}

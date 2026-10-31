@@ -206,6 +206,10 @@ configServer:
   service:
     type: ClusterIP
     port: 8888
+  xmx: 128m
+  # emptyDir(/tmp)은 root 소유로 생김. 앱(10001)이 설정 리포를 받아 둘 수 있게 fsGroup
+  podSecurityContext:
+    fsGroup: 10001
   # 환경별 파일(dev · prod)이 덮어씀
   env:
     springProfiles: git
@@ -230,6 +234,7 @@ gatewayServer:
   service:
     type: LoadBalancer
     port: 8070
+  xmx: 192m
   env:
     # springProfiles: 환경별 (dev/prod)
     configUri: http://config-server:8888

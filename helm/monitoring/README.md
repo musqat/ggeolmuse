@@ -87,21 +87,25 @@ count(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_irate)
 
 ## 알림
 
-`helm/ggeolmuse/templates/monitoring/prometheusrule.yaml` 에 19개. ggeolmuse 차트
+`helm/ggeolmuse/templates/monitoring/prometheusrule.yaml` 에 알림 20개 · 기록 규칙 12개. ggeolmuse 차트
 안에 있어 ArgoCD 가 배포한다.
 
 | 그룹 | 규칙 |
 |---|---|
 | service-availability | ServiceDown, ServiceRestarting |
 | resource-usage | HighCpuUsage, HighMemoryUsage, CriticalMemoryUsage |
-| api-performance | HighErrorRate, SlowResponseTime |
+| slo-recording | 창(5분 · 30분 · 1시간 · 6시간)별 5xx 비율 · 1초 넘은 비율 · 요청 수 |
+| slo | AvailabilityBurnFast, AvailabilityBurnSlow, LatencyBurnFast, LatencyBurnSlow |
 | config-server | ConfigServerDown, ConfigServerHighLatency, ConfigServerUnauthorized |
-| gateway | GatewayHighErrorRate |
 | resilience | CircuitBreakerOpen, CircuitBreakerMissing |
 | trade-settlement | KafkaDeadLetter, KafkaConsumerLag, KafkaCollectionLag, TradeEventsUnpublished, TradeBuysPending, TradeCancelNeedsReview |
 
 파드·노드 수준은 차트 내장 규칙이 맡는다. Redis·Kafka·Keycloak 은 exporter 가 없어
 `up` 시계열 자체가 없다.
+
+SLO 알림은 게이트웨이 경로 지표(`spring_cloud_gateway_requests_seconds`)로 가용성 99.5%(5xx 아닌 응답)와 요청의 95% 1초 안
+(백테스트 · 채팅 경로 제외)을 본다. 빠른 소진은 1시간 · 5분 창이 둘 다 예산을 14.4배 속도로 쓸 때(critical), 느린 소진은 6시간 · 30분
+창이 6배일 때(warning)다. 요청이 20건 미만인 창은 보지 않는다. 1초 구간은 설정 리포 `gateway-server.yml` 에 있다.
 
 `KafkaDeadLetter` 는 user · trade · market-data 가 재시도로 못 살린 메시지를 `<토픽>.DLT` 로 넘길 때
 오르는 `kafka_dlt_records_total` 을 본다. 원인은 그 서비스 로그의 `DLT 로 보냄` 줄과 DLT 메시지 헤더

@@ -1,6 +1,5 @@
 {{/*
-자바 서비스 Deployment 의 공통 앞부분
-네 서비스가 이 부분은 완전히 같다. env 항목부터 서비스별로 갈린다.
+자바 서비스 Deployment 의 공통 앞부분, env 항목 직전까지
 인자: svc · Values · Chart
 */}}
 {{- define "ggeolmuse.javaPodHeader" -}}
@@ -28,12 +27,17 @@ spec:
   template:
     metadata:
       labels:
-        app: {{ $svc.name }}
-        {{- include "ggeolmuse.serviceLabels" (dict "name" $svc.name "tier" $svc.labels.tier) | nindent 8 }}
+        {{- include "ggeolmuse.serviceLabels" (dict "name" $svc.name "tier" (dig "labels" "tier" "" $svc)) | nindent 8 }}
     spec:
       {{- if .Values.global.aws.serviceAccount.create }}
       serviceAccountName: {{ $svc.name }}
       {{- end }}
+      {{- with $svc.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- /* config-server 자신은 대기 없음 */}}
+      {{- if ne $svc.name .Values.configServer.name }}
       initContainers:
       - name: wait-for-config-server
         image: {{ .Values.global.initContainer.image }}
@@ -52,6 +56,7 @@ spec:
           {{- include "ggeolmuse.securityContext" . | nindent 10 }}
         resources:
           {{- toYaml .Values.global.initContainer.resources | nindent 10 }}
+      {{- end }}
       containers:
       - name: {{ $svc.name }}
         image: {{ include "ggeolmuse.image" (dict "Values" .Values "repository" $svc.image.repository "tag" $svc.image.tag "Chart" .Chart) }}
@@ -59,7 +64,32 @@ spec:
         ports:
         - containerPort: {{ $svc.service.port }}
         env:
-        {{- include "ggeolmuse.redisPasswordEnv" . | nindent 8 }}
+{{- end }}
+
+{{/*
+자바 서비스 컨테이너의 공통 뒷부분, resources 부터 volumes 까지
+인자: svc · Values · Chart
+*/}}
+{{- define "ggeolmuse.javaPodTail" -}}
+{{- $svc := .svc -}}
+        {{- if $svc.resources }}
+        resources:
+          {{- toYaml $svc.resources | nindent 10 }}
+        {{- end }}
+        securityContext:
+          {{- include "ggeolmuse.securityContext" . | nindent 10 }}
+        volumeMounts:
+          {{- include "ggeolmuse.tmpVolumeMount" . | nindent 10 }}
+          {{- include "ggeolmuse.otelVolumeMount" . | nindent 10 }}
+        startupProbe:
+          {{- include "ggeolmuse.startupProbe" (merge (dict "port" .Values.global.management.port) $svc.probes.startup) | nindent 10 }}
+        readinessProbe:
+          {{- include "ggeolmuse.readinessProbe" (merge (dict "port" .Values.global.management.port) $svc.probes.readiness) | nindent 10 }}
+        livenessProbe:
+          {{- include "ggeolmuse.livenessProbe" (merge (dict "port" .Values.global.management.port) $svc.probes.liveness) | nindent 10 }}
+      volumes:
+        {{- include "ggeolmuse.tmpVolume" . | nindent 8 }}
+        {{- include "ggeolmuse.otelVolume" . | nindent 8 }}
 {{- end }}
 
 {{/*
@@ -70,6 +100,7 @@ svc 값: extraSecrets(env 이름 = 비밀 키) · secretEnv(env 이름 → 비�
 {{- define "ggeolmuse.javaDeployment" -}}
 {{- $svc := .svc -}}
 {{- include "ggeolmuse.javaPodHeader" . }}
+        {{- include "ggeolmuse.redisPasswordEnv" . | nindent 8 }}
         - name: SERVER_PORT
           value: {{ $svc.service.port | quote }}
         - name: SPRING_APPLICATION_NAME
@@ -125,22 +156,5 @@ svc 값: extraSecrets(env 이름 = 비밀 키) · secretEnv(env 이름 → 비�
         - name: {{ $k }}
           value: {{ $v | quote }}
         {{- end }}
-        {{- if $svc.resources }}
-        resources:
-          {{- toYaml $svc.resources | nindent 10 }}
-        {{- end }}
-        securityContext:
-          {{- include "ggeolmuse.securityContext" . | nindent 10 }}
-        volumeMounts:
-          {{- include "ggeolmuse.tmpVolumeMount" . | nindent 10 }}
-          {{- include "ggeolmuse.otelVolumeMount" . | nindent 10 }}
-        startupProbe:
-          {{- include "ggeolmuse.startupProbe" (merge (dict "port" .Values.global.management.port) $svc.probes.startup) | nindent 10 }}
-        readinessProbe:
-          {{- include "ggeolmuse.readinessProbe" (merge (dict "port" .Values.global.management.port) $svc.probes.readiness) | nindent 10 }}
-        livenessProbe:
-          {{- include "ggeolmuse.livenessProbe" (merge (dict "port" .Values.global.management.port) $svc.probes.liveness) | nindent 10 }}
-      volumes:
-        {{- include "ggeolmuse.tmpVolume" . | nindent 8 }}
-        {{- include "ggeolmuse.otelVolume" . | nindent 8 }}
+{{- include "ggeolmuse.javaPodTail" . }}
 {{- end }}
