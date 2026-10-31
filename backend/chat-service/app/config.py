@@ -1,8 +1,18 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+SECRETS_DIR = Path("/etc/secrets")
+
+
+def secrets_dir(path: Path) -> Path | None:
+    """시크릿 파일 폴더. 없으면 None"""
+    return path if path.is_dir() else None
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    # 파일 이름은 필드 이름(대소문자 무관), 환경변수가 파일보다 우선
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore", secrets_dir=secrets_dir(SECRETS_DIR))
 
     openai_api_key: str = ""
     openai_model_main: str = "gpt-4o"
