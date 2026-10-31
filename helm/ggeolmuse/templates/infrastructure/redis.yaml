@@ -28,14 +28,14 @@ spec:
         ports:
         - containerPort: {{ .Values.infrastructure.redis.port }}
         {{- if .Values.global.aws.secretsManager.enabled }}
-        # --requirepass 는 인자라 환경변수가 안 풀린다. 셸을 거쳐 넘긴다.
-        command: ["sh", "-c", "exec redis-server --appendonly yes --maxmemory {{ .Values.infrastructure.redis.maxmemory }} --maxmemory-policy {{ .Values.infrastructure.redis.maxmemoryPolicy }} --requirepass \"$REDIS_PASSWORD\""]
-        env:
-        - name: REDIS_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: ggeolmuse-secrets
-              key: REDIS_PASSWORD
+        # 비밀번호는 파일에서 읽어 표준입력 설정으로. 환경변수 · 프로세스 인자에 안 남음
+        command:
+        - sh
+        - -c
+        - |
+          exec redis-server - --appendonly yes --maxmemory {{ .Values.infrastructure.redis.maxmemory }} --maxmemory-policy {{ .Values.infrastructure.redis.maxmemoryPolicy }} <<EOF
+          requirepass $(cat /etc/secrets/REDIS_PASSWORD)
+          EOF
         {{- else }}
         command: ["redis-server", "--appendonly", "yes", "--maxmemory", {{ .Values.infrastructure.redis.maxmemory | quote }}, "--maxmemory-policy", {{ .Values.infrastructure.redis.maxmemoryPolicy | quote }}]
         {{- end }}
@@ -47,9 +47,22 @@ spec:
         volumeMounts:
         - name: data
           mountPath: /data
+        {{- if .Values.global.aws.secretsManager.enabled }}
+        - name: secrets
+          mountPath: /etc/secrets
+          readOnly: true
+        {{- end }}
       volumes:
       - name: data
         emptyDir: {}
+      {{- if .Values.global.aws.secretsManager.enabled }}
+      - name: secrets
+        secret:
+          secretName: ggeolmuse-secrets
+          items:
+          - key: REDIS_PASSWORD
+            path: REDIS_PASSWORD
+      {{- end }}
 ---
 apiVersion: v1
 kind: Service
