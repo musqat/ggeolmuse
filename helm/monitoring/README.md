@@ -249,7 +249,7 @@ helm install loki grafana/loki-stack --version 2.10.2 -n monitoring -f loki-valu
 helm install tempo grafana/tempo --version 1.24.0 -n monitoring -f tempo-values.yaml
 ```
 
-올릴 때도 같은 판 · 같은 값 파일로 `helm upgrade` 한다. 값 파일을 빼면 릴리스에 남은 옛 값으로 돌아간다. loki-stack 2.10.3 은
+올릴 때도 같은 버전 · 같은 값 파일로 `helm upgrade` 한다. 값 파일을 빼면 릴리스에 남은 옛 값으로 돌아간다. loki-stack 2.10.3 은
 StatefulSet 의 바꿀 수 없는 필드를 바꿔 upgrade 가 거절된다.
 
 로컬은 `prometheus-values-prod.yaml` 대신 `prometheus-values.yaml` 을 쓴다.
