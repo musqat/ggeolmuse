@@ -430,6 +430,10 @@ services:
     service:
       type: ClusterIP
       port: 8000
+    # prod 에서 /etc/secrets 에 두는 시크릿 파일(파일 이름: Secret 키)
+    secretFiles:
+      OPENAI_API_KEY: OPENAI_API_KEY
+      REDIS_PASSWORD: REDIS_PASSWORD
     # /metrics 수집(ServiceMonitor · monitoring 에서 서비스 포트 접근)
     metrics:
       enabled: false
