@@ -172,7 +172,7 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-                <!-- ggeolmuse-bom 의 spring-boot.version 과 같은 판 -->
+                <!-- ggeolmuse-bom 의 spring-boot.version 과 같은 버전 -->
                 <version>3.5.16</version>
                 <executions>
                     <execution>
