@@ -9,6 +9,8 @@ prod 는 ArgoCD 가 master 의 `values-prod.yaml` 을 읽어 배포하므로 커
 
 - dev: `values-secret.yaml.example` 을 `values-secret.yaml` 로 복사해 채운다. `.gitignore` 에 걸려 있다.
 - prod: AWS Secrets Manager `ggeolmuse/production` 을 External Secrets 가 `ggeolmuse-secrets` 로 내려준다.
+  자바 서비스는 그중 자기 키만 `/etc/secrets` 파일로 받는다(값의 `secretFiles`, 파일 이름은 앱이 읽는 플레이스홀더 이름).
+  시크릿을 환경변수로는 받지 않는다.
 - 앱 파드는 노드 IAM 역할(인스턴스 메타데이터 `169.254.169.254`)에 닿지 않는다(`networkPolicy.instanceMetadata`).
   AWS 를 직접 부르는 파드는 `exemptApps` 에 넣는다(지금은 S3 에 올리는 `db-backup`).
 

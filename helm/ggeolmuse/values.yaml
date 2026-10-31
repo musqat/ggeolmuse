@@ -207,6 +207,10 @@ configServer:
     type: ClusterIP
     port: 8888
   xmx: 128m
+  # prod 에서 /etc/secrets 에 두는 시크릿 파일(파일 이름: Secret 키)
+  secretFiles:
+    CONFIG_SERVER_USERNAME: CONFIG_SERVER_USERNAME
+    CONFIG_SERVER_PASSWORD: CONFIG_SERVER_PASSWORD
   # emptyDir(/tmp)은 root 소유로 생김. 앱(10001)이 설정 리포를 받아 둘 수 있게 fsGroup
   podSecurityContext:
     fsGroup: 10001
@@ -235,6 +239,9 @@ gatewayServer:
     type: LoadBalancer
     port: 8070
   xmx: 192m
+  secretFiles:
+    CONFIG_SERVER_PASSWORD: CONFIG_SERVER_PASSWORD
+    SPRING_REDIS_PASSWORD: REDIS_PASSWORD
   env:
     # springProfiles: 환경별 (dev/prod)
     configUri: http://config-server:8888
@@ -275,6 +282,18 @@ services:
     # 시드 관리자 비밀번호
     secretEnv:
       ADMIN_PASSWORD: KEYCLOAK_ADMIN_USER_PASSWORD
+    secretFiles:
+      CONFIG_SERVER_USERNAME: CONFIG_SERVER_USERNAME
+      CONFIG_SERVER_PASSWORD: CONFIG_SERVER_PASSWORD
+      SPRING_REDIS_PASSWORD: REDIS_PASSWORD
+      DB_USERNAME: DB_USERNAME
+      DB_PASSWORD: DB_PASSWORD
+      DB_URL_USER: DB_URL_USER
+      KEYCLOAK_SECRET: KEYCLOAK_SECRET
+      MAIL_USERNAME: MAIL_USERNAME
+      MAIL_PASSWORD: MAIL_PASSWORD
+      MAIL_FROM: MAIL_FROM
+      ADMIN_PASSWORD: KEYCLOAK_ADMIN_USER_PASSWORD
     keycloakClientEnv: true
     # env.APP_BASE_URL · APP_FRONTEND_URL · APP_MAIL_VERIFICATION_BASE_URL: 환경별 (dev/prod)
     strategy:
@@ -305,8 +324,14 @@ services:
     labels:
       tier: business-service
     env: {}
-    secrets:
-      keycloakSecret: true
+    secretFiles:
+      CONFIG_SERVER_USERNAME: CONFIG_SERVER_USERNAME
+      CONFIG_SERVER_PASSWORD: CONFIG_SERVER_PASSWORD
+      SPRING_REDIS_PASSWORD: REDIS_PASSWORD
+      DB_USERNAME: DB_USERNAME
+      DB_PASSWORD: DB_PASSWORD
+      DB_URL_TRADE: DB_URL_TRADE
+      KEYCLOAK_SECRET: KEYCLOAK_SECRET
     strategy:
       rollingUpdate:
         maxUnavailable: 0
@@ -338,9 +363,16 @@ services:
     labels:
       tier: business-service
     env: {}
-    secrets:
-      keycloakSecret: true
-      koreaexImApiKey: true
+    secretFiles:
+      CONFIG_SERVER_USERNAME: CONFIG_SERVER_USERNAME
+      CONFIG_SERVER_PASSWORD: CONFIG_SERVER_PASSWORD
+      SPRING_REDIS_PASSWORD: REDIS_PASSWORD
+      DB_USERNAME: DB_USERNAME
+      DB_PASSWORD: DB_PASSWORD
+      DB_URL_MARKET: DB_URL_MARKET
+      KEYCLOAK_SECRET: KEYCLOAK_SECRET
+      KOREAEXIM_API_KEY: KOREAEXIM_API_KEY
+      ALPHAVANTAGE_API_KEY: ALPHAVANTAGE_API_KEY
     strategy:
       rollingUpdate:
         maxUnavailable: 0
@@ -370,8 +402,14 @@ services:
     labels:
       tier: business-service
     env: {}
-    secrets:
-      keycloakSecret: true
+    secretFiles:
+      CONFIG_SERVER_USERNAME: CONFIG_SERVER_USERNAME
+      CONFIG_SERVER_PASSWORD: CONFIG_SERVER_PASSWORD
+      SPRING_REDIS_PASSWORD: REDIS_PASSWORD
+      DB_USERNAME: DB_USERNAME
+      DB_PASSWORD: DB_PASSWORD
+      DB_URL_BACKTEST: DB_URL_BACKTEST
+      KEYCLOAK_SECRET: KEYCLOAK_SECRET
     probes:
       readiness:
         initialDelaySeconds: 60

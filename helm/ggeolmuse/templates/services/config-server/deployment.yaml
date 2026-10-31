@@ -7,19 +7,6 @@
           value: {{ .Values.configServer.env.springProfiles | quote }}
         - name: SERVER_PORT
           value: {{ .Values.configServer.service.port | quote }}
-        {{- if .Values.global.aws.secretsManager.enabled }}
-        # 클라이언트가 쓰는 값과 같은 자리에서 읽는다. 여기가 비면 application.yml
-        - name: CONFIG_SERVER_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: ggeolmuse-secrets
-              key: CONFIG_SERVER_USERNAME
-        - name: CONFIG_SERVER_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: ggeolmuse-secrets
-              key: CONFIG_SERVER_PASSWORD
-        {{- end }}
         - name: JAVA_OPTS
           value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "xmx" .Values.configServer.xmx) }}
         {{- include "ggeolmuse.otelEnv" (dict "Values" .Values "serviceName" .Values.configServer.name "version" .Values.configServer.image.tag) | nindent 8 }}
