@@ -46,11 +46,11 @@ global:
 
   # springProfiles: 환경별 (dev/prod)
 
-  # AWS 설정 (enabled/secretsManager.enabled: 환경별)
+  # AWS 설정 (secretsManager.enabled: 환경별)
   aws:
     region: ap-northeast-2
     secretsManager:
-      # Shared production secret name (all services use this)
+      # Secrets Manager 시크릿 이름
       name: ggeolmuse/production
     # IRSA (IAM Roles for Service Accounts) 설정
     serviceAccount:
