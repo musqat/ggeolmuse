@@ -152,7 +152,7 @@ repository · service)이고, 기능 하나를 단계로 나누는 trade · mark
 
 ## 테스트
 
-백엔드 **1,764 개**, 프론트 **757 개**, E2E **43 개**.
+백엔드 **1,765 개**, 프론트 **757 개**, E2E **43 개**.
 
 | 서비스 | 테스트 |
 |---|---|
@@ -164,7 +164,7 @@ repository · service)이고, 기능 하나를 단계로 나누는 trade · mark
 | config-server | 5 |
 | ggeolmuse-common | 35 |
 | messaging | 23 |
-| chat-service | 156 |
+| chat-service | 157 |
 | frontend-web | 757 |
 | E2E (Playwright) | 43 |
 
@@ -281,7 +281,9 @@ EC2 는 Cloudflare 대역에서 온 요청만 받아서 밖에서 이 헤더를 
 **브라우저** — nginx 가 CSP · X-Frame-Options · X-Content-Type-Options(nosniff) · Referrer-Policy 를 붙인다.
 
 **파드 · 비밀값** — 앱 파드는 공용 securityContext 로 비root(10001) · 읽기 전용 루트 · 권한 상승 금지 · capabilities 전부 제거로 돈다.
-비밀값은 AWS Secrets Manager 에서 ExternalSecret 으로 받고, Redis 에는 비밀번호를 건다.
+비밀값은 AWS Secrets Manager 에서 ExternalSecret 으로 받아 파드마다 자기 키만 `/etc/secrets` 파일로 넣는다. 환경변수에는 비밀값이 없다.
+노드 IAM 역할은 시크릿 둘(앱 · Origin 인증서)의 읽기만 갖고, 앱 파드는 NetworkPolicy 로 인스턴스 메타데이터(노드 역할 자격증명)에 닿지 않는다.
+Redis 에는 비밀번호를 건다.
 
 **공급망** — CI 가 이미지와 매니페스트를 Trivy 로 검사해 CRITICAL · HIGH 를 GitHub Security 탭에 올린다. 빌드를 막지는 않고 보고만 한다.
 
