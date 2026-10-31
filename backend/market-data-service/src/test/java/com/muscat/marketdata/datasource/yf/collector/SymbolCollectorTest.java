@@ -116,7 +116,6 @@ class SymbolCollectorTest {
 
       symbolCollector.collectSymbols();
 
-      // 예전에는 여기서 바로 return 해서 목록 조회 자체를 안 했다
       verify(symbolCatalog).fetchAll();
     }
 

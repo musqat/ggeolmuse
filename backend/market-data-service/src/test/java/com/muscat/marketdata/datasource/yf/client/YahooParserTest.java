@@ -372,7 +372,6 @@ class YahooParserTest {
     @Test
     @DisplayName("date 도 없고 키도 숫자가 아니면 그 건만 버린다")
     void timestamp_없음() {
-      // 예전엔 삼항 언박싱 NPE 로 종목 전체가 실패했다. 한 건만 빠지는지 확인
       String json = """
         {
           "chart": { "result": [{
