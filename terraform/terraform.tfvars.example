@@ -7,8 +7,11 @@ ec2_instance_id = "i-xxxxxxxxxxxxxxxxx"
 #   aws rds describe-db-instances --query "DBInstances[].DBInstanceIdentifier" --output text
 # rds_instance_id = "ggeolmuse-db"
 
-# 선택 —— 알람 수신 이메일. 넣으면 수신함에서 구독을 확인해야 한다
+# 선택 —— 알람 수신 이메일. 넣으면 수신함의 확인 링크를 누른 뒤부터 받는다
 # alarm_email = "you@example.com"
+
+# 선택 —— EC2 종료 알림을 받을 슬랙 웹훅. 알람 채널과 같으면 ggeolmuse-secrets 의 SLACK_WEBHOOK_URL
+# slack_webhook_url = "https://hooks.slack.com/services/..."
 
 # 기본값을 바꿀 때만
 # scheduler_start_hour = 7
