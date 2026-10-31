@@ -230,6 +230,7 @@ gatewayServer:
   service:
     type: LoadBalancer
     port: 8070
+  xmx: 192m
   env:
     # springProfiles: 환경별 (dev/prod)
     configUri: http://config-server:8888
