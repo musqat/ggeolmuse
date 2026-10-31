@@ -32,6 +32,12 @@ spec:
       {{- if .Values.global.aws.serviceAccount.create }}
       serviceAccountName: {{ $svc.name }}
       {{- end }}
+      {{- with $svc.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- /* config-server 자신은 대기 없음 */}}
+      {{- if ne $svc.name .Values.configServer.name }}
       initContainers:
       - name: wait-for-config-server
         image: {{ .Values.global.initContainer.image }}
@@ -50,6 +56,7 @@ spec:
           {{- include "ggeolmuse.securityContext" . | nindent 10 }}
         resources:
           {{- toYaml .Values.global.initContainer.resources | nindent 10 }}
+      {{- end }}
       containers:
       - name: {{ $svc.name }}
         image: {{ include "ggeolmuse.image" (dict "Values" .Values "repository" $svc.image.repository "tag" $svc.image.tag "Chart" .Chart) }}
