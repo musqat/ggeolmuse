@@ -75,7 +75,7 @@ public class Trade {
   @Column(nullable = false, updatable = false)
   private LocalDateTime createdAt; // 레코드 생성일시
 
-  private LocalDateTime eventPublishedAt; // 체결 이벤트 발행 시각. 비어 있으면 다시 발행 대상
+  private LocalDateTime eventPublishedAt; // 체결 이벤트 발행 시각(비어 있으면 다시 발행 대상)
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 20)

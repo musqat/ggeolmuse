@@ -22,7 +22,7 @@ class ManualPriceValidationTest {
     validator = Validation.buildDefaultValidatorFactory().getValidator();
   }
 
-  // 다른 필드 제약과 섞이지 않게 직접입력 가격 규칙의 위반만 센다
+  // 직접입력 가격 규칙의 위반만 셈(다른 필드 제약과 섞이지 않게)
   private static long manualPriceViolations(Set<? extends ConstraintViolation<?>> violations) {
     return violations.stream()
       .filter(v -> v.getPropertyPath().toString().equals("manualPriceValid"))

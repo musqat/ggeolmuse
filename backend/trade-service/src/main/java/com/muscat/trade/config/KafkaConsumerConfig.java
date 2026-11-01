@@ -88,7 +88,7 @@ public class KafkaConsumerConfig {
     }
 
     /**
-     * 재시도로 못 살린 메시지를 .DLT 토픽에 넣을 때 쓴다.
+     * 재시도로 못 살린 메시지를 .DLT 토픽에 넣는 템플릿
      */
     @Bean
     public KafkaTemplate<String, Object> dltKafkaTemplate() {

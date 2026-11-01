@@ -297,7 +297,7 @@ class DividendPayoutServiceTest {
       payout(LocalDate.of(2025, 2, 7), "0.25", "3.75", "0.58", "3.17"),
       payout(LocalDate.of(2025, 5, 12), "0.25", "3.75", "0.58", "3.17")));
 
-    // 남은 건 2025-01-02 매수 5주. 주당 0.25 × 5주 → 세후 1.06, 배당락일 둘
+    // 남은 건 2025-01-02 매수 5주(주당 0.25 × 5주 → 세후 1.06, 배당락일 둘)
     assertThat(dividendPayoutService.dividendsOnHeldShares(USER).get(POSITION)).isEqualByComparingTo("2.12");
   }
 

@@ -60,7 +60,7 @@ public class DividendEventConsumer {
     log.info("배당 공시 처리: symbol={}, exDate={}, 계좌={}, 실패={}",
       event.getSymbol(), event.getExDate(), userByAccount.size(), failCount);
 
-    // 실패가 있으면 커밋 안 함. Kafka 가 다시 주고(재시도 뒤 DLT), 같은 요청은 다시 계산해도 결과가 같음
+    // 실패가 있으면 커밋 안 함(Kafka 가 다시 주고 재시도 뒤 DLT, 같은 요청은 다시 계산해도 결과가 같음)
     if (failCount > 0) {
       throw new TradeException(TradeResponse.DIVIDEND_PAYMENT_FAILED);
     }

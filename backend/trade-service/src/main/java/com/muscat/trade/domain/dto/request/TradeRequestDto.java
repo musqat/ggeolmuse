@@ -51,7 +51,7 @@ public class TradeRequestDto {
   @DecimalMin(value = "0.01", message = "직접입력 가격은 0.01 이상이어야 합니다")
   private BigDecimal manualPrice;
 
-  // 직접입력인데 가격이 없으면 가격 검증에서 NPE 가 나 시세 오류로 바뀌었다. 요청 단계에서 막는다
+  // 직접입력인데 가격이 없으면 요청 단계에서 거절(가격 검증의 NPE 가 시세 오류로 바뀌는 것 방지)
   @JsonIgnore
   @Schema(hidden = true)
   @AssertTrue(message = "직접입력 가격은 필수입니다")

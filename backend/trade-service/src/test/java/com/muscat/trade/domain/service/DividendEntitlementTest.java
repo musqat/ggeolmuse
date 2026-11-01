@@ -75,7 +75,7 @@ class DividendEntitlementTest {
     later.setExecutedAt(day.atTime(10, 0));
     Trade earlier = lot(1, 10, TradeType.BUY, "10", day);
     earlier.setExecutedAt(day.atTime(9, 0));
-    // 같은 날 두 매수는 체결 시각 순서로 본다. 입력 순서는 일부러 뒤집었다
+    // 같은 날 두 매수는 체결 시각 순서(입력 순서는 일부러 뒤집음)
     List<Trade> trades = List.of(later, earlier,
       lot(3, 10, TradeType.SELL, "5", EX.minusDays(1)),
       lot(4, 10, TradeType.BUY, "7", EX),

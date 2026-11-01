@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
-// 체결 · 완료 · 취소가 커밋되면 그 계좌 · 종목의 배당 몫 재계산을 요청. 거래 응답이 브로커를 기다리지 않게 실행기에서 보냄
+// 체결 · 완료 · 취소가 커밋되면 그 계좌 · 종목의 배당 몫 재계산 요청(거래 응답이 브로커를 기다리지 않게 실행기에서)
 @Slf4j
 @Component
 public class DividendReconcileTrigger {

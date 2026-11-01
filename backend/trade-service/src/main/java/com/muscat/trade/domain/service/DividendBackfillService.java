@@ -42,7 +42,7 @@ public class DividendBackfillService {
   private final UserServiceClient userServiceClient;
   private final DividendReconcileProducer dividendReconcileProducer;
 
-  // 자리마다 다시 보내기 재계산을 요청. 그 자리의 정산된 배당락일을 같이 실음
+  // 자리마다 다시 보내기 재계산 요청(그 자리의 정산된 배당락일 포함)
   public int requestAll() {
     Map<AccountSymbol, List<LocalDate>> settledExDates = new LinkedHashMap<>();
     for (DividendSettlementDto s : allSettlements()) {
@@ -137,7 +137,7 @@ public class DividendBackfillService {
     return positions;
   }
 
-  // 종목마다 배당 목록을 한 번만 받음. 그 종목 거래 중 가장 이른 날부터
+  // 종목마다 배당 목록을 한 번만(그 종목 거래 중 가장 이른 날부터)
   private Map<String, List<DividendDto>> dividendsBySymbol(Map<TradePosition, List<Trade>> tradesByPosition) {
     Map<String, LocalDate> firstTradeDate = new HashMap<>();
     tradesByPosition.forEach((p, trades) -> trades.forEach(t ->

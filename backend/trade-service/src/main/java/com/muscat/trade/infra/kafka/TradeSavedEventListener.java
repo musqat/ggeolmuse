@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
-// 커밋된 체결을 trading.trade.completed 로 발행하고 발행 시각 저장. 실패하면 시각이 빈 채로 남는다
+// 커밋된 체결을 trading.trade.completed 로 발행하고 발행 시각 저장(실패하면 시각이 빈 채로 남음)
 @Slf4j
 @Component
 @RequiredArgsConstructor

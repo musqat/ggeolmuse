@@ -24,7 +24,7 @@ public class TradeCancellationServiceImpl implements TradeCancellationService {
   private final HoldingsRebuilder holdingsRebuilder;
   private final ApplicationEventPublisher eventPublisher;
 
-  // 체결을 잠가서 같은 반영 실패가 두 번 와도 한 번만 취소한다
+  // 체결 잠금으로 같은 반영 실패가 두 번 와도 한 번만 취소
   @Override
   @Transactional
   public void cancel(TradeRejectedEvent event) {

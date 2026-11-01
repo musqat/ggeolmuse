@@ -40,7 +40,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
-// 매수 · 매도 체결. 시세 · 잔액 조회는 트랜잭션 밖, 체결 저장 · 매도의 보유 반영만 트랜잭션 안
+// 매수 · 매도 체결(시세 · 잔액 조회는 트랜잭션 밖, 체결 저장 · 매도의 보유 반영만 트랜잭션 안)
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -108,7 +108,7 @@ public class TradingServiceImpl implements TradingService {
     log.info("매수 가능 수량 계산 시작: userId={}, accountId={}, symbol={}, tradeDate={}",
       userId, request.getAccountId(), request.getSymbol(), request.getTradeDate());
 
-    // 계좌 잔액(USD). 계좌가 없거나 남의 계좌면 계좌 오류
+    // 계좌 잔액(USD, 계좌가 없거나 남의 계좌면 계좌 오류)
     AccountBalanceDto balance = tradeUtils.getAccountBalance(request.getAccountId());
     BigDecimal availableBalance = balance.getBalanceUsd();
 
@@ -116,7 +116,7 @@ public class TradingServiceImpl implements TradingService {
     BigDecimal currentPrice = marketDataService.determineTradePrice(request.getSymbol(),
       request.getTradeDate(), priceType, request.getManualPrice());
 
-    // 체결 때와 같은 체결가와 총액으로 센다
+    // 체결 때와 같은 체결가 · 총액 기준
     BigDecimal tradePrice = applySlippage(request.getSymbol(), currentPrice, balance, priceType,
       TradeType.BUY);
     BigDecimal maxShares = maxAffordableShares(availableBalance, tradePrice, balance);
@@ -144,7 +144,7 @@ public class TradingServiceImpl implements TradingService {
     log.info("매도 가능 수량 계산 시작: userId={}, accountId={}, symbol={}, tradeDate={}",
       userId, request.getAccountId(), request.getSymbol(), request.getTradeDate());
 
-    // 수수료율 · 슬리피지율. 계좌가 없거나 남의 계좌면 계좌 오류
+    // 수수료율 · 슬리피지율(계좌가 없거나 남의 계좌면 계좌 오류)
     AccountBalanceDto balance = tradeUtils.getAccountBalance(request.getAccountId());
 
     // 현재 보유 주식 수량 조회
@@ -162,7 +162,7 @@ public class TradingServiceImpl implements TradingService {
     BigDecimal currentPrice = marketDataService.determineTradePrice(request.getSymbol(),
       request.getTradeDate(), priceType, request.getManualPrice());
 
-    // 체결 때와 같은 체결가에서 수수료를 뺀 받을 금액으로 센다
+    // 체결 때와 같은 체결가에서 수수료를 뺀 받을 금액 기준
     BigDecimal tradePrice = applySlippage(request.getSymbol(), currentPrice, balance, priceType,
       TradeType.SELL);
     BigDecimal totalValue = tradeTotal(maxSellableShares, tradePrice, balance, TradeType.SELL);
@@ -185,7 +185,7 @@ public class TradingServiceImpl implements TradingService {
 
   // ========== 내부 메서드들 ==========
 
-  // 주문과 같은 가격 유형. 비우면 종가
+  // 주문과 같은 가격 유형(비우면 종가)
   private static PriceType capacityPriceType(TradingCapacityRequestDto request) {
     return request.getPriceType() != null ? request.getPriceType() : PriceType.CLOSE;
   }
@@ -236,7 +236,7 @@ public class TradingServiceImpl implements TradingService {
     }
   }
 
-  // 체결가에 계좌 슬리피지율을 반영. 직접 입력 가격에는 붙이지 않는다
+  // 체결가에 계좌 슬리피지율 반영(직접 입력 가격은 제외)
   private BigDecimal applySlippage(String symbol, BigDecimal marketPrice,
     AccountBalanceDto accountBalance, PriceType priceType, TradeType tradeType) {
     BigDecimal rate = accountBalance.getSlippageRate();
@@ -272,7 +272,7 @@ public class TradingServiceImpl implements TradingService {
     return new BigDecimal[]{tradeAmount, fee, totalAmount};
   }
 
-  // 잔액 안에 드는 가장 큰 수량. 체결 때와 같은 총액(수량 × 체결가 + 수수료)으로 이분 탐색한다
+  // 잔액 안에 드는 가장 큰 수량(체결 때와 같은 총액 수량 × 체결가 + 수수료로 이분 탐색)
   private BigDecimal maxAffordableShares(BigDecimal balanceUsd, BigDecimal tradePrice,
     AccountBalanceDto accountBalance) {
     long low = 0;
@@ -289,7 +289,7 @@ public class TradingServiceImpl implements TradingService {
     return BigDecimal.valueOf(low);
   }
 
-  // 체결 총액. calculateTradeAmounts 와 같은 반올림(매수는 수수료를 더하고 매도는 뺌)
+  // 체결 총액(calculateTradeAmounts 와 같은 반올림, 매수는 수수료를 더하고 매도는 뺌)
   private BigDecimal tradeTotal(BigDecimal quantity, BigDecimal tradePrice,
     AccountBalanceDto accountBalance, TradeType tradeType) {
     BigDecimal tradeAmount = MoneyUtils.roundUsd(MoneyUtils.multiply(quantity, tradePrice));
@@ -321,7 +321,7 @@ public class TradingServiceImpl implements TradingService {
       return result;
 
     } catch (TradeException e) {
-      // 락을 잡은 뒤의 보유 부족 같은 도메인 오류는 원래 코드로 올린다
+      // 락을 잡은 뒤의 보유 부족 같은 도메인 오류는 원래 코드 그대로
       throw e;
     } catch (Exception e) {
       log.error("거래 DB 트랜잭션 실패: {}", e.getMessage(), e);
@@ -329,12 +329,11 @@ public class TradingServiceImpl implements TradingService {
     }
   }
 
-  // 체결 저장. 매도만 보유에 바로 반영하고 매수는 정산된 뒤 보유에 들어감
+  // 체결 저장(매도만 보유에 바로 반영, 매수는 정산된 뒤 보유에 들어감)
   private Trade executeTradeDbTransaction(String userId, String accountId, String symbol,
     BigDecimal quantity, BigDecimal tradePrice, BigDecimal totalAmount,
     BigDecimal fee, LocalDate tradeDate, TradeType tradeType) {
-    // 사전 검사는 락 밖이라 동시에 들어온 같은 종목 매도가 같은 날짜 물량을 함께 가져갈 수 있다.
-    // 매도끼리는 보유 행 락에서 줄을 세우고, 락을 잡은 뒤 날짜 기준 매도 가능량을 다시 본다
+    // 매도는 보유 행 락을 잡은 뒤 날짜 기준 매도 가능량을 다시 확인(락 밖 사전 검사로는 동시 매도가 같은 물량을 가져감)
     if (tradeType == TradeType.SELL) {
       holdingsRepository.findByUserIdAndAccountIdAndSymbolWithLock(userId, Long.valueOf(accountId), symbol);
       BigDecimal sellable = tradeRepository.calculateSellableQuantity(userId, Long.valueOf(accountId), symbol,

@@ -41,7 +41,7 @@ public class TradeEventRetryScheduler {
     this.pendingBuys = meterRegistry.gauge("trade.buys.pending", new AtomicLong());
   }
 
-  // 하나라도 실패하면 이번 회차 중단. 브로커가 끊겼을 때 건마다 5초씩 기다리지 않게
+  // 하나라도 실패하면 이번 회차 중단(브로커가 끊겼을 때 건마다 5초씩 기다리지 않게)
   @Scheduled(fixedDelay = 30_000)
   public void resend() {
     LocalDateTime now = LocalDateTime.now();

@@ -33,7 +33,7 @@ import org.springframework.web.method.ControllerAdviceBean;
 @DisplayName("trade 예외 핸들러")
 class GlobalExceptionHandlerTest {
 
-  // 스프링이 advice 마다 만드는 resolver. 같은 예외에 메서드가 둘 걸리면 생성에서 실패한다
+  // 스프링이 advice 마다 만드는 resolver(같은 예외에 메서드가 둘 걸리면 생성에서 실패)
   private final ExceptionHandlerMethodResolver resolver =
     new ExceptionHandlerMethodResolver(GlobalExceptionHandler.class);
 

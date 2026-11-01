@@ -9,7 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-// 배당 내역은 배당 몫 표에서 읽음. 계좌에 넣은 금액과 같은 값
+// 배당 내역은 배당 몫 테이블에서(계좌에 넣은 금액과 같은 값)
 @Service
 @RequiredArgsConstructor
 public class DividendServiceImpl implements DividendService {

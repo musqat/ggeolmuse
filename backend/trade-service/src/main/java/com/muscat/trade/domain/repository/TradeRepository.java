@@ -29,7 +29,7 @@ public interface TradeRepository extends JpaRepository<Trade, Long>, TradeReposi
   // 사용자/종목별 거래 내역 조회 (최신순)
   List<Trade> findByUserIdAndSymbolOrderByExecutedAtDesc(String userId, String symbol);
 
-  // 배당 계산용. 상태로 거른 사용자/종목별 체결 (오래된순)
+  // 배당 계산용, 상태로 거른 사용자 · 종목별 체결(오래된순)
   // 배당락일 전에 이 종목이 체결된 거래(계좌별 배당 수량 계산용)
   List<Trade> findBySymbolAndStatusAndTradeDateBeforeOrderByTradeDateAsc(String symbol, TradeStatus status,
     LocalDate exDate);
@@ -37,16 +37,16 @@ public interface TradeRepository extends JpaRepository<Trade, Long>, TradeReposi
   List<Trade> findByUserIdAndSymbolAndStatusOrderByTradeDateAsc(String userId, String symbol,
     TradeStatus status);
 
-  // 보유 다시 쌓기용. 한 종목 체결을 실제 반영 순서로
+  // 보유 다시 쌓기용, 한 종목 체결을 실제 반영 순서로
   List<Trade> findByUserIdAndAccountIdAndSymbolAndStatusOrderByExecutedAtAscIdAsc(String userId,
     Long accountId, String symbol, TradeStatus status);
 
   List<Trade> findByUserIdAndStatusOrderByExecutedAtAscIdAsc(String userId, TradeStatus status);
 
-  // 계좌 주인 찾기용. 취소된 체결도 봄
+  // 계좌 주인 찾기용(취소된 체결 포함)
   Optional<Trade> findFirstByAccountIdOrderByIdAsc(Long accountId);
 
-  // 같은 체결을 동시에 취소하지 않게 잠가서 읽는다
+  // 같은 체결의 동시 취소를 막는 잠금 읽기
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("select t from Trade t where t.id = :id")
   Optional<Trade> findByIdForUpdate(@Param("id") Long id);
