@@ -51,7 +51,7 @@ services:
     volumes:
       - zookeeper_data:/var/lib/zookeeper/data
       - zookeeper_log:/var/lib/zookeeper/log
-    # 세션을 맺을 수 있어야 healthy. Kafka 시작 스크립트가 쓰는 확인과 같다
+    # 세션을 맺을 수 있을 때 healthy(Kafka 시작 스크립트의 확인과 같음)
     healthcheck:
       test: ["CMD", "cub", "zk-ready", "localhost:2181", "5"]
       interval: 5s
@@ -71,7 +71,7 @@ services:
   kafka:
     image: confluentinc/cp-kafka:7.6.0
     container_name: ggeolmuse-kafka
-    # 포트만 열린 Zookeeper 에 붙으면 세션이 안 맺어진 채 40초 뒤 죽는다. healthy 를 기다린다
+    # Zookeeper healthy 대기(포트만 열린 때 붙으면 세션 없이 40초 뒤 종료)
     depends_on:
       zookeeper:
         condition: service_healthy
@@ -109,7 +109,7 @@ services:
           memory: 1g
 
   # Keycloak (로컬: realm import)
-  # issuer 는 localhost:8080 고정. 브라우저는 localhost, 백엔드는 keycloak:8080 으로 JWKS 를 받음
+  # issuer 는 localhost:8080 고정, JWKS 는 브라우저가 localhost · 백엔드가 keycloak:8080 에서 받음
   keycloak:
     image: quay.io/keycloak/keycloak:26.8.1
     container_name: ggeolmuse-keycloak
@@ -117,7 +117,7 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin
       KC_DB: dev-file
-      # 브라우저가 보는 주소(토큰 iss). 서비스끼리는 keycloak:8080 으로 부름
+      # 브라우저가 보는 주소(토큰 iss), 서비스끼리는 keycloak:8080
       KC_HOSTNAME: http://localhost:8080
       KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
       KC_HTTP_ENABLED: "true"
@@ -222,7 +222,7 @@ services:
         reservations:
           memory: 512m
 
-  # 서비스 넷의 DB(userdb · tradedb · marketdb · backtestdb). 데이터는 컨테이너와 함께 사라짐
+  # 서비스 넷의 DB(userdb · tradedb · marketdb · backtestdb), 데이터는 컨테이너와 함께 사라짐
   postgres:
     image: postgres:15-alpine
     container_name: ggeolmuse-postgres
@@ -278,7 +278,7 @@ services:
       # 시드 admin 계정 (로컬 체험용 더미)
       APP_ADMIN_EMAIL: admin@test.com
       ADMIN_PASSWORD: Admin123!
-      # config-server를 non-optional + retry로 가져옴 (초기 부팅 DNS race 방지). 로컬은 AWS 미사용.
+      # config-server 필수 · 재시도(초기 부팅 DNS race 방지), 로컬은 AWS 미사용
       SPRING_CONFIG_IMPORT: "configserver:http://config-server:8888"
       SPRING_CLOUD_CONFIG_FAIL_FAST: "true"
       SPRING_CLOUD_CONFIG_RETRY_MAX_ATTEMPTS: "20"
@@ -319,8 +319,7 @@ services:
     environment:
       TZ: "Asia/Seoul"
       SPRING_APPLICATION_NAME: "trade-service"
-      # config-server 를 non-optional + retry 로 가져온다.
-      # 설정을 못 받으면 jar 기본값으로 떠서 동작이 달라진다
+      # config-server 필수 · 재시도(못 받으면 jar 기본값으로 뜸)
       SPRING_CONFIG_IMPORT: "configserver:http://config-server:8888"
       SPRING_CLOUD_CONFIG_FAIL_FAST: "true"
       SPRING_CLOUD_CONFIG_RETRY_MAX_ATTEMPTS: "20"
@@ -378,9 +377,7 @@ services:
     environment:
       TZ: "Asia/Seoul"
       SPRING_APPLICATION_NAME: "market-data-service"
-      # config-server 를 non-optional + retry 로 가져온다.
-      # 설정을 못 받으면 marketdata.symbol-collection.enabled 가 jar 기본값 false 라
-      # 종목을 한 개도 수집하지 않은 채 뜬다
+      # config-server 필수 · 재시도(못 받으면 jar 기본값 symbol-collection false 로 종목 수집 없이 뜸)
       SPRING_CONFIG_IMPORT: "configserver:http://config-server:8888"
       SPRING_CLOUD_CONFIG_FAIL_FAST: "true"
       SPRING_CLOUD_CONFIG_RETRY_MAX_ATTEMPTS: "20"
@@ -389,18 +386,16 @@ services:
       <<: [*otel-agent, *postgres]
       OTEL_SERVICE_NAME: market-data-service
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/marketdb
-      # yahoo = 키 불필요·무료. 부팅 후 소수 종목 OHLC 자동 수집 → 차트/백테스트 데이터 확보
+      # yahoo(키 없음 · 무료), 부팅 뒤 소수 종목 OHLC 자동 수집 → 차트 · 백테스트 데이터
       MARKETDATA_PROVIDER: yahoo
-      # 로컬: 전체 ~6700종목 수집은 무겁고 스택을 올릴 때마다 재수집 → 상위 50개만 수집(시총 desc, AAPL 등 포함).
+      # 로컬은 시총 상위 50종목만(전체 약 6700종목은 무겁고 스택마다 다시 수집, AAPL 등 포함)
       MARKETDATA_SYMBOLCOLLECTION_MAXSYMBOLS: "50"
       # 50종목뿐이라 메모리 여유 → 2년치 수집(1년+ 기간 백테스트/비교 가능)
       SYMBOL_LOOKBACK_DAYS: "730"
-      # 목록 API(AlphaVantage)가 공유 IP 에서 자주 막힌다. 비면 이미지에 든 CSV 로 채운다
+      # 목록 API(AlphaVantage)가 비면 이미지에 든 CSV 로 채움(공유 IP 에서 자주 막힘)
       MARKETDATA_SYMBOLLISTING_CSVFALLBACK: "true"
       SYMBOL_INCLUDE_DIVIDENDS: "false"
-      # 환율(KRW/USD) backfill: FX 소스가 KoreaExim API(실제 키 필요)라 demo 키론 실패.
-      #  KOREAEXIM_API_KEY(.env)에 무료 발급 키를 넣으면 켜기: FX_BACKFILL_ENABLED=true.
-      #  (단일 simulation 백테스트는 fallback 환율로 키 없이 동작. DCA/전략/비교만 FX 시계열 필요.)
+      # 환율 backfill 은 KoreaExim 실제 키(.env 의 KOREAEXIM_API_KEY)가 있을 때만(DCA · 전략 · 비교용, 단일 백테스트는 fallback 환율)
       FX_BACKFILL_ENABLED: "${FX_BACKFILL_ENABLED:-false}"
       # 비동기 수집이 커넥션을 다 잡아 API가 503나는 것 방지
       SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "30"
@@ -456,8 +451,7 @@ services:
     environment:
       TZ: "Asia/Seoul"
       SPRING_APPLICATION_NAME: "backtest-service"
-      # config-server 를 non-optional + retry 로 가져온다.
-      # 설정을 못 받으면 jar 기본값으로 떠서 동작이 달라진다
+      # config-server 필수 · 재시도(못 받으면 jar 기본값으로 뜸)
       SPRING_CONFIG_IMPORT: "configserver:http://config-server:8888"
       SPRING_CLOUD_CONFIG_FAIL_FAST: "true"
       SPRING_CLOUD_CONFIG_RETRY_MAX_ATTEMPTS: "20"
@@ -570,22 +564,20 @@ services:
           memory: 256m
 
   #### OBSERVABILITY ####
-  # prod(helm/monitoring)와 같은 조합을 로컬에도 둔다.
-  # 앱은 이미 메트릭·트레이스를 뱉고 있었고, 그걸 받을 쪽이 없었을 뿐이다.
+  # prod(helm/monitoring)와 같은 조합의 로컬 관측
 
   prometheus:
     image: prom/prometheus:v3.1.0
     container_name: ggeolmuse-prometheus
     ports:
-      # 컨테이너 9090은 각 서비스의 actuator 포트와 겹치지 않지만,
-      # 호스트에서는 비켜준다.
+      # 호스트 9090 은 서비스 actuator 포트와 겹쳐 9091
       - "9091:9090"
     volumes:
       - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     command:
       - --config.file=/etc/prometheus/prometheus.yml
-      # 부하 테스트 후 설정만 고쳐 다시 읽히려고 열어둔다.
+      # 설정 다시 읽기(/-/reload)
       - --web.enable-lifecycle
     networks:
       - ggeolmuse-network
@@ -602,9 +594,7 @@ services:
     command: ["-config.file=/etc/tempo.yml"]
     volumes:
       - ./observability/tempo.yml:/etc/tempo.yml:ro
-      # 트레이스는 컨테이너와 함께 사라진다. 볼륨을 붙이지 않는 이유는 둘이다.
-      # 지난 세션 트레이스를 볼 일이 없고, 쌓인 채로 재시작하면 옛 블록
-      # compaction 에 메모리가 크게 든다.
+      # 볼륨 없음(트레이스는 컨테이너와 함께 사라짐, 쌓인 옛 블록 compaction 메모리 회피)
     networks:
       - ggeolmuse-network
     deploy:
@@ -618,10 +608,10 @@ services:
     image: grafana/grafana:11.5.1
     container_name: ggeolmuse-grafana
     ports:
-      # 3000은 frontend-web이 쓴다.
+      # 3000 은 frontend-web 몫
       - "3001:3000"
     environment:
-      # 로컬이라 로그인 화면을 건너뛴다.
+      # 로컬 익명 관리자(로그인 화면 없음)
       GF_AUTH_ANONYMOUS_ENABLED: "true"
       GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
       GF_AUTH_DISABLE_LOGIN_FORM: "true"
