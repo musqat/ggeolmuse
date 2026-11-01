@@ -1,0 +1,34 @@
+# 멀티 노드 Traefik(진입점 · 공급자 설정은 운영 k3s 의 helm/k3s-traefik/traefik-config.yaml 과 같게)
+deployment:
+  replicas: 2
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: traefik
+# NLB(aws) · kind 포트 매핑이 받는 노드 포트
+service:
+  type: NodePort
+ports:
+  web:
+    nodePort: 30080
+  websecure:
+    nodePort: 30443
+providers:
+  kubernetesIngress:
+    publishedService:
+      enabled: false
+  kubernetesCRD:
+    enabled: true
+    allowCrossNamespace: true
+    allowExternalNameServices: true
+api:
+  dashboard: true
+metrics:
+  prometheus:
+    entryPoint: metrics

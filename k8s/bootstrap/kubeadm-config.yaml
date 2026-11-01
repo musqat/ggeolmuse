@@ -1,0 +1,38 @@
+# kubeadm init 설정(${...} 는 control-plane.sh 가 versions.env 값으로 바꿈)
+apiVersion: kubeadm.k8s.io/v1beta4
+kind: InitConfiguration
+nodeRegistration:
+  criSocket: unix:///run/containerd/containerd.sock
+---
+apiVersion: kubeadm.k8s.io/v1beta4
+kind: ClusterConfiguration
+kubernetesVersion: v${KUBERNETES_VERSION}
+controlPlaneEndpoint: ${CONTROL_PLANE_ENDPOINT}:6443
+networking:
+  podSubnet: ${POD_CIDR}
+  serviceSubnet: ${SERVICE_CIDR}
+# Prometheus 가 컨트롤 플레인 지표를 긁는 주소(보안 그룹이 노드끼리만 엶)
+controllerManager:
+  extraArgs:
+    - name: bind-address
+      value: 0.0.0.0
+scheduler:
+  extraArgs:
+    - name: bind-address
+      value: 0.0.0.0
+etcd:
+  local:
+    extraArgs:
+      - name: listen-metrics-urls
+        value: http://0.0.0.0:2381
+---
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+cgroupDriver: systemd
+# 운영 k3s 노드와 같은 이미지 정리 기준(helm/k3s-node/kubelet-image-gc.yaml)
+imageGCHighThresholdPercent: 70
+imageGCLowThresholdPercent: 60
+---
+apiVersion: kubeproxy.config.k8s.io/v1alpha1
+kind: KubeProxyConfiguration
+metricsBindAddress: 0.0.0.0:10249
