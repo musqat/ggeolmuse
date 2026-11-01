@@ -1,0 +1,18 @@
+# 로컬 kind 3노드(컨트롤 플레인 1 · 워커 2, 노드 이미지는 up.sh 가 k8s/versions.env 값으로)
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: ggeolmuse
+networking:
+  # NetworkPolicy 를 지키는 Calico 를 따로 깖
+  disableDefaultCNI: true
+  podSubnet: 10.42.0.0/16
+  serviceSubnet: 10.43.0.0/16
+nodes:
+  - role: control-plane
+    # 호스트 127.0.0.1:18080 → Traefik web 노드 포트
+    extraPortMappings:
+      - containerPort: 30080
+        hostPort: 18080
+        listenAddress: 127.0.0.1
+  - role: worker
+  - role: worker

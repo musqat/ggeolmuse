@@ -9,3 +9,5 @@
 *.properties text eol=lf working-tree-encoding=UTF-8
 
 *.sql text eol=lf
+*.sh text eol=lf
+*.env text eol=lf

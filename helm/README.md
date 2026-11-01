@@ -131,6 +131,9 @@ values-secret.yaml      로컬 시크릿 (secrets.enabled + 실제 키) — giti
 
 ### 로컬 빌드 & 배포
 
+> 멀티 노드와 같은 모양(3노드 · Calico · Traefik · 시크릿 파일)은 kind 로 띄운다 → [`../k8s/README.md`](../k8s/README.md#로컬-kind-3노드).
+> 아래는 docker-desktop 단일 노드 · nginx 인그레스 기준.
+
 > 전제: 로컬 Kubernetes(docker-desktop 등) + Docker + helm. 이미지는 로컬 빌드해 `Chart.AppVersion` 태그로 사용.
 
 **1. 시크릿 파일 준비** (최초 1회)
