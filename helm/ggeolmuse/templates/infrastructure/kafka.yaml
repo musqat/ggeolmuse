@@ -119,6 +119,9 @@ spec:
         name: kafka-data
       spec:
         accessModes: ["ReadWriteOnce"]
+        {{- with .Values.infrastructure.kafka.storage.storageClassName }}
+        storageClassName: {{ . }}
+        {{- end }}
         resources:
           requests:
             storage: {{ .Values.infrastructure.kafka.storage.data }}
