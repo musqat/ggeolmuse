@@ -21,7 +21,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.core.env.StandardEnvironment;
 import org.springframework.core.io.ClassPathResource;
 
-// 실제 logback-spring.xml · application.yml 로 콘솔 JSON 로그를 만들어 이메일 가리기와 추적 ID 를 본다
+// 실제 logback-spring.xml · application.yml 로 만든 콘솔 JSON 로그의 이메일 가리기 · 추적 ID
 @DisplayName("로그의 이메일 가리기")
 class LogbackEmailMaskingTest {
 

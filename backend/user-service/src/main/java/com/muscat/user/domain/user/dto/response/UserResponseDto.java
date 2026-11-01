@@ -33,7 +33,7 @@ public record UserResponseDto(
   @Schema(description = "소셜 계정 이메일", example = "user@gmail.com")
   String socialEmail,
 
-  // 구글로만 가입한 사용자는 비밀번호가 없다. 비밀번호 변경 · 탈퇴 화면이 이 값으로 갈린다
+  // 비밀번호 유무(구글로만 가입하면 없음, 비밀번호 변경 · 탈퇴 화면이 이 값으로 갈림)
   @Schema(description = "비밀번호로 로그인할 수 있는지", example = "true")
   boolean hasPassword
 ) {

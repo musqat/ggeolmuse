@@ -17,7 +17,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
-// 컨테이너 팩토리가 역직렬화하는 값 타입이 리스너 @Payload 와 다르면 리스너를 못 불러 첫 시도에 DLT 로 간다
+// 컨테이너 팩토리의 값 타입 = 리스너 @Payload 타입(다르면 리스너를 못 불러 첫 시도에 DLT 로 감)
 @DisplayName("리스너와 컨테이너 팩토리의 값 타입")
 class KafkaListenerFactoryTypeTest {
 

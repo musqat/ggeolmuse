@@ -46,7 +46,7 @@ public class UserLogger {
   public void logExchangeStart(Long accountId, String fromCurrency, String toCurrency,
       BigDecimal amount, BigDecimal exchangeRate) {
     String txType = fromCurrency + "_TO_" + toCurrency;
-    // 시작에서 MDC 를 남겨 두면 환전이 중간에 실패할 때 지우는 곳이 없어 다음 요청 로그에 묻는다. 남긴 뒤 바로 지운다
+    // MDC 는 남긴 뒤 바로 지움(시작에서 남겨 두면 환전이 중간에 실패할 때 다음 요청 로그에 묻음)
     executeWithMDC(txType, accountId, STARTED, null,
         () -> USER_TX_LOG.info("환전 시작: 계좌={}, {} {}→{}, 환율={}",
             accountId, amount, fromCurrency, toCurrency, exchangeRate));

@@ -44,10 +44,10 @@ public class AppProperties {
   @Data
   public static class Auth {
 
-    // 게이트웨이가 경로를 그대로 넘기므로 브라우저 쪽 경로와 같다
+    // 브라우저 쪽 경로와 같음(게이트웨이가 경로를 그대로 넘김)
     private String refreshCookiePath = "/api/auth";
 
-    // https 에서만 보낸다. 브라우저는 http://localhost 도 안전한 출처로 봐 로컬 개발에서도 실린다
+    // https 에서만 전송(브라우저는 http://localhost 도 안전한 출처로 봐 로컬 개발에서도 실림)
     private boolean refreshCookieSecure = true;
   }
 }

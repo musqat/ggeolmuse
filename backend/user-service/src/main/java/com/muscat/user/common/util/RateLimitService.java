@@ -7,7 +7,7 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
-// 이메일 전송 Rate Limiting(1분 1번). 파드가 여럿이어도 같은 한도를 보게 Redis 에 두고 TTL 로 지움
+// 이메일 전송 Rate Limiting(1분 1번, 파드가 여럿이어도 같은 한도를 보게 Redis 에 두고 TTL 로 지움)
 @Slf4j
 @Service
 public class RateLimitService {
@@ -22,7 +22,7 @@ public class RateLimitService {
   }
 
   /**
-   * Rate limit 체크 및 기록. 키가 없을 때만 1분짜리 키를 두고 통과시킨다
+   * Rate limit 체크 및 기록(키가 없을 때만 1분짜리 키를 두고 통과)
    */
   public boolean tryAcquire(String email) {
     try {
@@ -33,7 +33,7 @@ public class RateLimitService {
       log.warn("Rate limit exceeded for email: {}", email);
       return false;
     } catch (DataAccessException e) {
-      // Redis 가 잠깐 안 될 때 메일 재발송 · 재설정까지 막지 않는다. 게이트웨이도 IP 로 따로 막는다
+      // Redis 가 잠깐 안 될 때는 통과(메일 재발송 · 재설정까지 막지 않음, 게이트웨이도 IP 로 따로 제한)
       log.warn("Rate limit 확인 실패, 통과시킴: email={}, error={}", email, e.getMessage());
       return true;
     }

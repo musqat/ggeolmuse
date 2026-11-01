@@ -11,7 +11,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
 
-// 요청 스레드는 재사용된다. 거래 로그가 남긴 MDC 값이 다음 요청 로그에 묻어나면 안 된다
+// 거래 로그의 MDC 값이 다음 요청 로그에 안 묻는지(요청 스레드는 재사용)
 @DisplayName("거래 · 감사 로그의 MDC 정리")
 class UserLoggerTest {
 
@@ -60,7 +60,7 @@ class UserLoggerTest {
   void exchangeStartThenFailure_LeavesNoMdc() {
     userLogger.logExchangeStart(3L, "KRW", "USD", new BigDecimal("13000"), new BigDecimal("1300"));
 
-    // 잔액 부족 등으로 완료 로그 없이 끝난 요청. 같은 스레드의 다음 요청에 값이 묻으면 안 된다
+    // 잔액 부족 등으로 완료 로그 없이 끝난 요청(같은 스레드의 다음 요청에 값이 안 묻는지)
     assertTxKeysCleared();
   }
 }

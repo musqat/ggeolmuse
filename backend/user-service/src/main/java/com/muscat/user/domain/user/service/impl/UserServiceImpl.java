@@ -56,7 +56,7 @@ public class UserServiceImpl implements UserService {
   private final LoginEventProducer loginEventProducer;
   private final AccountEventProducer accountEventProducer;
 
-  // 비밀번호 없는 사용자(구글)는 이 시간 안에 로그인한 토큰이어야 탈퇴할 수 있다. 훔친 access token 만으로는 못 지운다
+  // 비밀번호 없는 사용자(구글)의 탈퇴 허용 로그인 시간(훔친 access token 만으로는 탈퇴 불가)
   private static final Duration REAUTH_WINDOW = Duration.ofMinutes(5);
   // 관리자 권한을 정하는 Keycloak realm role
   private static final String ADMIN_REALM_ROLE = "admin";
@@ -85,8 +85,7 @@ public class UserServiceImpl implements UserService {
       log.info("Keycloak 사용자 생성 성공: {}", email);
 
     } catch (org.springframework.web.client.HttpClientErrorException.Conflict e) {
-      // Keycloak 에 이미 있다(구글로 가입하고 로컬 DB 에는 없는 경우 등). 이메일 확인 없이 그 계정에
-      // 연결하면 남의 이메일로 가입해 인증된 계정을 얻을 수 있어, 로컬 중복과 같이 이미 가입된 이메일로 막는다
+      // Keycloak 에만 있는 계정도 이미 가입된 이메일로 거절(구글 가입 등, 이메일 확인 없이 연결하면 남의 이메일로 인증된 계정을 얻음)
       log.warn("회원가입 실패 - Keycloak 에 이미 있는 이메일: {}", email);
       throw new UserException(UserResponse.EMAIL_ALREADY_EXISTS);
 
@@ -115,7 +114,7 @@ public class UserServiceImpl implements UserService {
     }
   }
 
-  // 구글 이름을 닉네임 규칙에 맞게 다듬은 값. 규칙에 못 맞추거나 다른 사용자가 쓰면 null
+  // 구글 이름을 닉네임 규칙에 맞게 다듬은 값(규칙에 못 맞추거나 다른 사용자가 쓰면 null)
   private String availableNickname(String name) {
     String cleaned = NicknameRule.clean(name);
     if (cleaned == null || userRepository.existsByNickname(cleaned)) {
@@ -176,9 +175,7 @@ public class UserServiceImpl implements UserService {
       throw e;
     }
 
-    // 비밀번호를 이메일 인증 체크보다 먼저 본다.
-    // 인증 체크가 앞서면, 비번을 몰라도 미인증(400)과 없는 계정(401)의 응답이 갈려
-    // 가입 여부가 드러난다. 비번을 통과한 사람에게만 미인증 안내를 주도록 순서를 둔다.
+    // 비밀번호 확인을 이메일 인증보다 먼저(미인증 안내는 비밀번호 통과 뒤만, 가입 여부 노출 방지)
     if (user.getPasswordHash() == null || !passwordEncoder.matches(password,
       user.getPasswordHash())) {
       log.warn("로그인 실패 - 비밀번호 불일치: {}", email);
@@ -299,14 +296,14 @@ public class UserServiceImpl implements UserService {
     User user = userRepository.findByKeycloakId(keycloakId)
       .orElseThrow(() -> new UserException(UserResponse.USER_NOT_FOUND));
 
-    // 해시가 없는 소셜 사용자도 같은 응답. 401 은 프론트가 세션 만료로 처리하므로 400 을 준다
+    // 해시가 없는 소셜 사용자도 같은 400(401 은 프론트가 세션 만료로 처리)
     if (user.getPasswordHash() == null
       || !passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
       log.warn("비밀번호 변경 실패 - 현재 비밀번호 불일치: keycloakId={}", keycloakId);
       throw new UserException(UserResponse.INVALID_PASSWORD);
     }
 
-    // 로그인이 로컬 해시를 먼저 보므로 Keycloak 과 로컬을 같이 바꾼다
+    // Keycloak 과 로컬 해시를 같이 변경(로그인이 로컬 해시를 먼저 봄)
     try {
       keycloakService.resetPassword(user.getKeycloakId(), newPassword);
     } catch (Exception e) {
@@ -376,7 +373,7 @@ public class UserServiceImpl implements UserService {
       throw new UserException(UserResponse.RATE_LIMIT_EXCEEDED);
     }
 
-    // 가입 여부 · 인증 여부를 응답으로 드러내지 않는다. 보낼 사람에게만 보내고 나머지는 같은 응답으로 끝낸다
+    // 가입 · 인증 여부 숨김(보낼 사람에게만 보내고 나머지도 같은 응답)
     Optional<User> user = userRepository.findByEmail(email);
     if (user.isEmpty() || user.get().isEmailVerified()) {
       log.info("인증 메일 재발송 대상 아님(없는 사용자 또는 인증됨): {}", email);
@@ -396,7 +393,7 @@ public class UserServiceImpl implements UserService {
       throw new UserException(UserResponse.RATE_LIMIT_EXCEEDED);
     }
 
-    // 가입 여부를 응답으로 드러내지 않는다. 인증된 사용자에게만 보내고 나머지는 같은 응답으로 끝낸다
+    // 가입 여부 숨김(인증된 사용자에게만 보내고 나머지도 같은 응답)
     Optional<User> user = userRepository.findByEmail(email);
     if (user.isEmpty() || !user.get().isEmailVerified()) {
       log.info("비밀번호 재설정 메일 대상 아님(없는 사용자 또는 미인증): {}", email);
@@ -444,8 +441,7 @@ public class UserServiceImpl implements UserService {
 
   // ========== 내부 Methods ==========
 
-  // 탈퇴 · 강제 탈퇴 공통. 잔액은 가상 머니라 보지 않는다(계좌 삭제와 같다). 계좌마다 삭제 이벤트를 보내
-  // trade-service 가 거래 · 보유를 지우게 하고, 계좌 내역은 DB 의 ON DELETE CASCADE 로 같이 지워진다
+  // 탈퇴 · 강제 탈퇴 공통(잔액은 가상 머니라 안 봄, 계좌마다 삭제 이벤트 → trade-service 가 거래 · 보유 삭제, 계좌 내역은 ON DELETE CASCADE)
   private void removeUser(User user) {
     emailTokenRepository.deleteByUser(user);
     passwordResetTokenRepository.deleteByUser(user);
@@ -551,7 +547,7 @@ public class UserServiceImpl implements UserService {
     log.info("사용자 활성화 상태 변경: userId={}, oldEnabled={}, newEnabled={}",
       userId, user.isEnabled(), enabled);
 
-    // Keycloak 도 꺼야 이미 받은 refresh token 으로 새 토큰을 못 받는다
+    // Keycloak 도 비활성(이미 받은 refresh token 으로 새 토큰 발급 차단)
     try {
       keycloakService.setEnabled(user.getKeycloakId(), enabled);
     } catch (Exception e) {

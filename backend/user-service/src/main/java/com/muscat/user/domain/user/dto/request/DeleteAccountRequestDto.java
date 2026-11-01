@@ -10,7 +10,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class DeleteAccountRequestDto {
-  // 비밀번호로 가입한 사용자만 보낸다. 구글 사용자는 비우고, 서버가 토큰의 로그인 시각으로 본인을 확인한다
+  // 비밀번호로 가입한 사용자만(구글 사용자는 비우고 서버가 토큰의 로그인 시각으로 본인 확인)
   @Schema(description = "비밀번호(비밀번호로 가입한 사용자만)", example = "password123")
   private String password;
 }

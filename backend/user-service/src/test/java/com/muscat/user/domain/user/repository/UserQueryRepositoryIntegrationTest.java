@@ -18,7 +18,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.ActiveProfiles;
 
-// 트랜잭션 없이 부른다. fetch join 이 빠지면 지연 로딩한 연관을 읽을 때 오류가 나 테스트가 실패한다
+// 트랜잭션 없이 호출(fetch join 이 빠지면 지연 로딩한 연관을 읽을 때 오류)
 @SpringBootTest
 @ActiveProfiles("test")
 @DisplayName("사용자 · 토큰 QueryDSL 조회 (fetch join)")

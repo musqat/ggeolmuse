@@ -14,7 +14,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-// 계좌 · 종목 · 배당락일마다 지금까지 넣은 배당 금액. 한 행이라 같은 지급이 다시 와도 두 번 넣지 않음
+// 계좌 · 종목 · 배당락일마다 지금까지 넣은 배당 금액(한 행이라 같은 지급이 다시 와도 두 번 넣지 않음)
 @Entity
 @Table(name = "dividend_settlements", uniqueConstraints = @UniqueConstraint(
   name = "uk_dividend_settlements", columnNames = {"account_id", "symbol", "ex_date"}))

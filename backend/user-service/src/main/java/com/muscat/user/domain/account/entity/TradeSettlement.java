@@ -16,7 +16,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.data.domain.Persistable;
 
-// 체결 이벤트 처리 결과. tradeId 하나에 한 행
+// 체결 이벤트 처리 결과(tradeId 하나에 한 행)
 @Entity
 @Table(name = "trade_settlements")
 @Getter
@@ -38,7 +38,7 @@ public class TradeSettlement implements Persistable<Long> {
   @Column(nullable = false)
   private LocalDateTime processedAt;
 
-  // save 가 merge 대신 persist 로 INSERT 하게 한다. 같은 tradeId 가 동시에 오면 기본 키 충돌로 막힌다
+  // save 가 merge 대신 persist 로 INSERT(같은 tradeId 가 동시에 오면 기본 키 충돌로 막힘)
   @Transient
   private boolean newEntity = true;
 

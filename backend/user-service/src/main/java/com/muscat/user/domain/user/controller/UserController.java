@@ -114,7 +114,7 @@ public class UserController {
     return ResponseEntity.ok().build();
   }
 
-  // 처음 만들 때 쓰는 닉네임. 이름 > given_name > email 앞부분
+  // 처음 만들 때 쓰는 닉네임(이름 > given_name > email 앞부분)
   private static String nickname(Jwt jwt, String email) {
     String name = jwt.getClaimAsString("name");
     if (name != null) {
