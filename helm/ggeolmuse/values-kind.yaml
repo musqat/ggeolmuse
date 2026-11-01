@@ -1,0 +1,67 @@
+# 로컬 kind 덧붙임(values-prod.yaml · values-k8s.yaml 다음, 시크릿 출처 · DB · 주소 · 모니터링을 바꿈)
+global:
+  domain: ggeolmuse.localhost
+  authDomain: ggeolmuse.localhost
+  imagePullPolicy: IfNotPresent
+  keycloak:
+    publicUrl: http://ggeolmuse.localhost:18080/auth
+  # Secrets Manager 대신 up.sh 가 만든 ggeolmuse-secrets 를 운영과 같은 파일 방식으로
+  secretFiles: true
+  aws:
+    secretsManager:
+      enabled: false
+  # 트레이스를 받을 Tempo 없음
+  otel:
+    enabled: false
+
+infrastructure:
+  keycloak:
+    env:
+      kcDbUrl: jdbc:postgresql://postgres:5432/keycloak
+  # kind 기본 저장 클래스(노드 디스크)
+  zookeeper:
+    storage:
+      storageClassName: standard
+  kafka:
+    storage:
+      storageClassName: standard
+
+services:
+  userService:
+    env:
+      APP_BASE_URL: http://ggeolmuse.localhost:18080
+      APP_FRONTEND_URL: http://ggeolmuse.localhost:18080
+      APP_MAIL_VERIFICATION_BASE_URL: http://ggeolmuse.localhost:18080
+  # 외부 종목 수집 끔
+  marketDataService:
+    env:
+      SYMBOL_COLLECTION_ENABLED: "false"
+
+# argocd · monitoring 네임스페이스 없음
+ingress:
+  subdomains: []
+
+frontend:
+  env:
+    apiUrl: http://ggeolmuse.localhost:18080/api
+    keycloakUrl: http://ggeolmuse.localhost:18080/auth
+
+configMap:
+  data:
+    appBaseUrl: http://ggeolmuse.localhost:18080
+
+monitoring:
+  serviceMonitor:
+    enabled: false
+  prometheusRule:
+    enabled: false
+  dashboards:
+    enabled: false
+  slack:
+    enabled: false
+
+dbBackup:
+  enabled: false
+
+morningCheck:
+  enabled: false

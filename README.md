@@ -116,6 +116,7 @@ ggeolmuse/
 ├── docker-compose/       로컬 스택
 ├── cloudflare/           꺼져 있을 때 안내 페이지 (Worker)
 ├── helm/                 Helm 차트 · ArgoCD
+├── k8s/                  멀티 노드 예비안 (부트스트랩 · kind)
 ├── tests/
 │   ├── e2e/              Playwright
 │   └── k6/               부하 테스트 스크립트

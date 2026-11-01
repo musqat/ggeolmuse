@@ -1,0 +1,5 @@
+apiVersion: v2
+name: ggeolmuse-apps
+description: ArgoCD 가 리포에서 맞추는 Application 묶음(ArgoCD 자신 · ggeolmuse · 모니터링)
+type: application
+version: 0.1.0

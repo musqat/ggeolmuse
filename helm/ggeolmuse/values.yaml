@@ -5,7 +5,7 @@ global:
 
   # 롤백용으로 남기는 옛 ReplicaSet 개수(k8s 기본 10)
   revisionHistoryLimit: 5
-  # 여러 노드에서만 켜는 배치(k3s 단일 노드는 꺼 둠)
+  # 여러 노드에서만 켜는 배치
   # 레플리카 2 이상인 앱의 PodDisruptionBudget
   podDisruptionBudget:
     enabled: false
@@ -56,6 +56,9 @@ global:
 
   # springProfiles: 환경별 (dev/prod)
 
+  # 시크릿을 /etc/secrets 파일로(Secrets Manager 연동 없이 같은 방식, 예 kind)
+  secretFiles: false
+
   # AWS 설정 (secretsManager.enabled: 환경별)
   aws:
     region: ap-northeast-2
@@ -76,14 +79,17 @@ global:
     sampler: parentbased_always_on
     samplerArg: ""
 
-# 외부 진입(IngressRoute · Origin 인증서, 환경별 파일이 켬)
+# 외부 진입(IngressRoute 또는 표준 Ingress · Origin 인증서, 환경별 파일이 켬)
 ingress:
   enabled: false
+  # IngressRoute(Traefik CRD, 경로는 템플릿) 또는 Ingress(경로는 hosts · subdomains)
+  kind: IngressRoute
   className: traefik
-
-# Ingress Controller (enabled: 환경별 - dev만 사용)
-ingressController:
-  image: registry.k8s.io/ingress-nginx/controller:v1.9.4
+  annotations: {}
+  # host 를 비우면 global.domain
+  hosts: []
+  # <name>.<global.domain> → 다른 네임스페이스의 서비스(Ingress 도 그 네임스페이스에)
+  subdomains: []
 
 # 인프라
 infrastructure:
@@ -496,8 +502,6 @@ networkPolicy:
     block: true
     exemptApps:
       - db-backup
-
-# Ingress 설정: 환경별 (values-dev.yaml = nginx/app.localhost, values-prod.yaml = traefik/ggeolmuse.com)
 
 # Secret 설정
 secrets:

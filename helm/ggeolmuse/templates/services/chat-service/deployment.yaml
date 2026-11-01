@@ -1,5 +1,5 @@
 {{- if .Values.services.chatService.enabled }}
-{{- $secretFiles := and .Values.global.aws.secretsManager.enabled .Values.services.chatService.secretFiles }}
+{{- $secretFiles := and (include "ggeolmuse.secretFiles" .) .Values.services.chatService.secretFiles }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:

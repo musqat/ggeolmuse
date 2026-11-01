@@ -52,6 +52,16 @@ terraform apply
   만들지 않고, 슬랙에 못 보내면 위 SNS 알람으로 온다
 - S3 버킷 `ggeolmuse-db-backup-apne2` + EC2 역할 쓰기 정책: 월간 pg_dump 보관 (`db-backup.tf`).
   CronJob 쪽은 `helm/ggeolmuse` 의 `dbBackup`
+- 멀티 노드 예비 클러스터 (`k8s-cluster.tf` → `modules/k8s-cluster`): `k8s_cluster_enabled = true` 일 때만 생긴다. 기본은 아무것도
+  만들지 않는다. 한 서브넷의 EC2 셋(컨트롤 플레인 1 · 워커 2), 노드 보안 그룹, Cloudflare 접두사 목록의 443 만 받는 NLB, 노드 역할
+  (시크릿 읽기 · EBS CSI · SSM). 올린 뒤 순서는 [k8s/README.md](../k8s/README.md)
+
+테스트는 가짜 AWS 프로바이더로 돈다(루트 `tests/` · 모듈 `modules/k8s-cluster/tests/`).
+
+```bash
+terraform init -backend=false && terraform test
+cd modules/k8s-cluster && terraform init -backend=false && terraform test
+```
 
 ## 주의사항
 

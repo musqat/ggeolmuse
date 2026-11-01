@@ -1,0 +1,36 @@
+{{- /* 앱 차트(master 를 자동으로 맞추고 리포에서 지운 리소스는 클러스터에서도 지움) */ -}}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ggeolmuse
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: {{ .Values.repoURL }}
+    targetRevision: {{ .Values.targetRevision }}
+    path: helm/ggeolmuse
+    helm:
+      valueFiles:
+        {{- range .Values.ggeolmuse.valueFiles }}
+        - {{ . }}
+        {{- end }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - Validate=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

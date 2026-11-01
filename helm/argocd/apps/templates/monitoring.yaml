@@ -1,0 +1,39 @@
+{{- /* 모니터링 릴리스마다 Application 하나(자동 동기화 없음, StatefulSet 볼륨이 바뀌면 손으로 지우고 올림) */ -}}
+{{- if .Values.monitoring.enabled }}
+{{- range $name, $r := .Values.monitoring.releases }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ $name }}
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: {{ $r.repoURL }}
+      chart: {{ $r.chart }}
+      targetRevision: {{ $r.version }}
+      helm:
+        releaseName: {{ $name }}
+        valueFiles:
+          {{- range $r.valueFiles }}
+          - $values/{{ . }}
+          {{- end }}
+    - repoURL: {{ $.Values.repoURL }}
+      targetRevision: {{ $.Values.targetRevision }}
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ $.Values.monitoring.namespace }}
+  syncPolicy:
+    # 앱 차트 NetworkPolicy 가 이 레이블로 모니터링 네임스페이스를 고름
+    managedNamespaceMetadata:
+      labels:
+        name: {{ $.Values.monitoring.namespace }}
+    syncOptions:
+      - CreateNamespace=true
+      {{- if $r.serverSideApply }}
+      - ServerSideApply=true
+      {{- end }}
+{{- end }}
+{{- end }}

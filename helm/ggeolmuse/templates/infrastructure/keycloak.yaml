@@ -1,5 +1,5 @@
 {{- if .Values.infrastructure.keycloak.enabled }}
-{{- $secretFiles := .Values.global.aws.secretsManager.enabled }}
+{{- $secretFiles := (include "ggeolmuse.secretFiles" .) }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -22,6 +22,9 @@ spec:
       labels:
         app: keycloak
     spec:
+      {{- if .Values.global.topologySpread.enabled }}
+      {{- include "ggeolmuse.topologySpread" (dict "name" "keycloak" "Values" .Values) | nindent 6 }}
+      {{- end }}
       containers:
       - name: keycloak
         image: {{ .Values.infrastructure.keycloak.image }}
@@ -45,7 +48,7 @@ spec:
           value: {{ .Values.infrastructure.keycloak.env.kcDbVendor | quote }}
         {{- if eq .Values.infrastructure.keycloak.env.kcDbVendor "postgres" }}
         - name: KC_DB_URL
-          value: "jdbc:postgresql://ggeolmuse-postgres.cxa6ioco4fhg.ap-northeast-2.rds.amazonaws.com:5432/keycloak"
+          value: {{ .Values.infrastructure.keycloak.env.kcDbUrl | quote }}
         {{- if not $secretFiles }}
         - name: KC_DB_USERNAME
           valueFrom:

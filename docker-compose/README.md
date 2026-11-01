@@ -191,5 +191,4 @@ docker compose up --build -d
 
 ## 다음 단계
 
-Docker Compose의 한계를 극복하기 위해 **Kubernetes**로 전환
-→ 자세한 내용: `../k8s/README.md`
+운영 배포는 Helm 차트 → [`../helm/README.md`](../helm/README.md), 멀티 노드 예비안 → [`../k8s/README.md`](../k8s/README.md)

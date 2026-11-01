@@ -1,0 +1,4 @@
+# 멀티 노드 kubeadm 덧붙임(loki-values.yaml 다음)
+loki:
+  persistence:
+    storageClassName: gp3

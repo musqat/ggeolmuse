@@ -1,0 +1,30 @@
+# 멀티 노드 kubeadm 덧붙임(prometheus-values-prod.yaml 다음)
+prometheus:
+  prometheusSpec:
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: gp3
+
+alertmanager:
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: gp3
+
+# kubeadm 컨트롤 플레인 지표(k8s/bootstrap/kubeadm-config.yaml 이 노드 주소로 엶)
+kubeControllerManager:
+  enabled: true
+  serviceMonitor:
+    https: true
+    insecureSkipVerify: true
+kubeScheduler:
+  enabled: true
+  serviceMonitor:
+    https: true
+    insecureSkipVerify: true
+kubeEtcd:
+  enabled: true
+kubeProxy:
+  enabled: true
