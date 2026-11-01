@@ -91,10 +91,6 @@ ingress:
   # <name>.<global.domain> → 다른 네임스페이스의 서비스(Ingress 도 그 네임스페이스에)
   subdomains: []
 
-# Ingress Controller (enabled: 환경별 - dev만 사용)
-ingressController:
-  image: registry.k8s.io/ingress-nginx/controller:v1.9.4
-
 # 인프라
 infrastructure:
   redis:
@@ -506,8 +502,6 @@ networkPolicy:
     block: true
     exemptApps:
       - db-backup
-
-# Ingress 설정: 환경별 (values-dev.yaml = nginx/app.localhost, values-prod.yaml = traefik/ggeolmuse.com)
 
 # Secret 설정
 secrets:

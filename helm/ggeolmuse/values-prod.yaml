@@ -18,10 +18,6 @@ global:
     secretsManager:
       enabled: true
 
-# Ingress Controller - K3s Traefik 사용
-ingressController:
-  enabled: false
-
 # 인프라 - 단일 노드 최적화 (prod 오버라이드만, 나머지 base 상속)
 infrastructure:
   redis:

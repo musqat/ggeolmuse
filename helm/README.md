@@ -118,7 +118,7 @@ ArgoCD (CD)
 
 ```
 values.yaml             공통 (환경 무관: 이미지 레지스트리, 포트, kafka, 토픽, probe/resource 기본값)
-values-dev.yaml         로컬/dev 환경 설정 (app.localhost, nginx ingress, aws off, dev 프로파일) — 커밋함
+values-dev.yaml         로컬/dev 환경 설정 (app.localhost, Traefik Ingress, aws off, dev 프로파일) — 커밋함
 values-prod.yaml        prod 환경 설정 (ggeolmuse.com, traefik, AWS Secrets Manager, prod 프로파일/리소스) — 커밋함
 values-secret.yaml      로컬 시크릿 (secrets.enabled + 실제 키) — gitignore, .example 참고해 각자 생성
 ```
@@ -132,7 +132,7 @@ values-secret.yaml      로컬 시크릿 (secrets.enabled + 실제 키) — giti
 ### 로컬 빌드 & 배포
 
 > 멀티 노드와 같은 모양(3노드 · Calico · Traefik · 시크릿 파일)은 kind 로 띄운다 → [`../k8s/README.md`](../k8s/README.md#로컬-kind-3노드).
-> 아래는 docker-desktop 단일 노드 · nginx 인그레스 기준.
+> 아래는 docker-desktop 단일 노드 기준(Ingress 컨트롤러는 Traefik 을 따로 깔거나 port-forward).
 
 > 전제: 로컬 Kubernetes(docker-desktop 등) + Docker + helm. 이미지는 로컬 빌드해 `Chart.AppVersion` 태그로 사용.
 
@@ -163,11 +163,11 @@ helm upgrade --install ggeolmuse helm/ggeolmuse \
   -f helm/ggeolmuse/values-dev.yaml \
   -f helm/ggeolmuse/values-secret.yaml
 ```
-> dev는 Traefik IngressRoute / Prometheus ServiceMonitor를 렌더하지 않으므로(해당 CRD 불필요) vanilla docker-desktop Kubernetes에 그대로 설치된다. (prod는 Traefik이라 IngressRoute 사용)
+> dev 는 Traefik IngressRoute · Prometheus ServiceMonitor 를 렌더하지 않아(CRD 불필요) docker-desktop Kubernetes 에 그대로 설치된다. 진입은 표준 Ingress(`ingress.hosts`), prod 는 IngressRoute.
 
 **4. 접속**
 ```bash
-# nginx ingress controller 있으면: http://app.localhost
+# Traefik 이 있으면: http://app.localhost
 # 없으면 port-forward
 kubectl port-forward svc/frontend-web 3000:3000   # 프론트
 kubectl port-forward svc/gateway-server 8070:8070 # API

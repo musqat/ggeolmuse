@@ -17,10 +17,6 @@ global:
     secretsManager:
       enabled: false
 
-# dev는 nginx ingress controller 사용
-ingressController:
-  enabled: true
-
 # 설정 서버 - dev 프로파일
 configServer:
   env:
@@ -45,18 +41,11 @@ frontend:
     apiUrl: http://app.localhost/api
     keycloakUrl: http://auth.localhost
 
-# Ingress - dev (nginx, app.localhost)
+# Ingress - dev(Traefik, app.localhost, 컨트롤러는 클러스터에 따로)
 ingress:
   enabled: true
-  className: nginx
-  annotations:
-    nginx.ingress.kubernetes.io/cors-allow-origin: "http://app.localhost,http://localhost:3000,http://localhost:5173"
-    nginx.ingress.kubernetes.io/cors-allow-methods: "GET,POST,PUT,DELETE,PATCH,OPTIONS"
-    nginx.ingress.kubernetes.io/cors-allow-headers: "*"
-    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
-    nginx.ingress.kubernetes.io/proxy-connect-timeout: "300"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+  kind: Ingress
+  className: traefik
 
   hosts:
     - host: app.localhost

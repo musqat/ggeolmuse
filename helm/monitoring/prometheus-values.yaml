@@ -31,7 +31,7 @@ prometheus:
   # Prometheus Ingress 설정
   ingress:
     enabled: true
-    ingressClassName: nginx
+    ingressClassName: traefik
     hosts:
       - prometheus.localhost
     paths:
@@ -47,7 +47,7 @@ grafana:
   # Grafana Ingress 설정
   ingress:
     enabled: true
-    ingressClassName: nginx
+    ingressClassName: traefik
     hosts:
       - grafana.localhost
     path: /
@@ -151,7 +151,7 @@ alertmanager:
   # AlertManager Ingress
   ingress:
     enabled: true
-    ingressClassName: nginx
+    ingressClassName: traefik
     hosts:
       - alertmanager.localhost
     paths:
