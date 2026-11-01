@@ -1,4 +1,4 @@
-// origin 에 못 닿을 때 Cloudflare 522 대신 안내(503)를 줌. 운영 시간 밖이면 다음 가동 시각, 운영 중이면 일시적인 장애
+// origin 에 못 닿을 때 Cloudflare 522 대신 주는 안내 503(운영 시간 밖이면 다음 가동 시각, 운영 중이면 일시적인 장애)
 // 배포는 wrangler.jsonc 로(npx wrangler deploy), 테스트는 node --test cloudflare/offline-notice/worker.test.js
 
 // EC2 는 07:00 에 켜지고 앱이 뜰 시간을 둬 안내는 07:30
@@ -11,7 +11,7 @@ export default {
     try {
       const response = await fetch(request);
 
-      // 521~524 는 Cloudflare 가 origin 에 못 닿은 것. 앱이 낸 5xx 는 그대로 넘김
+      // 521 ~ 524 는 Cloudflare 가 origin 에 못 닿은 것(앱이 낸 5xx 는 그대로 넘김)
       if (response.status >= 521 && response.status <= 524) {
         return offlinePage();
       }
