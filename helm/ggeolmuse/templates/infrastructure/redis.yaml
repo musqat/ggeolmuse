@@ -27,7 +27,7 @@ spec:
         imagePullPolicy: {{ .Values.global.imagePullPolicy }}
         ports:
         - containerPort: {{ .Values.infrastructure.redis.port }}
-        {{- if .Values.global.aws.secretsManager.enabled }}
+        {{- if (include "ggeolmuse.secretFiles" .) }}
         # 비밀번호는 파일에서 읽어 표준입력 설정으로(환경변수 · 프로세스 인자에 안 남음)
         command:
         - sh
@@ -47,7 +47,7 @@ spec:
         volumeMounts:
         - name: data
           mountPath: /data
-        {{- if .Values.global.aws.secretsManager.enabled }}
+        {{- if (include "ggeolmuse.secretFiles" .) }}
         - name: secrets
           mountPath: /etc/secrets
           readOnly: true
@@ -55,7 +55,7 @@ spec:
       volumes:
       - name: data
         emptyDir: {}
-      {{- if .Values.global.aws.secretsManager.enabled }}
+      {{- if (include "ggeolmuse.secretFiles" .) }}
       - name: secrets
         secret:
           secretName: ggeolmuse-secrets

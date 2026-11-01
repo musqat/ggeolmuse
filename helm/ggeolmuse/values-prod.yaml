@@ -37,6 +37,7 @@ infrastructure:
   keycloak:
     env:
       kcDbVendor: postgres  # RDS PostgreSQL 사용
+      kcDbUrl: jdbc:postgresql://ggeolmuse-postgres.cxa6ioco4fhg.ap-northeast-2.rds.amazonaws.com:5432/keycloak
       kcHttpRelativePath: /auth
       kcProxyTrustedAddresses: 10.42.0.0/16  # k3s 파드 대역
     resources:

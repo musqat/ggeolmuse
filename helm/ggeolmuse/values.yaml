@@ -5,7 +5,7 @@ global:
 
   # 롤백용으로 남기는 옛 ReplicaSet 개수(k8s 기본 10)
   revisionHistoryLimit: 5
-  # 여러 노드에서만 켜는 배치(k3s 단일 노드는 꺼 둠)
+  # 여러 노드에서만 켜는 배치
   # 레플리카 2 이상인 앱의 PodDisruptionBudget
   podDisruptionBudget:
     enabled: false
@@ -55,6 +55,9 @@ global:
       compressionType: snappy
 
   # springProfiles: 환경별 (dev/prod)
+
+  # 시크릿을 /etc/secrets 파일로(Secrets Manager 연동 없이 같은 방식, 예 kind)
+  secretFiles: false
 
   # AWS 설정 (secretsManager.enabled: 환경별)
   aws:

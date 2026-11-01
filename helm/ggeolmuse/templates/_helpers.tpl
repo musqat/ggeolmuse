@@ -77,7 +77,7 @@ app.kubernetes.io/instance: {{ .Release.Name }}
   value: {{ .Values.global.keycloak.authServerUrl | quote }}
 - name: KEYCLOAK_REALM
   value: {{ .Values.global.keycloak.realm | quote }}
-{{- if .Values.global.aws.secretsManager.enabled }}
+{{- if (include "ggeolmuse.secretFiles" .) }}
 # 시크릿은 /etc/secrets 파일(secretFiles)
 - name: SPRING_CLOUD_CONFIG_URI
   value: "http://config-server:8888"
@@ -266,4 +266,9 @@ seccompProfile:
   emptyDir: {}
 - name: tmp
   emptyDir: {}
+{{- end }}
+
+{{/* 시크릿을 /etc/secrets 파일로 받는지(Secrets Manager 연동 또는 global.secretFiles) */}}
+{{- define "ggeolmuse.secretFiles" -}}
+{{- if or .Values.global.secretFiles .Values.global.aws.secretsManager.enabled }}true{{ end }}
 {{- end }}

@@ -11,7 +11,7 @@
           value: {{ .Values.gatewayServer.env.configUri | quote }}
         - name: SPRING_CLOUD_CONFIG_USERNAME
           value: {{ .Values.gatewayServer.env.configUsername | quote }}
-        {{- if not .Values.global.aws.secretsManager.enabled }}
+        {{- if not (include "ggeolmuse.secretFiles" .) }}
         - name: SPRING_CLOUD_CONFIG_PASSWORD
           {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "CONFIG_SERVER_PASSWORD") | nindent 10 }}
         {{- end }}

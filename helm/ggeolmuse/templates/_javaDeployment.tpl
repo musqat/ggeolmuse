@@ -67,7 +67,7 @@ spec:
         ports:
         - containerPort: {{ $svc.service.port }}
         env:
-        {{- if and .Values.global.aws.secretsManager.enabled $svc.secretFiles }}
+        {{- if and (include "ggeolmuse.secretFiles" .) $svc.secretFiles }}
         - name: SPRING_CONFIG_ADDITIONAL_LOCATION
           value: optional:configtree:/etc/secrets/
         {{- end }}
@@ -79,7 +79,7 @@ spec:
 */}}
 {{- define "ggeolmuse.javaPodTail" -}}
 {{- $svc := .svc -}}
-{{- $secretFiles := and .Values.global.aws.secretsManager.enabled $svc.secretFiles -}}
+{{- $secretFiles := and (include "ggeolmuse.secretFiles" .) $svc.secretFiles -}}
         {{- if $svc.resources }}
         resources:
           {{- toYaml $svc.resources | nindent 10 }}
@@ -130,7 +130,7 @@ keycloakClientEnv(공개 주소 · 클라이언트 ID) · env
         - name: SPRING_APPLICATION_NAME
           value: {{ $svc.name | quote }}
         {{- include "ggeolmuse.springEnv" . | nindent 8 }}
-        {{- if not .Values.global.aws.secretsManager.enabled }}
+        {{- if not (include "ggeolmuse.secretFiles" .) }}
         - name: KEYCLOAK_SECRET
           {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "KEYCLOAK_SECRET") | nindent 10 }}
         {{- range $svc.extraSecrets }}
