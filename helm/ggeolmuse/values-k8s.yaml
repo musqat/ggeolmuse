@@ -1,0 +1,44 @@
+# 멀티 노드 kubeadm 덧붙임(values-prod.yaml 다음)
+global:
+  podDisruptionBudget:
+    enabled: true
+  topologySpread:
+    enabled: true
+
+infrastructure:
+  # jdbc-ping 캐시 클러스터(keycloak 26 기본)
+  keycloak:
+    replicas: 2
+  zookeeper:
+    storage:
+      storageClassName: gp3
+  kafka:
+    storage:
+      storageClassName: gp3
+
+# 상태 없는 앱은 워커마다 하나씩
+configServer:
+  replicaCount: 2
+
+# LoadBalancer 를 줄 컨트롤러 없음(Traefik 이 클러스터 IP 로 받음)
+gatewayServer:
+  replicaCount: 2
+  service:
+    type: ClusterIP
+
+services:
+  userService:
+    replicaCount: 2
+  tradeService:
+    replicaCount: 2
+  marketDataService:
+    replicaCount: 2
+  backtestService:
+    replicaCount: 2
+  chatService:
+    replicaCount: 2
+
+frontend:
+  replicaCount: 2
+  service:
+    type: ClusterIP

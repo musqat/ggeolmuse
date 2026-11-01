@@ -1,7 +1,8 @@
 {{- /* 레플리카 2 이상인 앱의 PodDisruptionBudget(global.podDisruptionBudget.enabled 일 때) */ -}}
 {{- if .Values.global.podDisruptionBudget.enabled }}
 {{- $s := .Values.services }}
-{{- range list .Values.configServer .Values.gatewayServer $s.userService $s.tradeService $s.marketDataService $s.backtestService $s.chatService .Values.frontend }}
+{{- $keycloak := dict "name" "keycloak" "replicaCount" .Values.infrastructure.keycloak.replicas }}
+{{- range list .Values.configServer .Values.gatewayServer $s.userService $s.tradeService $s.marketDataService $s.backtestService $s.chatService .Values.frontend $keycloak }}
 {{- if gt (int .replicaCount) 1 }}
 ---
 apiVersion: policy/v1

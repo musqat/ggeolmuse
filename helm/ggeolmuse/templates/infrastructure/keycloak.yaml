@@ -22,6 +22,9 @@ spec:
       labels:
         app: keycloak
     spec:
+      {{- if .Values.global.topologySpread.enabled }}
+      {{- include "ggeolmuse.topologySpread" (dict "name" "keycloak" "Values" .Values) | nindent 6 }}
+      {{- end }}
       containers:
       - name: keycloak
         image: {{ .Values.infrastructure.keycloak.image }}
