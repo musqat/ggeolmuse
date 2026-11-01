@@ -4,35 +4,35 @@ import com.muscat.marketdata.domain.repository.CandleRepository;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.jackson.Jacksonized;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
-// 분할 계수가 기록된 종목 탐색(몇 분 걸려 게이트웨이 30초 제한 밖 백그라운드 실행 · 마지막 결과 보관)
+// 분할 계수가 기록된 종목 탐색(몇 분 걸려 게이트웨이 30초 제한 밖 백그라운드 실행, 진행 중 · 마지막 결과는 파드 사이 공유)
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class UnadjustedScanService {
 
+  static final String JOB_NAME = "unadjusted-scan";
+
   private final CandleRepository candleRepository;
+  private final AdminJobState jobState;
 
   // self-injection(같은 빈에서 직접 부르면 @Async 프록시를 안 탐)
   @Lazy
   @Autowired
   private UnadjustedScanService self;
 
-  private final AtomicBoolean running = new AtomicBoolean(false);
-  private final AtomicReference<Result> last = new AtomicReference<>(null);
-
   @Getter
   @Builder
+  @Jacksonized
   public static class Result {
     private final LocalDate from;
     private final int count;
@@ -43,16 +43,16 @@ public class UnadjustedScanService {
   }
 
   public boolean isRunning() {
-    return running.get();
+    return jobState.isRunning(JOB_NAME);
   }
 
   public Result getLast() {
-    return last.get();
+    return jobState.detail(JOB_NAME, Result.class).orElse(null);
   }
 
   /** 이미 돌고 있으면 false */
   public boolean start(LocalDate from) {
-    if (!running.compareAndSet(false, true)) {
+    if (!jobState.tryStart(JOB_NAME)) {
       return false;
     }
     self.scan(from);
@@ -63,28 +63,29 @@ public class UnadjustedScanService {
   public void scan(LocalDate from) {
     long begin = System.currentTimeMillis();
     log.info("[분할탐색] 시작: from={}", from);
+    Result result = null;
     try {
       List<String> symbols = candleRepository.findSymbolsWithSplits(from);
-      last.set(Result.builder()
+      result = Result.builder()
           .from(from)
           .count(symbols.size())
           .symbols(symbols)
           .finishedAt(Instant.now())
           .tookMillis(System.currentTimeMillis() - begin)
-          .build());
+          .build();
       log.info("[분할탐색] 완료: {}개, {}ms", symbols.size(), System.currentTimeMillis() - begin);
     } catch (Exception e) {
       log.error("[분할탐색] 실패: from={}", from, e);
-      last.set(Result.builder()
+      result = Result.builder()
           .from(from)
           .count(0)
           .symbols(List.of())
           .finishedAt(Instant.now())
           .tookMillis(System.currentTimeMillis() - begin)
           .error(e.getMessage())
-          .build());
+          .build();
     } finally {
-      running.set(false);
+      jobState.finish(JOB_NAME, result);
     }
   }
 }

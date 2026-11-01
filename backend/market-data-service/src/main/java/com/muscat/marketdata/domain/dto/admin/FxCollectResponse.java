@@ -19,7 +19,7 @@ public class FxCollectResponse {
     // 최근 빈 날(최근부터 최대 열 개)
     private List<LocalDate> missingDates;
     private boolean running;
-    // MISSING · ALL, 다시 띄운 뒤에는 비어 있음
+    // MISSING · ALL(상태 행이 없으면 비어 있음)
     private String mode;
     // 서울 시각
     private LocalDateTime startedAt;

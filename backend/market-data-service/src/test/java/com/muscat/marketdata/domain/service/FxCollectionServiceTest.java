@@ -23,7 +23,7 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicBoolean;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -31,6 +31,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -49,6 +50,7 @@ class FxCollectionServiceTest {
   private AdminJobRunRepository adminJobRunRepository;
 
   private MarketDataProperties properties;
+  private EmbeddedDatabase db;
   private FxCollectionService service;
 
   private static LocalDate today() {
@@ -74,7 +76,14 @@ class FxCollectionServiceTest {
   void setUp() {
     properties = new MarketDataProperties();
     properties.getFxIngest().setStartDate(START);
-    service = new FxCollectionService(collector, fxRateRepository, adminJobRunRepository, properties);
+    db = AdminJobStates.database();
+    service = new FxCollectionService(collector, fxRateRepository, adminJobRunRepository, properties,
+        AdminJobStates.pod(db));
+  }
+
+  @AfterEach
+  void tearDown() {
+    db.shutdown();
   }
 
   @Test
@@ -160,8 +169,25 @@ class FxCollectionServiceTest {
     assertThat(service.start(Mode.MISSING)).isTrue();
     assertThat(service.isRunning()).isFalse();
 
-    ((AtomicBoolean) ReflectionTestUtils.getField(service, "running")).set(true);
+    AdminJobStates.pod(db).tryStart(FxCollectionService.JOB_NAME);
     assertThat(service.start(Mode.ALL)).isFalse();
+  }
+
+  @Test
+  @DisplayName("다른 파드가 돌리는 수집은 진행 중으로 보이고 그 진행이 상태에 나온다")
+  void otherPodProgressVisible() {
+    given(collector.missingWeekdays(START, today())).willReturn(List.of());
+    AdminJobState otherPod = AdminJobStates.pod(db);
+    otherPod.tryStart(FxCollectionService.JOB_NAME);
+    otherPod.save(FxCollectionService.JOB_NAME,
+        FxCollectionService.Progress.builder().mode(Mode.ALL).total(30).processed(12).build());
+
+    FxCollectionService.Status status = service.status();
+
+    assertThat(status.running()).isTrue();
+    assertThat(status.progress().getProcessed()).isEqualTo(12);
+    assertThat(status.progress().getMode()).isEqualTo(Mode.ALL);
+    assertThat(service.start(Mode.MISSING)).isFalse();
   }
 
   @Test
