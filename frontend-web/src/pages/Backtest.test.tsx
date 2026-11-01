@@ -31,7 +31,7 @@ vi.mock('../utils/localBacktestHistory', () => ({
   getLocalBacktestHistory: vi.fn(() => []),
 }))
 
-// 결과 화면은 차트를 그린다. 어느 결과가 떴는지만 보이는 대역으로 바꾼다
+// 결과 화면 대역(차트 대신 어느 결과가 떴는지만)
 vi.mock('@components/backtest/results/SimpleResult', () => ({
   SimpleResult: () => <div>결과: simple</div>,
 }))
@@ -61,7 +61,7 @@ function renderPage() {
   )
 }
 
-// 모드 탭. 전략 비교 폼에도 "적립식" 버튼이 있어 탭 영역 안에서 찾는다
+// 모드 탭(전략 비교 폼에도 "적립식" 버튼이 있어 탭 영역 안에서 찾음)
 async function selectTab(name: string) {
   const tabs = screen.getByRole('heading', { name: '백테스트 모드' }).parentElement!
   await userEvent.click(within(tabs).getByRole('button', { name }))

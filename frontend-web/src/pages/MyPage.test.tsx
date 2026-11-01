@@ -65,7 +65,7 @@ async function changePassword(user: ReturnType<typeof userEvent.setup>, current:
   await user.click(screen.getByRole('button', { name: '변경하기' }))
 }
 
-// 탈퇴 모달을 열고 확인 문구를 넣는다
+// 탈퇴 모달을 열고 확인 문구 입력
 async function openDeleteModal(user: ReturnType<typeof userEvent.setup>) {
   await user.click(await screen.findByText('회원 탈퇴', { selector: 'p' }))
   await user.type(screen.getByPlaceholderText('회원탈퇴'), '회원탈퇴')

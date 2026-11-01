@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { AxiosAdapter } from 'axios'
 
-// 계좌 · 인증 클라이언트가 부르는 경로 · 방식 · 본문. apiClient 가 가짜 어댑터를 물려받게 새로 불러온다
+// 계좌 · 인증 클라이언트가 부르는 경로 · 방식 · 본문(apiClient 가 가짜 어댑터를 물려받게 새로 불러옴)
 
 type Accounts = typeof import('./accounts')
 type Auth = typeof import('./auth')

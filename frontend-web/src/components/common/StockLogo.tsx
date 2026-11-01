@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-// FMP 그림 주소. 점 · 빗금이 든 티커는 FMP 식 하이픈으로(BRK.B → BRK-B)
+// FMP 그림 주소(점 · 빗금이 든 티커는 FMP 식 하이픈으로, BRK.B → BRK-B)
 const logoUrl = (symbol: string) =>
   `https://financialmodelingprep.com/image-stock/${encodeURIComponent(symbol.replace(/[./]/g, '-'))}.png`;
 

@@ -23,7 +23,7 @@ describe('IndicatorSheet', () => {
 
     await userEvent.click(rsi)
     expect(onToggle).toHaveBeenCalledWith('rsi')
-    // 여러 개를 연달아 바꿀 수 있게 시트는 열어 둔다
+    // 여러 개를 연달아 바꿀 수 있게 시트는 열린 채
     expect(screen.getByRole('dialog', { name: '지표 설정' })).toBeInTheDocument()
   })
 

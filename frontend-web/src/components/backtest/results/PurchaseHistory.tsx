@@ -70,7 +70,7 @@ function RoundRow({ round }: { round: Round }) {
   );
 }
 
-// 결과 카드와 차트 사이의 매수 내역. 연도마다 접어 두고 매수일 · 가격과 미매수 회차를 함께 보임
+// 결과 카드와 차트 사이의 매수 내역(연도마다 접힘, 매수일 · 가격과 미매수 회차를 함께)
 export const PurchaseHistory: React.FC<PurchaseHistoryProps> = ({ transactions, skippedRounds }) => {
   if (transactions.length === 0 && skippedRounds.length === 0) return null;
   const years = roundsByYear(transactions, skippedRounds);

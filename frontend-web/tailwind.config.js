@@ -15,13 +15,13 @@ export default {
           dark: '#D97706',
           bg: 'rgba(245,158,11,0.12)',
           border: 'rgba(245,158,11,0.25)',
-          // 주황 바탕 위 글자. 흰 글자는 대비 2.15 라 진한 갈색(6.97)을 쓴다
+          // 주황 바탕 위 글자(흰 글자는 대비 2.15 라 진한 갈색 6.97)
           ink: '#451A03',
         },
         // 테마마다 바뀌는 수익 · 손실과 등락 색(index.css)
         gain: 'rgb(var(--gain) / <alpha-value>)',
         loss: 'rgb(var(--loss) / <alpha-value>)',
-        // 오류 · 성공 · 안내 · 경고. 등락과 값이 같아도 뜻으로 고른다
+        // 오류 · 성공 · 안내 · 경고(등락과 값이 같아도 뜻으로 고름)
         danger:  'rgb(var(--danger)  / <alpha-value>)',
         success: 'rgb(var(--success) / <alpha-value>)',
         info:    'rgb(var(--info)    / <alpha-value>)',

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { AxiosAdapter } from 'axios'
 
-// adminApi 의 axios 인스턴스는 모듈 안에 있다. 기본 어댑터를 가짜로 바꾼 뒤 새로 불러 그 어댑터를 물려받게 한다
+// 기본 어댑터를 가짜로 바꾼 뒤 새로 불러 adminApi 의 모듈 안 axios 인스턴스가 그 어댑터를 물려받게
 
 type Admin = typeof import('./adminApi')
 

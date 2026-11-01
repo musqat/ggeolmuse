@@ -38,7 +38,7 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
     <AuthProvider>{children}</AuthProvider>
   </QueryClientProvider>
 )
-// 첫 확인이 끝날 때까지 기다린다
+// 첫 확인이 끝날 때까지 대기
 const renderAuth = async () => {
   const hook = renderHook(() => useAuth(), { wrapper })
   await waitFor(() => expect(hook.result.current.isLoading).toBe(false))
@@ -239,7 +239,7 @@ describe('AuthProvider 계정 요청', () => {
     expect(api.forgotPassword).toHaveBeenCalledWith({ email: 'n@example.local' })
     expect(api.resetPassword).toHaveBeenCalledWith({ token: 'RESET', newPassword: 'pw2' })
     expect(api.resendVerification).toHaveBeenCalledWith({ email: 'n@example.local' })
-    // 회원가입은 이메일 인증 전이라 로그인시키지 않는다
+    // 회원가입은 이메일 인증 전이라 로그인 안 함
     expect(result.current.isAuthenticated).toBe(false)
   })
 

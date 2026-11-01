@@ -9,7 +9,7 @@ import { stockApi } from '../services/api'
 vi.mock('../services/api', () => ({
   stockApi: { getAllSymbols: vi.fn(), getOHLCData: vi.fn(), getCurrentPrice: vi.fn() },
 }))
-// jsdom 에는 캔버스가 없다
+// jsdom 에 없는 캔버스
 vi.mock('../components/charts/KLineChartComponent', () => ({
   default: () => <div data-testid="kline" />,
 }))
@@ -68,7 +68,7 @@ function renderCharts(entry = '/charts/AAPL') {
 describe('Charts', () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'] })
-    // KST 오전 5시. UTC 로는 아직 전날이다
+    // KST 오전 5시(UTC 로는 아직 전날)
     vi.setSystemTime(new Date('2026-03-31T05:00:00+09:00'))
     vi.mocked(stockApi.getAllSymbols).mockResolvedValue({ data: [] } as never)
     vi.mocked(stockApi.getCurrentPrice).mockResolvedValue({ data: { name: 'Apple' } } as never)

@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import TradingChartSection from './TradingChartSection'
 import type { Timeframe } from '@/utils/dateUtils'
 
-// jsdom 에는 캔버스가 없다
+// jsdom 에 없는 캔버스
 vi.mock('@/components/charts/trading/CandlestickChart', () => ({
   default: () => <div data-testid="candles" />,
 }))

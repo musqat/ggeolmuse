@@ -71,7 +71,7 @@ describe('NumberInput', () => {
 
     await user.type(screen.getByRole('textbox'), '12.34.56')
 
-    // 두 번째 점이 든 타이핑만 버림. 뒤 숫자는 그대로 이어붙음
+    // 두 번째 점이 든 타이핑만 버림(뒤 숫자는 그대로 이어붙음)
     expect(screen.getByRole('textbox')).toHaveValue('12.3456')
     expect(onChange).toHaveBeenLastCalledWith('12.3456')
   })

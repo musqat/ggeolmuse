@@ -47,7 +47,7 @@ export function getDateRangeForTimeframe(
   return { startDate, endDate };
 }
 
-/** YYYY-MM-DD 를 로컬 자정으로. new Date('2026-08-13') 은 UTC 자정이라 setDate 와 섞으면 하루 어긋남 */
+/** YYYY-MM-DD 를 로컬 자정으로(new Date('2026-08-13') 은 UTC 자정이라 setDate 와 섞으면 하루 어긋남) */
 export function parseLocalDate(dateString: string): Date {
   const [year, month, day] = dateString.split('-').map(Number);
   return new Date(year, month - 1, day);

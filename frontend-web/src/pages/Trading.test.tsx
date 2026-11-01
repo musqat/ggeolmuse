@@ -17,7 +17,7 @@ vi.mock('../services/api', () => ({
 }))
 vi.mock('../hooks/useAuth', () => ({ useAuth: vi.fn() }))
 vi.mock('@/hooks/useAccounts', () => ({ useAccounts: vi.fn() }))
-// 캔버스 차트 · 거래내역 탭 · 매수 가능 패널은 따로 테스트가 있다. 여기서는 주문 흐름만 본다
+// 주문 흐름만(캔버스 차트 · 거래내역 탭 · 매수 가능 패널은 따로 테스트)
 vi.mock('../components/trading/TradingChartSection', () => ({ default: () => null }))
 vi.mock('../components/trading/TradeHistoryTab', () => ({ default: () => <div>거래내역 탭</div> }))
 vi.mock('../components/trading/TradingCapacityPanel', () => ({ default: () => null }))
@@ -55,7 +55,7 @@ function renderPage({ authenticated = true, accounts = [{ accountId: 3, accountN
 // 차트 응답을 받아 거래일이 마지막 거래일로 잡힐 때까지
 const waitForChart = () => waitFor(() => expect(screen.getAllByText(/2026-10-09/).length).toBeGreaterThan(0))
 const submitButton = () => screen.getAllByRole('button', { name: /^(매수|매도)$/ }).at(-1)!
-// 주문 유형(시가 · 종가 · 지정가) 드롭다운을 지정가로 바꾸고 가격을 넣는다
+// 주문 유형(시가 · 종가 · 지정가) 드롭다운을 지정가로 바꾸고 가격 입력
 const setLimitPrice = async (price: string) => {
   const priceType = screen.getAllByRole('combobox').find((el) => (el as HTMLSelectElement).value === 'close')!
   fireEvent.change(priceType, { target: { value: 'limit' } })
