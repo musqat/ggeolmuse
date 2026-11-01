@@ -292,3 +292,32 @@ jobs:
         with:
           sarif_file: trivy-manifests.sarif
           category: trivy-manifests
+
+  # terraform 형식 · 문법 · 가짜 프로바이더 테스트(AWS 에 닿지 않음)
+  terraform:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - uses: actions/checkout@v7
+      # required_version 의 바닥 버전
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.10.5
+
+      - name: 형식
+        run: terraform fmt -check -recursive
+
+      - name: 문법 · 루트 테스트
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
+          terraform test
+
+      - name: 멀티 노드 모듈 테스트
+        working-directory: terraform/modules/k8s-cluster
+        run: |
+          terraform init -backend=false -input=false
+          terraform test
