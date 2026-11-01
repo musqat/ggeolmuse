@@ -50,7 +50,6 @@ out/
 ### VS Code ###
 
 ### Security / Secrets ###
-k8s/keycloak-realm-template.json
 aws-deploy/secrets.json
 *.pem
 *.key
