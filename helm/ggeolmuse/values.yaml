@@ -1,9 +1,9 @@
-# 공통 설정 (환경 무관). 환경별 값은 values-dev.yaml / values-prod.yaml 참조.
+# 공통 설정(환경별 값은 values-dev.yaml · values-prod.yaml)
 global:
   imageRegistry: muscathan
   imagePullPolicy: Always
 
-  # 롤백용으로 남기는 옛 ReplicaSet 개수. 기본값은 10 -> 5
+  # 롤백용으로 남기는 옛 ReplicaSet 개수(k8s 기본 10)
   revisionHistoryLimit: 5
 
   # Management server port (Health, Metrics, Actuator)
@@ -60,11 +60,11 @@ global:
   otel:
     enabled: true
     environment: ""        # deployment.environment.name(환경별)
-    # 샘플링. chat 은 sampler · samplerArg, 자바 에이전트는 부모 따름 + samplerArg 비율(비면 1.0)
+    # 샘플링(chat 은 sampler · samplerArg, 자바 에이전트는 부모 따름 + samplerArg 비율, 비면 1.0)
     sampler: parentbased_always_on
     samplerArg: ""
 
-# 외부 진입(IngressRoute · Origin 인증서). 환경별 파일이 켬
+# 외부 진입(IngressRoute · Origin 인증서, 환경별 파일이 켬)
 ingress:
   enabled: false
   className: traefik
@@ -143,10 +143,9 @@ infrastructure:
       data: 5Gi
     topicsInit:
       enabled: true
-      # 파티션이 선언과 다른 토픽을 실제로 늘린다. 되돌릴 수 없다.
-      # 켠 근거는 2026-09-10 확인 — 프로듀서가 전부 키를 넣고 컨슈머는 순서에 기대지 않는다
+      # 선언과 파티션 수가 다른 토픽을 늘림(되돌릴 수 없음, 키 있는 프로듀서 · 순서 무관 컨슈머 전제)
       alignPartitions: true
-      # kafka-topics 는 호출마다 JVM 이 새로 뜬다. 상태는 describe 한 번으로 받는다
+      # kafka-topics 호출마다 새로 뜨는 JVM 몫(상태는 describe 한 번으로)
       resources:
         requests:
           memory: 128Mi
@@ -211,7 +210,7 @@ configServer:
   secretFiles:
     CONFIG_SERVER_USERNAME: CONFIG_SERVER_USERNAME
     CONFIG_SERVER_PASSWORD: CONFIG_SERVER_PASSWORD
-  # emptyDir(/tmp)은 root 소유로 생김. 앱(10001)이 설정 리포를 받아 둘 수 있게 fsGroup
+  # 앱(10001)이 설정 리포를 받아 둘 수 있게 fsGroup(emptyDir /tmp 는 root 소유로 생김)
   podSecurityContext:
     fsGroup: 10001
   # 환경별 파일(dev · prod)이 덮어씀
@@ -476,7 +475,7 @@ networkPolicy:
     - 8081
     - 8082
     - 8083
-  # 노드 IAM 역할(인스턴스 메타데이터)로 가는 egress 차단. 역할로 S3 에 올리는 파드만 예외
+  # 노드 IAM 역할(인스턴스 메타데이터)로 가는 egress 차단(역할로 S3 에 올리는 파드만 예외)
   instanceMetadata:
     block: true
     exemptApps:
@@ -514,11 +513,11 @@ monitoring:
     enabled: false
     namespace: monitoring
   slack:
-    # 웹훅 URL 은 ggeolmuse-secrets 의 SLACK_WEBHOOK_URL 을 쓴다.
+    # 웹훅 URL 은 ggeolmuse-secrets 의 SLACK_WEBHOOK_URL
     enabled: false
     channel: "#ggeolmuse-alerts"
 
-# 평일 아침 기동 확인 (enabled: 환경별. 슬랙 웹훅이 있는 prod 만)
+# 평일 아침 기동 확인(켜기는 환경별, 슬랙 웹훅이 있는 prod 만)
 morningCheck:
   enabled: false
   # EC2 07:00 기동 · 앱 준비가 끝난 뒤
@@ -537,12 +536,12 @@ morningCheck:
       cpu: 100m
       memory: 64Mi
 
-# DB 백업 (enabled: 환경별. RDS 를 쓰는 prod 만)
+# DB 백업(켜기는 환경별, RDS 를 쓰는 prod 만)
 dbBackup:
   enabled: false
   schedule: "0 9 1 * *"
   timeZone: Asia/Seoul
-  # 실행 시각에 클러스터가 꺼져 있어도 이 안에 켜지면 따라잡는다
+  # 실행 시각에 클러스터가 꺼져 있어도 이 안에 켜지면 따라잡는 시간
   startingDeadlineSeconds: 259200
   bucket: ggeolmuse-db-backup-apne2
   region: ap-northeast-2

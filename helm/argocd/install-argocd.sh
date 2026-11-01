@@ -1,5 +1,5 @@
 #!/bin/bash
-# ArgoCD 설치. values-argocd.yaml 기준
+# ArgoCD 설치(values-argocd.yaml 기준)
 set -e
 
 echo "helm repo 추가"

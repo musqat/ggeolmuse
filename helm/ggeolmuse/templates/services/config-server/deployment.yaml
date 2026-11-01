@@ -10,7 +10,7 @@
         - name: JAVA_OPTS
           value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "xmx" .Values.configServer.xmx) }}
         {{- include "ggeolmuse.otelEnv" (dict "Values" .Values "serviceName" .Values.configServer.name "version" .Values.configServer.image.tag) | nindent 8 }}
-        # UID 10001 은 홈이 없어 HOME 이 / 로 잡힌다. JGit 이 거기 설정을 쓴다
+        # JGit 설정을 쓸 HOME(UID 10001 은 홈이 없어 / 로 잡힘)
         - name: HOME
           value: /tmp
 {{- include "ggeolmuse.javaPodTail" $ctx }}

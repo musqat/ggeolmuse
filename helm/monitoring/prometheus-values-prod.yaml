@@ -9,8 +9,7 @@ prometheus:
     podMonitorSelectorNilUsesHelmValues: false
     podMonitorSelector: {}
 
-    # PrometheusRule 자동 인식 설정
-    # 네임스페이스 구분 없이 모든 PrometheusRule 을 로드한다.
+    # 모든 네임스페이스의 PrometheusRule 읽기
     ruleSelectorNilUsesHelmValues: false
     ruleSelector: {}
     ruleNamespaceSelector: {}
@@ -69,7 +68,7 @@ grafana:
       memory: 256Mi
       cpu: 50m
 
-  # 데이터소스 셋(Prometheus · Loki · Tempo). 서로 uid 로 이어짐
+  # 데이터소스 셋(Prometheus · Loki · Tempo, 서로 uid 로 이어짐)
   datasources:
     datasources.yaml:
       apiVersion: 1
@@ -120,10 +119,10 @@ alertmanager:
   enabled: true
 
   alertmanagerSpec:
-    # 네임스페이스 구분 없이 모든 AlertmanagerConfig 를 로드한다.
+    # 모든 네임스페이스의 AlertmanagerConfig 읽기
     alertmanagerConfigSelector: {}
     alertmanagerConfigNamespaceSelector: {}
-    # 알림의 네임스페이스와 무관하게 라우팅한다.
+    # 알림 네임스페이스와 무관한 라우팅
     alertmanagerConfigMatcherStrategy:
       type: None
     storage:

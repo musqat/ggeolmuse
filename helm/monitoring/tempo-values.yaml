@@ -1,7 +1,7 @@
 # Tempo 분산 추적 설정
 
 tempo:
-  # 블록 flush 가 압축과 쓰기를 몰아 해서 순간 CPU 를 쓴다.
+  # 블록 flush(압축 · 쓰기) 때 순간 CPU 몫
   resources:
     limits:
       cpu: 1000m
@@ -10,7 +10,7 @@ tempo:
       cpu: 100m
       memory: 256Mi
 
-  # flush 중에는 /ready 가 수십 초 막힌다. 오래 먹통인 경우만 잡는다.
+  # flush 중 /ready 가 수십 초 막히는 것은 넘기고 오래 응답이 없을 때만
   livenessProbe:
     failureThreshold: 12
 

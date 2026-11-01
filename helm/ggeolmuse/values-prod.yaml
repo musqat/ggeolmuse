@@ -1,4 +1,4 @@
-# prod 전용 오버라이드만 정의. 나머지는 base values.yaml에서 상속(deep merge).
+# prod 전용 덮어쓰기(나머지는 values.yaml 에서 deep merge)
 global:
   domain: ggeolmuse.com
   authDomain: ggeolmuse.com
@@ -140,7 +140,7 @@ services:
     image:
       tag: "1.6.3"
     env:
-      # market-data 와 같은 한국 시각. 저장 시각 · 오늘 날짜가 이 시간대를 따른다(이전 UTC 시각은 Flyway V6 이 옮김)
+      # market-data 와 같은 한국 시각(저장 시각 · 오늘 날짜 기준, 옛 UTC 시각은 Flyway V6 이 옮김)
       TZ: "Asia/Seoul"
       APP_BASE_URL: https://ggeolmuse.com
       APP_FRONTEND_URL: https://ggeolmuse.com
@@ -301,7 +301,7 @@ ingress:
             service: frontend-web
             port: 3000
 
-  # Cloudflare Full (strict) 의 origin 인증서. Secrets Manager 의 이 이름에 PEM 둘(tls.crt · tls.key)
+  # Cloudflare Full (strict) 의 origin 인증서(Secrets Manager 의 이 이름에 PEM 둘, tls.crt · tls.key)
   originTls:
     enabled: true
     secretsManagerKey: ggeolmuse/origin-tls
@@ -328,5 +328,5 @@ monitoring:
   dashboards:
     enabled: true
   slack:
-    # 웹훅 URL 은 ggeolmuse-secrets 의 SLACK_WEBHOOK_URL 을 쓴다.
+    # 웹훅 URL 은 ggeolmuse-secrets 의 SLACK_WEBHOOK_URL
     enabled: true

@@ -10,7 +10,7 @@ server:
   extraArgs:
     - --insecure
 
-  # 요청을 실사용에 맞추고 한도는 남긴다.
+  # 요청은 실사용에 맞춘 값, 한도는 여유
   resources:
     limits:
       cpu: 500m
