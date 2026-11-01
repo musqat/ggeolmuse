@@ -68,5 +68,9 @@ echo "ArgoCD ${ARGOCD_CHART}"
 helm upgrade --install argocd argo/argo-cd --version "$ARGOCD_CHART" \
   -n argocd --create-namespace -f "$root/helm/argocd/values-argocd.yaml" --wait
 
+# 앱 차트의 Grafana Ingress 가 들어갈 네임스페이스(모니터링 동기화 전), name 레이블은 NetworkPolicy 선택용
+kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+kubectl label namespace monitoring name=monitoring --overwrite
+
 # 이후 부품 · 앱 · 모니터링은 ArgoCD 가 helm/argocd/apps 를 따라 맞춤
 kubectl apply -f "$root/helm/argocd/root-k8s.yaml"

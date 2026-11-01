@@ -267,38 +267,6 @@ networkPolicy:
 ingress:
   enabled: true
   className: traefik
-  annotations: {}  # CloudFlare에서 SSL 처리
-
-  hosts:
-    - host: ggeolmuse.com
-      paths:
-        # API Gateway 라우팅
-        - path: /api
-          pathType: Prefix
-          backend:
-            service: gateway-server
-            port: 8070
-
-        # Keycloak 인증 서버
-        - path: /auth
-          pathType: Prefix
-          backend:
-            service: keycloak
-            port: 8080
-
-        # Kafka UI
-        - path: /kafka-ui
-          pathType: Prefix
-          backend:
-            service: kafka-ui
-            port: 8080
-
-        # Frontend
-        - path: /
-          pathType: Prefix
-          backend:
-            service: frontend-web
-            port: 3000
 
   # Cloudflare Full (strict) 의 origin 인증서(Secrets Manager 의 이 이름에 PEM 둘, tls.crt · tls.key)
   originTls:

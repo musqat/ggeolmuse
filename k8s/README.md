@@ -42,7 +42,7 @@
 | 노드 | EC2 1 | EC2 3(컨트롤 플레인 1 · 워커 2) |
 | 컨트롤 플레인 | k3s 한 프로세스 · sqlite | kubeadm · etcd |
 | 네트워크 · NetworkPolicy | flannel · kube-router | Calico |
-| 진입 | 번들 Traefik, EC2 443 | Traefik 2개, NLB 443 |
+| 진입 | 번들 Traefik, EC2 443, IngressRoute | Traefik 2개, NLB 443, 표준 Ingress |
 | 저장소 | 노드 디스크(local-path) | EBS gp3 |
 | 앱 레플리카 | 전부 1 | 상태 없는 앱 8개 · Keycloak 2개씩, PDB · 노드 분산 |
 | Kafka · Zookeeper · Redis | 1 | 1(볼륨만 EBS) |

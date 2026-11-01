@@ -79,10 +79,17 @@ global:
     sampler: parentbased_always_on
     samplerArg: ""
 
-# 외부 진입(IngressRoute · Origin 인증서, 환경별 파일이 켬)
+# 외부 진입(IngressRoute 또는 표준 Ingress · Origin 인증서, 환경별 파일이 켬)
 ingress:
   enabled: false
+  # IngressRoute(Traefik CRD, 경로는 템플릿) 또는 Ingress(경로는 hosts · subdomains)
+  kind: IngressRoute
   className: traefik
+  annotations: {}
+  # host 를 비우면 global.domain
+  hosts: []
+  # <name>.<global.domain> → 다른 네임스페이스의 서비스(Ingress 도 그 네임스페이스에)
+  subdomains: []
 
 # Ingress Controller (enabled: 환경별 - dev만 사용)
 ingressController:

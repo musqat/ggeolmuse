@@ -1,0 +1,54 @@
+{{- /* 표준 Ingress(ingress.kind=Ingress, 호스트를 비우면 global.domain, 하위 도메인은 서비스가 있는 네임스페이스에) */ -}}
+{{- if and .Values.ingress.enabled (eq .Values.ingress.kind "Ingress") }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "ggeolmuse.fullname" . }}
+  labels:
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  rules:
+  {{- range .Values.ingress.hosts }}
+  - host: {{ .host | default $.Values.global.domain | quote }}
+    http:
+      paths:
+      {{- range .paths }}
+      - path: {{ .path }}
+        pathType: {{ .pathType | default "Prefix" }}
+        backend:
+          service:
+            name: {{ .backend.service }}
+            port:
+              number: {{ .backend.port }}
+      {{- end }}
+  {{- end }}
+{{- range .Values.ingress.subdomains }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "ggeolmuse.fullname" $ }}-{{ .name }}
+  namespace: {{ .namespace }}
+  labels:
+    {{- include "ggeolmuse.labels" $ | nindent 4 }}
+spec:
+  ingressClassName: {{ $.Values.ingress.className }}
+  rules:
+  - host: {{ printf "%s.%s" .name $.Values.global.domain | quote }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .service }}
+            port:
+              number: {{ .port }}
+{{- end }}
+{{- end }}

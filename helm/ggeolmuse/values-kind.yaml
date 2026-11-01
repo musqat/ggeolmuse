@@ -37,6 +37,10 @@ services:
     env:
       SYMBOL_COLLECTION_ENABLED: "false"
 
+# argocd · monitoring 네임스페이스 없음
+ingress:
+  subdomains: []
+
 frontend:
   env:
     apiUrl: http://ggeolmuse.localhost:18080/api
