@@ -8,7 +8,7 @@ import lombok.experimental.SuperBuilder;
 
 import java.math.BigDecimal;
 
-// 배당 몫 목표 금액 이벤트. 차액이 아니라 그 배당락일 몫 전체를 싣는다
+// 배당 몫 목표 금액 이벤트(차액이 아니라 그 배당락일 몫 전체)
 @Data
 @SuperBuilder
 @NoArgsConstructor
@@ -34,7 +34,7 @@ public class DividendPayoutEvent extends BaseEvent {
 
     private BigDecimal taxAmount;
 
-    // 이 배당락일의 세후 몫. 받으면 안 되게 되면 0
+    // 이 배당락일의 세후 몫(받으면 안 되게 되면 0)
     private BigDecimal netAmount;
 
     private String currency;

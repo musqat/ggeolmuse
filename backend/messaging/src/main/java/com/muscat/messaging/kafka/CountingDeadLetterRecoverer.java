@@ -9,7 +9,7 @@ import org.springframework.kafka.listener.ConsumerAwareRecordRecoverer;
 import org.springframework.lang.Nullable;
 
 /**
- * 재시도로 못 살린 메시지를 DLT 로 넘기면서 kafka.dlt.records 를 올린다.
+ * 재시도로 못 살린 메시지를 DLT 로 넘기며 kafka.dlt.records 를 올리는 복구기
  */
 @Slf4j
 public class CountingDeadLetterRecoverer implements ConsumerAwareRecordRecoverer {
@@ -19,7 +19,7 @@ public class CountingDeadLetterRecoverer implements ConsumerAwareRecordRecoverer
 
     public CountingDeadLetterRecoverer(ConsumerAwareRecordRecoverer delegate, MeterRegistry meterRegistry) {
         this.delegate = delegate;
-        // 시작 때 0 으로 등록. 첫 증가 때 생긴 시계열은 increase 가 첫 값을 못 센다
+        // 시작 때 0 으로 등록(첫 증가 때 생긴 시계열은 increase 가 첫 값을 못 셈)
         this.counter = Counter.builder("kafka.dlt.records").register(meterRegistry);
     }
 

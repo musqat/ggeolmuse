@@ -21,7 +21,7 @@ import org.springframework.cloud.client.circuitbreaker.ReactiveCircuitBreakerFac
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-// 게이트웨이 경로 서킷 · 벌크헤드. 값은 설정 리포 gateway-server.yml 의 resilience4j 와 같게
+// 게이트웨이 경로 서킷 · 벌크헤드(값은 설정 리포 gateway-server.yml 의 resilience4j 와 같게)
 class RouteCircuitBreakerTest {
 
   private static final String ID = "marketDataServiceCB";

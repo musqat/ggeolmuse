@@ -10,7 +10,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
 
-// 서블릿 서비스가 같이 쓰는 보안 설정 조각. 서비스는 경로 규칙만 정함
+// 서블릿 서비스가 같이 쓰는 보안 설정 조각(서비스는 경로 규칙만 정함)
 public final class ServiceSecurity {
 
   // API 문서 화면 경로

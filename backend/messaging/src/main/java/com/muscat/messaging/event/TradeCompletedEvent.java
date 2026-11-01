@@ -22,7 +22,7 @@ public class TradeCompletedEvent extends BaseEvent {
     // 고유 거래 식별자
     private Long tradeId;
 
-    // 거래한 계좌 ID. user-service 가 이 계좌의 잔액을 바꾼다
+    // 거래한 계좌 ID(user-service 가 이 계좌의 잔액을 바꿈)
     private Long accountId;
 
     // 종목 심볼 (예: "AAPL", "GOOGL")

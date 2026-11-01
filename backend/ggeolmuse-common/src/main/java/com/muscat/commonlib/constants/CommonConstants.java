@@ -51,7 +51,6 @@ public final class CommonConstants {
   public static final String HEADER_API_VERSION = "X-Api-Version";
 
   private CommonConstants() {
-    // 유틸리티 클래스는 인스턴스화할 수 없습니다
     throw new UnsupportedOperationException("유틸리티 클래스는 인스턴스화할 수 없습니다");
   }
 }

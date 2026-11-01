@@ -227,7 +227,7 @@ public final class MoneyUtils {
       && exchangeRate.compareTo(MAX_EXCHANGE_RATE) <= 0;
   }
 
-  // 환율 검증. 0 이하거나 정상 범위 밖이면 예외
+  // 환율 검증(0 이하거나 정상 범위 밖이면 예외)
   public static void validateExchangeRate(BigDecimal exchangeRate) {
     if (exchangeRate == null || exchangeRate.compareTo(BigDecimal.ZERO) <= 0) {
       throw new ServiceException("INVALID_EXCHANGE_RATE", "환율은 0보다 커야 합니다: " + exchangeRate);

@@ -9,7 +9,7 @@ import lombok.experimental.SuperBuilder;
 import java.io.Serializable;
 import java.time.LocalDate;
 
-// 심볼(Asset) 생성 이벤트. collectData 가 true 면 받는 쪽이 데이터 수집
+// 심볼(Asset) 생성 이벤트(collectData 가 true 면 받는 쪽이 데이터 수집)
 @Data
 @SuperBuilder
 @NoArgsConstructor

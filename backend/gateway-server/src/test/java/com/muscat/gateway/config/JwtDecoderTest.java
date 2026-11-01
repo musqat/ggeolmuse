@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.security.oauth2.jwt.JwtValidationException;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
 
-// Keycloak hostname 이 있으면(운영 · compose) iss 가 공개 주소, 없으면(helm dev) 내부 주소. 서명은 이 시험이 띄운 JWKS 의 키로 함
+// Keycloak hostname 이 있으면(운영 · compose) iss 가 공개 주소, 없으면(helm dev) 내부 주소(서명은 이 테스트가 띄운 JWKS 의 키)
 class JwtDecoderTest {
 
   private static final String PUBLIC_ISSUER = "https://example.test/auth/realms/r";

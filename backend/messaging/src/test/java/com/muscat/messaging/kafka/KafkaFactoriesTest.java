@@ -39,7 +39,7 @@ import org.springframework.kafka.support.serializer.JsonSerializer;
 class KafkaFactoriesTest {
 
     private static final String BOOTSTRAP = "kafka:9092";
-    // 클라이언트를 실제로 만드는 테스트용. 브로커가 없어도 만들어지고 이름이 풀려야 함
+    // 클라이언트를 실제로 만드는 테스트용(브로커가 없어도 만들어지고 이름이 풀리는지)
     private static final String LOCAL_BOOTSTRAP = "localhost:9092";
 
     @Test
