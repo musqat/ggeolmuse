@@ -1,0 +1,24 @@
+{{- /* ArgoCD 자신(자동 동기화 · 파이널라이저 없음, Application 을 지워도 ArgoCD 는 남음) */ -}}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: {{ .Values.argocd.repoURL }}
+      chart: {{ .Values.argocd.chart }}
+      targetRevision: {{ .Values.argocd.version }}
+      helm:
+        releaseName: argocd
+        valueFiles:
+          {{- range .Values.argocd.valueFiles }}
+          - $values/{{ . }}
+          {{- end }}
+    - repoURL: {{ .Values.repoURL }}
+      targetRevision: {{ .Values.targetRevision }}
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd

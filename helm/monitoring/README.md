@@ -3,8 +3,10 @@
 Prometheus · Grafana · AlertManager · Loki · Tempo. 자바 서비스에는 OpenTelemetry
 Java Agent 가 주입돼 있다.
 
-**배포 경로가 ggeolmuse 차트와 다르다.** ArgoCD 는 `helm/ggeolmuse` 만 동기화하고
+**배포 경로가 ggeolmuse 차트와 다르다.** 운영 k3s 에서 ArgoCD 는 `helm/ggeolmuse` 만 동기화하고
 이 스택은 손으로 올린다.
+멀티 노드 k8s 에서는 ArgoCD 의 `prometheus` · `loki` · `tempo` Application 을 Sync 해서 올리고 `*-values-k8s.yaml` 을
+덧붙인다(저장 클래스 gp3 · 컨트롤 플레인 지표).
 
 <br>
 

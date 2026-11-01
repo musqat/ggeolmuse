@@ -67,3 +67,6 @@ helm upgrade --install external-secrets external-secrets/external-secrets --vers
 echo "ArgoCD ${ARGOCD_CHART}"
 helm upgrade --install argocd argo/argo-cd --version "$ARGOCD_CHART" \
   -n argocd --create-namespace -f "$root/helm/argocd/values-argocd.yaml" --wait
+
+# 이후 부품 · 앱 · 모니터링은 ArgoCD 가 helm/argocd/apps 를 따라 맞춤
+kubectl apply -f "$root/helm/argocd/root-k8s.yaml"

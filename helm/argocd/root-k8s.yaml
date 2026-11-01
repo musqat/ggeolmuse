@@ -1,0 +1,20 @@
+# 루트 Application(멀티 노드 k8s, 한 번 kubectl apply 하면 나머지는 helm/argocd/apps 를 따라감)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ggeolmuse-apps
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/musqat/ggeolmuse
+    targetRevision: master
+    path: helm/argocd/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  # Application 목록 자동 맞춤(prune 끔, 리포에서 빼도 클러스터의 Application 은 남음)
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true

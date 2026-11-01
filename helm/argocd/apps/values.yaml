@@ -1,0 +1,46 @@
+# 멀티 노드 kubeadm 클러스터의 Application 목록
+repoURL: https://github.com/musqat/ggeolmuse
+targetRevision: master
+
+# ArgoCD 자신(동기화는 사람이 누를 때만)
+argocd:
+  repoURL: https://argoproj.github.io/argo-helm
+  chart: argo-cd
+  version: 9.0.6
+  valueFiles:
+    - helm/argocd/values-argocd.yaml
+
+# 앱 차트의 값 파일(helm/ggeolmuse 안 경로)
+ggeolmuse:
+  valueFiles:
+    - values-prod.yaml
+    - values-k8s.yaml
+
+# 모니터링 릴리스(이름 = 릴리스 이름, 동기화는 사람이 누를 때만)
+monitoring:
+  enabled: true
+  namespace: monitoring
+  releases:
+    prometheus:
+      repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      version: 79.5.0
+      # CRD 가 커서 클라이언트 apply 의 어노테이션 한도를 넘음
+      serverSideApply: true
+      valueFiles:
+        - helm/monitoring/prometheus-values-prod.yaml
+        - helm/monitoring/prometheus-values-k8s.yaml
+    loki:
+      repoURL: https://grafana.github.io/helm-charts
+      chart: loki-stack
+      version: 2.10.2
+      valueFiles:
+        - helm/monitoring/loki-values.yaml
+        - helm/monitoring/loki-values-k8s.yaml
+    tempo:
+      repoURL: https://grafana.github.io/helm-charts
+      chart: tempo
+      version: 1.24.0
+      valueFiles:
+        - helm/monitoring/tempo-values.yaml
+        - helm/monitoring/tempo-values-k8s.yaml
