@@ -15,7 +15,7 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
-// 분할 계수가 기록된 종목 탐색. 몇 분 걸려(게이트웨이 30초 제한) 백그라운드로 돌리고 마지막 결과를 들고 있음
+// 분할 계수가 기록된 종목 탐색(몇 분 걸려 게이트웨이 30초 제한 밖 백그라운드 실행 · 마지막 결과 보관)
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -23,7 +23,7 @@ public class UnadjustedScanService {
 
   private final CandleRepository candleRepository;
 
-  // self-injection: 같은 빈에서 직접 부르면 @Async 프록시를 안 탄다
+  // self-injection(같은 빈에서 직접 부르면 @Async 프록시를 안 탐)
   @Lazy
   @Autowired
   private UnadjustedScanService self;
@@ -50,7 +50,7 @@ public class UnadjustedScanService {
     return last.get();
   }
 
-  /** 이미 돌고 있으면 false 를 준다. */
+  /** 이미 돌고 있으면 false */
   public boolean start(LocalDate from) {
     if (!running.compareAndSet(false, true)) {
       return false;

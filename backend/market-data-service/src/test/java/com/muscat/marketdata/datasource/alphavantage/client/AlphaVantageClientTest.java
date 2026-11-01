@@ -19,7 +19,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestTemplate;
 
-// 종목 목록(LISTING_STATUS)이 이 클라이언트를 쓴다. 오류 · 한도 초과는 200 본문으로 와서 본문을 보고 예외로 바꾼다
+// 종목 목록(LISTING_STATUS)이 쓰는 클라이언트(오류 · 한도 초과는 200 본문으로 와서 본문을 보고 예외로)
 @DisplayName("AlphaVantage 클라이언트 · 호출 간격")
 class AlphaVantageClientTest {
 
@@ -142,7 +142,7 @@ class AlphaVantageClientTest {
       limiter.waitIfNeeded();
       long bothMillis = (System.nanoTime() - start) / 1_000_000;
 
-      // 분당 300 이면 200ms 간격. 첫 호출은 기다리지 않는다
+      // 분당 300 이면 200ms 간격(첫 호출은 대기 없음)
       assertThat(firstMillis).isLessThan(150);
       assertThat(bothMillis).isGreaterThanOrEqualTo(150);
     }

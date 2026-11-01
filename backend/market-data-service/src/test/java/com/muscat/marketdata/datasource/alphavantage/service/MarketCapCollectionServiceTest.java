@@ -22,7 +22,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
-// OVERVIEW 의 MarketCapitalization 으로 시총을 채운다. 시총이 빈 종목을 배치 크기만큼씩 채운다
+// OVERVIEW 의 MarketCapitalization 으로 시총이 빈 종목을 배치 크기만큼씩 채움
 @DisplayName("AlphaVantage 시총 수집")
 class MarketCapCollectionServiceTest {
 

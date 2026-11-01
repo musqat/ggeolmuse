@@ -135,7 +135,7 @@ public class InternalMarketController {
     return ResponseEntity.status(HttpStatus.OK).body(fxRate.get());
   }
 
-  // 저장된 환율 전체의 최저 · 최고. user-service 가 환전 환율의 허용 범위를 정할 때 쓴다. 데이터가 없으면 404
+  // 저장된 환율 전체의 최저 · 최고(user-service 의 환전 허용 범위용, 데이터가 없으면 404)
   @GetMapping("/fx/range")
   public ResponseEntity<FxRateRangeDto> getFxRateRange() {
     var min = fxRateRepository.findFirstByOrderByRateAsc();

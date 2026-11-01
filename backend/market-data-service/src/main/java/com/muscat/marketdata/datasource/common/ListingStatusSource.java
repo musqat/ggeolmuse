@@ -11,7 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-// 상장 종목 목록을 AlphaVantage LISTING_STATUS 로 받음. 공급원이 yahoo 여도 쓰도록 alphavantage 패키지 밖에 둠
+// 상장 종목 목록을 AlphaVantage LISTING_STATUS 로 받는 소스(공급원이 yahoo 여도 쓰도록 alphavantage 패키지 밖)
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -25,7 +25,7 @@ public class ListingStatusSource {
   @Value("${marketdata.symbol-listing.only-major-exchanges:true}")
   private boolean onlyMajorExchanges;
 
-  // 0 = 무제한. 로컬에서 전체 적재가 무거울 때만 줄인다
+  // 0 = 무제한(로컬에서 전체 적재가 무거울 때만 줄임)
   @Value("${marketdata.symbol-listing.max-symbols:0}")
   private int maxSymbols;
 
@@ -54,7 +54,7 @@ public class ListingStatusSource {
 
     log.info("[종목목록] LISTING_STATUS 파싱 완료: {}개", assets.size());
 
-    // 레이트리밋 안내문처럼 CSV 가 아닌 본문이 와도 0개로 끝난다. 그때 본문을 봐야 갈린다
+    // 레이트리밋 안내문처럼 CSV 가 아닌 본문도 0개로 끝남(그때는 본문으로 구분)
     if (assets.isEmpty()) {
       log.warn("[종목목록] 파싱된 종목이 없다. 응답 앞부분: {}", head(csv));
     }
@@ -72,8 +72,7 @@ public class ListingStatusSource {
       return null;
     }
 
-    // 이름에 콤마가 들어갈 수 있어 뒤에서부터 자른다.
-    // 뒤 다섯 칸(exchange, assetType, ipoDate, delistingDate, status)은 콤마가 없다
+    // 뒤 다섯 칸(exchange · assetType · ipoDate · delistingDate · status)부터 자름(이름에 콤마 가능)
     String[] parts = line.trim().split(",");
     if (parts.length < 7) {
       return null;
@@ -90,12 +89,12 @@ public class ListingStatusSource {
       return null;
     }
 
-    // 상장폐지된 것은 목록에 넣지 않는다
+    // 상장폐지 종목 제외
     if (!"Active".equalsIgnoreCase(status)) {
       return null;
     }
 
-    // Stock 과 ETF 만 받는다. 그 밖의 유형은 백테스트 대상이 아니다
+    // Stock 과 ETF 만(그 밖의 유형은 백테스트 대상 아님)
     boolean isStock = "Stock".equalsIgnoreCase(assetType);
     boolean isEtf = "ETF".equalsIgnoreCase(assetType);
     if (!isStock && !isEtf) {
@@ -113,7 +112,7 @@ public class ListingStatusSource {
         .country("US")
         .currency("USD")
         .assetType(AssetTypeRule.resolve(isEtf, name))
-        .marketCap(null)   // LISTING_STATUS 에는 없다. 시가총액은 따로 채운다
+        .marketCap(null)   // LISTING_STATUS 에 없는 시가총액은 따로 채움
         .build();
   }
 }

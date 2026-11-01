@@ -9,14 +9,14 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 /**
- * Asset(자산/종목) 관리 서비스 종목 CRUD 및 조회 기능을 제공합니다.
+ * 종목(Asset) CRUD · 조회 서비스
  */
 public interface AssetService {
 
   // 등록 전 공급원에서 회사 정보를 미리 봄
   Optional<Asset> previewSymbol(String symbol);
 
-  // 심볼 또는 회사명으로 찾음. 최대 20개
+  // 심볼 또는 회사명으로 찾기(최대 20개)
   List<Asset> searchSymbols(String keyword);
 
   // 이름 · 국가 · 통화 · 유형이 비면 공급원에서 채움
@@ -31,14 +31,14 @@ public interface AssetService {
 
   List<String> getActiveSymbols();
 
-  // 가격 · 최신 데이터 날짜를 붙인 요약. active 가 false 면 상장폐지 종목
+  // 가격 · 최신 데이터 날짜를 붙인 요약(active 가 false 면 상장폐지 종목)
   Page<AssetSummaryDto> getAllAssetSummaries(Pageable pageable, boolean active);
 
   void updateAssetPrice(String symbol);
 
   void updateAssetMarketCap(String symbol);
 
-  // 목록 API 한 번으로 전체 시가총액 갱신. 갱신한 종목 수를 돌려줌
+  // 목록 API 한 번으로 전체 시가총액 갱신(갱신한 종목 수 반환)
   int updateAllMarketCaps();
 
   // 잘못 수집된 회사명을 관리자가 고침

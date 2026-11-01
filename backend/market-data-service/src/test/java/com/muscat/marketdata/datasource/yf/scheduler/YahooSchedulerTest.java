@@ -26,7 +26,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
-// 초기 수집(캔들 있는 종목이 95% 미만) 중에는 캔들 · 시총 갱신을 건너뛴다. 환율은 항상 돈다
+// 초기 수집(캔들 있는 종목이 95% 미만) 중에는 캔들 · 시총 갱신 건너뜀(환율은 항상)
 @DisplayName("야후 스케줄러")
 class YahooSchedulerTest {
 

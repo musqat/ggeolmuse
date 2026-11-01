@@ -37,14 +37,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @DisplayName("FxDataCollector 단위 테스트")
 class FxDataCollectorTest {
 
-  // 2024-09-16(월) ~ 09-22(일). PREV_FRI 는 MON 의 이전 영업일
+  // 2024-09-16(월) ~ 09-22(일), PREV_FRI 는 MON 의 이전 영업일
   private static final LocalDate PREV_FRI = LocalDate.of(2024, 9, 13);
   private static final LocalDate MON = LocalDate.of(2024, 9, 16);
   private static final LocalDate FRI = LocalDate.of(2024, 9, 20);
   private static final LocalDate SAT = LocalDate.of(2024, 9, 21);
   private static final LocalDate SUN = LocalDate.of(2024, 9, 22);
 
-  // 수집기와 같은 KST 오늘. JVM 기본 타임존이면 UTC 러너에서 하루 어긋남
+  // 수집기와 같은 KST 오늘(JVM 기본 타임존이면 UTC 러너에서 하루 어긋남)
   private static LocalDate today() {
     return LocalDate.now(java.time.ZoneId.of("Asia/Seoul"));
   }

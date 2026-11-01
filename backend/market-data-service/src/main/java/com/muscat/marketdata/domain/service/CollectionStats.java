@@ -6,7 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-// 수집 결과를 모아 1분마다 한 줄로 남김. 종목마다 찍으면 긴 수집의 앞부분이 로그 회전으로 사라짐
+// 수집 결과를 모아 1분마다 한 줄로 남기는 집계(종목마다 찍으면 긴 수집의 앞부분이 로그 회전으로 사라짐)
 @Slf4j
 @Component
 public class CollectionStats {
@@ -28,7 +28,7 @@ public class CollectionStats {
 
   private final AtomicLong startedAt = new AtomicLong();
 
-  // 보고 스레드만 읽고 쓴다
+  // 보고 스레드만 읽고 씀
   private long lastReportedSymbols;
 
   public void recordSymbol(int inserted, int updated) {
@@ -70,7 +70,7 @@ public class CollectionStats {
   }
 
   /**
-   * 1분 동안 종목 수가 늘면 진행, 그대로면 완료로 보고 초기화한다.
+   * 1분 동안 종목 수가 늘면 진행, 그대로면 완료로 보고 초기화
    */
   @Scheduled(fixedDelay = REPORT_INTERVAL_MILLIS)
   void report() {
@@ -89,7 +89,7 @@ public class CollectionStats {
     reset();
   }
 
-  // 0 인 항목은 빼서 그때 일어난 것만 남긴다
+  // 0 인 항목은 빼고 그때 일어난 것만
   private String summary(String phase, long symbols) {
     StringBuilder line = new StringBuilder("수집 ").append(phase);
     long elapsed = System.currentTimeMillis() - startedAt.get();

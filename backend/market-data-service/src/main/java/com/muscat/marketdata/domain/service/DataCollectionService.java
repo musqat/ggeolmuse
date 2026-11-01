@@ -15,7 +15,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 /**
- * 종목 하나의 캔들·배당을 수집한다.
+ * 종목 하나의 캔들 · 배당 수집
  */
 @Slf4j
 @Service
@@ -28,7 +28,7 @@ public class DataCollectionService {
     private final MarketDataProperties properties;
     private final CandleService candleService;
 
-    // 컨슈머 스레드에서 그대로 수집. 병렬도는 리스너 동시성이 정하고 ACK 는 수집 뒤
+    // 컨슈머 스레드에서 그대로 수집(병렬도는 리스너 동시성, ACK 는 수집 뒤)
     public void collect(AssetCreatedEvent event) {
         log.debug("수집 시작: symbol={}", event.getSymbol());
 
@@ -60,13 +60,12 @@ public class DataCollectionService {
         } catch (Exception e) {
             log.error("수집 실패: symbol={}, error={}", event.getSymbol(), e.getMessage(), e);
 
-            // 종목 하나의 실패는 saveCandles · saveDividends 가 이미 삼킨다. 여기까지 오면 예상 밖이라
-            // 재시도와 .DLT 로 보낸다
+            // 예상 밖 실패는 재시도 · .DLT 로(종목 하나의 실패는 saveCandles · saveDividends 가 이미 삼킴)
             throw e;
         }
     }
 
-    // 거래가 거의 없는 ETF 는 첫 수집 뒤 내림. 갱신 대상과 화면에서 빠짐
+    // 거래가 거의 없는 ETF 는 첫 수집 뒤 내림(갱신 대상과 화면에서 빠짐)
     private void deactivateThinEtf(String symbol) {
         Asset asset = assetRepository.findById(symbol).orElse(null);
         if (asset == null || !"ETF".equals(asset.getAssetType()) || !Boolean.TRUE.equals(asset.getActive())) {

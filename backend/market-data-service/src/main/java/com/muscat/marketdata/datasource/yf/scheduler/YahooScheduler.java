@@ -33,7 +33,7 @@ public class YahooScheduler {
     private final FxDataCollector fxDataCollector;
     private final InitialCollectionCheck initialCollectionCheck;
 
-    // 평소에는 1년. 전 기간 백필은 이 값을 크게 잡고 한 번 돌린 뒤 되돌린다
+    // 평소 1년(전 기간 백필은 이 값을 크게 잡고 한 번 돌린 뒤 되돌림)
     @Value("${yahoo.scheduler.candle.lookback-days:365}")
     private int candleLookbackDays;
 
@@ -44,7 +44,7 @@ public class YahooScheduler {
      */
     @Scheduled(cron = "${yahoo.scheduler.candle.cron:0 0 7 * * MON-FRI}",
         zone = "${yahoo.scheduler.zone:Asia/Seoul}")
-    // 전 종목을 초당 10건으로 받으면 한 바퀴가 25분을 넘는다
+    // 전 종목을 초당 10건으로 받으면 한 바퀴 25분 넘음
     @SchedulerLock(name = "yahooUpdateCandles", lockAtMostFor = "50m", lockAtLeastFor = "1m")
     public void updateCandles() {
         if (initialCollectionCheck.inProgress()) {

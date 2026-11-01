@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class SymbolCollector {
 
-    // 목록은 프로바이더가 아니라 공통 카탈로그에서 받는다.
+    // 종목 목록은 공통 카탈로그에서
     private final SymbolCatalog symbolCatalog;
     private final AssetRepository assetRepository;
     private final AssetEventProducer assetEventProducer;
@@ -43,12 +43,12 @@ public class SymbolCollector {
     @Value("${marketdata.symbol-collection.lookback-days:365}")
     private int lookbackDays;
 
-    // 수집 종목 수 상한 (0 = 무제한). 로컬에서 전체(~6700) 수집은 무거워 상위 N개만 수집할 때 사용.
+    // 수집 종목 수 상한(0 = 무제한, 로컬에서 전체 약 6700 수집이 무거울 때 상위 N개만)
     @Value("${marketdata.symbol-collection.max-symbols:0}")
     private int maxCollectSymbols;
 
 
-    // 트랜잭션을 걸지 않는다. 걸면 저장이 커밋 때 한꺼번에 나가 한 종목 실패가 전부를 되돌리고, 이벤트는 커밋 전에 나간다
+    // 트랜잭션 없음(걸면 저장이 커밋 때 한꺼번에 나가 한 종목 실패가 전부를 되돌리고 이벤트는 커밋 전에 나감)
     @EventListener(ApplicationReadyEvent.class)
     @Async
     @SchedulerLock(
@@ -68,8 +68,7 @@ public class SymbolCollector {
         // 기존 심볼이 있는지 확인
         long existingCount = assetRepository.count();
 
-        // 기존 종목이 있으면 기동 시에는 아무것도 발행하지 않는다.
-        // 전 종목 발행은 재기동마다 3천만 행을 갱신하게 만든다. 갱신은 캔들 스케줄러가 맡는다.
+        // 기존 종목이 있으면 기동 때 발행 없음(전 종목 발행은 재기동마다 3천만 행 갱신, 갱신은 캔들 스케줄러 몫)
         if (existingCount > 0) {
             log.info("[YF-종목수집] 기존 {}개 종목 발견 - 기동 시 수집은 건너뛴다", existingCount);
             collectNewlyListed(from, to);
@@ -134,7 +133,7 @@ public class SymbolCollector {
         }
     }
 
-    // 신규 상장 확인. 캔들(07:30) 뒤 · 시가총액(10:00) 앞
+    // 신규 상장 확인(캔들 07:30 뒤 · 시가총액 10:00 앞)
     // 기동 때만 돌면 재시작 전까지 목록이 굳음
     @Scheduled(cron = "${yahoo.scheduler.symbol.cron:0 0 8 * * MON-FRI}",
         zone = "${yahoo.scheduler.zone:Asia/Seoul}")
@@ -152,10 +151,10 @@ public class SymbolCollector {
         collectNewlyListed(from, to);
     }
 
-    // DB 에 없는 심볼만 추가. 목록 조회가 실패해도 예외를 밖으로 내지 않음(기존 종목 갱신은 끝난 뒤)
+    // DB 에 없는 심볼만 추가(목록 조회가 실패해도 예외를 밖으로 내지 않음, 기존 종목 갱신은 끝난 뒤)
     private void collectNewlyListed(LocalDate from, LocalDate to) {
         try {
-            // 카탈로그가 중복 제거와 보통주 필터까지 마친 목록을 준다
+            // 카탈로그가 중복 제거 · 보통주 필터까지 마친 목록
             List<Asset> fetched = symbolCatalog.fetchAll();
 
 
@@ -169,7 +168,7 @@ public class SymbolCollector {
 
             refreshListingNames(fetched, known);
 
-            // 카탈로그가 중복을 걸러 주지만 경계에서 한 번 더 본다.
+            // 경계에서 한 번 더 거르는 중복
             Set<String> seen = new java.util.HashSet<>();
             List<Asset> newcomers = fetched.stream()
                 .filter(a -> !known.containsKey(a.getSymbol()))
@@ -200,7 +199,7 @@ public class SymbolCollector {
         }
     }
 
-    // 상장 목록 이름이 바뀐 기존 종목을 따라 고침. 손으로 고친 이름(목록 이름과 다른 name)은 두고 목록 이름만 갱신
+    // 상장 목록 이름이 바뀐 기존 종목 따라 고침(손으로 고친 이름은 두고 목록 이름만 갱신)
     private void refreshListingNames(List<Asset> fetched, Map<String, Asset> known) {
         List<Asset> changed = new ArrayList<>();
         int renamed = 0;

@@ -9,7 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
-/** 전체 다시 받기 발행을 요청 밖에서 한다. 1만 건 넘게 보내면 게이트웨이 30초를 넘긴다 */
+/** 전체 다시 받기 발행을 요청 밖에서(1만 건 넘게 보내면 게이트웨이 30초를 넘김) */
 @Slf4j
 @Service
 @RequiredArgsConstructor

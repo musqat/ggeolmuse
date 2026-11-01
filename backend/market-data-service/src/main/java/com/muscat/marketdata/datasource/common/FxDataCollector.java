@@ -55,7 +55,7 @@ public class FxDataCollector {
                 properties.getFxIngest().getIncremental().isEnabled());
     }
 
-    // 앱이 준비된 뒤 다른 스레드에서 과거 · 빠진 환율 채우기(실패는 로그만). 저장은 락을 풀기 전에 커밋됨
+    // 앱이 준비된 뒤 다른 스레드에서 과거 · 빠진 환율 채우기(실패는 로그만, 저장은 락을 풀기 전에 커밋)
     @Async
     @EventListener(ApplicationReadyEvent.class)
     public void collectOnStartup() {

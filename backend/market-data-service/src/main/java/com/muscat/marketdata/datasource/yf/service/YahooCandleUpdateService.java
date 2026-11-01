@@ -53,14 +53,13 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
     private final CollectionStats collectionStats;
     private final AssetEventProducer assetEventProducer;
 
-    // 관리자 재수집 기본값과 같다. 이 날부터 받을 때는 과거 종가를 비교하지 않는다
+    // 관리자 재수집 기본값과 같음(이 날부터 받을 때는 과거 종가 비교 안 함)
     private static final LocalDate FULL_HISTORY_FROM = LocalDate.of(1970, 1, 1);
 
     // candle 가격 · 배당 · 분할 계수 컬럼의 소수 자릿수
     private static final int DB_SCALE = 8;
 
-    // 야후는 응답 서버마다 adjclose 를 조금씩 다르게 준다. 84종목을 두 서버에서 받아 비교했을 때 상대 차이는 최대 1.4e-6,
-    // 배당 한 번이 과거 adjclose 를 바꾸는 비율은 가장 작아도 2.7e-4 였다. 그 사이 값으로 둘을 가른다
+    // 서버 차이(84종목 상대 차이 최대 1.4e-6)와 배당 변화(가장 작아도 2.7e-4) 사이의 adjclose 허용치
     private static final BigDecimal ADJUSTED_CLOSE_TOLERANCE = new BigDecimal("0.00001");
 
     // self-injection: saveBoth에서 proxy 통해 호출해야 REQUIRES_NEW가 실제로 적용됨
@@ -96,7 +95,7 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
                         asset.setLatestDate(latest.getDate());
                         touched = true;
                     }
-                    // 전 기간을 받았으면 받은 최신 봉 날짜를 남긴다. 분할 찾기가 이 날짜 뒤에 난 분할만 본다
+                    // 전 기간을 받았으면 받은 최신 봉 날짜 기록(분할 찾기가 이 날짜 뒤에 난 분할만 봄)
                     if (from != null && !from.isAfter(FULL_HISTORY_FROM)) {
                         asset.setFullHistoryThrough(latest.getDate());
                         touched = true;
@@ -160,7 +159,7 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
             .collect(Collectors.toMap(YahooCandleUpdateService::key, c -> c, (a, b) -> a));
     }
 
-    // 없는 행만 넣고 값이 달라진 행만 고침. adjusted_close 는 배당 때마다 과거까지 바뀌어 기존 행도 봄
+    // 없는 행만 넣고 값이 달라진 행만 고침(adjusted_close 는 배당 때마다 과거까지 바뀌어 기존 행도 봄)
     private Merged mergeIntoExisting(Map<String, Candle> existing, List<Candle> candles) {
         List<Candle> inserts = new ArrayList<>();
         int updated = 0;
@@ -182,7 +181,7 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
         return new Merged(inserts.size(), updated);
     }
 
-    // 기존 데이터와 겹치는 날짜 중 가장 이른 날의 종가를 비교한다. 분할이 나면 과거 종가가 전부 분할 기준으로 바뀐다
+    // 기존 데이터와 겹치는 날짜 중 가장 이른 날의 종가 비교(분할이 나면 과거 종가가 전부 분할 기준으로 바뀜)
     private static boolean scaleChanged(Map<String, Candle> existing, List<Candle> candles) {
         return candles.stream()
             .filter(fresh -> existing.containsKey(key(fresh)))
@@ -191,13 +190,13 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
             .orElse(false);
     }
 
-    // 1970년 부터 받을 때는 비교하지 않는다. 비교하면 1970년 이전 데이터가 있는 종목에서 재수집이 되풀이된다
+    // 1970년부터 받을 때는 비교 안 함(비교하면 1970년 이전 데이터가 있는 종목에서 재수집이 되풀이됨)
     private boolean isPartialWindow(String symbol, LocalDate from) {
         return from != null && from.isAfter(FULL_HISTORY_FROM)
             && candleRepository.existsBySymbolAndDateBefore(symbol, from);
     }
 
-    // 덮어쓰지 않으므로 재수집 요청이 실패해도 다음 수집에서 같은 차이가 다시 보인다. 주당 배당도 분할 기준으로 바뀌어 같이 받음
+    // 덮어쓰지 않아 재수집 요청이 실패해도 다음 수집에서 같은 차이가 다시 보임(주당 배당도 분할 기준으로 바뀌어 같이 받음)
     private void resyncFullHistory(String symbol, LocalDate to) {
         assetRepository.findById(symbol).ifPresent(asset ->
             assetEventProducer.publishAssetCreated(asset, true, FULL_HISTORY_FROM, to, true));
@@ -223,7 +222,7 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
             || !Objects.equals(prev.getVolume(), fresh.getVolume());
     }
 
-    // 야후는 124.80750274658203 처럼 주고 DB 는 소수 8자리로 반올림해 저장한다. 같은 자리로 맞춘 뒤 비교한다
+    // 소수 8자리로 맞춘 뒤 비교(야후는 124.80750274658203 처럼 주고 DB 는 8자리로 반올림 저장)
     private static boolean differs(BigDecimal a, BigDecimal b) {
         if (a == null || b == null) {
             return a != b;
@@ -231,7 +230,7 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
         return a.setScale(DB_SCALE, RoundingMode.HALF_UP).compareTo(b.setScale(DB_SCALE, RoundingMode.HALF_UP)) != 0;
     }
 
-    // 8자리 비교를 먼저 한다. 1e-4 크기 값은 반올림만으로도 상대 차이가 허용치를 넘는다
+    // 8자리 비교 먼저(1e-4 크기 값은 반올림만으로도 상대 차이가 허용치를 넘음)
     private static boolean adjustedCloseDiffers(BigDecimal stored, BigDecimal fetched) {
         if (!differs(stored, fetched)) {
             return false;

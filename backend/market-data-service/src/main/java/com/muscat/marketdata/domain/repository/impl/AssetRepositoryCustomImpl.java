@@ -121,7 +121,7 @@ public class AssetRepositoryCustomImpl implements AssetRepositoryCustom {
             .fetch();
     }
 
-    // 상장 중이고 유형이 맞는 종목. 비었거나 ALL 이면 유형 무시
+    // 상장 중이고 유형이 맞는 종목(비었거나 ALL 이면 유형 무시)
     private static BooleanExpression activeOfType(String assetType) {
         BooleanExpression active = asset.active.isTrue();
         if (assetType == null || "ALL".equalsIgnoreCase(assetType)) {
@@ -160,7 +160,7 @@ public class AssetRepositoryCustomImpl implements AssetRepositoryCustom {
     return new PageImpl<>(content, pageable, total != null ? total : 0L);
   }
 
-  // 정렬 가능한 필드만 받는다. 모르는 이름은 무시한다
+  // 정렬 가능한 필드만(모르는 이름은 무시)
   private static ComparableExpressionBase<?> sortPath(String property) {
     return switch (property) {
       case "symbol" -> asset.symbol;

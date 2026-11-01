@@ -80,7 +80,7 @@ class CollectionStatsTest {
       .startsWith("수집 완료")
       .contains("종목 3").contains("성공 1").contains("빈값 1").contains("실패 1");
 
-    // 초기화됐으므로 다음 주기에는 남길 것이 없다
+    // 초기화 뒤라 다음 주기에는 남길 것 없음
     appender.list.clear();
     stats.report();
     assertThat(messages()).isEmpty();

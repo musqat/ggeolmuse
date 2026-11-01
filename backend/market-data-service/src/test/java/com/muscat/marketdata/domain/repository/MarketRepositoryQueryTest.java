@@ -26,7 +26,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
-// QueryDSL 로 조립한 조회. 실제 쿼리를 H2 에 보내 정렬 · 필터 · 페이지가 맞는지 본다
+// QueryDSL 로 조립한 조회(실제 쿼리를 H2 에 보내 정렬 · 필터 · 페이지 확인)
 @SpringBootTest
 @ActiveProfiles("test")
 @DisplayName("종목 · 캔들 · 배당 · 환율 조회")

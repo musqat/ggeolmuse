@@ -8,7 +8,7 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-// NASDAQ 스크리너 응답(data.table.rows)을 종목으로 바꾼다. 신규 종목 · 시총 매칭이 이 결과를 쓴다
+// NASDAQ 스크리너 응답(data.table.rows) → 종목(신규 종목 · 시총 매칭이 씀)
 @DisplayName("NASDAQ 스크리너 응답 파서")
 class NasdaqScreenerParserTest {
 

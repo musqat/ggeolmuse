@@ -40,8 +40,7 @@ public class Asset {
   private LocalDate delistedDate; // 상장폐지일
 
   // ===== 최신 캔들 비정규화 (요약 조회 성능용) =====
-  // candle 테이블 2967만 행에서 매 요청마다 종목별 최신가 조회하면 느림.
-  // 캔들 저장 시 여기에 캐싱해 두면 summary는 asset 테이블만 조회하면 됨.
+  // 캔들 저장 때 최신가를 여기에 두어 summary 는 asset 테이블만 조회(candle 2967만 행에서 매번 찾으면 느림)
 
   @Column(name = "latest_close", precision = 19, scale = 8)
   private BigDecimal latestClose; // 최신 종가
@@ -49,11 +48,11 @@ public class Asset {
   @Column(name = "latest_date")
   private LocalDate latestDate; // 최신 캔들 날짜
 
-  // 1970 부터 전 기간을 받았을 때 받은 봉 중 가장 최근 날짜 (V8). 분할 찾기가 이 날짜 뒤의 분할만 본다
+  // 1970 부터 전 기간을 받았을 때 받은 봉 중 가장 최근 날짜(V8, 분할 찾기가 이 날짜 뒤의 분할만 봄)
   @Column(name = "full_history_through")
   private LocalDate fullHistoryThrough;
 
-  // 상장 목록이 준 이름 (V12). 손으로 고친 이름과 구분
+  // 상장 목록이 준 이름(V12, 손으로 고친 이름과 구분)
   @Column(name = "source_name", length = 256)
   private String sourceName;
 }

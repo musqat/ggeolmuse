@@ -89,7 +89,7 @@ public class YahooFinanceClient {
     } catch (HttpStatusCodeException e) {
       return handleStatusError(symbol, e);
     } catch (ResourceAccessException e) {
-      // 연결 실패와 타임아웃. 스택이 매번 같은 RestTemplate 프레임이라 메시지만 남긴다
+      // 연결 실패와 타임아웃(스택이 매번 같은 RestTemplate 프레임이라 메시지만)
       collectionStats.recordRequestUnreachable();
       log.warn("Yahoo Finance 차트 연결 실패: symbol={}, error={}", symbol, e.getMessage());
       return "";
@@ -99,7 +99,7 @@ public class YahooFinanceClient {
     }
   }
 
-  // 404 는 상장폐지와 티커 변경이라 다시 받을 것이 없다. 비활성으로 돌릴 종목의 이름을 INFO 로 남긴다
+  // 404 는 상장폐지 · 티커 변경이라 다시 받을 것 없음(비활성으로 돌릴 종목 이름을 INFO 로)
   private String handleStatusError(String symbol, HttpStatusCodeException e) {
     if (e.getStatusCode().value() == HttpStatus.NOT_FOUND.value()) {
       collectionStats.recordRequestNotFound();

@@ -10,7 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
-// 이미지에 넣어 둔 NASDAQ CSV 로 종목 목록을 만듦. 외부 목록 API 가 막혔을 때 씀
+// 이미지에 넣어 둔 NASDAQ CSV 로 만든 종목 목록(외부 목록 API 가 막혔을 때)
 @Slf4j
 @Component
 public class BundledSymbolSource {

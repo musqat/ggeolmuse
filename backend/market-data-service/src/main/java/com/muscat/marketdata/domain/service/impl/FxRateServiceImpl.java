@@ -59,7 +59,7 @@ public class FxRateServiceImpl implements FxRateService {
         return result;
     }
 
-    // 캐시는 Optional 을 벗겨 저장해 빈 값이 null 이 되고 거부돼 500 이 남. 그래서 null 이면 캐시하지 않음
+    // null 이면 캐시 안 함(캐시는 Optional 을 벗겨 저장해 빈 값이 null 이 되고 거부돼 500)
     // unless 의 #result 도 벗겨진 FxRate 라 isEmpty() 대신 null 검사만
     @Override
     @Cacheable(cacheNames = "latestFxRate", key = "'latest'", unless = "#result == null")

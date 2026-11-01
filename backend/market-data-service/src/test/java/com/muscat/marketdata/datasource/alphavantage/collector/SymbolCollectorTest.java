@@ -23,7 +23,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
-// LISTING_STATUS 로 신규 상장은 넣고, 목록에서 사라진 활성 종목은 상장폐지로 돌린다. 응답이 DB 의 절반도 안 되면 폐지 처리를 멈춘다
+// LISTING_STATUS 로 신규 상장은 넣고 목록에서 사라진 활성 종목은 상장폐지로(응답이 DB 의 절반도 안 되면 폐지 처리 중단)
 @DisplayName("AlphaVantage 종목 동기화")
 class SymbolCollectorTest {
 

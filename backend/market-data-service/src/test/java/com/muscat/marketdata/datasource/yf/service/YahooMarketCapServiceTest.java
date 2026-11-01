@@ -17,7 +17,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-// NYSE · NASDAQ 스크리너 시총으로 보유 종목의 시총을 덮는다. 스크리너에 없는 종목은 그대로 둔다
+// NYSE · NASDAQ 스크리너 시총으로 보유 종목의 시총 덮어쓰기(스크리너에 없는 종목은 그대로)
 @DisplayName("야후 시총 서비스")
 class YahooMarketCapServiceTest {
 

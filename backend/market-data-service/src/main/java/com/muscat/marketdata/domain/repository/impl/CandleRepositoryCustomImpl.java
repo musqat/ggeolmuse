@@ -79,7 +79,7 @@ public class CandleRepositoryCustomImpl implements CandleRepositoryCustom {
       .from(candle)
       .join(asset).on(asset.symbol.eq(candle.symbol))
       .where(candle.date.goe(from)
-        // 1 은 SQL 에 직접 박음. 파라미터로 넘기면 부분 인덱스 idx_candle_split_date 를 못 탐
+        // 1 은 SQL 에 직접(파라미터로 넘기면 부분 인덱스 idx_candle_split_date 를 못 탐)
         .and(Expressions.booleanTemplate("{0} <> 1", candle.splitCoefficient))
         .and(asset.active.isTrue())
         // 분할일 봉까지 전 기간을 받은 종목 제외(분할일 = 기록 날짜면 받은 것)

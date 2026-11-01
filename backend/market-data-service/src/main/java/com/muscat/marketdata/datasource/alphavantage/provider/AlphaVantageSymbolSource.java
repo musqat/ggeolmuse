@@ -38,7 +38,7 @@ public class AlphaVantageSymbolSource implements MarketDataProvider.SymbolSource
     @Value("${marketdata.symbol-listing.max-symbols:0}")
     private int maxSymbols;
 
-    // LISTING_STATUS 전체 목록. 시가총액은 없음
+    // LISTING_STATUS 전체 목록(시가총액 없음)
     @Override
     public List<Asset> fetchSymbols() {
         log.info("[AV-SymbolSource] LISTING_STATUS API 호출 시작");

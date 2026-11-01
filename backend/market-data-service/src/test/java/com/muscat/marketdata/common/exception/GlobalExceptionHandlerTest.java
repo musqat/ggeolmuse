@@ -42,7 +42,7 @@ class GlobalExceptionHandlerTest {
   @Test
   @DisplayName("서비스 예외 · 요청 값 오류는 공통 모듈에서 상속한 핸들러가, 외부 API 예외와 그 밖의 예외는 서비스 핸들러가 받는다")
   void resolvesInheritedHandlers() {
-    // 스프링이 advice 마다 만드는 resolver. 같은 예외에 메서드가 둘 걸리면 생성에서 실패한다
+    // 스프링이 advice 마다 만드는 resolver(같은 예외에 메서드가 둘 걸리면 생성에서 실패)
     ExceptionHandlerMethodResolver resolver = new ExceptionHandlerMethodResolver(GlobalExceptionHandler.class);
 
     assertThat(resolver.resolveMethod(new MarketDataException(MarketDataResponse.PRICE_DATA_NOT_FOUND)).getName())
@@ -73,7 +73,7 @@ class GlobalExceptionHandlerTest {
       .containsEntry("errorType", "NOT_FOUND");
   }
 
-  // 컨트롤러와 같은 모양의 파라미터 검사. @Validated 가 이 검사로 ConstraintViolationException 을 만든다
+  // 컨트롤러와 같은 모양의 파라미터 검사(@Validated 가 ConstraintViolationException 을 만듦)
   @SuppressWarnings("unused")
   static class SampleController {
     void price(@Pattern(regexp = "^[A-Z]{1,16}$") String symbol, @Positive BigDecimal minAmount) {

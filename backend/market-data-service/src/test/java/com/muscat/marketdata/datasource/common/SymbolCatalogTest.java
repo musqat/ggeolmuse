@@ -16,7 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
-// 중복 · 보통주 아닌 것 거르기. 정상 종목이 빠지는 오탐 쪽을 중점으로 봄
+// 중복 · 보통주 아닌 것 거르기(정상 종목이 빠지는 오탐 쪽 중점)
 @ExtendWith(MockitoExtension.class)
 @DisplayName("SymbolCatalog 단위 테스트")
 class SymbolCatalogTest {
@@ -101,7 +101,7 @@ class SymbolCatalogTest {
   @Test
   @DisplayName("United 는 ' units' 에 걸리지 않는다")
   void united_오탐_없음() {
-    // 패턴의 앞 공백이 이걸 막는다. 공백을 지우면 이 테스트가 깨진다
+    // 패턴의 앞 공백이 막는 경우(공백을 지우면 실패)
     given(listingSource.fetch()).willReturn(List.of(
         asset("UAL", "United Airlines Holdings Inc"),
         asset("UNH", "UnitedHealth Group Inc"),
@@ -113,7 +113,7 @@ class SymbolCatalogTest {
   @Test
   @DisplayName("ETF 는 거르지 않는다")
   void etf_유지() {
-    // 워런트와 달리 만료되지 않고 주식처럼 거래되므로 백테스트에 유효하다
+    // 워런트와 달리 만료 없이 주식처럼 거래(백테스트에 유효)
     given(listingSource.fetch()).willReturn(List.of(
         asset("SPY", "SPDR S&P 500 ETF Trust"),
         asset("QQQ", "Invesco QQQ Trust Series 1"),
@@ -178,7 +178,7 @@ class SymbolCatalogTest {
   @Test
   @DisplayName("저장 칸(16자)을 넘거나 티커에 안 쓰는 글자가 든 심볼은 거른다")
   void 심볼_형식() {
-    // CAPTW(EXP20260807) 한 줄이 기동 때 신규 종목 저장을 통째로 실패시켰다
+    // CAPTW(EXP20260807) 한 줄이 기동 때 신규 종목 저장 전체를 실패시키는 경우
     given(listingSource.fetch()).willReturn(List.of(
         asset("CAPTW(EXP20260807)", "Abcam plc"),
         asset("AB(EXP1)", "Short Annotated Corp"),
@@ -220,7 +220,7 @@ class SymbolCatalogTest {
   @Test
   @DisplayName("출처가 예외를 던져도 빈 목록으로 끝난다")
   void 출처_예외() {
-    // 부분 목록으로 판정하면 못 받아온 종목이 상장폐지처럼 보인다
+    // 부분 목록으로 판정하면 못 받아온 종목이 상장폐지처럼 보임
     given(listingSource.fetch()).willThrow(new IllegalStateException("API 다운"));
 
     assertThat(catalog.fetchAll()).isEmpty();

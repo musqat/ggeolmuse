@@ -45,7 +45,7 @@ public class CandleServiceImpl implements CandleService {
   private final DividendYieldOrder dividendYieldOrder;
 
   @Override
-  // 시세 있는 응답만 캐시. 없음까지 캐시하면 수집 직후에도 TTL 동안 없다고 답함
+  // 시세 있는 응답만 캐시(없음까지 캐시하면 수집 직후에도 TTL 동안 없다고 답함)
   @Cacheable(cacheNames = "ohlc", key = "#symbol.toUpperCase() + ':' + #date",
     unless = "#result == null || !#result.available")
   public OHLCPriceDto getOHLCPrice(String symbol, LocalDate date) {
@@ -260,7 +260,7 @@ public class CandleServiceImpl implements CandleService {
   }
 
   // 변화율 계산 메서드
-  // 종목 테이블의 최신 종가 · 날짜로 목록 한 줄. 전일 종가 · 등락률 · 거래량은 비움
+  // 종목 테이블의 최신 종가 · 날짜로 목록 한 줄(전일 종가 · 등락률 · 거래량은 비움)
   private StockPriceDto toStockPrice(Asset asset, BigDecimal yearlyDividend, BigDecimal maxYieldRatio) {
     BigDecimal latestClose = asset.getLatestClose();
     boolean available = latestClose != null && latestClose.signum() > 0;
@@ -284,7 +284,7 @@ public class CandleServiceImpl implements CandleService {
       limits.getSpecialPaymentPercent().movePointLeft(2), limits.getMaxYieldPercent().movePointLeft(2));
   }
 
-  // 종목별 최근 1년 배당 합(특별 배당 뺌). 빈 페이지면 조회 안 함
+  // 종목별 최근 1년 배당 합(특별 배당 뺌, 빈 페이지면 조회 안 함)
   private Map<String, BigDecimal> yearlyDividends(List<String> symbols, DividendYieldRule rule) {
     if (symbols.isEmpty()) {
       return Map.of();
@@ -292,7 +292,7 @@ public class CandleServiceImpl implements CandleService {
     return dividendRepository.sumRegularAmountBySymbolsSince(symbols, rule.from(), rule.specialRatio());
   }
 
-  // 1년 배당 합 ÷ 최신 종가 × 100, 소수 둘째 자리. 둘 중 하나가 없거나 종가가 0 이하거나 상한을 넘으면 null
+  // 1년 배당 합 ÷ 최신 종가 × 100, 소수 둘째 자리(둘 중 하나가 없거나 종가가 0 이하거나 상한을 넘으면 null)
   private BigDecimal dividendYieldPercent(BigDecimal yearly, BigDecimal latestClose, BigDecimal maxYieldRatio) {
     if (yearly == null || latestClose == null || latestClose.signum() <= 0 || yearly.compareTo(latestClose.multiply(maxYieldRatio)) > 0) {
       return null;

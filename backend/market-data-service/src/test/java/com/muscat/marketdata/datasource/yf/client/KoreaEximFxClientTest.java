@@ -15,7 +15,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestTemplate;
 
-// 수출입은행 환율 API. 응답은 통화별 배열이고, USD 의 기준환율(쉼표 포함 문자열)만 쓴다
+// 수출입은행 환율 API(응답은 통화별 배열, USD 의 기준환율 쉼표 포함 문자열만 씀)
 @DisplayName("수출입은행 환율 클라이언트")
 class KoreaEximFxClientTest {
 

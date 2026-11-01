@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-// 관리자가 누르는 전체 갱신. 한 번에 하나만 돌고 하나만 기다림. 넘치면 받지 않음
+// 관리자가 누르는 전체 갱신(한 번에 하나 실행 · 하나 대기, 넘치면 거절)
 @Slf4j
 @Component
 class AdminJobRunner {

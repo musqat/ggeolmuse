@@ -37,7 +37,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 
-// provider=alphavantage 일 때만 뜨는 일괄 수집 컨트롤러. 관리자 경로 아래라 admin 만 닿음
+// provider=alphavantage 일 때만 뜨는 일괄 수집 컨트롤러(관리자 경로 아래라 admin 만)
 @DisplayName("일괄 수집 컨트롤러")
 class DataCollectionControllerTest {
 

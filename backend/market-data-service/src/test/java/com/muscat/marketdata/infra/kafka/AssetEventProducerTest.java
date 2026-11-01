@@ -27,7 +27,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-// 같은 서비스의 AssetEventConsumer 가 이 토픽을 읽어 캔들 · 배당을 모은다
+// 같은 서비스의 AssetEventConsumer 가 이 토픽을 읽어 캔들 · 배당 수집
 @DisplayName("종목 생성 이벤트 발행")
 class AssetEventProducerTest {
 

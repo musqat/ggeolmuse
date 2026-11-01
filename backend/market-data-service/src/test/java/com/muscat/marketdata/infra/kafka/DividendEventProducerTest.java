@@ -23,7 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.kafka.core.KafkaTemplate;
 
-// trade-service 가 이 토픽을 읽어 보유자에게 배당을 준다. 토픽 · 키 · 필드가 바뀌면 배당 지급이 끊긴다
+// trade-service 가 이 토픽을 읽어 보유자에게 배당 지급(토픽 · 키 · 필드가 바뀌면 지급 중단)
 @DisplayName("배당 갱신 이벤트 발행")
 class DividendEventProducerTest {
 

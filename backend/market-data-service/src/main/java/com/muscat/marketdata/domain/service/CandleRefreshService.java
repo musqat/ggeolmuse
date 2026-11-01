@@ -34,7 +34,7 @@ public class CandleRefreshService {
   public record RefreshResult(int requested, int published, List<String> notFound, LocalDate from, LocalDate to) {
   }
 
-  // 지정한 종목만 배당까지 다시 수집. 발행은 Kafka 컨슈머가 비동기로 처리
+  // 지정한 종목만 배당까지 다시 수집(발행 뒤 Kafka 컨슈머가 비동기로 처리)
   public RefreshResult refresh(List<String> symbols, LocalDate from) {
     LocalDate start = from != null ? from : FULL_FROM;
     LocalDate to = LocalDate.now(NEW_YORK);
@@ -50,7 +50,7 @@ public class CandleRefreshService {
         notFound.add(symbol);
         continue;
       }
-      // 상장폐지 종목은 야후가 404 를 낸다. 발행해봐야 빈 응답만 받는다
+      // 상장폐지 종목 제외(야후 404 라 발행해도 빈 응답)
       if (!Boolean.TRUE.equals(asset.getActive())) {
         delisted++;
         continue;
@@ -64,7 +64,7 @@ public class CandleRefreshService {
     return new RefreshResult(requested.size(), published, notFound, start, to);
   }
 
-  // 활성 종목 전체를 1970-01-01 부터. 실행 기록을 먼저 남기고 발행은 뒤에서(1만 건 넘게 발행하면 게이트웨이 30초를 넘김)
+  // 활성 종목 전체를 1970-01-01 부터(실행 기록을 먼저 남기고 발행은 뒤에서, 1만 건 넘게 발행하면 게이트웨이 30초를 넘김)
   public AdminJobRun refreshAll() {
     List<Asset> assets = assetRepository.findByActiveTrue();
     AdminJobRun run = adminJobRunRepository.save(new AdminJobRun(REFRESH_ALL_JOB, LocalDateTime.now(KST), assets.size()));
@@ -74,7 +74,7 @@ public class CandleRefreshService {
     return run;
   }
 
-  // 마지막 전체 재수집 기록. 한 번도 안 했으면 빔
+  // 마지막 전체 재수집 기록(한 번도 안 했으면 빔)
   public Optional<AdminJobRun> lastRefreshAll() {
     return adminJobRunRepository.findById(REFRESH_ALL_JOB);
   }

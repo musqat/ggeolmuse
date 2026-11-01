@@ -25,7 +25,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
-// 저장된 마지막 날 다음부터 받고, 이미 있는 날짜 · 배당은 다시 저장하지 않는다
+// 저장된 마지막 날 다음부터 받기(이미 있는 날짜 · 배당은 다시 저장 안 함)
 @DisplayName("AlphaVantage 캔들 · 배당 저장")
 class AlphaVantageCandleUpdateServiceTest {
 

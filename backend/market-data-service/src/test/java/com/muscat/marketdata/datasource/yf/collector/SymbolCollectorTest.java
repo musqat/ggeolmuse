@@ -48,7 +48,7 @@ class SymbolCollectorTest {
 
   @BeforeEach
   void setUp() {
-    // @Value 필드는 스프링 없이 주입되지 않아 직접 넣는다
+    // @Value 필드 직접 주입(스프링 없이는 안 들어감)
     setConfig(true, 365, 0);
   }
 
@@ -104,7 +104,7 @@ class SymbolCollectorTest {
 
       verify(assetEventProducer, never())
         .publishAssetCreated(any(), anyBoolean(), any(), any(), anyBoolean());
-      // 신규가 없으면 저장은 일어나지 않는다
+      // 신규가 없으면 저장 없음
       verify(assetRepository, never()).save(any());
     }
 
@@ -134,7 +134,7 @@ class SymbolCollectorTest {
       verify(assetRepository, times(1)).save(saved.capture());
       org.assertj.core.api.Assertions.assertThat(saved.getValue().getSymbol()).isEqualTo("NEWCO");
 
-      // 신규 1건만. 기존 종목은 기동 시 발행하지 않는다
+      // 신규 1건만(기존 종목은 기동 때 발행 안 함)
       verify(assetEventProducer, times(1))
         .publishAssetCreated(any(), anyBoolean(), any(), any(), anyBoolean());
     }
@@ -218,7 +218,7 @@ class SymbolCollectorTest {
     @Test
     @DisplayName("목록에 같은 심볼이 두 번 있어도 한 번만 저장한다")
     void 중복_심볼() {
-      // 카탈로그가 중복을 걸러 주지만 방어적으로 한 번 더 본다
+      // 카탈로그가 중복을 거르지만 한 번 더 확인
       given(assetRepository.count()).willReturn(1L);
       given(assetRepository.findAll()).willReturn(assets(1));   // SYM0
       given(symbolCatalog.fetchAll())
@@ -247,7 +247,7 @@ class SymbolCollectorTest {
       verify(assetRepository, times(1)).save(any());
       verify(assetEventProducer, times(1))
         .publishAssetCreated(any(), anyBoolean(), any(), any(), anyBoolean());
-      // 기동 경로와 달리 count() 로 분기하지 않는다
+      // 기동 경로와 달리 count() 분기 없음
       verify(assetRepository, never()).count();
     }
 
@@ -403,7 +403,7 @@ class SymbolCollectorTest {
 
       assertThatCode(() -> symbolCollector.collectSymbols()).doesNotThrowAnyException();
 
-      // 실패한 1건은 이벤트도 안 나간다
+      // 실패한 1건은 이벤트도 없음
       verify(assetEventProducer, times(2))
         .publishAssetCreated(any(), anyBoolean(), any(), any(), anyBoolean());
     }
@@ -414,7 +414,7 @@ class SymbolCollectorTest {
       given(assetRepository.count()).willReturn(0L);
       given(symbolCatalog.fetchAll()).willThrow(new IllegalStateException("NASDAQ 다운"));
 
-      // 부팅 시 이벤트 리스너라 예외가 나가면 기동 로그가 지저분해진다
+      // 부팅 때 이벤트 리스너라 예외를 밖으로 안 냄(기동 로그 오염)
       assertThatCode(() -> symbolCollector.collectSymbols()).doesNotThrowAnyException();
 
       verify(assetRepository, never()).save(any());
