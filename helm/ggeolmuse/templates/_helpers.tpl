@@ -47,12 +47,12 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 {{- end }}
 
-{{/* 받는 토큰의 iss. Keycloak hostname 이 있으면 공개 주소, 없으면 토큰을 받은 요청의 주소 */}}
+{{/* 받는 토큰의 iss(Keycloak hostname 이 있으면 공개 주소, 없으면 토큰을 받은 요청의 주소) */}}
 {{- define "ggeolmuse.keycloakIssuers" -}}
 {{ .Values.global.keycloak.publicUrl }}/realms/{{ .Values.global.keycloak.realm }},{{ .Values.global.keycloak.authServerUrl }}/realms/{{ .Values.global.keycloak.realm }}
 {{- end }}
 
-{{/* 받는 토큰의 azp. 이메일 로그인 · 구글 로그인 클라이언트 */}}
+{{/* 받는 토큰의 azp(이메일 로그인 · 구글 로그인 클라이언트) */}}
 {{- define "ggeolmuse.keycloakClientIds" -}}
 {{ .Values.global.keycloak.clientId }},{{ .Values.global.keycloak.frontendClientId }}
 {{- end }}
@@ -131,7 +131,7 @@ timeoutSeconds: {{ .timeoutSeconds | default 5 }}
 failureThreshold: {{ .failureThreshold | default 3 }}
 {{- end }}
 
-{{/* Startup Probe — 느린 부팅 보호. 통과 전까진 liveness/readiness 비활성 */}}
+{{/* Startup Probe(느린 부팅 보호, 통과 전까지 liveness · readiness 비활성) */}}
 {{- define "ggeolmuse.startupProbe" -}}
 httpGet:
   path: /actuator/health/readiness
@@ -150,7 +150,7 @@ valueFrom:
     key: {{ .key }}
 {{- end }}
 
-{{/* OTel 자원 속성(환경 · 판). 비어 있는 값은 뺌 */}}
+{{/* OTel 자원 속성(환경 · 버전, 비어 있는 값은 뺌) */}}
 {{- define "ggeolmuse.otelResourceAttributes" -}}
 {{- $attrs := list -}}
 {{- with .Values.global.otel.environment }}{{ $attrs = append $attrs (printf "deployment.environment.name=%s" .) }}{{ end -}}
@@ -194,6 +194,19 @@ valueFrom:
 {{- end }}
 {{- end }}
 
+{{/* 같은 앱 파드의 노드 분산(인자: name · Values) */}}
+{{- define "ggeolmuse.topologySpread" -}}
+{{- with .Values.global.topologySpread }}
+topologySpreadConstraints:
+- maxSkew: {{ .maxSkew }}
+  topologyKey: kubernetes.io/hostname
+  whenUnsatisfiable: {{ .whenUnsatisfiable }}
+  labelSelector:
+    matchLabels:
+      app: {{ $.name }}
+{{- end }}
+{{- end }}
+
 {{- define "ggeolmuse.otelVolume" -}}
 {{- if .Values.global.otel.enabled -}}
 - name: otel-agent
@@ -202,9 +215,7 @@ valueFrom:
 {{- end }}
 {{- end }}
 
-{{/* 서드파티 이미지용
-     이미지가 자기 비root 사용자로 돌고, PVC 안 파일이 그 uid 소유라
-     10001 로 바꾸면 기존 데이터에 못 쓴다. */}}
+{{/* 서드파티 이미지용(이미지의 비root 사용자 그대로, PVC 안 파일이 그 uid 소유라 10001 로 바꾸면 기존 데이터에 못 씀) */}}
 {{- define "ggeolmuse.baseSecurityContext" -}}
 allowPrivilegeEscalation: false
 capabilities:
@@ -214,8 +225,7 @@ seccompProfile:
   type: RuntimeDefault
 {{- end }}
 
-{{/* 컨테이너 보안 컨텍스트. 루트를 버리고 파일시스템을 읽기전용으로 둔다.
-     JVM 이 /tmp 에 쓰므로 ggeolmuse.tmpVolume 과 짝으로 쓴다. */}}
+{{/* 컨테이너 보안 컨텍스트(비root · 읽기 전용 루트 파일시스템, JVM 이 /tmp 에 써서 ggeolmuse.tmpVolume 과 짝) */}}
 {{- define "ggeolmuse.securityContext" -}}
 runAsNonRoot: true
 runAsUser: 10001
@@ -239,7 +249,7 @@ seccompProfile:
   emptyDir: {}
 {{- end }}
 
-{{/* Confluent 이미지(kafka · zookeeper)가 기동 때 쓰는 곳(설정 파일 · GC 로그 · 임시). 읽기 전용 루트와 짝 */}}
+{{/* Confluent 이미지(kafka · zookeeper)가 기동 때 쓰는 곳(설정 파일 · GC 로그 · 임시, 읽기 전용 루트와 짝) */}}
 {{- define "ggeolmuse.confluentWritableMounts" -}}
 - name: etc-kafka
   mountPath: /etc/kafka

@@ -19,6 +19,9 @@ spec:
         app: {{ .Values.services.chatService.name }}
         {{- include "ggeolmuse.serviceLabels" (dict "name" .Values.services.chatService.name "tier" .Values.services.chatService.labels.tier) | nindent 8 }}
     spec:
+      {{- if .Values.global.topologySpread.enabled }}
+      {{- include "ggeolmuse.topologySpread" (dict "name" .Values.services.chatService.name "Values" .Values) | nindent 6 }}
+      {{- end }}
       containers:
       - name: {{ .Values.services.chatService.name }}
         image: {{ include "ggeolmuse.image" (dict "Values" .Values "repository" .Values.services.chatService.image.repository "tag" .Values.services.chatService.image.tag "Chart" .Chart) }}

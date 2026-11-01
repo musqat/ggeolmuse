@@ -5,6 +5,16 @@ global:
 
   # 롤백용으로 남기는 옛 ReplicaSet 개수(k8s 기본 10)
   revisionHistoryLimit: 5
+  # 여러 노드에서만 켜는 배치(k3s 단일 노드는 꺼 둠)
+  # 레플리카 2 이상인 앱의 PodDisruptionBudget
+  podDisruptionBudget:
+    enabled: false
+    minAvailable: 1
+  # 같은 앱 파드를 노드마다 고르게(못 맞추면 그래도 띄움)
+  topologySpread:
+    enabled: false
+    maxSkew: 1
+    whenUnsatisfiable: ScheduleAnyway
 
   # Management server port (Health, Metrics, Actuator)
   management:
@@ -52,6 +62,8 @@ global:
     secretsManager:
       # Secrets Manager 시크릿 이름
       name: ggeolmuse/production
+      # External Secrets 가 AWS 인증에 쓸 서비스 계정(비면 노드의 인스턴스 프로파일)
+      authServiceAccount: ""
     # IRSA (IAM Roles for Service Accounts) 설정
     serviceAccount:
       create: true
@@ -114,6 +126,8 @@ infrastructure:
     storage:
       data: 1Gi
       log: 1Gi
+      # PVC 저장 클래스(비면 클러스터 기본)
+      storageClassName: ""
 
   kafka:
     enabled: true
@@ -141,6 +155,8 @@ infrastructure:
         nodePort: 30094
     storage:
       data: 5Gi
+      # PVC 저장 클래스(비면 클러스터 기본)
+      storageClassName: ""
     topicsInit:
       enabled: true
       # 선언과 파티션 수가 다른 토픽을 늘림(되돌릴 수 없음, 키 있는 프로듀서 · 순서 무관 컨슈머 전제)

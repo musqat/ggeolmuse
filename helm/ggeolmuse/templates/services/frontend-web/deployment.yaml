@@ -18,6 +18,9 @@ spec:
       labels:
         app: {{ .Values.frontend.name }}
     spec:
+      {{- if .Values.global.topologySpread.enabled }}
+      {{- include "ggeolmuse.topologySpread" (dict "name" .Values.frontend.name "Values" .Values) | nindent 6 }}
+      {{- end }}
       securityContext:
         fsGroup: 10001
       containers:

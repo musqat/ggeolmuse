@@ -11,18 +11,17 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.jackson.Jacksonized;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
-// 관리자 환율 수집(빠진 날 채우기 · 전체 받기, 최근 날부터, 백그라운드로 하나만 실행 · 진행과 마지막 결과 보관)
+// 관리자 환율 수집(빠진 날 채우기 · 전체 받기, 최근 날부터, 백그라운드로 하나만 실행 · 진행과 마지막 결과는 파드 사이 공유)
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -38,20 +37,19 @@ public class FxCollectionService {
   private final FxRateRepository fxRateRepository;
   private final AdminJobRunRepository adminJobRunRepository;
   private final MarketDataProperties properties;
+  private final AdminJobState jobState;
 
   // self-injection(같은 빈에서 직접 부르면 @Async 프록시를 안 탐)
   @Lazy
   @Autowired
   private FxCollectionService self;
 
-  private final AtomicBoolean running = new AtomicBoolean(false);
-  private final AtomicReference<Progress> progress = new AtomicReference<>(null);
-
   public enum Mode { MISSING, ALL }
 
-  // 진행 중이거나 마지막 실행(다시 띄운 뒤에는 기록 테이블의 끝난 시각 · 채운 수만)
+  // 진행 중이거나 마지막 실행(상태 행이 없으면 기록 테이블의 끝난 시각 · 채운 수만)
   @Getter
   @Builder(toBuilder = true)
+  @Jacksonized
   public static class Progress {
     private final Mode mode;
     private final LocalDateTime startedAt;
@@ -70,7 +68,7 @@ public class FxCollectionService {
 
   /** 이미 돌고 있으면 false */
   public boolean start(Mode mode) {
-    if (!running.compareAndSet(false, true)) {
+    if (!jobState.tryStart(JOB_NAME)) {
       return false;
     }
     self.collect(mode);
@@ -80,7 +78,7 @@ public class FxCollectionService {
   @Async
   public void collect(Mode mode) {
     Progress current = Progress.builder().mode(mode).startedAt(LocalDateTime.now(KST)).build();
-    progress.set(current);
+    jobState.save(JOB_NAME, current);
     try {
       LocalDate today = LocalDate.now(KST);
       LocalDate start = properties.getFxIngest().getStartDate();
@@ -88,7 +86,7 @@ public class FxCollectionService {
           ? collector.missingWeekdays(start, today)
           : FxDataCollector.weekdays(start, today);
       current = current.toBuilder().total(dates.size()).build();
-      progress.set(current);
+      jobState.save(JOB_NAME, current);
       log.info("[환율수집] 관리자 {} 시작: {}일", mode, dates.size());
 
       int consecutiveFailures = 0;
@@ -107,19 +105,18 @@ public class FxCollectionService {
           log.warn("[환율수집] 관리자 {} 멈춤: {}", mode, current.getStoppedReason());
           break;
         }
-        progress.set(current);
+        jobState.save(JOB_NAME, current);
       }
 
       current = current.toBuilder().finishedAt(LocalDateTime.now(KST)).build();
-      progress.set(current);
       adminJobRunRepository.save(new AdminJobRun(JOB_NAME, current.getFinishedAt(), current.getFilled()));
       log.info("[환율수집] 관리자 {} 끝: 처리 {} · 채움 {} · 실패 {}",
           mode, current.getProcessed(), current.getFilled(), current.getFailed());
     } catch (Exception e) {
       log.error("[환율수집] 관리자 {} 실패", mode, e);
-      progress.set(current.toBuilder().finishedAt(LocalDateTime.now(KST)).stoppedReason(e.getMessage()).build());
+      current = current.toBuilder().finishedAt(LocalDateTime.now(KST)).stoppedReason(e.getMessage()).build();
     } finally {
-      running.set(false);
+      jobState.finish(JOB_NAME, current);
     }
   }
 
@@ -136,21 +133,21 @@ public class FxCollectionService {
   }
 
   public boolean isRunning() {
-    return running.get();
+    return jobState.isRunning(JOB_NAME);
   }
 
   public Progress lastProgress() {
-    return progress.get();
+    return jobState.detail(JOB_NAME, Progress.class).orElse(null);
   }
 
   public Status status() {
     List<LocalDate> missing = collector.missingWeekdays(properties.getFxIngest().getStartDate(), LocalDate.now(KST));
-    Progress last = progress.get();
+    Progress last = lastProgress();
     if (last == null) {
       last = adminJobRunRepository.findById(JOB_NAME)
           .map(run -> Progress.builder().finishedAt(run.getLastRunAt()).filled(run.getPublished()).build())
           .orElse(null);
     }
-    return new Status(missing.size(), missing.reversed().stream().limit(RECENT_MISSING).toList(), running.get(), last);
+    return new Status(missing.size(), missing.reversed().stream().limit(RECENT_MISSING).toList(), isRunning(), last);
   }
 }
