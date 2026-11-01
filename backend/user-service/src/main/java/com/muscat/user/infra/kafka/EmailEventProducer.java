@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Map;
 
-// 이메일 발송 이벤트 발행. 발송은 컨슈머가 비동기로
+// 이메일 발송 이벤트 발행(발송은 컨슈머가 비동기로)
 @Slf4j
 @Component
 @RequiredArgsConstructor

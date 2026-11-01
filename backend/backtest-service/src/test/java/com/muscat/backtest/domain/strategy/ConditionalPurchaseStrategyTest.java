@@ -86,7 +86,7 @@ class ConditionalPurchaseStrategyTest {
         .dropPercentage(new BigDecimal("0.2")) // 20%
         .build();
 
-      // 수집 단계에서 분할이 close 에 반영돼 온다. 분할 전후로 25 로 평탄하다
+      // 수집 단계에서 분할이 close 에 반영돼 옴(분할 전후로 25 로 평탄)
       OHLCPriceDto day1 = new OHLCPriceDto("SPLIT-TEST", LocalDate.of(2024, 1, 15),
         new BigDecimal("24"), new BigDecimal("26"), new BigDecimal("23"),
         new BigDecimal("25.00"), new BigDecimal("24.00"), 1_000_000L, "USD", true);
@@ -415,7 +415,7 @@ class ConditionalPurchaseStrategyTest {
         .maxPurchases(maxPurchases).dropPercentage(new BigDecimal("0.1"));
     }
 
-    // 기간 시세 · 평가일(과거) 시세와 환율 · 배당. 일별 환율은 빈 응답이라 기본 환율로 채워진다
+    // 기간 시세 · 평가일(과거) 시세와 환율 · 배당(일별 환율은 빈 응답이라 기본 환율)
     private void stubMarket(ConditionalStrategyRequest request, List<OHLCPriceDto> prices, boolean dailyFx) {
       given(marketDataClient.getOHLCPriceRange(SYMBOL, request.getStartDate().toString(), request.getEndDate().toString()))
         .willReturn(prices);

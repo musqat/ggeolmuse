@@ -22,7 +22,7 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
-// 관리자 환율 수집(빠진 날 채우기 · 전체 받기, 최근 날부터). 백그라운드로 하나만 돌고 진행 · 마지막 결과를 들고 있음
+// 관리자 환율 수집(빠진 날 채우기 · 전체 받기, 최근 날부터, 백그라운드로 하나만 실행 · 진행과 마지막 결과 보관)
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -39,7 +39,7 @@ public class FxCollectionService {
   private final AdminJobRunRepository adminJobRunRepository;
   private final MarketDataProperties properties;
 
-  // self-injection: 같은 빈에서 직접 부르면 @Async 프록시를 안 탄다
+  // self-injection(같은 빈에서 직접 부르면 @Async 프록시를 안 탐)
   @Lazy
   @Autowired
   private FxCollectionService self;
@@ -49,7 +49,7 @@ public class FxCollectionService {
 
   public enum Mode { MISSING, ALL }
 
-  // 진행 중이거나 마지막 실행. 다시 띄운 뒤에는 기록 테이블의 끝난 시각 · 채운 수만
+  // 진행 중이거나 마지막 실행(다시 띄운 뒤에는 기록 테이블의 끝난 시각 · 채운 수만)
   @Getter
   @Builder(toBuilder = true)
   public static class Progress {
@@ -68,7 +68,7 @@ public class FxCollectionService {
   public record Status(int missingCount, List<LocalDate> missingDates, boolean running, Progress progress) {
   }
 
-  /** 이미 돌고 있으면 false 를 준다. */
+  /** 이미 돌고 있으면 false */
   public boolean start(Mode mode) {
     if (!running.compareAndSet(false, true)) {
       return false;
@@ -123,7 +123,7 @@ public class FxCollectionService {
     }
   }
 
-  // 그날 환율을 받아 저장. 받으면 true
+  // 그날 환율을 받아 저장(받으면 true)
   private boolean fetchAndSave(LocalDate date) {
     try {
       Optional<FxRate> rate = collector.collectSingleDate(date, true);

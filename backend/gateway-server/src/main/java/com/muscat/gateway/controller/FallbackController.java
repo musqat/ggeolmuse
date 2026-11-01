@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDateTime;
 import java.util.Map;
 
-// Gateway fallback 컨트롤러. 서비스 장애 · 타임아웃 때 503
+// Gateway fallback 컨트롤러(서비스 장애 · 타임아웃 때 503)
 @RestController
 @RequestMapping("/fallback")
 public class FallbackController {

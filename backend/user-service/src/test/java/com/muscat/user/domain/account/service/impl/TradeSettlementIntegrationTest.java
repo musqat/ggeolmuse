@@ -36,7 +36,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
-// 반영 트랜잭션이 rollback-only 로 끝난 뒤 새 트랜잭션에서 REJECTED 가 커밋되는지 실제 트랜잭션으로 본다
+// 반영 트랜잭션이 rollback-only 로 끝난 뒤 새 트랜잭션의 REJECTED 커밋(실제 트랜잭션)
 @SpringBootTest
 @ActiveProfiles("test")
 @DisplayName("체결 정산 통합 테스트")

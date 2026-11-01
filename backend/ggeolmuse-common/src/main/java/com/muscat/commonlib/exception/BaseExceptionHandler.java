@@ -31,7 +31,7 @@ public class BaseExceptionHandler implements EnvironmentAware {
     this.environment = environment;
   }
 
-  // 서비스마다 GlobalExceptionHandler 가 상속해 서비스 예외를 같은 모양으로 내보낸다
+  // 서비스마다 GlobalExceptionHandler 가 상속하는 공통 처리(서비스 예외를 같은 모양으로)
   @ExceptionHandler(BusinessException.class)
   public ResponseEntity<ProblemDetail> handleBusinessException(BusinessException ex,
     HttpServletRequest request) {
@@ -54,7 +54,7 @@ public class BaseExceptionHandler implements EnvironmentAware {
     return ResponseEntity.status(status).body(problem);
   }
 
-  // MoneyUtils 의 금액 · 통화 · 환율 검증 실패. 요청 값 문제라 400
+  // MoneyUtils 의 금액 · 통화 · 환율 검증 실패(요청 값 문제라 400)
   @ExceptionHandler(ServiceException.class)
   public ResponseEntity<ProblemDetail> handleServiceException(ServiceException ex,
     HttpServletRequest request) {
@@ -82,7 +82,7 @@ public class BaseExceptionHandler implements EnvironmentAware {
     ex.getBindingResult().getGlobalErrors()
       .forEach(error -> validationErrors.put(error.getObjectName(), error.getDefaultMessage()));
 
-    // 로그에는 필드 이름만. 거부된 값에 비밀번호가 섞일 수 있음
+    // 로그에는 필드 이름만(거부된 값에 비밀번호가 섞일 수 있음)
     log.warn("[VALIDATION ERROR] {}", validationErrors.keySet());
 
     ProblemDetail problem = ProblemDetailUtils.createValidationProblem(
@@ -114,7 +114,7 @@ public class BaseExceptionHandler implements EnvironmentAware {
     return ResponseEntity.badRequest().body(problem);
   }
 
-  // 경로 변수 · 쿼리 파라미터 타입 변환 실패. 입력값은 detail 에 안 실음
+  // 경로 변수 · 쿼리 파라미터 타입 변환 실패(입력값은 detail 에 안 실음)
   @ExceptionHandler(MethodArgumentTypeMismatchException.class)
   public ResponseEntity<ProblemDetail> handleTypeMismatch(
     MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
@@ -132,7 +132,7 @@ public class BaseExceptionHandler implements EnvironmentAware {
     return ResponseEntity.badRequest().body(problem);
   }
 
-  // 깨진 JSON 본문. 파싱 오류 내용은 detail 에 안 실음
+  // 깨진 JSON 본문(파싱 오류 내용은 detail 에 안 실음)
   @ExceptionHandler(HttpMessageNotReadableException.class)
   public ResponseEntity<ProblemDetail> handleNotReadable(
     HttpMessageNotReadableException ex, HttpServletRequest request) {
@@ -150,7 +150,7 @@ public class BaseExceptionHandler implements EnvironmentAware {
     return ResponseEntity.badRequest().body(problem);
   }
 
-  // 예상 못 한 예외의 500 응답. 개발 프로필에서만 detail 에 예외 메시지를 실음
+  // 예상 못 한 예외의 500 응답(개발 프로필에서만 detail 에 예외 메시지)
   protected ResponseEntity<ProblemDetail> systemError(Exception ex, HttpServletRequest request,
     String productionMessage) {
     log.error("[SYSTEM ERROR] 예상치 못한 오류 발생", ex);

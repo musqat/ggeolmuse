@@ -1,6 +1,5 @@
 {{- if .Values.monitoring.prometheusRule.enabled }}
 # PrometheusRule: ggeolmuse 마이크로서비스 알림 규칙
-# app=ggeolmuse, release=prometheus 를 보므로 이 라벨이면 자동으로 집는다.
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
@@ -19,7 +18,7 @@ spec:
       rules:
         - alert: ServiceDown
           expr: up{job=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service|chat-service)"} == 0
-          # 콜드 부팅에 7분 걸린다. config-server 가 뜬 뒤에야 나머지가 시작한다.
+          # 콜드 부팅 동안은 안 울리게 10분
           for: 10m
           labels:
             severity: critical
@@ -31,7 +30,7 @@ spec:
             value: "{{ `{{ $value }}` }}"
 
         - alert: ServiceRestarting
-          # EC2 를 매일 껐다 켜서 부팅마다 1회는 정상이다. 크래시 루프만 잡는다.
+          # 부팅 때 1회 재시작은 빼고 크래시 루프만
           expr: increase(kube_pod_container_status_restarts_total{namespace="default", pod=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service).*"}[15m]) > 2
           for: 5m
           labels:
@@ -64,7 +63,7 @@ spec:
             instance: "{{ `{{ $labels.instance }}` }}"
 
         - alert: HighMemoryUsage
-          # GC 후 남는 양으로 잰다. used 는 수거 전 쓰레기를 포함해서 배치가 돌 때마다 걸린다.
+          # GC 뒤 남는 힙 기준(used 는 수거 전 쓰레기 포함)
           expr: |
             (
               jvm_gc_live_data_size_bytes{job=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service)"}
@@ -203,7 +202,7 @@ spec:
             description: 'config-server P95 응답 5초 초과 · 5분 지속 · 서비스 기동 지연'
 
         - alert: ConfigServerUnauthorized
-          # 클라이언트와 config-server 의 비밀번호가 어긋나면 여기서 401 이 난다
+          # 클라이언트와 config-server 의 비밀번호 불일치로 나는 401
           expr: sum(rate(http_server_requests_seconds_count{job="config-server", status="401"}[5m])) * 60 > 0
           for: 5m
           labels:
@@ -230,9 +229,7 @@ spec:
             description: '{{ `{{ $labels.job }}` }} → {{ `{{ $labels.name }}` }} 서킷 OPEN · 1분 지속 · 대상 서비스 호출 차단 중'
 
         - alert: CircuitBreakerMissing
-          # 설정의 인스턴스 이름과 코드의 @CircuitBreaker 이름이 어긋나면 서킷이 기본값으로 돌아
-          # 사실상 열리지 않는다. 기대하는 (서비스, 이름) 의 메트릭이 없으면 그 상태다.
-          # 콜드 부팅 7분 동안은 메트릭이 없으니 15분 유예.
+          # 기대하는 (서비스, 서킷 이름) 지표 없음 = 설정 이름과 @CircuitBreaker 이름 불일치, 콜드 부팅 동안 15분 유예
           expr: |
             absent(resilience4j_circuitbreaker_state{job="backtest-service", name="marketDataService"})
             or absent(resilience4j_circuitbreaker_state{job="trade-service", name="marketService"})
@@ -253,7 +250,7 @@ spec:
       interval: 30s
       rules:
         - alert: KafkaDeadLetter
-          # 재시도로 못 살린 메시지가 <토픽>.DLT 로 갔다. 처리 법은 helm/monitoring/README.md
+          # 재시도로 못 살린 메시지가 <토픽>.DLT 로 감(처리 법은 helm/monitoring/README.md)
           expr: sum by (job) (increase(kafka_dlt_records_total{job=~"(user-service|trade-service|market-data-service)"}[10m])) > 0
           labels:
             severity: warning
@@ -263,7 +260,7 @@ spec:
             description: '{{ `{{ $labels.job }}` }} 최근 10분 {{ `{{ $value | printf "%.0f" }}` }}건 · 로그 "DLT 로 보냄" 확인'
 
         - alert: KafkaConsumerLag
-          # 소비자가 안 읽은 레코드가 쌓임. 종목 수집 토픽은 아래 규칙이 따로 봄
+          # 소비자가 안 읽은 레코드가 쌓임(종목 수집 토픽은 아래 규칙이 따로)
           expr: sum by (job, topic) (kafka_consumer_fetch_manager_records_lag{topic!="market.asset.created"}) > 100
           for: 10m
           labels:
@@ -274,7 +271,7 @@ spec:
             description: '{{ `{{ $labels.topic }}` }} 에 안 읽은 레코드 {{ `{{ $value | printf "%.0f" }}` }}건 · 10분 지속 · {{ `{{ $labels.job }}` }} 리스너 로그 · 처리 시간 확인'
 
         - alert: KafkaCollectionLag
-          # 종목 수집은 한 건씩 오래 처리해 종목을 한꺼번에 더하면 쌓이는 게 정상. 1시간 넘게 2000건 위면 경보
+          # 1시간 넘게 2000건 위(종목 수집은 한 건씩 오래 처리해 한꺼번에 더하면 쌓이는 게 정상)
           expr: sum by (job, topic) (kafka_consumer_fetch_manager_records_lag{topic="market.asset.created"}) > 2000
           for: 1h
           labels:
@@ -285,7 +282,7 @@ spec:
             description: '종목 수집 대기 {{ `{{ $value | printf "%.0f" }}` }}건 · 1시간 지속 · 종목을 한꺼번에 더했는지, market-data 수집 로그 확인'
 
         - alert: TradeEventsUnpublished
-          # 커밋한 체결의 이벤트를 1분 넘게 못 보냈다. 그만큼 잔액 반영이 밀린다
+          # 커밋한 체결의 이벤트를 1분 넘게 못 보냄(그만큼 잔액 반영이 밀림)
           expr: max(trade_events_unpublished{job="trade-service"}) > 0
           for: 10m
           labels:
@@ -296,7 +293,7 @@ spec:
             description: '1분 넘게 못 보낸 체결 {{ `{{ $value | printf "%.0f" }}` }}건 · 10분 지속 · 카프카 상태 확인'
 
         - alert: TradeBuysPending
-          # 5분 넘게 정산을 기다리는 매수. 5분마다 다시 보내도 안 풀림
+          # 5분 넘게 정산을 기다리는 매수(5분마다 다시 보내도 안 풀림)
           expr: max(trade_buys_pending{job="trade-service"}) > 0
           for: 10m
           labels:
@@ -307,7 +304,7 @@ spec:
             description: '5분 넘게 대기 중인 매수 {{ `{{ $value | printf "%.0f" }}` }}건 · 10분 지속 · user 체결 소비자와 trading.trade.completed.DLT · user.trade.settled.DLT 확인'
 
         - alert: TradeCancelNeedsReview
-          # 취소한 체결을 자동으로 다 되돌리지 못함. 보유보다 많이 판 경우
+          # 취소한 체결을 자동으로 다 되돌리지 못함(보유보다 많이 판 경우)
           expr: sum by (reason) (increase(trade_cancel_review_total{job="trade-service"}[10m])) > 0
           labels:
             severity: warning

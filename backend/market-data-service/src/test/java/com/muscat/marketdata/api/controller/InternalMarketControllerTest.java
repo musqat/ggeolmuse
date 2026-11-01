@@ -35,7 +35,7 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-// backtest · trade 가 토큰 없이 부르는 내부 경로. 환율 범위는 InternalMarketControllerFxRangeTest 에 있다
+// backtest · trade 가 토큰 없이 부르는 내부 경로(환율 범위는 InternalMarketControllerFxRangeTest)
 @WebMvcTest(InternalMarketController.class)
 @ContextConfiguration(classes = {InternalMarketController.class, GlobalExceptionHandler.class, SecurityConfig.class})
 @ActiveProfiles("test")

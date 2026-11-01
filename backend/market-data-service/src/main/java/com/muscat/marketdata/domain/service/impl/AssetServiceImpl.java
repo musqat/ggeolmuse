@@ -193,7 +193,7 @@ public class AssetServiceImpl implements AssetService {
         return new PageImpl<>(content, pageable, page.getTotalElements());
     }
 
-    // 요청의 정렬 필드를 엔티티 필드로(currentPrice → latestClose, latestDataDate → latestDate). NULL 순서는 저장소가 붙임
+    // 요청의 정렬 필드 → 엔티티 필드(currentPrice → latestClose, latestDataDate → latestDate, NULL 순서는 저장소 몫)
     private Pageable remapSort(Pageable pageable) {
         Sort sort = pageable.getSort();
         if (sort.isUnsorted()) {
@@ -236,7 +236,7 @@ public class AssetServiceImpl implements AssetService {
 
         List<Candle> candles = candleSource.fetchDailyAdjusted(upperSymbol, from, to);
 
-        // 야후 404 로그는 YahooFinanceClient 에 있다
+        // 야후 404 로그는 YahooFinanceClient 에
         if (candles.isEmpty()) {
             throw new MarketDataException(MarketDataResponse.PRICE_DATA_NOT_FOUND, upperSymbol);
         }

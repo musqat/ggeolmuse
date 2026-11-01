@@ -34,7 +34,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
-// 애노테이션이 실제로 걸린 래퍼로 봄. 재시도 예외 목록은 설정 리포의 marketDataService 와 같게
+// 애노테이션이 실제로 걸린 래퍼(재시도 예외 목록은 설정 리포의 marketDataService 와 같게)
 // 대체 동작을 @CircuitBreaker 에 두면 첫 실패에 대체 동작이 돌아 바깥 @Retry 가 안 걸림
 @SpringBootTest(classes = MarketDataClientWrapper.class, properties = {
   "resilience4j.retry.instances.marketDataService.maxAttempts=3",

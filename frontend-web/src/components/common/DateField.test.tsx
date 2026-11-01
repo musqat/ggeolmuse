@@ -102,7 +102,7 @@ describe('DateField 빠른 선택', () => {
     expect(screen.getByLabelText('연도 선택')).toHaveValue('2025')
     expect(screen.getByLabelText('월 선택')).toHaveValue('2')
 
-    // 넘어간 달에서 날짜를 누르면 그때 값이 정해진다
+    // 넘어간 달에서 날짜를 누를 때 값이 정해짐
     await userEvent.click(dayButton('10'))
     expect(onChange).toHaveBeenCalledWith('2025-03-10')
   })

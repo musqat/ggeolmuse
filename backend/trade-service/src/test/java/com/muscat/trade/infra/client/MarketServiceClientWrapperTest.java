@@ -13,7 +13,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
-// 날짜 시세 · 배당 목록은 ClientWrapperRetryTest 에서 봄. 여러 종목 현재가는 못 받으면 빈 값으로 넘어감
+// 여러 종목 현재가는 못 받으면 빈 값(날짜 시세 · 배당 목록은 ClientWrapperRetryTest)
 @DisplayName("시세 서비스 호출과 대체 동작")
 class MarketServiceClientWrapperTest {
 

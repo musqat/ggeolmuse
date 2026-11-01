@@ -4,7 +4,7 @@ import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
 /**
- * 서비스 예외의 부모. errorCode 는 코드의 enum 이름이다
+ * 서비스 예외의 부모(errorCode 는 코드의 enum 이름)
  */
 @Getter
 public class BusinessException extends BaseException {

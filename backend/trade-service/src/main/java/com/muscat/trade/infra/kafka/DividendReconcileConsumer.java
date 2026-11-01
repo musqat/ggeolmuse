@@ -10,7 +10,7 @@ import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
-// 배당 몫 재계산 요청을 받아 그 계좌 · 종목을 다시 계산. 실패는 재시도 뒤 DLT
+// 배당 몫 재계산 요청을 받아 그 계좌 · 종목을 다시 계산(실패는 재시도 뒤 DLT)
 @Slf4j
 @Component
 @RequiredArgsConstructor

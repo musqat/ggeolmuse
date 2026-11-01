@@ -319,7 +319,7 @@ class DCAStrategyTest {
       given(marketDataClient.getOHLCPrice(eq(symbol), anyString()))
         .willReturn(createOHLC(request.getEndDate(), new BigDecimal("100.00")));
 
-      // 배당 2건. 재투자로 거래가 3건에서 5건이 된다
+      // 배당 2건(재투자로 거래가 3건에서 5건)
       given(marketDataClient.getDividendHistory(eq(symbol), anyString(), anyString()))
         .willReturn(List.of(
           new DividendDto(symbol, LocalDate.of(2024, 2, 15), null, null,
@@ -327,7 +327,7 @@ class DCAStrategyTest {
           new DividendDto(symbol, LocalDate.of(2024, 3, 15), null, null,
             new BigDecimal("1.00"), "USD", "test")));
 
-      // 배당일 범위 시세. 재투자가 이걸 집어 추가 매수한다
+      // 배당일 범위 시세(재투자의 추가 매수 가격)
       given(marketDataClient.getOHLCPriceRange(eq(symbol), eq("2024-02-15"), eq("2024-03-15")))
         .willReturn(ohlcPrices);
 
@@ -545,7 +545,7 @@ class DCAStrategyTest {
       assertThat(skipped()).containsExactly(new SkippedRound(LocalDate.of(2024, 1, 15), SkipReason.NO_PRICE));
     }
 
-    // 수수료가 있으면 수수료 계산에서 0 으로 나누고, 없으면 주식 수 계산이 환율 0 을 막는다
+    // 환율 0 은 수수료가 있으면 수수료 계산에서, 없으면 주식 수 계산에서 막힘
     @ParameterizedTest
     @ValueSource(strings = {"0.001", "0"})
     @DisplayName("한 회차 계산이 실패하면(1월 환율 0) 그 회차는 사지 않고 계산 오류로 남긴 뒤 다음 회차를 산다")

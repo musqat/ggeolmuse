@@ -32,7 +32,7 @@ class GlobalExceptionHandlerTest {
 
   private static final String HIDDEN = "백테스트 서비스에 문제가 발생했습니다. 관리자에게 문의해주세요.";
 
-  // 스프링이 advice 마다 만드는 resolver. 같은 예외에 메서드가 둘 걸리면 생성에서 실패한다
+  // 스프링이 advice 마다 만드는 resolver(같은 예외에 메서드가 둘 걸리면 생성에서 실패)
   private final ExceptionHandlerMethodResolver resolver =
     new ExceptionHandlerMethodResolver(GlobalExceptionHandler.class);
 

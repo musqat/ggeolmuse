@@ -52,7 +52,7 @@ export const formatToKoreanWon = (value: string | number): string => {
   return result + '원';
 };
 
-// 시가총액을 $3.12T · $845.21B · $12.30M 처럼 줄인다. 백만 아래는 그대로, 값이 없거나 0 이면 N/A
+// 시가총액 줄임 표기 $3.12T · $845.21B · $12.30M(백만 아래는 그대로, 값이 없거나 0 이면 N/A)
 export const formatMarketCap = (marketCap: number | null | undefined, digits = 2): string => {
   if (!marketCap) return 'N/A';
   if (marketCap >= 1e12) return `$${(marketCap / 1e12).toFixed(digits)}T`;

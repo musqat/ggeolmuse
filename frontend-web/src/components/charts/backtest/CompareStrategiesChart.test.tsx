@@ -6,7 +6,7 @@ import { CompareStrategiesChart } from './CompareStrategiesChart'
 import { stockApi } from '../../../services/api'
 import { readCharts } from '../../../test/readCharts'
 
-// 차트가 react-query 로 받으니 테스트마다 새 클라이언트로 감싼다
+// 테스트마다 새 react-query 클라이언트로 감쌈(차트가 react-query 로 받음)
 const renderWithQuery = (ui: ReactElement) =>
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{ui}</QueryClientProvider>)
 
@@ -21,7 +21,7 @@ const getExchangeRatesBulk = vi.mocked(stockApi.getExchangeRatesBulk)
 // 수정 종가는 배당만큼 낮게, 차트가 그리는 값은 종가
 const candle = (date: string, close: number) => ({ symbol: 'AAPL', date, closePrice: close, adjustedClose: close - 1 })
 
-// 단순 매수는 일요일(03-01)에 사서 다음 거래일 03-02 에 마커가 찍힌다
+// 단순 매수는 일요일 03-01 매수(마커는 다음 거래일 03-02)
 const strategies = [
   {
     name: 'SIMPLE',
@@ -43,7 +43,7 @@ const strategies = [
   },
 ]
 
-// 평가금액은 전략마다 그날 환율로 원화 환산한다
+// 평가금액은 전략마다 그날 환율로 원화 환산
 describe('CompareStrategiesChart', () => {
   beforeEach(() => {
     getOHLCData.mockReset()

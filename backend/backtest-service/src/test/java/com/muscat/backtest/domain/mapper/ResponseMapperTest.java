@@ -205,7 +205,7 @@ class ResponseMapperTest {
       StrategyResponse result = mapper.toStrategyResponse(
         dcaRequest(), transactions(1), calculation(), price("120.5"), NONE);
 
-      // 소수점 이하를 잘라버리면 소액 적립식에서 수량이 통째로 사라진다
+      // 소수점 이하 유지(자르면 소액 적립식에서 수량이 통째로 사라짐)
       assertThat(result.getTotalShares().scale()).isEqualTo(6);
       assertThat(result.getTotalShares()).isEqualByComparingTo("12.345679");
     }
@@ -350,7 +350,7 @@ class ResponseMapperTest {
     @Test
     @DisplayName("잔액이 음수여도 환산하지 않고 0으로 둔다")
     void 잔액_음수() {
-      // isPositive 로 걸러서 음수 환산을 막는다
+      // isPositive 로 음수 환산 차단
       SimulationResponse result =
         simulate(new BigDecimal("-50"), null, null, null, null, null);
 
@@ -476,7 +476,7 @@ class ResponseMapperTest {
       assertThat(item.getCode()).isEqualTo(SYMBOL);
       assertThat(item.getCategory()).isEqualTo("SYMBOL");
       assertThat(item.getTotalReturnPercent()).isEqualByComparingTo("23.46");
-      // 날짜는 문자열로 바뀐다
+      // 날짜는 문자열로
       assertThat(item.getOptimalBuyDate()).isEqualTo("2024-02-01");
       assertThat(item.getOptimalSellDate()).isEqualTo("2024-08-01");
       assertThat(item.getAdditionalData()).isSameAs(simulation);
@@ -530,7 +530,7 @@ class ResponseMapperTest {
       assertThat(item.getName()).isEqualTo("DCA");
       assertThat(item.getCategory()).isEqualTo("STRATEGY");
       assertThat(item.getAdditionalData()).isSameAs(strategy);
-      // 전략에는 최적 매매 개념이 없다
+      // 전략에는 최적 매매 개념 없음
       assertThat(item.getOptimalBuyDate()).isNull();
     }
   }

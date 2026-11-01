@@ -2,7 +2,7 @@ import { test, expect, request, APIRequestContext } from '@playwright/test';
 import { API_URL } from '../playwright.config';
 import { pickPricedSymbols, pickSymbol, priceRange } from './fixtures';
 
-// 모드마다 컨트롤러 · 요청 DTO 가 따로라 배선만 봄. 계산은 단위 시험 몫
+// 모드마다 컨트롤러 · 요청 DTO 가 따로라 배선만(계산은 단위 테스트 몫)
 
 let api: APIRequestContext;
 let symbol: string;
@@ -15,7 +15,7 @@ test.beforeAll(async () => {
   const picked = await pickSymbol(api);
   symbol = picked.symbol;
 
-  // 비교에는 두 종목이 필요하다. 시세가 있는 것 중 다른 하나를 고른다.
+  // 비교용 두 번째 종목(시세가 있는 것 중 다른 하나)
   const priced = await pickPricedSymbols(api, 10);
   const other = priced.find((s) => s.symbol !== symbol);
   expect(other, '시세가 있는 종목이 하나뿐이다').toBeTruthy();
@@ -95,8 +95,7 @@ test('전략 비교가 돈다', async () => {
       startDate: start,
       endDate: end,
       investmentAmount: 1_000_000,
-      // 화면이 보내는 모양 그대로다. SIMPLE 에 purchaseDate 가 없으면 200 인데
-      // 그 항목만 조용히 빠진다.
+      // 화면이 보내는 모양 그대로(SIMPLE 에 purchaseDate 가 없으면 200 인데 그 항목만 조용히 빠짐)
       strategies: [
         { strategyType: 'SIMPLE', name: 'SIMPLE', purchaseDate: start },
         {

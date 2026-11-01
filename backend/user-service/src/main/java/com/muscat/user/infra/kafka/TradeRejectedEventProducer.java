@@ -21,7 +21,7 @@ public class TradeRejectedEventProducer {
 
   private final KafkaTemplate<String, TradeRejectedEvent> tradeRejectedKafkaTemplate;
 
-  // 반영 실패 발행. 브로커 확인을 5초까지 기다리고, 받지 못하면 EVENT_PUBLISH_FAILED
+  // 반영 실패 발행(브로커 확인 5초 대기, 못 받으면 EVENT_PUBLISH_FAILED)
   public void publish(TradeCompletedEvent trade, String reasonCode, String reasonMessage) {
     TradeRejectedEvent event = TradeRejectedEvent.builder()
       .userId(trade.getUserId())

@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-// 받은 배당을 저장된 배당과 맞춤. 없던 배당과 주당 금액이 바뀐 배당(분할 뒤 다시 받음)만 돌려줌
+// 받은 배당을 저장된 배당과 맞춤(없던 배당과 분할 뒤 주당 금액이 바뀐 배당만 반환)
 public final class DividendMerge {
 
   // dividend.amount 칸의 소수 자리

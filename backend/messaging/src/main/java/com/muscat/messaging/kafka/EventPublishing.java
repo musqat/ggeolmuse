@@ -25,7 +25,7 @@ public final class EventPublishing {
     private EventPublishing() {
     }
 
-    // eventId · eventType · timestamp · version · traceId · source 채움. 추적 중이 아니면 traceId 없음
+    // eventId · eventType · timestamp · version · traceId · source 채움(추적 중이 아니면 traceId 없음)
     public static <E extends BaseEvent> E stamp(E event, String eventType, String source) {
         event.setEventId(UUID.randomUUID().toString());
         event.setEventType(eventType);
@@ -36,7 +36,7 @@ public final class EventPublishing {
         return event;
     }
 
-    // 브로커 확인을 기다리지 않음. 실패는 로그만
+    // 브로커 확인을 기다리지 않음(실패는 로그만)
     public static <E extends BaseEvent> void send(KafkaTemplate<String, E> template, String topic, String key, E event) {
         template.send(topic, key, event).whenComplete((result, ex) -> {
             if (ex == null) {
@@ -49,7 +49,7 @@ public final class EventPublishing {
         });
     }
 
-    // 트랜잭션 안이면 커밋 뒤에 보냄. 커밋이 끝난 뒤라 전송 실패는 로그만
+    // 트랜잭션 안이면 커밋 뒤에 보냄(커밋이 끝난 뒤라 전송 실패는 로그만)
     public static <E extends BaseEvent> void sendAfterCommit(
             KafkaTemplate<String, E> template, String topic, String key, E event) {
         Runnable sending = () -> {
@@ -73,7 +73,7 @@ public final class EventPublishing {
         }
     }
 
-    // 브로커 확인을 timeout 까지 기다림. 못 받으면 onFailure 가 만든 예외
+    // 브로커 확인을 timeout 까지 기다림(못 받으면 onFailure 가 만든 예외)
     public static <V> SendResult<String, V> sendAndWait(KafkaTemplate<String, V> template, String topic, String key,
             V value, Duration timeout, Function<Exception, ? extends RuntimeException> onFailure) {
         try {

@@ -40,7 +40,7 @@ public class TradeSettlementServiceImpl implements TradeSettlementService {
     this.transactionTemplate = new TransactionTemplate(transactionManager);
   }
 
-  // 업무 실패(4xx)면 잔액은 그대로 두고 반영 실패를 남긴다. 그 밖의 예외는 그대로 던져 재시도한다
+  // 업무 실패(4xx)면 잔액은 그대로 두고 반영 실패 기록, 그 밖의 예외는 던져 재시도
   @Override
   public void settle(TradeCompletedEvent event) {
     TradeSettlement outcome;
@@ -55,7 +55,7 @@ public class TradeSettlementServiceImpl implements TradeSettlementService {
     announce(event, outcome);
   }
 
-  // 처음 온 체결만 잔액 반영 · APPLIED 저장. 이미 처리한 체결은 잔액을 그대로 두고 기록된 결과를 돌려줌
+  // 처음 온 체결만 잔액 반영 · APPLIED 저장(이미 처리한 체결은 잔액을 그대로 두고 기록된 결과 반환)
   private TradeSettlement apply(TradeCompletedEvent event) {
     Optional<TradeSettlement> done = tradeSettlementRepository.findById(event.getTradeId());
     if (done.isPresent()) {
@@ -69,7 +69,7 @@ public class TradeSettlementServiceImpl implements TradeSettlementService {
     return applied;
   }
 
-  // 커밋된 결과(정산됨 · 반영 실패) 알림. 실패하면 던져 다시 받고, 다시 받은 체결은 기록된 결과만 보냄
+  // 커밋된 결과(정산됨 · 반영 실패) 알림(실패하면 던져 다시 받고, 다시 받은 체결은 기록된 결과만 보냄)
   private void announce(TradeCompletedEvent event, TradeSettlement outcome) {
     if (outcome.getStatus() == SettlementStatus.APPLIED) {
       tradeSettledEventProducer.publish(event);
@@ -86,7 +86,7 @@ public class TradeSettlementServiceImpl implements TradeSettlementService {
       .orElse(reasonCode);
   }
 
-  // REJECTED 저장. 그 사이 다른 시도가 남긴 결과가 있으면 그것을 돌려줌
+  // REJECTED 저장(그 사이 다른 시도가 남긴 결과가 있으면 그것을 반환)
   private TradeSettlement reject(TradeCompletedEvent event, AccountException e) {
     Optional<TradeSettlement> done = tradeSettlementRepository.findById(event.getTradeId());
     if (done.isPresent()) {

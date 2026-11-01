@@ -204,7 +204,7 @@ class MarketDataMapperTest {
 
       List<Candle> result = MarketDataMapper.toCandles(input, "AAPL");
 
-      // 한 건이 깨져도 수집 전체가 날아가면 안 된다
+      // 한 건이 깨져도 수집 전체는 유지
       assertThat(result).hasSize(2);
       assertThat(result).extracting(Candle::getDate)
         .containsExactly(DATE, DATE.plusDays(2));
@@ -266,7 +266,7 @@ class MarketDataMapperTest {
     @Test
     @DisplayName("심볼은 대문자로 바꾸지 않고 그대로 둔다")
     void 심볼_원본_유지() {
-      // toAsset/toCandle 과 달리 여기선 정규화하지 않는다
+      // toAsset · toCandle 과 달리 정규화 없음
       Dividend result = MarketDataMapper.toDividend(dividend().symbol("aapl").build());
 
       assertThat(result.getSymbol()).isEqualTo("aapl");

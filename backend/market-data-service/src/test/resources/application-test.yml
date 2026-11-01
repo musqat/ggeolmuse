@@ -28,8 +28,7 @@ spring:
     console:
       enabled: true
 
-  # KafkaProducerConfig 가 이 값을 @Value 로 직접 읽는다.
-  # 프로듀서는 지연 연결이라 컨텍스트 로딩엔 더미 주소로 충분하다.
+  # KafkaProducerConfig 가 @Value 로 읽는 주소(지연 연결이라 더미)
   kafka:
     bootstrap-servers: localhost:9092
 
@@ -43,7 +42,7 @@ keycloak:
 
 # Market Data 테스트 설정
 marketdata:
-  # 공급원별 빈(FxSource 등)이 이 값으로 켜짐. 없으면 그 빈을 쓰는 수집기가 안 떠 컨텍스트 로딩 실패
+  # 공급원별 빈(FxSource 등)을 켜는 값(없으면 그 빈을 쓰는 수집기가 안 떠 컨텍스트 로딩 실패)
   provider: yahoo
   constants:
     fx-ingest:

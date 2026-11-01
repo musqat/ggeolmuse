@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import PortfolioPieChart from './PortfolioPieChart'
 
-/** 파이 조각만 골라낸다. 툴팁이나 아이콘 path 는 fill 이 없다. */
+/** 파이 조각만(툴팁 · 아이콘 path 는 fill 이 없음) */
 function slicePaths(container: HTMLElement) {
   return [...container.querySelectorAll('svg path[fill]')]
 }
@@ -16,7 +16,7 @@ describe('PortfolioPieChart', () => {
     const paths = slicePaths(container)
     expect(paths).toHaveLength(1)
 
-    // 원 하나를 호 두 개로 그린다. 시작점으로 돌아와야 닫힌 원이다.
+    // 원 하나 = 호 둘(시작점으로 돌아와 닫힘)
     const d = paths[0].getAttribute('d') ?? ''
     expect(d.match(/A /g)).toHaveLength(2)
     expect(d.endsWith('Z')).toBe(true)
@@ -62,7 +62,7 @@ describe('PortfolioPieChart', () => {
   })
 
   it('합계가 0 이면 안내를 보여준다', () => {
-    // 잔액이 전부 0 인 계좌. 0 으로 나누면 NaN 이 되어 path 가 깨진다.
+    // 잔액이 전부 0 인 계좌(0 으로 나누면 path 가 NaN)
     const { container } = render(
       <PortfolioPieChart data={[{ symbol: 'KRW 현금', value: 0, color: '#6366f1' }]} />
     )
@@ -70,7 +70,7 @@ describe('PortfolioPieChart', () => {
     expect(slicePaths(container)).toHaveLength(0)
     expect(screen.getByText('데이터가 없습니다')).toBeInTheDocument()
   })
-  // SVG(280 × 280)가 overflow hidden 이라 툴팁(200 × 120)이 밖으로 나가면 잘린다
+  // SVG(280 × 280)가 overflow hidden 이라 밖으로 나간 툴팁(200 × 120)은 잘림
   it('툴팁을 SVG 안에 둔다', () => {
     const { container } = render(
       <PortfolioPieChart
@@ -87,11 +87,11 @@ describe('PortfolioPieChart', () => {
     }
 
     fireEvent.mouseEnter(slice)
-    // 왼쪽 위: 커서 오른쪽 10 · 위 40 자리. 위로 넘치면 0 으로
+    // 왼쪽 위: 커서 오른쪽 10 · 위 40 자리(위로 넘치면 0)
     fireEvent.mouseMove(slice, { clientX: 20, clientY: 20 })
     expect(box()).toEqual([30, 0])
 
-    // 오른쪽 아래: 커서 왼쪽으로 돌리고 안쪽으로 자른다
+    // 오른쪽 아래: 커서 왼쪽으로 돌리고 안쪽으로 자름
     fireEvent.mouseMove(slice, { clientX: 270, clientY: 270 })
     expect(box()).toEqual([60, 160])
 

@@ -10,7 +10,7 @@ from app.core.skills.base import Skill
 
 
 def strip_markdown(text: str) -> str:
-    """*기울임* · 제목 # · 목록 기호를 지운다. **굵게** 는 둔다"""
+    """*기울임* · 제목 # · 목록 기호 제거(**굵게** 는 유지)"""
     text = re.sub(r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)", r"\1", text)
     text = re.sub(r"^#{1,6}\s*", "", text, flags=re.MULTILINE)
     text = re.sub(r"^\s*[-*]\s+", "", text, flags=re.MULTILINE)

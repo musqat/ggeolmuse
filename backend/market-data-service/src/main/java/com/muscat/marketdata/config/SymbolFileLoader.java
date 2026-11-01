@@ -21,7 +21,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-// 시작할 때 NASDAQ API(안 되면 CSV)에서 종목을 읽어 Asset 테이블을 채움. marketdata.symbol-loader.enabled 로 켬
+// 시작할 때 NASDAQ API(안 되면 CSV)에서 종목을 읽어 Asset 테이블을 채우는 로더(marketdata.symbol-loader.enabled 로 켬)
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -204,7 +204,7 @@ public class SymbolFileLoader implements CommandLineRunner {
                     }
 
                     // CSV 파싱
-                    // 끝의 빈 칸 유지(-1). 빼면 업종 · 산업이 빈 행이 빠짐
+                    // 끝의 빈 칸 유지(-1, 빼면 업종 · 산업이 빈 행이 빠짐)
                     String[] parts = line.split(",", -1);
                     if (parts.length < 11) {
                         log.warn("잘못된 CSV 라인 (컬럼 수 부족): {}", line);

@@ -36,7 +36,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import net.javacrumbs.shedlock.core.LockProvider;
 
-// 초기 수집(캔들 있는 종목 95% 미만) 중에는 환율 · 캔들 · 시총 갱신을 건너뛴다
+// 초기 수집(캔들 있는 종목 95% 미만) 중에는 환율 · 캔들 · 시총 갱신 건너뜀
 @DisplayName("AlphaVantage 스케줄러")
 class AlphaVantageSchedulerTest {
 

@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 import org.springframework.kafka.support.Acknowledgment;
 
-// 수동 커밋이다. 수집이 끝나야 ack 하고, 실패하면 ack 하지 않아 다시 받는다
+// 수동 커밋(수집이 끝나야 ack, 실패하면 ack 안 해 다시 받음)
 @DisplayName("종목 생성 이벤트 소비")
 class AssetEventConsumerTest {
 

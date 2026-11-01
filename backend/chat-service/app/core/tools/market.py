@@ -1,4 +1,4 @@
-"""스킬이 쓰는 시세 도구. 조회 기간은 여기서 정한다"""
+"""스킬이 쓰는 시세 도구(조회 기간은 여기서)"""
 from __future__ import annotations
 
 from datetime import date, timedelta
@@ -17,7 +17,7 @@ class MarketTools:
         return self._today()
 
     async def quote(self, symbol: str) -> Quote | None:
-        """현재가 · 이름 · 상장 여부. 없는 종목이면 None"""
+        """현재가 · 이름 · 상장 여부(없는 종목이면 None)"""
         return await self._market.quote(symbol)
 
     async def bars(self, symbol: str, days: int) -> list[Bar]:

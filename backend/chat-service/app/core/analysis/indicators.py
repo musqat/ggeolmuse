@@ -1,4 +1,4 @@
-"""기술 지표 계산. 식은 프론트 차트(klinecharts 9.8.12)와 같다"""
+"""기술 지표 계산(식은 프론트 차트 klinecharts 9.8.12 와 같음)"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -57,7 +57,7 @@ class IndicatorSnapshot:
 
 
 def compute_indicators(bars: list[Bar]) -> IndicatorSnapshot | None:
-    """마지막 캔들 기준 지표. 가장 짧은 이동평균도 못 구하면 None"""
+    """마지막 캔들 기준 지표(가장 짧은 이동평균도 못 구하면 None)"""
     if len(bars) < MA_PERIODS[0]:
         return None
     closes = [b.close for b in bars]
@@ -79,7 +79,7 @@ def compute_indicators(bars: list[Bar]) -> IndicatorSnapshot | None:
 
 
 def sma(values: list[float], period: int) -> list[float | None]:
-    """단순 이동평균. 앞 period - 1 개는 None"""
+    """단순 이동평균(앞 period - 1 개는 None)"""
     out: list[float | None] = []
     total = 0.0
     for i, value in enumerate(values):
@@ -120,7 +120,7 @@ def bollinger(closes: list[float], period: int = 20, width: float = 2.0) -> Boll
 
 
 def rsi(closes: list[float], period: int = 14) -> float | None:
-    """최근 period 개 상승폭 합과 하락폭 합의 비율. 하락이 없으면 100(차트는 0)"""
+    """최근 period 개 상승폭 합과 하락폭 합의 비율(하락이 없으면 100, 차트는 0)"""
     if len(closes) < period:
         return None
     up = down = 0.0
@@ -143,7 +143,7 @@ def rsi(closes: list[float], period: int = 14) -> float | None:
 
 
 def macd(closes: list[float], short: int = 12, long: int = 26, signal: int = 9) -> Macd | None:
-    """EMA 는 단순 평균으로 시작. DEA 첫 값은 DIF signal 개 평균. 막대는 2 × (DIF − DEA)"""
+    """EMA 는 단순 평균으로 시작, DEA 첫 값은 DIF signal 개 평균, 막대는 2 × (DIF − DEA)"""
     longest = max(short, long)
     if len(closes) < longest + signal - 1:
         return None
@@ -168,7 +168,7 @@ def macd(closes: list[float], short: int = 12, long: int = 26, signal: int = 9) 
 
 def kdj(highs: list[float], lows: list[float], closes: list[float],
         n: int = 9, m1: int = 3, m2: int = 3) -> Kdj | None:
-    """RSV 를 K = (2 × 직전 K + RSV) / 3, D = (2 × 직전 D + K) / 3 로 평활. 처음 K · D 는 50"""
+    """RSV 를 K = (2 × 직전 K + RSV) / 3, D = (2 × 직전 D + K) / 3 로 평활(처음 K · D 는 50)"""
     if len(closes) < n:
         return None
     k = d = 50.0
@@ -183,7 +183,7 @@ def kdj(highs: list[float], lows: list[float], closes: list[float],
 
 
 def ma_cross(closes: list[float], short: int = 20, long: int = 60, lookback: int = 10) -> Cross | None:
-    """최근 lookback 일 안의 단기 · 장기 이동평균 교차. 가장 최근 것 하나"""
+    """최근 lookback 일 안의 단기 · 장기 이동평균 교차(가장 최근 것 하나)"""
     diffs = [s - l for s, l in zip(sma(closes, short), sma(closes, long))
              if s is not None and l is not None]
     recent = diffs[-lookback:]

@@ -23,7 +23,7 @@ class JwksVerifier:
         self._fetched_at = 0.0
 
     def __call__(self, token: str) -> dict:
-        """서명 · 만료 · 발급자(iss) · 받은 클라이언트(azp)를 확인한 클레임. 틀린 토큰은 ValueError"""
+        """서명 · 만료 · 발급자(iss) · 받은 클라이언트(azp)를 확인한 클레임(틀린 토큰은 ValueError)"""
         try:
             kid = jwt.get_unverified_header(token).get("kid")
             claims = jwt.decode(token, self._keys_for(kid), algorithms=["RS256"], issuer=self._issuers,

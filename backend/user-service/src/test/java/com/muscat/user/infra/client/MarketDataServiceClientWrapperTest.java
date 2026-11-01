@@ -12,7 +12,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
-// 서킷 브레이커가 부르는 대체 메서드는 private 이라 직접 불러 값을 본다
+// 서킷 브레이커의 대체 메서드는 private 이라 직접 호출
 @DisplayName("시세 서비스 환율 호출과 대체값")
 class MarketDataServiceClientWrapperTest {
 

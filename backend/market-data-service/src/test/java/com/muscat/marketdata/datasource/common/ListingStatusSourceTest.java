@@ -18,7 +18,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
-// LISTING_STATUS CSV 파싱. 본문은 실제 응답에서 잘라 왔고 SPY 행을 고정해 둠
+// LISTING_STATUS CSV 파싱(본문은 실제 응답에서 잘라 옴, SPY 행 고정)
 @ExtendWith(MockitoExtension.class)
 @DisplayName("ListingStatusSource 단위 테스트")
 class ListingStatusSourceTest {
@@ -46,7 +46,7 @@ class ListingStatusSourceTest {
   @Test
   @DisplayName("SPY 가 들어온다")
   void spy() {
-    // NASDAQ 스크리너에는 stocks 에도 etf 에도 SPY 가 없었다. 그래서 출처를 옮겼다
+    // NASDAQ 스크리너의 stocks · etf 어디에도 없는 SPY
     givenCsv("SPY,SPDR S&P 500 ETF Trust,NYSE,ETF,1993-01-29,null,Active");
 
     List<Asset> result = source.fetch();
@@ -76,7 +76,7 @@ class ListingStatusSourceTest {
   @Test
   @DisplayName("시가총액은 응답에 없어 null 이다")
   void 시가총액_없음() {
-    // LISTING_STATUS 에는 시총이 없다. 그건 따로 채운다
+    // LISTING_STATUS 에 없는 시총은 따로 채움
     givenCsv("AAPL,Apple Inc,NASDAQ,Stock,1980-12-12,null,Active");
 
     assertThat(source.fetch()).singleElement()

@@ -46,13 +46,13 @@ public class StrategyCalculator {
         BigDecimal fxReturn = MoneyUtils.subtract(currentFxRate.rate(), averageFxRate);
         BigDecimal fxReturnPercent = MoneyUtils.calculateReturnRate(averageFxRate, currentFxRate.rate());
 
-        // 재투자했으면 배당이 이미 주식으로 들어가 있고, 안 했으면 현금으로 남는다
+        // 재투자했으면 배당이 이미 주식에, 안 했으면 현금으로
         boolean reinvested = dividendsReinvested != null
             && dividendsReinvested.compareTo(BigDecimal.ZERO) > 0;
         boolean hasCashDividend = !reinvested
             && totalDividends != null && totalDividends.compareTo(BigDecimal.ZERO) > 0;
 
-        // 현금으로 받는 배당도 원천징수를 뗀다. 재투자 경로는 DividendReinvestor 가 이미 뗐다
+        // 현금으로 받는 배당도 원천징수 차감(재투자 경로는 DividendReinvestor 가 이미 뗌)
         BigDecimal cashDividendKrw = BigDecimal.ZERO;
         if (hasCashDividend) {
             BigDecimal afterTax = totalDividends;

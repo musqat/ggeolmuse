@@ -72,7 +72,7 @@ class MarketDataServiceImplTest {
       BigDecimal result = marketDataService.determineTradePrice(
         SYMBOL, TRADE_DATE, PriceType.MANUAL, new BigDecimal("218"));
 
-      // 시세를 그대로 쓰지 않고 입력값을 돌려준다
+      // 시세 대신 입력값 반환
       assertThat(result).isEqualByComparingTo("218");
       verify(tradeLogger).logMarketDataRequest(SYMBOL, "MANUAL_VALIDATION", true, null);
     }
@@ -147,7 +147,7 @@ class MarketDataServiceImplTest {
       given(marketServiceClientWrapper.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
         .willReturn(ohlc(true));
 
-      // switch default 의 IllegalArgumentException 도 catch 에서 TradeException 으로 바뀐다
+      // switch default 의 IllegalArgumentException 도 catch 에서 TradeException 으로
       assertThatThrownBy(
         () -> marketDataService.getOHLCPrice(SYMBOL, TRADE_DATE, PriceType.MANUAL))
         .isInstanceOf(TradeException.class);
@@ -162,7 +162,7 @@ class MarketDataServiceImplTest {
       assertThatThrownBy(
         () -> marketDataService.getOHLCPrice(SYMBOL, TRADE_DATE, PriceType.CLOSE))
         .isInstanceOf(TradeException.class)
-        // 원인 예외는 밖으로 안 나간다. 호출부는 원인을 구분할 수 없다
+        // 원인 예외는 밖으로 안 나감(호출부는 원인 구분 불가)
         .hasNoCause();
     }
 
@@ -187,7 +187,7 @@ class MarketDataServiceImplTest {
         () -> marketDataService.getOHLCPrice(SYMBOL, TRADE_DATE, PriceType.CLOSE))
         .isInstanceOf(TradeException.class);
 
-      // 내부 분기와 catch 에서 각각 남겨 같은 실패가 두 번 기록된다
+      // 내부 분기와 catch 에서 각각 남겨 같은 실패가 두 번 기록
       verify(tradeLogger, atLeastOnce())
         .logMarketDataRequest(eq(SYMBOL), eq("CLOSE"), eq(false), any());
       verify(tradeLogger, never()).logMarketDataRequest(anyString(), anyString(), eq(true), any());
@@ -214,7 +214,7 @@ class MarketDataServiceImplTest {
       given(marketServiceClientWrapper.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
         .willReturn(ohlc(true));
 
-      // 경계를 막으면 종가가 그날 고가인 날 주문을 넣을 수 없다
+      // 경계 포함(막으면 종가가 그날 고가인 날 주문 불가)
       assertThat(marketDataService.validateManualPrice(SYMBOL, TRADE_DATE, new BigDecimal("213")))
         .isEqualByComparingTo("213");
       assertThat(marketDataService.validateManualPrice(SYMBOL, TRADE_DATE, new BigDecimal("222")))

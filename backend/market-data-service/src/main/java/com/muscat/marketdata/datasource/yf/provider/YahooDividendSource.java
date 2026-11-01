@@ -11,7 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-// Yahoo Finance 기반 배당 데이터 제공자(기본). AlphaVantage 를 끄면 켜짐
+// Yahoo Finance 기반 배당 데이터 제공자(기본, AlphaVantage 를 끄면 켜짐)
 @Slf4j
 @Component
 @ConditionalOnProperty(
@@ -37,7 +37,7 @@ public class YahooDividendSource implements DividendSource {
       return dividends;
 
     } catch (Exception e) {
-      // 상장폐지 종목이 대부분이라 건수만 CollectionStats 에 남긴다
+      // 건수만 CollectionStats 에(상장폐지 종목이 대부분)
       log.debug("Yahoo 배당 데이터 수집 실패: symbol={}, error={}", symbol, e.getMessage());
       return List.of();
     }

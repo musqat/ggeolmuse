@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import KLineChartComponent from './KLineChartComponent'
 
-// jsdom 에는 캔버스가 없어 차트 본체를 가짜로 바꾼다
+// 차트 본체 가짜(jsdom 에는 캔버스가 없음)
 const chart = vi.hoisted(() => ({
   setStyles: vi.fn(),
   createIndicator: vi.fn(() => 'pane'),

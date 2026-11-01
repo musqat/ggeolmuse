@@ -77,7 +77,7 @@ public class TradeRepositoryCustomImpl implements TradeRepositoryCustom {
 
         long total = totalCount != null ? totalCount : 0L;
 
-        // unpaged 는 getOffset · getPageSize 가 예외를 던진다. 나눌 때만 건다
+        // 나눌 때만 offset · limit(unpaged 는 getOffset · getPageSize 가 예외)
         if (pageable.isPaged()) {
             query.offset(pageable.getOffset()).limit(pageable.getPageSize());
         }

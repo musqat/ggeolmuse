@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.test.util.ReflectionTestUtils;
 
-// 로컬에서 빈 DB 에 종목을 처음 채우는 도구. NASDAQ 스크리너를 먼저 쓰고, 안 되면 저장소에 묶인 CSV 를 읽는다
+// 로컬에서 빈 DB 에 종목을 처음 채우는 도구(NASDAQ 스크리너 먼저, 안 되면 저장소에 묶인 CSV)
 @DisplayName("종목 파일 로더")
 class SymbolFileLoaderTest {
 
@@ -93,7 +93,7 @@ class SymbolFileLoaderTest {
       assertThat(agilent.getCountry()).isEqualTo("US");
       assertThat(agilent.getAssetType()).isEqualTo("EQUITY");
     });
-    // 이름에 Trust 인 은행은 주식. 산업 칸 빈 ETF 행도 적재
+    // 이름에 Trust 인 은행은 주식, 산업 칸 빈 ETF 행도 적재
     assertThat(assets).filteredOn(asset -> asset.getSymbol().equals("NTRS")).singleElement()
       .extracting(Asset::getAssetType).isEqualTo("EQUITY");
     assertThat(assets).filteredOn(asset -> asset.getSymbol().equals("IBIT")).singleElement()

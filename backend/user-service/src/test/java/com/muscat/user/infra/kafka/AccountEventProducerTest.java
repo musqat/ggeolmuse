@@ -28,7 +28,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 class AccountEventProducerTest {
 
   private static final String BALANCE_TOPIC = "user.account.balance.updated";
-  // trade-service 가 이 토픽을 읽어 그 계좌의 거래 · 보유를 지운다
+  // trade-service 가 이 토픽을 읽어 그 계좌의 거래 · 보유 삭제
   private static final String DELETED_TOPIC = "user.account.deleted";
 
   @SuppressWarnings("unchecked")

@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 
-// Asset 생성 이벤트 발행. 수집은 컨슈머가 비동기로
+// Asset 생성 이벤트 발행(수집은 컨슈머가 비동기로)
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -44,7 +44,7 @@ public class AssetEventProducer {
         log.debug("종목 생성 이벤트 발행 중: symbol={}, collectData={}",
                 asset.getSymbol(), collectData);
 
-        // 트랜잭션 안이면 커밋 뒤에 전송. 먼저 보내면 수집 컨슈머가 빈 종목을 봄
+        // 트랜잭션 안이면 커밋 뒤에 전송(먼저 보내면 수집 컨슈머가 빈 종목을 봄)
         EventPublishing.sendAfterCommit(assetCreatedKafkaTemplate, ASSET_CREATED_TOPIC, event.getSymbol(), event);
     }
 }

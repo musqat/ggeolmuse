@@ -35,7 +35,7 @@ public class AuthUtil {
     User user = userRepository.findByKeycloakId(keycloakId)
         .orElseThrow(() -> new UserException(UserResponse.USER_NOT_FOUND));
 
-    // 이미 발급된 토큰은 만료 전까지 살아 있으므로 여기서 막는다
+    // 이미 발급된 토큰도 여기서 차단(만료 전까지 유효)
     if (!user.isEnabled()) {
       throw new UserException(UserResponse.ACCOUNT_DISABLED);
     }

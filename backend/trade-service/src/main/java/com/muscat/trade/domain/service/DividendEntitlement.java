@@ -12,8 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-// 배당을 받을 수량. 배당락일 전날 장 마감 때 가진 수량이 기준이라, 배당락일 전(거래일 < 배당락일)에 체결된 매수 합 − 매도 합이다.
-// 배당락일 당일 · 이후의 매수는 못 받고, 배당락일 당일 · 이후의 매도는 받는다
+// 배당을 받을 수량 — 배당락일 전(거래일 < 배당락일)에 체결된 매수 합 − 매도 합(당일 · 이후 매수는 못 받고 매도는 받음)
 public final class DividendEntitlement {
 
   private static final Comparator<Trade> TRADE_ORDER = Comparator.comparing(Trade::getTradeDate)
@@ -27,7 +26,7 @@ public final class DividendEntitlement {
   public record HeldBuy(Trade buy, BigDecimal shares) {
   }
 
-  // 한 계좌의 거래들로 배당락일 전날 보유 수량을 구한다
+  // 한 계좌의 거래로 구한 배당락일 전날 보유 수량
   public static BigDecimal sharesHeldBefore(List<Trade> trades, LocalDate exDate) {
     return trades.stream()
       .filter(trade -> counts(trade, exDate))
@@ -36,8 +35,7 @@ public final class DividendEntitlement {
       .max(BigDecimal.ZERO);
   }
 
-  // 배당락일 전날 보유분을 매수 건마다 나눈다. 계좌마다 배당락일 전 매도를 먼저 산 매수부터 뺀다(FIFO).
-  // 계좌별 합은 sharesHeldBefore 와 같고, 남은 수량이 0 인 매수는 뺀다
+  // 배당락일 전날 보유분을 매수 건마다 나눔(배당락일 전 매도는 먼저 산 매수부터 빼는 FIFO, 계좌별 합은 sharesHeldBefore, 남은 수량 0 인 매수는 제외)
   public static List<HeldBuy> remainingByBuyBefore(List<Trade> trades, LocalDate exDate) {
     Map<Long, List<Trade>> tradesByAccount = trades.stream()
       .filter(trade -> counts(trade, exDate))

@@ -46,7 +46,7 @@ public class HoldingsServiceImpl implements HoldingsService {
     tradeLogger.logPortfolioAccess(userId, logType, accountId != null ? accountId.toString() : null,
       holdings.size());
 
-    // 보유 종목의 현재가는 한 번에 받는다. 시세 서비스가 안 되면(대체 동작은 빈 맵) 현재가 없이 돌려준다
+    // 보유 종목의 현재가를 한 번에(시세 서비스가 안 되면 대체 동작의 빈 맵 → 현재가 없이 반환)
     List<String> symbols = holdings.stream()
       .map(Holdings::getSymbol)
       .distinct()

@@ -68,7 +68,7 @@ public class CacheConfig {
 
     log.info("Configured caches: {}", cacheConfigurations.keySet());
 
-    // 캐시 비우기는 KEYS 대신 SCAN 으로. KEYS 는 키가 많으면 그동안 Redis 를 막음
+    // 캐시 비우기는 KEYS 대신 SCAN(KEYS 는 키가 많으면 그동안 Redis 를 막음)
     RedisCacheWriter cacheWriter = RedisCacheWriter.nonLockingRedisCacheWriter(
         redisConnectionFactory, BatchStrategies.scan(1000));
 
@@ -78,8 +78,8 @@ public class CacheConfig {
         .build();
   }
 
-  // 캐시 값 직렬화. 값과 함께 타입 정보를 저장한다
-  // 모르는 필드는 무시. 되돌린 옛 코드가 새 코드가 넣은 값을 읽을 때 실패하지 않게
+  // 캐시 값 직렬화(값과 함께 타입 정보 저장)
+  // 모르는 필드는 무시(되돌린 옛 코드가 새 코드가 넣은 값을 읽을 때 실패하지 않게)
   static GenericJackson2JsonRedisSerializer valueSerializer() {
     ObjectMapper objectMapper = new ObjectMapper();
     objectMapper.registerModule(new JavaTimeModule());

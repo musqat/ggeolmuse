@@ -1,4 +1,4 @@
-"""OpenAI 호출. 동기 클라이언트를 스레드로 넘기고, 실패는 AiUnavailable 로 바꾼다"""
+"""OpenAI 호출(동기 클라이언트를 스레드로 넘김, 실패는 AiUnavailable)"""
 from __future__ import annotations
 
 import asyncio
@@ -19,7 +19,7 @@ class ChatModel:
         self._max_answer_tokens = max_answer_tokens
 
     async def choose(self, messages: list[dict]) -> Completion:
-        """작은 모델. JSON 한 덩어리로 답한다"""
+        """작은 모델(JSON 한 덩어리로 답함)"""
         return await self._call(
             model=self._router_model,
             messages=messages,

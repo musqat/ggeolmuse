@@ -204,7 +204,7 @@ public class AdminMarketController {
         return ResponseEntity.ok(UpdateResponse.of("캔들 데이터 업데이트가 백그라운드에서 시작되었습니다."));
     }
 
-    // 평일 08:00 스케줄과 같은 일. DB 에 없는 심볼만 추가하고 기존 종목은 그대로
+    // 평일 08:00 스케줄과 같은 일(DB 에 없는 심볼만 추가, 기존 종목은 그대로)
     @PostMapping("/update/symbols")
     public ResponseEntity<UpdateResponse> collectNewSymbols() {
         log.info("신규 종목 수동 수집 요청");
@@ -229,7 +229,7 @@ public class AdminMarketController {
                 .body(UpdateResponse.of("이미 다른 전체 갱신이 진행 중입니다. 끝난 뒤 다시 시도해 주세요."));
     }
 
-    // 분할 계수가 기록된 종목. 탐색이 몇 분 걸려 마지막 결과만 줌
+    // 분할 계수가 기록된 종목(탐색이 몇 분 걸려 마지막 결과만)
     @GetMapping("/candles/unadjusted")
     public ResponseEntity<UnadjustedResponse> findUnadjusted() {
         UnadjustedScanService.Result last = scanService.getLast();
@@ -251,7 +251,7 @@ public class AdminMarketController {
             .build());
     }
 
-    // 분할 종목 탐색 시작. 결과는 GET 으로
+    // 분할 종목 탐색 시작(결과는 GET 으로)
     @PostMapping("/candles/unadjusted/scan")
     public ResponseEntity<UnadjustedResponse> scanUnadjusted(
         @RequestParam(defaultValue = "1970-01-01") LocalDate from) {
@@ -295,7 +295,7 @@ public class AdminMarketController {
         return ResponseEntity.ok(FxCollectResponse.of(fxCollectionService.status()));
     }
 
-    // 환율 빠진 날 채우기(missing) · 전체 다시 받기(all). 백그라운드로 돌고 진행은 GET 으로
+    // 환율 빠진 날 채우기(missing) · 전체 다시 받기(all), 백그라운드 실행 · 진행은 GET 으로
     @PostMapping("/fx/collect")
     public ResponseEntity<FxCollectResponse> startFxCollect(@RequestParam(defaultValue = "missing") String mode) {
         FxCollectionService.Mode parsed = switch (mode.toLowerCase(Locale.ROOT)) {

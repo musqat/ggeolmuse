@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 
-// Gateway Swagger 통합 설정. 서비스별 API 문서를 드롭다운으로 고름
+// Gateway Swagger 통합 설정(서비스별 API 문서를 드롭다운으로 고름)
 @Configuration
 public class SwaggerConfig {
 

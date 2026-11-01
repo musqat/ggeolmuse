@@ -16,7 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-// AlphaVantage 배당 데이터 제공자. TIME_SERIES_DAILY_ADJUSTED 응답에서 꺼냄
+// AlphaVantage 배당 데이터 제공자(TIME_SERIES_DAILY_ADJUSTED 응답에서 꺼냄)
 @Slf4j
 @Component
 @ConditionalOnProperty(

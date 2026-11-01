@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 import org.springframework.data.domain.PageRequest;
 
-// 종목 생성 이벤트 하나를 받아 캔들 · 배당을 수집. 실패는 다시 올려 ack 하지 않게 함
+// 종목 생성 이벤트 하나를 받아 캔들 · 배당 수집(실패는 다시 올려 ack 안 함)
 @DisplayName("종목 하나 수집")
 class DataCollectionServiceTest {
 

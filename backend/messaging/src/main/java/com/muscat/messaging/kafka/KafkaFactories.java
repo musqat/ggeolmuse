@@ -36,7 +36,7 @@ public final class KafkaFactories {
     private KafkaFactories() {
     }
 
-    // 문자열 키 · JSON 값, acks=all · 재시도 3 · 멱등 전송. 압축 · 배치 값은 서비스가 더함
+    // 문자열 키 · JSON 값, acks=all · 재시도 3 · 멱등 전송(압축 · 배치 값은 서비스가 더함)
     public static Map<String, Object> producerProps(String bootstrapServers) {
         Map<String, Object> props = new HashMap<>();
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
@@ -106,10 +106,10 @@ public final class KafkaFactories {
         return new KafkaTemplate<>(producerFactory(props, meterRegistry));
     }
 
-    // 첫 전달까지 최대 네 번. 다 실패하면 <토픽>.DLT 로 넘기고 kafka.dlt.records 올림
+    // 첫 전달까지 최대 네 번(다 실패하면 <토픽>.DLT 로 넘기고 kafka.dlt.records 올림)
     public static CommonErrorHandler deadLetterErrorHandler(
             KafkaTemplate<String, Object> dltTemplate, MeterRegistry meterRegistry) {
-        // 파티션 -1 은 카프카가 고름. DLT 파티션 수가 원본보다 적어도 됨
+        // 파티션 -1 은 카프카가 고름(DLT 파티션 수가 원본보다 적어도 됨)
         DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(
                 dltTemplate,
                 (record, ex) -> new TopicPartition(record.topic() + ".DLT", -1));

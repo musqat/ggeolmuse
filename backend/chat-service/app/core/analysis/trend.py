@@ -44,7 +44,7 @@ class TrendSnapshot:
 
 
 def compute_trend(bars: list[Bar]) -> TrendSnapshot | None:
-    """마지막 캔들 기준 추이. 가장 짧은 기간 수익률도 못 구하면 None"""
+    """마지막 캔들 기준 추이(가장 짧은 기간 수익률도 못 구하면 None)"""
     if len(bars) <= PERIODS[0][1]:
         return None
     last = bars[-1]

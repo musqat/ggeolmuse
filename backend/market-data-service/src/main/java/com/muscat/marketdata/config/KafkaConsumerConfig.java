@@ -40,16 +40,14 @@ public class KafkaConsumerConfig {
         Map<String, Object> props = KafkaFactories.jsonConsumerProps(
                 bootstrapServers, "market-data-collection-group", AssetCreatedEvent.class);
 
-        // 리스너 안에서 수집을 끝내므로 한 번에 받는 건수가 곧 poll 주기가 된다.
-        // 여러 건을 받으면 느린 종목 하나에 나머지가 묶여 max.poll.interval.ms 를 넘긴다. 한 건씩 받는다
+        // 한 번에 한 건(리스너 안에서 수집을 끝내 느린 종목 하나가 max.poll.interval.ms 를 넘기지 않게)
         props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, maxPollRecords);
         props.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, maxPollIntervalMs);
 
         return KafkaFactories.consumerFactory(props, meterRegistry);
     }
 
-    // market.asset.created 의 파티션 수와 같게 둔다. 넘으면 남는 스레드가 논다.
-    // DB 커넥션 풀(20)보다 작아야 스레드가 커넥션을 다 쥐지 않는다
+    // market.asset.created 파티션 수와 같은 스레드 수(DB 커넥션 풀 20 보다 작게)
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, AssetCreatedEvent>
     assetEventListenerFactory() {
@@ -58,7 +56,7 @@ public class KafkaConsumerConfig {
     }
 
     /**
-     * 재시도로 못 살린 메시지를 .DLT 토픽에 넣을 때 쓴다.
+     * 재시도로 못 살린 메시지를 .DLT 토픽에 넣는 템플릿
      */
     @Bean
     public KafkaTemplate<String, Object> dltKafkaTemplate() {

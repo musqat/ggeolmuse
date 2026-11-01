@@ -5,10 +5,10 @@ import com.muscat.user.domain.user.dto.response.TokenResponseDto;
 // Keycloak 인증 서비스 인터페이스
 public interface KeycloakService {
 
-  // 이메일/비밀번호로 Keycloak 로그인. access · refresh token 을 같이 돌려준다
+  // 이메일 · 비밀번호로 Keycloak 로그인(access · refresh token 반환)
   TokenResponseDto login(String email, String password);
 
-  // 브라우저가 public client 로 시작한 구글 로그인(PKCE)의 인가 코드를 토큰으로 바꾼다
+  // 브라우저가 public client 로 시작한 구글 로그인(PKCE)의 인가 코드 → 토큰
   TokenResponseDto exchangePkceCode(String code, String codeVerifier, String redirectUri);
 
   // Keycloak에 사용자 생성
@@ -20,7 +20,7 @@ public interface KeycloakService {
   // Keycloak 사용자 비밀번호 재설정 (현재 비밀번호 불필요)
   void resetPassword(String keycloakId, String newPassword);
 
-  // Keycloak 사용자 활성 상태 변경. 끄면 새 로그인 · 토큰 갱신이 막힌다
+  // Keycloak 사용자 활성 상태 변경(끄면 새 로그인 · 토큰 갱신 차단)
   void setEnabled(String keycloakId, boolean enabled);
 
   // Keycloak 사용자 삭제
@@ -35,13 +35,13 @@ public interface KeycloakService {
   // Keycloak 사용자의 realm role 해제
   void removeRealmRole(String keycloakId, String roleName);
 
-  // 사용자의 Keycloak 세션 전체 종료. 이미 받은 refresh token 으로 새 토큰을 못 받음
+  // 사용자의 Keycloak 세션 전체 종료(이미 받은 refresh token 으로 새 토큰을 못 받음)
   void logoutUserSessions(String keycloakId);
 
-  // Refresh token 으로 새 토큰을 받는다. Keycloak 이 주는 새 refresh token 도 같이 돌려준다
+  // Refresh token 으로 새 토큰 발급(Keycloak 이 주는 새 refresh token 포함)
   TokenResponseDto refreshToken(String refreshToken);
 
-  // Refresh token 이 속한 Keycloak 세션을 끊는다. 이미 끝난 세션이면 조용히 넘어간다
+  // Refresh token 이 속한 Keycloak 세션 종료(이미 끝난 세션이면 무시)
   void logout(String refreshToken);
 
   // 서비스 토큰을 한 번 받아 토큰 발급 경로 · 연결을 열어 둠

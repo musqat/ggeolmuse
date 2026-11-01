@@ -30,7 +30,7 @@ public interface CandleRepository extends JpaRepository<Candle, Long>, CandleRep
   // 최신 봉부터 pageable 크기만큼
   List<Candle> findBySymbolOrderByDateDesc(String symbol, Pageable pageable);
 
-  // 이 날짜보다 오래된 데이터가 있는지. 받는 기간 밖에 데이터가 남는지 볼 때 쓴다
+  // 이 날짜보다 오래된 데이터가 있는지(받는 기간 밖에 남는 데이터 확인용)
   boolean existsBySymbolAndDateBefore(String symbol, LocalDate date);
 
 }

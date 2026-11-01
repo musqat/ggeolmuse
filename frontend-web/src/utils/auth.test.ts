@@ -83,7 +83,7 @@ describe('isTokenExpired', () => {
   })
 
   it('exp === 현재 초면 아직 유효', () => {
-    // 비교가 < 라 같은 초는 통과한다
+    // 비교가 < 라 같은 초는 통과
     expect(tokenManager.isTokenExpired(makeToken({ exp: NOW_SEC }))).toBe(false)
   })
 
@@ -96,7 +96,7 @@ describe('isTokenExpired', () => {
   })
 
   it('exp 가 0 이면 만료 취급', () => {
-    // 0 은 falsy 라 exp 없음과 같은 경로를 탄다
+    // 0 은 falsy 라 exp 없음과 같은 경로
     expect(tokenManager.isTokenExpired(makeToken({ exp: 0 }))).toBe(true)
   })
 })

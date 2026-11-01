@@ -32,7 +32,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestTemplate;
 
-// 실제 네트워크 없이 RestTemplate 응답을 흉내 낸다. 실패는 모두 빈 문자열로 돌려주고 수집 통계에 종류별로 센다
+// 실제 네트워크 없이 흉내 낸 RestTemplate 응답(실패는 모두 빈 문자열, 수집 통계에 종류별로 셈)
 @DisplayName("야후 차트 클라이언트")
 class YahooFinanceClientTest {
 

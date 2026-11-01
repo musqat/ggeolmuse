@@ -11,7 +11,7 @@ import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
-// user.trade.settled 의 대기 매수 완료. 실패하면 예외를 던져 재시도 → DLT
+// user.trade.settled 의 대기 매수 완료(실패하면 예외를 던져 재시도 → DLT)
 @Slf4j
 @Component
 @RequiredArgsConstructor

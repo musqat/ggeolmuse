@@ -75,7 +75,7 @@ public class GlobalExceptionHandler extends BaseExceptionHandler {
         return ResponseEntity.status(MarketDataResponse.KOREA_EXIM_ERROR.getHttpStatus()).body(problem);
     }
 
-    // 컨트롤러에 붙은 @Validated 가 경로 변수 · 쿼리 파라미터를 검사하다 던진다. 요청 값이 틀린 것이라 400 이다
+    // 컨트롤러 @Validated 의 경로 변수 · 쿼리 파라미터 검사 실패 → 400(요청 값 오류)
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ProblemDetail> handleConstraintViolationException(ConstraintViolationException e, HttpServletRequest request) {
         String parameters = e.getConstraintViolations().stream()
@@ -101,7 +101,7 @@ public class GlobalExceptionHandler extends BaseExceptionHandler {
         return ResponseEntity.badRequest().body(problem);
     }
 
-    // getCurrentPrice.symbol · getMultipleOHLCPrices.symbols[0].<list element> 에서 파라미터 이름만 꺼낸다
+    // getCurrentPrice.symbol · getMultipleOHLCPrices.symbols[0].<list element> 에서 꺼낸 파라미터 이름
     private static String parameterName(ConstraintViolation<?> violation) {
         String name = violation.getPropertyPath().toString();
         for (Path.Node node : violation.getPropertyPath()) {

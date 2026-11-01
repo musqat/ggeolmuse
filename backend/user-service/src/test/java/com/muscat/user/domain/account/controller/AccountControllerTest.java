@@ -44,8 +44,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
-// UserApplication 의 @ComponentScan 이 슬라이스 필터를 덮어써 전부 띄우려 한다. 띄울 클래스를 직접 고른다.
-// 실제 보안 설정을 넣어 토큰 없는 요청이 막히는지도 본다
+// 띄울 클래스를 직접 고른 슬라이스(@ComponentScan 이 필터를 덮음) + 실제 보안 설정(토큰 없는 요청 차단)
 @WebMvcTest(AccountController.class)
 @ContextConfiguration(classes = {AccountController.class, GlobalExceptionHandler.class, SecurityConfig.class})
 @ActiveProfiles("test")

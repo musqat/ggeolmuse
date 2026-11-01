@@ -20,7 +20,7 @@ const SYMBOL_INPUT = '종목 코드를 입력해주세요 (예: AAPL)'
 const QUESTION_INPUT = '예: RSI 어때? · 1년 추이는? · 배당은?'
 const HOUR = 60 * 60 * 1000
 
-// jsdom 에는 scrollTo 가 없다
+// jsdom 에 없는 scrollTo
 Element.prototype.scrollTo = vi.fn()
 
 function apiError(status: number, data: unknown) {
@@ -71,7 +71,7 @@ async function openAndStart() {
 
 beforeEach(() => {
   localStorage.clear()
-  // 실패한 테스트가 남긴 mockResolvedValueOnce 가 다음 테스트로 새지 않게 구현까지 비운다
+  // 구현까지 비움(실패한 테스트가 남긴 mockResolvedValueOnce 가 다음 테스트로 새지 않게)
   vi.resetAllMocks()
   auth.isAuthenticated = true
   auth.isLoading = false

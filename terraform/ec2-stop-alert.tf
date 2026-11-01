@@ -1,4 +1,4 @@
-# EC2 종료 알림. EventBridge 규칙이 API Destination 으로 슬랙 웹훅을 직접 호출
+# EC2 종료 알림(EventBridge 규칙이 API Destination 으로 슬랙 웹훅을 직접 호출)
 # 웹훅 URL 은 state 에 평문으로 남음
 
 locals {

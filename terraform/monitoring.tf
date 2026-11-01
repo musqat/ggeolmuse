@@ -1,4 +1,4 @@
-# EventBridge Scheduler 실패 알림. 재시도를 다 써도 따로 남지 않아 CloudWatch 알람으로 잡음
+# EventBridge Scheduler 실패 알림(재시도를 다 써도 따로 남지 않아 CloudWatch 알람으로)
 # 꺼져 있는 동안은 지표가 없어 treat_missing_data 는 notBreaching
 
 resource "aws_sns_topic" "alarms" {
@@ -11,8 +11,7 @@ resource "aws_sns_topic" "alarms" {
   }
 }
 
-# 이메일 구독은 apply 후 수신함에서 확인 링크를 눌러야 활성화된다.
-# 누르기 전까지는 pending confirmation 상태로 남고 알람이 안 온다.
+# 이메일 구독(apply 뒤 수신함의 확인 링크를 누르기 전엔 pending confirmation, 알람 안 옴)
 resource "aws_sns_topic_subscription" "alarms_email" {
   count = var.alarm_email == "" ? 0 : 1
 
@@ -21,8 +20,7 @@ resource "aws_sns_topic_subscription" "alarms_email" {
   endpoint  = var.alarm_email
 }
 
-# 대상 호출이 오류로 돌아온 경우.
-# IAM 권한이 깨졌거나 인스턴스가 terminate 됐을 때 여기 걸린다.
+# 스케줄 대상 호출 오류(IAM 권한 깨짐 · 인스턴스 terminate)
 resource "aws_cloudwatch_metric_alarm" "scheduler_target_error" {
   alarm_name        = "${var.project_name}-scheduler-target-error"
   alarm_description = "EC2 시작/중지 스케줄이 EC2 API 호출에 실패"
@@ -50,8 +48,7 @@ resource "aws_cloudwatch_metric_alarm" "scheduler_target_error" {
   }
 }
 
-# 재시도를 전부 소진하고 호출이 버려진 경우.
-# 위 알람보다 심각하다. 그날 스케줄은 아예 실행되지 않았다는 뜻이다.
+# 재시도를 다 쓰고 버려진 호출(그날 스케줄이 아예 안 돎, 위보다 심각)
 resource "aws_cloudwatch_metric_alarm" "scheduler_invocation_dropped" {
   alarm_name        = "${var.project_name}-scheduler-invocation-dropped"
   alarm_description = "재시도 소진으로 EC2 시작/중지 호출이 버려짐"
@@ -79,9 +76,7 @@ resource "aws_cloudwatch_metric_alarm" "scheduler_invocation_dropped" {
   }
 }
 
-# 인스턴스는 떴는데 안에서 멈춘 경우.
-# 스케줄러 쪽은 성공으로 끝나므로 위 두 알람에 안 걸린다.
-# 3분 연속 실패해야 울린다. 기동 직후 잠깐 뜨는 실패로는 안 울린다.
+# 인스턴스 안에서 멈춤(스케줄러는 성공이라 위 둘에 안 걸림), 3분 연속 실패만
 resource "aws_cloudwatch_metric_alarm" "ec2_status_check" {
   alarm_name        = "${var.project_name}-ec2-status-check"
   alarm_description = "EC2 상태 검사 실패 (인스턴스 또는 호스트 이상)"

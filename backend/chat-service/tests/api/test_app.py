@@ -25,13 +25,13 @@ def test_scrape_serves_request_metrics():
 
 
 def test_openai_client_does_not_retry():
-    # 재시도하면 시간 초과도 다시 기다려 게이트웨이 30초를 넘긴다
+    # 재시도 없음(재시도하면 시간 초과도 다시 기다려 게이트웨이 30초를 넘김)
     assert build_openai(Settings(openai_api_key="test")).max_retries == 0
 
 
 @pytest.mark.parametrize("password, sent", [("pw", "pw"), ("", None)])
 def test_redis_client_sends_password_when_set(password, sent):
-    # 운영 · 로컬 Redis 는 비밀번호를 요구한다(requirepass). 비밀번호 없는 Redis 에는 보내지 않는다
+    # 운영 · 로컬 Redis 는 requirepass(비밀번호 없는 Redis 에는 안 보냄)
     redis = build_redis(Settings(redis_password=password))
     assert redis.connection_pool.connection_kwargs["password"] == sent
 

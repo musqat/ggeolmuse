@@ -6,7 +6,7 @@ import { useChartPeriod } from './useChartPeriod'
 describe('useChartPeriod 시작일', () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'] })
-    // KST 오전 5시. UTC 로는 아직 전날이다
+    // KST 오전 5시(UTC 로는 아직 전날)
     vi.setSystemTime(new Date('2026-03-31T05:00:00+09:00'))
   })
 

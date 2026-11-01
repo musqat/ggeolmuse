@@ -48,7 +48,7 @@ public final class BacktestDataUtils {
 
 
   /**
-   * 평가일 시세. 오늘 이후면 현재가, 과거면 그 날 종가
+   * 평가일 시세(오늘 이후면 현재가, 과거면 그 날 종가)
    */
   public static StockPriceDto getPriceAt(MarketDataClient marketDataClient, String symbol,
                                          LocalDate date) {
@@ -63,7 +63,7 @@ public final class BacktestDataUtils {
   }
 
   /**
-   * 평가일 환율. 오늘 이후면 최신, 과거면 그 날 환율
+   * 평가일 환율(오늘 이후면 최신, 과거면 그 날 환율)
    */
   public static FxRateDto getFxRateAt(MarketDataClient marketDataClient, LocalDate date) {
     return date.isBefore(LocalDate.now())

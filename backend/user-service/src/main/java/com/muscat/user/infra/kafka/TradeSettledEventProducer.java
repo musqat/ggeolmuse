@@ -21,7 +21,7 @@ public class TradeSettledEventProducer {
 
   private final KafkaTemplate<String, TradeSettledEvent> tradeSettledKafkaTemplate;
 
-  // 정산됨 발행. 브로커 확인을 5초까지 기다리고, 받지 못하면 EVENT_PUBLISH_FAILED
+  // 정산됨 발행(브로커 확인 5초 대기, 못 받으면 EVENT_PUBLISH_FAILED)
   public void publish(TradeCompletedEvent trade) {
     TradeSettledEvent event = TradeSettledEvent.builder()
       .userId(trade.getUserId())

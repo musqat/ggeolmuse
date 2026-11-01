@@ -4,7 +4,7 @@ import { test, expect } from '@playwright/test';
 // devices[...] 는 describe 안에서 쓰면 워커를 새로 띄워 안 씀
 const MOBILE = { width: 390, height: 844 };
 
-/** 가로 스크롤이 생기면 화면이 넘친 것이다. */
+/** 가로 스크롤이 생기면 화면이 넘친 것 */
 async function overflowsHorizontally(page: import('@playwright/test').Page) {
   return page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
 }
@@ -23,7 +23,7 @@ test.describe('모바일 폭', () => {
     await page.goto('/charts');
     await page.waitForLoadState('networkidle');
 
-    // 좁은 폭에서 패널이 보이면 캔들 영역을 밀어낸다.
+    // 좁은 폭에서 패널이 보이면 캔들 영역을 밀어냄
     await expect(page.getByTestId('chart-indicator-panel')).toBeHidden();
   });
 
@@ -31,7 +31,7 @@ test.describe('모바일 폭', () => {
     await page.goto('/charts');
     await page.waitForLoadState('networkidle');
 
-    // 옆 패널 대신 차트 위 버튼이 있다.
+    // 옆 패널 대신 차트 위 버튼
     await page.getByTestId('chart-indicator-button').click();
     const sheet = page.getByRole('dialog', { name: '지표 설정' });
     await expect(sheet).toBeVisible();

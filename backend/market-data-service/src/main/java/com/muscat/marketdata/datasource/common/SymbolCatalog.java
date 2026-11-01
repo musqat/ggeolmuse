@@ -12,16 +12,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-// 상장 종목 목록의 유일한 출처(AlphaVantage LISTING_STATUS). 시세 공급원과 상관없이 목록은 여기서만 받음
+// 상장 종목 목록의 유일한 출처 AlphaVantage LISTING_STATUS(시세 공급원과 상관없이 목록은 여기서만)
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class SymbolCatalog {
 
-  // 티커에 쓰는 글자. CAPTW(EXP20260807) 처럼 만기 표기가 붙은 줄은 야후에서도 404 다
+  // 티커에 쓰는 글자(CAPTW(EXP20260807) 처럼 만기 표기가 붙은 줄은 야후에서도 404)
   private static final Pattern TICKER = Pattern.compile("[A-Za-z0-9.^/-]+");
 
-  // 거래소 시험 종목. 이름이 빈 줄이 많아 기호로 거름. ETF 인 TEST 는 앞 글자가 없어 안 걸림
+  // 거래소 시험 종목(이름이 빈 줄이 많아 기호로 거름, ETF 인 TEST 는 앞 글자가 없어 안 걸림)
   private static final Pattern TEST_ISSUE_SYMBOL = Pattern.compile("[A-Z]TEST(-[A-Z])?|ZTST|Z[A-Z]ZZT");
 
   // 기호가 평범한 시험 종목(CBO · CBX · IGZ · ZVV · ZBZX)은 이름으로 거름
@@ -30,23 +30,23 @@ public class SymbolCatalog {
   private final ListingStatusSource listingSource;
   private final BundledSymbolSource bundledSource;
 
-  // 목록 API 가 비어 있을 때 이미지에 든 CSV 로 대체할지. 로컬·E2E 에서만 켠다
+  // 목록 API 가 비어 있을 때 이미지에 든 CSV 로 대체할지(로컬 · E2E 에서만 켬)
   @Value("${marketdata.symbol-listing.csv-fallback:false}")
   private boolean csvFallback;
 
-  // 보통주가 아닌 종목(워런트 · 유닛 · 우선주 · 채권)을 거를 이름 패턴. 티커 접미사(W, WS)는 LOW · GLW 도 잡아 안 씀
-  // " units" 앞 공백은 United 를 피하려는 것. 지우지 말 것
+  // 보통주가 아닌 종목(워런트 · 유닛 · 우선주 · 채권)을 거를 이름 패턴(티커 접미사 W · WS 는 LOW · GLW 도 잡아 안 씀)
+  // " units" 앞 공백은 United 제외용(지우면 United 도 걸림)
   public static final String DEFAULT_EXCLUDE_NAME_PATTERNS = "warrant, units,rights,preferred,depositary,notes due";
 
   @Value("${marketdata.symbol-loader.exclude-name-patterns:" + DEFAULT_EXCLUDE_NAME_PATTERNS + "}")
   private String excludeNamePatterns;
 
-  // asset.symbol 칸 길이. 넘는 심볼은 INSERT 가 실패한다
+  // asset.symbol 칸 길이(넘는 심볼은 INSERT 실패)
   @Value("${marketdata.constants.database.symbol-max-length:16}")
   private int symbolMaxLength;
 
   // 중복 · 저장 못 할 심볼 · 시험 종목 · 보통주 아닌 것을 거름
-  // 실패하면 빈 목록. 일부만 받으면 나머지가 상장폐지처럼 보임
+  // 실패하면 빈 목록(일부만 받으면 나머지가 상장폐지처럼 보임)
   public List<Asset> fetchAll() {
     List<Asset> fetched;
 
@@ -130,7 +130,7 @@ public class SymbolCatalog {
     return kept;
   }
 
-  // 보통주가 아닌 종목 제외. ETF 는 남김(만료 없이 주식처럼 거래)
+  // 보통주가 아닌 종목 제외(ETF 는 남김, 만료 없이 주식처럼 거래)
   List<Asset> excludeNonCommonStock(List<Asset> assets) {
     List<Asset> kept = excludeByNamePatterns(assets, excludeNamePatterns);
 
@@ -160,7 +160,7 @@ public class SymbolCatalog {
         .filter(a -> {
           String name = a.getName();
           if (name == null) {
-            return true;   // 이름이 없으면 판단할 근거가 없어 남긴다
+            return true;   // 이름이 없으면 판단 근거가 없어 남김
           }
           String lower = name.toLowerCase();
           return patterns.stream().noneMatch(lower::contains);

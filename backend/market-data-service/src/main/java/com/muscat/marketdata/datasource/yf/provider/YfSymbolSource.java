@@ -10,7 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-// Yahoo Finance 기반 종목 정보 제공자. 최근 차트 meta 로 종목 정보를 읽음
+// Yahoo Finance 기반 종목 정보 제공자(최근 차트 meta 로 읽음)
 @Slf4j
 @Component
 @ConditionalOnProperty(

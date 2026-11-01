@@ -27,7 +27,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
-// 가입 · 이메일 인증 · 비밀번호 재설정은 토큰 없이 부르는 경로라 토큰 없이 친다
+// 가입 · 이메일 인증 · 비밀번호 재설정은 토큰 없이 부르는 경로
 @WebMvcTest(AuthController.class)
 @ContextConfiguration(classes = {AuthController.class, GlobalExceptionHandler.class, SecurityConfig.class})
 @ActiveProfiles("test")

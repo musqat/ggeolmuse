@@ -48,7 +48,7 @@ describe('getTodayString', () => {
   })
 
   it('한국 자정~오전 9시 사이에도 오늘 날짜를 준다', () => {
-    // UTC 로 찍으면 8/12 가 나오는 구간. 로컬 기준인지 확인
+    // UTC 로 찍으면 8/12 가 나오는 구간(로컬 기준인지 확인)
     vi.setSystemTime(new Date('2026-08-12T15:30:00Z')) // 한국 8/13 00:30
     expect(getTodayString()).toBe('2026-08-13')
   })
@@ -89,7 +89,7 @@ describe('getDateRangeForTimeframe', () => {
   })
 
   it('한국 새벽에도 시작일과 종료일이 같은 기준을 쓴다', () => {
-    // 한쪽만 UTC 면 하루 어긋난다
+    // 한쪽만 UTC 면 하루 어긋남
     vi.setSystemTime(new Date('2026-08-12T15:30:00Z')) // 한국 8/13 00:30
     expect(getDateRangeForTimeframe('1주')).toEqual({
       startDate: '2026-08-06',

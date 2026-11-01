@@ -35,7 +35,7 @@ public class TradeEventConsumer {
                 event.getTotalAmount(), partition, offset);
 
         try {
-            // 같은 체결은 한 번만 반영한다
+            // 같은 체결은 한 번만 반영
             tradeSettlementService.settle(event);
 
             // 수동 커밋 (처리 성공시에만)

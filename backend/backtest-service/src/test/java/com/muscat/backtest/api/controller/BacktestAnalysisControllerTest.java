@@ -42,7 +42,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
-// BacktestApplication 의 @ComponentScan 이 슬라이스 필터를 덮어써서 띄울 클래스를 직접 고른다. 보안은 실제 설정을 쓴다
+// 띄울 클래스를 직접 고름(BacktestApplication 의 @ComponentScan 이 슬라이스 필터를 덮어씀, 보안은 실제 설정)
 @WebMvcTest(BacktestAnalysisController.class)
 @ContextConfiguration(classes = {BacktestAnalysisController.class, GlobalExceptionHandler.class, SecurityConfig.class,
   BacktestMetrics.class, SimpleMeterRegistry.class})

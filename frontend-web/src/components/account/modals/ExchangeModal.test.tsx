@@ -23,7 +23,7 @@ function renderModal() {
   return onSubmit
 }
 
-// 금액을 넣고 수동 환율을 켜서 값을 넣는다
+// 금액 입력 · 수동 환율 켜고 값 입력
 async function typeManualRate(rate: string) {
   await userEvent.type(screen.getByPlaceholderText('환전할 KRW 금액'), '100000')
   await userEvent.click(screen.getByLabelText('수동 환율 입력'))

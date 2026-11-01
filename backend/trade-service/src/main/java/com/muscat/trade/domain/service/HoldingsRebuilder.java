@@ -14,7 +14,7 @@ import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-// 완료된 체결을 반영 순서대로 다시 쌓아 한 종목 보유를 덮어쓴다
+// 완료된 체결을 반영 순서대로 다시 쌓아 한 종목 보유를 덮어씀
 @Slf4j
 @Component
 public class HoldingsRebuilder {
@@ -31,12 +31,12 @@ public class HoldingsRebuilder {
     this.holdingsRepository = holdingsRepository;
     this.tradeProperties = tradeProperties;
     this.tradeLogger = tradeLogger;
-    // 시작 때 0 으로 등록. 첫 증가 때 생긴 시계열은 increase 가 첫 값을 못 센다
+    // 시작 때 0 으로 등록(첫 증가 때 생긴 시계열은 increase 가 첫 값을 못 셈)
     this.uncoveredSells = Counter.builder("trade.cancel.review").tag("reason", "uncovered_sell")
       .register(meterRegistry);
   }
 
-  // 보유 행을 잠가 같은 종목 주문과 차례를 맞춘다. 보유보다 많은 매도는 보유를 비우고 이어 쌓는다
+  // 보유 행 잠금으로 같은 종목 주문과 차례 맞춤(보유보다 많은 매도는 보유를 비우고 이어 쌓음)
   public void rebuild(String userId, Long accountId, String symbol) {
     rebuild(userId, accountId, symbol, true);
   }

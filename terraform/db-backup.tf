@@ -38,8 +38,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "db_backup" {
   }
 }
 
-# 덤프는 월 1회라 보존 일수가 곧 보관 세대 수다. 400일이면 13개쯤 남는다.
-# 실패해서 반쯤 올라간 멀티파트 조각은 하루 뒤 치운다.
+# 보존 400일(월 1회 덤프라 13개쯤), 실패한 멀티파트 조각은 하루 뒤 정리
 resource "aws_s3_bucket_lifecycle_configuration" "db_backup" {
   bucket = aws_s3_bucket.db_backup.id
 
@@ -59,8 +58,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "db_backup" {
   }
 }
 
-# 쓰기만 준다. 읽기와 삭제는 노트북의 자격증명으로 한다.
-# 파드가 털려도 기존 덤프를 지우거나 읽어갈 수는 없다.
+# 쓰기만(읽기 · 삭제는 노트북 자격증명, 파드 권한을 뺏겨도 기존 덤프는 못 읽고 못 지움)
 resource "aws_iam_role_policy" "db_backup_write" {
   name = "${var.project_name}-db-backup-write"
   role = data.aws_iam_instance_profile.ggeolmuse.role_name

@@ -1,4 +1,4 @@
-"""종목 대화 API. 요청마다 로그 한 줄을 남긴다"""
+"""종목 대화 API(요청마다 로그 한 줄)"""
 from __future__ import annotations
 
 import hashlib
@@ -18,7 +18,7 @@ router = APIRouter()
 
 
 def fingerprint(user_id: str) -> str:
-    """로그용 사용자 지문. sub 의 SHA-256 앞 12자리"""
+    """로그용 사용자 지문(sub 의 SHA-256 앞 12자리)"""
     return hashlib.sha256(user_id.encode()).hexdigest()[:12]
 
 

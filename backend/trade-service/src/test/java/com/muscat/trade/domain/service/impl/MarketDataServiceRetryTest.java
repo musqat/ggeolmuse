@@ -30,7 +30,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
-// 거래 가격 조회를 실제 래퍼와 함께 봄. 재시도 예외 목록은 설정 리포의 marketService 와 같게
+// 거래 가격 조회를 실제 래퍼와 함께(재시도 예외 목록은 설정 리포의 marketService 와 같게)
 @SpringBootTest(classes = {MarketDataServiceImpl.class, MarketServiceClientWrapper.class}, properties = {
   "resilience4j.retry.instances.marketService.maxAttempts=3",
   "resilience4j.retry.instances.marketService.waitDuration=10ms",

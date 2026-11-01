@@ -352,7 +352,7 @@ class UserServiceImplTest {
     @DisplayName("비밀번호가 맞아도 이메일 미인증이면 로그인할 수 없다")
     void login_EmailNotVerified_ThrowsException() {
       // given: 미인증 사용자 + 올바른 비밀번호
-      // 비밀번호 검증이 인증 체크보다 먼저 돈다. 통과한 사람에게만 미인증 안내를 준다.
+      // 비밀번호 확인 뒤 미인증 안내
       testUser.setPasswordHash("$2a$10$encodedPassword");
       testUser.setEmailVerified(false);
       given(userRepository.findByEmail(testEmail)).willReturn(Optional.of(testUser));
@@ -376,7 +376,7 @@ class UserServiceImplTest {
       given(userRepository.findByEmail(testEmail)).willReturn(Optional.of(testUser));
       given(passwordEncoder.matches("wrongPassword", testUser.getPasswordHash())).willReturn(false);
 
-      // when & then: 없는 계정과 같은 INVALID_CREDENTIALS 로 응답해 열거를 막는다
+      // when & then: 없는 계정과 같은 INVALID_CREDENTIALS(계정 열거 방지)
       assertThatThrownBy(() ->
         userService.login(testEmail, "wrongPassword")
       ).isInstanceOf(UserException.class)

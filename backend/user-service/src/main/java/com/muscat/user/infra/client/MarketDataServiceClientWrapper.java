@@ -8,7 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-// Resilience4j 패턴 적용 Wrapper(서킷브레이커 · 재시도). 대체 동작은 재시도가 다 실패한 뒤
+// Resilience4j 서킷브레이커 · 재시도 Wrapper(대체 동작은 재시도가 다 실패한 뒤)
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -30,7 +30,7 @@ public class MarketDataServiceClientWrapper {
     return marketDataServiceClient.getFxRateRange();
   }
 
-  // 범위를 못 받으면 null. 쓰는 쪽이 설정의 대체 범위로 검사한다
+  // 범위를 못 받으면 null(쓰는 쪽이 설정의 대체 범위로 검사)
   private FxRateRangeDto getFxRateRangeFallback(Exception ex) {
     log.warn("Fallback triggered for getFxRateRange. Error: {}", ex.getMessage());
     return null;

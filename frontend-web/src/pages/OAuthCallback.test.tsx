@@ -10,7 +10,7 @@ vi.mock('../services/api', () => ({ authApi: { exchangeGoogleCode: vi.fn() } }))
 
 const exchange = vi.mocked(authApi.exchangeGoogleCode)
 
-// 콜백 주소(?code · state)로 열고 그린다
+// 콜백 주소(?code · state)로 열고 그림
 function openCallback(search: string) {
   window.history.pushState({}, '', `/oauth/callback${search}`)
   return render(

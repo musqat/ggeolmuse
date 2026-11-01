@@ -52,7 +52,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class AccountServiceImpl implements AccountService {
 
-  // 잔액 부족 오류 코드. MoneyUtils(ServiceException) 와 AccountResponse(AccountException) 가 같은 이름을 쓴다
+  // 잔액 부족 오류 코드(MoneyUtils 의 ServiceException 과 AccountResponse 의 AccountException 이 같은 이름)
   private static final String INSUFFICIENT_BALANCE_CODE = "INSUFFICIENT_BALANCE";
 
   private final AccountRepository accountRepository;
@@ -77,8 +77,7 @@ public class AccountServiceImpl implements AccountService {
   @Value("${app.exchange-rate.fallback-rate:1350}")
   private BigDecimal fallbackRate;
 
-  // 환전에 쓸 수 있는 환율은 저장된 환율의 (최저 − 이 비율) ~ (최고 + 이 비율). 사용자가 환율을 직접 넣을 수 있어
-  // 1원 같은 값으로 잔고를 늘리지 못하게 막는다. 범위가 데이터를 따라가 실제 환율이 새 기록을 내도 정상 환전은 막히지 않는다
+  // 환전 허용 환율은 저장된 환율의 (최저 − 이 비율) ~ (최고 + 이 비율)(직접 넣은 1원 같은 환율 차단, 범위가 데이터를 따라가 새 기록 환율도 통과)
   @Value("${app.exchange-rate.exchange-tolerance:0.05}")
   private BigDecimal exchangeTolerance;
 
@@ -181,7 +180,7 @@ public class AccountServiceImpl implements AccountService {
 
     exchangeRate = MoneyUtils.roundExchangeRate(exchangeRate);
 
-    // 잔액 검사는 MoneyUtils 의 ServiceException 으로 온다. 메시지가 아니라 오류 코드로 본다
+    // 잔액 검사의 ServiceException(MoneyUtils)은 메시지가 아니라 오류 코드로 구분
     try {
       accountCalculator.validateExchangeRequest(account, krwAmount, "KRW");
     } catch (BaseException e) {
@@ -371,7 +370,7 @@ public class AccountServiceImpl implements AccountService {
       accountId, validatedAmount, newBalance);
   }
 
-  // 현재 USD/KRW 환율. 못 받거나 정상 범위 밖이면 환율 서비스 오류
+  // 현재 USD/KRW 환율(못 받거나 정상 범위 밖이면 환율 서비스 오류)
   @Override
   public BigDecimal getCurrentExchangeRate() {
     BigDecimal rate = latestValidRate();
@@ -392,7 +391,7 @@ public class AccountServiceImpl implements AccountService {
     return MoneyUtils.roundExchangeRate(fallbackRate);
   }
 
-  // market-data 의 최신 환율. 못 받거나 정상 범위 밖이면 null
+  // market-data 의 최신 환율(못 받거나 정상 범위 밖이면 null)
   private BigDecimal latestValidRate() {
     try {
       FxRateDto response = marketDataServiceClientWrapper.getLatestFxRate();
@@ -415,7 +414,7 @@ public class AccountServiceImpl implements AccountService {
     return null;
   }
 
-  // 범위는 정수로 둔다. 최저는 내리고 최고는 올려 ±허용 비율보다 좁아지지 않게 한다
+  // 정수 범위(최저는 내리고 최고는 올려 ±허용 비율보다 좁아지지 않게)
   @Override
   public ExchangeRateRangeDto getExchangeRateRange() {
     BigDecimal low = exchangeFallbackMin;
@@ -442,7 +441,7 @@ public class AccountServiceImpl implements AccountService {
     // 1. 사용자 ID 조회
     Long userId = resolveUserId(event.getUserId());
 
-    // 2. 거래한 계좌. 소유자 확인은 updateUsdBalance 가 한다
+    // 2. 거래한 계좌(소유자 확인은 updateUsdBalance)
     Long accountId = resolveTradeAccountId(event.getAccountId(), userId, event.getTradeId());
 
     // 3. 거래 타입에 따라 잔액 변경 금액 계산
@@ -483,7 +482,7 @@ public class AccountServiceImpl implements AccountService {
     }
   }
 
-  // 거래가 일어난 계좌 ID. 계좌 ID 를 싣기 전에 나간 이벤트는 사용자의 첫 번째 계좌로 처리한다
+  // 거래가 일어난 계좌 ID(계좌 ID 를 싣기 전에 나간 이벤트는 사용자의 첫 번째 계좌)
   private Long resolveTradeAccountId(Long eventAccountId, Long userId, Long tradeId) {
     if (eventAccountId != null) {
       return eventAccountId;
@@ -548,7 +547,7 @@ public class AccountServiceImpl implements AccountService {
     return account;
   }
 
-  // 환전 환율이 허용 범위 안인지 본다
+  // 환전 환율의 허용 범위 검사
   private void validateExchangeRate(BigDecimal exchangeRate) {
     ExchangeRateRangeDto range = getExchangeRateRange();
     if (exchangeRate == null || exchangeRate.compareTo(range.min()) < 0 || exchangeRate.compareTo(range.max()) > 0) {

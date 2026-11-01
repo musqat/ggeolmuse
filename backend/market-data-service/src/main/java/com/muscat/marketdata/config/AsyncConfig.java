@@ -13,7 +13,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 @EnableAsync
 public class AsyncConfig implements AsyncConfigurer {
 
-  // DB 커넥션 풀(20)보다 작게 둔다. 스레드가 커넥션을 다 쥐면 새 커넥션을 못 만든다
+  // DB 커넥션 풀(20)보다 작게(스레드가 커넥션을 다 쥐면 새 커넥션을 못 만듦)
   @Value("${marketdata.async.pool-size:6}")
   private int poolSize;
 
@@ -22,7 +22,7 @@ public class AsyncConfig implements AsyncConfigurer {
     ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
     executor.setCorePoolSize(poolSize);
     executor.setMaxPoolSize(poolSize);
-    executor.setQueueCapacity(30000);  // 대기 큐. 전 종목 재수집이 겹쳐도 넘치지 않게
+    executor.setQueueCapacity(30000);  // 대기 큐(전 종목 재수집이 겹쳐도 넘치지 않게)
     executor.setThreadNamePrefix("market-data-async-");
     executor.setWaitForTasksToCompleteOnShutdown(true);
     executor.setAwaitTerminationSeconds(60);

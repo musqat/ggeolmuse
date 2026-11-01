@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 
-// 테스트에서 recharts 대신 쓴다. jsdom 은 크기가 0 이라 차트가 안 그려지므로,
-// 차트에 넘긴 데이터 · 선 · 마커 · Y축 범위를 data 속성으로 남긴다. readCharts 로 읽는다
+// 테스트용 recharts 대역(jsdom 은 크기가 0 이라 안 그려지는 차트의 데이터 · 선 · 마커 · Y축 범위를 data 속성으로, readCharts 로 읽음)
 interface ChildrenProps {
   children?: ReactNode;
 }

@@ -22,7 +22,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
-// 종목마다 최대 3번 재시도, 실패한 종목은 세고 넘어감. 대기 시간은 0
+// 종목마다 최대 3번 재시도, 실패한 종목은 세고 넘어감(대기 시간 0)
 @DisplayName("캔들 일괄 수집")
 class CandleBatchServiceTest {
 

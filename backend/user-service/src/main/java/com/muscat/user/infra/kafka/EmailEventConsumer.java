@@ -19,7 +19,7 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
 /**
- * 이메일 발송 이벤트를 Kafka에서 소비하는 Consumer EmailSendEvent를 소비하여 이메일을 발송합니다.
+ * EmailSendEvent 를 받아 이메일을 보내는 Kafka 컨슈머
  */
 @Slf4j
 @Component

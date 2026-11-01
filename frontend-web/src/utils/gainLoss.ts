@@ -31,7 +31,7 @@ export const formatKrw = (value: number) => `₩${value.toLocaleString()}`;
 
 export const formatUsd = (value: number) => `$${value.toFixed(2)}`;
 
-// 부호는 통화 기호 앞(-$12.30). 반올림해 0 이면 부호 없음
+// 부호는 통화 기호 앞(-$12.30, 반올림해 0 이면 부호 없음)
 export const formatBalanceAmount = (amount: number, currency: "KRW" | "USD") => {
   const digits = currency === "USD" ? 2 : 0;
   const formatted = Math.abs(amount).toLocaleString(undefined, {

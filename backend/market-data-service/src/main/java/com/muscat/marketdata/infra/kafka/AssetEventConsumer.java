@@ -38,15 +38,14 @@ public class AssetEventConsumer {
                 return;
             }
 
-            // 수집이 끝난 뒤에 ACK 한다. 먼저 커밋하면 파드가 내려갈 때
-            // 아직 안 받은 종목의 오프셋까지 넘어가 그 이벤트가 다시 오지 않는다
+            // 수집이 끝난 뒤에 ACK(먼저 커밋하면 파드가 내려갈 때 안 받은 종목의 오프셋까지 넘어가 그 이벤트가 다시 안 옴)
             dataCollectionService.collect(event);
 
             acknowledgment.acknowledge();
             log.debug("수집 완료 후 ACK: symbol={}", event.getSymbol());
 
         } catch (Exception e) {
-            // ACK 하지 않는다. 에러 핸들러가 재시도하고 남으면 .DLT 로 보낸다
+            // ACK 안 함(에러 핸들러가 재시도하고 남으면 .DLT 로)
             log.warn("종목 생성 이벤트 처리 실패: symbol={}, error={}",
                     event.getSymbol(), e.getMessage());
             throw e;

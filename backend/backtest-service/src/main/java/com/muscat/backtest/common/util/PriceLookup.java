@@ -21,7 +21,7 @@ public final class PriceLookup {
   private PriceLookup() {}
 
   /**
-   * 가격 계산용 유효 종가. 분할만 조정된 closePrice 우선. 배당은 따로 재투자한다
+   * 가격 계산용 유효 종가(분할만 조정된 closePrice 우선, 배당은 따로 재투자)
    */
   public static java.math.BigDecimal effectiveClose(OHLCPriceDto price) {
     return price.closePrice() != null ? price.closePrice() : price.adjustedClose();
@@ -50,7 +50,7 @@ public final class PriceLookup {
           return response;
         }
       } catch (FeignException.FeignClientException e) {
-        // 4xx 는 시세 서비스가 답한 것. 그날 쓸 데이터가 없다
+        // 4xx 는 시세 서비스의 답(그날 쓸 데이터 없음)
         answered = true;
       } catch (Exception e) {
         // 조회 실패 → 하루 전으로 계속

@@ -8,7 +8,7 @@ export type BacktestMode =
   | "compare-strategies"
   | "history";
 
-// 저장 시각. 올해면 6.4, 다른 해면 2025.6.4
+// 저장 시각(올해면 6.4, 다른 해면 2025.6.4)
 export const formatSavedDate = (iso: string) => {
   const d = new Date(iso);
   const monthDay = `${d.getMonth() + 1}.${d.getDate()}`;

@@ -38,12 +38,12 @@ public final class MarketDataProvider {
     List<Asset> fetchSymbols();
   }
 
-  // 종목 하나의 상세(미리보기 · 등록). AlphaVantage 는 OVERVIEW, Yahoo 는 chart meta
+  // 종목 하나의 상세(미리보기 · 등록, AlphaVantage 는 OVERVIEW, Yahoo 는 chart meta)
   public interface AssetInfoSource {
     Asset getAsset(String symbol);
   }
 
-  // 시가총액. AlphaVantage 는 종목마다 OVERVIEW, Yahoo 는 NASDAQ Screener 로 한꺼번에
+  // 시가총액(AlphaVantage 는 종목마다 OVERVIEW, Yahoo 는 NASDAQ Screener 로 한꺼번에)
   public interface MarketCapSource {
     int updateAllMarketCaps(List<Asset> assets);
     boolean updateMarketCap(String symbol);

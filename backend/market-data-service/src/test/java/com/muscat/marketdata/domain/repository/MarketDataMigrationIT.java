@@ -28,8 +28,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-// 다른 테스트는 H2 에 create-drop 으로 떠 마이그레이션을 거치지 않는다. 여기서만 운영과 같이 Postgres 에
-// Flyway 로 테이블을 만들고 엔티티가 테이블과 맞는지(validate) 본다. 마이그레이션 없이 엔티티만 바꾸면 여기서 걸린다
+// 운영과 같은 Postgres 에 Flyway 로 만든 테이블과 엔티티 대조(다른 테스트는 H2 create-drop 이라 마이그레이션을 안 거침)
 @SpringBootTest(properties = {
   "spring.flyway.enabled=true",
   "spring.jpa.hibernate.ddl-auto=validate",

@@ -19,7 +19,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-// 야후 응답을 받아 파서로 넘기는 provider 셋. 실패는 모두 빈 값(또는 null)으로 넘겨 수집 루프가 다음 종목으로 간다
+// 야후 응답을 받아 파서로 넘기는 provider 셋(실패는 모두 빈 값 또는 null, 수집 루프는 다음 종목으로)
 @DisplayName("야후 provider")
 class YahooSourcesTest {
 

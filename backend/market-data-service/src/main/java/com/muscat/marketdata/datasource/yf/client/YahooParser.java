@@ -122,7 +122,7 @@ public class YahooParser {
     );
   }
 
-  // events.splits 를 분할일별 계수(numerator ÷ denominator)로 바꾼다. 날짜는 가격 데이터와 같이 UTC
+  // events.splits → 분할일별 계수(numerator ÷ denominator, 날짜는 가격 데이터와 같이 UTC)
   private Map<LocalDate, BigDecimal> extractSplits(JsonNode chartResult) {
     JsonNode splits = chartResult.path("events").path("splits");
     if (!splits.isObject()) {
@@ -248,8 +248,7 @@ public class YahooParser {
 
   private DividendDto createDividendDto(JsonNode event, String eventKey, String symbol,
     LocalDate fromDate, LocalDate toDate) {
-    // 삼항 양쪽 타입을 Long 으로 맞춘다. long 과 섞이면 Long 쪽이 언박싱돼
-    // parseLongSafely 가 null 일 때 아래 체크 전에 NPE 가 난다.
+    // 삼항 양쪽 Long(long 과 섞이면 언박싱돼 null 일 때 NPE)
     Long timestamp = event.hasNonNull("date")
       ? Long.valueOf(event.get("date").asLong())
       : parseLongSafely(eventKey);
@@ -280,7 +279,7 @@ public class YahooParser {
       .build();
   }
 
-  // 미리보기용 자산 정보를 chart API meta 에서 꺼냄. quote API(/v7)는 401
+  // 미리보기용 자산 정보를 chart API meta 에서 꺼냄(quote API /v7 은 401)
   public Asset parseAssetInfoFromChart(String rawJson, String symbol) {
     if (rawJson == null || rawJson.isBlank()) {
       return null;

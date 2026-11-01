@@ -46,8 +46,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.kafka.ConfluentKafkaContainer;
 
-// test 프로필의 H2 설정 대신 운영처럼 Flyway 로 테이블을 만들고 엔티티가 맞는지 검사한다.
-// 레포지토리 테스트가 같은 프로필을 H2 로 쓰고 있어 여기서만 덮어쓴다
+// 운영처럼 Flyway 로 만든 테이블과 엔티티 대조(test 프로필의 H2 를 여기서만 덮어씀)
 @SpringBootTest(properties = {
   "spring.jpa.hibernate.ddl-auto=validate",
   "spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect"
@@ -57,7 +56,7 @@ import org.testcontainers.kafka.ConfluentKafkaContainer;
 @DisplayName("TradingService 통합 테스트 (TestContainers)")
 class TradingServiceIT {
 
-  // 운영 RDS 와 같은 Postgres 15. 마이그레이션이 여기서 돈다
+  // 운영 RDS 와 같은 Postgres 15(마이그레이션 실행)
   @Container
   @ServiceConnection
   static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15-alpine");
@@ -65,7 +64,7 @@ class TradingServiceIT {
   @Container
   static ConfluentKafkaContainer kafka = new ConfluentKafkaContainer("confluentinc/cp-kafka:7.6.0");
 
-  // 앱의 Kafka 설정이 이 값을 직접 읽어 ServiceConnection 대신 프로퍼티로 넣는다
+  // ServiceConnection 대신 프로퍼티(앱의 Kafka 설정이 이 값을 직접 읽음)
   @DynamicPropertySource
   static void kafkaProperties(DynamicPropertyRegistry registry) {
     registry.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);

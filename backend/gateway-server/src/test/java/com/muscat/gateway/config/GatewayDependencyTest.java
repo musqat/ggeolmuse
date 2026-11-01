@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.util.ClassUtils;
 
-// 게이트웨이 의존성. 설정 키는 새 이름으로만 읽음
+// 게이트웨이 의존성(설정 키는 새 이름으로만 읽음)
 class GatewayDependencyTest {
 
   @Test

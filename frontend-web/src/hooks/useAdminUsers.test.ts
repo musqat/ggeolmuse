@@ -19,7 +19,7 @@ vi.mock('@services/adminApi', () => ({
 }))
 
 const api = vi.mocked(userAdminApi)
-// 표에서 고른 API 하나. 반환 타입이 제각각이라 묶으면 부를 수 없어 Mock 으로 본다
+// 표에서 고른 API 하나(반환 타입이 제각각이라 묶으면 부를 수 없어 Mock 으로)
 const mockOf = (method: keyof typeof api) => api[method] as unknown as Mock
 const user = (userId: number) => ({ userId, email: `u${userId}@example.local` }) as never
 const STATS = { totalUsers: 3, activeUsers: 2, inactiveUsers: 1, adminUsers: 1 }

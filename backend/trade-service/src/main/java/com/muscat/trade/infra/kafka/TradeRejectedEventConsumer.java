@@ -11,7 +11,7 @@ import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
-// user.trade.rejected 의 체결을 취소한다. 실패하면 예외를 던져 재시도 → DLT
+// user.trade.rejected 의 체결 취소(실패하면 예외를 던져 재시도 → DLT)
 @Slf4j
 @Component
 @RequiredArgsConstructor

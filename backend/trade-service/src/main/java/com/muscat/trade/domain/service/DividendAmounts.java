@@ -4,7 +4,7 @@ import com.muscat.commonlib.constants.CommonConstants;
 import com.muscat.trade.common.constants.TradeConstants;
 import java.math.BigDecimal;
 
-// 배당 한 건의 금액. 세전 · 세금은 센트에서 반올림, 세후는 그 차이
+// 배당 한 건의 금액(세전 · 세금은 센트에서 반올림, 세후는 그 차이)
 public record DividendAmounts(
   BigDecimal dividendPerShare,
   BigDecimal shares,

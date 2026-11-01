@@ -47,7 +47,7 @@ def test_too_few_bars_returns_none():
 
 
 def test_rsi_is_100_without_decline():
-    # 차트(klinecharts)는 이 경우 0 을 그린다
+    # 차트(klinecharts)는 이 경우 0
     assert rsi([float(c) for c in range(100, 120)]) == 100.0
 
 

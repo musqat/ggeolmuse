@@ -364,7 +364,7 @@ public class AuthController {
       try {
         userService.logout(refreshToken);
       } catch (KeycloakException e) {
-        // 세션 종료가 실패해도 쿠키는 지운다. 원인은 KeycloakServiceImpl 이 로그로 남긴다
+        // 세션 종료가 실패해도 쿠키 삭제(원인은 KeycloakServiceImpl 로그)
         log.error("로그아웃 중 Keycloak 세션 종료 실패: {}", e.getMessage());
       }
     }

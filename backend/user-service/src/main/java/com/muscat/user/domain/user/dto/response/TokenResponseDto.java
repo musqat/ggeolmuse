@@ -2,8 +2,7 @@ package com.muscat.user.domain.user.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
-// Keycloak 에서 받은 토큰(LoginResponseDto 에서 쓰는 값만). 서비스 안에서 쓰고, 컨트롤러가 refresh token 은 httpOnly 쿠키로 ·
-// access token 은 본문(AccessTokenResponseDto)으로 나눠 준다
+// Keycloak 에서 받은 토큰(서비스 안에서만, 컨트롤러가 refresh token 은 httpOnly 쿠키 · access token 은 본문으로 나눔)
 @Schema(description = "토큰")
 public record TokenResponseDto(
   @Schema(description = "액세스 토큰", example = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...")

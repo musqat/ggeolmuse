@@ -21,7 +21,7 @@ public class RateLimiterConfig {
     private final XForwardedRemoteAddressResolver xForwardedResolver =
         XForwardedRemoteAddressResolver.maxTrustedIndex(1);
 
-    /** Cloudflare 가 실 클라이언트 IP 로 덮어써 넣는 헤더. origin 이 Cloudflare 대역만 받는다는 전제 */
+    /** Cloudflare 가 실 클라이언트 IP 로 덮어써 넣는 헤더(origin 이 Cloudflare 대역만 받는다는 전제) */
     private static final String CF_CONNECTING_IP = "CF-Connecting-IP";
 
     /** IPv4 · IPv6 글자만으로 된 값 */
@@ -31,14 +31,14 @@ public class RateLimiterConfig {
     private static final String UNKNOWN_CLIENT = "unknown";
 
     // 실 클라이언트 IP 로 나눔(소켓 주소 · 프록시 뒤 마지막 홉이면 다같이 한 버킷)
-    // 키에 라우트 ID 를 붙임. IP 만 쓰면 상한 낮은 라우트가 다른 라우트의 토큰을 깎음
+    // 키에 라우트 ID 를 붙임(IP 만 쓰면 상한 낮은 라우트가 다른 라우트의 토큰을 깎음)
     @Bean
     @Primary
     public KeyResolver ipKeyResolver() {
         return exchange -> Mono.just(clientIp(exchange) + ":" + routeId(exchange));
     }
 
-    /** CF-Connecting-IP → XFF 마지막 홉 → 소켓 주소 순. 미해석 주소와 끊긴 커넥션에서 뒤의 둘은 null 이 된다. */
+    /** CF-Connecting-IP → XFF 마지막 홉 → 소켓 주소 순(미해석 주소와 끊긴 커넥션에서 뒤의 둘은 null) */
     private String clientIp(ServerWebExchange exchange) {
         String cloudflare = exchange.getRequest().getHeaders().getFirst(CF_CONNECTING_IP);
         if (cloudflare != null && IP_LITERAL.matcher(cloudflare.trim()).matches()) {

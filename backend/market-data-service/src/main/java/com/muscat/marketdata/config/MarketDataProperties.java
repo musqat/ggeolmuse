@@ -34,14 +34,14 @@ public class MarketDataProperties {
     private BigDecimal percentageMultiplier = new BigDecimal("100");
   }
 
-  // 배당수익률 이상치 기준(%). 한 번에 종가의 specialPaymentPercent 를 넘는 배당은 합에서 빼고, 수익률이 maxYieldPercent 를 넘으면 비움
+  // 배당수익률 이상치 기준(%, 한 번에 종가의 specialPaymentPercent 를 넘는 배당은 합에서 빼고 수익률이 maxYieldPercent 를 넘으면 비움)
   @Data
   public static class DividendYield {
     private BigDecimal specialPaymentPercent = new BigDecimal("20");
     private BigDecimal maxYieldPercent = new BigDecimal("50");
   }
 
-  // ETF 비활성 기준. 최근 volumeWindow 봉의 평균 거래량이 minAverageVolume 아래면 내림
+  // ETF 비활성 기준(최근 volumeWindow 봉의 평균 거래량이 minAverageVolume 아래면 내림)
   @Data
   public static class Etf {
     private int volumeWindow = 20;

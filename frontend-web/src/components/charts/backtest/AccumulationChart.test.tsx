@@ -6,7 +6,7 @@ import { AccumulationChart } from './AccumulationChart'
 import { stockApi } from '../../../services/api'
 import { readCharts } from '../../../test/readCharts'
 
-// 차트가 react-query 로 받으니 테스트마다 새 클라이언트로 감싼다
+// 테스트마다 새 react-query 클라이언트로 감쌈(차트가 react-query 로 받음)
 const renderWithQuery = (ui: ReactElement) =>
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{ui}</QueryClientProvider>)
 
@@ -21,7 +21,7 @@ const getExchangeRatesBulk = vi.mocked(stockApi.getExchangeRatesBulk)
 // 수정 종가는 배당만큼 낮게, 차트가 그리는 값은 종가
 const candle = (symbol: string, date: string, close: number) => ({ symbol, date, closePrice: close, adjustedClose: close - 1 })
 
-// 2026-03-01 은 일요일. 매수 마커는 다음 거래일 03-02 에 찍힌다
+// 2026-03-01 은 일요일(매수 마커는 다음 거래일 03-02)
 const transactions = [
   { date: '2026-03-01', actualDate: '2026-03-01', price: 100, shares: 1, amount: 140000, fxRate: 1400 },
   { date: '2026-03-04', price: 101, shares: 1, amount: 141000, fxRate: 1396 },
@@ -30,7 +30,7 @@ const transactions = [
 
 const props = { symbol: 'AAPL', transactions, currentValueKrw: 300000, totalInvested: 295900, startDate: '2026-03-01' }
 
-// 일반 매수는 보라, 배당 재투자는 녹색 점. 한 거래일에 한 번씩만 찍는다
+// 일반 매수는 보라, 배당 재투자는 녹색 점(한 거래일에 한 번씩만)
 describe('AccumulationChart', () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'] })
@@ -47,7 +47,7 @@ describe('AccumulationChart', () => {
         candle('MSFT', '2026-03-02', 400),
       ],
     } as never)
-    // 03-04 · 03-06 은 빠져 대체값을 쓴다
+    // 03-04 · 03-06 은 빠져 대체값
     getExchangeRatesBulk.mockResolvedValue({ data: { '2026-03-02': 1400, '2026-03-03': 1410, '2026-03-05': 1420 } } as never)
   })
 
@@ -223,7 +223,7 @@ describe('AccumulationChart', () => {
     expect(getOHLCData).toHaveBeenCalledWith('AAPL', '2026-03-01', '2026-03-06')
   })
 
-  // 03-07 은 토요일. 배당 재투자 점은 다음 거래일 03-09 에 찍힌다
+  // 03-07 은 토요일(배당 재투자 점은 다음 거래일 03-09)
   it('주말 배당 재투자도 다음 거래일에 녹색 점으로 찍는다', async () => {
     getOHLCData.mockResolvedValue({ data: [candle('AAPL', '2026-03-06', 100), candle('AAPL', '2026-03-09', 110)] } as never)
     const weekendDividend = [

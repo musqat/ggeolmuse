@@ -15,7 +15,7 @@ public class DividendYieldOrder {
 
   private final AssetRepository assetRepository;
 
-  // 유형 · 방향 · 기준일마다 상장 종목 전체의 티커 순서. 불변 목록은 Redis 값에서 다시 읽지 못해 ArrayList 로
+  // 유형 · 방향 · 기준일마다 상장 종목 전체의 티커 순서(불변 목록은 Redis 값에서 다시 읽지 못해 ArrayList)
   @Cacheable(cacheNames = "dividendYieldOrder", key = "#assetType + ':' + #ascending + ':' + #rule.from()")
   public List<String> symbols(String assetType, boolean ascending, DividendYieldRule rule) {
     return new ArrayList<>(assetRepository.findActiveSymbolsByDividendYield(ascending, assetType, rule));

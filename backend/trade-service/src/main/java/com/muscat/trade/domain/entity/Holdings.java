@@ -94,7 +94,7 @@ public class Holdings {
     this.totalInvestedAmount = this.totalInvestedAmount.subtract(soldAmount);
   }
 
-  // 다시 쌓은 값으로 수량 · 평균 매수가 · 투자금액을 바꾼다
+  // 다시 쌓은 값으로 수량 · 평균 매수가 · 투자금액 교체
   public void overwriteWith(Holdings rebuilt) {
     this.totalQuantity = rebuilt.totalQuantity;
     this.avgPurchasePrice = rebuilt.avgPurchasePrice;

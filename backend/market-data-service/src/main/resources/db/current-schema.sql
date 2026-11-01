@@ -1,8 +1,7 @@
 -- 참고용 스냅샷
--- 스키마를 바꾸는 것은 db/migration 뿐이다. 마이그레이션을 더할 때 이 파일도 같이 고친다.
+-- 스키마 변경은 db/migration 에서만(마이그레이션을 더할 때 이 파일도 같이 고침)
 --
--- V1 ~ V14 를 적용한 결과다. V10 · V11 · V13 · V14 는 데이터만 고친다. 운영 DB 한 곳만 다르다 — idx_asset_active 가
--- WHERE active = true 가 붙은 부분 인덱스다. 마이그레이션 이전에 만들어진 것이라 그대로 둔다.
+-- V1 ~ V14 적용 결과(V10 · V11 · V13 · V14 는 데이터만, 운영 DB 는 idx_asset_active 가 WHERE active = true 부분 인덱스인 것만 다름)
 
 -- ============================================================
 -- 테이블
@@ -23,7 +22,7 @@ CREATE TABLE asset (
     latest_date   DATE,
     -- 전 기간을 다시 받았을 때 받은 최신 봉 날짜 (V8)
     full_history_through DATE,
-    -- 상장 목록이 준 이름 (V12). 손으로 고친 이름과 구분
+    -- 상장 목록이 준 이름(V12, 손으로 고친 이름과 구분)
     source_name   VARCHAR(256)
 );
 
@@ -78,7 +77,7 @@ CREATE TABLE admin_job_run (
 CREATE INDEX idx_candle_symbol_date      ON candle(symbol, date);
 CREATE INDEX idx_candle_symbol_date_desc ON candle(symbol, date DESC);
 CREATE INDEX idx_candle_dividend_lookup  ON candle(symbol, date, dividend_amount);
--- Postgres 전용 (db/postgresql/V7). 분할 계수가 1 이 아닌 행만 담는다
+-- Postgres 전용(db/postgresql/V7, 분할 계수가 1 이 아닌 행만)
 CREATE INDEX idx_candle_split_date       ON candle(date) WHERE split_coefficient <> 1;
 
 -- asset
@@ -91,7 +90,7 @@ CREATE INDEX idx_asset_active_filters    ON asset(active, country, asset_type);
 CREATE INDEX idx_asset_market_cap        ON asset(market_cap DESC NULLS LAST);
 CREATE INDEX idx_asset_active_market_cap ON asset(active, market_cap DESC NULLS LAST);
 
--- dividend: symbol + ex_date 는 UNIQUE 제약이 인덱스를 겸한다. V3 에서 중복분을 지웠다
+-- dividend: symbol + ex_date 는 UNIQUE 제약이 인덱스를 겸함(중복분은 V3 에서 삭제)
 CREATE INDEX idx_dividend_ex_date        ON dividend(ex_date);
 
 -- fx_rate

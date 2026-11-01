@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { useAdminMarket } from '@hooks/useAdminMarket'
 import AdminMarket from './AdminMarket'
 
-// 훅과 하위 칸은 각자 테스트가 있다. 여기서는 화면이 둘을 잇는 것만 본다
+// 화면이 훅과 하위 칸을 잇는 것만(둘은 각자 테스트)
 vi.mock('@hooks/useAdminMarket', () => ({ useAdminMarket: vi.fn() }))
 vi.mock('@components/admin/CandleRefreshSection', () => ({ default: () => null }))
 vi.mock('@components/admin/FxCollectSection', () => ({ default: () => null }))

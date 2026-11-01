@@ -2,7 +2,7 @@ package com.muscat.marketdata.datasource.common;
 
 import java.util.regex.Pattern;
 
-// 종목 유형 판정. 출처가 주식이라 해도 이름이 펀드면 ETF
+// 종목 유형 판정(출처가 주식이라 해도 이름이 펀드면 ETF)
 public final class AssetTypeRule {
 
   // ETF 낱말 · exchange traded fund · money market. Netflix 처럼 낱말 안에 든 etf 는 안 봄

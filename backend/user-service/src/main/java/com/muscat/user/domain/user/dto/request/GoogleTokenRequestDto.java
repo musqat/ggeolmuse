@@ -3,7 +3,7 @@ package com.muscat.user.domain.user.dto.request;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 
-// 구글 로그인 콜백이 받은 인가 코드. 브라우저가 만든 PKCE code_verifier 와 같이 보낸다
+// 구글 로그인 콜백이 받은 인가 코드와 브라우저가 만든 PKCE code_verifier
 @Schema(description = "구글 로그인 인가 코드 교환 요청")
 public record GoogleTokenRequestDto(
   @Schema(description = "Keycloak 이 콜백으로 준 인가 코드", requiredMode = Schema.RequiredMode.REQUIRED)

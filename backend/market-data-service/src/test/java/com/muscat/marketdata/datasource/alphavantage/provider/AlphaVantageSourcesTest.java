@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
-// provider=alphavantage 일 때 쓰는 수집 소스. 응답 JSON 을 손으로 만들어 넣는다(AlphaVantage 는 최신 날짜가 먼저 온다)
+// provider=alphavantage 일 때 쓰는 수집 소스(응답 JSON 은 손으로 만듦, AlphaVantage 는 최신 날짜가 먼저)
 @DisplayName("AlphaVantage provider")
 class AlphaVantageSourcesTest {
 
@@ -69,7 +69,7 @@ class AlphaVantageSourcesTest {
 
       List<Candle> candles = source.fetchDailyAdjusted("AAPL", LocalDate.of(2024, 3, 1), LocalDate.of(2024, 3, 5));
 
-      // 3/6 은 기간 뒤, 3/4 는 숫자가 깨져 빠진다
+      // 3/6 은 기간 뒤, 3/4 는 숫자가 깨져 빠짐
       assertThat(candles).extracting(Candle::getDate).containsExactly(LocalDate.of(2024, 3, 5), LocalDate.of(2024, 3, 1));
       verify(limiter).waitIfNeeded();
     }

@@ -1,6 +1,6 @@
 import { Page, expect } from '@playwright/test';
 
-// DateField 팝오버에서 연 · 월로 달을 옮기고 날짜를 누름. 값은 날짜를 누를 때 정해짐
+// DateField 팝오버에서 연 · 월로 달을 옮기고 날짜를 누름(값은 날짜를 누를 때 정해짐)
 export async function pickDate(page: Page, testId: string, target: Date) {
   await page.getByTestId(testId).click();
 
@@ -14,6 +14,6 @@ export async function pickDate(page: Page, testId: string, target: Date) {
     .filter({ hasText: new RegExp(`^${target.getDate()}$`) })
     .click();
 
-  // 안 닫히면 값이 안 들어간 것이다.
+  // 안 닫히면 값이 안 들어간 것
   await expect(dialog, '날짜를 눌렀는데 달력이 그대로다').toBeHidden();
 }

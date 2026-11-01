@@ -5,7 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-// 종목 추가 요청. 이름 · 나라 · 통화 · 종류는 비워도 됨
+// 종목 추가 요청(이름 · 나라 · 통화 · 종류는 비워도 됨)
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

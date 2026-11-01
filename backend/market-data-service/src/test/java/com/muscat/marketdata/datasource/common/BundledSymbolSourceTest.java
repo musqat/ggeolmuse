@@ -9,7 +9,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * 이미지에 넣어 둔 CSV 목록. 외부 목록 API 가 막혔을 때 이 목록으로 버틴다.
+ * 이미지에 넣어 둔 CSV 목록(외부 목록 API 가 막혔을 때 대체)
  */
 @DisplayName("번들 CSV 종목 목록")
 class BundledSymbolSourceTest {

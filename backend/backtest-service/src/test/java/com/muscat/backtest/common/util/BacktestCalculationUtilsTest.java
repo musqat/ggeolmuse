@@ -672,7 +672,7 @@ class BacktestCalculationUtilsTest {
       return pay;
     }
 
-    // 권리락일 없음 · 기간 전 · 기간 뒤 · 금액 없음은 0 이고, 기간 안의 주당 1달러만 센다
+    // 권리락일 없음 · 기간 전 · 기간 뒤 · 금액 없음은 0, 기간 안의 주당 1달러만 셈
     private DividendHistoryDto mixed() {
       DividendHistoryDto history = new DividendHistoryDto();
       history.setDividends(List.of(pay(null, "5"), pay(LocalDate.of(2023, 12, 1), "5"), pay(LocalDate.of(2025, 1, 2), "5"),

@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.slf4j.Marker;
 
-// 거래 로그는 구조화 로거에 Map 으로 넘어가 JSON 으로 남는다. 키 이름이 바뀌면 로그 검색이 깨지니 여기서 고정한다
+// 구조화 로거에 Map 으로 넘긴 거래 로그의 JSON 키 이름 고정(바뀌면 로그 검색이 깨짐)
 @DisplayName("거래 구조화 로그")
 class TradeLoggerTest {
 

@@ -62,7 +62,7 @@ public class SimulationRequest {
   @Builder.Default
   private BigDecimal dividendTaxRate = BigDecimal.ZERO;  // 배당 원천징수 세율
 
-  // 평가일. 매도일이 없거나 오늘 이후면 오늘
+  // 평가일(매도일이 없거나 오늘 이후면 오늘)
   public LocalDate valuationDate(LocalDate today) {
     return saleDate != null && saleDate.isBefore(today) ? saleDate : today;
   }

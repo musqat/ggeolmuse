@@ -6,7 +6,7 @@ import { CompareSymbolsChart } from './CompareSymbolsChart'
 import { stockApi } from '../../../services/api'
 import { readCharts, readTooltips, readXAxes } from '../../../test/readCharts'
 
-// 차트가 react-query 로 받으니 테스트마다 새 클라이언트로 감싼다
+// 테스트마다 새 react-query 클라이언트로 감쌈(차트가 react-query 로 받음)
 const renderWithQuery = (ui: ReactElement) =>
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{ui}</QueryClientProvider>)
 
@@ -23,7 +23,7 @@ const candle = (symbol: string, date: string, close: number) => ({ symbol, date,
 
 const PRICES: Record<string, ReturnType<typeof candle>[]> = {
   AAPL: [candle('AAPL', '2026-03-02', 100), candle('AAPL', '2026-03-03', 90), candle('AAPL', '2026-03-04', 110)],
-  // MSFT 는 03-03 에 샀다. 그 전 날은 평가 0
+  // MSFT 는 03-03 매수(그 전 날은 평가 0)
   MSFT: [candle('MSFT', '2026-03-02', 400), candle('MSFT', '2026-03-03', 410), candle('MSFT', '2026-03-04', 380)],
 }
 
@@ -45,7 +45,7 @@ describe('CompareSymbolsChart 차트', () => {
     getOHLCData.mockReset()
     getExchangeRatesBulk.mockReset()
     getOHLCData.mockImplementation(async (symbol: string) => ({ data: PRICES[symbol] }) as never)
-    // 03-04 환율은 빠져 대체값을 쓴다
+    // 03-04 환율은 빠져 대체값
     getExchangeRatesBulk.mockResolvedValue({ data: { '2026-03-02': 1400, '2026-03-03': 1410 } } as never)
   })
 

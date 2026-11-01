@@ -73,7 +73,7 @@ public class KeycloakServiceImpl implements KeycloakService {
 
   @Override
   public TokenResponseDto exchangePkceCode(String code, String codeVerifier, String redirectUri) {
-    // 인가 요청을 public client 가 했으니 같은 client 로, secret 없이 verifier 로 증명한다
+    // 인가 요청을 한 public client 로, secret 없이 verifier 로 증명
     MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
     body.add("grant_type", "authorization_code");
     body.add("client_id", appProperties.getOauth().getPublicClientId());
@@ -330,7 +330,7 @@ public class KeycloakServiceImpl implements KeycloakService {
     }
   }
 
-  // 역할 목록 API 에서 그 이름의 역할 표현. 없으면 null
+  // 역할 목록 API 에서 그 이름의 역할 표현(없으면 null)
   @SuppressWarnings("unchecked")
   private Map<String, Object> findRole(String url, String roleName, HttpHeaders headers) {
     ResponseEntity<List> response = restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(headers), List.class);
@@ -380,8 +380,7 @@ public class KeycloakServiceImpl implements KeycloakService {
       restTemplate.postForEntity(getLogoutUrl(), createFormRequest(body), Void.class);
       log.info("Keycloak 세션 종료");
     } catch (HttpClientErrorException.BadRequest e) {
-      // 만료 · 이미 끊긴 세션의 토큰은 400(invalid_grant)이 온다. 끊을 세션이 없으니 로그아웃은 끝난 것으로 본다.
-      // client 인증 실패(401) 같은 설정 문제는 아래로 보내 숨기지 않는다
+      // 만료 · 끊긴 세션의 400(invalid_grant)은 로그아웃 끝, client 인증 실패(401) 같은 설정 문제는 아래로
       log.warn("Keycloak 세션 종료 생략 - HTTP {}: {}", e.getStatusCode(), e.getResponseBodyAsString());
     } catch (Exception e) {
       log.error("Keycloak 세션 종료 중 오류: {}", e.getMessage(), e);
@@ -430,7 +429,7 @@ public class KeycloakServiceImpl implements KeycloakService {
     return keycloakProperties.getAuthServerUrl() + "/admin/realms/" + keycloakProperties.getRealm();
   }
 
-  // refresh token 은 받은 client 로 보내야 한다. 다르면 Keycloak 이 400 "Token client and authorized client don't match".
+  // refresh token 을 받은 client 로 전송(다르면 Keycloak 400 "Token client and authorized client don't match")
   // 구글 로그인은 브라우저가 public client 로 받아 secret 없이 보내고, 이메일 로그인은 여기서 받은 confidential client 다
   private void addClientFor(MultiValueMap<String, String> body, String refreshToken) {
     String publicClientId = appProperties.getOauth().getPublicClientId();
@@ -442,7 +441,7 @@ public class KeycloakServiceImpl implements KeycloakService {
     body.add("client_secret", keycloakProperties.getCredentials().getSecret());
   }
 
-  // 토큰을 받은 client(azp). 서명 검증은 Keycloak 이 하니 여기서는 payload 만 읽는다. 못 읽으면 null
+  // 토큰을 받은 client(azp, 서명 검증은 Keycloak 몫이라 payload 만 읽음, 못 읽으면 null)
   private String issuedFor(String token) {
     try {
       String[] parts = token.split("\\.");

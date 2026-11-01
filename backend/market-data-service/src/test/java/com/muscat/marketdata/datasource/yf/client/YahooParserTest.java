@@ -660,7 +660,7 @@ class YahooParserTest {
         """);
 
       assertThat(parser.parseDividends(dividends, SYMBOL, null, null)).hasSize(1);
-      // 분할에 date 가 없으면 키를 시각으로 쓴다
+      // 분할에 date 가 없으면 키가 시각
       assertThat(parser.parseDailyAdjusted(splits, SYMBOL, null, null))
         .extracting(CandleDto::getSplitCoefficient)
         .containsExactly(null, new java.math.BigDecimal("2.00000000"), null);

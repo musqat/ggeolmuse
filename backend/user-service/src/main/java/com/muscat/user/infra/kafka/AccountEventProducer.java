@@ -65,8 +65,7 @@ public class AccountEventProducer {
     log.info("계좌 삭제 이벤트 발행 중: accountId={}, accountNumber={}, userId={}",
       account.getId(), account.getAccountNumber(), account.getUser().getId());
 
-    // 삭제가 롤백되면 trade 가 거래 · 보유를 지우면 안 되므로 커밋 뒤에 보낸다.
-    // 이벤트는 엔티티가 살아 있는 지금 만들어 두고, 보낼 때는 엔티티를 읽지 않는다
+    // 커밋 뒤 전송(롤백되면 trade 가 거래 · 보유를 지우지 않게), 이벤트는 엔티티가 살아 있는 지금 생성
     EventPublishing.sendAfterCommit(accountDeletedKafkaTemplate, ACCOUNT_DELETED_TOPIC, event.getUserId(), event);
   }
 }

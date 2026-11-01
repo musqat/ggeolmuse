@@ -47,12 +47,12 @@ describe('TradeHistoryList', () => {
 
     expect(screen.getByText('+$546.65')).toBeInTheDocument()
     expect(screen.getByText('-$455.49')).toBeInTheDocument()
-    // 요약 칸에도 배당 합계 +$0.44 가 있어 배당 줄 안에서 찾는다
+    // 배당 줄 안에서 찾기(요약 칸에도 배당 합계 +$0.44 가 있음)
     const dividendRow = screen.getAllByTestId('history-row').find((row) => row.dataset.type === 'DIVIDEND')!
     expect(within(dividendRow).getByText('+$0.44')).toBeInTheDocument()
     expect(within(dividendRow).getByText('두번째')).toBeInTheDocument()
     expect(screen.queryByText(/매수분/)).not.toBeInTheDocument()
-    // 상세 줄은 조각 span 으로 나뉘어 p 전체 글자로 본다
+    // 상세 줄은 조각 span 으로 나뉘어 p 전체 글자로 확인
     expect(
       screen.getByText((_, el) => el?.tagName === 'P' && el.textContent === '3주 × $182.40 · 수수료 $0.55')
     ).toBeInTheDocument()

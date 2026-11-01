@@ -23,7 +23,7 @@ public class TradeUtils {
   private final TradeLogger tradeLogger;
   private final TradeProperties tradeProperties;
 
-  // 거래 수수료 계산. 비율이 0 이면 수수료도 0 이고, 비율이 없거나 음수일 때만 기본 비율을 쓴다
+  // 거래 수수료 계산(비율 0 이면 수수료 0, 비율이 없거나 음수일 때만 기본 비율)
   public BigDecimal calculateFee(AccountBalanceDto accountBalance, BigDecimal tradeAmount) {
     BigDecimal commissionRate = accountBalance.getCommissionRate();
 
@@ -50,18 +50,18 @@ public class TradeUtils {
     try {
       response = userServiceClientWrapper.getAccountBalance(Long.valueOf(accountId));
     } catch (FeignException.NotFound e) {
-      // 사용자 서비스는 남의 계좌도 404 로 준다. 서비스 오류가 아니라 계좌 없음이다
+      // 404 는 서비스 오류가 아니라 계좌 없음(사용자 서비스는 남의 계좌도 404)
       throw new TradeException(TradeResponse.ACCOUNT_NOT_FOUND);
     } catch (FeignException.Forbidden e) {
       throw new TradeException(TradeResponse.ACCOUNT_ACCESS_DENIED);
     } catch (TradeException e) {
-      // 대체 동작이 이미 사용자 서비스 오류로 바꿔 올린 것이다
+      // 대체 동작이 이미 사용자 서비스 오류로 바꾼 예외
       throw e;
     } catch (Exception e) {
       log.error("계좌 정보 조회 실패: accountId={}", accountId, e);
       throw new TradeException(TradeResponse.USER_SERVICE_ERROR);
     }
-    // 빈 응답은 호출 실패가 아니라 계좌 없음이다. try 안에서 던지면 아래 catch 가 서비스 오류로 바꿔 버린다
+    // 빈 응답은 호출 실패가 아니라 계좌 없음(try 안에서 던지면 아래 catch 가 서비스 오류로 바꿈)
     if (response == null) {
       throw new TradeException(TradeResponse.ACCOUNT_NOT_FOUND);
     }

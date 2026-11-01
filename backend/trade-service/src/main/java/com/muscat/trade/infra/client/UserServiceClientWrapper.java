@@ -27,7 +27,7 @@ public class UserServiceClientWrapper {
 
   // Fallback 메서드
   private AccountBalanceDto getAccountBalanceFallback(Long accountId, Exception ex) {
-    // 4xx 는 장애가 아니다. 계좌 없음 · 접근 거부를 서비스 불가로 바꾸지 않고 그대로 올린다
+    // 4xx 는 장애가 아님(계좌 없음 · 접근 거부를 서비스 불가로 바꾸지 않고 그대로)
     if (ex instanceof FeignException.FeignClientException clientError) {
       throw clientError;
     }

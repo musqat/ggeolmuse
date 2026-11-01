@@ -1,4 +1,4 @@
-"""core 가 쓰는 바깥 기능. infra 가 구현한다"""
+"""core 가 쓰는 바깥 기능(구현은 infra)"""
 from __future__ import annotations
 
 from datetime import date

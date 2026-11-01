@@ -53,12 +53,11 @@ public class NasdaqScreenerClient {
         }
     }
 
-    // 페이지를 돌며 전체를 받음. marketCap: mega · large · mid · small · micro
+    // 페이지를 돌며 전체 받기(marketCap: mega · large · mid · small · micro)
     public String getAllStocks(String exchange, String marketCap) {
         log.info("NASDAQ Screener 전체 종목 조회 시작: exchange={}", exchange);
 
-        // marketcap 콤마구분 필터(mega,large,mid,small)는 NASDAQ이 빈 결과를 반환함.
-        // 시총 매칭엔 필터 불필요 → 전 종목 조회 후 보유 종목만 매칭한다.
+        // 시총 필터 없이 전 종목(NASDAQ 은 marketcap 콤마 필터에 빈 결과)
         return getStocks(exchange, null, 10000, 0);
     }
 
@@ -74,7 +73,7 @@ public class NasdaqScreenerClient {
             url.append("&exchange=").append(exchange.toUpperCase());
         }
 
-        // 여러 값은 | 로 이음(쉼표면 0건). | 는 URI.create 가 거부해 %7C 로 넣음
+        // 여러 값은 | 로 이음(쉼표면 0건, | 는 URI.create 가 거부해 %7C)
         if (marketCap != null && !marketCap.isEmpty()) {
             String normalized = marketCap.toLowerCase()
                 .replace(",", "%7C")

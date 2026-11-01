@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { AxiosAdapter, InternalAxiosRequestConfig } from 'axios'
 
-// apiClient 는 모듈 안에 있어 밖에서 못 꺼낸다. axios 기본 어댑터를 가짜로 바꾼 뒤 api.ts 를 새로 불러
-// apiClient 가 그 어댑터를 물려받게 한다. 갱신 대기열 같은 모듈 상태도 테스트마다 새로 시작한다
+// axios 기본 어댑터를 가짜로 바꾼 뒤 api.ts 를 새로 불러 모듈 안 apiClient 가 그 어댑터를 물려받게(갱신 대기열 같은 모듈 상태도 테스트마다 새로)
 
 interface Call {
   method: string
@@ -34,7 +33,7 @@ async function setup(routes: Record<string, Reply[]>) {
   }
   axios.defaults.adapter = adapter
   const api = await import('./api')
-  // 관리자 · AI 채팅 클라이언트도 같은 api 모듈(같은 갱신 상태)을 물려받는다
+  // 관리자 · AI 채팅 클라이언트도 같은 api 모듈(같은 갱신 상태)
   const admin = await import('./adminApi')
   const chat = await import('./aiChatApi')
   return { api, admin, chat, calls }
@@ -136,7 +135,7 @@ describe('api 요청 인터셉터', () => {
     expect(calls.map((c) => `${c.url} ${c.credentials ? '쿠키' : '-'}`)).toEqual([
       '/auth/login 쿠키', '/auth/refresh 쿠키', '/auth/logout 쿠키', '/auth/social/google/token 쿠키', '/users/me -',
     ])
-    // refresh token 은 본문에도 localStorage 에도 없다
+    // refresh token 은 본문에도 localStorage 에도 없음
     expect(calls[1].body).toBeFalsy()
     expect(localStorage.getItem('refreshToken')).toBeNull()
   })
@@ -166,7 +165,7 @@ describe('api 응답 인터셉터 · 401', () => {
     const res = await api.authApi.getCurrentUser()
 
     expect(res.data).toEqual({ id: 7 })
-    // 갱신 요청에도 만료된 토큰이 실린다. /api/auth/** 는 게이트웨이 공개 체인(JWT 검사 없음)이라 막히지 않는다
+    // 갱신 요청에도 만료된 토큰이 실림(/api/auth/** 는 게이트웨이 공개 체인이라 JWT 검사 없음)
     expect(calls.map((c) => `${c.method} ${c.url} ${c.auth ?? '-'}`)).toEqual([
       'GET /users/me Bearer OLD',
       'POST /auth/refresh Bearer OLD',
@@ -188,7 +187,7 @@ describe('api 응답 인터셉터 · 401', () => {
     })
 
     const first = api.authApi.getCurrentUser()
-    // 첫 요청이 갱신을 시작할 때까지 기다린 뒤 두 번째 401 을 낸다
+    // 첫 요청이 갱신을 시작한 뒤 두 번째 401
     await vi.waitFor(() => expect(calls.some((c) => c.url === '/auth/refresh')).toBe(true))
     const second = api.accountsApi.getAccounts()
     await vi.waitFor(() => expect(calls.filter((c) => c.url === '/accounts')).toHaveLength(1))

@@ -51,7 +51,7 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
-// AccountControllerTest 와 같은 이유로 띄울 클래스를 직접 고른다. 관리자 경로는 실제 보안 설정이 admin 권한을 요구한다
+// 띄울 클래스를 직접 고름(AccountControllerTest 와 같은 이유, 관리자 경로는 실제 보안 설정이 admin 권한 요구)
 @WebMvcTest(AdminUserController.class)
 @ContextConfiguration(classes = {AdminUserController.class, SecurityConfig.class, GlobalExceptionHandler.class,
   AdminAccessConfig.class})

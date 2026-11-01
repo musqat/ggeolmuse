@@ -15,7 +15,7 @@ public final class NicknameRule {
   private NicknameRule() {
   }
 
-  // 규칙 밖 글자를 빼고 최대 길이로 자른 값. 남은 글자가 최소 길이보다 짧으면 null
+  // 규칙 밖 글자를 빼고 최대 길이로 자른 값(남은 글자가 최소 길이보다 짧으면 null)
   public static String clean(String name) {
     if (name == null) {
       return null;

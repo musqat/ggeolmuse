@@ -41,7 +41,7 @@ public interface AccountService {
   // 환율 조회 관련
   BigDecimal getCurrentExchangeRate();
 
-  // 환전에 쓸 수 있는 환율 범위. 환전 창이 수동 환율 칸에 보여 주고, 환전할 때 같은 범위로 검사한다
+  // 환전에 쓸 수 있는 환율 범위(환전 창의 수동 환율 칸 표시 · 환전 때 검사에 같이 씀)
   ExchangeRateRangeDto getExchangeRateRange();
 
   // Kafka 이벤트 처리

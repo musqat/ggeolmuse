@@ -5,7 +5,7 @@ import com.muscat.backtest.common.exception.BacktestException;
 import java.time.LocalDate;
 
 /**
- * 백테스트 전략 요청의 공통 검증. DCA/조건부 등이 중복하던 null/심볼/기간 검사를 단일화
+ * 백테스트 전략 요청의 공통 검증(DCA · 조건부 등의 null · 심볼 · 기간 검사)
  */
 public final class BacktestRequestValidator {
 

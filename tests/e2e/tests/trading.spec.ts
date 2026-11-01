@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { API_URL, TOKEN_FILE } from '../playwright.config';
 import { pickSymbol, priceRange } from './fixtures';
 
-// 계좌 잔고 · 보유를 실제로 바꾸는 흐름(trade 가 user · market-data 를 같이 봄). 산 만큼 그대로 팖
+// 계좌 잔고 · 보유를 실제로 바꾸는 흐름(trade 가 user · market-data 를 같이 봄, 산 만큼 그대로 팖)
 
 const KRW_DEPOSIT = 5_000_000;
 
@@ -40,11 +40,11 @@ test('입금하고 사면 보유 종목과 거래 내역에 남는다', async ()
     KRW_DEPOSIT
   );
 
-  // 미국 주식은 USD 로 산다. 환율은 스택이 들고 있는 값을 그대로 쓴다.
+  // 미국 주식은 USD 로 매수(환율은 스택이 들고 있는 값 그대로)
   const { symbol } = await pickSymbol(plain);
   const { end: tradeDate } = await priceRange(plain, symbol);
 
-  // 환율은 스택에 있으면 쓰고 없으면 직접 넣음. 환율 수집(Yahoo)이 비어도 거래 확인이 막히지 않게
+  // 환율은 스택에 있으면 쓰고 없으면 직접 넣음(환율 수집 Yahoo 가 비어도 거래 확인이 막히지 않게)
   const fxRes = await plain.post(`${API_URL}/market/fx/bulk`, { data: [tradeDate] });
   expect(fxRes.status(), '환율 조회가 실패했다').toBe(200);
   const collected = Object.values(await fxRes.json())[0] as number | undefined;
@@ -84,7 +84,7 @@ test('입금하고 사면 보유 종목과 거래 내역에 남는다', async ()
     (await buy.json()).status
   );
 
-  // 보유 종목에 잡히는가. 매수는 잔액 정산 뒤에 보유에 들어가 기다렸다 봄
+  // 보유 종목에 잡히는지(매수는 잔액 정산 뒤에 보유에 들어가 기다렸다 봄)
   await expect
     .poll(
       async () => {
@@ -97,8 +97,7 @@ test('입금하고 사면 보유 종목과 거래 내역에 남는다', async ()
     )
     .toBe(true);
 
-  // 거래 내역에 남는가.
-  // 이 엔드포인트는 page/size 를 받지만 배열을 그대로 준다. Page 로 감싸지 않는다.
+  // 거래 내역에 남는지(이 엔드포인트는 page/size 를 받지만 Page 가 아닌 배열을 그대로 줌)
   const history = await auth.get(`${API_URL}/trade-history/history`, {
     params: { page: 0, size: 10 },
   });
@@ -113,7 +112,7 @@ test('입금하고 사면 보유 종목과 거래 내역에 남는다', async ()
     `${symbol} 을 샀는데 거래 내역에 없다`
   ).toBe(true);
 
-  // 이 API 는 가부가 아니라 얼마까지 되는지를 준다. 판정은 화면이 한다.
+  // 이 API 는 가부가 아니라 얼마까지 되는지(판정은 화면 몫)
   const canBuy = await auth.post(`${API_URL}/trade/can-buy`, {
     data: { accountId, symbol, tradeDate, totalAmount: 99_999_999 },
   });
@@ -125,14 +124,13 @@ test('입금하고 사면 보유 종목과 거래 내역에 남는다', async ()
   const maxShares = Number(cap.maxShares);
   expect(price, '현재가가 없다').toBeGreaterThan(0);
 
-  // 최대 수량의 총액은 슬리피지와 수수료까지 넣어도 잔고 안에 든다.
+  // 최대 수량의 총액은 슬리피지와 수수료까지 넣어도 잔고 안
   expect(
     Number(cap.totalValue),
     `잔고 ${balance} 인데 ${maxShares}주 총액이 ${cap.totalValue} 이다`
   ).toBeLessThanOrEqual(balance);
 
-  // 한 주 더 사면 실제 매수가 잔액 부족으로 막혀야 최대치가 맞는 것이다.
-  // 잔액 검사는 체결 전이라 막힌 주문은 잔고와 보유를 바꾸지 않는다.
+  // 한 주 더 사면 잔액 부족으로 막혀야 맞는 최대치(잔액 검사는 체결 전이라 잔고 · 보유는 그대로)
   const oneMore = await auth.post(`${API_URL}/trade/buy`, {
     data: { ...order, quantity: maxShares + 1 },
   });
@@ -146,11 +144,11 @@ test('입금하고 사면 보유 종목과 거래 내역에 남는다', async ()
   });
   expect(canSell.status(), `can-sell 이 실패했다: ${await canSell.text()}`).toBe(200);
 
-  // 방금 한 주 샀으니 팔 수 있는 수량이 그만큼은 있어야 한다.
+  // 방금 한 주 샀으니 팔 수 있는 수량이 그만큼은 있는지
   const sellCap = await canSell.json();
   expect(Number(sellCap.maxSellableShares), '산 주식을 팔 수 없다고 한다').toBeGreaterThanOrEqual(1);
 
-  // 산 만큼 되판다. 여기까지 와야 매도 경로도 확인된다.
+  // 산 만큼 되팔기(매도 경로 확인)
   const sell = await auth.post(`${API_URL}/trade/sell`, { data: order });
   expect(sell.status(), `매도가 실패했다: ${await sell.text()}`).toBeLessThan(300);
 
@@ -162,7 +160,7 @@ test('판 만큼 매도 가능 금액이 그대로 들어오고 보유 · 거래
   const auth = await authContext();
   const plain = await request.newContext();
 
-  // 수수료 · 슬리피지가 붙는 새 계좌. 끝에 지움
+  // 수수료 · 슬리피지가 붙는 새 계좌(끝에 지움)
   const accountName = `E2E 매도 ${process.hrtime.bigint().toString(36).slice(-6)}`;
   const created = await auth.post(`${API_URL}/accounts`, { data: { accountName, commissionRate: 0.002 } });
   expect(created.status(), `계좌 생성이 실패했다: ${await created.text()}`).toBe(201);

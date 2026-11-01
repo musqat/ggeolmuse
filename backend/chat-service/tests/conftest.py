@@ -6,7 +6,7 @@ import pytest
 
 
 class InterleavingRedis:
-    """명령 응답을 받을 때마다 이벤트 루프에 한 번 양보하는 Redis.
+    """명령 응답을 받을 때마다 이벤트 루프에 한 번 양보하는 Redis
     fakeredis 는 명령 사이에 양보하지 않아 동시 요청이 차례로 끝난다. 이걸 쓰면 한 요청의 읽기와 쓰기 사이에
     다른 요청이 끼어들어, '읽고 고쳐 쓰기' 로 바뀐 코드가 동시성 테스트에서 실패한다"""
 
@@ -20,7 +20,7 @@ class InterleavingRedis:
 
         def call(*args, **kwargs):
             result = attr(*args, **kwargs)
-            # 명령은 코루틴을 돌려준다. pipeline() 처럼 객체를 돌려주는 것은 그대로 둔다
+            # 코루틴을 돌려주는 명령만 감쌈(pipeline() 처럼 객체를 돌려주는 것은 그대로)
             return _then_yield(result) if inspect.iscoroutine(result) else result
 
         return call

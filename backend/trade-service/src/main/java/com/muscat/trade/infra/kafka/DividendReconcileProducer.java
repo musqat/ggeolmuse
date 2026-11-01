@@ -10,7 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
-// 배당 몫 재계산 요청 발행. 계좌 ID 를 키로 보내 같은 계좌의 재계산 순서를 지킴
+// 배당 몫 재계산 요청 발행(계좌 ID 를 키로 보내 같은 계좌의 재계산 순서 유지)
 @Slf4j
 @Component
 @RequiredArgsConstructor

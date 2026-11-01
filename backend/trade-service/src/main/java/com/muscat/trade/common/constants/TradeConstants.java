@@ -7,7 +7,7 @@ public final class TradeConstants {
   // 계산 상수
   public static final BigDecimal PERCENTAGE_MULTIPLIER = new BigDecimal("100");
   public static final int SELL_RATIO_PRECISION = 6;
-  // 해외주식 배당 원천징수(15.4%). 배당은 뗀 뒤 금액을 입금한다
+  // 해외주식 배당 원천징수(15.4%, 뗀 뒤 금액을 입금)
   public static final BigDecimal DIVIDEND_TAX_RATE = new BigDecimal("0.154");
 
   // 검증 패턴

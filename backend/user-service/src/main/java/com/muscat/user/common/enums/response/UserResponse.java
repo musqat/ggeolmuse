@@ -34,9 +34,9 @@ public enum UserResponse implements ErrorCode {
   // 403 Forbidden
   FORBIDDEN("접근 권한이 없습니다.", HttpStatus.FORBIDDEN),
   ADMIN_REQUIRED("관리자 권한이 필요합니다.", HttpStatus.FORBIDDEN),
-  // 401 이면 프론트가 토큰 갱신 뒤 다시 보내는데, 갱신해도 로그인 시각은 그대로라 403 으로 둔다
+  // 403(401 이면 프론트가 토큰 갱신 뒤 다시 보내지만 갱신해도 로그인 시각은 그대로)
   REAUTH_REQUIRED("보안을 위해 다시 로그인한 뒤 탈퇴할 수 있습니다.", HttpStatus.FORBIDDEN),
-  // 401 이면 프론트가 토큰을 갱신해 다시 보내므로 403 으로 둔다
+  // 403(401 이면 프론트가 토큰을 갱신해 다시 보냄)
   ACCOUNT_DISABLED("비활성화된 계정입니다.", HttpStatus.FORBIDDEN),
 
   // 404 Not Found

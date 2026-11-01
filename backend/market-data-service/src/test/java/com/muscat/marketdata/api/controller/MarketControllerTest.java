@@ -41,7 +41,7 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-// MarketDataApplication 의 @ComponentScan 이 슬라이스 필터를 덮어써서 띄울 클래스를 직접 고른다. 보안은 실제 설정을 쓴다
+// 띄울 클래스를 직접 고름(MarketDataApplication 의 @ComponentScan 이 슬라이스 필터를 덮어씀, 보안은 실제 설정)
 @WebMvcTest(MarketController.class)
 @ContextConfiguration(classes = {MarketController.class, GlobalExceptionHandler.class, SecurityConfig.class})
 @ActiveProfiles("test")
@@ -65,7 +65,7 @@ class MarketControllerTest {
   @MockitoBean
   private FxRateService fxRateService;
 
-  // 공개 경로라 디코더를 부르지 않는다. 실제 Keycloak 에 붙지 않게 막아 둔다
+  // 공개 경로라 디코더 호출 없음(실제 Keycloak 에 붙지 않게 막아 둠)
   @MockitoBean
   private JwtDecoder jwtDecoder;
 

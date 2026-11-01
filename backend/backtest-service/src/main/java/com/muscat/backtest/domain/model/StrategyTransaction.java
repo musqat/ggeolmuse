@@ -19,7 +19,7 @@ public class StrategyTransaction {
   private String trigger;               // 매수 트리거 (적립식: "월정액", 조건부: "5%하락")
   private BigDecimal fee;               // 매매 수수료 (USD, 배당 재투자는 null)
 
-  // 배당 대상인지 볼 때 쓰는 날짜. 주말에 계획해 월요일에 샀으면 월요일이다
+  // 배당 대상 판정용 날짜(주말에 계획해 월요일에 샀으면 월요일)
   public LocalDate tradedOn() {
     return actualDate != null ? actualDate : date;
   }

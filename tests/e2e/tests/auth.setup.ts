@@ -39,7 +39,7 @@ setup('시드 계정으로 토큰을 받아 저장한다', async () => {
 
   expect(res.status(), '시드 계정 로그인이 200 이어야 한다').toBe(200);
 
-  // 응답 본문은 { accessToken, expiresIn } 이고 refresh token 은 httpOnly 쿠키로 온다.
+  // 응답 본문은 { accessToken, expiresIn }, refresh token 은 httpOnly 쿠키
   const { accessToken: token } = await res.json();
   expect(token.split('.'), 'JWT 는 점으로 나뉜 세 조각이다').toHaveLength(3);
   expect(res.headers()['set-cookie'] ?? '', 'refresh token 쿠키가 없다').toContain('refresh_token=');
@@ -47,13 +47,11 @@ setup('시드 계정으로 토큰을 받아 저장한다', async () => {
   await api.storageState({ path: STORAGE_STATE });
   await api.dispose();
 
-  // 다른 테스트가 다시 로그인하지 않게 토큰을 파일로도 남긴다.
-  // 게이트웨이가 로그인을 분당 6회로 막는다. 한 번만 받는다.
+  // 토큰을 파일로도 저장(게이트웨이 로그인 분당 6회 제한이라 다른 테스트는 다시 로그인하지 않음)
   const fs0 = await import('node:fs/promises');
   await fs0.writeFile(TOKEN_FILE, token);
 
-  // storageState 는 쿠키만 담고 localStorage 는 오리진이 있어야 채워진다.
-  // 파일을 직접 만들어 프론트 오리진에 토큰을 심는다.
+  // 프론트 오리진에 토큰을 심는 파일 직접 생성(storageState 는 쿠키만 담고 localStorage 는 오리진이 있어야 채워짐)
   const fs = await import('node:fs/promises');
   await fs.writeFile(
     STORAGE_STATE,

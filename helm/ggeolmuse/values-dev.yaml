@@ -1,4 +1,4 @@
-# 로컬/dev 환경 설정 (비시크릿). 공통값은 values.yaml 상속.
+# 로컬 · dev 환경 설정(비시크릿, 공통값은 values.yaml 상속)
 # 로컬 배포: helm ... -f values-dev.yaml -f values-secret.yaml
 global:
   domain: app.localhost

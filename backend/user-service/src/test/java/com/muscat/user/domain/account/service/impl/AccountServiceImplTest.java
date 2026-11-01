@@ -826,8 +826,7 @@ class AccountServiceImplTest {
   @DisplayName("거래 완료 이벤트 처리 테스트")
   class ProcessTradeEventTests {
 
-    // Note: processTradeEvent 메서드는 updateUsdBalance를 내부적으로 호출하므로
-    // 통합 테스트로 작성하는 것이 더 적합합니다. 여기서는 예외 케이스만 테스트합니다.
+    // processTradeEvent 는 예외 경우만(정상 흐름은 updateUsdBalance 를 거쳐 통합 테스트 몫)
 
     @Test
     @DisplayName("잘못된 userId 형식 시 예외 발생")

@@ -41,7 +41,7 @@ class UserControllerDeleteTest {
 
   private MockMvc mockMvc;
 
-  // Keycloak 은 auth_time 을 초 단위 숫자로 준다
+  // Keycloak 의 auth_time 은 초 단위 숫자
   private static final long AUTH_TIME = 1_760_000_000L;
 
   @BeforeEach

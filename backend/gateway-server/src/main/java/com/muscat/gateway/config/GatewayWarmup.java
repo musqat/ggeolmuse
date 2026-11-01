@@ -21,7 +21,7 @@ public class GatewayWarmup {
 
     private static final Logger log = LoggerFactory.getLogger(GatewayWarmup.class);
 
-    /** 레이트 리밋 웜업 키. 실 클라이언트 버킷과 겹치지 않음 */
+    /** 레이트 리밋 웜업 키(실 클라이언트 버킷과 겹치지 않음) */
     private static final String WARMUP_KEY = "warmup";
 
     /** 첫 Redis 연결 · 스크립트 적재까지 기다리는 시간 */

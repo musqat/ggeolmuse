@@ -1,4 +1,4 @@
-// 백테스트 부하(market-data 로 팬아웃). 요청 하나가 수백 ms 라 VU 를 크게 잡으면 큐만 쌓임
+// 백테스트 부하(market-data 로 팬아웃, 요청 하나가 수백 ms 라 VU 를 크게 잡으면 큐만 쌓임)
 // 실행: k6 run [-e MAX_VUS=30] tests/k6/backtest.js
 import http from 'k6/http';
 import { check, group } from 'k6';
@@ -25,15 +25,14 @@ export const options = {
   ],
   thresholds: {
     'server_errors': ['count<10'],
-    // 조회 API 와 자릿수가 다르다. 같은 기준을 쓰면 의미가 없다
+    // 조회 API 와 자릿수가 다른 기준
     'dur_dca': ['p(95)<5000'],
     'dur_simulation': ['p(95)<5000'],
     'dur_compare': ['p(95)<10000'],
   },
 };
 
-// 토큰은 한 번만 받아 VU 전체가 공유한다.
-// VU 마다 로그인하면 Keycloak 이 병목이 되어 백테스트를 못 잰다.
+// 토큰은 한 번만 받아 VU 전체가 공유(VU 마다 로그인하면 Keycloak 이 병목)
 export function setup() {
   const res = http.post(
     `${BASE}/api/auth/login`,
@@ -44,7 +43,7 @@ export function setup() {
   if (res.status !== 200) {
     throw new Error(`로그인 실패: ${res.status} ${res.body}`);
   }
-  // 이 API 는 JSON 이 아니라 토큰 문자열을 그대로 돌려준다
+  // 이 API 는 JSON 이 아니라 토큰 문자열 그대로
   return { token: res.body.trim() };
 }
 

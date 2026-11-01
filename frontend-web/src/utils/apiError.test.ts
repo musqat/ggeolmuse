@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { AxiosError, AxiosHeaders } from 'axios'
 import { getApiErrorCode, getApiErrorMessage, getApiErrorStatus, getServerMessage } from './apiError'
 
-/** axios 오류를 만든다. isAxiosError 가 참이 되려면 AxiosError 인스턴스여야 한다. */
+/** axios 오류 생성(isAxiosError 가 참이 되게 AxiosError 인스턴스) */
 function axiosErrorWith(status: number, data: unknown, message = 'Request failed') {
   const config = { headers: new AxiosHeaders() }
   return new AxiosError(message, 'ERR_BAD_RESPONSE', config, null, {
@@ -30,7 +30,7 @@ describe('getApiErrorMessage', () => {
   })
 
   it('detail 이 없으면 message 를 쓴다', () => {
-    // 백엔드가 ProblemDetail 을 안 쓰는 경로는 message 로 준다
+    // 백엔드가 ProblemDetail 을 안 쓰는 경로는 message
     const err = axiosErrorWith(400, { message: '이름은 비워둘 수 없습니다' })
     expect(getApiErrorMessage(err, '기본값')).toBe('이름은 비워둘 수 없습니다')
   })
@@ -50,7 +50,7 @@ describe('getApiErrorMessage', () => {
   })
 
   it('Error 도 아닌 값이 던져지면 기본값을 쓴다', () => {
-    // catch 는 무엇이든 잡는다. 문자열이나 undefined 가 올 수 있다.
+    // catch 는 무엇이든 잡음(문자열이나 undefined 도)
     expect(getApiErrorMessage('그냥 문자열', '기본값')).toBe('기본값')
     expect(getApiErrorMessage(undefined, '기본값')).toBe('기본값')
     expect(getApiErrorMessage(null, '기본값')).toBe('기본값')
@@ -79,7 +79,7 @@ describe('getApiErrorStatus', () => {
   })
 
   it('axios 오류가 아니면 undefined 를 준다', () => {
-    // 로그인 화면이 401·403 을 갈라 쓰므로, 아닌 값에 0 같은 걸 주면 안 된다
+    // 상태가 없으면 undefined(로그인 화면이 401 · 403 을 갈라 써서 0 같은 값은 오판)
     expect(getApiErrorStatus(new Error('boom'))).toBeUndefined()
     expect(getApiErrorStatus('문자열')).toBeUndefined()
   })

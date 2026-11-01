@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.util.ClassUtils;
 
-// user-service 시크릿 출처. Secrets Manager 를 직접 부르지 않음
+// user-service 시크릿 출처(Secrets Manager 를 직접 부르지 않음)
 class SecretsManagerDependencyTest {
 
   @Test

@@ -21,7 +21,7 @@ test('종목 비교가 화면에서 끝까지 돈다', async ({ page }) => {
   }
   await expect(chips, '기본 종목이 안 비워진다').toHaveCount(0);
 
-  // 시세가 있는 종목 두 개를 담는다.
+  // 시세가 있는 종목 두 개 담기
   for (const { symbol } of usable) {
     await page.getByPlaceholder('종목 검색').fill(symbol);
     const option = page.getByTestId('symbol-option').first();
@@ -40,12 +40,12 @@ test('종목 비교가 화면에서 끝까지 돈다', async ({ page }) => {
 
   await page.getByTestId('backtest-run').click();
 
-  // 최고 성과 종목이 뜨면 비교가 끝난 것이다.
+  // 최고 성과 종목이 뜨면 비교 끝
   await expect(page.getByText('최고 성과 종목'), '비교 결과가 안 나온다').toBeVisible({
     timeout: 60_000,
   });
 
-  // 담은 종목이 결과에 다 있어야 한다.
+  // 담은 종목이 결과에 다 있는지
   for (const { symbol } of usable) {
     await expect(
       page.getByText(symbol, { exact: true }).first(),

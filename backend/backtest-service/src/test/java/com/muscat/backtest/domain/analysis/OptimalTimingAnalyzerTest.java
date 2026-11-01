@@ -294,7 +294,7 @@ class OptimalTimingAnalyzerTest {
         .investmentAmount(new BigDecimal("1300000")).targetReturnPercent(new BigDecimal(target)).build();
     }
 
-    // 현재가 100달러 · 현재 환율 1300. 일별 환율은 빈 응답이라 기본 환율(1300)로 채워진다
+    // 현재가 100달러 · 현재 환율 1300(일별 환율은 빈 응답이라 기본 환율 1300)
     private void stubCurrent() {
       given(marketDataClient.getCurrentPrice(SYMBOL)).willReturn(new StockPriceDto(SYMBOL, null, new BigDecimal("100"),
         null, null, null, null, null, null, null, null, null, null, null, "USD", true, null, null));

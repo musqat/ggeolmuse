@@ -12,8 +12,8 @@ import org.springframework.boot.json.JsonWriter.Members;
 import org.springframework.boot.json.JsonWriter.ValueProcessor;
 import org.springframework.boot.logging.structured.StructuredLoggingJsonMembersCustomizer;
 
-// JSON 로그의 문자열 값(메시지 · 예외) 속 이메일을 가리고 지문을 붙인다. h***@gmail.com#(SHA-256 앞 12자리)
-// 같은 이메일은 같은 지문이라, 문의가 오면 그 이메일로 지문을 만들어 로그를 찾는다
+// JSON 로그의 문자열 값(메시지 · 예외) 속 이메일을 h***@gmail.com#(SHA-256 앞 12자리)로 가리는 커스터마이저
+// 같은 이메일은 같은 지문(문의가 오면 그 이메일의 지문으로 로그 검색)
 // 도메인에 점이 있을 때만 이메일로 본다(Account@5f3a 같은 객체 문자열은 그대로)
 public class MaskedEmailJsonCustomizer implements StructuredLoggingJsonMembersCustomizer<ILoggingEvent> {
 

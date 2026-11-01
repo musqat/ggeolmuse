@@ -43,7 +43,7 @@ beforeEach(() => {
 })
 afterEach(() => vi.restoreAllMocks())
 
-// 훅을 열고 첫 목록 로딩이 끝날 때까지 기다린다
+// 훅을 열고 첫 목록 로딩이 끝날 때까지 대기
 const renderLoaded = async () => {
   const hook = renderHook(() => useAdminMarket())
   await waitFor(() => expect(hook.result.current.loading).toBe(false))

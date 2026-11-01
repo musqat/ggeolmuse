@@ -178,7 +178,7 @@ class TradingServiceImplTest {
       verify(tradeRepository).save(tradeCaptor.capture());
       assertThat(tradeCaptor.getValue().getPrice()).isEqualByComparingTo(expectedPrice);
 
-      // 수수료도 조정된 체결가 기준이다
+      // 수수료도 조정된 체결가 기준
       ArgumentCaptor<BigDecimal> amountCaptor = ArgumentCaptor.forClass(BigDecimal.class);
       verify(tradeUtils).calculateFee(eq(testAccountBalance), amountCaptor.capture());
       assertThat(amountCaptor.getValue()).isEqualByComparingTo("1501.50"); // 10 × 150.15
@@ -676,7 +676,7 @@ class TradingServiceImplTest {
       assertThat(result.availableBalance()).isEqualByComparingTo(
         testAccountBalance.getBalanceUsd());
 
-      // 66주는 9,900 + 수수료 9.90 = 9,909.90. 67주는 가격만 10,050 이다
+      // 66주는 9,900 + 수수료 9.90 = 9,909.90, 67주는 가격만 10,050
       assertThat(result.maxShares()).isEqualByComparingTo("66");
       assertThat(result.totalValue()).isEqualByComparingTo("9909.90");
     }
@@ -697,7 +697,7 @@ class TradingServiceImplTest {
         TEST_USER_ID, capacityRequest(null, null));
 
       // then
-      // 체결가 8.97 × 1.001 = 8.98. 10주는 89.80 + 수수료 0.22 = 90.02 라 잔액을 넘는다
+      // 체결가 8.97 × 1.001 = 8.98, 10주는 89.80 + 수수료 0.22 = 90.02 로 잔액 초과
       assertThat(result.currentPrice()).isEqualByComparingTo("8.97");
       assertThat(result.maxShares()).isEqualByComparingTo("9");
       assertThat(result.totalValue()).isEqualByComparingTo("81.02");
@@ -738,7 +738,7 @@ class TradingServiceImplTest {
         TEST_USER_ID, capacityRequest(PriceType.MANUAL, manualPrice));
 
       // then
-      // 슬리피지가 붙었으면 9.01 이라 9주다
+      // 슬리피지가 붙었으면 9.01 이라 9주
       assertThat(result.maxShares()).isEqualByComparingTo("10");
     }
 
@@ -757,7 +757,7 @@ class TradingServiceImplTest {
         TEST_USER_ID, capacityRequest(null, null));
 
       // then
-      // 10주는 100.10 + 수수료 0.25025 → 0.25 = 100.35 로 잔액과 같다
+      // 10주는 100.10 + 수수료 0.25025 → 0.25 = 100.35 로 잔액과 같음
       assertThat(result.maxShares()).isEqualByComparingTo("10");
       assertThat(result.totalValue()).isEqualByComparingTo("100.35");
     }
@@ -800,7 +800,7 @@ class TradingServiceImplTest {
         .build();
     }
 
-    // 수수료는 tradeUtils 목이 내니 비율만 정해 둔다
+    // 비율만 지정(수수료는 tradeUtils 목이 계산)
     private void stubFeeRate(String rate) {
       given(tradeUtils.calculateFee(any(), any())).willAnswer(invocation ->
         invocation.<BigDecimal>getArgument(1).multiply(new BigDecimal(rate))
@@ -925,7 +925,7 @@ class TradingServiceImplTest {
         TEST_USER_ID, capacityRequest(null, null))).isSameAs(notFound);
     }
 
-    // 보유 · 매도 가능 수량을 같은 값으로 둔다
+    // 보유 · 매도 가능 수량을 같은 값으로
     private void stubSellable(String quantity) {
       given(holdingsRepository.findByUserIdAndAccountIdAndSymbol(
         TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL))

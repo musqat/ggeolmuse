@@ -12,8 +12,7 @@ metadata:
     "helm.sh/hook-weight": "10"
     "helm.sh/hook-delete-policy": before-hook-creation
 spec:
-  # ttl 을 두면 파티션 보고를 읽기 전에 파드가 지워진다.
-  # 정리는 before-hook-creation 이 맡아 다음 sync 직전에 한다
+  # ttl 없음(파티션 보고를 읽을 때까지 파드 유지), 정리는 다음 sync 직전 before-hook-creation
   template:
     metadata:
       labels:
@@ -36,7 +35,7 @@ spec:
               echo "kafka 대기 30초"
               sleep 30
 
-              # 현재 상태를 한 번에 받는다.
+              # 토픽 전체의 현재 상태
               kafka-topics --describe --bootstrap-server "$BS" > /tmp/current.txt 2>/dev/null || true
 
               created=0
@@ -50,7 +49,7 @@ spec:
               trading.dividend.payout             3      7776000000
               trading.dividend.reconcile          3      604800000
 
-              # 수집 작업큐. 컨슈머 동시성이 파티션에 묶여 6으로 둔다
+              # 수집 작업큐(컨슈머 동시성이 파티션 수에 묶여 6)
               market.asset.created                6      604800000
               market.dividend.updated             3      7776000000
 
@@ -62,7 +61,7 @@ spec:
               user.trade.rejected                 3      2592000000
               user.trade.settled                  3      2592000000
 
-              # 구독하는 토픽마다 하나씩. DeadLetterPublishingRecoverer 가 여기로 보낸다
+              # 구독하는 토픽마다 하나씩, DeadLetterPublishingRecoverer 가 보내는 곳
               trading.trade.completed.DLT         3      2592000000
               trading.dividend.payout.DLT         3      2592000000
               trading.dividend.reconcile.DLT      3      2592000000
@@ -99,8 +98,7 @@ spec:
                   continue
                 fi
 
-                # 서비스가 먼저 붙으면 토픽이 브로커 기본값으로 자동 생성되고
-                # --if-not-exists 가 그것을 건너뛴다.
+                # 서비스가 먼저 만든 토픽(브로커 기본값)은 --if-not-exists 가 건너뛰어 설정을 따로 대조
                 configs=$(awk -v t="$topic" '
                   $1 == "Topic:" && $2 == t {
                     for (i = 1; i <= NF; i++) if ($i == "Configs:") { print $(i + 1); exit }
@@ -119,8 +117,7 @@ spec:
 
                 [ "$actual" = "$partitions" ] && continue
 
-                # 자동 생성된 토픽은 브로커 기본 파티션으로 만들어진다.
-                # 파티션은 늘리는 방향만 되고 키에서 파티션으로 가는 배치가 바뀐다
+                # 파티션 수 불일치(늘리기만 가능, 늘리면 키 → 파티션 배치가 바뀜)
                 mismatch=$((mismatch + 1))
                 if [ "$ALIGN" = "true" ]; then
                   echo "$topic 파티션 $actual -> $partitions"

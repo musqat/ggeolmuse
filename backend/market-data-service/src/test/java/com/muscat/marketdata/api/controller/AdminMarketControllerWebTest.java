@@ -56,7 +56,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
-// 관리자 경로는 Keycloak realm 역할 admin 이 권한 admin 으로 바뀐 토큰만 들어온다. 실제 보안 설정과 변환기를 쓴다
+// 관리자 경로는 Keycloak realm 역할 admin 이 권한 admin 으로 바뀐 토큰만(실제 보안 설정 · 변환기)
 @WebMvcTest(AdminMarketController.class)
 @ContextConfiguration(classes = {AdminMarketController.class, GlobalExceptionHandler.class, SecurityConfig.class})
 @ActiveProfiles("test")

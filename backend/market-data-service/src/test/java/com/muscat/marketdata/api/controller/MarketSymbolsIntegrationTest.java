@@ -22,7 +22,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-// 종목 목록은 자동완성용이라 티커만 줌. 필드가 늘거나 상장폐지가 섞이면 걸림
+// 자동완성용 종목 목록은 티커만(필드가 늘거나 상장폐지가 섞이면 걸림)
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")

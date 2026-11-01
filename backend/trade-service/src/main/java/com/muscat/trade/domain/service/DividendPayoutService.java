@@ -42,7 +42,7 @@ public class DividendPayoutService {
     return reconcile(userId, accountId, symbol, false, List.of());
   }
 
-  // resend 면 바뀌지 않은 몫도 다시 보냄. settledExDates 는 user 가 넣은 배당락일로, 목표가 없으면 0 몫
+  // resend 면 바뀌지 않은 몫도 다시 보냄(settledExDates 는 user 가 넣은 배당락일, 목표가 없으면 0 몫)
   // 배당 목록은 트랜잭션 밖에서 받고 몫 저장 · 발행만 트랜잭션 안
   public int reconcile(String userId, Long accountId, String symbol, boolean resend,
     Collection<LocalDate> settledExDates) {
@@ -97,7 +97,7 @@ public class DividendPayoutService {
     return changed;
   }
 
-  // 사용자 보유 전체의 받은 배당을 계좌 · 종목마다. 거래와 몫은 한 번씩만 읽음
+  // 사용자 보유 전체의 받은 배당을 계좌 · 종목마다(거래와 몫은 한 번씩만 읽음)
   @Transactional(readOnly = true)
   public Map<TradePosition, BigDecimal> dividendsOnHeldShares(String userId) {
     Map<TradePosition, List<Trade>> tradesByPosition = tradeRepository
@@ -112,7 +112,7 @@ public class DividendPayoutService {
     return totals;
   }
 
-  // 지금 남은 매수 묶음은 매수일부터 계속 들고 있었으니 그 뒤 배당을 다 받은 셈. 판 주식이 받은 배당은 뺌
+  // 지금 남은 매수 묶음은 매수일 뒤 배당을 다 받은 셈(판 주식이 받은 배당은 뺌)
   private static BigDecimal heldDividends(List<Trade> trades, List<DividendPayout> payouts) {
     BigDecimal total = BigDecimal.ZERO;
     for (DividendEntitlement.HeldBuy lot : DividendEntitlement.remainingByBuyBefore(trades, LocalDate.now().plusDays(1))) {
@@ -125,7 +125,7 @@ public class DividendPayoutService {
     return total;
   }
 
-  // 배당락일마다 그 전날 보유로 센 몫. 보유가 0 이면 0 몫
+  // 배당락일마다 그 전날 보유로 센 몫(보유가 0 이면 0 몫)
   public static Map<LocalDate, DividendAmounts> computeTargets(List<Trade> trades, List<DividendDto> dividends) {
     Map<LocalDate, DividendAmounts> targets = new TreeMap<>();
     for (DividendDto dividend : dividends) {
