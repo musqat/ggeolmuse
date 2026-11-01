@@ -1,4 +1,4 @@
-# RDS 시작 · 중지 스케줄(EventBridge Scheduler). 기동이 느려 EC2 보다 먼저 켜고(06:40) 늦게 끔(19:05)
+# RDS 시작 · 중지 스케줄(EventBridge Scheduler, 기동이 느려 EC2 보다 먼저 06:40 에 켜고 늦게 19:05 에 끔)
 # rds_instance_id 가 비면 만들지 않음
 
 locals {
@@ -55,7 +55,7 @@ resource "aws_iam_role_policy" "rds_scheduler" {
         Resource = local.rds_arn
       },
       {
-        # 스케줄러가 현재 상태를 확인한다. Describe 는 리소스 한정이 안 된다.
+        # 스케줄러의 현재 상태 확인(Describe 는 리소스 한정 안 됨)
         Effect   = "Allow"
         Action   = "rds:DescribeDBInstances"
         Resource = "*"

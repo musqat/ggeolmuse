@@ -1,6 +1,6 @@
 # EC2 자동 시작/중지 스케줄러 (EventBridge Scheduler)
 # 한국 시간(Asia/Seoul) 기준 월~금 07:00 시작 / 19:00 중지
-# Lambda 없이 universal target으로 EC2 API를 직접 호출한다.
+# Lambda 없이 universal target 으로 EC2 API 직접 호출
 
 locals {
   ec2_instance_arn = "arn:aws:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:instance/${var.ec2_instance_id}"
@@ -92,8 +92,7 @@ resource "aws_scheduler_schedule" "ec2_start" {
     }
   }
 
-  # 스케줄이 정책보다 먼저 만들어지지 않게 한다.
-  # 참조가 없어서 terraform 이 둘 사이의 순서를 모른다.
+  # 정책 다음에 스케줄(참조가 없어 terraform 이 순서를 모름)
   depends_on = [aws_iam_role_policy.ec2_scheduler]
 }
 
@@ -123,7 +122,6 @@ resource "aws_scheduler_schedule" "ec2_stop" {
     }
   }
 
-  # 스케줄이 정책보다 먼저 만들어지지 않게 한다.
-  # 참조가 없어서 terraform 이 둘 사이의 순서를 모른다.
+  # 정책 다음에 스케줄(참조가 없어 terraform 이 순서를 모름)
   depends_on = [aws_iam_role_policy.ec2_scheduler]
 }

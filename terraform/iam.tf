@@ -23,7 +23,7 @@ resource "aws_iam_role" "ggeolmuse_ec2_secrets_role" {
   }
 }
 
-# 노드 역할은 두 시크릿의 읽기만. 이름 뒤 ?????? 는 Secrets Manager 가 붙이는 6자
+# 노드 역할은 두 시크릿의 읽기만(이름 뒤 ?????? 는 Secrets Manager 가 붙이는 6자)
 resource "aws_iam_role_policy" "ec2_secrets_read" {
   name = "${var.project_name}-ec2-secrets-read"
   role = aws_iam_role.ggeolmuse_ec2_secrets_role.id
