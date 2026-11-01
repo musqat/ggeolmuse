@@ -20,7 +20,7 @@ def rsa_key(kid: str):
 
 
 def token(pem, kid: str, algorithm: str = "RS256", **claims) -> str:
-    """sub · iss · azp 를 채운 토큰. 값을 None 으로 준 클레임은 뺌"""
+    """sub · iss · azp 를 채운 토큰(값을 None 으로 준 클레임은 뺌)"""
     body = {"sub": "user-1", "iss": ISSUER, "azp": CLIENT_ID, **claims}
     return jwt.encode({k: v for k, v in body.items() if v is not None}, pem, algorithm=algorithm,
                       headers={"kid": kid})

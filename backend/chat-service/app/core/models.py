@@ -7,7 +7,7 @@ from datetime import date
 
 @dataclass(frozen=True)
 class Bar:
-    """일봉. close 는 분할만 조정한 종가(차트와 같음), adj_close 는 배당까지 조정한 종가(없으면 None)"""
+    """일봉(close 는 분할만 조정한 종가로 차트와 같음, adj_close 는 배당까지 조정한 종가로 없으면 None)"""
     date: date
     open: float
     high: float
@@ -19,7 +19,7 @@ class Bar:
 
 @dataclass(frozen=True)
 class Quote:
-    """현재가. active 가 None 이면 상장 여부를 모름"""
+    """현재가(active 가 None 이면 상장 여부 모름)"""
     symbol: str
     name: str | None
     price: float
@@ -36,7 +36,7 @@ class Dividend:
 
 @dataclass(frozen=True)
 class Evidence:
-    """답변기에 넘기는 자료. lines 는 프롬프트에 한 줄씩 들어간다"""
+    """답변기에 넘기는 자료(lines 는 프롬프트에 한 줄씩)"""
     lines: tuple[str, ...]
     as_of: date
 

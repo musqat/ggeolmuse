@@ -1,4 +1,4 @@
-"""OTel 트레이스: FastAPI 서버 스팬과 market-data 호출(httpx) 스팬. OTLP 주소가 없으면 내지 않음"""
+"""OTel 트레이스(FastAPI 서버 스팬 · market-data 호출 httpx 스팬, OTLP 주소가 없으면 안 냄)"""
 from __future__ import annotations
 
 import os
@@ -17,7 +17,7 @@ EXCLUDED_URLS = "/health,/metrics"
 
 
 def provider_from_env() -> TracerProvider | None:
-    """OTEL_EXPORTER_OTLP_ENDPOINT 로 내보내는 공급자. 서비스 이름 · 자원 속성 · 샘플링은 OTEL_* 환경변수"""
+    """OTEL_EXPORTER_OTLP_ENDPOINT 로 내보내는 공급자(서비스 이름 · 자원 속성 · 샘플링은 OTEL_* 환경변수)"""
     if not os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT") or os.getenv("OTEL_SDK_DISABLED", "").lower() == "true":
         return None
     provider = TracerProvider(resource=Resource.create())

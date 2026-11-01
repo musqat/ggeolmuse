@@ -1,4 +1,4 @@
-"""앱 조립: 시작할 때 클라이언트를 만들어 흐름에 넣고, 끝날 때 닫는다"""
+"""앱 조립(시작할 때 클라이언트를 만들어 흐름에 넣고 끝날 때 닫음)"""
 from __future__ import annotations
 
 import logging
@@ -30,18 +30,18 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 
 
 def build_openai(config: Settings) -> OpenAI:
-    """OpenAI 클라이언트. 재시도 없이 호출마다 시간 제한만 둔다"""
+    """OpenAI 클라이언트(재시도 없이 호출마다 시간 제한만)"""
     return OpenAI(api_key=config.openai_api_key, max_retries=0)
 
 
 def build_redis(config: Settings) -> aioredis.Redis:
-    """Redis 클라이언트. 운영 · 로컬 Redis 는 비밀번호를 요구한다(requirepass)"""
+    """Redis 클라이언트(운영 · 로컬 Redis 는 requirepass 로 비밀번호 요구)"""
     return aioredis.Redis(host=config.redis_host, port=config.redis_port,
                           password=config.redis_password or None, decode_responses=True)
 
 
 def build_verifier(config: Settings) -> JwksVerifier:
-    """토큰 검증. 받는 iss · azp 는 설정에서 쉼표로 나눈 값"""
+    """토큰 검증(받는 iss · azp 는 설정에서 쉼표로 나눈 값)"""
     return JwksVerifier(config.keycloak_jwks_url, issuers=_csv(config.keycloak_issuers),
                         client_ids=_csv(config.keycloak_client_ids))
 

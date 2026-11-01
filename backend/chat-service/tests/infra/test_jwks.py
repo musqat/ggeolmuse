@@ -43,7 +43,7 @@ def test_only_rs256_is_accepted():
 
 
 def test_issuer_must_be_allowed():
-    # Keycloak hostname 이 있으면(운영 · compose) iss 가 공개 주소, 없으면(helm dev) 내부 주소다
+    # Keycloak hostname 이 있으면(운영 · compose) iss 가 공개 주소, 없으면(helm dev) 내부 주소
     pem, public_jwk = rsa_key("k1")
     with respx.mock:
         respx.get(URL).mock(return_value=httpx.Response(200, json={"keys": [public_jwk]}))
@@ -56,7 +56,7 @@ def test_issuer_must_be_allowed():
 
 
 def test_client_must_be_allowed():
-    # 같은 realm 의 다른 클라이언트(admin-cli 등)로 받은 토큰은 막는다
+    # 같은 realm 의 다른 클라이언트(admin-cli 등)로 받은 토큰 거절
     pem, public_jwk = rsa_key("k1")
     with respx.mock:
         respx.get(URL).mock(return_value=httpx.Response(200, json={"keys": [public_jwk]}))

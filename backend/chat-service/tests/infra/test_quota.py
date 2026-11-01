@@ -37,7 +37,7 @@ async def test_release_returns_slot(fake_redis):
 
 
 async def test_release_uses_acquired_day(fake_redis):
-    # 자정을 넘겨 돌려줘도 잡은 날의 칸을 돌려준다
+    # 자정을 넘겨 돌려줘도 잡은 날의 칸 반환
     clock = {"now": datetime(2026, 10, 16, 14, 59, tzinfo=timezone.utc)}
     rl = _limiter(fake_redis, now=lambda: clock["now"])
     slot = await rl.try_acquire("user1")

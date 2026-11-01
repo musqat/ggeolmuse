@@ -49,7 +49,7 @@ def test_counts_requests_by_route_template():
 
 
 def test_unmatched_paths_share_one_label():
-    # 경로마다 레이블이 생기면 시계열이 끝없이 는다
+    # 경로마다 레이블이 생기면 시계열이 끝없이 늘어남
     app, registry, _ = _app()
     client = TestClient(app)
 

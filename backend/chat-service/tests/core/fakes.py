@@ -11,7 +11,7 @@ TODAY = date(2026, 10, 16)
 
 
 def make_bars(n: int = 300, start: date = date(2025, 1, 1)) -> list[Bar]:
-    """정수(센트)로 만든 고정 캔들. 차트 기준값을 뽑은 node 스크립트와 같은 식"""
+    """정수(센트)로 만든 고정 캔들(차트 기준값을 뽑은 node 스크립트와 같은 식)"""
     seed = 20261016
     price = 10000
 
@@ -35,7 +35,7 @@ def make_bars(n: int = 300, start: date = date(2025, 1, 1)) -> list[Bar]:
 
 
 def line_bars(closes: list[float], start: date = date(2025, 1, 1)) -> list[Bar]:
-    """종가만 정한 캔들. 고가 · 저가는 종가 ± 1, 배당 조정 종가는 종가와 같음"""
+    """종가만 정한 캔들(고가 · 저가는 종가 ± 1, 배당 조정 종가는 종가와 같음)"""
     return [Bar(date=start + timedelta(days=i), open=c, high=c + 1, low=c - 1, close=c, adj_close=c,
                 volume=1_000_000.0) for i, c in enumerate(closes)]
 
@@ -70,7 +70,7 @@ class FakeMarket:
 
 
 class FakeModel:
-    """choose · answer 가 돌려줄 글을 정해 두고, 받은 메시지를 남긴다"""
+    """choose · answer 가 돌려줄 글을 정해 두고 받은 메시지를 남기는 가짜"""
 
     def __init__(self, choose='{"skill": "indicators"}', answer="상승 경향으로 해석될 수 있습니다."):
         self.choose_text = choose
@@ -143,7 +143,7 @@ STUB_EVIDENCE = Evidence(lines=("RSI(14): 44.2 (중립)",), as_of=TODAY)
 
 
 class StubSkill:
-    """자료를 정해 두고 돌려주는 스킬. evidence=None 이면 데이터 부족"""
+    """자료를 정해 두고 돌려주는 스킬(evidence=None 이면 데이터 부족)"""
 
     def __init__(self, name="indicators", evidence: Evidence | None = STUB_EVIDENCE):
         self.name = name

@@ -61,7 +61,7 @@ class ChatService:
         self._answerer = answerer
 
     async def start(self, user_id: str, raw_symbol: str) -> StartResult:
-        """종목을 확인하고 대화를 만든다. AI 를 부르지 않고 한도도 쓰지 않는다"""
+        """종목 확인 · 대화 생성(AI 호출 · 한도 사용 없음)"""
         symbol = raw_symbol.strip().upper()
         if not SYMBOL_PATTERN.match(symbol):
             raise SymbolNotFound(symbol)
@@ -74,11 +74,11 @@ class ChatService:
         return StartResult(conversation=conversation, remaining=await self._quota.remaining(user_id))
 
     async def remaining(self, user_id: str) -> int:
-        """오늘 남은 질문 수. 한도를 쓰지 않는다"""
+        """오늘 남은 질문 수(한도 사용 없음)"""
         return await self._quota.remaining(user_id)
 
     async def ask(self, user_id: str, conversation_id: str, question: str) -> AskResult:
-        """한도 한 칸을 잡고 답한다. 거절 · 예외면 칸을 돌려준다(거절 한도를 넘으면 안 돌려줌)"""
+        """한도 한 칸을 잡고 답변(거절 · 예외면 칸 반환, 거절 한도를 넘으면 반환 안 함)"""
         conversation = await self._store.load(user_id, conversation_id)
         if conversation is None:
             raise ConversationNotFound(conversation_id)

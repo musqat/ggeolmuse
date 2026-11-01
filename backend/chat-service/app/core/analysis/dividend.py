@@ -1,4 +1,4 @@
-"""배당 요약. 주기는 배당락일 간격으로 정하고, 금액 기준이 바뀐 것 같으면 그 값을 뺀다"""
+"""배당 요약(주기는 배당락일 간격으로, 금액 기준이 바뀐 것 같으면 그 값은 뺌)"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -61,7 +61,7 @@ def summarize_dividends(dividends: list[Dividend], price: float, today: date) ->
 
 
 def _frequency(divs: list[Dividend]) -> tuple[int | None, str | None]:
-    """최근 배당락일 간격(최대 8개)의 중앙값으로 1년 횟수를 정한다"""
+    """최근 배당락일 간격(최대 8개)의 중앙값으로 정한 1년 횟수"""
     tail = divs[-9:]
     gaps = sorted((b.ex_date - a.ex_date).days for a, b in zip(tail, tail[1:]))
     if not gaps:

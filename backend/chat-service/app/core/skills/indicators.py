@@ -1,4 +1,4 @@
-"""지표 스킬. 차트 "지표 설정" 목록과 같은 지표를 자료로 만든다"""
+"""지표 스킬(차트 "지표 설정" 목록과 같은 지표 자료)"""
 from __future__ import annotations
 
 from app.core.analysis.indicators import (

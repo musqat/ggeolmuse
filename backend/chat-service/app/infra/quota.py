@@ -1,4 +1,4 @@
-"""Redis 하루 한도와 거절 한도. 하루는 한국 날짜"""
+"""Redis 하루 한도와 거절 한도(하루는 한국 날짜)"""
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -30,7 +30,7 @@ class RateLimiter:
         val = await self._redis.get(self._key(user_id))
         return max(0, self._limit - (int(val) if val else 0))
 
-    # 오늘 한 칸을 잡고 그 키를 준다. 먼저 올려(INCR) 동시에 와도 한도를 안 넘는다. 넘으면 되돌리고 None
+    # 오늘 한 칸을 잡고 그 키 반환(먼저 INCR 로 올려 동시에 와도 한도를 안 넘음, 넘으면 되돌리고 None)
     async def try_acquire(self, user_id: str) -> str | None:
         key = self._key(user_id)
         count = await self._redis.incr(key)
@@ -41,12 +41,12 @@ class RateLimiter:
             return None
         return key
 
-    # 잡은 칸을 돌려준다. 자정을 넘겨도 잡은 날의 키를 쓴다
+    # 잡은 칸 반환(자정을 넘겨도 잡은 날의 키)
     async def release(self, slot: str) -> None:
         await self._redis.decr(slot)
 
     async def count_reject(self, user_id: str) -> bool:
-        """거절 한 번 기록. 오늘 거절이 한도 안이면 True(칸을 돌려줌)"""
+        """거절 한 번 기록(오늘 거절이 한도 안이면 True, 칸 반환)"""
         key = f"aichat:rejected:{user_id}:{self._day()}"
         count = await self._redis.incr(key)
         if count == 1:

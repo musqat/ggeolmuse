@@ -1,4 +1,4 @@
-"""주가 추이 스킬. 기간 수익률 · 52주 범위 · 낙폭 · 변동성을 자료로 만든다"""
+"""주가 추이 스킬(기간 수익률 · 52주 범위 · 낙폭 · 변동성 자료)"""
 from __future__ import annotations
 
 from app.core.analysis.trend import PERIODS, TrendSnapshot, change, compute_trend

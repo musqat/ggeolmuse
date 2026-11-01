@@ -1,4 +1,4 @@
-"""Redis 대화 저장. 키에 사용자가 들어 있어 다른 사용자의 대화는 읽지 못한다"""
+"""Redis 대화 저장(키에 사용자가 들어 있어 다른 사용자의 대화는 못 읽음)"""
 from __future__ import annotations
 
 import json
@@ -51,7 +51,7 @@ class RedisConversationStore:
                             name=meta.get("name") or None, turns=turns)
 
     async def append(self, conversation: Conversation, turn: Turn) -> None:
-        """턴을 붙이고 최근 max_turns 개만 남긴다. 두 키의 수명을 다시 건다"""
+        """턴을 붙이고 최근 max_turns 개만 남김(두 키의 수명 다시 설정)"""
         meta = _meta_key(conversation.user_id, conversation.id)
         turns = _turns_key(conversation.user_id, conversation.id)
         row = json.dumps({"q": turn.question, "a": turn.answer[: self._answer_chars], "skill": turn.skill},

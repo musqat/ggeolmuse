@@ -6,7 +6,7 @@ SECRETS_DIR = Path("/etc/secrets")
 
 
 def secrets_dir(path: Path) -> Path | None:
-    """시크릿 파일 폴더. 없으면 None"""
+    """시크릿 파일 폴더(없으면 None)"""
     return path if path.is_dir() else None
 
 
@@ -20,7 +20,7 @@ class Settings(BaseSettings):
 
     redis_host: str = "redis"
     redis_port: int = 6379
-    redis_password: str = ""  # 비어 있으면 보내지 않는다
+    redis_password: str = ""  # 비어 있으면 안 보냄
 
     market_data_base_url: str = "http://market-data-service:8083"
 

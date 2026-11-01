@@ -66,7 +66,7 @@ async def test_openai_error_becomes_ai_unavailable():
 
 
 async def test_calls_run_off_event_loop():
-    # 동기 OpenAI 호출을 루프에서 부르면 답을 기다리는 동안 다른 요청 · /health 가 멈춘다
+    # 동기 OpenAI 호출을 루프에서 부르면 답을 기다리는 동안 다른 요청 · /health 가 멈춤
     completions = _FakeCompletions()
     model = _model(completions)
     await model.choose([])
