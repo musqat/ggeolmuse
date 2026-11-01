@@ -7,7 +7,7 @@ import { API_URL, TOKEN_FILE } from '../playwright.config';
 /** 로그인 없이 볼 수 있는 화면 */
 const PUBLIC_PAGES = ['/', '/stocks', '/charts', '/backtest'];
 
-/** 로그인해야 뜨는 화면. storageState 로 시작하므로 그대로 열린다. */
+/** 로그인해야 뜨는 화면(storageState 로 시작해 그대로 열림) */
 const PRIVATE_PAGES = ['/dashboard', '/trading', '/account', '/mypage', '/trade-history'];
 
 /** 화면이 열렸다고 볼 최소 조건 */
@@ -21,7 +21,7 @@ async function expectRendered(page: import('@playwright/test').Page, path: strin
   const res = await page.goto(path);
   expect(res?.status(), `${path} 이 200 이 아니다`).toBeLessThan(400);
 
-  // 헤더만 뜨고 본문이 비면 흰 화면이다.
+  // 헤더만 뜨고 본문이 비면 흰 화면
   await expect(page.locator('main, [role="main"]').first(), `${path} 에 본문이 없다`).toBeVisible({
     timeout: 20_000,
   });
@@ -50,7 +50,7 @@ test.describe('로그인 화면', () => {
   }
 
   test('/portfolio 가 계좌와 함께 열린다', async ({ page }) => {
-    // 계좌는 쿼리 파라미터로 고른다. 없으면 "계좌를 선택해주세요" 만 뜬다.
+    // 계좌는 쿼리 파라미터로(없으면 "계좌를 선택해주세요" 만)
     const token = (await readFile(TOKEN_FILE, 'utf8')).trim();
     const auth = await request.newContext({
       extraHTTPHeaders: { Authorization: `Bearer ${token}` },

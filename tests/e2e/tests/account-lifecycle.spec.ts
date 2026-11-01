@@ -2,10 +2,10 @@ import { test, expect, request, type APIRequestContext, type APIResponse } from 
 import { readFile } from 'node:fs/promises';
 import { API_URL, KEYCLOAK_REALM, KEYCLOAK_URL, TOKEN_FILE } from '../playwright.config';
 
-// 메일 토큰이 필요한 흐름(가입 인증 · 비밀번호 찾기 · 인증 메일 재발송)은 뺌. 메일이 실제로 나감
+// 메일 토큰이 필요한 흐름(가입 인증 · 비밀번호 찾기 · 인증 메일 재발송)은 제외(메일이 실제로 나감)
 // 탈퇴는 관리자(시드 계정)가 이메일 인증을 처리해 로그인까지 감
 
-/** 스택을 여러 번 돌려도 겹치지 않게 매번 다른 계정을 만든다. */
+/** 매번 다른 계정(스택을 여러 번 돌려도 겹치지 않게) */
 function throwawayAccount() {
   const tag = process.hrtime.bigint().toString(36).slice(-8);
   return {
@@ -15,13 +15,13 @@ function throwawayAccount() {
   };
 }
 
-/** 액세스 토큰에 실린 realm 역할. */
+/** 액세스 토큰에 실린 realm 역할 */
 function realmRoles(token: string): string[] {
   const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'));
   return payload.realm_access?.roles ?? [];
 }
 
-/** 로그인 경로의 요청 제한(429)이 풀릴 때까지 다시 보내는 로그인. */
+/** 로그인 경로의 요청 제한(429)이 풀릴 때까지 다시 보내는 로그인 */
 async function postLogin(api: APIRequestContext, user: { email: string; password: string }): Promise<APIResponse> {
   let res!: APIResponse;
   await expect(async () => {
@@ -61,7 +61,7 @@ test('같은 이메일로 두 번 가입되지 않는다', async () => {
 test('구글 인가 코드 교환은 잘못된 코드를 400 으로 막는다', async () => {
   const api = await request.newContext();
 
-  // 진짜 코드는 구글 로그인 화면을 거쳐야 나온다. 여기서는 user-service → Keycloak 교환 길이 살아 있고 실패를 400 으로 돌려주는지만 본다
+  // user-service → Keycloak 교환 길이 살아 있고 실패를 400 으로 돌려주는지만(진짜 코드는 구글 로그인 화면을 거쳐야 나옴)
   const res = await api.post(`${API_URL}/auth/social/google/token`, {
     data: { code: 'e2e-invalid-code', codeVerifier: 'e2e-invalid-verifier', redirectUri: 'http://localhost:3000/oauth/callback' },
   });
@@ -71,7 +71,7 @@ test('구글 인가 코드 교환은 잘못된 코드를 400 으로 막는다', 
   await api.dispose();
 });
 
-/** 앱을 거치지 않고 Keycloak 에 직접 비밀번호로 토큰을 청한 응답. 계정이 지워졌으면 토큰을 주지 않음(200 아님). */
+/** 앱을 거치지 않고 Keycloak 에 직접 비밀번호로 토큰을 청한 응답(계정이 지워졌으면 200 아님) */
 function keycloakPasswordGrant(api: APIRequestContext, user: { email: string; password: string }): Promise<APIResponse> {
   return api.post(`${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/token`, {
     form: { grant_type: 'password', client_id: 'admin-cli', username: user.email, password: user.password },
@@ -95,7 +95,7 @@ test('이메일 사용자는 비밀번호로 탈퇴하고, 탈퇴하면 로그�
   const { accessToken } = await login.json();
   const me = await request.newContext({ extraHTTPHeaders: { Authorization: `Bearer ${accessToken}` } });
 
-  // 새 계좌는 KRW 1,000,000 을 들고 시작한다. 잔액이 있어도 탈퇴된다
+  // 새 계좌는 KRW 1,000,000 으로 시작(잔액이 있어도 탈퇴됨)
   const account = await me.post(`${API_URL}/accounts`, { data: { accountName: `E2E 탈퇴 ${user.nickname}`, commissionRate: 0 } });
   expect(account.status(), `계좌 생성이 실패했다: ${await account.text()}`).toBeLessThan(300);
 
@@ -111,7 +111,7 @@ test('이메일 사용자는 비밀번호로 탈퇴하고, 탈퇴하면 로그�
   const rejoined = await plain.post(`${API_URL}/auth/register`, { data: user });
   expect(rejoined.status(), `탈퇴한 이메일로 다시 가입되지 않는다: ${await rejoined.text()}`).toBe(201);
 
-  // 다시 만든 계정은 관리자가 강제 탈퇴. 이때도 Keycloak 계정이 지워짐
+  // 다시 만든 계정은 관리자가 강제 탈퇴(이때도 Keycloak 계정이 지워짐)
   const rejoinedUsers = await (await admin.get(`${API_URL}/admin/users?size=50`)).json();
   const rejoinedUser = rejoinedUsers.content.find((u: { email: string }) => u.email === user.email);
   expect(rejoinedUser, '다시 가입한 사용자가 관리자 목록에 없다').toBeTruthy();

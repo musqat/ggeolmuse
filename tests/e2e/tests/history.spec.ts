@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { API_URL, TOKEN_FILE } from '../playwright.config';
 import { pickSymbol, priceRange } from './fixtures';
 
-// 저장은 시뮬레이션과 다른 경로라 따로 봄. 토큰은 setup 것(게이트웨이 로그인 분당 6회 제한)
+// 저장은 시뮬레이션과 다른 경로라 따로(토큰은 setup 것, 게이트웨이 로그인 분당 6회 제한)
 test('로그인하고 돌린 백테스트가 이력에 쌓인다', async () => {
   const token = (await readFile(TOKEN_FILE, 'utf8')).trim();
 
@@ -37,7 +37,7 @@ test('로그인하고 돌린 백테스트가 이력에 쌓인다', async () => {
   });
   expect(run.status()).toBe(200);
 
-  // 저장이 비동기일 수 있어 몇 번 다시 본다.
+  // 저장이 비동기일 수 있어 몇 번 다시 확인
   await expect
     .poll(readHistory, {
       timeout: 20_000,

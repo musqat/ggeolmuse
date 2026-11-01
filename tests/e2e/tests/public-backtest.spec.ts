@@ -2,7 +2,7 @@ import { test, expect, request } from '@playwright/test';
 import { API_URL } from '../playwright.config';
 import { pickSymbol, priceRange } from './fixtures';
 
-// 백테스트는 로그인 없이 열려 있고 이력 저장은 로그인해야 함. 그 경계를 봄
+// 로그인 없이 열린 백테스트와 로그인해야 하는 이력 저장의 경계
 test.describe('비로그인 백테스트', () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 

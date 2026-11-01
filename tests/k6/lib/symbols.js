@@ -12,8 +12,7 @@ export function randomSymbol() {
   return SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
 }
 
-// 수집 범위가 2년(SYMBOL_LOOKBACK_DAYS=730)이라 그 안에서 고른다.
-// 주말은 데이터가 없어 404 가 나므로 평일만 돌려준다.
+// 수집 범위 2년(SYMBOL_LOOKBACK_DAYS=730) 안의 평일만(주말은 데이터가 없어 404)
 export function randomTradingDate() {
   const end = new Date();
   const daysBack = Math.floor(Math.random() * 700) + 5;

@@ -2,7 +2,7 @@ import { test, expect, request, type APIRequestContext } from '@playwright/test'
 import { readFile } from 'node:fs/promises';
 import { API_URL, TOKEN_FILE } from '../playwright.config';
 
-// 화면에서 입금 → 환전 → 잔액. 환율은 수동 입력(스택에 환율이 없어도 돌게), 만든 계좌는 끝에 지움
+// 화면에서 입금 → 환전 → 잔액(환율은 스택에 없어도 돌게 수동 입력, 만든 계좌는 끝에 지움)
 
 const DEPOSIT_KRW = 2_000_000;
 const EXCHANGE_USD = 1_000;
@@ -29,7 +29,7 @@ test('화면에서 입금하고 환전하면 계좌 잔액이 바뀐다', async 
   try {
     const before = await balanceOf();
 
-    // 허용 범위 가운데 정수 환율. 1,000달러어치 원화가 나눠떨어짐
+    // 허용 범위 가운데 정수 환율(1,000달러어치 원화가 나눠떨어짐)
     const rangeRes = await auth.get(`${API_URL}/accounts/exchange-rates/range`);
     expect(rangeRes.status(), '환율 범위를 못 받는다').toBe(200);
     const range = await rangeRes.json();
