@@ -28,7 +28,7 @@ public final class BacktestCalculationUtils {
   public static final int PERCENT_PRECISION = 4;
 
 
-  // 매수 가능한 주식 수량을 계산합니다
+  // 매수 가능한 주식 수량
   public static BigDecimal calculateShares(BigDecimal investmentAmount, BigDecimal fxRate,
     BigDecimal stockPrice) {
     if (investmentAmount == null || fxRate == null || stockPrice == null) {
@@ -48,8 +48,7 @@ public final class BacktestCalculationUtils {
       .divide(stockPrice, 8, HALF_UP);
   }
 
-  // 평균 매수가(USD)를 계산합니다
-  // totalFxRateSum 은 Σ(투자금액 × 환율) 이라 가중평균 환율로 바꿔서 나눈다
+  // 평균 매수가(USD, totalFxRateSum 은 Σ(투자금액 × 환율)이라 가중평균 환율로 바꿔 나눔)
   public static BigDecimal calculateAveragePrice(BigDecimal totalInvestment,
     BigDecimal totalFxRateSum, BigDecimal totalShares) {
     if (totalInvestment == null || totalFxRateSum == null || totalShares == null) {
@@ -80,7 +79,7 @@ public final class BacktestCalculationUtils {
     return totalFxRateSum.divide(totalInvested, USD_SCALE, HALF_UP);
   }
 
-  // 리스트의 중간값을 계산합니다
+  // 리스트의 중간값
   public static BigDecimal calculateMedian(List<BigDecimal> values) {
     if (values == null || values.isEmpty()) {
       throw new IllegalArgumentException("값 리스트는 null이거나 비어있을 수 없습니다");
@@ -100,7 +99,7 @@ public final class BacktestCalculationUtils {
     }
   }
 
-  // BigDecimal 값을 지정된 스케일로 반올림합니다
+  // BigDecimal 값을 지정된 스케일로 반올림
   public static BigDecimal scaleValue(BigDecimal value, int scale) {
     if (value == null) {
       throw new IllegalArgumentException("값은 null이 될 수 없습니다");
@@ -110,12 +109,12 @@ public final class BacktestCalculationUtils {
   }
 
 
-  // 주식 수량을 표준 스케일(6)로 반올림합니다
+  // 주식 수량을 표준 스케일(6)로 반올림
   public static BigDecimal scaleShares(BigDecimal shares) {
     return scaleValue(shares, SHARES_SCALE);
   }
 
-  // 총 투자 대비 평균 수익률을 계산합니다
+  // 총 투자 대비 평균 수익률
   public static BigDecimal calculateAverageReturn(List<BigDecimal> returnValues) {
     if (returnValues == null || returnValues.isEmpty()) {
       throw new IllegalArgumentException("수익률 리스트는 null이거나 비어있을 수 없습니다");
@@ -139,7 +138,7 @@ public final class BacktestCalculationUtils {
     return totalInvestment.divide(BigDecimal.valueOf(divisions), USD_SCALE, HALF_UP);
   }
 
-  // 배당락일 전에 산(실제 거래일 < 배당락일) 주식만 그 배당을 받는다. 배당락일 당일 매수는 못 받는다
+  // 배당락일 전에 산(실제 거래일 < 배당락일) 주식만 그 배당 대상(배당락일 당일 매수는 제외)
   public static boolean receivesDividend(LocalDate tradeDate, LocalDate exDate) {
     return tradeDate != null && exDate != null && tradeDate.isBefore(exDate);
   }
@@ -192,7 +191,7 @@ public final class BacktestCalculationUtils {
   }
 
   // 특정 기간 동안의 총 배당금을 계산합니다 (USD)
-  // 단순 고정 주식수 기반 - 심플 백테스트용. startDate 는 매수일이라 그날이 배당락일인 배당은 받지 않는다
+  // 단순 고정 주식수 기반 심플 백테스트용(startDate 는 매수일이라 그날이 배당락일인 배당은 제외)
   public static BigDecimal calculateTotalDividends(DividendHistoryDto dividendHistory,
     BigDecimal shares,
     LocalDate startDate, LocalDate endDate) {
@@ -239,7 +238,7 @@ public final class BacktestCalculationUtils {
       .setScale(USD_SCALE, HALF_UP);
   }
 
-  // 매수 한 번의 수수료 (USD). 투자금(KRW)을 그날 환율로 바꾼 달러 × 수수료율
+  // 매수 한 번의 수수료(USD, 투자금 KRW 를 그날 환율로 바꾼 달러 × 수수료율)
   public static BigDecimal calculatePurchaseFee(BigDecimal investmentAmount, BigDecimal fxRate,
     BigDecimal feeRate) {
     if (feeRate == null || !Decimals.isPositive(feeRate)) {
@@ -249,7 +248,7 @@ public final class BacktestCalculationUtils {
       .setScale(USD_SCALE, HALF_UP);
   }
 
-  // 수수료를 뺀 달러로 살 수 있는 주식 수. 수수료가 0 이면 calculateShares 와 같다
+  // 수수료를 뺀 달러로 살 수 있는 주식 수(수수료 0 이면 calculateShares 와 같음)
   public static BigDecimal calculateSharesAfterFee(BigDecimal investmentAmount, BigDecimal fxRate,
     BigDecimal stockPrice, BigDecimal feeUsd) {
     BigDecimal shares = calculateShares(investmentAmount, fxRate, stockPrice);

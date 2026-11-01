@@ -442,8 +442,7 @@ class TradingSimulationServiceImplTest {
     @Test
     @DisplayName("매도일이 매수일보다 앞서는 답을 내지 않는다")
     void optimalTiming_NeverSellsBeforeBuying() {
-      // given: 고점이 먼저 오고 그 뒤로 계속 내려가는 구간.
-      // 전 구간 최저(8/12)와 최고(7/28)를 각각 뽑으면 8월에 사서 7월에 파는 답이 나온다.
+      // given: 고점(7/28)이 먼저, 최저(8/12)가 뒤 — 따로 뽑으면 8월 매수 · 7월 매도
       runWith(List.of(
         candle("2026-07-02", "308.36"),
         candle("2026-07-28", "339.79"),
@@ -464,7 +463,7 @@ class TradingSimulationServiceImplTest {
         sellDate.capture(), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
         anyList());
 
-      // then: 7/2 에 사서 7/28 에 파는 것이 제약 아래 최대 수익이다
+      // then: 7/2 에 사서 7/28 에 파는 것이 제약 아래 최대 수익
       assertThat(buyDate.getValue()).isEqualTo(LocalDate.parse("2026-07-02"));
       assertThat(sellDate.getValue()).isEqualTo(LocalDate.parse("2026-07-28"));
       assertThat(sellDate.getValue()).isAfterOrEqualTo(buyDate.getValue());
@@ -499,7 +498,6 @@ class TradingSimulationServiceImplTest {
     @Test
     @DisplayName("내내 하락하면 매수일과 매도일이 같고 수익률이 0 이다")
     void optimalTiming_AllDownhill_ReturnsZero() {
-      // 살 이유가 없는 구간이다. 손실을 최적이라고 부르지 않는다.
       runWith(List.of(
         candle("2026-01-02", "300.00"),
         candle("2026-02-02", "250.00"),
@@ -567,7 +565,6 @@ class TradingSimulationServiceImplTest {
     @Test
     @DisplayName("응답이 날짜 순서로 오지 않아도 결과가 같다")
     void optimalTiming_UnsortedInput_SameResult() {
-      // 호출 대상이 정렬해 주지만 그건 그쪽 구현 세부다. 여기서 기대지 않는다.
       runWith(List.of(
         candle("2026-08-12", "302.25"),
         candle("2026-07-02", "308.36"),
@@ -862,7 +859,7 @@ class TradingSimulationServiceImplTest {
       service = new TradingSimulationServiceImpl(marketDataClientWrapper, new ResponseMapper(), backtestHistoryUtils);
     }
 
-    // 130만원 · 환율 1300 · 매수가 100 → 10주. 매도일 평가가 150
+    // 130만원 · 환율 1300 · 매수가 100 → 10주, 매도일 평가가 150
     private SimulationRequest request(boolean reinvest, String taxRate) {
       return SimulationRequest.builder().symbol(TEST_SYMBOL).purchaseDate(purchaseDate).saleDate(saleDate)
         .investmentAmount(new BigDecimal("1300000")).reinvestDividends(reinvest)
@@ -898,7 +895,7 @@ class TradingSimulationServiceImplTest {
       assertThat(response.getShares()).isEqualByComparingTo("10.085");
       // 배당은 주식 수에만 들어가고 현금으로 또 더하지 않는다: 10.085주 × 150달러 × 1300원
       assertThat(response.getTotalAssetKrw()).isEqualByComparingTo("1966575");
-      // 총 배당금은 세전 10달러. 재투자로 늘어난 10.085주로 다시 곱하지 않는다
+      // 총 배당금은 세전 10달러(재투자로 늘어난 10.085주로 다시 곱하지 않음)
       assertThat(response.getTotalDividends()).isEqualByComparingTo("10.00");
     }
 
@@ -916,7 +913,7 @@ class TradingSimulationServiceImplTest {
 
       SimulationResponse response = service.runSimulation(request(true, "0"), false);
 
-      // 10주에 1달러 → 0.1주를 더 사고, 다음 배당은 10.1주에 1달러. 마지막 10.201주로 두 번 곱하지 않는다
+      // 10주에 1달러 → 0.1주 추가, 다음 배당은 10.1주에 1달러(마지막 10.201주로 두 번 곱하지 않음)
       assertThat(response.getShares()).isEqualByComparingTo("10.201");
       assertThat(response.getTotalDividends()).isEqualByComparingTo("20.10");
     }
@@ -931,7 +928,7 @@ class TradingSimulationServiceImplTest {
       SimulationResponse noTax = service.runSimulation(request(false, "0"), false);
       SimulationResponse taxed = service.runSimulation(request(false, "0.15"), false);
 
-      // 10주 × 150달러 × 1300원 = 1,950,000원에 배당 10달러(세후 8.5달러) × 1300원을 더한다
+      // 10주 × 150달러 × 1300원 = 1,950,000원 + 배당 10달러(세후 8.5달러) × 1300원
       assertThat(noTax.getShares()).isEqualByComparingTo("10");
       assertThat(noTax.getTotalAssetKrw()).isEqualByComparingTo("1963000");
       assertThat(taxed.getTotalAssetKrw()).isEqualByComparingTo("1961050");

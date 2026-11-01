@@ -184,7 +184,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     }
   }
 
-  // 조건부 매수 실행. 시세가 깨진 날(종가 0 이하) · 계산이 실패한 날은 사지 않고 이유와 함께 남긴 뒤 다음 날 다시 봄
+  // 조건부 매수 실행(시세가 깨진 날 종가 0 이하 · 계산이 실패한 날은 사지 않고 이유를 남긴 뒤 다음 날 다시)
   private StrategyPurchases executeConditionalPurchases(
     ConditionalStrategyRequest request, LocalDate actualEndDate, InvestmentParams params) {
 
@@ -225,7 +225,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
             BigDecimal purchaseFxRate = request.getPurchaseFxRate() != null
               ? request.getPurchaseFxRate() : fxRateMap.get(currentDate);
 
-            // 수수료를 떼고 남은 달러로 산다
+            // 수수료를 떼고 남은 달러로 매수
             BigDecimal fee = BacktestCalculationUtils.calculatePurchaseFee(
               params.amountPerPurchase(), purchaseFxRate, request.getTradingFeeRate());
             BigDecimal shares = BacktestCalculationUtils.calculateSharesAfterFee(
@@ -269,7 +269,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
       return new PurchaseDecision(true, "초기매수");
     }
 
-    // 직전 매수가 대비 하락률. 오른 날은 음수라 사지 않는다
+    // 직전 매수가 대비 하락률(오른 날은 음수라 매수 없음)
     BigDecimal dropPercent = MoneyUtils.calculateReturnRate(lastPurchasePrice, currentPrice).negate();
     BigDecimal dropPercentageAsPercent = dropPercentage.multiply(BacktestConstants.Money.PERCENTAGE_MULTIPLIER);
 

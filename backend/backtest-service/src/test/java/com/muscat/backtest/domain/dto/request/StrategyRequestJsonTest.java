@@ -10,7 +10,7 @@ import java.time.LocalDate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-// 이력 저장이 요청을 JSON 으로 쓰므로 전략 타입 getter 가 저장 모양을 바꾸지 않는지 본다
+// 전략 타입 getter 가 이력 저장 JSON 모양을 바꾸지 않는지
 class StrategyRequestJsonTest {
 
   private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());

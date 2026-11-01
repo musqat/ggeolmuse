@@ -60,7 +60,7 @@ class TradingSimulationControllerTest {
   @MockitoBean
   private TradingSimulationService tradingSimulationService;
 
-  // 실제 보안 설정의 디코더 자리를 바꿔 끼운다. 이 토큰만 사용자로 풀린다
+  // 실제 보안 설정의 디코더 대체(이 토큰만 사용자로 풀림)
   @MockitoBean
   private JwtDecoder jwtDecoder;
 

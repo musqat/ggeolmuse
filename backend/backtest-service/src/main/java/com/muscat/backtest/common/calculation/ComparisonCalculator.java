@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
 @UtilityClass
 public class ComparisonCalculator {
     
-    // 비교 분석 결과를 계산합니다
+    // 비교 분석 결과 계산
     public static ComparisonCalculationResult calculate(List<ComparisonItem> items) {
         
         // 정렬 및 순위 매기기

@@ -16,7 +16,7 @@ import java.util.List;
 // 전략(DCA · 조건부) 공통 마무리: 평가일 시세 · 환율 → 총투자 · 환율 합 → 배당 재투자 → 계산
 public final class StrategyFinalizer {
 
-  /** 마무리 결과: 거래내역 + 계산결과 + 평가일 시세. */
+  /** 마무리 결과(거래내역 + 계산결과 + 평가일 시세) */
   public record Result(List<StrategyTransaction> transactions,
                        StrategyCalculationResult calculation,
                        StockPriceDto currentPrice) {}

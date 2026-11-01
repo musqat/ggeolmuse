@@ -8,7 +8,7 @@ spring:
     compatibility-verifier:
       enabled: false
 
-  # DB 는 테스트의 Postgres 컨테이너가 붙는다. 운영처럼 Flyway 로 테이블을 만들고 엔티티가 맞는지 검사한다
+  # DB 는 테스트의 Postgres 컨테이너(운영처럼 Flyway 로 테이블을 만들고 엔티티 검사)
   jpa:
     hibernate:
       ddl-auto: validate

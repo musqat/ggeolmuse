@@ -244,7 +244,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
       .build();
   }
 
-  // 단순 시뮬레이션 요청에 비교 요청의 매도일(종료일) · 투자금 · 수수료 · 환율 · 배당 옵션을 채운다
+  // 비교 요청의 매도일(종료일) · 투자금 · 수수료 · 환율 · 배당 옵션으로 채운 단순 시뮬레이션 요청
   private SimulationRequest.SimulationRequestBuilder simulationWithOptions(
     BaseComparisonRequest request) {
     return SimulationRequest.builder()
@@ -263,7 +263,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
     return Boolean.TRUE.equals(request.getReinvestDividends());
   }
 
-  // 빈 값은 0. builder 에 null 을 넣으면 @Builder.Default 가 덮인다
+  // 빈 값은 0(builder 에 null 을 넣으면 @Builder.Default 가 덮임)
   private static BigDecimal orZero(BigDecimal value) {
     return value != null ? value : BigDecimal.ZERO;
   }

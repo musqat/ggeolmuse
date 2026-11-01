@@ -16,7 +16,7 @@ public class CacheConfig {
   public static final String SIMULATION_RESULTS = "simulationResults";
   public static final String LATEST_FX_RATE = "latestFxRate";
 
-  // 캐시마다 수명이 다름. 과거 결과(simulationResults)는 길게, 최신 환율(latestFxRate)은 짧게
+  // 캐시마다 다른 수명(과거 결과 simulationResults 는 길게, 최신 환율 latestFxRate 는 짧게)
   @Bean
   public CacheManager cacheManager() {
     SimpleCacheManager manager = new SimpleCacheManager();

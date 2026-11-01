@@ -90,7 +90,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
       purchaseFxRate = marketDataClientWrapper.getFxRate(tradeDate.toString());
     }
 
-    // 평가일 시세. 오늘이면 현재가, 과거면 그날 조정 종가
+    // 평가일 시세(오늘이면 현재가, 과거면 그날 조정 종가)
     BigDecimal valuationPrice = valuedToday
       ? marketDataClientWrapper.getCurrentPrice(request.getSymbol()).currentPrice()
       : PriceLookup.effectiveClose(getHistoricalPriceWithRetry(request.getSymbol(), valuationDate));
@@ -166,8 +166,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
         .sorted((d1, d2) -> d1.getExDate().compareTo(d2.getExDate()))
         .toList();
 
-      // 배당일 가격을 BULK로 선조회(N+1 제거): 배당 구간 전체 OHLC를 range 1콜로 받아 날짜 맵 구성
-      // (배당마다 getOHLCPrice를 5일 fallback HTTP로 치던 것 대체. 휴장일 대응 위해 시작 -5일)
+      // 배당 구간 전체 OHLC 를 range 1콜로 받은 날짜 맵(N+1 방지, 휴장일 대응으로 시작 -5일)
       Map<LocalDate, OHLCPriceDto> dividendPriceMap = java.util.Collections.emptyMap();
       if (!dividends.isEmpty()) {
         LocalDate firstExDate = dividends.get(0).getExDate();
@@ -229,7 +228,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
     currentValueUsd = shares.multiply(currentPriceUsd);
     currentValueKrw = MoneyUtils.convertUsdToKrw(currentValueUsd, currentFxRate);
 
-    // 받은 배당 총액(세전). 재투자했으면 위에서 더한 값, 아니면 처음 주식 수로 구한다
+    // 받은 배당 총액(세전, 재투자했으면 위에서 더한 값, 아니면 처음 주식 수로)
     boolean reinvested = Boolean.TRUE.equals(context.request().getReinvestDividends());
     BigDecimal totalDividends = reinvested
       ? grossDividends
@@ -239,7 +238,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
     BigDecimal dividendYield = BacktestCalculationUtils.calculateDividendYield(
       totalDividends, shares, currentPriceUsd);
 
-    // 재투자를 끄면 세후 배당을 현금으로 받는다. 켜면 이미 주식 수에 들어 있다
+    // 재투자를 끄면 세후 배당을 현금으로(켜면 이미 주식 수에 포함)
     BigDecimal cashDividendKrw = BigDecimal.ZERO;
     if (!reinvested && Decimals.isPositive(totalDividends)) {
       BigDecimal dividendTaxRate = context.request().getDividendTaxRate();
@@ -354,8 +353,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
         }
       }
 
-      // 내내 하락하기만 하면 갱신이 없어 매수일 = 매도일 = 시작일, 수익률 0 이 된다.
-      // 그 구간에서는 사지 않는 것이 최선이라는 뜻이다.
+      // 내내 하락이면 매수일 = 매도일 = 시작일 · 수익률 0(사지 않는 게 최선)
       return new OptimalTiming(
         bestBuy.date(),
         PriceLookup.effectiveClose(bestBuy),

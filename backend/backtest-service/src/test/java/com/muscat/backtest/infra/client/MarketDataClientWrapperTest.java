@@ -22,8 +22,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
-// 서킷 브레이커가 부르는 대체 메서드는 private 이라 직접 불러 동작을 고정한다.
-// 단건 시세는 예외(틀린 값으로 백테스트하지 않는다), 목록은 빈 값, 환율은 기본 환율 1300
+// 서킷 브레이커 대체 메서드(private)의 동작 — 단건 시세는 예외, 목록은 빈 값, 환율은 기본 1300
 @DisplayName("시세 서비스 호출과 대체 동작")
 class MarketDataClientWrapperTest {
 

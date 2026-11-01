@@ -73,7 +73,7 @@ public class MarketDataClientWrapper {
   }
 
   /**
-   * 최신 환율은 요청과 무관하게 값이 하나다.
+   * 최신 환율은 요청과 무관하게 값 하나
    */
   @Cacheable(cacheNames = CacheConfig.LATEST_FX_RATE, key = "'latest'")
   @CircuitBreaker(name = "marketDataService")
@@ -105,7 +105,7 @@ public class MarketDataClientWrapper {
     throw new BacktestException(BacktestResponse.MARKET_DATA_UNAVAILABLE, ex);
   }
 
-  // 4xx 는 장애가 아니다. 서비스 불가로 바꾸지 않고 그대로 올린다
+  // 4xx 는 장애가 아님(서비스 불가로 바꾸지 않고 그대로)
   private static void rethrowClientError(Exception ex) {
     if (ex instanceof FeignException.FeignClientException clientError) {
       throw clientError;

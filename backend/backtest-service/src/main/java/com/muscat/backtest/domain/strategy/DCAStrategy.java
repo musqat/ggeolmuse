@@ -30,7 +30,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-// DCA 적립식 투자 전략: 매월 지정일에 고정 금액 매수. 배당 재투자 · 원천징수 · 환율 변동은 옵션
+// DCA 적립식 투자 전략(매월 지정일에 고정 금액 매수, 배당 재투자 · 원천징수 · 환율 변동은 옵션)
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -115,7 +115,7 @@ public class DCAStrategy implements InvestmentStrategy {
     }
   }
 
-  // 정기 적립식 투자 실행. 투자일에 쓸 시세가 없거나 계산이 실패한 회차는 사지 않고 이유와 함께 남김
+  // 정기 적립식 투자 실행(투자일에 쓸 시세가 없거나 계산이 실패한 회차는 사지 않고 이유를 남김)
   private StrategyPurchases executeRegularInvestments(
     DcaStrategyRequest request, LocalDate actualEndDate, int investmentDay) {
 
@@ -178,7 +178,7 @@ public class DCAStrategy implements InvestmentStrategy {
         ? request.getPurchaseFxRate() : fxRateMap.get(priceData.date());
 
       try {
-        // 매수 실행. 수수료를 떼고 남은 달러로 산다
+        // 매수 실행(수수료를 떼고 남은 달러로)
         BigDecimal fee = BacktestCalculationUtils.calculatePurchaseFee(
           request.getMonthlyAmount(), purchaseFxRate, request.getTradingFeeRate());
         BigDecimal shares = BacktestCalculationUtils.calculateSharesAfterFee(
@@ -213,7 +213,7 @@ public class DCAStrategy implements InvestmentStrategy {
     return new StrategyPurchases(transactions, skippedRounds);
   }
 
-  // 시작일부터 종료일까지 주기마다의 투자일. 그달에 투자일이 없으면 말일
+  // 시작일부터 종료일까지 주기마다의 투자일(그달에 투자일이 없으면 말일)
   private static List<LocalDate> investmentDates(LocalDate startDate, LocalDate endDate,
     int investmentDay, int interval) {
     List<LocalDate> dates = new ArrayList<>();
