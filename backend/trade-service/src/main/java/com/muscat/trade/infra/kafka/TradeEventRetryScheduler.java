@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -17,6 +18,8 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 public class TradeEventRetryScheduler {
+
+  public static final String LOCK_NAME = "trade-event-retry";
 
   // 커밋 직후 발행과 겹치지 않게 이만큼 지난 체결만 다시 보냄
   private static final Duration RESEND_AFTER = Duration.ofSeconds(30);
@@ -42,7 +45,9 @@ public class TradeEventRetryScheduler {
   }
 
   // 하나라도 실패하면 이번 회차 중단(브로커가 끊겼을 때 건마다 5초씩 기다리지 않게)
+  // 파드 하나만(회차 사이 20초는 잠금 유지)
   @Scheduled(fixedDelay = 30_000)
+  @SchedulerLock(name = LOCK_NAME, lockAtMostFor = "5m", lockAtLeastFor = "20s")
   public void resend() {
     LocalDateTime now = LocalDateTime.now();
     boolean sent = resendAll(tradeRepository
