@@ -194,6 +194,19 @@ valueFrom:
 {{- end }}
 {{- end }}
 
+{{/* 같은 앱 파드의 노드 분산(인자: name · Values) */}}
+{{- define "ggeolmuse.topologySpread" -}}
+{{- with .Values.global.topologySpread }}
+topologySpreadConstraints:
+- maxSkew: {{ .maxSkew }}
+  topologyKey: kubernetes.io/hostname
+  whenUnsatisfiable: {{ .whenUnsatisfiable }}
+  labelSelector:
+    matchLabels:
+      app: {{ $.name }}
+{{- end }}
+{{- end }}
+
 {{- define "ggeolmuse.otelVolume" -}}
 {{- if .Values.global.otel.enabled -}}
 - name: otel-agent

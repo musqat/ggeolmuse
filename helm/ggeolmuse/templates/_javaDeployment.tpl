@@ -36,6 +36,9 @@ spec:
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if .Values.global.topologySpread.enabled }}
+      {{- include "ggeolmuse.topologySpread" (dict "name" $svc.name "Values" .Values) | nindent 6 }}
+      {{- end }}
       {{- /* config-server 자신은 대기 없음 */}}
       {{- if ne $svc.name .Values.configServer.name }}
       initContainers:

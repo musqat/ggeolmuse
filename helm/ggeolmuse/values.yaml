@@ -5,6 +5,16 @@ global:
 
   # 롤백용으로 남기는 옛 ReplicaSet 개수(k8s 기본 10)
   revisionHistoryLimit: 5
+  # 여러 노드에서만 켜는 배치(k3s 단일 노드는 꺼 둠)
+  # 레플리카 2 이상인 앱의 PodDisruptionBudget
+  podDisruptionBudget:
+    enabled: false
+    minAvailable: 1
+  # 같은 앱 파드를 노드마다 고르게(못 맞추면 그래도 띄움)
+  topologySpread:
+    enabled: false
+    maxSkew: 1
+    whenUnsatisfiable: ScheduleAnyway
 
   # Management server port (Health, Metrics, Actuator)
   management:
