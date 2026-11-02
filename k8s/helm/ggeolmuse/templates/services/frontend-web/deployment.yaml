@@ -42,6 +42,12 @@ spec:
           value: {{ .Values.frontend.env.keycloakRealm | quote }}
         - name: VITE_KEYCLOAK_CLIENT_ID
           value: {{ .Values.frontend.env.keycloakClientId | quote }}
+        {{- with $.Values.global.preStopSleepSeconds }}
+        lifecycle:
+          preStop:
+            exec:
+              command: ["sleep", "{{ . }}"]
+        {{- end }}
         securityContext:
           {{- include "ggeolmuse.securityContext" . | nindent 10 }}
         volumeMounts:

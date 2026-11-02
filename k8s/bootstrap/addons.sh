@@ -33,10 +33,7 @@ helm repo update
 
 echo "Calico ${CALICO_VERSION}"
 calico="https://raw.githubusercontent.com/projectcalico/calico/${CALICO_VERSION}/manifests"
-# Calico API CRD 파일 이름이 Kubernetes 1.36 부터 다름
-minor="${KUBERNETES_VERSION#*.}"; minor="${minor%%.*}"
-if [ "$minor" -ge 36 ]; then crds=v3_projectcalico_org.yaml; else crds=v3_projectcalico_org-v1beta1.yaml; fi
-kubectl apply --server-side --force-conflicts -f "$calico/$crds"
+kubectl apply --server-side --force-conflicts -f "$calico/operator-crds.yaml"
 kubectl apply --server-side --force-conflicts -f "$calico/tigera-operator.yaml"
 wait_for 300 crd installations.operator.tigera.io
 kubectl apply -f "$root/k8s/addons/calico.yaml"

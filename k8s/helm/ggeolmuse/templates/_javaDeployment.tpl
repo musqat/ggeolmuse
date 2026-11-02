@@ -84,6 +84,12 @@ spec:
         resources:
           {{- toYaml $svc.resources | nindent 10 }}
         {{- end }}
+        {{- with $.Values.global.preStopSleepSeconds }}
+        lifecycle:
+          preStop:
+            exec:
+              command: ["sleep", "{{ . }}"]
+        {{- end }}
         securityContext:
           {{- include "ggeolmuse.securityContext" . | nindent 10 }}
         volumeMounts:

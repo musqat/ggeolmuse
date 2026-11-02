@@ -15,6 +15,8 @@ global:
     enabled: false
     maxSkew: 1
     whenUnsatisfiable: ScheduleAnyway
+  # 종료 전 대기 초(엔드포인트에서 빠지는 동안 요청을 받음, 0 이면 없음)
+  preStopSleepSeconds: 0
 
   # Management server port (Health, Metrics, Actuator)
   management:

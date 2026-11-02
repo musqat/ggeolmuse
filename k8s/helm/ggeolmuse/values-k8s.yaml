@@ -4,6 +4,7 @@ global:
     enabled: true
   topologySpread:
     enabled: true
+  preStopSleepSeconds: 5
 
 infrastructure:
   # jdbc-ping 캐시 클러스터(keycloak 26 기본)
