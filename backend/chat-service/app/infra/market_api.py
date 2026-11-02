@@ -47,7 +47,7 @@ class MarketClient:
         return sorted(rows, key=lambda d: d.ex_date)
 
     async def _get(self, path: str, params: dict | None = None):
-        """404 면 None. 그 밖의 4xx · 5xx · 시간 초과 · 연결 실패는 MarketUnavailable"""
+        """404 면 None(그 밖의 4xx · 5xx · 시간 초과 · 연결 실패는 MarketUnavailable)"""
         try:
             res = await self._http.get(path, params=params)
         except httpx.HTTPError as e:

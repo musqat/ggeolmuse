@@ -81,7 +81,7 @@ class BacktestCalculationUtilsTest {
     @DisplayName("정상적인 평균 가격 계산")
     void calculateAveragePrice_Success() {
       // given
-      // 130만원씩 두 번, 환율 1300. totalFxRateSum = Σ(투자금액 × 환율)
+      // 130만원씩 두 번, 환율 1300(totalFxRateSum = Σ(투자금액 × 환율))
       BigDecimal totalInvestment = new BigDecimal("2600000");
       BigDecimal totalFxRateSum = new BigDecimal("3380000000");
       BigDecimal totalShares = new BigDecimal("20");

@@ -8,7 +8,7 @@ from tests.core.fakes import line_bars
 
 
 def test_price_and_total_returns_are_separate():
-    # 마지막 날만 110, 그 전은 100. 배당 조정 종가는 그 전이 90
+    # 마지막 날만 110, 그 전은 100(배당 조정 종가는 그 전이 90)
     bars = [replace(b, adj_close=90.0) for b in line_bars([100.0] * 253)] + line_bars([110.0])
     s = compute_trend(bars)
 

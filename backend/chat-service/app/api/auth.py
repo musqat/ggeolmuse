@@ -12,7 +12,7 @@ VerifyFn = Callable[[str], dict]
 
 
 def extract_user_id(authorization: str | None, verify: VerifyFn) -> str:
-    """토큰의 sub. 공개키를 못 받으면 AuthUnavailable, 나머지 실패는 Unauthorized"""
+    """토큰의 sub(공개키를 못 받으면 AuthUnavailable, 나머지 실패는 Unauthorized)"""
     if not authorization or not authorization.startswith("Bearer "):
         raise Unauthorized("Authorization 헤더 없음")
     token = authorization[len("Bearer "):]

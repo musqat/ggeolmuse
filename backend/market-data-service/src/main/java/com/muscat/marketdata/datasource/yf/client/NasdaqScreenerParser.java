@@ -104,7 +104,7 @@ public class NasdaqScreenerParser {
         return asset;
     }
 
-    // 이름이 펀드(ETF 낱말 · exchange traded fund · money market)면 ETF. trust · fund 는 산업 칸이 빌 때만 ETF(은행 · 리츠 제외)
+    // 이름이 펀드(ETF 낱말 · exchange traded fund · money market)면 ETF, trust · fund 는 산업 칸이 빌 때만 ETF(은행 · 리츠 제외)
     public static String determineAssetType(String name, String industry) {
         if (name == null) {
             return "EQUITY";

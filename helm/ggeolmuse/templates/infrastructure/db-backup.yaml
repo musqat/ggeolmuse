@@ -2,7 +2,7 @@
 {{- $b := .Values.dbBackup }}
 {{- $firstKey := index $b.databaseSecretKeys 0 }}
 ---
-# 월간 pg_dump → S3. 버킷과 권한은 terraform/db-backup.tf
+# 월간 pg_dump → S3(버킷 · 권한은 terraform/db-backup.tf)
 apiVersion: batch/v1
 kind: CronJob
 metadata:

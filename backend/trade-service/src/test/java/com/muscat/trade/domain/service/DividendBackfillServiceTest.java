@@ -149,7 +149,7 @@ class DividendBackfillServiceTest {
 
     List<PayoutDiffResponse> diff = dividendBackfillService.diff();
 
-    // 0.24 × 10 → 세후 2.03. 계좌 21 은 같아서 빠지고, 22 는 배당락일 전에 다 팔아 받을 몫이 0
+    // 0.24 × 10 → 세후 2.03(계좌 21 은 같아서 빠지고, 22 는 배당락일 전에 다 팔아 받을 몫이 0)
     assertThat(diff).extracting(PayoutDiffResponse::accountId, d -> d.settled().toPlainString(),
         d -> d.target().toPlainString(), d -> d.delta().toPlainString(), PayoutDiffResponse::differingRows)
       .containsExactly(

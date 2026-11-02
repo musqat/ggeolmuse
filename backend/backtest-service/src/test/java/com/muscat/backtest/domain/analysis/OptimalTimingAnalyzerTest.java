@@ -302,7 +302,7 @@ class OptimalTimingAnalyzerTest {
       given(marketDataClient.getBulkFxRates(any())).willReturn(Map.of());
     }
 
-    // 1일 100 · 2일 80 · 3일 120 · 4일 시세 없음 · 5일 90. 지금 100 이면 각각 0% · +25% · -16.7% · +11.1%
+    // 1일 100 · 2일 80 · 3일 120 · 4일 시세 없음 · 5일 90(지금 100 이면 각각 0% · +25% · -16.7% · +11.1%)
     private void stubFiveDays() {
       given(marketDataClient.getOHLCPriceRange(SYMBOL, START.toString(), END.toString())).willReturn(List.of(
         day(START, "100"), day(START.plusDays(1), "80"), day(START.plusDays(2), "120"), day(END, "90")));

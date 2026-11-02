@@ -34,11 +34,11 @@ public class SecurityConfig {
     @Value("${keycloak.realm:ggeolmuse}")
     private String realm;
 
-    // 받는 토큰의 iss. 없으면 JWKS 를 받는 내부 주소의 issuer
+    // 받는 토큰의 iss(없으면 JWKS 를 받는 내부 주소의 issuer)
     @Value("${keycloak.issuers:${keycloak.auth-server-url:http://keycloak:8080}/realms/${keycloak.realm:ggeolmuse}}")
     private List<String> issuers;
 
-    // 받는 토큰의 azp. 이메일 로그인 · 구글 로그인 클라이언트
+    // 받는 토큰의 azp(이메일 로그인 · 구글 로그인 클라이언트)
     @Value("${keycloak.client-ids:ggeolmuse-client,ggeolmuse-frontend}")
     private List<String> clientIds;
 

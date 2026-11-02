@@ -48,7 +48,7 @@ public final class KafkaFactories {
         return props;
     }
 
-    // 수동 커밋 · earliest. 값은 타입 헤더 없이 type 으로 읽고, 못 읽으면 리스너 대신 에러 핸들러로
+    // 수동 커밋 · earliest(값은 타입 헤더 없이 type 으로 읽고, 못 읽으면 리스너 대신 에러 핸들러로)
     public static Map<String, Object> jsonConsumerProps(String bootstrapServers, String groupId, Class<?> type) {
         Map<String, Object> props = new HashMap<>();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
