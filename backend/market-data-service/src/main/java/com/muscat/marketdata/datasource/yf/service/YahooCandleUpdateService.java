@@ -22,6 +22,8 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -110,6 +112,7 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
                 symbol, candles.size(), merged.inserted(), merged.updated());
             return candles.size();
         } catch (Exception e) {
+            rollbackThisSymbol();
             collectionStats.recordSymbolFailed();
             log.warn("[YF-캔들저장] 실패: symbol={}, error={}", symbol, e.getMessage());
             return 0;
@@ -140,6 +143,7 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
 
             return rows.size();
         } catch (Exception e) {
+            rollbackThisSymbol();
             log.warn("[YF-배당저장] 실패: symbol={}, error={}", symbol, e.getMessage());
             return 0;
         }
@@ -188,6 +192,13 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
             .min(Comparator.comparing(Candle::getDate))
             .map(fresh -> SplitScale.isScaleChange(existing.get(key(fresh)).getClose(), fresh.getClose()))
             .orElse(false);
+    }
+
+    // 실패한 종목 트랜잭션만 조용히 롤백
+    private static void rollbackThisSymbol() {
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+        }
     }
 
     // 1970년부터 받을 때는 비교 안 함(비교하면 1970년 이전 데이터가 있는 종목에서 재수집이 되풀이됨)
