@@ -23,7 +23,6 @@ wait_for() {
 }
 
 helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/ --force-update
-helm repo add traefik https://traefik.github.io/charts --force-update
 if [ "$profile" = aws ]; then
   helm repo add aws-ebs-csi-driver https://kubernetes-sigs.github.io/aws-ebs-csi-driver --force-update
   helm repo add external-secrets https://charts.external-secrets.io --force-update
@@ -46,9 +45,11 @@ echo "metrics-server ${METRICS_SERVER_CHART}"
 helm upgrade --install metrics-server metrics-server/metrics-server --version "$METRICS_SERVER_CHART" \
   -n kube-system --set 'args={--kubelet-insecure-tls}' --wait
 
-echo "Traefik ${TRAEFIK_CHART}"
-helm upgrade --install traefik traefik/traefik --version "$TRAEFIK_CHART" \
-  -n kube-system -f "$root/k8s/addons/traefik-values.yaml" --wait
+echo "Envoy Gateway ${ENVOY_GATEWAY_VERSION}"
+# Gateway API CRD 를 같이 깖, Envoy 파드 · 노드 포트는 앱 차트의 Gateway 가 정함
+helm upgrade --install eg oci://docker.io/envoyproxy/gateway-helm --version "$ENVOY_GATEWAY_VERSION" \
+  -n envoy-gateway-system --create-namespace --wait
+kubectl apply -f "$root/k8s/addons/gatewayclass.yaml"
 
 [ "$profile" = kind ] && exit 0
 

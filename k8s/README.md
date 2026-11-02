@@ -19,8 +19,8 @@
 | `versions.env` | 쿠버네티스 · 부품 버전, 파드 · 서비스 대역 |
 | `bootstrap/node-prep.sh` | 노드 공통 준비(커널 설정 · containerd · kubelet · kubeadm) |
 | `bootstrap/control-plane.sh` · `kubeadm-config.yaml` | 컨트롤 플레인 만들기, 워커 join 명령 출력 |
-| `bootstrap/addons.sh` | 부품 설치(Calico · metrics-server · Traefik, AWS 면 EBS CSI · External Secrets · ArgoCD) |
-| `addons/` | Calico · Traefik · gp3 저장 클래스 값 |
+| `bootstrap/addons.sh` | 부품 설치(Calico · metrics-server · Envoy Gateway, AWS 면 EBS CSI · External Secrets · ArgoCD) |
+| `addons/` | Calico · GatewayClass · gp3 저장 클래스 값 |
 | `kind/` | 로컬 3노드 올리기 · 확인 · 지우기 |
 | `helm/ggeolmuse` | 멀티 노드 앱 차트(운영 차트를 복사해 따로 둔 것, `values-k8s.yaml` · `values-kind.yaml` 포함) |
 | `argocd/apps` · `argocd/root.yaml` | ArgoCD 가 맞추는 Application 목록 |
@@ -41,7 +41,7 @@
 | 노드 | EC2 1 | EC2 3(컨트롤 플레인 1 · 워커 2) |
 | 컨트롤 플레인 | k3s 한 프로세스 · sqlite | kubeadm · etcd |
 | 네트워크 · NetworkPolicy | flannel · kube-router | Calico |
-| 진입 | 번들 Traefik, EC2 443, IngressRoute | Traefik 2개, NLB 443, 표준 Ingress |
+| 진입 | 번들 Traefik, EC2 443, IngressRoute | Envoy Gateway(Envoy 2개), NLB 443, Gateway API |
 | 저장소 | 노드 디스크(local-path) | EBS gp3 |
 | 앱 레플리카 | 전부 1 | 상태 없는 앱 8개 · Keycloak 2개씩, PDB · 노드 분산 |
 | Kafka · Zookeeper · Redis | 1 | 1(볼륨만 EBS) |

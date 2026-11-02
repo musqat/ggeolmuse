@@ -1,0 +1,7 @@
+# 앱 차트의 Gateway 가 고르는 클래스(Envoy Gateway 가 Gateway 마다 Envoy 를 띄움)
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: envoy
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller

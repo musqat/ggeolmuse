@@ -21,7 +21,7 @@ infrastructure:
 configServer:
   replicaCount: 2
 
-# LoadBalancer 를 줄 컨트롤러 없음(Traefik 이 클러스터 IP 로 받음)
+# LoadBalancer 를 줄 컨트롤러 없음(입구 Envoy 가 클러스터 IP 로 받음)
 gatewayServer:
   replicaCount: 2
   service:
@@ -44,9 +44,12 @@ frontend:
   service:
     type: ClusterIP
 
-# 외부 진입은 표준 Ingress(컨트롤러는 Traefik)
+# 외부 진입은 Gateway API(컨트롤러는 Envoy Gateway)
 ingress:
-  kind: Ingress
+  kind: Gateway
+  className: envoy
+  gateway:
+    replicas: 2
   hosts:
     - paths:
         - path: /api

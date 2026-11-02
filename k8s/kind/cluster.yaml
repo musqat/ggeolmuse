@@ -9,7 +9,7 @@ networking:
   serviceSubnet: 10.43.0.0/16
 nodes:
   - role: control-plane
-    # 호스트 127.0.0.1:18080 → Traefik web 노드 포트
+    # 호스트 127.0.0.1:18080 → 입구 Envoy 의 http 노드 포트
     extraPortMappings:
       - containerPort: 30080
         hostPort: 18080
