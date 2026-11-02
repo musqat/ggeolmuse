@@ -1,0 +1,17 @@
+{{- /* dashboards/*.json 하나마다 Grafana 대시보드 ConfigMap */ -}}
+{{- if .Values.monitoring.dashboards.enabled }}
+{{- range $path, $_ := .Files.Glob "dashboards/*.json" }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-{{ base $path | trimSuffix ".json" }}
+  namespace: {{ $.Values.monitoring.dashboards.namespace }}
+  labels:
+    {{- include "ggeolmuse.labels" $ | nindent 4 }}
+    grafana_dashboard: "1"
+data:
+  {{ base $path }}: |-
+{{ $.Files.Get $path | indent 4 }}
+{{- end }}
+{{- end }}

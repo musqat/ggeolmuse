@@ -1,0 +1,30 @@
+{{- if .Values.gatewayServer.enabled }}
+{{- include "ggeolmuse.serviceAccount" (dict "name" .Values.gatewayServer.name "Values" .Values) }}
+---
+{{- $ctx := dict "svc" .Values.gatewayServer "Values" .Values "Chart" .Chart "Release" .Release }}
+{{ include "ggeolmuse.javaPodHeader" $ctx }}
+        - name: SPRING_PROFILES_ACTIVE
+          value: {{ .Values.gatewayServer.env.springProfiles | quote }}
+        - name: SERVER_PORT
+          value: {{ .Values.gatewayServer.service.port | quote }}
+        - name: SPRING_CLOUD_CONFIG_URI
+          value: {{ .Values.gatewayServer.env.configUri | quote }}
+        - name: SPRING_CLOUD_CONFIG_USERNAME
+          value: {{ .Values.gatewayServer.env.configUsername | quote }}
+        {{- if not (include "ggeolmuse.secretFiles" .) }}
+        - name: SPRING_CLOUD_CONFIG_PASSWORD
+          {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "CONFIG_SERVER_PASSWORD") | nindent 10 }}
+        {{- end }}
+        - name: KEYCLOAK_AUTH_SERVER_URL
+          value: {{ .Values.global.keycloak.authServerUrl | quote }}
+        - name: KEYCLOAK_REALM
+          value: {{ .Values.global.keycloak.realm | quote }}
+        - name: KEYCLOAK_ISSUERS
+          value: {{ include "ggeolmuse.keycloakIssuers" . | quote }}
+        - name: KEYCLOAK_CLIENT_IDS
+          value: {{ include "ggeolmuse.keycloakClientIds" . | quote }}
+        - name: JAVA_OPTS
+          value: {{ include "ggeolmuse.otelJavaOpts" (dict "Values" .Values "xmx" .Values.gatewayServer.xmx) }}
+        {{- include "ggeolmuse.otelEnv" (dict "Values" .Values "serviceName" .Values.gatewayServer.name "version" .Values.gatewayServer.image.tag) | nindent 8 }}
+{{- include "ggeolmuse.javaPodTail" $ctx }}
+{{- end }}

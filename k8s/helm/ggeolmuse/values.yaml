@@ -1,0 +1,612 @@
+# 공통 설정(환경별 값은 values-dev.yaml · values-prod.yaml)
+global:
+  imageRegistry: muscathan
+  imagePullPolicy: Always
+
+  # 롤백용으로 남기는 옛 ReplicaSet 개수(k8s 기본 10)
+  revisionHistoryLimit: 5
+  # 여러 노드에서만 켜는 배치
+  # 레플리카 2 이상인 앱의 PodDisruptionBudget
+  podDisruptionBudget:
+    enabled: false
+    minAvailable: 1
+  # 같은 앱 파드를 노드마다 고르게(못 맞추면 그래도 띄움)
+  topologySpread:
+    enabled: false
+    maxSkew: 1
+    whenUnsatisfiable: ScheduleAnyway
+  # 종료 전 대기 초(엔드포인트에서 빠지는 동안 요청을 받음, 0 이면 없음)
+  preStopSleepSeconds: 0
+
+  # Management server port (Health, Metrics, Actuator)
+  management:
+    port: 9090
+
+  # config-server 를 기다리는 초기 컨테이너
+  initContainer:
+    image: busybox:1.38.0
+    resources:
+      limits:
+        cpu: 100m
+        memory: 64Mi
+      requests:
+        cpu: 10m
+        memory: 16Mi
+
+  keycloak:
+    realm: muscathan
+    clientId: ggeolmuse-client
+    frontendClientId: ggeolmuse-frontend
+    # authServerUrl, publicUrl: 환경별 (dev/prod)
+
+  redis:
+    host: redis
+    port: 6379
+    healthCheckEnabled: false
+
+  kafka:
+    enabled: true
+    bootstrapServers: kafka:9092
+    consumer:
+      groupIdPrefix: ggeolmuse
+      autoOffsetReset: earliest
+      enableAutoCommit: false
+    producer:
+      acks: all
+      retries: 3
+      compressionType: snappy
+
+  # springProfiles: 환경별 (dev/prod)
+
+  # 시크릿을 /etc/secrets 파일로(Secrets Manager 연동 없이 같은 방식, 예 kind)
+  secretFiles: false
+
+  # AWS 설정 (secretsManager.enabled: 환경별)
+  aws:
+    region: ap-northeast-2
+    secretsManager:
+      # Secrets Manager 시크릿 이름
+      name: ggeolmuse/production
+      # External Secrets 가 AWS 인증에 쓸 서비스 계정(비면 노드의 인스턴스 프로파일)
+      authServiceAccount: ""
+    # IRSA (IAM Roles for Service Accounts) 설정
+    serviceAccount:
+      create: true
+
+  # OpenTelemetry 설정 (endpoint: 환경별)
+  otel:
+    enabled: true
+    environment: ""        # deployment.environment.name(환경별)
+    # 샘플링(chat 은 sampler · samplerArg, 자바 에이전트는 부모 따름 + samplerArg 비율, 비면 1.0)
+    sampler: parentbased_always_on
+    samplerArg: ""
+
+# 외부 진입(IngressRoute · 표준 Ingress · Gateway API 중 하나, Origin 인증서, 환경별 파일이 켬)
+ingress:
+  enabled: false
+  # IngressRoute(Traefik CRD, 경로는 템플릿) · Ingress · Gateway(둘 다 경로는 hosts · subdomains)
+  kind: IngressRoute
+  # Ingress 면 IngressClass, Gateway 면 GatewayClass
+  className: traefik
+  annotations: {}
+  # host 를 비우면 global.domain
+  hosts: []
+  # <name>.<global.domain> → 다른 네임스페이스의 서비스(경로 리소스도 그 네임스페이스에)
+  subdomains: []
+  # Gateway 일 때 Envoy 레플리카 · 고정 노드 포트(http 는 kind, https 는 NLB)
+  gateway:
+    replicas: 1
+    httpNodePort: 30080
+    httpsNodePort: 30443
+
+# 인프라
+infrastructure:
+  redis:
+    enabled: true
+    image: redis:7-alpine
+    port: 6379
+    # 이 크기를 넘으면 만료 시간이 있는 키(캐시)부터 오래 안 쓴 것을 지움
+    maxmemory: 256mb
+    maxmemoryPolicy: volatile-lru
+    service:
+      type: ClusterIP
+
+  keycloak:
+    enabled: true
+    image: quay.io/keycloak/keycloak:26.8.1
+    port: 8080
+    replicas: 1
+    env:
+      kcAdminUser: admin
+      kcAdminPassword: admin
+      kcDbVendor: dev-file
+    service:
+      type: ClusterIP
+      port: 8080
+      targetPort: 8080
+
+  zookeeper:
+    enabled: true
+    image: confluentinc/cp-zookeeper:7.6.0
+    port: 2181
+    replicas: 1
+    env:
+      clientPort: 2181
+      tickTime: 2000
+      syncLimit: 2
+    service:
+      type: ClusterIP
+      port: 2181
+    storage:
+      data: 1Gi
+      log: 1Gi
+      # PVC 저장 클래스(비면 클러스터 기본)
+      storageClassName: ""
+
+  kafka:
+    enabled: true
+    image: confluentinc/cp-kafka:7.6.0
+    replicas: 1
+    ports:
+      internal: 9092
+      external: 9094
+    env:
+      brokerId: 1
+      zookeeperConnect: zookeeper:2181
+      offsetsTopicReplicationFactor: 1
+      transactionStateLogMinIsr: 1
+      transactionStateLogReplicationFactor: 1
+      autoCreateTopicsEnable: true
+      logRetentionHours: 168
+      logSegmentBytes: "1073741824"
+    service:
+      internal:
+        type: ClusterIP
+        port: 9092
+      external:
+        type: NodePort
+        port: 9094
+        nodePort: 30094
+    storage:
+      data: 5Gi
+      # PVC 저장 클래스(비면 클러스터 기본)
+      storageClassName: ""
+    topicsInit:
+      enabled: true
+      # 선언과 파티션 수가 다른 토픽을 늘림(되돌릴 수 없음, 키 있는 프로듀서 · 순서 무관 컨슈머 전제)
+      alignPartitions: true
+      # kafka-topics 호출마다 새로 뜨는 JVM 몫(상태는 describe 한 번으로)
+      resources:
+        requests:
+          memory: 128Mi
+          cpu: 100m
+        limits:
+          memory: 256Mi
+          cpu: 1000m
+
+  kafkaUi:
+    enabled: true
+    image: provectuslabs/kafka-ui:v0.7.2
+    replicas: 1
+    port: 8080
+    env:
+      clustersName: ggeolmuse
+      bootstrapServers: kafka:9092
+      zookeeper: zookeeper:2181
+    service:
+      type: ClusterIP
+      port: 8090
+    resources:
+      limits:
+        memory: 512Mi
+        cpu: 500m
+      requests:
+        memory: 256Mi
+        cpu: 250m
+
+  tempo:
+    enabled: true
+    image: grafana/tempo:2.3.1
+    replicas: 1
+    ports:
+      otlp: 4317      # OTLP gRPC
+      otlpHttp: 4318  # OTLP HTTP
+      zipkin: 9411    # Zipkin
+      jaeger: 14268   # Jaeger
+    service:
+      type: ClusterIP
+    storage:
+      data: 5Gi
+    resources:
+      limits:
+        memory: 1Gi
+        cpu: 1000m
+      requests:
+        memory: 512Mi
+        cpu: 500m
+
+# 설정 서버
+configServer:
+  enabled: true
+  name: config-server
+  replicaCount: 1
+  image:
+    repository: config-server
+  service:
+    type: ClusterIP
+    port: 8888
+  xmx: 128m
+  # prod 에서 /etc/secrets 에 두는 시크릿 파일(파일 이름: Secret 키)
+  secretFiles:
+    CONFIG_SERVER_USERNAME: CONFIG_SERVER_USERNAME
+    CONFIG_SERVER_PASSWORD: CONFIG_SERVER_PASSWORD
+  # 앱(10001)이 설정 리포를 받아 둘 수 있게 fsGroup(emptyDir /tmp 는 root 소유로 생김)
+  podSecurityContext:
+    fsGroup: 10001
+  # 환경별 파일(dev · prod)이 덮어씀
+  env:
+    springProfiles: git
+  probes:
+    readiness:
+      initialDelaySeconds: 60
+      periodSeconds: 5
+    liveness:
+      initialDelaySeconds: 120
+      periodSeconds: 15
+    startup:
+      failureThreshold: 30
+      periodSeconds: 10
+
+# 게이트웨이
+gatewayServer:
+  enabled: true
+  name: gateway-server
+  replicaCount: 1
+  image:
+    repository: gateway-server
+  service:
+    type: LoadBalancer
+    port: 8070
+  xmx: 192m
+  secretFiles:
+    CONFIG_SERVER_PASSWORD: CONFIG_SERVER_PASSWORD
+    SPRING_REDIS_PASSWORD: REDIS_PASSWORD
+  env:
+    # springProfiles: 환경별 (dev/prod)
+    configUri: http://config-server:8888
+    configUsername: config
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  probes:
+    readiness:
+      initialDelaySeconds: 60
+      periodSeconds: 5
+    liveness:
+      initialDelaySeconds: 120
+      periodSeconds: 15
+    startup:
+      failureThreshold: 30
+      periodSeconds: 10
+
+# 비즈니스 서비스
+services:
+  userService:
+    enabled: true
+    name: user-service
+    replicaCount: 1
+    image:
+      repository: user-service
+    service:
+      type: ClusterIP
+      port: 8080
+    labels:
+      tier: business-service
+    xmx: 256m
+    extraSecrets:
+      - MAIL_USERNAME
+      - MAIL_PASSWORD
+      - MAIL_FROM
+    # 시드 관리자 비밀번호
+    secretEnv:
+      ADMIN_PASSWORD: KEYCLOAK_ADMIN_USER_PASSWORD
+    secretFiles:
+      CONFIG_SERVER_USERNAME: CONFIG_SERVER_USERNAME
+      CONFIG_SERVER_PASSWORD: CONFIG_SERVER_PASSWORD
+      SPRING_REDIS_PASSWORD: REDIS_PASSWORD
+      DB_USERNAME: DB_USERNAME
+      DB_PASSWORD: DB_PASSWORD
+      DB_URL_USER: DB_URL_USER
+      KEYCLOAK_SECRET: KEYCLOAK_SECRET
+      MAIL_USERNAME: MAIL_USERNAME
+      MAIL_PASSWORD: MAIL_PASSWORD
+      MAIL_FROM: MAIL_FROM
+      ADMIN_PASSWORD: KEYCLOAK_ADMIN_USER_PASSWORD
+    keycloakClientEnv: true
+    # env.APP_BASE_URL · APP_FRONTEND_URL · APP_MAIL_VERIFICATION_BASE_URL: 환경별 (dev/prod)
+    strategy:
+      rollingUpdate:
+        maxUnavailable: 0
+        maxSurge: 1
+    probes:
+      readiness:
+        initialDelaySeconds: 60
+        periodSeconds: 10
+      liveness:
+        initialDelaySeconds: 120
+        periodSeconds: 20
+      startup:
+        failureThreshold: 30
+        periodSeconds: 10
+
+  tradeService:
+    enabled: true
+    name: trade-service
+    xmx: 256m
+    replicaCount: 1
+    image:
+      repository: trade-service
+    service:
+      type: ClusterIP
+      port: 8081
+    labels:
+      tier: business-service
+    env: {}
+    secretFiles:
+      CONFIG_SERVER_USERNAME: CONFIG_SERVER_USERNAME
+      CONFIG_SERVER_PASSWORD: CONFIG_SERVER_PASSWORD
+      SPRING_REDIS_PASSWORD: REDIS_PASSWORD
+      DB_USERNAME: DB_USERNAME
+      DB_PASSWORD: DB_PASSWORD
+      DB_URL_TRADE: DB_URL_TRADE
+      KEYCLOAK_SECRET: KEYCLOAK_SECRET
+    strategy:
+      rollingUpdate:
+        maxUnavailable: 0
+        maxSurge: 1
+    probes:
+      readiness:
+        initialDelaySeconds: 60
+        periodSeconds: 10
+      liveness:
+        initialDelaySeconds: 120
+        periodSeconds: 20
+      startup:
+        failureThreshold: 30
+        periodSeconds: 10
+
+  marketDataService:
+    enabled: true
+    name: market-data-service
+    xmx: 768m
+    extraSecrets:
+      - KOREAEXIM_API_KEY
+      - ALPHAVANTAGE_API_KEY
+    replicaCount: 1
+    image:
+      repository: market-data-service
+    service:
+      type: ClusterIP
+      port: 8083
+    labels:
+      tier: business-service
+    env: {}
+    secretFiles:
+      CONFIG_SERVER_USERNAME: CONFIG_SERVER_USERNAME
+      CONFIG_SERVER_PASSWORD: CONFIG_SERVER_PASSWORD
+      SPRING_REDIS_PASSWORD: REDIS_PASSWORD
+      DB_USERNAME: DB_USERNAME
+      DB_PASSWORD: DB_PASSWORD
+      DB_URL_MARKET: DB_URL_MARKET
+      KEYCLOAK_SECRET: KEYCLOAK_SECRET
+      KOREAEXIM_API_KEY: KOREAEXIM_API_KEY
+      ALPHAVANTAGE_API_KEY: ALPHAVANTAGE_API_KEY
+    strategy:
+      rollingUpdate:
+        maxUnavailable: 0
+        maxSurge: 1
+    probes:
+      readiness:
+        initialDelaySeconds: 5
+        periodSeconds: 5
+        timeoutSeconds: 3
+      liveness:
+        initialDelaySeconds: 10
+        periodSeconds: 15
+      startup:
+        failureThreshold: 30
+        periodSeconds: 10
+
+  backtestService:
+    enabled: true
+    name: backtest-service
+    xmx: 320m
+    replicaCount: 1
+    image:
+      repository: backtest-service
+    service:
+      type: ClusterIP
+      port: 8082
+    labels:
+      tier: business-service
+    env: {}
+    secretFiles:
+      CONFIG_SERVER_USERNAME: CONFIG_SERVER_USERNAME
+      CONFIG_SERVER_PASSWORD: CONFIG_SERVER_PASSWORD
+      SPRING_REDIS_PASSWORD: REDIS_PASSWORD
+      DB_USERNAME: DB_USERNAME
+      DB_PASSWORD: DB_PASSWORD
+      DB_URL_BACKTEST: DB_URL_BACKTEST
+      KEYCLOAK_SECRET: KEYCLOAK_SECRET
+    probes:
+      readiness:
+        initialDelaySeconds: 60
+        periodSeconds: 10
+      liveness:
+        initialDelaySeconds: 120
+        periodSeconds: 20
+      startup:
+        failureThreshold: 30
+        periodSeconds: 10
+
+  chatService:
+    enabled: true
+    name: chat-service
+    replicaCount: 1
+    image:
+      repository: chat-service
+    service:
+      type: ClusterIP
+      port: 8000
+    # prod 에서 /etc/secrets 에 두는 시크릿 파일(파일 이름: Secret 키)
+    secretFiles:
+      OPENAI_API_KEY: OPENAI_API_KEY
+      REDIS_PASSWORD: REDIS_PASSWORD
+    # /metrics 수집(ServiceMonitor · monitoring 에서 서비스 포트 접근)
+    metrics:
+      enabled: false
+    labels:
+      tier: business-service
+    probes:
+      readiness:
+        initialDelaySeconds: 10
+        periodSeconds: 10
+      liveness:
+        initialDelaySeconds: 20
+        periodSeconds: 20
+
+# 프론트엔드
+frontend:
+  enabled: true
+  name: frontend-web
+  replicaCount: 1
+  image:
+    repository: frontend-web
+  service:
+    type: LoadBalancer
+    port: 3000
+    targetPort: 8080
+  env:
+    # apiUrl, keycloakUrl: 환경별 (dev/prod)
+    keycloakRealm: muscathan
+    keycloakClientId: ggeolmuse-frontend
+
+# 네트워크 정책
+networkPolicy:
+  enabled: true
+  policyTypes:
+    - Ingress
+  businessServiceTier: business-service
+  gatewayApp: gateway-server
+  ports:
+    - 8000
+    - 8080
+    - 8081
+    - 8082
+    - 8083
+  # 노드 IAM 역할(인스턴스 메타데이터)로 가는 egress 차단(역할로 S3 에 올리는 파드만 예외)
+  instanceMetadata:
+    block: true
+    exemptApps:
+      - db-backup
+
+# Secret 설정
+secrets:
+  enabled: false  # 기본값: 비활성화
+  name: ggeolmuse-secrets
+  data:
+    configServerUsername: ""
+    configServerPassword: ""
+    keycloakSecret: ""
+    keycloakAdminUsername: ""
+    keycloakAdminPassword: ""
+    keycloakClientSecret: ""
+    keycloakTestUserPassword: ""
+    mailUsername: ""
+    mailPassword: ""
+    mailFrom: ""
+    koreaeximApiKey: ""
+    alphavantageApiKey: ""
+    openaiApiKey: ""
+
+# 모니터링 설정
+monitoring:
+  serviceMonitor:
+    enabled: true
+  prometheusRule:
+    enabled: true
+  # dashboards/*.json 을 파일마다 Grafana 대시보드 ConfigMap 으로
+  dashboards:
+    enabled: false
+    namespace: monitoring
+  slack:
+    # 웹훅 URL 은 ggeolmuse-secrets 의 SLACK_WEBHOOK_URL
+    enabled: false
+    channel: "#ggeolmuse-alerts"
+
+# 평일 아침 기동 확인(켜기는 환경별, 슬랙 웹훅이 있는 prod 만)
+morningCheck:
+  enabled: false
+  # EC2 07:00 기동 · 앱 준비가 끝난 뒤
+  schedule: "20 7 * * 1-5"
+  timeZone: Asia/Seoul
+  startingDeadlineSeconds: 1800
+  image: curlimages/curl:8.11.1
+  prometheusUrl: http://prometheus-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090
+  alertmanagerUrl: http://prometheus-kube-prometheus-alertmanager.monitoring.svc.cluster.local:9093
+  sitePath: /api/market/price/AAPL
+  resources:
+    requests:
+      cpu: 10m
+      memory: 16Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+
+# DB 백업(켜기는 환경별, RDS 를 쓰는 prod 만)
+dbBackup:
+  enabled: false
+  schedule: "0 9 1 * *"
+  timeZone: Asia/Seoul
+  # 실행 시각에 클러스터가 꺼져 있어도 이 안에 켜지면 따라잡는 시간
+  startingDeadlineSeconds: 259200
+  bucket: ggeolmuse-db-backup-apne2
+  region: ap-northeast-2
+  databaseSecretKeys:
+    - DB_URL_USER
+    - DB_URL_TRADE
+    - DB_URL_MARKET
+    - DB_URL_BACKTEST
+  extraDatabaseNames:
+    - keycloak
+  images:
+    dump: postgres:15-alpine
+    upload: amazon/aws-cli:2.36.40
+  resources:
+    dump:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+    upload:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+
+# ConfigMap 설정
+configMap:
+  enabled: true
+  data:
+    # appBaseUrl: 환경별 (dev/prod)
+    emailExpiryHours: "24"
+    exchangeRateMin: "0"
+    exchangeRateMax: "3000"
+    exchangeRateFallback: "1300.00"
+    redisHost: "redis"
+    redisPort: "6379"

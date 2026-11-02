@@ -1,0 +1,23 @@
+{{- if .Values.services.tradeService.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.services.tradeService.name }}
+  labels:
+    app: {{ .Values.services.tradeService.name }}
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.services.tradeService.service.type }}
+  ports:
+  - name: http
+    port: {{ .Values.services.tradeService.service.port }}
+    targetPort: {{ .Values.services.tradeService.service.port }}
+    protocol: TCP
+  - name: management
+    port: 9090
+    targetPort: 9090
+    protocol: TCP
+  selector:
+    app: {{ .Values.services.tradeService.name }}
+{{- end }}

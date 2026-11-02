@@ -1,0 +1,106 @@
+{{- if .Values.services.chatService.enabled }}
+{{- $secretFiles := and (include "ggeolmuse.secretFiles" .) .Values.services.chatService.secretFiles }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.services.chatService.name }}
+  labels:
+    app: {{ .Values.services.chatService.name }}
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.services.chatService.replicaCount }}
+  revisionHistoryLimit: {{ .Values.global.revisionHistoryLimit | default 5 }}
+  selector:
+    matchLabels:
+      app: {{ .Values.services.chatService.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.services.chatService.name }}
+        {{- include "ggeolmuse.serviceLabels" (dict "name" .Values.services.chatService.name "tier" .Values.services.chatService.labels.tier) | nindent 8 }}
+    spec:
+      {{- if .Values.global.topologySpread.enabled }}
+      {{- include "ggeolmuse.topologySpread" (dict "name" .Values.services.chatService.name "Values" .Values) | nindent 6 }}
+      {{- end }}
+      containers:
+      - name: {{ .Values.services.chatService.name }}
+        image: {{ include "ggeolmuse.image" (dict "Values" .Values "repository" .Values.services.chatService.image.repository "tag" .Values.services.chatService.image.tag "Chart" .Chart) }}
+        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        ports:
+        - containerPort: {{ .Values.services.chatService.service.port }}
+        env:
+        - name: REDIS_HOST
+          value: {{ .Values.global.redis.host | quote }}
+        - name: REDIS_PORT
+          value: {{ .Values.global.redis.port | quote }}
+        - name: MARKET_DATA_BASE_URL
+          value: "http://market-data-service:8083"
+        - name: KEYCLOAK_JWKS_URL
+          value: "{{ .Values.global.keycloak.authServerUrl }}/realms/{{ .Values.global.keycloak.realm }}/protocol/openid-connect/certs"
+        - name: KEYCLOAK_ISSUERS
+          value: {{ include "ggeolmuse.keycloakIssuers" . | quote }}
+        - name: KEYCLOAK_CLIENT_IDS
+          value: {{ include "ggeolmuse.keycloakClientIds" . | quote }}
+        {{- if not $secretFiles }}
+        - name: OPENAI_API_KEY
+          {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "OPENAI_API_KEY") | nindent 10 }}
+        {{- end }}
+        {{- if .Values.global.otel.enabled }}
+        - name: OTEL_SERVICE_NAME
+          value: {{ .Values.services.chatService.name | quote }}
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: {{ .Values.global.otel.endpoint | quote }}
+        - name: OTEL_RESOURCE_ATTRIBUTES
+          value: {{ include "ggeolmuse.otelResourceAttributes" (dict "Values" .Values "version" .Values.services.chatService.image.tag) | quote }}
+        - name: OTEL_TRACES_SAMPLER
+          value: {{ .Values.global.otel.sampler | quote }}
+        {{- with .Values.global.otel.samplerArg }}
+        - name: OTEL_TRACES_SAMPLER_ARG
+          value: {{ . | quote }}
+        {{- end }}
+        {{- end }}
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.services.chatService.service.port }}
+          initialDelaySeconds: {{ .Values.services.chatService.probes.readiness.initialDelaySeconds }}
+          periodSeconds: {{ .Values.services.chatService.probes.readiness.periodSeconds }}
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.services.chatService.service.port }}
+          initialDelaySeconds: {{ .Values.services.chatService.probes.liveness.initialDelaySeconds }}
+          periodSeconds: {{ .Values.services.chatService.probes.liveness.periodSeconds }}
+        {{- if .Values.services.chatService.resources }}
+        resources:
+          {{- toYaml .Values.services.chatService.resources | nindent 10 }}
+        {{- end }}
+        {{- with $.Values.global.preStopSleepSeconds }}
+        lifecycle:
+          preStop:
+            exec:
+              command: ["sleep", "{{ . }}"]
+        {{- end }}
+        securityContext:
+          {{- include "ggeolmuse.securityContext" . | nindent 10 }}
+        volumeMounts:
+          {{- include "ggeolmuse.tmpVolumeMount" . | nindent 10 }}
+          {{- if $secretFiles }}
+          - name: secrets
+            mountPath: /etc/secrets
+            readOnly: true
+          {{- end }}
+      volumes:
+        {{- include "ggeolmuse.tmpVolume" . | nindent 8 }}
+        {{- /* 파일 이름은 설정 필드 이름(대소문자 무관) */}}
+        {{- with $secretFiles }}
+        - name: secrets
+          secret:
+            secretName: ggeolmuse-secrets
+            items:
+              {{- range $path, $key := . }}
+              - key: {{ $key }}
+                path: {{ $path }}
+              {{- end }}
+        {{- end }}
+{{- end }}

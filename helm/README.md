@@ -196,8 +196,7 @@ spec:
         - values-prod.yaml
 ```
 
-멀티 노드 k8s 에서는 [`argocd/apps`](argocd/apps) 차트가 앱 · ArgoCD 자신 · 모니터링의 Application 을 만든다
-(루트 앱 `argocd/root-k8s.yaml`, 순서는 [k8s/README](../k8s/README.md#aws-에-올리는-순서)).
+멀티 노드 k8s 의 앱 차트 · Application 목록 · 모니터링 값은 [`k8s/`](../k8s/README.md) 에 따로 있다.
 
 ---
 

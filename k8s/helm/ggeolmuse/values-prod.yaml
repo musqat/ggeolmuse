@@ -1,0 +1,295 @@
+# prod 전용 덮어쓰기(나머지는 values.yaml 에서 deep merge)
+global:
+  domain: ggeolmuse.com
+  authDomain: ggeolmuse.com
+  springProfiles: prod
+
+  keycloak:
+    authServerUrl: http://keycloak:8080/auth
+    publicUrl: https://ggeolmuse.com/auth
+
+  # OpenTelemetry - Tempo in monitoring namespace
+  otel:
+    endpoint: http://tempo.monitoring.svc.cluster.local:4318
+    environment: prod
+
+  # AWS Secrets Manager
+  aws:
+    secretsManager:
+      enabled: true
+
+# 인프라 - 단일 노드 최적화 (prod 오버라이드만, 나머지 base 상속)
+infrastructure:
+  redis:
+    resources:
+      # maxmemory 256mb 위로 메모리 조각 · AOF 다시 쓰기 몫
+      limits:
+        memory: 384Mi
+        cpu: 300m
+      requests:
+        memory: 128Mi
+        cpu: 50m
+
+  keycloak:
+    env:
+      kcDbVendor: postgres  # RDS PostgreSQL 사용
+      kcDbUrl: jdbc:postgresql://ggeolmuse-postgres.cxa6ioco4fhg.ap-northeast-2.rds.amazonaws.com:5432/keycloak
+      kcHttpRelativePath: /auth
+      kcProxyTrustedAddresses: 10.42.0.0/16  # k3s 파드 대역
+    resources:
+      limits:
+        memory: 768Mi
+        cpu: 500m
+      requests:
+        memory: 384Mi
+        cpu: 100m
+
+  # PostgreSQL - AWS RDS 사용
+  postgres:
+    enabled: false
+
+  zookeeper:
+    storage:
+      data: 5Gi
+      log: 5Gi
+    resources:
+      limits:
+        memory: 384Mi
+        cpu: 300m
+      requests:
+        memory: 192Mi
+        cpu: 50m
+
+  kafka:
+    env:
+      logRetentionHours: 120
+      logSegmentBytes: "536870912"
+      heapOpts: "-Xms512m -Xmx896m"
+    storage:
+      data: 10Gi
+    resources:
+      limits:
+        memory: 1Gi
+        cpu: 750m
+      requests:
+        memory: 512Mi
+        cpu: 200m
+
+  kafkaUi:
+    env:
+      SERVER_SERVLET_CONTEXT_PATH: /kafka-ui
+    resources:
+      limits:
+        memory: 384Mi
+        cpu: 200m
+      requests:
+        memory: 192Mi
+        cpu: 50m
+
+  tempo:
+    enabled: false  # Tempo는 monitoring 네임스페이스에서 별도 실행
+    resources:
+      limits:
+        cpu: 500m
+      requests:
+        cpu: 250m
+
+# Config Server
+configServer:
+  image:
+    tag: "1.6.3"
+  env:
+    springProfiles: git,prod
+  resources:
+    limits:
+      memory: 512Mi
+      cpu: 1000m
+    requests:
+      memory: 256Mi
+      cpu: 200m
+
+# Gateway Server
+gatewayServer:
+  image:
+    tag: "1.6.3"
+  env:
+    springProfiles: prod
+  probes:
+    readiness:
+      initialDelaySeconds: 120  # 2분 (Keycloak JWK + Redis)
+      periodSeconds: 10
+    liveness:
+      initialDelaySeconds: 300  # 5분
+      periodSeconds: 20
+  resources:
+    limits:
+      memory: 768Mi
+      cpu: 1000m
+    requests:
+      memory: 384Mi
+      cpu: 100m
+
+# 비즈니스 서비스
+services:
+  userService:
+    image:
+      tag: "1.6.3"
+    env:
+      # market-data 와 같은 한국 시각(저장 시각 · 오늘 날짜 기준, 옛 UTC 시각은 Flyway V6 이 옮김)
+      TZ: "Asia/Seoul"
+      APP_BASE_URL: https://ggeolmuse.com
+      APP_FRONTEND_URL: https://ggeolmuse.com
+      APP_MAIL_VERIFICATION_BASE_URL: https://ggeolmuse.com
+    probes:
+      readiness:
+        initialDelaySeconds: 180
+      liveness:
+        initialDelaySeconds: 600
+    resources:
+      limits:
+        memory: 1024Mi
+        cpu: 600m
+      requests:
+        memory: 512Mi
+        cpu: 100m
+
+  tradeService:
+    image:
+      tag: "1.6.3"
+    env:
+      TZ: "Asia/Seoul"
+    probes:
+      readiness:
+        initialDelaySeconds: 180
+      liveness:
+        initialDelaySeconds: 600
+    resources:
+      limits:
+        memory: 1024Mi
+        cpu: 600m
+      requests:
+        memory: 512Mi
+        cpu: 100m
+
+  marketDataService:
+    image:
+      tag: "1.6.3"
+    env:
+      TZ: "Asia/Seoul"
+      # 마켓 데이터 설정
+      MARKETDATA_PROVIDER: "yahoo"
+      SYMBOL_COLLECTION_ENABLED: "true"
+      SYMBOL_COLLECT_DATA: "false"
+      # 심볼 수집 최대 개수 (0 = 무제한, 기본값 100)
+      SYMBOL_LISTING_MAX: "0"
+    probes:
+      readiness:
+        initialDelaySeconds: 180
+        periodSeconds: 10
+      liveness:
+        initialDelaySeconds: 600
+        periodSeconds: 20
+    resources:
+      limits:
+        memory: 1536Mi
+        cpu: 1000m
+      requests:
+        memory: 768Mi
+        cpu: 100m
+
+  backtestService:
+    image:
+      tag: "1.6.3"
+    env:
+      TZ: "Asia/Seoul"
+    probes:
+      readiness:
+        initialDelaySeconds: 180
+      liveness:
+        initialDelaySeconds: 600
+    resources:
+      limits:
+        memory: 896Mi
+        cpu: 600m
+      requests:
+        memory: 448Mi
+        cpu: 100m
+
+  chatService:
+    image:
+      tag: "1.6.3"
+    metrics:
+      enabled: true
+    probes:
+      readiness:
+        initialDelaySeconds: 15
+      liveness:
+        initialDelaySeconds: 30
+    resources:
+      limits:
+        memory: 512Mi
+        cpu: 400m
+      requests:
+        memory: 256Mi
+        cpu: 100m
+
+# 프론트엔드
+frontend:
+  image:
+    tag: "1.5.6"
+  env:
+    apiUrl: https://ggeolmuse.com/api
+    keycloakUrl: https://ggeolmuse.com/auth
+  resources:
+    limits:
+      memory: 256Mi
+      cpu: 500m
+    requests:
+      memory: 128Mi
+      cpu: 50m
+
+# 네트워크 정책
+networkPolicy:
+  policyTypes:
+    - Ingress
+  ports:
+    - 8000
+    - 8080
+    - 8081
+    - 8082
+    - 8083
+
+# Ingress - Traefik with CloudFlare
+ingress:
+  enabled: true
+  className: traefik
+
+  # Cloudflare Full (strict) 의 origin 인증서(Secrets Manager 의 이 이름에 PEM 둘, tls.crt · tls.key)
+  originTls:
+    enabled: true
+    secretsManagerKey: ggeolmuse/origin-tls
+
+# Secret 설정
+secrets:
+  data: {}
+
+# ConfigMap 설정
+configMap:
+  data:
+    appBaseUrl: "https://ggeolmuse.com"
+
+# DB 백업
+dbBackup:
+  enabled: true
+
+# 평일 아침 기동 확인(슬랙)
+morningCheck:
+  enabled: true
+
+# Monitoring - Prometheus ServiceMonitor
+monitoring:
+  dashboards:
+    enabled: true
+  slack:
+    # 웹훅 URL 은 ggeolmuse-secrets 의 SLACK_WEBHOOK_URL
+    enabled: true

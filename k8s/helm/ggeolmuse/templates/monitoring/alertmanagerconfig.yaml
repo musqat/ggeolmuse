@@ -1,0 +1,57 @@
+{{- if .Values.monitoring.slack.enabled }}
+# Slack 알림 라우팅, 반복은 critical 1시간 · 나머지 4시간, 웹훅은 ggeolmuse-secrets 의 SLACK_WEBHOOK_URL
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: ggeolmuse-slack
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  route:
+    receiver: slack-warning
+    groupBy: ['alertname', 'severity']
+    groupWait: 30s
+    groupInterval: 5m
+    repeatInterval: 4h
+    routes:
+      # 늘 울리는 경로 확인 알림(Watchdog), 받는 곳 없음
+      - receiver: "null"
+        matchers:
+          - name: alertname
+            value: Watchdog
+      - receiver: slack-critical
+        matchers:
+          - name: severity
+            value: critical
+        repeatInterval: 1h
+  receivers:
+    - name: "null"
+    - name: slack-critical
+      slackConfigs:
+        - apiURL:
+            name: ggeolmuse-secrets
+            key: SLACK_WEBHOOK_URL
+          channel: {{ .Values.monitoring.slack.channel | quote }}
+          sendResolved: true
+          title: '{{ `{{ if eq .Status "resolved" }}[RESOLVED] {{ else }}[CRITICAL] {{ end }}{{ .GroupLabels.alertname }}` }}'
+          text: |-
+            {{ `{{ range .Alerts }}` }}
+            *{{ `{{ .Labels.alertname }}` }}* ({{ `{{ .Labels.severity }}` }})
+            {{ `{{ .Annotations.summary }}` }}
+            {{ `{{ .Annotations.description }}` }}
+            {{ `{{ end }}` }}
+    - name: slack-warning
+      slackConfigs:
+        - apiURL:
+            name: ggeolmuse-secrets
+            key: SLACK_WEBHOOK_URL
+          channel: {{ .Values.monitoring.slack.channel | quote }}
+          sendResolved: true
+          title: '{{ `{{ if eq .Status "resolved" }}[RESOLVED] {{ end }}{{ .GroupLabels.alertname }}` }}'
+          text: |-
+            {{ `{{ range .Alerts }}` }}
+            *{{ `{{ .Labels.alertname }}` }}*
+            {{ `{{ .Annotations.summary }}` }}
+            {{ `{{ end }}` }}
+{{- end }}

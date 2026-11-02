@@ -10,7 +10,7 @@ argocd:
   valueFiles:
     - helm/argocd/values-argocd.yaml
 
-# 앱 차트의 값 파일(helm/ggeolmuse 안 경로)
+# 앱 차트의 값 파일(k8s/helm/ggeolmuse 안 경로)
 ggeolmuse:
   valueFiles:
     - values-prod.yaml
@@ -29,18 +29,18 @@ monitoring:
       serverSideApply: true
       valueFiles:
         - helm/monitoring/prometheus-values-prod.yaml
-        - helm/monitoring/prometheus-values-k8s.yaml
+        - k8s/monitoring/prometheus-values-k8s.yaml
     loki:
       repoURL: https://grafana.github.io/helm-charts
       chart: loki-stack
       version: 2.10.2
       valueFiles:
         - helm/monitoring/loki-values.yaml
-        - helm/monitoring/loki-values-k8s.yaml
+        - k8s/monitoring/loki-values-k8s.yaml
     tempo:
       repoURL: https://grafana.github.io/helm-charts
       chart: tempo
       version: 1.24.0
       valueFiles:
         - helm/monitoring/tempo-values.yaml
-        - helm/monitoring/tempo-values-k8s.yaml
+        - k8s/monitoring/tempo-values-k8s.yaml

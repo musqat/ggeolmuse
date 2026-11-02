@@ -28,7 +28,7 @@ c="$(probe deny role=probe)"
 c="$(probe allow tier=business-service)"
 [ "${c:-000}" != 000 ] && ok "업무 서비스 레이블 파드 → user-service $c" || bad "업무 서비스 레이블 파드 → user-service 막힘"
 
-echo "== 게이트웨이 응답(Traefik 노드 포트)"
+echo "== 게이트웨이 응답(Envoy 노드 포트)"
 c="$(code /)"; [ "$c" = 200 ] && ok "/ $c" || bad "/ $c"
 c="$(code /api/market/price/AAPL)"; [ "$c" != 000 ] && [ "$c" -lt 500 ] && ok "/api/market/price/AAPL $c" || bad "/api/market/price/AAPL $c"
 

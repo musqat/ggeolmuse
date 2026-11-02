@@ -1,0 +1,147 @@
+{{- if and .Values.infrastructure.kafka.enabled .Values.infrastructure.kafka.topicsInit.enabled }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-topics-init
+  labels:
+    app: kafka-topics-init
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "10"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  # ttl 없음(파티션 보고를 읽을 때까지 파드 유지), 정리는 다음 sync 직전 before-hook-creation
+  template:
+    metadata:
+      labels:
+        app: kafka-topics-init
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: kafka-topics-creator
+          image: {{ .Values.infrastructure.kafka.image }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          command:
+            - sh
+            - -c
+            - |
+              set -u
+              BS=kafka:{{ .Values.infrastructure.kafka.ports.internal }}
+              RF={{ .Values.infrastructure.kafka.replicas }}
+              ALIGN={{ .Values.infrastructure.kafka.topicsInit.alignPartitions }}
+
+              echo "kafka 대기 30초"
+              sleep 30
+
+              # 토픽 전체의 현재 상태
+              kafka-topics --describe --bootstrap-server "$BS" > /tmp/current.txt 2>/dev/null || true
+
+              created=0
+              mismatch=0
+              retimed=0
+              total=0
+
+              # 토픽                              파티션 보존(ms)     추가설정
+              TOPICS='
+              trading.trade.completed             3      604800000    --config segment.bytes=1073741824
+              trading.dividend.payout             3      7776000000
+              trading.dividend.reconcile          3      604800000
+
+              # 수집 작업큐(컨슈머 동시성이 파티션 수에 묶여 6)
+              market.asset.created                6      604800000
+              market.dividend.updated             3      7776000000
+
+              user.account.deleted                3      2592000000
+              user.account.balance.updated        3      2592000000
+              user.login.success                  3      2592000000
+              user.login.failed                   3      2592000000
+              user.email.send                     3      604800000
+              user.trade.rejected                 3      2592000000
+              user.trade.settled                  3      2592000000
+
+              # 구독하는 토픽마다 하나씩, DeadLetterPublishingRecoverer 가 보내는 곳
+              trading.trade.completed.DLT         3      2592000000
+              trading.dividend.payout.DLT         3      2592000000
+              trading.dividend.reconcile.DLT      3      2592000000
+              market.asset.created.DLT            3      2592000000
+              market.dividend.updated.DLT         3      2592000000
+              user.account.deleted.DLT            3      2592000000
+              user.account.balance.updated.DLT    3      2592000000
+              user.login.success.DLT              3      2592000000
+              user.login.failed.DLT               3      2592000000
+              user.email.send.DLT                 3      2592000000
+              user.trade.rejected.DLT             3      2592000000
+              user.trade.settled.DLT              3      2592000000
+
+              '
+              echo "$TOPICS" > /tmp/topics.txt
+
+              while read -r topic partitions retention extra; do
+                case "$topic" in ''|'#'*) continue ;; esac
+                total=$((total + 1))
+
+                actual=$(awk -v t="$topic" '
+                  $1 == "Topic:" && $2 == t {
+                    for (i = 1; i <= NF; i++) if ($i == "PartitionCount:") { print $(i + 1); exit }
+                  }' /tmp/current.txt)
+
+                if [ -z "$actual" ]; then
+                  kafka-topics --create --if-not-exists \
+                    --bootstrap-server "$BS" \
+                    --topic "$topic" \
+                    --partitions "$partitions" \
+                    --replication-factor "$RF" \
+                    --config retention.ms="$retention" $extra
+                  created=$((created + 1))
+                  continue
+                fi
+
+                # 서비스가 먼저 만든 토픽(브로커 기본값)은 --if-not-exists 가 건너뛰어 설정을 따로 대조
+                configs=$(awk -v t="$topic" '
+                  $1 == "Topic:" && $2 == t {
+                    for (i = 1; i <= NF; i++) if ($i == "Configs:") { print $(i + 1); exit }
+                  }' /tmp/current.txt)
+
+                case "$configs" in
+                  *"retention.ms=$retention"*) ;;
+                  *)
+                    echo "$topic 보존 $retention 으로 맞춘다"
+                    kafka-configs --alter --bootstrap-server "$BS" \
+                      --entity-type topics --entity-name "$topic" \
+                      --add-config retention.ms="$retention" > /dev/null
+                    retimed=$((retimed + 1))
+                    ;;
+                esac
+
+                [ "$actual" = "$partitions" ] && continue
+
+                # 파티션 수 불일치(늘리기만 가능, 늘리면 키 → 파티션 배치가 바뀜)
+                mismatch=$((mismatch + 1))
+                if [ "$ALIGN" = "true" ]; then
+                  echo "$topic 파티션 $actual -> $partitions"
+                  kafka-topics --alter --bootstrap-server "$BS" \
+                    --topic "$topic" --partitions "$partitions"
+                else
+                  echo "$topic 파티션 $actual, 선언 $partitions"
+                fi
+              done < /tmp/topics.txt
+
+              echo "토픽 $total, 새로 만듦 $created, 보존 맞춤 $retimed, 파티션 다름 $mismatch"
+              if [ "$mismatch" -gt 0 ] && [ "$ALIGN" != "true" ]; then
+                echo "alignPartitions=true 로 올리면 맞춘다"
+              fi
+
+              # 선언에 없는 토픽(내부 __ 토픽 제외)은 지우지 않고 알림
+              awk '$1 != "" && $1 !~ /^#/ { print $1 }' /tmp/topics.txt | sort -u > /tmp/declared.txt
+              awk '$1 == "Topic:" { print $2 }' /tmp/current.txt | grep -v '^__' | sort -u > /tmp/existing.txt
+              undeclared=$(comm -23 /tmp/existing.txt /tmp/declared.txt)
+              if [ -n "$undeclared" ]; then
+                echo "선언에 없는 토픽 $(echo "$undeclared" | wc -l)개(지우지 않음):" $undeclared
+              fi
+          resources:
+            {{- toYaml .Values.infrastructure.kafka.topicsInit.resources | nindent 12 }}
+          securityContext:
+            {{- include "ggeolmuse.baseSecurityContext" . | nindent 12 }}
+{{- end }}

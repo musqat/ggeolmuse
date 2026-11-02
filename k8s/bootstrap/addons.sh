@@ -23,7 +23,6 @@ wait_for() {
 }
 
 helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/ --force-update
-helm repo add traefik https://traefik.github.io/charts --force-update
 if [ "$profile" = aws ]; then
   helm repo add aws-ebs-csi-driver https://kubernetes-sigs.github.io/aws-ebs-csi-driver --force-update
   helm repo add external-secrets https://charts.external-secrets.io --force-update
@@ -33,10 +32,7 @@ helm repo update
 
 echo "Calico ${CALICO_VERSION}"
 calico="https://raw.githubusercontent.com/projectcalico/calico/${CALICO_VERSION}/manifests"
-# Calico API CRD 파일 이름이 Kubernetes 1.36 부터 다름
-minor="${KUBERNETES_VERSION#*.}"; minor="${minor%%.*}"
-if [ "$minor" -ge 36 ]; then crds=v3_projectcalico_org.yaml; else crds=v3_projectcalico_org-v1beta1.yaml; fi
-kubectl apply --server-side --force-conflicts -f "$calico/$crds"
+kubectl apply --server-side --force-conflicts -f "$calico/operator-crds.yaml"
 kubectl apply --server-side --force-conflicts -f "$calico/tigera-operator.yaml"
 wait_for 300 crd installations.operator.tigera.io
 kubectl apply -f "$root/k8s/addons/calico.yaml"
@@ -49,9 +45,11 @@ echo "metrics-server ${METRICS_SERVER_CHART}"
 helm upgrade --install metrics-server metrics-server/metrics-server --version "$METRICS_SERVER_CHART" \
   -n kube-system --set 'args={--kubelet-insecure-tls}' --wait
 
-echo "Traefik ${TRAEFIK_CHART}"
-helm upgrade --install traefik traefik/traefik --version "$TRAEFIK_CHART" \
-  -n kube-system -f "$root/k8s/addons/traefik-values.yaml" --wait
+echo "Envoy Gateway ${ENVOY_GATEWAY_VERSION}"
+# Gateway API CRD 를 같이 깖, Envoy 파드 · 노드 포트는 앱 차트의 Gateway 가 정함
+helm upgrade --install eg oci://docker.io/envoyproxy/gateway-helm --version "$ENVOY_GATEWAY_VERSION" \
+  -n envoy-gateway-system --create-namespace --wait
+kubectl apply -f "$root/k8s/addons/gatewayclass.yaml"
 
 [ "$profile" = kind ] && exit 0
 
@@ -72,5 +70,5 @@ helm upgrade --install argocd argo/argo-cd --version "$ARGOCD_CHART" \
 kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
 kubectl label namespace monitoring name=monitoring --overwrite
 
-# 이후 부품 · 앱 · 모니터링은 ArgoCD 가 helm/argocd/apps 를 따라 맞춤
-kubectl apply -f "$root/helm/argocd/root-k8s.yaml"
+# 이후 부품 · 앱 · 모니터링은 ArgoCD 가 k8s/argocd/apps 를 따라 맞춤
+kubectl apply -f "$root/k8s/argocd/root.yaml"

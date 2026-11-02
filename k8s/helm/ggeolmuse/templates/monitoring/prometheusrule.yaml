@@ -1,0 +1,315 @@
+{{- if .Values.monitoring.prometheusRule.enabled }}
+# PrometheusRule: ggeolmuse 마이크로서비스 알림 규칙
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ggeolmuse-alerts
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: ggeolmuse
+    release: prometheus
+spec:
+  groups:
+    # ========================================
+    # 서비스 가용성 알림
+    # ========================================
+    - name: service-availability
+      interval: 30s
+      rules:
+        - alert: ServiceDown
+          expr: up{job=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service|chat-service)"} == 0
+          # 콜드 부팅 동안은 안 울리게 10분
+          for: 10m
+          labels:
+            severity: critical
+            category: availability
+          annotations:
+            summary: "서비스 다운 감지: {{ `{{ $labels.job }}` }}"
+            description: '{{ `{{ $labels.job }}` }} 응답 없음 · 10분 지속'
+            instance: "{{ `{{ $labels.instance }}` }}"
+            value: "{{ `{{ $value }}` }}"
+
+        - alert: ServiceRestarting
+          # 부팅 때 1회 재시작은 빼고 크래시 루프만
+          expr: increase(kube_pod_container_status_restarts_total{namespace="default", pod=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service).*"}[15m]) > 2
+          for: 5m
+          labels:
+            severity: warning
+            category: availability
+          annotations:
+            summary: "Pod 재시작 감지: {{ `{{ $labels.pod }}` }}"
+            description: '{{ `{{ $labels.pod }}` }} 재시작 3회 초과 · 최근 15분'
+            namespace: "{{ `{{ $labels.namespace }}` }}"
+            container: "{{ `{{ $labels.container }}` }}"
+
+    # ========================================
+    # 리소스 사용량 알림
+    # ========================================
+    - name: resource-usage
+      interval: 30s
+      rules:
+        - alert: HighCpuUsage
+          expr: |
+            (
+              rate(process_cpu_seconds_total{job=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service)"}[5m]) * 100
+            ) > 80
+          for: 5m
+          labels:
+            severity: warning
+            category: resource
+          annotations:
+            summary: "높은 CPU 사용률: {{ `{{ $labels.job }}` }}"
+            description: '{{ `{{ $labels.job }}` }} CPU 사용률 80% 초과 · 5분 지속 · 현재 {{ `{{ $value | printf "%.1f" }}` }}%'
+            instance: "{{ `{{ $labels.instance }}` }}"
+
+        - alert: HighMemoryUsage
+          # GC 뒤 남는 힙 기준(used 는 수거 전 쓰레기 포함)
+          expr: |
+            (
+              jvm_gc_live_data_size_bytes{job=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service)"}
+              / jvm_memory_max_bytes{job=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service)", area="heap"}
+              * 100
+            ) > 85
+          for: 5m
+          labels:
+            severity: warning
+            category: resource
+          annotations:
+            summary: "높은 메모리 사용률: {{ `{{ $labels.job }}` }}"
+            description: '{{ `{{ $labels.job }}` }} 힙 사용률 85% 초과 · 5분 지속 · 현재 {{ `{{ $value | printf "%.1f" }}` }}%'
+            instance: "{{ `{{ $labels.instance }}` }}"
+
+        - alert: CriticalMemoryUsage
+          expr: |
+            (
+              jvm_gc_live_data_size_bytes{job=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service)"}
+              / jvm_memory_max_bytes{job=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service)", area="heap"}
+              * 100
+            ) > 95
+          for: 2m
+          labels:
+            severity: critical
+            category: resource
+          annotations:
+            summary: "심각한 메모리 부족: {{ `{{ $labels.job }}` }}"
+            description: '{{ `{{ $labels.job }}` }} 힙 사용률 95% 초과 · 2분 지속 · 현재 {{ `{{ $value | printf "%.1f" }}` }}% · OOM 임박'
+            instance: "{{ `{{ $labels.instance }}` }}"
+
+    # ========================================
+    # SLO: 게이트웨이 요청 가용성 99.5% · 95% 1초 안
+    # ========================================
+    # 창별 5xx 비율 · 1초 넘은 비율(백테스트 · 채팅 제외) · 요청 수
+    - name: slo-recording
+      interval: 30s
+      rules:
+        {{- range list "5m" "30m" "1h" "6h" }}
+        - record: slo:gateway_errors:ratio_rate{{ . }}
+          expr: |
+            sum(rate(spring_cloud_gateway_requests_seconds_count{job="gateway-server", httpStatusCode=~"5.."}[{{ . }}]))
+            / sum(rate(spring_cloud_gateway_requests_seconds_count{job="gateway-server"}[{{ . }}]))
+        - record: slo:gateway_slow:ratio_rate{{ . }}
+          expr: |
+            1 - (
+              sum(rate(spring_cloud_gateway_requests_seconds_bucket{job="gateway-server", routeId!~"backtest-route|chat-route", le="1.0"}[{{ . }}]))
+              / sum(rate(spring_cloud_gateway_requests_seconds_count{job="gateway-server", routeId!~"backtest-route|chat-route"}[{{ . }}]))
+            )
+        - record: slo:gateway_requests:increase{{ . }}
+          expr: sum(increase(spring_cloud_gateway_requests_seconds_count{job="gateway-server"}[{{ . }}]))
+        {{- end }}
+
+    # 빠른 소진: 30일 예산의 2% 를 1시간에 쓰는 속도(14.4배), 짧은 창은 회복 뒤 빠른 해제용
+    # 느린 소진: 5% 를 6시간에 쓰는 속도(6배)
+    # 요청 20건 미만인 창은 제외(한두 건 실패로 비율이 크게 뜀)
+    - name: slo
+      interval: 30s
+      rules:
+        - alert: AvailabilityBurnFast
+          expr: |
+            slo:gateway_errors:ratio_rate1h > (14.4 * 0.005)
+            and slo:gateway_errors:ratio_rate5m > (14.4 * 0.005)
+            and slo:gateway_requests:increase1h >= 20
+          for: 2m
+          labels:
+            severity: critical
+            category: slo
+          annotations:
+            summary: "가용성 예산 빠른 소진"
+            description: '게이트웨이 5xx 비율 1시간 {{ `{{ $value | humanizePercentage }}` }} · 5분 창도 넘음 · 예산(0.5%)을 14.4배 속도로 씀'
+
+        - alert: AvailabilityBurnSlow
+          expr: |
+            slo:gateway_errors:ratio_rate6h > (6 * 0.005)
+            and slo:gateway_errors:ratio_rate30m > (6 * 0.005)
+            and slo:gateway_requests:increase6h >= 20
+          for: 15m
+          labels:
+            severity: warning
+            category: slo
+          annotations:
+            summary: "가용성 예산 소진"
+            description: '게이트웨이 5xx 비율 6시간 {{ `{{ $value | humanizePercentage }}` }} · 30분 창도 넘음 · 예산(0.5%)을 6배 속도로 씀'
+
+        - alert: LatencyBurnFast
+          expr: |
+            slo:gateway_slow:ratio_rate1h > (14.4 * 0.05)
+            and slo:gateway_slow:ratio_rate5m > (14.4 * 0.05)
+            and slo:gateway_requests:increase1h >= 20
+          for: 2m
+          labels:
+            severity: critical
+            category: slo
+          annotations:
+            summary: "지연 예산 빠른 소진"
+            description: '게이트웨이 1초 넘은 요청 1시간 {{ `{{ $value | humanizePercentage }}` }} · 5분 창도 넘음 · 예산(5%)을 14.4배 속도로 씀'
+
+        - alert: LatencyBurnSlow
+          expr: |
+            slo:gateway_slow:ratio_rate6h > (6 * 0.05)
+            and slo:gateway_slow:ratio_rate30m > (6 * 0.05)
+            and slo:gateway_requests:increase6h >= 20
+          for: 15m
+          labels:
+            severity: warning
+            category: slo
+          annotations:
+            summary: "지연 예산 소진"
+            description: '게이트웨이 1초 넘은 요청 6시간 {{ `{{ $value | humanizePercentage }}` }} · 30분 창도 넘음 · 예산(5%)을 6배 속도로 씀'
+
+    - name: config-server
+      interval: 30s
+      rules:
+        - alert: ConfigServerDown
+          expr: up{job="config-server"} == 0
+          for: 5m
+          labels:
+            severity: critical
+            category: config
+          annotations:
+            summary: "Config Server 다운"
+            description: 'config-server 응답 없음 · 5분 지속 · 나머지 서비스 설정 조회 불가'
+
+        - alert: ConfigServerHighLatency
+          expr: |
+            histogram_quantile(0.95,
+              sum(rate(http_server_requests_seconds_bucket{job="config-server"}[5m])) by (le)
+            ) > 5
+          for: 5m
+          labels:
+            severity: warning
+            category: config
+          annotations:
+            summary: "Config Server 응답 지연"
+            description: 'config-server P95 응답 5초 초과 · 5분 지속 · 서비스 기동 지연'
+
+        - alert: ConfigServerUnauthorized
+          # 클라이언트와 config-server 의 비밀번호 불일치로 나는 401
+          expr: sum(rate(http_server_requests_seconds_count{job="config-server", status="401"}[5m])) * 60 > 0
+          for: 5m
+          labels:
+            severity: critical
+            category: config
+          annotations:
+            summary: "Config Server 인증 실패"
+            description: 'config-server 401 응답 · 5분 지속 · 분당 {{ `{{ $value | printf "%.0f" }}` }}회 · 클라이언트 비밀번호 불일치 의심'
+
+    # ========================================
+    # 서킷브레이커
+    # ========================================
+    - name: resilience
+      interval: 30s
+      rules:
+        - alert: CircuitBreakerOpen
+          expr: resilience4j_circuitbreaker_state{job=~"(gateway-server|user-service|trade-service|backtest-service)", state="open"} > 0
+          for: 1m
+          labels:
+            severity: warning
+            category: resilience
+          annotations:
+            summary: "서킷 OPEN: {{ `{{ $labels.job }}` }} → {{ `{{ $labels.name }}` }}"
+            description: '{{ `{{ $labels.job }}` }} → {{ `{{ $labels.name }}` }} 서킷 OPEN · 1분 지속 · 대상 서비스 호출 차단 중'
+
+        - alert: CircuitBreakerMissing
+          # 기대하는 (서비스, 서킷 이름) 지표 없음 = 설정 이름과 @CircuitBreaker 이름 불일치, 콜드 부팅 동안 15분 유예
+          expr: |
+            absent(resilience4j_circuitbreaker_state{job="backtest-service", name="marketDataService"})
+            or absent(resilience4j_circuitbreaker_state{job="trade-service", name="marketService"})
+            or absent(resilience4j_circuitbreaker_state{job="trade-service", name="userService"})
+            or absent(resilience4j_circuitbreaker_state{job="user-service", name="marketDataService"})
+          for: 15m
+          labels:
+            severity: warning
+            category: resilience
+          annotations:
+            summary: "서킷 메트릭 없음: {{ `{{ $labels.job }}` }} / {{ `{{ $labels.name }}` }}"
+            description: '{{ `{{ $labels.job }}` }} 에 {{ `{{ $labels.name }}` }} 서킷 메트릭 없음 · 15분 지속 · 설정 instances 이름과 @CircuitBreaker 이름 불일치 의심'
+
+    # ========================================
+    # 체결 잔액 반영
+    # ========================================
+    - name: trade-settlement
+      interval: 30s
+      rules:
+        - alert: KafkaDeadLetter
+          # 재시도로 못 살린 메시지가 <토픽>.DLT 로 감(처리 법은 helm/monitoring/README.md)
+          expr: sum by (job) (increase(kafka_dlt_records_total{job=~"(user-service|trade-service|market-data-service)"}[10m])) > 0
+          labels:
+            severity: warning
+            category: messaging
+          annotations:
+            summary: "DLT 로 간 메시지: {{ `{{ $labels.job }}` }}"
+            description: '{{ `{{ $labels.job }}` }} 최근 10분 {{ `{{ $value | printf "%.0f" }}` }}건 · 로그 "DLT 로 보냄" 확인'
+
+        - alert: KafkaConsumerLag
+          # 소비자가 안 읽은 레코드가 쌓임(종목 수집 토픽은 아래 규칙이 따로)
+          expr: sum by (job, topic) (kafka_consumer_fetch_manager_records_lag{topic!="market.asset.created"}) > 100
+          for: 10m
+          labels:
+            severity: warning
+            category: messaging
+          annotations:
+            summary: "소비자 지연: {{ `{{ $labels.job }}` }} {{ `{{ $labels.topic }}` }}"
+            description: '{{ `{{ $labels.topic }}` }} 에 안 읽은 레코드 {{ `{{ $value | printf "%.0f" }}` }}건 · 10분 지속 · {{ `{{ $labels.job }}` }} 리스너 로그 · 처리 시간 확인'
+
+        - alert: KafkaCollectionLag
+          # 1시간 넘게 2000건 위(종목 수집은 한 건씩 오래 처리해 한꺼번에 더하면 쌓이는 게 정상)
+          expr: sum by (job, topic) (kafka_consumer_fetch_manager_records_lag{topic="market.asset.created"}) > 2000
+          for: 1h
+          labels:
+            severity: warning
+            category: messaging
+          annotations:
+            summary: "종목 수집 지연: {{ `{{ $labels.job }}` }}"
+            description: '종목 수집 대기 {{ `{{ $value | printf "%.0f" }}` }}건 · 1시간 지속 · 종목을 한꺼번에 더했는지, market-data 수집 로그 확인'
+
+        - alert: TradeEventsUnpublished
+          # 커밋한 체결의 이벤트를 1분 넘게 못 보냄(그만큼 잔액 반영이 밀림)
+          expr: max(trade_events_unpublished{job="trade-service"}) > 0
+          for: 10m
+          labels:
+            severity: critical
+            category: messaging
+          annotations:
+            summary: "못 보낸 체결 이벤트"
+            description: '1분 넘게 못 보낸 체결 {{ `{{ $value | printf "%.0f" }}` }}건 · 10분 지속 · 카프카 상태 확인'
+
+        - alert: TradeBuysPending
+          # 5분 넘게 정산을 기다리는 매수(5분마다 다시 보내도 안 풀림)
+          expr: max(trade_buys_pending{job="trade-service"}) > 0
+          for: 10m
+          labels:
+            severity: warning
+            category: messaging
+          annotations:
+            summary: "정산을 기다리는 매수"
+            description: '5분 넘게 대기 중인 매수 {{ `{{ $value | printf "%.0f" }}` }}건 · 10분 지속 · user 체결 소비자와 trading.trade.completed.DLT · user.trade.settled.DLT 확인'
+
+        - alert: TradeCancelNeedsReview
+          # 취소한 체결을 자동으로 다 되돌리지 못함(보유보다 많이 판 경우)
+          expr: sum by (reason) (increase(trade_cancel_review_total{job="trade-service"}[10m])) > 0
+          labels:
+            severity: warning
+            category: messaging
+          annotations:
+            summary: "체결 취소 확인 필요: {{ `{{ $labels.reason }}` }}"
+            description: 'trade-service 최근 10분 {{ `{{ $value | printf "%.0f" }}` }}건 · 로그에서 tradeId 확인 · 잔액 수동 확인'
+{{- end }}

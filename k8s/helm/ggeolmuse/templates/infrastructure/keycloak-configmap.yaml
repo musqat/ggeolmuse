@@ -1,0 +1,13 @@
+{{- if .Values.infrastructure.keycloak.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-realm-config
+  labels:
+    app: keycloak
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+data:
+  muscathan-realm.json: |
+{{ .Files.Get "config-files/keycloak-realm-template.json" | indent 4 }}
+{{- end }}

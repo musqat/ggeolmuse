@@ -1,0 +1,133 @@
+{
+  "realm": "muscathan",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "accessTokenLifespan": 900,
+  "accessTokenLifespanForImplicitFlow": 900,
+  "ssoSessionIdleTimeout": 7200,
+  "ssoSessionMaxLifespan": 86400,
+  "revokeRefreshToken": true,
+  "refreshTokenMaxReuse": 0,
+  "offlineSessionIdleTimeout": 2592000,
+  "offlineSessionMaxLifespan": 5184000,
+  "accessCodeLifespan": 300,
+  "accessCodeLifespanUserAction": 600,
+  "accessCodeLifespanLogin": 1800,
+  "clients": [
+    {
+      "clientId": "ggeolmuse-client",
+      "name": "GGeolmuse Application Client",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${KEYCLOAK_CLIENT_SECRET}",
+      "redirectUris": [
+        "http://localhost:*",
+        "https://ggeolmuse.com/*",
+        "http://gateway-server:8070/*",
+        "http://user-service:8080/*",
+        "http://trade-service:8081/*",
+        "http://market-data-service:8083/*",
+        "http://backtest-service:8082/*"
+      ],
+      "webOrigins": [
+        "http://localhost:*",
+        "https://ggeolmuse.com",
+        "http://gateway-server:8070",
+        "http://user-service:8080",
+        "http://trade-service:8081",
+        "http://market-data-service:8083",
+        "http://backtest-service:8082"
+      ],
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": false,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "fullScopeAllowed": true
+    },
+    {
+      "clientId": "ggeolmuse-frontend",
+      "name": "GGeolmuse Frontend Application",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "bearerOnly": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "consentRequired": false,
+      "fullScopeAllowed": true,
+      "redirectUris": [
+        "http://localhost:3000/*",
+        "http://localhost:5173/*",
+        "https://ggeolmuse.com/*"
+      ],
+      "webOrigins": [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "https://ggeolmuse.com"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      }
+    }
+  ],
+  "clientScopeMappings": {
+    "realm-management": [
+      {
+        "client": "ggeolmuse-client",
+        "roles": [
+          "manage-users",
+          "create-client",
+          "manage-clients"
+        ]
+      }
+    ]
+  },
+  "roles": {
+    "realm": [
+      {
+        "name": "user",
+        "description": "Standard user role"
+      },
+      {
+        "name": "admin",
+        "description": "Administrator role"
+      }
+    ]
+  },
+  "users": [
+    {
+      "username": "service-account-ggeolmuse-client",
+      "enabled": true,
+      "serviceAccountClientId": "ggeolmuse-client",
+      "clientRoles": {
+        "realm-management": [
+          "manage-users",
+          "create-client",
+          "manage-clients"
+        ]
+      }
+    }
+  ],
+  "components": {
+    "org.keycloak.userprofile.UserProfileProvider": [
+      {
+        "providerId": "declarative-user-profile",
+        "subComponents": {},
+        "config": {
+          "kc.user.profile.config": [
+            "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false}],\"groups\":[{\"name\":\"user-metadata\",\"displayHeader\":\"User metadata\",\"displayDescription\":\"Attributes, which refer to user metadata\"}]}"
+          ]
+        }
+      }
+    ]
+  }
+}

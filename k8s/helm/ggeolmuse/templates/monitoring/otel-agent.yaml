@@ -1,0 +1,40 @@
+{{- /* 자바 에이전트 설정 파일 */ -}}
+{{- if .Values.global.otel.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ggeolmuse-otel-agent
+  labels:
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+data:
+  agent.yaml: |
+    file_format: "1.0"
+    resource:
+      attributes_list: ${OTEL_RESOURCE_ATTRIBUTES:-}
+      detection/development:
+        detectors:
+          - service:
+    propagator:
+      composite:
+        - tracecontext:
+        - baggage:
+    tracer_provider:
+      sampler:
+        rule_based_routing:
+          fallback_sampler:
+            parent_based:
+              root:
+                trace_id_ratio_based:
+                  ratio: ${OTEL_TRACES_SAMPLER_ARG:-1.0}
+          span_kind: SERVER
+          rules:
+            - action: DROP
+              attribute: url.path
+              pattern: /actuator.*
+      processors:
+        - batch:
+            exporter:
+              otlp_http:
+                endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT}/v1/traces
+{{- end }}

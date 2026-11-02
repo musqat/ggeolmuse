@@ -1,0 +1,23 @@
+{{- if .Values.services.marketDataService.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.services.marketDataService.name }}
+  labels:
+    app: {{ .Values.services.marketDataService.name }}
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.services.marketDataService.service.type }}
+  ports:
+  - name: http
+    port: {{ .Values.services.marketDataService.service.port }}
+    targetPort: {{ .Values.services.marketDataService.service.port }}
+    protocol: TCP
+  - name: management
+    port: 9090
+    targetPort: 9090
+    protocol: TCP
+  selector:
+    app: {{ .Values.services.marketDataService.name }}
+{{- end }}

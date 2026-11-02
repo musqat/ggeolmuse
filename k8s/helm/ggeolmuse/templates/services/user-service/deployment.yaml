@@ -1,0 +1,5 @@
+{{- if .Values.services.userService.enabled }}
+{{- include "ggeolmuse.serviceAccount" (dict "name" .Values.services.userService.name "Values" .Values) }}
+---
+{{ include "ggeolmuse.javaDeployment" (dict "svc" .Values.services.userService "Values" .Values "Chart" .Chart "Release" .Release) }}
+{{- end }}
