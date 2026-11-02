@@ -183,7 +183,7 @@ public class BaseExceptionHandler implements EnvironmentAware {
     };
   }
 
-  // 켜진 프로필 중 하나라도 개발용이면 true. 환경이 없으면 운영으로 봄
+  // 켜진 프로필 중 하나라도 개발용이면 true(프로필이 없으면 운영)
   private boolean isDevelopmentEnvironment() {
     return environment != null
       && Arrays.stream(environment.getActiveProfiles()).anyMatch(DEVELOPMENT_PROFILES::contains);

@@ -47,7 +47,7 @@ public interface AssetService {
   // active 를 끄고 delistedDate 를 기록(soft delete)
   void deleteAsset(String symbol);
 
-  // 여러 종목을 soft delete. 실제로 끈 종목 수를 돌려줌
+  // 여러 종목을 soft delete(실제로 끈 종목 수 반환)
   int deleteAssets(java.util.List<String> symbols);
 
   // active 를 켜고 delistedDate 를 지움

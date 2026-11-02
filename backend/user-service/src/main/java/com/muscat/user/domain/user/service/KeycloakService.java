@@ -26,7 +26,7 @@ public interface KeycloakService {
   // Keycloak 사용자 삭제
   void deleteUser(String keycloakId);
 
-  // 사용자 이름이 정확히 같은 Keycloak 사용자 ID. 없으면 null, 조회가 실패하면 예외
+  // 사용자 이름이 정확히 같은 Keycloak 사용자 ID(없으면 null, 조회가 실패하면 예외)
   String findUserIdByUsername(String username);
 
   // Keycloak 사용자에게 realm role 할당
