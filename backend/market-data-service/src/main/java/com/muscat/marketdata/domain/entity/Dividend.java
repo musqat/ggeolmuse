@@ -28,7 +28,7 @@ public class Dividend {
   private LocalDate exDate;
 
   // 주당 배당금액
-  @Column(name = "amount", precision = 19, scale = 8, nullable = false)
+  @Column(name = "amount", precision = 24, scale = 8, nullable = false)
   private BigDecimal amount;
 
   // 배당 통화 (기본값: USD)
