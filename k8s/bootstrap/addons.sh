@@ -72,5 +72,5 @@ helm upgrade --install argocd argo/argo-cd --version "$ARGOCD_CHART" \
 kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
 kubectl label namespace monitoring name=monitoring --overwrite
 
-# 이후 부품 · 앱 · 모니터링은 ArgoCD 가 helm/argocd/apps 를 따라 맞춤
-kubectl apply -f "$root/helm/argocd/root-k8s.yaml"
+# 이후 부품 · 앱 · 모니터링은 ArgoCD 가 k8s/argocd/apps 를 따라 맞춤
+kubectl apply -f "$root/k8s/argocd/root.yaml"

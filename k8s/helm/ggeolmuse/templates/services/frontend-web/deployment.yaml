@@ -1,0 +1,55 @@
+{{- if .Values.frontend.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.frontend.name }}
+  labels:
+    app: {{ .Values.frontend.name }}
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.frontend.replicaCount }}
+  revisionHistoryLimit: {{ .Values.global.revisionHistoryLimit | default 5 }}
+  selector:
+    matchLabels:
+      app: {{ .Values.frontend.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.frontend.name }}
+    spec:
+      {{- if .Values.global.topologySpread.enabled }}
+      {{- include "ggeolmuse.topologySpread" (dict "name" .Values.frontend.name "Values" .Values) | nindent 6 }}
+      {{- end }}
+      securityContext:
+        fsGroup: 10001
+      containers:
+      - name: {{ .Values.frontend.name }}
+        image: {{ include "ggeolmuse.image" (dict "Values" .Values "repository" .Values.frontend.image.repository "tag" .Values.frontend.image.tag "Chart" .Chart) }}
+        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        {{- if .Values.frontend.resources }}
+        resources:
+          {{- toYaml .Values.frontend.resources | nindent 10 }}
+        {{- end }}
+        ports:
+        - containerPort: {{ .Values.frontend.service.targetPort }}
+        env:
+        - name: VITE_API_URL
+          value: {{ .Values.frontend.env.apiUrl | quote }}
+        - name: VITE_KEYCLOAK_URL
+          value: {{ .Values.frontend.env.keycloakUrl | quote }}
+        - name: VITE_KEYCLOAK_REALM
+          value: {{ .Values.frontend.env.keycloakRealm | quote }}
+        - name: VITE_KEYCLOAK_CLIENT_ID
+          value: {{ .Values.frontend.env.keycloakClientId | quote }}
+        securityContext:
+          {{- include "ggeolmuse.securityContext" . | nindent 10 }}
+        volumeMounts:
+          {{- include "ggeolmuse.tmpVolumeMount" . | nindent 10 }}
+          - name: nginx-cache
+            mountPath: /var/cache/nginx
+      volumes:
+        {{- include "ggeolmuse.tmpVolume" . | nindent 8 }}
+        - name: nginx-cache
+          emptyDir: {}
+{{- end }}

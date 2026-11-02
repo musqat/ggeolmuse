@@ -1,0 +1,190 @@
+{{- if .Values.infrastructure.keycloak.enabled }}
+{{- $secretFiles := (include "ggeolmuse.secretFiles" .) }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+  labels:
+    app: keycloak
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.infrastructure.keycloak.replicas }}
+  # 버전을 올릴 때 DB 마이그레이션이 옛 파드와 겹치지 않게 옛 파드를 먼저 내림
+  strategy:
+    type: Recreate
+  revisionHistoryLimit: {{ .Values.global.revisionHistoryLimit | default 5 }}
+  selector:
+    matchLabels:
+      app: keycloak
+  template:
+    metadata:
+      labels:
+        app: keycloak
+    spec:
+      {{- if .Values.global.topologySpread.enabled }}
+      {{- include "ggeolmuse.topologySpread" (dict "name" "keycloak" "Values" .Values) | nindent 6 }}
+      {{- end }}
+      containers:
+      - name: keycloak
+        image: {{ .Values.infrastructure.keycloak.image }}
+        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        ports:
+        - containerPort: {{ .Values.infrastructure.keycloak.port }}
+        env:
+        {{- if not $secretFiles }}
+        - name: KC_BOOTSTRAP_ADMIN_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.secrets.name }}
+              key: KEYCLOAK_ADMIN_USERNAME
+        - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.secrets.name }}
+              key: KEYCLOAK_ADMIN_PASSWORD
+        {{- end }}
+        - name: KC_DB
+          value: {{ .Values.infrastructure.keycloak.env.kcDbVendor | quote }}
+        {{- if eq .Values.infrastructure.keycloak.env.kcDbVendor "postgres" }}
+        - name: KC_DB_URL
+          value: {{ .Values.infrastructure.keycloak.env.kcDbUrl | quote }}
+        {{- if not $secretFiles }}
+        - name: KC_DB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.secrets.name }}
+              key: DB_USERNAME
+        - name: KC_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.secrets.name }}
+              key: DB_PASSWORD
+        {{- end }}
+        - name: KC_HTTP_RELATIVE_PATH
+          value: {{ .Values.infrastructure.keycloak.env.kcHttpRelativePath | quote }}
+        # 브라우저 · 토큰 iss 는 공개 주소, 서비스끼리는 keycloak:8080 으로 부름
+        - name: KC_HOSTNAME
+          value: "https://{{ .Values.global.domain }}/auth"
+        - name: KC_HOSTNAME_BACKCHANNEL_DYNAMIC
+          value: "true"
+        # HTTP 로 받음(TLS 는 앞단)
+        - name: KC_HTTP_ENABLED
+          value: "true"
+        # Traefik 이 넘긴 X-Forwarded-Proto · Host 로 https 요청을 구분해 쿠키에 Secure. 파드 대역에서 온 전달 헤더만 사용
+        - name: KC_PROXY_HEADERS
+          value: xforwarded
+        - name: KC_PROXY_TRUSTED_ADDRESSES
+          value: {{ .Values.infrastructure.keycloak.env.kcProxyTrustedAddresses | quote }}
+        {{- end }}
+        {{- if not $secretFiles }}
+        - name: KEYCLOAK_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.secrets.name }}
+              key: KEYCLOAK_CLIENT_SECRET
+        {{- end }}
+        command: ["sh", "-c"]
+        args:
+        - |
+          {{- if ne .Values.infrastructure.keycloak.env.kcDbVendor "postgres" }}
+          rm -rf /opt/keycloak/data/h2/*
+          {{- end }}
+          {{- if $secretFiles }}
+          # 시크릿은 파일에서 읽어 메모리 볼륨의 설정 파일로(환경변수 · 프로세스 인자에 안 남음)
+          # 설정 파일이 값을 그대로 읽게 하는 이스케이프
+          v() { sed -e 's/\\/\\\\/g' -e 's/\$/\\\\$/g' "/etc/secrets/$1"; }
+          umask 077
+          cat > /run/keycloak/keycloak.conf <<EOF
+          bootstrap-admin-username=$(v KEYCLOAK_ADMIN_USERNAME)
+          bootstrap-admin-password=$(v KEYCLOAK_ADMIN_PASSWORD)
+          db-username=$(v DB_USERNAME)
+          db-password=$(v DB_PASSWORD)
+          EOF
+          sed -e "s/\${KEYCLOAK_CLIENT_SECRET}/$(cat /etc/secrets/KEYCLOAK_CLIENT_SECRET)/g" \
+              /opt/keycloak/data/import-template/muscathan-realm.json > /opt/keycloak/data/import/muscathan-realm.json
+          {{- else }}
+          sed -e "s/\${KEYCLOAK_CLIENT_SECRET}/${KEYCLOAK_CLIENT_SECRET}/g" \
+              /opt/keycloak/data/import-template/muscathan-realm.json > /opt/keycloak/data/import/muscathan-realm.json
+          {{- end }}
+          {{- if eq .Values.infrastructure.keycloak.env.kcDbVendor "postgres" }}
+          /opt/keycloak/bin/kc.sh {{ if $secretFiles }}--config-file=/run/keycloak/keycloak.conf {{ end }}start --import-realm
+          {{- else }}
+          /opt/keycloak/bin/kc.sh {{ if $secretFiles }}--config-file=/run/keycloak/keycloak.conf {{ end }}start-dev --import-realm
+          {{- end }}
+        volumeMounts:
+        - name: keycloak-realm-template
+          mountPath: /opt/keycloak/data/import-template
+          readOnly: true
+        - name: keycloak-realm-output
+          mountPath: /opt/keycloak/data/import
+        {{- if $secretFiles }}
+        - name: secrets
+          mountPath: /etc/secrets
+          readOnly: true
+        - name: keycloak-conf
+          mountPath: /run/keycloak
+        {{- end }}
+        resources:
+          {{- toYaml .Values.infrastructure.keycloak.resources | nindent 10 }}
+        securityContext:
+          {{- include "ggeolmuse.baseSecurityContext" . | nindent 10 }}
+        # 기동 때 빌드 · 버전을 올린 첫 기동의 DB 이전이 끝날 때까지 liveness 를 미룸(최대 10분)
+        startupProbe:
+          httpGet:
+            path: /auth/realms/master
+            port: {{ .Values.infrastructure.keycloak.port }}
+          periodSeconds: 10
+          failureThreshold: 60
+        readinessProbe:
+          httpGet:
+            path: /auth/realms/master
+            port: {{ .Values.infrastructure.keycloak.port }}
+          initialDelaySeconds: 60
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /auth/realms/master
+            port: {{ .Values.infrastructure.keycloak.port }}
+          initialDelaySeconds: 120
+          periodSeconds: 30
+      volumes:
+      - name: keycloak-realm-template
+        configMap:
+          name: keycloak-realm-config
+      - name: keycloak-realm-output
+        emptyDir: {}
+      {{- if $secretFiles }}
+      - name: secrets
+        secret:
+          secretName: {{ .Values.secrets.name }}
+          items:
+          {{- range list "KEYCLOAK_ADMIN_USERNAME" "KEYCLOAK_ADMIN_PASSWORD" "DB_USERNAME" "DB_PASSWORD" "KEYCLOAK_CLIENT_SECRET" }}
+          - key: {{ . }}
+            path: {{ . }}
+          {{- end }}
+      - name: keycloak-conf
+        emptyDir:
+          medium: Memory
+          sizeLimit: 1Mi
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+  labels:
+    app: keycloak
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.infrastructure.keycloak.service.type }}
+  ports:
+  - port: {{ .Values.infrastructure.keycloak.service.targetPort }}
+    targetPort: {{ .Values.infrastructure.keycloak.service.targetPort }}
+    protocol: TCP
+    {{- if eq .Values.infrastructure.keycloak.service.type "LoadBalancer" }}
+    nodePort: {{ .Values.infrastructure.keycloak.service.port }}
+    {{- end }}
+  selector:
+    app: keycloak
+{{- end }}

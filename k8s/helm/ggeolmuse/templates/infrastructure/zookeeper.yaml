@@ -1,0 +1,86 @@
+{{- if .Values.infrastructure.zookeeper.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zookeeper
+  labels:
+    app: zookeeper
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.infrastructure.zookeeper.service.type }}
+  ports:
+    - port: {{ .Values.infrastructure.zookeeper.port }}
+      name: client
+      targetPort: {{ .Values.infrastructure.zookeeper.port }}
+  selector:
+    app: zookeeper
+  clusterIP: None
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: zookeeper
+  labels:
+    app: zookeeper
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  serviceName: zookeeper
+  replicas: {{ .Values.infrastructure.zookeeper.replicas }}
+  selector:
+    matchLabels:
+      app: zookeeper
+  template:
+    metadata:
+      labels:
+        app: zookeeper
+    spec:
+      containers:
+        - name: zookeeper
+          image: {{ .Values.infrastructure.zookeeper.image }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.infrastructure.zookeeper.port }}
+              name: client
+          env:
+            - name: ZOOKEEPER_CLIENT_PORT
+              value: "{{ .Values.infrastructure.zookeeper.env.clientPort }}"
+            - name: ZOOKEEPER_TICK_TIME
+              value: "{{ .Values.infrastructure.zookeeper.env.tickTime }}"
+            - name: ZOOKEEPER_SYNC_LIMIT
+              value: "{{ .Values.infrastructure.zookeeper.env.syncLimit }}"
+          resources:
+            {{- toYaml .Values.infrastructure.zookeeper.resources | nindent 12 }}
+          securityContext:
+            {{- include "ggeolmuse.baseSecurityContext" . | nindent 12 }}
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: zookeeper-data
+              mountPath: /var/lib/zookeeper/data
+            - name: zookeeper-log
+              mountPath: /var/lib/zookeeper/log
+            {{- include "ggeolmuse.confluentWritableMounts" . | nindent 12 }}
+      volumes:
+        {{- include "ggeolmuse.confluentWritableVolumes" . | nindent 8 }}
+  volumeClaimTemplates:
+    - metadata:
+        name: zookeeper-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- with .Values.infrastructure.zookeeper.storage.storageClassName }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.infrastructure.zookeeper.storage.data }}
+    - metadata:
+        name: zookeeper-log
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- with .Values.infrastructure.zookeeper.storage.storageClassName }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.infrastructure.zookeeper.storage.log }}
+{{- end }}

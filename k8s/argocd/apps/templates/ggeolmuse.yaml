@@ -11,7 +11,7 @@ spec:
   source:
     repoURL: {{ .Values.repoURL }}
     targetRevision: {{ .Values.targetRevision }}
-    path: helm/ggeolmuse
+    path: k8s/helm/ggeolmuse
     helm:
       valueFiles:
         {{- range .Values.ggeolmuse.valueFiles }}

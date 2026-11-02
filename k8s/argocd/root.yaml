@@ -1,4 +1,4 @@
-# 루트 Application(멀티 노드 k8s, 한 번 kubectl apply 하면 나머지는 helm/argocd/apps 를 따라감)
+# 루트 Application(멀티 노드 k8s, 한 번 kubectl apply 하면 나머지는 k8s/argocd/apps 를 따라감)
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -9,7 +9,7 @@ spec:
   source:
     repoURL: https://github.com/musqat/ggeolmuse
     targetRevision: master
-    path: helm/argocd/apps
+    path: k8s/argocd/apps
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd

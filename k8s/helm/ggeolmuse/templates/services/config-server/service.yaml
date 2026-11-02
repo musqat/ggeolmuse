@@ -1,0 +1,23 @@
+{{- if .Values.configServer.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.configServer.name }}
+  labels:
+    app: {{ .Values.configServer.name }}
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.configServer.service.type }}
+  ports:
+  - name: http
+    port: {{ .Values.configServer.service.port }}
+    targetPort: {{ .Values.configServer.service.port }}
+    protocol: TCP
+  - name: management
+    port: 9090
+    targetPort: 9090
+    protocol: TCP
+  selector:
+    app: {{ .Values.configServer.name }}
+{{- end }}

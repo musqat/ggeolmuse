@@ -1,0 +1,110 @@
+{{- if .Values.networkPolicy.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-from-gateway
+  labels:
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      tier: {{ .Values.networkPolicy.businessServiceTier }}
+  policyTypes:
+  {{- range .Values.networkPolicy.policyTypes }}
+  - {{ . }}
+  {{- end }}
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: {{ .Values.networkPolicy.gatewayApp }}
+    ports:
+    {{- range .Values.networkPolicy.ports }}
+    - protocol: TCP
+      port: {{ . }}
+    {{- end }}
+
+  - from:
+    - podSelector:
+        matchExpressions:
+        - key: tier
+          operator: In
+          values:
+          - {{ .Values.networkPolicy.businessServiceTier }}
+    ports:
+    {{- range .Values.networkPolicy.ports }}
+    - protocol: TCP
+      port: {{ . }}
+    {{- end }}
+
+  # monitoring
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 9090
+    {{- if .Values.services.chatService.metrics.enabled }}
+    - protocol: TCP
+      port: {{ .Values.services.chatService.service.port }}
+    {{- end }}
+{{- end }}
+{{- if and .Values.networkPolicy.enabled .Values.infrastructure.redis.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-redis-from-services
+  labels:
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: redis
+  policyTypes:
+    - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: {{ .Values.networkPolicy.gatewayApp }}
+    - podSelector:
+        matchLabels:
+          tier: {{ .Values.networkPolicy.businessServiceTier }}
+    ports:
+    - protocol: TCP
+      port: {{ .Values.infrastructure.redis.port }}
+{{- end }}
+{{- with .Values.networkPolicy.instanceMetadata }}
+{{- if and $.Values.networkPolicy.enabled .block }}
+---
+# app 레이블이 있는 이 차트의 파드만
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-instance-metadata
+  labels:
+    {{- include "ggeolmuse.labels" $ | nindent 4 }}
+spec:
+  podSelector:
+    matchExpressions:
+    - key: app
+      operator: Exists
+    - key: app
+      operator: NotIn
+      values:
+      {{- range .exemptApps }}
+      - {{ . }}
+      {{- end }}
+  policyTypes:
+    - Egress
+  egress:
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        except:
+        - 169.254.169.254/32
+{{- end }}
+{{- end }}

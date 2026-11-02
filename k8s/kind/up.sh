@@ -58,7 +58,7 @@ fi
 kubectl apply -f "$here/postgres.yaml"
 kubectl rollout status deployment/postgres --timeout=5m
 
-v="$root/helm/ggeolmuse"
+v="$root/k8s/helm/ggeolmuse"
 helm upgrade --install ggeolmuse "$v" \
   -f "$v/values-prod.yaml" -f "$v/values-k8s.yaml" -f "$v/values-kind.yaml" \
   --wait --timeout 30m

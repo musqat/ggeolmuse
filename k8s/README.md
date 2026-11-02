@@ -4,7 +4,7 @@
 
 - 구성은 kubeadm, 컨트롤 플레인 1 · 워커 2
 - 전환하면 단일 노드 k3s 를 이것으로 바꾼다. RDS · 시크릿은 그대로 쓴다
-- 전환 전에는 바뀌는 것이 없다. k3s 는 이 폴더와 아래 값 파일을 읽지 않고, terraform 모듈은 `k8s_cluster_enabled` 를 켜기 전에는
+- 전환 전에는 바뀌는 것이 없다. k3s 는 이 폴더를 읽지 않고, terraform 모듈은 `k8s_cluster_enabled` 를 켜기 전에는
   아무것도 만들지 않는다
 - 로컬에서는 kind 3노드로 같은 구성을 띄워 본다
 
@@ -22,15 +22,14 @@
 | `bootstrap/addons.sh` | 부품 설치(Calico · metrics-server · Traefik, AWS 면 EBS CSI · External Secrets · ArgoCD) |
 | `addons/` | Calico · Traefik · gp3 저장 클래스 값 |
 | `kind/` | 로컬 3노드 올리기 · 확인 · 지우기 |
+| `helm/ggeolmuse` | 멀티 노드 앱 차트(운영 차트를 복사해 따로 둔 것, `values-k8s.yaml` · `values-kind.yaml` 포함) |
+| `argocd/apps` · `argocd/root.yaml` | ArgoCD 가 맞추는 Application 목록 |
+| `monitoring/*-values-k8s.yaml` | 멀티 노드 모니터링 값(운영 값 파일 위에 덧붙임) |
 
 다른 폴더
 
 | 파일 | 하는 일 |
 |---|---|
-| `helm/ggeolmuse/values-k8s.yaml` | 멀티 노드 앱 값 |
-| `helm/ggeolmuse/values-kind.yaml` | 로컬 kind 앱 값 |
-| `helm/argocd/apps` · `helm/argocd/root-k8s.yaml` | ArgoCD 가 맞추는 Application 목록 |
-| `helm/monitoring/*-values-k8s.yaml` | 멀티 노드 모니터링 값 |
 | [`terraform/modules/k8s-cluster`](../terraform/modules/k8s-cluster) | EC2 셋 · 보안 그룹 · NLB · 노드 역할 |
 
 <br>
