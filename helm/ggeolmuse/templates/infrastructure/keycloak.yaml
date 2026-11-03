@@ -54,12 +54,12 @@ spec:
           valueFrom:
             secretKeyRef:
               name: {{ .Values.secrets.name }}
-              key: DB_USERNAME
+              key: {{ .Values.infrastructure.keycloak.dbSecretKeys.username }}
         - name: KC_DB_PASSWORD
           valueFrom:
             secretKeyRef:
               name: {{ .Values.secrets.name }}
-              key: DB_PASSWORD
+              key: {{ .Values.infrastructure.keycloak.dbSecretKeys.password }}
         {{- end }}
         - name: KC_HTTP_RELATIVE_PATH
           value: {{ .Values.infrastructure.keycloak.env.kcHttpRelativePath | quote }}
@@ -159,8 +159,9 @@ spec:
         secret:
           secretName: {{ .Values.secrets.name }}
           items:
+          {{- $keys := dict "DB_USERNAME" .Values.infrastructure.keycloak.dbSecretKeys.username "DB_PASSWORD" .Values.infrastructure.keycloak.dbSecretKeys.password }}
           {{- range list "KEYCLOAK_ADMIN_USERNAME" "KEYCLOAK_ADMIN_PASSWORD" "DB_USERNAME" "DB_PASSWORD" "KEYCLOAK_CLIENT_SECRET" }}
-          - key: {{ . }}
+          - key: {{ get $keys . | default . }}
             path: {{ . }}
           {{- end }}
       - name: keycloak-conf

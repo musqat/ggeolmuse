@@ -34,8 +34,9 @@ spec:
               secret:
                 secretName: ggeolmuse-secrets
                 items:
+                  {{- $keys := dict "DB_USERNAME" $b.dbSecretKeys.username "DB_PASSWORD" $b.dbSecretKeys.password }}
                   {{- range concat (list "DB_USERNAME" "DB_PASSWORD") $b.databaseSecretKeys }}
-                  - key: {{ . }}
+                  - key: {{ get $keys . | default . }}
                     path: {{ . }}
                   {{- end }}
             - name: pgpass
