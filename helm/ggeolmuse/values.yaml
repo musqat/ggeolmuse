@@ -185,6 +185,13 @@ infrastructure:
     image: provectuslabs/kafka-ui:v0.7.2
     replicas: 1
     port: 8080
+    # 토픽 · 메시지 바꾸기 막음(DLT 메시지를 원래 토픽에 다시 넣을 때만 false)
+    readOnly: true
+    # 로그인 폼(비밀번호는 시크릿의 passwordKey)
+    auth:
+      enabled: true
+      username: admin
+      passwordKey: KAFKA_UI_PASSWORD
     env:
       clustersName: ggeolmuse
       bootstrapServers: kafka:9092
@@ -525,6 +532,7 @@ secrets:
     koreaeximApiKey: ""
     alphavantageApiKey: ""
     openaiApiKey: ""
+    kafkaUiPassword: ""
 
 # 모니터링 설정
 monitoring:
