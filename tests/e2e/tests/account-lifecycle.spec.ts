@@ -21,21 +21,27 @@ function realmRoles(token: string): string[] {
   return payload.realm_access?.roles ?? [];
 }
 
-/** 로그인 경로의 요청 제한(429)이 풀릴 때까지 다시 보내는 로그인 */
-async function postLogin(api: APIRequestContext, user: { email: string; password: string }): Promise<APIResponse> {
+/** 게이트웨이 요청 제한(429)이 풀릴 때까지 다시 보내는 POST(로그인 · 가입 경로는 IP 마다 몇 번뿐) */
+async function postUntilAllowed(api: APIRequestContext, path: string, data: object): Promise<APIResponse> {
   let res!: APIResponse;
   await expect(async () => {
-    res = await api.post(`${API_URL}/auth/login`, { data: { email: user.email, password: user.password } });
-    expect(res.status(), '로그인 요청 제한이 풀리지 않는다').not.toBe(429);
+    res = await api.post(`${API_URL}${path}`, { data });
+    expect(res.status(), `${path} 요청 제한이 풀리지 않는다`).not.toBe(429);
   }).toPass({ intervals: [3_000], timeout: 30_000 });
   return res;
 }
+
+const postLogin = (api: APIRequestContext, user: { email: string; password: string }) =>
+  postUntilAllowed(api, '/auth/login', { email: user.email, password: user.password });
+
+const postRegister = (api: APIRequestContext, user: { email: string; password: string; nickname: string }) =>
+  postUntilAllowed(api, '/auth/register', user);
 
 test('가입은 되지만 이메일 인증 전에는 로그인이 막힌다', async () => {
   const api = await request.newContext();
   const user = throwawayAccount();
 
-  const registered = await api.post(`${API_URL}/auth/register`, { data: user });
+  const registered = await postRegister(api, user);
   expect(registered.status(), `가입이 실패했다: ${await registered.text()}`).toBe(201);
 
   const login = await postLogin(api, user);
@@ -50,9 +56,9 @@ test('같은 이메일로 두 번 가입되지 않는다', async () => {
   const api = await request.newContext();
   const user = throwawayAccount();
 
-  expect((await api.post(`${API_URL}/auth/register`, { data: user })).status()).toBe(201);
+  expect((await postRegister(api, user)).status()).toBe(201);
 
-  const again = await api.post(`${API_URL}/auth/register`, { data: user });
+  const again = await postRegister(api, user);
   expect(again.status(), '중복 가입이 통과한다').toBeGreaterThanOrEqual(400);
 
   await api.dispose();
@@ -81,7 +87,7 @@ function keycloakPasswordGrant(api: APIRequestContext, user: { email: string; pa
 test('이메일 사용자는 비밀번호로 탈퇴하고, 탈퇴하면 로그인은 막히고 같은 이메일로 다시 가입된다', async () => {
   const plain = await request.newContext();
   const user = throwawayAccount();
-  expect((await plain.post(`${API_URL}/auth/register`, { data: user })).status()).toBe(201);
+  expect((await postRegister(plain, user)).status()).toBe(201);
 
   const adminToken = (await readFile(TOKEN_FILE, 'utf8')).trim();
   const admin = await request.newContext({ extraHTTPHeaders: { Authorization: `Bearer ${adminToken}` } });
@@ -108,7 +114,7 @@ test('이메일 사용자는 비밀번호로 탈퇴하고, 탈퇴하면 로그�
   expect(again.status(), '탈퇴한 계정이 로그인된다').toBeGreaterThanOrEqual(400);
   expect((await keycloakPasswordGrant(plain, user)).status(), '탈퇴한 계정이 Keycloak 에 남아 있다').not.toBe(200);
 
-  const rejoined = await plain.post(`${API_URL}/auth/register`, { data: user });
+  const rejoined = await postRegister(plain, user);
   expect(rejoined.status(), `탈퇴한 이메일로 다시 가입되지 않는다: ${await rejoined.text()}`).toBe(201);
 
   // 다시 만든 계정은 관리자가 강제 탈퇴(이때도 Keycloak 계정이 지워짐)
@@ -124,7 +130,7 @@ test('이메일 사용자는 비밀번호로 탈퇴하고, 탈퇴하면 로그�
 test('관리자로 승격하면 관리자 API 가 열리고, 강등 뒤 다시 로그인하면 막힌다', async () => {
   const plain = await request.newContext();
   const user = throwawayAccount();
-  expect((await plain.post(`${API_URL}/auth/register`, { data: user })).status()).toBe(201);
+  expect((await postRegister(plain, user)).status()).toBe(201);
 
   const adminToken = (await readFile(TOKEN_FILE, 'utf8')).trim();
   const admin = await request.newContext({ extraHTTPHeaders: { Authorization: `Bearer ${adminToken}` } });
@@ -173,7 +179,7 @@ test('관리자로 승격하면 관리자 API 가 열리고, 강등 뒤 다시 �
 test('앱을 거치지 않고 Keycloak 에서 바로 받은 토큰은 게이트웨이가 막는다', async () => {
   const plain = await request.newContext();
   const user = throwawayAccount();
-  expect((await plain.post(`${API_URL}/auth/register`, { data: user })).status()).toBe(201);
+  expect((await postRegister(plain, user)).status()).toBe(201);
 
   const adminToken = (await readFile(TOKEN_FILE, 'utf8')).trim();
   const admin = await request.newContext({ extraHTTPHeaders: { Authorization: `Bearer ${adminToken}` } });

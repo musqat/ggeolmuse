@@ -37,11 +37,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
+// 사용자 · 인증(Keycloak 호출은 DB 트랜잭션 밖, 트랜잭션은 DB 를 쓰는 곳에만)
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class UserServiceImpl implements UserService {
 
   private final UserRepository userRepository;
@@ -55,6 +56,7 @@ public class UserServiceImpl implements UserService {
   private final RateLimitService rateLimitService;
   private final LoginEventProducer loginEventProducer;
   private final AccountEventProducer accountEventProducer;
+  private final TransactionTemplate transactionTemplate;
 
   // 비밀번호 없는 사용자(구글)의 탈퇴 허용 로그인 시간(훔친 access token 만으로는 탈퇴 불가)
   private static final Duration REAUTH_WINDOW = Duration.ofMinutes(5);
@@ -98,11 +100,13 @@ public class UserServiceImpl implements UserService {
     }
 
     try {
-      User user = userMapper.createLocalUser(email, nickname, keycloakId);
-      user.changePassword(passwordEncoder.encode(password));
-
-      User savedUser = userRepository.save(user);
-      createAndSendVerificationToken(savedUser);
+      User savedUser = transactionTemplate.execute(status -> {
+        User user = userMapper.createLocalUser(email, nickname, keycloakId);
+        user.changePassword(passwordEncoder.encode(password));
+        User saved = userRepository.save(user);
+        createAndSendVerificationToken(saved);
+        return saved;
+      });
 
       log.info("회원가입 성공: {}", email);
       return savedUser;
@@ -124,16 +128,18 @@ public class UserServiceImpl implements UserService {
     return cleaned;
   }
 
-  // DB 저장이 실패한 가입의 Keycloak 계정 삭제(삭제도 실패하면 로그만)
+  // Keycloak 계정 삭제(실패하면 로그만)
   private void deleteKeycloakUserQuietly(String keycloakId) {
     try {
       keycloakService.deleteUser(keycloakId);
+      log.info("Keycloak 사용자 삭제 완료: {}", keycloakId);
     } catch (Exception e) {
-      log.error("가입 되돌리기 실패 - Keycloak 계정이 남음: keycloakId={}", keycloakId, e);
+      log.error("Keycloak 사용자 삭제 실패 - Keycloak 계정이 남음: keycloakId={}", keycloakId, e);
     }
   }
 
   @Override
+  @Transactional
   public User createUserFromKeycloak(String keycloakId, String email, String nickname, boolean emailVerified) {
     // 이미 로컬 DB에 존재하는지 확인
     if (userRepository.existsByEmail(email)) {
@@ -250,6 +256,7 @@ public class UserServiceImpl implements UserService {
   }
 
   @Override
+  @Transactional
   public User getOrCreateProfile(String keycloakId, String email, String nickname, boolean emailVerified) {
     Optional<User> found = userRepository.findByKeycloakId(keycloakId);
     if (found.isEmpty()) {
@@ -274,20 +281,23 @@ public class UserServiceImpl implements UserService {
 
   @Override
   public void deleteAccount(String keycloakId, String password, Instant authTime) {
-    User user = userRepository.findByKeycloakIdWithAccounts(keycloakId)
-      .orElseThrow(() -> new UserException(UserResponse.USER_NOT_FOUND));
+    transactionTemplate.executeWithoutResult(status -> {
+      User user = userRepository.findByKeycloakIdWithAccounts(keycloakId)
+        .orElseThrow(() -> new UserException(UserResponse.USER_NOT_FOUND));
 
-    if (user.getPasswordHash() != null) {
-      if (password == null || !passwordEncoder.matches(password, user.getPasswordHash())) {
-        log.warn("계정 삭제 실패 - 비밀번호 불일치: keycloakId={}", keycloakId);
-        throw new UserException(UserResponse.INVALID_PASSWORD);
+      if (user.getPasswordHash() != null) {
+        if (password == null || !passwordEncoder.matches(password, user.getPasswordHash())) {
+          log.warn("계정 삭제 실패 - 비밀번호 불일치: keycloakId={}", keycloakId);
+          throw new UserException(UserResponse.INVALID_PASSWORD);
+        }
+      } else if (authTime == null || authTime.isBefore(Instant.now().minus(REAUTH_WINDOW))) {
+        log.warn("계정 삭제 실패 - 다시 로그인 필요: keycloakId={}", keycloakId);
+        throw new UserException(UserResponse.REAUTH_REQUIRED);
       }
-    } else if (authTime == null || authTime.isBefore(Instant.now().minus(REAUTH_WINDOW))) {
-      log.warn("계정 삭제 실패 - 다시 로그인 필요: keycloakId={}", keycloakId);
-      throw new UserException(UserResponse.REAUTH_REQUIRED);
-    }
 
-    removeUser(user);
+      removeLocalUser(user);
+    });
+    deleteKeycloakUserQuietly(keycloakId);
 
     log.info("계정 삭제 완료: keycloakId={}", keycloakId);
   }
@@ -319,6 +329,7 @@ public class UserServiceImpl implements UserService {
 
 
   @Override
+  @Transactional
   public User updateProfile(String keycloakId, UpdateProfileRequestDto request) {
     User user = userRepository.findByKeycloakId(keycloakId)
       .orElseThrow(() -> {
@@ -343,6 +354,7 @@ public class UserServiceImpl implements UserService {
 
 
   @Override
+  @Transactional
   public User verifyEmail(String token) {
     EmailToken emailToken = emailTokenRepository.findByTokenWithUser(token)
       .orElseThrow(() -> {
@@ -367,6 +379,7 @@ public class UserServiceImpl implements UserService {
   }
 
   @Override
+  @Transactional
   public void resendVerificationEmail(String email) {
     // Rate limiting 체크
     if (!rateLimitService.tryAcquire(email)) {
@@ -387,6 +400,7 @@ public class UserServiceImpl implements UserService {
   }
 
   @Override
+  @Transactional
   public void requestPasswordReset(String email) {
     // Rate limiting 체크
     if (!rateLimitService.tryAcquire(email)) {
@@ -430,13 +444,13 @@ public class UserServiceImpl implements UserService {
       throw new UserException(UserResponse.PASSWORD_RESET_FAILED);
     }
 
-    // 로컬 DB 비밀번호 해시 업데이트
-    user.changePassword(passwordEncoder.encode(newPassword));
-    userRepository.save(user);
-
-    // 토큰 사용 처리 및 삭제
-    resetToken.markAsUsed();
-    passwordResetTokenRepository.save(resetToken);
+    // 로컬 해시와 토큰 사용 표시를 한 트랜잭션에
+    transactionTemplate.executeWithoutResult(status -> {
+      user.changePassword(passwordEncoder.encode(newPassword));
+      userRepository.save(user);
+      resetToken.markAsUsed();
+      passwordResetTokenRepository.save(resetToken);
+    });
     logoutSessionsQuietly(user.getKeycloakId());
 
     log.info("비밀번호 재설정 완료: {}", user.getEmail());
@@ -444,8 +458,8 @@ public class UserServiceImpl implements UserService {
 
   // ========== 내부 Methods ==========
 
-  // 탈퇴 · 강제 탈퇴 공통(잔액은 가상 머니라 안 봄, 계좌마다 삭제 이벤트 → trade-service 가 거래 · 보유 삭제, 계좌 내역은 ON DELETE CASCADE)
-  private void removeUser(User user) {
+  // 탈퇴 · 강제 탈퇴의 DB 삭제(잔액은 가상 머니라 안 봄, 계좌마다 삭제 이벤트, 계좌 내역은 ON DELETE CASCADE)
+  private void removeLocalUser(User user) {
     emailTokenRepository.deleteByUser(user);
     passwordResetTokenRepository.deleteByUser(user);
 
@@ -453,13 +467,6 @@ public class UserServiceImpl implements UserService {
     accounts.forEach(account -> accountEventProducer.publishAccountDeleted(account, "회원 탈퇴"));
     accountRepository.deleteAll(accounts);
     log.debug("사용자 계좌 삭제: userId={}, 계좌수={}", user.getId(), accounts.size());
-
-    try {
-      keycloakService.deleteUser(user.getKeycloakId());
-      log.info("Keycloak 사용자 삭제 완료: {}", user.getKeycloakId());
-    } catch (Exception e) {
-      log.warn("Keycloak 사용자 삭제 실패하지만 로컬 계정 삭제 진행: {}", e.getMessage());
-    }
 
     userRepository.delete(user);
   }
@@ -590,6 +597,7 @@ public class UserServiceImpl implements UserService {
   }
 
   @Override
+  @Transactional
   public User adminUpdateNickname(Long userId, String nickname) {
     User user = findById(userId);
 
@@ -628,6 +636,7 @@ public class UserServiceImpl implements UserService {
   }
 
   @Override
+  @Transactional
   public User adminVerifyEmail(Long userId) {
     User user = findById(userId);
 
@@ -647,12 +656,13 @@ public class UserServiceImpl implements UserService {
 
   @Override
   public void adminDeleteUser(Long userId) {
-    User user = findById(userId);
-
-    log.info("Admin이 사용자 강제 탈퇴 처리: userId={}, email={}",
-      userId, user.getEmail());
-
-    removeUser(user);
+    User user = transactionTemplate.execute(status -> {
+      User found = findById(userId);
+      log.info("Admin이 사용자 강제 탈퇴 처리: userId={}, email={}", userId, found.getEmail());
+      removeLocalUser(found);
+      return found;
+    });
+    deleteKeycloakUserQuietly(user.getKeycloakId());
 
     log.info("사용자 강제 탈퇴 완료: {}", user.getEmail());
   }

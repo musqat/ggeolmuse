@@ -45,10 +45,11 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
+// 계좌 · 환전 · 잔액(환율 조회는 DB 트랜잭션 밖, 트랜잭션은 DB 를 쓰는 곳에만)
 @Service
 @RequiredArgsConstructor
-@Transactional
 @Slf4j
 public class AccountServiceImpl implements AccountService {
 
@@ -64,6 +65,7 @@ public class AccountServiceImpl implements AccountService {
   private final MarketDataServiceClientWrapper marketDataServiceClientWrapper;
   private final AccountEventProducer accountEventProducer;
   private final DividendSettlementRepository dividendSettlementRepository;
+  private final TransactionTemplate transactionTemplate;
 
   @Value("${app.account.initial-krw-amount:1000000}")
   private BigDecimal initialKrwAmount;
@@ -90,6 +92,7 @@ public class AccountServiceImpl implements AccountService {
 
   // 새 계좌 생성 (초기 KRW 잔액 설정)
   @Override
+  @Transactional
   public Account createAccount(Long userId, CreateAccountRequestDto request) {
     User user = userRepository.findById(userId)
       .orElseThrow(() -> new UserException(UserResponse.USER_NOT_FOUND));
@@ -131,6 +134,7 @@ public class AccountServiceImpl implements AccountService {
 
   // 계좌 삭제
   @Override
+  @Transactional
   public void deleteAccount(Long accountId, Long userId) {
     Account account = accountRepository.findByIdAndUserId(accountId, userId)
       .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
@@ -158,7 +162,6 @@ public class AccountServiceImpl implements AccountService {
 
   // 계좌 잔액 조회 (현재 환율 기준 총 자산 포함)
   @Override
-  @Transactional(readOnly = true)
   public BalanceResponseDto getAccountBalance(Long accountId, Long userId) {
     Account account = accountRepository.findByIdAndUserId(accountId, userId)
       .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
@@ -173,7 +176,11 @@ public class AccountServiceImpl implements AccountService {
   public void exchangeKrwToUsd(Long accountId, Long userId, BigDecimal krwAmount,
     BigDecimal exchangeRate) {
     validateExchangeRate(exchangeRate);
+    transactionTemplate.executeWithoutResult(status -> applyKrwToUsd(accountId, userId, krwAmount, exchangeRate));
+  }
 
+  // 잠금 · 잔액 변경 · 내역 · 이벤트
+  private void applyKrwToUsd(Long accountId, Long userId, BigDecimal krwAmount, BigDecimal exchangeRate) {
     Account account = accountRepository.findByIdAndUserIdWithLock(accountId, userId)
       .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
     userLogger.logExchangeStart(accountId, "KRW", "USD", krwAmount, exchangeRate);
@@ -237,7 +244,11 @@ public class AccountServiceImpl implements AccountService {
   public void exchangeUsdToKrw(Long accountId, Long userId, BigDecimal usdAmount,
     BigDecimal exchangeRate) {
     validateExchangeRate(exchangeRate);
+    transactionTemplate.executeWithoutResult(status -> applyUsdToKrw(accountId, userId, usdAmount, exchangeRate));
+  }
 
+  // 잠금 · 잔액 변경 · 내역 · 이벤트
+  private void applyUsdToKrw(Long accountId, Long userId, BigDecimal usdAmount, BigDecimal exchangeRate) {
     Account account = accountRepository.findByIdAndUserIdWithLock(accountId, userId)
       .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
     userLogger.logExchangeStart(accountId, "USD", "KRW", usdAmount, exchangeRate);
@@ -295,6 +306,7 @@ public class AccountServiceImpl implements AccountService {
 
   // KRW 입금 처리
   @Override
+  @Transactional
   public void depositKrw(Long accountId, Long userId, BigDecimal krwAmount) {
     Account account = accountRepository.findByIdAndUserIdWithLock(accountId, userId)
       .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
@@ -498,6 +510,7 @@ public class AccountServiceImpl implements AccountService {
   }
 
   @Override
+  @Transactional
   public void applyDividendPayout(DividendPayoutEvent event) {
     // 계좌를 지운 뒤 도착한 몫은 넣을 곳이 없어 건너뜀
     if (!accountRepository.existsById(event.getAccountId())) {

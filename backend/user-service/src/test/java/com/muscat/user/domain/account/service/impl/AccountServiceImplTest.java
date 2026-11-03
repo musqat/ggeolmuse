@@ -86,6 +86,11 @@ class AccountServiceImplTest {
   @Mock
   private com.muscat.user.domain.account.repository.DividendSettlementRepository dividendSettlementRepository;
 
+  @org.mockito.Spy
+  private org.springframework.transaction.support.TransactionTemplate transactionTemplate =
+    new org.springframework.transaction.support.TransactionTemplate(
+      org.mockito.Mockito.mock(org.springframework.transaction.PlatformTransactionManager.class));
+
   @InjectMocks
   private AccountServiceImpl accountService;
 
