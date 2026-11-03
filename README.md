@@ -12,7 +12,7 @@
 </div>
 
 > 야간·주말은 내려둡니다. 꺼져 있는 동안 접속하면 다음 가동 시각을
-> 안내하는 페이지가 뜹니다 ([Cloudflare Worker](cloudflare/offline-notice/worker.js)).
+> 안내하는 페이지가 뜹니다.
 
 <br>
 
@@ -280,6 +280,9 @@ EC2 는 Cloudflare 대역에서 온 요청만 받아서 밖에서 이 헤더를 
 로그의 이메일은 가린다.
 
 **브라우저** — nginx 가 CSP · X-Frame-Options · X-Content-Type-Options(nosniff) · Referrer-Policy 를 붙인다.
+
+**운영 도구** — Kafka UI · Keycloak 관리 콘솔 · Grafana · ArgoCD 는 Cloudflare Access 뒤에 있어 허용한 계정만 들어간다.
+Kafka UI 는 그 안에서 로그인 폼을 한 번 더 거치고, 읽기 전용이라 토픽 · 메시지 · 클러스터 설정을 바꾸지 못한다.
 
 **파드 · 비밀값** — 앱 파드는 공용 securityContext 로 비root(10001) · 읽기 전용 루트 · 권한 상승 금지 · capabilities 전부 제거로 돈다.
 비밀값은 AWS Secrets Manager 에서 ExternalSecret 으로 받아 파드마다 자기 키만 `/etc/secrets` 파일로 넣는다. 환경변수에는 비밀값이 없다.

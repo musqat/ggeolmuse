@@ -48,8 +48,22 @@ spec:
               value: "{{ .Values.infrastructure.kafkaUi.env.bootstrapServers }}"
             - name: KAFKA_CLUSTERS_0_ZOOKEEPER
               value: "{{ .Values.infrastructure.kafkaUi.env.zookeeper }}"
+            # 토픽 · 메시지 변경 막음(DLT 를 다시 넣을 때만 값으로 끔)
+            - name: KAFKA_CLUSTERS_0_READONLY
+              value: {{ .Values.infrastructure.kafkaUi.readOnly | quote }}
+            # 화면의 클러스터 추가 · 수정 막음
             - name: DYNAMIC_CONFIG_ENABLED
-              value: "true"
+              value: "false"
+            {{- with .Values.infrastructure.kafkaUi.auth }}
+            {{- if .enabled }}
+            - name: AUTH_TYPE
+              value: LOGIN_FORM
+            - name: SPRING_SECURITY_USER_NAME
+              value: {{ .username | quote }}
+            - name: SPRING_SECURITY_USER_PASSWORD
+              {{- include "ggeolmuse.secretRef" (dict "Values" $.Values "key" .passwordKey) | nindent 14 }}
+            {{- end }}
+            {{- end }}
             {{- if .Values.infrastructure.kafkaUi.env.SERVER_SERVLET_CONTEXT_PATH }}
             - name: SERVER_SERVLET_CONTEXT_PATH
               value: "{{ .Values.infrastructure.kafkaUi.env.SERVER_SERVLET_CONTEXT_PATH }}"
