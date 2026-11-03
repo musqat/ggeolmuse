@@ -45,15 +45,16 @@ class UserControllerProfileTest {
   }
 
   @Test
-  @DisplayName("토큰의 sub · email · 이름으로 내 프로필을 찾거나 만든다")
+  @DisplayName("토큰의 sub · email · 이름 · 이메일 인증 여부로 내 프로필을 찾거나 만든다")
   void getMyProfile_PassesSubjectEmailNickname() {
     User user = User.builder().email("g@example.local").build();
     UserResponseDto dto = mock(UserResponseDto.class);
-    given(userService.getOrCreateProfile("kc-1", "g@example.local", "구글 사용자")).willReturn(user);
+    given(userService.getOrCreateProfile("kc-1", "g@example.local", "구글 사용자", true)).willReturn(user);
     given(userMapper.toResponseDto(user)).willReturn(dto);
 
     ResponseEntity<UserResponseDto> res =
-      controller.getMyProfile(jwt(b -> b.claim("email", "g@example.local").claim("name", "구글 사용자")));
+      controller.getMyProfile(jwt(b -> b.claim("email", "g@example.local").claim("name", "구글 사용자")
+        .claim("email_verified", true)));
 
     assertThat(res.getBody()).isSameAs(dto);
   }
@@ -61,16 +62,16 @@ class UserControllerProfileTest {
   @Test
   @DisplayName("닉네임은 이름, 없으면 given_name, 그것도 없으면 email 앞부분이고 email 도 없으면 비운다")
   void getMyProfile_NicknameFallbacks() {
-    given(userService.getOrCreateProfile("kc-1", "g@example.local", "길동")).willReturn(User.builder().build());
-    given(userService.getOrCreateProfile("kc-1", "g@example.local", "g")).willReturn(User.builder().build());
-    given(userService.getOrCreateProfile("kc-1", null, null)).willReturn(User.builder().build());
+    given(userService.getOrCreateProfile("kc-1", "g@example.local", "길동", false)).willReturn(User.builder().build());
+    given(userService.getOrCreateProfile("kc-1", "g@example.local", "g", false)).willReturn(User.builder().build());
+    given(userService.getOrCreateProfile("kc-1", null, null, false)).willReturn(User.builder().build());
 
     controller.getMyProfile(jwt(b -> b.claim("email", "g@example.local").claim("given_name", "길동")));
     controller.getMyProfile(jwt(b -> b.claim("email", "g@example.local")));
     controller.getMyProfile(jwt(b -> b.claim("scope", "openid")));
 
-    verify(userService).getOrCreateProfile("kc-1", "g@example.local", "길동");
-    verify(userService).getOrCreateProfile("kc-1", "g@example.local", "g");
-    verify(userService).getOrCreateProfile("kc-1", null, null);
+    verify(userService).getOrCreateProfile("kc-1", "g@example.local", "길동", false);
+    verify(userService).getOrCreateProfile("kc-1", "g@example.local", "g", false);
+    verify(userService).getOrCreateProfile("kc-1", null, null, false);
   }
 }

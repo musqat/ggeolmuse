@@ -134,7 +134,7 @@ public class UserServiceImpl implements UserService {
   }
 
   @Override
-  public User createUserFromKeycloak(String keycloakId, String email, String nickname) {
+  public User createUserFromKeycloak(String keycloakId, String email, String nickname, boolean emailVerified) {
     // 이미 로컬 DB에 존재하는지 확인
     if (userRepository.existsByEmail(email)) {
       log.warn("Keycloak 동기화 실패 - 이미 존재하는 이메일: {}", email);
@@ -143,9 +143,10 @@ public class UserServiceImpl implements UserService {
 
     try {
       User user = userMapper.createLocalUser(email, availableNickname(nickname), keycloakId);
-      user.verifyEmail(); // OAuth 사용자는 이미 이메일 인증됨
-
-      // OAuth 사용자는 비밀번호 없음 (null로 유지)
+      // email_verified 클레임이 참일 때만 인증 상태(비밀번호는 비워 둠)
+      if (emailVerified) {
+        user.verifyEmail();
+      }
 
       User savedUser = userRepository.save(user);
       log.info("Keycloak OAuth 사용자 동기화 완료: {}", email);
@@ -249,13 +250,13 @@ public class UserServiceImpl implements UserService {
   }
 
   @Override
-  public User getOrCreateProfile(String keycloakId, String email, String nickname) {
+  public User getOrCreateProfile(String keycloakId, String email, String nickname, boolean emailVerified) {
     Optional<User> found = userRepository.findByKeycloakId(keycloakId);
     if (found.isEmpty()) {
       if (email == null || email.isBlank()) {
         throw new UserException(UserResponse.USER_NOT_FOUND);
       }
-      return createUserFromKeycloak(keycloakId, email, nickname);
+      return createUserFromKeycloak(keycloakId, email, nickname, emailVerified);
     }
 
     User user = found.get();
@@ -313,6 +314,7 @@ public class UserServiceImpl implements UserService {
 
     user.changePassword(passwordEncoder.encode(newPassword));
     userRepository.save(user);
+    logoutSessionsQuietly(user.getKeycloakId());
   }
 
 
@@ -435,6 +437,7 @@ public class UserServiceImpl implements UserService {
     // 토큰 사용 처리 및 삭제
     resetToken.markAsUsed();
     passwordResetTokenRepository.save(resetToken);
+    logoutSessionsQuietly(user.getKeycloakId());
 
     log.info("비밀번호 재설정 완료: {}", user.getEmail());
   }
@@ -459,6 +462,15 @@ public class UserServiceImpl implements UserService {
     }
 
     userRepository.delete(user);
+  }
+
+  // 비밀번호가 바뀐 사용자의 Keycloak 세션 종료(실패하면 로그만, 비밀번호는 이미 바뀜)
+  private void logoutSessionsQuietly(String keycloakId) {
+    try {
+      keycloakService.logoutUserSessions(keycloakId);
+    } catch (Exception e) {
+      log.error("비밀번호 변경 뒤 세션 종료 실패: keycloakId={}", keycloakId, e);
+    }
   }
 
   // 이메일 인증 토큰 생성 및 발송
@@ -610,6 +622,7 @@ public class UserServiceImpl implements UserService {
     // 로컬 DB 비밀번호 해시 업데이트
     user.changePassword(passwordEncoder.encode(newPassword));
     userRepository.save(user);
+    logoutSessionsQuietly(user.getKeycloakId());
 
     log.info("사용자 비밀번호 강제 변경 완료: {}", user.getEmail());
   }

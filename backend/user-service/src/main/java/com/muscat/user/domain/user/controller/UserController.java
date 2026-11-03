@@ -48,7 +48,8 @@ public class UserController {
       @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
 
     String email = jwt.getClaimAsString("email");
-    User user = userService.getOrCreateProfile(jwt.getSubject(), email, nickname(jwt, email));
+    User user = userService.getOrCreateProfile(jwt.getSubject(), email, nickname(jwt, email),
+      Boolean.TRUE.equals(jwt.getClaimAsBoolean("email_verified")));
 
     UserResponseDto userDto = userMapper.toResponseDto(user);
 
