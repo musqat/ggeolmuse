@@ -115,5 +115,7 @@ class MarketDataClientWrapperTest {
     assertThat(dated.rate()).isEqualByComparingTo("1400");
     assertThat(latest.date()).isEqualTo(LocalDate.now());
     assertThat(latest.rate()).isEqualByComparingTo("1400");
+    assertThat(dated.defaulted()).isTrue();
+    assertThat(latest.defaulted()).isTrue();
   }
 }

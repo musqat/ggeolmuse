@@ -96,6 +96,27 @@ class ResponseMapperTest {
   class ToStrategyResponse {
 
     @Test
+    @DisplayName("기본 환율로 산 날과 기본 환율인 평가일을 겹치지 않게 날짜순으로 싣는다")
+    void defaultFxDates() {
+      List<StrategyTransaction> txs = transactions(3);
+      txs.get(2).setDefaultFxDate(START.plusMonths(2));
+      txs.get(0).setDefaultFxDate(START);
+      StrategyCalculationResult calc = calculation().toBuilder().defaultFxValuationDate(END).build();
+
+      StrategyResponse result = mapper.toStrategyResponse(dcaRequest(), txs, calc, price("120.5"), NONE);
+
+      assertThat(result.getDefaultFxDates()).containsExactly(START, START.plusMonths(2), END);
+    }
+
+    @Test
+    @DisplayName("기본 환율을 쓴 날이 없으면 빈 목록이다")
+    void noDefaultFxDates() {
+      StrategyResponse result = mapper.toStrategyResponse(dcaRequest(), transactions(2), calculation(), price("120.5"), NONE);
+
+      assertThat(result.getDefaultFxDates()).isEmpty();
+    }
+
+    @Test
     @DisplayName("DCA 요청이면 strategyType 이 DCA")
     void dca_타입() {
       DcaStrategyRequest request = DcaStrategyRequest.builder()

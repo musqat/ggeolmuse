@@ -78,7 +78,7 @@ public final class BacktestDataUtils {
     var response = marketData.getFxRate(date.toString());
     if (response == null) {
       log.warn("환율 데이터가 없어 기본값 사용: {} -> {}원", date, marketData.defaultFxRate());
-      return new FxRateDto(date, marketData.defaultFxRate());
+      return new FxRateDto(date, marketData.defaultFxRate(), true);
     }
     return response;
   }
@@ -90,7 +90,7 @@ public final class BacktestDataUtils {
     var response = marketData.getLatestFxRate();
     if (response == null) {
       log.warn("현재 환율 데이터가 없어 기본값 사용: {}원", marketData.defaultFxRate());
-      return new FxRateDto(LocalDate.now(), marketData.defaultFxRate());
+      return new FxRateDto(LocalDate.now(), marketData.defaultFxRate(), true);
     }
     return response;
   }
@@ -145,7 +145,7 @@ public final class BacktestDataUtils {
   }
 
   // start ~ end 의 날마다 환율을 한 번에 받아 맵으로(DCA 는 월별이라 따로)
-  public static Map<LocalDate, BigDecimal> buildDailyFxRateMap(
+  public static FxRates buildDailyFxRateMap(
     MarketDataClientWrapper marketData, LocalDate startDate, LocalDate endDate) {
     List<LocalDate> allDates = new java.util.ArrayList<>();
     for (LocalDate d = startDate; !d.isAfter(endDate); d = d.plusDays(1)) {
@@ -157,7 +157,7 @@ public final class BacktestDataUtils {
   /**
    *  Bulk 환율 조회 (여러 날짜의 환율을 한 번에)
    */
-  public static java.util.Map<LocalDate, BigDecimal> getBulkFxRates(
+  public static FxRates getBulkFxRates(
     MarketDataClientWrapper marketData, java.util.List<LocalDate> dates) {
     log.info("Bulk 환율 데이터 요청: dates count={}", dates.size());
 
@@ -170,11 +170,15 @@ public final class BacktestDataUtils {
     }
 
     // 응답에 없는 날짜는 기본 환율
+    java.util.Set<LocalDate> defaulted = new java.util.HashSet<>();
+    BigDecimal defaultRate = marketData.defaultFxRate();
     for (LocalDate date : dates) {
-      result.putIfAbsent(date, marketData.defaultFxRate());
+      if (result.putIfAbsent(date, defaultRate) == null) {
+        defaulted.add(date);
+      }
     }
 
-    log.info("Bulk 환율 조회: {}개 요청, {}개 반환(기본값 보정 포함)", dates.size(), result.size());
-    return result;
+    log.info("Bulk 환율 조회: {}개 요청, {}개 반환(기본값 {}개)", dates.size(), result.size(), defaulted.size());
+    return new FxRates(result, defaulted);
   }
 }

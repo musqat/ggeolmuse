@@ -111,6 +111,7 @@ class BacktestDataUtilsTest {
 
       assertThat(rate.rate()).isEqualByComparingTo(DEFAULT_FX);
       assertThat(rate.date()).isEqualTo(PAST);
+      assertThat(rate.defaulted()).isTrue();
     }
 
     @Test
@@ -123,6 +124,7 @@ class BacktestDataUtilsTest {
 
       assertThat(rate.rate()).isEqualByComparingTo(DEFAULT_FX);
       assertThat(rate.date()).isEqualTo(LocalDate.now());
+      assertThat(rate.defaulted()).isTrue();
     }
 
     @Test
@@ -132,9 +134,11 @@ class BacktestDataUtilsTest {
         .willReturn(Map.of("2024-03-04", new BigDecimal("1340")));
       given(client.defaultFxRate()).willReturn(DEFAULT_FX);
 
-      Map<LocalDate, BigDecimal> rates = BacktestDataUtils.getBulkFxRates(client, List.of(PAST, PAST.plusDays(1)));
+      FxRates rates = BacktestDataUtils.getBulkFxRates(client, List.of(PAST, PAST.plusDays(1)));
 
-      assertThat(rates).containsEntry(PAST, new BigDecimal("1340")).containsEntry(PAST.plusDays(1), DEFAULT_FX);
+      assertThat(rates.get(PAST)).isEqualByComparingTo("1340");
+      assertThat(rates.get(PAST.plusDays(1))).isEqualByComparingTo(DEFAULT_FX);
+      assertThat(rates.defaulted()).containsExactly(PAST.plusDays(1));
     }
 
     @Test
@@ -143,9 +147,10 @@ class BacktestDataUtilsTest {
       given(client.getBulkFxRates(List.of("2024-03-04", "2024-03-05"))).willReturn(Map.of());
       given(client.defaultFxRate()).willReturn(DEFAULT_FX);
 
-      Map<LocalDate, BigDecimal> rates = BacktestDataUtils.buildDailyFxRateMap(client, PAST, PAST.plusDays(1));
+      FxRates rates = BacktestDataUtils.buildDailyFxRateMap(client, PAST, PAST.plusDays(1));
 
-      assertThat(rates).hasSize(2).allSatisfy((date, rate) -> assertThat(rate).isEqualByComparingTo(DEFAULT_FX));
+      assertThat(rates.rates()).hasSize(2).allSatisfy((date, rate) -> assertThat(rate).isEqualByComparingTo(DEFAULT_FX));
+      assertThat(rates.defaulted()).containsExactlyInAnyOrder(PAST, PAST.plusDays(1));
     }
   }
 

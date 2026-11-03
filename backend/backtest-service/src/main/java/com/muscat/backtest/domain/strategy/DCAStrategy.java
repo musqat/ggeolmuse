@@ -10,6 +10,7 @@ import com.muscat.backtest.common.engine.StrategyFinalizer;
 import com.muscat.backtest.common.util.BacktestCalculationUtils;
 import com.muscat.backtest.common.util.BacktestDataUtils;
 import com.muscat.backtest.common.util.Decimals;
+import com.muscat.backtest.common.util.FxRates;
 import com.muscat.backtest.common.util.PriceLookup;
 import com.muscat.backtest.common.validation.BacktestRequestValidator;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
@@ -150,7 +151,7 @@ public class DCAStrategy implements InvestmentStrategy {
     }
 
     //  BULK API 사용: 실제로 사는 날의 환율 데이터를 한 번에 조회
-    Map<LocalDate, BigDecimal> fxRateMap = new HashMap<>();
+    FxRates fxRateMap = FxRates.EMPTY;
     if (request.getPurchaseFxRate() == null) {
       fxRateMap = BacktestDataUtils.getBulkFxRates(marketData,
         tradeByDate.values().stream().map(OHLCPriceDto::date).distinct().sorted().toList());
@@ -193,6 +194,7 @@ public class DCAStrategy implements InvestmentStrategy {
           .fee(fee)
           .amount(request.getMonthlyAmount())
           .fxRate(purchaseFxRate)
+          .defaultFxDate(fxRateMap.isDefault(priceData.date()) ? priceData.date() : null)
           .trigger(BacktestConstants.TransactionTrigger.MONTHLY_INVESTMENT)
           .build();
 

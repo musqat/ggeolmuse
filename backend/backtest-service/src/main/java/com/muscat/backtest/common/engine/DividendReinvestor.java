@@ -4,6 +4,7 @@ import com.muscat.backtest.common.constants.BacktestConstants;
 import com.muscat.backtest.common.util.BacktestCalculationUtils;
 import com.muscat.backtest.common.util.BacktestDataUtils;
 import com.muscat.backtest.common.util.Decimals;
+import com.muscat.backtest.common.util.FxRates;
 import com.muscat.backtest.common.util.PriceLookup;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.backtest.infra.client.MarketDataClientWrapper;
@@ -67,10 +68,10 @@ public final class DividendReinvestor {
         .filter(OHLCPriceDto::available)
         .collect(Collectors.toMap(OHLCPriceDto::date, p -> p, (existing, replacement) -> replacement));
 
-    final Map<LocalDate, BigDecimal> dividendFxRateMap =
+    final FxRates dividendFxRateMap =
         manualPurchaseFxRate == null
             ? BacktestDataUtils.getBulkFxRates(marketData, dividendDates)
-            : new java.util.HashMap<>();
+            : FxRates.EMPTY;
 
     log.info("배당 재투자 데이터 조회 완료: 가격 {}개, 환율 {}개",
         dividendPriceMap.size(), dividendFxRateMap.size());
@@ -107,8 +108,8 @@ public final class DividendReinvestor {
             if (manualPurchaseFxRate != null) {
               fxRateAtDividendDate = manualPurchaseFxRate;
             } else {
-              fxRateAtDividendDate = dividendFxRateMap.getOrDefault(
-                  dividend.getExDate(), currentFxRateValue);
+              BigDecimal found = dividendFxRateMap.get(dividend.getExDate());
+              fxRateAtDividendDate = found != null ? found : currentFxRateValue;
             }
 
             if (priceAtDividendDate != null && priceAtDividendDate.available()) {
@@ -124,6 +125,7 @@ public final class DividendReinvestor {
                   .shares(additionalShares)
                   .amount(BigDecimal.ZERO)
                   .fxRate(fxRateAtDividendDate)
+                  .defaultFxDate(dividendFxRateMap.isDefault(dividend.getExDate()) ? dividend.getExDate() : null)
                   .trigger(BacktestConstants.TransactionTrigger.DIVIDEND_REINVESTMENT)
                   .build();
 

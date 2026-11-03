@@ -190,6 +190,39 @@ class DCAStrategyTest {
       assertThat(first.getPrice()).isEqualByComparingTo("125.00");
       assertThat(first.getFxRate()).isEqualByComparingTo("1380");
       assertThat(first.getShares()).isEqualByComparingTo("8");
+      assertThat(first.getDefaultFxDate()).isNull();
+    }
+
+    @Test
+    @DisplayName("실제 산 날 환율이 없으면 기본 환율로 사고 그 날을 거래에 표시한다")
+    void execute_MissingFx_MarksTransaction() {
+      DcaStrategyRequest request = DcaStrategyRequest.builder()
+        .userId(userId)
+        .symbol(symbol)
+        .startDate(LocalDate.of(2024, 6, 1))
+        .endDate(LocalDate.of(2024, 6, 30))
+        .monthlyAmount(new BigDecimal("1350000"))
+        .purchaseDay(1)
+        .build();
+      given(marketDataClient.getOHLCPriceRange(eq(symbol), eq("2024-06-01"), eq("2024-06-30")))
+        .willReturn(List.of(createOHLC(LocalDate.of(2024, 6, 3), new BigDecimal("125.00"))));
+      given(marketDataClient.getBulkFxRates(any())).willReturn(java.util.Map.of());
+      given(marketDataClient.getFxRate(anyString()))
+        .willReturn(new FxRateDto(LocalDate.now(), new BigDecimal("1380")));
+      given(marketDataClient.getOHLCPrice(eq(symbol), anyString()))
+        .willReturn(createOHLC(request.getEndDate(), new BigDecimal("125.00")));
+      given(marketDataClient.getDividendHistory(eq(symbol), anyString(), anyString()))
+        .willReturn(java.util.Collections.emptyList());
+
+      dcaStrategy.execute(request);
+
+      @SuppressWarnings("unchecked")
+      ArgumentCaptor<List<StrategyTransaction>> transactions = ArgumentCaptor.forClass(List.class);
+      verify(responseMapper).toStrategyResponse(any(DcaStrategyRequest.class), transactions.capture(),
+        any(StrategyCalculationResult.class), any(), any());
+      StrategyTransaction first = transactions.getValue().get(0);
+      assertThat(first.getFxRate()).isEqualByComparingTo("1350");
+      assertThat(first.getDefaultFxDate()).isEqualTo(LocalDate.of(2024, 6, 3));
     }
 
     @Test

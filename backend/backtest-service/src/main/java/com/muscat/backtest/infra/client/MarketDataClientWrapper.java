@@ -135,7 +135,7 @@ public class MarketDataClientWrapper {
   private FxRateDto getFxRateFallback(String date, Exception ex) {
     log.error("Fallback triggered for getFxRate. Date: {}, Error: {}. Using default FX rate: {}",
       date, ex.getMessage(), defaultFxRate);
-    return new FxRateDto(LocalDate.parse(date), defaultFxRate);
+    return new FxRateDto(LocalDate.parse(date), defaultFxRate, true);
   }
 
   private Map<String, BigDecimal> getBulkFxRatesFallback(List<String> dates, Exception ex) {
@@ -146,6 +146,6 @@ public class MarketDataClientWrapper {
   private FxRateDto getLatestFxRateFallback(Exception ex) {
     log.error("Fallback triggered for getLatestFxRate. Error: {}. Using default FX rate: {}",
       ex.getMessage(), defaultFxRate);
-    return new FxRateDto(LocalDate.now(), defaultFxRate);
+    return new FxRateDto(LocalDate.now(), defaultFxRate, true);
   }
 }

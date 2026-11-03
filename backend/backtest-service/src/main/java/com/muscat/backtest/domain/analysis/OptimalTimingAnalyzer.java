@@ -61,7 +61,7 @@ public class OptimalTimingAnalyzer {
         marketData, request.getSymbol(), request.getStartDate(), actualEndDate);
 
       Map<LocalDate, BigDecimal> fxRateMap = BacktestDataUtils.buildDailyFxRateMap(
-        marketData, request.getStartDate(), actualEndDate);
+        marketData, request.getStartDate(), actualEndDate).rates();
 
       // 메모리에서 데이터 조회하여 분석 수행 (API 호출 없음)
       List<TimingResult> allResults = new ArrayList<>();

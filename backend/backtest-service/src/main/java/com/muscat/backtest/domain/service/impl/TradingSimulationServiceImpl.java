@@ -308,7 +308,18 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
       calculation.dividendReinvestDates());
     // 응답의 매수일은 실제로 산 날
     response.setPurchaseDate(context.purchaseData().date());
+    response.setDefaultFxDates(defaultFxDates(context));
     return response;
+  }
+
+  // 산 날 · 평가일 가운데 환율이 없어 기본 환율로 계산한 날
+  private static List<LocalDate> defaultFxDates(SimulationContext context) {
+    return java.util.stream.Stream.of(context.purchaseFxRate(), context.currentFxRate())
+      .filter(FxRateDto::defaulted)
+      .map(FxRateDto::date)
+      .distinct()
+      .sorted()
+      .toList();
   }
 
   // 최적 타이밍 계산 (원화 주가 기준, 매수일 <= 매도일 제약 아래 최대 수익)

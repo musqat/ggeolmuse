@@ -83,6 +83,7 @@ public class StrategyCalculator {
             .fxReturn(fxReturn)
             .fxReturnPercent(fxReturnPercent)
             .currentFxRate(currentFxRate.rate())
+            .defaultFxValuationDate(currentFxRate.defaulted() ? currentFxRate.date() : null)
             .build();
     }
 }

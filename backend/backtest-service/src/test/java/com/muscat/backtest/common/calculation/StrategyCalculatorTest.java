@@ -39,6 +39,17 @@ class StrategyCalculatorTest {
   }
 
   @Test
+  @DisplayName("평가일 환율이 기본값이면 그 날을 결과에 남기고, 받은 환율이면 비운다")
+  void defaultValuationFxDate() {
+    LocalDate valuation = LocalDate.of(2024, 12, 31);
+    StrategyCalculationResult defaulted = StrategyCalculator.calculate(TXS, INVESTED, BigDecimal.TEN, FX_SUM, PRICE,
+      new FxRateDto(valuation, new BigDecimal("1350"), true), BigDecimal.ZERO, null, null);
+
+    assertThat(defaulted.getDefaultFxValuationDate()).isEqualTo(valuation);
+    assertThat(calculate(BigDecimal.ZERO, null, null).getDefaultFxValuationDate()).isNull();
+  }
+
+  @Test
   @DisplayName("세율이 없으면 배당 전액을 더한다")
   void cashDividendWithoutTax() {
     assertThat(calculate(BigDecimal.TEN, null, null).getTotalAssetKrw()).isEqualByComparingTo("1313000");
