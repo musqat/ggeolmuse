@@ -114,8 +114,8 @@ infrastructure:
       kcDbVendor: dev-file
     # DB 계정을 읽는 시크릿 키(사용자 이름 · 비밀번호)
     dbSecretKeys:
-      username: DB_USERNAME
-      password: DB_PASSWORD
+      username: DB_USERNAME_KEYCLOAK
+      password: DB_PASSWORD_KEYCLOAK
     service:
       type: ClusterIP
       port: 8080
@@ -571,8 +571,8 @@ dbBackup:
   region: ap-northeast-2
   # DB 계정을 읽는 시크릿 키(사용자 이름 · 비밀번호)
   dbSecretKeys:
-    username: DB_USERNAME
-    password: DB_PASSWORD
+    username: DB_USERNAME_BACKUP
+    password: DB_PASSWORD_BACKUP
   databaseSecretKeys:
     - DB_URL_USER
     - DB_URL_TRADE
