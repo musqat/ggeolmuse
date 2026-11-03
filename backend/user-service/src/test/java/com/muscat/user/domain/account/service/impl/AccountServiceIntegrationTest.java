@@ -3,6 +3,7 @@ package com.muscat.user.domain.account.service.impl;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willAnswer;
 
 import com.muscat.commonlib.dto.FxRateDto;
 import com.muscat.commonlib.exception.ServiceException;
@@ -19,6 +20,7 @@ import com.muscat.user.domain.user.repository.UserRepository;
 import com.muscat.user.infra.client.MarketDataServiceClientWrapper;
 import com.muscat.user.infra.kafka.AccountEventProducer;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -32,6 +34,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -454,6 +457,65 @@ class AccountServiceIntegrationTest {
 
       assertThat(accounts).extracting(Account::getAccountName).containsExactlyInAnyOrder("내 계좌 1", "내 계좌 2");
       assertThat(accounts).allSatisfy(account -> assertThat(account.getUser().getEmail()).isEqualTo(TEST_USER_EMAIL));
+    }
+  }
+
+  @Nested
+  @DisplayName("환율 조회는 DB 트랜잭션 밖")
+  class OutsideTransactionTests {
+
+    // market-data 호출마다 그때 DB 트랜잭션이 열려 있었는지
+    private final List<Boolean> inTransaction = new ArrayList<>();
+
+    private Account newAccount() {
+      CreateAccountRequestDto request = new CreateAccountRequestDto();
+      request.setAccountName(TEST_ACCOUNT_NAME);
+      request.setCommissionRate(BigDecimal.ZERO);
+      return accountService.createAccount(testUserId, request);
+    }
+
+    @Test
+    @DisplayName("잔액 조회는 트랜잭션 없이 현재 환율을 받는다")
+    void getAccountBalance_FetchesRateOutsideTransaction() {
+      Account account = newAccount();
+      willAnswer(invocation -> {
+        inTransaction.add(TransactionSynchronizationManager.isActualTransactionActive());
+        return new FxRateDto(LocalDate.now(), TEST_EXCHANGE_RATE, "TEST_SOURCE");
+      }).given(marketDataServiceClientWrapper).getLatestFxRate();
+
+      accountService.getAccountBalance(account.getId(), testUserId);
+
+      assertThat(inTransaction).containsExactly(false);
+    }
+
+    @Test
+    @DisplayName("환전은 트랜잭션 밖에서 허용 범위를 받고 잠금 · 변경만 트랜잭션 안에서 한다")
+    void exchange_FetchesRangeOutsideTransaction() {
+      Account account = newAccount();
+      willAnswer(invocation -> {
+        inTransaction.add(TransactionSynchronizationManager.isActualTransactionActive());
+        return null;
+      }).given(marketDataServiceClientWrapper).getFxRateRange();
+
+      accountService.exchangeKrwToUsd(account.getId(), testUserId, new BigDecimal("100000"), TEST_EXCHANGE_RATE);
+      accountService.exchangeUsdToKrw(account.getId(), testUserId, new BigDecimal("10"), TEST_EXCHANGE_RATE);
+
+      assertThat(inTransaction).containsExactly(false, false);
+      assertThat(accountRepository.findById(account.getId()).orElseThrow().getBalanceUsd())
+        .isGreaterThan(BigDecimal.ZERO);
+    }
+
+    @Test
+    @DisplayName("현재 환율 조회는 트랜잭션을 열지 않는다")
+    void getCurrentExchangeRate_OutsideTransaction() {
+      willAnswer(invocation -> {
+        inTransaction.add(TransactionSynchronizationManager.isActualTransactionActive());
+        return new FxRateDto(LocalDate.now(), TEST_EXCHANGE_RATE, "TEST_SOURCE");
+      }).given(marketDataServiceClientWrapper).getLatestFxRate();
+
+      accountService.getCurrentExchangeRate();
+
+      assertThat(inTransaction).containsExactly(false);
     }
   }
 }

@@ -97,6 +97,11 @@ class UserServiceImplTest {
   @Mock
   private com.muscat.user.infra.kafka.AccountEventProducer accountEventProducer;
 
+  @org.mockito.Spy
+  private org.springframework.transaction.support.TransactionTemplate transactionTemplate =
+    new org.springframework.transaction.support.TransactionTemplate(
+      org.mockito.Mockito.mock(org.springframework.transaction.PlatformTransactionManager.class));
+
   @InjectMocks
   private UserServiceImpl userService;
 
