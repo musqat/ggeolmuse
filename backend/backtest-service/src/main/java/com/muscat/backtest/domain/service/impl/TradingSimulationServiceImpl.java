@@ -6,7 +6,6 @@ import com.muscat.backtest.common.logging.BacktestLogger;
 import com.muscat.backtest.common.util.BacktestCalculationUtils;
 import com.muscat.backtest.common.util.BacktestHistoryUtils;
 import com.muscat.backtest.common.util.Decimals;
-import com.muscat.backtest.common.util.FxFallback;
 import com.muscat.backtest.common.util.PriceLookup;
 import com.muscat.backtest.common.validation.BacktestRequestValidator;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
@@ -309,7 +308,18 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
       calculation.dividendReinvestDates());
     // 응답의 매수일은 실제로 산 날
     response.setPurchaseDate(context.purchaseData().date());
+    response.setDefaultFxDates(defaultFxDates(context));
     return response;
+  }
+
+  // 산 날 · 평가일 가운데 환율이 없어 기본 환율로 계산한 날
+  private static List<LocalDate> defaultFxDates(SimulationContext context) {
+    return java.util.stream.Stream.of(context.purchaseFxRate(), context.currentFxRate())
+      .filter(FxRateDto::defaulted)
+      .map(FxRateDto::date)
+      .distinct()
+      .sorted()
+      .toList();
   }
 
   // 최적 타이밍 계산 (원화 주가 기준, 매수일 <= 매도일 제약 아래 최대 수익)
@@ -368,9 +378,9 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
   }
 
   // 그날 종가 × 그날 환율, 환율이 없으면 기본 환율
-  private static BigDecimal krwPrice(OHLCPriceDto candle, Map<String, BigDecimal> fxRates) {
+  private BigDecimal krwPrice(OHLCPriceDto candle, Map<String, BigDecimal> fxRates) {
     return PriceLookup.effectiveClose(candle)
-      .multiply(fxRates.getOrDefault(candle.date().toString(), FxFallback.DEFAULT_RATE));
+      .multiply(fxRates.getOrDefault(candle.date().toString(), marketDataClientWrapper.defaultFxRate()));
   }
 
   // 백테스트 이력 저장 (userId 없으면 skip)

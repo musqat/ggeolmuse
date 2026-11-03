@@ -32,7 +32,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -56,60 +55,33 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
     this.responseMapper = responseMapper;
     this.backtestHistoryUtils = backtestHistoryUtils;
     this.optimalTimingAnalyzer = optimalTimingAnalyzer;
-    // this.backtestEventProducer = backtestEventProducer;
     this.strategyMap = strategies.stream()
       .collect(Collectors.toMap(InvestmentStrategy::getStrategyType, Function.identity()));
   }
 
-  // DCA 전략 백테스팅 실행
   @Override
   public StrategyResponse runDcaStrategy(DcaStrategyRequest request) {
-    String backtestId = generateBacktestId();
-    long startTime = System.currentTimeMillis();
-
-    try {
-      log.info("DCA 전략 백테스팅 시작: backtestId={}, symbol={}", backtestId, request.getSymbol());
-
-      StrategyResponse result = execute(request);
-
-      saveBacktestHistory(request.getUserId(), BacktestType.STRATEGY_SIMULATION, request);
-
-      long executionTimeMs = System.currentTimeMillis() - startTime;
-      log.info("DCA 전략 백테스팅 완료: backtestId={}, 수익률={}%, 실행시간={}ms",
-        backtestId, result.getTotalReturnPercent(), executionTimeMs);
-
-      return result;
-
-    } catch (Exception e) {
-      long executionTimeMs = System.currentTimeMillis() - startTime;
-      log.error("DCA 전략 백테스팅 실패: backtestId={}, error={}, 실행시간={}ms",
-        backtestId, e.getMessage(), executionTimeMs);
-      throw e;
-    }
+    return runStrategy("DCA", request);
   }
 
   @Override
   public StrategyResponse runConditionalStrategy(ConditionalStrategyRequest request) {
-    String backtestId = generateBacktestId();
+    return runStrategy("조건부 매수", request);
+  }
+
+  // 전략 실행 · 이력 저장과 걸린 시간 로그
+  private StrategyResponse runStrategy(String label, StrategyRequest request) {
     long startTime = System.currentTimeMillis();
-
+    log.info("{} 전략 백테스팅 시작: symbol={}", label, request.getSymbol());
     try {
-      log.info("조건부 매수 전략 백테스팅 시작: backtestId={}, symbol={}", backtestId, request.getSymbol());
-
       StrategyResponse result = execute(request);
-
-      saveBacktestHistory(request.getUserId(), BacktestType.STRATEGY_SIMULATION, request);
-
-      long executionTimeMs = System.currentTimeMillis() - startTime;
-      log.info("조건부 매수 전략 백테스팅 완료: backtestId={}, 수익률={}%, 실행시간={}ms",
-        backtestId, result.getTotalReturnPercent(), executionTimeMs);
-
+      backtestHistoryUtils.saveBacktestHistory(request.getUserId(), BacktestType.STRATEGY_SIMULATION, request);
+      log.info("{} 전략 백테스팅 완료: 수익률={}%, 실행시간={}ms",
+        label, result.getTotalReturnPercent(), System.currentTimeMillis() - startTime);
       return result;
-
-    } catch (Exception e) {
-      long executionTimeMs = System.currentTimeMillis() - startTime;
-      log.error("조건부 매수 전략 백테스팅 실패: backtestId={}, error={}, 실행시간={}ms",
-        backtestId, e.getMessage(), executionTimeMs);
+    } catch (RuntimeException e) {
+      log.error("{} 전략 백테스팅 실패: error={}, 실행시간={}ms",
+        label, e.getMessage(), System.currentTimeMillis() - startTime);
       throw e;
     }
   }
@@ -117,41 +89,23 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
   // 여러 종목의 동일 기간 투자 성과를 비교 분석
   @Override
   public ComparisonResponse compareSymbols(SymbolComparisonRequest request) {
-    String backtestId = generateBacktestId();
-    long startTime = System.currentTimeMillis();
+    log.info("종목 비교 분석: symbols={}", request.getSymbols());
 
-    try {
-      log.info("종목 비교 분석 시작: backtestId={}, symbols={}", backtestId, request.getSymbols());
+    List<ComparisonItem> items = collectComparisonItems(
+      request.getSymbols(),
+      symbol -> {
+        SimulationRequest simulationRequest = buildSymbolSimulationRequest(request, symbol);
+        SimulationResponse result = tradingSimulationService.runSimulation(simulationRequest,
+          false);
+        return responseMapper.toComparisonItemFromSimulation(result, symbol);
+      },
+      (symbol, e) -> log.warn("종목 {} 시뮬레이션 실패: {}", symbol, e.getMessage())
+    );
 
-      List<ComparisonItem> items = collectComparisonItems(
-        request.getSymbols(),
-        symbol -> {
-          SimulationRequest simulationRequest = buildSymbolSimulationRequest(request, symbol);
-          SimulationResponse result = tradingSimulationService.runSimulation(simulationRequest,
-            false);
-          return responseMapper.toComparisonItemFromSimulation(result, symbol);
-        },
-        (symbol, e) -> log.warn("종목 {} 시뮬레이션 실패: {}", symbol, e.getMessage())
-      );
-
-      ComparisonResponse response = buildComparisonResponse(request, items,
-        "모든 종목의 데이터를 찾을 수 없습니다");
-      recordComparisonHistory(request);
-
-      if (response.getBestPerformer() != null) {
-        long executionTimeMs = System.currentTimeMillis() - startTime;
-        log.info("종목 비교 분석 완료: backtestId={}, 최고수익률={}%, 실행시간={}ms",
-          backtestId, response.getBestPerformer().getTotalReturnPercent(), executionTimeMs);
-      }
-
-      return response;
-
-    } catch (Exception e) {
-      long executionTimeMs = System.currentTimeMillis() - startTime;
-      log.error("종목 비교 분석 실패: backtestId={}, error={}, 실행시간={}ms",
-        backtestId, e.getMessage(), executionTimeMs);
-      throw e;
-    }
+    ComparisonResponse response = buildComparisonResponse(request, items,
+      "모든 종목의 데이터를 찾을 수 없습니다");
+    recordComparisonHistory(request);
+    return response;
   }
 
   // 동일 종목에 대한 다양한 투자 전략의 성과를 비교 분석
@@ -207,15 +161,6 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
         "등록된 전략이 없습니다: " + request.getStrategyType());
     }
     return strategy.execute(request);
-  }
-
-  private void saveBacktestHistory(String userId, BacktestType backtestType,
-    Object request) {
-    try {
-      backtestHistoryUtils.saveBacktestHistory(userId, backtestType, request);
-    } catch (Exception e) {
-      log.warn("백테스트 히스토리 저장 실패: {}", e.getMessage());
-    }
   }
 
   private ComparisonResponse buildComparisonResponse(BaseComparisonRequest request,
@@ -350,7 +295,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
     if (request.getUserId() == null) {
       return;
     }
-    saveBacktestHistory(request.getUserId(), BacktestType.COMPARISON, request);
+    backtestHistoryUtils.saveBacktestHistory(request.getUserId(), BacktestType.COMPARISON, request);
   }
 
   @Override
@@ -361,18 +306,13 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
     OptimalTimingResponse result = optimalTimingAnalyzer.analyzeOptimalTiming(request);
 
     if (request.getUserId() != null) {
-      saveBacktestHistory(request.getUserId(), BacktestType.STRATEGY_SIMULATION, request);
+      backtestHistoryUtils.saveBacktestHistory(request.getUserId(), BacktestType.STRATEGY_SIMULATION, request);
     }
 
     log.info("최적 타이밍 분석 완료: {} - {}일 중 {}일 목표 달성",
       request.getSymbol(), result.getTotalAnalyzedDays(), result.getTotalQualifyingDays());
 
     return result;
-  }
-
-  //백테스트 ID 생성 헬퍼 메서드
-  private String generateBacktestId() {
-    return "BT_" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
   }
 
 }

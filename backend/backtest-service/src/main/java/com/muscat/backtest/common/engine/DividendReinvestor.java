@@ -4,9 +4,10 @@ import com.muscat.backtest.common.constants.BacktestConstants;
 import com.muscat.backtest.common.util.BacktestCalculationUtils;
 import com.muscat.backtest.common.util.BacktestDataUtils;
 import com.muscat.backtest.common.util.Decimals;
+import com.muscat.backtest.common.util.FxRates;
 import com.muscat.backtest.common.util.PriceLookup;
 import com.muscat.backtest.domain.model.StrategyTransaction;
-import com.muscat.backtest.infra.client.MarketDataClient;
+import com.muscat.backtest.infra.client.MarketDataClientWrapper;
 import com.muscat.backtest.infra.client.dto.DividendHistoryDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import java.math.BigDecimal;
@@ -23,7 +24,7 @@ public final class DividendReinvestor {
   private DividendReinvestor() {}
 
   public static BigDecimal reinvest(
-      MarketDataClient marketDataClient,
+      MarketDataClientWrapper marketData,
       DividendHistoryDto dividendHistory,
       List<StrategyTransaction> transactions,
       String symbol,
@@ -58,7 +59,7 @@ public final class DividendReinvestor {
       return dividendsReinvestedArray[0];
     }
 
-    List<OHLCPriceDto> dividendPrices = marketDataClient.getOHLCPriceRange(
+    List<OHLCPriceDto> dividendPrices = marketData.getOHLCPriceRange(
         symbol,
         dividendDates.get(0).toString(),
         dividendDates.get(dividendDates.size() - 1).toString());
@@ -67,10 +68,10 @@ public final class DividendReinvestor {
         .filter(OHLCPriceDto::available)
         .collect(Collectors.toMap(OHLCPriceDto::date, p -> p, (existing, replacement) -> replacement));
 
-    final Map<LocalDate, BigDecimal> dividendFxRateMap =
+    final FxRates dividendFxRateMap =
         manualPurchaseFxRate == null
-            ? BacktestDataUtils.getBulkFxRates(marketDataClient, dividendDates)
-            : new java.util.HashMap<>();
+            ? BacktestDataUtils.getBulkFxRates(marketData, dividendDates)
+            : FxRates.EMPTY;
 
     log.info("배당 재투자 데이터 조회 완료: 가격 {}개, 환율 {}개",
         dividendPriceMap.size(), dividendFxRateMap.size());
@@ -107,8 +108,8 @@ public final class DividendReinvestor {
             if (manualPurchaseFxRate != null) {
               fxRateAtDividendDate = manualPurchaseFxRate;
             } else {
-              fxRateAtDividendDate = dividendFxRateMap.getOrDefault(
-                  dividend.getExDate(), currentFxRateValue);
+              BigDecimal found = dividendFxRateMap.get(dividend.getExDate());
+              fxRateAtDividendDate = found != null ? found : currentFxRateValue;
             }
 
             if (priceAtDividendDate != null && priceAtDividendDate.available()) {
@@ -124,6 +125,7 @@ public final class DividendReinvestor {
                   .shares(additionalShares)
                   .amount(BigDecimal.ZERO)
                   .fxRate(fxRateAtDividendDate)
+                  .defaultFxDate(dividendFxRateMap.isDefault(dividend.getExDate()) ? dividend.getExDate() : null)
                   .trigger(BacktestConstants.TransactionTrigger.DIVIDEND_REINVESTMENT)
                   .build();
 

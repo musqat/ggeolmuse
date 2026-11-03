@@ -10,7 +10,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.BDDMockito.given;
 
 import com.muscat.backtest.domain.model.StrategyTransaction;
-import com.muscat.backtest.infra.client.MarketDataClient;
+import com.muscat.backtest.infra.client.MarketDataClientWrapper;
 import com.muscat.backtest.infra.client.dto.DividendHistoryDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import java.math.BigDecimal;
@@ -30,7 +30,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class DividendReinvestorTest {
 
-  @Mock MarketDataClient client;
+  @Mock MarketDataClientWrapper client;
 
   private static final LocalDate EX = LocalDate.of(2025, 6, 5);
 

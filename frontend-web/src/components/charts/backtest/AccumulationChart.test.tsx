@@ -112,7 +112,7 @@ describe('AccumulationChart', () => {
               "investedAmount": 281000,
               "isDividendReinvest": false,
               "isPurchase": true,
-              "portfolioValue": 262600,
+              "portfolioValue": 272700,
               "stockPrice": 101,
             },
             {
@@ -128,7 +128,7 @@ describe('AccumulationChart', () => {
               "investedAmount": 295900,
               "isDividendReinvest": false,
               "isPurchase": false,
-              "portfolioValue": 283920,
+              "portfolioValue": 294840,
               "stockPrice": 104,
             },
           ],
@@ -149,7 +149,7 @@ describe('AccumulationChart', () => {
             {
               "fill": "#8b5cf6",
               "x": "2026-03-04",
-              "y": 262600,
+              "y": 272700,
             },
             {
               "fill": "#10b981",
@@ -183,7 +183,7 @@ describe('AccumulationChart', () => {
               "investedAmount": 281000,
               "isDividendReinvest": false,
               "isPurchase": true,
-              "portfolioValue": 262600,
+              "portfolioValue": 272700,
               "stockPrice": 101,
             },
             {
@@ -199,7 +199,7 @@ describe('AccumulationChart', () => {
               "investedAmount": 295900,
               "isDividendReinvest": false,
               "isPurchase": false,
-              "portfolioValue": 283920,
+              "portfolioValue": 294840,
               "stockPrice": 104,
             },
           ],

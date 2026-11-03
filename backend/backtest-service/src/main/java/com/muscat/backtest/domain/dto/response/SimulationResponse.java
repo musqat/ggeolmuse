@@ -96,4 +96,7 @@ public class SimulationResponse {
   private BigDecimal dividendsReinvested;
   @Schema(description = "배당 재투자 날짜 목록", example = "[\"2024-05-15\", \"2024-08-15\", \"2024-11-15\"]")
   private List<LocalDate> dividendReinvestDates;
+  @Schema(description = "환율이 없어 기본 환율로 계산한 날(산 날 · 평가일)", example = "[\"2013-06-03\"]")
+  @Builder.Default
+  private List<LocalDate> defaultFxDates = List.of();
 }

@@ -3,10 +3,11 @@ package com.muscat.backtest.common.calculation;
 import lombok.Builder;
 import lombok.Getter;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 // 전략 계산 결과를 담는 값 객체
 @Getter
-@Builder
+@Builder(toBuilder = true)
 public class StrategyCalculationResult {
 
     private final BigDecimal totalInvested;
@@ -23,4 +24,5 @@ public class StrategyCalculationResult {
     private final BigDecimal fxReturn;
     private final BigDecimal fxReturnPercent;
     private final BigDecimal currentFxRate;
+    private final LocalDate defaultFxValuationDate; // 평가일 환율이 기본값이면 그 날
 }

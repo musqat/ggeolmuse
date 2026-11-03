@@ -615,6 +615,5 @@ configMap:
     emailExpiryHours: "24"
     exchangeRateMin: "0"
     exchangeRateMax: "3000"
-    exchangeRateFallback: "1300.00"
     redisHost: "redis"
     redisPort: "6379"

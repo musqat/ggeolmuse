@@ -40,7 +40,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
   "resilience4j.retry.instances.marketDataService.maxAttempts=3",
   "resilience4j.retry.instances.marketDataService.waitDuration=10ms",
   "resilience4j.retry.instances.marketDataService.retryExceptions[0]=feign.FeignException$FeignServerException",
-  "resilience4j.retry.instances.marketDataService.retryExceptions[1]=feign.RetryableException"
+  "resilience4j.retry.instances.marketDataService.retryExceptions[1]=feign.RetryableException",
+  "ggeolmuse.fx.default-rate=1400"
 })
 @ImportAutoConfiguration({AopAutoConfiguration.class, CircuitBreakerAutoConfiguration.class,
   RetryAutoConfiguration.class, TimeLimiterAutoConfiguration.class})
@@ -89,7 +90,7 @@ class ClientWrapperRetryTest {
   }
 
   @Test
-  @DisplayName("날짜 시세가 세 번 다 5xx 면 시세 서비스 사용 불가 코드에 원인을 담아 올린다")
+  @DisplayName("날짜 시세가 세 번 다 5xx 면 원인을 담은 시세 서비스 사용 불가 예외가 난다")
   void ohlcPrice_ServerErrorEveryTime_Unavailable() {
     FeignException last = serverError();
     given(marketClient.getOHLCPrice("AAPL", "2024-09-16")).willThrow(serverError(), serverError(), last);
@@ -99,6 +100,12 @@ class ClientWrapperRetryTest {
       .hasFieldOrPropertyWithValue("errorCode", "MARKET_DATA_UNAVAILABLE")
       .hasCause(last);
     verify(marketClient, times(3)).getOHLCPrice("AAPL", "2024-09-16");
+  }
+
+  @Test
+  @DisplayName("기본 환율은 설정 값을 쓴다")
+  void defaultFxRate_FromConfig() {
+    assertThat(marketWrapper.defaultFxRate()).isEqualByComparingTo("1400");
   }
 
   private static FeignException serverError() {

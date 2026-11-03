@@ -10,7 +10,7 @@ import static org.mockito.Mockito.verify;
 
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.exception.BacktestException;
-import com.muscat.backtest.infra.client.MarketDataClient;
+import com.muscat.backtest.infra.client.MarketDataClientWrapper;
 import com.muscat.backtest.infra.client.dto.DividendDto;
 import com.muscat.backtest.infra.client.dto.DividendHistoryDto;
 import com.muscat.backtest.infra.client.dto.FxRateDto;
@@ -33,9 +33,10 @@ class BacktestDataUtilsTest {
 
   private static final String SYMBOL = "AAPL";
   private static final LocalDate PAST = LocalDate.of(2024, 3, 4);
+  private static final BigDecimal DEFAULT_FX = new BigDecimal("1400");
 
   @Mock
-  private MarketDataClient client;
+  private MarketDataClientWrapper client;
 
   private static StockPriceDto current(String price, boolean available) {
     return new StockPriceDto(SYMBOL, null, new BigDecimal(price), null, null, null, null, null, null,
@@ -101,27 +102,29 @@ class BacktestDataUtilsTest {
     }
 
     @Test
-    @DisplayName("과거 환율이 비거나 조회에 실패하면 그날 날짜의 기본 환율 1300")
+    @DisplayName("과거 환율이 비면 그날 날짜에 설정한 기본 환율")
     void historicalFallback() {
-      given(client.getFxRate(PAST.toString())).willReturn(null).willThrow(new RuntimeException("down"));
+      given(client.getFxRate(PAST.toString())).willReturn(null);
+      given(client.defaultFxRate()).willReturn(DEFAULT_FX);
 
-      for (int i = 0; i < 2; i++) {
-        FxRateDto rate = BacktestDataUtils.getHistoricalFxRate(client, PAST);
-        assertThat(rate.rate()).isEqualByComparingTo("1300");
-        assertThat(rate.date()).isEqualTo(PAST);
-      }
+      FxRateDto rate = BacktestDataUtils.getHistoricalFxRate(client, PAST);
+
+      assertThat(rate.rate()).isEqualByComparingTo(DEFAULT_FX);
+      assertThat(rate.date()).isEqualTo(PAST);
+      assertThat(rate.defaulted()).isTrue();
     }
 
     @Test
-    @DisplayName("최신 환율이 비거나 조회에 실패하면 오늘 날짜의 기본 환율 1300")
+    @DisplayName("최신 환율이 비면 오늘 날짜에 설정한 기본 환율")
     void currentFallback() {
-      given(client.getLatestFxRate()).willReturn(null).willThrow(new RuntimeException("down"));
+      given(client.getLatestFxRate()).willReturn(null);
+      given(client.defaultFxRate()).willReturn(DEFAULT_FX);
 
-      for (int i = 0; i < 2; i++) {
-        FxRateDto rate = BacktestDataUtils.getCurrentFxRate(client);
-        assertThat(rate.rate()).isEqualByComparingTo("1300");
-        assertThat(rate.date()).isEqualTo(LocalDate.now());
-      }
+      FxRateDto rate = BacktestDataUtils.getCurrentFxRate(client);
+
+      assertThat(rate.rate()).isEqualByComparingTo(DEFAULT_FX);
+      assertThat(rate.date()).isEqualTo(LocalDate.now());
+      assertThat(rate.defaulted()).isTrue();
     }
 
     @Test
@@ -129,20 +132,25 @@ class BacktestDataUtilsTest {
     void bulkFillsMissing() {
       given(client.getBulkFxRates(List.of("2024-03-04", "2024-03-05")))
         .willReturn(Map.of("2024-03-04", new BigDecimal("1340")));
+      given(client.defaultFxRate()).willReturn(DEFAULT_FX);
 
-      Map<LocalDate, BigDecimal> rates = BacktestDataUtils.getBulkFxRates(client, List.of(PAST, PAST.plusDays(1)));
+      FxRates rates = BacktestDataUtils.getBulkFxRates(client, List.of(PAST, PAST.plusDays(1)));
 
-      assertThat(rates).containsEntry(PAST, new BigDecimal("1340")).containsEntry(PAST.plusDays(1), new BigDecimal("1300"));
+      assertThat(rates.get(PAST)).isEqualByComparingTo("1340");
+      assertThat(rates.get(PAST.plusDays(1))).isEqualByComparingTo(DEFAULT_FX);
+      assertThat(rates.defaulted()).containsExactly(PAST.plusDays(1));
     }
 
     @Test
-    @DisplayName("일괄 환율 조회가 실패하면 모든 날이 기본 환율")
+    @DisplayName("일괄 환율 응답이 비면 모든 날이 기본 환율")
     void bulkFailure() {
-      given(client.getBulkFxRates(List.of("2024-03-04", "2024-03-05"))).willThrow(new RuntimeException("down"));
+      given(client.getBulkFxRates(List.of("2024-03-04", "2024-03-05"))).willReturn(Map.of());
+      given(client.defaultFxRate()).willReturn(DEFAULT_FX);
 
-      Map<LocalDate, BigDecimal> rates = BacktestDataUtils.buildDailyFxRateMap(client, PAST, PAST.plusDays(1));
+      FxRates rates = BacktestDataUtils.buildDailyFxRateMap(client, PAST, PAST.plusDays(1));
 
-      assertThat(rates).hasSize(2).allSatisfy((date, rate) -> assertThat(rate).isEqualByComparingTo("1300"));
+      assertThat(rates.rates()).hasSize(2).allSatisfy((date, rate) -> assertThat(rate).isEqualByComparingTo(DEFAULT_FX));
+      assertThat(rates.defaulted()).containsExactlyInAnyOrder(PAST, PAST.plusDays(1));
     }
   }
 
@@ -167,12 +175,12 @@ class BacktestDataUtilsTest {
     }
 
     @Test
-    @DisplayName("배당이 없거나 비었거나 조회에 실패하면 종목만 담은 빈 이력")
+    @DisplayName("배당이 없거나 비면 종목만 담은 빈 이력")
     void emptyDividends() {
       given(client.getDividendHistory(anyString(), anyString(), anyString()))
-        .willReturn(null).willReturn(List.of()).willThrow(new RuntimeException("down"));
+        .willReturn(null).willReturn(List.of());
 
-      for (int i = 0; i < 3; i++) {
+      for (int i = 0; i < 2; i++) {
         DividendHistoryDto history = BacktestDataUtils.getDividendHistory(client, SYMBOL, PAST, PAST.plusDays(30));
         assertThat(history.getSymbol()).isEqualTo(SYMBOL);
         assertThat(history.getDividends()).isEmpty();

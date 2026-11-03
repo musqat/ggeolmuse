@@ -5,7 +5,7 @@ import com.muscat.backtest.common.calculation.StrategyCalculator;
 import com.muscat.backtest.common.util.BacktestCalculationUtils;
 import com.muscat.backtest.common.util.BacktestDataUtils;
 import com.muscat.backtest.domain.model.StrategyTransaction;
-import com.muscat.backtest.infra.client.MarketDataClient;
+import com.muscat.backtest.infra.client.MarketDataClientWrapper;
 import com.muscat.backtest.infra.client.dto.DividendHistoryDto;
 import com.muscat.backtest.infra.client.dto.FxRateDto;
 import com.muscat.commonlib.dto.StockPriceDto;
@@ -24,7 +24,7 @@ public final class StrategyFinalizer {
   private StrategyFinalizer() {}
 
   public static Result run(
-      MarketDataClient marketDataClient,
+      MarketDataClientWrapper marketData,
       String symbol,
       LocalDate valuationDate,
       BigDecimal manualCurrentFxRate,
@@ -34,15 +34,15 @@ public final class StrategyFinalizer {
       List<StrategyTransaction> transactions) {
 
     StockPriceDto currentPrice = BacktestDataUtils.getPriceAt(
-        marketDataClient, symbol, valuationDate);
+        marketData, symbol, valuationDate);
 
     FxRateDto currentFxRate = manualCurrentFxRate != null
         ? new FxRateDto(valuationDate, manualCurrentFxRate)
-        : BacktestDataUtils.getFxRateAt(marketDataClient, valuationDate);
+        : BacktestDataUtils.getFxRateAt(marketData, valuationDate);
 
     LocalDate firstPurchaseDate = transactions.getFirst().getDate();
     DividendHistoryDto dividendHistory = BacktestDataUtils.getDividendHistory(
-        marketDataClient, symbol, firstPurchaseDate, valuationDate);
+        marketData, symbol, firstPurchaseDate, valuationDate);
 
     BigDecimal totalInvested = transactions.stream()
         .map(StrategyTransaction::getAmount)
@@ -54,7 +54,7 @@ public final class StrategyFinalizer {
         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
     BigDecimal dividendsReinvested = DividendReinvestor.reinvest(
-        marketDataClient, dividendHistory, transactions, symbol,
+        marketData, dividendHistory, transactions, symbol,
         firstPurchaseDate, reinvestEnabled, dividendTaxRate, manualPurchaseFxRate, currentFxRate.rate());
 
     // 배당 재투자 후 총 보유 주식수

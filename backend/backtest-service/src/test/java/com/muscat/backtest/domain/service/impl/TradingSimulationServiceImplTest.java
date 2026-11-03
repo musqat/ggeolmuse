@@ -75,12 +75,44 @@ class TradingSimulationServiceImplTest {
       .reinvestDividends(false)
       .dividendTaxRate(BigDecimal.ZERO)
       .build();
-
+    lenient().when(marketDataClientWrapper.defaultFxRate()).thenReturn(new BigDecimal("1350"));
   }
 
   @Nested
   @DisplayName("시뮬레이션 실행 테스트")
   class RunSimulationTests {
+
+    @Test
+    @DisplayName("산 날 환율이 없어 기본 환율로 계산하면 그 날을 응답에 싣고, 받은 평가일 환율은 넣지 않는다")
+    void runSimulation_DefaultPurchaseFx_ListsDate() {
+      OHLCPriceDto purchasePrice = createOHLCPrice(TEST_SYMBOL,
+        testSimulationRequest.getPurchaseDate(), new BigDecimal("180.00"), true);
+      given(marketDataClientWrapper.getOHLCPrice(eq(TEST_SYMBOL), anyString())).willReturn(purchasePrice);
+      given(marketDataClientWrapper.getFxRate(anyString()))
+        .willReturn(new FxRateDto(testSimulationRequest.getPurchaseDate(), new BigDecimal("1350"), true));
+      given(marketDataClientWrapper.getCurrentPrice(TEST_SYMBOL))
+        .willReturn(createCurrentPrice(TEST_SYMBOL, new BigDecimal("230.00")));
+      given(marketDataClientWrapper.getLatestFxRate())
+        .willReturn(new FxRateDto(LocalDate.now(), new BigDecimal("1320.00")));
+      given(marketDataClientWrapper.getDividendHistory(eq(TEST_SYMBOL), anyString(), anyString()))
+        .willReturn(Collections.emptyList());
+      given(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
+        .willReturn(List.of(purchasePrice));
+      given(responseMapper.toSimulationResponse(
+        any(SimulationRequest.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(LocalDate.class), any(BigDecimal.class),
+        any(LocalDate.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        anyList()))
+        .willReturn(createSimulationResponse());
+
+      SimulationResponse result = tradingSimulationService.runSimulation(testSimulationRequest);
+
+      assertThat(result.getDefaultFxDates()).containsExactly(testSimulationRequest.getPurchaseDate());
+    }
 
     @Test
     @DisplayName("기본 runSimulation 메서드는 recordHistory=true로 위임한다")

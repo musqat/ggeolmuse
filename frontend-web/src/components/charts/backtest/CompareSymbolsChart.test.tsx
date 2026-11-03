@@ -96,13 +96,13 @@ describe('CompareSymbolsChart 차트', () => {
               "totalPortfolio": 542850,
             },
             {
-              "AAPL_portfolio": 286000,
+              "AAPL_portfolio": 297000,
               "AAPL_price": 110,
-              "MSFT_portfolio": 247000,
+              "MSFT_portfolio": 256500,
               "MSFT_price": 380,
               "date": "2026-03-04",
               "totalInvestment": 280000,
-              "totalPortfolio": 533000,
+              "totalPortfolio": 553500,
             },
           ],
           "yDomains": [
@@ -132,7 +132,7 @@ describe('CompareSymbolsChart 차트', () => {
             {
               "fill": "#fbbf24",
               "x": "2026-03-04",
-              "y": 286000,
+              "y": 297000,
             },
           ],
           "lines": [
@@ -162,19 +162,19 @@ describe('CompareSymbolsChart 차트', () => {
               "totalPortfolio": 542850,
             },
             {
-              "AAPL_portfolio": 286000,
+              "AAPL_portfolio": 297000,
               "AAPL_price": 110,
-              "MSFT_portfolio": 247000,
+              "MSFT_portfolio": 256500,
               "MSFT_price": 380,
               "date": "2026-03-04",
               "totalInvestment": 280000,
-              "totalPortfolio": 533000,
+              "totalPortfolio": 553500,
             },
           ],
           "yDomains": [
             [
-              244897,
-              291153,
+              251640,
+              299160,
             ],
           ],
         },

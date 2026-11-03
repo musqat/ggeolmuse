@@ -73,5 +73,8 @@ public class StrategyResponse {
   // 미매수 회차
   @Schema(description = "미매수 회차(계획된 매수일 · 이유)")
   private List<SkippedRound> skippedRounds;
+  @Schema(description = "환율이 없어 기본 환율로 계산한 날(산 날 · 배당 재투자일 · 평가일)", example = "[\"2013-06-03\"]")
+  @Builder.Default
+  private List<LocalDate> defaultFxDates = List.of();
 
 }

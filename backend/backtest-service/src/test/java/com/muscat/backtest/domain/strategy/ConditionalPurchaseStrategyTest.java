@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.assertj.core.api.Assertions.tuple;
@@ -22,7 +23,7 @@ import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.domain.model.SkippedRound;
 import com.muscat.backtest.domain.model.StrategyTransaction;
-import com.muscat.backtest.infra.client.MarketDataClient;
+import com.muscat.backtest.infra.client.MarketDataClientWrapper;
 import com.muscat.backtest.infra.client.dto.FxRateDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import java.math.BigDecimal;
@@ -44,7 +45,7 @@ import com.muscat.commonlib.dto.StockPriceDto;
 class ConditionalPurchaseStrategyTest {
 
   @Mock
-  private MarketDataClient marketDataClient;
+  private MarketDataClientWrapper marketDataClient;
 
   @Mock
   private ResponseMapper responseMapper;
@@ -54,6 +55,7 @@ class ConditionalPurchaseStrategyTest {
   @BeforeEach
   void setUp() {
     strategy = new ConditionalPurchaseStrategy(marketDataClient, responseMapper);
+    lenient().when(marketDataClient.defaultFxRate()).thenReturn(new BigDecimal("1350"));
   }
 
   @Nested
