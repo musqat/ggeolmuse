@@ -12,6 +12,9 @@ import java.util.Optional;
  */
 public interface FxRateService {
 
+  // 날짜 목록 조회 한 번의 날짜 수 상한(1970 년부터 날마다 받아도 듦)
+  int MAX_BULK_DATES = 30_000;
+
   // 없으면 null
   FxRate findByDate(LocalDate date);
 

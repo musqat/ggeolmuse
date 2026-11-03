@@ -280,4 +280,24 @@ class MarketControllerTest {
       .andExpect(jsonPath("$['2024-03-04']").value(1330.5))
       .andExpect(jsonPath("$['2024-03-05']").doesNotExist());
   }
+
+  @Test
+  @DisplayName("일괄 환율의 날짜 형식이 틀리면 400 이고 환율을 조회하지 않는다")
+  void bulkFx_MalformedDate_BadRequest() throws Exception {
+    mockMvc.perform(post(BASE + "/fx/bulk").contentType(MediaType.APPLICATION_JSON).content("[\"2024-13-40\"]"))
+      .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(fxRateService);
+  }
+
+  @Test
+  @DisplayName("일괄 환율의 날짜가 상한보다 많으면 400 이고 환율을 조회하지 않는다")
+  void bulkFx_TooManyDates_BadRequest() throws Exception {
+    String body = "[" + String.join(",", java.util.Collections.nCopies(FxRateService.MAX_BULK_DATES + 1, "\"2024-03-04\"")) + "]";
+
+    mockMvc.perform(post(BASE + "/fx/bulk").contentType(MediaType.APPLICATION_JSON).content(body))
+      .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(fxRateService);
+  }
 }
