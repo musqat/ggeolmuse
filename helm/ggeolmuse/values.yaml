@@ -112,6 +112,10 @@ infrastructure:
       kcAdminUser: admin
       kcAdminPassword: admin
       kcDbVendor: dev-file
+    # DB 계정을 읽는 시크릿 키(사용자 이름 · 비밀번호)
+    dbSecretKeys:
+      username: DB_USERNAME
+      password: DB_PASSWORD
     service:
       type: ClusterIP
       port: 8080
@@ -307,8 +311,8 @@ services:
       CONFIG_SERVER_USERNAME: CONFIG_SERVER_USERNAME
       CONFIG_SERVER_PASSWORD: CONFIG_SERVER_PASSWORD
       SPRING_REDIS_PASSWORD: REDIS_PASSWORD
-      DB_USERNAME: DB_USERNAME
-      DB_PASSWORD: DB_PASSWORD
+      DB_USERNAME: DB_USERNAME_USER
+      DB_PASSWORD: DB_PASSWORD_USER
       DB_URL_USER: DB_URL_USER
       KEYCLOAK_SECRET: KEYCLOAK_SECRET
       MAIL_USERNAME: MAIL_USERNAME
@@ -565,6 +569,10 @@ dbBackup:
   startingDeadlineSeconds: 259200
   bucket: ggeolmuse-db-backup-apne2
   region: ap-northeast-2
+  # DB 계정을 읽는 시크릿 키(사용자 이름 · 비밀번호)
+  dbSecretKeys:
+    username: DB_USERNAME
+    password: DB_PASSWORD
   databaseSecretKeys:
     - DB_URL_USER
     - DB_URL_TRADE
