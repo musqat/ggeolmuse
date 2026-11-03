@@ -4,6 +4,7 @@ import com.muscat.marketdata.common.enums.StockSort;
 import com.muscat.marketdata.domain.dto.OHLCPriceDto;
 import com.muscat.marketdata.domain.dto.StockPriceDto;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -15,6 +16,12 @@ public interface CandleService {
 
   // 일자별 캔들 · 배당수익률 정렬 순서 캐시를 모두 비움
   void evictCandleCaches();
+
+  // 그 종목의 날짜들만 일자별 캔들 캐시에서 비움(날짜가 많으면 일자별 캐시 전체)
+  void evictOhlc(String symbol, Collection<LocalDate> dates);
+
+  // 배당수익률 정렬 순서 캐시만 비움
+  void evictDividendYieldOrder();
 
   List<OHLCPriceDto> getOHLCPriceRange(String symbol, LocalDate startDate, LocalDate endDate);
 

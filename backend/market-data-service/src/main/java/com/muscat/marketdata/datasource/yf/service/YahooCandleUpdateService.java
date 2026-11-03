@@ -5,6 +5,7 @@ import com.muscat.marketdata.domain.entity.Candle;
 import com.muscat.marketdata.domain.repository.AssetRepository;
 import com.muscat.marketdata.domain.repository.CandleRepository;
 import com.muscat.marketdata.domain.repository.DividendRepository;
+import com.muscat.marketdata.domain.service.CandleService;
 import com.muscat.marketdata.domain.service.CollectionStats;
 import com.muscat.marketdata.domain.service.DividendMerge;
 import com.muscat.marketdata.domain.service.SplitScale;
@@ -23,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
+import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
@@ -54,6 +56,7 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
     private final DividendEventProducer dividendEventProducer;
     private final CollectionStats collectionStats;
     private final AssetEventProducer assetEventProducer;
+    private final CandleService candleService;
 
     // 관리자 재수집 기본값과 같음(이 날부터 받을 때는 과거 종가 비교 안 함)
     private static final LocalDate FULL_HISTORY_FROM = LocalDate.of(1970, 1, 1);
@@ -86,6 +89,10 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
             }
 
             Merged merged = mergeIntoExisting(existing, candles);
+            // 새로 넣은 날은 시세 없던 날이라 캐시에 없음, 고친 날만 비움
+            if (!merged.updatedDates().isEmpty()) {
+                afterCommit(() -> candleService.evictOhlc(symbol, merged.updatedDates()));
+            }
 
             // 최신 캔들을 asset에 비정규화 (summary 조회 성능용)
             candles.stream()
@@ -107,9 +114,9 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
                     }
                 }));
 
-            collectionStats.recordSymbol(merged.inserted(), merged.updated());
+            collectionStats.recordSymbol(merged.inserted(), merged.updatedDates().size());
             log.debug("[YF-캔들저장] 완료: symbol={}, 받음={}, 신규={}, 갱신={}",
-                symbol, candles.size(), merged.inserted(), merged.updated());
+                symbol, candles.size(), merged.inserted(), merged.updatedDates().size());
             return candles.size();
         } catch (Exception e) {
             rollbackThisSymbol();
@@ -135,6 +142,7 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
             }
 
             dividendRepository.saveAll(rows);
+            afterCommit(candleService::evictDividendYieldOrder);
 
             // Kafka 이벤트 발행 (배치로 처리)
             dividendEventProducer.publishBatch(rows);
@@ -166,7 +174,7 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
     // 없는 행만 넣고 값이 달라진 행만 고침(adjusted_close 는 배당 때마다 과거까지 바뀌어 기존 행도 봄)
     private Merged mergeIntoExisting(Map<String, Candle> existing, List<Candle> candles) {
         List<Candle> inserts = new ArrayList<>();
-        int updated = 0;
+        List<LocalDate> updatedDates = new ArrayList<>();
 
         for (Candle fresh : candles) {
             Candle prev = existing.get(key(fresh));
@@ -174,7 +182,7 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
                 inserts.add(fresh);
             } else if (changed(prev, fresh)) {
                 copyValues(prev, fresh);
-                updated++;
+                updatedDates.add(fresh.getDate());
             }
         }
 
@@ -182,7 +190,7 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
             candleRepository.saveAll(inserts);
         }
 
-        return new Merged(inserts.size(), updated);
+        return new Merged(inserts.size(), updatedDates);
     }
 
     // 기존 데이터와 겹치는 날짜 중 가장 이른 날의 종가 비교(분할이 나면 과거 종가가 전부 분할 기준으로 바뀜)
@@ -215,7 +223,21 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
         log.info("[YF-캔들저장] 분할로 과거 종가가 바뀌어 배당까지 전 기간을 다시 받는다: symbol={}", symbol);
     }
 
-    private record Merged(int inserted, int updated) {}
+    private record Merged(int inserted, List<LocalDate> updatedDates) {}
+
+    // 트랜잭션 안이면 커밋 뒤에, 밖이면 바로(커밋 전에 비우면 옛 값이 다시 캐시됨)
+    private static void afterCommit(Runnable action) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            action.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                action.run();
+            }
+        });
+    }
 
     // UNIQUE(symbol, date, currency) 와 같은 기준
     private static String key(Candle c) {

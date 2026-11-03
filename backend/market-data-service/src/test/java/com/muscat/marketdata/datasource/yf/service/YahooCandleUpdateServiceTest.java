@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -12,6 +14,7 @@ import com.muscat.marketdata.datasource.common.MarketDataProvider.DividendSource
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.entity.Candle;
 import com.muscat.marketdata.domain.repository.AssetRepository;
+import com.muscat.marketdata.domain.service.CandleService;
 import com.muscat.marketdata.domain.repository.CandleRepository;
 import com.muscat.marketdata.domain.repository.DividendRepository;
 import com.muscat.marketdata.domain.service.CollectionStats;
@@ -53,6 +56,7 @@ class YahooCandleUpdateServiceTest {
   @Mock private DividendEventProducer dividendEventProducer;
   @Mock private CollectionStats collectionStats;
   @Mock private AssetEventProducer assetEventProducer;
+  @Mock private CandleService candleService;
 
   @InjectMocks
   private YahooCandleUpdateService service;
@@ -209,6 +213,18 @@ class YahooCandleUpdateServiceTest {
 
     verify(collectionStats).recordSymbol(0, 1);
     assertThat(storedD1.getAdjustedClose()).isEqualByComparingTo("48.987");
+    verify(candleService).evictOhlc(SYMBOL, List.of(D1));
+  }
+
+  @Test
+  @DisplayName("새 날짜만 넣었으면 캐시를 비우지 않는다(시세 없던 날은 캐시에 없음)")
+  void 새_날짜만_넣으면_캐시_그대로() {
+    stub(FROM, List.of(candle(D1, "100")), List.of(candle(D1, "100"), candle(D2, "101")));
+
+    service.saveCandles(SYMBOL, FROM, TO);
+
+    verify(collectionStats).recordSymbol(1, 0);
+    verify(candleService, never()).evictOhlc(anyString(), anyCollection());
   }
 
   @Test
@@ -310,6 +326,7 @@ class YahooCandleUpdateServiceTest {
         .containsExactly(org.assertj.core.groups.Tuple.tuple(D2, "0.24"), org.assertj.core.groups.Tuple.tuple(d3, "0.24"));
       verify(dividendEventProducer).publishBatch(saved.getValue());
       verify(collectionStats).recordDividends(2);
+      verify(candleService).evictDividendYieldOrder();
     }
 
     @Test
@@ -325,6 +342,7 @@ class YahooCandleUpdateServiceTest {
         assertThat(service.saveDividends(SYMBOL, FROM, TO)).isZero();
       }
       verify(dividendRepository, never()).saveAll(any());
+      verify(candleService, never()).evictDividendYieldOrder();
     }
 
     @Test
