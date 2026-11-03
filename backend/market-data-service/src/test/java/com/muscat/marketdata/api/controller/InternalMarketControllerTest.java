@@ -1,5 +1,6 @@
 package com.muscat.marketdata.api.controller;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -173,5 +174,16 @@ class InternalMarketControllerTest {
     mockMvc.perform(get(BASE + "/dividend/AAPL").param("startDate", "2024-01-01").param("endDate", "2024-03-31"))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$[0].amount").value(0.24));
+  }
+
+  @Test
+  @DisplayName("일괄 환율의 날짜가 상한보다 많으면 400 이고 환율을 조회하지 않는다")
+  void bulkFx_TooManyDates_BadRequest() throws Exception {
+    String body = "[" + String.join(",", java.util.Collections.nCopies(FxRateService.MAX_BULK_DATES + 1, "\"2024-03-04\"")) + "]";
+
+    mockMvc.perform(post(BASE + "/fx/bulk").contentType(MediaType.APPLICATION_JSON).content(body))
+      .andExpect(status().isBadRequest());
+
+    verify(fxRateService, never()).findByDates(any());
   }
 }

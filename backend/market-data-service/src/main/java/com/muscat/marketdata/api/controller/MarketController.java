@@ -22,6 +22,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
@@ -412,19 +413,15 @@ public class MarketController {
   })
   @PostMapping("/fx/bulk")
   public ResponseEntity<Map<String, BigDecimal>> getBulkFxRates(
-    @Parameter(description = "조회할 날짜 리스트 (YYYY-MM-DD)", required = true)
-    @org.springframework.web.bind.annotation.RequestBody List<String> dates) {
+    @Parameter(description = "조회할 날짜 리스트 (YYYY-MM-DD, 최대 30000개)", required = true)
+    @org.springframework.web.bind.annotation.RequestBody @Size(max = FxRateService.MAX_BULK_DATES)
+    List<@NotNull LocalDate> dates) {
 
     log.debug("Bulk 환율 조회 요청: dates size={}", dates.size());
 
-    // String을 LocalDate로 변환
-    List<LocalDate> localDates = dates.stream()
-      .map(LocalDate::parse)
-      .toList();
-
     // 날짜 문자열 -> 환율
     Map<String, BigDecimal> result = new java.util.HashMap<>();
-    fxRateService.findByDates(localDates).forEach((date, rate) -> result.put(date.toString(), rate));
+    fxRateService.findByDates(dates).forEach((date, rate) -> result.put(date.toString(), rate));
 
     log.debug("Bulk 환율 조회 완료: {}개 요청, {}개 반환", dates.size(), result.size());
 

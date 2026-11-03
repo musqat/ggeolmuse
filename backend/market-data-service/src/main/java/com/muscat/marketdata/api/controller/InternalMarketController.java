@@ -11,7 +11,9 @@ import com.muscat.marketdata.domain.service.CandleService;
 import com.muscat.marketdata.domain.service.DividendService;
 import com.muscat.marketdata.domain.service.FxRateService;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -149,7 +151,7 @@ public class InternalMarketController {
 
   @PostMapping("/fx/bulk")
   public ResponseEntity<java.util.Map<String, java.math.BigDecimal>> getBulkFxRates(
-    @RequestBody List<LocalDate> dates) {
+    @RequestBody @Size(max = FxRateService.MAX_BULK_DATES) List<@NotNull LocalDate> dates) {
     log.debug("내부 Bulk 환율 조회 요청: dates size={}", dates.size());
 
     // 날짜 문자열 -> 환율
