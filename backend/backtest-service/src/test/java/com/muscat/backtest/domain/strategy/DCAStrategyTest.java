@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -19,7 +20,7 @@ import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.domain.model.SkippedRound;
 import com.muscat.backtest.domain.model.StrategyTransaction;
-import com.muscat.backtest.infra.client.MarketDataClient;
+import com.muscat.backtest.infra.client.MarketDataClientWrapper;
 import com.muscat.backtest.infra.client.dto.DividendDto;
 import com.muscat.backtest.infra.client.dto.FxRateDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
@@ -47,7 +48,7 @@ import com.muscat.backtest.common.enums.response.BacktestResponse;
 class DCAStrategyTest {
 
   @Mock
-  private MarketDataClient marketDataClient;
+  private MarketDataClientWrapper marketDataClient;
 
   @Mock
   private ResponseMapper responseMapper;
@@ -66,6 +67,7 @@ class DCAStrategyTest {
     symbol = "DCA-TEST";
     startDate = LocalDate.of(2024, 1, 1);
     endDate = LocalDate.of(2024, 12, 31);
+    lenient().when(marketDataClient.defaultFxRate()).thenReturn(new BigDecimal("1350"));
   }
 
   @Nested

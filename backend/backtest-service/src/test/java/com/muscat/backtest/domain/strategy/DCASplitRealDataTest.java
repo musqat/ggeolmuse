@@ -14,7 +14,7 @@ import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.domain.model.StrategyTransaction;
-import com.muscat.backtest.infra.client.MarketDataClient;
+import com.muscat.backtest.infra.client.MarketDataClientWrapper;
 import com.muscat.backtest.infra.client.dto.DividendDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import java.math.BigDecimal;
@@ -41,7 +41,7 @@ class DCASplitRealDataTest {
   private static final BigDecimal FX = new BigDecimal("1300");
 
   @Mock
-  private MarketDataClient marketDataClient;
+  private MarketDataClientWrapper marketDataClient;
 
   @Mock
   private ResponseMapper responseMapper;

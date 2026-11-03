@@ -9,7 +9,7 @@ import static org.mockito.BDDMockito.given;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.domain.dto.request.OptimalTimingRequest;
-import com.muscat.backtest.infra.client.MarketDataClient;
+import com.muscat.backtest.infra.client.MarketDataClientWrapper;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,7 +32,7 @@ import com.muscat.backtest.domain.dto.response.TimingResult;
 class OptimalTimingAnalyzerTest {
 
   @Mock
-  private MarketDataClient marketDataClient;
+  private MarketDataClientWrapper marketDataClient;
 
   private OptimalTimingAnalyzer analyzer;
 
@@ -282,6 +282,7 @@ class OptimalTimingAnalyzerTest {
     private static final String SYMBOL = "AAPL";
     private static final LocalDate START = LocalDate.of(2024, 1, 1);
     private static final LocalDate END = LocalDate.of(2024, 1, 5);
+    private static final BigDecimal DEFAULT_FX = new BigDecimal("1350");
 
     private OHLCPriceDto day(LocalDate date, String close) {
       BigDecimal price = new BigDecimal(close);
@@ -289,16 +290,17 @@ class OptimalTimingAnalyzerTest {
     }
 
     private OptimalTimingRequest request(LocalDate start, LocalDate end, String target) {
-      // 130만원 = 환율 1300 에서 1000달러
+      // 기본 환율에서 1000달러
       return OptimalTimingRequest.builder().userId("test-user").symbol(SYMBOL).startDate(start).endDate(end)
-        .investmentAmount(new BigDecimal("1300000")).targetReturnPercent(new BigDecimal(target)).build();
+        .investmentAmount(DEFAULT_FX.multiply(new BigDecimal("1000"))).targetReturnPercent(new BigDecimal(target)).build();
     }
 
-    // 현재가 100달러 · 현재 환율 1300(일별 환율은 빈 응답이라 기본 환율 1300)
+    // 현재가 100달러 · 현재 환율도 기본 환율(일별 환율은 빈 응답이라 기본 환율)
     private void stubCurrent() {
       given(marketDataClient.getCurrentPrice(SYMBOL)).willReturn(new StockPriceDto(SYMBOL, null, new BigDecimal("100"),
         null, null, null, null, null, null, null, null, null, null, null, "USD", true, null, null));
-      given(marketDataClient.getLatestFxRate()).willReturn(new FxRateDto(LocalDate.now(), new BigDecimal("1300")));
+      given(marketDataClient.getLatestFxRate()).willReturn(new FxRateDto(LocalDate.now(), DEFAULT_FX));
+      given(marketDataClient.defaultFxRate()).willReturn(DEFAULT_FX);
       given(marketDataClient.getBulkFxRates(any())).willReturn(Map.of());
     }
 

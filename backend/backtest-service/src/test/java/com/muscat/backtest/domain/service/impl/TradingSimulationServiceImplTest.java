@@ -75,7 +75,7 @@ class TradingSimulationServiceImplTest {
       .reinvestDividends(false)
       .dividendTaxRate(BigDecimal.ZERO)
       .build();
-
+    lenient().when(marketDataClientWrapper.defaultFxRate()).thenReturn(new BigDecimal("1350"));
   }
 
   @Nested

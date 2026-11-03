@@ -12,7 +12,7 @@ import com.muscat.backtest.common.validation.BacktestRequestValidator;
 import com.muscat.backtest.domain.dto.request.OptimalTimingRequest;
 import com.muscat.backtest.domain.dto.response.OptimalTimingResponse;
 import com.muscat.backtest.domain.dto.response.TimingResult;
-import com.muscat.backtest.infra.client.MarketDataClient;
+import com.muscat.backtest.infra.client.MarketDataClientWrapper;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import com.muscat.commonlib.util.MoneyUtils;
 import java.math.BigDecimal;
@@ -33,7 +33,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class OptimalTimingAnalyzer {
 
-  private final MarketDataClient marketDataClient;
+  private final MarketDataClientWrapper marketData;
 
   /**
    * 최적 타이밍 분석
@@ -50,18 +50,18 @@ public class OptimalTimingAnalyzer {
       // 현재 주가 및 환율 조회
       LocalDate today = LocalDate.now();
       LocalDate actualEndDate = request.getEndDate().isAfter(today) ? today : request.getEndDate();
-      var currentPrice = BacktestDataUtils.getCurrentPrice(marketDataClient, request.getSymbol());
-      var currentFxRate = BacktestDataUtils.getCurrentFxRate(marketDataClient);
+      var currentPrice = BacktestDataUtils.getCurrentPrice(marketData, request.getSymbol());
+      var currentFxRate = BacktestDataUtils.getCurrentFxRate(marketData);
 
       log.info("현재 주가: ${}, 현재 환율: {}", currentPrice.currentPrice(), currentFxRate.rate());
 
       // BULK API: 전체 기간의 가격/환율 데이터를 한 번에 조회
       log.info("최적 타이밍 분석 - Bulk 데이터 조회 시작: {} ~ {}", request.getStartDate(), actualEndDate);
       Map<LocalDate, OHLCPriceDto> priceMap = BacktestDataUtils.buildPriceMap(
-        marketDataClient, request.getSymbol(), request.getStartDate(), actualEndDate);
+        marketData, request.getSymbol(), request.getStartDate(), actualEndDate);
 
       Map<LocalDate, BigDecimal> fxRateMap = BacktestDataUtils.buildDailyFxRateMap(
-        marketDataClient, request.getStartDate(), actualEndDate);
+        marketData, request.getStartDate(), actualEndDate);
 
       // 메모리에서 데이터 조회하여 분석 수행 (API 호출 없음)
       List<TimingResult> allResults = new ArrayList<>();

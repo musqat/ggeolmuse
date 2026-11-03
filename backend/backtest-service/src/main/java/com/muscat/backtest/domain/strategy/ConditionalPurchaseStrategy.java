@@ -21,7 +21,7 @@ import com.muscat.backtest.domain.model.InvestmentParams;
 import com.muscat.backtest.domain.model.PurchaseDecision;
 import com.muscat.backtest.domain.model.SkippedRound;
 import com.muscat.backtest.domain.model.StrategyTransaction;
-import com.muscat.backtest.infra.client.MarketDataClient;
+import com.muscat.backtest.infra.client.MarketDataClientWrapper;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import com.muscat.commonlib.util.MoneyUtils;
 import java.math.BigDecimal;
@@ -39,7 +39,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class ConditionalPurchaseStrategy implements InvestmentStrategy {
 
-  private final MarketDataClient marketDataClient;
+  private final MarketDataClientWrapper marketData;
   private final ResponseMapper responseMapper;
 
   @Override
@@ -92,7 +92,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
 
       // 마무리(평가일 시세/환율/배당재투자/계산) — 공통 로직 위임
       StrategyFinalizer.Result finalized = StrategyFinalizer.run(
-        marketDataClient, request.getSymbol(), actualEndDate, request.getCurrentFxRate(),
+        marketData, request.getSymbol(), actualEndDate, request.getCurrentFxRate(),
         request.getPurchaseFxRate(), Boolean.TRUE.equals(request.getReinvestDividends()),
         request.getDividendTaxRate(), transactions);
 
@@ -194,13 +194,13 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     //  BULK API 사용: 전체 기간의 가격 데이터를 한 번에 조회
     log.info("조건부 매수 전략 - Bulk 데이터 조회 시작: {} ~ {}", request.getStartDate(), actualEndDate);
     java.util.Map<LocalDate, OHLCPriceDto> priceMap = BacktestDataUtils.buildPriceMap(
-      marketDataClient, request.getSymbol(), request.getStartDate(), actualEndDate);
+      marketData, request.getSymbol(), request.getStartDate(), actualEndDate);
 
     //  BULK API 사용: 전체 기간의 환율 데이터를 한 번에 조회 (수동 설정이 없는 경우만)
     java.util.Map<LocalDate, BigDecimal> fxRateMap = new java.util.HashMap<>();
     if (request.getPurchaseFxRate() == null) {
       fxRateMap = BacktestDataUtils.buildDailyFxRateMap(
-        marketDataClient, request.getStartDate(), actualEndDate);
+        marketData, request.getStartDate(), actualEndDate);
       log.info("환율 데이터 조회 완료: {}개", fxRateMap.size());
     }
 

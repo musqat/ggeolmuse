@@ -6,7 +6,6 @@ import com.muscat.backtest.common.logging.BacktestLogger;
 import com.muscat.backtest.common.util.BacktestCalculationUtils;
 import com.muscat.backtest.common.util.BacktestHistoryUtils;
 import com.muscat.backtest.common.util.Decimals;
-import com.muscat.backtest.common.util.FxFallback;
 import com.muscat.backtest.common.util.PriceLookup;
 import com.muscat.backtest.common.validation.BacktestRequestValidator;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
@@ -368,9 +367,9 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
   }
 
   // 그날 종가 × 그날 환율, 환율이 없으면 기본 환율
-  private static BigDecimal krwPrice(OHLCPriceDto candle, Map<String, BigDecimal> fxRates) {
+  private BigDecimal krwPrice(OHLCPriceDto candle, Map<String, BigDecimal> fxRates) {
     return PriceLookup.effectiveClose(candle)
-      .multiply(fxRates.getOrDefault(candle.date().toString(), FxFallback.DEFAULT_RATE));
+      .multiply(fxRates.getOrDefault(candle.date().toString(), marketDataClientWrapper.defaultFxRate()));
   }
 
   // 백테스트 이력 저장 (userId 없으면 skip)

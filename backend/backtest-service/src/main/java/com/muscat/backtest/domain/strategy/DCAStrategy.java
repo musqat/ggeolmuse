@@ -18,7 +18,7 @@ import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.domain.model.SkippedRound;
 import com.muscat.backtest.domain.model.StrategyTransaction;
-import com.muscat.backtest.infra.client.MarketDataClient;
+import com.muscat.backtest.infra.client.MarketDataClientWrapper;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -36,7 +36,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class DCAStrategy implements InvestmentStrategy {
 
-  private final MarketDataClient marketDataClient;
+  private final MarketDataClientWrapper marketData;
   private final ResponseMapper responseMapper;
 
   @Override
@@ -84,7 +84,7 @@ public class DCAStrategy implements InvestmentStrategy {
 
       // 마무리(평가일 시세/환율/배당재투자/계산) — 공통 로직 위임
       StrategyFinalizer.Result finalized = StrategyFinalizer.run(
-        marketDataClient, request.getSymbol(), actualEndDate, request.getCurrentFxRate(),
+        marketData, request.getSymbol(), actualEndDate, request.getCurrentFxRate(),
         request.getPurchaseFxRate(), Boolean.TRUE.equals(request.getReinvestDividends()),
         request.getDividendTaxRate(), transactions);
 
@@ -131,7 +131,7 @@ public class DCAStrategy implements InvestmentStrategy {
     //  BULK API 사용: 전체 기간의 가격 데이터를 한 번에 조회
     log.info("DCA 전략 - Bulk 데이터 조회 시작: {} ~ {}", request.getStartDate(), actualEndDate);
     Map<LocalDate, OHLCPriceDto> priceMap = BacktestDataUtils.buildPriceMap(
-      marketDataClient, request.getSymbol(), request.getStartDate(), actualEndDate);
+      marketData, request.getSymbol(), request.getStartDate(), actualEndDate);
 
     // 투자일 목록
     List<LocalDate> investmentDates = investmentDates(
@@ -152,7 +152,7 @@ public class DCAStrategy implements InvestmentStrategy {
     //  BULK API 사용: 실제로 사는 날의 환율 데이터를 한 번에 조회
     Map<LocalDate, BigDecimal> fxRateMap = new HashMap<>();
     if (request.getPurchaseFxRate() == null) {
-      fxRateMap = BacktestDataUtils.getBulkFxRates(marketDataClient,
+      fxRateMap = BacktestDataUtils.getBulkFxRates(marketData,
         tradeByDate.values().stream().map(OHLCPriceDto::date).distinct().sorted().toList());
       log.info("환율 데이터 조회 완료: {}개", fxRateMap.size());
     }

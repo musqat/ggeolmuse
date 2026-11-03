@@ -15,18 +15,29 @@ import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 // Resilience4j 패턴 적용 Wrapper(서킷브레이커 · 재시도)
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class MarketDataClientWrapper {
 
   private final MarketDataClient marketDataClient;
+  private final BigDecimal defaultFxRate;
+
+  public MarketDataClientWrapper(MarketDataClient marketDataClient,
+    @Value("${ggeolmuse.fx.default-rate:1350}") BigDecimal defaultFxRate) {
+    this.marketDataClient = marketDataClient;
+    this.defaultFxRate = defaultFxRate;
+  }
+
+  // 환율을 못 받은 날에 쓰는 기본 환율(원/USD)
+  public BigDecimal defaultFxRate() {
+    return defaultFxRate;
+  }
 
   @CircuitBreaker(name = "marketDataService")
   @Retry(name = "marketDataService", fallbackMethod = "getOHLCPriceFallback")
@@ -91,11 +102,13 @@ public class MarketDataClientWrapper {
     throw new BacktestException(BacktestResponse.MARKET_DATA_UNAVAILABLE, ex);
   }
 
+  // 못 받은 것과 시세가 없는 것을 가르려고 빈 목록 대신 오류
   private List<OHLCPriceDto> getOHLCPriceRangeFallback(String symbol, String startDate,
     String endDate, Exception ex) {
+    rethrowClientError(ex);
     log.error("Fallback triggered for getOHLCPriceRange. Symbol: {}, Error: {}",
       symbol, ex.getMessage());
-    return Collections.emptyList();
+    throw new BacktestException(BacktestResponse.MARKET_DATA_UNAVAILABLE, ex);
   }
 
   private StockPriceDto getCurrentPriceFallback(String symbol, Exception ex) {
@@ -120,9 +133,9 @@ public class MarketDataClientWrapper {
   }
 
   private FxRateDto getFxRateFallback(String date, Exception ex) {
-    log.error("Fallback triggered for getFxRate. Date: {}, Error: {}. Using default FX rate: 1300",
-      date, ex.getMessage());
-    return new FxRateDto(LocalDate.parse(date), BigDecimal.valueOf(1300));
+    log.error("Fallback triggered for getFxRate. Date: {}, Error: {}. Using default FX rate: {}",
+      date, ex.getMessage(), defaultFxRate);
+    return new FxRateDto(LocalDate.parse(date), defaultFxRate);
   }
 
   private Map<String, BigDecimal> getBulkFxRatesFallback(List<String> dates, Exception ex) {
@@ -131,8 +144,8 @@ public class MarketDataClientWrapper {
   }
 
   private FxRateDto getLatestFxRateFallback(Exception ex) {
-    log.error("Fallback triggered for getLatestFxRate. Error: {}. Using default FX rate: 1300",
-      ex.getMessage());
-    return new FxRateDto(LocalDate.now(), BigDecimal.valueOf(1300));
+    log.error("Fallback triggered for getLatestFxRate. Error: {}. Using default FX rate: {}",
+      ex.getMessage(), defaultFxRate);
+    return new FxRateDto(LocalDate.now(), defaultFxRate);
   }
 }
