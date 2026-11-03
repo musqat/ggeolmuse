@@ -13,8 +13,8 @@ public interface UserService {
   // 회원가입 + 이메일 토큰 생성 + 메일 발송
   User registerUser(String email, String password, String nickname);
 
-  // Keycloak OAuth 사용자 동기화 (Google OAuth 등)
-  User createUserFromKeycloak(String keycloakId, String email, String nickname);
+  // Keycloak OAuth 사용자 동기화(email_verified 클레임이 참일 때만 인증 상태)
+  User createUserFromKeycloak(String keycloakId, String email, String nickname, boolean emailVerified);
 
   // 이메일 토큰 검증 + 사용자 활성화 +  이메일 토큰 삭제
   User verifyEmail(String token);
@@ -41,7 +41,7 @@ public interface UserService {
   TokenResponseDto exchangeGoogleCode(String code, String codeVerifier, String redirectUri);
 
   // 내 프로필(Keycloak ID 로 찾고, 없으면 토큰 정보로 만들고, 토큰 email 이 다르면 맞춤)
-  User getOrCreateProfile(String keycloakId, String email, String nickname);
+  User getOrCreateProfile(String keycloakId, String email, String nickname, boolean emailVerified);
 
   // 닉네임 변경
   User updateProfile(String keycloakId, UpdateProfileRequestDto request);

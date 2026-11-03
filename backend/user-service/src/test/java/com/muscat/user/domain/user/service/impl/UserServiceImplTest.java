@@ -474,7 +474,7 @@ class UserServiceImplTest {
     void getOrCreateProfile_Existing_ReturnsUser() {
       given(userRepository.findByKeycloakId(keycloakId)).willReturn(Optional.of(testUser));
 
-      User result = userService.getOrCreateProfile(keycloakId, testEmail, testNickname);
+      User result = userService.getOrCreateProfile(keycloakId, testEmail, testNickname, true);
 
       assertThat(result).isSameAs(testUser);
       verify(userRepository, never()).save(any());
@@ -489,12 +489,27 @@ class UserServiceImplTest {
       given(userMapper.createLocalUser(testEmail, testNickname, keycloakId)).willReturn(created);
       given(userRepository.save(created)).willReturn(created);
 
-      User result = userService.getOrCreateProfile(keycloakId, testEmail, testNickname);
+      User result = userService.getOrCreateProfile(keycloakId, testEmail, testNickname, true);
 
       assertThat(result.getKeycloakId()).isEqualTo(keycloakId);
       assertThat(result.getEmail()).isEqualTo(testEmail);
       assertThat(result.getNickname()).isEqualTo(testNickname);
+      assertThat(result.isEmailVerified()).isTrue();
       verify(userRepository).save(created);
+    }
+
+    @Test
+    @DisplayName("email_verified 클레임이 거짓이면 미인증으로 만든다")
+    void getOrCreateProfile_UnverifiedEmailClaim_CreatesUnverified() {
+      User created = User.builder().id(2L).keycloakId(keycloakId).email(testEmail).nickname(testNickname).build();
+      given(userRepository.findByKeycloakId(keycloakId)).willReturn(Optional.empty());
+      given(userRepository.existsByEmail(testEmail)).willReturn(false);
+      given(userMapper.createLocalUser(testEmail, testNickname, keycloakId)).willReturn(created);
+      given(userRepository.save(created)).willReturn(created);
+
+      User result = userService.getOrCreateProfile(keycloakId, testEmail, testNickname, false);
+
+      assertThat(result.isEmailVerified()).isFalse();
     }
 
     @Test
@@ -506,7 +521,7 @@ class UserServiceImplTest {
       given(userMapper.createLocalUser(testEmail, "HongGildong", keycloakId)).willReturn(created);
       given(userRepository.save(created)).willReturn(created);
 
-      userService.getOrCreateProfile(keycloakId, testEmail, "Hong Gildong!");
+      userService.getOrCreateProfile(keycloakId, testEmail, "Hong Gildong!", true);
 
       verify(userMapper).createLocalUser(testEmail, "HongGildong", keycloakId);
       verify(userMapper, never()).createLocalUser(testEmail, "Hong Gildong!", keycloakId);
@@ -522,7 +537,7 @@ class UserServiceImplTest {
       given(userMapper.createLocalUser(testEmail, null, keycloakId)).willReturn(created);
       given(userRepository.save(created)).willReturn(created);
 
-      User result = userService.getOrCreateProfile(keycloakId, testEmail, "홍길동");
+      User result = userService.getOrCreateProfile(keycloakId, testEmail, "홍길동", true);
 
       assertThat(result.getNickname()).isNull();
       verify(userMapper).createLocalUser(testEmail, null, keycloakId);
@@ -537,7 +552,7 @@ class UserServiceImplTest {
       given(userMapper.createLocalUser(testEmail, null, keycloakId)).willReturn(created);
       given(userRepository.save(created)).willReturn(created);
 
-      userService.getOrCreateProfile(keycloakId, testEmail, "J!");
+      userService.getOrCreateProfile(keycloakId, testEmail, "J!", true);
 
       verify(userMapper).createLocalUser(testEmail, null, keycloakId);
     }
@@ -549,7 +564,7 @@ class UserServiceImplTest {
       given(userRepository.existsByEmail(NEW_EMAIL)).willReturn(false);
       given(userRepository.save(testUser)).willReturn(testUser);
 
-      User result = userService.getOrCreateProfile(keycloakId, NEW_EMAIL, testNickname);
+      User result = userService.getOrCreateProfile(keycloakId, NEW_EMAIL, testNickname, true);
 
       assertThat(result.getEmail()).isEqualTo(NEW_EMAIL);
       verify(userRepository).save(testUser);
@@ -562,7 +577,7 @@ class UserServiceImplTest {
       given(userRepository.findByKeycloakId(keycloakId)).willReturn(Optional.of(testUser));
       given(userRepository.existsByEmail(NEW_EMAIL)).willReturn(true);
 
-      User result = userService.getOrCreateProfile(keycloakId, NEW_EMAIL, testNickname);
+      User result = userService.getOrCreateProfile(keycloakId, NEW_EMAIL, testNickname, true);
 
       assertThat(result.getEmail()).isEqualTo(testEmail);
       verify(userRepository, never()).save(any());
@@ -574,7 +589,7 @@ class UserServiceImplTest {
       testUser.changeEmail("Test@Example.com");
       given(userRepository.findByKeycloakId(keycloakId)).willReturn(Optional.of(testUser));
 
-      User result = userService.getOrCreateProfile(keycloakId, "test@example.com", testNickname);
+      User result = userService.getOrCreateProfile(keycloakId, "test@example.com", testNickname, true);
 
       assertThat(result.getEmail()).isEqualTo("Test@Example.com");
       verify(userRepository, never()).existsByEmail(anyString());
@@ -586,7 +601,7 @@ class UserServiceImplTest {
     void getOrCreateProfile_NoEmailClaim_ReturnsExisting() {
       given(userRepository.findByKeycloakId(keycloakId)).willReturn(Optional.of(testUser));
 
-      User result = userService.getOrCreateProfile(keycloakId, null, null);
+      User result = userService.getOrCreateProfile(keycloakId, null, null, true);
 
       assertThat(result).isSameAs(testUser);
       verify(userRepository, never()).existsByEmail(anyString());
@@ -598,7 +613,7 @@ class UserServiceImplTest {
     void getOrCreateProfile_MissingWithoutEmail_NotFound() {
       given(userRepository.findByKeycloakId(keycloakId)).willReturn(Optional.empty());
 
-      assertThatThrownBy(() -> userService.getOrCreateProfile(keycloakId, null, null))
+      assertThatThrownBy(() -> userService.getOrCreateProfile(keycloakId, null, null, true))
         .isInstanceOf(UserException.class)
         .hasMessage(UserResponse.USER_NOT_FOUND.getMessage());
       verify(userRepository, never()).save(any());
@@ -610,7 +625,7 @@ class UserServiceImplTest {
       given(userRepository.findByKeycloakId(keycloakId)).willReturn(Optional.empty());
       given(userRepository.existsByEmail(testEmail)).willReturn(true);
 
-      assertThatThrownBy(() -> userService.getOrCreateProfile(keycloakId, testEmail, testNickname))
+      assertThatThrownBy(() -> userService.getOrCreateProfile(keycloakId, testEmail, testNickname, true))
         .isInstanceOf(UserException.class)
         .hasMessage(UserResponse.EMAIL_ALREADY_EXISTS.getMessage());
       verify(userRepository, never()).save(any());
@@ -1215,6 +1230,7 @@ class UserServiceImplTest {
       verify(keycloakService).resetPassword(keycloakId, newPassword);
       verify(passwordEncoder).encode(newPassword);
       verify(userRepository).save(testUser);
+      verify(keycloakService).logoutUserSessions(keycloakId);
     }
 
     @Test
@@ -1289,7 +1305,7 @@ class UserServiceImplTest {
       given(userRepository.save(any(User.class))).willReturn(oauthUser);
 
       // when
-      User result = userService.createUserFromKeycloak(keycloakId, email, nickname);
+      User result = userService.createUserFromKeycloak(keycloakId, email, nickname, true);
 
       // then
       assertThat(result).isNotNull();
@@ -1307,7 +1323,7 @@ class UserServiceImplTest {
 
       // when & then
       assertThatThrownBy(() ->
-        userService.createUserFromKeycloak("keycloak-123", email, "nickname"))
+        userService.createUserFromKeycloak("keycloak-123", email, "nickname", true))
         .isInstanceOf(UserException.class)
         .hasMessage(UserResponse.EMAIL_ALREADY_EXISTS.getMessage());
     }
@@ -1327,6 +1343,21 @@ class UserServiceImplTest {
       userService.changePassword(keycloakId, testPassword, "newPassw0rd!");
 
       verify(keycloakService).resetPassword(keycloakId, "newPassw0rd!");
+      assertThat(testUser.getPasswordHash()).isEqualTo("$2a$10$encodedNewPassword");
+      verify(userRepository).save(testUser);
+      verify(keycloakService).logoutUserSessions(keycloakId);
+    }
+
+    @Test
+    @DisplayName("세션 종료가 실패해도 바뀐 비밀번호는 그대로 둔다")
+    void changePassword_LogoutFails_KeepsNewPassword() {
+      given(userRepository.findByKeycloakId(keycloakId)).willReturn(Optional.of(testUser));
+      given(passwordEncoder.matches(testPassword, "$2a$10$encodedPassword")).willReturn(true);
+      given(passwordEncoder.encode("newPassw0rd!")).willReturn("$2a$10$encodedNewPassword");
+      doThrow(new KeycloakException(KeycloakResponse.API_ERROR)).when(keycloakService).logoutUserSessions(keycloakId);
+
+      userService.changePassword(keycloakId, testPassword, "newPassw0rd!");
+
       assertThat(testUser.getPasswordHash()).isEqualTo("$2a$10$encodedNewPassword");
       verify(userRepository).save(testUser);
     }
@@ -1372,6 +1403,7 @@ class UserServiceImplTest {
 
       assertThat(testUser.getPasswordHash()).isEqualTo("$2a$10$encodedPassword");
       verify(userRepository, never()).save(any());
+      verify(keycloakService, never()).logoutUserSessions(anyString());
     }
   }
 
@@ -1452,6 +1484,7 @@ class UserServiceImplTest {
       verify(passwordEncoder).encode(newPassword);
       verify(userRepository).save(testUser);
       verify(passwordResetTokenRepository).save(resetToken);
+      verify(keycloakService).logoutUserSessions(keycloakId);
     }
 
     @Test
@@ -1558,7 +1591,7 @@ class UserServiceImplTest {
       given(userMapper.createLocalUser(testEmail, testNickname, keycloakId)).willReturn(testUser);
       given(userRepository.save(testUser)).willThrow(new IllegalStateException("db down"));
 
-      assertThatThrownBy(() -> userService.createUserFromKeycloak(keycloakId, testEmail, testNickname))
+      assertThatThrownBy(() -> userService.createUserFromKeycloak(keycloakId, testEmail, testNickname, true))
         .isInstanceOf(UserException.class)
         .hasMessage(UserResponse.INTERNAL_SERVER_ERROR.getMessage());
     }
