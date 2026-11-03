@@ -78,7 +78,7 @@ class BacktestHistoryUtilsTest {
   }
 
   @Test
-  @DisplayName("요청을 JSON 으로 못 바꾸면 저장하지 않고 예외도 올리지 않는다")
+  @DisplayName("요청을 JSON 으로 못 바꾸면 저장하지 않고 예외도 내지 않는다")
   void jsonFailure() throws JsonProcessingException {
     ObjectMapper broken = mock(ObjectMapper.class);
     given(broken.writeValueAsString(any())).willThrow(new JsonProcessingException("boom") {});
@@ -101,7 +101,7 @@ class BacktestHistoryUtilsTest {
   }
 
   @Test
-  @DisplayName("저장소가 실패해도 백테스트 결과에 영향이 없게 예외를 삼킨다")
+  @DisplayName("저장소가 실패해도 예외를 내지 않아 백테스트 결과에 영향이 없다")
   void repositoryFailure() {
     given(repository.save(any())).willThrow(new IllegalStateException("db down"));
 

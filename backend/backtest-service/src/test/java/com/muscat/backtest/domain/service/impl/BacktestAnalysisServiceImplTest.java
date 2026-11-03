@@ -154,36 +154,6 @@ class BacktestAnalysisServiceImplTest {
         .isInstanceOf(BacktestException.class)
         .hasMessageContaining("데이터 없음");
     }
-
-    @Test
-    @DisplayName("히스토리 저장 실패해도 전략 실행 성공")
-    void runDcaStrategy_HistorySaveFailure_StrategyStillSucceeds() {
-      // Given
-      DcaStrategyRequest request = DcaStrategyRequest.builder()
-        .symbol("AAPL")
-        .startDate(LocalDate.of(2023, 1, 1))
-        .endDate(LocalDate.of(2024, 1, 1))
-        .monthlyAmount(BigDecimal.valueOf(1000))
-        .userId("user123")
-        .build();
-
-      StrategyResponse expectedResponse = StrategyResponse.builder()
-        .symbol("AAPL")
-        .totalReturnPercent(BigDecimal.valueOf(15.5))
-        .build();
-
-      given(dcaStrategy.execute(request)).willReturn(expectedResponse);
-      willThrow(new RuntimeException("DB 연결 실패"))
-        .given(backtestHistoryUtils)
-        .saveBacktestHistory(any(), any(BacktestType.class), any());
-
-      // When
-      StrategyResponse result = backtestAnalysisService.runDcaStrategy(request);
-
-      // Then
-      assertThat(result).isNotNull();
-      assertThat(result.getTotalReturnPercent()).isEqualByComparingTo(BigDecimal.valueOf(15.5));
-    }
   }
 
   @Nested
