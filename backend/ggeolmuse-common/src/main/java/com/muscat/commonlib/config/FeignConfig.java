@@ -1,16 +1,15 @@
 package com.muscat.commonlib.config;
 
 import feign.Logger;
-import feign.Request;
 import feign.RequestInterceptor;
 import feign.Retryer;
-import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 
+// 서비스 Feign 클라이언트 공통 설정(로그 · 재시도 · 토큰 전달)
 @Configuration
 @Slf4j
 public class FeignConfig {
@@ -20,18 +19,10 @@ public class FeignConfig {
     return Logger.Level.BASIC;
   }
 
-  @Bean
-  public Request.Options requestOptions() {
-    return new Request.Options(
-      10, TimeUnit.SECONDS,  // connectTimeout
-      30, TimeUnit.SECONDS,  // readTimeout
-      true
-    );
-  }
-
+  // Feign 자체 재시도 끔(재시도는 Resilience4j 만)
   @Bean
   public Retryer retryer() {
-    return new Retryer.Default(1000, 2000, 3);
+    return Retryer.NEVER_RETRY;
   }
 
   @Bean
