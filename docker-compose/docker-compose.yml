@@ -6,7 +6,7 @@ x-otel-agent: &otel-agent
   OTEL_METRICS_EXPORTER: none
   OTEL_LOGS_EXPORTER: none
 
-# 서비스 넷의 DB 를 로컬 Postgres 로(설정 리포 dev 의 H2 값을 덮어씀)
+# 서비스 넷의 DB 를 로컬 Postgres 로
 x-postgres: &postgres
   SPRING_DATASOURCE_USERNAME: ggeolmuse
   SPRING_DATASOURCE_PASSWORD: "${POSTGRES_PASSWORD}"
@@ -14,7 +14,6 @@ x-postgres: &postgres
   SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
   SPRING_JPA_HIBERNATE_DDL_AUTO: validate
   SPRING_FLYWAY_ENABLED: "true"
-  SPRING_H2_CONSOLE_ENABLED: "false"
 
 services:
 
@@ -464,9 +463,7 @@ services:
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       SPRING_CLOUD_CONFIG_USERNAME: config
       SPRING_CLOUD_CONFIG_PASSWORD: config123
-      SPRING_REDIS_PASSWORD: "${REDIS_PASSWORD}"
       SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: "false"
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
       KEYCLOAK_REALM: custom
       KEYCLOAK_SECRET: local-client-secret
@@ -484,8 +481,6 @@ services:
         condition: service_healthy
       gateway-server:
         condition: service_started
-      kafka:
-        condition: service_healthy
       postgres:
         condition: service_healthy
     networks:
