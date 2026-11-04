@@ -199,22 +199,6 @@ public class CandleServiceImpl implements CandleService {
   }
 
   @Override
-  public List<OHLCPriceDto> getCandlesWithDividends(String symbol, LocalDate startDate,
-    LocalDate endDate) {
-    log.debug("배당 포함 캔들 조회 요청: symbol={}, startDate={}, endDate={}", symbol, startDate, endDate);
-
-    // 배당이 있는 날짜의 캔들 데이터 조회
-    String upperSymbol = symbol.toUpperCase();
-    List<Candle> candlesWithDividends = candleRepository.findCandlesWithDividends(upperSymbol,
-      startDate, endDate);
-
-    List<OHLCPriceDto> result = toOhlc(candlesWithDividends);
-
-    log.debug("배당 포함 캔들 조회 성공: count={}", result.size());
-    return result;
-  }
-
-  @Override
   public Page<StockPriceDto> getAllStocksWithPrices(
     Pageable pageable,
     String direction,

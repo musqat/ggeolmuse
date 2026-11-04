@@ -15,19 +15,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.muscat.marketdata.common.enums.StockSort;
 import com.muscat.marketdata.common.exception.GlobalExceptionHandler;
 import com.muscat.marketdata.config.security.SecurityConfig;
-import com.muscat.marketdata.domain.dto.DividendDto;
 import com.muscat.marketdata.domain.dto.OHLCPriceDto;
 import com.muscat.marketdata.domain.dto.StockPriceDto;
 import com.muscat.marketdata.domain.entity.FxRate;
 import com.muscat.marketdata.domain.service.AssetService;
 import com.muscat.marketdata.domain.service.CandleService;
-import com.muscat.marketdata.domain.service.DividendService;
 import com.muscat.marketdata.domain.service.FxRateService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,9 +52,6 @@ class MarketControllerTest {
 
   @MockitoBean
   private CandleService candleService;
-
-  @MockitoBean
-  private DividendService dividendService;
 
   @MockitoBean
   private AssetService assetService;
@@ -160,39 +154,6 @@ class MarketControllerTest {
   }
 
   @Test
-  @DisplayName("날짜 환율은 있으면 200, 없으면 404")
-  void fxByDate() throws Exception {
-    given(fxRateService.findByDate(LocalDate.of(2024, 3, 4))).willReturn(fx(LocalDate.of(2024, 3, 4), "1330.5"));
-
-    mockMvc.perform(get(BASE + "/fx/2024-03-04"))
-      .andExpect(status().isOk())
-      .andExpect(jsonPath("$.rate").value(1330.5));
-    mockMvc.perform(get(BASE + "/fx/2024-03-05")).andExpect(status().isNotFound());
-  }
-
-  @Test
-  @DisplayName("최신 환율은 있으면 200, 없으면 404")
-  void latestFx() throws Exception {
-    given(fxRateService.getLatestRate()).willReturn(Optional.of(fx(LocalDate.of(2024, 3, 4), "1330.5")), Optional.empty());
-
-    mockMvc.perform(get(BASE + "/fx/latest"))
-      .andExpect(status().isOk())
-      .andExpect(jsonPath("$.date").value("2024-03-04"));
-    mockMvc.perform(get(BASE + "/fx/latest")).andExpect(status().isNotFound());
-  }
-
-  @Test
-  @DisplayName("배당 이력은 기간을 주지 않으면 비운 채 넘긴다")
-  void dividendHistory() throws Exception {
-    given(dividendService.getDividendHistory("AAPL", null, null)).willReturn(List.of(
-      DividendDto.builder().symbol("AAPL").exDate(LocalDate.of(2024, 2, 9)).amount(new BigDecimal("0.24")).build()));
-
-    mockMvc.perform(get(BASE + "/dividend/AAPL"))
-      .andExpect(status().isOk())
-      .andExpect(jsonPath("$[0].exDate").value("2024-02-09"));
-  }
-
-  @Test
   @DisplayName("활성 종목은 종목 코드만 담아 돌려준다")
   void activeSymbols() throws Exception {
     given(assetService.getActiveSymbols()).willReturn(List.of("AAPL", "MSFT"));
@@ -247,28 +208,17 @@ class MarketControllerTest {
   }
 
   @Test
-  @DisplayName("여러 종목 기간 시세 · 배당 포함 캔들은 종목과 기간을 넘긴다")
-  void multipleAndWithDividends() throws Exception {
+  @DisplayName("여러 종목 기간 시세는 종목과 기간을 넘긴다")
+  void multiple() throws Exception {
     LocalDate start = LocalDate.of(2024, 1, 1);
     LocalDate end = LocalDate.of(2024, 3, 31);
     given(candleService.getMultipleOHLCPrices(List.of("AAPL", "MSFT"), start, end)).willReturn(List.of(candle("MSFT", "400")));
-    given(candleService.getCandlesWithDividends("AAPL", start, end)).willReturn(List.of(candle("AAPL", "175")));
 
     mockMvc.perform(get(BASE + "/ohlc/multiple").param("symbols", "AAPL", "MSFT").param("startDate", "2024-01-01").param("endDate", "2024-03-31"))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$[0].symbol").value("MSFT"));
-    mockMvc.perform(get(BASE + "/ohlc/AAPL/with-dividends").param("startDate", "2024-01-01").param("endDate", "2024-03-31"))
-      .andExpect(status().isOk())
-      .andExpect(jsonPath("$[0].closePrice").value(175));
   }
 
-  @Test
-  @DisplayName("배당 경로의 high-yield 는 종목 코드 형식이 아니라 400 이고 배당을 조회하지 않는다")
-  void highYieldRemoved() throws Exception {
-    mockMvc.perform(get(BASE + "/dividend/high-yield").param("minAmount", "1.5")).andExpect(status().isBadRequest());
-
-    verifyNoInteractions(dividendService);
-  }
   @Test
   @DisplayName("일괄 환율은 토큰 없이 POST 로 받고, 날짜 문자열을 키로 돌려준다")
   void bulkFx() throws Exception {

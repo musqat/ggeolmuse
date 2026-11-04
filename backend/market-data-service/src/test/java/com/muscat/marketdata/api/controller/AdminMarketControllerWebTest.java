@@ -127,10 +127,11 @@ class AdminMarketControllerWebTest {
   @Test
   @DisplayName("토큰이 없으면 401, admin 역할이 없으면 403 이고 서비스까지 가지 않는다")
   void requiresAdmin() throws Exception {
-    mockMvc.perform(get(BASE + "/assets")).andExpect(status().isUnauthorized());
-    mockMvc.perform(get(BASE + "/assets").header(HttpHeaders.AUTHORIZATION, "Bearer user-token")).andExpect(status().isForbidden());
+    mockMvc.perform(get(BASE + "/assets/search").param("keyword", "Apple")).andExpect(status().isUnauthorized());
+    mockMvc.perform(get(BASE + "/assets/search").param("keyword", "Apple")
+      .header(HttpHeaders.AUTHORIZATION, "Bearer user-token")).andExpect(status().isForbidden());
 
-    verify(assetService, never()).getAllAssets();
+    verify(assetService, never()).searchSymbols("Apple");
   }
 
   @Nested
@@ -138,12 +139,10 @@ class AdminMarketControllerWebTest {
   class ReadTests {
 
     @Test
-    @DisplayName("전체 목록 · 키워드 검색은 서비스가 준 종목을 돌려준다")
-    void listAndSearch() throws Exception {
-      given(assetService.getAllAssets()).willReturn(List.of(asset("AAPL")));
+    @DisplayName("키워드 검색은 서비스가 준 종목을 돌려준다")
+    void search() throws Exception {
       given(assetService.searchSymbols("Apple")).willReturn(List.of(asset("AAPL")));
 
-      asAdmin(get(BASE + "/assets")).andExpect(status().isOk()).andExpect(jsonPath("$[0].symbol").value("AAPL"));
       asAdmin(get(BASE + "/assets/search").param("keyword", "Apple")).andExpect(status().isOk())
         .andExpect(jsonPath("$[0].name").value("AAPL Inc."));
     }
