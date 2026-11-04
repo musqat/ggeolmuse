@@ -3,6 +3,7 @@ package com.muscat.trade.infra.kafka;
 import com.muscat.messaging.event.TradeCompletedEvent;
 import com.muscat.messaging.kafka.EventPublishing;
 import com.muscat.trade.common.enums.response.TradeResponse;
+import com.muscat.trade.common.enums.type.TradeType;
 import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.domain.entity.Trade;
 import lombok.RequiredArgsConstructor;
@@ -24,14 +25,14 @@ public class TradeEventProducer {
 
     private final KafkaTemplate<String, TradeCompletedEvent> tradeCompletedKafkaTemplate;
 
-    // 브로커 확인을 5초까지 기다리고, 받지 못하면 EVENT_PUBLISH_FAILED 로 올림
+    // 브로커 확인을 5초까지 기다리고, 받지 못하면 EVENT_PUBLISH_FAILED 예외
     public void publishTradeCompleted(Trade trade) {
         TradeCompletedEvent event = TradeCompletedEvent.builder()
                 .userId(trade.getUserId())
                 .tradeId(trade.getId())
                 .accountId(trade.getAccountId())
                 .symbol(trade.getSymbol())
-                .tradeType(trade.getTradeType().name())
+                .tradeType(toEventType(trade.getTradeType()))
                 .quantity(trade.getQuantity())
                 .price(trade.getPrice())
                 .totalAmount(trade.getTotalAmount())
@@ -51,5 +52,13 @@ public class TradeEventProducer {
                 result.getRecordMetadata().partition(),
                 result.getRecordMetadata().offset(),
                 trade.getId());
+    }
+
+    // 거래 구분을 이벤트의 구분으로(구분이 늘면 컴파일 오류)
+    private static TradeCompletedEvent.TradeType toEventType(TradeType type) {
+        return switch (type) {
+            case BUY -> TradeCompletedEvent.TradeType.BUY;
+            case SELL -> TradeCompletedEvent.TradeType.SELL;
+        };
     }
 }

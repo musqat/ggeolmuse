@@ -28,8 +28,8 @@ public class TradeCompletedEvent extends BaseEvent {
     // 종목 심볼 (예: "AAPL", "GOOGL")
     private String symbol;
 
-    // 거래 타입: "BUY" 또는 "SELL"
-    private String tradeType;
+    // 매수 · 매도
+    private TradeType tradeType;
 
     // 거래된 주식 수량
     private BigDecimal quantity;
@@ -45,4 +45,6 @@ public class TradeCompletedEvent extends BaseEvent {
 
     // 거래 수수료
     private BigDecimal fee;
+
+    public enum TradeType { BUY, SELL }
 }

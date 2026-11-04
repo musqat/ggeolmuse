@@ -97,7 +97,7 @@ class DividendPayoutIntegrationTest {
       .userId(String.valueOf(userId))
       .accountId(account.getId())
       .symbol("AAPL")
-      .exDate(EX_DATE.toString())
+      .exDate(EX_DATE)
       .dividendPerShare(new BigDecimal("0.24"))
       .quantity(new BigDecimal("10"))
       .grossAmount(new BigDecimal("2.40"))

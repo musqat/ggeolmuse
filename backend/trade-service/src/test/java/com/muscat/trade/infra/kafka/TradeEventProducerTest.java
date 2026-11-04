@@ -23,6 +23,8 @@ import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
@@ -38,12 +40,16 @@ class TradeEventProducerTest {
     new TradeEventProducer(completedTemplate);
 
   private static Trade trade() {
+    return trade(TradeType.BUY);
+  }
+
+  private static Trade trade(TradeType type) {
     return Trade.builder()
       .id(7L)
       .userId("user-1")
       .accountId(20L)
       .symbol("TSLL")
-      .tradeType(TradeType.BUY)
+      .tradeType(type)
       .quantity(new BigDecimal("10"))
       .price(new BigDecimal("8.98"))
       .totalAmount(new BigDecimal("90.02"))
@@ -74,8 +80,24 @@ class TradeEventProducerTest {
     assertThat(event.getValue().getAccountId()).isEqualTo(20L);
   }
 
+  @ParameterizedTest
+  @EnumSource(TradeType.class)
+  @DisplayName("매수 · 매도를 이벤트에 같은 구분으로 싣는다")
+  void publishTradeCompleted_MapsTradeType(TradeType type) {
+    // given
+    given(completedTemplate.send(anyString(), anyString(), any())).willReturn(acked());
+
+    // when
+    producer.publishTradeCompleted(trade(type));
+
+    // then
+    ArgumentCaptor<TradeCompletedEvent> event = ArgumentCaptor.forClass(TradeCompletedEvent.class);
+    verify(completedTemplate).send(eq("trading.trade.completed"), eq("user-1"), event.capture());
+    assertThat(event.getValue().getTradeType().name()).isEqualTo(type.name());
+  }
+
   @Test
-  @DisplayName("브로커가 받지 못하면 이벤트 발행 실패로 올린다")
+  @DisplayName("브로커가 받지 못하면 이벤트 발행 실패 예외가 난다")
   void publishTradeCompleted_SendFails_Throws() {
     // given
     given(completedTemplate.send(anyString(), anyString(), any()))
@@ -89,7 +111,7 @@ class TradeEventProducerTest {
   }
 
   @Test
-  @DisplayName("기다리는 중에 인터럽트되면 인터럽트 상태를 되살리고 이벤트 발행 실패로 올린다")
+  @DisplayName("기다리는 중에 인터럽트되면 인터럽트 상태를 되살리고 이벤트 발행 실패 예외가 난다")
   void publishTradeCompleted_Interrupted_RestoresInterrupt() {
     // given
     given(completedTemplate.send(anyString(), anyString(), any())).willReturn(interrupted());

@@ -838,7 +838,7 @@ class AccountServiceImplTest {
           .userId("invalid-user-id")
           .tradeId(3L)
           .symbol("TSLA")
-          .tradeType("BUY")
+          .tradeType(TradeCompletedEvent.TradeType.BUY)
           .quantity(new BigDecimal("1"))
           .price(new BigDecimal("800.00"))
           .totalAmount(new BigDecimal("800.00"))
@@ -860,7 +860,7 @@ class AccountServiceImplTest {
           .userId(userId.toString())
           .tradeId(4L)
           .symbol("MSFT")
-          .tradeType("BUY")
+          .tradeType(TradeCompletedEvent.TradeType.BUY)
           .quantity(new BigDecimal("10"))
           .price(new BigDecimal("350.00"))
           .totalAmount(new BigDecimal("3500.00"))
@@ -877,15 +877,15 @@ class AccountServiceImplTest {
     }
 
     @Test
-    @DisplayName("알 수 없는 거래 타입 시 예외 발생")
-    void processTradeEvent_UnknownTradeType_ThrowsException() {
+    @DisplayName("거래 타입이 없으면 예외 발생")
+    void processTradeEvent_MissingTradeType_ThrowsException() {
       // given
       com.muscat.messaging.event.TradeCompletedEvent event =
         com.muscat.messaging.event.TradeCompletedEvent.builder()
           .userId(userId.toString())
           .tradeId(5L)
           .symbol("AMZN")
-          .tradeType("UNKNOWN")
+          .tradeType(null)
           .quantity(new BigDecimal("2"))
           .price(new BigDecimal("3200.00"))
           .totalAmount(new BigDecimal("6400.00"))
@@ -1033,7 +1033,7 @@ class AccountServiceImplTest {
       .accountId(accountId)
       .tradeId(7L)
       .symbol("TSLL")
-      .tradeType(tradeType)
+      .tradeType(TradeCompletedEvent.TradeType.valueOf(tradeType))
       .quantity(new BigDecimal("10"))
       .price(new BigDecimal("8.98"))
       .totalAmount(new BigDecimal(totalAmount))

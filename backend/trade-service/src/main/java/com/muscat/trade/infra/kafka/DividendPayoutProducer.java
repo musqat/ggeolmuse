@@ -27,7 +27,7 @@ public class DividendPayoutProducer {
       .userId(payout.getUserId())
       .accountId(payout.getAccountId())
       .symbol(payout.getSymbol())
-      .exDate(payout.getExDate().toString())
+      .exDate(payout.getExDate())
       .dividendPerShare(payout.getDividendPerShare())
       .quantity(payout.getShares())
       .grossAmount(payout.getGrossAmount())
