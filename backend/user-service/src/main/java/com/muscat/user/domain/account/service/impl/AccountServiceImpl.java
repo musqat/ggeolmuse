@@ -205,10 +205,6 @@ public class AccountServiceImpl implements AccountService {
       userLogger.logLargeTransaction(accountId, "KRW_TO_USD", krwAmount, "KRW");
     }
 
-    // 변경 전 잔액 저장
-    BigDecimal previousBalanceKrw = account.getBalanceKrw();
-    BigDecimal previousBalanceUsd = account.getBalanceUsd();
-
     BigDecimal totalDeduction = calculation.getTotalKrwDeduction();
     BigDecimal newAvgRate = accountCalculator.calculateNewAverageRate(account, krwAmount,
       exchangeRate);
@@ -224,14 +220,6 @@ public class AccountServiceImpl implements AccountService {
       krwAmount, calculation.getFinalAmount(), exchangeRate,
       String.format("KRW → USD 환전 (환율: %s)", exchangeRate),
       referenceId);
-
-    // Kafka 이벤트 발행: 계좌 잔액 변경
-    accountEventProducer.publishAccountBalanceUpdated(
-      account, "EXCHANGE_TO_USD",
-      previousBalanceKrw, previousBalanceUsd,
-      totalDeduction.negate(), calculation.getFinalAmount(),
-      String.format("KRW → USD 환전 (환율: %s)", exchangeRate),
-      null, exchangeRate);
 
     userLogger.logExchangeComplete(accountId, calculation, account, referenceId);
 
@@ -272,10 +260,6 @@ public class AccountServiceImpl implements AccountService {
       userLogger.logLargeTransaction(accountId, "USD_TO_KRW", usdAmount, "USD");
     }
 
-    // 변경 전 잔액 저장
-    BigDecimal previousBalanceKrw = account.getBalanceKrw();
-    BigDecimal previousBalanceUsd = account.getBalanceUsd();
-
     // 검증 + 상태 변경 + 평균환율 리셋
     account.executeExchangeUsdToKrw(usdAmount, calculation.getFinalAmount());
 
@@ -289,14 +273,6 @@ public class AccountServiceImpl implements AccountService {
       usdAmount, calculation.getBeforeCommissionAmount(), exchangeRate,
       String.format("USD → KRW 환전 (환율: %s)", exchangeRate),
       referenceId);
-
-    // Kafka 이벤트 발행: 계좌 잔액 변경
-    accountEventProducer.publishAccountBalanceUpdated(
-      account, "EXCHANGE_TO_KRW",
-      previousBalanceKrw, previousBalanceUsd,
-      calculation.getFinalAmount(), usdAmount.negate(),
-      String.format("USD → KRW 환전 (환율: %s)", exchangeRate),
-      null, exchangeRate);
 
     userLogger.logExchangeComplete(accountId, calculation, account, referenceId);
 
@@ -317,10 +293,6 @@ public class AccountServiceImpl implements AccountService {
       userLogger.logLargeTransaction(accountId, "KRW_DEPOSIT", krwAmount, "KRW");
     }
 
-    // 변경 전 잔액 저장 (이벤트 발행용)
-    BigDecimal previousBalanceKrw = account.getBalanceKrw();
-    BigDecimal previousBalanceUsd = account.getBalanceUsd();
-
     // 검증 + 상태 변경
     account.depositKrw(krwAmount);
 
@@ -329,13 +301,6 @@ public class AccountServiceImpl implements AccountService {
     accountHistoryService.createDepositHistory(
       accountId, krwAmount, CurrencyType.KRW.name(),
       "KRW 입금", referenceId);
-
-    // Kafka 이벤트 발행: 계좌 잔액 변경
-    accountEventProducer.publishAccountBalanceUpdated(
-      account, "DEPOSIT_KRW",
-      previousBalanceKrw, previousBalanceUsd,
-      krwAmount, BigDecimal.ZERO,
-      "KRW 입금", null, null);
 
     userLogger.logKrwDeposit(accountId, krwAmount, referenceId);
 
@@ -352,13 +317,9 @@ public class AccountServiceImpl implements AccountService {
 
   private void changeUsdBalance(Long accountId, Long userId, BigDecimal usdAmount,
     TransactionType type, String description, boolean allowNegative) {
-    String updateType = balanceUpdateType(type);
+    requireUsdBalanceType(type);
     Account account = validateAccountAccess(accountId, userId);
     BigDecimal validatedAmount = validateUsdAmount(usdAmount);
-
-    // 변경 전 잔액 저장 (이벤트 발행용)
-    BigDecimal previousBalanceKrw = account.getBalanceKrw();
-    BigDecimal previousBalanceUsd = account.getBalanceUsd();
 
     // 검증 + 상태 변경
     if (allowNegative) {
@@ -370,13 +331,6 @@ public class AccountServiceImpl implements AccountService {
 
     // 인프라 처리 (Service 책임)
     createTradeHistory(account, validatedAmount, newBalance, type, description);
-
-    // Kafka 이벤트 발행: 계좌 잔액 변경
-    accountEventProducer.publishAccountBalanceUpdated(
-      account, updateType,
-      previousBalanceKrw, previousBalanceUsd,
-      BigDecimal.ZERO, validatedAmount,
-      description, null, null);
 
     log.info("USD 잔고 업데이트 완료: accountId={}, 변경금액={}, 변경후잔고={}",
       accountId, validatedAmount, newBalance);
@@ -614,13 +568,11 @@ public class AccountServiceImpl implements AccountService {
   }
 
   // USD 잔액을 바로 바꾸는 매매 · 배당의 잔액 변경 이벤트 종류
-  private static String balanceUpdateType(TransactionType type) {
-    return switch (type) {
-      case TRADE_BUY, TRADE_SELL -> "TRADE_COMPLETED";
-      case DIVIDEND -> "DIVIDEND_RECEIVED";
-      case DIVIDEND_REVERSAL -> "DIVIDEND_REVERSED";
-      case DEPOSIT, EXCHANGE -> throw new AccountException(AccountResponse.INVALID_TRANSACTION_TYPE);
-    };
+  // 매매 · 배당 종류만 USD 잔액을 바꿈
+  private static void requireUsdBalanceType(TransactionType type) {
+    if (type == TransactionType.DEPOSIT || type == TransactionType.EXCHANGE) {
+      throw new AccountException(AccountResponse.INVALID_TRANSACTION_TYPE);
+    }
   }
 
   // 거래 내역 생성

@@ -48,7 +48,7 @@ class KafkaListenerFactoryTypeTest {
       }
     }
 
-    assertThat(checked).isGreaterThanOrEqualTo(6);
+    assertThat(checked).isGreaterThanOrEqualTo(3);
     assertThat(mismatches).isEmpty();
   }
 

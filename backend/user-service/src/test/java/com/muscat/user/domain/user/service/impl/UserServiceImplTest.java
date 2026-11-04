@@ -92,9 +92,6 @@ class UserServiceImplTest {
   private com.muscat.user.common.util.RateLimitService rateLimitService;
 
   @Mock
-  private com.muscat.user.infra.kafka.LoginEventProducer loginEventProducer;
-
-  @Mock
   private com.muscat.user.infra.kafka.AccountEventProducer accountEventProducer;
 
   @org.mockito.Spy
@@ -349,8 +346,6 @@ class UserServiceImplTest {
         .hasMessage(UserResponse.ACCOUNT_DISABLED.getMessage());
 
       verify(keycloakService, never()).login(anyString(), anyString());
-      verify(loginEventProducer).publishLoginFailed(eq(testEmail), eq("ACCOUNT_DISABLED"), anyString(),
-        eq("PASSWORD"), any(), any());
     }
 
     @Test
@@ -408,6 +403,33 @@ class UserServiceImplTest {
         .hasMessage(UserResponse.INVALID_CREDENTIALS.getMessage());
 
       verify(keycloakService, never()).login(anyString(), anyString());
+      verify(userRepository, never()).updateLastLoginAt(any(), any());
+    }
+
+    @Test
+    @DisplayName("로그인에 성공하면 마지막 로그인 시각을 남긴다")
+    void login_Success_RecordsLastLogin() {
+      given(userRepository.findByEmail(testEmail)).willReturn(Optional.of(testUser));
+      given(passwordEncoder.matches(testPassword, testUser.getPasswordHash())).willReturn(true);
+      given(keycloakService.login(testEmail, testPassword))
+        .willReturn(new TokenResponseDto("access", "refresh", 3600, 7200));
+
+      userService.login(testEmail, testPassword);
+
+      verify(userRepository).updateLastLoginAt(eq(testUser.getId()), any(LocalDateTime.class));
+    }
+
+    @Test
+    @DisplayName("마지막 로그인 시각을 못 남겨도 받은 토큰은 그대로 돌려준다")
+    void login_LastLoginWriteFails_StillReturnsToken() {
+      TokenResponseDto token = new TokenResponseDto("access", "refresh", 3600, 7200);
+      given(userRepository.findByEmail(testEmail)).willReturn(Optional.of(testUser));
+      given(passwordEncoder.matches(testPassword, testUser.getPasswordHash())).willReturn(true);
+      given(keycloakService.login(testEmail, testPassword)).willReturn(token);
+      willThrow(new org.springframework.dao.DataAccessResourceFailureException("db down"))
+        .given(userRepository).updateLastLoginAt(any(), any());
+
+      assertThat(userService.login(testEmail, testPassword)).isEqualTo(token);
     }
 
     @Test
@@ -441,7 +463,7 @@ class UserServiceImplTest {
     }
 
     @Test
-    @DisplayName("갱신이 실패하면 예외를 그대로 올린다")
+    @DisplayName("갱신이 실패하면 그 예외가 그대로 난다")
     void refreshToken_Failure_Rethrows() {
       given(keycloakService.refreshToken("expired"))
         .willThrow(new KeycloakException(KeycloakResponse.TOKEN_REFRESH_FAILED));
@@ -1602,16 +1624,15 @@ class UserServiceImplTest {
     }
 
     @Test
-    @DisplayName("비밀번호가 맞아도 Keycloak 로그인이 실패하면 실패 사유 KEYCLOAK_ERROR 를 발행하고 그대로 올린다")
-    void login_KeycloakError_PublishesAndRethrows() {
+    @DisplayName("비밀번호가 맞아도 Keycloak 로그인이 실패하면 그 예외가 그대로 나고 마지막 로그인을 남기지 않는다")
+    void login_KeycloakError_Rethrows() {
       given(userRepository.findByEmail(testEmail)).willReturn(Optional.of(testUser));
       given(passwordEncoder.matches(testPassword, testUser.getPasswordHash())).willReturn(true);
       KeycloakException failure = new KeycloakException(KeycloakResponse.API_ERROR);
       given(keycloakService.login(testEmail, testPassword)).willThrow(failure);
 
       assertThatThrownBy(() -> userService.login(testEmail, testPassword)).isSameAs(failure);
-      verify(loginEventProducer).publishLoginFailed(eq(testEmail), eq("KEYCLOAK_ERROR"), anyString(),
-        eq("PASSWORD"), any(), any());
+      verify(userRepository, never()).updateLastLoginAt(any(), any());
     }
 
     @Test
