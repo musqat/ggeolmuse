@@ -148,8 +148,8 @@ class SymbolCatalogTest {
   }
 
   @Test
-  @DisplayName("거래소 시험 종목은 이름이 비어도 기호로 거르고, 기호가 평범하면 이름으로 거른다")
-  void 시험_종목() {
+  @DisplayName("거래소 테스트 종목은 이름이 비어도 기호로 거르고, 기호가 평범하면 이름으로 거른다")
+  void 테스트_종목() {
     given(listingSource.fetch()).willReturn(List.of(
         asset("MTEST-A", ""),
         asset("PTEST-X", ""),
@@ -165,7 +165,7 @@ class SymbolCatalogTest {
 
   @Test
   @DisplayName("TEST 가 든 진짜 종목은 남긴다")
-  void 시험_종목_오탐_없음() {
+  void 테스트_종목_오탐_없음() {
     given(listingSource.fetch()).willReturn(List.of(
         asset("TEST", "YIELDMAX(R) TSLA PERFORMANCE & DISTRIBUTION TARGET 25(TM) ETF"),
         asset("AEHR", "Aehr Test Systems"),
@@ -218,7 +218,7 @@ class SymbolCatalogTest {
   }
 
   @Test
-  @DisplayName("출처가 예외를 던져도 빈 목록으로 끝난다")
+  @DisplayName("출처에서 예외가 나도 빈 목록으로 끝난다")
   void 출처_예외() {
     // 부분 목록으로 판정하면 못 받아온 종목이 상장폐지처럼 보임
     given(listingSource.fetch()).willThrow(new IllegalStateException("API 다운"));

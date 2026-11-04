@@ -61,7 +61,7 @@ class PriceLookupTest {
   }
 
   @Test
-  @DisplayName("withFallback: 매번 조회가 실패하면 데이터 없음이 아니라 시세 서비스 사용 불가로 올리고 마지막 원인을 붙인다")
+  @DisplayName("withFallback: 매번 조회가 실패하면 데이터 없음이 아니라 시세 서비스 사용 불가 예외가 나고 마지막 원인이 담긴다")
   void withFallback_allFailed_unavailable() {
     RuntimeException down = new RuntimeException("down");
 

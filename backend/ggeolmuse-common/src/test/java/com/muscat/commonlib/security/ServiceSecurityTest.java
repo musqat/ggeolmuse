@@ -109,7 +109,7 @@ class ServiceSecurityTest {
   }
 
   @Test
-  @DisplayName("API 응답은 세션을 만들지 않고 프레임 금지 헤더를 붙이지 않는다")
+  @DisplayName("API 응답은 세션을 만들지 않고 프레임 금지 헤더를 넣지 않는다")
   void statelessWithoutFrameOptions() throws Exception {
     MvcResult result = mockMvc.perform(get("/api/things").header("Authorization", "Bearer user-token"))
       .andExpect(status().isOk())

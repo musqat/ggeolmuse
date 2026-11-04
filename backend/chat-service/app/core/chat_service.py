@@ -31,7 +31,7 @@ class StartResult:
 
 @dataclass(frozen=True)
 class Answered:
-    text: str  # 면책 문구를 붙인 답
+    text: str  # 면책 문구를 더한 답
     skill: str
 
 

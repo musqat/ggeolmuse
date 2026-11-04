@@ -37,7 +37,7 @@ class MailServiceTest {
   }
 
   @Test
-  @DisplayName("인증 메일은 API 의 인증 주소에 토큰을 붙여 보낸다")
+  @DisplayName("인증 메일은 API 의 인증 주소에 토큰을 넣어 보낸다")
   void verificationEmail() {
     mailService.sendVerificationEmail("user@example.com", "verify-token");
 
@@ -45,7 +45,7 @@ class MailServiceTest {
   }
 
   @Test
-  @DisplayName("재설정 메일은 화면의 재설정 주소에 토큰을 붙여 보낸다")
+  @DisplayName("재설정 메일은 화면의 재설정 주소에 토큰을 넣어 보낸다")
   void passwordResetEmail() {
     mailService.sendPasswordResetEmail("user@example.com", "reset-token");
 
@@ -53,7 +53,7 @@ class MailServiceTest {
   }
 
   @Test
-  @DisplayName("이벤트 발행이 실패해도 가입 · 재설정을 막지 않게 예외를 올리지 않는다")
+  @DisplayName("이벤트 발행이 실패해도 가입 · 재설정을 막지 않게 예외를 내지 않는다")
   void publishFails_DoesNotThrow() {
     willThrow(new IllegalStateException("broker down")).given(producer)
       .publishEmailSend(anyString(), anyString(), anyString(), anyString(), anyString(), any(), any());

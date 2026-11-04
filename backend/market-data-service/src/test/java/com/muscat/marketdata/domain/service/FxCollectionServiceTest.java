@@ -126,7 +126,7 @@ class FxCollectionServiceTest {
   }
 
   @Test
-  @DisplayName("원천이 연속 10 영업일 값을 주지 않으면 멈추고 이유와 마지막 처리일을 남긴다(최근 날부터 열흘)")
+  @DisplayName("원천이 연속 10 영업일 값을 주지 않으면 멈추고 이유와 마지막 처리일을 남긴다(최근 날부터 10일)")
   void stopsAfterConsecutiveFailures() {
     List<LocalDate> missing = weekdays(15);
     given(collector.missingWeekdays(START, today())).willReturn(missing);

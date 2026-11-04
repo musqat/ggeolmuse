@@ -53,7 +53,7 @@ class DividendReconcileConsumerTest {
   }
 
   @Test
-  @DisplayName("재계산이 실패하면 커밋하지 않고 다시 올린다")
+  @DisplayName("재계산이 실패하면 커밋하지 않고 그 예외가 그대로 난다")
   void reconcileFails_Rethrows() {
     given(dividendPayoutService.reconcile("user-1", 20L, "AAPL", false, List.of()))
       .willThrow(new TradeException(TradeResponse.MARKET_DATA_SERVICE_ERROR));

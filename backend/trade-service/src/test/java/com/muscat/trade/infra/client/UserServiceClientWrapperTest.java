@@ -33,7 +33,7 @@ class UserServiceClientWrapperTest {
   }
 
   @Test
-  @DisplayName("잔액을 못 받으면 대체값 없이 원인을 담아 사용자 서비스 오류로 올린다(잔액 모르고 주문하지 않는다)")
+  @DisplayName("잔액을 못 받으면 대체값 없이 원인을 담은 사용자 서비스 오류 예외가 난다(잔액을 모르면 주문하지 않는다)")
   void fallback_Throws() {
     RuntimeException down = new RuntimeException("down");
 
@@ -44,7 +44,7 @@ class UserServiceClientWrapperTest {
   }
 
   @Test
-  @DisplayName("4xx 는 장애가 아니라 그대로 올린다. 계좌 없음 · 접근 거부를 서비스 불가로 바꾸지 않는다")
+  @DisplayName("4xx 는 장애로 보지 않고 그 예외가 그대로 난다. 계좌 없음 · 접근 거부를 서비스 불가로 바꾸지 않는다")
   void fallback_ClientError_Rethrown() {
     Request request = Request.create(Request.HttpMethod.GET, "/api/accounts/20/balance", Map.of(), null,
       StandardCharsets.UTF_8, null);

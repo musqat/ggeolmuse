@@ -18,7 +18,7 @@ describe('BacktestModeTabs', () => {
     expect(onChange).toHaveBeenCalledWith('history')
   })
 
-  it('고른 탭만 강조하고 잠긴 탭에는 아이콘을 붙인다', () => {
+  it('고른 탭만 강조하고 잠긴 탭에는 아이콘을 보인다', () => {
     render(<BacktestModeTabs tabs={tabs} active="simple" onChange={vi.fn()} />)
 
     expect(screen.getByRole('button', { name: '단순' }).className).toContain('border-brand')

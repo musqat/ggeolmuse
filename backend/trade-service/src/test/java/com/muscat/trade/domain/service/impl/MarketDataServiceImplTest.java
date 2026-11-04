@@ -63,7 +63,7 @@ class MarketDataServiceImplTest {
   class DetermineTradePrice {
 
     @Test
-    @DisplayName("MANUAL 이면 범위 검증을 태운다")
+    @DisplayName("MANUAL 이면 범위 검증을 거친다")
     void manual_경로() {
       given(marketServiceClientWrapper.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
         .willReturn(ohlc(true));

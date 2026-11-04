@@ -28,5 +28,5 @@ spring:
   datasource:
     hikari:
       data-source-properties:
-        # 끊긴 DB 연결 대기 상한 5분(초 단위)
+        # 응답 없는 DB 연결 대기 상한 5분(초 단위)
         socketTimeout: 300

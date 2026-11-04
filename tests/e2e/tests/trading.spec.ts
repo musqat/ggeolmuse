@@ -160,7 +160,7 @@ test('판 만큼 매도 가능 금액이 그대로 들어오고 보유 · 거래
   const auth = await authContext();
   const plain = await request.newContext();
 
-  // 수수료 · 슬리피지가 붙는 새 계좌(끝에 지움)
+  // 수수료 · 슬리피지가 더해지는 새 계좌(끝에 지움)
   const accountName = `E2E 매도 ${process.hrtime.bigint().toString(36).slice(-6)}`;
   const created = await auth.post(`${API_URL}/accounts`, { data: { accountName, commissionRate: 0.002 } });
   expect(created.status(), `계좌 생성이 실패했다: ${await created.text()}`).toBe(201);

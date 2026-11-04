@@ -144,7 +144,7 @@ class FxDataCollectorTest {
     }
 
     @Test
-    @DisplayName("소스가 예외를 던져도 폴백을 계속한다")
+    @DisplayName("소스에서 예외가 나도 폴백을 계속한다")
     void 예외_후_폴백() {
       given(fxSource.fetchFx(MON)).willThrow(new IllegalStateException("API 오류"));
       given(fxSource.fetchFx(PREV_FRI)).willReturn(Optional.of(new BigDecimal("1340")));
@@ -153,7 +153,7 @@ class FxDataCollectorTest {
     }
 
     @Test
-    @DisplayName("폴백 한도를 넘으면 예외를 던진다")
+    @DisplayName("폴백 한도를 넘으면 예외가 난다")
     void 폴백_초과() {
       given(fxSource.fetchFx(any())).willReturn(Optional.empty());
 
@@ -181,7 +181,7 @@ class FxDataCollectorTest {
     }
 
     @Test
-    @DisplayName("평일을 하루씩 훑는다")
+    @DisplayName("평일을 하루씩 모두 조회한다")
     void 평일_전체() {
       given(fxSource.fetchFx(any())).willReturn(Optional.of(new BigDecimal("1350")));
 

@@ -80,8 +80,8 @@ public final class PriceLookup {
     return null;
   }
 
-  // date 부터 notAfter 까지(최대 maxDays) 앞으로 훑은 첫 available 시세(휴장일이면 다음 거래일), 없으면 null
-  // 4xx 는 그날 데이터가 없는 것이라 다음 날로, 그 밖의 실패는 그대로 올림
+  // date 부터 notAfter 까지(최대 maxDays) 앞으로 찾은 첫 available 시세(휴장일이면 다음 거래일), 없으면 null
+  // 4xx 는 그날 데이터가 없는 것이라 다음 날로, 그 밖의 실패는 예외 그대로
   public static OHLCPriceDto nextAvailable(PriceFetcher fetcher, String symbol, LocalDate date,
       LocalDate notAfter, int maxDays) {
     LocalDate searchDate = date;
@@ -99,7 +99,7 @@ public final class PriceLookup {
     return null;
   }
 
-  // 인메모리 priceMap 에서 date 부터 notAfter 까지(최대 maxDays) 앞으로 훑은 첫 시세, 없으면 null
+  // 인메모리 priceMap 에서 date 부터 notAfter 까지(최대 maxDays) 앞으로 찾은 첫 시세, 없으면 null
   public static OHLCPriceDto nextFromMap(Map<LocalDate, OHLCPriceDto> priceMap, LocalDate date,
       LocalDate notAfter, int maxDays) {
     LocalDate searchDate = date;

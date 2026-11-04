@@ -185,7 +185,7 @@ class MarketDataMapperTest {
   class ToCandles {
 
     @Test
-    @DisplayName("목록을 통째로 변환한다")
+    @DisplayName("목록 전체를 변환한다")
     void 목록_변환() {
       List<Candle> result = MarketDataMapper.toCandles(
         List.of(candle().build(), candle().date(DATE.plusDays(1)).build()), null);

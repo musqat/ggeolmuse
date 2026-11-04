@@ -226,7 +226,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
             BigDecimal purchaseFxRate = request.getPurchaseFxRate() != null
               ? request.getPurchaseFxRate() : fxRateMap.get(currentDate);
 
-            // 수수료를 떼고 남은 달러로 매수
+            // 수수료를 차감하고 남은 달러로 매수
             BigDecimal fee = BacktestCalculationUtils.calculatePurchaseFee(
               params.amountPerPurchase(), purchaseFxRate, request.getTradingFeeRate());
             BigDecimal shares = BacktestCalculationUtils.calculateSharesAfterFee(

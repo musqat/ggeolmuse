@@ -94,7 +94,7 @@ class DividendEventConsumerTest {
   }
 
   @Test
-  @DisplayName("요청 하나가 실패해도 나머지 계좌는 요청하고, 커밋하지 않고 배당 지급 실패로 올린다")
+  @DisplayName("요청 하나가 실패해도 나머지 계좌는 요청하고, 커밋하지 않고 배당 지급 실패 예외가 난다")
   void oneRequestFails_OthersStillRequested() {
     tradedBeforeExDate(position("user-1", 20L), position("user-2", 21L));
     willThrow(new TradeException(TradeResponse.EVENT_PUBLISH_FAILED))

@@ -37,7 +37,7 @@ class KoreaEximFxClientTest {
   }
 
   @Test
-  @DisplayName("날짜 · 자료 구분 · 인증키를 붙여 부르고, 여러 통화 중 USD 기준환율을 쉼표를 떼어 숫자로 준다")
+  @DisplayName("날짜 · 자료 구분 · 인증키를 넣어 호출하고, 여러 통화 중 USD 기준환율을 쉼표를 빼고 숫자로 준다")
   void usdRate() {
     respond("""
       [

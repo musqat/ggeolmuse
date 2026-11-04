@@ -79,7 +79,7 @@ class EmailEventConsumerTest {
   }
 
   @Test
-  @DisplayName("메일 서버가 실패하면 커밋하지 않고 예외를 올려 다시 받게 한다")
+  @DisplayName("메일 서버가 실패하면 커밋하지 않고 예외가 나서 다시 받는다")
   void sendFails_DoesNotAcknowledge() {
     willThrow(new MailSendException("smtp down")).given(mailSender).send(any(MimeMessage.class));
 

@@ -226,7 +226,7 @@ class ResponseMapperTest {
       StrategyResponse result = mapper.toStrategyResponse(
         dcaRequest(), transactions(1), calculation(), price("120.5"), NONE);
 
-      // 소수점 이하 유지(자르면 소액 적립식에서 수량이 통째로 사라짐)
+      // 소수점 이하 유지(자르면 소액 적립식에서 수량이 0 이 됨)
       assertThat(result.getTotalShares().scale()).isEqualTo(6);
       assertThat(result.getTotalShares()).isEqualByComparingTo("12.345679");
     }

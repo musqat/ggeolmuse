@@ -13,7 +13,7 @@
     </appender>
 
     <!--
-      config-server 가 logging.level 로 덮어쓴다. 여기 값은 config-server 를 못 붙었을 때의 기본이다.
+      config-server 가 logging.level 로 덮어쓴다. 여기 값은 config-server 에 연결하지 못했을 때의 기본이다.
       DEBUG 로 두면 붙지 못한 그 순간에 종목당 수십 줄이 쏟아진다.
       로컬에서 자세히 보려면 -Dlogging.level.com.muscat.marketdata=DEBUG 를 준다
     -->

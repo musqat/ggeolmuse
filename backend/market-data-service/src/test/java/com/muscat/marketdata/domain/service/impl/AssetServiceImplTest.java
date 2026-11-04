@@ -623,7 +623,7 @@ class AssetServiceImplTest {
     }
 
     @Test
-    @DisplayName("받은 봉이 없으면 가격 데이터 없음(404) 예외를 던지고 봉을 저장하지 않는다")
+    @DisplayName("받은 봉이 없으면 가격 데이터 없음(404) 예외가 나고 봉을 저장하지 않는다")
     void updateAssetPrice_NoCandles_ThrowsPriceDataNotFound() {
       // given
       given(assetRepository.findById(TEST_SYMBOL)).willReturn(Optional.of(testAsset));
@@ -885,7 +885,7 @@ class AssetServiceImplTest {
     }
 
     @Test
-    @DisplayName("한 종목 시총 갱신은 소스가 못 받으면 막고, 없는 종목이면 종목 없음 코드를 던진다")
+    @DisplayName("한 종목 시총 갱신은 소스가 못 받으면 막고, 없는 종목이면 종목 없음 코드로 예외가 난다")
     void marketCapOne() {
       given(assetRepository.findById(TEST_SYMBOL)).willReturn(Optional.of(testAsset));
       given(assetRepository.findById("NOPE")).willReturn(Optional.empty());
@@ -910,7 +910,7 @@ class AssetServiceImplTest {
     }
 
     @Test
-    @DisplayName("복구는 활성으로 돌리고 폐지일을 지우며, 없는 종목이면 종목 없음 코드를 던진다")
+    @DisplayName("복구는 활성으로 돌리고 폐지일을 지우며, 없는 종목이면 종목 없음 코드로 예외가 난다")
     void restore() {
       testAsset.setActive(false);
       testAsset.setDelistedDate(LocalDate.of(2024, 1, 1));

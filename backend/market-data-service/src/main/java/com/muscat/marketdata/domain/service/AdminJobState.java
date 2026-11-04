@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class AdminJobState {
 
-  // 갱신 시각이 이만큼 지나면 그 파드는 죽은 것으로 봄
+  // 갱신 시각이 이만큼 지나면 그 파드는 멈춘 것으로 봄
   static final Duration STALE_AFTER = Duration.ofMinutes(30);
 
   private final JdbcTemplate jdbc;
@@ -24,7 +24,7 @@ public class AdminJobState {
     this.mapper = mapper;
   }
 
-  // 진행 중이 아니거나 갱신이 끊겼으면 진행 중으로 표시(표시했으면 true)
+  // 진행 중이 아니거나 갱신이 멈췄으면 진행 중으로 표시(표시했으면 true)
   public boolean tryStart(String name) {
     LocalDateTime now = LocalDateTime.now();
     insertIfAbsent(name, false, null, now);

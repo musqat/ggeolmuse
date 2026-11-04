@@ -92,7 +92,7 @@ class AuthControllerTokenTest {
   }
 
   @Test
-  @DisplayName("로그아웃은 쿠키의 세션을 끊고 쿠키를 지운다")
+  @DisplayName("로그아웃은 쿠키의 세션을 종료하고 쿠키를 지운다")
   void logout_EndsSessionAndClearsCookie() throws Exception {
     mockMvc.perform(post("/api/auth/logout").cookie(new Cookie(RefreshTokenCookie.NAME, "refresh-1")))
       .andExpect(status().isNoContent())

@@ -89,7 +89,7 @@ describe('AiChatModal', () => {
     expect(screen.getByPlaceholderText(QUESTION_INPUT)).toBeInTheDocument()
   })
 
-  it('없는 종목이면 입력 단계에 머물며 서버 문구를 보인다', async () => {
+  it('없는 종목이면 입력 단계 그대로 서버 문구를 보인다', async () => {
     startConversation.mockRejectedValueOnce(
       apiError(404, { code: 'symbol_not_found', message: '종목을 찾을 수 없습니다. 종목 코드로 입력해 주세요 (예: AAPL).' })
     )
@@ -284,7 +284,7 @@ describe('AiChatModal', () => {
     expect(screen.queryByText('분석 중...')).not.toBeInTheDocument()
   })
 
-  it('대화 중에 차트 종목으로 시작하지 못하면 지금 대화를 두고 오류에 그 종목을 붙인다', async () => {
+  it('대화 중에 차트 종목으로 시작하지 못하면 지금 대화를 두고 오류 문구에 그 종목을 넣는다', async () => {
     localStorage.setItem('ggeolmuse_ai_chat', JSON.stringify({
       conversationId: 'c-AAPL', symbol: 'AAPL', name: 'Apple Inc.', turns: [{ role: 'ai', text: '이전 답' }],
       updatedAt: Date.now(),

@@ -120,7 +120,7 @@ class AssetEventProducerTest {
   }
 
   @Test
-  @DisplayName("커밋 뒤 전송이 바로 실패해도 이미 끝난 종목 등록으로 예외를 올리지 않는다")
+  @DisplayName("커밋 뒤 전송이 바로 실패해도 이미 끝난 종목 등록에 예외를 내지 않는다")
   void sendThrowsAfterCommit_DoesNotThrow() {
     given(template.send(anyString(), anyString(), any())).willThrow(new IllegalStateException("metadata timeout"));
     TransactionSynchronizationManager.initSynchronization();
@@ -135,7 +135,7 @@ class AssetEventProducerTest {
   }
 
   @Test
-  @DisplayName("브로커가 받지 못해도 종목 등록 쪽으로 예외를 올리지 않는다")
+  @DisplayName("브로커가 받지 못해도 종목 등록 쪽에 예외를 내지 않는다")
   void sendFails_DoesNotThrow() {
     given(template.send(anyString(), anyString(), any())).willReturn(failed());
 

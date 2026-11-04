@@ -54,7 +54,7 @@ class AccountDeletedEventConsumerTest {
   }
 
   @Test
-  @DisplayName("지우다 실패하면 커밋하지 않고 다시 던져 Kafka 가 재시도한다")
+  @DisplayName("지우다 실패하면 커밋하지 않고 예외가 나서 Kafka 가 재시도한다")
   void handle_Failure_DoesNotAcknowledge() {
     willThrow(new IllegalStateException("db down")).given(dividendPayoutRepository).deleteByAccountId(ACCOUNT_ID);
 

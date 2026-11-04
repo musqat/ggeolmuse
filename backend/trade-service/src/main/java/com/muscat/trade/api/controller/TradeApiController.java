@@ -29,7 +29,7 @@ public class TradeApiController {
 
   @Operation(
       summary = "종목별 거래 내역 조회",
-      description = "특정 종목에 대한 사용자의 모든 거래 내역을 조회합니다"
+      description = "사용자의 특정 종목 거래 내역을 모두 조회합니다"
   )
   @ApiResponses(value = {
       @ApiResponse(

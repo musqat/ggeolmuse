@@ -10,7 +10,7 @@ interface AdminAction {
   failure: (err: unknown) => string;
 }
 
-// 관리자 화면 작업 실행 틀(확인 → 로딩 · 오류 비움 → 작업 → 실패 문구 → 로딩 끔), 끝까지 성공하면 true
+// 관리자 화면 작업 실행 순서(확인 → 로딩 · 오류 비움 → 작업 → 실패 문구 → 로딩 끔), 끝까지 성공하면 true
 export const useAdminAction = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

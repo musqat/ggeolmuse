@@ -18,13 +18,13 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class SymbolCatalog {
 
-  // 티커에 쓰는 글자(CAPTW(EXP20260807) 처럼 만기 표기가 붙은 줄은 야후에서도 404)
+  // 티커에 쓰는 글자(CAPTW(EXP20260807) 처럼 만기 표기가 든 줄은 야후에서도 404)
   private static final Pattern TICKER = Pattern.compile("[A-Za-z0-9.^/-]+");
 
-  // 거래소 시험 종목(이름이 빈 줄이 많아 기호로 거름, ETF 인 TEST 는 앞 글자가 없어 안 걸림)
+  // 거래소 테스트 종목(이름이 빈 줄이 많아 기호로 거름, ETF 인 TEST 는 앞 글자가 없어 안 걸림)
   private static final Pattern TEST_ISSUE_SYMBOL = Pattern.compile("[A-Z]TEST(-[A-Z])?|ZTST|Z[A-Z]ZZT");
 
-  // 기호가 평범한 시험 종목(CBO · CBX · IGZ · ZVV · ZBZX)은 이름으로 거름
+  // 기호가 평범한 테스트 종목(CBO · CBX · IGZ · ZVV · ZBZX)은 이름으로 거름
   private static final String TEST_ISSUE_NAMES = "listed test,test stock";
 
   private final ListingStatusSource listingSource;
@@ -45,7 +45,7 @@ public class SymbolCatalog {
   @Value("${marketdata.constants.database.symbol-max-length:16}")
   private int symbolMaxLength;
 
-  // 중복 · 저장 못 할 심볼 · 시험 종목 · 보통주 아닌 것을 거름
+  // 중복 · 저장 못 할 심볼 · 테스트 종목 · 보통주 아닌 것을 거름
   // 실패하면 빈 목록(일부만 받으면 나머지가 상장폐지처럼 보임)
   public List<Asset> fetchAll() {
     List<Asset> fetched;
@@ -124,7 +124,7 @@ public class SymbolCatalog {
 
     int removed = assets.size() - kept.size();
     if (removed > 0) {
-      log.info("[종목목록] 거래소 시험 종목 제외: {}개", removed);
+      log.info("[종목목록] 거래소 테스트 종목 제외: {}개", removed);
     }
 
     return kept;

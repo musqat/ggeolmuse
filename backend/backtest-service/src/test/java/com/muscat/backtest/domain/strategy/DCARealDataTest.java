@@ -237,7 +237,7 @@ class DCARealDataTest {
   }
 
   @Test
-  @DisplayName("재투자를 끄면 배당을 현금으로 받되 원천징수를 뗀다")
+  @DisplayName("재투자를 끄면 배당을 현금으로 받되 원천징수를 차감한다")
   void execute_realData_cashDividendWithTax() {
     BigDecimal taxRate = new BigDecimal("0.154");
 

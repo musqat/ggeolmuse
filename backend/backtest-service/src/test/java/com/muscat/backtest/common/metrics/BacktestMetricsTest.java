@@ -27,7 +27,7 @@ class BacktestMetricsTest {
   }
 
   @Test
-  @DisplayName("예외로 끝난 실행은 실패로 한 건 남기고 예외를 그대로 던진다")
+  @DisplayName("예외로 끝난 실행은 실패로 한 건 남기고 그 예외가 그대로 난다")
   void recordsFailure() {
     assertThatThrownBy(() -> metrics.record("simulation", () -> {
       throw new IllegalStateException("시세 없음");

@@ -10,7 +10,7 @@ const dayButton = (day: string) =>
     .find((b) => b.textContent === day)!
 
 describe('DateField', () => {
-  it('값을 2024. 06. 14. 꼴로 보인다', () => {
+  it('값을 2024. 06. 14. 형식으로 보인다', () => {
     render(<DateField value="2024-06-14" onChange={vi.fn()} testId="field" />)
 
     expect(screen.getByTestId('field')).toHaveTextContent('2024. 06. 14.')

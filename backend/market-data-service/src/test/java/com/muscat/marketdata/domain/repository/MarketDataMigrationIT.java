@@ -167,7 +167,7 @@ class MarketDataMigrationIT {
   }
 
   @Test
-  @DisplayName("V11 은 거래소 시험 종목을 기호 · 이름으로 찾아 비활성으로 바꾸고, ETF 인 TEST 와 다른 종목은 그대로 둔다")
+  @DisplayName("V11 은 거래소 테스트 종목을 기호 · 이름으로 찾아 비활성으로 바꾸고, ETF 인 TEST 와 다른 종목은 그대로 둔다")
   void testIssuesDeactivated() throws IOException {
     assetRepository.save(typedAsset("MTEST-A", "Nasdaq Test Issue", "EQUITY"));
     assetRepository.save(typedAsset("ZTST", "Ztst", "EQUITY"));

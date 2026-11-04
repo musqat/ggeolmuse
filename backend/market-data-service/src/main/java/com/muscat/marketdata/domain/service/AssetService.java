@@ -31,7 +31,7 @@ public interface AssetService {
 
   List<String> getActiveSymbols();
 
-  // 가격 · 최신 데이터 날짜를 붙인 요약(active 가 false 면 상장폐지 종목)
+  // 가격 · 최신 데이터 날짜를 더한 요약(active 가 false 면 상장폐지 종목)
   Page<AssetSummaryDto> getAllAssetSummaries(Pageable pageable, boolean active);
 
   void updateAssetPrice(String symbol);

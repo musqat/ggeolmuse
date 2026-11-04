@@ -6,7 +6,7 @@ interface IndicatorPanelProps {
   height: number;
 }
 
-// 768px 이상에서 차트 오른쪽에 붙는 지표 체크 목록
+// 768px 이상에서 차트 오른쪽에 놓이는 지표 체크 목록
 export const IndicatorPanel = ({ indicators, onToggle, height }: IndicatorPanelProps) => (
   <div
     data-testid="chart-indicator-panel"

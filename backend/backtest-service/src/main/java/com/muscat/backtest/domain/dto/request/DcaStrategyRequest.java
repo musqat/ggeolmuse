@@ -67,7 +67,7 @@ public class DcaStrategyRequest implements StrategyRequest {
   @Builder.Default
   private Boolean reinvestDividends = false;  // 배당금 자동 재투자 여부
 
-  @Schema(description = "매매 수수료율 (0.25% = 0.0025, 매수마다 뗀다)", example = "0.0025")
+  @Schema(description = "매매 수수료율 (0.25% = 0.0025, 매수마다 차감)", example = "0.0025")
   @DecimalMin(value = "0", message = "수수료율은 0 이상 1 미만이어야 합니다")
   @DecimalMax(value = "1", inclusive = false, message = "수수료율은 0 이상 1 미만이어야 합니다")
   @Builder.Default

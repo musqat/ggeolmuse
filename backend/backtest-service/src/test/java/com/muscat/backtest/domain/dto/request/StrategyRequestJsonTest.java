@@ -16,7 +16,7 @@ class StrategyRequestJsonTest {
   private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 
   @Test
-  @DisplayName("요청마다 자기 전략 타입을 말한다")
+  @DisplayName("요청마다 자기 전략 타입을 담는다")
   void strategyType_PerRequest() {
     assertThat(dca().getStrategyType()).isEqualTo(StrategyType.DCA);
     assertThat(conditional().getStrategyType()).isEqualTo(StrategyType.CONDITIONAL_PURCHASE);

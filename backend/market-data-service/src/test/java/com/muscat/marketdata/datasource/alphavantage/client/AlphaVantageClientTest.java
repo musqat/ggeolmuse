@@ -54,7 +54,7 @@ class AlphaVantageClientTest {
     private static final String URL = BASE + "?function=TIME_SERIES_DAILY&apikey=test-key&symbol=AAPL&outputsize=compact";
 
     @Test
-    @DisplayName("함수 · 키 · 파라미터를 붙여 부르고 JSON 으로 돌려준다")
+    @DisplayName("함수 · 키 · 파라미터를 넣어 호출하고 JSON 으로 돌려준다")
     void returnsJson() {
       respond(URL, "{\"Meta Data\":{\"2. Symbol\":\"AAPL\"}}");
 

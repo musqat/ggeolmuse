@@ -32,7 +32,7 @@ test('종목을 고르고 백테스트를 돌리면 수익률이 나온다', asy
   const rate = page.getByTestId('backtest-return-rate');
   await expect(rate).toBeVisible({ timeout: 60_000 });
 
-  // "+18.90%" 꼴(빈 값 · NaN 거름)
+  // "+18.90%" 형식(빈 값 · NaN 거름)
   await expect(rate).toHaveText(/^[+-]?\d+\.\d{2}%$/);
 
   // 결과가 뜨면 빈 상태는 사라짐

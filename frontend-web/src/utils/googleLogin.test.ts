@@ -59,7 +59,7 @@ describe('buildGoogleLoginUrl', () => {
 describe('다시 로그인 · 돌아올 경로', () => {
   beforeEach(() => sessionStorage.clear())
 
-  it('reauth 면 prompt=login 을 붙이고 돌아올 경로를 저장한다', async () => {
+  it('reauth 면 prompt=login 을 넣고 돌아올 경로를 저장한다', async () => {
     const url = new URL(await buildGoogleLoginUrl('https://app.example', { reauth: true, returnTo: '/mypage?delete=1' }))
 
     expect(url.searchParams.get('prompt')).toBe('login')

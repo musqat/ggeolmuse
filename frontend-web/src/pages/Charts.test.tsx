@@ -142,7 +142,7 @@ describe('Charts', () => {
   })
 
   describe('가격과 차트 칸', () => {
-    it('등락을 전일 종가 대비로 보이고 기준일을 붙인다', async () => {
+    it('등락을 전일 종가 대비로 보이고 기준일을 함께 보인다', async () => {
       renderCharts()
 
       expect(await screen.findByText('+2.00 (+2.00%)')).toBeInTheDocument()

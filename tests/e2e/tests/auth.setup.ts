@@ -6,7 +6,7 @@ import { pickPricedSymbols } from './fixtures';
 setup('시드 계정으로 토큰을 받아 저장한다', async () => {
   const api = await request.newContext();
 
-  // 그 주소로 받은 시세 붙은 종목 수(조회 실패는 0)
+  // 그 주소로 받은 시세가 있는 종목 수(조회 실패는 0)
   const pricedCount = (baseUrl: string) => async () => {
     try {
       return (await pickPricedSymbols(api, 10, baseUrl)).length;
@@ -20,7 +20,7 @@ setup('시드 계정으로 토큰을 받아 저장한다', async () => {
     .poll(pricedCount(MARKET_URL), {
       timeout: 300_000,
       intervals: [2000],
-      message: '시세가 붙은 종목이 생기지 않는다. 스택이 덜 떴다',
+      message: '시세가 있는 종목이 생기지 않는다. 스택 기동이 끝나지 않았다',
     })
     .toBeGreaterThanOrEqual(10);
 

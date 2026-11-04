@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 import org.springframework.data.domain.PageRequest;
 
-// 종목 생성 이벤트 하나를 받아 캔들 · 배당 수집(실패는 다시 올려 ack 안 함)
+// 종목 생성 이벤트 하나를 받아 캔들 · 배당 수집(실패하면 예외가 나서 ack 안 함)
 @DisplayName("종목 하나 수집")
 class DataCollectionServiceTest {
 
@@ -55,7 +55,7 @@ class DataCollectionServiceTest {
   }
 
   @Test
-  @DisplayName("수집이 실패하면 같은 예외를 다시 올린다")
+  @DisplayName("수집이 실패하면 그 예외가 그대로 난다")
   void failure() {
     given(updateService.saveCandles("AAPL", FROM, TO)).willThrow(new IllegalStateException("yahoo down"));
 

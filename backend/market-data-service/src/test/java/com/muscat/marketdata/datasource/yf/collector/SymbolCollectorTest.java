@@ -409,7 +409,7 @@ class SymbolCollectorTest {
     }
 
     @Test
-    @DisplayName("소스 조회가 통째로 실패해도 예외를 밖으로 내보내지 않는다")
+    @DisplayName("소스 조회가 전부 실패해도 예외를 밖으로 내보내지 않는다")
     void 소스_실패() {
       given(assetRepository.count()).willReturn(0L);
       given(symbolCatalog.fetchAll()).willThrow(new IllegalStateException("NASDAQ 다운"));

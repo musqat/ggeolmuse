@@ -44,7 +44,7 @@ public class TradeEventRetryScheduler {
     this.pendingBuys = meterRegistry.gauge("trade.buys.pending", new AtomicLong());
   }
 
-  // 하나라도 실패하면 이번 회차 중단(브로커가 끊겼을 때 건마다 5초씩 기다리지 않게)
+  // 하나라도 실패하면 이번 회차 중단(브로커에 연결되지 않을 때 건마다 5초씩 기다리지 않게)
   // 파드 하나만(회차 사이 20초는 잠금 유지)
   @Scheduled(fixedDelay = 30_000)
   @SchedulerLock(name = LOCK_NAME, lockAtMostFor = "5m", lockAtLeastFor = "20s")

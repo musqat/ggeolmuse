@@ -29,7 +29,7 @@ class NasdaqScreenerClientTest {
   }
 
   @Test
-  @DisplayName("거래소는 대문자로, 시총 필터의 쉼표 · 파이프는 %7C 로 바꿔 붙이고 본문을 그대로 돌려준다")
+  @DisplayName("거래소는 대문자로, 시총 필터의 쉼표 · 파이프는 %7C 로 바꿔 넣고 본문을 그대로 돌려준다")
   void buildsUrl() {
     server.expect(requestTo(BASE + "&limit=100&offset=200&exchange=NASDAQ&marketcap=mega%7Clarge%7Cmid"))
       .andExpect(header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE))
