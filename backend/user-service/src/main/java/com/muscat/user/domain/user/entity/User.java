@@ -75,15 +75,6 @@ public class User {
   @UpdateTimestamp
   private LocalDateTime updatedAt;
 
-  @Column(name = "social_id")
-  private String socialId; // Google의 sub 클레임 값
-
-  @Column(name = "social_email")
-  private String socialEmail; // Google 계정 이메일
-
-  @Column(name = "profile_image_url")
-  private String profileImageUrl; // Google 프로필 이미지
-
   @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
   @Builder.Default
   private List<Account> accounts = new ArrayList<>();

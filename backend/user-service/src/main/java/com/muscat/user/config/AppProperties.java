@@ -8,8 +8,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class AppProperties {
 
   private Oauth oauth = new Oauth();
-  private Mail mail = new Mail();
-  private Frontend frontend = new Frontend();
   private Auth auth = new Auth();
 
   @Data
@@ -17,26 +15,6 @@ public class AppProperties {
 
     // 브라우저가 구글 로그인(PKCE)으로 토큰을 받는 public client(받은 refresh token 의 갱신 · 로그아웃도 이 client, 프론트 VITE_KEYCLOAK_CLIENT_ID 와 같음)
     private String publicClientId = "ggeolmuse-frontend";
-  }
-
-  @Data
-  public static class Mail {
-
-    private String from;
-    private Verification verification = new Verification();
-
-    @Data
-    public static class Verification {
-
-      private String baseUrl;
-      private int expiryHours;
-    }
-  }
-
-  @Data
-  public static class Frontend {
-
-    private String url;
   }
 
   // refresh token 쿠키(RefreshTokenCookie)
