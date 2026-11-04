@@ -66,9 +66,8 @@ const Charts: React.FC = () => {
     queryKey: ['stock', 'companyName', symbol],
     queryFn: async () => {
       try {
-        const priceResponse = await stockApi.getCurrentPrice(symbol!);
-        const stockData = priceResponse.data as { name?: string } | undefined;
-        return stockData?.name || '';
+        const { data } = await stockApi.getCurrentPrice(symbol!);
+        return data?.name || '';
       } catch (err) {
         console.warn('Failed to fetch company name:', err);
         return '';

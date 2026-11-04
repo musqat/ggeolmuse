@@ -1,4 +1,3 @@
-import type { ApiResponse } from '../../types/api';
 import type { StockPrice } from '../../types/stock';
 import type { OHLCData } from '../../types/ohlc';
 import { apiClient } from './client';
@@ -25,7 +24,7 @@ export const stockApi = {
 
   // 특정 종목 현재가 조회
   getCurrentPrice: (symbol: string) =>
-    apiClient.get<ApiResponse<StockPrice>>(`/market/price/${symbol}`),
+    apiClient.get<StockPrice>(`/market/price/${symbol}`),
 
   // 여러 종목의 현재가를 한 번에 조회
   getCurrentPrices: (symbols: string[]) =>
