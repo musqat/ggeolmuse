@@ -124,7 +124,7 @@ class AlphaVantageSchedulerTest {
     }
 
     @Test
-    @DisplayName("이레를 거슬러도 환율이 없으면 저장하지 않는다")
+    @DisplayName("앞 영업일 7일까지 찾아도 환율이 없으면 저장하지 않는다")
     void fxGivesUp() {
       given(fxSource.fetchFx(any())).willReturn(Optional.empty());
 
@@ -148,7 +148,7 @@ class AlphaVantageSchedulerTest {
     }
 
     @Test
-    @DisplayName("시총 갱신이 실패해도 예외를 올리지 않는다")
+    @DisplayName("시총 갱신이 실패해도 예외를 내지 않는다")
     void marketCaps() {
       willThrow(new IllegalStateException("limit")).given(marketCapService).updateAllMarketCaps();
 

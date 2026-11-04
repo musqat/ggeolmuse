@@ -380,7 +380,7 @@ public class KeycloakServiceImpl implements KeycloakService {
       restTemplate.postForEntity(getLogoutUrl(), createFormRequest(body), Void.class);
       log.info("Keycloak 세션 종료");
     } catch (HttpClientErrorException.BadRequest e) {
-      // 만료 · 끊긴 세션의 400(invalid_grant)은 로그아웃 끝, client 인증 실패(401) 같은 설정 문제는 아래로
+      // 만료 · 종료된 세션의 400(invalid_grant)은 로그아웃 끝, client 인증 실패(401) 같은 설정 문제는 아래로
       log.warn("Keycloak 세션 종료 생략 - HTTP {}: {}", e.getStatusCode(), e.getResponseBodyAsString());
     } catch (Exception e) {
       log.error("Keycloak 세션 종료 중 오류: {}", e.getMessage(), e);

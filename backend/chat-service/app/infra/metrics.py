@@ -47,7 +47,7 @@ class RequestMetrics:
 
 
 class MetricsMiddleware:
-    """요청마다 경로 틀 · 메서드 · 상태로 기록(헬스 체크 · 지표 수집 제외, 경로 없는 요청은 UNKNOWN)"""
+    """요청마다 경로 템플릿 · 메서드 · 상태로 기록(헬스 체크 · 지표 수집 제외, 경로 없는 요청은 UNKNOWN)"""
 
     def __init__(self, app: ASGIApp, metrics: RequestMetrics):
         self.app = app

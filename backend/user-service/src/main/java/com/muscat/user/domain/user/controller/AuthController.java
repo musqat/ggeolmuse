@@ -352,7 +352,7 @@ public class AuthController {
 
   @Operation(
     summary = "로그아웃",
-    description = "refresh_token 쿠키가 속한 Keycloak 세션을 끊고 쿠키를 지웁니다. 쿠키가 없거나 이미 끝난 세션이어도 204 입니다"
+    description = "refresh_token 쿠키가 속한 Keycloak 세션을 종료하고 쿠키를 지웁니다. 쿠키가 없거나 이미 끝난 세션이어도 204 입니다"
   )
   @ApiResponses(value = {
     @ApiResponse(responseCode = "204", description = "로그아웃 완료")

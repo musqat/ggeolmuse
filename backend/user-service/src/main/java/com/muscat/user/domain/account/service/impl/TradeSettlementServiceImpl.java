@@ -40,7 +40,7 @@ public class TradeSettlementServiceImpl implements TradeSettlementService {
     this.transactionTemplate = new TransactionTemplate(transactionManager);
   }
 
-  // 업무 실패(4xx)면 잔액은 그대로 두고 반영 실패 기록, 그 밖의 예외는 던져 재시도
+  // 업무 실패(4xx)면 잔액은 그대로 두고 반영 실패 기록, 그 밖의 예외는 그대로 나서 재시도
   @Override
   public void settle(TradeCompletedEvent event) {
     TradeSettlement outcome;
@@ -69,7 +69,7 @@ public class TradeSettlementServiceImpl implements TradeSettlementService {
     return applied;
   }
 
-  // 커밋된 결과(정산됨 · 반영 실패) 알림(실패하면 던져 다시 받고, 다시 받은 체결은 기록된 결과만 보냄)
+  // 커밋된 결과(정산됨 · 반영 실패) 알림(실패하면 예외가 나서 다시 받고, 다시 받은 체결은 기록된 결과만 보냄)
   private void announce(TradeCompletedEvent event, TradeSettlement outcome) {
     if (outcome.getStatus() == SettlementStatus.APPLIED) {
       tradeSettledEventProducer.publish(event);

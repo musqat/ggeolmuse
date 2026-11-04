@@ -33,7 +33,7 @@ import org.springframework.kafka.support.SendResult;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-@DisplayName("이벤트 머리 채우기와 Kafka 전송")
+@DisplayName("이벤트 헤더 채우기와 Kafka 전송")
 class EventPublishingTest {
 
     private static final String TOPIC = "user.account.deleted";
@@ -53,7 +53,7 @@ class EventPublishingTest {
     }
 
     @Test
-    @DisplayName("머리 여섯 칸을 채우고, 추적 중이 아니면 추적 id 를 비운다")
+    @DisplayName("헤더 여섯 칸을 채우고, 추적 중이 아니면 추적 id 를 비운다")
     void stamp_FillsHeader() {
         SampleEvent stamped = EventPublishing.stamp(event, "ACCOUNT_DELETED", "user-service");
 
@@ -80,7 +80,7 @@ class EventPublishingTest {
     }
 
     @Test
-    @DisplayName("결과를 기다리지 않고 보내며, 브로커가 받지 못해도 예외를 올리지 않는다")
+    @DisplayName("결과를 기다리지 않고 보내며, 브로커가 받지 못해도 예외를 내지 않는다")
     void send_FailureOnlyLogged() {
         given(template.send(anyString(), anyString(), any())).willReturn(failed());
 
@@ -126,7 +126,7 @@ class EventPublishingTest {
     }
 
     @Test
-    @DisplayName("커밋 뒤 전송이 바로 실패해도 예외를 올리지 않는다")
+    @DisplayName("커밋 뒤 전송이 바로 실패해도 예외를 내지 않는다")
     void sendAfterCommit_SendThrows_DoesNotThrow() {
         given(template.send(anyString(), anyString(), any())).willThrow(new IllegalStateException("metadata timeout"));
         TransactionSynchronizationManager.initSynchronization();
@@ -150,7 +150,7 @@ class EventPublishingTest {
     }
 
     @Test
-    @DisplayName("브로커가 받지 못하면 넘긴 예외로 바꿔 올린다")
+    @DisplayName("브로커가 받지 못하면 넘긴 예외가 난다")
     void sendAndWait_Failure_ThrowsMapped() {
         given(template.send(anyString(), anyString(), any())).willReturn(failed());
 
@@ -161,7 +161,7 @@ class EventPublishingTest {
     }
 
     @Test
-    @DisplayName("시간 안에 확인이 없으면 넘긴 예외로 바꿔 올린다")
+    @DisplayName("시간 안에 확인이 없으면 넘긴 예외가 난다")
     void sendAndWait_Timeout_ThrowsMapped() {
         given(template.send(anyString(), anyString(), any())).willReturn(new CompletableFuture<>());
 
@@ -172,7 +172,7 @@ class EventPublishingTest {
     }
 
     @Test
-    @DisplayName("기다리다 인터럽트되면 인터럽트 표시를 되살리고 넘긴 예외로 올린다")
+    @DisplayName("기다리다 인터럽트되면 인터럽트 상태를 되살리고 넘긴 예외가 난다")
     void sendAndWait_Interrupted_RestoresFlag() {
         given(template.send(anyString(), anyString(), any())).willReturn(interrupted());
 
@@ -201,7 +201,7 @@ class EventPublishingTest {
         };
     }
 
-    // 머리 칸만 있는 이벤트
+    // 헤더 칸만 있는 이벤트
     static class SampleEvent extends BaseEvent {
     }
 

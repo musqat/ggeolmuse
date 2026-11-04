@@ -47,7 +47,7 @@ class DividendReconcileProducerTest {
   }
 
   @Test
-  @DisplayName("브로커가 받지 못하면 이벤트 발행 실패로 올린다")
+  @DisplayName("브로커가 받지 못하면 이벤트 발행 실패 예외가 난다")
   void request_BrokerDown_EventPublishFailed() {
     given(template.send(anyString(), anyString(), any())).willReturn(KafkaSends.failed());
 

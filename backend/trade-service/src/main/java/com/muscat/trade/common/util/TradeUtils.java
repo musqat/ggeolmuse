@@ -61,7 +61,7 @@ public class TradeUtils {
       log.error("계좌 정보 조회 실패: accountId={}", accountId, e);
       throw new TradeException(TradeResponse.USER_SERVICE_ERROR);
     }
-    // 빈 응답은 호출 실패가 아니라 계좌 없음(try 안에서 던지면 아래 catch 가 서비스 오류로 바꿈)
+    // 빈 응답은 호출 실패가 아니라 계좌 없음(try 안에서 예외가 나면 아래 catch 가 서비스 오류로 바꿈)
     if (response == null) {
       throw new TradeException(TradeResponse.ACCOUNT_NOT_FOUND);
     }

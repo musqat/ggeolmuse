@@ -58,7 +58,7 @@ public class DataCollectionService {
         } catch (Exception e) {
             log.error("수집 실패: symbol={}, error={}", event.getSymbol(), e.getMessage(), e);
 
-            // 예상 밖 실패는 재시도 · .DLT 로(종목 하나의 실패는 saveCandles · saveDividends 가 이미 삼킴)
+            // 예상 밖 실패는 재시도 · .DLT 로(종목 하나의 실패는 saveCandles · saveDividends 가 예외를 내지 않음)
             throw e;
         }
     }

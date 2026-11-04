@@ -52,7 +52,7 @@ describe('AssetListSection', () => {
     expect(props.onRestore).toHaveBeenCalledWith('AAPL')
   })
 
-  it('머리글을 누르면 오름차순, 같은 열을 다시 누르면 방향이 바뀐다', async () => {
+  it('열 헤더를 누르면 오름차순, 같은 열을 다시 누르면 방향이 바뀐다', async () => {
     const user = userEvent.setup()
     const props = renderList()
 

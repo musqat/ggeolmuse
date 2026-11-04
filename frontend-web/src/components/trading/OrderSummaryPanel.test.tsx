@@ -17,7 +17,7 @@ function renderPanel(priceType: PriceType) {
 }
 
 describe('OrderSummaryPanel', () => {
-  it('가격 유형을 붙인 기준가와 주문 금액을 보여준다', () => {
+  it('가격 유형을 함께 적은 기준가와 주문 금액을 보여준다', () => {
     renderPanel('close')
 
     expect(screen.getByText('기준가 (종가)')).toBeInTheDocument()
@@ -27,7 +27,7 @@ describe('OrderSummaryPanel', () => {
     expect(screen.queryByText('체결가')).not.toBeInTheDocument()
   })
 
-  it('시가·고가·저가·종가는 슬리피지와 수수료가 붙는다고 알린다', () => {
+  it('시가·고가·저가·종가는 슬리피지와 수수료가 더해진다고 알린다', () => {
     renderPanel('open')
 
     expect(screen.getByText('기준가 (시가)')).toBeInTheDocument()

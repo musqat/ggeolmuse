@@ -108,7 +108,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
     return response;
   }
 
-  // 동일 종목에 대한 다양한 투자 전략의 성과를 비교 분석
+  // 동일 종목의 투자 전략별 성과 비교 분석
   @Override
   public ComparisonResponse compareStrategies(StrategyComparisonRequest request) {
     log.info("전략 비교 분석: {} - {}개 전략", request.getSymbol(),

@@ -442,7 +442,7 @@ class KeycloakServiceImplTest {
     }
 
     @Test
-    @DisplayName("이메일 로그인 토큰(azp=confidential client)은 client 인증을 붙여 갱신한다")
+    @DisplayName("이메일 로그인 토큰(azp=confidential client)은 client 인증을 넣어 갱신한다")
     void refreshToken_ConfidentialToken_UsesClientSecret() {
       given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(LoginResponseDto.class)))
         .willReturn(ResponseEntity.ok(new LoginResponseDto("a", "r", 3600, "Bearer", 7200)));
@@ -477,7 +477,7 @@ class KeycloakServiceImplTest {
     }
 
     @Test
-    @DisplayName("만료 · 이미 끊긴 세션(400)이면 예외 없이 끝난다")
+    @DisplayName("만료 · 이미 종료된 세션(400)이면 예외 없이 끝난다")
     void logout_AlreadyEnded_Ignored() {
       given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(Void.class)))
         .willThrow(HttpClientErrorException.create(HttpStatus.BAD_REQUEST, "invalid_grant", HttpHeaders.EMPTY, null, null));
@@ -486,7 +486,7 @@ class KeycloakServiceImplTest {
     }
 
     @Test
-    @DisplayName("client 인증 실패(401) 같은 설정 문제는 API_ERROR 로 올린다")
+    @DisplayName("client 인증 실패(401) 같은 설정 문제는 API_ERROR 예외가 난다")
     void logout_ClientAuthFailure_Throws() {
       given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(Void.class)))
         .willThrow(HttpClientErrorException.create(HttpStatus.UNAUTHORIZED, "unauthorized_client", HttpHeaders.EMPTY, null, null));
@@ -497,7 +497,7 @@ class KeycloakServiceImplTest {
     }
 
     @Test
-    @DisplayName("구글 로그인 토큰은 public client 로 secret 없이 세션을 끊는다")
+    @DisplayName("구글 로그인 토큰은 public client 로 secret 없이 세션을 종료한다")
     void logout_PublicClientToken_UsesPublicClient() {
       given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(Void.class)))
         .willReturn(ResponseEntity.noContent().build());

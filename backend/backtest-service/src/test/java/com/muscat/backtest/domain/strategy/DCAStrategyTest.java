@@ -471,7 +471,7 @@ class DCAStrategyTest {
   class FeeTests {
 
     @Test
-    @DisplayName("매수마다 수수료를 떼고 남은 달러로 산다. 투자금은 그대로 둔다")
+    @DisplayName("매수마다 수수료를 차감하고 남은 달러로 산다. 투자금은 그대로 둔다")
     void execute_DeductsFeePerPurchase() {
       DcaStrategyRequest request = DcaStrategyRequest.builder()
         .userId(userId)

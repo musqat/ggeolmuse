@@ -52,7 +52,7 @@ class TradeRejectedEventProducerTest {
   }
 
   @Test
-  @DisplayName("브로커가 받지 못하면 이벤트 발행 실패로 올린다")
+  @DisplayName("브로커가 받지 못하면 이벤트 발행 실패 예외가 난다")
   void publish_SendFails_Throws() {
     given(template.send(anyString(), anyString(), any()))
       .willReturn(CompletableFuture.failedFuture(new RuntimeException("broker down")));
@@ -64,7 +64,7 @@ class TradeRejectedEventProducerTest {
   }
 
   @Test
-  @DisplayName("기다리는 중에 인터럽트되면 인터럽트 상태를 되살리고 이벤트 발행 실패로 올린다")
+  @DisplayName("기다리는 중에 인터럽트되면 인터럽트 상태를 되살리고 이벤트 발행 실패 예외가 난다")
   void publish_Interrupted_RestoresInterrupt() {
     given(template.send(anyString(), anyString(), any())).willReturn(interrupted());
 

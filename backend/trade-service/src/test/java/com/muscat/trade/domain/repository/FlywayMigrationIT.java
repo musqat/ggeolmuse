@@ -34,7 +34,7 @@ class FlywayMigrationIT {
   }
 
   @Test
-  @DisplayName("배당 몫 표로 옮긴 옛 dividends 표를 지운다")
+  @DisplayName("배당 몫 테이블로 옮긴 옛 dividends 테이블을 지운다")
   void migrate_DropsOldDividendsTable() throws Exception {
     migrate();
 
@@ -45,7 +45,7 @@ class FlywayMigrationIT {
   }
 
   @Test
-  @DisplayName("대기 매수 다시 보내기 · 지표 조회가 대기 행만 훑도록 부분 인덱스를 만든다")
+  @DisplayName("대기 매수 다시 보내기 · 지표 조회가 대기 행만 읽도록 부분 인덱스를 만든다")
   void migrate_AddsPendingBuyIndex() throws Exception {
     migrate();
 

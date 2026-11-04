@@ -673,7 +673,7 @@ class TradingServiceImplTest {
     }
 
     @Test
-    @DisplayName("슬리피지를 붙인 체결가와 수수료까지 넣어 센다")
+    @DisplayName("슬리피지를 더한 체결가와 수수료까지 넣어 센다")
     void calculateBuyingCapacity_SlippageAndFee_CountsTradeTotal() {
       // given
       given(tradeUtils.getAccountBalance(String.valueOf(TEST_ACCOUNT_ID)))
@@ -729,7 +729,7 @@ class TradingServiceImplTest {
         TEST_USER_ID, capacityRequest(PriceType.MANUAL, manualPrice));
 
       // then
-      // 슬리피지가 붙었으면 9.01 이라 9주
+      // 슬리피지가 더해졌으면 9.01 이라 9주
       assertThat(result.maxShares()).isEqualByComparingTo("10");
     }
 
@@ -900,7 +900,7 @@ class TradingServiceImplTest {
         TEST_USER_ID, capacityRequest(PriceType.MANUAL, manualPrice));
 
       // then
-      // 슬리피지가 붙었으면 8.99 라 89.90
+      // 슬리피지가 더해졌으면 8.99 라 89.90
       assertThat(result.totalValue()).isEqualByComparingTo("90.00");
     }
 

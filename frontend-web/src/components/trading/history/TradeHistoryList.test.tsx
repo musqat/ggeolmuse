@@ -42,7 +42,7 @@ describe('TradeHistoryList', () => {
     expect(headers).toEqual(['2026. 10. 08. (목)', '2026. 08. 14. (금)', '2025. 01. 02. (목)'])
   })
 
-  it('나간 돈은 -, 들어온 돈은 + 를 붙이고 배당 줄에도 계좌가 보인다', () => {
+  it('나간 돈은 -, 들어온 돈은 + 로 보이고 배당 줄에도 계좌가 보인다', () => {
     renderList()
 
     expect(screen.getByText('+$546.65')).toBeInTheDocument()
@@ -77,7 +77,7 @@ describe('TradeHistoryList', () => {
     expect(within(summary).getByText('취소 1건 제외')).toBeInTheDocument()
   })
 
-  it('정산 전 매수 줄에 정산 중을 붙이고, 요약에서는 취소와 같이 빼고 센다', () => {
+  it('정산 전 매수 줄에 정산 중을 표시하고, 요약에서는 취소와 같이 빼고 센다', () => {
     const pending = { type: 'BUY', tradeId: 4, accountId: 1, symbol: 'TSLA', quantity: 1, price: 250, totalAmount: 250.25, fee: 0.25, date: '2026-10-19', executedAt: '2026-10-19T10:00:00', status: 'PENDING' } as TransactionHistoryItem
     render(<TradeHistoryList transactions={[...items, pending]} accounts={accounts} onRefresh={vi.fn()} />)
 

@@ -63,7 +63,7 @@ class AdminJobStateTest {
   }
 
   @Test
-  @DisplayName("갱신이 오래 끊기면 진행 중이 아니고 다른 파드가 다시 시작한다")
+  @DisplayName("갱신이 오래 멈추면 진행 중이 아니고 다른 파드가 다시 시작한다")
   void staleHeartbeatReleases() {
     podA.tryStart(JOB);
     new JdbcTemplate(db).update("UPDATE admin_job_state SET heartbeat_at = ? WHERE name = ?",

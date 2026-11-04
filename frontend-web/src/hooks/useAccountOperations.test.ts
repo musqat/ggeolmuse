@@ -32,7 +32,7 @@ describe('useAccountOperations', () => {
     expect(notify.success).toHaveBeenCalledWith('입금이 완료되었습니다.')
   })
 
-  it('실패하면 실패 알림 뒤 다시 던진다', async () => {
+  it('실패하면 실패 알림 뒤 그 오류가 그대로 난다', async () => {
     vi.mocked(accountsApi.depositKrw).mockRejectedValue(new Error('down'))
     const { result } = renderHook(() => useAccountOperations(onSuccess))
 
@@ -62,7 +62,7 @@ describe('useAccountOperations', () => {
     expect(notify.success).toHaveBeenCalledWith(successText)
   })
 
-  it.each(cases)('%s: 실패하면 실패 알림 뒤 다시 던진다', async (_name, call, method, _success, failureText) => {
+  it.each(cases)('%s: 실패하면 실패 알림 뒤 그 오류가 그대로 난다', async (_name, call, method, _success, failureText) => {
     vi.mocked(accountsApi[method]).mockRejectedValue(new Error('down'))
     const { result } = renderHook(() => useAccountOperations(onSuccess))
 

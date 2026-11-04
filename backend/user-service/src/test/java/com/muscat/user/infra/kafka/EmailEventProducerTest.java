@@ -65,7 +65,7 @@ class EmailEventProducerTest {
   }
 
   @Test
-  @DisplayName("브로커가 받지 못해도 예외를 올리지 않는다")
+  @DisplayName("브로커가 받지 못해도 예외를 내지 않는다")
   void sendFails_DoesNotThrow() {
     given(template.send(anyString(), anyString(), any())).willReturn(failed());
 

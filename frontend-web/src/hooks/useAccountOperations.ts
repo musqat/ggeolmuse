@@ -39,7 +39,7 @@ export const useAccountOperations = (
 ): UseAccountOperationsReturn => {
   const [loading, setLoading] = useState(false);
 
-  // 로딩 → API → 다시 불러오기 → 성공 알림, 실패면 '{label}에 실패했습니다: …' 알림 뒤 다시 던짐
+  // 로딩 → API → 다시 불러오기 → 성공 알림, 실패면 '{label}에 실패했습니다: …' 알림 뒤 예외를 다시 냄
   const run = async (label: string, successMessage: string, call: () => Promise<unknown>) => {
     try {
       setLoading(true);

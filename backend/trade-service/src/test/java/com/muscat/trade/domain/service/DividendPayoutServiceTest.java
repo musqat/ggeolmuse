@@ -251,7 +251,7 @@ class DividendPayoutServiceTest {
   }
 
   @Test
-  @DisplayName("시세 서비스에서 배당을 못 받으면 트랜잭션을 열지 않고 몫도 건드리지 않은 채 오류를 올린다")
+  @DisplayName("시세 서비스에서 배당을 못 받으면 트랜잭션을 열지 않고 몫도 건드리지 않은 채 오류가 난다")
   void reconcile_DividendFetchFails_KeepsPayouts() {
     givenTrades(trade(1, TradeType.BUY, "10", LocalDate.of(2024, 1, 2)));
     given(marketServiceClientWrapper.getDividends(eq(SYMBOL), eq("2024-01-02"), anyString()))

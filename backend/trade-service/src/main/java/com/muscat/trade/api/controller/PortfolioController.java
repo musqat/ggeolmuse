@@ -34,7 +34,7 @@ public class PortfolioController {
 
   @Operation(
     summary = "전체 포트폴리오 조회",
-    description = "사용자의 모든 계좌에 대한 보유 종목을 조회합니다"
+    description = "사용자의 모든 계좌의 보유 종목을 조회합니다"
   )
   @ApiResponses(value = {
     @ApiResponse(

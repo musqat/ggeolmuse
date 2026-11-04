@@ -42,7 +42,7 @@ class TradeRejectedEventConsumerTest {
   }
 
   @Test
-  @DisplayName("취소가 실패하면 커밋하지 않고 예외를 던진다")
+  @DisplayName("취소가 실패하면 커밋하지 않고 예외가 난다")
   void handleTradeRejected_CancelFails_NoAck() {
     willThrow(new IllegalStateException("db down")).given(tradeCancellationService).cancel(any());
 

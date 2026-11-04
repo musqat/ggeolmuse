@@ -8,7 +8,7 @@ export interface TestSymbol {
   name: string;
 }
 
-/** 시세가 붙은 종목 모으기(symbols 는 티커만 줘서 stocks 사용) */
+/** 시세가 있는 종목 모으기(symbols 는 티커만 줘서 stocks 사용) */
 export async function pickPricedSymbols(
   api: APIRequestContext,
   count: number,

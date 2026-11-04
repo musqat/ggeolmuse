@@ -73,7 +73,7 @@ class YahooFinanceClientTest {
   }
 
   @Test
-  @DisplayName("뉴욕 시각 기준 기간과 배당 · 분할 이벤트를 붙여 부르고 본문을 그대로 돌려준다")
+  @DisplayName("뉴욕 시각 기준 기간과 배당 · 분할 이벤트를 넣어 호출하고 본문을 그대로 돌려준다")
   void plainJson() {
     server.expect(once(), requestTo(URL)).andExpect(header(HttpHeaders.USER_AGENT, "test-agent"))
       .andRespond(withSuccess(JSON, MediaType.APPLICATION_JSON));

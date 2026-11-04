@@ -146,7 +146,7 @@ describe('AuthProvider 로그인', () => {
     expect(result.current.user).toEqual(USER)
   })
 
-  it.each([401, 500])('%i 이면 다시 보내지 않고 던지며 토큰을 지운다', async (status) => {
+  it.each([401, 500])('%i 이면 다시 보내지 않고 예외가 나며 토큰을 지운다', async (status) => {
     api.login.mockRejectedValue(httpError(status))
     const { result } = await renderAuth()
 

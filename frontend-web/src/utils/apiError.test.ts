@@ -49,7 +49,7 @@ describe('getApiErrorMessage', () => {
     expect(getApiErrorMessage(new Error('JSON 파싱 실패'), '기본값')).toBe('JSON 파싱 실패')
   })
 
-  it('Error 도 아닌 값이 던져지면 기본값을 쓴다', () => {
+  it('Error 가 아닌 값으로 실패하면 기본값을 쓴다', () => {
     // catch 는 무엇이든 잡음(문자열이나 undefined 도)
     expect(getApiErrorMessage('그냥 문자열', '기본값')).toBe('기본값')
     expect(getApiErrorMessage(undefined, '기본값')).toBe('기본값')

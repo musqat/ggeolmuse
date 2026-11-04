@@ -94,7 +94,7 @@ class ClientWrapperRetryTest {
   }
 
   @Test
-  @DisplayName("날짜 시세가 세 번 다 5xx 면 시장 데이터 오류 코드로 올린다")
+  @DisplayName("날짜 시세가 세 번 다 5xx 면 시장 데이터 오류 코드로 예외가 난다")
   void ohlcPrice_ServerErrorEveryTime_MarketDataError() {
     FeignException last = serverError();
     given(marketClient.getOHLCPrice("AAPL", "2024-09-16")).willThrow(serverError(), serverError(), last);
@@ -107,7 +107,7 @@ class ClientWrapperRetryTest {
   }
 
   @Test
-  @DisplayName("배당 목록이 세 번 다 5xx 면 빈 목록이 아니라 시장 데이터 오류 코드로 올린다")
+  @DisplayName("배당 목록이 세 번 다 5xx 면 빈 목록이 아니라 시장 데이터 오류 코드로 예외가 난다")
   void dividends_ServerErrorEveryTime_MarketDataError() {
     FeignException last = serverError();
     given(marketClient.getDividends("AAPL", "2024-01-01", "2024-12-31")).willThrow(serverError(), serverError(), last);

@@ -129,7 +129,7 @@ class ConditionalPurchaseStrategyTest {
   class FeeTests {
 
     @Test
-    @DisplayName("매수마다 수수료를 떼고 남은 달러로 산다")
+    @DisplayName("매수마다 수수료를 차감하고 남은 달러로 산다")
     void execute_DeductsFee() {
       ConditionalStrategyRequest request = ConditionalStrategyRequest.builder()
         .userId("test-user")

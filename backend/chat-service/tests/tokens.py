@@ -1,4 +1,4 @@
-"""시험용 RSA 키와 Keycloak 꼴 토큰"""
+"""테스트용 RSA 키와 Keycloak 형식 토큰"""
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from jose import jwk, jwt

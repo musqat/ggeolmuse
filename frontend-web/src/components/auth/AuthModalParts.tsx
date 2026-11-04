@@ -13,7 +13,7 @@ interface AuthModalFrameProps {
   children: React.ReactNode;
 }
 
-// 로그인 · 가입 창의 틀(화면을 덮는 바탕 · 제목 · 닫기 버튼)
+// 로그인 · 가입 창의 공통 레이아웃(화면을 덮는 배경 · 제목 · 닫기 버튼)
 export const AuthModalFrame: React.FC<AuthModalFrameProps> = ({ title, onClose, children }) =>
   ReactDOM.createPortal(
     <div style={{ position: 'fixed', inset: 0, zIndex: LAYER.modal, backgroundColor: 'rgba(0,0,0,0.5)', overflowY: 'auto' }}>

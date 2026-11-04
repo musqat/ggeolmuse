@@ -14,7 +14,7 @@ describe('StatCard', () => {
     expect(screen.getByText('주식: ₩1,400,000')).toBeInTheDocument()
   })
 
-  it('값에 붙인 색 클래스를 그대로 쓴다', () => {
+  it('값에 준 색 클래스를 그대로 쓴다', () => {
     render(<StatCard label="총 수익" value="+₩10" valueClassName="text-green-600" icon={DollarSign} />)
 
     expect(screen.getByText('+₩10')).toHaveClass('text-green-600')
@@ -27,7 +27,7 @@ describe('StatCard', () => {
   })
 })
 
-describe('StatCard 아이콘 틀', () => {
+describe('StatCard 아이콘 스타일', () => {
   it('아이콘 배경과 색을 바꿀 수 있다', () => {
     const { container } = render(
       <StatCard

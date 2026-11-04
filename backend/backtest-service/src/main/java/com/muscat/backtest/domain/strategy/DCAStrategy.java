@@ -179,7 +179,7 @@ public class DCAStrategy implements InvestmentStrategy {
         ? request.getPurchaseFxRate() : fxRateMap.get(priceData.date());
 
       try {
-        // 매수 실행(수수료를 떼고 남은 달러로)
+        // 매수 실행(수수료를 차감하고 남은 달러로)
         BigDecimal fee = BacktestCalculationUtils.calculatePurchaseFee(
           request.getMonthlyAmount(), purchaseFxRate, request.getTradingFeeRate());
         BigDecimal shares = BacktestCalculationUtils.calculateSharesAfterFee(

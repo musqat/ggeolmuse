@@ -4,8 +4,8 @@ Prometheus · Grafana · AlertManager · Loki · Tempo. 자바 서비스에는 O
 Java Agent 가 주입돼 있다.
 
 **배포 경로가 ggeolmuse 차트와 다르다.** 운영 k3s 에서 ArgoCD 는 `helm/ggeolmuse` 만 동기화하고
-이 스택은 손으로 올린다.
-멀티 노드 k8s 에서는 ArgoCD 의 `prometheus` · `loki` · `tempo` Application 을 Sync 해서 올리고 [`k8s/monitoring`](../../k8s/monitoring) 의 `*-values-k8s.yaml` 을
+이 스택은 손으로 설치한다.
+멀티 노드 k8s 에서는 ArgoCD 의 `prometheus` · `loki` · `tempo` Application 을 Sync 해서 설치하고 [`k8s/monitoring`](../../k8s/monitoring) 의 `*-values-k8s.yaml` 을
 덧붙인다(저장 클래스 gp3 · 컨트롤 플레인 지표).
 
 <br>
@@ -23,7 +23,7 @@ Java Agent 가 주입돼 있다.
 Prometheus 와 AlertManager 는 자체 인증이 없다. AlertManager 는 UI 에서 알림을 끌 수
 있어 더 그렇다. 로컬은 `.localhost` 라 밖에서 닿지 않으므로 그대로 둔다.
 
-운영에서 볼 일이 있으면 port-forward 로 붙는다.
+운영에서 볼 일이 있으면 port-forward 로 접속한다.
 
 ```bash
 kubectl -n monitoring port-forward svc/prometheus-kube-prometheus-prometheus 9090
@@ -50,9 +50,9 @@ helm -n monitoring upgrade prometheus prometheus-community/kube-prometheus-stack
   -f prometheus-values-prod.yaml
 ```
 
-`-f` 를 빼면 릴리스에 저장된 옛 값이 다시 올라간다. 저장된 값은
+`-f` 를 빼면 릴리스에 저장된 옛 값이 다시 적용된다. 저장된 값은
 `helm -n monitoring get values prometheus` 로 본다. 파일과 다르면 그 파일로 한 번 더
-올려야 맞춰진다.
+upgrade 하면 맞춰진다.
 
 `prometheusSpec.ruleSelector` 는 `{}` 여야 한다. 레이블을 걸면 차트가 함께 설치한
 PrometheusRule 35개가 걸러진다. `serviceMonitorSelector` 와
@@ -68,10 +68,10 @@ kubectl -n monitoring get prometheus -o jsonpath='{.items[*].spec.ruleSelector}{
 <br>
 
 **레코딩 룰** — `node_namespace_pod_container:container_cpu_usage_seconds_total:sum_irate`
-같은 것들. 그라파나의 CPU 패널이 통째로 `No data` 가 된다. 메모리 패널은 원본 메트릭을
-직접 쓰기 때문에 대시보드가 반만 죽은 채로 보인다.
+같은 것들. 그라파나의 CPU 패널이 전부 `No data` 가 된다. 메모리 패널은 원본 메트릭을
+직접 써서 대시보드의 절반만 값이 나온다.
 
-**차트 내장 알림** — KubePodCrashLooping, KubeNodeNotReady 등. 우리 규칙에 없는
+**차트 내장 알림** — KubePodCrashLooping, KubeNodeNotReady 등. 프로젝트 규칙에 없는
 파드·노드 수준을 이쪽이 맡는다.
 
 원본 메트릭과 가공된 메트릭 중 어느 쪽이 없는지로 가른다.
@@ -147,7 +147,7 @@ user-service 가 처리한 체결을 `trade_settlements` 에 남겨 다시 넣�
 
 **아침 기동 확인** — 평일 07:20 에 CronJob `morning-check`(`helm/ggeolmuse/templates/monitoring/morning-check.yaml`)가
 디플로이먼트 Ready, 공개 주소의 시세 한 번(`/api/market/price/AAPL`), Alertmanager 의 Watchdog 을 보고 같은 웹훅으로
-슬랙에 보낸다. 다 괜찮으면 `:white_check_mark: up` 한 줄, 아니면 해당하는 것만 붙인다(`down: <디플로이먼트>` ·
+슬랙에 보낸다. 다 괜찮으면 `:white_check_mark: up` 한 줄, 아니면 해당하는 것만 적는다(`down: <디플로이먼트>` ·
 `시세 <코드>` · `Prometheus 응답 없음` · `Alertmanager 에 Watchdog 없음`). 아침에 이 한 줄이 없으면 예약 기동 · 앱 ·
 바깥 경로 · 슬랙 중 어딘가가 멈춘 것이다. 수동 실행과 정리:
 
@@ -194,14 +194,14 @@ kubectl -n monitoring delete pod loki-0
 
 ## 트레이싱
 
-`global.otel.enabled: true` 면 자바 서비스에 Agent 가 붙는다. Agent 는 ConfigMap `ggeolmuse-otel-agent` 의 설정 파일을 읽고,
+`global.otel.enabled: true` 면 자바 서비스가 Agent 와 함께 뜬다. Agent 는 ConfigMap `ggeolmuse-otel-agent` 의 설정 파일을 읽고,
 그 파일이 아래 환경변수를 치환해 쓴다. 프로브 · 지표 수집 요청(`/actuator`)은 트레이스로 남기지 않는다.
 
 | 변수 | 값 |
 |---|---|
 | OTEL_EXPORTER_OTLP_ENDPOINT | Tempo 주소 |
 | OTEL_SERVICE_NAME | 서비스별 자동 |
-| OTEL_RESOURCE_ATTRIBUTES | 환경 · 이미지 판 |
+| OTEL_RESOURCE_ATTRIBUTES | 환경 · 이미지 버전 |
 | OTEL_TRACES_SAMPLER_ARG | 샘플링 비율(부모 따름, 기본 1.0) |
 
 트레이스는 Tempo 로 가고 Grafana 에서 조회한다. 노드 디스크(local-path 5Gi)에 3일 둔다. Tempo 는 트레이스에서

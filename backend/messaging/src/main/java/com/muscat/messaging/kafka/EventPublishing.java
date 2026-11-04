@@ -16,7 +16,7 @@ import org.springframework.kafka.support.SendResult;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-// 이벤트 머리 채우기와 Kafka 전송 세 가지(기다리지 않음 · 커밋 뒤 · 확인까지 기다림)
+// 이벤트 헤더 채우기와 Kafka 전송 세 가지(기다리지 않음 · 커밋 뒤 · 확인까지 기다림)
 @Slf4j
 public final class EventPublishing {
 

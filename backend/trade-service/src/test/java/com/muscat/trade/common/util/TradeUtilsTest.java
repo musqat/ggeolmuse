@@ -104,7 +104,7 @@ class TradeUtilsTest {
     }
 
     @Test
-    @DisplayName("대체 동작이 이미 오류 코드를 붙여 올리면 다시 감싸지 않고 그대로 올린다")
+    @DisplayName("대체 동작에서 오류 코드가 담긴 예외가 나면 다시 감싸지 않고 그 예외가 그대로 난다")
     void codedError_PassedThrough() {
       TradeException coded = new TradeException(TradeResponse.USER_SERVICE_ERROR, new RuntimeException("down"));
       given(userServiceClientWrapper.getAccountBalance(20L)).willThrow(coded);

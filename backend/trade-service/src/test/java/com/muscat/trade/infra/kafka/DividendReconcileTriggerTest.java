@@ -81,7 +81,7 @@ class DividendReconcileTriggerTest {
   }
 
   @Test
-  @DisplayName("요청을 못 보내도 오류를 올리지 않는다")
+  @DisplayName("요청을 못 보내도 예외를 내지 않는다")
   void requestFails_Swallowed() {
     willThrow(new TradeException(TradeResponse.EVENT_PUBLISH_FAILED)).given(producer).request("user-1", 20L, "AAPL");
     trigger.onTradeSaved(new TradeSavedEvent(trade()));
@@ -90,7 +90,7 @@ class DividendReconcileTriggerTest {
   }
 
   @Test
-  @DisplayName("실행기가 받지 못해도 체결 처리 쪽으로 오류를 올리지 않는다")
+  @DisplayName("실행기가 받지 못해도 체결 처리 쪽에 예외를 내지 않는다")
   void executorRejects_Swallowed() {
     DividendReconcileTrigger full = new DividendReconcileTrigger(producer, task -> {
       throw new RejectedExecutionException("full");

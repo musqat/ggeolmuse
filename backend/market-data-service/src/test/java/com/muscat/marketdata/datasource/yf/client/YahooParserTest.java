@@ -160,7 +160,7 @@ class YahooParserTest {
     }
 
     @Test
-    @DisplayName("timestamp 가 null 인 건은 통째로 건너뛴다")
+    @DisplayName("timestamp 가 null 인 건은 그 건 전체를 건너뛴다")
     void timestamp_null_스킵() {
       String json = """
         {
@@ -542,7 +542,7 @@ class YahooParserTest {
     }
 
     @Test
-    @DisplayName("chart.result 가 비면 null (여기선 예외를 던지지 않는다)")
+    @DisplayName("chart.result 가 비면 null (여기선 예외를 내지 않는다)")
     void result_없음() {
       assertThat(parser.parseAssetInfoFromChart("{ \"chart\": { \"result\": [] } }", SYMBOL))
         .isNull();

@@ -41,7 +41,7 @@ class TradeSettledEventConsumerTest {
   }
 
   @Test
-  @DisplayName("완료가 실패하면 커밋하지 않고 예외를 던진다")
+  @DisplayName("완료가 실패하면 커밋하지 않고 예외가 난다")
   void handleTradeSettled_ConfirmFails_NoAck() {
     willThrow(new IllegalStateException("db down")).given(tradeConfirmationService).confirm(any());
 

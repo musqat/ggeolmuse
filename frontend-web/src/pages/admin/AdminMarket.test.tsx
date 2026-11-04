@@ -49,7 +49,7 @@ describe('AdminMarket', () => {
     expect(screen.getByRole('list', { name: '전체 목록' })).toHaveTextContent('AAPLMSFT')
   })
 
-  it('검색 중이면 검색 결과와 그 수를 보이고, 없으면 추가 안내를 붙인다', () => {
+  it('검색 중이면 검색 결과와 그 수를 보이고, 없으면 추가 안내를 보인다', () => {
     vi.mocked(useAdminMarket).mockReturnValue(
       market({ searchActive: true, searchKeyword: 'zzz', searchResults: [] })
     )
