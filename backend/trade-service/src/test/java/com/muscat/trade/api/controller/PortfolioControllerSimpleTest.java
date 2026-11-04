@@ -109,30 +109,14 @@ class PortfolioControllerSimpleTest {
   }
 
   @Test
-  @DisplayName("포트폴리오 요약 조회")
-  void getPortfolioSummary_ReturnsSummary() {
-    // Given
-    PortfolioSummary summary = PortfolioSummary.builder()
-      .totalInvestedAmount(new BigDecimal("10000.00"))
-      .totalCurrentValue(new BigDecimal("11000.00"))
-      .totalUnrealizedPnL(new BigDecimal("1000.00"))
-      .totalReturnRate(new BigDecimal("10.00"))
-      .holdingCount(5)
-      .build();
+  @DisplayName("요약 GET 은 현재가 없이 사용자만 넘긴다")
+  void getPortfolioSummary_Get_UsesServerPrices() {
+    PortfolioSummary summary = PortfolioSummary.builder().holdingCount(2).build();
+    when(holdingsService.getPortfolioSummary("test-user-123")).thenReturn(summary);
 
-    when(holdingsService.getPortfolioSummary(eq("test-user-123"), isNull()))
-      .thenReturn(summary);
+    ResponseEntity<PortfolioSummary> response = portfolioController.getPortfolioSummary(mockJwt);
 
-    // When
-    ResponseEntity<PortfolioSummary> response = portfolioController.getPortfolioSummary(mockJwt,
-      null);
-
-    // Then
-    assertThat(response.getStatusCode().value()).isEqualTo(200);
-    assertThat(response.getBody()).isNotNull();
-    assertThat(response.getBody().getTotalInvestedAmount()).isEqualByComparingTo(
-      new BigDecimal("10000.00"));
-    assertThat(response.getBody().getHoldingCount()).isEqualTo(5);
+    assertThat(response.getBody()).isSameAs(summary);
   }
 
   @Test

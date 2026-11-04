@@ -46,28 +46,7 @@ public class HoldingsServiceImpl implements HoldingsService {
     tradeLogger.logPortfolioAccess(userId, logType, accountId != null ? accountId.toString() : null,
       holdings.size());
 
-    // 보유 종목의 현재가를 한 번에(시세 서비스가 안 되면 대체 동작의 빈 맵 → 현재가 없이 반환)
-    List<String> symbols = holdings.stream()
-      .map(Holdings::getSymbol)
-      .distinct()
-      .toList();
-
-    Map<String, BigDecimal> currentPrices = new HashMap<>();
-    if (!symbols.isEmpty()) {
-      try {
-        Map<String, StockPriceDto> prices = marketServiceClientWrapper.getCurrentPrices(symbols);
-        if (prices != null) {
-          prices.forEach((symbol, priceDto) -> {
-            if (priceDto != null && priceDto.currentPrice() != null) {
-              currentPrices.put(symbol, priceDto.currentPrice());
-            }
-          });
-        }
-      } catch (Exception e) {
-        log.warn("현재가 일괄 조회 실패: symbols={}, error={}", symbols, e.getMessage());
-      }
-    }
-    log.debug("현재가 조회 완료: totalSymbols={}, successCount={}", symbols.size(), currentPrices.size());
+    Map<String, BigDecimal> currentPrices = currentPricesOf(holdings);
 
     Map<TradePosition, BigDecimal> dividends = holdings.isEmpty()
       ? Map.of()
@@ -104,12 +83,40 @@ public class HoldingsServiceImpl implements HoldingsService {
 
 
   @Override
-  @Transactional(readOnly = true)
-  public PortfolioSummary getPortfolioSummary(String userId,
+  public PortfolioSummary getPortfolioSummary(String userId) {
+    List<Holdings> portfolio = holdingsRepository.findByUserId(userId);
+    return summarize(userId, portfolio, currentPricesOf(portfolio));
+  }
+
+  // 보유 종목의 현재가를 한 번에(시세 서비스가 안 되면 대체 동작의 빈 맵 → 현재가 없이)
+  private Map<String, BigDecimal> currentPricesOf(List<Holdings> holdings) {
+    List<String> symbols = holdings.stream()
+      .map(Holdings::getSymbol)
+      .distinct()
+      .toList();
+
+    Map<String, BigDecimal> currentPrices = new HashMap<>();
+    if (!symbols.isEmpty()) {
+      try {
+        Map<String, StockPriceDto> prices = marketServiceClientWrapper.getCurrentPrices(symbols);
+        if (prices != null) {
+          prices.forEach((symbol, priceDto) -> {
+            if (priceDto != null && priceDto.currentPrice() != null) {
+              currentPrices.put(symbol, priceDto.currentPrice());
+            }
+          });
+        }
+      } catch (Exception e) {
+        log.warn("현재가 일괄 조회 실패: symbols={}, error={}", symbols, e.getMessage());
+      }
+    }
+    log.debug("현재가 조회 완료: totalSymbols={}, successCount={}", symbols.size(), currentPrices.size());
+    return currentPrices;
+  }
+
+  private PortfolioSummary summarize(String userId, List<Holdings> portfolio,
     Map<String, BigDecimal> currentPrices) {
     log.debug("포트폴리오 종합 정보 계산: userId={}", userId);
-
-    List<Holdings> portfolio = holdingsRepository.findByUserId(userId);
 
     var summaryProjection = holdingsRepository.calculatePortfolioSummary(userId);
     BigDecimal totalInvested =

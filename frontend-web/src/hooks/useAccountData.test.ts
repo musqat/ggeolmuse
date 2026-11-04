@@ -51,9 +51,18 @@ describe('useAccountData 총자산', () => {
     expect(accountsApi.getCurrentExchangeRate).not.toHaveBeenCalled()
   })
 
-  it('포트폴리오를 못 받으면 현금만 더한다', async () => {
+  it('주식 평가액은 보유 현재가를 되돌려 보내지 않고 서버가 계산한 요약 하나로 받는다', async () => {
+    const { result } = renderHook(() => useAccountData(true), { wrapper })
+
+    await waitFor(() => expect(result.current.totalAssets).toBe(1_905_000))
+    expect(portfolioApi.getPortfolio).not.toHaveBeenCalled()
+    expect(portfolioApi.getPortfolioSummary).toHaveBeenCalledTimes(1)
+    expect(portfolioApi.getPortfolioSummary).toHaveBeenCalledWith()
+  })
+
+  it('포트폴리오 요약을 못 받으면 현금만 더한다', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {})
-    vi.mocked(portfolioApi.getPortfolio).mockRejectedValue(new Error('down'))
+    vi.mocked(portfolioApi.getPortfolioSummary).mockRejectedValue(new Error('down'))
 
     const { result } = renderHook(() => useAccountData(true), { wrapper })
 

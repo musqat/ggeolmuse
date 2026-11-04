@@ -18,23 +18,10 @@ export const usePortfolioData = (accountId: string | null, enabled: boolean) => 
   });
   const holdings = holdingsQuery.data ?? NO_HOLDINGS;
 
-  // 보유 종목의 현재가로 받는 종합 정보(현재가가 하나도 없으면 null)
+  // 서버가 받은 현재가로 계산한 종합 정보(보유가 있을 때만)
   const summaryQuery = useQuery({
-    queryKey: ['portfolio', 'summary', holdings],
-    queryFn: async () => {
-      const currentPrices: { [symbol: string]: number } = {};
-      holdings.forEach((holding) => {
-        if (holding.currentPrice && holding.currentPrice > 0) {
-          currentPrices[holding.symbol] = holding.currentPrice;
-        }
-      });
-
-      if (Object.keys(currentPrices).length === 0) {
-        return null;
-      }
-
-      return (await portfolioApi.getPortfolioSummary(currentPrices)).data;
-    },
+    queryKey: ['portfolio', 'summary'],
+    queryFn: async () => (await portfolioApi.getPortfolioSummary()).data,
     enabled: ready && holdings.length > 0,
     staleTime: STALE_TIME,
   });

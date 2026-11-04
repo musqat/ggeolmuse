@@ -75,26 +75,10 @@ export const useAccountData = (isAuthenticated: boolean): UseAccountDataReturn =
       // 원화 환산 환율은 잔액 응답의 현재 환율
       const exchangeRate = balanceResults[0]?.balance.currentExchangeRate ?? 0;
 
-      // 포트폴리오 전체(총자산 계산용, 실패해도 계속)
+      // 서버가 받은 현재가로 계산한 포트폴리오 요약(총자산 계산용, 실패해도 계속)
       let portfolioSummary: PortfolioSummaryResponse | null = null;
       try {
-        const portfolioResponse = await portfolioApi.getPortfolio();
-        const holdings = portfolioResponse.data;
-
-        // holdings가 있으면 포트폴리오 종합 정보도 가져오기
-        if (holdings && holdings.length > 0) {
-          // holdings에서 currentPrice 추출
-          const currentPrices: { [symbol: string]: number } = {};
-          holdings.forEach(holding => {
-            if (holding.currentPrice && holding.currentPrice > 0) {
-              currentPrices[holding.symbol] = holding.currentPrice;
-            }
-          });
-
-          // 포트폴리오 종합 정보 조회 (실제 현재가 기반)
-          const summaryResponse = await portfolioApi.getPortfolioSummary(currentPrices);
-          portfolioSummary = summaryResponse.data;
-        }
+        portfolioSummary = (await portfolioApi.getPortfolioSummary()).data;
       } catch (err) {
         // 포트폴리오는 선택적이므로 에러가 나도 계속 진행
         console.warn('포트폴리오 조회 실패:', err);

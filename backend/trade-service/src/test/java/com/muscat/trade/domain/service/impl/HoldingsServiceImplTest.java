@@ -21,7 +21,6 @@ import com.muscat.trade.domain.repository.PortfolioSummaryProjection;
 import com.muscat.trade.domain.service.DividendPayoutService;
 import com.muscat.trade.infra.client.MarketServiceClientWrapper;
 import java.math.BigDecimal;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -59,7 +58,6 @@ class HoldingsServiceImplTest {
   private static final BigDecimal TEST_CURRENT_PRICE = new BigDecimal("160.00");
 
   private Holdings testHolding;
-  private Map<String, BigDecimal> testCurrentPrices;
 
   @BeforeEach
   void setUp() {
@@ -72,9 +70,6 @@ class HoldingsServiceImplTest {
       .avgPurchasePrice(TEST_AVG_PRICE)
       .totalInvestedAmount(TEST_QUANTITY.multiply(TEST_AVG_PRICE))
       .build();
-
-    testCurrentPrices = new HashMap<>();
-    testCurrentPrices.put(TEST_SYMBOL, TEST_CURRENT_PRICE);
   }
 
   @Nested
@@ -268,6 +263,11 @@ class HoldingsServiceImplTest {
     }
   }
 
+  private static StockPriceDto currentPrice(BigDecimal price) {
+    return new StockPriceDto(TEST_SYMBOL, null, price, null, null, null,
+      null, null, null, null, null, null, null, null, "USD", true, null, null);
+  }
+
   @Nested
   @DisplayName("포트폴리오 요약 조회 테스트")
   class GetPortfolioSummaryTests {
@@ -286,10 +286,11 @@ class HoldingsServiceImplTest {
         );
       given(holdingsRepository.calculatePortfolioSummary(TEST_USER_ID))
         .willReturn(projection);
+      given(marketServiceClientWrapper.getCurrentPrices(List.of(TEST_SYMBOL)))
+        .willReturn(Map.of(TEST_SYMBOL, currentPrice(TEST_CURRENT_PRICE)));
 
       // when
-      PortfolioSummary result = holdingsService.getPortfolioSummary(
-        TEST_USER_ID, testCurrentPrices);
+      PortfolioSummary result = holdingsService.getPortfolioSummary(TEST_USER_ID);
 
       // then
       assertThat(result).isNotNull();
@@ -326,15 +327,45 @@ class HoldingsServiceImplTest {
         .willReturn(projection);
 
       // 현재가 정보 없음
-      Map<String, BigDecimal> emptyPrices = new HashMap<>();
+      given(marketServiceClientWrapper.getCurrentPrices(List.of(TEST_SYMBOL))).willReturn(Map.of());
 
       // when
-      PortfolioSummary result = holdingsService.getPortfolioSummary(TEST_USER_ID, emptyPrices);
+      PortfolioSummary result = holdingsService.getPortfolioSummary(TEST_USER_ID);
 
       // then
       assertThat(result.getTotalCurrentValue()).isEqualByComparingTo(BigDecimal.ZERO);
       assertThat(result.getTotalUnrealizedPnL())
         .isEqualByComparingTo(BigDecimal.ZERO.subtract(TEST_QUANTITY.multiply(TEST_AVG_PRICE)));
+    }
+
+    @Test
+    @DisplayName("현재가를 받지 않으면 보유 조회와 같은 시세 조회로 현재가를 받아 요약한다")
+    void getPortfolioSummary_ServerPrices() {
+      given(holdingsRepository.findByUserId(TEST_USER_ID)).willReturn(List.of(testHolding));
+      given(holdingsRepository.calculatePortfolioSummary(TEST_USER_ID))
+        .willReturn(new PortfolioSummaryProjection(TEST_QUANTITY.multiply(TEST_AVG_PRICE), 1));
+      given(marketServiceClientWrapper.getCurrentPrices(List.of(TEST_SYMBOL)))
+        .willReturn(Map.of(TEST_SYMBOL, currentPrice(TEST_CURRENT_PRICE)));
+
+      PortfolioSummary result = holdingsService.getPortfolioSummary(TEST_USER_ID);
+
+      assertThat(result.getTotalCurrentValue()).isEqualByComparingTo(TEST_QUANTITY.multiply(TEST_CURRENT_PRICE));
+      assertThat(result.getHoldings()).extracting(HoldingResponseDto::currentPrice).containsExactly(TEST_CURRENT_PRICE);
+    }
+
+    @Test
+    @DisplayName("시세 조회가 실패하면 현재가 없이 요약한다")
+    void getPortfolioSummary_ServerPricesFail_SummarizesWithoutPrices() {
+      given(holdingsRepository.findByUserId(TEST_USER_ID)).willReturn(List.of(testHolding));
+      given(holdingsRepository.calculatePortfolioSummary(TEST_USER_ID))
+        .willReturn(new PortfolioSummaryProjection(TEST_QUANTITY.multiply(TEST_AVG_PRICE), 1));
+      given(marketServiceClientWrapper.getCurrentPrices(List.of(TEST_SYMBOL)))
+        .willThrow(new RuntimeException("Market service unavailable"));
+
+      PortfolioSummary result = holdingsService.getPortfolioSummary(TEST_USER_ID);
+
+      assertThat(result.getTotalCurrentValue()).isEqualByComparingTo(BigDecimal.ZERO);
+      assertThat(result.getHoldingCount()).isEqualTo(1);
     }
   }
 }
