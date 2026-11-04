@@ -6,7 +6,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -147,7 +146,6 @@ class MarketDataServiceImplTest {
       given(marketServiceClientWrapper.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
         .willReturn(ohlc(true));
 
-      // switch default 의 IllegalArgumentException 도 catch 에서 TradeException 으로
       assertThatThrownBy(
         () -> marketDataService.getOHLCPrice(SYMBOL, TRADE_DATE, PriceType.MANUAL))
         .isInstanceOf(TradeException.class);
@@ -187,9 +185,7 @@ class MarketDataServiceImplTest {
         () -> marketDataService.getOHLCPrice(SYMBOL, TRADE_DATE, PriceType.CLOSE))
         .isInstanceOf(TradeException.class);
 
-      // 내부 분기와 catch 에서 각각 남겨 같은 실패가 두 번 기록
-      verify(tradeLogger, atLeastOnce())
-        .logMarketDataRequest(eq(SYMBOL), eq("CLOSE"), eq(false), any());
+      verify(tradeLogger).logMarketDataRequest(eq(SYMBOL), eq("CLOSE"), eq(false), any());
       verify(tradeLogger, never()).logMarketDataRequest(anyString(), anyString(), eq(true), any());
     }
   }

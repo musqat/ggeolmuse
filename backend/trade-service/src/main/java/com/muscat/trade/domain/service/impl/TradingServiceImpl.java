@@ -275,6 +275,9 @@ public class TradingServiceImpl implements TradingService {
   // 잔액 안에 드는 가장 큰 수량(체결 때와 같은 총액 수량 × 체결가 + 수수료로 이분 탐색)
   private BigDecimal maxAffordableShares(BigDecimal balanceUsd, BigDecimal tradePrice,
     AccountBalanceDto accountBalance) {
+    if (tradePrice.signum() <= 0) {
+      return BigDecimal.ZERO;
+    }
     long low = 0;
     long high = balanceUsd.divide(tradePrice, 0, RoundingMode.DOWN).longValueExact();
     while (low < high) {
