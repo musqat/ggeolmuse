@@ -83,11 +83,10 @@ class InternalMarketControllerTest {
   }
 
   @Test
-  @DisplayName("날짜 시세 · 기간 시세 · 배당 포함 캔들은 토큰 없이 종목과 날짜를 넘겨 받는다")
+  @DisplayName("날짜 시세 · 기간 시세는 토큰 없이 종목과 날짜를 넘겨 받는다")
   void candles() throws Exception {
     given(candleService.getOHLCPrice("AAPL", START)).willReturn(candle(START, "185.6"));
     given(candleService.getOHLCPriceRange("AAPL", START, END)).willReturn(List.of(candle(START, "185.6"), candle(END, "171.5")));
-    given(candleService.getCandlesWithDividends("AAPL", START, END)).willReturn(List.of(candle(END, "171.5")));
 
     mockMvc.perform(get(BASE + "/ohlc/AAPL").param("date", "2024-01-01"))
       .andExpect(status().isOk())
@@ -95,9 +94,6 @@ class InternalMarketControllerTest {
     mockMvc.perform(get(BASE + "/ohlc/AAPL/range").param("startDate", "2024-01-01").param("endDate", "2024-03-31"))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$[1].date").value("2024-03-31"));
-    mockMvc.perform(get(BASE + "/ohlc/AAPL/with-dividends").param("startDate", "2024-01-01").param("endDate", "2024-03-31"))
-      .andExpect(status().isOk())
-      .andExpect(jsonPath("$[0].closePrice").value(171.5));
   }
 
   @Test

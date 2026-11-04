@@ -245,15 +245,6 @@ class MarketRepositoryQueryTest {
     }
 
     @Test
-    @DisplayName("배당 포함 캔들은 배당이 0 보다 큰 날만 준다")
-    void withDividends() {
-      candle("AAPL", D1, "0");
-      candle("AAPL", D2, "0.24");
-
-      assertThat(candleRepository.findCandlesWithDividends("AAPL", D1, D3)).extracting(Candle::getDate).containsExactly(D2);
-    }
-
-    @Test
     @DisplayName("최신 캔들 · 어떤 날 이전의 최신 캔들")
     void latestAndRecent() {
       candle("AAPL", D1, "0");

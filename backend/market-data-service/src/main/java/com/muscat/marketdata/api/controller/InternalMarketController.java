@@ -70,18 +70,6 @@ public class InternalMarketController {
     return ResponseEntity.status(HttpStatus.OK).body(result);
   }
 
-  @GetMapping("/ohlc/{symbol}/with-dividends")
-  public ResponseEntity<List<OHLCPriceDto>> getCandlesWithDividends(
-    @PathVariable @NotBlank @Pattern(regexp = CommonConstants.SYMBOL_PATTERN) String symbol,
-    @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-    @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-    log.debug("내부 배당 포함 캔들 조회 요청: symbol={}, startDate={}, endDate={}", symbol, startDate, endDate);
-
-    List<OHLCPriceDto> result = candleService.getCandlesWithDividends(symbol, startDate, endDate);
-
-    return ResponseEntity.status(HttpStatus.OK).body(result);
-  }
-
   @GetMapping("/price/{symbol}")
   public ResponseEntity<StockPriceDto> getCurrentPrice(
     @PathVariable @NotBlank @Pattern(regexp = CommonConstants.SYMBOL_PATTERN) String symbol) {

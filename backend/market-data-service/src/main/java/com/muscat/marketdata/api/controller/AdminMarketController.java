@@ -67,13 +67,6 @@ public class AdminMarketController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @GetMapping("/assets")
-    public ResponseEntity<List<Asset>> getAllAssets() {
-        log.info("전체 심볼 목록 조회");
-        List<Asset> assets = assetService.getAllAssets();
-        return ResponseEntity.ok(assets);
-    }
-
     @GetMapping("/assets/summary")
     public ResponseEntity<PageResponse<AssetSummaryDto>> getAllAssetSummaries(
             @RequestParam(defaultValue = "0") int page,

@@ -38,17 +38,6 @@ public class CandleRepositoryCustomImpl implements CandleRepositoryCustom {
   }
 
   @Override
-  public List<Candle> findCandlesWithDividends(String symbol, LocalDate startDate, LocalDate endDate) {
-    return queryFactory
-      .selectFrom(candle)
-      .where(candle.symbol.eq(symbol)
-        .and(candle.date.between(startDate, endDate))
-        .and(candle.dividendAmount.gt(BigDecimal.ZERO)))
-      .orderBy(candle.date.asc())
-      .fetch();
-  }
-
-  @Override
   public Optional<Candle> findLatestBySymbol(String symbol) {
     Candle result = queryFactory
       .selectFrom(candle)
