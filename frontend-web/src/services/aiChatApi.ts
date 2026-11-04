@@ -1,14 +1,4 @@
-import axios from 'axios';
-import { attachAccessToken, attachTokenRefresh } from './api';
-
-const API_BASE = (import.meta.env.VITE_API_URL ?? '').trim() || '';
-
-const client = axios.create({ baseURL: API_BASE, timeout: 60000 });
-
-attachAccessToken(client);
-
-// 401 이면 토큰을 갱신하고 다시 보냄(메인 클라이언트와 같은 방식)
-attachTokenRefresh(client);
+import { apiClient as client } from './api/client';
 
 export interface StartConversationResponse {
   conversation_id: string;
