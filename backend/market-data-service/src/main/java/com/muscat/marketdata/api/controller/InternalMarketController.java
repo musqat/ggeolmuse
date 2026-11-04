@@ -14,8 +14,11 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -81,11 +84,11 @@ public class InternalMarketController {
   }
 
   @GetMapping("/prices")
-  public ResponseEntity<java.util.Map<String, StockPriceDto>> getCurrentPrices(
+  public ResponseEntity<Map<String, StockPriceDto>> getCurrentPrices(
     @RequestParam("symbols") List<String> symbols) {
     log.debug("내부 다중 현재가 조회 요청: symbols={}", symbols);
 
-    java.util.Map<String, StockPriceDto> results = new java.util.HashMap<>();
+    Map<String, StockPriceDto> results = new HashMap<>();
     for (String symbol : symbols) {
       try {
         StockPriceDto price = candleService.getCurrentPrice(symbol.toUpperCase());
@@ -138,12 +141,12 @@ public class InternalMarketController {
   }
 
   @PostMapping("/fx/bulk")
-  public ResponseEntity<java.util.Map<String, java.math.BigDecimal>> getBulkFxRates(
+  public ResponseEntity<Map<String, BigDecimal>> getBulkFxRates(
     @RequestBody @Size(max = FxRateService.MAX_BULK_DATES) List<@NotNull LocalDate> dates) {
     log.debug("내부 Bulk 환율 조회 요청: dates size={}", dates.size());
 
     // 날짜 문자열 -> 환율
-    java.util.Map<String, java.math.BigDecimal> result = new java.util.HashMap<>();
+    Map<String, BigDecimal> result = new HashMap<>();
     fxRateService.findByDates(dates).forEach((date, rate) -> result.put(date.toString(), rate));
 
     log.debug("Bulk 환율 조회 완료: {}개 요청, {}개 반환", dates.size(), result.size());

@@ -95,7 +95,7 @@ class DataCollectionControllerTest {
     }
 
     @Test
-    @DisplayName("수집 · 조회가 실패하면 같은 예외를 올린다")
+    @DisplayName("수집 · 조회가 실패하면 그 예외가 그대로 난다")
     void failures() {
       given(batchService.collectAll(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyBoolean()))
         .willThrow(new IllegalStateException("limit"));
