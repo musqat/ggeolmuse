@@ -4,6 +4,7 @@ import com.muscat.backtest.common.constants.BacktestConstants;
 import com.muscat.backtest.common.enums.type.BacktestType;
 import com.muscat.backtest.common.logging.BacktestLogger;
 import com.muscat.backtest.common.util.BacktestCalculationUtils;
+import com.muscat.backtest.common.util.BacktestDataUtils;
 import com.muscat.backtest.common.util.BacktestHistoryUtils;
 import com.muscat.backtest.common.util.Decimals;
 import com.muscat.backtest.common.util.PriceLookup;
@@ -27,7 +28,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -77,8 +77,11 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
     LocalDate valuationDate = request.valuationDate(today);
     boolean valuedToday = valuationDate.equals(today);
 
-    OHLCPriceDto purchaseData = getPurchasePrice(request.getSymbol(),
+    Map<LocalDate, OHLCPriceDto> priceMap = loadPriceMap(request.getSymbol(),
       request.getPurchaseDate(), valuationDate);
+
+    OHLCPriceDto purchaseData = getPurchasePrice(request.getSymbol(),
+      request.getPurchaseDate(), valuationDate, priceMap);
     LocalDate tradeDate = purchaseData.date();
 
     // 수동 환율이 설정되어 있으면 사용, 없으면 실제로 산 날 환율
@@ -92,7 +95,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
     // 평가일 시세(오늘이면 현재가, 과거면 그날 조정 종가)
     BigDecimal valuationPrice = valuedToday
       ? marketDataClientWrapper.getCurrentPrice(request.getSymbol()).currentPrice()
-      : PriceLookup.effectiveClose(getHistoricalPriceWithRetry(request.getSymbol(), valuationDate));
+      : PriceLookup.effectiveClose(getHistoricalPrice(request.getSymbol(), valuationDate, priceMap));
 
     FxRateDto currentFxRate;
     if (request.getCurrentFxRate() != null) {
@@ -109,7 +112,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
     DividendHistoryDto dividendHistory = DividendHistoryDto.of(request.getSymbol(), dividendList);
 
     return new SimulationContext(request, purchaseData, purchaseFxRate, valuationPrice,
-      currentFxRate, dividendHistory, valuationDate);
+      currentFxRate, dividendHistory, valuationDate, priceMap);
   }
 
   // 손익 계산 (매수가·주식수·수수료·배당재투자·환차익 → 총자산/수익률)
@@ -165,19 +168,6 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
         .sorted((d1, d2) -> d1.getExDate().compareTo(d2.getExDate()))
         .toList();
 
-      // 배당 구간 전체 OHLC 를 range 1콜로 받은 날짜 맵(N+1 방지, 휴장일 대응으로 시작 -5일)
-      Map<LocalDate, OHLCPriceDto> dividendPriceMap = java.util.Collections.emptyMap();
-      if (!dividends.isEmpty()) {
-        LocalDate firstExDate = dividends.get(0).getExDate();
-        LocalDate lastExDate = dividends.get(dividends.size() - 1).getExDate();
-        dividendPriceMap = marketDataClientWrapper.getOHLCPriceRange(
-            context.request().getSymbol(),
-            firstExDate.minusDays(5).toString(), lastExDate.toString())
-          .stream()
-          .filter(OHLCPriceDto::available)
-          .collect(Collectors.toMap(OHLCPriceDto::date, p -> p, (a, b) -> b));
-      }
-
       for (var dividend : dividends) {
         // 이 배당금 계산 (현재 보유 주식수 기준)
         BigDecimal dividendAmount = dividend.getAmount().multiply(shares)
@@ -199,14 +189,9 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
             taxRate.multiply(BacktestConstants.Money.PERCENTAGE_MULTIPLIER));
         }
 
-        // 배당일 주가: BULK 맵에서 5일 역순 조회(휴장일 대응), 없으면 단건 HTTP fallback
-        OHLCPriceDto priceAtDividendDate = PriceLookup.fromMap(
-          dividendPriceMap, dividend.getExDate(), 5);
-        if (priceAtDividendDate == null) {
-          priceAtDividendDate = getHistoricalPriceWithRetry(
-            context.request().getSymbol(), dividend.getExDate());
-        }
-        BigDecimal dividendDayPrice = PriceLookup.effectiveClose(priceAtDividendDate);
+        // 배당일 주가(휴장일이면 그 전 거래일)
+        BigDecimal dividendDayPrice = PriceLookup.effectiveClose(getHistoricalPrice(
+          context.request().getSymbol(), dividend.getExDate(), context.priceMap()));
 
         // 세후 배당금으로 매수 가능한 주식수
         BigDecimal additionalShares = afterTaxDividend.divide(
@@ -275,7 +260,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
 
     // 최적 타이밍 계산 (매수일 ~ 평가일)
     OptimalTiming optimalTiming = calculateOptimalTiming(
-      context.request().getSymbol(),
+      context.priceMap(),
       context.purchaseData().date(),
       context.valuationDate());
 
@@ -323,21 +308,19 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
   }
 
   // 최적 타이밍 계산 (원화 주가 기준, 매수일 <= 매도일 제약 아래 최대 수익)
-  private OptimalTiming calculateOptimalTiming(String symbol, LocalDate startDate,
+  private OptimalTiming calculateOptimalTiming(Map<LocalDate, OHLCPriceDto> priceMap, LocalDate startDate,
     LocalDate endDate) {
     try {
-      List<OHLCPriceDto> prices = marketDataClientWrapper.getOHLCPriceRange(
-        symbol, startDate.toString(), endDate.toString());
-
-      if (prices == null || prices.isEmpty()) {
-        return OptimalTiming.empty();
-      }
-
       // 전 구간 최저가 · 최고가를 따로 뽑으면 매도일이 매수일보다 앞설 수 있음
-      // 날짜순으로 훑으며 그때까지 원화 주가가 가장 낮은 날에 산 수익률만 봄
-      List<OHLCPriceDto> ordered = prices.stream()
+      // 날짜순으로 그때까지 원화 주가가 가장 낮은 날에 산 수익률만 계산
+      List<OHLCPriceDto> ordered = priceMap.values().stream()
+        .filter(candle -> !candle.date().isBefore(startDate) && !candle.date().isAfter(endDate))
         .sorted(Comparator.comparing(OHLCPriceDto::date))
         .toList();
+
+      if (ordered.isEmpty()) {
+        return OptimalTiming.empty();
+      }
 
       // 환율이 빠진 날은 기본 환율이라, 하나도 못 받으면 달러 주가 기준과 같음
       Map<String, BigDecimal> fxRates = marketDataClientWrapper.getBulkFxRates(
@@ -392,11 +375,37 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
   }
 
 
-  // 매수 시세, 휴장일이면 평가일까지 다음 거래일(7일 안) · 그런 날이 없으면 그 전 거래일
-  private OHLCPriceDto getPurchasePrice(String symbol, LocalDate purchaseDate, LocalDate valuationDate) {
+  // 매수일 5일 전 ~ 평가일 일봉(못 받으면 빈 맵이라 날짜별 조회로)
+  private Map<LocalDate, OHLCPriceDto> loadPriceMap(String symbol, LocalDate purchaseDate,
+    LocalDate valuationDate) {
+    try {
+      return BacktestDataUtils.buildPriceMap(marketDataClientWrapper, symbol, purchaseDate.minusDays(5),
+        valuationDate);
+    } catch (RuntimeException e) {
+      log.warn("기간 시세 조회 실패, 날짜별 조회로: symbol={}, error={}", symbol, e.getMessage());
+      return Map.of();
+    }
+  }
+
+  // 매수 시세, 휴장일이면 평가일까지 다음 거래일(7일 안) · 그런 날이 없으면 그 전 거래일(기간 일봉에 없을 때만 날짜별 조회)
+  private OHLCPriceDto getPurchasePrice(String symbol, LocalDate purchaseDate, LocalDate valuationDate,
+    Map<LocalDate, OHLCPriceDto> priceMap) {
+    OHLCPriceDto fromRange = PriceLookup.nextFromMap(priceMap, purchaseDate, valuationDate, 7);
+    if (fromRange == null) {
+      fromRange = PriceLookup.fromMap(priceMap, purchaseDate, 5);
+    }
+    if (fromRange != null) {
+      return fromRange;
+    }
     OHLCPriceDto next = PriceLookup.nextAvailable(
       marketDataClientWrapper::getOHLCPrice, symbol, purchaseDate, valuationDate, 7);
     return next != null ? next : getHistoricalPriceWithRetry(symbol, purchaseDate);
+  }
+
+  // 그날 시세(휴장일이면 그 전 거래일), 기간 일봉에 없을 때만 날짜별 조회
+  private OHLCPriceDto getHistoricalPrice(String symbol, LocalDate date, Map<LocalDate, OHLCPriceDto> priceMap) {
+    OHLCPriceDto fromRange = PriceLookup.fromMap(priceMap, date, 5);
+    return fromRange != null ? fromRange : getHistoricalPriceWithRetry(symbol, date);
   }
 
   // 주가 데이터 조회 with retry (시장 휴일 대응)
