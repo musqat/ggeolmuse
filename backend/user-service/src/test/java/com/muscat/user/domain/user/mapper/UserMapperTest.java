@@ -36,7 +36,7 @@ class UserMapperTest {
     User local = User.builder().id(1L).email("user@example.com").nickname("투자자").role(UserRole.USER)
       .provider(AuthType.LOCAL).passwordHash("$2a$10$hash").emailVerified(true).build();
     User google = User.builder().id(2L).email("g@example.com").nickname("구글").role(UserRole.USER)
-      .provider(AuthType.GOOGLE).socialEmail("g@gmail.com").profileImageUrl("https://example.com/p.png").build();
+      .provider(AuthType.GOOGLE).build();
 
     UserResponseDto localDto = mapper.toResponseDto(local);
     UserResponseDto googleDto = mapper.toResponseDto(google);
@@ -46,8 +46,6 @@ class UserMapperTest {
     assertThat(localDto.emailVerified()).isTrue();
     assertThat(googleDto.hasPassword()).isFalse();
     assertThat(googleDto.provider()).isEqualTo("GOOGLE");
-    assertThat(googleDto.socialEmail()).isEqualTo("g@gmail.com");
-    assertThat(googleDto.profileImageUrl()).isEqualTo("https://example.com/p.png");
   }
 
   @Test

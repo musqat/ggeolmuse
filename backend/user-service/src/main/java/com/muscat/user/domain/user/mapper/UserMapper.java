@@ -34,8 +34,6 @@ public class UserMapper {
       user.getCreatedAt(),
       user.getProvider().toString(),
       user.isEmailVerified(),
-      user.getProfileImageUrl(),
-      user.getSocialEmail(),
       user.getPasswordHash() != null
     );
   }

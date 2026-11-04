@@ -72,7 +72,7 @@ class UserControllerRequestTest {
   void updateProfile_UsesTokenSubject() throws Exception {
     User updated = User.builder().email("user@example.com").nickname("새이름").build();
     given(userService.updateProfile(eq("kc-1"), any())).willReturn(updated);
-    UserResponseDto dto = new UserResponseDto(1L, "user@example.com", "새이름", null, null, "LOCAL", true, null, null, true);
+    UserResponseDto dto = new UserResponseDto(1L, "user@example.com", "새이름", null, null, "LOCAL", true, true);
     given(userMapper.toResponseDto(updated)).willReturn(dto);
 
     mockMvc.perform(json("/api/users/me", """

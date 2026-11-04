@@ -94,7 +94,7 @@ class DividendPayoutIntegrationTest {
 
   private DividendPayoutEvent payout(String netAmount) {
     return DividendPayoutEvent.builder()
-      .userId(String.valueOf(userId))
+      .userId("keycloak-payout-user")
       .accountId(account.getId())
       .symbol("AAPL")
       .exDate(EX_DATE)

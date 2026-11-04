@@ -118,24 +118,6 @@ public class Account {
     this.balanceKrw = this.balanceKrw.add(amount);
   }
 
-  // USD 입금
-  public void depositUsd(BigDecimal amount) {
-    com.muscat.commonlib.util.MoneyUtils.validatePositiveAmount(amount, "입금 금액");
-    this.balanceUsd = this.balanceUsd.add(amount);
-  }
-
-  // KRW 출금
-  public void withdrawKrw(BigDecimal amount) {
-    validateSufficientKrwBalance(amount);
-    this.balanceKrw = this.balanceKrw.subtract(amount);
-  }
-
-  // USD 출금
-  public void withdrawUsd(BigDecimal amount) {
-    validateSufficientUsdBalance(amount);
-    this.balanceUsd = this.balanceUsd.subtract(amount);
-  }
-
   // USD 잔액 조정 (거래 서비스 전용: 양수/음수 모두 가능)
   public void adjustUsdBalance(BigDecimal amount) {
     BigDecimal newBalance = this.balanceUsd.add(amount);
