@@ -37,6 +37,6 @@ export const portfolioApi = {
     apiClient.get<HoldingResponse[]>(`/portfolio/account/${accountId}`),
 
   // 포트폴리오 종합 정보 조회 (현재가 필요)
-  getPortfolioSummary: (currentPrices: { [symbol: string]: number }) =>
-    apiClient.post<PortfolioSummaryResponse>('/portfolio/summary', currentPrices),
+  getPortfolioSummary: () =>
+    apiClient.get<PortfolioSummaryResponse>('/portfolio/summary'),
 };

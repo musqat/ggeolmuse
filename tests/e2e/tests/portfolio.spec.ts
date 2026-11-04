@@ -1,7 +1,6 @@
 import { test, expect, request, APIRequestContext } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { API_URL, TOKEN_FILE } from '../playwright.config';
-import { pickSymbol, priceRange } from './fixtures';
 
 // 홈 대시보드가 쓰는 응답(한 종류가 100% 인 파이차트 360도 원호 포함)
 
@@ -12,25 +11,14 @@ async function authContext(): Promise<APIRequestContext> {
 
 test('포트폴리오 요약이 온다', async () => {
   const auth = await authContext();
-  const plain = await request.newContext();
 
-  const { symbol } = await pickSymbol(plain);
-  const priceRes = await plain.get(`${API_URL}/market/price/${symbol}`);
-  expect(priceRes.status()).toBe(200);
-  const priceBody = await priceRes.json();
-  const price = priceBody.currentPrice;
-  expect(typeof price, '현재가를 못 읽는다').toBe('number');
-
-  // 현재가 맵을 본문에 그대로(화면과 같은 호출)
-  const summary = await auth.post(`${API_URL}/portfolio/summary`, {
-    data: { [symbol]: price },
-  });
+  // 현재가는 서버가 받음(화면과 같은 호출)
+  const summary = await auth.get(`${API_URL}/portfolio/summary`);
   expect(summary.status(), `요약이 실패했다: ${await summary.text()}`).toBe(200);
   const body = await summary.json();
   expect(body, '요약이 비어 있다').toBeTruthy();
 
   await auth.dispose();
-  await plain.dispose();
 });
 
 
