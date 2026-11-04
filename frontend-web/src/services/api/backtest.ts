@@ -51,6 +51,7 @@ export type SimulationResponse = {
   optimalReturnPercent?: number | null;
   dividendsReinvested?: number | null;
   dividendReinvestDates?: string[] | null;
+  defaultFxDates?: string[];                // 환율 기록이 없어 기본 환율로 계산한 날
 };
 
 // DCA(정기 적립) 전략 요청
@@ -156,6 +157,7 @@ export type StrategyResponse = {
   fxReturnPercent?: number | null;
   totalDividends?: number | null;
   dividendYield?: number | null;
+  defaultFxDates?: string[];                // 환율 기록이 없어 기본 환율로 계산한 날
 };
 
 // 비교 항목의 원래 응답(SimulationResponse 또는 StrategyResponse 라 두 쪽 칸 모두 선택)
