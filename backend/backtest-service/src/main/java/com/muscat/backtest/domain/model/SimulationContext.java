@@ -6,6 +6,7 @@ import com.muscat.backtest.infra.client.dto.FxRateDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Map;
 
 //시뮬레이션 실행에 필요한 컨텍스트 데이터
 public record SimulationContext(
@@ -15,6 +16,7 @@ public record SimulationContext(
     BigDecimal valuationPrice,    // 평가일 주가 (USD)
     FxRateDto currentFxRate,
     DividendHistoryDto dividendHistory,
-    LocalDate valuationDate       // 평가일
+    LocalDate valuationDate,      // 평가일
+    Map<LocalDate, OHLCPriceDto> priceMap  // 매수일 5일 전 ~ 평가일 일봉
 ) {
 }
