@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest'
+import { createElement, type ReactNode } from 'react'
 import { renderHook, waitFor, act } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { userAdminApi } from '@services/adminApi'
 import { useAdminUsers } from './useAdminUsers'
 import { notify } from '@/components/common/notify'
@@ -36,8 +38,14 @@ beforeEach(() => {
 })
 afterEach(() => vi.restoreAllMocks())
 
-const renderLoaded = async () => {
-  const hook = renderHook(() => useAdminUsers())
+// 앱의 QueryClient 와 같은 신선도(5분), 실패는 바로
+const newClient = () => new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 5 * 60 * 1000 } } })
+const withClient = (client: QueryClient) => ({ children }: { children: ReactNode }) =>
+  createElement(QueryClientProvider, { client }, children)
+const render = (client = newClient()) => renderHook(() => useAdminUsers(), { wrapper: withClient(client) })
+
+const renderLoaded = async (client = newClient()) => {
+  const hook = render(client)
   await waitFor(() => expect(hook.result.current.loading).toBe(false))
   await waitFor(() => expect(hook.result.current.stats).not.toBeNull())
   return hook
@@ -51,6 +59,17 @@ describe('useAdminUsers 불러오기', () => {
     expect(result.current.users).toEqual([user(1)])
     expect(result.current.totalPages).toBe(3)
     expect(result.current.stats).toEqual(STATS)
+  })
+
+  it('화면을 다시 열면 받아 둔 목록 · 통계로 그리고 다시 부르지 않는다', async () => {
+    const client = newClient()
+    const first = await renderLoaded(client)
+    first.unmount()
+
+    await renderLoaded(client)
+
+    expect(api.getUsers).toHaveBeenCalledTimes(1)
+    expect(api.getUserStats).toHaveBeenCalledTimes(1)
   })
 
   it('페이지는 범위 안에서만 옮긴다', async () => {
@@ -70,7 +89,7 @@ describe('useAdminUsers 불러오기', () => {
     api.getUsers.mockRejectedValue(new Error('down'))
     api.getUserStats.mockRejectedValue(new Error('down'))
 
-    const { result } = renderHook(() => useAdminUsers())
+    const { result } = render()
 
     await waitFor(() => expect(result.current.error).toBe('사용자 목록 조회에 실패했습니다.'))
     expect(result.current.stats).toBeNull()

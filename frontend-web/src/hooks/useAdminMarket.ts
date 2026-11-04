@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { marketAdminApi } from '@services/adminApi';
 import type { Asset, CompanyOverview } from '@services/adminApi';
 import { getApiErrorMessage } from '../utils/apiError';
@@ -10,14 +11,12 @@ export const useAdminMarket = () => {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [searchResults, setSearchResults] = useState<Asset[]>([]);
   const [preview, setPreview] = useState<CompanyOverview | null>(null);
-  const [assets, setAssets] = useState<Asset[]>([]);
-  const { loading, error, setError, run } = useAdminAction();
+  const { loading: acting, error: actionError, setError, run } = useAdminAction();
+  const queryClient = useQueryClient();
 
   // 페이지
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize, setPageSize] = useState(20);
-  const [totalPages, setTotalPages] = useState(0);
-  const [totalElements, setTotalElements] = useState(0);
   const [sortBy, setSortBy] = useState('symbol');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
@@ -25,6 +24,21 @@ export const useAdminMarket = () => {
 
   // 상장 목록 · 상장폐지 목록 중 보는 쪽
   const [listActive, setListActive] = useState(true);
+
+  // 종목 요약 목록(조건이 바뀌면 그 조건으로, 받는 동안은 앞 페이지를 그대로 보임)
+  const list = useQuery({
+    queryKey: ['admin', 'assets', currentPage, pageSize, sortBy, sortDirection, listActive],
+    queryFn: () => marketAdminApi.getAllAssetSummaries(currentPage, pageSize, sortBy, sortDirection, listActive),
+    placeholderData: keepPreviousData,
+  });
+  const assets: Asset[] = list.data?.content ?? [];
+  const totalPages = list.data?.totalPages ?? 0;
+  const totalElements = list.data?.totalElements ?? 0;
+  const loading = acting || list.isFetching;
+  const error = actionError ?? (list.isError ? '심볼 목록 조회에 실패했습니다.' : null);
+
+  // 작업 뒤 목록 다시 받기(모든 페이지 · 조건)
+  const loadAssets = () => queryClient.invalidateQueries({ queryKey: ['admin', 'assets'] });
 
   // 보유 종목 검색 (DB) — 등록된 종목에서 키워드 매칭
   const handleSearch = async () => {
@@ -80,7 +94,7 @@ export const useAdminMarket = () => {
 
         notify.success('심볼이 추가되었고 데이터 수집이 시작되었습니다.');
         setPreview(null);
-        loadAssets();
+        await loadAssets();
       },
       failure: () => '심볼 추가에 실패했습니다.',
     });
@@ -126,7 +140,7 @@ export const useAdminMarket = () => {
       confirm: { text: `${symbol}을(를) 상장 상태로 되돌립니다. 계속할까요?` },
       call: async () => {
         await marketAdminApi.restoreAsset(symbol);
-        loadAssets();
+        await loadAssets();
       },
       failure: () => '심볼 복구에 실패했습니다.',
     });
@@ -137,7 +151,6 @@ export const useAdminMarket = () => {
     setListActive(active);
     setCurrentPage(0);
     setSelected(new Set());
-    loadAssets(0, active);
   };
 
   // 심볼 삭제
@@ -147,7 +160,7 @@ export const useAdminMarket = () => {
       call: async () => {
         await marketAdminApi.deleteAsset(symbol);
         notify.success('심볼이 삭제되었습니다.');
-        loadAssets();
+        await loadAssets();
       },
       failure: () => '심볼 삭제에 실패했습니다.',
     });
@@ -173,35 +186,13 @@ export const useAdminMarket = () => {
     });
   };
 
-  // 전체 심볼 목록 로드 (가격, 최신 데이터 날짜 포함, 페이지네이션)
-  const loadAssets = async (page: number = currentPage, active: boolean = listActive) => {
-    const safePage = typeof page === 'number' && isFinite(page) ? page : 0;
-    await run({
-      call: async () => {
-        const data = await marketAdminApi.getAllAssetSummaries(
-          safePage,
-          pageSize,
-          sortBy,
-          sortDirection,
-          active
-        );
-        setAssets(data.content);
-        setTotalPages(data.totalPages);
-        setTotalElements(data.totalElements);
-        setCurrentPage(typeof data.number === 'number' ? data.number : safePage);
-      },
-      failure: () => '심볼 목록 조회에 실패했습니다.',
-    });
-  };
-
   // 페이지 변경
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
     setSelected(new Set());
-    loadAssets(newPage);
   };
 
-  // 페이지 크기 변경(목록은 아래 effect 가 새 크기로 받음)
+  // 페이지 크기 변경(새 크기로 첫 페이지)
   const handlePageSizeChange = (newSize: number) => {
     setPageSize(newSize);
     setCurrentPage(0);
@@ -221,7 +212,7 @@ export const useAdminMarket = () => {
       call: async () => {
         await marketAdminApi.updateAssetPrice(symbol);
         notify.success('가격 데이터가 업데이트되었습니다.');
-        loadAssets();
+        await loadAssets();
       },
       failure: (err) => getApiErrorMessage(err, '가격 업데이트에 실패했습니다.'),
     });
@@ -234,7 +225,7 @@ export const useAdminMarket = () => {
       call: async () => {
         await marketAdminApi.updateAssetMarketCap(symbol);
         notify.success('시가총액이 업데이트되었습니다.');
-        loadAssets();
+        await loadAssets();
       },
       failure: (err) => getApiErrorMessage(err, '시가총액 업데이트에 실패했습니다.'),
     });
@@ -276,12 +267,6 @@ export const useAdminMarket = () => {
     });
   };
 
-
-  // 처음 열 때와 정렬 · 페이지 크기가 바뀔 때 첫 페이지부터(처음 불러오기를 따로 두면 같은 요청이 두 번 감)
-  useEffect(() => {
-    loadAssets(0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sortBy, sortDirection, pageSize]);
 
   return {
     searchKeyword,

@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { createElement, type ReactNode } from 'react'
 import { renderHook, waitFor, act } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AxiosError, type AxiosResponse } from 'axios'
 import { marketAdminApi } from '@services/adminApi'
 import { useAdminMarket } from './useAdminMarket'
@@ -43,9 +45,14 @@ beforeEach(() => {
 })
 afterEach(() => vi.restoreAllMocks())
 
+// 앱의 QueryClient 와 같은 신선도(5분), 실패는 바로
+const newClient = () => new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 5 * 60 * 1000 } } })
+const withClient = (client: QueryClient) => ({ children }: { children: ReactNode }) =>
+  createElement(QueryClientProvider, { client }, children)
+
 // 훅을 열고 첫 목록 로딩이 끝날 때까지 대기
-const renderLoaded = async () => {
-  const hook = renderHook(() => useAdminMarket())
+const renderLoaded = async (client = newClient()) => {
+  const hook = renderHook(() => useAdminMarket(), { wrapper: withClient(client) })
   await waitFor(() => expect(hook.result.current.loading).toBe(false))
   return hook
 }
@@ -56,6 +63,16 @@ describe('useAdminMarket 목록 불러오기', () => {
 
     expect(getAll).toHaveBeenCalledTimes(1)
     expect(getAll).toHaveBeenCalledWith(0, 20, 'symbol', 'asc', true)
+  })
+
+  it('화면을 다시 열면 같은 조건의 목록은 받아 둔 것으로 그리고 다시 부르지 않는다', async () => {
+    const client = newClient()
+    const first = await renderLoaded(client)
+    first.unmount()
+
+    await renderLoaded(client)
+
+    expect(getAll).toHaveBeenCalledTimes(1)
   })
 
   it('페이지 크기를 바꾸면 새 크기로 첫 페이지를 받는다', async () => {
