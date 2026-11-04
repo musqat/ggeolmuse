@@ -227,14 +227,7 @@ const KLineChartComponent: React.FC<KLineChartComponentProps> = ({
     // cleanup 때 ref 가 바뀌어 있을 수 있어 지금 값을 잡아 둠
     const container = chartContainerRef.current;
 
-    const originalLog = console.log;
-    console.log = () => {};
-    let chart;
-    try {
-      chart = init(container);
-    } finally {
-      console.log = originalLog;
-    }
+    const chart = init(container);
 
     if (!chart) {
       console.error('[KLineChart] init() returned null');
