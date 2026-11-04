@@ -33,7 +33,7 @@ class DividendPayoutDeserializationTest {
       assertThat(deserializer.deserialize("trading.dividend.payout", json))
         .isInstanceOfSatisfying(DividendPayoutEvent.class, event -> {
           assertThat(event.getAccountId()).isEqualTo(20L);
-          assertThat(event.getExDate()).isEqualTo("2024-02-09");
+          assertThat(event.getExDate()).isEqualTo(java.time.LocalDate.of(2024, 2, 9));
           assertThat(event.getNetAmount()).isEqualByComparingTo("2.03");
         });
     }

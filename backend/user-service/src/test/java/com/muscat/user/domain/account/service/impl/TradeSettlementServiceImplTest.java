@@ -58,7 +58,7 @@ class TradeSettlementServiceImplTest {
     .tradeId(7L)
     .userId("user-1")
     .accountId(20L)
-    .tradeType("BUY")
+    .tradeType(TradeCompletedEvent.TradeType.BUY)
     .totalAmount(new BigDecimal("668.11"))
     .build();
 
@@ -134,7 +134,7 @@ class TradeSettlementServiceImplTest {
   }
 
   @Test
-  @DisplayName("기술 실패는 기록 · 발행 없이 예외를 그대로 던진다")
+  @DisplayName("기술 실패는 기록 · 발행 없이 그 예외가 그대로 난다")
   void settle_TechnicalFailure_Rethrows() {
     willThrow(new IllegalStateException("db down")).given(accountService).processTradeEvent(event);
 
@@ -145,7 +145,7 @@ class TradeSettlementServiceImplTest {
   }
 
   @Test
-  @DisplayName("정산됨 발행이 실패해도 APPLIED 는 커밋돼 있고, 예외를 던져 다시 받게 한다")
+  @DisplayName("정산됨 발행이 실패해도 APPLIED 는 커밋돼 있고 예외가 나서 이벤트를 다시 받는다")
   void settle_PublishSettledFails_Throws() {
     willThrow(new UserException(UserResponse.EVENT_PUBLISH_FAILED))
       .given(tradeSettledEventProducer).publish(event);
@@ -190,7 +190,7 @@ class TradeSettlementServiceImplTest {
   }
 
   @Test
-  @DisplayName("5xx AccountException 은 업무 실패가 아니라 그대로 던진다")
+  @DisplayName("5xx AccountException 은 업무 실패로 보지 않고 그 예외가 그대로 난다")
   void settle_ServerErrorCode_Rethrows() {
     willThrow(new AccountException(AccountResponse.EXCHANGE_RATE_SERVICE_ERROR))
       .given(accountService).processTradeEvent(event);
@@ -200,7 +200,7 @@ class TradeSettlementServiceImplTest {
   }
 
   @Test
-  @DisplayName("반영 실패 발행이 실패해도 REJECTED 는 커밋돼 있고 예외를 던진다")
+  @DisplayName("반영 실패 발행이 실패해도 REJECTED 는 커밋돼 있고 예외가 난다")
   void settle_PublishFails_Throws() {
     willThrow(new AccountException(AccountResponse.INSUFFICIENT_USD_BALANCE))
       .given(accountService).processTradeEvent(event);

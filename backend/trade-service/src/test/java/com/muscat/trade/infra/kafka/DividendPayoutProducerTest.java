@@ -47,14 +47,14 @@ class DividendPayoutProducerTest {
     verify(template).send(eq("trading.dividend.payout"), eq("user-1"), event.capture());
     assertThat(event.getValue().getAccountId()).isEqualTo(20L);
     assertThat(event.getValue().getSymbol()).isEqualTo("AAPL");
-    assertThat(event.getValue().getExDate()).isEqualTo("2024-02-09");
+    assertThat(event.getValue().getExDate()).isEqualTo(java.time.LocalDate.of(2024, 2, 9));
     assertThat(event.getValue().getQuantity()).isEqualByComparingTo("10");
     assertThat(event.getValue().getNetAmount()).isEqualByComparingTo("2.03");
     assertThat(event.getValue().getCurrency()).isEqualTo("USD");
   }
 
   @Test
-  @DisplayName("브로커가 받지 못하면 이벤트 발행 실패로 올린다")
+  @DisplayName("브로커가 받지 못하면 이벤트 발행 실패 예외가 난다")
   void publish_BrokerDown_EventPublishFailed() {
     given(template.send(anyString(), anyString(), any())).willReturn(KafkaSends.failed());
 
@@ -65,7 +65,7 @@ class DividendPayoutProducerTest {
   }
 
   @Test
-  @DisplayName("기다리다 끊기면 끊김 표시를 되살리고 이벤트 발행 실패로 올린다")
+  @DisplayName("기다리는 중에 인터럽트되면 인터럽트 상태를 되살리고 이벤트 발행 실패 예외가 난다")
   void publish_Interrupted_RestoresFlag() {
     given(template.send(anyString(), anyString(), any())).willReturn(KafkaSends.interrupted());
 

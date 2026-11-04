@@ -106,7 +106,7 @@ class TradeSettlementIntegrationTest {
       .userId(String.valueOf(userId))
       .accountId(account.getId())
       .symbol("AAPL")
-      .tradeType(tradeType)
+      .tradeType(TradeCompletedEvent.TradeType.valueOf(tradeType))
       .quantity(BigDecimal.ONE)
       .price(new BigDecimal(amount))
       .totalAmount(new BigDecimal(amount))

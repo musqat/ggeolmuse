@@ -417,12 +417,12 @@ public class AccountServiceImpl implements AccountService {
     TransactionType type;
     String description;
 
-    if ("BUY".equalsIgnoreCase(event.getTradeType())) {
+    if (event.getTradeType() == TradeCompletedEvent.TradeType.BUY) {
       balanceChange = event.getTotalAmount().negate(); // 음수
       type = TransactionType.TRADE_BUY;
       description = String.format("주식 매수: %s %s주 @ $%s (거래ID: %s)",
         event.getSymbol(), event.getQuantity(), event.getPrice(), event.getTradeId());
-    } else if ("SELL".equalsIgnoreCase(event.getTradeType())) {
+    } else if (event.getTradeType() == TradeCompletedEvent.TradeType.SELL) {
       balanceChange = event.getTotalAmount(); // 양수
       type = TransactionType.TRADE_SELL;
       description = String.format("주식 매도: %s %s주 @ $%s (거래ID: %s)",
@@ -474,7 +474,7 @@ public class AccountServiceImpl implements AccountService {
     }
     Long userId = resolveUserId(event.getUserId());
     Account account = findOwnedAccount(event.getAccountId(), userId);
-    LocalDate exDate = LocalDate.parse(event.getExDate());
+    LocalDate exDate = event.getExDate();
     Optional<DividendSettlement> settlement = dividendSettlementRepository
       .findByAccountIdAndSymbolAndExDate(account.getId(), event.getSymbol(), exDate);
 

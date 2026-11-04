@@ -1,5 +1,6 @@
 package com.muscat.messaging.event;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -7,6 +8,7 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 // 배당 몫 목표 금액 이벤트(차액이 아니라 그 배당락일 몫 전체)
 @Data
@@ -23,7 +25,8 @@ public class DividendPayoutEvent extends BaseEvent {
     private String symbol;
 
     // yyyy-MM-dd
-    private String exDate;
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate exDate;
 
     private BigDecimal dividendPerShare;
 
