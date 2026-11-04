@@ -618,31 +618,6 @@ class TradingServiceImplTest {
       assertThat(result).hasSize(1);
       assertThat(result.getFirst().symbol()).isEqualTo(TEST_SYMBOL);
     }
-
-    @Test
-    @DisplayName("날짜 범위로 거래 내역이 조회된다")
-    void getTradesByDateRange_Success() {
-      // given
-      LocalDate startDate = LocalDate.of(2024, 1, 1);
-      LocalDate endDate = LocalDate.of(2024, 1, 31);
-
-      List<Trade> trades = new ArrayList<>();
-      trades.add(createTestTrade(1L, TradeType.BUY));
-
-      given(tradeRepository.findTradesWithComplexFilters(
-        eq(TEST_USER_ID), isNull(), isNull(), isNull(), eq(startDate), eq(endDate),
-        isNull(), isNull(), any(Pageable.class)))
-        .willReturn(new PageImpl<>(trades));
-
-      // when
-      List<TradeResponseDto> result = tradingService.getTradesByDateRange(
-        TEST_USER_ID, startDate, endDate);
-
-      // then
-      assertThat(result).hasSize(1);
-      assertThat(result.getFirst().tradeDate()).isAfterOrEqualTo(startDate);
-      assertThat(result.getFirst().tradeDate()).isBeforeOrEqualTo(endDate);
-    }
   }
 
   @Nested

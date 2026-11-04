@@ -4,12 +4,9 @@ import com.muscat.messaging.event.DividendUpdatedEvent;
 import com.muscat.trade.common.enums.response.TradeResponse;
 import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.common.exception.TradeException;
-import com.muscat.trade.domain.entity.Trade;
+import com.muscat.trade.domain.dto.TradePosition;
 import com.muscat.trade.domain.repository.TradeRepository;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -42,23 +39,21 @@ public class DividendEventConsumer {
     log.info("배당 공시 수신: symbol={}, exDate={}, amount={}, partition={}, offset={}",
       event.getSymbol(), event.getExDate(), event.getAmount(), partition, offset);
 
-    List<Trade> trades = tradeRepository.findBySymbolAndStatusAndTradeDateBeforeOrderByTradeDateAsc(
+    List<TradePosition> positions = tradeRepository.findPositionsTradedBefore(
       event.getSymbol(), TradeStatus.COMPLETED, event.getExDate());
-    Map<Long, String> userByAccount = trades.stream()
-      .collect(Collectors.toMap(Trade::getAccountId, Trade::getUserId, (a, b) -> a, LinkedHashMap::new));
 
     int failCount = 0;
-    for (Map.Entry<Long, String> account : userByAccount.entrySet()) {
+    for (TradePosition position : positions) {
       try {
-        dividendReconcileProducer.request(account.getValue(), account.getKey(), event.getSymbol());
+        dividendReconcileProducer.request(position.userId(), position.accountId(), event.getSymbol());
       } catch (RuntimeException e) {
         failCount++;
         log.error("배당 몫 재계산 요청 실패: accountId={}, symbol={}, error={}",
-          account.getKey(), event.getSymbol(), e.getMessage(), e);
+          position.accountId(), event.getSymbol(), e.getMessage(), e);
       }
     }
     log.info("배당 공시 처리: symbol={}, exDate={}, 계좌={}, 실패={}",
-      event.getSymbol(), event.getExDate(), userByAccount.size(), failCount);
+      event.getSymbol(), event.getExDate(), positions.size(), failCount);
 
     // 실패가 있으면 커밋 안 함(Kafka 가 다시 주고 재시도 뒤 DLT, 같은 요청은 다시 계산해도 결과가 같음)
     if (failCount > 0) {

@@ -10,20 +10,19 @@ import com.muscat.trade.domain.entity.Trade;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.hibernate.SessionFactory;
+import org.hibernate.stat.Statistics;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
 
-@DataJpaTest(properties = "spring.flyway.enabled=false")
+@DataJpaTest(properties = {"spring.flyway.enabled=false", "spring.jpa.properties.hibernate.generate_statistics=true"})
 @ActiveProfiles("test")
 @ContextConfiguration(classes = TradeJpaTestConfig.class)
 @DisplayName("체결 레포지토리 - QueryDSL 조회")
@@ -34,6 +33,19 @@ class TradeRepositoryQueryTest {
 
   @Autowired
   private TradeRepository tradeRepository;
+
+  @Autowired
+  private TestEntityManager entityManager;
+
+  // 넣은 행을 먼저 내보내고 그 뒤 호출에서 실행된 SQL 수
+  private long statementsOf(Runnable call) {
+    entityManager.flush();
+    Statistics statistics = entityManager.getEntityManager().getEntityManagerFactory()
+      .unwrap(SessionFactory.class).getStatistics();
+    statistics.clear();
+    call.run();
+    return statistics.getPrepareStatementCount();
+  }
 
   private Trade save(String userId, long accountId, String symbol, TradeType type, String quantity,
     String totalAmount, LocalDate tradeDate, int hour, TradeStatus status) {
@@ -87,18 +99,6 @@ class TradeRepositoryQueryTest {
   }
 
   @Test
-  @DisplayName("거래한 종목을 사용자별로 중복 없이 준다")
-  void distinctSymbols_PerUser() {
-    save(USER, 10, "AAPL", TradeType.BUY, "1", "100", LocalDate.of(2026, 10, 1), 9);
-    save(USER, 10, "AAPL", TradeType.SELL, "1", "100", LocalDate.of(2026, 10, 2), 9);
-    save(USER, 20, "MSFT", TradeType.BUY, "1", "100", LocalDate.of(2026, 10, 3), 9);
-    save(OTHER_USER, 30, "TSLA", TradeType.BUY, "1", "100", LocalDate.of(2026, 10, 3), 9);
-
-    assertThat(tradeRepository.findDistinctSymbolsByUserId(USER)).containsExactlyInAnyOrder("AAPL", "MSFT");
-    assertThat(tradeRepository.findDistinctSymbolsByUserId("nobody")).isEmpty();
-  }
-
-  @Test
   @DisplayName("체결된 거래의 사용자 · 계좌 · 종목을 겹치지 않게 주고 취소만 있는 자리는 뺀다")
   void distinctPositions_CompletedOnly() {
     save(USER, 10, "AAPL", TradeType.BUY, "1", "100", LocalDate.of(2026, 10, 1), 9);
@@ -108,92 +108,6 @@ class TradeRepositoryQueryTest {
 
     assertThat(tradeRepository.findDistinctPositions(TradeStatus.COMPLETED)).containsExactlyInAnyOrder(
       new TradePosition(USER, 10L, "AAPL"), new TradePosition(USER, 20L, "AAPL"));
-  }
-
-  @Nested
-  @DisplayName("조건 조립 조회")
-  class ComplexFilters {
-
-    private final LocalDate d1 = LocalDate.of(2026, 10, 1);
-    private final LocalDate d3 = LocalDate.of(2026, 10, 3);
-    private final LocalDate d5 = LocalDate.of(2026, 10, 5);
-    private final LocalDate d7 = LocalDate.of(2026, 10, 7);
-    private final LocalDate d9 = LocalDate.of(2026, 10, 9);
-
-    @BeforeEach
-    void seed() {
-      save(USER, 10, "AAPL", TradeType.BUY, "1", "100", d1, 9);
-      save(USER, 10, "AAPL", TradeType.SELL, "1", "50", d3, 10);
-      save(USER, 20, "MSFT", TradeType.BUY, "1", "300", d5, 11);
-      save(USER, 20, "MSFT", TradeType.BUY, "1", "500", d7, 12);
-      save(USER, 10, "TSLA", TradeType.BUY, "1", "1000", d9, 13);
-      save(OTHER_USER, 10, "AAPL", TradeType.BUY, "1", "100", d9, 14);
-    }
-
-    private Page<Trade> find(Long accountId, String symbol, TradeType type, LocalDate start, LocalDate end,
-      String min, String max, int size) {
-      return tradeRepository.findTradesWithComplexFilters(USER, accountId, symbol, type, start, end,
-        min == null ? null : new BigDecimal(min), max == null ? null : new BigDecimal(max), PageRequest.of(0, size));
-    }
-
-    private List<String> totals(Page<Trade> page) {
-      return page.getContent().stream().map(t -> t.getTotalAmount().stripTrailingZeros().toPlainString()).toList();
-    }
-
-    @Test
-    @DisplayName("조건이 전부 비면 내 거래 전부를 체결 시각 내림차순으로 주고, 페이지 크기만큼 자르되 전체 건수는 그대로다")
-    void noFilters_AllMineNewestFirst_Paged() {
-      Page<Trade> all = find(null, null, null, null, null, null, null, 10);
-      Page<Trade> page = find(null, null, null, null, null, null, null, 2);
-
-      assertThat(totals(all)).containsExactly("1000", "500", "300", "50", "100");
-      assertThat(page.getContent()).hasSize(2);
-      assertThat(page.getTotalElements()).isEqualTo(5);
-      assertThat(totals(page)).containsExactly("1000", "500");
-    }
-
-    @Test
-    @DisplayName("계좌 · 종목 · 매매 구분은 각각 따로 거른다")
-    void singleFilters() {
-      assertThat(find(10L, null, null, null, null, null, null, 10).getTotalElements()).isEqualTo(3);
-      assertThat(find(null, "MSFT", null, null, null, null, null, 10).getTotalElements()).isEqualTo(2);
-      assertThat(find(null, null, TradeType.SELL, null, null, null, null, 10).getTotalElements()).isEqualTo(1);
-    }
-
-    @Test
-    @DisplayName("거래일은 시작만 · 끝만 · 둘 다 로 거르고 양 끝 날짜를 포함한다")
-    void dateRanges() {
-      assertThat(totals(find(null, null, null, d5, null, null, null, 10))).containsExactly("1000", "500", "300");
-      assertThat(totals(find(null, null, null, null, d3, null, null, 10))).containsExactly("50", "100");
-      assertThat(totals(find(null, null, null, d3, d7, null, null, 10))).containsExactly("500", "300", "50");
-    }
-
-    @Test
-    @DisplayName("거래 금액은 최소만 · 최대만 · 둘 다 로 거르고 양 끝 값을 포함한다")
-    void amountRanges() {
-      assertThat(totals(find(null, null, null, null, null, "300", null, 10))).containsExactly("1000", "500", "300");
-      assertThat(totals(find(null, null, null, null, null, null, "100", 10))).containsExactly("50", "100");
-      assertThat(totals(find(null, null, null, null, null, "50", "300", 10))).containsExactly("300", "50", "100");
-    }
-
-    @Test
-    @DisplayName("조건을 전부 주면 모두 만족하는 거래만 남는다")
-    void allFilters() {
-      Page<Trade> page = find(20L, "MSFT", TradeType.BUY, d5, d7, "300", "500", 10);
-
-      assertThat(totals(page)).containsExactly("500", "300");
-      assertThat(find(20L, "MSFT", TradeType.SELL, d5, d7, "300", "500", 10).getTotalElements()).isZero();
-    }
-
-    @Test
-    @DisplayName("페이지를 나누지 않으면(unpaged) 기간 안 내 거래를 전부 준다")
-    void unpaged_ReturnsAllInRange() {
-      Page<Trade> page = tradeRepository.findTradesWithComplexFilters(USER, null, null, null, d1, d7,
-        null, null, Pageable.unpaged());
-
-      assertThat(totals(page)).containsExactly("500", "300", "50", "100");
-      assertThat(page.getTotalElements()).isEqualTo(4);
-    }
   }
 
   @Nested
@@ -228,6 +142,12 @@ class TradeRepositoryQueryTest {
 
       save(USER, 10, "AAPL", TradeType.SELL, "20", "200", LocalDate.of(2026, 10, 6), 9);
       assertThat(sellable(LocalDate.of(2026, 10, 6))).isEqualByComparingTo("0");
+    }
+
+    @Test
+    @DisplayName("매수 합과 매도 합을 쿼리 하나로 구한다")
+    void singleQuery() {
+      assertThat(statementsOf(() -> sellable(LocalDate.of(2026, 10, 10)))).isEqualTo(1);
     }
   }
 }

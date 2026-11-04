@@ -14,9 +14,8 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import com.muscat.messaging.event.DividendUpdatedEvent;
 import com.muscat.trade.common.enums.response.TradeResponse;
 import com.muscat.trade.common.enums.type.TradeStatus;
-import com.muscat.trade.common.enums.type.TradeType;
 import com.muscat.trade.common.exception.TradeException;
-import com.muscat.trade.domain.entity.Trade;
+import com.muscat.trade.domain.dto.TradePosition;
 import com.muscat.trade.domain.repository.TradeRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -57,14 +56,13 @@ class DividendEventConsumerTest {
     return e;
   }
 
-  private static Trade trade(String userId, long accountId, TradeType type) {
-    return Trade.builder().userId(userId).accountId(accountId).symbol(SYMBOL).tradeType(type)
-      .quantity(new BigDecimal("10")).tradeDate(EX_DATE.minusDays(3)).build();
+  private static TradePosition position(String userId, long accountId) {
+    return new TradePosition(userId, accountId, SYMBOL);
   }
 
-  private void tradesBeforeExDate(Trade... trades) {
-    given(tradeRepository.findBySymbolAndStatusAndTradeDateBeforeOrderByTradeDateAsc(SYMBOL, TradeStatus.COMPLETED, EX_DATE))
-      .willReturn(List.of(trades));
+  private void tradedBeforeExDate(TradePosition... positions) {
+    given(tradeRepository.findPositionsTradedBefore(SYMBOL, TradeStatus.COMPLETED, EX_DATE))
+      .willReturn(List.of(positions));
   }
 
   private void consume() {
@@ -74,10 +72,7 @@ class DividendEventConsumerTest {
   @Test
   @DisplayName("배당락일 전 거래가 있는 계좌마다 재계산을 한 번씩 요청하고 커밋한다")
   void requestsReconcilePerAccount() {
-    tradesBeforeExDate(
-      trade("user-1", 20L, TradeType.BUY),
-      trade("user-1", 20L, TradeType.SELL),
-      trade("user-2", 21L, TradeType.BUY));
+    tradedBeforeExDate(position("user-1", 20L), position("user-2", 21L));
 
     consume();
 
@@ -90,7 +85,7 @@ class DividendEventConsumerTest {
   @Test
   @DisplayName("배당락일 전 거래가 없으면 요청 없이 커밋한다")
   void noTrades_AcknowledgesOnly() {
-    tradesBeforeExDate();
+    tradedBeforeExDate();
 
     consume();
 
@@ -101,7 +96,7 @@ class DividendEventConsumerTest {
   @Test
   @DisplayName("요청 하나가 실패해도 나머지 계좌는 요청하고, 커밋하지 않고 배당 지급 실패로 올린다")
   void oneRequestFails_OthersStillRequested() {
-    tradesBeforeExDate(trade("user-1", 20L, TradeType.BUY), trade("user-2", 21L, TradeType.BUY));
+    tradedBeforeExDate(position("user-1", 20L), position("user-2", 21L));
     willThrow(new TradeException(TradeResponse.EVENT_PUBLISH_FAILED))
       .given(dividendReconcileProducer).request("user-1", 20L, SYMBOL);
 

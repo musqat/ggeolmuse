@@ -91,18 +91,6 @@ public class TradingServiceImpl implements TradingService {
   }
 
   @Override
-  @Transactional(readOnly = true)
-  public List<TradeResponseDto> getTradesByDateRange(String userId, LocalDate startDate,
-    LocalDate endDate) {
-    List<Trade> trades = tradeRepository.findTradesWithComplexFilters(
-      userId, null, null, null, startDate, endDate, null, null,
-      Pageable.unpaged()).getContent();
-    return trades.stream()
-      .map(TradeResponseDto::from)
-      .collect(Collectors.toList());
-  }
-
-  @Override
   public TradingCapacityResponseDto calculateBuyingCapacity(String userId,
     TradingCapacityRequestDto request) {
     log.info("매수 가능 수량 계산 시작: userId={}, accountId={}, symbol={}, tradeDate={}",

@@ -152,7 +152,7 @@ class TradingServiceIT {
 
       assertThat(response.status()).isEqualTo(TradeStatus.PENDING);
       assertThat(statusOf(response.id())).isEqualTo(TradeStatus.PENDING);
-      assertThat(holdingsRepository.findByUserIdAndSymbol(TEST_USER_ID, TEST_SYMBOL)).isEmpty();
+      assertThat(holdingsRepository.findByUserIdAndAccountIdAndSymbol(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL)).isEmpty();
     }
 
     @Test
@@ -174,8 +174,8 @@ class TradingServiceIT {
       assertThat(trades.get(0).getStatus()).isEqualTo(TradeStatus.COMPLETED);
 
       // Holdings가 DB에 생성되었는지 확인
-      Optional<Holdings> holdings = holdingsRepository.findByUserIdAndSymbol(
-        TEST_USER_ID, TEST_SYMBOL);
+      Optional<Holdings> holdings = holdingsRepository.findByUserIdAndAccountIdAndSymbol(
+        TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL);
       assertThat(holdings).isPresent();
       assertThat(holdings.get().getTotalQuantity()).isEqualByComparingTo("10");
       assertThat(holdings.get().getSymbol()).isEqualTo(TEST_SYMBOL);
@@ -192,8 +192,8 @@ class TradingServiceIT {
       assertThat(trades).hasSize(2);
 
       // Holdings는 1개이며 수량이 15
-      Optional<Holdings> holdings = holdingsRepository.findByUserIdAndSymbol(
-        TEST_USER_ID, TEST_SYMBOL);
+      Optional<Holdings> holdings = holdingsRepository.findByUserIdAndAccountIdAndSymbol(
+        TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL);
       assertThat(holdings).isPresent();
       assertThat(holdings.get().getTotalQuantity()).isEqualByComparingTo("15");
     }
@@ -246,7 +246,7 @@ class TradingServiceIT {
 
       assertThat(statusOf(first.id())).isEqualTo(TradeStatus.COMPLETED);
       assertThat(statusOf(second.id())).isEqualTo(TradeStatus.CANCELLED);
-      assertThat(holdingsRepository.findByUserIdAndSymbol(TEST_USER_ID, TEST_SYMBOL)).get()
+      assertThat(holdingsRepository.findByUserIdAndAccountIdAndSymbol(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL)).get()
         .satisfies(holdings -> assertThat(holdings.getTotalQuantity()).isEqualByComparingTo("10"));
     }
 
@@ -259,12 +259,12 @@ class TradingServiceIT {
       tradeCancellationService.cancel(TradeRejectedEvent.builder()
         .tradeId(second.id()).userId(TEST_USER_ID).accountId(TEST_ACCOUNT_ID)
         .reasonCode("INSUFFICIENT_USD_BALANCE").build());
-      assertThat(holdingsRepository.findByUserIdAndSymbol(TEST_USER_ID, TEST_SYMBOL)).isEmpty();
+      assertThat(holdingsRepository.findByUserIdAndAccountIdAndSymbol(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL)).isEmpty();
       settle(first.id());
 
       assertThat(statusOf(first.id())).isEqualTo(TradeStatus.COMPLETED);
       assertThat(statusOf(second.id())).isEqualTo(TradeStatus.CANCELLED);
-      assertThat(holdingsRepository.findByUserIdAndSymbol(TEST_USER_ID, TEST_SYMBOL)).get()
+      assertThat(holdingsRepository.findByUserIdAndAccountIdAndSymbol(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL)).get()
         .satisfies(holdings -> assertThat(holdings.getTotalQuantity()).isEqualByComparingTo("10"));
     }
 
@@ -282,7 +282,7 @@ class TradingServiceIT {
         new BigDecimal("10"), LocalDate.now(), PriceType.CLOSE, null);
       settle(pending.id());
 
-      assertThat(holdingsRepository.findByUserIdAndSymbol(TEST_USER_ID, TEST_SYMBOL)).get()
+      assertThat(holdingsRepository.findByUserIdAndAccountIdAndSymbol(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL)).get()
         .satisfies(holdings -> {
           assertThat(holdings.getTotalQuantity()).isEqualByComparingTo("10");
           assertThat(holdings.getAvgPurchasePrice()).isEqualByComparingTo("150");
@@ -310,8 +310,8 @@ class TradingServiceIT {
       assertThat(response.tradeType()).isEqualTo(TradeType.SELL);
 
       // Holdings 수량이 10 감소했는지 확인
-      Optional<Holdings> holdings = holdingsRepository.findByUserIdAndSymbol(
-        TEST_USER_ID, TEST_SYMBOL);
+      Optional<Holdings> holdings = holdingsRepository.findByUserIdAndAccountIdAndSymbol(
+        TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL);
       assertThat(holdings).isPresent();
       assertThat(holdings.get().getTotalQuantity()).isEqualByComparingTo("10");
 
@@ -333,8 +333,8 @@ class TradingServiceIT {
         new BigDecimal("10"), LocalDate.now(), PriceType.CLOSE, null);
 
       // then - Holdings가 삭제되었는지 확인
-      Optional<Holdings> holdings = holdingsRepository.findByUserIdAndSymbol(
-        TEST_USER_ID, TEST_SYMBOL);
+      Optional<Holdings> holdings = holdingsRepository.findByUserIdAndAccountIdAndSymbol(
+        TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL);
       assertThat(holdings).isEmpty();
 
       // Trade는 2개 저장되어 있어야 함 (매수 1개 + 매도 1개)
@@ -350,7 +350,7 @@ class TradingServiceIT {
       // given - 매수하여 Holdings 생성 (수량 5)
       buyAndSettle(TEST_SYMBOL, "5");
 
-      Holdings saved = holdingsRepository.findByUserIdAndSymbol(TEST_USER_ID, TEST_SYMBOL)
+      Holdings saved = holdingsRepository.findByUserIdAndAccountIdAndSymbol(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL)
         .orElseThrow();
       BigDecimal originalQuantity = saved.getTotalQuantity();
       long tradesCountBefore = tradeRepository.count();
@@ -362,8 +362,8 @@ class TradingServiceIT {
         .isInstanceOf(NotEnoughHoldingsException.class);
 
       // Holdings가 변경되지 않았는지 확인 (rollback)
-      Optional<Holdings> holdings = holdingsRepository.findByUserIdAndSymbol(
-        TEST_USER_ID, TEST_SYMBOL);
+      Optional<Holdings> holdings = holdingsRepository.findByUserIdAndAccountIdAndSymbol(
+        TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL);
       assertThat(holdings).isPresent();
       assertThat(holdings.get().getTotalQuantity()).isEqualByComparingTo(originalQuantity);
 
@@ -396,16 +396,16 @@ class TradingServiceIT {
       // 1. 첫 번째 매수 (10주)
       buyAndSettle(TEST_SYMBOL, "10");
 
-      Optional<Holdings> holdings1 = holdingsRepository.findByUserIdAndSymbol(
-        TEST_USER_ID, TEST_SYMBOL);
+      Optional<Holdings> holdings1 = holdingsRepository.findByUserIdAndAccountIdAndSymbol(
+        TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL);
       assertThat(holdings1).isPresent();
       assertThat(holdings1.get().getTotalQuantity()).isEqualByComparingTo("10");
 
       // 2. 두 번째 매수 (5주)
       buyAndSettle(TEST_SYMBOL, "5");
 
-      Optional<Holdings> holdings2 = holdingsRepository.findByUserIdAndSymbol(
-        TEST_USER_ID, TEST_SYMBOL);
+      Optional<Holdings> holdings2 = holdingsRepository.findByUserIdAndAccountIdAndSymbol(
+        TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL);
       assertThat(holdings2).isPresent();
       assertThat(holdings2.get().getTotalQuantity()).isEqualByComparingTo("15");
 
@@ -413,8 +413,8 @@ class TradingServiceIT {
       tradingService.sellStock(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL,
         new BigDecimal("7"), LocalDate.now(), PriceType.CLOSE, null);
 
-      Optional<Holdings> holdings3 = holdingsRepository.findByUserIdAndSymbol(
-        TEST_USER_ID, TEST_SYMBOL);
+      Optional<Holdings> holdings3 = holdingsRepository.findByUserIdAndAccountIdAndSymbol(
+        TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL);
       assertThat(holdings3).isPresent();
       assertThat(holdings3.get().getTotalQuantity()).isEqualByComparingTo("8");
 
@@ -422,8 +422,8 @@ class TradingServiceIT {
       tradingService.sellStock(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL,
         new BigDecimal("8"), LocalDate.now(), PriceType.CLOSE, null);
 
-      Optional<Holdings> holdings4 = holdingsRepository.findByUserIdAndSymbol(
-        TEST_USER_ID, TEST_SYMBOL);
+      Optional<Holdings> holdings4 = holdingsRepository.findByUserIdAndAccountIdAndSymbol(
+        TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL);
       assertThat(holdings4).isEmpty();
 
       // 전체 거래 내역 확인 (매수 2회 + 매도 2회 = 4개)
@@ -456,10 +456,10 @@ class TradingServiceIT {
       List<Holdings> allHoldings = holdingsRepository.findAll();
       assertThat(allHoldings).hasSize(2);
 
-      Optional<Holdings> aaplHoldings = holdingsRepository.findByUserIdAndSymbol(
-        TEST_USER_ID, "AAPL");
-      Optional<Holdings> msftHoldings = holdingsRepository.findByUserIdAndSymbol(
-        TEST_USER_ID, "MSFT");
+      Optional<Holdings> aaplHoldings = holdingsRepository.findByUserIdAndAccountIdAndSymbol(
+        TEST_USER_ID, TEST_ACCOUNT_ID, "AAPL");
+      Optional<Holdings> msftHoldings = holdingsRepository.findByUserIdAndAccountIdAndSymbol(
+        TEST_USER_ID, TEST_ACCOUNT_ID, "MSFT");
 
       assertThat(aaplHoldings).isPresent();
       assertThat(aaplHoldings.get().getTotalQuantity()).isEqualByComparingTo("10");

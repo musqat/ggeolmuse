@@ -2,7 +2,6 @@ package com.muscat.trade.domain.repository;
 
 import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.common.enums.type.TradeType;
-import com.muscat.trade.domain.dto.TradePosition;
 import com.muscat.trade.domain.entity.Trade;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
@@ -14,7 +13,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -28,14 +26,6 @@ public interface TradeRepository extends JpaRepository<Trade, Long>, TradeReposi
 
   // 사용자/종목별 거래 내역 조회 (최신순)
   List<Trade> findByUserIdAndSymbolOrderByExecutedAtDesc(String userId, String symbol);
-
-  // 배당 계산용, 상태로 거른 사용자 · 종목별 체결(오래된순)
-  // 배당락일 전에 이 종목이 체결된 거래(계좌별 배당 수량 계산용)
-  List<Trade> findBySymbolAndStatusAndTradeDateBeforeOrderByTradeDateAsc(String symbol, TradeStatus status,
-    LocalDate exDate);
-
-  List<Trade> findByUserIdAndSymbolAndStatusOrderByTradeDateAsc(String userId, String symbol,
-    TradeStatus status);
 
   // 보유 다시 쌓기용, 한 종목 체결을 실제 반영 순서로
   List<Trade> findByUserIdAndAccountIdAndSymbolAndStatusOrderByExecutedAtAscIdAsc(String userId,
@@ -71,8 +61,4 @@ public interface TradeRepository extends JpaRepository<Trade, Long>, TradeReposi
   @Modifying
   @Query("update Trade t set t.eventPublishedAt = :publishedAt where t.id = :id")
   int markEventPublished(@Param("id") Long id, @Param("publishedAt") LocalDateTime publishedAt);
-
-  @Query("select distinct new com.muscat.trade.domain.dto.TradePosition(t.userId, t.accountId, t.symbol) "
-    + "from Trade t where t.status = :status")
-  List<TradePosition> findDistinctPositions(@Param("status") TradeStatus status);
 }
