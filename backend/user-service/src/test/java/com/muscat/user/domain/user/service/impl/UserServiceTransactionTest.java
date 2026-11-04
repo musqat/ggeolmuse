@@ -15,7 +15,6 @@ import com.muscat.user.domain.user.repository.UserRepository;
 import com.muscat.user.domain.user.service.KeycloakService;
 import com.muscat.user.domain.user.service.UserService;
 import com.muscat.user.infra.kafka.AccountEventProducer;
-import com.muscat.user.infra.kafka.LoginEventProducer;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -57,9 +56,6 @@ class UserServiceTransactionTest {
 
   @MockitoBean
   private KeycloakService keycloakService;
-
-  @MockitoBean
-  private LoginEventProducer loginEventProducer;
 
   @MockitoBean
   private AccountEventProducer accountEventProducer;

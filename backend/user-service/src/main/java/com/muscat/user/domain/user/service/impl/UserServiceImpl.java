@@ -22,7 +22,6 @@ import com.muscat.user.domain.user.repository.UserRepository;
 import com.muscat.user.domain.user.service.KeycloakService;
 import com.muscat.user.domain.user.service.UserService;
 import com.muscat.user.infra.kafka.AccountEventProducer;
-import com.muscat.user.infra.kafka.LoginEventProducer;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -54,7 +53,6 @@ public class UserServiceImpl implements UserService {
   private final PasswordEncoder passwordEncoder;
   private final UserMapper userMapper;
   private final RateLimitService rateLimitService;
-  private final LoginEventProducer loginEventProducer;
   private final AccountEventProducer accountEventProducer;
   private final TransactionTemplate transactionTemplate;
 
@@ -167,46 +165,26 @@ public class UserServiceImpl implements UserService {
 
   @Override
   public TokenResponseDto login(String email, String password) {
-    User user;
-    try {
-      user = userRepository.findByEmail(email)
-        .orElseThrow(() -> {
-          log.warn("로그인 실패 - 사용자 없음: {}", email);
-          return new AuthenticationException(UserResponse.INVALID_CREDENTIALS);
-        });
-    } catch (AuthenticationException e) {
-      // Kafka 이벤트 발행: 로그인 실패 (사용자 없음)
-      loginEventProducer.publishLoginFailed(
-        email, "ACCOUNT_NOT_FOUND", "계정이 존재하지 않습니다",
-        "PASSWORD", null, null);
-      throw e;
-    }
+    User user = userRepository.findByEmail(email)
+      .orElseThrow(() -> {
+        log.warn("로그인 실패 - 사용자 없음: {}", email);
+        return new AuthenticationException(UserResponse.INVALID_CREDENTIALS);
+      });
 
     // 비밀번호 확인을 이메일 인증보다 먼저(미인증 안내는 비밀번호 통과 뒤만, 가입 여부 노출 방지)
     if (user.getPasswordHash() == null || !passwordEncoder.matches(password,
       user.getPasswordHash())) {
       log.warn("로그인 실패 - 비밀번호 불일치: {}", email);
-      // Kafka 이벤트 발행: 로그인 실패 (비밀번호 불일치)
-      loginEventProducer.publishLoginFailed(
-        email, "INVALID_CREDENTIALS", "잘못된 이메일 또는 비밀번호입니다",
-        "PASSWORD", null, null);
       throw new UserException(UserResponse.INVALID_CREDENTIALS);
     }
 
     if (!user.isEmailVerified()) {
       log.warn("로그인 실패 - 이메일 미인증: {}", email);
-      // Kafka 이벤트 발행: 로그인 실패 (이메일 미인증)
-      loginEventProducer.publishLoginFailed(
-        email, "EMAIL_NOT_VERIFIED", "이메일 인증이 완료되지 않았습니다",
-        "PASSWORD", null, null);
       throw new UserException(UserResponse.EMAIL_NOT_VERIFIED);
     }
 
     if (!user.isEnabled()) {
       log.warn("로그인 실패 - 비활성 계정: {}", email);
-      loginEventProducer.publishLoginFailed(
-        email, "ACCOUNT_DISABLED", "비활성화된 계정입니다",
-        "PASSWORD", null, null);
       throw new UserException(UserResponse.ACCOUNT_DISABLED);
     }
 
@@ -215,20 +193,22 @@ public class UserServiceImpl implements UserService {
       token = keycloakService.login(email, password);
     } catch (Exception e) {
       log.error("Keycloak 로그인 실패: {}", e.getMessage());
-      // Kafka 이벤트 발행: 로그인 실패 (Keycloak 오류)
-      loginEventProducer.publishLoginFailed(
-        email, "KEYCLOAK_ERROR", "인증 서버 오류: " + e.getMessage(),
-        "PASSWORD", null, null);
       throw e;
     }
 
     log.info("로그인 성공: {}", email);
-
-    // Kafka 이벤트 발행: 로그인 성공
-    loginEventProducer.publishLoginSuccess(
-      user, "PASSWORD", null, null, true);
+    recordLastLoginQuietly(user);
 
     return token;
+  }
+
+  // 마지막 로그인 시각 기록(실패해도 발급한 토큰은 그대로)
+  private void recordLastLoginQuietly(User user) {
+    try {
+      userRepository.updateLastLoginAt(user.getId(), LocalDateTime.now());
+    } catch (RuntimeException e) {
+      log.warn("마지막 로그인 시각 기록 실패: userId={}, error={}", user.getId(), e.getMessage());
+    }
   }
 
   @Override

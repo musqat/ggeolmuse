@@ -1,12 +1,9 @@
 package com.muscat.user.config;
 
-import com.muscat.messaging.event.AccountBalanceUpdatedEvent;
 import com.muscat.messaging.event.AccountDeletedEvent;
 import com.muscat.messaging.event.EmailSendEvent;
 import com.muscat.messaging.event.TradeRejectedEvent;
 import com.muscat.messaging.event.TradeSettledEvent;
-import com.muscat.messaging.event.UserLoginFailedEvent;
-import com.muscat.messaging.event.UserLoginSuccessEvent;
 import com.muscat.messaging.kafka.KafkaFactories;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.util.Map;
@@ -36,36 +33,6 @@ public class KafkaProducerConfig {
   @Bean
   public KafkaTemplate<String, EmailSendEvent> emailEventKafkaTemplate() {
     return new KafkaTemplate<>(emailEventProducerFactory());
-  }
-
-  @Bean
-  public ProducerFactory<String, AccountBalanceUpdatedEvent> accountBalanceUpdatedEventProducerFactory() {
-    return KafkaFactories.producerFactory(gzipProps(), meterRegistry);
-  }
-
-  @Bean
-  public KafkaTemplate<String, AccountBalanceUpdatedEvent> accountBalanceUpdatedKafkaTemplate() {
-    return new KafkaTemplate<>(accountBalanceUpdatedEventProducerFactory());
-  }
-
-  @Bean
-  public ProducerFactory<String, UserLoginSuccessEvent> loginSuccessEventProducerFactory() {
-    return KafkaFactories.producerFactory(gzipProps(), meterRegistry);
-  }
-
-  @Bean
-  public KafkaTemplate<String, UserLoginSuccessEvent> loginSuccessKafkaTemplate() {
-    return new KafkaTemplate<>(loginSuccessEventProducerFactory());
-  }
-
-  @Bean
-  public ProducerFactory<String, UserLoginFailedEvent> loginFailedEventProducerFactory() {
-    return KafkaFactories.producerFactory(gzipProps(), meterRegistry);
-  }
-
-  @Bean
-  public KafkaTemplate<String, UserLoginFailedEvent> loginFailedKafkaTemplate() {
-    return new KafkaTemplate<>(loginFailedEventProducerFactory());
   }
 
   @Bean

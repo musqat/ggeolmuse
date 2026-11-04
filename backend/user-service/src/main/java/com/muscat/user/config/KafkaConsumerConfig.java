@@ -1,11 +1,8 @@
 package com.muscat.user.config;
 
-import com.muscat.messaging.event.AccountBalanceUpdatedEvent;
 import com.muscat.messaging.event.DividendPayoutEvent;
 import com.muscat.messaging.event.EmailSendEvent;
 import com.muscat.messaging.event.TradeCompletedEvent;
-import com.muscat.messaging.event.UserLoginFailedEvent;
-import com.muscat.messaging.event.UserLoginSuccessEvent;
 import com.muscat.messaging.kafka.KafkaFactories;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
@@ -63,27 +60,6 @@ public class KafkaConsumerConfig {
   public ConcurrentKafkaListenerContainerFactory<String, EmailSendEvent>
   emailEventKafkaListenerContainerFactory() {
     return KafkaFactories.manualAckContainer(emailEventConsumerFactory(), 3, kafkaErrorHandler());
-  }
-
-  @Bean
-  public ConcurrentKafkaListenerContainerFactory<String, AccountBalanceUpdatedEvent>
-  balanceUpdatedEventKafkaListenerContainerFactory() {
-    return KafkaFactories.manualAckContainer(
-      consumerFactory(AccountBalanceUpdatedEvent.class, "-balance-audit-consumer"), 1, kafkaErrorHandler());
-  }
-
-  @Bean
-  public ConcurrentKafkaListenerContainerFactory<String, UserLoginSuccessEvent>
-  loginSuccessEventKafkaListenerContainerFactory() {
-    return KafkaFactories.manualAckContainer(
-      consumerFactory(UserLoginSuccessEvent.class, "-login-success-consumer"), 1, kafkaErrorHandler());
-  }
-
-  @Bean
-  public ConcurrentKafkaListenerContainerFactory<String, UserLoginFailedEvent>
-  loginFailedEventKafkaListenerContainerFactory() {
-    return KafkaFactories.manualAckContainer(
-      consumerFactory(UserLoginFailedEvent.class, "-login-failed-consumer"), 1, kafkaErrorHandler());
   }
 
   /**

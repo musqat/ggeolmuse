@@ -752,7 +752,7 @@ class AccountServiceImplTest {
     }
 
     @Test
-    @DisplayName("이력 · 이벤트 종류는 넘긴 종류를 따르고 설명 문구는 보지 않는다")
+    @DisplayName("이력 종류는 넘긴 종류를 따르고 설명 문구는 보지 않는다")
     void updateUsdBalance_UsesGivenType() {
       testAccount.setBalanceUsd(new BigDecimal("1000.00"));
       given(accountRepository.findByIdWithLock(accountId)).willReturn(Optional.of(testAccount));
@@ -769,10 +769,6 @@ class AccountServiceImplTest {
       verify(accountHistoryRepository, times(3)).save(saved.capture());
       assertThat(saved.getAllValues()).extracting(AccountHistory::getTransactionType)
         .containsExactly(TransactionType.DIVIDEND, TransactionType.TRADE_SELL, TransactionType.TRADE_BUY);
-      verify(accountEventProducer).publishAccountBalanceUpdated(eq(testAccount), eq("DIVIDEND_RECEIVED"),
-        any(), any(), any(), any(), any(), any(), any());
-      verify(accountEventProducer, times(2)).publishAccountBalanceUpdated(eq(testAccount), eq("TRADE_COMPLETED"),
-        any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -1049,7 +1045,7 @@ class AccountServiceImplTest {
   @DisplayName("실패 · 경계 경로")
   class FailureAndBoundaryTests {
 
-    // MoneyUtils.validateSufficientBalance 가 실제로 던지는 예외
+    // MoneyUtils.validateSufficientBalance 가 실제로 내는 예외
     private ServiceException insufficient() {
       return new ServiceException("INSUFFICIENT_BALANCE", "잔액 부족: 현재 1000000 KRW, 필요 2000000 KRW");
     }
