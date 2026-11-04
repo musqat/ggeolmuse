@@ -24,10 +24,14 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -36,6 +40,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -153,7 +158,7 @@ public class MarketController {
     @RequestParam("symbols") @Size(min = 1, max = 50) List<String> symbols) {
     log.debug("다중 현재가 조회 요청: symbols={}", symbols);
 
-    Map<String, StockPriceDto> results = new java.util.HashMap<>();
+    Map<String, StockPriceDto> results = new HashMap<>();
     for (String symbol : symbols) {
       try {
         StockPriceDto price = candleService.getCurrentPrice(symbol.toUpperCase());
@@ -207,7 +212,7 @@ public class MarketController {
     )
   })
   @GetMapping("/stocks")
-  public ResponseEntity<org.springframework.data.domain.Page<StockPriceDto>> getAllStocksWithPrices(
+  public ResponseEntity<Page<StockPriceDto>> getAllStocksWithPrices(
       @Parameter(description = "페이지 번호 (0부터 시작)", example = "0")
       @RequestParam(defaultValue = "0") @Min(0) int page,
       @Parameter(description = "페이지 크기 (1~200)", example = "50")
@@ -221,9 +226,9 @@ public class MarketController {
     log.debug("종목 목록과 현재가 조회 요청: page={}, size={}, direction={}, assetType={}, sort={}",
         page, size, direction, assetType, sort);
 
-    org.springframework.data.domain.Pageable pageable =
-        org.springframework.data.domain.PageRequest.of(page, size);
-    org.springframework.data.domain.Page<StockPriceDto> stocks =
+    Pageable pageable =
+        PageRequest.of(page, size);
+    Page<StockPriceDto> stocks =
         candleService.getAllStocksWithPrices(pageable, direction, assetType, StockSort.from(sort));
 
     log.debug("종목 목록과 현재가 조회 완료: {} 개 (전체 {}개 중)", stocks.getNumberOfElements(), stocks.getTotalElements());
@@ -280,13 +285,13 @@ public class MarketController {
   @PostMapping("/fx/bulk")
   public ResponseEntity<Map<String, BigDecimal>> getBulkFxRates(
     @Parameter(description = "조회할 날짜 리스트 (YYYY-MM-DD, 최대 30000개)", required = true)
-    @org.springframework.web.bind.annotation.RequestBody @Size(max = FxRateService.MAX_BULK_DATES)
+    @RequestBody @Size(max = FxRateService.MAX_BULK_DATES)
     List<@NotNull LocalDate> dates) {
 
     log.debug("Bulk 환율 조회 요청: dates size={}", dates.size());
 
     // 날짜 문자열 -> 환율
-    Map<String, BigDecimal> result = new java.util.HashMap<>();
+    Map<String, BigDecimal> result = new HashMap<>();
     fxRateService.findByDates(dates).forEach((date, rate) -> result.put(date.toString(), rate));
 
     log.debug("Bulk 환율 조회 완료: {}개 요청, {}개 반환", dates.size(), result.size());
