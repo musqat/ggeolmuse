@@ -8,6 +8,7 @@ import { SummaryCards } from './SummaryCards';
 import { FxImpactSection } from './FxImpactSection';
 import { DetailRow, DetailSection } from './DetailSection';
 import { PurchaseHistory } from './PurchaseHistory';
+import { DefaultFxNotice } from './DefaultFxNotice';
 
 interface DcaConditionalResultProps {
   result: StrategyResponse;
@@ -31,6 +32,7 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
           투자일이 휴장일이면 다음 거래일 종가로 삽니다(이번 결과 {moved}번).
         </p>
       )}
+      <DefaultFxNotice dates={result.defaultFxDates} />
       <SummaryCards result={result} investedLabel="총 투자금" invested={result.totalInvested} />
 
       {/* 상세 결과(투자 정보 · 주식 수익 · 환율 영향) */}

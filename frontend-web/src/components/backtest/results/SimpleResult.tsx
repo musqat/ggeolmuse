@@ -10,6 +10,7 @@ import { DetailRow, DetailSection } from './DetailSection';
 import { getTodayString } from '../../../utils/dateUtils';
 import { cashKrw } from '../shared/backtestDisplay';
 import { HolidayNotice } from './HolidayNotice';
+import { DefaultFxNotice } from './DefaultFxNotice';
 
 interface SimpleResultProps {
   result: SimulationResponse;
@@ -21,6 +22,7 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
   return (
     <div className="space-y-6">
       <HolidayNotice label="매수일" chosen={purchaseDate} traded={result.purchaseDate} />
+      <DefaultFxNotice dates={result.defaultFxDates} />
       <SummaryCards
         result={result}
         investedLabel="초기 투자금"

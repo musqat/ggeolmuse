@@ -37,6 +37,12 @@ describe('SimpleResult', () => {
     expect(vi.mocked(SimpleChart).mock.lastCall?.[0]).toMatchObject({ endDate: '2024-06-14' })
   })
 
+  it('기본 환율로 계산한 날이 있으면 그 알림을 보인다', () => {
+    render(<SimpleResult result={{ ...result, defaultFxDates: ['2013-06-03'] }} symbol="AAPL" purchaseDate="2013-06-03" />)
+
+    expect(screen.getByRole('note')).toHaveTextContent('2013-06-03')
+  })
+
   it('평가일 기준 라벨을 쓴다', () => {
     render(<SimpleResult result={result} symbol="AAPL" purchaseDate="2023-01-03" />)
 
