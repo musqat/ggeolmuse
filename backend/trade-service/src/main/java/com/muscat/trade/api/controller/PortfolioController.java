@@ -11,9 +11,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import java.math.BigDecimal;
 import java.util.List;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ProblemDetail;
@@ -22,8 +20,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -168,16 +164,11 @@ public class PortfolioController {
       )
     )
   })
-  @PostMapping("/summary")
+  @GetMapping("/summary")
   public ResponseEntity<PortfolioSummary> getPortfolioSummary(
     @Parameter(description = "JWT 토큰에서 추출되는 사용자 ID", hidden = true)
-    @AuthenticationPrincipal Jwt jwt,
-    @Parameter(description = "종목별 현재가 정보", required = true)
-    @RequestBody Map<String, BigDecimal> currentPrices) {
-
-    String userId = jwt.getSubject();
-    PortfolioSummary summary = holdingsService.getPortfolioSummary(userId, currentPrices);
-    return ResponseEntity.ok(summary);
+    @AuthenticationPrincipal Jwt jwt) {
+    return ResponseEntity.ok(holdingsService.getPortfolioSummary(jwt.getSubject()));
   }
 
 }
