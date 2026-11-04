@@ -103,7 +103,7 @@ class TradeSettlementIntegrationTest {
     return TradeCompletedEvent.builder()
       .eventId("evt-" + tradeId)
       .tradeId(tradeId)
-      .userId(String.valueOf(userId))
+      .userId("keycloak-settle-user")
       .accountId(account.getId())
       .symbol("AAPL")
       .tradeType(TradeCompletedEvent.TradeType.valueOf(tradeType))

@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -59,6 +60,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 @DisplayName("AccountService 단위 테스트")
 class AccountServiceImplTest {
 
+  private static final String SUB = "kc-sub-1";
+
   @Mock
   private AccountRepository accountRepository;
 
@@ -106,6 +109,7 @@ class AccountServiceImplTest {
 
     testUser = User.builder()
       .id(userId)
+      .keycloakId(SUB)
       .email("test@example.com")
       .nickname("testuser")
       .build();
@@ -829,6 +833,11 @@ class AccountServiceImplTest {
 
     // processTradeEvent 는 예외 경우만(정상 흐름은 updateUsdBalance 를 거쳐 통합 테스트 몫)
 
+    @BeforeEach
+    void subResolvesToTestUser() {
+      lenient().when(userRepository.findByKeycloakId(SUB)).thenReturn(Optional.of(testUser));
+    }
+
     @Test
     @DisplayName("잘못된 userId 형식 시 예외 발생")
     void processTradeEvent_InvalidUserId_ThrowsException() {
@@ -852,38 +861,14 @@ class AccountServiceImplTest {
     }
 
     @Test
-    @DisplayName("계좌가 없는 사용자의 거래 이벤트 처리 시 예외 발생")
-    void processTradeEvent_NoAccount_ThrowsException() {
-      // given
-      com.muscat.messaging.event.TradeCompletedEvent event =
-        com.muscat.messaging.event.TradeCompletedEvent.builder()
-          .userId(userId.toString())
-          .tradeId(4L)
-          .symbol("MSFT")
-          .tradeType(TradeCompletedEvent.TradeType.BUY)
-          .quantity(new BigDecimal("10"))
-          .price(new BigDecimal("350.00"))
-          .totalAmount(new BigDecimal("3500.00"))
-          .currency("USD")
-          .build();
-
-      given(accountRepository.findByUserIdWithUser(userId))
-        .willReturn(new ArrayList<>());
-
-      // when & then
-      assertThatThrownBy(() -> accountService.processTradeEvent(event))
-        .isInstanceOf(AccountException.class)
-        .hasMessage(AccountResponse.ACCOUNT_NOT_FOUND.getMessage());
-    }
-
-    @Test
     @DisplayName("거래 타입이 없으면 예외 발생")
     void processTradeEvent_MissingTradeType_ThrowsException() {
       // given
       com.muscat.messaging.event.TradeCompletedEvent event =
         com.muscat.messaging.event.TradeCompletedEvent.builder()
-          .userId(userId.toString())
+          .userId(SUB)
           .tradeId(5L)
+          .accountId(accountId)
           .symbol("AMZN")
           .tradeType(null)
           .quantity(new BigDecimal("2"))
@@ -891,9 +876,6 @@ class AccountServiceImplTest {
           .totalAmount(new BigDecimal("6400.00"))
           .currency("USD")
           .build();
-
-      given(accountRepository.findByUserIdWithUser(userId))
-        .willReturn(Arrays.asList(testAccount));
 
       // when & then
       assertThatThrownBy(() -> accountService.processTradeEvent(event))
@@ -920,18 +902,30 @@ class AccountServiceImplTest {
     }
 
     @Test
-    @DisplayName("계좌 ID 가 없는 예전 이벤트는 첫 번째 계좌에 반영한다")
-    void processTradeEvent_NoAccountId_UsesFirstAccount() {
-      // given
+    @DisplayName("계좌 ID 가 없는 이벤트는 첫 계좌가 있어도 잔액을 바꾸지 않고 계좌 없음으로 막는다")
+    void processTradeEvent_NoAccountId_Rejected() {
       Account firstAccount = usdAccount(10L, testUser, "1000.00");
-      given(accountRepository.findByUserIdWithUser(userId)).willReturn(List.of(firstAccount));
-      given(accountRepository.findByIdWithLock(10L)).willReturn(Optional.of(firstAccount));
+      lenient().when(accountRepository.findByUserIdWithUser(userId)).thenReturn(List.of(firstAccount));
+      lenient().when(accountRepository.findByIdWithLock(10L)).thenReturn(Optional.of(firstAccount));
 
-      // when
-      accountService.processTradeEvent(buyEvent(null, "90.02"));
+      assertThatThrownBy(() -> accountService.processTradeEvent(buyEvent(null, "90.02")))
+        .isInstanceOf(AccountException.class)
+        .hasMessage(AccountResponse.ACCOUNT_NOT_FOUND.getMessage());
+      assertThat(firstAccount.getBalanceUsd()).isEqualByComparingTo("1000.00");
+    }
 
-      // then
-      assertThat(firstAccount.getBalanceUsd()).isEqualByComparingTo("909.98");
+    @Test
+    @DisplayName("사용자 식별자가 로컬 숫자 ID 인 이벤트는 사용자 없음으로 막는다")
+    void processTradeEvent_NumericUserId_Rejected() {
+      Account account = usdAccount(20L, testUser, "1000.00");
+      lenient().when(accountRepository.findByIdWithLock(20L)).thenReturn(Optional.of(account));
+      TradeCompletedEvent event = buyEvent(20L, "90.02");
+      event.setUserId(userId.toString());
+
+      assertThatThrownBy(() -> accountService.processTradeEvent(event))
+        .isInstanceOf(AccountException.class)
+        .hasMessage(AccountResponse.ACCOUNT_NOT_FOUND.getMessage());
+      assertThat(account.getBalanceUsd()).isEqualByComparingTo("1000.00");
     }
 
     @Test
@@ -1029,7 +1023,7 @@ class AccountServiceImplTest {
 
   private TradeCompletedEvent tradeEvent(Long accountId, String tradeType, String totalAmount) {
     return TradeCompletedEvent.builder()
-      .userId(userId.toString())
+      .userId(SUB)
       .accountId(accountId)
       .tradeId(7L)
       .symbol("TSLL")

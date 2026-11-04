@@ -408,7 +408,11 @@ public class AccountServiceImpl implements AccountService {
     Long userId = resolveUserId(event.getUserId());
 
     // 2. 거래한 계좌(소유자 확인은 updateUsdBalance)
-    Long accountId = resolveTradeAccountId(event.getAccountId(), userId, event.getTradeId());
+    Long accountId = event.getAccountId();
+    if (accountId == null) {
+      log.error("계좌 ID 가 없는 거래 이벤트: tradeId={}, userId={}", event.getTradeId(), userId);
+      throw new AccountException(AccountResponse.ACCOUNT_NOT_FOUND);
+    }
 
     // 3. 거래 타입에 따라 잔액 변경 금액 계산
     // BUY: 사용자가 USD를 지불하고 주식을 구매 -> USD 잔액 감소 (음수)
@@ -435,33 +439,12 @@ public class AccountServiceImpl implements AccountService {
     log.debug("잔액 변경 계산: tradeType={}, balanceChange={}", event.getTradeType(), balanceChange);
 
     // 4. 기존 updateUsdBalance 메서드 재사용
-    try {
-      updateUsdBalance(accountId, userId, balanceChange, type, description);
-
-      log.info("거래 이벤트 처리 완료: tradeId={}, userId={}, accountId={}, balanceChange={}",
-        event.getTradeId(), userId, accountId, balanceChange);
-
-    } catch (AccountException e) {
-      log.error("잔액 업데이트 실패: tradeId={}, userId={}, accountId={}, error={}",
-        event.getTradeId(), userId, accountId, e.getMessage());
-      throw e;
-    }
+    updateUsdBalance(accountId, userId, balanceChange, type, description);
+    log.info("거래 이벤트 처리 완료: tradeId={}, userId={}, accountId={}, balanceChange={}",
+      event.getTradeId(), userId, accountId, balanceChange);
   }
 
   // 거래가 일어난 계좌 ID(계좌 ID 를 싣기 전에 나간 이벤트는 사용자의 첫 번째 계좌)
-  private Long resolveTradeAccountId(Long eventAccountId, Long userId, Long tradeId) {
-    if (eventAccountId != null) {
-      return eventAccountId;
-    }
-
-    log.warn("계좌 ID 가 없는 거래 이벤트라 첫 번째 계좌로 처리: tradeId={}, userId={}", tradeId, userId);
-    List<Account> accounts = accountRepository.findByUserIdWithUser(userId);
-    if (accounts.isEmpty()) {
-      log.error("사용자의 계좌가 존재하지 않음: userId={}", userId);
-      throw new AccountException(AccountResponse.ACCOUNT_NOT_FOUND);
-    }
-    return accounts.getFirst().getId();
-  }
 
   @Override
   @Transactional
@@ -596,23 +579,14 @@ public class AccountServiceImpl implements AccountService {
 
  //사용자 ID 해석 (Long ID 또는 Keycloak UUID 지원)
 
-  private Long resolveUserId(String userIdStr) {
-    // 1. Long으로 파싱 시도
-    try {
-      return Long.parseLong(userIdStr);
-    } catch (NumberFormatException e) {
-      log.debug("userId가 Long 형식이 아님, Keycloak UUID로 조회 시도: {}", userIdStr);
-    }
-
-    // 2. Keycloak UUID로 User 조회
-    User user = userRepository.findByKeycloakId(userIdStr)
+  // 이벤트의 사용자 식별자(토큰 sub)로 로컬 사용자 ID
+  private Long resolveUserId(String keycloakId) {
+    return userRepository.findByKeycloakId(keycloakId)
+      .map(User::getId)
       .orElseThrow(() -> {
-        log.error("사용자를 찾을 수 없음: keycloakId={}", userIdStr);
+        log.error("사용자를 찾을 수 없음: keycloakId={}", keycloakId);
         return new AccountException(AccountResponse.ACCOUNT_NOT_FOUND);
       });
-
-    log.debug("Keycloak UUID로 사용자 조회 성공: keycloakId={}, userId={}", userIdStr, user.getId());
-    return user.getId();
   }
 
   // ==================== ADMIN API ==================== //
