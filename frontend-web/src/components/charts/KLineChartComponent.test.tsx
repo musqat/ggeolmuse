@@ -45,6 +45,22 @@ describe('KLineChartComponent', () => {
     delete document.documentElement.dataset.theme
   })
 
+  it.each(['dark', 'light'])('%s 테마에서 y축 현재가 표시는 캔들과 같은 오름 · 내림 색이다', (theme) => {
+    document.documentElement.dataset.theme = theme
+    chart.setStyles.mockClear()
+    render(<KLineChartComponent data={[]} />)
+
+    const styles = chart.setStyles.mock.calls[0][0] as {
+      candle: {
+        bar: { upColor: string; downColor: string }
+        priceMark?: { last?: { upColor: string; downColor: string } }
+      }
+    }
+    expect(styles.candle.priceMark?.last?.upColor).toBe(styles.candle.bar.upColor)
+    expect(styles.candle.priceMark?.last?.downColor).toBe(styles.candle.bar.downColor)
+    delete document.documentElement.dataset.theme
+  })
+
   it('RSI 를 켜면 라벨대로 14 하나로 그린다', async () => {
     render(<KLineChartComponent data={[]} showIndicatorPanel />)
 

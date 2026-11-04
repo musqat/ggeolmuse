@@ -37,6 +37,11 @@ const volumeBars = (noChangeColor: string) => [
   { upColor: `${UP_COLOR}b3`, downColor: `${DOWN_COLOR}b3`, noChangeColor },
 ];
 
+// y축 현재가 표시(캔들과 같은 색)
+const lastPriceMark = (noChangeColor: string) => ({
+  last: { upColor: UP_COLOR, downColor: DOWN_COLOR, noChangeColor },
+});
+
 function convertData(data: CandlestickChartData[]) {
   return data.map(d => ({
     timestamp: new Date(d.time).getTime(),
@@ -84,6 +89,7 @@ function getDarkStyles() {
         downWickColor: DOWN_COLOR,
         noChangeWickColor: '#94a3b8',
       },
+      priceMark: lastPriceMark('#94a3b8'),
       tooltip: {
         labels: ['T', 'O', 'H', 'L', 'C', 'V'],
         values: null,
@@ -136,9 +142,15 @@ function getLightStyles() {
         downWickColor: DOWN_COLOR,
         noChangeWickColor: '#64748b',
       },
+      priceMark: lastPriceMark('#64748b'),
     },
     indicator: {
       bars: volumeBars('#64748b'),
+      ohlc: {
+        upColor: UP_COLOR,
+        downColor: DOWN_COLOR,
+        noChangeColor: '#64748b',
+      },
     },
     xAxis: {
       axisLine: { color: '#cbd5e1' },

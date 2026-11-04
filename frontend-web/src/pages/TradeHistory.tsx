@@ -53,7 +53,7 @@ const TradeHistory: React.FC = () => {
         </div>
 
         {error && (
-          <div className="bg-loss/10 border border-loss/25 text-loss px-4 py-3 rounded-lg">
+          <div className="bg-danger/10 border border-danger/25 text-danger px-4 py-3 rounded-lg">
             거래내역을 불러오는데 실패했습니다.
           </div>
         )}
