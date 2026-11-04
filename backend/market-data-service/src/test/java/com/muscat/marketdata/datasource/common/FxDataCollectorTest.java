@@ -343,7 +343,7 @@ class FxDataCollectorTest {
 
     @Test
     @DisplayName("수집이 실패해도 예외를 밖으로 내보내지 않는다")
-    void 실패_삼킴() {
+    void 실패해도_예외_없음() {
       properties.getFxIngest().getIncremental().setEnabled(true);
       given(fxRateRepository.findByDateBetween(any(), any())).willThrow(new IllegalStateException("DB 다운"));
 
