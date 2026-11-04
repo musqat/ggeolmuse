@@ -261,7 +261,7 @@ spec:
 
         - alert: KafkaConsumerLag
           # 소비자가 안 읽은 레코드가 쌓임(종목 수집 토픽은 아래 규칙이 따로)
-          expr: sum by (job, topic) (kafka_consumer_fetch_manager_records_lag{topic!="market.asset.created"}) > 100
+          expr: sum by (job, topic) (kafka_consumer_fetch_manager_records_lag{topic!="market_asset_created"}) > 100
           for: 10m
           labels:
             severity: warning
@@ -272,7 +272,7 @@ spec:
 
         - alert: KafkaCollectionLag
           # 1시간 넘게 2000건 위(종목 수집은 한 건씩 오래 처리해 한꺼번에 더하면 쌓이는 게 정상)
-          expr: sum by (job, topic) (kafka_consumer_fetch_manager_records_lag{topic="market.asset.created"}) > 2000
+          expr: sum by (job, topic) (kafka_consumer_fetch_manager_records_lag{topic="market_asset_created"}) > 2000
           for: 1h
           labels:
             severity: warning

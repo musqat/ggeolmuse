@@ -123,7 +123,7 @@ user-service 가 처리한 체결을 `trade_settlements` 에 남겨 다시 넣�
 반영됐는지 확인한다.
 
 `KafkaConsumerLag` 는 토픽별 안 읽은 레코드(`kafka_consumer_fetch_manager_records_lag` 합)가 100건 넘게 10분, `KafkaCollectionLag` 는
-종목 수집 토픽 `market.asset.created` 가 2000건 넘게 1시간 이어지면 경보를 보낸다. 종목 수집은 한 건씩 오래 처리해 종목을 한꺼번에 더하면
+종목 수집 토픽 `market.asset.created`(지표의 `topic` 레이블은 점 대신 밑줄 `market_asset_created`)가 2000건 넘게 1시간 이어지면 경보를 보낸다. 종목 수집은 한 건씩 오래 처리해 종목을 한꺼번에 더하면
 쌓이는 게 정상이라 따로 둔다. 기준은 지표가 나온 뒤 실제 값을 보고 다시 잡는다.
 
 `TradeEventsUnpublished` 는 trade-service 가 커밋한 체결 가운데 이벤트를 1분 넘게 못 보낸 수다. 스케줄러가
