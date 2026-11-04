@@ -12,12 +12,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -83,36 +81,6 @@ public class TradeApiController {
     String userId = jwt.getSubject();
 
     List<TradeResponseDto> trades = tradingService.getUserTrades(userId, page, size);
-
-    return ResponseEntity.ok(trades);
-  }
-
-  @Operation(
-      summary = "기간별 거래 내역 조회",
-      description = "지정된 기간 동안의 사용자 거래 내역을 조회합니다"
-  )
-  @ApiResponses(value = {
-      @ApiResponse(
-          responseCode = "200",
-          description = "기간별 거래 내역 조회 성공",
-          content = @Content(
-              mediaType = "application/json",
-              schema = @Schema(implementation = TradeResponseDto.class)
-          )
-      )
-  })
-  @GetMapping("/history/period")
-  public ResponseEntity<List<TradeResponseDto>> getTradeHistoryByPeriod(
-      @Parameter(description = "JWT 토큰에서 추출되는 사용자 ID", hidden = true)
-      @AuthenticationPrincipal Jwt jwt,
-      @Parameter(description = "조회 시작일", required = true, example = "2024-01-01")
-      @RequestParam(value = "startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-      @Parameter(description = "조회 종료일", required = true, example = "2024-12-31")
-      @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-
-    String userId = jwt.getSubject();
-
-    List<TradeResponseDto> trades = tradingService.getTradesByDateRange(userId, startDate, endDate);
 
     return ResponseEntity.ok(trades);
   }

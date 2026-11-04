@@ -5,8 +5,14 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.muscat.trade.common.enums.type.TradeType;
 import com.muscat.trade.domain.dto.response.DividendResponseDto;
+import com.muscat.trade.domain.dto.response.TransactionHistoryItem;
 import com.muscat.trade.domain.entity.Trade;
 import com.muscat.trade.domain.repository.TradeRepository;
 import com.muscat.trade.domain.service.DividendService;
@@ -26,11 +32,15 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.jwt.Jwt;
-import java.util.Objects;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("TransactionHistoryController 단위 테스트")
 class TransactionHistoryControllerSimpleTest {
+
+  private static final ObjectMapper MAPPER = JsonMapper.builder().findAndAddModules()
+    .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+    .enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS, DeserializationFeature.USE_LONG_FOR_INTS)
+    .build();
 
   @Mock
   private TradeRepository tradeRepository;
@@ -77,15 +87,15 @@ class TransactionHistoryControllerSimpleTest {
       .thenReturn(List.of());
 
     // When
-    ResponseEntity<List<Map<String, Object>>> response = transactionHistoryController.getTransactionHistory(
+    ResponseEntity<List<TransactionHistoryItem>> response = transactionHistoryController.getTransactionHistory(
       mockJwt);
 
     // Then
     assertThat(response.getStatusCode().value()).isEqualTo(200);
-    assertThat(response.getBody()).hasSize(1);
-    assertThat(response.getBody().get(0).get("type")).isEqualTo("BUY");
-    assertThat(response.getBody().get(0).get("symbol")).isEqualTo("AAPL");
-    assertThat(response.getBody().get(0).get("status")).isEqualTo("COMPLETED");
+    assertThat(json(response.getBody())).hasSize(1);
+    assertThat(json(response.getBody()).get(0).get("type")).isEqualTo("BUY");
+    assertThat(json(response.getBody()).get(0).get("symbol")).isEqualTo("AAPL");
+    assertThat(json(response.getBody()).get(0).get("status")).isEqualTo("COMPLETED");
   }
 
   @Test
@@ -113,17 +123,17 @@ class TransactionHistoryControllerSimpleTest {
       .thenReturn(List.of(dividend));
 
     // When
-    ResponseEntity<List<Map<String, Object>>> response = transactionHistoryController.getTransactionHistory(
+    ResponseEntity<List<TransactionHistoryItem>> response = transactionHistoryController.getTransactionHistory(
       mockJwt);
 
     // Then
     assertThat(response.getStatusCode().value()).isEqualTo(200);
-    assertThat(response.getBody()).hasSize(1);
-    assertThat(response.getBody().get(0).get("type")).isEqualTo("DIVIDEND");
-    assertThat(response.getBody().get(0).get("symbol")).isEqualTo("AAPL");
-    assertThat(response.getBody().get(0).get("totalAmount")).isEqualTo(new BigDecimal("25.00"));
-    assertThat(response.getBody().get(0).get("accountId")).isEqualTo(1L);
-    assertThat(response.getBody().get(0)).doesNotContainKey("tradeId");
+    assertThat(json(response.getBody())).hasSize(1);
+    assertThat(json(response.getBody()).get(0).get("type")).isEqualTo("DIVIDEND");
+    assertThat(json(response.getBody()).get(0).get("symbol")).isEqualTo("AAPL");
+    assertThat(json(response.getBody()).get(0).get("totalAmount")).isEqualTo(new BigDecimal("25.00"));
+    assertThat(json(response.getBody()).get(0).get("accountId")).isEqualTo(1L);
+    assertThat(json(response.getBody()).get(0)).doesNotContainKey("tradeId");
   }
 
   @Test
@@ -138,12 +148,12 @@ class TransactionHistoryControllerSimpleTest {
       .thenReturn(List.of());
 
     // When
-    ResponseEntity<List<Map<String, Object>>> response = transactionHistoryController.getTransactionHistory(
+    ResponseEntity<List<TransactionHistoryItem>> response = transactionHistoryController.getTransactionHistory(
       mockJwt);
 
     // Then
     assertThat(response.getStatusCode().value()).isEqualTo(200);
-    assertThat(response.getBody()).isEmpty();
+    assertThat(json(response.getBody())).isEmpty();
   }
 
   @Test
@@ -158,12 +168,35 @@ class TransactionHistoryControllerSimpleTest {
       .thenReturn(new PageImpl<>(List.of(older, newer)));
     when(dividendService.getUserDividends(eq("test-user-123"))).thenReturn(List.of(dividend));
 
-    List<Map<String, Object>> body =
-      Objects.requireNonNull(transactionHistoryController.getTransactionHistory(mockJwt).getBody());
+    List<Map<String, Object>> body = json(transactionHistoryController.getTransactionHistory(mockJwt).getBody());
 
     assertThat(body).extracting(t -> t.get("date"))
-      .containsExactly(LocalDate.of(2024, 1, 30), LocalDate.of(2024, 1, 20), LocalDate.of(2024, 1, 10));
+      .containsExactly("2024-01-30", "2024-01-20", "2024-01-10");
     assertThat(body).extracting(t -> t.get("type")).containsExactly("BUY", "DIVIDEND", "BUY");
+  }
+
+  @Test
+  @DisplayName("매매 · 배당 한 줄의 JSON 칸은 프론트 거래 내역 타입과 같고 배당에는 체결 칸이 없다")
+  void jsonKeysPerKind() {
+    DividendResponseDto dividend = new DividendResponseDto(1L, 1L, "AAPL", new BigDecimal("100"),
+      new BigDecimal("0.25"), new BigDecimal("30.00"), new BigDecimal("5.00"), new BigDecimal("25.00"),
+      LocalDate.of(2024, 1, 20), LocalDateTime.of(2024, 1, 20, 12, 0));
+    when(tradeRepository.findByUserIdOrderByExecutedAtDesc(eq("test-user-123"), any(Pageable.class)))
+      .thenReturn(new PageImpl<>(List.of(trade(1L, LocalDate.of(2024, 1, 30)))));
+    when(dividendService.getUserDividends(eq("test-user-123"))).thenReturn(List.of(dividend));
+
+    List<Map<String, Object>> body = json(transactionHistoryController.getTransactionHistory(mockJwt).getBody());
+
+    assertThat(body.get(0)).containsOnlyKeys("type", "tradeId", "accountId", "symbol", "quantity", "price",
+      "totalAmount", "fee", "date", "executedAt", "status", "cancelReason");
+    assertThat(body.get(1)).containsOnlyKeys("type", "accountId", "symbol", "quantity", "price", "totalAmount",
+      "grossAmount", "taxAmount", "fee", "date", "executedAt", "dividendPerShare", "shares");
+    assertThat(body.get(1)).containsEntry("quantity", null).containsEntry("grossAmount", new BigDecimal("30.00"));
+  }
+
+  // 응답이 나가는 JSON 그대로(날짜는 문자열)
+  private static List<Map<String, Object>> json(List<TransactionHistoryItem> items) {
+    return MAPPER.convertValue(items, new TypeReference<>() {});
   }
 
   private static Trade trade(long id, LocalDate tradeDate) {

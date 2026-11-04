@@ -56,16 +56,4 @@ class TradeApiControllerSimpleTest {
 
     assertThat(response.getBody()).isSameAs(trades);
   }
-
-  @Test
-  @DisplayName("기간 내역은 시작일 · 종료일을 그대로 넘긴다")
-  void byPeriod() {
-    LocalDate start = LocalDate.of(2024, 1, 1);
-    LocalDate end = LocalDate.of(2024, 1, 31);
-    given(tradingService.getTradesByDateRange("test-user-123", start, end)).willReturn(trades);
-
-    ResponseEntity<List<TradeResponseDto>> response = controller.getTradeHistoryByPeriod(jwt, start, end);
-
-    assertThat(response.getBody()).isSameAs(trades);
-  }
 }

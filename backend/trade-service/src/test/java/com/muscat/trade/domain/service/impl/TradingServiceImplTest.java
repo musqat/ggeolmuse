@@ -185,7 +185,7 @@ class TradingServiceImplTest {
     }
 
     @Test
-    @DisplayName("직접 입력 가격에는 슬리피지를 붙이지 않는다")
+    @DisplayName("직접 입력 가격에는 슬리피지를 반영하지 않는다")
     void buyStock_ManualPrice_KeepsInputPrice() {
       // given
       BigDecimal manualPrice = new BigDecimal("100.00");
@@ -618,31 +618,6 @@ class TradingServiceImplTest {
       assertThat(result).hasSize(1);
       assertThat(result.getFirst().symbol()).isEqualTo(TEST_SYMBOL);
     }
-
-    @Test
-    @DisplayName("날짜 범위로 거래 내역이 조회된다")
-    void getTradesByDateRange_Success() {
-      // given
-      LocalDate startDate = LocalDate.of(2024, 1, 1);
-      LocalDate endDate = LocalDate.of(2024, 1, 31);
-
-      List<Trade> trades = new ArrayList<>();
-      trades.add(createTestTrade(1L, TradeType.BUY));
-
-      given(tradeRepository.findTradesWithComplexFilters(
-        eq(TEST_USER_ID), isNull(), isNull(), isNull(), eq(startDate), eq(endDate),
-        isNull(), isNull(), any(Pageable.class)))
-        .willReturn(new PageImpl<>(trades));
-
-      // when
-      List<TradeResponseDto> result = tradingService.getTradesByDateRange(
-        TEST_USER_ID, startDate, endDate);
-
-      // then
-      assertThat(result).hasSize(1);
-      assertThat(result.getFirst().tradeDate()).isAfterOrEqualTo(startDate);
-      assertThat(result.getFirst().tradeDate()).isBeforeOrEqualTo(endDate);
-    }
   }
 
   @Nested
@@ -679,6 +654,22 @@ class TradingServiceImplTest {
       // 66주는 9,900 + 수수료 9.90 = 9,909.90, 67주는 가격만 10,050
       assertThat(result.maxShares()).isEqualByComparingTo("66");
       assertThat(result.totalValue()).isEqualByComparingTo("9909.90");
+    }
+
+    @Test
+    @DisplayName("체결가가 0 이면 나누지 않고 매수 가능 수량 0 을 준다")
+    void calculateBuyingCapacity_ZeroPrice_ZeroShares() {
+      given(tradeUtils.getAccountBalance(String.valueOf(TEST_ACCOUNT_ID)))
+        .willReturn(balance("100.00", null));
+      given(marketDataService.determineTradePrice(
+        TEST_SYMBOL, TEST_TRADE_DATE, PriceType.CLOSE, null)).willReturn(BigDecimal.ZERO);
+      stubFeeRate("0");
+
+      TradingCapacityResponseDto result = tradingService.calculateBuyingCapacity(
+        TEST_USER_ID, capacityRequest(null, null));
+
+      assertThat(result.maxShares()).isEqualByComparingTo("0");
+      assertThat(result.totalValue()).isEqualByComparingTo("0");
     }
 
     @Test
@@ -1013,7 +1004,7 @@ class TradingServiceImplTest {
     }
 
     @Test
-    @DisplayName("거래 저장이 실패하면 거래 처리 오류로 올리고 체결 이벤트를 내지 않는다")
+    @DisplayName("거래 저장이 실패하면 거래 처리 오류가 나고 체결 이벤트를 내지 않는다")
     void buyStock_SaveFails_TransactionFailed() {
       given(marketDataService.determineTradePrice(TEST_SYMBOL, TEST_TRADE_DATE, PriceType.CLOSE, null))
         .willReturn(TEST_PRICE);

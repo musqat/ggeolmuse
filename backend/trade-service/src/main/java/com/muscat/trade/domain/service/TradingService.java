@@ -24,9 +24,6 @@ public interface TradingService {
   // 특정 종목 거래 내역 조회
   List<TradeResponseDto> getTradesBySymbol(String userId, String symbol);
 
-  // 특정 기간 거래 내역 조회
-  List<TradeResponseDto> getTradesByDateRange(String userId, LocalDate startDate, LocalDate endDate);
-
   // 매수 가능한 주식 수량 계산
   TradingCapacityResponseDto calculateBuyingCapacity(String userId, TradingCapacityRequestDto request);
 

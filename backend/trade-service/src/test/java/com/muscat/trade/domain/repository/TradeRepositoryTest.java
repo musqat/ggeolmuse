@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.muscat.jpatest.TradeJpaTestConfig;
 import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.common.enums.type.TradeType;
+import com.muscat.trade.domain.dto.TradePosition;
 import com.muscat.trade.domain.entity.Trade;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -137,16 +138,21 @@ class TradeRepositoryTest {
   }
 
   @Test
-  @DisplayName("배당용 조회는 그 종목의 배당락일 전 체결만 거래일 순으로 준다")
-  void findTradesBeforeExDate_ForDividend() {
+  @DisplayName("배당용 조회는 그 종목을 배당락일 전에 체결한 사용자 · 계좌 쌍을 한 번씩 계좌 순으로 준다")
+  void findPositionsTradedBefore_ForDividend() {
     LocalDate exDate = LocalDate.of(2024, 9, 16);
-    Trade second = saveDated("AAPL", "2", TradeStatus.COMPLETED, exDate.minusDays(1));
-    Trade first = saveDated("AAPL", "1", TradeStatus.COMPLETED, exDate.minusDays(5));
+    saveDated("AAPL", "2", TradeStatus.COMPLETED, exDate.minusDays(1));
+    saveDated("AAPL", "1", TradeStatus.COMPLETED, exDate.minusDays(5));
     saveDated("AAPL", "3", TradeStatus.COMPLETED, exDate);
     saveDated("AAPL", "4", TradeStatus.CANCELLED, exDate.minusDays(2));
     saveDated("MSFT", "5", TradeStatus.COMPLETED, exDate.minusDays(2));
+    tradeRepository.save(Trade.builder()
+      .userId("user-2").accountId(19L).symbol("AAPL").tradeType(TradeType.BUY)
+      .quantity(BigDecimal.ONE).price(new BigDecimal("100.00")).totalAmount(new BigDecimal("100.00"))
+      .tradeDate(exDate.minusDays(3)).executedAt(exDate.minusDays(3).atTime(9, 0)).status(TradeStatus.COMPLETED)
+      .build());
 
-    assertThat(tradeRepository.findBySymbolAndStatusAndTradeDateBeforeOrderByTradeDateAsc("AAPL", TradeStatus.COMPLETED, exDate))
-      .extracting(Trade::getId).containsExactly(first.getId(), second.getId());
+    assertThat(tradeRepository.findPositionsTradedBefore("AAPL", TradeStatus.COMPLETED, exDate))
+      .containsExactly(new TradePosition("user-2", 19L, "AAPL"), new TradePosition("user-1", 20L, "AAPL"));
   }
 }

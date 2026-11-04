@@ -2,16 +2,14 @@ package com.muscat.trade.domain.repository.impl;
 
 import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.common.enums.type.TradeType;
+import com.muscat.trade.domain.dto.TradePosition;
 import com.muscat.trade.domain.entity.QTrade;
-import com.muscat.trade.domain.entity.Trade;
 import com.muscat.trade.domain.repository.TradeRepositoryCustom;
-import com.querydsl.core.types.dsl.BooleanExpression;
-import com.querydsl.jpa.impl.JPAQuery;
+import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.dsl.CaseBuilder;
+import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
@@ -29,61 +27,24 @@ public class TradeRepositoryCustomImpl implements TradeRepositoryCustom {
     private static final QTrade trade = QTrade.trade;
 
     @Override
-    public List<String> findDistinctSymbolsByUserId(String userId) {
+    public List<TradePosition> findDistinctPositions(TradeStatus status) {
         return queryFactory
-                .select(trade.symbol)
+                .select(Projections.constructor(TradePosition.class, trade.userId, trade.accountId, trade.symbol))
                 .distinct()
                 .from(trade)
-                .where(trade.userId.eq(userId))
+                .where(trade.status.eq(status))
                 .fetch();
     }
 
     @Override
-    public Page<Trade> findTradesWithComplexFilters(
-            String userId,
-            Long accountId,
-            String symbol,
-            TradeType tradeType,
-            LocalDate startDate,
-            LocalDate endDate,
-            BigDecimal minAmount,
-            BigDecimal maxAmount,
-            Pageable pageable
-    ) {
-        JPAQuery<Trade> query = queryFactory
-                .selectFrom(trade)
-                .where(
-                        trade.userId.eq(userId),
-                        eqAccountId(accountId),
-                        eqSymbol(symbol),
-                        eqTradeType(tradeType),
-                        betweenDates(startDate, endDate),
-                        betweenAmounts(minAmount, maxAmount)
-                )
-                .orderBy(trade.executedAt.desc());
-
-        Long totalCount = queryFactory
-                .select(trade.count())
+    public List<TradePosition> findPositionsTradedBefore(String symbol, TradeStatus status, LocalDate before) {
+        return queryFactory
+                .select(Projections.constructor(TradePosition.class, trade.userId, trade.accountId, trade.symbol))
+                .distinct()
                 .from(trade)
-                .where(
-                        trade.userId.eq(userId),
-                        eqAccountId(accountId),
-                        eqSymbol(symbol),
-                        eqTradeType(tradeType),
-                        betweenDates(startDate, endDate),
-                        betweenAmounts(minAmount, maxAmount)
-                )
-                .fetchOne();
-
-        long total = totalCount != null ? totalCount : 0L;
-
-        // 나눌 때만 offset · limit(unpaged 는 getOffset · getPageSize 가 예외)
-        if (pageable.isPaged()) {
-            query.offset(pageable.getOffset()).limit(pageable.getPageSize());
-        }
-        List<Trade> trades = query.fetch();
-
-        return new PageImpl<>(trades, pageable, total);
+                .where(trade.symbol.eq(symbol), trade.status.eq(status), trade.tradeDate.lt(before))
+                .orderBy(trade.accountId.asc())
+                .fetch();
     }
 
     @Override
@@ -93,75 +54,22 @@ public class TradeRepositoryCustomImpl implements TradeRepositoryCustom {
             String symbol,
             LocalDate sellDate
     ) {
-        BigDecimal totalBuyQuantity = queryFactory
-                .select(trade.quantity.sum())
+        // 매수는 더하고 매도는 빼서 한 번에 합산
+        NumberExpression<BigDecimal> signedQuantity = new CaseBuilder()
+                .when(trade.tradeType.eq(TradeType.BUY)).then(trade.quantity)
+                .otherwise(trade.quantity.negate());
+        BigDecimal net = queryFactory
+                .select(signedQuantity.sum())
                 .from(trade)
                 .where(
                         trade.userId.eq(userId),
                         trade.accountId.eq(accountId),
                         trade.symbol.eq(symbol),
-                        trade.tradeType.eq(TradeType.BUY),
                         trade.status.eq(TradeStatus.COMPLETED),
                         trade.tradeDate.loe(sellDate)
                 )
                 .fetchOne();
 
-        BigDecimal totalSellQuantity = queryFactory
-                .select(trade.quantity.sum())
-                .from(trade)
-                .where(
-                        trade.userId.eq(userId),
-                        trade.accountId.eq(accountId),
-                        trade.symbol.eq(symbol),
-                        trade.tradeType.eq(TradeType.SELL),
-                        trade.status.eq(TradeStatus.COMPLETED),
-                        trade.tradeDate.loe(sellDate)
-                )
-                .fetchOne();
-
-        BigDecimal buyAmount = totalBuyQuantity != null ? totalBuyQuantity : BigDecimal.ZERO;
-        BigDecimal sellAmount = totalSellQuantity != null ? totalSellQuantity : BigDecimal.ZERO;
-
-        return buyAmount.subtract(sellAmount).max(BigDecimal.ZERO);
-    }
-
-    // ========== 동적 조건 헬퍼 메서드들 ==========
-
-    private BooleanExpression eqAccountId(Long accountId) {
-        return accountId != null ? trade.accountId.eq(accountId) : null;
-    }
-
-    private BooleanExpression eqSymbol(String symbol) {
-        return symbol != null ? trade.symbol.eq(symbol) : null;
-    }
-
-    private BooleanExpression eqTradeType(TradeType tradeType) {
-        return tradeType != null ? trade.tradeType.eq(tradeType) : null;
-    }
-
-    private BooleanExpression betweenDates(LocalDate startDate, LocalDate endDate) {
-        if (startDate != null && endDate != null) {
-            return trade.tradeDate.between(startDate, endDate);
-        }
-        if (startDate != null) {
-            return trade.tradeDate.goe(startDate);
-        }
-        if (endDate != null) {
-            return trade.tradeDate.loe(endDate);
-        }
-        return null;
-    }
-
-    private BooleanExpression betweenAmounts(BigDecimal minAmount, BigDecimal maxAmount) {
-        if (minAmount != null && maxAmount != null) {
-            return trade.totalAmount.between(minAmount, maxAmount);
-        }
-        if (minAmount != null) {
-            return trade.totalAmount.goe(minAmount);
-        }
-        if (maxAmount != null) {
-            return trade.totalAmount.loe(maxAmount);
-        }
-        return null;
+        return (net != null ? net : BigDecimal.ZERO).max(BigDecimal.ZERO);
     }
 }
