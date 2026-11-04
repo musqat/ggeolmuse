@@ -275,10 +275,13 @@ jobs:
       - name: NetworkPolicy 가 서비스 포트를 전부 여는지 본다
         run: bash .github/scripts/check-netpol-ports.sh rendered.yaml
 
+      - uses: ./.github/actions/install-trivy
+
       - uses: aquasecurity/trivy-action@v0.36.0
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
+          skip-setup-trivy: true
           scan-type: config
           scan-ref: rendered.yaml
           format: sarif
