@@ -58,11 +58,11 @@ public class CacheConfig {
     cacheConfigurations.put("latestFxRate",
         defaultConfig.entryTtl(Duration.ofHours(1)));
 
-    // 3. 일자별 캔들 조회 - 12시간 TTL (캔들 · 배당을 저장하면 비움)
+    // 3. 일자별 캔들 조회 - 12시간 TTL (고친 봉의 날짜만 비움)
     cacheConfigurations.put("ohlc",
         defaultConfig.entryTtl(Duration.ofHours(12)));
 
-    // 4. 배당수익률 정렬 순서 - 12시간 TTL (캔들 · 배당을 저장하면 비움)
+    // 4. 배당수익률 정렬 순서 - 12시간 TTL (배당이 바뀌거나 ETF 를 비활성으로 돌리면 비움)
     cacheConfigurations.put("dividendYieldOrder",
         defaultConfig.entryTtl(Duration.ofHours(12)));
 

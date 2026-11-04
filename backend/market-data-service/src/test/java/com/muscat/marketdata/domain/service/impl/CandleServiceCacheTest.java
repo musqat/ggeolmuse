@@ -63,9 +63,9 @@ class CandleServiceCacheTest {
 
     @Bean
     CandleService candleService(CandleRepository candleRepository, AssetRepository assetRepository,
-      DividendYieldOrder dividendYieldOrder) {
+      DividendYieldOrder dividendYieldOrder, CacheManager cacheManager) {
       return new CandleServiceImpl(candleRepository, assetRepository, mock(DividendRepository.class),
-        new MarketDataProperties(), dividendYieldOrder);
+        new MarketDataProperties(), dividendYieldOrder, cacheManager);
     }
   }
 
@@ -122,6 +122,57 @@ class CandleServiceCacheTest {
     candleService.getOHLCPrice(SYMBOL, DATE);
 
     verify(candleRepository, times(2)).findBySymbolAndDate(SYMBOL, DATE);
+  }
+
+  @Test
+  @DisplayName("OHLC: 종목의 날짜만 비우면 그 날짜만 다시 읽고 다른 날짜 · 종목은 캐시에서 준다")
+  void ohlc_EvictSymbolDates_OnlyThoseReadAgain() {
+    LocalDate other = DATE.plusDays(1);
+    given(candleRepository.findBySymbolAndDate(SYMBOL, DATE)).willReturn(Optional.of(candle()));
+    given(candleRepository.findBySymbolAndDate(SYMBOL, other)).willReturn(Optional.of(candle()));
+    given(candleRepository.findBySymbolAndDate("MSFT", DATE)).willReturn(Optional.of(candle()));
+    candleService.getOHLCPrice(SYMBOL, DATE);
+    candleService.getOHLCPrice(SYMBOL, other);
+    candleService.getOHLCPrice("MSFT", DATE);
+
+    candleService.evictOhlc("aapl", List.of(DATE));
+    candleService.getOHLCPrice(SYMBOL, DATE);
+    candleService.getOHLCPrice(SYMBOL, other);
+    candleService.getOHLCPrice("MSFT", DATE);
+
+    verify(candleRepository, times(2)).findBySymbolAndDate(SYMBOL, DATE);
+    verify(candleRepository, times(1)).findBySymbolAndDate(SYMBOL, other);
+    verify(candleRepository, times(1)).findBySymbolAndDate("MSFT", DATE);
+  }
+
+  @Test
+  @DisplayName("OHLC: 비울 날짜가 상한보다 많으면 일자별 캐시 전체를 비운다")
+  void ohlc_EvictManyDates_ClearsAll() {
+    given(candleRepository.findBySymbolAndDate("MSFT", DATE)).willReturn(Optional.of(candle()));
+    candleService.getOHLCPrice("MSFT", DATE);
+
+    candleService.evictOhlc(SYMBOL, java.util.stream.Stream.iterate(DATE, d -> d.minusDays(1))
+      .limit(CandleServiceImpl.MAX_OHLC_KEY_EVICTS + 1).toList());
+    candleService.getOHLCPrice("MSFT", DATE);
+
+    verify(candleRepository, times(2)).findBySymbolAndDate("MSFT", DATE);
+  }
+
+  @Test
+  @DisplayName("배당수익률 정렬 순서만 비우면 다시 계산하고 일자별 캔들 캐시는 그대로다")
+  void dividendYieldOrder_EvictedAlone() {
+    DividendYieldRule rule = new DividendYieldRule(DATE, new BigDecimal("0.20"), new BigDecimal("0.50"));
+    given(assetRepository.findActiveSymbolsByDividendYield(false, "ALL", rule)).willReturn(List.of("KO"));
+    given(candleRepository.findBySymbolAndDate(SYMBOL, DATE)).willReturn(Optional.of(candle()));
+    dividendYieldOrder.symbols("ALL", false, rule);
+    candleService.getOHLCPrice(SYMBOL, DATE);
+
+    candleService.evictDividendYieldOrder();
+    dividendYieldOrder.symbols("ALL", false, rule);
+    candleService.getOHLCPrice(SYMBOL, DATE);
+
+    verify(assetRepository, times(2)).findActiveSymbolsByDividendYield(false, "ALL", rule);
+    verify(candleRepository, times(1)).findBySymbolAndDate(SYMBOL, DATE);
   }
 
   @Test

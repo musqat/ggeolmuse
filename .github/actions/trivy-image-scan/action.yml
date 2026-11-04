@@ -12,6 +12,8 @@ inputs:
 runs:
   using: composite
   steps:
+    - uses: ./.github/actions/install-trivy
+
     # JSON 으로 한 번 스캔, convert 로 두 형식(재스캔 없음)
     - name: ${{ inputs.name }} 스캔
       uses: aquasecurity/trivy-action@v0.36.0
@@ -25,6 +27,7 @@ runs:
         exit-code: '0'
         ignore-unfixed: true
         cache: false
+        skip-setup-trivy: true
 
     - name: SARIF 와 표로 변환
       shell: bash

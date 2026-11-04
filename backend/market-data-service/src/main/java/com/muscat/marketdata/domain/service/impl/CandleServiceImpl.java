@@ -15,6 +15,7 @@ import com.muscat.marketdata.domain.service.DividendYieldOrder;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -23,6 +24,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -43,6 +46,10 @@ public class CandleServiceImpl implements CandleService {
   private final DividendRepository dividendRepository;
   private final MarketDataProperties properties;
   private final DividendYieldOrder dividendYieldOrder;
+  private final CacheManager cacheManager;
+
+  // 날짜 하나씩 지우는 상한(넘으면 일자별 캐시 전체를 비움)
+  static final int MAX_OHLC_KEY_EVICTS = 1000;
 
   @Override
   // 시세 있는 응답만 캐시(없음까지 캐시하면 수집 직후에도 TTL 동안 없다고 답함)
@@ -78,6 +85,26 @@ public class CandleServiceImpl implements CandleService {
     @CacheEvict(cacheNames = "dividendYieldOrder", allEntries = true)
   })
   public void evictCandleCaches() {
+  }
+
+  @Override
+  public void evictOhlc(String symbol, Collection<LocalDate> dates) {
+    Cache cache = cacheManager.getCache("ohlc");
+    if (cache == null || dates.isEmpty()) {
+      return;
+    }
+    if (dates.size() > MAX_OHLC_KEY_EVICTS) {
+      cache.clear();
+      return;
+    }
+    // @Cacheable 의 키와 같은 형식(대문자 종목:날짜)
+    String upperSymbol = symbol.toUpperCase();
+    dates.forEach(date -> cache.evict(upperSymbol + ":" + date));
+  }
+
+  @Override
+  @CacheEvict(cacheNames = "dividendYieldOrder", allEntries = true)
+  public void evictDividendYieldOrder() {
   }
 
   @Override

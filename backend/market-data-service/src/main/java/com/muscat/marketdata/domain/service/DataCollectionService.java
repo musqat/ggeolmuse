@@ -50,11 +50,9 @@ public class DataCollectionService {
                         event.getToDate()
                 );
             }
-            if (firstCollection && candleCount > 0) {
-                deactivateThinEtf(event.getSymbol());
-            }
-            if (candleCount > 0 || dividendCount > 0) {
-                candleService.evictCandleCaches();
+            // ETF 를 비활성으로 돌리면 활성 종목이 바뀌어 배당수익률 순서 캐시를 비움
+            if (firstCollection && candleCount > 0 && deactivateThinEtf(event.getSymbol())) {
+                candleService.evictDividendYieldOrder();
             }
             log.debug("수집 완료: symbol={}, 캔들={}, 배당={}", event.getSymbol(), candleCount, dividendCount);
         } catch (Exception e) {
@@ -65,11 +63,11 @@ public class DataCollectionService {
         }
     }
 
-    // 거래가 거의 없는 ETF 는 첫 수집 뒤 내림(갱신 대상과 화면에서 빠짐)
-    private void deactivateThinEtf(String symbol) {
+    // 거래가 거의 없는 ETF 는 첫 수집 뒤 비활성으로 돌림(갱신 대상과 화면에서 빠짐, 돌렸으면 true)
+    private boolean deactivateThinEtf(String symbol) {
         Asset asset = assetRepository.findById(symbol).orElse(null);
         if (asset == null || !"ETF".equals(asset.getAssetType()) || !Boolean.TRUE.equals(asset.getActive())) {
-            return;
+            return false;
         }
         MarketDataProperties.Etf rule = properties.getEtf();
         List<Candle> recent = candleRepository.findBySymbolOrderByDateDesc(symbol, PageRequest.of(0, rule.getVolumeWindow()));
@@ -79,6 +77,8 @@ public class DataCollectionService {
             asset.setActive(false);
             assetRepository.save(asset);
             log.info("평균 거래량이 기준 아래라 ETF 비활성: symbol={}, 평균={}", symbol, (long) average.getAsDouble());
+            return true;
         }
+        return false;
     }
 }

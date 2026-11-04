@@ -71,7 +71,7 @@ class DataCollectionServiceTest {
   }
 
   @Test
-  @DisplayName("캔들을 처음 받은 ETF 의 최근 평균 거래량이 기준 아래면 비활성으로 돌리고, 돌린 뒤에 캔들 캐시를 비운다")
+  @DisplayName("캔들을 처음 받은 ETF 의 최근 평균 거래량이 기준 아래면 비활성으로 돌리고, 돌린 뒤에 배당수익률 순서 캐시를 비운다")
   void thinEtfDeactivated() {
     Asset etf = asset("ETF");
     given(candleRepository.findFirstBySymbolOrderByDateDesc("AAPL")).willReturn(Optional.empty());
@@ -84,7 +84,7 @@ class DataCollectionServiceTest {
     assertThat(etf.getActive()).isFalse();
     InOrder order = inOrder(assetRepository, candleService);
     order.verify(assetRepository).save(etf);
-    order.verify(candleService).evictCandleCaches();
+    order.verify(candleService).evictDividendYieldOrder();
   }
 
   @Test
@@ -138,25 +138,16 @@ class DataCollectionServiceTest {
   }
 
   @Test
-  @DisplayName("캔들을 저장했으면 캔들 캐시를 비우고, 저장한 게 없으면 그대로 둔다")
-  void evictsCandleCachesWhenCandlesSaved() {
-    given(updateService.saveCandles("AAPL", FROM, TO)).willReturn(2).willReturn(0);
-    given(assetRepository.findById("AAPL")).willReturn(Optional.of(asset("EQUITY")));
-
-    service.collect(event(false));
-    service.collect(event(false));
-
-    verify(candleService, times(1)).evictCandleCaches();
-  }
-
-  @Test
-  @DisplayName("캔들은 그대로이고 배당만 저장해도 캔들 캐시를 비운다")
-  void evictsCandleCachesWhenOnlyDividendsSaved() {
-    given(updateService.saveCandles("AAPL", FROM, TO)).willReturn(0);
+  @DisplayName("캔들 · 배당을 저장해도 캔들 캐시 전체를 비우지 않는다(바뀐 날짜는 저장한 쪽이 비움)")
+  void keepsCandleCachesWhenSaved() {
+    given(updateService.saveCandles("AAPL", FROM, TO)).willReturn(2);
     given(updateService.saveDividends("AAPL", FROM, TO)).willReturn(3);
+    given(assetRepository.findById("AAPL")).willReturn(Optional.of(asset("EQUITY")));
 
     service.collect(event(true));
 
-    verify(candleService, times(1)).evictCandleCaches();
+    verify(candleService, never()).evictCandleCaches();
+    verify(candleService, never()).evictDividendYieldOrder();
   }
+
 }

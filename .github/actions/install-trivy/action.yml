@@ -1,0 +1,27 @@
+name: Install Trivy
+description: Trivy 바이너리를 GitHub 릴리스에서 받아 체크섬을 확인하고 PATH 에 둔다
+
+inputs:
+  version:
+    description: 설치할 Trivy 버전(v 없이)
+    default: '0.70.0'
+
+runs:
+  using: composite
+  steps:
+    - name: Trivy 설치
+      shell: bash
+      env:
+        TRIVY_VERSION: ${{ inputs.version }}
+      run: |
+        dir="$RUNNER_TEMP/trivy-bin"
+        base="https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}"
+        tarball="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+        mkdir -p "$dir"
+        cd "$RUNNER_TEMP"
+        curl -fsSL --retry 3 -o "$tarball" "$base/$tarball"
+        curl -fsSL --retry 3 -o trivy-checksums.txt "$base/trivy_${TRIVY_VERSION}_checksums.txt"
+        grep " ${tarball}\$" trivy-checksums.txt | sha256sum -c -
+        tar -xzf "$tarball" -C "$dir" trivy
+        echo "$dir" >> "$GITHUB_PATH"
+        "$dir/trivy" --version
