@@ -8,6 +8,7 @@ import { useAccountData } from '../../hooks/useAccountData';
 import { stockApi } from '../../services/api';
 import SearchModal from './SearchModal';
 import ThemeToggle from './ThemeToggle';
+import { formatNumber } from '../../utils/format';
 
 const Header: React.FC = () => {
   const location = useLocation();
@@ -105,7 +106,7 @@ const Header: React.FC = () => {
                 <div className="hidden md:block text-right">
                   <p className="text-[13px] font-semibold text-tx-1 leading-tight">{user?.nickname || '사용자'}</p>
                   <p className="text-[11px] text-tx-3 leading-tight">
-                    {isLoadingAssets ? '...' : `현금 ₩${Math.floor(cashKrw).toLocaleString()}`}
+                    {isLoadingAssets ? '...' : `현금 ₩${formatNumber(Math.floor(cashKrw))}`}
                   </p>
                 </div>
                 <button
@@ -174,7 +175,7 @@ const Header: React.FC = () => {
                 <div className="px-3 py-2">
                   <p className="text-[13px] font-semibold text-tx-1">{user?.nickname || '사용자'}</p>
                   <p className="text-[11px] text-tx-3">
-                    {isLoadingAssets ? '...' : `현금 ₩${Math.floor(cashKrw).toLocaleString()}`}
+                    {isLoadingAssets ? '...' : `현금 ₩${formatNumber(Math.floor(cashKrw))}`}
                   </p>
                 </div>
                 <button onClick={() => { navigate('/mypage'); setIsMobileMenuOpen(false); }}

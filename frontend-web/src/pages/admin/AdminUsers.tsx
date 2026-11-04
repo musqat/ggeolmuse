@@ -32,7 +32,7 @@ export default function AdminUsers() {
             totalPages={userAdmin.totalPages}
             loading={userAdmin.loading}
             onSelectUser={userAdmin.loadUserDetail}
-            onRefresh={() => userAdmin.loadUsers(userAdmin.page)}
+            onRefresh={userAdmin.loadUsers}
             onPageChange={userAdmin.goToPage}
           />
 

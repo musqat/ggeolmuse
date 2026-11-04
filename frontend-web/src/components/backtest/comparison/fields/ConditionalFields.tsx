@@ -1,6 +1,7 @@
 import type { FC } from 'react';
 import type { StrategyFieldsProps } from '../types';
 import { DropPercentField } from '../../shared/StrategyFields';
+import { formatNumber } from '../../../../utils/format';
 
 export const ConditionalFields: FC<StrategyFieldsProps> = ({ params, onChange, common }) => (
   <>
@@ -9,7 +10,7 @@ export const ConditionalFields: FC<StrategyFieldsProps> = ({ params, onChange, c
         총 투자금은 상단에서 설정한{" "}
         <strong>
           ₩
-          {parseFloat(common.investment || "0").toLocaleString()}
+          {formatNumber(parseFloat(common.investment || "0"))}
         </strong>
         이 사용됩니다.
       </p>

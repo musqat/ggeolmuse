@@ -4,7 +4,7 @@ import {
   parseNumberFromFormatted,
   formatToKoreanWon,
   formatMarketCap,
-} from './formatNumber'
+} from './format'
 
 describe('formatNumberWithCommas', () => {
   it('천단위로 콤마를 넣는다', () => {
@@ -31,7 +31,7 @@ describe('formatNumberWithCommas', () => {
     expect(formatNumberWithCommas('1234.')).toBe('1,234.')
   })
 
-  it('점만 있으면 0을 붙여 돌려준다', () => {
+  it('점만 있으면 앞에 0을 더해 돌려준다', () => {
     expect(formatNumberWithCommas('.')).toBe('0.')
   })
 
@@ -88,7 +88,7 @@ describe('formatToKoreanWon', () => {
     expect(formatToKoreanWon(5000)).toBe('5000원')
   })
 
-  it('콤마 붙은 문자열도 받는다', () => {
+  it('콤마가 든 문자열도 받는다', () => {
     expect(formatToKoreanWon('1,000,000')).toBe('100만원')
   })
 })

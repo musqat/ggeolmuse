@@ -6,6 +6,7 @@ import { DialogField, FormDialog } from '@/components/common/FormDialog';
 import { SOLID_BUTTON } from '@/styles/buttons';
 import { NICKNAME_RULE, NICKNAME_RULE_MESSAGE } from '@/utils/nickname';
 import { PASSWORD_RULE, PASSWORD_RULE_MESSAGE } from '@/utils/password';
+import { formatNumber } from '../../utils/format';
 
 interface UserDetailSectionProps {
   user: UserDetail | null;
@@ -221,15 +222,13 @@ export default function UserDetailSection({
                     <div>
                       <p className="text-tx-2">KRW 잔액</p>
                       <p className="font-semibold">
-                        ₩{account.balanceKrw.toLocaleString()}
+                        ₩{formatNumber(account.balanceKrw)}
                       </p>
                     </div>
                     <div>
                       <p className="text-tx-2">USD 잔액</p>
                       <p className="font-semibold">
-                        ${account.balanceUsd.toLocaleString(undefined, {
-                          minimumFractionDigits: 2,
-                        })}
+                        ${formatNumber(account.balanceUsd, { minimumFractionDigits: 2 })}
                       </p>
                     </div>
                   </div>

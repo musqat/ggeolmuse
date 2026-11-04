@@ -8,6 +8,6 @@ export interface StockPrice {
   changePercent: number;
   volume: number;
   marketCap?: number;
-  timestamp: string;
+  date: string;
 }
 

@@ -34,8 +34,6 @@ export type User = {
   provider: string;                     // 로그인 제공자 (LOCAL, GOOGLE)
   emailVerified: boolean;               // 이메일 인증 여부
   createdAt: string;                    // 생성일
-  profileImageUrl?: string;             // 프로필 이미지 URL
-  socialEmail?: string;                 // 소셜 계정 이메일
   hasPassword: boolean;                 // 비밀번호로 로그인할 수 있는지(구글로만 가입하면 false)
 };
 

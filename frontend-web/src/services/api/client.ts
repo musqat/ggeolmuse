@@ -1,5 +1,5 @@
 import axios, { type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
-import { TOKEN_STORAGE_KEY } from '@/utils/auth';
+import { tokenManager } from '@/utils/auth';
 
 // Gateway를 통한 통합 API 연결
 // 개발환경에서는 Vite 프록시 사용, 프로덕션에서는 환경변수 사용
@@ -10,11 +10,11 @@ export const apiClient = axios.create({
   timeout: 60000,
 });
 
-// 요청에 저장된 access token 을 Bearer 머리글로 실음(isPublic 이 참인 주소는 빼고)
-export const attachAccessToken = (client: AxiosInstance, isPublic: (url: string) => boolean = () => false) => {
+// 요청에 저장된 access token 을 Authorization 헤더에 Bearer 로 실음(isPublic 이 참인 주소는 빼고)
+const attachAccessToken = (client: AxiosInstance, isPublic: (url: string) => boolean = () => false) => {
   client.interceptors.request.use((config) => {
     if (!isPublic(config.url || '')) {
-      const token = localStorage.getItem(TOKEN_STORAGE_KEY);
+      const token = tokenManager.getToken();
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -23,9 +23,9 @@ export const attachAccessToken = (client: AxiosInstance, isPublic: (url: string)
   });
 };
 
-// 토큰 없이 부르는 공개 API(시세 · 로그인 · 가입 · 구글)
-const isPublicApi = (url: string) =>
-  url.includes('/market/') || url.includes('/auth/login') || url.includes('/auth/register') || url.includes('/auth/social');
+// 토큰 없이 부르는 공개 API(시세 · 로그인 · 가입 · 구글), 앞부분으로만 봄(관리자 시세 경로는 토큰을 실음)
+const PUBLIC_PREFIXES = ['/market/', '/auth/login', '/auth/register', '/auth/social'];
+const isPublicApi = (url: string) => PUBLIC_PREFIXES.some((prefix) => url.startsWith(prefix));
 
 attachAccessToken(apiClient, isPublicApi);
 
@@ -65,12 +65,12 @@ export const requestNewAccessToken = () =>
 // refresh token 쿠키로 새 access token 받아 저장
 // 한 번에 한 탭만 갱신(refresh token 이 회전해 늦은 탭은 다른 탭이 저장한 access token 을 씀)
 export const refreshAccessToken = async (): Promise<string> => {
-  const staleToken = localStorage.getItem(TOKEN_STORAGE_KEY);
+  const staleToken = tokenManager.getToken();
   const refresh = async () => {
-    const current = localStorage.getItem(TOKEN_STORAGE_KEY);
+    const current = tokenManager.getToken();
     if (current && current !== staleToken) return current;
     const { data } = await requestNewAccessToken();
-    localStorage.setItem(TOKEN_STORAGE_KEY, data.accessToken);
+    tokenManager.setToken(data.accessToken);
     return data.accessToken;
   };
   return navigator.locks ? navigator.locks.request('ggeolmuse-token-refresh', refresh) : refresh();
@@ -87,7 +87,7 @@ const sendWithoutToken = (client: AxiosInstance, request: InternalAxiosRequestCo
 };
 
 // 401 이면 refresh token 으로 갱신하고 원래 요청을 다시 보냄(갱신 중 여부 · 대기열이 모듈에 하나라 갱신은 한 번만)
-export const attachTokenRefresh = (client: AxiosInstance) => {
+const attachTokenRefresh = (client: AxiosInstance) => {
   client.interceptors.response.use(
     (response) => response,
     async (error) => {
@@ -107,7 +107,7 @@ export const attachTokenRefresh = (client: AxiosInstance) => {
 
       // 이미 재시도한 요청이면 로그아웃
       if (originalRequest._retry) {
-        localStorage.removeItem(TOKEN_STORAGE_KEY);
+        tokenManager.removeToken();
         window.dispatchEvent(new CustomEvent('auth:logout'));
         return Promise.reject(error);
       }
@@ -137,7 +137,7 @@ export const attachTokenRefresh = (client: AxiosInstance) => {
       } catch (refreshError) {
         // Refresh 실패 시 로그아웃(쿠키가 없거나 세션이 끝났다)
         processQueue(refreshError, null);
-        localStorage.removeItem(TOKEN_STORAGE_KEY);
+        tokenManager.removeToken();
         window.dispatchEvent(new CustomEvent('auth:logout'));
         if (isOptionalAuthApi(requestUrl)) return sendWithoutToken(client, originalRequest);
         return Promise.reject(refreshError);

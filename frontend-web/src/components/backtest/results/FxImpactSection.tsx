@@ -1,7 +1,8 @@
 import React from 'react';
 import { Repeat } from 'lucide-react';
 import type { StrategyResponse } from '../../../services/api';
-import { formatFxRate, formatPercent, formatSigned, gainLossClass, hasValue } from '../../../utils/gainLoss';
+import { gainLossClass, hasValue } from '../../../utils/gainLoss';
+import { formatFxRate, formatPercent, formatSigned } from '../../../utils/format';
 import { DetailRow, DetailSection } from './DetailSection';
 
 interface FxImpactSectionProps {

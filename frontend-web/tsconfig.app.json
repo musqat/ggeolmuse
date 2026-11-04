@@ -10,14 +10,12 @@
     ],
     "module": "ESNext",
     "skipLibCheck": true,
-    /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
-    /* Path mapping */
     "baseUrl": ".",
     "paths": {
       "@/*": [
@@ -40,12 +38,8 @@
       ],
       "@hooks/*": [
         "./src/hooks/*"
-      ],
-      "@store/*": [
-        "./src/store/*"
       ]
     },
-    /* Linting */
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,

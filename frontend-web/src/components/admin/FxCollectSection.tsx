@@ -4,6 +4,7 @@ import { marketAdminApi, type FxCollectResponse } from '@services/adminApi';
 import { useAdminAction } from '@/hooks/useAdminAction';
 import { SOLID_BUTTON } from '@/styles/buttons';
 import { getServerMessage } from '@/utils/apiError';
+import { formatNumber } from '../../utils/format';
 
 // 진행 폴링 간격
 const POLL_MS = 5000;
@@ -82,7 +83,7 @@ export default function FxCollectSection() {
         </p>
       </div>
 
-      {state && <p className="text-sm text-tx-1">빈 날 {state.missingCount.toLocaleString('ko-KR')}일</p>}
+      {state && <p className="text-sm text-tx-1">빈 날 {formatNumber(state.missingCount)}일</p>}
       {recent.length > 0 && (
         <p className="mt-1 text-xs text-tx-3 font-mono">최근 빈 날: {recent.join(', ')}</p>
       )}

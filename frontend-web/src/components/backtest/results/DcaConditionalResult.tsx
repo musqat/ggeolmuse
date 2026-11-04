@@ -2,7 +2,8 @@ import React from 'react';
 import { TrendingUp, DollarSign } from 'lucide-react';
 import { AccumulationChart } from '@components/charts/backtest/AccumulationChart';
 import type { StrategyResponse } from '../../../services/api';
-import { formatBalanceAmount, formatKrw, formatPercent, formatSigned, gainLossClass } from '../../../utils/gainLoss';
+import { gainLossClass } from '../../../utils/gainLoss';
+import { formatBalanceAmount, formatKrw, formatPercent, formatSigned, formatNumber } from '../../../utils/format';
 import { SummaryCards } from './SummaryCards';
 import { FxImpactSection } from './FxImpactSection';
 import { DetailRow, DetailSection } from './DetailSection';
@@ -48,13 +49,13 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
           <DetailRow label="거래 횟수" value={<>{result.totalTransactions}회</>} />
           <DetailRow
             label="총 투자금"
-            value={<>₩{result.totalInvested?.toLocaleString()}</>}
+            value={<>₩{formatNumber(result.totalInvested)}</>}
           />
           <div className="flex justify-between py-2">
             <span className="text-tx-2">주식 평가액</span>
             <div className="text-right">
               <div className="font-medium text-tx-1">
-                ₩{result.currentValueKrw?.toLocaleString()}
+                ₩{formatNumber(result.currentValueKrw)}
               </div>
               <div className="text-xs text-tx-2">
                 {result.currentValue != null && formatBalanceAmount(result.currentValue, "USD")}

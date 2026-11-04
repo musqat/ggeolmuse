@@ -14,7 +14,7 @@ import CreateAccountModal from '../components/account/modals/CreateAccountModal'
 import DepositModal from '../components/account/modals/DepositModal';
 import ExchangeModal from '../components/account/modals/ExchangeModal';
 import DeleteAccountModal from '../components/account/modals/DeleteAccountModal';
-import { formatBalanceAmount } from '../utils/gainLoss';
+import { formatBalanceAmount } from '../utils/format';
 
 const Account: React.FC = () => {
   const { isAuthenticated } = useAuth();

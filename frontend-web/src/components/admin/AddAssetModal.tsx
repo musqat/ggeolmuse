@@ -4,6 +4,7 @@ import { X, Plus, Search } from 'lucide-react';
 import type { CompanyOverview } from '@services/adminApi';
 import { SOLID_BUTTON } from '@/styles/buttons';
 import { LAYER } from '@/styles/layers';
+import { formatNumber } from '../../utils/format';
 
 interface AddAssetModalProps {
   isOpen: boolean;
@@ -115,7 +116,7 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({
                 <div>
                   <p className="text-tx-2">시가총액</p>
                   <p className="text-tx-1">
-                    {preview.marketCap ? `$${preview.marketCap.toLocaleString()}` : '-'}
+                    {preview.marketCap ? `$${formatNumber(preview.marketCap)}` : '-'}
                   </p>
                 </div>
               </div>

@@ -9,6 +9,7 @@ import { SummaryCards } from '../components/portfolio/SummaryCards';
 import { AllocationList } from '../components/portfolio/AllocationList';
 import { HoldingsTable } from '../components/portfolio/HoldingsTable';
 import { allocationItems, totalAssetsUsd } from '../utils/portfolioAllocation';
+import { formatNumber } from '../utils/format';
 
 const Portfolio: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -61,7 +62,7 @@ const Portfolio: React.FC = () => {
             </p>
             {balance && (
               <p className="text-sm text-tx-2 mt-1">
-                KRW: ₩{Number(balance.balanceKrw).toLocaleString()} |
+                KRW: ₩{formatNumber(Number(balance.balanceKrw))} |
                 USD: ${Number(balance.balanceUsd).toFixed(2)}
               </p>
             )}

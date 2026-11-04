@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { stockApi, type StockSort } from '../services/api';
-import { formatMarketCap } from '../utils/formatNumber';
+import { formatMarketCap } from '../utils/format';
 import { Spinner } from '../components/common/Spinner';
 import { StockLogo } from '../components/common/StockLogo';
 

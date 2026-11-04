@@ -1,7 +1,7 @@
 import React from 'react';
 import { ChevronDown } from 'lucide-react';
 import type { SkipReason, SkippedRound, StrategyTransaction } from '../../../services/api';
-import { formatKrw, formatUsd } from '../../../utils/gainLoss';
+import { formatKrw, formatUsd } from '../../../utils/format';
 
 const REASON_LABEL: Record<SkipReason, string> = {
   NO_PRICE: '시세 없음',
