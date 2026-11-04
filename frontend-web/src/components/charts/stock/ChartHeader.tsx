@@ -1,6 +1,7 @@
 import { Search, Sparkles, TrendingDown, TrendingUp } from 'lucide-react';
 import type { PriceSummary } from './priceSummary';
-import { formatPercent, formatSigned, gainLossClass } from '../../../utils/gainLoss';
+import { gainLossClass } from '../../../utils/gainLoss';
+import { formatPercent, formatSigned, formatNumber } from '../../../utils/format';
 import { parseLocalDate } from '../../../utils/dateUtils';
 
 interface ChartHeaderProps {
@@ -51,7 +52,7 @@ const PriceBlock = ({ summary: { last, change, changePercent } }: { summary: Pri
       </div>
       <div>
         <p className="text-[10px] md:text-xs text-tx-2 mb-0.5">거래량</p>
-        <p className="text-xs md:text-sm font-semibold text-tx-1">{(last.volume ?? 0).toLocaleString()}</p>
+        <p className="text-xs md:text-sm font-semibold text-tx-1">{formatNumber(last.volume ?? 0)}</p>
       </div>
     </div>
   </div>

@@ -18,6 +18,7 @@ import { useChartPeriod } from "../common/hooks/useChartPeriod";
 import { getApiErrorMessage } from '../../../utils/apiError';
 import type { OHLCData } from '../../../types/ohlc';
 import { getTodayString } from "../../../utils/dateUtils";
+import { formatNumber } from '../../../utils/format';
 
 // 서버가 배당으로 산 거래에 다는 trigger
 const DIVIDEND_REINVEST = "배당 재투자";
@@ -239,7 +240,7 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
         <Tooltip
           {...TOOLTIP_PROPS}
           formatter={(value: number | string, name: string) => {
-            return [`₩${Math.round(Number(value)).toLocaleString()}`, name];
+            return [`₩${formatNumber(Math.round(Number(value)))}`, name];
           }}
           labelFormatter={formatTooltipDate}
         />
@@ -273,8 +274,8 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
         {dividendReinvestPoints.length > 0 && (
           <p>• 녹색 점: 배당 재투자 ({dividendReinvestPoints.length}개)</p>
         )}
-        <p>• 녹색 점선: 누적 투자금 (₩{totalInvested.toLocaleString()})</p>
-        <p>• 파란 선: 포트폴리오 가치 (₩{currentValueKrw.toLocaleString()})</p>
+        <p>• 녹색 점선: 누적 투자금 (₩{formatNumber(totalInvested)})</p>
+        <p>• 파란 선: 포트폴리오 가치 (₩{formatNumber(currentValueKrw)})</p>
       </div>
     </ChartCard>
   );

@@ -17,6 +17,7 @@ import { ChartCard, ChartMessage, ChartPanel } from './shared/ChartPanel';
 import { markerDots } from './shared/markers';
 import { useChartPeriod } from "../common/hooks/useChartPeriod";
 import { getTodayString } from "../../../utils/dateUtils";
+import { formatNumber } from '../../../utils/format';
 
 // 가격 · 환율 · 평가액은 일자별 캔들로 직접 구하고 최적 매수 · 매도는 날짜로 chartData 에서 찾음
 // 서버 date 는 "2025-01-08" 문자열 또는 [2025, 1, 8] 배열
@@ -214,17 +215,17 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
             주가: ${data.price?.toFixed(2) || "-"}
           </p>
           <p className="text-sm text-gain">
-            투자금: ₩{data.투자금?.toLocaleString()}
+            투자금: ₩{formatNumber(data.투자금)}
           </p>
           <p className="text-sm text-info">
-            평가금액: ₩{data.평가금액?.toLocaleString()}
+            평가금액: ₩{formatNumber(data.평가금액)}
           </p>
           {data.평가금액 && data.투자금 && (
             <p
               className={`text-sm font-semibold ${data.평가금액 >= data.투자금 ? "text-gain" : "text-loss"}`}
             >
               {data.평가금액 >= data.투자금 ? "수익" : "손실"}: ₩
-              {Math.abs(data.평가금액 - data.투자금).toLocaleString()}(
+              {formatNumber(Math.abs(data.평가금액 - data.투자금))}(
               {((data.평가금액 / data.투자금 - 1) * 100).toFixed(2)}%)
             </p>
           )}

@@ -1,16 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import {
-  hasValue,
-  gainLossTone,
-  gainLossClass,
-  gainLossBoxClass,
-  formatSigned,
-  formatKrw,
-  formatUsd,
-  formatPercent,
-  formatBalanceAmount,
-  formatFxRate,
-} from './gainLoss'
+import { hasValue, gainLossTone, gainLossClass, gainLossBoxClass } from './gainLoss'
+import { formatSigned, formatKrw, formatUsd, formatPercent, formatBalanceAmount, formatFxRate } from './format'
 
 describe('gainLoss', () => {
   it('null · undefined · NaN 은 값이 없는 것으로 본다', () => {
@@ -40,7 +30,7 @@ describe('gainLoss', () => {
     expect(gainLossBoxClass(undefined)).toBe('bg-brand-bg')
   })
 
-  it('부호를 통화 기호 앞에 붙여 형식에 맞춘다', () => {
+  it('부호를 통화 기호 앞에 두고 형식에 맞춘다', () => {
     expect(formatSigned(150000, formatKrw)).toBe('+₩150,000')
     expect(formatSigned(-12.345, formatUsd)).toBe('-$12.35')
     expect(formatSigned(-123456, formatKrw)).toBe('-₩123,456')

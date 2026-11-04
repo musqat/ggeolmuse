@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Account } from '@/hooks/useAccounts';
-import { formatBalanceAmount } from '@/utils/gainLoss';
+import { formatBalanceAmount } from '@/utils/format';
 
 interface AccountSelectorProps {
   accounts: Account[];

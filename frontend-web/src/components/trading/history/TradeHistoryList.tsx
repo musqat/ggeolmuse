@@ -5,6 +5,7 @@ import { parseLocalDate } from '../../../utils/dateUtils';
 import TradeCancelledBadge from '../TradeCancelledBadge';
 import TradePendingBadge from '../TradePendingBadge';
 import { applyFilters, groupByDay, summarize, type HistoryFilter } from './tradeHistory';
+import { formatNumber } from '../../../utils/format';
 
 interface AccountOption {
   accountId: number;
@@ -32,10 +33,10 @@ const TYPE_STYLE = {
 } as const;
 
 const usd = (value: number) =>
-  `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  `$${formatNumber(value, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 // 소수 주식이라 넷째 자리까지(끝의 0 은 뺌)
-const shares = (value: number) => value.toLocaleString('en-US', { maximumFractionDigits: 4 });
+const shares = (value: number) => formatNumber(value, { maximumFractionDigits: 4 });
 
 // 2026. 10. 08. (목)
 const dayLabel = (date: string) =>

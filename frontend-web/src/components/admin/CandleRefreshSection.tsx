@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { marketAdminApi, type UnadjustedResponse, type RefreshAllResponse } from '@services/adminApi';
 import { notify } from '@/components/common/notify';
+import { formatNumber } from '../../utils/format';
 
 // 한 번에 보내는 종목 수(요청 본문이 너무 커지지 않게 나눔)
 const CHUNK = 200;
@@ -121,7 +122,7 @@ export default function CandleRefreshSection() {
     try {
       const res = await marketAdminApi.refreshAllCandles();
       setLastAll(res);
-      setProgress(`${res.published.toLocaleString('ko-KR')}개 발행을 시작했습니다. 수집은 백그라운드에서 몇 시간 이어집니다`);
+      setProgress(`${formatNumber(res.published)}개 발행을 시작했습니다. 수집은 백그라운드에서 몇 시간 이어집니다`);
     } catch (err) {
       setError('전체 재수집 요청에 실패했습니다.');
       console.error('refresh all candles failed:', err);
@@ -184,7 +185,7 @@ export default function CandleRefreshSection() {
       <p className="mt-2 text-xs text-tx-3">
         마지막 전체 다시 받기{' '}
         {lastAll?.lastRunAt
-          ? `${lastAll.lastRunAt.replace('T', ' ').slice(0, 16)} · ${lastAll.published.toLocaleString('ko-KR')}개 발행`
+          ? `${lastAll.lastRunAt.replace('T', ' ').slice(0, 16)} · ${formatNumber(lastAll.published)}개 발행`
           : '기록 없음'}
       </p>
 

@@ -2,7 +2,8 @@ import React from 'react';
 import { TrendingUp, DollarSign, Zap } from 'lucide-react';
 import { SimpleChart } from '@components/charts/backtest/SimpleChart';
 import type { SimulationResponse } from '../../../services/api';
-import { formatKrw, formatPercent, formatSigned, formatUsd, gainLossClass } from '../../../utils/gainLoss';
+import { gainLossClass } from '../../../utils/gainLoss';
+import { formatKrw, formatPercent, formatSigned, formatUsd, formatNumber } from '../../../utils/format';
 import { SummaryCards } from './SummaryCards';
 import { FxImpactSection } from './FxImpactSection';
 import { DetailRow, DetailSection } from './DetailSection';
@@ -38,17 +39,17 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
           />
           <DetailRow
             label="초기 투자금"
-            value={<>₩{result.investmentAmount?.toLocaleString()}</>}
+            value={<>₩{formatNumber(result.investmentAmount)}</>}
           />
           <div className="flex justify-between py-2 border-b border-line/50">
             <span className="text-tx-2">평가 가치</span>
             <div className="text-right">
               <div className="font-medium text-tx-1">
-                ₩{result.totalAssetKrw?.toLocaleString()}
+                ₩{formatNumber(result.totalAssetKrw)}
               </div>
               <div className="text-xs text-tx-2">
-                주식: ₩{result.currentValueKrw?.toLocaleString()}, 현금: ₩
-                {cashKrw(result).toLocaleString()}
+                주식: ₩{formatNumber(result.currentValueKrw)}, 현금: ₩
+                {formatNumber(cashKrw(result))}
               </div>
             </div>
           </div>

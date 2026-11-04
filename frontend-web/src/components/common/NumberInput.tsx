@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatNumberWithCommas, parseNumberFromFormatted, formatToKoreanWon } from '../../utils/formatNumber';
+import { formatNumberWithCommas, parseNumberFromFormatted, formatToKoreanWon } from '../../utils/format';
 
 interface NumberInputProps {
   value: string;

@@ -1,14 +1,8 @@
 import React from 'react';
 import { TrendingUp, TrendingDown, DollarSign, Activity } from 'lucide-react';
 import type { StrategyResponse } from '../../../services/api';
-import {
-  formatKrw,
-  formatPercent,
-  formatSigned,
-  gainLossBoxClass,
-  gainLossClass,
-  gainLossTone,
-} from '../../../utils/gainLoss';
+import { gainLossBoxClass, gainLossClass, gainLossTone } from '../../../utils/gainLoss';
+import { formatKrw, formatPercent, formatSigned, formatNumber } from '../../../utils/format';
 import { StatCard } from './StatCard';
 import { cashKrw } from '../shared/backtestDisplay';
 
@@ -30,17 +24,17 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ result, investedLabe
   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
     <StatCard
       label={investedLabel}
-      value={<>₩{invested?.toLocaleString()}</>}
+      value={<>₩{formatNumber(invested)}</>}
       icon={DollarSign}
     />
 
     <StatCard
       label="평가 가치"
-      value={<>₩{result.totalAssetKrw?.toLocaleString()}</>}
+      value={<>₩{formatNumber(result.totalAssetKrw)}</>}
       sub={
         <>
-          주식: ₩{result.currentValueKrw?.toLocaleString()}, 현금: ₩
-          {cashKrw(result).toLocaleString()}
+          주식: ₩{formatNumber(result.currentValueKrw)}, 현금: ₩
+          {formatNumber(cashKrw(result))}
         </>
       }
       icon={TrendingUp}

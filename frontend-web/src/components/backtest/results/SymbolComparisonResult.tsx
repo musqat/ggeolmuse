@@ -1,15 +1,7 @@
 import React from 'react';
 import { TrendingUp, DollarSign, Zap, Activity } from 'lucide-react';
-import {
-  formatFxRate,
-  formatKrw,
-  formatPercent,
-  formatSigned,
-  gainLossClass,
-  gainLossTone,
-  hasValue,
-  type GainLossTone,
-} from '../../../utils/gainLoss';
+import { gainLossClass, gainLossTone, hasValue, type GainLossTone } from '../../../utils/gainLoss';
+import { formatFxRate, formatKrw, formatPercent, formatSigned, formatNumber } from '../../../utils/format';
 import type { ComparisonItem, ComparisonResponse } from '../../../services/api';
 import { CompareSymbolsChartMemoized } from './CompareSymbolsChartMemoized';
 import { daysBetween, getTodayString } from '../../../utils/dateUtils';
@@ -116,17 +108,17 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
                 <div className="bg-elevated/50 rounded-lg p-3">
                   <p className="text-xs text-brand">초기 투자금</p>
                   <p className="text-lg font-bold text-brand-light">
-                    ₩{displayItem.investmentAmount?.toLocaleString()}
+                    ₩{formatNumber(displayItem.investmentAmount)}
                   </p>
                 </div>
                 <div className="bg-brand/10 rounded-lg p-3">
                   <p className="text-xs text-brand">현재 가치</p>
                   <p className="text-lg font-bold text-brand-light">
-                    ₩{displayItem.totalAssetKrw?.toLocaleString()}
+                    ₩{formatNumber(displayItem.totalAssetKrw)}
                   </p>
                   <p className="text-xs text-tx-2">
-                    주식 ₩{displayItem.currentValueKrw?.toLocaleString()} · 현금 ₩
-                    {cashKrw(displayItem).toLocaleString()}
+                    주식 ₩{formatNumber(displayItem.currentValueKrw)} · 현금 ₩
+                    {formatNumber(cashKrw(displayItem))}
                   </p>
                 </div>
                 <div
@@ -182,7 +174,7 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
                     <div className="flex justify-between">
                       <span className="text-tx-2">보유일</span>
                       <span className="font-medium">
-                        {daysHeld != null ? `${daysHeld.toLocaleString()}일` : '-'}
+                        {daysHeld != null ? `${formatNumber(daysHeld)}일` : '-'}
                       </span>
                     </div>
                   </div>

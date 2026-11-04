@@ -5,6 +5,7 @@ import { Modal } from '@/components/common/Modal';
 import { accountsApi, type AccountBalance } from '@/services/api';
 import { notify } from '@/components/common/notify';
 import { DialogActions } from '@/components/common/DialogActions';
+import { formatNumber } from '../../../utils/format';
 
 interface ExchangeModalProps {
   isOpen: boolean;
@@ -118,7 +119,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
     if (exchangeFromCurrency === 'KRW') {
       return `$${(amount / displayRate).toFixed(2)}`;
     } else {
-      return `₩${(amount * displayRate).toLocaleString()}`;
+      return `₩${formatNumber(amount * displayRate)}`;
     }
   };
 
@@ -156,7 +157,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
       ) : (
         <div className="mb-4 p-3 bg-info/10 rounded-lg">
           <p className="text-sm text-info">
-            현재 환율: {currentExchangeRate ? `₩${currentExchangeRate.toLocaleString()}/USD` : '불러오는 중'}
+            현재 환율: {currentExchangeRate ? `₩${formatNumber(currentExchangeRate)}/USD` : '불러오는 중'}
           </p>
         </div>
       )}
@@ -268,7 +269,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
               />
               {rateRange && (
                 <p className="text-xs text-tx-2 mt-1">
-                  가능 범위: ₩{rateRange.min.toLocaleString()} ~ ₩{rateRange.max.toLocaleString()}
+                  가능 범위: ₩{formatNumber(rateRange.min)} ~ ₩{formatNumber(rateRange.max)}
                 </p>
               )}
             </>
@@ -282,7 +283,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
             </p>
             {useManualRate && manualExchangeRate && parseFloat(manualExchangeRate) > 0 && (
               <p className="text-xs text-brand mt-1">
-                수동 환율: ₩{parseFloat(manualExchangeRate).toLocaleString()}/USD
+                수동 환율: ₩{formatNumber(parseFloat(manualExchangeRate))}/USD
               </p>
             )}
           </div>

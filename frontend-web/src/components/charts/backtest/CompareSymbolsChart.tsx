@@ -19,7 +19,7 @@ import { useChartPeriod } from '../common/hooks/useChartPeriod';
 import { CHART_COLORS } from '../common/constants';
 import type { OHLCData } from '../../../types/ohlc';
 import { getTodayString } from '../../../utils/dateUtils';
-import { formatKrw, formatUsd } from '../../../utils/gainLoss';
+import { formatKrw, formatUsd } from '../../../utils/format';
 
 interface SymbolData {
   symbol: string;

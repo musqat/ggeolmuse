@@ -1,3 +1,17 @@
+import { hasValue } from './gainLoss';
+
+type MaybeNumber = number | null | undefined;
+
+// 화면의 숫자 · 통화 표기는 한국어 로케일 하나
+const LOCALE = 'ko-KR';
+
+// 천 단위 쉼표(값이 없으면 undefined 를 돌려 화면에 아무것도 안 그림)
+export function formatNumber(value: number, options?: Intl.NumberFormatOptions): string;
+export function formatNumber(value: MaybeNumber, options?: Intl.NumberFormatOptions): string | undefined;
+export function formatNumber(value: MaybeNumber, options?: Intl.NumberFormatOptions) {
+  return value == null ? undefined : value.toLocaleString(LOCALE, options);
+}
+
 // 숫자를 천단위 콤마로 포맷팅 (소수점 지원)
 export const formatNumberWithCommas = (value: string | number): string => {
   const numStr = String(value).replace(/,/g, ''); // 기존 콤마 제거
@@ -9,7 +23,7 @@ export const formatNumberWithCommas = (value: string | number): string => {
   const decimalPart = parts[1];
 
   // 정수부에만 콤마 추가
-  const formattedInteger = integerPart ? Number(integerPart).toLocaleString('ko-KR') : '0';
+  const formattedInteger = integerPart ? formatNumber(Number(integerPart)) : '0';
 
   // 소수점 입력 중이거나 소수부가 있으면 소수점과 함께 반환
   if (numStr.endsWith('.')) {
@@ -58,5 +72,32 @@ export const formatMarketCap = (marketCap: number | null | undefined, digits = 2
   if (marketCap >= 1e12) return `$${(marketCap / 1e12).toFixed(digits)}T`;
   if (marketCap >= 1e9) return `$${(marketCap / 1e9).toFixed(digits)}B`;
   if (marketCap >= 1e6) return `$${(marketCap / 1e6).toFixed(digits)}M`;
-  return `$${marketCap.toLocaleString()}`;
+  return `$${formatNumber(marketCap)}`;
+};
+
+export const formatKrw = (value: number) => `₩${formatNumber(value)}`;
+
+export const formatUsd = (value: number) => `$${value.toFixed(2)}`;
+
+// 부호는 통화 기호 앞(-$12.30, 반올림해 0 이면 부호 없음)
+export const formatBalanceAmount = (amount: number, currency: "KRW" | "USD") => {
+  const digits = currency === "USD" ? 2 : 0;
+  const formatted = Math.abs(amount).toLocaleString(LOCALE, {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+  const negative = amount < 0 && Number(Math.abs(amount).toFixed(digits)) !== 0;
+  return `${negative ? "-" : ""}${currency === "KRW" ? "₩" : "$"}${formatted}`;
+};
+
+export const formatPercent = (value: number) => `${value.toFixed(2)}%`;
+
+// 환율은 소수 둘째 자리까지(₩1,325.50)
+export const formatFxRate = (value: number) =>
+  `₩${formatNumber(value, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+// 값이 없으면 '-', 있으면 통화 기호 앞에 부호를 둔 형식
+export const formatSigned = (value: MaybeNumber, format: (value: number) => string) => {
+  if (!hasValue(value)) return "-";
+  return `${value >= 0 ? "+" : "-"}${format(Math.abs(value))}`;
 };

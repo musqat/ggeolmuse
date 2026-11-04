@@ -1,5 +1,6 @@
 import React from 'react';
 import { DollarSign } from 'lucide-react';
+import { formatNumber } from '../../utils/format';
 
 export interface TotalAssetsSummaryProps {
   totalAssets: number;
@@ -30,7 +31,7 @@ export const TotalAssetsSummary: React.FC<TotalAssetsSummaryProps> = ({
         <div className="mt-4 pt-4 border-t border-brand-ink/20">
           <div className="flex items-center space-x-2 text-sm">
             <DollarSign className="w-4 h-4" />
-            <span>현재 환율: ₩{currentExchangeRate.toLocaleString()}/USD</span>
+            <span>현재 환율: ₩{formatNumber(currentExchangeRate)}/USD</span>
           </div>
         </div>
       )}

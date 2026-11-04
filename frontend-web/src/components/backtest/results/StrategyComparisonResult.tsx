@@ -2,7 +2,8 @@ import React from 'react';
 import { CompareStrategiesChart } from '@components/charts/backtest/CompareStrategiesChart';
 import type { ComparisonItem, ComparisonResponse } from '../../../services/api';
 import { STRATEGY_NAMES } from '../shared/backtestDisplay';
-import { formatKrw, formatPercent, formatSigned, gainLossClass } from '../../../utils/gainLoss';
+import { gainLossClass } from '../../../utils/gainLoss';
+import { formatKrw, formatPercent, formatSigned, formatNumber } from '../../../utils/format';
 
 interface StrategyComparisonResultProps {
   result: ComparisonResponse;
@@ -74,10 +75,10 @@ export const StrategyComparisonResult: React.FC<StrategyComparisonResultProps> =
                     {STRATEGY_NAMES[item.name] || item.name}
                   </td>
                   <td className="py-3 px-4 text-right text-tx-1">
-                    ₩{item.totalInvested?.toLocaleString()}
+                    ₩{formatNumber(item.totalInvested)}
                   </td>
                   <td className="py-3 px-4 text-right text-tx-1 font-medium">
-                    ₩{(item.additionalData?.totalAssetKrw ?? item.currentValueKrw)?.toLocaleString()}
+                    ₩{formatNumber(item.additionalData?.totalAssetKrw ?? item.currentValueKrw)}
                   </td>
                   <td
                     className={`py-3 px-4 text-right font-medium ${gainLossClass(item.totalReturnKrw)}`}

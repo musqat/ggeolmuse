@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { RefreshCw, Trash2, DollarSign, TrendingUp, ArrowUpDown, ChevronLeft, ChevronRight, Pencil, Check, X, PlusCircle, Undo2 } from 'lucide-react';
 import type { Asset } from '@services/adminApi';
-import { formatMarketCap } from '../../utils/formatNumber';
+import { formatMarketCap, formatNumber } from '../../utils/format';
 import { SOLID_BUTTON } from '@/styles/buttons';
 
 interface AssetListSectionProps {
@@ -146,7 +146,7 @@ export default function AssetListSection({
           <p className="text-sm text-tx-2 mt-1">
             {searchMode
               ? `${assets.length}개`
-              : `전체 ${totalElements.toLocaleString()}개 중 ${currentPage * pageSize + 1}-${Math.min((currentPage + 1) * pageSize, totalElements)} 표시`}
+              : `전체 ${formatNumber(totalElements)}개 중 ${currentPage * pageSize + 1}-${Math.min((currentPage + 1) * pageSize, totalElements)} 표시`}
           </p>
           {!searchMode && (
             <div className="mt-3 inline-flex rounded-lg border border-line-strong overflow-hidden text-sm">

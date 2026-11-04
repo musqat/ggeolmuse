@@ -8,6 +8,7 @@ import {
   StrategyOptions,
   SymbolField,
 } from '../shared/StrategyFields';
+import { formatNumber } from '../../../utils/format';
 
 interface ConditionalStrategyFormProps {
   symbol: string;
@@ -143,7 +144,7 @@ export const ConditionalStrategyForm: React.FC<ConditionalStrategyFormProps> = (
                 className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
               />
               <p className="text-xs text-tx-2 mt-1">
-                최대 ₩{(parseFloat(amountPerPurchase || '0') * parseInt(maxPurchases || '0')).toLocaleString()} 투자
+                최대 ₩{formatNumber(parseFloat(amountPerPurchase || '0') * parseInt(maxPurchases || '0'))} 투자
               </p>
             </FormField>
           </>

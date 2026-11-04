@@ -18,6 +18,7 @@ import type { OHLCData } from '../../../types/ohlc';
 import { useChartPeriod } from '../common/hooks/useChartPeriod';
 import { CHART_COLORS } from '../common/constants';
 import { getTodayString } from '../../../utils/dateUtils';
+import { formatNumber } from '../../../utils/format';
 
 // 전략 이름이 그대로 컬럼(`${name}_portfolio`)이라 인덱스 시그니처
 interface ChartRow {
@@ -286,11 +287,11 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
           formatter={(value: number | string, name: string) => {
             if (name.endsWith('_portfolio')) {
               const strategyName = name.replace('_portfolio', '');
-              return [`₩${Math.floor(Number(value)).toLocaleString()}`, `${strategyNames[strategyName] || strategyName}`];
+              return [`₩${formatNumber(Math.floor(Number(value)))}`, `${strategyNames[strategyName] || strategyName}`];
             }
             if (name.endsWith('_invested')) {
               const strategyName = name.replace('_invested', '');
-              return [`₩${Math.floor(Number(value)).toLocaleString()}`, `${strategyNames[strategyName] || strategyName} (투자금)`];
+              return [`₩${formatNumber(Math.floor(Number(value)))}`, `${strategyNames[strategyName] || strategyName} (투자금)`];
             }
             return [value, name];
           }}

@@ -2,6 +2,7 @@ import React from 'react';
 import type { PieChartData } from '../charts/portfolio/PortfolioPieChart';
 import type { AccountBalance, HoldingResponse } from '../../services/api';
 import { ALLOCATION_ETC_COLOR } from '../../utils/portfolioAllocation';
+import { formatNumber } from '../../utils/format';
 
 interface AllocationListProps {
   items: PieChartData[];
@@ -76,7 +77,7 @@ export const AllocationList: React.FC<AllocationListProps> = ({ items, holdings,
               name="KRW 현금"
               detail="원화 잔액"
               share={shareOf(krw / exchangeRate)}
-              amount={`₩${krw.toLocaleString()}`}
+              amount={`₩${formatNumber(krw)}`}
             />
           )}
         </div>
