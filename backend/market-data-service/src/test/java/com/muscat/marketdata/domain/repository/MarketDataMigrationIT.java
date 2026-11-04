@@ -134,6 +134,18 @@ class MarketDataMigrationIT {
     assertThat(count).isZero();
   }
 
+  @Test
+  @DisplayName("마이그레이션 뒤 봉의 날짜 오름차순 인덱스는 없고 내림차순 인덱스는 남는다")
+  void candleAscIndexDropped() {
+    Integer asc = jdbcTemplate.queryForObject(
+      "SELECT count(*) FROM pg_indexes WHERE indexname = 'idx_candle_symbol_date'", Integer.class);
+    Integer desc = jdbcTemplate.queryForObject(
+      "SELECT count(*) FROM pg_indexes WHERE indexname = 'idx_candle_symbol_date_desc'", Integer.class);
+
+    assertThat(asc).isZero();
+    assertThat(desc).isEqualTo(1);
+  }
+
   private static Asset yieldAsset(String symbol, String type, String latestClose) {
     return Asset.builder().symbol(symbol).name(symbol).country("US").currency("USD").assetType(type)
       .latestClose(new BigDecimal(latestClose)).build();

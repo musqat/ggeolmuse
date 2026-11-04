@@ -25,7 +25,7 @@ import lombok.Setter;
 @Table(name = "candle",
     uniqueConstraints = @UniqueConstraint(columnNames = {"symbol", "date", "currency"}),
     indexes = {
-        @Index(name = "idx_candle_symbol_date", columnList = "symbol,date")
+        @Index(name = "idx_candle_symbol_date_desc", columnList = "symbol,date DESC")
     })
 public class Candle {
 

@@ -1,7 +1,7 @@
 -- 참고용 스냅샷
 -- 스키마 변경은 db/migration 에서만(마이그레이션을 더할 때 이 파일도 같이 고침)
 --
--- V1 ~ V16 적용 결과(V10 · V11 · V13 · V14 는 데이터만, 운영 DB 는 idx_asset_active 가 WHERE active = true 부분 인덱스인 것만 다름)
+-- V1 ~ V17 적용 결과(V10 · V11 · V13 · V14 는 데이터만, 운영 DB 는 idx_asset_active 가 WHERE active = true 부분 인덱스인 것만 다름)
 
 -- ============================================================
 -- 테이블
@@ -82,7 +82,6 @@ CREATE TABLE admin_job_state (
 -- ============================================================
 
 -- candle
-CREATE INDEX idx_candle_symbol_date      ON candle(symbol, date);
 CREATE INDEX idx_candle_symbol_date_desc ON candle(symbol, date DESC);
 CREATE INDEX idx_candle_dividend_lookup  ON candle(symbol, date, dividend_amount);
 -- Postgres 전용(db/postgresql/V7, 분할 계수가 1 이 아닌 행만)
