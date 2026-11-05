@@ -40,21 +40,23 @@ mvn test
 
 ## 운영에 올릴 때
 
-이미지를 손으로 빌드해 Docker Hub 에 올리고 helm values 의 태그를 바꾸면 ArgoCD 가
-master 를 보고 sync 한다. CI 도 이미지를 빌드하지만 Trivy 로 훑어보기 위한 것이라
-push 하지 않는다. 배포용 태그는 직접 만들어 올린다.
+master 에 머지하고 CI 가 초록이면 `릴리스` 워크플로(`.github/workflows/release.yml`)가 바뀐 서비스만
+커밋 SHA 7자리 태그로 빌드 · push 하고, `helm/ggeolmuse/values-prod.yaml` 의 태그를 바꾼 커밋을 master 에 올린다.
+ArgoCD 가 그 커밋을 보고 롤아웃한다. CI 의 이미지 빌드는 Trivy 검사용이라 push 하지 않고, E2E 는 기다리지 않는다.
 
-    코드 머지  →  이미지 빌드  →  Docker Hub push  →  values-prod 태그 수정  →  ArgoCD sync
+    코드 머지  →  CI 초록  →  바뀐 서비스 고르기  →  빌드 · push  →  태그 커밋(봇)  →  ArgoCD sync
+
+- 서비스마다 운영 태그부터 바뀐 것만 빌드한다(테스트 · 문서만이면 없음, BOM · common · messaging 이면 Java 여섯)
+- 실패 · 취소된 실행은 다음 실행이 이어 받고, 다시 돌려도 된다
+- 더 새 커밋이 나간 서비스는 건너뛴다(옛 실행을 다시 돌려도 안 되돌아감)
+- 같은 태그 이미지가 있으면 빌드를 건너뛰고, 태그는 이미지를 확인한 뒤 바꾼다
+- 마이그레이션도 바로 나간다. 옛 이미지로도 돌게 쓰고(열 추가 먼저, `DROP` 은 다음 PR), 데이터를 지우면 머지 전 RDS 수동 스냅숏
+- 되돌리기는 봇 태그 커밋 revert(메시지에 `[skip ci]`), DB 는 RDS 자동 백업(7일)
+- push 토큰은 `DOCKERHUB_PUSH_TOKEN`(GitHub 시크릿)
 
 Java 서비스는 멀티스테이지 Dockerfile 이고 빌드 컨텍스트가 레포 루트다.
 `ggeolmuse-bom` 을 먼저 설치해야 해서다. frontend 와 chat-service 만 자기 폴더가
 컨텍스트다.
 
-태그는 `helm/ggeolmuse/values-prod.yaml` 의 서비스별 `image.tag` 다. 바꿔서 master 에
-올리면 ArgoCD 가 롤아웃한다.
-
-순서가 뒤집히면 멈춘다. 태그가 master 에 먼저 올라가고 이미지가 아직 허브에 없으면
-`ImagePullBackOff` 다. push 를 끝내고 태그를 올린다.
-
-설정을 함께 바꿨다면 config 저장소도 같이 올려야 한다. 코드와 설정이 짝인 변경은
+설정을 함께 바꿨다면 config 저장소도 같이 올린다. 코드와 설정이 짝인 변경은
 한쪽만 배포하면 기본값으로 돌아간다.

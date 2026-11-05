@@ -198,7 +198,7 @@ market-data 의 외부 API 호출은 응답을 흉내 낸 테스트라 실제 AP
 
 ## 성능
 
-[성능 튜닝](docs/performance-tuning.md) 에 적었다. 수치마다 잰 조건을 붙였다.
+[성능 튜닝](docs/performance-tuning.md) 에 적었다. 수치마다 잰 조건을 함께 적었다.
 
 운영 부하는 2026-10-21 에 1.5.1 로 쟀다. 같은 VPC 의 c5.xlarge 에서 k6 VU 50 으로, Traefik → 게이트웨이 → market-data 를
 그대로 거쳤다.
@@ -210,7 +210,7 @@ market-data 의 외부 API 호출은 응답을 흉내 낸 테스트라 실제 AP
 | 일자별 OHLC 하나만 | 약 194 rps(IP 당 한도) | 282ms | 330ms |
 | 전체 종목 목록 하나만 | 24.4 rps | 1.99초 | 2.18초 |
 
-부하 중 게이트웨이와 market-data 가 CPU 한도(0.6 · 0.7코어)에 붙었다. 처리량의 상한은 이 한도다. 처음 걸었을 때는
+부하 중 게이트웨이와 market-data 가 CPU 한도(0.6 · 0.7코어)까지 찼다. 처리량의 상한은 이 한도다. 처음 걸었을 때는
 게이트웨이 서킷이 열려 모두가 503 을 받았고, 그 경위는 [문제 해결](docs/problem-solving.md#부하-테스트에-게이트웨이-서킷이-열려-모두가-503-을-받았다) 에 있다.
 
 <br>
@@ -233,7 +233,9 @@ MSK·ElastiCache→파드 내 실행. values 파일만 바꾸면 되돌릴 수 �
 <br>
 
 ```
-GitHub Actions          빌드 · 테스트 · Trivy 스캔
+GitHub Actions          빌드 · 테스트 · Trivy 스캔(PR)
+        ↓
+GitHub Actions 릴리스    CI 초록 뒤 운영 태그부터 바뀐 서비스만 push, 운영 태그 커밋
         ↓
 ArgoCD (GitOps)         Helm 차트를 추적해 동기화
         ↓
@@ -264,7 +266,7 @@ K3s (EC2 단일 노드)      Traefik IngressRoute 로 진입
 <br>
 
 **전송** — 브라우저에서 EC2 까지 전 구간이 HTTPS 다. Cloudflare 는 Full (strict) 로 EC2 의 Cloudflare Origin CA 인증서를 검증하고,
-EC2 는 Cloudflare 대역에서 온 요청만 받는다. Keycloak 은 Traefik 이 넘긴 전달 헤더로 https 요청을 구분해 쿠키에 Secure 를 붙인다.
+EC2 는 Cloudflare 대역에서 온 요청만 받는다. Keycloak 은 Traefik 이 넘긴 전달 헤더로 https 요청을 구분해 쿠키에 Secure 속성을 넣는다.
 
 **인증** — Keycloak 이 토큰을 발급하고, 게이트웨이가 서명 · 만료와 함께 발급자(`iss`)와 발급 클라이언트(`azp`)를 허용 목록으로 검사한다.
 user · trade · market-data · backtest 도 리소스 서버로 다시 검증한다. access token 은 15분이다. refresh token 은 httpOnly 쿠키로 주고,
@@ -279,7 +281,7 @@ EC2 는 Cloudflare 대역에서 온 요청만 받아서 밖에서 이 헤더를 
 **응답 · 로그** — 로그인 실패는 가입 여부와 상관없이 같은 401 이다([가입 여부 노출](docs/problem-solving.md#로그인-응답이-가입-여부를-드러냈다)).
 로그의 이메일은 가린다.
 
-**브라우저** — nginx 가 CSP · X-Frame-Options · X-Content-Type-Options(nosniff) · Referrer-Policy 를 붙인다.
+**브라우저** — nginx 가 CSP · X-Frame-Options · X-Content-Type-Options(nosniff) · Referrer-Policy 를 응답에 넣는다.
 
 **운영 도구** — Kafka UI · Keycloak 관리 콘솔 · Grafana · ArgoCD 는 Cloudflare Access 뒤에 있어 허용한 계정만 들어간다.
 Kafka UI 는 그 안에서 로그인 폼을 한 번 더 거치고, 읽기 전용이라 토픽 · 메시지 · 클러스터 설정을 바꾸지 못한다.
@@ -314,4 +316,4 @@ AI 챗봇 설정과 주의할 점은 [빌드와 배포](docs/DEPLOY.md) 에 적�
 
 - [시행착오](docs/trial-and-error.md) — 근거를 갖고 정한 것이 확인해보니 반대인 게 여럿이었다. 믿었던 것과 갈린 근거
 - [문제 해결](docs/problem-solving.md) — 겪은 장애와 버그를 문제 → 원인 → 해결. 감수하기로 한 한계도 함께
-- [성능 튜닝](docs/performance-tuning.md) — 성능 튜닝한 기록. 수치마다 잰 조건을 붙였다
+- [성능 튜닝](docs/performance-tuning.md) — 성능 튜닝한 기록. 수치마다 잰 조건을 함께 적었다

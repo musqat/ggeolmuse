@@ -1,0 +1,176 @@
+name: 릴리스
+
+# master CI 가 초록이면 운영 태그부터 바뀐 서비스만 빌드 · 푸시하고 운영 태그 커밋(ArgoCD 반영)
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [master]
+
+# 한 번에 하나(취소된 대기 실행은 다음 실행이 다시 고름)
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      services: ${{ steps.plan.outputs.services }}
+      sha: ${{ steps.plan.outputs.sha }}
+      tag: ${{ steps.plan.outputs.tag }}
+    env:
+      SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: tools/go.mod
+          cache: false
+
+      - name: 바뀐 서비스 고르기
+        id: plan
+        working-directory: tools
+        run: |
+          printf 'sha=%s\ntag=%s\n' "$SHA" "${SHA::7}" >> "$GITHUB_OUTPUT"
+          go run ./cmd/release-plan -head "$SHA" -rev origin/master | tee -a "$GITHUB_OUTPUT"
+
+  build:
+    needs: plan
+    if: needs.plan.outputs.services != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: true
+      matrix:
+        service: ${{ fromJSON(needs.plan.outputs.services) }}
+    env:
+      SERVICE: ${{ matrix.service }}
+      TAG: ${{ needs.plan.outputs.tag }}
+    steps:
+      # 같은 태그는 같은 커밋의 이미지라 빌드 건너뜀
+      - name: Hub 태그 확인
+        id: hub
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' "https://hub.docker.com/v2/repositories/muscathan/$SERVICE/tags/$TAG")
+          case "$code" in
+            200) echo "muscathan/$SERVICE:$TAG 이미 있음, 빌드 건너뜀"; echo "skip=true" >> "$GITHUB_OUTPUT" ;;
+            404) echo "skip=false" >> "$GITHUB_OUTPUT" ;;
+            *) echo "muscathan/$SERVICE:$TAG 확인 실패(응답 $code)"; exit 1 ;;
+          esac
+
+      - uses: actions/checkout@v7
+        if: steps.hub.outputs.skip != 'true'
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+
+      - name: 빌드 위치
+        id: ctx
+        if: steps.hub.outputs.skip != 'true'
+        run: |
+          case "$SERVICE" in
+            chat-service) printf 'context=backend/chat-service\nfile=backend/chat-service/Dockerfile\n' ;;
+            frontend-web) printf 'context=frontend-web\nfile=frontend-web/Dockerfile\n' ;;
+            *) printf 'context=.\nfile=backend/%s/Dockerfile\n' "$SERVICE" ;;
+          esac >> "$GITHUB_OUTPUT"
+
+      # 쓰기 토큰(CI 토큰은 읽기 전용)
+      - uses: docker/login-action@v4
+        if: steps.hub.outputs.skip != 'true'
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PUSH_TOKEN }}
+      - uses: docker/setup-buildx-action@v4
+        if: steps.hub.outputs.skip != 'true'
+
+      - uses: docker/build-push-action@v7
+        if: steps.hub.outputs.skip != 'true'
+        with:
+          context: ${{ steps.ctx.outputs.context }}
+          file: ${{ steps.ctx.outputs.file }}
+          push: true
+          tags: muscathan/${{ matrix.service }}:${{ needs.plan.outputs.tag }}
+          labels: org.opencontainers.image.revision=${{ needs.plan.outputs.sha }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+
+  deploy:
+    needs: [plan, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      SHA: ${{ needs.plan.outputs.sha }}
+      TAG: ${{ needs.plan.outputs.tag }}
+      SERVICES: ${{ needs.plan.outputs.services }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: master
+          fetch-depth: 0
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: tools/go.mod
+          cache: false
+      - uses: azure/setup-helm@v5
+
+      # 더 새 커밋이 나간 서비스는 뺌(옛 실행을 다시 돌려도 안 되돌아감)
+      - name: 아직 바꿀 서비스
+        id: still
+        working-directory: tools
+        run: go run ./cmd/release-plan -head "$SHA" -rev HEAD -only "$SERVICES" | tee -a "$GITHUB_OUTPUT"
+
+      - name: 바꿀 서비스 없음
+        if: steps.still.outputs.services == '[]'
+        run: echo "### 릴리스 $TAG — 바꿀 서비스 없음(더 새 커밋이 나감)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Hub 이미지 확인
+        if: steps.still.outputs.services != '[]'
+        env:
+          DEPLOY: ${{ steps.still.outputs.services }}
+        run: |
+          for s in $(jq -r '.[]' <<<"$DEPLOY"); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "https://hub.docker.com/v2/repositories/muscathan/$s/tags/$TAG")
+            if [ "$code" != 200 ]; then echo "muscathan/$s:$TAG 없음(응답 $code)"; exit 1; fi
+          done
+
+      - name: 운영 태그 바꾸기
+        if: steps.still.outputs.services != '[]'
+        working-directory: tools
+        env:
+          DEPLOY: ${{ steps.still.outputs.services }}
+        run: go run ./cmd/set-image-tag ../helm/ggeolmuse/values-prod.yaml "$TAG" $(jq -r '.[]' <<<"$DEPLOY")
+
+      - name: 렌더 확인
+        if: steps.still.outputs.services != '[]'
+        env:
+          DEPLOY: ${{ steps.still.outputs.services }}
+        run: |
+          rendered=$(helm template ggeolmuse helm/ggeolmuse -f helm/ggeolmuse/values-prod.yaml)
+          for s in $(jq -r '.[]' <<<"$DEPLOY"); do
+            grep -q "image: muscathan/$s:$TAG" <<<"$rendered" || { echo "$s 렌더에 $TAG 없음"; exit 1; }
+          done
+
+      # GITHUB_TOKEN 커밋이라 CI · 릴리스가 다시 안 돎
+      - name: master 에 커밋
+        if: steps.still.outputs.services != '[]'
+        env:
+          DEPLOY: ${{ steps.still.outputs.services }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "chore(release): $(jq -r 'join(" · ")' <<<"$DEPLOY") 를 $TAG 로"
+          for i in 1 2 3; do
+            git push origin HEAD:master && break
+            git pull --rebase origin master
+          done
+          git diff --quiet HEAD origin/master || { echo "master 에 못 올림"; exit 1; }
+          echo "### 릴리스 $TAG — $(jq -r 'join(" · ")' <<<"$DEPLOY")" >> "$GITHUB_STEP_SUMMARY"

@@ -1,7 +1,7 @@
 name: E2E
 
 # PR · master push 에서 실행(Yahoo Finance 에 기대는 스위트라 필수 체크 아님)
-# 8분 안에 끝나 머지 뒤 이미지를 손으로 올리기 전에 결과 확인
+# 릴리스는 CI 만 기다림
 on:
   pull_request:
     branches: [ master ]
