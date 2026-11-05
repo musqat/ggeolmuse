@@ -305,6 +305,26 @@ jobs:
           sarif_file: trivy-manifests.sarif
           category: trivy-manifests
 
+  # tools Go 검사 · 테스트
+  tools:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: tools
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: tools/go.mod
+          cache: false
+      - name: 형식 · 정적 검사 · 테스트
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then echo "$unformatted"; exit 1; fi
+          go vet ./...
+          go test ./...
+
   # terraform 형식 · 문법 · 가짜 프로바이더 테스트(AWS 에 닿지 않음)
   terraform:
     runs-on: ubuntu-latest
