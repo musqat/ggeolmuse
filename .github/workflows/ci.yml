@@ -139,8 +139,10 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
+      # 스캔은 결과로 막지 않으니 설치 · DB 받기 실패도 빌드를 막지 않음
       - name: Trivy 이미지 스캔
         uses: ./.github/actions/trivy-image-scan
+        continue-on-error: true
         with:
           image: ${{ matrix.service }}:ci-${{ github.sha }}
           name: ${{ matrix.service }}
@@ -189,8 +191,10 @@ jobs:
           cache-from: type=gha,scope=frontend-web
           cache-to: type=gha,mode=max,scope=frontend-web
 
+      # 스캔은 결과로 막지 않으니 설치 · DB 받기 실패도 빌드를 막지 않음
       - name: Trivy 이미지 스캔
         uses: ./.github/actions/trivy-image-scan
+        continue-on-error: true
         with:
           image: frontend-web:ci-${{ github.sha }}
           name: frontend-web
@@ -248,8 +252,10 @@ jobs:
           cache-from: type=gha,scope=chat-service
           cache-to: type=gha,mode=max,scope=chat-service
 
+      # 스캔은 결과로 막지 않으니 설치 · DB 받기 실패도 빌드를 막지 않음
       - name: Trivy 이미지 스캔
         uses: ./.github/actions/trivy-image-scan
+        continue-on-error: true
         with:
           image: chat-service:ci-${{ github.sha }}
           name: chat-service
@@ -275,9 +281,12 @@ jobs:
       - name: NetworkPolicy 가 서비스 포트를 전부 여는지 본다
         run: bash .github/scripts/check-netpol-ports.sh rendered.yaml
 
+      # 이미지 스캔과 같이 설치 · 스캔 실패로 잡을 막지 않음
       - uses: ./.github/actions/install-trivy
+        continue-on-error: true
 
       - uses: aquasecurity/trivy-action@v0.36.0
+        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
