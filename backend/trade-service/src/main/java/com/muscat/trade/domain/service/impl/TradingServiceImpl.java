@@ -108,7 +108,7 @@ public class TradingServiceImpl implements TradingService {
     BigDecimal tradePrice = applySlippage(request.getSymbol(), currentPrice, balance, priceType,
       TradeType.BUY);
     BigDecimal maxShares = maxAffordableShares(availableBalance, tradePrice, balance);
-    BigDecimal totalValue = tradeTotal(maxShares, tradePrice, balance, TradeType.BUY);
+    BigDecimal totalValue = amountsOf(maxShares, tradePrice, balance, TradeType.BUY).total();
 
     log.info("매수 가능 수량 계산 완료: symbol={}, 잔액={}, 주가={}, 체결가={}, 최대주수={}",
       request.getSymbol(), availableBalance, currentPrice, tradePrice, maxShares);
@@ -135,15 +135,17 @@ public class TradingServiceImpl implements TradingService {
     // 수수료율 · 슬리피지율(계좌가 없거나 남의 계좌면 계좌 오류)
     AccountBalanceDto balance = tradeUtils.getAccountBalance(request.getAccountId());
 
+    Long accountId = Long.valueOf(request.getAccountId());
+
     // 현재 보유 주식 수량 조회
     Optional<Holdings> holdings = holdingsRepository.findByUserIdAndAccountIdAndSymbol(
-      userId, Long.valueOf(request.getAccountId()), request.getSymbol());
+      userId, accountId, request.getSymbol());
 
     BigDecimal currentHoldings = holdings.map(Holdings::getTotalQuantity)
       .orElse(BigDecimal.ZERO);
 
     // FIFO 방식으로 실제 매도 가능 수량 계산
-    BigDecimal maxSellableShares = calculateSellableQuantity(userId, request.getAccountId(),
+    BigDecimal maxSellableShares = calculateSellableQuantity(userId, accountId,
       request.getSymbol(), request.getTradeDate());
 
     PriceType priceType = capacityPriceType(request);
@@ -153,7 +155,7 @@ public class TradingServiceImpl implements TradingService {
     // 체결 때와 같은 체결가에서 수수료를 뺀 받을 금액 기준
     BigDecimal tradePrice = applySlippage(request.getSymbol(), currentPrice, balance, priceType,
       TradeType.SELL);
-    BigDecimal totalValue = tradeTotal(maxSellableShares, tradePrice, balance, TradeType.SELL);
+    BigDecimal totalValue = amountsOf(maxSellableShares, tradePrice, balance, TradeType.SELL).total();
 
     log.info("매도 가능 수량 계산 완료: symbol={}, 보유량={}, 매도가능량={}, 주가={}, 체결가={}",
       request.getSymbol(), currentHoldings, maxSellableShares, currentPrice, tradePrice);
@@ -187,37 +189,35 @@ public class TradingServiceImpl implements TradingService {
       tradeType.name(), userId, accountId, symbol, quantity);
 
     // 거래 전 검증
-    performPreTradeValidation(userId, String.valueOf(accountId), symbol, quantity, tradeDate,
-      tradeType);
+    performPreTradeValidation(userId, accountId, symbol, quantity, tradeDate, tradeType);
 
     // 가격 결정
     BigDecimal marketPrice = marketDataService.determineTradePrice(symbol, tradeDate, priceType,
       manualPrice);
 
+    String accountKey = String.valueOf(accountId);
+
     // 수수료 계산
-    AccountBalanceDto accountBalance = tradeUtils.getAccountBalance(String.valueOf(accountId));
+    AccountBalanceDto accountBalance = tradeUtils.getAccountBalance(accountKey);
     BigDecimal tradePrice = applySlippage(symbol, marketPrice, accountBalance, priceType,
       tradeType);
-    BigDecimal[] amounts = calculateTradeAmounts(userId, String.valueOf(accountId), quantity,
-      tradePrice, accountBalance, tradeType);
-    BigDecimal tradeAmount = amounts[0];
-    BigDecimal fee = amounts[1];
-    BigDecimal totalAmount = amounts[2];
+    TradeAmounts amounts = calculateTradeAmounts(userId, accountKey, quantity, tradePrice,
+      accountBalance, tradeType);
 
     // 거래 실행
-    Trade savedTrade = executeTradeTransaction(userId, String.valueOf(accountId), symbol, quantity,
-      tradePrice, totalAmount, fee, tradeDate, tradeType);
+    Trade savedTrade = executeTradeTransaction(userId, accountId, symbol, quantity,
+      tradePrice, amounts.total(), amounts.fee(), tradeDate, tradeType);
 
     // 거래 로그 기록
-    tradeLogger.logTrade(savedTrade.getId(), userId, String.valueOf(accountId), symbol,
-      tradeType, quantity, tradePrice, fee, totalAmount, tradeDate);
+    tradeLogger.logTrade(savedTrade.getId(), userId, accountKey, symbol,
+      tradeType, quantity, tradePrice, amounts.fee(), amounts.total(), tradeDate);
 
-    log.info("{} 완료: 거래ID={}, 금액={}", tradeType.name(), savedTrade.getId(), totalAmount);
+    log.info("{} 완료: 거래ID={}, 금액={}", tradeType.name(), savedTrade.getId(), amounts.total());
     return TradeResponseDto.from(savedTrade);
   }
 
   // 거래 전 검증
-  private void performPreTradeValidation(String userId, String accountId, String symbol,
+  private void performPreTradeValidation(String userId, Long accountId, String symbol,
     BigDecimal quantity, LocalDate tradeDate, TradeType tradeType) {
     if (tradeType == TradeType.SELL) {
       validateSellEligibility(userId, accountId, symbol, quantity, tradeDate);
@@ -240,24 +240,20 @@ public class TradingServiceImpl implements TradingService {
     return adjusted;
   }
 
-  // 거래 금액 계산
-  private BigDecimal[] calculateTradeAmounts(String userId, String accountId, BigDecimal quantity,
+  // 체결 금액 · 수수료 · 총액
+  private record TradeAmounts(BigDecimal tradeAmount, BigDecimal fee, BigDecimal total) {
+  }
+
+  // 거래 금액 계산(매수는 잔액 확인)
+  private TradeAmounts calculateTradeAmounts(String userId, String accountId, BigDecimal quantity,
     BigDecimal tradePrice, AccountBalanceDto accountBalance, TradeType tradeType) {
-    BigDecimal tradeAmount = MoneyUtils.roundUsd(MoneyUtils.multiply(quantity, tradePrice));
-    BigDecimal fee = MoneyUtils.roundUsd(tradeUtils.calculateFee(accountBalance, tradeAmount));
-
-    BigDecimal totalAmount;
+    TradeAmounts amounts = amountsOf(quantity, tradePrice, accountBalance, tradeType);
     if (tradeType == TradeType.BUY) {
-      totalAmount = MoneyUtils.add(tradeAmount, fee);
-      tradeUtils.validateBuyBalance(userId, accountId, totalAmount, accountBalance);
-    } else {
-      totalAmount = MoneyUtils.subtract(tradeAmount, fee);
+      tradeUtils.validateBuyBalance(userId, accountId, amounts.total(), accountBalance);
     }
-
-    totalAmount = MoneyUtils.roundUsd(totalAmount);
-    tradeLogger.logFeeCalculation(accountId, tradeAmount, accountBalance.getCommissionRate(), fee);
-
-    return new BigDecimal[]{tradeAmount, fee, totalAmount};
+    tradeLogger.logFeeCalculation(accountId, amounts.tradeAmount(),
+      accountBalance.getCommissionRate(), amounts.fee());
+    return amounts;
   }
 
   // 잔액 안에 드는 가장 큰 수량(체결 때와 같은 총액 수량 × 체결가 + 수수료로 이분 탐색)
@@ -270,7 +266,7 @@ public class TradingServiceImpl implements TradingService {
     long high = balanceUsd.divide(tradePrice, 0, RoundingMode.DOWN).longValueExact();
     while (low < high) {
       long mid = low + (high - low + 1) / 2;
-      if (tradeTotal(BigDecimal.valueOf(mid), tradePrice, accountBalance, TradeType.BUY)
+      if (amountsOf(BigDecimal.valueOf(mid), tradePrice, accountBalance, TradeType.BUY).total()
         .compareTo(balanceUsd) <= 0) {
         low = mid;
       } else {
@@ -280,18 +276,18 @@ public class TradingServiceImpl implements TradingService {
     return BigDecimal.valueOf(low);
   }
 
-  // 체결 총액(calculateTradeAmounts 와 같은 반올림, 매수는 수수료를 더하고 매도는 뺌)
-  private BigDecimal tradeTotal(BigDecimal quantity, BigDecimal tradePrice,
+  // 수량 × 체결가의 금액 · 수수료 · 총액(센트 반올림)
+  private TradeAmounts amountsOf(BigDecimal quantity, BigDecimal tradePrice,
     AccountBalanceDto accountBalance, TradeType tradeType) {
     BigDecimal tradeAmount = MoneyUtils.roundUsd(MoneyUtils.multiply(quantity, tradePrice));
     BigDecimal fee = MoneyUtils.roundUsd(tradeUtils.calculateFee(accountBalance, tradeAmount));
     BigDecimal total = tradeType == TradeType.BUY
       ? MoneyUtils.add(tradeAmount, fee) : MoneyUtils.subtract(tradeAmount, fee);
-    return MoneyUtils.roundUsd(total);
+    return new TradeAmounts(tradeAmount, fee, MoneyUtils.roundUsd(total));
   }
 
   // 체결 저장 · 보유 변경
-  private Trade executeTradeTransaction(String userId, String accountId, String symbol,
+  private Trade executeTradeTransaction(String userId, Long accountId, String symbol,
     BigDecimal quantity, BigDecimal tradePrice, BigDecimal totalAmount,
     BigDecimal fee, LocalDate tradeDate, TradeType tradeType) {
 
@@ -321,13 +317,13 @@ public class TradingServiceImpl implements TradingService {
   }
 
   // 체결 저장(매도만 보유에 바로 반영, 매수는 정산된 뒤 보유에 들어감)
-  private Trade executeTradeDbTransaction(String userId, String accountId, String symbol,
+  private Trade executeTradeDbTransaction(String userId, Long accountId, String symbol,
     BigDecimal quantity, BigDecimal tradePrice, BigDecimal totalAmount,
     BigDecimal fee, LocalDate tradeDate, TradeType tradeType) {
     // 매도는 보유 행 락을 잡은 뒤 날짜 기준 매도 가능량을 다시 확인(락 밖 사전 검사로는 동시 매도가 같은 물량을 가져감)
     if (tradeType == TradeType.SELL) {
-      holdingsRepository.findByUserIdAndAccountIdAndSymbolWithLock(userId, Long.valueOf(accountId), symbol);
-      BigDecimal sellable = tradeRepository.calculateSellableQuantity(userId, Long.valueOf(accountId), symbol,
+      holdingsRepository.findByUserIdAndAccountIdAndSymbolWithLock(userId, accountId, symbol);
+      BigDecimal sellable = tradeRepository.calculateSellableQuantity(userId, accountId, symbol,
         tradeDate);
       if (sellable.compareTo(quantity) < 0) {
         throw new TradeException(TradeResponse.INSUFFICIENT_SELLABLE_QUANTITY);
@@ -336,7 +332,7 @@ public class TradingServiceImpl implements TradingService {
 
     Trade trade = Trade.builder()
       .userId(userId)
-      .accountId(Long.valueOf(accountId))
+      .accountId(accountId)
       .symbol(symbol)
       .tradeType(tradeType)
       .quantity(quantity)
@@ -383,11 +379,11 @@ public class TradingServiceImpl implements TradingService {
   }
 
   // 매도 가능 여부 검증 (FIFO 방식 - 매도일 이전 매수 물량만 매도 가능)
-  private void validateSellEligibility(String userId, String accountId, String symbol,
+  private void validateSellEligibility(String userId, Long accountId, String symbol,
     BigDecimal quantity, LocalDate sellDate) {
     // 1. 기본 보유량 확인
     Optional<Holdings> holdings = holdingsRepository
-      .findByUserIdAndAccountIdAndSymbol(userId, Long.valueOf(accountId), symbol);
+      .findByUserIdAndAccountIdAndSymbol(userId, accountId, symbol);
 
     if (holdings.isEmpty()) {
       log.error("매도 불가: 보유종목 없음 - userId={}, symbol={}", userId, symbol);
@@ -415,11 +411,11 @@ public class TradingServiceImpl implements TradingService {
   }
 
   // FIFO 방식으로 매도 가능 수량 계산 (DB 집계 쿼리 사용)
-  private BigDecimal calculateSellableQuantity(String userId, String accountId, String symbol,
+  private BigDecimal calculateSellableQuantity(String userId, Long accountId, String symbol,
     LocalDate sellDate) {
     // DB 레벨에서 집계하여 성능 최적화
     BigDecimal sellableQuantity = tradeRepository.calculateSellableQuantity(
-      userId, Long.valueOf(accountId), symbol, sellDate);
+      userId, accountId, symbol, sellDate);
 
     log.debug("매도 가능 수량 계산 완료 (DB 집계): symbol={}, 매도일={}, 가능수량={}",
       symbol, sellDate, sellableQuantity);
