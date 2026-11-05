@@ -18,6 +18,7 @@ import com.muscat.backtest.common.enums.type.BacktestType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.util.BacktestHistoryUtils;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
+import com.muscat.backtest.domain.dto.response.DailyValue;
 import com.muscat.backtest.domain.dto.response.SimulationResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.infra.client.MarketDataClientWrapper;
@@ -33,6 +34,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -77,6 +79,11 @@ class TradingSimulationServiceImplTest {
       .dividendTaxRate(BigDecimal.ZERO)
       .build();
     lenient().when(marketDataClientWrapper.defaultFxRate()).thenReturn(new BigDecimal("1350"));
+    // 기간 환율은 요청한 날마다 1350
+    lenient().when(marketDataClientWrapper.getBulkFxRates(anyList())).thenAnswer(invocation -> {
+      List<String> dates = invocation.getArgument(0);
+      return dates.stream().distinct().collect(Collectors.toMap(date -> date, date -> new BigDecimal("1350")));
+    });
   }
 
   @Nested
@@ -420,7 +427,7 @@ class TradingSimulationServiceImplTest {
       runWith(range, Map.of());
     }
 
-    // 일자별 환율이 비면 모든 날이 기본 환율
+    // 일자별 환율을 주지 않으면 모든 날이 1350
     private void runWith(List<OHLCPriceDto> range, Map<String, BigDecimal> fxRates) {
       // 매수는 가장 이른 날(응답 순서와 무관)
       OHLCPriceDto purchasePrice = range.stream().min(Comparator.comparing(OHLCPriceDto::date)).orElseThrow();
@@ -580,6 +587,35 @@ class TradingSimulationServiceImplTest {
       assertThat(sellPrice.getValue()).isEqualByComparingTo("542.07");
       // 542.07 × 1431.40 / (227.12 × 1239.25) - 1
       assertThat(optimalReturn.getValue()).isEqualByComparingTo("175.68");
+    }
+
+    @Test
+    @DisplayName("환율 기록 전 날은 첫 기록 환율로 원화 주가를 셈한다")
+    void optimalTiming_FxBeforeFirstRecord() {
+      // 1/5 는 환율 기록 전, 첫 기록 1000 으로 세면 1/5 가 가장 쌈
+      runWith(List.of(
+        candle("2023-01-05", "95.00"),
+        candle("2023-01-09", "100.00"),
+        candle("2023-03-01", "110.00")
+      ), Map.of(
+        "2023-01-09", new BigDecimal("1000"),
+        "2023-03-01", new BigDecimal("1000")));
+
+      ArgumentCaptor<LocalDate> buyDate = ArgumentCaptor.forClass(LocalDate.class);
+      ArgumentCaptor<BigDecimal> optimalReturn = ArgumentCaptor.forClass(BigDecimal.class);
+      verify(responseMapper).toSimulationResponse(
+        any(SimulationRequest.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), buyDate.capture(), any(BigDecimal.class),
+        any(LocalDate.class), any(BigDecimal.class), optimalReturn.capture(), any(BigDecimal.class),
+        anyList());
+
+      assertThat(buyDate.getValue()).isEqualTo(LocalDate.parse("2023-01-05"));
+      // 110 / 95 - 1
+      assertThat(optimalReturn.getValue()).isEqualByComparingTo("15.79");
     }
 
     @Test
@@ -1059,6 +1095,241 @@ class TradingSimulationServiceImplTest {
       assertThat(noDividends.getShares()).isEqualByComparingTo("10");
       assertThat(noExDate.getShares()).isEqualByComparingTo("10");
       assertThat(noExDate.getDividendReinvestDates()).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("일별 평가 가치 · 지표")
+  class DailyValueTests {
+
+    private final LocalDate purchaseDate = LocalDate.of(2024, 1, 15);
+    private final LocalDate march = LocalDate.of(2024, 3, 1);
+    private final LocalDate april = LocalDate.of(2024, 4, 1);
+    private final LocalDate exDate = LocalDate.of(2024, 5, 10);
+    private final LocalDate saleDate = LocalDate.of(2024, 6, 14);
+    private TradingSimulationServiceImpl service;
+
+    @BeforeEach
+    void setUpService() {
+      service = new TradingSimulationServiceImpl(marketDataClientWrapper, new ResponseMapper(), backtestHistoryUtils);
+      // 수동 환율 테스트는 시장 환율을 부르지 않음
+      lenient().when(marketDataClientWrapper.getFxRate("2024-01-15")).thenReturn(new FxRateDto(purchaseDate, new BigDecimal("1300")));
+      lenient().when(marketDataClientWrapper.getFxRate("2024-06-14")).thenReturn(new FxRateDto(saleDate, new BigDecimal("1300")));
+    }
+
+    // 130만원 · 환율 1300 · 매수가 100 → 10주(수수료 없음), 매도일 평가가 150
+    private SimulationRequest request(boolean reinvest, String taxRate) {
+      return SimulationRequest.builder().symbol(TEST_SYMBOL).purchaseDate(purchaseDate).saleDate(saleDate)
+        .investmentAmount(new BigDecimal("1300000")).reinvestDividends(reinvest)
+        .dividendTaxRate(new BigDecimal(taxRate)).build();
+    }
+
+    private OHLCPriceDto candle(LocalDate date, String close) {
+      return createOHLCPrice(TEST_SYMBOL, date, new BigDecimal(close), true);
+    }
+
+    private void stubRange(OHLCPriceDto... candles) {
+      given(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
+        .willReturn(List.of(candles));
+    }
+
+    // 3월 120달러, 4월 60달러(환율 1400), 매도일 150달러
+    private void stubSwing() {
+      stubRange(candle(purchaseDate, "100.00"), candle(march, "120.00"), candle(april, "60.00"),
+        candle(saleDate, "150.00"));
+      given(marketDataClientWrapper.getBulkFxRates(anyList())).willReturn(Map.of(
+        "2024-01-15", new BigDecimal("1300"), "2024-03-01", new BigDecimal("1300"),
+        "2024-04-01", new BigDecimal("1400"), "2024-06-14", new BigDecimal("1300")));
+    }
+
+    private void stubDividend() {
+      given(marketDataClientWrapper.getDividendHistory(TEST_SYMBOL, "2024-01-15", "2024-06-14"))
+        .willReturn(List.of(new DividendDto(TEST_SYMBOL, exDate, exDate.plusDays(5), null, new BigDecimal("1.00"),
+          "USD", "test")));
+      stubRange(candle(purchaseDate, "100.00"), candle(exDate, "100.00"), candle(saleDate, "150.00"));
+    }
+
+    private BigDecimal valueUsdOn(SimulationResponse response, LocalDate date) {
+      return response.getDailyValues().stream().filter(v -> v.date().equals(date)).findFirst()
+        .map(DailyValue::valueUsd).orElseThrow();
+    }
+
+    @Test
+    @DisplayName("날마다 주식 수 × 종가를 그날 환율로 바꾼 값을 싣고, 평가일은 총자산이다")
+    void dailyValuesFollowCloseAndFx() {
+      stubSwing();
+
+      SimulationResponse response = service.runSimulation(request(false, "0"), false);
+
+      assertThat(response.getDailyValues()).extracting(DailyValue::date)
+        .containsExactly(purchaseDate, march, april, saleDate);
+      assertThat(response.getDailyValues()).extracting(DailyValue::valueUsd)
+        .usingElementComparator(BigDecimal::compareTo)
+        .containsExactly(new BigDecimal("1000"), new BigDecimal("1200"), new BigDecimal("600"), new BigDecimal("1500"));
+      // 4월은 600달러 × 1400원, 매도일은 총자산 10주 × 150달러 × 1300원
+      assertThat(response.getDailyValues()).extracting(DailyValue::valueKrw)
+        .usingElementComparator(BigDecimal::compareTo)
+        .containsExactly(new BigDecimal("1300000"), new BigDecimal("1560000"), new BigDecimal("840000"),
+          new BigDecimal("1950000"));
+    }
+
+    @Test
+    @DisplayName("원화 · 달러 지표를 따로 내고, 환율이 오른 날은 원화 낙폭이 더 작다")
+    void metricsPerCurrency() {
+      stubSwing();
+
+      SimulationResponse response = service.runSimulation(request(false, "0"), false);
+
+      // 달러 1200 → 600 은 -50%, 원화 156만 → 84만 은 -46.15%
+      assertThat(response.getMetricsUsd().mdd()).isEqualByComparingTo("-50.00");
+      assertThat(response.getMetricsKrw().mdd()).isEqualByComparingTo("-46.15");
+      assertThat(response.getMetricsKrw().mddPeakDate()).isEqualTo(march);
+      assertThat(response.getMetricsKrw().mddTroughDate()).isEqualTo(april);
+      assertThat(response.getMetricsKrw().mddRecoveryDate()).isEqualTo(saleDate);
+      // 1년이 안 되어 연평균 수익률은 없음
+      assertThat(response.getMetricsKrw().cagr()).isNull();
+      assertThat(response.getMetricsKrw().volatility()).isNotNull();
+      // 4월의 날마다 낙폭
+      DailyValue aprilValue = response.getDailyValues().get(2);
+      assertThat(aprilValue.drawdownUsd()).isEqualByComparingTo("-50.00");
+      assertThat(aprilValue.drawdownKrw()).isEqualByComparingTo("-46.15");
+    }
+
+    @Test
+    @DisplayName("배당을 다시 사면 배당락일부터 늘어난 주식 수로 센다")
+    void reinvestedSharesFromExDate() {
+      stubDividend();
+
+      SimulationResponse response = service.runSimulation(request(true, "0"), false);
+
+      // 10주에 1달러 → 0.1주, 배당락일 10.1주 × 100달러
+      assertThat(valueUsdOn(response, purchaseDate)).isEqualByComparingTo("1000");
+      assertThat(valueUsdOn(response, exDate)).isEqualByComparingTo("1010");
+    }
+
+    @Test
+    @DisplayName("재투자를 끄면 세후 배당이 배당락일부터 현금으로 더해진다")
+    void cashDividendFromExDate() {
+      stubDividend();
+
+      SimulationResponse response = service.runSimulation(request(false, "0.15"), false);
+
+      // 10주 × 100달러 + 배당 10달러의 세후 8.5달러
+      assertThat(valueUsdOn(response, purchaseDate)).isEqualByComparingTo("1000");
+      assertThat(valueUsdOn(response, exDate)).isEqualByComparingTo("1008.50");
+    }
+
+    @Test
+    @DisplayName("기간 환율이 빈 응답이면 최적 시점은 비우고 일별 원화 값은 매수 · 평가일 환율을 날짜 비례로 잇는다")
+    void bulkFxEmpty() {
+      stubRange(candle(purchaseDate, "100.00"), candle(march, "120.00"), candle(saleDate, "150.00"));
+      given(marketDataClientWrapper.getFxRate("2024-06-14")).willReturn(new FxRateDto(saleDate, new BigDecimal("1400")));
+      given(marketDataClientWrapper.getBulkFxRates(anyList())).willReturn(Map.of());
+
+      SimulationResponse response = service.runSimulation(request(false, "0"), false);
+
+      assertThat(response.getOptimalBuyDate()).isNull();
+      // 1200달러 × (1300 + 100 × 46/151)
+      assertThat(response.getDailyValues().get(1).valueKrw()).isEqualByComparingTo("1596556");
+    }
+
+    @Test
+    @DisplayName("기간 환율 조회가 예외를 내도 일별 원화 값은 매수 · 평가일 환율을 날짜 비례로 잇는다")
+    void bulkFxException() {
+      stubRange(candle(purchaseDate, "100.00"), candle(march, "120.00"), candle(saleDate, "150.00"));
+      given(marketDataClientWrapper.getFxRate("2024-06-14")).willReturn(new FxRateDto(saleDate, new BigDecimal("1400")));
+      given(marketDataClientWrapper.getBulkFxRates(anyList())).willThrow(new RuntimeException("market-data down"));
+
+      SimulationResponse response = service.runSimulation(request(false, "0"), false);
+
+      assertThat(response.getOptimalBuyDate()).isNull();
+      assertThat(response.getDailyValues().get(1).valueKrw()).isEqualByComparingTo("1596556");
+    }
+
+    @Test
+    @DisplayName("매수 환율이 기본값이어도 원화 연평균 수익률은 투자 원금을 기준으로 낸다")
+    void defaultedPurchaseFxCagr() {
+      // 130만원을 기본 1350 으로 962.96달러, 주가는 내내 100달러, 환율 기록은 3월 1일(1100)부터
+      LocalDate laterSale = LocalDate.of(2025, 6, 16);
+      stubRange(candle(purchaseDate, "100.00"), candle(march, "100.00"), candle(laterSale, "100.00"));
+      given(marketDataClientWrapper.getFxRate("2024-01-15"))
+        .willReturn(new FxRateDto(purchaseDate, new BigDecimal("1350"), true));
+      given(marketDataClientWrapper.getFxRate("2025-06-16")).willReturn(new FxRateDto(laterSale, new BigDecimal("1100")));
+      given(marketDataClientWrapper.getBulkFxRates(anyList())).willReturn(Map.of(
+        "2024-03-01", new BigDecimal("1100"), "2025-06-16", new BigDecimal("1100")));
+      SimulationRequest longer = SimulationRequest.builder().symbol(TEST_SYMBOL).purchaseDate(purchaseDate)
+        .saleDate(laterSale).investmentAmount(new BigDecimal("1300000")).reinvestDividends(false)
+        .dividendTaxRate(BigDecimal.ZERO).build();
+
+      SimulationResponse response = service.runSimulation(longer, false);
+
+      // 518일에 1,059,256 / 1,300,000
+      assertThat(response.getMetricsKrw().cagr()).isEqualByComparingTo("-13.45");
+      assertThat(response.getMetricsKrw().mdd()).isEqualByComparingTo("0.00");
+    }
+
+    @Test
+    @DisplayName("수동 환율이면 일별 원화 값은 매수 환율에서 평가일 환율까지 날짜에 비례해 잇는다")
+    void manualFxInterpolated() {
+      // 주가는 내내 100달러, 시장 환율 1450 은 쓰지 않음
+      stubRange(candle(purchaseDate, "100.00"), candle(march, "100.00"), candle(saleDate, "100.00"));
+      given(marketDataClientWrapper.getBulkFxRates(anyList())).willReturn(Map.of(
+        "2024-01-15", new BigDecimal("1450"), "2024-03-01", new BigDecimal("1450"), "2024-06-14", new BigDecimal("1450")));
+      SimulationRequest manual = SimulationRequest.builder().symbol(TEST_SYMBOL).purchaseDate(purchaseDate)
+        .saleDate(saleDate).investmentAmount(new BigDecimal("1300000")).purchaseFxRate(new BigDecimal("1300"))
+        .currentFxRate(new BigDecimal("1400")).build();
+
+      SimulationResponse response = service.runSimulation(manual, false);
+
+      // 1월 15일 ~ 6월 14일 151일 중 46일 → 1300 + 100 × 46/151 = 1330.46
+      assertThat(response.getDailyValues().get(1).valueKrw()).isEqualByComparingTo("1330464");
+      // 환율이 고르게 올라 원화 낙폭 없음
+      assertThat(response.getMetricsKrw().mdd()).isEqualByComparingTo("0.00");
+      assertThat(response.getMetricsKrw().mddPeakDate()).isNull();
+    }
+
+    @Test
+    @DisplayName("환율 기록이 시작되기 전 날은 첫 기록 환율로 세어 원화 낙폭이 없다")
+    void fxBeforeFirstRecord() {
+      // 주가는 내내 100달러, 환율 기록은 3월 1일(1100)부터라 매수 환율은 기본 1350
+      stubRange(candle(purchaseDate, "100.00"), candle(march, "100.00"), candle(saleDate, "100.00"));
+      given(marketDataClientWrapper.getFxRate("2024-01-15"))
+        .willReturn(new FxRateDto(purchaseDate, new BigDecimal("1350"), true));
+      given(marketDataClientWrapper.getFxRate("2024-06-14")).willReturn(new FxRateDto(saleDate, new BigDecimal("1100")));
+      given(marketDataClientWrapper.getBulkFxRates(anyList())).willReturn(Map.of(
+        "2024-03-01", new BigDecimal("1100"), "2024-06-14", new BigDecimal("1100")));
+
+      SimulationResponse response = service.runSimulation(request(false, "0"), false);
+
+      assertThat(response.getMetricsKrw().mdd()).isEqualByComparingTo("0.00");
+      assertThat(response.getDailyValues().getFirst().drawdownKrw()).isEqualByComparingTo("0");
+      assertThat(response.getDailyValues().get(1).drawdownKrw()).isEqualByComparingTo("0");
+    }
+
+    @Test
+    @DisplayName("기간 일봉을 못 받으면 지표를 내지 않는다")
+    void noCandlesNoMetrics() {
+      stubRange();
+      given(marketDataClientWrapper.getOHLCPrice(TEST_SYMBOL, "2024-01-15"))
+        .willReturn(candle(purchaseDate, "100.00"));
+      given(marketDataClientWrapper.getOHLCPrice(TEST_SYMBOL, "2024-06-14"))
+        .willReturn(candle(saleDate, "150.00"));
+
+      SimulationResponse response = service.runSimulation(request(false, "0"), false);
+
+      assertThat(response.getDailyValues()).hasSize(1);
+      assertThat(response.getMetricsKrw().mdd()).isNull();
+      assertThat(response.getMetricsUsd().volatility()).isNull();
+    }
+
+    @Test
+    @DisplayName("종가가 0 인 일봉은 일별 가치에서 뺀다")
+    void skipsUnusableCandle() {
+      stubRange(candle(purchaseDate, "100.00"), candle(march, "0.00"), candle(saleDate, "150.00"));
+
+      SimulationResponse response = service.runSimulation(request(false, "0"), false);
+
+      assertThat(response.getDailyValues()).extracting(DailyValue::date).containsExactly(purchaseDate, saleDate);
     }
   }
 }

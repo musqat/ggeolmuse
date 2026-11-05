@@ -500,9 +500,26 @@ class ResponseMapperTest {
       // 날짜는 문자열로
       assertThat(item.getOptimalBuyDate()).isEqualTo("2024-02-01");
       assertThat(item.getOptimalSellDate()).isEqualTo("2024-08-01");
-      assertThat(item.getAdditionalData()).isSameAs(simulation);
+      assertThat(item.getAdditionalData()).isEqualTo(simulation);
     }
 
+    @Test
+    @DisplayName("비교 항목의 원래 응답에는 일별 값을 싣지 않는다")
+    void 일별_값_없음() {
+      SimulationResponse simulation = SimulationResponse.builder().symbol(SYMBOL)
+        .metricsKrw(com.muscat.backtest.domain.dto.response.PerformanceMetrics.empty())
+        .dailyValues(List.of(new com.muscat.backtest.domain.dto.response.DailyValue(
+          LocalDate.of(2024, 1, 2), BigDecimal.TEN, BigDecimal.TEN)))
+        .build();
+
+      ComparisonItem item = mapper.toComparisonItemFromSimulation(simulation, "애플");
+
+      SimulationResponse carried = (SimulationResponse) item.getAdditionalData();
+      assertThat(carried.getDailyValues()).isEmpty();
+      assertThat(carried.getMetricsKrw()).isNotNull();
+      // 넘긴 응답은 그대로
+      assertThat(simulation.getDailyValues()).hasSize(1);
+    }
     @Test
     @DisplayName("비교 항목에는 화면이 읽지 않는 달러 총 수익 · 성과 메모를 싣지 않는다")
     void 안_읽는_칸_없음() {
