@@ -4,5 +4,5 @@ package com.muscat.backtest.common.enums.type;
 public enum StrategyType {
   SIMPLE,                 // 단순 일시 매수 (Simple Simulation)
   DCA,                    // 적립식 투자 (정액 분할 매수)
-  CONDITIONAL_PURCHASE    // 조건부 매수 (전 거래일 종가 대비 장중 하락 시)
+  CONDITIONAL_PURCHASE    // 조건부 매수 (전 거래일 종가 대비 장중 하락 · 상승 시)
 }

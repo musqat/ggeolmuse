@@ -14,6 +14,7 @@ import static org.mockito.Mockito.never;
 
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.InvestmentMode;
+import com.muscat.backtest.common.enums.type.PriceDirection;
 import com.muscat.backtest.common.enums.type.SkipReason;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
@@ -400,7 +401,7 @@ class ConditionalPurchaseStrategyTest {
   }
 
   @Nested
-  @DisplayName("하락 판정 · 투자 모드")
+  @DisplayName("하락 · 상승 판정 · 투자 모드")
   class DropTriggerTests {
 
     private static final String SYMBOL = "DROP";
@@ -456,6 +457,12 @@ class ConditionalPurchaseStrategyTest {
         1_000L, "USD", true);
     }
 
+    private OHLCPriceDto candle(int offset, String open, String high, String low, String close) {
+      BigDecimal c = new BigDecimal(close);
+      return new OHLCPriceDto(SYMBOL, START.plusDays(offset), new BigDecimal(open), high == null ? null : new BigDecimal(high),
+        new BigDecimal(low), c, c, 1_000L, "USD", true);
+    }
+
     private List<Tuple> priceAndTrigger() {
       return executed().stream().map(tx -> tuple(tx.getPrice().stripTrailingZeros().toPlainString(), tx.getTrigger())).toList();
     }
@@ -466,6 +473,113 @@ class ConditionalPurchaseStrategyTest {
       ConditionalStrategyRequest request = perPurchase(2, 10).build();
       // 전날 종가 100, 기준가 90, 시가 99 · 저가 89 · 종가 97
       stubMarket(request, List.of(day(0, "100"), bar(1, "99", "89", "97")), true);
+
+      strategy.execute(request);
+
+      assertThat(priceAndTrigger()).containsExactly(
+        tuple("100", "초기매수"),
+        tuple("90", "10.0%하락"));
+    }
+
+    @Test
+    @DisplayName("상승이면 장중 고가가 전날 종가 × (1 + 상승률) 에 닿을 때 그 값에 산다")
+    void risingBuysAtTrigger() {
+      ConditionalStrategyRequest request = perPurchase(3, 10).direction(PriceDirection.RISE).build();
+      // 2일째 전날 100 → 기준가 110 · 고가 111, 3일째 전날 105 → 기준가 115.5 · 고가 115 안 삼
+      stubMarket(request, List.of(day(0, "100"), candle(1, "101", "111", "100", "105"),
+        candle(2, "106", "115", "104", "110")), true);
+
+      strategy.execute(request);
+
+      assertThat(priceAndTrigger()).containsExactly(
+        tuple("100", "초기매수"),
+        tuple("110", "10.0%상승"));
+    }
+
+    @Test
+    @DisplayName("상승이면 시가부터 기준가 위일 때 시가에 산다")
+    void risingBuysAtOpenOnGapUp() {
+      ConditionalStrategyRequest request = perPurchase(2, 10).direction(PriceDirection.RISE).build();
+      stubMarket(request, List.of(day(0, "100"), candle(1, "115", "118", "113", "116")), true);
+
+      strategy.execute(request);
+
+      assertThat(priceAndTrigger()).containsExactly(
+        tuple("100", "초기매수"),
+        tuple("115", "15.0%상승"));
+    }
+
+    @Test
+    @DisplayName("상승이면 떨어진 날은 사지 않는다")
+    void risingIgnoresDrop() {
+      ConditionalStrategyRequest request = perPurchase(2, 10).direction(PriceDirection.RISE).build();
+      stubMarket(request, List.of(day(0, "100"), candle(1, "95", "96", "80", "85")), true);
+
+      strategy.execute(request);
+
+      assertThat(priceAndTrigger()).containsExactly(tuple("100", "초기매수"));
+    }
+
+    @Test
+    @DisplayName("상승이면 고가가 없는 날은 종가로 판정해 종가에 산다")
+    void risingMissingHighUsesClose() {
+      ConditionalStrategyRequest request = perPurchase(2, 10).direction(PriceDirection.RISE).build();
+      stubMarket(request, List.of(day(0, "100"), candle(1, "101", null, "100", "112")), true);
+
+      strategy.execute(request);
+
+      assertThat(priceAndTrigger()).containsExactly(
+        tuple("100", "초기매수"),
+        tuple("112", "12.0%상승"));
+    }
+
+    @Test
+    @DisplayName("둘 다면 떨어진 날과 오른 날 모두 산다")
+    void bothBuysOnDropAndRise() {
+      ConditionalStrategyRequest request = perPurchase(3, 10).direction(PriceDirection.BOTH).build();
+      // 2일째 전날 100 → 하락 기준가 90 · 저가 89, 3일째 전날 92 → 상승 기준가 101.2 · 고가 102
+      stubMarket(request, List.of(day(0, "100"), candle(1, "99", "100", "89", "92"),
+        candle(2, "93", "102", "92", "101")), true);
+
+      strategy.execute(request);
+
+      assertThat(priceAndTrigger()).containsExactly(
+        tuple("100", "초기매수"),
+        tuple("90", "10.0%하락"),
+        tuple("101.2", "10.0%상승"));
+    }
+
+    @Test
+    @DisplayName("둘 다에서 같은 날 두 기준가에 모두 닿으면 상승 기준가에 한 번 산다")
+    void bothTouchedSameDayBuysAtRiseOnce() {
+      ConditionalStrategyRequest request = perPurchase(2, 10).direction(PriceDirection.BOTH).build();
+      stubMarket(request, List.of(day(0, "100"), candle(1, "100", "111", "89", "100")), true);
+
+      strategy.execute(request);
+
+      assertThat(priceAndTrigger()).containsExactly(
+        tuple("100", "초기매수"),
+        tuple("110", "10.0%상승"));
+    }
+
+    @Test
+    @DisplayName("둘 다에서 시가부터 하락 기준가 아래면 고가가 상승 기준가에 닿아도 시가에 하락으로 산다")
+    void bothGapDownBuysAtOpen() {
+      ConditionalStrategyRequest request = perPurchase(2, 10).direction(PriceDirection.BOTH).build();
+      stubMarket(request, List.of(day(0, "100"), candle(1, "88", "111", "87", "105")), true);
+
+      strategy.execute(request);
+
+      assertThat(priceAndTrigger()).containsExactly(
+        tuple("100", "초기매수"),
+        tuple("88", "12.0%하락"));
+    }
+
+    @Test
+    @DisplayName("방향을 비우면 하락으로 본다")
+    void nullDirectionMeansDrop() {
+      ConditionalStrategyRequest request = perPurchase(2, 10).direction(null).build();
+      stubMarket(request, List.of(day(0, "100"), candle(1, "99", "115", "89", "97")), true);
 
       strategy.execute(request);
 

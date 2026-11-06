@@ -5,6 +5,7 @@ import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.SkipReason;
 import com.muscat.backtest.common.validation.BacktestRequestValidator;
 import com.muscat.backtest.common.enums.type.InvestmentMode;
+import com.muscat.backtest.common.enums.type.PriceDirection;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.logging.BacktestLogger;
@@ -33,7 +34,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-// 조건부 매수 전략: 첫 거래일에 사고, 그 뒤 전 거래일 종가보다 장중에 dropPercentage 이상 떨어진 날마다 한 번 삼(분할만 조정된 가격)
+// 조건부 매수 전략: 첫 거래일에 사고, 그 뒤 전 거래일 종가보다 장중에 정한 비율만큼 떨어진(또는 오른) 날마다 한 번 삼(분할만 조정된 가격)
 // 투자 방식은 TOTAL_BUDGET(총예산을 회차로 나눔) · PER_PURCHASE(회당 고정 금액 × 최대 횟수)
 @Component
 @RequiredArgsConstructor
@@ -45,6 +46,8 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
 
   // 기준가로 살 때 매수가 소수 자릿수
   private static final int TRIGGER_PRICE_SCALE = 8;
+
+  private static final PurchaseDecision NO_BUY = new PurchaseDecision(false, null, "");
 
   @Override
   public StrategyType getStrategyType() {
@@ -67,8 +70,9 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     BacktestLogger.setStrategyContext(request.getUserId(), "CONDITIONAL", request.getSymbol());
 
     try {
-      log.info("조건부 매수 전략 실행 시작: {} - 전 거래일 종가 대비 {}% 하락 시 매수 (모드: {})",
-        request.getSymbol(), request.getDropPercentage().movePointRight(2), request.getInvestmentMode());
+      log.info("조건부 매수 전략 실행 시작: {} - 전 거래일 종가 대비 {}% {} 시 매수 (모드: {})",
+        request.getSymbol(), request.getDropPercentage().movePointRight(2),
+        PriceDirection.orDrop(request.getDirection()).label(), request.getInvestmentMode());
 
       // 종료일이 미래인지 검증
       LocalDate today = LocalDate.now();
@@ -81,8 +85,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
       // 투자 모드별 파라미터 계산 (회당 투자금, 최대 횟수)
       InvestmentParams params = calculateInvestmentParams(request);
 
-      log.info("조건부 매수 전략 실행: 전 거래일 종가 대비 {}% 하락 시 매수, 회당 {}원, 최대 {}회",
-        request.getDropPercentage().movePointRight(2), params.amountPerPurchase(), params.maxPurchases());
+      log.info("조건부 매수 전략 실행: 회당 {}원, 최대 {}회", params.amountPerPurchase(), params.maxPurchases());
 
       StrategyPurchases purchases = executeConditionalPurchases(request, actualEndDate, params);
       List<StrategyTransaction> transactions = purchases.transactions();
@@ -223,7 +226,8 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
         } else if (usable) {
           var purchaseDecision = transactions.isEmpty()
             ? new PurchaseDecision(true, PriceLookup.effectiveClose(priceData), "초기매수")
-            : evaluatePurchaseCondition(previousClose, priceData, request.getDropPercentage());
+            : evaluatePurchaseCondition(previousClose, priceData, request.getDropPercentage(),
+              PriceDirection.orDrop(request.getDirection()));
 
           if (purchaseDecision.shouldBuy()) {
             // 환율 조회 (메모리에서)
@@ -270,23 +274,42 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     return new StrategyPurchases(transactions, skippedRounds, priceMap, fxRateMap);
   }
 
-  // 저가가 전 거래일 종가 × (1 - 하락률) 이하면 그 값, 시가부터 그 아래면 시가에 매수
-  // 저가가 없거나 0 이하인 날 · 종가가 조정종가뿐인 날은 시가 · 저가를 종가로 봄
+  // 방향에 맞는 기준가를 넘은 날 매수, 둘 다 닿은 날은 시가부터 하락 기준가 아래면 하락 · 아니면 상승 기준가
   private PurchaseDecision evaluatePurchaseCondition(BigDecimal previousClose, OHLCPriceDto price,
-    BigDecimal dropPercentage) {
+    BigDecimal percentage, PriceDirection direction) {
+    PurchaseDecision drop = direction == PriceDirection.RISE
+      ? NO_BUY : crossed(previousClose, price, percentage, false);
+    PurchaseDecision rise = direction == PriceDirection.DROP
+      ? NO_BUY : crossed(previousClose, price, percentage, true);
+    boolean gapDown = drop.shouldBuy() && positive(price.openPrice())
+      && drop.price().compareTo(price.openPrice()) == 0;
+    return rise.shouldBuy() && !gapDown ? rise : drop;
+  }
+
+  // 저가가 전 거래일 종가 × (1 - 비율) 이하(상승은 고가가 전 거래일 종가 × (1 + 비율) 이상)면 그 값, 시가부터 넘었으면 시가
+  // 보는 쪽(저가 · 고가)이 없거나 0 이하인 날 · 종가가 조정종가뿐인 날은 시가와 그 값을 종가로 봄
+  private PurchaseDecision crossed(BigDecimal previousClose, OHLCPriceDto price, BigDecimal percentage,
+    boolean rise) {
     BigDecimal close = PriceLookup.effectiveClose(price);
-    BigDecimal trigger = previousClose.multiply(BigDecimal.ONE.subtract(dropPercentage));
-    boolean hasRange = price.closePrice() != null && positive(price.lowPrice());
-    BigDecimal low = hasRange ? price.lowPrice() : close;
-    if (low.compareTo(trigger) > 0) {
-      return new PurchaseDecision(false, null, "");
+    BigDecimal trigger = previousClose.multiply(
+      rise ? BigDecimal.ONE.add(percentage) : BigDecimal.ONE.subtract(percentage));
+    BigDecimal extreme = rise ? price.highPrice() : price.lowPrice();
+    boolean hasRange = price.closePrice() != null && positive(extreme);
+    if (!beyond(hasRange ? extreme : close, trigger, rise)) {
+      return NO_BUY;
     }
 
     BigDecimal open = hasRange ? price.openPrice() : close;
-    BigDecimal buyPrice = positive(open) && open.compareTo(trigger) <= 0
+    BigDecimal buyPrice = positive(open) && beyond(open, trigger, rise)
       ? open : trigger.setScale(TRIGGER_PRICE_SCALE, RoundingMode.HALF_UP);
-    BigDecimal dropPercent = MoneyUtils.calculateReturnRate(previousClose, buyPrice).negate();
-    return new PurchaseDecision(true, buyPrice, String.format("%.1f%%하락", dropPercent));
+    BigDecimal change = MoneyUtils.calculateReturnRate(previousClose, buyPrice).abs();
+    return new PurchaseDecision(true, buyPrice, String.format(rise ? "%.1f%%상승" : "%.1f%%하락", change));
+  }
+
+  // 상승이면 기준가 이상, 하락이면 기준가 이하
+  private static boolean beyond(BigDecimal value, BigDecimal trigger, boolean rise) {
+    int compared = value.compareTo(trigger);
+    return rise ? compared >= 0 : compared <= 0;
   }
 
   private static boolean positive(BigDecimal value) {

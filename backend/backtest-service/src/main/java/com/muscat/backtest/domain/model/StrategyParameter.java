@@ -1,5 +1,6 @@
 package com.muscat.backtest.domain.model;
 
+import com.muscat.backtest.common.enums.type.PriceDirection;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
@@ -23,6 +24,7 @@ public class StrategyParameter {
   // 조건부 매수용
   private BigDecimal totalInvestment;
   private BigDecimal dropPercentage;
+  private PriceDirection direction;         // 비우면 하락
   private Integer maxPurchases;
 
   // 일시불용 (Simulation)

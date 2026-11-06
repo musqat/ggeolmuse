@@ -47,7 +47,7 @@ public final class BacktestConstants {
     /** 배당금 재투자 */
     public static final String DIVIDEND_REINVESTMENT = "배당 재투자";
 
-    /** 조건부 매수 (하락 시) */
+    /** 조건부 매수 (하락 · 상승 시) */
     public static final String CONDITIONAL_PURCHASE = "조건부 매수";
   }
 

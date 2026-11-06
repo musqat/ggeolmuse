@@ -1,6 +1,7 @@
 package com.muscat.backtest.domain.dto.request;
 
 import com.muscat.backtest.common.enums.type.InvestmentMode;
+import com.muscat.backtest.common.enums.type.PriceDirection;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -52,9 +53,13 @@ public class ConditionalStrategyRequest implements StrategyRequest {
   @Schema(description = "[PER_PURCHASE 모드] 회당 투자 금액", example = "500000.00")
   private BigDecimal amountPerPurchase;   // 회당 투자 금액 (PER_PURCHASE 모드에서 사용)
 
-  @Schema(description = "전 거래일 종가 대비 장중 하락률 (예: 5% = 0.05)", example = "0.05", required = true)
-  @NotNull(message = "하락률 조건은 필수입니다")
-  @Positive(message = "하락률은 0보다 커야 합니다")
+  @Schema(description = "전 거래일 종가 대비 방향(DROP 하락 · RISE 상승 · BOTH 둘 다, 비우면 하락)", example = "DROP", defaultValue = "DROP")
+  @Builder.Default
+  private PriceDirection direction = PriceDirection.DROP;
+
+  @Schema(description = "전 거래일 종가 대비 장중 하락률 · 상승률 (예: 5% = 0.05)", example = "0.05", required = true)
+  @NotNull(message = "하락률 · 상승률 조건은 필수입니다")
+  @Positive(message = "하락률 · 상승률은 0보다 커야 합니다")
   private BigDecimal dropPercentage;
 
   @Schema(description = "최대 매수 횟수 (TOTAL_BUDGET 모드에서는 자동 계산, PER_PURCHASE 모드에서는 필수)", example = "10")
