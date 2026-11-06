@@ -225,7 +225,8 @@ public class ResponseMapper {
       .fxReturn(strategy.getFxReturn())
       .fxReturnPercent(strategy.getFxReturnPercent())
       .dividends(strategy.getTotalDividends())
-      .additionalData(strategy)
+      // 일별 값을 뺀 원래 응답
+      .additionalData(strategy.toBuilder().dailyValues(List.of()).build())
       .build();
   }
 }

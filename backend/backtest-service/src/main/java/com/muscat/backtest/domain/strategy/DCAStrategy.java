@@ -85,16 +85,16 @@ public class DCAStrategy implements InvestmentStrategy {
 
       // 마무리(평가일 시세/환율/배당재투자/계산) — 공통 로직 위임
       StrategyFinalizer.Result finalized = StrategyFinalizer.run(
-        marketData, request.getSymbol(), actualEndDate, request.getCurrentFxRate(),
+        marketData, request.getSymbol(), request.getStartDate(), actualEndDate, request.getCurrentFxRate(),
         request.getPurchaseFxRate(), Boolean.TRUE.equals(request.getReinvestDividends()),
-        request.getDividendTaxRate(), transactions);
+        request.getDividendTaxRate(), transactions, purchases.priceMap(), purchases.dailyFx());
 
       log.info("DCA 전략 실행 완료: {} - {}회 투자, 수익률 {}%",
         request.getSymbol(), finalized.transactions().size(),
         finalized.calculation().getTotalReturnPercent());
 
-      return responseMapper.toStrategyResponse(
-        request, finalized.transactions(), finalized.calculation(), finalized.currentPrice(), skippedRounds);
+      return finalized.fill(responseMapper.toStrategyResponse(
+        request, finalized.transactions(), finalized.calculation(), finalized.currentPrice(), skippedRounds));
 
     } finally {
       BacktestLogger.remove("operation");
@@ -150,11 +150,13 @@ public class DCAStrategy implements InvestmentStrategy {
       }
     }
 
-    //  BULK API 사용: 실제로 사는 날의 환율 데이터를 한 번에 조회
+    //  BULK API 사용: 기간의 날마다 환율을 한 번에 조회
     FxRates fxRateMap = FxRates.EMPTY;
     if (request.getPurchaseFxRate() == null) {
-      fxRateMap = BacktestDataUtils.getBulkFxRates(marketData,
-        tradeByDate.values().stream().map(OHLCPriceDto::date).distinct().sorted().toList());
+      // 첫 매수일부터 평가일까지
+      LocalDate firstTrade = tradeByDate.values().stream().map(OHLCPriceDto::date)
+        .min(LocalDate::compareTo).orElse(actualEndDate);
+      fxRateMap = BacktestDataUtils.buildDailyFxRateMap(marketData, firstTrade, actualEndDate);
       log.info("환율 데이터 조회 완료: {}개", fxRateMap.size());
     }
 
@@ -212,7 +214,7 @@ public class DCAStrategy implements InvestmentStrategy {
     if (!skippedRounds.isEmpty()) {
       log.info("적립식 못 산 회차 {}", skippedRounds.size());
     }
-    return new StrategyPurchases(transactions, skippedRounds);
+    return new StrategyPurchases(transactions, skippedRounds, priceMap, fxRateMap);
   }
 
   // 시작일부터 종료일까지 주기마다의 투자일(그달에 투자일이 없으면 말일)

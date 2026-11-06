@@ -68,6 +68,50 @@ class DCAStrategyTest {
     startDate = LocalDate.of(2024, 1, 1);
     endDate = LocalDate.of(2024, 12, 31);
     lenient().when(marketDataClient.defaultFxRate()).thenReturn(new BigDecimal("1350"));
+    // 응답 매퍼는 빈 응답(일별 가치 · 지표를 채우는 자리)
+    lenient().when(responseMapper.toStrategyResponse(any(DcaStrategyRequest.class), any(), any(StrategyCalculationResult.class),
+      any(), any()))
+      .thenReturn(StrategyResponse.builder().build());
+  }
+
+  @Nested
+  @DisplayName("일별 평가 가치 · 지표")
+  class PerformanceTests {
+
+    @Test
+    @DisplayName("결과에 일별 평가 가치와 입금을 뺀 지표를 싣는다")
+    void fillsDailyValuesAndMetrics() {
+      // 매달 15일 130만원, 2월 1일에 90 으로 내렸다가 2월 15일 105 · 3월 15일 110
+      DcaStrategyRequest request = DcaStrategyRequest.builder().userId(userId).symbol(symbol)
+        .startDate(startDate).endDate(LocalDate.of(2024, 3, 31))
+        .monthlyAmount(new BigDecimal("1300000")).purchaseDay(15).build();
+      given(marketDataClient.getOHLCPriceRange(eq(symbol), eq("2024-01-01"), eq("2024-03-31"))).willReturn(List.of(
+        createOHLC(LocalDate.of(2024, 1, 15), new BigDecimal("100.00")),
+        createOHLC(LocalDate.of(2024, 2, 1), new BigDecimal("90.00")),
+        createOHLC(LocalDate.of(2024, 2, 15), new BigDecimal("105.00")),
+        createOHLC(LocalDate.of(2024, 3, 15), new BigDecimal("110.00"))));
+      given(marketDataClient.getBulkFxRates(any())).willReturn(java.util.Map.of(
+        "2024-01-15", new BigDecimal("1300"), "2024-02-01", new BigDecimal("1300"),
+        "2024-02-15", new BigDecimal("1300"), "2024-03-15", new BigDecimal("1300")));
+      given(marketDataClient.getFxRate(anyString())).willReturn(new FxRateDto(LocalDate.of(2024, 3, 31), new BigDecimal("1300")));
+      given(marketDataClient.getOHLCPrice(eq(symbol), anyString()))
+        .willReturn(createOHLC(LocalDate.of(2024, 3, 29), new BigDecimal("110.00")));
+      given(marketDataClient.getDividendHistory(eq(symbol), anyString(), anyString())).willReturn(java.util.Collections.emptyList());
+      given(responseMapper.toStrategyResponse(any(DcaStrategyRequest.class), any(), any(StrategyCalculationResult.class), any(), any()))
+        .willReturn(StrategyResponse.builder().strategyType(StrategyType.DCA).build());
+
+      StrategyResponse result = dcaStrategy.execute(request);
+
+      assertThat(result.getDailyValues()).extracting(com.muscat.backtest.domain.dto.response.DailyValue::date)
+        .containsExactly(LocalDate.of(2024, 1, 15), LocalDate.of(2024, 2, 1), LocalDate.of(2024, 2, 15),
+          LocalDate.of(2024, 3, 15), LocalDate.of(2024, 3, 31));
+      // 입금을 빼면 2월 1일 -10% 가 가장 깊은 하락, 2월 15일에 회복
+      assertThat(result.getMetricsKrw().mdd()).isNegative();
+      assertThat(result.getMetricsKrw().mddTroughDate()).isEqualTo(LocalDate.of(2024, 2, 1));
+      assertThat(result.getMetricsKrw().mddRecoveryDate()).isEqualTo(LocalDate.of(2024, 2, 15));
+      assertThat(result.getMetricsUsd()).isNotNull();
+      verify(marketDataClient, times(1)).getBulkFxRates(any());
+    }
   }
 
   @Nested
@@ -763,7 +807,7 @@ class DCAStrategyTest {
     }
 
     @Test
-    @DisplayName("투자일이 그달에 없으면 말일에 사고, 환율도 같은 날짜로 받는다")
+    @DisplayName("투자일이 그달에 없으면 말일에 사고, 환율은 기간의 날마다 한 번에 받는다")
     void purchaseDayClampedToMonthEnd() {
       DcaStrategyRequest request = base().endDate(LocalDate.of(2024, 4, 30)).purchaseDay(31).build();
       given(marketDataClient.getOHLCPriceRange(symbol, "2024-01-01", "2024-04-30")).willReturn(List.of(
@@ -781,7 +825,9 @@ class DCAStrategyTest {
       @SuppressWarnings("unchecked")
       ArgumentCaptor<List<String>> fxDates = ArgumentCaptor.forClass(List.class);
       verify(marketDataClient).getBulkFxRates(fxDates.capture());
-      assertThat(fxDates.getValue()).containsExactly("2024-01-31", "2024-02-29", "2024-03-31", "2024-04-30");
+      // 첫 시세일 1월 31일 ~ 4월 30일 91일(사는 날 넷 포함)
+      assertThat(fxDates.getValue()).hasSize(91).startsWith("2024-01-31").endsWith("2024-04-30")
+        .contains("2024-01-31", "2024-02-29", "2024-03-31", "2024-04-30");
       assertThat(executed()).extracting(StrategyTransaction::getDate).containsExactly(
         LocalDate.of(2024, 1, 31), LocalDate.of(2024, 2, 29), LocalDate.of(2024, 3, 31), LocalDate.of(2024, 4, 30));
     }

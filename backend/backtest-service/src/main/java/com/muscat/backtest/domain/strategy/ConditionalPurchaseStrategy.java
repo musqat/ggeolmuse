@@ -93,16 +93,16 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
 
       // 마무리(평가일 시세/환율/배당재투자/계산) — 공통 로직 위임
       StrategyFinalizer.Result finalized = StrategyFinalizer.run(
-        marketData, request.getSymbol(), actualEndDate, request.getCurrentFxRate(),
+        marketData, request.getSymbol(), request.getStartDate(), actualEndDate, request.getCurrentFxRate(),
         request.getPurchaseFxRate(), Boolean.TRUE.equals(request.getReinvestDividends()),
-        request.getDividendTaxRate(), transactions);
+        request.getDividendTaxRate(), transactions, purchases.priceMap(), purchases.dailyFx());
 
       log.info("조건부 매수 전략 실행 완료: {} - {}회 투자, 수익률 {}%",
         request.getSymbol(), finalized.transactions().size(),
         finalized.calculation().getTotalReturnPercent());
 
-      return responseMapper.toStrategyResponse(
-        request, finalized.transactions(), finalized.calculation(), finalized.currentPrice(), skippedRounds);
+      return finalized.fill(responseMapper.toStrategyResponse(
+        request, finalized.transactions(), finalized.calculation(), finalized.currentPrice(), skippedRounds));
 
     } finally {
       BacktestLogger.remove("operation");
@@ -200,8 +200,9 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     //  BULK API 사용: 전체 기간의 환율 데이터를 한 번에 조회 (수동 설정이 없는 경우만)
     FxRates fxRateMap = FxRates.EMPTY;
     if (request.getPurchaseFxRate() == null) {
-      fxRateMap = BacktestDataUtils.buildDailyFxRateMap(
-        marketData, request.getStartDate(), actualEndDate);
+      // 첫 시세일부터 평가일까지
+      LocalDate firstPrice = priceMap.keySet().stream().min(LocalDate::compareTo).orElse(actualEndDate);
+      fxRateMap = BacktestDataUtils.buildDailyFxRateMap(marketData, firstPrice, actualEndDate);
       log.info("환율 데이터 조회 완료: {}개", fxRateMap.size());
     }
 
@@ -262,7 +263,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     }
 
     log.info("조건부 매수 전략 완료: {}회 매수, 사지 못한 날 {}", transactions.size(), skippedRounds.size());
-    return new StrategyPurchases(transactions, skippedRounds);
+    return new StrategyPurchases(transactions, skippedRounds, priceMap, fxRateMap);
   }
 
   private PurchaseDecision evaluatePurchaseCondition(BigDecimal lastPurchasePrice, BigDecimal currentPrice,
