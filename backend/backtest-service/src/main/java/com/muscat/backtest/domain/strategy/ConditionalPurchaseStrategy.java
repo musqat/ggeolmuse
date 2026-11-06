@@ -1,6 +1,5 @@
 package com.muscat.backtest.domain.strategy;
 
-import com.muscat.backtest.common.constants.BacktestConstants;
 import com.muscat.backtest.common.engine.StrategyFinalizer;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.SkipReason;
@@ -26,6 +25,7 @@ import com.muscat.backtest.infra.client.MarketDataClientWrapper;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import com.muscat.commonlib.util.MoneyUtils;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,7 +33,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-// 조건부 매수(저점 분할 매수) 전략: 직전 매수가보다 dropPercentage 이상 떨어질 때마다 삼(판정 · 매수가 모두 조정종가)
+// 조건부 매수 전략: 첫 거래일에 사고, 그 뒤 전 거래일 종가보다 장중에 dropPercentage 이상 떨어진 날마다 한 번 삼(분할만 조정된 가격)
 // 투자 방식은 TOTAL_BUDGET(총예산을 회차로 나눔) · PER_PURCHASE(회당 고정 금액 × 최대 횟수)
 @Component
 @RequiredArgsConstructor
@@ -42,6 +42,9 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
 
   private final MarketDataClientWrapper marketData;
   private final ResponseMapper responseMapper;
+
+  // 기준가로 살 때 매수가 소수 자릿수
+  private static final int TRIGGER_PRICE_SCALE = 8;
 
   @Override
   public StrategyType getStrategyType() {
@@ -64,8 +67,8 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     BacktestLogger.setStrategyContext(request.getUserId(), "CONDITIONAL", request.getSymbol());
 
     try {
-      log.info("조건부 매수 전략 실행 시작: {} - {}% 하락시 매수 (모드: {})",
-        request.getSymbol(), request.getDropPercentage(), request.getInvestmentMode());
+      log.info("조건부 매수 전략 실행 시작: {} - 전 거래일 종가 대비 {}% 하락 시 매수 (모드: {})",
+        request.getSymbol(), request.getDropPercentage().movePointRight(2), request.getInvestmentMode());
 
       // 종료일이 미래인지 검증
       LocalDate today = LocalDate.now();
@@ -78,8 +81,8 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
       // 투자 모드별 파라미터 계산 (회당 투자금, 최대 횟수)
       InvestmentParams params = calculateInvestmentParams(request);
 
-      log.info("조건부 매수 전략 실행: {}% 하락시 매수, 회당 {}원, 최대 {}회",
-        request.getDropPercentage(), params.amountPerPurchase(), params.maxPurchases());
+      log.info("조건부 매수 전략 실행: 전 거래일 종가 대비 {}% 하락 시 매수, 회당 {}원, 최대 {}회",
+        request.getDropPercentage().movePointRight(2), params.amountPerPurchase(), params.maxPurchases());
 
       StrategyPurchases purchases = executeConditionalPurchases(request, actualEndDate, params);
       List<StrategyTransaction> transactions = purchases.transactions();
@@ -175,7 +178,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
         return new InvestmentParams(amountPerPurchase, defaultMaxPurchases);
       } else {
         // 회당 투자금 기준으로 최대 매수 횟수 계산
-        int maxPurchases = totalInvestment.divide(amountPerPurchase, 0, java.math.RoundingMode.DOWN)
+        int maxPurchases = totalInvestment.divide(amountPerPurchase, 0, RoundingMode.DOWN)
           .intValue();
         return new InvestmentParams(amountPerPurchase, maxPurchases);
       }
@@ -190,7 +193,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     ConditionalStrategyRequest request, LocalDate actualEndDate, InvestmentParams params) {
 
     List<StrategyTransaction> transactions = new ArrayList<>();
-    BigDecimal lastPurchasePrice = null;
+    BigDecimal previousClose = null;
 
     //  BULK API 사용: 전체 기간의 가격 데이터를 한 번에 조회
     log.info("조건부 매수 전략 - Bulk 데이터 조회 시작: {} ~ {}", request.getStartDate(), actualEndDate);
@@ -212,15 +215,15 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
 
     // 메모리에서 데이터 조회 (API 호출 없음)
     while (!currentDate.isAfter(actualEndDate) && purchaseCount < params.maxPurchases()) {
+      OHLCPriceDto priceData = priceMap.get(currentDate);
+      boolean usable = PriceLookup.isUsable(priceData);
       try {
-        OHLCPriceDto priceData = priceMap.get(currentDate);
-
-        if (priceData != null && priceData.available() && !PriceLookup.isUsable(priceData)) {
+        if (priceData != null && priceData.available() && !usable) {
           skippedRounds.add(new SkippedRound(currentDate, SkipReason.NO_PRICE));
-        } else if (priceData != null && priceData.available()) {
-          BigDecimal currentPriceValue = PriceLookup.effectiveClose(priceData);
-          var purchaseDecision = evaluatePurchaseCondition(lastPurchasePrice, currentPriceValue,
-            request.getDropPercentage());
+        } else if (usable) {
+          var purchaseDecision = transactions.isEmpty()
+            ? new PurchaseDecision(true, PriceLookup.effectiveClose(priceData), "초기매수")
+            : evaluatePurchaseCondition(previousClose, priceData, request.getDropPercentage());
 
           if (purchaseDecision.shouldBuy()) {
             // 환율 조회 (메모리에서)
@@ -231,13 +234,12 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
             BigDecimal fee = BacktestCalculationUtils.calculatePurchaseFee(
               params.amountPerPurchase(), purchaseFxRate, request.getTradingFeeRate());
             BigDecimal shares = BacktestCalculationUtils.calculateSharesAfterFee(
-              params.amountPerPurchase(), purchaseFxRate, PriceLookup.effectiveClose(priceData),
-              fee);
+              params.amountPerPurchase(), purchaseFxRate, purchaseDecision.price(), fee);
 
             StrategyTransaction transaction = StrategyTransaction.builder()
               .date(currentDate)
               .actualDate(priceData.date())
-              .price(PriceLookup.effectiveClose(priceData))
+              .price(purchaseDecision.price())
               .shares(shares)
               .fee(fee)
               .amount(params.amountPerPurchase())
@@ -248,7 +250,6 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
 
             transactions.add(transaction);
             purchaseCount++;
-            lastPurchasePrice = currentPriceValue;
             log.debug("조건부 매수 실행: {} - {} ({}원 투자, {}주 매수)",
               currentDate, purchaseDecision.trigger(), params.amountPerPurchase(), shares);
           }
@@ -259,6 +260,9 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
         log.warn("조건부 {} 매수 계산 실패, 사지 않음: {}", currentDate, e.getMessage());
       }
 
+      if (usable) {
+        previousClose = PriceLookup.effectiveClose(priceData);
+      }
       currentDate = currentDate.plusDays(1);
     }
 
@@ -266,20 +270,26 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     return new StrategyPurchases(transactions, skippedRounds, priceMap, fxRateMap);
   }
 
-  private PurchaseDecision evaluatePurchaseCondition(BigDecimal lastPurchasePrice, BigDecimal currentPrice,
+  // 저가가 전 거래일 종가 × (1 - 하락률) 이하면 그 값, 시가부터 그 아래면 시가에 매수
+  // 저가가 없거나 0 이하인 날 · 종가가 조정종가뿐인 날은 시가 · 저가를 종가로 봄
+  private PurchaseDecision evaluatePurchaseCondition(BigDecimal previousClose, OHLCPriceDto price,
     BigDecimal dropPercentage) {
-    if (lastPurchasePrice == null) {
-      return new PurchaseDecision(true, "초기매수");
+    BigDecimal close = PriceLookup.effectiveClose(price);
+    BigDecimal trigger = previousClose.multiply(BigDecimal.ONE.subtract(dropPercentage));
+    boolean hasRange = price.closePrice() != null && positive(price.lowPrice());
+    BigDecimal low = hasRange ? price.lowPrice() : close;
+    if (low.compareTo(trigger) > 0) {
+      return new PurchaseDecision(false, null, "");
     }
 
-    // 직전 매수가 대비 하락률(오른 날은 음수라 매수 없음)
-    BigDecimal dropPercent = MoneyUtils.calculateReturnRate(lastPurchasePrice, currentPrice).negate();
-    BigDecimal dropPercentageAsPercent = dropPercentage.multiply(BacktestConstants.Money.PERCENTAGE_MULTIPLIER);
+    BigDecimal open = hasRange ? price.openPrice() : close;
+    BigDecimal buyPrice = positive(open) && open.compareTo(trigger) <= 0
+      ? open : trigger.setScale(TRIGGER_PRICE_SCALE, RoundingMode.HALF_UP);
+    BigDecimal dropPercent = MoneyUtils.calculateReturnRate(previousClose, buyPrice).negate();
+    return new PurchaseDecision(true, buyPrice, String.format("%.1f%%하락", dropPercent));
+  }
 
-    if (dropPercent.compareTo(dropPercentageAsPercent) >= 0) {
-      return new PurchaseDecision(true, String.format("%.1f%%하락", dropPercent));
-    }
-
-    return new PurchaseDecision(false, "");
+  private static boolean positive(BigDecimal value) {
+    return value != null && value.signum() > 0;
   }
 }

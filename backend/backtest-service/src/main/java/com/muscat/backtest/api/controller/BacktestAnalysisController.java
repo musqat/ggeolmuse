@@ -98,7 +98,7 @@ public class BacktestAnalysisController {
 
   @Operation(
       summary = "조건부 매수 전략 백테스팅",
-      description = "특정 하락률 조건에서 매수하는 전략의 백테스팅을 실행합니다"
+      description = "전 거래일 종가보다 장중에 하락률만큼 떨어진 날 매수하는 전략의 백테스팅을 실행합니다"
   )
   @ApiResponses(value = {
       @ApiResponse(
@@ -125,8 +125,8 @@ public class BacktestAnalysisController {
       @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
     request.setUserId(TokenOwner.sub(jwt));
 
-    log.info("조건부 매수 전략 백테스팅 요청: {} - {}% 하락시 매수",
-        request.getSymbol(), request.getDropPercentage());
+    log.info("조건부 매수 전략 백테스팅 요청: {} - 전 거래일 종가 대비 {}% 하락 시 매수",
+        request.getSymbol(), request.getDropPercentage().movePointRight(2));
 
     StrategyResponse result = backtestMetrics.record("conditional", () -> backtestAnalysisService.runConditionalStrategy(request));
 

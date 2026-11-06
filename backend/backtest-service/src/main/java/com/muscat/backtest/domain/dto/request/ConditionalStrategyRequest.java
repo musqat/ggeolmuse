@@ -52,10 +52,10 @@ public class ConditionalStrategyRequest implements StrategyRequest {
   @Schema(description = "[PER_PURCHASE 모드] 회당 투자 금액", example = "500000.00")
   private BigDecimal amountPerPurchase;   // 회당 투자 금액 (PER_PURCHASE 모드에서 사용)
 
-  @Schema(description = "하락률 조건 (예: 5% = 0.05)", example = "0.05", required = true)
+  @Schema(description = "전 거래일 종가 대비 장중 하락률 (예: 5% = 0.05)", example = "0.05", required = true)
   @NotNull(message = "하락률 조건은 필수입니다")
   @Positive(message = "하락률은 0보다 커야 합니다")
-  private BigDecimal dropPercentage;      // 하락률 조건 (예: 5% 하락시 매수)
+  private BigDecimal dropPercentage;
 
   @Schema(description = "최대 매수 횟수 (TOTAL_BUDGET 모드에서는 자동 계산, PER_PURCHASE 모드에서는 필수)", example = "10")
   @Positive(message = "최대 매수 횟수는 0보다 커야 합니다")
