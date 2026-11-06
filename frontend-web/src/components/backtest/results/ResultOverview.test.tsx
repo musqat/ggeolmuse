@@ -1,7 +1,9 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ResultOverview } from './ResultOverview'
+
+vi.mock('recharts', () => import('../../../test/rechartsProbe'))
 
 const metricsKrw = {
   cagr: 14.86,
@@ -123,5 +125,15 @@ describe('ResultOverview', () => {
     expect(screen.getByText('+₩10,000,000')).toHaveClass('whitespace-nowrap')
     expect(screen.getByText('2020-03-23')).toHaveClass('whitespace-nowrap')
     expect(screen.getByText('2020-08-10 회복')).toHaveClass('whitespace-nowrap')
+  })
+
+  it('입금이 있는 전략이면 차트에 입금을 뺀 낙폭이라고 적는다', () => {
+    const dailyValues = [
+      { date: '2024-01-15', valueUsd: 1000, valueKrw: 1300000, drawdownUsd: 0, drawdownKrw: 0 },
+      { date: '2024-03-01', valueUsd: 1200, valueKrw: 1560000, drawdownUsd: 0, drawdownKrw: 0 },
+    ]
+    render(<ResultOverview result={{ ...result, dailyValues }} investedLabel="총 투자금" invested={10000000} timeWeighted />)
+
+    expect(screen.getByText('낙폭 · 지표는 매수 입금을 뺀 수익률로 셉니다')).toBeInTheDocument()
   })
 })

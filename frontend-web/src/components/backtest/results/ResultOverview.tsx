@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { StrategyResponse } from '../../../services/api';
 import { CurrencyToggle, type MetricCurrency } from './CurrencyToggle';
 import { RiskCards } from './RiskCards';
+import { RiskChart } from './RiskChart';
 import { SummaryCards } from './SummaryCards';
 
 type OverviewValues = Pick<
@@ -12,6 +13,7 @@ type OverviewValues = Pick<
   | 'totalReturnPercent'
   | 'metricsKrw'
   | 'metricsUsd'
+  | 'dailyValues'
 >;
 
 interface ResultOverviewProps {
@@ -23,7 +25,7 @@ interface ResultOverviewProps {
   timeWeighted?: boolean;
 }
 
-// 결과 위쪽: 지표 기준 통화 · 수익 줄 · 위험 줄
+// 결과 위쪽: 지표 기준 통화 · 수익 줄 · 위험 줄 · 자산 추이와 낙폭 차트
 export const ResultOverview: React.FC<ResultOverviewProps> = ({
   result,
   investedLabel,
@@ -58,7 +60,18 @@ export const ResultOverview: React.FC<ResultOverviewProps> = ({
         timeWeighted={timeWeighted}
         returnRateTestId={returnRateTestId}
       />
-      {hasMetrics && <RiskCards metrics={metrics} other={other} otherLabel={otherLabel} />}
+      {hasMetrics && (
+        <>
+          <RiskCards metrics={metrics} other={other} otherLabel={otherLabel} />
+          <RiskChart
+            dailyValues={result.dailyValues}
+            metrics={metrics}
+            currency={currency}
+            markers={timeWeighted ? 'drawdown' : 'value'}
+            subtitle={timeWeighted ? '낙폭 · 지표는 매수 입금을 뺀 수익률로 셉니다' : undefined}
+          />
+        </>
+      )}
     </div>
   );
 };
