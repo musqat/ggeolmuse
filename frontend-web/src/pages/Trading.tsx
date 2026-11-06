@@ -217,7 +217,7 @@ const Trading: React.FC = () => {
 
             <button
               onClick={handleSubmitOrder}
-              disabled={!selectedStock || !quantity || !selectedAccountId || (priceType === 'limit' && !limitPrice)}
+              disabled={order.submitting || !selectedStock || !quantity || !selectedAccountId || (priceType === 'limit' && !limitPrice)}
               className={`w-full py-3 px-4 rounded-md font-medium transition-colors ${
                 orderType === 'buy'
                   ? SOLID_BUTTON.confirm

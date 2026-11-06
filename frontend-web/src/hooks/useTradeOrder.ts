@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { tradeApi } from '../services/api';
 import { calculateExecutionPrice, toBackendPriceType, validatePriceRange, type OHLCData, type PriceType } from '../utils/priceUtils';
@@ -33,8 +34,23 @@ export const useTradeOrder = ({
 }: TradeOrderInput) => {
   const queryClient = useQueryClient();
   const executionPrice = calculateExecutionPrice(priceType, ohlc, Number(limitPrice));
+  const [submitting, setSubmitting] = useState(false);
+  const inFlight = useRef(false);
 
+  // 주문 요청이 끝날 때까지 다시 보내지 않음
   const submit = async (): Promise<boolean> => {
+    if (inFlight.current) return false;
+    inFlight.current = true;
+    setSubmitting(true);
+    try {
+      return await place();
+    } finally {
+      inFlight.current = false;
+      setSubmitting(false);
+    }
+  };
+
+  const place = async (): Promise<boolean> => {
     if (priceType === 'limit') {
       const result = validatePriceRange(executionPrice, ohlc);
       if (!result.isValid) {
@@ -78,5 +94,5 @@ export const useTradeOrder = ({
     }
   };
 
-  return { executionPrice, submit };
+  return { executionPrice, submit, submitting };
 };
