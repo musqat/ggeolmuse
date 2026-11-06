@@ -1,5 +1,6 @@
 package com.muscat.backtest.domain.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.muscat.commonlib.util.MoneyUtils;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
@@ -9,6 +10,7 @@ import java.util.List;
 
 // 하루 평가 가치(달러 · 원화)와 그날 고점 대비 낙폭
 @Schema(description = "하루 평가 가치")
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public record DailyValue(
   @Schema(description = "날짜", example = "2024-03-04")
   LocalDate date,
@@ -35,6 +37,12 @@ public record DailyValue(
       result.add(new DailyValue(value.date(), value.valueUsd(), value.valueKrw(), usd.get(i), krw.get(i)));
     }
     return result;
+  }
+
+  // 낙폭을 뺀 날짜 · 달러 · 원화 값
+  public static List<DailyValue> withoutDrawdowns(List<DailyValue> values) {
+    return values == null ? List.of()
+      : values.stream().map(value -> new DailyValue(value.date(), value.valueUsd(), value.valueKrw())).toList();
   }
 
   // 달러 평가 가치의 원화

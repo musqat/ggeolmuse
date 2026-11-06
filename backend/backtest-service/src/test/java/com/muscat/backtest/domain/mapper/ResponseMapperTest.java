@@ -14,6 +14,7 @@ import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
 import com.muscat.backtest.domain.dto.request.SymbolComparisonRequest;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
 import com.muscat.backtest.domain.dto.response.ComparisonResponse;
+import com.muscat.backtest.domain.dto.response.DailyValue;
 import com.muscat.backtest.domain.dto.response.SimulationResponse;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.model.ComparisonItem;
@@ -273,9 +274,12 @@ class ResponseMapperTest {
   class ToComparisonResponse {
 
     @Test
-    @DisplayName("요청과 계산 결과를 그대로 옮긴다")
+    @DisplayName("요청과 계산 결과를 옮기고, 최고 · 최저 항목에는 원래 응답을 다시 싣지 않는다")
     void 전달() {
-      ComparisonItem best = ComparisonItem.builder().name("최고").code("AAPL").build();
+      SimulationResponse detail = SimulationResponse.builder().symbol("AAPL")
+        .dailyValues(List.of(new DailyValue(START, BigDecimal.TEN, new BigDecimal("13000")))).build();
+      ComparisonItem best = ComparisonItem.builder().name("최고").code("AAPL")
+        .totalReturnPercent(new BigDecimal("23.46")).additionalData(detail).build();
       ComparisonItem worst = ComparisonItem.builder().name("최저").code("TSLA").build();
 
       SymbolComparisonRequest request = new SymbolComparisonRequest();
@@ -297,8 +301,13 @@ class ResponseMapperTest {
       assertThat(result.getEndDate()).isEqualTo(END);
       assertThat(result.getInvestmentAmount()).isEqualByComparingTo("1000000");
       assertThat(result.getItems()).containsExactly(best, worst);
-      assertThat(result.getBestPerformer()).isSameAs(best);
-      assertThat(result.getWorstPerformer()).isSameAs(worst);
+      assertThat(result.getBestPerformer()).satisfies(item -> {
+        assertThat(item.getName()).isEqualTo("최고");
+        assertThat(item.getTotalReturnPercent()).isEqualByComparingTo("23.46");
+        assertThat(item.getAdditionalData()).isNull();
+      });
+      assertThat(result.getWorstPerformer().getName()).isEqualTo("최저");
+      assertThat(result.getItems().getFirst().getAdditionalData()).isSameAs(detail);
       assertThat(result.getAverageReturn()).isEqualByComparingTo("12.34");
       assertThat(result.getMedianReturn()).isEqualByComparingTo("10.00");
     }
@@ -503,36 +512,52 @@ class ResponseMapperTest {
       assertThat(item.getAdditionalData()).isEqualTo(simulation);
     }
 
+    private final DailyValue day = new DailyValue(LocalDate.of(2024, 1, 2), BigDecimal.TEN, new BigDecimal("13000"),
+      new BigDecimal("-1.50"), new BigDecimal("-2.00"));
+
     @Test
-    @DisplayName("비교 항목의 원래 응답에는 일별 값을 싣지 않는다")
-    void 일별_값_없음() {
+    @DisplayName("비교 항목의 원래 응답에 낙폭을 뺀 일별 값을 싣는다")
+    void 일별_값() {
       SimulationResponse simulation = SimulationResponse.builder().symbol(SYMBOL)
         .metricsKrw(com.muscat.backtest.domain.dto.response.PerformanceMetrics.empty())
-        .dailyValues(List.of(new com.muscat.backtest.domain.dto.response.DailyValue(
-          LocalDate.of(2024, 1, 2), BigDecimal.TEN, BigDecimal.TEN)))
+        .dailyValues(List.of(day))
         .build();
 
       ComparisonItem item = mapper.toComparisonItemFromSimulation(simulation, "애플");
 
       SimulationResponse carried = (SimulationResponse) item.getAdditionalData();
-      assertThat(carried.getDailyValues()).isEmpty();
+      assertThat(carried.getDailyValues())
+        .containsExactly(new DailyValue(LocalDate.of(2024, 1, 2), BigDecimal.TEN, new BigDecimal("13000")));
       assertThat(carried.getMetricsKrw()).isNotNull();
       // 넘긴 응답은 그대로
-      assertThat(simulation.getDailyValues()).hasSize(1);
+      assertThat(simulation.getDailyValues()).containsExactly(day);
     }
 
     @Test
-    @DisplayName("전략 비교 항목의 원래 응답에도 일별 값을 싣지 않는다")
-    void 전략_일별_값_없음() {
-      StrategyResponse strategy = StrategyResponse.builder().symbol(SYMBOL)
-        .dailyValues(List.of(new com.muscat.backtest.domain.dto.response.DailyValue(
-          LocalDate.of(2024, 1, 2), BigDecimal.TEN, BigDecimal.TEN)))
-        .build();
+    @DisplayName("전략 비교 항목의 원래 응답에도 낙폭을 뺀 일별 값을 싣는다")
+    void 전략_일별_값() {
+      StrategyResponse strategy = StrategyResponse.builder().symbol(SYMBOL).dailyValues(List.of(day)).build();
 
       ComparisonItem item = mapper.toComparisonItemFromStrategy(strategy, "DCA");
 
-      assertThat(((StrategyResponse) item.getAdditionalData()).getDailyValues()).isEmpty();
-      assertThat(strategy.getDailyValues()).hasSize(1);
+      assertThat(((StrategyResponse) item.getAdditionalData()).getDailyValues())
+        .containsExactly(new DailyValue(LocalDate.of(2024, 1, 2), BigDecimal.TEN, new BigDecimal("13000")));
+      assertThat(strategy.getDailyValues()).containsExactly(day);
+    }
+
+    @Test
+    @DisplayName("JSON 에서 비교 항목의 일별 값에는 낙폭 칸이 없고 단일 응답에는 있다")
+    void 일별_값_json() {
+      StrategyResponse strategy = StrategyResponse.builder().symbol(SYMBOL).dailyValues(List.of(day)).build();
+
+      JsonNode compared = toJson(mapper.toComparisonItemFromStrategy(strategy, "DCA"))
+        .get("additionalData").get("dailyValues").get(0);
+      JsonNode single = toJson(strategy).get("dailyValues").get(0);
+
+      assertThat(compared.get("valueKrw").decimalValue()).isEqualByComparingTo("13000");
+      assertThat(compared.has("drawdownUsd")).isFalse();
+      assertThat(compared.has("drawdownKrw")).isFalse();
+      assertThat(single.get("drawdownKrw").decimalValue()).isEqualByComparingTo("-2.00");
     }
 
     @Test

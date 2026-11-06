@@ -10,6 +10,7 @@ import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
 import com.muscat.backtest.domain.dto.response.ComparisonResponse;
+import com.muscat.backtest.domain.dto.response.DailyValue;
 import com.muscat.backtest.domain.dto.response.SimulationResponse;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.model.ComparisonItem;
@@ -58,8 +59,8 @@ public class ResponseMapper {
       .endDate(request.getEndDate())
       .investmentAmount(request.getInvestmentAmount())
       .items(items)
-      .bestPerformer(calculation.getBestPerformer())
-      .worstPerformer(calculation.getWorstPerformer())
+      .bestPerformer(withoutDetail(calculation.getBestPerformer()))
+      .worstPerformer(withoutDetail(calculation.getWorstPerformer()))
       .averageReturn(calculation.getAverageReturn())
       .medianReturn(calculation.getMedianReturn())
       .build();
@@ -182,6 +183,11 @@ public class ResponseMapper {
       .toList();
   }
 
+  // 원래 응답을 뺀 최고 · 최저 항목
+  private static ComparisonItem withoutDetail(ComparisonItem item) {
+    return item == null ? null : item.toBuilder().additionalData(null).build();
+  }
+
   // ComparisonItem 생성 메서드들
   public ComparisonItem toComparisonItemFromSimulation(SimulationResponse simulation, String name) {
     return ComparisonItem.builder()
@@ -205,8 +211,8 @@ public class ResponseMapper {
         simulation.getOptimalSellDate() != null ? simulation.getOptimalSellDate().toString() : null)
       .optimalSellPrice(simulation.getOptimalSellPrice())
       .optimalReturnPercent(simulation.getOptimalReturnPercent())
-      // 일별 값을 뺀 원래 응답
-      .additionalData(simulation.toBuilder().dailyValues(List.of()).build())
+      .additionalData(simulation.toBuilder()
+        .dailyValues(DailyValue.withoutDrawdowns(simulation.getDailyValues())).build())
       .build();
   }
 
@@ -225,8 +231,8 @@ public class ResponseMapper {
       .fxReturn(strategy.getFxReturn())
       .fxReturnPercent(strategy.getFxReturnPercent())
       .dividends(strategy.getTotalDividends())
-      // 일별 값을 뺀 원래 응답
-      .additionalData(strategy.toBuilder().dailyValues(List.of()).build())
+      .additionalData(strategy.toBuilder()
+        .dailyValues(DailyValue.withoutDrawdowns(strategy.getDailyValues())).build())
       .build();
   }
 }
