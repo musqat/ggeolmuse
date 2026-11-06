@@ -19,6 +19,7 @@ import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.util.BacktestHistoryUtils;
 import com.muscat.backtest.domain.analysis.OptimalTimingAnalyzer;
 import com.muscat.backtest.domain.dto.request.BaseComparisonRequest;
+import com.muscat.backtest.common.enums.type.PriceDirection;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
 import com.muscat.backtest.domain.dto.request.OptimalTimingRequest;
@@ -698,6 +699,7 @@ class BacktestAnalysisServiceImplTest {
       StrategyParameter conditional = strategy(StrategyType.CONDITIONAL_PURCHASE);
       conditional.setTotalInvestment(BigDecimal.valueOf(1_000_000));
       conditional.setDropPercentage(new BigDecimal("0.05"));
+      conditional.setDirection(PriceDirection.RISE);
       StrategyComparisonRequest request = strategyRequest(simple, dca, conditional);
       withOptions(request);
 
@@ -739,6 +741,7 @@ class BacktestAnalysisServiceImplTest {
         .isEqualByComparingTo(new BigDecimal("0.15"));
       assertThat(conditionalRequest.getValue().getTradingFeeRate())
         .isEqualByComparingTo(new BigDecimal("0.0025"));
+      assertThat(conditionalRequest.getValue().getDirection()).isEqualTo(PriceDirection.RISE);
     }
 
     @Test

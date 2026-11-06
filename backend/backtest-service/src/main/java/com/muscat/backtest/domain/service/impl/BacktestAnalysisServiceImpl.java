@@ -249,6 +249,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
         .userId(request.getUserId())
         .totalInvestment(strategyConfig.getTotalInvestment())
         .dropPercentage(strategyConfig.getDropPercentage())
+        .direction(strategyConfig.getDirection())
         .maxPurchases(strategyConfig.getMaxPurchases())
         .purchaseFxRate(request.getPurchaseFxRate())
         .currentFxRate(request.getCurrentFxRate())

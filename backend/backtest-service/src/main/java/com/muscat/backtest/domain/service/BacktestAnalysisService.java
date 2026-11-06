@@ -16,7 +16,7 @@ public interface BacktestAnalysisService {
   // 매월 정한 날 정한 금액을 삼
   StrategyResponse runDcaStrategy(DcaStrategyRequest request);
 
-  // 주가가 정한 비율 이상 떨어질 때마다 삼
+  // 전 거래일 종가보다 장중에 정한 비율 이상 떨어진(또는 오른) 날마다 삼
   StrategyResponse runConditionalStrategy(ConditionalStrategyRequest request);
 
   // 같은 기간 · 조건으로 여러 종목을 견줌

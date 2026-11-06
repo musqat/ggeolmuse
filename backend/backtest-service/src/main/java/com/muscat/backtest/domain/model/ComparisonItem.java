@@ -6,7 +6,7 @@ import lombok.Data;
 
 // 비교 분석 개별 항목
 @Data
-@Builder
+@Builder(toBuilder = true)
 public class ComparisonItem {
 
   // 비교 대상 정보

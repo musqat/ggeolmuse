@@ -26,7 +26,7 @@ public enum BacktestResponse implements ErrorCode {
   STRATEGY_TYPE_MISMATCH("지원하지 않는 전략 타입입니다.", HttpStatus.BAD_REQUEST),
   STRATEGY_MONTHLY_AMOUNT_REQUIRED("월 투자금액은 필수입니다.", HttpStatus.BAD_REQUEST),
   STRATEGY_TOTAL_INVESTMENT_REQUIRED("총 투자금액은 필수입니다.", HttpStatus.BAD_REQUEST),
-  STRATEGY_DROP_PERCENTAGE_REQUIRED("하락률 조건은 필수입니다.", HttpStatus.BAD_REQUEST),
+  STRATEGY_DROP_PERCENTAGE_REQUIRED("하락률 · 상승률 조건은 필수입니다.", HttpStatus.BAD_REQUEST),
   INVALID_PURCHASE_DAY("투자일은 1-31 사이여야 합니다.", HttpStatus.BAD_REQUEST),
   INVALID_MAX_PURCHASES("최대 매수 횟수는 0보다 커야 합니다.", HttpStatus.BAD_REQUEST),
 
