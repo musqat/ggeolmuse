@@ -55,7 +55,7 @@ test('화면에서 입금하고 환전하면 계좌 잔액이 바뀐다', async 
     const current = await auth.get(`${API_URL}/accounts/exchange-rates/current`);
     if (current.ok()) {
       const shown = Number(await current.json()).toLocaleString('en-US');
-      await expect(page.getByText(`현재 환율: ₩${shown}/USD`), '환전 창의 현재 환율이 서버 값과 다르다').toBeVisible();
+      await expect(page.getByRole('dialog', { name: '환전' }).getByText(`현재 환율: ₩${shown}/USD`), '환전 창의 현재 환율이 서버 값과 다르다').toBeVisible();
     } else {
       expect(current.status(), `현재 환율이 503 이 아닌 이유로 실패한다: ${await current.text()}`).toBe(503);
       await expect(page.getByRole('alert'), '환율을 못 받았는데 안내가 없다').toContainText('환율을 불러오지 못했습니다');

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { X } from 'lucide-react';
 import { LAYER } from '@/styles/layers';
 
@@ -22,6 +22,7 @@ export const Modal: React.FC<ModalProps> = ({
   maxWidth = 'md',
   layer = 'modal',
 }) => {
+  const titleId = useId();
   if (!isOpen) return null;
 
   const widthClasses = {
@@ -36,9 +37,13 @@ export const Modal: React.FC<ModalProps> = ({
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
       style={{ zIndex: LAYER[layer] }}
     >
-      <div className={`bg-surface rounded-lg shadow-xl ${widthClasses[maxWidth]} w-full max-h-[90vh] flex flex-col`}>
+      <div
+        role="dialog"
+        aria-labelledby={titleId}
+        className={`bg-surface rounded-lg shadow-xl ${widthClasses[maxWidth]} w-full max-h-[90vh] flex flex-col`}
+      >
         <div className="flex items-center justify-between p-6 border-b border-line">
-          <h2 className="text-xl font-bold text-tx-1">{title}</h2>
+          <h2 id={titleId} className="text-xl font-bold text-tx-1">{title}</h2>
           <button
             onClick={onClose}
             className="text-tx-3 hover:text-tx-2 transition-colors"
