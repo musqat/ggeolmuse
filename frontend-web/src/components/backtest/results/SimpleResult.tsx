@@ -4,7 +4,7 @@ import { SimpleChart } from '@components/charts/backtest/SimpleChart';
 import type { SimulationResponse } from '../../../services/api';
 import { gainLossClass } from '../../../utils/gainLoss';
 import { formatKrw, formatPercent, formatSigned, formatUsd, formatNumber } from '../../../utils/format';
-import { SummaryCards } from './SummaryCards';
+import { ResultOverview } from './ResultOverview';
 import { FxImpactSection } from './FxImpactSection';
 import { DetailRow, DetailSection } from './DetailSection';
 import { getTodayString } from '../../../utils/dateUtils';
@@ -23,7 +23,7 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
     <div className="space-y-6">
       <HolidayNotice label="매수일" chosen={purchaseDate} traded={result.purchaseDate} />
       <DefaultFxNotice dates={result.defaultFxDates} />
-      <SummaryCards
+      <ResultOverview
         result={result}
         investedLabel="초기 투자금"
         invested={result.investmentAmount}

@@ -18,7 +18,7 @@ interface FormDialogProps {
   tone?: DialogTone;
   confirmLabel: string;
   confirmDisabled: boolean;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<unknown>;
   onCancel: () => void;
   children: React.ReactNode;
 }

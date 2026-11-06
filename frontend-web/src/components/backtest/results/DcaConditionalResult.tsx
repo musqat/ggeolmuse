@@ -4,7 +4,7 @@ import { AccumulationChart } from '@components/charts/backtest/AccumulationChart
 import type { StrategyResponse } from '../../../services/api';
 import { gainLossClass } from '../../../utils/gainLoss';
 import { formatBalanceAmount, formatKrw, formatPercent, formatSigned, formatNumber } from '../../../utils/format';
-import { SummaryCards } from './SummaryCards';
+import { ResultOverview } from './ResultOverview';
 import { FxImpactSection } from './FxImpactSection';
 import { DetailRow, DetailSection } from './DetailSection';
 import { PurchaseHistory } from './PurchaseHistory';
@@ -33,7 +33,7 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
         </p>
       )}
       <DefaultFxNotice dates={result.defaultFxDates} />
-      <SummaryCards result={result} investedLabel="총 투자금" invested={result.totalInvested} />
+      <ResultOverview result={result} investedLabel="총 투자금" invested={result.totalInvested} timeWeighted />
 
       {/* 상세 결과(투자 정보 · 주식 수익 · 환율 영향) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

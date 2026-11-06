@@ -19,6 +19,26 @@ export type SimulationRequest = BacktestCommonRequest & {
   investmentAmount: number;             // 투자 금액
 };
 
+// 기간 수익 · 위험 지표(낼 수 없으면 null)
+export type PerformanceMetrics = {
+  cagr?: number | null;                 // 연평균 수익률(1년 미만이면 없음)
+  mdd?: number | null;                  // 최대 낙폭(0 이하)
+  mddPeakDate?: string | null;
+  mddTroughDate?: string | null;
+  mddRecoveryDate?: string | null;      // 고점 가치로 돌아온 날(아직이면 없음)
+  volatility?: number | null;           // 연 변동성
+  sharpe?: number | null;               // 샤프 비율(무위험 연 3%)
+};
+
+// 하루 평가 가치와 그날 고점 대비 낙폭(%)
+export type DailyValue = {
+  date: string;
+  valueUsd: number;
+  valueKrw: number;
+  drawdownUsd?: number | null;
+  drawdownKrw?: number | null;
+};
+
 // 단순 시뮬레이션 응답(숫자 · 날짜 칸은 null 일 수 있음, 날짜는 YYYY-MM-DD)
 export type SimulationResponse = {
   symbol: string;
@@ -52,6 +72,9 @@ export type SimulationResponse = {
   dividendsReinvested?: number | null;
   dividendReinvestDates?: string[] | null;
   defaultFxDates?: string[];                // 환율 기록이 없어 기본 환율로 계산한 날
+  metricsKrw?: PerformanceMetrics | null;   // 원화 기준 지표
+  metricsUsd?: PerformanceMetrics | null;   // 달러 기준 지표
+  dailyValues?: DailyValue[];               // 매수일 ~ 평가일(마지막 날은 총자산)
 };
 
 // DCA(정기 적립) 전략 요청
@@ -158,6 +181,9 @@ export type StrategyResponse = {
   totalDividends?: number | null;
   dividendYield?: number | null;
   defaultFxDates?: string[];                // 환율 기록이 없어 기본 환율로 계산한 날
+  metricsKrw?: PerformanceMetrics | null;   // 원화 기준 지표(입금을 뺀 시간가중)
+  metricsUsd?: PerformanceMetrics | null;   // 달러 기준 지표
+  dailyValues?: DailyValue[];               // 첫 매수일 ~ 평가일(마지막 날은 총자산)
 };
 
 // 비교 항목의 원래 응답(SimulationResponse 또는 StrategyResponse 라 두 쪽 칸 모두 선택)

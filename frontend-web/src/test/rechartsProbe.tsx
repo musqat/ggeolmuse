@@ -39,6 +39,10 @@ export const XAxis = ({ ticks, tickFormatter }: { ticks?: string[]; tickFormatte
   />
 );
 
+// 영역 차트도 선 차트와 같이 읽음
+export const AreaChart = LineChart;
+export const Area = Line;
+
 const Nothing = () => null;
 export const CartesianGrid = Nothing;
 export const Legend = Nothing;

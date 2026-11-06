@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { DialogActions } from './DialogActions'
 
@@ -27,6 +27,20 @@ describe('DialogActions', () => {
     await userEvent.click(screen.getByRole('button', { name: '저장' }))
     expect(onSubmit).toHaveBeenCalledTimes(1)
     expect(screen.getByRole('button', { name: '취소' })).toBeInTheDocument()
+  })
+
+  it('제출이 끝나기 전에는 다시 눌러도 onSubmit 을 한 번만 부르고 버튼을 막는다', async () => {
+    let finish!: () => void
+    const onSubmit = vi.fn(() => new Promise<void>((resolve) => { finish = resolve }))
+    render(<DialogActions onCancel={vi.fn()} onSubmit={onSubmit} submitLabel="환전하기" />)
+    const button = screen.getByRole('button', { name: '환전하기' })
+
+    await userEvent.dblClick(button)
+
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+    expect(button).toBeDisabled()
+    await act(async () => finish())
+    expect(button).toBeEnabled()
   })
 
   it('바깥 여백 같은 클래스를 줄에 더한다', () => {

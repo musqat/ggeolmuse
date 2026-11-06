@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { act, render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -101,6 +101,20 @@ describe('Trading 주문', () => {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['account'] })
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['accounts'] }, { cancelRefetch: false })
     expect(screen.getByRole('spinbutton')).toHaveValue(1)
+  })
+
+  it('주문 요청이 끝나기 전에는 매수 버튼을 다시 눌러도 한 번만 보내고 버튼을 막는다', async () => {
+    let finish!: (value: unknown) => void
+    vi.mocked(tradeApi.buy).mockImplementation(() => new Promise((resolve) => { finish = resolve }) as never)
+    renderPage()
+    await waitForChart()
+
+    await userEvent.dblClick(submitButton())
+
+    expect(tradeApi.buy).toHaveBeenCalledTimes(1)
+    expect(submitButton()).toBeDisabled()
+    await act(async () => finish({ data: TRADE }))
+    await waitFor(() => expect(submitButton()).toBeEnabled())
   })
 
   it('시세가 없는 종목으로 바꾸면 이전 종목 가격으로 주문 금액을 셈하지 않는다', async () => {
