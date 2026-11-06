@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 
 @Schema(description = "투자 시뮬레이션 결과")
 @Data
-@Builder
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 public class SimulationResponse {
@@ -61,7 +61,7 @@ public class SimulationResponse {
 
   // 수수료 정보
   @Schema(description = "매매 수수료 (USD)", example = "18.82")
-  private BigDecimal tradingFee; // 매매수수룼 (USD)
+  private BigDecimal tradingFee; // 매매수수료 (USD)
   @Schema(description = "매수 후 잔액 (USD)", example = "498.17")
   private BigDecimal remainingCash; // 매수 후 잔액 (USD)
 
@@ -99,4 +99,13 @@ public class SimulationResponse {
   @Schema(description = "환율이 없어 기본 환율로 계산한 날(산 날 · 평가일)", example = "[\"2013-06-03\"]")
   @Builder.Default
   private List<LocalDate> defaultFxDates = List.of();
+
+  // ===== 수익 · 위험 지표 =====
+  @Schema(description = "원화 기준 수익 · 위험 지표")
+  private PerformanceMetrics metricsKrw;
+  @Schema(description = "달러 기준 수익 · 위험 지표")
+  private PerformanceMetrics metricsUsd;
+  @Schema(description = "매수일 ~ 평가일 일별 평가 가치(마지막 날은 총자산, 일봉을 못 받으면 평가일 하나)")
+  @Builder.Default
+  private List<DailyValue> dailyValues = List.of();
 }

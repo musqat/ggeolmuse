@@ -25,6 +25,7 @@ public record SimulationCalculationResult(
     BigDecimal totalReturnKrw,
     BigDecimal totalReturnPercent,
     BigDecimal dividendsReinvested,
-    List<LocalDate> dividendReinvestDates
+    List<LocalDate> dividendReinvestDates,
+    List<HoldingStep> holdingSteps
 ) {
 }
