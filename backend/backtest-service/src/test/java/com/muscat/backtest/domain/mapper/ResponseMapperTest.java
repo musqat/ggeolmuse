@@ -520,6 +520,21 @@ class ResponseMapperTest {
       // 넘긴 응답은 그대로
       assertThat(simulation.getDailyValues()).hasSize(1);
     }
+
+    @Test
+    @DisplayName("전략 비교 항목의 원래 응답에도 일별 값을 싣지 않는다")
+    void 전략_일별_값_없음() {
+      StrategyResponse strategy = StrategyResponse.builder().symbol(SYMBOL)
+        .dailyValues(List.of(new com.muscat.backtest.domain.dto.response.DailyValue(
+          LocalDate.of(2024, 1, 2), BigDecimal.TEN, BigDecimal.TEN)))
+        .build();
+
+      ComparisonItem item = mapper.toComparisonItemFromStrategy(strategy, "DCA");
+
+      assertThat(((StrategyResponse) item.getAdditionalData()).getDailyValues()).isEmpty();
+      assertThat(strategy.getDailyValues()).hasSize(1);
+    }
+
     @Test
     @DisplayName("비교 항목에는 화면이 읽지 않는 달러 총 수익 · 성과 메모를 싣지 않는다")
     void 안_읽는_칸_없음() {
@@ -567,7 +582,7 @@ class ResponseMapperTest {
 
       assertThat(item.getName()).isEqualTo("DCA");
       assertThat(item.getCategory()).isEqualTo("STRATEGY");
-      assertThat(item.getAdditionalData()).isSameAs(strategy);
+      assertThat(item.getAdditionalData()).isEqualTo(strategy);
       // 전략에는 최적 매매 개념 없음
       assertThat(item.getOptimalBuyDate()).isNull();
     }

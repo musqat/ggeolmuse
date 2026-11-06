@@ -3,35 +3,57 @@ package com.muscat.backtest.common.engine;
 import com.muscat.backtest.common.calculation.StrategyCalculationResult;
 import com.muscat.backtest.common.calculation.StrategyCalculator;
 import com.muscat.backtest.common.util.BacktestCalculationUtils;
+import com.muscat.backtest.common.util.Decimals;
 import com.muscat.backtest.common.util.BacktestDataUtils;
+import com.muscat.backtest.common.util.FxPath;
+import com.muscat.backtest.common.util.FxRates;
+import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.backtest.infra.client.MarketDataClientWrapper;
 import com.muscat.backtest.infra.client.dto.DividendHistoryDto;
 import com.muscat.backtest.infra.client.dto.FxRateDto;
+import com.muscat.commonlib.dto.OHLCPriceDto;
 import com.muscat.commonlib.dto.StockPriceDto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 
 // 전략(DCA · 조건부) 공통 마무리: 평가일 시세 · 환율 → 총투자 · 환율 합 → 배당 재투자 → 계산
 public final class StrategyFinalizer {
 
-  /** 마무리 결과(거래내역 + 계산결과 + 평가일 시세) */
+  /** 마무리 결과(거래내역 + 계산결과 + 평가일 시세 + 일별 가치 · 지표) */
   public record Result(List<StrategyTransaction> transactions,
                        StrategyCalculationResult calculation,
-                       StockPriceDto currentPrice) {}
+                       StockPriceDto currentPrice,
+                       StrategyPerformance.Result performance) {
+
+    // 응답에 일별 평가 가치 · 통화별 지표를 채움
+    public StrategyResponse fill(StrategyResponse response) {
+      response.setDailyValues(performance.dailyValues());
+      response.setMetricsKrw(performance.metricsKrw());
+      response.setMetricsUsd(performance.metricsUsd());
+      return response;
+    }
+  }
 
   private StrategyFinalizer() {}
 
   public static Result run(
       MarketDataClientWrapper marketData,
       String symbol,
+      LocalDate requestStart,
       LocalDate valuationDate,
       BigDecimal manualCurrentFxRate,
       BigDecimal manualPurchaseFxRate,
       boolean reinvestEnabled,
       BigDecimal dividendTaxRate,
-      List<StrategyTransaction> transactions) {
+      List<StrategyTransaction> transactions,
+      Map<LocalDate, OHLCPriceDto> priceMap,
+      FxRates dailyFx) {
 
     StockPriceDto currentPrice = BacktestDataUtils.getPriceAt(
         marketData, symbol, valuationDate);
@@ -69,6 +91,32 @@ public final class StrategyFinalizer {
         transactions, totalInvested, totalShares, totalFxRateSum, currentPrice, currentFxRate,
         totalDividends, dividendsReinvested, dividendTaxRate);
 
-    return new Result(transactions, calculation, currentPrice);
+    Function<LocalDate, BigDecimal> fxOn = fxPath(transactions, valuationDate, manualPurchaseFxRate,
+        manualCurrentFxRate, currentFxRate.rate(), dailyFx);
+    StrategyPerformance.Result performance = StrategyPerformance.of(transactions, priceMap, fxOn,
+        dividendHistory, Decimals.isPositive(dividendsReinvested), dividendTaxRate, requestStart, valuationDate,
+        calculation.getTotalAssetKrw(), currentFxRate.rate());
+
+    return new Result(transactions, calculation, currentPrice, performance);
+  }
+
+  // 날마다 원화 환율: 수동 환율이거나 시장 기록이 없으면 첫 매수 · 평가일 환율을 날짜 비례로, 아니면 기본 환율 날을 뺀 시장 환율
+  static Function<LocalDate, BigDecimal> fxPath(List<StrategyTransaction> transactions,
+      LocalDate valuationDate, BigDecimal manualPurchaseFxRate, BigDecimal manualCurrentFxRate,
+      BigDecimal currentFxRate, FxRates dailyFx) {
+    Map<LocalDate, BigDecimal> records = new HashMap<>();
+    dailyFx.rates().forEach((date, rate) -> {
+      if (!dailyFx.isDefault(date)) {
+        records.put(date, rate);
+      }
+    });
+    if (manualPurchaseFxRate != null || manualCurrentFxRate != null || records.isEmpty()) {
+      return transactions.stream()
+          .filter(tx -> Decimals.isPositive(tx.getAmount()))
+          .min(Comparator.comparing(StrategyTransaction::tradedOn))
+          .map(first -> FxPath.interpolated(first.tradedOn(), first.getFxRate(), valuationDate, currentFxRate))
+          .orElse(date -> currentFxRate);
+    }
+    return FxPath.market(records, currentFxRate);
   }
 }

@@ -12,7 +12,7 @@ import lombok.Data;
 
 @Schema(description = "투자 전략 백테스트 결과")
 @Data
-@Builder
+@Builder(toBuilder = true)
 public class StrategyResponse {
 
   @Schema(description = "종목 코드", example = "AAPL")
@@ -76,5 +76,14 @@ public class StrategyResponse {
   @Schema(description = "환율이 없어 기본 환율로 계산한 날(산 날 · 배당 재투자일 · 평가일)", example = "[\"2013-06-03\"]")
   @Builder.Default
   private List<LocalDate> defaultFxDates = List.of();
+
+  // ===== 수익 · 위험 지표 =====
+  @Schema(description = "원화 기준 수익 · 위험 지표(입금을 뺀 시간가중 수익률)")
+  private PerformanceMetrics metricsKrw;
+  @Schema(description = "달러 기준 수익 · 위험 지표(입금을 뺀 시간가중 수익률)")
+  private PerformanceMetrics metricsUsd;
+  @Schema(description = "첫 매수일 ~ 평가일 일별 평가 가치(마지막 날은 총자산)")
+  @Builder.Default
+  private List<DailyValue> dailyValues = List.of();
 
 }
