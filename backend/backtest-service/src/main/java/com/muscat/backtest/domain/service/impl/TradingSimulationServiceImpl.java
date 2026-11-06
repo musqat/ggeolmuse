@@ -363,30 +363,26 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
       .toList();
   }
 
-  // 일봉 날짜마다 환율(못 받거나 빈 응답이면 null)
+  // 일봉 날짜마다 환율(조회가 실패하면 null)
   private Map<String, BigDecimal> bulkFxRates(List<OHLCPriceDto> candles) {
     if (candles.isEmpty()) {
       return Map.of();
     }
     try {
-      Map<String, BigDecimal> rates = marketDataClientWrapper.getBulkFxRates(
+      return marketDataClientWrapper.getBulkFxRates(
         candles.stream().map(candle -> candle.date().toString()).toList());
-      if (rates == null || rates.isEmpty()) {
-        log.warn("기간 환율 빈 응답: 일봉 {}개", candles.size());
-        return null;
-      }
-      return rates;
     } catch (Exception e) {
       log.warn("기간 환율 조회 실패: {}", e.getMessage());
       return null;
     }
   }
 
-  // 일별 원화 환율: 수동 환율이거나 기간 환율을 못 받았으면 매수 · 평가일 환율을 날짜 비례로, 아니면 시장 환율
+  // 일별 원화 환율: 수동 환율이거나 기간 환율 기록이 없으면 매수 · 평가일 환율을 날짜 비례로, 아니면 시장 환율
   private static Function<LocalDate, BigDecimal> fxPath(SimulationContext context,
     SimulationCalculationResult calculation, Map<String, BigDecimal> fxRates) {
     SimulationRequest request = context.request();
-    if (request.getPurchaseFxRate() != null || request.getCurrentFxRate() != null || fxRates == null) {
+    if (request.getPurchaseFxRate() != null || request.getCurrentFxRate() != null
+      || fxRates == null || fxRates.isEmpty()) {
       return FxPath.interpolated(context.purchaseData().date(), calculation.purchaseFxRate(),
         context.valuationDate(), calculation.currentFxRate());
     }

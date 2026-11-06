@@ -1220,7 +1220,7 @@ class TradingSimulationServiceImplTest {
     }
 
     @Test
-    @DisplayName("기간 환율이 빈 응답이면 최적 시점은 비우고 일별 원화 값은 매수 · 평가일 환율을 날짜 비례로 잇는다")
+    @DisplayName("기간 환율 기록이 없으면 최적 시점은 기본 환율로 내고 일별 원화 값은 매수 · 평가일 환율을 날짜 비례로 잇는다")
     void bulkFxEmpty() {
       stubRange(candle(purchaseDate, "100.00"), candle(march, "120.00"), candle(saleDate, "150.00"));
       given(marketDataClientWrapper.getFxRate("2024-06-14")).willReturn(new FxRateDto(saleDate, new BigDecimal("1400")));
@@ -1228,7 +1228,9 @@ class TradingSimulationServiceImplTest {
 
       SimulationResponse response = service.runSimulation(request(false, "0"), false);
 
-      assertThat(response.getOptimalBuyDate()).isNull();
+      // 기본 환율 하나로 100달러에 사서 150달러에 팜
+      assertThat(response.getOptimalBuyDate()).isEqualTo(purchaseDate);
+      assertThat(response.getOptimalSellDate()).isEqualTo(saleDate);
       // 1200달러 × (1300 + 100 × 46/151)
       assertThat(response.getDailyValues().get(1).valueKrw()).isEqualByComparingTo("1596556");
     }
