@@ -199,7 +199,7 @@ services:
 
   backtestService:
     image:
-      tag: "334fc90"
+      tag: "5d5872b"
     env:
       TZ: "Asia/Seoul"
     probes:
