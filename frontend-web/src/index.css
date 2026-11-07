@@ -46,6 +46,11 @@
   --warning: 251 191  36;      /* #FBBF24 */
   /* 경고 상자 바탕 · 테두리. 라이트에서 글자색(진한 갈색)으로 깔면 칙칙해 밝은 노랑을 쓴다 */
   --warning-soft: 251 191 36;  /* #FBBF24 */
+
+  /* 주황 글자(text-brand · -light · -dark) */
+  --brand-text:        245 158 11;  /* #F59E0B */
+  --brand-text-soft:   252 211 77;  /* #FCD34D */
+  --brand-text-strong: 217 119  6;  /* #D97706 */
 }
 
 [data-theme="light"] {
@@ -77,6 +82,11 @@
   --info:     29  78 216;      /* #1D4ED8 */
   --warning: 146  64  14;      /* #92400E */
   --warning-soft: 245 158 11;  /* #F59E0B */
+
+  /* 흰 바탕과 10 ~ 15% 주황 상자 안에서 대비 4.5 를 넘기는 단계 */
+  --brand-text:        146  64 14;  /* #92400E */
+  --brand-text-soft:   146  64 14;  /* #92400E */
+  --brand-text-strong: 120  53 15;  /* #78350F */
 }
 
 html {

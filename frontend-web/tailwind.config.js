@@ -42,6 +42,14 @@ export default {
           strong:  'rgb(var(--line-strong) / <alpha-value>)',
         },
       },
+      // 주황 글자는 테마마다 바뀜(바탕 · 테두리의 brand 는 그대로, index.css)
+      textColor: {
+        brand: {
+          DEFAULT: 'rgb(var(--brand-text) / <alpha-value>)',
+          light: 'rgb(var(--brand-text-soft) / <alpha-value>)',
+          dark: 'rgb(var(--brand-text-strong) / <alpha-value>)',
+        },
+      },
       boxShadow: {
         'card':       '0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2)',
         'card-hover': '0 4px 16px rgba(0,0,0,0.3), 0 2px 4px rgba(0,0,0,0.2)',
