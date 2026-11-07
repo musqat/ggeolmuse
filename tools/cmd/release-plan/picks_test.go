@@ -15,7 +15,7 @@ func TestParsePicks(t *testing.T) {
 		want      map[string]string
 		wantFound bool
 	}{
-		{"버전와 체크 안 한 줄", "## 요약\n - 고친다\n\n## 빌드할 서비스\n- [x] backtest-service 1.8.0\n- [ ] user-service\n",
+		{"버전과 체크 안 한 줄", "## 요약\n - 고친다\n\n## 빌드할 서비스\n- [x] backtest-service 1.8.0\n- [ ] user-service\n",
 			map[string]string{"backtest-service": "1.8.0"}, true},
 		{"대문자 X · 버전 없음은 SHA", "## 빌드할 서비스\n- [X] frontend-web\n- [x] user-service\n",
 			map[string]string{"frontend-web": "", "user-service": ""}, true},

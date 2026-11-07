@@ -1,5 +1,6 @@
 // release-plan 은 다시 빌드 · 배포할 서비스를 고른다
 //
+//	go run ./cmd/release-plan -head "$SHA" -body pr.md     # 운영 태그부터 바뀐 서비스 가운데 PR 에서 체크한 것 · 태그
 //	go run ./cmd/release-plan -head "$SHA"                 # 운영 태그부터 바뀐 서비스
 //	git diff --name-only A B | go run ./cmd/release-plan   # 파일 목록으로
 package main
@@ -31,30 +32,55 @@ func main() {
 	head := flag.String("head", "", "릴리스할 커밋")
 	rev := flag.String("rev", "origin/master", "값 파일 리비전")
 	only := flag.String("only", "", "다시 볼 서비스(JSON 배열)")
+	body := flag.String("body", "", "머지한 PR 본문 파일(빌드할 서비스 칸)")
 	flag.Parse()
 	if *head == "" {
+		if *body != "" {
+			fail(fmt.Errorf("-body 는 -head 와 같이"))
+		}
 		write(os.Stdout, decide(readLines(os.Stdin)))
+		return
+	}
+	if *body != "" {
+		p, err := planPicksFromGit(*head, *rev, *body, os.Stderr)
+		if err != nil {
+			fail(err)
+		}
+		writePlan(os.Stdout, p)
 		return
 	}
 	picked, err := planFromGit(*head, *rev, *only)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "FAIL ", err)
-		os.Exit(1)
+		fail(err)
 	}
 	write(os.Stdout, picked)
 }
 
-func planFromGit(head, rev, only string) ([]string, error) {
+func fail(err error) {
+	fmt.Fprintln(os.Stderr, "FAIL ", err)
+	os.Exit(1)
+}
+
+// 저장소 맨 위 · 값 파일 리비전과 그 리비전의 서비스별 태그
+func openRepo(rev string) (gitRepo, map[string]values.Entry, error) {
 	top, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
 	if err != nil {
-		return nil, fmt.Errorf("git 저장소 아님: %w", err)
+		return gitRepo{}, nil, fmt.Errorf("git 저장소 아님: %w", err)
 	}
 	r := gitRepo{dir: strings.TrimSpace(string(top)), rev: rev}
 	text, err := r.show(valuesPath)
 	if err != nil {
-		return nil, err
+		return gitRepo{}, nil, err
 	}
 	entries, err := values.Find(text)
+	if err != nil {
+		return gitRepo{}, nil, err
+	}
+	return r, entries, nil
+}
+
+func planFromGit(head, rev, only string) ([]string, error) {
+	r, entries, err := openRepo(rev)
 	if err != nil {
 		return nil, err
 	}
@@ -67,11 +93,12 @@ func planFromGit(head, rev, only string) ([]string, error) {
 	return plan(entries, head, r, onlyList)
 }
 
-// 운영 커밋 · 조상 · 바뀐 파일
+// 운영 커밋 · 조상 · 바뀐 파일 · 이력의 가장 높은 버전
 type repo interface {
 	deployedCommit(e values.Entry) (string, bool)
 	isAncestor(base, head string) bool
 	changed(base, head string) ([]string, error)
+	highestVersions() (map[string]string, error)
 }
 
 // 운영 태그부터 바뀐 서비스(모르는 태그는 다시 빌드, 더 새 커밋이 나갔으면 건너뜀)
@@ -123,7 +150,7 @@ func (g gitRepo) show(path string) (string, error) {
 	return out, nil
 }
 
-// 커밋 태그는 그 커밋, 버전은 그 줄을 바꾼 커밋
+// 커밋 태그는 그 커밋, 버전은 그 줄을 바꾼 커밋(봇 커밋이면 제목 끝 괄호의 빌드한 커밋)
 func (g gitRepo) deployedCommit(e values.Entry) (string, bool) {
 	if values.TagPattern.MatchString(e.Tag) && !strings.Contains(e.Tag, ".") {
 		out, err := g.git("rev-parse", "--verify", "--quiet", e.Tag+"^{commit}")
@@ -136,7 +163,7 @@ func (g gitRepo) deployedCommit(e values.Entry) (string, bool) {
 	if err != nil || out == "" {
 		return "", false
 	}
-	return strings.Fields(out)[0], true
+	return g.builtCommit(strings.Fields(out)[0]), true
 }
 
 func (g gitRepo) isAncestor(base, head string) bool {
