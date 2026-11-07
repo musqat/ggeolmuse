@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { DcaConditionalResult } from './DcaConditionalResult'
 
 // 차트는 기간만 보임(결과에 시작일이 없으면 넘겨받은 시작일)
@@ -38,33 +39,51 @@ const props = {
   startDate: '2022-06-01',
 }
 
+const open = (title: string) => userEvent.click(screen.getByText(title))
+
 describe('DcaConditionalResult', () => {
-  it('결과 카드와 차트 사이에 매수 · 미매수 회차를 합친 매수 내역을 둔다', () => {
+  it('매수 내역은 맨 아래 접는 칸이고 제목 줄에 매수 · 미매수 횟수를 보인다', () => {
     render(<DcaConditionalResult result={{ ...result, skippedRounds: [{ date: '2022-12-15', reason: 'NO_PRICE' }] }} {...props} />)
 
-    const history = screen.getByRole('heading', { name: '매수 내역' })
-    const chart = screen.getByText('차트 시작 2023-01-01')
-    expect(history.compareDocumentPosition(chart) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(screen.getByText('매수 1회 · 미매수 1회')).toBeInTheDocument()
+    const chart = screen.getByText('주가 · 수익률 추이')
+    const history = screen.getByText('매수 내역')
+    expect(chart.compareDocumentPosition(history) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(history.closest('details')).not.toHaveAttribute('open')
+    expect(screen.getByText('· 매수 1회 · 미매수 1회')).toBeInTheDocument()
   })
 
-  it('결과의 시작일부터 평가일까지 차트를 그린다', () => {
+  it('배당 재투자는 매수 횟수에 넣지 않는다', async () => {
+    const transactions = [
+      ...result.transactions,
+      { date: '2023-05-12', shares: 0.01, price: 170, amount: 0, fxRate: 1300, trigger: '배당 재투자' },
+    ]
+    render(<DcaConditionalResult result={{ ...result, transactions }} {...props} />)
+
+    expect(screen.getByText('· 매수 1회 · 미매수 0회')).toBeInTheDocument()
+    await open('상세')
+    expect(screen.getByText('매수 횟수').nextElementSibling).toHaveTextContent('1회')
+  })
+
+  it('결과의 시작일부터 평가일까지 차트를 그린다', async () => {
     render(<DcaConditionalResult result={result} {...props} />)
+    await open('주가 · 수익률 추이')
 
     expect(screen.getByText('차트 시작 2023-01-01')).toBeInTheDocument()
     expect(screen.getByText('차트 끝 2024-01-01')).toBeInTheDocument()
   })
 
-  it('결과에 시작일이 없으면 넘겨받은 시작일부터 그린다', () => {
+  it('결과에 시작일이 없으면 넘겨받은 시작일부터 그린다', async () => {
     const { startDate: _omit, ...withoutStart } = result
     void _omit
     render(<DcaConditionalResult result={withoutStart} {...props} />)
+    await open('주가 · 수익률 추이')
 
     expect(screen.getByText('차트 시작 2022-06-01')).toBeInTheDocument()
   })
 
-  it('평가일 기준 라벨을 쓴다', () => {
+  it('평가일 기준 라벨을 쓴다', async () => {
     render(<DcaConditionalResult result={result} {...props} />)
+    await open('상세')
 
     expect(screen.getAllByText('평가 가치').length).toBeGreaterThan(0)
     expect(screen.getByText('평가일 가격')).toBeInTheDocument()
@@ -72,15 +91,17 @@ describe('DcaConditionalResult', () => {
     expect(screen.queryByText('현재 가격')).toBeNull()
   })
 
-  it('보유 주식수 · 달러 주식 평가액은 소수 둘째 자리까지 보여준다', () => {
+  it('보유 주식수 · 달러 주식 평가액은 소수 둘째 자리까지 보여준다', async () => {
     render(<DcaConditionalResult result={{ ...result, totalShares: 8.123456, currentValue: 1234.5678 }} {...props} />)
+    await open('상세')
 
     expect(screen.getByText('8.12 주')).toBeInTheDocument()
     expect(screen.getByText('$1,234.57')).toBeInTheDocument()
   })
 
-  it('위 카드 평가 가치는 배당 현금까지 넣은 총자산, 투자 정보는 주식 평가액만 보여준다', () => {
+  it('위 카드 평가 가치는 배당 현금까지 넣은 총자산, 투자 정보는 주식 평가액만 보여준다', async () => {
     render(<DcaConditionalResult result={{ ...result, currentValueKrw: 1300000 }} {...props} />)
+    await open('상세')
 
     expect(screen.getByText('주식: ₩1,300,000, 현금: ₩50,000')).toBeInTheDocument()
     expect(screen.getByText('주식 평가액').nextElementSibling).toHaveTextContent('₩1,300,000')
@@ -96,8 +117,9 @@ describe('DcaConditionalResult', () => {
     expect(screen.getByText('투자일이 휴장일이면 다음 거래일 종가로 삽니다(이번 결과 1번).')).toBeInTheDocument()
   })
 
-  it('환율은 소수 둘째 자리까지, 하락은 부호를 통화 앞에 둔다', () => {
+  it('환율은 소수 둘째 자리까지, 하락은 부호를 통화 앞에 둔다', async () => {
     render(<DcaConditionalResult result={{ ...result, currentFxRate: 1325.5, fxReturn: -30.02 }} {...props} />)
+    await open('상세')
 
     expect(screen.getByText('₩1,325.50')).toBeInTheDocument()
     expect(screen.getByText('-₩30.02')).toBeInTheDocument()

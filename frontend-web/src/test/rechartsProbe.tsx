@@ -45,4 +45,5 @@ export const Area = Line;
 
 const Nothing = () => null;
 export const CartesianGrid = Nothing;
+export const ReferenceLine = Nothing;
 export const Legend = Nothing;

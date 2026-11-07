@@ -16,14 +16,16 @@ interface ChartCardProps {
   subtitle?: string;
   period?: ChartPeriodState;
   className?: string;
+  // 카드 배경 · 테두리 없는 모양
+  plain?: boolean;
   children: React.ReactNode;
 }
 
 // 백테스트 결과 차트 카드(제목 · 부제 · 기간 버튼)
-export const ChartCard: React.FC<ChartCardProps> = ({ title, subtitle, period, className, children }) => (
-  <div className={className ? `${CARD_CLASS} ${className}` : CARD_CLASS}>
+export const ChartCard: React.FC<ChartCardProps> = ({ title, subtitle, period, className, plain = false, children }) => (
+  <div className={[plain ? '' : CARD_CLASS, className].filter(Boolean).join(' ') || undefined}>
     <div className="mb-4">
-      <h3 className="text-lg font-semibold text-tx-1">{title}</h3>
+      <h3 className={`${plain ? 'text-base' : 'text-lg'} font-semibold text-tx-1`}>{title}</h3>
       {subtitle && <p className="text-sm text-tx-2 mt-2">{subtitle}</p>}
     </div>
     {period && (

@@ -1,5 +1,4 @@
-import React from 'react';
-import { TrendingUp, DollarSign } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
 import { AccumulationChart } from '@components/charts/backtest/AccumulationChart';
 import type { StrategyResponse } from '../../../services/api';
 import { gainLossClass } from '../../../utils/gainLoss';
@@ -9,6 +8,12 @@ import { FxImpactSection } from './FxImpactSection';
 import { DetailRow, DetailSection } from './DetailSection';
 import { PurchaseHistory } from './PurchaseHistory';
 import { DefaultFxNotice } from './DefaultFxNotice';
+import type { MetricCurrency } from './CurrencyToggle';
+import { ResultFold } from './ResultFold';
+import { RiskDetail } from './RiskDetail';
+import { detailMeta, pickMetrics, purchaseCount } from './resultValues';
+import { ReturnChart } from './ReturnChart';
+import { strategyDeposits } from './assetSeries';
 
 interface DcaConditionalResultProps {
   result: StrategyResponse;
@@ -17,13 +22,19 @@ interface DcaConditionalResultProps {
   startDate: string;
 }
 
+// 적립식 · 조건부 결과: 카드 · 자산 추이, 그 아래 상세 · 주가 · 수익률 추이 · 매수 내역을 접어 둠
 export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
   result,
   symbol,
   startDate,
 }) => {
+  const [currency, setCurrency] = useState<MetricCurrency>('KRW');
+  const { metrics, other, otherLabel } = pickMetrics(result, currency);
+  const transactions = useMemo(() => result.transactions ?? [], [result.transactions]);
+  const skippedRounds = result.skippedRounds ?? [];
+  const deposits = useMemo(() => strategyDeposits(transactions), [transactions]);
   // 투자일이 휴장일이라 다른 날 산 번수
-  const moved = result.transactions?.filter((tx) => tx.actualDate && tx.actualDate !== tx.date).length ?? 0;
+  const moved = transactions.filter((tx) => tx.actualDate && tx.actualDate !== tx.date).length;
 
   return (
     <div className="space-y-6">
@@ -33,79 +44,84 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
         </p>
       )}
       <DefaultFxNotice dates={result.defaultFxDates} />
-      <ResultOverview result={result} investedLabel="총 투자금" invested={result.totalInvested} timeWeighted />
+      <ResultOverview
+        result={result}
+        investedLabel="총 투자금"
+        invested={result.totalInvested}
+        deposits={deposits}
+        currency={currency}
+        onCurrencyChange={setCurrency}
+        timeWeighted
+      />
 
-      {/* 상세 결과(투자 정보 · 주식 수익 · 환율 영향) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <DetailSection title="투자 정보" icon={DollarSign}>
-          <DetailRow label="종목" value={result.symbol} />
-          <DetailRow
-            label="기간"
-            value={
-              <>
-                {result.startDate?.toString().substring(0, 7)} ~{" "}
-                {result.endDate?.toString().substring(0, 7)}
-              </>
-            }
-          />
-          <DetailRow label="거래 횟수" value={<>{result.totalTransactions}회</>} />
-          <DetailRow
-            label="총 투자금"
-            value={<>₩{formatNumber(result.totalInvested)}</>}
-          />
-          <div className="flex justify-between py-2">
-            <span className="text-tx-2">주식 평가액</span>
-            <div className="text-right">
-              <div className="font-medium text-tx-1">
-                ₩{formatNumber(result.currentValueKrw)}
-              </div>
-              <div className="text-xs text-tx-2">
-                {result.currentValue != null && formatBalanceAmount(result.currentValue, "USD")}
+      <ResultFold
+        title="상세"
+        meta={detailMeta(metrics, formatSigned(result.fxReturnPercent, formatPercent))}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+          <RiskDetail metrics={metrics} other={other} otherLabel={otherLabel} timeWeighted />
+
+          <DetailSection title="투자 정보">
+            <DetailRow label="종목" value={result.symbol} />
+            <DetailRow
+              label="기간"
+              value={
+                <>
+                  {result.startDate?.toString().substring(0, 7)} ~ {result.endDate?.toString().substring(0, 7)}
+                </>
+              }
+            />
+            <DetailRow label="매수 횟수" value={<>{purchaseCount(transactions)}회</>} />
+            <DetailRow label="총 투자금" value={<>₩{formatNumber(result.totalInvested)}</>} />
+            <div className="flex justify-between gap-3 py-2">
+              <span className="text-tx-2">주식 평가액</span>
+              <div className="text-right">
+                <div className="font-medium text-tx-1">₩{formatNumber(result.currentValueKrw)}</div>
+                <div className="text-xs text-tx-2">
+                  {result.currentValue != null && formatBalanceAmount(result.currentValue, 'USD')}
+                </div>
               </div>
             </div>
-          </div>
-        </DetailSection>
+          </DetailSection>
 
-        <DetailSection title="주식 수익" icon={TrendingUp} iconClassName="text-gain">
-          <DetailRow label="보유 주식수" value={<>{result.totalShares?.toFixed(2)} 주</>} />
-          <DetailRow label="평균 매수가" value={<>${result.averagePrice?.toFixed(2)}</>} />
-          <DetailRow label="평가일 가격" value={<>${result.currentPrice?.toFixed(2)}</>} />
-          <DetailRow
-            label="배당금 (USD)"
-            value={<>${result.totalDividends?.toFixed(2) || "0.00"}</>}
+          <DetailSection title="주식 수익">
+            <DetailRow label="보유 주식수" value={<>{result.totalShares?.toFixed(2)} 주</>} />
+            <DetailRow label="평균 매수가" value={<>${result.averagePrice?.toFixed(2)}</>} />
+            <DetailRow label="평가일 가격" value={<>${result.currentPrice?.toFixed(2)}</>} />
+            <DetailRow label="배당금 (USD)" value={<>${result.totalDividends?.toFixed(2) || '0.00'}</>} />
+            <DetailRow
+              label="총 수익 (KRW)"
+              value={formatSigned(result.totalReturnKrw, formatKrw)}
+              valueClassName={`font-bold ${gainLossClass(result.totalReturnKrw)}`}
+            />
+            <DetailRow
+              label="수익률"
+              value={formatSigned(result.totalReturnPercent, formatPercent)}
+              valueClassName={`font-bold ${gainLossClass(result.totalReturnPercent)}`}
+              last
+            />
+          </DetailSection>
+
+          <FxImpactSection result={result} startLabel="평균 환율" startRate={result.averageFxRate} />
+        </div>
+      </ResultFold>
+
+      {transactions.length > 0 && (
+        <ResultFold title="주가 · 수익률 추이" meta="기간 고르기 · 그날 기준 수익률">
+          <AccumulationChart
+            symbol={result.symbol || symbol}
+            transactions={transactions}
+            startDate={result.startDate || startDate}
+            endDate={result.endDate ?? undefined}
           />
-          <DetailRow
-            label="총 수익 (KRW)"
-            value={
-              formatSigned(result.totalReturnKrw, formatKrw)
-            }
-            valueClassName={`font-bold ${gainLossClass(result.totalReturnKrw)}`}
-          />
-          <DetailRow
-            label="수익률"
-            value={
-              formatSigned(result.totalReturnPercent, formatPercent)
-            }
-            valueClassName={`font-bold ${gainLossClass(result.totalReturnPercent)}`}
-            last
-          />
-        </DetailSection>
+          <ReturnChart dailyValues={result.dailyValues} deposits={deposits} currency={currency} />
+        </ResultFold>
+      )}
 
-        <FxImpactSection result={result} startLabel="평균 환율" startRate={result.averageFxRate} />
-      </div>
-
-      <PurchaseHistory transactions={result.transactions ?? []} skippedRounds={result.skippedRounds ?? []} />
-
-      {/* 차트 섹션 추가 */}
-      {result.transactions && result.transactions.length > 0 && (
-        <AccumulationChart
-          symbol={result.symbol || symbol}
-          transactions={result.transactions}
-          currentValueKrw={result.currentValueKrw || 0}
-          totalInvested={result.totalInvested || 0}
-          startDate={result.startDate || startDate}
-          endDate={result.endDate ?? undefined}
-        />
+      {(transactions.length > 0 || skippedRounds.length > 0) && (
+        <ResultFold title="매수 내역" meta={`매수 ${purchaseCount(transactions)}회 · 미매수 ${skippedRounds.length}회`}>
+          <PurchaseHistory transactions={transactions} skippedRounds={skippedRounds} />
+        </ResultFold>
       )}
     </div>
   );
