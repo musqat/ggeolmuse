@@ -4,8 +4,7 @@
 
 - 구성은 kubeadm, 컨트롤 플레인 1 · 워커 2
 - 전환하면 단일 노드 k3s 를 이것으로 바꾼다. RDS · 시크릿은 그대로 쓴다
-- 전환 전에는 바뀌는 것이 없다. k3s 는 이 폴더를 읽지 않고, terraform 모듈은 `k8s_cluster_enabled` 를 켜기 전에는
-  아무것도 만들지 않는다
+- 전환 전에는 바뀌는 것이 없다. k3s 는 이 폴더를 읽지 않고, terraform 은 `k8s/terraform` 루트를 apply 하기 전에는 아무것도 만들지 않는다
 - 로컬에서는 kind 3노드로 같은 구성을 띄워 본다
 
 <br>
@@ -25,12 +24,14 @@
 | `helm/ggeolmuse` | 멀티 노드 앱 차트(운영 차트를 복사해 따로 둔 것, `values-k8s.yaml` · `values-kind.yaml` 포함) |
 | `argocd/apps` · `argocd/root.yaml` | ArgoCD 가 맞추는 Application 목록 |
 | `monitoring/*-values-k8s.yaml` | 멀티 노드 모니터링 값(운영 값 파일 위에 덧붙임) |
+| `terraform/` | EC2 셋 · 보안 그룹 · NLB · 노드 역할(`modules/k8s-cluster`), 운영 terraform 과 상태를 따로 둠 |
 
-다른 폴더
+terraform 테스트(가짜 AWS 프로바이더, AWS 에 닿지 않음)는 루트와 모듈에서 따로 돌린다.
 
-| 파일 | 하는 일 |
-|---|---|
-| [`terraform/modules/k8s-cluster`](../terraform/modules/k8s-cluster) | EC2 셋 · 보안 그룹 · NLB · 노드 역할 |
+```bash
+cd k8s/terraform && terraform init -backend=false && terraform test
+cd modules/k8s-cluster && terraform init -backend=false && terraform test
+```
 
 <br>
 
@@ -57,17 +58,17 @@
 
 노드 접속은 모두 SSM 이고, 스크립트는 노드의 `/opt/ggeolmuse/k8s/bootstrap/` 에 있다.
 
-1. terraform 에 `k8s_cluster_enabled = true` 와 서브넷 · Cloudflare 접두사 목록 · RDS 보안 그룹을 넣고 apply 한다.
+1. `k8s/terraform` 에서 `terraform.tfvars.example` 을 `terraform.tfvars` 로 복사해 서브넷 · Cloudflare 접두사 목록 · RDS 보안 그룹을 넣고 apply 한다.
    노드는 뜰 때 공통 준비를 마친다
 2. 컨트롤 플레인에서 `sudo bash control-plane.sh` 를 돌린다. 마지막 줄에 워커 join 명령이 나온다
 3. 워커 둘에서 그 join 명령을 `sudo` 로 돌린다
 4. 컨트롤 플레인에서 `bash addons.sh aws` 를 돌린다. 부품을 깔고 ArgoCD 루트 앱을 올려, 그 뒤 앱은 ArgoCD 가 맞춘다
 5. ArgoCD 화면에서 `prometheus` · `loki` · `tempo` 를 Sync 한다
 6. 앱이 워커 둘에 나뉘었는지, NLB 주소로 https 가 응답하는지 본다
-7. Cloudflare DNS 를 NLB 주소(terraform 출력 `k8s_ingress_dns_name`)로 바꾼다
+7. Cloudflare DNS 를 NLB 주소(terraform 출력 `ingress_dns_name`)로 바꾼다
 
-**되돌리기** — DNS 를 k3s EC2 로 돌린다. 같은 RDS 를 보므로 DB 는 그대로다. 멀티 노드를 지울 때는 `k8s_cluster_enabled = false` 로
-apply 한다.
+**되돌리기** — DNS 를 k3s EC2 로 돌린다. 같은 RDS 를 보므로 DB 는 그대로다. 멀티 노드를 지울 때는 `k8s/terraform` 에서
+destroy 한다.
 
 **두 클러스터가 같이 떠 있을 때** — 한쪽 앱만 켠다. 같은 RDS 를 보는 스케줄 작업이 양쪽에서 돈다.
 

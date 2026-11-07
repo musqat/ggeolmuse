@@ -1,5 +1,5 @@
 variable "project_name" {
-  description = "리소스 이름 앞에 붙는 프로젝트 이름"
+  description = "리소스 이름 앞에 오는 프로젝트 이름"
   type        = string
 }
 

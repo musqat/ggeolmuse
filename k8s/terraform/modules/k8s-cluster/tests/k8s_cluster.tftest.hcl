@@ -51,8 +51,8 @@ run "ingress" {
   command = apply
 
   assert {
-    condition     = aws_lb_listener.https.port == 443 && aws_lb_target_group.traefik.port == 30443
-    error_message = "NLB 443 → Traefik websecure 노드 포트 30443"
+    condition     = aws_lb_listener.https.port == 443 && aws_lb_target_group.gateway.port == 30443
+    error_message = "NLB 443 → Envoy Gateway https 노드 포트 30443"
   }
 
   assert {
@@ -66,7 +66,7 @@ run "ingress" {
   }
 
   assert {
-    condition     = aws_vpc_security_group_ingress_rule.nlb_to_traefik.from_port == 30443 && aws_vpc_security_group_ingress_rule.nlb_to_traefik.to_port == 30443
+    condition     = aws_vpc_security_group_ingress_rule.nlb_to_gateway.from_port == 30443 && aws_vpc_security_group_ingress_rule.nlb_to_gateway.to_port == 30443
     error_message = "노드는 NLB 에서 30443 만 받음"
   }
 }

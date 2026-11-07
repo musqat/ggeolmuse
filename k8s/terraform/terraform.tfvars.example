@@ -1,0 +1,4 @@
+# 복사해 terraform.tfvars 로(git 제외)
+subnet_id              = "subnet-0123456789abcdef0"
+ingress_prefix_list_id = "pl-0123456789abcdef0"
+rds_security_group_id  = ""

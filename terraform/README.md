@@ -52,15 +52,14 @@ terraform apply
   만들지 않고, 슬랙에 못 보내면 위 SNS 알람으로 온다
 - S3 버킷 `ggeolmuse-db-backup-apne2` + EC2 역할 쓰기 정책: 월간 pg_dump 보관 (`db-backup.tf`).
   CronJob 쪽은 `helm/ggeolmuse` 의 `dbBackup`
-- 멀티 노드 예비 클러스터 (`k8s-cluster.tf` → `modules/k8s-cluster`): `k8s_cluster_enabled = true` 일 때만 생긴다. 기본은 아무것도
-  만들지 않는다. 한 서브넷의 EC2 셋(컨트롤 플레인 1 · 워커 2), 노드 보안 그룹, Cloudflare 접두사 목록의 443 만 받는 NLB, 노드 역할
-  (시크릿 읽기 · EBS CSI · SSM). 올린 뒤 순서는 [k8s/README.md](../k8s/README.md)
 
-테스트는 가짜 AWS 프로바이더로 돈다(루트 `tests/` · 모듈 `modules/k8s-cluster/tests/`).
+멀티 노드 예비 클러스터는 이 루트에 없다. 상태를 따로 둔 [`k8s/terraform`](../k8s/terraform) 루트에 있고, 올리는 순서는 [k8s/README.md](../k8s/README.md).
+
+문법 검사와 가짜 AWS 프로바이더 plan 테스트(`tests/plan.tftest.hcl`, AWS 에 닿지 않음)는 아래 한 줄이다. 멀티 노드 쪽 테스트는
+[k8s/README.md](../k8s/README.md#파일) 에 있다.
 
 ```bash
-terraform init -backend=false && terraform test
-cd modules/k8s-cluster && terraform init -backend=false && terraform test
+terraform init -backend=false && terraform validate && terraform test
 ```
 
 ## 주의사항
@@ -69,4 +68,4 @@ cd modules/k8s-cluster && terraform init -backend=false && terraform test
 - Production 환경에서는 반드시 `terraform plan`으로 변경사항을 확인한 후 apply하세요
 - Terraform state 는 S3 `ggeolmuse-tfstate-apne2` 에 있다 (2026-09-08). 어느 기계에서든 `terraform init` 후 바로 쓴다
 - `slack_webhook_url` 은 state 에 평문으로 남는다(버킷은 암호화)
-- EC2 에 실제로 붙은 인스턴스 프로파일은 콘솔에서 만든 `ggeolmuse-ec2-role` 이다. 이 저장소의 `ggeolmuse-ec2-profile` 은 만들어져 있지만 붙어 있지 않다. `db-backup.tf` 는 그래서 인스턴스에서 역할을 따라간다
+- EC2 에 실제로 연결된 인스턴스 프로파일은 콘솔에서 만든 `ggeolmuse-ec2-role` 이다. 이 저장소의 `ggeolmuse-ec2-profile` 은 만들어져 있지만 연결돼 있지 않다. `db-backup.tf` 는 그래서 인스턴스에서 역할을 따라간다
