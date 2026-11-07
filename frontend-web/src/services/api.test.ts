@@ -10,6 +10,7 @@ interface Call {
   body?: unknown
   credentials?: boolean
   params?: unknown
+  idempotencyKey?: string
 }
 
 type Reply = { status: number; data?: unknown } | ((config: InternalAxiosRequestConfig) => { status: number; data?: unknown } | Promise<{ status: number; data?: unknown }>)
@@ -22,7 +23,7 @@ async function setup(routes: Record<string, Reply[]>) {
   const adapter: AxiosAdapter = async (config) => {
     const key = `${config.method?.toUpperCase()} ${config.url}`
     const body = typeof config.data === 'string' ? JSON.parse(config.data) : config.data
-    calls.push({ method: config.method!.toUpperCase(), url: config.url!, auth: config.headers?.Authorization as string | undefined, body, credentials: config.withCredentials, params: config.params })
+    calls.push({ method: config.method!.toUpperCase(), url: config.url!, auth: config.headers?.Authorization as string | undefined, body, credentials: config.withCredentials, params: config.params, idempotencyKey: config.headers?.['Idempotency-Key'] as string | undefined })
     const queue = routes[key]
     if (!queue?.length) throw new Error(`준비 안 된 요청: ${key}`)
     const next = queue.length > 1 ? queue.shift()! : queue[0]
@@ -174,6 +175,26 @@ describe('api 응답 인터셉터 · 401', () => {
     expect(calls[1].credentials).toBe(true)
     expect(localStorage.getItem('accessToken')).toBe('NEW')
     expect(logouts).toBe(0)
+  })
+
+  it('토큰을 갱신한 뒤 다시 보낸 매수 · 매도도 같은 중복 요청 키를 싣는다', async () => {
+    localStorage.setItem('accessToken', 'OLD')
+    const { api, calls } = await setup({
+      'POST /trade/buy': [{ status: 401 }, { status: 200, data: { id: 1 } }],
+      'POST /trade/sell': [{ status: 401 }, { status: 200, data: { id: 2 } }],
+      'POST /auth/refresh': [{ status: 200, data: { accessToken: 'NEW', expiresIn: 3600 } }],
+    })
+    const order = { accountId: 3, symbol: 'AAPL', quantity: 1, tradeDate: '2026-11-06', priceType: 'CLOSE' as const }
+
+    await api.tradeApi.buy(order, 'key-buy')
+    await api.tradeApi.sell(order, 'key-sell')
+
+    expect(calls.filter((c) => c.url.startsWith('/trade/')).map((c) => `${c.url} ${c.auth} ${c.idempotencyKey}`)).toEqual([
+      '/trade/buy Bearer OLD key-buy',
+      '/trade/buy Bearer NEW key-buy',
+      '/trade/sell Bearer NEW key-sell',
+      '/trade/sell Bearer NEW key-sell',
+    ])
   })
 
   it('갱신하는 동안 온 401 은 기다렸다가 새 토큰으로 다시 보낸다. 갱신은 한 번만 한다', async () => {

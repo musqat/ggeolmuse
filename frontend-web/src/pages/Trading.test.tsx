@@ -94,7 +94,7 @@ describe('Trading 주문', () => {
 
     await waitFor(() => expect(tradeApi.buy).toHaveBeenCalledWith({
       accountId: 3, symbol: 'AAPL', quantity: 10, tradeDate: '2026-10-09', priceType: 'CLOSE', manualPrice: undefined,
-    }))
+    }, expect.any(String)))
     expect(alertSpy).toHaveBeenCalledWith(expect.stringContaining('매수 주문이 체결되었습니다.'))
     // 잔고 · 보유가 바뀌어 거래 · 계좌 쪽 조회를 다시 받음
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['trade'] })
@@ -182,7 +182,7 @@ describe('Trading 주문', () => {
     await userEvent.click(screen.getAllByRole('button', { name: '매도' })[0])
     await userEvent.click(submitButton())
 
-    await waitFor(() => expect(tradeApi.sell).toHaveBeenCalledWith(expect.objectContaining({ symbol: 'AAPL', priceType: 'CLOSE' })))
+    await waitFor(() => expect(tradeApi.sell).toHaveBeenCalledWith(expect.objectContaining({ symbol: 'AAPL', priceType: 'CLOSE' }), expect.any(String)))
     expect(tradeApi.buy).not.toHaveBeenCalled()
   })
 
@@ -206,7 +206,7 @@ describe('Trading 주문', () => {
     await setLimitPrice('104.5')
     await userEvent.click(submitButton())
 
-    await waitFor(() => expect(tradeApi.buy).toHaveBeenCalledWith(expect.objectContaining({ priceType: 'MANUAL', manualPrice: 104.5 })))
+    await waitFor(() => expect(tradeApi.buy).toHaveBeenCalledWith(expect.objectContaining({ priceType: 'MANUAL', manualPrice: 104.5 }), expect.any(String)))
   })
 
   it('서버가 거절하면 서버 문구로 실패를 알린다', async () => {

@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { accountsApi } from '../services/api';
 import { getApiErrorMessage } from '../utils/apiError';
+import { createIdempotencyKeys } from '../utils/idempotencyKey';
 import { notify } from '@/components/common/notify';
 
 interface CreateAccountParams {
@@ -38,6 +39,8 @@ export const useAccountOperations = (
   onSuccess?: () => Promise<void>
 ): UseAccountOperationsReturn => {
   const [loading, setLoading] = useState(false);
+  // 입금 · 환전의 중복 요청 키(실패한 요청을 그대로 다시 보내면 같은 키)
+  const keys = useRef(createIdempotencyKeys()).current;
 
   // 로딩 → API → 다시 불러오기 → 성공 알림, 실패면 '{label}에 실패했습니다: …' 알림 뒤 예외를 다시 냄
   const run = async (label: string, successMessage: string, call: () => Promise<unknown>) => {
@@ -86,9 +89,11 @@ export const useAccountOperations = (
       throw new Error('올바른 금액을 입력해주세요.');
     }
 
+    const key = keys.keyFor({ operation: 'deposit', accountId, amount });
     await run('입금', '입금이 완료되었습니다.', () =>
-      accountsApi.depositKrw(accountId, { krwAmount: amount })
+      accountsApi.depositKrw(accountId, { krwAmount: amount }, key)
     );
+    keys.reset();
   };
 
   const exchangeCurrency = async ({
@@ -105,14 +110,16 @@ export const useAccountOperations = (
       throw new Error('올바른 환율을 입력해주세요.');
     }
 
+    const key = keys.keyFor({ operation: 'exchange', accountId, fromCurrency, amount, exchangeRate });
     await run('환전', '환전이 완료되었습니다.', () =>
       accountsApi.exchangeCurrency(accountId, {
         fromCurrency,
         toCurrency: fromCurrency === 'KRW' ? 'USD' : 'KRW',
         originalAmount: amount,
         exchangeRate
-      })
+      }, key)
     );
+    keys.reset();
   };
 
   const deleteAccount = ({ accountId }: DeleteAccountParams) =>

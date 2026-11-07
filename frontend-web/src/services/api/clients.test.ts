@@ -11,6 +11,7 @@ interface Call {
   url: string
   body?: unknown
   credentials?: boolean
+  idempotencyKey?: string
 }
 
 interface Case {
@@ -28,7 +29,10 @@ async function setup() {
   const calls: Call[] = []
   const adapter: AxiosAdapter = async (config) => {
     const body = typeof config.data === 'string' ? JSON.parse(config.data) : config.data
-    calls.push({ method: config.method!.toUpperCase(), url: config.url!, body, credentials: config.withCredentials })
+    calls.push({
+      method: config.method!.toUpperCase(), url: config.url!, body, credentials: config.withCredentials,
+      idempotencyKey: config.headers?.['Idempotency-Key'] as string | undefined,
+    })
     return { data: { ok: true }, status: 200, statusText: 'OK', headers: {}, config, request: {} }
   }
   axios.defaults.adapter = adapter
@@ -72,5 +76,15 @@ describe('계좌 · 인증 API 요청', () => {
     expect(calls[0]).toMatchObject({ method, url })
     expect(calls[0].body).toEqual(body)
     if (credentials) expect(calls[0].credentials).toBe(true)
+  })
+
+  it('입금 · 환전은 받은 중복 요청 키를 헤더로 싣고, 키가 없으면 헤더도 없다', async () => {
+    const { modules, calls } = await setup()
+
+    await modules.accounts.accountsApi.depositKrw(3, { krwAmount: 50000 }, 'key-deposit')
+    await modules.accounts.accountsApi.exchangeCurrency(3, exchange, 'key-exchange')
+    await modules.accounts.accountsApi.depositKrw(3, { krwAmount: 50000 })
+
+    expect(calls.map((c) => c.idempotencyKey)).toEqual(['key-deposit', 'key-exchange', undefined])
   })
 })

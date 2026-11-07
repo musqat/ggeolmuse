@@ -4,6 +4,8 @@ import { tradeApi } from '../services/api';
 import { calculateExecutionPrice, toBackendPriceType, validatePriceRange, type OHLCData, type PriceType } from '../utils/priceUtils';
 import { formatTradeResult } from '../utils/tradeResult';
 import { getApiErrorMessage } from '../utils/apiError';
+import { createIdempotencyKeys } from '../utils/idempotencyKey';
+import { cancelReasonLabel } from '../utils/tradeStatus';
 import { notify } from '@/components/common/notify';
 
 // 정산 전 매수 뒤 보유 · 거래를 한 번 더 받을 때까지
@@ -36,6 +38,8 @@ export const useTradeOrder = ({
   const executionPrice = calculateExecutionPrice(priceType, ohlc, Number(limitPrice));
   const [submitting, setSubmitting] = useState(false);
   const inFlight = useRef(false);
+  // 주문의 중복 요청 키(실패한 주문을 그대로 다시 보내면 같은 키)
+  const keys = useRef(createIdempotencyKeys()).current;
 
   // 주문 요청이 끝날 때까지 다시 보내지 않음
   const submit = async (): Promise<boolean> => {
@@ -70,14 +74,21 @@ export const useTradeOrder = ({
         manualPrice: priceType === 'limit' ? executionPrice : undefined,
       };
 
+      const key = keys.keyFor({ orderType, ...order });
       const { data: trade } = orderType === 'buy'
-        ? await tradeApi.buy(order)
-        : await tradeApi.sell(order);
+        ? await tradeApi.buy(order, key)
+        : await tradeApi.sell(order, key);
+      keys.reset();
       // 잔고와 보유가 바뀌어 매수·매도 가능 수량 · 거래 내역 · 계좌 잔액과 총자산을 다시 받음
       void queryClient.invalidateQueries({ queryKey: ['trade'] });
       void queryClient.invalidateQueries({ queryKey: ['account'] });
       // 진행 중인 계좌 목록 요청은 취소하지 않고 같이 씀
       void queryClient.invalidateQueries({ queryKey: ['accounts'] }, { cancelRefetch: false });
+      // 같은 키로 다시 받은 체결이 그새 잔액 반영 실패로 취소된 경우
+      if (trade.status === 'CANCELLED') {
+        notify.error(`주문 실패: 체결이 취소되었습니다(${cancelReasonLabel(trade.cancelReason)})`);
+        return false;
+      }
       // 정산 전 매수는 정산이 끝나야 보유에 들어가 잠시 뒤 한 번 더 받음
       if (trade.status === 'PENDING') {
         setTimeout(() => {
