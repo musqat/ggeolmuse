@@ -9,11 +9,9 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/musqat/ggeolmuse/tools/internal/release"
 	"github.com/musqat/ggeolmuse/tools/internal/values"
 )
-
-// 릴리스 봇 커밋 제목 끝의 빌드한 커밋(chore(release): … (0123456))
-var builtSuffix = regexp.MustCompile(`^chore\(release\):.*\(([0-9a-f]{7,40})\)\s*$`)
 
 // 커밋 SHA(7 ~ 40자리)
 var commitSHA = regexp.MustCompile(`^[0-9a-f]{7,40}$`)
@@ -47,26 +45,40 @@ func planPicks(entries map[string]values.Entry, head string, r repo, picks map[s
 			p.unchanged = append(p.unchanged, svc)
 		}
 	}
-	var highest map[string]string
 	for _, svc := range p.services {
-		version := picks[svc]
-		if version == "" {
+		if version := picks[svc]; version != "" {
+			p.tags[svc] = version
+		} else {
 			p.tags[svc] = head[:min(7, len(head))]
+		}
+	}
+	if err := checkFloors(r, p.services, p.tags); err != nil {
+		return releasePlan{}, err
+	}
+	return p, nil
+}
+
+// checkFloors 는 버전 태그가 운영 값 파일 이력의 가장 높은 버전 이하면 오류(커밋 태그는 안 봄)
+func checkFloors(r repo, svcs []string, tags map[string]string) error {
+	var highest map[string]string
+	for _, svc := range svcs {
+		version := tags[svc]
+		if !deployedVersion.MatchString(version) {
 			continue
 		}
 		if highest == nil {
+			var err error
 			if highest, err = r.highestVersions(); err != nil {
-				return releasePlan{}, err
+				return err
 			}
 		}
 		if floor, ok := highest[svc]; ok {
 			if cmp, ok := compareVersions(version, floor); ok && cmp <= 0 {
-				return releasePlan{}, fmt.Errorf("%s 버전 %s: 운영 값 파일 이력의 가장 높은 버전 %s 이하라 낼 수 없음", svc, version, floor)
+				return fmt.Errorf("%s 버전 %s: 운영 값 파일 이력의 가장 높은 버전 %s 이하라 낼 수 없음", svc, version, floor)
 			}
 		}
-		p.tags[svc] = version
 	}
-	return p, nil
+	return nil
 }
 
 // planPicksFromGit 은 머지한 PR 본문 파일의 빌드할 서비스 칸으로 고른 릴리스 계획
@@ -149,11 +161,11 @@ func (g gitRepo) builtCommit(commit string) string {
 	if err != nil {
 		return commit
 	}
-	m := builtSuffix.FindStringSubmatch(subject)
-	if m == nil {
+	short, ok := release.BuiltCommit(subject)
+	if !ok {
 		return commit
 	}
-	built, err := g.git("rev-parse", "--verify", "--quiet", m[1]+"^{commit}")
+	built, err := g.git("rev-parse", "--verify", "--quiet", short+"^{commit}")
 	if err != nil || built == "" {
 		return commit
 	}

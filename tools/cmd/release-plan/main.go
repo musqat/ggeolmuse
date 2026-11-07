@@ -2,6 +2,7 @@
 //
 //	go run ./cmd/release-plan -head "$SHA" -body pr.md     # 운영 태그부터 바뀐 서비스 가운데 PR 에서 체크한 것 · 태그
 //	go run ./cmd/release-plan -head "$SHA"                 # 운영 태그부터 바뀐 서비스
+//	go run ./cmd/release-plan -head "$SHA" -only "$SERVICES" -tags "$TAGS"   # 배포 직전 다시 고름(버전 하한 확인)
 //	git diff --name-only A B | go run ./cmd/release-plan   # 파일 목록으로
 package main
 
@@ -33,6 +34,7 @@ func main() {
 	rev := flag.String("rev", "origin/master", "값 파일 리비전")
 	only := flag.String("only", "", "다시 볼 서비스(JSON 배열)")
 	body := flag.String("body", "", "머지한 PR 본문 파일(빌드할 서비스 칸)")
+	tags := flag.String("tags", "", "다시 볼 서비스별 태그(JSON 객체, 버전이면 하한 확인)")
 	flag.Parse()
 	if *head == "" {
 		if *body != "" {
@@ -49,7 +51,7 @@ func main() {
 		writePlan(os.Stdout, p)
 		return
 	}
-	picked, err := planFromGit(*head, *rev, *only)
+	picked, err := planFromGit(*head, *rev, *only, *tags)
 	if err != nil {
 		fail(err)
 	}
@@ -79,7 +81,7 @@ func openRepo(rev string) (gitRepo, map[string]values.Entry, error) {
 	return r, entries, nil
 }
 
-func planFromGit(head, rev, only string) ([]string, error) {
+func planFromGit(head, rev, only, tags string) ([]string, error) {
 	r, entries, err := openRepo(rev)
 	if err != nil {
 		return nil, err
@@ -90,7 +92,25 @@ func planFromGit(head, rev, only string) ([]string, error) {
 			return nil, fmt.Errorf("-only 는 JSON 배열: %w", err)
 		}
 	}
-	return plan(entries, head, r, onlyList)
+	var tagMap map[string]string
+	if tags != "" {
+		if err := json.Unmarshal([]byte(tags), &tagMap); err != nil {
+			return nil, fmt.Errorf("-tags 는 JSON 객체: %w", err)
+		}
+	}
+	return planStill(entries, head, r, onlyList, tagMap)
+}
+
+// planStill 은 운영 태그부터 바뀐 서비스(그 가운데 버전 태그가 운영 이력의 가장 높은 버전 이하면 오류)
+func planStill(entries map[string]values.Entry, head string, r repo, only []string, tags map[string]string) ([]string, error) {
+	picked, err := plan(entries, head, r, only)
+	if err != nil {
+		return nil, err
+	}
+	if err := checkFloors(r, picked, tags); err != nil {
+		return nil, err
+	}
+	return picked, nil
 }
 
 // 운영 커밋 · 조상 · 바뀐 파일 · 이력의 가장 높은 버전

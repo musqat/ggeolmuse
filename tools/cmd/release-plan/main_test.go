@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/musqat/ggeolmuse/tools/internal/release"
 	"github.com/musqat/ggeolmuse/tools/internal/values"
 )
 
@@ -136,6 +137,38 @@ func TestPlanPicksVersionFloor(t *testing.T) {
 	}
 }
 
+// 배포 직전 다시 볼 때도 같은 하한(커밋 태그 · 태그 없는 서비스는 안 봄)
+func TestCheckFloors(t *testing.T) {
+	_, repo := planFixture()
+	tags := map[string]string{"user-service": "1.7.0", "chat-service": "0123456"}
+	err := checkFloors(repo, []string{"user-service", "chat-service"}, tags)
+	if err == nil || !strings.Contains(err.Error(), "user-service 버전 1.7.0") {
+		t.Fatalf("오류 %v, 기대에 user-service 버전 1.7.0", err)
+	}
+	if err := checkFloors(repo, []string{"chat-service", "frontend-web"}, tags); err != nil {
+		t.Fatalf("커밋 태그 · 태그 없는 서비스는 하한 없음: %v", err)
+	}
+	if err := checkFloors(repo, []string{"user-service"}, map[string]string{"user-service": "1.7.1"}); err != nil {
+		t.Fatalf("가장 높은 버전보다 높으면 됨: %v", err)
+	}
+}
+
+// 다시 고른 서비스만 하한을 봄(안 바뀐 frontend 는 버전이 낮아도 통과)
+func TestPlanStill(t *testing.T) {
+	entries, repo := planFixture()
+	only := []string{"user-service", "frontend-web"}
+	if _, err := planStill(entries, "head", repo, only, map[string]string{"user-service": "1.7.0"}); err == nil {
+		t.Fatal("가장 높은 버전 이하인데 오류 없음")
+	}
+	got, err := planStill(entries, "head", repo, only, map[string]string{"user-service": "1.8.0", "frontend-web": "1.0.0"})
+	if err != nil || !slices.Equal(got, []string{"user-service"}) {
+		t.Fatalf("고른 서비스 %v · 오류 %v, 기대 [user-service]", got, err)
+	}
+	if got, err := planStill(entries, "head", repo, only, nil); err != nil || !slices.Equal(got, []string{"user-service"}) {
+		t.Fatalf("태그 없이 고른 서비스 %v · 오류 %v", got, err)
+	}
+}
+
 func TestPlanPicksHeadMustBeCommit(t *testing.T) {
 	entries, repo := planFixture()
 	_, err := planPicks(entries, "origin/master", repo, map[string]string{"user-service": ""})
@@ -232,7 +265,7 @@ func TestGitRepo(t *testing.T) {
 	git("commit", "-qm", "old")
 	put(valuesPath, "services:\n  userService:\n    image:\n      tag: \"1.7.0\"\n")
 	git("commit", "-qam", "release")
-	release := git("rev-parse", "HEAD")
+	released := git("rev-parse", "HEAD")
 	if err := os.MkdirAll(filepath.Join(dir, "backend", "trade-service"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -251,16 +284,16 @@ func TestGitRepo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, ok := r.deployedCommit(entries["user-service"]); !ok || got != release {
-		t.Fatalf("버전 태그 커밋 %q, 기대 %q", got, release)
+	if got, ok := r.deployedCommit(entries["user-service"]); !ok || got != released {
+		t.Fatalf("버전 태그 커밋 %q, 기대 %q", got, released)
 	}
 	if got, ok := r.deployedCommit(values.Entry{Tag: head[:7]}); !ok || got != head {
 		t.Fatalf("커밋 태그 %q, 기대 %q", got, head)
 	}
-	if !r.isAncestor(release, head) || r.isAncestor(head, release) {
+	if !r.isAncestor(released, head) || r.isAncestor(head, released) {
 		t.Fatal("조상 판단 틀림")
 	}
-	files, err := r.changed(release, head)
+	files, err := r.changed(released, head)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -279,7 +312,7 @@ func TestGitRepo(t *testing.T) {
 	git("add", "-A")
 	git("commit", "-qm", "merged later")
 	put(valuesPath, "services:\n  userService:\n    image:\n      tag: \"1.8.0\"\n")
-	git("commit", "-qam", "chore(release): user-service 1.8.0 ("+built[:7]+")")
+	git("commit", "-qam", release.Subject([]string{"user-service"}, map[string]string{"user-service": "1.8.0"}, built))
 	text, err = r.show(valuesPath)
 	if err != nil {
 		t.Fatal(err)
