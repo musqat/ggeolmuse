@@ -38,17 +38,20 @@ func main() {
 	tags := flag.String("tags", "", "다시 볼 서비스별 태그(JSON 객체, 버전이면 하한 확인)")
 	list := flag.String("picks", "", "손 릴리스로 낼 서비스와 버전(쉼표로 나눔)")
 	flag.Parse()
-	if *body != "" && *list != "" {
+	// 빈 값으로 준 -picks 도 손 릴리스(목록 검사에서 실패)
+	picksSet := false
+	flag.Visit(func(f *flag.Flag) { picksSet = picksSet || f.Name == "picks" })
+	if *body != "" && picksSet {
 		fail(fmt.Errorf("-body 와 -picks 는 하나만"))
 	}
 	if *head == "" {
-		if *body != "" || *list != "" {
+		if *body != "" || picksSet {
 			fail(fmt.Errorf("-body · -picks 는 -head 와 같이"))
 		}
 		write(os.Stdout, decide(readLines(os.Stdin)))
 		return
 	}
-	if *body != "" || *list != "" {
+	if *body != "" || picksSet {
 		var picks map[string]string
 		var err error
 		if *body != "" {

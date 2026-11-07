@@ -35,32 +35,41 @@ var deployedVersion = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
 // parsePicks 는 빌드할 서비스 칸에서 체크한 서비스와 버전(빈 값이면 SHA 7자리), 칸을 찾았는지
 func parsePicks(body string) (map[string]string, bool, error) {
 	picks := map[string]string{}
-	found, inSection, inComment := false, false, false
-	fence := ""
+	found, inSection, inComment, inList, commentQuote, fenceTitle := false, false, false, false, false, false
+	fence, commentCol := "", 0
 	for _, raw := range strings.Split(strings.ReplaceAll(body, "\r\n", "\n"), "\n") {
 		line := strings.TrimSpace(raw)
+		// 목록 · 인용 안에서 연 주석은 닫히기 전에 덜 들여 쓴 줄이 오면 항목이 끝나 GitHub 화면에서 뒤가 다 숨겨짐
 		if inComment {
+			if line != "" && indentOf(raw) < commentCol && !(commentQuote && strings.HasPrefix(line, ">")) {
+				return nil, false, fmt.Errorf("목록 · 인용 안에서 연 여러 줄 주석이 항목 밖까지 이어짐(항목 안에서 닫음): %q", line)
+			}
 			inComment = !strings.Contains(line, "-->")
 			continue
 		}
 		// 펜스는 같은 글자 · 같거나 긴 길이 · 뒤에 글 없는 줄에서만 닫힘, 백틱 info 에 백틱이 있으면 펜스 아님
 		if f := fenceLine.FindStringSubmatch(line); fence != "" {
 			if f != nil && f[1][0] == fence[0] && len(f[1]) >= len(fence) && strings.TrimSpace(f[2]) == "" {
-				fence = ""
+				fence, fenceTitle = "", false
+			} else if h := headingLine.FindStringSubmatch(line); h != nil && strings.Join(strings.Fields(h[2]), " ") == picksTitle {
+				fenceTitle = true
 			}
 			continue
 		} else if f != nil && !(f[1][0] == '`' && strings.Contains(f[2], "`")) {
 			fence = f[1]
 			continue
 		}
-		// 줄 머리에서 여는 주석은 --> 가 있는 줄까지 숨김(GitHub 의 HTML 블록과 같음)
+		// 줄 머리에서 여는 주석은 --> 가 있는 줄까지 숨김(GitHub 의 HTML 블록과 같음), 목록 · 인용 안이면 내용 열을 기억
 		if rest := containerMarks.ReplaceAllString(line, ""); strings.HasPrefix(rest, "<!--") {
-			closed := strings.Contains(rest, "-->")
-			if !closed && (rest != line || raw != strings.TrimLeft(raw, " \t")) {
-				return nil, false, fmt.Errorf("목록 · 인용 · 들여 쓴 줄에서 여는 여러 줄 주석은 쓸 수 없음(그 줄에서 닫음): %q", line)
+			inComment = !strings.Contains(rest, "-->")
+			commentCol, commentQuote = 0, strings.HasPrefix(line, ">")
+			if rest != line || (indentOf(raw) > 0 && inList) {
+				commentCol = strings.Index(raw, "<!--")
 			}
-			inComment = !closed
 			continue
+		}
+		if line != "" {
+			inList = containerMarks.MatchString(line) || (indentOf(raw) > 0 && inList)
 		}
 		line = strings.TrimSpace(htmlComment.ReplaceAllString(line, ""))
 		if h := headingLine.FindStringSubmatch(line); h != nil {
@@ -93,7 +102,15 @@ func parsePicks(body string) (map[string]string, bool, error) {
 		}
 		picks[svc] = version
 	}
+	if fence != "" && fenceTitle {
+		return nil, false, fmt.Errorf("닫히지 않은 코드 블록 안에 빌드할 서비스 칸 제목이 있음(코드 블록을 닫음)")
+	}
 	return picks, found, nil
+}
+
+// 줄 머리 공백 수
+func indentOf(s string) int {
+	return len(s) - len(strings.TrimLeft(s, " \t"))
 }
 
 // parseList 는 손 릴리스의 쉼표 목록(서비스, 뒤에 버전)을 빌드할 서비스 칸과 같은 검사로 읽음
