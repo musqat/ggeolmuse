@@ -7,7 +7,7 @@
 **5가지 투자 전략**
 - **Simple**: 일시불 투자 (특정 시점 일괄 매수)
 - **DCA**: 적립식 투자 (Dollar Cost Averaging, 정기 분할 매수)
-- **Conditional**: 조건부 매수 (가격 조건 기반 자동 매수)
+- **Conditional**: 조건부 매수 (가격 조건 기반 자동 매수, 켜면 평균 단가 기준 익절 · 손절 전량 매도 뒤 판 돈부터 다시 매수)
 - **Strategy Comparison**: 전략 간 성과 비교
 - **Symbol Comparison**: 종목 간 성과 비교
 

@@ -251,6 +251,8 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
         .dropPercentage(strategyConfig.getDropPercentage())
         .direction(strategyConfig.getDirection())
         .maxPurchases(strategyConfig.getMaxPurchases())
+        .takeProfitRate(strategyConfig.getTakeProfitRate())
+        .stopLossRate(strategyConfig.getStopLossRate())
         .purchaseFxRate(request.getPurchaseFxRate())
         .currentFxRate(request.getCurrentFxRate())
         .reinvestDividends(reinvests(request))

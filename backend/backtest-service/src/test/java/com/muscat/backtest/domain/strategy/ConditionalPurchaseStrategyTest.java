@@ -865,6 +865,168 @@ class ConditionalPurchaseStrategyTest {
       assertThat(executed()).singleElement().extracting(StrategyTransaction::getAmount)
         .satisfies(amount -> assertThat(amount).isEqualByComparingTo("100000"));
     }
+
+    @Nested
+    @DisplayName("익절 · 손절")
+    class TakeProfitStopLossTests {
+
+      // 회당 1000달러(환율 1300 고정) · 수수료 없음, 첫날 종가 100 에 10주
+      private ConditionalStrategyRequest.ConditionalStrategyRequestBuilder selling(int days, int maxPurchases) {
+        return perPurchase(days, maxPurchases).purchaseFxRate(new BigDecimal("1300"));
+      }
+
+      private List<Tuple> trades() {
+        return executed().stream()
+          .map(tx -> tuple(tx.getPrice().stripTrailingZeros().toPlainString(), tx.getTrigger(), tx.getShares().signum()))
+          .toList();
+      }
+
+      @Test
+      @DisplayName("고가가 평균 단가 × (1 + 익절 비율) 에 닿으면 그 값에 전량 팔고 실현 손익을 남긴다")
+      void sellsAtTakeProfitTrigger() {
+        ConditionalStrategyRequest request = selling(2, 10).takeProfitRate(new BigDecimal("0.1")).build();
+        stubMarket(request, List.of(day(0, "100"), candle(1, "101", "111", "100", "105")), false);
+
+        strategy.execute(request);
+
+        assertThat(trades()).containsExactly(tuple("100", "초기매수", 1), tuple("110", "10.0%익절", -1));
+        StrategyTransaction sale = executed().getLast();
+        assertThat(sale.getShares()).isEqualByComparingTo("-10");
+        assertThat(sale.getAmount()).isEqualByComparingTo("0");
+        assertThat(sale.getProceeds()).isEqualByComparingTo("1100");
+        assertThat(sale.getRealizedProfit()).isEqualByComparingTo("100");
+      }
+
+      @Test
+      @DisplayName("시가부터 익절 기준가 위면 시가에 판다")
+      void sellsAtOpenWhenGapAbove() {
+        ConditionalStrategyRequest request = selling(2, 10).takeProfitRate(new BigDecimal("0.1")).build();
+        stubMarket(request, List.of(day(0, "100"), candle(1, "115", "116", "112", "114")), false);
+
+        strategy.execute(request);
+
+        assertThat(trades()).containsExactly(tuple("100", "초기매수", 1), tuple("115", "15.0%익절", -1));
+      }
+
+      @Test
+      @DisplayName("저가가 손절 기준가에 닿으면 그 값에 팔고, 그날은 하락 매수 조건이 맞아도 사지 않는다")
+      void stopLossBlocksSameDayBuy() {
+        ConditionalStrategyRequest request = selling(2, 10).stopLossRate(new BigDecimal("0.1")).build();
+        // 전날 종가 100 이라 하락 기준가도 90
+        stubMarket(request, List.of(day(0, "100"), candle(1, "95", "96", "89", "92")), false);
+
+        strategy.execute(request);
+
+        assertThat(trades()).containsExactly(tuple("100", "초기매수", 1), tuple("90", "10.0%손절", -1));
+      }
+
+      @Test
+      @DisplayName("같은 날 익절 · 손절 기준가에 모두 닿고 시가가 둘 사이면 손절로 판다")
+      void bothTouchedSellsAtStopLoss() {
+        ConditionalStrategyRequest request = selling(2, 10).takeProfitRate(new BigDecimal("0.05"))
+          .stopLossRate(new BigDecimal("0.05")).build();
+        stubMarket(request, List.of(day(0, "100"), candle(1, "100", "106", "94", "100")), false);
+
+        strategy.execute(request);
+
+        assertThat(trades()).containsExactly(tuple("100", "초기매수", 1), tuple("95", "5.0%손절", -1));
+      }
+
+      @Test
+      @DisplayName("산 날은 고가가 익절 기준가 위여도 팔지 않는다")
+      void noSellOnBuyDay() {
+        ConditionalStrategyRequest request = selling(2, 10).takeProfitRate(new BigDecimal("0.05")).build();
+        stubMarket(request, List.of(candle(0, "100", "120", "99", "100"), day(1, "100")), false);
+
+        strategy.execute(request);
+
+        assertThat(trades()).containsExactly(tuple("100", "초기매수", 1));
+      }
+
+      @Test
+      @DisplayName("판 뒤 다음 하락 매수는 판 돈을 먼저 쓰고 모자란 만큼만 새로 넣는다")
+      void rebuyUsesCashFirst() {
+        ConditionalStrategyRequest request = selling(3, 10).stopLossRate(new BigDecimal("0.1")).build();
+        // 2일째 90 에 손절(900달러), 3일째 전날 종가 92 의 하락 기준가 82.8 에 1000달러어치
+        stubMarket(request, List.of(day(0, "100"), candle(1, "95", "96", "89", "92"), bar(2, "83", "82", "85")), false);
+
+        strategy.execute(request);
+
+        assertThat(trades()).containsExactly(tuple("100", "초기매수", 1), tuple("90", "10.0%손절", -1),
+          tuple("82.8", "10.0%하락", 1));
+        StrategyTransaction rebuy = executed().getLast();
+        assertThat(rebuy.getCashUsed()).isEqualByComparingTo("900");
+        // 모자란 100달러 × 1300
+        assertThat(rebuy.getAmount()).isEqualByComparingTo("130000");
+      }
+
+      @Test
+      @DisplayName("새 돈을 넣은 회차만 횟수에 세고, 켜면 마지막 매수 뒤에도 끝까지 보고 판 돈으로만 다시 산다")
+      void runsToEndAfterMaxPurchases() {
+        ConditionalStrategyRequest request = selling(5, 1).takeProfitRate(new BigDecimal("0.1")).build();
+        // 3일째 110 에 익절(1100달러), 4일째 전날 종가 105 의 하락 기준가 94.5 아래 시가 94
+        stubMarket(request, List.of(day(0, "100"), day(1, "100"), candle(2, "101", "111", "100", "105"),
+          bar(3, "94", "94", "95"), day(4, "95")), false);
+
+        strategy.execute(request);
+
+        assertThat(trades()).containsExactly(tuple("100", "초기매수", 1), tuple("110", "10.0%익절", -1),
+          tuple("94", "10.5%하락", 1));
+        StrategyTransaction rebuy = executed().getLast();
+        assertThat(rebuy.getAmount()).isEqualByComparingTo("0");
+        assertThat(rebuy.getCashUsed()).isEqualByComparingTo("1000");
+      }
+
+      @Test
+      @DisplayName("매도 수수료를 떼고, 실현 손익은 매수 수수료까지 든 원가를 뺀 값이다")
+      void sellFee() {
+        ConditionalStrategyRequest request = selling(2, 10).takeProfitRate(new BigDecimal("0.1"))
+          .tradingFeeRate(new BigDecimal("0.01")).build();
+        // 매수 수수료 10달러로 9.9주, 평균 단가 101.0101 → 기준가 111.1111
+        stubMarket(request, List.of(day(0, "100"), candle(1, "105", "112", "104", "110")), false);
+
+        strategy.execute(request);
+
+        StrategyTransaction sale = executed().getLast();
+        assertThat(sale.getFee()).isEqualByComparingTo("11.00");
+        assertThat(sale.getProceeds()).isCloseTo(new BigDecimal("1089"), org.assertj.core.data.Offset.offset(new BigDecimal("0.01")));
+        assertThat(sale.getRealizedProfit()).isEqualByComparingTo(sale.getProceeds().subtract(new BigDecimal("1000")));
+      }
+
+      @Test
+      @DisplayName("두 비율을 비우면 크게 올라도 팔지 않고 이전과 같이 산다")
+      void noRatesNoSell() {
+        ConditionalStrategyRequest request = selling(2, 10).build();
+        stubMarket(request, List.of(day(0, "100"), candle(1, "101", "130", "100", "125")), false);
+
+        strategy.execute(request);
+
+        assertThat(executed()).singleElement().satisfies(tx -> {
+          assertThat(tx.getCashUsed()).isNull();
+          assertThat(tx.getProceeds()).isNull();
+        });
+      }
+
+      @Test
+      @DisplayName("배당 재투자와 함께 켜면 막는다")
+      void rejectsWithReinvest() {
+        ConditionalStrategyRequest request = selling(2, 10).takeProfitRate(new BigDecimal("0.1"))
+          .reinvestDividends(true).build();
+
+        assertThatThrownBy(() -> strategy.execute(request))
+          .isInstanceOf(BacktestException.class).extracting("code").isEqualTo(BacktestResponse.SELL_WITH_REINVEST);
+        verifyNoInteractions(marketDataClient);
+      }
+
+      @Test
+      @DisplayName("익절 비율이 0 이하이거나 손절 비율이 1 이상이면 막는다")
+      void rejectsBadRates() {
+        assertThatThrownBy(() -> strategy.execute(selling(2, 10).takeProfitRate(BigDecimal.ZERO).build()))
+          .isInstanceOf(BacktestException.class).extracting("code").isEqualTo(BacktestResponse.INVALID_SELL_RATE);
+        assertThatThrownBy(() -> strategy.execute(selling(2, 10).stopLossRate(BigDecimal.ONE).build()))
+          .isInstanceOf(BacktestException.class).extracting("code").isEqualTo(BacktestResponse.INVALID_SELL_RATE);
+      }
+    }
   }
 
   @Nested
