@@ -6,9 +6,15 @@ import type { MetricCurrency } from './CurrencyToggle';
 // 배당 재투자 거래의 trigger 값
 export const DIVIDEND_REINVEST = '배당 재투자';
 
-// 배당 재투자를 뺀 매수 횟수
-export const purchaseCount = (transactions: { trigger?: string }[]) =>
-  transactions.filter((tx) => tx.trigger !== DIVIDEND_REINVEST).length;
+// 매도 거래(수량이 음수)
+export const isSale = (tx: { shares: number }) => tx.shares < 0;
+
+// 배당 재투자 · 매도를 뺀 매수 횟수
+export const purchaseCount = (transactions: { trigger?: string; shares: number }[]) =>
+  transactions.filter((tx) => tx.trigger !== DIVIDEND_REINVEST && !isSale(tx)).length;
+
+// 매도 횟수
+export const sellCount = (transactions: { shares: number }[]) => transactions.filter(isSale).length;
 
 // 고른 통화의 지표와 그 반대 통화 지표 · 이름
 export const pickMetrics = (result: Pick<StrategyResponse, 'metricsKrw' | 'metricsUsd'>, currency: MetricCurrency) => {

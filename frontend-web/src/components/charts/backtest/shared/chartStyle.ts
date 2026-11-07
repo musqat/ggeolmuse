@@ -22,6 +22,7 @@ export const TOOLTIP_PROPS = {
 export const MARKER_COLORS = {
   purchase: '#8b5cf6',
   dividend: '#10b981',
+  sale: '#ef4444',
   optimal: '#fbbf24',
 };
 

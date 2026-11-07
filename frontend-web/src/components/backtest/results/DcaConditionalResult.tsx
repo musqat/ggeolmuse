@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { AccumulationChart } from '@components/charts/backtest/AccumulationChart';
 import type { StrategyResponse } from '../../../services/api';
 import { gainLossClass } from '../../../utils/gainLoss';
-import { formatBalanceAmount, formatKrw, formatPercent, formatSigned, formatNumber } from '../../../utils/format';
+import { formatBalanceAmount, formatKrw, formatPercent, formatSigned, formatNumber, formatUsd } from '../../../utils/format';
 import { ResultOverview } from './ResultOverview';
 import { FxImpactSection } from './FxImpactSection';
 import { DetailRow, DetailSection } from './DetailSection';
@@ -11,7 +11,7 @@ import { DefaultFxNotice } from './DefaultFxNotice';
 import type { MetricCurrency } from './CurrencyToggle';
 import { ResultFold } from './ResultFold';
 import { RiskDetail } from './RiskDetail';
-import { detailMeta, pickMetrics, purchaseCount } from './resultValues';
+import { detailMeta, pickMetrics, purchaseCount, sellCount } from './resultValues';
 import { ReturnChart } from './ReturnChart';
 import { strategyDeposits } from './assetSeries';
 
@@ -22,7 +22,7 @@ interface DcaConditionalResultProps {
   startDate: string;
 }
 
-// 적립식 · 조건부 결과: 카드 · 자산 추이, 그 아래 상세 · 주가 · 수익률 추이 · 매수 내역을 접어 둠
+// 적립식 · 조건부 결과: 카드 · 자산 추이, 그 아래 상세 · 주가 · 수익률 추이 · 매매 내역을 접어 둠
 export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
   result,
   symbol,
@@ -35,6 +35,7 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
   const deposits = useMemo(() => strategyDeposits(transactions), [transactions]);
   // 투자일이 휴장일이라 다른 날 산 번수
   const moved = transactions.filter((tx) => tx.actualDate && tx.actualDate !== tx.date).length;
+  const sold = sellCount(transactions);
 
   return (
     <div className="space-y-6">
@@ -72,6 +73,7 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
               }
             />
             <DetailRow label="매수 횟수" value={<>{purchaseCount(transactions)}회</>} />
+            {sold > 0 && <DetailRow label="매도 횟수" value={<>{sold}회</>} />}
             <DetailRow label="총 투자금" value={<>₩{formatNumber(result.totalInvested)}</>} />
             <div className="flex justify-between gap-3 py-2">
               <span className="text-tx-2">주식 평가액</span>
@@ -86,9 +88,22 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
 
           <DetailSection title="주식 수익">
             <DetailRow label="보유 주식수" value={<>{result.totalShares?.toFixed(2)} 주</>} />
-            <DetailRow label="평균 매수가" value={<>${result.averagePrice?.toFixed(2)}</>} />
+            <DetailRow
+              label="평균 매수가"
+              value={result.averagePrice != null ? formatUsd(result.averagePrice) : '-'}
+            />
             <DetailRow label="평가일 가격" value={<>${result.currentPrice?.toFixed(2)}</>} />
             <DetailRow label="배당금 (USD)" value={<>${result.totalDividends?.toFixed(2) || '0.00'}</>} />
+            {sold > 0 && (
+              <>
+                <DetailRow
+                  label="실현 손익"
+                  value={formatSigned(result.realizedProfit, formatUsd)}
+                  valueClassName={`font-medium ${gainLossClass(result.realizedProfit)}`}
+                />
+                <DetailRow label="남은 현금" value={formatUsd(result.cashBalance ?? 0)} />
+              </>
+            )}
             <DetailRow
               label="총 수익 (KRW)"
               value={formatSigned(result.totalReturnKrw, formatKrw)}
@@ -119,7 +134,10 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
       )}
 
       {(transactions.length > 0 || skippedRounds.length > 0) && (
-        <ResultFold title="매수 내역" meta={`매수 ${purchaseCount(transactions)}회 · 미매수 ${skippedRounds.length}회`}>
+        <ResultFold
+          title={sold > 0 ? '매매 내역' : '매수 내역'}
+          meta={`매수 ${purchaseCount(transactions)}회${sold > 0 ? ` · 매도 ${sold}회` : ''} · 미매수 ${skippedRounds.length}회`}
+        >
           <PurchaseHistory transactions={transactions} skippedRounds={skippedRounds} />
         </ResultFold>
       )}

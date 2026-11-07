@@ -152,8 +152,11 @@ export type StrategyTransaction = {
   shares: number;
   amount: number;                       // 투자금 (KRW)
   fxRate: number;
-  trigger?: string;                     // 적립식은 "월정액", 조건부는 "5.0%하락" · "5.0%상승" 같은 값
+  trigger?: string;                     // 적립식은 "월정액", 조건부는 "5.0%하락" · "5.0%상승" · "20.0%익절" · "10.0%손절" 같은 값
   fee?: number | null;                  // 매매 수수료 (USD, 배당 재투자는 없음)
+  proceeds?: number | null;             // 매도로 받은 돈 (USD, 수수료 뺀 값, 매도는 수량이 음수)
+  cashUsed?: number | null;             // 매수에 쓴 판 돈 (USD)
+  realizedProfit?: number | null;       // 매도 실현 손익 (USD)
 };
 
 // 회차를 사지 못한 이유
@@ -181,6 +184,8 @@ export type StrategyResponse = {
   currentValue?: number | null;         // 현재 가치 (USD)
   currentValueKrw?: number | null;
   totalAssetKrw?: number | null;
+  cashBalance?: number | null;          // 매도로 남은 현금 (USD)
+  realizedProfit?: number | null;       // 매도 실현 손익 합 (USD)
   totalReturnPercent?: number | null;
   totalReturnKrw?: number | null;
   averageFxRate?: number | null;
