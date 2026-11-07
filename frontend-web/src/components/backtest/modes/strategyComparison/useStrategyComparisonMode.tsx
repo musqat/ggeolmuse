@@ -6,7 +6,7 @@ import { StrategyComparisonResult } from '../../results/StrategyComparisonResult
 import { strategyByType } from '../../comparison/catalog';
 import type { ComparisonStrategyType, StrategyParams } from '../../comparison/types';
 import type { ModeController } from '../types';
-import { buildStrategyComparisonRequest } from './request';
+import { buildStrategyComparisonRequest, conditionalSells } from './request';
 import { useBacktestOptions } from '../../shared/backtestOptions';
 import { notify } from '@/components/common/notify';
 
@@ -88,6 +88,7 @@ export const useStrategyComparisonMode = ({
         selectedStrategies={selectedStrategies}
         toggleStrategy={toggleStrategy}
         options={options}
+        reinvestLocked={conditionalSells(selectedStrategies, strategyParameters)}
       />
     ),
     overlay:

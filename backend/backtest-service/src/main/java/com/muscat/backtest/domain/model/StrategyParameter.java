@@ -26,6 +26,8 @@ public class StrategyParameter {
   private BigDecimal dropPercentage;
   private PriceDirection direction;         // 비우면 하락
   private Integer maxPurchases;
+  private BigDecimal takeProfitRate;        // 비우면 익절 안 함
+  private BigDecimal stopLossRate;          // 비우면 손절 안 함
 
   // 일시불용 (Simulation)
   private LocalDate purchaseDate;

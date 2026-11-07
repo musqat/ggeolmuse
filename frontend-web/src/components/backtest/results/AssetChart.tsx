@@ -26,7 +26,7 @@ interface AssetChartProps {
   currency: MetricCurrency;
 }
 
-// 서버 일별 값으로 그린 평가 가치와 그때까지 넣은 돈(점은 매수한 날)
+// 서버 일별 값으로 그린 평가 가치와 그때까지 넣은 돈(점은 돈을 넣은 날)
 export const AssetChart: React.FC<AssetChartProps> = ({ dailyValues, deposits, currency }) => {
   const data = useMemo(() => assetSeries(dailyValues ?? [], deposits, currency), [dailyValues, deposits, currency]);
   const buys = useMemo(() => depositPoints(data, deposits), [data, deposits]);
@@ -47,7 +47,7 @@ export const AssetChart: React.FC<AssetChartProps> = ({ dailyValues, deposits, c
   };
 
   return (
-    <ChartCard title="자산 추이" subtitle="평가 가치와 그때까지 넣은 돈, 점은 매수한 날">
+    <ChartCard title="자산 추이" subtitle="평가 가치와 그때까지 넣은 돈, 점은 돈을 넣은 날">
       <div className="flex flex-wrap gap-4 text-xs text-tx-2 mb-2">
         <span className="flex items-center gap-1">
           <span className="w-4 h-0.5" style={{ background: VALUE_COLOR }} />평가 가치
@@ -56,7 +56,7 @@ export const AssetChart: React.FC<AssetChartProps> = ({ dailyValues, deposits, c
           <span className="w-4 border-t-2 border-dashed" style={{ borderColor: INVESTED_COLOR }} />누적 투자금
         </span>
         <span className="flex items-center gap-1">
-          <span className="w-2.5 h-2.5 rounded-full" style={{ background: MARKER_COLORS.purchase }} />매수
+          <span className="w-2.5 h-2.5 rounded-full" style={{ background: MARKER_COLORS.purchase }} />입금
         </span>
       </div>
       <ResponsiveContainer width="100%" height={260}>

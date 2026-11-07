@@ -3,6 +3,7 @@ import { strategyByType } from '../../comparison/catalog';
 import type { ComparisonStrategyType, StrategyParams } from '../../comparison/types';
 import type { BuildResult, RunContext } from '../types';
 import { toOptionFields, type BacktestOptions } from '../../shared/backtestOptions';
+import { hasSellRates } from '../../shared/sellRates';
 
 export interface StrategyComparisonValues extends BacktestOptions {
   symbol: string;
@@ -12,6 +13,15 @@ export interface StrategyComparisonValues extends BacktestOptions {
   selectedStrategies: ComparisonStrategyType[];
   strategyParameters: Record<string, StrategyParams>;
 }
+
+// 고른 조건부 매수에 익절 · 손절을 적었는지(배당 재투자와 함께 못 씀)
+export const conditionalSells = (
+  selectedStrategies: ComparisonStrategyType[],
+  strategyParameters: Record<string, StrategyParams>,
+): boolean => {
+  const params = strategyParameters.CONDITIONAL_PURCHASE;
+  return selectedStrategies.includes('CONDITIONAL_PURCHASE') && hasSellRates(params?.takeProfit, params?.stopLoss);
+};
 
 // 전략 비교 요청(검사에 걸리면 alert 문구)
 export const buildStrategyComparisonRequest = (
@@ -51,5 +61,8 @@ export const buildStrategyComparisonRequest = (
     strategies,
     ...toOptionFields(values),
   };
+  if (conditionalSells(values.selectedStrategies, values.strategyParameters)) {
+    request.reinvestDividends = false;
+  }
   return { request };
 };

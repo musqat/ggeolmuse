@@ -59,7 +59,7 @@ public final class StrategyPerformance {
         .toList()) {
       LocalDate date = candle.date();
       BigDecimal rawUsd = PriceLookup.effectiveClose(candle)
-          .multiply(sharesOn(transactions, date)).add(cashOn(cashDividends, date));
+          .multiply(sharesOn(transactions, date)).add(cashOn(cashDividends, date)).add(tradeCashOn(transactions, date));
       BigDecimal valueUsd = MoneyUtils.roundUsd(rawUsd);
       BigDecimal fxRate = fxOn.apply(date);
       points.add(new Point(new DailyValue(date, valueUsd, DailyValue.toKrw(valueUsd, fxRate)), rawUsd,
@@ -115,6 +115,14 @@ public final class StrategyPerformance {
     return transactions.stream()
         .filter(tx -> !tx.tradedOn().isAfter(date))
         .map(StrategyTransaction::getShares)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+  }
+
+  // 그날까지 매도로 받고 매수에 쓰고 남은 현금(USD)
+  private static BigDecimal tradeCashOn(List<StrategyTransaction> transactions, LocalDate date) {
+    return transactions.stream()
+        .filter(tx -> !tx.tradedOn().isAfter(date))
+        .map(StrategyTransaction::cashChange)
         .reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 

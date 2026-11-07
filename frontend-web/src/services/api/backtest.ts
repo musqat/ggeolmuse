@@ -102,6 +102,8 @@ export type ConditionalStrategyRequest = BacktestCommonRequest & {
   direction?: PriceDirection;           // 비우면 하락
   dropPercentage: number;               // 하락률 · 상승률 (0.05 = 5%)
   maxPurchases?: number;                // 최대 매수 횟수
+  takeProfitRate?: number;              // 익절 비율 (0.2 = 20%, 비우면 안 함)
+  stopLossRate?: number;                // 손절 비율 (0.1 = 10%, 비우면 안 함)
 };
 
 // 종목 비교 요청
@@ -126,6 +128,8 @@ export type StrategyParameter = {
   direction?: PriceDirection;           // 비우면 하락
   dropPercentage?: number;              // 하락률 · 상승률
   maxPurchases?: number;                // 최대 매수 횟수
+  takeProfitRate?: number;              // 익절 비율 (비우면 안 함)
+  stopLossRate?: number;                // 손절 비율 (비우면 안 함)
   // 단순 전략 필드
   purchaseDate?: string;                // 매수일
 };
@@ -148,8 +152,11 @@ export type StrategyTransaction = {
   shares: number;
   amount: number;                       // 투자금 (KRW)
   fxRate: number;
-  trigger?: string;                     // 적립식은 "월정액", 조건부는 "5.0%하락" · "5.0%상승" 같은 값
+  trigger?: string;                     // 적립식은 "월정액", 조건부는 "5.0%하락" · "5.0%상승" · "20.0%익절" · "10.0%손절" 같은 값
   fee?: number | null;                  // 매매 수수료 (USD, 배당 재투자는 없음)
+  proceeds?: number | null;             // 매도로 받은 돈 (USD, 수수료 뺀 값, 매도는 수량이 음수)
+  cashUsed?: number | null;             // 매수에 쓴 판 돈 (USD)
+  realizedProfit?: number | null;       // 매도 실현 손익 (USD)
 };
 
 // 회차를 사지 못한 이유
@@ -177,6 +184,8 @@ export type StrategyResponse = {
   currentValue?: number | null;         // 현재 가치 (USD)
   currentValueKrw?: number | null;
   totalAssetKrw?: number | null;
+  cashBalance?: number | null;          // 매도로 남은 현금 (USD)
+  realizedProfit?: number | null;       // 매도 실현 손익 합 (USD)
   totalReturnPercent?: number | null;
   totalReturnKrw?: number | null;
   averageFxRate?: number | null;

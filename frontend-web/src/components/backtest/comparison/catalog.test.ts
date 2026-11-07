@@ -57,6 +57,23 @@ describe('비교 전략 카탈로그', () => {
     })
   })
 
+  it('조건부 매수는 익절 · 손절을 비율로 싣고 비우면 싣지 않는다', () => {
+    expect(strategyByType('CONDITIONAL_PURCHASE').toRequest({ dropPercentage: '7', takeProfit: '20', stopLoss: '10' }, common))
+      .toMatchObject({ takeProfitRate: 0.2, stopLossRate: 0.1 })
+    const off = strategyByType('CONDITIONAL_PURCHASE').toRequest({ dropPercentage: '7', takeProfit: '' }, common)
+    expect(off).not.toHaveProperty('takeProfitRate')
+    expect(off).not.toHaveProperty('stopLossRate')
+  })
+
+  it('조건부 매수의 익절 · 손절이 범위 밖이면 실행 전에 막는다', () => {
+    expect(strategyByType('CONDITIONAL_PURCHASE').checkOnRun({ stopLoss: '100' }, common)).toBe(
+      '조건부 매수: 손절 비율은 0보다 크고 100보다 작아야 합니다.'
+    )
+    expect(strategyByType('CONDITIONAL_PURCHASE').checkOnRun({ takeProfit: '0' }, common)).toBe(
+      '조건부 매수: 익절 비율은 0보다 커야 합니다.'
+    )
+  })
+
   it('모달 저장 검사', () => {
     expect(strategyByType('SIMPLE').checkOnSave({})).toBeNull()
     expect(strategyByType('DCA').checkOnSave({ monthlyAmount: '100000' })).toBe(

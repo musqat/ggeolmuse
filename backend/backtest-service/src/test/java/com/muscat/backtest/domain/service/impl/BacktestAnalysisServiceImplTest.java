@@ -700,6 +700,8 @@ class BacktestAnalysisServiceImplTest {
       conditional.setTotalInvestment(BigDecimal.valueOf(1_000_000));
       conditional.setDropPercentage(new BigDecimal("0.05"));
       conditional.setDirection(PriceDirection.RISE);
+      conditional.setTakeProfitRate(new BigDecimal("0.2"));
+      conditional.setStopLossRate(new BigDecimal("0.1"));
       StrategyComparisonRequest request = strategyRequest(simple, dca, conditional);
       withOptions(request);
 
@@ -742,6 +744,8 @@ class BacktestAnalysisServiceImplTest {
       assertThat(conditionalRequest.getValue().getTradingFeeRate())
         .isEqualByComparingTo(new BigDecimal("0.0025"));
       assertThat(conditionalRequest.getValue().getDirection()).isEqualTo(PriceDirection.RISE);
+      assertThat(conditionalRequest.getValue().getTakeProfitRate()).isEqualByComparingTo("0.2");
+      assertThat(conditionalRequest.getValue().getStopLossRate()).isEqualByComparingTo("0.1");
     }
 
     @Test

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { PurchaseHistory } from './PurchaseHistory'
-import { purchaseCount } from './resultValues'
+import { purchaseCount, sellCount } from './resultValues'
 import type { SkippedRound, StrategyTransaction } from '../../../services/api'
 
 const bought = (date: string, price: number, actualDate?: string): StrategyTransaction => ({
@@ -68,5 +68,32 @@ describe('PurchaseHistory', () => {
 
     expect(purchaseCount([...transactions, dividend])).toBe(2)
     expect(screen.getByText('매수 2회 · 배당 재투자 1회')).toBeInTheDocument()
+  })
+
+  it('매도 줄은 판 수량 · 받은 돈 · 실현 손익을, 판 돈으로 산 줄은 쓴 판 돈을 보이고 연도 줄에 매도를 따로 센다', async () => {
+    const sale: StrategyTransaction = {
+      ...bought('2025-03-14', 250),
+      shares: -0.5,
+      amount: 0,
+      trigger: '20.0%익절',
+      proceeds: 125,
+      realizedProfit: 20.5,
+    }
+    const rebuy: StrategyTransaction = { ...bought('2025-04-01', 200), amount: 0, trigger: '3.0%하락', cashUsed: 74.07 }
+    render(<PurchaseHistory transactions={[...transactions, sale, rebuy]} skippedRounds={[]} />)
+
+    expect(purchaseCount([...transactions, sale, rebuy])).toBe(3)
+    expect(sellCount([...transactions, sale, rebuy])).toBe(1)
+    expect(screen.getByText('매수 3회 · 매도 1회')).toBeInTheDocument()
+    await userEvent.click(screen.getByText('2025년'))
+
+    const saleRow = screen.getByText('2025-03-14').closest('tr') as HTMLElement
+    expect(within(saleRow).getByText('20.0%익절')).toBeInTheDocument()
+    expect(within(saleRow).getByText('0.5000주')).toBeInTheDocument()
+    expect(within(saleRow).getByText('$125.00 받음')).toBeInTheDocument()
+    expect(within(saleRow).getByText('손익 +$20.50')).toBeInTheDocument()
+    const rebuyRow = screen.getByText('2025-04-01').closest('tr') as HTMLElement
+    expect(within(rebuyRow).getByText('판 돈 $74.07')).toBeInTheDocument()
+    expect(within(rebuyRow).queryByText('₩0')).not.toBeInTheDocument()
   })
 })

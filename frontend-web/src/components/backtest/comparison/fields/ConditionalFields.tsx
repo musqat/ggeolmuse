@@ -1,6 +1,6 @@
 import type { FC } from 'react';
 import type { StrategyFieldsProps } from '../types';
-import { ConditionFields } from '../../shared/StrategyFields';
+import { ConditionFields, SellFields } from '../../shared/StrategyFields';
 import { toDirection } from '../../shared/priceDirection';
 import { formatNumber } from '../../../../utils/format';
 
@@ -21,6 +21,12 @@ export const ConditionalFields: FC<StrategyFieldsProps> = ({ params, onChange, c
       onDirectionChange={(direction) => onChange("direction", direction)}
       value={params.dropPercentage || "5"}
       onChange={(value) => onChange("dropPercentage", value)}
+    />
+    <SellFields
+      takeProfit={params.takeProfit || ""}
+      onTakeProfitChange={(value) => onChange("takeProfit", value)}
+      stopLoss={params.stopLoss || ""}
+      onStopLossChange={(value) => onChange("stopLoss", value)}
     />
   </>
 );

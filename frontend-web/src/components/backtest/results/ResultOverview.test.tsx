@@ -153,6 +153,8 @@ describe('ResultOverview', () => {
     const [chart] = readCharts()
     expect(chart.points.map((p: { value: number; invested: number }) => [p.value, p.invested])).toEqual([[1300000, 1300000], [2800000, 2600000], [3000000, 2600000]])
     expect(chart.lines).toEqual(['value:평가 가치', 'invested:누적 투자금'])
+    // 점은 누적 투자금 선 위의 돈을 넣은 날(판 돈으로만 산 날은 넣은 돈이 없어 점이 없음)
+    expect(screen.getByText('평가 가치와 그때까지 넣은 돈, 점은 돈을 넣은 날')).toBeInTheDocument()
     expect(chart.dots).toEqual([
       { x: '2024-01-15', y: 1300000, fill: '#8b5cf6' },
       { x: '2024-02-15', y: 2600000, fill: '#8b5cf6' },

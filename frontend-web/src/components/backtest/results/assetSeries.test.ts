@@ -60,4 +60,17 @@ describe('넣은 돈 목록', () => {
       { date: '2024-03-04', krw: 130000, usd: null },
     ])
   })
+
+  it('매도와 판 돈으로만 산 매수는 넣은 돈이 아니고, 모자라 새로 넣은 몫만 더한다', () => {
+    const transactions = [
+      { date: '2024-01-08', price: 10, shares: 1, amount: 130000, fxRate: 1300, fee: 0 },
+      { date: '2024-02-01', price: 12, shares: -1, amount: 0, fxRate: 1300, fee: 0, trigger: '20.0%익절', proceeds: 12 },
+      { date: '2024-03-01', price: 9, shares: 1, amount: 0, fxRate: 1300, fee: 0, trigger: '3.0%하락', cashUsed: 9 },
+      { date: '2024-04-01', price: 8, shares: 1, amount: 2600, fxRate: 1300, fee: 0, trigger: '3.0%하락', cashUsed: 3 },
+    ]
+    expect(strategyDeposits(transactions)).toEqual([
+      { date: '2024-01-08', krw: 130000, usd: 100 },
+      { date: '2024-04-01', krw: 2600, usd: 2 },
+    ])
+  })
 })

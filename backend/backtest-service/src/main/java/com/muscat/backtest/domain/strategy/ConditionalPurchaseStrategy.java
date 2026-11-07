@@ -36,6 +36,7 @@ import org.springframework.stereotype.Component;
 
 // 조건부 매수 전략: 첫 거래일에 사고, 그 뒤 전 거래일 종가보다 장중에 정한 비율만큼 떨어진(또는 오른) 날마다 한 번 삼(분할만 조정된 가격)
 // 투자 방식은 TOTAL_BUDGET(총예산을 회차로 나눔) · PER_PURCHASE(회당 고정 금액 × 최대 횟수)
+// 익절 · 손절을 켜면 보유분 평균 단가 기준으로 전량 팔고, 다음 조건이 오면 판 돈부터 써서 다시 삼
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -158,6 +159,21 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     if (request.getMaxPurchases() != null && request.getMaxPurchases() <= 0) {
       throw new BacktestException(BacktestResponse.INVALID_MAX_PURCHASES);
     }
+    BigDecimal takeProfit = request.getTakeProfitRate();
+    BigDecimal stopLoss = request.getStopLossRate();
+    if ((takeProfit != null && !Decimals.isPositive(takeProfit))
+      || (stopLoss != null && (!Decimals.isPositive(stopLoss) || stopLoss.compareTo(BigDecimal.ONE) >= 0))) {
+      throw new BacktestException(BacktestResponse.INVALID_SELL_RATE);
+    }
+    // 재투자 주식은 루프 뒤에 더해져 매도와 순서가 맞지 않음
+    if (sells(request) && Boolean.TRUE.equals(request.getReinvestDividends())) {
+      throw new BacktestException(BacktestResponse.SELL_WITH_REINVEST);
+    }
+  }
+
+  // 익절 · 손절 가운데 하나라도 켰는지
+  private static boolean sells(ConditionalStrategyRequest request) {
+    return request.getTakeProfitRate() != null || request.getStopLossRate() != null;
   }
 
   // 투자 모드별 파라미터 계산
@@ -215,47 +231,54 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     LocalDate currentDate = request.getStartDate();
     int purchaseCount = 0;
     List<SkippedRound> skippedRounds = new ArrayList<>();
+    boolean sells = sells(request);
+    // 보유 주식 · 그 원가(USD, 매수 수수료 포함) · 판 돈(USD)
+    BigDecimal heldShares = BigDecimal.ZERO;
+    BigDecimal heldCost = BigDecimal.ZERO;
+    BigDecimal cash = BigDecimal.ZERO;
 
-    // 메모리에서 데이터 조회 (API 호출 없음)
-    while (!currentDate.isAfter(actualEndDate) && purchaseCount < params.maxPurchases()) {
+    // 메모리에서 데이터 조회 (API 호출 없음), 익절 · 손절을 켜면 새 돈 회차를 다 쓴 뒤에도 끝까지 봄
+    while (!currentDate.isAfter(actualEndDate) && (sells || purchaseCount < params.maxPurchases())) {
       OHLCPriceDto priceData = priceMap.get(currentDate);
       boolean usable = PriceLookup.isUsable(priceData);
       try {
         if (priceData != null && priceData.available() && !usable) {
           skippedRounds.add(new SkippedRound(currentDate, SkipReason.NO_PRICE));
         } else if (usable) {
-          var purchaseDecision = transactions.isEmpty()
-            ? new PurchaseDecision(true, PriceLookup.effectiveClose(priceData), "초기매수")
-            : evaluatePurchaseCondition(previousClose, priceData, request.getDropPercentage(),
-              PriceDirection.orDrop(request.getDirection()));
+          // 매도를 먼저 보고 판 날은 사지 않음(그날 산 주식은 매도를 본 뒤라 팔지 않음)
+          StrategyTransaction sale = sells && heldShares.signum() > 0
+            ? sellIfTriggered(request, priceData, currentDate, heldShares, heldCost, fxRateMap)
+            : null;
+          if (sale != null) {
+            transactions.add(sale);
+            cash = cash.add(sale.getProceeds());
+            heldShares = BigDecimal.ZERO;
+            heldCost = BigDecimal.ZERO;
+            log.debug("조건부 매도 실행: {} - {} ({}주, 실현 손익 ${})",
+              currentDate, sale.getTrigger(), sale.getShares().negate(), sale.getRealizedProfit());
+          } else {
+            var purchaseDecision = transactions.isEmpty()
+              ? new PurchaseDecision(true, PriceLookup.effectiveClose(priceData), "초기매수")
+              : evaluatePurchaseCondition(previousClose, priceData, request.getDropPercentage(),
+                PriceDirection.orDrop(request.getDirection()));
 
-          if (purchaseDecision.shouldBuy()) {
-            // 환율 조회 (메모리에서)
-            BigDecimal purchaseFxRate = request.getPurchaseFxRate() != null
-              ? request.getPurchaseFxRate() : fxRateMap.get(currentDate);
-
-            // 수수료를 차감하고 남은 달러로 매수
-            BigDecimal fee = BacktestCalculationUtils.calculatePurchaseFee(
-              params.amountPerPurchase(), purchaseFxRate, request.getTradingFeeRate());
-            BigDecimal shares = BacktestCalculationUtils.calculateSharesAfterFee(
-              params.amountPerPurchase(), purchaseFxRate, purchaseDecision.price(), fee);
-
-            StrategyTransaction transaction = StrategyTransaction.builder()
-              .date(currentDate)
-              .actualDate(priceData.date())
-              .price(purchaseDecision.price())
-              .shares(shares)
-              .fee(fee)
-              .amount(params.amountPerPurchase())
-              .fxRate(purchaseFxRate)
-              .defaultFxDate(fxRateMap.isDefault(currentDate) ? currentDate : null)
-              .trigger(purchaseDecision.trigger())
-              .build();
-
-            transactions.add(transaction);
-            purchaseCount++;
-            log.debug("조건부 매수 실행: {} - {} ({}원 투자, {}주 매수)",
-              currentDate, purchaseDecision.trigger(), params.amountPerPurchase(), shares);
+            StrategyTransaction transaction = purchaseDecision.shouldBuy()
+              ? buy(request, params, priceData, currentDate, purchaseDecision, fxRateMap, cash,
+                purchaseCount >= params.maxPurchases())
+              : null;
+            if (transaction != null) {
+              transactions.add(transaction);
+              if (Decimals.isPositive(transaction.getAmount())) {
+                purchaseCount++;
+              }
+              if (transaction.getCashUsed() != null) {
+                cash = cash.subtract(transaction.getCashUsed());
+              }
+              heldShares = heldShares.add(transaction.getShares());
+              heldCost = heldCost.add(costOf(transaction));
+              log.debug("조건부 매수 실행: {} - {} ({}원 투자, {}주 매수)",
+                currentDate, purchaseDecision.trigger(), transaction.getAmount(), transaction.getShares());
+            }
           }
         }
 
@@ -272,6 +295,100 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
 
     log.info("조건부 매수 전략 완료: {}회 매수, 사지 못한 날 {}", transactions.size(), skippedRounds.size());
     return new StrategyPurchases(transactions, skippedRounds, priceMap, fxRateMap);
+  }
+
+  // 회당 금액만큼 사되 판 돈을 먼저 쓰고 모자란 만큼만 새로 넣음, 새 돈 회차를 다 썼으면 판 돈으로만(판 돈이 없으면 null)
+  private StrategyTransaction buy(ConditionalStrategyRequest request, InvestmentParams params, OHLCPriceDto priceData,
+    LocalDate date, PurchaseDecision decision, FxRates fxRateMap, BigDecimal cash, boolean roundsUsed) {
+    if (roundsUsed && !Decimals.isPositive(cash)) {
+      return null;
+    }
+    BigDecimal fxRate = fxOn(request, fxRateMap, date);
+    BigDecimal amount = params.amountPerPurchase();
+    BigDecimal fee;
+    BigDecimal shares;
+    BigDecimal deposit = amount;
+    BigDecimal cashUsed = null;
+    if (!Decimals.isPositive(cash)) {
+      // 수수료를 차감하고 남은 달러로 매수
+      fee = BacktestCalculationUtils.calculatePurchaseFee(amount, fxRate, request.getTradingFeeRate());
+      shares = BacktestCalculationUtils.calculateSharesAfterFee(amount, fxRate, decision.price(), fee);
+    } else {
+      BigDecimal needUsd = amount.divide(fxRate, 8, RoundingMode.HALF_UP);
+      BigDecimal budgetUsd = roundsUsed ? needUsd.min(cash) : needUsd;
+      cashUsed = cash.min(budgetUsd);
+      deposit = budgetUsd.compareTo(cashUsed) > 0
+        ? amount.subtract(cashUsed.multiply(fxRate)).setScale(2, RoundingMode.HALF_UP)
+        : BigDecimal.ZERO;
+      fee = feeOn(budgetUsd, request.getTradingFeeRate());
+      shares = budgetUsd.subtract(fee).divide(decision.price(), 8, RoundingMode.HALF_UP);
+    }
+    return StrategyTransaction.builder()
+      .date(date)
+      .actualDate(priceData.date())
+      .price(decision.price())
+      .shares(shares)
+      .fee(fee)
+      .amount(deposit)
+      .cashUsed(cashUsed)
+      .fxRate(fxRate)
+      .defaultFxDate(fxRateMap.isDefault(date) ? date : null)
+      .trigger(decision.trigger())
+      .build();
+  }
+
+  // 보유분 평균 단가(수수료 포함)의 익절 · 손절 기준가에 닿으면 전량 매도, 둘 다 닿은 날은 시가부터 익절 기준가 위면 익절 · 아니면 손절
+  private StrategyTransaction sellIfTriggered(ConditionalStrategyRequest request, OHLCPriceDto priceData,
+    LocalDate date, BigDecimal shares, BigDecimal cost, FxRates fxRateMap) {
+    BigDecimal average = cost.divide(shares, 8, RoundingMode.HALF_UP);
+    PurchaseDecision profit = request.getTakeProfitRate() == null
+      ? NO_BUY : crossed(average, priceData, request.getTakeProfitRate(), true);
+    PurchaseDecision loss = request.getStopLossRate() == null
+      ? NO_BUY : crossed(average, priceData, request.getStopLossRate(), false);
+    boolean gapUp = profit.shouldBuy() && positive(priceData.openPrice())
+      && profit.price().compareTo(priceData.openPrice()) == 0;
+    PurchaseDecision exit = loss.shouldBuy() && !gapUp ? loss : profit;
+    if (!exit.shouldBuy()) {
+      return null;
+    }
+
+    BigDecimal gross = shares.multiply(exit.price()).setScale(8, RoundingMode.HALF_UP);
+    BigDecimal fee = feeOn(gross, request.getTradingFeeRate());
+    BigDecimal proceeds = gross.subtract(fee);
+    BigDecimal change = MoneyUtils.calculateReturnRate(average, exit.price()).abs();
+    return StrategyTransaction.builder()
+      .date(date)
+      .actualDate(priceData.date())
+      .price(exit.price())
+      .shares(shares.negate())
+      .fee(fee)
+      .amount(BigDecimal.ZERO)
+      .proceeds(proceeds)
+      .realizedProfit(proceeds.subtract(cost))
+      // 판 돈은 달러로 두어 그날 환율은 표시용(기본 환율 날로 남기지 않음)
+      .fxRate(fxOn(request, fxRateMap, date))
+      .trigger(String.format(exit == profit ? "%.1f%%익절" : "%.1f%%손절", change))
+      .build();
+  }
+
+  // 매수 원가(USD, 새로 넣은 돈을 그날 환율로 바꾼 값 + 쓴 판 돈, 수수료 포함)
+  private static BigDecimal costOf(StrategyTransaction transaction) {
+    BigDecimal cost = Decimals.isPositive(transaction.getAmount())
+      ? transaction.getAmount().divide(transaction.getFxRate(), 8, RoundingMode.HALF_UP)
+      : BigDecimal.ZERO;
+    return transaction.getCashUsed() != null ? cost.add(transaction.getCashUsed()) : cost;
+  }
+
+  // 그날 환율(수동 환율이 있으면 그 값)
+  private static BigDecimal fxOn(ConditionalStrategyRequest request, FxRates fxRateMap, LocalDate date) {
+    return request.getPurchaseFxRate() != null ? request.getPurchaseFxRate() : fxRateMap.get(date);
+  }
+
+  // 거래 달러 × 수수료율(USD 두 자리, 수수료율이 없으면 0)
+  private static BigDecimal feeOn(BigDecimal usd, BigDecimal feeRate) {
+    return feeRate != null && Decimals.isPositive(feeRate)
+      ? usd.multiply(feeRate).setScale(2, RoundingMode.HALF_UP)
+      : BigDecimal.ZERO;
   }
 
   // 방향에 맞는 기준가를 넘은 날 매수, 둘 다 닿은 날은 시가부터 하락 기준가 아래면 하락 · 아니면 상승 기준가

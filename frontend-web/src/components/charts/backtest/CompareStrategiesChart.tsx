@@ -9,7 +9,7 @@ import type { OHLCData } from '../../../types/ohlc';
 import { useChartPeriod } from '../common/hooks/useChartPeriod';
 import { CHART_COLORS } from '../common/constants';
 import { getTodayString } from '../../../utils/dateUtils';
-import { DIVIDEND_REINVEST } from '@components/backtest/results/resultValues';
+import { DIVIDEND_REINVEST, isSale } from '@components/backtest/results/resultValues';
 
 interface StrategyItem {
   name: string;
@@ -28,10 +28,12 @@ interface PricePoint {
 
 const EMPTY_PRICES: OHLCData[] = [];
 
-// 전략의 매수일(단순은 매수일 하나, 적립식 · 조건부는 배당 재투자를 뺀 거래일)
+// 전략의 매수일(단순은 매수일 하나, 적립식 · 조건부는 배당 재투자 · 매도를 뺀 거래일)
 const buyDates = (data: ComparisonDetail): string[] =>
   data.transactions
-    ? data.transactions.filter((tx) => tx.trigger !== DIVIDEND_REINVEST).map((tx) => tx.actualDate || tx.date)
+    ? data.transactions
+        .filter((tx) => tx.trigger !== DIVIDEND_REINVEST && !isSale(tx))
+        .map((tx) => tx.actualDate || tx.date)
     : data.purchaseDate
       ? [data.purchaseDate]
       : [];

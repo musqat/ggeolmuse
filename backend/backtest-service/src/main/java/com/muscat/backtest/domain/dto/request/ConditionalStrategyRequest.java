@@ -62,6 +62,15 @@ public class ConditionalStrategyRequest implements StrategyRequest {
   @Positive(message = "하락률 · 상승률은 0보다 커야 합니다")
   private BigDecimal dropPercentage;
 
+  @Schema(description = "익절 비율: 보유분 평균 단가(수수료 포함)보다 이만큼 오르면 전량 매도 (10% = 0.1, 비우면 안 함)", example = "0.1")
+  @Positive(message = "익절 비율은 0보다 커야 합니다")
+  private BigDecimal takeProfitRate;
+
+  @Schema(description = "손절 비율: 보유분 평균 단가(수수료 포함)보다 이만큼 내리면 전량 매도 (10% = 0.1, 비우면 안 함)", example = "0.1")
+  @Positive(message = "손절 비율은 0보다 커야 합니다")
+  @DecimalMax(value = "1", inclusive = false, message = "손절 비율은 1보다 작아야 합니다")
+  private BigDecimal stopLossRate;
+
   @Schema(description = "최대 매수 횟수 (TOTAL_BUDGET 모드에서는 자동 계산, PER_PURCHASE 모드에서는 필수)", example = "10")
   @Positive(message = "최대 매수 횟수는 0보다 커야 합니다")
   private Integer maxPurchases;           // 최대 매수 횟수

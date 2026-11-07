@@ -252,6 +252,29 @@ class ResponseMapperTest {
     }
 
     @Test
+    @DisplayName("전량 매도로 끝나면 평균 단가를 비우고 남은 현금 · 실현 손익을 달러 두 자리로 싣는다")
+    void soldOut() {
+      StrategyCalculationResult calc = calculation().toBuilder().averagePrice(null)
+        .cashBalance(new BigDecimal("1100.456")).realizedProfit(new BigDecimal("100.004")).build();
+
+      StrategyResponse result = mapper.toStrategyResponse(dcaRequest(), transactions(1), calc, price("120.5"), NONE);
+
+      assertThat(result.getAveragePrice()).isNull();
+      assertThat(result.getCashBalance()).isEqualByComparingTo("1100.46");
+      assertThat(result.getRealizedProfit()).isEqualByComparingTo("100.00");
+    }
+
+    @Test
+    @DisplayName("매도가 없으면 남은 현금 · 실현 손익이 0 이다")
+    void noSellCash() {
+      StrategyResponse result = mapper.toStrategyResponse(dcaRequest(), transactions(1), calculation(), price("120.5"),
+        NONE);
+
+      assertThat(result.getCashBalance()).isEqualByComparingTo("0");
+      assertThat(result.getRealizedProfit()).isEqualByComparingTo("0");
+    }
+
+    @Test
     @DisplayName("배당수익률을 현재 평가금액 기준으로 계산한다")
     void 배당수익률() {
       StrategyResponse result = mapper.toStrategyResponse(

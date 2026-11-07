@@ -1,7 +1,11 @@
 import React from 'react';
 import type { BacktestOptionsState } from './backtestOptions';
 
-export const DividendFeeOptions: React.FC<{ options: BacktestOptionsState }> = ({ options }) => {
+// 수수료 · 배당세 · 배당 재투자(익절 · 손절을 켜면 재투자는 끄고 잠금)
+export const DividendFeeOptions: React.FC<{ options: BacktestOptionsState; reinvestLocked?: boolean }> = ({
+  options,
+  reinvestLocked = false,
+}) => {
   const { tradingFeeRate, setTradingFeeRate, dividendTax, setDividendTax, reinvestDividends, setReinvestDividends } = options;
   return (
     <div className="border-t border-line pt-4 mt-4 space-y-3">
@@ -42,10 +46,11 @@ export const DividendFeeOptions: React.FC<{ options: BacktestOptionsState }> = (
       </label>
 
       {/* 배당금 재투자 */}
-      <label className="flex items-center space-x-3 cursor-pointer group">
+      <label className={`flex items-center space-x-3 group ${reinvestLocked ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
         <input
           type="checkbox"
-          checked={reinvestDividends}
+          checked={reinvestDividends && !reinvestLocked}
+          disabled={reinvestLocked}
           onChange={(e) => setReinvestDividends(e.target.checked)}
           className="w-4 h-4 text-brand border-line-strong rounded focus:ring-brand"
         />
@@ -53,7 +58,7 @@ export const DividendFeeOptions: React.FC<{ options: BacktestOptionsState }> = (
           배당금 재투자
         </span>
         <span className="text-xs text-tx-3">
-          받은 배당금으로 자동 매수
+          {reinvestLocked ? '익절 · 손절과 함께 쓸 수 없음' : '받은 배당금으로 자동 매수'}
         </span>
       </label>
     </div>

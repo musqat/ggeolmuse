@@ -9,7 +9,7 @@ import { CurrencyToggle, type MetricCurrency } from './CurrencyToggle';
 import { DetailRow, DetailSection } from './DetailSection';
 import { ResultFold } from './ResultFold';
 import { RiskDetail } from './RiskDetail';
-import { purchaseCount } from './resultValues';
+import { purchaseCount, sellCount } from './resultValues';
 import { simpleDeposits, strategyDeposits } from './assetSeries';
 import { CompareTable, type CompareColumn } from './compare/CompareTable';
 import { ReturnLinesChart } from './compare/ReturnLinesChart';
@@ -81,10 +81,12 @@ export const StrategyComparisonResult: React.FC<StrategyComparisonResultProps> =
     const transactions = data.transactions ?? [];
     const price = item.averagePrice ?? data.averagePrice ?? data.purchasePrice;
     const shares = item.totalShares ?? data.totalShares ?? data.shares;
+    const sold = sellCount(transactions);
     return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <DetailSection title="매수">
           <DetailRow label="매수 횟수" value={`${data.transactions ? purchaseCount(transactions) : 1}회`} />
+          {sold > 0 && <DetailRow label="매도 횟수" value={`${sold}회`} />}
           <DetailRow label={data.transactions ? '평균 매수가' : '매수가'} value={hasValue(price) ? `$${price.toFixed(2)}` : '-'} />
           <DetailRow label="보유 주식" value={hasValue(shares) ? `${shares.toFixed(2)}주` : '-'} />
           <DetailRow
@@ -160,7 +162,7 @@ export const StrategyComparisonResult: React.FC<StrategyComparisonResultProps> =
 
       <ReturnLinesChart
         title="수익률 추이"
-        subtitle="그때까지 넣은 돈 대비 몇 % 인지 · 점은 적립식 · 조건부 매수"
+        subtitle="그때까지 넣은 돈 대비 몇 % 인지 · 점은 적립식 · 조건부가 돈을 넣은 날"
         series={series}
         scale="linear"
         highlightedKey={expanded}

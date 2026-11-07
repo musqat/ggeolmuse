@@ -12,6 +12,8 @@ const values: ConditionalValues = {
   maxPurchases: '20',
   direction: 'DROP',
   dropPercentage: '5',
+  takeProfit: '',
+  stopLoss: '',
   reinvestDividends: false,
   tradingFeeRate: '0',
   dividendTax: false,
@@ -58,6 +60,25 @@ describe('buildConditionalRequest', () => {
     [{ dropPercentage: '101' }, '하락률은 0~100 사이여야 합니다.'],
     [{ endDate: '2022-01-01' }, '시작일은 종료일보다 빠른 날짜여야 합니다.'],
   ])('%o 는 막는다', (patch, error) => {
+    expect(buildConditionalRequest({ ...values, ...patch }, 'AAPL', ctx)).toEqual({ error })
+  })
+
+  it('익절 · 손절을 비우면 두 칸을 싣지 않는다', () => {
+    const built = buildConditionalRequest(values, 'AAPL', ctx)
+    expect('request' in built && 'takeProfitRate' in built.request).toBe(false)
+    expect('request' in built && 'stopLossRate' in built.request).toBe(false)
+  })
+
+  it('익절 · 손절은 퍼센트를 비율로 바꿔 싣고, 함께 못 쓰는 배당 재투자는 끈다', () => {
+    expect(buildConditionalRequest({ ...values, takeProfit: '20', stopLoss: '10', reinvestDividends: true }, 'AAPL', ctx))
+      .toMatchObject({ request: { takeProfitRate: 0.2, stopLossRate: 0.1, reinvestDividends: false } })
+  })
+
+  it.each([
+    [{ takeProfit: '0' }, '익절 비율은 0보다 커야 합니다.'],
+    [{ stopLoss: '100' }, '손절 비율은 0보다 크고 100보다 작아야 합니다.'],
+    [{ stopLoss: '-1' }, '손절 비율은 0보다 크고 100보다 작아야 합니다.'],
+  ])('익절 · 손절 %o 는 막는다', (patch, error) => {
     expect(buildConditionalRequest({ ...values, ...patch }, 'AAPL', ctx)).toEqual({ error })
   })
 

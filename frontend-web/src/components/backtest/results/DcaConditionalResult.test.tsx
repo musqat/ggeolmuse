@@ -52,6 +52,35 @@ describe('DcaConditionalResult', () => {
     expect(screen.getByText('· 매수 1회 · 미매수 1회')).toBeInTheDocument()
   })
 
+  it('매도가 있으면 매매 내역 · 매도 횟수 · 실현 손익 · 남은 현금을 보이고, 전량 매도면 평균 매수가는 비운다', async () => {
+    const transactions = [
+      ...result.transactions,
+      { date: '2023-06-01', shares: -1, price: 160, amount: 0, fxRate: 1300, trigger: '14.3%익절', proceeds: 160, realizedProfit: 20 },
+    ]
+    render(
+      <DcaConditionalResult
+        result={{ ...result, transactions, totalShares: 0, averagePrice: null, cashBalance: 160, realizedProfit: 20 }}
+        {...props}
+      />
+    )
+
+    expect(screen.getByText('매매 내역')).toBeInTheDocument()
+    expect(screen.getByText('· 매수 1회 · 매도 1회 · 미매수 0회')).toBeInTheDocument()
+    await open('상세')
+    expect(screen.getByText('매도 횟수').nextElementSibling).toHaveTextContent('1회')
+    expect(screen.getByText('실현 손익').nextElementSibling).toHaveTextContent('+$20.00')
+    expect(screen.getByText('남은 현금').nextElementSibling).toHaveTextContent('$160.00')
+    expect(screen.getByText('평균 매수가').nextElementSibling).toHaveTextContent('-')
+  })
+
+  it('매도가 없으면 매도 칸을 보이지 않는다', async () => {
+    render(<DcaConditionalResult result={result} {...props} />)
+
+    await open('상세')
+    expect(screen.queryByText('매도 횟수')).not.toBeInTheDocument()
+    expect(screen.queryByText('남은 현금')).not.toBeInTheDocument()
+  })
+
   it('배당 재투자는 매수 횟수에 넣지 않는다', async () => {
     const transactions = [
       ...result.transactions,

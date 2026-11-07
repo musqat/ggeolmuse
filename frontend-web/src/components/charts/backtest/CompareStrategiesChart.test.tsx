@@ -87,4 +87,24 @@ describe('CompareStrategiesChart', () => {
     await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(1))
     expect(readCharts()[0].dots.map((d: { x: string }) => d.x)).toEqual(['2026-03-02', '2026-03-02', '2026-03-04'])
   })
+
+  it('매도 거래에는 매수 점을 찍지 않는다', async () => {
+    const withSale = [
+      strategies[0],
+      {
+        ...strategies[1],
+        additionalData: {
+          ...strategies[1].additionalData,
+          transactions: [
+            ...(strategies[1].additionalData.transactions ?? []),
+            { date: '2026-03-03', price: 90, shares: -1, amount: 0, fxRate: 1410, trigger: '10.0%익절' },
+          ],
+        },
+      },
+    ]
+    renderWithQuery(<CompareStrategiesChart strategies={withSale} strategyNames={{}} />)
+
+    await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(1))
+    expect(readCharts()[0].dots.map((d: { x: string }) => d.x)).toEqual(['2026-03-02', '2026-03-02', '2026-03-04'])
+  })
 })

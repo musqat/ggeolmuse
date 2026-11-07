@@ -34,4 +34,18 @@ describe('비교 창 전략 칸', () => {
 
     expect(onChange).toHaveBeenCalledWith('dropPercentage', '7')
   })
+
+  it('조건부 칸은 익절 · 손절 퍼센트를 바꾼 값으로 넘기고 기본은 비어 있다', () => {
+    const onChange = vi.fn()
+    render(<ConditionalFields params={{}} onChange={onChange} common={COMMON} />)
+
+    const takeProfit = screen.getByLabelText('익절 (%)')
+    expect(takeProfit).toHaveValue(null)
+
+    fireEvent.change(takeProfit, { target: { value: '20' } })
+    fireEvent.change(screen.getByLabelText('손절 (%)'), { target: { value: '10' } })
+
+    expect(onChange).toHaveBeenCalledWith('takeProfit', '20')
+    expect(onChange).toHaveBeenCalledWith('stopLoss', '10')
+  })
 })

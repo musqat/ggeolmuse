@@ -44,6 +44,22 @@ describe('buildStrategyComparisonRequest', () => {
     })
   })
 
+  it('조건부 매수에 익절 · 손절을 켜면 함께 못 쓰는 배당 재투자를 끄고, 아니면 그대로 둔다', () => {
+    const selling = buildStrategyComparisonRequest(
+      {
+        ...values,
+        reinvestDividends: true,
+        selectedStrategies: ['SIMPLE', 'CONDITIONAL_PURCHASE'],
+        strategyParameters: { CONDITIONAL_PURCHASE: { takeProfit: '20' } },
+      },
+      ctx
+    )
+    expect(selling).toMatchObject({ request: { reinvestDividends: false, strategies: [{}, { takeProfitRate: 0.2 }] } })
+    expect(buildStrategyComparisonRequest({ ...values, reinvestDividends: true }, ctx)).toMatchObject({
+      request: { reinvestDividends: true },
+    })
+  })
+
   it('종료일이 비면 오늘로 채운다', () => {
     expect(buildStrategyComparisonRequest({ ...values, endDate: '' }, ctx)).toMatchObject({
       request: { endDate: '2026-10-08' },
