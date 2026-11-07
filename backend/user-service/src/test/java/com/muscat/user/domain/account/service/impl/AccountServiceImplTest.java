@@ -25,6 +25,7 @@ import com.muscat.user.common.exception.AccountException;
 import com.muscat.user.common.logging.UserLogger;
 import com.muscat.user.common.util.AccountCalculatorUtil;
 import com.muscat.user.domain.account.dto.request.CreateAccountRequestDto;
+import com.muscat.user.domain.account.dto.request.IdempotencyKey;
 import com.muscat.user.domain.account.dto.response.BalanceResponseDto;
 import com.muscat.user.domain.account.dto.response.ExchangeCalculationResult;
 import com.muscat.user.domain.account.entity.Account;
@@ -32,6 +33,7 @@ import com.muscat.user.domain.account.entity.AccountHistory;
 import com.muscat.user.domain.account.repository.AccountHistoryRepository;
 import com.muscat.user.domain.account.repository.AccountRepository;
 import com.muscat.user.domain.account.service.AccountHistoryService;
+import com.muscat.user.domain.account.service.IdempotencyGuard;
 import com.muscat.user.domain.user.entity.User;
 import com.muscat.user.domain.user.repository.UserRepository;
 import com.muscat.user.infra.client.MarketDataServiceClientWrapper;
@@ -47,6 +49,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -88,6 +91,9 @@ class AccountServiceImplTest {
 
   @Mock
   private com.muscat.user.domain.account.repository.DividendSettlementRepository dividendSettlementRepository;
+
+  @Mock
+  private IdempotencyGuard idempotencyGuard;
 
   @org.mockito.Spy
   private org.springframework.transaction.support.TransactionTemplate transactionTemplate =
@@ -290,6 +296,49 @@ class AccountServiceImplTest {
         accountService.depositKrw(accountId, userId, depositAmount)
       ).isInstanceOf(AccountException.class)
         .hasMessage(AccountResponse.ACCOUNT_NOT_FOUND.getMessage());
+    }
+  }
+
+  @Nested
+  @DisplayName("중복 요청 키가 트랜잭션 안에서 부딪힘")
+  class IdempotencyConflictTests {
+
+    private final IdempotencyKey key = new IdempotencyKey("3f2b8c1e-9d4a-4e6f-8a7b-1c2d3e4f5a6b");
+    private final BigDecimal amount = new BigDecimal("500000");
+
+    @Test
+    @DisplayName("다른 요청이 같은 키를 먼저 커밋했으면 그 결과로 보고 잔액을 건드리지 않는다")
+    void claimConflict_OtherRequestCommitted_TreatedAsDone() {
+      String fingerprint = IdempotencyKey.fingerprint("DEPOSIT_KRW", accountId, amount);
+      given(idempotencyGuard.isDone(userId, key, fingerprint)).willReturn(false, true);
+      doThrow(new DataIntegrityViolationException("uk_idempotency_keys_user_key"))
+        .when(idempotencyGuard).claim(userId, key, fingerprint);
+
+      accountService.depositKrw(accountId, userId, amount, key);
+
+      verify(accountRepository, never()).findByIdAndUserIdWithLock(any(), any());
+    }
+
+    @Test
+    @DisplayName("키 기록이 없는 제약 위반은 그대로 낸다")
+    void constraintViolation_WithoutRecord_Rethrown() {
+      String fingerprint = IdempotencyKey.fingerprint("DEPOSIT_KRW", accountId, amount);
+      given(idempotencyGuard.isDone(userId, key, fingerprint)).willReturn(false, false);
+      doThrow(new DataIntegrityViolationException("ux_acct_hist_reference"))
+        .when(idempotencyGuard).claim(userId, key, fingerprint);
+
+      assertThatThrownBy(() -> accountService.depositKrw(accountId, userId, amount, key))
+        .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    @DisplayName("키가 없으면 키 기록을 보지 않는다")
+    void noKey_GuardUntouched() {
+      given(accountRepository.findByIdAndUserIdWithLock(accountId, userId)).willReturn(Optional.of(testAccount));
+
+      accountService.depositKrw(accountId, userId, amount, null);
+
+      verifyNoInteractions(idempotencyGuard);
     }
   }
 

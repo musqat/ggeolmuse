@@ -4,6 +4,7 @@ import com.muscat.messaging.event.DividendPayoutEvent;
 import com.muscat.messaging.event.TradeCompletedEvent;
 import com.muscat.user.common.enums.type.TransactionType;
 import com.muscat.user.domain.account.dto.request.CreateAccountRequestDto;
+import com.muscat.user.domain.account.dto.request.IdempotencyKey;
 import com.muscat.user.domain.account.dto.response.BalanceResponseDto;
 import com.muscat.user.domain.account.dto.response.ExchangeRateRangeDto;
 import com.muscat.user.domain.account.entity.Account;
@@ -26,14 +27,31 @@ public interface AccountService {
   // 계좌 잔액 조회
   BalanceResponseDto getAccountBalance(Long accountId, Long userId);
 
-  // KRW 입금
-  void depositKrw(Long accountId, Long userId, BigDecimal krwAmount);
+  // KRW 입금(하루 안의 같은 중복 요청 키는 한 번만)
+  void depositKrw(Long accountId, Long userId, BigDecimal krwAmount, IdempotencyKey key);
 
-  // KRW → USD 환전
-  void exchangeKrwToUsd(Long accountId, Long userId, BigDecimal krwAmount, BigDecimal exchangeRate);
+  // KRW 입금(중복 요청 키 없음)
+  default void depositKrw(Long accountId, Long userId, BigDecimal krwAmount) {
+    depositKrw(accountId, userId, krwAmount, null);
+  }
 
-  // USD → KRW 환전
-  void exchangeUsdToKrw(Long accountId, Long userId, BigDecimal usdAmount, BigDecimal exchangeRate);
+  // KRW → USD 환전(하루 안의 같은 중복 요청 키는 한 번만)
+  void exchangeKrwToUsd(Long accountId, Long userId, BigDecimal krwAmount, BigDecimal exchangeRate,
+    IdempotencyKey key);
+
+  // KRW → USD 환전(중복 요청 키 없음)
+  default void exchangeKrwToUsd(Long accountId, Long userId, BigDecimal krwAmount, BigDecimal exchangeRate) {
+    exchangeKrwToUsd(accountId, userId, krwAmount, exchangeRate, null);
+  }
+
+  // USD → KRW 환전(하루 안의 같은 중복 요청 키는 한 번만)
+  void exchangeUsdToKrw(Long accountId, Long userId, BigDecimal usdAmount, BigDecimal exchangeRate,
+    IdempotencyKey key);
+
+  // USD → KRW 환전(중복 요청 키 없음)
+  default void exchangeUsdToKrw(Long accountId, Long userId, BigDecimal usdAmount, BigDecimal exchangeRate) {
+    exchangeUsdToKrw(accountId, userId, usdAmount, exchangeRate, null);
+  }
 
   // Trade 서비스 전용: USD 잔고 직접 업데이트
   void updateUsdBalance(Long accountId, Long userId, BigDecimal usdAmount, TransactionType type, String description);

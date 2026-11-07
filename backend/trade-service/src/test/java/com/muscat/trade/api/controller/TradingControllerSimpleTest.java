@@ -1,14 +1,20 @@
 package com.muscat.trade.api.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.muscat.trade.common.enums.response.TradeResponse;
 import com.muscat.trade.common.enums.type.PriceType;
 import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.common.enums.type.TradeType;
+import com.muscat.trade.common.exception.TradeException;
+import com.muscat.trade.domain.dto.request.IdempotencyKey;
 import com.muscat.trade.domain.dto.request.TradeRequestDto;
 import com.muscat.trade.domain.dto.request.TradingCapacityRequestDto;
 import com.muscat.trade.domain.dto.response.TradeResponseDto;
@@ -81,11 +87,12 @@ class TradingControllerSimpleTest {
       any(BigDecimal.class),
       any(LocalDate.class),
       eq(PriceType.CLOSE),
+      isNull(),
       isNull()
     )).thenReturn(expectedResponse);
 
     // When
-    ResponseEntity<TradeResponseDto> response = tradingController.buyStock(mockJwt, request);
+    ResponseEntity<TradeResponseDto> response = tradingController.buyStock(mockJwt, request, null);
 
     // Then
     assertThat(response.getStatusCode().value()).isEqualTo(200);
@@ -127,17 +134,56 @@ class TradingControllerSimpleTest {
       any(BigDecimal.class),
       any(LocalDate.class),
       eq(PriceType.CLOSE),
+      isNull(),
       isNull()
     )).thenReturn(expectedResponse);
 
     // When
-    ResponseEntity<TradeResponseDto> response = tradingController.sellStock(mockJwt, request);
+    ResponseEntity<TradeResponseDto> response = tradingController.sellStock(mockJwt, request, null);
 
     // Then
     assertThat(response.getStatusCode().value()).isEqualTo(200);
     assertThat(response.getBody()).isNotNull();
     assertThat(response.getBody().symbol()).isEqualTo("AAPL");
     assertThat(response.getBody().tradeType()).isEqualTo(TradeType.SELL);
+  }
+
+  @Test
+  @DisplayName("매수 · 매도는 중복 요청 키 헤더를 서비스로 넘긴다")
+  void idempotencyKey_PassedToService() {
+    String key = "3f2b8c1e-9d4a-4e6f-8a7b-1c2d3e4f5a6b";
+    TradeRequestDto request = new TradeRequestDto();
+    request.setAccountId("1");
+    request.setSymbol("AAPL");
+    request.setQuantity(new BigDecimal("5"));
+    request.setTradeDate(LocalDate.of(2024, 1, 15));
+
+    tradingController.buyStock(mockJwt, request, key);
+    tradingController.sellStock(mockJwt, request, key);
+
+    verify(tradingService).buyStock("test-user-123", 1L, "AAPL", new BigDecimal("5"),
+      LocalDate.of(2024, 1, 15), PriceType.CLOSE, null, new IdempotencyKey(key));
+    verify(tradingService).sellStock("test-user-123", 1L, "AAPL", new BigDecimal("5"),
+      LocalDate.of(2024, 1, 15), PriceType.CLOSE, null, new IdempotencyKey(key));
+  }
+
+  @Test
+  @DisplayName("중복 요청 키 모양이 틀리면 400 이고 서비스를 부르지 않는다")
+  void idempotencyKey_Invalid_BadRequest() {
+    TradeRequestDto request = new TradeRequestDto();
+    request.setAccountId("1");
+    request.setSymbol("AAPL");
+    request.setQuantity(new BigDecimal("5"));
+    request.setTradeDate(LocalDate.of(2024, 1, 15));
+
+    assertThatThrownBy(() -> tradingController.buyStock(mockJwt, request, "a".repeat(65)))
+      .isInstanceOf(TradeException.class)
+      .extracting("code").isEqualTo(TradeResponse.INVALID_IDEMPOTENCY_KEY);
+    assertThatThrownBy(() -> tradingController.sellStock(mockJwt, request, ""))
+      .isInstanceOf(TradeException.class)
+      .extracting("code").isEqualTo(TradeResponse.INVALID_IDEMPOTENCY_KEY);
+
+    verifyNoInteractions(tradingService);
   }
 
   @Test

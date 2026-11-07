@@ -1,5 +1,6 @@
 package com.muscat.trade.api.controller;
 
+import com.muscat.trade.domain.dto.request.IdempotencyKey;
 import com.muscat.trade.domain.dto.request.TradeRequestDto;
 import com.muscat.trade.domain.dto.request.TradingCapacityRequestDto;
 import com.muscat.trade.domain.dto.response.TradeResponseDto;
@@ -22,6 +23,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -42,7 +44,7 @@ public class TradingController {
   @ApiResponses(value = {
     @ApiResponse(
       responseCode = "200",
-      description = "매수 성공",
+      description = "매수 성공(같은 중복 요청 키로 다시 온 주문은 처음 체결의 지금 상태)",
       content = @Content(
         mediaType = "application/json",
         schema = @Schema(implementation = TradeResponseDto.class),
@@ -65,7 +67,7 @@ public class TradingController {
     ),
     @ApiResponse(
       responseCode = "400",
-      description = "잘못된 요청 또는 잔액 부족",
+      description = "잘못된 요청, 잔액 부족 또는 중복 요청 키 모양 오류",
       content = @Content(
         mediaType = "application/json",
         schema = @Schema(implementation = ProblemDetail.class)
@@ -78,6 +80,14 @@ public class TradingController {
         mediaType = "application/json",
         schema = @Schema(implementation = ProblemDetail.class)
       )
+    ),
+    @ApiResponse(
+      responseCode = "422",
+      description = "같은 중복 요청 키로 다른 주문",
+      content = @Content(
+        mediaType = "application/json",
+        schema = @Schema(implementation = ProblemDetail.class)
+      )
     )
   })
   @PostMapping("/buy")
@@ -85,8 +95,11 @@ public class TradingController {
     @Parameter(description = "JWT 토큰에서 추출되는 사용자 ID", hidden = true)
     @AuthenticationPrincipal Jwt jwt,
     @Parameter(description = "매수 요청 정보", required = true)
-    @Valid @RequestBody TradeRequestDto request) {
+    @Valid @RequestBody TradeRequestDto request,
+    @Parameter(description = "중복 요청 키(하루 안의 같은 키는 처음 체결 하나)")
+    @RequestHeader(name = IdempotencyKey.HEADER, required = false) String idempotencyKey) {
 
+    IdempotencyKey key = IdempotencyKey.parse(idempotencyKey);
     String userId = jwt.getSubject();
 
     log.info("매수 요청: userId={}, accountId={}, symbol={}, quantity={}, tradeDate={}",
@@ -100,7 +113,8 @@ public class TradingController {
       request.getQuantity(),
       request.getTradeDate(),
       request.getPriceType(),
-      request.getManualPrice()
+      request.getManualPrice(),
+      key
     );
 
     return ResponseEntity.ok(trade);
@@ -113,7 +127,7 @@ public class TradingController {
   @ApiResponses(value = {
     @ApiResponse(
       responseCode = "200",
-      description = "매도 성공",
+      description = "매도 성공(같은 중복 요청 키로 다시 온 주문은 처음 체결의 지금 상태)",
       content = @Content(
         mediaType = "application/json",
         schema = @Schema(implementation = TradeResponseDto.class),
@@ -136,7 +150,7 @@ public class TradingController {
     ),
     @ApiResponse(
       responseCode = "400",
-      description = "잘못된 요청 또는 보유 수량 부족",
+      description = "잘못된 요청, 보유 수량 부족 또는 중복 요청 키 모양 오류",
       content = @Content(
         mediaType = "application/json",
         schema = @Schema(implementation = ProblemDetail.class)
@@ -149,6 +163,14 @@ public class TradingController {
         mediaType = "application/json",
         schema = @Schema(implementation = ProblemDetail.class)
       )
+    ),
+    @ApiResponse(
+      responseCode = "422",
+      description = "같은 중복 요청 키로 다른 주문",
+      content = @Content(
+        mediaType = "application/json",
+        schema = @Schema(implementation = ProblemDetail.class)
+      )
     )
   })
   @PostMapping("/sell")
@@ -156,8 +178,11 @@ public class TradingController {
     @Parameter(description = "JWT 토큰에서 추출되는 사용자 ID", hidden = true)
     @AuthenticationPrincipal Jwt jwt,
     @Parameter(description = "매도 요청 정보", required = true)
-    @Valid @RequestBody TradeRequestDto request) {
+    @Valid @RequestBody TradeRequestDto request,
+    @Parameter(description = "중복 요청 키(하루 안의 같은 키는 처음 체결 하나)")
+    @RequestHeader(name = IdempotencyKey.HEADER, required = false) String idempotencyKey) {
 
+    IdempotencyKey key = IdempotencyKey.parse(idempotencyKey);
     String userId = jwt.getSubject();
 
     log.info("매도 요청: userId={}, accountId={}, symbol={}, quantity={}, tradeDate={}",
@@ -171,7 +196,8 @@ public class TradingController {
       request.getQuantity(),
       request.getTradeDate(),
       request.getPriceType(),
-      request.getManualPrice()
+      request.getManualPrice(),
+      key
     );
 
     return ResponseEntity.ok(trade);

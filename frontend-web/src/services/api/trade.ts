@@ -1,3 +1,4 @@
+import { idempotencyConfig } from '@/utils/idempotencyKey';
 import { apiClient } from './client';
 
 // 거래 주문 정보
@@ -67,16 +68,17 @@ export type TradeResult = {
   tradeDate: string;                                 // 거래일 (YYYY-MM-DD)
   executedAt: string;                                // 체결 일시
   status?: 'PENDING' | 'COMPLETED' | 'CANCELLED';    // 매수는 잔액 정산 전까지 PENDING
+  cancelReason?: string | null;                      // 취소된 체결의 사유 코드
 };
 
 export const tradeApi = {
-  // 매수 주문
-  buy: (order: TradeOrder) =>
-    apiClient.post<TradeResult>('/trade/buy', order),
+  // 매수 주문(키가 있으면 중복 요청 키 헤더)
+  buy: (order: TradeOrder, idempotencyKey?: string) =>
+    apiClient.post<TradeResult>('/trade/buy', order, idempotencyConfig(idempotencyKey)),
 
-  // 매도 주문
-  sell: (order: TradeOrder) =>
-    apiClient.post<TradeResult>('/trade/sell', order),
+  // 매도 주문(키가 있으면 중복 요청 키 헤더)
+  sell: (order: TradeOrder, idempotencyKey?: string) =>
+    apiClient.post<TradeResult>('/trade/sell', order, idempotencyConfig(idempotencyKey)),
 
   // 매수 가능 여부 확인
   canBuy: (payload: TradingCapacityRequest) =>

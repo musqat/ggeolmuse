@@ -33,6 +33,7 @@ public enum AccountResponse implements ErrorCode {
   INVALID_AMOUNT("금액이 유효하지 않습니다.", HttpStatus.BAD_REQUEST),
   NEGATIVE_AMOUNT("금액은 0보다 커야 합니다.", HttpStatus.BAD_REQUEST),
   CURRENCY_MISMATCH("통화가 일치하지 않습니다.", HttpStatus.BAD_REQUEST),
+  INVALID_IDEMPOTENCY_KEY("중복 요청 키는 64자 이하의 영문 · 숫자 · 하이픈입니다.", HttpStatus.BAD_REQUEST),
 
   // 403 Forbidden
   ACCOUNT_ACCESS_DENIED("계좌에 접근할 권한이 없습니다.", HttpStatus.FORBIDDEN),
@@ -42,6 +43,9 @@ public enum AccountResponse implements ErrorCode {
 
   // 409 Conflict
   DUPLICATE_ACCOUNT_NAME("이미 사용중인 계좌명입니다.", HttpStatus.CONFLICT),
+
+  // 422 Unprocessable Entity
+  IDEMPOTENCY_KEY_REUSED("같은 중복 요청 키로 다른 요청을 보냈습니다.", HttpStatus.UNPROCESSABLE_ENTITY),
 
   // 500 Internal Server Error
   ACCOUNT_CREATION_FAILED("계좌 생성에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),

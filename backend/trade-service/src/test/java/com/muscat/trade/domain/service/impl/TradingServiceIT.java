@@ -5,6 +5,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willAnswer;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import com.muscat.messaging.event.TradeRejectedEvent;
 import com.muscat.messaging.event.TradeSettledEvent;
@@ -13,11 +16,14 @@ import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.common.enums.type.TradeType;
 import com.muscat.trade.common.exception.NotEnoughHoldingsException;
 import com.muscat.trade.common.exception.TradeException;
+import com.muscat.trade.domain.dto.request.IdempotencyKey;
 import com.muscat.trade.domain.dto.response.TradeResponseDto;
 import com.muscat.trade.domain.entity.Holdings;
 import com.muscat.trade.domain.entity.Trade;
 import com.muscat.trade.domain.repository.HoldingsRepository;
+import com.muscat.trade.domain.repository.IdempotencyRecordRepository;
 import com.muscat.trade.domain.repository.TradeRepository;
+import com.muscat.trade.domain.service.IdempotencyGuard;
 import com.muscat.trade.domain.service.MarketDataService;
 import com.muscat.trade.domain.service.TradeCancellationService;
 import com.muscat.trade.domain.service.TradeConfirmationService;
@@ -28,6 +34,12 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -40,6 +52,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -85,6 +98,12 @@ class TradingServiceIT {
   @Autowired
   private HoldingsRepository holdingsRepository;
 
+  @Autowired
+  private IdempotencyRecordRepository idempotencyRecordRepository;
+
+  @MockitoSpyBean
+  private IdempotencyGuard idempotencyGuard;
+
   @MockitoBean
   private UserServiceClientWrapper userServiceClientWrapper;
 
@@ -116,6 +135,7 @@ class TradingServiceIT {
 
   @AfterEach
   void tearDown() {
+    idempotencyRecordRepository.deleteAll();
     tradeRepository.deleteAll();
     holdingsRepository.deleteAll();
   }
@@ -494,6 +514,71 @@ class TradingServiceIT {
       assertThat(inTransaction).hasSize(2).containsOnly(false);
       assertThat(tradeRepository.findById(response.id())).get()
         .satisfies(trade -> assertThat(trade.getEventPublishedAt()).isNotNull());
+    }
+  }
+
+  @Nested
+  @DisplayName("같은 중복 요청 키 동시 주문")
+  class IdempotencyTests {
+
+    private final IdempotencyKey key = new IdempotencyKey("3f2b8c1e-9d4a-4e6f-8a7b-1c2d3e4f5a6b");
+
+    // 먼저 키를 넣은 쪽은 다른 쪽이 키 넣기에 들어설 때까지 커밋하지 않음(다른 쪽은 유니크 인덱스에서 기다림)
+    private void holdFirstClaimUntilBothChecked() {
+      CountDownLatch claimEntries = new CountDownLatch(2);
+      willAnswer(invocation -> {
+        claimEntries.countDown();
+        Object claimed = invocation.callRealMethod();
+        assertThat(claimEntries.await(10, TimeUnit.SECONDS)).isTrue();
+        return claimed;
+      }).given(idempotencyGuard).claim(any(), any(), any());
+    }
+
+    // 같은 주문 둘을 동시에 보내고 두 응답
+    private List<TradeResponseDto> twice(Callable<TradeResponseDto> order) throws Exception {
+      ExecutorService pool = Executors.newFixedThreadPool(2);
+      CountDownLatch start = new CountDownLatch(1);
+      Callable<TradeResponseDto> gated = () -> {
+        start.await();
+        return order.call();
+      };
+      Future<TradeResponseDto> first = pool.submit(gated);
+      Future<TradeResponseDto> second = pool.submit(gated);
+      start.countDown();
+      List<TradeResponseDto> responses = List.of(first.get(15, TimeUnit.SECONDS), second.get(15, TimeUnit.SECONDS));
+      pool.shutdown();
+      return responses;
+    }
+
+    @Test
+    @DisplayName("같은 키 매수 둘이 동시에 오면 체결은 하나이고 두 응답이 같은 체결이다")
+    void concurrentBuys_SameKey_OneTrade() throws Exception {
+      holdFirstClaimUntilBothChecked();
+
+      List<TradeResponseDto> responses = twice(() -> tradingService.buyStock(TEST_USER_ID, TEST_ACCOUNT_ID,
+        TEST_SYMBOL, new BigDecimal("10"), LocalDate.now(), PriceType.CLOSE, null, key));
+
+      assertThat(tradeRepository.findAll()).hasSize(1);
+      assertThat(responses).extracting(TradeResponseDto::id).containsOnly(tradeRepository.findAll().get(0).getId());
+      // 둘 다 먼저 보고(없음) 키 충돌 뒤 한 번 더 봄(있음)
+      verify(idempotencyGuard, times(3)).findDone(eq(TEST_USER_ID), eq(key), any());
+    }
+
+    @Test
+    @DisplayName("같은 키 매도 둘이 동시에 오면 둘째도 보유 부족이 아니라 처음 체결을 받는다")
+    void concurrentSells_SameKey_SecondGetsFirstTrade() throws Exception {
+      buyAndSettle(TEST_SYMBOL, "10");
+      holdFirstClaimUntilBothChecked();
+
+      List<TradeResponseDto> responses = twice(() -> tradingService.sellStock(TEST_USER_ID, TEST_ACCOUNT_ID,
+        TEST_SYMBOL, new BigDecimal("10"), LocalDate.now(), PriceType.CLOSE, null, key));
+
+      List<Trade> sells = tradeRepository.findAll().stream()
+        .filter(trade -> trade.getTradeType() == TradeType.SELL).toList();
+      assertThat(sells).hasSize(1);
+      assertThat(responses).extracting(TradeResponseDto::id).containsOnly(sells.get(0).getId());
+      assertThat(holdingsRepository.findByUserIdAndAccountIdAndSymbol(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL))
+        .isEmpty();
     }
   }
 }

@@ -12,15 +12,18 @@ import com.muscat.trade.common.metrics.TradeMetrics;
 import com.muscat.trade.common.util.SlippagePricing;
 import com.muscat.trade.common.util.TradeUtils;
 import com.muscat.trade.config.TradeProperties;
+import com.muscat.trade.domain.dto.request.IdempotencyKey;
 import com.muscat.trade.domain.dto.request.TradingCapacityRequestDto;
 import com.muscat.trade.domain.dto.response.TradeResponseDto;
 import com.muscat.trade.domain.dto.response.TradingCapacityResponseDto;
 import com.muscat.trade.domain.entity.Holdings;
+import com.muscat.trade.domain.entity.IdempotencyRecord;
 import com.muscat.trade.domain.entity.Trade;
 import com.muscat.trade.domain.event.TradeSavedEvent;
 import com.muscat.trade.domain.repository.HoldingsRepository;
 import com.muscat.trade.domain.repository.TradeRepository;
 import com.muscat.trade.domain.service.HoldingsCalculator;
+import com.muscat.trade.domain.service.IdempotencyGuard;
 import com.muscat.trade.domain.service.MarketDataService;
 import com.muscat.trade.domain.service.TradingService;
 import com.muscat.trade.infra.client.dto.AccountBalanceDto;
@@ -34,6 +37,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -55,19 +59,20 @@ public class TradingServiceImpl implements TradingService {
   private final ApplicationEventPublisher eventPublisher;
   private final TransactionTemplate transactionTemplate;
   private final TradeMetrics tradeMetrics;
+  private final IdempotencyGuard idempotencyGuard;
 
   @Override
-  public TradeResponseDto buyStock(String userId, Long accountId, String symbol,
-    BigDecimal quantity, LocalDate tradeDate, PriceType priceType, BigDecimal manualPrice) {
+  public TradeResponseDto buyStock(String userId, Long accountId, String symbol, BigDecimal quantity,
+    LocalDate tradeDate, PriceType priceType, BigDecimal manualPrice, IdempotencyKey key) {
     return executeTrade(userId, accountId, symbol, quantity, tradeDate, priceType, manualPrice,
-      TradeType.BUY);
+      TradeType.BUY, key);
   }
 
   @Override
-  public TradeResponseDto sellStock(String userId, Long accountId, String symbol,
-    BigDecimal quantity, LocalDate tradeDate, PriceType priceType, BigDecimal manualPrice) {
+  public TradeResponseDto sellStock(String userId, Long accountId, String symbol, BigDecimal quantity,
+    LocalDate tradeDate, PriceType priceType, BigDecimal manualPrice, IdempotencyKey key) {
     return executeTrade(userId, accountId, symbol, quantity, tradeDate, priceType, manualPrice,
-      TradeType.SELL);
+      TradeType.SELL, key);
   }
 
   @Override
@@ -180,33 +185,52 @@ public class TradingServiceImpl implements TradingService {
     return request.getPriceType() != null ? request.getPriceType() : PriceType.CLOSE;
   }
 
-  // 공통 거래 실행 메서드
+  // 공통 거래 실행 메서드(키가 있으면 끝난 주문인지 먼저 보고, 키 충돌은 먼저 끝난 체결)
   private TradeResponseDto executeTrade(String userId, Long accountId, String symbol,
     BigDecimal quantity, LocalDate tradeDate, PriceType priceType,
-    BigDecimal manualPrice, TradeType tradeType) {
+    BigDecimal manualPrice, TradeType tradeType, IdempotencyKey key) {
+
+    String fingerprint = IdempotencyKey.fingerprint(tradeType.name(), accountId, symbol, quantity, tradeDate,
+      priceType, manualPrice);
+    if (key != null) {
+      Optional<Trade> done = idempotencyGuard.findDone(userId, key, fingerprint);
+      if (done.isPresent()) {
+        return TradeResponseDto.from(done.get());
+      }
+    }
 
     log.info("{} 요청: 사용자={}, 계좌={}, 종목={}, 수량={}",
       tradeType.name(), userId, accountId, symbol, quantity);
 
-    // 거래 전 검증
-    performPreTradeValidation(userId, accountId, symbol, quantity, tradeDate, tradeType);
-
-    // 가격 결정
-    BigDecimal marketPrice = marketDataService.determineTradePrice(symbol, tradeDate, priceType,
-      manualPrice);
-
     String accountKey = String.valueOf(accountId);
 
-    // 수수료 계산
-    AccountBalanceDto accountBalance = tradeUtils.getAccountBalance(accountKey);
-    BigDecimal tradePrice = applySlippage(symbol, marketPrice, accountBalance, priceType,
-      tradeType);
-    TradeAmounts amounts = calculateTradeAmounts(userId, accountKey, quantity, tradePrice,
-      accountBalance, tradeType);
+    // 거래 전 검증 · 가격 · 수수료(같은 키 처음 주문이 그새 끝나 보유 · 잔액이 바뀌었으면 그 체결)
+    PreparedOrder order;
+    try {
+      order = prepareOrder(userId, accountId, symbol, quantity, tradeDate, priceType, manualPrice, tradeType);
+    } catch (TradeException e) {
+      Optional<Trade> done = doneByFirstRequest(userId, key, fingerprint);
+      if (done.isEmpty()) {
+        throw e;
+      }
+      return TradeResponseDto.from(done.get());
+    }
+    BigDecimal tradePrice = order.tradePrice();
+    TradeAmounts amounts = order.amounts();
 
     // 거래 실행
-    Trade savedTrade = executeTradeTransaction(userId, accountId, symbol, quantity,
-      tradePrice, amounts.total(), amounts.fee(), tradeDate, tradeType);
+    Trade savedTrade;
+    try {
+      savedTrade = executeTradeTransaction(userId, accountId, symbol, quantity,
+        tradePrice, amounts.total(), amounts.fee(), tradeDate, tradeType, key, fingerprint);
+    } catch (DataIntegrityViolationException e) {
+      Optional<Trade> done = doneByFirstRequest(userId, key, fingerprint);
+      if (done.isEmpty()) {
+        log.error("거래 DB 트랜잭션 실패: {}", e.getMessage(), e);
+        throw new TradeException(TradeResponse.TRANSACTION_FAILED);
+      }
+      return TradeResponseDto.from(done.get());
+    }
 
     // 거래 로그 기록
     tradeLogger.logTrade(savedTrade.getId(), userId, accountKey, symbol,
@@ -214,6 +238,32 @@ public class TradingServiceImpl implements TradingService {
 
     log.info("{} 완료: 거래ID={}, 금액={}", tradeType.name(), savedTrade.getId(), amounts.total());
     return TradeResponseDto.from(savedTrade);
+  }
+
+  // 체결가와 금액(트랜잭션 전에 정함)
+  private record PreparedOrder(BigDecimal tradePrice, TradeAmounts amounts) {
+  }
+
+  // 거래 전 검증 · 가격 결정 · 수수료 계산(매수는 잔액 확인)
+  private PreparedOrder prepareOrder(String userId, Long accountId, String symbol, BigDecimal quantity,
+    LocalDate tradeDate, PriceType priceType, BigDecimal manualPrice, TradeType tradeType) {
+    performPreTradeValidation(userId, accountId, symbol, quantity, tradeDate, tradeType);
+
+    BigDecimal marketPrice = marketDataService.determineTradePrice(symbol, tradeDate, priceType,
+      manualPrice);
+
+    String accountKey = String.valueOf(accountId);
+    AccountBalanceDto accountBalance = tradeUtils.getAccountBalance(accountKey);
+    BigDecimal tradePrice = applySlippage(symbol, marketPrice, accountBalance, priceType,
+      tradeType);
+    TradeAmounts amounts = calculateTradeAmounts(userId, accountKey, quantity, tradePrice,
+      accountBalance, tradeType);
+    return new PreparedOrder(tradePrice, amounts);
+  }
+
+  // 같은 키의 처음 주문이 끝났으면 그 체결(키가 없거나 기록이 없으면 빈 값)
+  private Optional<Trade> doneByFirstRequest(String userId, IdempotencyKey key, String fingerprint) {
+    return key == null ? Optional.empty() : idempotencyGuard.findDone(userId, key, fingerprint);
   }
 
   // 거래 전 검증
@@ -286,16 +336,20 @@ public class TradingServiceImpl implements TradingService {
     return new TradeAmounts(tradeAmount, fee, MoneyUtils.roundUsd(total));
   }
 
-  // 체결 저장 · 보유 변경
+  // 키 넣기(트랜잭션 첫 줄) · 체결 저장 · 보유 변경
   private Trade executeTradeTransaction(String userId, Long accountId, String symbol,
     BigDecimal quantity, BigDecimal tradePrice, BigDecimal totalAmount,
-    BigDecimal fee, LocalDate tradeDate, TradeType tradeType) {
+    BigDecimal fee, LocalDate tradeDate, TradeType tradeType, IdempotencyKey key, String fingerprint) {
 
     try {
       log.info("거래 DB 트랜잭션 시작: userId={}, symbol={}, amount={}", userId, symbol, totalAmount);
       Trade result = transactionTemplate.execute(status -> {
+        IdempotencyRecord claimed = key == null ? null : idempotencyGuard.claim(userId, key, fingerprint);
         Trade saved = executeTradeDbTransaction(userId, accountId, symbol, quantity, tradePrice,
           totalAmount, fee, tradeDate, tradeType);
+        if (claimed != null) {
+          claimed.attachTrade(saved.getId());
+        }
         // 트랜잭션 안에서 알려야 커밋 뒤 리스너가 받음
         eventPublisher.publishEvent(new TradeSavedEvent(saved));
         return saved;
@@ -309,6 +363,9 @@ public class TradingServiceImpl implements TradingService {
 
     } catch (TradeException e) {
       // 락을 잡은 뒤의 보유 부족 같은 도메인 오류는 원래 코드 그대로
+      throw e;
+    } catch (DataIntegrityViolationException e) {
+      // 제약 위반은 거래 실패로 바꾸지 않고 그대로(중복 요청 키 충돌일 수 있음)
       throw e;
     } catch (Exception e) {
       log.error("거래 DB 트랜잭션 실패: {}", e.getMessage(), e);

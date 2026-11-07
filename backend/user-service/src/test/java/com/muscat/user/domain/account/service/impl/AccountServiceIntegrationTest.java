@@ -4,17 +4,22 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willAnswer;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import com.muscat.commonlib.dto.FxRateDto;
 import com.muscat.commonlib.exception.ServiceException;
+import com.muscat.user.common.enums.response.AccountResponse;
 import com.muscat.user.common.enums.type.TransactionType;
 import com.muscat.user.common.exception.AccountException;
 import com.muscat.user.domain.account.dto.request.CreateAccountRequestDto;
+import com.muscat.user.domain.account.dto.request.IdempotencyKey;
 import com.muscat.user.domain.account.dto.response.BalanceResponseDto;
 import com.muscat.user.domain.account.entity.Account;
 import com.muscat.user.domain.account.entity.AccountHistory;
 import com.muscat.user.domain.account.repository.AccountHistoryRepository;
 import com.muscat.user.domain.account.repository.AccountRepository;
+import com.muscat.user.domain.account.repository.IdempotencyRecordRepository;
 import com.muscat.user.domain.user.entity.User;
 import com.muscat.user.domain.user.repository.UserRepository;
 import com.muscat.user.infra.client.MarketDataServiceClientWrapper;
@@ -52,6 +57,9 @@ class AccountServiceIntegrationTest {
 
   @Autowired
   private UserRepository userRepository;
+
+  @Autowired
+  private IdempotencyRecordRepository idempotencyRecordRepository;
 
   @MockitoBean
   private MarketDataServiceClientWrapper marketDataServiceClientWrapper;
@@ -92,6 +100,7 @@ class AccountServiceIntegrationTest {
 
   @AfterEach
   void tearDown() {
+    idempotencyRecordRepository.deleteAll();
     accountHistoryRepository.deleteAll();
     accountRepository.deleteAll();
     userRepository.deleteAll();
@@ -516,6 +525,107 @@ class AccountServiceIntegrationTest {
       accountService.getCurrentExchangeRate();
 
       assertThat(inTransaction).containsExactly(false);
+    }
+  }
+
+  @Nested
+  @DisplayName("같은 중복 요청 키로 다시 온 입금 · 환전")
+  class IdempotencyTests {
+
+    private final IdempotencyKey key = new IdempotencyKey("3f2b8c1e-9d4a-4e6f-8a7b-1c2d3e4f5a6b");
+
+    private Account newAccount(Long userId) {
+      CreateAccountRequestDto request = new CreateAccountRequestDto();
+      request.setAccountName(TEST_ACCOUNT_NAME);
+      request.setCommissionRate(BigDecimal.ZERO);
+      return accountService.createAccount(userId, request);
+    }
+
+    private BigDecimal krwOf(Account account) {
+      return accountRepository.findById(account.getId()).orElseThrow().getBalanceKrw();
+    }
+
+    @Test
+    @DisplayName("같은 키로 두 번 입금하면 잔액과 내역은 한 번만 바뀐다")
+    void deposit_SameKeyTwice_AppliedOnce() {
+      Account account = newAccount(testUserId);
+      long historiesBefore = accountHistoryRepository.count();
+
+      accountService.depositKrw(account.getId(), testUserId, new BigDecimal("500000"), key);
+      accountService.depositKrw(account.getId(), testUserId, new BigDecimal("500000.00"), key);
+
+      assertThat(krwOf(account)).isEqualByComparingTo(initialKrwAmount.add(new BigDecimal("500000")));
+      assertThat(accountHistoryRepository.count()).isEqualTo(historiesBefore + 1);
+    }
+
+    @Test
+    @DisplayName("같은 키에 다른 금액이면 422 이고 잔액은 첫 입금 그대로다")
+    void deposit_SameKeyOtherAmount_Unprocessable() {
+      Account account = newAccount(testUserId);
+      accountService.depositKrw(account.getId(), testUserId, new BigDecimal("500000"), key);
+
+      assertThatThrownBy(() -> accountService.depositKrw(account.getId(), testUserId, new BigDecimal("600000"), key))
+        .isInstanceOf(AccountException.class)
+        .extracting("code").isEqualTo(AccountResponse.IDEMPOTENCY_KEY_REUSED);
+      assertThat(krwOf(account)).isEqualByComparingTo(initialKrwAmount.add(new BigDecimal("500000")));
+    }
+
+    @Test
+    @DisplayName("같은 키로 다시 온 환전은 환율 범위를 다시 받지 않고 한 번만 환전한다")
+    void exchange_SameKeyTwice_AppliedOnceWithoutRemoteCall() {
+      Account account = newAccount(testUserId);
+
+      accountService.exchangeKrwToUsd(account.getId(), testUserId, new BigDecimal("100000"), TEST_EXCHANGE_RATE, key);
+      BigDecimal usdAfterFirst = accountRepository.findById(account.getId()).orElseThrow().getBalanceUsd();
+      accountService.exchangeKrwToUsd(account.getId(), testUserId, new BigDecimal("100000"), TEST_EXCHANGE_RATE, key);
+
+      assertThat(accountRepository.findById(account.getId()).orElseThrow().getBalanceUsd())
+        .isEqualByComparingTo(usdAfterFirst);
+      assertThat(krwOf(account)).isEqualByComparingTo(initialKrwAmount.subtract(new BigDecimal("100000")));
+      verify(marketDataServiceClientWrapper, times(1)).getFxRateRange();
+    }
+
+    @Test
+    @DisplayName("같은 키라도 방향이 다른 환전이면 422 다")
+    void exchange_SameKeyOtherDirection_Unprocessable() {
+      Account account = newAccount(testUserId);
+      accountService.exchangeKrwToUsd(account.getId(), testUserId, new BigDecimal("100000"), TEST_EXCHANGE_RATE, key);
+
+      assertThatThrownBy(() -> accountService.exchangeUsdToKrw(
+        account.getId(), testUserId, new BigDecimal("100000"), TEST_EXCHANGE_RATE, key))
+        .isInstanceOf(AccountException.class)
+        .extracting("code").isEqualTo(AccountResponse.IDEMPOTENCY_KEY_REUSED);
+    }
+
+    @Test
+    @DisplayName("잔액 부족으로 실패한 키는 남지 않아 입금 뒤 같은 키로 다시 보내면 환전된다")
+    void exchange_FailedKeyRolledBack_RetryRuns() {
+      Account account = newAccount(testUserId);
+      BigDecimal amount = initialKrwAmount.add(new BigDecimal("1000000"));
+
+      assertThatThrownBy(() -> accountService.exchangeKrwToUsd(
+        account.getId(), testUserId, amount, TEST_EXCHANGE_RATE, key))
+        .isInstanceOf(ServiceException.class);
+      accountService.depositKrw(account.getId(), testUserId, new BigDecimal("1000000"));
+      accountService.exchangeKrwToUsd(account.getId(), testUserId, amount, TEST_EXCHANGE_RATE, key);
+
+      assertThat(krwOf(account)).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
+    @DisplayName("같은 키라도 사용자가 다르면 각자 입금된다")
+    void deposit_SameKeyOtherUser_BothApplied() {
+      User other = userRepository.save(User.builder()
+        .email("other@example.com").passwordHash("encodedPassword").nickname("다른 사용자")
+        .keycloakId("keycloak-other-user-id").build());
+      Account mine = newAccount(testUserId);
+      Account theirs = newAccount(other.getId());
+
+      accountService.depositKrw(mine.getId(), testUserId, new BigDecimal("500000"), key);
+      accountService.depositKrw(theirs.getId(), other.getId(), new BigDecimal("500000"), key);
+
+      assertThat(krwOf(mine)).isEqualByComparingTo(initialKrwAmount.add(new BigDecimal("500000")));
+      assertThat(krwOf(theirs)).isEqualByComparingTo(initialKrwAmount.add(new BigDecimal("500000")));
     }
   }
 }

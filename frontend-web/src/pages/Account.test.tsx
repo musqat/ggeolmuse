@@ -91,7 +91,7 @@ describe('Account', () => {
     await user.type(screen.getByPlaceholderText('입금할 금액을 입력하세요'), '100000')
     await user.click(screen.getByRole('button', { name: '입금하기' }))
 
-    expect(accountsApi.depositKrw).toHaveBeenCalledWith(3, { krwAmount: 100000 })
+    expect(accountsApi.depositKrw).toHaveBeenCalledWith(3, { krwAmount: 100000 }, expect.any(String))
     expect(notify.success).toHaveBeenCalledWith('입금이 완료되었습니다.')
   })
 
@@ -108,7 +108,7 @@ describe('Account', () => {
     await waitFor(() => expect(notify.success).toHaveBeenCalledWith('환전이 완료되었습니다.'))
     expect(accountsApi.exchangeCurrency).toHaveBeenCalledWith(3, {
       fromCurrency: 'KRW', toCurrency: 'USD', originalAmount: 135000, exchangeRate: 1350,
-    })
+    }, expect.any(String))
   })
 
   it('카드의 삭제는 확인 창을 거쳐 그 계좌를 지운다', async () => {

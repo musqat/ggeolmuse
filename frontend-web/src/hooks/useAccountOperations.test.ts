@@ -27,7 +27,7 @@ describe('useAccountOperations', () => {
 
     await act(() => result.current.depositKrw({ accountId: 3, amount: 1000 }))
 
-    expect(accountsApi.depositKrw).toHaveBeenCalledWith(3, { krwAmount: 1000 })
+    expect(accountsApi.depositKrw).toHaveBeenCalledWith(3, { krwAmount: 1000 }, expect.any(String))
     expect(onSuccess).toHaveBeenCalledTimes(1)
     expect(notify.success).toHaveBeenCalledWith('입금이 완료되었습니다.')
   })
@@ -70,6 +70,40 @@ describe('useAccountOperations', () => {
 
     expect(notify.error).toHaveBeenCalledWith(failureText)
     expect(onSuccess).not.toHaveBeenCalled()
+  })
+
+  describe('중복 요청 키', () => {
+    const keyOf = (mock: unknown, call: number) => vi.mocked(mock as Mock).mock.calls[call][2] as string
+
+    it('실패한 입금을 같은 금액으로 다시 보내면 같은 키, 성공한 뒤에는 새 키를 싣는다', async () => {
+      vi.mocked(accountsApi.depositKrw)
+        .mockRejectedValueOnce(new Error('timeout'))
+        .mockResolvedValue({} as never)
+      const { result } = renderHook(() => useAccountOperations(onSuccess))
+
+      await expect(act(() => result.current.depositKrw({ accountId: 3, amount: 1000 }))).rejects.toThrow('timeout')
+      await act(() => result.current.depositKrw({ accountId: 3, amount: 1000 }))
+      await act(() => result.current.depositKrw({ accountId: 3, amount: 1000 }))
+
+      expect(keyOf(accountsApi.depositKrw, 0)).toEqual(expect.any(String))
+      expect(keyOf(accountsApi.depositKrw, 1)).toBe(keyOf(accountsApi.depositKrw, 0))
+      expect(keyOf(accountsApi.depositKrw, 2)).not.toBe(keyOf(accountsApi.depositKrw, 0))
+    })
+
+    it('금액이 바뀌거나 환전으로 바꾸면 새 키를 싣는다', async () => {
+      vi.mocked(accountsApi.depositKrw).mockRejectedValue(new Error('down'))
+      vi.mocked(accountsApi.exchangeCurrency).mockRejectedValue(new Error('down'))
+      const { result } = renderHook(() => useAccountOperations(onSuccess))
+
+      await expect(act(() => result.current.depositKrw({ accountId: 3, amount: 1000 }))).rejects.toThrow('down')
+      await expect(act(() => result.current.depositKrw({ accountId: 3, amount: 2000 }))).rejects.toThrow('down')
+      await expect(act(() => result.current.exchangeCurrency({
+        accountId: 3, fromCurrency: 'KRW', amount: 2000, exchangeRate: 1350,
+      }))).rejects.toThrow('down')
+
+      const keys = [keyOf(accountsApi.depositKrw, 0), keyOf(accountsApi.depositKrw, 1), keyOf(accountsApi.exchangeCurrency, 0)]
+      expect(new Set(keys).size).toBe(3)
+    })
   })
 
   it('생성은 수수료 · 슬리피지를 소수로 보낸다', async () => {

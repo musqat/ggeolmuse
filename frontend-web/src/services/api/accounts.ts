@@ -1,3 +1,4 @@
+import { idempotencyConfig } from '@/utils/idempotencyKey';
 import { apiClient } from './client';
 
 // 계좌 요약 정보
@@ -78,13 +79,13 @@ export const accountsApi = {
   createAccount: (data: CreateAccountRequest) =>
     apiClient.post<AccountDetail>('/accounts', data),
 
-  // KRW 입금
-  depositKrw: (accountId: number, data: DepositRequest) =>
-    apiClient.post<void>(`/accounts/${accountId}/deposit`, data),
+  // KRW 입금(키가 있으면 중복 요청 키 헤더)
+  depositKrw: (accountId: number, data: DepositRequest, idempotencyKey?: string) =>
+    apiClient.post<void>(`/accounts/${accountId}/deposit`, data, idempotencyConfig(idempotencyKey)),
 
-  // 환전
-  exchangeCurrency: (accountId: number, data: ExchangeRequest) =>
-    apiClient.post<void>(`/accounts/${accountId}/exchange`, data),
+  // 환전(키가 있으면 중복 요청 키 헤더)
+  exchangeCurrency: (accountId: number, data: ExchangeRequest, idempotencyKey?: string) =>
+    apiClient.post<void>(`/accounts/${accountId}/exchange`, data, idempotencyConfig(idempotencyKey)),
 
   // 현재 환율 조회
   getCurrentExchangeRate: () =>
