@@ -69,7 +69,7 @@ func openRepo(rev string) (gitRepo, map[string]values.Entry, error) {
 	if err != nil {
 		return gitRepo{}, nil, fmt.Errorf("git 저장소 아님: %w", err)
 	}
-	r := gitRepo{dir: strings.TrimSpace(string(top)), rev: rev}
+	r := gitRepo{dir: strings.TrimSpace(string(top)), rev: rev, memo: &historyMemo{}}
 	text, err := r.show(valuesPath)
 	if err != nil {
 		return gitRepo{}, nil, err
@@ -115,7 +115,7 @@ func planStill(entries map[string]values.Entry, head string, r repo, only []stri
 
 // 운영 커밋 · 조상 · 바뀐 파일 · 이력의 가장 높은 버전
 type repo interface {
-	deployedCommit(e values.Entry) (string, bool)
+	deployedCommit(svc string, e values.Entry) (string, bool)
 	isAncestor(base, head string) bool
 	changed(base, head string) ([]string, error)
 	highestVersions() (map[string]string, error)
@@ -132,7 +132,7 @@ func plan(entries map[string]values.Entry, head string, r repo, only []string) (
 		if !ok {
 			continue
 		}
-		base, known := r.deployedCommit(e)
+		base, known := r.deployedCommit(svc, e)
 		if !known {
 			picked = append(picked, svc)
 			continue
@@ -151,10 +151,11 @@ func plan(entries map[string]values.Entry, head string, r repo, only []string) (
 	return picked, nil
 }
 
-// 저장소 경로와 값 파일 리비전
+// 저장소 경로 · 값 파일 리비전 · 한 번 읽은 값 파일 이력(nil 이면 매번 읽음)
 type gitRepo struct {
-	dir string
-	rev string
+	dir  string
+	rev  string
+	memo *historyMemo
 }
 
 func (g gitRepo) git(args ...string) (string, error) {
@@ -170,20 +171,22 @@ func (g gitRepo) show(path string) (string, error) {
 	return out, nil
 }
 
-// 커밋 태그는 그 커밋, 버전은 그 줄을 바꾼 커밋(봇 커밋이면 제목 끝 괄호의 빌드한 커밋)
-func (g gitRepo) deployedCommit(e values.Entry) (string, bool) {
+// 커밋 태그는 그 커밋, 버전은 값 파일 이력에서 처음 그 버전이 된 커밋(봇 커밋이면 제목 끝 괄호의 빌드한 커밋, 되돌린 뒤에도 같음)
+func (g gitRepo) deployedCommit(svc string, e values.Entry) (string, bool) {
 	if values.TagPattern.MatchString(e.Tag) && !strings.Contains(e.Tag, ".") {
 		out, err := g.git("rev-parse", "--verify", "--quiet", e.Tag+"^{commit}")
 		return out, err == nil && out != ""
 	}
-	if e.Line <= 0 {
+	hist, err := g.history()
+	if err != nil {
 		return "", false
 	}
-	out, err := g.git("blame", "--porcelain", "-L", fmt.Sprintf("%d,%d", e.Line, e.Line), g.rev, "--", valuesPath)
-	if err != nil || out == "" {
-		return "", false
+	for _, h := range hist {
+		if h.tags[svc] == e.Tag {
+			return g.builtCommit(h.commit), true
+		}
 	}
-	return g.builtCommit(strings.Fields(out)[0]), true
+	return "", false
 }
 
 func (g gitRepo) isAncestor(base, head string) bool {

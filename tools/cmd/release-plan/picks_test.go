@@ -2,6 +2,8 @@ package main
 
 import (
 	"maps"
+	"os"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -37,6 +39,14 @@ func TestParsePicks(t *testing.T) {
 		{"코드 블록 안의 칸 예시는 보지 않음",
 			"## 요약\n```\n## 빌드할 서비스\n- [x] backtest-service 1.8.0\n```\n\n## 빌드할 서비스\n- [x] user-service\n",
 			map[string]string{"user-service": ""}, true},
+		{"요약 인라인 코드의 닫히지 않은 <!-- 는 칸을 지우지 않음",
+			"## 요약\n - 줄 끝 `<!--` 는 버전 아님\n\n## 빌드할 서비스\n<!-- 안내 -->\n- [x] backtest-service 1.8.0\n",
+			map[string]string{"backtest-service": "1.8.0"}, true},
+		{"코드 블록 안의 닫히지 않은 <!-- 도",
+			"## 요약\n```\n<!--\n```\n\n## 빌드할 서비스\n<!-- 안내 -->\n- [x] frontend-web\n",
+			map[string]string{"frontend-web": ""}, true},
+		{"닫히지 않은 주석 블록 뒤는 보지 않음", "## 빌드할 서비스\n- [x] user-service\n<!--\n- [x] trade-service\n",
+			map[string]string{"user-service": ""}, true},
 		{"* · + · 숫자 글머리", "## 빌드할 서비스\n* [x] trade-service\n+ [x] user-service\n1. [x] frontend-web 1.8.0\n",
 			map[string]string{"trade-service": "", "user-service": "", "frontend-web": "1.8.0"}, true},
 	}
@@ -50,6 +60,27 @@ func TestParsePicks(t *testing.T) {
 				t.Fatalf("고른 서비스 %v · 칸 %v, 기대 %v · %v", got, found, c.want, c.wantFound)
 			}
 		})
+	}
+}
+
+// PR 템플릿의 빌드할 서비스 칸(기본은 모두 빈 칸, 배포하는 서비스 전부)
+func TestTemplate(t *testing.T) {
+	raw, err := os.ReadFile("../../../.github/pull_request_template.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	picks, found, err := parsePicks(string(raw))
+	if err != nil || !found || len(picks) != 0 {
+		t.Fatalf("템플릿 그대로: 고른 서비스 %v · 칸 %v · 오류 %v, 기대는 빈 칸", picks, found, err)
+	}
+	// 요약에 닫히지 않은 <!-- 를 적어도 칸 주석의 --> 와 이어지지 않음
+	edited := strings.Replace(strings.ReplaceAll(string(raw), "\r\n", "\n"), "## 요약\n", "## 요약\n - 줄 끝 `<!--` 는 버전 아님\n", 1)
+	all, _, err := parsePicks(strings.ReplaceAll(edited, "- [ ] ", "- [x] "))
+	if err != nil {
+		t.Fatalf("모두 체크: %v", err)
+	}
+	if got := slices.Sorted(maps.Keys(all)); !slices.Equal(got, slices.Sorted(slices.Values(services))) {
+		t.Fatalf("칸의 서비스 %v, 기대 %v", got, services)
 	}
 }
 

@@ -17,8 +17,8 @@ var headingLine = regexp.MustCompile(`^(#{1,6})\s+(.*?)\s*#*\s*$`)
 // 체크 칸 줄(- · * · + · 숫자. 글머리, 칸 안 한 글자, 서비스, 뒤는 버전 자리)
 var pickLine = regexp.MustCompile(`^(?:[-*+]|[0-9]+\.)\s*\[(.)\]\s*(\S+)\s*(.*)$`)
 
-// HTML 주석(여러 줄 포함, 화면에 보이지 않는 글)
-var htmlComment = regexp.MustCompile(`(?s)<!--.*?-->`)
+// 한 줄 안의 HTML 주석(화면에 보이지 않는 글)
+var htmlComment = regexp.MustCompile(`<!--.*?-->`)
 
 // 앞자리 0 · v 없는 세 자리 버전
 var versionPattern = regexp.MustCompile(`^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$`)
@@ -29,10 +29,13 @@ var deployedVersion = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
 // parsePicks 는 빌드할 서비스 칸에서 체크한 서비스와 버전(빈 값이면 SHA 7자리), 칸을 찾았는지
 func parsePicks(body string) (map[string]string, bool, error) {
 	picks := map[string]string{}
-	found, inSection, inFence := false, false, false
-	text := htmlComment.ReplaceAllString(strings.ReplaceAll(body, "\r\n", "\n"), "")
-	for _, raw := range strings.Split(text, "\n") {
+	found, inSection, inFence, inComment := false, false, false, false
+	for _, raw := range strings.Split(strings.ReplaceAll(body, "\r\n", "\n"), "\n") {
 		line := strings.TrimSpace(raw)
+		if inComment {
+			inComment = !strings.Contains(line, "-->")
+			continue
+		}
 		if strings.HasPrefix(line, "```") || strings.HasPrefix(line, "~~~") {
 			inFence = !inFence
 			continue
@@ -40,6 +43,12 @@ func parsePicks(body string) (map[string]string, bool, error) {
 		if inFence {
 			continue
 		}
+		// 줄 머리에서 여는 주석은 --> 가 있는 줄까지 숨김(GitHub 의 HTML 블록과 같음)
+		if strings.HasPrefix(line, "<!--") {
+			inComment = !strings.Contains(line[len("<!--"):], "-->")
+			continue
+		}
+		line = strings.TrimSpace(htmlComment.ReplaceAllString(line, ""))
 		if h := headingLine.FindStringSubmatch(line); h != nil {
 			inSection = len(h[1]) >= 2 && strings.Join(strings.Fields(h[2]), " ") == picksTitle
 			if inSection && found {

@@ -57,7 +57,7 @@ type fakeRepo struct {
 
 func (f fakeRepo) highestVersions() (map[string]string, error) { return f.highest, nil }
 
-func (f fakeRepo) deployedCommit(e values.Entry) (string, bool) {
+func (f fakeRepo) deployedCommit(_ string, e values.Entry) (string, bool) {
 	c, ok := f.commits[e.Tag]
 	return c, ok
 }
@@ -234,7 +234,7 @@ func TestPlan(t *testing.T) {
 	}
 }
 
-// 임시 저장소: 버전 · 커밋 태그 · 옮긴 파일 · 한글 경로 · 이력의 가장 높은 버전 · 봇 커밋 괄호 · 본문 파일로 고른 계획
+// 임시 저장소: 버전 · 커밋 태그 · 옮긴 파일 · 한글 경로 · 이력의 가장 높은 버전 · 봇 커밋 괄호 · 되돌린 버전 · 본문 파일로 고른 계획
 func TestGitRepo(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git 없음")
@@ -284,10 +284,10 @@ func TestGitRepo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, ok := r.deployedCommit(entries["user-service"]); !ok || got != released {
+	if got, ok := r.deployedCommit("user-service", entries["user-service"]); !ok || got != released {
 		t.Fatalf("버전 태그 커밋 %q, 기대 %q", got, released)
 	}
-	if got, ok := r.deployedCommit(values.Entry{Tag: head[:7]}); !ok || got != head {
+	if got, ok := r.deployedCommit("user-service", values.Entry{Tag: head[:7]}); !ok || got != head {
 		t.Fatalf("커밋 태그 %q, 기대 %q", got, head)
 	}
 	if !r.isAncestor(released, head) || r.isAncestor(head, released) {
@@ -321,11 +321,32 @@ func TestGitRepo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, ok := r.deployedCommit(entries["user-service"]); !ok || got != built {
+	if got, ok := r.deployedCommit("user-service", entries["user-service"]); !ok || got != built {
 		t.Fatalf("봇 커밋이 가리키는 커밋 %q, 기대 %q", got, built)
 	}
 	if got, err := r.highestVersions(); err != nil || got["user-service"] != "1.8.0" {
 		t.Fatalf("이력의 가장 높은 버전 %v, %v, 기대 1.8.0", got, err)
+	}
+
+	// 봇 커밋을 되돌리면 앞 버전을 처음 낸 커밋, 되돌림을 다시 되돌리면 다시 빌드한 커밋
+	userEntry := func() values.Entry {
+		text, err := r.show(valuesPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		entries, err := values.Find(text)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return entries["user-service"]
+	}
+	git("revert", "--no-edit", "HEAD")
+	if got, ok := r.deployedCommit("user-service", userEntry()); !ok || got != released {
+		t.Fatalf("되돌린 뒤 운영 커밋 %q, 기대 %q", got, released)
+	}
+	git("revert", "--no-edit", "HEAD")
+	if got, ok := r.deployedCommit("user-service", userEntry()); !ok || got != built {
+		t.Fatalf("되돌림을 되돌린 뒤 운영 커밋 %q, 기대 %q", got, built)
 	}
 	if got, err := r.commitOf("HEAD"); err != nil || got != git("rev-parse", "HEAD") {
 		t.Fatalf("HEAD 의 커밋 %q, %v", got, err)
@@ -373,7 +394,7 @@ func TestGitRepo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, ok := r.deployedCommit(entries["user-service"]); !ok || got != plain {
+	if got, ok := r.deployedCommit("user-service", entries["user-service"]); !ok || got != plain {
 		t.Fatalf("봇 커밋 아닌 제목의 운영 커밋 %q, 기대 %q", got, plain)
 	}
 }

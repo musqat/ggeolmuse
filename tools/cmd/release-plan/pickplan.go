@@ -125,13 +125,28 @@ func writePlan(w io.Writer, p releasePlan) {
 	}
 }
 
-// 운영 값 파일 이력에서 서비스마다 가장 높은 버전(커밋 태그는 뺌)
-func (g gitRepo) highestVersions() (map[string]string, error) {
-	out, err := g.git("log", "--format=%H", g.rev, "--", valuesPath)
+// 값 파일 이력의 한 커밋과 그때의 서비스별 태그
+type valuesAt struct {
+	commit string
+	tags   map[string]string
+}
+
+// 한 번 읽은 값 파일 이력
+type historyMemo struct {
+	read bool
+	hist []valuesAt
+}
+
+// 운영 값 파일 이력(오래된 것부터, 못 읽는 커밋은 뺌)
+func (g gitRepo) history() ([]valuesAt, error) {
+	if g.memo != nil && g.memo.read {
+		return g.memo.hist, nil
+	}
+	out, err := g.git("log", "--reverse", "--format=%H", g.rev, "--", valuesPath)
 	if err != nil {
 		return nil, fmt.Errorf("%s 이력 못 읽음: %w", valuesPath, err)
 	}
-	highest := map[string]string{}
+	hist := []valuesAt{}
 	for _, commit := range strings.Fields(out) {
 		text, err := g.git("show", commit+":"+valuesPath)
 		if err != nil {
@@ -141,14 +156,34 @@ func (g gitRepo) highestVersions() (map[string]string, error) {
 		if err != nil {
 			continue
 		}
+		tags := make(map[string]string, len(entries))
 		for svc, e := range entries {
-			if !deployedVersion.MatchString(e.Tag) {
+			tags[svc] = e.Tag
+		}
+		hist = append(hist, valuesAt{commit: commit, tags: tags})
+	}
+	if g.memo != nil {
+		g.memo.read, g.memo.hist = true, hist
+	}
+	return hist, nil
+}
+
+// 운영 값 파일 이력에서 서비스마다 가장 높은 버전(커밋 태그는 뺌)
+func (g gitRepo) highestVersions() (map[string]string, error) {
+	hist, err := g.history()
+	if err != nil {
+		return nil, err
+	}
+	highest := map[string]string{}
+	for _, h := range hist {
+		for svc, tag := range h.tags {
+			if !deployedVersion.MatchString(tag) {
 				continue
 			}
 			if cur, ok := highest[svc]; !ok {
-				highest[svc] = e.Tag
-			} else if cmp, _ := compareVersions(e.Tag, cur); cmp > 0 {
-				highest[svc] = e.Tag
+				highest[svc] = tag
+			} else if cmp, _ := compareVersions(tag, cur); cmp > 0 {
+				highest[svc] = tag
 			}
 		}
 	}
