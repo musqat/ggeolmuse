@@ -85,7 +85,7 @@ SpelEvaluationException: Method isEmpty() cannot be found on type FxRate
 
 ## 배당 한 건이 종목 전체를 깨뜨린다
 
-`날짜` 2026-08-25 · `영향` 배당 한 건이 깨지면 그 종목 배당 전체가 예외로 끝남 · `탐지` 파서에 단위 테스트를 붙이다 발견
+`날짜` 2026-08-25 · `영향` 배당 한 건이 깨지면 그 종목 배당 전체가 예외로 끝남 · `탐지` 파서에 단위 테스트를 더하다 발견
 
 `증상`
 `YahooParser.createDividendDto` 에 NPE 가 나는 자리가 있었다.
@@ -405,7 +405,7 @@ API 를 부르지 않는 것을 테스트가 본다.
 닫혀 있었다.
 
 `원인`
-`recordExceptions` 에 `HttpServerErrorException` 이 적혀 있었다. RestTemplate 이 던지는
+`recordExceptions` 에 `HttpServerErrorException` 이 적혀 있었다. RestTemplate 이 내는
 예외다. 호출은 Feign 으로 하므로 `FeignException` 계열이 나온다. 나열된 것만 실패로
 세기 때문에 500 을 아무리 받아도 실패가 아니었다.
 
@@ -696,7 +696,7 @@ return Mono.just(clientIp(exchange) + ":" + routeId(exchange));
 ```
 
 같은 파일의 NPE 두 곳도 막았다. 미해석 `InetSocketAddress` 는 `getAddress()` 가 null
-이고 끊긴 커넥션은 `getRemoteAddress()` 자체가 null 인데 `requireNonNull` 로 감싸여
+이고 닫힌 커넥션은 `getRemoteAddress()` 자체가 null 인데 `requireNonNull` 로 감싸여
 있어 그 경우 500 이 나갔다.
 
 `재발 방지`
@@ -816,7 +816,7 @@ market-data 의 실패는 테스트 코드 문제가 아니었다. `FxRateServic
 
 ## BOM 을 import 했는데 라이브러리가 안 왔다
 
-`날짜` 2026-08-25 · `영향` 게이트웨이 스팬 0건. 트레이스가 게이트웨이에서 끊김 · `탐지` 분산 추적을 붙이고 Tempo 에서
+`날짜` 2026-08-25 · `영향` 게이트웨이 스팬 0건. 트레이스가 게이트웨이에서 멈춤 · `탐지` 분산 추적을 넣고 Tempo 에서
 
 `증상`
 분산 추적을 붙였는데 게이트웨이 스팬이 하나도 없었다. 다른 서비스는 정상이고 메트릭도
@@ -824,7 +824,7 @@ market-data 의 실패는 테스트 코드 문제가 아니었다. `FxRateServic
 
 `원인`
 첫 가설은 WebFlux 였다. 게이트웨이만 리액티브 스택이고 `ThreadLocal` 기반 컨텍스트
-전파가 끊기기 쉽다. 틀렸다. `mvn dependency:tree` 로 확인하니 추적 라이브러리 자체가
+전파가 이어지지 않기 쉽다. 틀렸다. `mvn dependency:tree` 로 확인하니 추적 라이브러리 자체가
 클래스패스에 없었다.
 
 `ggeolmuse-bom` 한 파일이 `dependencyManagement`(버전) 와 `dependencies`(라이브러리) 를
@@ -873,7 +873,7 @@ Central 에서 왔다.
 
 `조치`
 `.mvn/ci-settings.xml` 로 모든 저장소를 Central 로 미러링했다. Maven 이 `.mvn` 의
-settings 를 자동으로 읽지 않아 CI 의 mvn 호출 6곳에 `-s` 를 붙이고 Dockerfile 6개는
+settings 를 자동으로 읽지 않아 CI 의 mvn 호출 6곳에 `-s` 를 넣고 Dockerfile 6개는
 `/root/.m2/settings.xml` 로 복사한다.
 
 | | 전 | 후 |
@@ -1085,7 +1085,7 @@ Helm values 의 `networkPolicy.ports` 에 8000 을 추가했다. base 와 prod �
 
 `재발 방지`
 CI 가 렌더한 매니페스트에서 NetworkPolicy 의 게이트웨이 규칙 포트와 `tier: business-service`
-워크로드의 `containerPort` 를 대조한다(`.github/scripts/check-netpol-ports.sh`). 빠진 포트가
+워크로드의 `containerPort` 를 대조한다(`tools/cmd/netpol-check`). 빠진 포트가
 있으면 `scan-manifests` 잡이 실패한다.
 
 <br>
