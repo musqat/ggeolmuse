@@ -40,20 +40,21 @@ test('종목 비교가 화면에서 끝까지 돈다', async ({ page }) => {
 
   await page.getByTestId('backtest-run').click();
 
-  // 최고 성과 종목이 뜨면 비교 끝
-  await expect(page.getByText('최고 성과 종목'), '비교 결과가 안 나온다').toBeVisible({
+  // 종목별 결과 표가 뜨면 비교 끝
+  await expect(page.getByRole('heading', { name: '종목별 결과' }), '비교 결과가 안 나온다').toBeVisible({
     timeout: 60_000,
   });
 
   // 담은 종목이 결과에 다 있는지
   for (const { symbol } of usable) {
     await expect(
-      page.getByText(symbol, { exact: true }).first(),
+      page.getByRole('table').getByText(symbol, { exact: true }),
       `${symbol} 이 결과에 없다`
     ).toBeVisible();
   }
 
-  // 최적 타이밍 마커(금색)
+  // 접어 둔 주가 추이 비교를 열고 최적 타이밍 마커(금색)
+  await page.getByText('주가 추이 비교', { exact: true }).click();
   const markers = page.locator('svg circle[fill="#fbbf24"]');
   await expect(markers.first(), '최적 타이밍 마커가 안 찍힌다').toBeVisible({ timeout: 30_000 });
 });
