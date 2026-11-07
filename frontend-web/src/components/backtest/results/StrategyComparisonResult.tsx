@@ -162,7 +162,7 @@ export const StrategyComparisonResult: React.FC<StrategyComparisonResultProps> =
 
       <ReturnLinesChart
         title="수익률 추이"
-        subtitle="그때까지 넣은 돈 대비 몇 % 인지 · 점은 적립식 · 조건부 매수"
+        subtitle="그때까지 넣은 돈 대비 몇 % 인지 · 점은 적립식 · 조건부가 돈을 넣은 날"
         series={series}
         scale="linear"
         highlightedKey={expanded}

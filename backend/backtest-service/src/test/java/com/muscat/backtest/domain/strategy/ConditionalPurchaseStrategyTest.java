@@ -994,6 +994,18 @@ class ConditionalPurchaseStrategyTest {
       }
 
       @Test
+      @DisplayName("매도일은 환율을 계산에 쓰지 않아 기본 환율로 계산한 날로 남기지 않는다")
+      void saleIsNotDefaultFxDate() {
+        ConditionalStrategyRequest request = perPurchase(2, 10).takeProfitRate(new BigDecimal("0.1")).build();
+        // 일별 환율이 빈 응답이라 모든 날이 기본 환율
+        stubMarket(request, List.of(day(0, "100"), candle(1, "101", "111", "100", "105")), true);
+
+        strategy.execute(request);
+
+        assertThat(executed()).extracting(StrategyTransaction::getDefaultFxDate).containsExactly(START, null);
+      }
+
+      @Test
       @DisplayName("두 비율을 비우면 크게 올라도 팔지 않고 이전과 같이 산다")
       void noRatesNoSell() {
         ConditionalStrategyRequest request = selling(2, 10).build();

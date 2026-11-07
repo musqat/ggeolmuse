@@ -124,7 +124,8 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
 
   const bought = transactions.filter((t) => t.trigger !== DIVIDEND_REINVEST && t.shares >= 0).length;
   const sold = transactions.filter((t) => t.shares < 0).length;
-  const totalShares = transactions.reduce((sum, t) => sum + t.shares, 0);
+  // 전량 매도 뒤 부동소수 합이 -0.00 으로 보이지 않게 소수 여섯째 자리에서 반올림
+  const totalShares = Math.round(transactions.reduce((sum, t) => sum + t.shares, 0) * 1e6) / 1e6 || 0;
 
   return (
     <ChartCard

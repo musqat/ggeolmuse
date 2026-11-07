@@ -365,8 +365,8 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
       .amount(BigDecimal.ZERO)
       .proceeds(proceeds)
       .realizedProfit(proceeds.subtract(cost))
+      // 판 돈은 달러로 두어 그날 환율은 표시용(기본 환율 날로 남기지 않음)
       .fxRate(fxOn(request, fxRateMap, date))
-      .defaultFxDate(fxRateMap.isDefault(date) ? date : null)
       .trigger(String.format(exit == profit ? "%.1f%%익절" : "%.1f%%손절", change))
       .build();
   }
