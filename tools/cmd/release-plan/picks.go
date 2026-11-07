@@ -20,6 +20,12 @@ var pickLine = regexp.MustCompile(`^(?:[-*+]|[0-9]+\.)\s*\[(.)\]\s*(\S+)\s*(.*)$
 // 한 줄 안의 HTML 주석(화면에 보이지 않는 글)
 var htmlComment = regexp.MustCompile(`<!--.*?-->`)
 
+// 코드 블록 펜스(``` · ~~~ 셋 이상, 뒤는 info)
+var fenceLine = regexp.MustCompile("^(`{3,}|~{3,})(.*)$")
+
+// 줄 머리의 인용 · 목록 표지
+var containerMarks = regexp.MustCompile(`^(?:>\s*|(?:[-*+]|[0-9]+[.)])\s+)+`)
+
 // 앞자리 0 · v 없는 세 자리 버전
 var versionPattern = regexp.MustCompile(`^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$`)
 
@@ -29,23 +35,31 @@ var deployedVersion = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
 // parsePicks 는 빌드할 서비스 칸에서 체크한 서비스와 버전(빈 값이면 SHA 7자리), 칸을 찾았는지
 func parsePicks(body string) (map[string]string, bool, error) {
 	picks := map[string]string{}
-	found, inSection, inFence, inComment := false, false, false, false
+	found, inSection, inComment := false, false, false
+	fence := ""
 	for _, raw := range strings.Split(strings.ReplaceAll(body, "\r\n", "\n"), "\n") {
 		line := strings.TrimSpace(raw)
 		if inComment {
 			inComment = !strings.Contains(line, "-->")
 			continue
 		}
-		if strings.HasPrefix(line, "```") || strings.HasPrefix(line, "~~~") {
-			inFence = !inFence
+		// 펜스는 같은 글자 · 같거나 긴 길이 · 뒤에 글 없는 줄에서만 닫힘, 백틱 info 에 백틱이 있으면 펜스 아님
+		if f := fenceLine.FindStringSubmatch(line); fence != "" {
+			if f != nil && f[1][0] == fence[0] && len(f[1]) >= len(fence) && strings.TrimSpace(f[2]) == "" {
+				fence = ""
+			}
 			continue
-		}
-		if inFence {
+		} else if f != nil && !(f[1][0] == '`' && strings.Contains(f[2], "`")) {
+			fence = f[1]
 			continue
 		}
 		// 줄 머리에서 여는 주석은 --> 가 있는 줄까지 숨김(GitHub 의 HTML 블록과 같음)
-		if strings.HasPrefix(line, "<!--") {
-			inComment = !strings.Contains(line[len("<!--"):], "-->")
+		if rest := containerMarks.ReplaceAllString(line, ""); strings.HasPrefix(rest, "<!--") {
+			closed := strings.Contains(rest, "-->")
+			if !closed && (rest != line || raw != strings.TrimLeft(raw, " \t")) {
+				return nil, false, fmt.Errorf("목록 · 인용 · 들여 쓴 줄에서 여는 여러 줄 주석은 쓸 수 없음(그 줄에서 닫음): %q", line)
+			}
+			inComment = !closed
 			continue
 		}
 		line = strings.TrimSpace(htmlComment.ReplaceAllString(line, ""))
@@ -80,6 +94,27 @@ func parsePicks(body string) (map[string]string, bool, error) {
 		picks[svc] = version
 	}
 	return picks, found, nil
+}
+
+// parseList 는 손 릴리스의 쉼표 목록(서비스, 뒤에 버전)을 빌드할 서비스 칸과 같은 검사로 읽음
+func parseList(list string) (map[string]string, error) {
+	if strings.ContainsAny(list, "\r\n") {
+		return nil, fmt.Errorf("-picks 는 한 줄(쉼표로 나눔)")
+	}
+	var body strings.Builder
+	body.WriteString("## " + picksTitle + "\n")
+	n := 0
+	for _, item := range strings.Split(list, ",") {
+		if item = strings.TrimSpace(item); item != "" {
+			body.WriteString("- [x] " + item + "\n")
+			n++
+		}
+	}
+	if n == 0 {
+		return nil, fmt.Errorf("-picks 가 비어 있음")
+	}
+	picks, _, err := parsePicks(body.String())
+	return picks, err
 }
 
 // compareVersions 는 a 가 b 보다 높으면 1, 같으면 0, 낮으면 -1(둘 중 하나라도 버전이 아니면 false)

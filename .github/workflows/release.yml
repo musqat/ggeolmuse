@@ -1,15 +1,22 @@
 name: 릴리스
 
-# master CI 가 초록이면 머지한 PR 의 빌드할 서비스 칸에서 체크한 서비스 가운데 운영 태그부터 바뀐 것만 빌드 · 푸시하고 운영 태그 커밋(ArgoCD 반영)
+# master CI 가 초록이면 머지한 PR 의 빌드할 서비스 칸에서 체크한 서비스(손 실행은 적은 서비스) 가운데 운영 태그부터 바뀐 것만 빌드 · 푸시하고 운영 태그 커밋(ArgoCD 반영)
 on:
   workflow_run:
     workflows: [CI]
     types: [completed]
     branches: [master]
+  # 손 실행(master 에서만): CI 가 초록인 가장 최근 master 커밋에서 적은 서비스 가운데 운영 태그부터 바뀐 것만
+  workflow_dispatch:
+    inputs:
+      picks:
+        description: '낼 서비스와 버전, 쉼표로 나눔(예: backtest-service 1.8.0, frontend-web), 버전을 비우면 SHA 7자리'
+        required: true
+        type: string
 
-# 머지마다 따로 병렬 실행(서로의 대기 실행을 취소하지 않음), 같은 커밋의 실행은 하나
+# 머지마다 따로 병렬 실행(서로의 대기 실행을 취소하지 않음), 같은 커밋의 실행은 하나, 손 실행은 실행마다 따로
 concurrency:
-  group: release-${{ github.event.workflow_run.head_sha }}
+  group: release-${{ github.event.workflow_run.head_sha || github.run_id }}
   cancel-in-progress: false
 
 permissions:
@@ -22,18 +29,19 @@ defaults:
 
 jobs:
   plan:
-    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    if: >-
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push') ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       contents: read
       pull-requests: read
+      actions: read
     outputs:
       services: ${{ steps.plan.outputs.services }}
       tags: ${{ steps.plan.outputs.tags }}
       sha: ${{ steps.plan.outputs.sha }}
-    env:
-      SHA: ${{ github.event.workflow_run.head_sha }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -44,8 +52,23 @@ jobs:
           go-version-file: tools/go.mod
           cache: false
 
+      # 머지는 그 머지 커밋, 손 실행은 CI 가 초록인 가장 최근 master 커밋
+      - name: 릴리스할 커밋
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          sha=$RUN_SHA
+          if [ -z "$sha" ]; then
+            sha=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?branch=master&event=push&status=success&per_page=1" \
+              --jq '.workflow_runs[0].head_sha // ""')
+          fi
+          if [ -z "$sha" ]; then echo "CI 가 초록인 master 커밋 없음"; exit 1; fi
+          echo "SHA=$sha" >> "$GITHUB_ENV"
+
       # 머지 커밋의 PR 본문(PR 없는 직접 커밋은 빈 본문이라 내는 것 없음, 본문은 파일로만 넘김)
       - name: PR 본문 받기
+        if: github.event_name == 'workflow_run'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -53,11 +76,18 @@ jobs:
             --jq "[.[] | select(.merged_at != null and .merge_commit_sha == \"$SHA\")][0].body // \"\"" \
             > "$RUNNER_TEMP/pr-body.md"
 
+      # 손 실행은 적은 목록을 PR 칸과 같은 검사로 읽음
       - name: 낼 서비스 고르기
         id: plan
         working-directory: tools
+        env:
+          PICKS: ${{ inputs.picks }}
         run: |
-          go run ./cmd/release-plan -head "$SHA" -rev origin/master -body "$RUNNER_TEMP/pr-body.md" | tee "$RUNNER_TEMP/plan.txt"
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            go run ./cmd/release-plan -head "$SHA" -rev origin/master -picks "$PICKS" | tee "$RUNNER_TEMP/plan.txt"
+          else
+            go run ./cmd/release-plan -head "$SHA" -rev origin/master -body "$RUNNER_TEMP/pr-body.md" | tee "$RUNNER_TEMP/plan.txt"
+          fi
           printf 'sha=%s\n' "$SHA" >> "$GITHUB_OUTPUT"
           cat "$RUNNER_TEMP/plan.txt" >> "$GITHUB_OUTPUT"
 
@@ -69,7 +99,7 @@ jobs:
           UNCHANGED: ${{ steps.plan.outputs.unchanged }}
         run: |
           {
-            echo "### 릴리스 계획 ${SHA::7}"
+            echo "### 릴리스 계획 ${SHA::7} ($GITHUB_EVENT_NAME)"
             echo "- 낼 서비스: $SERVICES"
             echo "- 태그: $TAGS"
             echo "- 보류(바뀌었지만 체크 안 함): $HELD"

@@ -1,6 +1,7 @@
 // release-plan 은 다시 빌드 · 배포할 서비스를 고른다
 //
 //	go run ./cmd/release-plan -head "$SHA" -body pr.md     # 운영 태그부터 바뀐 서비스 가운데 PR 에서 체크한 것 · 태그
+//	go run ./cmd/release-plan -head "$SHA" -picks "backtest-service 1.8.0, frontend-web"   # 손 릴리스 목록으로
 //	go run ./cmd/release-plan -head "$SHA"                 # 운영 태그부터 바뀐 서비스
 //	go run ./cmd/release-plan -head "$SHA" -only "$SERVICES" -tags "$TAGS"   # 배포 직전 다시 고름(버전 하한 확인)
 //	git diff --name-only A B | go run ./cmd/release-plan   # 파일 목록으로
@@ -35,16 +36,30 @@ func main() {
 	only := flag.String("only", "", "다시 볼 서비스(JSON 배열)")
 	body := flag.String("body", "", "머지한 PR 본문 파일(빌드할 서비스 칸)")
 	tags := flag.String("tags", "", "다시 볼 서비스별 태그(JSON 객체, 버전이면 하한 확인)")
+	list := flag.String("picks", "", "손 릴리스로 낼 서비스와 버전(쉼표로 나눔)")
 	flag.Parse()
+	if *body != "" && *list != "" {
+		fail(fmt.Errorf("-body 와 -picks 는 하나만"))
+	}
 	if *head == "" {
-		if *body != "" {
-			fail(fmt.Errorf("-body 는 -head 와 같이"))
+		if *body != "" || *list != "" {
+			fail(fmt.Errorf("-body · -picks 는 -head 와 같이"))
 		}
 		write(os.Stdout, decide(readLines(os.Stdin)))
 		return
 	}
-	if *body != "" {
-		p, err := planPicksFromGit(*head, *rev, *body, os.Stderr)
+	if *body != "" || *list != "" {
+		var picks map[string]string
+		var err error
+		if *body != "" {
+			picks, err = readBody(*body, os.Stderr)
+		} else {
+			picks, err = parseList(*list)
+		}
+		if err != nil {
+			fail(err)
+		}
+		p, err := planPicksFromGit(*head, *rev, picks)
 		if err != nil {
 			fail(err)
 		}

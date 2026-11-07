@@ -359,7 +359,11 @@ func TestGitRepo(t *testing.T) {
 		t.Fatal(err)
 	}
 	var notes strings.Builder
-	p, err := planPicksFromGit("HEAD", "HEAD", pickBody, &notes)
+	picks, err := readBody(pickBody, &notes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := planPicksFromGit("HEAD", "HEAD", picks)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -370,9 +374,17 @@ func TestGitRepo(t *testing.T) {
 	if err := os.WriteFile(oldBody, []byte("## 요약\n - 옛 PR\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	p, err = planPicksFromGit("HEAD", "HEAD", oldBody, &notes)
-	if err != nil || len(p.services) != 0 || !strings.Contains(notes.String(), "빌드할 서비스 칸 없음") {
-		t.Fatalf("칸 없는 본문 계획 %+v, %v, 안내 %q", p, err, notes.String())
+	picks, err = readBody(oldBody, &notes)
+	if err != nil || len(picks) != 0 || !strings.Contains(notes.String(), "빌드할 서비스 칸 없음") {
+		t.Fatalf("칸 없는 본문 %v, %v, 안내 %q", picks, err, notes.String())
+	}
+	// 손 릴리스 목록도 같은 계획
+	picks, err = parseList("user-service")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p, err = planPicksFromGit("HEAD", "HEAD", picks); err != nil || !slices.Equal(p.services, []string{"user-service"}) {
+		t.Fatalf("목록으로 고른 계획 %+v, %v", p, err)
 	}
 
 	// 이력의 가장 높은 버전은 지금 태그가 SHA 로 바뀌어도 그대로
@@ -396,5 +408,26 @@ func TestGitRepo(t *testing.T) {
 	}
 	if got, ok := r.deployedCommit("user-service", entries["user-service"]); !ok || got != plain {
 		t.Fatalf("봇 커밋 아닌 제목의 운영 커밋 %q, 기대 %q", got, plain)
+	}
+
+	// 봇 커밋 위에 올린 PR 커밋의 날짜가 옛날이어도 처음 그 버전이 된 커밋은 봇 커밋(이력은 조상부터)
+	tagged := func(tag, a, b string) string {
+		return "services:\n  userService:\n    image:\n      tag: \"" + tag + "\"\n# " + a + "\n#\n#\n#\n# " + b + "\n"
+	}
+	put(valuesPath, tagged("2.0.0", "a", "b"))
+	git("commit", "-qam", release.Subject([]string{"user-service"}, map[string]string{"user-service": "2.0.0"}, built))
+	git("checkout", "-q", "-b", "side")
+	put(valuesPath, tagged("2.0.0", "a2", "b"))
+	old := exec.Command("git", "-C", dir, "commit", "-qam", "old dated PR")
+	old.Env = append(os.Environ(), "GIT_AUTHOR_DATE=2001-01-01T00:00:00", "GIT_COMMITTER_DATE=2001-01-01T00:00:00")
+	if out, err := old.CombinedOutput(); err != nil {
+		t.Fatalf("옛 날짜 커밋: %v\n%s", err, out)
+	}
+	git("checkout", "-q", "-")
+	put(valuesPath, tagged("2.0.0", "a", "b2"))
+	git("commit", "-qam", "values b")
+	git("merge", "-q", "--no-ff", "-m", "merge side", "side")
+	if got, ok := r.deployedCommit("user-service", userEntry()); !ok || got != built {
+		t.Fatalf("옛 날짜 커밋이 섞인 이력의 운영 커밋 %q, 기대 %q", got, built)
 	}
 }

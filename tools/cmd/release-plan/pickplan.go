@@ -81,19 +81,24 @@ func checkFloors(r repo, svcs []string, tags map[string]string) error {
 	return nil
 }
 
-// planPicksFromGit 은 머지한 PR 본문 파일의 빌드할 서비스 칸으로 고른 릴리스 계획
-func planPicksFromGit(head, rev, bodyPath string, notes io.Writer) (releasePlan, error) {
+// readBody 는 머지한 PR 본문 파일의 빌드할 서비스 칸(칸이 없으면 안내만, 고른 서비스 없음)
+func readBody(bodyPath string, notes io.Writer) (map[string]string, error) {
 	raw, err := os.ReadFile(bodyPath)
 	if err != nil {
-		return releasePlan{}, fmt.Errorf("PR 본문 파일 못 읽음: %w", err)
+		return nil, fmt.Errorf("PR 본문 파일 못 읽음: %w", err)
 	}
 	picks, found, err := parsePicks(string(raw))
 	if err != nil {
-		return releasePlan{}, err
+		return nil, err
 	}
 	if !found {
 		fmt.Fprintln(notes, "빌드할 서비스 칸 없음: 내는 서비스 없음")
 	}
+	return picks, nil
+}
+
+// planPicksFromGit 은 고른 서비스(PR 본문 칸이나 손 릴리스 목록)로 만든 릴리스 계획
+func planPicksFromGit(head, rev string, picks map[string]string) (releasePlan, error) {
 	r, entries, err := openRepo(rev)
 	if err != nil {
 		return releasePlan{}, err
@@ -137,12 +142,12 @@ type historyMemo struct {
 	hist []valuesAt
 }
 
-// 운영 값 파일 이력(오래된 것부터, 못 읽는 커밋은 뺌)
+// 운영 값 파일 이력(조상부터, 못 읽는 커밋은 뺌)
 func (g gitRepo) history() ([]valuesAt, error) {
 	if g.memo != nil && g.memo.read {
 		return g.memo.hist, nil
 	}
-	out, err := g.git("log", "--reverse", "--format=%H", g.rev, "--", valuesPath)
+	out, err := g.git("log", "--reverse", "--topo-order", "--format=%H", g.rev, "--", valuesPath)
 	if err != nil {
 		return nil, fmt.Errorf("%s 이력 못 읽음: %w", valuesPath, err)
 	}

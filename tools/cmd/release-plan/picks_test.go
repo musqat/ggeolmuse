@@ -47,6 +47,20 @@ func TestParsePicks(t *testing.T) {
 			map[string]string{"frontend-web": ""}, true},
 		{"닫히지 않은 주석 블록 뒤는 보지 않음", "## 빌드할 서비스\n- [x] user-service\n<!--\n- [x] trade-service\n",
 			map[string]string{"user-service": ""}, true},
+		{"빈 주석 <!--> 은 그 줄에서 닫힘", "## 빌드할 서비스\n<!-->\n- [x] user-service\n",
+			map[string]string{"user-service": ""}, true},
+		{"빈 주석 <!---> 도", "## 빌드할 서비스\n<!--->\n- [x] user-service\n",
+			map[string]string{"user-service": ""}, true},
+		{"목록 표지 뒤 한 줄 주석은 그 줄만 숨김", "## 빌드할 서비스\n- <!-- [x] trade-service -->\n- [x] user-service\n",
+			map[string]string{"user-service": ""}, true},
+		{"네 개짜리 펜스 안의 ``` 는 닫지 않음", "## 요약\n````md\n```\n## 빌드할 서비스\n- [x] user-service\n```\n````\n",
+			map[string]string{}, false},
+		{"펜스 안의 ```go 줄은 닫지 않음", "## 요약\n```\n```go\n## 빌드할 서비스\n- [x] user-service\n```\n```\n",
+			map[string]string{}, false},
+		{"~~~ 펜스는 ~~~ 로만 닫힘", "## 요약\n~~~\n```\n~~~\n\n## 빌드할 서비스\n- [x] user-service\n",
+			map[string]string{"user-service": ""}, true},
+		{"줄 머리 인라인 코드 ``` 는 펜스가 아님", "## 요약\n```make test``` 로 돌렸다\n\n## 빌드할 서비스\n- [x] user-service\n",
+			map[string]string{"user-service": ""}, true},
 		{"* · + · 숫자 글머리", "## 빌드할 서비스\n* [x] trade-service\n+ [x] user-service\n1. [x] frontend-web 1.8.0\n",
 			map[string]string{"trade-service": "", "user-service": "", "frontend-web": "1.8.0"}, true},
 	}
@@ -60,6 +74,25 @@ func TestParsePicks(t *testing.T) {
 				t.Fatalf("고른 서비스 %v · 칸 %v, 기대 %v · %v", got, found, c.want, c.wantFound)
 			}
 		})
+	}
+}
+
+// 손 릴리스의 쉼표 목록(칸과 같은 검사)
+func TestParseList(t *testing.T) {
+	got, err := parseList(" backtest-service 1.8.0, frontend-web ,, ")
+	if err != nil || !maps.Equal(got, map[string]string{"backtest-service": "1.8.0", "frontend-web": ""}) {
+		t.Fatalf("고른 서비스 %v · 오류 %v", got, err)
+	}
+	for _, c := range []struct{ list, want string }{
+		{"", "비어 있음"},
+		{" , ", "비어 있음"},
+		{"messaging", "모르는 서비스"},
+		{"user-service v1.8.0", "버전 모양"},
+		{"user-service, user-service 1.8.0", "두 번"},
+	} {
+		if _, err := parseList(c.list); err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Fatalf("%q: 오류 %v, 기대에 %q", c.list, err, c.want)
+		}
 	}
 }
 
@@ -99,6 +132,10 @@ func TestParsePicksErrors(t *testing.T) {
 		{"체크 칸 글자가 x 가 아님", "- [o] backtest-service", "체크 칸"},
 		{"같은 서비스 두 번", "- [x] user-service\n- [x] user-service 1.8.0", "두 번"},
 		{"칸 제목 두 번", "- [x] user-service\n\n## 빌드할 서비스\n- [x] trade-service", "칸이 두 번"},
+		// 목록 · 인용 안에서 연 주석은 항목이 끝나면 GitHub 화면에서 뒤가 다 숨겨져 줄 단위로 따라갈 수 없음
+		{"목록 안에서 여는 여러 줄 주석", "- [x] user-service\n- <!-- 보류\n  - [x] trade-service\n  -->", "여러 줄 주석"},
+		{"인용 안에서 여는 여러 줄 주석", "> <!-- 메모\n- [x] user-service", "여러 줄 주석"},
+		{"들여 쓴 여러 줄 주석", "- [x] user-service\n  <!-- 보류\n- [x] trade-service\n  -->\n- [x] chat-service", "여러 줄 주석"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
