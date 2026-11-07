@@ -38,6 +38,7 @@ public enum TradeResponse implements ErrorCode {
     MARKET_CLOSED("장이 마감되어 거래할 수 없습니다.", HttpStatus.BAD_REQUEST),
     TRADING_SUSPENDED("해당 종목은 거래 정지 상태입니다.", HttpStatus.BAD_REQUEST),
     FRACTIONAL_SHARES_NOT_ALLOWED("소수점 주식 거래는 지원되지 않습니다.", HttpStatus.BAD_REQUEST),
+    INVALID_IDEMPOTENCY_KEY("중복 요청 키는 64자 이하의 영문 · 숫자 · 하이픈입니다.", HttpStatus.BAD_REQUEST),
 
     // === 인증/인가 오류 (401, 403) ===
     AUTHENTICATION_REQUIRED("인증이 필요합니다.", HttpStatus.UNAUTHORIZED),
@@ -54,11 +55,8 @@ public enum TradeResponse implements ErrorCode {
     HOLDINGS_NOT_FOUND("보유 주식을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     PORTFOLIO_NOT_FOUND("포트폴리오를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
 
-    // === 충돌 오류 (409) ===
-    DUPLICATE_TRADE_REQUEST("중복된 거래 요청입니다.", HttpStatus.CONFLICT),
-    CONCURRENT_TRADE_CONFLICT("동시 거래로 인한 충돌이 발생했습니다.", HttpStatus.CONFLICT),
-
     // === 데이터 검증 오류 (422) ===
+    IDEMPOTENCY_KEY_REUSED("같은 중복 요청 키로 다른 요청을 보냈습니다.", HttpStatus.UNPROCESSABLE_ENTITY),
     INVALID_TRADE_DATE("거래 날짜가 유효하지 않습니다.", HttpStatus.UNPROCESSABLE_ENTITY),
     FUTURE_DATE_NOT_ALLOWED("미래 날짜로는 거래할 수 없습니다.", HttpStatus.UNPROCESSABLE_ENTITY),
     WEEKEND_TRADING_NOT_ALLOWED("주말에는 거래할 수 없습니다.", HttpStatus.UNPROCESSABLE_ENTITY),

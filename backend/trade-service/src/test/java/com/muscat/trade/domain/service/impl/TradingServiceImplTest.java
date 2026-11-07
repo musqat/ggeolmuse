@@ -11,6 +11,7 @@ import static org.mockito.BDDMockito.verify;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.calls;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.muscat.trade.common.enums.response.TradeResponse;
 import com.muscat.trade.common.enums.type.PriceType;
@@ -22,14 +23,17 @@ import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.common.logging.TradeLogger;
 import com.muscat.trade.common.util.TradeUtils;
 import com.muscat.trade.config.TradeProperties;
+import com.muscat.trade.domain.dto.request.IdempotencyKey;
 import com.muscat.trade.domain.dto.request.TradingCapacityRequestDto;
 import com.muscat.trade.domain.dto.response.TradeResponseDto;
 import com.muscat.trade.domain.dto.response.TradingCapacityResponseDto;
 import com.muscat.trade.domain.entity.Holdings;
+import com.muscat.trade.domain.entity.IdempotencyRecord;
 import com.muscat.trade.domain.entity.Trade;
 import com.muscat.trade.domain.event.TradeSavedEvent;
 import com.muscat.trade.domain.repository.HoldingsRepository;
 import com.muscat.trade.domain.repository.TradeRepository;
+import com.muscat.trade.domain.service.IdempotencyGuard;
 import com.muscat.trade.domain.service.MarketDataService;
 import com.muscat.trade.infra.client.dto.AccountBalanceDto;
 import java.math.BigDecimal;
@@ -51,9 +55,11 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @ExtendWith(MockitoExtension.class)
@@ -76,6 +82,8 @@ class TradingServiceImplTest {
   private ApplicationEventPublisher eventPublisher;
   @Mock
   private TradeMetrics tradeMetrics;
+  @Mock
+  private IdempotencyGuard idempotencyGuard;
   @Spy
   private TransactionTemplate transactionTemplate =
     new TransactionTemplate(org.mockito.Mockito.mock(PlatformTransactionManager.class));
@@ -1017,6 +1025,164 @@ class TradingServiceImplTest {
         .isInstanceOf(TradeException.class)
         .hasMessage(TradeResponse.TRANSACTION_FAILED.getMessage());
       verify(eventPublisher, never()).publishEvent(any(TradeSavedEvent.class));
+    }
+  }
+
+  @Nested
+  @DisplayName("같은 중복 요청 키로 다시 온 주문")
+  class IdempotencyTests {
+
+    private final IdempotencyKey key = new IdempotencyKey("3f2b8c1e-9d4a-4e6f-8a7b-1c2d3e4f5a6b");
+    private final String buyFingerprint = IdempotencyKey.fingerprint("BUY", TEST_ACCOUNT_ID, TEST_SYMBOL,
+      TEST_QUANTITY, TEST_TRADE_DATE, PriceType.CLOSE, null);
+
+    private void stubBuyPath() {
+      given(marketDataService.determineTradePrice(TEST_SYMBOL, TEST_TRADE_DATE, PriceType.CLOSE, null))
+        .willReturn(TEST_PRICE);
+      given(tradeUtils.getAccountBalance(String.valueOf(TEST_ACCOUNT_ID))).willReturn(testAccountBalance);
+      given(tradeUtils.calculateFee(any(), any())).willReturn(new BigDecimal("1.50"));
+    }
+
+    @Test
+    @DisplayName("같은 키로 끝난 주문이면 시세 · 잔액을 부르지 않고 그 체결을 돌려준다")
+    void sameKeyDone_ReturnsFirstTradeWithoutRemoteCalls() {
+      Trade first = createTestTrade(7L, TradeType.BUY);
+      given(idempotencyGuard.findDone(TEST_USER_ID, key, buyFingerprint)).willReturn(Optional.of(first));
+
+      TradeResponseDto result = tradingService.buyStock(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL,
+        TEST_QUANTITY, TEST_TRADE_DATE, PriceType.CLOSE, null, key);
+
+      assertThat(result.id()).isEqualTo(7L);
+      verify(marketDataService, never()).determineTradePrice(any(), any(), any(), any());
+      verify(tradeUtils, never()).getAccountBalance(any());
+      verify(tradeRepository, never()).save(any(Trade.class));
+    }
+
+    @Test
+    @DisplayName("같은 키로 다시 온 매도는 보유 사전 검사보다 먼저 처음 체결을 돌려준다")
+    void sameKeyDoneSell_SkipsPreTradeValidation() {
+      String sellFingerprint = IdempotencyKey.fingerprint("SELL", TEST_ACCOUNT_ID, TEST_SYMBOL,
+        TEST_QUANTITY, TEST_TRADE_DATE, PriceType.CLOSE, null);
+      given(idempotencyGuard.findDone(TEST_USER_ID, key, sellFingerprint))
+        .willReturn(Optional.of(createTestTrade(8L, TradeType.SELL)));
+
+      TradeResponseDto result = tradingService.sellStock(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL,
+        TEST_QUANTITY, TEST_TRADE_DATE, PriceType.CLOSE, null, key);
+
+      assertThat(result.id()).isEqualTo(8L);
+      verify(holdingsRepository, never()).findByUserIdAndAccountIdAndSymbol(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("같은 키 매도의 보유 사전 검사가 실패해도 그새 처음 주문이 끝났으면 그 체결을 돌려준다")
+    void preCheckFailsAfterFirstCommitted_ReturnsFirstSell() {
+      String sellFingerprint = IdempotencyKey.fingerprint("SELL", TEST_ACCOUNT_ID, TEST_SYMBOL,
+        TEST_QUANTITY, TEST_TRADE_DATE, PriceType.CLOSE, null);
+      given(idempotencyGuard.findDone(TEST_USER_ID, key, sellFingerprint))
+        .willReturn(Optional.empty(), Optional.of(createTestTrade(12L, TradeType.SELL)));
+      given(holdingsRepository.findByUserIdAndAccountIdAndSymbol(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL))
+        .willReturn(Optional.empty());
+
+      TradeResponseDto result = tradingService.sellStock(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL,
+        TEST_QUANTITY, TEST_TRADE_DATE, PriceType.CLOSE, null, key);
+
+      assertThat(result.id()).isEqualTo(12L);
+      verify(idempotencyGuard, never()).claim(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("같은 키 매수의 잔액 검사가 실패해도 그새 처음 주문이 끝났으면 그 체결을 돌려준다")
+    void balanceCheckFailsAfterFirstCommitted_ReturnsFirstBuy() {
+      stubBuyPath();
+      given(idempotencyGuard.findDone(TEST_USER_ID, key, buyFingerprint))
+        .willReturn(Optional.empty(), Optional.of(createTestTrade(13L, TradeType.BUY)));
+      willThrow(new TradeException(TradeResponse.INSUFFICIENT_BALANCE))
+        .given(tradeUtils).validateBuyBalance(any(), any(), any(), any());
+
+      TradeResponseDto result = tradingService.buyStock(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL,
+        TEST_QUANTITY, TEST_TRADE_DATE, PriceType.CLOSE, null, key);
+
+      assertThat(result.id()).isEqualTo(13L);
+      verify(tradeRepository, never()).save(any(Trade.class));
+    }
+
+    @Test
+    @DisplayName("사전 검사가 실패하고 키 기록도 없으면 원래 오류를 그대로 낸다")
+    void preCheckFailsWithoutRecord_OriginalError() {
+      stubBuyPath();
+      given(idempotencyGuard.findDone(TEST_USER_ID, key, buyFingerprint))
+        .willReturn(Optional.empty(), Optional.empty());
+      willThrow(new TradeException(TradeResponse.INSUFFICIENT_BALANCE))
+        .given(tradeUtils).validateBuyBalance(any(), any(), any(), any());
+
+      assertThatThrownBy(() -> tradingService.buyStock(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL, TEST_QUANTITY,
+        TEST_TRADE_DATE, PriceType.CLOSE, null, key))
+        .isInstanceOf(TradeException.class)
+        .extracting("code").isEqualTo(TradeResponse.INSUFFICIENT_BALANCE);
+    }
+
+    @Test
+    @DisplayName("저장한 체결 ID 를 같은 트랜잭션의 키 기록에 채운다")
+    void claim_RecordGetsSavedTradeId() {
+      stubBuyPath();
+      IdempotencyRecord record = IdempotencyRecord.of(TEST_USER_ID, key.value(), buyFingerprint, LocalDateTime.now());
+      given(idempotencyGuard.findDone(TEST_USER_ID, key, buyFingerprint)).willReturn(Optional.empty());
+      given(idempotencyGuard.claim(TEST_USER_ID, key, buyFingerprint)).willReturn(record);
+      given(tradeRepository.save(any(Trade.class))).willAnswer(invocation -> {
+        Trade trade = invocation.getArgument(0);
+        ReflectionTestUtils.setField(trade, "id", 11L);
+        return trade;
+      });
+
+      tradingService.buyStock(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL, TEST_QUANTITY, TEST_TRADE_DATE,
+        PriceType.CLOSE, null, key);
+
+      assertThat(record.getTradeId()).isEqualTo(11L);
+    }
+
+    @Test
+    @DisplayName("트랜잭션 안 키 넣기가 부딪히면 먼저 끝난 체결을 돌려주고 새 체결을 저장하지 않는다")
+    void claimConflict_ReturnsTradeOfFirstRequest() {
+      stubBuyPath();
+      Trade first = createTestTrade(9L, TradeType.BUY);
+      given(idempotencyGuard.findDone(TEST_USER_ID, key, buyFingerprint))
+        .willReturn(Optional.empty(), Optional.of(first));
+      willThrow(new DataIntegrityViolationException("uk_idempotency_keys_user_key"))
+        .given(idempotencyGuard).claim(TEST_USER_ID, key, buyFingerprint);
+
+      TradeResponseDto result = tradingService.buyStock(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL,
+        TEST_QUANTITY, TEST_TRADE_DATE, PriceType.CLOSE, null, key);
+
+      assertThat(result.id()).isEqualTo(9L);
+      verify(tradeRepository, never()).save(any(Trade.class));
+      verify(eventPublisher, never()).publishEvent(any(TradeSavedEvent.class));
+    }
+
+    @Test
+    @DisplayName("키 기록이 없는 제약 위반은 지금처럼 거래 처리 오류다")
+    void constraintViolationWithoutRecord_TransactionFailed() {
+      stubBuyPath();
+      given(idempotencyGuard.findDone(TEST_USER_ID, key, buyFingerprint))
+        .willReturn(Optional.empty(), Optional.empty());
+      given(tradeRepository.save(any(Trade.class))).willThrow(new DataIntegrityViolationException("other"));
+
+      assertThatThrownBy(() -> tradingService.buyStock(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL, TEST_QUANTITY,
+        TEST_TRADE_DATE, PriceType.CLOSE, null, key))
+        .isInstanceOf(TradeException.class)
+        .extracting("code").isEqualTo(TradeResponse.TRANSACTION_FAILED);
+    }
+
+    @Test
+    @DisplayName("키 없는 주문의 제약 위반도 지금처럼 거래 처리 오류다")
+    void constraintViolationWithoutKey_TransactionFailed() {
+      stubBuyPath();
+      given(tradeRepository.save(any(Trade.class))).willThrow(new DataIntegrityViolationException("other"));
+
+      assertThatThrownBy(() -> tradingService.buyStock(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL, TEST_QUANTITY,
+        TEST_TRADE_DATE, PriceType.CLOSE, null))
+        .isInstanceOf(TradeException.class)
+        .extracting("code").isEqualTo(TradeResponse.TRANSACTION_FAILED);
+      verifyNoInteractions(idempotencyGuard);
     }
   }
 
