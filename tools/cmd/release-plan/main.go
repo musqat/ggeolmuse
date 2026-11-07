@@ -123,7 +123,7 @@ func (g gitRepo) show(path string) (string, error) {
 	return out, nil
 }
 
-// 커밋 태그는 그 커밋, 판 번호는 그 줄을 바꾼 커밋
+// 커밋 태그는 그 커밋, 버전은 그 줄을 바꾼 커밋
 func (g gitRepo) deployedCommit(e values.Entry) (string, bool) {
 	if values.TagPattern.MatchString(e.Tag) && !strings.Contains(e.Tag, ".") {
 		out, err := g.git("rev-parse", "--verify", "--quiet", e.Tag+"^{commit}")

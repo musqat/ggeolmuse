@@ -109,7 +109,7 @@ func TestPlan(t *testing.T) {
 	}
 }
 
-// 임시 저장소: 판 번호 · 커밋 태그 · 옮긴 파일 · 한글 경로
+// 임시 저장소: 버전 · 커밋 태그 · 옮긴 파일 · 한글 경로
 func TestGitRepo(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git 없음")
@@ -160,7 +160,7 @@ func TestGitRepo(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got, ok := r.deployedCommit(entries["user-service"]); !ok || got != release {
-		t.Fatalf("판 번호 태그 커밋 %q, 기대 %q", got, release)
+		t.Fatalf("버전 태그 커밋 %q, 기대 %q", got, release)
 	}
 	if got, ok := r.deployedCommit(values.Entry{Tag: head[:7]}); !ok || got != head {
 		t.Fatalf("커밋 태그 %q, 기대 %q", got, head)
