@@ -9,7 +9,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.regex.Pattern;
 
-// 요청 헤더로 받은 중복 요청 키(같은 사용자 · 같은 키의 입금 · 환전은 한 번만 실행)
+// 요청 헤더로 받은 중복 요청 키(하루 안에 같은 사용자 · 같은 키로 온 입금 · 환전은 한 번만 실행)
 public record IdempotencyKey(String value) {
 
   public static final String HEADER = "Idempotency-Key";

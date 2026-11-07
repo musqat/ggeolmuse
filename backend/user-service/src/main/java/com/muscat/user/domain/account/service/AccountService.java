@@ -27,7 +27,7 @@ public interface AccountService {
   // 계좌 잔액 조회
   BalanceResponseDto getAccountBalance(Long accountId, Long userId);
 
-  // KRW 입금(같은 중복 요청 키는 한 번만)
+  // KRW 입금(하루 안의 같은 중복 요청 키는 한 번만)
   void depositKrw(Long accountId, Long userId, BigDecimal krwAmount, IdempotencyKey key);
 
   // KRW 입금(중복 요청 키 없음)
@@ -35,7 +35,7 @@ public interface AccountService {
     depositKrw(accountId, userId, krwAmount, null);
   }
 
-  // KRW → USD 환전(같은 중복 요청 키는 한 번만)
+  // KRW → USD 환전(하루 안의 같은 중복 요청 키는 한 번만)
   void exchangeKrwToUsd(Long accountId, Long userId, BigDecimal krwAmount, BigDecimal exchangeRate,
     IdempotencyKey key);
 
@@ -44,7 +44,7 @@ public interface AccountService {
     exchangeKrwToUsd(accountId, userId, krwAmount, exchangeRate, null);
   }
 
-  // USD → KRW 환전(같은 중복 요청 키는 한 번만)
+  // USD → KRW 환전(하루 안의 같은 중복 요청 키는 한 번만)
   void exchangeUsdToKrw(Long accountId, Long userId, BigDecimal usdAmount, BigDecimal exchangeRate,
     IdempotencyKey key);
 

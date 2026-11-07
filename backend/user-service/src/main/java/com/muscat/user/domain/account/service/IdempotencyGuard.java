@@ -10,7 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-// 입금 · 환전의 중복 요청 키 기록(같은 사용자 · 같은 키는 처음 요청 하나만 실행)
+// 입금 · 환전의 중복 요청 키 기록(하루 안에 같은 사용자 · 같은 키는 처음 요청 하나만 실행)
 @Component
 @RequiredArgsConstructor
 @Slf4j

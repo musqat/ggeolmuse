@@ -13,7 +13,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-// 매수 · 매도의 중복 요청 키 기록(같은 사용자 · 같은 키는 처음 주문의 체결 하나)
+// 매수 · 매도의 중복 요청 키 기록(하루 안에 같은 사용자 · 같은 키는 처음 주문의 체결 하나)
 @Component
 @RequiredArgsConstructor
 @Slf4j

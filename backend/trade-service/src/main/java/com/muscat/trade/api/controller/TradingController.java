@@ -96,7 +96,7 @@ public class TradingController {
     @AuthenticationPrincipal Jwt jwt,
     @Parameter(description = "매수 요청 정보", required = true)
     @Valid @RequestBody TradeRequestDto request,
-    @Parameter(description = "중복 요청 키(같은 키는 처음 체결 하나)")
+    @Parameter(description = "중복 요청 키(하루 안의 같은 키는 처음 체결 하나)")
     @RequestHeader(name = IdempotencyKey.HEADER, required = false) String idempotencyKey) {
 
     IdempotencyKey key = IdempotencyKey.parse(idempotencyKey);
@@ -179,7 +179,7 @@ public class TradingController {
     @AuthenticationPrincipal Jwt jwt,
     @Parameter(description = "매도 요청 정보", required = true)
     @Valid @RequestBody TradeRequestDto request,
-    @Parameter(description = "중복 요청 키(같은 키는 처음 체결 하나)")
+    @Parameter(description = "중복 요청 키(하루 안의 같은 키는 처음 체결 하나)")
     @RequestHeader(name = IdempotencyKey.HEADER, required = false) String idempotencyKey) {
 
     IdempotencyKey key = IdempotencyKey.parse(idempotencyKey);

@@ -136,7 +136,7 @@ public class AccountController {
   public ResponseEntity<Void> depositKrw(
     @Parameter(description = "계좌 ID") @PathVariable Long accountId,
     @Valid @RequestBody KrwDepositRequestDto request,
-    @Parameter(description = "중복 요청 키(같은 키는 한 번만 처리)")
+    @Parameter(description = "중복 요청 키(하루 안의 같은 키는 한 번만 처리)")
     @RequestHeader(name = IdempotencyKey.HEADER, required = false) String idempotencyKey,
     @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
 
@@ -162,7 +162,7 @@ public class AccountController {
   public ResponseEntity<Void> exchangeCurrency(
     @Parameter(description = "계좌 ID") @PathVariable Long accountId,
     @Valid @RequestBody ExchangeRequestDto request,
-    @Parameter(description = "중복 요청 키(같은 키는 한 번만 처리)")
+    @Parameter(description = "중복 요청 키(하루 안의 같은 키는 한 번만 처리)")
     @RequestHeader(name = IdempotencyKey.HEADER, required = false) String idempotencyKey,
     @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
 

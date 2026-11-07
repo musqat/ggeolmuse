@@ -11,7 +11,7 @@ import java.util.List;
 
 public interface TradingService {
 
-  // 주식 매수 (가격 유형별, 같은 중복 요청 키는 처음 체결 하나)
+  // 주식 매수 (가격 유형별, 하루 안의 같은 중복 요청 키는 처음 체결 하나)
   TradeResponseDto buyStock(String userId, Long accountId, String symbol, BigDecimal quantity,
     LocalDate tradeDate, PriceType priceType, BigDecimal manualPrice, IdempotencyKey key);
 
@@ -21,7 +21,7 @@ public interface TradingService {
     return buyStock(userId, accountId, symbol, quantity, tradeDate, priceType, manualPrice, null);
   }
 
-  // 주식 매도 (가격 유형별, 같은 중복 요청 키는 처음 체결 하나)
+  // 주식 매도 (가격 유형별, 하루 안의 같은 중복 요청 키는 처음 체결 하나)
   TradeResponseDto sellStock(String userId, Long accountId, String symbol, BigDecimal quantity,
     LocalDate tradeDate, PriceType priceType, BigDecimal manualPrice, IdempotencyKey key);
 
