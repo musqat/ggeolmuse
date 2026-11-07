@@ -20,6 +20,7 @@ import com.muscat.user.common.exception.AccountException;
 import com.muscat.user.common.exception.GlobalExceptionHandler;
 import com.muscat.user.common.util.AuthUtil;
 import com.muscat.user.config.security.SecurityConfig;
+import com.muscat.user.domain.account.dto.request.IdempotencyKey;
 import com.muscat.user.domain.account.dto.response.AccountResponseDto;
 import com.muscat.user.domain.account.dto.response.AccountSummaryDto;
 import com.muscat.user.domain.account.dto.response.BalanceResponseDto;
@@ -163,7 +164,40 @@ class AccountControllerTest {
         """))
       .andExpect(status().isBadRequest());
 
-    verify(accountService).depositKrw(ACCOUNT_ID, USER_ID, new BigDecimal("1000000"));
+    verify(accountService).depositKrw(ACCOUNT_ID, USER_ID, new BigDecimal("1000000"), null);
+  }
+
+  @Test
+  @DisplayName("입금 · 환전은 중복 요청 키 헤더를 서비스로 넘긴다")
+  void idempotencyKey_PassedToService() throws Exception {
+    String key = "3f2b8c1e-9d4a-4e6f-8a7b-1c2d3e4f5a6b";
+    mockMvc.perform(json(post(BASE + "/" + ACCOUNT_ID + "/deposit"), """
+        {"krwAmount":1000000}
+        """).header("Idempotency-Key", key))
+      .andExpect(status().isOk());
+    mockMvc.perform(json(post(BASE + "/" + ACCOUNT_ID + "/exchange"), exchangeBody("KRW", "USD"))
+        .header("Idempotency-Key", key))
+      .andExpect(status().isOk());
+
+    verify(accountService).depositKrw(ACCOUNT_ID, USER_ID, new BigDecimal("1000000"), new IdempotencyKey(key));
+    verify(accountService).exchangeKrwToUsd(ACCOUNT_ID, USER_ID, new BigDecimal("100"), new BigDecimal("1300"),
+      new IdempotencyKey(key));
+  }
+
+  @Test
+  @DisplayName("중복 요청 키 모양이 틀리면 400 이고 서비스를 부르지 않는다")
+  void idempotencyKey_Invalid_BadRequest() throws Exception {
+    mockMvc.perform(json(post(BASE + "/" + ACCOUNT_ID + "/deposit"), """
+        {"krwAmount":1000000}
+        """).header("Idempotency-Key", "a".repeat(65)))
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.detail").value(AccountResponse.INVALID_IDEMPOTENCY_KEY.getMessage()));
+    mockMvc.perform(json(post(BASE + "/" + ACCOUNT_ID + "/exchange"), exchangeBody("KRW", "USD"))
+        .header("Idempotency-Key", ""))
+      .andExpect(status().isBadRequest());
+
+    verify(accountService, never()).depositKrw(anyLong(), anyLong(), any(), any());
+    verify(accountService, never()).exchangeKrwToUsd(anyLong(), anyLong(), any(), any(), any());
   }
 
   @Test
@@ -174,8 +208,8 @@ class AccountControllerTest {
     mockMvc.perform(json(post(BASE + "/" + ACCOUNT_ID + "/exchange"), exchangeBody("USD", "KRW")))
       .andExpect(status().isOk());
 
-    verify(accountService).exchangeKrwToUsd(ACCOUNT_ID, USER_ID, new BigDecimal("100"), new BigDecimal("1300"));
-    verify(accountService).exchangeUsdToKrw(ACCOUNT_ID, USER_ID, new BigDecimal("100"), new BigDecimal("1300"));
+    verify(accountService).exchangeKrwToUsd(ACCOUNT_ID, USER_ID, new BigDecimal("100"), new BigDecimal("1300"), null);
+    verify(accountService).exchangeUsdToKrw(ACCOUNT_ID, USER_ID, new BigDecimal("100"), new BigDecimal("1300"), null);
   }
 
   @Test
@@ -184,8 +218,8 @@ class AccountControllerTest {
     mockMvc.perform(json(post(BASE + "/" + ACCOUNT_ID + "/exchange"), exchangeBody("KRW", "KRW")))
       .andExpect(status().isBadRequest());
 
-    verify(accountService, never()).exchangeKrwToUsd(anyLong(), anyLong(), any(), any());
-    verify(accountService, never()).exchangeUsdToKrw(anyLong(), anyLong(), any(), any());
+    verify(accountService, never()).exchangeKrwToUsd(anyLong(), anyLong(), any(), any(), any());
+    verify(accountService, never()).exchangeUsdToKrw(anyLong(), anyLong(), any(), any(), any());
   }
 
   @Test

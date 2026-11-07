@@ -15,6 +15,7 @@ import com.muscat.user.common.exception.UserException;
 import com.muscat.user.common.logging.UserLogger;
 import com.muscat.user.common.util.AccountCalculatorUtil;
 import com.muscat.user.domain.account.dto.request.CreateAccountRequestDto;
+import com.muscat.user.domain.account.dto.request.IdempotencyKey;
 import com.muscat.user.domain.account.dto.response.BalanceResponseDto;
 import com.muscat.user.domain.account.dto.response.ExchangeCalculationResult;
 import com.muscat.user.domain.account.dto.response.ExchangeRateRangeDto;
@@ -26,6 +27,7 @@ import com.muscat.user.domain.account.repository.AccountRepository;
 import com.muscat.user.domain.account.repository.DividendSettlementRepository;
 import com.muscat.user.domain.account.service.AccountHistoryService;
 import com.muscat.user.domain.account.service.AccountService;
+import com.muscat.user.domain.account.service.IdempotencyGuard;
 import com.muscat.user.domain.user.entity.User;
 import com.muscat.user.domain.user.repository.UserRepository;
 import com.muscat.user.infra.client.MarketDataServiceClientWrapper;
@@ -40,6 +42,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -66,6 +69,7 @@ public class AccountServiceImpl implements AccountService {
   private final AccountEventProducer accountEventProducer;
   private final DividendSettlementRepository dividendSettlementRepository;
   private final TransactionTemplate transactionTemplate;
+  private final IdempotencyGuard idempotencyGuard;
 
   @Value("${app.account.initial-krw-amount:1000000}")
   private BigDecimal initialKrwAmount;
@@ -174,9 +178,10 @@ public class AccountServiceImpl implements AccountService {
   // KRW → USD 환전 처리 (수수료 없음)
   @Override
   public void exchangeKrwToUsd(Long accountId, Long userId, BigDecimal krwAmount,
-    BigDecimal exchangeRate) {
-    validateExchangeRate(exchangeRate);
-    transactionTemplate.executeWithoutResult(status -> applyKrwToUsd(accountId, userId, krwAmount, exchangeRate));
+    BigDecimal exchangeRate, IdempotencyKey key) {
+    runOnce(userId, key, IdempotencyKey.fingerprint("EXCHANGE_KRW_TO_USD", accountId, krwAmount, exchangeRate),
+      () -> validateExchangeRate(exchangeRate),
+      () -> applyKrwToUsd(accountId, userId, krwAmount, exchangeRate));
   }
 
   // 잠금 · 잔액 변경 · 내역 · 이벤트
@@ -230,9 +235,10 @@ public class AccountServiceImpl implements AccountService {
   // USD → KRW 환전 처리
   @Override
   public void exchangeUsdToKrw(Long accountId, Long userId, BigDecimal usdAmount,
-    BigDecimal exchangeRate) {
-    validateExchangeRate(exchangeRate);
-    transactionTemplate.executeWithoutResult(status -> applyUsdToKrw(accountId, userId, usdAmount, exchangeRate));
+    BigDecimal exchangeRate, IdempotencyKey key) {
+    runOnce(userId, key, IdempotencyKey.fingerprint("EXCHANGE_USD_TO_KRW", accountId, usdAmount, exchangeRate),
+      () -> validateExchangeRate(exchangeRate),
+      () -> applyUsdToKrw(accountId, userId, usdAmount, exchangeRate));
   }
 
   // 잠금 · 잔액 변경 · 내역 · 이벤트
@@ -282,8 +288,35 @@ public class AccountServiceImpl implements AccountService {
 
   // KRW 입금 처리
   @Override
-  @Transactional
-  public void depositKrw(Long accountId, Long userId, BigDecimal krwAmount) {
+  public void depositKrw(Long accountId, Long userId, BigDecimal krwAmount, IdempotencyKey key) {
+    runOnce(userId, key, IdempotencyKey.fingerprint("DEPOSIT_KRW", accountId, krwAmount),
+      () -> { },
+      () -> applyDepositKrw(accountId, userId, krwAmount));
+  }
+
+  // 키가 있으면 끝난 요청인지 먼저 보고 트랜잭션 첫 줄에서 키를 차지(키 충돌은 먼저 끝난 요청의 결과)
+  private void runOnce(Long userId, IdempotencyKey key, String fingerprint,
+    Runnable beforeTransaction, Runnable inTransaction) {
+    if (key != null && idempotencyGuard.isDone(userId, key, fingerprint)) {
+      return;
+    }
+    beforeTransaction.run();
+    try {
+      transactionTemplate.executeWithoutResult(status -> {
+        if (key != null) {
+          idempotencyGuard.claim(userId, key, fingerprint);
+        }
+        inTransaction.run();
+      });
+    } catch (DataIntegrityViolationException e) {
+      if (key == null || !idempotencyGuard.isDone(userId, key, fingerprint)) {
+        throw e;
+      }
+    }
+  }
+
+  // 잠금 · 잔액 변경 · 내역
+  private void applyDepositKrw(Long accountId, Long userId, BigDecimal krwAmount) {
     Account account = accountRepository.findByIdAndUserIdWithLock(accountId, userId)
       .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
 

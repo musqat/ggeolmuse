@@ -5,6 +5,7 @@ import com.muscat.user.common.exception.AccountException;
 import com.muscat.user.common.util.AuthUtil;
 import com.muscat.user.domain.account.dto.request.CreateAccountRequestDto;
 import com.muscat.user.domain.account.dto.request.ExchangeRequestDto;
+import com.muscat.user.domain.account.dto.request.IdempotencyKey;
 import com.muscat.user.domain.account.dto.request.KrwDepositRequestDto;
 import com.muscat.user.domain.account.dto.response.AccountResponseDto;
 import com.muscat.user.domain.account.dto.response.AccountSummaryDto;
@@ -32,6 +33,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -124,19 +126,23 @@ public class AccountController {
 
   @Operation(summary = "KRW 입금", description = "계좌에 한국원을 입금합니다")
   @ApiResponses(value = {
-    @ApiResponse(responseCode = "200", description = "입금 성공"),
-    @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+    @ApiResponse(responseCode = "200", description = "입금 성공(같은 중복 요청 키로 다시 온 요청도 200)"),
+    @ApiResponse(responseCode = "400", description = "잘못된 요청 또는 중복 요청 키 모양 오류"),
     @ApiResponse(responseCode = "404", description = "계좌를 찾을 수 없음"),
-    @ApiResponse(responseCode = "401", description = "인증 실패")
+    @ApiResponse(responseCode = "401", description = "인증 실패"),
+    @ApiResponse(responseCode = "422", description = "같은 중복 요청 키로 다른 요청")
   })
   @PostMapping("/{accountId}/deposit")
   public ResponseEntity<Void> depositKrw(
     @Parameter(description = "계좌 ID") @PathVariable Long accountId,
     @Valid @RequestBody KrwDepositRequestDto request,
+    @Parameter(description = "중복 요청 키(같은 키는 한 번만 처리)")
+    @RequestHeader(name = IdempotencyKey.HEADER, required = false) String idempotencyKey,
     @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
 
+    IdempotencyKey key = IdempotencyKey.parse(idempotencyKey);
     Long userId = authUtil.requireUserId(jwt);
-    accountService.depositKrw(accountId, userId, request.getKrwAmount());
+    accountService.depositKrw(accountId, userId, request.getKrwAmount(), key);
 
     log.info("KRW 입금 요청: 사용자={}, 계좌={}, 금액={}원",
       userId, accountId, request.getKrwAmount());
@@ -146,25 +152,29 @@ public class AccountController {
 
   @Operation(summary = "환전", description = "KRW와 USD 간 환전을 수행합니다")
   @ApiResponses(value = {
-    @ApiResponse(responseCode = "200", description = "환전 성공"),
-    @ApiResponse(responseCode = "400", description = "잘못된 요청 또는 지원하지 않는 통화"),
+    @ApiResponse(responseCode = "200", description = "환전 성공(같은 중복 요청 키로 다시 온 요청도 200)"),
+    @ApiResponse(responseCode = "400", description = "잘못된 요청, 지원하지 않는 통화 또는 중복 요청 키 모양 오류"),
     @ApiResponse(responseCode = "404", description = "계좌를 찾을 수 없음"),
-    @ApiResponse(responseCode = "401", description = "인증 실패")
+    @ApiResponse(responseCode = "401", description = "인증 실패"),
+    @ApiResponse(responseCode = "422", description = "같은 중복 요청 키로 다른 요청")
   })
   @PostMapping("/{accountId}/exchange")
   public ResponseEntity<Void> exchangeCurrency(
     @Parameter(description = "계좌 ID") @PathVariable Long accountId,
     @Valid @RequestBody ExchangeRequestDto request,
+    @Parameter(description = "중복 요청 키(같은 키는 한 번만 처리)")
+    @RequestHeader(name = IdempotencyKey.HEADER, required = false) String idempotencyKey,
     @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
 
+    IdempotencyKey key = IdempotencyKey.parse(idempotencyKey);
     Long userId = authUtil.requireUserId(jwt);
 
     if ("KRW".equals(request.getFromCurrency()) && "USD".equals(request.getToCurrency())) {
       accountService.exchangeKrwToUsd(accountId, userId, request.getOriginalAmount(),
-        request.getExchangeRate());
+        request.getExchangeRate(), key);
     } else if ("USD".equals(request.getFromCurrency()) && "KRW".equals(request.getToCurrency())) {
       accountService.exchangeUsdToKrw(accountId, userId, request.getOriginalAmount(),
-        request.getExchangeRate());
+        request.getExchangeRate(), key);
     } else {
       throw new AccountException(AccountResponse.INVALID_CURRENCY);
     }
