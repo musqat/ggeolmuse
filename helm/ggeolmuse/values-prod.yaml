@@ -236,7 +236,7 @@ services:
 # 프론트엔드
 frontend:
   image:
-    tag: "018b73c"
+    tag: "8fbaacf"
   env:
     apiUrl: https://ggeolmuse.com/api
     keycloakUrl: https://ggeolmuse.com/auth
