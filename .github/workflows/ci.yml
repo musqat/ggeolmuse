@@ -263,10 +263,14 @@ jobs:
   # 렌더한 매니페스트 검사(리소스 한도 누락 · 특권 컨테이너처럼 이미지 스캔에 안 보이는 것)
   scan-manifests:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
       - uses: azure/setup-helm@v5
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: tools/go.mod
+          cache-dependency-path: tools/go.sum
 
       - name: 실제 배포본을 뽑는다
         run: |
@@ -277,9 +281,10 @@ jobs:
       - name: 기본 값만으로도 렌더되는지 본다
         run: helm template ggeolmuse helm/ggeolmuse > /dev/null
 
-      # NetworkPolicy 허용 목록에 없는 새 서비스 포트 검사
+      # NetworkPolicy 허용 목록에 없는 새 서비스 포트 검사(tools/cmd/netpol-check)
       - name: NetworkPolicy 가 서비스 포트를 전부 여는지 본다
-        run: bash .github/scripts/check-netpol-ports.sh rendered.yaml
+        working-directory: tools
+        run: go run ./cmd/netpol-check ../rendered.yaml
 
       # 이미지 스캔과 같이 설치 · 스캔 실패로 잡을 막지 않음
       - uses: ./.github/actions/install-trivy
@@ -308,7 +313,7 @@ jobs:
   # tools Go 검사 · 테스트
   tools:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: tools
@@ -317,7 +322,7 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: tools/go.mod
-          cache: false
+          cache-dependency-path: tools/go.sum
       - name: 형식 · 정적 검사 · 테스트
         run: |
           unformatted=$(gofmt -l .)
