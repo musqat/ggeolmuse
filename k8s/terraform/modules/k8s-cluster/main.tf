@@ -53,7 +53,7 @@ resource "aws_vpc_security_group_ingress_rule" "node_to_node" {
   ip_protocol                  = "-1"
 }
 
-resource "aws_vpc_security_group_ingress_rule" "nlb_to_traefik" {
+resource "aws_vpc_security_group_ingress_rule" "nlb_to_gateway" {
   security_group_id            = aws_security_group.nodes.id
   referenced_security_group_id = aws_security_group.nlb.id
   ip_protocol                  = "tcp"
@@ -132,7 +132,7 @@ resource "aws_instance" "nodes" {
   tags = merge(local.tags, { Name = "${local.name}-${each.key}", Role = each.value.role })
 }
 
-# --- NLB(TCP 통과, TLS 는 Traefik 의 Origin 인증서) ---
+# --- NLB(TCP 통과, TLS 는 Envoy Gateway 리스너의 Origin 인증서) ---
 
 resource "aws_lb" "ingress" {
   name               = "${local.name}-ingress"
@@ -142,8 +142,8 @@ resource "aws_lb" "ingress" {
   tags               = local.tags
 }
 
-resource "aws_lb_target_group" "traefik" {
-  name        = "${local.name}-traefik"
+resource "aws_lb_target_group" "gateway" {
+  name        = "${local.name}-gateway"
   port        = 30443
   protocol    = "TCP"
   vpc_id      = data.aws_subnet.nodes.vpc_id
@@ -160,7 +160,7 @@ resource "aws_lb_target_group" "traefik" {
 resource "aws_lb_target_group_attachment" "workers" {
   for_each = local.workers
 
-  target_group_arn = aws_lb_target_group.traefik.arn
+  target_group_arn = aws_lb_target_group.gateway.arn
   target_id        = aws_instance.nodes[each.key].id
   port             = 30443
 }
@@ -172,6 +172,6 @@ resource "aws_lb_listener" "https" {
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.traefik.arn
+    target_group_arn = aws_lb_target_group.gateway.arn
   }
 }

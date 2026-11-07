@@ -9,12 +9,12 @@ output "iam_role_name" {
 }
 
 output "instance_profile_arn" {
-  description = "IAM 역할을 EC2 에 붙이는 인스턴스 프로파일 ARN"
+  description = "IAM 역할을 EC2 에 연결하는 인스턴스 프로파일 ARN"
   value       = aws_iam_instance_profile.ggeolmuse_ec2_profile.arn
 }
 
 output "instance_profile_name" {
-  description = "IAM 역할을 EC2 에 붙이는 인스턴스 프로파일 이름"
+  description = "IAM 역할을 EC2 에 연결하는 인스턴스 프로파일 이름"
   value       = aws_iam_instance_profile.ggeolmuse_ec2_profile.name
 }
 
@@ -64,16 +64,6 @@ output "db_backup_bucket" {
 }
 
 output "db_backup_role_name" {
-  description = "S3 쓰기 정책이 붙은 EC2 역할. 인스턴스에 실제로 붙은 프로파일에서 따라간 값"
+  description = "S3 쓰기 정책이 연결된 EC2 역할. 인스턴스에 실제로 연결된 프로파일에서 따라간 값"
   value       = data.aws_iam_instance_profile.ggeolmuse.role_name
-}
-
-output "k8s_node_ids" {
-  description = "멀티 노드 예비 클러스터 노드 이름 → 인스턴스 ID(만들지 않으면 빈 값)"
-  value       = one(module.k8s_cluster[*].node_ids)
-}
-
-output "k8s_ingress_dns_name" {
-  description = "멀티 노드 예비 클러스터 NLB 주소(만들지 않으면 빈 값)"
-  value       = one(module.k8s_cluster[*].ingress_dns_name)
 }

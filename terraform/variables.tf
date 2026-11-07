@@ -10,7 +10,7 @@ variable "ec2_instance_id" {
 }
 
 variable "project_name" {
-  description = "리소스 이름 앞에 붙는 프로젝트 이름"
+  description = "리소스 이름 앞에 오는 프로젝트 이름"
   type        = string
   default     = "ggeolmuse"
 }
@@ -180,40 +180,4 @@ variable "slack_webhook_url" {
     condition     = var.slack_webhook_url == "" || startswith(var.slack_webhook_url, "https://hooks.slack.com/")
     error_message = "slack_webhook_url은 비어 있거나 https://hooks.slack.com/ 으로 시작해야 합니다."
   }
-}
-
-# --- 멀티 노드 예비 클러스터 (k8s-cluster.tf) ---
-
-variable "k8s_cluster_enabled" {
-  description = "멀티 노드 예비 클러스터를 만들지 여부. 기본은 만들지 않음"
-  type        = bool
-  default     = false
-}
-
-variable "k8s_subnet_id" {
-  description = "멀티 노드 노드 · NLB 를 둘 공개 서브넷"
-  type        = string
-  default     = ""
-
-  validation {
-    condition     = !var.k8s_cluster_enabled || var.k8s_subnet_id != ""
-    error_message = "k8s_cluster_enabled 이면 k8s_subnet_id 가 있어야 합니다."
-  }
-}
-
-variable "k8s_ingress_prefix_list_id" {
-  description = "멀티 노드 NLB 443 을 받을 접두사 목록(Cloudflare)"
-  type        = string
-  default     = ""
-
-  validation {
-    condition     = !var.k8s_cluster_enabled || var.k8s_ingress_prefix_list_id != ""
-    error_message = "k8s_cluster_enabled 이면 k8s_ingress_prefix_list_id 가 있어야 합니다."
-  }
-}
-
-variable "k8s_rds_security_group_id" {
-  description = "멀티 노드 노드의 5432 를 받을 RDS 보안 그룹. 비면 규칙 없음"
-  type        = string
-  default     = ""
 }

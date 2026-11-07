@@ -330,7 +330,7 @@ jobs:
           go vet ./...
           go test ./...
 
-  # terraform 형식 · 문법 · 가짜 프로바이더 테스트(AWS 에 닿지 않음)
+  # terraform 형식 · 문법 · 가짜 프로바이더 테스트(AWS 에 닿지 않음, 운영 루트와 멀티 노드 루트)
   terraform:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -347,14 +347,22 @@ jobs:
       - name: 형식
         run: terraform fmt -check -recursive
 
-      - name: 문법 · 루트 테스트
+      - name: 문법
         run: |
+          terraform init -backend=false -input=false
+          terraform validate
+
+      # 멀티 노드 예비 클러스터(상태를 따로 둔 루트)
+      - name: 멀티 노드 루트 형식 · 문법 · 테스트
+        working-directory: k8s/terraform
+        run: |
+          terraform fmt -check -recursive
           terraform init -backend=false -input=false
           terraform validate
           terraform test
 
       - name: 멀티 노드 모듈 테스트
-        working-directory: terraform/modules/k8s-cluster
+        working-directory: k8s/terraform/modules/k8s-cluster
         run: |
           terraform init -backend=false -input=false
           terraform test
