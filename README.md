@@ -153,21 +153,21 @@ repository · service)이고, 기능 하나를 단계로 나누는 trade · mark
 
 ## 테스트
 
-백엔드 **1,790 개**, 프론트 **772 개**, E2E **43 개**.
+백엔드 **1,904 개**, 프론트 **834 개**, E2E **44 개**.
 
 | 서비스 | 테스트 |
 |---|---|
 | market-data-service | 538 |
-| user-service | 409 |
-| backtest-service | 323 |
-| trade-service | 276 |
+| user-service | 432 |
+| backtest-service | 391 |
+| trade-service | 299 |
 | gateway-server | 21 |
 | config-server | 5 |
 | ggeolmuse-common | 36 |
 | messaging | 25 |
 | chat-service | 157 |
-| frontend-web | 772 |
-| E2E (Playwright) | 43 |
+| frontend-web | 834 |
+| E2E (Playwright) | 44 |
 
 E2E 는 `docker compose` 로 스택 전체를 띄우고 PR 과 `master` push 마다 돈다.
 필수 체크로 두지 않은 이유는 시세를 Yahoo Finance 에서 받아서다 — 코드와
@@ -183,12 +183,12 @@ CI 에서 그 아래면 빌드를 실패시킨다(자바 JaCoCo · chat coverage
 
 | 서비스 | 라인 | 분기 |
 |---|---|---|
-| user | 98.4% | 86.5% |
-| trade | 99.4% | 92.2% |
-| backtest | 98.3% | 88.3% |
-| market-data | 97.7% | 87.3% |
-| chat | 98.3% | 89.1% |
-| frontend-web | 90.3% | 81.2% |
+| user | 98.3% | 87.5% |
+| trade | 99.2% | 92.5% |
+| backtest | 98.7% | 88.8% |
+| market-data | 97.9% | 87.9% |
+| chat | 98.4% | 89.6% |
+| frontend-web | 90.7% | 82.0% |
 
 market-data 의 외부 API 호출은 응답을 흉내 낸 테스트라 실제 API 가 바뀌는 것은 못 잡는다.
 
