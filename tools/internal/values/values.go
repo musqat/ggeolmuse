@@ -19,7 +19,7 @@ var Keys = map[string][]string{
 	"frontend-web":        {"frontend"},
 }
 
-// TagPattern 은 커밋 SHA 7자리 또는 판 번호
+// TagPattern 은 커밋 SHA 7자리 또는 버전
 var TagPattern = regexp.MustCompile(`^([0-9a-f]{7}|[0-9]+\.[0-9]+\.[0-9]+)$`)
 
 var tagLine = regexp.MustCompile(`^(\s+)tag:\s*(\S.*)$`)

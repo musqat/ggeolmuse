@@ -8,9 +8,9 @@ permissions:
   contents: read
   security-events: write
 
-# 같은 PR 에 새 커밋이 오면 이전 실행 취소(master 는 머지마다 끝까지)
+# 같은 PR 에 새 커밋이 오면 이전 실행 취소(master 는 커밋마다 따로 끝까지, 대기 실행도 취소 안 됨)
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}
+  group: ci-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # 잡마다 시간 제한(최근 실행의 세 배 안팎)
