@@ -102,6 +102,8 @@ export type ConditionalStrategyRequest = BacktestCommonRequest & {
   direction?: PriceDirection;           // 비우면 하락
   dropPercentage: number;               // 하락률 · 상승률 (0.05 = 5%)
   maxPurchases?: number;                // 최대 매수 횟수
+  takeProfitRate?: number;              // 익절 비율 (0.2 = 20%, 비우면 안 함)
+  stopLossRate?: number;                // 손절 비율 (0.1 = 10%, 비우면 안 함)
 };
 
 // 종목 비교 요청
@@ -126,6 +128,8 @@ export type StrategyParameter = {
   direction?: PriceDirection;           // 비우면 하락
   dropPercentage?: number;              // 하락률 · 상승률
   maxPurchases?: number;                // 최대 매수 횟수
+  takeProfitRate?: number;              // 익절 비율 (비우면 안 함)
+  stopLossRate?: number;                // 손절 비율 (비우면 안 함)
   // 단순 전략 필드
   purchaseDate?: string;                // 매수일
 };

@@ -2,6 +2,7 @@ import type { ConditionalStrategyRequest, PriceDirection } from '@services/api';
 import { DIRECTIONS } from '../../shared/priceDirection';
 import type { BuildResult, RunContext } from '../types';
 import { toOptionFields, type BacktestOptions } from '../../shared/backtestOptions';
+import { hasSellRates, toSellRates } from '../../shared/sellRates';
 
 export interface ConditionalValues extends BacktestOptions {
   startDate: string;
@@ -12,6 +13,8 @@ export interface ConditionalValues extends BacktestOptions {
   maxPurchases: string;
   direction: PriceDirection;
   dropPercentage: string;
+  takeProfit: string;
+  stopLoss: string;
 }
 
 // 조건부 매수 요청(검사에 걸리면 alert 문구)
@@ -50,6 +53,11 @@ export const buildConditionalRequest = (
     return { error: `${DIRECTIONS[values.direction].rate}은 0~100 사이여야 합니다.` };
   }
 
+  const sell = toSellRates(values.takeProfit, values.stopLoss);
+  if ('error' in sell) {
+    return sell;
+  }
+
   // 종료일이 비어있으면 오늘
   const effectiveEndDate = values.endDate || ctx.today;
   if (new Date(values.startDate) >= new Date(effectiveEndDate)) {
@@ -64,7 +72,12 @@ export const buildConditionalRequest = (
     direction: values.direction,
     dropPercentage: drop / 100,
     ...toOptionFields(values),
+    ...sell.rates,
   };
+  // 익절 · 손절은 배당 재투자와 함께 못 씀
+  if (hasSellRates(values.takeProfit, values.stopLoss)) {
+    request.reinvestDividends = false;
+  }
   if (values.investmentMode === 'TOTAL_BUDGET') {
     request.totalInvestment = parseFloat(values.totalInvestment);
     request.amountPerPurchase = parseFloat(values.amountPerPurchase);

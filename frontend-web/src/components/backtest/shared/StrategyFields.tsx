@@ -157,18 +157,66 @@ export const ConditionFields: React.FC<ConditionFieldsProps> = ({ direction, onD
   </>
 );
 
+interface SellFieldsProps {
+  takeProfit: string;
+  onTakeProfitChange: (value: string) => void;
+  stopLoss: string;
+  onStopLossChange: (value: string) => void;
+}
+
+// 익절 · 손절 퍼센트 칸(비우면 안 함, 보유분 평균 단가 기준 전량 매도)
+export const SellFields: React.FC<SellFieldsProps> = ({ takeProfit, onTakeProfitChange, stopLoss, onStopLossChange }) => (
+  <>
+    <FormField label="익절 (%)">
+      <input
+        type="number"
+        aria-label="익절 (%)"
+        value={takeProfit}
+        onChange={(e) => onTakeProfitChange(e.target.value)}
+        placeholder="비우면 안 함"
+        step="1"
+        min="0.1"
+        className={INPUT_CLASS}
+      />
+      <p className="text-xs text-tx-2 mt-1">평균 단가보다 이만큼 오르면 전량 매도</p>
+    </FormField>
+    <FormField label="손절 (%)">
+      <input
+        type="number"
+        aria-label="손절 (%)"
+        value={stopLoss}
+        onChange={(e) => onStopLossChange(e.target.value)}
+        placeholder="비우면 안 함"
+        step="1"
+        min="0.1"
+        max="99.9"
+        className={INPUT_CLASS}
+      />
+      <p className="text-xs text-tx-2 mt-1">평균 단가보다 이만큼 내리면 전량 매도</p>
+    </FormField>
+  </>
+);
+
 interface StrategyOptionsProps {
   options: BacktestOptionsState;
   startDate: string;
   purchaseLabel: string;
   currentLabel: string;
+  // 익절 · 손절을 켜서 배당 재투자를 못 쓰는지
+  reinvestLocked?: boolean;
 }
 
 // 환율 데이터 경고 · 환율 설정 · 배당 · 수수료 옵션
-export const StrategyOptions: React.FC<StrategyOptionsProps> = ({ options, startDate, purchaseLabel, currentLabel }) => (
+export const StrategyOptions: React.FC<StrategyOptionsProps> = ({
+  options,
+  startDate,
+  purchaseLabel,
+  currentLabel,
+  reinvestLocked = false,
+}) => (
   <>
     <FxDataWarning startDate={startDate} />
     <FxModeToggle options={options} purchaseLabel={purchaseLabel} currentLabel={currentLabel} />
-    <DividendFeeOptions options={options} />
+    <DividendFeeOptions options={options} reinvestLocked={reinvestLocked} />
   </>
 );

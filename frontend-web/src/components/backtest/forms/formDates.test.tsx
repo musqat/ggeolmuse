@@ -48,6 +48,7 @@ const FORMS: [string, (p: Period) => ReactElement][] = [
       investmentMode="TOTAL_BUDGET" setInvestmentMode={vi.fn()} totalInvestment="1000000" setTotalInvestment={vi.fn()}
       amountPerPurchase="100000" setAmountPerPurchase={vi.fn()} maxPurchases="10" setMaxPurchases={vi.fn()}
       direction="DROP" setDirection={vi.fn()} dropPercentage="5" setDropPercentage={vi.fn()}
+      takeProfit="" setTakeProfit={vi.fn()} stopLoss="" setStopLoss={vi.fn()}
     />
   )],
   ['전략 비교', (p) => (

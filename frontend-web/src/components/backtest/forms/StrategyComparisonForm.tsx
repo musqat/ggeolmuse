@@ -22,6 +22,8 @@ interface StrategyComparisonFormProps {
   toggleStrategy: (strategy: ComparisonStrategyType) => void;
 
   options: BacktestOptionsState;
+  // 조건부 매수에 익절 · 손절을 적어 배당 재투자를 못 쓰는지
+  reinvestLocked?: boolean;
 }
 
 // 한 종목에 단순 · 적립식 · 조건부 매수를 견줌
@@ -38,6 +40,7 @@ export const StrategyComparisonForm: React.FC<StrategyComparisonFormProps> = ({
   selectedStrategies,
   toggleStrategy,
   options,
+  reinvestLocked = false,
 }) => {
   return (
     <div className="space-y-4">
@@ -84,6 +87,7 @@ export const StrategyComparisonForm: React.FC<StrategyComparisonFormProps> = ({
         startDate={startDate}
         purchaseLabel="시작일 환율 (₩/USD)"
         currentLabel="현재 환율 (₩/USD)"
+        reinvestLocked={reinvestLocked}
       />
     </div>
   );

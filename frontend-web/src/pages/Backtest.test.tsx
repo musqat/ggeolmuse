@@ -158,6 +158,24 @@ describe('Backtest 페이지', () => {
     expect(vi.mocked(backtestApi.runConditionalStrategy).mock.calls[0][0]).toMatchObject({ direction: 'RISE', dropPercentage: 0.05 })
   })
 
+  it('조건부: 익절을 적으면 배당 재투자 체크를 잠그고 비율로 요청한다', async () => {
+    renderPage()
+    await selectTab('조건부')
+    const reinvest = screen.getByRole('checkbox', { name: /배당금 재투자/ })
+    await userEvent.click(reinvest)
+    expect(reinvest).toBeChecked()
+
+    await userEvent.type(screen.getByLabelText('익절 (%)'), '20')
+
+    expect(reinvest).toBeDisabled()
+    expect(reinvest).not.toBeChecked()
+    await runBacktest()
+    expect(vi.mocked(backtestApi.runConditionalStrategy).mock.calls[0][0]).toMatchObject({
+      takeProfitRate: 0.2,
+      reinvestDividends: false,
+    })
+  })
+
   it('종목 비교: 기본 두 종목 요청', async () => {
     renderPage()
     await selectTab('종목 비교')

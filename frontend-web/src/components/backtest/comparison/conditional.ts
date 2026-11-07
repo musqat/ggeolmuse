@@ -1,8 +1,15 @@
 import { ConditionalFields } from './fields/ConditionalFields';
-import type { ComparisonStrategyDef } from './types';
+import type { ComparisonStrategyDef, StrategyParams } from './types';
 import { DIRECTIONS, toDirection } from '../shared/priceDirection';
+import { toSellRates } from '../shared/sellRates';
 
 const name = '조건부 매수';
+
+// 적은 익절 · 손절 비율(범위 검사는 checkOnRun)
+const sellRatesOf = (params: StrategyParams) => {
+  const sell = toSellRates(params.takeProfit, params.stopLoss);
+  return 'rates' in sell ? sell.rates : {};
+};
 
 export const conditionalStrategy: ComparisonStrategyDef = {
   type: 'CONDITIONAL_PURCHASE',
@@ -20,7 +27,8 @@ export const conditionalStrategy: ComparisonStrategyDef = {
     if (!dropPercentage || dropPercentage <= 0) {
       return `${name}: ${DIRECTIONS[toDirection(params.direction)].rate}이 유효하지 않습니다.`;
     }
-    return null;
+    const sell = toSellRates(params.takeProfit, params.stopLoss);
+    return 'error' in sell ? `${name}: ${sell.error}` : null;
   },
   toRequest: (params, common) => ({
     strategyType: 'CONDITIONAL_PURCHASE',
@@ -28,6 +36,7 @@ export const conditionalStrategy: ComparisonStrategyDef = {
     totalInvestment: parseFloat(params.totalInvestment || common.investment),
     direction: toDirection(params.direction),
     dropPercentage: parseFloat(params.dropPercentage || '5') / 100,
+    ...sellRatesOf(params),
   }),
   Fields: ConditionalFields,
 };

@@ -5,11 +5,13 @@ import {
   ConditionFields,
   FormField,
   PeriodFields,
+  SellFields,
   StrategyOptions,
   SymbolField,
 } from '../shared/StrategyFields';
 import { formatNumber } from '../../../utils/format';
 import type { PriceDirection } from '@services/api';
+import { hasSellRates } from '../shared/sellRates';
 
 interface ConditionalStrategyFormProps {
   symbol: string;
@@ -30,11 +32,15 @@ interface ConditionalStrategyFormProps {
   setDirection: (direction: PriceDirection) => void;
   dropPercentage: string;
   setDropPercentage: (percentage: string) => void;
+  takeProfit: string;
+  setTakeProfit: (percentage: string) => void;
+  stopLoss: string;
+  setStopLoss: (percentage: string) => void;
   options: BacktestOptionsState;
   supportedSymbols: string[];
 }
 
-// 정한 비율만큼 떨어지거나 오른 날마다 사는 전략
+// 정한 비율만큼 떨어지거나 오른 날마다 사고, 켜면 익절 · 손절로 전량 파는 전략
 export const ConditionalStrategyForm: React.FC<ConditionalStrategyFormProps> = ({
   symbol,
   setSymbol,
@@ -54,6 +60,10 @@ export const ConditionalStrategyForm: React.FC<ConditionalStrategyFormProps> = (
   setDirection,
   dropPercentage,
   setDropPercentage,
+  takeProfit,
+  setTakeProfit,
+  stopLoss,
+  setStopLoss,
   options,
   supportedSymbols,
 }) => {
@@ -161,6 +171,13 @@ export const ConditionalStrategyForm: React.FC<ConditionalStrategyFormProps> = (
           value={dropPercentage}
           onChange={setDropPercentage}
         />
+
+        <SellFields
+          takeProfit={takeProfit}
+          onTakeProfitChange={setTakeProfit}
+          stopLoss={stopLoss}
+          onStopLossChange={setStopLoss}
+        />
       </div>
 
       <StrategyOptions
@@ -168,6 +185,7 @@ export const ConditionalStrategyForm: React.FC<ConditionalStrategyFormProps> = (
         startDate={conditionalStartDate}
         purchaseLabel="시작일 환율"
         currentLabel="현재 환율"
+        reinvestLocked={hasSellRates(takeProfit, stopLoss)}
       />
     </div>
   );

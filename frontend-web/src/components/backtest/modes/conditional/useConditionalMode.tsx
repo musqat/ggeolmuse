@@ -20,6 +20,8 @@ export const useConditionalMode = ({
   const [maxPurchases, setMaxPurchases] = useState('20');
   const [direction, setDirection] = useState<PriceDirection>('DROP');
   const [dropPercentage, setDropPercentage] = useState('5');
+  const [takeProfit, setTakeProfit] = useState(''); // 비우면 익절 안 함
+  const [stopLoss, setStopLoss] = useState(''); // 비우면 손절 안 함
   const options = useBacktestOptions();
 
   return {
@@ -46,6 +48,10 @@ export const useConditionalMode = ({
         setDirection={setDirection}
         dropPercentage={dropPercentage}
         setDropPercentage={setDropPercentage}
+        takeProfit={takeProfit}
+        setTakeProfit={setTakeProfit}
+        stopLoss={stopLoss}
+        setStopLoss={setStopLoss}
         options={options}
         supportedSymbols={supportedSymbols}
       />
@@ -61,6 +67,8 @@ export const useConditionalMode = ({
           maxPurchases,
           direction,
           dropPercentage,
+          takeProfit,
+          stopLoss,
           ...options,
         },
         symbol,
