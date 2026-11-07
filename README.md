@@ -235,7 +235,7 @@ MSK·ElastiCache→파드 내 실행. values 파일만 바꾸면 되돌릴 수 �
 ```
 GitHub Actions          빌드 · 테스트 · Trivy 스캔(PR)
         ↓
-GitHub Actions 릴리스    CI 초록 뒤 운영 태그부터 바뀐 서비스만 push, 운영 태그 커밋
+GitHub Actions 릴리스    CI 초록 뒤 PR 에서 체크한 서비스 가운데 바뀐 것만 push, 운영 태그 커밋
         ↓
 ArgoCD (GitOps)         Helm 차트를 추적해 동기화
         ↓
