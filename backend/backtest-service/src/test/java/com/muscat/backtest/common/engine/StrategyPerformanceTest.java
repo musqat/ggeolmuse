@@ -187,6 +187,77 @@ class StrategyPerformanceTest {
     assertThat(result.metricsUsd().mdd()).isEqualByComparingTo("0.00");
   }
 
+  // 전량 매도(받은 돈 = 수량 × 가격 - 수수료, 입금 없음)
+  private static StrategyTransaction sell(LocalDate date, String price, String shares, String fee) {
+    BigDecimal sold = new BigDecimal(shares);
+    BigDecimal proceeds = sold.multiply(new BigDecimal(price)).subtract(new BigDecimal(fee));
+    return StrategyTransaction.builder().date(date).actualDate(date).price(new BigDecimal(price))
+      .shares(sold.negate()).amount(BigDecimal.ZERO).fxRate(FX).trigger("익절").fee(new BigDecimal(fee))
+      .proceeds(proceeds).build();
+  }
+
+  @Test
+  @DisplayName("종가에 수수료 없이 팔면 판 돈이 그날 가치라 지수가 그대로다")
+  void sellAtCloseKeepsIndex() {
+    List<StrategyTransaction> txs = List.of(buy(D1, "100", "10"), sell(D2, "110", "10", "0"));
+
+    StrategyPerformance.Result result = StrategyPerformance.of(txs,
+      prices(candle(D1, "100"), candle(D2, "110"), candle(D3, "90")), FIXED_FX, NO_DIVIDENDS, false, null,
+      D1, D4, totalKrw("1100"), FX);
+
+    // 판 뒤에는 주가가 내려도 현금 1100
+    assertThat(result.dailyValues()).extracting(DailyValue::valueUsd)
+      .usingElementComparator(BigDecimal::compareTo)
+      .containsExactly(new BigDecimal("1000"), new BigDecimal("1100"), new BigDecimal("1100"), new BigDecimal("1100"));
+    assertThat(result.metricsUsd().mdd()).isEqualByComparingTo("0.00");
+  }
+
+  @Test
+  @DisplayName("매도 수수료만큼 그날 지수가 내려간다")
+  void sellFeeLowersIndex() {
+    List<StrategyTransaction> txs = List.of(buy(D1, "100", "10"), sell(D2, "100", "10", "10"));
+
+    StrategyPerformance.Result result = StrategyPerformance.of(txs,
+      prices(candle(D1, "100"), candle(D2, "100")), FIXED_FX, NO_DIVIDENDS, false, null,
+      D1, D3, totalKrw("990"), FX);
+
+    assertThat(result.dailyValues().get(1).valueUsd()).isEqualByComparingTo("990");
+    assertThat(result.metricsUsd().mdd()).isEqualByComparingTo("-1.00");
+  }
+
+  @Test
+  @DisplayName("판 돈으로 다시 산 매수는 입금이 아니라 현금이 주식으로 바뀐 것이다")
+  void cashPurchaseIsNotDeposit() {
+    StrategyTransaction rebuy = StrategyTransaction.builder().date(D3).actualDate(D3).price(new BigDecimal("100"))
+      .shares(BigDecimal.TEN).amount(BigDecimal.ZERO).fxRate(FX).trigger("5.0%하락").fee(BigDecimal.ZERO)
+      .cashUsed(new BigDecimal("1000")).build();
+    List<StrategyTransaction> txs = List.of(buy(D1, "100", "10"), sell(D2, "100", "10", "0"), rebuy);
+
+    StrategyPerformance.Result result = StrategyPerformance.of(txs,
+      prices(candle(D1, "100"), candle(D2, "100"), candle(D3, "100"), candle(D4, "110")), FIXED_FX, NO_DIVIDENDS,
+      false, null, D1, D5, totalKrw("1100"), FX);
+
+    assertThat(result.dailyValues()).extracting(DailyValue::valueUsd)
+      .usingElementComparator(BigDecimal::compareTo)
+      .containsExactly(new BigDecimal("1000"), new BigDecimal("1000"), new BigDecimal("1000"), new BigDecimal("1100"),
+        new BigDecimal("1100"));
+    assertThat(result.metricsUsd().mdd()).isEqualByComparingTo("0.00");
+  }
+
+  @Test
+  @DisplayName("판 뒤의 배당락일에는 현금 배당이 없다")
+  void noDividendAfterSell() {
+    DividendHistoryDto dividends = DividendHistoryDto.of("AAPL",
+      List.of(new DividendDto("AAPL", D3, D4, null, BigDecimal.ONE, "USD", "test")));
+    List<StrategyTransaction> txs = List.of(buy(D1, "100", "10"), sell(D2, "100", "10", "0"));
+
+    StrategyPerformance.Result result = StrategyPerformance.of(txs,
+      prices(candle(D1, "100"), candle(D2, "100"), candle(D3, "100")), FIXED_FX, dividends, false, null,
+      D1, D4, totalKrw("1000"), FX);
+
+    assertThat(result.dailyValues().get(2).valueUsd()).isEqualByComparingTo("1000");
+  }
+
   private static StrategyTransaction small(LocalDate date, String amountKrw, String shares) {
     return StrategyTransaction.builder().date(date).actualDate(date).price(new BigDecimal("100"))
       .shares(new BigDecimal(shares)).amount(new BigDecimal(amountKrw)).fxRate(FX).trigger("월정액")

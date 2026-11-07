@@ -8,6 +8,7 @@ import com.muscat.commonlib.util.MoneyUtils;
 import com.muscat.commonlib.dto.StockPriceDto;
 import lombok.experimental.UtilityClass;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 
 // 전략 실행 결과 계산을 담당하는 클래스
@@ -26,8 +27,18 @@ public class StrategyCalculator {
             BigDecimal dividendsReinvested,
             BigDecimal dividendTaxRate) {
         
-        BigDecimal averagePrice = BacktestCalculationUtils.calculateAveragePrice(
-            totalInvested, totalFxRateSum, totalShares);
+        // 매도 · 판 돈 매수가 없으면 입금 기준 평균 단가, 있으면 지금 보유분 원가
+        boolean traded = transactions.stream().anyMatch(tx -> tx.isSell() || tx.getCashUsed() != null);
+        BigDecimal averagePrice = traded
+            ? holdingAverage(transactions)
+            : BacktestCalculationUtils.calculateAveragePrice(totalInvested, totalFxRateSum, totalShares);
+        BigDecimal cashBalance = transactions.stream()
+            .map(StrategyTransaction::cashChange)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal realizedProfit = transactions.stream()
+            .map(StrategyTransaction::getRealizedProfit)
+            .filter(java.util.Objects::nonNull)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal averageFxRate = BacktestCalculationUtils.calculateAverageFxRate(
             totalFxRateSum, totalInvested);
 
@@ -35,7 +46,10 @@ public class StrategyCalculator {
         BigDecimal currentValue = MoneyUtils.multiply(totalShares, currentPrice.currentPrice());
         currentValue = MoneyUtils.roundUsd(currentValue);
         
-        BigDecimal currentValueKrw = MoneyUtils.convertUsdToKrw(currentValue, currentFxRate.rate());
+        // 전량 매도로 보유가 없으면 0
+        BigDecimal currentValueKrw = Decimals.isPositive(currentValue)
+            ? MoneyUtils.convertUsdToKrw(currentValue, currentFxRate.rate())
+            : BigDecimal.ZERO;
 
         BigDecimal totalInvestedUsd = MoneyUtils.convertKrwToUsd(totalInvested, averageFxRate);
         
@@ -62,7 +76,10 @@ public class StrategyCalculator {
             cashDividendKrw = MoneyUtils.convertUsdToKrw(afterTax, currentFxRate.rate());
         }
 
-        BigDecimal totalAssetKrw = currentValueKrw.add(cashDividendKrw);
+        BigDecimal cashKrw = Decimals.isPositive(cashBalance)
+            ? MoneyUtils.convertUsdToKrw(cashBalance, currentFxRate.rate())
+            : BigDecimal.ZERO;
+        BigDecimal totalAssetKrw = currentValueKrw.add(cashDividendKrw).add(cashKrw);
 
         // 총 수익 = 주식 가치(+현금 배당) - 투자금
         BigDecimal adjustedTotalReturnKrw = MoneyUtils.subtract(totalAssetKrw, totalInvested);
@@ -78,6 +95,8 @@ public class StrategyCalculator {
             .totalDividends(totalDividends != null ? totalDividends : BigDecimal.ZERO)
             .dividendsReinvested(dividendsReinvested != null ? dividendsReinvested : BigDecimal.ZERO)
             .totalAssetKrw(totalAssetKrw)
+            .cashBalance(cashBalance)
+            .realizedProfit(realizedProfit)
             .totalReturnPercent(adjustedTotalReturnPercent)
             .totalReturnKrw(adjustedTotalReturnKrw)
             .fxReturn(fxReturn)
@@ -85,5 +104,27 @@ public class StrategyCalculator {
             .currentFxRate(currentFxRate.rate())
             .defaultFxValuationDate(currentFxRate.defaulted() ? currentFxRate.date() : null)
             .build();
+    }
+
+    // 지금 보유분의 평균 원가(USD, 매수는 입금 달러 + 쓴 판 돈, 매도는 판 비율만큼 원가를 덜어 냄, 보유가 없으면 null)
+    private static BigDecimal holdingAverage(List<StrategyTransaction> transactions) {
+        BigDecimal shares = BigDecimal.ZERO;
+        BigDecimal cost = BigDecimal.ZERO;
+        for (StrategyTransaction tx : transactions) {
+            if (tx.isSell()) {
+                if (shares.signum() > 0) {
+                    cost = cost.subtract(cost.multiply(tx.getShares().negate()).divide(shares, 8, RoundingMode.HALF_UP));
+                }
+            } else {
+                if (Decimals.isPositive(tx.getAmount())) {
+                    cost = cost.add(tx.getAmount().divide(tx.getFxRate(), 8, RoundingMode.HALF_UP));
+                }
+                if (tx.getCashUsed() != null) {
+                    cost = cost.add(tx.getCashUsed());
+                }
+            }
+            shares = shares.add(tx.getShares());
+        }
+        return shares.signum() > 0 ? cost.divide(shares, 8, RoundingMode.HALF_UP) : null;
     }
 }

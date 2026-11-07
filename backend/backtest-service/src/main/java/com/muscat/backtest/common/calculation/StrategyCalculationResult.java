@@ -19,6 +19,8 @@ public class StrategyCalculationResult {
     private final BigDecimal totalDividends;       // 총 배당금 (USD) - 재투자 시 0
     private final BigDecimal dividendsReinvested;  // 재투자된 배당금 (USD)
     private final BigDecimal totalAssetKrw;        // 총 자산 (주식+잔액+배당, KRW)
+    private final BigDecimal cashBalance;          // 매도로 남은 현금 (USD)
+    private final BigDecimal realizedProfit;       // 매도 실현 손익 합 (USD)
     private final BigDecimal totalReturnPercent;
     private final BigDecimal totalReturnKrw;
     private final BigDecimal fxReturn;

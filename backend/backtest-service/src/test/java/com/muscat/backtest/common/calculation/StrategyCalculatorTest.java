@@ -65,6 +65,56 @@ class StrategyCalculatorTest {
   }
 
   @Test
+  @DisplayName("매도가 없으면 남은 현금 · 실현 손익이 0 이고 평균 단가는 이전 식 그대로다")
+  void noSell() {
+    StrategyCalculationResult result = calculate(null, null, null);
+
+    assertThat(result.getCashBalance()).isEqualByComparingTo("0");
+    assertThat(result.getRealizedProfit()).isEqualByComparingTo("0");
+    assertThat(result.getAveragePrice()).isEqualByComparingTo("100");
+  }
+
+  @Test
+  @DisplayName("전량 매도로 끝나면 총자산은 남은 현금이고 평균 단가가 없다")
+  void allSold() {
+    StrategyTransaction sold = StrategyTransaction.builder().date(LocalDate.of(2024, 6, 3))
+      .actualDate(LocalDate.of(2024, 6, 3)).price(new BigDecimal("110")).shares(new BigDecimal("-10"))
+      .amount(BigDecimal.ZERO).fxRate(new BigDecimal("1300")).fee(BigDecimal.ZERO)
+      .proceeds(new BigDecimal("1100")).realizedProfit(new BigDecimal("100")).build();
+
+    StrategyCalculationResult result = StrategyCalculator.calculate(List.of(TXS.getFirst(), sold), INVESTED,
+      BigDecimal.ZERO, FX_SUM, PRICE, FX, null, null, null);
+
+    // 1100달러 × 1300
+    assertThat(result.getTotalAssetKrw()).isEqualByComparingTo("1430000");
+    assertThat(result.getTotalReturnKrw()).isEqualByComparingTo("130000");
+    assertThat(result.getCurrentValue()).isEqualByComparingTo("0");
+    assertThat(result.getCashBalance()).isEqualByComparingTo("1100");
+    assertThat(result.getRealizedProfit()).isEqualByComparingTo("100");
+    assertThat(result.getAveragePrice()).isNull();
+  }
+
+  @Test
+  @DisplayName("판 돈으로 다시 사면 평균 단가는 지금 보유분의 원가다")
+  void rebuyAverage() {
+    StrategyTransaction sold = StrategyTransaction.builder().date(LocalDate.of(2024, 6, 3))
+      .actualDate(LocalDate.of(2024, 6, 3)).price(new BigDecimal("110")).shares(new BigDecimal("-10"))
+      .amount(BigDecimal.ZERO).fxRate(new BigDecimal("1300")).fee(BigDecimal.ZERO)
+      .proceeds(new BigDecimal("1100")).realizedProfit(new BigDecimal("100")).build();
+    StrategyTransaction rebuy = StrategyTransaction.builder().date(LocalDate.of(2024, 7, 1))
+      .actualDate(LocalDate.of(2024, 7, 1)).price(new BigDecimal("110")).shares(BigDecimal.TEN)
+      .amount(BigDecimal.ZERO).fxRate(new BigDecimal("1300")).fee(BigDecimal.ZERO)
+      .cashUsed(new BigDecimal("1100")).build();
+
+    StrategyCalculationResult result = StrategyCalculator.calculate(List.of(TXS.getFirst(), sold, rebuy), INVESTED,
+      BigDecimal.TEN, FX_SUM, PRICE, FX, null, null, null);
+
+    assertThat(result.getAveragePrice()).isEqualByComparingTo("110");
+    assertThat(result.getCashBalance()).isEqualByComparingTo("0");
+    assertThat(result.getTotalAssetKrw()).isEqualByComparingTo("1300000");
+  }
+
+  @Test
   @DisplayName("배당 값이 없으면 0 으로 채운다")
   void nullDividends() {
     StrategyCalculationResult result = calculate(null, null, null);

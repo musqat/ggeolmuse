@@ -35,7 +35,7 @@ public class StrategyResponse {
   private BigDecimal totalInvested;        // 총 투자금액
   @Schema(description = "총 보유 주수", example = "375.2")
   private BigDecimal totalShares;          // 총 보유주식수
-  @Schema(description = "평균 매수 단가 (USD)", example = "200.35")
+  @Schema(description = "보유분 평균 매수 단가 (USD, 전량 매도로 끝나면 null)", example = "200.35")
   private BigDecimal averagePrice;         // 평균단가
 
   // 현재 가치
@@ -47,6 +47,10 @@ public class StrategyResponse {
   private BigDecimal currentValueKrw;
   @Schema(description = "총 자산 (주식+잔액+배당, KRW)", example = "118,150,558")
   private BigDecimal totalAssetKrw;           // 총 자산 = 주식가치 + 잔액 + 배당금
+  @Schema(description = "매도로 남은 현금 (USD, 매도가 없으면 0)", example = "1100.00")
+  private BigDecimal cashBalance;
+  @Schema(description = "매도 실현 손익 합 (USD, 매도가 없으면 0)", example = "100.00")
+  private BigDecimal realizedProfit;
 
   // 수익률 분석
   @Schema(description = "총 수익률 (%)", example = "25.05")
