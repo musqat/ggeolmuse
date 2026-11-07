@@ -87,6 +87,9 @@ export type DcaStrategyRequest = BacktestCommonRequest & {
   investmentInterval?: number;          // 투자 주기 (1, 2, 3, 6개월)
 };
 
+// 조건부 매수가 보는 전 거래일 종가 대비 방향
+export type PriceDirection = 'DROP' | 'RISE' | 'BOTH';
+
 // 조건부 매수 전략 요청
 export type ConditionalStrategyRequest = BacktestCommonRequest & {
   symbol: string;                       // 종목 심볼
@@ -96,7 +99,8 @@ export type ConditionalStrategyRequest = BacktestCommonRequest & {
   totalInvestment?: number;             // investmentMode 가 TOTAL_BUDGET 일 때
   amountPerPurchase?: number;           // PER_PURCHASE 일 때           // 투자 모드가 회당 금액일 때
   investmentMode?: string;              // total | perPurchase              // 총 투자 금액
-  dropPercentage: number;               // 하락률 (0.05 = 5%)
+  direction?: PriceDirection;           // 비우면 하락
+  dropPercentage: number;               // 하락률 · 상승률 (0.05 = 5%)
   maxPurchases?: number;                // 최대 매수 횟수
 };
 
@@ -119,7 +123,8 @@ export type StrategyParameter = {
   totalInvestmentLimit?: number;        // 총 투자 한도
   // 조건부 매수 전략 필드
   totalInvestment?: number;             // 총 투자 금액
-  dropPercentage?: number;              // 하락률
+  direction?: PriceDirection;           // 비우면 하락
+  dropPercentage?: number;              // 하락률 · 상승률
   maxPurchases?: number;                // 최대 매수 횟수
   // 단순 전략 필드
   purchaseDate?: string;                // 매수일
@@ -143,7 +148,7 @@ export type StrategyTransaction = {
   shares: number;
   amount: number;                       // 투자금 (KRW)
   fxRate: number;
-  trigger?: string;                     // 적립식은 "월정액", 조건부는 "5%하락" 같은 값
+  trigger?: string;                     // 적립식은 "월정액", 조건부는 "5.0%하락" · "5.0%상승" 같은 값
   fee?: number | null;                  // 매매 수수료 (USD, 배당 재투자는 없음)
 };
 

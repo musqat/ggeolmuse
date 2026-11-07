@@ -26,7 +26,7 @@ const strategies = [
   {
     name: 'SIMPLE',
     totalInvested: 280000,
-    additionalData: { symbol: 'AAPL', purchaseDate: '2026-03-01', endDate: '2026-03-04', shares: 2, investmentAmount: 280000, purchaseFxRate: 1400 },
+    additionalData: { symbol: 'AAPL', purchaseDate: '2026-03-01', currentDate: '2026-03-04', shares: 2, investmentAmount: 280000, purchaseFxRate: 1400 },
   },
   {
     name: 'DCA',
@@ -43,114 +43,48 @@ const strategies = [
   },
 ]
 
-// 평가금액은 전략마다 그날 환율로 원화 환산
+// 주가 하나에 전략마다 색을 달리한 매수 점
 describe('CompareStrategiesChart', () => {
   beforeEach(() => {
     getOHLCData.mockReset()
     getOHLCData.mockResolvedValue({ data: [candle('2026-03-02', 100), candle('2026-03-03', 90), candle('2026-03-04', 110)] } as never)
     getExchangeRatesBulk.mockReset()
-    getExchangeRatesBulk.mockResolvedValue({ data: { '2026-03-02': 1400, '2026-03-03': 1410, '2026-03-04': 1420 } } as never)
   })
 
-  it('첫 전략 기간으로 받고, 전략별 평가 · 투자금과 매수 마커를 낸다', async () => {
+  it('첫 전략 기간으로 주가만 받고 전략별 매수 점을 그 전략 색으로 찍는다', async () => {
     renderWithQuery(<CompareStrategiesChart strategies={strategies} strategyNames={{ SIMPLE: '단순 매수', DCA: '적립식' }} />)
 
-    await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(2))
+    await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(1))
     expect(getOHLCData).toHaveBeenCalledWith('AAPL', '2026-03-01', '2026-03-04')
-    expect(getExchangeRatesBulk).toHaveBeenCalledWith(['2026-03-02', '2026-03-03', '2026-03-04'])
-    expect(readCharts()).toMatchInlineSnapshot(`
-      [
-        {
-          "dots": [
-            {
-              "fill": "#3b82f6",
-              "x": "2026-03-02",
-              "y": 100,
-            },
-            {
-              "fill": "#ef4444",
-              "x": "2026-03-02",
-              "y": 100,
-            },
-            {
-              "fill": "#ef4444",
-              "x": "2026-03-04",
-              "y": 110,
-            },
-          ],
-          "lines": [
-            "stockPrice:주가",
-          ],
-          "points": [
-            {
-              "date": "2026-03-02",
-              "stockPrice": 100,
-            },
-            {
-              "date": "2026-03-03",
-              "stockPrice": 90,
-            },
-            {
-              "date": "2026-03-04",
-              "stockPrice": 110,
-            },
-          ],
-          "yDomains": [
-            null,
+    expect(getExchangeRatesBulk).not.toHaveBeenCalled()
+    const [price] = readCharts()
+    expect(price.lines).toEqual(['stockPrice:주가'])
+    expect(price.dots).toEqual([
+      { x: '2026-03-02', y: 100, fill: '#3b82f6' },
+      { x: '2026-03-02', y: 100, fill: '#ef4444' },
+      { x: '2026-03-04', y: 110, fill: '#ef4444' },
+    ])
+    expect(screen.getByText('단순 매수').previousElementSibling).toHaveStyle({ background: '#3b82f6' })
+    expect(screen.getByText('적립식').previousElementSibling).toHaveStyle({ background: '#ef4444' })
+  })
+
+  it('배당 재투자 거래에는 점을 찍지 않는다', async () => {
+    const withDividend = [
+      strategies[0],
+      {
+        ...strategies[1],
+        additionalData: {
+          ...strategies[1].additionalData,
+          transactions: [
+            ...(strategies[1].additionalData.transactions ?? []),
+            { date: '2026-03-03', price: 90, shares: 0.1, amount: 0, fxRate: 1410, trigger: '배당 재투자' },
           ],
         },
-        {
-          "dots": [
-            {
-              "fill": "#3b82f6",
-              "x": "2026-03-02",
-              "y": 280000,
-            },
-            {
-              "fill": "#ef4444",
-              "x": "2026-03-02",
-              "y": 140000,
-            },
-            {
-              "fill": "#ef4444",
-              "x": "2026-03-04",
-              "y": 312400,
-            },
-          ],
-          "lines": [
-            "SIMPLE_invested:SIMPLE_invested",
-            "DCA_invested:DCA_invested",
-            "SIMPLE_portfolio:SIMPLE_portfolio",
-            "DCA_portfolio:DCA_portfolio",
-          ],
-          "points": [
-            {
-              "DCA_invested": 140000,
-              "DCA_portfolio": 140000,
-              "SIMPLE_invested": 280000,
-              "SIMPLE_portfolio": 280000,
-              "date": "2026-03-02",
-            },
-            {
-              "DCA_invested": 140000,
-              "DCA_portfolio": 126900,
-              "SIMPLE_invested": 280000,
-              "SIMPLE_portfolio": 253800,
-              "date": "2026-03-03",
-            },
-            {
-              "DCA_invested": 281000,
-              "DCA_portfolio": 312400,
-              "SIMPLE_invested": 280000,
-              "SIMPLE_portfolio": 312400,
-              "date": "2026-03-04",
-            },
-          ],
-          "yDomains": [
-            null,
-          ],
-        },
-      ]
-    `)
+      },
+    ]
+    renderWithQuery(<CompareStrategiesChart strategies={withDividend} strategyNames={{}} />)
+
+    await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(1))
+    expect(readCharts()[0].dots.map((d: { x: string }) => d.x)).toEqual(['2026-03-02', '2026-03-02', '2026-03-04'])
   })
 })

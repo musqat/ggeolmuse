@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactElement } from 'react'
 import { AccumulationChart } from './AccumulationChart'
@@ -28,7 +29,7 @@ const transactions = [
   { date: '2026-03-05', price: 105, shares: 0.1, amount: 14900, fxRate: 1420, trigger: '배당 재투자' },
 ]
 
-const props = { symbol: 'AAPL', transactions, currentValueKrw: 300000, totalInvested: 295900, startDate: '2026-03-01' }
+const props = { symbol: 'AAPL', transactions, startDate: '2026-03-01' }
 
 // 일반 매수는 보라, 배당 재투자는 녹색 점(한 거래일에 한 번씩만)
 describe('AccumulationChart', () => {
@@ -47,179 +48,46 @@ describe('AccumulationChart', () => {
         candle('MSFT', '2026-03-02', 400),
       ],
     } as never)
-    // 03-04 · 03-06 은 빠져 대체값
-    getExchangeRatesBulk.mockResolvedValue({ data: { '2026-03-02': 1400, '2026-03-03': 1410, '2026-03-05': 1420 } } as never)
   })
 
   afterEach(() => {
     vi.useRealTimers()
   })
 
-  it('첫 매수일부터 오늘까지 받고, 그 종목 날짜로만 환율을 묻는다', async () => {
+  it('첫 매수일부터 오늘까지 그 종목 주가만 받고 환율은 묻지 않는다', async () => {
     renderWithQuery(<AccumulationChart {...props} />)
 
-    await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(2))
+    await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(1))
     expect(getOHLCData).toHaveBeenCalledWith('AAPL', '2026-03-01', '2026-03-10')
-    expect(getExchangeRatesBulk).toHaveBeenCalledWith(['2026-03-02', '2026-03-03', '2026-03-04', '2026-03-05', '2026-03-06'])
+    expect(getExchangeRatesBulk).not.toHaveBeenCalled()
   })
 
-  it('주가 · 포트폴리오 차트의 데이터와 마커', async () => {
+  it('주가 차트 하나에 종가와 매수 · 배당 재투자 점을 그린다', async () => {
     renderWithQuery(<AccumulationChart {...props} />)
 
-    await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(2))
-    expect(readCharts()).toMatchInlineSnapshot(`
-      [
-        {
-          "dots": [
-            {
-              "fill": "#8b5cf6",
-              "x": "2026-03-02",
-              "y": 100,
-            },
-            {
-              "fill": "#8b5cf6",
-              "x": "2026-03-04",
-              "y": 101,
-            },
-            {
-              "fill": "#10b981",
-              "x": "2026-03-05",
-              "y": 105,
-            },
-          ],
-          "lines": [
-            "stockPrice:주가",
-          ],
-          "points": [
-            {
-              "date": "2026-03-02",
-              "investedAmount": 140000,
-              "isDividendReinvest": false,
-              "isPurchase": true,
-              "portfolioValue": 140000,
-              "stockPrice": 100,
-            },
-            {
-              "date": "2026-03-03",
-              "investedAmount": 140000,
-              "isDividendReinvest": false,
-              "isPurchase": false,
-              "portfolioValue": 143820,
-              "stockPrice": 102,
-            },
-            {
-              "date": "2026-03-04",
-              "investedAmount": 281000,
-              "isDividendReinvest": false,
-              "isPurchase": true,
-              "portfolioValue": 272700,
-              "stockPrice": 101,
-            },
-            {
-              "date": "2026-03-05",
-              "investedAmount": 295900,
-              "isDividendReinvest": true,
-              "isPurchase": false,
-              "portfolioValue": 313110,
-              "stockPrice": 105,
-            },
-            {
-              "date": "2026-03-06",
-              "investedAmount": 295900,
-              "isDividendReinvest": false,
-              "isPurchase": false,
-              "portfolioValue": 294840,
-              "stockPrice": 104,
-            },
-          ],
-          "yDomains": [
-            [
-              50,
-              155,
-            ],
-          ],
-        },
-        {
-          "dots": [
-            {
-              "fill": "#8b5cf6",
-              "x": "2026-03-02",
-              "y": 140000,
-            },
-            {
-              "fill": "#8b5cf6",
-              "x": "2026-03-04",
-              "y": 272700,
-            },
-            {
-              "fill": "#10b981",
-              "x": "2026-03-05",
-              "y": 313110,
-            },
-          ],
-          "lines": [
-            "investedAmount:누적 투자금",
-            "portfolioValue:포트폴리오 가치",
-          ],
-          "points": [
-            {
-              "date": "2026-03-02",
-              "investedAmount": 140000,
-              "isDividendReinvest": false,
-              "isPurchase": true,
-              "portfolioValue": 140000,
-              "stockPrice": 100,
-            },
-            {
-              "date": "2026-03-03",
-              "investedAmount": 140000,
-              "isDividendReinvest": false,
-              "isPurchase": false,
-              "portfolioValue": 143820,
-              "stockPrice": 102,
-            },
-            {
-              "date": "2026-03-04",
-              "investedAmount": 281000,
-              "isDividendReinvest": false,
-              "isPurchase": true,
-              "portfolioValue": 272700,
-              "stockPrice": 101,
-            },
-            {
-              "date": "2026-03-05",
-              "investedAmount": 295900,
-              "isDividendReinvest": true,
-              "isPurchase": false,
-              "portfolioValue": 313110,
-              "stockPrice": 105,
-            },
-            {
-              "date": "2026-03-06",
-              "investedAmount": 295900,
-              "isDividendReinvest": false,
-              "isPurchase": false,
-              "portfolioValue": 294840,
-              "stockPrice": 104,
-            },
-          ],
-          "yDomains": [
-            [
-              122689,
-              330421,
-            ],
-          ],
-        },
-      ]
-    `)
-    expect(screen.getByText(/보라 점: 매수/)).toHaveTextContent('보라 점: 매수 (2개)')
-    expect(screen.getByText(/녹색 점: 배당 재투자/)).toHaveTextContent('녹색 점: 배당 재투자 (1개)')
+    await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(1))
+    const [price] = readCharts()
+    expect(price.lines).toEqual(['stockPrice:주가'])
+    expect(price.points.map((p: { date: string; stockPrice: number }) => [p.date, p.stockPrice])).toEqual([
+      ['2026-03-02', 100],
+      ['2026-03-03', 102],
+      ['2026-03-04', 101],
+      ['2026-03-05', 105],
+      ['2026-03-06', 104],
+    ])
+    expect(price.dots).toEqual([
+      { fill: '#8b5cf6', x: '2026-03-02', y: 100 },
+      { fill: '#8b5cf6', x: '2026-03-04', y: 101 },
+      { fill: '#10b981', x: '2026-03-05', y: 105 },
+    ])
+    expect(price.yDomains).toEqual([[50, 155]])
+    expect(screen.getByText(/보라 점 = 매수/)).toHaveTextContent('파란 선 = 주가 | 보라 점 = 매수(2개) | 녹색 점 = 배당 재투자(1개)')
   })
 
   it('평가일이 있으면 그날까지 받는다', async () => {
     renderWithQuery(<AccumulationChart {...props} endDate="2026-03-06" />)
 
-    await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(2))
+    await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(1))
     expect(getOHLCData).toHaveBeenCalledWith('AAPL', '2026-03-01', '2026-03-06')
   })
 
@@ -228,22 +96,41 @@ describe('AccumulationChart', () => {
     getOHLCData.mockResolvedValue({ data: [candle('AAPL', '2026-03-06', 100), candle('AAPL', '2026-03-09', 110)] } as never)
     const weekendDividend = [
       { date: '2026-03-06', price: 100, shares: 1, amount: 140000, fxRate: 1400 },
-      { date: '2026-03-07', price: 100, shares: 0.1, amount: 14000, fxRate: 1400, trigger: '배당 재투자' },
+      { date: '2026-03-07', price: 100, shares: 0.1, amount: 0, fxRate: 1400, trigger: '배당 재투자' },
     ]
     renderWithQuery(<AccumulationChart {...props} transactions={weekendDividend} />)
 
-    await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(2))
-    const [price, portfolio] = readCharts()
-    expect(price.dots).toEqual([
+    await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(1))
+    expect(readCharts()[0].dots).toEqual([
       { x: '2026-03-06', y: 100, fill: '#8b5cf6' },
       { x: '2026-03-09', y: 110, fill: '#10b981' },
     ])
-    expect(portfolio.dots.map((dot: { fill: string }) => dot.fill)).toEqual(['#8b5cf6', '#10b981'])
   })
 
-  it('보유 주식 합은 소수 둘째 자리까지 보여준다', async () => {
+  it('배당 재투자를 뺀 매수 횟수와 보유 주식 합(소수 둘째 자리)을 보인다', async () => {
     renderWithQuery(<AccumulationChart {...props} />)
 
-    expect(await screen.findByText('3회 매수 • 총 2.10주 보유')).toBeInTheDocument()
+    expect(await screen.findByText('2회 매수 • 총 2.10주 보유')).toBeInTheDocument()
+  })
+
+  it('1년을 고르면 그보다 앞선 거래는 첫날에 찍지 않는다', async () => {
+    const older = [
+      { date: '2024-05-01', price: 90, shares: 1, amount: 140000, fxRate: 1400 },
+      { date: '2026-03-04', price: 101, shares: 1, amount: 141000, fxRate: 1396 },
+    ]
+    renderWithQuery(<AccumulationChart {...props} transactions={older} startDate="2024-05-01" />)
+    await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(1))
+
+    await userEvent.click(screen.getByRole('button', { name: '1년' }))
+
+    await waitFor(() => expect(getOHLCData).toHaveBeenLastCalledWith('AAPL', '2025-03-10', '2026-03-10'))
+    expect(readCharts()[0].dots).toEqual([{ x: '2026-03-04', y: 101, fill: '#8b5cf6' }])
+  })
+
+  it('고른 기간에 시세가 없으면 안내를 보인다', async () => {
+    getOHLCData.mockResolvedValue({ data: [] } as never)
+    renderWithQuery(<AccumulationChart {...props} />)
+
+    expect(await screen.findByText('차트 데이터가 없습니다.')).toBeInTheDocument()
   })
 })

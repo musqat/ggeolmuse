@@ -1,12 +1,10 @@
 import React, { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Line, YAxis, Tooltip } from "recharts";
-import { DEFAULT_FX_RATE, fetchFxRates } from './shared/fxRates';
 import { closeOf, fetchSymbolPrices } from './shared/prices';
 import {
   AXIS_PROPS,
   dateAxis,
-  formatKrwTick,
   formatTooltipDate,
   formatUsdTick,
   MARKER_COLORS,
@@ -18,7 +16,6 @@ import { useChartPeriod } from "../common/hooks/useChartPeriod";
 import { getApiErrorMessage } from '../../../utils/apiError';
 import type { OHLCData } from '../../../types/ohlc';
 import { getTodayString } from "../../../utils/dateUtils";
-import { formatNumber } from '../../../utils/format';
 
 // 서버가 배당으로 산 거래에 다는 trigger
 const DIVIDEND_REINVEST = "배당 재투자";
@@ -26,18 +23,13 @@ const DIVIDEND_REINVEST = "배당 재투자";
 interface Transaction {
   date: string;
   actualDate?: string;
-  price: number;
   shares: number;
-  amount: number;
-  fxRate: number;
   trigger?: string;
 }
 
 interface StrategyBacktestChartProps {
   symbol: string;
   transactions: Transaction[];
-  currentValueKrw: number;
-  totalInvested: number;
   startDate: string;
   // 평가일(없으면 오늘까지)
   endDate?: string;
@@ -46,136 +38,68 @@ interface StrategyBacktestChartProps {
 interface ChartDataPoint {
   date: string;
   stockPrice: number;
-  portfolioValue: number;
-  investedAmount: number;
   // 이 거래일에 일반 매수 · 배당 재투자가 있었나
   isPurchase: boolean;
   isDividendReinvest: boolean;
 }
 
-// 적립식 · 조건부 결과 차트(두 전략 모두 거래 목록으로 같은 차트)
 const EMPTY_CHART_DATA: ChartDataPoint[] = [];
 
+// 적립식 · 조건부 결과의 주가 추이(매수 · 배당 재투자 점)
 export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
   symbol,
   transactions,
-  currentValueKrw,
-  totalInvested,
   startDate,
   endDate,
 }) => {
   const period = useChartPeriod("purchase");
   const { chartPeriod, customStartDate, getStartDateFromPeriod } = period;
 
-  // 첫 매수일과 마지막 매수일
-  const firstPurchaseDate =
-    transactions[0]?.actualDate || transactions[0]?.date || startDate;
+  const firstPurchaseDate = transactions[0]?.actualDate || transactions[0]?.date || startDate;
 
-  // 차트 시작일 계산 - useMemo로 감싸서 chartPeriod 변경 시 재계산
-  const chartStartDate = useMemo(() => {
-    return getStartDateFromPeriod(
-      chartPeriod,
-      firstPurchaseDate,
-      customStartDate,
-    );
-  }, [chartPeriod, customStartDate, firstPurchaseDate, getStartDateFromPeriod]);
+  const chartStartDate = useMemo(
+    () => getStartDateFromPeriod(chartPeriod, firstPurchaseDate, customStartDate),
+    [chartPeriod, customStartDate, firstPurchaseDate, getStartDateFromPeriod],
+  );
 
-  // 가격 · 환율만 받고, 거래를 얹은 차트 데이터는 아래에서 만듦
-  const { data: fetched, isLoading: loading, error } = useQuery({
+  const { data: priceData, isLoading: loading, error } = useQuery({
     queryKey: ["backtest", "chart", "accumulation", symbol, chartStartDate, endDate],
     enabled: Boolean(symbol) && transactions.length > 0,
-    queryFn: async () => {
-      const priceData = await fetchSymbolPrices<OHLCData>(symbol, chartStartDate, endDate || getTodayString());
-      const fxRateMap = await fetchFxRates(priceData.map((item) => item.date));
-      return { priceData, fxRateMap };
-    },
+    queryFn: () => fetchSymbolPrices<OHLCData>(symbol, chartStartDate, endDate || getTodayString()),
   });
   const errorMessage = error ? getApiErrorMessage(error, "차트 데이터를 불러오는데 실패했습니다") : null;
 
   const chartData = useMemo(() => {
-    if (!fetched) return EMPTY_CHART_DATA;
-    const { priceData, fxRateMap } = fetched;
-
-    // priceData에서 사용 가능한 날짜들을 먼저 추출
+    if (!priceData) return EMPTY_CHART_DATA;
     const availableDates = priceData.map((item) => item.date).sort();
 
-    // 거래를 실제 거래일(주말 · 휴일이면 다음 영업일)에 맞추고 일반 매수 · 배당 재투자를 따로 셈
+    // 거래를 실제 거래일(주말 · 휴일이면 다음 영업일)에 맞추고 일반 매수 · 배당 재투자를 따로 셈(고른 기간보다 앞선 거래는 뺌)
     const purchaseDates = new Set<string>();
     const dividendDates = new Set<string>();
     transactions.forEach((tx) => {
       const txDate = tx.actualDate || tx.date;
+      if (txDate < chartStartDate) return;
       const tradingDate = availableDates.find((d) => d >= txDate);
       if (!tradingDate) return;
-      if (tx.trigger === DIVIDEND_REINVEST) {
-        dividendDates.add(tradingDate);
-      } else {
-        purchaseDates.add(tradingDate);
-      }
+      if (tx.trigger === DIVIDEND_REINVEST) dividendDates.add(tradingDate);
+      else purchaseDates.add(tradingDate);
     });
 
-    // 차트 데이터 생성
-    const data: ChartDataPoint[] = priceData.map((item) => {
-      const dateStr = item.date;
-
-      // 이 날짜까지의 누적 투자금과 보유 주식 계산
-      let investedSoFar = 0;
-      let sharesSoFar = 0;
-
-      for (const tx of transactions) {
-        const txDate = tx.actualDate || tx.date;
-        if (txDate <= dateStr) {
-          investedSoFar += tx.amount;
-          sharesSoFar += tx.shares;
-        }
-      }
-
-      // 해당 날짜의 환율 사용 (각 날짜마다 다른 환율 적용)
-      const historicalFxRate = fxRateMap.get(dateStr) || DEFAULT_FX_RATE;
-
-      // 포트폴리오 가치 = 보유주식 * 현재가격 (원화 환산)
-      const price = closeOf(item);
-      const portfolioValueUsd = sharesSoFar * price;
-      const portfolioValueKrw = portfolioValueUsd * historicalFxRate;
-
-      return {
-        date: dateStr,
-        stockPrice: price,
-        portfolioValue: portfolioValueKrw,
-        investedAmount: investedSoFar,
-        isPurchase: purchaseDates.has(dateStr),
-        isDividendReinvest: dividendDates.has(dateStr),
-      };
-    });
-
-    return data;
-  }, [fetched, transactions]);
+    return priceData.map((item) => ({
+      date: item.date,
+      stockPrice: closeOf(item),
+      isPurchase: purchaseDates.has(item.date),
+      isDividendReinvest: dividendDates.has(item.date),
+    }));
+  }, [priceData, transactions, chartStartDate]);
 
   const xAxis = dateAxis(chartData.map((d) => d.date));
 
-  // Y축 범위 계산 (±50 여유)
+  // Y축 범위(±50 여유)
   const priceRange = useMemo(() => {
     if (chartData.length === 0) return [0, 100];
-
     const prices = chartData.map((d) => d.stockPrice);
-    const min = Math.min(...prices);
-    const max = Math.max(...prices);
-    const padding = 50;
-
-    return [Math.max(0, min - padding), max + padding];
-  }, [chartData]);
-
-  // 포트폴리오/투자금 Y축 범위 계산
-  const valueRange = useMemo(() => {
-    if (chartData.length === 0) return [0, 100];
-
-    const values = chartData.map((d) =>
-      Math.max(d.portfolioValue, d.investedAmount),
-    );
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const padding = (max - min) * 0.1;
-
-    return [Math.max(0, min - padding), max + padding];
+    return [Math.max(0, Math.min(...prices) - 50), Math.max(...prices) + 50];
   }, [chartData]);
 
   const purchasePoints = useMemo(() => chartData.filter((d) => d.isPurchase), [chartData]);
@@ -189,30 +113,27 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
     return <ChartMessage tone="error">{errorMessage}</ChartMessage>;
   }
 
+  if (chartData.length === 0) {
+    return <ChartMessage>차트 데이터가 없습니다.</ChartMessage>;
+  }
+
+  const bought = transactions.filter((t) => t.trigger !== DIVIDEND_REINVEST).length;
   const totalShares = transactions.reduce((sum, t) => sum + t.shares, 0);
 
   return (
     <ChartCard
-      title="투자 성과 차트"
-      subtitle={`${transactions.length}회 매수 • 총 ${totalShares.toFixed(2)}주 보유`}
+      title={`${symbol} 주가 추이`}
+      subtitle={`${bought}회 매수 • 총 ${totalShares.toFixed(2)}주 보유`}
       period={period}
-      className="mt-6"
+      plain
     >
-      {/* 주가 추이 차트 */}
-      <ChartPanel title="주가 추이" data={chartData} xAxis={xAxis} className="mb-8">
-        <YAxis
-          {...AXIS_PROPS}
-          tickFormatter={formatUsdTick}
-          domain={priceRange}
-          allowDecimals={false}
-        />
+      <ChartPanel data={chartData} xAxis={xAxis}>
+        <YAxis {...AXIS_PROPS} tickFormatter={formatUsdTick} domain={priceRange} allowDecimals={false} />
         <Tooltip
           {...TOOLTIP_PROPS}
-          formatter={(value: number | string, name: string) => {
-            if (name === "주가")
-              return [`$${Number(value).toFixed(2)}`, name];
-            return [value, name];
-          }}
+          formatter={(value: number | string, name: string) =>
+            name === "주가" ? [`$${Number(value).toFixed(2)}`, name] : [value, name]
+          }
           labelFormatter={formatTooltipDate}
         />
         <Line
@@ -224,59 +145,13 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
           name="주가"
           isAnimationActive={false}
         />
-
-        {/* 일반 매수 · 배당 재투자 시점 마커 */}
         {markerDots(purchasePoints, "stockPrice", MARKER_COLORS.purchase, "purchase")}
         {markerDots(dividendReinvestPoints, "stockPrice", MARKER_COLORS.dividend, "dividend")}
       </ChartPanel>
-
-      {/* 포트폴리오 가치 vs 투자금 차트 */}
-      <ChartPanel title="포트폴리오 가치 vs 투자금" data={chartData} xAxis={xAxis}>
-        <YAxis
-          {...AXIS_PROPS}
-          tickFormatter={formatKrwTick}
-          domain={valueRange}
-        />
-        <Tooltip
-          {...TOOLTIP_PROPS}
-          formatter={(value: number | string, name: string) => {
-            return [`₩${formatNumber(Math.round(Number(value)))}`, name];
-          }}
-          labelFormatter={formatTooltipDate}
-        />
-        <Line
-          type="stepAfter"
-          dataKey="investedAmount"
-          stroke="#10b981"
-          strokeWidth={2}
-          dot={false}
-          strokeDasharray="5 5"
-          name="누적 투자금"
-          isAnimationActive={false}
-        />
-        <Line
-          type="monotone"
-          dataKey="portfolioValue"
-          stroke="#3b82f6"
-          strokeWidth={2}
-          dot={false}
-          name="포트폴리오 가치"
-          isAnimationActive={false}
-        />
-
-        {/* 매수 · 배당 재투자 시점 마커 - 포트폴리오 값 기준 */}
-        {markerDots(purchasePoints, "portfolioValue", MARKER_COLORS.purchase, "portfolio-purchase")}
-        {markerDots(dividendReinvestPoints, "portfolioValue", MARKER_COLORS.dividend, "portfolio-dividend")}
-      </ChartPanel>
-
-      <div className="mt-4 text-xs text-tx-2">
-        <p>• 보라 점: 매수 ({purchasePoints.length}개)</p>
-        {dividendReinvestPoints.length > 0 && (
-          <p>• 녹색 점: 배당 재투자 ({dividendReinvestPoints.length}개)</p>
-        )}
-        <p>• 녹색 점선: 누적 투자금 (₩{formatNumber(totalInvested)})</p>
-        <p>• 파란 선: 포트폴리오 가치 (₩{formatNumber(currentValueKrw)})</p>
-      </div>
+      <p className="text-xs text-tx-2 mt-2 text-center">
+        파란 선 = 주가 | 보라 점 = 매수({purchasePoints.length}개)
+        {dividendReinvestPoints.length > 0 && ` | 녹색 점 = 배당 재투자(${dividendReinvestPoints.length}개)`}
+      </p>
     </ChartCard>
   );
 };

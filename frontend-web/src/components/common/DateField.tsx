@@ -28,6 +28,7 @@ const PRESETS = [
 const calendarStyle = {
   '--rdp-accent-color': '#F59E0B',
   '--rdp-accent-background-color': 'rgba(245, 158, 11, 0.12)',
+  '--rdp-today-color': 'rgb(var(--brand-text))',
   '--rdp-day-height': '40px',
   '--rdp-day-width': '40px',
   '--rdp-day_button-height': '38px',

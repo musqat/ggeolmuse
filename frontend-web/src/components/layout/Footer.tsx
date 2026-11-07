@@ -9,7 +9,7 @@ const Footer: React.FC = () => {
         </p>
         <p className="text-[13px] text-tx-3">
           버그 제보:{' '}
-          <a href="mailto:hjs90561@gmail.com" className="text-brand hover:text-brand-light transition-colors">
+          <a href="mailto:hjs90561@gmail.com" className="text-brand hover:text-brand-light hover:underline transition-colors">
             hjs90561@gmail.com
           </a>
         </p>

@@ -1,4 +1,5 @@
-import type { ConditionalStrategyRequest } from '@services/api';
+import type { ConditionalStrategyRequest, PriceDirection } from '@services/api';
+import { DIRECTIONS } from '../../shared/priceDirection';
 import type { BuildResult, RunContext } from '../types';
 import { toOptionFields, type BacktestOptions } from '../../shared/backtestOptions';
 
@@ -9,6 +10,7 @@ export interface ConditionalValues extends BacktestOptions {
   totalInvestment: string;
   amountPerPurchase: string;
   maxPurchases: string;
+  direction: PriceDirection;
   dropPercentage: string;
 }
 
@@ -45,7 +47,7 @@ export const buildConditionalRequest = (
   }
 
   if (isNaN(drop) || drop <= 0 || drop > 100) {
-    return { error: '하락률은 0~100 사이여야 합니다.' };
+    return { error: `${DIRECTIONS[values.direction].rate}은 0~100 사이여야 합니다.` };
   }
 
   // 종료일이 비어있으면 오늘
@@ -59,6 +61,7 @@ export const buildConditionalRequest = (
     startDate: values.startDate,
     endDate: effectiveEndDate,
     investmentMode: values.investmentMode,
+    direction: values.direction,
     dropPercentage: drop / 100,
     ...toOptionFields(values),
   };

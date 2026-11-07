@@ -10,6 +10,7 @@ const values: ConditionalValues = {
   totalInvestment: '1000000',
   amountPerPurchase: '100000',
   maxPurchases: '20',
+  direction: 'DROP',
   dropPercentage: '5',
   reinvestDividends: false,
   tradingFeeRate: '0',
@@ -23,6 +24,7 @@ const base = {
   symbol: 'AAPL',
   startDate: '2023-01-01',
   endDate: '2026-10-08',
+  direction: 'DROP',
   dropPercentage: 0.05,
   reinvestDividends: false,
   tradingFeeRate: 0,
@@ -57,5 +59,17 @@ describe('buildConditionalRequest', () => {
     [{ endDate: '2022-01-01' }, '시작일은 종료일보다 빠른 날짜여야 합니다.'],
   ])('%o 는 막는다', (patch, error) => {
     expect(buildConditionalRequest({ ...values, ...patch }, 'AAPL', ctx)).toEqual({ error })
+  })
+
+  it('고른 방향을 싣고, 비율 검사 문구는 그 방향의 이름으로 보인다', () => {
+    const built = buildConditionalRequest({ ...values, direction: 'RISE' }, 'AAPL', ctx)
+    expect('request' in built && built.request.direction).toBe('RISE')
+
+    expect(buildConditionalRequest({ ...values, direction: 'RISE', dropPercentage: '101' }, 'AAPL', ctx)).toEqual({
+      error: '상승률은 0~100 사이여야 합니다.',
+    })
+    expect(buildConditionalRequest({ ...values, direction: 'BOTH', dropPercentage: '0' }, 'AAPL', ctx)).toEqual({
+      error: '변동률은 0~100 사이여야 합니다.',
+    })
   })
 })

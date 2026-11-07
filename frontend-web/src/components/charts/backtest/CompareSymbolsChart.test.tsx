@@ -23,170 +23,51 @@ const candle = (symbol: string, date: string, close: number) => ({ symbol, date,
 
 const PRICES: Record<string, ReturnType<typeof candle>[]> = {
   AAPL: [candle('AAPL', '2026-03-02', 100), candle('AAPL', '2026-03-03', 90), candle('AAPL', '2026-03-04', 110)],
-  // MSFT 는 03-03 매수(그 전 날은 평가 0)
   MSFT: [candle('MSFT', '2026-03-02', 400), candle('MSFT', '2026-03-03', 410), candle('MSFT', '2026-03-04', 380)],
 }
 
 const symbols = [
-  {
-    symbol: 'AAPL', purchaseDate: '2026-03-02', purchasePrice: 100, shares: 2, investmentAmount: 280000, currentPrice: 110,
-    currentValueKrw: 0, color: '#3b82f6', optimalBuyDate: '2026-03-03', optimalSellDate: '2026-03-04',
-  },
+  { symbol: 'AAPL', purchaseDate: '2026-03-02', color: '#3b82f6', optimalBuyDate: '2026-03-03', optimalSellDate: '2026-03-04' },
   // 최적 시점이 없으면 금색 점 없음
-  {
-    symbol: 'MSFT', purchaseDate: '2026-03-03', purchasePrice: 410, shares: 0.5, investmentAmount: 280000, currentPrice: 380,
-    currentValueKrw: 0, color: '#ef4444', optimalBuyDate: null, optimalSellDate: null,
-  },
+  { symbol: 'MSFT', purchaseDate: '2026-03-03', color: '#ef4444', optimalBuyDate: null, optimalSellDate: null },
 ]
 
-// 종목마다 같은 기간 가격으로 그린 주가 · 평가금액 · 매수 · 최적 시점
+// 종목마다 같은 기간 가격으로 그린 주가 · 매수 · 최적 시점
 describe('CompareSymbolsChart 차트', () => {
   beforeEach(() => {
     getOHLCData.mockReset()
     getExchangeRatesBulk.mockReset()
     getOHLCData.mockImplementation(async (symbol: string) => ({ data: PRICES[symbol] }) as never)
-    // 03-04 환율은 빠져 대체값
-    getExchangeRatesBulk.mockResolvedValue({ data: { '2026-03-02': 1400, '2026-03-03': 1410 } } as never)
   })
 
-  it('종목마다 같은 기간으로 받아 종가로 그리고, 최적 매수 · 매도 점은 받은 날의 평가금 위에 찍는다', async () => {
+  it('종목마다 같은 기간으로 받아 한 차트에 종가로 그리고, 최적 매수 · 매도 점은 그 종목 주가 위에 찍는다', async () => {
     renderWithQuery(<CompareSymbolsChart symbols={symbols} startDate="2026-03-02" endDate="2026-03-04" />)
 
-    await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(2))
+    await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(1))
     expect(getOHLCData).toHaveBeenCalledWith('AAPL', '2026-03-02', '2026-03-04')
     expect(getOHLCData).toHaveBeenCalledWith('MSFT', '2026-03-02', '2026-03-04')
-    expect(readCharts()).toMatchInlineSnapshot(`
-      [
-        {
-          "dots": [
-            {
-              "fill": "#8b5cf6",
-              "x": "2026-03-02",
-              "y": 100,
-            },
-            {
-              "fill": "#8b5cf6",
-              "x": "2026-03-03",
-              "y": 410,
-            },
-          ],
-          "lines": [
-            "AAPL_price:AAPL 주가",
-            "MSFT_price:MSFT 주가",
-          ],
-          "points": [
-            {
-              "AAPL_portfolio": 280000,
-              "AAPL_price": 100,
-              "AAPL_purchasePrice": 100,
-              "MSFT_portfolio": 0,
-              "MSFT_price": 400,
-              "date": "2026-03-02",
-              "totalInvestment": 280000,
-              "totalPortfolio": 280000,
-            },
-            {
-              "AAPL_portfolio": 253800,
-              "AAPL_price": 90,
-              "MSFT_portfolio": 289050,
-              "MSFT_price": 410,
-              "MSFT_purchasePrice": 410,
-              "date": "2026-03-03",
-              "totalInvestment": 280000,
-              "totalPortfolio": 542850,
-            },
-            {
-              "AAPL_portfolio": 297000,
-              "AAPL_price": 110,
-              "MSFT_portfolio": 256500,
-              "MSFT_price": 380,
-              "date": "2026-03-04",
-              "totalInvestment": 280000,
-              "totalPortfolio": 553500,
-            },
-          ],
-          "yDomains": [
-            [
-              74,
-              426,
-            ],
-          ],
-        },
-        {
-          "dots": [
-            {
-              "fill": "#8b5cf6",
-              "x": "2026-03-02",
-              "y": 280000,
-            },
-            {
-              "fill": "#8b5cf6",
-              "x": "2026-03-03",
-              "y": 289050,
-            },
-            {
-              "fill": "#fbbf24",
-              "x": "2026-03-03",
-              "y": 253800,
-            },
-            {
-              "fill": "#fbbf24",
-              "x": "2026-03-04",
-              "y": 297000,
-            },
-          ],
-          "lines": [
-            "totalInvestment:투자금",
-            "AAPL_portfolio:AAPL 평가금",
-            "MSFT_portfolio:MSFT 평가금",
-          ],
-          "points": [
-            {
-              "AAPL_portfolio": 280000,
-              "AAPL_price": 100,
-              "AAPL_purchasePrice": 100,
-              "MSFT_portfolio": 0,
-              "MSFT_price": 400,
-              "date": "2026-03-02",
-              "totalInvestment": 280000,
-              "totalPortfolio": 280000,
-            },
-            {
-              "AAPL_portfolio": 253800,
-              "AAPL_price": 90,
-              "MSFT_portfolio": 289050,
-              "MSFT_price": 410,
-              "MSFT_purchasePrice": 410,
-              "date": "2026-03-03",
-              "totalInvestment": 280000,
-              "totalPortfolio": 542850,
-            },
-            {
-              "AAPL_portfolio": 297000,
-              "AAPL_price": 110,
-              "MSFT_portfolio": 256500,
-              "MSFT_price": 380,
-              "date": "2026-03-04",
-              "totalInvestment": 280000,
-              "totalPortfolio": 553500,
-            },
-          ],
-          "yDomains": [
-            [
-              251640,
-              299160,
-            ],
-          ],
-        },
-      ]
-    `)
+    expect(getExchangeRatesBulk).not.toHaveBeenCalled()
+    const [price] = readCharts()
+    expect(price.lines).toEqual(['AAPL_price:AAPL 주가', 'MSFT_price:MSFT 주가'])
+    expect(price.points).toEqual([
+      { date: '2026-03-02', AAPL_price: 100, MSFT_price: 400 },
+      { date: '2026-03-03', AAPL_price: 90, MSFT_price: 410 },
+      { date: '2026-03-04', AAPL_price: 110, MSFT_price: 380 },
+    ])
+    expect(price.dots).toEqual([
+      { x: '2026-03-02', y: 100, fill: '#8b5cf6' },
+      { x: '2026-03-03', y: 410, fill: '#8b5cf6' },
+      { x: '2026-03-03', y: 90, fill: '#fbbf24' },
+      { x: '2026-03-04', y: 110, fill: '#fbbf24' },
+    ])
+    expect(price.yDomains).toEqual([[74, 426]])
   })
 
-  it('툴팁은 주가를 달러 소수 둘째 자리, 평가금 · 투자금을 쉼표 넣은 원 단위로 보여준다', async () => {
+  it('툴팁은 주가를 달러 소수 둘째 자리로 보여준다', async () => {
     renderWithQuery(<CompareSymbolsChart symbols={symbols} startDate="2026-03-02" endDate="2026-03-04" />)
 
-    await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(2))
-    expect(readTooltips()).toEqual(['$1234567.89', '₩1,234,568'])
+    await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(1))
+    expect(readTooltips()).toEqual(['$1234567.89'])
   })
 
   it('기간이 1년을 넘으면 날짜 축을 달마다 연.월 눈금으로 바꾼다', async () => {
@@ -195,8 +76,7 @@ describe('CompareSymbolsChart 차트', () => {
     } as never)
     renderWithQuery(<CompareSymbolsChart symbols={[symbols[0]]} startDate="2023-01-03" endDate="2024-03-04" />)
 
-    await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(2))
-    const axis = { ticks: ['2023-01-03', '2024-03-04'], first: '23.1' }
-    expect(readXAxes()).toEqual([axis, axis])
+    await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(1))
+    expect(readXAxes()).toEqual([{ ticks: ['2023-01-03', '2024-03-04'], first: '23.1' }])
   })
 })

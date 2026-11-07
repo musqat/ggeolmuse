@@ -267,7 +267,7 @@ const Home: React.FC = () => {
             <p className="text-[10.5px] font-bold uppercase tracking-wide text-brand">Portfolio</p>
             <div>
               <p className="text-[16px] font-bold tracking-tight text-brand-light">포트폴리오</p>
-              <p className="text-[12.5px] text-brand/70 mt-1">보유 종목 현황 분석</p>
+              <p className="text-[12.5px] text-tx-2 mt-1">보유 종목 현황 분석</p>
             </div>
           </div>
 

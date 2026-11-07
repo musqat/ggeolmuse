@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { PurchaseHistory } from './PurchaseHistory'
+import { purchaseCount } from './resultValues'
 import type { SkippedRound, StrategyTransaction } from '../../../services/api'
 
 const bought = (date: string, price: number, actualDate?: string): StrategyTransaction => ({
@@ -27,10 +28,9 @@ describe('PurchaseHistory', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it('전체 매수 · 미매수 횟수와 연도별 횟수를 보이고, 연도는 접혀 있다', () => {
+  it('연도별 횟수를 보이고, 연도는 접혀 있다', () => {
     render(<PurchaseHistory transactions={transactions} skippedRounds={skipped} />)
 
-    expect(screen.getByText('매수 2회 · 미매수 2회')).toBeInTheDocument()
     expect(screen.getByText('2024년')).toBeInTheDocument()
     expect(screen.getByText('미매수 2회')).toBeInTheDocument()
     expect(screen.getByText('2025년')).toBeInTheDocument()
@@ -60,5 +60,13 @@ describe('PurchaseHistory', () => {
 
     expect(within(screen.getByText('2024-11-15').closest('tr') as HTMLElement).getByText('미매수 · 시세 없음')).toBeVisible()
     expect(within(screen.getByText('2024-12-15').closest('tr') as HTMLElement).getByText('미매수 · 계산 오류')).toBeVisible()
+  })
+
+  it('배당 재투자는 매수 횟수에서 빼고 연도 줄에 따로 센다', () => {
+    const dividend: StrategyTransaction = { ...bought('2025-03-14', 250), amount: 0, shares: 0.01, trigger: '배당 재투자' }
+    render(<PurchaseHistory transactions={[...transactions, dividend]} skippedRounds={[]} />)
+
+    expect(purchaseCount([...transactions, dividend])).toBe(2)
+    expect(screen.getByText('매수 2회 · 배당 재투자 1회')).toBeInTheDocument()
   })
 })

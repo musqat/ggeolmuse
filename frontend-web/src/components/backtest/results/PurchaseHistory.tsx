@@ -2,6 +2,7 @@ import React from 'react';
 import { ChevronDown } from 'lucide-react';
 import type { SkipReason, SkippedRound, StrategyTransaction } from '../../../services/api';
 import { formatKrw, formatUsd } from '../../../utils/format';
+import { DIVIDEND_REINVEST } from './resultValues';
 
 const REASON_LABEL: Record<SkipReason, string> = {
   NO_PRICE: '시세 없음',
@@ -31,13 +32,19 @@ function roundsByYear(transactions: StrategyTransaction[], skippedRounds: Skippe
   return [...years.entries()];
 }
 
-const boughtCount = (rounds: Round[]) => rounds.filter((round) => round.kind === 'bought').length;
+const isPurchase = (tx: StrategyTransaction) => tx.trigger !== DIVIDEND_REINVEST;
+
+const boughtCount = (rounds: Round[]) =>
+  rounds.filter((round) => round.kind === 'bought' && isPurchase(round.tx)).length;
 
 // 연도 줄의 횟수(0 인 쪽은 뺌)
 function yearCounts(rounds: Round[]): string {
   const bought = boughtCount(rounds);
-  const skipped = rounds.length - bought;
-  return [bought > 0 && `매수 ${bought}회`, skipped > 0 && `미매수 ${skipped}회`].filter(Boolean).join(' · ');
+  const skipped = rounds.filter((round) => round.kind === 'skipped').length;
+  const dividends = rounds.length - bought - skipped;
+  return [bought > 0 && `매수 ${bought}회`, dividends > 0 && `배당 재투자 ${dividends}회`, skipped > 0 && `미매수 ${skipped}회`]
+    .filter(Boolean)
+    .join(' · ');
 }
 
 const EMPTY = <span className="text-tx-3">-</span>;
@@ -70,19 +77,13 @@ function RoundRow({ round }: { round: Round }) {
   );
 }
 
-// 결과 카드와 차트 사이의 매수 내역(연도마다 접힘, 매수일 · 가격과 미매수 회차를 함께)
+// 매수 내역 표(연도마다 접힘, 매수일 · 가격과 미매수 회차를 함께)
 export const PurchaseHistory: React.FC<PurchaseHistoryProps> = ({ transactions, skippedRounds }) => {
   if (transactions.length === 0 && skippedRounds.length === 0) return null;
   const years = roundsByYear(transactions, skippedRounds);
 
   return (
-    <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-6">
-      <div className="flex justify-between items-baseline mb-2">
-        <h3 className="text-lg font-semibold text-tx-1">매수 내역</h3>
-        <span className="text-sm text-tx-2">
-          매수 {transactions.length}회 · 미매수 {skippedRounds.length}회
-        </span>
-      </div>
+    <div>
       {years.map(([year, rounds]) => (
         <details key={year} className="group border-t border-line/50">
           <summary className="flex items-center justify-between py-3 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
@@ -104,8 +105,8 @@ export const PurchaseHistory: React.FC<PurchaseHistoryProps> = ({ transactions, 
                 </tr>
               </thead>
               <tbody>
-                {rounds.map((round) => (
-                  <RoundRow key={`${round.kind}-${round.planned}`} round={round} />
+                {rounds.map((round, index) => (
+                  <RoundRow key={`${round.kind}-${round.planned}-${index}`} round={round} />
                 ))}
               </tbody>
             </table>

@@ -3,51 +3,23 @@ import { CompareSymbolsChart } from '@components/charts/backtest/CompareSymbolsC
 import type { ComparisonItem } from '../../../services/api';
 import { CHART_COLORS } from '@components/charts/common/constants';
 
-// 무한 리렌더링 방지를 위한 메모이제이션 래퍼 컴포넌트
+// 비교 항목을 주가 차트 입력으로 바꿈
 export const CompareSymbolsChartMemoized: React.FC<{
   items: ComparisonItem[];
   comparePurchaseDate: string;
   compareSaleDate: string;
-}> = ({
-  items,
-  comparePurchaseDate,
-  compareSaleDate,
-}) => {
-  const symbolsData = useMemo(() => {
-    return items.map((item: ComparisonItem, index: number) => {
-      // 중첩된 구조에서 추출
-      const additionalData = item.additionalData || {};
-
-      const purchasePrice =
-        item.averagePrice || additionalData.purchasePrice || 0;
-      const investmentAmount =
-        item.totalInvested || additionalData.investmentAmount || 0;
-      const shares = item.totalShares || additionalData.shares || 0;
-      const purchaseDate =
-        additionalData.purchaseDate || item.purchaseDate || comparePurchaseDate;
-      const currentPrice =
-        additionalData.currentPrice || item.currentPrice || 0;
-
-      return {
+}> = ({ items, comparePurchaseDate, compareSaleDate }) => {
+  const symbolsData = useMemo(
+    () =>
+      items.map((item, index) => ({
         symbol: item.code,
-        purchaseDate: purchaseDate,
-        purchasePrice: purchasePrice,
-        shares: shares,
-        investmentAmount: investmentAmount,
-        currentPrice: currentPrice,
-        currentValueKrw: item.currentValueKrw || 0,
+        purchaseDate: item.additionalData?.purchaseDate || item.purchaseDate || comparePurchaseDate,
         color: CHART_COLORS[index % CHART_COLORS.length],
         optimalBuyDate: item.optimalBuyDate,
         optimalSellDate: item.optimalSellDate,
-      };
-    });
-  }, [items, comparePurchaseDate]);
-
-  return (
-    <CompareSymbolsChart
-      symbols={symbolsData}
-      startDate={comparePurchaseDate}
-      endDate={compareSaleDate || undefined}
-    />
+      })),
+    [items, comparePurchaseDate],
   );
+
+  return <CompareSymbolsChart symbols={symbolsData} startDate={comparePurchaseDate} endDate={compareSaleDate || undefined} />;
 };

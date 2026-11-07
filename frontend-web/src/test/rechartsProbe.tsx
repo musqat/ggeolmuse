@@ -13,8 +13,8 @@ export const LineChart = ({ data, children }: ChildrenProps & { data?: unknown[]
   </div>
 );
 
-export const Line = ({ dataKey, name }: { dataKey: string; name?: string }) => (
-  <i data-testid="line" data-key={dataKey} data-name={name ?? ''} />
+export const Line = ({ dataKey, name, strokeOpacity }: { dataKey: string; name?: string; strokeOpacity?: number }) => (
+  <i data-testid="line" data-key={dataKey} data-name={name ?? ''} data-opacity={strokeOpacity ?? ''} />
 );
 
 export const ReferenceDot = ({ x, y, fill }: { x?: string; y?: number; fill?: string }) => (
@@ -45,4 +45,5 @@ export const Area = Line;
 
 const Nothing = () => null;
 export const CartesianGrid = Nothing;
+export const ReferenceLine = Nothing;
 export const Legend = Nothing;
