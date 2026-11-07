@@ -55,10 +55,11 @@ terraform apply
 
 멀티 노드 예비 클러스터는 이 루트에 없다. 상태를 따로 둔 [`k8s/terraform`](../k8s/terraform) 루트에 있고, 올리는 순서는 [k8s/README.md](../k8s/README.md).
 
-문법 검사는 아래 한 줄이다. 가짜 AWS 프로바이더 테스트는 멀티 노드 쪽(`k8s/terraform` 과 그 모듈)에 있다.
+문법 검사와 가짜 AWS 프로바이더 plan 테스트(`tests/plan.tftest.hcl`, AWS 에 닿지 않음)는 아래 한 줄이다. 멀티 노드 쪽 테스트는
+[k8s/README.md](../k8s/README.md#파일) 에 있다.
 
 ```bash
-terraform init -backend=false && terraform validate
+terraform init -backend=false && terraform validate && terraform test
 ```
 
 ## 주의사항

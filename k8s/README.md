@@ -4,7 +4,7 @@
 
 - 구성은 kubeadm, 컨트롤 플레인 1 · 워커 2
 - 전환하면 단일 노드 k3s 를 이것으로 바꾼다. RDS · 시크릿은 그대로 쓴다
-- 전환 전에는 바뀌는 것이 없다. k3s 는 이 폴더를 읽지 않고, terraform 은 `terraform/` 루트를 apply 하기 전에는 아무것도 만들지 않는다
+- 전환 전에는 바뀌는 것이 없다. k3s 는 이 폴더를 읽지 않고, terraform 은 `k8s/terraform` 루트를 apply 하기 전에는 아무것도 만들지 않는다
 - 로컬에서는 kind 3노드로 같은 구성을 띄워 본다
 
 <br>
@@ -26,10 +26,12 @@
 | `monitoring/*-values-k8s.yaml` | 멀티 노드 모니터링 값(운영 값 파일 위에 덧붙임) |
 | `terraform/` | EC2 셋 · 보안 그룹 · NLB · 노드 역할(`modules/k8s-cluster`), 운영 terraform 과 상태를 따로 둠 |
 
-다른 폴더
+terraform 테스트(가짜 AWS 프로바이더, AWS 에 닿지 않음)는 루트와 모듈에서 따로 돌린다.
 
-| 파일 | 하는 일 |
-|---|---|
+```bash
+cd k8s/terraform && terraform init -backend=false && terraform test
+cd modules/k8s-cluster && terraform init -backend=false && terraform test
+```
 
 <br>
 
