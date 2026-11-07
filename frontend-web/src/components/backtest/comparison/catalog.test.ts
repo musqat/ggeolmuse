@@ -16,7 +16,7 @@ describe('비교 전략 카탈로그', () => {
       purchaseDay: '15',
       investmentInterval: '1',
     })
-    expect(strategyByType('CONDITIONAL_PURCHASE').defaultParams).toEqual({ dropPercentage: '5' })
+    expect(strategyByType('CONDITIONAL_PURCHASE').defaultParams).toEqual({ dropPercentage: '5', direction: 'DROP' })
   })
 
   it('단순 매수는 공통 시작일에 산다', () => {
@@ -43,7 +43,17 @@ describe('비교 전략 카탈로그', () => {
       strategyType: 'CONDITIONAL_PURCHASE',
       name: 'CONDITIONAL_PURCHASE',
       totalInvestment: 1000000,
+      direction: 'DROP',
       dropPercentage: 0.07,
+    })
+  })
+
+  it('조건부 매수는 고른 방향을 싣고 모르는 값은 하락으로 본다', () => {
+    expect(strategyByType('CONDITIONAL_PURCHASE').toRequest({ dropPercentage: '7', direction: 'BOTH' }, common)).toMatchObject({
+      direction: 'BOTH',
+    })
+    expect(strategyByType('CONDITIONAL_PURCHASE').toRequest({ dropPercentage: '7', direction: 'UP' }, common)).toMatchObject({
+      direction: 'DROP',
     })
   })
 
@@ -55,6 +65,9 @@ describe('비교 전략 카탈로그', () => {
     expect(strategyByType('DCA').checkOnSave({ monthlyAmount: '1', purchaseDay: '15' })).toBeNull()
     expect(strategyByType('CONDITIONAL_PURCHASE').checkOnSave({ dropPercentage: '' })).toBe(
       '조건부 매수: 하락률을 입력해주세요.'
+    )
+    expect(strategyByType('CONDITIONAL_PURCHASE').checkOnSave({ dropPercentage: '', direction: 'RISE' })).toBe(
+      '조건부 매수: 상승률을 입력해주세요.'
     )
   })
 

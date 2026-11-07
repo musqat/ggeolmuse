@@ -2,13 +2,14 @@ import React from 'react';
 import { NumberInput } from '../../common/NumberInput';
 import type { BacktestOptionsState } from '../shared/backtestOptions';
 import {
-  DropPercentField,
+  ConditionFields,
   FormField,
   PeriodFields,
   StrategyOptions,
   SymbolField,
 } from '../shared/StrategyFields';
 import { formatNumber } from '../../../utils/format';
+import type { PriceDirection } from '@services/api';
 
 interface ConditionalStrategyFormProps {
   symbol: string;
@@ -25,13 +26,15 @@ interface ConditionalStrategyFormProps {
   setAmountPerPurchase: (amount: string) => void;
   maxPurchases: string;
   setMaxPurchases: (count: string) => void;
+  direction: PriceDirection;
+  setDirection: (direction: PriceDirection) => void;
   dropPercentage: string;
   setDropPercentage: (percentage: string) => void;
   options: BacktestOptionsState;
   supportedSymbols: string[];
 }
 
-// 정한 비율만큼 떨어질 때마다 사는 전략
+// 정한 비율만큼 떨어지거나 오른 날마다 사는 전략
 export const ConditionalStrategyForm: React.FC<ConditionalStrategyFormProps> = ({
   symbol,
   setSymbol,
@@ -47,6 +50,8 @@ export const ConditionalStrategyForm: React.FC<ConditionalStrategyFormProps> = (
   setAmountPerPurchase,
   maxPurchases,
   setMaxPurchases,
+  direction,
+  setDirection,
   dropPercentage,
   setDropPercentage,
   options,
@@ -150,7 +155,12 @@ export const ConditionalStrategyForm: React.FC<ConditionalStrategyFormProps> = (
           </>
         )}
 
-        <DropPercentField value={dropPercentage} onChange={setDropPercentage} />
+        <ConditionFields
+          direction={direction}
+          onDirectionChange={setDirection}
+          value={dropPercentage}
+          onChange={setDropPercentage}
+        />
       </div>
 
       <StrategyOptions

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { backtestApi } from '@services/api';
+import { backtestApi, type PriceDirection } from '@services/api';
 import { ConditionalStrategyForm } from '../../forms/ConditionalStrategyForm';
 import { DcaConditionalResult } from '../../results/DcaConditionalResult';
 import type { ModeController, SharedSymbolProps } from '../types';
@@ -18,6 +18,7 @@ export const useConditionalMode = ({
   const [totalInvestment, setTotalInvestment] = useState('1000000');
   const [amountPerPurchase, setAmountPerPurchase] = useState('100000');
   const [maxPurchases, setMaxPurchases] = useState('20');
+  const [direction, setDirection] = useState<PriceDirection>('DROP');
   const [dropPercentage, setDropPercentage] = useState('5');
   const options = useBacktestOptions();
 
@@ -41,6 +42,8 @@ export const useConditionalMode = ({
         setAmountPerPurchase={setAmountPerPurchase}
         maxPurchases={maxPurchases}
         setMaxPurchases={setMaxPurchases}
+        direction={direction}
+        setDirection={setDirection}
         dropPercentage={dropPercentage}
         setDropPercentage={setDropPercentage}
         options={options}
@@ -56,6 +59,7 @@ export const useConditionalMode = ({
           totalInvestment,
           amountPerPurchase,
           maxPurchases,
+          direction,
           dropPercentage,
           ...options,
         },

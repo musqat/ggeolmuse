@@ -140,12 +140,22 @@ describe('Backtest 페이지', () => {
       startDate: '2023-01-01',
       endDate: TODAY,
       investmentMode: 'TOTAL_BUDGET',
+      direction: 'DROP',
       dropPercentage: 0.05,
       totalInvestment: 1000000,
       amountPerPurchase: 100000,
       ...common,
     })
     expect(await screen.findByText('결과: conditional')).toBeInTheDocument()
+  })
+
+  it('조건부: 상승을 고르면 상승 방향으로 요청한다', async () => {
+    renderPage()
+    await selectTab('조건부')
+    await userEvent.click(screen.getByRole('button', { name: '상승' }))
+    await runBacktest()
+
+    expect(vi.mocked(backtestApi.runConditionalStrategy).mock.calls[0][0]).toMatchObject({ direction: 'RISE', dropPercentage: 0.05 })
   })
 
   it('종목 비교: 기본 두 종목 요청', async () => {
@@ -226,6 +236,7 @@ describe('Backtest 페이지', () => {
       strategyType: 'CONDITIONAL_PURCHASE',
       name: 'CONDITIONAL_PURCHASE',
       totalInvestment: 1000000,
+      direction: 'DROP',
       dropPercentage: 0.05,
     })
   })

@@ -1,6 +1,7 @@
 import type { FC } from 'react';
 import type { StrategyFieldsProps } from '../types';
-import { DropPercentField } from '../../shared/StrategyFields';
+import { ConditionFields } from '../../shared/StrategyFields';
+import { toDirection } from '../../shared/priceDirection';
 import { formatNumber } from '../../../../utils/format';
 
 export const ConditionalFields: FC<StrategyFieldsProps> = ({ params, onChange, common }) => (
@@ -15,7 +16,9 @@ export const ConditionalFields: FC<StrategyFieldsProps> = ({ params, onChange, c
         이 사용됩니다.
       </p>
     </div>
-    <DropPercentField
+    <ConditionFields
+      direction={toDirection(params.direction)}
+      onDirectionChange={(direction) => onChange("direction", direction)}
       value={params.dropPercentage || "5"}
       onChange={(value) => onChange("dropPercentage", value)}
     />

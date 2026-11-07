@@ -6,6 +6,8 @@ import { FxModeToggle } from './FxModeToggle';
 import { DividendFeeOptions } from './DividendFeeOptions';
 import { FxDataWarning } from './FxDataWarning';
 import type { BacktestOptionsState } from './backtestOptions';
+import type { PriceDirection } from '@services/api';
+import { DIRECTIONS, DIRECTION_ORDER } from './priceDirection';
 
 const INPUT_CLASS = 'w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand';
 
@@ -111,21 +113,48 @@ export const DcaScheduleFields: React.FC<DcaScheduleFieldsProps> = ({
   </>
 );
 
-// 조건부 하락률 칸
-export const DropPercentField: React.FC<{ value: string; onChange: (value: string) => void }> = ({ value, onChange }) => (
-  <FormField label="하락률 (%)">
-    <input
-      type="number"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder="5"
-      step="1"
-      min="0.1"
-      max="100"
-      className={INPUT_CLASS}
-    />
-    <p className="text-xs text-tx-2 mt-1">가격이 이만큼 하락 시 매수</p>
-  </FormField>
+interface ConditionFieldsProps {
+  direction: PriceDirection;
+  onDirectionChange: (direction: PriceDirection) => void;
+  value: string;
+  onChange: (value: string) => void;
+}
+
+// 조건부 방향(하락 · 상승 · 둘 다)과 비율 칸
+export const ConditionFields: React.FC<ConditionFieldsProps> = ({ direction, onDirectionChange, value, onChange }) => (
+  <>
+    <FormField label="조건">
+      <div role="group" aria-label="조건 방향" className="grid grid-cols-3 gap-1 rounded-btn border border-line-strong p-1">
+        {DIRECTION_ORDER.map((option) => (
+          <button
+            key={option}
+            type="button"
+            aria-pressed={direction === option}
+            onClick={() => onDirectionChange(option)}
+            className={`py-1.5 rounded-md text-sm font-medium ${
+              direction === option ? 'bg-brand-bg text-brand-dark border border-brand-border' : 'text-tx-2 hover:text-tx-1'
+            }`}
+          >
+            {DIRECTIONS[option].tab}
+          </button>
+        ))}
+      </div>
+    </FormField>
+    <FormField label={`${DIRECTIONS[direction].rate} (%)`}>
+      <input
+        type="number"
+        aria-label={`${DIRECTIONS[direction].rate} (%)`}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="5"
+        step="1"
+        min="0.1"
+        max="100"
+        className={INPUT_CLASS}
+      />
+      <p className="text-xs text-tx-2 mt-1">{DIRECTIONS[direction].help}</p>
+    </FormField>
+  </>
 );
 
 interface StrategyOptionsProps {
