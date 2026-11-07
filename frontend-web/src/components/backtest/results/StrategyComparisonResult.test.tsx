@@ -104,6 +104,22 @@ describe('StrategyComparisonResult', () => {
     expect(screen.getByText('매수 환율').nextElementSibling).toHaveTextContent('₩1,300.00')
   })
 
+  it('판 전략은 상세에 매도 횟수를 보이고 매수 횟수에서 뺀다, 안 판 전략은 매도 칸이 없다', async () => {
+    const dca = result.items[1]
+    const sale = { date: '2024-02-10', price: 110, shares: -1.6, amount: 0, fxRate: 1320, trigger: '10.0%익절' }
+    renderResult({
+      ...result,
+      items: [result.items[0], { ...dca, additionalData: { ...dca.additionalData, transactions: [...(dca.additionalData.transactions ?? []), sale] } }],
+    })
+
+    await userEvent.click(row('적립식'))
+    expect(screen.getByText('매수 횟수').nextElementSibling).toHaveTextContent('2회')
+    expect(screen.getByText('매도 횟수').nextElementSibling).toHaveTextContent('1회')
+
+    await userEvent.click(row('단순 매수'))
+    expect(screen.queryByText('매도 횟수')).toBeNull()
+  })
+
   it('매수가 · 보유 주식이 비면 단위 없이 - 로 보인다', async () => {
     renderResult({ ...result, items: [{ ...result.items[1], averagePrice: undefined, totalShares: undefined }] })
 
