@@ -44,8 +44,19 @@ interface DateFieldProps {
   placeholder?: string;
   // 팝오버 위 1개월 · 3개월 · 6개월 · 1년 전 이동 버튼(false 면 숨김)
   presets?: boolean;
+  // box: 테두리 칸, inline: 칸 상자 안의 밑줄 칸
+  variant?: 'box' | 'inline';
+  // 단추 이름 앞의 칸 이름(시작일 2024. 06. 14.)
+  label?: string;
+  invalid?: boolean;
+  describedBy?: string;
   testId?: string;
 }
+
+const TRIGGER_CLASS = {
+  box: 'w-full flex items-center justify-between gap-2 px-3 py-1.5 text-sm border border-line-strong rounded-md text-left hover:border-brand focus:ring-2 focus:ring-brand focus:border-brand transition whitespace-nowrap',
+  inline: 'input-inline inline-flex items-center gap-1 text-left whitespace-nowrap',
+};
 
 // 날짜 칸 + 달력 팝오버(문자열로만 주고받아 Date 변환 없음)
 export const DateField = ({
@@ -55,6 +66,10 @@ export const DateField = ({
   max,
   placeholder = '날짜 선택',
   presets = true,
+  variant = 'box',
+  label,
+  invalid,
+  describedBy,
   testId,
 }: DateFieldProps) => {
   const id = useId();
@@ -118,6 +133,9 @@ export const DateField = ({
   };
 
   const today = getTodayString();
+  const text = selected
+    ? selected.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })
+    : placeholder;
 
   return (
     <>
@@ -128,14 +146,13 @@ export const DateField = ({
         onClick={toggle}
         aria-haspopup="dialog"
         aria-expanded={open}
-        className="w-full flex items-center justify-between gap-2 px-3 py-1.5 text-sm border border-line-strong rounded-md text-left hover:border-brand focus:ring-2 focus:ring-brand focus:border-brand transition whitespace-nowrap"
+        aria-label={label ? `${label} ${text}` : undefined}
+        aria-invalid={invalid || undefined}
+        aria-describedby={describedBy}
+        className={TRIGGER_CLASS[variant]}
       >
-        <span className={selected ? 'text-tx-1' : 'text-tx-3'}>
-          {selected
-            ? selected.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })
-            : placeholder}
-        </span>
-        <CalendarDays className="w-4 h-4 text-tx-3 shrink-0" />
+        <span className={selected ? 'text-tx-1' : 'text-tx-3'}>{text}</span>
+        <CalendarDays className={`${variant === 'inline' ? 'w-3.5 h-3.5' : 'w-4 h-4'} text-tx-3 shrink-0`} />
       </button>
       {open &&
         createPortal(

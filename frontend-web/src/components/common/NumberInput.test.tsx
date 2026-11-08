@@ -95,3 +95,30 @@ describe('NumberInput', () => {
     expect(screen.queryByText('100만원')).not.toBeInTheDocument()
   })
 })
+
+describe('NumberInput inline', () => {
+  it('테두리 없는 밑줄 칸 옆에 만 아래까지 읽기 쉬운 금액을 보인다', () => {
+    render(<NumberInput value="1234567" onChange={vi.fn()} variant="inline" ariaLabel="금액(원)" />)
+
+    const input = screen.getByRole('textbox', { name: '금액(원)' })
+    expect(input).toHaveClass('input-inline')
+    expect(input).toHaveValue('1,234,567')
+    expect(input).toHaveAttribute('inputmode', 'decimal')
+    expect(input.nextElementSibling).toHaveTextContent('123만 4,567원')
+  })
+
+  it('값이 비면 읽기 쉬운 금액을 숨긴다', () => {
+    render(<NumberInput value="" onChange={vi.fn()} variant="inline" ariaLabel="예산(원)" placeholder="제한 없음" />)
+
+    expect(screen.getByRole('textbox', { name: '예산(원)' })).toHaveAttribute('placeholder', '제한 없음')
+    expect(screen.queryByText(/원$/)).not.toBeInTheDocument()
+  })
+
+  it('invalid · describedBy 를 입력의 aria-invalid · aria-describedby 로 넘긴다', () => {
+    render(<NumberInput value="0" onChange={vi.fn()} variant="inline" ariaLabel="금액(원)" invalid describedBy="amount-error" />)
+
+    const input = screen.getByRole('textbox', { name: '금액(원)' })
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+    expect(input).toHaveAttribute('aria-describedby', 'amount-error')
+  })
+})

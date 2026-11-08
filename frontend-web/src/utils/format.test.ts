@@ -3,6 +3,7 @@ import {
   formatNumberWithCommas,
   parseNumberFromFormatted,
   formatToKoreanWon,
+  formatReadableWon,
   formatMarketCap,
 } from './format'
 
@@ -90,6 +91,22 @@ describe('formatToKoreanWon', () => {
 
   it('콤마가 든 문자열도 받는다', () => {
     expect(formatToKoreanWon('1,000,000')).toBe('100만원')
+  })
+})
+
+describe('formatReadableWon', () => {
+  it('억 · 만 · 그 아래를 모두 쓰고 천 단위 쉼표를 둔다', () => {
+    expect(formatReadableWon(120000000)).toBe('1억 2,000만원')
+    expect(formatReadableWon(1234567)).toBe('123만 4,567원')
+    expect(formatReadableWon(9000)).toBe('9,000원')
+    expect(formatReadableWon(1000000)).toBe('100만원')
+  })
+
+  it('소수는 반올림하고 0 · 음수 · 숫자가 아니면 0원', () => {
+    expect(formatReadableWon(337500.4)).toBe('33만 7,500원')
+    expect(formatReadableWon(0)).toBe('0원')
+    expect(formatReadableWon(-5)).toBe('0원')
+    expect(formatReadableWon(NaN)).toBe('0원')
   })
 })
 

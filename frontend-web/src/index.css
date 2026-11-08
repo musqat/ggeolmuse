@@ -51,6 +51,11 @@
   --brand-text:        245 158 11;  /* #F59E0B */
   --brand-text-soft:   252 211 77;  /* #FCD34D */
   --brand-text-strong: 217 119  6;  /* #D97706 */
+
+  /* 테두리 없는 입력의 밑줄 · 포커스 · 빈 칸 글자(두 테마 모두 대비 기준 이상) */
+  --underline:   100 116 139;  /* #64748B */
+  --focus:       245 158  11;  /* #F59E0B */
+  --placeholder: 130 145 167;  /* #8291A7 */
 }
 
 [data-theme="light"] {
@@ -87,6 +92,9 @@
   --brand-text:        146  64 14;  /* #92400E */
   --brand-text-soft:   146  64 14;  /* #92400E */
   --brand-text-strong: 120  53 15;  /* #78350F */
+
+  --focus:       217 119   6;  /* #D97706 */
+  --placeholder: 100 116 139;  /* #64748B */
 }
 
 html {
@@ -136,6 +144,37 @@ input:-webkit-autofill:focus {
   -webkit-box-shadow: 0 0 0 1000px #ffffff inset;
   -webkit-text-fill-color: #0F172A;
   caret-color: #0F172A;
+}
+
+/* 칸 상자 안의 테두리 없는 입력(밑줄, 글자 길이만큼, 좁은 화면은 16px 로 확대 막음) */
+@layer components {
+  .input-inline {
+    min-width: 3ch;
+    max-width: 100%;
+    padding: 0 1px;
+    border: 0;
+    border-bottom: 1px solid rgb(var(--underline));
+    border-radius: 0;
+    background-color: transparent;
+    color: rgb(var(--text-1));
+    font: inherit;
+    font-size: 16px;
+    line-height: 1.5;
+    outline: none;
+    field-sizing: content;
+  }
+  .input-inline::placeholder {
+    color: rgb(var(--placeholder));
+  }
+  .input-inline:focus-visible {
+    border-bottom-color: rgb(var(--focus));
+    box-shadow: 0 1px 0 0 rgb(var(--focus));
+  }
+  @media (min-width: 640px) {
+    .input-inline {
+      font-size: 15px;
+    }
+  }
 }
 
 @layer utilities {

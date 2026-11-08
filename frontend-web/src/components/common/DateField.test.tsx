@@ -76,6 +76,46 @@ describe('DateField', () => {
   })
 })
 
+describe('DateField 모양 · 이름', () => {
+  it('기본은 테두리 칸이고 inline 이면 테두리 없는 밑줄 칸이다', () => {
+    render(
+      <>
+        <DateField value="2024-06-14" onChange={vi.fn()} testId="box" />
+        <DateField value="2024-06-14" onChange={vi.fn()} variant="inline" testId="inline" />
+      </>
+    )
+
+    expect(screen.getByTestId('box')).toHaveClass('border-line-strong')
+    expect(screen.getByTestId('box')).not.toHaveClass('input-inline')
+    expect(screen.getByTestId('inline')).toHaveClass('input-inline')
+    expect(screen.getByTestId('inline')).not.toHaveClass('border-line-strong')
+    expect(screen.getByTestId('inline')).toHaveTextContent('2024. 06. 14.')
+  })
+
+  it('label 을 주면 단추 이름이 칸 이름 + 날짜다', () => {
+    render(<DateField value="2024-06-14" onChange={vi.fn()} label="시작일" />)
+
+    expect(screen.getByRole('button', { name: '시작일 2024. 06. 14.' })).toBeInTheDocument()
+  })
+
+  it('invalid · describedBy 를 단추의 aria-invalid · aria-describedby 로 넘긴다', () => {
+    render(<DateField value="2024-06-14" onChange={vi.fn()} invalid describedBy="period-error" testId="field" />)
+
+    expect(screen.getByTestId('field')).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByTestId('field')).toHaveAttribute('aria-describedby', 'period-error')
+  })
+
+  it('inline 에서도 고른 날을 넘긴다', async () => {
+    const onChange = vi.fn()
+    render(<DateField value="2024-06-14" onChange={onChange} variant="inline" testId="field" />)
+
+    await userEvent.click(screen.getByTestId('field'))
+    await userEvent.click(dayButton('3'))
+
+    expect(onChange).toHaveBeenCalledWith('2024-06-03')
+  })
+})
+
 describe('DateField 빠른 선택', () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'] })

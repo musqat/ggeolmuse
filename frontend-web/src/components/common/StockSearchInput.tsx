@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Search, X } from 'lucide-react';
-import { searchSymbols, type SymbolMatch } from '../../utils/symbolSearch';
+import { searchSymbols, symbolName, type SymbolMatch } from '../../utils/symbolSearch';
 
 interface StockSearchInputProps {
   value: string;
@@ -8,6 +8,11 @@ interface StockSearchInputProps {
   placeholder?: string;
   className?: string;
   supportedSymbols?: string[];
+  // box: 돋보기 · 지우기가 있는 테두리 칸, inline: 밑줄 칸 + 회사 이름(목록은 감싼 칸 기준)
+  variant?: 'box' | 'inline';
+  ariaLabel?: string;
+  invalid?: boolean;
+  describedBy?: string;
 }
 
 const StockSearchInput: React.FC<StockSearchInputProps> = ({
@@ -15,7 +20,11 @@ const StockSearchInput: React.FC<StockSearchInputProps> = ({
   onChange,
   placeholder = "종목 검색...",
   className = "",
-  supportedSymbols = []
+  supportedSymbols = [],
+  variant = 'box',
+  ariaLabel,
+  invalid,
+  describedBy,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -68,6 +77,67 @@ const StockSearchInput: React.FC<StockSearchInputProps> = ({
     setSearchTerm((prev) => (prev !== value ? value : prev));
   }, [value]);
 
+  const inputA11y = {
+    'aria-label': ariaLabel,
+    'aria-invalid': invalid || undefined,
+    'aria-describedby': describedBy,
+  };
+
+  const dropdown = isOpen && (
+    <div
+      ref={dropdownRef}
+      className={`absolute z-10 mt-1 bg-surface shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm ${
+        variant === 'inline' ? 'left-2 right-2 top-full border border-line-strong' : 'w-full'
+      }`}
+    >
+      {filteredStocks.length > 0 ? (
+        filteredStocks.map((stock) => (
+          <div
+            key={stock.symbol}
+            onClick={() => handleSelectStock(stock)}
+            data-testid="symbol-option"
+            className="group cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-brand hover:text-brand-ink"
+          >
+            <div className="flex items-center">
+              <span className="font-semibold text-sm">{stock.symbol}</span>
+              {stock.name && (
+                <span className="ml-2 text-tx-2 text-sm truncate group-hover:text-brand-ink">{stock.name}</span>
+              )}
+            </div>
+          </div>
+        ))
+      ) : (
+        <div className="cursor-default select-none relative py-2 pl-3 pr-9 text-tx-1">
+          검색 결과가 없습니다.
+        </div>
+      )}
+    </div>
+  );
+
+  if (variant === 'inline') {
+    const name = symbolName(value);
+    return (
+      <div className={`flex min-w-0 flex-1 items-center ${className}`.trim()}>
+        <input
+          ref={inputRef}
+          type="text"
+          value={searchTerm}
+          onChange={handleInputChange}
+          onFocus={(e) => {
+            handleInputFocus();
+            e.target.select();
+          }}
+          placeholder={placeholder}
+          autoComplete="off"
+          {...inputA11y}
+          className="input-inline"
+        />
+        {name && <span className="ml-auto pl-2.5 text-[13px] text-tx-2 truncate">{name}</span>}
+        {dropdown}
+      </div>
+    );
+  }
+
   return (
     <div className={`relative ${className}`}>
       <div className="relative">
@@ -81,6 +151,7 @@ const StockSearchInput: React.FC<StockSearchInputProps> = ({
           onChange={handleInputChange}
           onFocus={handleInputFocus}
           placeholder={placeholder}
+          {...inputA11y}
           className="block w-full pl-10 pr-10 py-2 border border-line-strong rounded-md leading-5 bg-surface placeholder-slate-500 focus:outline-none focus:placeholder-slate-500 focus:ring-1 focus:ring-brand focus:border-brand"
         />
         {searchTerm && (
@@ -96,34 +167,7 @@ const StockSearchInput: React.FC<StockSearchInputProps> = ({
         )}
       </div>
 
-      {isOpen && (
-        <div
-          ref={dropdownRef}
-          className="absolute z-10 mt-1 w-full bg-surface shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm"
-        >
-          {filteredStocks.length > 0 ? (
-            filteredStocks.map((stock) => (
-              <div
-                key={stock.symbol}
-                onClick={() => handleSelectStock(stock)}
-                data-testid="symbol-option"
-                className="group cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-brand hover:text-brand-ink"
-              >
-                <div className="flex items-center">
-                  <span className="font-semibold text-sm">{stock.symbol}</span>
-                  {stock.name && (
-                    <span className="ml-2 text-tx-2 text-sm truncate group-hover:text-brand-ink">{stock.name}</span>
-                  )}
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="cursor-default select-none relative py-2 pl-3 pr-9 text-tx-1">
-              검색 결과가 없습니다.
-            </div>
-          )}
-        </div>
-      )}
+      {dropdown}
     </div>
   );
 };
