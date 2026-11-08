@@ -5,8 +5,7 @@ export type BacktestMode =
   | "dca"
   | "conditional"
   | "compare-symbols"
-  | "compare-strategies"
-  | "history";
+  | "compare-strategies";
 
 // 저장 시각(올해면 6.4, 다른 해면 2025.6.4)
 export const formatSavedDate = (iso: string) => {

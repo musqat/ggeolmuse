@@ -12,6 +12,8 @@ const values: DcaValues = {
   cadence: 'MONTHLY',
   months: '3',
   firstPurchaseDate: '',
+  firstPickedStart: '',
+  budget: '',
   reinvestDividends: false,
   tradingFeeRate: '0',
   dividendTax: false,
@@ -84,7 +86,7 @@ describe('buildDcaRequest', () => {
     [{ cadence: 'MONTHS', months: '13' }, '개월 수는 1~12 사이의 정수로 입력해주세요.'],
     [{ cadence: 'MONTHS', months: '' }, '개월 수는 1~12 사이의 정수로 입력해주세요.'],
     [{ endDate: '2023-01-01' }, '시작일은 종료일보다 빠른 날짜여야 합니다.'],
-    [{ firstPurchaseDate: '2022-12-31' }, '첫 매수일은 시작일과 종료일 사이로 골라주세요.'],
+    [{ unit: 'SHARES', budget: '0' }, '예산은 비우거나 0보다 크게 입력해주세요.'],
     [{ firstPurchaseDate: '2026-10-09' }, '첫 매수일은 시작일과 종료일 사이로 골라주세요.'],
   ] as [Partial<DcaValues>, string][])('%o 는 막는다', (patch, error) => {
     expect(buildDcaRequest({ ...values, ...patch }, 'AAPL', ctx)).toEqual({ error })
@@ -101,6 +103,24 @@ describe('buildDcaRequest', () => {
     expect(buildDcaRequest({ ...values, unit: 'SHARES', shares }, 'AAPL', ctx)).toEqual({
       error: '회당 주식 수는 1 이상의 정수로 입력해주세요.',
     })
+  })
+
+  it('시작일이 바뀌면 고른 첫 매수일을 같은 며칠의 시작일 뒤 첫 날로 옮기고 매달 투자일은 고른 며칠로 보낸다', () => {
+    const built = buildDcaRequest(
+      { ...values, startDate: '2023-04-10', firstPurchaseDate: '2023-01-31', firstPickedStart: '2023-01-01' },
+      'AAPL',
+      ctx
+    )
+
+    expect(built).toMatchObject({ request: { startDate: '2023-04-10', firstPurchaseDate: '2023-04-30', purchaseDay: 31 } })
+  })
+
+  it('예산은 주식 수 단위일 때만 적립식 한도로 보낸다', () => {
+    expect(buildDcaRequest({ ...values, unit: 'SHARES', budget: '5000000' }, 'AAPL', ctx)).toMatchObject({
+      request: { sharesPerPurchase: 1, totalInvestmentLimit: 5000000 },
+    })
+    const byAmount = buildDcaRequest({ ...values, budget: '5000000' }, 'AAPL', ctx)
+    expect('request' in byAmount && byAmount.request).not.toHaveProperty('totalInvestmentLimit')
   })
 
   it('매달이면 개월 칸 값은 보지 않는다', () => {

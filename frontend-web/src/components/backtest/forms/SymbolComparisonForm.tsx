@@ -1,119 +1,31 @@
 import React from 'react';
-import StockSearchInput from '../../common/StockSearchInput';
-import { NumberInput } from '../../common/NumberInput';
-import { FxModeToggle } from '../shared/FxModeToggle';
-import { DividendFeeOptions } from '../shared/DividendFeeOptions';
-import { FxDataWarning } from '../shared/FxDataWarning';
 import type { BacktestOptionsState } from '../shared/backtestOptions';
-import { FormField, PeriodFields } from '../shared/StrategyFields';
+import { StrategyOptions } from '../shared/StrategyFields';
+import { SymbolsField, type SymbolsFieldProps } from '../settings/SymbolFields';
+import { PeriodField, type PeriodFieldProps } from '../settings/PeriodField';
+import { AmountField, type AmountFieldProps } from '../settings/AmountField';
+import { FIELD_GRID } from './formLayout';
 
 interface SymbolComparisonFormProps {
-  compareSymbols: string[];
-  setCompareSymbols: (symbols: string[]) => void;
-  compareSymbolInput: string;
-  setCompareSymbolInput: (input: string) => void;
-  comparePurchaseDate: string;
-  setComparePurchaseDate: (date: string) => void;
-  compareSaleDate: string;
-  setCompareSaleDate: (date: string) => void;
-  compareInvestment: string;
-  setCompareInvestment: (amount: string) => void;
+  symbols: SymbolsFieldProps;
+  period: PeriodFieldProps;
+  amount: AmountFieldProps;
   options: BacktestOptionsState;
-  supportedSymbols: string[];
-  onAddSymbol: () => void;
-  onRemoveSymbol: (symbol: string) => void;
 }
 
-// 여러 종목(최대 10개)을 같은 투자금으로 견줌
-export const SymbolComparisonForm: React.FC<SymbolComparisonFormProps> = ({
-  compareSymbols,
-  compareSymbolInput,
-  setCompareSymbolInput,
-  comparePurchaseDate,
-  setComparePurchaseDate,
-  compareSaleDate,
-  setCompareSaleDate,
-  compareInvestment,
-  setCompareInvestment,
-  options,
-  supportedSymbols,
-  onAddSymbol,
-  onRemoveSymbol,
-}) => {
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <PeriodFields
-          start={comparePurchaseDate}
-          end={compareSaleDate}
-          onStartChange={setComparePurchaseDate}
-          onEndChange={setCompareSaleDate}
-        />
-
-        <FormField label="투자금 (₩)">
-          <NumberInput
-            value={compareInvestment}
-            onChange={setCompareInvestment}
-            placeholder="1,000,000"
-            className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
-          />
-        </FormField>
-
-        {/* 종목 추가 */}
-        <div className="col-span-full">
-          <label className="block text-sm font-medium text-tx-1 mb-2">종목 추가 (최대 10개)</label>
-          <div className="flex items-center gap-2 mb-3">
-            <StockSearchInput
-              value={compareSymbolInput}
-              onChange={setCompareSymbolInput}
-              supportedSymbols={supportedSymbols}
-              placeholder="종목 검색"
-            />
-            <button
-              onClick={onAddSymbol}
-              className="px-3 py-2 bg-brand text-brand-ink rounded-md hover:bg-brand-dark text-sm whitespace-nowrap"
-            >
-              + 추가
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {compareSymbols.map((sym) => (
-              <div
-                key={sym}
-                className="flex items-center space-x-2 px-3 py-1 bg-brand-bg text-brand-dark rounded-md"
-              >
-                <span className="font-medium">{sym}</span>
-                <button
-                  data-testid="compare-symbol-remove"
-                  onClick={() => onRemoveSymbol(sym)}
-                  className="text-tx-2 hover:text-brand-dark text-lg"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* 환율 데이터 부족 경고 */}
-        <FxDataWarning startDate={comparePurchaseDate} className="col-span-full" />
-
-        {/* 환율 설정 */}
-        <div className="col-span-full">
-          <FxModeToggle
-            options={options}
-            purchaseLabel="시작일 환율 (₩/USD)"
-            currentLabel="현재 환율 (₩/USD)"
-          />
-        </div>
-
-        {/* 배당 및 수수료 옵션 */}
-        <div className="col-span-full">
-          <DividendFeeOptions
-            options={options}
-          />
-        </div>
-      </div>
+// 여러 종목(최대 10개)을 같은 금액으로 견줌
+export const SymbolComparisonForm: React.FC<SymbolComparisonFormProps> = ({ symbols, period, amount, options }) => (
+  <div className="space-y-4">
+    <div className={FIELD_GRID}>
+      <SymbolsField {...symbols} />
+      <PeriodField {...period} />
+      <AmountField {...amount} />
     </div>
-  );
-};
+    <StrategyOptions
+      options={options}
+      startDate={period.period.start}
+      purchaseLabel="시작일 환율 (₩/USD)"
+      currentLabel="현재 환율 (₩/USD)"
+    />
+  </div>
+);

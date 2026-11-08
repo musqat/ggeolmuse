@@ -1,6 +1,5 @@
-import { SimpleFields } from './fields/SimpleFields';
 import type { ComparisonStrategyDef } from './types';
-import { formatKrw } from '../../../utils/format';
+import { formatReadableWon } from '../../../utils/format';
 
 // 공통 시작일에 원금으로 한 번 매수(채울 파라미터 없음)
 export const simpleStrategy: ComparisonStrategyDef = {
@@ -13,6 +12,5 @@ export const simpleStrategy: ComparisonStrategyDef = {
     name: 'SIMPLE',
     purchaseDate: common.startDate,
   }),
-  summary: (_params, common) => ({ text: `시작일에 ${formatKrw(parseFloat(common.investment) || 0)} 매수` }),
-  Fields: SimpleFields,
+  summary: (_params, common) => ({ text: `시작일에 ${formatReadableWon(parseFloat(common.investment) || 0)} 매수` }),
 };

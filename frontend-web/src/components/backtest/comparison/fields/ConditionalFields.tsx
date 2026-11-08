@@ -1,47 +1,48 @@
 import type { FC } from 'react';
 import type { StrategyFieldsProps } from '../types';
-import { NumberInput } from '../../../common/NumberInput';
-import { ConditionFields, FormField, SellFields } from '../../shared/StrategyFields';
 import { toDirection } from '../../shared/priceDirection';
-import { PrincipalNote } from './PrincipalNote';
+import { AmountField } from '../../settings/AmountField';
+import { ConditionField } from '../../settings/ConditionField';
+import { SellField } from '../../settings/SellField';
+import { MaxField } from '../../settings/MaxField';
+import { maxIssue, percentIssue, sellIssue } from '../../settings/checks';
+import { chipAmountIssue } from './chipChecks';
 
-const INPUT_CLASS = 'w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand';
+// 조건부 매수 칩 칸: 회당 금액 · 조건 · 매도 조건 · 최대 횟수(비우면 원금 한도까지)
+export const ConditionalFields: FC<StrategyFieldsProps> = ({ name, params, onChange, common }) => {
+  const takeProfit = params.takeProfit ?? '';
+  const stopLoss = params.stopLoss ?? '';
+  const max = params.maxPurchases ?? '';
 
-// 조건부 매수 칩 칸: 회당 금액 · 최대 횟수 · 조건 · 익절 · 손절
-export const ConditionalFields: FC<StrategyFieldsProps> = ({ params, onChange, common }) => (
-  <>
-    <PrincipalNote investment={common.investment} />
-    <FormField label="회당 금액 (₩)">
-      <NumberInput
-        value={params.amountPerPurchase ?? ''}
-        onChange={(value) => onChange('amountPerPurchase', value)}
-        placeholder="100,000"
-        className={INPUT_CLASS}
+  return (
+    <>
+      <AmountField
+        label={`${name} 회당 금액`}
+        amount={params.amountPerPurchase ?? ''}
+        onAmountChange={(value) => onChange('amountPerPurchase', value)}
+        message={chipAmountIssue(params.amountPerPurchase ?? '', common.investment)}
       />
-    </FormField>
-    <FormField label="최대 횟수">
-      <input
-        type="number"
-        aria-label="최대 횟수"
-        value={params.maxPurchases ?? ''}
-        onChange={(e) => onChange('maxPurchases', e.target.value)}
+      <ConditionField
+        label={`${name} 조건`}
+        direction={toDirection(params.direction)}
+        onDirectionChange={(value) => onChange('direction', value)}
+        percent={params.dropPercentage ?? ''}
+        onPercentChange={(value) => onChange('dropPercentage', value)}
+        message={percentIssue(params.dropPercentage ?? '')}
+      />
+      <SellField
+        takeProfit={takeProfit}
+        onTakeProfitChange={(value) => onChange('takeProfit', value)}
+        stopLoss={stopLoss}
+        onStopLossChange={(value) => onChange('stopLoss', value)}
+        message={sellIssue(takeProfit, stopLoss)}
+      />
+      <MaxField
+        value={max}
+        onChange={(value) => onChange('maxPurchases', value)}
         placeholder="원금 한도까지"
-        step="1"
-        min="1"
-        className={INPUT_CLASS}
+        message={maxIssue(max)}
       />
-    </FormField>
-    <ConditionFields
-      direction={toDirection(params.direction)}
-      onDirectionChange={(direction) => onChange('direction', direction)}
-      value={params.dropPercentage ?? ''}
-      onChange={(value) => onChange('dropPercentage', value)}
-    />
-    <SellFields
-      takeProfit={params.takeProfit ?? ''}
-      onTakeProfitChange={(value) => onChange('takeProfit', value)}
-      stopLoss={params.stopLoss ?? ''}
-      onStopLossChange={(value) => onChange('stopLoss', value)}
-    />
-  </>
-);
+    </>
+  );
+};

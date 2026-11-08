@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { act, renderHook } from '@testing-library/react'
+import { createElement, type ReactNode } from 'react'
+import { act, renderHook, waitFor } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { stockApi } from '../../../services/api'
-import { estimateRoundCost, fetchStartQuote, parseShares, useAmountUnit } from './amountUnit'
+import { estimateRoundCost, fetchStartQuote, parseShares, useAmountUnit, useRoundCost } from './amountUnit'
+import type { BacktestOptions } from './backtestOptions'
 
 vi.mock('../../../services/api', () => ({
   stockApi: { getOHLCData: vi.fn(), getExchangeRatesBulk: vi.fn() },
@@ -71,5 +74,42 @@ describe('estimateRoundCost', () => {
 
   it('환율을 주면 그 환율로 바꾼다', () => {
     expect(estimateRoundCost(quote, 2, 0, 1300)).toBe(325000)
+  })
+})
+
+describe('useRoundCost', () => {
+  const options: BacktestOptions = {
+    reinvestDividends: false, tradingFeeRate: '0', dividendTax: false, fxMode: 'auto',
+    manualPurchaseFxRate: '1300', manualCurrentFxRate: '1350',
+  }
+  const wrapper = ({ children }: { children: ReactNode }) =>
+    createElement(QueryClientProvider, { client: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }, children)
+  const input = (patch = {}) => ({ symbol: 'AAPL', startDate: '2023-01-01', unit: 'SHARES' as const, shares: '2', amount: '', options, ...patch })
+
+  beforeEach(() => {
+    getOHLCData.mockResolvedValue({ data: [candle('AAPL', '2023-01-03', 125)] } as never)
+    getExchangeRatesBulk.mockResolvedValue({ data: { '2023-01-03': 1270 } } as never)
+  })
+
+  it('금액 단위면 시세를 받지 않고 회당 금액 그대로', () => {
+    const { result } = renderHook(() => useRoundCost(input({ unit: 'AMOUNT', amount: '300000' })), { wrapper })
+
+    expect(result.current).toBe(300000)
+    expect(getOHLCData).not.toHaveBeenCalled()
+  })
+
+  it('주식 수 단위면 시작일 종가 × 주식 수 × (1 + 수수료)를 그 날짜 환율로 추정', async () => {
+    const { result } = renderHook(() => useRoundCost(input({ options: { ...options, tradingFeeRate: '0.25' } })), { wrapper })
+
+    await waitFor(() => expect(result.current).toBe(318294))
+    expect(getOHLCData).toHaveBeenCalledWith('AAPL', '2023-01-01', '2023-01-15')
+  })
+
+  it('수동 환율이면 매수 환율로, 주식 수가 1 이상 정수가 아니면 모름', async () => {
+    const manual = renderHook(() => useRoundCost(input({ options: { ...options, fxMode: 'manual' } })), { wrapper })
+    await waitFor(() => expect(manual.result.current).toBe(325000))
+
+    const broken = renderHook(() => useRoundCost(input({ shares: '1.5' })), { wrapper })
+    expect(broken.result.current).toBeUndefined()
   })
 })

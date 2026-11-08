@@ -2,6 +2,7 @@ import { test, expect, request } from '@playwright/test';
 import { API_URL } from '../playwright.config';
 import { pickPricedSymbols, priceRange } from './fixtures';
 import { pickDate } from './datepicker';
+import { symbolOption } from './symbolSearch';
 
 // 최적 타이밍 순서는 backtest-modes 에서 서버 값으로 봄
 test('종목 비교가 화면에서 끝까지 돈다', async ({ page }) => {
@@ -12,7 +13,7 @@ test('종목 비교가 화면에서 끝까지 돈다', async ({ page }) => {
   await api.dispose();
 
   await page.goto('/backtest');
-  await page.getByRole('button', { name: '종목 비교', exact: true }).click();
+  await page.getByRole('radio', { name: '종목 비교', exact: true }).click();
 
   // 기본으로 담긴 AAPL, MSFT 는 로컬 스택에 시세가 없어 먼저 비움
   const chips = page.getByTestId('compare-symbol-remove');
@@ -21,13 +22,12 @@ test('종목 비교가 화면에서 끝까지 돈다', async ({ page }) => {
   }
   await expect(chips, '기본 종목이 안 비워진다').toHaveCount(0);
 
-  // 시세가 있는 종목 두 개 담기
+  // 시세가 있는 종목 두 개 담기(목록에서 고르면 바로 담김)
   for (const { symbol } of usable) {
-    await page.getByPlaceholder('종목 검색').fill(symbol);
-    const option = page.getByTestId('symbol-option').first();
+    await page.getByRole('combobox', { name: '종목 더하기' }).fill(symbol);
+    const option = symbolOption(page, symbol);
     await expect(option, `${symbol} 이 검색에 안 잡힌다`).toBeVisible();
     await option.click();
-    await page.getByRole('button', { name: '+ 추가' }).click();
   }
   await expect(chips, '종목이 둘 담겨야 한다').toHaveCount(2);
 

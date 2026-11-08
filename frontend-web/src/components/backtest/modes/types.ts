@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
 import type { BacktestHistoryDto } from '@services/api';
 import type { BacktestMode, BacktestResult } from '../shared/backtestDisplay';
+import type { PeriodState } from '../settings/period';
+import type { ModeSummary } from '../settings/SettingsSummary';
 
-// 실행 모드(history 는 실행이 없어 뺌)
-export type RunMode = Exclude<BacktestMode, 'history'>;
+export type RunMode = BacktestMode;
 
 // 실행 순간에 정하는 값
 export interface RunContext {
@@ -26,22 +27,26 @@ export interface PreparedRun {
 
 export type Prepared = PreparedRun | { error: string };
 
-// 단순 · 적립식 · 조건부가 같이 쓰는 종목
-export interface SharedSymbolProps {
+// 모드가 같이 쓰는 종목(종목 비교는 담을 때만)과 기간
+export interface SharedModeProps {
   symbol: string;
   setSymbol: (symbol: string) => void;
   supportedSymbols: string[];
+  period: PeriodState;
 }
 
 export interface ModeController {
   id: RunMode;
-  // 탭 이름
+  // 모드 고르기 이름
   label: string;
   // 상세 차트 보기 링크
   showsChartLink: boolean;
   form: ReactNode;
-  // 모드가 띄우는 모달
-  overlay?: ReactNode;
+  summary: ModeSummary;
+  // 실행을 막는 칸 오류 수
+  errorCount: number;
+  // 이 모드로 바꿀 때
+  onEnter?: () => void;
   prepare: (ctx: RunContext) => Prepared;
   // 다른 모드 결과면 null
   renderResult: (result: BacktestResult) => ReactNode;

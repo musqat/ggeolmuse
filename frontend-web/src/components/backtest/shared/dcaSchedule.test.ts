@@ -1,26 +1,37 @@
 import { describe, it, expect } from 'vitest'
-import { cadenceText, countRounds, parseMonths, scheduleFields, scheduleText, toCadence, toWeekday } from './dcaSchedule'
+import { cadenceText, countRounds, parseMonths, resolveFirstPurchase, scheduleFields, toCadence, toWeekday } from './dcaSchedule'
 
-describe('scheduleText', () => {
-  it('매일은 거래일마다로 보인다', () => {
-    expect(scheduleText('DAILY', '3', '2023-01-04')).toBe('거래일마다')
+describe('resolveFirstPurchase', () => {
+  const pick = (date: string, start = '2025-01-01') => ({ date, start })
+
+  it('고르지 않았으면 빈 값(시작일을 따라감)', () => {
+    expect(resolveFirstPurchase('2025-03-10', 'WEEKLY', pick(''))).toBe('')
   })
 
-  it('매주는 첫 매수일의 요일, 주말이면 월요일로 보인다', () => {
-    expect(scheduleText('WEEKLY', '3', '2023-01-04')).toBe('매주 수요일')
-    expect(scheduleText('WEEKLY', '3', '2023-01-07')).toBe('매주 월요일')
-    expect(scheduleText('WEEKLY', '3', '2023-01-01')).toBe('매주 월요일')
+  it('고를 때와 시작일이 같으면 고른 날짜, 주말이면 다음 월요일', () => {
+    expect(resolveFirstPurchase('2025-01-01', 'MONTHLY', pick('2025-01-15'))).toBe('2025-01-15')
+    expect(resolveFirstPurchase('2025-01-01', 'WEEKLY', pick('2025-01-04'))).toBe('2025-01-06')
   })
 
-  it('매달 · N개월마다는 첫 매수일의 날짜로 보이고, 개월 수가 비면 물음표로 둔다', () => {
-    expect(scheduleText('MONTHLY', '3', '2023-01-15')).toBe('매달 15일')
-    expect(scheduleText('MONTHS', '3', '2023-01-15')).toBe('3개월마다 15일')
-    expect(scheduleText('MONTHS', '', '2023-01-15')).toBe('?개월마다 15일')
+  it('시작일이 바뀌면 매주는 같은 요일, 매달은 같은 며칠의 시작일 뒤 첫 날로 옮긴다', () => {
+    expect(resolveFirstPurchase('2025-03-10', 'WEEKLY', pick('2025-01-08'))).toBe('2025-03-12')
+    expect(resolveFirstPurchase('2025-04-20', 'MONTHLY', pick('2025-01-15'))).toBe('2025-05-15')
+    expect(resolveFirstPurchase('2025-04-10', 'MONTHS', pick('2025-01-31'))).toBe('2025-04-30')
   })
 
-  it('29일 이후면 그 날짜가 없는 달은 그 달 마지막 거래일이라고 같이 보인다', () => {
-    expect(scheduleText('MONTHLY', '3', '2023-01-31')).toBe('매달 31일 · 31일이 없는 달은 그 달 마지막 거래일')
-    expect(scheduleText('MONTHLY', '3', '2023-01-28')).toBe('매달 28일')
+  it('매일은 시작일이 바뀌면 시작일(주말이면 다음 월요일)', () => {
+    expect(resolveFirstPurchase('2025-03-08', 'DAILY', pick('2025-01-15'))).toBe('2025-03-10')
+  })
+})
+
+describe('며칠 규칙', () => {
+  it('고른 며칠이 그 달에 없어도 규칙의 며칠로 안내 · 요청 · 회차를 센다', () => {
+    expect(cadenceText('MONTHLY', '3', '2025-04-30', 31)).toBe('매달 31일')
+    expect(
+      scheduleFields({ cadence: 'MONTHLY', months: 1, firstPurchaseDate: '2025-04-30', monthDay: 31, startDate: '2025-04-10', endDate: '2025-08-31' })
+    ).toMatchObject({ firstPurchaseDate: '2025-04-30', purchaseDay: 31 })
+    expect(countRounds('MONTHLY', 1, '2025-04-30', '2025-05-30', 31)).toBe(1)
+    expect(countRounds('MONTHLY', 1, '2025-04-30', '2025-05-30')).toBe(2)
   })
 })
 

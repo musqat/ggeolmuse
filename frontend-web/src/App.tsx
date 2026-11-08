@@ -38,6 +38,7 @@ const Stocks = lazy(() => import('./pages/Stocks'));
 const Portfolio = lazy(() => import('@pages/Portfolio'));
 const Trading = lazy(() => import('./pages/Trading'));
 const Backtest = lazy(() => import('@pages/Backtest'));
+const BacktestHistory = lazy(() => import('@pages/BacktestHistory'));
 const Account = lazy(() => import('@pages/Account'));
 const MyPage = lazy(() => import('./pages/MyPage'));
 const Charts = lazy(() => import('./pages/Charts'));
@@ -73,6 +74,7 @@ function App() {
                 <Route path="/dashboard" element={<Navigate to="/stocks" replace />} />
                 <Route path="/portfolio" element={<Portfolio />} />
                 <Route path="/backtest" element={<Backtest />} />
+                <Route path="/backtest/history" element={<BacktestHistory />} />
                 <Route path="/trading" element={<Trading />} />
                 <Route path="/trade-history" element={<TradeHistory />} />
                 <Route path="/account" element={<Account />} />

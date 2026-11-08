@@ -38,19 +38,40 @@ export const toWeekday = (date: string) => {
   return toLocalDateString(day);
 };
 
-// 첫 매수일로 정한 주기 · 요일 · 며칠(매주는 주말이면 월요일)
-export const cadenceText = (cadence: DcaCadence, months: string, firstDate: string): string => {
+// 첫 매수일로 정한 주기 · 요일 · 며칠(매주는 주말이면 월요일, monthDay 를 주면 그 며칠)
+export const cadenceText = (cadence: DcaCadence, months: string, firstDate: string, monthDay?: number): string => {
   if (cadence === 'DAILY') return '거래일마다';
   if (cadence === 'WEEKLY') return `매주 ${WEEKDAYS[parseLocalDate(toWeekday(firstDate)).getDay()]}요일`;
   const every = cadence === 'MONTHLY' ? '매달' : `${parseMonths(months) ?? '?'}개월마다`;
-  return `${every} ${dayOfMonth(firstDate)}일`;
+  return `${every} ${monthDay ?? dayOfMonth(firstDate)}일`;
 };
 
-// 첫 매수일로 정한 매수 날짜 안내(29일 이후는 그 날짜가 없는 달 규칙까지)
-export const scheduleText = (cadence: DcaCadence, months: string, firstDate: string): string => {
-  const text = cadenceText(cadence, months, firstDate);
-  const day = dayOfMonth(firstDate);
-  return isMonthly(cadence) && day > 28 ? `${text} · ${day}일이 없는 달은 그 달 마지막 거래일` : text;
+// 고른 첫 매수일과 고를 때의 시작일(date 가 비면 시작일을 따라감)
+export interface FirstPick {
+  date: string;
+  start: string;
+}
+
+// 그 달의 며칠(없으면 그 달 말일)
+const dayIn = (year: number, month: number, day: number) =>
+  new Date(year, month, Math.min(day, new Date(year, month + 1, 0).getDate()));
+
+// 지금 시작일의 첫 매수일: 고를 때와 시작일이 같으면 고른 날(매주는 주말이면 월요일), 바뀌면 같은 요일 · 며칠의 시작일 뒤 첫 날(고르지 않았으면 빈 값)
+export const resolveFirstPurchase = (startDate: string, cadence: DcaCadence, pick: FirstPick): string => {
+  if (!pick.date) return '';
+  if ((pick.start || startDate) === startDate && pick.date >= startDate) {
+    return cadence === 'WEEKLY' ? toWeekday(pick.date) : pick.date;
+  }
+  if (cadence === 'DAILY') return toWeekday(startDate);
+  const start = parseLocalDate(startDate);
+  if (cadence === 'WEEKLY') {
+    const weekday = parseLocalDate(toWeekday(pick.date)).getDay();
+    while (start.getDay() !== weekday) start.setDate(start.getDate() + 1);
+    return toLocalDateString(start);
+  }
+  const day = dayOfMonth(pick.date);
+  const first = dayIn(start.getFullYear(), start.getMonth(), day);
+  return toLocalDateString(first < start ? dayIn(start.getFullYear(), start.getMonth() + 1, day) : first);
 };
 
 interface ScheduleInput {
@@ -58,12 +79,14 @@ interface ScheduleInput {
   // N개월마다의 개월 수
   months: number;
   firstPurchaseDate: string;
+  // 고른 첫 매수일의 며칠(그 달에 없어 말일로 옮긴 첫 매수일의 며칠 대신 씀)
+  monthDay?: number;
   startDate: string;
   endDate: string;
 }
 
 // 주기 요청 칸: 매달은 첫 매수일(비우면 시작일)의 며칠, 매주는 주말 첫 매수일을 다음 월요일로(종료일을 넘으면 그대로)
-export const scheduleFields = ({ cadence, months, firstPurchaseDate, startDate, endDate }: ScheduleInput) => {
+export const scheduleFields = ({ cadence, months, firstPurchaseDate, monthDay, startDate, endDate }: ScheduleInput) => {
   const base = firstPurchaseDate || startDate;
   const weekday = toWeekday(base);
   const first = cadence === 'WEEKLY' && weekday <= endDate ? weekday : firstPurchaseDate;
@@ -72,18 +95,20 @@ export const scheduleFields = ({ cadence, months, firstPurchaseDate, startDate, 
   };
   if (first) fields.firstPurchaseDate = first;
   if (isMonthly(cadence)) {
-    fields.purchaseDay = dayOfMonth(base);
+    fields.purchaseDay = monthDay ?? dayOfMonth(base);
     fields.investmentInterval = cadence === 'MONTHS' ? months : 1;
   }
   return fields;
 };
 
-// 그 달의 며칠(없으면 그 달 말일)
-const dayIn = (year: number, month: number, day: number) =>
-  new Date(year, month, Math.min(day, new Date(year, month + 1, 0).getDate()));
-
 // 첫 매수일부터 종료일까지 회차 수(휴장일은 모르고 주말만 뺌, 매달은 없는 날을 그 달 말일로)
-export const countRounds = (cadence: DcaCadence, months: number, firstDate: string, endDate: string): number => {
+export const countRounds = (
+  cadence: DcaCadence,
+  months: number,
+  firstDate: string,
+  endDate: string,
+  monthDay?: number,
+): number => {
   if (cadence === 'DAILY') {
     let count = 0;
     for (const day = parseLocalDate(firstDate); toLocalDateString(day) <= endDate; day.setDate(day.getDate() + 1)) {
@@ -100,6 +125,7 @@ export const countRounds = (cadence: DcaCadence, months: number, firstDate: stri
   const first = parseLocalDate(firstDate);
   const end = parseLocalDate(endDate);
   let count = 0;
-  while (dayIn(first.getFullYear(), first.getMonth() + count * step, first.getDate()) <= end) count++;
+  const day = monthDay ?? first.getDate();
+  while (dayIn(first.getFullYear(), first.getMonth() + count * step, day) <= end) count++;
   return count;
 };

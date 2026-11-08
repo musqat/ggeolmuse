@@ -1,8 +1,9 @@
 import { test, expect, request } from '@playwright/test';
 import { pickSymbol, priceRange } from './fixtures';
 import { pickDate } from './datepicker';
+import { symbolOption } from './symbolSearch';
 
-// 기간은 스택이 가진 구간에서(화면 기본 시작일 2023-01-01 은 로컬에 데이터 없음)
+// 기간은 스택이 가진 시세 구간에서(화면 기본 기간은 오늘부터 1년 전)
 test('종목을 고르고 백테스트를 돌리면 수익률이 나온다', async ({ page }) => {
   const api = await request.newContext();
   const { symbol } = await pickSymbol(api);
@@ -12,8 +13,8 @@ test('종목을 고르고 백테스트를 돌리면 수익률이 나온다', asy
   await page.goto('/backtest');
   await expect(page.getByTestId('backtest-empty')).toBeVisible();
 
-  await page.getByPlaceholder('종목 검색').fill(symbol);
-  const option = page.getByTestId('symbol-option').first();
+  await page.getByRole('combobox', { name: '종목', exact: true }).fill(symbol);
+  const option = symbolOption(page, symbol);
   await expect(option, `${symbol} 이 검색에 안 잡힌다`).toBeVisible();
   await option.click();
 
