@@ -67,7 +67,7 @@ class StrategyMarketOutageTest {
 
     assertThatThrownBy(() -> dcaStrategy.execute(DcaStrategyRequest.builder()
       .symbol("AAPL").startDate(LocalDate.of(2024, 1, 1)).endDate(LocalDate.of(2024, 3, 31))
-      .monthlyAmount(new BigDecimal("100000")).purchaseDay(15).build()))
+      .amountPerPurchase(new BigDecimal("100000")).purchaseDay(15).build()))
       .isInstanceOf(BacktestException.class)
       .extracting("code").isEqualTo(BacktestResponse.MARKET_DATA_UNAVAILABLE);
   }

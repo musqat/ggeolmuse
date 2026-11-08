@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.muscat.backtest.common.enums.response.BacktestResponse;
+import com.muscat.backtest.common.enums.type.DcaFrequency;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.exception.GlobalExceptionHandler;
@@ -25,12 +26,14 @@ import com.muscat.backtest.domain.service.BacktestAnalysisService;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.HttpHeaders;
@@ -100,7 +103,7 @@ class BacktestAnalysisControllerTest {
   }
 
   @Test
-  @DisplayName("적립식 전략은 토큰 없이 실행되고 종목 · 월 투자금 · 매수일을 그대로 넘긴다")
+  @DisplayName("적립식 전략은 토큰 없이 실행되고 종목 · monthlyAmount 로 보낸 회당 금액 · 매수일을 그대로 넘긴다")
   void dca() throws Exception {
     given(backtestAnalysisService.runDcaStrategy(any())).willReturn(strategy("AAPL", StrategyType.DCA, "30.42"));
 
@@ -110,7 +113,32 @@ class BacktestAnalysisControllerTest {
       .andExpect(jsonPath("$.totalReturnPercent").value(30.42));
 
     verify(backtestAnalysisService).runDcaStrategy(argThat((DcaStrategyRequest r) ->
-      r.getSymbol().equals("AAPL") && r.getMonthlyAmount().intValue() == 100000 && r.getPurchaseDay() == 15));
+      r.getSymbol().equals("AAPL") && r.getAmountPerPurchase().intValue() == 100000 && r.getPurchaseDay() == 15
+        && r.getFrequency() == DcaFrequency.MONTHLY));
+  }
+
+  @Test
+  @DisplayName("적립식 전략은 회당 금액 · 주기 · 첫 매수일을 넘기고 투자일을 비워도 된다")
+  void dcaFrequency() throws Exception {
+    given(backtestAnalysisService.runDcaStrategy(any())).willReturn(strategy("AAPL", StrategyType.DCA, "1"));
+
+    postJson("/strategy/dca", "{\"symbol\":\"AAPL\"," + PERIOD
+      + ",\"amountPerPurchase\":100000,\"frequency\":\"WEEKLY\",\"firstPurchaseDate\":\"2024-01-03\"}")
+      .andExpect(status().isOk());
+
+    verify(backtestAnalysisService).runDcaStrategy(argThat((DcaStrategyRequest r) ->
+      r.getAmountPerPurchase().intValue() == 100000 && r.getFrequency() == DcaFrequency.WEEKLY
+        && r.getFirstPurchaseDate().equals(LocalDate.of(2024, 1, 3)) && r.getPurchaseDay() == null));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @ValueSource(strings = {"\"frequency\":\"HOURLY\"", "\"totalInvestmentLimit\":0", "\"amountPerPurchase\":0"})
+  @DisplayName("적립식 전략의 주기가 매일 · 매주 · 매달 밖이거나 예산 · 회당 금액이 0 이면 400 이고 서비스까지 가지 않는다")
+  void dca_InvalidFrequencyOrAmounts(String field) throws Exception {
+    postJson("/strategy/dca", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"amountPerPurchase\":100000," + field + "}")
+      .andExpect(status().isBadRequest());
+
+    verify(backtestAnalysisService, never()).runDcaStrategy(any());
   }
 
   @Test

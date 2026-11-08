@@ -190,7 +190,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
         .startDate(request.getStartDate())
         .endDate(request.getEndDate())
         .userId(request.getUserId())
-        .monthlyAmount(strategyConfig.getMonthlyAmount())
+        .amountPerPurchase(strategyConfig.getMonthlyAmount())
         .purchaseDay(strategyConfig.getPurchaseDay())
         .investmentInterval(strategyConfig.getInvestmentInterval() != null
           ? strategyConfig.getInvestmentInterval() : 1)

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.muscat.backtest.common.enums.type.DcaFrequency;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -29,9 +30,21 @@ class StrategyRequestJsonTest {
     assertThat(objectMapper.writeValueAsString(conditional())).doesNotContain("strategyType");
   }
 
+  @Test
+  @DisplayName("적립식 회당 금액은 amountPerPurchase 로 저장하고 monthlyAmount 도 읽으며 주기를 비우면 매달")
+  void dcaAmountAlias() throws Exception {
+    DcaStrategyRequest old = objectMapper.readValue("{\"symbol\":\"AAPL\",\"monthlyAmount\":1000,\"purchaseDay\":1}",
+      DcaStrategyRequest.class);
+
+    assertThat(old.getAmountPerPurchase()).isEqualByComparingTo("1000");
+    assertThat(old.getFrequency()).isEqualTo(DcaFrequency.MONTHLY);
+    assertThat(objectMapper.writeValueAsString(dca())).contains("\"amountPerPurchase\":1000", "\"frequency\":\"MONTHLY\"")
+      .doesNotContain("monthlyAmount");
+  }
+
   private DcaStrategyRequest dca() {
     return DcaStrategyRequest.builder().symbol("AAPL").startDate(LocalDate.of(2023, 1, 1)).endDate(LocalDate.of(2024, 1, 1))
-      .monthlyAmount(BigDecimal.valueOf(1000)).purchaseDay(1).userId("user-1").build();
+      .amountPerPurchase(BigDecimal.valueOf(1000)).purchaseDay(1).userId("user-1").build();
   }
 
   private ConditionalStrategyRequest conditional() {

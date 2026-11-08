@@ -96,7 +96,7 @@ class BacktestAnalysisServiceImplTest {
         .symbol("AAPL")
         .startDate(LocalDate.of(2023, 1, 1))
         .endDate(LocalDate.of(2024, 1, 1))
-        .monthlyAmount(BigDecimal.valueOf(1000))
+        .amountPerPurchase(BigDecimal.valueOf(1000))
         .purchaseDay(1)
         .userId("user123")
         .build();
@@ -134,7 +134,7 @@ class BacktestAnalysisServiceImplTest {
         .symbol("AAPL")
         .startDate(LocalDate.of(2023, 1, 1))
         .endDate(LocalDate.of(2024, 1, 1))
-        .monthlyAmount(BigDecimal.valueOf(1000))
+        .amountPerPurchase(BigDecimal.valueOf(1000))
         .userId("user123")
         .build();
 
@@ -774,7 +774,7 @@ class BacktestAnalysisServiceImplTest {
       BacktestAnalysisServiceImpl onlyConditional = new BacktestAnalysisServiceImpl(tradingSimulationService,
         List.of(conditionalPurchaseStrategy), responseMapper, backtestHistoryUtils);
       DcaStrategyRequest request = DcaStrategyRequest.builder().symbol("AAPL").startDate(LocalDate.of(2023, 1, 1))
-        .endDate(LocalDate.of(2024, 1, 1)).monthlyAmount(BigDecimal.valueOf(1000)).purchaseDay(1).userId("user123").build();
+        .endDate(LocalDate.of(2024, 1, 1)).amountPerPurchase(BigDecimal.valueOf(1000)).purchaseDay(1).userId("user123").build();
 
       assertThatThrownBy(() -> onlyConditional.runDcaStrategy(request))
         .isInstanceOf(BacktestException.class)

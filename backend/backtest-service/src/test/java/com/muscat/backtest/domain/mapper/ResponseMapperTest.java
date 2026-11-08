@@ -122,7 +122,7 @@ class ResponseMapperTest {
     void dca_타입() {
       DcaStrategyRequest request = DcaStrategyRequest.builder()
         .symbol(SYMBOL).startDate(START).endDate(END)
-        .monthlyAmount(new BigDecimal("100000")).purchaseDay(15)
+        .amountPerPurchase(new BigDecimal("100000")).purchaseDay(15)
         .build();
 
       StrategyResponse result =
@@ -287,7 +287,7 @@ class ResponseMapperTest {
     private DcaStrategyRequest dcaRequest() {
       return DcaStrategyRequest.builder()
         .symbol(SYMBOL).startDate(START).endDate(END)
-        .monthlyAmount(new BigDecimal("100000")).purchaseDay(15)
+        .amountPerPurchase(new BigDecimal("100000")).purchaseDay(15)
         .build();
     }
   }

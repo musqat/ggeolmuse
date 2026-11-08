@@ -41,9 +41,6 @@ public final class BacktestConstants {
       throw new UnsupportedOperationException("Constants class cannot be instantiated");
     }
 
-    /** DCA 월정액 투자 */
-    public static final String MONTHLY_INVESTMENT = "월정액";
-
     /** 배당금 재투자 */
     public static final String DIVIDEND_REINVESTMENT = "배당 재투자";
 
