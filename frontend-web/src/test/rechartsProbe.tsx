@@ -43,7 +43,11 @@ export const XAxis = ({ ticks, tickFormatter }: { ticks?: string[]; tickFormatte
 export const AreaChart = LineChart;
 export const Area = Line;
 
+// 가로 기준선의 값 · 축 · 넘칠 때 처리
+export const ReferenceLine = ({ y, yAxisId, ifOverflow }: { y?: number; yAxisId?: number | string; ifOverflow?: string }) => (
+  <i data-testid="ref-line" data-ref={JSON.stringify({ y, yAxisId, ifOverflow })} />
+);
+
 const Nothing = () => null;
 export const CartesianGrid = Nothing;
-export const ReferenceLine = Nothing;
 export const Legend = Nothing;

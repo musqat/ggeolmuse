@@ -13,6 +13,9 @@ export function readCharts() {
     yDomains: within(chart)
       .queryAllByTestId('y-axis')
       .map((axis) => JSON.parse(axis.dataset.domain ?? 'null')),
+    refLines: within(chart)
+      .queryAllByTestId('ref-line')
+      .map((line) => JSON.parse(line.dataset.ref ?? '{}')),
   }));
 }
 

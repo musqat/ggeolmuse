@@ -15,6 +15,7 @@ import { ResultFold } from './ResultFold';
 import { RiskDetail } from './RiskDetail';
 import { detailMeta, pickMetrics } from './resultValues';
 import { ReturnChart } from './ReturnChart';
+import { PurchaseDayChart } from './PurchaseDayChart';
 import { simpleDeposits } from './assetSeries';
 
 interface SimpleResultProps {
@@ -25,7 +26,7 @@ interface SimpleResultProps {
 
 const dash = (value: React.ReactNode) => <span className="text-tx-3">{value}</span>;
 
-// 단순 매수 결과: 카드 · 자산 추이, 그 아래 상세 · 주가 · 수익률 추이를 접어 둠
+// 단순 매수 결과: 카드 · 자산 추이, 그 아래 상세 · 주가 · 수익률 추이 · 매수일별 수익률을 접어 둠
 export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purchaseDate }) => {
   const [currency, setCurrency] = useState<MetricCurrency>('KRW');
   const { metrics, other, otherLabel } = pickMetrics(result, currency);
@@ -125,6 +126,15 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
           endDate={result.currentDate ?? undefined}
         />
         <ReturnChart dailyValues={result.dailyValues} deposits={deposits} currency={currency} />
+      </ResultFold>
+
+      <ResultFold title="매수일별 수익률" meta="그날 샀다면 평가일까지 · 목표 수익률">
+        <PurchaseDayChart
+          returns={result.purchaseDayReturns}
+          currency={currency}
+          purchaseDate={result.purchaseDate}
+          valuationDate={result.currentDate}
+        />
       </ResultFold>
     </div>
   );

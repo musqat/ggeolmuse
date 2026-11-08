@@ -3,8 +3,10 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SimpleResult } from './SimpleResult'
 import { SimpleChart } from '@components/charts/backtest/SimpleChart'
+import { PurchaseDayChart } from './PurchaseDayChart'
 
 vi.mock('@components/charts/backtest/SimpleChart', () => ({ SimpleChart: vi.fn(() => null) }))
+vi.mock('./PurchaseDayChart', () => ({ PurchaseDayChart: vi.fn(() => null) }))
 
 const result = {
   mode: 'simple',
@@ -49,6 +51,31 @@ describe('SimpleResult', () => {
     await open('주가 · 수익률 추이')
 
     expect(vi.mocked(SimpleChart).mock.lastCall?.[0]).toMatchObject({ endDate: '2024-06-14' })
+  })
+
+  it('매수일별 수익률은 닫아 두고, 열면 결과의 매수일별 수익률을 고른 통화 · 평가일과 넘긴다', async () => {
+    const purchaseDayReturns = [{ date: '2023-01-03', returnPercent: 50, returnPercentUsd: 40 }]
+    render(
+      <SimpleResult
+        result={{ ...result, currentDate: '2024-06-14', purchaseDayReturns, metricsKrw: {}, metricsUsd: {} }}
+        symbol="AAPL"
+        purchaseDate="2023-01-03"
+      />,
+    )
+
+    expect(screen.getByText('매수일별 수익률').closest('details')).not.toHaveAttribute('open')
+    expect(vi.mocked(PurchaseDayChart)).not.toHaveBeenCalled()
+
+    await open('매수일별 수익률')
+    expect(vi.mocked(PurchaseDayChart).mock.lastCall?.[0]).toEqual({
+      returns: purchaseDayReturns,
+      currency: 'KRW',
+      purchaseDate: '2023-01-03',
+      valuationDate: '2024-06-14',
+    })
+
+    await userEvent.click(screen.getByRole('button', { name: '달러 기준' }))
+    expect(vi.mocked(PurchaseDayChart).mock.lastCall?.[0]).toMatchObject({ currency: 'USD' })
   })
 
   it('기본 환율로 계산한 날이 있으면 그 알림을 보인다', () => {
