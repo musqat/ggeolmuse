@@ -45,8 +45,8 @@ const FORMS: [string, (p: Period) => ReactElement][] = [
       symbol="AAPL" setSymbol={vi.fn()} supportedSymbols={[]} options={options}
       conditionalStartDate={p.start} setConditionalStartDate={p.setStart}
       conditionalEndDate={p.end} setConditionalEndDate={p.setEnd}
-      investmentMode="TOTAL_BUDGET" setInvestmentMode={vi.fn()} totalInvestment="1000000" setTotalInvestment={vi.fn()}
-      amountPerPurchase="100000" setAmountPerPurchase={vi.fn()} maxPurchases="10" setMaxPurchases={vi.fn()}
+      amountPerPurchase="100000" setAmountPerPurchase={vi.fn()} totalInvestment="1000000" setTotalInvestment={vi.fn()}
+      maxPurchases="10" setMaxPurchases={vi.fn()}
       direction="DROP" setDirection={vi.fn()} dropPercentage="5" setDropPercentage={vi.fn()}
       takeProfit="" setTakeProfit={vi.fn()} stopLoss="" setStopLoss={vi.fn()}
     />

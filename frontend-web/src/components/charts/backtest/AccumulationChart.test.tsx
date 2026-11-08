@@ -155,6 +155,14 @@ describe('AccumulationChart', () => {
     expect(readCharts()[0].dots).toEqual([{ x: '2026-03-04', y: 101, fill: '#8b5cf6' }])
   })
 
+  it('매수가 없어도 시작일부터 주가를 받아 0회 매수로 그린다', async () => {
+    renderWithQuery(<AccumulationChart {...props} transactions={[]} />)
+
+    expect(await screen.findByText('0회 매수 • 총 0.00주 보유')).toBeInTheDocument()
+    expect(getOHLCData).toHaveBeenCalledWith('AAPL', '2026-03-01', '2026-03-10')
+    expect(readCharts()[0].dots).toEqual([])
+  })
+
   it('고른 기간에 시세가 없으면 카드 테두리 없이 안내를 보인다', async () => {
     getOHLCData.mockResolvedValue({ data: [] } as never)
     renderWithQuery(<AccumulationChart {...props} />)

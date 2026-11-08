@@ -20,12 +20,10 @@ interface ConditionalStrategyFormProps {
   setConditionalStartDate: (date: string) => void;
   conditionalEndDate: string;
   setConditionalEndDate: (date: string) => void;
-  investmentMode: 'TOTAL_BUDGET' | 'PER_PURCHASE';
-  setInvestmentMode: (mode: 'TOTAL_BUDGET' | 'PER_PURCHASE') => void;
-  totalInvestment: string;
-  setTotalInvestment: (amount: string) => void;
   amountPerPurchase: string;
   setAmountPerPurchase: (amount: string) => void;
+  totalInvestment: string;
+  setTotalInvestment: (amount: string) => void;
   maxPurchases: string;
   setMaxPurchases: (count: string) => void;
   direction: PriceDirection;
@@ -40,7 +38,10 @@ interface ConditionalStrategyFormProps {
   supportedSymbols: string[];
 }
 
-// 정한 비율만큼 떨어지거나 오른 날마다 사고, 켜면 익절 · 손절로 전량 파는 전략
+const AMOUNT_INPUT_CLASS =
+  'w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand';
+
+// 정한 비율만큼 떨어지거나 오른 날마다 회당 금액만큼 사고, 켜면 익절 · 손절로 전량 파는 전략
 export const ConditionalStrategyForm: React.FC<ConditionalStrategyFormProps> = ({
   symbol,
   setSymbol,
@@ -48,12 +49,10 @@ export const ConditionalStrategyForm: React.FC<ConditionalStrategyFormProps> = (
   setConditionalStartDate,
   conditionalEndDate,
   setConditionalEndDate,
-  investmentMode,
-  setInvestmentMode,
-  totalInvestment,
-  setTotalInvestment,
   amountPerPurchase,
   setAmountPerPurchase,
+  totalInvestment,
+  setTotalInvestment,
   maxPurchases,
   setMaxPurchases,
   direction,
@@ -67,6 +66,11 @@ export const ConditionalStrategyForm: React.FC<ConditionalStrategyFormProps> = (
   options,
   supportedSymbols,
 }) => {
+  const perPurchase = parseFloat(amountPerPurchase);
+  const budget = parseFloat(totalInvestment);
+  const count = parseInt(maxPurchases);
+  const amountOk = perPurchase > 0;
+
   return (
     <div className="space-y-4">
       {/* 기본 설정 */}
@@ -80,90 +84,46 @@ export const ConditionalStrategyForm: React.FC<ConditionalStrategyFormProps> = (
           onEndChange={setConditionalEndDate}
         />
 
-        {/* 투자 모드 선택 */}
-        <div className="col-span-2">
-          <label className="block text-sm font-medium text-tx-1 mb-2">투자 모드</label>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => setInvestmentMode('TOTAL_BUDGET')}
-              className={`px-4 py-3 rounded-lg border-2 transition-all ${
-                investmentMode === 'TOTAL_BUDGET'
-                  ? 'border-brand bg-brand-bg text-brand-dark'
-                  : 'border-line-strong bg-surface text-tx-1 hover:border-line-strong'
-              }`}
-            >
-              <div className="font-semibold">총 예산 분할</div>
-              <div className="text-xs mt-1">총 투자금을 회당 금액으로 분할</div>
-            </button>
-            <button
-              type="button"
-              onClick={() => setInvestmentMode('PER_PURCHASE')}
-              className={`px-4 py-3 rounded-lg border-2 transition-all ${
-                investmentMode === 'PER_PURCHASE'
-                  ? 'border-brand bg-brand-bg text-brand-dark'
-                  : 'border-line-strong bg-surface text-tx-1 hover:border-line-strong'
-              }`}
-            >
-              <div className="font-semibold">회당 고정 금액</div>
-              <div className="text-xs mt-1">조건 만족 시마다 동일 금액 투자</div>
-            </button>
-          </div>
-        </div>
+        {/* 한도: 예산 · 최대 횟수 가운데 먼저 닿는 쪽, 둘 다 비우면 제한 없음 */}
+        <FormField label="회당 금액 (₩)">
+          <NumberInput
+            value={amountPerPurchase}
+            onChange={setAmountPerPurchase}
+            placeholder="500,000"
+            className={AMOUNT_INPUT_CLASS}
+          />
+          <p className="text-xs text-tx-3 mt-1">조건이 맞는 날마다 넣는 금액</p>
+        </FormField>
 
-        {/* 모드별 입력 필드 */}
-        {investmentMode === 'TOTAL_BUDGET' ? (
-          <>
-            <FormField label="총 투자금 (₩)">
-              <NumberInput
-                value={totalInvestment}
-                onChange={setTotalInvestment}
-                placeholder="4,000,000"
-                className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
-              />
-              <p className="text-xs text-tx-3 mt-1">전체 투자 예산</p>
-            </FormField>
+        <FormField label="예산 (₩)">
+          <NumberInput
+            value={totalInvestment}
+            onChange={setTotalInvestment}
+            placeholder="제한 없음"
+            className={AMOUNT_INPUT_CLASS}
+          />
+          {amountOk && budget > 0 && (
+            <p className="text-xs text-tx-3 mt-1">예산으로 최대 {Math.floor(budget / perPurchase)}회</p>
+          )}
+        </FormField>
 
-            <FormField label="회당 투자금 (₩)">
-              <NumberInput
-                value={amountPerPurchase}
-                onChange={setAmountPerPurchase}
-                placeholder="500,000"
-                className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
-              />
-              <p className="text-xs text-tx-3 mt-1">
-                최대 {Math.floor(parseFloat(totalInvestment || '0') / parseFloat(amountPerPurchase || '1'))}회 투자 가능
-              </p>
-            </FormField>
-          </>
-        ) : (
-          <>
-            <FormField label="회당 투자금 (₩)">
-              <NumberInput
-                value={amountPerPurchase}
-                onChange={setAmountPerPurchase}
-                placeholder="500,000"
-                className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
-              />
-              <p className="text-xs text-tx-3 mt-1">조건 만족 시마다 투자할 금액</p>
-            </FormField>
-
-            <FormField label="최대 매수 횟수">
-              <input
-                type="number"
-                value={maxPurchases}
-                onChange={(e) => setMaxPurchases(e.target.value)}
-                placeholder="20"
-                step="1"
-                min="1"
-                className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
-              />
-              <p className="text-xs text-tx-2 mt-1">
-                최대 ₩{formatNumber(parseFloat(amountPerPurchase || '0') * parseInt(maxPurchases || '0'))} 투자
-              </p>
-            </FormField>
-          </>
-        )}
+        <FormField label="최대 횟수">
+          <input
+            type="number"
+            aria-label="최대 횟수"
+            value={maxPurchases}
+            onChange={(e) => setMaxPurchases(e.target.value)}
+            placeholder={budget > 0 ? '예산 한도까지' : '제한 없음'}
+            step="1"
+            min="1"
+            className={AMOUNT_INPUT_CLASS}
+          />
+          {amountOk && count > 0 && (
+            <p className="text-xs text-tx-2 mt-1">
+              많아야 ₩{formatNumber(budget > 0 ? Math.min(perPurchase * count, budget) : perPurchase * count)} 투자
+            </p>
+          )}
+        </FormField>
 
         <ConditionFields
           direction={direction}

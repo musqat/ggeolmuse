@@ -2,6 +2,7 @@ package com.muscat.backtest.domain.dto.response;
 
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.domain.model.SkippedRound;
+import com.muscat.backtest.domain.model.SkippedSpan;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
@@ -77,6 +78,8 @@ public class StrategyResponse {
   // 미매수 회차
   @Schema(description = "미매수 회차(계획된 매수일 · 이유)")
   private List<SkippedRound> skippedRounds;
+  @Schema(description = "예산 부족으로 사지 못한 구간(처음 날짜 · 회차 수 · 이유, 없으면 null)")
+  private SkippedSpan skippedSpan;
   @Schema(description = "환율이 없어 기본 환율로 계산한 날(산 날 · 배당 재투자일 · 평가일)", example = "[\"2013-06-03\"]")
   @Builder.Default
   private List<LocalDate> defaultFxDates = List.of();

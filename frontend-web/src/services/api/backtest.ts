@@ -30,7 +30,7 @@ export type PerformanceMetrics = {
   sharpe?: number | null;               // 샤프 비율(무위험 연 3%)
 };
 
-// 하루 평가 가치와 그날 고점 대비 낙폭(%)
+// 하루 평가 가치와 그 날짜까지 고점 대비 낙폭(%)
 export type DailyValue = {
   date: string;
   valueUsd: number;
@@ -103,13 +103,11 @@ export type ConditionalStrategyRequest = BacktestCommonRequest & {
   symbol: string;                       // 종목 심볼
   startDate: string;                    // 시작일
   endDate: string;                      // 종료일
-  // 투자 모드에 따라 둘 중 하나만
-  totalInvestment?: number;             // investmentMode 가 TOTAL_BUDGET 일 때
-  amountPerPurchase?: number;           // PER_PURCHASE 일 때           // 투자 모드가 회당 금액일 때
-  investmentMode?: string;              // total | perPurchase              // 총 투자 금액
+  amountPerPurchase: number;            // 조건이 맞는 날마다 넣는 회당 금액 (KRW)
+  totalInvestment?: number;             // 예산 (KRW, 비우면 제한 없음)
   direction?: PriceDirection;           // 비우면 하락
   dropPercentage: number;               // 하락률 · 상승률 (0.05 = 5%)
-  maxPurchases?: number;                // 최대 매수 횟수
+  maxPurchases?: number;                // 최대 매수 횟수 (비우면 제한 없음, 예산과 먼저 닿는 쪽)
   takeProfitRate?: number;              // 익절 비율 (0.2 = 20%, 비우면 안 함)
   stopLossRate?: number;                // 손절 비율 (0.1 = 10%, 비우면 안 함)
 };
@@ -168,11 +166,18 @@ export type StrategyTransaction = {
 };
 
 // 회차를 사지 못한 이유
-export type SkipReason = 'NO_PRICE' | 'CALCULATION_ERROR';
+export type SkipReason = 'NO_PRICE' | 'CALCULATION_ERROR' | 'OVER_BUDGET';
 
 // 사지 못한 회차(계획된 매수일)와 이유
 export type SkippedRound = {
   date: string;
+  reason: SkipReason;
+};
+
+// 처음 사지 못한 날짜부터 이어진 미매수 회차 수와 이유(예산 부족)
+export type SkippedSpan = {
+  firstDate: string;
+  rounds: number;
   reason: SkipReason;
 };
 
@@ -185,6 +190,7 @@ export type StrategyResponse = {
   transactions?: StrategyTransaction[] | null;
   totalTransactions?: number | null;
   skippedRounds?: SkippedRound[] | null;   // 사지 못한 회차
+  skippedSpan?: SkippedSpan | null;        // 예산 부족으로 사지 못한 구간
   totalInvested?: number | null;        // 총 투자금 (KRW)
   totalShares?: number | null;
   averagePrice?: number | null;         // 평균 단가 (USD)

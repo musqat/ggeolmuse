@@ -5,7 +5,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 
 import com.muscat.backtest.common.enums.response.BacktestResponse;
-import com.muscat.backtest.common.enums.type.InvestmentMode;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
@@ -80,7 +79,7 @@ class StrategyMarketOutageTest {
 
     assertThatThrownBy(() -> conditionalStrategy.execute(ConditionalStrategyRequest.builder()
       .symbol("AAPL").startDate(LocalDate.of(2024, 1, 1)).endDate(LocalDate.of(2024, 3, 31))
-      .investmentMode(InvestmentMode.PER_PURCHASE).amountPerPurchase(new BigDecimal("100000")).maxPurchases(3)
+      .amountPerPurchase(new BigDecimal("100000")).maxPurchases(3)
       .dropPercentage(new BigDecimal("0.05")).build()))
       .isInstanceOf(BacktestException.class)
       .extracting("code").isEqualTo(BacktestResponse.MARKET_DATA_UNAVAILABLE);

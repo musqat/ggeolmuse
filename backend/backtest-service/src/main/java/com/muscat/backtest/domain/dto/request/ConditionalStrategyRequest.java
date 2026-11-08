@@ -1,6 +1,5 @@
 package com.muscat.backtest.domain.dto.request;
 
-import com.muscat.backtest.common.enums.type.InvestmentMode;
 import com.muscat.backtest.common.enums.type.PriceDirection;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.muscat.backtest.common.enums.type.StrategyType;
@@ -39,19 +38,14 @@ public class ConditionalStrategyRequest implements StrategyRequest {
   @Schema(description = "토큰의 이메일로 채움", accessMode = Schema.AccessMode.READ_ONLY)
   private String userId;
 
-  // 조건부 매수 전략 전용 필드들
-  @Schema(description = "투자 모드: TOTAL_BUDGET(총 예산 분할) 또는 PER_PURCHASE(회당 고정 금액)",
-          example = "TOTAL_BUDGET",
-          required = true,
-          defaultValue = "TOTAL_BUDGET")
-  @Builder.Default
-  private InvestmentMode investmentMode = InvestmentMode.TOTAL_BUDGET;  // 투자 모드 (기본값: 총 예산 분할)
+  @Schema(description = "조건이 맞는 날마다 넣는 회당 금액 (KRW)", example = "500000.00", required = true)
+  @NotNull(message = "회당 금액은 필수입니다")
+  @Positive(message = "회당 금액은 0보다 커야 합니다")
+  private BigDecimal amountPerPurchase;
 
-  @Schema(description = "[TOTAL_BUDGET 모드] 총 투자 예산", example = "4000000.00")
-  private BigDecimal totalInvestment;     // 총 투자예산 (TOTAL_BUDGET 모드에서 사용)
-
-  @Schema(description = "[PER_PURCHASE 모드] 회당 투자 금액", example = "500000.00")
-  private BigDecimal amountPerPurchase;   // 회당 투자 금액 (PER_PURCHASE 모드에서 사용)
+  @Schema(description = "예산: 넣는 돈 합의 한도 (KRW, 비우면 제한 없음)", example = "4000000.00")
+  @Positive(message = "예산은 0보다 커야 합니다")
+  private BigDecimal totalInvestment;
 
   @Schema(description = "전 거래일 종가 대비 방향(DROP 하락 · RISE 상승 · BOTH 둘 다, 비우면 하락)", example = "DROP", defaultValue = "DROP")
   @Builder.Default
@@ -71,9 +65,9 @@ public class ConditionalStrategyRequest implements StrategyRequest {
   @DecimalMax(value = "1", inclusive = false, message = "손절 비율은 1보다 작아야 합니다")
   private BigDecimal stopLossRate;
 
-  @Schema(description = "최대 매수 횟수 (TOTAL_BUDGET 모드에서는 자동 계산, PER_PURCHASE 모드에서는 필수)", example = "10")
+  @Schema(description = "최대 매수 횟수 (비우면 제한 없음, 예산과 먼저 닿는 쪽에서 멈춤)", example = "10")
   @Positive(message = "최대 매수 횟수는 0보다 커야 합니다")
-  private Integer maxPurchases;           // 최대 매수 횟수
+  private Integer maxPurchases;
 
   @Schema(description = "매수 시 환율 (수동 설정 시, null이면 자동)", example = "1300.00")
   @Positive(message = "매수 환율은 0보다 커야 합니다")

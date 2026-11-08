@@ -130,7 +130,7 @@ describe('Backtest 페이지', () => {
     expect(await screen.findByText('결과: dca')).toBeInTheDocument()
   })
 
-  it('조건부: 총 예산 모드 기본값 요청', async () => {
+  it('조건부: 기본값은 회당 10만원 · 예산 100만원 · 최대 횟수 비움으로 요청', async () => {
     renderPage()
     await selectTab('조건부')
     await runBacktest()
@@ -139,11 +139,10 @@ describe('Backtest 페이지', () => {
       symbol: 'AAPL',
       startDate: '2023-01-01',
       endDate: TODAY,
-      investmentMode: 'TOTAL_BUDGET',
       direction: 'DROP',
       dropPercentage: 0.05,
-      totalInvestment: 1000000,
       amountPerPurchase: 100000,
+      totalInvestment: 1000000,
       ...common,
     })
     expect(await screen.findByText('결과: conditional')).toBeInTheDocument()
