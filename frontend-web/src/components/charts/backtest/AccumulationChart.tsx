@@ -65,7 +65,7 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
 
   const { data: priceData, isLoading: loading, error } = useQuery({
     queryKey: ["backtest", "chart", "accumulation", symbol, chartStartDate, endDate],
-    enabled: Boolean(symbol) && transactions.length > 0,
+    enabled: Boolean(symbol),
     queryFn: () => fetchSymbolPrices<OHLCData>(symbol, chartStartDate, endDate || getTodayString()),
   });
   const errorMessage = error ? getApiErrorMessage(error, "차트 데이터를 불러오는데 실패했습니다") : null;

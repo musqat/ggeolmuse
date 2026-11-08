@@ -8,6 +8,7 @@ import { DIVIDEND_REINVEST, isSale } from './resultValues';
 const REASON_LABEL: Record<SkipReason, string> = {
   NO_PRICE: '시세 없음',
   CALCULATION_ERROR: '계산 오류',
+  OVER_BUDGET: '예산 부족',
 };
 
 interface PurchaseHistoryProps {

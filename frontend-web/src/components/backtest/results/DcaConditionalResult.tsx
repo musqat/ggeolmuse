@@ -21,6 +21,13 @@ interface DcaConditionalResultProps {
   startDate: string;
 }
 
+// 매수 0회 · 예산 부족 구간 안내 한 줄(없으면 null)
+const purchaseNotice = (bought: number, span: StrategyResponse['skippedSpan']) => {
+  const shortfall = span ? `예산이 모자라 ${span.firstDate}부터 ${span.rounds}회를 사지 않았습니다.` : null;
+  if (bought > 0) return shortfall;
+  return `매수 0회: ${shortfall ?? '기간 안에 조건이 맞아 산 날이 없습니다.'}`;
+};
+
 // 적립식 · 조건부 결과: 카드 · 자산 추이 · 주가 추이 탭, 그 아래 상세 · 매매 내역을 접어 둠
 export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
   result,
@@ -35,9 +42,13 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
   // 투자일이 휴장일이라 다른 날 산 번수
   const moved = transactions.filter((tx) => tx.actualDate && tx.actualDate !== tx.date).length;
   const sold = sellCount(transactions);
+  const notice = purchaseNotice(purchaseCount(transactions), result.skippedSpan);
 
   return (
     <div className="space-y-6">
+      {notice && (
+        <p className="text-sm text-warning bg-warning-soft/10 border border-warning-soft/40 rounded-lg px-3 py-2">{notice}</p>
+      )}
       {moved > 0 && (
         <p className="text-sm text-warning bg-warning-soft/10 border border-warning-soft/40 rounded-lg px-3 py-2">
           투자일이 휴장일이면 다음 거래일 종가로 삽니다(이번 결과 {moved}번).
@@ -52,24 +63,20 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
         currency={currency}
         onCurrencyChange={setCurrency}
         timeWeighted
-        chartTabs={
-          transactions.length > 0
-            ? [
-                {
-                  key: 'price',
-                  label: '주가 추이',
-                  render: () => (
-                    <AccumulationChart
-                      symbol={result.symbol || symbol}
-                      transactions={transactions}
-                      startDate={result.startDate || startDate}
-                      endDate={result.endDate ?? undefined}
-                    />
-                  ),
-                },
-              ]
-            : undefined
-        }
+        chartTabs={[
+          {
+            key: 'price',
+            label: '주가 추이',
+            render: () => (
+              <AccumulationChart
+                symbol={result.symbol || symbol}
+                transactions={transactions}
+                startDate={result.startDate || startDate}
+                endDate={result.endDate ?? undefined}
+              />
+            ),
+          },
+        ]}
       />
 
       <ResultFold

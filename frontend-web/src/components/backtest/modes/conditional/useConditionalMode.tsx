@@ -14,10 +14,10 @@ export const useConditionalMode = ({
 }: SharedSymbolProps): ModeController => {
   const [startDate, setStartDate] = useState('2023-01-01');
   const [endDate, setEndDate] = useState(''); // 비어있으면 현재 날짜
-  const [investmentMode, setInvestmentMode] = useState<'TOTAL_BUDGET' | 'PER_PURCHASE'>('TOTAL_BUDGET');
-  const [totalInvestment, setTotalInvestment] = useState('1000000');
   const [amountPerPurchase, setAmountPerPurchase] = useState('100000');
-  const [maxPurchases, setMaxPurchases] = useState('20');
+  // 예산 · 최대 횟수는 비우면 제한 없음
+  const [totalInvestment, setTotalInvestment] = useState('1000000');
+  const [maxPurchases, setMaxPurchases] = useState('');
   const [direction, setDirection] = useState<PriceDirection>('DROP');
   const [dropPercentage, setDropPercentage] = useState('5');
   const [takeProfit, setTakeProfit] = useState(''); // 비우면 익절 안 함
@@ -36,12 +36,10 @@ export const useConditionalMode = ({
         setConditionalStartDate={setStartDate}
         conditionalEndDate={endDate}
         setConditionalEndDate={setEndDate}
-        investmentMode={investmentMode}
-        setInvestmentMode={setInvestmentMode}
-        totalInvestment={totalInvestment}
-        setTotalInvestment={setTotalInvestment}
         amountPerPurchase={amountPerPurchase}
         setAmountPerPurchase={setAmountPerPurchase}
+        totalInvestment={totalInvestment}
+        setTotalInvestment={setTotalInvestment}
         maxPurchases={maxPurchases}
         setMaxPurchases={setMaxPurchases}
         direction={direction}
@@ -61,9 +59,8 @@ export const useConditionalMode = ({
         {
           startDate,
           endDate,
-          investmentMode,
-          totalInvestment,
           amountPerPurchase,
+          totalInvestment,
           maxPurchases,
           direction,
           dropPercentage,

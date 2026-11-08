@@ -7,15 +7,17 @@ import { hasSellRates, toSellRates } from '../../shared/sellRates';
 export interface ConditionalValues extends BacktestOptions {
   startDate: string;
   endDate: string;
-  investmentMode: 'TOTAL_BUDGET' | 'PER_PURCHASE';
-  totalInvestment: string;
   amountPerPurchase: string;
+  totalInvestment: string;
   maxPurchases: string;
   direction: PriceDirection;
   dropPercentage: string;
   takeProfit: string;
   stopLoss: string;
 }
+
+// 빈 칸은 undefined, 아니면 숫자(못 읽으면 NaN)
+const optionalNumber = (value: string) => (value.trim() === '' ? undefined : Number(value));
 
 // 조건부 매수 요청(검사에 걸리면 alert 문구)
 export const buildConditionalRequest = (
@@ -24,29 +26,21 @@ export const buildConditionalRequest = (
   ctx: RunContext,
 ): BuildResult<ConditionalStrategyRequest> => {
   const drop = parseFloat(values.dropPercentage);
+  const perPurchase = parseFloat(values.amountPerPurchase);
+  const budget = optionalNumber(values.totalInvestment);
+  const maxCount = optionalNumber(values.maxPurchases);
 
-  // 투자 모드별 유효성 검사
-  if (values.investmentMode === 'TOTAL_BUDGET') {
-    const investment = parseFloat(values.totalInvestment);
-    const perPurchase = parseFloat(values.amountPerPurchase);
-    if (isNaN(investment) || investment <= 0) {
-      return { error: '올바른 총 투자금을 입력해주세요.' };
-    }
-    if (isNaN(perPurchase) || perPurchase <= 0) {
-      return { error: '올바른 회당 투자금을 입력해주세요.' };
-    }
-    if (perPurchase > investment) {
-      return { error: '회당 투자금은 총 투자금보다 작아야 합니다.' };
-    }
-  } else {
-    const perPurchase = parseFloat(values.amountPerPurchase);
-    const maxCount = parseInt(values.maxPurchases);
-    if (isNaN(perPurchase) || perPurchase <= 0) {
-      return { error: '올바른 회당 투자금을 입력해주세요.' };
-    }
-    if (isNaN(maxCount) || maxCount <= 0) {
-      return { error: '올바른 최대 횟수를 입력해주세요.' };
-    }
+  if (isNaN(perPurchase) || perPurchase <= 0) {
+    return { error: '올바른 회당 금액을 입력해주세요.' };
+  }
+  if (budget !== undefined && !(budget > 0)) {
+    return { error: '예산은 비우거나 0보다 크게 입력해주세요.' };
+  }
+  if (budget !== undefined && perPurchase > budget) {
+    return { error: '회당 금액이 예산보다 큽니다.' };
+  }
+  if (maxCount !== undefined && !(Number.isInteger(maxCount) && maxCount > 0)) {
+    return { error: '최대 횟수는 비우거나 1 이상의 정수로 입력해주세요.' };
   }
 
   if (isNaN(drop) || drop <= 0 || drop > 100) {
@@ -68,22 +62,17 @@ export const buildConditionalRequest = (
     symbol,
     startDate: values.startDate,
     endDate: effectiveEndDate,
-    investmentMode: values.investmentMode,
     direction: values.direction,
     dropPercentage: drop / 100,
+    amountPerPurchase: perPurchase,
+    ...(budget !== undefined && { totalInvestment: budget }),
+    ...(maxCount !== undefined && { maxPurchases: maxCount }),
     ...toOptionFields(values),
     ...sell.rates,
   };
   // 익절 · 손절은 배당 재투자와 함께 못 씀
   if (hasSellRates(values.takeProfit, values.stopLoss)) {
     request.reinvestDividends = false;
-  }
-  if (values.investmentMode === 'TOTAL_BUDGET') {
-    request.totalInvestment = parseFloat(values.totalInvestment);
-    request.amountPerPurchase = parseFloat(values.amountPerPurchase);
-  } else {
-    request.amountPerPurchase = parseFloat(values.amountPerPurchase);
-    request.maxPurchases = parseInt(values.maxPurchases);
   }
   return { request };
 };

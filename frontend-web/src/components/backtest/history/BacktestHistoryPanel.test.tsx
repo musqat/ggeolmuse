@@ -49,4 +49,20 @@ describe('BacktestHistoryPanel', () => {
     expect(screen.getByText('단순')).toBeInTheDocument()
     expect(screen.getByText('(2023-01-01 ~ 2026-10-23)')).toBeInTheDocument()
   })
+
+  it('조건부 기록은 옛 칸(투자 모드 · 총 예산)이든 새 칸(회당 금액 · 예산 · 최대 횟수)이든 조건부 매수로 보인다', () => {
+    const record = (backtestId: string, params: object) => ({
+      backtestId,
+      userId: 'u',
+      backtestType: 'STRATEGY_SIMULATION' as const,
+      requestParams: JSON.stringify({ symbol: 'AAPL', startDate: '2023-01-01', endDate: '2026-10-23', ...params }),
+      fxRateMode: 'auto' as const,
+      createdAt: '2026-10-23T09:00:00',
+    })
+    const old = record('1', { investmentMode: 'TOTAL_BUDGET', totalInvestment: 1000000, amountPerPurchase: 100000, dropPercentage: 0.05 })
+    const current = record('2', { amountPerPurchase: 100000, maxPurchases: 5, dropPercentage: 0.05 })
+    renderPanel({ historyData: [old, current], historyTotalPages: 1 })
+
+    expect(screen.getAllByText('조건부 매수')).toHaveLength(2)
+  })
 })

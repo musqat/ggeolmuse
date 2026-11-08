@@ -70,13 +70,40 @@ describe('DcaConditionalResult', () => {
     expect(screen.getByText('차트 시작 2023-01-01')).toBeVisible()
   })
 
-  it('매수가 없으면 탭 없이 자산 추이 카드만 둔다', () => {
-    render(
-      <DcaConditionalResult result={{ ...result, transactions: [], skippedRounds: [{ date: '2023-01-15', reason: 'NO_PRICE' }] }} {...props} />
-    )
+  it('매수가 없어도 주가 추이 탭에서 결과 기간의 주가를 보인다', async () => {
+    render(<DcaConditionalResult result={{ ...result, transactions: [] }} {...props} />)
 
-    expect(screen.queryByRole('tablist')).toBeNull()
-    expect(screen.getByRole('heading', { name: '자산 추이' })).toBeInTheDocument()
+    await priceTab()
+
+    expect(screen.getByText('차트 시작 2023-01-01')).toBeVisible()
+  })
+
+  it('매수 0회면 조건이 맞아 산 날이 없다고 한 줄로 알린다', () => {
+    render(<DcaConditionalResult result={{ ...result, transactions: [], totalInvested: 0 }} {...props} />)
+
+    expect(screen.getByText('매수 0회: 기간 안에 조건이 맞아 산 날이 없습니다.')).toBeInTheDocument()
+  })
+
+  it('예산 부족 구간을 처음 날짜 · 회차 수 한 줄로 알린다', () => {
+    const skippedSpan = { firstDate: '2023-05-03', rounds: 4, reason: 'OVER_BUDGET' as const }
+    render(<DcaConditionalResult result={{ ...result, skippedSpan }} {...props} />)
+
+    expect(screen.getByText('예산이 모자라 2023-05-03부터 4회를 사지 않았습니다.')).toBeInTheDocument()
+    expect(screen.queryByText(/^매수 0회:/)).toBeNull()
+  })
+
+  it('매수 0회가 예산 부족 때문이면 그 구간을 같은 줄에 보인다', () => {
+    const skippedSpan = { firstDate: '2023-01-15', rounds: 3, reason: 'OVER_BUDGET' as const }
+    render(<DcaConditionalResult result={{ ...result, transactions: [], skippedSpan }} {...props} />)
+
+    expect(screen.getByText('매수 0회: 예산이 모자라 2023-01-15부터 3회를 사지 않았습니다.')).toBeInTheDocument()
+  })
+
+  it('배당 재투자만 있으면 매수 0회로 본다', () => {
+    const transactions = [{ date: '2023-05-12', shares: 0.01, price: 170, amount: 0, fxRate: 1300, trigger: '배당 재투자' }]
+    render(<DcaConditionalResult result={{ ...result, transactions }} {...props} />)
+
+    expect(screen.getByText(/^매수 0회:/)).toBeInTheDocument()
   })
 
   it('매수 내역은 맨 아래 접는 칸이고 제목 줄에 매수 · 미매수 횟수를 보인다', () => {

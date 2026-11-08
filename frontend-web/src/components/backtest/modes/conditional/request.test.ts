@@ -6,10 +6,9 @@ const ctx = { today: '2026-10-08' }
 const values: ConditionalValues = {
   startDate: '2023-01-01',
   endDate: '',
-  investmentMode: 'TOTAL_BUDGET',
-  totalInvestment: '1000000',
   amountPerPurchase: '100000',
-  maxPurchases: '20',
+  totalInvestment: '1000000',
+  maxPurchases: '',
   direction: 'DROP',
   dropPercentage: '5',
   takeProfit: '',
@@ -34,15 +33,21 @@ const base = {
 }
 
 describe('buildConditionalRequest', () => {
-  it('총 예산 모드는 총 투자금과 회당 금액을 보낸다', () => {
+  it('회당 금액 · 예산을 보내고 비운 최대 횟수는 싣지 않는다', () => {
     expect(buildConditionalRequest(values, 'AAPL', ctx)).toStrictEqual({
-      request: { ...base, investmentMode: 'TOTAL_BUDGET', totalInvestment: 1000000, amountPerPurchase: 100000 },
+      request: { ...base, amountPerPurchase: 100000, totalInvestment: 1000000 },
     })
   })
 
-  it('회당 금액 모드는 회당 금액과 최대 횟수를 보낸다', () => {
-    expect(buildConditionalRequest({ ...values, investmentMode: 'PER_PURCHASE' }, 'AAPL', ctx)).toEqual({
-      request: { ...base, investmentMode: 'PER_PURCHASE', amountPerPurchase: 100000, maxPurchases: 20 },
+  it('예산을 비우면 싣지 않고 최대 횟수만 보낸다', () => {
+    expect(buildConditionalRequest({ ...values, totalInvestment: '', maxPurchases: '20' }, 'AAPL', ctx)).toStrictEqual({
+      request: { ...base, amountPerPurchase: 100000, maxPurchases: 20 },
+    })
+  })
+
+  it('예산 · 최대 횟수를 모두 비우면 회당 금액만 보낸다', () => {
+    expect(buildConditionalRequest({ ...values, totalInvestment: ' ' }, 'AAPL', ctx)).toStrictEqual({
+      request: { ...base, amountPerPurchase: 100000 },
     })
   })
 
@@ -53,10 +58,12 @@ describe('buildConditionalRequest', () => {
   })
 
   it.each([
-    [{ totalInvestment: '0' }, '올바른 총 투자금을 입력해주세요.'],
-    [{ amountPerPurchase: '' }, '올바른 회당 투자금을 입력해주세요.'],
-    [{ amountPerPurchase: '2000000' }, '회당 투자금은 총 투자금보다 작아야 합니다.'],
-    [{ investmentMode: 'PER_PURCHASE' as const, maxPurchases: '0' }, '올바른 최대 횟수를 입력해주세요.'],
+    [{ amountPerPurchase: '' }, '올바른 회당 금액을 입력해주세요.'],
+    [{ amountPerPurchase: '0' }, '올바른 회당 금액을 입력해주세요.'],
+    [{ totalInvestment: '0' }, '예산은 비우거나 0보다 크게 입력해주세요.'],
+    [{ amountPerPurchase: '2000000' }, '회당 금액이 예산보다 큽니다.'],
+    [{ maxPurchases: '0' }, '최대 횟수는 비우거나 1 이상의 정수로 입력해주세요.'],
+    [{ maxPurchases: '2.5' }, '최대 횟수는 비우거나 1 이상의 정수로 입력해주세요.'],
     [{ dropPercentage: '101' }, '하락률은 0~100 사이여야 합니다.'],
     [{ endDate: '2022-01-01' }, '시작일은 종료일보다 빠른 날짜여야 합니다.'],
   ])('%o 는 막는다', (patch, error) => {
