@@ -28,6 +28,7 @@ public enum BacktestResponse implements ErrorCode {
   STRATEGY_TOTAL_INVESTMENT_REQUIRED("총 투자금액은 필수입니다.", HttpStatus.BAD_REQUEST),
   STRATEGY_DROP_PERCENTAGE_REQUIRED("하락률 · 상승률 조건은 필수입니다.", HttpStatus.BAD_REQUEST),
   INVALID_PURCHASE_DAY("투자일은 1-31 사이여야 합니다.", HttpStatus.BAD_REQUEST),
+  INVALID_INVESTMENT_INTERVAL("투자 주기는 1-12개월 사이여야 합니다.", HttpStatus.BAD_REQUEST),
   INVALID_MAX_PURCHASES("최대 매수 횟수는 0보다 커야 합니다.", HttpStatus.BAD_REQUEST),
   INVALID_SELL_RATE("익절 · 손절 비율은 0보다 크고, 손절은 1보다 작아야 합니다.", HttpStatus.BAD_REQUEST),
   SELL_WITH_REINVEST("익절 · 손절은 배당 재투자와 함께 쓸 수 없습니다.", HttpStatus.BAD_REQUEST),

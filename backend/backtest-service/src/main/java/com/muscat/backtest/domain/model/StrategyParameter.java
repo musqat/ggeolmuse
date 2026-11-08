@@ -2,6 +2,8 @@ package com.muscat.backtest.domain.model;
 
 import com.muscat.backtest.common.enums.type.PriceDirection;
 import com.muscat.backtest.common.enums.type.StrategyType;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -17,7 +19,11 @@ public class StrategyParameter {
 
   // 적립식 투자 전략용
   private BigDecimal monthlyAmount;
+  @Min(value = 1, message = "투자일은 1-28 사이여야 합니다")
+  @Max(value = 28, message = "투자일은 1-28 사이여야 합니다")
   private Integer purchaseDay;
+  @Min(value = 1, message = "투자 주기는 1-12개월 사이여야 합니다")
+  @Max(value = 12, message = "투자 주기는 1-12개월 사이여야 합니다")
   private Integer investmentInterval;       // 투자 주기 (개월, null이면 1)
   private BigDecimal totalInvestmentLimit;  // 총 투자 금액 한도
 

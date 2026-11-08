@@ -2,6 +2,7 @@ package com.muscat.backtest.domain.strategy;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -26,6 +27,7 @@ import com.muscat.backtest.infra.client.dto.FxRateDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import com.muscat.commonlib.dto.StockPriceDto;
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,6 +41,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
@@ -440,24 +443,20 @@ class DCAStrategyTest {
   @DisplayName("투자 한도 테스트")
   class InvestmentLimitTests {
 
-    @Test
-    @DisplayName("총 투자금 한도에 도달하면 투자를 중단한다")
-    void execute_WithInvestmentLimit_StopsAtLimit() {
-      // given
-      BigDecimal monthlyAmount = new BigDecimal("1000.00");
-      BigDecimal investmentLimit = new BigDecimal("2500.00"); // 3개월치보다 적게 설정
-
+    @ParameterizedTest(name = "회당 30만 · 한도 {0} → {1}회")
+    @CsvSource({"1000000, 3", "900000, 3"})
+    @DisplayName("총 투자금 한도를 넘게 되는 회차부터 사지 않는다")
+    void execute_WithInvestmentLimit_StopsBeforeExceeding(String limit, int rounds) {
       DcaStrategyRequest request = DcaStrategyRequest.builder()
         .userId(userId)
         .symbol(symbol)
         .startDate(LocalDate.of(2024, 1, 1))
-        .endDate(LocalDate.of(2024, 6, 30)) // 6개월 설정
-        .monthlyAmount(monthlyAmount)
+        .endDate(LocalDate.of(2024, 6, 30))
+        .monthlyAmount(new BigDecimal("300000"))
         .purchaseDay(15)
-        .totalInvestmentLimit(investmentLimit)
+        .totalInvestmentLimit(new BigDecimal(limit))
         .build();
 
-      // BULK API: Mock price data for 6 months
       List<OHLCPriceDto> ohlcPrices = List.of(
         createOHLC(LocalDate.of(2024, 1, 15), new BigDecimal("100.00")),
         createOHLC(LocalDate.of(2024, 2, 15), new BigDecimal("100.00")),
@@ -468,45 +467,21 @@ class DCAStrategyTest {
       );
       given(marketDataClient.getOHLCPriceRange(eq(symbol), eq("2024-01-01"), eq("2024-06-30")))
         .willReturn(ohlcPrices);
-
-      // BULK API: Mock FX rate
-      java.util.Map<String, BigDecimal> fxRates = java.util.Map.of(
-        "2024-01-15", new BigDecimal("1300.00"),
-        "2024-02-15", new BigDecimal("1300.00"),
-        "2024-03-15", new BigDecimal("1300.00"),
-        "2024-04-15", new BigDecimal("1300.00"),
-        "2024-05-15", new BigDecimal("1300.00"),
-        "2024-06-15", new BigDecimal("1300.00")
-      );
-      given(marketDataClient.getBulkFxRates(any())).willReturn(fxRates);
-
-      FxRateDto fxRate = new FxRateDto(
-        LocalDate.now(), new BigDecimal("1300.00"));
-      given(marketDataClient.getFxRate(anyString())).willReturn(fxRate);
-
-      // 평가일 시세 Mock
+      given(marketDataClient.getBulkFxRates(any())).willReturn(java.util.Map.of());
+      given(marketDataClient.getFxRate(anyString()))
+        .willReturn(new FxRateDto(LocalDate.now(), new BigDecimal("1300.00")));
       given(marketDataClient.getOHLCPrice(eq(symbol), anyString()))
         .willReturn(createOHLC(request.getEndDate(), new BigDecimal("100.00")));
-
-      // Mock dividend data
       given(marketDataClient.getDividendHistory(eq(symbol), anyString(), anyString()))
         .willReturn(java.util.Collections.emptyList());
 
-      // Mock ResponseMapper
-      StrategyResponse expectedResponse = StrategyResponse.builder()
-        .strategyType(StrategyType.DCA)
-        .totalInvested(new BigDecimal("2000.00")) // 2개월치만 투자
-        .build();
-      given(responseMapper.toStrategyResponse(
-        any(DcaStrategyRequest.class), any(), any(), any(), any()))
-        .willReturn(expectedResponse);
+      dcaStrategy.execute(request);
 
-      // when
-      StrategyResponse result = dcaStrategy.execute(request);
-
-      // then
-      assertThat(result).isNotNull();
-      assertThat(result.getTotalInvested()).isLessThanOrEqualTo(investmentLimit);
+      @SuppressWarnings("unchecked")
+      ArgumentCaptor<List<StrategyTransaction>> captor = ArgumentCaptor.forClass(List.class);
+      verify(responseMapper).toStrategyResponse(any(DcaStrategyRequest.class), captor.capture(), any(), any(), any());
+      assertThat(captor.getValue()).hasSize(rounds)
+        .extracting(StrategyTransaction::getAmount).containsOnly(new BigDecimal("300000"));
     }
   }
 
@@ -779,6 +754,19 @@ class DCAStrategyTest {
         .isInstanceOf(BacktestException.class)
         .extracting("code")
         .isEqualTo(BacktestResponse.INVALID_PURCHASE_DAY);
+    }
+
+    @ParameterizedTest(name = "투자 주기 {0}")
+    @ValueSource(ints = {0, -1, 13})
+    @DisplayName("투자 주기가 1 ~ 12 밖이면 투자일을 세기 전에 INVALID_INVESTMENT_INTERVAL")
+    void investmentIntervalOutOfRange(int interval) {
+      DcaStrategyRequest request = base().investmentInterval(interval).build();
+
+      assertTimeoutPreemptively(Duration.ofSeconds(2), () ->
+        assertThatThrownBy(() -> dcaStrategy.execute(request))
+          .isInstanceOf(BacktestException.class)
+          .extracting("code")
+          .isEqualTo(BacktestResponse.INVALID_INVESTMENT_INTERVAL));
     }
 
     @Test

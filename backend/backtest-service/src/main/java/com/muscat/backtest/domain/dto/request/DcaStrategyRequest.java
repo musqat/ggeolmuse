@@ -5,6 +5,8 @@ import com.muscat.backtest.common.enums.type.StrategyType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -45,14 +47,17 @@ public class DcaStrategyRequest implements StrategyRequest {
 
   @Schema(description = "매월 투자할 날짜 (1-28)", example = "15", required = true)
   @NotNull(message = "투자일은 필수입니다")
-  @Positive(message = "투자일은 1 이상이어야 합니다")
-  private Integer purchaseDay;             // 매월 몇일에 투자할지
+  @Min(value = 1, message = "투자일은 1-28 사이여야 합니다")
+  @Max(value = 28, message = "투자일은 1-28 사이여야 합니다")
+  private Integer purchaseDay;             // 매월 며칠에 투자할지
 
-  @Schema(description = "투자 주기 (개월 단위, 1=매월, 2=2개월마다, 3=분기마다)", example = "1")
+  @Schema(description = "투자 주기 (개월 단위 1-12, 1=매월, 2=2개월마다, 3=분기마다)", example = "1")
+  @Min(value = 1, message = "투자 주기는 1-12개월 사이여야 합니다")
+  @Max(value = 12, message = "투자 주기는 1-12개월 사이여야 합니다")
   @Builder.Default
   private Integer investmentInterval = 1;   // 투자 주기 (기본값: 1개월)
 
-  @Schema(description = "총 투자 금액 한도 (null이면 무제한)", example = "1000000.00")
+  @Schema(description = "총 투자 금액 한도 (넘게 되는 회차부터 사지 않음, null이면 무제한)", example = "1000000.00")
   private BigDecimal totalInvestmentLimit;  // 총 투자 금액 제한
 
   @Schema(description = "매수 시 환율 (수동 설정 시, null이면 자동)", example = "1300.00")
