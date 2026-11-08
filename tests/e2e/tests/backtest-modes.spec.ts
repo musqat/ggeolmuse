@@ -113,23 +113,26 @@ test('종목 비교가 돌고 최적 타이밍 순서가 지켜진다', async ()
   }
 });
 
-test('전략 비교가 돈다', async () => {
+test('전략 비교가 칩마다 설정으로 돈다', async () => {
   const res = await postUntilAllowed(`${API_URL}/analysis/compare/strategies`, {
     data: {
       symbol,
       startDate: start,
       endDate: end,
       investmentAmount: 1_000_000,
+      // 익절이 있는 조건부 칩만 재투자 안 함
+      reinvestDividends: true,
       // 화면이 보내는 모양 그대로(SIMPLE 에 purchaseDate 가 없으면 200 인데 그 항목만 조용히 빠짐)
       strategies: [
         { strategyType: 'SIMPLE', name: 'SIMPLE', purchaseDate: start },
+        { strategyType: 'DCA', name: 'DCA', amountPerPurchase: 100_000, frequency: 'WEEKLY' },
         {
-          strategyType: 'DCA',
-          name: 'DCA',
-          monthlyAmount: 300_000,
-          purchaseDay: 15,
-          investmentInterval: 1,
-          totalInvestmentLimit: 1_000_000,
+          strategyType: 'CONDITIONAL_PURCHASE',
+          name: 'CONDITIONAL_PURCHASE',
+          amountPerPurchase: 100_000,
+          direction: 'DROP',
+          dropPercentage: 0.03,
+          takeProfitRate: 0.2,
         },
       ],
     },
@@ -137,5 +140,6 @@ test('전략 비교가 돈다', async () => {
 
   expect(res.status(), `전략 비교가 실패했다: ${await res.text()}`).toBe(200);
   const body = await res.json();
-  expect((body.items ?? []).length, '전략이 두 개인데 결과가 모자라다').toBeGreaterThanOrEqual(2);
+  const names = (body.items ?? []).map((item: { name: string }) => item.name);
+  expect(names, '칩 셋 가운데 빠진 결과가 있다').toEqual(expect.arrayContaining(['SIMPLE', 'DCA', 'CONDITIONAL_PURCHASE']));
 });

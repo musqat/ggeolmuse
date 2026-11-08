@@ -24,7 +24,7 @@ public class ComparisonResponse {
   private BigDecimal investmentAmount;
 
   // 비교 결과 리스트
-  @Schema(description = "비교 항목 목록")
+  @Schema(description = "비교 항목 목록 (수익률 순, 투자금 0 인 매수 0회 항목은 순위 없이 끝에 두고 최고 · 최저 · 평균 · 중간값에서 뺌)")
   private List<ComparisonItem> items;
 
   // 순위 정보

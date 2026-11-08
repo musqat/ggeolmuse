@@ -19,7 +19,7 @@ const values: StrategyComparisonValues = {
 }
 
 describe('buildStrategyComparisonRequest', () => {
-  it('고른 순서대로 카탈로그 변환을 거친 전략을 보낸다', () => {
+  it('고른 순서대로 카탈로그 변환을 거친 전략을 보내고 원금은 요청 금액 하나로 보낸다', () => {
     expect(buildStrategyComparisonRequest(values, ctx)).toStrictEqual({
       request: {
         symbol: 'AAPL',
@@ -31,10 +31,10 @@ describe('buildStrategyComparisonRequest', () => {
           {
             strategyType: 'DCA',
             name: 'DCA',
-            monthlyAmount: 100000,
-            purchaseDay: 15,
+            amountPerPurchase: 100000,
+            frequency: 'MONTHLY',
+            purchaseDay: 1,
             investmentInterval: 1,
-            totalInvestmentLimit: 1000000,
           },
         ],
         reinvestDividends: false,
@@ -44,7 +44,7 @@ describe('buildStrategyComparisonRequest', () => {
     })
   })
 
-  it('조건부 매수에 익절 · 손절을 켜면 함께 못 쓰는 배당 재투자를 끄고, 아니면 그대로 둔다', () => {
+  it('조건부 매수에 익절 · 손절이 있어도 배당 재투자는 고른 대로 보낸다', () => {
     const selling = buildStrategyComparisonRequest(
       {
         ...values,
@@ -54,10 +54,7 @@ describe('buildStrategyComparisonRequest', () => {
       },
       ctx
     )
-    expect(selling).toMatchObject({ request: { reinvestDividends: false, strategies: [{}, { takeProfitRate: 0.2 }] } })
-    expect(buildStrategyComparisonRequest({ ...values, reinvestDividends: true }, ctx)).toMatchObject({
-      request: { reinvestDividends: true },
-    })
+    expect(selling).toMatchObject({ request: { reinvestDividends: true, strategies: [{}, { takeProfitRate: 0.2 }] } })
   })
 
   it('종료일이 비면 오늘로 채운다', () => {
@@ -66,13 +63,25 @@ describe('buildStrategyComparisonRequest', () => {
     })
   })
 
-  it('저장한 파라미터를 쓴다', () => {
+  it('칩마다 저장한 설정을 쓴다', () => {
     const built = buildStrategyComparisonRequest(
-      { ...values, strategyParameters: { DCA: { monthlyAmount: '200000', purchaseDay: '1', investmentInterval: '3' } } },
+      {
+        ...values,
+        selectedStrategies: ['DCA', 'CONDITIONAL_PURCHASE'],
+        strategyParameters: {
+          DCA: { amountPerPurchase: '200000', cadence: 'MONTHS', months: '3', firstPurchaseDate: '2023-01-15' },
+          CONDITIONAL_PURCHASE: { amountPerPurchase: '300000', dropPercentage: '3', maxPurchases: '2' },
+        },
+      },
       ctx
     )
     expect(built).toMatchObject({
-      request: { strategies: [{}, { monthlyAmount: 200000, purchaseDay: 1, investmentInterval: 3 }] },
+      request: {
+        strategies: [
+          { amountPerPurchase: 200000, frequency: 'MONTHLY', firstPurchaseDate: '2023-01-15', purchaseDay: 15, investmentInterval: 3 },
+          { amountPerPurchase: 300000, dropPercentage: 0.03, maxPurchases: 2 },
+        ],
+      },
     })
   })
 
@@ -86,7 +95,18 @@ describe('buildStrategyComparisonRequest', () => {
     [{ selectedStrategies: ['SIMPLE' as const] }, '최소 2개 이상의 전략을 선택해주세요.'],
     [{ endDate: '2023-01-01' }, '시작일은 종료일보다 빠른 날짜여야 합니다.'],
     [{ startDate: '2026-10-08', endDate: '' }, '시작일은 종료일보다 빠른 날짜여야 합니다.'],
-    [{ strategyParameters: { DCA: { purchaseDay: '40' } } }, '적립식: 매수일이 유효하지 않습니다 (1-31).'],
+    [{ investment: '' }, '올바른 원금을 입력해주세요.'],
+    [{ investment: '0' }, '올바른 원금을 입력해주세요.'],
+    [{ strategyParameters: { DCA: { cadence: 'MONTHS', months: '0' } } }, '적립식: 개월 수는 1~12 사이의 정수로 입력해주세요.'],
+    [{ investment: '50000' }, '적립식: 회당 금액이 원금보다 큽니다.'],
+    [
+      { endDate: '', strategyParameters: { DCA: { firstPurchaseDate: '2026-10-09' } } },
+      '적립식: 첫 매수일은 시작일과 종료일 사이로 골라주세요.',
+    ],
+    [
+      { endDate: '2025-06-30', strategyParameters: { DCA: { firstPurchaseDate: '2025-07-01' } } },
+      '적립식: 첫 매수일은 시작일과 종료일 사이로 골라주세요.',
+    ],
   ])('%o 는 막는다', (patch, error) => {
     expect(buildStrategyComparisonRequest({ ...values, ...patch }, ctx)).toEqual({ error })
   })

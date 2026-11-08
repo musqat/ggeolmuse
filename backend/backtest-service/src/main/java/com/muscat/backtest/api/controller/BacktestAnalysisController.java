@@ -211,7 +211,8 @@ public class BacktestAnalysisController {
     ComparisonResponse result = backtestMetrics.record("compare_strategies", () -> backtestAnalysisService.compareStrategies(request));
 
     log.info("전략 비교 분석 완료: {}개 전략, 최고 수익률 {}%",
-        result.getItems().size(), result.getBestPerformer().getTotalReturnPercent());
+        result.getItems().size(),
+        result.getBestPerformer() != null ? result.getBestPerformer().getTotalReturnPercent() : "-");
 
     return ResponseEntity.ok(result);
   }

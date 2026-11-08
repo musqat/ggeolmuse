@@ -6,7 +6,6 @@ import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.BacktestType;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
-import com.muscat.backtest.common.util.BacktestCalculationUtils;
 import com.muscat.backtest.common.util.BacktestHistoryUtils;
 import com.muscat.backtest.domain.dto.request.BaseComparisonRequest;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
@@ -37,9 +36,6 @@ import org.springframework.stereotype.Service;
 @Service
 @Slf4j
 public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
-
-  // 전략 비교 조건부의 최대 횟수를 비웠을 때 원금을 나누는 횟수
-  private static final int DEFAULT_CONDITIONAL_ROUNDS = 10;
 
   private final TradingSimulationService tradingSimulationService;
   private final Map<StrategyType, InvestmentStrategy> strategyMap;
@@ -190,11 +186,13 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
         .startDate(request.getStartDate())
         .endDate(request.getEndDate())
         .userId(request.getUserId())
-        .amountPerPurchase(strategyConfig.getMonthlyAmount())
+        .amountPerPurchase(strategyConfig.getAmountPerPurchase())
+        .frequency(strategyConfig.getFrequency())
+        .firstPurchaseDate(strategyConfig.getFirstPurchaseDate())
         .purchaseDay(strategyConfig.getPurchaseDay())
         .investmentInterval(strategyConfig.getInvestmentInterval() != null
           ? strategyConfig.getInvestmentInterval() : 1)
-        .totalInvestmentLimit(strategyConfig.getTotalInvestmentLimit())
+        .totalInvestmentLimit(request.getInvestmentAmount())
         .purchaseFxRate(request.getPurchaseFxRate())
         .currentFxRate(request.getCurrentFxRate())
         .reinvestDividends(reinvests(request))
@@ -207,22 +205,23 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
     }
 
     if (strategyType == StrategyType.CONDITIONAL_PURCHASE) {
-      int rounds = strategyConfig.getMaxPurchases() != null
-        ? strategyConfig.getMaxPurchases() : DEFAULT_CONDITIONAL_ROUNDS;
+      boolean sells = strategyConfig.getTakeProfitRate() != null || strategyConfig.getStopLossRate() != null;
       ConditionalStrategyRequest conditionalRequest = ConditionalStrategyRequest.builder()
         .symbol(request.getSymbol())
         .startDate(request.getStartDate())
         .endDate(request.getEndDate())
         .userId(request.getUserId())
-        .amountPerPurchase(splitBudget(strategyConfig.getTotalInvestment(), rounds))
+        .amountPerPurchase(strategyConfig.getAmountPerPurchase())
+        .totalInvestment(request.getInvestmentAmount())
         .dropPercentage(strategyConfig.getDropPercentage())
         .direction(strategyConfig.getDirection())
-        .maxPurchases(rounds)
+        .maxPurchases(strategyConfig.getMaxPurchases())
         .takeProfitRate(strategyConfig.getTakeProfitRate())
         .stopLossRate(strategyConfig.getStopLossRate())
         .purchaseFxRate(request.getPurchaseFxRate())
         .currentFxRate(request.getCurrentFxRate())
-        .reinvestDividends(reinvests(request))
+        // 익절 · 손절을 켠 칩만 재투자 끔
+        .reinvestDividends(!sells && reinvests(request))
         .dividendTaxRate(orZero(request.getDividendTaxRate()))
         .tradingFeeRate(orZero(request.getTradingFeeRate()))
         .build();
@@ -243,17 +242,6 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
     }
 
     throw new BacktestException(BacktestResponse.STRATEGY_TYPE_MISMATCH, "비교할 수 없는 전략 타입: " + strategyType);
-  }
-
-  // 전략 비교 조건부의 원금을 횟수로 나눈 회당 금액
-  private static BigDecimal splitBudget(BigDecimal budget, int rounds) {
-    if (budget == null || budget.signum() <= 0) {
-      throw new BacktestException(BacktestResponse.STRATEGY_TOTAL_INVESTMENT_REQUIRED);
-    }
-    if (rounds <= 0) {
-      throw new BacktestException(BacktestResponse.INVALID_MAX_PURCHASES);
-    }
-    return BacktestCalculationUtils.calculateInvestmentPerDivision(budget, rounds);
   }
 
   private <T> List<ComparisonItem> collectComparisonItems(List<T> sources,

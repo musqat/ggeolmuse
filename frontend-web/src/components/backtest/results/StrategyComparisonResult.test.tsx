@@ -72,10 +72,46 @@ const renderResult = (value: object = result) => render(<StrategyComparisonResul
 const row = (name: string) => screen.getByText(name, { selector: 'td span span' }).closest('tr') as HTMLElement
 
 describe('StrategyComparisonResult', () => {
-  it('요약 한 줄에 종목 · 예산 · 전략 수 · 최고 전략을 한글 이름으로 보인다', () => {
+  it('요약 한 줄에 종목 · 전략마다 원금 · 전략 수 · 최고 전략을 한글 이름으로 보인다', () => {
     renderResult()
 
-    expect(screen.getByText(/예산 ₩1,000,000/)).toHaveTextContent('AAPL · 예산 ₩1,000,000 · 전략 2개 · 최고 적립식 +20.00%')
+    expect(screen.getByText(/전략마다 원금 ₩1,000,000/)).toHaveTextContent(
+      'AAPL · 전략마다 원금 ₩1,000,000 · 전략 2개 · 최고 적립식 +20.00%'
+    )
+  })
+
+  it('매수 0회 전략은 총 수익률 자리에 매수 0회를 보이고 맨 아래에 두며 최고 표시 · 최고 전략에서 뺀다', () => {
+    const none = {
+      name: 'CONDITIONAL_PURCHASE',
+      code: 'AAPL',
+      totalInvested: 0,
+      currentValueKrw: 0,
+      totalReturnPercent: 0,
+      totalReturnKrw: 0,
+      additionalData: { symbol: 'AAPL', transactions: [], metricsKrw: metrics(0, 0) },
+    }
+    const losing = result.items.map((item) => ({ ...item, totalReturnPercent: item.name === 'DCA' ? -5 : -10 }))
+    renderResult({ ...result, bestPerformer: none, items: [none, ...losing] })
+
+    const names = screen.getAllByText(/^(단순 매수|적립식|조건부 매수)$/, { selector: 'td span span' }).map((el) => el.textContent)
+    expect(names).toEqual(['적립식', '단순 매수', '조건부 매수'])
+    expect(row('조건부 매수')).toHaveTextContent('매수 0회')
+    expect(within(row('조건부 매수')).queryByText('최고')).toBeNull()
+    expect(within(row('조건부 매수')).queryByText('가장 적음')).toBeNull()
+    expect(within(row('적립식')).getAllByText('최고').length).toBeGreaterThan(0)
+    expect(screen.getByText(/전략마다 원금/)).toHaveTextContent('최고 적립식 -5.00%')
+  })
+
+  it('원금이 모자라 사지 못한 회차는 상세에 처음 날짜와 회차 수로 보인다', async () => {
+    const dca = result.items[1]
+    const span = { firstDate: '2024-03-01', rounds: 5, reason: 'OVER_BUDGET' }
+    renderResult({ ...result, items: [result.items[0], { ...dca, additionalData: { ...dca.additionalData, skippedSpan: span } }] })
+
+    await userEvent.click(row('적립식'))
+    expect(screen.getByText('원금 부족 미매수').nextElementSibling).toHaveTextContent('2024-03-01부터 5회')
+
+    await userEvent.click(row('단순 매수'))
+    expect(screen.queryByText('원금 부족 미매수')).toBeNull()
   })
 
   it('표는 총 수익률 순이고 투자금 칸을 따로 두며 투자금 · 평가 가치에는 최고 표시가 없다', () => {

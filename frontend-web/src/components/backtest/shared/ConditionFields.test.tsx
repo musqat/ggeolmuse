@@ -28,7 +28,7 @@ describe('ConditionFields', () => {
 
     expect(screen.getByRole('button', { name: '하락' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByText('하락률 (%)')).toBeInTheDocument()
-    expect(screen.getByText('전날 종가보다 이만큼 떨어지면 그날 매수')).toBeInTheDocument()
+    expect(screen.getByText('전날 종가보다 이만큼 떨어지면 그 날짜에 매수')).toBeInTheDocument()
   })
 
   it('탭을 고르면 방향을 넘기고 비율 이름 · 안내를 바꾼다', async () => {
@@ -39,11 +39,11 @@ describe('ConditionFields', () => {
     expect(onDirection).toHaveBeenLastCalledWith('RISE')
     expect(screen.getByText('상승률 (%)')).toBeInTheDocument()
     expect(screen.getByRole('spinbutton', { name: '상승률 (%)' })).toHaveValue(5)
-    expect(screen.getByText('전날 종가보다 이만큼 오르면 그날 매수')).toBeInTheDocument()
+    expect(screen.getByText('전날 종가보다 이만큼 오르면 그 날짜에 매수')).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: '둘 다' }))
     expect(screen.getByRole('button', { name: '둘 다' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByText('변동률 (%)')).toBeInTheDocument()
-    expect(screen.getByText('전날 종가보다 이만큼 떨어지거나 오르면 그날 매수')).toBeInTheDocument()
+    expect(screen.getByText('전날 종가보다 이만큼 떨어지거나 오르면 그 날짜에 매수')).toBeInTheDocument()
   })
 })

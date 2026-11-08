@@ -14,6 +14,7 @@ import static org.mockito.BDDMockito.willThrow;
 
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.BacktestType;
+import com.muscat.backtest.common.enums.type.DcaFrequency;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.util.BacktestHistoryUtils;
@@ -355,13 +356,13 @@ class BacktestAnalysisServiceImplTest {
       StrategyParameter dcaConfig = new StrategyParameter();
       dcaConfig.setStrategyType(StrategyType.DCA);
       dcaConfig.setName("DCA 전략");
-      dcaConfig.setMonthlyAmount(BigDecimal.valueOf(1000));
+      dcaConfig.setAmountPerPurchase(BigDecimal.valueOf(1000));
       dcaConfig.setPurchaseDay(1);
 
       StrategyParameter conditionalConfig = new StrategyParameter();
       conditionalConfig.setStrategyType(StrategyType.CONDITIONAL_PURCHASE);
       conditionalConfig.setName("조건부 매수");
-      conditionalConfig.setTotalInvestment(BigDecimal.valueOf(12000));
+      conditionalConfig.setAmountPerPurchase(BigDecimal.valueOf(2000));
       conditionalConfig.setDropPercentage(BigDecimal.valueOf(10));
       conditionalConfig.setMaxPurchases(5);
 
@@ -369,6 +370,7 @@ class BacktestAnalysisServiceImplTest {
       request.setSymbol("AAPL");
       request.setStartDate(LocalDate.of(2023, 1, 1));
       request.setEndDate(LocalDate.of(2024, 1, 1));
+      request.setInvestmentAmount(BigDecimal.valueOf(12000));
       request.setStrategies(Arrays.asList(dcaConfig, conditionalConfig));
       request.setUserId("user123");
 
@@ -423,7 +425,7 @@ class BacktestAnalysisServiceImplTest {
       StrategyParameter dcaConfig = new StrategyParameter();
       dcaConfig.setStrategyType(StrategyType.DCA);
       dcaConfig.setName("DCA 전략");
-      dcaConfig.setMonthlyAmount(BigDecimal.valueOf(1000));
+      dcaConfig.setAmountPerPurchase(BigDecimal.valueOf(1000));
       dcaConfig.setPurchaseDay(1);
       StrategyParameter noType = new StrategyParameter();
       noType.setName("타입 없음");
@@ -533,17 +535,18 @@ class BacktestAnalysisServiceImplTest {
     }
 
     @Test
-    @DisplayName("전략 비교는 세 전략 하위 요청에 공통 옵션을, 적립식에는 주기 · 한도를, 조건부에는 원금을 10회로 나눈 회당 금액을 넘긴다")
+    @DisplayName("전략 비교는 세 전략 하위 요청에 공통 옵션을, 적립식에는 칩의 회당 금액 · 주기 · 첫 매수일 · 투자일과 원금 한도를, 조건부에는 칩의 회당 금액과 원금 예산을 넘기고 익절 · 손절이 있는 조건부는 재투자를 끈다")
     void compareStrategies_PassesOptions() {
       StrategyParameter simple = strategy(StrategyType.SIMPLE);
       simple.setPurchaseDate(LocalDate.of(2023, 1, 1));
       StrategyParameter dca = strategy(StrategyType.DCA);
-      dca.setMonthlyAmount(BigDecimal.valueOf(100_000));
-      dca.setPurchaseDay(15);
+      dca.setAmountPerPurchase(BigDecimal.valueOf(100_000));
+      dca.setFrequency(DcaFrequency.MONTHLY);
+      dca.setFirstPurchaseDate(LocalDate.of(2023, 1, 31));
+      dca.setPurchaseDay(31);
       dca.setInvestmentInterval(2);
-      dca.setTotalInvestmentLimit(BigDecimal.valueOf(1_000_000));
       StrategyParameter conditional = strategy(StrategyType.CONDITIONAL_PURCHASE);
-      conditional.setTotalInvestment(BigDecimal.valueOf(1_000_000));
+      conditional.setAmountPerPurchase(BigDecimal.valueOf(200_000));
       conditional.setDropPercentage(new BigDecimal("0.05"));
       conditional.setDirection(PriceDirection.RISE);
       conditional.setTakeProfitRate(new BigDecimal("0.2"));
@@ -568,6 +571,11 @@ class BacktestAnalysisServiceImplTest {
 
       ArgumentCaptor<DcaStrategyRequest> dcaRequest = ArgumentCaptor.forClass(DcaStrategyRequest.class);
       verify(dcaStrategy).execute(dcaRequest.capture());
+      assertThat(dcaRequest.getValue().getAmountPerPurchase()).isEqualByComparingTo("100000");
+      assertThat(dcaRequest.getValue().getSharesPerPurchase()).isNull();
+      assertThat(dcaRequest.getValue().getFrequency()).isEqualTo(DcaFrequency.MONTHLY);
+      assertThat(dcaRequest.getValue().getFirstPurchaseDate()).isEqualTo(LocalDate.of(2023, 1, 31));
+      assertThat(dcaRequest.getValue().getPurchaseDay()).isEqualTo(31);
       assertThat(dcaRequest.getValue().getInvestmentInterval()).isEqualTo(2);
       assertThat(dcaRequest.getValue().getTotalInvestmentLimit())
         .isEqualByComparingTo(BigDecimal.valueOf(1_000_000));
@@ -584,7 +592,7 @@ class BacktestAnalysisServiceImplTest {
         .isEqualByComparingTo(new BigDecimal("1300"));
       assertThat(conditionalRequest.getValue().getCurrentFxRate())
         .isEqualByComparingTo(new BigDecimal("1350"));
-      assertThat(conditionalRequest.getValue().getReinvestDividends()).isTrue();
+      assertThat(conditionalRequest.getValue().getReinvestDividends()).isFalse();
       assertThat(conditionalRequest.getValue().getDividendTaxRate())
         .isEqualByComparingTo(new BigDecimal("0.15"));
       assertThat(conditionalRequest.getValue().getTradingFeeRate())
@@ -592,16 +600,18 @@ class BacktestAnalysisServiceImplTest {
       assertThat(conditionalRequest.getValue().getDirection()).isEqualTo(PriceDirection.RISE);
       assertThat(conditionalRequest.getValue().getTakeProfitRate()).isEqualByComparingTo("0.2");
       assertThat(conditionalRequest.getValue().getStopLossRate()).isEqualByComparingTo("0.1");
-      assertThat(conditionalRequest.getValue().getAmountPerPurchase()).isEqualByComparingTo("100000");
-      assertThat(conditionalRequest.getValue().getMaxPurchases()).isEqualTo(10);
-      assertThat(conditionalRequest.getValue().getTotalInvestment()).isNull();
+      assertThat(conditionalRequest.getValue().getAmountPerPurchase()).isEqualByComparingTo("200000");
+      assertThat(conditionalRequest.getValue().getSharesPerPurchase()).isNull();
+      assertThat(conditionalRequest.getValue().getMaxPurchases()).isNull();
+      assertThat(conditionalRequest.getValue().getTotalInvestment())
+        .isEqualByComparingTo(BigDecimal.valueOf(1_000_000));
     }
 
     @Test
-    @DisplayName("전략 비교의 조건부에 최대 횟수를 주면 원금을 그 횟수로 나눈다")
-    void compareStrategies_ConditionalSplitsByMaxPurchases() {
+    @DisplayName("전략 비교의 조건부는 칩의 회당 금액 · 최대 횟수를 그대로 넘기고 원금을 예산으로 쓴다")
+    void compareStrategies_ConditionalKeepsChipLimits() {
       StrategyParameter conditional = strategy(StrategyType.CONDITIONAL_PURCHASE);
-      conditional.setTotalInvestment(BigDecimal.valueOf(1_000_000));
+      conditional.setAmountPerPurchase(BigDecimal.valueOf(300_000));
       conditional.setDropPercentage(new BigDecimal("0.05"));
       conditional.setMaxPurchases(4);
       given(conditionalPurchaseStrategy.execute(any())).willReturn(StrategyResponse.builder().build());
@@ -613,34 +623,37 @@ class BacktestAnalysisServiceImplTest {
       ArgumentCaptor<ConditionalStrategyRequest> conditionalRequest =
         ArgumentCaptor.forClass(ConditionalStrategyRequest.class);
       verify(conditionalPurchaseStrategy).execute(conditionalRequest.capture());
-      assertThat(conditionalRequest.getValue().getAmountPerPurchase()).isEqualByComparingTo("250000");
+      assertThat(conditionalRequest.getValue().getAmountPerPurchase()).isEqualByComparingTo("300000");
       assertThat(conditionalRequest.getValue().getMaxPurchases()).isEqualTo(4);
+      assertThat(conditionalRequest.getValue().getTotalInvestment())
+        .isEqualByComparingTo(BigDecimal.valueOf(1_000_000));
     }
 
     @Test
-    @DisplayName("전략 비교의 조건부에 원금이 없거나 최대 횟수가 0 이면 전략을 돌리지 않고 그 항목을 뺀다")
-    void compareStrategies_ConditionalWithoutBudgetSkipped() {
-      StrategyParameter noBudget = strategy(StrategyType.CONDITIONAL_PURCHASE);
-      noBudget.setDropPercentage(new BigDecimal("0.05"));
-      StrategyParameter zeroRounds = strategy(StrategyType.CONDITIONAL_PURCHASE);
-      zeroRounds.setTotalInvestment(BigDecimal.valueOf(1_000_000));
-      zeroRounds.setDropPercentage(new BigDecimal("0.05"));
-      zeroRounds.setMaxPurchases(0);
+    @DisplayName("익절 · 손절이 없는 조건부 칩은 고른 배당 재투자를 그대로 넘긴다")
+    void compareStrategies_ConditionalWithoutSellsKeepsReinvest() {
+      StrategyParameter conditional = strategy(StrategyType.CONDITIONAL_PURCHASE);
+      conditional.setAmountPerPurchase(BigDecimal.valueOf(300_000));
+      conditional.setDropPercentage(new BigDecimal("0.05"));
+      StrategyComparisonRequest request = strategyRequest(conditional);
+      request.setReinvestDividends(true);
+      given(conditionalPurchaseStrategy.execute(any())).willReturn(StrategyResponse.builder().build());
+      given(responseMapper.toComparisonItemFromStrategy(any(), any())).willReturn(item);
+      stubComparisonResponse();
 
-      assertThatThrownBy(() -> backtestAnalysisService.compareStrategies(strategyRequest(noBudget, zeroRounds)))
-        .isInstanceOf(BacktestException.class)
-        .extracting("code")
-        .isEqualTo(BacktestResponse.DATA_NOT_FOUND);
-      verify(conditionalPurchaseStrategy, never()).execute(any());
+      backtestAnalysisService.compareStrategies(request);
+
+      verify(conditionalPurchaseStrategy).execute(argThat(r ->
+        Boolean.TRUE.equals(((ConditionalStrategyRequest) r).getReinvestDividends())));
     }
 
     @Test
-    @DisplayName("옵션이 비면 재투자 끔 · 수수료 0 · 배당세 0 · 투자 주기 1 로 넘긴다")
+    @DisplayName("옵션이 비면 재투자 끔 · 수수료 0 · 배당세 0 · 투자 주기 1 로, 적립식 한도는 원금으로 넘긴다")
     void compareStrategies_EmptyOptions_UsesDefaults() {
       StrategyParameter simple = strategy(StrategyType.SIMPLE);
       simple.setPurchaseDate(LocalDate.of(2023, 1, 1));
       StrategyParameter dca = strategy(StrategyType.DCA);
-      dca.setMonthlyAmount(BigDecimal.valueOf(100_000));
+      dca.setAmountPerPurchase(BigDecimal.valueOf(100_000));
       dca.setPurchaseDay(15);
       StrategyComparisonRequest request = strategyRequest(simple, dca);
 
@@ -661,7 +674,8 @@ class BacktestAnalysisServiceImplTest {
       ArgumentCaptor<DcaStrategyRequest> dcaRequest = ArgumentCaptor.forClass(DcaStrategyRequest.class);
       verify(dcaStrategy).execute(dcaRequest.capture());
       assertThat(dcaRequest.getValue().getInvestmentInterval()).isEqualTo(1);
-      assertThat(dcaRequest.getValue().getTotalInvestmentLimit()).isNull();
+      assertThat(dcaRequest.getValue().getTotalInvestmentLimit())
+        .isEqualByComparingTo(BigDecimal.valueOf(1_000_000));
       assertThat(dcaRequest.getValue().getReinvestDividends()).isFalse();
       assertThat(dcaRequest.getValue().getDividendTaxRate()).isEqualByComparingTo(BigDecimal.ZERO);
       assertThat(dcaRequest.getValue().getTradingFeeRate()).isEqualByComparingTo(BigDecimal.ZERO);
@@ -733,12 +747,12 @@ class BacktestAnalysisServiceImplTest {
     void strategyComparisonSkipsFailed() {
       StrategyParameter dca = new StrategyParameter();
       dca.setStrategyType(StrategyType.DCA);
-      dca.setMonthlyAmount(BigDecimal.valueOf(1000));
+      dca.setAmountPerPurchase(BigDecimal.valueOf(1000));
       dca.setPurchaseDay(1);
       StrategyParameter conditional = new StrategyParameter();
       conditional.setStrategyType(StrategyType.CONDITIONAL_PURCHASE);
       conditional.setName("조건부 매수");
-      conditional.setTotalInvestment(BigDecimal.valueOf(12000));
+      conditional.setAmountPerPurchase(BigDecimal.valueOf(2000));
       conditional.setDropPercentage(BigDecimal.valueOf(0.1));
 
       StrategyComparisonRequest request = new StrategyComparisonRequest();

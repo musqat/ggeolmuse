@@ -2,9 +2,10 @@ import React from 'react';
 import type { BacktestOptionsState } from './backtestOptions';
 
 // 수수료 · 배당세 · 배당 재투자(익절 · 손절을 켜면 재투자는 끄고 잠금)
-export const DividendFeeOptions: React.FC<{ options: BacktestOptionsState; reinvestLocked?: boolean }> = ({
+export const DividendFeeOptions: React.FC<{ options: BacktestOptionsState; reinvestLocked?: boolean; reinvestNote?: string }> = ({
   options,
   reinvestLocked = false,
+  reinvestNote,
 }) => {
   const { tradingFeeRate, setTradingFeeRate, dividendTax, setDividendTax, reinvestDividends, setReinvestDividends } = options;
   return (
@@ -58,7 +59,7 @@ export const DividendFeeOptions: React.FC<{ options: BacktestOptionsState; reinv
           배당금 재투자
         </span>
         <span className="text-xs text-tx-3">
-          {reinvestLocked ? '익절 · 손절과 함께 쓸 수 없음' : '받은 배당금으로 자동 매수'}
+          {reinvestLocked ? '익절 · 손절과 함께 쓸 수 없음' : (reinvestNote ?? '받은 배당금으로 자동 매수')}
         </span>
       </label>
     </div>

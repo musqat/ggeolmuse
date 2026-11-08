@@ -58,7 +58,8 @@ const FORMS: [string, (p: Period) => ReactElement][] = [
     <StrategyComparisonForm
       symbol="AAPL" setSymbol={vi.fn()} supportedSymbols={[]} options={options}
       startDate={p.start} setStartDate={p.setStart} endDate={p.end} setEndDate={p.setEnd}
-      investment="1000000" setInvestment={vi.fn()} selectedStrategies={[]} toggleStrategy={vi.fn()}
+      investment="1000000" setInvestment={vi.fn()} selectedStrategies={[]} strategyParameters={{}}
+      toggleStrategy={vi.fn()} editStrategy={vi.fn()}
     />
   )],
   ['종목 비교', (p) => (

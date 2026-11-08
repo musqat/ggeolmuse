@@ -1,25 +1,33 @@
 import type { FC } from 'react';
 import type { StrategyFieldsProps } from '../types';
-import { DcaScheduleFields, FormField } from '../../shared/StrategyFields';
+import { NumberInput } from '../../../common/NumberInput';
+import { DcaCadenceFields, FormField } from '../../shared/StrategyFields';
+import { toCadence } from '../../shared/dcaSchedule';
+import { PrincipalNote } from './PrincipalNote';
 
-export const DcaFields: FC<StrategyFieldsProps> = ({ params, onChange }) => (
+const INPUT_CLASS = 'w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand';
+
+// 적립식 칩 칸: 회당 금액 · 투자 주기 · 첫 매수일
+export const DcaFields: FC<StrategyFieldsProps> = ({ params, onChange, common }) => (
   <>
-    <FormField label="월 투자금 (₩)">
-      <input
-        type="number"
-        value={params.monthlyAmount || "100000"}
-        onChange={(e) => onChange("monthlyAmount", e.target.value)}
-        placeholder="100000"
-        step="10000"
-        min="1"
-        className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
+    <PrincipalNote investment={common.investment} />
+    <FormField label="회당 금액 (₩)">
+      <NumberInput
+        value={params.amountPerPurchase ?? ''}
+        onChange={(value) => onChange('amountPerPurchase', value)}
+        placeholder="100,000"
+        className={INPUT_CLASS}
       />
     </FormField>
-    <DcaScheduleFields
-      purchaseDay={params.purchaseDay || "15"}
-      interval={params.investmentInterval || "1"}
-      onPurchaseDayChange={(day) => onChange("purchaseDay", day)}
-      onIntervalChange={(interval) => onChange("investmentInterval", interval)}
+    <DcaCadenceFields
+      cadence={toCadence(params.cadence)}
+      onCadenceChange={(cadence) => onChange('cadence', cadence)}
+      months={params.months ?? ''}
+      onMonthsChange={(months) => onChange('months', months)}
+      firstPurchaseDate={params.firstPurchaseDate ?? ''}
+      onFirstPurchaseDateChange={(date) => onChange('firstPurchaseDate', date)}
+      startDate={common.startDate}
+      endDate={common.endDate}
     />
   </>
 );

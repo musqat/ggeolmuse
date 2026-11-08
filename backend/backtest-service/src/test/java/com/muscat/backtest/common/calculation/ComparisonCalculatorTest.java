@@ -162,6 +162,46 @@ class ComparisonCalculatorTest {
   }
 
   @Test
+  @DisplayName("투자금이 0 인 매수 0회 항목은 순위 · 최고 · 최저 · 평균 · 중간값에서 빼고 목록 끝에 순위 없이 둔다")
+  void calculate_NotInvestedItemsUnranked() {
+    ComparisonItem none = ComparisonItem.builder().name("매수 0회").totalInvested(BigDecimal.ZERO)
+      .totalReturnPercent(BigDecimal.ZERO).build();
+    ComparisonItem loser = ComparisonItem.builder().name("Loser").totalInvested(BigDecimal.valueOf(1000))
+      .totalReturnPercent(BigDecimal.valueOf(-10.0)).build();
+    ComparisonItem winner = ComparisonItem.builder().name("Winner").totalInvested(BigDecimal.valueOf(1000))
+      .totalReturnPercent(BigDecimal.valueOf(-2.0)).build();
+    List<ComparisonItem> items = Arrays.asList(none, loser, winner);
+
+    ComparisonCalculationResult result = ComparisonCalculator.calculate(items);
+
+    assertThat(items).extracting(ComparisonItem::getName).containsExactly("Winner", "Loser", "매수 0회");
+    assertThat(items).extracting(ComparisonItem::getRank).containsExactly(1, 2, null);
+    assertThat(result.getBestPerformer()).isSameAs(winner);
+    assertThat(result.getWorstPerformer()).isSameAs(loser);
+    assertThat(result.getAverageReturn()).isEqualByComparingTo("-6");
+    assertThat(result.getMedianReturn()).isEqualByComparingTo("-6");
+  }
+
+  @Test
+  @DisplayName("모든 항목이 매수 0회면 순위 · 최고 · 최저 · 평균 · 중간값이 없다")
+  void calculate_AllNotInvested() {
+    ComparisonItem first = ComparisonItem.builder().name("A").totalInvested(BigDecimal.ZERO)
+      .totalReturnPercent(BigDecimal.ZERO).build();
+    ComparisonItem second = ComparisonItem.builder().name("B").totalInvested(BigDecimal.ZERO)
+      .totalReturnPercent(BigDecimal.ZERO).build();
+    List<ComparisonItem> items = Arrays.asList(first, second);
+
+    ComparisonCalculationResult result = ComparisonCalculator.calculate(items);
+
+    assertThat(items).extracting(ComparisonItem::getName).containsExactly("A", "B");
+    assertThat(items).extracting(ComparisonItem::getRank).containsOnlyNulls();
+    assertThat(result.getBestPerformer()).isNull();
+    assertThat(result.getWorstPerformer()).isNull();
+    assertThat(result.getAverageReturn()).isNull();
+    assertThat(result.getMedianReturn()).isNull();
+  }
+
+  @Test
   @DisplayName("동일한 수익률 처리")
   void calculate_EqualReturns_Success() {
     // Given
