@@ -557,6 +557,21 @@ class ResponseMapperTest {
     }
 
     @Test
+    @DisplayName("비교 항목의 원래 응답에는 단순 매수 화면에서만 쓰는 매수일별 수익률을 싣지 않는다")
+    void 매수일별_수익률_뺌() {
+      SimulationResponse simulation = SimulationResponse.builder().symbol(SYMBOL)
+        .purchaseDayReturns(List.of(new com.muscat.backtest.domain.dto.response.PurchaseDayReturn(
+          LocalDate.of(2024, 1, 2), BigDecimal.ONE, BigDecimal.ONE)))
+        .build();
+
+      SimulationResponse carried = (SimulationResponse) mapper.toComparisonItemFromSimulation(simulation, "애플")
+        .getAdditionalData();
+
+      assertThat(carried.getPurchaseDayReturns()).isEmpty();
+      assertThat(simulation.getPurchaseDayReturns()).hasSize(1);
+    }
+
+    @Test
     @DisplayName("전략 비교 항목의 원래 응답에도 낙폭을 뺀 일별 값을 싣는다")
     void 전략_일별_값() {
       StrategyResponse strategy = StrategyResponse.builder().symbol(SYMBOL).dailyValues(List.of(day)).build();

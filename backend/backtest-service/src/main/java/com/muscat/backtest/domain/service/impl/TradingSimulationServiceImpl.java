@@ -2,6 +2,7 @@ package com.muscat.backtest.domain.service.impl;
 
 import com.muscat.backtest.common.calculation.PerformanceCalculator;
 import com.muscat.backtest.common.constants.BacktestConstants;
+import com.muscat.backtest.common.engine.PurchaseDayReturns;
 import com.muscat.backtest.common.enums.type.BacktestType;
 import com.muscat.backtest.common.logging.BacktestLogger;
 import com.muscat.backtest.common.util.BacktestCalculationUtils;
@@ -351,7 +352,40 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
     response.setMetricsUsd(PerformanceCalculator.compute(dates, usdIndex, context.request().getPurchaseDate()));
     response.setDailyValues(DailyValue.withDrawdowns(dailyValues,
       PerformanceCalculator.drawdownPercents(usdIndex), PerformanceCalculator.drawdownPercents(krwIndex)));
+    response.setPurchaseDayReturns(PurchaseDayReturns.of(candles, purchaseFx(context, calculation, fx),
+      new PurchaseDayReturns.Inputs(context.request().getInvestmentAmount(), context.request().getTradingFeeRate(),
+        Boolean.TRUE.equals(context.request().getReinvestDividends()), context.request().getDividendTaxRate(),
+        context.dividendHistory(), exDatePrices(context), calculation.currentPriceUsd(), calculation.currentFxRate(),
+        context.valuationDate())));
     return response;
+  }
+
+  // 매수일별 산 날 환율: 실제로 산 날은 결과의 매수 환율, 수동 환율이면 그 값, 아니면 일별 환율 경로
+  private static Function<LocalDate, BigDecimal> purchaseFx(SimulationContext context,
+    SimulationCalculationResult calculation, Function<LocalDate, BigDecimal> fx) {
+    LocalDate tradeDate = context.purchaseData().date();
+    BigDecimal manual = context.request().getPurchaseFxRate();
+    return date -> date.equals(tradeDate) ? calculation.purchaseFxRate() : manual != null ? manual : fx.apply(date);
+  }
+
+  // 재투자면 받는 배당(금액이 있는 것)의 배당락일 주가(결과 계산과 같은 조회, 재투자가 아니면 비움)
+  private Map<LocalDate, BigDecimal> exDatePrices(SimulationContext context) {
+    Map<LocalDate, BigDecimal> prices = new HashMap<>();
+    if (!Boolean.TRUE.equals(context.request().getReinvestDividends()) || context.dividendHistory() == null
+      || context.dividendHistory().getDividends() == null) {
+      return prices;
+    }
+    LocalDate tradeDate = context.purchaseData().date();
+    for (DividendHistoryDto.DividendPayment dividend : context.dividendHistory().getDividends()) {
+      LocalDate exDate = dividend.getExDate();
+      if (exDate != null && dividend.getAmount() != null && Decimals.isPositive(dividend.getAmount())
+        && BacktestCalculationUtils.receivesDividend(tradeDate, exDate)
+        && !exDate.isAfter(context.valuationDate())) {
+        prices.computeIfAbsent(exDate, date -> PriceLookup.effectiveClose(
+          getHistoricalPrice(context.request().getSymbol(), date, context.priceMap())));
+      }
+    }
+    return prices;
   }
 
   // 매수일 ~ 평가일 일봉(날짜순)

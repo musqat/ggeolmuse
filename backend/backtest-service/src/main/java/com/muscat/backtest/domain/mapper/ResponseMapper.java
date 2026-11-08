@@ -213,8 +213,9 @@ public class ResponseMapper {
         simulation.getOptimalSellDate() != null ? simulation.getOptimalSellDate().toString() : null)
       .optimalSellPrice(simulation.getOptimalSellPrice())
       .optimalReturnPercent(simulation.getOptimalReturnPercent())
+      // 매수일별 수익률은 단순 매수 화면에서만 씀
       .additionalData(simulation.toBuilder()
-        .dailyValues(DailyValue.withoutDrawdowns(simulation.getDailyValues())).build())
+        .dailyValues(DailyValue.withoutDrawdowns(simulation.getDailyValues())).purchaseDayReturns(List.of()).build())
       .build();
   }
 
