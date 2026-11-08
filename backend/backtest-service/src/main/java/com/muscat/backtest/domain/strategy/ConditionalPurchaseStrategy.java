@@ -34,7 +34,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-// 조건부 매수 전략: 첫 거래일에 사고, 그 뒤 전 거래일 종가보다 장중에 정한 비율만큼 떨어진(또는 오른) 날마다 한 번 삼(분할만 조정된 가격)
+// 조건부 매수 전략: 전 거래일 종가보다 장중에 정한 비율만큼 떨어진(또는 오른) 날마다 한 번 삼(분할만 조정된 가격, 기간 첫 거래일은 기준 종가만)
 // 투자 방식은 TOTAL_BUDGET(총예산을 회차로 나눔) · PER_PURCHASE(회당 고정 금액 × 최대 횟수)
 // 익절 · 손절을 켜면 보유분 평균 단가 기준으로 전량 팔고, 다음 조건이 오면 판 돈부터 써서 다시 삼
 @Component
@@ -90,12 +90,6 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
 
       StrategyPurchases purchases = executeConditionalPurchases(request, actualEndDate, params);
       List<StrategyTransaction> transactions = purchases.transactions();
-
-      if (transactions.isEmpty()) {
-        throw new BacktestException(BacktestResponse.DATA_NOT_FOUND,
-          "조건부 매수 전략 실행 가능한 데이터가 없습니다");
-      }
-
       List<SkippedRound> skippedRounds = purchases.skippedRounds();
 
       // 마무리(평가일 시세/환율/배당재투자/계산) — 공통 로직 위임
@@ -218,6 +212,10 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     log.info("조건부 매수 전략 - Bulk 데이터 조회 시작: {} ~ {}", request.getStartDate(), actualEndDate);
     java.util.Map<LocalDate, OHLCPriceDto> priceMap = BacktestDataUtils.buildPriceMap(
       marketData, request.getSymbol(), request.getStartDate(), actualEndDate);
+    if (priceMap.values().stream().noneMatch(PriceLookup::isUsable)) {
+      throw new BacktestException(BacktestResponse.DATA_NOT_FOUND,
+        "조건부 매수 전략 실행 가능한 데이터가 없습니다");
+    }
 
     //  BULK API 사용: 전체 기간의 환율 데이터를 한 번에 조회 (수동 설정이 없는 경우만)
     FxRates fxRateMap = FxRates.EMPTY;
@@ -245,7 +243,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
         if (priceData != null && priceData.available() && !usable) {
           skippedRounds.add(new SkippedRound(currentDate, SkipReason.NO_PRICE));
         } else if (usable) {
-          // 매도를 먼저 보고 판 날은 사지 않음(그날 산 주식은 매도를 본 뒤라 팔지 않음)
+          // 매도를 먼저 보고 판 날은 사지 않음(그 날짜에 산 주식은 매도를 본 뒤라 팔지 않음)
           StrategyTransaction sale = sells && heldShares.signum() > 0
             ? sellIfTriggered(request, priceData, currentDate, heldShares, heldCost, fxRateMap)
             : null;
@@ -257,8 +255,8 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
             log.debug("조건부 매도 실행: {} - {} ({}주, 실현 손익 ${})",
               currentDate, sale.getTrigger(), sale.getShares().negate(), sale.getRealizedProfit());
           } else {
-            var purchaseDecision = transactions.isEmpty()
-              ? new PurchaseDecision(true, PriceLookup.effectiveClose(priceData), "초기매수")
+            var purchaseDecision = previousClose == null
+              ? NO_BUY
               : evaluatePurchaseCondition(previousClose, priceData, request.getDropPercentage(),
                 PriceDirection.orDrop(request.getDirection()));
 
@@ -365,13 +363,13 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
       .amount(BigDecimal.ZERO)
       .proceeds(proceeds)
       .realizedProfit(proceeds.subtract(cost))
-      // 판 돈은 달러로 두어 그날 환율은 표시용(기본 환율 날로 남기지 않음)
+      // 판 돈은 달러로 두어 그 날짜 환율은 표시용(기본 환율 날로 남기지 않음)
       .fxRate(fxOn(request, fxRateMap, date))
       .trigger(String.format(exit == profit ? "%.1f%%익절" : "%.1f%%손절", change))
       .build();
   }
 
-  // 매수 원가(USD, 새로 넣은 돈을 그날 환율로 바꾼 값 + 쓴 판 돈, 수수료 포함)
+  // 매수 원가(USD, 새로 넣은 돈을 그 날짜 환율로 바꾼 값 + 쓴 판 돈, 수수료 포함)
   private static BigDecimal costOf(StrategyTransaction transaction) {
     BigDecimal cost = Decimals.isPositive(transaction.getAmount())
       ? transaction.getAmount().divide(transaction.getFxRate(), 8, RoundingMode.HALF_UP)
@@ -379,7 +377,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     return transaction.getCashUsed() != null ? cost.add(transaction.getCashUsed()) : cost;
   }
 
-  // 그날 환율(수동 환율이 있으면 그 값)
+  // 그 날짜 환율(수동 환율이 있으면 그 값)
   private static BigDecimal fxOn(ConditionalStrategyRequest request, FxRates fxRateMap, LocalDate date) {
     return request.getPurchaseFxRate() != null ? request.getPurchaseFxRate() : fxRateMap.get(date);
   }

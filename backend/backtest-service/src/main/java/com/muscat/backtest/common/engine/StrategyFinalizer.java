@@ -61,6 +61,9 @@ public final class StrategyFinalizer {
     FxRateDto currentFxRate = manualCurrentFxRate != null
         ? new FxRateDto(valuationDate, manualCurrentFxRate)
         : BacktestDataUtils.getFxRateAt(marketData, valuationDate);
+    if (transactions.isEmpty()) {
+      return empty(transactions, currentPrice, currentFxRate);
+    }
 
     LocalDate firstPurchaseDate = transactions.getFirst().getDate();
     DividendHistoryDto dividendHistory = BacktestDataUtils.getDividendHistory(
@@ -98,6 +101,30 @@ public final class StrategyFinalizer {
         calculation.getTotalAssetKrw(), currentFxRate.rate());
 
     return new Result(transactions, calculation, currentPrice, performance);
+  }
+
+  // 매수 0회 결과(투자 · 평가 · 수익 0, 일별 가치 · 지표 없음)
+  private static Result empty(List<StrategyTransaction> transactions, StockPriceDto currentPrice,
+      FxRateDto currentFxRate) {
+    StrategyCalculationResult calculation = StrategyCalculationResult.builder()
+        .totalInvested(BigDecimal.ZERO)
+        .totalShares(BigDecimal.ZERO)
+        .currentValue(BigDecimal.ZERO)
+        .currentValueKrw(BigDecimal.ZERO)
+        .totalDividends(BigDecimal.ZERO)
+        .dividendsReinvested(BigDecimal.ZERO)
+        .totalAssetKrw(BigDecimal.ZERO)
+        .cashBalance(BigDecimal.ZERO)
+        .realizedProfit(BigDecimal.ZERO)
+        .totalReturnPercent(BigDecimal.ZERO)
+        .totalReturnKrw(BigDecimal.ZERO)
+        .fxReturn(BigDecimal.ZERO)
+        .fxReturnPercent(BigDecimal.ZERO)
+        .currentFxRate(currentFxRate.rate())
+        .defaultFxValuationDate(currentFxRate.defaulted() ? currentFxRate.date() : null)
+        .build();
+    return new Result(transactions, calculation, currentPrice,
+        new StrategyPerformance.Result(List.of(), null, null));
   }
 
   // 날마다 원화 환율: 수동 환율이거나 시장 기록이 없으면 첫 매수 · 평가일 환율을 날짜 비례로, 아니면 기본 환율 날을 뺀 시장 환율
