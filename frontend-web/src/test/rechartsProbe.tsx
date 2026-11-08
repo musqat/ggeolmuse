@@ -7,9 +7,23 @@ interface ChildrenProps {
 
 export const ResponsiveContainer = ({ children }: ChildrenProps) => <>{children}</>;
 
-export const LineChart = ({ data, children }: ChildrenProps & { data?: unknown[] }) => (
+// 차트를 누르는 처리가 있으면 점마다 단추(이름 "점 날짜", 누르면 그 날짜를 activeLabel 로 넘김)
+export const LineChart = ({
+  data,
+  children,
+  onClick,
+}: ChildrenProps & { data?: { date?: string }[]; onClick?: (state: { activeLabel?: string }) => void }) => (
   <div data-testid="line-chart" data-points={JSON.stringify(data ?? [])}>
     {children}
+    {onClick &&
+      (data ?? []).map((point) => (
+        <button
+          key={point.date}
+          type="button"
+          aria-label={`점 ${point.date}`}
+          onClick={() => onClick({ activeLabel: point.date })}
+        />
+      ))}
   </div>
 );
 

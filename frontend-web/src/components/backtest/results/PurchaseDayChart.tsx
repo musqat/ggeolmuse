@@ -24,7 +24,16 @@ import {
 } from '@components/charts/backtest/shared/chartStyle';
 import type { MetricCurrency } from './CurrencyToggle';
 import { StatCard } from './StatCard';
-import { purchaseDaySeries, targetOffset, targetSummary } from './purchaseDays';
+import { PurchaseDayCompare } from './PurchaseDayCompare';
+import {
+  addCompare,
+  compareRows,
+  purchaseDaySeries,
+  removeCompare,
+  targetOffset,
+  targetSummary,
+  tradingDayOnOrAfter,
+} from './purchaseDays';
 
 const ABOVE = 'rgb(var(--gain))';
 const BELOW = 'rgb(var(--text-2))';
@@ -37,9 +46,10 @@ interface PurchaseDayChartProps {
   valuationDate?: string | null;
 }
 
-// 매수일별 수익률: 그날 샀다면 평가일까지 수익률 곡선, 목표선 위를 칠하고 목표 이상인 날 비율을 셈
+// 매수일별 수익률: 그날 샀다면 평가일까지 수익률 곡선, 목표선 위를 칠하고 목표 이상인 날 비율을 세며 찍은 날을 견줌
 export const PurchaseDayChart: React.FC<PurchaseDayChartProps> = ({ returns, currency, purchaseDate, valuationDate }) => {
   const [targetText, setTargetText] = useState(DEFAULT_TARGET);
+  const [compareDates, setCompareDates] = useState<string[]>([]);
   const points = useMemo(() => purchaseDaySeries(returns, currency), [returns, currency]);
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const strokeId = `purchase-day-stroke-${id}`;
@@ -58,6 +68,18 @@ export const PurchaseDayChart: React.FC<PurchaseDayChartProps> = ({ returns, cur
   const summary = targetSummary(points, line);
   const best = summary.best as NonNullable<typeof summary.best>;
   const chosen = points.find((p) => p.date === purchaseDate);
+  const compared = points.filter((p) => compareDates.includes(p.date));
+
+  // 곡선의 날을 누르면 비교에 넣고 다시 누르면 뺌
+  const toggleCompare = (date?: string) => {
+    if (!date) return;
+    setCompareDates((dates) => (dates.includes(date) ? removeCompare(dates, date) : addCompare(dates, date, purchaseDate)));
+  };
+  // 날짜 칸은 그날이나 다음 거래일을 넣음
+  const addFromField = (date: string) => {
+    const tradingDay = tradingDayOnOrAfter(points, date);
+    if (tradingDay) setCompareDates((dates) => addCompare(dates, tradingDay, purchaseDate));
+  };
 
   return (
     <div className="space-y-4">
@@ -114,7 +136,12 @@ export const PurchaseDayChart: React.FC<PurchaseDayChartProps> = ({ returns, cur
         </defs>
       </svg>
       <ResponsiveContainer width="100%" height={240}>
-        <AreaChart data={points} margin={CHART_MARGIN}>
+        <AreaChart
+          data={points}
+          margin={CHART_MARGIN}
+          onClick={(state: { activeLabel?: string } | null) => toggleCompare(state?.activeLabel)}
+          style={{ cursor: 'pointer' }}
+        >
           <CartesianGrid {...GRID_PROPS} />
           <XAxis dataKey="date" {...AXIS_PROPS} {...dateAxis(points.map((p) => p.date))} />
           <YAxis {...AXIS_PROPS} tickFormatter={(value: number) => `${Math.round(value)}%`} domain={['auto', 'auto']} />
@@ -146,8 +173,19 @@ export const PurchaseDayChart: React.FC<PurchaseDayChartProps> = ({ returns, cur
             isAnimationActive={false}
           />
           {chosen && <ReferenceDot x={chosen.date} y={chosen.returnPct} fill={MARKER_COLORS.purchase} {...MARKER_PROPS} />}
+          {compared.map((p) => (
+            <ReferenceDot key={p.date} x={p.date} y={p.returnPct} fill={MARKER_COLORS.compare} {...MARKER_PROPS} />
+          ))}
         </AreaChart>
       </ResponsiveContainer>
+
+      <PurchaseDayCompare
+        rows={compareRows(points, compareDates, purchaseDate)}
+        onAdd={addFromField}
+        onRemove={(date) => setCompareDates((dates) => removeCompare(dates, date))}
+        min={points[0].date}
+        max={points[points.length - 1].date}
+      />
     </div>
   );
 };

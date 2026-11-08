@@ -128,7 +128,7 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
         <ReturnChart dailyValues={result.dailyValues} deposits={deposits} currency={currency} />
       </ResultFold>
 
-      <ResultFold title="매수일별 수익률" meta="그날 샀다면 평가일까지 · 목표 수익률">
+      <ResultFold title="매수일별 수익률" meta="그날 샀다면 평가일까지 · 목표 수익률 · 매수일 비교">
         <PurchaseDayChart
           returns={result.purchaseDayReturns}
           currency={currency}

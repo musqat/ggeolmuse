@@ -1,5 +1,14 @@
 import { describe, it, expect } from 'vitest'
-import { purchaseDaySeries, targetOffset, targetSummary } from './purchaseDays'
+import {
+  MAX_COMPARE,
+  addCompare,
+  compareRows,
+  purchaseDaySeries,
+  removeCompare,
+  targetOffset,
+  targetSummary,
+  tradingDayOnOrAfter,
+} from './purchaseDays'
 
 const returns = [
   { date: '2024-01-02', returnPercent: 25, returnPercentUsd: 20 },
@@ -45,5 +54,42 @@ describe('targetOffset', () => {
     expect(targetOffset(-10, 30, 10)).toBe(0.5)
     expect(targetOffset(15, 30, 10)).toBe(1)
     expect(targetOffset(-5, 5, 10)).toBe(0)
+  })
+})
+
+describe('비교할 매수일', () => {
+  const krw = purchaseDaySeries(returns, 'KRW')
+
+  it('넣을 때 고른 매수일 · 이미 있는 날은 그대로 두고, 다섯을 넘으면 먼저 넣은 날부터 뺀다', () => {
+    expect(addCompare([], '2024-01-03', '2024-01-02')).toEqual(['2024-01-03'])
+    expect(addCompare(['2024-01-03'], '2024-01-02', '2024-01-02')).toEqual(['2024-01-03'])
+    expect(addCompare(['2024-01-03'], '2024-01-03', '2024-01-02')).toEqual(['2024-01-03'])
+    expect(addCompare(['a', 'b', 'c', 'd', 'e'], 'f', null)).toEqual(['b', 'c', 'd', 'e', 'f'])
+    expect(MAX_COMPARE).toBe(5)
+  })
+
+  it('뺄 때는 그날만 뺀다', () => {
+    expect(removeCompare(['2024-01-03', '2024-01-05'], '2024-01-03')).toEqual(['2024-01-05'])
+  })
+
+  it('날짜로 고르면 그날이나 그 뒤 첫 매수일, 마지막 매수일보다 뒤면 없음', () => {
+    expect(tradingDayOnOrAfter(krw, '2024-01-04')).toBe('2024-01-05')
+    expect(tradingDayOnOrAfter(krw, '2024-01-03')).toBe('2024-01-03')
+    expect(tradingDayOnOrAfter(krw, '2024-01-09')).toBeNull()
+  })
+
+  it('비교 줄은 고른 매수일을 맨 위에, 나머지는 날짜순으로 두고 고른 매수일 대비 차이를 낸다', () => {
+    expect(compareRows(krw, ['2024-01-08', '2024-01-03', '2024-01-04'], '2024-01-02')).toEqual([
+      { date: '2024-01-02', returnPct: 25, diff: null, base: true },
+      { date: '2024-01-03', returnPct: 5, diff: -20, base: false },
+      { date: '2024-01-04', returnPct: null, diff: null, base: false },
+      { date: '2024-01-08', returnPct: 10, diff: -15, base: false },
+    ])
+  })
+
+  it('고른 매수일이 없으면 차이 없이 넣은 날만', () => {
+    expect(compareRows(krw, ['2024-01-03'], undefined)).toEqual([
+      { date: '2024-01-03', returnPct: 5, diff: null, base: false },
+    ])
   })
 })
