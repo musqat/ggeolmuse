@@ -1,8 +1,9 @@
 import React from 'react';
 import { NumberInput } from '../../common/NumberInput';
 import type { BacktestOptionsState } from '../shared/backtestOptions';
+import type { DcaCadence } from '../shared/dcaSchedule';
 import {
-  DcaScheduleFields,
+  DcaCadenceFields,
   FormField,
   PeriodFields,
   StrategyOptions,
@@ -16,17 +17,19 @@ interface DCAStrategyFormProps {
   setDcaStartDate: (date: string) => void;
   dcaEndDate: string;
   setDcaEndDate: (date: string) => void;
-  monthlyAmount: string;
-  setMonthlyAmount: (amount: string) => void;
-  purchaseDay: string;
-  setPurchaseDay: (day: string) => void;
-  investmentInterval: string;
-  setInvestmentInterval: (interval: string) => void;
+  amountPerPurchase: string;
+  setAmountPerPurchase: (amount: string) => void;
+  cadence: DcaCadence;
+  setCadence: (cadence: DcaCadence) => void;
+  months: string;
+  setMonths: (months: string) => void;
+  firstPurchaseDate: string;
+  setFirstPurchaseDate: (date: string) => void;
   options: BacktestOptionsState;
   supportedSymbols: string[];
 }
 
-// 적립식(DCA): 정한 날 정한 금액을 주기적으로 삼
+// 적립식(DCA): 첫 매수일부터 주기마다 회당 금액만큼 삼
 export const DCAStrategyForm: React.FC<DCAStrategyFormProps> = ({
   symbol,
   setSymbol,
@@ -34,12 +37,14 @@ export const DCAStrategyForm: React.FC<DCAStrategyFormProps> = ({
   setDcaStartDate,
   dcaEndDate,
   setDcaEndDate,
-  monthlyAmount,
-  setMonthlyAmount,
-  purchaseDay,
-  setPurchaseDay,
-  investmentInterval,
-  setInvestmentInterval,
+  amountPerPurchase,
+  setAmountPerPurchase,
+  cadence,
+  setCadence,
+  months,
+  setMonths,
+  firstPurchaseDate,
+  setFirstPurchaseDate,
   options,
   supportedSymbols,
 }) => {
@@ -56,21 +61,25 @@ export const DCAStrategyForm: React.FC<DCAStrategyFormProps> = ({
           onEndChange={setDcaEndDate}
         />
 
-        <FormField label="월 투자금 (₩)">
+        <FormField label="회당 금액 (₩)">
           <NumberInput
-            value={monthlyAmount}
-            onChange={setMonthlyAmount}
+            value={amountPerPurchase}
+            onChange={setAmountPerPurchase}
             placeholder="100,000"
             className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
           />
-          <p className="text-xs text-tx-3 mt-1">매월 정기 투자 금액</p>
+          <p className="text-xs text-tx-3 mt-1">회차마다 넣는 금액</p>
         </FormField>
 
-        <DcaScheduleFields
-          purchaseDay={purchaseDay}
-          interval={investmentInterval}
-          onPurchaseDayChange={setPurchaseDay}
-          onIntervalChange={setInvestmentInterval}
+        <DcaCadenceFields
+          cadence={cadence}
+          onCadenceChange={setCadence}
+          months={months}
+          onMonthsChange={setMonths}
+          firstPurchaseDate={firstPurchaseDate}
+          onFirstPurchaseDateChange={setFirstPurchaseDate}
+          startDate={dcaStartDate}
+          endDate={dcaEndDate}
         />
       </div>
 

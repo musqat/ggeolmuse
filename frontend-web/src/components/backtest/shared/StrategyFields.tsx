@@ -8,6 +8,7 @@ import { FxDataWarning } from './FxDataWarning';
 import type { BacktestOptionsState } from './backtestOptions';
 import type { PriceDirection } from '@services/api';
 import { DIRECTIONS, DIRECTION_ORDER } from './priceDirection';
+import { CADENCE_OPTIONS, scheduleText, type DcaCadence } from './dcaSchedule';
 
 const INPUT_CLASS = 'w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand';
 
@@ -110,6 +111,85 @@ export const DcaScheduleFields: React.FC<DcaScheduleFieldsProps> = ({
         <option value="6">반기마다 (6개월)</option>
       </select>
     </FormField>
+  </>
+);
+
+interface DcaCadenceFieldsProps {
+  cadence: DcaCadence;
+  onCadenceChange: (cadence: DcaCadence) => void;
+  months: string;
+  onMonthsChange: (months: string) => void;
+  firstPurchaseDate: string;
+  onFirstPurchaseDateChange: (date: string) => void;
+  startDate: string;
+  endDate: string;
+}
+
+// 적립식 투자 주기 · 몇 개월마다 · 첫 매수일 칸(요일 · 며칠은 첫 매수일에서)
+export const DcaCadenceFields: React.FC<DcaCadenceFieldsProps> = ({
+  cadence,
+  onCadenceChange,
+  months,
+  onMonthsChange,
+  firstPurchaseDate,
+  onFirstPurchaseDateChange,
+  startDate,
+  endDate,
+}) => (
+  <>
+    <FormField label="투자 주기">
+      <select
+        aria-label="투자 주기"
+        value={cadence}
+        onChange={(e) => onCadenceChange(e.target.value as DcaCadence)}
+        className={INPUT_CLASS}
+      >
+        {CADENCE_OPTIONS.map(({ value, label }) => (
+          <option key={value} value={value}>
+            {label}
+          </option>
+        ))}
+      </select>
+    </FormField>
+    {cadence === 'MONTHS' && (
+      <FormField label="몇 개월마다">
+        <input
+          type="number"
+          aria-label="몇 개월마다"
+          value={months}
+          onChange={(e) => onMonthsChange(e.target.value)}
+          placeholder="3"
+          step="1"
+          min="1"
+          max="12"
+          className={INPUT_CLASS}
+        />
+        <p className="text-xs text-tx-2 mt-1">1~12개월</p>
+      </FormField>
+    )}
+    <div>
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <label className="block text-sm font-medium text-tx-1">첫 매수일</label>
+        {firstPurchaseDate && (
+          <button
+            type="button"
+            onClick={() => onFirstPurchaseDateChange('')}
+            className="text-xs text-brand hover:underline whitespace-nowrap"
+          >
+            시작일에 맞추기
+          </button>
+        )}
+      </div>
+      <DateField
+        value={firstPurchaseDate || startDate}
+        onChange={onFirstPurchaseDateChange}
+        min={startDate}
+        max={endDate || getTodayString()}
+        presets={false}
+        testId="date-first"
+      />
+      <p className="text-xs text-tx-2 mt-1">{scheduleText(cadence, months, firstPurchaseDate || startDate)}</p>
+    </div>
   </>
 );
 

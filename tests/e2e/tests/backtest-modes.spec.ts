@@ -34,8 +34,8 @@ test('적립식(DCA) 이 돈다', async () => {
       symbol,
       startDate: start,
       endDate: end,
-      monthlyAmount: 300_000,
-      purchaseDay: 15,
+      amountPerPurchase: 300_000,
+      frequency: 'WEEKLY',
     },
   });
 

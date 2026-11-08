@@ -1,30 +1,32 @@
 import type { DcaStrategyRequest } from '@services/api';
 import type { BuildResult, RunContext } from '../types';
 import { toOptionFields, type BacktestOptions } from '../../shared/backtestOptions';
+import { dayOfMonth, isMonthly, parseMonths, toFrequency, toWeekday, type DcaCadence } from '../../shared/dcaSchedule';
 
 export interface DcaValues extends BacktestOptions {
   startDate: string;
   endDate: string;
-  monthlyAmount: string;
-  purchaseDay: string;
-  investmentInterval: string;
+  amountPerPurchase: string;
+  cadence: DcaCadence;
+  // N개월마다의 개월 수
+  months: string;
+  firstPurchaseDate: string;
 }
 
-// 적립식 요청(검사에 걸리면 alert 문구)
+// 적립식 요청(검사에 걸리면 alert 문구), 매달 투자일은 첫 매수일의 며칠
 export const buildDcaRequest = (
   values: DcaValues,
   symbol: string,
   ctx: RunContext,
 ): BuildResult<DcaStrategyRequest> => {
-  const monthly = parseFloat(values.monthlyAmount);
-  const day = parseInt(values.purchaseDay);
-  const interval = parseInt(values.investmentInterval);
+  const amount = parseFloat(values.amountPerPurchase);
+  const months = values.cadence === 'MONTHS' ? parseMonths(values.months) : 1;
 
-  if (isNaN(monthly) || monthly <= 0) {
-    return { error: '올바른 월 투자 금액을 입력해주세요.' };
+  if (isNaN(amount) || amount <= 0) {
+    return { error: '올바른 회당 금액을 입력해주세요.' };
   }
-  if (isNaN(day) || day < 1 || day > 28) {
-    return { error: '투자일은 1~28 사이여야 합니다.' };
+  if (months === undefined) {
+    return { error: '개월 수는 1~12 사이의 정수로 입력해주세요.' };
   }
 
   // 종료일이 비어있으면 오늘
@@ -32,14 +34,26 @@ export const buildDcaRequest = (
   if (new Date(values.startDate) >= new Date(effectiveEndDate)) {
     return { error: '시작일은 종료일보다 빠른 날짜여야 합니다.' };
   }
+  const first = values.firstPurchaseDate;
+  if (first && (first < values.startDate || first > effectiveEndDate)) {
+    return { error: '첫 매수일은 시작일과 종료일 사이로 골라주세요.' };
+  }
+  const base = first || values.startDate;
+  // 매주는 주말 첫 매수일을 다음 월요일로(종료일을 넘으면 그대로)
+  const weekday = toWeekday(base);
+  const firstPurchaseDate = values.cadence === 'WEEKLY' && weekday <= effectiveEndDate ? weekday : first;
 
   const request: DcaStrategyRequest = {
     symbol,
     startDate: values.startDate,
     endDate: effectiveEndDate,
-    monthlyAmount: monthly,
-    purchaseDay: day,
-    investmentInterval: interval,
+    amountPerPurchase: amount,
+    frequency: toFrequency(values.cadence),
+    ...(firstPurchaseDate && { firstPurchaseDate }),
+    ...(isMonthly(values.cadence) && {
+      purchaseDay: dayOfMonth(base),
+      investmentInterval: months,
+    }),
     ...toOptionFields(values),
   };
   return { request };

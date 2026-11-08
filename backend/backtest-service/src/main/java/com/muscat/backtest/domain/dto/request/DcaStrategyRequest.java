@@ -1,6 +1,8 @@
 package com.muscat.backtest.domain.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.muscat.backtest.common.enums.type.DcaFrequency;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMax;
@@ -40,25 +42,33 @@ public class DcaStrategyRequest implements StrategyRequest {
   private String userId;
 
   // DCA 전략 전용 필드들
-  @Schema(description = "매월 투자할 금액", example = "100000.00", required = true)
-  @NotNull(message = "월 투자금액은 필수입니다")
-  @Positive(message = "월 투자금액은 0보다 커야 합니다")
-  private BigDecimal monthlyAmount;        // 월 투자금액
+  @Schema(description = "회당 투자 금액 (monthlyAmount 로 보내도 받음)", example = "100000.00", required = true)
+  @JsonAlias("monthlyAmount")
+  @NotNull(message = "회당 금액은 필수입니다")
+  @Positive(message = "회당 금액은 0보다 커야 합니다")
+  private BigDecimal amountPerPurchase;
 
-  @Schema(description = "매월 투자할 날짜 (1-28)", example = "15", required = true)
-  @NotNull(message = "투자일은 필수입니다")
-  @Min(value = 1, message = "투자일은 1-28 사이여야 합니다")
-  @Max(value = 28, message = "투자일은 1-28 사이여야 합니다")
-  private Integer purchaseDay;             // 매월 며칠에 투자할지
+  @Schema(description = "매수 주기 (DAILY 거래일마다, WEEKLY 첫 매수일의 요일마다, MONTHLY 투자 주기마다 투자일에)", example = "MONTHLY")
+  @Builder.Default
+  private DcaFrequency frequency = DcaFrequency.MONTHLY;
 
-  @Schema(description = "투자 주기 (개월 단위 1-12, 1=매월, 2=2개월마다, 3=분기마다)", example = "1")
+  @Schema(description = "첫 매수일 (시작일 ~ 종료일, 비우면 시작일, 휴장이면 다음 거래일, 매달은 그 달 안에서)", example = "2024-01-15")
+  private LocalDate firstPurchaseDate;
+
+  @Schema(description = "매달 투자할 날짜 (1-31, MONTHLY 에서만, 비우면 첫 매수일의 날짜, 그 달에 없으면 그 달 마지막 거래일)", example = "15")
+  @Min(value = 1, message = "투자일은 1-31 사이여야 합니다")
+  @Max(value = 31, message = "투자일은 1-31 사이여야 합니다")
+  private Integer purchaseDay;
+
+  @Schema(description = "투자 주기 (개월 단위 1-12, MONTHLY 에서만, 1=매달, 3=분기마다)", example = "1")
   @Min(value = 1, message = "투자 주기는 1-12개월 사이여야 합니다")
   @Max(value = 12, message = "투자 주기는 1-12개월 사이여야 합니다")
   @Builder.Default
   private Integer investmentInterval = 1;   // 투자 주기 (기본값: 1개월)
 
-  @Schema(description = "총 투자 금액 한도 (넘게 되는 회차부터 사지 않음, null이면 무제한)", example = "1000000.00")
-  private BigDecimal totalInvestmentLimit;  // 총 투자 금액 제한
+  @Schema(description = "예산 (넘는 회차부터 사지 않고 예산 부족 구간으로 남김, null이면 무제한)", example = "1000000.00")
+  @Positive(message = "예산은 0보다 커야 합니다")
+  private BigDecimal totalInvestmentLimit;
 
   @Schema(description = "매수 시 환율 (수동 설정 시, null이면 자동)", example = "1300.00")
   @Positive(message = "매수 환율은 0보다 커야 합니다")

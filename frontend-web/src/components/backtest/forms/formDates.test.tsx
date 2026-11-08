@@ -36,8 +36,8 @@ const FORMS: [string, (p: Period) => ReactElement][] = [
     <DCAStrategyForm
       symbol="AAPL" setSymbol={vi.fn()} supportedSymbols={[]} options={options}
       dcaStartDate={p.start} setDcaStartDate={p.setStart} dcaEndDate={p.end} setDcaEndDate={p.setEnd}
-      monthlyAmount="100000" setMonthlyAmount={vi.fn()} purchaseDay="15" setPurchaseDay={vi.fn()}
-      investmentInterval="1" setInvestmentInterval={vi.fn()}
+      amountPerPurchase="100000" setAmountPerPurchase={vi.fn()} cadence="MONTHLY" setCadence={vi.fn()}
+      months="3" setMonths={vi.fn()} firstPurchaseDate="" setFirstPurchaseDate={vi.fn()}
     />
   )],
   ['조건부', (p) => (

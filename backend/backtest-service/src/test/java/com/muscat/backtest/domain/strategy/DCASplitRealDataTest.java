@@ -171,7 +171,7 @@ class DCASplitRealDataTest {
       .symbol(SYMBOL)
       .startDate(LocalDate.of(2018, 9, 1))
       .endDate(LocalDate.of(2022, 9, 1))
-      .monthlyAmount(new BigDecimal("100000"))
+      .amountPerPurchase(new BigDecimal("100000"))
       .purchaseDay(1)
       .investmentInterval(1)
       .purchaseFxRate(FX)

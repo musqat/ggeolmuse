@@ -35,6 +35,7 @@ const result = {
 }
 
 const props = {
+  kind: 'conditional' as const,
   symbol: 'AAPL',
   startDate: '2022-06-01',
 }
@@ -82,6 +83,13 @@ describe('DcaConditionalResult', () => {
     render(<DcaConditionalResult result={{ ...result, transactions: [], totalInvested: 0 }} {...props} />)
 
     expect(screen.getByText('매수 0회: 기간 안에 조건이 맞아 산 날이 없습니다.')).toBeInTheDocument()
+  })
+
+  it('적립식 매수 0회는 조건 대신 기간 안에 산 회차가 없다고 알린다', () => {
+    render(<DcaConditionalResult result={{ ...result, transactions: [], totalInvested: 0 }} {...props} kind="dca" />)
+
+    expect(screen.getByText('매수 0회: 기간 안에 산 회차가 없습니다.')).toBeInTheDocument()
+    expect(screen.queryByText(/조건이 맞아/)).toBeNull()
   })
 
   it('예산 부족 구간을 처음 날짜 · 회차 수 한 줄로 알린다', () => {
@@ -208,6 +216,19 @@ describe('DcaConditionalResult', () => {
     render(<DcaConditionalResult result={{ ...result, transactions }} {...props} />)
 
     expect(screen.getByText('투자일이 휴장일이면 다음 거래일 종가로 삽니다(이번 결과 1번).')).toBeInTheDocument()
+  })
+
+  it('다음 거래일이 다음 달이나 기간 끝 뒤라 앞 거래일에 산 번수는 따로 알린다', () => {
+    const transactions = [
+      { date: '2023-09-30', actualDate: '2023-09-29', shares: 1, price: 140, amount: 100000, fxRate: 1300 },
+      { date: '2023-10-31', actualDate: '2023-10-31', shares: 1, price: 145, amount: 100000, fxRate: 1300 },
+    ]
+    render(<DcaConditionalResult result={{ ...result, transactions }} {...props} kind="dca" />)
+
+    expect(
+      screen.getByText('투자일이 휴장일이고 다음 거래일이 다음 달이나 기간 끝 뒤면 앞 거래일 종가로 삽니다(이번 결과 1번).')
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/^투자일이 휴장일이면/)).toBeNull()
   })
 
   it('환율은 소수 둘째 자리까지, 하락은 부호를 통화 앞에 둔다', async () => {

@@ -6,9 +6,10 @@ const ctx = { today: '2026-10-08' }
 const values: DcaValues = {
   startDate: '2023-01-01',
   endDate: '',
-  monthlyAmount: '100000',
-  purchaseDay: '15',
-  investmentInterval: '1',
+  amountPerPurchase: '100000',
+  cadence: 'MONTHLY',
+  months: '3',
+  firstPurchaseDate: '',
   reinvestDividends: false,
   tradingFeeRate: '0',
   dividendTax: false,
@@ -18,20 +19,55 @@ const values: DcaValues = {
 }
 
 describe('buildDcaRequest', () => {
-  it('종료일이 비면 오늘로 채운다', () => {
+  it('종료일이 비면 오늘로 채우고, 첫 매수일이 비면 요청에서 빼고 시작일의 날짜를 매달 투자일로 보낸다', () => {
     expect(buildDcaRequest(values, 'AAPL', ctx)).toStrictEqual({
       request: {
         symbol: 'AAPL',
         startDate: '2023-01-01',
         endDate: '2026-10-08',
-        monthlyAmount: 100000,
-        purchaseDay: 15,
+        amountPerPurchase: 100000,
+        frequency: 'MONTHLY',
+        purchaseDay: 1,
         investmentInterval: 1,
         reinvestDividends: false,
         tradingFeeRate: 0,
         dividendTaxRate: 0,
       },
     })
+  })
+
+  it('N개월마다는 매달 주기에 개월 수를, 첫 매수일을 고르면 그 날짜와 그 날짜의 며칠을 보낸다', () => {
+    const built = buildDcaRequest({ ...values, cadence: 'MONTHS', months: '3', firstPurchaseDate: '2023-01-31' }, 'AAPL', ctx)
+
+    expect(built).toMatchObject({
+      request: { frequency: 'MONTHLY', investmentInterval: 3, purchaseDay: 31, firstPurchaseDate: '2023-01-31' },
+    })
+  })
+
+  it.each([
+    ['WEEKLY', 'WEEKLY'],
+    ['DAILY', 'DAILY'],
+  ] as const)('%s 는 투자일 · 개월 수 없이 주기만 보낸다', (cadence, frequency) => {
+    const built = buildDcaRequest({ ...values, cadence, months: '', firstPurchaseDate: '2023-01-04' }, 'AAPL', ctx)
+
+    expect(built).toMatchObject({ request: { frequency, firstPurchaseDate: '2023-01-04' } })
+    expect('request' in built && built.request).not.toHaveProperty('purchaseDay')
+    expect('request' in built && built.request).not.toHaveProperty('investmentInterval')
+  })
+
+  it('매주는 첫 매수일(비우면 시작일)이 주말이면 다음 월요일을 첫 매수일로 보낸다', () => {
+    expect(buildDcaRequest({ ...values, cadence: 'WEEKLY' }, 'AAPL', ctx)).toMatchObject({
+      request: { frequency: 'WEEKLY', firstPurchaseDate: '2023-01-02' },
+    })
+    expect(buildDcaRequest({ ...values, cadence: 'WEEKLY', firstPurchaseDate: '2023-01-07' }, 'AAPL', ctx)).toMatchObject({
+      request: { firstPurchaseDate: '2023-01-09' },
+    })
+  })
+
+  it('매주인데 다음 월요일이 종료일 뒤면 첫 매수일을 옮기지 않는다', () => {
+    const built = buildDcaRequest({ ...values, cadence: 'WEEKLY', startDate: '2023-01-07', endDate: '2023-01-08' }, 'AAPL', ctx)
+
+    expect('request' in built && built.request).not.toHaveProperty('firstPurchaseDate')
   })
 
   it('수동 환율이면 두 환율을 숫자로 넣는다', () => {
@@ -41,11 +77,18 @@ describe('buildDcaRequest', () => {
   })
 
   it.each([
-    [{ monthlyAmount: '0' }, '올바른 월 투자 금액을 입력해주세요.'],
-    [{ purchaseDay: '29' }, '투자일은 1~28 사이여야 합니다.'],
-    [{ purchaseDay: 'x' }, '투자일은 1~28 사이여야 합니다.'],
+    [{ amountPerPurchase: '0' }, '올바른 회당 금액을 입력해주세요.'],
+    [{ cadence: 'MONTHS', months: '0' }, '개월 수는 1~12 사이의 정수로 입력해주세요.'],
+    [{ cadence: 'MONTHS', months: '13' }, '개월 수는 1~12 사이의 정수로 입력해주세요.'],
+    [{ cadence: 'MONTHS', months: '' }, '개월 수는 1~12 사이의 정수로 입력해주세요.'],
     [{ endDate: '2023-01-01' }, '시작일은 종료일보다 빠른 날짜여야 합니다.'],
-  ])('%o 는 막는다', (patch, error) => {
+    [{ firstPurchaseDate: '2022-12-31' }, '첫 매수일은 시작일과 종료일 사이로 골라주세요.'],
+    [{ firstPurchaseDate: '2026-10-09' }, '첫 매수일은 시작일과 종료일 사이로 골라주세요.'],
+  ] as [Partial<DcaValues>, string][])('%o 는 막는다', (patch, error) => {
     expect(buildDcaRequest({ ...values, ...patch }, 'AAPL', ctx)).toEqual({ error })
+  })
+
+  it('매달이면 개월 칸 값은 보지 않는다', () => {
+    expect(buildDcaRequest({ ...values, months: '' }, 'AAPL', ctx)).toMatchObject({ request: { investmentInterval: 1 } })
   })
 })

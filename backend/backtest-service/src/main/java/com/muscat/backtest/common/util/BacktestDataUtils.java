@@ -144,7 +144,7 @@ public final class BacktestDataUtils {
     return priceMap;
   }
 
-  // start ~ end 의 날마다 환율을 한 번에 받아 맵으로(DCA 는 월별이라 따로)
+  // start ~ end 의 날마다 환율을 한 번에 받아 맵으로
   public static FxRates buildDailyFxRateMap(
     MarketDataClientWrapper marketData, LocalDate startDate, LocalDate endDate) {
     List<LocalDate> allDates = new java.util.ArrayList<>();

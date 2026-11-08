@@ -65,4 +65,22 @@ describe('BacktestHistoryPanel', () => {
 
     expect(screen.getAllByText('조건부 매수')).toHaveLength(2)
   })
+
+  it('적립식 기록은 옛 칸(월 투자금 · 투자일)이든 새 칸(회당 금액 · 주기 · 첫 매수일)이든 적립식으로 보인다', () => {
+    const record = (backtestId: string, params: object) => ({
+      backtestId,
+      userId: 'u',
+      backtestType: 'STRATEGY_SIMULATION' as const,
+      requestParams: JSON.stringify({ symbol: 'AAPL', startDate: '2023-01-01', endDate: '2026-10-23', ...params }),
+      fxRateMode: 'auto' as const,
+      createdAt: '2026-10-23T09:00:00',
+    })
+    const old = record('1', { monthlyAmount: 100000, purchaseDay: 15, investmentInterval: 1 })
+    const weekly = record('2', { amountPerPurchase: 100000, frequency: 'WEEKLY', firstPurchaseDate: '2023-01-04' })
+    const monthly = record('3', { amountPerPurchase: 100000, frequency: 'MONTHLY', purchaseDay: 31, totalInvestmentLimit: 1000000 })
+    renderPanel({ historyData: [old, weekly, monthly], historyTotalPages: 1 })
+
+    expect(screen.getAllByText('적립식')).toHaveLength(3)
+    expect(screen.queryByText('조건부 매수')).toBeNull()
+  })
 })
