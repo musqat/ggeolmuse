@@ -29,6 +29,8 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.HttpHeaders;
@@ -93,6 +95,10 @@ class BacktestAnalysisControllerTest {
     return ComparisonResponse.builder().items(List.of(item)).bestPerformer(item).build();
   }
 
+  private static String schedule(int interval, int day) {
+    return "\"investmentInterval\":" + interval + ",\"purchaseDay\":" + day;
+  }
+
   @Test
   @DisplayName("적립식 전략은 토큰 없이 실행되고 종목 · 월 투자금 · 매수일을 그대로 넘긴다")
   void dca() throws Exception {
@@ -145,6 +151,16 @@ class BacktestAnalysisControllerTest {
   @DisplayName("적립식 전략의 수동 환율이 0 이면 400 이고 서비스까지 가지 않는다")
   void dca_ZeroFxRate() throws Exception {
     postJson("/strategy/dca", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"monthlyAmount\":100000,\"purchaseDay\":15,\"purchaseFxRate\":0}")
+      .andExpect(status().isBadRequest());
+
+    verify(backtestAnalysisService, never()).runDcaStrategy(any());
+  }
+
+  @ParameterizedTest(name = "투자 주기 {0} · 투자일 {1}")
+  @CsvSource({"0, 15", "-1, 15", "13, 15", "1, 0", "1, 29"})
+  @DisplayName("적립식 전략의 투자 주기가 1 ~ 12 밖이거나 투자일이 1 ~ 28 밖이면 400 이고 서비스까지 가지 않는다")
+  void dca_ScheduleOutOfRange(int interval, int day) throws Exception {
+    postJson("/strategy/dca", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"monthlyAmount\":100000," + schedule(interval, day) + "}")
       .andExpect(status().isBadRequest());
 
     verify(backtestAnalysisService, never()).runDcaStrategy(any());
@@ -274,5 +290,29 @@ class BacktestAnalysisControllerTest {
       .andExpect(status().isBadRequest());
 
     verify(backtestAnalysisService, never()).compareStrategies(any());
+  }
+
+  @ParameterizedTest(name = "투자 주기 {0} · 투자일 {1}")
+  @CsvSource({"0, 15", "-1, 15", "13, 15", "1, 0", "1, 29"})
+  @DisplayName("전략 비교의 적립식 항목도 투자 주기가 1 ~ 12 밖이거나 투자일이 1 ~ 28 밖이면 400")
+  void compareStrategies_DcaScheduleOutOfRange(int interval, int day) throws Exception {
+    postJson("/compare/strategies", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":1000000,"
+      + "\"strategies\":[{\"strategyType\":\"DCA\",\"monthlyAmount\":100000," + schedule(interval, day) + "}]}")
+      .andExpect(status().isBadRequest());
+
+    verify(backtestAnalysisService, never()).compareStrategies(any());
+  }
+
+  @Test
+  @DisplayName("투자 주기 12 · 투자일 28 은 적립식 · 전략 비교 모두 통과한다")
+  void dcaScheduleUpperBoundsPass() throws Exception {
+    given(backtestAnalysisService.runDcaStrategy(any())).willReturn(strategy("AAPL", StrategyType.DCA, "1"));
+    given(backtestAnalysisService.compareStrategies(any())).willReturn(comparison("DCA"));
+
+    postJson("/strategy/dca", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"monthlyAmount\":100000," + schedule(12, 28) + "}")
+      .andExpect(status().isOk());
+    postJson("/compare/strategies", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":1000000,"
+      + "\"strategies\":[{\"strategyType\":\"DCA\",\"monthlyAmount\":100000," + schedule(12, 28) + "}]}")
+      .andExpect(status().isOk());
   }
 }

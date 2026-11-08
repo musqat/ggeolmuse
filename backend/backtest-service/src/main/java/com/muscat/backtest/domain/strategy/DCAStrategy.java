@@ -114,6 +114,10 @@ public class DCAStrategy implements InvestmentStrategy {
       || request.getPurchaseDay() > 31) {
       throw new BacktestException(BacktestResponse.INVALID_PURCHASE_DAY);
     }
+    Integer interval = request.getInvestmentInterval();
+    if (interval != null && (interval < 1 || interval > 12)) {
+      throw new BacktestException(BacktestResponse.INVALID_INVESTMENT_INTERVAL);
+    }
   }
 
   // 정기 적립식 투자 실행(투자일에 쓸 시세가 없거나 계산이 실패한 회차는 사지 않고 이유를 남김)
@@ -164,9 +168,10 @@ public class DCAStrategy implements InvestmentStrategy {
 
     //  메모리에서 데이터 조회 (API 호출 없음)
     for (LocalDate currentDate : investmentDates) {
-      // 총 투자금 한도 체크
-      if (investmentLimit != null && totalInvestedSoFar.compareTo(investmentLimit) >= 0) {
-        log.info("총 투자금 한도({})에 도달하여 투자 종료", investmentLimit);
+      // 한도를 넘게 되는 회차부터 투자 종료
+      if (investmentLimit != null
+        && totalInvestedSoFar.add(request.getMonthlyAmount()).compareTo(investmentLimit) > 0) {
+        log.info("총 투자금 한도({})를 넘는 회차라 투자 종료", investmentLimit);
         break;
       }
 
