@@ -113,7 +113,7 @@ describe('Backtest 페이지', () => {
     expect(saveLocalBacktestHistory).not.toHaveBeenCalled()
   })
 
-  it('적립식: 기본값 요청', async () => {
+  it('적립식: 기본값은 회당 10만원 · 매달 시작일의 날짜로 요청', async () => {
     renderPage()
     await selectTab('적립식')
     await runBacktest()
@@ -122,12 +122,30 @@ describe('Backtest 페이지', () => {
       symbol: 'AAPL',
       startDate: '2023-01-01',
       endDate: TODAY,
-      monthlyAmount: 100000,
-      purchaseDay: 15,
+      amountPerPurchase: 100000,
+      frequency: 'MONTHLY',
+      purchaseDay: 1,
       investmentInterval: 1,
       ...common,
     })
     expect(await screen.findByText('결과: dca')).toBeInTheDocument()
+  })
+
+  it('적립식: 매주를 고르면 투자일 · 개월 수 없이 주말 시작일 다음 월요일부터 요청', async () => {
+    renderPage()
+    await selectTab('적립식')
+    await userEvent.selectOptions(screen.getByLabelText('투자 주기'), 'WEEKLY')
+    await runBacktest()
+
+    expect(backtestApi.runDcaStrategy).toHaveBeenCalledWith({
+      symbol: 'AAPL',
+      startDate: '2023-01-01',
+      endDate: TODAY,
+      amountPerPurchase: 100000,
+      frequency: 'WEEKLY',
+      firstPurchaseDate: '2023-01-02',
+      ...common,
+    })
   })
 
   it('조건부: 기본값은 회당 10만원 · 예산 100만원 · 최대 횟수 비움으로 요청', async () => {

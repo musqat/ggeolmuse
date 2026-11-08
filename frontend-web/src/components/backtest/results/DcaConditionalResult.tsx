@@ -14,22 +14,33 @@ import { RiskDetail } from './RiskDetail';
 import { detailMeta, pickMetrics, purchaseCount, sellCount } from './resultValues';
 import { strategyDeposits } from './assetSeries';
 
+type StrategyKind = 'dca' | 'conditional';
+
 interface DcaConditionalResultProps {
+  kind: StrategyKind;
   result: StrategyResponse;
   symbol: string;
   // 결과에 시작일이 없을 때 차트 시작일
   startDate: string;
 }
 
+const EMPTY_REASON: Record<StrategyKind, string> = {
+  dca: '기간 안에 산 회차가 없습니다.',
+  conditional: '기간 안에 조건이 맞아 산 날이 없습니다.',
+};
+
+const NOTICE_CLASS = 'text-sm text-warning bg-warning-soft/10 border border-warning-soft/40 rounded-lg px-3 py-2';
+
 // 매수 0회 · 예산 부족 구간 안내 한 줄(없으면 null)
-const purchaseNotice = (bought: number, span: StrategyResponse['skippedSpan']) => {
+const purchaseNotice = (kind: StrategyKind, bought: number, span: StrategyResponse['skippedSpan']) => {
   const shortfall = span ? `예산이 모자라 ${span.firstDate}부터 ${span.rounds}회를 사지 않았습니다.` : null;
   if (bought > 0) return shortfall;
-  return `매수 0회: ${shortfall ?? '기간 안에 조건이 맞아 산 날이 없습니다.'}`;
+  return `매수 0회: ${shortfall ?? EMPTY_REASON[kind]}`;
 };
 
 // 적립식 · 조건부 결과: 카드 · 자산 추이 · 주가 추이 탭, 그 아래 상세 · 매매 내역을 접어 둠
 export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
+  kind,
   result,
   symbol,
   startDate,
@@ -39,19 +50,21 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
   const transactions = useMemo(() => result.transactions ?? [], [result.transactions]);
   const skippedRounds = result.skippedRounds ?? [];
   const deposits = useMemo(() => strategyDeposits(transactions), [transactions]);
-  // 투자일이 휴장일이라 다른 날 산 번수
-  const moved = transactions.filter((tx) => tx.actualDate && tx.actualDate !== tx.date).length;
+  // 투자일이 휴장일이라 다음 거래일 · 앞 거래일에 산 번수
+  const later = transactions.filter((tx) => tx.actualDate && tx.actualDate > tx.date).length;
+  const earlier = transactions.filter((tx) => tx.actualDate && tx.actualDate < tx.date).length;
   const sold = sellCount(transactions);
-  const notice = purchaseNotice(purchaseCount(transactions), result.skippedSpan);
+  const notice = purchaseNotice(kind, purchaseCount(transactions), result.skippedSpan);
 
   return (
     <div className="space-y-6">
-      {notice && (
-        <p className="text-sm text-warning bg-warning-soft/10 border border-warning-soft/40 rounded-lg px-3 py-2">{notice}</p>
+      {notice && <p className={NOTICE_CLASS}>{notice}</p>}
+      {later > 0 && (
+        <p className={NOTICE_CLASS}>투자일이 휴장일이면 다음 거래일 종가로 삽니다(이번 결과 {later}번).</p>
       )}
-      {moved > 0 && (
-        <p className="text-sm text-warning bg-warning-soft/10 border border-warning-soft/40 rounded-lg px-3 py-2">
-          투자일이 휴장일이면 다음 거래일 종가로 삽니다(이번 결과 {moved}번).
+      {earlier > 0 && (
+        <p className={NOTICE_CLASS}>
+          투자일이 휴장일이고 다음 거래일이 다음 달이나 기간 끝 뒤면 앞 거래일 종가로 삽니다(이번 결과 {earlier}번).
         </p>
       )}
       <DefaultFxNotice dates={result.defaultFxDates} />

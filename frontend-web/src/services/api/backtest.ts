@@ -85,14 +85,20 @@ export type SimulationResponse = {
   purchaseDayReturns?: PurchaseDayReturn[]; // 매수일 ~ 평가일 전 거래일마다(첫 날은 총 수익률과 같음)
 };
 
+// 적립식 주기
+export type DcaFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY';
+
 // DCA(정기 적립) 전략 요청
 export type DcaStrategyRequest = BacktestCommonRequest & {
   symbol: string;                       // 종목 심볼
   startDate: string;                    // 시작일
   endDate: string;                      // 종료일
-  monthlyAmount: number;                // 월 투자 금액
-  purchaseDay: number;                  // 매수일 (1-28)
-  investmentInterval?: number;          // 투자 주기 (1, 2, 3, 6개월)
+  amountPerPurchase: number;            // 회당 금액 (KRW)
+  frequency?: DcaFrequency;             // 비우면 매달, 매주는 첫 매수일의 요일
+  firstPurchaseDate?: string;           // 첫 매수일 (비우면 시작일, 주말 · 휴장일이면 다음 거래일)
+  purchaseDay?: number;                 // 매달 투자일 (1-31, 매달만, 비우면 첫 매수일의 날짜)
+  investmentInterval?: number;          // 몇 개월마다 (1-12, 매달만, 비우면 1)
+  totalInvestmentLimit?: number;        // 예산 (KRW, 비우면 제한 없음)
 };
 
 // 조건부 매수가 보는 전 거래일 종가 대비 방향
@@ -158,7 +164,7 @@ export type StrategyTransaction = {
   shares: number;
   amount: number;                       // 투자금 (KRW)
   fxRate: number;
-  trigger?: string;                     // 적립식은 "월정액", 조건부는 "5.0%하락" · "5.0%상승" · "20.0%익절" · "10.0%손절" 같은 값
+  trigger?: string;                     // 적립식은 "월정액" · "매주 정액" · "매일 정액", 조건부는 "5.0%하락" · "5.0%상승" · "20.0%익절" · "10.0%손절" 같은 값
   fee?: number | null;                  // 매매 수수료 (USD, 배당 재투자는 없음)
   proceeds?: number | null;             // 매도로 받은 돈 (USD, 수수료 뺀 값, 매도는 수량이 음수)
   cashUsed?: number | null;             // 매수에 쓴 판 돈 (USD)

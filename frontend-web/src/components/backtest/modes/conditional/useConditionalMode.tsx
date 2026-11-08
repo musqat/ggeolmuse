@@ -82,7 +82,7 @@ export const useConditionalMode = ({
     },
     renderResult: (result) =>
       result.mode === 'conditional' ? (
-        <DcaConditionalResult result={result} symbol={symbol} startDate={startDate} />
+        <DcaConditionalResult kind="conditional" result={result} symbol={symbol} startDate={startDate} />
       ) : null,
   };
 };

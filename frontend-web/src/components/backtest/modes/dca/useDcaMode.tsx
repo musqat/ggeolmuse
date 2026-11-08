@@ -6,6 +6,7 @@ import type { ModeController, SharedSymbolProps } from '../types';
 import { strategyRun } from '../strategyRun';
 import { buildDcaRequest } from './request';
 import { useBacktestOptions } from '../../shared/backtestOptions';
+import type { DcaCadence } from '../../shared/dcaSchedule';
 
 export const useDcaMode = ({
   symbol,
@@ -14,9 +15,10 @@ export const useDcaMode = ({
 }: SharedSymbolProps): ModeController => {
   const [startDate, setStartDate] = useState('2023-01-01');
   const [endDate, setEndDate] = useState(''); // 비어있으면 현재 날짜
-  const [monthlyAmount, setMonthlyAmount] = useState('100000');
-  const [purchaseDay, setPurchaseDay] = useState('15');
-  const [investmentInterval, setInvestmentInterval] = useState('1');
+  const [amountPerPurchase, setAmountPerPurchase] = useState('100000');
+  const [cadence, setCadence] = useState<DcaCadence>('MONTHLY');
+  const [months, setMonths] = useState('3');
+  const [firstPurchaseDate, setFirstPurchaseDate] = useState(''); // 비어있으면 시작일
   const options = useBacktestOptions();
 
   return {
@@ -31,12 +33,14 @@ export const useDcaMode = ({
         setDcaStartDate={setStartDate}
         dcaEndDate={endDate}
         setDcaEndDate={setEndDate}
-        monthlyAmount={monthlyAmount}
-        setMonthlyAmount={setMonthlyAmount}
-        purchaseDay={purchaseDay}
-        setPurchaseDay={setPurchaseDay}
-        investmentInterval={investmentInterval}
-        setInvestmentInterval={setInvestmentInterval}
+        amountPerPurchase={amountPerPurchase}
+        setAmountPerPurchase={setAmountPerPurchase}
+        cadence={cadence}
+        setCadence={setCadence}
+        months={months}
+        setMonths={setMonths}
+        firstPurchaseDate={firstPurchaseDate}
+        setFirstPurchaseDate={setFirstPurchaseDate}
         options={options}
         supportedSymbols={supportedSymbols}
       />
@@ -46,9 +50,10 @@ export const useDcaMode = ({
         {
           startDate,
           endDate,
-          monthlyAmount,
-          purchaseDay,
-          investmentInterval,
+          amountPerPurchase,
+          cadence,
+          months,
+          firstPurchaseDate,
           ...options,
         },
         symbol,
@@ -65,7 +70,7 @@ export const useDcaMode = ({
     },
     renderResult: (result) =>
       result.mode === 'dca' ? (
-        <DcaConditionalResult result={result} symbol={symbol} startDate={startDate} />
+        <DcaConditionalResult kind="dca" result={result} symbol={symbol} startDate={startDate} />
       ) : null,
   };
 };
