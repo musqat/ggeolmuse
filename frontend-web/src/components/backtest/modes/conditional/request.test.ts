@@ -7,6 +7,8 @@ const values: ConditionalValues = {
   startDate: '2023-01-01',
   endDate: '',
   amountPerPurchase: '100000',
+  unit: 'AMOUNT',
+  shares: '1',
   totalInvestment: '1000000',
   maxPurchases: '',
   direction: 'DROP',
@@ -48,6 +50,20 @@ describe('buildConditionalRequest', () => {
   it('예산 · 최대 횟수를 모두 비우면 회당 금액만 보낸다', () => {
     expect(buildConditionalRequest({ ...values, totalInvestment: ' ' }, 'AAPL', ctx)).toStrictEqual({
       request: { ...base, amountPerPurchase: 100000 },
+    })
+  })
+
+  it('주식 수 단위면 회당 금액 칸은 보지 않고 회당 주식 수를 보낸다', () => {
+    expect(
+      buildConditionalRequest({ ...values, unit: 'SHARES', shares: '2', amountPerPurchase: '2000000' }, 'AAPL', ctx)
+    ).toStrictEqual({
+      request: { ...base, sharesPerPurchase: 2, totalInvestment: 1000000 },
+    })
+  })
+
+  it.each(['0', '-1', '1.5'])('회당 주식 수 %o 는 막는다', (shares) => {
+    expect(buildConditionalRequest({ ...values, unit: 'SHARES', shares }, 'AAPL', ctx)).toEqual({
+      error: '회당 주식 수는 1 이상의 정수로 입력해주세요.',
     })
   })
 

@@ -1,8 +1,9 @@
 import type { SimulationRequest } from '@services/api';
 import type { BuildResult, RunContext } from '../types';
 import { toOptionFields, type BacktestOptions } from '../../shared/backtestOptions';
+import { parseShares, type AmountUnitValues } from '../../shared/amountUnit';
 
-export interface SimpleValues extends BacktestOptions {
+export interface SimpleValues extends BacktestOptions, AmountUnitValues {
   purchaseDate: string;
   saleDate: string;
   initialInvestment: string;
@@ -15,10 +16,14 @@ export const buildSimpleRequest = (
   ctx: RunContext,
 ): BuildResult<SimulationRequest> => {
   const investment = parseFloat(values.initialInvestment);
-  if (isNaN(investment) || investment <= 0) {
+  const shares = parseShares(values.shares);
+  if (values.unit === 'SHARES') {
+    if (shares === undefined) {
+      return { error: '주식 수는 1 이상의 정수로 입력해주세요.' };
+    }
+  } else if (isNaN(investment) || investment <= 0) {
     return { error: '올바른 투자 금액을 입력해주세요.' };
-  }
-  if (investment < 100000) {
+  } else if (investment < 100000) {
     return { error: '최소 10만원 이상 투자해주세요. (미국 주식 1주 구매를 위해 약 30만원 권장)' };
   }
   // YYYY-MM-DD 문자열로 비교(Date 로 바꾸면 UTC 자정이라 한국 오전 9시 전후로 오늘이 막히다 풀림)
@@ -36,7 +41,7 @@ export const buildSimpleRequest = (
     symbol,
     purchaseDate: values.purchaseDate,
     saleDate: effectiveSaleDate,
-    investmentAmount: investment,
+    ...(values.unit === 'SHARES' ? { sharesPerPurchase: shares } : { investmentAmount: investment }),
     ...toOptionFields(values),
   };
   return { request };

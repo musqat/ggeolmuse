@@ -6,6 +6,7 @@ import type { ModeController, SharedSymbolProps } from '../types';
 import { strategyRun } from '../strategyRun';
 import { buildConditionalRequest } from './request';
 import { useBacktestOptions } from '../../shared/backtestOptions';
+import { useAmountUnit } from '../../shared/amountUnit';
 
 export const useConditionalMode = ({
   symbol,
@@ -15,6 +16,7 @@ export const useConditionalMode = ({
   const [startDate, setStartDate] = useState('2023-01-01');
   const [endDate, setEndDate] = useState(''); // 비어있으면 현재 날짜
   const [amountPerPurchase, setAmountPerPurchase] = useState('100000');
+  const amountUnit = useAmountUnit();
   // 예산 · 최대 횟수는 비우면 제한 없음
   const [totalInvestment, setTotalInvestment] = useState('1000000');
   const [maxPurchases, setMaxPurchases] = useState('');
@@ -38,6 +40,7 @@ export const useConditionalMode = ({
         setConditionalEndDate={setEndDate}
         amountPerPurchase={amountPerPurchase}
         setAmountPerPurchase={setAmountPerPurchase}
+        amountUnit={amountUnit}
         totalInvestment={totalInvestment}
         setTotalInvestment={setTotalInvestment}
         maxPurchases={maxPurchases}
@@ -60,6 +63,8 @@ export const useConditionalMode = ({
           startDate,
           endDate,
           amountPerPurchase,
+          unit: amountUnit.unit,
+          shares: amountUnit.shares,
           totalInvestment,
           maxPurchases,
           direction,

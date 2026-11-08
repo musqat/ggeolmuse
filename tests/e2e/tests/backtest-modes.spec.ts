@@ -1,4 +1,4 @@
-import { test, expect, request, APIRequestContext } from '@playwright/test';
+import { test, expect, request, APIRequestContext, APIResponse } from '@playwright/test';
 import { API_URL } from '../playwright.config';
 import { pickPricedSymbols, pickSymbol, priceRange } from './fixtures';
 
@@ -28,8 +28,18 @@ test.afterAll(async () => {
   await api.dispose();
 });
 
+// 게이트웨이 요청 제한(429)이 풀릴 때까지 다시 보내는 POST
+async function postUntilAllowed(url: string, options: { data: object }): Promise<APIResponse> {
+  let res!: APIResponse;
+  await expect(async () => {
+    res = await api.post(url, options);
+    expect(res.status(), `${url} 요청 제한이 풀리지 않는다`).not.toBe(429);
+  }).toPass({ intervals: [1_000], timeout: 30_000 });
+  return res;
+}
+
 test('적립식(DCA) 이 돈다', async () => {
-  const res = await api.post(`${API_URL}/analysis/strategy/dca`, {
+  const res = await postUntilAllowed(`${API_URL}/analysis/strategy/dca`, {
     data: {
       symbol,
       startDate: start,
@@ -45,7 +55,7 @@ test('적립식(DCA) 이 돈다', async () => {
 });
 
 test('조건부 매수가 돈다', async () => {
-  const res = await api.post(`${API_URL}/analysis/strategy/conditional`, {
+  const res = await postUntilAllowed(`${API_URL}/analysis/strategy/conditional`, {
     data: {
       symbol,
       startDate: start,
@@ -62,8 +72,23 @@ test('조건부 매수가 돈다', async () => {
   expect(typeof body.totalReturnPercent, '조건부 응답에 수익률이 없다').toBe('number');
 });
 
+test('주식 수로 단순 · 적립식 · 조건부가 돈다', async () => {
+  const runs: [string, object][] = [
+    ['trading-simulation/simulation', { purchaseDate: start, saleDate: end }],
+    ['analysis/strategy/dca', { startDate: start, endDate: end, frequency: 'WEEKLY' }],
+    ['analysis/strategy/conditional', { startDate: start, endDate: end, dropPercentage: 0.05, maxPurchases: 3 }],
+  ];
+
+  for (const [path, fields] of runs) {
+    const res = await postUntilAllowed(`${API_URL}/${path}`, { data: { symbol, sharesPerPurchase: 1, ...fields } });
+    expect(res.status(), `${path} 가 주식 수로 실패했다: ${await res.text()}`).toBe(200);
+    const body = await res.json();
+    expect(typeof body.totalReturnPercent, `${path} 응답에 수익률이 없다`).toBe('number');
+  }
+});
+
 test('종목 비교가 돌고 최적 타이밍 순서가 지켜진다', async () => {
-  const res = await api.post(`${API_URL}/analysis/compare/symbols`, {
+  const res = await postUntilAllowed(`${API_URL}/analysis/compare/symbols`, {
     data: {
       symbols: [symbol, second],
       startDate: start,
@@ -89,7 +114,7 @@ test('종목 비교가 돌고 최적 타이밍 순서가 지켜진다', async ()
 });
 
 test('전략 비교가 돈다', async () => {
-  const res = await api.post(`${API_URL}/analysis/compare/strategies`, {
+  const res = await postUntilAllowed(`${API_URL}/analysis/compare/strategies`, {
     data: {
       symbol,
       startDate: start,

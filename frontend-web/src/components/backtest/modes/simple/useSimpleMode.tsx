@@ -5,6 +5,7 @@ import { SimpleResult } from '../../results/SimpleResult';
 import type { ModeController, SharedSymbolProps } from '../types';
 import { buildSimpleRequest } from './request';
 import { useBacktestOptions } from '../../shared/backtestOptions';
+import { useAmountUnit } from '../../shared/amountUnit';
 
 export const useSimpleMode = ({
   symbol,
@@ -14,6 +15,7 @@ export const useSimpleMode = ({
   const [purchaseDate, setPurchaseDate] = useState('2023-01-01');
   const [saleDate, setSaleDate] = useState(''); // 비어있으면 현재 날짜
   const [initialInvestment, setInitialInvestment] = useState('300000');
+  const amountUnit = useAmountUnit();
   const options = useBacktestOptions();
 
   return {
@@ -30,6 +32,7 @@ export const useSimpleMode = ({
         setSaleDate={setSaleDate}
         initialInvestment={initialInvestment}
         setInitialInvestment={setInitialInvestment}
+        amountUnit={amountUnit}
         options={options}
         supportedSymbols={supportedSymbols}
       />
@@ -40,6 +43,8 @@ export const useSimpleMode = ({
           purchaseDate,
           saleDate,
           initialInvestment,
+          unit: amountUnit.unit,
+          shares: amountUnit.shares,
           ...options,
         },
         symbol,
