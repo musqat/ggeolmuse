@@ -557,7 +557,7 @@ class ResponseMapperTest {
     }
 
     @Test
-    @DisplayName("비교 항목의 원래 응답에는 단순 매수 화면에서만 쓰는 매수일별 수익률을 싣지 않는다")
+    @DisplayName("비교 항목의 원래 응답에는 매수일별 수익률을 싣지 않는다")
     void 매수일별_수익률_뺌() {
       SimulationResponse simulation = SimulationResponse.builder().symbol(SYMBOL)
         .purchaseDayReturns(List.of(new com.muscat.backtest.domain.dto.response.PurchaseDayReturn(

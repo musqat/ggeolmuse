@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
-// 기간의 거래일마다 그날 샀다면 평가일까지의 총 수익률(단순 매수 시뮬레이션과 같은 수수료 · 배당 · 환율 계산)
+// 기간의 거래일마다 그 날짜에 샀다면 평가일까지의 총 수익률(단순 매수 시뮬레이션과 같은 수수료 · 배당 · 환율 계산)
 public final class PurchaseDayReturns {
 
   /** 매수 조건과 평가일 값(재투자 가격은 배당락일마다 미리 찾아 둔 값) */
@@ -41,7 +41,7 @@ public final class PurchaseDayReturns {
     return points;
   }
 
-  // 그날 종가 · 환율로 사서 평가일까지 들고 있었을 때(수수료 · 남은 현금 · 배당 재투자 또는 세후 현금 배당)
+  // 그 날짜 종가 · 환율로 사서 평가일까지 들고 있었을 때(수수료 · 남은 현금 · 배당 재투자 또는 세후 현금 배당)
   private static PurchaseDayReturn returnOn(LocalDate date, BigDecimal priceUsd, BigDecimal fxRate, Inputs in) {
     BigDecimal usdAmount = MoneyUtils.convertKrwToUsd(in.investmentKrw(), fxRate);
     BigDecimal shares = BacktestCalculationUtils.calculateSharesWithFee(usdAmount, priceUsd, in.feeRate());
@@ -79,7 +79,7 @@ public final class PurchaseDayReturns {
       MoneyUtils.roundUsd(MoneyUtils.calculateReturnRate(usdAmount, totalAssetUsd)));
   }
 
-  // 그날 산 주식이 받는 배당(배당락일이 산 날 뒤 · 평가일까지, 날짜순)
+  // 그 날짜에 산 주식이 받는 배당(배당락일이 산 날 뒤 · 평가일까지, 날짜순)
   private static List<DividendHistoryDto.DividendPayment> received(LocalDate date, Inputs in) {
     if (in.dividendHistory() == null || in.dividendHistory().getDividends() == null) {
       return List.of();

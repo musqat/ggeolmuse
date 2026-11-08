@@ -4,7 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-// 그날 샀다면 평가일까지의 총 수익률(시뮬레이션과 같은 수수료 · 배당 · 환율 기준)
+// 그 날짜에 샀다면 평가일까지의 총 수익률(시뮬레이션과 같은 수수료 · 배당 · 환율 기준)
 @Schema(description = "매수일별 수익률")
 public record PurchaseDayReturn(
   @Schema(description = "매수일(거래일)", example = "2024-03-04")
