@@ -3,16 +3,14 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { StrategyParamsModal } from './StrategyParamsModal'
 
-function renderModal(type: 'SIMPLE' | 'DCA' | 'CONDITIONAL_PURCHASE') {
+function renderModal(type: 'SIMPLE' | 'DCA' | 'CONDITIONAL_PURCHASE', params: Record<string, string> = {}) {
   const props = {
-    modalStrategyType: type,
-    strategyParameters: {},
-    setStrategyParameters: vi.fn(),
-    strategyStartDate: '2023-01-01',
-    strategyInvestment: '1000000',
-    handleSaveStrategyParams: vi.fn(),
-    setShowStrategyModal: vi.fn(),
-    setModalStrategyType: vi.fn(),
+    type,
+    params,
+    onChange: vi.fn(),
+    common: { startDate: '2023-01-01', endDate: '2023-12-31', investment: '1000000' },
+    onSave: vi.fn(),
+    onCancel: vi.fn(),
   }
   render(<StrategyParamsModal {...props} />)
   return props
@@ -25,12 +23,22 @@ describe('StrategyParamsModal', () => {
     expect(screen.getByText('시작일(2023-01-01)')).toBeInTheDocument()
   })
 
-  it('취소하면 모달을 닫고 선택을 비운다', async () => {
+  it('그 전략의 칸에서 바꾼 값을 키와 함께 넘긴다', async () => {
+    const props = renderModal('DCA', { amountPerPurchase: '100000', cadence: 'MONTHLY', months: '3', firstPurchaseDate: '' })
+
+    expect(screen.getByRole('heading', { name: '전략 설정: 적립식' })).toBeInTheDocument()
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: '투자 주기' }), 'DAILY')
+
+    expect(props.onChange).toHaveBeenCalledWith('cadence', 'DAILY')
+  })
+
+  it('저장 · 취소 단추를 누르면 onSave · onCancel 로 넘긴다', async () => {
     const props = renderModal('DCA')
 
+    await userEvent.click(screen.getByRole('button', { name: '저장' }))
     await userEvent.click(screen.getByRole('button', { name: '취소' }))
 
-    expect(props.setShowStrategyModal).toHaveBeenCalledWith(false)
-    expect(props.setModalStrategyType).toHaveBeenCalledWith(null)
+    expect(props.onSave).toHaveBeenCalledTimes(1)
+    expect(props.onCancel).toHaveBeenCalledTimes(1)
   })
 })

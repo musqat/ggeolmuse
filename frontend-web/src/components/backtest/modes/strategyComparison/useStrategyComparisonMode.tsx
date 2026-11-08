@@ -6,9 +6,17 @@ import { StrategyComparisonResult } from '../../results/StrategyComparisonResult
 import { strategyByType } from '../../comparison/catalog';
 import type { ComparisonStrategyType, StrategyParams } from '../../comparison/types';
 import type { ModeController } from '../types';
-import { buildStrategyComparisonRequest, conditionalSells } from './request';
+import { buildStrategyComparisonRequest } from './request';
 import { useBacktestOptions } from '../../shared/backtestOptions';
 import { notify } from '@/components/common/notify';
+import { getTodayString } from '../../../../utils/dateUtils';
+
+// 모달에서 고치는 칩(저장 전까지는 사본, 새로 더하는 칩이면 isNew)
+interface Editing {
+  type: ComparisonStrategyType;
+  draft: StrategyParams;
+  isNew: boolean;
+}
 
 export const useStrategyComparisonMode = ({
   supportedSymbols,
@@ -25,49 +33,39 @@ export const useStrategyComparisonMode = ({
   ]);
   const options = useBacktestOptions();
 
-  // 전략 파라미터 모달
-  const [showStrategyModal, setShowStrategyModal] = useState(false);
-  const [modalStrategyType, setModalStrategyType] = useState<ComparisonStrategyType | null>(null);
-  // 폼은 문자열로 담고 실행 직전에 숫자로 바꿈
-  const [strategyParameters, setStrategyParameters] = useState<Record<string, StrategyParams>>({});
+  // 칩마다 문자열로 담고 실행 직전에 숫자로 바꿈
+  const [strategyParameters, setStrategyParameters] = useState<Record<string, StrategyParams>>(() => ({
+    DCA: { ...strategyByType('DCA').defaultParams },
+  }));
+  const [editing, setEditing] = useState<Editing | null>(null);
+  const common = { startDate, endDate: endDate || getTodayString(), investment };
+
+  const openEditor = (type: ComparisonStrategyType, isNew: boolean) =>
+    setEditing({ type, isNew, draft: { ...strategyByType(type).defaultParams, ...strategyParameters[type] } });
 
   const toggleStrategy = (strategy: ComparisonStrategyType) => {
-    if (selectedStrategies.includes(strategy)) {
-      if (selectedStrategies.length > 1) {
-        setSelectedStrategies(selectedStrategies.filter((s) => s !== strategy));
-        const newParams = { ...strategyParameters };
-        delete newParams[strategy];
-        setStrategyParameters(newParams);
-      }
-    } else {
-      setModalStrategyType(strategy);
-
-      // 기본값 설정
-      if (!strategyParameters[strategy]) {
-        setStrategyParameters({
-          ...strategyParameters,
-          [strategy]: { ...strategyByType(strategy).defaultParams },
-        });
-      }
-
-      setShowStrategyModal(true);
+    if (!selectedStrategies.includes(strategy)) {
+      openEditor(strategy, true);
+      return;
+    }
+    if (selectedStrategies.length > 1) {
+      setSelectedStrategies(selectedStrategies.filter((s) => s !== strategy));
+      const newParams = { ...strategyParameters };
+      delete newParams[strategy];
+      setStrategyParameters(newParams);
     }
   };
 
-  const handleSaveStrategyParams = () => {
-    if (!modalStrategyType) return;
-
-    const message = strategyByType(modalStrategyType).checkOnSave(
-      strategyParameters[modalStrategyType] || {},
-    );
+  const handleSave = () => {
+    if (!editing) return;
+    const message = strategyByType(editing.type).check(editing.draft, common);
     if (message) {
       notify.error(message);
       return;
     }
-
-    setSelectedStrategies([...selectedStrategies, modalStrategyType]);
-    setShowStrategyModal(false);
-    setModalStrategyType(null);
+    setStrategyParameters({ ...strategyParameters, [editing.type]: editing.draft });
+    if (editing.isNew) setSelectedStrategies([...selectedStrategies, editing.type]);
+    setEditing(null);
   };
 
   return {
@@ -86,24 +84,22 @@ export const useStrategyComparisonMode = ({
         investment={investment}
         setInvestment={setInvestment}
         selectedStrategies={selectedStrategies}
+        strategyParameters={strategyParameters}
         toggleStrategy={toggleStrategy}
+        editStrategy={(type) => openEditor(type, false)}
         options={options}
-        reinvestLocked={conditionalSells(selectedStrategies, strategyParameters)}
       />
     ),
-    overlay:
-      showStrategyModal && modalStrategyType ? (
-        <StrategyParamsModal
-          modalStrategyType={modalStrategyType}
-          strategyParameters={strategyParameters}
-          setStrategyParameters={setStrategyParameters}
-          strategyStartDate={startDate}
-          strategyInvestment={investment}
-          handleSaveStrategyParams={handleSaveStrategyParams}
-          setShowStrategyModal={setShowStrategyModal}
-          setModalStrategyType={setModalStrategyType}
-        />
-      ) : null,
+    overlay: editing ? (
+      <StrategyParamsModal
+        type={editing.type}
+        params={editing.draft}
+        onChange={(key, value) => setEditing((prev) => prev && { ...prev, draft: { ...prev.draft, [key]: value } })}
+        common={common}
+        onSave={handleSave}
+        onCancel={() => setEditing(null)}
+      />
+    ) : null,
     prepare: (ctx) => {
       const built = buildStrategyComparisonRequest(
         {

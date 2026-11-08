@@ -129,23 +129,23 @@ export type SymbolComparisonRequest = BacktestCommonRequest & {
   investmentAmount: number;             // 투자 금액
 };
 
-// 전략 파라미터
+// 전략 비교 칩 하나의 설정(예산은 요청의 전략마다 원금)
 export type StrategyParameter = {
   strategyType: 'SIMPLE' | 'DCA' | 'CONDITIONAL_PURCHASE';  // 전략 유형
   name?: string;                        // 전략명
-  // DCA 전략 필드
-  monthlyAmount?: number;               // 월 투자 금액
-  purchaseDay?: number;                 // 매수일
-  investmentInterval?: number;          // 투자 주기 (1, 2, 3, 6개월)
-  totalInvestmentLimit?: number;        // 총 투자 한도
-  // 조건부 매수 전략 필드
-  totalInvestment?: number;             // 총 투자 금액
+  amountPerPurchase?: number;           // 적립식 · 조건부 회당 금액 (KRW)
+  // 적립식
+  frequency?: DcaFrequency;             // 비우면 매달, 매주는 첫 매수일의 요일
+  firstPurchaseDate?: string;           // 첫 매수일 (비우면 시작일)
+  purchaseDay?: number;                 // 매달 투자일 (1-31, 매달만, 비우면 첫 매수일의 날짜)
+  investmentInterval?: number;          // 몇 개월마다 (1-12, 매달만, 비우면 1)
+  // 조건부 매수
   direction?: PriceDirection;           // 비우면 하락
   dropPercentage?: number;              // 하락률 · 상승률
-  maxPurchases?: number;                // 최대 매수 횟수
+  maxPurchases?: number;                // 최대 매수 횟수 (비우면 원금 한도까지)
   takeProfitRate?: number;              // 익절 비율 (비우면 안 함)
   stopLossRate?: number;                // 손절 비율 (비우면 안 함)
-  // 단순 전략 필드
+  // 단순 매수
   purchaseDate?: string;                // 매수일
 };
 
@@ -154,7 +154,7 @@ export type StrategyComparisonRequest = BacktestCommonRequest & {
   symbol: string;                       // 종목 심볼
   startDate: string;                    // 시작일
   endDate: string;                      // 종료일
-  investmentAmount: number;             // 기준 투자 금액
+  investmentAmount: number;             // 전략마다 원금 (단순은 시작일 매수 금액, 적립식 · 조건부는 예산)
   strategies: StrategyParameter[];      // 비교할 전략 목록
 };
 

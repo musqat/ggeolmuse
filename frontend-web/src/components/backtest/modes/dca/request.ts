@@ -2,7 +2,7 @@ import type { DcaStrategyRequest } from '@services/api';
 import type { BuildResult, RunContext } from '../types';
 import { toOptionFields, type BacktestOptions } from '../../shared/backtestOptions';
 import { parseShares, type AmountUnitValues } from '../../shared/amountUnit';
-import { dayOfMonth, isMonthly, parseMonths, toFrequency, toWeekday, type DcaCadence } from '../../shared/dcaSchedule';
+import { parseMonths, scheduleFields, type DcaCadence } from '../../shared/dcaSchedule';
 
 export interface DcaValues extends BacktestOptions, AmountUnitValues {
   startDate: string;
@@ -44,21 +44,18 @@ export const buildDcaRequest = (
   if (first && (first < values.startDate || first > effectiveEndDate)) {
     return { error: '첫 매수일은 시작일과 종료일 사이로 골라주세요.' };
   }
-  const base = first || values.startDate;
-  // 매주는 주말 첫 매수일을 다음 월요일로(종료일을 넘으면 그대로)
-  const weekday = toWeekday(base);
-  const firstPurchaseDate = values.cadence === 'WEEKLY' && weekday <= effectiveEndDate ? weekday : first;
 
   const request: DcaStrategyRequest = {
     symbol,
     startDate: values.startDate,
     endDate: effectiveEndDate,
     ...(values.unit === 'SHARES' ? { sharesPerPurchase: shares } : { amountPerPurchase: amount }),
-    frequency: toFrequency(values.cadence),
-    ...(firstPurchaseDate && { firstPurchaseDate }),
-    ...(isMonthly(values.cadence) && {
-      purchaseDay: dayOfMonth(base),
-      investmentInterval: months,
+    ...scheduleFields({
+      cadence: values.cadence,
+      months,
+      firstPurchaseDate: first,
+      startDate: values.startDate,
+      endDate: effectiveEndDate,
     }),
     ...toOptionFields(values),
   };

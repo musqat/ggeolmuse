@@ -72,48 +72,6 @@ export const PeriodFields: React.FC<PeriodFieldsProps> = ({ start, end, onStartC
   );
 };
 
-interface DcaScheduleFieldsProps {
-  purchaseDay: string;
-  interval: string;
-  onPurchaseDayChange: (day: string) => void;
-  onIntervalChange: (interval: string) => void;
-}
-
-// 적립식 매월 투자일(1~28일) · 투자 주기 칸
-export const DcaScheduleFields: React.FC<DcaScheduleFieldsProps> = ({
-  purchaseDay,
-  interval,
-  onPurchaseDayChange,
-  onIntervalChange,
-}) => (
-  <>
-    <FormField label="매월 투자일">
-      <input
-        type="number"
-        value={purchaseDay}
-        onChange={(e) => onPurchaseDayChange(e.target.value)}
-        placeholder="15"
-        min="1"
-        max="28"
-        className={INPUT_CLASS}
-      />
-      <p className="text-xs text-tx-2 mt-1">1~28일</p>
-    </FormField>
-    <FormField label="투자 주기">
-      <select
-        value={interval}
-        onChange={(e) => onIntervalChange(e.target.value)}
-        className={INPUT_CLASS}
-      >
-        <option value="1">매월 (1개월)</option>
-        <option value="2">2개월마다</option>
-        <option value="3">분기마다 (3개월)</option>
-        <option value="6">반기마다 (6개월)</option>
-      </select>
-    </FormField>
-  </>
-);
-
 interface DcaCadenceFieldsProps {
   cadence: DcaCadence;
   onCadenceChange: (cadence: DcaCadence) => void;
@@ -284,6 +242,8 @@ interface StrategyOptionsProps {
   currentLabel: string;
   // 익절 · 손절을 켜서 배당 재투자를 못 쓰는지
   reinvestLocked?: boolean;
+  // 배당 재투자 칸 옆 안내를 바꿀 문구
+  reinvestNote?: string;
 }
 
 // 환율 데이터 경고 · 환율 설정 · 배당 · 수수료 옵션
@@ -293,10 +253,11 @@ export const StrategyOptions: React.FC<StrategyOptionsProps> = ({
   purchaseLabel,
   currentLabel,
   reinvestLocked = false,
+  reinvestNote,
 }) => (
   <>
     <FxDataWarning startDate={startDate} />
     <FxModeToggle options={options} purchaseLabel={purchaseLabel} currentLabel={currentLabel} />
-    <DividendFeeOptions options={options} reinvestLocked={reinvestLocked} />
+    <DividendFeeOptions options={options} reinvestLocked={reinvestLocked} reinvestNote={reinvestNote} />
   </>
 );

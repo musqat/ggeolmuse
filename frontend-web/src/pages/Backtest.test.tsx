@@ -278,10 +278,10 @@ describe('Backtest 페이지', () => {
         {
           strategyType: 'DCA',
           name: 'DCA',
-          monthlyAmount: 100000,
-          purchaseDay: 15,
+          amountPerPurchase: 100000,
+          frequency: 'MONTHLY',
+          purchaseDay: 1,
           investmentInterval: 1,
-          totalInvestmentLimit: 1000000,
         },
       ],
       ...common,
@@ -325,10 +325,56 @@ describe('Backtest 페이지', () => {
     expect(request.strategies[2]).toEqual({
       strategyType: 'CONDITIONAL_PURCHASE',
       name: 'CONDITIONAL_PURCHASE',
-      totalInvestment: 1000000,
+      amountPerPurchase: 100000,
       direction: 'DROP',
       dropPercentage: 0.05,
     })
+  })
+
+  it('전략 비교: 고른 적립식의 설정 단추로 주기를 바꾸면 그 칩만 바꿔 보낸다', async () => {
+    renderPage()
+    await selectTab('전략 비교')
+    await userEvent.click(screen.getByRole('button', { name: '적립식 설정' }))
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: '투자 주기' }), 'WEEKLY')
+    await userEvent.click(screen.getByRole('button', { name: '저장' }))
+
+    expect(screen.getByText(/^적립식: 매주 월요일 ₩100,000/)).toBeInTheDocument()
+    await runBacktest()
+
+    const request = vi.mocked(backtestApi.compareStrategies).mock.calls[0][0]
+    expect(request.strategies.map((s) => s.strategyType)).toEqual(['SIMPLE', 'DCA'])
+    expect(request.strategies[1]).toEqual({
+      strategyType: 'DCA',
+      name: 'DCA',
+      amountPerPurchase: 100000,
+      frequency: 'WEEKLY',
+      firstPurchaseDate: '2023-01-02',
+    })
+  })
+
+  it('전략 비교: 설정을 고치다 취소하면 고치기 전 값으로 보낸다', async () => {
+    renderPage()
+    await selectTab('전략 비교')
+    await userEvent.click(screen.getByRole('button', { name: '적립식 설정' }))
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: '투자 주기' }), 'DAILY')
+    await userEvent.click(screen.getByRole('button', { name: '취소' }))
+    await runBacktest()
+
+    const request = vi.mocked(backtestApi.compareStrategies).mock.calls[0][0]
+    expect(request.strategies[1]).toMatchObject({ frequency: 'MONTHLY', purchaseDay: 1 })
+  })
+
+  it('전략 비교: 칩 설정에 오류가 있으면 저장을 막고 창을 열어 둔다', async () => {
+    renderPage()
+    await selectTab('전략 비교')
+    await toggleStrategy('조건부 매수')
+    await userEvent.clear(screen.getByRole('spinbutton', { name: '하락률 (%)' }))
+    await userEvent.click(screen.getByRole('button', { name: '저장' }))
+
+    expect(alertSpy).toHaveBeenCalledWith('조건부 매수: 하락률은 0~100 사이여야 합니다.')
+    expect(screen.getByRole('heading', { name: '전략 설정: 조건부 매수' })).toBeInTheDocument()
+    expect(within(screen.getByRole('group', { name: '비교할 전략' })).getByRole('button', { name: '조건부 매수' }))
+      .toHaveAttribute('aria-pressed', 'false')
   })
 
   it('비로그인: 사용자 없이 요청하고 로컬 히스토리에 저장한다', async () => {
