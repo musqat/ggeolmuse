@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { SimpleChart } from './SimpleChart'
+import { PriceTooltip, SimpleChart } from './SimpleChart'
 import { stockApi } from '../../../services/api'
 import { readCharts, readXAxes } from '../../../test/readCharts'
 
@@ -136,5 +136,70 @@ describe('SimpleChart 날짜 축', () => {
 
     await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(1))
     expect(readXAxes()).toEqual([{ ticks: ['2024-01-16', '2025-03-03'], first: '24.1' }])
+  })
+})
+
+describe('SimpleChart 툴팁', () => {
+  const point = { date: '2026-03-04', price: 101.5 }
+
+  it('날짜 · 주가에 덧붙일 줄을 보이고, 매수일이면 매수 시점이라 적는다', () => {
+    render(
+      <PriceTooltip
+        active
+        label="2026-03-04"
+        payload={[{ payload: point }]}
+        purchaseDate="2026-03-04"
+        extra={(date) => <p>{`${date} 덧붙임`}</p>}
+      />,
+    )
+
+    expect(screen.getByText('매수 시점')).toBeInTheDocument()
+    expect(screen.getByText('주가: $101.50')).toBeInTheDocument()
+    expect(screen.getByText('2026-03-04 덧붙임')).toBeInTheDocument()
+  })
+
+  it('가리킨 점이 없으면 아무것도 그리지 않는다', () => {
+    const { container } = render(<PriceTooltip active={false} payload={[]} />)
+
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it('차트 툴팁에 매수 시점과 덧붙일 줄을 그린다', async () => {
+    getOHLCData.mockResolvedValue({
+      data: [
+        { symbol: 'AAPL', date: '2024-01-16', closePrice: 180, adjustedClose: 179 },
+        { symbol: 'AAPL', date: '2024-01-17', closePrice: 181, adjustedClose: 180 },
+      ],
+    } as never)
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <SimpleChart symbol="AAPL" purchaseDate="2024-01-16" tooltipExtra={(date) => <p>{`${date} 덧붙임`}</p>} />
+      </QueryClientProvider>
+    )
+
+    await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(1))
+    const tooltip = within(screen.getByTestId('tooltip-content'))
+    expect(tooltip.getByText('매수 시점')).toBeInTheDocument()
+    expect(tooltip.getByText('2024-01-16 덧붙임')).toBeInTheDocument()
+  })
+
+  it('제목 없이 그리고, 덧붙일 줄이 있으면 범례에 선을 가리키면 보이는 수익률을 적는다', async () => {
+    getOHLCData.mockResolvedValue({
+      data: [
+        { symbol: 'AAPL', date: '2024-01-16', closePrice: 180, adjustedClose: 179 },
+        { symbol: 'AAPL', date: '2024-01-17', closePrice: 181, adjustedClose: 180 },
+      ],
+    } as never)
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <SimpleChart symbol="AAPL" purchaseDate="2024-01-16" tooltipExtra={() => null} />
+      </QueryClientProvider>
+    )
+
+    await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(1))
+    expect(screen.getByText(/선을 가리키면 보유 수익률 · 여기서 샀다면 평가일까지 수익률/)).toBeInTheDocument()
+    expect(screen.queryByText('AAPL 주가 추이')).toBeNull()
   })
 })

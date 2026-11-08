@@ -39,6 +39,13 @@ export type DailyValue = {
   drawdownKrw?: number | null;
 };
 
+// 그 날짜에 샀다면 평가일까지 총 수익률(%, 결과와 같은 수수료 · 배당 · 환율 기준)
+export type PurchaseDayReturn = {
+  date: string;
+  returnPercent: number | null;
+  returnPercentUsd: number | null;
+};
+
 // 단순 시뮬레이션 응답(숫자 · 날짜 칸은 null 일 수 있음, 날짜는 YYYY-MM-DD)
 export type SimulationResponse = {
   symbol: string;
@@ -75,6 +82,7 @@ export type SimulationResponse = {
   metricsKrw?: PerformanceMetrics | null;   // 원화 기준 지표
   metricsUsd?: PerformanceMetrics | null;   // 달러 기준 지표
   dailyValues?: DailyValue[];               // 매수일 ~ 평가일(마지막 날은 총자산)
+  purchaseDayReturns?: PurchaseDayReturn[]; // 매수일 ~ 평가일 전 거래일마다(첫 날은 총 수익률과 같음)
 };
 
 // DCA(정기 적립) 전략 요청

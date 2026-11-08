@@ -25,7 +25,7 @@ public class BacktestHistory {
 
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
-    private BacktestType backtestType; // STRATEGY, SYMBOL, TIMING, INVESTMENT
+    private BacktestType backtestType;
 
     @Column(length = 2000)
     private String requestParams; // 요청 파라미터 (JSON 형태)

@@ -13,6 +13,14 @@ export function readCharts() {
     yDomains: within(chart)
       .queryAllByTestId('y-axis')
       .map((axis) => JSON.parse(axis.dataset.domain ?? 'null')),
+    refLines: within(chart)
+      .queryAllByTestId('ref-line')
+      .map((line) => JSON.parse(line.dataset.ref ?? '{}')),
+    // 영역의 기준값(없는 선은 뺌)
+    bases: within(chart)
+      .queryAllByTestId('line')
+      .filter((line) => line.dataset.base)
+      .map((line) => Number(line.dataset.base)),
   }));
 }
 

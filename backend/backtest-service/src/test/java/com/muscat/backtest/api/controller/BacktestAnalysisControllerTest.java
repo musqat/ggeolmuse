@@ -20,7 +20,6 @@ import com.muscat.backtest.config.SecurityConfig;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
 import com.muscat.backtest.domain.model.ComparisonItem;
 import com.muscat.backtest.domain.dto.response.ComparisonResponse;
-import com.muscat.backtest.domain.dto.response.OptimalTimingResponse;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.service.BacktestAnalysisService;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -209,33 +208,7 @@ class BacktestAnalysisControllerTest {
   }
 
   @Test
-  @DisplayName("시점 비교는 매수일 목록을 넘긴다")
-  void compareTiming() throws Exception {
-    given(backtestAnalysisService.compareTiming(any())).willReturn(comparison("2024-03-01"));
-
-    postJson("/compare/timing", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":1000000,"
-      + "\"purchaseDates\":[\"2024-01-02\",\"2024-03-01\"]}")
-      .andExpect(status().isOk())
-      .andExpect(jsonPath("$.items[0].rank").value(1));
-
-    verify(backtestAnalysisService).compareTiming(argThat(r -> r.getPurchaseDates().size() == 2));
-  }
-
-  @Test
-  @DisplayName("최적 시점 분석은 목표 수익률을 넘긴다")
-  void optimalTiming() throws Exception {
-    given(backtestAnalysisService.analyzeOptimalTiming(any())).willReturn(OptimalTimingResponse.builder()
-      .symbol("AAPL").totalAnalyzedDays(120).totalQualifyingDays(7).build());
-
-    postJson("/timing/optimal", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":1000000,\"targetReturnPercent\":10}")
-      .andExpect(status().isOk())
-      .andExpect(jsonPath("$.totalQualifyingDays").value(7));
-
-    verify(backtestAnalysisService).analyzeOptimalTiming(argThat(r -> r.getTargetReturnPercent().intValue() == 10));
-  }
-
-  @Test
-  @DisplayName("분석 여섯 경로 모두 이력 주인을 본문이 아니라 토큰의 이메일로 정한다")
+  @DisplayName("분석 네 경로 모두 이력 주인을 본문이 아니라 토큰의 이메일로 정한다")
   void ownerFromToken() throws Exception {
     given(jwtDecoder.decode(TOKEN)).willReturn(Jwt.withTokenValue(TOKEN).header("alg", "none").subject(USER)
       .claim("email", EMAIL).build());
@@ -244,8 +217,6 @@ class BacktestAnalysisControllerTest {
       .willReturn(strategy("TSLA", StrategyType.CONDITIONAL_PURCHASE, "1"));
     given(backtestAnalysisService.compareSymbols(any())).willReturn(comparison("MSFT"));
     given(backtestAnalysisService.compareStrategies(any())).willReturn(comparison("DCA"));
-    given(backtestAnalysisService.compareTiming(any())).willReturn(comparison("2024-03-01"));
-    given(backtestAnalysisService.analyzeOptimalTiming(any())).willReturn(OptimalTimingResponse.builder().symbol("AAPL").build());
 
     postJsonWithToken("/strategy/dca", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"monthlyAmount\":100000,\"purchaseDay\":15" + VICTIM)
       .andExpect(status().isOk());
@@ -257,19 +228,11 @@ class BacktestAnalysisControllerTest {
     postJsonWithToken("/compare/strategies", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":1000000,"
       + "\"strategies\":[{\"strategyType\":\"DCA\",\"monthlyAmount\":100000},{\"strategyType\":\"SIMPLE\"}]" + VICTIM)
       .andExpect(status().isOk());
-    postJsonWithToken("/compare/timing", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":1000000,"
-      + "\"purchaseDates\":[\"2024-01-02\",\"2024-03-01\"]" + VICTIM)
-      .andExpect(status().isOk());
-    postJsonWithToken("/timing/optimal", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":1000000,"
-      + "\"targetReturnPercent\":10" + VICTIM)
-      .andExpect(status().isOk());
 
     verify(backtestAnalysisService).runDcaStrategy(argThat(r -> USER.equals(r.getUserId())));
     verify(backtestAnalysisService).runConditionalStrategy(argThat(r -> USER.equals(r.getUserId())));
     verify(backtestAnalysisService).compareSymbols(argThat(r -> USER.equals(r.getUserId())));
     verify(backtestAnalysisService).compareStrategies(argThat(r -> USER.equals(r.getUserId())));
-    verify(backtestAnalysisService).compareTiming(argThat(r -> USER.equals(r.getUserId())));
-    verify(backtestAnalysisService).analyzeOptimalTiming(argThat(r -> USER.equals(r.getUserId())));
   }
 
   @Test
@@ -294,6 +257,13 @@ class BacktestAnalysisControllerTest {
   void oldInternalPathsAreClosed() throws Exception {
     mockMvc.perform(post("/api/internal/analysis/strategy/dca")).andExpect(status().isUnauthorized());
     mockMvc.perform(post("/api/internal/trading-simulation/simulation")).andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  @DisplayName("시점 비교 · 최적 시점 분석 경로는 없다. 토큰 없이 POST 해도 404")
+  void timingPathsAreGone() throws Exception {
+    postJson("/compare/timing", "{}").andExpect(status().isNotFound());
+    postJson("/timing/optimal", "{}").andExpect(status().isNotFound());
   }
 
   @Test

@@ -108,4 +108,7 @@ public class SimulationResponse {
   @Schema(description = "매수일 ~ 평가일 일별 평가 가치(마지막 날은 총자산, 일봉을 못 받으면 평가일 하나)")
   @Builder.Default
   private List<DailyValue> dailyValues = List.of();
+  @Schema(description = "매수일 ~ 평가일 전 거래일마다 그 날짜에 샀다면 평가일까지 수익률(첫 날은 위 총 수익률과 같음)")
+  @Builder.Default
+  private List<PurchaseDayReturn> purchaseDayReturns = List.of();
 }

@@ -153,8 +153,10 @@ describe('ResultOverview', () => {
     const [chart] = readCharts()
     expect(chart.points.map((p: { value: number; invested: number }) => [p.value, p.invested])).toEqual([[1300000, 1300000], [2800000, 2600000], [3000000, 2600000]])
     expect(chart.lines).toEqual(['value:평가 가치', 'invested:누적 투자금'])
-    // 점은 누적 투자금 선 위의 돈을 넣은 날(판 돈으로만 산 날은 넣은 돈이 없어 점이 없음)
-    expect(screen.getByText('평가 가치와 그때까지 넣은 돈, 점은 돈을 넣은 날')).toBeInTheDocument()
+    // 점은 누적 투자금 선 위의 돈을 넣어 매수한 날(판 돈으로만 산 날은 넣은 돈이 없어 점이 없음)
+    expect(screen.getByText('평가 가치와 그때까지 넣은 돈, 점은 매수한 날')).toBeInTheDocument()
+    expect(screen.getByText('매수')).toBeInTheDocument()
+    expect(screen.queryByText('입금')).toBeNull()
     expect(chart.dots).toEqual([
       { x: '2024-01-15', y: 1300000, fill: '#8b5cf6' },
       { x: '2024-02-15', y: 2600000, fill: '#8b5cf6' },
@@ -162,6 +164,38 @@ describe('ResultOverview', () => {
 
     await userEvent.click(screen.getByRole('button', { name: '달러 기준' }))
     expect(readCharts()[0].points.map((p: { value: number; invested: number }) => [p.value, p.invested])).toEqual([[1000, 1000], [2100, 1980], [2300, 1980]])
+  })
+
+  it('차트 탭을 넘기면 자산 추이 뒤에 묶고 자산 추이를 먼저 보인다', async () => {
+    const dailyValues = [
+      { date: '2024-01-15', valueUsd: 1000, valueKrw: 1300000 },
+      { date: '2024-02-15', valueUsd: 1100, valueKrw: 1400000 },
+    ]
+    render(
+      <ResultOverview
+        result={{ ...result, dailyValues }}
+        investedLabel="초기 투자금"
+        invested={1300000}
+        chartTabs={[{ key: 'price', label: '주가 추이', render: () => <p>주가 차트</p> }]}
+      />,
+    )
+
+    expect(screen.getByRole('tab', { name: '자산 추이' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByRole('heading', { name: '자산 추이' })).toBeNull()
+    expect(readCharts()).toHaveLength(1)
+    expect(screen.getByText('평가 가치와 그때까지 넣은 돈, 점은 매수한 날')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('tab', { name: '주가 추이' }))
+
+    expect(screen.getByText('주가 차트')).toBeVisible()
+    expect(screen.getByTestId('line-chart')).not.toBeVisible()
+  })
+
+  it('차트 탭이 없으면 탭 없이 자산 추이 카드만 둔다', () => {
+    render(<ResultOverview result={result} investedLabel="총 투자금" invested={10000000} />)
+
+    expect(screen.queryByRole('tablist')).toBeNull()
+    expect(screen.getByRole('heading', { name: '자산 추이' })).toBeInTheDocument()
   })
 
   it('일별 값이 둘보다 적으면 자산 추이 자리에 안내를 보인다', () => {

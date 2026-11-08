@@ -3,6 +3,7 @@ import type { StrategyResponse } from '../../../services/api';
 import { CurrencyToggle, type MetricCurrency } from './CurrencyToggle';
 import { SummaryCards } from './SummaryCards';
 import { AssetChart } from './AssetChart';
+import { ChartTabs } from './ChartTabs';
 import type { Deposit } from './assetSeries';
 import { pickMetrics } from './resultValues';
 
@@ -28,9 +29,13 @@ interface ResultOverviewProps {
   returnRateTestId?: string;
   // 입금을 뺀 시간가중 지표(적립식 · 조건부)
   timeWeighted?: boolean;
+  // 카드 줄 끝에 더할 카드
+  extraCard?: React.ReactNode;
+  // 있으면 자산 추이 뒤에 탭으로 묶을 차트
+  chartTabs?: { key: string; label: string; render: () => React.ReactNode }[];
 }
 
-// 결과 위쪽: 지표 기준 통화 · 카드 한 줄 · 자산 추이
+// 결과 위쪽: 지표 기준 통화 · 카드 한 줄 · 자산 추이(차트 탭이 있으면 탭으로 묶음)
 export const ResultOverview: React.FC<ResultOverviewProps> = ({
   result,
   investedLabel,
@@ -40,8 +45,11 @@ export const ResultOverview: React.FC<ResultOverviewProps> = ({
   onCurrencyChange,
   returnRateTestId,
   timeWeighted,
+  extraCard,
+  chartTabs,
 }) => {
   const { metrics, other, otherLabel, hasMetrics } = pickMetrics(result, currency);
+  const assetCurrency = hasMetrics ? currency : 'KRW';
 
   return (
     <div className="space-y-4">
@@ -62,8 +70,23 @@ export const ResultOverview: React.FC<ResultOverviewProps> = ({
         totalInKrw={currency === 'USD'}
         timeWeighted={timeWeighted}
         returnRateTestId={returnRateTestId}
+        extra={extraCard}
       />
-      <AssetChart dailyValues={result.dailyValues} deposits={deposits} currency={hasMetrics ? currency : 'KRW'} />
+      {chartTabs?.length ? (
+        <ChartTabs
+          label="결과 차트"
+          tabs={[
+            {
+              key: 'asset',
+              label: '자산 추이',
+              render: () => <AssetChart dailyValues={result.dailyValues} deposits={deposits} currency={assetCurrency} plain />,
+            },
+            ...chartTabs,
+          ]}
+        />
+      ) : (
+        <AssetChart dailyValues={result.dailyValues} deposits={deposits} currency={assetCurrency} />
+      )}
     </div>
   );
 };

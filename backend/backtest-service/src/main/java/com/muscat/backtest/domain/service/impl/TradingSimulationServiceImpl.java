@@ -2,6 +2,7 @@ package com.muscat.backtest.domain.service.impl;
 
 import com.muscat.backtest.common.calculation.PerformanceCalculator;
 import com.muscat.backtest.common.constants.BacktestConstants;
+import com.muscat.backtest.common.engine.PurchaseDayReturns;
 import com.muscat.backtest.common.enums.type.BacktestType;
 import com.muscat.backtest.common.logging.BacktestLogger;
 import com.muscat.backtest.common.util.BacktestCalculationUtils;
@@ -13,6 +14,7 @@ import com.muscat.backtest.common.util.PriceLookup;
 import com.muscat.backtest.common.validation.BacktestRequestValidator;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
 import com.muscat.backtest.domain.dto.response.DailyValue;
+import com.muscat.backtest.domain.dto.response.PurchaseDayReturn;
 import com.muscat.backtest.domain.dto.response.SimulationResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.domain.model.HoldingStep;
@@ -351,7 +353,55 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
     response.setMetricsUsd(PerformanceCalculator.compute(dates, usdIndex, context.request().getPurchaseDate()));
     response.setDailyValues(DailyValue.withDrawdowns(dailyValues,
       PerformanceCalculator.drawdownPercents(usdIndex), PerformanceCalculator.drawdownPercents(krwIndex)));
+    response.setPurchaseDayReturns(purchaseDayReturns(candles, context, calculation, fxRates));
     return response;
+  }
+
+  // 매수일별 수익률(기간 환율을 못 받았거나 계산이 실패하면 빈 목록, 결과는 그대로)
+  private List<PurchaseDayReturn> purchaseDayReturns(List<OHLCPriceDto> candles, SimulationContext context,
+    SimulationCalculationResult calculation, Map<String, BigDecimal> fxRates) {
+    SimulationRequest request = context.request();
+    if (candles.isEmpty() || (fxRates == null && request.getPurchaseFxRate() == null)) {
+      return List.of();
+    }
+    try {
+      return PurchaseDayReturns.of(candles, purchaseFx(context, calculation, fxRates),
+        new PurchaseDayReturns.Inputs(request.getInvestmentAmount(), request.getTradingFeeRate(),
+          Boolean.TRUE.equals(request.getReinvestDividends()), request.getDividendTaxRate(), context.dividendHistory(),
+          exDatePrices(context), calculation.currentPriceUsd(), calculation.currentFxRate(), context.valuationDate()));
+    } catch (RuntimeException e) {
+      log.warn("매수일별 수익률 계산 실패: {}", e.getMessage());
+      return List.of();
+    }
+  }
+
+  // 매수일별 산 날 환율: 실제로 산 날은 결과의 매수 환율, 매수 환율을 넣었으면 그 값, 아니면 그 날짜 시장 환율
+  private Function<LocalDate, BigDecimal> purchaseFx(SimulationContext context,
+    SimulationCalculationResult calculation, Map<String, BigDecimal> fxRates) {
+    LocalDate tradeDate = context.purchaseData().date();
+    BigDecimal manual = context.request().getPurchaseFxRate();
+    Function<LocalDate, BigDecimal> market = FxPath.market(fxRecords(fxRates), marketDataClientWrapper.defaultFxRate());
+    return date -> date.equals(tradeDate) ? calculation.purchaseFxRate() : manual != null ? manual : market.apply(date);
+  }
+
+  // 재투자면 받는 배당(금액이 있는 것)의 배당락일 주가(결과 계산과 같은 조회, 재투자가 아니면 비움)
+  private Map<LocalDate, BigDecimal> exDatePrices(SimulationContext context) {
+    Map<LocalDate, BigDecimal> prices = new HashMap<>();
+    if (!Boolean.TRUE.equals(context.request().getReinvestDividends()) || context.dividendHistory() == null
+      || context.dividendHistory().getDividends() == null) {
+      return prices;
+    }
+    LocalDate tradeDate = context.purchaseData().date();
+    for (DividendHistoryDto.DividendPayment dividend : context.dividendHistory().getDividends()) {
+      LocalDate exDate = dividend.getExDate();
+      if (exDate != null && dividend.getAmount() != null && Decimals.isPositive(dividend.getAmount())
+        && BacktestCalculationUtils.receivesDividend(tradeDate, exDate)
+        && !exDate.isAfter(context.valuationDate())) {
+        prices.computeIfAbsent(exDate, date -> PriceLookup.effectiveClose(
+          getHistoricalPrice(context.request().getSymbol(), date, context.priceMap())));
+      }
+    }
+    return prices;
   }
 
   // 매수일 ~ 평가일 일봉(날짜순)

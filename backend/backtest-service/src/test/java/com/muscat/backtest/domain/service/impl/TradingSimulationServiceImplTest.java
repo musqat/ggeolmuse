@@ -41,6 +41,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import com.muscat.backtest.domain.dto.response.PurchaseDayReturn;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -1332,6 +1335,170 @@ class TradingSimulationServiceImplTest {
       SimulationResponse response = service.runSimulation(request(false, "0"), false);
 
       assertThat(response.getDailyValues()).extracting(DailyValue::date).containsExactly(purchaseDate, saleDate);
+    }
+  }
+
+  @Nested
+  @DisplayName("매수일별 수익률")
+  class PurchaseDayReturnTests {
+
+    private final LocalDate purchaseDate = LocalDate.of(2024, 1, 15);
+    private final LocalDate march = LocalDate.of(2024, 3, 15);
+    private final LocalDate exDate = LocalDate.of(2024, 4, 10);
+    private final LocalDate may = LocalDate.of(2024, 5, 10);
+    private final LocalDate saleDate = LocalDate.of(2024, 6, 14);
+    private TradingSimulationServiceImpl service;
+
+    @BeforeEach
+    void setUpService() {
+      service = new TradingSimulationServiceImpl(marketDataClientWrapper, new ResponseMapper(), backtestHistoryUtils);
+      // 산 날 1300 · 평가일 1350, 그 사이 날은 기간 환율 1350(setUp), 테스트마다 바꿔 쓰는 준비라 lenient
+      lenient().when(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
+        .thenReturn(List.of(
+          createOHLCPrice(TEST_SYMBOL, purchaseDate, new BigDecimal("100.00"), true),
+          createOHLCPrice(TEST_SYMBOL, march, new BigDecimal("80.00"), true),
+          createOHLCPrice(TEST_SYMBOL, exDate, new BigDecimal("110.00"), true),
+          createOHLCPrice(TEST_SYMBOL, may, new BigDecimal("120.00"), true),
+          createOHLCPrice(TEST_SYMBOL, saleDate, new BigDecimal("150.00"), true)));
+      lenient().when(marketDataClientWrapper.getFxRate("2024-01-15")).thenReturn(new FxRateDto(purchaseDate, new BigDecimal("1300")));
+      lenient().when(marketDataClientWrapper.getFxRate("2024-06-14")).thenReturn(new FxRateDto(saleDate, new BigDecimal("1350")));
+      lenient().when(marketDataClientWrapper.getDividendHistory(TEST_SYMBOL, "2024-01-15", "2024-06-14"))
+        .thenReturn(List.of(new DividendDto(TEST_SYMBOL, exDate, exDate.plusDays(5), null, new BigDecimal("1.00"), "USD", "test")));
+    }
+
+    private SimulationResponse run(String feeRate, boolean reinvest, String taxRate) {
+      return service.runSimulation(SimulationRequest.builder()
+        .symbol(TEST_SYMBOL).purchaseDate(purchaseDate).saleDate(saleDate)
+        .investmentAmount(new BigDecimal("1350000"))
+        .tradingFeeRate(new BigDecimal(feeRate)).reinvestDividends(reinvest).dividendTaxRate(new BigDecimal(taxRate))
+        .build(), false);
+    }
+
+    @ParameterizedTest(name = "수수료 {0} · 재투자 {1} · 원천징수 {2}")
+    @CsvSource({"0, false, 0", "0.0025, false, 0.15", "0.0025, true, 0.15"})
+    @DisplayName("산 날의 점은 위 총 수익률과 같고, 평가일 전 거래일마다 하나씩이다")
+    void firstPointMatchesTotalReturn(String feeRate, boolean reinvest, String taxRate) {
+      SimulationResponse response = run(feeRate, reinvest, taxRate);
+
+      assertThat(response.getPurchaseDayReturns()).extracting(PurchaseDayReturn::date)
+        .containsExactly(purchaseDate, march, exDate, may);
+      assertThat(response.getPurchaseDayReturns().getFirst().returnPercent())
+        .isEqualByComparingTo(response.getTotalReturnPercent());
+    }
+
+    @Test
+    @DisplayName("배당락일 이후에 산 날은 배당이 없어 주가 · 환율만으로 센다")
+    void afterExDateNoDividend() {
+      SimulationResponse response = run("0", false, "0");
+
+      // 5월 10일 1,000달러로 120 에 사서 평가일 150 · 환율은 내내 1350
+      PurchaseDayReturn may10 = response.getPurchaseDayReturns().get(3);
+      assertThat(may10.returnPercent()).isEqualByComparingTo("25.00");
+      assertThat(may10.returnPercentUsd()).isEqualByComparingTo("25.00");
+    }
+
+    @Test
+    @DisplayName("배당락일 전에 산 날은 그 배당까지 더해 산 날마다 다른 값이다")
+    void beforeExDateGetsDividend() {
+      SimulationResponse response = run("0", false, "0");
+
+      // 3월 15일 1,000달러로 80 에 12.5주 → 150 에 1,875달러 + 배당 12.5달러
+      PurchaseDayReturn march15 = response.getPurchaseDayReturns().get(1);
+      assertThat(march15.returnPercentUsd()).isEqualByComparingTo("88.75");
+    }
+
+    // 5월 10일만 기간 환율을 바꾼 기록(나머지 날은 1350)
+    private void stubMayFx(String rate) {
+      given(marketDataClientWrapper.getBulkFxRates(anyList())).willAnswer(invocation -> {
+        List<String> dates = invocation.getArgument(0);
+        return dates.stream().distinct().collect(Collectors.toMap(date -> date,
+          date -> date.equals(may.toString()) ? new BigDecimal(rate) : new BigDecimal("1350")));
+      });
+    }
+
+    private SimulationResponse runWithFx(String purchaseFx, String currentFx) {
+      return service.runSimulation(SimulationRequest.builder()
+        .symbol(TEST_SYMBOL).purchaseDate(purchaseDate).saleDate(saleDate)
+        .investmentAmount(new BigDecimal("1350000"))
+        .tradingFeeRate(BigDecimal.ZERO).reinvestDividends(false).dividendTaxRate(BigDecimal.ZERO)
+        .purchaseFxRate(purchaseFx == null ? null : new BigDecimal(purchaseFx))
+        .currentFxRate(currentFx == null ? null : new BigDecimal(currentFx))
+        .build(), false);
+    }
+
+    @Test
+    @DisplayName("산 날이 아닌 날은 그 날짜 시장 환율로 산다")
+    void otherDayUsesMarketFx() {
+      stubMayFx("1250");
+
+      // 5월 10일 1,350,000 원 ÷ 1250 = 1,080달러로 9주 → 평가일 150 · 1350 에 1,822,500 원
+      PurchaseDayReturn may10 = runWithFx(null, null).getPurchaseDayReturns().get(3);
+      assertThat(may10.returnPercent()).isEqualByComparingTo("35.00");
+      assertThat(may10.returnPercentUsd()).isEqualByComparingTo("25.00");
+    }
+
+    @Test
+    @DisplayName("현재 환율만 넣어도 산 날이 아닌 날은 그 날짜 시장 환율로 산다")
+    void currentFxOnlyStillUsesMarketPurchaseFx() {
+      stubMayFx("1250");
+
+      // 9주 × 150 × 넣은 평가일 환율 1500 = 2,025,000 원
+      assertThat(runWithFx(null, "1500").getPurchaseDayReturns().get(3).returnPercent()).isEqualByComparingTo("50.00");
+    }
+
+    @Test
+    @DisplayName("매수 환율을 넣으면 산 날이 아닌 날도 그 환율로 산다")
+    void manualPurchaseFxForEveryDay() {
+      // 넣은 1250 으로 1,080달러 · 9주(시장 1350 이면 1,000달러 · 8.33주)
+      assertThat(runWithFx("1250", null).getPurchaseDayReturns().get(3).returnPercent()).isEqualByComparingTo("35.00");
+    }
+
+    @Test
+    @DisplayName("기간 환율을 못 받으면 매수일별 수익률만 비고 결과는 그대로 낸다")
+    void bulkFxFailureLeavesPurchaseDaysEmpty() {
+      given(marketDataClientWrapper.getBulkFxRates(anyList())).willThrow(new IllegalStateException("fx down"));
+
+      SimulationResponse response = runWithFx(null, null);
+
+      assertThat(response.getPurchaseDayReturns()).isEmpty();
+      assertThat(response.getTotalReturnPercent()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("매수일별 계산이 실패해도 결과는 그대로 내고 매수일별 수익률만 빈다")
+    void purchaseDayFailureLeavesItEmpty() {
+      // 현재 환율을 넣으면 일별 가치는 보간 환율이라 그대로, 5월 10일 시장 환율 0 은 매수일별 계산만 막음
+      stubMayFx("0");
+
+      SimulationResponse response = runWithFx(null, "1350");
+
+      assertThat(response.getPurchaseDayReturns()).isEmpty();
+      assertThat(response.getTotalReturnPercent()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("재투자면 배당락일 전에 산 날은 그 배당을 배당락일 주가로 더 사고, 뒤에 산 날은 그대로다")
+    void reinvestOtherDays() {
+      SimulationResponse response = run("0", true, "0");
+
+      // 3월 15일 12.5주 + 배당 12.5달러 ÷ 110 = 0.11363636주 → 12.61363636주 × 150
+      assertThat(response.getPurchaseDayReturns().get(1).returnPercentUsd()).isEqualByComparingTo("89.20");
+      assertThat(response.getPurchaseDayReturns().get(3).returnPercentUsd()).isEqualByComparingTo("25.00");
+    }
+
+    @Test
+    @DisplayName("쓸 수 없는 일봉의 날짜는 매수일별 수익률에서 뺀다")
+    void skipsUnusableCandle() {
+      LocalDate february = LocalDate.of(2024, 2, 15);
+      given(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
+        .willReturn(List.of(
+          createOHLCPrice(TEST_SYMBOL, purchaseDate, new BigDecimal("100.00"), true),
+          createOHLCPrice(TEST_SYMBOL, february, new BigDecimal("90.00"), false),
+          createOHLCPrice(TEST_SYMBOL, may, new BigDecimal("120.00"), true),
+          createOHLCPrice(TEST_SYMBOL, saleDate, new BigDecimal("150.00"), true)));
+
+      assertThat(run("0", false, "0").getPurchaseDayReturns()).extracting(PurchaseDayReturn::date)
+        .containsExactly(purchaseDate, may);
     }
   }
 }
