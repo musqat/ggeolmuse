@@ -111,7 +111,7 @@ describe('AccumulationChart', () => {
     expect(await screen.findByText('2회 매수 • 1회 매도 • 총 0.00주 보유')).toBeInTheDocument()
   })
 
-  it('평가일이 있으면 그날까지 받는다', async () => {
+  it('평가일이 있으면 그 날짜까지 받는다', async () => {
     renderWithQuery(<AccumulationChart {...props} endDate="2026-03-06" />)
 
     await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(1))
@@ -134,10 +134,11 @@ describe('AccumulationChart', () => {
     ])
   })
 
-  it('배당 재투자를 뺀 매수 횟수와 보유 주식 합(소수 둘째 자리)을 보인다', async () => {
+  it('제목 없이 배당 재투자를 뺀 매수 횟수와 보유 주식 합(소수 둘째 자리)을 보인다', async () => {
     renderWithQuery(<AccumulationChart {...props} />)
 
     expect(await screen.findByText('2회 매수 • 총 2.10주 보유')).toBeInTheDocument()
+    expect(screen.queryByRole('heading')).toBeNull()
   })
 
   it('1년을 고르면 그보다 앞선 거래는 첫날에 찍지 않는다', async () => {
@@ -154,10 +155,10 @@ describe('AccumulationChart', () => {
     expect(readCharts()[0].dots).toEqual([{ x: '2026-03-04', y: 101, fill: '#8b5cf6' }])
   })
 
-  it('고른 기간에 시세가 없으면 안내를 보인다', async () => {
+  it('고른 기간에 시세가 없으면 카드 테두리 없이 안내를 보인다', async () => {
     getOHLCData.mockResolvedValue({ data: [] } as never)
     renderWithQuery(<AccumulationChart {...props} />)
 
-    expect(await screen.findByText('차트 데이터가 없습니다.')).toBeInTheDocument()
+    expect((await screen.findByText('차트 데이터가 없습니다.')).closest('.bg-surface')).toBeNull()
   })
 })

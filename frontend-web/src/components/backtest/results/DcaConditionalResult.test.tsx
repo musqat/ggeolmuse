@@ -40,14 +40,51 @@ const props = {
 }
 
 const open = (title: string) => userEvent.click(screen.getByText(title))
+const priceTab = () => userEvent.click(screen.getByRole('tab', { name: '주가 추이' }))
 
 describe('DcaConditionalResult', () => {
+  it('자산 추이 · 주가 추이를 한 카드의 탭으로 묶어 자산 추이를 먼저 보이고, 주가 차트는 탭을 고를 때 그린다', async () => {
+    render(<DcaConditionalResult result={result} {...props} />)
+
+    expect(screen.getByRole('tab', { name: '자산 추이' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByRole('tab', { name: '매수일별 수익률' })).toBeNull()
+    expect(screen.queryByText('주가 · 수익률 추이')).toBeNull()
+    expect(screen.queryByText(/차트 시작/)).toBeNull()
+
+    await priceTab()
+
+    expect(screen.getByRole('tab', { name: '주가 추이' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByText('차트 시작 2023-01-01')).toBeVisible()
+  })
+
+  it('한 번 연 주가 추이 탭은 숨겨 둔 채 두고, 화살표로 탭을 옮긴다', async () => {
+    render(<DcaConditionalResult result={result} {...props} />)
+    await priceTab()
+    await userEvent.click(screen.getByRole('tab', { name: '자산 추이' }))
+
+    expect(screen.getByText('차트 시작 2023-01-01')).not.toBeVisible()
+
+    await userEvent.keyboard('{ArrowRight}')
+
+    expect(screen.getByRole('tab', { name: '주가 추이' })).toHaveFocus()
+    expect(screen.getByText('차트 시작 2023-01-01')).toBeVisible()
+  })
+
+  it('매수가 없으면 탭 없이 자산 추이 카드만 둔다', () => {
+    render(
+      <DcaConditionalResult result={{ ...result, transactions: [], skippedRounds: [{ date: '2023-01-15', reason: 'NO_PRICE' }] }} {...props} />
+    )
+
+    expect(screen.queryByRole('tablist')).toBeNull()
+    expect(screen.getByRole('heading', { name: '자산 추이' })).toBeInTheDocument()
+  })
+
   it('매수 내역은 맨 아래 접는 칸이고 제목 줄에 매수 · 미매수 횟수를 보인다', () => {
     render(<DcaConditionalResult result={{ ...result, skippedRounds: [{ date: '2022-12-15', reason: 'NO_PRICE' }] }} {...props} />)
 
-    const chart = screen.getByText('주가 · 수익률 추이')
+    const detail = screen.getByText('상세')
     const history = screen.getByText('매수 내역')
-    expect(chart.compareDocumentPosition(history) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(detail.compareDocumentPosition(history) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(history.closest('details')).not.toHaveAttribute('open')
     expect(screen.getByText('· 매수 1회 · 미매수 1회')).toBeInTheDocument()
   })
@@ -95,7 +132,7 @@ describe('DcaConditionalResult', () => {
 
   it('결과의 시작일부터 평가일까지 차트를 그린다', async () => {
     render(<DcaConditionalResult result={result} {...props} />)
-    await open('주가 · 수익률 추이')
+    await priceTab()
 
     expect(screen.getByText('차트 시작 2023-01-01')).toBeInTheDocument()
     expect(screen.getByText('차트 끝 2024-01-01')).toBeInTheDocument()
@@ -105,7 +142,7 @@ describe('DcaConditionalResult', () => {
     const { startDate: _omit, ...withoutStart } = result
     void _omit
     render(<DcaConditionalResult result={withoutStart} {...props} />)
-    await open('주가 · 수익률 추이')
+    await priceTab()
 
     expect(screen.getByText('차트 시작 2022-06-01')).toBeInTheDocument()
   })
