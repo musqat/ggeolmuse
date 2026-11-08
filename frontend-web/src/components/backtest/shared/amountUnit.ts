@@ -7,7 +7,8 @@ import { DEFAULT_FX_RATE, fetchFxRates } from '../../charts/backtest/shared/fxRa
 import type { BacktestOptions } from './backtestOptions';
 
 // 회차마다 사는 단위(금액 · 주식 수)
-export type AmountUnit = 'AMOUNT' | 'SHARES';
+export const AMOUNT_UNITS = ['AMOUNT', 'SHARES'] as const;
+export type AmountUnit = (typeof AMOUNT_UNITS)[number];
 
 export interface AmountUnitValues {
   unit: AmountUnit;

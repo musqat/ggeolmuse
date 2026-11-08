@@ -6,27 +6,38 @@ import type { ModeController, SharedModeProps } from '../types';
 import { commonFields } from '../commonFields';
 import { strategyRun } from '../strategyRun';
 import { buildConditionalRequest } from './request';
-import { useBacktestOptions } from '../../shared/backtestOptions';
-import { useAmountUnit, useRoundCost } from '../../shared/amountUnit';
+import { AMOUNT_UNITS, useAmountUnit, useRoundCost } from '../../shared/amountUnit';
 import { hasSellRates } from '../../shared/sellRates';
+import { DIRECTION_ORDER } from '../../shared/priceDirection';
 import { countRounds } from '../../shared/dcaSchedule';
 import { amountIssue, budgetIssue, countErrors, maxIssue, percentIssue, sellIssue } from '../../settings/checks';
-import { changedOptions, conditionalHow } from '../../settings/summary';
+import { conditionalHow } from '../../settings/summary';
+import { oneOf, pickValues } from '../../settings/snapshot';
 
 const LABEL = '회당 금액';
+const DEFAULTS = {
+  amount: '100000',
+  unit: 'AMOUNT',
+  shares: '1',
+  budget: '1000000',
+  maxPurchases: '',
+  direction: 'DROP',
+  percent: '5',
+  takeProfit: '',
+  stopLoss: '',
+};
 
 export const useConditionalMode = (shared: SharedModeProps): ModeController => {
-  const { symbol, period } = shared;
-  const [amountPerPurchase, setAmountPerPurchase] = useState('100000');
+  const { symbol, period, options } = shared;
+  const [amountPerPurchase, setAmountPerPurchase] = useState(DEFAULTS.amount);
   const amountUnit = useAmountUnit();
   // 예산 · 최대 횟수는 비우면 제한 없음
-  const [totalInvestment, setTotalInvestment] = useState('1000000');
-  const [maxPurchases, setMaxPurchases] = useState('');
+  const [totalInvestment, setTotalInvestment] = useState(DEFAULTS.budget);
+  const [maxPurchases, setMaxPurchases] = useState(DEFAULTS.maxPurchases);
   const [direction, setDirection] = useState<PriceDirection>('DROP');
-  const [dropPercentage, setDropPercentage] = useState('5');
-  const [takeProfit, setTakeProfit] = useState(''); // 비우면 익절 안 함
-  const [stopLoss, setStopLoss] = useState(''); // 비우면 손절 안 함
-  const options = useBacktestOptions();
+  const [dropPercentage, setDropPercentage] = useState(DEFAULTS.percent);
+  const [takeProfit, setTakeProfit] = useState(DEFAULTS.takeProfit); // 비우면 익절 안 함
+  const [stopLoss, setStopLoss] = useState(DEFAULTS.stopLoss); // 비우면 손절 안 함
   const { end, symbolField, periodField, symbolMessage, periodMessage } = commonFields(shared);
 
   const byShares = amountUnit.unit === 'SHARES';
@@ -84,8 +95,6 @@ export const useConditionalMode = (shared: SharedModeProps): ModeController => {
           placeholder: totalInvestment.trim() ? '예산 한도까지' : '제한 없음',
           message: maxMessage,
         }}
-        options={options}
-        reinvestLocked={sells}
       />
     ),
     summary: {
@@ -100,9 +109,32 @@ export const useConditionalMode = (shared: SharedModeProps): ModeController => {
         takeProfit,
         stopLoss,
       }),
-      changed: changedOptions(options, sells),
     },
     errorCount: countErrors([symbolMessage, periodMessage, amountMessage, budgetMessage, percentMessage, sellMessage, maxMessage]),
+    reinvestLocked: sells,
+    saved: {
+      amount: amountPerPurchase,
+      unit: amountUnit.unit,
+      shares: amountUnit.shares,
+      budget: totalInvestment,
+      maxPurchases,
+      direction,
+      percent: dropPercentage,
+      takeProfit,
+      stopLoss,
+    },
+    load: (saved) => {
+      const next = pickValues(DEFAULTS, saved);
+      setAmountPerPurchase(next.amount);
+      amountUnit.setUnit(oneOf(next.unit, AMOUNT_UNITS, 'AMOUNT'));
+      amountUnit.setShares(next.shares);
+      setTotalInvestment(next.budget);
+      setMaxPurchases(next.maxPurchases);
+      setDirection(oneOf(next.direction, DIRECTION_ORDER, 'DROP'));
+      setDropPercentage(next.percent);
+      setTakeProfit(next.takeProfit);
+      setStopLoss(next.stopLoss);
+    },
     prepare: (ctx) => {
       const built = buildConditionalRequest(
         {

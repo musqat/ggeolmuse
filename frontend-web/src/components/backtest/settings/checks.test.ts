@@ -3,7 +3,10 @@ import {
   amountIssue,
   budgetIssue,
   countErrors,
+  feeIssue,
   firstIssue,
+  fxGapNotice,
+  fxRateIssue,
   maxIssue,
   monthsIssue,
   percentIssue,
@@ -80,6 +83,30 @@ describe('설정 칸 검사', () => {
     expect(maxIssue('3')).toBeNull()
     expect(maxIssue('0')).toEqual(error('1 이상 정수'))
     expect(maxIssue('2.5')).toEqual(error('1 이상 정수'))
+  })
+
+  it('수수료: 비면 0, 숫자가 아니면 숫자로, 100 이상이면 100 아래', () => {
+    expect(feeIssue('')).toBeNull()
+    expect(feeIssue('0.25')).toBeNull()
+    expect(feeIssue('.')).toEqual(error('숫자로'))
+    expect(feeIssue('100')).toEqual(error('100 아래'))
+  })
+
+  it('직접 입력 환율: 비면 시장 환율, 적으면 0 보다 크게', () => {
+    expect(fxRateIssue('')).toBeNull()
+    expect(fxRateIssue('1350')).toBeNull()
+    expect(fxRateIssue('0')).toEqual(error('0 보다 크게'))
+  })
+
+  it('2014년 전부터면 기본 환율 안내, 매수 환율을 직접 적었으면 안내 없음', () => {
+    const auto = { fxMode: 'auto' as const, manualPurchaseFxRate: '' }
+    const notice = warning('2014년 이전은 환율 기록이 없어 그 기간은 기본 환율로 계산')
+
+    expect(fxGapNotice('2013-12-31', auto)).toEqual(notice)
+    expect(fxGapNotice('2014-01-01', auto)).toBeNull()
+    expect(fxGapNotice('2013-12-31', { fxMode: 'manual', manualPurchaseFxRate: '' })).toEqual(notice)
+    expect(fxGapNotice('2013-12-31', { fxMode: 'manual', manualPurchaseFxRate: '1130' })).toBeNull()
+    expect(fxGapNotice('', auto)).toBeNull()
   })
 
   it('오류 수는 경고를 빼고 센다', () => {

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { getTodayString, parseLocalDate, toLocalDateString } from '../../../utils/dateUtils';
 import { toWeekday } from '../shared/dcaSchedule';
 import type { FieldMessage } from './checks';
+import { oneOf, pickValues } from './snapshot';
 
 // 오늘(끝 날짜)부터 몇 주 · 달 · 년 전
 export type AgoUnit = 'WEEK' | 'MONTH' | 'YEAR';
@@ -61,7 +62,7 @@ export const periodIssue = ({ start, end, agoOn, agoCount }: PeriodCheck): Field
   return null;
 };
 
-export interface PeriodState {
+export interface PeriodValues {
   start: string;
   // 비면 오늘
   end: string;
@@ -69,18 +70,27 @@ export interface PeriodState {
   agoUnit: AgoUnit;
   // 빠른 고르기가 시작일을 정하는지
   agoOn: boolean;
+}
+
+export interface PeriodState extends PeriodValues {
   setStart: (date: string) => void;
   setEnd: (date: string) => void;
   setAgoCount: (count: string) => void;
   setAgoUnit: (unit: AgoUnit) => void;
+  // 저장할 값(끝 날짜가 오늘이면 비움)
+  values: PeriodValues;
+  // 저장한 값(빠른 고르기가 켜져 있으면 시작일을 다시 셈, 모양이 다른 칸은 기본값)
+  load: (saved: unknown) => void;
 }
+
+const DEFAULT_PERIOD: PeriodValues = { start: '', end: '', agoCount: '1', agoUnit: 'YEAR', agoOn: true };
 
 // 모드가 같이 쓰는 기간: 처음은 오늘부터 1년 전, 숫자 · 단위를 고치면 켜지고 시작일을 직접 고르면 꺼짐
 export const usePeriod = (): PeriodState => {
-  const [end, setEndValue] = useState('');
-  const [agoCount, setAgoCountValue] = useState('1');
-  const [agoUnit, setAgoUnitValue] = useState<AgoUnit>('YEAR');
-  const [agoOn, setAgoOn] = useState(true);
+  const [end, setEndValue] = useState(DEFAULT_PERIOD.end);
+  const [agoCount, setAgoCountValue] = useState(DEFAULT_PERIOD.agoCount);
+  const [agoUnit, setAgoUnitValue] = useState<AgoUnit>(DEFAULT_PERIOD.agoUnit);
+  const [agoOn, setAgoOn] = useState(DEFAULT_PERIOD.agoOn);
   const [start, setStartValue] = useState(() => presetStart(getTodayString(), 1, 'YEAR'));
 
   // 숫자가 범위 밖이면 시작일을 그대로 둠
@@ -89,12 +99,26 @@ export const usePeriod = (): PeriodState => {
     if (value !== undefined) setStartValue(presetStart(endDate || getTodayString(), value, unit));
   };
 
+  const load = (saved: unknown) => {
+    const next = pickValues(DEFAULT_PERIOD, saved);
+    const unit = oneOf(next.agoUnit, AGO_UNITS.map((option) => option.value), DEFAULT_PERIOD.agoUnit);
+    const count = parseAgo(next.agoCount);
+    setEndValue(next.end);
+    setAgoCountValue(next.agoCount);
+    setAgoUnitValue(unit);
+    setAgoOn(next.agoOn);
+    if (next.agoOn && count !== undefined) setStartValue(presetStart(next.end || getTodayString(), count, unit));
+    else setStartValue(next.start || presetStart(getTodayString(), 1, 'YEAR'));
+  };
+
   return {
     start,
     end,
     agoCount,
     agoUnit,
     agoOn,
+    values: { start, end: end === getTodayString() ? '' : end, agoCount, agoUnit, agoOn },
+    load,
     setStart: (date) => {
       setStartValue(date);
       setAgoOn(false);

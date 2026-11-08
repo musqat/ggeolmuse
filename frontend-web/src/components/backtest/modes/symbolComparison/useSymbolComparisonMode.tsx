@@ -5,23 +5,26 @@ import { SymbolComparisonResult } from '../../results/SymbolComparisonResult';
 import type { ModeController, SharedModeProps } from '../types';
 import { commonFields } from '../commonFields';
 import { buildSymbolComparisonRequest } from './request';
-import { useBacktestOptions } from '../../shared/backtestOptions';
 import { amountIssue, countErrors, symbolIssue, symbolsIssue } from '../../settings/checks';
-import { changedOptions } from '../../settings/summary';
+import { pickValues } from '../../settings/snapshot';
 import { formatReadableWon } from '../../../../utils/format';
 
 const LABEL = '종목마다 금액';
 const MAX_SYMBOLS = 10;
+const DEFAULTS = { symbols: ['AAPL', 'MSFT'], investment: '1000000' };
+
+// 저장한 종목 목록(글자만, 겹치지 않게, 10개까지)
+const savedSymbols = (symbols: unknown[]) =>
+  [...new Set(symbols.filter((item): item is string => typeof item === 'string' && item.trim() !== ''))].slice(0, MAX_SYMBOLS);
 
 // 요약 첫 줄의 종목(셋까지, 나머지는 외 N)
 const subjectOf = (symbols: string[]) =>
   `${symbols.slice(0, 3).join(', ')}${symbols.length > 3 ? ` 외 ${symbols.length - 3}` : ''}` || '종목';
 
 export const useSymbolComparisonMode = (shared: SharedModeProps): ModeController => {
-  const { symbol, supportedSymbols, period } = shared;
-  const [symbols, setSymbols] = useState<string[]>(['AAPL', 'MSFT']);
-  const [investment, setInvestment] = useState('1000000');
-  const options = useBacktestOptions();
+  const { symbol, supportedSymbols, period, options } = shared;
+  const [symbols, setSymbols] = useState<string[]>(DEFAULTS.symbols);
+  const [investment, setInvestment] = useState(DEFAULTS.investment);
   const { periodField, periodMessage } = commonFields(shared);
 
   const symbolsMessage = symbolsIssue(symbols);
@@ -46,15 +49,19 @@ export const useSymbolComparisonMode = (shared: SharedModeProps): ModeController
         }}
         period={periodField}
         amount={{ label: LABEL, amount: investment, onAmountChange: setInvestment, message: amountMessage }}
-        options={options}
       />
     ),
     summary: {
       subject: subjectOf(symbols),
       how: `종목마다 ${formatReadableWon(parseFloat(investment))}`,
-      changed: changedOptions(options, false),
     },
     errorCount: countErrors([symbolsMessage, periodMessage, amountMessage]),
+    saved: { symbols, investment },
+    load: (saved) => {
+      const next = pickValues(DEFAULTS, saved);
+      setSymbols(savedSymbols(next.symbols));
+      setInvestment(next.investment);
+    },
     // 보던 종목을 맨 앞에(목록에 있는 종목만, 10개까지)
     onEnter: () => {
       if (symbolIssue(symbol, supportedSymbols) || symbols.includes(symbol)) return;

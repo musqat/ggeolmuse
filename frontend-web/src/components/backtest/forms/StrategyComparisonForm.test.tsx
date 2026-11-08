@@ -3,13 +3,8 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ComponentProps } from 'react'
 import { StrategyComparisonForm } from './StrategyComparisonForm'
-import type { BacktestOptionsState } from '../shared/backtestOptions'
 
-const options: BacktestOptionsState = {
-  reinvestDividends: true, setReinvestDividends: vi.fn(), tradingFeeRate: '0', setTradingFeeRate: vi.fn(),
-  dividendTax: false, setDividendTax: vi.fn(), fxMode: 'auto', setFxMode: vi.fn(),
-  manualPurchaseFxRate: '1300', setManualPurchaseFxRate: vi.fn(), manualCurrentFxRate: '1350', setManualCurrentFxRate: vi.fn(),
-}
+const period = { start: '2023-01-02', end: '2023-12-29', agoCount: '1', agoUnit: 'YEAR' as const, agoOn: false }
 
 type Props = ComponentProps<typeof StrategyComparisonForm>
 
@@ -27,8 +22,9 @@ function renderForm(patch: Partial<Props> = {}) {
     symbol: { symbol: 'AAPL', onChange: vi.fn(), supportedSymbols: ['AAPL'] },
     period: {
       period: {
-        start: '2023-01-02', end: '2023-12-29', agoCount: '1', agoUnit: 'YEAR', agoOn: false,
+        ...period,
         setStart: vi.fn(), setEnd: vi.fn(), setAgoCount: vi.fn(), setAgoUnit: vi.fn(),
+        values: period, load: vi.fn(),
       },
     },
     amount: { label: '전략마다 원금', amount: '1000000', onAmountChange: vi.fn() },
@@ -38,7 +34,6 @@ function renderForm(patch: Partial<Props> = {}) {
     onRemove: vi.fn(),
     onAdd: vi.fn(),
     panel: <p>열린 칩 설정</p>,
-    options,
     ...patch,
   }
   render(<StrategyComparisonForm {...props} />)
@@ -94,14 +89,5 @@ describe('StrategyComparisonForm', () => {
     expect(bad.parentElement).toHaveClass('border-danger')
     expect(chips().getByRole('button', { name: '적립식' }).parentElement).toHaveClass('border-dashed')
     expect(screen.getByText('고칠 칩 1개(! 표시)는 눌러서 고치기')).toBeInTheDocument()
-  })
-
-  it('익절 · 손절이 있는 조건부 칩이 있으면 재투자 칸은 켜 둔 채 그 칩만 재투자하지 않는다고 보인다', () => {
-    renderForm({ reinvestNote: '익절 · 손절이 있는 조건부 매수는 재투자 안 함' })
-
-    const reinvest = screen.getByRole('checkbox', { name: /배당금 재투자/ })
-    expect(reinvest).toBeEnabled()
-    expect(reinvest).toBeChecked()
-    expect(screen.getByText('익절 · 손절이 있는 조건부 매수는 재투자 안 함')).toBeInTheDocument()
   })
 })

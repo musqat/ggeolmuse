@@ -4,6 +4,9 @@ import { onRadioKeys } from './radioKeys';
 export interface RadioOption<T extends string> {
   value: T;
   label: ReactNode;
+  // 포커스는 받되 고를 수 없음(까닭은 describedBy 의 글)
+  disabled?: boolean;
+  describedBy?: string;
 }
 
 interface RadioGroupProps<T extends string> {
@@ -38,8 +41,12 @@ export function RadioGroup<T extends string>({
             type="button"
             role="radio"
             aria-checked={checked}
+            aria-disabled={option.disabled || undefined}
+            aria-describedby={option.describedBy}
             tabIndex={checked || (!hasValue && index === 0) ? 0 : -1}
-            onClick={() => onChange(option.value)}
+            onClick={() => {
+              if (!option.disabled) onChange(option.value);
+            }}
             className={optionClassName(checked)}
           >
             {option.label}

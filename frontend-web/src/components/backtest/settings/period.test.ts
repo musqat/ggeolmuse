@@ -99,4 +99,22 @@ describe('usePeriod', () => {
     act(() => result.current.setAgoUnit('WEEK'))
     expect(result.current).toMatchObject({ agoOn: true, start: '2026-07-24' })
   })
+
+  it('값을 뽑을 때 끝 날짜가 오늘이면 비워 두고, 되살릴 때 빠른 고르기가 켜져 있으면 오늘에서 다시 센다', () => {
+    const { result } = renderHook(() => usePeriod())
+
+    act(() => result.current.setEnd('2026-10-08'))
+    expect(result.current.values).toEqual({ start: '2025-10-08', end: '', agoCount: '1', agoUnit: 'YEAR', agoOn: true })
+    act(() => result.current.load({ start: '2025-06-09', end: '', agoCount: '6', agoUnit: 'MONTH', agoOn: true }))
+    expect(result.current).toMatchObject({ start: '2026-04-08', end: '', agoCount: '6', agoUnit: 'MONTH', agoOn: true })
+  })
+
+  it('빠른 고르기가 꺼진 기간은 날짜 그대로, 모양이 다른 칸은 기본값으로 되살린다', () => {
+    const { result } = renderHook(() => usePeriod())
+
+    act(() => result.current.load({ start: '2024-01-02', end: '2024-12-31', agoCount: '1', agoUnit: 'DAY', agoOn: false }))
+    expect(result.current).toMatchObject({ start: '2024-01-02', end: '2024-12-31', agoUnit: 'YEAR', agoOn: false })
+    act(() => result.current.load(undefined))
+    expect(result.current).toMatchObject({ start: '2025-10-08', end: '', agoCount: '1', agoUnit: 'YEAR', agoOn: true })
+  })
 })

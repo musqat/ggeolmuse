@@ -2,15 +2,14 @@ import { useRef, useState } from 'react';
 import { backtestApi } from '@services/api';
 import { StrategyComparisonForm } from '../../forms/StrategyComparisonForm';
 import { StrategyComparisonResult } from '../../results/StrategyComparisonResult';
-import { strategyByType } from '../../comparison/catalog';
+import { COMPARISON_STRATEGIES, strategyByType } from '../../comparison/catalog';
 import type { ComparisonStrategyType } from '../../comparison/types';
 import type { ModeController, SharedModeProps } from '../types';
 import { commonFields } from '../commonFields';
 import { buildStrategyComparisonRequest, type StrategyChip } from './request';
-import { useBacktestOptions } from '../../shared/backtestOptions';
 import { hasSellRates } from '../../shared/sellRates';
 import { amountIssue, countErrors, type FieldMessage } from '../../settings/checks';
-import { changedOptions } from '../../settings/summary';
+import { oneOf, pickValues } from '../../settings/snapshot';
 import type { SummaryLine } from '../../settings/SettingsSummary';
 import { formatReadableWon } from '../../../../utils/format';
 
@@ -32,13 +31,31 @@ const nextName = (chips: StrategyChip[], type: ComparisonStrategyType) => {
   return numbers.length ? `${base} ${Math.max(...numbers) + 1}` : base;
 };
 
+const defaultChips = () => [newChip('s1', 'SIMPLE'), newChip('s2', 'DCA')];
+const DEFAULTS = { investment: '1000000', chips: [] as unknown[], openId: 's2' };
+const TYPES = COMPARISON_STRATEGIES.map((def) => def.type);
+
+// 저장한 칩 가운데 모양이 맞는 것(값은 글자 칸만)
+const savedChips = (items: unknown[]): StrategyChip[] =>
+  items.flatMap((item) => {
+    const chip = pickValues({ id: '', type: '', name: '' }, item);
+    const type = oneOf(chip.type, TYPES, 'SIMPLE');
+    if (!chip.id || !chip.name || type !== chip.type) return [];
+    const raw = (item as { params?: unknown }).params;
+    const entries = typeof raw === 'object' && raw !== null ? Object.entries(raw) : [];
+    const params = Object.fromEntries(entries.filter((entry): entry is [string, string] => typeof entry[1] === 'string'));
+    return [{ id: chip.id, type, name: chip.name, params }];
+  });
+
+// 칩 id(s1, s2 …)의 다음 번호
+const nextNumber = (chips: StrategyChip[]) => Math.max(0, ...chips.map((chip) => Number(chip.id.slice(1)) || 0)) + 1;
+
 export const useStrategyComparisonMode = (shared: SharedModeProps): ModeController => {
-  const { symbol, period } = shared;
-  const [investment, setInvestment] = useState('1000000');
-  const [chips, setChips] = useState<StrategyChip[]>(() => [newChip('s1', 'SIMPLE'), newChip('s2', 'DCA')]);
-  const [openId, setOpenId] = useState<string | null>('s2');
+  const { symbol, period, options } = shared;
+  const [investment, setInvestment] = useState(DEFAULTS.investment);
+  const [chips, setChips] = useState<StrategyChip[]>(defaultChips);
+  const [openId, setOpenId] = useState<string | null>(DEFAULTS.openId);
   const nextId = useRef(3);
-  const options = useBacktestOptions();
   const { end, symbolField, periodField, symbolMessage, periodMessage } = commonFields(shared);
   const common = { startDate: period.start, endDate: end, investment };
 
@@ -114,17 +131,25 @@ export const useStrategyComparisonMode = (shared: SharedModeProps): ModeControll
             />
           )
         }
-        options={options}
-        reinvestNote={conditionalSells ? '익절 · 손절이 있는 조건부 매수는 재투자 안 함' : undefined}
       />
     ),
     summary: {
       subject: symbol,
       how: `전략마다 원금 ${formatReadableWon(parseFloat(investment))}`,
-      changed: changedOptions(options, false),
       lines: views.map((view) => view.line),
     },
     errorCount: countErrors([symbolMessage, periodMessage, amountMessage]) + (chips.length < 2 ? 1 : 0) + badCount,
+    reinvestNote: conditionalSells ? '익절 · 손절이 있는 조건부 매수는 재투자 안 함' : undefined,
+    saved: { investment, chips, openId },
+    load: (saved) => {
+      const next = pickValues(DEFAULTS, saved);
+      // 저장한 칩 목록이 없으면 기본 칩
+      const restored = next.chips === DEFAULTS.chips ? defaultChips() : savedChips(next.chips);
+      setInvestment(next.investment);
+      setChips(restored);
+      setOpenId(restored.some((chip) => chip.id === next.openId) ? next.openId : null);
+      nextId.current = nextNumber(restored);
+    },
     prepare: (ctx) => {
       const built = buildStrategyComparisonRequest(
         {

@@ -1,11 +1,13 @@
 import { formatReadableWon } from '../../../utils/format';
 import { parseShares } from '../shared/amountUnit';
 import { isMonthly, parseMonths, type DcaCadence } from '../shared/dcaSchedule';
+import type { BacktestOptions } from '../shared/backtestOptions';
 
-// 칸 아래 한 줄(오류는 실행을 막고 경고는 안 막음)
+// 칸 아래 한 줄(오류는 실행을 막고 경고는 안 막음), 글 뒤에 작은 단추 하나
 export interface FieldMessage {
   kind: 'error' | 'warning';
   text: string;
+  action?: { label: string; onClick: () => void };
 }
 
 const error = (text: string): FieldMessage => ({ kind: 'error', text });
@@ -90,4 +92,41 @@ export const maxIssue = (max: string): FieldMessage | null => {
   if (!max.trim()) return null;
   const value = Number(max);
   return Number.isInteger(value) && value >= 1 ? null : error('1 이상 정수');
+};
+
+// 비면 0
+export const feeIssue = (fee: string): FieldMessage | null => {
+  if (!fee.trim()) return null;
+  const value = parseFloat(fee);
+  if (isNaN(value)) return error('숫자로');
+  return value >= 100 ? error('100 아래') : null;
+};
+
+// 비면 그 날짜 시장 환율
+export const fxRateIssue = (rate: string): FieldMessage | null =>
+  rate.trim() && !(parseFloat(rate) > 0) ? error('0 보다 크게') : null;
+
+// 세부 설정 칸 오류(직접 입력 환율은 직접 입력일 때만)
+export const detailIssues = (
+  options: Pick<BacktestOptions, 'tradingFeeRate' | 'fxMode' | 'manualPurchaseFxRate' | 'manualCurrentFxRate'>,
+) => {
+  const manual = options.fxMode === 'manual';
+  return {
+    fee: feeIssue(options.tradingFeeRate),
+    buyFx: manual ? fxRateIssue(options.manualPurchaseFxRate) : null,
+    endFx: manual ? fxRateIssue(options.manualCurrentFxRate) : null,
+  };
+};
+
+// 환율 기록이 있는 첫날
+export const FX_RECORD_FROM = '2014-01-01';
+
+// 그 날짜가 환율 기록 전이고 매수 환율을 적지 않았으면 기본 환율 안내
+export const fxGapNotice = (
+  from: string,
+  options: Pick<BacktestOptions, 'fxMode' | 'manualPurchaseFxRate'>,
+): FieldMessage | null => {
+  if (!from || from >= FX_RECORD_FROM) return null;
+  if (options.fxMode === 'manual' && parseFloat(options.manualPurchaseFxRate) > 0) return null;
+  return warning('2014년 이전은 환율 기록이 없어 그 기간은 기본 환율로 계산');
 };

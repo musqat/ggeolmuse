@@ -1,6 +1,4 @@
 import React from 'react';
-import type { BacktestOptionsState } from '../shared/backtestOptions';
-import { StrategyOptions } from '../shared/StrategyFields';
 import { SymbolField, type SymbolFieldProps } from '../settings/SymbolFields';
 import { PeriodField, type PeriodFieldProps } from '../settings/PeriodField';
 import { AmountField, type AmountFieldProps } from '../settings/AmountField';
@@ -18,9 +16,6 @@ interface ConditionalStrategyFormProps {
   condition: ConditionFieldProps;
   sell: SellFieldProps;
   max: MaxFieldProps;
-  options: BacktestOptionsState;
-  // 익절 · 손절을 켜서 배당 재투자를 못 쓰는지
-  reinvestLocked: boolean;
 }
 
 // 정한 비율만큼 떨어지거나 오른 날마다 회당 금액 · 회당 주식 수만큼 사고, 켜면 익절 · 손절로 전량 파는 전략
@@ -32,8 +27,6 @@ export const ConditionalStrategyForm: React.FC<ConditionalStrategyFormProps> = (
   condition,
   sell,
   max,
-  options,
-  reinvestLocked,
 }) => (
   <div className="space-y-4">
     <div className={FIELD_GRID}>
@@ -47,12 +40,5 @@ export const ConditionalStrategyForm: React.FC<ConditionalStrategyFormProps> = (
       <SellField {...sell} />
       <MaxField {...max} />
     </div>
-    <StrategyOptions
-      options={options}
-      startDate={period.period.start}
-      purchaseLabel="시작일 환율"
-      currentLabel="현재 환율"
-      reinvestLocked={reinvestLocked}
-    />
   </div>
 );

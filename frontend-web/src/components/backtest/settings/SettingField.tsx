@@ -20,6 +20,7 @@ export const SettingField = ({ label, labelId, right, message, messageId, classN
     if ((event.target as HTMLElement).closest('input, button, a, [role="listbox"], [role="radiogroup"]')) return;
     event.currentTarget.querySelector<HTMLInputElement>('[data-field-value] input')?.focus();
   };
+  const tone = message?.kind === 'error' ? 'text-danger' : 'text-warning';
 
   return (
     <div
@@ -34,8 +35,19 @@ export const SettingField = ({ label, labelId, right, message, messageId, classN
       </div>
       <div data-field-value>{children}</div>
       {message && (
-        <p id={messageId} className={`mt-0.5 text-xs ${message.kind === 'error' ? 'text-danger' : 'text-warning'}`}>
-          {message.text}
+        <p className="mt-0.5 text-xs">
+          <span id={messageId} className={tone}>
+            {message.text}
+          </span>
+          {message.action && (
+            <button
+              type="button"
+              onClick={message.action.onClick}
+              className={`ml-1.5 min-h-9 rounded-full border border-current px-2 sm:min-h-0 sm:py-px ${tone}`}
+            >
+              {message.action.label}
+            </button>
+          )}
         </p>
       )}
     </div>

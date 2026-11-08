@@ -5,19 +5,19 @@ import { SimpleResult } from '../../results/SimpleResult';
 import type { ModeController, SharedModeProps } from '../types';
 import { commonFields } from '../commonFields';
 import { buildSimpleRequest } from './request';
-import { useBacktestOptions } from '../../shared/backtestOptions';
-import { useAmountUnit, useRoundCost } from '../../shared/amountUnit';
+import { AMOUNT_UNITS, useAmountUnit, useRoundCost } from '../../shared/amountUnit';
 import { amountIssue, countErrors } from '../../settings/checks';
-import { changedOptions, simpleHow } from '../../settings/summary';
+import { simpleHow } from '../../settings/summary';
+import { oneOf, pickValues } from '../../settings/snapshot';
 
 const LABEL = '금액';
+const DEFAULTS = { amount: '300000', unit: 'AMOUNT', shares: '1' };
 
 export const useSimpleMode = (shared: SharedModeProps): ModeController => {
-  const { symbol, period } = shared;
-  const [initialInvestment, setInitialInvestment] = useState('300000');
+  const { symbol, period, options } = shared;
+  const [initialInvestment, setInitialInvestment] = useState(DEFAULTS.amount);
   const amountUnit = useAmountUnit();
-  const options = useBacktestOptions();
-  const { symbolField, periodField, symbolMessage, periodMessage } = commonFields(shared);
+  const { symbolField, periodField, symbolMessage, periodMessage } = commonFields(shared, { manualAction: true });
   const byShares = amountUnit.unit === 'SHARES';
   const perRound = useRoundCost({
     symbol,
@@ -46,15 +46,20 @@ export const useSimpleMode = (shared: SharedModeProps): ModeController => {
           perRound: byShares ? perRound : undefined,
           message: amountMessage,
         }}
-        options={options}
       />
     ),
     summary: {
       subject: symbol,
       how: simpleHow({ byShares, amount: initialInvestment, shares: amountUnit.shares, perRound }),
-      changed: changedOptions(options, false),
     },
     errorCount: countErrors([symbolMessage, periodMessage, amountMessage]),
+    saved: { amount: initialInvestment, unit: amountUnit.unit, shares: amountUnit.shares },
+    load: (saved) => {
+      const next = pickValues(DEFAULTS, saved);
+      setInitialInvestment(next.amount);
+      amountUnit.setUnit(oneOf(next.unit, AMOUNT_UNITS, 'AMOUNT'));
+      amountUnit.setShares(next.shares);
+    },
     prepare: (ctx) => {
       const built = buildSimpleRequest(
         {

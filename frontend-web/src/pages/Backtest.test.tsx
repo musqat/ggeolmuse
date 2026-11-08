@@ -1,12 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import Backtest from './Backtest'
 import { backtestApi, stockApi } from '../services/api'
 import { saveLocalBacktestHistory } from '../utils/localBacktestHistory'
-import { notify } from '@/components/common/notify'
+import { dismissToast, notify, readToasts } from '@/components/common/notify'
+import { Notifications } from '@/components/common/Notifications'
 
 vi.mock('../services/api', () => ({
   backtestApi: {
@@ -54,10 +55,11 @@ let alertSpy: MockInstance<typeof notify.error>
 
 function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  render(
+  return render(
     <QueryClientProvider client={client}>
       <MemoryRouter>
         <Backtest />
+        <Notifications />
       </MemoryRouter>
     </QueryClientProvider>
   )
@@ -73,6 +75,7 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date('2026-10-08T12:00:00+09:00'))
   vi.clearAllMocks()
+  localStorage.clear()
   auth.isAuthenticated = true
   auth.user = { email: USER }
   alertSpy = vi.spyOn(notify, 'error').mockImplementation(() => {})
@@ -88,10 +91,14 @@ beforeEach(() => {
 
 afterEach(() => {
   alertSpy.mockRestore()
+  act(() => readToasts().forEach((toast) => dismissToast(toast.id)))
   vi.useRealTimers()
 })
 
-const common = { reinvestDividends: false, tradingFeeRate: 0, dividendTaxRate: 0 }
+const common = { reinvestDividends: false, tradingFeeRate: 0, dividendTaxRate: 0.15 }
+const detailToggle = () => screen.getByRole('button', { name: /세부 설정/ })
+const reinvestRadio = () => within(screen.getByRole('radiogroup', { name: '배당' })).getByRole('radio', { name: '재투자' })
+const amountInput = () => screen.getByRole('textbox', { name: '금액(원)' })
 
 describe('Backtest 페이지 모드 · 기록', () => {
   it('모드는 하나만 고르는 묶음이고 지난 기록은 모드 대신 제목 옆 링크로 따로 본다', () => {
@@ -192,22 +199,25 @@ describe('Backtest 페이지 실행', () => {
     expect(vi.mocked(backtestApi.runConditionalStrategy).mock.calls[0][0]).toMatchObject({ direction: 'RISE', dropPercentage: 0.05 })
   })
 
-  it('조건부: 익절을 적으면 배당 재투자 체크를 잠그고 비율로 요청한다', async () => {
+  it('조건부: 익절을 적으면 배당 재투자를 막고 비율로 요청하며, 다른 모드는 고른 재투자 그대로', async () => {
     renderPage()
     await selectMode('조건부')
-    const reinvest = screen.getByRole('checkbox', { name: /배당금 재투자/ })
-    await userEvent.click(reinvest)
-    expect(reinvest).toBeChecked()
+    await userEvent.click(detailToggle())
+    await userEvent.click(reinvestRadio())
+    expect(reinvestRadio()).toHaveAttribute('aria-checked', 'true')
 
     await userEvent.type(screen.getByRole('textbox', { name: '익절(평균 단가 대비 퍼센트)' }), '20')
 
-    expect(reinvest).toBeDisabled()
-    expect(reinvest).not.toBeChecked()
+    expect(reinvestRadio()).toHaveAttribute('aria-disabled', 'true')
+    expect(reinvestRadio()).toHaveAttribute('aria-checked', 'false')
     await runBacktest()
     expect(vi.mocked(backtestApi.runConditionalStrategy).mock.calls[0][0]).toMatchObject({
       takeProfitRate: 0.2,
       reinvestDividends: false,
     })
+    await selectMode('적립식')
+    await runBacktest()
+    expect(vi.mocked(backtestApi.runDcaStrategy).mock.calls[0][0]).toMatchObject({ reinvestDividends: true })
   })
 
   it('단순: 주식 수를 고르면 투자금 대신 주식 수로 요청한다', async () => {
@@ -386,8 +396,9 @@ describe('Backtest 페이지 칸 오류 · 요약', () => {
 
     expect(summary()).toHaveTextContent('AAPL · 2025.10.08 → 2026.10.08')
     expect(summary()).toHaveTextContent('시작일에 30만원 매수')
-    await userEvent.click(screen.getByRole('checkbox', { name: /배당 원천징수/ }))
-    expect(summary()).toHaveTextContent('시작일에 30만원 매수 · 배당세 15%')
+    await userEvent.click(detailToggle())
+    await userEvent.click(screen.getByRole('button', { name: '배당세 15%' }))
+    expect(summary()).toHaveTextContent('시작일에 30만원 매수 · 배당세 끔')
   })
 
   it('적립식 · 조건부 요약은 회차 · 한도를 보인다', async () => {
@@ -499,5 +510,170 @@ describe('Backtest 페이지 전략 비교 칩', () => {
     expect(screen.getByText('전략을 둘 이상')).toBeInTheDocument()
     expect(screen.getByTestId('backtest-run')).toHaveAttribute('aria-disabled', 'true')
     expect(backtestApi.compareStrategies).not.toHaveBeenCalled()
+  })
+})
+
+describe('Backtest 페이지 세부 설정', () => {
+  it('세부 설정은 모드끼리 같이 쓰고 접힌 채 시작한다', async () => {
+    renderPage()
+    expect(detailToggle()).toHaveAttribute('aria-expanded', 'false')
+    await userEvent.click(detailToggle())
+    await userEvent.click(screen.getByRole('button', { name: '배당세 15%' }))
+    await selectMode('종목 비교')
+    await runBacktest()
+
+    expect(vi.mocked(backtestApi.compareSymbols).mock.calls[0][0]).toMatchObject({ dividendTaxRate: 0 })
+  })
+
+  it('2014년 전이 들어가면 기간 칸에 기본 환율 안내, 단순은 직접 입력을 누르면 매수 환율 칸으로 간다', async () => {
+    renderPage()
+    const ago = screen.getByRole('textbox', { name: '오늘부터 몇' })
+    await userEvent.clear(ago)
+    await userEvent.type(ago, '13')
+
+    expect(screen.getByText('2014년 이전은 환율 기록이 없어 그 기간은 기본 환율로 계산')).toBeInTheDocument()
+    expect(summary()).not.toHaveTextContent('고칠 칸')
+    await userEvent.click(screen.getByRole('button', { name: '직접 입력' }))
+
+    await vi.waitFor(() => expect(screen.getByRole('textbox', { name: '매수 환율(원)' })).toHaveFocus())
+    expect(within(screen.getByRole('radiogroup', { name: '환율' })).getByRole('radio', { name: '직접 입력' })).toHaveAttribute('aria-checked', 'true')
+    fireEvent.change(screen.getByRole('textbox', { name: '매수 환율(원)' }), { target: { value: '1,130' } })
+    expect(screen.queryByText('2014년 이전은 환율 기록이 없어 그 기간은 기본 환율로 계산')).toBeNull()
+    await runBacktest()
+    expect(vi.mocked(backtestApi.runSimulation).mock.calls[0][0]).toMatchObject({ purchaseDate: '2013-10-08', purchaseFxRate: 1130 })
+    expect(vi.mocked(backtestApi.runSimulation).mock.calls[0][0]).not.toHaveProperty('currentFxRate')
+  })
+
+  it('기간 칸에 오류가 있으면 2014년 전 안내 대신 오류를 보인다', async () => {
+    renderPage()
+    const ago = screen.getByRole('textbox', { name: '오늘부터 몇' })
+    await userEvent.clear(ago)
+    await userEvent.type(ago, '13')
+    await userEvent.clear(ago)
+
+    expect(screen.getByText('몇 주 · 달 · 년 전인지 1 이상')).toBeInTheDocument()
+    expect(screen.queryByText('2014년 이전은 환율 기록이 없어 그 기간은 기본 환율로 계산')).toBeNull()
+    expect(summary()).toHaveTextContent('고칠 칸 1개')
+  })
+
+  it('적립식은 2014년 전 안내를 첫 매수일로 보고 직접 입력 단추가 없다', async () => {
+    renderPage()
+    await selectMode('적립식')
+    const ago = screen.getByRole('textbox', { name: '오늘부터 몇' })
+    await userEvent.clear(ago)
+    await userEvent.type(ago, '13')
+
+    expect(screen.getByText('2014년 이전은 환율 기록이 없어 그 기간은 기본 환율로 계산')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '직접 입력' })).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: '첫 매수일 2013. 10. 08.' }))
+    const calendar = within(screen.getByRole('dialog'))
+    await userEvent.selectOptions(calendar.getByLabelText('연도 선택'), '2014')
+    await userEvent.selectOptions(calendar.getByLabelText('월 선택'), '0')
+    await userEvent.click(calendar.getAllByRole('button').find((button) => button.textContent === '2')!)
+    expect(screen.queryByText('2014년 이전은 환율 기록이 없어 그 기간은 기본 환율로 계산')).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: '시작일에 맞추기' }))
+    expect(screen.getByText('2014년 이전은 환율 기록이 없어 그 기간은 기본 환율로 계산')).toBeInTheDocument()
+  })
+
+  it('접힌 세부 설정 안에 고칠 칸이 있으면 실행을 누를 때 열고 그 칸으로 간다', async () => {
+    renderPage()
+    await userEvent.click(detailToggle())
+    const fee = screen.getByRole('textbox', { name: '수수료(퍼센트)' })
+    await userEvent.clear(fee)
+    await userEvent.type(fee, '100')
+    await userEvent.click(detailToggle())
+
+    expect(summary()).toHaveTextContent('고칠 칸 1개')
+    expect(detailToggle()).toHaveTextContent('고칠 칸 있음')
+    await runBacktest()
+
+    await vi.waitFor(() => expect(screen.getByRole('textbox', { name: '수수료(퍼센트)' })).toHaveFocus())
+    expect(backtestApi.runSimulation).not.toHaveBeenCalled()
+  })
+})
+
+describe('Backtest 페이지 직전 설정 · 설정 초기화', () => {
+  it('실행한 설정을 저장하고 직전 설정으로 모드 · 값을 되살리며, 되돌리기로 그 전 값으로 간다', async () => {
+    renderPage()
+    await selectMode('적립식')
+    await userEvent.click(screen.getByRole('radio', { name: '매주' }))
+    await runBacktest()
+
+    await selectMode('단순')
+    await userEvent.clear(amountInput())
+    await userEvent.type(amountInput(), '700000')
+    await userEvent.click(screen.getByRole('button', { name: '직전 설정' }))
+
+    expect(modes().getByRole('radio', { name: '적립식' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('radio', { name: '매주' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByText('직전 설정을 불러옴')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '되돌리기' }))
+
+    expect(modes().getByRole('radio', { name: '단순' })).toHaveAttribute('aria-checked', 'true')
+    expect(amountInput()).toHaveValue('700,000')
+    expect(screen.queryByText('직전 설정을 불러옴')).toBeNull()
+  })
+
+  it('실행한 적이 없으면 알림만, 저장한 설정이 깨졌으면 쓸 수 없다고 알린다', async () => {
+    renderPage()
+    await userEvent.click(screen.getByRole('button', { name: '직전 설정' }))
+    expect(screen.getByText('아직 실행한 설정이 없음')).toBeInTheDocument()
+
+    localStorage.setItem('backtest-last-settings', '{"v":0}')
+    await userEvent.click(screen.getByRole('button', { name: '직전 설정' }))
+    expect(alertSpy).toHaveBeenCalledWith('저장한 설정을 쓸 수 없음')
+  })
+
+  it('설정 초기화는 모드 · 값 · 세부 설정을 처음으로 돌리고, 알림이 떠 있는 동안 다시 눌러도 되돌리기는 처음 값으로 간다', async () => {
+    renderPage()
+    await selectMode('조건부')
+    await userEvent.click(screen.getByRole('radio', { name: '상승' }))
+    await userEvent.click(detailToggle())
+    await userEvent.click(screen.getByRole('button', { name: '배당세 15%' }))
+
+    await userEvent.click(screen.getByRole('button', { name: '설정 초기화' }))
+    expect(modes().getByRole('radio', { name: '단순' })).toHaveAttribute('aria-checked', 'true')
+    expect(summary()).not.toHaveTextContent('배당세 끔')
+    expect(screen.getByRole('button', { name: '되돌리기' })).toHaveFocus()
+    await userEvent.click(screen.getByRole('button', { name: '설정 초기화' }))
+    expect(screen.getAllByText('설정을 처음으로 돌림')).toHaveLength(1)
+    await userEvent.click(screen.getByRole('button', { name: '되돌리기' }))
+
+    expect(modes().getByRole('radio', { name: '조건부' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('radio', { name: '상승' })).toHaveAttribute('aria-checked', 'true')
+    expect(summary()).toHaveTextContent('배당세 끔')
+    expect(screen.getByRole('button', { name: '설정 초기화' })).toHaveFocus()
+  })
+
+  it('다시 연 페이지에서도 전략 비교 칩을 되살리고, 새 칩은 되살린 칩과 다른 칩으로 만든다', async () => {
+    const first = renderPage()
+    await selectMode('전략 비교')
+    await userEvent.click(strategyChips().getByRole('button', { name: '＋ 적립식' }))
+    await runBacktest()
+    first.unmount()
+
+    renderPage()
+    await selectMode('전략 비교')
+    expect(strategyChips().queryByRole('button', { name: '적립식 2' })).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: '직전 설정' }))
+    expect(strategyChips().getByRole('button', { name: '적립식 2' })).toBeInTheDocument()
+    await userEvent.click(strategyChips().getByRole('button', { name: '＋ 적립식' }))
+
+    expect(strategyChips().getByRole('button', { name: '적립식 3' })).toHaveAttribute('aria-expanded', 'true')
+    expect(strategyChips().getByRole('button', { name: '적립식 2' })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('모드를 바꾸지 않는 되살리기는 결과를 두고, 모드가 바뀌면 결과를 지운다', async () => {
+    renderPage()
+    await runBacktest()
+    expect(await screen.findByText('결과: simple')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: '직전 설정' }))
+    expect(screen.getByText('결과: simple')).toBeInTheDocument()
+    await selectMode('적립식')
+    await runBacktest()
+    expect(await screen.findByText('결과: dca')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '설정 초기화' }))
+    expect(screen.queryByText('결과: dca')).toBeNull()
   })
 })

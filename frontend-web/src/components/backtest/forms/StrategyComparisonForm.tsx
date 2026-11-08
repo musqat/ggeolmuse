@@ -1,7 +1,5 @@
 import React, { useId, useRef, type ReactNode } from 'react';
 import { X } from 'lucide-react';
-import type { BacktestOptionsState } from '../shared/backtestOptions';
-import { StrategyOptions } from '../shared/StrategyFields';
 import { COMPARISON_STRATEGIES } from '../comparison/catalog';
 import type { ComparisonStrategyType } from '../comparison/types';
 import { SymbolField, type SymbolFieldProps } from '../settings/SymbolFields';
@@ -33,8 +31,6 @@ interface StrategyComparisonFormProps {
   chipsMessage?: FieldMessage | null;
   // 열린 칩의 설정 칸
   panel?: ReactNode;
-  options: BacktestOptionsState;
-  reinvestNote?: string;
 }
 
 const chipBorder = (chip: ChipView, open: boolean) => {
@@ -55,8 +51,6 @@ export const StrategyComparisonForm: React.FC<StrategyComparisonFormProps> = ({
   onAdd,
   chipsMessage,
   panel,
-  options,
-  reinvestNote,
 }) => {
   const panelId = useId();
   const { messageId } = useMessageLink(chipsMessage);
@@ -150,14 +144,6 @@ export const StrategyComparisonForm: React.FC<StrategyComparisonFormProps> = ({
       <div id={panelId} className={FIELD_GRID}>
         {panel}
       </div>
-
-      <StrategyOptions
-        options={options}
-        startDate={period.period.start}
-        purchaseLabel="시작일 환율 (₩/USD)"
-        currentLabel="현재 환율 (₩/USD)"
-        reinvestNote={reinvestNote}
-      />
     </div>
   );
 };

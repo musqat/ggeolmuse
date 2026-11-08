@@ -1,6 +1,4 @@
 import React from 'react';
-import type { BacktestOptionsState } from '../shared/backtestOptions';
-import { StrategyOptions } from '../shared/StrategyFields';
 import { SymbolField, type SymbolFieldProps } from '../settings/SymbolFields';
 import { PeriodField, type PeriodFieldProps } from '../settings/PeriodField';
 import { AmountField, type AmountFieldProps } from '../settings/AmountField';
@@ -17,11 +15,10 @@ interface DCAStrategyFormProps {
   budget?: BudgetFieldProps;
   cadence: CadenceFieldProps;
   first: FirstDateFieldProps;
-  options: BacktestOptionsState;
 }
 
 // 적립식(DCA): 첫 매수일부터 주기마다 회당 금액 · 회당 주식 수만큼 삼
-export const DCAStrategyForm: React.FC<DCAStrategyFormProps> = ({ symbol, period, amount, budget, cadence, first, options }) => (
+export const DCAStrategyForm: React.FC<DCAStrategyFormProps> = ({ symbol, period, amount, budget, cadence, first }) => (
   <div className="space-y-4">
     <div className={FIELD_GRID}>
       <SymbolField {...symbol} />
@@ -33,6 +30,5 @@ export const DCAStrategyForm: React.FC<DCAStrategyFormProps> = ({ symbol, period
       <CadenceField {...cadence} />
       <FirstDateField {...first} />
     </div>
-    <StrategyOptions options={options} startDate={period.period.start} purchaseLabel="시작일 환율" currentLabel="현재 환율" />
   </div>
 );
