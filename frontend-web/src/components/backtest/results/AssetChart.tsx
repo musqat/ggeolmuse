@@ -24,16 +24,18 @@ interface AssetChartProps {
   dailyValues?: DailyValue[];
   deposits: Deposit[];
   currency: MetricCurrency;
+  // 탭 안에 둘 때 카드 테두리 · 제목 없이
+  plain?: boolean;
 }
 
-// 서버 일별 값으로 그린 평가 가치와 그때까지 넣은 돈(점은 돈을 넣은 날)
-export const AssetChart: React.FC<AssetChartProps> = ({ dailyValues, deposits, currency }) => {
+// 서버 일별 값으로 그린 평가 가치와 그때까지 넣은 돈(점은 매수한 날)
+export const AssetChart: React.FC<AssetChartProps> = ({ dailyValues, deposits, currency, plain = false }) => {
   const data = useMemo(() => assetSeries(dailyValues ?? [], deposits, currency), [dailyValues, deposits, currency]);
   const buys = useMemo(() => depositPoints(data, deposits), [data, deposits]);
 
   if (data.length < 2) {
     return (
-      <ChartCard title="자산 추이">
+      <ChartCard title={plain ? undefined : '자산 추이'} plain={plain}>
         <p className="text-sm text-tx-2 py-8 text-center">이 결과에는 일별 값이 없습니다</p>
       </ChartCard>
     );
@@ -47,7 +49,11 @@ export const AssetChart: React.FC<AssetChartProps> = ({ dailyValues, deposits, c
   };
 
   return (
-    <ChartCard title="자산 추이" subtitle="평가 가치와 그때까지 넣은 돈, 점은 돈을 넣은 날">
+    <ChartCard
+      title={plain ? undefined : '자산 추이'}
+      subtitle="평가 가치와 그때까지 넣은 돈, 점은 매수한 날"
+      plain={plain}
+    >
       <div className="flex flex-wrap gap-4 text-xs text-tx-2 mb-2">
         <span className="flex items-center gap-1">
           <span className="w-4 h-0.5" style={{ background: VALUE_COLOR }} />평가 가치
@@ -56,7 +62,7 @@ export const AssetChart: React.FC<AssetChartProps> = ({ dailyValues, deposits, c
           <span className="w-4 border-t-2 border-dashed" style={{ borderColor: INVESTED_COLOR }} />누적 투자금
         </span>
         <span className="flex items-center gap-1">
-          <span className="w-2.5 h-2.5 rounded-full" style={{ background: MARKER_COLORS.purchase }} />입금
+          <span className="w-2.5 h-2.5 rounded-full" style={{ background: MARKER_COLORS.purchase }} />매수
         </span>
       </div>
       <ResponsiveContainer width="100%" height={260}>

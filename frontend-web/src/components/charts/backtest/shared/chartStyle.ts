@@ -24,7 +24,6 @@ export const MARKER_COLORS = {
   dividend: '#10b981',
   sale: '#ef4444',
   optimal: '#fbbf24',
-  compare: '#38bdf8',
 };
 
 // 마커 기본 모양(색은 따로)

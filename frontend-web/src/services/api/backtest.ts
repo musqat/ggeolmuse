@@ -39,7 +39,7 @@ export type DailyValue = {
   drawdownKrw?: number | null;
 };
 
-// 그날 샀다면 평가일까지 총 수익률(%, 결과와 같은 수수료 · 배당 · 환율 기준)
+// 그 날짜에 샀다면 평가일까지 총 수익률(%, 결과와 같은 수수료 · 배당 · 환율 기준)
 export type PurchaseDayReturn = {
   date: string;
   returnPercent: number | null;

@@ -26,6 +26,8 @@ interface SummaryCardsProps {
   totalInKrw?: boolean;
   timeWeighted?: boolean;
   returnRateTestId?: string;
+  // 넷 뒤에 더할 카드(있으면 큰 화면에서 다섯 칸)
+  extra?: React.ReactNode;
 }
 
 const Nowrap: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -45,7 +47,7 @@ const DrawdownSpan: React.FC<{ metrics?: PerformanceMetrics | null; noMetrics?: 
   );
 };
 
-// 결과 위쪽 카드 한 줄: 총 수익률 · 연평균 수익률 · 최대 낙폭 · 평가 가치
+// 결과 위쪽 카드 한 줄: 총 수익률 · 연평균 수익률 · 최대 낙폭 · 평가 가치(+ 더할 카드)
 export const SummaryCards: React.FC<SummaryCardsProps> = ({
   result,
   investedLabel,
@@ -57,8 +59,9 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({
   totalInKrw,
   timeWeighted,
   returnRateTestId,
+  extra,
 }) => (
-  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+  <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${extra ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
     <StatCard
       label="총 수익률"
       value={formatSigned(result.totalReturnPercent, formatPercent)}
@@ -113,5 +116,7 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({
         </p>
       }
     />
+
+    {extra}
   </div>
 );

@@ -122,7 +122,7 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
       </ResultFold>
 
       {transactions.length > 0 && (
-        <ResultFold title="주가 · 수익률 추이" meta="기간 고르기 · 그날 기준 수익률">
+        <ResultFold title="주가 · 수익률 추이">
           <AccumulationChart
             symbol={result.symbol || symbol}
             transactions={transactions}

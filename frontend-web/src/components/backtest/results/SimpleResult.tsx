@@ -14,9 +14,10 @@ import type { MetricCurrency } from './CurrencyToggle';
 import { ResultFold } from './ResultFold';
 import { RiskDetail } from './RiskDetail';
 import { detailMeta, pickMetrics } from './resultValues';
-import { ReturnChart } from './ReturnChart';
+import { assetSeries, simpleDeposits } from './assetSeries';
+import { StatCard } from './StatCard';
+import { purchaseDaySeries, rankOf } from './purchaseDays';
 import { PurchaseDayChart } from './PurchaseDayChart';
-import { simpleDeposits } from './assetSeries';
 
 interface SimpleResultProps {
   result: SimulationResponse;
@@ -26,7 +27,7 @@ interface SimpleResultProps {
 
 const dash = (value: React.ReactNode) => <span className="text-tx-3">{value}</span>;
 
-// 단순 매수 결과: 카드 · 자산 추이, 그 아래 상세 · 주가 · 수익률 추이 · 매수일별 수익률을 접어 둠
+// 단순 매수 결과: 카드(매수 타이밍 포함) · 자산 추이 · 주가 추이 · 매수일별 수익률 탭, 그 아래 상세를 접어 둠
 export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purchaseDate }) => {
   const [currency, setCurrency] = useState<MetricCurrency>('KRW');
   const { metrics, other, otherLabel } = pickMetrics(result, currency);
@@ -34,6 +35,33 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
     () => simpleDeposits(result.purchaseDate, result.investmentAmount, result.purchaseFxRate),
     [result.purchaseDate, result.investmentAmount, result.purchaseFxRate],
   );
+  const purchaseDays = useMemo(
+    () => purchaseDaySeries(result.purchaseDayReturns, currency),
+    [result.purchaseDayReturns, currency],
+  );
+  const rank = rankOf(purchaseDays, result.purchaseDate);
+
+  // 주가 툴팁에 덧붙일 보유 수익률과 여기서 샀다면 평가일까지 수익률
+  const tooltipExtra = useMemo(() => {
+    const own = new Map(assetSeries(result.dailyValues ?? [], deposits, currency).map((p) => [p.date, p.returnPct]));
+    const ifBought = new Map(purchaseDays.map((p) => [p.date, p.returnPct]));
+    const line = (label: string, value: number) => (
+      <p className="text-sm text-tx-1">
+        {label}: <span className={gainLossClass(value)}>{formatSigned(value, formatPercent)}</span>
+      </p>
+    );
+    return (date: string) => {
+      const ownReturn = own.get(date);
+      const ifBoughtReturn = ifBought.get(date);
+      if (ownReturn == null && ifBoughtReturn == null) return null;
+      return (
+        <>
+          {ownReturn != null && line('보유 수익률', ownReturn)}
+          {ifBoughtReturn != null && line('여기서 샀다면 평가일까지', ifBoughtReturn)}
+        </>
+      );
+    };
+  }, [result.dailyValues, deposits, currency, purchaseDays]);
 
   return (
     <div className="space-y-6">
@@ -47,6 +75,46 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
         currency={currency}
         onCurrencyChange={setCurrency}
         returnRateTestId="backtest-return-rate"
+        extraCard={
+          rank && (
+            <StatCard
+              // 두 칸 화면에서는 한 줄 전체
+              className="sm:col-span-2 lg:col-span-1"
+              label="매수 타이밍"
+              value={`상위 ${formatPercent((rank.rank / rank.total) * 100)}`}
+              sub={<p>매수일부터 평가일 전까지 거래일 {rank.total}일 중 {rank.rank}번째</p>}
+            />
+          )
+        }
+        chartTabs={[
+          {
+            key: 'price',
+            label: '주가 추이',
+            render: () => (
+              <SimpleChart
+                symbol={result.symbol || symbol}
+                purchaseDate={result.purchaseDate || purchaseDate}
+                optimalBuyDate={result.optimalBuyDate ?? undefined}
+                optimalSellDate={result.optimalSellDate ?? undefined}
+                dividendReinvestDates={result.dividendReinvestDates ?? undefined}
+                endDate={result.currentDate ?? undefined}
+                tooltipExtra={tooltipExtra}
+              />
+            ),
+          },
+          {
+            key: 'purchase-days',
+            label: '매수일별 수익률',
+            render: () => (
+              <PurchaseDayChart
+                returns={result.purchaseDayReturns}
+                currency={currency}
+                purchaseDate={result.purchaseDate}
+                valuationDate={result.currentDate}
+              />
+            ),
+          },
+        ]}
       />
 
       <ResultFold
@@ -114,27 +182,6 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
             />
           </DetailSection>
         </div>
-      </ResultFold>
-
-      <ResultFold title="주가 · 수익률 추이" meta="기간 고르기 · 그날 기준 수익률">
-        <SimpleChart
-          symbol={result.symbol || symbol}
-          purchaseDate={result.purchaseDate || purchaseDate}
-          optimalBuyDate={result.optimalBuyDate ?? undefined}
-          optimalSellDate={result.optimalSellDate ?? undefined}
-          dividendReinvestDates={result.dividendReinvestDates ?? undefined}
-          endDate={result.currentDate ?? undefined}
-        />
-        <ReturnChart dailyValues={result.dailyValues} deposits={deposits} currency={currency} />
-      </ResultFold>
-
-      <ResultFold title="매수일별 수익률" meta="그날 샀다면 평가일까지 · 목표 수익률 · 매수일 비교">
-        <PurchaseDayChart
-          returns={result.purchaseDayReturns}
-          currency={currency}
-          purchaseDate={result.purchaseDate}
-          valuationDate={result.currentDate}
-        />
       </ResultFold>
     </div>
   );
