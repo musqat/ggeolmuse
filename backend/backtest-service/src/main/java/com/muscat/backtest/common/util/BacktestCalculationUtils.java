@@ -125,26 +125,12 @@ public final class BacktestCalculationUtils {
       .divide(BigDecimal.valueOf(returnValues.size()), USD_SCALE, HALF_UP);
   }
 
-  // 투자 분할 금액을 계산합니다 (총 투자금액을 분할 횟수로 나눔)
-  public static BigDecimal calculateInvestmentPerDivision(BigDecimal totalInvestment,
-    int divisions) {
-    if (totalInvestment == null) {
-      throw new IllegalArgumentException("총 투자금액은 null이 될 수 없습니다");
-    }
-    if (divisions <= 0) {
-      throw new IllegalArgumentException("분할 횟수는 0보다 커야 합니다");
-    }
-
-    return totalInvestment.divide(BigDecimal.valueOf(divisions), USD_SCALE, HALF_UP);
-  }
-
   // 배당락일 전에 산(실제 거래일 < 배당락일) 주식만 그 배당 대상(배당락일 당일 매수는 제외)
   public static boolean receivesDividend(LocalDate tradeDate, LocalDate exDate) {
     return tradeDate != null && exDate != null && tradeDate.isBefore(exDate);
   }
 
-  // 특정 기간 동안의 총 배당금을 계산합니다 (USD)
-  // 각 배당일에 실제로 보유한 주식수를 기준으로 계산 (거래 목록 기반)
+  // 기간 총 배당금(USD), 배당일마다 거래로 센 보유 주식 수 기준
   public static BigDecimal calculateTotalDividends(DividendHistoryDto dividendHistory,
     List<StrategyTransaction> transactions,
     LocalDate startDate, LocalDate endDate) {
@@ -190,8 +176,7 @@ public final class BacktestCalculationUtils {
     return totalDividends;
   }
 
-  // 특정 기간 동안의 총 배당금을 계산합니다 (USD)
-  // 단순 고정 주식수 기반 심플 백테스트용(startDate 는 매수일이라 그날이 배당락일인 배당은 제외)
+  // 기간 총 배당금(USD), 고정 주식 수 기준(매수일이 배당락일인 배당은 제외)
   public static BigDecimal calculateTotalDividends(DividendHistoryDto dividendHistory,
     BigDecimal shares,
     LocalDate startDate, LocalDate endDate) {
@@ -238,7 +223,7 @@ public final class BacktestCalculationUtils {
       .setScale(USD_SCALE, HALF_UP);
   }
 
-  // 매수 한 번의 수수료(USD, 투자금 KRW 를 그날 환율로 바꾼 달러 × 수수료율)
+  // 매수 한 번의 수수료(USD, 투자금 KRW 를 그 날짜 환율로 바꾼 달러 × 수수료율)
   public static BigDecimal calculatePurchaseFee(BigDecimal investmentAmount, BigDecimal fxRate,
     BigDecimal feeRate) {
     if (feeRate == null || !Decimals.isPositive(feeRate)) {

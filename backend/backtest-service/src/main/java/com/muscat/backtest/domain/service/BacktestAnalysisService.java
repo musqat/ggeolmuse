@@ -19,7 +19,7 @@ public interface BacktestAnalysisService {
   // 같은 기간 · 조건으로 여러 종목을 견줌
   ComparisonResponse compareSymbols(SymbolComparisonRequest request);
 
-  // 한 종목에 여러 전략을 견줌
+  // 한 종목에 여러 전략을 같은 원금으로 견줌
   ComparisonResponse compareStrategies(StrategyComparisonRequest request);
 
 }

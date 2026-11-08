@@ -22,7 +22,7 @@ public abstract class BaseComparisonRequest {
   @NotNull(message = "종료일은 필수입니다")
   private LocalDate endDate;
 
-  @Schema(description = "투자 금액", example = "1000000.00", required = true)
+  @Schema(description = "투자 금액 (종목 비교는 종목마다, 전략 비교는 전략마다 원금: 단순 투자금 · 적립식 · 조건부 예산)", example = "1000000.00", required = true)
   @NotNull(message = "투자금액은 필수입니다")
   @Positive(message = "투자금액은 0보다 커야 합니다")
   private BigDecimal investmentAmount;

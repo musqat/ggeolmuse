@@ -286,17 +286,55 @@ class BacktestAnalysisControllerTest {
   }
 
   @Test
-  @DisplayName("전략 비교는 전략 목록을 넘긴다")
+  @DisplayName("전략 비교는 전략 목록과 칩의 회당 금액(monthlyAmount 로 보내도 받음) · 주기 · 첫 매수일 · 최대 횟수를 넘긴다")
   void compareStrategies() throws Exception {
     given(backtestAnalysisService.compareStrategies(any())).willReturn(comparison("DCA"));
 
     postJson("/compare/strategies", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":1000000,"
-      + "\"strategies\":[{\"strategyType\":\"DCA\",\"monthlyAmount\":100000},{\"strategyType\":\"SIMPLE\"}]}")
+      + "\"strategies\":[{\"strategyType\":\"DCA\",\"monthlyAmount\":100000,\"totalInvestmentLimit\":1000000},"
+      + "{\"strategyType\":\"DCA\",\"amountPerPurchase\":50000,\"frequency\":\"WEEKLY\",\"firstPurchaseDate\":\"2024-01-03\"},"
+      + "{\"strategyType\":\"CONDITIONAL_PURCHASE\",\"amountPerPurchase\":200000,\"dropPercentage\":0.05,\"maxPurchases\":3},"
+      + "{\"strategyType\":\"SIMPLE\"}]}")
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.bestPerformer.name").value("DCA"));
 
-    verify(backtestAnalysisService).compareStrategies(argThat(r -> r.getStrategies().size() == 2
-      && r.getStrategies().get(0).getStrategyType() == StrategyType.DCA));
+    verify(backtestAnalysisService).compareStrategies(argThat(r -> r.getStrategies().size() == 4
+      && r.getStrategies().get(0).getStrategyType() == StrategyType.DCA
+      && r.getStrategies().get(0).getAmountPerPurchase().intValue() == 100000
+      && r.getStrategies().get(1).getFrequency() == DcaFrequency.WEEKLY
+      && r.getStrategies().get(1).getFirstPurchaseDate().equals(LocalDate.of(2024, 1, 3))
+      && r.getStrategies().get(2).getAmountPerPurchase().intValue() == 200000
+      && r.getStrategies().get(2).getMaxPurchases() == 3));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @ValueSource(strings = {
+    "{\"strategyType\":\"DCA\",\"purchaseDay\":15}",
+    "{\"strategyType\":\"CONDITIONAL_PURCHASE\",\"dropPercentage\":0.05}",
+    "{\"strategyType\":\"DCA\",\"amountPerPurchase\":0}",
+    "{\"strategyType\":\"CONDITIONAL_PURCHASE\",\"amountPerPurchase\":100000,\"dropPercentage\":0.05,\"maxPurchases\":0}",
+    "{\"strategyType\":\"DCA\",\"amountPerPurchase\":100000,\"frequency\":\"HOURLY\"}"})
+  @DisplayName("전략 비교의 적립식 · 조건부 칩에 회당 금액이 없거나 회당 금액 · 최대 횟수가 0 이거나 주기가 매일 · 매주 · 매달 밖이면 400 이고 서비스까지 가지 않는다")
+  void compareStrategies_InvalidChip(String chip) throws Exception {
+    postJson("/compare/strategies", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":1000000,"
+      + "\"strategies\":[" + chip + ",{\"strategyType\":\"SIMPLE\"}]}")
+      .andExpect(status().isBadRequest());
+
+    verify(backtestAnalysisService, never()).compareStrategies(any());
+  }
+
+  @Test
+  @DisplayName("전략 비교의 모든 전략이 매수 0회라 최고 수익 항목이 없어도 200 이다")
+  void compareStrategies_NoBestPerformer() throws Exception {
+    ComparisonItem none = ComparisonItem.builder().name("DCA").totalInvested(BigDecimal.ZERO)
+      .totalReturnPercent(BigDecimal.ZERO).build();
+    given(backtestAnalysisService.compareStrategies(any()))
+      .willReturn(ComparisonResponse.builder().items(List.of(none)).build());
+
+    postJson("/compare/strategies", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":1000,"
+      + "\"strategies\":[{\"strategyType\":\"DCA\",\"amountPerPurchase\":100000},{\"strategyType\":\"SIMPLE\"}]}")
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.bestPerformer").doesNotExist());
   }
 
   @Test
@@ -369,8 +407,8 @@ class BacktestAnalysisControllerTest {
   }
 
   @ParameterizedTest(name = "투자 주기 {0} · 투자일 {1}")
-  @CsvSource({"0, 15", "-1, 15", "13, 15", "1, 0", "1, 29"})
-  @DisplayName("전략 비교의 적립식 항목도 투자 주기가 1 ~ 12 밖이거나 투자일이 1 ~ 28 밖이면 400")
+  @CsvSource({"0, 15", "-1, 15", "13, 15", "1, 0", "1, 32"})
+  @DisplayName("전략 비교의 적립식 항목도 투자 주기가 1 ~ 12 밖이거나 투자일이 1 ~ 31 밖이면 400")
   void compareStrategies_DcaScheduleOutOfRange(int interval, int day) throws Exception {
     postJson("/compare/strategies", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":1000000,"
       + "\"strategies\":[{\"strategyType\":\"DCA\",\"monthlyAmount\":100000," + schedule(interval, day) + "}]}")
@@ -380,7 +418,7 @@ class BacktestAnalysisControllerTest {
   }
 
   @Test
-  @DisplayName("투자 주기 12 는 적립식 · 전략 비교 모두, 투자일은 적립식 31 · 전략 비교 28 까지 통과한다")
+  @DisplayName("투자 주기 12 · 투자일 31 은 적립식 · 전략 비교 모두 통과한다")
   void dcaScheduleUpperBoundsPass() throws Exception {
     given(backtestAnalysisService.runDcaStrategy(any())).willReturn(strategy("AAPL", StrategyType.DCA, "1"));
     given(backtestAnalysisService.compareStrategies(any())).willReturn(comparison("DCA"));
@@ -388,7 +426,7 @@ class BacktestAnalysisControllerTest {
     postJson("/strategy/dca", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"monthlyAmount\":100000," + schedule(12, 31) + "}")
       .andExpect(status().isOk());
     postJson("/compare/strategies", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":1000000,"
-      + "\"strategies\":[{\"strategyType\":\"DCA\",\"monthlyAmount\":100000," + schedule(12, 28) + "}]}")
+      + "\"strategies\":[{\"strategyType\":\"DCA\",\"monthlyAmount\":100000," + schedule(12, 31) + "}]}")
       .andExpect(status().isOk());
   }
 }

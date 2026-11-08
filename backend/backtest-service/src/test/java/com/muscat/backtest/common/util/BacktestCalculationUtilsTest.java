@@ -263,35 +263,6 @@ class BacktestCalculationUtilsTest {
   }
 
   @Nested
-  @DisplayName("분할 투자 금액 계산 테스트")
-  class CalculateInvestmentPerDivisionTests {
-
-    @Test
-    @DisplayName("총 투자금액을 분할 횟수로 나누기")
-    void calculateInvestmentPerDivision_Success() {
-      // given
-      BigDecimal totalInvestment = new BigDecimal("1200000");
-      int divisions = 12;
-
-      // when
-      BigDecimal perDivision = BacktestCalculationUtils.calculateInvestmentPerDivision(
-        totalInvestment, divisions);
-
-      // then - 1,200,000 / 12 = 100,000
-      assertThat(perDivision).isEqualByComparingTo(new BigDecimal("100000.00"));
-    }
-
-    @Test
-    @DisplayName("분할 횟수가 0 이하인 경우 예외 발생")
-    void calculateInvestmentPerDivision_InvalidDivisions_ThrowsException() {
-      // when & then
-      assertThatThrownBy(() ->
-        BacktestCalculationUtils.calculateInvestmentPerDivision(new BigDecimal("1200000"), 0))
-        .isInstanceOf(IllegalArgumentException.class);
-    }
-  }
-
-  @Nested
   @DisplayName("배당금 계산 테스트 (고정 주식수)")
   class CalculateTotalDividendsFixedSharesTests {
 
@@ -621,13 +592,11 @@ class BacktestCalculationUtilsTest {
   class InputBoundaryTests {
 
     @Test
-    @DisplayName("평균 단가 · 평균 환율 · 분할 금액은 null 을 받지 않는다")
+    @DisplayName("평균 단가 · 평균 환율은 null 을 받지 않는다")
     void rejectsNull() {
       assertThatThrownBy(() -> BacktestCalculationUtils.calculateAveragePrice(null, BigDecimal.ONE, BigDecimal.ONE))
         .isInstanceOf(IllegalArgumentException.class);
       assertThatThrownBy(() -> BacktestCalculationUtils.calculateAverageFxRate(null, BigDecimal.ONE))
-        .isInstanceOf(IllegalArgumentException.class);
-      assertThatThrownBy(() -> BacktestCalculationUtils.calculateInvestmentPerDivision(null, 10))
         .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -681,7 +650,7 @@ class BacktestCalculationUtilsTest {
     }
 
     @Test
-    @DisplayName("거래 목록 기준: 기간 밖 · 권리락일 없음 · 금액 없음은 빼고 그날 보유 주식으로 센다")
+    @DisplayName("거래 목록 기준: 기간 밖 · 권리락일 없음 · 금액 없음은 빼고 그 날짜 보유 주식으로 센다")
     void byTransactions() {
       List<StrategyTransaction> txs = List.of(StrategyTransaction.builder().date(start).actualDate(start)
         .shares(BigDecimal.TEN).amount(BigDecimal.ONE).fxRate(BigDecimal.ONE).build());

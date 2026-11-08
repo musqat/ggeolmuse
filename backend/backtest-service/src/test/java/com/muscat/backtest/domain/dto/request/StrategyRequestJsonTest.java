@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.muscat.backtest.common.enums.type.DcaFrequency;
 import com.muscat.backtest.common.enums.type.StrategyType;
+import com.muscat.backtest.domain.model.StrategyParameter;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import org.junit.jupiter.api.DisplayName;
@@ -58,6 +59,19 @@ class StrategyRequestJsonTest {
       .doesNotContain("amountOrShares");
     assertThat(objectMapper.writeValueAsString(simulation)).contains("\"sharesPerPurchase\":3")
       .doesNotContain("amountOrShares");
+  }
+
+  @Test
+  @DisplayName("전략 비교 칩의 회당 금액은 amountPerPurchase 로 저장하고 monthlyAmount 도 읽으며 회당 금액 검사 값은 넣지 않는다")
+  void comparisonChipAmountAlias() throws Exception {
+    StrategyParameter old = objectMapper.readValue(
+      "{\"strategyType\":\"DCA\",\"monthlyAmount\":1000,\"purchaseDay\":31,\"frequency\":\"WEEKLY\"}",
+      StrategyParameter.class);
+
+    assertThat(old.getAmountPerPurchase()).isEqualByComparingTo("1000");
+    assertThat(old.getFrequency()).isEqualTo(DcaFrequency.WEEKLY);
+    assertThat(objectMapper.writeValueAsString(old)).contains("\"amountPerPurchase\":1000", "\"strategyType\":\"DCA\"")
+      .doesNotContain("monthlyAmount").doesNotContain("amountForPurchases");
   }
 
   private DcaStrategyRequest dca() {
