@@ -17,18 +17,14 @@ import com.muscat.backtest.common.enums.type.BacktestType;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.util.BacktestHistoryUtils;
-import com.muscat.backtest.domain.analysis.OptimalTimingAnalyzer;
 import com.muscat.backtest.domain.dto.request.BaseComparisonRequest;
 import com.muscat.backtest.common.enums.type.PriceDirection;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
-import com.muscat.backtest.domain.dto.request.OptimalTimingRequest;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
 import com.muscat.backtest.domain.dto.request.StrategyComparisonRequest;
 import com.muscat.backtest.domain.dto.request.SymbolComparisonRequest;
-import com.muscat.backtest.domain.dto.request.TimingComparisonRequest;
 import com.muscat.backtest.domain.dto.response.ComparisonResponse;
-import com.muscat.backtest.domain.dto.response.OptimalTimingResponse;
 import com.muscat.backtest.domain.dto.response.SimulationResponse;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
@@ -41,7 +37,6 @@ import com.muscat.backtest.domain.strategy.InvestmentStrategy;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -71,9 +66,6 @@ class BacktestAnalysisServiceImplTest {
   @Mock
   private BacktestHistoryUtils backtestHistoryUtils;
 
-  @Mock
-  private OptimalTimingAnalyzer optimalTimingAnalyzer;
-
   private BacktestAnalysisServiceImpl backtestAnalysisService;
 
   @BeforeEach
@@ -88,8 +80,7 @@ class BacktestAnalysisServiceImplTest {
       tradingSimulationService,
       strategies,
       responseMapper,
-      backtestHistoryUtils,
-      optimalTimingAnalyzer
+      backtestHistoryUtils
     );
   }
 
@@ -487,151 +478,6 @@ class BacktestAnalysisServiceImplTest {
   }
 
   @Nested
-  @DisplayName("타이밍 비교 테스트")
-  class CompareTimingTests {
-
-    @Test
-    @DisplayName("여러 매수 시점 비교 성공")
-    void compareTiming_Success() {
-      // Given
-      LocalDate timing1 = LocalDate.of(2023, 1, 1);
-      LocalDate timing2 = LocalDate.of(2023, 6, 1);
-      LocalDate timing3 = LocalDate.of(2023, 12, 1);
-
-      TimingComparisonRequest request = new TimingComparisonRequest();
-      request.setSymbol("AAPL");
-      request.setPurchaseDates(Arrays.asList(timing1, timing2, timing3));
-      request.setInvestmentAmount(BigDecimal.valueOf(10000));
-      request.setUserId("user123");
-
-      SimulationResponse response1 = SimulationResponse.builder()
-        .symbol("AAPL")
-        .totalReturnPercent(BigDecimal.valueOf(10))
-        .build();
-
-      SimulationResponse response2 = SimulationResponse.builder()
-        .symbol("AAPL")
-        .totalReturnPercent(BigDecimal.valueOf(15))
-        .build();
-
-      SimulationResponse response3 = SimulationResponse.builder()
-        .symbol("AAPL")
-        .totalReturnPercent(BigDecimal.valueOf(5))
-        .build();
-
-      ComparisonItem item1 = ComparisonItem.builder()
-        .name("2023-01-01 매수")
-        .totalReturnPercent(BigDecimal.valueOf(10))
-        .build();
-
-      ComparisonItem item2 = ComparisonItem.builder()
-        .name("2023-06-01 매수")
-        .totalReturnPercent(BigDecimal.valueOf(15))
-        .build();
-
-      ComparisonItem item3 = ComparisonItem.builder()
-        .name("2023-12-01 매수")
-        .totalReturnPercent(BigDecimal.valueOf(5))
-        .build();
-
-      given(tradingSimulationService.runSimulation(any(), eq(false)))
-        .willReturn(response1, response2, response3);
-
-      given(responseMapper.toComparisonItemFromSimulation(any(), any()))
-        .willReturn(item1, item2, item3);
-
-      ComparisonResponse expectedResponse = ComparisonResponse.builder()
-        .bestPerformer(item2)
-        .worstPerformer(item3)
-        .build();
-
-      given(responseMapper.toComparisonResponse(eq(request), any(), any()))
-        .willReturn(expectedResponse);
-
-      // When
-      ComparisonResponse result = backtestAnalysisService.compareTiming(request);
-
-      // Then
-      assertThat(result).isNotNull();
-      assertThat(result.getBestPerformer().getName()).isEqualTo("2023-06-01 매수");
-      assertThat(result.getWorstPerformer().getName()).isEqualTo("2023-12-01 매수");
-      verify(tradingSimulationService, times(3)).runSimulation(any(), eq(false));
-    }
-  }
-
-  @Nested
-  @DisplayName("최적 타이밍 분석 테스트")
-  class AnalyzeOptimalTimingTests {
-
-    @Test
-    @DisplayName("최적 타이밍 분석 성공")
-    void analyzeOptimalTiming_Success() {
-      // Given
-      OptimalTimingRequest request = OptimalTimingRequest.builder()
-        .symbol("AAPL")
-        .startDate(LocalDate.of(2023, 1, 1))
-        .endDate(LocalDate.of(2024, 1, 1))
-        .targetReturnPercent(BigDecimal.valueOf(10))
-        .investmentAmount(BigDecimal.valueOf(10000))
-        .userId("user123")
-        .build();
-
-      OptimalTimingResponse expectedResponse = OptimalTimingResponse.builder()
-        .symbol("AAPL")
-        .totalAnalyzedDays(365)
-        .totalQualifyingDays(200)
-        .build();
-
-      given(optimalTimingAnalyzer.analyzeOptimalTiming(request)).willReturn(expectedResponse);
-
-      // When
-      OptimalTimingResponse result = backtestAnalysisService.analyzeOptimalTiming(request);
-
-      // Then
-      assertThat(result).isNotNull();
-      assertThat(result.getSymbol()).isEqualTo("AAPL");
-      assertThat(result.getTotalAnalyzedDays()).isEqualTo(365);
-      assertThat(result.getTotalQualifyingDays()).isEqualTo(200);
-      verify(optimalTimingAnalyzer).analyzeOptimalTiming(request);
-      verify(backtestHistoryUtils).saveBacktestHistory(
-        eq("user123"),
-        eq(BacktestType.STRATEGY_SIMULATION),
-        eq(request)
-      );
-    }
-
-    @Test
-    @DisplayName("userId 없어도 분석 성공 (히스토리 저장 안함)")
-    void analyzeOptimalTiming_NoUserId_Success() {
-      // Given
-      OptimalTimingRequest request = OptimalTimingRequest.builder()
-        .symbol("AAPL")
-        .startDate(LocalDate.of(2023, 1, 1))
-        .endDate(LocalDate.of(2024, 1, 1))
-        .targetReturnPercent(BigDecimal.valueOf(10))
-        .investmentAmount(BigDecimal.valueOf(10000))
-        .userId(null)
-        .build();
-
-      OptimalTimingResponse expectedResponse = OptimalTimingResponse.builder()
-        .symbol("AAPL")
-        .totalAnalyzedDays(365)
-        .totalQualifyingDays(200)
-        .build();
-
-      given(optimalTimingAnalyzer.analyzeOptimalTiming(request)).willReturn(expectedResponse);
-
-      // When
-      OptimalTimingResponse result = backtestAnalysisService.analyzeOptimalTiming(request);
-
-      // Then
-      assertThat(result).isNotNull();
-      verify(optimalTimingAnalyzer).analyzeOptimalTiming(request);
-      verify(backtestHistoryUtils, never()).saveBacktestHistory(any(), any(), any());
-    }
-  }
-
-  @Nested
   @DisplayName("비교 옵션 전달")
   class ComparisonOptionsTests {
 
@@ -807,29 +653,6 @@ class BacktestAnalysisServiceImplTest {
         .containsOnly(LocalDate.of(2024, 1, 1));
       assertThat(simulations.getAllValues()).allSatisfy(this::assertSimulationOptions);
     }
-
-    @Test
-    @DisplayName("타이밍 비교는 매수 시점마다 시뮬레이션 요청에 공통 옵션을 넘긴다")
-    void compareTiming_PassesOptions() {
-      TimingComparisonRequest request = new TimingComparisonRequest();
-      request.setSymbol("AAPL");
-      request.setPurchaseDates(Arrays.asList(LocalDate.of(2023, 1, 1), LocalDate.of(2023, 6, 1)));
-      request.setInvestmentAmount(BigDecimal.valueOf(1_000_000));
-      request.setUserId("user123");
-      withOptions(request);
-
-      stubSimulation();
-      stubComparisonResponse();
-
-      backtestAnalysisService.compareTiming(request);
-
-      ArgumentCaptor<SimulationRequest> simulations = ArgumentCaptor.forClass(SimulationRequest.class);
-      verify(tradingSimulationService, times(2)).runSimulation(simulations.capture(), eq(false));
-      assertThat(simulations.getAllValues())
-        .extracting(SimulationRequest::getPurchaseDate)
-        .containsExactly(LocalDate.of(2023, 1, 1), LocalDate.of(2023, 6, 1));
-      assertThat(simulations.getAllValues()).allSatisfy(this::assertSimulationOptions);
-    }
   }
 
   @Nested
@@ -857,7 +680,7 @@ class BacktestAnalysisServiceImplTest {
     @DisplayName("등록된 전략이 없으면 STRATEGY_TYPE_MISMATCH")
     void missingStrategy() {
       BacktestAnalysisServiceImpl dcaOnly = new BacktestAnalysisServiceImpl(tradingSimulationService,
-        List.of(dcaStrategy), responseMapper, backtestHistoryUtils, optimalTimingAnalyzer);
+        List.of(dcaStrategy), responseMapper, backtestHistoryUtils);
 
       assertThatThrownBy(() -> dcaOnly.runConditionalStrategy(conditionalRequest()))
         .isInstanceOf(BacktestException.class)
@@ -866,7 +689,7 @@ class BacktestAnalysisServiceImplTest {
     }
 
     @Test
-    @DisplayName("전략 비교에서 실패한 전략은 빼고 나머지로 비교한다")
+    @DisplayName("전략 비교에서 실패한 전략은 빼고 나머지로 비교하고, 사용자가 없으면 이력을 남기지 않는다")
     void strategyComparisonSkipsFailed() {
       StrategyParameter dca = new StrategyParameter();
       dca.setStrategyType(StrategyType.DCA);
@@ -897,30 +720,6 @@ class BacktestAnalysisServiceImplTest {
       ArgumentCaptor<List<ComparisonItem>> items = ArgumentCaptor.forClass(List.class);
       verify(responseMapper).toComparisonResponse(eq(request), items.capture(), any());
       assertThat(items.getValue()).containsExactly(conditionalItem);
-    }
-
-    @Test
-    @DisplayName("시점 비교에서 실패한 시점은 빼고, 사용자가 없으면 이력을 남기지 않는다")
-    void timingComparisonSkipsFailedWithoutHistory() {
-      TimingComparisonRequest request = new TimingComparisonRequest();
-      request.setSymbol("AAPL");
-      request.setPurchaseDates(List.of(LocalDate.of(2023, 1, 2), LocalDate.of(2023, 6, 1)));
-      request.setInvestmentAmount(BigDecimal.valueOf(10000));
-
-      SimulationResponse june = SimulationResponse.builder().totalReturnPercent(BigDecimal.ONE).build();
-      ComparisonItem juneItem = ComparisonItem.builder().name("2023-06-01 매수").totalReturnPercent(BigDecimal.ONE).build();
-      given(tradingSimulationService.runSimulation(any(), eq(false)))
-        .willThrow(new IllegalStateException("no price"))
-        .willReturn(june);
-      given(responseMapper.toComparisonItemFromSimulation(june, "2023-06-01 매수")).willReturn(juneItem);
-      given(responseMapper.toComparisonResponse(eq(request), any(), any())).willReturn(ComparisonResponse.builder().build());
-
-      backtestAnalysisService.compareTiming(request);
-
-      @SuppressWarnings("unchecked")
-      ArgumentCaptor<List<ComparisonItem>> items = ArgumentCaptor.forClass(List.class);
-      verify(responseMapper).toComparisonResponse(eq(request), items.capture(), any());
-      assertThat(items.getValue()).containsExactly(juneItem);
       verify(backtestHistoryUtils, never()).saveBacktestHistory(any(), any(), any());
     }
   }
@@ -933,7 +732,7 @@ class BacktestAnalysisServiceImplTest {
     @DisplayName("요청 타입의 전략이 등록되지 않았으면 전략 타입 불일치로 막는다")
     void runDcaStrategy_NoRegisteredStrategy_Rejected() {
       BacktestAnalysisServiceImpl onlyConditional = new BacktestAnalysisServiceImpl(tradingSimulationService,
-        List.of(conditionalPurchaseStrategy), responseMapper, backtestHistoryUtils, optimalTimingAnalyzer);
+        List.of(conditionalPurchaseStrategy), responseMapper, backtestHistoryUtils);
       DcaStrategyRequest request = DcaStrategyRequest.builder().symbol("AAPL").startDate(LocalDate.of(2023, 1, 1))
         .endDate(LocalDate.of(2024, 1, 1)).monthlyAmount(BigDecimal.valueOf(1000)).purchaseDay(1).userId("user123").build();
 

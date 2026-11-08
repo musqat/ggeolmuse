@@ -12,7 +12,7 @@ public class ComparisonItem {
   // 비교 대상 정보
   private String name;                   // 종목명 또는 전략명
   private String code;                   // 종목코드 또는 전략코드
-  private String category;               // "SYMBOL", "STRATEGY", "TIMING"
+  private String category;               // "SYMBOL", "STRATEGY"
 
   // 투자 정보
   private BigDecimal totalInvested;

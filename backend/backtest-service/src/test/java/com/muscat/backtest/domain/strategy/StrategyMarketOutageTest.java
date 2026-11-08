@@ -7,10 +7,8 @@ import static org.mockito.BDDMockito.given;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.InvestmentMode;
 import com.muscat.backtest.common.exception.BacktestException;
-import com.muscat.backtest.domain.analysis.OptimalTimingAnalyzer;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
-import com.muscat.backtest.domain.dto.request.OptimalTimingRequest;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.infra.client.MarketDataClient;
 import com.muscat.backtest.infra.client.MarketDataClientWrapper;
@@ -33,9 +31,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
-// 전략 · 분석이 서킷 브레이커 · 재시도가 걸린 래퍼로 시세를 받는지(재시도 예외 목록은 설정 리포와 같게)
+// 전략이 서킷 브레이커 · 재시도가 걸린 래퍼로 시세를 받는지(재시도 예외 목록은 설정 리포와 같게)
 @SpringBootTest(classes = {MarketDataClientWrapper.class, DCAStrategy.class, ConditionalPurchaseStrategy.class,
-  OptimalTimingAnalyzer.class, ResponseMapper.class}, properties = {
+  ResponseMapper.class}, properties = {
   "resilience4j.retry.instances.marketDataService.maxAttempts=2",
   "resilience4j.retry.instances.marketDataService.waitDuration=10ms",
   "resilience4j.retry.instances.marketDataService.retryExceptions[0]=feign.FeignException$FeignServerException",
@@ -44,7 +42,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 @ImportAutoConfiguration({AopAutoConfiguration.class, CircuitBreakerAutoConfiguration.class,
   RetryAutoConfiguration.class, TimeLimiterAutoConfiguration.class})
 @ActiveProfiles("test")
-@DisplayName("시세 서비스가 안 되면 전략 · 분석은 서비스 불가로 응답한다")
+@DisplayName("시세 서비스가 안 되면 전략은 서비스 불가로 응답한다")
 class StrategyMarketOutageTest {
 
   @MockitoBean
@@ -55,9 +53,6 @@ class StrategyMarketOutageTest {
 
   @Autowired
   private ConditionalPurchaseStrategy conditionalStrategy;
-
-  @Autowired
-  private OptimalTimingAnalyzer optimalTimingAnalyzer;
 
   private static FeignException outage() {
     Request request = Request.create(Request.HttpMethod.GET, "/api/internal/market", Map.of(), null,
@@ -87,18 +82,6 @@ class StrategyMarketOutageTest {
       .symbol("AAPL").startDate(LocalDate.of(2024, 1, 1)).endDate(LocalDate.of(2024, 3, 31))
       .investmentMode(InvestmentMode.PER_PURCHASE).amountPerPurchase(new BigDecimal("100000")).maxPurchases(3)
       .dropPercentage(new BigDecimal("0.05")).build()))
-      .isInstanceOf(BacktestException.class)
-      .extracting("code").isEqualTo(BacktestResponse.MARKET_DATA_UNAVAILABLE);
-  }
-
-  @Test
-  @DisplayName("최적 타이밍은 현재가를 못 받으면 서비스 불가다")
-  void optimalTiming_PriceOutage_Unavailable() {
-    given(marketDataClient.getCurrentPrice(anyString())).willThrow(outage());
-
-    assertThatThrownBy(() -> optimalTimingAnalyzer.analyzeOptimalTiming(OptimalTimingRequest.builder()
-      .symbol("AAPL").startDate(LocalDate.of(2024, 1, 1)).endDate(LocalDate.of(2024, 3, 31))
-      .investmentAmount(new BigDecimal("100000")).targetReturnPercent(BigDecimal.TEN).build()))
       .isInstanceOf(BacktestException.class)
       .extracting("code").isEqualTo(BacktestResponse.MARKET_DATA_UNAVAILABLE);
   }
