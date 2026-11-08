@@ -18,7 +18,7 @@ public interface FxRateService {
   // 없으면 null
   FxRate findByDate(LocalDate date);
 
-  // 날짜마다 그날 이전 가장 가까운 영업일 환율, 그 전 환율이 아예 없는 날은 빠짐
+  // 날짜마다 그 날짜 이전 가장 가까운 영업일 환율, 그 전 환율이 아예 없는 날은 빠짐
   Map<LocalDate, BigDecimal> findByDates(List<LocalDate> dates);
 
   // 없으면 API 에서 받아옴

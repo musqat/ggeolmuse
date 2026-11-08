@@ -40,7 +40,7 @@ NYSE · NASDAQ · NYSE ARCA 상장 12,000+ 종목의 일별 가격으로 투자 
 - 투자 전략 다섯 가지 (단순, 적립식, 조건부 매매, 전략 비교, 종목 비교)
 - 환율을 반영한 원화·달러 수익률
 - 배당금 자동 재투자 시뮬레이션
-- 최적 매수 · 매도 시점 — 원화 주가(종가 × 그날 환율) 기준
+- 최적 매수 · 매도 시점 — 원화 주가(종가 × 그 날짜 환율) 기준
 - 거래 수수료 반영. 모의 매매는 슬리피지까지
 - AI 종목 대화 — 기술 지표 · 주가 추이 · 배당을 묻는 챗봇, 차트에서 원클릭
 
@@ -153,21 +153,21 @@ repository · service)이고, 기능 하나를 단계로 나누는 trade · mark
 
 ## 테스트
 
-백엔드 **1,904 개**, 프론트 **834 개**, E2E **44 개**.
+백엔드 **2,006 개**, 프론트 **1,101 개**, E2E **45 개**.
 
 | 서비스 | 테스트 |
 |---|---|
 | market-data-service | 538 |
 | user-service | 432 |
-| backtest-service | 391 |
+| backtest-service | 493 |
 | trade-service | 299 |
 | gateway-server | 21 |
 | config-server | 5 |
 | ggeolmuse-common | 36 |
 | messaging | 25 |
 | chat-service | 157 |
-| frontend-web | 834 |
-| E2E (Playwright) | 44 |
+| frontend-web | 1,101 |
+| E2E (Playwright) | 45 |
 
 E2E 는 `docker compose` 로 스택 전체를 띄우고 PR 과 `master` push 마다 돈다.
 필수 체크로 두지 않은 이유는 시세를 Yahoo Finance 에서 받아서다 — 코드와
@@ -185,10 +185,10 @@ CI 에서 그 아래면 빌드를 실패시킨다(자바 JaCoCo · chat coverage
 |---|---|---|
 | user | 98.3% | 87.5% |
 | trade | 99.2% | 92.5% |
-| backtest | 98.7% | 88.8% |
+| backtest | 98.2% | 90.4% |
 | market-data | 97.9% | 87.9% |
 | chat | 98.4% | 89.6% |
-| frontend-web | 90.7% | 82.0% |
+| frontend-web | 93.1% | 86.0% |
 
 market-data 의 외부 API 호출은 응답을 흉내 낸 테스트라 실제 API 가 바뀌는 것은 못 잡는다.
 

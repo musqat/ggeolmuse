@@ -134,7 +134,7 @@ class AlphaVantageSourcesTest {
       + "\"2024-03-04\":{\"1. open\":\"1330\"},\"2024-03-01\":{\"4. close\":\"13.315\"}}}";
 
     @Test
-    @DisplayName("그날 종가를 환율로 주고, 그날이 없거나 정상 범위 밖이거나 묶음이 없으면 비운다")
+    @DisplayName("그 날짜 종가를 환율로 주고, 그 날짜가 없거나 정상 범위 밖이거나 묶음이 없으면 비운다")
     void singleDay() {
       given(client.get("FX_DAILY", Map.of("from_symbol", "USD", "to_symbol", "KRW", "outputsize", "full")))
         .willReturn(json(FX), json(FX), json(FX), json("{}"));
