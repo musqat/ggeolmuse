@@ -291,6 +291,11 @@ jobs:
         working-directory: tools
         run: go run ./cmd/netpol-check ../rendered.yaml
 
+      # 렌더한 이미지 태그가 Docker Hub 에 있는지(값 파일 오타 · 없는 태그, tools/cmd/image-check)
+      - name: 이미지 태그가 Docker Hub 에 있는지 본다
+        working-directory: tools
+        run: go run ./cmd/image-check ../rendered.yaml
+
       # 이미지 스캔과 같이 설치 · 스캔 실패로 잡을 막지 않음
       - uses: ./.github/actions/install-trivy
         continue-on-error: true
