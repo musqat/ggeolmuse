@@ -15,7 +15,7 @@ concurrency:
 
 # 잡마다 시간 제한(최근 실행의 세 배 안팎)
 jobs:
-  # PR 은 바뀐 서비스 이미지만, master push 는 전부 빌드(기준은 .github/scripts/ci-changes.sh)
+  # PR 은 바뀐 서비스 이미지만, master push 는 전부 빌드(기준은 tools/cmd/ci-changes)
   changes:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -27,11 +27,16 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: tools/go.mod
+          cache-dependency-path: tools/go.sum
       - id: pick
+        working-directory: tools
         env:
           EVENT: ${{ github.event_name }}
           BASE: ${{ github.event.pull_request.base.sha }}
-        run: bash .github/scripts/ci-changes.sh
+        run: go run ./cmd/ci-changes -event "$EVENT" -base "$BASE" >> "$GITHUB_OUTPUT"
 
   build-bom:
     runs-on: ubuntu-latest
