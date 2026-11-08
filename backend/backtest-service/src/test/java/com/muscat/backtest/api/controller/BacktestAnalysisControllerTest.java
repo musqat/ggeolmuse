@@ -131,7 +131,7 @@ class BacktestAnalysisControllerTest {
     given(backtestAnalysisService.runConditionalStrategy(any()))
       .willThrow(new BacktestException(BacktestResponse.INVALID_REQUEST));
 
-    postJson("/strategy/conditional", "{\"symbol\":\"TSLA\"," + PERIOD + ",\"totalInvestment\":1000000,\"dropPercentage\":5}")
+    postJson("/strategy/conditional", "{\"symbol\":\"TSLA\"," + PERIOD + ",\"amountPerPurchase\":100000,\"totalInvestment\":1000000,\"dropPercentage\":5}")
       .andExpect(status().isBadRequest());
 
     assertThat(meterRegistry.get("backtest.run").tags("kind", "conditional", "outcome", "failure").timer().count())
@@ -172,7 +172,7 @@ class BacktestAnalysisControllerTest {
     given(backtestAnalysisService.runConditionalStrategy(any()))
       .willReturn(strategy("TSLA", StrategyType.CONDITIONAL_PURCHASE, "-4.1"));
 
-    postJson("/strategy/conditional", "{\"symbol\":\"TSLA\"," + PERIOD + ",\"totalInvestment\":1000000,\"dropPercentage\":5}")
+    postJson("/strategy/conditional", "{\"symbol\":\"TSLA\"," + PERIOD + ",\"amountPerPurchase\":100000,\"totalInvestment\":1000000,\"dropPercentage\":5}")
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.totalReturnPercent").value(-4.1));
 
@@ -182,7 +182,20 @@ class BacktestAnalysisControllerTest {
   @Test
   @DisplayName("조건부 매수 전략에 하락률이 없으면 400")
   void conditional_MissingDrop() throws Exception {
-    postJson("/strategy/conditional", "{\"symbol\":\"TSLA\"," + PERIOD + ",\"totalInvestment\":1000000}")
+    postJson("/strategy/conditional", "{\"symbol\":\"TSLA\"," + PERIOD + ",\"amountPerPurchase\":100000}")
+      .andExpect(status().isBadRequest());
+
+    verify(backtestAnalysisService, never()).runConditionalStrategy(any());
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @CsvSource(delimiter = '|', value = {
+    "회당 금액 없음|\"totalInvestment\":1000000",
+    "예산 0|\"amountPerPurchase\":100000,\"totalInvestment\":0",
+    "최대 횟수 0|\"amountPerPurchase\":100000,\"maxPurchases\":0"})
+  @DisplayName("조건부 매수 전략의 회당 금액이 없거나 예산 · 최대 횟수가 0 이면 400 이고 서비스까지 가지 않는다")
+  void conditional_LimitsRejected(String label, String limits) throws Exception {
+    postJson("/strategy/conditional", "{\"symbol\":\"TSLA\"," + PERIOD + "," + limits + ",\"dropPercentage\":0.05}")
       .andExpect(status().isBadRequest());
 
     verify(backtestAnalysisService, never()).runConditionalStrategy(any());
@@ -237,7 +250,7 @@ class BacktestAnalysisControllerTest {
     postJsonWithToken("/strategy/dca", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"monthlyAmount\":100000,\"purchaseDay\":15" + VICTIM)
       .andExpect(status().isOk());
     postJsonWithToken("/strategy/conditional",
-      "{\"symbol\":\"TSLA\"," + PERIOD + ",\"totalInvestment\":1000000,\"dropPercentage\":5" + VICTIM)
+      "{\"symbol\":\"TSLA\"," + PERIOD + ",\"amountPerPurchase\":100000,\"totalInvestment\":1000000,\"dropPercentage\":5" + VICTIM)
       .andExpect(status().isOk());
     postJsonWithToken("/compare/symbols", "{\"symbols\":[\"AAPL\",\"MSFT\"]," + PERIOD + ",\"investmentAmount\":1000000" + VICTIM)
       .andExpect(status().isOk());

@@ -533,7 +533,7 @@ class BacktestAnalysisServiceImplTest {
     }
 
     @Test
-    @DisplayName("전략 비교는 세 전략 하위 요청에 공통 옵션을, 적립식에는 주기 · 한도도 넘긴다")
+    @DisplayName("전략 비교는 세 전략 하위 요청에 공통 옵션을, 적립식에는 주기 · 한도를, 조건부에는 원금을 10회로 나눈 회당 금액을 넘긴다")
     void compareStrategies_PassesOptions() {
       StrategyParameter simple = strategy(StrategyType.SIMPLE);
       simple.setPurchaseDate(LocalDate.of(2023, 1, 1));
@@ -592,6 +592,46 @@ class BacktestAnalysisServiceImplTest {
       assertThat(conditionalRequest.getValue().getDirection()).isEqualTo(PriceDirection.RISE);
       assertThat(conditionalRequest.getValue().getTakeProfitRate()).isEqualByComparingTo("0.2");
       assertThat(conditionalRequest.getValue().getStopLossRate()).isEqualByComparingTo("0.1");
+      assertThat(conditionalRequest.getValue().getAmountPerPurchase()).isEqualByComparingTo("100000");
+      assertThat(conditionalRequest.getValue().getMaxPurchases()).isEqualTo(10);
+      assertThat(conditionalRequest.getValue().getTotalInvestment()).isNull();
+    }
+
+    @Test
+    @DisplayName("전략 비교의 조건부에 최대 횟수를 주면 원금을 그 횟수로 나눈다")
+    void compareStrategies_ConditionalSplitsByMaxPurchases() {
+      StrategyParameter conditional = strategy(StrategyType.CONDITIONAL_PURCHASE);
+      conditional.setTotalInvestment(BigDecimal.valueOf(1_000_000));
+      conditional.setDropPercentage(new BigDecimal("0.05"));
+      conditional.setMaxPurchases(4);
+      given(conditionalPurchaseStrategy.execute(any())).willReturn(StrategyResponse.builder().build());
+      given(responseMapper.toComparisonItemFromStrategy(any(), any())).willReturn(item);
+      stubComparisonResponse();
+
+      backtestAnalysisService.compareStrategies(strategyRequest(conditional));
+
+      ArgumentCaptor<ConditionalStrategyRequest> conditionalRequest =
+        ArgumentCaptor.forClass(ConditionalStrategyRequest.class);
+      verify(conditionalPurchaseStrategy).execute(conditionalRequest.capture());
+      assertThat(conditionalRequest.getValue().getAmountPerPurchase()).isEqualByComparingTo("250000");
+      assertThat(conditionalRequest.getValue().getMaxPurchases()).isEqualTo(4);
+    }
+
+    @Test
+    @DisplayName("전략 비교의 조건부에 원금이 없거나 최대 횟수가 0 이면 전략을 돌리지 않고 그 항목을 뺀다")
+    void compareStrategies_ConditionalWithoutBudgetSkipped() {
+      StrategyParameter noBudget = strategy(StrategyType.CONDITIONAL_PURCHASE);
+      noBudget.setDropPercentage(new BigDecimal("0.05"));
+      StrategyParameter zeroRounds = strategy(StrategyType.CONDITIONAL_PURCHASE);
+      zeroRounds.setTotalInvestment(BigDecimal.valueOf(1_000_000));
+      zeroRounds.setDropPercentage(new BigDecimal("0.05"));
+      zeroRounds.setMaxPurchases(0);
+
+      assertThatThrownBy(() -> backtestAnalysisService.compareStrategies(strategyRequest(noBudget, zeroRounds)))
+        .isInstanceOf(BacktestException.class)
+        .extracting("code")
+        .isEqualTo(BacktestResponse.DATA_NOT_FOUND);
+      verify(conditionalPurchaseStrategy, never()).execute(any());
     }
 
     @Test

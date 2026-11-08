@@ -14,7 +14,6 @@ import static org.mockito.Mockito.never;
 
 import com.muscat.backtest.common.calculation.StrategyCalculationResult;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
-import com.muscat.backtest.common.enums.type.InvestmentMode;
 import com.muscat.backtest.common.enums.type.PriceDirection;
 import com.muscat.backtest.common.enums.type.SkipReason;
 import com.muscat.backtest.common.enums.type.StrategyType;
@@ -25,6 +24,7 @@ import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.domain.model.SkippedRound;
+import com.muscat.backtest.domain.model.SkippedSpan;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.backtest.infra.client.MarketDataClientWrapper;
 import com.muscat.backtest.infra.client.dto.FxRateDto;
@@ -38,6 +38,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -80,13 +82,12 @@ class ConditionalPurchaseStrategyTest {
     @Test
     @DisplayName("분할일 가격 변화를 하락으로 보고 사지 않는다 - closePrice 가 분할 조정된 값이라")
     void execute_SplitDay_NoPhantomDropBuy() {
-      // given: PER_PURCHASE, 20% 하락시 매수, 최대 5회
+      // given: 20% 하락시 매수, 최대 5회
       ConditionalStrategyRequest request = ConditionalStrategyRequest.builder()
         .userId("test-user")
         .symbol("SPLIT-TEST")
         .startDate(LocalDate.of(2024, 1, 15))
         .endDate(LocalDate.of(2024, 1, 16))
-        .investmentMode(InvestmentMode.PER_PURCHASE)
         .amountPerPurchase(new BigDecimal("1000.00"))
         .maxPurchases(5)
         .dropPercentage(new BigDecimal("0.2")) // 20%
@@ -136,7 +137,6 @@ class ConditionalPurchaseStrategyTest {
         .symbol("FEE-TEST")
         .startDate(LocalDate.of(2024, 1, 15))
         .endDate(LocalDate.of(2024, 1, 16))
-        .investmentMode(InvestmentMode.PER_PURCHASE)
         .amountPerPurchase(new BigDecimal("1300000"))
         .maxPurchases(1)
         .dropPercentage(new BigDecimal("0.2"))
@@ -198,7 +198,7 @@ class ConditionalPurchaseStrategyTest {
         .symbol(null)
         .startDate(LocalDate.of(2023, 1, 1))
         .endDate(LocalDate.of(2023, 12, 31))
-        .totalInvestment(BigDecimal.valueOf(10000))
+        .amountPerPurchase(BigDecimal.valueOf(10000))
         .dropPercentage(BigDecimal.valueOf(10))
         .build();
 
@@ -215,7 +215,7 @@ class ConditionalPurchaseStrategyTest {
         .symbol("   ")
         .startDate(LocalDate.of(2023, 1, 1))
         .endDate(LocalDate.of(2023, 12, 31))
-        .totalInvestment(BigDecimal.valueOf(10000))
+        .amountPerPurchase(BigDecimal.valueOf(10000))
         .dropPercentage(BigDecimal.valueOf(10))
         .build();
 
@@ -232,7 +232,7 @@ class ConditionalPurchaseStrategyTest {
         .symbol("AAPL")
         .startDate(null)
         .endDate(LocalDate.of(2023, 12, 31))
-        .totalInvestment(BigDecimal.valueOf(10000))
+        .amountPerPurchase(BigDecimal.valueOf(10000))
         .dropPercentage(BigDecimal.valueOf(10))
         .build();
 
@@ -249,7 +249,7 @@ class ConditionalPurchaseStrategyTest {
         .symbol("AAPL")
         .startDate(LocalDate.of(2023, 1, 1))
         .endDate(null)
-        .totalInvestment(BigDecimal.valueOf(10000))
+        .amountPerPurchase(BigDecimal.valueOf(10000))
         .dropPercentage(BigDecimal.valueOf(10))
         .build();
 
@@ -266,7 +266,7 @@ class ConditionalPurchaseStrategyTest {
         .symbol("AAPL")
         .startDate(LocalDate.of(2023, 12, 31))
         .endDate(LocalDate.of(2023, 1, 1))
-        .totalInvestment(BigDecimal.valueOf(10000))
+        .amountPerPurchase(BigDecimal.valueOf(10000))
         .dropPercentage(BigDecimal.valueOf(10))
         .build();
 
@@ -276,133 +276,63 @@ class ConditionalPurchaseStrategyTest {
         .isEqualTo(BacktestResponse.STRATEGY_DATE_RANGE_INVALID);
     }
 
-    @Test
-    @DisplayName("TOTAL_BUDGET 모드에서 totalInvestment가 null이면 예외 발생")
-    void validateRequest_TotalBudgetMode_NullTotalInvestment_ThrowsException() {
-      ConditionalStrategyRequest request = ConditionalStrategyRequest.builder()
+    // 검사를 모두 통과하는 요청(회당 금액만, 예산 · 최대 횟수 없음)
+    private ConditionalStrategyRequest.ConditionalStrategyRequestBuilder valid() {
+      return ConditionalStrategyRequest.builder()
         .symbol("AAPL")
         .startDate(LocalDate.of(2023, 1, 1))
         .endDate(LocalDate.of(2023, 12, 31))
-        .investmentMode(InvestmentMode.TOTAL_BUDGET)
-        .totalInvestment(null)
-        .dropPercentage(BigDecimal.valueOf(10))
-        .build();
+        .amountPerPurchase(BigDecimal.valueOf(10000))
+        .dropPercentage(BigDecimal.valueOf(0.1));
+    }
 
+    private void assertRejected(ConditionalStrategyRequest request, BacktestResponse code) {
       assertThatThrownBy(() -> strategy.execute(request))
         .isInstanceOf(BacktestException.class)
         .extracting("code")
-        .isEqualTo(BacktestResponse.STRATEGY_TOTAL_INVESTMENT_REQUIRED);
+        .isEqualTo(code);
     }
 
     @Test
-    @DisplayName("TOTAL_BUDGET 모드에서 totalInvestment가 0 이하면 예외 발생")
-    void validateRequest_TotalBudgetMode_ZeroTotalInvestment_ThrowsException() {
-      ConditionalStrategyRequest request = ConditionalStrategyRequest.builder()
-        .symbol("AAPL")
-        .startDate(LocalDate.of(2023, 1, 1))
-        .endDate(LocalDate.of(2023, 12, 31))
-        .investmentMode(InvestmentMode.TOTAL_BUDGET)
-        .totalInvestment(BigDecimal.ZERO)
-        .dropPercentage(BigDecimal.valueOf(10))
-        .build();
-
-      assertThatThrownBy(() -> strategy.execute(request))
-        .isInstanceOf(BacktestException.class)
-        .extracting("code")
-        .isEqualTo(BacktestResponse.STRATEGY_TOTAL_INVESTMENT_REQUIRED);
+    @DisplayName("회당 금액이 없으면 예외 발생")
+    void validateRequest_NullAmountPerPurchase_ThrowsException() {
+      assertRejected(valid().amountPerPurchase(null).build(), BacktestResponse.STRATEGY_AMOUNT_PER_PURCHASE_REQUIRED);
     }
 
     @Test
-    @DisplayName("PER_PURCHASE 모드에서 amountPerPurchase가 null이면 예외 발생")
-    void validateRequest_PerPurchaseMode_NullAmountPerPurchase_ThrowsException() {
-      ConditionalStrategyRequest request = ConditionalStrategyRequest.builder()
-        .symbol("AAPL")
-        .startDate(LocalDate.of(2023, 1, 1))
-        .endDate(LocalDate.of(2023, 12, 31))
-        .investmentMode(InvestmentMode.PER_PURCHASE)
-        .amountPerPurchase(null)
-        .maxPurchases(5)
-        .dropPercentage(BigDecimal.valueOf(10))
-        .build();
-
-      assertThatThrownBy(() -> strategy.execute(request))
-        .isInstanceOf(BacktestException.class)
-        .hasMessageContaining("회당 투자금액은 필수입니다");
+    @DisplayName("회당 금액이 0 이하면 예외 발생")
+    void validateRequest_ZeroAmountPerPurchase_ThrowsException() {
+      assertRejected(valid().amountPerPurchase(BigDecimal.ZERO).build(),
+        BacktestResponse.STRATEGY_AMOUNT_PER_PURCHASE_REQUIRED);
     }
 
     @Test
-    @DisplayName("PER_PURCHASE 모드에서 maxPurchases가 null이면 예외 발생")
-    void validateRequest_PerPurchaseMode_NullMaxPurchases_ThrowsException() {
-      ConditionalStrategyRequest request = ConditionalStrategyRequest.builder()
-        .symbol("AAPL")
-        .startDate(LocalDate.of(2023, 1, 1))
-        .endDate(LocalDate.of(2023, 12, 31))
-        .investmentMode(InvestmentMode.PER_PURCHASE)
-        .amountPerPurchase(BigDecimal.valueOf(1000))
-        .maxPurchases(null)
-        .dropPercentage(BigDecimal.valueOf(10))
-        .build();
-
-      assertThatThrownBy(() -> strategy.execute(request))
-        .isInstanceOf(BacktestException.class)
-        .hasMessageContaining("최대 매수 횟수가 필수입니다");
+    @DisplayName("예산을 주면 0 보다 커야 하고, 0 이하면 예외 발생")
+    void validateRequest_ZeroBudget_ThrowsException() {
+      assertRejected(valid().totalInvestment(BigDecimal.ZERO).build(), BacktestResponse.INVALID_TOTAL_INVESTMENT);
     }
 
     @Test
     @DisplayName("dropPercentage가 null이면 예외 발생")
     void validateRequest_NullDropPercentage_ThrowsException() {
-      ConditionalStrategyRequest request = ConditionalStrategyRequest.builder()
-        .symbol("AAPL")
-        .startDate(LocalDate.of(2023, 1, 1))
-        .endDate(LocalDate.of(2023, 12, 31))
-        .totalInvestment(BigDecimal.valueOf(10000))
-        .dropPercentage(null)
-        .build();
-
-      assertThatThrownBy(() -> strategy.execute(request))
-        .isInstanceOf(BacktestException.class)
-        .extracting("code")
-        .isEqualTo(BacktestResponse.STRATEGY_DROP_PERCENTAGE_REQUIRED);
+      assertRejected(valid().dropPercentage(null).build(), BacktestResponse.STRATEGY_DROP_PERCENTAGE_REQUIRED);
     }
 
     @Test
     @DisplayName("dropPercentage가 0 이하면 예외 발생")
     void validateRequest_ZeroDropPercentage_ThrowsException() {
-      ConditionalStrategyRequest request = ConditionalStrategyRequest.builder()
-        .symbol("AAPL")
-        .startDate(LocalDate.of(2023, 1, 1))
-        .endDate(LocalDate.of(2023, 12, 31))
-        .totalInvestment(BigDecimal.valueOf(10000))
-        .dropPercentage(BigDecimal.ZERO)
-        .build();
-
-      assertThatThrownBy(() -> strategy.execute(request))
-        .isInstanceOf(BacktestException.class)
-        .extracting("code")
-        .isEqualTo(BacktestResponse.STRATEGY_DROP_PERCENTAGE_REQUIRED);
+      assertRejected(valid().dropPercentage(BigDecimal.ZERO).build(), BacktestResponse.STRATEGY_DROP_PERCENTAGE_REQUIRED);
     }
 
     @Test
     @DisplayName("maxPurchases가 0 이하면 예외 발생")
     void validateRequest_ZeroMaxPurchases_ThrowsException() {
-      ConditionalStrategyRequest request = ConditionalStrategyRequest.builder()
-        .symbol("AAPL")
-        .startDate(LocalDate.of(2023, 1, 1))
-        .endDate(LocalDate.of(2023, 12, 31))
-        .totalInvestment(BigDecimal.valueOf(10000))
-        .dropPercentage(BigDecimal.valueOf(10))
-        .maxPurchases(0)
-        .build();
-
-      assertThatThrownBy(() -> strategy.execute(request))
-        .isInstanceOf(BacktestException.class)
-        .extracting("code")
-        .isEqualTo(BacktestResponse.INVALID_MAX_PURCHASES);
+      assertRejected(valid().maxPurchases(0).build(), BacktestResponse.INVALID_MAX_PURCHASES);
     }
   }
 
   @Nested
-  @DisplayName("하락 · 상승 판정 · 투자 모드")
+  @DisplayName("하락 · 상승 판정 · 한도")
   class DropTriggerTests {
 
     private static final String SYMBOL = "DROP";
@@ -417,7 +347,7 @@ class ConditionalPurchaseStrategyTest {
     private ConditionalStrategyRequest.ConditionalStrategyRequestBuilder perPurchase(int days, int maxPurchases) {
       return ConditionalStrategyRequest.builder().userId("test-user").symbol(SYMBOL)
         .startDate(START).endDate(START.plusDays(days - 1))
-        .investmentMode(InvestmentMode.PER_PURCHASE).amountPerPurchase(new BigDecimal("1300000"))
+        .amountPerPurchase(new BigDecimal("1300000"))
         .maxPurchases(maxPurchases).dropPercentage(new BigDecimal("0.1"));
     }
 
@@ -715,29 +645,73 @@ class ConditionalPurchaseStrategyTest {
       assertThat(executed()).isEmpty();
     }
 
-    @Test
-    @DisplayName("총 예산 모드에 회당 금액을 주면 예산 ÷ 회당 금액 번까지만 산다")
-    void totalBudgetWithAmountPerPurchase() {
-      ConditionalStrategyRequest request = perPurchase(4, 10).investmentMode(InvestmentMode.TOTAL_BUDGET)
-        .maxPurchases(null).totalInvestment(new BigDecimal("3900000")).build();
-      stubMarket(request, List.of(day(0, "100"), day(1, "80"), day(2, "64"), day(3, "50")), true);
-
-      strategy.execute(request);
-
-      assertThat(executed()).hasSize(3).allSatisfy(tx -> assertThat(tx.getAmount()).isEqualByComparingTo("1300000"));
+    // 첫날 100 뒤로 날마다 전날 종가보다 20% 넘게 내려 매번 조건이 맞는 시세
+    private List<OHLCPriceDto> falling() {
+      return List.of(day(0, "100"), day(1, "80"), day(2, "64"), day(3, "50"), day(4, "40"), day(5, "32"));
     }
 
     @Test
-    @DisplayName("모드를 비우면 총 예산 모드이고, 회당 금액도 횟수도 없으면 10회로 나눈다")
-    void defaultModeSplitsIntoTen() {
-      ConditionalStrategyRequest request = perPurchase(2, 10).investmentMode(null).amountPerPurchase(null)
-        .maxPurchases(null).totalInvestment(new BigDecimal("1000000")).build();
-      stubMarket(request, List.of(day(0, "100"), day(1, "80")), true);
+    @DisplayName("예산 안에서 회당 금액만큼 사고, 다음 회차가 예산을 넘으면 그 날짜부터 끝까지 예산 부족 구간 한 줄로 남긴다")
+    void budgetShortfallSpan() {
+      ConditionalStrategyRequest request = perPurchase(6, 10).maxPurchases(null)
+        .totalInvestment(new BigDecimal("3900000")).build();
+      stubMarket(request, falling(), true);
 
-      strategy.execute(request);
+      StrategyResponse response = strategy.execute(request);
 
-      assertThat(executed()).singleElement().extracting(StrategyTransaction::getAmount)
-        .satisfies(amount -> assertThat(amount).isEqualByComparingTo("100000"));
+      assertThat(executed()).hasSize(3).allSatisfy(tx -> assertThat(tx.getAmount()).isEqualByComparingTo("1300000"));
+      assertThat(response.getSkippedSpan()).isEqualTo(new SkippedSpan(START.plusDays(4), 2, SkipReason.OVER_BUDGET));
+      assertThat(skippedRounds()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("예산 · 최대 횟수를 모두 비우면 조건이 맞는 날마다 끝까지 산다")
+    void noLimitsBuysEveryTrigger() {
+      ConditionalStrategyRequest request = perPurchase(6, 10).maxPurchases(null).build();
+      stubMarket(request, falling(), true);
+
+      StrategyResponse response = strategy.execute(request);
+
+      assertThat(executed()).hasSize(5);
+      assertThat(response.getSkippedSpan()).isNull();
+    }
+
+    @Test
+    @DisplayName("최대 횟수가 먼저 닿으면 거기서 멈추고 예산 부족은 남기지 않는다")
+    void maxPurchasesFirst() {
+      ConditionalStrategyRequest request = perPurchase(6, 2).totalInvestment(new BigDecimal("13000000")).build();
+      stubMarket(request, falling(), true);
+
+      StrategyResponse response = strategy.execute(request);
+
+      assertThat(executed()).hasSize(2);
+      assertThat(response.getSkippedSpan()).isNull();
+    }
+
+    @Test
+    @DisplayName("예산이 먼저 닿으면 최대 횟수까지 남은 회차만 예산 부족으로 센다")
+    void budgetFirstCountsUpToMax() {
+      ConditionalStrategyRequest request = perPurchase(6, 3).totalInvestment(new BigDecimal("2600000")).build();
+      stubMarket(request, falling(), true);
+
+      StrategyResponse response = strategy.execute(request);
+
+      assertThat(executed()).hasSize(2);
+      assertThat(response.getSkippedSpan()).isEqualTo(new SkippedSpan(START.plusDays(3), 1, SkipReason.OVER_BUDGET));
+    }
+
+    @Test
+    @DisplayName("예산이 회당 금액보다 작으면 매수 0회 결과에 첫 조건 날짜부터의 예산 부족 구간을 싣는다")
+    void budgetBelowAmountZeroResult() {
+      ConditionalStrategyRequest request = perPurchase(4, 10).maxPurchases(null)
+        .totalInvestment(new BigDecimal("1000000")).build();
+      stubMarket(request, falling().subList(0, 4), true);
+
+      StrategyResponse response = strategy.execute(request);
+
+      assertThat(executed()).isEmpty();
+      assertThat(calculation().getTotalInvested()).isEqualByComparingTo("0");
+      assertThat(response.getSkippedSpan()).isEqualTo(new SkippedSpan(START.plusDays(1), 3, SkipReason.OVER_BUDGET));
     }
 
     @Test
@@ -853,48 +827,6 @@ class ConditionalPurchaseStrategyTest {
 
       assertThat(executed()).hasSize(1);
       verify(marketDataClient).getOHLCPriceRange(SYMBOL, today.minusDays(2).toString(), today.toString());
-    }
-
-    @Test
-    @DisplayName("회당 고정 모드에서 회당 금액이 0 이거나 최대 횟수가 0 이면 막는다")
-    void perPurchaseZeroValues() {
-      ConditionalStrategyRequest zeroAmount = perPurchase(1, 3).amountPerPurchase(BigDecimal.ZERO).build();
-      ConditionalStrategyRequest zeroCount = perPurchase(1, 0).build();
-
-      assertThatThrownBy(() -> strategy.execute(zeroAmount))
-        .isInstanceOf(BacktestException.class)
-        .extracting("code")
-        .isEqualTo(BacktestResponse.STRATEGY_TOTAL_INVESTMENT_REQUIRED);
-      assertThatThrownBy(() -> strategy.execute(zeroCount))
-        .isInstanceOf(BacktestException.class)
-        .extracting("code")
-        .isEqualTo(BacktestResponse.INVALID_MAX_PURCHASES);
-    }
-
-    @Test
-    @DisplayName("총 예산 모드에 최대 횟수만 주면 예산을 그 횟수로 나눈다")
-    void totalBudgetSplitsByMaxPurchases() {
-      ConditionalStrategyRequest request = perPurchase(2, 4).investmentMode(InvestmentMode.TOTAL_BUDGET)
-        .amountPerPurchase(null).totalInvestment(new BigDecimal("1000000")).build();
-      stubMarket(request, List.of(day(0, "100"), day(1, "80")), true);
-
-      strategy.execute(request);
-
-      assertThat(executed()).singleElement().extracting(StrategyTransaction::getAmount)
-        .satisfies(amount -> assertThat(amount).isEqualByComparingTo("250000"));
-    }
-
-    @Test
-    @DisplayName("총 예산 모드에서 회당 금액 0 은 없는 것으로 보고 10회로 나눈다")
-    void totalBudgetZeroAmountPerPurchase() {
-      ConditionalStrategyRequest request = perPurchase(2, 10).investmentMode(InvestmentMode.TOTAL_BUDGET)
-        .amountPerPurchase(BigDecimal.ZERO).maxPurchases(null).totalInvestment(new BigDecimal("1000000")).build();
-      stubMarket(request, List.of(day(0, "100"), day(1, "80")), true);
-
-      strategy.execute(request);
-
-      assertThat(executed()).singleElement().extracting(StrategyTransaction::getAmount)
-        .satisfies(amount -> assertThat(amount).isEqualByComparingTo("100000"));
     }
 
     @Nested
@@ -1013,6 +945,38 @@ class ConditionalPurchaseStrategyTest {
         StrategyTransaction rebuy = executed().getLast();
         assertThat(rebuy.getAmount()).isEqualByComparingTo("0");
         assertThat(rebuy.getCashUsed()).isEqualByComparingTo("1000");
+      }
+
+      @Test
+      @DisplayName("예산을 다 쓴 뒤에도 판 돈이 회당 금액만큼 있으면 판 돈으로 산다")
+      void rebuysWithCashAfterBudget() {
+        ConditionalStrategyRequest request = selling(6, 10).maxPurchases(null).totalInvestment(new BigDecimal("1300000"))
+          .takeProfitRate(new BigDecimal("0.1")).build();
+        stubMarket(request, afterEntry(day(2, "100"), candle(3, "101", "111", "100", "105"), bar(4, "94", "94", "95"),
+          day(5, "95")), false);
+
+        StrategyResponse response = strategy.execute(request);
+
+        assertThat(trades()).containsExactly(ENTRY, tuple("110", "10.0%익절", -1), tuple("94", "10.5%하락", 1));
+        assertThat(executed().getLast().getAmount()).isEqualByComparingTo("0");
+        assertThat(response.getSkippedSpan()).isNull();
+      }
+
+      @ParameterizedTest(name = "예산 {0}")
+      @CsvSource({"1430000, 130000", "1300000, 0"})
+      @DisplayName("판 돈이 모자라면 새로 넣을 돈이 남은 예산 안일 때만 채워 사고, 넘으면 판 돈만큼만 산다")
+      void topUpWithinBudget(String budget, String deposit) {
+        ConditionalStrategyRequest request = selling(4, 10).maxPurchases(null).totalInvestment(new BigDecimal(budget))
+          .stopLossRate(new BigDecimal("0.1")).build();
+        // 3일째 90 에 손절(900달러), 4일째 하락 기준가 82.8 에 모자란 100달러는 13만원
+        stubMarket(request, afterEntry(candle(2, "95", "96", "89", "92"), bar(3, "83", "82", "85")), false);
+
+        StrategyResponse response = strategy.execute(request);
+
+        StrategyTransaction rebuy = executed().getLast();
+        assertThat(rebuy.getCashUsed()).isEqualByComparingTo("900");
+        assertThat(rebuy.getAmount()).isEqualByComparingTo(deposit);
+        assertThat(response.getSkippedSpan()).isNull();
       }
 
       @Test
