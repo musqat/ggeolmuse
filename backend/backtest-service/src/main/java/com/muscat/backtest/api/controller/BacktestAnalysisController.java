@@ -83,8 +83,8 @@ public class BacktestAnalysisController {
       @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
     request.setUserId(TokenOwner.sub(jwt));
 
-    log.info("DCA 전략 백테스팅 요청: {} - 회당 {}원",
-        request.getSymbol(), request.getAmountPerPurchase());
+    log.info("DCA 전략 백테스팅 요청: {} - 회당 {}",
+        request.getSymbol(), request.perPurchase());
 
     StrategyResponse result = backtestMetrics.record("dca", () -> backtestAnalysisService.runDcaStrategy(request));
 

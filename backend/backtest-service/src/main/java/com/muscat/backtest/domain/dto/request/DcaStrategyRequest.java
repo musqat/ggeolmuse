@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.muscat.backtest.common.enums.type.DcaFrequency;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
@@ -42,11 +43,14 @@ public class DcaStrategyRequest implements StrategyRequest {
   private String userId;
 
   // DCA 전략 전용 필드들
-  @Schema(description = "회당 투자 금액 (monthlyAmount 로 보내도 받음)", example = "100000.00", required = true)
+  @Schema(description = "회당 투자 금액 (주식 수와 둘 중 하나, monthlyAmount 로 보내도 받음)", example = "100000.00")
   @JsonAlias("monthlyAmount")
-  @NotNull(message = "회당 금액은 필수입니다")
   @Positive(message = "회당 금액은 0보다 커야 합니다")
   private BigDecimal amountPerPurchase;
+
+  @Schema(description = "회당 주식 수 (정수, 회당 금액과 둘 중 하나, 그 날짜 종가 × 주식 수 + 수수료를 그 날짜 환율로 원화)", example = "1")
+  @Min(value = 1, message = "주식 수는 1 이상이어야 합니다")
+  private Integer sharesPerPurchase;
 
   @Schema(description = "매수 주기 (DAILY 거래일마다, WEEKLY 첫 매수일의 요일마다, MONTHLY 투자 주기마다 투자일에)", example = "MONTHLY")
   @Builder.Default
@@ -97,5 +101,18 @@ public class DcaStrategyRequest implements StrategyRequest {
   @Override
   public StrategyType getStrategyType() {
     return StrategyType.DCA;
+  }
+
+  // 회당 금액 · 주식 수 가운데 하나만
+  @JsonIgnore
+  @Schema(hidden = true)
+  @AssertTrue(message = "회당 금액과 주식 수 가운데 하나만 넣어 주세요")
+  public boolean isAmountOrShares() {
+    return (amountPerPurchase == null) != (sharesPerPurchase == null);
+  }
+
+  // 회당 금액 · 주식 수 표시("100000원" · "2주")
+  public String perPurchase() {
+    return sharesPerPurchase != null ? sharesPerPurchase + "주" : amountPerPurchase + "원";
   }
 }

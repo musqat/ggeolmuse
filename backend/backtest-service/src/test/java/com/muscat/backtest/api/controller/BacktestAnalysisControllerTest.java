@@ -142,6 +142,41 @@ class BacktestAnalysisControllerTest {
   }
 
   @Test
+  @DisplayName("적립식 · 조건부 전략은 회당 금액 대신 주식 수를 받아 그대로 넘긴다")
+  void sharesPerPurchase() throws Exception {
+    given(backtestAnalysisService.runDcaStrategy(any())).willReturn(strategy("AAPL", StrategyType.DCA, "1"));
+    given(backtestAnalysisService.runConditionalStrategy(any()))
+      .willReturn(strategy("TSLA", StrategyType.CONDITIONAL_PURCHASE, "1"));
+
+    postJson("/strategy/dca", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"sharesPerPurchase\":2,\"frequency\":\"WEEKLY\"}")
+      .andExpect(status().isOk());
+    postJson("/strategy/conditional", "{\"symbol\":\"TSLA\"," + PERIOD + ",\"sharesPerPurchase\":1,\"dropPercentage\":0.05}")
+      .andExpect(status().isOk());
+
+    verify(backtestAnalysisService).runDcaStrategy(argThat((DcaStrategyRequest r) -> r.getSharesPerPurchase() == 2
+      && r.getAmountPerPurchase() == null));
+    verify(backtestAnalysisService).runConditionalStrategy(argThat(r -> r.getSharesPerPurchase() == 1
+      && r.getAmountPerPurchase() == null));
+  }
+
+  @ParameterizedTest(name = "{0} {1}")
+  @CsvSource(delimiter = '|', value = {
+    "dca|둘 다|,\"amountPerPurchase\":100000,\"sharesPerPurchase\":1",
+    "dca|둘 다 없음|",
+    "dca|주식 수 0|,\"sharesPerPurchase\":0",
+    "conditional|둘 다|,\"amountPerPurchase\":100000,\"sharesPerPurchase\":1",
+    "conditional|주식 수 0|,\"sharesPerPurchase\":0"})
+  @DisplayName("적립식 · 조건부 전략의 회당 금액 · 주식 수가 둘 다 있거나 둘 다 없거나 주식 수가 1 보다 작으면 400 이고 서비스까지 가지 않는다")
+  void amountOrSharesRejected(String path, String label, String fields) throws Exception {
+    postJson("/strategy/" + path, "{\"symbol\":\"AAPL\"," + PERIOD + ",\"dropPercentage\":0.05"
+      + (fields == null ? "" : fields) + "}")
+      .andExpect(status().isBadRequest());
+
+    verify(backtestAnalysisService, never()).runDcaStrategy(any());
+    verify(backtestAnalysisService, never()).runConditionalStrategy(any());
+  }
+
+  @Test
   @DisplayName("적립식 전략 한 번이 끝나면 종류 dca · 성공으로 소요 시간 지표에 한 건 남는다")
   void dca_RecordsSuccessMetric() throws Exception {
     given(backtestAnalysisService.runDcaStrategy(any())).willReturn(strategy("AAPL", StrategyType.DCA, "30.42"));
@@ -218,10 +253,10 @@ class BacktestAnalysisControllerTest {
 
   @ParameterizedTest(name = "{0}")
   @CsvSource(delimiter = '|', value = {
-    "회당 금액 없음|\"totalInvestment\":1000000",
+    "회당 금액 · 주식 수 없음|\"totalInvestment\":1000000",
     "예산 0|\"amountPerPurchase\":100000,\"totalInvestment\":0",
     "최대 횟수 0|\"amountPerPurchase\":100000,\"maxPurchases\":0"})
-  @DisplayName("조건부 매수 전략의 회당 금액이 없거나 예산 · 최대 횟수가 0 이면 400 이고 서비스까지 가지 않는다")
+  @DisplayName("조건부 매수 전략의 회당 금액 · 주식 수가 없거나 예산 · 최대 횟수가 0 이면 400 이고 서비스까지 가지 않는다")
   void conditional_LimitsRejected(String label, String limits) throws Exception {
     postJson("/strategy/conditional", "{\"symbol\":\"TSLA\"," + PERIOD + "," + limits + ",\"dropPercentage\":0.05}")
       .andExpect(status().isBadRequest());

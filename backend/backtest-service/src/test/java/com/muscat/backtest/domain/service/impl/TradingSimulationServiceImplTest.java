@@ -553,7 +553,7 @@ class TradingSimulationServiceImplTest {
     }
 
     @Test
-    @DisplayName("원화 주가(종가 × 그날 환율)로 가장 싸게 사서 가장 비싸게 파는 날을 고르고 수익률도 원화로 낸다")
+    @DisplayName("원화 주가(종가 × 그 날짜 환율)로 가장 싸게 사서 가장 비싸게 파는 날을 고르고 수익률도 원화로 낸다")
     void optimalTiming_KrwPrice() {
       // 달러로는 1/5 최저 · 10/13 최고, 환율을 곱하면 1/9 가 더 싸고 10/28 이 더 비쌈
       runWith(List.of(
@@ -585,7 +585,7 @@ class TradingSimulationServiceImplTest {
 
       assertThat(buyDate.getValue()).isEqualTo(LocalDate.parse("2023-01-09"));
       assertThat(sellDate.getValue()).isEqualTo(LocalDate.parse("2025-10-28"));
-      // 매수가 · 매도가는 그날 달러 종가
+      // 매수가 · 매도가는 그 날짜 달러 종가
       assertThat(buyPrice.getValue()).isEqualByComparingTo("227.12");
       assertThat(sellPrice.getValue()).isEqualByComparingTo("542.07");
       // 542.07 × 1431.40 / (227.12 × 1239.25) - 1
@@ -693,7 +693,7 @@ class TradingSimulationServiceImplTest {
     }
 
     @Test
-    @DisplayName("과거 매도일이면 그날 조정 종가 · 환율로 평가하고 평가일을 그날로 둔다")
+    @DisplayName("과거 매도일이면 그 날짜 조정 종가 · 환율로 평가하고 평가일을 그 날짜로 둔다")
     void pastSaleDate_ValuesAtSaleDate() {
       stubPurchase();
       stubSale();
@@ -908,7 +908,7 @@ class TradingSimulationServiceImplTest {
     }
 
     @Test
-    @DisplayName("휴장일에 사면 다음 거래일 종가 · 환율로 사고, 응답의 매수일도 그날이다")
+    @DisplayName("휴장일에 사면 다음 거래일 종가 · 환율로 사고, 응답의 매수일도 그 날짜다")
     void buysOnNextTradingDay() {
       // 1/1(일) · 1/2(휴장) 다음 거래일 1/3, 그 전 거래일 12/30 시세 · 환율은 안 씀
       stubClosed("2023-01-01");
@@ -1040,7 +1040,7 @@ class TradingSimulationServiceImplTest {
     }
 
     @Test
-    @DisplayName("배당일 시세가 일괄 조회에 없으면 그날 시세를 따로 조회해 산다")
+    @DisplayName("배당일 시세가 일괄 조회에 없으면 그 날짜 시세를 따로 조회해 산다")
     void fetchesMissingDividendDayPrice() {
       stubPurchaseAndSale();
       stubDividend("1.00");
@@ -1158,7 +1158,7 @@ class TradingSimulationServiceImplTest {
     }
 
     @Test
-    @DisplayName("날마다 주식 수 × 종가를 그날 환율로 바꾼 값을 싣고, 평가일은 총자산이다")
+    @DisplayName("날마다 주식 수 × 종가를 그 날짜 환율로 바꾼 값을 싣고, 평가일은 총자산이다")
     void dailyValuesFollowCloseAndFx() {
       stubSwing();
 
@@ -1384,6 +1384,43 @@ class TradingSimulationServiceImplTest {
         .containsExactly(purchaseDate, march, exDate, may);
       assertThat(response.getPurchaseDayReturns().getFirst().returnPercent())
         .isEqualByComparingTo(response.getTotalReturnPercent());
+    }
+
+    private SimulationResponse runShares(int shares, String feeRate) {
+      return service.runSimulation(SimulationRequest.builder()
+        .symbol(TEST_SYMBOL).purchaseDate(purchaseDate).saleDate(saleDate)
+        .sharesPerPurchase(shares)
+        .tradingFeeRate(new BigDecimal(feeRate)).reinvestDividends(false).dividendTaxRate(BigDecimal.ZERO)
+        .build(), false);
+    }
+
+    @Test
+    @DisplayName("주식 수로 사면 그 주식 수를 사고 종가 × 주식 수 + 수수료를 산 날 환율로 바꾼 값이 투자금이며 남은 현금이 없다")
+    void sharesSetInvestment() {
+      SimulationResponse response = runShares(10, "0.01");
+
+      // 100 × 10주 = 1,000달러 + 수수료 10달러 × 1300 = 1,313,000 원
+      assertThat(response.getShares()).isEqualByComparingTo("10");
+      assertThat(response.getTradingFee()).isEqualByComparingTo("10.00");
+      assertThat(response.getRemainingCash()).isEqualByComparingTo("0");
+      assertThat(response.getInvestmentAmount()).isEqualByComparingTo("1313000");
+      // 10주 × 150 × 1350 + 배당 10달러 × 1350 = 2,038,500 원
+      assertThat(response.getTotalAssetKrw()).isEqualByComparingTo("2038500");
+      assertThat(response.getTotalReturnKrw()).isEqualByComparingTo("725500");
+      assertThat(response.getTotalReturnPercent()).isEqualByComparingTo("55.26");
+      assertThat(response.getPurchaseDayReturns().getFirst().returnPercent())
+        .isEqualByComparingTo(response.getTotalReturnPercent());
+    }
+
+    @Test
+    @DisplayName("주식 수로 사면 매수일별 수익률도 그 날짜 종가로 같은 주식 수를 산 값이다")
+    void sharesPurchaseDayReturns() {
+      SimulationResponse response = runShares(10, "0.01");
+
+      // 3월 15일 80 × 10주 = 800달러 + 수수료 8달러 → 평가일 1,500달러 + 배당 10달러
+      PurchaseDayReturn march15 = response.getPurchaseDayReturns().get(1);
+      assertThat(march15.returnPercent()).isEqualByComparingTo("86.88");
+      assertThat(march15.returnPercentUsd()).isEqualByComparingTo("86.88");
     }
 
     @Test

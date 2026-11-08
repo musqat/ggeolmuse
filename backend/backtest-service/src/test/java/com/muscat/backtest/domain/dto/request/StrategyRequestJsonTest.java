@@ -11,7 +11,7 @@ import java.time.LocalDate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-// 전략 타입 getter 가 이력 저장 JSON 모양을 바꾸지 않는지
+// 전략 타입 getter · 금액 · 주식 수 검사가 이력 저장 JSON 모양을 바꾸지 않는지
 class StrategyRequestJsonTest {
 
   private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
@@ -40,6 +40,24 @@ class StrategyRequestJsonTest {
     assertThat(old.getFrequency()).isEqualTo(DcaFrequency.MONTHLY);
     assertThat(objectMapper.writeValueAsString(dca())).contains("\"amountPerPurchase\":1000", "\"frequency\":\"MONTHLY\"")
       .doesNotContain("monthlyAmount");
+  }
+
+  @Test
+  @DisplayName("주식 수는 이력 JSON 에 저장하고 금액 · 주식 수 검사 값은 넣지 않는다")
+  void sharesSavedWithoutCheck() throws Exception {
+    DcaStrategyRequest dca = dca();
+    dca.setAmountPerPurchase(null);
+    dca.setSharesPerPurchase(2);
+    ConditionalStrategyRequest conditional = conditional();
+    conditional.setSharesPerPurchase(1);
+    SimulationRequest simulation = SimulationRequest.builder().symbol("AAPL").purchaseDate(LocalDate.of(2023, 1, 2))
+      .sharesPerPurchase(3).build();
+
+    assertThat(objectMapper.writeValueAsString(dca)).contains("\"sharesPerPurchase\":2").doesNotContain("amountOrShares");
+    assertThat(objectMapper.writeValueAsString(conditional)).contains("\"sharesPerPurchase\":1")
+      .doesNotContain("amountOrShares");
+    assertThat(objectMapper.writeValueAsString(simulation)).contains("\"sharesPerPurchase\":3")
+      .doesNotContain("amountOrShares");
   }
 
   private DcaStrategyRequest dca() {

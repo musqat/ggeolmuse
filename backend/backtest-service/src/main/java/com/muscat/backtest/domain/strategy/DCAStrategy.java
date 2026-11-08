@@ -7,7 +7,7 @@ import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.logging.BacktestLogger;
 import com.muscat.backtest.common.engine.StrategyFinalizer;
-import com.muscat.backtest.common.util.BacktestCalculationUtils;
+import com.muscat.backtest.common.util.RoundPurchase;
 import com.muscat.backtest.common.util.BacktestDataUtils;
 import com.muscat.backtest.common.util.Decimals;
 import com.muscat.backtest.common.util.FxRates;
@@ -32,7 +32,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-// DCA 적립식 투자 전략(매일 · 매주 · 매달 회당 고정 금액 매수, 배당 재투자 · 원천징수 · 환율 변동은 옵션)
+// DCA 적립식 투자 전략(매일 · 매주 · 매달 회당 고정 금액이나 고정 주식 수 매수, 배당 재투자 · 원천징수 · 환율 변동은 옵션)
 // 예산을 넘는 회차부터는 사지 않고 예산 부족 구간으로 셈
 @Component
 @RequiredArgsConstructor
@@ -64,7 +64,7 @@ public class DCAStrategy implements InvestmentStrategy {
 
     try {
       DcaFrequency frequency = request.getFrequency() != null ? request.getFrequency() : DcaFrequency.MONTHLY;
-      log.info("DCA 전략 실행 시작: {} - {} 회당 {}원", request.getSymbol(), frequency, request.getAmountPerPurchase());
+      log.info("DCA 전략 실행 시작: {} - {} 회당 {}", request.getSymbol(), frequency, request.perPurchase());
 
       LocalDate today = LocalDate.now();
       LocalDate actualEndDate = request.getEndDate().isAfter(today) ? today : request.getEndDate();
@@ -102,9 +102,14 @@ public class DCAStrategy implements InvestmentStrategy {
     BacktestRequestValidator.requireNonNull(request);
     BacktestRequestValidator.requireSymbol(request.getSymbol());
     BacktestRequestValidator.requireDateRange(request.getStartDate(), request.getEndDate());
-    if (request.getAmountPerPurchase() == null
-      || !Decimals.isPositive(request.getAmountPerPurchase())) {
+    if ((request.getAmountPerPurchase() == null) == (request.getSharesPerPurchase() == null)) {
+      throw new BacktestException(BacktestResponse.AMOUNT_OR_SHARES_REQUIRED);
+    }
+    if (request.getAmountPerPurchase() != null && !Decimals.isPositive(request.getAmountPerPurchase())) {
       throw new BacktestException(BacktestResponse.STRATEGY_AMOUNT_PER_PURCHASE_REQUIRED);
+    }
+    if (request.getSharesPerPurchase() != null && request.getSharesPerPurchase() < 1) {
+      throw new BacktestException(BacktestResponse.INVALID_SHARES_PER_PURCHASE);
     }
     Integer day = request.getPurchaseDay();
     if (day != null && (day < 1 || day > 31)) {
@@ -128,7 +133,7 @@ public class DCAStrategy implements InvestmentStrategy {
     DcaStrategyRequest request, DcaFrequency frequency, LocalDate actualEndDate) {
 
     List<StrategyTransaction> transactions = new ArrayList<>();
-    BigDecimal amount = request.getAmountPerPurchase();
+    Integer sharesPerPurchase = request.getSharesPerPurchase();
 
     // 넣은 돈 · 예산 부족으로 사지 못한 회차 수와 그 첫 계획일
     BigDecimal totalInvestedSoFar = BigDecimal.ZERO;
@@ -173,10 +178,9 @@ public class DCAStrategy implements InvestmentStrategy {
         continue;
       }
 
-      // 예산을 넘는 회차부터는 예산 부족으로 셈
-      if (investmentLimit != null && totalInvestedSoFar.add(amount).compareTo(investmentLimit) > 0) {
+      // 처음 예산을 넘은 회차부터 끝까지 예산 부족
+      if (shortFrom != null) {
         shortRounds++;
-        shortFrom = shortFrom == null ? currentDate : shortFrom;
         continue;
       }
 
@@ -185,30 +189,35 @@ public class DCAStrategy implements InvestmentStrategy {
         ? request.getPurchaseFxRate() : fxRateMap.get(priceData.date());
 
       try {
-        // 매수 실행(수수료를 차감하고 남은 달러로)
-        BigDecimal fee = BacktestCalculationUtils.calculatePurchaseFee(
-          amount, purchaseFxRate, request.getTradingFeeRate());
-        BigDecimal shares = BacktestCalculationUtils.calculateSharesAfterFee(
-          amount, purchaseFxRate, PriceLookup.effectiveClose(priceData), fee);
+        // 회당 금액이면 수수료를 차감하고 남은 달러로, 주식 수면 종가 × 주식 수 + 수수료를 원화로
+        BigDecimal price = PriceLookup.effectiveClose(priceData);
+        RoundPurchase purchase = sharesPerPurchase != null
+          ? RoundPurchase.byShares(sharesPerPurchase, price, purchaseFxRate, request.getTradingFeeRate())
+          : RoundPurchase.byAmount(request.getAmountPerPurchase(), price, purchaseFxRate, request.getTradingFeeRate());
+        if (investmentLimit != null && totalInvestedSoFar.add(purchase.amountKrw()).compareTo(investmentLimit) > 0) {
+          shortRounds++;
+          shortFrom = currentDate;
+          continue;
+        }
 
         // 거래 기록 생성
         StrategyTransaction transaction = StrategyTransaction.builder()
           .date(currentDate)              // 계획된 매수일
           .actualDate(priceData.date())   // 실제 거래일
-          .price(PriceLookup.effectiveClose(priceData))
-          .shares(shares)
-          .fee(fee)
-          .amount(amount)
+          .price(price)
+          .shares(purchase.shares())
+          .fee(purchase.feeUsd())
+          .amount(purchase.amountKrw())
           .fxRate(purchaseFxRate)
           .defaultFxDate(fxRateMap.isDefault(priceData.date()) ? priceData.date() : null)
-          .trigger(frequency.trigger())
+          .trigger(sharesPerPurchase != null ? frequency.trigger(sharesPerPurchase, interval) : frequency.trigger())
           .build();
 
         transactions.add(transaction);
-        totalInvestedSoFar = totalInvestedSoFar.add(amount);
+        totalInvestedSoFar = totalInvestedSoFar.add(purchase.amountKrw());
 
         log.debug("DCA 투자 실행: {} - {}원 투자, {}주 매수 (총 {}원)",
-          currentDate, amount, shares, totalInvestedSoFar);
+          currentDate, purchase.amountKrw(), purchase.shares(), totalInvestedSoFar);
       } catch (RuntimeException e) {
         skippedRounds.add(new SkippedRound(currentDate, SkipReason.CALCULATION_ERROR));
         log.warn("적립식 {} 회차 계산 실패, 사지 않음: {}", currentDate, e.getMessage());
