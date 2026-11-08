@@ -1,9 +1,10 @@
 import type { DcaStrategyRequest } from '@services/api';
 import type { BuildResult, RunContext } from '../types';
 import { toOptionFields, type BacktestOptions } from '../../shared/backtestOptions';
+import { parseShares, type AmountUnitValues } from '../../shared/amountUnit';
 import { dayOfMonth, isMonthly, parseMonths, toFrequency, toWeekday, type DcaCadence } from '../../shared/dcaSchedule';
 
-export interface DcaValues extends BacktestOptions {
+export interface DcaValues extends BacktestOptions, AmountUnitValues {
   startDate: string;
   endDate: string;
   amountPerPurchase: string;
@@ -20,9 +21,14 @@ export const buildDcaRequest = (
   ctx: RunContext,
 ): BuildResult<DcaStrategyRequest> => {
   const amount = parseFloat(values.amountPerPurchase);
+  const shares = parseShares(values.shares);
   const months = values.cadence === 'MONTHS' ? parseMonths(values.months) : 1;
 
-  if (isNaN(amount) || amount <= 0) {
+  if (values.unit === 'SHARES') {
+    if (shares === undefined) {
+      return { error: '회당 주식 수는 1 이상의 정수로 입력해주세요.' };
+    }
+  } else if (isNaN(amount) || amount <= 0) {
     return { error: '올바른 회당 금액을 입력해주세요.' };
   }
   if (months === undefined) {
@@ -47,7 +53,7 @@ export const buildDcaRequest = (
     symbol,
     startDate: values.startDate,
     endDate: effectiveEndDate,
-    amountPerPurchase: amount,
+    ...(values.unit === 'SHARES' ? { sharesPerPurchase: shares } : { amountPerPurchase: amount }),
     frequency: toFrequency(values.cadence),
     ...(firstPurchaseDate && { firstPurchaseDate }),
     ...(isMonthly(values.cadence) && {

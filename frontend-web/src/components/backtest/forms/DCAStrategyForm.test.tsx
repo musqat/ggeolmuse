@@ -1,9 +1,15 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ComponentProps } from 'react'
+import { stockApi } from '../../../services/api'
 import { DCAStrategyForm } from './DCAStrategyForm'
 import type { BacktestOptionsState } from '../shared/backtestOptions'
+
+vi.mock('../../../services/api', () => ({
+  stockApi: { getOHLCData: vi.fn(), getExchangeRatesBulk: vi.fn() },
+}))
 
 const options: BacktestOptionsState = {
   reinvestDividends: false, setReinvestDividends: vi.fn(), tradingFeeRate: '0', setTradingFeeRate: vi.fn(),
@@ -15,14 +21,17 @@ type Props = ComponentProps<typeof DCAStrategyForm>
 
 const renderForm = (patch: Partial<Props> = {}) =>
   render(
-    <DCAStrategyForm
-      symbol="AAPL" setSymbol={vi.fn()} supportedSymbols={[]} options={options}
-      dcaStartDate="2023-01-01" setDcaStartDate={vi.fn()} dcaEndDate="2024-06-30" setDcaEndDate={vi.fn()}
-      amountPerPurchase="100000" setAmountPerPurchase={vi.fn()}
-      cadence="MONTHLY" setCadence={vi.fn()} months="3" setMonths={vi.fn()}
-      firstPurchaseDate="" setFirstPurchaseDate={vi.fn()}
-      {...patch}
-    />
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <DCAStrategyForm
+        symbol="AAPL" setSymbol={vi.fn()} supportedSymbols={[]} options={options}
+        dcaStartDate="2023-01-01" setDcaStartDate={vi.fn()} dcaEndDate="2024-06-30" setDcaEndDate={vi.fn()}
+        amountPerPurchase="100000" setAmountPerPurchase={vi.fn()}
+        amountUnit={{ unit: 'AMOUNT', setUnit: vi.fn(), shares: '1', setShares: vi.fn() }}
+        cadence="MONTHLY" setCadence={vi.fn()} months="3" setMonths={vi.fn()}
+        firstPurchaseDate="" setFirstPurchaseDate={vi.fn()}
+        {...patch}
+      />
+    </QueryClientProvider>
   )
 
 describe('DCAStrategyForm', () => {
@@ -41,6 +50,15 @@ describe('DCAStrategyForm', () => {
     ])
     expect(cadence).toHaveValue('MONTHLY')
     expect(screen.queryByLabelText('몇 개월마다')).toBeNull()
+  })
+
+  it('주식 수 단위면 회당 주식 수 칸을 보이고 시작일 시세로 회당 금액을 추정한다', async () => {
+    vi.mocked(stockApi.getOHLCData).mockResolvedValue({ data: [] } as never)
+    renderForm({ amountUnit: { unit: 'SHARES', setUnit: vi.fn(), shares: '2', setShares: vi.fn() } })
+
+    expect(screen.getByLabelText('회당 주식 수')).toHaveValue(2)
+    expect(screen.queryByText('회당 금액 (₩)')).toBeNull()
+    await vi.waitFor(() => expect(stockApi.getOHLCData).toHaveBeenCalledWith('AAPL', '2023-01-01', '2023-01-15'))
   })
 
   it('고른 주기를 넘긴다', async () => {

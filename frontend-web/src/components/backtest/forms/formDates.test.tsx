@@ -23,6 +23,8 @@ const options = {
   setDividendTax: vi.fn(),
 }
 
+const amountUnit = { unit: 'AMOUNT' as const, setUnit: vi.fn(), shares: '1', setShares: vi.fn() }
+
 interface Period {
   start: string
   end: string
@@ -36,7 +38,7 @@ const FORMS: [string, (p: Period) => ReactElement][] = [
     <DCAStrategyForm
       symbol="AAPL" setSymbol={vi.fn()} supportedSymbols={[]} options={options}
       dcaStartDate={p.start} setDcaStartDate={p.setStart} dcaEndDate={p.end} setDcaEndDate={p.setEnd}
-      amountPerPurchase="100000" setAmountPerPurchase={vi.fn()} cadence="MONTHLY" setCadence={vi.fn()}
+      amountPerPurchase="100000" setAmountPerPurchase={vi.fn()} amountUnit={amountUnit} cadence="MONTHLY" setCadence={vi.fn()}
       months="3" setMonths={vi.fn()} firstPurchaseDate="" setFirstPurchaseDate={vi.fn()}
     />
   )],
@@ -45,7 +47,8 @@ const FORMS: [string, (p: Period) => ReactElement][] = [
       symbol="AAPL" setSymbol={vi.fn()} supportedSymbols={[]} options={options}
       conditionalStartDate={p.start} setConditionalStartDate={p.setStart}
       conditionalEndDate={p.end} setConditionalEndDate={p.setEnd}
-      amountPerPurchase="100000" setAmountPerPurchase={vi.fn()} totalInvestment="1000000" setTotalInvestment={vi.fn()}
+      amountPerPurchase="100000" setAmountPerPurchase={vi.fn()} amountUnit={amountUnit}
+      totalInvestment="1000000" setTotalInvestment={vi.fn()}
       maxPurchases="10" setMaxPurchases={vi.fn()}
       direction="DROP" setDirection={vi.fn()} dropPercentage="5" setDropPercentage={vi.fn()}
       takeProfit="" setTakeProfit={vi.fn()} stopLoss="" setStopLoss={vi.fn()}

@@ -1,8 +1,14 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ComponentProps } from 'react'
+import { stockApi } from '../../../services/api'
 import { ConditionalStrategyForm } from './ConditionalStrategyForm'
 import type { BacktestOptionsState } from '../shared/backtestOptions'
+
+vi.mock('../../../services/api', () => ({
+  stockApi: { getOHLCData: vi.fn(), getExchangeRatesBulk: vi.fn() },
+}))
 
 const options: BacktestOptionsState = {
   reinvestDividends: false, setReinvestDividends: vi.fn(), tradingFeeRate: '0', setTradingFeeRate: vi.fn(),
@@ -14,16 +20,20 @@ type Props = ComponentProps<typeof ConditionalStrategyForm>
 
 const renderForm = (patch: Partial<Props> = {}) =>
   render(
-    <ConditionalStrategyForm
-      symbol="AAPL" setSymbol={vi.fn()} supportedSymbols={[]} options={options}
-      conditionalStartDate="2023-01-01" setConditionalStartDate={vi.fn()}
-      conditionalEndDate="" setConditionalEndDate={vi.fn()}
-      amountPerPurchase="100000" setAmountPerPurchase={vi.fn()} totalInvestment="1000000" setTotalInvestment={vi.fn()}
-      maxPurchases="" setMaxPurchases={vi.fn()}
-      direction="DROP" setDirection={vi.fn()} dropPercentage="5" setDropPercentage={vi.fn()}
-      takeProfit="" setTakeProfit={vi.fn()} stopLoss="" setStopLoss={vi.fn()}
-      {...patch}
-    />
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <ConditionalStrategyForm
+        symbol="AAPL" setSymbol={vi.fn()} supportedSymbols={[]} options={options}
+        conditionalStartDate="2023-01-01" setConditionalStartDate={vi.fn()}
+        conditionalEndDate="" setConditionalEndDate={vi.fn()}
+        amountPerPurchase="100000" setAmountPerPurchase={vi.fn()}
+        amountUnit={{ unit: 'AMOUNT', setUnit: vi.fn(), shares: '1', setShares: vi.fn() }}
+        totalInvestment="1000000" setTotalInvestment={vi.fn()}
+        maxPurchases="" setMaxPurchases={vi.fn()}
+        direction="DROP" setDirection={vi.fn()} dropPercentage="5" setDropPercentage={vi.fn()}
+        takeProfit="" setTakeProfit={vi.fn()} stopLoss="" setStopLoss={vi.fn()}
+        {...patch}
+      />
+    </QueryClientProvider>
   )
 
 describe('ConditionalStrategyForm', () => {
@@ -56,5 +66,17 @@ describe('ConditionalStrategyForm', () => {
     renderForm({ totalInvestment: '1000000', maxPurchases: '20' })
 
     expect(screen.getByText('많아야 ₩1,000,000 투자')).toBeInTheDocument()
+  })
+
+  it('주식 수 단위면 회당 주식 수 칸을 보이고 회당 금액으로 센 횟수 · 투자 한도는 보이지 않는다', async () => {
+    vi.mocked(stockApi.getOHLCData).mockResolvedValue({ data: [] } as never)
+    renderForm({ amountUnit: { unit: 'SHARES', setUnit: vi.fn(), shares: '1', setShares: vi.fn() }, maxPurchases: '20' })
+
+    expect(screen.getByLabelText('회당 주식 수')).toHaveValue(1)
+    expect(screen.queryByText('회당 금액 (₩)')).toBeNull()
+    expect(screen.queryByText(/예산으로 최대/)).toBeNull()
+    expect(screen.queryByText(/많아야/)).toBeNull()
+    expect(screen.getByLabelText('최대 횟수')).toHaveAttribute('placeholder', '예산 한도까지')
+    await vi.waitFor(() => expect(stockApi.getOHLCData).toHaveBeenCalledWith('AAPL', '2023-01-01', '2023-01-15'))
   })
 })

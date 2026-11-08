@@ -3,8 +3,9 @@ import { DIRECTIONS } from '../../shared/priceDirection';
 import type { BuildResult, RunContext } from '../types';
 import { toOptionFields, type BacktestOptions } from '../../shared/backtestOptions';
 import { hasSellRates, toSellRates } from '../../shared/sellRates';
+import { parseShares, type AmountUnitValues } from '../../shared/amountUnit';
 
-export interface ConditionalValues extends BacktestOptions {
+export interface ConditionalValues extends BacktestOptions, AmountUnitValues {
   startDate: string;
   endDate: string;
   amountPerPurchase: string;
@@ -27,16 +28,22 @@ export const buildConditionalRequest = (
 ): BuildResult<ConditionalStrategyRequest> => {
   const drop = parseFloat(values.dropPercentage);
   const perPurchase = parseFloat(values.amountPerPurchase);
+  const shares = parseShares(values.shares);
+  const byShares = values.unit === 'SHARES';
   const budget = optionalNumber(values.totalInvestment);
   const maxCount = optionalNumber(values.maxPurchases);
 
-  if (isNaN(perPurchase) || perPurchase <= 0) {
+  if (byShares) {
+    if (shares === undefined) {
+      return { error: '회당 주식 수는 1 이상의 정수로 입력해주세요.' };
+    }
+  } else if (isNaN(perPurchase) || perPurchase <= 0) {
     return { error: '올바른 회당 금액을 입력해주세요.' };
   }
   if (budget !== undefined && !(budget > 0)) {
     return { error: '예산은 비우거나 0보다 크게 입력해주세요.' };
   }
-  if (budget !== undefined && perPurchase > budget) {
+  if (!byShares && budget !== undefined && perPurchase > budget) {
     return { error: '회당 금액이 예산보다 큽니다.' };
   }
   if (maxCount !== undefined && !(Number.isInteger(maxCount) && maxCount > 0)) {
@@ -64,7 +71,7 @@ export const buildConditionalRequest = (
     endDate: effectiveEndDate,
     direction: values.direction,
     dropPercentage: drop / 100,
-    amountPerPurchase: perPurchase,
+    ...(byShares ? { sharesPerPurchase: shares } : { amountPerPurchase: perPurchase }),
     ...(budget !== undefined && { totalInvestment: budget }),
     ...(maxCount !== undefined && { maxPurchases: maxCount }),
     ...toOptionFields(values),

@@ -7,6 +7,8 @@ const values: DcaValues = {
   startDate: '2023-01-01',
   endDate: '',
   amountPerPurchase: '100000',
+  unit: 'AMOUNT',
+  shares: '1',
   cadence: 'MONTHLY',
   months: '3',
   firstPurchaseDate: '',
@@ -86,6 +88,19 @@ describe('buildDcaRequest', () => {
     [{ firstPurchaseDate: '2026-10-09' }, '첫 매수일은 시작일과 종료일 사이로 골라주세요.'],
   ] as [Partial<DcaValues>, string][])('%o 는 막는다', (patch, error) => {
     expect(buildDcaRequest({ ...values, ...patch }, 'AAPL', ctx)).toEqual({ error })
+  })
+
+  it('주식 수 단위면 회당 금액 대신 회당 주식 수를 보낸다', () => {
+    const built = buildDcaRequest({ ...values, unit: 'SHARES', shares: '2', amountPerPurchase: '' }, 'AAPL', ctx)
+
+    expect(built).toMatchObject({ request: { sharesPerPurchase: 2, frequency: 'MONTHLY', purchaseDay: 1 } })
+    expect('request' in built && built.request).not.toHaveProperty('amountPerPurchase')
+  })
+
+  it.each(['0', '2.5', 'abc'])('회당 주식 수 %o 는 막는다', (shares) => {
+    expect(buildDcaRequest({ ...values, unit: 'SHARES', shares }, 'AAPL', ctx)).toEqual({
+      error: '회당 주식 수는 1 이상의 정수로 입력해주세요.',
+    })
   })
 
   it('매달이면 개월 칸 값은 보지 않는다', () => {

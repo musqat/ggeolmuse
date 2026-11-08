@@ -7,6 +7,7 @@ import { strategyRun } from '../strategyRun';
 import { buildDcaRequest } from './request';
 import { useBacktestOptions } from '../../shared/backtestOptions';
 import type { DcaCadence } from '../../shared/dcaSchedule';
+import { useAmountUnit } from '../../shared/amountUnit';
 
 export const useDcaMode = ({
   symbol,
@@ -16,6 +17,7 @@ export const useDcaMode = ({
   const [startDate, setStartDate] = useState('2023-01-01');
   const [endDate, setEndDate] = useState(''); // 비어있으면 현재 날짜
   const [amountPerPurchase, setAmountPerPurchase] = useState('100000');
+  const amountUnit = useAmountUnit();
   const [cadence, setCadence] = useState<DcaCadence>('MONTHLY');
   const [months, setMonths] = useState('3');
   const [firstPurchaseDate, setFirstPurchaseDate] = useState(''); // 비어있으면 시작일
@@ -35,6 +37,7 @@ export const useDcaMode = ({
         setDcaEndDate={setEndDate}
         amountPerPurchase={amountPerPurchase}
         setAmountPerPurchase={setAmountPerPurchase}
+        amountUnit={amountUnit}
         cadence={cadence}
         setCadence={setCadence}
         months={months}
@@ -51,6 +54,8 @@ export const useDcaMode = ({
           startDate,
           endDate,
           amountPerPurchase,
+          unit: amountUnit.unit,
+          shares: amountUnit.shares,
           cadence,
           months,
           firstPurchaseDate,

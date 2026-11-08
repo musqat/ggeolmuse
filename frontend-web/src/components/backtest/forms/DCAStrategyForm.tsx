@@ -1,14 +1,9 @@
 import React from 'react';
-import { NumberInput } from '../../common/NumberInput';
 import type { BacktestOptionsState } from '../shared/backtestOptions';
 import type { DcaCadence } from '../shared/dcaSchedule';
-import {
-  DcaCadenceFields,
-  FormField,
-  PeriodFields,
-  StrategyOptions,
-  SymbolField,
-} from '../shared/StrategyFields';
+import type { AmountUnitState } from '../shared/amountUnit';
+import { AmountOrSharesField } from '../shared/AmountOrSharesField';
+import { DcaCadenceFields, PeriodFields, StrategyOptions, SymbolField } from '../shared/StrategyFields';
 
 interface DCAStrategyFormProps {
   symbol: string;
@@ -19,6 +14,7 @@ interface DCAStrategyFormProps {
   setDcaEndDate: (date: string) => void;
   amountPerPurchase: string;
   setAmountPerPurchase: (amount: string) => void;
+  amountUnit: AmountUnitState;
   cadence: DcaCadence;
   setCadence: (cadence: DcaCadence) => void;
   months: string;
@@ -29,7 +25,7 @@ interface DCAStrategyFormProps {
   supportedSymbols: string[];
 }
 
-// 적립식(DCA): 첫 매수일부터 주기마다 회당 금액만큼 삼
+// 적립식(DCA): 첫 매수일부터 주기마다 회당 금액 · 회당 주식 수만큼 삼
 export const DCAStrategyForm: React.FC<DCAStrategyFormProps> = ({
   symbol,
   setSymbol,
@@ -39,6 +35,7 @@ export const DCAStrategyForm: React.FC<DCAStrategyFormProps> = ({
   setDcaEndDate,
   amountPerPurchase,
   setAmountPerPurchase,
+  amountUnit,
   cadence,
   setCadence,
   months,
@@ -61,15 +58,18 @@ export const DCAStrategyForm: React.FC<DCAStrategyFormProps> = ({
           onEndChange={setDcaEndDate}
         />
 
-        <FormField label="회당 금액 (₩)">
-          <NumberInput
-            value={amountPerPurchase}
-            onChange={setAmountPerPurchase}
-            placeholder="100,000"
-            className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
-          />
-          <p className="text-xs text-tx-3 mt-1">회차마다 넣는 금액</p>
-        </FormField>
+        <AmountOrSharesField
+          amountLabel="회당 금액 (₩)"
+          sharesLabel="회당 주식 수"
+          amount={amountPerPurchase}
+          onAmountChange={setAmountPerPurchase}
+          amountPlaceholder="100,000"
+          amountHelp="회차마다 넣는 금액"
+          amountUnit={amountUnit}
+          symbol={symbol}
+          startDate={dcaStartDate}
+          options={options}
+        />
 
         <DcaCadenceFields
           cadence={cadence}

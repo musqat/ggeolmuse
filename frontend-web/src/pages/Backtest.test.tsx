@@ -17,7 +17,7 @@ vi.mock('../services/api', () => ({
     compareStrategies: vi.fn(),
     getHistory: vi.fn(),
   },
-  stockApi: { getAllSymbols: vi.fn() },
+  stockApi: { getAllSymbols: vi.fn(), getOHLCData: vi.fn(), getExchangeRatesBulk: vi.fn() },
 }))
 
 const auth = vi.hoisted(() => ({
@@ -83,6 +83,8 @@ beforeEach(() => {
   auth.user = { email: USER }
   alertSpy = vi.spyOn(notify, 'error').mockImplementation(() => {})
   vi.mocked(stockApi.getAllSymbols).mockResolvedValue({ data: [] } as never)
+  vi.mocked(stockApi.getOHLCData).mockResolvedValue({ data: [] } as never)
+  vi.mocked(stockApi.getExchangeRatesBulk).mockResolvedValue({ data: {} } as never)
   vi.mocked(backtestApi.runSimulation).mockResolvedValue({ data: {} } as never)
   vi.mocked(backtestApi.runDcaStrategy).mockResolvedValue({ data: {} } as never)
   vi.mocked(backtestApi.runConditionalStrategy).mockResolvedValue({ data: {} } as never)
@@ -191,6 +193,59 @@ describe('Backtest 페이지', () => {
       takeProfitRate: 0.2,
       reinvestDividends: false,
     })
+  })
+
+  it('단순: 주식 수를 고르면 투자금 대신 주식 수로 요청한다', async () => {
+    renderPage()
+    await userEvent.click(screen.getByRole('button', { name: '주식 수' }))
+    const shares = screen.getByLabelText('주식 수')
+    await userEvent.clear(shares)
+    await userEvent.type(shares, '3')
+    await runBacktest()
+
+    expect(backtestApi.runSimulation).toHaveBeenCalledWith({
+      symbol: 'AAPL',
+      purchaseDate: '2023-01-01',
+      saleDate: TODAY,
+      sharesPerPurchase: 3,
+      ...common,
+    })
+    expect(vi.mocked(backtestApi.runSimulation).mock.calls[0][0]).not.toHaveProperty('investmentAmount')
+  })
+
+  it('적립식 · 조건부: 주식 수를 고르면 회당 금액 대신 회당 주식 수로 요청한다', async () => {
+    renderPage()
+    await selectTab('적립식')
+    await userEvent.click(screen.getByRole('button', { name: '주식 수' }))
+    await runBacktest()
+
+    expect(backtestApi.runDcaStrategy).toHaveBeenCalledWith({
+      symbol: 'AAPL',
+      startDate: '2023-01-01',
+      endDate: TODAY,
+      sharesPerPurchase: 1,
+      frequency: 'MONTHLY',
+      purchaseDay: 1,
+      investmentInterval: 1,
+      ...common,
+    })
+    expect(vi.mocked(backtestApi.runDcaStrategy).mock.calls[0][0]).not.toHaveProperty('amountPerPurchase')
+
+    await selectTab('조건부')
+    await userEvent.click(screen.getByRole('button', { name: '주식 수' }))
+    await runBacktest()
+
+    expect(backtestApi.runConditionalStrategy).toHaveBeenCalledWith({
+      symbol: 'AAPL',
+      startDate: '2023-01-01',
+      endDate: TODAY,
+      direction: 'DROP',
+      dropPercentage: 0.05,
+      sharesPerPurchase: 1,
+      totalInvestment: 1000000,
+      ...common,
+    })
+    expect(vi.mocked(backtestApi.runConditionalStrategy).mock.calls[0][0]).not.toHaveProperty('amountPerPurchase')
   })
 
   it('종목 비교: 기본 두 종목 요청', async () => {
@@ -318,5 +373,18 @@ describe('Backtest 페이지', () => {
     expect(backtestApi.runSimulation).toHaveBeenCalledWith(
       expect.objectContaining({ investmentAmount: 500000 })
     )
+  })
+
+  it('금액 · 주식 수 단위는 모드마다 따로 남는다', async () => {
+    renderPage()
+    await userEvent.click(screen.getByRole('button', { name: '주식 수' }))
+    await selectTab('적립식')
+
+    expect(screen.getByRole('button', { name: '금액' })).toHaveAttribute('aria-pressed', 'true')
+    await selectTab('단순')
+    expect(screen.getByRole('button', { name: '주식 수' })).toHaveAttribute('aria-pressed', 'true')
+    await runBacktest()
+
+    expect(vi.mocked(backtestApi.runSimulation).mock.calls[0][0]).toMatchObject({ sharesPerPurchase: 1 })
   })
 })

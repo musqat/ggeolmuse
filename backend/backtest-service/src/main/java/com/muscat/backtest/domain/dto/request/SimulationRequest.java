@@ -1,8 +1,11 @@
 package com.muscat.backtest.domain.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -31,10 +34,13 @@ public class SimulationRequest {
   @Schema(description = "매도일 (null이거나 오늘 이후면 오늘 평가)", example = "2024-12-31")
   private LocalDate saleDate;
 
-  @Schema(description = "투자 금액", example = "1000000.00", required = true)
-  @NotNull(message = "투자 금액은 필수입니다")
+  @Schema(description = "투자 금액 (주식 수와 둘 중 하나)", example = "1000000.00")
   @Positive(message = "투자 금액은 0보다 커야 합니다")
   private BigDecimal investmentAmount;
+
+  @Schema(description = "살 주식 수 (정수, 투자 금액과 둘 중 하나, 산 날(휴장이면 다음 거래일) 종가 × 주식 수 + 수수료를 그 날짜 환율로 원화)", example = "3")
+  @Min(value = 1, message = "주식 수는 1 이상이어야 합니다")
+  private Integer sharesPerPurchase;
 
   // 매매 수수료 설정 (선택적, 기본값 0%)
   @Schema(description = "매매 수수료율 (0.25% = 0.0025)", example = "0.0025")
@@ -65,5 +71,13 @@ public class SimulationRequest {
   // 평가일(매도일이 없거나 오늘 이후면 오늘)
   public LocalDate valuationDate(LocalDate today) {
     return saleDate != null && saleDate.isBefore(today) ? saleDate : today;
+  }
+
+  // 투자 금액 · 주식 수 가운데 하나만
+  @JsonIgnore
+  @Schema(hidden = true)
+  @AssertTrue(message = "투자 금액과 주식 수 가운데 하나만 넣어 주세요")
+  public boolean isAmountOrShares() {
+    return (investmentAmount == null) != (sharesPerPurchase == null);
   }
 }

@@ -4,8 +4,10 @@ import com.muscat.backtest.common.enums.type.PriceDirection;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -38,10 +40,13 @@ public class ConditionalStrategyRequest implements StrategyRequest {
   @Schema(description = "토큰의 이메일로 채움", accessMode = Schema.AccessMode.READ_ONLY)
   private String userId;
 
-  @Schema(description = "조건이 맞는 날마다 넣는 회당 금액 (KRW)", example = "500000.00", required = true)
-  @NotNull(message = "회당 금액은 필수입니다")
+  @Schema(description = "조건이 맞는 날마다 넣는 회당 금액 (KRW, 주식 수와 둘 중 하나)", example = "500000.00")
   @Positive(message = "회당 금액은 0보다 커야 합니다")
   private BigDecimal amountPerPurchase;
+
+  @Schema(description = "조건이 맞는 날마다 사는 주식 수 (정수, 회당 금액과 둘 중 하나, 매수가 × 주식 수 + 수수료를 그 날짜 환율로 원화)", example = "1")
+  @Min(value = 1, message = "주식 수는 1 이상이어야 합니다")
+  private Integer sharesPerPurchase;
 
   @Schema(description = "예산: 넣는 돈 합의 한도 (KRW, 비우면 제한 없음)", example = "4000000.00")
   @Positive(message = "예산은 0보다 커야 합니다")
@@ -96,5 +101,18 @@ public class ConditionalStrategyRequest implements StrategyRequest {
   @Override
   public StrategyType getStrategyType() {
     return StrategyType.CONDITIONAL_PURCHASE;
+  }
+
+  // 회당 금액 · 주식 수 가운데 하나만
+  @JsonIgnore
+  @Schema(hidden = true)
+  @AssertTrue(message = "회당 금액과 주식 수 가운데 하나만 넣어 주세요")
+  public boolean isAmountOrShares() {
+    return (amountPerPurchase == null) != (sharesPerPurchase == null);
+  }
+
+  // 회당 금액 · 주식 수 표시("100000원" · "2주")
+  public String perPurchase() {
+    return sharesPerPurchase != null ? sharesPerPurchase + "주" : amountPerPurchase + "원";
   }
 }

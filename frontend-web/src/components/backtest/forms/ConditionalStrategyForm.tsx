@@ -1,6 +1,8 @@
 import React from 'react';
 import { NumberInput } from '../../common/NumberInput';
 import type { BacktestOptionsState } from '../shared/backtestOptions';
+import type { AmountUnitState } from '../shared/amountUnit';
+import { AmountOrSharesField } from '../shared/AmountOrSharesField';
 import {
   ConditionFields,
   FormField,
@@ -22,6 +24,7 @@ interface ConditionalStrategyFormProps {
   setConditionalEndDate: (date: string) => void;
   amountPerPurchase: string;
   setAmountPerPurchase: (amount: string) => void;
+  amountUnit: AmountUnitState;
   totalInvestment: string;
   setTotalInvestment: (amount: string) => void;
   maxPurchases: string;
@@ -41,7 +44,7 @@ interface ConditionalStrategyFormProps {
 const AMOUNT_INPUT_CLASS =
   'w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand';
 
-// 정한 비율만큼 떨어지거나 오른 날마다 회당 금액만큼 사고, 켜면 익절 · 손절로 전량 파는 전략
+// 정한 비율만큼 떨어지거나 오른 날마다 회당 금액 · 회당 주식 수만큼 사고, 켜면 익절 · 손절로 전량 파는 전략
 export const ConditionalStrategyForm: React.FC<ConditionalStrategyFormProps> = ({
   symbol,
   setSymbol,
@@ -51,6 +54,7 @@ export const ConditionalStrategyForm: React.FC<ConditionalStrategyFormProps> = (
   setConditionalEndDate,
   amountPerPurchase,
   setAmountPerPurchase,
+  amountUnit,
   totalInvestment,
   setTotalInvestment,
   maxPurchases,
@@ -69,7 +73,8 @@ export const ConditionalStrategyForm: React.FC<ConditionalStrategyFormProps> = (
   const perPurchase = parseFloat(amountPerPurchase);
   const budget = parseFloat(totalInvestment);
   const count = parseInt(maxPurchases);
-  const amountOk = perPurchase > 0;
+  // 회당 금액으로 센 횟수 · 투자 한도(주식 수 단위면 안 셈)
+  const amountOk = amountUnit.unit === 'AMOUNT' && perPurchase > 0;
 
   return (
     <div className="space-y-4">
@@ -85,15 +90,18 @@ export const ConditionalStrategyForm: React.FC<ConditionalStrategyFormProps> = (
         />
 
         {/* 한도: 예산 · 최대 횟수 가운데 먼저 닿는 쪽, 둘 다 비우면 제한 없음 */}
-        <FormField label="회당 금액 (₩)">
-          <NumberInput
-            value={amountPerPurchase}
-            onChange={setAmountPerPurchase}
-            placeholder="500,000"
-            className={AMOUNT_INPUT_CLASS}
-          />
-          <p className="text-xs text-tx-3 mt-1">조건이 맞는 날마다 넣는 금액</p>
-        </FormField>
+        <AmountOrSharesField
+          amountLabel="회당 금액 (₩)"
+          sharesLabel="회당 주식 수"
+          amount={amountPerPurchase}
+          onAmountChange={setAmountPerPurchase}
+          amountPlaceholder="500,000"
+          amountHelp="조건이 맞는 날마다 넣는 금액"
+          amountUnit={amountUnit}
+          symbol={symbol}
+          startDate={conditionalStartDate}
+          options={options}
+        />
 
         <FormField label="예산 (₩)">
           <NumberInput

@@ -578,6 +578,73 @@ class DCAStrategyTest {
     }
   }
 
+  @Nested
+  @DisplayName("주식 수")
+  class SharesTests {
+
+    private List<StrategyTransaction> executed() {
+      @SuppressWarnings("unchecked")
+      ArgumentCaptor<List<StrategyTransaction>> captor = ArgumentCaptor.forClass(List.class);
+      verify(responseMapper).toStrategyResponse(any(DcaStrategyRequest.class), captor.capture(), any(), any(), any());
+      return captor.getValue();
+    }
+
+    // 기간 시세 · 날마다 환율과 평가일 시세 · 환율(배당 없음)
+    private void stubMarket(DcaStrategyRequest request, List<OHLCPriceDto> prices, java.util.Map<String, BigDecimal> fx) {
+      given(marketDataClient.getOHLCPriceRange(symbol, request.getStartDate().toString(), request.getEndDate().toString()))
+        .willReturn(prices);
+      given(marketDataClient.getBulkFxRates(any())).willReturn(fx);
+      given(marketDataClient.getOHLCPrice(eq(symbol), anyString())).willReturn(prices.getLast());
+      given(marketDataClient.getFxRate(anyString())).willReturn(new FxRateDto(request.getEndDate(), new BigDecimal("1350")));
+      lenient().when(marketDataClient.getDividendHistory(eq(symbol), anyString(), anyString())).thenReturn(List.of());
+    }
+
+    private DcaStrategyRequest.DcaStrategyRequestBuilder monthly(LocalDate end, int shares) {
+      return DcaStrategyRequest.builder().userId(userId).symbol(symbol).startDate(LocalDate.of(2024, 1, 1)).endDate(end)
+        .sharesPerPurchase(shares).purchaseDay(15);
+    }
+
+    @Test
+    @DisplayName("회차마다 그 주식 수를 사고 넣은 돈은 종가 × 주식 수 + 수수료를 그 날짜 환율로 바꾼 값이다")
+    void buysSharesPerRound() {
+      DcaStrategyRequest request = monthly(LocalDate.of(2024, 2, 29), 2).tradingFeeRate(new BigDecimal("0.01")).build();
+      stubMarket(request, List.of(createOHLC(LocalDate.of(2024, 1, 15), new BigDecimal("100.00")),
+          createOHLC(LocalDate.of(2024, 2, 15), new BigDecimal("120.00"))),
+        java.util.Map.of("2024-01-15", new BigDecimal("1300"), "2024-02-15", new BigDecimal("1350")));
+
+      dcaStrategy.execute(request);
+
+      // 1월 200달러 + 수수료 2달러 × 1300, 2월 240달러 + 수수료 2.40달러 × 1350
+      List<StrategyTransaction> transactions = executed();
+      assertThat(transactions).hasSize(2).allSatisfy(tx -> {
+        assertThat(tx.getShares()).isEqualByComparingTo("2");
+        assertThat(tx.getTrigger()).isEqualTo("매달 2주");
+      });
+      assertThat(transactions).extracting(StrategyTransaction::getFee).usingElementComparator(BigDecimal::compareTo)
+        .containsExactly(new BigDecimal("2.00"), new BigDecimal("2.40"));
+      assertThat(transactions).extracting(StrategyTransaction::getAmount).usingElementComparator(BigDecimal::compareTo)
+        .containsExactly(new BigDecimal("262600"), new BigDecimal("327240"));
+    }
+
+    @Test
+    @DisplayName("예산이 모자란 회차부터는 값이 내린 회차도 사지 않고 끝까지 예산 부족으로 센다")
+    void shortfallRunsToEnd() {
+      DcaStrategyRequest request = monthly(LocalDate.of(2024, 4, 30), 1)
+        .totalInvestmentLimit(new BigDecimal("300000")).build();
+      // 기본 환율 1350 에 1월 13만 5천원, 2월 20만 2,500원은 예산을 넘고 3월 6만 7,500원은 남은 예산 안
+      stubMarket(request, List.of(createOHLC(LocalDate.of(2024, 1, 15), new BigDecimal("100")),
+        createOHLC(LocalDate.of(2024, 2, 15), new BigDecimal("150")),
+        createOHLC(LocalDate.of(2024, 3, 15), new BigDecimal("50")),
+        createOHLC(LocalDate.of(2024, 4, 15), new BigDecimal("100"))), java.util.Map.of());
+
+      StrategyResponse response = dcaStrategy.execute(request);
+
+      assertThat(executed()).singleElement().satisfies(tx -> assertThat(tx.getAmount()).isEqualByComparingTo("135000"));
+      assertThat(response.getSkippedSpan())
+        .isEqualTo(new SkippedSpan(LocalDate.of(2024, 2, 15), 3, SkipReason.OVER_BUDGET));
+    }
+  }
+
   // 내부 메서드
   @Nested
   @DisplayName("못 산 회차")
@@ -780,15 +847,27 @@ class DCAStrategyTest {
         .isEqualTo(BacktestResponse.STRATEGY_AMOUNT_PER_PURCHASE_REQUIRED);
     }
 
-    @Test
-    @DisplayName("회당 금액이 없으면 STRATEGY_AMOUNT_PER_PURCHASE_REQUIRED")
-    void missingAmount() {
-      DcaStrategyRequest request = base().amountPerPurchase(null).build();
+    @ParameterizedTest(name = "주식 수 {0}")
+    @CsvSource(value = {"null, AMOUNT_OR_SHARES_REQUIRED", "0, INVALID_SHARES_PER_PURCHASE"}, nullValues = "null")
+    @DisplayName("회당 금액 · 주식 수가 둘 다 없으면 AMOUNT_OR_SHARES_REQUIRED, 주식 수가 1 보다 작으면 INVALID_SHARES_PER_PURCHASE")
+    void missingAmountOrShares(Integer shares, BacktestResponse code) {
+      DcaStrategyRequest request = base().amountPerPurchase(null).sharesPerPurchase(shares).build();
 
       assertThatThrownBy(() -> dcaStrategy.execute(request))
         .isInstanceOf(BacktestException.class)
         .extracting("code")
-        .isEqualTo(BacktestResponse.STRATEGY_AMOUNT_PER_PURCHASE_REQUIRED);
+        .isEqualTo(code);
+    }
+
+    @Test
+    @DisplayName("회당 금액 · 주식 수가 둘 다 있으면 AMOUNT_OR_SHARES_REQUIRED")
+    void bothAmountAndShares() {
+      DcaStrategyRequest request = base().sharesPerPurchase(1).build();
+
+      assertThatThrownBy(() -> dcaStrategy.execute(request))
+        .isInstanceOf(BacktestException.class)
+        .extracting("code")
+        .isEqualTo(BacktestResponse.AMOUNT_OR_SHARES_REQUIRED);
     }
 
     @ParameterizedTest(name = "예산 {0}")

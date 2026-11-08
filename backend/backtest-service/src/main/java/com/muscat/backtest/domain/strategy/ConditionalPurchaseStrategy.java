@@ -8,7 +8,7 @@ import com.muscat.backtest.common.enums.type.PriceDirection;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.logging.BacktestLogger;
-import com.muscat.backtest.common.util.BacktestCalculationUtils;
+import com.muscat.backtest.common.util.RoundPurchase;
 import com.muscat.backtest.common.util.BacktestDataUtils;
 import com.muscat.backtest.common.util.Decimals;
 import com.muscat.backtest.common.util.FxRates;
@@ -33,7 +33,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-// 조건부 매수 전략: 전 거래일 종가보다 장중에 정한 비율만큼 떨어진(또는 오른) 날마다 회당 금액만큼 한 번 삼(분할만 조정된 가격, 기간 첫 거래일은 기준 종가만)
+// 조건부 매수 전략: 전 거래일 종가보다 장중에 정한 비율만큼 떨어진(또는 오른) 날마다 회당 금액이나 정한 주식 수만큼 한 번 삼(분할만 조정된 가격, 기간 첫 거래일은 기준 종가만)
 // 한도는 예산 · 최대 횟수 가운데 먼저 닿는 쪽(둘 다 비우면 제한 없음), 예산을 넘는 회차부터는 예산 부족 구간으로 셈
 // 익절 · 손절을 켜면 보유분 평균 단가 기준으로 전량 팔고, 다음 조건이 오면 판 돈부터 써서 다시 삼
 @Component
@@ -70,9 +70,9 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     BacktestLogger.setStrategyContext(request.getUserId(), "CONDITIONAL", request.getSymbol());
 
     try {
-      log.info("조건부 매수 전략 실행 시작: {} - 전 거래일 종가 대비 {}% {} 시 회당 {}원 매수 (예산 {}, 최대 {}회)",
+      log.info("조건부 매수 전략 실행 시작: {} - 전 거래일 종가 대비 {}% {} 시 회당 {} 매수 (예산 {}, 최대 {}회)",
         request.getSymbol(), request.getDropPercentage().movePointRight(2),
-        PriceDirection.orDrop(request.getDirection()).label(), request.getAmountPerPurchase(),
+        PriceDirection.orDrop(request.getDirection()).label(), request.perPurchase(),
         request.getTotalInvestment(), request.getMaxPurchases());
 
       // 종료일이 미래인지 검증
@@ -116,10 +116,16 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     validateConditionalSpecificFields(request);
   }
 
-  // 회당 금액은 필수, 예산 · 최대 횟수는 비우거나 0 보다 큼
+  // 회당 금액 · 주식 수 가운데 하나만, 예산 · 최대 횟수는 비우거나 0 보다 큼
   private void validateLimits(ConditionalStrategyRequest request) {
-    if (request.getAmountPerPurchase() == null || !Decimals.isPositive(request.getAmountPerPurchase())) {
+    if ((request.getAmountPerPurchase() == null) == (request.getSharesPerPurchase() == null)) {
+      throw new BacktestException(BacktestResponse.AMOUNT_OR_SHARES_REQUIRED);
+    }
+    if (request.getAmountPerPurchase() != null && !Decimals.isPositive(request.getAmountPerPurchase())) {
       throw new BacktestException(BacktestResponse.STRATEGY_AMOUNT_PER_PURCHASE_REQUIRED);
+    }
+    if (request.getSharesPerPurchase() != null && request.getSharesPerPurchase() < 1) {
+      throw new BacktestException(BacktestResponse.INVALID_SHARES_PER_PURCHASE);
     }
     if (request.getTotalInvestment() != null && !Decimals.isPositive(request.getTotalInvestment())) {
       throw new BacktestException(BacktestResponse.INVALID_TOTAL_INVESTMENT);
@@ -227,9 +233,10 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
                 PriceDirection.orDrop(request.getDirection()));
 
             boolean roundsUsed = reached(maxPurchases, purchaseCount + shortRounds);
+            // 처음 예산이 모자란 날짜부터는 새 돈을 넣지 않음
+            BigDecimal budgetLeft = budget == null ? null : shortFrom != null ? BigDecimal.ZERO : budget.subtract(deposited);
             StrategyTransaction transaction = purchaseDecision.shouldBuy()
-              ? buy(request, priceData, currentDate, purchaseDecision, fxRateMap, cash, roundsUsed,
-                budget == null ? null : budget.subtract(deposited))
+              ? buy(request, priceData, currentDate, purchaseDecision, fxRateMap, cash, roundsUsed, budgetLeft)
               : null;
             if (purchaseDecision.shouldBuy() && transaction == null && !roundsUsed) {
               shortRounds++;
@@ -269,48 +276,78 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     return new StrategyPurchases(transactions, skippedRounds, priceMap, fxRateMap, shortfall);
   }
 
-  // 회당 금액만큼 사되 판 돈을 먼저 쓰고 모자란 만큼만 새로 넣음
-  // 횟수를 다 썼거나 새로 넣을 돈이 남은 예산을 넘으면 판 돈으로만(판 돈이 없으면 null)
+  // 회당 금액 · 주식 수만큼 사되 판 돈을 먼저 쓰고 모자란 만큼만 새로 넣음
+  // 횟수를 다 썼거나 새로 넣을 돈이 남은 예산을 넘으면 판 돈으로만(판 돈이 없거나 한 주도 못 사면 null)
   private StrategyTransaction buy(ConditionalStrategyRequest request, OHLCPriceDto priceData, LocalDate date,
     PurchaseDecision decision, FxRates fxRateMap, BigDecimal cash, boolean roundsUsed, BigDecimal budgetLeft) {
-    BigDecimal amount = request.getAmountPerPurchase();
-    boolean hasCash = Decimals.isPositive(cash);
-    if (!hasCash && (roundsUsed || exceeds(amount, budgetLeft))) {
-      return null;
-    }
     BigDecimal fxRate = fxOn(request, fxRateMap, date);
-    BigDecimal fee;
-    BigDecimal shares;
-    BigDecimal deposit = amount;
-    BigDecimal cashUsed = null;
-    if (!hasCash) {
-      // 수수료를 차감하고 남은 달러로 매수
-      fee = BacktestCalculationUtils.calculatePurchaseFee(amount, fxRate, request.getTradingFeeRate());
-      shares = BacktestCalculationUtils.calculateSharesAfterFee(amount, fxRate, decision.price(), fee);
-    } else {
-      BigDecimal needUsd = amount.divide(fxRate, 8, RoundingMode.HALF_UP);
-      BigDecimal topUp = needUsd.compareTo(cash) > 0
-        ? amount.subtract(cash.multiply(fxRate)).setScale(2, RoundingMode.HALF_UP)
-        : BigDecimal.ZERO;
-      boolean cashOnly = roundsUsed || exceeds(topUp, budgetLeft);
-      BigDecimal budgetUsd = cashOnly ? needUsd.min(cash) : needUsd;
-      cashUsed = cash.min(budgetUsd);
-      deposit = cashOnly ? BigDecimal.ZERO : topUp;
-      fee = feeOn(budgetUsd, request.getTradingFeeRate());
-      shares = budgetUsd.subtract(fee).divide(decision.price(), 8, RoundingMode.HALF_UP);
+    Fill fill = request.getSharesPerPurchase() != null
+      ? fillShares(request, decision.price(), fxRate, cash, roundsUsed, budgetLeft)
+      : fillAmount(request, decision.price(), fxRate, cash, roundsUsed, budgetLeft);
+    if (fill == null) {
+      return null;
     }
     return StrategyTransaction.builder()
       .date(date)
       .actualDate(priceData.date())
       .price(decision.price())
-      .shares(shares)
-      .fee(fee)
-      .amount(deposit)
-      .cashUsed(cashUsed)
+      .shares(fill.shares())
+      .fee(fill.fee())
+      .amount(fill.deposit())
+      .cashUsed(fill.cashUsed())
       .fxRate(fxRate)
       .defaultFxDate(fxRateMap.isDefault(date) ? date : null)
       .trigger(decision.trigger())
       .build();
+  }
+
+  // 한 번 사는 주식 수 · 수수료(USD) · 새로 넣는 돈(KRW) · 쓰는 판 돈(USD, 새 돈만이면 null)
+  private record Fill(BigDecimal shares, BigDecimal fee, BigDecimal deposit, BigDecimal cashUsed) {}
+
+  // 회당 금액만큼, 판 돈으로만 살 때는 판 돈만큼
+  private static Fill fillAmount(ConditionalStrategyRequest request, BigDecimal price, BigDecimal fxRate,
+    BigDecimal cash, boolean roundsUsed, BigDecimal budgetLeft) {
+    BigDecimal amount = request.getAmountPerPurchase();
+    if (!Decimals.isPositive(cash)) {
+      if (roundsUsed || exceeds(amount, budgetLeft)) {
+        return null;
+      }
+      // 수수료를 차감하고 남은 달러로 매수
+      RoundPurchase purchase = RoundPurchase.byAmount(amount, price, fxRate, request.getTradingFeeRate());
+      return new Fill(purchase.shares(), purchase.feeUsd(), amount, null);
+    }
+    BigDecimal needUsd = amount.divide(fxRate, 8, RoundingMode.HALF_UP);
+    BigDecimal topUp = needUsd.compareTo(cash) > 0
+      ? amount.subtract(cash.multiply(fxRate)).setScale(2, RoundingMode.HALF_UP)
+      : BigDecimal.ZERO;
+    boolean cashOnly = roundsUsed || exceeds(topUp, budgetLeft);
+    BigDecimal budgetUsd = cashOnly ? needUsd.min(cash) : needUsd;
+    BigDecimal fee = feeOn(budgetUsd, request.getTradingFeeRate());
+    return new Fill(budgetUsd.subtract(fee).divide(price, 8, RoundingMode.HALF_UP), fee,
+      cashOnly ? BigDecimal.ZERO : topUp, cash.min(budgetUsd));
+  }
+
+  // 주식 수만큼(매수가 × 주식 수 + 수수료), 판 돈으로만 살 때는 판 돈으로 살 수 있는 주식 수까지
+  private static Fill fillShares(ConditionalStrategyRequest request, BigDecimal price, BigDecimal fxRate,
+    BigDecimal cash, boolean roundsUsed, BigDecimal budgetLeft) {
+    boolean hasCash = Decimals.isPositive(cash);
+    if (!hasCash && roundsUsed) {
+      return null;
+    }
+    int shares = request.getSharesPerPurchase();
+    RoundPurchase full = RoundPurchase.byShares(shares, price, fxRate, request.getTradingFeeRate());
+    if (!hasCash) {
+      return exceeds(full.amountKrw(), budgetLeft) ? null : new Fill(full.shares(), full.feeUsd(), full.amountKrw(), null);
+    }
+    if (full.costUsd().compareTo(cash) <= 0) {
+      return new Fill(full.shares(), full.feeUsd(), BigDecimal.ZERO, full.costUsd());
+    }
+    BigDecimal topUp = MoneyUtils.convertUsdToKrw(full.costUsd().subtract(cash), fxRate);
+    if (!roundsUsed && !exceeds(topUp, budgetLeft)) {
+      return new Fill(full.shares(), full.feeUsd(), topUp, cash);
+    }
+    RoundPurchase partial = RoundPurchase.withinUsd(shares, cash, price, fxRate, request.getTradingFeeRate());
+    return partial == null ? null : new Fill(partial.shares(), partial.feeUsd(), BigDecimal.ZERO, partial.costUsd());
   }
 
   // 보유분 평균 단가(수수료 포함)의 익절 · 손절 기준가에 닿으면 전량 매도, 둘 다 닿은 날은 시가부터 익절 기준가 위면 익절 · 아니면 손절

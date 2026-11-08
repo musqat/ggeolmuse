@@ -294,9 +294,17 @@ class ConditionalPurchaseStrategyTest {
     }
 
     @Test
-    @DisplayName("회당 금액이 없으면 예외 발생")
-    void validateRequest_NullAmountPerPurchase_ThrowsException() {
-      assertRejected(valid().amountPerPurchase(null).build(), BacktestResponse.STRATEGY_AMOUNT_PER_PURCHASE_REQUIRED);
+    @DisplayName("회당 금액 · 주식 수가 둘 다 없거나 둘 다 있으면 예외 발생")
+    void validateRequest_AmountOrShares_ThrowsException() {
+      assertRejected(valid().amountPerPurchase(null).build(), BacktestResponse.AMOUNT_OR_SHARES_REQUIRED);
+      assertRejected(valid().sharesPerPurchase(1).build(), BacktestResponse.AMOUNT_OR_SHARES_REQUIRED);
+    }
+
+    @Test
+    @DisplayName("주식 수가 1 보다 작으면 예외 발생")
+    void validateRequest_ZeroShares_ThrowsException() {
+      assertRejected(valid().amountPerPurchase(null).sharesPerPurchase(0).build(),
+        BacktestResponse.INVALID_SHARES_PER_PURCHASE);
     }
 
     @Test
@@ -715,6 +723,38 @@ class ConditionalPurchaseStrategyTest {
     }
 
     @Test
+    @DisplayName("주식 수로 사면 그 주식 수를 사고 매수가 × 주식 수 + 수수료를 그 날짜 환율로 바꾼 돈을 넣는다")
+    void buysSharesPerPurchase() {
+      ConditionalStrategyRequest request = perPurchase(2, 10).amountPerPurchase(null).sharesPerPurchase(3)
+        .tradingFeeRate(new BigDecimal("0.01")).build();
+      stubMarket(request, List.of(day(0, "100"), bar(1, "99", "89", "97")), true);
+
+      strategy.execute(request);
+
+      // 매수가 90 × 3주 = 270달러 + 수수료 2.70달러, 기본 환율 1350
+      assertThat(executed()).singleElement().satisfies(tx -> {
+        assertThat(tx.getShares()).isEqualByComparingTo("3");
+        assertThat(tx.getFee()).isEqualByComparingTo("2.70");
+        assertThat(tx.getAmount()).isEqualByComparingTo("368145");
+        assertThat(tx.getTrigger()).isEqualTo("10.0%하락");
+      });
+    }
+
+    @Test
+    @DisplayName("주식 수로 사면 예산이 모자란 날짜부터는 값이 내린 날도 사지 않고 끝까지 예산 부족으로 센다")
+    void sharesShortfallSpanToEnd() {
+      ConditionalStrategyRequest request = perPurchase(5, 10).maxPurchases(null).amountPerPurchase(null)
+        .sharesPerPurchase(1).totalInvestment(new BigDecimal("300000")).build();
+      // 2일째 80(10만 8천원) 뒤 4일째 170(22만 9,500원)은 남은 예산 19만 2천원을 넘고 5일째 100(13만 5천원)은 남은 예산 안
+      stubMarket(request, List.of(day(0, "100"), day(1, "80"), day(2, "200"), day(3, "170"), day(4, "100")), true);
+
+      StrategyResponse response = strategy.execute(request);
+
+      assertThat(executed()).singleElement().satisfies(tx -> assertThat(tx.getAmount()).isEqualByComparingTo("108000"));
+      assertThat(response.getSkippedSpan()).isEqualTo(new SkippedSpan(START.plusDays(3), 2, SkipReason.OVER_BUDGET));
+    }
+
+    @Test
     @DisplayName("매수 환율을 직접 주면 일별 환율을 조회하지 않고 그 값으로 산다")
     void manualPurchaseFxRate() {
       ConditionalStrategyRequest request = perPurchase(2, 10).purchaseFxRate(new BigDecimal("1200")).build();
@@ -975,6 +1015,94 @@ class ConditionalPurchaseStrategyTest {
 
         StrategyTransaction rebuy = executed().getLast();
         assertThat(rebuy.getCashUsed()).isEqualByComparingTo("900");
+        assertThat(rebuy.getAmount()).isEqualByComparingTo(deposit);
+        assertThat(response.getSkippedSpan()).isNull();
+      }
+
+      @Test
+      @DisplayName("예산이 모자란 날짜 뒤로는 남은 예산이 있어도 새 돈을 채우지 않고 판 돈만큼만 산다")
+      void noTopUpAfterShortfall() {
+        ConditionalStrategyRequest request = selling(5, 10).maxPurchases(null).totalInvestment(new BigDecimal("2000000"))
+          .stopLossRate(new BigDecimal("0.1")).build();
+        // 3일째 99 매수는 남은 예산 70만원을 넘고, 4일째 90 에 손절(900달러), 5일째 79 에 모자란 100달러는 13만원
+        stubMarket(request, List.of(day(0, "120"), bar(1, "100", "100", "110"), bar(2, "99", "95", "96"),
+          candle(3, "95", "96", "85", "88"), bar(4, "79", "79", "80")), false);
+
+        StrategyResponse response = strategy.execute(request);
+
+        StrategyTransaction rebuy = executed().getLast();
+        assertThat(rebuy.getPrice()).isEqualByComparingTo("79");
+        assertThat(rebuy.getCashUsed()).isEqualByComparingTo("900");
+        assertThat(rebuy.getAmount()).isEqualByComparingTo("0");
+        assertThat(response.getSkippedSpan()).isEqualTo(new SkippedSpan(START.plusDays(2), 1, SkipReason.OVER_BUDGET));
+      }
+
+      @Test
+      @DisplayName("주식 수로 사면 판 돈이 그 주식 수 값만큼 있을 때 판 돈으로만 산다")
+      void sharesRebuyFromCash() {
+        ConditionalStrategyRequest request = selling(4, 10).amountPerPurchase(null).sharesPerPurchase(10)
+          .stopLossRate(new BigDecimal("0.1")).build();
+        // 3일째 90 에 손절(900달러), 4일째 하락 기준가 82.8 에 10주는 828달러
+        stubMarket(request, afterEntry(candle(2, "95", "96", "89", "92"), bar(3, "83", "82", "85")), false);
+
+        strategy.execute(request);
+
+        assertThat(trades()).containsExactly(ENTRY, tuple("90", "10.0%손절", -1), tuple("82.8", "10.0%하락", 1));
+        StrategyTransaction rebuy = executed().getLast();
+        assertThat(rebuy.getShares()).isEqualByComparingTo("10");
+        assertThat(rebuy.getCashUsed()).isEqualByComparingTo("828");
+        assertThat(rebuy.getAmount()).isEqualByComparingTo("0");
+      }
+
+      @Test
+      @DisplayName("주식 수로 사면 최대 횟수를 다 쓴 뒤 판 돈이 없을 때 사지 않고 예산 부족으로도 세지 않는다")
+      void sharesNoCashAfterMaxPurchases() {
+        ConditionalStrategyRequest request = selling(3, 1).amountPerPurchase(null).sharesPerPurchase(10)
+          .takeProfitRate(new BigDecimal("0.5")).build();
+        // 3일째 전날 종가 100 의 하락 기준가 90 아래 89
+        stubMarket(request, afterEntry(bar(2, "89", "89", "89")), false);
+
+        StrategyResponse response = strategy.execute(request);
+
+        assertThat(trades()).containsExactly(ENTRY);
+        assertThat(response.getSkippedSpan()).isNull();
+      }
+
+      @Test
+      @DisplayName("주식 수로 사면 최대 횟수를 다 쓴 뒤 판 돈이 모자랄 때 새 돈 없이 판 돈으로 살 수 있는 주식 수만 산다")
+      void sharesCashOnlyAfterMaxPurchases() {
+        ConditionalStrategyRequest request = selling(5, 1).amountPerPurchase(null).sharesPerPurchase(10)
+          .stopLossRate(new BigDecimal("0.1")).build();
+        // 3일째 90 에 손절(900달러), 5일째 전날 종가 120 의 하락 기준가 108 아래 시가 105 에 10주는 1,050달러
+        stubMarket(request, afterEntry(candle(2, "95", "96", "89", "92"), day(3, "120"), bar(4, "105", "105", "106")),
+          false);
+
+        StrategyResponse response = strategy.execute(request);
+
+        StrategyTransaction rebuy = executed().getLast();
+        assertThat(rebuy.getPrice()).isEqualByComparingTo("105");
+        assertThat(rebuy.getShares()).isEqualByComparingTo("8");
+        assertThat(rebuy.getCashUsed()).isEqualByComparingTo("840");
+        assertThat(rebuy.getAmount()).isEqualByComparingTo("0");
+        assertThat(response.getSkippedSpan()).isNull();
+      }
+
+      @ParameterizedTest(name = "예산 {0} → {1}주")
+      @CsvSource({"1495000, 10, 900, 195000", "1400000, 8, 840, 0"})
+      @DisplayName("주식 수로 사면 판 돈이 모자랄 때 새로 넣을 돈이 남은 예산 안이면 채워 사고, 넘으면 판 돈으로 살 수 있는 주식 수만 산다")
+      void sharesTopUpWithinBudget(String budget, int shares, String cashUsed, String deposit) {
+        ConditionalStrategyRequest request = selling(5, 10).maxPurchases(null).amountPerPurchase(null).sharesPerPurchase(10)
+          .totalInvestment(new BigDecimal(budget)).stopLossRate(new BigDecimal("0.1")).build();
+        // 3일째 90 에 손절(900달러), 5일째 전날 종가 120 의 하락 기준가 108 아래 시가 105 에 10주는 1,050달러
+        stubMarket(request, afterEntry(candle(2, "95", "96", "89", "92"), day(3, "120"), bar(4, "105", "105", "106")),
+          false);
+
+        StrategyResponse response = strategy.execute(request);
+
+        StrategyTransaction rebuy = executed().getLast();
+        assertThat(rebuy.getPrice()).isEqualByComparingTo("105");
+        assertThat(rebuy.getShares()).isEqualByComparingTo(String.valueOf(shares));
+        assertThat(rebuy.getCashUsed()).isEqualByComparingTo(cashUsed);
         assertThat(rebuy.getAmount()).isEqualByComparingTo(deposit);
         assertThat(response.getSkippedSpan()).isNull();
       }

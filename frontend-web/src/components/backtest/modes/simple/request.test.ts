@@ -7,6 +7,8 @@ const values: SimpleValues = {
   purchaseDate: '2023-01-01',
   saleDate: '',
   initialInvestment: '300000',
+  unit: 'AMOUNT',
+  shares: '1',
   reinvestDividends: false,
   tradingFeeRate: '0',
   dividendTax: false,
@@ -53,6 +55,26 @@ describe('buildSimpleRequest', () => {
     ['99999', '최소 10만원 이상 투자해주세요. (미국 주식 1주 구매를 위해 약 30만원 권장)'],
   ])('투자금 %s 는 막는다', (initialInvestment, error) => {
     expect(buildSimpleRequest({ ...values, initialInvestment }, 'AAPL', ctx)).toEqual({ error })
+  })
+
+  it('주식 수 단위면 투자 금액 대신 주식 수를 보내고 최소 투자금은 보지 않는다', () => {
+    expect(buildSimpleRequest({ ...values, unit: 'SHARES', shares: '3', initialInvestment: '' }, 'AAPL', ctx)).toStrictEqual({
+      request: {
+        symbol: 'AAPL',
+        purchaseDate: '2023-01-01',
+        saleDate: '2026-10-08',
+        sharesPerPurchase: 3,
+        reinvestDividends: false,
+        tradingFeeRate: 0,
+        dividendTaxRate: 0,
+      },
+    })
+  })
+
+  it.each(['0', '1.5', ''])('주식 수 %o 는 막는다', (shares) => {
+    expect(buildSimpleRequest({ ...values, unit: 'SHARES', shares }, 'AAPL', ctx)).toEqual({
+      error: '주식 수는 1 이상의 정수로 입력해주세요.',
+    })
   })
 
   it.each(['2026-10-08', '2026-10-09'])('매수일 %s(오늘 · 내일)는 막는다', (purchaseDate) => {

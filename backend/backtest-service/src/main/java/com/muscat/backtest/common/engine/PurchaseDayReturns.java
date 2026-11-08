@@ -4,6 +4,7 @@ import com.muscat.backtest.common.constants.BacktestConstants;
 import com.muscat.backtest.common.util.BacktestCalculationUtils;
 import com.muscat.backtest.common.util.Decimals;
 import com.muscat.backtest.common.util.PriceLookup;
+import com.muscat.backtest.common.util.RoundPurchase;
 import com.muscat.backtest.domain.dto.response.PurchaseDayReturn;
 import com.muscat.backtest.infra.client.dto.DividendHistoryDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
@@ -20,8 +21,8 @@ import java.util.function.Function;
 // 기간의 거래일마다 그 날짜에 샀다면 평가일까지의 총 수익률(단순 매수 시뮬레이션과 같은 수수료 · 배당 · 환율 계산)
 public final class PurchaseDayReturns {
 
-  /** 매수 조건과 평가일 값(재투자 가격은 배당락일마다 미리 찾아 둔 값) */
-  public record Inputs(BigDecimal investmentKrw, BigDecimal feeRate, boolean reinvest, BigDecimal taxRate,
+  /** 매수 조건과 평가일 값(주식 수가 있으면 투자 금액 대신, 재투자 가격은 배당락일마다 미리 찾아 둔 값) */
+  public record Inputs(BigDecimal investmentKrw, Integer shares, BigDecimal feeRate, boolean reinvest, BigDecimal taxRate,
                        DividendHistoryDto dividendHistory, Map<LocalDate, BigDecimal> exDatePrices,
                        BigDecimal valuationPriceUsd, BigDecimal currentFxRate, LocalDate valuationDate) {}
 
@@ -41,13 +42,24 @@ public final class PurchaseDayReturns {
     return points;
   }
 
-  // 그 날짜 종가 · 환율로 사서 평가일까지 들고 있었을 때(수수료 · 남은 현금 · 배당 재투자 또는 세후 현금 배당)
+  // 그 날짜 종가 · 환율로 같은 투자 금액이나 같은 주식 수를 사서 평가일까지 들고 있었을 때(수수료 · 남은 현금 · 배당 재투자 또는 세후 현금 배당)
   private static PurchaseDayReturn returnOn(LocalDate date, BigDecimal priceUsd, BigDecimal fxRate, Inputs in) {
-    BigDecimal usdAmount = MoneyUtils.convertKrwToUsd(in.investmentKrw(), fxRate);
-    BigDecimal shares = BacktestCalculationUtils.calculateSharesWithFee(usdAmount, priceUsd, in.feeRate());
-    BigDecimal fee = BacktestCalculationUtils.calculateTradingFee(usdAmount, in.feeRate());
-    BigDecimal totalCost = BacktestCalculationUtils.calculateTotalCost(shares, priceUsd, fee);
-    BigDecimal remainingCash = BacktestCalculationUtils.calculateRemainingCash(usdAmount, totalCost);
+    BigDecimal investmentKrw = in.investmentKrw();
+    BigDecimal usdAmount;
+    BigDecimal shares;
+    BigDecimal remainingCash = BigDecimal.ZERO;
+    if (in.shares() != null) {
+      RoundPurchase purchase = RoundPurchase.byShares(in.shares(), priceUsd, fxRate, in.feeRate());
+      investmentKrw = purchase.amountKrw();
+      usdAmount = purchase.costUsd();
+      shares = purchase.shares();
+    } else {
+      usdAmount = MoneyUtils.convertKrwToUsd(investmentKrw, fxRate);
+      shares = BacktestCalculationUtils.calculateSharesWithFee(usdAmount, priceUsd, in.feeRate());
+      BigDecimal fee = BacktestCalculationUtils.calculateTradingFee(usdAmount, in.feeRate());
+      BigDecimal totalCost = BacktestCalculationUtils.calculateTotalCost(shares, priceUsd, fee);
+      remainingCash = BacktestCalculationUtils.calculateRemainingCash(usdAmount, totalCost);
+    }
 
     BigDecimal cashDividendUsd = BigDecimal.ZERO;
     if (in.reinvest()) {
@@ -75,7 +87,7 @@ public final class PurchaseDayReturns {
     BigDecimal totalAssetUsd = currentValueUsd.add(remainingCash).add(cashDividendUsd);
 
     return new PurchaseDayReturn(date,
-      MoneyUtils.roundUsd(MoneyUtils.calculateReturnRate(in.investmentKrw(), totalAssetKrw)),
+      MoneyUtils.roundUsd(MoneyUtils.calculateReturnRate(investmentKrw, totalAssetKrw)),
       MoneyUtils.roundUsd(MoneyUtils.calculateReturnRate(usdAmount, totalAssetUsd)));
   }
 

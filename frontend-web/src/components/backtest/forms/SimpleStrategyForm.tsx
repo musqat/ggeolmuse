@@ -1,7 +1,8 @@
 import React from 'react';
-import { NumberInput } from '../../common/NumberInput';
 import type { BacktestOptionsState } from '../shared/backtestOptions';
-import { FormField, PeriodFields, StrategyOptions, SymbolField } from '../shared/StrategyFields';
+import type { AmountUnitState } from '../shared/amountUnit';
+import { AmountOrSharesField } from '../shared/AmountOrSharesField';
+import { PeriodFields, StrategyOptions, SymbolField } from '../shared/StrategyFields';
 
 interface SimpleStrategyFormProps {
   symbol: string;
@@ -12,6 +13,7 @@ interface SimpleStrategyFormProps {
   setSaleDate: (date: string) => void;
   initialInvestment: string;
   setInitialInvestment: (amount: string) => void;
+  amountUnit: AmountUnitState;
   options: BacktestOptionsState;
   supportedSymbols: string[];
 }
@@ -26,6 +28,7 @@ export const SimpleStrategyForm: React.FC<SimpleStrategyFormProps> = ({
   setSaleDate,
   initialInvestment,
   setInitialInvestment,
+  amountUnit,
   options,
   supportedSymbols,
 }) => {
@@ -35,15 +38,18 @@ export const SimpleStrategyForm: React.FC<SimpleStrategyFormProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
         <SymbolField value={symbol} onChange={setSymbol} supportedSymbols={supportedSymbols} />
 
-        <FormField label="초기 투자금 (₩)">
-          <NumberInput
-            value={initialInvestment}
-            onChange={setInitialInvestment}
-            placeholder="300,000"
-            className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
-          />
-          <p className="text-xs text-tx-3 mt-1">최소 약 30만원 권장</p>
-        </FormField>
+        <AmountOrSharesField
+          amountLabel="초기 투자금 (₩)"
+          sharesLabel="주식 수"
+          amount={initialInvestment}
+          onAmountChange={setInitialInvestment}
+          amountPlaceholder="300,000"
+          amountHelp="최소 약 30만원 권장"
+          amountUnit={amountUnit}
+          symbol={symbol}
+          startDate={purchaseDate}
+          options={options}
+        />
 
         <PeriodFields
           start={purchaseDate}
