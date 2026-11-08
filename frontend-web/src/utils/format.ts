@@ -66,6 +66,21 @@ export const formatToKoreanWon = (value: string | number): string => {
   return result + '원';
 };
 
+// 억 · 만 · 그 아래를 모두 쓴 금액(1억 2,000만원 · 123만 4,567원, 단위 사이는 줄바꿈 없는 공백, 0 이하 · 숫자 아님은 0원)
+export const formatReadableWon = (value: number): string => {
+  const won = Math.round(value);
+  if (!(won > 0)) return '0원';
+  const parts = [
+    [Math.floor(won / 100000000), '억'],
+    [Math.floor((won % 100000000) / 10000), '만'],
+    [won % 10000, ''],
+  ] as const;
+  return `${parts
+    .filter(([amount]) => amount > 0)
+    .map(([amount, unit]) => `${formatNumber(amount)}${unit}`)
+    .join(' ')}원`;
+};
+
 // 시가총액 줄임 표기 $3.12T · $845.21B · $12.30M(백만 아래는 그대로, 값이 없거나 0 이면 N/A)
 export const formatMarketCap = (marketCap: number | null | undefined, digits = 2): string => {
   if (!marketCap) return 'N/A';

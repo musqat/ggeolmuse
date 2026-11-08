@@ -1,12 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import Backtest from './Backtest'
 import { backtestApi, stockApi } from '../services/api'
 import { saveLocalBacktestHistory } from '../utils/localBacktestHistory'
-import { notify } from '@/components/common/notify'
+import { dismissToast, notify, readToasts } from '@/components/common/notify'
+import { Notifications } from '@/components/common/Notifications'
 
 vi.mock('../services/api', () => ({
   backtestApi: {
@@ -36,7 +37,12 @@ vi.mock('@components/backtest/results/SimpleResult', () => ({
   SimpleResult: () => <div>결과: simple</div>,
 }))
 vi.mock('@components/backtest/results/DcaConditionalResult', () => ({
-  DcaConditionalResult: ({ result }: { result: { mode: string } }) => <div>결과: {result.mode}</div>,
+  DcaConditionalResult: ({ result, budget }: { result: { mode: string }; budget?: number }) => (
+    <>
+      <div>결과: {result.mode}</div>
+      {budget !== undefined && <div>예산: {budget}</div>}
+    </>
+  ),
 }))
 vi.mock('@components/backtest/results/SymbolComparisonResult', () => ({
   SymbolComparisonResult: () => <div>결과: compare-symbols</div>,
@@ -47,42 +53,38 @@ vi.mock('@components/backtest/results/StrategyComparisonResult', () => ({
 
 const USER = 'tester@example.com'
 const TODAY = '2026-10-08'
+// 오늘부터 1년 전(수요일)
+const START = '2025-10-08'
 
 let alertSpy: MockInstance<typeof notify.error>
 
 function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  render(
+  return render(
     <QueryClientProvider client={client}>
       <MemoryRouter>
         <Backtest />
+        <Notifications />
       </MemoryRouter>
     </QueryClientProvider>
   )
 }
 
-// 모드 탭(전략 비교 폼에도 "적립식" 버튼이 있어 탭 영역 안에서 찾음)
-async function selectTab(name: string) {
-  const tabs = screen.getByRole('heading', { name: '백테스트 모드' }).parentElement!
-  await userEvent.click(within(tabs).getByRole('button', { name }))
-}
-
-// 전략 비교 폼의 전략 버튼
-async function toggleStrategy(name: string) {
-  const area = screen.getByText('비교할 전략 선택 (최소 2개)').parentElement!
-  await userEvent.click(within(area).getByRole('button', { name }))
-}
-
+const modes = () => within(screen.getByRole('radiogroup', { name: '백테스트 모드' }))
+const selectMode = (name: string) => userEvent.click(modes().getByRole('radio', { name }))
 const runBacktest = () => userEvent.click(screen.getByTestId('backtest-run'))
+const summary = () => screen.getByTestId('backtest-summary')
+const strategyChips = () => within(screen.getByRole('group', { name: '견줄 전략' }))
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date('2026-10-08T12:00:00+09:00'))
   vi.clearAllMocks()
+  localStorage.clear()
   auth.isAuthenticated = true
   auth.user = { email: USER }
   alertSpy = vi.spyOn(notify, 'error').mockImplementation(() => {})
-  vi.mocked(stockApi.getAllSymbols).mockResolvedValue({ data: [] } as never)
+  vi.mocked(stockApi.getAllSymbols).mockResolvedValue({ data: [{ symbol: 'AAPL' }, { symbol: 'MSFT' }, { symbol: 'NVDA' }] } as never)
   vi.mocked(stockApi.getOHLCData).mockResolvedValue({ data: [] } as never)
   vi.mocked(stockApi.getExchangeRatesBulk).mockResolvedValue({ data: {} } as never)
   vi.mocked(backtestApi.runSimulation).mockResolvedValue({ data: {} } as never)
@@ -94,19 +96,44 @@ beforeEach(() => {
 
 afterEach(() => {
   alertSpy.mockRestore()
+  act(() => readToasts().forEach((toast) => dismissToast(toast.id)))
   vi.useRealTimers()
 })
 
-const common = { reinvestDividends: false, tradingFeeRate: 0, dividendTaxRate: 0 }
+const common = { reinvestDividends: false, tradingFeeRate: 0, dividendTaxRate: 0.15 }
+const detailToggle = () => screen.getByRole('button', { name: /세부 설정/ })
+const reinvestRadio = () => within(screen.getByRole('radiogroup', { name: '배당' })).getByRole('radio', { name: '재투자' })
+const amountInput = () => screen.getByRole('textbox', { name: '금액(원)' })
 
-describe('Backtest 페이지', () => {
-  it('단순: 기본값으로 실행하면 매도일을 오늘로 보낸다', async () => {
+describe('Backtest 페이지 모드 · 기록', () => {
+  it('모드는 하나만 고르는 묶음이고 지난 기록은 모드 대신 제목 옆 링크로 따로 본다', () => {
+    renderPage()
+
+    expect(modes().getAllByRole('radio').map((radio) => radio.textContent)).toEqual(['단순', '적립식', '조건부', '종목 비교', '전략 비교'])
+    expect(modes().getByRole('radio', { name: '단순' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.queryByText('히스토리')).toBeNull()
+    expect(screen.getByRole('link', { name: '지난 백테스트 기록 →' })).toHaveAttribute('href', '/backtest/history')
+  })
+
+  it('화살표로 모드를 옮기면 그 모드의 칸으로 바뀐다', async () => {
+    renderPage()
+
+    modes().getByRole('radio', { name: '단순' }).focus()
+    await userEvent.keyboard('{ArrowRight}')
+
+    expect(modes().getByRole('radio', { name: '적립식' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('radiogroup', { name: '언제' })).toBeInTheDocument()
+  })
+})
+
+describe('Backtest 페이지 실행', () => {
+  it('단순: 기본값은 오늘부터 1년 전 · 30만원이고 매도일을 오늘로 보낸다', async () => {
     renderPage()
     await runBacktest()
 
     expect(backtestApi.runSimulation).toHaveBeenCalledWith({
       symbol: 'AAPL',
-      purchaseDate: '2023-01-01',
+      purchaseDate: START,
       saleDate: TODAY,
       investmentAmount: 300000,
       ...common,
@@ -117,47 +144,48 @@ describe('Backtest 페이지', () => {
 
   it('적립식: 기본값은 회당 10만원 · 매달 시작일의 날짜로 요청', async () => {
     renderPage()
-    await selectTab('적립식')
+    await selectMode('적립식')
     await runBacktest()
 
     expect(backtestApi.runDcaStrategy).toHaveBeenCalledWith({
       symbol: 'AAPL',
-      startDate: '2023-01-01',
+      startDate: START,
       endDate: TODAY,
       amountPerPurchase: 100000,
       frequency: 'MONTHLY',
-      purchaseDay: 1,
+      purchaseDay: 8,
       investmentInterval: 1,
       ...common,
     })
     expect(await screen.findByText('결과: dca')).toBeInTheDocument()
+    expect(screen.queryByText(/예산:/)).toBeNull()
   })
 
-  it('적립식: 매주를 고르면 투자일 · 개월 수 없이 주말 시작일 다음 월요일부터 요청', async () => {
+  it('적립식: 매주를 고르면 투자일 · 개월 수 없이 첫 매수일과 주기로 요청', async () => {
     renderPage()
-    await selectTab('적립식')
-    await userEvent.selectOptions(screen.getByLabelText('투자 주기'), 'WEEKLY')
+    await selectMode('적립식')
+    await userEvent.click(screen.getByRole('radio', { name: '매주' }))
     await runBacktest()
 
     expect(backtestApi.runDcaStrategy).toHaveBeenCalledWith({
       symbol: 'AAPL',
-      startDate: '2023-01-01',
+      startDate: START,
       endDate: TODAY,
       amountPerPurchase: 100000,
       frequency: 'WEEKLY',
-      firstPurchaseDate: '2023-01-02',
+      firstPurchaseDate: START,
       ...common,
     })
   })
 
   it('조건부: 기본값은 회당 10만원 · 예산 100만원 · 최대 횟수 비움으로 요청', async () => {
     renderPage()
-    await selectTab('조건부')
+    await selectMode('조건부')
     await runBacktest()
 
     expect(backtestApi.runConditionalStrategy).toHaveBeenCalledWith({
       symbol: 'AAPL',
-      startDate: '2023-01-01',
+      startDate: START,
       endDate: TODAY,
       direction: 'DROP',
       dropPercentage: 0.05,
@@ -166,46 +194,50 @@ describe('Backtest 페이지', () => {
       ...common,
     })
     expect(await screen.findByText('결과: conditional')).toBeInTheDocument()
+    expect(screen.getByText('예산: 1000000')).toBeInTheDocument()
   })
 
   it('조건부: 상승을 고르면 상승 방향으로 요청한다', async () => {
     renderPage()
-    await selectTab('조건부')
-    await userEvent.click(screen.getByRole('button', { name: '상승' }))
+    await selectMode('조건부')
+    await userEvent.click(screen.getByRole('radio', { name: '상승' }))
     await runBacktest()
 
     expect(vi.mocked(backtestApi.runConditionalStrategy).mock.calls[0][0]).toMatchObject({ direction: 'RISE', dropPercentage: 0.05 })
   })
 
-  it('조건부: 익절을 적으면 배당 재투자 체크를 잠그고 비율로 요청한다', async () => {
+  it('조건부: 익절을 적으면 배당 재투자를 막고 비율로 요청하며, 다른 모드는 고른 재투자 그대로', async () => {
     renderPage()
-    await selectTab('조건부')
-    const reinvest = screen.getByRole('checkbox', { name: /배당금 재투자/ })
-    await userEvent.click(reinvest)
-    expect(reinvest).toBeChecked()
+    await selectMode('조건부')
+    await userEvent.click(detailToggle())
+    await userEvent.click(reinvestRadio())
+    expect(reinvestRadio()).toHaveAttribute('aria-checked', 'true')
 
-    await userEvent.type(screen.getByLabelText('익절 (%)'), '20')
+    await userEvent.type(screen.getByRole('textbox', { name: '익절(평균 단가 대비 퍼센트)' }), '20')
 
-    expect(reinvest).toBeDisabled()
-    expect(reinvest).not.toBeChecked()
+    expect(reinvestRadio()).toHaveAttribute('aria-disabled', 'true')
+    expect(reinvestRadio()).toHaveAttribute('aria-checked', 'false')
     await runBacktest()
     expect(vi.mocked(backtestApi.runConditionalStrategy).mock.calls[0][0]).toMatchObject({
       takeProfitRate: 0.2,
       reinvestDividends: false,
     })
+    await selectMode('적립식')
+    await runBacktest()
+    expect(vi.mocked(backtestApi.runDcaStrategy).mock.calls[0][0]).toMatchObject({ reinvestDividends: true })
   })
 
   it('단순: 주식 수를 고르면 투자금 대신 주식 수로 요청한다', async () => {
     renderPage()
-    await userEvent.click(screen.getByRole('button', { name: '주식 수' }))
-    const shares = screen.getByLabelText('주식 수')
+    await userEvent.click(screen.getByRole('radio', { name: '주식 수' }))
+    const shares = screen.getByRole('textbox', { name: '주식 수(주)' })
     await userEvent.clear(shares)
     await userEvent.type(shares, '3')
     await runBacktest()
 
     expect(backtestApi.runSimulation).toHaveBeenCalledWith({
       symbol: 'AAPL',
-      purchaseDate: '2023-01-01',
+      purchaseDate: START,
       saleDate: TODAY,
       sharesPerPurchase: 3,
       ...common,
@@ -215,29 +247,29 @@ describe('Backtest 페이지', () => {
 
   it('적립식 · 조건부: 주식 수를 고르면 회당 금액 대신 회당 주식 수로 요청한다', async () => {
     renderPage()
-    await selectTab('적립식')
-    await userEvent.click(screen.getByRole('button', { name: '주식 수' }))
+    await selectMode('적립식')
+    await userEvent.click(screen.getByRole('radio', { name: '주식 수' }))
     await runBacktest()
 
     expect(backtestApi.runDcaStrategy).toHaveBeenCalledWith({
       symbol: 'AAPL',
-      startDate: '2023-01-01',
+      startDate: START,
       endDate: TODAY,
       sharesPerPurchase: 1,
       frequency: 'MONTHLY',
-      purchaseDay: 1,
+      purchaseDay: 8,
       investmentInterval: 1,
       ...common,
     })
     expect(vi.mocked(backtestApi.runDcaStrategy).mock.calls[0][0]).not.toHaveProperty('amountPerPurchase')
 
-    await selectTab('조건부')
-    await userEvent.click(screen.getByRole('button', { name: '주식 수' }))
+    await selectMode('조건부')
+    await userEvent.click(screen.getByRole('radio', { name: '주식 수' }))
     await runBacktest()
 
     expect(backtestApi.runConditionalStrategy).toHaveBeenCalledWith({
       symbol: 'AAPL',
-      startDate: '2023-01-01',
+      startDate: START,
       endDate: TODAY,
       direction: 'DROP',
       dropPercentage: 0.05,
@@ -248,14 +280,27 @@ describe('Backtest 페이지', () => {
     expect(vi.mocked(backtestApi.runConditionalStrategy).mock.calls[0][0]).not.toHaveProperty('amountPerPurchase')
   })
 
+  it('적립식: 예산 칸은 주식 수 단위에서만 열리고 적은 예산을 한도로 보낸다', async () => {
+    renderPage()
+    await selectMode('적립식')
+    expect(screen.queryByRole('textbox', { name: '예산(원)' })).toBeNull()
+
+    await userEvent.click(screen.getByRole('radio', { name: '주식 수' }))
+    fireEvent.change(screen.getByRole('textbox', { name: '예산(원)' }), { target: { value: '5,000,000' } })
+    await runBacktest()
+
+    expect(vi.mocked(backtestApi.runDcaStrategy).mock.calls[0][0]).toMatchObject({ sharesPerPurchase: 1, totalInvestmentLimit: 5000000 })
+    expect(await screen.findByText('예산: 5000000')).toBeInTheDocument()
+  })
+
   it('종목 비교: 기본 두 종목 요청', async () => {
     renderPage()
-    await selectTab('종목 비교')
+    await selectMode('종목 비교')
     await runBacktest()
 
     expect(backtestApi.compareSymbols).toHaveBeenCalledWith({
       symbols: ['AAPL', 'MSFT'],
-      startDate: '2023-01-01',
+      startDate: START,
       endDate: TODAY,
       investmentAmount: 1000000,
       ...common,
@@ -265,22 +310,22 @@ describe('Backtest 페이지', () => {
 
   it('전략 비교: 단순 · 적립식 기본값 요청', async () => {
     renderPage()
-    await selectTab('전략 비교')
+    await selectMode('전략 비교')
     await runBacktest()
 
     expect(backtestApi.compareStrategies).toHaveBeenCalledWith({
       symbol: 'AAPL',
-      startDate: '2023-01-01',
+      startDate: START,
       endDate: TODAY,
       investmentAmount: 1000000,
       strategies: [
-        { strategyType: 'SIMPLE', name: 'SIMPLE', purchaseDate: '2023-01-01' },
+        { strategyType: 'SIMPLE', name: 'SIMPLE', purchaseDate: START },
         {
           strategyType: 'DCA',
           name: 'DCA',
           amountPerPurchase: 100000,
           frequency: 'MONTHLY',
-          purchaseDay: 1,
+          purchaseDay: 8,
           investmentInterval: 1,
         },
       ],
@@ -291,7 +336,7 @@ describe('Backtest 페이지', () => {
 
   it('단순: 10만원 아래면 알림으로 막는다', async () => {
     renderPage()
-    const input = screen.getByPlaceholderText('300,000')
+    const input = screen.getByRole('textbox', { name: '금액(원)' })
     await userEvent.clear(input)
     await userEvent.type(input, '50000')
     await runBacktest()
@@ -300,81 +345,6 @@ describe('Backtest 페이지', () => {
       '최소 10만원 이상 투자해주세요. (미국 주식 1주 구매를 위해 약 30만원 권장)'
     )
     expect(backtestApi.runSimulation).not.toHaveBeenCalled()
-  })
-
-  it('전략 비교: 전략이 하나면 알림으로 막는다', async () => {
-    renderPage()
-    await selectTab('전략 비교')
-    await toggleStrategy('적립식')
-    await runBacktest()
-
-    expect(alertSpy).toHaveBeenCalledWith('최소 2개 이상의 전략을 선택해주세요.')
-    expect(backtestApi.compareStrategies).not.toHaveBeenCalled()
-  })
-
-  it('전략 비교: 모달에서 조건부 매수를 더하면 세 전략을 보낸다', async () => {
-    renderPage()
-    await selectTab('전략 비교')
-    await toggleStrategy('조건부 매수')
-    expect(screen.getByRole('heading', { name: '전략 설정: 조건부 매수' })).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: '저장' }))
-    await runBacktest()
-
-    const request = vi.mocked(backtestApi.compareStrategies).mock.calls[0][0]
-    expect(request.strategies).toHaveLength(3)
-    expect(request.strategies[2]).toEqual({
-      strategyType: 'CONDITIONAL_PURCHASE',
-      name: 'CONDITIONAL_PURCHASE',
-      amountPerPurchase: 100000,
-      direction: 'DROP',
-      dropPercentage: 0.05,
-    })
-  })
-
-  it('전략 비교: 고른 적립식의 설정 단추로 주기를 바꾸면 그 칩만 바꿔 보낸다', async () => {
-    renderPage()
-    await selectTab('전략 비교')
-    await userEvent.click(screen.getByRole('button', { name: '적립식 설정' }))
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: '투자 주기' }), 'WEEKLY')
-    await userEvent.click(screen.getByRole('button', { name: '저장' }))
-
-    expect(screen.getByText(/^적립식: 매주 월요일 ₩100,000/)).toBeInTheDocument()
-    await runBacktest()
-
-    const request = vi.mocked(backtestApi.compareStrategies).mock.calls[0][0]
-    expect(request.strategies.map((s) => s.strategyType)).toEqual(['SIMPLE', 'DCA'])
-    expect(request.strategies[1]).toEqual({
-      strategyType: 'DCA',
-      name: 'DCA',
-      amountPerPurchase: 100000,
-      frequency: 'WEEKLY',
-      firstPurchaseDate: '2023-01-02',
-    })
-  })
-
-  it('전략 비교: 설정을 고치다 취소하면 고치기 전 값으로 보낸다', async () => {
-    renderPage()
-    await selectTab('전략 비교')
-    await userEvent.click(screen.getByRole('button', { name: '적립식 설정' }))
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: '투자 주기' }), 'DAILY')
-    await userEvent.click(screen.getByRole('button', { name: '취소' }))
-    await runBacktest()
-
-    const request = vi.mocked(backtestApi.compareStrategies).mock.calls[0][0]
-    expect(request.strategies[1]).toMatchObject({ frequency: 'MONTHLY', purchaseDay: 1 })
-  })
-
-  it('전략 비교: 칩 설정에 오류가 있으면 저장을 막고 창을 열어 둔다', async () => {
-    renderPage()
-    await selectTab('전략 비교')
-    await toggleStrategy('조건부 매수')
-    await userEvent.clear(screen.getByRole('spinbutton', { name: '하락률 (%)' }))
-    await userEvent.click(screen.getByRole('button', { name: '저장' }))
-
-    expect(alertSpy).toHaveBeenCalledWith('조건부 매수: 하락률은 0~100 사이여야 합니다.')
-    expect(screen.getByRole('heading', { name: '전략 설정: 조건부 매수' })).toBeInTheDocument()
-    expect(within(screen.getByRole('group', { name: '비교할 전략' })).getByRole('button', { name: '조건부 매수' }))
-      .toHaveAttribute('aria-pressed', 'false')
   })
 
   it('비로그인: 사용자 없이 요청하고 로컬 히스토리에 저장한다', async () => {
@@ -391,14 +361,6 @@ describe('Backtest 페이지', () => {
     )
   })
 
-  it('히스토리 탭은 페이지 번호와 크기만 보내 이력을 조회한다', async () => {
-    vi.mocked(backtestApi.getHistory).mockResolvedValue({ data: { content: [], totalPages: 0 } } as never)
-    renderPage()
-    await selectTab('히스토리')
-
-    await vi.waitFor(() => expect(backtestApi.getHistory).toHaveBeenCalledWith(0, 20))
-  })
-
   it('API 가 실패하면 모드별 실패 문구를 보인다', async () => {
     vi.mocked(backtestApi.runSimulation).mockRejectedValueOnce('network')
     renderPage()
@@ -407,30 +369,319 @@ describe('Backtest 페이지', () => {
     expect(await screen.findByText('백테스트 실행에 실패했습니다.')).toBeInTheDocument()
   })
 
-  it('탭을 바꿨다 돌아와도 입력값이 남는다', async () => {
+  it('모드를 바꿨다 돌아와도 입력값이 남고 기간은 모드끼리 같이 쓴다', async () => {
     renderPage()
-    const input = screen.getByPlaceholderText('300,000')
+    const input = screen.getByRole('textbox', { name: '금액(원)' })
     await userEvent.clear(input)
     await userEvent.type(input, '500000')
-    await selectTab('적립식')
-    await selectTab('단순')
+    await userEvent.click(screen.getByRole('radio', { name: '달' }))
+    await selectMode('적립식')
+    await selectMode('단순')
     await runBacktest()
 
     expect(backtestApi.runSimulation).toHaveBeenCalledWith(
-      expect.objectContaining({ investmentAmount: 500000 })
+      expect.objectContaining({ investmentAmount: 500000, purchaseDate: '2026-09-08' })
     )
   })
 
   it('금액 · 주식 수 단위는 모드마다 따로 남는다', async () => {
     renderPage()
-    await userEvent.click(screen.getByRole('button', { name: '주식 수' }))
-    await selectTab('적립식')
+    await userEvent.click(screen.getByRole('radio', { name: '주식 수' }))
+    await selectMode('적립식')
 
-    expect(screen.getByRole('button', { name: '금액' })).toHaveAttribute('aria-pressed', 'true')
-    await selectTab('단순')
-    expect(screen.getByRole('button', { name: '주식 수' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('radio', { name: '금액' })).toHaveAttribute('aria-checked', 'true')
+    await selectMode('단순')
+    expect(screen.getByRole('radio', { name: '주식 수' })).toHaveAttribute('aria-checked', 'true')
     await runBacktest()
 
     expect(vi.mocked(backtestApi.runSimulation).mock.calls[0][0]).toMatchObject({ sharesPerPurchase: 1 })
+  })
+})
+
+describe('Backtest 페이지 칸 오류 · 요약', () => {
+  it('요약 두 줄: 종목 · 기간 / 사는 방법 · 바꾼 설정', async () => {
+    renderPage()
+
+    expect(summary()).toHaveTextContent('AAPL · 2025.10.08 → 2026.10.08')
+    expect(summary()).toHaveTextContent('시작일에 30만원 매수')
+    await userEvent.click(detailToggle())
+    await userEvent.click(screen.getByRole('button', { name: '배당세 15%' }))
+    expect(summary()).toHaveTextContent('시작일에 30만원 매수 · 배당세 끔')
+  })
+
+  it('적립식 · 조건부 요약은 회차 · 한도를 보인다', async () => {
+    renderPage()
+    await selectMode('적립식')
+    expect(summary()).toHaveTextContent('매달 8일 10만원 · 13회 ≈ 130만원')
+
+    await selectMode('조건부')
+    expect(summary()).toHaveTextContent('전날보다 5% 내릴 때마다 10만원 · 예산으로 최대 10회 ≈ 100만원')
+    expect(screen.getByRole('textbox', { name: '최대 횟수(회)' })).toHaveAttribute('placeholder', '예산 한도까지')
+    await userEvent.click(screen.getByRole('button', { name: '예산 비우기' }))
+    expect(screen.getByRole('textbox', { name: '최대 횟수(회)' })).toHaveAttribute('placeholder', '제한 없음')
+    expect(summary()).toHaveTextContent('횟수 제한 없음 · 많아야 약 262회')
+  })
+
+  it('고칠 칸이 있으면 실행 단추를 aria-disabled 로 두고 누르면 그 칸으로 가며 요청하지 않는다', async () => {
+    renderPage()
+    await userEvent.clear(screen.getByRole('textbox', { name: '금액(원)' }))
+
+    expect(screen.getByText('금액 비어 있음')).toBeInTheDocument()
+    expect(summary()).toHaveTextContent('고칠 칸 1개')
+    expect(screen.getByTestId('backtest-run')).toHaveAttribute('aria-disabled', 'true')
+    await runBacktest()
+
+    expect(screen.getByRole('textbox', { name: '금액(원)' })).toHaveFocus()
+    expect(backtestApi.runSimulation).not.toHaveBeenCalled()
+    expect(alertSpy).not.toHaveBeenCalled()
+  })
+
+  it('종목 비교로 오면 보던 종목을 맨 앞에 담는다', async () => {
+    renderPage()
+    const symbol = screen.getByRole('combobox', { name: '종목' })
+    await userEvent.clear(symbol)
+    await userEvent.type(symbol, 'nv')
+    await userEvent.click(await screen.findByRole('option', { name: /NVDA/ }))
+    await selectMode('종목 비교')
+
+    expect(screen.getByText('3 / 10')).toBeInTheDocument()
+    expect(summary()).toHaveTextContent('NVDA, AAPL, MSFT · 2025.10.08')
+  })
+})
+
+describe('Backtest 페이지 전략 비교 칩', () => {
+  it('＋ 조건부 매수로 칩을 더하면 설정이 아래에 열리고 세 전략을 보낸다', async () => {
+    renderPage()
+    await selectMode('전략 비교')
+    await userEvent.click(strategyChips().getByRole('button', { name: '＋ 조건부 매수' }))
+
+    expect(strategyChips().getByRole('button', { name: '조건부 매수' })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByText('조건부 매수 조건')).toBeInTheDocument()
+    await runBacktest()
+
+    const request = vi.mocked(backtestApi.compareStrategies).mock.calls[0][0]
+    expect(request.strategies).toHaveLength(3)
+    expect(request.strategies[2]).toEqual({
+      strategyType: 'CONDITIONAL_PURCHASE',
+      name: 'CONDITIONAL_PURCHASE',
+      amountPerPurchase: 100000,
+      direction: 'DROP',
+      dropPercentage: 0.05,
+    })
+  })
+
+  it('적립식 칩 설정에서 매주를 고르면 그 칩만 바꾸고 요약 줄도 바뀐다', async () => {
+    renderPage()
+    await selectMode('전략 비교')
+    await userEvent.click(within(screen.getByRole('radiogroup', { name: '적립식 주기' })).getByRole('radio', { name: '매주' }))
+
+    expect(summary()).toHaveTextContent('적립식: 매주 수요일 10만원')
+    await runBacktest()
+
+    const request = vi.mocked(backtestApi.compareStrategies).mock.calls[0][0]
+    expect(request.strategies.map((s) => s.strategyType)).toEqual(['SIMPLE', 'DCA'])
+    expect(request.strategies[1]).toEqual({
+      strategyType: 'DCA',
+      name: 'DCA',
+      amountPerPurchase: 100000,
+      frequency: 'WEEKLY',
+      firstPurchaseDate: START,
+    })
+  })
+
+  it('같은 종류 칩을 더하면 번호를 단 이름으로 따로 보낸다', async () => {
+    renderPage()
+    await selectMode('전략 비교')
+    await userEvent.click(strategyChips().getByRole('button', { name: '＋ 적립식' }))
+
+    expect(strategyChips().getByRole('button', { name: '적립식 2' })).toHaveAttribute('aria-expanded', 'true')
+    await vi.waitFor(() => expect(strategyChips().getByRole('button', { name: '적립식 2' })).toHaveFocus())
+    await runBacktest()
+
+    const names = vi.mocked(backtestApi.compareStrategies).mock.calls[0][0].strategies.map((s) => s.name)
+    expect(names).toEqual(['SIMPLE', 'DCA', '적립식 2'])
+  })
+
+  it('칩이 하나뿐이거나 고칠 칩이 있으면 실행을 막고 요청하지 않는다', async () => {
+    renderPage()
+    await selectMode('전략 비교')
+    await userEvent.click(strategyChips().getByRole('button', { name: '＋ 조건부 매수' }))
+    await userEvent.clear(screen.getByRole('textbox', { name: '전날 종가보다 몇 % 내리면' }))
+
+    expect(strategyChips().getByRole('button', { name: '조건부 매수 (고칠 것: 하락률은 0~100 사이여야 합니다.)' })).toBeInTheDocument()
+    expect(screen.getByText('고칠 칩 1개(! 표시)는 눌러서 고치기')).toBeInTheDocument()
+    await userEvent.click(strategyChips().getByRole('button', { name: '단순 매수 빼기' }))
+    await vi.waitFor(() => expect(strategyChips().getByRole('button', { name: '적립식' })).toHaveFocus())
+    await userEvent.click(strategyChips().getByRole('button', { name: '적립식 빼기' }))
+    await runBacktest()
+
+    expect(screen.getByText('전략을 둘 이상')).toBeInTheDocument()
+    expect(screen.getByTestId('backtest-run')).toHaveAttribute('aria-disabled', 'true')
+    expect(backtestApi.compareStrategies).not.toHaveBeenCalled()
+  })
+})
+
+describe('Backtest 페이지 세부 설정', () => {
+  it('세부 설정은 모드끼리 같이 쓰고 접힌 채 시작한다', async () => {
+    renderPage()
+    expect(detailToggle()).toHaveAttribute('aria-expanded', 'false')
+    await userEvent.click(detailToggle())
+    await userEvent.click(screen.getByRole('button', { name: '배당세 15%' }))
+    await selectMode('종목 비교')
+    await runBacktest()
+
+    expect(vi.mocked(backtestApi.compareSymbols).mock.calls[0][0]).toMatchObject({ dividendTaxRate: 0 })
+  })
+
+  it('2014년 전이 들어가면 기간 칸에 기본 환율 안내, 단순은 직접 입력을 누르면 매수 환율 칸으로 간다', async () => {
+    renderPage()
+    const ago = screen.getByRole('textbox', { name: '오늘부터 몇' })
+    await userEvent.clear(ago)
+    await userEvent.type(ago, '13')
+
+    expect(screen.getByText('2014년 이전은 환율 기록이 없어 그 기간은 기본 환율로 계산')).toBeInTheDocument()
+    expect(summary()).not.toHaveTextContent('고칠 칸')
+    await userEvent.click(screen.getByRole('button', { name: '직접 입력' }))
+
+    await vi.waitFor(() => expect(screen.getByRole('textbox', { name: '매수 환율(원)' })).toHaveFocus())
+    expect(within(screen.getByRole('radiogroup', { name: '환율' })).getByRole('radio', { name: '직접 입력' })).toHaveAttribute('aria-checked', 'true')
+    fireEvent.change(screen.getByRole('textbox', { name: '매수 환율(원)' }), { target: { value: '1,130' } })
+    expect(screen.queryByText('2014년 이전은 환율 기록이 없어 그 기간은 기본 환율로 계산')).toBeNull()
+    await runBacktest()
+    expect(vi.mocked(backtestApi.runSimulation).mock.calls[0][0]).toMatchObject({ purchaseDate: '2013-10-08', purchaseFxRate: 1130 })
+    expect(vi.mocked(backtestApi.runSimulation).mock.calls[0][0]).not.toHaveProperty('currentFxRate')
+  })
+
+  it('기간 칸에 오류가 있으면 2014년 전 안내 대신 오류를 보인다', async () => {
+    renderPage()
+    const ago = screen.getByRole('textbox', { name: '오늘부터 몇' })
+    await userEvent.clear(ago)
+    await userEvent.type(ago, '13')
+    await userEvent.clear(ago)
+
+    expect(screen.getByText('몇 주 · 달 · 년 전인지 1 이상')).toBeInTheDocument()
+    expect(screen.queryByText('2014년 이전은 환율 기록이 없어 그 기간은 기본 환율로 계산')).toBeNull()
+    expect(summary()).toHaveTextContent('고칠 칸 1개')
+  })
+
+  it('적립식은 2014년 전 안내를 첫 매수일로 보고 직접 입력 단추가 없다', async () => {
+    renderPage()
+    await selectMode('적립식')
+    const ago = screen.getByRole('textbox', { name: '오늘부터 몇' })
+    await userEvent.clear(ago)
+    await userEvent.type(ago, '13')
+
+    expect(screen.getByText('2014년 이전은 환율 기록이 없어 그 기간은 기본 환율로 계산')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '직접 입력' })).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: '첫 매수일 2013. 10. 08.' }))
+    const calendar = within(screen.getByRole('dialog'))
+    await userEvent.selectOptions(calendar.getByLabelText('연도 선택'), '2014')
+    await userEvent.selectOptions(calendar.getByLabelText('월 선택'), '0')
+    await userEvent.click(calendar.getAllByRole('button').find((button) => button.textContent === '2')!)
+    expect(screen.queryByText('2014년 이전은 환율 기록이 없어 그 기간은 기본 환율로 계산')).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: '시작일에 맞추기' }))
+    expect(screen.getByText('2014년 이전은 환율 기록이 없어 그 기간은 기본 환율로 계산')).toBeInTheDocument()
+  })
+
+  it('접힌 세부 설정 안에 고칠 칸이 있으면 실행을 누를 때 열고 그 칸으로 간다', async () => {
+    renderPage()
+    await userEvent.click(detailToggle())
+    const fee = screen.getByRole('textbox', { name: '수수료(퍼센트)' })
+    await userEvent.clear(fee)
+    await userEvent.type(fee, '100')
+    await userEvent.click(detailToggle())
+
+    expect(summary()).toHaveTextContent('고칠 칸 1개')
+    expect(detailToggle()).toHaveTextContent('고칠 칸 있음')
+    await runBacktest()
+
+    await vi.waitFor(() => expect(screen.getByRole('textbox', { name: '수수료(퍼센트)' })).toHaveFocus())
+    expect(backtestApi.runSimulation).not.toHaveBeenCalled()
+  })
+})
+
+describe('Backtest 페이지 직전 설정 · 설정 초기화', () => {
+  it('실행한 설정을 저장하고 직전 설정으로 모드 · 값을 되살리며, 되돌리기로 그 전 값으로 간다', async () => {
+    renderPage()
+    await selectMode('적립식')
+    await userEvent.click(screen.getByRole('radio', { name: '매주' }))
+    await runBacktest()
+
+    await selectMode('단순')
+    await userEvent.clear(amountInput())
+    await userEvent.type(amountInput(), '700000')
+    await userEvent.click(screen.getByRole('button', { name: '직전 설정' }))
+
+    expect(modes().getByRole('radio', { name: '적립식' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('radio', { name: '매주' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByText('직전 설정을 불러옴')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '되돌리기' }))
+
+    expect(modes().getByRole('radio', { name: '단순' })).toHaveAttribute('aria-checked', 'true')
+    expect(amountInput()).toHaveValue('700,000')
+    expect(screen.queryByText('직전 설정을 불러옴')).toBeNull()
+  })
+
+  it('실행한 적이 없으면 알림만, 저장한 설정이 깨졌으면 쓸 수 없다고 알린다', async () => {
+    renderPage()
+    await userEvent.click(screen.getByRole('button', { name: '직전 설정' }))
+    expect(screen.getByText('아직 실행한 설정이 없음')).toBeInTheDocument()
+
+    localStorage.setItem('backtest-last-settings', '{"v":0}')
+    await userEvent.click(screen.getByRole('button', { name: '직전 설정' }))
+    expect(alertSpy).toHaveBeenCalledWith('저장한 설정을 쓸 수 없음')
+  })
+
+  it('설정 초기화는 모드 · 값 · 세부 설정을 처음으로 돌리고, 알림이 떠 있는 동안 다시 눌러도 되돌리기는 처음 값으로 간다', async () => {
+    renderPage()
+    await selectMode('조건부')
+    await userEvent.click(screen.getByRole('radio', { name: '상승' }))
+    await userEvent.click(detailToggle())
+    await userEvent.click(screen.getByRole('button', { name: '배당세 15%' }))
+
+    await userEvent.click(screen.getByRole('button', { name: '설정 초기화' }))
+    expect(modes().getByRole('radio', { name: '단순' })).toHaveAttribute('aria-checked', 'true')
+    expect(summary()).not.toHaveTextContent('배당세 끔')
+    expect(screen.getByRole('button', { name: '되돌리기' })).toHaveFocus()
+    await userEvent.click(screen.getByRole('button', { name: '설정 초기화' }))
+    expect(screen.getAllByText('설정을 처음으로 돌림')).toHaveLength(1)
+    await userEvent.click(screen.getByRole('button', { name: '되돌리기' }))
+
+    expect(modes().getByRole('radio', { name: '조건부' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('radio', { name: '상승' })).toHaveAttribute('aria-checked', 'true')
+    expect(summary()).toHaveTextContent('배당세 끔')
+    expect(screen.getByRole('button', { name: '설정 초기화' })).toHaveFocus()
+  })
+
+  it('다시 연 페이지에서도 전략 비교 칩을 되살리고, 새 칩은 되살린 칩과 다른 칩으로 만든다', async () => {
+    const first = renderPage()
+    await selectMode('전략 비교')
+    await userEvent.click(strategyChips().getByRole('button', { name: '＋ 적립식' }))
+    await runBacktest()
+    first.unmount()
+
+    renderPage()
+    await selectMode('전략 비교')
+    expect(strategyChips().queryByRole('button', { name: '적립식 2' })).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: '직전 설정' }))
+    expect(strategyChips().getByRole('button', { name: '적립식 2' })).toBeInTheDocument()
+    await userEvent.click(strategyChips().getByRole('button', { name: '＋ 적립식' }))
+
+    expect(strategyChips().getByRole('button', { name: '적립식 3' })).toHaveAttribute('aria-expanded', 'true')
+    expect(strategyChips().getByRole('button', { name: '적립식 2' })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('모드를 바꾸지 않는 되살리기는 결과를 두고, 모드가 바뀌면 결과를 지운다', async () => {
+    renderPage()
+    await runBacktest()
+    expect(await screen.findByText('결과: simple')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: '직전 설정' }))
+    expect(screen.getByText('결과: simple')).toBeInTheDocument()
+    await selectMode('적립식')
+    await runBacktest()
+    expect(await screen.findByText('결과: dca')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '설정 초기화' }))
+    expect(screen.queryByText('결과: dca')).toBeNull()
   })
 })

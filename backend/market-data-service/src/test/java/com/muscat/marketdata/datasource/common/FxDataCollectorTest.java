@@ -302,7 +302,7 @@ class FxDataCollectorTest {
       LocalDate gap = all.get(all.size() / 2);
       given(fxRateRepository.findByDateBetween(start, today()))
         .willReturn(stored(all.stream().filter(d -> !d.equals(failing) && !d.equals(gap)).toList()));
-      // 폴백 한도(2)를 넘게 비어 있어 그날은 예외
+      // 폴백 한도(2)를 넘게 비어 있어 그 날짜는 예외
       given(fxSource.fetchFx(any())).willReturn(Optional.empty());
       given(fxSource.fetchFx(eq(gap))).willReturn(Optional.of(new BigDecimal("1350")));
 

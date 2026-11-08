@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatNumberWithCommas, parseNumberFromFormatted, formatToKoreanWon } from '../../utils/format';
+import { formatNumberWithCommas, parseNumberFromFormatted, formatToKoreanWon, formatReadableWon } from '../../utils/format';
 
 interface NumberInputProps {
   value: string;
@@ -7,6 +7,11 @@ interface NumberInputProps {
   placeholder?: string;
   className?: string;
   showKoreanHint?: boolean;
+  // box: 칸 아래 한글 금액, inline: 밑줄 칸 오른쪽에 읽기 쉬운 금액(감싼 줄이 flex)
+  variant?: 'box' | 'inline';
+  ariaLabel?: string;
+  invalid?: boolean;
+  describedBy?: string;
 }
 
 export const NumberInput: React.FC<NumberInputProps> = ({
@@ -14,7 +19,11 @@ export const NumberInput: React.FC<NumberInputProps> = ({
   onChange,
   placeholder = '0',
   className = '',
-  showKoreanHint = true
+  showKoreanHint = true,
+  variant = 'box',
+  ariaLabel,
+  invalid,
+  describedBy,
 }) => {
   const [displayValue, setDisplayValue] = React.useState('');
 
@@ -57,6 +66,28 @@ export const NumberInput: React.FC<NumberInputProps> = ({
   const numericValue = parseNumberFromFormatted(value);
   const koreanWon = formatToKoreanWon(value);
 
+  if (variant === 'inline') {
+    return (
+      <>
+        <input
+          type="text"
+          inputMode="decimal"
+          value={displayValue}
+          onChange={handleChange}
+          onBlur={handleBlur}
+          placeholder={placeholder}
+          aria-label={ariaLabel}
+          aria-invalid={invalid || undefined}
+          aria-describedby={describedBy}
+          className={`input-inline ${className}`.trim()}
+        />
+        {showKoreanHint && numericValue > 0 && (
+          <span className="ml-auto pl-2.5 text-[13px] text-tx-2 whitespace-nowrap">{formatReadableWon(numericValue)}</span>
+        )}
+      </>
+    );
+  }
+
   return (
     <div>
       <input
@@ -65,6 +96,9 @@ export const NumberInput: React.FC<NumberInputProps> = ({
         onChange={handleChange}
         onBlur={handleBlur}
         placeholder={placeholder}
+        aria-label={ariaLabel}
+        aria-invalid={invalid || undefined}
+        aria-describedby={describedBy}
         className={className}
       />
       {showKoreanHint && numericValue > 0 && (

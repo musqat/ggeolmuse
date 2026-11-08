@@ -2,36 +2,36 @@ import { useState } from 'react';
 import { backtestApi } from '@services/api';
 import { SymbolComparisonForm } from '../../forms/SymbolComparisonForm';
 import { SymbolComparisonResult } from '../../results/SymbolComparisonResult';
-import type { ModeController } from '../types';
+import type { ModeController, SharedModeProps } from '../types';
+import { commonFields } from '../commonFields';
 import { buildSymbolComparisonRequest } from './request';
-import { useBacktestOptions } from '../../shared/backtestOptions';
-import { notify } from '@/components/common/notify';
+import { amountIssue, countErrors, symbolIssue, symbolsIssue } from '../../settings/checks';
+import { pickValues } from '../../settings/snapshot';
+import { formatReadableWon } from '../../../../utils/format';
 
-export const useSymbolComparisonMode = ({
-  supportedSymbols,
-}: {
-  supportedSymbols: string[];
-}): ModeController => {
-  const [symbols, setSymbols] = useState<string[]>(['AAPL', 'MSFT']);
-  const [symbolInput, setSymbolInput] = useState('');
-  const [purchaseDate, setPurchaseDate] = useState('2023-01-01');
-  const [saleDate, setSaleDate] = useState(''); // 비어있으면 최신 데이터
-  const [investment, setInvestment] = useState('1000000');
-  const options = useBacktestOptions();
+const LABEL = '종목마다 금액';
+const MAX_SYMBOLS = 10;
+const DEFAULTS = { symbols: ['AAPL', 'MSFT'], investment: '1000000' };
 
-  const addSymbol = () => {
-    if (symbols.length >= 10) {
-      notify.error('최대 10개까지만 비교할 수 있습니다.');
-      return;
-    }
-    if (symbolInput && !symbols.includes(symbolInput)) {
-      setSymbols([...symbols, symbolInput]);
-      setSymbolInput('');
-    }
-  };
+// 저장한 종목 목록(글자만, 겹치지 않게, 10개까지)
+const savedSymbols = (symbols: unknown[]) =>
+  [...new Set(symbols.filter((item): item is string => typeof item === 'string' && item.trim() !== ''))].slice(0, MAX_SYMBOLS);
 
-  const removeSymbol = (symbolToRemove: string) => {
-    setSymbols(symbols.filter((s) => s !== symbolToRemove));
+// 요약 첫 줄의 종목(셋까지, 나머지는 외 N)
+const subjectOf = (symbols: string[]) =>
+  `${symbols.slice(0, 3).join(', ')}${symbols.length > 3 ? ` 외 ${symbols.length - 3}` : ''}` || '종목';
+
+export const useSymbolComparisonMode = (shared: SharedModeProps): ModeController => {
+  const { symbol, supportedSymbols, period, options } = shared;
+  const [symbols, setSymbols] = useState<string[]>(DEFAULTS.symbols);
+  const [investment, setInvestment] = useState(DEFAULTS.investment);
+  const { periodField, periodMessage } = commonFields(shared);
+
+  const symbolsMessage = symbolsIssue(symbols);
+  const amountMessage = amountIssue({ byShares: false, amount: investment, shares: '', label: LABEL });
+
+  const addSymbol = (next: string) => {
+    if (symbols.length < MAX_SYMBOLS && !symbols.includes(next)) setSymbols([...symbols, next]);
   };
 
   return {
@@ -40,28 +40,39 @@ export const useSymbolComparisonMode = ({
     showsChartLink: false,
     form: (
       <SymbolComparisonForm
-        compareSymbols={symbols}
-        setCompareSymbols={setSymbols}
-        compareSymbolInput={symbolInput}
-        setCompareSymbolInput={setSymbolInput}
-        comparePurchaseDate={purchaseDate}
-        setComparePurchaseDate={setPurchaseDate}
-        compareSaleDate={saleDate}
-        setCompareSaleDate={setSaleDate}
-        compareInvestment={investment}
-        setCompareInvestment={setInvestment}
-        options={options}
-        supportedSymbols={supportedSymbols}
-        onAddSymbol={addSymbol}
-        onRemoveSymbol={removeSymbol}
+        symbols={{
+          symbols,
+          onAdd: addSymbol,
+          onRemove: (removed) => setSymbols(symbols.filter((s) => s !== removed)),
+          supportedSymbols,
+          message: symbolsMessage,
+        }}
+        period={periodField}
+        amount={{ label: LABEL, amount: investment, onAmountChange: setInvestment, message: amountMessage }}
       />
     ),
+    summary: {
+      subject: subjectOf(symbols),
+      how: `종목마다 ${formatReadableWon(parseFloat(investment))}`,
+    },
+    errorCount: countErrors([symbolsMessage, periodMessage, amountMessage]),
+    saved: { symbols, investment },
+    load: (saved) => {
+      const next = pickValues(DEFAULTS, saved);
+      setSymbols(savedSymbols(next.symbols));
+      setInvestment(next.investment);
+    },
+    // 보던 종목을 맨 앞에(목록에 있는 종목만, 10개까지)
+    onEnter: () => {
+      if (symbolIssue(symbol, supportedSymbols) || symbols.includes(symbol)) return;
+      setSymbols([symbol, ...symbols].slice(0, MAX_SYMBOLS));
+    },
     prepare: (ctx) => {
       const built = buildSymbolComparisonRequest(
         {
           symbols,
-          purchaseDate,
-          saleDate,
+          purchaseDate: period.start,
+          saleDate: period.end,
           investment,
           ...options,
         },
@@ -82,11 +93,7 @@ export const useSymbolComparisonMode = ({
     },
     renderResult: (result) =>
       result.mode === 'compare-symbols' ? (
-        <SymbolComparisonResult
-          result={result}
-          comparePurchaseDate={purchaseDate}
-          compareSaleDate={saleDate}
-        />
+        <SymbolComparisonResult result={result} comparePurchaseDate={period.start} compareSaleDate={period.end} />
       ) : null,
   };
 };

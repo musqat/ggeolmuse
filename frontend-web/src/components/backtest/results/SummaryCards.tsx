@@ -13,9 +13,11 @@ type SummaryValues = Pick<
 
 interface SummaryCardsProps {
   result: SummaryValues;
-  // 투자금 라벨(단순은 초기 투자금, 적립식 · 조건부는 총 투자금)
+  // 투자금 라벨(단순은 초기 투자금, 적립식 · 조건부는 누적 매수액)
   investedLabel: string;
   invested: number | null | undefined;
+  // 총 수익률 이름 뒤 기준
+  returnBasis?: string;
   // 고른 통화 · 다른 통화의 지표와 그 통화 이름
   metrics?: PerformanceMetrics | null;
   other?: PerformanceMetrics | null;
@@ -52,6 +54,7 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({
   result,
   investedLabel,
   invested,
+  returnBasis,
   metrics,
   other,
   otherLabel,
@@ -64,6 +67,7 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({
   <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${extra ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
     <StatCard
       label="총 수익률"
+      note={returnBasis}
       value={formatSigned(result.totalReturnPercent, formatPercent)}
       valueClassName={gainLossClass(result.totalReturnPercent)}
       sub={
@@ -77,12 +81,13 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({
 
     <StatCard
       label="연평균 수익률"
+      note={timeWeighted ? '시간가중 기준' : undefined}
       value={hasValue(metrics?.cagr) ? formatSigned(metrics?.cagr, formatPercent) : '—'}
       valueClassName={hasValue(metrics?.cagr) ? gainLossClass(metrics?.cagr) : 'text-tx-3'}
       sub={
         <p>
           {hasValue(metrics?.cagr)
-            ? <>{timeWeighted && '입금을 뺀 시간가중 · '}{otherLabel} 기준 {formatSigned(other?.cagr, formatPercent)}</>
+            ? <>{otherLabel} 기준 {formatSigned(other?.cagr, formatPercent)}</>
             : noMetrics ? '지표 없음' : '1년 미만이면 내지 않음'}
         </p>
       }

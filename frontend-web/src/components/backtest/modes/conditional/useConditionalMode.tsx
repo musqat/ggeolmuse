@@ -2,29 +2,60 @@ import { useState } from 'react';
 import { backtestApi, type PriceDirection } from '@services/api';
 import { ConditionalStrategyForm } from '../../forms/ConditionalStrategyForm';
 import { DcaConditionalResult } from '../../results/DcaConditionalResult';
-import type { ModeController, SharedSymbolProps } from '../types';
+import type { ModeController, SharedModeProps } from '../types';
+import { commonFields } from '../commonFields';
 import { strategyRun } from '../strategyRun';
 import { buildConditionalRequest } from './request';
-import { useBacktestOptions } from '../../shared/backtestOptions';
-import { useAmountUnit } from '../../shared/amountUnit';
+import { AMOUNT_UNITS, useAmountUnit, useRoundCost } from '../../shared/amountUnit';
+import { hasSellRates } from '../../shared/sellRates';
+import { DIRECTION_ORDER } from '../../shared/priceDirection';
+import { countRounds } from '../../shared/dcaSchedule';
+import { amountIssue, budgetIssue, countErrors, maxIssue, percentIssue, sellIssue } from '../../settings/checks';
+import { conditionalHow } from '../../settings/summary';
+import { oneOf, pickValues } from '../../settings/snapshot';
 
-export const useConditionalMode = ({
-  symbol,
-  setSymbol,
-  supportedSymbols,
-}: SharedSymbolProps): ModeController => {
-  const [startDate, setStartDate] = useState('2023-01-01');
-  const [endDate, setEndDate] = useState(''); // 비어있으면 현재 날짜
-  const [amountPerPurchase, setAmountPerPurchase] = useState('100000');
+const LABEL = '회당 금액';
+const DEFAULTS = {
+  amount: '100000',
+  unit: 'AMOUNT',
+  shares: '1',
+  budget: '1000000',
+  maxPurchases: '',
+  direction: 'DROP',
+  percent: '5',
+  takeProfit: '',
+  stopLoss: '',
+};
+
+export const useConditionalMode = (shared: SharedModeProps): ModeController => {
+  const { symbol, period, options } = shared;
+  const [amountPerPurchase, setAmountPerPurchase] = useState(DEFAULTS.amount);
   const amountUnit = useAmountUnit();
   // 예산 · 최대 횟수는 비우면 제한 없음
-  const [totalInvestment, setTotalInvestment] = useState('1000000');
-  const [maxPurchases, setMaxPurchases] = useState('');
+  const [totalInvestment, setTotalInvestment] = useState(DEFAULTS.budget);
+  const [maxPurchases, setMaxPurchases] = useState(DEFAULTS.maxPurchases);
   const [direction, setDirection] = useState<PriceDirection>('DROP');
-  const [dropPercentage, setDropPercentage] = useState('5');
-  const [takeProfit, setTakeProfit] = useState(''); // 비우면 익절 안 함
-  const [stopLoss, setStopLoss] = useState(''); // 비우면 손절 안 함
-  const options = useBacktestOptions();
+  const [dropPercentage, setDropPercentage] = useState(DEFAULTS.percent);
+  const [takeProfit, setTakeProfit] = useState(DEFAULTS.takeProfit); // 비우면 익절 안 함
+  const [stopLoss, setStopLoss] = useState(DEFAULTS.stopLoss); // 비우면 손절 안 함
+  const { end, symbolField, periodField, symbolMessage, periodMessage } = commonFields(shared);
+
+  const byShares = amountUnit.unit === 'SHARES';
+  const perRound = useRoundCost({
+    symbol,
+    startDate: period.start,
+    unit: amountUnit.unit,
+    shares: amountUnit.shares,
+    amount: amountPerPurchase,
+    options,
+  });
+  const sells = hasSellRates(takeProfit, stopLoss);
+
+  const amountMessage = amountIssue({ byShares, amount: amountPerPurchase, shares: amountUnit.shares, label: LABEL });
+  const budgetMessage = budgetIssue({ budget: totalInvestment, perRound, byShares });
+  const percentMessage = percentIssue(dropPercentage);
+  const sellMessage = sellIssue(takeProfit, stopLoss);
+  const maxMessage = maxIssue(maxPurchases);
 
   return {
     id: 'conditional',
@@ -32,36 +63,83 @@ export const useConditionalMode = ({
     showsChartLink: true,
     form: (
       <ConditionalStrategyForm
-        symbol={symbol}
-        setSymbol={setSymbol}
-        conditionalStartDate={startDate}
-        setConditionalStartDate={setStartDate}
-        conditionalEndDate={endDate}
-        setConditionalEndDate={setEndDate}
-        amountPerPurchase={amountPerPurchase}
-        setAmountPerPurchase={setAmountPerPurchase}
-        amountUnit={amountUnit}
-        totalInvestment={totalInvestment}
-        setTotalInvestment={setTotalInvestment}
-        maxPurchases={maxPurchases}
-        setMaxPurchases={setMaxPurchases}
-        direction={direction}
-        setDirection={setDirection}
-        dropPercentage={dropPercentage}
-        setDropPercentage={setDropPercentage}
-        takeProfit={takeProfit}
-        setTakeProfit={setTakeProfit}
-        stopLoss={stopLoss}
-        setStopLoss={setStopLoss}
-        options={options}
-        supportedSymbols={supportedSymbols}
+        symbol={symbolField}
+        period={periodField}
+        amount={{
+          label: LABEL,
+          sharesLabel: '회당 주식 수',
+          amount: amountPerPurchase,
+          onAmountChange: setAmountPerPurchase,
+          amountUnit,
+          perRound: byShares ? perRound : undefined,
+          message: amountMessage,
+        }}
+        budget={{ budget: totalInvestment, onChange: setTotalInvestment, message: budgetMessage }}
+        condition={{
+          direction,
+          onDirectionChange: setDirection,
+          percent: dropPercentage,
+          onPercentChange: setDropPercentage,
+          message: percentMessage,
+        }}
+        sell={{
+          takeProfit,
+          onTakeProfitChange: setTakeProfit,
+          stopLoss,
+          onStopLossChange: setStopLoss,
+          message: sellMessage,
+        }}
+        max={{
+          value: maxPurchases,
+          onChange: setMaxPurchases,
+          placeholder: totalInvestment.trim() ? '예산 한도까지' : '제한 없음',
+          message: maxMessage,
+        }}
       />
     ),
+    summary: {
+      subject: symbol,
+      how: conditionalHow({
+        percent: dropPercentage,
+        direction,
+        unit: { byShares, amount: amountPerPurchase, shares: amountUnit.shares, perRound },
+        budget: totalInvestment,
+        maxPurchases,
+        weekdays: countRounds('DAILY', 1, period.start, end),
+        takeProfit,
+        stopLoss,
+      }),
+    },
+    errorCount: countErrors([symbolMessage, periodMessage, amountMessage, budgetMessage, percentMessage, sellMessage, maxMessage]),
+    reinvestLocked: sells,
+    saved: {
+      amount: amountPerPurchase,
+      unit: amountUnit.unit,
+      shares: amountUnit.shares,
+      budget: totalInvestment,
+      maxPurchases,
+      direction,
+      percent: dropPercentage,
+      takeProfit,
+      stopLoss,
+    },
+    load: (saved) => {
+      const next = pickValues(DEFAULTS, saved);
+      setAmountPerPurchase(next.amount);
+      amountUnit.setUnit(oneOf(next.unit, AMOUNT_UNITS, 'AMOUNT'));
+      amountUnit.setShares(next.shares);
+      setTotalInvestment(next.budget);
+      setMaxPurchases(next.maxPurchases);
+      setDirection(oneOf(next.direction, DIRECTION_ORDER, 'DROP'));
+      setDropPercentage(next.percent);
+      setTakeProfit(next.takeProfit);
+      setStopLoss(next.stopLoss);
+    },
     prepare: (ctx) => {
       const built = buildConditionalRequest(
         {
-          startDate,
-          endDate,
+          startDate: period.start,
+          endDate: period.end,
           amountPerPurchase,
           unit: amountUnit.unit,
           shares: amountUnit.shares,
@@ -83,11 +161,12 @@ export const useConditionalMode = ({
         mode: 'conditional',
         fxMode: options.fxMode,
         failureMessage: '조건부 전략 실행에 실패했습니다.',
+        budget: built.request.totalInvestment,
       });
     },
     renderResult: (result) =>
       result.mode === 'conditional' ? (
-        <DcaConditionalResult kind="conditional" result={result} symbol={symbol} startDate={startDate} />
+        <DcaConditionalResult kind="conditional" result={result} symbol={symbol} startDate={period.start} budget={result.budget} />
       ) : null,
   };
 };

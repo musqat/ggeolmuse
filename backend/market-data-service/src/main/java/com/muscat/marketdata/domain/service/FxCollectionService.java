@@ -120,7 +120,7 @@ public class FxCollectionService {
     }
   }
 
-  // 그날 환율을 받아 저장(받으면 true)
+  // 그 날짜 환율을 받아 저장(받으면 true)
   private boolean fetchAndSave(LocalDate date) {
     try {
       Optional<FxRate> rate = collector.collectSingleDate(date, true);

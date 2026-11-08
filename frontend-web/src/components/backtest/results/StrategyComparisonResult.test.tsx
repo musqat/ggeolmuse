@@ -102,6 +102,15 @@ describe('StrategyComparisonResult', () => {
     expect(screen.getByText(/전략마다 원금/)).toHaveTextContent('최고 적립식 -5.00%')
   })
 
+  it('적립식 · 조건부가 원금을 다 쓰지 않으면 상세에 쓰지 않은 원금을 따로 보이고 단순 매수는 보이지 않는다', async () => {
+    renderResult()
+
+    await userEvent.click(row('적립식'))
+    expect(screen.getByText('쓰지 않은 원금').nextElementSibling).toHaveTextContent('₩800,000')
+    await userEvent.click(row('단순 매수'))
+    expect(screen.queryByText('쓰지 않은 원금')).toBeNull()
+  })
+
   it('원금이 모자라 사지 못한 회차는 상세에 처음 날짜와 회차 수로 보인다', async () => {
     const dca = result.items[1]
     const span = { firstDate: '2024-03-01', rounds: 5, reason: 'OVER_BUDGET' }

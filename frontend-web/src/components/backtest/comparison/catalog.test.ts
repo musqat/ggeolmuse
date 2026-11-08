@@ -69,6 +69,15 @@ describe('비교 전략 카탈로그', () => {
     })
   })
 
+  it('적립식은 고른 첫 매수일을 시작일이 바뀌면 같은 며칠의 시작일 뒤 첫 날로 옮기고 며칠은 고른 날 그대로 싣는다', () => {
+    expect(
+      strategyByType('DCA').toRequest({ firstPurchaseDate: '2022-01-31', firstPickedStart: '2022-01-01' }, common)
+    ).toMatchObject({ firstPurchaseDate: '2023-01-31', purchaseDay: 31 })
+    expect(
+      strategyByType('DCA').summary({ firstPurchaseDate: '2022-04-30', firstPickedStart: '2022-04-01', cadence: 'MONTHS', months: '6' }, year2023)
+    ).toEqual({ text: '6개월마다 30일 10만원 · 2회 ≈ 20만원' })
+  })
+
   it('조건부 매수는 회당 금액을 싣고 하락률을 비율로 바꾸며 원금은 싣지 않는다', () => {
     expect(strategyByType('CONDITIONAL_PURCHASE').toRequest({ dropPercentage: '7' }, common)).toEqual({
       strategyType: 'CONDITIONAL_PURCHASE',
@@ -100,78 +109,76 @@ describe('비교 전략 카탈로그', () => {
     expect(off).not.toHaveProperty('maxPurchases')
   })
 
-  it('검사: 없는 칸은 기본값으로 통과하고 비운 칸은 막는다', () => {
+  it('검사: 없는 칸은 기본값으로 통과하고 비운 칸은 막는다(칩 이름은 부르는 쪽이 앞에 둠)', () => {
     expect(strategyByType('SIMPLE').check({}, common)).toBeNull()
     expect(strategyByType('DCA').check({}, common)).toBeNull()
     expect(strategyByType('CONDITIONAL_PURCHASE').check({}, common)).toBeNull()
-    expect(strategyByType('DCA').check({ amountPerPurchase: '' }, common)).toBe('적립식: 올바른 회당 금액을 입력해주세요.')
+    expect(strategyByType('DCA').check({ amountPerPurchase: '' }, common)).toBe('올바른 회당 금액을 입력해주세요.')
     expect(strategyByType('CONDITIONAL_PURCHASE').check({ dropPercentage: '' }, common)).toBe(
-      '조건부 매수: 하락률은 0~100 사이여야 합니다.'
+      '하락률은 0~100 사이여야 합니다.'
     )
     expect(strategyByType('CONDITIONAL_PURCHASE').check({ dropPercentage: '', direction: 'RISE' }, common)).toBe(
-      '조건부 매수: 상승률은 0~100 사이여야 합니다.'
+      '상승률은 0~100 사이여야 합니다.'
     )
   })
 
-  it('적립식 검사: 회당 금액이 원금보다 크거나 개월 수 · 첫 매수일이 범위 밖이면 막는다', () => {
-    expect(strategyByType('DCA').check({ amountPerPurchase: '-1' }, common)).toBe('적립식: 올바른 회당 금액을 입력해주세요.')
-    expect(strategyByType('DCA').check({ amountPerPurchase: '1000001' }, common)).toBe('적립식: 회당 금액이 원금보다 큽니다.')
+  it('적립식 검사: 회당 금액이 원금보다 크거나 개월 수가 범위 밖이거나 첫 매수일이 종료일 뒤면 막는다', () => {
+    expect(strategyByType('DCA').check({ amountPerPurchase: '-1' }, common)).toBe('올바른 회당 금액을 입력해주세요.')
+    expect(strategyByType('DCA').check({ amountPerPurchase: '1000001' }, common)).toBe('회당 금액이 원금보다 큽니다.')
     expect(strategyByType('DCA').check({ cadence: 'MONTHS', months: '13' }, common)).toBe(
-      '적립식: 개월 수는 1~12 사이의 정수로 입력해주세요.'
+      '개월 수는 1~12 사이의 정수로 입력해주세요.'
     )
     expect(strategyByType('DCA').check({ cadence: 'MONTHLY', months: '13' }, common)).toBeNull()
-    expect(strategyByType('DCA').check({ firstPurchaseDate: '2022-12-31' }, common)).toBe(
-      '적립식: 첫 매수일은 시작일과 종료일 사이로 골라주세요.'
-    )
+    expect(strategyByType('DCA').check({ firstPurchaseDate: '2022-12-31' }, common)).toBeNull()
     expect(strategyByType('DCA').check({ firstPurchaseDate: '2026-10-09' }, common)).toBe(
-      '적립식: 첫 매수일은 시작일과 종료일 사이로 골라주세요.'
+      '첫 매수일은 시작일과 종료일 사이로 골라주세요.'
     )
   })
 
   it('조건부 매수 검사: 회당 금액 · 최대 횟수 · 비율 · 익절 · 손절이 범위 밖이면 막는다', () => {
     const check = (params: Record<string, string>) => strategyByType('CONDITIONAL_PURCHASE').check(params, common)
-    expect(check({ amountPerPurchase: '0' })).toBe('조건부 매수: 올바른 회당 금액을 입력해주세요.')
-    expect(check({ amountPerPurchase: '1000001' })).toBe('조건부 매수: 회당 금액이 원금보다 큽니다.')
-    expect(check({ maxPurchases: '0' })).toBe('조건부 매수: 최대 횟수는 비우거나 1 이상의 정수로 입력해주세요.')
-    expect(check({ maxPurchases: '1.5' })).toBe('조건부 매수: 최대 횟수는 비우거나 1 이상의 정수로 입력해주세요.')
-    expect(check({ dropPercentage: '101' })).toBe('조건부 매수: 하락률은 0~100 사이여야 합니다.')
-    expect(check({ stopLoss: '100' })).toBe('조건부 매수: 손절 비율은 0보다 크고 100보다 작아야 합니다.')
-    expect(check({ takeProfit: '0' })).toBe('조건부 매수: 익절 비율은 0보다 커야 합니다.')
+    expect(check({ amountPerPurchase: '0' })).toBe('올바른 회당 금액을 입력해주세요.')
+    expect(check({ amountPerPurchase: '1000001' })).toBe('회당 금액이 원금보다 큽니다.')
+    expect(check({ maxPurchases: '0' })).toBe('최대 횟수는 비우거나 1 이상의 정수로 입력해주세요.')
+    expect(check({ maxPurchases: '1.5' })).toBe('최대 횟수는 비우거나 1 이상의 정수로 입력해주세요.')
+    expect(check({ dropPercentage: '101' })).toBe('하락률은 0~100 사이여야 합니다.')
+    expect(check({ stopLoss: '100' })).toBe('손절 비율은 0보다 크고 100보다 작아야 합니다.')
+    expect(check({ takeProfit: '0' })).toBe('익절 비율은 0보다 커야 합니다.')
   })
 
   it('요약: 단순은 시작일에 원금, 적립식은 주기 · 회당 금액 · 회차 · 총액', () => {
-    expect(strategyByType('SIMPLE').summary({}, year2023)).toEqual({ text: '시작일에 ₩1,000,000 매수' })
+    expect(strategyByType('SIMPLE').summary({}, year2023)).toEqual({ text: '시작일에 100만원 매수' })
     expect(strategyByType('DCA').summary({ amountPerPurchase: '50000' }, year2023)).toEqual({
-      text: '매달 1일 ₩50,000 · 12회 ≈ ₩600,000',
+      text: '매달 1일 5만원 · 12회 ≈ 60만원',
     })
     expect(strategyByType('DCA').summary({ cadence: 'DAILY', amountPerPurchase: '1000' }, year2023)).toEqual({
-      text: '거래일마다 ₩1,000 · 약 260회 ≈ ₩260,000',
+      text: '거래일마다 1,000원 · 약 260회 ≈ 26만원',
     })
   })
 
   it('요약: 원금이 회차보다 모자란 적립식은 사는 회차와 미매수 회차를 나눠 보인다', () => {
     expect(strategyByType('DCA').summary({}, year2023)).toEqual({
-      text: '매달 1일 ₩100,000 · 12회 중 10회 ≈ ₩1,000,000, 나머지 2회는 원금이 모자라 미매수',
+      text: '매달 1일 10만원 · 12회 중 10회 ≈ 100만원, 나머지 2회는 원금이 모자라 미매수',
       short: true,
     })
     expect(strategyByType('DCA').summary({ amountPerPurchase: '300000' }, year2023)).toEqual({
-      text: '매달 1일 ₩300,000 · 12회 중 3회 ≈ ₩900,000, 나머지 9회는 원금이 모자라 미매수',
+      text: '매달 1일 30만원 · 12회 중 3회 ≈ 90만원, 나머지 9회는 원금이 모자라 미매수',
       short: true,
     })
   })
 
   it('요약: 조건부 매수는 조건 · 회당 금액 · 원금이나 최대 횟수로 정한 횟수 · 익절 · 손절', () => {
     expect(strategyByType('CONDITIONAL_PURCHASE').summary({}, year2023)).toEqual({
-      text: '전날보다 5% 내릴 때마다 ₩100,000 · 원금으로 최대 10회',
+      text: '전날보다 5% 내릴 때마다 10만원 · 원금으로 최대 10회',
     })
     expect(strategyByType('CONDITIONAL_PURCHASE').summary({ maxPurchases: '20' }, year2023)).toEqual({
-      text: '전날보다 5% 내릴 때마다 ₩100,000 · 원금으로 최대 10회',
+      text: '전날보다 5% 내릴 때마다 10만원 · 원금으로 최대 10회',
     })
     expect(
       strategyByType('CONDITIONAL_PURCHASE').summary(
         { direction: 'BOTH', maxPurchases: '3', takeProfit: '20', stopLoss: '10' },
         year2023
       )
-    ).toEqual({ text: '전날보다 5% 움직일 때마다 ₩100,000 · 최대 3회 · 익절 +20% · 손절 -10%' })
+    ).toEqual({ text: '전날보다 5% 움직일 때마다 10만원 · 최대 3회 · +20% 익절 · -10% 손절(평균 단가 기준 전량)' })
   })
 })

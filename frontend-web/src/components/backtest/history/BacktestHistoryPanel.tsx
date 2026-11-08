@@ -22,10 +22,6 @@ export const BacktestHistoryPanel: React.FC<BacktestHistoryPanelProps> = ({
 }) => {
   return (
     <div className="bg-surface rounded-xl shadow-sm border border-line/50 p-6 mb-6">
-      <h2 className="text-lg font-semibold text-tx-1 mb-4">
-        백테스트 히스토리
-      </h2>
-
       {historyLoading ? (
         <div className="flex items-center justify-center py-12">
           <RotateCcw className="w-6 h-6 animate-spin text-brand" />

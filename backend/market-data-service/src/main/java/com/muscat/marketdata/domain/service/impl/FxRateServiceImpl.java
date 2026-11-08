@@ -42,7 +42,7 @@ public class FxRateServiceImpl implements FxRateService {
         LocalDate from = Collections.min(dates);
         LocalDate to = Collections.max(dates);
 
-        // 첫 날 이전 가장 가까운 값과 기간 안 값에서 날짜마다 그날 이하 가장 늦은 환율
+        // 첫 날 이전 가장 가까운 값과 기간 안 값에서 날짜마다 그 날짜 이하 가장 늦은 환율
         TreeMap<LocalDate, BigDecimal> known = new TreeMap<>();
         fxRateRepository.findFirstByDateLessThanEqualOrderByDateDesc(from)
             .ifPresent(rate -> known.put(rate.getDate(), rate.getRate()));

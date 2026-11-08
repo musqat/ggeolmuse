@@ -4,6 +4,7 @@ import type { StrategyResponse } from '../../../services/api';
 import { gainLossClass } from '../../../utils/gainLoss';
 import { formatBalanceAmount, formatKrw, formatPercent, formatSigned, formatNumber, formatUsd } from '../../../utils/format';
 import { ResultOverview } from './ResultOverview';
+import { StatCard } from './StatCard';
 import { FxImpactSection } from './FxImpactSection';
 import { DetailRow, DetailSection } from './DetailSection';
 import { PurchaseHistory } from './PurchaseHistory';
@@ -22,6 +23,8 @@ interface DcaConditionalResultProps {
   symbol: string;
   // 결과에 시작일이 없을 때 차트 시작일
   startDate: string;
+  // 실행한 요청의 예산(없으면 제한 없음)
+  budget?: number;
 }
 
 const EMPTY_REASON: Record<StrategyKind, string> = {
@@ -38,14 +41,23 @@ const purchaseNotice = (kind: StrategyKind, bought: number, span: StrategyRespon
   return `매수 0회: ${shortfall ?? EMPTY_REASON[kind]}`;
 };
 
+// 예산 가운데 사지 않고 남은 돈(예산이 없거나 다 썼으면 null)
+const unusedBudget = (budget: number | undefined, invested: number | null | undefined) => {
+  if (!budget) return null;
+  const unused = Math.round(budget - (invested ?? 0));
+  return unused > 0 ? unused : null;
+};
+
 // 적립식 · 조건부 결과: 카드 · 자산 추이 · 주가 추이 탭, 그 아래 상세 · 매매 내역을 접어 둠
 export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
   kind,
   result,
   symbol,
   startDate,
+  budget,
 }) => {
   const [currency, setCurrency] = useState<MetricCurrency>('KRW');
+  const unused = unusedBudget(budget, result.totalInvested);
   const { metrics, other, otherLabel } = pickMetrics(result, currency);
   const transactions = useMemo(() => result.transactions ?? [], [result.transactions]);
   const skippedRounds = result.skippedRounds ?? [];
@@ -70,12 +82,23 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
       <DefaultFxNotice dates={result.defaultFxDates} />
       <ResultOverview
         result={result}
-        investedLabel="총 투자금"
+        investedLabel="누적 매수액"
         invested={result.totalInvested}
+        returnBasis="누적 매수액 기준"
         deposits={deposits}
         currency={currency}
         onCurrencyChange={setCurrency}
         timeWeighted
+        extraCard={
+          unused !== null && (
+            <StatCard
+              className="sm:col-span-2 lg:col-span-1"
+              label="쓰지 않은 예산"
+              value={<>₩{formatNumber(unused)}</>}
+              sub={<p>예산 ₩{formatNumber(budget)} 가운데 · 수익률 · 평가 가치에 넣지 않음</p>}
+            />
+          )
+        }
         chartTabs={[
           {
             key: 'price',
@@ -111,7 +134,7 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
             />
             <DetailRow label="매수 횟수" value={<>{purchaseCount(transactions)}회</>} />
             {sold > 0 && <DetailRow label="매도 횟수" value={<>{sold}회</>} />}
-            <DetailRow label="총 투자금" value={<>₩{formatNumber(result.totalInvested)}</>} />
+            <DetailRow label="누적 매수액" value={<>₩{formatNumber(result.totalInvested)}</>} />
             <div className="flex justify-between gap-3 py-2">
               <span className="text-tx-2">주식 평가액</span>
               <div className="text-right">

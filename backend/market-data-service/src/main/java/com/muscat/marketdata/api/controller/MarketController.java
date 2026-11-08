@@ -270,7 +270,7 @@ public class MarketController {
 
   @Operation(
     summary = "Bulk 환율 조회",
-    description = "여러 날짜의 USD/KRW 환율을 한 번에 조회합니다. 그날 환율이 없으면 이전 가장 가까운 영업일 환율을 줍니다. 백테스트 차트 등에서 사용됩니다. URL 길이 제한을 피하기 위해 POST 요청을 사용합니다."
+    description = "여러 날짜의 USD/KRW 환율을 한 번에 조회합니다. 그 날짜 환율이 없으면 이전 가장 가까운 영업일 환율을 줍니다. 백테스트 차트 등에서 사용됩니다. URL 길이 제한을 피하기 위해 POST 요청을 사용합니다."
   )
   @ApiResponses(value = {
     @ApiResponse(

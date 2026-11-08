@@ -2,21 +2,32 @@ import { useState } from 'react';
 import { backtestApi } from '@services/api';
 import { SimpleStrategyForm } from '../../forms/SimpleStrategyForm';
 import { SimpleResult } from '../../results/SimpleResult';
-import type { ModeController, SharedSymbolProps } from '../types';
+import type { ModeController, SharedModeProps } from '../types';
+import { commonFields } from '../commonFields';
 import { buildSimpleRequest } from './request';
-import { useBacktestOptions } from '../../shared/backtestOptions';
-import { useAmountUnit } from '../../shared/amountUnit';
+import { AMOUNT_UNITS, useAmountUnit, useRoundCost } from '../../shared/amountUnit';
+import { amountIssue, countErrors } from '../../settings/checks';
+import { simpleHow } from '../../settings/summary';
+import { oneOf, pickValues } from '../../settings/snapshot';
 
-export const useSimpleMode = ({
-  symbol,
-  setSymbol,
-  supportedSymbols,
-}: SharedSymbolProps): ModeController => {
-  const [purchaseDate, setPurchaseDate] = useState('2023-01-01');
-  const [saleDate, setSaleDate] = useState(''); // 비어있으면 현재 날짜
-  const [initialInvestment, setInitialInvestment] = useState('300000');
+const LABEL = '금액';
+const DEFAULTS = { amount: '300000', unit: 'AMOUNT', shares: '1' };
+
+export const useSimpleMode = (shared: SharedModeProps): ModeController => {
+  const { symbol, period, options } = shared;
+  const [initialInvestment, setInitialInvestment] = useState(DEFAULTS.amount);
   const amountUnit = useAmountUnit();
-  const options = useBacktestOptions();
+  const { symbolField, periodField, symbolMessage, periodMessage } = commonFields(shared, { manualAction: true });
+  const byShares = amountUnit.unit === 'SHARES';
+  const perRound = useRoundCost({
+    symbol,
+    startDate: period.start,
+    unit: amountUnit.unit,
+    shares: amountUnit.shares,
+    amount: initialInvestment,
+    options,
+  });
+  const amountMessage = amountIssue({ byShares, amount: initialInvestment, shares: amountUnit.shares, label: LABEL });
 
   return {
     id: 'simple',
@@ -24,24 +35,36 @@ export const useSimpleMode = ({
     showsChartLink: true,
     form: (
       <SimpleStrategyForm
-        symbol={symbol}
-        setSymbol={setSymbol}
-        purchaseDate={purchaseDate}
-        setPurchaseDate={setPurchaseDate}
-        saleDate={saleDate}
-        setSaleDate={setSaleDate}
-        initialInvestment={initialInvestment}
-        setInitialInvestment={setInitialInvestment}
-        amountUnit={amountUnit}
-        options={options}
-        supportedSymbols={supportedSymbols}
+        symbol={symbolField}
+        period={periodField}
+        amount={{
+          label: LABEL,
+          sharesLabel: '주식 수',
+          amount: initialInvestment,
+          onAmountChange: setInitialInvestment,
+          amountUnit,
+          perRound: byShares ? perRound : undefined,
+          message: amountMessage,
+        }}
       />
     ),
+    summary: {
+      subject: symbol,
+      how: simpleHow({ byShares, amount: initialInvestment, shares: amountUnit.shares, perRound }),
+    },
+    errorCount: countErrors([symbolMessage, periodMessage, amountMessage]),
+    saved: { amount: initialInvestment, unit: amountUnit.unit, shares: amountUnit.shares },
+    load: (saved) => {
+      const next = pickValues(DEFAULTS, saved);
+      setInitialInvestment(next.amount);
+      amountUnit.setUnit(oneOf(next.unit, AMOUNT_UNITS, 'AMOUNT'));
+      amountUnit.setShares(next.shares);
+    },
     prepare: (ctx) => {
       const built = buildSimpleRequest(
         {
-          purchaseDate,
-          saleDate,
+          purchaseDate: period.start,
+          saleDate: period.end,
           initialInvestment,
           unit: amountUnit.unit,
           shares: amountUnit.shares,
@@ -65,7 +88,7 @@ export const useSimpleMode = ({
     },
     renderResult: (result) =>
       result.mode === 'simple' ? (
-        <SimpleResult result={result} symbol={symbol} purchaseDate={purchaseDate} />
+        <SimpleResult result={result} symbol={symbol} purchaseDate={period.start} />
       ) : null,
   };
 };

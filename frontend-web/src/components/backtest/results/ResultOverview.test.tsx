@@ -123,11 +123,23 @@ describe('ResultOverview', () => {
     expect(card('최대 낙폭')).toHaveTextContent('일별 시세가 없어 내지 않음')
   })
 
-  it('입금이 있는 전략이면 연평균 수익률 · 최대 낙폭이 시간가중이라고 적는다', () => {
-    render(<ResultOverview result={result} investedLabel="총 투자금" invested={10000000} timeWeighted />)
+  it('입금이 있는 전략이면 두 수익률 이름에 누적 매수액 · 시간가중 기준을, 최대 낙폭 보조 줄에 시간가중을 적는다', () => {
+    render(<ResultOverview result={result} investedLabel="누적 매수액" invested={10000000} returnBasis="누적 매수액 기준" timeWeighted />)
 
-    expect(card('연평균 수익률')).toHaveTextContent('입금을 뺀 시간가중 · 달러 기준 +12.40%')
+    expect(card('총 수익률')).toHaveTextContent('총 수익률 · 누적 매수액 기준')
+    expect(card('총 수익률')).toHaveTextContent('누적 매수액 ₩10,000,000 대비 +₩10,000,000')
+    expect(card('연평균 수익률')).toHaveTextContent('연평균 수익률 · 시간가중 기준')
+    expect(card('연평균 수익률')).toHaveTextContent('달러 기준 +12.40%')
+    expect(card('연평균 수익률')).not.toHaveTextContent('입금을 뺀')
     expect(card('최대 낙폭')).toHaveTextContent('입금을 뺀 시간가중 · 달러 기준 -33.50%')
+  })
+
+  it('입금이 없으면 연평균 수익률 이름에 기준을 달지 않는다', () => {
+    render(<ResultOverview result={result} investedLabel="초기 투자금" invested={10000000} returnBasis="투자금 기준" />)
+
+    expect(card('총 수익률')).toHaveTextContent('총 수익률 · 투자금 기준')
+    expect(card('연평균 수익률')).not.toHaveTextContent('기준 ·')
+    expect(card('연평균 수익률')).not.toHaveTextContent('시간가중')
   })
 
   it('금액과 날짜는 줄이 바뀌어도 한 덩어리로 둔다', () => {
