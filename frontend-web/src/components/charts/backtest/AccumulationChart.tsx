@@ -111,15 +111,15 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
   const salePoints = useMemo(() => chartData.filter((d) => d.isSale), [chartData]);
 
   if (loading) {
-    return <ChartMessage>차트 데이터를 불러오는 중...</ChartMessage>;
+    return <ChartMessage plain>차트 데이터를 불러오는 중...</ChartMessage>;
   }
 
   if (errorMessage) {
-    return <ChartMessage tone="error">{errorMessage}</ChartMessage>;
+    return <ChartMessage tone="error" plain>{errorMessage}</ChartMessage>;
   }
 
   if (chartData.length === 0) {
-    return <ChartMessage>차트 데이터가 없습니다.</ChartMessage>;
+    return <ChartMessage plain>차트 데이터가 없습니다.</ChartMessage>;
   }
 
   const bought = transactions.filter((t) => t.trigger !== DIVIDEND_REINVEST && t.shares >= 0).length;
@@ -129,7 +129,6 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
 
   return (
     <ChartCard
-      title={`${symbol} 주가 추이`}
       subtitle={`${bought}회 매수 • ${sold > 0 ? `${sold}회 매도 • ` : ''}총 ${totalShares.toFixed(2)}주 보유`}
       period={period}
       plain

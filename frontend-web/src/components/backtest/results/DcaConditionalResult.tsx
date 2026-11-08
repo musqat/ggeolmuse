@@ -12,7 +12,6 @@ import type { MetricCurrency } from './CurrencyToggle';
 import { ResultFold } from './ResultFold';
 import { RiskDetail } from './RiskDetail';
 import { detailMeta, pickMetrics, purchaseCount, sellCount } from './resultValues';
-import { ReturnChart } from './ReturnChart';
 import { strategyDeposits } from './assetSeries';
 
 interface DcaConditionalResultProps {
@@ -22,7 +21,7 @@ interface DcaConditionalResultProps {
   startDate: string;
 }
 
-// 적립식 · 조건부 결과: 카드 · 자산 추이, 그 아래 상세 · 주가 · 수익률 추이 · 매매 내역을 접어 둠
+// 적립식 · 조건부 결과: 카드 · 자산 추이 · 주가 추이 탭, 그 아래 상세 · 매매 내역을 접어 둠
 export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
   result,
   symbol,
@@ -53,6 +52,24 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
         currency={currency}
         onCurrencyChange={setCurrency}
         timeWeighted
+        chartTabs={
+          transactions.length > 0
+            ? [
+                {
+                  key: 'price',
+                  label: '주가 추이',
+                  render: () => (
+                    <AccumulationChart
+                      symbol={result.symbol || symbol}
+                      transactions={transactions}
+                      startDate={result.startDate || startDate}
+                      endDate={result.endDate ?? undefined}
+                    />
+                  ),
+                },
+              ]
+            : undefined
+        }
       />
 
       <ResultFold
@@ -120,18 +137,6 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
           <FxImpactSection result={result} startLabel="평균 환율" startRate={result.averageFxRate} />
         </div>
       </ResultFold>
-
-      {transactions.length > 0 && (
-        <ResultFold title="주가 · 수익률 추이">
-          <AccumulationChart
-            symbol={result.symbol || symbol}
-            transactions={transactions}
-            startDate={result.startDate || startDate}
-            endDate={result.endDate ?? undefined}
-          />
-          <ReturnChart dailyValues={result.dailyValues} deposits={deposits} currency={currency} />
-        </ResultFold>
-      )}
 
       {(transactions.length > 0 || skippedRounds.length > 0) && (
         <ResultFold
