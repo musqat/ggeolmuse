@@ -71,6 +71,7 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
         result={result}
         investedLabel="초기 투자금"
         invested={result.investmentAmount}
+        returnBasis="투자금 기준"
         deposits={deposits}
         currency={currency}
         onCurrencyChange={setCurrency}

@@ -37,7 +37,12 @@ vi.mock('@components/backtest/results/SimpleResult', () => ({
   SimpleResult: () => <div>결과: simple</div>,
 }))
 vi.mock('@components/backtest/results/DcaConditionalResult', () => ({
-  DcaConditionalResult: ({ result }: { result: { mode: string } }) => <div>결과: {result.mode}</div>,
+  DcaConditionalResult: ({ result, budget }: { result: { mode: string }; budget?: number }) => (
+    <>
+      <div>결과: {result.mode}</div>
+      {budget !== undefined && <div>예산: {budget}</div>}
+    </>
+  ),
 }))
 vi.mock('@components/backtest/results/SymbolComparisonResult', () => ({
   SymbolComparisonResult: () => <div>결과: compare-symbols</div>,
@@ -153,6 +158,7 @@ describe('Backtest 페이지 실행', () => {
       ...common,
     })
     expect(await screen.findByText('결과: dca')).toBeInTheDocument()
+    expect(screen.queryByText(/예산:/)).toBeNull()
   })
 
   it('적립식: 매주를 고르면 투자일 · 개월 수 없이 첫 매수일과 주기로 요청', async () => {
@@ -188,6 +194,7 @@ describe('Backtest 페이지 실행', () => {
       ...common,
     })
     expect(await screen.findByText('결과: conditional')).toBeInTheDocument()
+    expect(screen.getByText('예산: 1000000')).toBeInTheDocument()
   })
 
   it('조건부: 상승을 고르면 상승 방향으로 요청한다', async () => {
@@ -283,6 +290,7 @@ describe('Backtest 페이지 실행', () => {
     await runBacktest()
 
     expect(vi.mocked(backtestApi.runDcaStrategy).mock.calls[0][0]).toMatchObject({ sharesPerPurchase: 1, totalInvestmentLimit: 5000000 })
+    expect(await screen.findByText('예산: 5000000')).toBeInTheDocument()
   })
 
   it('종목 비교: 기본 두 종목 요청', async () => {

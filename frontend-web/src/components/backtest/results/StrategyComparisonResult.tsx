@@ -97,12 +97,15 @@ export const StrategyComparisonResult: React.FC<StrategyComparisonResultProps> =
     const shares = item.totalShares ?? data.totalShares ?? data.shares;
     const sold = sellCount(transactions);
     const span = data.skippedSpan;
+    // 적립식 · 조건부가 원금 가운데 사지 않고 남긴 돈
+    const unused = data.transactions && result.investmentAmount ? Math.round(result.investmentAmount - (item.totalInvested ?? 0)) : 0;
     return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <DetailSection title="매수">
           <DetailRow label="매수 횟수" value={`${data.transactions ? purchaseCount(transactions) : 1}회`} />
           {sold > 0 && <DetailRow label="매도 횟수" value={`${sold}회`} />}
           {span && <DetailRow label="원금 부족 미매수" value={`${span.firstDate}부터 ${span.rounds}회`} />}
+          {unused > 0 && <DetailRow label="쓰지 않은 원금" value={`₩${formatNumber(unused)}`} />}
           <DetailRow label={data.transactions ? '평균 매수가' : '매수가'} value={hasValue(price) ? `$${price.toFixed(2)}` : '-'} />
           <DetailRow label="보유 주식" value={hasValue(shares) ? `${shares.toFixed(2)}주` : '-'} />
           <DetailRow

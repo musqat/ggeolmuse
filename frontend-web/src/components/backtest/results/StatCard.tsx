@@ -2,6 +2,8 @@ import React from 'react';
 
 interface StatCardProps {
   label: string;
+  // 라벨 뒤 기준(누적 매수액 기준 등)
+  note?: string;
   value: React.ReactNode;
   sub?: React.ReactNode;
   valueClassName?: string;
@@ -11,9 +13,12 @@ interface StatCardProps {
 }
 
 // 결과 위쪽 카드(라벨 · 큰 값 · 보조 줄)
-export const StatCard: React.FC<StatCardProps> = ({ label, value, sub, valueClassName = 'text-tx-1', testId, className = '' }) => (
+export const StatCard: React.FC<StatCardProps> = ({ label, note, value, sub, valueClassName = 'text-tx-1', testId, className = '' }) => (
   <div className={`bg-surface rounded-xl shadow-sm p-5 border border-line/50 ${className}`}>
-    <p className="text-sm font-medium text-tx-2">{label}</p>
+    <p className="text-sm font-medium text-tx-2">
+      {label}
+      {note && <span className="font-normal"> · {note}</span>}
+    </p>
     <p className={`text-2xl font-bold mt-1 ${valueClassName}`} data-testid={testId}>
       {value}
     </p>

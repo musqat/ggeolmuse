@@ -46,9 +46,10 @@ describe('SimpleResult', () => {
     expect(vi.mocked(PurchaseDayChart)).not.toHaveBeenCalled()
   })
 
-  it('요약 카드에 투자금을 보여준다', () => {
+  it('요약 카드에 투자금과 수익률 기준을 보여준다', () => {
     render(<SimpleResult result={result} symbol="AAPL" purchaseDate="2023-01-03" />)
 
+    expect(screen.getByText('총 수익률').parentElement).toHaveTextContent('총 수익률 · 투자금 기준')
     expect(screen.getByText('총 수익률').parentElement).toHaveTextContent('초기 투자금 ₩300,000 대비 +₩150,000')
   })
 

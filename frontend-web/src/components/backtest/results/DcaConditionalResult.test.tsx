@@ -41,6 +41,7 @@ const props = {
 }
 
 const open = (title: string) => userEvent.click(screen.getByText(title))
+const card = (label: string) => screen.getByText(label).parentElement as HTMLElement
 const priceTab = () => userEvent.click(screen.getByRole('tab', { name: '주가 추이' }))
 
 describe('DcaConditionalResult', () => {
@@ -198,6 +199,38 @@ describe('DcaConditionalResult', () => {
 
     expect(screen.getByText('8.12 주')).toBeInTheDocument()
     expect(screen.getByText('$1,234.57')).toBeInTheDocument()
+  })
+
+  it('두 수익률 이름에 누적 매수액 · 시간가중 기준을 적고, 상세의 투자금도 누적 매수액으로 부른다', async () => {
+    render(<DcaConditionalResult result={result} {...props} />)
+
+    expect(card('총 수익률')).toHaveTextContent('총 수익률 · 누적 매수액 기준')
+    expect(card('총 수익률')).toHaveTextContent('누적 매수액 ₩1,200,000 대비 +₩150,000')
+    expect(card('연평균 수익률')).toHaveTextContent('연평균 수익률 · 시간가중 기준')
+    await open('상세')
+    expect(screen.getByText('누적 매수액', { selector: 'span' }).nextElementSibling).toHaveTextContent('₩1,200,000')
+  })
+
+  it('예산이 남으면 쓰지 않은 예산 카드를 수익률 · 평가 가치와 따로 보인다', () => {
+    render(<DcaConditionalResult result={result} budget={1500000} {...props} />)
+
+    expect(card('쓰지 않은 예산')).toHaveTextContent('₩300,000')
+    expect(card('쓰지 않은 예산')).toHaveTextContent('예산 ₩1,500,000 가운데 · 수익률 · 평가 가치에 넣지 않음')
+    expect(card('평가 가치')).toHaveTextContent('₩1,350,000')
+  })
+
+  it('예산이 없거나 다 썼으면 쓰지 않은 예산 카드는 없다', () => {
+    const { rerender } = render(<DcaConditionalResult result={result} {...props} />)
+    expect(screen.queryByText('쓰지 않은 예산')).toBeNull()
+
+    rerender(<DcaConditionalResult result={result} budget={1200000} {...props} />)
+    expect(screen.queryByText('쓰지 않은 예산')).toBeNull()
+  })
+
+  it('매수 0회면 예산 전체가 쓰지 않은 예산', () => {
+    render(<DcaConditionalResult result={{ ...result, transactions: [], totalInvested: 0 }} budget={1000000} {...props} />)
+
+    expect(card('쓰지 않은 예산')).toHaveTextContent('₩1,000,000')
   })
 
   it('위 카드 평가 가치는 배당 현금까지 넣은 총자산, 투자 정보는 주식 평가액만 보여준다', async () => {

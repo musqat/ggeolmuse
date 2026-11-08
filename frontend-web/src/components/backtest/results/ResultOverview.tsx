@@ -22,6 +22,8 @@ interface ResultOverviewProps {
   result: OverviewValues;
   investedLabel: string;
   invested: number | null | undefined;
+  // 총 수익률 이름 뒤 기준
+  returnBasis?: string;
   // 자산 추이의 누적 투자금 · 매수 점
   deposits: Deposit[];
   currency: MetricCurrency;
@@ -40,6 +42,7 @@ export const ResultOverview: React.FC<ResultOverviewProps> = ({
   result,
   investedLabel,
   invested,
+  returnBasis,
   deposits,
   currency,
   onCurrencyChange,
@@ -63,6 +66,7 @@ export const ResultOverview: React.FC<ResultOverviewProps> = ({
         result={result}
         investedLabel={investedLabel}
         invested={invested}
+        returnBasis={returnBasis}
         metrics={metrics}
         other={other}
         otherLabel={otherLabel}

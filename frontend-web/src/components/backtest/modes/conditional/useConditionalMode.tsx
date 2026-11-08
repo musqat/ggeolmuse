@@ -161,11 +161,12 @@ export const useConditionalMode = (shared: SharedModeProps): ModeController => {
         mode: 'conditional',
         fxMode: options.fxMode,
         failureMessage: '조건부 전략 실행에 실패했습니다.',
+        budget: built.request.totalInvestment,
       });
     },
     renderResult: (result) =>
       result.mode === 'conditional' ? (
-        <DcaConditionalResult kind="conditional" result={result} symbol={symbol} startDate={period.start} />
+        <DcaConditionalResult kind="conditional" result={result} symbol={symbol} startDate={period.start} budget={result.budget} />
       ) : null,
   };
 };

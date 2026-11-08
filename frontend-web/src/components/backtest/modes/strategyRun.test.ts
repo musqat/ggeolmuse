@@ -17,4 +17,12 @@ describe('strategyRun', () => {
     await expect(run.execute()).resolves.toEqual({ symbol: 'AAPL', totalInvested: 1200000, mode: 'dca' })
     expect(call).toHaveBeenCalledWith(request)
   })
+
+  it('예산이 있으면 결과에 그 예산을 같이 담는다', async () => {
+    const call = vi.fn().mockResolvedValue({ data: { symbol: 'AAPL', totalInvested: 600000 } })
+
+    const run = strategyRun({ request: {}, call, mode: 'conditional', fxMode: 'auto', failureMessage: '', budget: 1000000 })
+
+    await expect(run.execute()).resolves.toEqual({ symbol: 'AAPL', totalInvested: 600000, mode: 'conditional', budget: 1000000 })
+  })
 })
