@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SimpleResult } from './SimpleResult'
@@ -22,6 +22,8 @@ const result = {
 }
 
 const open = (title: string) => userEvent.click(screen.getByText(title))
+
+beforeEach(() => vi.clearAllMocks())
 const priceTab = () => userEvent.click(screen.getByRole('tab', { name: '주가 추이' }))
 
 // 매수일별 수익률(원화 50 · 60 · 40, 달러 40 · 30 · 20)
@@ -32,7 +34,7 @@ const timing = [
 ]
 
 describe('SimpleResult', () => {
-  it('카드 넷과 자산 추이 · 주가 추이 탭을 위에 두고 상세는 닫아 두며, 주가 차트는 탭을 고를 때 그린다', () => {
+  it('카드 넷과 자산 추이 · 주가 추이 · 매수일별 수익률 탭을 위에 두고 상세는 닫아 두며, 차트는 탭을 고를 때 그린다', () => {
     render(<SimpleResult result={result} symbol="AAPL" purchaseDate="2023-01-03" />)
 
     for (const label of ['총 수익률', '연평균 수익률', '최대 낙폭']) expect(screen.getByText(label)).toBeInTheDocument()
@@ -62,12 +64,6 @@ describe('SimpleResult', () => {
     await priceTab()
 
     expect(vi.mocked(SimpleChart).mock.lastCall?.[0]).toMatchObject({ endDate: '2024-06-14' })
-  })
-
-  it('주가 · 수익률 추이 칸은 따로 두지 않는다', () => {
-    render(<SimpleResult result={result} symbol="AAPL" purchaseDate="2023-01-03" />)
-
-    expect(screen.queryByText('주가 · 수익률 추이')).toBeNull()
   })
 
   it('매수일별 수익률 탭을 고르면 결과의 매수일별 수익률을 고른 통화 · 매수일 · 평가일과 넘긴다', async () => {
@@ -106,9 +102,12 @@ describe('SimpleResult', () => {
     expect(screen.getByText('매수 타이밍').parentElement).toHaveTextContent('상위 33.33%')
   })
 
-  it('매수일별 수익률이 없으면 매수 타이밍 카드도 없다', () => {
-    render(<SimpleResult result={result} symbol="AAPL" purchaseDate="2023-01-03" />)
+  it('매수일별 수익률이 없거나 하루뿐이면 매수 타이밍 카드도 없다', () => {
+    const { unmount } = render(<SimpleResult result={result} symbol="AAPL" purchaseDate="2023-01-03" />)
+    expect(screen.queryByText('매수 타이밍')).toBeNull()
+    unmount()
 
+    render(<SimpleResult result={{ ...result, purchaseDayReturns: timing.slice(0, 1) }} symbol="AAPL" purchaseDate="2023-01-03" />)
     expect(screen.queryByText('매수 타이밍')).toBeNull()
   })
 

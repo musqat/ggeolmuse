@@ -52,7 +52,20 @@ describe('PurchaseDayChart', () => {
     expect(screen.getByText('목표 10.00% 이상')).toBeInTheDocument()
   })
 
-  it('목표를 바꾸면 다시 요청하지 않고 바로 다시 센다', async () => {
+  it('곡선은 목표선을 기준으로 칠하고, 색은 목표 높이에서 갈린다', () => {
+    const { container } = view()
+
+    // 값 5 ~ 25 에 목표 10 이면 위에서 15 / 20 = 0.75 지점
+    expect(readCharts()[0].bases).toEqual([10])
+    expect([...container.querySelectorAll('linearGradient stop')].map((stop) => stop.getAttribute('offset'))).toEqual([
+      '0.75',
+      '0.75',
+      '0.75',
+      '0.75',
+    ])
+  })
+
+  it('목표를 바꾸면 목표 이상인 날을 바로 다시 센다', async () => {
     view()
 
     await userEvent.clear(screen.getByLabelText('목표 수익률'))

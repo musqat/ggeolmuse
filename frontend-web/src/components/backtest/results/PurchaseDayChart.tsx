@@ -65,8 +65,8 @@ export const PurchaseDayChart: React.FC<PurchaseDayChartProps> = ({ returns, cur
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <p className="text-sm text-tx-2">
-          가로축 날짜에 샀다면 평가일({valuationDate ?? '-'})까지 번 비율({currency === 'KRW' ? '원화' : '달러'} 기준, 위
-          결과와 같은 수수료 · 배당 · 환율). 주가가 쌀 때일수록 높습니다
+          가로축 날짜에 샀다면 평가일({valuationDate ?? '-'})까지 수익률({currency === 'KRW' ? '원화' : '달러'} 기준, 위
+          결과와 같은 수수료 · 배당 · 환율)
         </p>
         <div className="flex items-center gap-2">
           <label htmlFor={`target-${id}`} className="text-sm text-tx-2">

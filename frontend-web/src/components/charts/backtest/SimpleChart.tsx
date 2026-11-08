@@ -173,7 +173,7 @@ export const SimpleChart: React.FC<SimpleBacktestChartProps> = ({
       </ChartPanel>
       <p className="text-xs text-tx-2 mt-2 text-center">
         파란 선 = 주가 | 보라 점 = 매수 | 녹색 점 = 배당 재투자 | 금색 점 = 최적 매수 · 매도(원화 기준)
-        {tooltipExtra && ' | 선에 마우스를 올리면 보유 수익률 · 여기서 샀다면 평가일까지 수익률'}
+        {tooltipExtra && ' | 선을 가리키면 보유 수익률 · 여기서 샀다면 평가일까지 수익률'}
       </p>
     </ChartCard>
   );

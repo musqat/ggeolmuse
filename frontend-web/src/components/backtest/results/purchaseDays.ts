@@ -3,7 +3,7 @@ import type { MetricCurrency } from './CurrencyToggle';
 import { zeroOffset } from './resultValues';
 
 // 매수일과 그 날짜에 샀다면 평가일까지 수익률(%)
-export type PurchaseDayPoint = { date: string; returnPct: number };
+type PurchaseDayPoint = { date: string; returnPct: number };
 
 // 고른 통화의 매수일별 수익률(값이 없는 날은 뺌)
 export const purchaseDaySeries = (

@@ -76,7 +76,7 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
         onCurrencyChange={setCurrency}
         returnRateTestId="backtest-return-rate"
         extraCard={
-          rank && (
+          rank && rank.total >= 2 && (
             <StatCard
               // 두 칸 화면에서는 한 줄 전체
               className="sm:col-span-2 lg:col-span-1"

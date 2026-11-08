@@ -181,13 +181,14 @@ describe('ResultOverview', () => {
     )
 
     expect(screen.getByRole('tab', { name: '자산 추이' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByRole('heading', { name: '자산 추이' })).toBeNull()
     expect(readCharts()).toHaveLength(1)
     expect(screen.getByText('평가 가치와 그때까지 넣은 돈, 점은 매수한 날')).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('tab', { name: '주가 추이' }))
 
-    expect(screen.getByText('주가 차트')).toBeInTheDocument()
-    expect(screen.queryByTestId('line-chart')).toBeNull()
+    expect(screen.getByText('주가 차트')).toBeVisible()
+    expect(screen.getByTestId('line-chart')).not.toBeVisible()
   })
 
   it('차트 탭이 없으면 탭 없이 자산 추이 카드만 둔다', () => {

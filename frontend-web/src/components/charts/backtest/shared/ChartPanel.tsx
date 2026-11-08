@@ -12,7 +12,7 @@ type ChartPeriodState = Pick<
 >;
 
 interface ChartCardProps {
-  // 없으면 제목 줄 없음(탭이 제목을 대신할 때)
+  // 없으면 제목 줄 없음
   title?: string;
   subtitle?: string;
   period?: ChartPeriodState;

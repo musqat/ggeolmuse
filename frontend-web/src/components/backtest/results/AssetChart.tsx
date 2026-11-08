@@ -24,7 +24,7 @@ interface AssetChartProps {
   dailyValues?: DailyValue[];
   deposits: Deposit[];
   currency: MetricCurrency;
-  // 탭 안에 둘 때 카드 테두리 · 제목 없이
+  // 카드 테두리 · 제목 없는 모양
   plain?: boolean;
 }
 
