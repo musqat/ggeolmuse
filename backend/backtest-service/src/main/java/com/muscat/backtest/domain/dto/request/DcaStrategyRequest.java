@@ -52,12 +52,12 @@ public class DcaStrategyRequest implements StrategyRequest {
   @Builder.Default
   private DcaFrequency frequency = DcaFrequency.MONTHLY;
 
-  @Schema(description = "첫 매수일 (시작일 ~ 종료일, 비우면 시작일, 휴장이면 다음 거래일)", example = "2024-01-15")
+  @Schema(description = "첫 매수일 (시작일 ~ 종료일, 비우면 시작일, 휴장이면 다음 거래일, 매달은 그 달 안에서)", example = "2024-01-15")
   private LocalDate firstPurchaseDate;
 
-  @Schema(description = "매달 투자할 날짜 (1-28, MONTHLY 에서만, 비우면 첫 매수일의 날짜)", example = "15")
-  @Min(value = 1, message = "투자일은 1-28 사이여야 합니다")
-  @Max(value = 28, message = "투자일은 1-28 사이여야 합니다")
+  @Schema(description = "매달 투자할 날짜 (1-31, MONTHLY 에서만, 비우면 첫 매수일의 날짜, 그 달에 없으면 그 달 마지막 거래일)", example = "15")
+  @Min(value = 1, message = "투자일은 1-31 사이여야 합니다")
+  @Max(value = 31, message = "투자일은 1-31 사이여야 합니다")
   private Integer purchaseDay;
 
   @Schema(description = "투자 주기 (개월 단위 1-12, MONTHLY 에서만, 1=매달, 3=분기마다)", example = "1")

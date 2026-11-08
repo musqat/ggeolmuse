@@ -185,8 +185,8 @@ class BacktestAnalysisControllerTest {
   }
 
   @ParameterizedTest(name = "투자 주기 {0} · 투자일 {1}")
-  @CsvSource({"0, 15", "-1, 15", "13, 15", "1, 0", "1, 29"})
-  @DisplayName("적립식 전략의 투자 주기가 1 ~ 12 밖이거나 투자일이 1 ~ 28 밖이면 400 이고 서비스까지 가지 않는다")
+  @CsvSource({"0, 15", "-1, 15", "13, 15", "1, 0", "1, 32"})
+  @DisplayName("적립식 전략의 투자 주기가 1 ~ 12 밖이거나 투자일이 1 ~ 31 밖이면 400 이고 서비스까지 가지 않는다")
   void dca_ScheduleOutOfRange(int interval, int day) throws Exception {
     postJson("/strategy/dca", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"monthlyAmount\":100000," + schedule(interval, day) + "}")
       .andExpect(status().isBadRequest());
@@ -345,12 +345,12 @@ class BacktestAnalysisControllerTest {
   }
 
   @Test
-  @DisplayName("투자 주기 12 · 투자일 28 은 적립식 · 전략 비교 모두 통과한다")
+  @DisplayName("투자 주기 12 는 적립식 · 전략 비교 모두, 투자일은 적립식 31 · 전략 비교 28 까지 통과한다")
   void dcaScheduleUpperBoundsPass() throws Exception {
     given(backtestAnalysisService.runDcaStrategy(any())).willReturn(strategy("AAPL", StrategyType.DCA, "1"));
     given(backtestAnalysisService.compareStrategies(any())).willReturn(comparison("DCA"));
 
-    postJson("/strategy/dca", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"monthlyAmount\":100000," + schedule(12, 28) + "}")
+    postJson("/strategy/dca", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"monthlyAmount\":100000," + schedule(12, 31) + "}")
       .andExpect(status().isOk());
     postJson("/compare/strategies", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":1000000,"
       + "\"strategies\":[{\"strategyType\":\"DCA\",\"monthlyAmount\":100000," + schedule(12, 28) + "}]}")

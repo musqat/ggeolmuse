@@ -32,7 +32,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 // 야후 실데이터로 DCA 전체 경로 검증(기대값은 분할 조정 close 매수 · 락일 종가 재투자로 따로 계산)
-// 야후 adjustedClose 로 따로 계산한 13.78% 와 0.01%p 안에서 맞음
+// 종료일 2025-09-01 은 휴장이라 9월은 회차가 아님(매수 36회)
 @ExtendWith(MockitoExtension.class)
 @DisplayName("DCA 실데이터 회귀 (KO 2022-09 ~ 2025-09)")
 class DCARealDataTest {
@@ -179,12 +179,12 @@ class DCARealDataTest {
 
     StrategyCalculationResult calc = calcCaptor.getValue();
 
-    // 매수 37 + 배당 재투자 12
-    assertThat(txCaptor.getValue()).hasSize(49);
-    assertThat(calc.getTotalInvested()).isEqualByComparingTo("3700000");
-    assertThat(calc.getTotalShares().doubleValue()).isCloseTo(46.9364, within(0.01));
+    // 매수 36 + 배당 재투자 12
+    assertThat(txCaptor.getValue()).hasSize(48);
+    assertThat(calc.getTotalInvested()).isEqualByComparingTo("3600000");
+    assertThat(calc.getTotalShares().doubleValue()).isCloseTo(45.8214, within(0.01));
     assertThat(calc.getDividendsReinvested().doubleValue()).isCloseTo(129.71, within(0.5));
-    assertThat(calc.getTotalReturnPercent().doubleValue()).isCloseTo(13.77, within(0.1));
+    assertThat(calc.getTotalReturnPercent().doubleValue()).isCloseTo(14.16, within(0.1));
 
     // 재투자를 했으니 배당을 자산에 또 더하지 않음
     assertThat(calc.getTotalAssetKrw()).isEqualByComparingTo(calc.getCurrentValueKrw());
@@ -228,9 +228,9 @@ class DCARealDataTest {
 
     StrategyCalculationResult calc = calcCaptor.getValue();
 
-    assertThat(calc.getTotalShares().doubleValue()).isCloseTo(46.6229, within(0.01));
+    assertThat(calc.getTotalShares().doubleValue()).isCloseTo(45.5079, within(0.01));
     assertThat(calc.getDividendsReinvested().doubleValue()).isCloseTo(109.29, within(0.5));
-    assertThat(calc.getTotalReturnPercent().doubleValue()).isCloseTo(13.01, within(0.1));
+    assertThat(calc.getTotalReturnPercent().doubleValue()).isCloseTo(13.37, within(0.1));
 
     // 세후 재투자액이 세전의 84.6% 보다 낮음(재투자 주식이 줄어 다음 배당 기준도 같이 줆)
     assertThat(calc.getDividendsReinvested().doubleValue()).isLessThan(129.71 * 0.846);
@@ -278,8 +278,8 @@ class DCARealDataTest {
 
     StrategyCalculationResult calc = calcCaptor.getValue();
 
-    // 재투자를 껐으니 매수 37건만
-    assertThat(txCaptor.getValue()).hasSize(37);
+    // 재투자를 껐으니 매수 36건만
+    assertThat(txCaptor.getValue()).hasSize(36);
     assertThat(calc.getDividendsReinvested()).isEqualByComparingTo("0");
     assertThat(calc.getTotalDividends().doubleValue()).isGreaterThan(0);
 

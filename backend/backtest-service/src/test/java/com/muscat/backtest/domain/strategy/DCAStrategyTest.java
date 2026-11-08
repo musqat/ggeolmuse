@@ -906,7 +906,7 @@ class DCAStrategyTest {
     }
 
     @Test
-    @DisplayName("투자일이 그달에 없으면 말일에 사고, 환율은 기간의 날마다 한 번에 받는다")
+    @DisplayName("투자일이 그 달에 없으면 말일에 사고, 환율은 기간의 날마다 한 번에 받는다")
     void purchaseDayClampedToMonthEnd() {
       DcaStrategyRequest request = base().endDate(LocalDate.of(2024, 4, 30)).purchaseDay(31).build();
       given(marketDataClient.getOHLCPriceRange(symbol, "2024-01-01", "2024-04-30")).willReturn(List.of(
@@ -1091,6 +1091,52 @@ class DCAStrategyTest {
 
       assertThat(executed()).extracting(StrategyTransaction::getActualDate).containsExactly(
         LocalDate.of(2024, 1, 15), LocalDate.of(2024, 2, 15), LocalDate.of(2024, 3, 15));
+    }
+
+    @Test
+    @DisplayName("매달 투자일이 휴장이면 그 달 안 다음 거래일, 그 달에 없으면 그 앞 마지막 거래일에 사서 한 달에 한 번만 산다")
+    void monthlyOncePerMonth() {
+      // 2015년 1월 31일 · 2월 28일은 토요일
+      LocalDate start = LocalDate.of(2015, 1, 1);
+      LocalDate end = LocalDate.of(2015, 4, 30);
+      stubMarket(start, end, weekdays(start, end));
+
+      dcaStrategy.execute(request(DcaFrequency.MONTHLY, start, end).purchaseDay(31).investmentInterval(1).build());
+
+      List<StrategyTransaction> transactions = executed();
+      assertThat(transactions).extracting(StrategyTransaction::getDate).containsExactly(
+        LocalDate.of(2015, 1, 31), LocalDate.of(2015, 2, 28), LocalDate.of(2015, 3, 31), LocalDate.of(2015, 4, 30));
+      assertThat(transactions).extracting(StrategyTransaction::getActualDate).containsExactly(
+        LocalDate.of(2015, 1, 30), LocalDate.of(2015, 2, 27), LocalDate.of(2015, 3, 31), LocalDate.of(2015, 4, 30));
+    }
+
+    @Test
+    @DisplayName("첫 매수일 뒤 그 달에 거래일이 없으면 그 달은 세지 않고 다음 달 투자일부터 산다")
+    void monthlyFirstPurchaseAfterLastTradingDay() {
+      LocalDate start = LocalDate.of(2015, 1, 1);
+      LocalDate end = LocalDate.of(2015, 3, 31);
+      stubMarket(start, end, weekdays(start, end));
+
+      dcaStrategy.execute(request(DcaFrequency.MONTHLY, start, end).purchaseDay(null).investmentInterval(1)
+        .firstPurchaseDate(LocalDate.of(2015, 1, 31)).build());
+
+      assertThat(executed()).extracting(StrategyTransaction::getActualDate).containsExactly(
+        LocalDate.of(2015, 2, 27), LocalDate.of(2015, 3, 31));
+      assertThat(skipped()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("종료일에 걸린 마지막 달에 투자일 뒤 거래일이 없으면 그 달은 세지 않고 앞 달에 두 번 사지 않는다")
+    void monthlyLastMonthWithoutTradingDay() {
+      // 1월 1일은 휴장, 2월 1일은 일요일
+      LocalDate start = LocalDate.of(2015, 1, 1);
+      LocalDate end = LocalDate.of(2015, 2, 1);
+      stubMarket(start, end, weekdays(start, end, LocalDate.of(2015, 1, 1)));
+
+      dcaStrategy.execute(request(DcaFrequency.MONTHLY, start, end).purchaseDay(1).investmentInterval(1).build());
+
+      assertThat(executed()).extracting(StrategyTransaction::getActualDate).containsExactly(LocalDate.of(2015, 1, 2));
+      assertThat(skipped()).isEmpty();
     }
 
     @ParameterizedTest(name = "{0}")
