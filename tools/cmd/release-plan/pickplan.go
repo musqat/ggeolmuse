@@ -16,7 +16,7 @@ import (
 // 커밋 SHA(7 ~ 40자리)
 var commitSHA = regexp.MustCompile(`^[0-9a-f]{7,40}$`)
 
-// releasePlan 은 낼 서비스 · 서비스별 태그 · 바뀌었지만 체크하지 않은 서비스 · 체크했지만 바뀐 것 없는 서비스
+// releasePlan 은 배포할 서비스 · 태그 · 보류 서비스(바뀌었지만 체크 안 함) · 변경 없는 서비스
 type releasePlan struct {
 	services  []string
 	tags      map[string]string
@@ -24,7 +24,7 @@ type releasePlan struct {
 	unchanged []string
 }
 
-// planPicks 는 운영 태그부터 바뀐 서비스 가운데 체크한 것만 내고, 버전이 운영 이력의 가장 높은 버전 이하면 오류
+// planPicks 는 운영 배포 이후 바뀌었고 체크한 서비스만 배포, 버전이 이전 최고 버전 이하면 오류
 func planPicks(entries map[string]values.Entry, head string, r repo, picks map[string]string) (releasePlan, error) {
 	if !commitSHA.MatchString(head) {
 		return releasePlan{}, fmt.Errorf("-head 는 커밋 SHA(받은 값 %q)", head)
@@ -58,7 +58,7 @@ func planPicks(entries map[string]values.Entry, head string, r repo, picks map[s
 	return p, nil
 }
 
-// checkFloors 는 버전 태그가 운영 값 파일 이력의 가장 높은 버전 이하면 오류(커밋 태그는 안 봄)
+// checkFloors 는 버전이 이전 최고 버전 이하면 오류(커밋 태그는 안 봄)
 func checkFloors(r repo, svcs []string, tags map[string]string) error {
 	var highest map[string]string
 	for _, svc := range svcs {
@@ -74,14 +74,14 @@ func checkFloors(r repo, svcs []string, tags map[string]string) error {
 		}
 		if floor, ok := highest[svc]; ok {
 			if cmp, ok := compareVersions(version, floor); ok && cmp <= 0 {
-				return fmt.Errorf("%s 버전 %s: 운영 값 파일 이력의 가장 높은 버전 %s 이하라 낼 수 없음", svc, version, floor)
+				return fmt.Errorf("%s 버전 %s 는 이전 최고 버전 %s 보다 높아야 함", svc, version, floor)
 			}
 		}
 	}
 	return nil
 }
 
-// readBody 는 머지한 PR 본문 파일의 빌드할 서비스 칸(칸이 없으면 안내만, 고른 서비스 없음)
+// readBody 는 PR 본문 파일의 빌드할 서비스 칸(없으면 안내만)
 func readBody(bodyPath string, notes io.Writer) (map[string]string, error) {
 	raw, err := os.ReadFile(bodyPath)
 	if err != nil {
@@ -92,12 +92,12 @@ func readBody(bodyPath string, notes io.Writer) (map[string]string, error) {
 		return nil, err
 	}
 	if !found {
-		fmt.Fprintln(notes, "빌드할 서비스 칸 없음: 내는 서비스 없음")
+		fmt.Fprintln(notes, "빌드할 서비스 칸 없음, 배포할 서비스 없음")
 	}
 	return picks, nil
 }
 
-// planPicksFromGit 은 고른 서비스(PR 본문 칸이나 손 릴리스 목록)로 만든 릴리스 계획
+// planPicksFromGit 은 고른 서비스로 만든 릴리스 계획
 func planPicksFromGit(head, rev string, picks map[string]string) (releasePlan, error) {
 	r, entries, err := openRepo(rev)
 	if err != nil {
@@ -173,7 +173,7 @@ func (g gitRepo) history() ([]valuesAt, error) {
 	return hist, nil
 }
 
-// 운영 값 파일 이력에서 서비스마다 가장 높은 버전(커밋 태그는 뺌)
+// 서비스마다 이전 최고 버전(커밋 태그는 뺌)
 func (g gitRepo) highestVersions() (map[string]string, error) {
 	hist, err := g.history()
 	if err != nil {

@@ -1,9 +1,9 @@
 // release-plan 은 다시 빌드 · 배포할 서비스를 고른다
 //
-//	go run ./cmd/release-plan -head "$SHA" -body pr.md     # 운영 태그부터 바뀐 서비스 가운데 PR 에서 체크한 것 · 태그
-//	go run ./cmd/release-plan -head "$SHA" -picks "backtest-service 1.8.0, frontend-web"   # 손 릴리스 목록으로
-//	go run ./cmd/release-plan -head "$SHA"                 # 운영 태그부터 바뀐 서비스
-//	go run ./cmd/release-plan -head "$SHA" -only "$SERVICES" -tags "$TAGS"   # 배포 직전 다시 고름(버전 하한 확인)
+//	go run ./cmd/release-plan -head "$SHA" -body pr.md     # PR 에서 체크한 서비스와 태그
+//	go run ./cmd/release-plan -head "$SHA" -picks "backtest-service 1.8.0, frontend-web"   # 수동 실행
+//	go run ./cmd/release-plan -head "$SHA"                 # 운영 배포 이후 바뀐 서비스
+//	go run ./cmd/release-plan -head "$SHA" -only "$SERVICES" -tags "$TAGS"   # 배포 직전 다시 확인
 //	git diff --name-only A B | go run ./cmd/release-plan   # 파일 목록으로
 package main
 
@@ -33,20 +33,20 @@ var sharedJava = []string{"backend/ggeolmuse-bom/", "backend/ggeolmuse-common/",
 func main() {
 	head := flag.String("head", "", "릴리스할 커밋")
 	rev := flag.String("rev", "origin/master", "값 파일 리비전")
-	only := flag.String("only", "", "다시 볼 서비스(JSON 배열)")
-	body := flag.String("body", "", "머지한 PR 본문 파일(빌드할 서비스 칸)")
-	tags := flag.String("tags", "", "다시 볼 서비스별 태그(JSON 객체, 버전이면 하한 확인)")
-	list := flag.String("picks", "", "손 릴리스로 낼 서비스와 버전(쉼표로 나눔)")
+	only := flag.String("only", "", "다시 확인할 서비스(JSON 배열)")
+	body := flag.String("body", "", "머지한 PR 본문 파일")
+	tags := flag.String("tags", "", "서비스별 태그(JSON 객체)")
+	list := flag.String("picks", "", "수동 실행 때 배포할 서비스와 버전(쉼표로 구분)")
 	flag.Parse()
-	// 빈 값으로 준 -picks 도 손 릴리스(목록 검사에서 실패)
+	// 비어 있는 -picks 도 수동 실행으로 처리(목록 검사에서 실패)
 	picksSet := false
 	flag.Visit(func(f *flag.Flag) { picksSet = picksSet || f.Name == "picks" })
 	if *body != "" && picksSet {
-		fail(fmt.Errorf("-body 와 -picks 는 하나만"))
+		fail(fmt.Errorf("-body 와 -picks 는 함께 쓸 수 없음"))
 	}
 	if *head == "" {
 		if *body != "" || picksSet {
-			fail(fmt.Errorf("-body · -picks 는 -head 와 같이"))
+			fail(fmt.Errorf("-body · -picks 는 -head 가 있어야 함"))
 		}
 		write(os.Stdout, decide(readLines(os.Stdin)))
 		return
@@ -81,7 +81,7 @@ func fail(err error) {
 	os.Exit(1)
 }
 
-// 저장소 맨 위 · 값 파일 리비전과 그 리비전의 서비스별 태그
+// 저장소 위치와 값 파일 리비전의 서비스별 태그
 func openRepo(rev string) (gitRepo, map[string]values.Entry, error) {
 	top, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
 	if err != nil {
@@ -119,7 +119,7 @@ func planFromGit(head, rev, only, tags string) ([]string, error) {
 	return planStill(entries, head, r, onlyList, tagMap)
 }
 
-// planStill 은 운영 태그부터 바뀐 서비스(그 가운데 버전 태그가 운영 이력의 가장 높은 버전 이하면 오류)
+// planStill 은 운영 배포 이후 바뀐 서비스, 버전이 이전 최고 버전 이하면 오류
 func planStill(entries map[string]values.Entry, head string, r repo, only []string, tags map[string]string) ([]string, error) {
 	picked, err := plan(entries, head, r, only)
 	if err != nil {
@@ -139,7 +139,7 @@ type repo interface {
 	highestVersions() (map[string]string, error)
 }
 
-// 운영 태그부터 바뀐 서비스(모르는 태그는 다시 빌드, 더 새 커밋이 나갔으면 건너뜀)
+// 운영 배포 이후 바뀐 서비스(모르는 태그는 다시 빌드, 더 새 커밋이 배포된 서비스는 건너뜀)
 func plan(entries map[string]values.Entry, head string, r repo, only []string) ([]string, error) {
 	picked := []string{}
 	for _, svc := range services {
@@ -169,7 +169,7 @@ func plan(entries map[string]values.Entry, head string, r repo, only []string) (
 	return picked, nil
 }
 
-// 저장소 경로 · 값 파일 리비전 · 한 번 읽은 값 파일 이력(nil 이면 매번 읽음)
+// 저장소 경로 · 값 파일 리비전 · 읽어 둔 값 파일 이력
 type gitRepo struct {
 	dir  string
 	rev  string
@@ -189,7 +189,7 @@ func (g gitRepo) show(path string) (string, error) {
 	return out, nil
 }
 
-// 커밋 태그는 그 커밋, 버전은 값 파일 이력에서 처음 그 버전이 된 커밋(봇 커밋이면 제목 끝 괄호의 빌드한 커밋, 되돌린 뒤에도 같음)
+// 운영에 배포된 커밋: 커밋 태그면 그 커밋, 버전이면 그 버전을 처음 배포한 봇 커밋에 적힌 빌드 커밋
 func (g gitRepo) deployedCommit(svc string, e values.Entry) (string, bool) {
 	if values.TagPattern.MatchString(e.Tag) && !strings.Contains(e.Tag, ".") {
 		out, err := g.git("rev-parse", "--verify", "--quiet", e.Tag+"^{commit}")
@@ -212,7 +212,7 @@ func (g gitRepo) isAncestor(base, head string) bool {
 	return err == nil
 }
 
-// 옮긴 파일은 두 경로 다, 한글 경로는 그대로
+// 옮긴 파일은 옛 · 새 경로 둘 다, 한글 경로는 따옴표 없이
 func (g gitRepo) changed(base, head string) ([]string, error) {
 	out, err := g.git("-c", "core.quotePath=false", "diff", "--no-renames", "--name-only", base, head)
 	if err != nil {
