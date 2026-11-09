@@ -6,6 +6,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.muscat.messaging.event.AccountDeletedEvent;
+import com.muscat.trade.domain.repository.AccountProfitDailyRepository;
 import com.muscat.trade.domain.repository.DividendPayoutRepository;
 import com.muscat.trade.domain.repository.HoldingsRepository;
 import com.muscat.trade.domain.repository.TradeRepository;
@@ -33,6 +34,9 @@ class AccountDeletedEventConsumerTest {
   private DividendPayoutRepository dividendPayoutRepository;
 
   @Mock
+  private AccountProfitDailyRepository accountProfitDailyRepository;
+
+  @Mock
   private Acknowledgment acknowledgment;
 
   @InjectMocks
@@ -43,13 +47,14 @@ class AccountDeletedEventConsumerTest {
   }
 
   @Test
-  @DisplayName("계좌의 거래 · 보유 · 배당 몫을 지우고 커밋한다")
-  void handle_DeletesTradesHoldingsDividends() {
+  @DisplayName("계좌의 거래 · 보유 · 배당 몫 · 수익 흐름 저장분을 지우고 커밋한다")
+  void handle_DeletesTradesHoldingsDividendsProfitFlow() {
     consumer.handleAccountDeleted(event(), 0, 0L, acknowledgment);
 
     verify(tradeRepository).deleteByAccountId(ACCOUNT_ID);
     verify(holdingsRepository).deleteByAccountId(ACCOUNT_ID);
     verify(dividendPayoutRepository).deleteByAccountId(ACCOUNT_ID);
+    verify(accountProfitDailyRepository).deleteByAccountId(ACCOUNT_ID);
     verify(acknowledgment).acknowledge();
   }
 

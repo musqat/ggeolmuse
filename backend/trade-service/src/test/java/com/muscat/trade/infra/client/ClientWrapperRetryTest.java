@@ -7,6 +7,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import com.muscat.commonlib.dto.OHLCPriceDto;
 import com.muscat.commonlib.dto.StockPriceDto;
 import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.infra.client.dto.AccountBalanceDto;
@@ -80,7 +81,29 @@ class ClientWrapperRetryTest {
         w -> w.getCurrentPrices(List.of("AAPL")), Map.of("AAPL", mock(StockPriceDto.class))),
       new Call("배당", c -> c.getDividends("AAPL", "2024-01-01", "2024-12-31"),
         w -> w.getDividends("AAPL", "2024-01-01", "2024-12-31"),
-        List.of(new DividendDto("2024-09-16", new BigDecimal("0.25")))));
+        List.of(new DividendDto("2024-09-16", new BigDecimal("0.25")))),
+      new Call("기간 시세", c -> c.getOHLCPriceRange("AAPL", "2024-01-01", "2024-12-31"),
+        w -> w.getOHLCPriceRange("AAPL", "2024-01-01", "2024-12-31"), List.of(mock(OHLCPriceDto.class))),
+      new Call("여러 날짜 환율", c -> c.getBulkFxRates(List.of("2024-09-16")),
+        w -> w.getBulkFxRates(List.of("2024-09-16")), Map.of("2024-09-16", new BigDecimal("1330.5"))));
+  }
+
+  static Stream<Call> flowCalls() {
+    return marketCalls().filter(call -> call.name().startsWith("기간") || call.name().startsWith("여러 날짜"));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("flowCalls")
+  @DisplayName("기간 시세 · 여러 날짜 환율이 세 번 다 5xx 면 빈 값이 아니라 시장 데이터 오류 코드로 예외가 난다")
+  void flowCall_ServerErrorEveryTime_MarketDataError(Call call) {
+    FeignException last = serverError();
+    given(call.client().apply(marketClient)).willThrow(serverError(), serverError(), last);
+
+    assertThatThrownBy(() -> call.wrapper().apply(marketWrapper))
+      .isInstanceOf(TradeException.class)
+      .hasFieldOrPropertyWithValue("errorCode", "MARKET_DATA_SERVICE_ERROR")
+      .hasCause(last);
+    call.client().apply(verify(marketClient, times(3)));
   }
 
   @ParameterizedTest(name = "{0}")

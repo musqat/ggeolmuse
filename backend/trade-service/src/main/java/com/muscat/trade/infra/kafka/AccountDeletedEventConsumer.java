@@ -1,6 +1,7 @@
 package com.muscat.trade.infra.kafka;
 
 import com.muscat.messaging.event.AccountDeletedEvent;
+import com.muscat.trade.domain.repository.AccountProfitDailyRepository;
 import com.muscat.trade.domain.repository.DividendPayoutRepository;
 import com.muscat.trade.domain.repository.HoldingsRepository;
 import com.muscat.trade.domain.repository.TradeRepository;
@@ -14,7 +15,7 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-// 계좌 삭제 이벤트를 받아 그 계좌의 거래 내역 · 보유 자산 · 배당 내역을 지움
+// 계좌 삭제 이벤트를 받아 그 계좌의 거래 내역 · 보유 자산 · 배당 내역 · 수익 흐름 저장분을 지움
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -23,6 +24,7 @@ public class AccountDeletedEventConsumer {
   private final TradeRepository tradeRepository;
   private final HoldingsRepository holdingsRepository;
   private final DividendPayoutRepository dividendPayoutRepository;
+  private final AccountProfitDailyRepository accountProfitDailyRepository;
 
   /**
    * 계좌 삭제 이벤트 처리
@@ -57,10 +59,13 @@ public class AccountDeletedEventConsumer {
       dividendPayoutRepository.deleteByAccountId(event.getAccountId());
       log.info("배당 내역 삭제 완료: accountId={}", event.getAccountId());
 
+      // 4. 해당 계좌의 수익 흐름 저장분 삭제
+      accountProfitDailyRepository.deleteByAccountId(event.getAccountId());
+
       log.info("계좌 삭제 이벤트 처리 완료: userId={}, accountId={}, accountNumber={}",
         event.getUserId(), event.getAccountId(), event.getAccountNumber());
 
-      // 4. 수동 커밋 (처리 성공시에만)
+      // 5. 수동 커밋 (처리 성공시에만)
       acknowledgment.acknowledge();
 
     } catch (Exception ex) {
