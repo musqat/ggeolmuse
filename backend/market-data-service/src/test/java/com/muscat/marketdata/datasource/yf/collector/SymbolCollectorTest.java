@@ -15,10 +15,14 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import com.muscat.marketdata.datasource.common.SymbolCatalog;
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.repository.AssetRepository;
+import com.muscat.marketdata.domain.service.CandleService;
 import com.muscat.marketdata.infra.kafka.AssetEventProducer;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -43,6 +47,9 @@ class SymbolCollectorTest {
   @Mock
   private AssetEventProducer assetEventProducer;
 
+  @Mock
+  private CandleService candleService;
+
   @InjectMocks
   private SymbolCollector symbolCollector;
 
@@ -66,6 +73,13 @@ class SymbolCollectorTest {
   private static Asset listed(String symbol, String name, String type) {
     return Asset.builder().symbol(symbol).name(name).sourceName(name).country("US")
       .currency("USD").assetType(type).build();
+  }
+
+  // 거른 목록과 거르기 전 심볼(거른 목록 + 이름으로 빠진 심볼)
+  private static SymbolCatalog.Listing listing(List<Asset> assets, String... filteredOut) {
+    Set<String> listed = Stream.concat(assets.stream().map(Asset::getSymbol), Stream.of(filteredOut))
+      .collect(Collectors.toSet());
+    return new SymbolCatalog.Listing(assets, listed, true);
   }
 
   private static List<Asset> assets(int count) {
@@ -98,7 +112,7 @@ class SymbolCollectorTest {
     void 기동_발행_없음() {
       given(assetRepository.count()).willReturn(3L);
       // 신규 조회는 비어 있는 경우
-      given(symbolCatalog.fetchAll()).willReturn(List.of());
+      given(symbolCatalog.fetchListing()).willReturn(listing(List.of()));
 
       symbolCollector.collectSymbols();
 
@@ -109,14 +123,14 @@ class SymbolCollectorTest {
     }
 
     @Test
-    @DisplayName("기존 종목이 있어도 신규 상장을 확인한다")
+    @DisplayName("기존 종목이 있어도 상장 목록을 확인한다")
     void 신규_확인() {
       given(assetRepository.count()).willReturn(2L);
-      given(symbolCatalog.fetchAll()).willReturn(List.of());
+      given(symbolCatalog.fetchListing()).willReturn(listing(List.of()));
 
       symbolCollector.collectSymbols();
 
-      verify(symbolCatalog).fetchAll();
+      verify(symbolCatalog).fetchListing();
     }
 
     @Test
@@ -124,8 +138,8 @@ class SymbolCollectorTest {
     void 신규만_저장() {
       given(assetRepository.count()).willReturn(2L);
       given(assetRepository.findAll()).willReturn(assets(2));   // SYM0, SYM1
-      given(symbolCatalog.fetchAll())
-        .willReturn(List.of(asset("SYM0", 1L), asset("SYM1", 2L), asset("NEWCO", 3L)));
+      given(symbolCatalog.fetchListing())
+        .willReturn(listing(List.of(asset("SYM0", 1L), asset("SYM1", 2L), asset("NEWCO", 3L))));
       given(assetRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
       symbolCollector.collectSymbols();
@@ -145,7 +159,8 @@ class SymbolCollectorTest {
       Asset crco = listed("CRCO", "Carolco Pictures", "EQUITY");
       given(assetRepository.count()).willReturn(1L);
       given(assetRepository.findAll()).willReturn(List.of(crco));
-      given(symbolCatalog.fetchAll()).willReturn(List.of(listed("CRCO", "YieldMax CRCO Option Income ETF", "ETF")));
+      given(symbolCatalog.fetchListing())
+        .willReturn(listing(List.of(listed("CRCO", "YieldMax CRCO Option Income ETF", "ETF"))));
 
       symbolCollector.collectSymbols();
 
@@ -163,7 +178,8 @@ class SymbolCollectorTest {
       crco.setName("카롤코 픽처스");
       given(assetRepository.count()).willReturn(1L);
       given(assetRepository.findAll()).willReturn(List.of(crco));
-      given(symbolCatalog.fetchAll()).willReturn(List.of(listed("CRCO", "YieldMax CRCO Option Income ETF", "ETF")));
+      given(symbolCatalog.fetchListing())
+        .willReturn(listing(List.of(listed("CRCO", "YieldMax CRCO Option Income ETF", "ETF"))));
 
       symbolCollector.collectSymbols();
 
@@ -179,7 +195,7 @@ class SymbolCollectorTest {
       Asset manual = asset("MYCO", 1L);
       given(assetRepository.count()).willReturn(1L);
       given(assetRepository.findAll()).willReturn(List.of(manual));
-      given(symbolCatalog.fetchAll()).willReturn(List.of(listed("MYCO", "My Company Inc", "EQUITY")));
+      given(symbolCatalog.fetchListing()).willReturn(listing(List.of(listed("MYCO", "My Company Inc", "EQUITY"))));
 
       symbolCollector.collectSymbols();
 
@@ -194,7 +210,7 @@ class SymbolCollectorTest {
       Asset apple = listed("AAPL", "Apple Inc", "EQUITY");
       given(assetRepository.count()).willReturn(1L);
       given(assetRepository.findAll()).willReturn(List.of(apple));
-      given(symbolCatalog.fetchAll()).willReturn(List.of(listed("AAPL", "Apple Inc", "EQUITY")));
+      given(symbolCatalog.fetchListing()).willReturn(listing(List.of(listed("AAPL", "Apple Inc", "EQUITY"))));
 
       symbolCollector.collectSymbols();
 
@@ -205,8 +221,8 @@ class SymbolCollectorTest {
     @DisplayName("목록 조회가 비면 기존 갱신은 그대로 끝난다")
     void 목록_빔() {
       given(assetRepository.count()).willReturn(2L);
-      // NASDAQ 이 200 에 빈 결과를 주는 경우
-      given(symbolCatalog.fetchAll()).willReturn(List.of());
+      // 목록 API 가 200 에 빈 결과를 주는 경우
+      given(symbolCatalog.fetchListing()).willReturn(listing(List.of()));
 
       assertThatCode(() -> symbolCollector.collectSymbols()).doesNotThrowAnyException();
 
@@ -221,8 +237,8 @@ class SymbolCollectorTest {
       // 카탈로그가 중복을 거르지만 한 번 더 확인
       given(assetRepository.count()).willReturn(1L);
       given(assetRepository.findAll()).willReturn(assets(1));   // SYM0
-      given(symbolCatalog.fetchAll())
-        .willReturn(List.of(asset("NEWCO", 1L), asset("NEWCO", 1L), asset("OTHER", 2L)));
+      given(symbolCatalog.fetchListing())
+        .willReturn(listing(List.of(asset("NEWCO", 1L), asset("NEWCO", 1L), asset("OTHER", 2L))));
       given(assetRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
       symbolCollector.collectSymbols();
@@ -234,10 +250,9 @@ class SymbolCollectorTest {
     }
 
     @Test
-    @DisplayName("일일 스케줄은 기존 종목 갱신 없이 신규만 확인한다")
+    @DisplayName("일일 스케줄은 기존 종목 수를 세지 않고 신규 종목을 저장한다")
     void 일일_스케줄() {
-      given(symbolCatalog.fetchAll())
-        .willReturn(List.of(asset("NEWCO", 1L)));
+      given(symbolCatalog.fetchListing()).willReturn(listing(List.of(asset("NEWCO", 1L))));
       given(assetRepository.findAll()).willReturn(assets(2));   // SYM0, SYM1
       given(assetRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
@@ -265,7 +280,7 @@ class SymbolCollectorTest {
     @DisplayName("목록 조회가 실패해도 예외가 새지 않는다")
     void 목록_예외() {
       given(assetRepository.count()).willReturn(2L);
-      given(symbolCatalog.fetchAll()).willThrow(new IllegalStateException("NASDAQ 다운"));
+      given(symbolCatalog.fetchListing()).willThrow(new IllegalStateException("LISTING_STATUS 실패"));
 
       assertThatCode(() -> symbolCollector.collectSymbols()).doesNotThrowAnyException();
 
@@ -279,7 +294,7 @@ class SymbolCollectorTest {
       setConfig(true, 30, 0);
       given(assetRepository.count()).willReturn(1L);
       given(assetRepository.findAll()).willReturn(assets(1));
-      given(symbolCatalog.fetchAll()).willReturn(List.of(asset("NEWCO", 1L)));
+      given(symbolCatalog.fetchListing()).willReturn(listing(List.of(asset("NEWCO", 1L))));
       given(assetRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
       symbolCollector.collectSymbols();
@@ -294,6 +309,155 @@ class SymbolCollectorTest {
       org.assertj.core.api.Assertions.assertThat(from.getValue()).isEqualTo(today.minusDays(30));
     }
 
+  }
+
+  @Nested
+  @DisplayName("상장 목록에서 빠진 종목")
+  class Delisting {
+
+    private static final LocalDate EARLIER = LocalDate.of(2025, 1, 2);
+
+    private static Asset apple() {
+      return listed("AAPL", "Apple Inc", "EQUITY");
+    }
+
+    private static Asset msft() {
+      return listed("MSFT", "Microsoft Corp", "EQUITY");
+    }
+
+    private static List<Asset> listedAssets(int count) {
+      return IntStream.range(0, count)
+        .mapToObj(i -> listed("SYM" + i, "Symbol " + i, "EQUITY"))
+        .toList();
+    }
+
+    @Test
+    @DisplayName("거르기 전 목록에 없는 활성 종목을 내리고 상장폐지일을 오늘로 저장한다")
+    void 빠진_종목_내림() {
+      Asset apple = apple();
+      Asset msft = msft();
+      Asset blfs = listed("BLFS", "BioLife Solutions Inc", "EQUITY");
+      given(assetRepository.findAll()).willReturn(List.of(apple, msft, blfs));
+      given(symbolCatalog.fetchListing()).willReturn(listing(List.of(apple(), msft())));
+
+      symbolCollector.collectNewlyListedDaily();
+
+      assertThat(blfs.getActive()).isFalse();
+      assertThat(blfs.getDelistedDate()).isEqualTo(LocalDate.now());
+      assertThat(apple.getActive()).isTrue();
+      assertThat(msft.getActive()).isTrue();
+      verify(assetRepository).saveAll(List.of(blfs));
+      verify(candleService).evictDividendYieldOrder();
+    }
+
+    @Test
+    @DisplayName("기동 때 확인도 신규 종목을 저장하고 빠진 종목을 내린다")
+    void 기동_신규와_내림() {
+      Asset apple = apple();
+      Asset blfs = listed("BLFS", "BioLife Solutions Inc", "EQUITY");
+      given(assetRepository.count()).willReturn(2L);
+      given(assetRepository.findAll()).willReturn(List.of(apple, blfs));
+      given(symbolCatalog.fetchListing())
+        .willReturn(listing(List.of(apple(), listed("NEWCO", "New Co", "EQUITY"))));
+      given(assetRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+
+      symbolCollector.collectSymbols();
+
+      ArgumentCaptor<Asset> saved = ArgumentCaptor.forClass(Asset.class);
+      verify(assetRepository).save(saved.capture());
+      assertThat(saved.getValue().getSymbol()).isEqualTo("NEWCO");
+      assertThat(blfs.getActive()).isFalse();
+      verify(assetRepository).saveAll(List.of(blfs));
+    }
+
+    @Test
+    @DisplayName("이름으로 걸러진 종목도 거르기 전 목록에 있으면 그대로 둔다")
+    void 이름_필터_종목_유지() {
+      Asset warrant = listed("EVOXW", "Evolution Global Acquisition Corp - Warrants", "EQUITY");
+      given(assetRepository.findAll()).willReturn(List.of(apple(), warrant));
+      given(symbolCatalog.fetchListing()).willReturn(listing(List.of(apple()), "EVOXW"));
+
+      symbolCollector.collectNewlyListedDaily();
+
+      assertThat(warrant.getActive()).isTrue();
+      verify(assetRepository, never()).saveAll(any());
+      verify(candleService, never()).evictDividendYieldOrder();
+    }
+
+    @Test
+    @DisplayName("목록 이름이 없는 종목은 목록에 없어도 그대로 둔다")
+    void 목록_이름_없음_유지() {
+      Asset manual = asset("005930.KS", null);
+      given(assetRepository.findAll()).willReturn(List.of(apple(), manual));
+      given(symbolCatalog.fetchListing()).willReturn(listing(List.of(apple())));
+
+      symbolCollector.collectNewlyListedDaily();
+
+      assertThat(manual.getActive()).isTrue();
+      assertThat(manual.getDelistedDate()).isNull();
+      verify(assetRepository, never()).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("거르기 전 목록이 활성 종목의 절반 미만이면 아무것도 내리지 않는다")
+    void 절반_미만_중단() {
+      List<Asset> stored = listedAssets(10);
+      given(assetRepository.findAll()).willReturn(stored);
+      given(symbolCatalog.fetchListing()).willReturn(listing(listedAssets(4)));
+
+      symbolCollector.collectNewlyListedDaily();
+
+      assertThat(stored).allMatch(Asset::getActive);
+      verify(assetRepository, never()).saveAll(any());
+      verify(candleService, never()).evictDividendYieldOrder();
+    }
+
+    @Test
+    @DisplayName("거르기 전 목록이 활성 종목의 절반이면 빠진 종목을 내린다")
+    void 절반_내림() {
+      List<Asset> stored = listedAssets(10);
+      given(assetRepository.findAll()).willReturn(stored);
+      given(symbolCatalog.fetchListing()).willReturn(listing(listedAssets(5)));
+
+      symbolCollector.collectNewlyListedDaily();
+
+      assertThat(stored).filteredOn(a -> !a.getActive()).extracting(Asset::getSymbol)
+        .containsExactly("SYM5", "SYM6", "SYM7", "SYM8", "SYM9");
+    }
+
+    @Test
+    @DisplayName("이미 내려간 종목은 그대로 두고 활성 수에도 세지 않는다")
+    void 내려간_종목() {
+      Asset msft = msft();
+      List<Asset> gone = listedAssets(3);
+      gone.forEach(a -> {
+        a.setActive(false);
+        a.setDelistedDate(EARLIER);
+      });
+      List<Asset> stored = Stream.concat(Stream.of(apple(), msft), gone.stream()).toList();
+      given(assetRepository.findAll()).willReturn(stored);
+      given(symbolCatalog.fetchListing()).willReturn(listing(List.of(apple())));
+
+      symbolCollector.collectNewlyListedDaily();
+
+      assertThat(msft.getActive()).isFalse();
+      assertThat(gone).extracting(Asset::getDelistedDate).containsOnly(EARLIER);
+      verify(assetRepository).saveAll(List.of(msft));
+    }
+
+    @Test
+    @DisplayName("상한에서 잘렸거나 번들 CSV 로 대체한 목록이면 내리지 않는다")
+    void 전체_목록_아님() {
+      Asset blfs = listed("BLFS", "BioLife Solutions Inc", "EQUITY");
+      given(assetRepository.findAll()).willReturn(List.of(apple(), msft(), blfs));
+      given(symbolCatalog.fetchListing())
+        .willReturn(new SymbolCatalog.Listing(List.of(apple(), msft()), Set.of("AAPL", "MSFT"), false));
+
+      symbolCollector.collectNewlyListedDaily();
+
+      assertThat(blfs.getActive()).isTrue();
+      verify(assetRepository, never()).saveAll(any());
+    }
   }
 
   @Nested
@@ -412,7 +576,7 @@ class SymbolCollectorTest {
     @DisplayName("소스 조회가 전부 실패해도 예외를 밖으로 내보내지 않는다")
     void 소스_실패() {
       given(assetRepository.count()).willReturn(0L);
-      given(symbolCatalog.fetchAll()).willThrow(new IllegalStateException("NASDAQ 다운"));
+      given(symbolCatalog.fetchAll()).willThrow(new IllegalStateException("LISTING_STATUS 실패"));
 
       // 부팅 때 이벤트 리스너라 예외를 밖으로 안 냄(기동 로그 오염)
       assertThatCode(() -> symbolCollector.collectSymbols()).doesNotThrowAnyException();

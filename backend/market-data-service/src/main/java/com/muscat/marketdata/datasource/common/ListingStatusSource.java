@@ -29,6 +29,11 @@ public class ListingStatusSource {
   @Value("${marketdata.symbol-listing.max-symbols:0}")
   private int maxSymbols;
 
+  // 상한이 있으면 목록 앞부분만 받음
+  public boolean isCapped() {
+    return maxSymbols > 0;
+  }
+
   public List<Asset> fetch() {
     String csv = client.getCsv("LISTING_STATUS", Map.of());
 
