@@ -1,5 +1,6 @@
 package com.muscat.backtest.common.engine;
 
+import com.muscat.backtest.common.calculation.CapitalGainsTaxCalculator;
 import com.muscat.backtest.common.calculation.StrategyCalculationResult;
 import com.muscat.backtest.common.calculation.StrategyCalculator;
 import com.muscat.backtest.common.util.BacktestCalculationUtils;
@@ -7,6 +8,7 @@ import com.muscat.backtest.common.util.Decimals;
 import com.muscat.backtest.common.util.BacktestDataUtils;
 import com.muscat.backtest.common.util.FxPath;
 import com.muscat.backtest.common.util.FxRates;
+import com.muscat.backtest.domain.dto.response.CapitalGainsTax;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.backtest.infra.client.MarketDataClientWrapper;
@@ -37,6 +39,12 @@ public final class StrategyFinalizer {
       response.setMetricsKrw(performance.metricsKrw());
       response.setMetricsUsd(performance.metricsUsd());
       return response;
+    }
+
+    // 판 거래의 연도별 예상 양도세와 총 자산 · 투자금 기준 세후 평가
+    public CapitalGainsTax capitalGainsTax() {
+      return CapitalGainsTaxCalculator.of(CapitalGainsTaxCalculator.realizedGains(transactions),
+        calculation.getTotalAssetKrw(), calculation.getTotalInvested());
     }
   }
 

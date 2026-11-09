@@ -71,6 +71,9 @@ public class SimulationRequest {
   @Builder.Default
   private BigDecimal dividendTaxRate = BigDecimal.ZERO;  // 배당 원천징수 세율
 
+  @Schema(description = "예상 양도소득세 계산 여부 (판 해마다 원화 실현 이익에서 연 250만원 공제 뒤 22%, 비우면 끔)", example = "true")
+  private Boolean capitalGainsTax;
+
   // 평가일(매도일이 없거나 오늘 이후면 오늘)
   public LocalDate valuationDate(LocalDate today) {
     return saleDate != null && saleDate.isBefore(today) ? saleDate : today;

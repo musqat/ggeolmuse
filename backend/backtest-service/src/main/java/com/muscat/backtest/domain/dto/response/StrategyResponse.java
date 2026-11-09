@@ -32,8 +32,8 @@ public class StrategyResponse {
   private Integer totalTransactions;
 
   // 투자 금액 요약
-  @Schema(description = "총 투자금액 (USD)", example = "7518.50")
-  private BigDecimal totalInvested;        // 총 투자금액
+  @Schema(description = "누적 매수액 (넣은 원화의 합, KRW)", example = "9,800,000")
+  private BigDecimal totalInvested;        // 누적 매수액
   @Schema(description = "총 보유 주수", example = "375.2")
   private BigDecimal totalShares;          // 총 보유주식수
   @Schema(description = "보유분 평균 매수 단가 (USD, 전량 매도로 끝나면 null)", example = "200.35")
@@ -42,7 +42,7 @@ public class StrategyResponse {
   // 현재 가치
   @Schema(description = "현재 주가 (USD)", example = "238.15")
   private BigDecimal currentPrice;
-  @Schema(description = "현재 자산 가치 (USD)", example = "89,352.08")
+  @Schema(description = "현재 주식 가치 (USD, 보유가 없으면 0)", example = "89,352.08")
   private BigDecimal currentValue;
   @Schema(description = "현재 주식 가치 (KRW)", example = "118,025,128")
   private BigDecimal currentValueKrw;
@@ -69,11 +69,14 @@ public class StrategyResponse {
   @Schema(description = "환차익 수익률 (%)", example = "2.72")
   private BigDecimal fxReturnPercent;      // 환차익 수익률
 
-  // 배당금 (추후 확장)
+  // 배당금
   @Schema(description = "총 배당금 (USD)", example = "125.50")
   private BigDecimal totalDividends;
   @Schema(description = "배당 수익률 (%)", example = "1.67")
   private BigDecimal dividendYield;
+
+  @Schema(description = "예상 양도소득세 · 세후 평가 (요청에서 끄면 null)")
+  private CapitalGainsTax capitalGainsTax;
 
   // 미매수 회차
   @Schema(description = "미매수 회차(계획된 매수일 · 이유)")

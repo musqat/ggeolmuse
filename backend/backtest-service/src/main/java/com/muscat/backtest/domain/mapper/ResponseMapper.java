@@ -206,6 +206,7 @@ public class ResponseMapper {
       .fxReturn(simulation.getFxReturn())
       .fxReturnPercent(simulation.getFxReturnPercent())
       .dividends(simulation.getTotalDividends())
+      .capitalGainsTax(simulation.getCapitalGainsTax())
       .optimalBuyDate(
         simulation.getOptimalBuyDate() != null ? simulation.getOptimalBuyDate().toString() : null)
       .optimalBuyPrice(simulation.getOptimalBuyPrice())
@@ -234,6 +235,7 @@ public class ResponseMapper {
       .fxReturn(strategy.getFxReturn())
       .fxReturnPercent(strategy.getFxReturnPercent())
       .dividends(strategy.getTotalDividends())
+      .capitalGainsTax(strategy.getCapitalGainsTax())
       .additionalData(strategy.toBuilder()
         .dailyValues(DailyValue.withoutDrawdowns(strategy.getDailyValues())).build())
       .build();

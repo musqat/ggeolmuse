@@ -13,6 +13,7 @@ import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
 import com.muscat.backtest.domain.dto.request.SymbolComparisonRequest;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
+import com.muscat.backtest.domain.dto.response.CapitalGainsTax;
 import com.muscat.backtest.domain.dto.response.ComparisonResponse;
 import com.muscat.backtest.domain.dto.response.DailyValue;
 import com.muscat.backtest.domain.dto.response.SimulationResponse;
@@ -533,6 +534,23 @@ class ResponseMapperTest {
       assertThat(item.getOptimalBuyDate()).isEqualTo("2024-02-01");
       assertThat(item.getOptimalSellDate()).isEqualTo("2024-08-01");
       assertThat(item.getAdditionalData()).isEqualTo(simulation);
+    }
+
+    @Test
+    @DisplayName("시뮬레이션 · 전략 응답의 예상 양도세를 비교 항목에 그대로 옮긴다")
+    void 양도세() {
+      CapitalGainsTax tax = new CapitalGainsTax(
+        List.of(new CapitalGainsTax.Year(2024, new BigDecimal("3000000"), new BigDecimal("2500000"), new BigDecimal("110000"))),
+        new BigDecimal("110000"), new BigDecimal("9890000"), new BigDecimal("23.63"));
+
+      assertThat(mapper.toComparisonItemFromSimulation(
+        SimulationResponse.builder().symbol(SYMBOL).capitalGainsTax(tax).build(), "애플").getCapitalGainsTax())
+        .isEqualTo(tax);
+      assertThat(mapper.toComparisonItemFromStrategy(
+        StrategyResponse.builder().symbol(SYMBOL).capitalGainsTax(tax).build(), "DCA").getCapitalGainsTax())
+        .isEqualTo(tax);
+      assertThat(mapper.toComparisonItemFromStrategy(StrategyResponse.builder().symbol(SYMBOL).build(), "DCA")
+        .getCapitalGainsTax()).isNull();
     }
 
     private final DailyValue day = new DailyValue(LocalDate.of(2024, 1, 2), BigDecimal.TEN, new BigDecimal("13000"),

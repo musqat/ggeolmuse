@@ -21,6 +21,7 @@ import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.util.BacktestCalculationUtils;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
+import com.muscat.backtest.domain.dto.response.CapitalGainsTax;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.domain.model.SkippedRound;
@@ -1123,6 +1124,32 @@ class ConditionalPurchaseStrategyTest {
         assertThat(sale.getFee()).isEqualByComparingTo("11.00");
         assertThat(sale.getProceeds()).isCloseTo(new BigDecimal("1089"), org.assertj.core.data.Offset.offset(new BigDecimal("0.01")));
         assertThat(sale.getRealizedProfit()).isEqualByComparingTo(sale.getProceeds().subtract(new BigDecimal("1000")));
+      }
+
+      @Test
+      @DisplayName("양도세를 켜면 판 해의 원화 실현 이익 · 공제 · 세금과 세후 평가를 싣는다")
+      void capitalGainsTaxOnSale() {
+        ConditionalStrategyRequest request = selling(3, 10).takeProfitRate(new BigDecimal("0.1"))
+          .capitalGainsTax(true).build();
+        stubMarket(request, afterEntry(candle(2, "101", "111", "100", "105")), false);
+
+        StrategyResponse response = strategy.execute(request);
+
+        // 130만원어치 10주를 1100달러 × 1300원에 팔아 13만원 이익, 공제 안이라 세금 0
+        assertThat(response.getCapitalGainsTax().years()).containsExactly(
+          new CapitalGainsTax.Year(2024, new BigDecimal("130000"), new BigDecimal("130000"), new BigDecimal("0")));
+        assertThat(response.getCapitalGainsTax().totalTaxKrw()).isEqualByComparingTo("0");
+        assertThat(response.getCapitalGainsTax().afterTaxValueKrw()).isEqualByComparingTo("1430000");
+        assertThat(response.getCapitalGainsTax().afterTaxReturnPercent()).isEqualByComparingTo("10.00");
+      }
+
+      @Test
+      @DisplayName("양도세를 비우면 결과에 양도세를 싣지 않는다")
+      void capitalGainsTaxOff() {
+        ConditionalStrategyRequest request = selling(3, 10).takeProfitRate(new BigDecimal("0.1")).build();
+        stubMarket(request, afterEntry(candle(2, "101", "111", "100", "105")), false);
+
+        assertThat(strategy.execute(request).getCapitalGainsTax()).isNull();
       }
 
       @Test

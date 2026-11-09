@@ -1,5 +1,6 @@
 package com.muscat.backtest.domain.service.impl;
 
+import com.muscat.backtest.common.calculation.CapitalGainsTaxCalculator;
 import com.muscat.backtest.common.calculation.PerformanceCalculator;
 import com.muscat.backtest.common.constants.BacktestConstants;
 import com.muscat.backtest.common.engine.PurchaseDayReturns;
@@ -352,6 +353,10 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
     response.setPurchaseDate(context.purchaseData().date());
     response.setInvestmentAmount(calculation.investmentKrw());
     response.setDefaultFxDates(defaultFxDates(context));
+    // 팔지 않아 판 해가 없는 예상 양도세
+    response.setCapitalGainsTax(Boolean.TRUE.equals(context.request().getCapitalGainsTax())
+      ? CapitalGainsTaxCalculator.of(List.of(), calculation.totalAssetKrw(), calculation.investmentKrw())
+      : null);
 
     Function<LocalDate, BigDecimal> fx = fxPath(context, calculation, fxRates);
     List<DailyValue> dailyValues = dailyValues(candles, fx, calculation, context);

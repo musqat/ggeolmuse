@@ -49,5 +49,8 @@ public abstract class BaseComparisonRequest {
   @Schema(description = "배당 원천징수 세율 (15% = 0.15, null이면 0)", example = "0.15")
   private BigDecimal dividendTaxRate;
 
+  @Schema(description = "예상 양도소득세 계산 여부 (항목마다 판 해의 원화 실현 이익에서 연 250만원 공제 뒤 22%, 비우면 끔)", example = "true")
+  private Boolean capitalGainsTax;
+
   public abstract ComparisonType getComparisonType();
 }

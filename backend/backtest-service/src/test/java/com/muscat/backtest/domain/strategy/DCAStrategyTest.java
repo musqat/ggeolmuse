@@ -627,6 +627,23 @@ class DCAStrategyTest {
     }
 
     @Test
+    @DisplayName("양도세를 켜도 판 거래가 없으면 연도 없이 세금 0 이고 세후 평가는 총 자산이다")
+    void capitalGainsTaxWithoutSales() {
+      DcaStrategyRequest request = monthly(LocalDate.of(2024, 2, 29), 2).capitalGainsTax(true).build();
+      stubMarket(request, List.of(createOHLC(LocalDate.of(2024, 1, 15), new BigDecimal("100.00")),
+          createOHLC(LocalDate.of(2024, 2, 15), new BigDecimal("125.00"))),
+        java.util.Map.of("2024-01-15", new BigDecimal("1350"), "2024-02-15", new BigDecimal("1350")));
+
+      StrategyResponse response = dcaStrategy.execute(request);
+
+      // 27만원 + 33만 7,500원을 넣어 4주 × 125달러 × 1350원
+      assertThat(response.getCapitalGainsTax().years()).isEmpty();
+      assertThat(response.getCapitalGainsTax().totalTaxKrw()).isEqualByComparingTo("0");
+      assertThat(response.getCapitalGainsTax().afterTaxValueKrw()).isEqualByComparingTo("675000");
+      assertThat(response.getCapitalGainsTax().afterTaxReturnPercent()).isEqualByComparingTo("11.11");
+    }
+
+    @Test
     @DisplayName("예산이 모자란 회차부터는 값이 내린 회차도 사지 않고 끝까지 예산 부족으로 센다")
     void shortfallRunsToEnd() {
       DcaStrategyRequest request = monthly(LocalDate.of(2024, 4, 30), 1)

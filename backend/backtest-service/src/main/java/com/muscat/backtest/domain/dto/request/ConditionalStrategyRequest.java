@@ -99,6 +99,9 @@ public class ConditionalStrategyRequest implements StrategyRequest {
   @Builder.Default
   private BigDecimal dividendTaxRate = BigDecimal.ZERO;  // 배당 원천징수 세율
 
+  @Schema(description = "예상 양도소득세 계산 여부 (판 해마다 원화 실현 이익에서 연 250만원 공제 뒤 22%, 비우면 끔)", example = "true")
+  private Boolean capitalGainsTax;
+
   // 이력 저장 JSON 에는 넣지 않음
   @JsonIgnore
   @Override

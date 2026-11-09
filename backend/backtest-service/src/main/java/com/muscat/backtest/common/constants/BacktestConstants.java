@@ -71,4 +71,19 @@ public final class BacktestConstants {
     /** 단순 · 회당 주식 수 상한 */
     public static final int MAX_SHARES = 1_000_000;
   }
+
+  /**
+   * 해외 주식 양도소득세
+   */
+  public static final class CapitalGains {
+    private CapitalGains() {
+      throw new UnsupportedOperationException("Constants class cannot be instantiated");
+    }
+
+    /** 해마다 실현 이익에서 빼는 기본 공제 (KRW) */
+    public static final BigDecimal ANNUAL_DEDUCTION_KRW = new BigDecimal("2500000");
+
+    /** 세율 (지방소득세 포함 22%) */
+    public static final BigDecimal TAX_RATE = new BigDecimal("0.22");
+  }
 }

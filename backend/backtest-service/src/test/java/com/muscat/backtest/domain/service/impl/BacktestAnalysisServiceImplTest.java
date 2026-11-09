@@ -508,13 +508,14 @@ class BacktestAnalysisServiceImplTest {
       return request;
     }
 
-    // 수수료 0.25% · 수동 환율 1300/1350 · 재투자 · 배당세 15%
+    // 수수료 0.25% · 수동 환율 1300/1350 · 재투자 · 배당세 15% · 양도세
     private void withOptions(BaseComparisonRequest request) {
       request.setTradingFeeRate(new BigDecimal("0.0025"));
       request.setPurchaseFxRate(new BigDecimal("1300"));
       request.setCurrentFxRate(new BigDecimal("1350"));
       request.setReinvestDividends(true);
       request.setDividendTaxRate(new BigDecimal("0.15"));
+      request.setCapitalGainsTax(true);
     }
 
     private void assertSimulationOptions(SimulationRequest simulation) {
@@ -523,6 +524,7 @@ class BacktestAnalysisServiceImplTest {
       assertThat(simulation.getCurrentFxRate()).isEqualByComparingTo(new BigDecimal("1350"));
       assertThat(simulation.getReinvestDividends()).isTrue();
       assertThat(simulation.getDividendTaxRate()).isEqualByComparingTo(new BigDecimal("0.15"));
+      assertThat(simulation.getCapitalGainsTax()).isTrue();
     }
 
     private void stubSimulation() {
@@ -586,6 +588,7 @@ class BacktestAnalysisServiceImplTest {
       assertThat(dcaRequest.getValue().getReinvestDividends()).isTrue();
       assertThat(dcaRequest.getValue().getDividendTaxRate()).isEqualByComparingTo(new BigDecimal("0.15"));
       assertThat(dcaRequest.getValue().getTradingFeeRate()).isEqualByComparingTo(new BigDecimal("0.0025"));
+      assertThat(dcaRequest.getValue().getCapitalGainsTax()).isTrue();
 
       ArgumentCaptor<ConditionalStrategyRequest> conditionalRequest =
         ArgumentCaptor.forClass(ConditionalStrategyRequest.class);
@@ -607,6 +610,7 @@ class BacktestAnalysisServiceImplTest {
       assertThat(conditionalRequest.getValue().getMaxPurchases()).isNull();
       assertThat(conditionalRequest.getValue().getTotalInvestment())
         .isEqualByComparingTo(BigDecimal.valueOf(1_000_000));
+      assertThat(conditionalRequest.getValue().getCapitalGainsTax()).isTrue();
     }
 
     @Test
@@ -672,6 +676,7 @@ class BacktestAnalysisServiceImplTest {
       assertThat(simulation.getValue().getReinvestDividends()).isFalse();
       assertThat(simulation.getValue().getDividendTaxRate()).isEqualByComparingTo(BigDecimal.ZERO);
       assertThat(simulation.getValue().getPurchaseFxRate()).isNull();
+      assertThat(simulation.getValue().getCapitalGainsTax()).isNull();
 
       ArgumentCaptor<DcaStrategyRequest> dcaRequest = ArgumentCaptor.forClass(DcaStrategyRequest.class);
       verify(dcaStrategy).execute(dcaRequest.capture());

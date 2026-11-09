@@ -1177,6 +1177,23 @@ class TradingSimulationServiceImplTest {
     }
 
     @Test
+    @DisplayName("양도세를 켜도 팔지 않으면 연도 없이 세금 0 이고 세후 평가 · 수익률은 총 자산 · 총 수익률이며, 비우면 싣지 않는다")
+    void capitalGainsTaxWithoutSale() {
+      stubSwing();
+
+      SimulationResponse response = service.runSimulation(SimulationRequest.builder().symbol(TEST_SYMBOL)
+        .purchaseDate(purchaseDate).saleDate(saleDate).investmentAmount(new BigDecimal("1300000"))
+        .capitalGainsTax(true).build(), false);
+
+      assertThat(response.getCapitalGainsTax().years()).isEmpty();
+      assertThat(response.getCapitalGainsTax().totalTaxKrw()).isEqualByComparingTo("0");
+      assertThat(response.getCapitalGainsTax().afterTaxValueKrw()).isEqualByComparingTo(response.getTotalAssetKrw());
+      assertThat(response.getCapitalGainsTax().afterTaxReturnPercent())
+        .isEqualByComparingTo(response.getTotalReturnPercent());
+      assertThat(service.runSimulation(request(false, "0"), false).getCapitalGainsTax()).isNull();
+    }
+
+    @Test
     @DisplayName("원화 · 달러 지표를 따로 내고, 환율이 오른 날은 원화 낙폭이 더 작다")
     void metricsPerCurrency() {
       stubSwing();

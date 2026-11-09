@@ -78,6 +78,8 @@ public class SimulationResponse {
   private BigDecimal totalAssetKrw; // 총 자산 = 주식가치 + 잔액 + 배당금
   @Schema(description = "총 수익 (KRW)", example = "3,218,442")
   private BigDecimal totalReturnKrw;
+  @Schema(description = "예상 양도소득세 · 세후 평가 (요청에서 끄면 null)")
+  private CapitalGainsTax capitalGainsTax;
 
   // 최적 타이밍 정보
   @Schema(description = "최적 매수일 (원화 주가 기준)", example = "2024-01-10")

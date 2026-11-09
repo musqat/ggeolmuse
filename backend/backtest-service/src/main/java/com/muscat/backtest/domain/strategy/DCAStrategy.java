@@ -90,6 +90,7 @@ public class DCAStrategy implements InvestmentStrategy {
       StrategyResponse response = finalized.fill(responseMapper.toStrategyResponse(
         request, finalized.transactions(), finalized.calculation(), finalized.currentPrice(), skippedRounds));
       response.setSkippedSpan(purchases.skippedSpan());
+      response.setCapitalGainsTax(Boolean.TRUE.equals(request.getCapitalGainsTax()) ? finalized.capitalGainsTax() : null);
       return response;
 
     } finally {
