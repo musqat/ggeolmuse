@@ -1,4 +1,4 @@
-// rollout-check 는 네임스페이스의 Deployment 마다 이미지 태그 · READY · 재시작 수를 보고 운영 값 파일의 태그와 대조한다
+// rollout-check 는 Deployment 마다 이미지 태그 · 준비 · 재시작 수를 보고 운영 값 파일 태그와 대조한다
 //
 //	go run ./cmd/rollout-check -values ../helm/ggeolmuse/values-prod.yaml
 package main
@@ -24,7 +24,7 @@ import (
 func main() {
 	kubeconfig := flag.String("kubeconfig", "", "kubeconfig 경로(비우면 KUBECONFIG · ~/.kube/config)")
 	namespace := flag.String("namespace", "default", "네임스페이스")
-	valuesPath := flag.String("values", "", "기대 태그를 읽을 운영 값 파일(비우면 태그 대조 없음)")
+	valuesPath := flag.String("values", "", "대조할 운영 값 파일(비우면 대조 안 함)")
 	flag.Parse()
 	var want map[string]string
 	if *valuesPath != "" {
@@ -48,7 +48,7 @@ func main() {
 	os.Exit(code)
 }
 
-// expectedTags 는 값 파일의 서비스별 이미지 태그(서비스 이름 = Deployment 이름)
+// expectedTags 는 값 파일의 서비스별 태그(서비스 이름이 Deployment 이름)
 func expectedTags(text string) (map[string]string, error) {
 	entries, err := values.Find(text)
 	if err != nil {
@@ -61,7 +61,7 @@ func expectedTags(text string) (map[string]string, error) {
 	return want, nil
 }
 
-// run 은 Deployment 마다 결과 한 줄을 w 에 쓰고 종료 코드를 돌려줌(0 통과 · 1 실패)
+// run 은 Deployment 마다 한 줄씩 쓰고 종료 코드(0 통과 · 1 실패)
 func run(ctx context.Context, client kubernetes.Interface, ns string, want map[string]string, w io.Writer) int {
 	list, err := client.AppsV1().Deployments(ns).List(ctx, metav1.ListOptions{})
 	if err != nil {
@@ -119,7 +119,7 @@ func replicas(d *appsv1.Deployment) int32 {
 	return *d.Spec.Replicas
 }
 
-// rolloutProblem 은 kubectl rollout status 와 같은 기준으로 롤아웃이 끝나지 않은 까닭(끝났으면 빈 문자열)
+// rolloutProblem 은 롤아웃이 덜 끝난 까닭(kubectl rollout status 기준, 끝났으면 빈 문자열)
 func rolloutProblem(d *appsv1.Deployment) string {
 	if d.Generation > d.Status.ObservedGeneration {
 		return "새 설정 반영 대기"
@@ -141,7 +141,7 @@ func rolloutProblem(d *appsv1.Deployment) string {
 	return ""
 }
 
-// imageTag 는 저장소 이름 끝이 Deployment 이름인 컨테이너(없으면 첫 컨테이너)의 태그 · digest(태그가 없으면 latest)
+// imageTag 는 Deployment 이름과 같은 컨테이너(없으면 첫 컨테이너)의 이미지 태그
 func imageTag(d *appsv1.Deployment) string {
 	containers := d.Spec.Template.Spec.Containers
 	if len(containers) == 0 {
@@ -170,7 +170,7 @@ func splitImage(image string) (string, string) {
 	return image, "latest"
 }
 
-// restartCount 는 Deployment 선택자에 맞는 파드의 컨테이너 · init 컨테이너 재시작 수 합
+// restartCount 는 그 Deployment 파드들의 재시작 수 합
 func restartCount(ctx context.Context, client kubernetes.Interface, d *appsv1.Deployment) (int32, error) {
 	selector, err := metav1.LabelSelectorAsSelector(d.Spec.Selector)
 	if err != nil {

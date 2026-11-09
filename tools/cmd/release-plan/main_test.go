@@ -126,7 +126,7 @@ func TestPlanPicksVersionFloor(t *testing.T) {
 	entries, repo := planFixture()
 	for _, version := range []string{"1.7.0", "1.6.9"} {
 		_, err := planPicks(entries, "0123456789abcdef", repo, map[string]string{"user-service": version})
-		if err == nil || !strings.Contains(err.Error(), "가장 높은 버전 1.7.0") {
+		if err == nil || !strings.Contains(err.Error(), "이전 최고 버전 1.7.0") {
 			t.Fatalf("%s: 오류 %v, 기대에 가장 높은 버전 1.7.0", version, err)
 		}
 	}
@@ -378,7 +378,7 @@ func TestGitRepo(t *testing.T) {
 	if err != nil || len(picks) != 0 || !strings.Contains(notes.String(), "빌드할 서비스 칸 없음") {
 		t.Fatalf("칸 없는 본문 %v, %v, 안내 %q", picks, err, notes.String())
 	}
-	// 손 릴리스 목록도 같은 계획
+	// 수동 실행 목록도 같은 계획
 	picks, err = parseList("user-service")
 	if err != nil {
 		t.Fatal(err)

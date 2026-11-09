@@ -93,7 +93,7 @@ func TestParsePicksOpenFence(t *testing.T) {
 	}
 }
 
-// 손 릴리스의 쉼표 목록(칸과 같은 검사)
+// 수동 실행의 쉼표 목록(칸과 같은 규칙)
 func TestParseList(t *testing.T) {
 	got, err := parseList(" backtest-service 1.8.0, frontend-web ,, ")
 	if err != nil || !maps.Equal(got, map[string]string{"backtest-service": "1.8.0", "frontend-web": ""}) {
@@ -139,7 +139,7 @@ func TestParsePicksErrors(t *testing.T) {
 		body string
 		want string
 	}{
-		{"체크한 모르는 이름은 쓸 수 있는 이름과 함께", "- [x] backtest 1.8.0", "배포하는 서비스: config-server"},
+		{"체크한 모르는 이름은 쓸 수 있는 이름과 함께", "- [x] backtest 1.8.0", "쓸 수 있는 서비스: config-server"},
 		{"배포하지 않는 모듈", "- [x] ggeolmuse-common", "모르는 서비스"},
 		{"버전 두 자리", "- [x] backtest-service 1.8", "버전 모양"},
 		{"v 붙은 버전", "- [x] backtest-service v1.8.0", "버전 모양"},
@@ -149,8 +149,8 @@ func TestParsePicksErrors(t *testing.T) {
 		{"같은 서비스 두 번", "- [x] user-service\n- [x] user-service 1.8.0", "두 번"},
 		{"칸 제목 두 번", "- [x] user-service\n\n## 빌드할 서비스\n- [x] trade-service", "칸이 두 번"},
 		// 목록 · 인용 안에서 연 주석이 닫히기 전에 항목이 끝나면 GitHub 화면에서 뒤가 다 숨겨져 줄 단위로 따라갈 수 없음
-		{"인용 안에서 열고 인용 밖으로 나간 주석", "> <!-- 메모\n- [x] user-service", "여러 줄 주석"},
-		{"항목 안에서 열고 다음 항목으로 넘어간 주석", "- [x] user-service\n  <!-- 보류\n- [x] trade-service\n  -->\n- [x] chat-service", "여러 줄 주석"},
+		{"인용 안에서 열고 인용 밖으로 나간 주석", "> <!-- 메모\n- [x] user-service", "항목 밖까지"},
+		{"항목 안에서 열고 다음 항목으로 넘어간 주석", "- [x] user-service\n  <!-- 보류\n- [x] trade-service\n  -->\n- [x] chat-service", "항목 밖까지"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
