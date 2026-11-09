@@ -27,7 +27,7 @@ public final class StrategyPerformance {
   public record Result(List<DailyValue> dailyValues, PerformanceMetrics metricsKrw,
                        PerformanceMetrics metricsUsd) {}
 
-  // 하루 평가 가치(화면 값 · 반올림 전 달러)와 앞 점 다음 날부터 그날까지의 입금(달러) · 그날 환율
+  // 하루 평가 가치(화면 값 · 반올림 전 달러)와 앞 점 다음 날부터 그 날짜까지의 입금(달러) · 그 날짜 환율
   private record Point(DailyValue value, BigDecimal rawUsd, BigDecimal depositUsd, BigDecimal fxRate) {}
 
   private StrategyPerformance() {}
@@ -110,7 +110,7 @@ public final class StrategyPerformance {
     return index;
   }
 
-  // 그날 종가 기준 보유 주식 수(그날 산 것 포함)
+  // 그 날짜 종가 기준 보유 주식 수(그 날짜에 산 것 포함)
   private static BigDecimal sharesOn(List<StrategyTransaction> transactions, LocalDate date) {
     return transactions.stream()
         .filter(tx -> !tx.tradedOn().isAfter(date))
@@ -118,7 +118,7 @@ public final class StrategyPerformance {
         .reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 
-  // 그날까지 매도로 받고 매수에 쓰고 남은 현금(USD)
+  // 그 날짜까지 매도로 받고 매수에 쓰고 남은 현금(USD)
   private static BigDecimal tradeCashOn(List<StrategyTransaction> transactions, LocalDate date) {
     return transactions.stream()
         .filter(tx -> !tx.tradedOn().isAfter(date))

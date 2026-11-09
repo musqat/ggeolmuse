@@ -712,7 +712,7 @@ class TradingSimulationServiceImplTest {
     }
 
     @Test
-    @DisplayName("매도일이 없으면 지금처럼 현재가 · 최신 환율로 오늘 평가한다")
+    @DisplayName("매도일이 없으면 현재가 · 최신 환율로 오늘 평가한다")
     void noSaleDate_ValuesToday() {
       String today = LocalDate.now().toString();
       stubPurchase();

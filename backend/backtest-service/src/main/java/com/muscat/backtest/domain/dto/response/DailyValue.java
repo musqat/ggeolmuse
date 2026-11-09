@@ -8,7 +8,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-// 하루 평가 가치(달러 · 원화)와 그날 고점 대비 낙폭
+// 하루 평가 가치(달러 · 원화)와 그 날짜까지의 고점 대비 낙폭
 @Schema(description = "하루 평가 가치")
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record DailyValue(

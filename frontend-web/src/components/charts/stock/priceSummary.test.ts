@@ -8,7 +8,7 @@ describe('priceSummary', () => {
     expect(priceSummary([])).toBeNull()
   })
 
-  it('등락은 그날 시가가 아니라 전일 종가 대비다', () => {
+  it('등락은 당일 시가가 아니라 전일 종가 대비다', () => {
     const summary = priceSummary([candle('2026-10-07', 98, 100), candle('2026-10-08', 105, 102)])
 
     expect(summary?.last.time).toBe('2026-10-08')

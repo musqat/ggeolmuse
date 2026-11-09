@@ -37,7 +37,7 @@ public final class PriceLookup {
   }
 
   // maxDays 만큼 거슬러 available 시세를 찾음(휴장일)
-  // 못 찾으면 STOCK_DATA_NOT_FOUND, 한 번도 답이 없으면 MARKET_DATA_UNAVAILABLE
+  // 못 찾으면 STOCK_DATA_NOT_FOUND, 한 번도 응답이 없으면 MARKET_DATA_UNAVAILABLE
   public static OHLCPriceDto withFallback(PriceFetcher fetcher, String symbol, LocalDate date, int maxDays) {
     LocalDate searchDate = date;
     boolean answered = false;
@@ -50,7 +50,7 @@ public final class PriceLookup {
           return response;
         }
       } catch (FeignException.FeignClientException e) {
-        // 4xx 는 시세 서비스의 답(그날 쓸 데이터 없음)
+        // 4xx 는 시세 서비스의 응답(그 날짜에 쓸 데이터 없음)
         answered = true;
       } catch (Exception e) {
         // 조회 실패 → 하루 전으로 계속
@@ -81,7 +81,7 @@ public final class PriceLookup {
   }
 
   // date 부터 notAfter 까지(최대 maxDays) 앞으로 찾은 첫 available 시세(휴장일이면 다음 거래일), 없으면 null
-  // 4xx 는 그날 데이터가 없는 것이라 다음 날로, 그 밖의 실패는 예외 그대로
+  // 4xx 는 그 날짜 데이터가 없는 것이라 다음 날로, 그 밖의 실패는 예외 그대로
   public static OHLCPriceDto nextAvailable(PriceFetcher fetcher, String symbol, LocalDate date,
       LocalDate notAfter, int maxDays) {
     LocalDate searchDate = date;
@@ -92,7 +92,7 @@ public final class PriceLookup {
           return response;
         }
       } catch (FeignException.FeignClientException e) {
-        // 그날 쓸 데이터가 없음
+        // 그 날짜에 쓸 데이터 없음
       }
       searchDate = searchDate.plusDays(1);
     }

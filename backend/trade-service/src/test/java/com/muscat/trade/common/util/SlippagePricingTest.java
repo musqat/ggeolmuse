@@ -30,7 +30,7 @@ class SlippagePricingTest {
   }
 
   @Test
-  @DisplayName("율이 null 이면 시장가 그대로")
+  @DisplayName("슬리피지율이 null 이면 시장가 그대로")
   void apply_NullRate_ReturnsMarketPrice() {
     BigDecimal price = SlippagePricing.apply(MARKET_PRICE, null, TradeType.BUY, 2);
 
@@ -38,7 +38,7 @@ class SlippagePricingTest {
   }
 
   @Test
-  @DisplayName("율이 0 이면 시장가 그대로")
+  @DisplayName("슬리피지율이 0 이면 시장가 그대로")
   void apply_ZeroRate_ReturnsMarketPrice() {
     BigDecimal price = SlippagePricing.apply(MARKET_PRICE, BigDecimal.ZERO, TradeType.SELL, 2);
 
@@ -46,7 +46,7 @@ class SlippagePricingTest {
   }
 
   @Test
-  @DisplayName("율이 음수면 시장가 그대로")
+  @DisplayName("슬리피지율이 음수면 시장가 그대로")
   void apply_NegativeRate_ReturnsMarketPrice() {
     BigDecimal price = SlippagePricing.apply(MARKET_PRICE, new BigDecimal("-0.001"),
       TradeType.BUY, 2);

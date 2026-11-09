@@ -75,7 +75,7 @@ class DividendBackfillServiceTest {
   }
 
   @Test
-  @DisplayName("체결 기록과 몫 표의 자리를 겹치지 않게 모아 자리마다 다시 보내기 재계산을 한 번씩 요청한다")
+  @DisplayName("체결 기록과 몫 테이블의 자리를 겹치지 않게 모아 자리마다 다시 보내기 재계산을 한 번씩 요청한다")
   void requestAll_OncePerPosition() {
     given(tradeRepository.findDistinctPositions(TradeStatus.COMPLETED)).willReturn(List.of(
       new TradePosition("user-1", 20L, "AAPL"), new TradePosition("user-2", 21L, "AAPL")));

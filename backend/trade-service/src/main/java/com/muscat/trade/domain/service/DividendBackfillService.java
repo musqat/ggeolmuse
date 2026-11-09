@@ -28,7 +28,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-// 배당 몫 백필과 어긋남 미리 보기
+// 배당 몫 백필과 불일치 미리 보기
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -130,7 +130,7 @@ public class DividendBackfillService {
     }
   }
 
-  // 체결이 다 취소된 자리도 몫을 0 으로 돌리려고 몫 표의 자리를 같이 모음
+  // 체결이 다 취소된 자리도 몫을 0 으로 돌리려고 몫 테이블의 자리를 같이 모음
   private Set<TradePosition> positions() {
     Set<TradePosition> positions = new LinkedHashSet<>(tradeRepository.findDistinctPositions(TradeStatus.COMPLETED));
     positions.addAll(dividendPayoutRepository.findDistinctPositions());

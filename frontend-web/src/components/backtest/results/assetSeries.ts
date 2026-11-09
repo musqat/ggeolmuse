@@ -1,14 +1,14 @@
 import type { DailyValue, StrategyTransaction } from '../../../services/api';
 import type { MetricCurrency } from './CurrencyToggle';
 
-// 그날 넣은 돈(달러는 매수 환율로 바꾼 값, 모르면 null)
+// 그 날짜에 넣은 돈(달러는 매수 환율로 바꾼 값, 모르면 null)
 export interface Deposit {
   date: string;
   krw: number;
   usd: number | null;
 }
 
-// 그날 평가 가치 · 그날까지 넣은 돈 · 수익률(%), 넣은 돈이 없으면 null
+// 그 날짜의 평가 가치 · 그 날짜까지 넣은 돈 · 수익률(%), 넣은 돈이 없으면 null
 export interface AssetPoint {
   date: string;
   value: number;
@@ -16,7 +16,7 @@ export interface AssetPoint {
   returnPct: number | null;
 }
 
-// 고른 통화의 일별 평가 가치에 그날까지 넣은 돈과 수익률을 얹음
+// 고른 통화의 일별 평가 가치와 그 날짜까지 넣은 돈 · 수익률
 export function assetSeries(values: DailyValue[], deposits: Deposit[], currency: MetricCurrency): AssetPoint[] {
   const sorted = [...deposits].sort((a, b) => a.date.localeCompare(b.date));
   let next = 0;
@@ -35,7 +35,7 @@ export function assetSeries(values: DailyValue[], deposits: Deposit[], currency:
   });
 }
 
-// 매수한 날의 점(그날 일별 값이 없으면 다음 날, 같은 날은 하나)
+// 매수한 날의 점(그 날짜의 일별 값이 없으면 다음 날, 같은 날은 하나)
 export function depositPoints(points: AssetPoint[], deposits: Deposit[]): AssetPoint[] {
   const picked = new Set<AssetPoint>();
   for (const deposit of deposits) {

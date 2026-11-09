@@ -30,7 +30,7 @@ class DividendServiceImplTest {
   private DividendServiceImpl dividendService;
 
   @Test
-  @DisplayName("세후 몫이 있는 배당만 몫 표에서 읽어 계좌 · 배당락일 · 금액을 싣는다")
+  @DisplayName("세후 몫이 있는 배당만 몫 테이블에서 읽어 계좌 · 배당락일 · 금액을 싣는다")
   void getUserDividends_ZeroPayoutHidden() {
     DividendPayout payout = DividendPayout.of("user-1", 20L, "AAPL", LocalDate.of(2025, 5, 12),
       new DividendAmounts(new BigDecimal("0.25"), new BigDecimal("10"), new BigDecimal("2.50"),

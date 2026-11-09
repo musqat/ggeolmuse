@@ -42,7 +42,7 @@ public final class PurchaseDayReturns {
     return points;
   }
 
-  // 그 날짜 종가 · 환율로 같은 투자 금액이나 같은 주식 수를 사서 평가일까지 들고 있었을 때(수수료 · 남은 현금 · 배당 재투자 또는 세후 현금 배당)
+  // 그 날짜 종가 · 환율로 같은 투자 금액이나 같은 주식 수를 사서 평가일까지 보유했을 때(수수료 · 남은 현금 · 배당 재투자 또는 세후 현금 배당)
   private static PurchaseDayReturn returnOn(LocalDate date, BigDecimal priceUsd, BigDecimal fxRate, Inputs in) {
     BigDecimal investmentKrw = in.investmentKrw();
     BigDecimal usdAmount;

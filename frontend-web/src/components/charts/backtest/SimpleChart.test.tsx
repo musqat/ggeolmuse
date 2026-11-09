@@ -38,7 +38,7 @@ afterEach(() => {
 })
 
 describe('SimpleChart 가격 구간', () => {
-  it('평가일이 있으면 그날까지 가격을 받는다', async () => {
+  it('평가일이 있으면 평가일까지 가격을 받는다', async () => {
     renderChart('2024-06-14')
 
     await waitFor(() => expect(getOHLCData).toHaveBeenCalled())

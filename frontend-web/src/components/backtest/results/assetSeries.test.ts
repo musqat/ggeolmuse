@@ -14,7 +14,7 @@ const deposits = [
 ]
 
 describe('assetSeries', () => {
-  it('원화는 그날까지 넣은 돈을 더하고 평가 가치 ÷ 넣은 돈 - 1 을 수익률로 둔다', () => {
+  it('원화는 그 날짜까지 넣은 돈을 더하고 평가 가치 ÷ 넣은 돈 - 1 을 수익률로 둔다', () => {
     expect(assetSeries(values, deposits, 'KRW')).toEqual([
       { date: '2024-01-02', value: 0, invested: null, returnPct: null },
       { date: '2024-01-03', value: 130000, invested: 130000, returnPct: 0 },
@@ -28,7 +28,7 @@ describe('assetSeries', () => {
     expect(usd[2]).toEqual({ date: '2024-01-08', value: 210, invested: 198, returnPct: (210 / 198 - 1) * 100 })
   })
 
-  it('달러 금액을 모르는 매수가 있으면 그날부터 달러 넣은 돈을 비운다', () => {
+  it('달러 금액을 모르는 매수가 있으면 그 매수일부터 달러 넣은 돈을 비운다', () => {
     const usd = assetSeries(values, [deposits[0], { ...deposits[1], usd: null }], 'USD')
     expect(usd.map((p) => p.invested)).toEqual([null, 100, null, null])
   })

@@ -79,7 +79,7 @@ public class MarketDataServiceImpl implements MarketDataService {
     return manualPrice;
   }
 
-  // 그날 시세를 받아 쓸 수 있는 것만(없으면 시세 없음, 조회 실패는 시세 서비스 오류)
+  // 그 날짜 시세를 받아 쓸 수 있는 것만(없으면 시세 없음, 조회 실패는 시세 서비스 오류)
   private StockPriceDto fetchAvailable(String symbol, LocalDate tradeDate, String label) {
     log.info("시장 데이터 조회 시도: symbol={}, date={}, 용도={}", symbol, tradeDate, label);
     StockPriceDto response;

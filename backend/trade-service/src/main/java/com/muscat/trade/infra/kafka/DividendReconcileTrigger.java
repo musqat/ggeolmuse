@@ -47,7 +47,7 @@ public class DividendReconcileTrigger {
     request(event.userId(), event.accountId(), event.symbol());
   }
 
-  // 못 보낸 요청은 관리자 미리 보기의 어긋남으로 잡히고 백필로 맞춤
+  // 못 보낸 요청은 관리자 미리 보기의 불일치로 잡히고 백필로 맞춤
   private void request(String userId, Long accountId, String symbol) {
     try {
       executor.execute(() -> send(userId, accountId, symbol));

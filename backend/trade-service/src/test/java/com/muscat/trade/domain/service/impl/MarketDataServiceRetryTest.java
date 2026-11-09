@@ -75,7 +75,7 @@ class MarketDataServiceRetryTest {
   }
 
   @Test
-  @DisplayName("직접 입력 가격이 그날 범위를 벗어나면 다시 부르지 않고 거절한다")
+  @DisplayName("직접 입력 가격이 그 날짜 가격 범위를 벗어나면 다시 부르지 않고 거절한다")
   void manualPriceOutOfRange_NotRetried() {
     given(client.getOHLCPrice("AAPL", "2024-09-18")).willReturn(ohlc());
 

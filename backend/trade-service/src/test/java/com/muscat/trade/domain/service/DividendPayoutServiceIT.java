@@ -33,7 +33,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.kafka.ConfluentKafkaContainer;
 
-// Flyway 로 만든 Postgres 표에서 몫 표의 키 · 갱신과 계좌 사이 분리를 봄
+// Flyway 로 만든 Postgres 스키마에서 몫 테이블의 키 · 갱신과 계좌 사이 분리를 봄
 @SpringBootTest(properties = {
   "spring.jpa.hibernate.ddl-auto=validate",
   "spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect"

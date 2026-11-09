@@ -13,11 +13,11 @@ public record DividendAmounts(
   BigDecimal netAmount
 ) {
 
-  // 몫 표 dividend_per_share 칸의 소수 자리
+  // 몫 테이블 dividend_per_share 컬럼의 소수 자리
   private static final int PER_SHARE_SCALE = 6;
 
   public static DividendAmounts of(BigDecimal dividendPerShare, BigDecimal shares) {
-    // 저장한 값과 다시 계산한 값이 같도록 칸보다 긴 주당 배당만 반올림
+    // 저장한 값과 다시 계산한 값이 같도록 컬럼보다 긴 주당 배당만 반올림
     BigDecimal perShare = dividendPerShare.scale() > PER_SHARE_SCALE
       ? dividendPerShare.setScale(PER_SHARE_SCALE, CommonConstants.DEFAULT_ROUNDING_MODE)
       : dividendPerShare;
