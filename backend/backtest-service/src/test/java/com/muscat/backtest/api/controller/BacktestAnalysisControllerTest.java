@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.DcaFrequency;
+import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.exception.GlobalExceptionHandler;
@@ -242,6 +243,35 @@ class BacktestAnalysisControllerTest {
       .andExpect(jsonPath("$.totalReturnPercent").value(-4.1));
 
     verify(backtestAnalysisService).runConditionalStrategy(argThat(r -> r.getDropPercentage().intValue() == 5));
+  }
+
+  @Test
+  @DisplayName("적립식 · 조건부 전략은 양도세 · 기간 끝 선택을 받아 그대로 넘긴다")
+  void capitalGainsTaxAndPeriodEnd() throws Exception {
+    given(backtestAnalysisService.runDcaStrategy(any())).willReturn(strategy("AAPL", StrategyType.DCA, "1"));
+    given(backtestAnalysisService.runConditionalStrategy(any()))
+      .willReturn(strategy("AAPL", StrategyType.CONDITIONAL_PURCHASE, "1"));
+    String options = ",\"capitalGainsTax\":true,\"periodEnd\":\"SELL_AT_END\"}";
+
+    postJson("/strategy/dca", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"amountPerPurchase\":100000" + options)
+      .andExpect(status().isOk());
+    postJson("/strategy/conditional", "{\"symbol\":\"AAPL\"," + PERIOD
+      + ",\"amountPerPurchase\":100000,\"dropPercentage\":0.05" + options)
+      .andExpect(status().isOk());
+
+    verify(backtestAnalysisService).runDcaStrategy(argThat((DcaStrategyRequest r) ->
+      Boolean.TRUE.equals(r.getCapitalGainsTax()) && r.getPeriodEnd() == PeriodEnd.SELL_AT_END));
+    verify(backtestAnalysisService).runConditionalStrategy(argThat(r ->
+      Boolean.TRUE.equals(r.getCapitalGainsTax()) && r.getPeriodEnd() == PeriodEnd.SELL_AT_END));
+  }
+
+  @Test
+  @DisplayName("기간 끝이 끝까지 보유 · 기간 끝 매도 밖이면 400 이고 서비스까지 가지 않는다")
+  void periodEndInvalid() throws Exception {
+    postJson("/strategy/dca", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"amountPerPurchase\":100000,\"periodEnd\":\"SELL\"}")
+      .andExpect(status().isBadRequest());
+
+    verify(backtestAnalysisService, never()).runDcaStrategy(any());
   }
 
   @Test

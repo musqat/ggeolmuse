@@ -11,6 +11,8 @@ const values: SymbolComparisonValues = {
   reinvestDividends: false,
   tradingFeeRate: '0',
   dividendTax: false,
+  capitalGainsTax: false,
+  periodEnd: 'HOLD',
   fxMode: 'auto',
   manualPurchaseFxRate: '1300',
   manualCurrentFxRate: '1350',
@@ -27,6 +29,8 @@ describe('buildSymbolComparisonRequest', () => {
         reinvestDividends: false,
         tradingFeeRate: 0,
         dividendTaxRate: 0,
+        capitalGainsTax: false,
+        periodEnd: 'HOLD',
       },
     })
   })

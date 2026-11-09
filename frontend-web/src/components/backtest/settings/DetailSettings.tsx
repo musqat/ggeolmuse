@@ -29,6 +29,10 @@ interface DetailSettingsProps {
   messages?: DetailMessages;
 }
 
+const PERIOD_END_OPTIONS = [
+  { value: 'HOLD' as const, label: '끝까지 보유' },
+  { value: 'SELL_AT_END' as const, label: '마지막 거래일에 팔기' },
+];
 const DIVIDEND_OPTIONS = { cash: '현금으로 받기', reinvest: '재투자' };
 const FX_OPTIONS = [
   { value: 'auto' as const, label: '자동' },
@@ -36,9 +40,10 @@ const FX_OPTIONS = [
 ];
 const LOCKED_NOTE = '익절 · 손절이 있으면 배당은 현금으로';
 
-// 접는 세부 설정: 세금 · 배당 · 수수료 · 환율(접힌 줄에 기본값도 값으로, 바꾼 것은 진하게)
+// 접는 세부 설정: 기간 끝 · 세금 · 배당 · 수수료 · 환율(접힌 줄에 기본값도 값으로, 바꾼 것은 진하게)
 export const DetailSettings = ({ options, open, onToggle, reinvestLocked = false, reinvestNote, messages = {} }: DetailSettingsProps) => {
   const panelId = useId();
+  const periodEndLabelId = useId();
   const taxLabelId = useId();
   const dividendLabelId = useId();
   const dividendNoteId = useId();
@@ -79,6 +84,17 @@ export const DetailSettings = ({ options, open, onToggle, reinvestLocked = false
       <div id={panelId} className={open ? `mt-3 ${FIELD_GRID}` : 'hidden'}>
         {open && (
           <>
+            <SettingField label="기간이 끝나면" labelId={periodEndLabelId}>
+              <RadioGroup
+                labelledBy={periodEndLabelId}
+                options={PERIOD_END_OPTIONS}
+                value={options.periodEnd}
+                onChange={options.setPeriodEnd}
+                className="flex flex-wrap items-center gap-1.5"
+                optionClassName={PILL}
+              />
+            </SettingField>
+
             <SettingField label="세금" labelId={taxLabelId}>
               <div role="group" aria-labelledby={taxLabelId} className="flex flex-wrap items-center gap-1.5">
                 <button
@@ -89,6 +105,15 @@ export const DetailSettings = ({ options, open, onToggle, reinvestLocked = false
                 >
                   {options.dividendTax && <Check aria-hidden className="h-3.5 w-3.5" />}
                   배당세 15%
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={options.capitalGainsTax}
+                  onClick={() => options.setCapitalGainsTax(!options.capitalGainsTax)}
+                  className={PILL(options.capitalGainsTax)}
+                >
+                  {options.capitalGainsTax && <Check aria-hidden className="h-3.5 w-3.5" />}
+                  양도세 22%(연 250만원 공제)
                 </button>
               </div>
             </SettingField>

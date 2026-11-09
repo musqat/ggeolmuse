@@ -146,7 +146,14 @@ export const useDcaMode = (shared: SharedModeProps): ModeController => {
     },
     renderResult: (result) =>
       result.mode === 'dca' ? (
-        <DcaConditionalResult kind="dca" result={result} symbol={symbol} startDate={period.start} budget={result.budget} />
+        <DcaConditionalResult
+          kind="dca"
+          result={result}
+          symbol={symbol}
+          startDate={period.start}
+          budget={result.budget}
+          sellAtEnd={result.periodEnd === 'SELL_AT_END'}
+        />
       ) : null,
   };
 };

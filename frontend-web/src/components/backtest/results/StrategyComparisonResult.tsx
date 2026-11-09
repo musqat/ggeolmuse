@@ -13,8 +13,9 @@ import { purchaseCount, sellCount } from './resultValues';
 import { simpleDeposits, strategyDeposits } from './assetSeries';
 import { CompareTable, type CompareColumn } from './compare/CompareTable';
 import { ReturnLinesChart } from './compare/ReturnLinesChart';
-import { bestKeys, byTotalReturn, metricsOf, returnPoints, type CompareRow } from './compare/compareRows';
+import { bestKeys, byTotalReturn, metricsOf, returnPoints, taxOf, type CompareRow } from './compare/compareRows';
 import { DrawdownCell } from './compare/DrawdownCell';
+import { AfterTaxCell, TaxDetail } from './compare/AfterTax';
 
 interface StrategyComparisonResultProps {
   result: ComparisonResponse;
@@ -72,6 +73,15 @@ export const StrategyComparisonResult: React.FC<StrategyComparisonResultProps> =
         ),
       best: bestKeys(ranked, (row) => row.totalReturnPercent),
     },
+    ...(rows.some(taxOf)
+      ? [
+          {
+            label: '세후 수익률',
+            cell: (row: CompareRow) => (noPurchase(row) ? <span className="text-tx-3">—</span> : <AfterTaxCell row={row} />),
+            best: bestKeys(ranked, (row) => taxOf(row)?.afterTaxReturnPercent),
+          },
+        ]
+      : []),
     {
       label: '연평균',
       cell: (row) => {
@@ -137,6 +147,7 @@ export const StrategyComparisonResult: React.FC<StrategyComparisonResultProps> =
             last
           />
         </DetailSection>
+        <TaxDetail row={row} />
       </div>
     );
   };
@@ -170,7 +181,7 @@ export const StrategyComparisonResult: React.FC<StrategyComparisonResultProps> =
 
       <CompareTable
         title="전략별 결과"
-        description={`줄을 누르면 그 전략의 매수 · 위험 · 환율이 펼쳐집니다 · 총 수익률 순${currency === 'USD' ? ' · 총 수익률 · 평가 가치는 원화 기준' : ''}`}
+        description={`줄을 누르면 그 전략의 매수 · 위험 · ${rows.some(taxOf) ? '환율 · 양도세가' : '환율이'} 펼쳐집니다 · 총 수익률 순${currency === 'USD' ? ' · 총 수익률 · 평가 가치는 원화 기준' : ''}`}
         nameLabel="전략"
         rows={rows}
         columns={columns}

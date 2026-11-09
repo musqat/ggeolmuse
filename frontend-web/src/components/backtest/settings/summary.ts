@@ -92,15 +92,21 @@ export const conditionalHow = (summary: ConditionalSummary) => {
   return parts.filter(Boolean).join(' · ');
 };
 
-type DetailInput = Pick<BacktestOptions, 'tradingFeeRate' | 'dividendTax' | 'reinvestDividends' | 'fxMode'>;
+type DetailInput = Pick<
+  BacktestOptions,
+  'periodEnd' | 'tradingFeeRate' | 'dividendTax' | 'capitalGainsTax' | 'reinvestDividends' | 'fxMode'
+>;
 
 // 세부 설정 값 글(기본값도 값으로, changed 는 기본값과 다른지, 재투자가 막혔으면 현금)
 export const detailParts = (options: DetailInput, reinvestLocked: boolean) => {
   const fee = parseFloat(options.tradingFeeRate) || 0;
   const reinvest = options.reinvestDividends && !reinvestLocked;
   const manual = options.fxMode === 'manual';
+  const sellAtEnd = options.periodEnd === 'SELL_AT_END';
   return [
+    { text: sellAtEnd ? '마지막 거래일에 팔기' : '끝까지 보유', changed: sellAtEnd },
     { text: `배당세 ${options.dividendTax ? '15%' : '끔'}`, changed: !options.dividendTax },
+    { text: `양도세 ${options.capitalGainsTax ? '22%' : '끔'}`, changed: !options.capitalGainsTax },
     { text: `배당 ${reinvest ? '재투자' : '현금'}`, changed: reinvest },
     { text: `수수료 ${options.tradingFeeRate.trim() || 0}%`, changed: fee > 0 },
     { text: `환율 ${manual ? '직접 입력' : '자동'}`, changed: manual },

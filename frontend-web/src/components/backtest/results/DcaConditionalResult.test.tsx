@@ -245,6 +245,24 @@ describe('DcaConditionalResult', () => {
     expect(card('쓰지 않은 예산')).toHaveTextContent('₩1,000,000')
   })
 
+  it('양도세를 요청했으면 누적 매수액 기준 세후 수익률과 연도별 양도세를 상세 앞 칸에 보이고, 요청하지 않았으면 칸이 없다', async () => {
+    const tax = {
+      years: [{ year: 2023, realizedGainKrw: 3000000, deductionKrw: 2500000, taxKrw: 110000 }],
+      totalTaxKrw: 110000,
+      afterTaxValueKrw: 1240000,
+      afterTaxReturnPercent: 3.33,
+    }
+    const { rerender } = render(<DcaConditionalResult result={result} {...props} />)
+    expect(screen.queryByText('예상 양도세')).toBeNull()
+
+    rerender(<DcaConditionalResult result={{ ...result, capitalGainsTax: tax }} {...props} />)
+    expect(screen.getByText('· ₩110,000 · 세후 수익률 +3.33%')).toBeInTheDocument()
+    await open('예상 양도세')
+    expect(screen.getByText('세후 평가').nextSibling).toHaveTextContent('₩1,240,000')
+    expect(screen.getByText('세후 수익률 · 누적 매수액 기준')).toBeInTheDocument()
+    expect(screen.getByRole('row', { name: /2023년/ })).toHaveTextContent('₩110,000')
+  })
+
   it('위 카드 평가 가치는 배당 현금까지 넣은 총자산, 투자 정보는 주식 평가액만 보여준다', async () => {
     render(<DcaConditionalResult result={{ ...result, currentValueKrw: 1300000 }} {...props} />)
     await open('상세')

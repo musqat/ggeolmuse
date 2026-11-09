@@ -14,6 +14,7 @@ import static org.mockito.Mockito.never;
 
 import com.muscat.backtest.common.calculation.StrategyCalculationResult;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
+import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.PriceDirection;
 import com.muscat.backtest.common.enums.type.SkipReason;
 import com.muscat.backtest.common.enums.type.StrategyType;
@@ -21,6 +22,7 @@ import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.util.BacktestCalculationUtils;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
+import com.muscat.backtest.domain.dto.response.CapitalGainsTax;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.domain.model.SkippedRound;
@@ -1123,6 +1125,56 @@ class ConditionalPurchaseStrategyTest {
         assertThat(sale.getFee()).isEqualByComparingTo("11.00");
         assertThat(sale.getProceeds()).isCloseTo(new BigDecimal("1089"), org.assertj.core.data.Offset.offset(new BigDecimal("0.01")));
         assertThat(sale.getRealizedProfit()).isEqualByComparingTo(sale.getProceeds().subtract(new BigDecimal("1000")));
+      }
+
+      @Test
+      @DisplayName("양도세를 켜면 판 해의 원화 실현 이익 · 공제 · 세금과 세후 평가를 싣는다")
+      void capitalGainsTaxOnSale() {
+        ConditionalStrategyRequest request = selling(3, 10).takeProfitRate(new BigDecimal("0.1"))
+          .capitalGainsTax(true).build();
+        stubMarket(request, afterEntry(candle(2, "101", "111", "100", "105")), false);
+
+        StrategyResponse response = strategy.execute(request);
+
+        // 130만원어치 10주를 1100달러 × 1300원에 팔아 13만원 이익, 공제 안이라 세금 0
+        assertThat(response.getCapitalGainsTax().years()).containsExactly(
+          new CapitalGainsTax.Year(2024, new BigDecimal("130000"), new BigDecimal("130000"), new BigDecimal("0")));
+        assertThat(response.getCapitalGainsTax().totalTaxKrw()).isEqualByComparingTo("0");
+        assertThat(response.getCapitalGainsTax().afterTaxValueKrw()).isEqualByComparingTo("1430000");
+        assertThat(response.getCapitalGainsTax().afterTaxReturnPercent()).isEqualByComparingTo("10.00");
+      }
+
+      @Test
+      @DisplayName("기간 끝 매도를 고르면 익절 · 손절이 없어도 남은 주식을 마지막 거래일 종가에 판다")
+      void sellAtEnd() {
+        ConditionalStrategyRequest holding = selling(3, 10).periodEnd(PeriodEnd.SELL_AT_END).build();
+        stubMarket(holding, afterEntry(day(2, "105")), false);
+
+        strategy.execute(holding);
+
+        assertThat(trades()).containsExactly(ENTRY, tuple("105", "기간 끝 매도", -1));
+        assertThat(executed().getLast().getProceeds()).isEqualByComparingTo("1050");
+      }
+
+      @Test
+      @DisplayName("익절로 전량 판 뒤 다시 사지 않았으면 기간 끝 매도를 골라도 더 팔지 않는다")
+      void sellAtEndAfterSoldOut() {
+        ConditionalStrategyRequest request = selling(3, 10).takeProfitRate(new BigDecimal("0.1"))
+          .periodEnd(PeriodEnd.SELL_AT_END).build();
+        stubMarket(request, afterEntry(candle(2, "101", "111", "100", "105")), false);
+
+        strategy.execute(request);
+
+        assertThat(trades()).containsExactly(ENTRY, tuple("110", "10.0%익절", -1));
+      }
+
+      @Test
+      @DisplayName("양도세를 비우면 결과에 양도세를 싣지 않는다")
+      void capitalGainsTaxOff() {
+        ConditionalStrategyRequest request = selling(3, 10).takeProfitRate(new BigDecimal("0.1")).build();
+        stubMarket(request, afterEntry(candle(2, "101", "111", "100", "105")), false);
+
+        assertThat(strategy.execute(request).getCapitalGainsTax()).isNull();
       }
 
       @Test

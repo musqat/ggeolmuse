@@ -1,5 +1,6 @@
 package com.muscat.backtest.domain.model;
 
+import com.muscat.backtest.domain.dto.response.CapitalGainsTax;
 import java.math.BigDecimal;
 import lombok.Builder;
 import lombok.Data;
@@ -33,6 +34,9 @@ public class ComparisonItem {
 
   // 배당금
   private BigDecimal dividends;
+
+  // 예상 양도세 · 세후 평가(요청에서 끄면 null)
+  private CapitalGainsTax capitalGainsTax;
 
   // 순위
   private Integer rank;                  // 수익률 순위(투자금 0 인 매수 0회 항목은 null)

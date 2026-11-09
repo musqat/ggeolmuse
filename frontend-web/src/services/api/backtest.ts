@@ -2,13 +2,34 @@ import { apiClient } from './client';
 
 // ===== 백테스트 타입 =====
 
+// 기간이 끝날 때 남은 주식(끝까지 보유 · 마지막 거래일 종가에 전량 매도)
+export type PeriodEnd = 'HOLD' | 'SELL_AT_END';
+
 // 백테스트 요청 공통 칸(환율은 fxMode 가 manual 일 때만)
 type BacktestCommonRequest = {
   reinvestDividends?: boolean;          // 배당 재투자 여부
   tradingFeeRate?: number;              // 거래 수수료율 (0.001 = 0.1%)
   dividendTaxRate?: number;             // 배당 소득세율
+  capitalGainsTax?: boolean;            // 예상 양도세 계산 여부 (비우면 끔)
+  periodEnd?: PeriodEnd;                // 비우면 끝까지 보유
   purchaseFxRate?: number;              // 수동 환율 - 매수 시점
   currentFxRate?: number;               // 수동 환율 - 현재
+};
+
+// 한 해 예상 양도세(KRW, 손실은 그해 이익과 상계)
+export type CapitalGainsTaxYear = {
+  year: number;
+  realizedGainKrw: number;              // 1월 ~ 12월 원화 실현 이익 합
+  deductionKrw: number;                 // 기본 공제 (연 250만원까지)
+  taxKrw: number;                       // (실현 이익 - 공제) × 22%
+};
+
+// 예상 양도세와 세후 평가(요청하지 않았으면 응답에 null)
+export type CapitalGainsTax = {
+  years: CapitalGainsTaxYear[];         // 판 거래가 있는 해만
+  totalTaxKrw: number;
+  afterTaxValueKrw: number;             // 총 자산 - 양도세 합
+  afterTaxReturnPercent: number;        // 총 수익률과 같은 기준 금액 대비
 };
 
 // 단순 시뮬레이션 요청
@@ -84,6 +105,7 @@ export type SimulationResponse = {
   metricsUsd?: PerformanceMetrics | null;   // 달러 기준 지표
   dailyValues?: DailyValue[];               // 매수일 ~ 평가일(마지막 날은 총자산)
   purchaseDayReturns?: PurchaseDayReturn[]; // 매수일 ~ 평가일 전 거래일마다(첫 날은 총 수익률과 같음)
+  capitalGainsTax?: CapitalGainsTax | null;
 };
 
 // 적립식 주기
@@ -221,6 +243,7 @@ export type StrategyResponse = {
   metricsKrw?: PerformanceMetrics | null;   // 원화 기준 지표(입금을 뺀 시간가중)
   metricsUsd?: PerformanceMetrics | null;   // 달러 기준 지표
   dailyValues?: DailyValue[];               // 첫 매수일 ~ 평가일(마지막 날은 총자산)
+  capitalGainsTax?: CapitalGainsTax | null;
 };
 
 // 비교 항목의 원래 응답(SimulationResponse 또는 StrategyResponse 라 두 쪽 칸 모두 선택)
@@ -257,6 +280,7 @@ export type ComparisonItem = {
   optimalSellDate?: string;
   optimalSellPrice?: number;
 
+  capitalGainsTax?: CapitalGainsTax | null;
   additionalData?: ComparisonDetail | null;
 };
 

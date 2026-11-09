@@ -81,7 +81,8 @@ public class DCAStrategy implements InvestmentStrategy {
       StrategyFinalizer.Result finalized = StrategyFinalizer.run(
         marketData, request.getSymbol(), request.getStartDate(), actualEndDate, request.getCurrentFxRate(),
         request.getPurchaseFxRate(), Boolean.TRUE.equals(request.getReinvestDividends()),
-        request.getDividendTaxRate(), transactions, purchases.priceMap(), purchases.dailyFx());
+        request.getDividendTaxRate(), transactions, purchases.priceMap(), purchases.dailyFx(), request.getPeriodEnd(),
+        request.getTradingFeeRate());
 
       log.info("DCA 전략 실행 완료: {} - {}회 투자, 수익률 {}%",
         request.getSymbol(), finalized.transactions().size(),
@@ -90,6 +91,7 @@ public class DCAStrategy implements InvestmentStrategy {
       StrategyResponse response = finalized.fill(responseMapper.toStrategyResponse(
         request, finalized.transactions(), finalized.calculation(), finalized.currentPrice(), skippedRounds));
       response.setSkippedSpan(purchases.skippedSpan());
+      response.setCapitalGainsTax(Boolean.TRUE.equals(request.getCapitalGainsTax()) ? finalized.capitalGainsTax() : null);
       return response;
 
     } finally {

@@ -88,22 +88,52 @@ describe('요약 둘째 줄', () => {
   })
 
   it('바꾼 설정: 기본값과 다른 옵션만, 재투자는 막혔으면 뺌', () => {
-    const base = { tradingFeeRate: '0', dividendTax: true, reinvestDividends: false, fxMode: 'auto' as const }
+    const base = {
+      periodEnd: 'HOLD' as const,
+      tradingFeeRate: '0',
+      dividendTax: true,
+      capitalGainsTax: true,
+      reinvestDividends: false,
+      fxMode: 'auto' as const,
+    }
     expect(changedOptions(base, false)).toEqual([])
-    const changed = { tradingFeeRate: '0.1', dividendTax: false, reinvestDividends: true, fxMode: 'manual' as const }
-    expect(changedOptions(changed, false)).toEqual(['배당세 끔', '배당 재투자', '수수료 0.1%', '환율 직접 입력'])
-    expect(changedOptions(changed, true)).toEqual(['배당세 끔', '수수료 0.1%', '환율 직접 입력'])
+    const changed = {
+      periodEnd: 'SELL_AT_END' as const,
+      tradingFeeRate: '0.1',
+      dividendTax: false,
+      capitalGainsTax: false,
+      reinvestDividends: true,
+      fxMode: 'manual' as const,
+    }
+    expect(changedOptions(changed, false)).toEqual([
+      '마지막 거래일에 팔기',
+      '배당세 끔',
+      '양도세 끔',
+      '배당 재투자',
+      '수수료 0.1%',
+      '환율 직접 입력',
+    ])
+    expect(changedOptions(changed, true)).toEqual(['마지막 거래일에 팔기', '배당세 끔', '양도세 끔', '수수료 0.1%', '환율 직접 입력'])
   })
 
   it('접힌 세부 설정: 기본값도 값으로 쓰고 바꾼 것만 표시, 수수료 빈 칸은 0%', () => {
-    const base = { tradingFeeRate: '', dividendTax: true, reinvestDividends: true, fxMode: 'auto' as const }
+    const base = {
+      periodEnd: 'HOLD' as const,
+      tradingFeeRate: '',
+      dividendTax: true,
+      capitalGainsTax: true,
+      reinvestDividends: true,
+      fxMode: 'auto' as const,
+    }
 
     expect(detailParts(base, false)).toEqual([
+      { text: '끝까지 보유', changed: false },
       { text: '배당세 15%', changed: false },
+      { text: '양도세 22%', changed: false },
       { text: '배당 재투자', changed: true },
       { text: '수수료 0%', changed: false },
       { text: '환율 자동', changed: false },
     ])
-    expect(detailParts(base, true)[1]).toEqual({ text: '배당 현금', changed: false })
+    expect(detailParts(base, true)[3]).toEqual({ text: '배당 현금', changed: false })
   })
 })

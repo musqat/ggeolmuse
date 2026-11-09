@@ -165,6 +165,46 @@ describe('StrategyComparisonResult', () => {
     expect(screen.queryByText('매도 횟수')).toBeNull()
   })
 
+  it('양도세를 요청하지 않았으면 세후 수익률 칸이 없다', () => {
+    renderResult()
+
+    expect(screen.queryByRole('columnheader', { name: '세후 수익률' })).toBeNull()
+  })
+
+  it('양도세를 요청했으면 세후 수익률 칸에 최고를 따로 표시하고, 펼치면 양도세 합 · 세후 평가 · 연도별 양도세를 보인다', async () => {
+    const year = { year: 2024, realizedGainKrw: 4000000, deductionKrw: 2500000, taxKrw: 330000 }
+    const [simple, dca] = result.items
+    renderResult({
+      ...result,
+      items: [
+        { ...simple, capitalGainsTax: { years: [], totalTaxKrw: 0, afterTaxValueKrw: 1100000, afterTaxReturnPercent: 10 } },
+        { ...dca, capitalGainsTax: { years: [year], totalTaxKrw: 330000, afterTaxValueKrw: 209000, afterTaxReturnPercent: 4.5 } },
+      ],
+    })
+
+    expect(screen.getByRole('columnheader', { name: '세후 수익률' })).toBeInTheDocument()
+    expect(row('적립식')).toHaveTextContent('+4.50%')
+    expect(within(row('단순 매수')).getAllByText('최고')).toHaveLength(1)
+    await userEvent.click(row('적립식'))
+    expect(screen.getByText('양도세 합').nextElementSibling).toHaveTextContent('₩330,000')
+    expect(screen.getByText('세후 평가').nextElementSibling).toHaveTextContent('₩209,000')
+    expect(screen.getByRole('row', { name: /^2024년/ })).toHaveTextContent('₩330,000')
+  })
+
+  it('매수 0회 전략은 세후 수익률도 비워 둔다', () => {
+    const none = {
+      name: 'CONDITIONAL_PURCHASE',
+      code: 'AAPL',
+      totalInvested: 0,
+      totalReturnPercent: 0,
+      additionalData: { symbol: 'AAPL', transactions: [] },
+      capitalGainsTax: { years: [], totalTaxKrw: 0, afterTaxValueKrw: 0, afterTaxReturnPercent: 0 },
+    }
+    renderResult({ ...result, items: [...result.items, none] })
+
+    expect(row('조건부 매수')).not.toHaveTextContent('+0.00%')
+  })
+
   it('매수가 · 보유 주식이 비면 단위 없이 - 로 보인다', async () => {
     renderResult({ ...result, items: [{ ...result.items[1], averagePrice: undefined, totalShares: undefined }] })
 

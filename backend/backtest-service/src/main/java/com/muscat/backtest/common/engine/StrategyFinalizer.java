@@ -1,12 +1,15 @@
 package com.muscat.backtest.common.engine;
 
+import com.muscat.backtest.common.calculation.CapitalGainsTaxCalculator;
 import com.muscat.backtest.common.calculation.StrategyCalculationResult;
 import com.muscat.backtest.common.calculation.StrategyCalculator;
+import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.util.BacktestCalculationUtils;
 import com.muscat.backtest.common.util.Decimals;
 import com.muscat.backtest.common.util.BacktestDataUtils;
 import com.muscat.backtest.common.util.FxPath;
 import com.muscat.backtest.common.util.FxRates;
+import com.muscat.backtest.domain.dto.response.CapitalGainsTax;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.backtest.infra.client.MarketDataClientWrapper;
@@ -22,7 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
-// 전략(DCA · 조건부) 공통 마무리: 평가일 시세 · 환율 → 총투자 · 환율 합 → 배당 재투자 → 계산
+// 전략(DCA · 조건부) 공통 마무리: 평가일 시세 · 환율 → 총투자 · 환율 합 → 배당 재투자 → 기간 끝 매도 → 계산
 public final class StrategyFinalizer {
 
   /** 마무리 결과(거래내역 + 계산결과 + 평가일 시세 + 일별 가치 · 지표) */
@@ -37,6 +40,12 @@ public final class StrategyFinalizer {
       response.setMetricsKrw(performance.metricsKrw());
       response.setMetricsUsd(performance.metricsUsd());
       return response;
+    }
+
+    // 판 거래의 연도별 예상 양도세와 총 자산 · 투자금 기준 세후 평가
+    public CapitalGainsTax capitalGainsTax() {
+      return CapitalGainsTaxCalculator.of(CapitalGainsTaxCalculator.realizedGains(transactions),
+        calculation.getTotalAssetKrw(), calculation.getTotalInvested());
     }
   }
 
@@ -53,7 +62,9 @@ public final class StrategyFinalizer {
       BigDecimal dividendTaxRate,
       List<StrategyTransaction> transactions,
       Map<LocalDate, OHLCPriceDto> priceMap,
-      FxRates dailyFx) {
+      FxRates dailyFx,
+      PeriodEnd periodEnd,
+      BigDecimal tradingFeeRate) {
 
     StockPriceDto currentPrice = BacktestDataUtils.getPriceAt(
         marketData, symbol, valuationDate);
@@ -66,8 +77,10 @@ public final class StrategyFinalizer {
     }
 
     LocalDate firstPurchaseDate = transactions.getFirst().getDate();
+    // 기간 끝에 팔면 판 날까지의 배당
+    LocalDate dividendsUntil = PeriodEnd.sells(periodEnd) ? PeriodEndSale.saleDate(priceMap, valuationDate) : valuationDate;
     DividendHistoryDto dividendHistory = BacktestDataUtils.getDividendHistory(
-        marketData, symbol, firstPurchaseDate, valuationDate);
+        marketData, symbol, firstPurchaseDate, dividendsUntil);
 
     BigDecimal totalInvested = transactions.stream()
         .map(StrategyTransaction::getAmount)
@@ -82,7 +95,11 @@ public final class StrategyFinalizer {
         marketData, dividendHistory, transactions, symbol,
         firstPurchaseDate, reinvestEnabled, dividendTaxRate, manualPurchaseFxRate, currentFxRate.rate());
 
-    // 배당 재투자 후 총 보유 주식수
+    if (PeriodEnd.sells(periodEnd)) {
+      sellAtEnd(transactions, priceMap, valuationDate, currentPrice, currentFxRate.rate(), tradingFeeRate);
+    }
+
+    // 배당 재투자 · 기간 끝 매도 후 총 보유 주식수
     BigDecimal totalShares = transactions.stream()
         .map(StrategyTransaction::getShares)
         .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -101,6 +118,20 @@ public final class StrategyFinalizer {
         calculation.getTotalAssetKrw(), currentFxRate.rate());
 
     return new Result(transactions, calculation, currentPrice, performance);
+  }
+
+  // 남은 주식 전량의 기간 끝 매도를 거래에 더함(환율은 평가일 환율, 실현 손익은 보유분 원가 대비, 남은 주식이 없으면 그대로)
+  private static void sellAtEnd(List<StrategyTransaction> transactions, Map<LocalDate, OHLCPriceDto> priceMap,
+      LocalDate valuationDate, StockPriceDto currentPrice, BigDecimal fxRate, BigDecimal feeRate) {
+    BigDecimal shares = transactions.stream()
+        .map(StrategyTransaction::getShares)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+    StrategyTransaction sale = PeriodEndSale.of(shares, priceMap, valuationDate, currentPrice.currentPrice(), feeRate,
+        fxRate);
+    if (sale != null) {
+      sale.setRealizedProfit(sale.getProceeds().subtract(StrategyCalculator.holdingCost(transactions)));
+      transactions.add(sale);
+    }
   }
 
   // 매수 0회 결과(투자 · 평가 · 수익 0, 일별 가치 · 지표 없음)

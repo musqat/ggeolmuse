@@ -18,17 +18,17 @@ function Harness({ startOpen = false, seen, ...props }: Props & { startOpen?: bo
 const toggle = () => screen.getByRole('button', { name: /세부 설정/ })
 
 describe('DetailSettings', () => {
-  it('접힌 줄에 기본값도 값으로 보이고, 양도세 · 기간이 끝나면은 없다', async () => {
+  it('접힌 줄에 기본값도 값으로 보이고, 열면 기간 끝은 끝까지 보유 · 세금 칩 둘은 켜져 있다', async () => {
     render(<Harness />)
 
     expect(toggle()).toHaveAttribute('aria-expanded', 'false')
-    expect(toggle()).toHaveTextContent('세부 설정배당세 15% · 배당 현금 · 수수료 0% · 환율 자동')
+    expect(toggle()).toHaveTextContent('세부 설정끝까지 보유 · 배당세 15% · 양도세 22% · 배당 현금 · 수수료 0% · 환율 자동')
     await userEvent.click(toggle())
 
     expect(toggle()).toHaveAttribute('aria-expanded', 'true')
+    expect(within(screen.getByRole('radiogroup', { name: '기간이 끝나면' })).getByRole('radio', { name: '끝까지 보유' })).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByRole('button', { name: '배당세 15%' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.queryByText(/양도세/)).toBeNull()
-    expect(screen.queryByText('기간이 끝나면')).toBeNull()
+    expect(screen.getByRole('button', { name: '양도세 22%(연 250만원 공제)' })).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('바꾼 값은 접힌 줄에서 진하게 보인다', async () => {
@@ -37,9 +37,23 @@ describe('DetailSettings', () => {
     await userEvent.click(within(screen.getByRole('radiogroup', { name: '배당' })).getByRole('radio', { name: '재투자' }))
     await userEvent.click(toggle())
 
-    expect(toggle()).toHaveTextContent('배당세 끔 · 배당 재투자 · 수수료 0% · 환율 자동')
+    expect(toggle()).toHaveTextContent('끝까지 보유 · 배당세 끔 · 양도세 22% · 배당 재투자 · 수수료 0% · 환율 자동')
     expect(within(toggle()).getByText('배당세 끔').tagName).toBe('B')
     expect(within(toggle()).getByText('수수료 0%').tagName).not.toBe('B')
+  })
+
+  it('마지막 거래일에 팔기 · 양도세 끔을 고르면 값이 바뀌고 접힌 줄에서 진하게 보인다', async () => {
+    let options!: BacktestOptionsState
+    render(<Harness startOpen seen={(o) => (options = o)} />)
+    await userEvent.click(within(screen.getByRole('radiogroup', { name: '기간이 끝나면' })).getByRole('radio', { name: '마지막 거래일에 팔기' }))
+    await userEvent.click(screen.getByRole('button', { name: '양도세 22%(연 250만원 공제)' }))
+
+    expect(options).toMatchObject({ periodEnd: 'SELL_AT_END', capitalGainsTax: false })
+    expect(screen.getByRole('button', { name: '양도세 22%(연 250만원 공제)' })).toHaveAttribute('aria-pressed', 'false')
+    await userEvent.click(toggle())
+    expect(toggle()).toHaveTextContent('마지막 거래일에 팔기 · 배당세 15% · 양도세 끔')
+    expect(within(toggle()).getByText('마지막 거래일에 팔기').tagName).toBe('B')
+    expect(within(toggle()).getByText('양도세 끔').tagName).toBe('B')
   })
 
   it('익절 · 손절로 재투자가 막히면 재투자는 aria-disabled 와 안내로 이어지고 고른 값은 기억한다', async () => {
@@ -84,7 +98,7 @@ describe('DetailSettings', () => {
     expect(screen.getByRole('textbox', { name: '수수료(퍼센트)' })).toHaveAttribute('aria-invalid', 'true')
     expect(screen.getByRole('textbox', { name: '수수료(퍼센트)' })).toHaveAccessibleDescription('100 아래')
     await userEvent.click(toggle())
-    expect(toggle()).toHaveTextContent('고칠 칸 있음 · 배당세 15%')
+    expect(toggle()).toHaveTextContent('고칠 칸 있음 · 끝까지 보유 · 배당세 15%')
   })
 
   it('환율을 직접 입력으로 바꾸면 매수 · 끝 날짜 칸이 열리고 빈 칸은 그 날짜 시장 환율', async () => {

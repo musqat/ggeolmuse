@@ -25,6 +25,9 @@ export interface ReturnPoint {
 export const metricsOf = (row: CompareRow, currency: MetricCurrency) =>
   currency === 'KRW' ? row.metricsKrw : row.metricsUsd;
 
+// 예상 양도세(요청하지 않았으면 null)
+export const taxOf = (row: CompareRow) => row.item.capitalGainsTax ?? row.item.additionalData?.capitalGainsTax ?? null;
+
 // 값이 가장 큰 줄의 key(값이 있는 줄이 둘 이상일 때만, 같으면 모두)
 export function bestKeys(rows: CompareRow[], value: (row: CompareRow) => number | null | undefined): Set<string> {
   const valued = rows.filter((row) => hasValue(value(row)));
