@@ -31,4 +31,10 @@ describe('formatKrwTick', () => {
     expect(formatKrwTick(100000000)).toBe('₩1억');
     expect(formatKrwTick(123000000)).toBe('₩1.2억');
   });
+
+  it('0 은 단위 없이, 음수는 부호를 통화 기호 앞에 둔다', () => {
+    expect(formatKrwTick(0)).toBe('₩0');
+    expect(formatKrwTick(-250000)).toBe('-₩25만');
+    expect(formatKrwTick(-123000000)).toBe('-₩1.2억');
+  });
 });

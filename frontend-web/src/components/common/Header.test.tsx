@@ -53,3 +53,20 @@ describe('Header 현금', () => {
     expect(portfolioApi.getPortfolioSummary).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('Header 메뉴', () => {
+  it('계좌 아래 화면에서도 계좌 메뉴를 지금 화면으로 표시한다', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={['/account/stats']}>
+          <Header />
+        </MemoryRouter>
+      </QueryClientProvider>
+    )
+
+    expect(screen.getByRole('button', { name: '계좌' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('button', { name: '거래' })).not.toHaveAttribute('aria-current')
+    expect(await screen.findByText('현금 ₩1,135,000')).toBeInTheDocument()
+  })
+})

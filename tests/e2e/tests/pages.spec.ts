@@ -8,7 +8,7 @@ import { API_URL, TOKEN_FILE } from '../playwright.config';
 const PUBLIC_PAGES = ['/', '/stocks', '/charts', '/backtest'];
 
 /** 로그인해야 뜨는 화면(storageState 로 시작해 그대로 열림) */
-const PRIVATE_PAGES = ['/dashboard', '/trading', '/account', '/mypage', '/trade-history'];
+const PRIVATE_PAGES = ['/dashboard', '/trading', '/account', '/account/stats', '/mypage', '/trade-history'];
 
 /** 화면이 열렸다고 볼 최소 조건 */
 async function expectRendered(page: import('@playwright/test').Page, path: string) {

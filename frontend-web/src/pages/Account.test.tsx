@@ -74,6 +74,12 @@ describe('Account', () => {
     expect(screen.getByText('$***.**')).toBeInTheDocument()
   })
 
+  it('머리의 통계 단추는 계좌 통계 화면으로 간다', async () => {
+    renderPage()
+
+    expect(await screen.findByRole('link', { name: '통계' })).toHaveAttribute('href', '/account/stats')
+  })
+
   it('계좌가 없으면 만들기 안내를 보인다', async () => {
     vi.mocked(accountsApi.getAccounts).mockResolvedValue({ data: [] } as never)
     renderPage()

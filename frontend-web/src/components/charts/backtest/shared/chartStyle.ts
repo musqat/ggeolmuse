@@ -36,9 +36,12 @@ export const MARKER_LABEL_STYLE = { fill: 'rgb(var(--text-1))', fontSize: 12, fo
 
 export const formatTooltipDate = (label: string) => `날짜: ${label}`;
 export const formatUsdTick = (value: number) => `$${Math.round(value)}`;
-// 원화 축 눈금, 1억부터 억 단위(₩1.2억) · 그 아래 만 단위(₩140만)
-export const formatKrwTick = (value: number) =>
-  Math.abs(value) >= 100000000 ? `₩${Number((value / 100000000).toFixed(1))}억` : `₩${(value / 10000).toFixed(0)}만`;
+// 원화 축 눈금, 1억부터 억 단위(₩1.2억) · 그 아래 만 단위(₩140만) · 0 은 ₩0, 음수는 -₩25만
+export const formatKrwTick = (value: number): string => {
+  if (value < 0) return `-${formatKrwTick(-value)}`;
+  if (value === 0) return '₩0';
+  return value >= 100000000 ? `₩${Number((value / 100000000).toFixed(1))}억` : `₩${(value / 10000).toFixed(0)}만`;
+};
 
 // "2026-03-02" → "3/2"(Date 로 바꾸지 않아 시간대로 하루 밀리지 않음)
 export const formatDayTick = (value: string) => {

@@ -50,3 +50,31 @@ test('현금만 있는 계좌도 자산 구성 원이 그려진다', async ({ pa
   expect(lengths.length, '현금만 있으면 조각이 하나여야 한다').toBe(1);
   expect(lengths[0], '원호 길이가 0 이다. 100% 인데 그려지지 않았다').toBeGreaterThan(0);
 });
+
+test('계좌 통계는 수익 흐름을 받고, 계좌 화면 통계 단추로 열려 그래프나 안내와 카드를 보인다', async ({ page }) => {
+  const auth = await authContext();
+
+  const flow = await auth.get(`${API_URL}/portfolio/stats/flow?accountId=all&period=ALL`);
+  expect(flow.status(), `수익 흐름이 실패했다: ${await flow.text()}`).toBe(200);
+  const body = await flow.json();
+  expect(Array.isArray(body.points), '점 목록이 없다').toBe(true);
+  expect(typeof body.currentProfitKrw, '현재 수익이 숫자가 아니다').toBe('number');
+
+  // 기간은 1M · 3M · 1Y · ALL 만
+  const wrong = await auth.get(`${API_URL}/portfolio/stats/flow?accountId=all&period=2Y`);
+  expect(wrong.status(), '모르는 기간이 400 이 아니다').toBe(400);
+  await auth.dispose();
+
+  await page.goto('/account');
+  await page.getByRole('link', { name: '통계' }).click();
+
+  await expect(page).toHaveURL(/\/account\/stats$/);
+  await expect(page.getByRole('heading', { name: '계좌 통계' })).toBeVisible({ timeout: 30_000 });
+  // 시드 사용자 체결 여부에 따라 그래프 또는 거래 안내
+  await expect(
+    page.getByRole('heading', { name: '수익 흐름' }).or(page.getByText('아직 수익 흐름이 없습니다'))
+  ).toBeVisible({ timeout: 30_000 });
+  for (const label of ['오늘 총자산', '현재 수익', '최고 수익', '최저 수익']) {
+    await expect(page.getByText(label, { exact: true })).toBeVisible();
+  }
+});
