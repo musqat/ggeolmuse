@@ -20,7 +20,7 @@ public class ComparisonResponse {
   private LocalDate startDate;
   @Schema(description = "비교 종료일", example = "2024-09-18")
   private LocalDate endDate;
-  @Schema(description = "투자 금액", example = "1000000.00")
+  @Schema(description = "요청 투자 금액 (종목 비교는 종목마다, 전략 비교는 전략마다 원금)", example = "1000000.00")
   private BigDecimal investmentAmount;
 
   // 비교 결과 리스트

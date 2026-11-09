@@ -2,6 +2,7 @@ package com.muscat.backtest.domain.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.muscat.backtest.common.constants.BacktestConstants.RequestLimit;
 import com.muscat.backtest.common.enums.type.DcaFrequency;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -48,8 +49,9 @@ public class DcaStrategyRequest implements StrategyRequest {
   @Positive(message = "회당 금액은 0보다 커야 합니다")
   private BigDecimal amountPerPurchase;
 
-  @Schema(description = "회당 주식 수 (정수, 회당 금액과 둘 중 하나, 그 날짜 종가 × 주식 수 + 수수료를 그 날짜 환율로 원화)", example = "1")
-  @Min(value = 1, message = "주식 수는 1 이상이어야 합니다")
+  @Schema(description = "회당 주식 수 (정수 1 ~ 1,000,000, 회당 금액과 둘 중 하나, 그 날짜 종가 × 주식 수 + 수수료를 그 날짜 환율로 원화)", example = "1")
+  @Min(value = 1, message = "주식 수는 1 ~ 1,000,000 사이여야 합니다")
+  @Max(value = RequestLimit.MAX_SHARES, message = "주식 수는 1 ~ 1,000,000 사이여야 합니다")
   private Integer sharesPerPurchase;
 
   @Schema(description = "매수 주기 (DAILY 거래일마다, WEEKLY 첫 매수일의 요일마다, MONTHLY 투자 주기마다 투자일에)", example = "MONTHLY")

@@ -1,5 +1,6 @@
 package com.muscat.backtest.domain.dto.request;
 
+import com.muscat.backtest.common.constants.BacktestConstants.RequestLimit;
 import com.muscat.backtest.common.enums.type.PriceDirection;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.muscat.backtest.common.enums.type.StrategyType;
@@ -7,6 +8,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -44,8 +46,9 @@ public class ConditionalStrategyRequest implements StrategyRequest {
   @Positive(message = "회당 금액은 0보다 커야 합니다")
   private BigDecimal amountPerPurchase;
 
-  @Schema(description = "조건이 맞는 날마다 사는 주식 수 (정수, 회당 금액과 둘 중 하나, 매수가 × 주식 수 + 수수료를 그 날짜 환율로 원화)", example = "1")
-  @Min(value = 1, message = "주식 수는 1 이상이어야 합니다")
+  @Schema(description = "조건이 맞는 날마다 사는 주식 수 (정수 1 ~ 1,000,000, 회당 금액과 둘 중 하나, 매수가 × 주식 수 + 수수료를 그 날짜 환율로 원화)", example = "1")
+  @Min(value = 1, message = "주식 수는 1 ~ 1,000,000 사이여야 합니다")
+  @Max(value = RequestLimit.MAX_SHARES, message = "주식 수는 1 ~ 1,000,000 사이여야 합니다")
   private Integer sharesPerPurchase;
 
   @Schema(description = "예산: 넣는 돈 합의 한도 (KRW, 비우면 제한 없음)", example = "4000000.00")

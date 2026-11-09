@@ -29,8 +29,10 @@ public record RoundPurchase(BigDecimal shares, BigDecimal feeUsd, BigDecimal cos
     BigDecimal feeRate) {
     BigDecimal rate = feeRate != null && Decimals.isPositive(feeRate) ? feeRate : BigDecimal.ZERO;
     BigDecimal perShare = priceUsd.multiply(BigDecimal.ONE.add(rate));
-    int affordable = usd.divide(perShare, 0, RoundingMode.DOWN).min(BigDecimal.valueOf(shares)).intValue();
-    for (int count = affordable; count > 0; count--) {
+    // 수수료가 반올림으로 내려 한 주 더 살 수 있는 경우까지
+    int most = usd.divide(perShare, 0, RoundingMode.DOWN).add(BigDecimal.ONE)
+      .min(BigDecimal.valueOf(shares)).intValue();
+    for (int count = most; count > 0; count--) {
       RoundPurchase purchase = byShares(count, priceUsd, fxRate, feeRate);
       if (purchase.costUsd().compareTo(usd) <= 0) {
         return purchase;

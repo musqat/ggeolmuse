@@ -44,6 +44,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -775,6 +777,66 @@ class BacktestAnalysisServiceImplTest {
       verify(responseMapper).toComparisonResponse(eq(request), items.capture(), any());
       assertThat(items.getValue()).containsExactly(conditionalItem);
       verify(backtestHistoryUtils, never()).saveBacktestHistory(any(), any(), any());
+    }
+
+    @ParameterizedTest(name = "첫 매수일 {0}")
+    @ValueSource(strings = {"2022-12-31", "2024-01-02"})
+    @DisplayName("전략 비교에 첫 매수일이 기간 밖인 적립식 칩이 있으면 어느 전략도 돌리지 않고 INVALID_FIRST_PURCHASE_DATE 이고 이력은 남기지 않는다")
+    void strategyComparisonRejectsFirstPurchaseOutOfPeriod(String first) {
+      StrategyParameter conditional = new StrategyParameter();
+      conditional.setStrategyType(StrategyType.CONDITIONAL_PURCHASE);
+      conditional.setAmountPerPurchase(BigDecimal.valueOf(2000));
+      conditional.setDropPercentage(BigDecimal.valueOf(0.1));
+      StrategyParameter dca = new StrategyParameter();
+      dca.setStrategyType(StrategyType.DCA);
+      dca.setAmountPerPurchase(BigDecimal.valueOf(1000));
+      dca.setFirstPurchaseDate(LocalDate.parse(first));
+
+      StrategyComparisonRequest request = new StrategyComparisonRequest();
+      request.setSymbol("AAPL");
+      request.setStartDate(LocalDate.of(2023, 1, 1));
+      request.setEndDate(LocalDate.of(2024, 1, 1));
+      request.setInvestmentAmount(BigDecimal.valueOf(12000));
+      request.setUserId("user123");
+      request.setStrategies(List.of(conditional, dca));
+
+      assertThatThrownBy(() -> backtestAnalysisService.compareStrategies(request))
+        .isInstanceOf(BacktestException.class)
+        .extracting("code")
+        .isEqualTo(BacktestResponse.INVALID_FIRST_PURCHASE_DATE);
+      verify(conditionalPurchaseStrategy, never()).execute(any());
+      verify(dcaStrategy, never()).execute(any());
+      verify(backtestHistoryUtils, never()).saveBacktestHistory(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("적립식 칩의 첫 매수일이 시작일 · 종료일과 같으면 기간 안으로 보고 돌린다")
+    void strategyComparisonAcceptsFirstPurchaseOnPeriodEdges() {
+      StrategyParameter onStart = new StrategyParameter();
+      onStart.setStrategyType(StrategyType.DCA);
+      onStart.setAmountPerPurchase(BigDecimal.valueOf(1000));
+      onStart.setFirstPurchaseDate(LocalDate.of(2023, 1, 1));
+      StrategyParameter onEnd = new StrategyParameter();
+      onEnd.setStrategyType(StrategyType.DCA);
+      onEnd.setAmountPerPurchase(BigDecimal.valueOf(1000));
+      onEnd.setFirstPurchaseDate(LocalDate.of(2024, 1, 1));
+
+      StrategyComparisonRequest request = new StrategyComparisonRequest();
+      request.setSymbol("AAPL");
+      request.setStartDate(LocalDate.of(2023, 1, 1));
+      request.setEndDate(LocalDate.of(2024, 1, 1));
+      request.setInvestmentAmount(BigDecimal.valueOf(12000));
+      request.setStrategies(List.of(onStart, onEnd));
+
+      StrategyResponse result = StrategyResponse.builder().totalReturnPercent(BigDecimal.TEN).build();
+      given(dcaStrategy.execute(any())).willReturn(result);
+      given(responseMapper.toComparisonItemFromStrategy(eq(result), any()))
+        .willReturn(ComparisonItem.builder().totalReturnPercent(BigDecimal.TEN).build());
+      given(responseMapper.toComparisonResponse(eq(request), any(), any())).willReturn(ComparisonResponse.builder().build());
+
+      backtestAnalysisService.compareStrategies(request);
+
+      verify(dcaStrategy, times(2)).execute(any());
     }
   }
 

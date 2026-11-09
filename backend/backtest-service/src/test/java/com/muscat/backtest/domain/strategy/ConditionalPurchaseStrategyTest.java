@@ -301,9 +301,11 @@ class ConditionalPurchaseStrategyTest {
     }
 
     @Test
-    @DisplayName("주식 수가 1 보다 작으면 예외 발생")
-    void validateRequest_ZeroShares_ThrowsException() {
+    @DisplayName("주식 수가 1 ~ 1,000,000 밖이면 예외 발생")
+    void validateRequest_SharesOutOfRange_ThrowsException() {
       assertRejected(valid().amountPerPurchase(null).sharesPerPurchase(0).build(),
+        BacktestResponse.INVALID_SHARES_PER_PURCHASE);
+      assertRejected(valid().amountPerPurchase(null).sharesPerPurchase(1_000_001).build(),
         BacktestResponse.INVALID_SHARES_PER_PURCHASE);
     }
 

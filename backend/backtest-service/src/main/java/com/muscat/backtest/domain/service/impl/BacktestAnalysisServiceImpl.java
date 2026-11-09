@@ -7,6 +7,7 @@ import com.muscat.backtest.common.enums.type.BacktestType;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.util.BacktestHistoryUtils;
+import com.muscat.backtest.common.validation.BacktestRequestValidator;
 import com.muscat.backtest.domain.dto.request.BaseComparisonRequest;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
@@ -106,6 +107,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
   public ComparisonResponse compareStrategies(StrategyComparisonRequest request) {
     log.info("전략 비교 분석: {} - {}개 전략", request.getSymbol(),
       request.getStrategies() != null ? request.getStrategies().size() : 0);
+    requireFirstPurchasesInPeriod(request);
 
     List<ComparisonItem> items = collectComparisonItems(
       request.getStrategies(),
@@ -120,6 +122,14 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
       "모든 전략의 실행에 실패했습니다");
     recordComparisonHistory(request);
     return response;
+  }
+
+  // 적립식 칩 첫 매수일이 기간 밖이면 어느 전략도 돌리기 전에 비교 전체를 막음
+  private static void requireFirstPurchasesInPeriod(StrategyComparisonRequest request) {
+    request.getStrategies().stream()
+      .filter(strategy -> strategy.getStrategyType() == StrategyType.DCA)
+      .forEach(strategy -> BacktestRequestValidator.requireFirstPurchaseInPeriod(strategy.getFirstPurchaseDate(),
+        request.getStartDate(), request.getEndDate()));
   }
 
   // 요청의 전략 타입에 맞는 전략으로 실행

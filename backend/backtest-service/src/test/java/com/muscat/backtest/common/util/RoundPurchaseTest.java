@@ -55,6 +55,17 @@ class RoundPurchaseTest {
   }
 
   @Test
+  @DisplayName("반올림으로 내린 수수료까지 더해 가진 달러 안이면 한 주 더 산다")
+  void withinUsdFeeRoundedDown() {
+    // 2주는 20달러 + 수수료 0.004 → 0.00 으로 20달러라 가진 20.002달러 안
+    RoundPurchase purchase = RoundPurchase.withinUsd(5, new BigDecimal("20.002"), new BigDecimal("10"), FX,
+      new BigDecimal("0.0002"));
+
+    assertThat(purchase.shares()).isEqualByComparingTo("2");
+    assertThat(purchase.costUsd()).isEqualByComparingTo("20.00");
+  }
+
+  @Test
   @DisplayName("가진 달러로 한 주도 못 사면 null")
   void withinUsdNone() {
     assertThat(RoundPurchase.withinUsd(1, new BigDecimal("50"), new BigDecimal("105"), FX, null)).isNull();

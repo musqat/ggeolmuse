@@ -1,11 +1,12 @@
 package com.muscat.backtest.common.validation;
 
+import com.muscat.backtest.common.constants.BacktestConstants.RequestLimit;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.exception.BacktestException;
 import java.time.LocalDate;
 
 /**
- * 백테스트 전략 요청의 공통 검증(DCA · 조건부 등의 null · 심볼 · 기간 검사)
+ * 백테스트 전략 요청의 공통 검증(null · 심볼 · 기간 · 주식 수 · 첫 매수일)
  */
 public final class BacktestRequestValidator {
 
@@ -35,6 +36,22 @@ public final class BacktestRequestValidator {
     }
     if (startDate.isAfter(endDate)) {
       throw new BacktestException(BacktestResponse.STRATEGY_DATE_RANGE_INVALID);
+    }
+  }
+
+  /** 주식 수 1 ~ 상한 검사(비우면 통과) */
+  public static void requireShares(Integer shares) {
+    if (shares != null && (shares < 1 || shares > RequestLimit.MAX_SHARES)) {
+      throw new BacktestException(BacktestResponse.INVALID_SHARES_PER_PURCHASE);
+    }
+  }
+
+  /** 첫 매수일 시작일 ~ 종료일 검사(비우면 통과) */
+  public static void requireFirstPurchaseInPeriod(LocalDate firstPurchaseDate, LocalDate startDate,
+    LocalDate endDate) {
+    if (firstPurchaseDate != null
+      && (firstPurchaseDate.isBefore(startDate) || firstPurchaseDate.isAfter(endDate))) {
+      throw new BacktestException(BacktestResponse.INVALID_FIRST_PURCHASE_DATE);
     }
   }
 }
