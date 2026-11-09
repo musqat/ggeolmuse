@@ -173,7 +173,7 @@ services:
 
   marketDataService:
     image:
-      tag: "1.7.0"
+      tag: "1.8.1"
     env:
       TZ: "Asia/Seoul"
       # 마켓 데이터 설정
@@ -199,7 +199,7 @@ services:
 
   backtestService:
     image:
-      tag: "1.8.0"
+      tag: "1.8.1"
     env:
       TZ: "Asia/Seoul"
     probes:
@@ -217,7 +217,7 @@ services:
 
   chatService:
     image:
-      tag: "1.7.0"
+      tag: "1.8.1"
     metrics:
       enabled: true
     probes:
@@ -236,7 +236,7 @@ services:
 # 프론트엔드
 frontend:
   image:
-    tag: "1.8.0"
+    tag: "1.8.1"
   env:
     apiUrl: https://ggeolmuse.com/api
     keycloakUrl: https://ggeolmuse.com/auth
