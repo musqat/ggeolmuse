@@ -60,6 +60,20 @@ describe('useAccountData 총자산', () => {
     expect(portfolioApi.getPortfolioSummary).toHaveBeenCalledWith()
   })
 
+  it('계좌 하나의 총자산은 그 계좌 원화 + 달러 × 환율에 그 계좌 보유 평가액 × 환율을 더한다', async () => {
+    vi.mocked(portfolioApi.getPortfolioSummary).mockResolvedValue({
+      data: { totalCurrentValue: 200, holdings: [{ accountId: 1, currentValue: 150 }, { accountId: 2, currentValue: 50 }] },
+    } as never)
+
+    const { result } = renderHook(() => useAccountData(true), { wrapper })
+
+    // 1,000,000 + 100 × 1,350 + 150 × 1,350
+    await waitFor(() => expect(result.current.assetsOf(1)).toBe(1_337_500))
+    // 500,000 + 50 × 1,350
+    expect(result.current.assetsOf(2)).toBe(567_500)
+    expect(result.current.assetsOf(9)).toBe(0)
+  })
+
   it('포트폴리오 요약을 못 받으면 현금만 더한다', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {})
     vi.mocked(portfolioApi.getPortfolioSummary).mockRejectedValue(new Error('down'))

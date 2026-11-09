@@ -1,5 +1,6 @@
 import React from 'react';
-import { Plus, Eye, EyeOff } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Plus, Eye, EyeOff, ChartLine } from 'lucide-react';
 
 export interface AccountPageHeaderProps {
   hideBalances: boolean;
@@ -18,17 +19,24 @@ export const AccountPageHeader: React.FC<AccountPageHeaderProps> = ({
         <h1 className="text-3xl font-bold text-tx-1">계좌 관리</h1>
         <p className="text-tx-2 mt-1">투자 계좌를 관리하세요</p>
       </div>
-      <div className="flex items-center space-x-3 mt-4 md:mt-0">
+      <div className="flex flex-wrap items-center gap-3 mt-4 md:mt-0">
+        <Link
+          to="/account/stats"
+          className="flex items-center space-x-2 whitespace-nowrap px-4 py-2 bg-elevated text-tx-1 rounded-lg hover:bg-hover transition-colors"
+        >
+          <ChartLine className="w-4 h-4" />
+          <span>통계</span>
+        </Link>
         <button
           onClick={onToggleBalances}
-          className="flex items-center space-x-2 px-4 py-2 bg-elevated text-tx-1 rounded-lg hover:bg-hover transition-colors"
+          className="flex items-center space-x-2 whitespace-nowrap px-4 py-2 bg-elevated text-tx-1 rounded-lg hover:bg-hover transition-colors"
         >
           {hideBalances ? <EyeOff className="w-4 h-4" />:<Eye className="w-4 h-4" />}
           <span>{hideBalances ? '잔액 표시' : '잔액 숨기기'}</span>
         </button>
         <button
           onClick={onCreateAccount}
-          className="flex items-center space-x-2 px-4 py-2 bg-brand text-brand-ink rounded-lg hover:bg-brand-dark transition-colors"
+          className="flex items-center space-x-2 whitespace-nowrap px-4 py-2 bg-brand text-brand-ink rounded-lg hover:bg-brand-dark transition-colors"
         >
           <Plus className="w-4 h-4" />
           <span>계좌 생성</span>

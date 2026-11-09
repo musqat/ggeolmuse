@@ -27,7 +27,8 @@ const Header: React.FC = () => {
     { name: '계좌', href: '/account' },
   ];
 
-  const isActive = (path: string) => location.pathname === path;
+  // 그 메뉴 화면이거나 그 아래 화면(/account/stats 는 계좌)
+  const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(`${path}/`);
 
   // 차트 · 백테스트 · 거래 화면과 같은 키(캐시 공유)
   const { data: supportedSymbols = [] } = useQuery({
@@ -63,6 +64,7 @@ const Header: React.FC = () => {
                 <button
                   key={item.name}
                   onClick={() => navigate(item.href)}
+                  aria-current={active ? 'page' : undefined}
                   className={`px-3 py-[5px] rounded-[6px] text-[13px] font-medium transition-all duration-150 ${
                     active
                       ? 'bg-elevated text-tx-1 font-semibold'
@@ -145,6 +147,7 @@ const Header: React.FC = () => {
               <button
                 key={item.name}
                 onClick={() => { setIsMobileMenuOpen(false); navigate(item.href); }}
+                aria-current={isActive(item.href) ? 'page' : undefined}
                 className={`w-full text-left px-3 py-2 rounded-[7px] text-[13px] font-medium ${
                   isActive(item.href)
                     ? 'bg-elevated text-tx-1 font-semibold'

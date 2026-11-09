@@ -27,6 +27,20 @@ export type PortfolioSummaryResponse = {
   symbolUnrealizedPnL: { [symbol: string]: number };    // 종목별 미실현 손익
 };
 
+// 수익 흐름 기간(1M 은 30일 · 3M 은 90일 · 1Y 는 365일 전부터, ALL 은 첫 거래일부터)
+export type ProfitFlowPeriod = '1M' | '3M' | '1Y' | 'ALL';
+
+// 거래일 하나의 원화 수익(평가손익 + 실현 손익 + 받은 배당 − 수수료)과 그 날짜에 들고 있던 종목 매수 금액(투자 원금)
+export type ProfitPoint = { date: string; profitKrw: number; investedKrw: number };
+
+// 기간 안 수익 흐름과 최고 · 최저 · 현재 수익(점이 없으면 best · worst 는 null)
+export type ProfitFlowResponse = {
+  points: ProfitPoint[];
+  best: ProfitPoint | null;
+  worst: ProfitPoint | null;
+  currentProfitKrw: number;
+};
+
 export const portfolioApi = {
   // 전체 포트폴리오 조회
   getPortfolio: () =>
@@ -39,4 +53,8 @@ export const portfolioApi = {
   // 포트폴리오 종합 정보 조회 (현재가 필요)
   getPortfolioSummary: () =>
     apiClient.get<PortfolioSummaryResponse>('/portfolio/summary'),
+
+  // 계좌 하나 또는 전체 계좌의 기간 수익 흐름
+  getProfitFlow: (accountId: number | 'all', period: ProfitFlowPeriod) =>
+    apiClient.get<ProfitFlowResponse>('/portfolio/stats/flow', { params: { accountId, period } }),
 };
