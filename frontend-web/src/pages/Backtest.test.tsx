@@ -34,12 +34,12 @@ vi.mock('../utils/localBacktestHistory', () => ({
 
 // 결과 화면 대역(차트 대신 어느 결과가 떴는지만)
 vi.mock('@components/backtest/results/SimpleResult', () => ({
-  SimpleResult: () => <div>결과: simple</div>,
+  SimpleResult: ({ sellAtEnd }: { sellAtEnd?: boolean }) => <div>결과: simple{sellAtEnd && ' · 기간 끝 매도'}</div>,
 }))
 vi.mock('@components/backtest/results/DcaConditionalResult', () => ({
-  DcaConditionalResult: ({ result, budget }: { result: { mode: string }; budget?: number }) => (
+  DcaConditionalResult: ({ result, budget, sellAtEnd }: { result: { mode: string }; budget?: number; sellAtEnd?: boolean }) => (
     <>
-      <div>결과: {result.mode}</div>
+      <div>결과: {result.mode}{sellAtEnd && ' · 기간 끝 매도'}</div>
       {budget !== undefined && <div>예산: {budget}</div>}
     </>
   ),
@@ -100,7 +100,7 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-const common = { reinvestDividends: false, tradingFeeRate: 0, dividendTaxRate: 0.15 }
+const common = { reinvestDividends: false, tradingFeeRate: 0, dividendTaxRate: 0.15, capitalGainsTax: true, periodEnd: 'HOLD' }
 const detailToggle = () => screen.getByRole('button', { name: /세부 설정/ })
 const reinvestRadio = () => within(screen.getByRole('radiogroup', { name: '배당' })).getByRole('radio', { name: '재투자' })
 const amountInput = () => screen.getByRole('textbox', { name: '금액(원)' })
@@ -580,6 +580,24 @@ describe('Backtest 페이지 세부 설정', () => {
     await runBacktest()
 
     expect(vi.mocked(backtestApi.compareSymbols).mock.calls[0][0]).toMatchObject({ dividendTaxRate: 0 })
+  })
+
+  it('마지막 거래일에 팔기 · 양도세 끔은 요약에 보이고 요청에 실리며, 결과는 기간 끝에 판 결과로 그린다', async () => {
+    renderPage()
+    await userEvent.click(detailToggle())
+    await userEvent.click(within(screen.getByRole('radiogroup', { name: '기간이 끝나면' })).getByRole('radio', { name: '마지막 거래일에 팔기' }))
+    await userEvent.click(screen.getByRole('button', { name: '양도세 22%(연 250만원 공제)' }))
+
+    expect(summary()).toHaveTextContent('시작일에 30만원 매수 · 마지막 거래일에 팔기 · 양도세 끔')
+    await runBacktest()
+    expect(vi.mocked(backtestApi.runSimulation).mock.calls[0][0]).toMatchObject({ capitalGainsTax: false, periodEnd: 'SELL_AT_END' })
+    expect(await screen.findByText('결과: simple · 기간 끝 매도')).toBeInTheDocument()
+
+    await selectMode('적립식')
+    await userEvent.click(within(screen.getByRole('radiogroup', { name: '기간이 끝나면' })).getByRole('radio', { name: '끝까지 보유' }))
+    await runBacktest()
+    expect(vi.mocked(backtestApi.runDcaStrategy).mock.calls[0][0]).toMatchObject({ capitalGainsTax: false, periodEnd: 'HOLD' })
+    expect(await screen.findByText('결과: dca')).toBeInTheDocument()
   })
 
   it('2014년 전이 들어가면 기간 칸에 기본 환율 안내, 단순은 직접 입력을 누르면 매수 환율 칸으로 간다', async () => {

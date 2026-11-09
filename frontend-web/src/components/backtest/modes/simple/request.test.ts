@@ -12,6 +12,8 @@ const values: SimpleValues = {
   reinvestDividends: false,
   tradingFeeRate: '0',
   dividendTax: false,
+  capitalGainsTax: false,
+  periodEnd: 'HOLD',
   fxMode: 'auto',
   manualPurchaseFxRate: '1300',
   manualCurrentFxRate: '1350',
@@ -28,6 +30,8 @@ describe('buildSimpleRequest', () => {
         reinvestDividends: false,
         tradingFeeRate: 0,
         dividendTaxRate: 0,
+        capitalGainsTax: false,
+        periodEnd: 'HOLD',
       },
     })
   })
@@ -67,6 +71,8 @@ describe('buildSimpleRequest', () => {
         reinvestDividends: false,
         tradingFeeRate: 0,
         dividendTaxRate: 0,
+        capitalGainsTax: false,
+        periodEnd: 'HOLD',
       },
     })
   })

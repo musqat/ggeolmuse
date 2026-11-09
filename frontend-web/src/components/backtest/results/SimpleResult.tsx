@@ -18,17 +18,20 @@ import { assetSeries, simpleDeposits } from './assetSeries';
 import { StatCard } from './StatCard';
 import { purchaseDaySeries, rankOf } from './purchaseDays';
 import { PurchaseDayChart } from './PurchaseDayChart';
+import { CapitalGainsTaxFold } from './CapitalGainsTaxFold';
 
 interface SimpleResultProps {
   result: SimulationResponse;
   symbol: string;
   purchaseDate: string;
+  // 기간 끝에 남은 주식을 판 요청
+  sellAtEnd?: boolean;
 }
 
 const dash = (value: React.ReactNode) => <span className="text-tx-3">{value}</span>;
 
-// 단순 매수 결과: 카드(매수 타이밍 포함) · 자산 추이 · 주가 추이 · 매수일별 수익률 탭, 그 아래 상세를 접어 둠
-export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purchaseDate }) => {
+// 단순 매수 결과: 카드(매수 타이밍 포함) · 자산 추이 · 주가 추이 · 매수일별 수익률 탭, 그 아래 예상 양도세 · 상세를 접어 둠
+export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purchaseDate, sellAtEnd }) => {
   const [currency, setCurrency] = useState<MetricCurrency>('KRW');
   const { metrics, other, otherLabel } = pickMetrics(result, currency);
   const deposits = useMemo(
@@ -117,6 +120,10 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
           },
         ]}
       />
+
+      {result.capitalGainsTax && (
+        <CapitalGainsTaxFold tax={result.capitalGainsTax} value={result} sellAtEnd={sellAtEnd} returnBasis="투자금 기준" />
+      )}
 
       <ResultFold
         title="상세"

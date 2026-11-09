@@ -14,6 +14,7 @@ import { ResultFold } from './ResultFold';
 import { RiskDetail } from './RiskDetail';
 import { detailMeta, pickMetrics, purchaseCount, sellCount } from './resultValues';
 import { strategyDeposits } from './assetSeries';
+import { CapitalGainsTaxFold } from './CapitalGainsTaxFold';
 
 type StrategyKind = 'dca' | 'conditional';
 
@@ -25,6 +26,8 @@ interface DcaConditionalResultProps {
   startDate: string;
   // 실행한 요청의 예산(없으면 제한 없음)
   budget?: number;
+  // 기간 끝에 남은 주식을 판 요청
+  sellAtEnd?: boolean;
 }
 
 const EMPTY_REASON: Record<StrategyKind, string> = {
@@ -48,13 +51,14 @@ const unusedBudget = (budget: number | undefined, invested: number | null | unde
   return unused > 0 ? unused : null;
 };
 
-// 적립식 · 조건부 결과: 카드 · 자산 추이 · 주가 추이 탭, 그 아래 상세 · 매매 내역을 접어 둠
+// 적립식 · 조건부 결과: 카드 · 자산 추이 · 주가 추이 탭, 그 아래 예상 양도세 · 상세 · 매매 내역을 접어 둠
 export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
   kind,
   result,
   symbol,
   startDate,
   budget,
+  sellAtEnd,
 }) => {
   const [currency, setCurrency] = useState<MetricCurrency>('KRW');
   const unused = unusedBudget(budget, result.totalInvested);
@@ -116,6 +120,10 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
           },
         ]}
       />
+
+      {result.capitalGainsTax && (
+        <CapitalGainsTaxFold tax={result.capitalGainsTax} value={result} sellAtEnd={sellAtEnd} returnBasis="누적 매수액 기준" />
+      )}
 
       <ResultFold
         title="상세"

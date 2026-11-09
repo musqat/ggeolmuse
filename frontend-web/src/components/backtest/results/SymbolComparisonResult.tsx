@@ -14,8 +14,9 @@ import { RiskDetail } from './RiskDetail';
 import { simpleDeposits } from './assetSeries';
 import { CompareTable, type CompareColumn } from './compare/CompareTable';
 import { ReturnLinesChart } from './compare/ReturnLinesChart';
-import { bestKeys, byTotalReturn, metricsOf, returnPoints, type CompareRow } from './compare/compareRows';
+import { bestKeys, byTotalReturn, metricsOf, returnPoints, taxOf, type CompareRow } from './compare/compareRows';
 import { DrawdownCell } from './compare/DrawdownCell';
+import { AfterTaxCell, TaxDetail } from './compare/AfterTax';
 
 interface SymbolComparisonResultProps {
   result: ComparisonResponse;
@@ -62,6 +63,15 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
       ),
       best: bestKeys(rows, (row) => row.totalReturnPercent),
     },
+    ...(rows.some(taxOf)
+      ? [
+          {
+            label: '세후 수익률',
+            cell: (row: CompareRow) => <AfterTaxCell row={row} />,
+            best: bestKeys(rows, (row) => taxOf(row)?.afterTaxReturnPercent),
+          },
+        ]
+      : []),
     {
       label: '연평균',
       cell: (row) => {
@@ -127,6 +137,7 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
             last
           />
         </DetailSection>
+        <TaxDetail row={row} />
       </div>
     );
   };

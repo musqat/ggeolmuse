@@ -93,7 +93,7 @@ describe('estimateRoundCost', () => {
 
 describe('useRoundCost', () => {
   const options: BacktestOptions = {
-    reinvestDividends: false, tradingFeeRate: '0', dividendTax: false, fxMode: 'auto',
+    periodEnd: 'HOLD', reinvestDividends: false, tradingFeeRate: '0', dividendTax: false, capitalGainsTax: false, fxMode: 'auto',
     manualPurchaseFxRate: '1300', manualCurrentFxRate: '1350',
   }
   const wrapper = ({ children }: { children: ReactNode }) =>
