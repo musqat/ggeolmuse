@@ -46,7 +46,7 @@ export const useDcaMode = (shared: SharedModeProps): ModeController => {
   const { end, symbolField, periodField, symbolMessage, periodMessage } = commonFields(shared, { from: first });
 
   const byShares = amountUnit.unit === 'SHARES';
-  const perRound = useRoundCost({
+  const { perRound, defaultFx } = useRoundCost({
     symbol,
     startDate: period.start,
     unit: amountUnit.unit,
@@ -78,6 +78,7 @@ export const useDcaMode = (shared: SharedModeProps): ModeController => {
           onAmountChange: setAmountPerPurchase,
           amountUnit,
           perRound: byShares ? perRound : undefined,
+          defaultFx,
           message: amountMessage,
         }}
         budget={byShares ? { budget, onChange: setBudget, message: budgetMessage } : undefined}
@@ -96,7 +97,7 @@ export const useDcaMode = (shared: SharedModeProps): ModeController => {
     summary: {
       subject: symbol,
       how: dcaHow({
-        unit: { byShares, amount: amountPerPurchase, shares: amountUnit.shares, perRound },
+        unit: { byShares, amount: amountPerPurchase, shares: amountUnit.shares, perRound, defaultFx },
         cadenceLabel: cadenceText(cadence, months, first, monthDay),
         rounds,
         daily: cadence === 'DAILY',

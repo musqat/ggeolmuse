@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { cadenceText, countRounds, parseMonths, resolveFirstPurchase, scheduleFields, toCadence, toWeekday } from './dcaSchedule'
 
 describe('resolveFirstPurchase', () => {
@@ -39,7 +39,12 @@ describe('cadenceText', () => {
   it('29일 이후도 그 날짜가 없는 달 규칙 없이 주기와 날짜만 보인다', () => {
     expect(cadenceText('MONTHLY', '3', '2023-01-31')).toBe('매달 31일')
     expect(cadenceText('MONTHS', '6', '2023-01-30')).toBe('6개월마다 30일')
-    expect(cadenceText('WEEKLY', '3', '2023-01-01')).toBe('매주 월요일')
+    expect(cadenceText('WEEKLY', '3', '2023-01-04')).toBe('매주 수요일')
+  })
+
+  it('매주 월요일(주말 첫 매수일 포함)은 그 주 첫 거래일로 보인다', () => {
+    expect(cadenceText('WEEKLY', '3', '2023-01-01')).toBe('매주 첫 거래일')
+    expect(cadenceText('WEEKLY', '3', '2023-01-02')).toBe('매주 첫 거래일')
   })
 })
 
@@ -89,6 +94,36 @@ describe('countRounds', () => {
     ['MONTHLY', 1, '2023-01-15', '2023-01-14', 0],
   ] as const)('%s %i개월 %s ~ %s 는 %i회(휴장일은 모르고 주말만 뺌)', (cadence, months, first, end, expected) => {
     expect(countRounds(cadence, months, first, end)).toBe(expected)
+  })
+
+  it.each([
+    ['2024-06-16', 1],
+    ['2024-06-17', 2],
+  ] as const)('매달 종료일에 걸린 달은 주말 투자일 ~ 종료일 %s 에 평일이 있을 때만 센다(%i회)', (end, expected) => {
+    expect(countRounds('MONTHLY', 1, '2024-05-15', end)).toBe(expected)
+  })
+
+  it('매달 종료일이 그 달 말일이거나 종료일 앞 달이면 주말 투자일도 앞 거래일 회차로 센다', () => {
+    expect(countRounds('MONTHLY', 1, '2024-07-31', '2024-08-31')).toBe(2)
+    expect(countRounds('MONTHLY', 1, '2024-07-31', '2024-09-01')).toBe(2)
+  })
+
+  describe('끝 날짜가 오늘', () => {
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it.each([
+      ['DAILY', '2026-10-05', 3],
+      ['WEEKLY', '2026-10-01', 1],
+      ['MONTHLY', '2026-09-08', 1],
+    ] as const)('%s 는 종가가 없는 오늘 회차를 세지 않는다(%s 부터 %i회)', (cadence, first, expected) => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date('2026-10-08T12:00:00+09:00'))
+
+      expect(countRounds(cadence, 1, first, '2026-10-08')).toBe(expected)
+      expect(countRounds(cadence, 1, first, '2026-10-07')).toBe(expected)
+    })
   })
 })
 

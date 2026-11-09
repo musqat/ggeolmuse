@@ -166,8 +166,8 @@ export const DetailSettings = ({ options, open, onToggle, reinvestLocked = false
                       placeholder="1,380"
                       ariaLabel="끝 날짜 환율(원)"
                       showKoreanHint={false}
-                      invalid={!messages.buyFx && isError(messages.endFx)}
-                      describedBy={!messages.buyFx && messages.endFx ? fx.describedBy : undefined}
+                      invalid={isError(messages.endFx)}
+                      describedBy={messages.endFx ? fx.describedBy : undefined}
                     />
                   </div>
                   <p className="mt-0.5 text-xs text-tx-2">비우면 그 날짜 시장 환율(흐린 숫자는 예시)</p>

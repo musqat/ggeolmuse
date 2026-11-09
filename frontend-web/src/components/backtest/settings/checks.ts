@@ -1,5 +1,5 @@
-import { formatReadableWon } from '../../../utils/format';
-import { parseShares } from '../shared/amountUnit';
+import { formatNumber, formatReadableWon } from '../../../utils/format';
+import { MAX_SHARES, parseShares } from '../shared/amountUnit';
 import { isMonthly, parseMonths, type DcaCadence } from '../shared/dcaSchedule';
 import type { BacktestOptions } from '../shared/backtestOptions';
 
@@ -35,7 +35,10 @@ interface AmountCheck {
 }
 
 export const amountIssue = ({ byShares, amount, shares, label }: AmountCheck): FieldMessage | null => {
-  if (byShares) return parseShares(shares) === undefined ? error('1 이상 정수') : null;
+  if (byShares) {
+    if (parseShares(shares) !== undefined) return null;
+    return error(Number(shares) > MAX_SHARES ? `${formatNumber(MAX_SHARES)} 이하` : '1 이상 정수');
+  }
   if (!amount.trim()) return error(`${label} 비어 있음`);
   return parseFloat(amount) > 0 ? null : error('0 보다 크게');
 };

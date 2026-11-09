@@ -19,7 +19,7 @@ export const buildSimpleRequest = (
   const shares = parseShares(values.shares);
   if (values.unit === 'SHARES') {
     if (shares === undefined) {
-      return { error: '주식 수는 1 이상의 정수로 입력해주세요.' };
+      return { error: '주식 수는 1 ~ 1,000,000 사이의 정수로 입력해주세요.' };
     }
   } else if (isNaN(investment) || investment <= 0) {
     return { error: '올바른 투자 금액을 입력해주세요.' };

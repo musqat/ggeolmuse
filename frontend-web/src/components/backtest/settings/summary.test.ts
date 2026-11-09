@@ -14,9 +14,18 @@ describe('요약 둘째 줄', () => {
     expect(simpleHow({ byShares: true, amount: '', shares: '3' })).toBe('시작일에 3주 매수')
   })
 
+  it('시작일 환율을 못 받아 기본 환율로 센 추정은 기준에 기본 환율을 적는다', () => {
+    expect(simpleHow({ byShares: true, amount: '', shares: '3', perRound: 1012500, defaultFx: true })).toBe(
+      `시작일에 3주 매수 ≈ 101만${NB}2,500원(시작일 값 · 기본 환율 기준)`
+    )
+    expect(dcaHow({ unit: { ...oneShare(337500), defaultFx: true }, cadenceLabel: '매주 수요일', rounds: 52, daily: false, budget: '' })).toBe(
+      '매주 수요일 1주 · 52회 ≈ 1,755만원(시작일 값 · 기본 환율 기준)'
+    )
+  })
+
   it('적립식: 주기 · 회당 · 회차 · 총액, 매일은 약', () => {
-    expect(dcaHow({ unit: { ...won, amount: '300000' }, cadenceLabel: '매주 월요일', rounds: 52, daily: false, budget: '' })).toBe(
-      '매주 월요일 30만원 · 52회 ≈ 1,560만원'
+    expect(dcaHow({ unit: { ...won, amount: '300000' }, cadenceLabel: '매주 첫 거래일', rounds: 52, daily: false, budget: '' })).toBe(
+      '매주 첫 거래일 30만원 · 52회 ≈ 1,560만원'
     )
     expect(dcaHow({ unit: won, cadenceLabel: '거래일마다', rounds: 250, daily: true, budget: '' })).toBe(
       '거래일마다 10만원 · 약 250회 ≈ 2,500만원'
@@ -24,14 +33,14 @@ describe('요약 둘째 줄', () => {
   })
 
   it('적립식 주식 수: 예산이 모자라면 산 회차와 나머지 미매수, 시세를 아직 모르면 회차만', () => {
-    expect(dcaHow({ unit: oneShare(337500), cadenceLabel: '매주 월요일', rounds: 52, daily: false, budget: '5000000' })).toBe(
-      `매주 월요일 1주 · 52회 중 14회 ≈ 472만${NB}5,000원(시작일 값 기준) · 나머지 미매수`
+    expect(dcaHow({ unit: oneShare(337500), cadenceLabel: '매주 첫 거래일', rounds: 52, daily: false, budget: '5000000' })).toBe(
+      `매주 첫 거래일 1주 · 52회 중 14회 ≈ 472만${NB}5,000원(시작일 값 기준) · 나머지 미매수`
     )
-    expect(dcaHow({ unit: oneShare(337500), cadenceLabel: '매주 월요일', rounds: 52, daily: false, budget: '' })).toBe(
-      '매주 월요일 1주 · 52회 ≈ 1,755만원(시작일 값 기준)'
+    expect(dcaHow({ unit: oneShare(337500), cadenceLabel: '매주 첫 거래일', rounds: 52, daily: false, budget: '' })).toBe(
+      '매주 첫 거래일 1주 · 52회 ≈ 1,755만원(시작일 값 기준)'
     )
-    expect(dcaHow({ unit: oneShare(), cadenceLabel: '매주 월요일', rounds: 52, daily: false, budget: '5000000' })).toBe(
-      '매주 월요일 1주 · 52회'
+    expect(dcaHow({ unit: oneShare(), cadenceLabel: '매주 첫 거래일', rounds: 52, daily: false, budget: '5000000' })).toBe(
+      '매주 첫 거래일 1주 · 52회'
     )
   })
 

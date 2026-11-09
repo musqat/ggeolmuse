@@ -35,7 +35,7 @@ export const buildConditionalRequest = (
 
   if (byShares) {
     if (shares === undefined) {
-      return { error: '회당 주식 수는 1 이상의 정수로 입력해주세요.' };
+      return { error: '회당 주식 수는 1 ~ 1,000,000 사이의 정수로 입력해주세요.' };
     }
   } else if (isNaN(perPurchase) || perPurchase <= 0) {
     return { error: '올바른 회당 금액을 입력해주세요.' };

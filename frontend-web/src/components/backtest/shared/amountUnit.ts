@@ -27,20 +27,24 @@ export const useAmountUnit = (): AmountUnitState => {
   return { unit, setUnit, shares, setShares };
 };
 
-// 1 이상 정수만 주식 수로
+// 회차마다 주식 수 상한
+export const MAX_SHARES = 1_000_000;
+
+// 1 ~ MAX_SHARES 정수만 주식 수로
 export const parseShares = (shares: string): number | undefined => {
   const value = Number(shares);
-  return shares.trim() !== '' && Number.isInteger(value) && value >= 1 ? value : undefined;
+  return shares.trim() !== '' && Number.isInteger(value) && value >= 1 && value <= MAX_SHARES ? value : undefined;
 };
 
 // 시작일 시세를 찾는 날수
 const QUOTE_DAYS = 14;
 
-// 시작일(휴장이면 다음 거래일) 종가(USD)와 그 날짜 환율
+// 시작일(휴장이면 다음 거래일) 종가(USD)와 그 날짜 환율(못 받으면 기본 환율 · defaultFx)
 export interface StartQuote {
   date: string;
   close: number;
   fxRate: number;
+  defaultFx: boolean;
 }
 
 // 시작일부터 2주 안 첫 거래일 시세, 없으면 null
@@ -52,8 +56,8 @@ export const fetchStartQuote = async (symbol: string, startDate: string): Promis
     .filter((row) => row.date >= startDate && closeOf(row) > 0)
     .sort((a, b) => a.date.localeCompare(b.date))[0];
   if (!first) return null;
-  const rates = await fetchFxRates([first.date]);
-  return { date: first.date, close: closeOf(first), fxRate: rates.get(first.date) ?? DEFAULT_FX_RATE };
+  const rate = (await fetchFxRates([first.date])).get(first.date);
+  return { date: first.date, close: closeOf(first), fxRate: rate ?? DEFAULT_FX_RATE, defaultFx: rate === undefined };
 };
 
 // 회당 추정 금액(원): 종가 × 주식 수 × (1 + 수수료 %) × 환율
@@ -67,8 +71,14 @@ interface RoundCostInput extends AmountUnitValues {
   options: BacktestOptions;
 }
 
-// 한 회차에 쓸 돈(원): 금액 단위는 회당 금액, 주식 수 단위는 시작일 시세로 추정(시세를 받기 전 · 못 읽으면 undefined)
-export const useRoundCost = ({ symbol, startDate, unit, shares, amount, options }: RoundCostInput): number | undefined => {
+// 한 회차에 쓸 돈(원, 시세를 받기 전 · 못 읽으면 없음)과 그 돈을 기본 환율로 셌는지
+export interface RoundCost {
+  perRound?: number;
+  defaultFx: boolean;
+}
+
+// 금액 단위는 회당 금액, 주식 수 단위는 시작일 시세로 추정(직접 입력한 매수 환율이 있으면 그 환율)
+export const useRoundCost = ({ symbol, startDate, unit, shares, amount, options }: RoundCostInput): RoundCost => {
   const byShares = unit === 'SHARES';
   const { data: quote } = useQuery({
     queryKey: ['backtest', 'start-quote', symbol, startDate],
@@ -77,11 +87,14 @@ export const useRoundCost = ({ symbol, startDate, unit, shares, amount, options 
   });
   if (!byShares) {
     const won = parseFloat(amount);
-    return won > 0 ? won : undefined;
+    return { perRound: won > 0 ? won : undefined, defaultFx: false };
   }
   const count = parseShares(shares);
-  if (!quote || count === undefined) return undefined;
+  if (!quote || count === undefined) return { defaultFx: false };
   const manualFx = parseFloat(options.manualPurchaseFxRate);
-  const fxRate = options.fxMode === 'manual' && manualFx > 0 ? manualFx : quote.fxRate;
-  return estimateRoundCost(quote, count, parseFloat(options.tradingFeeRate) || 0, fxRate);
+  const manual = options.fxMode === 'manual' && manualFx > 0;
+  return {
+    perRound: estimateRoundCost(quote, count, parseFloat(options.tradingFeeRate) || 0, manual ? manualFx : quote.fxRate),
+    defaultFx: quote.defaultFx && !manual,
+  };
 };

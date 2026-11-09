@@ -92,7 +92,7 @@ describe('ResultOverview', () => {
 
   it('응답에 지표 칸이 없으면 지표 기준 전환을 두지 않고 지표 카드에 지표 없음을 적는다', () => {
     const noMetrics = { ...result, metricsKrw: undefined, metricsUsd: undefined }
-    render(<ResultOverview result={noMetrics} investedLabel="총 투자금" invested={10000000} />)
+    render(<ResultOverview result={noMetrics} investedLabel="누적 매수액" invested={10000000} />)
 
     expect(screen.queryByRole('button', { name: '달러 기준' })).toBeNull()
     expect(card('최대 낙폭')).toHaveTextContent('—')
@@ -105,7 +105,7 @@ describe('ResultOverview', () => {
     render(
       <ResultOverview
         result={{ ...result, metricsKrw: { ...metricsKrw, cagr: null, mdd: 0, mddPeakDate: null, mddTroughDate: null, volatility: null, sharpe: null }, metricsUsd: null }}
-        investedLabel="총 투자금"
+        investedLabel="누적 매수액"
         invested={10000000}
       />,
     )
@@ -160,7 +160,7 @@ describe('ResultOverview', () => {
       { date: '2024-01-15', krw: 1300000, usd: 1000 },
       { date: '2024-02-15', krw: 1300000, usd: 980 },
     ]
-    render(<ResultOverview result={{ ...result, dailyValues }} investedLabel="총 투자금" invested={2600000} deposits={deposits} timeWeighted />)
+    render(<ResultOverview result={{ ...result, dailyValues }} investedLabel="누적 매수액" invested={2600000} deposits={deposits} timeWeighted />)
 
     const [chart] = readCharts()
     expect(chart.points.map((p: { value: number; invested: number }) => [p.value, p.invested])).toEqual([[1300000, 1300000], [2800000, 2600000], [3000000, 2600000]])
@@ -203,8 +203,21 @@ describe('ResultOverview', () => {
     expect(screen.getByTestId('line-chart')).not.toBeVisible()
   })
 
+  it('새 결과가 오면 마지막에 연 탭 대신 자산 추이 탭으로 돌아간다', async () => {
+    const chartTabs = [{ key: 'price', label: '주가 추이', render: () => <p>주가 차트</p> }]
+    const { rerender } = render(<ResultOverview result={result} investedLabel="초기 투자금" invested={1300000} chartTabs={chartTabs} />)
+    await userEvent.click(screen.getByRole('tab', { name: '주가 추이' }))
+    rerender(<ResultOverview result={result} investedLabel="초기 투자금" invested={1300000} chartTabs={chartTabs} />)
+
+    expect(screen.getByRole('tab', { name: '주가 추이' })).toHaveAttribute('aria-selected', 'true')
+    rerender(<ResultOverview result={{ ...result }} investedLabel="초기 투자금" invested={1300000} chartTabs={chartTabs} />)
+
+    expect(screen.getByRole('tab', { name: '자산 추이' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByText('주가 차트')).toBeNull()
+  })
+
   it('차트 탭이 없으면 탭 없이 자산 추이 카드만 둔다', () => {
-    render(<ResultOverview result={result} investedLabel="총 투자금" invested={10000000} />)
+    render(<ResultOverview result={result} investedLabel="누적 매수액" invested={10000000} />)
 
     expect(screen.queryByRole('tablist')).toBeNull()
     expect(screen.getByRole('heading', { name: '자산 추이' })).toBeInTheDocument()

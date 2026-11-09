@@ -79,6 +79,7 @@ export const ResultOverview: React.FC<ResultOverviewProps> = ({
       {chartTabs?.length ? (
         <ChartTabs
           label="결과 차트"
+          resetKey={result}
           tabs={[
             {
               key: 'asset',

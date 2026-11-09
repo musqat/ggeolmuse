@@ -409,17 +409,45 @@ describe('Backtest 페이지 칸 오류 · 요약', () => {
     expect(summary()).toHaveTextContent('시작일에 30만원 매수 · 배당세 끔')
   })
 
-  it('적립식 · 조건부 요약은 회차 · 한도를 보인다', async () => {
+  it('적립식 · 조건부 요약은 회차 · 한도를 보이고 종가가 없는 오늘 회차는 세지 않는다', async () => {
     renderPage()
     await selectMode('적립식')
-    expect(summary()).toHaveTextContent('매달 8일 10만원 · 13회 ≈ 130만원')
+    expect(summary()).toHaveTextContent('매달 8일 10만원 · 12회 ≈ 120만원')
 
     await selectMode('조건부')
     expect(summary()).toHaveTextContent('전날보다 5% 내릴 때마다 10만원 · 예산으로 최대 10회 ≈ 100만원')
     expect(screen.getByRole('textbox', { name: '최대 횟수(회)' })).toHaveAttribute('placeholder', '예산 한도까지')
     await userEvent.click(screen.getByRole('button', { name: '예산 비우기' }))
     expect(screen.getByRole('textbox', { name: '최대 횟수(회)' })).toHaveAttribute('placeholder', '제한 없음')
-    expect(summary()).toHaveTextContent('횟수 제한 없음 · 많아야 약 262회')
+    expect(summary()).toHaveTextContent('횟수 제한 없음 · 많아야 약 261회')
+  })
+
+  it('주식 수 추정에 쓸 시작일 환율이 없으면 칸 · 요약에 기본 환율 기준을 적는다', async () => {
+    vi.mocked(stockApi.getOHLCData).mockResolvedValue({ data: [{ symbol: 'AAPL', date: START, closePrice: 200, adjustedClose: 200 }] } as never)
+    renderPage()
+    await userEvent.click(screen.getByRole('radio', { name: '주식 수' }))
+
+    expect(await screen.findByText('≈ 27만원(시작일 값 · 기본 환율 기준)')).toBeInTheDocument()
+    expect(summary()).toHaveTextContent('시작일에 1주 매수 ≈ 27만원(시작일 값 · 기본 환율 기준)')
+    await selectMode('적립식')
+    await userEvent.click(screen.getByRole('radio', { name: '주식 수' }))
+    expect(await screen.findByText('≈ 27만원(시작일 값 · 기본 환율 기준)')).toBeInTheDocument()
+    expect(summary()).toHaveTextContent('매달 8일 1주 · 12회 ≈ 324만원(시작일 값 · 기본 환율 기준)')
+    await selectMode('조건부')
+    await userEvent.click(screen.getByRole('radio', { name: '주식 수' }))
+    expect(await screen.findByText('≈ 27만원(시작일 값 · 기본 환율 기준)')).toBeInTheDocument()
+    expect(summary()).toHaveTextContent('(시작일 값 · 기본 환율 기준)')
+  })
+
+  it('주식 수가 1,000,000 을 넘으면 칸 오류로 막고 요청하지 않는다', async () => {
+    renderPage()
+    await userEvent.click(screen.getByRole('radio', { name: '주식 수' }))
+    fireEvent.change(screen.getByRole('textbox', { name: '주식 수(주)' }), { target: { value: '1000001' } })
+
+    expect(screen.getByText('1,000,000 이하')).toBeInTheDocument()
+    await runBacktest()
+    expect(screen.getByRole('textbox', { name: '주식 수(주)' })).toHaveFocus()
+    expect(backtestApi.runSimulation).not.toHaveBeenCalled()
   })
 
   it('고칠 칸이 있으면 실행 단추를 aria-disabled 로 두고 누르면 그 칸으로 가며 요청하지 않는다', async () => {
@@ -518,6 +546,27 @@ describe('Backtest 페이지 전략 비교 칩', () => {
     expect(screen.getByText('전략을 둘 이상')).toBeInTheDocument()
     expect(screen.getByTestId('backtest-run')).toHaveAttribute('aria-disabled', 'true')
     expect(backtestApi.compareStrategies).not.toHaveBeenCalled()
+  })
+
+  it('칩이 하나뿐이면 실행을 눌렀을 때 첫 ＋ 단추로 간다', async () => {
+    renderPage()
+    await selectMode('전략 비교')
+    await userEvent.click(strategyChips().getByRole('button', { name: '적립식 빼기' }))
+    await runBacktest()
+
+    expect(strategyChips().getByRole('button', { name: '＋ 적립식' })).toHaveFocus()
+    expect(backtestApi.compareStrategies).not.toHaveBeenCalled()
+  })
+
+  it('단순 매수 칩을 더해도 열린 칩의 설정은 그대로 두고 단순 매수 칩의 빼기 단추로 간다', async () => {
+    renderPage()
+    await selectMode('전략 비교')
+    await userEvent.click(strategyChips().getByRole('button', { name: '단순 매수 빼기' }))
+    await userEvent.click(strategyChips().getByRole('button', { name: '＋ 단순 매수' }))
+
+    expect(strategyChips().getByRole('button', { name: '적립식' })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('radiogroup', { name: '적립식 주기' })).toBeInTheDocument()
+    await vi.waitFor(() => expect(strategyChips().getByRole('button', { name: '단순 매수 빼기' })).toHaveFocus())
   })
 })
 

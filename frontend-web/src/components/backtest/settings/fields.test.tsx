@@ -135,6 +135,22 @@ describe('AmountField', () => {
     expect(screen.queryByRole('textbox', { name: '금액(원)' })).toBeNull()
   })
 
+  it('시작일 환율을 못 받아 기본 환율로 센 추정이면 기준에 기본 환율을 적는다', () => {
+    render(
+      <AmountField
+        label="금액"
+        sharesLabel="주식 수"
+        amount=""
+        onAmountChange={vi.fn()}
+        amountUnit={unit({ unit: 'SHARES', shares: '2' })}
+        perRound={675000}
+        defaultFx
+      />
+    )
+
+    expect(screen.getByText('≈ 67만 5,000원(시작일 값 · 기본 환율 기준)')).toBeInTheDocument()
+  })
+
   it('단위가 없는 모드는 금액만 받고 오류를 칸과 잇는다', () => {
     render(
       <AmountField label="전략마다 원금" amount="" onAmountChange={vi.fn()} message={{ kind: 'error', text: '전략마다 원금 비어 있음' }} />

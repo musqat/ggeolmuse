@@ -85,10 +85,11 @@ export const useStrategyComparisonMode = (shared: SharedModeProps): ModeControll
     (view) => view.chip.type === 'CONDITIONAL_PURCHASE' && hasSellRates(view.params.takeProfit, view.params.stopLoss),
   );
 
+  // 설정할 칸이 있는 칩만 더하면서 엶
   const addChip = (type: ComparisonStrategyType) => {
     const id = `s${nextId.current++}`;
     setChips([...chips, newChip(id, type, nextName(chips, type))]);
-    setOpenId(id);
+    if (strategyByType(type).Fields) setOpenId(id);
   };
 
   // 열린 칩을 빼면 그 자리의 칩을 엶

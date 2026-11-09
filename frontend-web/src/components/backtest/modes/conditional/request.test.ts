@@ -61,9 +61,9 @@ describe('buildConditionalRequest', () => {
     })
   })
 
-  it.each(['0', '-1', '1.5'])('회당 주식 수 %o 는 막는다', (shares) => {
+  it.each(['0', '-1', '1.5', '1000001'])('회당 주식 수 %o 는 막는다', (shares) => {
     expect(buildConditionalRequest({ ...values, unit: 'SHARES', shares }, 'AAPL', ctx)).toEqual({
-      error: '회당 주식 수는 1 이상의 정수로 입력해주세요.',
+      error: '회당 주식 수는 1 ~ 1,000,000 사이의 정수로 입력해주세요.',
     })
   })
 

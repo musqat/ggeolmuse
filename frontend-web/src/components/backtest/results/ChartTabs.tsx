@@ -11,14 +11,25 @@ interface ChartTabsProps {
   // 탭 목록 이름
   label: string;
   tabs: ChartTab[];
+  // 바뀌면 첫 탭으로 돌아감
+  resetKey?: unknown;
 }
 
+const firstOnly = (tabs: ChartTab[]) => new Set(tabs[0] ? [tabs[0].key] : []);
+
 // 차트 여럿을 탭 하나로 묶은 카드(첫 탭을 고른 채 시작, 한 번 연 탭은 숨겨 둔 채 상태 유지)
-export const ChartTabs: React.FC<ChartTabsProps> = ({ label, tabs }) => {
+export const ChartTabs: React.FC<ChartTabsProps> = ({ label, tabs, resetKey }) => {
   const [active, setActive] = useState(tabs[0]?.key);
-  const [opened, setOpened] = useState(() => new Set(tabs[0] ? [tabs[0].key] : []));
+  const [opened, setOpened] = useState(() => firstOnly(tabs));
+  const [shownKey, setShownKey] = useState(resetKey);
   const buttons = useRef<Record<string, HTMLButtonElement | null>>({});
   const id = useId();
+
+  if (shownKey !== resetKey) {
+    setShownKey(resetKey);
+    setActive(tabs[0]?.key);
+    setOpened(firstOnly(tabs));
+  }
 
   const select = (key: string, focus = false) => {
     setActive(key);

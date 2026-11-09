@@ -44,15 +44,44 @@ const chips = () => within(screen.getByRole('group', { name: '견줄 전략' }))
 
 describe('StrategyComparisonForm', () => {
   it('칩은 누르면 아래 설정을 여는 단추이고, 열린 칩의 설정을 보인다', async () => {
-    const props = renderForm()
+    const props = renderForm({ chips: [chip('s2', 'DCA', '적립식'), chip('s3', 'CONDITIONAL_PURCHASE', '조건부 매수')] })
 
     expect(screen.getByText('전략마다 원금')).toBeInTheDocument()
     expect(chips().getByRole('button', { name: '적립식' })).toHaveAttribute('aria-expanded', 'true')
-    expect(chips().getByRole('button', { name: '단순 매수' })).toHaveAttribute('aria-expanded', 'false')
+    expect(chips().getByRole('button', { name: '조건부 매수' })).toHaveAttribute('aria-expanded', 'false')
     expect(screen.getByText('열린 칩 설정')).toBeInTheDocument()
-    await userEvent.click(chips().getByRole('button', { name: '단순 매수' }))
+    await userEvent.click(chips().getByRole('button', { name: '조건부 매수' }))
 
-    expect(props.onOpen).toHaveBeenCalledWith('s1')
+    expect(props.onOpen).toHaveBeenCalledWith('s3')
+  })
+
+  it('설정할 칸이 없는 단순 매수 칩은 이름만 두고 여는 단추가 아니다', async () => {
+    const props = renderForm({ openId: 's1' })
+
+    expect(chips().getByText('단순 매수')).toBeInTheDocument()
+    expect(chips().queryByRole('button', { name: '단순 매수' })).toBeNull()
+    expect(chips().getByRole('button', { name: '적립식' })).toHaveAttribute('aria-expanded', 'false')
+    await userEvent.click(chips().getByText('단순 매수'))
+
+    expect(props.onOpen).not.toHaveBeenCalled()
+  })
+
+  it('칩이 둘 미만이면 첫 ＋ 단추를 고칠 칸으로 표시하고 칸 아래 글과 잇는다', () => {
+    renderForm({ chips: [chip('s2', 'DCA', '적립식')], chipsMessage: { kind: 'error', text: '전략을 둘 이상' } })
+
+    const [first, ...rest] = chips().getAllByRole('button', { name: /^＋/ })
+    expect(first).toHaveAccessibleName('＋ 단순 매수')
+    expect(first).toHaveAttribute('data-bad', 'true')
+    expect(first).toHaveAccessibleDescription('전략을 둘 이상')
+    rest.forEach((button) => expect(button).not.toHaveAttribute('data-bad'))
+  })
+
+  it('칩이 둘 이상이면 ＋ 단추는 고칠 칸이 아니다', () => {
+    renderForm()
+
+    chips()
+      .getAllByRole('button', { name: /^＋/ })
+      .forEach((button) => expect(button).not.toHaveAttribute('data-bad'))
   })
 
   it('× 로 칩을 빼고 ＋ 로 종류마다 더하며, 단순 매수는 하나만 둔다', async () => {

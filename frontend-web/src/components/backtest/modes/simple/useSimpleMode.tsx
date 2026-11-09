@@ -19,7 +19,7 @@ export const useSimpleMode = (shared: SharedModeProps): ModeController => {
   const amountUnit = useAmountUnit();
   const { symbolField, periodField, symbolMessage, periodMessage } = commonFields(shared, { manualAction: true });
   const byShares = amountUnit.unit === 'SHARES';
-  const perRound = useRoundCost({
+  const { perRound, defaultFx } = useRoundCost({
     symbol,
     startDate: period.start,
     unit: amountUnit.unit,
@@ -44,13 +44,14 @@ export const useSimpleMode = (shared: SharedModeProps): ModeController => {
           onAmountChange: setInitialInvestment,
           amountUnit,
           perRound: byShares ? perRound : undefined,
+          defaultFx,
           message: amountMessage,
         }}
       />
     ),
     summary: {
       subject: symbol,
-      how: simpleHow({ byShares, amount: initialInvestment, shares: amountUnit.shares, perRound }),
+      how: simpleHow({ byShares, amount: initialInvestment, shares: amountUnit.shares, perRound, defaultFx }),
     },
     errorCount: countErrors([symbolMessage, periodMessage, amountMessage]),
     saved: { amount: initialInvestment, unit: amountUnit.unit, shares: amountUnit.shares },

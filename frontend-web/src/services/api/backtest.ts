@@ -17,7 +17,7 @@ export type SimulationRequest = BacktestCommonRequest & {
   purchaseDate: string;                 // 매수일 (YYYY-MM-DD)
   saleDate?: string;                    // 매도일 (YYYY-MM-DD, 기본값: 오늘)
   investmentAmount?: number;            // 투자 금액 (주식 수와 둘 중 하나)
-  sharesPerPurchase?: number;           // 주식 수 (1 이상 정수, 투자 금액과 둘 중 하나)
+  sharesPerPurchase?: number;           // 주식 수 (1 ~ 1,000,000 정수, 투자 금액과 둘 중 하나)
 };
 
 // 기간 수익 · 위험 지표(낼 수 없으면 null)
@@ -95,7 +95,7 @@ export type DcaStrategyRequest = BacktestCommonRequest & {
   startDate: string;                    // 시작일
   endDate: string;                      // 종료일
   amountPerPurchase?: number;           // 회당 금액 (KRW, 회당 주식 수와 둘 중 하나)
-  sharesPerPurchase?: number;           // 회당 주식 수 (1 이상 정수, 회당 금액과 둘 중 하나)
+  sharesPerPurchase?: number;           // 회당 주식 수 (1 ~ 1,000,000 정수, 회당 금액과 둘 중 하나)
   frequency?: DcaFrequency;             // 비우면 매달, 매주는 첫 매수일의 요일
   firstPurchaseDate?: string;           // 첫 매수일 (비우면 시작일, 주말 · 휴장일이면 다음 거래일)
   purchaseDay?: number;                 // 매달 투자일 (1-31, 매달만, 비우면 첫 매수일의 날짜)
@@ -112,7 +112,7 @@ export type ConditionalStrategyRequest = BacktestCommonRequest & {
   startDate: string;                    // 시작일
   endDate: string;                      // 종료일
   amountPerPurchase?: number;           // 조건이 맞는 날마다 넣는 회당 금액 (KRW, 회당 주식 수와 둘 중 하나)
-  sharesPerPurchase?: number;           // 회당 주식 수 (1 이상 정수, 회당 금액과 둘 중 하나)
+  sharesPerPurchase?: number;           // 회당 주식 수 (1 ~ 1,000,000 정수, 회당 금액과 둘 중 하나)
   totalInvestment?: number;             // 예산 (KRW, 비우면 제한 없음)
   direction?: PriceDirection;           // 비우면 하락
   dropPercentage: number;               // 하락률 · 상승률 (0.05 = 5%)

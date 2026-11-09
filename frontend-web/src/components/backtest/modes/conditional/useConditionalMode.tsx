@@ -41,7 +41,7 @@ export const useConditionalMode = (shared: SharedModeProps): ModeController => {
   const { end, symbolField, periodField, symbolMessage, periodMessage } = commonFields(shared);
 
   const byShares = amountUnit.unit === 'SHARES';
-  const perRound = useRoundCost({
+  const { perRound, defaultFx } = useRoundCost({
     symbol,
     startDate: period.start,
     unit: amountUnit.unit,
@@ -72,6 +72,7 @@ export const useConditionalMode = (shared: SharedModeProps): ModeController => {
           onAmountChange: setAmountPerPurchase,
           amountUnit,
           perRound: byShares ? perRound : undefined,
+          defaultFx,
           message: amountMessage,
         }}
         budget={{ budget: totalInvestment, onChange: setTotalInvestment, message: budgetMessage }}
@@ -102,7 +103,7 @@ export const useConditionalMode = (shared: SharedModeProps): ModeController => {
       how: conditionalHow({
         percent: dropPercentage,
         direction,
-        unit: { byShares, amount: amountPerPurchase, shares: amountUnit.shares, perRound },
+        unit: { byShares, amount: amountPerPurchase, shares: amountUnit.shares, perRound, defaultFx },
         budget: totalInvestment,
         maxPurchases,
         weekdays: countRounds('DAILY', 1, period.start, end),

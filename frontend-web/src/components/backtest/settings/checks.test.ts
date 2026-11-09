@@ -28,12 +28,14 @@ describe('설정 칸 검사', () => {
     expect(symbolsIssue(['AAPL', 'MSFT'])).toBeNull()
   })
 
-  it('금액: 비면 칸 이름 + 비어 있음, 0 이하면 0 보다 크게, 주식 수는 1 이상 정수', () => {
+  it('금액: 비면 칸 이름 + 비어 있음, 0 이하면 0 보다 크게, 주식 수는 1 ~ 1,000,000 정수', () => {
     expect(amountIssue({ byShares: false, amount: '300000', shares: '1', label: '금액' })).toBeNull()
     expect(amountIssue({ byShares: false, amount: '', shares: '1', label: '회당 금액' })).toEqual(error('회당 금액 비어 있음'))
     expect(amountIssue({ byShares: false, amount: '0', shares: '1', label: '금액' })).toEqual(error('0 보다 크게'))
     expect(amountIssue({ byShares: true, amount: '', shares: '1.5', label: '금액' })).toEqual(error('1 이상 정수'))
     expect(amountIssue({ byShares: true, amount: '', shares: '2', label: '금액' })).toBeNull()
+    expect(amountIssue({ byShares: true, amount: '', shares: '1000000', label: '금액' })).toBeNull()
+    expect(amountIssue({ byShares: true, amount: '', shares: '1000001', label: '금액' })).toEqual(error('1,000,000 이하'))
   })
 
   it('예산: 비면 제한 없음, 0 이하면 오류, 한 번 살 돈보다 적으면 금액은 오류 · 주식 수는 추정이라 경고', () => {
