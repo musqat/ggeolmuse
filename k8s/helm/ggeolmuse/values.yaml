@@ -434,7 +434,6 @@ services:
     secretFiles:
       CONFIG_SERVER_USERNAME: CONFIG_SERVER_USERNAME
       CONFIG_SERVER_PASSWORD: CONFIG_SERVER_PASSWORD
-      SPRING_REDIS_PASSWORD: REDIS_PASSWORD
       DB_USERNAME: DB_USERNAME
       DB_PASSWORD: DB_PASSWORD
       DB_URL_BACKTEST: DB_URL_BACKTEST
@@ -607,6 +606,5 @@ configMap:
     emailExpiryHours: "24"
     exchangeRateMin: "0"
     exchangeRateMax: "3000"
-    exchangeRateFallback: "1300.00"
     redisHost: "redis"
     redisPort: "6379"

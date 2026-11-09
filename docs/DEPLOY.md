@@ -72,3 +72,7 @@ Java 서비스는 멀티스테이지 Dockerfile 이고 빌드 컨텍스트가 �
 
 설정을 함께 바꿨다면 config 저장소도 같이 올린다. 코드와 설정이 짝인 변경은
 한쪽만 배포하면 기본값으로 돌아간다.
+
+ArgoCD 자신은 `helm/argocd/application-argocd.yaml` 이 차트 버전과 `values-argocd.yaml` 로 맞춘다.
+자동 동기화는 꺼 두어, 콘솔에서 바꾼 값은 OutOfSync 로만 보인다. 값을 바꾸는 PR 을 머지한 뒤
+ArgoCD 화면에서 `argocd` 앱의 차이를 보고 Sync 한다. 차트 버전은 `install-argocd.sh` 와 같게 둔다.

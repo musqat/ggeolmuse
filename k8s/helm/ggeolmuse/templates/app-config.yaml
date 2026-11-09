@@ -18,7 +18,6 @@ data:
   # 환율 설정
   EXCHANGE_RATE_MIN: {{ .Values.configMap.data.exchangeRateMin | quote }}
   EXCHANGE_RATE_MAX: {{ .Values.configMap.data.exchangeRateMax | quote }}
-  EXCHANGE_RATE_FALLBACK: {{ .Values.configMap.data.exchangeRateFallback | quote }}
 
   # Redis 설정
   REDIS_HOST: {{ .Values.configMap.data.redisHost | quote }}
