@@ -12,8 +12,8 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 LABELS = ("method", "uri", "status")
 SKIPPED_PATHS = ("/health", "/metrics")
 WINDOW_SECONDS = 120.0
-# 응답 시간 구간(자바 서비스와 같음)
-BUCKETS = (0.1, 0.3, 1.0, 2.0, 5.0)
+# 응답 시간 구간(5초까지 자바 서비스와 같음, 그 위는 AI 답변용)
+BUCKETS = (0.1, 0.3, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0, 60.0)
 
 
 class RequestMetrics:

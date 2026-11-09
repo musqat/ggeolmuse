@@ -101,12 +101,25 @@ def test_scrape_returns_prometheus_text():
     assert 'http_server_requests_seconds_count{method="GET",status="200",uri="/api/chat/items/{item_id}"}' in res.text
 
 
-def test_latency_buckets_match_java_services():
+def _buckets(registry, labels, bounds):
+    return [registry.get_sample_value(BUCKET, {**labels, "le": le}) for le in bounds]
+
+
+def test_latency_buckets_up_to_five_seconds_match_java_services():
     _, registry, metrics = _app()
     labels = {"method": "POST", "uri": "/api/chat", "status": "200"}
 
     metrics.observe(("POST", "/api/chat", "200"), 0.5)
     metrics.observe(("POST", "/api/chat", "200"), 3.0)
 
-    counts = [registry.get_sample_value(BUCKET, {**labels, "le": le}) for le in ("0.1", "0.3", "1.0", "2.0", "5.0", "+Inf")]
-    assert counts == [0, 0, 1, 1, 2, 2]
+    assert _buckets(registry, labels, ("0.1", "0.3", "1.0", "2.0", "5.0", "+Inf")) == [0, 0, 1, 1, 2, 2]
+
+
+def test_responses_over_five_seconds_fall_into_buckets_up_to_a_minute():
+    _, registry, metrics = _app()
+    labels = {"method": "POST", "uri": "/api/chat", "status": "200"}
+
+    for seconds in (7.0, 15.0, 25.0, 45.0, 90.0):
+        metrics.observe(("POST", "/api/chat", "200"), seconds)
+
+    assert _buckets(registry, labels, ("5.0", "10.0", "20.0", "30.0", "60.0", "+Inf")) == [0, 1, 2, 3, 4, 5]
