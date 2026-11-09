@@ -57,6 +57,58 @@ class SymbolCatalogTest {
     assertThat(catalog.fetchAll()).isEmpty();
   }
 
+  @Test
+  @DisplayName("상장 목록은 거른 종목과 거르기 전 심볼을 함께 준다")
+  void fetchListing_KeepsSymbolsBeforeFilters() {
+    given(listingSource.fetch()).willReturn(List.of(
+        asset("EVOX", "Evolution Global Acquisition Corp - Class A"),
+        asset("EVOXW", "Evolution Global Acquisition Corp - Warrants"),
+        asset("ZVZZT", "NASDAQ TEST STOCK")));
+
+    SymbolCatalog.Listing listing = catalog.fetchListing();
+
+    assertThat(listing.assets()).extracting(Asset::getSymbol).containsExactly("EVOX");
+    assertThat(listing.listedSymbols()).containsExactlyInAnyOrder("EVOX", "EVOXW", "ZVZZT");
+    assertThat(listing.complete()).isTrue();
+  }
+
+  @Test
+  @DisplayName("번들 CSV 로 대체한 목록은 전체 목록으로 치지 않는다")
+  void fetchListing_BundledFallback_NotComplete() {
+    ReflectionTestUtils.setField(catalog, "csvFallback", true);
+    given(listingSource.fetch()).willReturn(List.of());
+    given(bundledSource.fetch()).willReturn(List.of(asset("AAPL", "Apple Inc")));
+
+    SymbolCatalog.Listing listing = catalog.fetchListing();
+
+    assertThat(listing.assets()).extracting(Asset::getSymbol).containsExactly("AAPL");
+    assertThat(listing.complete()).isFalse();
+  }
+
+  @Test
+  @DisplayName("상한에서 잘린 목록은 전체 목록으로 치지 않는다")
+  void fetchListing_Capped_NotComplete() {
+    given(listingSource.fetch()).willReturn(List.of(asset("AAPL", "Apple Inc")));
+    given(listingSource.isCapped()).willReturn(true);
+
+    SymbolCatalog.Listing listing = catalog.fetchListing();
+
+    assertThat(listing.listedSymbols()).containsExactly("AAPL");
+    assertThat(listing.complete()).isFalse();
+  }
+
+  @Test
+  @DisplayName("목록 조회가 실패하면 빈 결과를 준다")
+  void fetchListing_Failure_Empty() {
+    given(listingSource.fetch()).willThrow(new IllegalStateException("429"));
+
+    SymbolCatalog.Listing listing = catalog.fetchListing();
+
+    assertThat(listing.assets()).isEmpty();
+    assertThat(listing.listedSymbols()).isEmpty();
+    assertThat(listing.complete()).isFalse();
+  }
+
   private void setPatterns(String patterns) {
     ReflectionTestUtils.setField(catalog, "excludeNamePatterns", patterns);
   }

@@ -3,6 +3,7 @@ package com.muscat.marketdata.datasource.yf.collector;
 import com.muscat.marketdata.datasource.common.SymbolCatalog;
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.repository.AssetRepository;
+import com.muscat.marketdata.domain.service.CandleService;
 import com.muscat.marketdata.infra.kafka.AssetEventProducer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +37,7 @@ public class SymbolCollector {
     private final SymbolCatalog symbolCatalog;
     private final AssetRepository assetRepository;
     private final AssetEventProducer assetEventProducer;
+    private final CandleService candleService;
 
     @Value("${marketdata.symbol-collection.enabled:false}")
     private boolean enabled;
@@ -133,8 +135,7 @@ public class SymbolCollector {
         }
     }
 
-    // 신규 상장 확인(캔들 07:30 뒤 · 시가총액 10:00 앞)
-    // 기동 때만 돌면 재시작 전까지 목록이 굳음
+    // 상장 목록 확인(캔들 07:30 뒤 · 시가총액 10:00 앞)
     @Scheduled(cron = "${yahoo.scheduler.symbol.cron:0 0 8 * * MON-FRI}",
         zone = "${yahoo.scheduler.zone:Asia/Seoul}")
     @SchedulerLock(name = "yfCollectNewlyListed", lockAtMostFor = "20m", lockAtLeastFor = "1m")
@@ -151,22 +152,24 @@ public class SymbolCollector {
         collectNewlyListed(from, to);
     }
 
-    // DB 에 없는 심볼만 추가(목록 조회가 실패해도 예외를 밖으로 내지 않음, 기존 종목 갱신은 끝난 뒤)
+    // 목록 이름 갱신 · 목록에서 빠진 종목 내림 · DB 에 없는 심볼 추가(목록 조회가 실패해도 예외를 밖으로 내지 않음)
     private void collectNewlyListed(LocalDate from, LocalDate to) {
         try {
+            SymbolCatalog.Listing listing = symbolCatalog.fetchListing();
             // 카탈로그가 중복 제거 · 보통주 필터까지 마친 목록
-            List<Asset> fetched = symbolCatalog.fetchAll();
-
+            List<Asset> fetched = listing.assets();
 
             if (fetched.isEmpty()) {
                 log.warn("[YF-신규종목] 목록이 비어 있어 건너뛴다");
                 return;
             }
 
-            Map<String, Asset> known = assetRepository.findAll().stream()
+            List<Asset> stored = assetRepository.findAll();
+            Map<String, Asset> known = stored.stream()
                 .collect(Collectors.toMap(Asset::getSymbol, a -> a, (first, dup) -> first));
 
             refreshListingNames(fetched, known);
+            delistMissing(listing, stored);
 
             // 경계에서 한 번 더 거르는 중복
             Set<String> seen = new java.util.HashSet<>();
@@ -197,6 +200,43 @@ public class SymbolCollector {
         } catch (Exception e) {
             log.error("[YF-신규종목] 실패", e);
         }
+    }
+
+    // 거르기 전 상장 목록에 없는 활성 종목 내림(목록 이름이 없는 관리자 추가 종목은 둠)
+    private void delistMissing(SymbolCatalog.Listing listing, List<Asset> stored) {
+        if (!listing.complete()) {
+            log.info("[YF-상장폐지] 상한 · 대체 목록이라 건너뛴다");
+            return;
+        }
+
+        Set<String> listed = listing.listedSymbols();
+        List<Asset> active = stored.stream()
+            .filter(a -> Boolean.TRUE.equals(a.getActive()))
+            .toList();
+
+        // 활성 종목의 절반 미만이면 목록 조회 이상으로 보고 멈춤
+        if (listed.size() < active.size() * 0.5) {
+            log.warn("[YF-상장폐지] 목록 {}개가 활성 {}개의 절반 미만이라 내리지 않는다", listed.size(), active.size());
+            return;
+        }
+
+        List<Asset> missing = active.stream()
+            .filter(a -> a.getSourceName() != null && !listed.contains(a.getSymbol()))
+            .toList();
+
+        if (missing.isEmpty()) {
+            return;
+        }
+
+        LocalDate today = LocalDate.now();
+        missing.forEach(a -> {
+            a.setActive(false);
+            a.setDelistedDate(today);
+        });
+        assetRepository.saveAll(missing);
+        candleService.evictDividendYieldOrder();
+        log.info("[YF-상장폐지] 목록에 없는 활성 종목 {}개 내림: {}", missing.size(),
+            missing.stream().map(Asset::getSymbol).toList());
     }
 
     // 상장 목록 이름이 바뀐 기존 종목 따라 고침(손으로 고친 이름은 두고 목록 이름만 갱신)

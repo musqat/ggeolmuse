@@ -46,7 +46,6 @@ class ListingStatusSourceTest {
   @Test
   @DisplayName("SPY 가 들어온다")
   void spy() {
-    // NASDAQ 스크리너의 stocks · etf 어디에도 없는 SPY
     givenCsv("SPY,SPDR S&P 500 ETF Trust,NYSE,ETF,1993-01-29,null,Active");
 
     List<Asset> result = source.fetch();
@@ -142,6 +141,16 @@ class ListingStatusSourceTest {
         "A3,Corp Three,NYSE,Stock,2010-01-01,null,Active");
 
     assertThat(source.fetch()).hasSize(2);
+  }
+
+  @Test
+  @DisplayName("max-symbols 가 있으면 잘린 목록으로 본다")
+  void 상한_여부() {
+    assertThat(source.isCapped()).isFalse();
+
+    ReflectionTestUtils.setField(source, "maxSymbols", 50);
+
+    assertThat(source.isCapped()).isTrue();
   }
 
   @Test

@@ -5,6 +5,7 @@ import com.muscat.marketdata.domain.entity.Asset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -45,29 +46,42 @@ public class SymbolCatalog {
   @Value("${marketdata.constants.database.symbol-max-length:16}")
   private int symbolMaxLength;
 
+  // 상장 목록 조회 결과(listedSymbols 는 거르기 전 심볼, complete 는 상한 · 대체 없이 받은 목록인지)
+  public record Listing(List<Asset> assets, Set<String> listedSymbols, boolean complete) {
+  }
+
+  private static final Listing EMPTY = new Listing(List.of(), Set.of(), false);
+
+  public List<Asset> fetchAll() {
+    return fetchListing().assets();
+  }
+
   // 중복 · 저장 못 할 심볼 · 테스트 종목 · 보통주 아닌 것을 거름
   // 실패하면 빈 목록(일부만 받으면 나머지가 상장폐지처럼 보임)
-  public List<Asset> fetchAll() {
+  public Listing fetchListing() {
     List<Asset> fetched;
 
     try {
       fetched = listingSource.fetch();
     } catch (Exception e) {
       log.error("[종목목록] 조회 실패", e);
-      return List.of();
+      return EMPTY;
     }
+
+    boolean complete = !listingSource.isCapped();
 
     if (fetched == null || fetched.isEmpty()) {
       if (!csvFallback) {
         log.warn("[종목목록] 목록이 비어 있다. 출처나 API 키를 확인할 것");
-        return List.of();
+        return EMPTY;
       }
 
       fetched = bundledSource.fetch();
+      complete = false;
       log.warn("[종목목록] 목록이 비어 번들 CSV 로 대체한다: {}개", fetched.size());
 
       if (fetched.isEmpty()) {
-        return List.of();
+        return EMPTY;
       }
     }
 
@@ -79,7 +93,11 @@ public class SymbolCatalog {
     log.info("[종목목록] 조회 {}개 -> 중복 제거 {}개 -> 최종 {}개",
         fetched.size(), deduped.size(), kept.size());
 
-    return kept;
+    Set<String> listed = fetched.stream()
+        .map(Asset::getSymbol)
+        .collect(Collectors.toSet());
+
+    return new Listing(kept, listed, complete);
   }
 
   private List<Asset> dedupeBySymbol(List<Asset> assets) {
