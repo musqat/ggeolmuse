@@ -9,6 +9,7 @@ helm repo update
 echo "namespace argocd"
 kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
 
+# 차트 버전은 application-argocd.yaml 과 같게
 echo "argo-cd 9.0.6 설치"
 helm upgrade --install argocd argo/argo-cd \
   --namespace argocd \
@@ -16,6 +17,9 @@ helm upgrade --install argocd argo/argo-cd \
   --values values-argocd.yaml \
   --wait \
   --timeout 10m
+
+echo "ArgoCD 자기 관리 앱(수동 동기화)"
+kubectl apply -f application-argocd.yaml
 
 ARGOCD_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
 

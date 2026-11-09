@@ -1,0 +1,23 @@
+# ArgoCD 자신(수동 동기화 · 파이널라이저 없음, Application 을 지워도 ArgoCD 는 남음)
+# 차트 버전은 install-argocd.sh 와 같게
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://argoproj.github.io/argo-helm
+      chart: argo-cd
+      targetRevision: 9.0.6
+      helm:
+        releaseName: argocd
+        valueFiles:
+          - $values/helm/argocd/values-argocd.yaml
+    - repoURL: https://github.com/musqat/ggeolmuse
+      targetRevision: master
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
