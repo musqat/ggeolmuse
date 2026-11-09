@@ -26,7 +26,7 @@ public enum BacktestResponse implements ErrorCode {
   STRATEGY_TYPE_MISMATCH("지원하지 않는 전략 타입입니다.", HttpStatus.BAD_REQUEST),
   STRATEGY_AMOUNT_PER_PURCHASE_REQUIRED("회당 금액은 0보다 커야 합니다.", HttpStatus.BAD_REQUEST),
   AMOUNT_OR_SHARES_REQUIRED("회당 금액과 주식 수 가운데 하나만 넣어 주세요.", HttpStatus.BAD_REQUEST),
-  INVALID_SHARES_PER_PURCHASE("주식 수는 1 이상이어야 합니다.", HttpStatus.BAD_REQUEST),
+  INVALID_SHARES_PER_PURCHASE("주식 수는 1 ~ 1,000,000 사이여야 합니다.", HttpStatus.BAD_REQUEST),
   INVALID_TOTAL_INVESTMENT("예산은 0보다 커야 합니다.", HttpStatus.BAD_REQUEST),
   STRATEGY_DROP_PERCENTAGE_REQUIRED("하락률 · 상승률 조건은 필수입니다.", HttpStatus.BAD_REQUEST),
   INVALID_PURCHASE_DAY("투자일은 1-31 사이여야 합니다.", HttpStatus.BAD_REQUEST),

@@ -210,7 +210,7 @@ class MarketDataServiceImplTest {
       given(marketServiceClientWrapper.getOHLCPrice(SYMBOL, TRADE_DATE.toString()))
         .willReturn(ohlc(true));
 
-      // 경계 포함(막으면 종가가 그날 고가인 날 주문 불가)
+      // 경계 포함(막으면 종가와 고가가 같은 날 주문 불가)
       assertThat(marketDataService.validateManualPrice(SYMBOL, TRADE_DATE, new BigDecimal("213")))
         .isEqualByComparingTo("213");
       assertThat(marketDataService.validateManualPrice(SYMBOL, TRADE_DATE, new BigDecimal("222")))

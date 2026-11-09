@@ -67,6 +67,8 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
   const earlier = transactions.filter((tx) => tx.actualDate && tx.actualDate < tx.date).length;
   const sold = sellCount(transactions);
   const notice = purchaseNotice(kind, purchaseCount(transactions), result.skippedSpan);
+  // 시세 없음 · 계산 오류 회차와 예산 부족 구간 회차
+  const skipped = skippedRounds.length + (result.skippedSpan?.rounds ?? 0);
 
   return (
     <div className="space-y-6">
@@ -184,7 +186,7 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
       {(transactions.length > 0 || skippedRounds.length > 0) && (
         <ResultFold
           title={sold > 0 ? '매매 내역' : '매수 내역'}
-          meta={`매수 ${purchaseCount(transactions)}회${sold > 0 ? ` · 매도 ${sold}회` : ''} · 미매수 ${skippedRounds.length}회`}
+          meta={`매수 ${purchaseCount(transactions)}회${sold > 0 ? ` · 매도 ${sold}회` : ''} · 미매수 ${skipped}회`}
         >
           <PurchaseHistory transactions={transactions} skippedRounds={skippedRounds} />
         </ResultFold>

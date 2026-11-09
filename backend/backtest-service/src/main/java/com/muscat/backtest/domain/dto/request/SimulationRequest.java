@@ -1,10 +1,12 @@
 package com.muscat.backtest.domain.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.muscat.backtest.common.constants.BacktestConstants.RequestLimit;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -38,8 +40,9 @@ public class SimulationRequest {
   @Positive(message = "투자 금액은 0보다 커야 합니다")
   private BigDecimal investmentAmount;
 
-  @Schema(description = "살 주식 수 (정수, 투자 금액과 둘 중 하나, 산 날(휴장이면 다음 거래일) 종가 × 주식 수 + 수수료를 그 날짜 환율로 원화)", example = "3")
-  @Min(value = 1, message = "주식 수는 1 이상이어야 합니다")
+  @Schema(description = "살 주식 수 (정수 1 ~ 1,000,000, 투자 금액과 둘 중 하나, 산 날(휴장이면 다음 거래일) 종가 × 주식 수 + 수수료를 그 날짜 환율로 원화)", example = "3")
+  @Min(value = 1, message = "주식 수는 1 ~ 1,000,000 사이여야 합니다")
+  @Max(value = RequestLimit.MAX_SHARES, message = "주식 수는 1 ~ 1,000,000 사이여야 합니다")
   private Integer sharesPerPurchase;
 
   // 매매 수수료 설정 (선택적, 기본값 0%)

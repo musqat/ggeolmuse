@@ -25,7 +25,7 @@ const Charts: React.FC = () => {
 
   const symbol = (paramSymbol && isValidSymbol(paramSymbol)) ? paramSymbol.toUpperCase() : null;
 
-  // 심볼이 없거나 형식이 틀리면 AAPL 로 보냄(훅을 다 부른 뒤 아래 <Navigate> 로, 조기 return 이면 훅 순서가 어긋남)
+  // 심볼이 없거나 형식이 틀리면 AAPL 로 보냄(훅을 다 부른 뒤 아래 <Navigate> 로, 조기 return 이면 훅 순서가 바뀜)
 
   const [showSearchModal, setShowSearchModal] = useState(false);
   const { period, customStart, customEnd, today, range, setPeriod, setCustomStart, setCustomEnd } =

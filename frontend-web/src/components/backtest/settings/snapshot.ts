@@ -1,4 +1,4 @@
-// 직전 설정 · 설정 초기화 되돌리기가 저장하는 설정 한 벌
+// 직전 설정 · 설정 초기화 되돌리기용으로 저장하는 백테스트 설정
 export interface SettingsSnapshot {
   v: number;
   mode: string;

@@ -35,7 +35,7 @@ public class ComparisonItem {
   private BigDecimal dividends;
 
   // 순위
-  private Integer rank;                  // 수익률 기준 순위
+  private Integer rank;                  // 수익률 순위(투자금 0 인 매수 0회 항목은 null)
 
   // 최적 타이밍
   private String optimalBuyDate;         // 최적 매수일

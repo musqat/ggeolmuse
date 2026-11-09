@@ -50,7 +50,7 @@ class DividendEntitlementTest {
   }
 
   @Test
-  @DisplayName("배당락일 전 매도는 빼고, 배당락일 당일 · 이후 매도는 빼지 않는다(그날까지 갖고 있었다)")
+  @DisplayName("배당락일 전 매도는 빼고, 배당락일 당일 · 이후 매도는 빼지 않는다(배당락일 전날까지 보유)")
   void sellsBeforeExDateSubtracted() {
     List<Trade> trades = List.of(buy("10", EX.minusDays(5)), buy("10", EX.minusDays(4)),
       sell("5", EX.minusDays(1)), sell("15", EX));

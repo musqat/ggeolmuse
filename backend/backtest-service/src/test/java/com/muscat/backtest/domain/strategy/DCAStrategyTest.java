@@ -848,8 +848,9 @@ class DCAStrategyTest {
     }
 
     @ParameterizedTest(name = "주식 수 {0}")
-    @CsvSource(value = {"null, AMOUNT_OR_SHARES_REQUIRED", "0, INVALID_SHARES_PER_PURCHASE"}, nullValues = "null")
-    @DisplayName("회당 금액 · 주식 수가 둘 다 없으면 AMOUNT_OR_SHARES_REQUIRED, 주식 수가 1 보다 작으면 INVALID_SHARES_PER_PURCHASE")
+    @CsvSource(value = {"null, AMOUNT_OR_SHARES_REQUIRED", "0, INVALID_SHARES_PER_PURCHASE", "1000001, INVALID_SHARES_PER_PURCHASE"},
+      nullValues = "null")
+    @DisplayName("회당 금액 · 주식 수가 둘 다 없으면 AMOUNT_OR_SHARES_REQUIRED, 주식 수가 1 ~ 1,000,000 밖이면 INVALID_SHARES_PER_PURCHASE")
     void missingAmountOrShares(Integer shares, BacktestResponse code) {
       DcaStrategyRequest request = base().amountPerPurchase(null).sharesPerPurchase(shares).build();
 
@@ -1215,6 +1216,20 @@ class DCAStrategyTest {
       dcaStrategy.execute(request(DcaFrequency.MONTHLY, start, end).purchaseDay(1).investmentInterval(1).build());
 
       assertThat(executed()).extracting(StrategyTransaction::getActualDate).containsExactly(LocalDate.of(2015, 1, 2));
+      assertThat(skipped()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("종료일에 걸린 달에 투자일부터 종료일까지 거래일이 없으면 투자일 앞 거래일에 사지 않고 그 달은 세지 않는다")
+    void monthlyEndMonthWithoutTradingDayBeforeEnd() {
+      // 2024년 6월 15일은 토요일, 16일은 일요일
+      LocalDate start = LocalDate.of(2024, 5, 1);
+      LocalDate end = LocalDate.of(2024, 6, 16);
+      stubMarket(start, end, weekdays(start, end));
+
+      dcaStrategy.execute(request(DcaFrequency.MONTHLY, start, end).investmentInterval(1).build());
+
+      assertThat(executed()).extracting(StrategyTransaction::getActualDate).containsExactly(LocalDate.of(2024, 5, 15));
       assertThat(skipped()).isEmpty();
     }
 

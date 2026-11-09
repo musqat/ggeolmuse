@@ -75,7 +75,7 @@ class BacktestDataUtilsTest {
     }
 
     @Test
-    @DisplayName("평가일이 과거면 그날 종가를 현재가 자리에 넣는다")
+    @DisplayName("평가일이 과거면 평가일 종가를 현재가 자리에 넣는다")
     void priceAtPast() {
       given(client.getOHLCPrice(SYMBOL, PAST.toString())).willReturn(ohlc(PAST, "150", true));
 
@@ -92,7 +92,7 @@ class BacktestDataUtilsTest {
   class FxTests {
 
     @Test
-    @DisplayName("평가일이 과거면 그날 환율, 오늘이면 최신 환율")
+    @DisplayName("평가일이 과거면 평가일 환율, 오늘이면 최신 환율")
     void fxRateAt() {
       given(client.getFxRate(PAST.toString())).willReturn(new FxRateDto(PAST, new BigDecimal("1330")));
       given(client.getLatestFxRate()).willReturn(new FxRateDto(LocalDate.now(), new BigDecimal("1380")));
@@ -102,7 +102,7 @@ class BacktestDataUtilsTest {
     }
 
     @Test
-    @DisplayName("과거 환율이 비면 그날 날짜에 설정한 기본 환율")
+    @DisplayName("과거 환율이 비면 조회한 날짜와 설정한 기본 환율")
     void historicalFallback() {
       given(client.getFxRate(PAST.toString())).willReturn(null);
       given(client.defaultFxRate()).willReturn(DEFAULT_FX);

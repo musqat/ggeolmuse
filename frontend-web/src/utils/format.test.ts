@@ -23,7 +23,7 @@ describe('formatNumberWithCommas', () => {
   })
 
   it('소수부 앞자리 0을 살린다', () => {
-    // 소수부 문자열 유지 (.05 → .5 로 뭉개지는지)
+    // 소수부 문자열 유지 (.05 가 .5 로 바뀌지 않음)
     expect(formatNumberWithCommas('1234.05')).toBe('1,234.05')
   })
 

@@ -142,7 +142,7 @@ class BacktestAnalysisControllerTest {
   }
 
   @Test
-  @DisplayName("적립식 · 조건부 전략은 회당 금액 대신 주식 수를 받아 그대로 넘긴다")
+  @DisplayName("적립식 · 조건부 전략은 회당 금액 대신 주식 수를 1,000,000 까지 받아 그대로 넘긴다")
   void sharesPerPurchase() throws Exception {
     given(backtestAnalysisService.runDcaStrategy(any())).willReturn(strategy("AAPL", StrategyType.DCA, "1"));
     given(backtestAnalysisService.runConditionalStrategy(any()))
@@ -150,12 +150,12 @@ class BacktestAnalysisControllerTest {
 
     postJson("/strategy/dca", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"sharesPerPurchase\":2,\"frequency\":\"WEEKLY\"}")
       .andExpect(status().isOk());
-    postJson("/strategy/conditional", "{\"symbol\":\"TSLA\"," + PERIOD + ",\"sharesPerPurchase\":1,\"dropPercentage\":0.05}")
+    postJson("/strategy/conditional", "{\"symbol\":\"TSLA\"," + PERIOD + ",\"sharesPerPurchase\":1000000,\"dropPercentage\":0.05}")
       .andExpect(status().isOk());
 
     verify(backtestAnalysisService).runDcaStrategy(argThat((DcaStrategyRequest r) -> r.getSharesPerPurchase() == 2
       && r.getAmountPerPurchase() == null));
-    verify(backtestAnalysisService).runConditionalStrategy(argThat(r -> r.getSharesPerPurchase() == 1
+    verify(backtestAnalysisService).runConditionalStrategy(argThat(r -> r.getSharesPerPurchase() == 1_000_000
       && r.getAmountPerPurchase() == null));
   }
 
@@ -164,9 +164,11 @@ class BacktestAnalysisControllerTest {
     "dca|둘 다|,\"amountPerPurchase\":100000,\"sharesPerPurchase\":1",
     "dca|둘 다 없음|",
     "dca|주식 수 0|,\"sharesPerPurchase\":0",
+    "dca|주식 수 1000001|,\"sharesPerPurchase\":1000001",
     "conditional|둘 다|,\"amountPerPurchase\":100000,\"sharesPerPurchase\":1",
-    "conditional|주식 수 0|,\"sharesPerPurchase\":0"})
-  @DisplayName("적립식 · 조건부 전략의 회당 금액 · 주식 수가 둘 다 있거나 둘 다 없거나 주식 수가 1 보다 작으면 400 이고 서비스까지 가지 않는다")
+    "conditional|주식 수 0|,\"sharesPerPurchase\":0",
+    "conditional|주식 수 1000001|,\"sharesPerPurchase\":1000001"})
+  @DisplayName("적립식 · 조건부 전략의 회당 금액 · 주식 수가 둘 다 있거나 둘 다 없거나 주식 수가 1 ~ 1,000,000 밖이면 400 이고 서비스까지 가지 않는다")
   void amountOrSharesRejected(String path, String label, String fields) throws Exception {
     postJson("/strategy/" + path, "{\"symbol\":\"AAPL\"," + PERIOD + ",\"dropPercentage\":0.05"
       + (fields == null ? "" : fields) + "}")
@@ -383,7 +385,7 @@ class BacktestAnalysisControllerTest {
   }
 
   @Test
-  @DisplayName("컨트롤러가 없는 옛 내부 경로는 열어 두지 않는다. 토큰이 없으면 401")
+  @DisplayName("컨트롤러가 없는 내부 경로는 열어 두지 않는다. 토큰이 없으면 401")
   void oldInternalPathsAreClosed() throws Exception {
     mockMvc.perform(post("/api/internal/analysis/strategy/dca")).andExpect(status().isUnauthorized());
     mockMvc.perform(post("/api/internal/trading-simulation/simulation")).andExpect(status().isUnauthorized());

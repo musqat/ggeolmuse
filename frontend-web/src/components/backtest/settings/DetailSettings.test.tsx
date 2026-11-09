@@ -100,6 +100,25 @@ describe('DetailSettings', () => {
     expect(options).toMatchObject({ fxMode: 'manual', manualPurchaseFxRate: '1130', manualCurrentFxRate: '' })
   })
 
+  it('직접 입력 환율이 둘 다 틀리면 두 칸 모두 오류로 표시하고 칸 아래 글과 잇는다', async () => {
+    const zero = { kind: 'error' as const, text: '0 보다 크게' }
+    render(<Harness startOpen messages={{ buyFx: zero, endFx: zero }} />)
+    await userEvent.click(within(screen.getByRole('radiogroup', { name: '환율' })).getByRole('radio', { name: '직접 입력' }))
+
+    for (const name of ['매수 환율(원)', '끝 날짜 환율(원)']) {
+      expect(screen.getByRole('textbox', { name })).toHaveAttribute('aria-invalid', 'true')
+      expect(screen.getByRole('textbox', { name })).toHaveAccessibleDescription('0 보다 크게')
+    }
+  })
+
+  it('끝 날짜 환율만 틀리면 끝 날짜 칸만 오류로 표시한다', async () => {
+    render(<Harness startOpen messages={{ endFx: { kind: 'error', text: '0 보다 크게' } }} />)
+    await userEvent.click(within(screen.getByRole('radiogroup', { name: '환율' })).getByRole('radio', { name: '직접 입력' }))
+
+    expect(screen.getByRole('textbox', { name: '끝 날짜 환율(원)' })).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByRole('textbox', { name: '매수 환율(원)' })).not.toHaveAttribute('aria-invalid')
+  })
+
   it('세금 칩은 누를 때마다 켜고 끈다', async () => {
     const seen = vi.fn()
     render(<Harness startOpen seen={seen} />)

@@ -935,7 +935,7 @@ class TradingServiceImplTest {
     }
 
     @Test
-    @DisplayName("그날 가격이 없으면 가격 없음 오류를 그대로 돌려준다")
+    @DisplayName("그 날짜 가격이 없으면 가격 없음 오류를 그대로 돌려준다")
     void calculateBuyingCapacity_PriceUnavailable_KeepsError() {
       // given
       TradeException unavailable = new TradeException(TradeResponse.PRICE_DATA_UNAVAILABLE);
@@ -950,7 +950,7 @@ class TradingServiceImplTest {
     }
 
     @Test
-    @DisplayName("지정가가 그날 가격 범위를 벗어나면 그 오류를 그대로 돌려준다")
+    @DisplayName("지정가가 그 날짜 가격 범위를 벗어나면 그 오류를 그대로 돌려준다")
     void calculateBuyingCapacity_ManualOutOfRange_KeepsError() {
       // given
       BigDecimal manualPrice = new BigDecimal("999.00");
@@ -1159,7 +1159,7 @@ class TradingServiceImplTest {
     }
 
     @Test
-    @DisplayName("키 기록이 없는 제약 위반은 지금처럼 거래 처리 오류다")
+    @DisplayName("키 기록이 없는 제약 위반은 거래 처리 오류다")
     void constraintViolationWithoutRecord_TransactionFailed() {
       stubBuyPath();
       given(idempotencyGuard.findDone(TEST_USER_ID, key, buyFingerprint))
@@ -1173,7 +1173,7 @@ class TradingServiceImplTest {
     }
 
     @Test
-    @DisplayName("키 없는 주문의 제약 위반도 지금처럼 거래 처리 오류다")
+    @DisplayName("키 없는 주문의 제약 위반도 거래 처리 오류다")
     void constraintViolationWithoutKey_TransactionFailed() {
       stubBuyPath();
       given(tradeRepository.save(any(Trade.class))).willThrow(new DataIntegrityViolationException("other"));

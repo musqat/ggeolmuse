@@ -13,7 +13,7 @@ interface TradingChartOptions {
   customEndDate: string;
 }
 
-// 거래 화면의 일봉 · 거래일 · 그날의 봉(차트 범위 밖이면 가장 가까운 지난 날)
+// 거래 화면의 일봉 · 거래일 · 거래일의 봉(차트 범위 밖이면 가장 가까운 지난 날)
 export const useTradingChart = ({ symbol, timeframe, customStartDate, customEndDate }: TradingChartOptions) => {
   const [tradeDate, setTradeDate] = useState(() => subtractDays(getTodayString(), 1));
 

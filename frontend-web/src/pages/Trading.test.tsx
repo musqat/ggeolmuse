@@ -186,7 +186,7 @@ describe('Trading 주문', () => {
     expect(tradeApi.buy).not.toHaveBeenCalled()
   })
 
-  it('지정가가 그날 고가 · 저가 밖이면 막고 범위를 알려준다', async () => {
+  it('지정가가 거래일 고가 · 저가 밖이면 막고 범위를 안내한다', async () => {
     renderPage()
     await waitForChart()
 

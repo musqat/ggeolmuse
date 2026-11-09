@@ -12,7 +12,7 @@ import {
 // 기대값은 TZ=Asia/Seoul 전제 (vitest.config.ts 에서 고정)
 
 describe('toLocalDateString', () => {
-  it('달력이 만든 로컬 자정을 그날로 적는다 (toISOString 은 전날)', () => {
+  it('달력이 만든 로컬 자정을 그 날짜 문자열로 바꾼다 (toISOString 은 전날)', () => {
     const picked = new Date(2024, 5, 14)
 
     expect(toLocalDateString(picked)).toBe('2024-06-14')
@@ -89,7 +89,7 @@ describe('getDateRangeForTimeframe', () => {
   })
 
   it('한국 새벽에도 시작일과 종료일이 같은 기준을 쓴다', () => {
-    // 한쪽만 UTC 면 하루 어긋남
+    // 한쪽만 UTC 면 하루 차이
     vi.setSystemTime(new Date('2026-08-12T15:30:00Z')) // 한국 8/13 00:30
     expect(getDateRangeForTimeframe('1주')).toEqual({
       startDate: '2026-08-06',

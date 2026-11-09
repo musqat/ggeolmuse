@@ -20,7 +20,7 @@ class SimulationRequestTest {
   }
 
   @Test
-  @DisplayName("매도일이 과거면 그날")
+  @DisplayName("매도일이 과거면 매도일")
   void pastSaleDate() {
     assertThat(withSaleDate(LocalDate.of(2024, 6, 14)).valuationDate(TODAY))
       .isEqualTo(LocalDate.of(2024, 6, 14));

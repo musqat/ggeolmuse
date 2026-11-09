@@ -11,7 +11,7 @@ describe('parsePeriod', () => {
 })
 
 describe('rangeForPeriod', () => {
-  it('개월 기간은 오늘에서 그만큼 전 같은 날부터, 그날이 없으면 그 달 말일부터다', () => {
+  it('개월 기간은 오늘에서 그만큼 전 같은 날부터, 그 날짜가 없으면 그 달 말일부터다', () => {
     expect(rangeForPeriod('1m', '2026-03-31')).toEqual({
       status: 'ready',
       startDate: '2026-02-28',

@@ -90,15 +90,15 @@ class TradingSimulationControllerTest {
   }
 
   @Test
-  @DisplayName("시뮬레이션은 투자금 대신 주식 수를 받아 그대로 넘긴다")
+  @DisplayName("시뮬레이션은 투자금 대신 주식 수를 1,000,000 까지 받아 그대로 넘긴다")
   void simulation_Shares() throws Exception {
     given(tradingSimulationService.runSimulation(any())).willReturn(SimulationResponse.builder().symbol("AAPL").build());
 
     mockMvc.perform(post(BASE + "/simulation").contentType(MediaType.APPLICATION_JSON)
-        .content("{\"symbol\":\"AAPL\",\"purchaseDate\":\"2023-01-02\",\"sharesPerPurchase\":3}"))
+        .content("{\"symbol\":\"AAPL\",\"purchaseDate\":\"2023-01-02\",\"sharesPerPurchase\":1000000}"))
       .andExpect(status().isOk());
 
-    verify(tradingSimulationService).runSimulation(argThat((SimulationRequest r) -> r.getSharesPerPurchase() == 3
+    verify(tradingSimulationService).runSimulation(argThat((SimulationRequest r) -> r.getSharesPerPurchase() == 1_000_000
       && r.getInvestmentAmount() == null));
   }
 
@@ -106,8 +106,9 @@ class TradingSimulationControllerTest {
   @CsvSource(delimiter = '|', value = {
     "둘 다|,\"investmentAmount\":1000000,\"sharesPerPurchase\":3",
     "둘 다 없음|",
-    "주식 수 0|,\"sharesPerPurchase\":0"})
-  @DisplayName("시뮬레이션의 투자금 · 주식 수가 둘 다 있거나 둘 다 없거나 주식 수가 1 보다 작으면 400 이고 서비스까지 가지 않는다")
+    "주식 수 0|,\"sharesPerPurchase\":0",
+    "주식 수 1000001|,\"sharesPerPurchase\":1000001"})
+  @DisplayName("시뮬레이션의 투자금 · 주식 수가 둘 다 있거나 둘 다 없거나 주식 수가 1 ~ 1,000,000 밖이면 400 이고 서비스까지 가지 않는다")
   void simulation_AmountOrSharesRejected(String label, String fields) throws Exception {
     mockMvc.perform(post(BASE + "/simulation").contentType(MediaType.APPLICATION_JSON)
         .content("{\"symbol\":\"AAPL\",\"purchaseDate\":\"2023-01-02\"" + (fields == null ? "" : fields) + "}"))

@@ -124,9 +124,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     if (request.getAmountPerPurchase() != null && !Decimals.isPositive(request.getAmountPerPurchase())) {
       throw new BacktestException(BacktestResponse.STRATEGY_AMOUNT_PER_PURCHASE_REQUIRED);
     }
-    if (request.getSharesPerPurchase() != null && request.getSharesPerPurchase() < 1) {
-      throw new BacktestException(BacktestResponse.INVALID_SHARES_PER_PURCHASE);
-    }
+    BacktestRequestValidator.requireShares(request.getSharesPerPurchase());
     if (request.getTotalInvestment() != null && !Decimals.isPositive(request.getTotalInvestment())) {
       throw new BacktestException(BacktestResponse.INVALID_TOTAL_INVESTMENT);
     }

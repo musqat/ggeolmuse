@@ -16,7 +16,7 @@ class FxPathTest {
   private static final LocalDate JAN4 = LocalDate.of(2024, 1, 4);
 
   @Test
-  @DisplayName("시장 환율은 그날 이하 가장 늦은 기록, 첫 기록 전 날은 첫 기록으로 채운다")
+  @DisplayName("시장 환율은 그 날짜 이하 가장 늦은 기록, 첫 기록 전 날은 첫 기록으로 채운다")
   void marketFillsBeforeFirstRecord() {
     Function<LocalDate, BigDecimal> fx = FxPath.market(
       Map.of(JAN2, new BigDecimal("1300"), JAN4, new BigDecimal("1320")), new BigDecimal("1350"));

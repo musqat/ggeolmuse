@@ -59,4 +59,16 @@ public final class BacktestConstants {
     /** 과거 데이터 최대 검색 일수 (주말/공휴일 처리) */
     public static final int MAX_LOOKBACK_DAYS = 5;
   }
+
+  /**
+   * 요청 값 범위
+   */
+  public static final class RequestLimit {
+    private RequestLimit() {
+      throw new UnsupportedOperationException("Constants class cannot be instantiated");
+    }
+
+    /** 단순 · 회당 주식 수 상한 */
+    public static final int MAX_SHARES = 1_000_000;
+  }
 }

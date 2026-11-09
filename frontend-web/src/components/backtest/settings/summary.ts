@@ -3,25 +3,27 @@ import { formatReadableWon } from '../../../utils/format';
 import { DIRECTIONS } from '../shared/priceDirection';
 import type { BacktestOptions } from '../shared/backtestOptions';
 
-// 한 회차에 사는 단위와 그 돈(주식 수면 시작일 시세로 추정, 모르면 perRound 없음)
+// 한 회차에 사는 단위와 그 돈(주식 수면 시작일 시세로 추정, 모르면 perRound 없음, defaultFx 는 기본 환율로 셈)
 export interface RoundUnit {
   byShares: boolean;
   amount: string;
   shares: string;
   perRound?: number;
+  defaultFx?: boolean;
 }
 
-const ESTIMATE = '(시작일 값 기준)';
+// 주식 수 추정 금액의 기준
+export const estimateBasis = (defaultFx?: boolean) => (defaultFx ? '(시작일 값 · 기본 환율 기준)' : '(시작일 값 기준)');
 
 const roundCost = (unit: RoundUnit) => (unit.byShares ? unit.perRound : parseFloat(unit.amount) || 0);
 const unitText = (unit: RoundUnit) => (unit.byShares ? `${unit.shares}주` : formatReadableWon(parseFloat(unit.amount)));
-const estimate = (unit: RoundUnit) => (unit.byShares ? ESTIMATE : '');
+const estimate = (unit: RoundUnit) => (unit.byShares ? estimateBasis(unit.defaultFx) : '');
 // 비면 undefined
 const optional = (value: string) => (value.trim() ? parseFloat(value) : undefined);
 
 export const simpleHow = (unit: RoundUnit) => {
   if (!unit.byShares) return `시작일에 ${unitText(unit)} 매수`;
-  return `시작일에 ${unitText(unit)} 매수${unit.perRound ? ` ≈ ${formatReadableWon(unit.perRound)}${ESTIMATE}` : ''}`;
+  return `시작일에 ${unitText(unit)} 매수${unit.perRound ? ` ≈ ${formatReadableWon(unit.perRound)}${estimate(unit)}` : ''}`;
 };
 
 interface DcaSummary {

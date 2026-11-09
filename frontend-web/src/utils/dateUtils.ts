@@ -47,7 +47,7 @@ export function getDateRangeForTimeframe(
   return { startDate, endDate };
 }
 
-/** YYYY-MM-DD 를 로컬 자정으로(new Date('2026-08-13') 은 UTC 자정이라 setDate 와 섞으면 하루 어긋남) */
+/** YYYY-MM-DD 를 로컬 자정으로(new Date('2026-08-13') 은 UTC 자정이라 setDate 와 섞으면 하루 차이) */
 export function parseLocalDate(dateString: string): Date {
   const [year, month, day] = dateString.split('-').map(Number);
   return new Date(year, month - 1, day);
@@ -64,7 +64,7 @@ export function daysBetween(start: string, end: string): number {
   return Math.round((parseLocalDate(end).getTime() - parseLocalDate(start).getTime()) / 86_400_000);
 }
 
-/** 그 달에 그날이 없으면 말일로 맞춤(3/31 → 2/28) */
+/** 그 달에 같은 날짜가 없으면 말일로 맞춤(3/31 → 2/28) */
 export function subtractMonths(dateString: string, months: number): string {
   const date = parseLocalDate(dateString);
   const day = date.getDate();

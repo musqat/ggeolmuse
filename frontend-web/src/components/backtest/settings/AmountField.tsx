@@ -6,6 +6,7 @@ import { SettingField } from './SettingField';
 import { useMessageLink } from './messageLink';
 import { digitsOnly } from './inputText';
 import type { FieldMessage } from './checks';
+import { estimateBasis } from './summary';
 import { AFTER_VALUE, SEG_GROUP, SEG_OPTION, UNIT, VALUE_ROW } from './styles';
 
 const UNIT_OPTIONS: { value: AmountUnit; label: string }[] = [
@@ -21,13 +22,23 @@ export interface AmountFieldProps {
   amount: string;
   onAmountChange: (amount: string) => void;
   amountUnit?: AmountUnitState;
-  // 주식 수 한 회차의 추정 금액(원)
+  // 주식 수 한 회차의 추정 금액(원)과 기본 환율로 셌는지
   perRound?: number;
+  defaultFx?: boolean;
   message?: FieldMessage | null;
 }
 
 // 금액 칸: ₩ 입력과 읽기 쉬운 금액, 주식 수 단위면 몇 주와 시작일 값 기준 추정 금액
-export const AmountField = ({ label, sharesLabel, amount, onAmountChange, amountUnit, perRound, message }: AmountFieldProps) => {
+export const AmountField = ({
+  label,
+  sharesLabel,
+  amount,
+  onAmountChange,
+  amountUnit,
+  perRound,
+  defaultFx,
+  message,
+}: AmountFieldProps) => {
   // 주식 수 단위일 때만 값이 있음
   const shareUnit = sharesLabel && amountUnit?.unit === 'SHARES' ? amountUnit : undefined;
   const name = shareUnit && sharesLabel ? sharesLabel : label;
@@ -64,7 +75,12 @@ export const AmountField = ({ label, sharesLabel, amount, onAmountChange, amount
             onChange={(e) => shareUnit.setShares(digitsOnly(e.target.value))}
           />
           <span className={UNIT}>주</span>
-          {perRound !== undefined && <span className={AFTER_VALUE}>≈ {formatReadableWon(perRound)}(시작일 값 기준)</span>}
+          {perRound !== undefined && (
+            <span className={AFTER_VALUE}>
+              ≈ {formatReadableWon(perRound)}
+              {estimateBasis(defaultFx)}
+            </span>
+          )}
         </div>
       ) : (
         <div className={VALUE_ROW}>

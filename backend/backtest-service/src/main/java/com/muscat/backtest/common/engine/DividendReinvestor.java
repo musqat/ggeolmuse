@@ -17,7 +17,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 
-// 배당 재투자: 배당락일마다 보유 주식 수 × 주당 배당 → 세후 → 그날 종가로 더 사서 transactions 에 기록
+// 배당 재투자: 배당락일마다 보유 주식 수 × 주당 배당 → 세후 → 배당락일 종가로 더 사서 transactions 에 기록
 @Slf4j
 public final class DividendReinvestor {
 

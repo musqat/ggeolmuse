@@ -20,7 +20,7 @@ const TradeDatePicker: React.FC<TradeDatePickerProps> = ({
 }) => {
   const latest = chartData.length > 0 ? chartData[chartData.length - 1].time : null;
 
-  // 그날이나 그 전 가장 가까운 거래일로 옮기기
+  // 그 날짜나 그 전 가장 가까운 거래일로 옮기기
   const moveToClosest = (target: string) => {
     const closest = onFindClosestPastDate(target);
     if (closest) onTradeDateChange(closest.time);

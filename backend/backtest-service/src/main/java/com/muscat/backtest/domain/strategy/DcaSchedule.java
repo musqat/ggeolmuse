@@ -54,7 +54,7 @@ final class DcaSchedule {
   }
 
   // 첫 매수일 뒤 첫 투자일부터 투자 주기마다 한 달에 한 번: 투자일(없는 날은 말일)이나 그 달 안 다음 거래일, 없으면 그 앞 마지막 거래일
-  // 첫 매수일 · 종료일에 걸려 거래일이 없는 달은 회차가 아님
+  // 종료일에 걸린 달은 앞 거래일로 가지 않고, 첫 매수일 · 종료일에 걸려 쓸 거래일이 없는 달은 회차가 아님
   private static List<Round> monthly(NavigableMap<LocalDate, OHLCPriceDto> days, LocalDate first, LocalDate end,
       int purchaseDay, int interval) {
     List<Round> rounds = new ArrayList<>();
@@ -64,13 +64,14 @@ final class DcaSchedule {
     }
     for (LocalDate planned = dayIn(month, purchaseDay); !planned.isAfter(end);
         month = month.plusMonths(interval), planned = dayIn(month, purchaseDay)) {
+      LocalDate monthEnd = month.atEndOfMonth();
       LocalDate from = later(month.atDay(1), first);
-      LocalDate to = earlier(month.atEndOfMonth(), end);
+      LocalDate to = earlier(monthEnd, end);
       OHLCPriceDto trade = firstIn(days, planned, to);
-      if (trade == null) {
+      if (trade == null && to.equals(monthEnd)) {
         trade = lastIn(days, from, planned.minusDays(1));
       }
-      boolean wholeMonth = from.equals(month.atDay(1)) && to.equals(month.atEndOfMonth());
+      boolean wholeMonth = from.equals(month.atDay(1)) && to.equals(monthEnd);
       if (trade != null || wholeMonth) {
         rounds.add(new Round(planned, trade));
       }

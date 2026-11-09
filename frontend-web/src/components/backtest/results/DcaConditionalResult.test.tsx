@@ -125,6 +125,18 @@ describe('DcaConditionalResult', () => {
     expect(screen.getByText('· 매수 1회 · 미매수 1회')).toBeInTheDocument()
   })
 
+  it('매수 내역 제목 줄의 미매수 횟수에 예산 부족 회차를 더한다', () => {
+    const skippedSpan = { firstDate: '2023-05-03', rounds: 4, reason: 'OVER_BUDGET' as const }
+    render(
+      <DcaConditionalResult
+        result={{ ...result, skippedRounds: [{ date: '2022-12-15', reason: 'NO_PRICE' }], skippedSpan }}
+        {...props}
+      />
+    )
+
+    expect(screen.getByText('· 매수 1회 · 미매수 5회')).toBeInTheDocument()
+  })
+
   it('매도가 있으면 매매 내역 · 매도 횟수 · 실현 손익 · 남은 현금을 보이고, 전량 매도면 평균 매수가는 비운다', async () => {
     const transactions = [
       ...result.transactions,

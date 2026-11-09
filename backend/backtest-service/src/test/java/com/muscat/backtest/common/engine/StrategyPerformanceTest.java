@@ -130,7 +130,7 @@ class StrategyPerformanceTest {
   }
 
   @Test
-  @DisplayName("원화 지수는 달러 지수에 그날 환율 / 첫날 환율을 곱해, 환율만 내린 날은 원화에만 낙폭이 난다")
+  @DisplayName("원화 지수는 달러 지수에 그 날짜 환율 / 첫날 환율을 곱해, 환율만 내린 날은 원화에만 낙폭이 난다")
   void krwFollowsFxPath() {
     // 주가는 내내 100, 환율 1300 → 1170(-10%) → 평가일 1300
     Function<LocalDate, BigDecimal> fx = date -> date.equals(D2) ? new BigDecimal("1170") : FX;
@@ -144,7 +144,7 @@ class StrategyPerformanceTest {
   }
 
   @Test
-  @DisplayName("원화 지수의 기준은 첫 매수 환율이라 그날 경로 환율이 달라도 원화 연평균 수익률이 총 수익률과 같은 기준이다")
+  @DisplayName("원화 지수의 기준은 첫 매수 환율이라 그 날짜 경로 환율이 달라도 원화 연평균 수익률이 총 수익률과 같은 기준이다")
   void krwBaseIsFirstTradeFx() {
     // 기본 환율 1350 으로 10주를 사고 경로 · 평가일 환율은 1200, 주가는 내내 100
     LocalDate later = LocalDate.of(2025, 1, 2);
@@ -197,7 +197,7 @@ class StrategyPerformanceTest {
   }
 
   @Test
-  @DisplayName("종가에 수수료 없이 팔면 판 돈이 그날 가치라 지수가 그대로다")
+  @DisplayName("종가에 수수료 없이 팔면 판 돈이 판 날 가치라 지수가 그대로다")
   void sellAtCloseKeepsIndex() {
     List<StrategyTransaction> txs = List.of(buy(D1, "100", "10"), sell(D2, "110", "10", "0"));
 
@@ -213,7 +213,7 @@ class StrategyPerformanceTest {
   }
 
   @Test
-  @DisplayName("매도 수수료만큼 그날 지수가 내려간다")
+  @DisplayName("매도 수수료만큼 판 날 지수가 내려간다")
   void sellFeeLowersIndex() {
     List<StrategyTransaction> txs = List.of(buy(D1, "100", "10"), sell(D2, "100", "10", "10"));
 

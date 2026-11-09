@@ -1,5 +1,5 @@
 import type { DcaFrequency, DcaStrategyRequest } from '@services/api';
-import { daysBetween, parseLocalDate, toLocalDateString } from '../../../utils/dateUtils';
+import { daysBetween, getTodayString, parseLocalDate, toLocalDateString } from '../../../utils/dateUtils';
 
 // 화면의 투자 주기(N개월마다는 요청에서 매달 + 개월 수)
 export type DcaCadence = DcaFrequency | 'MONTHS';
@@ -38,10 +38,13 @@ export const toWeekday = (date: string) => {
   return toLocalDateString(day);
 };
 
-// 첫 매수일로 정한 주기 · 요일 · 며칠(매주는 주말이면 월요일, monthDay 를 주면 그 며칠)
+// 첫 매수일로 정한 주기 · 요일 · 며칠(매주는 주말이면 월요일 · 월요일은 그 주 첫 거래일, monthDay 를 주면 그 며칠)
 export const cadenceText = (cadence: DcaCadence, months: string, firstDate: string, monthDay?: number): string => {
   if (cadence === 'DAILY') return '거래일마다';
-  if (cadence === 'WEEKLY') return `매주 ${WEEKDAYS[parseLocalDate(toWeekday(firstDate)).getDay()]}요일`;
+  if (cadence === 'WEEKLY') {
+    const weekday = parseLocalDate(toWeekday(firstDate)).getDay();
+    return weekday === 1 ? '매주 첫 거래일' : `매주 ${WEEKDAYS[weekday]}요일`;
+  }
   const every = cadence === 'MONTHLY' ? '매달' : `${parseMonths(months) ?? '?'}개월마다`;
   return `${every} ${monthDay ?? dayOfMonth(firstDate)}일`;
 };
@@ -101,14 +104,22 @@ export const scheduleFields = ({ cadence, months, firstPurchaseDate, monthDay, s
   return fields;
 };
 
-// 첫 매수일부터 종료일까지 회차 수(휴장일은 모르고 주말만 뺌, 매달은 없는 날을 그 달 말일로)
+const yesterday = () => {
+  const day = parseLocalDate(getTodayString());
+  day.setDate(day.getDate() - 1);
+  return toLocalDateString(day);
+};
+
+// 첫 매수일부터 종료일까지 회차 수(종가가 없는 오늘 회차는 뺌, 휴장일은 모르고 주말만 뺌, 매달은 없는 날을 그 달 말일로)
 export const countRounds = (
   cadence: DcaCadence,
   months: number,
   firstDate: string,
-  endDate: string,
+  lastDate: string,
   monthDay?: number,
 ): number => {
+  const closed = yesterday();
+  const endDate = lastDate > closed ? closed : lastDate;
   if (cadence === 'DAILY') {
     let count = 0;
     for (const day = parseLocalDate(firstDate); toLocalDateString(day) <= endDate; day.setDate(day.getDate() + 1)) {
@@ -124,8 +135,14 @@ export const countRounds = (
   if (!(Number.isInteger(step) && step >= 1)) return 0;
   const first = parseLocalDate(firstDate);
   const end = parseLocalDate(endDate);
-  let count = 0;
   const day = monthDay ?? first.getDate();
-  while (dayIn(first.getFullYear(), first.getMonth() + count * step, day) <= end) count++;
+  const planned = (round: number) => dayIn(first.getFullYear(), first.getMonth() + round * step, day);
+  let count = 0;
+  while (planned(count) <= end) count++;
+  // 종료일이 말일 전인 달의 회차는 투자일 ~ 종료일에 평일이 있을 때만
+  const last = planned(count - 1);
+  const endMonth = last.getFullYear() === end.getFullYear() && last.getMonth() === end.getMonth();
+  const monthEnd = end.getDate() === new Date(end.getFullYear(), end.getMonth() + 1, 0).getDate();
+  if (count > 0 && endMonth && !monthEnd && toWeekday(toLocalDateString(last)) > endDate) count--;
   return count;
 };

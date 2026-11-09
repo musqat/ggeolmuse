@@ -15,7 +15,7 @@ public final class FxPath {
   private FxPath() {
   }
 
-  // 시장 환율: 그날 이하 가장 늦은 기록, 첫 기록 전 날은 첫 기록, 기록이 없으면 fallback 하나
+  // 시장 환율: 그 날짜 이하 가장 늦은 기록, 첫 기록 전 날은 첫 기록, 기록이 없으면 fallback 하나
   public static Function<LocalDate, BigDecimal> market(Map<LocalDate, BigDecimal> records, BigDecimal fallback) {
     NavigableMap<LocalDate, BigDecimal> known = new TreeMap<>(records);
     return date -> {

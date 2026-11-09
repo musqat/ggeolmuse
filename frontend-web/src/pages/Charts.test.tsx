@@ -88,7 +88,7 @@ describe('Charts', () => {
       expect(lastRange()).toEqual(['2025-03-31', '2026-03-31'])
     })
 
-    it('1개월을 누르면 주소에 남기고 한 달 전 같은 날부터 받는다. 그날이 없으면 그 달 말일부터다', async () => {
+    it('1개월을 누르면 주소에 남기고 한 달 전 같은 날부터 받는다. 그 날짜가 없으면 그 달 말일부터다', async () => {
       renderCharts()
       await waitFor(() => expect(getOHLCData).toHaveBeenCalled())
 

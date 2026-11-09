@@ -52,7 +52,7 @@ interface ChartPanelProps {
   children: React.ReactNode;
 }
 
-// 날짜 축 선 차트 판(격자 · X축 · 범례), Y축 · 툴팁 · 선 · 마커는 children 의 recharts 요소
+// 날짜 축 선 차트(격자 · X축 · 범례), Y축 · 툴팁 · 선 · 마커는 children 의 recharts 요소
 export const ChartPanel: React.FC<ChartPanelProps> = ({ title, data, xAxis, className, legendFormatter, children }) => (
   <div className={className}>
     {title && <h4 className="text-sm font-medium text-tx-1 mb-3">{title}</h4>}

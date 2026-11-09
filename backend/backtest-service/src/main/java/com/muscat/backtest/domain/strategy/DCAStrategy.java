@@ -108,9 +108,7 @@ public class DCAStrategy implements InvestmentStrategy {
     if (request.getAmountPerPurchase() != null && !Decimals.isPositive(request.getAmountPerPurchase())) {
       throw new BacktestException(BacktestResponse.STRATEGY_AMOUNT_PER_PURCHASE_REQUIRED);
     }
-    if (request.getSharesPerPurchase() != null && request.getSharesPerPurchase() < 1) {
-      throw new BacktestException(BacktestResponse.INVALID_SHARES_PER_PURCHASE);
-    }
+    BacktestRequestValidator.requireShares(request.getSharesPerPurchase());
     Integer day = request.getPurchaseDay();
     if (day != null && (day < 1 || day > 31)) {
       throw new BacktestException(BacktestResponse.INVALID_PURCHASE_DAY);
@@ -119,10 +117,8 @@ public class DCAStrategy implements InvestmentStrategy {
     if (interval != null && (interval < 1 || interval > 12)) {
       throw new BacktestException(BacktestResponse.INVALID_INVESTMENT_INTERVAL);
     }
-    LocalDate first = request.getFirstPurchaseDate();
-    if (first != null && (first.isBefore(request.getStartDate()) || first.isAfter(request.getEndDate()))) {
-      throw new BacktestException(BacktestResponse.INVALID_FIRST_PURCHASE_DATE);
-    }
+    BacktestRequestValidator.requireFirstPurchaseInPeriod(request.getFirstPurchaseDate(), request.getStartDate(),
+      request.getEndDate());
     if (request.getTotalInvestmentLimit() != null && !Decimals.isPositive(request.getTotalInvestmentLimit())) {
       throw new BacktestException(BacktestResponse.INVALID_TOTAL_INVESTMENT);
     }
