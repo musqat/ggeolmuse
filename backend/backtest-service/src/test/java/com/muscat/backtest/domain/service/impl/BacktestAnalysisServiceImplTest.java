@@ -15,6 +15,7 @@ import static org.mockito.BDDMockito.willThrow;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.BacktestType;
 import com.muscat.backtest.common.enums.type.DcaFrequency;
+import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.util.BacktestHistoryUtils;
@@ -508,7 +509,7 @@ class BacktestAnalysisServiceImplTest {
       return request;
     }
 
-    // 수수료 0.25% · 수동 환율 1300/1350 · 재투자 · 배당세 15% · 양도세
+    // 수수료 0.25% · 수동 환율 1300/1350 · 재투자 · 배당세 15% · 양도세 · 기간 끝 매도
     private void withOptions(BaseComparisonRequest request) {
       request.setTradingFeeRate(new BigDecimal("0.0025"));
       request.setPurchaseFxRate(new BigDecimal("1300"));
@@ -516,6 +517,7 @@ class BacktestAnalysisServiceImplTest {
       request.setReinvestDividends(true);
       request.setDividendTaxRate(new BigDecimal("0.15"));
       request.setCapitalGainsTax(true);
+      request.setPeriodEnd(PeriodEnd.SELL_AT_END);
     }
 
     private void assertSimulationOptions(SimulationRequest simulation) {
@@ -525,6 +527,7 @@ class BacktestAnalysisServiceImplTest {
       assertThat(simulation.getReinvestDividends()).isTrue();
       assertThat(simulation.getDividendTaxRate()).isEqualByComparingTo(new BigDecimal("0.15"));
       assertThat(simulation.getCapitalGainsTax()).isTrue();
+      assertThat(simulation.getPeriodEnd()).isEqualTo(PeriodEnd.SELL_AT_END);
     }
 
     private void stubSimulation() {
@@ -589,6 +592,7 @@ class BacktestAnalysisServiceImplTest {
       assertThat(dcaRequest.getValue().getDividendTaxRate()).isEqualByComparingTo(new BigDecimal("0.15"));
       assertThat(dcaRequest.getValue().getTradingFeeRate()).isEqualByComparingTo(new BigDecimal("0.0025"));
       assertThat(dcaRequest.getValue().getCapitalGainsTax()).isTrue();
+      assertThat(dcaRequest.getValue().getPeriodEnd()).isEqualTo(PeriodEnd.SELL_AT_END);
 
       ArgumentCaptor<ConditionalStrategyRequest> conditionalRequest =
         ArgumentCaptor.forClass(ConditionalStrategyRequest.class);
@@ -611,6 +615,7 @@ class BacktestAnalysisServiceImplTest {
       assertThat(conditionalRequest.getValue().getTotalInvestment())
         .isEqualByComparingTo(BigDecimal.valueOf(1_000_000));
       assertThat(conditionalRequest.getValue().getCapitalGainsTax()).isTrue();
+      assertThat(conditionalRequest.getValue().getPeriodEnd()).isEqualTo(PeriodEnd.SELL_AT_END);
     }
 
     @Test
@@ -677,6 +682,7 @@ class BacktestAnalysisServiceImplTest {
       assertThat(simulation.getValue().getDividendTaxRate()).isEqualByComparingTo(BigDecimal.ZERO);
       assertThat(simulation.getValue().getPurchaseFxRate()).isNull();
       assertThat(simulation.getValue().getCapitalGainsTax()).isNull();
+      assertThat(simulation.getValue().getPeriodEnd()).isNull();
 
       ArgumentCaptor<DcaStrategyRequest> dcaRequest = ArgumentCaptor.forClass(DcaStrategyRequest.class);
       verify(dcaStrategy).execute(dcaRequest.capture());

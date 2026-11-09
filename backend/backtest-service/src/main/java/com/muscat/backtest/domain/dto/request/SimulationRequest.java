@@ -2,6 +2,7 @@ package com.muscat.backtest.domain.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.muscat.backtest.common.constants.BacktestConstants.RequestLimit;
+import com.muscat.backtest.common.enums.type.PeriodEnd;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.DecimalMax;
@@ -73,6 +74,9 @@ public class SimulationRequest {
 
   @Schema(description = "예상 양도소득세 계산 여부 (판 해마다 원화 실현 이익에서 연 250만원 공제 뒤 22%, 비우면 끔)", example = "true")
   private Boolean capitalGainsTax;
+
+  @Schema(description = "기간이 끝나면 (HOLD 끝까지 보유, SELL_AT_END 평가일까지 마지막 거래일 종가에 전량 매도, 비우면 HOLD)", example = "HOLD")
+  private PeriodEnd periodEnd;
 
   // 평가일(매도일이 없거나 오늘 이후면 오늘)
   public LocalDate valuationDate(LocalDate today) {

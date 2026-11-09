@@ -91,7 +91,8 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
       StrategyFinalizer.Result finalized = StrategyFinalizer.run(
         marketData, request.getSymbol(), request.getStartDate(), actualEndDate, request.getCurrentFxRate(),
         request.getPurchaseFxRate(), Boolean.TRUE.equals(request.getReinvestDividends()),
-        request.getDividendTaxRate(), transactions, purchases.priceMap(), purchases.dailyFx());
+        request.getDividendTaxRate(), transactions, purchases.priceMap(), purchases.dailyFx(), request.getPeriodEnd(),
+        request.getTradingFeeRate());
 
       log.info("조건부 매수 전략 실행 완료: {} - {}회 투자, 수익률 {}%",
         request.getSymbol(), finalized.transactions().size(),

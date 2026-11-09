@@ -14,6 +14,7 @@ import static org.mockito.Mockito.never;
 
 import com.muscat.backtest.common.calculation.StrategyCalculationResult;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
+import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.PriceDirection;
 import com.muscat.backtest.common.enums.type.SkipReason;
 import com.muscat.backtest.common.enums.type.StrategyType;
@@ -1141,6 +1142,30 @@ class ConditionalPurchaseStrategyTest {
         assertThat(response.getCapitalGainsTax().totalTaxKrw()).isEqualByComparingTo("0");
         assertThat(response.getCapitalGainsTax().afterTaxValueKrw()).isEqualByComparingTo("1430000");
         assertThat(response.getCapitalGainsTax().afterTaxReturnPercent()).isEqualByComparingTo("10.00");
+      }
+
+      @Test
+      @DisplayName("기간 끝 매도를 고르면 익절 · 손절이 없어도 남은 주식을 마지막 거래일 종가에 판다")
+      void sellAtEnd() {
+        ConditionalStrategyRequest holding = selling(3, 10).periodEnd(PeriodEnd.SELL_AT_END).build();
+        stubMarket(holding, afterEntry(day(2, "105")), false);
+
+        strategy.execute(holding);
+
+        assertThat(trades()).containsExactly(ENTRY, tuple("105", "기간 끝 매도", -1));
+        assertThat(executed().getLast().getProceeds()).isEqualByComparingTo("1050");
+      }
+
+      @Test
+      @DisplayName("익절로 전량 판 뒤 다시 사지 않았으면 기간 끝 매도를 골라도 더 팔지 않는다")
+      void sellAtEndAfterSoldOut() {
+        ConditionalStrategyRequest request = selling(3, 10).takeProfitRate(new BigDecimal("0.1"))
+          .periodEnd(PeriodEnd.SELL_AT_END).build();
+        stubMarket(request, afterEntry(candle(2, "101", "111", "100", "105")), false);
+
+        strategy.execute(request);
+
+        assertThat(trades()).containsExactly(ENTRY, tuple("110", "10.0%익절", -1));
       }
 
       @Test

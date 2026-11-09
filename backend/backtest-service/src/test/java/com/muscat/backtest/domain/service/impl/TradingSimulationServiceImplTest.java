@@ -15,9 +15,11 @@ import static org.mockito.Mockito.times;
 
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.BacktestType;
+import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.util.BacktestHistoryUtils;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
+import com.muscat.backtest.domain.dto.response.CapitalGainsTax;
 import com.muscat.backtest.domain.dto.response.DailyValue;
 import com.muscat.backtest.domain.dto.response.SimulationResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
@@ -1191,6 +1193,49 @@ class TradingSimulationServiceImplTest {
       assertThat(response.getCapitalGainsTax().afterTaxReturnPercent())
         .isEqualByComparingTo(response.getTotalReturnPercent());
       assertThat(service.runSimulation(request(false, "0"), false).getCapitalGainsTax()).isNull();
+    }
+
+    @Test
+    @DisplayName("기간 끝 매도를 고르면 마지막 거래일 종가에 수수료를 빼고 전량 팔아 주식 0 · 판 돈 현금이고, 판 해의 양도세를 낸다")
+    void sellAtEnd() {
+      // 일요일 평가라 마지막 거래일은 6월 14일
+      LocalDate sunday = LocalDate.of(2024, 6, 16);
+      given(marketDataClientWrapper.getFxRate("2024-06-16")).willReturn(new FxRateDto(sunday, new BigDecimal("1300")));
+      stubSwing();
+
+      SimulationResponse response = service.runSimulation(SimulationRequest.builder().symbol(TEST_SYMBOL)
+        .purchaseDate(purchaseDate).saleDate(sunday).investmentAmount(new BigDecimal("13000000"))
+        .tradingFeeRate(new BigDecimal("0.01")).periodEnd(PeriodEnd.SELL_AT_END).capitalGainsTax(true).build(), false);
+
+      // 1만 달러에서 수수료 100달러를 빼고 99주, 99주 × 150달러 - 수수료 148.50달러
+      assertThat(response.getShares()).isEqualByComparingTo("99");
+      assertThat(response.getCurrentValue()).isEqualByComparingTo("0");
+      assertThat(response.getCurrentValueKrw()).isEqualByComparingTo("0");
+      assertThat(response.getRemainingCash()).isEqualByComparingTo("14701.50");
+      assertThat(response.getTradingFee()).isEqualByComparingTo("248.50");
+      assertThat(response.getTotalAssetKrw()).isEqualByComparingTo("19111950");
+      assertThat(valueUsdOn(response, saleDate)).isEqualByComparingTo("14701.50");
+      // 1911만 1,950원 - 1만 달러 × 1300원, 250만원 공제 뒤 22%
+      assertThat(response.getCapitalGainsTax().years()).containsExactly(
+        new CapitalGainsTax.Year(2024, new BigDecimal("6111950"), new BigDecimal("2500000"), new BigDecimal("794629")));
+      assertThat(response.getCapitalGainsTax().afterTaxValueKrw()).isEqualByComparingTo("18317321");
+      // 판 날 뒤 배당은 받지 않음
+      verify(marketDataClientWrapper).getDividendHistory(TEST_SYMBOL, "2024-01-15", "2024-06-14");
+    }
+
+    @Test
+    @DisplayName("재투자를 켜고 기간 끝에 팔면 재투자로 늘어난 주식까지 팔고 그 주식의 원가는 배당락일 환율로 센다")
+    void reinvestThenSellAtEnd() {
+      stubDividend();
+
+      SimulationResponse response = service.runSimulation(SimulationRequest.builder().symbol(TEST_SYMBOL)
+        .purchaseDate(purchaseDate).saleDate(saleDate).investmentAmount(new BigDecimal("1300000"))
+        .reinvestDividends(true).periodEnd(PeriodEnd.SELL_AT_END).capitalGainsTax(true).build(), false);
+
+      // 10주 + 배당 10달러로 0.1주, 10.1주 × 150달러 × 1300원 - (130만원 + 10달러 × 1350원)
+      assertThat(response.getRemainingCash()).isEqualByComparingTo("1515.00");
+      assertThat(response.getCapitalGainsTax().years()).singleElement()
+        .satisfies(year -> assertThat(year.realizedGainKrw()).isEqualByComparingTo("656000"));
     }
 
     @Test

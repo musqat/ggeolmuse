@@ -14,10 +14,12 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.muscat.backtest.common.calculation.StrategyCalculationResult;
 import com.muscat.backtest.common.enums.type.DcaFrequency;
+import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.SkipReason;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
+import com.muscat.backtest.domain.dto.response.CapitalGainsTax;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.domain.model.SkippedRound;
@@ -437,6 +439,40 @@ class DCAStrategyTest {
       assertThat(calcCaptor.getValue().getDividendsReinvested()).isGreaterThan(BigDecimal.ZERO);
       assertThat(txCaptor.getValue()).hasSize(5);
     }
+
+    @Test
+    @DisplayName("재투자를 켜고 기간 끝에 팔면 재투자로 늘어난 주식까지 팔고 그 주식의 원가는 배당락일 주가 × 환율이다")
+    void reinvestThenSellAtEnd() {
+      // 매달 15일 130만원(1300원 · 100달러 → 10주), 2월 15일 주당 1달러 배당은 1월 10주 몫 → 0.1주, 2월 20일 110달러
+      DcaStrategyRequest request = DcaStrategyRequest.builder().userId(userId).symbol(symbol)
+        .startDate(LocalDate.of(2024, 1, 1)).endDate(LocalDate.of(2024, 2, 29))
+        .amountPerPurchase(new BigDecimal("1300000")).purchaseDay(15).reinvestDividends(true)
+        .periodEnd(PeriodEnd.SELL_AT_END).capitalGainsTax(true).build();
+      OHLCPriceDto feb15 = createOHLC(LocalDate.of(2024, 2, 15), new BigDecimal("100.00"));
+      given(marketDataClient.getOHLCPriceRange(eq(symbol), eq("2024-01-01"), eq("2024-02-29"))).willReturn(List.of(
+        createOHLC(LocalDate.of(2024, 1, 15), new BigDecimal("100.00")), feb15,
+        createOHLC(LocalDate.of(2024, 2, 20), new BigDecimal("110.00"))));
+      given(marketDataClient.getOHLCPriceRange(eq(symbol), eq("2024-02-15"), eq("2024-02-15"))).willReturn(List.of(feb15));
+      given(marketDataClient.getBulkFxRates(any())).willReturn(java.util.Map.of(
+        "2024-01-15", new BigDecimal("1300"), "2024-02-15", new BigDecimal("1300"), "2024-02-20", new BigDecimal("1300")));
+      given(marketDataClient.getFxRate(anyString())).willReturn(new FxRateDto(LocalDate.of(2024, 2, 29), new BigDecimal("1300")));
+      given(marketDataClient.getOHLCPrice(eq(symbol), anyString()))
+        .willReturn(createOHLC(LocalDate.of(2024, 2, 20), new BigDecimal("110.00")));
+      given(marketDataClient.getDividendHistory(eq(symbol), anyString(), anyString())).willReturn(List.of(
+        new DividendDto(symbol, LocalDate.of(2024, 2, 15), null, null, new BigDecimal("1.00"), "USD", "test")));
+
+      StrategyResponse response = dcaStrategy.execute(request);
+
+      @SuppressWarnings("unchecked")
+      ArgumentCaptor<List<StrategyTransaction>> txCaptor = ArgumentCaptor.forClass(List.class);
+      verify(responseMapper).toStrategyResponse(any(DcaStrategyRequest.class), txCaptor.capture(), any(), any(), any());
+      assertThat(txCaptor.getValue()).extracting(StrategyTransaction::getTrigger)
+        .containsExactly("월정액", "월정액", "배당 재투자", "기간 끝 매도");
+      assertThat(txCaptor.getValue().getLast().getShares()).isEqualByComparingTo("-20.1");
+      // 20.1주 × 110달러 × 1300원 - (130만원 × 2 + 0.1주 × 100달러 × 1300원)
+      assertThat(response.getCapitalGainsTax().years()).singleElement()
+        .satisfies(year -> assertThat(year.realizedGainKrw()).isEqualByComparingTo("261300"));
+    }
   }
 
   @Nested
@@ -641,6 +677,43 @@ class DCAStrategyTest {
       assertThat(response.getCapitalGainsTax().totalTaxKrw()).isEqualByComparingTo("0");
       assertThat(response.getCapitalGainsTax().afterTaxValueKrw()).isEqualByComparingTo("675000");
       assertThat(response.getCapitalGainsTax().afterTaxReturnPercent()).isEqualByComparingTo("11.11");
+    }
+
+    @Test
+    @DisplayName("기간 끝 매도를 고르면 마지막 거래일 종가에 수수료를 빼고 전량 팔고, 판 해의 원화 실현 이익으로 양도세를 낸다")
+    void sellAtEndWithCapitalGainsTax() {
+      DcaStrategyRequest request = monthly(LocalDate.of(2024, 2, 29), 2).tradingFeeRate(new BigDecimal("0.01"))
+        .periodEnd(PeriodEnd.SELL_AT_END).capitalGainsTax(true).build();
+      stubMarket(request, List.of(createOHLC(LocalDate.of(2024, 1, 15), new BigDecimal("100.00")),
+          createOHLC(LocalDate.of(2024, 2, 15), new BigDecimal("125.00"))),
+        java.util.Map.of("2024-01-15", new BigDecimal("1350"), "2024-02-15", new BigDecimal("1350")));
+
+      StrategyResponse response = dcaStrategy.execute(request);
+
+      // 4주 × 125달러 - 수수료 5달러, 원가 (202 + 252.50달러) × 1350원
+      assertThat(executed()).last().satisfies(sale -> {
+        assertThat(sale.getTrigger()).isEqualTo("기간 끝 매도");
+        assertThat(sale.tradedOn()).isEqualTo(LocalDate.of(2024, 2, 15));
+        assertThat(sale.getShares()).isEqualByComparingTo("-4");
+        assertThat(sale.getProceeds()).isEqualByComparingTo("495");
+        assertThat(sale.getRealizedProfit()).isEqualByComparingTo("40.50");
+      });
+      assertThat(response.getCapitalGainsTax().years()).containsExactly(
+        new CapitalGainsTax.Year(2024, new BigDecimal("54675"), new BigDecimal("54675"), new BigDecimal("0")));
+      assertThat(response.getCapitalGainsTax().afterTaxValueKrw()).isEqualByComparingTo("668250");
+    }
+
+    @Test
+    @DisplayName("기간 끝을 비우면 끝까지 보유해 팔지 않는다")
+    void holdByDefault() {
+      DcaStrategyRequest request = monthly(LocalDate.of(2024, 2, 29), 2).build();
+      stubMarket(request, List.of(createOHLC(LocalDate.of(2024, 1, 15), new BigDecimal("100.00")),
+          createOHLC(LocalDate.of(2024, 2, 15), new BigDecimal("125.00"))),
+        java.util.Map.of("2024-01-15", new BigDecimal("1350"), "2024-02-15", new BigDecimal("1350")));
+
+      dcaStrategy.execute(request);
+
+      assertThat(executed()).hasSize(2).noneMatch(StrategyTransaction::isSell);
     }
 
     @Test

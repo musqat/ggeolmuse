@@ -46,6 +46,9 @@ public final class BacktestConstants {
 
     /** 조건부 매수 (하락 · 상승 시) */
     public static final String CONDITIONAL_PURCHASE = "조건부 매수";
+
+    /** 기간 마지막 거래일 전량 매도 */
+    public static final String PERIOD_END_SALE = "기간 끝 매도";
   }
 
   /**

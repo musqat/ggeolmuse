@@ -1,6 +1,7 @@
 package com.muscat.backtest.domain.dto.request;
 
 import com.muscat.backtest.common.constants.BacktestConstants.RequestLimit;
+import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.PriceDirection;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.muscat.backtest.common.enums.type.StrategyType;
@@ -101,6 +102,9 @@ public class ConditionalStrategyRequest implements StrategyRequest {
 
   @Schema(description = "예상 양도소득세 계산 여부 (판 해마다 원화 실현 이익에서 연 250만원 공제 뒤 22%, 비우면 끔)", example = "true")
   private Boolean capitalGainsTax;
+
+  @Schema(description = "기간이 끝나면 (HOLD 끝까지 보유, SELL_AT_END 마지막 거래일 종가에 남은 주식 전량 매도, 비우면 HOLD)", example = "HOLD")
+  private PeriodEnd periodEnd;
 
   // 이력 저장 JSON 에는 넣지 않음
   @JsonIgnore

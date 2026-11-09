@@ -160,7 +160,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
       .build();
   }
 
-  // 비교 요청의 매도일(종료일) · 투자금 · 수수료 · 환율 · 배당 · 양도세 옵션으로 채운 단순 시뮬레이션 요청
+  // 비교 요청의 매도일(종료일) · 투자금 · 수수료 · 환율 · 배당 · 양도세 · 기간 끝 옵션으로 채운 단순 시뮬레이션 요청
   private SimulationRequest.SimulationRequestBuilder simulationWithOptions(
     BaseComparisonRequest request) {
     return SimulationRequest.builder()
@@ -172,7 +172,8 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
       .currentFxRate(request.getCurrentFxRate())
       .reinvestDividends(reinvests(request))
       .dividendTaxRate(orZero(request.getDividendTaxRate()))
-      .capitalGainsTax(request.getCapitalGainsTax());
+      .capitalGainsTax(request.getCapitalGainsTax())
+      .periodEnd(request.getPeriodEnd());
   }
 
   // 빈 값은 재투자 안 함
@@ -210,6 +211,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
         .dividendTaxRate(orZero(request.getDividendTaxRate()))
         .tradingFeeRate(orZero(request.getTradingFeeRate()))
         .capitalGainsTax(request.getCapitalGainsTax())
+        .periodEnd(request.getPeriodEnd())
         .build();
 
       StrategyResponse result = execute(dcaRequest);
@@ -237,6 +239,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
         .dividendTaxRate(orZero(request.getDividendTaxRate()))
         .tradingFeeRate(orZero(request.getTradingFeeRate()))
         .capitalGainsTax(request.getCapitalGainsTax())
+        .periodEnd(request.getPeriodEnd())
         .build();
 
       StrategyResponse result = execute(conditionalRequest);

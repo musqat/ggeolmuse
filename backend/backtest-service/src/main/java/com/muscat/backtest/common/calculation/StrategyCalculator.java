@@ -42,7 +42,6 @@ public class StrategyCalculator {
         BigDecimal averageFxRate = BacktestCalculationUtils.calculateAverageFxRate(
             totalFxRateSum, totalInvested);
 
-        // MoneyUtils를 사용한 정확한 백테스트 계산
         BigDecimal currentValue = MoneyUtils.multiply(totalShares, currentPrice.currentPrice());
         currentValue = MoneyUtils.roundUsd(currentValue);
         
@@ -53,7 +52,6 @@ public class StrategyCalculator {
 
         BigDecimal totalInvestedUsd = MoneyUtils.convertKrwToUsd(totalInvested, averageFxRate);
         
-        // 수익률 계산 - MoneyUtils의 백분율 계산 사용
         BigDecimal totalReturnPercent = MoneyUtils.calculateReturnRate(totalInvestedUsd, currentValue);
         BigDecimal totalReturnKrw = MoneyUtils.subtract(currentValueKrw, totalInvested);
 
@@ -66,7 +64,7 @@ public class StrategyCalculator {
         boolean hasCashDividend = !reinvested
             && totalDividends != null && totalDividends.compareTo(BigDecimal.ZERO) > 0;
 
-        // 현금으로 받는 배당도 원천징수 차감(재투자 경로는 DividendReinvestor 가 이미 뗌)
+        // 현금으로 받는 배당도 원천징수 차감(재투자 배당은 이미 차감한 값)
         BigDecimal cashDividendKrw = BigDecimal.ZERO;
         if (hasCashDividend) {
             BigDecimal afterTax = totalDividends;
@@ -81,7 +79,7 @@ public class StrategyCalculator {
             : BigDecimal.ZERO;
         BigDecimal totalAssetKrw = currentValueKrw.add(cashDividendKrw).add(cashKrw);
 
-        // 총 수익 = 주식 가치(+현금 배당) - 투자금
+        // 총 수익 = 주식 가치 + 현금 배당 + 판 돈 - 투자금
         BigDecimal adjustedTotalReturnKrw = MoneyUtils.subtract(totalAssetKrw, totalInvested);
         BigDecimal adjustedTotalReturnPercent = MoneyUtils.calculateReturnRate(totalInvested, totalAssetKrw);
 
@@ -106,8 +104,16 @@ public class StrategyCalculator {
             .build();
     }
 
-    // 지금 보유분의 평균 원가(USD, 매수는 입금 달러 + 쓴 판 돈, 매도는 판 비율만큼 원가를 덜어 냄, 보유가 없으면 null)
+    // 지금 보유분의 평균 원가(USD, 보유가 없으면 null)
     private static BigDecimal holdingAverage(List<StrategyTransaction> transactions) {
+        BigDecimal shares = transactions.stream()
+            .map(StrategyTransaction::getShares)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return shares.signum() > 0 ? holdingCost(transactions).divide(shares, 8, RoundingMode.HALF_UP) : null;
+    }
+
+    // 지금 보유분 원가(USD, 매수는 입금 달러 + 쓴 판 돈, 매도는 판 비율만큼 원가를 덜어 냄)
+    public static BigDecimal holdingCost(List<StrategyTransaction> transactions) {
         BigDecimal shares = BigDecimal.ZERO;
         BigDecimal cost = BigDecimal.ZERO;
         for (StrategyTransaction tx : transactions) {
@@ -125,6 +131,6 @@ public class StrategyCalculator {
             }
             shares = shares.add(tx.getShares());
         }
-        return shares.signum() > 0 ? cost.divide(shares, 8, RoundingMode.HALF_UP) : null;
+        return cost;
     }
 }

@@ -26,7 +26,17 @@ public record SimulationCalculationResult(
     BigDecimal totalReturnKrw,
     BigDecimal totalReturnPercent,
     BigDecimal dividendsReinvested,
-    List<LocalDate> dividendReinvestDates,
-    List<HoldingStep> holdingSteps
+    List<Reinvestment> reinvestments,
+    List<HoldingStep> holdingSteps,
+    BigDecimal buyCostUsd,        // 산 주식의 원가(주식 수 × 매수가 + 수수료, USD)
+    StrategyTransaction endSale   // 기간 끝 매도(끝까지 보유면 null)
 ) {
+
+  /** 배당락일과 다시 산 세후 배당(USD) */
+  public record Reinvestment(LocalDate exDate, BigDecimal amountUsd) {}
+
+  // 배당 재투자 날짜 목록
+  public List<LocalDate> dividendReinvestDates() {
+    return reinvestments.stream().map(Reinvestment::exDate).toList();
+  }
 }

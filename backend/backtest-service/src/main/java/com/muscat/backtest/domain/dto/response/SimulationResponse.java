@@ -34,7 +34,7 @@ public class SimulationResponse {
   // 현재 가치
   @Schema(description = "현재 주가 (USD)", example = "238.15")
   private BigDecimal currentPrice;
-  @Schema(description = "현재 자산 가치 (USD)", example = "9930.86")
+  @Schema(description = "현재 주식 가치 (USD, 기간 끝에 팔면 0)", example = "9930.86")
   private BigDecimal currentValue;
 
   // 수익률 분석
@@ -60,9 +60,9 @@ public class SimulationResponse {
   private BigDecimal dividendYield;
 
   // 수수료 정보
-  @Schema(description = "매매 수수료 (USD)", example = "18.82")
+  @Schema(description = "매매 수수료 (USD, 기간 끝에 팔면 매도 수수료 포함)", example = "18.82")
   private BigDecimal tradingFee; // 매매수수료 (USD)
-  @Schema(description = "매수 후 잔액 (USD)", example = "498.17")
+  @Schema(description = "매수 후 잔액 (USD, 기간 끝에 팔면 판 돈 포함)", example = "498.17")
   private BigDecimal remainingCash; // 매수 후 잔액 (USD)
 
   // 총 수익
@@ -70,9 +70,9 @@ public class SimulationResponse {
   private BigDecimal totalReturnPercent;
 
   // 현재 KRW 환산 가치
-  @Schema(description = "현재 주식 가치 (KRW)", example = "13,118,442")
+  @Schema(description = "현재 주식 가치 (KRW, 기간 끝에 팔면 0)", example = "13,118,442")
   private BigDecimal currentValueKrw;
-  @Schema(description = "잔액 (KRW)", example = "657,902")
+  @Schema(description = "잔액 (KRW, 기간 끝에 팔면 판 돈 포함)", example = "657,902")
   private BigDecimal remainingCashKrw; // 잔액 KRW 환산
   @Schema(description = "총 자산 (주식+잔액+배당, KRW)", example = "13,776,344")
   private BigDecimal totalAssetKrw; // 총 자산 = 주식가치 + 잔액 + 배당금
@@ -110,7 +110,7 @@ public class SimulationResponse {
   @Schema(description = "매수일 ~ 평가일 일별 평가 가치(마지막 날은 총자산, 일봉을 못 받으면 평가일 하나)")
   @Builder.Default
   private List<DailyValue> dailyValues = List.of();
-  @Schema(description = "매수일 ~ 평가일 전 거래일마다 그 날짜에 샀다면 평가일까지 수익률(첫 날은 위 총 수익률과 같음)")
+  @Schema(description = "매수일 ~ 평가일 전 거래일마다 그 날짜에 샀다면 평가일까지 보유한 수익률(끝까지 보유면 첫 날은 위 총 수익률과 같음)")
   @Builder.Default
   private List<PurchaseDayReturn> purchaseDayReturns = List.of();
 }
