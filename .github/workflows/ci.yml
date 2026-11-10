@@ -222,15 +222,20 @@ jobs:
           cache-dependency-path: |
             backend/chat-service/requirements.txt
             backend/chat-service/requirements-dev.txt
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: tools/go.mod
+          cache-dependency-path: tools/go.sum
       - name: Install dependencies
         run: pip install -r requirements-dev.txt
       - name: Test
-        run: coverage run -m pytest -q
+        run: |
+          coverage run -m pytest -q
+          coverage json -q -o coverage.json
       # 줄 90 · 분기 80 아래면 실패, 표는 잡 요약에
       - name: Coverage
-        run: |
-          coverage json -q -o coverage.json
-          python "$GITHUB_WORKSPACE/.github/scripts/chat-coverage.py" coverage.json 90 80
+        working-directory: tools
+        run: go run ./cmd/chat-coverage "$GITHUB_WORKSPACE/backend/chat-service/coverage.json" 90 80
 
   # chat 이미지 빌드 · 검사(파이썬이라 build-services 메이븐 잡 밖)
   scan-images:
