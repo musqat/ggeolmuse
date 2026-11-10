@@ -680,7 +680,7 @@ class DCAStrategyTest {
     }
 
     @Test
-    @DisplayName("기간 끝 매도를 고르면 마지막 거래일 종가에 수수료를 빼고 전량 팔고, 판 해의 원화 실현 이익으로 양도세를 낸다")
+    @DisplayName("기간 끝 매도를 고르면 마지막 거래일 종가에 수수료를 빼고 전량 팔고, 판 해의 원화 실현 이익으로 양도세를 계산하되 납부일이 기간 뒤라 내지 않는다")
     void sellAtEndWithCapitalGainsTax() {
       DcaStrategyRequest request = monthly(LocalDate.of(2024, 2, 29), 2).tradingFeeRate(new BigDecimal("0.01"))
         .periodEnd(PeriodEnd.SELL_AT_END).capitalGainsTax(true).build();
@@ -699,7 +699,13 @@ class DCAStrategyTest {
         assertThat(sale.getRealizedProfit()).isEqualByComparingTo("40.50");
       });
       assertThat(response.getCapitalGainsTax().years()).containsExactly(
-        new CapitalGainsTax.Year(2024, new BigDecimal("54675"), new BigDecimal("54675"), new BigDecimal("0")));
+        new CapitalGainsTax.Year(2024, new BigDecimal("54675"), new BigDecimal("54675"), new BigDecimal("0"), null,
+          BigDecimal.ZERO));
+      assertThat(executed()).noneMatch(StrategyTransaction::isTaxPayment);
+      assertThat(response.getCapitalGainsTax().paidTaxKrw()).isEqualByComparingTo("0");
+      // 판 돈 495달러 × 1350원
+      assertThat(response.getCapitalGainsTax().cashKrw()).isEqualByComparingTo("668250");
+      assertThat(response.getCapitalGainsTax().stockKrw()).isEqualByComparingTo("0");
       assertThat(response.getCapitalGainsTax().afterTaxValueKrw()).isEqualByComparingTo("668250");
     }
 

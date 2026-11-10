@@ -3,16 +3,18 @@ package com.muscat.backtest.common.calculation;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.muscat.backtest.common.calculation.CapitalGainsTaxCalculator.Gain;
+import com.muscat.backtest.common.calculation.CapitalGainsTaxCalculator.Payments;
 import com.muscat.backtest.domain.dto.response.CapitalGainsTax;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("CapitalGainsTaxCalculator 연도별 예상 양도세")
+@DisplayName("CapitalGainsTaxCalculator 연도별 양도세 · 납부와 세후 평가")
 class CapitalGainsTaxCalculatorTest {
 
   private static final LocalDate JAN = LocalDate.of(2024, 1, 15);
@@ -105,6 +107,20 @@ class CapitalGainsTaxCalculatorTest {
     }
 
     @Test
+    @DisplayName("양도세 납부 줄은 보유 주식 · 원가에 넣지 않는다")
+    void skipsTaxPayments() {
+      StrategyTransaction payment = StrategyTransaction.builder().date(MAR).actualDate(MAR).shares(BigDecimal.ZERO)
+        .price(BigDecimal.ZERO).amount(BigDecimal.ZERO).fee(BigDecimal.ZERO).fxRate(new BigDecimal("1400"))
+        .taxPaid(new BigDecimal("100")).trigger("양도세 납부").build();
+
+      List<Gain> gains = CapitalGainsTaxCalculator.realizedGains(List.of(
+        buy(JAN, "10", "100", "1300000", "1300"), payment, sell(JUL, "10", "1200", "1400")));
+
+      assertThat(gains).extracting(Gain::date).containsExactly(JUL);
+      assertThat(amounts(gains)).usingElementComparator(BigDecimal::compareTo).containsExactly(new BigDecimal("380000"));
+    }
+
+    @Test
     @DisplayName("판 거래가 없으면 빈 목록이다")
     void noSales() {
       assertThat(CapitalGainsTaxCalculator.realizedGains(List.of(buy(JAN, "10", "100", "1300000", "1300")))).isEmpty();
@@ -112,60 +128,103 @@ class CapitalGainsTaxCalculatorTest {
   }
 
   @Nested
-  @DisplayName("연도별 공제 · 세금과 세후 평가")
+  @DisplayName("연도별 공제 · 세금 · 납부와 세후 평가")
   class Yearly {
+
+    private static final Payments NONE = Payments.NONE;
 
     private Gain gain(int year, int month, String amount) {
       return new Gain(LocalDate.of(year, month, 1), new BigDecimal(amount));
     }
 
+    // 기간 안 납부가 없는 해
+    private CapitalGainsTax.Year unpaid(int year, String realized, String deduction, String tax) {
+      return new CapitalGainsTax.Year(year, new BigDecimal(realized), new BigDecimal(deduction), new BigDecimal(tax),
+        null, BigDecimal.ZERO);
+    }
+
     @Test
-    @DisplayName("해마다 1월 ~ 12월 이익을 합해 250만원까지 공제하고 남은 이익의 22% 를 세금으로 낸다")
+    @DisplayName("해마다 1월 ~ 12월 이익을 합해 250만원까지 공제하고 남은 이익의 22% 를 세금으로 계산한다")
     void yearlyDeductionAndRate() {
       CapitalGainsTax tax = CapitalGainsTaxCalculator.of(List.of(
-          gain(2024, 2, "5000000"), gain(2024, 11, "-1000000"), gain(2025, 6, "2000000")),
-        new BigDecimal("10000000"), new BigDecimal("8000000"));
+          gain(2024, 2, "5000000"), gain(2024, 11, "-1000000"), gain(2025, 6, "2000000")), NONE,
+        new BigDecimal("10000000"), new BigDecimal("8000000"), new BigDecimal("8000000"));
 
-      assertThat(tax.years()).containsExactly(
-        new CapitalGainsTax.Year(2024, new BigDecimal("4000000"), new BigDecimal("2500000"), new BigDecimal("330000")),
-        new CapitalGainsTax.Year(2025, new BigDecimal("2000000"), new BigDecimal("2000000"), new BigDecimal("0")));
+      assertThat(tax.years()).containsExactly(unpaid(2024, "4000000", "2500000", "330000"),
+        unpaid(2025, "2000000", "2000000", "0"));
       assertThat(tax.totalTaxKrw()).isEqualByComparingTo("330000");
+      assertThat(tax.paidTaxKrw()).isEqualByComparingTo("0");
+      assertThat(tax.unpaidTaxKrw()).isEqualByComparingTo("330000");
       assertThat(tax.afterTaxValueKrw()).isEqualByComparingTo("9670000");
       // 967만원 / 800만원
       assertThat(tax.afterTaxReturnPercent()).isEqualByComparingTo("20.88");
     }
 
     @Test
+    @DisplayName("기간 안에 낸 양도세는 해마다 납부일 · 낸 금액으로 싣고 남은 양도세만 세후 총 평가에서 뺀다")
+    void paidTaxLeavesOnlyUnpaid() {
+      LocalDate due = LocalDate.of(2025, 5, 2);
+      Payments payments = new Payments(Map.of(2024, due), Map.of(2024, new BigDecimal("200000")));
+
+      CapitalGainsTax tax = CapitalGainsTaxCalculator.of(List.of(
+          gain(2024, 2, "4000000"), gain(2025, 6, "3000000")), payments,
+        new BigDecimal("10000000"), new BigDecimal("8000000"), new BigDecimal("8000000"));
+
+      assertThat(tax.years()).containsExactly(
+        new CapitalGainsTax.Year(2024, new BigDecimal("4000000"), new BigDecimal("2500000"), new BigDecimal("330000"),
+          due, new BigDecimal("200000")),
+        unpaid(2025, "3000000", "2500000", "110000"));
+      assertThat(tax.totalTaxKrw()).isEqualByComparingTo("440000");
+      assertThat(tax.paidTaxKrw()).isEqualByComparingTo("200000");
+      // 2024년에 못 낸 13만원 + 2025년 11만원
+      assertThat(tax.unpaidTaxKrw()).isEqualByComparingTo("240000");
+      assertThat(tax.afterTaxValueKrw()).isEqualByComparingTo("9760000");
+      assertThat(tax.afterTaxReturnPercent()).isEqualByComparingTo("22.00");
+    }
+
+    @Test
+    @DisplayName("현금은 원 단위로 반올림한 총 자산에서 주식 평가를 뺀 값이다")
+    void cashAndStock() {
+      CapitalGainsTax tax = CapitalGainsTaxCalculator.of(List.of(), NONE,
+        new BigDecimal("9670000.6"), new BigDecimal("8470000.4"), new BigDecimal("8000000"));
+
+      assertThat(tax.stockKrw()).isEqualByComparingTo("8470000");
+      assertThat(tax.cashKrw()).isEqualByComparingTo("1200001");
+      assertThat(tax.afterTaxValueKrw()).isEqualByComparingTo("9670001");
+    }
+
+    @Test
     @DisplayName("손실은 다음 해로 넘기지 않고 그해 공제 · 세금은 0 이다")
     void lossNotCarriedOver() {
       CapitalGainsTax tax = CapitalGainsTaxCalculator.of(List.of(gain(2024, 3, "-3000000"), gain(2025, 3, "3000000")),
-        new BigDecimal("10000000"), new BigDecimal("10000000"));
+        NONE, new BigDecimal("10000000"), BigDecimal.ZERO, new BigDecimal("10000000"));
 
-      assertThat(tax.years()).containsExactly(
-        new CapitalGainsTax.Year(2024, new BigDecimal("-3000000"), new BigDecimal("0"), new BigDecimal("0")),
-        new CapitalGainsTax.Year(2025, new BigDecimal("3000000"), new BigDecimal("2500000"), new BigDecimal("110000")));
+      assertThat(tax.years()).containsExactly(unpaid(2024, "-3000000", "0", "0"),
+        unpaid(2025, "3000000", "2500000", "110000"));
       assertThat(tax.totalTaxKrw()).isEqualByComparingTo("110000");
     }
 
     @Test
     @DisplayName("이익은 원 단위로 반올림하고 세금은 원 미만을 버린다")
     void rounding() {
-      CapitalGainsTax tax = CapitalGainsTaxCalculator.of(List.of(gain(2024, 3, "2500011.6")),
-        new BigDecimal("5000000.6"), new BigDecimal("5000000"));
+      CapitalGainsTax tax = CapitalGainsTaxCalculator.of(List.of(gain(2024, 3, "2500011.6")), NONE,
+        new BigDecimal("5000000.6"), BigDecimal.ZERO, new BigDecimal("5000000"));
 
       // 12원 × 22% = 2.64원
-      assertThat(tax.years()).containsExactly(
-        new CapitalGainsTax.Year(2024, new BigDecimal("2500012"), new BigDecimal("2500000"), new BigDecimal("2")));
+      assertThat(tax.years()).containsExactly(unpaid(2024, "2500012", "2500000", "2"));
       assertThat(tax.afterTaxValueKrw()).isEqualByComparingTo("4999999");
     }
 
     @Test
     @DisplayName("판 거래가 없으면 연도 없이 세금 0 이고 세후 평가 · 수익률은 총 자산 · 총 수익률과 같다")
     void noGains() {
-      CapitalGainsTax tax = CapitalGainsTaxCalculator.of(List.of(), new BigDecimal("1300000.4"), new BigDecimal("1000000"));
+      CapitalGainsTax tax = CapitalGainsTaxCalculator.of(List.of(), NONE, new BigDecimal("1300000.4"),
+        new BigDecimal("1300000.4"), new BigDecimal("1000000"));
 
       assertThat(tax.years()).isEmpty();
       assertThat(tax.totalTaxKrw()).isEqualByComparingTo("0");
+      assertThat(tax.unpaidTaxKrw()).isEqualByComparingTo("0");
+      assertThat(tax.cashKrw()).isEqualByComparingTo("0");
       assertThat(tax.afterTaxValueKrw()).isEqualByComparingTo("1300000");
       assertThat(tax.afterTaxReturnPercent()).isEqualByComparingTo("30.00");
     }
@@ -173,7 +232,8 @@ class CapitalGainsTaxCalculatorTest {
     @Test
     @DisplayName("기준 금액이 0 인 매수 0회 결과는 세후 수익률이 0 이다")
     void zeroBasis() {
-      CapitalGainsTax tax = CapitalGainsTaxCalculator.of(List.of(), BigDecimal.ZERO, BigDecimal.ZERO);
+      CapitalGainsTax tax = CapitalGainsTaxCalculator.of(List.of(), NONE, BigDecimal.ZERO, BigDecimal.ZERO,
+        BigDecimal.ZERO);
 
       assertThat(tax.afterTaxValueKrw()).isEqualByComparingTo("0");
       assertThat(tax.afterTaxReturnPercent()).isEqualByComparingTo("0");

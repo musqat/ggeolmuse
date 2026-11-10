@@ -35,12 +35,12 @@ vi.mock('../utils/localBacktestHistory', () => ({
 
 // 결과 화면 대역(차트 대신 어느 결과가 떴는지만)
 vi.mock('@components/backtest/results/SimpleResult', () => ({
-  SimpleResult: ({ sellAtEnd }: { sellAtEnd?: boolean }) => <div>결과: simple{sellAtEnd && ' · 기간 끝 매도'}</div>,
+  SimpleResult: () => <div>결과: simple</div>,
 }))
 vi.mock('@components/backtest/results/DcaConditionalResult', () => ({
-  DcaConditionalResult: ({ result, budget, sellAtEnd }: { result: { mode: string }; budget?: number; sellAtEnd?: boolean }) => (
+  DcaConditionalResult: ({ result, budget }: { result: { mode: string }; budget?: number }) => (
     <>
-      <div>결과: {result.mode}{sellAtEnd && ' · 기간 끝 매도'}</div>
+      <div>결과: {result.mode}</div>
       {budget !== undefined && <div>예산: {budget}</div>}
     </>
   ),
@@ -313,7 +313,7 @@ describe('Backtest 페이지 실행', () => {
     expect(screen.queryByText(/예산:/)).toBeNull()
   })
 
-  it('이동평균: 바꾼 원금 · 기간으로 요청하고 기간 끝 매도 결과로 그린다', async () => {
+  it('이동평균: 바꾼 원금 · 기간과 마지막 거래일에 팔기로 요청한다', async () => {
     renderPage()
     await selectMode('이동평균')
     fireEvent.change(screen.getByRole('textbox', { name: '원금(원)' }), { target: { value: '3,000,000' } })
@@ -329,7 +329,7 @@ describe('Backtest 페이지 실행', () => {
       longWindow: 120,
       periodEnd: 'SELL_AT_END',
     })
-    expect(await screen.findByText('결과: ma-cross · 기간 끝 매도')).toBeInTheDocument()
+    expect(await screen.findByText('결과: ma-cross')).toBeInTheDocument()
   })
 
   it('이동평균: 배당 재투자를 막고 false 로 요청하며, 다른 모드는 고른 재투자 그대로', async () => {
@@ -481,7 +481,7 @@ describe('Backtest 페이지 칸 오류 · 요약', () => {
   it('이동평균 요약은 원금과 교차 규칙을 보이고, 짧은 기간이 긴 기간 이상이면 그 칸으로 가며 요청하지 않는다', async () => {
     renderPage()
     await selectMode('이동평균')
-    expect(summary()).toHaveTextContent('원금 100만원 · 20일 선이 60일 선을 넘으면 원금 전부로 사고, 아래로 내려가면 전부 팜')
+    expect(summary()).toHaveTextContent('원금 100만원 · 20일 선이 60일 선을 넘으면 가진 돈 전부로 사고, 아래로 내려가면 전부 팜')
 
     fireEvent.change(screen.getByRole('textbox', { name: '짧은 기간(일)' }), { target: { value: '60' } })
     expect(screen.getByText('긴 기간보다 짧게')).toBeInTheDocument()
@@ -578,7 +578,7 @@ describe('Backtest 페이지 전략 비교 칩', () => {
 
     expect(strategyChips().getByRole('button', { name: '이동평균' })).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getByText('이동평균 기간')).toBeInTheDocument()
-    expect(summary()).toHaveTextContent('이동평균: 20일 선이 60일 선을 넘으면 원금 전부로 사고, 아래로 내려가면 전부 팜')
+    expect(summary()).toHaveTextContent('이동평균: 20일 선이 60일 선을 넘으면 가진 돈 전부로 사고, 아래로 내려가면 전부 팜')
     fireEvent.change(screen.getByRole('textbox', { name: '짧은 기간(일)' }), { target: { value: '5' } })
     await runBacktest()
 
@@ -701,7 +701,7 @@ describe('Backtest 페이지 세부 설정', () => {
     expect(vi.mocked(backtestApi.compareSymbols).mock.calls[0][0]).toMatchObject({ dividendTaxRate: 0 })
   })
 
-  it('마지막 거래일에 팔기 · 양도세 끔은 요약에 보이고 요청에 실리며, 결과는 기간 끝에 판 결과로 그린다', async () => {
+  it('마지막 거래일에 팔기 · 양도세 끔은 요약에 보이고 요청에 실린다', async () => {
     renderPage()
     await userEvent.click(detailToggle())
     await userEvent.click(within(screen.getByRole('radiogroup', { name: '기간이 끝나면' })).getByRole('radio', { name: '마지막 거래일에 팔기' }))
@@ -710,7 +710,7 @@ describe('Backtest 페이지 세부 설정', () => {
     expect(summary()).toHaveTextContent('시작일에 30만원 매수 · 마지막 거래일에 팔기 · 양도세 끔')
     await runBacktest()
     expect(vi.mocked(backtestApi.runSimulation).mock.calls[0][0]).toMatchObject({ capitalGainsTax: false, periodEnd: 'SELL_AT_END' })
-    expect(await screen.findByText('결과: simple · 기간 끝 매도')).toBeInTheDocument()
+    expect(await screen.findByText('결과: simple')).toBeInTheDocument()
 
     await selectMode('적립식')
     await userEvent.click(within(screen.getByRole('radiogroup', { name: '기간이 끝나면' })).getByRole('radio', { name: '끝까지 보유' }))

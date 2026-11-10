@@ -70,6 +70,7 @@ const result = {
 
 const renderResult = (value: object = result) => render(<StrategyComparisonResult result={value as never} />)
 const row = (name: string) => screen.getByText(name, { selector: 'td span span' }).closest('tr') as HTMLElement
+const noTax = { years: [], totalTaxKrw: 0, paidTaxKrw: 0, unpaidTaxKrw: 0, cashKrw: 0, stockKrw: 0 }
 
 describe('StrategyComparisonResult', () => {
   it('요약 한 줄에 종목 · 전략마다 원금 · 전략 수 · 최고 전략을 한글 이름으로 보인다', () => {
@@ -171,14 +172,26 @@ describe('StrategyComparisonResult', () => {
     expect(screen.queryByRole('columnheader', { name: '세후 수익률' })).toBeNull()
   })
 
-  it('양도세를 요청했으면 세후 수익률 칸에 최고를 따로 표시하고, 펼치면 양도세 합 · 세후 평가 · 연도별 양도세를 보인다', async () => {
-    const year = { year: 2024, realizedGainKrw: 4000000, deductionKrw: 2500000, taxKrw: 330000 }
+  it('양도세를 요청했으면 세후 수익률 칸에 최고를 따로 표시하고, 펼치면 양도세 합 · 낸 양도세 · 남은 양도세 · 세후 총 평가 · 연도별 양도세를 보인다', async () => {
+    const year = { year: 2024, realizedGainKrw: 4000000, deductionKrw: 2500000, taxKrw: 330000, dueDate: '2025-05-01', paidKrw: 220000 }
     const [simple, dca] = result.items
     renderResult({
       ...result,
       items: [
-        { ...simple, capitalGainsTax: { years: [], totalTaxKrw: 0, afterTaxValueKrw: 1100000, afterTaxReturnPercent: 10 } },
-        { ...dca, capitalGainsTax: { years: [year], totalTaxKrw: 330000, afterTaxValueKrw: 209000, afterTaxReturnPercent: 4.5 } },
+        { ...simple, capitalGainsTax: { ...noTax, cashKrw: 100000, stockKrw: 1000000, afterTaxValueKrw: 1100000, afterTaxReturnPercent: 10 } },
+        {
+          ...dca,
+          capitalGainsTax: {
+            years: [year],
+            totalTaxKrw: 330000,
+            paidTaxKrw: 220000,
+            unpaidTaxKrw: 110000,
+            cashKrw: 19000,
+            stockKrw: 300000,
+            afterTaxValueKrw: 209000,
+            afterTaxReturnPercent: 4.5,
+          },
+        },
       ],
     })
 
@@ -187,8 +200,22 @@ describe('StrategyComparisonResult', () => {
     expect(within(row('단순 매수')).getAllByText('최고')).toHaveLength(1)
     await userEvent.click(row('적립식'))
     expect(screen.getByText('양도세 합').nextElementSibling).toHaveTextContent('₩330,000')
-    expect(screen.getByText('세후 평가').nextElementSibling).toHaveTextContent('₩209,000')
-    expect(screen.getByRole('row', { name: /^2024년/ })).toHaveTextContent('₩330,000')
+    expect(screen.getByText('낸 양도세').nextElementSibling).toHaveTextContent('₩220,000')
+    expect(screen.getByText('남은 양도세').nextElementSibling).toHaveTextContent('-₩110,000')
+    expect(screen.getByText('세후 총 평가').nextElementSibling).toHaveTextContent('₩209,000')
+    expect(screen.getByRole('row', { name: /^2024년/ })).toHaveTextContent('2025-05-01₩220,000')
+  })
+
+  it('펼친 줄의 예상 양도세는 한 줄을 다 쓰고 넓은 화면에서 연도별 표를 오른쪽 두 칸에 둔다', async () => {
+    const year = { year: 2024, realizedGainKrw: 4000000, deductionKrw: 2500000, taxKrw: 330000, dueDate: '2025-05-01', paidKrw: 330000 }
+    const [simple, dca] = result.items
+    const tax = { ...noTax, years: [year], totalTaxKrw: 330000, paidTaxKrw: 330000, afterTaxValueKrw: 240000, afterTaxReturnPercent: 20 }
+    renderResult({ ...result, items: [simple, { ...dca, capitalGainsTax: tax }] })
+    await userEvent.click(row('적립식'))
+
+    const section = screen.getByRole('heading', { name: '예상 양도세' }).parentElement as HTMLElement
+    expect(section).toHaveClass('md:col-span-full')
+    expect(screen.getByRole('row', { name: /^2024년/ }).closest('.lg\\:col-span-2')).toBeInTheDocument()
   })
 
   it('매수 0회 전략은 세후 수익률도 비워 둔다', () => {
@@ -198,11 +225,11 @@ describe('StrategyComparisonResult', () => {
       totalInvested: 0,
       totalReturnPercent: 0,
       additionalData: { symbol: 'AAPL', transactions: [] },
-      capitalGainsTax: { years: [], totalTaxKrw: 0, afterTaxValueKrw: 0, afterTaxReturnPercent: 0 },
+      capitalGainsTax: { ...noTax, afterTaxValueKrw: 0, afterTaxReturnPercent: 0 },
     }
     renderResult({ ...result, items: [...result.items, none] })
 
-    expect(row('조건부 매수')).not.toHaveTextContent('+0.00%')
+    expect(row('조건부 매수')).not.toHaveTextContent('0.00%')
   })
 
   it('매수가 · 보유 주식이 비면 단위 없이 - 로 보인다', async () => {

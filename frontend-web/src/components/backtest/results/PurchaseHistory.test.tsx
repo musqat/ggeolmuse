@@ -53,6 +53,19 @@ describe('PurchaseHistory', () => {
     expect(screen.getByText('계획 2025-02-15')).toBeVisible()
   })
 
+  it('연도 화살표는 그 연도가 열렸을 때만 돌고, 표의 둘째 칸부터 왼쪽 여백을 둔다', async () => {
+    render(<PurchaseHistory transactions={transactions} skippedRounds={skipped} />)
+    await userEvent.click(screen.getByText('2025년'))
+
+    const year = screen.getByText('2025년').closest('details') as HTMLElement
+    expect(year).toHaveClass('group/year')
+    expect(year.querySelector('summary svg')).toHaveClass('group-open/year:rotate-180')
+    const row = screen.getByText('2025-01-15').closest('tr') as HTMLElement
+    for (const cells of [within(year).getAllByRole('columnheader'), within(row).getAllByRole('cell')]) {
+      expect(cells.map((cell) => cell.classList.contains('pl-3'))).toEqual([false, true, true, true, true])
+    }
+  })
+
   it('미매수 회차는 같은 표에 이유를 보인다', async () => {
     render(<PurchaseHistory transactions={transactions} skippedRounds={skipped} />)
 
@@ -95,5 +108,63 @@ describe('PurchaseHistory', () => {
     const rebuyRow = screen.getByText('2025-04-01').closest('tr') as HTMLElement
     expect(within(rebuyRow).getByText('판 돈 $74.07')).toBeInTheDocument()
     expect(within(rebuyRow).queryByText('₩0')).not.toBeInTheDocument()
+  })
+
+  it('가격 · 수량 · 받은 돈 · 손익 · 판 돈 · 낸 달러에 천 단위 쉼표를 넣는다', async () => {
+    const sale: StrategyTransaction = {
+      ...bought('2025-03-14', 1234.5),
+      shares: -1500.25,
+      amount: 0,
+      trigger: '데드 크로스',
+      proceeds: 1852058.63,
+      realizedProfit: 12345.67,
+    }
+    const rebuy: StrategyTransaction = { ...bought('2025-04-01', 1100), amount: 0, trigger: '골든 크로스', cashUsed: 12345.6 }
+    const payment: StrategyTransaction = {
+      ...bought('2025-05-01', 0),
+      shares: 0,
+      amount: 0,
+      trigger: '양도세 납부',
+      taxPaid: 5418.38,
+    }
+    render(<PurchaseHistory transactions={[sale, rebuy, payment]} skippedRounds={[]} />)
+    await userEvent.click(screen.getByText('2025년'))
+
+    const saleRow = screen.getByText('2025-03-14').closest('tr') as HTMLElement
+    expect(within(saleRow).getByText('$1,234.50')).toBeInTheDocument()
+    expect(within(saleRow).getByText('1,500.2500주')).toBeInTheDocument()
+    expect(within(saleRow).getByText('$1,852,058.63 받음')).toBeInTheDocument()
+    expect(within(saleRow).getByText('손익 +$12,345.67')).toBeInTheDocument()
+    expect(within(screen.getByText('2025-04-01').closest('tr') as HTMLElement).getByText('판 돈 $12,345.60')).toBeInTheDocument()
+    expect(within(screen.getByText('2025-05-01').closest('tr') as HTMLElement).getByText('-$5,418.38')).toBeInTheDocument()
+  })
+
+  it('양도세 납부 줄은 금액 칸에 낸 달러만 보이고 매수 · 매도 횟수에서 빼고 연도 줄에 따로 센다', async () => {
+    const payment: StrategyTransaction = {
+      date: '2025-05-01',
+      actualDate: '2025-05-01',
+      price: 0,
+      shares: 0,
+      amount: 0,
+      fee: 0,
+      fxRate: 1330,
+      trigger: '양도세 납부',
+      taxPaid: 248.12,
+    }
+    render(<PurchaseHistory transactions={[...transactions, payment]} skippedRounds={[]} />)
+
+    expect(purchaseCount([...transactions, payment])).toBe(2)
+    expect(sellCount([...transactions, payment])).toBe(0)
+    expect(screen.getByText('매수 2회 · 양도세 납부 1회')).toBeInTheDocument()
+    await userEvent.click(screen.getByText('2025년'))
+
+    const paymentRow = screen.getByText('2025-05-01').closest('tr') as HTMLElement
+    expect(within(paymentRow).getAllByRole('cell').map((cell) => cell.textContent)).toEqual([
+      '2025-05-01',
+      '양도세 납부',
+      '-',
+      '-',
+      '-$248.12',
+    ])
   })
 })

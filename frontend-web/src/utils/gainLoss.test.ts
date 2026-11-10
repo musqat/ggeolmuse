@@ -11,22 +11,25 @@ describe('gainLoss', () => {
     expect(hasValue(Number.NaN)).toBe(false)
   })
 
-  it('0 이상은 이익, 음수는 손실, 값이 없으면 없음', () => {
+  it('양수는 이익, 음수는 손실, 0 은 중립, 값이 없으면 없음', () => {
     expect(gainLossTone(12.5)).toBe('gain')
-    expect(gainLossTone(0)).toBe('gain')
+    expect(gainLossTone(0)).toBe('flat')
+    expect(gainLossTone(-0)).toBe('flat')
     expect(gainLossTone(-0.01)).toBe('loss')
     expect(gainLossTone(undefined)).toBe('none')
   })
 
-  it('글자색은 초록 · 빨강 · 회색', () => {
+  it('글자색은 초록 · 빨강 · 회색이고 0 은 색을 넣지 않는다', () => {
     expect(gainLossClass(1)).toBe('text-gain')
     expect(gainLossClass(-1)).toBe('text-loss')
+    expect(gainLossClass(0)).toBe('')
     expect(gainLossClass(null)).toBe('text-tx-3')
   })
 
-  it('아이콘 배경도 이익 · 손실로 나누고 값이 없으면 기본 배경', () => {
+  it('아이콘 배경도 이익 · 손실로 나누고 0 이나 값이 없으면 기본 배경', () => {
     expect(gainLossBoxClass(5)).toBe('bg-gain/15')
     expect(gainLossBoxClass(-5)).toBe('bg-loss/15')
+    expect(gainLossBoxClass(0)).toBe('bg-brand-bg')
     expect(gainLossBoxClass(undefined)).toBe('bg-brand-bg')
   })
 
@@ -35,8 +38,19 @@ describe('gainLoss', () => {
     expect(formatSigned(-12.345, formatUsd)).toBe('-$12.35')
     expect(formatSigned(-123456, formatKrw)).toBe('-₩123,456')
     expect(formatSigned(-30.02, formatFxRate)).toBe('-₩30.02')
-    expect(formatSigned(0, formatPercent)).toBe('+0.00%')
     expect(formatSigned(-2.21, formatPercent)).toBe('-2.21%')
+  })
+
+  it('0 은 부호 없이 보인다', () => {
+    expect(formatSigned(0, formatKrw)).toBe('₩0')
+    expect(formatSigned(-0, formatUsd)).toBe('$0.00')
+    expect(formatSigned(0, formatPercent)).toBe('0.00%')
+  })
+
+  it('달러는 천 단위 쉼표를 넣어 센트까지 보인다', () => {
+    expect(formatUsd(1234567.891)).toBe('$1,234,567.89')
+    expect(formatUsd(0.5)).toBe('$0.50')
+    expect(formatSigned(-5418.38, formatUsd)).toBe('-$5,418.38')
   })
 
   it('환율은 쉼표를 넣어 소수 둘째 자리까지 보인다', () => {

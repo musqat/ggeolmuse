@@ -94,7 +94,7 @@ export const conditionalHow = (summary: ConditionalSummary) => {
 
 // 이동평균 교차 규칙(빈 기간은 ?)
 export const maCrossText = (short: string, long: string) =>
-  `${short.trim() || '?'}일 선이 ${long.trim() || '?'}일 선을 넘으면 원금 전부로 사고, 아래로 내려가면 전부 팜`;
+  `${short.trim() || '?'}일 선이 ${long.trim() || '?'}일 선을 넘으면 가진 돈 전부로 사고, 아래로 내려가면 전부 팜`;
 
 export const maCrossHow = ({ amount, short, long }: { amount: string; short: string; long: string }) =>
   `원금 ${formatReadableWon(parseFloat(amount))} · ${maCrossText(short, long)}`;

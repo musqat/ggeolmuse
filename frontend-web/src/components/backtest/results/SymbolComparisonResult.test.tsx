@@ -106,10 +106,14 @@ describe('SymbolComparisonResult', () => {
     expect(screen.getByRole('button', { name: 'AAPL 상세' })).toHaveAttribute('aria-expanded', 'false')
   })
 
-  it('양도세를 요청했으면 세후 수익률 칸을 두고 펼치면 그 종목의 양도세 합 · 세후 평가를 보인다', async () => {
+  it('양도세를 요청했으면 세후 수익률 칸을 두고 펼치면 그 종목의 양도세 합 · 낸 양도세 · 남은 양도세 · 세후 총 평가를 보인다', async () => {
     const tax = (afterTaxReturnPercent: number, totalTaxKrw: number) => ({
-      years: [{ year: 2024, realizedGainKrw: 3000000, deductionKrw: 2500000, taxKrw: totalTaxKrw }],
+      years: [{ year: 2024, realizedGainKrw: 3000000, deductionKrw: 2500000, taxKrw: totalTaxKrw, dueDate: null, paidKrw: 0 }],
       totalTaxKrw,
+      paidTaxKrw: 0,
+      unpaidTaxKrw: totalTaxKrw,
+      cashKrw: 10000,
+      stockKrw: 1100000,
       afterTaxValueKrw: 1000000,
       afterTaxReturnPercent,
     })
@@ -121,6 +125,10 @@ describe('SymbolComparisonResult', () => {
     expect(row('AAPL')).toHaveTextContent('+4.00%')
     await userEvent.click(row('AAPL'))
     expect(screen.getByText('양도세 합').nextElementSibling).toHaveTextContent('₩110,000')
+    expect(screen.getByText('낸 양도세').nextElementSibling).toHaveTextContent('₩0')
+    expect(screen.getByText('남은 양도세').nextElementSibling).toHaveTextContent('-₩110,000')
+    expect(screen.getByText('세후 총 평가').nextElementSibling).toHaveTextContent('₩1,000,000')
+    expect(screen.getByRole('row', { name: /^2024년/ })).toHaveTextContent('기간 뒤₩0')
   })
 
   it('달러 기준이면 연평균 · 최대 낙폭만 달러로 바꾸고 총 수익률은 그대로 둔다', async () => {

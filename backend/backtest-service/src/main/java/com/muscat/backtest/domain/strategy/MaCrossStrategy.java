@@ -2,6 +2,7 @@ package com.muscat.backtest.domain.strategy;
 
 import com.muscat.backtest.common.constants.BacktestConstants.MovingAverage;
 import com.muscat.backtest.common.constants.BacktestConstants.TransactionTrigger;
+import com.muscat.backtest.common.engine.CapitalGainsTaxPayer;
 import com.muscat.backtest.common.engine.StrategyFinalizer;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.SkipReason;
@@ -73,7 +74,8 @@ public class MaCrossStrategy implements InvestmentStrategy {
       LocalDate today = LocalDate.now();
       LocalDate actualEndDate = request.getEndDate().isAfter(today) ? today : request.getEndDate();
 
-      StrategyPurchases trades = trade(request, shortWindow, longWindow, actualEndDate);
+      CapitalGainsTaxPayer taxPayer = new CapitalGainsTaxPayer(Boolean.TRUE.equals(request.getCapitalGainsTax()));
+      StrategyPurchases trades = trade(request, shortWindow, longWindow, actualEndDate, taxPayer);
 
       StrategyFinalizer.Result finalized = StrategyFinalizer.run(
         marketData, request.getSymbol(), request.getStartDate(), actualEndDate, request.getCurrentFxRate(),
@@ -85,7 +87,9 @@ public class MaCrossStrategy implements InvestmentStrategy {
 
       StrategyResponse response = finalized.fill(responseMapper.toStrategyResponse(
         request, finalized.transactions(), finalized.calculation(), finalized.currentPrice(), trades.skippedRounds()));
-      response.setCapitalGainsTax(Boolean.TRUE.equals(request.getCapitalGainsTax()) ? finalized.capitalGainsTax() : null);
+      response.setCapitalGainsTax(Boolean.TRUE.equals(request.getCapitalGainsTax())
+        ? finalized.capitalGainsTax(taxPayer.payments())
+        : null);
       return response;
 
     } finally {
@@ -112,9 +116,9 @@ public class MaCrossStrategy implements InvestmentStrategy {
     }
   }
 
-  // 시작일부터 일봉마다 교차를 보고 골든 크로스에 사고 데드 크로스에 팜(계산이 실패한 날은 사고팔지 않고 이유를 남김)
+  // 시작일부터 일봉마다 양도세를 낸 뒤 교차를 보고 골든 크로스에 사고 데드 크로스에 팜(계산이 실패한 날은 사고팔지 않고 이유를 남김)
   private StrategyPurchases trade(MaCrossStrategyRequest request, int shortWindow, int longWindow,
-    LocalDate actualEndDate) {
+    LocalDate actualEndDate, CapitalGainsTaxPayer taxPayer) {
     LocalDate start = request.getStartDate();
     Map<LocalDate, OHLCPriceDto> priceMap = BacktestDataUtils.buildPriceMap(
       marketData, request.getSymbol(), start.minusDays(lookbackDays(longWindow)), actualEndDate);
@@ -152,7 +156,15 @@ public class MaCrossStrategy implements InvestmentStrategy {
       int today = side(sums, i, shortWindow, longWindow);
       boolean holding = heldShares.signum() > 0;
       try {
-        if (!holding && before <= 0 && today > 0) {
+        LocalDate date = candle.date();
+        StrategyTransaction payment = taxPayer.pay(date, transactions, cash, fxOn(request, fxRates, date),
+          fxRates.isDefault(date));
+        if (payment != null) {
+          transactions.add(payment);
+          cash = cash.subtract(payment.getTaxPaid());
+        }
+        // 판 돈을 양도세로 다 냈으면 사지 않음
+        if (!holding && before <= 0 && today > 0 && (cash == null || cash.signum() > 0)) {
           StrategyTransaction buy = buy(request, candle, fxRates, cash);
           transactions.add(buy);
           heldShares = buy.getShares();

@@ -10,25 +10,31 @@ type BacktestCommonRequest = {
   reinvestDividends?: boolean;          // 배당 재투자 여부
   tradingFeeRate?: number;              // 거래 수수료율 (0.001 = 0.1%)
   dividendTaxRate?: number;             // 배당 소득세율
-  capitalGainsTax?: boolean;            // 예상 양도세 계산 여부 (비우면 끔)
+  capitalGainsTax?: boolean;            // 양도세 계산과 다음 해 5월 납부 여부 (비우면 끔)
   periodEnd?: PeriodEnd;                // 비우면 끝까지 보유
   purchaseFxRate?: number;              // 수동 환율 - 매수 시점
   currentFxRate?: number;               // 수동 환율 - 현재
 };
 
-// 한 해 예상 양도세(KRW, 손실은 그해 이익과 상계)
+// 한 해 양도세(KRW, 손실은 그 해 이익과 상계)
 export type CapitalGainsTaxYear = {
   year: number;
   realizedGainKrw: number;              // 1월 ~ 12월 원화 실현 이익 합
   deductionKrw: number;                 // 기본 공제 (연 250만원까지)
   taxKrw: number;                       // (실현 이익 - 공제) × 22%
+  dueDate: string | null;               // 납부일 (다음 해 5월 1일 이후 첫 거래일, 기간 안에 오지 않았으면 null)
+  paidKrw: number;                      // 그 해 세금 가운데 기간 안에 낸 원화
 };
 
-// 예상 양도세와 세후 평가(요청하지 않았으면 응답에 null)
+// 양도세 · 납부와 세후 평가(요청하지 않았으면 응답에 null)
 export type CapitalGainsTax = {
   years: CapitalGainsTaxYear[];         // 판 거래가 있는 해만
   totalTaxKrw: number;
-  afterTaxValueKrw: number;             // 총 자산 - 양도세 합
+  paidTaxKrw: number;                   // 기간 안에 낸 원화 합
+  unpaidTaxKrw: number;                 // 양도세 합 - 낸 원화 합
+  cashKrw: number;                      // 총 자산 - 주식 평가 (낸 양도세는 이미 빠짐)
+  stockKrw: number;                     // 주식 평가 (KRW)
+  afterTaxValueKrw: number;             // 총 자산 - 남은 양도세
   afterTaxReturnPercent: number;        // 총 수익률과 같은 기준 금액 대비
 };
 
@@ -194,7 +200,7 @@ export type StrategyComparisonRequest = BacktestCommonRequest & {
 };
 
 // 전략 응답
-// 적립식 · 조건부 · 이동평균 전략의 매매 한 건(거래가 일어난 건만이라 날짜 · 가격 · 수량은 늘 있음)
+// 적립식 · 조건부 · 이동평균 전략의 매매 · 양도세 납부 한 건(일어난 건만이라 날짜 · 가격 · 수량은 늘 있음)
 export type StrategyTransaction = {
   date: string;                         // 계획된 매수일
   actualDate?: string;                  // 실제 거래일 (주말 · 휴장일 조정)
@@ -202,11 +208,12 @@ export type StrategyTransaction = {
   shares: number;
   amount: number;                       // 투자금 (KRW)
   fxRate: number;
-  trigger?: string;                     // 적립식은 "월정액" · "매주 정액" · "매일 정액", 조건부는 "5.0%하락" · "5.0%상승" · "20.0%익절" · "10.0%손절" 같은 값, 이동평균은 "골든 크로스" · "데드 크로스", 기간 끝에 판 거래는 "기간 끝 매도"
+  trigger?: string;                     // 적립식은 "월정액" · "매주 정액" · "매일 정액", 조건부는 "5.0%하락" · "5.0%상승" · "20.0%익절" · "10.0%손절" 같은 값, 이동평균은 "골든 크로스" · "데드 크로스", 기간 끝에 판 거래는 "기간 끝 매도", 양도세를 낸 줄은 "양도세 납부"
   fee?: number | null;                  // 매매 수수료 (USD, 배당 재투자는 없음)
   proceeds?: number | null;             // 매도로 받은 돈 (USD, 수수료 뺀 값, 매도는 수량이 음수)
   cashUsed?: number | null;             // 매수에 쓴 판 돈 (USD)
   realizedProfit?: number | null;       // 매도 실현 손익 (USD)
+  taxPaid?: number | null;              // 낸 양도세 (USD, 양도세 납부 줄만)
 };
 
 // 회차를 사지 못한 이유

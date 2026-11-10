@@ -35,7 +35,7 @@ public class ComparisonItem {
   // 배당금
   private BigDecimal dividends;
 
-  // 예상 양도세 · 세후 평가(요청에서 끄면 null)
+  // 양도세 · 기간 안 납부와 세후 평가(요청에서 끄면 null)
   private CapitalGainsTax capitalGainsTax;
 
   // 순위

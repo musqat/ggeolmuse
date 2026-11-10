@@ -92,7 +92,8 @@ export const formatMarketCap = (marketCap: number | null | undefined, digits = 2
 
 export const formatKrw = (value: number) => `₩${formatNumber(value)}`;
 
-export const formatUsd = (value: number) => `$${value.toFixed(2)}`;
+export const formatUsd = (value: number) =>
+  `$${formatNumber(value, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 // 부호는 통화 기호 앞(-$12.30, 반올림해 0 이면 부호 없음)
 export const formatBalanceAmount = (amount: number, currency: "KRW" | "USD") => {
@@ -111,8 +112,9 @@ export const formatPercent = (value: number) => `${value.toFixed(2)}%`;
 export const formatFxRate = (value: number) =>
   `₩${formatNumber(value, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-// 값이 없으면 '-', 있으면 통화 기호 앞에 부호를 둔 형식
+// 값이 없으면 '-', 0 이면 부호 없이, 그 밖에는 통화 기호 앞에 부호를 둔 형식
 export const formatSigned = (value: MaybeNumber, format: (value: number) => string) => {
   if (!hasValue(value)) return "-";
-  return `${value >= 0 ? "+" : "-"}${format(Math.abs(value))}`;
+  if (value === 0) return format(0);
+  return `${value > 0 ? "+" : "-"}${format(Math.abs(value))}`;
 };

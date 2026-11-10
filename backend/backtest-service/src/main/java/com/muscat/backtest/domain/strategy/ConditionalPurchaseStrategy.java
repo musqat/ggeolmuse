@@ -1,5 +1,6 @@
 package com.muscat.backtest.domain.strategy;
 
+import com.muscat.backtest.common.engine.CapitalGainsTaxPayer;
 import com.muscat.backtest.common.engine.StrategyFinalizer;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.SkipReason;
@@ -83,7 +84,8 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
         log.info("종료일이 미래로 설정되어 오늘 날짜로 조정: {} -> {}", request.getEndDate(), actualEndDate);
       }
 
-      StrategyPurchases purchases = executeConditionalPurchases(request, actualEndDate);
+      CapitalGainsTaxPayer taxPayer = new CapitalGainsTaxPayer(Boolean.TRUE.equals(request.getCapitalGainsTax()));
+      StrategyPurchases purchases = executeConditionalPurchases(request, actualEndDate, taxPayer);
       List<StrategyTransaction> transactions = purchases.transactions();
       List<SkippedRound> skippedRounds = purchases.skippedRounds();
 
@@ -101,7 +103,9 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
       StrategyResponse response = finalized.fill(responseMapper.toStrategyResponse(
         request, finalized.transactions(), finalized.calculation(), finalized.currentPrice(), skippedRounds));
       response.setSkippedSpan(purchases.skippedSpan());
-      response.setCapitalGainsTax(Boolean.TRUE.equals(request.getCapitalGainsTax()) ? finalized.capitalGainsTax() : null);
+      response.setCapitalGainsTax(Boolean.TRUE.equals(request.getCapitalGainsTax())
+        ? finalized.capitalGainsTax(taxPayer.payments())
+        : null);
       return response;
 
     } finally {
@@ -169,7 +173,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
 
   // 조건부 매수 실행(시세가 깨진 날 종가 0 이하 · 계산이 실패한 날은 사지 않고 이유를 남긴 뒤 다음 날 다시)
   private StrategyPurchases executeConditionalPurchases(
-    ConditionalStrategyRequest request, LocalDate actualEndDate) {
+    ConditionalStrategyRequest request, LocalDate actualEndDate, CapitalGainsTaxPayer taxPayer) {
 
     List<StrategyTransaction> transactions = new ArrayList<>();
     BigDecimal previousClose = null;
@@ -215,6 +219,12 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
         if (priceData != null && priceData.available() && !usable) {
           skippedRounds.add(new SkippedRound(currentDate, SkipReason.NO_PRICE));
         } else if (usable) {
+          StrategyTransaction payment = taxPayer.pay(currentDate, transactions, cash,
+            fxOn(request, fxRateMap, currentDate), fxRateMap.isDefault(currentDate));
+          if (payment != null) {
+            transactions.add(payment);
+            cash = cash.subtract(payment.getTaxPaid());
+          }
           // 매도를 먼저 보고 판 날은 사지 않음(그 날짜에 산 주식은 매도를 본 뒤라 팔지 않음)
           StrategyTransaction sale = sells && heldShares.signum() > 0
             ? sellIfTriggered(request, priceData, currentDate, heldShares, heldCost, fxRateMap)

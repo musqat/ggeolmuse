@@ -1,9 +1,9 @@
 import React from 'react';
 import { ChevronDown } from 'lucide-react';
 import type { SkipReason, SkippedRound, StrategyTransaction } from '../../../services/api';
-import { formatKrw, formatSigned, formatUsd } from '../../../utils/format';
+import { formatKrw, formatNumber, formatSigned, formatUsd } from '../../../utils/format';
 import { gainLossClass } from '../../../utils/gainLoss';
-import { DIVIDEND_REINVEST, isSale } from './resultValues';
+import { DIVIDEND_REINVEST, TAX_PAYMENT, isPurchase, isSale } from './resultValues';
 
 const REASON_LABEL: Record<SkipReason, string> = {
   NO_PRICE: '시세 없음',
@@ -34,8 +34,6 @@ function roundsByYear(transactions: StrategyTransaction[], skippedRounds: Skippe
   return [...years.entries()];
 }
 
-const isPurchase = (tx: StrategyTransaction) => tx.trigger !== DIVIDEND_REINVEST && !isSale(tx);
-
 const countOf = (rounds: Round[], pick: (tx: StrategyTransaction) => boolean) =>
   rounds.filter((round) => round.kind === 'bought' && pick(round.tx)).length;
 
@@ -43,20 +41,23 @@ const countOf = (rounds: Round[], pick: (tx: StrategyTransaction) => boolean) =>
 function yearCounts(rounds: Round[]): string {
   const bought = countOf(rounds, isPurchase);
   const sold = countOf(rounds, isSale);
+  const dividends = countOf(rounds, (tx) => tx.trigger === DIVIDEND_REINVEST);
+  const payments = countOf(rounds, (tx) => tx.trigger === TAX_PAYMENT);
   const skipped = rounds.filter((round) => round.kind === 'skipped').length;
-  const dividends = rounds.length - bought - sold - skipped;
   return [
     bought > 0 && `매수 ${bought}회`,
     sold > 0 && `매도 ${sold}회`,
     dividends > 0 && `배당 재투자 ${dividends}회`,
+    payments > 0 && `양도세 납부 ${payments}회`,
     skipped > 0 && `미매수 ${skipped}회`,
   ]
     .filter(Boolean)
     .join(' · ');
 }
 
-// 금액 칸(매도는 받은 돈 · 실현 손익, 판 돈으로 산 매수는 쓴 판 돈)
+// 금액 칸(매도는 받은 돈 · 실현 손익, 판 돈으로 산 매수는 쓴 판 돈, 양도세 납부는 낸 달러)
 function AmountCell({ tx }: { tx: StrategyTransaction }) {
+  if (tx.trigger === TAX_PAYMENT) return <>{formatSigned(-(tx.taxPaid ?? 0), formatUsd)}</>;
   if (isSale(tx)) {
     return (
       <>
@@ -78,37 +79,42 @@ function AmountCell({ tx }: { tx: StrategyTransaction }) {
 
 const EMPTY = <span className="text-tx-3">-</span>;
 
+const NUMBER_CELL = 'py-1.5 pl-3 text-right whitespace-nowrap';
+
 function RoundRow({ round }: { round: Round }) {
   if (round.kind === 'skipped') {
     return (
       <tr className="border-t border-line/30">
         <td className="py-1.5 whitespace-nowrap">{round.planned}</td>
-        <td className="py-1.5 whitespace-nowrap text-warning">미매수 · {REASON_LABEL[round.reason]}</td>
-        <td className="py-1.5 text-right">{EMPTY}</td>
-        <td className="py-1.5 text-right">{EMPTY}</td>
-        <td className="py-1.5 text-right">{EMPTY}</td>
+        <td className="py-1.5 pl-3 whitespace-nowrap text-warning">미매수 · {REASON_LABEL[round.reason]}</td>
+        <td className={NUMBER_CELL}>{EMPTY}</td>
+        <td className={NUMBER_CELL}>{EMPTY}</td>
+        <td className={NUMBER_CELL}>{EMPTY}</td>
       </tr>
     );
   }
   const { tx } = round;
   const tradedOn = tx.actualDate ?? tx.date;
+  const payment = tx.trigger === TAX_PAYMENT;
   return (
     <tr className="border-t border-line/30">
       <td className="py-1.5 whitespace-nowrap">
         <div>{tradedOn}</div>
         {tradedOn !== tx.date && <div className="text-xs text-tx-3">계획 {tx.date}</div>}
       </td>
-      <td className="py-1.5 whitespace-nowrap">{tx.trigger ?? '매수'}</td>
-      <td className="py-1.5 text-right whitespace-nowrap">{formatUsd(tx.price)}</td>
-      <td className="py-1.5 text-right whitespace-nowrap">{Math.abs(tx.shares).toFixed(4)}주</td>
-      <td className="py-1.5 text-right whitespace-nowrap">
+      <td className="py-1.5 pl-3 whitespace-nowrap">{tx.trigger ?? '매수'}</td>
+      <td className={NUMBER_CELL}>{payment ? EMPTY : formatUsd(tx.price)}</td>
+      <td className={NUMBER_CELL}>
+        {payment ? EMPTY : `${formatNumber(Math.abs(tx.shares), { minimumFractionDigits: 4, maximumFractionDigits: 4 })}주`}
+      </td>
+      <td className={NUMBER_CELL}>
         <AmountCell tx={tx} />
       </td>
     </tr>
   );
 }
 
-// 매매 내역 표(연도마다 접힘, 매수 · 매도일 · 가격과 미매수 회차를 함께)
+// 매매 내역 표(연도마다 접힘, 매수 · 매도일 · 가격과 양도세 납부 · 미매수 회차를 함께)
 export const PurchaseHistory: React.FC<PurchaseHistoryProps> = ({ transactions, skippedRounds }) => {
   if (transactions.length === 0 && skippedRounds.length === 0) return null;
   const years = roundsByYear(transactions, skippedRounds);
@@ -116,12 +122,12 @@ export const PurchaseHistory: React.FC<PurchaseHistoryProps> = ({ transactions, 
   return (
     <div>
       {years.map(([year, rounds]) => (
-        <details key={year} className="group border-t border-line/50">
+        <details key={year} className="group/year border-t border-line/50">
           <summary className="flex items-center justify-between py-3 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
             <span className="font-medium text-tx-1">{year}년</span>
             <span className="inline-flex items-center gap-1 text-sm text-tx-2">
               <span>{yearCounts(rounds)}</span>
-              <ChevronDown aria-hidden className="w-4 h-4 transition-transform group-open:rotate-180" />
+              <ChevronDown aria-hidden className="w-4 h-4 transition-transform group-open/year:rotate-180" />
             </span>
           </summary>
           <div className="overflow-x-auto pb-3">
@@ -129,10 +135,10 @@ export const PurchaseHistory: React.FC<PurchaseHistoryProps> = ({ transactions, 
               <thead className="text-tx-2">
                 <tr>
                   <th className="py-1.5 text-left font-normal">날짜</th>
-                  <th className="py-1.5 text-left font-normal">구분</th>
-                  <th className="py-1.5 text-right font-normal">가격</th>
-                  <th className="py-1.5 text-right font-normal">수량</th>
-                  <th className="py-1.5 text-right font-normal">금액</th>
+                  <th className="py-1.5 pl-3 text-left font-normal">구분</th>
+                  <th className={`${NUMBER_CELL} font-normal`}>가격</th>
+                  <th className={`${NUMBER_CELL} font-normal`}>수량</th>
+                  <th className={`${NUMBER_CELL} font-normal`}>금액</th>
                 </tr>
               </thead>
               <tbody>
