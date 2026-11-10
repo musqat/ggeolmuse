@@ -160,14 +160,24 @@ describe('SimpleResult', () => {
     expect(screen.queryByText('예상 양도세')).toBeNull()
   })
 
-  it('양도세를 요청했으면 상세 앞에 예상 양도세 칸을 두고, 기간 끝에 팔았으면 현금 · 주식으로 나눠 투자금 기준 세후 수익률을 보인다', async () => {
-    const tax = { years: [], totalTaxKrw: 0, afterTaxValueKrw: 450000, afterTaxReturnPercent: 50 }
-    render(<SimpleResult result={{ ...result, capitalGainsTax: tax }} symbol="AAPL" purchaseDate="2023-01-03" sellAtEnd />)
+  it('양도세를 요청했으면 상세 앞에 예상 양도세 칸을 두고 현금 · 주식과 투자금 기준 세후 수익률을 보인다', async () => {
+    const tax = {
+      years: [],
+      totalTaxKrw: 0,
+      paidTaxKrw: 0,
+      unpaidTaxKrw: 0,
+      cashKrw: 10000,
+      stockKrw: 440000,
+      afterTaxValueKrw: 450000,
+      afterTaxReturnPercent: 50,
+    }
+    render(<SimpleResult result={{ ...result, capitalGainsTax: tax }} symbol="AAPL" purchaseDate="2023-01-03" />)
     const fold = screen.getByText('예상 양도세').closest('details') as HTMLElement
 
     expect(fold.compareDocumentPosition(screen.getByText('상세').closest('details') as HTMLElement)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
     await open('예상 양도세')
-    expect(screen.getByText('현금(양도세 뺌)').nextSibling).toHaveTextContent('₩10,000')
+    expect(screen.getByText('현금(낸 양도세 뺌)').nextSibling).toHaveTextContent('₩10,000')
+    expect(screen.getByText('주식').nextSibling).toHaveTextContent('₩440,000')
     expect(screen.getByText('세후 수익률 · 투자금 기준').nextSibling).toHaveTextContent('+50.00%')
   })
 

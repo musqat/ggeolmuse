@@ -6,12 +6,17 @@ import type { MetricCurrency } from './CurrencyToggle';
 // 배당 재투자 거래의 trigger 값
 export const DIVIDEND_REINVEST = '배당 재투자';
 
+// 양도세를 낸 줄의 trigger 값
+export const TAX_PAYMENT = '양도세 납부';
+
 // 매도 거래(수량이 음수)
 export const isSale = (tx: { shares: number }) => tx.shares < 0;
 
-// 배당 재투자 · 매도를 뺀 매수 횟수
-export const purchaseCount = (transactions: { trigger?: string; shares: number }[]) =>
-  transactions.filter((tx) => tx.trigger !== DIVIDEND_REINVEST && !isSale(tx)).length;
+// 배당 재투자 · 매도 · 양도세 납부를 뺀 매수 거래
+export const isPurchase = (tx: { trigger?: string; shares: number }) =>
+  tx.trigger !== DIVIDEND_REINVEST && tx.trigger !== TAX_PAYMENT && !isSale(tx);
+
+export const purchaseCount = (transactions: { trigger?: string; shares: number }[]) => transactions.filter(isPurchase).length;
 
 // 매도 횟수
 export const sellCount = (transactions: { shares: number }[]) => transactions.filter(isSale).length;

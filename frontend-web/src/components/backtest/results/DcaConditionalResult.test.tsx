@@ -119,6 +119,20 @@ describe('DcaConditionalResult', () => {
     expect(screen.getByText('· 매수 1회 · 매도 1회 · 미매수 1회')).toBeInTheDocument()
   })
 
+  it('양도세 납부 줄은 매매 내역 제목 줄과 상세의 매수 · 매도 횟수에 세지 않는다', async () => {
+    const transactions = [
+      { date: '2023-03-01', shares: 6, price: 150, amount: 1000000, fxRate: 1300, trigger: '골든 크로스' },
+      { date: '2023-08-01', shares: -6, price: 170, amount: 0, fxRate: 1300, trigger: '데드 크로스', proceeds: 1020, realizedProfit: 120 },
+      { date: '2024-05-01', actualDate: '2024-05-01', shares: 0, price: 0, amount: 0, fee: 0, fxRate: 1350, trigger: '양도세 납부', taxPaid: 52.3 },
+    ]
+    render(<DcaConditionalResult result={{ ...result, transactions }} {...props} kind="ma-cross" />)
+
+    expect(screen.getByText('· 매수 1회 · 매도 1회')).toBeInTheDocument()
+    await open('상세')
+    expect(screen.getByText('매수 횟수').nextSibling).toHaveTextContent('1회')
+    expect(screen.getByText('매도 횟수').nextSibling).toHaveTextContent('1회')
+  })
+
   it('예산 부족 구간을 처음 날짜 · 회차 수 한 줄로 알린다', () => {
     const skippedSpan = { firstDate: '2023-05-03', rounds: 4, reason: 'OVER_BUDGET' as const }
     render(<DcaConditionalResult result={{ ...result, skippedSpan }} {...props} />)
@@ -273,8 +287,12 @@ describe('DcaConditionalResult', () => {
 
   it('양도세를 요청했으면 누적 매수액 기준 세후 수익률과 연도별 양도세를 상세 앞 칸에 보이고, 요청하지 않았으면 칸이 없다', async () => {
     const tax = {
-      years: [{ year: 2023, realizedGainKrw: 3000000, deductionKrw: 2500000, taxKrw: 110000 }],
+      years: [{ year: 2023, realizedGainKrw: 3000000, deductionKrw: 2500000, taxKrw: 110000, dueDate: null, paidKrw: 0 }],
       totalTaxKrw: 110000,
+      paidTaxKrw: 0,
+      unpaidTaxKrw: 110000,
+      cashKrw: 0,
+      stockKrw: 1350000,
       afterTaxValueKrw: 1240000,
       afterTaxReturnPercent: 3.33,
     }
@@ -282,9 +300,9 @@ describe('DcaConditionalResult', () => {
     expect(screen.queryByText('예상 양도세')).toBeNull()
 
     rerender(<DcaConditionalResult result={{ ...result, capitalGainsTax: tax }} {...props} />)
-    expect(screen.getByText('· ₩110,000 · 세후 수익률 +3.33%')).toBeInTheDocument()
+    expect(screen.getByText('· ₩110,000 · 낸 ₩0 · 세후 수익률 +3.33%')).toBeInTheDocument()
     await open('예상 양도세')
-    expect(screen.getByText('세후 평가').nextSibling).toHaveTextContent('₩1,240,000')
+    expect(screen.getByText('세후 총 평가').nextSibling).toHaveTextContent('₩1,240,000')
     expect(screen.getByText('세후 수익률 · 누적 매수액 기준')).toBeInTheDocument()
     expect(screen.getByRole('row', { name: /2023년/ })).toHaveTextContent('₩110,000')
   })

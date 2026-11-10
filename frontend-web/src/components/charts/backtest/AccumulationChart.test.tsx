@@ -100,6 +100,22 @@ describe('AccumulationChart', () => {
     expect(screen.getByText(/보라 점 = 매수/)).toHaveTextContent('파란 선 = 주가 | 보라 점 = 매수(1개) | 빨간 점 = 매도(1개)')
   })
 
+  it('양도세 납부는 점을 찍지 않고 매수 횟수에 세지 않는다', async () => {
+    const withPayment = [
+      { date: '2026-03-01', actualDate: '2026-03-01', price: 100, shares: 1, amount: 140000, fxRate: 1400 },
+      { date: '2026-03-04', price: 101, shares: -1, amount: 0, fxRate: 1396, trigger: '데드 크로스' },
+      { date: '2026-03-05', actualDate: '2026-03-05', price: 0, shares: 0, amount: 0, fxRate: 1420, trigger: '양도세 납부' },
+    ]
+    renderWithQuery(<AccumulationChart {...props} transactions={withPayment} />)
+
+    await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(1))
+    expect(readCharts()[0].dots).toEqual([
+      { fill: '#8b5cf6', x: '2026-03-02', y: 100 },
+      { fill: '#ef4444', x: '2026-03-04', y: 101 },
+    ])
+    expect(screen.getByText('1회 매수 • 1회 매도 • 총 0.00주 보유')).toBeInTheDocument()
+  })
+
   it('전량 매도로 끝나면 부동소수 합이 음수로 남아도 보유를 0.00주로 보인다', async () => {
     const soldOut = [
       { date: '2026-03-02', price: 100, shares: 3.19845656, amount: 140000, fxRate: 1400 },

@@ -85,7 +85,6 @@ export const useMaCrossMode = (shared: SharedModeProps): ModeController => {
           result={result}
           symbol={symbol}
           startDate={period.start}
-          sellAtEnd={result.periodEnd === 'SELL_AT_END'}
         />
       ) : null,
   };

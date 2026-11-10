@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { BacktestHistoryDto, PeriodEnd } from '@services/api';
+import type { BacktestHistoryDto } from '@services/api';
 import type { BacktestMode, BacktestResult } from '../shared/backtestDisplay';
 import type { PeriodState } from '../settings/period';
 import type { BacktestOptionsState } from '../shared/backtestOptions';
@@ -21,7 +21,7 @@ export interface PreparedRun {
   execute: () => Promise<BacktestResult>;
   historyType: BacktestHistoryDto['backtestType'];
   // 비로그인 로컬 히스토리에 저장할 요청
-  params: { periodEnd?: PeriodEnd };
+  params: object;
   fxMode: 'auto' | 'manual';
   failureMessage: string;
 }

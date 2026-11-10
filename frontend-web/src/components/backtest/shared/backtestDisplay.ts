@@ -1,4 +1,4 @@
-import type { ComparisonResponse, PeriodEnd, SimulationResponse, StrategyResponse } from "../../../services/api";
+import type { ComparisonResponse, SimulationResponse, StrategyResponse } from "../../../services/api";
 
 export type BacktestMode =
   | "simple"
@@ -21,9 +21,8 @@ export const cashKrw = (values: { totalAssetKrw?: number | null; currentValueKrw
 
 export { STRATEGY_NAMES } from "../comparison/catalog";
 
-// 실행한 모드와 요청의 기간 끝 처리를 함께 담은 결과(mode 로 응답 종류를 가름)
-export type BacktestResult = (
+// 실행한 모드를 함께 담은 결과(mode 로 응답 종류를 가름)
+export type BacktestResult =
   | (SimulationResponse & { mode: "simple" })
   | (StrategyResponse & { mode: "dca" | "conditional" | "ma-cross"; budget?: number })
-  | (ComparisonResponse & { mode: "compare-symbols" | "compare-strategies" })
-) & { periodEnd?: PeriodEnd };
+  | (ComparisonResponse & { mode: "compare-symbols" | "compare-strategies" });

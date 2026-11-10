@@ -89,7 +89,7 @@ export const useSimpleMode = (shared: SharedModeProps): ModeController => {
     },
     renderResult: (result) =>
       result.mode === 'simple' ? (
-        <SimpleResult result={result} symbol={symbol} purchaseDate={period.start} sellAtEnd={result.periodEnd === 'SELL_AT_END'} />
+        <SimpleResult result={result} symbol={symbol} purchaseDate={period.start} />
       ) : null,
   };
 };

@@ -26,8 +26,6 @@ interface DcaConditionalResultProps {
   startDate: string;
   // 실행한 요청의 예산(없으면 제한 없음)
   budget?: number;
-  // 기간 끝에 남은 주식을 판 요청
-  sellAtEnd?: boolean;
 }
 
 const EMPTY_REASON: Record<StrategyKind, string> = {
@@ -59,7 +57,6 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
   symbol,
   startDate,
   budget,
-  sellAtEnd,
 }) => {
   const [currency, setCurrency] = useState<MetricCurrency>('KRW');
   const unused = unusedBudget(budget, result.totalInvested);
@@ -125,7 +122,7 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
       />
 
       {result.capitalGainsTax && (
-        <CapitalGainsTaxFold tax={result.capitalGainsTax} value={result} sellAtEnd={sellAtEnd} returnBasis="누적 매수액 기준" />
+        <CapitalGainsTaxFold tax={result.capitalGainsTax} returnBasis="누적 매수액 기준" />
       )}
 
       <ResultFold

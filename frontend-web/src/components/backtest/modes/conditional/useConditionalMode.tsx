@@ -173,7 +173,6 @@ export const useConditionalMode = (shared: SharedModeProps): ModeController => {
           symbol={symbol}
           startDate={period.start}
           budget={result.budget}
-          sellAtEnd={result.periodEnd === 'SELL_AT_END'}
         />
       ) : null,
   };

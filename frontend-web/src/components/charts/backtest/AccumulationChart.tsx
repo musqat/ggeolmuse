@@ -16,9 +16,7 @@ import { useChartPeriod } from "../common/hooks/useChartPeriod";
 import { getApiErrorMessage } from '../../../utils/apiError';
 import type { OHLCData } from '../../../types/ohlc';
 import { getTodayString } from "../../../utils/dateUtils";
-
-// 서버가 배당으로 산 거래에 다는 trigger
-const DIVIDEND_REINVEST = "배당 재투자";
+import { DIVIDEND_REINVEST, TAX_PAYMENT, isPurchase } from '@components/backtest/results/resultValues';
 
 interface Transaction {
   date: string;
@@ -74,13 +72,13 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
     if (!priceData) return EMPTY_CHART_DATA;
     const availableDates = priceData.map((item) => item.date).sort();
 
-    // 거래를 실제 거래일(주말 · 휴일이면 다음 영업일)에 맞추고 일반 매수 · 배당 재투자를 따로 셈(고른 기간보다 앞선 거래는 뺌)
+    // 거래를 실제 거래일(주말 · 휴일이면 다음 영업일)에 맞추고 일반 매수 · 배당 재투자를 따로 셈(고른 기간보다 앞선 거래 · 양도세 납부는 뺌)
     const purchaseDates = new Set<string>();
     const dividendDates = new Set<string>();
     const saleDates = new Set<string>();
     transactions.forEach((tx) => {
       const txDate = tx.actualDate || tx.date;
-      if (txDate < chartStartDate) return;
+      if (txDate < chartStartDate || tx.trigger === TAX_PAYMENT) return;
       const tradingDate = availableDates.find((d) => d >= txDate);
       if (!tradingDate) return;
       if (tx.shares < 0) saleDates.add(tradingDate);
@@ -122,7 +120,7 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
     return <ChartMessage plain>차트 데이터가 없습니다.</ChartMessage>;
   }
 
-  const bought = transactions.filter((t) => t.trigger !== DIVIDEND_REINVEST && t.shares >= 0).length;
+  const bought = transactions.filter(isPurchase).length;
   const sold = transactions.filter((t) => t.shares < 0).length;
   // 전량 매도 뒤 부동소수 합이 -0.00 으로 보이지 않게 소수 여섯째 자리에서 반올림
   const totalShares = Math.round(transactions.reduce((sum, t) => sum + t.shares, 0) * 1e6) / 1e6 || 0;
