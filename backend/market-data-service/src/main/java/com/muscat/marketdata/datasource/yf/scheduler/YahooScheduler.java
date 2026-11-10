@@ -87,7 +87,7 @@ public class YahooScheduler {
 
         log.info("=== [YF 스케줄러] 시가총액 업데이트 시작 ===");
 
-        List<Asset> assets = assetRepository.findByActiveTrue();
+        List<Asset> assets = assetRepository.findByActiveTrueAndAssetTypeNot(Asset.INDEX_TYPE);
         int updated = marketCapService.updateAllMarketCaps(assets);
 
         log.info("=== [YF 스케줄러] 시가총액 업데이트 완료: {}개 ===", updated);

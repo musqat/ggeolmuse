@@ -59,11 +59,11 @@ class MarketCapCollectionServiceTest {
   }
 
   @Test
-  @DisplayName("시총이 빈 종목을 배치 크기만큼만 처리하고, 받은 시총만 저장한다")
+  @DisplayName("시총이 빈 종목(지수 뺌)을 배치 크기만큼만 처리하고, 받은 시총만 저장한다")
   void collectsBatch() throws Exception {
     overviews();
     Asset aapl = asset("AAPL");
-    given(assetRepository.findByMarketCapIsNull()).willReturn(List.of(aapl, asset("NONE"), asset("DOWN"), asset("BAD")));
+    given(assetRepository.findByMarketCapIsNullAndAssetTypeNot(Asset.INDEX_TYPE)).willReturn(List.of(aapl, asset("NONE"), asset("DOWN"), asset("BAD")));
 
     service.collectMarketCaps();
 
@@ -76,13 +76,13 @@ class MarketCapCollectionServiceTest {
   @Test
   @DisplayName("꺼져 있거나 시총이 빈 종목이 없으면 부르지 않는다")
   void disabledOrNothing() {
-    given(assetRepository.findByMarketCapIsNull()).willReturn(List.of());
+    given(assetRepository.findByMarketCapIsNullAndAssetTypeNot(Asset.INDEX_TYPE)).willReturn(List.of());
 
     service.collectMarketCaps();
     ReflectionTestUtils.setField(service, "enabled", false);
     service.collectMarketCaps();
 
-    verify(assetRepository, times(1)).findByMarketCapIsNull();
+    verify(assetRepository, times(1)).findByMarketCapIsNullAndAssetTypeNot(Asset.INDEX_TYPE);
     verify(client, never()).get(any(), any());
   }
 
@@ -114,10 +114,10 @@ class MarketCapCollectionServiceTest {
   }
 
   @Test
-  @DisplayName("활성 종목 전체 갱신은 받은 것만 저장하고, 활성 종목이 없으면 부르지 않는다")
+  @DisplayName("지수를 뺀 활성 종목 전체 갱신은 받은 것만 저장하고, 종목이 없으면 부르지 않는다")
   void updateAllActive() throws Exception {
     overviews();
-    given(assetRepository.findByActiveTrue()).willReturn(List.of(asset("AAPL"), asset("ZERO"), asset("DOWN")), List.of());
+    given(assetRepository.findByActiveTrueAndAssetTypeNot(Asset.INDEX_TYPE)).willReturn(List.of(asset("AAPL"), asset("ZERO"), asset("DOWN")), List.of());
 
     service.updateAllMarketCaps();
     service.updateAllMarketCaps();

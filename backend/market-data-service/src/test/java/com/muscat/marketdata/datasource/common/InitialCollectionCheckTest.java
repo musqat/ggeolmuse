@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
+import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.repository.AssetRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,7 +16,7 @@ class InitialCollectionCheckTest {
   private final InitialCollectionCheck check = new InitialCollectionCheck(assetRepository);
 
   private void collected(long total, long withCandles) {
-    given(assetRepository.count()).willReturn(total);
+    given(assetRepository.countByAssetTypeNot(Asset.INDEX_TYPE)).willReturn(total);
     given(assetRepository.countWithCandles()).willReturn(withCandles);
   }
 
@@ -46,7 +47,7 @@ class InitialCollectionCheckTest {
   @Test
   @DisplayName("확인이 실패하면 진행 중이 아닌 것으로 본다")
   void checkFails() {
-    given(assetRepository.count()).willThrow(new IllegalStateException("db down"));
+    given(assetRepository.countByAssetTypeNot(Asset.INDEX_TYPE)).willThrow(new IllegalStateException("db down"));
 
     assertThat(check.inProgress()).isFalse();
   }

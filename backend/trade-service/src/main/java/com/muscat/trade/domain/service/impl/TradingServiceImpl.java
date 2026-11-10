@@ -1,6 +1,7 @@
 package com.muscat.trade.domain.service.impl;
 
 import com.muscat.commonlib.util.MoneyUtils;
+import com.muscat.trade.common.constants.TradeConstants;
 import com.muscat.trade.common.enums.response.TradeResponse;
 import com.muscat.trade.common.enums.type.PriceType;
 import com.muscat.trade.common.enums.type.TradeStatus;
@@ -266,9 +267,12 @@ public class TradingServiceImpl implements TradingService {
     return key == null ? Optional.empty() : idempotencyGuard.findDone(userId, key, fingerprint);
   }
 
-  // 거래 전 검증
+  // 거래 전 검증(지수는 주문 불가)
   private void performPreTradeValidation(String userId, Long accountId, String symbol,
     BigDecimal quantity, LocalDate tradeDate, TradeType tradeType) {
+    if (symbol.startsWith(TradeConstants.INDEX_SYMBOL_PREFIX)) {
+      throw new TradeException(TradeResponse.INDEX_NOT_TRADABLE);
+    }
     if (tradeType == TradeType.SELL) {
       validateSellEligibility(userId, accountId, symbol, quantity, tradeDate);
     }

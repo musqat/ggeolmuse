@@ -13,6 +13,9 @@ import lombok.*;
 @Table(name = "asset")
 public class Asset {
 
+  // 지수 자산 유형(공개 목록 · 상장 폐지 · 시가총액 · 배당 수집 대상 아님)
+  public static final String INDEX_TYPE = "INDEX";
+
   @Id
   @Column(name = "symbol", nullable = false, length = 16)
   private String symbol;
@@ -27,7 +30,7 @@ public class Asset {
   private String currency; // 통화 코드: KRW, USD
 
   @Column(name = "asset_type", nullable = false, length = 16)
-  private String assetType; // 자산 유형: EQUITY, ETF, BOND, CRYPTO 등
+  private String assetType; // 자산 유형: EQUITY, ETF, INDEX
 
   @Column(name = "market_cap")
   private Long marketCap; // 시가총액 (BIGINT, no decimal precision needed)

@@ -1,11 +1,12 @@
 package com.muscat.marketdata.datasource.common;
 
+import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.repository.AssetRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-// 캔들이 있는 종목이 95% 아래면 초기 수집 중으로 보는 확인
+// 캔들이 있는 종목(지수 뺌)이 95% 아래면 초기 수집 중으로 보는 확인
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -17,7 +18,7 @@ public class InitialCollectionCheck {
 
   public boolean inProgress() {
     try {
-      long totalAssets = assetRepository.count();
+      long totalAssets = assetRepository.countByAssetTypeNot(Asset.INDEX_TYPE);
       long assetsWithCandles = assetRepository.countWithCandles();
 
       if (totalAssets == 0) {

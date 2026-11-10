@@ -67,7 +67,7 @@ public class TradingController {
     ),
     @ApiResponse(
       responseCode = "400",
-      description = "잘못된 요청, 잔액 부족 또는 중복 요청 키 모양 오류",
+      description = "잘못된 요청, 지수 심볼, 잔액 부족 또는 중복 요청 키 모양 오류",
       content = @Content(
         mediaType = "application/json",
         schema = @Schema(implementation = ProblemDetail.class)
@@ -150,7 +150,7 @@ public class TradingController {
     ),
     @ApiResponse(
       responseCode = "400",
-      description = "잘못된 요청, 보유 수량 부족 또는 중복 요청 키 모양 오류",
+      description = "잘못된 요청, 지수 심볼, 보유 수량 부족 또는 중복 요청 키 모양 오류",
       content = @Content(
         mediaType = "application/json",
         schema = @Schema(implementation = ProblemDetail.class)

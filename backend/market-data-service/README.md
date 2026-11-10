@@ -7,6 +7,7 @@
 - 미국 주식 종목 관리 (NYSE, NASDAQ, NYSE ARCA). 목록은 11,000 개가 넘게 잡히고
   상장폐지된 것은 `active=false` 로 내려 약 9,000 개를 갱신한다
 - 일별 OHLC 데이터 수집
+- S&P 500(`^GSPC`) · 나스닥 100(`^NDX`) 지수 일봉 수집. 공개 종목 목록 · 검색에는 나오지 않는다
 - USD/KRW 환율 데이터 수집 및 제공
 - 배당금 정보 수집 및 제공
 - 데이터 소스 이원화 (Alpha Vantage, Yahoo Finance 전환 가능)

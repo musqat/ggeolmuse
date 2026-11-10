@@ -43,7 +43,8 @@ public class DataCollectionService {
                     event.getFromDate(),
                     event.getToDate()
             );
-            if (event.isIncludeDividends()) {
+            // 지수는 배당 없이 캔들만
+            if (event.isIncludeDividends() && !Asset.INDEX_TYPE.equals(event.getAssetType())) {
                 dividendCount = candleUpdateService.saveDividends(
                         event.getSymbol(),
                         event.getFromDate(),

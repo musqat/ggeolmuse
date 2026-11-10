@@ -67,8 +67,8 @@ public class SymbolCollector {
         LocalDate to = LocalDate.now();
         LocalDate from = to.minusDays(lookbackDays);
 
-        // 기존 심볼이 있는지 확인
-        long existingCount = assetRepository.count();
+        // 지수를 뺀 기존 종목 수
+        long existingCount = assetRepository.countByAssetTypeNot(Asset.INDEX_TYPE);
 
         // 기존 종목이 있으면 기동 때 발행 없음(전 종목 발행은 재기동마다 3천만 행 갱신, 갱신은 캔들 스케줄러 몫)
         if (existingCount > 0) {
@@ -202,7 +202,7 @@ public class SymbolCollector {
         }
     }
 
-    // 거르기 전 상장 목록에 없는 활성 종목 내림(목록 이름이 없는 관리자 추가 종목은 둠)
+    // 거르기 전 상장 목록에 없는 활성 종목 내림(목록 이름이 없는 관리자 추가 종목 · 지수는 둠)
     private void delistMissing(SymbolCatalog.Listing listing, List<Asset> stored) {
         if (!listing.complete()) {
             log.info("[YF-상장폐지] 상한 · 대체 목록이라 건너뛴다");
@@ -212,6 +212,7 @@ public class SymbolCollector {
         Set<String> listed = listing.listedSymbols();
         List<Asset> active = stored.stream()
             .filter(a -> Boolean.TRUE.equals(a.getActive()))
+            .filter(a -> !Asset.INDEX_TYPE.equals(a.getAssetType()))
             .toList();
 
         // 활성 종목의 절반 미만이면 목록 조회 이상으로 보고 멈춤
