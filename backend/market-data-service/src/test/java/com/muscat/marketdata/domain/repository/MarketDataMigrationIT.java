@@ -14,7 +14,7 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,7 +28,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-// 운영과 같은 Postgres 에 Flyway 로 만든 테이블과 엔티티 대조(다른 테스트는 H2 create-drop 이라 마이그레이션을 안 거침)
+// 운영과 같은 Postgres 에 Flyway 로 만든 테이블과 엔티티 대조(다른 테스트는 H2 create-drop 이라 테이블을 Hibernate 가 다시 만듦)
 @SpringBootTest(properties = {
   "spring.flyway.enabled=true",
   "spring.jpa.hibernate.ddl-auto=validate",
@@ -65,8 +65,9 @@ class MarketDataMigrationIT {
   @MockitoBean
   private AlphaVantageScheduler alphaVantageScheduler;
 
-  @AfterEach
-  void tearDown() {
+  // 마이그레이션이 넣은 지수 줄까지 테스트마다 먼저 비움
+  @BeforeEach
+  void clean() {
     candleRepository.deleteAll();
     dividendRepository.deleteAll();
     assetRepository.deleteAll();
@@ -238,6 +239,21 @@ class MarketDataMigrationIT {
     assertThat(assetRepository.findAll()).extracting(Asset::getSymbol, Asset::getActive).containsExactlyInAnyOrder(
       tuple("DRIFT", true), tuple("STALE", true), tuple("THIN", false), tuple("V13", false), tuple("NEW", false),
       tuple("GONE", false), tuple("STOCK", false));
+  }
+
+  @Test
+  @DisplayName("V18 은 S&P 500 · 나스닥 100 을 상장 목록 이름 없는 활성 지수로 넣고, 이미 있는 줄은 그대로 둔다")
+  void indexAssetsAdded() throws IOException {
+    assetRepository.save(typedAsset("^GSPC", "S&P 500 Index", "INDEX"));
+
+    jdbcTemplate.execute(migration("V18__Add_Index_Assets.sql"));
+
+    assertThat(assetRepository.findAll())
+      .extracting(Asset::getSymbol, Asset::getName, Asset::getCountry, Asset::getCurrency, Asset::getAssetType,
+        Asset::getActive, Asset::getSourceName)
+      .containsExactlyInAnyOrder(
+        tuple("^GSPC", "S&P 500 Index", "US", "USD", "INDEX", true, null),
+        tuple("^NDX", "NASDAQ 100", "US", "USD", "INDEX", true, null));
   }
 
   private void candle(String symbol, int daysAgo, long volume) {

@@ -25,6 +25,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriUtils;
 
 @Slf4j
 @Component
@@ -112,11 +113,12 @@ public class YahooFinanceClient {
   }
 
   // ===== 내부 메서드 =====
+  // 심볼은 주소 경로용으로 인코딩(^ → %5E, . · - 는 그대로)
   private String buildChartUrl(String symbol, LocalDate fromDate, LocalDate toDate) {
     long startEpoch = fromDate.atStartOfDay(MARKET_TIMEZONE).toEpochSecond();
     long endEpoch = toDate.plusDays(1).atStartOfDay(MARKET_TIMEZONE).minusSeconds(1)
       .toEpochSecond();
-    return baseUrl + CHART_BASE_PATH + symbol + QUERY_PARAMS +
+    return baseUrl + CHART_BASE_PATH + UriUtils.encodePathSegment(symbol, StandardCharsets.UTF_8) + QUERY_PARAMS +
       "&period1=" + startEpoch +
       "&period2=" + endEpoch;
   }

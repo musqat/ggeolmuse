@@ -84,6 +84,21 @@ class YahooFinanceClientTest {
   }
 
   @Test
+  @DisplayName("지수 심볼의 ^ 는 주소 경로에서 %5E 로 바꿔 부르고 . · - 는 그대로 둔다")
+  void symbolEncodedAsPathSegment() {
+    String query = "?interval=1d&events=div,splits&includeAdjustedClose=true&period1=1709528400&period2=1709701199";
+    for (String path : new String[]{"%5EGSPC", "BRK.B", "BF-B"}) {
+      server.expect(requestTo(BASE + "/v8/finance/chart/" + path + query))
+        .andRespond(withSuccess(JSON, MediaType.APPLICATION_JSON));
+    }
+
+    for (String symbol : new String[]{"^GSPC", "BRK.B", "BF-B"}) {
+      assertThat(client.getDailyChartRaw(symbol, LocalDate.of(2024, 3, 4), LocalDate.of(2024, 3, 5))).isEqualTo(JSON);
+    }
+    server.verify();
+  }
+
+  @Test
   @DisplayName("gzip 으로 오면 헤더가 있든 없든 풀어서 돌려준다")
   void gzipBody() throws IOException {
     HttpHeaders gzipHeader = new HttpHeaders();
