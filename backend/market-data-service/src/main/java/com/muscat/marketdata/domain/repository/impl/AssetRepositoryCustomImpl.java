@@ -38,7 +38,7 @@ public class AssetRepositoryCustomImpl implements AssetRepositoryCustom {
         return queryFactory
             .select(asset.symbol)
             .from(asset)
-            .where(asset.active.isTrue())
+            .where(listed())
             .orderBy(asset.symbol.asc())
             .fetch();
     }
@@ -48,7 +48,7 @@ public class AssetRepositoryCustomImpl implements AssetRepositoryCustom {
         Long count = queryFactory
             .select(asset.count())
             .from(asset)
-            .where(asset.latestDate.isNotNull())
+            .where(asset.latestDate.isNotNull(), asset.assetType.ne(Asset.INDEX_TYPE))
             .fetchOne();
         return count != null ? count : 0L;
     }
@@ -75,7 +75,7 @@ public class AssetRepositoryCustomImpl implements AssetRepositoryCustom {
             ? new OrderSpecifier[]{asset.marketCap.asc().nullsLast(), asset.symbol.asc()}
             : new OrderSpecifier[]{asset.marketCap.desc().nullsLast(), asset.symbol.asc()};
 
-        BooleanExpression whereClause = activeOfType(assetType);
+        BooleanExpression whereClause = listedOfType(assetType);
 
         // 페이징 조회
         List<Asset> content = queryFactory
@@ -115,19 +115,23 @@ public class AssetRepositoryCustomImpl implements AssetRepositoryCustom {
             .leftJoin(dividend).on(dividend.symbol.eq(asset.symbol),
                 dividend.exDate.goe(rule.from()),
                 dividend.amount.loe(asset.latestClose.multiply(rule.specialRatio())))
-            .where(activeOfType(assetType))
+            .where(listedOfType(assetType))
             .groupBy(asset.symbol, asset.latestClose)
             .orderBy(tail.asc(), ascending ? yield.asc() : yield.desc(), asset.symbol.asc())
             .fetch();
     }
 
-    // 상장 중이고 유형이 맞는 종목(비었거나 ALL 이면 유형 무시)
-    private static BooleanExpression activeOfType(String assetType) {
-        BooleanExpression active = asset.active.isTrue();
+    // 공개 목록에 보이는 종목(상장 중 · 지수 아님)
+    private static BooleanExpression listed() {
+        return asset.active.isTrue().and(asset.assetType.ne(Asset.INDEX_TYPE));
+    }
+
+    // 공개 목록 종목 중 유형이 맞는 종목(비었거나 ALL 이면 유형 무시)
+    private static BooleanExpression listedOfType(String assetType) {
         if (assetType == null || "ALL".equalsIgnoreCase(assetType)) {
-            return active;
+            return listed();
         }
-        return active.and(asset.assetType.eq(assetType.toUpperCase()));
+        return listed().and(asset.assetType.eq(assetType.toUpperCase()));
     }
 
   // 파생 쿼리의 nullsLast 는 Criteria 가 처리하지 못해 QueryDSL 로 SQL 을 직접 만듦

@@ -100,10 +100,12 @@ class MarketRepositoryQueryTest {
     }
 
     @Test
-    @DisplayName("캔들 있는 종목 수는 종목 테이블의 최신 캔들 날짜가 채워진 종목을 센다")
+    @DisplayName("캔들 있는 종목 수는 종목 테이블의 최신 캔들 날짜가 채워진 종목을 세고 지수는 뺀다")
     void countWithCandles() {
       latestAsset("AAPL", D2);
       latestAsset("MSFT", D1);
+      assetRepository.save(Asset.builder().symbol("^GSPC").name("S&P 500").country("US").currency("USD")
+        .assetType(Asset.INDEX_TYPE).latestDate(D2).build());
       asset("OLD", "Old Corp", "EQUITY", 1L, false);
       asset("NVDA", "Nvidia", "EQUITY", 1L, true);
       candle("AAPL", D1, "0");
@@ -208,6 +210,40 @@ class MarketRepositoryQueryTest {
       assertThat(sums.get("KO")).isEqualByComparingTo("1.5");
       assertThat(sums.get("SPECIAL")).isEqualByComparingTo("0.3");
       assertThat(sums.get("OUTLIER")).isEqualByComparingTo("6");
+    }
+
+    @Test
+    @DisplayName("지수는 공개 티커 목록 · 시총 정렬 · 배당수익률 정렬에서 빠지고 관리자 요약 · 검색에는 남는다")
+    void indexHiddenFromPublicLists() {
+      assets();
+      asset("^GSPC", "S&P 500", Asset.INDEX_TYPE, null, true);
+      DividendYieldRule rule = new DividendYieldRule(LocalDate.now().minusYears(1), new BigDecimal("0.20"), new BigDecimal("0.50"));
+
+      Page<Asset> byCap = assetRepository.findActiveSortedByMarketCap(PageRequest.of(0, 10), false, null);
+      Page<Asset> indexType = assetRepository.findActiveSortedByMarketCap(PageRequest.of(0, 10), false, "index");
+
+      assertThat(assetRepository.findActiveSymbols()).containsExactly("AAPL", "MSFT", "NOCAP", "SPY");
+      assertThat(byCap.getContent()).extracting(Asset::getSymbol).containsExactly("AAPL", "MSFT", "SPY", "NOCAP");
+      assertThat(byCap.getTotalElements()).isEqualTo(4);
+      assertThat(indexType.getTotalElements()).isZero();
+      assertThat(assetRepository.findActiveSymbolsByDividendYield(false, "ALL", rule))
+        .containsExactlyInAnyOrder("AAPL", "MSFT", "NOCAP", "SPY");
+      assertThat(assetRepository.findSorted(PageRequest.of(0, 10, Sort.by("symbol")), true).getContent())
+        .extracting(Asset::getSymbol).contains("^GSPC");
+      assertThat(assetRepository.searchByKeyword("gspc", 10)).extracting(Asset::getSymbol).containsExactly("^GSPC");
+    }
+
+    @Test
+    @DisplayName("시총을 받을 종목 · 시총이 빈 종목 · 종목 수는 지수를 뺀다")
+    void marketCapTargetsSkipIndex() {
+      assets();
+      asset("^GSPC", "S&P 500", Asset.INDEX_TYPE, null, true);
+
+      assertThat(assetRepository.findByActiveTrueAndAssetTypeNot(Asset.INDEX_TYPE)).extracting(Asset::getSymbol)
+        .containsExactlyInAnyOrder("AAPL", "MSFT", "SPY", "NOCAP");
+      assertThat(assetRepository.findByMarketCapIsNullAndAssetTypeNot(Asset.INDEX_TYPE)).extracting(Asset::getSymbol)
+        .containsExactly("NOCAP");
+      assertThat(assetRepository.countByAssetTypeNot(Asset.INDEX_TYPE)).isEqualTo(5);
     }
 
     @Test

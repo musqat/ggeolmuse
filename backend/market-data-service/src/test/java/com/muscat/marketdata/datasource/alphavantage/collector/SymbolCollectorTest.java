@@ -23,7 +23,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
-// LISTING_STATUS 로 신규 상장은 넣고 목록에서 사라진 활성 종목은 상장폐지로(응답이 DB 의 절반도 안 되면 폐지 처리 중단)
+// LISTING_STATUS 로 신규 상장은 넣고 목록에서 사라진 활성 종목(지수 뺌)은 상장폐지로(응답이 DB 의 절반도 안 되면 폐지 처리 중단)
 @DisplayName("AlphaVantage 종목 동기화")
 class SymbolCollectorTest {
 
@@ -65,6 +65,23 @@ class SymbolCollectorTest {
     verify(producer).publishAssetCreated(aapl, true, LocalDate.of(1900, 1, 1), LocalDate.now(), true);
     verify(producer).publishAssetCreated(newco, true, LocalDate.of(1900, 1, 1), LocalDate.now(), true);
     verify(marketCapService).collectMarketCaps();
+  }
+
+  @Test
+  @DisplayName("목록에 없는 지수는 폐지 처리하지 않고 활성 종목 수집에는 넣는다")
+  void keepsIndex() {
+    Asset aapl = asset("AAPL", true);
+    Asset index = Asset.builder().symbol("^GSPC").assetType(Asset.INDEX_TYPE).active(true).build();
+    given(symbolSource.fetchSymbols()).willReturn(List.of(asset("AAPL", true)));
+    given(assetRepository.findAll()).willReturn(List.of(aapl, index));
+    given(assetRepository.findByActiveTrue()).willReturn(List.of(aapl, index));
+
+    collector.collectSymbols();
+
+    assertThat(index.getActive()).isTrue();
+    assertThat(index.getDelistedDate()).isNull();
+    verify(assetRepository, never()).save(index);
+    verify(producer).publishAssetCreated(index, true, LocalDate.of(1900, 1, 1), LocalDate.now(), true);
   }
 
   @Test

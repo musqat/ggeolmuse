@@ -294,7 +294,7 @@ public class AssetServiceImpl implements AssetService {
         if (marketCapSource == null) {
             throw new MarketDataException(MarketDataResponse.DATA_SOURCE_UNAVAILABLE);
         }
-        return marketCapSource.updateAllMarketCaps(assetRepository.findByActiveTrue());
+        return marketCapSource.updateAllMarketCaps(assetRepository.findByActiveTrueAndAssetTypeNot(Asset.INDEX_TYPE));
     }
 
     @Override

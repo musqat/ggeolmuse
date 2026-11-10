@@ -40,7 +40,7 @@ public class MarketCapCollectionService implements
     @Value("${marketdata.market-cap-collection.log-interval:10}")
     private int logInterval;
 
-    // 시가총액이 빈 종목만 채움
+    // 시가총액이 빈 종목만 채움(지수 뺌)
     @Async
     @Transactional
     public void collectMarketCaps() {
@@ -49,7 +49,7 @@ public class MarketCapCollectionService implements
             return;
         }
 
-        List<Asset> assetsWithoutMarketCap = assetRepository.findByMarketCapIsNull();
+        List<Asset> assetsWithoutMarketCap = assetRepository.findByMarketCapIsNullAndAssetTypeNot(Asset.INDEX_TYPE);
 
         if (assetsWithoutMarketCap.isEmpty()) {
             log.info("[AV-MarketCap] 시가총액 수집 필요 없음 (모든 종목에 시가총액 존재)");
@@ -187,7 +187,7 @@ public class MarketCapCollectionService implements
 
     @Transactional
     public void updateAllMarketCaps() {
-        List<Asset> assets = assetRepository.findByActiveTrue();
+        List<Asset> assets = assetRepository.findByActiveTrueAndAssetTypeNot(Asset.INDEX_TYPE);
 
         if (assets.isEmpty()) {
             log.info("[AV-MarketCap] 업데이트할 활성 종목 없음");

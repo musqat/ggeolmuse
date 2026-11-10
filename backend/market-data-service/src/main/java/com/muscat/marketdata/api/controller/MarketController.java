@@ -173,7 +173,7 @@ public class MarketController {
 
   @Operation(
     summary = "종목 티커 목록 조회",
-    description = "상장 중인 종목의 티커만 조회합니다. 검색 자동완성에 씁니다"
+    description = "상장 중인 종목의 티커만 조회합니다(지수 제외). 검색 자동완성에 씁니다"
   )
   @ApiResponses(value = {
     @ApiResponse(
@@ -199,7 +199,7 @@ public class MarketController {
 
   @Operation(
     summary = "종목 목록과 현재가 조회 (페이지네이션)",
-    description = "시스템에 등록된 종목의 기본 정보와 최신 종가를 페이지 단위로 조회합니다. 시가총액 또는 최근 1년 배당수익률로 정렬하고, 전일 종가 · 등락률 · 거래량은 비워 둡니다"
+    description = "상장 중인 종목(지수 제외)의 기본 정보와 최신 종가를 페이지 단위로 조회합니다. 시가총액 또는 최근 1년 배당수익률로 정렬하고, 전일 종가 · 등락률 · 거래량은 비워 둡니다"
   )
   @ApiResponses(value = {
     @ApiResponse(

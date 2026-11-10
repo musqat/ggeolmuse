@@ -55,6 +55,18 @@ class DataCollectionServiceTest {
   }
 
   @Test
+  @DisplayName("지수는 배당을 넣어도 캔들만 받는다")
+  void indexSkipsDividends() {
+    AssetCreatedEvent index = AssetCreatedEvent.builder().symbol("^GSPC").assetType(Asset.INDEX_TYPE)
+      .fromDate(FROM).toDate(TO).collectData(true).includeDividends(true).build();
+
+    service.collect(index);
+
+    verify(updateService).saveCandles("^GSPC", FROM, TO);
+    verify(updateService, never()).saveDividends(any(), any(), any());
+  }
+
+  @Test
   @DisplayName("수집이 실패하면 그 예외가 그대로 난다")
   void failure() {
     given(updateService.saveCandles("AAPL", FROM, TO)).willThrow(new IllegalStateException("yahoo down"));

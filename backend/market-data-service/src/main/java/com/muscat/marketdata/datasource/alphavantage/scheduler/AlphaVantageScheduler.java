@@ -120,7 +120,7 @@ public class AlphaVantageScheduler {
     }
   }
 
-  // 종목마다 이벤트로 넘겨 비동기로 증분 수집(마지막 수집일 이후만)
+  // 종목마다 이벤트로 넘겨 비동기로 증분 수집(마지막 수집일 이후만, AlphaVantage 가 모르는 지수 표기는 뺌)
   @Scheduled(cron = "${alphavantage.scheduler.candle.cron:0 0 7 * * MON-FRI}",
     zone = "${alphavantage.scheduler.zone:Asia/Seoul}")
   @SchedulerLock(
@@ -138,8 +138,8 @@ public class AlphaVantageScheduler {
     log.info("=== [AV 스케줄러] 캔들 업데이트 시작 ===");
 
     try {
-      List<Asset> assets = assetRepository.findByActiveTrue();
-      log.info("[AV 스케줄러] 업데이트 대상 종목 (활성화만): {}개", assets.size());
+      List<Asset> assets = assetRepository.findByActiveTrueAndAssetTypeNot(Asset.INDEX_TYPE);
+      log.info("[AV 스케줄러] 업데이트 대상 종목 (활성화 · 지수 뺌): {}개", assets.size());
 
       LocalDate today = LocalDate.now(ZoneId.of("America/New_York"));
       // 1년치 요청

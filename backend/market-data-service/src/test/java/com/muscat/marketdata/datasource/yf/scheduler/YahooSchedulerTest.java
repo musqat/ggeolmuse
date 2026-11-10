@@ -43,7 +43,7 @@ class YahooSchedulerTest {
   }
 
   private void collected(long total, long withCandles) {
-    given(assetRepository.count()).willReturn(total);
+    given(assetRepository.countByAssetTypeNot(Asset.INDEX_TYPE)).willReturn(total);
     given(assetRepository.countWithCandles()).willReturn(withCandles);
   }
 
@@ -77,13 +77,26 @@ class YahooSchedulerTest {
   @Test
   @DisplayName("종목이 하나도 없거나 진행률 확인이 실패하면 갱신을 돌린다")
   void runsWhenNoAssetsOrCheckFails() {
-    given(assetRepository.count()).willReturn(0L).willThrow(new IllegalStateException("db down"));
-    given(assetRepository.findByActiveTrue()).willReturn(List.of());
+    given(assetRepository.countByAssetTypeNot(Asset.INDEX_TYPE)).willReturn(0L).willThrow(new IllegalStateException("db down"));
+    given(assetRepository.findByActiveTrueAndAssetTypeNot(Asset.INDEX_TYPE)).willReturn(List.of());
 
     scheduler.updateMarketCaps();
     scheduler.updateMarketCaps();
 
     verify(marketCapService, org.mockito.Mockito.times(2)).updateAllMarketCaps(List.of());
+  }
+
+  @Test
+  @DisplayName("시총 갱신은 지수를 뺀 활성 종목을 넘긴다")
+  void marketCapsSkipIndex() {
+    collected(100, 95);
+    List<Asset> stocks = List.of(Asset.builder().symbol("AAPL").build());
+    given(assetRepository.findByActiveTrueAndAssetTypeNot(Asset.INDEX_TYPE)).willReturn(stocks);
+
+    scheduler.updateMarketCaps();
+
+    verify(marketCapService).updateAllMarketCaps(stocks);
+    verify(assetRepository, never()).findByActiveTrue();
   }
 
   @Test

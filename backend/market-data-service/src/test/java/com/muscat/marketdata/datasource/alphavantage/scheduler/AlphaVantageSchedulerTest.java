@@ -51,7 +51,7 @@ class AlphaVantageSchedulerTest {
     new InitialCollectionCheck(assetRepository));
 
   private void collected(long total, long withCandles) {
-    given(assetRepository.count()).willReturn(total);
+    given(assetRepository.countByAssetTypeNot(Asset.INDEX_TYPE)).willReturn(total);
     given(assetRepository.countWithCandles()).willReturn(withCandles);
   }
 
@@ -134,11 +134,11 @@ class AlphaVantageSchedulerTest {
     }
 
     @Test
-    @DisplayName("캔들은 활성 종목마다 1년 수집을 발행하고 한 종목 실패에 멈추지 않는다")
+    @DisplayName("캔들은 지수를 뺀 활성 종목마다 1년 수집을 발행하고 한 종목 실패에 멈추지 않는다")
     void candles() {
       Asset fail = Asset.builder().symbol("FAIL").build();
       Asset aapl = Asset.builder().symbol("AAPL").build();
-      given(assetRepository.findByActiveTrue()).willReturn(List.of(fail, aapl));
+      given(assetRepository.findByActiveTrueAndAssetTypeNot(Asset.INDEX_TYPE)).willReturn(List.of(fail, aapl));
       willThrow(new IllegalStateException("broker down")).given(producer).publishAssetCreated(eq(fail), anyBoolean(), any(), any(), anyBoolean());
       LocalDate today = LocalDate.now(ZoneId.of("America/New_York"));
 
@@ -168,14 +168,14 @@ class AlphaVantageSchedulerTest {
     scheduler.updateMarketCaps();
 
     verify(fxSource, never()).fetchFx(any());
-    verify(assetRepository, never()).findByActiveTrue();
+    verify(assetRepository, never()).findByActiveTrueAndAssetTypeNot(any());
     verify(marketCapService, never()).updateAllMarketCaps();
   }
 
   @Test
   @DisplayName("종목이 없거나 진행률 확인이 실패하면 갱신을 돌린다")
   void runsWhenNoAssetsOrCheckFails() {
-    given(assetRepository.count()).willReturn(0L).willThrow(new IllegalStateException("db down"));
+    given(assetRepository.countByAssetTypeNot(Asset.INDEX_TYPE)).willReturn(0L).willThrow(new IllegalStateException("db down"));
 
     scheduler.updateMarketCaps();
     scheduler.updateMarketCaps();

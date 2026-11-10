@@ -123,10 +123,11 @@ public class SymbolCollector {
       }
     }
 
-    // 2. 상장 폐지: DB에 있지만 CSV에 없음
+    // 2. 상장 폐지: DB에 있지만 CSV에 없음(지수는 둠)
     log.info("[AV-심볼수집] 상장 폐지 종목 확인 중...");
     for (Asset existingAsset : existingAssets) {
-      if (!latestSymbolSet.contains(existingAsset.getSymbol()) && existingAsset.getActive()) {
+      if (!latestSymbolSet.contains(existingAsset.getSymbol()) && existingAsset.getActive()
+        && !Asset.INDEX_TYPE.equals(existingAsset.getAssetType())) {
         try {
           existingAsset.setActive(false);
           existingAsset.setDelistedDate(LocalDate.now());

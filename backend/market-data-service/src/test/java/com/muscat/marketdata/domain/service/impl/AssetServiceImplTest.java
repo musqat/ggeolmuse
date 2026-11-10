@@ -901,9 +901,9 @@ class AssetServiceImplTest {
     }
 
     @Test
-    @DisplayName("전체 시총 갱신은 활성 종목을 소스에 넘기고 바꾼 수를 돌려준다")
+    @DisplayName("전체 시총 갱신은 지수를 뺀 활성 종목을 소스에 넘기고 바꾼 수를 돌려준다")
     void marketCapAll() {
-      given(assetRepository.findByActiveTrue()).willReturn(List.of(testAsset));
+      given(assetRepository.findByActiveTrueAndAssetTypeNot(Asset.INDEX_TYPE)).willReturn(List.of(testAsset));
       given(marketCapSource.updateAllMarketCaps(List.of(testAsset))).willReturn(1);
 
       assertThat(assetService.updateAllMarketCaps()).isEqualTo(1);
