@@ -2,6 +2,8 @@ package com.muscat.backtest.common.constants;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Month;
+import java.time.MonthDay;
 
 /**
  * 백테스트 서비스에서 사용하는 상수 정의
@@ -55,6 +57,9 @@ public final class BacktestConstants {
 
     /** 짧은 이동평균이 긴 이동평균을 위에서 아래로 넘은 날 매도 */
     public static final String DEAD_CROSS = "데드 크로스";
+
+    /** 판 해의 양도세를 다음 해 5월 판 돈에서 냄 */
+    public static final String CAPITAL_GAINS_TAX_PAYMENT = "양도세 납부";
   }
 
   /**
@@ -118,5 +123,8 @@ public final class BacktestConstants {
 
     /** 세율 (지방소득세 포함 22%) */
     public static final BigDecimal TAX_RATE = new BigDecimal("0.22");
+
+    /** 판 다음 해 이 날 이후 첫 거래일이 납부일 */
+    public static final MonthDay PAYMENT_FROM = MonthDay.of(Month.MAY, 1);
   }
 }

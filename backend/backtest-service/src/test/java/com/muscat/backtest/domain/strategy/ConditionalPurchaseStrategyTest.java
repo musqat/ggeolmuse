@@ -1138,10 +1138,47 @@ class ConditionalPurchaseStrategyTest {
 
         // 130만원어치 10주를 1100달러 × 1300원에 팔아 13만원 이익, 공제 안이라 세금 0
         assertThat(response.getCapitalGainsTax().years()).containsExactly(
-          new CapitalGainsTax.Year(2024, new BigDecimal("130000"), new BigDecimal("130000"), new BigDecimal("0")));
+          new CapitalGainsTax.Year(2024, new BigDecimal("130000"), new BigDecimal("130000"), new BigDecimal("0"), null,
+            BigDecimal.ZERO));
         assertThat(response.getCapitalGainsTax().totalTaxKrw()).isEqualByComparingTo("0");
+        assertThat(response.getCapitalGainsTax().cashKrw()).isEqualByComparingTo("1430000");
+        assertThat(response.getCapitalGainsTax().stockKrw()).isEqualByComparingTo("0");
         assertThat(response.getCapitalGainsTax().afterTaxValueKrw()).isEqualByComparingTo("1430000");
         assertThat(response.getCapitalGainsTax().afterTaxReturnPercent()).isEqualByComparingTo("10.00");
+      }
+
+      @Test
+      @DisplayName("양도세를 켜면 납부일에 판 돈이 모자라 있는 만큼 내고, 남은 몫은 다음에 판 다음 거래일에 사고팔기보다 먼저 낸다")
+      void paysCapitalGainsTaxFromCash() {
+        // 10주씩, 410 에 익절(4100달러) · 다음 날 390 에 판 돈으로 10주(남은 200달러), 2025년 5월 1일 납부일 뒤 190 에 손절
+        ConditionalStrategyRequest request = selling(426, 10).amountPerPurchase(null).sharesPerPurchase(10)
+          .takeProfitRate(new BigDecimal("3.1")).stopLossRate(new BigDecimal("0.5")).capitalGainsTax(true).build();
+        stubMarket(request, afterEntry(candle(2, "400", "440", "395", "434"), bar(3, "390", "390", "390"),
+          day(423, "390"), bar(424, "190", "190", "190"), day(425, "190")), false);
+
+        StrategyResponse response = strategy.execute(request);
+
+        assertThat(trades()).containsExactly(ENTRY, tuple("410", "310.0%익절", -1), tuple("390", "10.1%하락", 1),
+          tuple("0", "양도세 납부", 0), tuple("190", "51.3%손절", -1), tuple("0", "양도세 납부", 0));
+        // 403만원 이익의 세금 33만 6,600원 가운데 200달러 × 1300원, 남은 7만 6,600원 ÷ 1300원
+        List<StrategyTransaction> payments = executed().stream().filter(StrategyTransaction::isTaxPayment).toList();
+        assertThat(payments).extracting(StrategyTransaction::getDate)
+          .containsExactly(START.plusDays(423), START.plusDays(425));
+        assertThat(payments).extracting(tx -> tx.getTaxPaid().stripTrailingZeros().toPlainString())
+          .containsExactly("200", "58.92");
+        // 판 돈 4100 - 3900 - 200 + 1900 - 58.92 달러
+        assertThat(calculation().getCashBalance()).isEqualByComparingTo("1841.08");
+        CapitalGainsTax tax = response.getCapitalGainsTax();
+        assertThat(tax.years()).containsExactly(
+          new CapitalGainsTax.Year(2024, new BigDecimal("4030000"), new BigDecimal("2500000"), new BigDecimal("336600"),
+            START.plusDays(423), new BigDecimal("336600")),
+          new CapitalGainsTax.Year(2025, new BigDecimal("-2600000"), new BigDecimal("0"), new BigDecimal("0"), null,
+            BigDecimal.ZERO));
+        assertThat(tax.paidTaxKrw()).isEqualByComparingTo("336600");
+        assertThat(tax.unpaidTaxKrw()).isEqualByComparingTo("0");
+        assertThat(tax.cashKrw()).isEqualByComparingTo("2393404");
+        assertThat(tax.afterTaxValueKrw()).isEqualByComparingTo("2393404");
+        assertThat(tax.afterTaxReturnPercent()).isEqualByComparingTo("84.11");
       }
 
       @Test

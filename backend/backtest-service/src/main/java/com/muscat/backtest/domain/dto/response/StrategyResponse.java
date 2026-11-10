@@ -26,9 +26,9 @@ public class StrategyResponse {
   private StrategyType strategyType;
 
   // 투자 실행 내역
-  @Schema(description = "전략 거래 내역 목록")
+  @Schema(description = "전략 거래 내역 목록 (양도세를 켜면 양도세 납부 줄 포함)")
   private List<StrategyTransaction> transactions;
-  @Schema(description = "총 거래 횟수", example = "9")
+  @Schema(description = "총 거래 횟수 (양도세 납부 줄 제외)", example = "9")
   private Integer totalTransactions;
 
   // 투자 금액 요약
@@ -48,7 +48,7 @@ public class StrategyResponse {
   private BigDecimal currentValueKrw;
   @Schema(description = "총 자산 (주식+잔액+배당, KRW)", example = "118,150,558")
   private BigDecimal totalAssetKrw;           // 총 자산 = 주식가치 + 잔액 + 배당금
-  @Schema(description = "매도로 남은 현금 (USD, 매도가 없으면 0)", example = "1100.00")
+  @Schema(description = "매도로 남은 현금 (USD, 낸 양도세 뺌, 매도가 없으면 0)", example = "1100.00")
   private BigDecimal cashBalance;
   @Schema(description = "매도 실현 손익 합 (USD, 매도가 없으면 0)", example = "100.00")
   private BigDecimal realizedProfit;
@@ -75,7 +75,7 @@ public class StrategyResponse {
   @Schema(description = "배당 수익률 (%)", example = "1.67")
   private BigDecimal dividendYield;
 
-  @Schema(description = "예상 양도소득세 · 세후 평가 (요청에서 끄면 null)")
+  @Schema(description = "양도소득세 · 기간 안 납부와 세후 평가 (요청에서 끄면 null)")
   private CapitalGainsTax capitalGainsTax;
 
   // 미매수 회차
@@ -83,7 +83,7 @@ public class StrategyResponse {
   private List<SkippedRound> skippedRounds;
   @Schema(description = "예산 부족으로 사지 못한 구간(처음 날짜 · 회차 수 · 이유, 없으면 null)")
   private SkippedSpan skippedSpan;
-  @Schema(description = "환율이 없어 기본 환율로 계산한 날(산 날 · 배당 재투자일 · 평가일, 양도세를 켜면 판 날)", example = "[\"2013-06-03\"]")
+  @Schema(description = "환율이 없어 기본 환율로 계산한 날(산 날 · 배당 재투자일 · 평가일, 양도세를 켜면 판 날 · 낸 날)", example = "[\"2013-06-03\"]")
   @Builder.Default
   private List<LocalDate> defaultFxDates = List.of();
 

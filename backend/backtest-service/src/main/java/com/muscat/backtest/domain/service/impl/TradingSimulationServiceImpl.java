@@ -376,8 +376,8 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
 
     Function<LocalDate, BigDecimal> fx = fxPath(context, calculation, fxRates);
     response.setCapitalGainsTax(Boolean.TRUE.equals(context.request().getCapitalGainsTax())
-      ? CapitalGainsTaxCalculator.of(realizedGains(calculation, fx), calculation.totalAssetKrw(),
-        calculation.investmentKrw())
+      ? CapitalGainsTaxCalculator.of(realizedGains(calculation, fx), CapitalGainsTaxCalculator.Payments.NONE,
+        calculation.totalAssetKrw(), calculation.currentValueKrw(), calculation.investmentKrw())
       : null);
     List<DailyValue> dailyValues = dailyValues(candles, fx, calculation, context);
     // 원금: 원화는 투자금, 달러는 그것을 매수 환율로 바꾼 값

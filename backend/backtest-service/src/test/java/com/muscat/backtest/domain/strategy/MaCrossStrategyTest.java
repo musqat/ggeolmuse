@@ -91,6 +91,17 @@ class MaCrossStrategyTest {
       day(4, "12"), day(5, "8"), day(6, "30"), day(7, "31"));
   }
 
+  // 2025년 5월 1일(시작일 + 423일), 2024년 판 해의 납부일
+  private static final LocalDate DUE = START.plusDays(423);
+
+  // 1일째 골든 크로스(10), 4일째 데드 크로스(49) 뒤 5일째 40 에 이어지는 날
+  private static List<OHLCPriceDto> taxedCrossing(OHLCPriceDto... rest) {
+    List<OHLCPriceDto> prices = new ArrayList<>(List.of(day(-2, "8"), day(-1, "8"), day(0, "8"), day(1, "10"),
+      day(2, "60"), day(3, "70"), day(4, "49"), day(5, "40")));
+    prices.addAll(List.of(rest));
+    return prices;
+  }
+
   // 원금 130만원(환율 1300 고정이면 1000달러) · 2 · 3일 선 · 수수료 없음
   private static MaCrossStrategyRequest.MaCrossStrategyRequestBuilder request(int days) {
     return MaCrossStrategyRequest.builder().userId("test-user").symbol(SYMBOL)
@@ -294,8 +305,82 @@ class MaCrossStrategyTest {
 
       // 130만원어치 100주를 1200달러 × 1300원에 팔아 26만원 이익, 공제 안이라 세금 0
       assertThat(response.getCapitalGainsTax().years()).containsExactly(
-        new CapitalGainsTax.Year(2024, new BigDecimal("260000"), new BigDecimal("260000"), new BigDecimal("0")));
+        new CapitalGainsTax.Year(2024, new BigDecimal("260000"), new BigDecimal("260000"), new BigDecimal("0"), null,
+          BigDecimal.ZERO));
       assertThat(strategy.execute(request(7).build()).getCapitalGainsTax()).isNull();
+    }
+
+    @Test
+    @DisplayName("양도세를 켜면 판 해의 세금을 다음 해 5월 1일 이후 첫 거래일에 그 날짜 매매보다 먼저 판 돈에서 내고 남은 돈으로 산다")
+    void paysCapitalGainsTaxBeforeTrading() {
+      stubMarket(taxedCrossing(day(422, "30"), day(423, "60"), day(424, "61")));
+
+      StrategyResponse response = strategy.execute(request(424).capitalGainsTax(true).build());
+
+      assertThat(trades()).containsExactly(
+        tuple(START.plusDays(1), "10", "골든 크로스", "100"),
+        tuple(START.plusDays(4), "49", "데드 크로스", "-100"),
+        tuple(DUE, "0", "양도세 납부", "0"),
+        tuple(DUE, "60", "골든 크로스", "74.418"));
+      // 130만원어치 100주를 4900달러 × 1300원에 팔아 507만원 이익, 257만원 × 22% ÷ 1300원
+      StrategyTransaction payment = executed().get(2);
+      assertThat(payment.getTaxPaid()).isEqualByComparingTo("434.92");
+      assertThat(payment.getFxRate()).isEqualByComparingTo("1300");
+      assertThat(executed().get(3).getCashUsed()).isEqualByComparingTo("4465.08");
+      StrategyCalculationResult calculation = calculation();
+      assertThat(calculation.getCashBalance()).isEqualByComparingTo("0");
+      // 74.418주 × 61달러 × 1300원
+      assertThat(calculation.getTotalAssetKrw()).isEqualByComparingTo("5901350");
+      assertThat(response.getDailyValues()).filteredOn(value -> value.date().isAfter(START.plusDays(5)))
+        .extracting(value -> value.valueUsd().toPlainString())
+        .containsExactly("4900.00", "4465.08", "4539.50");
+      CapitalGainsTax tax = response.getCapitalGainsTax();
+      assertThat(tax.years()).containsExactly(new CapitalGainsTax.Year(2024, new BigDecimal("5070000"),
+        new BigDecimal("2500000"), new BigDecimal("565400"), DUE, new BigDecimal("565400")));
+      assertThat(tax.paidTaxKrw()).isEqualByComparingTo("565400");
+      assertThat(tax.unpaidTaxKrw()).isEqualByComparingTo("0");
+      assertThat(tax.cashKrw()).isEqualByComparingTo("0");
+      assertThat(tax.stockKrw()).isEqualByComparingTo("5901350");
+      assertThat(tax.afterTaxValueKrw()).isEqualByComparingTo("5901350");
+    }
+
+    @Test
+    @DisplayName("납부일에 현금이 없으면 판 다음 거래일에 있는 만큼 내고, 현금을 다 쓰면 골든 크로스에도 사지 않으며 못 낸 몫은 세후 총 평가에서 뺀다")
+    void paysWhatCashAllowsAfterSale() {
+      // 6일째 골든 크로스(80)에 판 돈 전부로 다시 사 납부일(423일째)에 들고 있음, 424일째 데드 크로스(4), 426일째 골든 크로스(50)
+      stubMarket(taxedCrossing(day(6, "80"), day(423, "81"), day(424, "4"), day(425, "3"), day(426, "50")));
+
+      StrategyResponse response = strategy.execute(request(426).capitalGainsTax(true).build());
+
+      assertThat(trades()).containsExactly(
+        tuple(START.plusDays(1), "10", "골든 크로스", "100"),
+        tuple(START.plusDays(4), "49", "데드 크로스", "-100"),
+        tuple(START.plusDays(6), "80", "골든 크로스", "61.25"),
+        tuple(START.plusDays(424), "4", "데드 크로스", "-61.25"),
+        tuple(START.plusDays(425), "0", "양도세 납부", "0"));
+      assertThat(executed().getLast().getTaxPaid()).isEqualByComparingTo("245");
+      CapitalGainsTax tax = response.getCapitalGainsTax();
+      // 245달러 × 1300원, 2025년은 637만원어치를 31만 8,500원에 팔아 손실
+      assertThat(tax.years()).containsExactly(
+        new CapitalGainsTax.Year(2024, new BigDecimal("5070000"), new BigDecimal("2500000"), new BigDecimal("565400"),
+          DUE, new BigDecimal("318500")),
+        new CapitalGainsTax.Year(2025, new BigDecimal("-6051500"), new BigDecimal("0"), new BigDecimal("0"), null,
+          BigDecimal.ZERO));
+      assertThat(tax.paidTaxKrw()).isEqualByComparingTo("318500");
+      assertThat(tax.unpaidTaxKrw()).isEqualByComparingTo("246900");
+      assertThat(tax.afterTaxValueKrw()).isEqualByComparingTo("-246900");
+      assertThat(tax.afterTaxReturnPercent()).isEqualByComparingTo("-118.99");
+    }
+
+    @Test
+    @DisplayName("양도세를 끄면 판 돈에서 양도세를 내지 않는다")
+    void noPaymentWithoutCapitalGainsTax() {
+      stubMarket(taxedCrossing(day(422, "30"), day(423, "60"), day(424, "61")));
+
+      strategy.execute(request(424).build());
+
+      assertThat(executed()).noneMatch(StrategyTransaction::isTaxPayment);
+      assertThat(executed().getLast().getCashUsed()).isEqualByComparingTo("4900");
     }
 
     @Test

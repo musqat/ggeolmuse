@@ -42,10 +42,15 @@ public final class StrategyFinalizer {
       return response;
     }
 
-    // 판 거래의 연도별 예상 양도세와 총 자산 · 투자금 기준 세후 평가
+    // 판 거래의 연도별 양도세 · 기간 안 납부와 총 자산 · 주식 평가 · 투자금 기준 세후 평가
+    public CapitalGainsTax capitalGainsTax(CapitalGainsTaxCalculator.Payments payments) {
+      return CapitalGainsTaxCalculator.of(CapitalGainsTaxCalculator.realizedGains(transactions), payments,
+        calculation.getTotalAssetKrw(), calculation.getCurrentValueKrw(), calculation.getTotalInvested());
+    }
+
+    // 기간 안 납부가 없는 전략의 양도세
     public CapitalGainsTax capitalGainsTax() {
-      return CapitalGainsTaxCalculator.of(CapitalGainsTaxCalculator.realizedGains(transactions),
-        calculation.getTotalAssetKrw(), calculation.getTotalInvested());
+      return capitalGainsTax(CapitalGainsTaxCalculator.Payments.NONE);
     }
   }
 

@@ -1189,6 +1189,7 @@ class TradingSimulationServiceImplTest {
 
       assertThat(response.getCapitalGainsTax().years()).isEmpty();
       assertThat(response.getCapitalGainsTax().totalTaxKrw()).isEqualByComparingTo("0");
+      assertThat(response.getCapitalGainsTax().stockKrw()).isEqualByComparingTo(response.getCurrentValueKrw());
       assertThat(response.getCapitalGainsTax().afterTaxValueKrw()).isEqualByComparingTo(response.getTotalAssetKrw());
       assertThat(response.getCapitalGainsTax().afterTaxReturnPercent())
         .isEqualByComparingTo(response.getTotalReturnPercent());
@@ -1196,7 +1197,7 @@ class TradingSimulationServiceImplTest {
     }
 
     @Test
-    @DisplayName("기간 끝 매도를 고르면 마지막 거래일 종가에 수수료를 빼고 전량 팔아 주식 0 · 판 돈 현금이고, 판 해의 양도세를 낸다")
+    @DisplayName("기간 끝 매도를 고르면 마지막 거래일 종가에 수수료를 빼고 전량 팔아 주식 0 · 판 돈 현금이고, 판 해의 양도세는 납부일이 기간 뒤라 남은 양도세로 뺀다")
     void sellAtEnd() {
       // 일요일 평가라 마지막 거래일은 6월 14일
       LocalDate sunday = LocalDate.of(2024, 6, 16);
@@ -1217,7 +1218,12 @@ class TradingSimulationServiceImplTest {
       assertThat(valueUsdOn(response, saleDate)).isEqualByComparingTo("14701.50");
       // 1911만 1,950원 - 1만 달러 × 1300원, 250만원 공제 뒤 22%
       assertThat(response.getCapitalGainsTax().years()).containsExactly(
-        new CapitalGainsTax.Year(2024, new BigDecimal("6111950"), new BigDecimal("2500000"), new BigDecimal("794629")));
+        new CapitalGainsTax.Year(2024, new BigDecimal("6111950"), new BigDecimal("2500000"), new BigDecimal("794629"),
+          null, BigDecimal.ZERO));
+      assertThat(response.getCapitalGainsTax().paidTaxKrw()).isEqualByComparingTo("0");
+      assertThat(response.getCapitalGainsTax().unpaidTaxKrw()).isEqualByComparingTo("794629");
+      assertThat(response.getCapitalGainsTax().cashKrw()).isEqualByComparingTo("19111950");
+      assertThat(response.getCapitalGainsTax().stockKrw()).isEqualByComparingTo("0");
       assertThat(response.getCapitalGainsTax().afterTaxValueKrw()).isEqualByComparingTo("18317321");
       // 판 날 뒤 배당은 받지 않음
       verify(marketDataClientWrapper).getDividendHistory(TEST_SYMBOL, "2024-01-15", "2024-06-14");

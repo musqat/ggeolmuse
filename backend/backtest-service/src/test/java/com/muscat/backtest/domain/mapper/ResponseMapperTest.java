@@ -178,13 +178,20 @@ class ResponseMapperTest {
     }
 
     @Test
-    @DisplayName("거래 건수는 목록 크기를 따라간다")
+    @DisplayName("거래 건수는 양도세 납부 줄을 빼고 세고, 납부 줄은 낸 달러와 함께 거래 내역에 싣는다")
     void 거래_건수() {
-      StrategyResponse result = mapper.toStrategyResponse(
-        dcaRequest(), transactions(7), calculation(), price("120.5"), NONE);
+      List<StrategyTransaction> txs = new java.util.ArrayList<>(transactions(7));
+      txs.add(StrategyTransaction.builder().date(END).actualDate(END).price(BigDecimal.ZERO).shares(BigDecimal.ZERO)
+        .amount(BigDecimal.ZERO).fee(BigDecimal.ZERO).fxRate(new BigDecimal("1300")).taxPaid(new BigDecimal("434.92"))
+        .trigger("양도세 납부").build());
+
+      StrategyResponse result = mapper.toStrategyResponse(dcaRequest(), txs, calculation(), price("120.5"), NONE);
 
       assertThat(result.getTotalTransactions()).isEqualTo(7);
-      assertThat(result.getTransactions()).hasSize(7);
+      assertThat(result.getTransactions()).hasSize(8);
+      JsonNode json = toJson(result).get("transactions");
+      assertThat(json.get(7).get("taxPaid").decimalValue()).isEqualByComparingTo("434.92");
+      assertThat(json.get(0).get("taxPaid").isNull()).isTrue();
     }
 
     @Test
@@ -554,11 +561,13 @@ class ResponseMapperTest {
     }
 
     @Test
-    @DisplayName("시뮬레이션 · 전략 응답의 예상 양도세를 비교 항목에 그대로 옮긴다")
+    @DisplayName("시뮬레이션 · 전략 응답의 양도세를 비교 항목에 그대로 옮긴다")
     void 양도세() {
       CapitalGainsTax tax = new CapitalGainsTax(
-        List.of(new CapitalGainsTax.Year(2024, new BigDecimal("3000000"), new BigDecimal("2500000"), new BigDecimal("110000"))),
-        new BigDecimal("110000"), new BigDecimal("9890000"), new BigDecimal("23.63"));
+        List.of(new CapitalGainsTax.Year(2024, new BigDecimal("3000000"), new BigDecimal("2500000"), new BigDecimal("110000"),
+          LocalDate.of(2025, 5, 1), new BigDecimal("110000"))),
+        new BigDecimal("110000"), new BigDecimal("110000"), BigDecimal.ZERO, new BigDecimal("1420000"),
+        new BigDecimal("8470000"), new BigDecimal("9890000"), new BigDecimal("23.63"));
 
       assertThat(mapper.toComparisonItemFromSimulation(
         SimulationResponse.builder().symbol(SYMBOL).capitalGainsTax(tax).build(), "애플").getCapitalGainsTax())
