@@ -11,6 +11,7 @@ import com.muscat.backtest.common.enums.type.SkipReason;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
+import com.muscat.backtest.domain.dto.request.MaCrossStrategyRequest;
 import com.muscat.backtest.domain.dto.request.SymbolComparisonRequest;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
 import com.muscat.backtest.domain.dto.response.CapitalGainsTax;
@@ -147,6 +148,22 @@ class ResponseMapperTest {
         mapper.toStrategyResponse(request, transactions(2), calculation(), price("120.5"), NONE);
 
       assertThat(result.getStrategyType()).isEqualTo(StrategyType.CONDITIONAL_PURCHASE);
+    }
+
+    @Test
+    @DisplayName("이동평균 교차 요청이면 strategyType 이 MA_CROSS 이고 종목 · 기간을 그대로 싣는다")
+    void 이동평균_타입() {
+      MaCrossStrategyRequest request = MaCrossStrategyRequest.builder()
+        .symbol(SYMBOL).startDate(START).endDate(END).investmentAmount(new BigDecimal("1000000"))
+        .build();
+
+      StrategyResponse result =
+        mapper.toStrategyResponse(request, transactions(2), calculation(), price("120.5"), NONE);
+
+      assertThat(result.getStrategyType()).isEqualTo(StrategyType.MA_CROSS);
+      assertThat(result.getSymbol()).isEqualTo(SYMBOL);
+      assertThat(result.getStartDate()).isEqualTo(START);
+      assertThat(result.getEndDate()).isEqualTo(END);
     }
 
     @Test

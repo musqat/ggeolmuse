@@ -12,7 +12,7 @@ import java.time.LocalDate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-// 전략 타입 getter · 금액 · 주식 수 검사가 이력 저장 JSON 모양을 바꾸지 않는지
+// 전략 타입 getter · 금액 · 주식 수 · 이동평균 기간 검사가 이력 저장 JSON 모양을 바꾸지 않는지
 class StrategyRequestJsonTest {
 
   private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
@@ -22,6 +22,7 @@ class StrategyRequestJsonTest {
   void strategyType_PerRequest() {
     assertThat(dca().getStrategyType()).isEqualTo(StrategyType.DCA);
     assertThat(conditional().getStrategyType()).isEqualTo(StrategyType.CONDITIONAL_PURCHASE);
+    assertThat(maCross().getStrategyType()).isEqualTo(StrategyType.MA_CROSS);
   }
 
   @Test
@@ -29,6 +30,24 @@ class StrategyRequestJsonTest {
   void strategyType_NotSerialized() throws Exception {
     assertThat(objectMapper.writeValueAsString(dca())).doesNotContain("strategyType").contains("\"symbol\":\"AAPL\"");
     assertThat(objectMapper.writeValueAsString(conditional())).doesNotContain("strategyType");
+    assertThat(objectMapper.writeValueAsString(maCross())).doesNotContain("strategyType");
+  }
+
+  @Test
+  @DisplayName("이동평균 교차는 원금 · 짧은 · 긴 기간을 이력 JSON 에 저장하고 기간 검사 값은 넣지 않으며 비운 기간은 20 · 60 으로 본다")
+  void maCrossWindowsSaved() throws Exception {
+    MaCrossStrategyRequest saved = objectMapper.readValue(objectMapper.writeValueAsString(maCross()),
+      MaCrossStrategyRequest.class);
+    MaCrossStrategyRequest empty = objectMapper.readValue("{\"symbol\":\"AAPL\",\"investmentAmount\":1000}",
+      MaCrossStrategyRequest.class);
+
+    assertThat(objectMapper.writeValueAsString(maCross()))
+      .contains("\"investmentAmount\":10000", "\"shortWindow\":5", "\"longWindow\":20")
+      .doesNotContain("windowOrder").doesNotContain("OrDefault");
+    assertThat(saved.shortWindowOrDefault()).isEqualTo(5);
+    assertThat(saved.longWindowOrDefault()).isEqualTo(20);
+    assertThat(empty.shortWindowOrDefault()).isEqualTo(20);
+    assertThat(empty.longWindowOrDefault()).isEqualTo(60);
   }
 
   @Test
@@ -77,6 +96,11 @@ class StrategyRequestJsonTest {
   private DcaStrategyRequest dca() {
     return DcaStrategyRequest.builder().symbol("AAPL").startDate(LocalDate.of(2023, 1, 1)).endDate(LocalDate.of(2024, 1, 1))
       .amountPerPurchase(BigDecimal.valueOf(1000)).purchaseDay(1).userId("user-1").build();
+  }
+
+  private MaCrossStrategyRequest maCross() {
+    return MaCrossStrategyRequest.builder().symbol("AAPL").startDate(LocalDate.of(2023, 1, 1)).endDate(LocalDate.of(2024, 1, 1))
+      .investmentAmount(BigDecimal.valueOf(10000)).shortWindow(5).longWindow(20).userId("user-1").build();
   }
 
   private ConditionalStrategyRequest conditional() {

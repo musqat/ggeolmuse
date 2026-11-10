@@ -23,6 +23,7 @@ import com.muscat.backtest.domain.dto.request.BaseComparisonRequest;
 import com.muscat.backtest.common.enums.type.PriceDirection;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
+import com.muscat.backtest.domain.dto.request.MaCrossStrategyRequest;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
 import com.muscat.backtest.domain.dto.request.StrategyComparisonRequest;
 import com.muscat.backtest.domain.dto.request.SymbolComparisonRequest;
@@ -36,6 +37,7 @@ import com.muscat.backtest.domain.service.TradingSimulationService;
 import com.muscat.backtest.domain.strategy.ConditionalPurchaseStrategy;
 import com.muscat.backtest.domain.strategy.DCAStrategy;
 import com.muscat.backtest.domain.strategy.InvestmentStrategy;
+import com.muscat.backtest.domain.strategy.MaCrossStrategy;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Arrays;
@@ -65,6 +67,9 @@ class BacktestAnalysisServiceImplTest {
   private ConditionalPurchaseStrategy conditionalPurchaseStrategy;
 
   @Mock
+  private MaCrossStrategy maCrossStrategy;
+
+  @Mock
   private ResponseMapper responseMapper;
 
   @Mock
@@ -77,8 +82,9 @@ class BacktestAnalysisServiceImplTest {
     given(dcaStrategy.getStrategyType()).willReturn(StrategyType.DCA);
     given(conditionalPurchaseStrategy.getStrategyType()).willReturn(
       StrategyType.CONDITIONAL_PURCHASE);
+    given(maCrossStrategy.getStrategyType()).willReturn(StrategyType.MA_CROSS);
 
-    List<InvestmentStrategy> strategies = Arrays.asList(dcaStrategy, conditionalPurchaseStrategy);
+    List<InvestmentStrategy> strategies = Arrays.asList(dcaStrategy, conditionalPurchaseStrategy, maCrossStrategy);
 
     backtestAnalysisService = new BacktestAnalysisServiceImpl(
       tradingSimulationService,
@@ -189,6 +195,37 @@ class BacktestAnalysisServiceImplTest {
       verify(conditionalPurchaseStrategy).execute(request);
       verify(backtestHistoryUtils).saveBacktestHistory(
         eq("user456"),
+        eq(BacktestType.STRATEGY_SIMULATION),
+        eq(request)
+      );
+    }
+  }
+
+  @Nested
+  @DisplayName("이동평균 교차 전략 테스트")
+  class MaCrossStrategyTests {
+
+    @Test
+    @DisplayName("이동평균 교차 전략을 실행하고 전략 실행 이력을 남긴다")
+    void runMaCrossStrategy_Success() {
+      MaCrossStrategyRequest request = MaCrossStrategyRequest.builder()
+        .symbol("AAPL")
+        .startDate(LocalDate.of(2023, 1, 1))
+        .endDate(LocalDate.of(2024, 1, 1))
+        .investmentAmount(BigDecimal.valueOf(10_000_000))
+        .userId("user789")
+        .build();
+      StrategyResponse expectedResponse = StrategyResponse.builder()
+        .symbol("AAPL")
+        .strategyType(StrategyType.MA_CROSS)
+        .build();
+      given(maCrossStrategy.execute(request)).willReturn(expectedResponse);
+
+      StrategyResponse result = backtestAnalysisService.runMaCrossStrategy(request);
+
+      assertThat(result).isSameAs(expectedResponse);
+      verify(backtestHistoryUtils).saveBacktestHistory(
+        eq("user789"),
         eq(BacktestType.STRATEGY_SIMULATION),
         eq(request)
       );

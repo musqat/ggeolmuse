@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
-// 전략(DCA · 조건부) 공통 마무리: 평가일 시세 · 환율 → 총투자 · 환율 합 → 배당 재투자 → 기간 끝 매도 → 계산
+// 전략 공통 마무리: 평가일 시세 · 환율 → 총투자 · 환율 합 → 배당 재투자 → 기간 끝 매도 → 계산
 public final class StrategyFinalizer {
 
   /** 마무리 결과(거래내역 + 계산결과 + 평가일 시세 + 일별 가치 · 지표) */

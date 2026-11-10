@@ -11,6 +11,7 @@ import com.muscat.backtest.common.validation.BacktestRequestValidator;
 import com.muscat.backtest.domain.dto.request.BaseComparisonRequest;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
+import com.muscat.backtest.domain.dto.request.MaCrossStrategyRequest;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
 import com.muscat.backtest.domain.dto.request.StrategyComparisonRequest;
 import com.muscat.backtest.domain.dto.request.StrategyRequest;
@@ -61,6 +62,11 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
   @Override
   public StrategyResponse runConditionalStrategy(ConditionalStrategyRequest request) {
     return runStrategy("조건부 매수", request);
+  }
+
+  @Override
+  public StrategyResponse runMaCrossStrategy(MaCrossStrategyRequest request) {
+    return runStrategy("이동평균 교차", request);
   }
 
   // 전략 실행 · 이력 저장과 걸린 시간 로그
