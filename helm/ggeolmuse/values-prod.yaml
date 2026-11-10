@@ -155,7 +155,7 @@ services:
 
   tradeService:
     image:
-      tag: "1.8.2"
+      tag: "1.8.5"
     env:
       TZ: "Asia/Seoul"
     probes:
@@ -173,7 +173,7 @@ services:
 
   marketDataService:
     image:
-      tag: "1.8.1"
+      tag: "1.8.5"
     env:
       TZ: "Asia/Seoul"
       # 마켓 데이터 설정
