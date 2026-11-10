@@ -22,6 +22,7 @@ public enum TradeResponse implements ErrorCode {
 
     // === 클라이언트 오류 (400번대) ===
     INVALID_SYMBOL("유효하지 않은 심볼입니다.", HttpStatus.BAD_REQUEST),
+    INDEX_NOT_TRADABLE("지수는 사고팔 수 없습니다.", HttpStatus.BAD_REQUEST),
     INVALID_QUANTITY("수량은 0보다 큰 정수여야 합니다.", HttpStatus.BAD_REQUEST),
     INVALID_PRICE("가격은 0보다 큰 값이어야 합니다.", HttpStatus.BAD_REQUEST),
     MANUAL_PRICE_OUT_OF_RANGE("입력한 가격이 그 날짜 가격 범위를 벗어났습니다.", HttpStatus.BAD_REQUEST),

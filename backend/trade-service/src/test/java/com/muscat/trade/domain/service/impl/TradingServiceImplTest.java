@@ -43,6 +43,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -58,6 +59,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -251,6 +253,29 @@ class TradingServiceImplTest {
       verify(tradeRepository, never()).save(any(Trade.class));
       verify(holdingsRepository, never()).save(any(Holdings.class));
       verify(eventPublisher, never()).publishEvent(any(Object.class));
+    }
+  }
+
+  @Nested
+  @DisplayName("지수 심볼 주문 테스트")
+  class IndexSymbolTests {
+
+    @Test
+    @DisplayName("지수 심볼은 매수 · 매도 모두 시세 · 잔액 · 보유를 보기 전에 400 으로 막는다")
+    void indexSymbol_Rejected() {
+      assertIndexRejected(() -> tradingService.buyStock(TEST_USER_ID, TEST_ACCOUNT_ID, "^GSPC", TEST_QUANTITY,
+        TEST_TRADE_DATE, PriceType.CLOSE, null));
+      assertIndexRejected(() -> tradingService.sellStock(TEST_USER_ID, TEST_ACCOUNT_ID, "^NDX", TEST_QUANTITY,
+        TEST_TRADE_DATE, PriceType.CLOSE, null));
+
+      verifyNoInteractions(marketDataService, tradeUtils, holdingsRepository, tradeRepository, eventPublisher);
+    }
+
+    private void assertIndexRejected(ThrowingCallable order) {
+      assertThatThrownBy(order).isInstanceOfSatisfying(TradeException.class, e -> {
+        assertThat(e.getCode()).isEqualTo(TradeResponse.INDEX_NOT_TRADABLE);
+        assertThat(e.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+      });
     }
   }
 
