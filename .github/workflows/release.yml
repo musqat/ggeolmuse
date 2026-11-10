@@ -1,20 +1,20 @@
 name: 릴리스
 
-# master CI 가 초록이면 머지한 PR 의 빌드할 서비스 칸에서 체크한 서비스(손 실행은 적은 서비스) 가운데 운영 태그부터 바뀐 것만 빌드 · 푸시하고 운영 태그 커밋(ArgoCD 반영)
+# master CI 가 성공하면 머지한 PR 의 빌드할 서비스 칸에서 체크한 서비스(수동 실행은 입력한 서비스) 가운데 운영 배포 이후 바뀐 것만 빌드 · 푸시하고 운영 태그를 커밋(ArgoCD 반영)
 on:
   workflow_run:
     workflows: [CI]
     types: [completed]
     branches: [master]
-  # 손 실행(master 에서만): CI 가 초록인 가장 최근 master 커밋에서 적은 서비스 가운데 운영 태그부터 바뀐 것만
+  # 수동 실행(master 에서만): CI 가 성공한 가장 최근 master 커밋에서, 입력한 서비스 가운데 운영 배포 이후 바뀐 것만
   workflow_dispatch:
     inputs:
       picks:
-        description: '낼 서비스와 버전, 쉼표로 나눔(예: backtest-service 1.8.0, frontend-web), 버전을 비우면 SHA 7자리'
+        description: '빌드할 서비스와 버전을 쉼표로 구분(예: backtest-service 1.8.0, frontend-web), 버전을 비우면 커밋 SHA 7자리'
         required: true
         type: string
 
-# 머지마다 따로 병렬 실행(서로의 대기 실행을 취소하지 않음), 같은 커밋의 실행은 하나, 손 실행은 실행마다 따로
+# 머지마다 따로 병렬 실행(서로의 대기 실행을 취소하지 않음), 같은 커밋의 실행은 하나, 수동 실행은 실행마다 따로
 concurrency:
   group: release-${{ github.event.workflow_run.head_sha || github.run_id }}
   cancel-in-progress: false
@@ -52,7 +52,7 @@ jobs:
           go-version-file: tools/go.mod
           cache: false
 
-      # 머지는 그 머지 커밋, 손 실행은 CI 가 초록인 가장 최근 master 커밋
+      # 머지는 그 머지 커밋, 수동 실행은 CI 가 성공한 가장 최근 master 커밋
       - name: 릴리스할 커밋
         env:
           GH_TOKEN: ${{ github.token }}
@@ -63,10 +63,10 @@ jobs:
             sha=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?branch=master&event=push&status=success&per_page=1" \
               --jq '.workflow_runs[0].head_sha // ""')
           fi
-          if [ -z "$sha" ]; then echo "CI 가 초록인 master 커밋 없음"; exit 1; fi
+          if [ -z "$sha" ]; then echo "CI 가 성공한 master 커밋 없음"; exit 1; fi
           echo "SHA=$sha" >> "$GITHUB_ENV"
 
-      # 머지 커밋의 PR 본문(PR 없는 직접 커밋은 빈 본문이라 내는 것 없음, 본문은 파일로만 넘김)
+      # 머지 커밋의 PR 본문(PR 없는 직접 커밋은 본문이 비어 빌드할 서비스 없음, 본문은 파일로만 넘김)
       - name: PR 본문 받기
         if: github.event_name == 'workflow_run'
         env:
@@ -76,8 +76,8 @@ jobs:
             --jq "[.[] | select(.merged_at != null and .merge_commit_sha == \"$SHA\")][0].body // \"\"" \
             > "$RUNNER_TEMP/pr-body.md"
 
-      # 손 실행은 적은 목록을 PR 칸과 같은 검사로 읽음
-      - name: 낼 서비스 고르기
+      # 수동 실행은 입력한 목록을 PR 칸과 같은 규칙으로 검사
+      - name: 빌드할 서비스 고르기
         id: plan
         working-directory: tools
         env:
@@ -91,19 +91,23 @@ jobs:
           printf 'sha=%s\n' "$SHA" >> "$GITHUB_OUTPUT"
           cat "$RUNNER_TEMP/plan.txt" >> "$GITHUB_OUTPUT"
 
-      - name: 고른 결과
+      # 보류는 바뀌었지만 체크하지 않은 서비스, 건너뜀은 체크했지만 운영 배포 이후 바뀐 것이 없는 서비스
+      - name: 릴리스 계획 요약
         env:
           SERVICES: ${{ steps.plan.outputs.services }}
           TAGS: ${{ steps.plan.outputs.tags }}
           HELD: ${{ steps.plan.outputs.held }}
           UNCHANGED: ${{ steps.plan.outputs.unchanged }}
         run: |
+          # JSON 목록 · 객체를 쉼표 목록으로(비면 없음)
+          plain() { local v; v=$(printf '%s' "$1" | tr -d '[]{}"' | sed 's/:/ /g; s/,/, /g'); printf '%s' "${v:-없음}"; }
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then how=수동 실행; else how=머지; fi
           {
-            echo "### 릴리스 계획 ${SHA::7} ($GITHUB_EVENT_NAME)"
-            echo "- 낼 서비스: $SERVICES"
-            echo "- 태그: $TAGS"
-            echo "- 보류(바뀌었지만 체크 안 함): $HELD"
-            echo "- 체크했지만 바뀐 것 없음: $UNCHANGED"
+            echo "### 릴리스 계획 ${SHA::7} ($how)"
+            echo "- 빌드할 서비스: $(plain "$SERVICES")"
+            echo "- 버전(태그): $(plain "$TAGS")"
+            echo "- 보류: $(plain "$HELD")"
+            echo "- 건너뜀: $(plain "$UNCHANGED")"
           } >> "$GITHUB_STEP_SUMMARY"
 
   build:
@@ -133,7 +137,7 @@ jobs:
             200)
               built=$(docker buildx imagetools inspect "muscathan/$SERVICE:$TAG" --format '{{ index .Image.Config.Labels "org.opencontainers.image.revision" }}')
               if [ "$built" != "$SHA" ]; then
-                echo "muscathan/$SERVICE:$TAG 은 다른 커밋의 이미지(${built:-레이블 없음}), 다른 버전으로"
+                echo "muscathan/$SERVICE:$TAG 는 다른 커밋으로 만든 이미지(${built:-레이블 없음}), 다른 버전으로 다시 실행"
                 exit 1
               fi
               echo "muscathan/$SERVICE:$TAG 이미 있음(같은 커밋), 빌드 건너뜀"
@@ -197,9 +201,9 @@ jobs:
           cache: false
       - uses: azure/setup-helm@v5
 
-      # 최신 master 에서 다시 고르고 바꿈(같이 돈 다른 릴리스가 먼저 올렸으면 그 위에서 다시, 더 새 커밋이 나간 서비스는 뺌,
-      # 그사이 올라간 운영 버전 이하면 실패), 커밋 직전 Hub 이미지 레이블이 이 커밋인지 대조
-      # GITHUB_TOKEN 커밋이라 CI · 릴리스가 다시 안 돎
+      # 최신 master 에서 다시 고른 뒤 태그를 바꿈(동시에 돈 다른 릴리스가 먼저 커밋했으면 그 위에서 다시, 더 새 커밋이 배포된 서비스는 뺌,
+      # 그사이 올라간 운영 버전 이하면 실패), 커밋 직전에 Hub 이미지 레이블이 이 커밋인지 대조
+      # GITHUB_TOKEN 으로 만든 커밋이라 CI · 릴리스가 다시 돌지 않음
       - name: 운영 태그 커밋
         run: |
           git config user.name "github-actions[bot]"
@@ -209,7 +213,7 @@ jobs:
             git reset -q --hard origin/master
             still=$(cd tools && go run ./cmd/release-plan -head "$SHA" -rev HEAD -only "$SERVICES" -tags "$TAGS" | sed -n 's/^services=//p')
             if [ "$still" = "[]" ]; then
-              echo "### 릴리스 ${SHA::7} — 바꿀 서비스 없음(더 새 커밋이 나감)" >> "$GITHUB_STEP_SUMMARY"
+              echo "### 릴리스 ${SHA::7} — 바꿀 서비스 없음(더 새 커밋이 이미 배포됨)" >> "$GITHUB_STEP_SUMMARY"
               exit 0
             fi
             names=$(jq -r '.[]' <<<"$still")
@@ -217,10 +221,10 @@ jobs:
             rendered=$(helm template ggeolmuse helm/ggeolmuse -f helm/ggeolmuse/values-prod.yaml)
             for s in $names; do
               tag=$(jq -r --arg s "$s" '.[$s]' <<<"$TAGS")
-              grep -q "image: muscathan/$s:$tag" <<<"$rendered" || { echo "$s 렌더에 $tag 없음"; exit 1; }
+              grep -q "image: muscathan/$s:$tag" <<<"$rendered" || { echo "$s 렌더 결과에 $tag 없음"; exit 1; }
               built=$(docker buildx imagetools inspect "muscathan/$s:$tag" --format '{{ index .Image.Config.Labels "org.opencontainers.image.revision" }}')
               if [ "$built" != "$SHA" ]; then
-                echo "muscathan/$s:$tag 은 다른 커밋의 이미지(${built:-레이블 없음})"
+                echo "muscathan/$s:$tag 는 다른 커밋으로 만든 이미지(${built:-레이블 없음})"
                 exit 1
               fi
             done
@@ -229,7 +233,7 @@ jobs:
               echo "### 릴리스 — $subject" >> "$GITHUB_STEP_SUMMARY"
               exit 0
             fi
-            echo "master 가 앞서 있어 다시 고름($i)"
+            echo "master 가 앞서 있어 다시 계산($i)"
           done
-          echo "master 에 못 올림"
+          echo "master 에 푸시 실패"
           exit 1
