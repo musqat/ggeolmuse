@@ -18,12 +18,14 @@ import com.muscat.backtest.common.util.RoundPurchase;
 import com.muscat.backtest.common.validation.BacktestRequestValidator;
 import com.muscat.backtest.domain.dto.request.MaCrossStrategyRequest;
 import com.muscat.backtest.domain.dto.request.StrategyRequest;
+import com.muscat.backtest.domain.dto.response.SignalChart;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.domain.model.SkippedRound;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.backtest.infra.client.MarketDataClientWrapper;
 import com.muscat.commonlib.dto.OHLCPriceDto;
+import com.muscat.commonlib.util.MoneyUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -75,7 +77,10 @@ public class MaCrossStrategy implements InvestmentStrategy {
       LocalDate actualEndDate = request.getEndDate().isAfter(today) ? today : request.getEndDate();
 
       CapitalGainsTaxPayer taxPayer = new CapitalGainsTaxPayer(Boolean.TRUE.equals(request.getCapitalGainsTax()));
-      StrategyPurchases trades = trade(request, shortWindow, longWindow, actualEndDate, taxPayer);
+      Map<LocalDate, OHLCPriceDto> priceMap = BacktestDataUtils.buildPriceMap(
+        marketData, request.getSymbol(), request.getStartDate().minusDays(lookbackDays(longWindow)), actualEndDate);
+      MovingAverages averages = MovingAverages.of(priceMap, shortWindow, longWindow);
+      StrategyPurchases trades = trade(request, priceMap, averages, actualEndDate, taxPayer);
 
       StrategyFinalizer.Result finalized = StrategyFinalizer.run(
         marketData, request.getSymbol(), request.getStartDate(), actualEndDate, request.getCurrentFxRate(),
@@ -90,6 +95,7 @@ public class MaCrossStrategy implements InvestmentStrategy {
       response.setCapitalGainsTax(Boolean.TRUE.equals(request.getCapitalGainsTax())
         ? finalized.capitalGainsTax(taxPayer.payments())
         : null);
+      response.setSignalChart(averages.chart(request.getSymbol(), request.getStartDate()));
       return response;
 
     } finally {
@@ -117,15 +123,10 @@ public class MaCrossStrategy implements InvestmentStrategy {
   }
 
   // 시작일부터 일봉마다 양도세를 낸 뒤 교차를 보고 골든 크로스에 사고 데드 크로스에 팜(계산이 실패한 날은 사고팔지 않고 이유를 남김)
-  private StrategyPurchases trade(MaCrossStrategyRequest request, int shortWindow, int longWindow,
-    LocalDate actualEndDate, CapitalGainsTaxPayer taxPayer) {
+  private StrategyPurchases trade(MaCrossStrategyRequest request, Map<LocalDate, OHLCPriceDto> priceMap,
+    MovingAverages averages, LocalDate actualEndDate, CapitalGainsTaxPayer taxPayer) {
     LocalDate start = request.getStartDate();
-    Map<LocalDate, OHLCPriceDto> priceMap = BacktestDataUtils.buildPriceMap(
-      marketData, request.getSymbol(), start.minusDays(lookbackDays(longWindow)), actualEndDate);
-    List<OHLCPriceDto> candles = priceMap.values().stream()
-      .filter(PriceLookup::isUsable)
-      .sorted(Comparator.comparing(OHLCPriceDto::date))
-      .toList();
+    List<OHLCPriceDto> candles = averages.candles();
     LocalDate firstInPeriod = candles.stream()
       .map(OHLCPriceDto::date)
       .filter(date -> !date.isBefore(start))
@@ -139,7 +140,6 @@ public class MaCrossStrategy implements InvestmentStrategy {
       log.info("환율 데이터 조회 완료: {}개", fxRates.size());
     }
 
-    BigDecimal[] sums = signalSums(candles);
     List<StrategyTransaction> transactions = new ArrayList<>();
     List<SkippedRound> skippedRounds = new ArrayList<>();
     // 보유 주식 · 그 원가(USD, 수수료 포함) · 판 돈(USD, 첫 매수 전은 null)
@@ -147,13 +147,12 @@ public class MaCrossStrategy implements InvestmentStrategy {
     BigDecimal heldCost = BigDecimal.ZERO;
     BigDecimal cash = null;
 
-    for (int i = longWindow; i < candles.size(); i++) {
+    for (int i = averages.longWindow(); i < candles.size(); i++) {
       OHLCPriceDto candle = candles.get(i);
       if (candle.date().isBefore(start)) {
         continue;
       }
-      int before = side(sums, i - 1, shortWindow, longWindow);
-      int today = side(sums, i, shortWindow, longWindow);
+      SignalChart.CrossType cross = averages.cross(i);
       boolean holding = heldShares.signum() > 0;
       try {
         LocalDate date = candle.date();
@@ -164,7 +163,7 @@ public class MaCrossStrategy implements InvestmentStrategy {
           cash = cash.subtract(payment.getTaxPaid());
         }
         // 판 돈을 양도세로 다 냈으면 사지 않음
-        if (!holding && before <= 0 && today > 0 && (cash == null || cash.signum() > 0)) {
+        if (!holding && cross == SignalChart.CrossType.GOLDEN && (cash == null || cash.signum() > 0)) {
           StrategyTransaction buy = buy(request, candle, fxRates, cash);
           transactions.add(buy);
           heldShares = buy.getShares();
@@ -172,7 +171,7 @@ public class MaCrossStrategy implements InvestmentStrategy {
             ? buy.getCashUsed()
             : buy.getAmount().divide(buy.getFxRate(), 8, RoundingMode.HALF_UP);
           cash = BigDecimal.ZERO;
-        } else if (holding && before >= 0 && today < 0) {
+        } else if (holding && cross == SignalChart.CrossType.DEAD) {
           StrategyTransaction sale = sell(request, candle, fxRates, heldShares, heldCost);
           transactions.add(sale);
           cash = sale.getProceeds();
@@ -194,24 +193,71 @@ public class MaCrossStrategy implements InvestmentStrategy {
     return longWindow * 3 / 2 + 14;
   }
 
-  // 이동평균에 쓰는 값(수정 종가, 없거나 0 이하면 종가)의 누적 합
-  private static BigDecimal[] signalSums(List<OHLCPriceDto> candles) {
-    BigDecimal[] sums = new BigDecimal[candles.size() + 1];
-    sums[0] = BigDecimal.ZERO;
-    for (int i = 0; i < candles.size(); i++) {
-      BigDecimal adjusted = candles.get(i).adjustedClose();
-      BigDecimal value = adjusted != null && adjusted.signum() > 0 ? adjusted : PriceLookup.effectiveClose(candles.get(i));
-      sums[i + 1] = sums[i].add(value);
-    }
-    return sums;
-  }
+  // 쓸 수 있는 일봉(오래된 날부터)과 이동평균에 쓰는 값의 누적 합 · 두 기간
+  private record MovingAverages(List<OHLCPriceDto> candles, BigDecimal[] sums, int shortWindow, int longWindow) {
 
-  // i 번째 일봉에서 짧은 선 - 긴 선의 부호(두 합에 서로의 기간을 곱해 나눗셈 없이 견줌)
-  private static int side(BigDecimal[] sums, int i, int shortWindow, int longWindow) {
-    BigDecimal shortSum = sums[i + 1].subtract(sums[i + 1 - shortWindow]);
-    BigDecimal longSum = sums[i + 1].subtract(sums[i + 1 - longWindow]);
-    return shortSum.multiply(BigDecimal.valueOf(longWindow))
-      .compareTo(longSum.multiply(BigDecimal.valueOf(shortWindow)));
+    static MovingAverages of(Map<LocalDate, OHLCPriceDto> priceMap, int shortWindow, int longWindow) {
+      List<OHLCPriceDto> candles = priceMap.values().stream()
+        .filter(PriceLookup::isUsable)
+        .sorted(Comparator.comparing(OHLCPriceDto::date))
+        .toList();
+      BigDecimal[] sums = new BigDecimal[candles.size() + 1];
+      sums[0] = BigDecimal.ZERO;
+      for (int i = 0; i < candles.size(); i++) {
+        sums[i + 1] = sums[i].add(signalValue(candles.get(i)));
+      }
+      return new MovingAverages(candles, sums, shortWindow, longWindow);
+    }
+
+    // 이동평균에 쓰는 값(수정 종가, 없거나 0 이하면 종가)
+    private static BigDecimal signalValue(OHLCPriceDto candle) {
+      BigDecimal adjusted = candle.adjustedClose();
+      return adjusted != null && adjusted.signum() > 0 ? adjusted : PriceLookup.effectiveClose(candle);
+    }
+
+    // i 번째 일봉의 교차(앞 일봉 짧은 선 - 긴 선 ≤ 0 · 그 날 > 0 이면 골든, 앞 ≥ 0 · 그 날 < 0 이면 데드, i 는 긴 기간 이상)
+    SignalChart.CrossType cross(int i) {
+      int before = side(i - 1);
+      int today = side(i);
+      if (before <= 0 && today > 0) {
+        return SignalChart.CrossType.GOLDEN;
+      }
+      return before >= 0 && today < 0 ? SignalChart.CrossType.DEAD : null;
+    }
+
+    // i 번째 일봉에서 짧은 선 - 긴 선의 부호(두 합에 서로의 기간을 곱해 나눗셈 없이 견줌)
+    private int side(int i) {
+      BigDecimal shortSum = sums[i + 1].subtract(sums[i + 1 - shortWindow]);
+      BigDecimal longSum = sums[i + 1].subtract(sums[i + 1 - longWindow]);
+      return shortSum.multiply(BigDecimal.valueOf(longWindow))
+        .compareTo(longSum.multiply(BigDecimal.valueOf(shortWindow)));
+    }
+
+    // i 번째 일봉까지 window 거래일 평균(소수 둘째, 일봉이 모자라면 null)
+    private BigDecimal average(int i, int window) {
+      return i + 1 < window ? null
+        : sums[i + 1].subtract(sums[i + 1 - window]).divide(BigDecimal.valueOf(window), MoneyUtils.USD_SCALE,
+          MoneyUtils.ROUND_MODE);
+    }
+
+    // 시작일부터 일봉마다 수정 종가 · 두 평균과 교차한 날
+    SignalChart chart(String symbol, LocalDate start) {
+      List<SignalChart.Point> points = new ArrayList<>();
+      List<SignalChart.Cross> crosses = new ArrayList<>();
+      for (int i = 0; i < candles.size(); i++) {
+        LocalDate date = candles.get(i).date();
+        if (date.isBefore(start)) {
+          continue;
+        }
+        points.add(new SignalChart.Point(date, MoneyUtils.roundUsd(signalValue(candles.get(i))),
+          average(i, shortWindow), average(i, longWindow)));
+        SignalChart.CrossType type = i >= longWindow ? cross(i) : null;
+        if (type != null) {
+          crosses.add(new SignalChart.Cross(date, type));
+        }
+      }
+      return new SignalChart(symbol, points, crosses);
+    }
   }
 
   // 그 날짜 종가에 원금(첫 매수) 또는 판 돈 전부로 삼(수수료를 뺀 달러로 소수 주)

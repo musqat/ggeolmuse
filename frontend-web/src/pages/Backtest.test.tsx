@@ -38,10 +38,19 @@ vi.mock('@components/backtest/results/SimpleResult', () => ({
   SimpleResult: () => <div>결과: simple</div>,
 }))
 vi.mock('@components/backtest/results/DcaConditionalResult', () => ({
-  DcaConditionalResult: ({ result, budget }: { result: { mode: string }; budget?: number }) => (
+  DcaConditionalResult: ({
+    result,
+    budget,
+    windows,
+  }: {
+    result: { mode: string };
+    budget?: number;
+    windows?: { short: number; long: number };
+  }) => (
     <>
       <div>결과: {result.mode}</div>
       {budget !== undefined && <div>예산: {budget}</div>}
+      {windows && <div>이동평균 기간: {`${windows.short} · ${windows.long}`}</div>}
     </>
   ),
 }))
@@ -295,7 +304,7 @@ describe('Backtest 페이지 실행', () => {
     expect(await screen.findByText('예산: 5000000')).toBeInTheDocument()
   })
 
-  it('이동평균: 기본값은 원금 100만원 · 20일 · 60일로 요청하고 결과는 전략 결과로 그린다', async () => {
+  it('이동평균: 기본값은 원금 100만원 · 20일 · 60일로 요청하고 결과는 그 기간과 함께 전략 결과로 그린다', async () => {
     renderPage()
     await selectMode('이동평균')
     await runBacktest()
@@ -310,6 +319,7 @@ describe('Backtest 페이지 실행', () => {
       ...common,
     })
     expect(await screen.findByText('결과: ma-cross')).toBeInTheDocument()
+    expect(screen.getByText('이동평균 기간: 20 · 60')).toBeInTheDocument()
     expect(screen.queryByText(/예산:/)).toBeNull()
   })
 
@@ -330,6 +340,7 @@ describe('Backtest 페이지 실행', () => {
       periodEnd: 'SELL_AT_END',
     })
     expect(await screen.findByText('결과: ma-cross')).toBeInTheDocument()
+    expect(screen.getByText('이동평균 기간: 5 · 120')).toBeInTheDocument()
   })
 
   it('이동평균: 배당 재투자를 막고 false 로 요청하며, 다른 모드는 고른 재투자 그대로', async () => {

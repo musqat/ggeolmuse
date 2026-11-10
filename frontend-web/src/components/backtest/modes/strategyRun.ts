@@ -9,6 +9,8 @@ interface StrategyRunInput<T extends PreparedRun['params']> {
   failureMessage: string;
   // 결과에 같이 담는 요청의 예산
   budget?: number;
+  // 결과에 같이 담는 요청의 이동평균 짧은 · 긴 기간
+  windows?: { short: number; long: number };
 }
 
 // 적립식 · 조건부 · 이동평균 실행 준비(결과에 모드 태그, 이력은 전략 시뮬레이션)
@@ -19,8 +21,14 @@ export const strategyRun = <T extends PreparedRun['params']>({
   fxMode,
   failureMessage,
   budget,
+  windows,
 }: StrategyRunInput<T>): PreparedRun => ({
-  execute: async () => ({ ...(await call(request)).data, mode, ...(budget !== undefined && { budget }) }),
+  execute: async () => ({
+    ...(await call(request)).data,
+    mode,
+    ...(budget !== undefined && { budget }),
+    ...(windows && { windows }),
+  }),
   historyType: 'STRATEGY_SIMULATION',
   params: request,
   fxMode,

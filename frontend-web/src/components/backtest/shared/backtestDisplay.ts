@@ -24,5 +24,9 @@ export { STRATEGY_NAMES } from "../comparison/catalog";
 // 실행한 모드를 함께 담은 결과(mode 로 응답 종류를 가름)
 export type BacktestResult =
   | (SimulationResponse & { mode: "simple" })
-  | (StrategyResponse & { mode: "dca" | "conditional" | "ma-cross"; budget?: number })
+  | (StrategyResponse & {
+      mode: "dca" | "conditional" | "ma-cross";
+      budget?: number;
+      windows?: { short: number; long: number };
+    })
   | (ComparisonResponse & { mode: "compare-symbols" | "compare-strategies" });

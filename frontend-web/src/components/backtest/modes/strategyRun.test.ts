@@ -25,4 +25,12 @@ describe('strategyRun', () => {
 
     await expect(run.execute()).resolves.toEqual({ symbol: 'AAPL', totalInvested: 600000, mode: 'conditional', budget: 1000000 })
   })
+
+  it('이동평균 기간이 있으면 결과에 그 기간을 같이 담는다', async () => {
+    const call = vi.fn().mockResolvedValue({ data: { symbol: 'AAPL' } })
+
+    const run = strategyRun({ request: {}, call, mode: 'ma-cross', fxMode: 'auto', failureMessage: '', windows: { short: 5, long: 120 } })
+
+    await expect(run.execute()).resolves.toEqual({ symbol: 'AAPL', mode: 'ma-cross', windows: { short: 5, long: 120 } })
+  })
 })

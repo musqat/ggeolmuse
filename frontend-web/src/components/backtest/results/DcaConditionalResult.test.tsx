@@ -13,6 +13,15 @@ vi.mock('@components/charts/backtest/AccumulationChart', () => ({
   ),
 }))
 
+// 이동평균 차트는 받은 종목 · 점 수 · 기간만 보임
+vi.mock('@components/charts/backtest/SignalChart', () => ({
+  SignalChart: ({ chart, windows }: { chart?: { symbol: string; points: unknown[] } | null; windows?: { short: number; long: number } }) => (
+    <div>
+      이동평균 차트 {chart ? `${chart.symbol} ${chart.points.length}일` : '없음'} · {windows ? `${windows.short} · ${windows.long}` : '기간 모름'}
+    </div>
+  ),
+}))
+
 const result = {
   symbol: 'AAPL',
   startDate: '2023-01-01',
@@ -91,6 +100,36 @@ describe('DcaConditionalResult', () => {
 
     expect(screen.getByText('매수 0회: 기간 안에 산 회차가 없습니다.')).toBeInTheDocument()
     expect(screen.queryByText(/조건이 맞아/)).toBeNull()
+  })
+
+  it('이동평균 결과는 주가 추이 앞에 이동평균 탭을 두고, 고르면 결과의 이동평균 값과 실행한 기간으로 그린다', async () => {
+    const signalChart = {
+      symbol: 'AAPL',
+      points: [
+        { date: '2023-01-03', close: 125.07, shortAverage: 124.1, longAverage: 128.3 },
+        { date: '2023-01-04', close: 126.36, shortAverage: 124.8, longAverage: 128.1 },
+      ],
+      crosses: [],
+    }
+    render(
+      <DcaConditionalResult result={{ ...result, signalChart }} {...props} kind="ma-cross" windows={{ short: 5, long: 120 }} />
+    )
+
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['자산 추이', '이동평균', '주가 추이'])
+    expect(screen.queryByText(/이동평균 차트/)).toBeNull()
+
+    await userEvent.click(screen.getByRole('tab', { name: '이동평균' }))
+
+    expect(screen.getByText('이동평균 차트 AAPL 2일 · 5 · 120')).toBeVisible()
+  })
+
+  it('적립식 · 조건부 결과에는 이동평균 탭이 없다', () => {
+    const { rerender } = render(<DcaConditionalResult result={result} {...props} />)
+
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['자산 추이', '주가 추이'])
+
+    rerender(<DcaConditionalResult result={result} {...props} kind="dca" />)
+    expect(screen.queryByRole('tab', { name: '이동평균' })).toBeNull()
   })
 
   it('이동평균 매수 0회는 짧은 선이 긴 선을 위로 넘은 날이 없다고 알린다', () => {
