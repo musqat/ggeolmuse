@@ -1240,6 +1240,22 @@ class ConditionalPurchaseStrategyTest {
       }
 
       @Test
+      @DisplayName("기본 환율로 양도세를 낸 날도 기본 환율 날로 남긴다")
+      void taxPaymentIsDefaultFxDate() {
+        ConditionalStrategyRequest request = selling(426, 10).purchaseFxRate(null).amountPerPurchase(null)
+          .sharesPerPurchase(10).takeProfitRate(new BigDecimal("3.1")).stopLossRate(new BigDecimal("0.5"))
+          .capitalGainsTax(true).build();
+        stubMarket(request, afterEntry(candle(2, "400", "440", "395", "434"), bar(3, "390", "390", "390"),
+          day(423, "390"), bar(424, "190", "190", "190"), day(425, "190")), true);
+
+        strategy.execute(request);
+
+        assertThat(executed()).filteredOn(StrategyTransaction::isTaxPayment)
+          .extracting(StrategyTransaction::getDefaultFxDate)
+          .containsExactly(START.plusDays(423), START.plusDays(425));
+      }
+
+      @Test
       @DisplayName("두 비율을 비우면 크게 올라도 팔지 않고 이전과 같이 산다")
       void noRatesNoSell() {
         ConditionalStrategyRequest request = selling(3, 10).build();

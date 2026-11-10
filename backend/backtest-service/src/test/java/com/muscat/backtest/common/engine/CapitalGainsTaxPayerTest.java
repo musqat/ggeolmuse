@@ -118,6 +118,21 @@ class CapitalGainsTaxPayerTest {
   }
 
   @Test
+  @DisplayName("남은 세금이 몇 원뿐이라 달러로 0센트가 되면 그 날짜에는 내지 않고 남은 세금으로 둔다")
+  void subCentNotPaid() {
+    CapitalGainsTaxPayer payer = new CapitalGainsTaxPayer(true);
+
+    // 0.004달러 × 1300원 = 5.2원
+    assertThat(payer.pay(DUE, taxedSale(), new BigDecimal("0.004"), FX, false)).isNull();
+    // 258.919달러 × 1300원 = 33만 6,594.7원, 남은 6원 ÷ 1300원 = 0.0046달러
+    StrategyTransaction partial = payer.pay(DUE.plusDays(1), taxedSale(), new BigDecimal("258.919"), FX, false);
+    assertThat(payer.pay(DUE.plusDays(4), taxedSale(), new BigDecimal("1000"), FX, false)).isNull();
+
+    assertThat(partial.getTaxPaid()).isEqualByComparingTo("258.919");
+    assertThat(payer.payments()).isEqualTo(new Payments(Map.of(2024, DUE), Map.of(2024, new BigDecimal("336594"))));
+  }
+
+  @Test
   @DisplayName("양도세를 끄면 내지 않고 납부일도 남기지 않는다")
   void disabled() {
     CapitalGainsTaxPayer payer = new CapitalGainsTaxPayer(false);

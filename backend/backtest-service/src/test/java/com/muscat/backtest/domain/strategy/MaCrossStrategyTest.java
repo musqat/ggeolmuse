@@ -424,6 +424,22 @@ class MaCrossStrategyTest {
     }
 
     @Test
+    @DisplayName("기본 환율로 양도세를 낸 날도 기본 환율 날로 남긴다")
+    void defaultFxTaxPaymentDate() {
+      stubMarket(taxedCrossing(day(422, "30"), day(423, "60"), day(424, "61")));
+      given(marketDataClient.getBulkFxRates(any())).willReturn(Map.of());
+
+      strategy.execute(request(424).purchaseFxRate(null).capitalGainsTax(true).build());
+
+      assertThat(executed()).extracting(StrategyTransaction::getTrigger, StrategyTransaction::getDefaultFxDate)
+        .containsExactly(
+          tuple("골든 크로스", START.plusDays(1)),
+          tuple("데드 크로스", START.plusDays(4)),
+          tuple("양도세 납부", DUE),
+          tuple("골든 크로스", DUE));
+    }
+
+    @Test
     @DisplayName("기간에 쓸 수 있는 시세가 하루도 없으면 DATA_NOT_FOUND")
     void noDataInPeriod() {
       given(marketDataClient.getOHLCPriceRange(eq(SYMBOL), anyString(), anyString()))

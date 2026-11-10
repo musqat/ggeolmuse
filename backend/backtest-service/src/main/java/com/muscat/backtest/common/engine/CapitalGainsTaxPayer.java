@@ -28,7 +28,7 @@ public final class CapitalGainsTaxPayer {
     this.enabled = enabled;
   }
 
-  // 그 날짜까지 납부일이 온 해의 남은 세금을 현금에서 낸 거래(끄거나 낼 세금 · 현금이 없으면 null)
+  // 그 날짜까지 납부일이 온 해의 남은 세금을 현금에서 낸 거래(끄거나 낼 세금 · 현금이 없거나 남은 세금이 몇 원뿐이라 달러로 0센트가 되면 null)
   // 다 낼 수 있으면 남은 세금 ÷ 환율(센트 반올림), 모자라면 현금 전부(낸 원화는 원 미만 버림)
   public StrategyTransaction pay(LocalDate date, List<StrategyTransaction> transactions, BigDecimal cash,
     BigDecimal fxRate, boolean defaultFx) {
@@ -44,7 +44,7 @@ public final class CapitalGainsTaxPayer {
     boolean full = cash.compareTo(owedUsd) >= 0;
     BigDecimal taxPaid = full ? owedUsd : cash;
     BigDecimal paid = full ? owedKrw : cash.multiply(fxRate).setScale(0, RoundingMode.DOWN).min(owedKrw);
-    if (paid.signum() == 0) {
+    if (paid.signum() == 0 || taxPaid.setScale(2, RoundingMode.HALF_UP).signum() == 0) {
       return null;
     }
     allocate(paid);
