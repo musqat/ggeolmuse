@@ -17,6 +17,7 @@
 - [ ] ggeolmuse-bom
 - [ ] ggeolmuse-common
 - [ ] frontend-web
+- [ ] infra(helm · terraform · CI · tools)
 
 ## 빌드할 서비스
 - [ ] config-server
