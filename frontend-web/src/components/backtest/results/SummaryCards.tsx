@@ -13,7 +13,7 @@ type SummaryValues = Pick<
 
 interface SummaryCardsProps {
   result: SummaryValues;
-  // 투자금 라벨(단순은 초기 투자금, 적립식 · 조건부는 누적 매수액)
+  // 투자금 라벨(단순은 초기 투자금, 적립식 · 조건부는 누적 매수액, 이동평균은 원금)
   investedLabel: string;
   invested: number | null | undefined;
   // 총 수익률 이름 뒤 기준

@@ -206,6 +206,18 @@ describe('StrategyComparisonResult', () => {
     expect(screen.getByRole('row', { name: /^2024년/ })).toHaveTextContent('2025-05-01₩220,000')
   })
 
+  it('펼친 줄의 예상 양도세는 한 줄을 다 쓰고 넓은 화면에서 연도별 표를 오른쪽 두 칸에 둔다', async () => {
+    const year = { year: 2024, realizedGainKrw: 4000000, deductionKrw: 2500000, taxKrw: 330000, dueDate: '2025-05-01', paidKrw: 330000 }
+    const [simple, dca] = result.items
+    const tax = { ...noTax, years: [year], totalTaxKrw: 330000, paidTaxKrw: 330000, afterTaxValueKrw: 240000, afterTaxReturnPercent: 20 }
+    renderResult({ ...result, items: [simple, { ...dca, capitalGainsTax: tax }] })
+    await userEvent.click(row('적립식'))
+
+    const section = screen.getByRole('heading', { name: '예상 양도세' }).parentElement as HTMLElement
+    expect(section).toHaveClass('md:col-span-full')
+    expect(screen.getByRole('row', { name: /^2024년/ }).closest('.lg\\:col-span-2')).toBeInTheDocument()
+  })
+
   it('매수 0회 전략은 세후 수익률도 비워 둔다', () => {
     const none = {
       name: 'CONDITIONAL_PURCHASE',
@@ -217,7 +229,7 @@ describe('StrategyComparisonResult', () => {
     }
     renderResult({ ...result, items: [...result.items, none] })
 
-    expect(row('조건부 매수')).not.toHaveTextContent('+0.00%')
+    expect(row('조건부 매수')).not.toHaveTextContent('0.00%')
   })
 
   it('매수가 · 보유 주식이 비면 단위 없이 - 로 보인다', async () => {

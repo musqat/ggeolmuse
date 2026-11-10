@@ -53,10 +53,10 @@ describe('비교 전략 카탈로그', () => {
 
   it('요약: 이동평균은 두 기간의 교차 규칙', () => {
     expect(strategyByType('MA_CROSS').summary({}, year2023)).toEqual({
-      text: '20일 선이 60일 선을 넘으면 원금 전부로 사고, 아래로 내려가면 전부 팜',
+      text: '20일 선이 60일 선을 넘으면 가진 돈 전부로 사고, 아래로 내려가면 전부 팜',
     })
     expect(strategyByType('MA_CROSS').summary({ shortWindow: '5', longWindow: '120' }, year2023)).toEqual({
-      text: '5일 선이 120일 선을 넘으면 원금 전부로 사고, 아래로 내려가면 전부 팜',
+      text: '5일 선이 120일 선을 넘으면 가진 돈 전부로 사고, 아래로 내려가면 전부 팜',
     })
   })
 

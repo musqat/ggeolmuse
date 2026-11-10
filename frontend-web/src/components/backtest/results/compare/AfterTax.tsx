@@ -15,18 +15,22 @@ export const AfterTaxCell: React.FC<{ row: CompareRow }> = ({ row }) => {
   );
 };
 
-// 펼친 줄의 양도세 합 · 납부 · 세후 총 평가 · 연도별 양도세(요청하지 않았으면 그리지 않음)
+// 펼친 줄 한 줄을 다 쓰는 양도세 합 · 납부 · 세후 총 평가와 연도별 양도세(요청하지 않았으면 그리지 않음)
 export const TaxDetail: React.FC<{ row: CompareRow }> = ({ row }) => {
   const tax = taxOf(row);
   if (!tax) return null;
   return (
-    <DetailSection title="예상 양도세" className="min-w-0">
-      <DetailRow label="양도세 합" value={formatKrw(tax.totalTaxKrw)} />
-      <DetailRow label="낸 양도세" value={formatKrw(tax.paidTaxKrw)} />
-      {tax.unpaidTaxKrw > 0 && <DetailRow label="남은 양도세" value={`-${formatKrw(tax.unpaidTaxKrw)}`} />}
-      <DetailRow label="세후 총 평가" value={formatKrw(tax.afterTaxValueKrw)} />
-      <div className="pt-2">
-        <TaxYearTable years={tax.years} />
+    <DetailSection title="예상 양도세" className="min-w-0 md:col-span-full">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-x-6 gap-y-2">
+        <div>
+          <DetailRow label="양도세 합" value={formatKrw(tax.totalTaxKrw)} />
+          <DetailRow label="낸 양도세" value={formatKrw(tax.paidTaxKrw)} />
+          {tax.unpaidTaxKrw > 0 && <DetailRow label="남은 양도세" value={`-${formatKrw(tax.unpaidTaxKrw)}`} />}
+          <DetailRow label="세후 총 평가" value={formatKrw(tax.afterTaxValueKrw)} last />
+        </div>
+        <div className="min-w-0 lg:col-span-2">
+          <TaxYearTable years={tax.years} />
+        </div>
       </div>
     </DetailSection>
   );

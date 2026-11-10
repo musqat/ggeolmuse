@@ -34,6 +34,13 @@ const EMPTY_REASON: Record<StrategyKind, string> = {
   'ma-cross': '기간 안에 짧은 선이 긴 선을 아래에서 위로 넘은 날이 없습니다.',
 };
 
+// 수익률 기준 투자금 이름(이동평균은 첫 매수에 쓴 원금)
+const INVESTED_LABEL: Record<StrategyKind, string> = {
+  dca: '누적 매수액',
+  conditional: '누적 매수액',
+  'ma-cross': '원금',
+};
+
 const NOTICE_CLASS = 'text-sm text-warning bg-warning-soft/10 border border-warning-soft/40 rounded-lg px-3 py-2';
 
 // 매수 0회 · 예산 부족 구간 안내 한 줄(없으면 null)
@@ -59,6 +66,7 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
   budget,
 }) => {
   const [currency, setCurrency] = useState<MetricCurrency>('KRW');
+  const investedLabel = INVESTED_LABEL[kind];
   const unused = unusedBudget(budget, result.totalInvested);
   const { metrics, other, otherLabel } = pickMetrics(result, currency);
   const transactions = useMemo(() => result.transactions ?? [], [result.transactions]);
@@ -88,9 +96,9 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
       <DefaultFxNotice dates={result.defaultFxDates} />
       <ResultOverview
         result={result}
-        investedLabel="누적 매수액"
+        investedLabel={investedLabel}
         invested={result.totalInvested}
-        returnBasis="누적 매수액 기준"
+        returnBasis={`${investedLabel} 기준`}
         deposits={deposits}
         currency={currency}
         onCurrencyChange={setCurrency}
@@ -122,7 +130,7 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
       />
 
       {result.capitalGainsTax && (
-        <CapitalGainsTaxFold tax={result.capitalGainsTax} returnBasis="누적 매수액 기준" />
+        <CapitalGainsTaxFold tax={result.capitalGainsTax} returnBasis={`${investedLabel} 기준`} />
       )}
 
       <ResultFold
@@ -144,7 +152,7 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
             />
             <DetailRow label="매수 횟수" value={<>{purchaseCount(transactions)}회</>} />
             {sold > 0 && <DetailRow label="매도 횟수" value={<>{sold}회</>} />}
-            <DetailRow label="누적 매수액" value={<>₩{formatNumber(result.totalInvested)}</>} />
+            <DetailRow label={investedLabel} value={<>₩{formatNumber(result.totalInvested)}</>} />
             <div className="flex justify-between gap-3 py-2">
               <span className="text-tx-2">주식 평가액</span>
               <div className="text-right">

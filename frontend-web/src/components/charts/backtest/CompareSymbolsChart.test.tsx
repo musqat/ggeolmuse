@@ -63,11 +63,11 @@ describe('CompareSymbolsChart 차트', () => {
     expect(price.yDomains).toEqual([[74, 426]])
   })
 
-  it('툴팁은 주가를 달러 소수 둘째 자리로 보여준다', async () => {
+  it('툴팁은 주가를 천 단위 쉼표 · 달러 소수 둘째 자리로 보여준다', async () => {
     renderWithQuery(<CompareSymbolsChart symbols={symbols} startDate="2026-03-02" endDate="2026-03-04" />)
 
     await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(1))
-    expect(readTooltips()).toEqual(['$1234567.89'])
+    expect(readTooltips()).toEqual(['$1,234,567.89'])
   })
 
   it('기간이 1년을 넘으면 날짜 축을 달마다 연.월 눈금으로 바꾼다', async () => {

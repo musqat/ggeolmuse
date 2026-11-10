@@ -481,7 +481,7 @@ describe('Backtest 페이지 칸 오류 · 요약', () => {
   it('이동평균 요약은 원금과 교차 규칙을 보이고, 짧은 기간이 긴 기간 이상이면 그 칸으로 가며 요청하지 않는다', async () => {
     renderPage()
     await selectMode('이동평균')
-    expect(summary()).toHaveTextContent('원금 100만원 · 20일 선이 60일 선을 넘으면 원금 전부로 사고, 아래로 내려가면 전부 팜')
+    expect(summary()).toHaveTextContent('원금 100만원 · 20일 선이 60일 선을 넘으면 가진 돈 전부로 사고, 아래로 내려가면 전부 팜')
 
     fireEvent.change(screen.getByRole('textbox', { name: '짧은 기간(일)' }), { target: { value: '60' } })
     expect(screen.getByText('긴 기간보다 짧게')).toBeInTheDocument()
@@ -578,7 +578,7 @@ describe('Backtest 페이지 전략 비교 칩', () => {
 
     expect(strategyChips().getByRole('button', { name: '이동평균' })).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getByText('이동평균 기간')).toBeInTheDocument()
-    expect(summary()).toHaveTextContent('이동평균: 20일 선이 60일 선을 넘으면 원금 전부로 사고, 아래로 내려가면 전부 팜')
+    expect(summary()).toHaveTextContent('이동평균: 20일 선이 60일 선을 넘으면 가진 돈 전부로 사고, 아래로 내려가면 전부 팜')
     fireEvent.change(screen.getByRole('textbox', { name: '짧은 기간(일)' }), { target: { value: '5' } })
     await runBacktest()
 

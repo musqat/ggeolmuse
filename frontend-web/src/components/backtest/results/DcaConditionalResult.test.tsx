@@ -263,6 +263,28 @@ describe('DcaConditionalResult', () => {
     expect(screen.getByText('누적 매수액', { selector: 'span' }).nextElementSibling).toHaveTextContent('₩1,200,000')
   })
 
+  it('이동평균은 수익률 기준 · 상세 · 세후 수익률의 투자금을 원금으로 부른다', async () => {
+    const tax = {
+      years: [],
+      totalTaxKrw: 0,
+      paidTaxKrw: 0,
+      unpaidTaxKrw: 0,
+      cashKrw: 0,
+      stockKrw: 1350000,
+      afterTaxValueKrw: 1350000,
+      afterTaxReturnPercent: 12.5,
+    }
+    render(<DcaConditionalResult result={{ ...result, capitalGainsTax: tax }} {...props} kind="ma-cross" />)
+
+    expect(card('총 수익률')).toHaveTextContent('총 수익률 · 원금 기준')
+    expect(card('총 수익률')).toHaveTextContent('원금 ₩1,200,000 대비 +₩150,000')
+    expect(screen.queryByText(/누적 매수액/)).toBeNull()
+    await open('상세')
+    expect(screen.getByText('원금', { selector: 'span' }).nextElementSibling).toHaveTextContent('₩1,200,000')
+    await open('예상 양도세')
+    expect(screen.getByText('세후 수익률 · 원금 기준')).toBeInTheDocument()
+  })
+
   it('예산이 남으면 쓰지 않은 예산 카드를 수익률 · 평가 가치와 따로 보인다', () => {
     render(<DcaConditionalResult result={result} budget={1500000} {...props} />)
 

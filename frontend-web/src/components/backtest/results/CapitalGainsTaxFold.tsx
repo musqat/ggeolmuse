@@ -9,7 +9,18 @@ const CELL = 'py-1.5 pl-3 text-right whitespace-nowrap';
 
 const dueText = (year: CapitalGainsTaxYear) => (year.taxKrw === 0 ? '-' : (year.dueDate ?? '기간 뒤'));
 
-// 판 해마다 원화 실현 이익 · 공제 · 양도세 · 낸 날 · 낸 금액 표(판 거래가 없으면 안내 한 줄)
+// 낸 금액, 납부일이 기간 안인데 다 내지 못한 해는 아래 줄에 남은 세금
+const PaidCell: React.FC<{ year: CapitalGainsTaxYear }> = ({ year }) => {
+  const left = year.taxKrw - year.paidKrw;
+  return (
+    <>
+      <div>{formatKrw(year.paidKrw)}</div>
+      {year.dueDate && left > 0 && <div className="text-xs text-tx-2">{formatKrw(left)} 남음</div>}
+    </>
+  );
+};
+
+// 판 해마다 원화 실현 이익 · 공제 · 양도세 · 납부일 · 낸 금액 표(판 거래가 없으면 안내 한 줄)
 export const TaxYearTable: React.FC<{ years: CapitalGainsTaxYear[] }> = ({ years }) =>
   years.length === 0 ? (
     <p className="text-sm text-tx-2">판 거래가 없어 양도세 없음</p>
@@ -22,7 +33,7 @@ export const TaxYearTable: React.FC<{ years: CapitalGainsTaxYear[] }> = ({ years
             <th scope="col" className={`${CELL} font-normal`}>실현 이익</th>
             <th scope="col" className={`${CELL} font-normal`}>공제</th>
             <th scope="col" className={`${CELL} font-normal`}>양도세</th>
-            <th scope="col" className={`${CELL} font-normal`}>낸 날</th>
+            <th scope="col" className={`${CELL} font-normal`}>납부일</th>
             <th scope="col" className={`${CELL} font-normal`}>낸 금액</th>
           </tr>
         </thead>
@@ -34,7 +45,9 @@ export const TaxYearTable: React.FC<{ years: CapitalGainsTaxYear[] }> = ({ years
               <td className={CELL}>{formatKrw(year.deductionKrw)}</td>
               <td className={`${CELL} font-medium`}>{formatKrw(year.taxKrw)}</td>
               <td className={`${CELL} ${year.dueDate && year.taxKrw > 0 ? '' : 'text-tx-2'}`}>{dueText(year)}</td>
-              <td className={CELL}>{formatKrw(year.paidKrw)}</td>
+              <td className={CELL}>
+                <PaidCell year={year} />
+              </td>
             </tr>
           ))}
         </tbody>
@@ -44,7 +57,7 @@ export const TaxYearTable: React.FC<{ years: CapitalGainsTaxYear[] }> = ({ years
 
 interface CapitalGainsTaxFoldProps {
   tax: CapitalGainsTax;
-  // 세후 수익률 기준(투자금 · 누적 매수액)
+  // 세후 수익률 기준(투자금 · 누적 매수액 · 원금)
   returnBasis: string;
 }
 

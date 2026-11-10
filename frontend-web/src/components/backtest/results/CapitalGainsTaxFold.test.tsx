@@ -54,7 +54,7 @@ describe('CapitalGainsTaxFold', () => {
     expect(screen.getByText('세후 총 평가').nextSibling).toHaveTextContent('₩9,670,000')
   })
 
-  it('연도별 표는 실현 이익 · 공제 · 양도세 · 낸 날 · 낸 금액이고 기간 안에 내지 않은 해는 기간 뒤, 세금이 0 인 해는 낸 날을 - 로 보인다', async () => {
+  it('연도별 표는 실현 이익 · 공제 · 양도세 · 납부일 · 낸 금액이고 납부일이 기간 뒤인 해는 기간 뒤, 세금이 0 인 해는 납부일을 - 로 보인다', async () => {
     render(<CapitalGainsTaxFold tax={tax} returnBasis="누적 매수액 기준" />)
     await open()
 
@@ -63,7 +63,7 @@ describe('CapitalGainsTaxFold', () => {
       '실현 이익',
       '공제',
       '양도세',
-      '낸 날',
+      '납부일',
       '낸 금액',
     ])
     expect(cells(/2023년/)).toEqual(['-₩500,000', '₩0', '₩0', '-', '₩0'])
@@ -72,6 +72,18 @@ describe('CapitalGainsTaxFold', () => {
     expect(
       screen.getByText('판 해마다 원화 실현 이익에서 250만원까지 공제하고 22% · 다음 해 5월 첫 거래일에 현금에서 냄(모자라면 다음 매도 뒤)'),
     ).toBeInTheDocument()
+  })
+
+  it('납부일이 기간 안인데 다 내지 못한 해는 낸 금액 아래에 남은 세금을 보인다', async () => {
+    const unpaid = [
+      { year: 2024, realizedGainKrw: 4000000, deductionKrw: 2500000, taxKrw: 330000, dueDate: '2025-05-01', paidKrw: 220000 },
+      { year: 2025, realizedGainKrw: 3000000, deductionKrw: 2500000, taxKrw: 110000, dueDate: '2026-05-01', paidKrw: 0 },
+    ]
+    render(<CapitalGainsTaxFold tax={{ ...tax, years: unpaid, paidTaxKrw: 220000, unpaidTaxKrw: 220000 }} returnBasis="누적 매수액 기준" />)
+    await open()
+
+    expect(cells(/2024년/)).toEqual(['+₩4,000,000', '₩2,500,000', '₩330,000', '2025-05-01', '₩220,000₩110,000 남음'])
+    expect(cells(/2025년/)).toEqual(['+₩3,000,000', '₩2,500,000', '₩110,000', '2026-05-01', '₩0₩110,000 남음'])
   })
 
   it('연도별 표는 칸 안에서만 가로 스크롤한다', async () => {
