@@ -55,6 +55,7 @@ docker-compose up -d  # 전체 스택 한 번에 실행
 
 호스트 8080은 keycloak이 써서 user-service는 8085로 연다.
 게이트웨이가 라우팅하므로 평소엔 8070만 쓰면 된다.
+게이트웨이가 연결하는 서비스 · keycloak · redis 는 고정 주소(`10.123.0.11` ~ `10.123.0.17`)를 써서 하나만 다시 띄워도 주소가 그대로다.
 
 각 서비스의 actuator는 management 포트 9090에 있고 호스트로 열지 않는다.
 컨테이너 네트워크 안에서 `user-service:9090/actuator/prometheus` 처럼 접근한다.
@@ -167,6 +168,20 @@ Keycloak 23 때 만든 `keycloak_data` 볼륨을 26 이 그대로 열면 나온�
 docker compose rm -sf keycloak
 docker volume rm docker-compose_keycloak_data
 docker compose up -d
+```
+
+### 네트워크에 `active endpoints` 가 있다고 나온다
+
+```
+Error response from daemon: error while removing network: network ggeolmuse-network has active endpoints (name:"ggeolmuse-kafka" ...)
+```
+
+네트워크 대역이 `10.123.0.0/24` 로 바뀌기 전에 띄운 스택이 남아 있으면 나온다. compose 가 네트워크를 다시 만들려 하지만 연결된 컨테이너가 있어
+지우지 못한다. 처음 한 번 전체를 내렸다가 다시 띄운다(DB 데이터도 같이 사라진다).
+
+```bash
+bash docker-compose/local-up.sh down
+bash docker-compose/local-up.sh
 ```
 
 ### Windows에서 `local-up.sh`가 안 돈다

@@ -29,7 +29,8 @@ services:
     volumes:
       - redis_data:/data
     networks:
-      - ggeolmuse-network
+      ggeolmuse-network:
+        ipv4_address: 10.123.0.17
     deploy:
       resources:
         limits:
@@ -133,7 +134,8 @@ services:
       retries: 10
       start_period: 30s
     networks:
-      - ggeolmuse-network
+      ggeolmuse-network:
+        ipv4_address: 10.123.0.16
     deploy:
       resources:
         limits:
@@ -298,7 +300,8 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - ggeolmuse-network
+      ggeolmuse-network:
+        ipv4_address: 10.123.0.11
     deploy:
       resources:
         limits:
@@ -356,7 +359,8 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - ggeolmuse-network
+      ggeolmuse-network:
+        ipv4_address: 10.123.0.12
     deploy:
       resources:
         limits:
@@ -430,7 +434,8 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - ggeolmuse-network
+      ggeolmuse-network:
+        ipv4_address: 10.123.0.13
     deploy:
       resources:
         limits:
@@ -484,7 +489,8 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - ggeolmuse-network
+      ggeolmuse-network:
+        ipv4_address: 10.123.0.14
     deploy:
       resources:
         limits:
@@ -520,7 +526,8 @@ services:
       market-data-service:
         condition: service_started
     networks:
-      - ggeolmuse-network
+      ggeolmuse-network:
+        ipv4_address: 10.123.0.15
     deploy:
       resources:
         limits:
@@ -649,3 +656,8 @@ networks:
   ggeolmuse-network:
     driver: bridge
     name: ggeolmuse-network
+    # 고정 주소(.11 ~ .17)는 앞 절반, 그 밖 컨테이너의 동적 배정은 뒤 절반(ip_range)
+    ipam:
+      config:
+        - subnet: 10.123.0.0/24
+          ip_range: 10.123.0.128/25
