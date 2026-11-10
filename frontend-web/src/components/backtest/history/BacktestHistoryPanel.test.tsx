@@ -83,4 +83,26 @@ describe('BacktestHistoryPanel', () => {
     expect(screen.getAllByText('적립식')).toHaveLength(3)
     expect(screen.queryByText('조건부 매수')).toBeNull()
   })
+
+  it('이동평균 기록은 짧은 · 긴 기간 칸으로 이동평균으로 보인다', () => {
+    const maCross = {
+      backtestId: '1',
+      userId: 'u',
+      backtestType: 'STRATEGY_SIMULATION' as const,
+      requestParams: JSON.stringify({
+        symbol: 'AAPL',
+        startDate: '2023-01-01',
+        endDate: '2026-10-23',
+        investmentAmount: 1000000,
+        shortWindow: 20,
+        longWindow: 60,
+      }),
+      fxRateMode: 'auto' as const,
+      createdAt: '2026-10-23T09:00:00',
+    }
+    renderPanel({ historyData: [maCross], historyTotalPages: 1 })
+
+    expect(screen.getByText('이동평균')).toBeInTheDocument()
+    expect(screen.queryByText('단순')).toBeNull()
+  })
 })

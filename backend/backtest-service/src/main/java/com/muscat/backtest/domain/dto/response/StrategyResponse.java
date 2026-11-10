@@ -83,7 +83,7 @@ public class StrategyResponse {
   private List<SkippedRound> skippedRounds;
   @Schema(description = "예산 부족으로 사지 못한 구간(처음 날짜 · 회차 수 · 이유, 없으면 null)")
   private SkippedSpan skippedSpan;
-  @Schema(description = "환율이 없어 기본 환율로 계산한 날(산 날 · 배당 재투자일 · 평가일)", example = "[\"2013-06-03\"]")
+  @Schema(description = "환율이 없어 기본 환율로 계산한 날(산 날 · 배당 재투자일 · 평가일, 양도세를 켜면 판 날)", example = "[\"2013-06-03\"]")
   @Builder.Default
   private List<LocalDate> defaultFxDates = List.of();
 

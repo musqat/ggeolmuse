@@ -2,6 +2,7 @@ package com.muscat.backtest.domain.model;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.muscat.backtest.common.constants.BacktestConstants.MovingAverage;
 import com.muscat.backtest.common.enums.type.DcaFrequency;
 import com.muscat.backtest.common.enums.type.PriceDirection;
 import com.muscat.backtest.common.enums.type.StrategyType;
@@ -46,6 +47,14 @@ public class StrategyParameter {
   private BigDecimal takeProfitRate;        // 비우면 익절 안 함
   private BigDecimal stopLossRate;          // 비우면 손절 안 함
 
+  // 이동평균 교차용 (거래일)
+  @Min(value = MovingAverage.MIN_WINDOW, message = MovingAverage.WINDOW_MESSAGE)
+  @Max(value = MovingAverage.MAX_WINDOW, message = MovingAverage.WINDOW_MESSAGE)
+  private Integer shortWindow;              // 비우면 20
+  @Min(value = MovingAverage.MIN_WINDOW, message = MovingAverage.WINDOW_MESSAGE)
+  @Max(value = MovingAverage.MAX_WINDOW, message = MovingAverage.WINDOW_MESSAGE)
+  private Integer longWindow;               // 비우면 60
+
   // 일시불용 (Simulation)
   private LocalDate purchaseDate;
 
@@ -54,6 +63,20 @@ public class StrategyParameter {
   @Schema(hidden = true)
   @AssertTrue(message = "적립식 · 조건부 전략에는 회당 금액을 넣어 주세요")
   public boolean isAmountForPurchases() {
-    return strategyType == null || strategyType == StrategyType.SIMPLE || amountPerPurchase != null;
+    return strategyType == null || strategyType == StrategyType.SIMPLE || strategyType == StrategyType.MA_CROSS
+      || amountPerPurchase != null;
+  }
+
+  // 이동평균 교차는 짧은 기간 < 긴 기간(비운 칸은 기본값)
+  @JsonIgnore
+  @Schema(hidden = true)
+  @AssertTrue(message = MovingAverage.WINDOW_MESSAGE)
+  public boolean isWindowOrder() {
+    if (strategyType != StrategyType.MA_CROSS) {
+      return true;
+    }
+    int shortDays = shortWindow != null ? shortWindow : MovingAverage.DEFAULT_SHORT_WINDOW;
+    int longDays = longWindow != null ? longWindow : MovingAverage.DEFAULT_LONG_WINDOW;
+    return shortDays < longDays;
   }
 }

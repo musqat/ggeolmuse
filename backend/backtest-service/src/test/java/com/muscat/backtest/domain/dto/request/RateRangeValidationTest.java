@@ -28,7 +28,7 @@ class RateRangeValidationTest {
     return value == null ? null : new BigDecimal(value);
   }
 
-  // 수동 환율 · 수수료율을 받는 요청 넷(적립식 · 조건부 · 시뮬레이션 · 종목 비교)
+  // 수동 환율 · 수수료율을 받는 요청 다섯(적립식 · 조건부 · 이동평균 교차 · 시뮬레이션 · 종목 비교)
   private static List<Object> requests(String fxRate, String currentFxRate, String feeRate) {
     DcaStrategyRequest dca = new DcaStrategyRequest();
     dca.setPurchaseFxRate(decimal(fxRate));
@@ -38,6 +38,10 @@ class RateRangeValidationTest {
     conditional.setPurchaseFxRate(decimal(fxRate));
     conditional.setCurrentFxRate(decimal(currentFxRate));
     conditional.setTradingFeeRate(decimal(feeRate));
+    MaCrossStrategyRequest maCross = new MaCrossStrategyRequest();
+    maCross.setPurchaseFxRate(decimal(fxRate));
+    maCross.setCurrentFxRate(decimal(currentFxRate));
+    maCross.setTradingFeeRate(decimal(feeRate));
     SimulationRequest simulation = new SimulationRequest();
     simulation.setPurchaseFxRate(decimal(fxRate));
     simulation.setCurrentFxRate(decimal(currentFxRate));
@@ -46,7 +50,7 @@ class RateRangeValidationTest {
     comparison.setPurchaseFxRate(decimal(fxRate));
     comparison.setCurrentFxRate(decimal(currentFxRate));
     comparison.setTradingFeeRate(decimal(feeRate));
-    return List.of(dca, conditional, simulation, comparison);
+    return List.of(dca, conditional, maCross, simulation, comparison);
   }
 
   private static Set<String> violatedFields(Object request) {
@@ -55,7 +59,7 @@ class RateRangeValidationTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"0", "-1300"})
-  @DisplayName("수동 매수 · 현재 환율이 0 이하면 네 요청 모두 막는다")
+  @DisplayName("수동 매수 · 현재 환율이 0 이하면 다섯 요청 모두 막는다")
   void rejectsNonPositiveFxRate(String fxRate) {
     for (Object request : requests(fxRate, fxRate, "0")) {
       assertThat(violatedFields(request)).as(request.getClass().getSimpleName())
@@ -65,7 +69,7 @@ class RateRangeValidationTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"1", "1.5", "-0.001"})
-  @DisplayName("수수료율이 0 미만이거나 1 이상이면 네 요청 모두 막는다")
+  @DisplayName("수수료율이 0 미만이거나 1 이상이면 다섯 요청 모두 막는다")
   void rejectsFeeRateOutOfRange(String feeRate) {
     for (Object request : requests(null, null, feeRate)) {
       assertThat(violatedFields(request)).as(request.getClass().getSimpleName()).contains("tradingFeeRate");

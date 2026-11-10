@@ -22,9 +22,9 @@ interface DetailSettingsProps {
   options: BacktestOptionsState;
   open: boolean;
   onToggle: () => void;
-  // 익절 · 손절이 있어 배당 재투자를 못 쓰는지
+  // 배당 재투자를 못 쓰는지
   reinvestLocked?: boolean;
-  // 재투자를 막지 않는 배당 칸 안내
+  // 배당 칸 안내(막혔으면 막힌 까닭)
   reinvestNote?: string;
   messages?: DetailMessages;
 }
@@ -52,7 +52,7 @@ export const DetailSettings = ({ options, open, onToggle, reinvestLocked = false
   const fxMessage = messages.buyFx ?? messages.endFx;
   const fx = useMessageLink(fxMessage);
   const hasError = [messages.fee, messages.buyFx, messages.endFx].some(isError);
-  const dividendNote = reinvestLocked ? LOCKED_NOTE : reinvestNote;
+  const dividendNote = reinvestLocked ? (reinvestNote ?? LOCKED_NOTE) : reinvestNote;
   const manual = options.fxMode === 'manual';
 
   return (

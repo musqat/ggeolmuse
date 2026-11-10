@@ -1,0 +1,258 @@
+package com.muscat.backtest.domain.strategy;
+
+import com.muscat.backtest.common.constants.BacktestConstants.MovingAverage;
+import com.muscat.backtest.common.constants.BacktestConstants.TransactionTrigger;
+import com.muscat.backtest.common.engine.StrategyFinalizer;
+import com.muscat.backtest.common.enums.response.BacktestResponse;
+import com.muscat.backtest.common.enums.type.SkipReason;
+import com.muscat.backtest.common.enums.type.StrategyType;
+import com.muscat.backtest.common.exception.BacktestException;
+import com.muscat.backtest.common.logging.BacktestLogger;
+import com.muscat.backtest.common.util.BacktestCalculationUtils;
+import com.muscat.backtest.common.util.BacktestDataUtils;
+import com.muscat.backtest.common.util.Decimals;
+import com.muscat.backtest.common.util.FxRates;
+import com.muscat.backtest.common.util.PriceLookup;
+import com.muscat.backtest.common.util.RoundPurchase;
+import com.muscat.backtest.common.validation.BacktestRequestValidator;
+import com.muscat.backtest.domain.dto.request.MaCrossStrategyRequest;
+import com.muscat.backtest.domain.dto.request.StrategyRequest;
+import com.muscat.backtest.domain.dto.response.StrategyResponse;
+import com.muscat.backtest.domain.mapper.ResponseMapper;
+import com.muscat.backtest.domain.model.SkippedRound;
+import com.muscat.backtest.domain.model.StrategyTransaction;
+import com.muscat.backtest.infra.client.MarketDataClientWrapper;
+import com.muscat.commonlib.dto.OHLCPriceDto;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+
+// 이동평균 교차 전략: 수정 종가 단순 이동평균의 짧은 선이 긴 선을 아래에서 위로 넘는 날(골든 크로스) 그 날짜 종가에 가진 돈 전부로 사고,
+// 위에서 아래로 넘는 날(데드 크로스) 전량 팜(처음은 원금, 그 뒤는 판 돈, 시작일 전 일봉을 더 받아 시작일부터 교차를 봄)
+@Component
+@RequiredArgsConstructor
+@Slf4j
+public class MaCrossStrategy implements InvestmentStrategy {
+
+  private final MarketDataClientWrapper marketData;
+  private final ResponseMapper responseMapper;
+
+  @Override
+  public StrategyType getStrategyType() {
+    return StrategyType.MA_CROSS;
+  }
+
+  @Override
+  public StrategyResponse execute(StrategyRequest request) {
+    // null 은 검증이 막음
+    if (request != null && !(request instanceof MaCrossStrategyRequest)) {
+      throw new BacktestException(BacktestResponse.STRATEGY_TYPE_MISMATCH,
+        "이동평균 교차 전략에 다른 요청이 왔습니다: " + request.getStrategyType());
+    }
+    return runMaCross((MaCrossStrategyRequest) request);
+  }
+
+  private StrategyResponse runMaCross(MaCrossStrategyRequest request) {
+    validate(request);
+
+    BacktestLogger.setStrategyContext(request.getUserId(), "MA_CROSS", request.getSymbol());
+
+    try {
+      int shortWindow = request.shortWindowOrDefault();
+      int longWindow = request.longWindowOrDefault();
+      log.info("이동평균 교차 전략 실행 시작: {} - {}일 · {}일 선, 원금 {}원",
+        request.getSymbol(), shortWindow, longWindow, request.getInvestmentAmount());
+
+      LocalDate today = LocalDate.now();
+      LocalDate actualEndDate = request.getEndDate().isAfter(today) ? today : request.getEndDate();
+
+      StrategyPurchases trades = trade(request, shortWindow, longWindow, actualEndDate);
+
+      StrategyFinalizer.Result finalized = StrategyFinalizer.run(
+        marketData, request.getSymbol(), request.getStartDate(), actualEndDate, request.getCurrentFxRate(),
+        request.getPurchaseFxRate(), false, request.getDividendTaxRate(), trades.transactions(), trades.priceMap(),
+        trades.dailyFx(), request.getPeriodEnd(), request.getTradingFeeRate());
+
+      log.info("이동평균 교차 전략 실행 완료: {} - 거래 {}건, 수익률 {}%",
+        request.getSymbol(), finalized.transactions().size(), finalized.calculation().getTotalReturnPercent());
+
+      StrategyResponse response = finalized.fill(responseMapper.toStrategyResponse(
+        request, finalized.transactions(), finalized.calculation(), finalized.currentPrice(), trades.skippedRounds()));
+      response.setCapitalGainsTax(Boolean.TRUE.equals(request.getCapitalGainsTax()) ? finalized.capitalGainsTax() : null);
+      return response;
+
+    } finally {
+      BacktestLogger.remove("operation");
+    }
+  }
+
+  // 종목 · 기간 · 원금 · 이동평균 기간 검사, 배당 재투자는 막음
+  private static void validate(MaCrossStrategyRequest request) {
+    BacktestRequestValidator.requireNonNull(request);
+    BacktestRequestValidator.requireSymbol(request.getSymbol());
+    BacktestRequestValidator.requireDateRange(request.getStartDate(), request.getEndDate());
+    if (request.getInvestmentAmount() == null || !Decimals.isPositive(request.getInvestmentAmount())) {
+      throw new BacktestException(BacktestResponse.INVALID_INVESTMENT_AMOUNT);
+    }
+    int shortWindow = request.shortWindowOrDefault();
+    int longWindow = request.longWindowOrDefault();
+    if (shortWindow < MovingAverage.MIN_WINDOW || longWindow > MovingAverage.MAX_WINDOW || shortWindow >= longWindow) {
+      throw new BacktestException(BacktestResponse.INVALID_MA_WINDOWS);
+    }
+    // 재투자 주식은 교차 매매 뒤에 더해져 매도와 순서가 맞지 않음
+    if (Boolean.TRUE.equals(request.getReinvestDividends())) {
+      throw new BacktestException(BacktestResponse.SELL_WITH_REINVEST);
+    }
+  }
+
+  // 시작일부터 일봉마다 교차를 보고 골든 크로스에 사고 데드 크로스에 팜(계산이 실패한 날은 사고팔지 않고 이유를 남김)
+  private StrategyPurchases trade(MaCrossStrategyRequest request, int shortWindow, int longWindow,
+    LocalDate actualEndDate) {
+    LocalDate start = request.getStartDate();
+    Map<LocalDate, OHLCPriceDto> priceMap = BacktestDataUtils.buildPriceMap(
+      marketData, request.getSymbol(), start.minusDays(lookbackDays(longWindow)), actualEndDate);
+    List<OHLCPriceDto> candles = priceMap.values().stream()
+      .filter(PriceLookup::isUsable)
+      .sorted(Comparator.comparing(OHLCPriceDto::date))
+      .toList();
+    LocalDate firstInPeriod = candles.stream()
+      .map(OHLCPriceDto::date)
+      .filter(date -> !date.isBefore(start))
+      .findFirst()
+      .orElseThrow(() -> new BacktestException(BacktestResponse.DATA_NOT_FOUND,
+        "이동평균 교차 전략 실행 가능한 데이터가 없습니다"));
+
+    FxRates fxRates = FxRates.EMPTY;
+    if (request.getPurchaseFxRate() == null) {
+      fxRates = BacktestDataUtils.buildDailyFxRateMap(marketData, firstInPeriod, actualEndDate);
+      log.info("환율 데이터 조회 완료: {}개", fxRates.size());
+    }
+
+    BigDecimal[] sums = signalSums(candles);
+    List<StrategyTransaction> transactions = new ArrayList<>();
+    List<SkippedRound> skippedRounds = new ArrayList<>();
+    // 보유 주식 · 그 원가(USD, 수수료 포함) · 판 돈(USD, 첫 매수 전은 null)
+    BigDecimal heldShares = BigDecimal.ZERO;
+    BigDecimal heldCost = BigDecimal.ZERO;
+    BigDecimal cash = null;
+
+    for (int i = longWindow; i < candles.size(); i++) {
+      OHLCPriceDto candle = candles.get(i);
+      if (candle.date().isBefore(start)) {
+        continue;
+      }
+      int before = side(sums, i - 1, shortWindow, longWindow);
+      int today = side(sums, i, shortWindow, longWindow);
+      boolean holding = heldShares.signum() > 0;
+      try {
+        if (!holding && before <= 0 && today > 0) {
+          StrategyTransaction buy = buy(request, candle, fxRates, cash);
+          transactions.add(buy);
+          heldShares = buy.getShares();
+          heldCost = buy.getCashUsed() != null
+            ? buy.getCashUsed()
+            : buy.getAmount().divide(buy.getFxRate(), 8, RoundingMode.HALF_UP);
+          cash = BigDecimal.ZERO;
+        } else if (holding && before >= 0 && today < 0) {
+          StrategyTransaction sale = sell(request, candle, fxRates, heldShares, heldCost);
+          transactions.add(sale);
+          cash = sale.getProceeds();
+          heldShares = BigDecimal.ZERO;
+          heldCost = BigDecimal.ZERO;
+        }
+      } catch (RuntimeException e) {
+        skippedRounds.add(new SkippedRound(candle.date(), SkipReason.CALCULATION_ERROR));
+        log.warn("이동평균 교차 {} 매매 계산 실패, 사고팔지 않음: {}", candle.date(), e.getMessage());
+      }
+    }
+
+    log.info("이동평균 교차 전략 완료: 거래 {}건, 계산 실패 {}회", transactions.size(), skippedRounds.size());
+    return new StrategyPurchases(transactions, skippedRounds, priceMap, fxRates);
+  }
+
+  // 긴 기간 거래일이 넉넉히 들어가는 달력 날수
+  private static int lookbackDays(int longWindow) {
+    return longWindow * 3 / 2 + 14;
+  }
+
+  // 이동평균에 쓰는 값(수정 종가, 없거나 0 이하면 종가)의 누적 합
+  private static BigDecimal[] signalSums(List<OHLCPriceDto> candles) {
+    BigDecimal[] sums = new BigDecimal[candles.size() + 1];
+    sums[0] = BigDecimal.ZERO;
+    for (int i = 0; i < candles.size(); i++) {
+      BigDecimal adjusted = candles.get(i).adjustedClose();
+      BigDecimal value = adjusted != null && adjusted.signum() > 0 ? adjusted : PriceLookup.effectiveClose(candles.get(i));
+      sums[i + 1] = sums[i].add(value);
+    }
+    return sums;
+  }
+
+  // i 번째 일봉에서 짧은 선 - 긴 선의 부호(두 합에 서로의 기간을 곱해 나눗셈 없이 견줌)
+  private static int side(BigDecimal[] sums, int i, int shortWindow, int longWindow) {
+    BigDecimal shortSum = sums[i + 1].subtract(sums[i + 1 - shortWindow]);
+    BigDecimal longSum = sums[i + 1].subtract(sums[i + 1 - longWindow]);
+    return shortSum.multiply(BigDecimal.valueOf(longWindow))
+      .compareTo(longSum.multiply(BigDecimal.valueOf(shortWindow)));
+  }
+
+  // 그 날짜 종가에 원금(첫 매수) 또는 판 돈 전부로 삼(수수료를 뺀 달러로 소수 주)
+  private static StrategyTransaction buy(MaCrossStrategyRequest request, OHLCPriceDto candle, FxRates fxRates,
+    BigDecimal cash) {
+    LocalDate date = candle.date();
+    BigDecimal price = PriceLookup.effectiveClose(candle);
+    BigDecimal fxRate = fxOn(request, fxRates, date);
+    StrategyTransaction.StrategyTransactionBuilder builder = StrategyTransaction.builder()
+      .date(date)
+      .actualDate(date)
+      .price(price)
+      .fxRate(fxRate)
+      .defaultFxDate(fxRates.isDefault(date) ? date : null)
+      .trigger(TransactionTrigger.GOLDEN_CROSS);
+    if (cash == null) {
+      RoundPurchase purchase = RoundPurchase.byAmount(request.getInvestmentAmount(), price, fxRate,
+        request.getTradingFeeRate());
+      return builder.shares(purchase.shares()).fee(purchase.feeUsd()).amount(purchase.amountKrw()).build();
+    }
+    BigDecimal fee = BacktestCalculationUtils.calculateTradingFee(cash, request.getTradingFeeRate());
+    return builder.shares(cash.subtract(fee).divide(price, 8, RoundingMode.HALF_UP))
+      .fee(fee)
+      .amount(BigDecimal.ZERO)
+      .cashUsed(cash)
+      .build();
+  }
+
+  // 그 날짜 종가에 전량 팔고 매도 수수료를 뺀 판 돈 · 보유분 원가 대비 실현 손익을 남김
+  private static StrategyTransaction sell(MaCrossStrategyRequest request, OHLCPriceDto candle, FxRates fxRates,
+    BigDecimal shares, BigDecimal cost) {
+    LocalDate date = candle.date();
+    BigDecimal price = PriceLookup.effectiveClose(candle);
+    BigDecimal gross = shares.multiply(price).setScale(8, RoundingMode.HALF_UP);
+    BigDecimal fee = BacktestCalculationUtils.calculateTradingFee(gross, request.getTradingFeeRate());
+    BigDecimal proceeds = gross.subtract(fee);
+    return StrategyTransaction.builder()
+      .date(date)
+      .actualDate(date)
+      .price(price)
+      .shares(shares.negate())
+      .fee(fee)
+      .amount(BigDecimal.ZERO)
+      .proceeds(proceeds)
+      .realizedProfit(proceeds.subtract(cost))
+      .fxRate(fxOn(request, fxRates, date))
+      .defaultFxDate(Boolean.TRUE.equals(request.getCapitalGainsTax()) && fxRates.isDefault(date) ? date : null)
+      .trigger(TransactionTrigger.DEAD_CROSS)
+      .build();
+  }
+
+  // 그 날짜 환율(수동 환율이 있으면 그 값)
+  private static BigDecimal fxOn(MaCrossStrategyRequest request, FxRates fxRates, LocalDate date) {
+    return request.getPurchaseFxRate() != null ? request.getPurchaseFxRate() : fxRates.get(date);
+  }
+}

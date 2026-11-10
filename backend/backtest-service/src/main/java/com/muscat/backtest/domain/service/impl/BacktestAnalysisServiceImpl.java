@@ -11,6 +11,7 @@ import com.muscat.backtest.common.validation.BacktestRequestValidator;
 import com.muscat.backtest.domain.dto.request.BaseComparisonRequest;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
+import com.muscat.backtest.domain.dto.request.MaCrossStrategyRequest;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
 import com.muscat.backtest.domain.dto.request.StrategyComparisonRequest;
 import com.muscat.backtest.domain.dto.request.StrategyRequest;
@@ -61,6 +62,11 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
   @Override
   public StrategyResponse runConditionalStrategy(ConditionalStrategyRequest request) {
     return runStrategy("조건부 매수", request);
+  }
+
+  @Override
+  public StrategyResponse runMaCrossStrategy(MaCrossStrategyRequest request) {
+    return runStrategy("이동평균 교차", request);
   }
 
   // 전략 실행 · 이력 저장과 걸린 시간 로그
@@ -243,6 +249,29 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
         .build();
 
       StrategyResponse result = execute(conditionalRequest);
+      return responseMapper.toComparisonItemFromStrategy(result, strategyName);
+    }
+
+    if (strategyType == StrategyType.MA_CROSS) {
+      MaCrossStrategyRequest maCrossRequest = MaCrossStrategyRequest.builder()
+        .symbol(request.getSymbol())
+        .startDate(request.getStartDate())
+        .endDate(request.getEndDate())
+        .userId(request.getUserId())
+        .investmentAmount(request.getInvestmentAmount())
+        .shortWindow(strategyConfig.getShortWindow())
+        .longWindow(strategyConfig.getLongWindow())
+        .purchaseFxRate(request.getPurchaseFxRate())
+        .currentFxRate(request.getCurrentFxRate())
+        // 교차마다 전량 팔아 재투자 끔
+        .reinvestDividends(false)
+        .dividendTaxRate(orZero(request.getDividendTaxRate()))
+        .tradingFeeRate(orZero(request.getTradingFeeRate()))
+        .capitalGainsTax(request.getCapitalGainsTax())
+        .periodEnd(request.getPeriodEnd())
+        .build();
+
+      StrategyResponse result = execute(maCrossRequest);
       return responseMapper.toComparisonItemFromStrategy(result, strategyName);
     }
 

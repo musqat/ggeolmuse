@@ -13,6 +13,7 @@ import {
   sellIssue,
   symbolIssue,
   symbolsIssue,
+  windowIssues,
 } from './checks'
 
 const error = (text: string) => ({ kind: 'error', text })
@@ -28,14 +29,16 @@ describe('설정 칸 검사', () => {
     expect(symbolsIssue(['AAPL', 'MSFT'])).toBeNull()
   })
 
-  it('금액: 비면 칸 이름 + 비어 있음, 0 이하면 0 보다 크게, 주식 수는 1 ~ 1,000,000 정수', () => {
+  it('금액: 비면 칸 이름 + 비어 있음, 0 이하면 0 보다 크게, 주식 수는 1 ~ 1,000,000 정수이고 넘으면 상한 안내', () => {
     expect(amountIssue({ byShares: false, amount: '300000', shares: '1', label: '금액' })).toBeNull()
     expect(amountIssue({ byShares: false, amount: '', shares: '1', label: '회당 금액' })).toEqual(error('회당 금액 비어 있음'))
     expect(amountIssue({ byShares: false, amount: '0', shares: '1', label: '금액' })).toEqual(error('0 보다 크게'))
     expect(amountIssue({ byShares: true, amount: '', shares: '1.5', label: '금액' })).toEqual(error('1 이상 정수'))
     expect(amountIssue({ byShares: true, amount: '', shares: '2', label: '금액' })).toBeNull()
     expect(amountIssue({ byShares: true, amount: '', shares: '1000000', label: '금액' })).toBeNull()
-    expect(amountIssue({ byShares: true, amount: '', shares: '1000001', label: '금액' })).toEqual(error('1,000,000 이하'))
+    expect(amountIssue({ byShares: true, amount: '', shares: '1000001', label: '금액' })).toEqual(
+      error('한 번에 1,000,000주까지 계산 · 더 크면 금액으로')
+    )
   })
 
   it('예산: 비면 제한 없음, 0 이하면 오류, 한 번 살 돈보다 적으면 금액은 오류 · 주식 수는 추정이라 경고', () => {
@@ -85,6 +88,16 @@ describe('설정 칸 검사', () => {
     expect(maxIssue('3')).toBeNull()
     expect(maxIssue('0')).toEqual(error('1 이상 정수'))
     expect(maxIssue('2.5')).toEqual(error('1 이상 정수'))
+  })
+
+  it('이동평균 기간: 칸마다 2 ~ 250 정수, 짧은 기간이 긴 기간 이상이면 짧은 칸 오류', () => {
+    expect(windowIssues('20', '60')).toEqual({ short: null, long: null })
+    expect(windowIssues('2', '250')).toEqual({ short: null, long: null })
+    expect(windowIssues('', '60')).toEqual({ short: error('2 ~ 250 사이 정수'), long: null })
+    expect(windowIssues('1', '251')).toEqual({ short: error('2 ~ 250 사이 정수'), long: error('2 ~ 250 사이 정수') })
+    expect(windowIssues('20', '20.5')).toEqual({ short: null, long: error('2 ~ 250 사이 정수') })
+    expect(windowIssues('60', '60')).toEqual({ short: error('긴 기간보다 짧게'), long: null })
+    expect(windowIssues('90', '60')).toEqual({ short: error('긴 기간보다 짧게'), long: null })
   })
 
   it('수수료: 비면 0, 숫자가 아니면 숫자로, 100 이상이면 100 아래', () => {

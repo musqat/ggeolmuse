@@ -49,9 +49,9 @@ export interface ModeController {
   summary: ModeSummary;
   // 실행을 막는 칸 오류 수
   errorCount: number;
-  // 익절 · 손절이 있어 세부 설정의 배당 재투자를 못 쓰는지
+  // 세부 설정의 배당 재투자를 못 쓰는지
   reinvestLocked?: boolean;
-  // 재투자를 막지 않는 배당 칸 안내
+  // 배당 칸 안내(막혔으면 막힌 까닭)
   reinvestNote?: string;
   // 직전 설정 · 설정 초기화가 저장하는 이 모드의 값
   saved: object;

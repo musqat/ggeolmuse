@@ -4,14 +4,14 @@ import type { PreparedRun } from './types';
 interface StrategyRunInput<T extends PreparedRun['params']> {
   request: T;
   call: (request: T) => Promise<{ data: StrategyResponse }>;
-  mode: 'dca' | 'conditional';
+  mode: 'dca' | 'conditional' | 'ma-cross';
   fxMode: PreparedRun['fxMode'];
   failureMessage: string;
   // 결과에 같이 담는 요청의 예산
   budget?: number;
 }
 
-// 적립식 · 조건부 실행 준비(결과에 모드 태그, 이력은 전략 시뮬레이션)
+// 적립식 · 조건부 · 이동평균 실행 준비(결과에 모드 태그, 이력은 전략 시뮬레이션)
 export const strategyRun = <T extends PreparedRun['params']>({
   request,
   call,

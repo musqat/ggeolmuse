@@ -39,7 +39,7 @@ const chipBorder = (chip: ChipView, open: boolean) => {
   return open ? 'border-tx-2' : 'border-transparent';
 };
 
-// 한 종목에 단순 · 적립식 · 조건부 매수를 견줌(금액은 전략마다 원금, 설정할 칸이 있는 칩을 누르면 아래에 그 칩의 설정)
+// 한 종목에 단순 · 적립식 · 조건부 매수 · 이동평균을 견줌(금액은 전략마다 원금, 설정할 칸이 있는 칩을 누르면 아래에 그 칩의 설정)
 export const StrategyComparisonForm: React.FC<StrategyComparisonFormProps> = ({
   symbol,
   period,
@@ -92,7 +92,7 @@ export const StrategyComparisonForm: React.FC<StrategyComparisonFormProps> = ({
 
       <SettingField
         label="견줄 전략"
-        right={<span>적립식 · 조건부는 눌러서 설정</span>}
+        right={<span>적립식 · 조건부 · 이동평균은 눌러서 설정</span>}
         message={chipsMessage}
         messageId={messageId}
       >

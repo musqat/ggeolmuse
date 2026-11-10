@@ -5,6 +5,7 @@ import com.muscat.backtest.common.metrics.BacktestMetrics;
 import com.muscat.backtest.common.util.TokenOwner;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
+import com.muscat.backtest.domain.dto.request.MaCrossStrategyRequest;
 import com.muscat.backtest.domain.dto.request.StrategyComparisonRequest;
 import com.muscat.backtest.domain.dto.request.SymbolComparisonRequest;
 import com.muscat.backtest.domain.dto.response.ComparisonResponse;
@@ -130,6 +131,46 @@ public class BacktestAnalysisController {
     StrategyResponse result = backtestMetrics.record("conditional", () -> backtestAnalysisService.runConditionalStrategy(request));
 
     log.info("조건부 매수 전략 완료: {} - 수익률 {}%",
+        request.getSymbol(), result.getTotalReturnPercent());
+
+    return ResponseEntity.ok(result);
+  }
+
+  @Operation(
+      summary = "이동평균 교차 전략 백테스팅",
+      description = "짧은 이동평균이 긴 이동평균을 아래에서 위로 넘는 날 가진 돈 전부로 사고, 위에서 아래로 넘는 날 전량 파는 전략의 백테스팅을 실행합니다"
+  )
+  @ApiResponses(value = {
+      @ApiResponse(
+          responseCode = "200",
+          description = "이동평균 교차 전략 백테스팅 성공",
+          content = @Content(
+              mediaType = "application/json",
+              schema = @Schema(implementation = StrategyResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "400",
+          description = "잘못된 요청 데이터",
+          content = @Content(
+              mediaType = "application/json",
+              schema = @Schema(implementation = ProblemDetail.class)
+          )
+      )
+  })
+  @PostMapping("/strategy/ma-cross")
+  public ResponseEntity<StrategyResponse> runMaCrossStrategy(
+      @Parameter(description = "이동평균 교차 전략 백테스팅 요청 정보", required = true)
+      @Valid @RequestBody MaCrossStrategyRequest request,
+      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
+    request.setUserId(TokenOwner.sub(jwt));
+
+    log.info("이동평균 교차 전략 백테스팅 요청: {} - {}일 · {}일 선",
+        request.getSymbol(), request.shortWindowOrDefault(), request.longWindowOrDefault());
+
+    StrategyResponse result = backtestMetrics.record("ma_cross", () -> backtestAnalysisService.runMaCrossStrategy(request));
+
+    log.info("이동평균 교차 전략 완료: {} - 수익률 {}%",
         request.getSymbol(), result.getTotalReturnPercent());
 
     return ResponseEntity.ok(result);

@@ -20,6 +20,7 @@ import com.muscat.backtest.common.exception.GlobalExceptionHandler;
 import com.muscat.backtest.common.metrics.BacktestMetrics;
 import com.muscat.backtest.config.SecurityConfig;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
+import com.muscat.backtest.domain.dto.request.MaCrossStrategyRequest;
 import com.muscat.backtest.domain.model.ComparisonItem;
 import com.muscat.backtest.domain.dto.response.ComparisonResponse;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
@@ -297,6 +298,51 @@ class BacktestAnalysisControllerTest {
   }
 
   @Test
+  @DisplayName("이동평균 교차 전략은 원금 · 짧은 · 긴 기간 · 양도세 · 기간 끝 선택을 그대로 넘기고 종류 ma_cross · 성공으로 지표에 한 건 남긴다")
+  void maCross() throws Exception {
+    given(backtestAnalysisService.runMaCrossStrategy(any())).willReturn(strategy("AAPL", StrategyType.MA_CROSS, "12.5"));
+
+    postJson("/strategy/ma-cross", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":10000000,"
+      + "\"shortWindow\":5,\"longWindow\":20,\"capitalGainsTax\":true,\"periodEnd\":\"SELL_AT_END\"}")
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.strategyType").value("MA_CROSS"))
+      .andExpect(jsonPath("$.totalReturnPercent").value(12.5));
+
+    verify(backtestAnalysisService).runMaCrossStrategy(argThat((MaCrossStrategyRequest r) ->
+      r.getSymbol().equals("AAPL") && r.getInvestmentAmount().intValue() == 10000000 && r.getShortWindow() == 5
+        && r.getLongWindow() == 20 && Boolean.TRUE.equals(r.getCapitalGainsTax())
+        && r.getPeriodEnd() == PeriodEnd.SELL_AT_END));
+    assertThat(meterRegistry.get("backtest.run").tags("kind", "ma_cross", "outcome", "success").timer().count())
+      .isEqualTo(1);
+  }
+
+  @ParameterizedTest(name = "[{index}] {0}")
+  @ValueSource(strings = {"", ",\"shortWindow\":2,\"longWindow\":250", ",\"shortWindow\":59"})
+  @DisplayName("이동평균 교차 전략의 짧은 · 긴 기간은 비우거나 2 ~ 250 안에서 짧은 기간이 작으면 통과한다")
+  void maCrossWindowsAccepted(String windows) throws Exception {
+    given(backtestAnalysisService.runMaCrossStrategy(any())).willReturn(strategy("AAPL", StrategyType.MA_CROSS, "1"));
+
+    postJson("/strategy/ma-cross", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":10000000" + windows + "}")
+      .andExpect(status().isOk());
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @CsvSource(delimiter = '|', value = {
+    "원금 없음|\"shortWindow\":5",
+    "원금 0|\"investmentAmount\":0",
+    "짧은 기간 1|\"investmentAmount\":10000000,\"shortWindow\":1",
+    "긴 기간 251|\"investmentAmount\":10000000,\"longWindow\":251",
+    "두 기간이 같음|\"investmentAmount\":10000000,\"shortWindow\":60,\"longWindow\":60",
+    "짧은 기간 70 · 긴 기간 비움|\"investmentAmount\":10000000,\"shortWindow\":70"})
+  @DisplayName("이동평균 교차 전략의 원금이 없거나 0 이거나 기간이 2 ~ 250 밖이거나 짧은 기간이 긴 기간보다 작지 않으면 400 이고 서비스까지 가지 않는다")
+  void maCrossRejected(String label, String fields) throws Exception {
+    postJson("/strategy/ma-cross", "{\"symbol\":\"AAPL\"," + PERIOD + "," + fields + "}")
+      .andExpect(status().isBadRequest());
+
+    verify(backtestAnalysisService, never()).runMaCrossStrategy(any());
+  }
+
+  @Test
   @DisplayName("종목 비교는 종목 목록을 넘기고 최고 수익 종목을 돌려준다")
   void compareSymbols() throws Exception {
     given(backtestAnalysisService.compareSymbols(any())).willReturn(comparison("MSFT"));
@@ -356,6 +402,35 @@ class BacktestAnalysisControllerTest {
   }
 
   @Test
+  @DisplayName("전략 비교의 이동평균 칩은 회당 금액 없이 짧은 · 긴 기간을 받아 그대로 넘기고 기간을 비워도 된다")
+  void compareStrategies_MaCrossChip() throws Exception {
+    given(backtestAnalysisService.compareStrategies(any())).willReturn(comparison("이동평균"));
+
+    postJson("/compare/strategies", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":1000000,"
+      + "\"strategies\":[{\"strategyType\":\"MA_CROSS\",\"name\":\"이동평균\",\"shortWindow\":5,\"longWindow\":20},"
+      + "{\"strategyType\":\"MA_CROSS\"},{\"strategyType\":\"SIMPLE\"}]}")
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.bestPerformer.name").value("이동평균"));
+
+    verify(backtestAnalysisService).compareStrategies(argThat(r -> r.getStrategies().size() == 3
+      && r.getStrategies().get(0).getStrategyType() == StrategyType.MA_CROSS
+      && r.getStrategies().get(0).getShortWindow() == 5 && r.getStrategies().get(0).getLongWindow() == 20
+      && r.getStrategies().get(1).getShortWindow() == null && r.getStrategies().get(1).getLongWindow() == null));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @ValueSource(strings = {"\"shortWindow\":1", "\"longWindow\":251", "\"shortWindow\":60,\"longWindow\":60",
+    "\"shortWindow\":70"})
+  @DisplayName("전략 비교의 이동평균 칩 기간이 2 ~ 250 밖이거나 짧은 기간이 긴 기간보다 작지 않으면 400 이고 서비스까지 가지 않는다")
+  void compareStrategies_InvalidMaCrossChip(String windows) throws Exception {
+    postJson("/compare/strategies", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":1000000,"
+      + "\"strategies\":[{\"strategyType\":\"MA_CROSS\"," + windows + "},{\"strategyType\":\"SIMPLE\"}]}")
+      .andExpect(status().isBadRequest());
+
+    verify(backtestAnalysisService, never()).compareStrategies(any());
+  }
+
+  @Test
   @DisplayName("전략 비교의 모든 전략이 매수 0회라 최고 수익 항목이 없어도 200 이다")
   void compareStrategies_NoBestPerformer() throws Exception {
     ComparisonItem none = ComparisonItem.builder().name("DCA").totalInvested(BigDecimal.ZERO)
@@ -370,13 +445,14 @@ class BacktestAnalysisControllerTest {
   }
 
   @Test
-  @DisplayName("분석 네 경로 모두 이력 주인을 본문이 아니라 토큰의 이메일로 정한다")
+  @DisplayName("분석 다섯 경로 모두 이력 주인을 본문이 아니라 토큰의 사용자로 정한다")
   void ownerFromToken() throws Exception {
     given(jwtDecoder.decode(TOKEN)).willReturn(Jwt.withTokenValue(TOKEN).header("alg", "none").subject(USER)
       .claim("email", EMAIL).build());
     given(backtestAnalysisService.runDcaStrategy(any())).willReturn(strategy("AAPL", StrategyType.DCA, "1"));
     given(backtestAnalysisService.runConditionalStrategy(any()))
       .willReturn(strategy("TSLA", StrategyType.CONDITIONAL_PURCHASE, "1"));
+    given(backtestAnalysisService.runMaCrossStrategy(any())).willReturn(strategy("AAPL", StrategyType.MA_CROSS, "1"));
     given(backtestAnalysisService.compareSymbols(any())).willReturn(comparison("MSFT"));
     given(backtestAnalysisService.compareStrategies(any())).willReturn(comparison("DCA"));
 
@@ -384,6 +460,8 @@ class BacktestAnalysisControllerTest {
       .andExpect(status().isOk());
     postJsonWithToken("/strategy/conditional",
       "{\"symbol\":\"TSLA\"," + PERIOD + ",\"amountPerPurchase\":100000,\"totalInvestment\":1000000,\"dropPercentage\":5" + VICTIM)
+      .andExpect(status().isOk());
+    postJsonWithToken("/strategy/ma-cross", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":1000000" + VICTIM)
       .andExpect(status().isOk());
     postJsonWithToken("/compare/symbols", "{\"symbols\":[\"AAPL\",\"MSFT\"]," + PERIOD + ",\"investmentAmount\":1000000" + VICTIM)
       .andExpect(status().isOk());
@@ -393,6 +471,7 @@ class BacktestAnalysisControllerTest {
 
     verify(backtestAnalysisService).runDcaStrategy(argThat(r -> USER.equals(r.getUserId())));
     verify(backtestAnalysisService).runConditionalStrategy(argThat(r -> USER.equals(r.getUserId())));
+    verify(backtestAnalysisService).runMaCrossStrategy(argThat(r -> USER.equals(r.getUserId())));
     verify(backtestAnalysisService).compareSymbols(argThat(r -> USER.equals(r.getUserId())));
     verify(backtestAnalysisService).compareStrategies(argThat(r -> USER.equals(r.getUserId())));
   }

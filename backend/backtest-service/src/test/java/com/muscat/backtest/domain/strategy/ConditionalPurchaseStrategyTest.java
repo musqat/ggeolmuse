@@ -1178,7 +1178,7 @@ class ConditionalPurchaseStrategyTest {
       }
 
       @Test
-      @DisplayName("매도일은 환율을 계산에 쓰지 않아 기본 환율로 계산한 날로 남기지 않는다")
+      @DisplayName("양도세를 끄면 기본 환율로 판 날은 기본 환율 날로 남기지 않는다")
       void saleIsNotDefaultFxDate() {
         ConditionalStrategyRequest request = perPurchase(3, 10).takeProfitRate(new BigDecimal("0.1")).build();
         // 일별 환율이 빈 응답이라 모든 날이 기본 환율
@@ -1187,6 +1187,19 @@ class ConditionalPurchaseStrategyTest {
         strategy.execute(request);
 
         assertThat(executed()).extracting(StrategyTransaction::getDefaultFxDate).containsExactly(START.plusDays(1), null);
+      }
+
+      @Test
+      @DisplayName("양도세를 켜면 기본 환율로 판 날도 기본 환율 날로 남긴다")
+      void saleIsDefaultFxDateWithCapitalGainsTax() {
+        ConditionalStrategyRequest request = perPurchase(3, 10).takeProfitRate(new BigDecimal("0.1"))
+          .capitalGainsTax(true).build();
+        stubMarket(request, afterEntry(candle(2, "101", "111", "100", "105")), true);
+
+        strategy.execute(request);
+
+        assertThat(executed()).extracting(StrategyTransaction::getDefaultFxDate)
+          .containsExactly(START.plusDays(1), START.plusDays(2));
       }
 
       @Test

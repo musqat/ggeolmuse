@@ -1,0 +1,23 @@
+import React from 'react';
+import { SymbolField, type SymbolFieldProps } from '../settings/SymbolFields';
+import { PeriodField, type PeriodFieldProps } from '../settings/PeriodField';
+import { AmountField, type AmountFieldProps } from '../settings/AmountField';
+import { WindowsField, type WindowsFieldProps } from '../settings/WindowsField';
+import { FIELD_GRID } from './formLayout';
+
+interface MaCrossStrategyFormProps {
+  symbol: SymbolFieldProps;
+  period: PeriodFieldProps;
+  amount: AmountFieldProps;
+  windows: WindowsFieldProps;
+}
+
+// 짧은 이동평균이 긴 이동평균을 위로 넘으면 가진 돈 전부로 사고 아래로 넘으면 전부 파는 전략: 종목 · 기간 · 원금 · 두 기간
+export const MaCrossStrategyForm: React.FC<MaCrossStrategyFormProps> = ({ symbol, period, amount, windows }) => (
+  <div className={FIELD_GRID}>
+    <SymbolField {...symbol} />
+    <PeriodField {...period} />
+    <AmountField {...amount} />
+    <WindowsField {...windows} />
+  </div>
+);

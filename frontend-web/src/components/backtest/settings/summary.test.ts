@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { changedOptions, conditionalHow, dcaHow, detailParts, sellText, simpleHow } from './summary'
+import { changedOptions, conditionalHow, dcaHow, detailParts, maCrossHow, sellText, simpleHow } from './summary'
 
 const NB = ' '
 const won = { byShares: false, amount: '100000', shares: '1' }
@@ -80,6 +80,15 @@ describe('요약 둘째 줄', () => {
       expect(conditionalHow({ ...base, unit: oneShare() })).toBe('전날보다 5% 내릴 때마다 1주 · 예산 100만원')
       expect(conditionalHow({ ...base, unit: oneShare(), maxPurchases: '3' })).toBe('전날보다 5% 내릴 때마다 1주 · 최대 3회')
     })
+  })
+
+  it('이동평균: 원금과 두 기간의 교차 규칙, 빈 기간은 ?', () => {
+    expect(maCrossHow({ amount: '1000000', short: '20', long: '60' })).toBe(
+      '원금 100만원 · 20일 선이 60일 선을 넘으면 원금 전부로 사고, 아래로 내려가면 전부 팜'
+    )
+    expect(maCrossHow({ amount: '500000', short: '5', long: ' ' })).toBe(
+      '원금 50만원 · 5일 선이 ?일 선을 넘으면 원금 전부로 사고, 아래로 내려가면 전부 팜'
+    )
   })
 
   it('매도 조건은 적은 쪽만, 둘 다 비면 빈 글', () => {

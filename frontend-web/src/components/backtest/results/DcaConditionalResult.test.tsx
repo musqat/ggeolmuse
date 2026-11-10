@@ -93,6 +93,32 @@ describe('DcaConditionalResult', () => {
     expect(screen.queryByText(/조건이 맞아/)).toBeNull()
   })
 
+  it('이동평균 매수 0회는 짧은 선이 긴 선을 위로 넘은 날이 없다고 알린다', () => {
+    render(<DcaConditionalResult result={{ ...result, transactions: [], totalInvested: 0 }} {...props} kind="ma-cross" />)
+
+    expect(screen.getByText('매수 0회: 기간 안에 짧은 선이 긴 선을 아래에서 위로 넘은 날이 없습니다.')).toBeInTheDocument()
+  })
+
+  it('이동평균 매매 내역 제목 줄은 미매수 회차가 없으면 미매수를 세지 않는다', () => {
+    const transactions = [
+      { date: '2023-03-01', shares: 6, price: 150, amount: 1000000, fxRate: 1300, trigger: '골든 크로스' },
+      { date: '2023-08-01', shares: -6, price: 170, amount: 0, fxRate: 1300, trigger: '데드 크로스', proceeds: 1020, realizedProfit: 120 },
+    ]
+    const { rerender } = render(<DcaConditionalResult result={{ ...result, transactions }} {...props} kind="ma-cross" />)
+
+    expect(screen.getByText('매매 내역')).toBeInTheDocument()
+    expect(screen.getByText('· 매수 1회 · 매도 1회')).toBeInTheDocument()
+
+    rerender(
+      <DcaConditionalResult
+        result={{ ...result, transactions, skippedRounds: [{ date: '2023-10-02', reason: 'NO_PRICE' }] }}
+        {...props}
+        kind="ma-cross"
+      />
+    )
+    expect(screen.getByText('· 매수 1회 · 매도 1회 · 미매수 1회')).toBeInTheDocument()
+  })
+
   it('예산 부족 구간을 처음 날짜 · 회차 수 한 줄로 알린다', () => {
     const skippedSpan = { firstDate: '2023-05-03', rounds: 4, reason: 'OVER_BUDGET' as const }
     render(<DcaConditionalResult result={{ ...result, skippedSpan }} {...props} />)

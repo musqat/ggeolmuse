@@ -49,6 +49,12 @@ public final class BacktestConstants {
 
     /** 기간 마지막 거래일 전량 매도 */
     public static final String PERIOD_END_SALE = "기간 끝 매도";
+
+    /** 짧은 이동평균이 긴 이동평균을 아래에서 위로 넘은 날 매수 */
+    public static final String GOLDEN_CROSS = "골든 크로스";
+
+    /** 짧은 이동평균이 긴 이동평균을 위에서 아래로 넘은 날 매도 */
+    public static final String DEAD_CROSS = "데드 크로스";
   }
 
   /**
@@ -73,6 +79,30 @@ public final class BacktestConstants {
 
     /** 단순 · 회당 주식 수 상한 */
     public static final int MAX_SHARES = 1_000_000;
+  }
+
+  /**
+   * 이동평균 교차 기간 (거래일)
+   */
+  public static final class MovingAverage {
+    private MovingAverage() {
+      throw new UnsupportedOperationException("Constants class cannot be instantiated");
+    }
+
+    /** 짧은 기간 기본값 */
+    public static final int DEFAULT_SHORT_WINDOW = 20;
+
+    /** 긴 기간 기본값 */
+    public static final int DEFAULT_LONG_WINDOW = 60;
+
+    /** 가장 짧은 기간 */
+    public static final int MIN_WINDOW = 2;
+
+    /** 가장 긴 기간 */
+    public static final int MAX_WINDOW = 250;
+
+    /** 기간 검사 오류 문구 */
+    public static final String WINDOW_MESSAGE = "이동평균 기간은 2 ~ 250 사이이고 짧은 기간이 긴 기간보다 작아야 합니다";
   }
 
   /**

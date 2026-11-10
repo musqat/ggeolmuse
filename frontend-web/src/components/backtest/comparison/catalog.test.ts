@@ -6,8 +6,8 @@ const year2023 = { startDate: '2023-01-01', endDate: '2023-12-31', investment: '
 
 describe('비교 전략 카탈로그', () => {
   it('버튼 순서와 이름', () => {
-    expect(COMPARISON_STRATEGIES.map((s) => s.type)).toEqual(['SIMPLE', 'DCA', 'CONDITIONAL_PURCHASE'])
-    expect(STRATEGY_NAMES).toEqual({ SIMPLE: '단순 매수', DCA: '적립식', CONDITIONAL_PURCHASE: '조건부 매수' })
+    expect(COMPARISON_STRATEGIES.map((s) => s.type)).toEqual(['SIMPLE', 'DCA', 'CONDITIONAL_PURCHASE', 'MA_CROSS'])
+    expect(STRATEGY_NAMES).toEqual({ SIMPLE: '단순 매수', DCA: '적립식', CONDITIONAL_PURCHASE: '조건부 매수', MA_CROSS: '이동평균' })
   })
 
   it('고를 때 채우는 기본값', () => {
@@ -23,6 +23,40 @@ describe('비교 전략 카탈로그', () => {
       maxPurchases: '',
       dropPercentage: '5',
       direction: 'DROP',
+    })
+    expect(strategyByType('MA_CROSS').defaultParams).toEqual({ shortWindow: '20', longWindow: '60' })
+  })
+
+  it('이동평균은 두 기간을 숫자로 싣고 원금은 싣지 않는다', () => {
+    expect(strategyByType('MA_CROSS').toRequest({}, common)).toEqual({
+      strategyType: 'MA_CROSS',
+      name: 'MA_CROSS',
+      shortWindow: 20,
+      longWindow: 60,
+    })
+    expect(strategyByType('MA_CROSS').toRequest({ shortWindow: '5', longWindow: '120' }, common)).toMatchObject({
+      shortWindow: 5,
+      longWindow: 120,
+    })
+  })
+
+  it('이동평균 검사: 기간이 2 ~ 250 정수가 아니거나 짧은 기간이 긴 기간 이상이면 막는다', () => {
+    const check = (params: Record<string, string>) => strategyByType('MA_CROSS').check(params, common)
+    const message = '이동평균 기간은 2 ~ 250 사이 정수로, 짧은 기간을 긴 기간보다 짧게 입력해주세요.'
+    expect(check({})).toBeNull()
+    expect(check({ shortWindow: '2', longWindow: '250' })).toBeNull()
+    expect(check({ shortWindow: '' })).toBe(message)
+    expect(check({ shortWindow: '1' })).toBe(message)
+    expect(check({ longWindow: '251' })).toBe(message)
+    expect(check({ shortWindow: '60' })).toBe(message)
+  })
+
+  it('요약: 이동평균은 두 기간의 교차 규칙', () => {
+    expect(strategyByType('MA_CROSS').summary({}, year2023)).toEqual({
+      text: '20일 선이 60일 선을 넘으면 원금 전부로 사고, 아래로 내려가면 전부 팜',
+    })
+    expect(strategyByType('MA_CROSS').summary({ shortWindow: '5', longWindow: '120' }, year2023)).toEqual({
+      text: '5일 선이 120일 선을 넘으면 원금 전부로 사고, 아래로 내려가면 전부 팜',
     })
   })
 

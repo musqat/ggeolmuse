@@ -4,6 +4,7 @@ export type BacktestMode =
   | "simple"
   | "dca"
   | "conditional"
+  | "ma-cross"
   | "compare-symbols"
   | "compare-strategies";
 
@@ -23,6 +24,6 @@ export { STRATEGY_NAMES } from "../comparison/catalog";
 // 실행한 모드와 요청의 기간 끝 처리를 함께 담은 결과(mode 로 응답 종류를 가름)
 export type BacktestResult = (
   | (SimulationResponse & { mode: "simple" })
-  | (StrategyResponse & { mode: "dca" | "conditional"; budget?: number })
+  | (StrategyResponse & { mode: "dca" | "conditional" | "ma-cross"; budget?: number })
   | (ComparisonResponse & { mode: "compare-symbols" | "compare-strategies" })
 ) & { periodEnd?: PeriodEnd };

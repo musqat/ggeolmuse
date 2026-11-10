@@ -14,6 +14,7 @@ vi.mock('../services/api', () => ({
     runSimulation: vi.fn(),
     runDcaStrategy: vi.fn(),
     runConditionalStrategy: vi.fn(),
+    runMaCrossStrategy: vi.fn(),
     compareSymbols: vi.fn(),
     compareStrategies: vi.fn(),
     getHistory: vi.fn(),
@@ -90,6 +91,7 @@ beforeEach(() => {
   vi.mocked(backtestApi.runSimulation).mockResolvedValue({ data: {} } as never)
   vi.mocked(backtestApi.runDcaStrategy).mockResolvedValue({ data: {} } as never)
   vi.mocked(backtestApi.runConditionalStrategy).mockResolvedValue({ data: {} } as never)
+  vi.mocked(backtestApi.runMaCrossStrategy).mockResolvedValue({ data: {} } as never)
   vi.mocked(backtestApi.compareSymbols).mockResolvedValue({ data: {} } as never)
   vi.mocked(backtestApi.compareStrategies).mockResolvedValue({ data: {} } as never)
 })
@@ -109,7 +111,7 @@ describe('Backtest 페이지 모드 · 기록', () => {
   it('모드는 하나만 고르는 묶음이고 지난 기록은 모드 대신 제목 옆 링크로 따로 본다', () => {
     renderPage()
 
-    expect(modes().getAllByRole('radio').map((radio) => radio.textContent)).toEqual(['단순', '적립식', '조건부', '종목 비교', '전략 비교'])
+    expect(modes().getAllByRole('radio').map((radio) => radio.textContent)).toEqual(['단순', '적립식', '조건부', '이동평균', '종목 비교', '전략 비교'])
     expect(modes().getByRole('radio', { name: '단순' })).toHaveAttribute('aria-checked', 'true')
     expect(screen.queryByText('히스토리')).toBeNull()
     expect(screen.getByRole('link', { name: '지난 백테스트 기록 →' })).toHaveAttribute('href', '/backtest/history')
@@ -293,6 +295,60 @@ describe('Backtest 페이지 실행', () => {
     expect(await screen.findByText('예산: 5000000')).toBeInTheDocument()
   })
 
+  it('이동평균: 기본값은 원금 100만원 · 20일 · 60일로 요청하고 결과는 전략 결과로 그린다', async () => {
+    renderPage()
+    await selectMode('이동평균')
+    await runBacktest()
+
+    expect(backtestApi.runMaCrossStrategy).toHaveBeenCalledWith({
+      symbol: 'AAPL',
+      startDate: START,
+      endDate: TODAY,
+      investmentAmount: 1000000,
+      shortWindow: 20,
+      longWindow: 60,
+      ...common,
+    })
+    expect(await screen.findByText('결과: ma-cross')).toBeInTheDocument()
+    expect(screen.queryByText(/예산:/)).toBeNull()
+  })
+
+  it('이동평균: 바꾼 원금 · 기간으로 요청하고 기간 끝 매도 결과로 그린다', async () => {
+    renderPage()
+    await selectMode('이동평균')
+    fireEvent.change(screen.getByRole('textbox', { name: '원금(원)' }), { target: { value: '3,000,000' } })
+    fireEvent.change(screen.getByRole('textbox', { name: '짧은 기간(일)' }), { target: { value: '5' } })
+    fireEvent.change(screen.getByRole('textbox', { name: '긴 기간(일)' }), { target: { value: '120' } })
+    await userEvent.click(detailToggle())
+    await userEvent.click(screen.getByRole('radio', { name: '마지막 거래일에 팔기' }))
+    await runBacktest()
+
+    expect(vi.mocked(backtestApi.runMaCrossStrategy).mock.calls[0][0]).toMatchObject({
+      investmentAmount: 3000000,
+      shortWindow: 5,
+      longWindow: 120,
+      periodEnd: 'SELL_AT_END',
+    })
+    expect(await screen.findByText('결과: ma-cross · 기간 끝 매도')).toBeInTheDocument()
+  })
+
+  it('이동평균: 배당 재투자를 막고 false 로 요청하며, 다른 모드는 고른 재투자 그대로', async () => {
+    renderPage()
+    await selectMode('적립식')
+    await userEvent.click(detailToggle())
+    await userEvent.click(reinvestRadio())
+    await selectMode('이동평균')
+
+    expect(reinvestRadio()).toHaveAttribute('aria-disabled', 'true')
+    expect(reinvestRadio()).toHaveAttribute('aria-checked', 'false')
+    expect(reinvestRadio()).toHaveAccessibleDescription('이동평균 교차는 배당을 현금으로')
+    await runBacktest()
+    expect(vi.mocked(backtestApi.runMaCrossStrategy).mock.calls[0][0]).toMatchObject({ reinvestDividends: false })
+    await selectMode('적립식')
+    await runBacktest()
+    expect(vi.mocked(backtestApi.runDcaStrategy).mock.calls[0][0]).toMatchObject({ reinvestDividends: true })
+  })
+
   it('종목 비교: 기본 두 종목 요청', async () => {
     renderPage()
     await selectMode('종목 비교')
@@ -422,6 +478,21 @@ describe('Backtest 페이지 칸 오류 · 요약', () => {
     expect(summary()).toHaveTextContent('횟수 제한 없음 · 많아야 약 261회')
   })
 
+  it('이동평균 요약은 원금과 교차 규칙을 보이고, 짧은 기간이 긴 기간 이상이면 그 칸으로 가며 요청하지 않는다', async () => {
+    renderPage()
+    await selectMode('이동평균')
+    expect(summary()).toHaveTextContent('원금 100만원 · 20일 선이 60일 선을 넘으면 원금 전부로 사고, 아래로 내려가면 전부 팜')
+
+    fireEvent.change(screen.getByRole('textbox', { name: '짧은 기간(일)' }), { target: { value: '60' } })
+    expect(screen.getByText('긴 기간보다 짧게')).toBeInTheDocument()
+    expect(summary()).toHaveTextContent('고칠 칸 1개')
+    await runBacktest()
+
+    expect(screen.getByRole('textbox', { name: '짧은 기간(일)' })).toHaveFocus()
+    expect(backtestApi.runMaCrossStrategy).not.toHaveBeenCalled()
+    expect(alertSpy).not.toHaveBeenCalled()
+  })
+
   it('주식 수 추정에 쓸 시작일 환율이 없으면 칸 · 요약에 기본 환율 기준을 적는다', async () => {
     vi.mocked(stockApi.getOHLCData).mockResolvedValue({ data: [{ symbol: 'AAPL', date: START, closePrice: 200, adjustedClose: 200 }] } as never)
     renderPage()
@@ -439,12 +510,14 @@ describe('Backtest 페이지 칸 오류 · 요약', () => {
     expect(summary()).toHaveTextContent('(시작일 값 · 기본 환율 기준)')
   })
 
-  it('주식 수가 1,000,000 을 넘으면 칸 오류로 막고 요청하지 않는다', async () => {
+  it('주식 수가 1,000,000 을 넘으면 계산 상한 안내로 막고 요청하지 않는다', async () => {
     renderPage()
     await userEvent.click(screen.getByRole('radio', { name: '주식 수' }))
     fireEvent.change(screen.getByRole('textbox', { name: '주식 수(주)' }), { target: { value: '1000001' } })
 
-    expect(screen.getByText('1,000,000 이하')).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: '주식 수(주)' })).toHaveAccessibleDescription(
+      '한 번에 1,000,000주까지 계산 · 더 크면 금액으로'
+    )
     await runBacktest()
     expect(screen.getByRole('textbox', { name: '주식 수(주)' })).toHaveFocus()
     expect(backtestApi.runSimulation).not.toHaveBeenCalled()
@@ -496,6 +569,52 @@ describe('Backtest 페이지 전략 비교 칩', () => {
       direction: 'DROP',
       dropPercentage: 0.05,
     })
+  })
+
+  it('＋ 이동평균으로 칩을 더하면 기간 설정이 열리고, 바꾼 기간과 교차 규칙 요약 줄로 보낸다', async () => {
+    renderPage()
+    await selectMode('전략 비교')
+    await userEvent.click(strategyChips().getByRole('button', { name: '＋ 이동평균' }))
+
+    expect(strategyChips().getByRole('button', { name: '이동평균' })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByText('이동평균 기간')).toBeInTheDocument()
+    expect(summary()).toHaveTextContent('이동평균: 20일 선이 60일 선을 넘으면 원금 전부로 사고, 아래로 내려가면 전부 팜')
+    fireEvent.change(screen.getByRole('textbox', { name: '짧은 기간(일)' }), { target: { value: '5' } })
+    await runBacktest()
+
+    const request = vi.mocked(backtestApi.compareStrategies).mock.calls[0][0]
+    expect(request.investmentAmount).toBe(1000000)
+    expect(request.strategies[2]).toEqual({ strategyType: 'MA_CROSS', name: 'MA_CROSS', shortWindow: 5, longWindow: 60 })
+  })
+
+  it('이동평균 칩의 기간이 맞지 않으면 그 칩을 고칠 칩으로 두고 요청하지 않는다', async () => {
+    renderPage()
+    await selectMode('전략 비교')
+    await userEvent.click(strategyChips().getByRole('button', { name: '＋ 이동평균' }))
+    fireEvent.change(screen.getByRole('textbox', { name: '긴 기간(일)' }), { target: { value: '10' } })
+
+    expect(
+      strategyChips().getByRole('button', {
+        name: '이동평균 (고칠 것: 이동평균 기간은 2 ~ 250 사이 정수로, 짧은 기간을 긴 기간보다 짧게 입력해주세요.)',
+      })
+    ).toBeInTheDocument()
+    expect(screen.getByText('긴 기간보다 짧게')).toBeInTheDocument()
+    await runBacktest()
+
+    expect(backtestApi.compareStrategies).not.toHaveBeenCalled()
+  })
+
+  it('이동평균 칩이 있으면 배당 칸에 재투자 안 함을 안내하고 재투자는 막지 않는다', async () => {
+    renderPage()
+    await selectMode('전략 비교')
+    await userEvent.click(strategyChips().getByRole('button', { name: '＋ 이동평균' }))
+    await userEvent.click(detailToggle())
+
+    expect(reinvestRadio()).not.toHaveAttribute('aria-disabled')
+    expect(reinvestRadio()).toHaveAccessibleDescription('이동평균은 재투자 안 함')
+    await userEvent.click(strategyChips().getByRole('button', { name: '＋ 조건부 매수' }))
+    await userEvent.type(screen.getByRole('textbox', { name: '익절(평균 단가 대비 퍼센트)' }), '20')
+    expect(reinvestRadio()).toHaveAccessibleDescription('익절 · 손절이 있는 조건부 매수 · 이동평균은 재투자 안 함')
   })
 
   it('적립식 칩 설정에서 매주를 고르면 그 칩만 바꾸고 요약 줄도 바뀐다', async () => {
@@ -736,6 +855,25 @@ describe('Backtest 페이지 직전 설정 · 설정 초기화', () => {
 
     expect(strategyChips().getByRole('button', { name: '적립식 3' })).toHaveAttribute('aria-expanded', 'true')
     expect(strategyChips().getByRole('button', { name: '적립식 2' })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('이동평균 원금 · 기간도 직전 설정으로 되살리고 설정 초기화로 기본값으로 돌린다', async () => {
+    renderPage()
+    await selectMode('이동평균')
+    fireEvent.change(screen.getByRole('textbox', { name: '원금(원)' }), { target: { value: '2,000,000' } })
+    fireEvent.change(screen.getByRole('textbox', { name: '짧은 기간(일)' }), { target: { value: '10' } })
+    await runBacktest()
+
+    await userEvent.click(screen.getByRole('button', { name: '설정 초기화' }))
+    await selectMode('이동평균')
+    expect(screen.getByRole('textbox', { name: '원금(원)' })).toHaveValue('1,000,000')
+    expect(screen.getByRole('textbox', { name: '짧은 기간(일)' })).toHaveValue('20')
+    await userEvent.click(screen.getByRole('button', { name: '직전 설정' }))
+
+    expect(modes().getByRole('radio', { name: '이동평균' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('textbox', { name: '원금(원)' })).toHaveValue('2,000,000')
+    expect(screen.getByRole('textbox', { name: '짧은 기간(일)' })).toHaveValue('10')
+    expect(screen.getByRole('textbox', { name: '긴 기간(일)' })).toHaveValue('60')
   })
 
   it('모드를 바꾸지 않는 되살리기는 결과를 두고, 모드가 바뀌면 결과를 지운다', async () => {
