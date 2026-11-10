@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { AccumulationChart } from '@components/charts/backtest/AccumulationChart';
+import { SignalChart } from '@components/charts/backtest/SignalChart';
 import type { StrategyResponse } from '../../../services/api';
 import { gainLossClass } from '../../../utils/gainLoss';
 import { formatBalanceAmount, formatKrw, formatPercent, formatSigned, formatNumber, formatUsd } from '../../../utils/format';
@@ -26,6 +27,8 @@ interface DcaConditionalResultProps {
   startDate: string;
   // 실행한 요청의 예산(없으면 제한 없음)
   budget?: number;
+  // 실행한 요청의 이동평균 짧은 · 긴 기간
+  windows?: { short: number; long: number };
 }
 
 const EMPTY_REASON: Record<StrategyKind, string> = {
@@ -57,13 +60,14 @@ const unusedBudget = (budget: number | undefined, invested: number | null | unde
   return unused > 0 ? unused : null;
 };
 
-// 적립식 · 조건부 · 이동평균 결과: 카드 · 자산 추이 · 주가 추이 탭, 그 아래 예상 양도세 · 상세 · 매매 내역을 접어 둠
+// 적립식 · 조건부 · 이동평균 결과: 카드 · 자산 추이 · 주가 추이 탭(이동평균 교차는 주가 추이 앞에 이동평균 탭), 그 아래 예상 양도세 · 상세 · 매매 내역을 접어 둠
 export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
   kind,
   result,
   symbol,
   startDate,
   budget,
+  windows,
 }) => {
   const [currency, setCurrency] = useState<MetricCurrency>('KRW');
   const investedLabel = INVESTED_LABEL[kind];
@@ -114,6 +118,15 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
           )
         }
         chartTabs={[
+          ...(kind === 'ma-cross'
+            ? [
+                {
+                  key: 'signal',
+                  label: '이동평균',
+                  render: () => <SignalChart chart={result.signalChart} windows={windows} />,
+                },
+              ]
+            : []),
           {
             key: 'price',
             label: '주가 추이',

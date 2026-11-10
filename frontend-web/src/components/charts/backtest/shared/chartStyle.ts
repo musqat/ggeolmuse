@@ -26,6 +26,15 @@ export const MARKER_COLORS = {
   optimal: '#fbbf24',
 };
 
+// 이동평균 차트 선 · 교차 점 색(골든은 이익 색 · 데드는 손실 색)
+export const SIGNAL_COLORS = {
+  close: 'rgb(var(--text-2))',
+  short: '#3b82f6',
+  long: '#f59e0b',
+  golden: 'rgb(var(--gain))',
+  dead: 'rgb(var(--loss))',
+};
+
 // 마커 기본 모양(색은 따로)
 export const MARKER_PROPS = { r: 4, stroke: '#fff', strokeWidth: 2 };
 // 최적 시점 마커(밝은 금색이라 진한 테두리)

@@ -41,7 +41,7 @@ NYSE · NASDAQ · NYSE ARCA 상장 12,000+ 종목의 일별 가격으로 투자 
 - 적립식 주기(매일 · 매주 · 매달 · N개월마다)와 첫 매수일
 - 금액 대신 주식 수로 사기, 적립식 · 조건부 예산 한도
 - 조건부 매매의 익절 · 손절 — 평균 단가 기준으로 전량 매도
-- 이동평균 교차 — 짧은 선이 긴 선을 위로 넘으면 가진 돈 전부로 매수, 아래로 넘으면 전량 매도
+- 이동평균 교차 — 짧은 선이 긴 선을 위로 넘으면 가진 돈 전부로 매수, 아래로 넘으면 전량 매도, 결과에 종가 · 두 이동평균선 · 교차 점 차트
 - 해외 주식 양도세(연 250만원 공제 · 22%) — 다음 해 5월 현금에서 냄, 세후 수익률과 기간 끝 전량 매도 선택
 - 환율을 반영한 원화·달러 수익률
 - 배당금 자동 재투자 시뮬레이션
@@ -158,20 +158,20 @@ repository · service)이고, 기능 하나를 단계로 나누는 trade · mark
 
 ## 테스트
 
-백엔드 **2,160 개**, 프론트 **1,207 개**, E2E **49 개**.
+백엔드 **2,166 개**, 프론트 **1,216 개**, E2E **49 개**.
 
 | 서비스 | 테스트 |
 |---|---|
 | market-data-service | 551 |
 | user-service | 432 |
-| backtest-service | 594 |
+| backtest-service | 600 |
 | trade-service | 338 |
 | gateway-server | 21 |
 | config-server | 5 |
 | ggeolmuse-common | 36 |
 | messaging | 25 |
 | chat-service | 158 |
-| frontend-web | 1,207 |
+| frontend-web | 1,216 |
 | E2E (Playwright) | 49 |
 
 E2E 는 `docker compose` 로 스택 전체를 띄우고 PR 과 `master` push 마다 돈다.
@@ -190,10 +190,10 @@ CI 에서 그 아래면 빌드를 실패시킨다(자바 JaCoCo · chat coverage
 |---|---|---|
 | user | 98.3% | 87.5% |
 | trade | 99.3% | 94.3% |
-| backtest | 98.3% | 91.6% |
+| backtest | 98.3% | 91.8% |
 | market-data | 97.9% | 88.1% |
 | chat | 98.4% | 89.6% |
-| frontend-web | 93.4% | 86.8% |
+| frontend-web | 93.4% | 86.9% |
 
 market-data 의 외부 API 호출은 응답을 흉내 낸 테스트라 실제 API 가 바뀌는 것은 못 잡는다.
 

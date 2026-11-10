@@ -11,12 +11,12 @@ export interface MaCrossValues extends BacktestOptions {
   longWindow: string;
 }
 
-// 이동평균 교차 요청(검사에 걸리면 alert 문구), 금액은 원금 · 배당 재투자는 늘 끔
+// 이동평균 교차 요청(검사에 걸리면 alert 문구), 금액은 원금 · 두 기간은 늘 채움 · 배당 재투자는 늘 끔
 export const buildMaCrossRequest = (
   values: MaCrossValues,
   symbol: string,
   ctx: RunContext,
-): BuildResult<MaCrossStrategyRequest> => {
+): BuildResult<MaCrossStrategyRequest & { shortWindow: number; longWindow: number }> => {
   const principal = parseFloat(values.investment);
   if (!(principal > 0)) {
     return { error: '올바른 원금을 입력해주세요.' };

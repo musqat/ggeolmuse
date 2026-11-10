@@ -76,6 +76,7 @@ export const useMaCrossMode = (shared: SharedModeProps): ModeController => {
         mode: 'ma-cross',
         fxMode: options.fxMode,
         failureMessage: '이동평균 전략 실행에 실패했습니다.',
+        windows: { short: built.request.shortWindow, long: built.request.longWindow },
       });
     },
     renderResult: (result) =>
@@ -85,6 +86,7 @@ export const useMaCrossMode = (shared: SharedModeProps): ModeController => {
           result={result}
           symbol={symbol}
           startDate={period.start}
+          windows={result.windows}
         />
       ) : null,
   };

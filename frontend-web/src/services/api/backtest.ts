@@ -232,6 +232,27 @@ export type SkippedSpan = {
   reason: SkipReason;
 };
 
+// 이동평균 차트의 하루 값(USD, N 거래일이 안 찬 평균은 칸 없음)
+export type SignalPoint = {
+  date: string;
+  close: number;                        // 이동평균에 넣은 값(수정 종가)
+  shortAverage?: number;
+  longAverage?: number;
+};
+
+// 짧은 선이 긴 선을 아래에서 위로(GOLDEN) · 위에서 아래로(DEAD) 넘은 날
+export type SignalCross = {
+  date: string;
+  type: 'GOLDEN' | 'DEAD';
+};
+
+// 이동평균을 본 종목의 날마다 수정 종가 · 두 이동평균과 교차한 날(보유와 상관없이 모두)
+export type SignalChartData = {
+  symbol: string;
+  points: SignalPoint[];                // 시작일 ~ 평가일, 오래된 날부터
+  crosses: SignalCross[];
+};
+
 // 적립식 · 조건부 · 이동평균 전략 응답
 export type StrategyResponse = {
   symbol: string;
@@ -264,6 +285,7 @@ export type StrategyResponse = {
   metricsUsd?: PerformanceMetrics | null;   // 달러 기준 지표
   dailyValues?: DailyValue[];               // 첫 매수일 ~ 평가일(마지막 날은 총자산)
   capitalGainsTax?: CapitalGainsTax | null;
+  signalChart?: SignalChartData | null;     // 이동평균 교차만(비교 항목은 없음)
 };
 
 // 비교 항목의 원래 응답(SimulationResponse 또는 StrategyResponse 라 두 쪽 칸 모두 선택)
