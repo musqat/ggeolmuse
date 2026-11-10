@@ -16,7 +16,7 @@ import { detailMeta, pickMetrics, purchaseCount, sellCount } from './resultValue
 import { strategyDeposits } from './assetSeries';
 import { CapitalGainsTaxFold } from './CapitalGainsTaxFold';
 
-type StrategyKind = 'dca' | 'conditional';
+type StrategyKind = 'dca' | 'conditional' | 'ma-cross';
 
 interface DcaConditionalResultProps {
   kind: StrategyKind;
@@ -33,6 +33,7 @@ interface DcaConditionalResultProps {
 const EMPTY_REASON: Record<StrategyKind, string> = {
   dca: '기간 안에 산 회차가 없습니다.',
   conditional: '기간 안에 조건이 맞아 산 날이 없습니다.',
+  'ma-cross': '기간 안에 짧은 선이 긴 선을 아래에서 위로 넘은 날이 없습니다.',
 };
 
 const NOTICE_CLASS = 'text-sm text-warning bg-warning-soft/10 border border-warning-soft/40 rounded-lg px-3 py-2';
@@ -51,7 +52,7 @@ const unusedBudget = (budget: number | undefined, invested: number | null | unde
   return unused > 0 ? unused : null;
 };
 
-// 적립식 · 조건부 결과: 카드 · 자산 추이 · 주가 추이 탭, 그 아래 예상 양도세 · 상세 · 매매 내역을 접어 둠
+// 적립식 · 조건부 · 이동평균 결과: 카드 · 자산 추이 · 주가 추이 탭, 그 아래 예상 양도세 · 상세 · 매매 내역을 접어 둠
 export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
   kind,
   result,
@@ -73,6 +74,8 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
   const notice = purchaseNotice(kind, purchaseCount(transactions), result.skippedSpan);
   // 시세 없음 · 계산 오류 회차와 예산 부족 구간 회차
   const skipped = skippedRounds.length + (result.skippedSpan?.rounds ?? 0);
+  // 정한 회차가 없는 이동평균은 미매수가 있을 때만
+  const skippedText = kind !== 'ma-cross' || skipped > 0 ? ` · 미매수 ${skipped}회` : '';
 
   return (
     <div className="space-y-6">
@@ -194,7 +197,7 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
       {(transactions.length > 0 || skippedRounds.length > 0) && (
         <ResultFold
           title={sold > 0 ? '매매 내역' : '매수 내역'}
-          meta={`매수 ${purchaseCount(transactions)}회${sold > 0 ? ` · 매도 ${sold}회` : ''} · 미매수 ${skipped}회`}
+          meta={`매수 ${purchaseCount(transactions)}회${sold > 0 ? ` · 매도 ${sold}회` : ''}${skippedText}`}
         >
           <PurchaseHistory transactions={transactions} skippedRounds={skippedRounds} />
         </ResultFold>

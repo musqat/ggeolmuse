@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { PeriodEnd } from '@services/api';
 import { oneOf, pickValues } from '../settings/snapshot';
 
-// 모드 다섯이 같이 쓰는 세부 설정: 기간 끝 · 배당 재투자 · 수수료 · 배당세 · 양도세 · 환율
+// 모든 모드가 같이 쓰는 세부 설정: 기간 끝 · 배당 재투자 · 수수료 · 배당세 · 양도세 · 환율
 export interface BacktestOptions {
   periodEnd: PeriodEnd;
   reinvestDividends: boolean;

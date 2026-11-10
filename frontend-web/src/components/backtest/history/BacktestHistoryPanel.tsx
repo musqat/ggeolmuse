@@ -73,7 +73,9 @@ export const BacktestHistoryPanel: React.FC<BacktestHistoryPanelProps> = ({
 
                   if (history.backtestType === "STRATEGY_SIMULATION") {
                     // 전략별 파라미터를 확인하여 유형 결정
-                    if (
+                    if (params.shortWindow !== undefined || params.longWindow !== undefined) {
+                      backtestTypeLabel = "이동평균";
+                    } else if (
                       params.frequency !== undefined ||
                       params.monthlyAmount !== undefined ||
                       params.purchaseDay !== undefined

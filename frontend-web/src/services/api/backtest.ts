@@ -143,6 +143,16 @@ export type ConditionalStrategyRequest = BacktestCommonRequest & {
   stopLossRate?: number;                // 손절 비율 (0.1 = 10%, 비우면 안 함)
 };
 
+// 이동평균 교차 전략 요청(골든 크로스에 가진 돈 전부로 사고 데드 크로스에 전부 팜)
+export type MaCrossStrategyRequest = BacktestCommonRequest & {
+  symbol: string;                       // 종목 심볼
+  startDate: string;                    // 시작일
+  endDate: string;                      // 종료일
+  investmentAmount: number;             // 원금 (KRW)
+  shortWindow?: number;                 // 짧은 이동평균 거래일 수 (비우면 20)
+  longWindow?: number;                  // 긴 이동평균 거래일 수 (비우면 60, 2 ≤ 짧은 기간 < 긴 기간 ≤ 250)
+};
+
 // 종목 비교 요청
 export type SymbolComparisonRequest = BacktestCommonRequest & {
   symbols: string[];                    // 비교할 종목 목록
@@ -181,7 +191,7 @@ export type StrategyComparisonRequest = BacktestCommonRequest & {
 };
 
 // 전략 응답
-// 적립식 · 조건부 전략의 매수 한 건(거래가 일어난 건만이라 날짜 · 가격 · 수량은 늘 있음)
+// 적립식 · 조건부 · 이동평균 전략의 매매 한 건(거래가 일어난 건만이라 날짜 · 가격 · 수량은 늘 있음)
 export type StrategyTransaction = {
   date: string;                         // 계획된 매수일
   actualDate?: string;                  // 실제 거래일 (주말 · 휴장일 조정)
@@ -189,7 +199,7 @@ export type StrategyTransaction = {
   shares: number;
   amount: number;                       // 투자금 (KRW)
   fxRate: number;
-  trigger?: string;                     // 적립식은 "월정액" · "매주 정액" · "매일 정액", 조건부는 "5.0%하락" · "5.0%상승" · "20.0%익절" · "10.0%손절" 같은 값
+  trigger?: string;                     // 적립식은 "월정액" · "매주 정액" · "매일 정액", 조건부는 "5.0%하락" · "5.0%상승" · "20.0%익절" · "10.0%손절" 같은 값, 이동평균은 "골든 크로스" · "데드 크로스", 기간 끝에 판 거래는 "기간 끝 매도"
   fee?: number | null;                  // 매매 수수료 (USD, 배당 재투자는 없음)
   proceeds?: number | null;             // 매도로 받은 돈 (USD, 수수료 뺀 값, 매도는 수량이 음수)
   cashUsed?: number | null;             // 매수에 쓴 판 돈 (USD)
@@ -212,7 +222,7 @@ export type SkippedSpan = {
   reason: SkipReason;
 };
 
-// 적립식 · 조건부 전략 응답
+// 적립식 · 조건부 · 이동평균 전략 응답
 export type StrategyResponse = {
   symbol: string;
   startDate?: string | null;
@@ -331,6 +341,10 @@ export const backtestApi = {
   // 조건부 매수 전략 실행
   runConditionalStrategy: (data: ConditionalStrategyRequest) =>
     apiClient.post<StrategyResponse>('/analysis/strategy/conditional', data),
+
+  // 이동평균 교차 전략 실행
+  runMaCrossStrategy: (data: MaCrossStrategyRequest) =>
+    apiClient.post<StrategyResponse>('/analysis/strategy/ma-cross', data),
 
   // 종목 비교 분석
   compareSymbols: (data: SymbolComparisonRequest) =>

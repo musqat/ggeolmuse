@@ -71,6 +71,14 @@ describe('DetailSettings', () => {
     expect(reinvest()).toHaveAttribute('aria-checked', 'true')
   })
 
+  it('모드 안내와 함께 막히면 재투자는 그 안내로 이어진다', () => {
+    render(<Harness startOpen reinvestLocked reinvestNote="이동평균 교차는 배당을 현금으로" />)
+
+    expect(screen.getByRole('radio', { name: '재투자' })).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('radio', { name: '재투자' })).toHaveAccessibleDescription('이동평균 교차는 배당을 현금으로')
+    expect(screen.queryByText('익절 · 손절이 있으면 배당은 현금으로')).toBeNull()
+  })
+
   it('막힌 재투자는 눌러도 고르지 않는다', async () => {
     let options!: BacktestOptionsState
     render(<Harness startOpen seen={(o) => (options = o)} reinvestLocked />)

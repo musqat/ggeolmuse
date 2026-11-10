@@ -11,6 +11,7 @@ import { FirstDateField } from './FirstDateField'
 import { ConditionField } from './ConditionField'
 import { SellField } from './SellField'
 import { MaxField } from './MaxField'
+import { WindowsField } from './WindowsField'
 import { SymbolField, SymbolsField } from './SymbolFields'
 import type { AmountUnitState } from '../shared/amountUnit'
 
@@ -347,6 +348,51 @@ describe('MaxField', () => {
     expect(screen.getByText('회')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: '최대 횟수 비우기' }))
     expect(onChange).toHaveBeenLastCalledWith('')
+  })
+})
+
+describe('WindowsField', () => {
+  it('짧은 · 긴 기간을 일 수로 받고 숫자만 넘긴다', () => {
+    const onShort = vi.fn()
+    const onLong = vi.fn()
+    render(<WindowsField short="20" onShortChange={onShort} long="60" onLongChange={onLong} messages={{ short: null, long: null }} />)
+
+    expect(screen.getByText('이동평균 기간')).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: '짧은 기간(일)' })).toHaveValue('20')
+    expect(screen.getByRole('textbox', { name: '긴 기간(일)' })).toHaveValue('60')
+    fireEvent.change(screen.getByRole('textbox', { name: '짧은 기간(일)' }), { target: { value: '5일' } })
+    fireEvent.change(screen.getByRole('textbox', { name: '긴 기간(일)' }), { target: { value: '120' } })
+
+    expect(onShort).toHaveBeenLastCalledWith('5')
+    expect(onLong).toHaveBeenLastCalledWith('120')
+  })
+
+  it('오류가 있는 칸만 오류로 두고 칸 아래 한 줄과 잇는다, 칩 설정이면 칸 이름을 바꾼다', () => {
+    const range = { kind: 'error' as const, text: '2 ~ 250 사이 정수' }
+    const { rerender } = render(
+      <WindowsField short="20" onShortChange={vi.fn()} long="300" onLongChange={vi.fn()} messages={{ short: null, long: range }} />
+    )
+
+    const short = screen.getByRole('textbox', { name: '짧은 기간(일)' })
+    const long = screen.getByRole('textbox', { name: '긴 기간(일)' })
+    expect(short).not.toHaveAttribute('aria-invalid')
+    expect(long).toHaveAttribute('aria-invalid', 'true')
+    expect(long).toHaveAttribute('aria-describedby', screen.getByText('2 ~ 250 사이 정수').id)
+
+    rerender(
+      <WindowsField
+        label="이동평균 2 기간"
+        short="1"
+        onShortChange={vi.fn()}
+        long="300"
+        onLongChange={vi.fn()}
+        messages={{ short: range, long: range }}
+      />
+    )
+    expect(screen.getByText('이동평균 2 기간')).toBeInTheDocument()
+    expect(screen.getAllByText('2 ~ 250 사이 정수')).toHaveLength(1)
+    expect(screen.getByRole('textbox', { name: '짧은 기간(일)' })).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByRole('textbox', { name: '긴 기간(일)' })).toHaveAttribute('aria-invalid', 'true')
   })
 })
 

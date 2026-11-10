@@ -1,6 +1,7 @@
 import { formatNumber, formatReadableWon } from '../../../utils/format';
 import { MAX_SHARES, parseShares } from '../shared/amountUnit';
 import { isMonthly, parseMonths, type DcaCadence } from '../shared/dcaSchedule';
+import { parseWindow } from '../shared/maWindows';
 import type { BacktestOptions } from '../shared/backtestOptions';
 
 // 칸 아래 한 줄(오류는 실행을 막고 경고는 안 막음), 글 뒤에 작은 단추 하나
@@ -37,7 +38,7 @@ interface AmountCheck {
 export const amountIssue = ({ byShares, amount, shares, label }: AmountCheck): FieldMessage | null => {
   if (byShares) {
     if (parseShares(shares) !== undefined) return null;
-    return error(Number(shares) > MAX_SHARES ? `${formatNumber(MAX_SHARES)} 이하` : '1 이상 정수');
+    return error(Number(shares) > MAX_SHARES ? `한 번에 ${formatNumber(MAX_SHARES)}주까지 계산 · 더 크면 금액으로` : '1 이상 정수');
   }
   if (!amount.trim()) return error(`${label} 비어 있음`);
   return parseFloat(amount) > 0 ? null : error('0 보다 크게');
@@ -95,6 +96,18 @@ export const maxIssue = (max: string): FieldMessage | null => {
   if (!max.trim()) return null;
   const value = Number(max);
   return Number.isInteger(value) && value >= 1 ? null : error('1 이상 정수');
+};
+
+// 이동평균 기간 칸 오류(칸마다 2 ~ 250 정수, 짧은 기간이 긴 기간 이상이면 짧은 칸)
+export const windowIssues = (short: string, long: string) => {
+  const shortWindow = parseWindow(short);
+  const longWindow = parseWindow(long);
+  const range = error('2 ~ 250 사이 정수');
+  const tooLong = shortWindow !== undefined && longWindow !== undefined && shortWindow >= longWindow;
+  return {
+    short: shortWindow === undefined ? range : tooLong ? error('긴 기간보다 짧게') : null,
+    long: longWindow === undefined ? range : null,
+  };
 };
 
 // 비면 0

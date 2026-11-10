@@ -46,7 +46,7 @@ interface ChartDataPoint {
 
 const EMPTY_CHART_DATA: ChartDataPoint[] = [];
 
-// 적립식 · 조건부 결과의 주가 추이(매수 · 배당 재투자 · 매도 점)
+// 적립식 · 조건부 · 이동평균 결과의 주가 추이(매수 · 배당 재투자 · 매도 점)
 export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
   symbol,
   transactions,
