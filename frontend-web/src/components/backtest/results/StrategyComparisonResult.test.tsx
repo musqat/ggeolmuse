@@ -225,6 +225,30 @@ describe('StrategyComparisonResult', () => {
     expect(chart.dots.map((d: { x: string }) => d.x)).toEqual(['2024-01-02', '2024-02-01'])
   })
 
+  it('이동평균 전략은 한글 이름으로 보이고 펼치면 매수 · 매도 횟수, 수익률 추이 안내의 점에 이동평균을 넣는다', async () => {
+    const maCross = {
+      name: 'MA_CROSS',
+      code: 'AAPL',
+      totalInvested: 1000000,
+      currentValueKrw: 0,
+      totalReturnPercent: 5,
+      totalReturnKrw: 50000,
+      additionalData: {
+        symbol: 'AAPL',
+        transactions: [
+          { date: '2024-01-10', price: 100, shares: 7, amount: 1000000, fxRate: 1300, trigger: '골든 크로스' },
+          { date: '2024-01-25', price: 105, shares: -7, amount: 0, fxRate: 1300, trigger: '데드 크로스' },
+        ],
+      },
+    }
+    renderResult({ ...result, items: [...result.items, maCross] })
+
+    await userEvent.click(row('이동평균'))
+    expect(screen.getByText('매수 횟수').nextElementSibling).toHaveTextContent('1회')
+    expect(screen.getByText('매도 횟수').nextElementSibling).toHaveTextContent('1회')
+    expect(screen.getByText('그때까지 넣은 돈 대비 몇 % 인지 · 점은 적립식 · 조건부 · 이동평균이 돈을 넣은 날')).toBeInTheDocument()
+  })
+
   it('주가 추이 비교는 접어 두고 열 때 그린다', async () => {
     renderResult()
 

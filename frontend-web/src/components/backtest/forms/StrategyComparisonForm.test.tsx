@@ -8,7 +8,7 @@ const period = { start: '2023-01-02', end: '2023-12-29', agoCount: '1', agoUnit:
 
 type Props = ComponentProps<typeof StrategyComparisonForm>
 
-const chip = (id: string, type: 'SIMPLE' | 'DCA' | 'CONDITIONAL_PURCHASE', name: string, patch = {}) => ({
+const chip = (id: string, type: 'SIMPLE' | 'DCA' | 'CONDITIONAL_PURCHASE' | 'MA_CROSS', name: string, patch = {}) => ({
   id,
   type,
   name,
@@ -44,15 +44,20 @@ const chips = () => within(screen.getByRole('group', { name: '견줄 전략' }))
 
 describe('StrategyComparisonForm', () => {
   it('칩은 누르면 아래 설정을 여는 단추이고, 열린 칩의 설정을 보인다', async () => {
-    const props = renderForm({ chips: [chip('s2', 'DCA', '적립식'), chip('s3', 'CONDITIONAL_PURCHASE', '조건부 매수')] })
+    const props = renderForm({
+      chips: [chip('s2', 'DCA', '적립식'), chip('s3', 'CONDITIONAL_PURCHASE', '조건부 매수'), chip('s4', 'MA_CROSS', '이동평균')],
+    })
 
     expect(screen.getByText('전략마다 원금')).toBeInTheDocument()
+    expect(screen.getByText('적립식 · 조건부 · 이동평균은 눌러서 설정')).toBeInTheDocument()
     expect(chips().getByRole('button', { name: '적립식' })).toHaveAttribute('aria-expanded', 'true')
     expect(chips().getByRole('button', { name: '조건부 매수' })).toHaveAttribute('aria-expanded', 'false')
     expect(screen.getByText('열린 칩 설정')).toBeInTheDocument()
     await userEvent.click(chips().getByRole('button', { name: '조건부 매수' }))
+    await userEvent.click(chips().getByRole('button', { name: '이동평균' }))
 
-    expect(props.onOpen).toHaveBeenCalledWith('s3')
+    expect(props.onOpen).toHaveBeenNthCalledWith(1, 's3')
+    expect(props.onOpen).toHaveBeenNthCalledWith(2, 's4')
   })
 
   it('설정할 칸이 없는 단순 매수 칩은 이름만 두고 여는 단추가 아니다', async () => {
@@ -92,9 +97,11 @@ describe('StrategyComparisonForm', () => {
     expect(chips().queryByRole('button', { name: '＋ 단순 매수' })).toBeNull()
     await userEvent.click(chips().getByRole('button', { name: '＋ 적립식' }))
     await userEvent.click(chips().getByRole('button', { name: '＋ 조건부 매수' }))
+    await userEvent.click(chips().getByRole('button', { name: '＋ 이동평균' }))
 
     expect(props.onAdd).toHaveBeenNthCalledWith(1, 'DCA')
     expect(props.onAdd).toHaveBeenNthCalledWith(2, 'CONDITIONAL_PURCHASE')
+    expect(props.onAdd).toHaveBeenNthCalledWith(3, 'MA_CROSS')
   })
 
   it('단순 매수 칩이 없으면 ＋ 단순 매수를 보인다', () => {

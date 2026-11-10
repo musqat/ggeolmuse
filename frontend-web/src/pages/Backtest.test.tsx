@@ -571,6 +571,52 @@ describe('Backtest 페이지 전략 비교 칩', () => {
     })
   })
 
+  it('＋ 이동평균으로 칩을 더하면 기간 설정이 열리고, 바꾼 기간과 교차 규칙 요약 줄로 보낸다', async () => {
+    renderPage()
+    await selectMode('전략 비교')
+    await userEvent.click(strategyChips().getByRole('button', { name: '＋ 이동평균' }))
+
+    expect(strategyChips().getByRole('button', { name: '이동평균' })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByText('이동평균 기간')).toBeInTheDocument()
+    expect(summary()).toHaveTextContent('이동평균: 20일 선이 60일 선을 넘으면 원금 전부로 사고, 아래로 내려가면 전부 팜')
+    fireEvent.change(screen.getByRole('textbox', { name: '짧은 기간(일)' }), { target: { value: '5' } })
+    await runBacktest()
+
+    const request = vi.mocked(backtestApi.compareStrategies).mock.calls[0][0]
+    expect(request.investmentAmount).toBe(1000000)
+    expect(request.strategies[2]).toEqual({ strategyType: 'MA_CROSS', name: 'MA_CROSS', shortWindow: 5, longWindow: 60 })
+  })
+
+  it('이동평균 칩의 기간이 맞지 않으면 그 칩을 고칠 칩으로 두고 요청하지 않는다', async () => {
+    renderPage()
+    await selectMode('전략 비교')
+    await userEvent.click(strategyChips().getByRole('button', { name: '＋ 이동평균' }))
+    fireEvent.change(screen.getByRole('textbox', { name: '긴 기간(일)' }), { target: { value: '10' } })
+
+    expect(
+      strategyChips().getByRole('button', {
+        name: '이동평균 (고칠 것: 이동평균 기간은 2 ~ 250 사이 정수로, 짧은 기간을 긴 기간보다 짧게 입력해주세요.)',
+      })
+    ).toBeInTheDocument()
+    expect(screen.getByText('긴 기간보다 짧게')).toBeInTheDocument()
+    await runBacktest()
+
+    expect(backtestApi.compareStrategies).not.toHaveBeenCalled()
+  })
+
+  it('이동평균 칩이 있으면 배당 칸에 재투자 안 함을 안내하고 재투자는 막지 않는다', async () => {
+    renderPage()
+    await selectMode('전략 비교')
+    await userEvent.click(strategyChips().getByRole('button', { name: '＋ 이동평균' }))
+    await userEvent.click(detailToggle())
+
+    expect(reinvestRadio()).not.toHaveAttribute('aria-disabled')
+    expect(reinvestRadio()).toHaveAccessibleDescription('이동평균은 재투자 안 함')
+    await userEvent.click(strategyChips().getByRole('button', { name: '＋ 조건부 매수' }))
+    await userEvent.type(screen.getByRole('textbox', { name: '익절(평균 단가 대비 퍼센트)' }), '20')
+    expect(reinvestRadio()).toHaveAccessibleDescription('익절 · 손절이 있는 조건부 매수 · 이동평균은 재투자 안 함')
+  })
+
   it('적립식 칩 설정에서 매주를 고르면 그 칩만 바꾸고 요약 줄도 바뀐다', async () => {
     renderPage()
     await selectMode('전략 비교')
