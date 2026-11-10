@@ -17,6 +17,7 @@ import com.muscat.backtest.domain.dto.request.SimulationRequest;
 import com.muscat.backtest.domain.dto.response.CapitalGainsTax;
 import com.muscat.backtest.domain.dto.response.ComparisonResponse;
 import com.muscat.backtest.domain.dto.response.DailyValue;
+import com.muscat.backtest.domain.dto.response.SignalChart;
 import com.muscat.backtest.domain.dto.response.SimulationResponse;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.model.ComparisonItem;
@@ -640,6 +641,27 @@ class ResponseMapperTest {
       assertThat(compared.has("drawdownUsd")).isFalse();
       assertThat(compared.has("drawdownKrw")).isFalse();
       assertThat(single.get("drawdownKrw").decimalValue()).isEqualByComparingTo("-2.00");
+    }
+
+    @Test
+    @DisplayName("전략 비교 항목의 원래 응답에는 이동평균 차트를 싣지 않고, 단일 응답 JSON 에서 평균이 안 찬 날은 평균 칸이 없다")
+    void 이동평균_차트_뺌() {
+      SignalChart chart = new SignalChart(SYMBOL,
+        List.of(new SignalChart.Point(LocalDate.of(2024, 1, 2), new BigDecimal("185.64"), null, null),
+          new SignalChart.Point(LocalDate.of(2024, 1, 3), new BigDecimal("186.10"), new BigDecimal("185.87"),
+            new BigDecimal("184.20"))),
+        List.of(new SignalChart.Cross(LocalDate.of(2024, 1, 3), SignalChart.CrossType.GOLDEN)));
+      StrategyResponse strategy = StrategyResponse.builder().symbol(SYMBOL).signalChart(chart).build();
+
+      ComparisonItem item = mapper.toComparisonItemFromStrategy(strategy, "이동평균");
+
+      assertThat(((StrategyResponse) item.getAdditionalData()).getSignalChart()).isNull();
+      assertThat(strategy.getSignalChart()).isEqualTo(chart);
+      JsonNode single = toJson(strategy).get("signalChart");
+      assertThat(single.get("points").get(0).has("shortAverage")).isFalse();
+      assertThat(single.get("points").get(0).has("longAverage")).isFalse();
+      assertThat(single.get("points").get(1).get("longAverage").decimalValue()).isEqualByComparingTo("184.20");
+      assertThat(single.get("crosses").get(0).get("type").asText()).isEqualTo("GOLDEN");
     }
 
     @Test

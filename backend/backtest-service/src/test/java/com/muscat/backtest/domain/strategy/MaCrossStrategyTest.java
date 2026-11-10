@@ -21,6 +21,7 @@ import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
 import com.muscat.backtest.domain.dto.request.MaCrossStrategyRequest;
 import com.muscat.backtest.domain.dto.response.CapitalGainsTax;
+import com.muscat.backtest.domain.dto.response.SignalChart;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.domain.model.SkippedRound;
@@ -201,7 +202,7 @@ class MaCrossStrategyTest {
     @Test
     @DisplayName("시작일 전 골든 크로스로는 사지 않고, 시작일에 이미 짧은 선이 위면 데드 크로스 뒤 골든 크로스를 기다려 산다")
     void waitsForCrossWhenAlreadyAbove() {
-      // 시작일 앞날 골든 크로스, 2일째 아래로, 3일째 다시 위로
+      // 시작일 전날 골든 크로스, 2일째 아래로, 3일째 다시 위로
       stubMarket(List.of(day(-4, "8"), day(-3, "8"), day(-2, "8"), day(-1, "10"), day(0, "12"), day(1, "13"),
         day(2, "5"), day(3, "25")));
 
@@ -473,6 +474,104 @@ class MaCrossStrategyTest {
 
       assertThat(executed()).hasSize(1);
       verify(marketDataClient).getOHLCPriceRange(SYMBOL, today.minusDays(3).minusDays(18).toString(), today.toString());
+    }
+  }
+
+  // 시작일에서 offset 일 뒤 점(평균이 null 이면 그 칸 없음)
+  private static SignalChart.Point point(int offset, String close, String shortAverage, String longAverage) {
+    return new SignalChart.Point(START.plusDays(offset), new BigDecimal(close),
+      shortAverage == null ? null : new BigDecimal(shortAverage),
+      longAverage == null ? null : new BigDecimal(longAverage));
+  }
+
+  private static SignalChart.Cross cross(int offset, SignalChart.CrossType type) {
+    return new SignalChart.Cross(START.plusDays(offset), type);
+  }
+
+  @Nested
+  @DisplayName("이동평균 차트")
+  class Chart {
+
+    @Test
+    @DisplayName("시작일 ~ 평가일 일봉마다 수정 종가와 두 이동평균을 오래된 날부터 싣고, 교차한 날을 골든 · 데드로 싣는다")
+    void pointsAndCrosses() {
+      stubMarket(crossing());
+
+      SignalChart chart = strategy.execute(request(7).build()).getSignalChart();
+
+      assertThat(chart.symbol()).isEqualTo(SYMBOL);
+      assertThat(chart.points()).containsExactly(
+        point(0, "8.00", "8.00", "8.00"),
+        point(1, "10.00", "9.00", "8.67"),
+        point(2, "20.00", "15.00", "12.67"),
+        point(3, "22.00", "21.00", "17.33"),
+        point(4, "12.00", "17.00", "18.00"),
+        point(5, "8.00", "10.00", "14.00"),
+        point(6, "30.00", "19.00", "16.67"),
+        point(7, "31.00", "30.50", "23.00"));
+      assertThat(chart.crosses()).containsExactly(
+        cross(1, SignalChart.CrossType.GOLDEN),
+        cross(4, SignalChart.CrossType.DEAD),
+        cross(6, SignalChart.CrossType.GOLDEN));
+    }
+
+    @Test
+    @DisplayName("시작일 앞 일봉이 모자라 N 거래일이 안 찬 평균은 비우고, 교차는 두 평균이 다 있는 둘째 날부터 본다")
+    void blankAveragesBeforeWindowFills() {
+      stubMarket(List.of(day(0, "8"), day(1, "10"), day(2, "6"), day(3, "20")));
+
+      SignalChart chart = strategy.execute(request(3).build()).getSignalChart();
+
+      assertThat(chart.points()).containsExactly(
+        point(0, "8.00", null, null),
+        point(1, "10.00", "9.00", null),
+        point(2, "6.00", "8.00", "8.00"),
+        point(3, "20.00", "13.00", "12.00"));
+      assertThat(chart.crosses()).containsExactly(cross(3, SignalChart.CrossType.GOLDEN));
+    }
+
+    @Test
+    @DisplayName("첫 매수 전 데드 크로스도 싣고, 시작일 앞 교차는 싣지 않는다")
+    void crossesRegardlessOfHolding() {
+      // 시작일 전날 골든 크로스, 2일째 데드 크로스, 3일째 골든 크로스
+      stubMarket(List.of(day(-4, "8"), day(-3, "8"), day(-2, "8"), day(-1, "10"), day(0, "12"), day(1, "13"),
+        day(2, "5"), day(3, "25")));
+
+      SignalChart chart = strategy.execute(request(3).build()).getSignalChart();
+
+      assertThat(chart.crosses()).containsExactly(
+        cross(2, SignalChart.CrossType.DEAD),
+        cross(3, SignalChart.CrossType.GOLDEN));
+      assertThat(trades()).containsExactly(tuple(START.plusDays(3), "25", "골든 크로스", "40"));
+    }
+
+    @Test
+    @DisplayName("계산이 실패해 사지 못한 골든 크로스 날과 들고 있지 않은 데드 크로스 날도 교차로 싣는다")
+    void crossesOnCalculationFailure() {
+      stubMarket(crossing());
+      stubDailyFx(7, Map.of(1, "0"));
+
+      SignalChart chart = strategy.execute(request(7).purchaseFxRate(null).build()).getSignalChart();
+
+      assertThat(chart.crosses()).containsExactly(
+        cross(1, SignalChart.CrossType.GOLDEN),
+        cross(4, SignalChart.CrossType.DEAD),
+        cross(6, SignalChart.CrossType.GOLDEN));
+    }
+
+    @Test
+    @DisplayName("점의 값은 수정 종가(없거나 0 이하면 종가)를 소수 둘째에서 반올림하고, 쓸 수 없는 일봉은 뺀다")
+    void adjustedCloseRounded() {
+      // 1일째는 종가 0 이라 빠짐
+      stubMarket(List.of(adjusted(0, "10", "8.125"), day(1, "0"), adjusted(2, "10", null), adjusted(3, "10", "0")));
+
+      SignalChart chart = strategy.execute(request(3).build()).getSignalChart();
+
+      assertThat(chart.points()).containsExactly(
+        point(0, "8.13", null, null),
+        point(2, "10.00", "9.06", null),
+        point(3, "10.00", "10.00", "9.38"));
+      assertThat(chart.crosses()).isEmpty();
     }
   }
 
