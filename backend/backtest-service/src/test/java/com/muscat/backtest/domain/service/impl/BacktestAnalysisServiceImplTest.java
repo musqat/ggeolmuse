@@ -579,7 +579,7 @@ class BacktestAnalysisServiceImplTest {
     }
 
     @Test
-    @DisplayName("전략 비교는 세 전략 하위 요청에 공통 옵션을, 적립식에는 칩의 회당 금액 · 주기 · 첫 매수일 · 투자일과 원금 한도를, 조건부에는 칩의 회당 금액과 원금 예산을 넘기고 익절 · 손절이 있는 조건부는 재투자를 끈다")
+    @DisplayName("전략 비교는 단순 · 적립식 · 조건부 하위 요청에 공통 옵션을, 적립식에는 칩의 회당 금액 · 주기 · 첫 매수일 · 투자일과 원금 한도를, 조건부에는 칩의 회당 금액과 원금 예산을 넘기고 익절 · 손절이 있는 조건부는 재투자를 끈다")
     void compareStrategies_PassesOptions() {
       StrategyParameter simple = strategy(StrategyType.SIMPLE);
       simple.setPurchaseDate(LocalDate.of(2023, 1, 1));
@@ -693,6 +693,56 @@ class BacktestAnalysisServiceImplTest {
 
       verify(conditionalPurchaseStrategy).execute(argThat(r ->
         Boolean.TRUE.equals(((ConditionalStrategyRequest) r).getReinvestDividends())));
+    }
+
+    @Test
+    @DisplayName("전략 비교의 이동평균 칩은 비교 원금 · 칩의 짧은 · 긴 기간과 공통 옵션을 넘기고 배당 재투자는 끈다")
+    void compareStrategies_MaCrossPassesWindows() {
+      StrategyParameter maCross = strategy(StrategyType.MA_CROSS);
+      maCross.setShortWindow(5);
+      maCross.setLongWindow(20);
+      StrategyComparisonRequest request = strategyRequest(maCross);
+      withOptions(request);
+      given(maCrossStrategy.execute(any())).willReturn(StrategyResponse.builder().build());
+      given(responseMapper.toComparisonItemFromStrategy(any(), eq("MA_CROSS"))).willReturn(item);
+      stubComparisonResponse();
+
+      backtestAnalysisService.compareStrategies(request);
+
+      ArgumentCaptor<MaCrossStrategyRequest> maCrossRequest = ArgumentCaptor.forClass(MaCrossStrategyRequest.class);
+      verify(maCrossStrategy).execute(maCrossRequest.capture());
+      MaCrossStrategyRequest sent = maCrossRequest.getValue();
+      assertThat(sent.getSymbol()).isEqualTo("AAPL");
+      assertThat(sent.getStartDate()).isEqualTo(LocalDate.of(2023, 1, 1));
+      assertThat(sent.getEndDate()).isEqualTo(LocalDate.of(2024, 1, 1));
+      assertThat(sent.getUserId()).isEqualTo("user123");
+      assertThat(sent.getInvestmentAmount()).isEqualByComparingTo(BigDecimal.valueOf(1_000_000));
+      assertThat(sent.getShortWindow()).isEqualTo(5);
+      assertThat(sent.getLongWindow()).isEqualTo(20);
+      assertThat(sent.getReinvestDividends()).isFalse();
+      assertThat(sent.getPurchaseFxRate()).isEqualByComparingTo(new BigDecimal("1300"));
+      assertThat(sent.getCurrentFxRate()).isEqualByComparingTo(new BigDecimal("1350"));
+      assertThat(sent.getDividendTaxRate()).isEqualByComparingTo(new BigDecimal("0.15"));
+      assertThat(sent.getTradingFeeRate()).isEqualByComparingTo(new BigDecimal("0.0025"));
+      assertThat(sent.getCapitalGainsTax()).isTrue();
+      assertThat(sent.getPeriodEnd()).isEqualTo(PeriodEnd.SELL_AT_END);
+    }
+
+    @Test
+    @DisplayName("전략 비교의 이동평균 칩 옵션이 비면 수수료 0 · 배당세 0 으로 넘기고 비운 기간은 그대로 둔다")
+    void compareStrategies_MaCrossEmptyOptions() {
+      StrategyComparisonRequest request = strategyRequest(strategy(StrategyType.MA_CROSS));
+      given(maCrossStrategy.execute(any())).willReturn(StrategyResponse.builder().build());
+      given(responseMapper.toComparisonItemFromStrategy(any(), any())).willReturn(item);
+      stubComparisonResponse();
+
+      backtestAnalysisService.compareStrategies(request);
+
+      verify(maCrossStrategy).execute(argThat(r -> {
+        MaCrossStrategyRequest sent = (MaCrossStrategyRequest) r;
+        return sent.getTradingFeeRate().signum() == 0 && sent.getDividendTaxRate().signum() == 0
+          && sent.getShortWindow() == null && sent.getLongWindow() == null;
+      }));
     }
 
     @Test

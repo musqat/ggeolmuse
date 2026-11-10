@@ -98,6 +98,16 @@ class StrategyRequestJsonTest {
       .amountPerPurchase(BigDecimal.valueOf(1000)).purchaseDay(1).userId("user-1").build();
   }
 
+  @Test
+  @DisplayName("전략 비교의 이동평균 칩은 짧은 · 긴 기간을 이력 JSON 에 저장하고 기간 검사 값은 넣지 않는다")
+  void comparisonChipWindowsSaved() throws Exception {
+    StrategyParameter chip = objectMapper.readValue("{\"strategyType\":\"MA_CROSS\",\"shortWindow\":5,\"longWindow\":20}",
+      StrategyParameter.class);
+
+    assertThat(objectMapper.writeValueAsString(chip)).contains("\"shortWindow\":5", "\"longWindow\":20")
+      .doesNotContain("windowOrder");
+  }
+
   private MaCrossStrategyRequest maCross() {
     return MaCrossStrategyRequest.builder().symbol("AAPL").startDate(LocalDate.of(2023, 1, 1)).endDate(LocalDate.of(2024, 1, 1))
       .investmentAmount(BigDecimal.valueOf(10000)).shortWindow(5).longWindow(20).userId("user-1").build();

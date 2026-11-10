@@ -402,6 +402,35 @@ class BacktestAnalysisControllerTest {
   }
 
   @Test
+  @DisplayName("전략 비교의 이동평균 칩은 회당 금액 없이 짧은 · 긴 기간을 받아 그대로 넘기고 기간을 비워도 된다")
+  void compareStrategies_MaCrossChip() throws Exception {
+    given(backtestAnalysisService.compareStrategies(any())).willReturn(comparison("이동평균"));
+
+    postJson("/compare/strategies", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":1000000,"
+      + "\"strategies\":[{\"strategyType\":\"MA_CROSS\",\"name\":\"이동평균\",\"shortWindow\":5,\"longWindow\":20},"
+      + "{\"strategyType\":\"MA_CROSS\"},{\"strategyType\":\"SIMPLE\"}]}")
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.bestPerformer.name").value("이동평균"));
+
+    verify(backtestAnalysisService).compareStrategies(argThat(r -> r.getStrategies().size() == 3
+      && r.getStrategies().get(0).getStrategyType() == StrategyType.MA_CROSS
+      && r.getStrategies().get(0).getShortWindow() == 5 && r.getStrategies().get(0).getLongWindow() == 20
+      && r.getStrategies().get(1).getShortWindow() == null && r.getStrategies().get(1).getLongWindow() == null));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @ValueSource(strings = {"\"shortWindow\":1", "\"longWindow\":251", "\"shortWindow\":60,\"longWindow\":60",
+    "\"shortWindow\":70"})
+  @DisplayName("전략 비교의 이동평균 칩 기간이 2 ~ 250 밖이거나 짧은 기간이 긴 기간보다 작지 않으면 400 이고 서비스까지 가지 않는다")
+  void compareStrategies_InvalidMaCrossChip(String windows) throws Exception {
+    postJson("/compare/strategies", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":1000000,"
+      + "\"strategies\":[{\"strategyType\":\"MA_CROSS\"," + windows + "},{\"strategyType\":\"SIMPLE\"}]}")
+      .andExpect(status().isBadRequest());
+
+    verify(backtestAnalysisService, never()).compareStrategies(any());
+  }
+
+  @Test
   @DisplayName("전략 비교의 모든 전략이 매수 0회라 최고 수익 항목이 없어도 200 이다")
   void compareStrategies_NoBestPerformer() throws Exception {
     ComparisonItem none = ComparisonItem.builder().name("DCA").totalInvested(BigDecimal.ZERO)
