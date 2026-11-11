@@ -62,11 +62,11 @@ describe('SymbolsTab', () => {
     expect(stat('종목 수')).toHaveTextContent('종목 수거래한 9개들고 있는 3개')
   })
 
-  it('가장 많이 번 · 잃은 종목은 종목 이름 · 합 · 비율이다', async () => {
+  it('가장 많이 번 · 잃은 종목은 종목 이름 · 합 · 표와 같은 부호를 둔 비율이다', async () => {
     renderTab()
 
     await screen.findByTestId('bars')
-    expect(stat('가장 많이 번 종목')).toHaveTextContent(/^가장 많이 번 종목AAPL\+₩236,314\(62\.50%\)$/)
+    expect(stat('가장 많이 번 종목')).toHaveTextContent(/^가장 많이 번 종목AAPL\+₩236,314\(\+62\.50%\)$/)
     expect(stat('가장 많이 잃은 종목')).toHaveTextContent(/^가장 많이 잃은 종목TSLA-₩20,000\(-5\.29%\)$/)
   })
 
@@ -98,12 +98,13 @@ describe('SymbolsTab', () => {
     ])
   })
 
-  it('자세히 펼치기를 열면 모든 종목 표를 보이고 들고 있는 종목은 이름 옆에 보유를 단다', async () => {
+  it('자세히 펼치기는 닫힌 채 종목 수를 보이고, 열면 모든 종목 표를 보이며 들고 있는 종목은 이름 옆에 보유를 단다', async () => {
     const user = userEvent.setup()
     renderTab()
 
     const fold = await screen.findByRole('button', { name: /자세히 펼치기/ })
     expect(fold).toHaveAttribute('aria-expanded', 'false')
+    expect(fold).toHaveTextContent('자세히 펼치기종목 9개')
     await user.click(fold)
 
     const table = within(screen.getByRole('table', { name: '종목별 기여' }))
@@ -111,9 +112,9 @@ describe('SymbolsTab', () => {
     expect(cells).toHaveLength(10)
     expect(cells.slice(0, 4)).toEqual([
       ['종목', '실현', '평가', '배당', '수수료', '합', '비율'],
-      ['AAPL보유', '+₩46,834', '+₩190,680', '₩0', '₩1,200', '+₩236,314', '62.50%'],
-      ['MSFT보유', '₩0', '+₩100,500', '₩0', '₩500', '+₩100,000', '26.45%'],
-      ['KO', '+₩4,000', '₩0', '₩6,500', '₩500', '+₩10,000', '2.64%'],
+      ['AAPL보유', '+₩46,834', '+₩190,680', '₩0', '₩1,200', '+₩236,314', '+62.50%'],
+      ['MSFT보유', '₩0', '+₩100,500', '₩0', '₩500', '+₩100,000', '+26.45%'],
+      ['KO', '+₩4,000', '₩0', '₩6,500', '₩500', '+₩10,000', '+2.64%'],
     ])
     expect(cells[9]).toEqual(['TSLA', '-₩20,000', '₩0', '₩0', '₩0', '-₩20,000', '-5.29%'])
   })

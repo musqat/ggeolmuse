@@ -153,6 +153,35 @@ test('계좌 통계 배당 · 환율 탭은 배당과 환율 효과를 받고, �
   ).toBeVisible({ timeout: 30_000 });
 });
 
+test('계좌 통계 S&P 500 비교는 SPY 수익 흐름을 받고, 그래프의 비교 단추를 누르면 켜져 비교 한 줄이나 시세 안내를 보인다', async ({ page }) => {
+  const auth = await authContext();
+
+  const market = await auth.get(`${API_URL}/portfolio/stats/market?accountId=all&period=ALL`);
+  expect(market.status(), `시장 비교가 실패했다: ${await market.text()}`).toBe(200);
+  const body = await market.json();
+  expect(body.symbol, '비교 종목이 SPY 가 아니다').toBe('SPY');
+  expect(Array.isArray(body.points), '점 목록이 없다').toBe(true);
+  expect(typeof body.currentProfitKrw, '현재 수익이 숫자가 아니다').toBe('number');
+
+  // 기간은 1M · 3M · 1Y · ALL 만
+  const wrong = await auth.get(`${API_URL}/portfolio/stats/market?accountId=all&period=2Y`);
+  expect(wrong.status(), '모르는 기간이 400 이 아니다').toBe(400);
+  await auth.dispose();
+
+  await page.goto('/account/stats');
+  const compare = page.getByRole('button', { name: 'S&P 500 비교' });
+  // 시드 사용자 체결 여부에 따라 비교 단추가 있는 그래프 또는 거래 안내
+  await expect(compare.or(page.getByText('아직 수익 흐름이 없습니다'))).toBeVisible({ timeout: 30_000 });
+  if (!(await compare.isVisible())) return;
+
+  await compare.click();
+
+  await expect(compare).toHaveAttribute('aria-pressed', 'true');
+  await expect(
+    page.getByText(/같은 날짜에 같은 돈을 S&P 500\(SPY\)에 넣었다면/).or(page.getByText('S&P 500 시세를 불러오지 못했습니다'))
+  ).toBeVisible({ timeout: 30_000 });
+});
+
 test('계좌 통계 거래 패턴 탭은 거래 패턴을 받고, 탭을 누르면 그 패널로 바뀐다', async ({ page }) => {
   const auth = await authContext();
 

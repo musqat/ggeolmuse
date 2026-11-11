@@ -11,6 +11,8 @@ import com.muscat.trade.domain.dto.response.DividendStatsResponse.SymbolDividend
 import com.muscat.trade.domain.dto.response.FxStatsResponse;
 import com.muscat.trade.domain.dto.response.FxStatsResponse.Direction;
 import com.muscat.trade.domain.dto.response.FxStatsResponse.Exchange;
+import com.muscat.trade.domain.dto.response.MarketComparisonResponse;
+import com.muscat.trade.domain.dto.response.MarketComparisonResponse.MarketPoint;
 import com.muscat.trade.domain.dto.response.ProfitDetailResponse;
 import com.muscat.trade.domain.dto.response.ProfitDetailResponse.Holding;
 import com.muscat.trade.domain.dto.response.ProfitDetailResponse.MonthlyProfit;
@@ -23,6 +25,7 @@ import com.muscat.trade.domain.dto.response.TradingHabitsResponse.SymbolTrades;
 import com.muscat.trade.domain.dto.response.TradingHabitsResponse.WeekdayTrades;
 import com.muscat.trade.domain.entity.DividendPayout;
 import com.muscat.trade.domain.entity.Trade;
+import com.muscat.trade.domain.service.PortfolioStatsCalculator.AccountFlow;
 import com.muscat.trade.domain.service.PortfolioStatsCalculator.Replay;
 import com.muscat.trade.domain.service.PortfolioStatsCalculator.SellResult;
 import com.muscat.trade.domain.service.PortfolioStatsCalculator.SymbolTotals;
@@ -256,7 +259,7 @@ class PortfolioStatsCalculatorTest {
     }
 
     @Test
-    @DisplayName("들고 있는 종목은 오늘 이하 가장 늦은 종가와 오늘 환율로 평가해 평가 손익 원화 큰 것부터, 종가가 없으면 −투자금액이다")
+    @DisplayName("들고 있는 종목은 기간 끝 이하 가장 늦은 종가와 기간 끝 환율로 평가해 평가 손익 원화 큰 것부터, 종가가 없으면 −투자금액이다")
     void profitDetail_HoldingsByUnrealized() {
       LocalDate closeDate = LocalDate.of(2024, 11, 8);
 
@@ -787,6 +790,134 @@ class PortfolioStatsCalculatorTest {
       assertThat(habits(List.of(
         buy("AAPL", "1", "100.00", "0.00", D1),
         sell("AAPL", "1", "110.00", "0.00", BEFORE)))).isEqualTo(empty);
+    }
+  }
+
+  @Nested
+  @DisplayName("시장 비교")
+  class Market {
+
+    private final Map<LocalDate, BigDecimal> rates = Map.of(D1, new BigDecimal("1300"), D2, new BigDecimal("1310"),
+      D3, new BigDecimal("1320"), D4, new BigDecimal("1330"));
+
+    private static List<ProfitPoint> flowPoints(LocalDate... dates) {
+      return Stream.of(dates).map(date -> new ProfitPoint(date, BigDecimal.ZERO, BigDecimal.ZERO)).toList();
+    }
+
+    private static MarketComparisonResponse market(List<AccountFlow> accounts,
+      NavigableMap<LocalDate, BigDecimal> closes, Map<LocalDate, BigDecimal> rates, LocalDate start) {
+      return PortfolioStatsCalculator.market(accounts, closes, rates, start, 2);
+    }
+
+    private static void assertPoints(MarketComparisonResponse response, Object... dateAndProfit) {
+      List<MarketPoint> expected = new ArrayList<>();
+      for (int i = 0; i < dateAndProfit.length; i += 2) {
+        expected.add(new MarketPoint((LocalDate) dateAndProfit[i], new BigDecimal((String) dateAndProfit[i + 1])));
+      }
+      assertThat(response.symbol()).isEqualTo("SPY");
+      assertThat(response.points()).extracting(MarketPoint::date)
+        .containsExactlyElementsOf(expected.stream().map(MarketPoint::date).toList());
+      assertThat(response.points()).extracting(MarketPoint::profitKrw)
+        .usingElementComparator(BigDecimal::compareTo)
+        .containsExactlyElementsOf(expected.stream().map(MarketPoint::profitKrw).toList());
+      assertThat(response.currentProfitKrw()).isEqualByComparingTo(expected.getLast().profitKrw());
+    }
+
+    @Test
+    @DisplayName("매수마다 그 거래일 SPY 종가로 체결 금액 + 수수료만큼 사고 매도마다 줄어든 투자금액 ÷ 매도 직전 계좌 투자금액 비율만큼 팔아 점 날짜마다 (수량 × 종가 − 원가 + 실현 손익) × 그 날짜 환율을 낸다")
+    void market_BuysSameDollarsAndSellsInvestedRatio() {
+      List<Trade> trades = List.of(
+        sell("AAPL", "5", "120.00", "0.50", D3),
+        trade(3L, TradeType.SELL, "AAPL", "5", "999.00", "0.00", D3, TradeStatus.PENDING),
+        trade(3L, TradeType.BUY, "MSFT", "1", "1.00", "0.00", D2, TradeStatus.CANCELLED),
+        buy("MSFT", "4", "62.50", "0.00", D2),
+        buy("AAPL", "10", "100.00", "1.00", D1));
+
+      MarketComparisonResponse response = market(List.of(new AccountFlow(trades, flowPoints(D1, D2, D3, D4))),
+        closes(D1, "500.50", D2, "400.00", D3, "450.00", D4, "480.00"), rates, null);
+
+      assertPoints(response, D1, "0", D2, "-263310", D3, "-92070", D4, "-29925");
+    }
+
+    @Test
+    @DisplayName("SPY 만 종가에 사고판 계좌는 수익 흐름 계산과 같은 값이다")
+    void market_SpyOnlyMatchesFlow() {
+      List<Trade> trades = List.of(
+        buy("SPY", "4", "500.00", "0.00", D1),
+        sell("SPY", "1", "520.00", "0.00", D3));
+      NavigableMap<LocalDate, BigDecimal> spy = closes(D1, "500.00", D2, "510.00", D3, "520.00", D4, "515.00");
+      List<DailyProfit> flow = ProfitFlowCalculator.calculate(trades, List.of(), Map.of("SPY", spy), rates,
+        List.of(D1, D2, D3, D4), 2);
+
+      MarketComparisonResponse response = market(List.of(new AccountFlow(trades, flowPoints(D1, D2, D3, D4))), spy,
+        rates, null);
+
+      assertThat(response.points()).extracting(MarketPoint::profitKrw)
+        .usingElementComparator(BigDecimal::compareTo)
+        .containsExactlyElementsOf(flow.stream().map(DailyProfit::profitKrw).toList());
+      assertPoints(response, D1, "0", D2, "52400", D3, "105600", D4, "86450");
+    }
+
+    @Test
+    @DisplayName("보유보다 많이 판 매도는 그 종목 투자금액 전부의 비율만큼 팔고, 매도 직전 계좌 투자금액이 0 이면 SPY 를 팔지 않는다")
+    void market_UncoveredSells() {
+      List<Trade> trades = List.of(
+        buy("AAPL", "2", "100.00", "0.00", D1),
+        buy("MSFT", "2", "100.00", "0.00", D1),
+        sell("AAPL", "3", "110.00", "0.00", D2),
+        sell("MSFT", "2", "100.00", "0.00", D3),
+        sell("AAPL", "1", "100.00", "0.00", D4));
+      Map<LocalDate, BigDecimal> flat = Map.of(D1, new BigDecimal("1300"), D2, new BigDecimal("1300"),
+        D3, new BigDecimal("1300"), D4, new BigDecimal("1300"));
+
+      MarketComparisonResponse response = market(List.of(new AccountFlow(trades, flowPoints(D1, D2, D3, D4))),
+        closes(D1, "100.00", D2, "120.00", D3, "130.00", D4, "140.00"), flat, null);
+
+      assertPoints(response, D1, "0", D2, "104000", D3, "130000", D4, "130000");
+    }
+
+    @Test
+    @DisplayName("전체 계좌는 계좌마다 셈한 점을 날짜마다 더하고 점이 없는 날은 그 계좌의 직전 점을 쓰며 기간 첫 날 앞 점은 뺀다")
+    void market_SumsAccountsByDate() {
+      Trade otherBuy = trade(4L, TradeType.BUY, "MSFT", "2", "50.00", "0.00", D3, TradeStatus.COMPLETED);
+
+      MarketComparisonResponse response = market(List.of(
+          new AccountFlow(List.of(buy("AAPL", "1", "100.00", "0.00", D1)),
+            PortfolioStatsCalculator.periodPoints(flowPoints(D1, D2, D4), D3)),
+          new AccountFlow(List.of(otherBuy), PortfolioStatsCalculator.periodPoints(flowPoints(D3, D4), D3))),
+        closes(D1, "100.00", D2, "110.00", D3, "125.00", D4, "130.00"), rates, D3);
+
+      assertPoints(response, D3, "13100", D4, "45220");
+    }
+
+    @Test
+    @DisplayName("기간 점은 기간 첫 날부터의 점과 그 앞 마지막 점이고 전체 기간이면 모든 점이다")
+    void periodPoints_KeepsLastPointBeforeStart() {
+      assertThat(PortfolioStatsCalculator.periodPoints(flowPoints(D1, D2, D4), D3)).extracting(ProfitPoint::date)
+        .containsExactly(D2, D4);
+      assertThat(PortfolioStatsCalculator.periodPoints(flowPoints(D3, D4), D3)).extracting(ProfitPoint::date)
+        .containsExactly(D3, D4);
+      assertThat(PortfolioStatsCalculator.periodPoints(flowPoints(D1, D2), D3)).extracting(ProfitPoint::date)
+        .containsExactly(D2);
+      assertThat(PortfolioStatsCalculator.periodPoints(flowPoints(D1, D2), null)).extracting(ProfitPoint::date)
+        .containsExactly(D1, D2);
+    }
+
+    @Test
+    @DisplayName("체결일 · 점 날짜 이하 SPY 종가나 점 날짜의 환율이 없거나 기간 안 점이 없으면 빈 점 · 0 이다")
+    void market_MissingCloseOrRateOrPoints() {
+      List<Trade> trades = List.of(buy("AAPL", "1", "100.00", "0.00", D2));
+      MarketComparisonResponse empty = new MarketComparisonResponse("SPY", List.of(), BigDecimal.ZERO);
+
+      assertThat(market(List.of(new AccountFlow(trades, flowPoints(D2, D3))), closes(D3, "100.00"), rates, null))
+        .isEqualTo(empty);
+      assertThat(market(List.of(new AccountFlow(trades, flowPoints(D1, D2))), closes(D2, "100.00"), rates, null))
+        .isEqualTo(empty);
+      assertThat(market(List.of(new AccountFlow(trades, flowPoints(D2, D3))), closes(D2, "100.00"),
+        Map.of(D2, new BigDecimal("1300")), null)).isEqualTo(empty);
+      assertThat(market(List.of(new AccountFlow(trades, flowPoints(D2))), closes(D2, "100.00"), rates, D3))
+        .isEqualTo(empty);
+      assertThat(market(List.of(), closes(D2, "100.00"), rates, null)).isEqualTo(empty);
     }
   }
 }

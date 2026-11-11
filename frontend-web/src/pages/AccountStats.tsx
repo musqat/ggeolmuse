@@ -13,6 +13,7 @@ import { DividendsTab } from '../components/account/stats/DividendsTab';
 import { FxTab } from '../components/account/stats/FxTab';
 import { HabitsTab } from '../components/account/stats/HabitsTab';
 import { CARD_CLASS, StatsLoadError, StatsLoading } from '../components/account/stats/StatsCards';
+import { StatsFoldState } from '../components/account/stats/StatsFold';
 import { portfolioApi, type ProfitFlowPeriod } from '../services/api';
 
 const PERIODS: { value: ProfitFlowPeriod; label: string }[] = [
@@ -38,6 +39,9 @@ const AccountStats: React.FC = () => {
   const [accountId, setAccountId] = useState<number | 'all'>('all');
   const [period, setPeriod] = useState<ProfitFlowPeriod>('ALL');
   const [tab, setTab] = useState<StatsTab>('profit');
+  const [compare, setCompare] = useState(false);
+  // 탭마다 자세히 펼치기 열림
+  const [openFolds, setOpenFolds] = useState<Partial<Record<StatsTab, boolean>>>({});
   const tabButtons = useRef<(HTMLButtonElement | null)[]>([]);
   const { accounts, totalAssets, assetsOf, loading } = useAccountData(isAuthenticated);
 
@@ -45,6 +49,14 @@ const AccountStats: React.FC = () => {
     queryKey: ['portfolio', 'stats', 'flow', accountId, period],
     queryFn: async () => (await portfolioApi.getProfitFlow(accountId, period)).data,
     enabled: isAuthenticated,
+  });
+  const data = flow.data;
+  const hasPoints = !!data && data.points.length > 0;
+
+  const market = useQuery({
+    queryKey: ['portfolio', 'stats', 'market', accountId, period],
+    queryFn: async () => (await portfolioApi.getMarketComparison(accountId, period)).data,
+    enabled: isAuthenticated && compare && hasPoints,
   });
 
   if (!isAuthenticated) {
@@ -55,8 +67,6 @@ const AccountStats: React.FC = () => {
     return <PageSpinner />;
   }
 
-  const data = flow.data;
-  const hasPoints = !!data && data.points.length > 0;
   const assets = accountId === 'all' ? totalAssets : assetsOf(accountId);
   const scope =
     accountId === 'all'
@@ -95,7 +105,18 @@ const AccountStats: React.FC = () => {
         </div>
       );
     }
-    return <ProfitFlowChart flow={data} />;
+    return (
+      <ProfitFlowChart
+        flow={data}
+        compare={{
+          on: compare,
+          onToggle: () => setCompare((on) => !on),
+          status: market.status,
+          data: market.data,
+          onRetry: () => market.refetch(),
+        }}
+      />
+    );
   };
 
   const renderPanel = () => {
@@ -205,7 +226,12 @@ const AccountStats: React.FC = () => {
         {renderChart()}
 
         <div role="tabpanel" id={`stats-panel-${tab}`} aria-labelledby={`stats-tab-${tab}`} tabIndex={0}>
-          {renderPanel()}
+          <StatsFoldState
+            open={!!openFolds[tab]}
+            onOpenChange={(open) => setOpenFolds((folds) => ({ ...folds, [tab]: open }))}
+          >
+            {renderPanel()}
+          </StatsFoldState>
         </div>
       </div>
     </div>

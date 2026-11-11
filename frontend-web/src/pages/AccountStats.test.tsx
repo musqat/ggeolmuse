@@ -8,12 +8,14 @@ import {
   portfolioApi,
   type DividendStatsResponse,
   type FxStatsResponse,
+  type MarketComparisonResponse,
   type ProfitDetailResponse,
   type ProfitFlowResponse,
   type SymbolContributionResponse,
   type TradingHabitsResponse,
 } from '../services/api'
 import { useAuth } from '../hooks/useAuth'
+import { readCharts } from '../test/readCharts'
 import AccountStats from './AccountStats'
 
 vi.mock('recharts', () => import('../test/rechartsProbe'))
@@ -27,6 +29,7 @@ vi.mock('../services/api', () => ({
     getDividendStats: vi.fn(),
     getFxStats: vi.fn(),
     getTradingHabits: vi.fn(),
+    getMarketComparison: vi.fn(),
   },
 }))
 vi.mock('../components/account/stats/StatsBarChart', () => ({ StatsBarChart: () => <i data-testid="bars" /> }))
@@ -105,6 +108,17 @@ const HABITS: TradingHabitsResponse = {
   topSymbols: [{ symbol: 'AAPL', tradeCount: 3, buyCount: 2, sellCount: 1, amountUsd: 5_955 }],
 }
 
+const MARKET: MarketComparisonResponse = {
+  symbol: 'SPY',
+  points: [
+    { date: '2026-07-01', profitKrw: 40_000 },
+    { date: '2026-07-02', profitKrw: 150_000 },
+    { date: '2026-07-03', profitKrw: 120_000 },
+    { date: '2026-07-06', profitKrw: 310_000 },
+  ],
+  currentProfitKrw: 310_000,
+}
+
 const BALANCES: Record<number, { balanceKrw: number; balanceUsd: number }> = {
   3: { balanceKrw: 1_000_000, balanceUsd: 100 },
   5: { balanceKrw: 500_000, balanceUsd: 0 },
@@ -148,6 +162,7 @@ beforeEach(() => {
   vi.mocked(portfolioApi.getDividendStats).mockResolvedValue({ data: DIVIDENDS } as never)
   vi.mocked(portfolioApi.getFxStats).mockResolvedValue({ data: FX } as never)
   vi.mocked(portfolioApi.getTradingHabits).mockResolvedValue({ data: HABITS } as never)
+  vi.mocked(portfolioApi.getMarketComparison).mockResolvedValue({ data: MARKET } as never)
 })
 
 describe('AccountStats', () => {
@@ -164,8 +179,8 @@ describe('AccountStats', () => {
     expect(await screen.findByText('+₩250,000')).toBeInTheDocument()
     expect(portfolioApi.getProfitFlow).toHaveBeenCalledWith('all', 'ALL')
     expect(statLabels()).toEqual(['오늘 총자산', '현재 수익', '최고 수익', '최저 수익'])
-    expect(stat('현재 수익')).toHaveTextContent('현재 수익+₩250,000(10.00%)2026-07-06 기준 · 원금 ₩2,500,000')
-    expect(stat('최고 수익')).toHaveTextContent('최고 수익+₩400,000(20.00%)2026-07-02 · 원금 ₩2,000,000')
+    expect(stat('현재 수익')).toHaveTextContent('현재 수익+₩250,000(+10.00%)2026-07-06 기준 · 원금 ₩2,500,000')
+    expect(stat('최고 수익')).toHaveTextContent('최고 수익+₩400,000(+20.00%)2026-07-02 · 원금 ₩2,000,000')
     expect(stat('최저 수익')).toHaveTextContent('최저 수익-₩50,000(-2.00%)2026-07-03 · 원금 ₩2,500,000')
     expect(screen.getByRole('tab', { name: '수익' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('button', { name: '전체' })).toHaveAttribute('aria-pressed', 'true')
@@ -363,6 +378,104 @@ describe('AccountStats', () => {
     await user.click(await screen.findByRole('button', { name: /자세히 펼치기/ }))
 
     expect(within(screen.getByRole('table', { name: '환전 기록' })).getByText('연습')).toBeInTheDocument()
+  })
+
+  it('S&P 500 비교는 꺼진 채 시작해 시장 비교를 묻지 않고, 켜면 같은 계좌 · 기간으로 물어 SPY 선과 비교 한 줄을 보인다', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    const button = await screen.findByRole('button', { name: 'S&P 500 비교' })
+    expect(button).toHaveAttribute('aria-pressed', 'false')
+    expect(portfolioApi.getMarketComparison).not.toHaveBeenCalled()
+
+    await user.click(button)
+
+    expect(button).toHaveAttribute('aria-pressed', 'true')
+    expect(await screen.findByText(/같은 날짜에 같은 돈을/)).toHaveTextContent(
+      '같은 날짜에 같은 돈을 S&P 500(SPY)에 넣었다면 +₩310,000 (내 계좌보다 +₩60,000)'
+    )
+    expect(portfolioApi.getMarketComparison).toHaveBeenCalledWith('all', 'ALL')
+    expect(readCharts()[0].lines).toEqual(['profitKrw:내 계좌', 'marketKrw:S&P 500'])
+  })
+
+  it('켠 S&P 500 비교는 기간 · 탭을 바꿔도 켜진 채 그 기간으로 다시 묻는다', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(await screen.findByRole('button', { name: 'S&P 500 비교' }))
+    await screen.findByText(/같은 날짜에 같은 돈을/)
+
+    await user.click(screen.getByRole('button', { name: '1달' }))
+    await user.click(screen.getByRole('tab', { name: '종목' }))
+
+    await waitFor(() => expect(portfolioApi.getMarketComparison).toHaveBeenLastCalledWith('all', '1M'))
+    expect(await screen.findByRole('button', { name: 'S&P 500 비교' })).toHaveAttribute('aria-pressed', 'true')
+    expect(await screen.findByText(/같은 날짜에 같은 돈을/)).toBeInTheDocument()
+  })
+
+  it('수익 흐름이 빈 계좌로 바꾸면 비교 단추가 없고 그 계좌의 시장 비교를 묻지 않는다', async () => {
+    const user = userEvent.setup()
+    vi.mocked(portfolioApi.getProfitFlow).mockImplementation(
+      async (accountId: number | 'all') => ({ data: accountId === 3 ? EMPTY : FLOW }) as never
+    )
+    renderPage()
+    await user.click(await screen.findByRole('button', { name: 'S&P 500 비교' }))
+    await screen.findByText(/같은 날짜에 같은 돈을/)
+
+    await user.selectOptions(screen.getByLabelText('계좌'), '연습')
+
+    expect(await screen.findByText('아직 수익 흐름이 없습니다')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'S&P 500 비교' })).toBeNull()
+    expect(portfolioApi.getMarketComparison).not.toHaveBeenCalledWith(3, 'ALL')
+  })
+
+  it('수익 흐름 점은 있는데 시장 비교 점이 비면 시세를 불러오지 못했다는 한 줄을 보인다', async () => {
+    const user = userEvent.setup()
+    vi.mocked(portfolioApi.getMarketComparison).mockResolvedValue({
+      data: { symbol: 'SPY', points: [], currentProfitKrw: 0 },
+    } as never)
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: 'S&P 500 비교' }))
+
+    expect(await screen.findByText('S&P 500 시세를 불러오지 못했습니다')).toBeInTheDocument()
+    expect(readCharts()[0].lines).toEqual(['profitKrw:수익'])
+  })
+
+  it('시장 비교를 못 받으면 그래프 아래에 오류와 다시 시도를 보이고 그래프는 그대로다', async () => {
+    const user = userEvent.setup()
+    vi.mocked(portfolioApi.getMarketComparison).mockRejectedValueOnce(new Error('502'))
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: 'S&P 500 비교' }))
+
+    expect(await screen.findByText(/S&P 500 비교를 불러오지 못했습니다/)).toBeInTheDocument()
+    expect(screen.getByTestId('line-chart')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '다시 시도' }))
+
+    expect(await screen.findByText(/같은 날짜에 같은 돈을/)).toBeInTheDocument()
+    expect(portfolioApi.getMarketComparison).toHaveBeenCalledTimes(2)
+  })
+
+  it('자세히 펼치기 열림은 탭마다 따로 기억해 탭을 바꿨다 돌아와도, 기간을 바꿔도 그대로다', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /자세히 펼치기/ }))
+    expect(screen.getByRole('button', { name: /자세히 펼치기/ })).toHaveAttribute('aria-expanded', 'true')
+
+    await user.click(screen.getByRole('tab', { name: '종목' }))
+    expect(await screen.findByRole('button', { name: /자세히 펼치기/ })).toHaveAttribute('aria-expanded', 'false')
+
+    await user.click(screen.getByRole('tab', { name: '수익' }))
+    expect(await screen.findByRole('button', { name: /자세히 펼치기/ })).toHaveAttribute('aria-expanded', 'true')
+
+    await user.click(screen.getByRole('button', { name: '1달' }))
+    await waitFor(() => expect(portfolioApi.getProfitDetail).toHaveBeenLastCalledWith('all', '1M'))
+    expect(await screen.findByRole('button', { name: /자세히 펼치기/ })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('table', { name: '들고 있는 종목' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('tab', { name: '종목' }))
+    expect(await screen.findByRole('button', { name: /자세히 펼치기/ })).toHaveAttribute('aria-expanded', 'false')
   })
 
   it('계좌 관리로 돌아가는 링크가 있다', async () => {

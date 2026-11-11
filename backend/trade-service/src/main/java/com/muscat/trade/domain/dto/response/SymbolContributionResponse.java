@@ -4,7 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.util.List;
 
-@Schema(description = "종목별 기여(기간 동안 늘어난 원화 수익을 종목마다 나눈 값)")
+@Schema(description = "종목별 기여(기간 동안 늘어난 원화 수익을 종목마다 나눈 값, 기간 끝은 기간 안 마지막 수익 흐름 점 날짜이고 없으면 오늘)")
 public record SymbolContributionResponse(
   @Schema(description = "종목 합계 원화 합", example = "1250000")
   BigDecimal totalKrw,

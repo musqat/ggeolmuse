@@ -77,7 +77,7 @@ export const HabitsTab: React.FC<{ accountId: number | 'all'; period: ProfitFlow
           formatAxis={(value) => `${value}`}
         />
       </ChartCard>
-      <StatsFold>
+      <StatsFold summary={`종목 ${formatNumber(topSymbols.length)}개`}>
         <StatsTable title="많이 거래한 종목" columns={SYMBOL_COLUMNS} rows={topSymbols} rowKey={(item) => item.symbol} />
       </StatsFold>
     </div>

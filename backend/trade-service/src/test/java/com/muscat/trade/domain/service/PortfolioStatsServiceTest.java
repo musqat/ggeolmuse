@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -23,6 +24,8 @@ import com.muscat.trade.domain.dto.response.DividendStatsResponse.Payout;
 import com.muscat.trade.domain.dto.response.DividendStatsResponse.SymbolDividend;
 import com.muscat.trade.domain.dto.response.FxStatsResponse;
 import com.muscat.trade.domain.dto.response.FxStatsResponse.Exchange;
+import com.muscat.trade.domain.dto.response.MarketComparisonResponse;
+import com.muscat.trade.domain.dto.response.MarketComparisonResponse.MarketPoint;
 import com.muscat.trade.domain.dto.response.ProfitDetailResponse;
 import com.muscat.trade.domain.dto.response.ProfitDetailResponse.Holding;
 import com.muscat.trade.domain.dto.response.ProfitDetailResponse.MonthlyProfit;
@@ -37,6 +40,7 @@ import com.muscat.trade.domain.entity.DividendPayout;
 import com.muscat.trade.domain.entity.Trade;
 import com.muscat.trade.domain.repository.DividendPayoutRepository;
 import com.muscat.trade.domain.repository.TradeRepository;
+import com.muscat.trade.domain.service.PortfolioStatsReader.AccountActivity;
 import com.muscat.trade.infra.client.MarketServiceClientWrapper;
 import com.muscat.trade.infra.client.UserServiceClientWrapper;
 import com.muscat.trade.infra.client.dto.ExchangeRecordDto;
@@ -50,6 +54,7 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -58,7 +63,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("계좌 통계 탭 조회")
+@DisplayName("계좌 통계 탭 · 시장 비교 조회")
 class PortfolioStatsServiceTest {
 
   private static final String USER = "user-1";
@@ -146,6 +151,14 @@ class PortfolioStatsServiceTest {
       .willReturn(rates);
   }
 
+  // 요청한 날짜 가운데 rates 에 있는 날짜만 돌려주는 일괄 환율
+  private void fxByDate(Map<String, BigDecimal> rates) {
+    given(marketServiceClientWrapper.getBulkFxRates(anyList())).willAnswer(invocation -> {
+      List<String> dates = invocation.getArgument(0);
+      return dates.stream().filter(rates::containsKey).collect(Collectors.toMap(date -> date, rates::get));
+    });
+  }
+
   private static ExchangeRecordDto krwToUsd(long accountId, LocalDate date, String usd, String rate) {
     BigDecimal dollars = new BigDecimal(usd);
     BigDecimal fxRate = new BigDecimal(rate);
@@ -165,7 +178,7 @@ class PortfolioStatsServiceTest {
   }
 
   @Test
-  @DisplayName("수익 자세히는 기간 안 매도를 판 날 환율로, 들고 있는 종목을 수익 흐름 마지막 날 종가 · 환율로 내고 달마다 수익은 수익 흐름 점으로 낸다")
+  @DisplayName("수익 자세히는 기간 안 매도를 판 날 환율로, 기간 끝에 들고 있는 종목을 마지막 수익 흐름 점 날짜 종가 · 환율로 내고 달마다 수익은 수익 흐름 점으로 낸다")
   void profit_OneAccount() {
     Trade inPeriod = sell(ACCOUNT, "AAPL", "2", "120.00", "0.00", LocalDate.of(2024, 10, 20));
     ownAccount(List.of(
@@ -177,9 +190,9 @@ class PortfolioStatsServiceTest {
     given(profitFlowService.points(eq(USER), anyList(), eq(TODAY))).willReturn(List.of(
       point(LocalDate.of(2024, 10, 10), "500"), point(LocalDate.of(2024, 10, 31), "900"),
       point(CLOSE_DATE, "1200")));
-    given(marketServiceClientWrapper.getOHLCPriceRange("AAPL", "2024-10-27", "2024-11-10"))
+    given(marketServiceClientWrapper.getOHLCPriceRange("AAPL", "2024-10-25", "2024-11-08"))
       .willReturn(List.of(candle("AAPL", CLOSE_DATE, "125.00")));
-    fx(Map.of("2024-10-20", new BigDecimal("1350"), "2024-11-08", new BigDecimal("1380")));
+    fx(Map.of("2024-10-20", new BigDecimal("1350"), "2024-11-08", new BigDecimal("1400")));
 
     ProfitDetailResponse response = service.profit(USER, "3", FlowPeriod.ONE_MONTH);
 
@@ -204,9 +217,9 @@ class PortfolioStatsServiceTest {
     assertThat(holding.closeUsd()).isEqualByComparingTo("125.00");
     assertThat(holding.closeDate()).isEqualTo(CLOSE_DATE);
     assertThat(holding.unrealizedUsd()).isEqualByComparingTo("100.00");
-    assertThat(holding.unrealizedKrw()).isEqualByComparingTo("138000");
+    assertThat(holding.unrealizedKrw()).isEqualByComparingTo("140000");
     assertThat(holding.returnPercent()).isEqualByComparingTo("25.00");
-    assertThat(response.unrealizedKrw()).isEqualByComparingTo("138000");
+    assertThat(response.unrealizedKrw()).isEqualByComparingTo("140000");
     verify(profitFlowService).points(eq(USER),
       argThat(activities -> activities.size() == 1 && activities.getFirst().accountId() == ACCOUNT
         && activities.getFirst().trades().size() == 4),
@@ -225,8 +238,8 @@ class PortfolioStatsServiceTest {
     given(tradeRepository.findByUserId(USER)).willReturn(List.of(msftSell, aaplSell, msftBuy, otherAaplBuy, aaplBuy));
     given(dividendPayoutRepository.findByUserId(USER)).willReturn(List.of());
     given(profitFlowService.points(eq(USER), anyList(), eq(TODAY))).willReturn(List.of(
-      point(LocalDate.of(2024, 9, 30), "100"), point(soldOn, "300"), point(CLOSE_DATE, "300")));
-    given(marketServiceClientWrapper.getOHLCPriceRange("AAPL", "2024-10-27", "2024-11-10"))
+      point(LocalDate.of(2024, 9, 30), "100"), point(soldOn, "300"), point(CLOSE_DATE, "500")));
+    given(marketServiceClientWrapper.getOHLCPriceRange("AAPL", "2024-10-25", "2024-11-08"))
       .willReturn(List.of(candle("AAPL", CLOSE_DATE, "120.00")));
     fx(Map.of("2024-10-01", new BigDecimal("1300"), "2024-11-08", new BigDecimal("1400")));
 
@@ -234,7 +247,7 @@ class PortfolioStatsServiceTest {
 
     assertThat(response.monthly()).extracting(MonthlyProfit::profitKrw)
       .usingElementComparator(BigDecimal::compareTo)
-      .containsExactly(new BigDecimal("100"), new BigDecimal("200"), BigDecimal.ZERO);
+      .containsExactly(new BigDecimal("100"), new BigDecimal("200"), new BigDecimal("200"));
     assertThat(response.sales()).extracting(Sale::tradeId).containsExactly(msftSell.getId(), aaplSell.getId());
     assertThat(response.sales()).extracting(Sale::realizedKrw)
       .usingElementComparator(BigDecimal::compareTo)
@@ -250,18 +263,20 @@ class PortfolioStatsServiceTest {
   }
 
   @Test
-  @DisplayName("종목별 기여는 기간 시작 전날과 오늘의 종가 · 환율로 칸마다 늘어난 원화를 낸다")
+  @DisplayName("종목별 기여는 기간 시작 전날과 마지막 수익 흐름 점 날짜의 종가 · 환율로 칸마다 늘어난 원화를 낸다")
   void symbols_EndMinusDayBeforePeriod() {
     ownAccount(List.of(
         buy(ACCOUNT, "AAPL", "10", "100.00", "1.00", LocalDate.of(2024, 9, 2)),
         sell(ACCOUNT, "AAPL", "4", "110.00", "0.50", LocalDate.of(2024, 10, 20)),
         buy(ACCOUNT, "MSFT", "1", "50.00", "0.00", LocalDate.of(2024, 10, 25))),
       payout("AAPL", LocalDate.of(2024, 11, 1), "2.00"));
-    given(marketServiceClientWrapper.getOHLCPriceRange("AAPL", "2024-09-26", "2024-11-10")).willReturn(List.of(
+    given(profitFlowService.points(eq(USER), anyList(), eq(TODAY))).willReturn(List.of(
+      point(LocalDate.of(2024, 10, 10), "5000"), point(CLOSE_DATE, "173000")));
+    given(marketServiceClientWrapper.getOHLCPriceRange("AAPL", "2024-09-26", "2024-11-08")).willReturn(List.of(
       candle("AAPL", LocalDate.of(2024, 10, 10), "105.00"), candle("AAPL", CLOSE_DATE, "120.00")));
-    given(marketServiceClientWrapper.getOHLCPriceRange("MSFT", "2024-10-27", "2024-11-10"))
+    given(marketServiceClientWrapper.getOHLCPriceRange("MSFT", "2024-10-25", "2024-11-08"))
       .willReturn(List.of(candle("MSFT", CLOSE_DATE, "55.00")));
-    fx(Map.of("2024-10-10", new BigDecimal("1300"), "2024-11-10", new BigDecimal("1400")));
+    fx(Map.of("2024-10-10", new BigDecimal("1300"), "2024-11-08", new BigDecimal("1400")));
 
     SymbolContributionResponse response = service.symbols(USER, "3", FlowPeriod.ONE_MONTH);
 
@@ -279,31 +294,16 @@ class PortfolioStatsServiceTest {
   }
 
   @Test
-  @DisplayName("종목별 기여는 오늘 환율이 들어와도 수익 흐름 마지막 날의 종가 · 환율로 내서 현재 수익과 같다")
-  void symbols_ValuesAtLastFlowDay() {
-    ownAccount(List.of(buy(ACCOUNT, "AAPL", "1", "100.00", "0.00", LocalDate.of(2024, 9, 2))));
-    given(profitFlowService.points(eq(USER), anyList(), eq(TODAY))).willReturn(List.of(
-      point(LocalDate.of(2024, 10, 31), "20000"), point(CLOSE_DATE, "27600")));
-    given(marketServiceClientWrapper.getOHLCPriceRange("AAPL", "2024-10-27", "2024-11-10"))
-      .willReturn(List.of(candle("AAPL", CLOSE_DATE, "120.00")));
-    fx(Map.of("2024-11-08", new BigDecimal("1380")));
-
-    SymbolContributionResponse response = service.symbols(USER, "3", FlowPeriod.ALL);
-
-    assertThat(response.symbols().getFirst().unrealizedKrw()).isEqualByComparingTo("27600");
-    assertThat(response.totalKrw()).isEqualByComparingTo("27600");
-  }
-
-  @Test
-  @DisplayName("전체 기간 종목별 기여는 시작 전 값 없이 오늘 값만 보고 계좌마다의 종목을 합친다")
+  @DisplayName("전체 기간 종목별 기여는 시작 전 값 없이 기간 끝 값만 보고 계좌마다의 종목을 합친다")
   void symbols_AllPeriodAllAccounts() {
     given(tradeRepository.findByUserId(USER)).willReturn(List.of(
       buy(ACCOUNT, "AAPL", "1", "100.00", "0.00", LocalDate.of(2024, 9, 2)),
       buy(4L, "AAPL", "1", "110.00", "0.00", LocalDate.of(2024, 9, 3))));
     given(dividendPayoutRepository.findByUserId(USER)).willReturn(List.of());
-    given(marketServiceClientWrapper.getOHLCPriceRange("AAPL", "2024-10-27", "2024-11-10"))
+    given(profitFlowService.points(eq(USER), anyList(), eq(TODAY))).willReturn(List.of(point(CLOSE_DATE, "42000")));
+    given(marketServiceClientWrapper.getOHLCPriceRange("AAPL", "2024-10-25", "2024-11-08"))
       .willReturn(List.of(candle("AAPL", CLOSE_DATE, "120.00")));
-    fx(Map.of("2024-11-10", new BigDecimal("1400")));
+    fx(Map.of("2024-11-08", new BigDecimal("1400")));
 
     SymbolContributionResponse response = service.symbols(USER, "all", FlowPeriod.ALL);
 
@@ -312,6 +312,40 @@ class PortfolioStatsServiceTest {
     assertThat(response.symbols().getFirst().sharePercent()).isEqualByComparingTo("100");
     assertThat(response.symbols().getFirst().held()).isTrue();
     assertThat(response.totalKrw()).isEqualByComparingTo("42000");
+  }
+
+  @Test
+  @DisplayName("수익 자세히 · 종목별 기여의 기간 끝은 마지막 수익 흐름 점 날짜라 전체 기간 평가 손익과 종목 합이 그 점의 수익과 같다")
+  void profitAndSymbols_EndAtLastFlowPoint() {
+    ownAccount(List.of(buy(ACCOUNT, "AAPL", "1", "100.00", "0.00", LocalDate.of(2024, 9, 2))));
+    given(profitFlowService.points(eq(USER), anyList(), eq(TODAY))).willReturn(List.of(
+      point(LocalDate.of(2024, 9, 2), "0"), point(CLOSE_DATE, "27600")));
+    given(marketServiceClientWrapper.getOHLCPriceRange(eq("AAPL"), any(), any()))
+      .willReturn(List.of(candle("AAPL", CLOSE_DATE, "120.00")));
+    fxByDate(Map.of("2024-11-08", new BigDecimal("1380"), "2024-11-10", new BigDecimal("1400")));
+
+    ProfitDetailResponse profit = service.profit(USER, "3", FlowPeriod.ALL);
+    SymbolContributionResponse symbols = service.symbols(USER, "3", FlowPeriod.ALL);
+
+    assertThat(profit.holdings().getFirst().closeDate()).isEqualTo(CLOSE_DATE);
+    assertThat(profit.unrealizedKrw()).isEqualByComparingTo("27600");
+    assertThat(symbols.totalKrw()).isEqualByComparingTo("27600");
+  }
+
+  @Test
+  @DisplayName("기간 안 수익 흐름 점이 없으면 종목별 기여의 기간 끝은 오늘이다")
+  void symbols_NoFlowPointInPeriodEndsToday() {
+    ownAccount(List.of(buy(ACCOUNT, "AAPL", "10", "100.00", "0.00", LocalDate.of(2024, 9, 2))));
+    given(profitFlowService.points(eq(USER), anyList(), eq(TODAY))).willReturn(List.of(
+      point(LocalDate.of(2024, 9, 30), "13000")));
+    given(marketServiceClientWrapper.getOHLCPriceRange("AAPL", "2024-09-26", "2024-11-10"))
+      .willReturn(List.of(candle("AAPL", LocalDate.of(2024, 9, 30), "110.00")));
+    fx(Map.of("2024-10-10", new BigDecimal("1300"), "2024-11-10", new BigDecimal("1400")));
+
+    SymbolContributionResponse response = service.symbols(USER, "3", FlowPeriod.ONE_MONTH);
+
+    assertThat(response.symbols().getFirst().unrealizedKrw()).isEqualByComparingTo("10000");
+    assertThat(response.totalKrw()).isEqualByComparingTo("10000");
   }
 
   @Test
@@ -487,6 +521,101 @@ class PortfolioStatsServiceTest {
   }
 
   @Test
+  @DisplayName("시장 비교는 계좌 수익 흐름의 기간 점 날짜마다 SPY 수익을 내고 SPY 종가는 첫 체결일 앞 14일부터, 환율은 기간 점과 그 앞 마지막 점 날짜로 받는다")
+  void market_OneAccount() {
+    LocalDate laborDay = LocalDate.of(2024, 9, 2);
+    ownAccount(List.of(
+      buy(ACCOUNT, "AAPL", "10", "100.00", "0.00", laborDay),
+      trade(ACCOUNT, TradeType.BUY, "AAPL", "1", "130.00", "0.00", LocalDate.of(2024, 8, 1), TradeStatus.CANCELLED)));
+    given(profitFlowService.points(eq(USER), anyList(), eq(TODAY))).willReturn(List.of(
+      point(laborDay, "0"), point(LocalDate.of(2024, 10, 9), "500"), point(LocalDate.of(2024, 10, 11), "800"),
+      point(CLOSE_DATE, "900")));
+    given(marketServiceClientWrapper.getOHLCPriceRange("SPY", "2024-08-19", "2024-11-10")).willReturn(List.of(
+      candle("SPY", LocalDate.of(2024, 8, 30), "500.00"), candle("SPY", LocalDate.of(2024, 10, 11), "550.00"),
+      candle("SPY", CLOSE_DATE, "600.00")));
+    fx(Map.of("2024-10-09", new BigDecimal("1300"), "2024-10-11", new BigDecimal("1350"),
+      "2024-11-08", new BigDecimal("1400")));
+
+    MarketComparisonResponse response = service.market(USER, "3", FlowPeriod.ONE_MONTH);
+
+    assertThat(response.symbol()).isEqualTo("SPY");
+    assertThat(response.points()).extracting(MarketPoint::date)
+      .containsExactly(LocalDate.of(2024, 10, 11), CLOSE_DATE);
+    assertThat(response.points()).extracting(MarketPoint::profitKrw)
+      .usingElementComparator(BigDecimal::compareTo)
+      .containsExactly(new BigDecimal("135000"), new BigDecimal("280000"));
+    assertThat(response.currentProfitKrw()).isEqualByComparingTo("280000");
+    verify(profitFlowService).points(eq(USER),
+      argThat(activities -> activities.size() == 1 && activities.getFirst().accountId() == ACCOUNT
+        && activities.getFirst().trades().size() == 2),
+      eq(TODAY));
+  }
+
+  @Test
+  @DisplayName("전체 계좌 시장 비교는 계좌마다 셈한 SPY 수익을 날짜마다 더하고 SPY 종가는 한 번만 받는다")
+  void market_AllAccounts() {
+    LocalDate first = LocalDate.of(2024, 9, 2);
+    LocalDate second = LocalDate.of(2024, 9, 3);
+    given(tradeRepository.findByUserId(USER)).willReturn(List.of(
+      buy(4L, "MSFT", "2", "50.00", "0.00", second),
+      buy(ACCOUNT, "AAPL", "1", "100.00", "0.00", first)));
+    given(dividendPayoutRepository.findByUserId(USER)).willReturn(List.of());
+    given(profitFlowService.points(eq(USER), anyList(), eq(TODAY))).willAnswer(invocation -> {
+      List<AccountActivity> activities = invocation.getArgument(1);
+      return activities.getFirst().accountId() == ACCOUNT
+        ? List.of(point(first, "0"), point(CLOSE_DATE, "100"))
+        : List.of(point(second, "0"), point(CLOSE_DATE, "200"));
+    });
+    given(marketServiceClientWrapper.getOHLCPriceRange("SPY", "2024-08-19", "2024-11-10")).willReturn(List.of(
+      candle("SPY", first, "100.00"), candle("SPY", second, "125.00"), candle("SPY", CLOSE_DATE, "130.00")));
+    fx(Map.of("2024-09-02", new BigDecimal("1300"), "2024-09-03", new BigDecimal("1310"),
+      "2024-11-08", new BigDecimal("1400")));
+
+    MarketComparisonResponse response = service.market(USER, "all", FlowPeriod.ALL);
+
+    assertThat(response.points()).extracting(MarketPoint::date).containsExactly(first, second, CLOSE_DATE);
+    assertThat(response.points()).extracting(MarketPoint::profitKrw)
+      .usingElementComparator(BigDecimal::compareTo)
+      .containsExactly(new BigDecimal("0"), new BigDecimal("0"), new BigDecimal("47600"));
+    assertThat(response.currentProfitKrw()).isEqualByComparingTo("47600");
+    verify(profitFlowService, times(2)).points(eq(USER), argThat(activities -> activities.size() == 1), eq(TODAY));
+    verify(marketServiceClientWrapper, times(1)).getOHLCPriceRange(eq("SPY"), any(), any());
+    verify(tradeRepository, never()).findFirstByAccountIdOrderByIdAsc(any());
+  }
+
+  @Test
+  @DisplayName("SPY 종가를 못 받거나 첫 체결일 이하 SPY 종가가 없으면 빈 점 · 0 이고 환율은 부르지 않는다")
+  void market_NoSpyCloses() {
+    ownAccount(List.of(buy(ACCOUNT, "AAPL", "1", "100.00", "0.00", LocalDate.of(2024, 9, 2))));
+    given(profitFlowService.points(eq(USER), anyList(), eq(TODAY))).willReturn(List.of(
+      point(LocalDate.of(2024, 9, 2), "0"), point(CLOSE_DATE, "100")));
+    given(marketServiceClientWrapper.getOHLCPriceRange("SPY", "2024-08-19", "2024-11-10"))
+      .willThrow(new TradeException(TradeResponse.MARKET_DATA_SERVICE_ERROR))
+      .willReturn(List.of(candle("SPY", CLOSE_DATE, "600.00")));
+
+    MarketComparisonResponse failed = service.market(USER, "3", FlowPeriod.ALL);
+    MarketComparisonResponse late = service.market(USER, "3", FlowPeriod.ALL);
+
+    assertThat(failed).isEqualTo(new MarketComparisonResponse("SPY", List.of(), BigDecimal.ZERO));
+    assertThat(late).isEqualTo(new MarketComparisonResponse("SPY", List.of(), BigDecimal.ZERO));
+    verify(marketServiceClientWrapper, never()).getBulkFxRates(anyList());
+  }
+
+  @Test
+  @DisplayName("기간 안 수익 흐름 점이 없으면 시장 비교는 빈 점 · 0 이고 시세는 부르지 않는다")
+  void market_NoPointsInPeriod() {
+    ownAccount(List.of(buy(ACCOUNT, "AAPL", "1", "100.00", "0.00", LocalDate.of(2024, 9, 2))));
+    given(profitFlowService.points(eq(USER), anyList(), eq(TODAY))).willReturn(List.of(
+      point(LocalDate.of(2024, 9, 2), "0"), point(LocalDate.of(2024, 9, 30), "100")));
+
+    MarketComparisonResponse response = service.market(USER, "3", FlowPeriod.ONE_MONTH);
+
+    assertThat(response.points()).isEmpty();
+    assertThat(response.currentProfitKrw()).isEqualByComparingTo("0");
+    verifyNoInteractions(marketServiceClientWrapper);
+  }
+
+  @Test
   @DisplayName("체결이 없는 계좌는 빈 목록 · 합 0 · 수 0 이고 시세는 부르지 않는다")
   void emptyAccount_NoMarketCalls() {
     given(tradeRepository.findFirstByAccountIdOrderByIdAsc(ACCOUNT)).willReturn(Optional.empty());
@@ -497,6 +626,7 @@ class PortfolioStatsServiceTest {
     SymbolContributionResponse symbols = service.symbols(USER, "3", FlowPeriod.ONE_YEAR);
     DividendStatsResponse dividends = service.dividends(USER, "3", FlowPeriod.ALL);
     TradingHabitsResponse habits = service.habits(USER, "3", FlowPeriod.ONE_MONTH);
+    MarketComparisonResponse market = service.market(USER, "3", FlowPeriod.ALL);
 
     assertThat(profit.monthly()).isEmpty();
     assertThat(profit.sales()).isEmpty();
@@ -514,6 +644,8 @@ class PortfolioStatsServiceTest {
     assertThat(habits.winRatePercent()).isNull();
     assertThat(habits.weekdays()).extracting(WeekdayTrades::count).containsExactly(0, 0, 0, 0, 0, 0, 0);
     assertThat(habits.topSymbols()).isEmpty();
+    assertThat(market.points()).isEmpty();
+    assertThat(market.currentProfitKrw()).isEqualByComparingTo("0");
     verifyNoInteractions(marketServiceClientWrapper);
   }
 
@@ -534,6 +666,8 @@ class PortfolioStatsServiceTest {
     assertThatThrownBy(() -> service.habits(USER, "3", FlowPeriod.ALL))
       .hasFieldOrPropertyWithValue("errorCode", TradeResponse.ACCOUNT_ACCESS_DENIED.name());
     assertThatThrownBy(() -> service.fx(USER, "3", FlowPeriod.ALL))
+      .hasFieldOrPropertyWithValue("errorCode", TradeResponse.ACCOUNT_ACCESS_DENIED.name());
+    assertThatThrownBy(() -> service.market(USER, "3", FlowPeriod.ALL))
       .hasFieldOrPropertyWithValue("errorCode", TradeResponse.ACCOUNT_ACCESS_DENIED.name());
     verifyNoInteractions(profitFlowService, marketServiceClientWrapper, userServiceClientWrapper);
   }

@@ -2,15 +2,18 @@ package com.muscat.trade.domain.service;
 
 import com.muscat.trade.common.enums.type.FlowPeriod;
 import com.muscat.trade.common.enums.type.TradeStatus;
+import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.config.TradeProperties;
 import com.muscat.trade.domain.dto.response.DividendStatsResponse;
 import com.muscat.trade.domain.dto.response.FxStatsResponse;
+import com.muscat.trade.domain.dto.response.MarketComparisonResponse;
 import com.muscat.trade.domain.dto.response.ProfitDetailResponse;
 import com.muscat.trade.domain.dto.response.ProfitFlowResponse.ProfitPoint;
 import com.muscat.trade.domain.dto.response.SymbolContributionResponse;
 import com.muscat.trade.domain.dto.response.TradingHabitsResponse;
 import com.muscat.trade.domain.entity.DividendPayout;
 import com.muscat.trade.domain.entity.Trade;
+import com.muscat.trade.domain.service.PortfolioStatsCalculator.AccountFlow;
 import com.muscat.trade.domain.service.PortfolioStatsCalculator.Replay;
 import com.muscat.trade.domain.service.PortfolioStatsCalculator.SellResult;
 import com.muscat.trade.domain.service.PortfolioStatsCalculator.SymbolTotals;
@@ -29,9 +32,11 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-// 계좌 통계 탭 조회(열 때마다 체결 · 배당 몫 · 환전 기록 · 종가 · 환율로 계산)
+// 계좌 통계 탭 · 시장 비교 조회(열 때마다 체결 · 배당 몫 · 환전 기록 · 종가 · 환율로 계산)
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PortfolioStatsService {
@@ -47,7 +52,9 @@ public class PortfolioStatsService {
     List<AccountActivity> activities = portfolioStatsReader.activities(userId, accountId);
     LocalDate today = LocalDate.now(clock);
     LocalDate start = period.startFrom(today);
-    List<Replay> replays = replay(activities, today);
+    List<ProfitPoint> points = profitFlowService.points(userId, activities, today);
+    LocalDate end = periodEnd(points, start, today);
+    List<Replay> replays = replay(activities, end);
     List<SellResult> sells = replays.stream()
       .flatMap(replay -> replay.sells().stream())
       .filter(sell -> start == null || !sell.trade().getTradeDate().isBefore(start))
@@ -56,18 +63,15 @@ public class PortfolioStatsService {
       .filter(SymbolTotals::held)
       .toList();
 
-    List<ProfitPoint> points = profitFlowService.points(userId, activities, today);
-    LocalDate asOf = valuationDate(points, today);
-
     Set<LocalDate> fxDates = new TreeSet<>();
     sells.forEach(sell -> fxDates.add(sell.trade().getTradeDate()));
     Map<String, LocalDate> closeFrom = new HashMap<>();
-    holdings.forEach(totals -> closeFrom.put(totals.symbol(), today));
+    holdings.forEach(totals -> closeFrom.put(totals.symbol(), end));
     if (!holdings.isEmpty()) {
-      fxDates.add(asOf);
+      fxDates.add(end);
     }
-    return PortfolioStatsCalculator.profitDetail(points, start, sells, holdings, closes(activities, closeFrom, today),
-      portfolioStatsReader.fxRates(fxDates), asOf);
+    return PortfolioStatsCalculator.profitDetail(points, start, sells, holdings, closes(activities, closeFrom, end),
+      portfolioStatsReader.fxRates(fxDates), end);
   }
 
   // 종목마다 기간 끝 값 − 기간 시작 전날 값, accountId 는 계좌 ID 또는 all
@@ -76,30 +80,24 @@ public class PortfolioStatsService {
     LocalDate today = LocalDate.now(clock);
     LocalDate start = period.startFrom(today);
     LocalDate before = start == null ? null : start.minusDays(1);
-    Map<String, SymbolTotals> end = PortfolioStatsCalculator.merge(replay(activities, today));
+    LocalDate end = periodEnd(profitFlowService.points(userId, activities, today), start, today);
+    Map<String, SymbolTotals> last = PortfolioStatsCalculator.merge(replay(activities, end));
     Map<String, SymbolTotals> previous = before == null
       ? Map.of()
       : PortfolioStatsCalculator.merge(replay(activities, before));
 
-    LocalDate asOf = valuationDate(profitFlowService.points(userId, activities, today), today);
-
     Set<LocalDate> fxDates = new TreeSet<>();
     Map<String, LocalDate> closeFrom = new HashMap<>();
-    end.values().stream().filter(SymbolTotals::held).forEach(totals -> closeFrom.put(totals.symbol(), today));
+    last.values().stream().filter(SymbolTotals::held).forEach(totals -> closeFrom.put(totals.symbol(), end));
     previous.values().stream().filter(SymbolTotals::held).forEach(totals -> closeFrom.put(totals.symbol(), before));
-    if (!end.isEmpty()) {
-      fxDates.add(asOf);
+    if (!last.isEmpty()) {
+      fxDates.add(end);
     }
     if (!previous.isEmpty()) {
       fxDates.add(before);
     }
-    return PortfolioStatsCalculator.symbolContributions(end, previous, closes(activities, closeFrom, today),
-      portfolioStatsReader.fxRates(fxDates), asOf, before);
-  }
-
-  // 평가 기준 날: 수익 흐름 마지막 점의 날(종가 · 환율이 현재 수익과 같은 날), 점이 없으면 오늘
-  private static LocalDate valuationDate(List<ProfitPoint> points, LocalDate today) {
-    return points.isEmpty() ? today : points.getLast().date();
+    return PortfolioStatsCalculator.symbolContributions(last, previous, closes(activities, closeFrom, end),
+      portfolioStatsReader.fxRates(fxDates), end, before);
   }
 
   // 배당락일이 기간 안인 배당(원화는 배당락일 환율), accountId 는 계좌 ID 또는 all
@@ -138,6 +136,54 @@ public class PortfolioStatsService {
       period.startFrom(today), today, tradeProperties.getCalculation().getPricePrecision());
   }
 
+  // 같은 날짜에 같은 돈을 SPY 에 넣었을 때의 수익 흐름(날짜는 수익 흐름 점과 같음), accountId 는 계좌 ID 또는 all
+  public MarketComparisonResponse market(String userId, String accountId, FlowPeriod period) {
+    List<AccountActivity> activities = portfolioStatsReader.activities(userId, accountId);
+    LocalDate today = LocalDate.now(clock);
+    LocalDate start = period.startFrom(today);
+    List<AccountFlow> accounts = activities.stream()
+      .map(activity -> new AccountFlow(activity.trades(), PortfolioStatsCalculator.periodPoints(
+        profitFlowService.points(userId, List.of(activity), today), start)))
+      .toList();
+    Set<LocalDate> dates = accounts.stream()
+      .flatMap(account -> account.points().stream())
+      .map(ProfitPoint::date)
+      .collect(Collectors.toCollection(TreeSet::new));
+    if (dates.stream().noneMatch(date -> start == null || !date.isBefore(start))) {
+      return MarketComparisonResponse.empty();
+    }
+    LocalDate firstTrade = activities.stream()
+      .flatMap(activity -> activity.trades().stream())
+      .filter(trade -> trade.getStatus() == TradeStatus.COMPLETED)
+      .map(Trade::getTradeDate)
+      .min(LocalDate::compareTo)
+      .orElseThrow();
+    NavigableMap<LocalDate, BigDecimal> closes = spyCloses(firstTrade, today);
+    if (closes.floorKey(firstTrade) == null) {
+      return MarketComparisonResponse.empty();
+    }
+    return PortfolioStatsCalculator.market(accounts, closes, portfolioStatsReader.fxRates(dates), start,
+      tradeProperties.getCalculation().getPricePrecision());
+  }
+
+  // 첫 체결일 앞 14일부터 오늘까지 SPY 종가(못 받으면 빈 값)
+  private NavigableMap<LocalDate, BigDecimal> spyCloses(LocalDate firstTrade, LocalDate today) {
+    try {
+      return portfolioStatsReader.closes(MarketComparisonResponse.SYMBOL, firstTrade, today, firstTrade);
+    } catch (TradeException e) {
+      log.warn("SPY 종가를 받지 못해 시장 비교를 비움: {}", e.getMessage());
+      return new TreeMap<>();
+    }
+  }
+
+  // 기간 안 마지막 수익 흐름 점 날짜(없으면 오늘)
+  private static LocalDate periodEnd(List<ProfitPoint> points, LocalDate start, LocalDate today) {
+    if (points.isEmpty() || start != null && points.getLast().date().isBefore(start)) {
+      return today;
+    }
+    return points.getLast().date();
+  }
+
   private List<Replay> replay(List<AccountActivity> activities, LocalDate until) {
     int pricePrecision = tradeProperties.getCalculation().getPricePrecision();
     return activities.stream()
@@ -145,16 +191,16 @@ public class PortfolioStatsService {
       .toList();
   }
 
-  // 종목마다 종가가 필요한 가장 이른 날짜(closeFrom)부터 오늘까지 종가
+  // 종목마다 종가가 필요한 가장 이른 날짜(closeFrom)부터 to 까지 종가
   private Map<String, NavigableMap<LocalDate, BigDecimal>> closes(List<AccountActivity> activities,
-    Map<String, LocalDate> closeFrom, LocalDate today) {
+    Map<String, LocalDate> closeFrom, LocalDate to) {
     Map<String, LocalDate> firstTrades = activities.stream()
       .flatMap(activity -> activity.trades().stream())
       .filter(trade -> trade.getStatus() == TradeStatus.COMPLETED)
       .collect(Collectors.toMap(Trade::getSymbol, Trade::getTradeDate, (a, b) -> a.isBefore(b) ? a : b));
     Map<String, NavigableMap<LocalDate, BigDecimal>> closes = new HashMap<>();
     new TreeMap<>(closeFrom).forEach((symbol, from) ->
-      closes.put(symbol, portfolioStatsReader.closes(symbol, from, today, firstTrades.get(symbol))));
+      closes.put(symbol, portfolioStatsReader.closes(symbol, from, to, firstTrades.get(symbol))));
     return closes;
   }
 }

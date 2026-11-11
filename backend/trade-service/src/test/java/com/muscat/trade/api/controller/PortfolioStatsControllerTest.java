@@ -20,6 +20,8 @@ import com.muscat.trade.domain.dto.response.DividendStatsResponse.SymbolDividend
 import com.muscat.trade.domain.dto.response.FxStatsResponse;
 import com.muscat.trade.domain.dto.response.FxStatsResponse.Direction;
 import com.muscat.trade.domain.dto.response.FxStatsResponse.Exchange;
+import com.muscat.trade.domain.dto.response.MarketComparisonResponse;
+import com.muscat.trade.domain.dto.response.MarketComparisonResponse.MarketPoint;
 import com.muscat.trade.domain.dto.response.ProfitDetailResponse;
 import com.muscat.trade.domain.dto.response.ProfitDetailResponse.Holding;
 import com.muscat.trade.domain.dto.response.ProfitDetailResponse.MonthlyProfit;
@@ -62,6 +64,7 @@ class PortfolioStatsControllerTest {
   private static final String DIVIDENDS = "/api/portfolio/stats/dividends";
   private static final String FX = "/api/portfolio/stats/fx";
   private static final String HABITS = "/api/portfolio/stats/habits";
+  private static final String MARKET = "/api/portfolio/stats/market";
 
   @Autowired
   private MockMvc mockMvc;
@@ -294,9 +297,27 @@ class PortfolioStatsControllerTest {
       .andExpect(jsonPath("$.topSymbols[0].amountUsd").value(2450.30));
   }
 
+  @Test
+  @DisplayName("시장 비교는 토큰 주인의 수익 흐름 날짜마다 SPY 수익과 마지막 점 수익을 돌려준다")
+  void market_ReturnsComparison() throws Exception {
+    given(portfolioStatsService.market("user-1", "all", FlowPeriod.ONE_YEAR)).willReturn(new MarketComparisonResponse(
+      "SPY", List.of(new MarketPoint(LocalDate.of(2024, 9, 18), new BigDecimal("-12000")),
+        new MarketPoint(LocalDate.of(2024, 9, 19), new BigDecimal("98000"))), new BigDecimal("98000")));
+
+    mockMvc.perform(get(MARKET).param("accountId", "all").param("period", "1Y")
+        .with(jwt().jwt(t -> t.subject("user-1"))))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.symbol").value("SPY"))
+      .andExpect(jsonPath("$.points[0].date").value("2024-09-18"))
+      .andExpect(jsonPath("$.points[0].profitKrw").value(-12000))
+      .andExpect(jsonPath("$.points[1].date").value("2024-09-19"))
+      .andExpect(jsonPath("$.points[1].profitKrw").value(98000))
+      .andExpect(jsonPath("$.currentProfitKrw").value(98000));
+  }
+
   @ParameterizedTest(name = "{0}")
-  @ValueSource(strings = {PROFIT, SYMBOLS, DIVIDENDS, FX, HABITS})
-  @DisplayName("통계 탭도 기간 값이 1M · 3M · 1Y · ALL 이 아니면 400, 토큰이 없으면 401 이고 서비스까지 가지 않는다")
+  @ValueSource(strings = {PROFIT, SYMBOLS, DIVIDENDS, FX, HABITS, MARKET})
+  @DisplayName("통계 탭 · 시장 비교도 기간 값이 1M · 3M · 1Y · ALL 이 아니면 400, 토큰이 없으면 401 이고 서비스까지 가지 않는다")
   void tabs_InvalidPeriodOrNoToken(String path) throws Exception {
     mockMvc.perform(get(path).param("accountId", "all").param("period", "2W").with(jwt()))
       .andExpect(status().isBadRequest());
@@ -307,7 +328,7 @@ class PortfolioStatsControllerTest {
   }
 
   @Test
-  @DisplayName("통계 탭도 남의 계좌면 403, 계좌 값이 숫자 · all 이 아니면 400 이다")
+  @DisplayName("통계 탭 · 시장 비교도 남의 계좌면 403, 계좌 값이 숫자 · all 이 아니면 400 이다")
   void tabs_AccountErrors() throws Exception {
     given(portfolioStatsService.profit("user-1", "7", FlowPeriod.ALL))
       .willThrow(new TradeException(TradeResponse.ACCOUNT_ACCESS_DENIED));
@@ -315,6 +336,8 @@ class PortfolioStatsControllerTest {
       .willThrow(new TradeException(TradeResponse.INVALID_ACCOUNT_ID));
     given(portfolioStatsService.habits("user-1", "7", FlowPeriod.ONE_YEAR))
       .willThrow(new TradeException(TradeResponse.ACCOUNT_ACCESS_DENIED));
+    given(portfolioStatsService.market("user-1", "abc", FlowPeriod.ONE_MONTH))
+      .willThrow(new TradeException(TradeResponse.INVALID_ACCOUNT_ID));
 
     mockMvc.perform(get(PROFIT).param("accountId", "7").param("period", "ALL")
         .with(jwt().jwt(t -> t.subject("user-1"))))
@@ -325,5 +348,9 @@ class PortfolioStatsControllerTest {
     mockMvc.perform(get(HABITS).param("accountId", "7").param("period", "1Y")
         .with(jwt().jwt(t -> t.subject("user-1"))))
       .andExpect(status().isForbidden());
+    mockMvc.perform(get(MARKET).param("accountId", "abc").param("period", "1M")
+        .with(jwt().jwt(t -> t.subject("user-1"))))
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.errorCode").value("INVALID_ACCOUNT_ID"));
   }
 }

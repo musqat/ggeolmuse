@@ -1,14 +1,14 @@
 import React from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { portfolioApi, type ProfitFlowPeriod, type SymbolContribution } from '../../../services/api';
-import { formatKrw, formatPercent } from '../../../utils/format';
+import { formatKrw, formatNumber, formatPercent } from '../../../utils/format';
 import { gainLossClass } from '../../../utils/gainLoss';
 import { ChartCard } from '@components/charts/backtest/shared/ChartPanel';
 import { SignedStat, StatsCards, StatsLoadError, StatsLoading, StatsNotice, ValueStat } from './StatsCards';
 import { StatsBarChart } from './StatsBarChart';
 import { StatsFold } from './StatsFold';
 import { StatsTable, type StatsColumn } from './StatsTable';
-import { signedKrw } from './statsFormat';
+import { signedKrw, signedPercent } from './statsFormat';
 
 // 막대로 그리는 종목 수(나머지는 펼침 표)
 const BAR_LIMIT = 8;
@@ -47,7 +47,7 @@ const SYMBOL_COLUMNS: StatsColumn<SymbolContribution>[] = [
     header: '비율',
     numeric: true,
     tone: (item) => gainLossClass(item.sharePercent),
-    cell: (item) => formatPercent(item.sharePercent),
+    cell: (item) => signedPercent(item.sharePercent),
   },
 ];
 
@@ -86,7 +86,11 @@ export const SymbolsTab: React.FC<{ accountId: number | 'all'; period: ProfitFlo
       <StatsCards
         top={[
           <SignedStat label="기간 수익" amount={totalKrw} details={['실현 + 평가 + 배당 − 수수료']} />,
-          <ValueStat label="종목 수" value={`거래한 ${symbols.length}개`} detail={`들고 있는 ${heldCount}개`} />,
+          <ValueStat
+            label="종목 수"
+            value={`거래한 ${formatNumber(symbols.length)}개`}
+            detail={`들고 있는 ${formatNumber(heldCount)}개`}
+          />,
         ]}
         bottom={[
           <SymbolStat label="가장 많이 번 종목" item={best} />,
@@ -107,7 +111,7 @@ export const SymbolsTab: React.FC<{ accountId: number | 'all'; period: ProfitFlo
           formatAxis={(value) => `${value}%`}
         />
       </ChartCard>
-      <StatsFold>
+      <StatsFold summary={`종목 ${formatNumber(symbols.length)}개`}>
         <StatsTable title="종목별 기여" columns={SYMBOL_COLUMNS} rows={symbols} rowKey={(item) => item.symbol} />
       </StatsFold>
     </div>

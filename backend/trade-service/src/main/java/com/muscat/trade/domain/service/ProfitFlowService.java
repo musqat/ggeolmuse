@@ -16,13 +16,10 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
-import java.util.Objects;
-import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -58,7 +55,7 @@ public class ProfitFlowService {
 
   // 계좌마다 첫 거래일부터 오늘까지의 점을 날짜마다 더한 값
   public List<ProfitPoint> points(String userId, List<AccountActivity> activities, LocalDate today) {
-    return sumByDate(activities.stream()
+    return ProfitFlowCalculator.sumByDate(activities.stream()
       .map(activity -> refresh(userId, activity, today))
       .toList());
   }
@@ -163,32 +160,5 @@ public class ProfitFlowService {
     } catch (DataIntegrityViolationException e) {
       log.info("수익 흐름 저장이 다른 요청과 겹쳐 넘어감: accountId={}, from={}", accountId, from);
     }
-  }
-
-  // 계좌마다의 점(수익 · 투자 원금)을 날짜마다 더함(그 날짜에 점이 없는 계좌는 직전 점, 첫 점 전은 0)
-  private static List<ProfitPoint> sumByDate(List<List<ProfitPoint>> series) {
-    if (series.size() == 1) {
-      return series.getFirst();
-    }
-    List<NavigableMap<LocalDate, ProfitPoint>> byDate = new ArrayList<>();
-    TreeSet<LocalDate> dates = new TreeSet<>();
-    for (List<ProfitPoint> points : series) {
-      NavigableMap<LocalDate, ProfitPoint> map = new TreeMap<>();
-      points.forEach(point -> map.put(point.date(), point));
-      byDate.add(map);
-      dates.addAll(map.keySet());
-    }
-    return dates.stream()
-      .map(date -> {
-        List<ProfitPoint> latest = byDate.stream()
-          .map(map -> map.floorEntry(date))
-          .filter(Objects::nonNull)
-          .map(Map.Entry::getValue)
-          .toList();
-        return new ProfitPoint(date,
-          latest.stream().map(ProfitPoint::profitKrw).reduce(BigDecimal.ZERO, BigDecimal::add),
-          latest.stream().map(ProfitPoint::investedKrw).reduce(BigDecimal.ZERO, BigDecimal::add));
-      })
-      .toList();
   }
 }

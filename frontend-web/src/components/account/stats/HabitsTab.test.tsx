@@ -143,12 +143,13 @@ describe('HabitsTab', () => {
     ])
   })
 
-  it('자세히 펼치기를 열면 많이 거래한 종목 표를 보인다', async () => {
+  it('자세히 펼치기는 닫힌 채 종목 수를 보이고, 열면 많이 거래한 종목 표를 보인다', async () => {
     const user = userEvent.setup()
     renderTab()
 
     const fold = await screen.findByRole('button', { name: /자세히 펼치기/ })
     expect(fold).toHaveAttribute('aria-expanded', 'false')
+    expect(fold).toHaveTextContent('자세히 펼치기종목 3개')
     await user.click(fold)
 
     expect(rows('많이 거래한 종목')).toEqual([

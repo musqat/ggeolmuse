@@ -3,6 +3,7 @@ package com.muscat.trade.api.controller;
 import com.muscat.trade.common.enums.type.FlowPeriod;
 import com.muscat.trade.domain.dto.response.DividendStatsResponse;
 import com.muscat.trade.domain.dto.response.FxStatsResponse;
+import com.muscat.trade.domain.dto.response.MarketComparisonResponse;
 import com.muscat.trade.domain.dto.response.ProfitDetailResponse;
 import com.muscat.trade.domain.dto.response.ProfitFlowResponse;
 import com.muscat.trade.domain.dto.response.SymbolContributionResponse;
@@ -25,11 +26,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-// 계좌 통계(수익 흐름 · 주제 탭) 조회
+// 계좌 통계(수익 흐름 · 주제 탭 · 시장 비교) 조회
 @RestController
 @RequestMapping("/api/portfolio/stats")
 @RequiredArgsConstructor
-@Tag(name = "포트폴리오 통계", description = "계좌 수익 흐름 · 통계 탭 API")
+@Tag(name = "포트폴리오 통계", description = "계좌 수익 흐름 · 통계 탭 · 시장 비교 API")
 public class PortfolioStatsController {
 
   private static final String ACCOUNT = "계좌 ID 또는 all(전체 계좌)";
@@ -120,5 +121,18 @@ public class PortfolioStatsController {
     @Parameter(description = PERIOD, schema = @Schema(type = "string", allowableValues = {"1M", "3M", "1Y", "ALL"}))
     @RequestParam("period") FlowPeriod period) {
     return ResponseEntity.ok(portfolioStatsService.habits(jwt.getSubject(), accountId, period));
+  }
+
+  @Operation(summary = "시장 비교 조회",
+    description = "같은 날짜에 같은 돈을 SPY 에 넣었을 때의 원화 수익 흐름(날짜는 수익 흐름 점과 같음, 종가만, "
+      + "SPY 종가나 점 날짜 환율을 못 받으면 빈 목록, 남의 계좌는 403)")
+  @GetMapping("/market")
+  public ResponseEntity<MarketComparisonResponse> market(
+    @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
+    @Parameter(description = ACCOUNT, example = "all")
+    @RequestParam("accountId") String accountId,
+    @Parameter(description = PERIOD, schema = @Schema(type = "string", allowableValues = {"1M", "3M", "1Y", "ALL"}))
+    @RequestParam("period") FlowPeriod period) {
+    return ResponseEntity.ok(portfolioStatsService.market(jwt.getSubject(), accountId, period));
   }
 }
