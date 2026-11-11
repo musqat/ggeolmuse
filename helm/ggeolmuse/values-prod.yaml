@@ -155,7 +155,7 @@ services:
 
   tradeService:
     image:
-      tag: "1.8.5"
+      tag: "1.8.7"
     env:
       TZ: "Asia/Seoul"
     probes:
@@ -199,7 +199,7 @@ services:
 
   backtestService:
     image:
-      tag: "1.8.6"
+      tag: "1.8.7"
     env:
       TZ: "Asia/Seoul"
     probes:
@@ -236,7 +236,7 @@ services:
 # 프론트엔드
 frontend:
   image:
-    tag: "1.8.6"
+    tag: "1.8.7"
   env:
     apiUrl: https://ggeolmuse.com/api
     keycloakUrl: https://ggeolmuse.com/auth
