@@ -3,9 +3,11 @@ package com.muscat.trade.infra.client;
 import com.muscat.trade.common.enums.response.TradeResponse;
 import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.infra.client.dto.AccountBalanceDto;
+import com.muscat.trade.infra.client.dto.ExchangeRecordDto;
 import feign.FeignException;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,13 +27,25 @@ public class UserServiceClientWrapper {
     return userServiceClient.getAccountBalance(accountId);
   }
 
-  // Fallback 메서드
+  @CircuitBreaker(name = "userService")
+  @Retry(name = "userService", fallbackMethod = "getExchangeRecordsFallback")
+  public List<ExchangeRecordDto> getExchangeRecords() {
+    log.debug("Calling user-service getExchangeRecords");
+    return userServiceClient.getExchangeRecords();
+  }
+
   private AccountBalanceDto getAccountBalanceFallback(Long accountId, Exception ex) {
     // 4xx 는 장애가 아님(계좌 없음 · 접근 거부를 서비스 불가로 바꾸지 않고 그대로)
     if (ex instanceof FeignException.FeignClientException clientError) {
       throw clientError;
     }
     log.error("계좌 잔액 조회 실패(대체 동작): accountId={}, error={}", accountId, ex.getMessage());
+    throw new TradeException(TradeResponse.USER_SERVICE_ERROR, ex);
+  }
+
+  // 4xx 포함 모든 실패를 사용자 서비스 오류로
+  private List<ExchangeRecordDto> getExchangeRecordsFallback(Exception ex) {
+    log.error("환전 기록 조회 실패(대체 동작): error={}", ex.getMessage());
     throw new TradeException(TradeResponse.USER_SERVICE_ERROR, ex);
   }
 }

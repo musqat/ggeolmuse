@@ -16,9 +16,15 @@ import { SignedStat, StatsCards, StatsLoadError, StatsLoading, StatsNotice, Valu
 import { StatsBarChart } from './StatsBarChart';
 import { StatsFold } from './StatsFold';
 import { StatsTable, type StatsColumn } from './StatsTable';
-import { formatQuantity, signedKrw, signedPercent, signedUsd, usd } from './statsFormat';
-
-const NO_VALUE_CLASS = 'text-tx-3';
+import {
+  formatQuantity,
+  NO_VALUE_CLASS,
+  signedKrw,
+  signedPercent,
+  signedUsd,
+  usd,
+  withAccountColumn,
+} from './statsFormat';
 
 const SALE_COLUMNS: StatsColumn<ProfitSale>[] = [
   { header: '날짜', cell: (sale) => sale.date },
@@ -108,10 +114,12 @@ interface ProfitTabProps {
   // 오늘 총자산(원화)과 이름 줄 오른쪽 계좌 이름 · 계좌 수
   assets: number;
   scope?: string;
+  // 전체 계좌 판 거래의 계좌 이름
+  accountNames: Record<number, string>;
 }
 
 // 계좌 통계 수익 탭(총자산 · 수익 카드, 달마다 수익 막대, 판 거래 · 들고 있는 종목 표)
-export const ProfitTab: React.FC<ProfitTabProps> = ({ accountId, period, flow, assets, scope }) => {
+export const ProfitTab: React.FC<ProfitTabProps> = ({ accountId, period, flow, assets, scope, accountNames }) => {
   const detail = useQuery({
     queryKey: ['portfolio', 'stats', 'profit', accountId, period],
     queryFn: async () => (await portfolioApi.getProfitDetail(accountId, period)).data,
@@ -153,7 +161,7 @@ export const ProfitTab: React.FC<ProfitTabProps> = ({ accountId, period, flow, a
         >
           <StatsTable
             title="판 거래"
-            columns={SALE_COLUMNS}
+            columns={accountId === 'all' ? withAccountColumn(SALE_COLUMNS, accountNames) : SALE_COLUMNS}
             rows={sales}
             rowKey={(sale) => sale.tradeId}
             empty="이 기간에 판 거래가 없습니다"

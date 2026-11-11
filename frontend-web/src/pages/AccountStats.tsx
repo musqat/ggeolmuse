@@ -9,6 +9,8 @@ import { PageSpinner } from '../components/common/Spinner';
 import { ProfitFlowChart } from '../components/account/ProfitFlowChart';
 import { ProfitTab } from '../components/account/stats/ProfitTab';
 import { SymbolsTab } from '../components/account/stats/SymbolsTab';
+import { DividendsTab } from '../components/account/stats/DividendsTab';
+import { FxTab } from '../components/account/stats/FxTab';
 import { CARD_CLASS, StatsLoadError, StatsLoading } from '../components/account/stats/StatsCards';
 import { portfolioApi, type ProfitFlowPeriod } from '../services/api';
 
@@ -19,11 +21,13 @@ const PERIODS: { value: ProfitFlowPeriod; label: string }[] = [
   { value: 'ALL', label: '전체' },
 ];
 
-type StatsTab = 'profit' | 'symbols';
+type StatsTab = 'profit' | 'symbols' | 'dividends' | 'fx';
 
 const TABS: { value: StatsTab; label: string }[] = [
   { value: 'profit', label: '수익' },
   { value: 'symbols', label: '종목' },
+  { value: 'dividends', label: '배당' },
+  { value: 'fx', label: '환율' },
 ];
 
 // 계좌 통계 화면(계좌 · 기간마다 수익 흐름 그래프와 주제 탭)
@@ -56,6 +60,7 @@ const AccountStats: React.FC = () => {
     accountId === 'all'
       ? `${accounts.length}개 계좌`
       : accounts.find((account) => account.accountId === accountId)?.accountName;
+  const accountNames = Object.fromEntries(accounts.map((account) => [account.accountId, account.accountName]));
 
   // 왼쪽 · 오른쪽 화살표로 옆 탭(양 끝에서는 반대쪽 끝)
   const moveTab = (event: React.KeyboardEvent, index: number) => {
@@ -89,6 +94,28 @@ const AccountStats: React.FC = () => {
       );
     }
     return <ProfitFlowChart flow={data} />;
+  };
+
+  const renderPanel = () => {
+    switch (tab) {
+      case 'profit':
+        return (
+          <ProfitTab
+            accountId={accountId}
+            period={period}
+            flow={data}
+            assets={assets}
+            scope={scope}
+            accountNames={accountNames}
+          />
+        );
+      case 'symbols':
+        return <SymbolsTab accountId={accountId} period={period} />;
+      case 'dividends':
+        return <DividendsTab accountId={accountId} period={period} accountNames={accountNames} />;
+      case 'fx':
+        return <FxTab accountId={accountId} period={period} accountNames={accountNames} />;
+    }
   };
 
   return (
@@ -137,7 +164,7 @@ const AccountStats: React.FC = () => {
                   role="tab"
                   id={`stats-tab-${option.value}`}
                   aria-selected={selected}
-                  aria-controls={`stats-panel-${option.value}`}
+                  aria-controls={selected ? `stats-panel-${option.value}` : undefined}
                   tabIndex={selected ? 0 : -1}
                   onClick={() => setTab(option.value)}
                   onKeyDown={(event) => moveTab(event, index)}
@@ -174,11 +201,7 @@ const AccountStats: React.FC = () => {
         {renderChart()}
 
         <div role="tabpanel" id={`stats-panel-${tab}`} aria-labelledby={`stats-tab-${tab}`} tabIndex={0}>
-          {tab === 'profit' ? (
-            <ProfitTab accountId={accountId} period={period} flow={data} assets={assets} scope={scope} />
-          ) : (
-            <SymbolsTab accountId={accountId} period={period} />
-          )}
+          {renderPanel()}
         </div>
       </div>
     </div>

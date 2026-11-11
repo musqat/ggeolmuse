@@ -1,6 +1,8 @@
 package com.muscat.trade.api.controller;
 
 import com.muscat.trade.common.enums.type.FlowPeriod;
+import com.muscat.trade.domain.dto.response.DividendStatsResponse;
+import com.muscat.trade.domain.dto.response.FxStatsResponse;
 import com.muscat.trade.domain.dto.response.ProfitDetailResponse;
 import com.muscat.trade.domain.dto.response.ProfitFlowResponse;
 import com.muscat.trade.domain.dto.response.SymbolContributionResponse;
@@ -80,5 +82,29 @@ public class PortfolioStatsController {
     @Parameter(description = PERIOD, schema = @Schema(type = "string", allowableValues = {"1M", "3M", "1Y", "ALL"}))
     @RequestParam("period") FlowPeriod period) {
     return ResponseEntity.ok(portfolioStatsService.symbols(jwt.getSubject(), accountId, period));
+  }
+
+  @Operation(summary = "배당 조회",
+    description = "배당락일이 기간 안인 배당의 세전 · 세금 · 세후, 달마다 · 종목마다 합(원화는 배당락일 환율, 남의 계좌는 403)")
+  @GetMapping("/dividends")
+  public ResponseEntity<DividendStatsResponse> dividends(
+    @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
+    @Parameter(description = ACCOUNT, example = "all")
+    @RequestParam("accountId") String accountId,
+    @Parameter(description = PERIOD, schema = @Schema(type = "string", allowableValues = {"1M", "3M", "1Y", "ALL"}))
+    @RequestParam("period") FlowPeriod period) {
+    return ResponseEntity.ok(portfolioStatsService.dividends(jwt.getSubject(), accountId, period));
+  }
+
+  @Operation(summary = "환율 효과 조회",
+    description = "환전한 원금의 기간 동안 환율 효과와 기간 안 환전 기록(남의 계좌는 403, 환전 기록을 못 받으면 502)")
+  @GetMapping("/fx")
+  public ResponseEntity<FxStatsResponse> fx(
+    @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
+    @Parameter(description = ACCOUNT, example = "all")
+    @RequestParam("accountId") String accountId,
+    @Parameter(description = PERIOD, schema = @Schema(type = "string", allowableValues = {"1M", "3M", "1Y", "ALL"}))
+    @RequestParam("period") FlowPeriod period) {
+    return ResponseEntity.ok(portfolioStatsService.fx(jwt.getSubject(), accountId, period));
   }
 }

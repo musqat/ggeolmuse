@@ -111,3 +111,44 @@ test('계좌 통계 수익 · 종목 탭은 수익 내역과 종목별 기여를
     page.getByText('기간 수익', { exact: true }).or(page.getByText('이 기간에 거래한 종목이 없습니다'))
   ).toBeVisible({ timeout: 30_000 });
 });
+
+test('계좌 통계 배당 · 환율 탭은 배당과 환율 효과를 받고, 탭을 누르면 그 패널로 바뀐다', async ({ page }) => {
+  const auth = await authContext();
+
+  const dividends = await auth.get(`${API_URL}/portfolio/stats/dividends?accountId=all&period=ALL`);
+  expect(dividends.status(), `배당이 실패했다: ${await dividends.text()}`).toBe(200);
+  const dividendBody = await dividends.json();
+  for (const list of ['monthly', 'symbols', 'payouts']) {
+    expect(Array.isArray(dividendBody[list]), `${list} 목록이 없다`).toBe(true);
+  }
+  expect(typeof dividendBody.netKrw, '세후 원화 합이 숫자가 아니다').toBe('number');
+
+  const fx = await auth.get(`${API_URL}/portfolio/stats/fx?accountId=all&period=1Y`);
+  expect(fx.status(), `환율 효과가 실패했다: ${await fx.text()}`).toBe(200);
+  const fxBody = await fx.json();
+  expect(Array.isArray(fxBody.exchanges), '환전 목록이 없다').toBe(true);
+  expect(typeof fxBody.fxEffectKrw, '환율 효과가 숫자가 아니다').toBe('number');
+
+  // 기간은 1M · 3M · 1Y · ALL 만
+  const wrong = await auth.get(`${API_URL}/portfolio/stats/fx?accountId=all&period=2Y`);
+  expect(wrong.status(), '모르는 기간이 400 이 아니다').toBe(400);
+  await auth.dispose();
+
+  await page.goto('/account/stats');
+  await page.getByRole('tab', { name: '배당' }).click({ timeout: 30_000 });
+
+  await expect(page.getByRole('tab', { name: '배당' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#stats-panel-dividends')).toBeVisible();
+  // 시드 사용자 배당 여부에 따라 배당 카드 또는 안내
+  await expect(
+    page.getByText('받은 배당', { exact: true }).or(page.getByText('이 기간에 받은 배당이 없습니다'))
+  ).toBeVisible({ timeout: 30_000 });
+
+  await page.getByRole('tab', { name: '환율' }).click();
+
+  await expect(page.locator('#stats-panel-fx')).toBeVisible();
+  // 시드 사용자 환전 여부에 따라 환율 카드 또는 안내
+  await expect(
+    page.getByText('환율 효과', { exact: true }).or(page.getByText('이 기간에 환전 기록이 없습니다'))
+  ).toBeVisible({ timeout: 30_000 });
+});

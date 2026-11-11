@@ -61,7 +61,7 @@ public class SecurityConfig {
   @Order(2)
   public SecurityFilterChain privateSecurityFilterChain(HttpSecurity http) throws Exception {
     ServiceSecurity.statelessApi(http)
-      .securityMatcher("/api/users/**", "/api/accounts/**")
+      .securityMatcher("/api/users/**", "/api/accounts/**", "/api/internal/**")
       .authorizeHttpRequests(auth -> auth
         .anyRequest().authenticated()
       )

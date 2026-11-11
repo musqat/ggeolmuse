@@ -2,7 +2,7 @@ import React from 'react';
 import { Spinner } from '../../common/Spinner';
 import { formatPercent } from '../../../utils/format';
 import { gainLossClass } from '../../../utils/gainLoss';
-import { signedKrw } from './statsFormat';
+import { krw, signedKrw } from './statsFormat';
 
 export const CARD_CLASS = 'bg-surface rounded-xl shadow-sm border border-line/50 p-6';
 export const STAT_CARD_CLASS = 'bg-surface rounded-xl shadow-sm border border-line/50 p-4 sm:p-5';
@@ -33,17 +33,20 @@ interface SignedStatProps {
   percent?: number | null;
   // 금액 아래 작은 줄(휴대폰은 줄마다, 넓은 화면은 · 로 이어 한 줄)
   details?: (string | null | undefined | false)[];
+  // 부호 · 이익 손실 색 없는 금액
+  unsigned?: boolean;
 }
 
 // 이익 · 손실 색 원화 금액과 비율, 아래 작은 줄
-export const SignedStat: React.FC<SignedStatProps> = ({ label, subject, amount, percent, details = [] }) => {
+export const SignedStat: React.FC<SignedStatProps> = ({ label, subject, amount, percent, details = [], unsigned = false }) => {
   const lines = details.filter((line): line is string => !!line);
+  const plain = amount == null || unsigned;
   return (
     <div data-stat={label}>
       <p className="text-sm font-medium text-tx-2">{label}</p>
       {amount != null && subject && <p className="text-base font-semibold text-tx-1 mt-1 truncate">{subject}</p>}
-      <p className={`text-xl sm:text-2xl font-bold mt-1 break-words ${amount == null ? 'text-tx-1' : gainLossClass(amount)}`}>
-        {amount == null ? '-' : signedKrw(amount)}
+      <p className={`text-xl sm:text-2xl font-bold mt-1 break-words ${plain ? 'text-tx-1' : gainLossClass(amount)}`}>
+        {amount == null ? '-' : unsigned ? krw(amount) : signedKrw(amount)}
         {amount != null && percent != null && (
           <span className="block sm:inline text-sm sm:text-base font-semibold sm:ml-1">({formatPercent(percent)})</span>
         )}

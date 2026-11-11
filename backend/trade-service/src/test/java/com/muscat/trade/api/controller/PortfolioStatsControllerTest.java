@@ -13,6 +13,13 @@ import com.muscat.trade.common.enums.type.FlowPeriod;
 import com.muscat.trade.common.exception.GlobalExceptionHandler;
 import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.config.security.SecurityConfig;
+import com.muscat.trade.domain.dto.response.DividendStatsResponse;
+import com.muscat.trade.domain.dto.response.DividendStatsResponse.MonthlyDividend;
+import com.muscat.trade.domain.dto.response.DividendStatsResponse.Payout;
+import com.muscat.trade.domain.dto.response.DividendStatsResponse.SymbolDividend;
+import com.muscat.trade.domain.dto.response.FxStatsResponse;
+import com.muscat.trade.domain.dto.response.FxStatsResponse.Direction;
+import com.muscat.trade.domain.dto.response.FxStatsResponse.Exchange;
 import com.muscat.trade.domain.dto.response.ProfitDetailResponse;
 import com.muscat.trade.domain.dto.response.ProfitDetailResponse.Holding;
 import com.muscat.trade.domain.dto.response.ProfitDetailResponse.MonthlyProfit;
@@ -48,6 +55,8 @@ class PortfolioStatsControllerTest {
   private static final String FLOW = "/api/portfolio/stats/flow";
   private static final String PROFIT = "/api/portfolio/stats/profit";
   private static final String SYMBOLS = "/api/portfolio/stats/symbols";
+  private static final String DIVIDENDS = "/api/portfolio/stats/dividends";
+  private static final String FX = "/api/portfolio/stats/fx";
 
   @Autowired
   private MockMvc mockMvc;
@@ -174,8 +183,85 @@ class PortfolioStatsControllerTest {
       .andExpect(jsonPath("$.symbols[0].held").value(true));
   }
 
+  @Test
+  @DisplayName("배당은 토큰 주인의 세후 · 세전 · 세금 합과 달마다 · 종목마다 합 · 배당 내역을 돌려준다")
+  void dividends_ReturnsStats() throws Exception {
+    given(portfolioStatsService.dividends("user-1", "3", FlowPeriod.ONE_YEAR)).willReturn(new DividendStatsResponse(
+      new BigDecimal("85000"), new BigDecimal("63.20"), new BigDecimal("74.35"), new BigDecimal("11.15"), 7,
+      List.of(new MonthlyDividend(YearMonth.of(2024, 9), new BigDecimal("12.40"), new BigDecimal("16500"))),
+      List.of(new SymbolDividend("KO", new BigDecimal("30.10"), new BigDecimal("40100"), 3, new BigDecimal("47.18"))),
+      List.of(new Payout(LocalDate.of(2024, 9, 13), 3L, "KO", new BigDecimal("10.000000"), new BigDecimal("0.485000"),
+        new BigDecimal("4.85"), new BigDecimal("0.73"), new BigDecimal("4.12"), null, new BigDecimal("0")))));
+
+    mockMvc.perform(get(DIVIDENDS).param("accountId", "3").param("period", "1Y")
+        .with(jwt().jwt(t -> t.subject("user-1"))))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.netKrw").value(85000))
+      .andExpect(jsonPath("$.netUsd").value(63.20))
+      .andExpect(jsonPath("$.grossUsd").value(74.35))
+      .andExpect(jsonPath("$.taxUsd").value(11.15))
+      .andExpect(jsonPath("$.payoutCount").value(7))
+      .andExpect(jsonPath("$.monthly[0].month").value("2024-09"))
+      .andExpect(jsonPath("$.monthly[0].netUsd").value(12.40))
+      .andExpect(jsonPath("$.monthly[0].netKrw").value(16500))
+      .andExpect(jsonPath("$.symbols[0].symbol").value("KO"))
+      .andExpect(jsonPath("$.symbols[0].netUsd").value(30.10))
+      .andExpect(jsonPath("$.symbols[0].netKrw").value(40100))
+      .andExpect(jsonPath("$.symbols[0].payoutCount").value(3))
+      .andExpect(jsonPath("$.symbols[0].sharePercent").value(47.18))
+      .andExpect(jsonPath("$.payouts[0].exDate").value("2024-09-13"))
+      .andExpect(jsonPath("$.payouts[0].accountId").value(3))
+      .andExpect(jsonPath("$.payouts[0].symbol").value("KO"))
+      .andExpect(jsonPath("$.payouts[0].shares").value(10.0))
+      .andExpect(jsonPath("$.payouts[0].dividendPerShareUsd").value(0.485))
+      .andExpect(jsonPath("$.payouts[0].grossUsd").value(4.85))
+      .andExpect(jsonPath("$.payouts[0].taxUsd").value(0.73))
+      .andExpect(jsonPath("$.payouts[0].netUsd").value(4.12))
+      .andExpect(jsonPath("$.payouts[0].fxRate").value(nullValue()))
+      .andExpect(jsonPath("$.payouts[0].netKrw").value(0));
+  }
+
+  @Test
+  @DisplayName("환율 효과는 토큰 주인의 효과 · 지금 환율 · 평균 환율 · 들고 있는 달러와 기간 안 환전을 돌려준다")
+  void fx_ReturnsStats() throws Exception {
+    given(portfolioStatsService.fx("user-1", "all", FlowPeriod.ALL)).willReturn(new FxStatsResponse(
+      new BigDecimal("152000"), new BigDecimal("1385.20"), null, new BigDecimal("0.00"), new BigDecimal("3000000"),
+      new BigDecimal("300.00"), 4, List.of(new Exchange(LocalDate.of(2024, 9, 2), 3L, Direction.KRW_TO_USD,
+        new BigDecimal("1300000"), new BigDecimal("1000.00"), new BigDecimal("1300.00"), new BigDecimal("85200")))));
+
+    mockMvc.perform(get(FX).param("accountId", "all").param("period", "ALL")
+        .with(jwt().jwt(t -> t.subject("user-1"))))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.fxEffectKrw").value(152000))
+      .andExpect(jsonPath("$.currentRate").value(1385.20))
+      .andExpect(jsonPath("$.averageRate").value(nullValue()))
+      .andExpect(jsonPath("$.heldUsd").value(0.00))
+      .andExpect(jsonPath("$.krwToUsdKrw").value(3000000))
+      .andExpect(jsonPath("$.usdToKrwUsd").value(300.00))
+      .andExpect(jsonPath("$.exchangeCount").value(4))
+      .andExpect(jsonPath("$.exchanges[0].date").value("2024-09-02"))
+      .andExpect(jsonPath("$.exchanges[0].accountId").value(3))
+      .andExpect(jsonPath("$.exchanges[0].direction").value("KRW_TO_USD"))
+      .andExpect(jsonPath("$.exchanges[0].krwAmount").value(1300000))
+      .andExpect(jsonPath("$.exchanges[0].usdAmount").value(1000.00))
+      .andExpect(jsonPath("$.exchanges[0].rate").value(1300.00))
+      .andExpect(jsonPath("$.exchanges[0].effectKrw").value(85200));
+  }
+
+  @Test
+  @DisplayName("환전 기록을 못 받으면 환율 효과는 502 이다")
+  void fx_UserServiceError_BadGateway() throws Exception {
+    given(portfolioStatsService.fx("user-1", "all", FlowPeriod.ONE_MONTH))
+      .willThrow(new TradeException(TradeResponse.USER_SERVICE_ERROR));
+
+    mockMvc.perform(get(FX).param("accountId", "all").param("period", "1M")
+        .with(jwt().jwt(t -> t.subject("user-1"))))
+      .andExpect(status().isBadGateway())
+      .andExpect(jsonPath("$.errorCode").value("USER_SERVICE_ERROR"));
+  }
+
   @ParameterizedTest(name = "{0}")
-  @ValueSource(strings = {PROFIT, SYMBOLS})
+  @ValueSource(strings = {PROFIT, SYMBOLS, DIVIDENDS, FX})
   @DisplayName("통계 탭도 기간 값이 1M · 3M · 1Y · ALL 이 아니면 400, 토큰이 없으면 401 이고 서비스까지 가지 않는다")
   void tabs_InvalidPeriodOrNoToken(String path) throws Exception {
     mockMvc.perform(get(path).param("accountId", "all").param("period", "2W").with(jwt()))

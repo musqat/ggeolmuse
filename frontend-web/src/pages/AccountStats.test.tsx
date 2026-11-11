@@ -1,11 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import {
   accountsApi,
   portfolioApi,
+  type DividendStatsResponse,
+  type FxStatsResponse,
   type ProfitDetailResponse,
   type ProfitFlowResponse,
   type SymbolContributionResponse,
@@ -21,6 +23,8 @@ vi.mock('../services/api', () => ({
     getProfitFlow: vi.fn(),
     getProfitDetail: vi.fn(),
     getSymbolContributions: vi.fn(),
+    getDividendStats: vi.fn(),
+    getFxStats: vi.fn(),
   },
 }))
 vi.mock('../components/account/stats/StatsBarChart', () => ({ StatsBarChart: () => <i data-testid="bars" /> }))
@@ -66,6 +70,29 @@ const SYMBOLS: SymbolContributionResponse = {
   ],
 }
 
+const DIVIDENDS: DividendStatsResponse = {
+  netKrw: 5_482, netUsd: 4.12, grossUsd: 4.85, taxUsd: 0.73, payoutCount: 1,
+  monthly: [{ month: '2026-07', netUsd: 4.12, netKrw: 5_482 }],
+  symbols: [{ symbol: 'KO', netUsd: 4.12, netKrw: 5_482, payoutCount: 1, sharePercent: 100 }],
+  payouts: [
+    {
+      exDate: '2026-07-02', accountId: 3, symbol: 'KO', shares: 10, dividendPerShareUsd: 0.485,
+      grossUsd: 4.85, taxUsd: 0.73, netUsd: 4.12, fxRate: 1330.5, netKrw: 5_482,
+    },
+  ],
+}
+
+const FX: FxStatsResponse = {
+  fxEffectKrw: 50_000, currentRate: 1350, averageRate: 1300, heldUsd: 1000,
+  krwToUsdKrw: 1_300_000, usdToKrwUsd: 0, exchangeCount: 1,
+  exchanges: [
+    {
+      date: '2026-07-01', accountId: 3, direction: 'KRW_TO_USD', krwAmount: 1_300_000, usdAmount: 1000,
+      rate: 1300, effectKrw: 50_000,
+    },
+  ],
+}
+
 const BALANCES: Record<number, { balanceKrw: number; balanceUsd: number }> = {
   3: { balanceKrw: 1_000_000, balanceUsd: 100 },
   5: { balanceKrw: 500_000, balanceUsd: 0 },
@@ -106,6 +133,8 @@ beforeEach(() => {
   vi.mocked(portfolioApi.getProfitFlow).mockResolvedValue({ data: FLOW } as never)
   vi.mocked(portfolioApi.getProfitDetail).mockResolvedValue({ data: DETAIL } as never)
   vi.mocked(portfolioApi.getSymbolContributions).mockResolvedValue({ data: SYMBOLS } as never)
+  vi.mocked(portfolioApi.getDividendStats).mockResolvedValue({ data: DIVIDENDS } as never)
+  vi.mocked(portfolioApi.getFxStats).mockResolvedValue({ data: FX } as never)
 })
 
 describe('AccountStats', () => {
@@ -188,19 +217,23 @@ describe('AccountStats', () => {
     expect(portfolioApi.getProfitFlow).toHaveBeenCalledTimes(2)
   })
 
-  it('주제 탭은 수익 · 종목이고 처음에는 수익 패널만 열어 수익 내역만 묻는다', async () => {
+  it('주제 탭은 수익 · 종목 · 배당 · 환율이고 처음에는 수익 패널만 열어 수익 내역만 묻는다', async () => {
     renderPage()
 
     const panel = await screen.findByRole('tabpanel')
-    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['수익', '종목'])
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['수익', '종목', '배당', '환율'])
     expect(screen.getByRole('tab', { name: '수익' })).toHaveAttribute('tabindex', '0')
+    expect(screen.getByRole('tab', { name: '수익' })).toHaveAttribute('aria-controls', 'stats-panel-profit')
     expect(screen.getByRole('tab', { name: '종목' })).toHaveAttribute('tabindex', '-1')
     expect(screen.getByRole('tab', { name: '종목' })).toHaveAttribute('aria-selected', 'false')
+    expect(screen.getByRole('tab', { name: '종목' })).not.toHaveAttribute('aria-controls')
     expect(panel).toHaveAttribute('id', 'stats-panel-profit')
     expect(panel).toHaveAttribute('aria-labelledby', 'stats-tab-profit')
     expect(panel).toHaveAttribute('tabindex', '0')
     await waitFor(() => expect(portfolioApi.getProfitDetail).toHaveBeenCalledWith('all', 'ALL'))
     expect(portfolioApi.getSymbolContributions).not.toHaveBeenCalled()
+    expect(portfolioApi.getDividendStats).not.toHaveBeenCalled()
+    expect(portfolioApi.getFxStats).not.toHaveBeenCalled()
   })
 
   it('종목 탭을 누르면 종목 패널로 바뀌어 종목별 기여를 묻고 수익 흐름 그래프는 그대로 보인다', async () => {
@@ -219,23 +252,61 @@ describe('AccountStats', () => {
     expect(stat('오늘 총자산')).toBeNull()
   })
 
-  it('왼쪽 · 오른쪽 화살표로 옆 탭을 고르고 초점도 그 탭으로 옮긴다', async () => {
+  it('왼쪽 · 오른쪽 화살표로 옆 탭을 고르고 초점도 그 탭으로 옮기며 양 끝에서는 반대쪽 끝으로 간다', async () => {
     const user = userEvent.setup()
     renderPage()
     await screen.findByText('+₩250,000')
     screen.getByRole('tab', { name: '수익' }).focus()
 
-    await user.keyboard('{ArrowRight}')
-    expect(screen.getByRole('tab', { name: '종목' })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByRole('tab', { name: '종목' })).toHaveFocus()
+    for (const [key, name] of [
+      ['{ArrowRight}', '종목'],
+      ['{ArrowRight}', '배당'],
+      ['{ArrowRight}', '환율'],
+      ['{ArrowRight}', '수익'],
+      ['{ArrowLeft}', '환율'],
+      ['{ArrowLeft}', '배당'],
+    ]) {
+      await user.keyboard(key)
+      expect(screen.getByRole('tab', { name })).toHaveAttribute('aria-selected', 'true')
+      expect(screen.getByRole('tab', { name })).toHaveFocus()
+    }
+  })
 
-    await user.keyboard('{ArrowRight}')
-    expect(screen.getByRole('tab', { name: '수익' })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByRole('tab', { name: '수익' })).toHaveFocus()
+  it('배당 · 환율 탭을 누르면 그 패널로 바뀌어 배당과 환율 효과를 묻는다', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('+₩250,000')
 
-    await user.keyboard('{ArrowLeft}')
-    expect(screen.getByRole('tab', { name: '종목' })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByRole('tab', { name: '종목' })).toHaveFocus()
+    await user.click(screen.getByRole('tab', { name: '배당' }))
+
+    expect(screen.getByRole('tabpanel')).toHaveAttribute('id', 'stats-panel-dividends')
+    await waitFor(() => expect(stat('받은 배당')).toHaveTextContent('받은 배당세후₩5,482$4.12'))
+    expect(portfolioApi.getDividendStats).toHaveBeenCalledWith('all', 'ALL')
+    expect(portfolioApi.getFxStats).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('tab', { name: '환율' }))
+
+    expect(screen.getByRole('tabpanel')).toHaveAttribute('id', 'stats-panel-fx')
+    await waitFor(() => expect(stat('환율 효과')).toHaveTextContent('환율 효과+₩50,000전체 기간'))
+    expect(portfolioApi.getFxStats).toHaveBeenCalledWith('all', 'ALL')
+    expect(screen.getByTestId('line-chart')).toBeInTheDocument()
+  })
+
+  it('환율 효과를 못 받으면 환율 패널만 오류를 보이고 그래프와 다른 탭은 그대로 보인다', async () => {
+    const user = userEvent.setup()
+    vi.mocked(portfolioApi.getFxStats).mockRejectedValue(new Error('502'))
+    renderPage()
+    await screen.findByText('+₩250,000')
+
+    await user.click(screen.getByRole('tab', { name: '환율' }))
+
+    expect(await screen.findByText('환율 효과를 불러오지 못했습니다')).toBeInTheDocument()
+    expect(screen.getByTestId('line-chart')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('tab', { name: '배당' }))
+
+    await waitFor(() => expect(stat('받은 배당')).toHaveTextContent('받은 배당세후₩5,482$4.12'))
+    expect(screen.queryByText('환율 효과를 불러오지 못했습니다')).toBeNull()
   })
 
   it('기간을 바꾸면 고른 탭도 그 기간으로 다시 묻는다', async () => {
@@ -247,6 +318,22 @@ describe('AccountStats', () => {
 
     await waitFor(() => expect(portfolioApi.getSymbolContributions).toHaveBeenLastCalledWith('all', '1M'))
     expect(portfolioApi.getProfitFlow).toHaveBeenLastCalledWith('all', '1M')
+  })
+
+  it('전체 계좌의 지급 내역 · 환전 기록 표는 계좌 목록의 이름으로 계좌 칸을 채운다', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('+₩250,000')
+
+    await user.click(screen.getByRole('tab', { name: '배당' }))
+    await user.click(await screen.findByRole('button', { name: /자세히 펼치기/ }))
+
+    expect(within(screen.getByRole('table', { name: '지급 내역' })).getByText('연습')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('tab', { name: '환율' }))
+    await user.click(await screen.findByRole('button', { name: /자세히 펼치기/ }))
+
+    expect(within(screen.getByRole('table', { name: '환전 기록' })).getByText('연습')).toBeInTheDocument()
   })
 
   it('계좌 관리로 돌아가는 링크가 있다', async () => {

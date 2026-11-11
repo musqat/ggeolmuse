@@ -13,6 +13,7 @@ import com.muscat.user.common.enums.response.AccountResponse;
 import com.muscat.user.common.enums.type.TransactionType;
 import com.muscat.user.common.exception.AccountException;
 import com.muscat.user.common.exception.AccountHistoryException;
+import com.muscat.user.domain.account.dto.response.ExchangeRecordDto;
 import com.muscat.user.domain.account.dto.response.HistoryResponseDto;
 import com.muscat.user.domain.account.entity.Account;
 import com.muscat.user.domain.account.entity.AccountHistory;
@@ -20,6 +21,8 @@ import com.muscat.user.domain.account.repository.AccountHistoryRepository;
 import com.muscat.user.domain.account.repository.AccountRepository;
 import com.muscat.user.domain.user.entity.User;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -282,6 +285,59 @@ class AccountHistoryServiceImplTest {
           null, "테스트", "REF_001")
       ).isInstanceOf(AccountHistoryException.class)
         .hasMessage(AccountHistoryResponse.INVALID_EXCHANGE_RATE.getMessage());
+    }
+  }
+
+  @Nested
+  @DisplayName("환전 기록 조회 테스트")
+  class GetExchangeRecordsTests {
+
+    @Test
+    @DisplayName("환전 줄을 조회 순서대로 계좌 · 생성 시각 · 통화 · 낸 금액 · 받은 금액 · 환율 칸으로 옮긴다")
+    void getExchangeRecords_MapsLedgerColumns() {
+      AccountHistory krwToUsd = AccountHistory.builder()
+        .id(historyId)
+        .account(testAccount)
+        .transactionType(TransactionType.EXCHANGE)
+        .amount(new BigDecimal("1000.00"))
+        .currency("USD")
+        .fromCurrency("KRW")
+        .toCurrency("USD")
+        .originalAmount(new BigDecimal("1300000.00"))
+        .exchangeRate(new BigDecimal("1300.000000"))
+        .createdAt(LocalDateTime.of(2024, 9, 2, 10, 15, 30))
+        .build();
+      AccountHistory usdToKrw = AccountHistory.builder()
+        .id(historyId + 1)
+        .account(testAccount)
+        .transactionType(TransactionType.EXCHANGE)
+        .amount(new BigDecimal("405000.00"))
+        .currency("KRW")
+        .fromCurrency("USD")
+        .toCurrency("KRW")
+        .originalAmount(new BigDecimal("300.00"))
+        .exchangeRate(new BigDecimal("1350.000000"))
+        .createdAt(LocalDateTime.of(2024, 10, 1, 9, 0, 5))
+        .build();
+      given(accountHistoryRepository.findByAccount_User_IdAndTransactionTypeOrderByCreatedAtAscIdAsc(
+        userId, TransactionType.EXCHANGE)).willReturn(List.of(krwToUsd, usdToKrw));
+
+      List<ExchangeRecordDto> records = accountHistoryService.getExchangeRecords(userId);
+
+      assertThat(records).containsExactly(
+        new ExchangeRecordDto(accountId, LocalDateTime.of(2024, 9, 2, 10, 15, 30), "KRW", "USD",
+          new BigDecimal("1300000.00"), new BigDecimal("1000.00"), new BigDecimal("1300.000000")),
+        new ExchangeRecordDto(accountId, LocalDateTime.of(2024, 10, 1, 9, 0, 5), "USD", "KRW",
+          new BigDecimal("300.00"), new BigDecimal("405000.00"), new BigDecimal("1350.000000")));
+    }
+
+    @Test
+    @DisplayName("환전 줄이 없으면 빈 목록")
+    void getExchangeRecords_NoExchange_Empty() {
+      given(accountHistoryRepository.findByAccount_User_IdAndTransactionTypeOrderByCreatedAtAscIdAsc(
+        userId, TransactionType.EXCHANGE)).willReturn(List.of());
+
+      assertThat(accountHistoryService.getExchangeRecords(userId)).isEmpty();
     }
   }
 }
