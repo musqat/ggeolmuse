@@ -1,7 +1,10 @@
 package com.muscat.trade.api.controller;
 
 import com.muscat.trade.common.enums.type.FlowPeriod;
+import com.muscat.trade.domain.dto.response.ProfitDetailResponse;
 import com.muscat.trade.domain.dto.response.ProfitFlowResponse;
+import com.muscat.trade.domain.dto.response.SymbolContributionResponse;
+import com.muscat.trade.domain.service.PortfolioStatsService;
 import com.muscat.trade.domain.service.ProfitFlowService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -19,14 +22,18 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-// 계좌 통계(수익 흐름) 조회
+// 계좌 통계(수익 흐름 · 주제 탭) 조회
 @RestController
 @RequestMapping("/api/portfolio/stats")
 @RequiredArgsConstructor
-@Tag(name = "포트폴리오 통계", description = "계좌 수익 흐름 API")
+@Tag(name = "포트폴리오 통계", description = "계좌 수익 흐름 · 통계 탭 API")
 public class PortfolioStatsController {
 
+  private static final String ACCOUNT = "계좌 ID 또는 all(전체 계좌)";
+  private static final String PERIOD = "기간(1M 은 30일 · 3M 은 90일 · 1Y 는 365일 전부터, ALL 은 첫 거래일부터)";
+
   private final ProfitFlowService profitFlowService;
+  private final PortfolioStatsService portfolioStatsService;
 
   // 요청 값 1M · 3M · 1Y · ALL 을 기간으로(그 밖은 400)
   @InitBinder
@@ -44,11 +51,34 @@ public class PortfolioStatsController {
   @GetMapping("/flow")
   public ResponseEntity<ProfitFlowResponse> flow(
     @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
-    @Parameter(description = "계좌 ID 또는 all(전체 계좌)", example = "all")
+    @Parameter(description = ACCOUNT, example = "all")
     @RequestParam("accountId") String accountId,
-    @Parameter(description = "기간(1M 은 30일 · 3M 은 90일 · 1Y 는 365일 전부터, ALL 은 첫 거래일부터)",
-      schema = @Schema(type = "string", allowableValues = {"1M", "3M", "1Y", "ALL"}))
+    @Parameter(description = PERIOD, schema = @Schema(type = "string", allowableValues = {"1M", "3M", "1Y", "ALL"}))
     @RequestParam("period") FlowPeriod period) {
     return ResponseEntity.ok(profitFlowService.flow(jwt.getSubject(), accountId, period));
+  }
+
+  @Operation(summary = "수익 자세히 조회",
+    description = "기간 안 달마다 수익 · 판 거래 실현 손익 · 기간 끝에 들고 있는 종목 평가 손익(남의 계좌는 403)")
+  @GetMapping("/profit")
+  public ResponseEntity<ProfitDetailResponse> profit(
+    @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
+    @Parameter(description = ACCOUNT, example = "all")
+    @RequestParam("accountId") String accountId,
+    @Parameter(description = PERIOD, schema = @Schema(type = "string", allowableValues = {"1M", "3M", "1Y", "ALL"}))
+    @RequestParam("period") FlowPeriod period) {
+    return ResponseEntity.ok(portfolioStatsService.profit(jwt.getSubject(), accountId, period));
+  }
+
+  @Operation(summary = "종목별 기여 조회",
+    description = "기간 동안 종목마다 늘어난 실현 · 평가 · 배당 · 수수료 원화와 비율(남의 계좌는 403)")
+  @GetMapping("/symbols")
+  public ResponseEntity<SymbolContributionResponse> symbols(
+    @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
+    @Parameter(description = ACCOUNT, example = "all")
+    @RequestParam("accountId") String accountId,
+    @Parameter(description = PERIOD, schema = @Schema(type = "string", allowableValues = {"1M", "3M", "1Y", "ALL"}))
+    @RequestParam("period") FlowPeriod period) {
+    return ResponseEntity.ok(portfolioStatsService.symbols(jwt.getSubject(), accountId, period));
   }
 }

@@ -1,10 +1,7 @@
 package com.muscat.trade.domain.service;
 
-import com.muscat.commonlib.dto.OHLCPriceDto;
-import com.muscat.trade.common.enums.response.TradeResponse;
 import com.muscat.trade.common.enums.type.FlowPeriod;
 import com.muscat.trade.common.enums.type.TradeStatus;
-import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.config.TradeProperties;
 import com.muscat.trade.domain.dto.response.ProfitFlowResponse;
 import com.muscat.trade.domain.dto.response.ProfitFlowResponse.ProfitPoint;
@@ -12,10 +9,8 @@ import com.muscat.trade.domain.entity.AccountProfitDaily;
 import com.muscat.trade.domain.entity.DividendPayout;
 import com.muscat.trade.domain.entity.Trade;
 import com.muscat.trade.domain.repository.AccountProfitDailyRepository;
-import com.muscat.trade.domain.repository.DividendPayoutRepository;
-import com.muscat.trade.domain.repository.TradeRepository;
+import com.muscat.trade.domain.service.PortfolioStatsReader.AccountActivity;
 import com.muscat.trade.domain.service.ProfitFlowCalculator.DailyProfit;
-import com.muscat.trade.infra.client.MarketServiceClientWrapper;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Duration;
@@ -42,72 +37,37 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class ProfitFlowService {
 
-  static final String ALL_ACCOUNTS = "all";
   static final int ALWAYS_RECOMPUTED_DAYS = 7;
-  static final int CLOSE_LOOKBACK_DAYS = 14;
   static final Duration CHANGE_MARGIN = Duration.ofMinutes(1);
 
-  private final TradeRepository tradeRepository;
-  private final DividendPayoutRepository dividendPayoutRepository;
+  private final PortfolioStatsReader portfolioStatsReader;
   private final AccountProfitDailyRepository accountProfitDailyRepository;
   private final AccountProfitStore accountProfitStore;
-  private final MarketServiceClientWrapper marketServiceClientWrapper;
   private final TradeProperties tradeProperties;
   private final Clock clock;
 
   // accountId 는 계좌 ID 또는 all, 남의 계좌면 접근 거부
   public ProfitFlowResponse flow(String userId, String accountId, FlowPeriod period) {
-    Long account = parseAccount(accountId);
-    List<Trade> trades;
-    if (account == null) {
-      trades = tradeRepository.findByUserId(userId);
-    } else {
-      checkOwner(userId, account);
-      trades = tradeRepository.findByUserIdAndAccountId(userId, account);
-    }
-    Map<Long, List<DividendPayout>> payouts = dividendPayoutRepository.findByUserId(userId).stream()
-      .collect(Collectors.groupingBy(DividendPayout::getAccountId));
-
+    List<AccountActivity> activities = portfolioStatsReader.activities(userId, accountId);
     LocalDate today = LocalDate.now(clock);
-    List<List<ProfitPoint>> series = new ArrayList<>();
-    trades.stream()
-      .collect(Collectors.groupingBy(Trade::getAccountId, TreeMap::new, Collectors.toList()))
-      .forEach((id, accountTrades) -> series.add(
-        refresh(userId, id, accountTrades, payouts.getOrDefault(id, List.of()), today)));
-
     LocalDate start = period.startFrom(today);
-    return ProfitFlowCalculator.summarize(sumByDate(series).stream()
+    return ProfitFlowCalculator.summarize(points(userId, activities, today).stream()
       .filter(point -> start == null || !point.date().isBefore(start))
       .toList());
   }
 
-  private static Long parseAccount(String accountId) {
-    if (ALL_ACCOUNTS.equalsIgnoreCase(accountId)) {
-      return null;
-    }
-    try {
-      long id = Long.parseLong(accountId);
-      if (id > 0) {
-        return id;
-      }
-    } catch (NumberFormatException e) {
-      log.debug("계좌 값이 숫자가 아님: {}", accountId);
-    }
-    throw new TradeException(TradeResponse.INVALID_ACCOUNT_ID);
-  }
-
-  // 체결 테이블의 계좌 주인(체결이 없는 계좌는 보여 줄 값이 없어 넘어감)
-  private void checkOwner(String userId, Long accountId) {
-    tradeRepository.findFirstByAccountIdOrderByIdAsc(accountId)
-      .filter(trade -> !trade.getUserId().equals(userId))
-      .ifPresent(trade -> {
-        throw new TradeException(TradeResponse.ACCOUNT_ACCESS_DENIED);
-      });
+  // 계좌마다 첫 거래일부터 오늘까지의 점을 날짜마다 더한 값
+  public List<ProfitPoint> points(String userId, List<AccountActivity> activities, LocalDate today) {
+    return sumByDate(activities.stream()
+      .map(activity -> refresh(userId, activity, today))
+      .toList());
   }
 
   // 한 계좌의 점(정산 전 매수의 거래일부터는 저장하지 않음)
-  private List<ProfitPoint> refresh(String userId, Long accountId, List<Trade> trades,
-    List<DividendPayout> payouts, LocalDate today) {
+  private List<ProfitPoint> refresh(String userId, AccountActivity activity, LocalDate today) {
+    Long accountId = activity.accountId();
+    List<Trade> trades = activity.trades();
+    List<DividendPayout> payouts = activity.payouts();
     LocalDateTime startedAt = LocalDateTime.now(clock);
     List<AccountProfitDaily> stored =
       accountProfitDailyRepository.findByUserIdAndAccountIdOrderByTradeDateAsc(userId, accountId);
@@ -180,19 +140,11 @@ public class ProfitFlowService {
       .toList();
     TreeSet<LocalDate> days = new TreeSet<>();
     Map<String, NavigableMap<LocalDate, BigDecimal>> closes = new HashMap<>();
-    LocalDate start = from.minusDays(CLOSE_LOOKBACK_DAYS);
     Map<String, LocalDate> firstTradeDates = completed.stream()
       .collect(Collectors.toMap(Trade::getSymbol, Trade::getTradeDate, (a, b) -> a.isBefore(b) ? a : b));
     for (String symbol : new TreeSet<>(firstTradeDates.keySet())) {
-      NavigableMap<LocalDate, BigDecimal> symbolCloses = closesBetween(symbol, start, today);
-      LocalDate firstTrade = firstTradeDates.get(symbol);
-      // 앞 14일 안에 종가가 없는 종목(거래 정지 · 상장 폐지)은 그 앞 마지막 종가
-      if (symbolCloses.floorKey(from) == null && firstTrade.isBefore(start)) {
-        Map.Entry<LocalDate, BigDecimal> earlier = closesBetween(symbol, firstTrade, start.minusDays(1)).lastEntry();
-        if (earlier != null) {
-          symbolCloses.put(earlier.getKey(), earlier.getValue());
-        }
-      }
+      NavigableMap<LocalDate, BigDecimal> symbolCloses =
+        portfolioStatsReader.closes(symbol, from, today, firstTradeDates.get(symbol));
       closes.put(symbol, symbolCloses);
       days.addAll(symbolCloses.subMap(from, true, today, true).keySet());
     }
@@ -200,21 +152,8 @@ public class ProfitFlowService {
     payouts.forEach(payout -> days.add(payout.getExDate()));
     List<LocalDate> range = List.copyOf(days.subSet(from, true, today, true));
 
-    Map<LocalDate, BigDecimal> fxRates = new HashMap<>();
-    marketServiceClientWrapper.getBulkFxRates(range.stream().map(LocalDate::toString).toList())
-      .forEach((date, rate) -> fxRates.put(LocalDate.parse(date), rate));
-    return ProfitFlowCalculator.calculate(trades, payouts, closes, fxRates, range,
+    return ProfitFlowCalculator.calculate(trades, payouts, closes, portfolioStatsReader.fxRates(range), range,
       tradeProperties.getCalculation().getPricePrecision());
-  }
-
-  private NavigableMap<LocalDate, BigDecimal> closesBetween(String symbol, LocalDate from, LocalDate to) {
-    NavigableMap<LocalDate, BigDecimal> closes = new TreeMap<>();
-    for (OHLCPriceDto candle : marketServiceClientWrapper.getOHLCPriceRange(symbol, from.toString(), to.toString())) {
-      if (candle.closePrice() != null) {
-        closes.put(candle.date(), candle.closePrice());
-      }
-    }
-    return closes;
   }
 
   // 같은 계좌를 다른 요청이 먼저 저장했으면 저장만 넘김
