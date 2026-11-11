@@ -355,6 +355,44 @@ class MaBandStrategyTest {
     }
   }
 
+  @Nested
+  @DisplayName("트레일링 스탑")
+  class TrailingStops {
+
+    @Test
+    @DisplayName("트레일링 스탑으로 다 판 날 위 선 위였으면 위 선 아래로 한 번 내려온 뒤 다시 올라선 날 판 돈 전부로 산다")
+    void waitsBelowUpperAfterExitAbove() {
+      // 3일 평균 · 위 0% · 아래 10%: 1 ~ 5일째 평균 위, 3일째 고점 40 에서 4일째 38(-5%) 에 팔고, 6일째 39 는 평균(39.33) 아래, 7일째 45 는 위
+      stubMarket(List.of(day(-2, "10"), day(-1, "10"), day(0, "10"), day(1, "20"), day(2, "30"), day(3, "40"),
+        day(4, "38"), day(5, "41"), day(6, "39"), day(7, "45")));
+
+      StrategyResponse response = strategy.execute(request(7).upperRate(BigDecimal.ZERO)
+        .trailingStopRate(new BigDecimal("0.05")).build());
+
+      assertThat(trades()).containsExactly(
+        tuple(START.plusDays(1), "20", "밴드 위 매수", "50"),
+        tuple(START.plusDays(4), "38", "고점 대비 하락 매도 5.0%", "-50"),
+        tuple(START.plusDays(7), "45", "밴드 위 매수", "42.22222222"));
+      assertThat(executed().getLast().getCashUsed()).isEqualByComparingTo("1900");
+      assertThat(response.getTradeStats().trailingStopCount()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("트레일링 스탑으로 다 판 날 위 선 아래였으면 다음에 위 선 위로 올라선 날 산다")
+    void buysNextAboveAfterExitBetween() {
+      // 3일 평균 ±10%: 3일째 고점 40 에서 4일째 36(-10%) 은 밴드 사이, 5일째 45 는 위 선(44.37) 위
+      stubMarket(List.of(day(-2, "10"), day(-1, "10"), day(0, "10"), day(1, "20"), day(2, "30"), day(3, "40"),
+        day(4, "36"), day(5, "45")));
+
+      strategy.execute(request(5).trailingStopRate(new BigDecimal("0.1")).build());
+
+      assertThat(trades()).containsExactly(
+        tuple(START.plusDays(1), "20", "밴드 위 매수", "50"),
+        tuple(START.plusDays(4), "36", "고점 대비 하락 매도 10.0%", "-50"),
+        tuple(START.plusDays(5), "45", "밴드 위 매수", "40"));
+    }
+  }
+
   // 시작일에서 offset 일 뒤 밴드 점(평균이 null 이면 세 칸 없음)
   private static SignalChart.Point point(int offset, String close, String average, String upper, String lower) {
     return SignalChart.Point.band(START.plusDays(offset), new BigDecimal(close),
@@ -421,12 +459,15 @@ class MaBandStrategyTest {
       invalid("위 비율 1", b -> b.upperRate(BigDecimal.ONE), BacktestResponse.INVALID_BAND),
       invalid("아래 비율 음수", b -> b.lowerRate(new BigDecimal("-0.01")), BacktestResponse.INVALID_BAND),
       invalid("아래 비율 1", b -> b.lowerRate(BigDecimal.ONE), BacktestResponse.INVALID_BAND),
+      invalid("트레일링 스탑 하락 비율 1", b -> b.trailingStopRate(BigDecimal.ONE), BacktestResponse.INVALID_TRAILING_STOP),
+      invalid("트레일링 스탑 팔 비율 1 초과", b -> b.trailingStopRate(new BigDecimal("0.1"))
+        .trailingSellRate(new BigDecimal("1.01")), BacktestResponse.INVALID_TRAILING_STOP),
       invalid("배당 재투자", b -> b.reinvestDividends(true), BacktestResponse.SELL_WITH_REINVEST));
   }
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("invalidRequests")
-  @DisplayName("종목 · 기간 · 원금 · 밴드 기간 · 비율이 맞지 않거나 배당 재투자를 켜면 시세를 받기 전에 막는다")
+  @DisplayName("종목 · 기간 · 원금 · 밴드 기간 · 비율 · 트레일링 스탑이 맞지 않거나 배당 재투자를 켜면 시세를 받기 전에 막는다")
   void rejects(String label, UnaryOperator<MaBandStrategyRequest.MaBandStrategyRequestBuilder> change,
     BacktestResponse code) {
     MaBandStrategyRequest request = change.apply(request(7)).build();

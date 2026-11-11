@@ -1324,6 +1324,84 @@ class ConditionalPurchaseStrategyTest {
         assertThatThrownBy(() -> strategy.execute(selling(2, 10).stopLossRate(BigDecimal.ONE).build()))
           .isInstanceOf(BacktestException.class).extracting("code").isEqualTo(BacktestResponse.INVALID_SELL_RATE);
       }
+
+      @Nested
+      @DisplayName("트레일링 스탑")
+      class TrailingStopTests {
+
+        private static final String TEN = "고점 대비 하락 매도 10.0%";
+
+        @Test
+        @DisplayName("기준가는 첫 매수가에서 종가 고점으로 오르고, 종가가 기준가 × (1 - 하락 비율) 이하면 그 날짜 종가에 보유의 팔 비율만큼 팔며 판 값을 새 기준가로 다시 본다")
+        void sellsShareOfHoldingRepeatedly() {
+          ConditionalStrategyRequest request = selling(9, 10).trailingStopRate(new BigDecimal("0.1"))
+            .trailingSellRate(new BigDecimal("0.5")).build();
+          // 고점 120 에서 108, 판 값 108 에서 97.2, 새 고점 110 에서 99(그 날짜는 하락 매수 조건도 맞음)
+          stubMarket(request, afterEntry(day(2, "120"), day(3, "115"), day(4, "108"), day(5, "100"), day(6, "97.2"),
+            day(7, "110"), day(8, "99")), false);
+
+          StrategyResponse response = strategy.execute(request);
+
+          assertThat(trades()).containsExactly(ENTRY, tuple("108", TEN, -1), tuple("97.2", TEN, -1), tuple("99", TEN, -1));
+          List<StrategyTransaction> sales = executed().subList(1, 4);
+          assertThat(sales).extracting(StrategyTransaction::getShares)
+            .usingElementComparator(BigDecimal::compareTo)
+            .containsExactly(new BigDecimal("-5"), new BigDecimal("-2.5"), new BigDecimal("-1.25"));
+          // 원가 1000달러를 판 수량 비율만큼: 540 - 500, 243 - 250, 123.75 - 125
+          assertThat(sales).extracting(StrategyTransaction::getRealizedProfit)
+            .usingElementComparator(BigDecimal::compareTo)
+            .containsExactly(new BigDecimal("40"), new BigDecimal("-7"), new BigDecimal("-1.25"));
+          assertThat(response.getTradeStats().trailingStopCount()).isEqualTo(3);
+        }
+
+        @Test
+        @DisplayName("산 날 종가가 매수가보다 높으면 그 종가에서 기준가를 시작한다")
+        void referenceStartsAtBuyDayClose() {
+          ConditionalStrategyRequest request = selling(3, 10).trailingStopRate(new BigDecimal("0.1")).build();
+          // 시가 100 에 사고 110 에 마감, 다음 날 99 는 110 대비 -10%
+          stubMarket(request, List.of(day(0, "120"), candle(1, "100", "112", "100", "110"), day(2, "99")), false);
+
+          strategy.execute(request);
+
+          assertThat(trades()).containsExactly(ENTRY, tuple("99", TEN, -1));
+        }
+
+        @Test
+        @DisplayName("익절 · 손절이 판 날은 트레일링 스탑을 보지 않는다")
+        void stopLossFirst() {
+          ConditionalStrategyRequest request = selling(3, 10).stopLossRate(new BigDecimal("0.1"))
+            .trailingStopRate(new BigDecimal("0.05")).build();
+          stubMarket(request, afterEntry(candle(2, "95", "96", "89", "92")), false);
+
+          strategy.execute(request);
+
+          assertThat(trades()).containsExactly(ENTRY, tuple("90", "10.0%손절", -1));
+        }
+
+        @Test
+        @DisplayName("트레일링 스탑만 켜도 최대 횟수를 다 쓴 뒤 끝까지 보고 판다")
+        void runsToEndWithTrailingOnly() {
+          ConditionalStrategyRequest request = selling(4, 1).trailingStopRate(new BigDecimal("0.1")).build();
+          stubMarket(request, afterEntry(day(2, "120"), day(3, "108")), false);
+
+          strategy.execute(request);
+
+          assertThat(trades()).containsExactly(ENTRY, tuple("108", TEN, -1));
+        }
+
+        @Test
+        @DisplayName("켜면 배당 재투자와 함께 막고, 하락 비율이 1 이상이거나 팔 비율만 있으면 INVALID_TRAILING_STOP")
+        void rejects() {
+          assertThatThrownBy(() -> strategy.execute(selling(2, 10).trailingStopRate(new BigDecimal("0.1"))
+            .reinvestDividends(true).build()))
+            .isInstanceOf(BacktestException.class).extracting("code").isEqualTo(BacktestResponse.SELL_WITH_REINVEST);
+          assertThatThrownBy(() -> strategy.execute(selling(2, 10).trailingStopRate(BigDecimal.ONE).build()))
+            .isInstanceOf(BacktestException.class).extracting("code").isEqualTo(BacktestResponse.INVALID_TRAILING_STOP);
+          assertThatThrownBy(() -> strategy.execute(selling(2, 10).trailingSellRate(new BigDecimal("0.5")).build()))
+            .isInstanceOf(BacktestException.class).extracting("code").isEqualTo(BacktestResponse.INVALID_TRAILING_STOP);
+          verifyNoInteractions(marketDataClient);
+        }
+      }
     }
   }
 

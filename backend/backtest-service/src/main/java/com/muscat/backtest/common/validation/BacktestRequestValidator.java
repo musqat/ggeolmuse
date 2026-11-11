@@ -3,10 +3,11 @@ package com.muscat.backtest.common.validation;
 import com.muscat.backtest.common.constants.BacktestConstants.RequestLimit;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.exception.BacktestException;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 /**
- * 백테스트 전략 요청의 공통 검증(null · 심볼 · 지수 · 기간 · 주식 수 · 첫 매수일)
+ * 백테스트 전략 요청의 공통 검증(null · 심볼 · 지수 · 기간 · 주식 수 · 트레일링 스탑 · 첫 매수일)
  */
 public final class BacktestRequestValidator {
 
@@ -54,6 +55,16 @@ public final class BacktestRequestValidator {
   public static void requireShares(Integer shares) {
     if (shares != null && (shares < 1 || shares > RequestLimit.MAX_SHARES)) {
       throw new BacktestException(BacktestResponse.INVALID_SHARES_PER_PURCHASE);
+    }
+  }
+
+  /** 트레일링 스탑 하락 비율 0 초과 1 미만 · 팔 비율 0 초과 1 이하(하락 비율과 함께) 검사(둘 다 비우면 통과) */
+  public static void requireTrailingStop(BigDecimal stopRate, BigDecimal sellRate) {
+    boolean stopOutside = stopRate != null && (stopRate.signum() <= 0 || stopRate.compareTo(BigDecimal.ONE) >= 0);
+    boolean sellOutside = sellRate != null
+      && (stopRate == null || sellRate.signum() <= 0 || sellRate.compareTo(BigDecimal.ONE) > 0);
+    if (stopOutside || sellOutside) {
+      throw new BacktestException(BacktestResponse.INVALID_TRAILING_STOP);
     }
   }
 

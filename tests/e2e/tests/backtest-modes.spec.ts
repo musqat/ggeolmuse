@@ -93,6 +93,42 @@ test('이동평균 밴드가 돌고 밴드 차트 · 매매 통계를 싣는다'
   expect(body.tradeStats, '밴드 응답에 매매 통계가 없다').toBeTruthy();
 });
 
+test('이동평균 밴드에 트레일링 스탑을 켜면 매매 통계에 거래 내역과 같은 발동 수를 싣는다', async () => {
+  const res = await postUntilAllowed(`${API_URL}/analysis/strategy/ma-band`, {
+    data: {
+      symbol,
+      startDate: start,
+      endDate: end,
+      investmentAmount: 1_000_000,
+      bandWindow: 20,
+      upperRate: 0.01,
+      lowerRate: 0.01,
+      trailingStopRate: 0.01,
+      trailingSellRate: 0.5,
+    },
+  });
+
+  expect(res.status(), `트레일링 스탑을 켠 밴드가 실패했다: ${await res.text()}`).toBe(200);
+  const body = await res.json();
+  const stops = body.transactions.filter((tx: { trigger: string }) => tx.trigger.startsWith('고점 대비 하락 매도'));
+  expect(body.tradeStats.trailingStopCount, '트레일링 스탑 수가 거래 내역과 다르다').toBe(stops.length);
+});
+
+test('트레일링 스탑 팔 비율만 주면 400', async () => {
+  const res = await postUntilAllowed(`${API_URL}/analysis/strategy/conditional`, {
+    data: {
+      symbol,
+      startDate: start,
+      endDate: end,
+      amountPerPurchase: 200_000,
+      dropPercentage: 0.05,
+      trailingSellRate: 0.5,
+    },
+  });
+
+  expect(res.status(), `팔 비율만 준 요청이 400 이 아니다: ${await res.text()}`).toBe(400);
+});
+
 test('이동평균 교차가 다른 종목을 신호로 보고 신호 차트에 그 종목을 싣는다', async () => {
   // 두 종목 시세가 다 있는 기간
   const other = await priceRange(api, second);

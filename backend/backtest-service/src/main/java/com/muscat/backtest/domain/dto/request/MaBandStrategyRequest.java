@@ -3,9 +3,11 @@ package com.muscat.backtest.domain.dto.request;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.muscat.backtest.common.constants.BacktestConstants.Band;
 import com.muscat.backtest.common.constants.BacktestConstants.MovingAverage;
+import com.muscat.backtest.common.constants.BacktestConstants.SellRule;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
@@ -93,11 +95,29 @@ public class MaBandStrategyRequest implements SignalStrategyRequest {
   @Schema(description = "신호 종목: 밴드를 보는 종목 (지수 ^GSPC · ^NDX 도 됨, 비우면 종목 코드)", example = "^GSPC")
   private String signalSymbol;
 
+  @Schema(description = "트레일링 스탑 하락 비율: 종가가 기준가(사이클 첫 매수가에서 시작한 종가 고점, 판 뒤에는 판 값)보다 이만큼 내리면 팜, 다 팔면 위 선 아래로 내려왔다 다시 올라선 날 삼 (10% = 0.1, 0 초과 1 미만, 비우면 안 함)", example = "0.1")
+  @DecimalMin(value = "0", inclusive = false, message = SellRule.TRAILING_STOP_MESSAGE)
+  @DecimalMax(value = "1", inclusive = false, message = SellRule.TRAILING_STOP_MESSAGE)
+  private BigDecimal trailingStopRate;
+
+  @Schema(description = "트레일링 스탑 팔 비율: 그때마다 보유의 이만큼 팜 (50% = 0.5, 0 초과 1 이하, 비우면 전량, 하락 비율과 함께)", example = "0.5")
+  @DecimalMin(value = "0", inclusive = false, message = SellRule.TRAILING_STOP_MESSAGE)
+  @DecimalMax(value = "1", message = SellRule.TRAILING_STOP_MESSAGE)
+  private BigDecimal trailingSellRate;
+
   // 이력 저장 JSON 에는 넣지 않음
   @JsonIgnore
   @Override
   public StrategyType getStrategyType() {
     return StrategyType.MA_BAND;
+  }
+
+  // 팔 비율은 하락 비율과 함께
+  @JsonIgnore
+  @Schema(hidden = true)
+  @AssertTrue(message = SellRule.TRAILING_STOP_MESSAGE)
+  public boolean isTrailingSellWithStop() {
+    return trailingSellRate == null || trailingStopRate != null;
   }
 
   // 평균 기간(비우면 200)

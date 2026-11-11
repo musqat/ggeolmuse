@@ -2,6 +2,7 @@ package com.muscat.backtest.domain.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.muscat.backtest.common.constants.BacktestConstants.MovingAverage;
+import com.muscat.backtest.common.constants.BacktestConstants.SellRule;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -88,6 +89,16 @@ public class MaCrossStrategyRequest implements SignalStrategyRequest {
   @Schema(description = "신호 종목: 이동평균 교차를 보는 종목 (지수 ^GSPC · ^NDX 도 됨, 비우면 종목 코드)", example = "^GSPC")
   private String signalSymbol;
 
+  @Schema(description = "트레일링 스탑 하락 비율: 종가가 기준가(사이클 첫 매수가에서 시작한 종가 고점, 판 뒤에는 판 값)보다 이만큼 내리면 팜, 다 팔면 다음 골든 크로스에 다시 삼 (10% = 0.1, 0 초과 1 미만, 비우면 안 함)", example = "0.1")
+  @DecimalMin(value = "0", inclusive = false, message = SellRule.TRAILING_STOP_MESSAGE)
+  @DecimalMax(value = "1", inclusive = false, message = SellRule.TRAILING_STOP_MESSAGE)
+  private BigDecimal trailingStopRate;
+
+  @Schema(description = "트레일링 스탑 팔 비율: 그때마다 보유의 이만큼 팜 (50% = 0.5, 0 초과 1 이하, 비우면 전량, 하락 비율과 함께)", example = "0.5")
+  @DecimalMin(value = "0", inclusive = false, message = SellRule.TRAILING_STOP_MESSAGE)
+  @DecimalMax(value = "1", message = SellRule.TRAILING_STOP_MESSAGE)
+  private BigDecimal trailingSellRate;
+
   // 이력 저장 JSON 에는 넣지 않음
   @JsonIgnore
   @Override
@@ -101,6 +112,14 @@ public class MaCrossStrategyRequest implements SignalStrategyRequest {
   @AssertTrue(message = MovingAverage.WINDOW_MESSAGE)
   public boolean isWindowOrder() {
     return shortWindowOrDefault() < longWindowOrDefault();
+  }
+
+  // 팔 비율은 하락 비율과 함께
+  @JsonIgnore
+  @Schema(hidden = true)
+  @AssertTrue(message = SellRule.TRAILING_STOP_MESSAGE)
+  public boolean isTrailingSellWithStop() {
+    return trailingSellRate == null || trailingStopRate != null;
   }
 
   // 짧은 기간(비우면 20)

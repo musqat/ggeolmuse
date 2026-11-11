@@ -392,6 +392,55 @@ class BacktestAnalysisControllerTest {
     verify(backtestAnalysisService, never()).runMaBandStrategy(any());
   }
 
+  // 경로마다 트레일링 스탑 칸 앞까지의 요청 본문
+  private static String sellingBody(String path) {
+    return switch (path) {
+      case "conditional" -> "{\"symbol\":\"AAPL\"," + PERIOD + ",\"amountPerPurchase\":100000,\"dropPercentage\":0.05";
+      default -> "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":10000000";
+    };
+  }
+
+  @Test
+  @DisplayName("조건부 · 이동평균 교차 · 밴드 전략은 트레일링 스탑 하락 비율(1 미만) · 팔 비율(1 이하)을 그대로 넘긴다")
+  void trailingStopPassedThrough() throws Exception {
+    given(backtestAnalysisService.runConditionalStrategy(any()))
+      .willReturn(strategy("AAPL", StrategyType.CONDITIONAL_PURCHASE, "1"));
+    given(backtestAnalysisService.runMaCrossStrategy(any())).willReturn(strategy("AAPL", StrategyType.MA_CROSS, "1"));
+    given(backtestAnalysisService.runMaBandStrategy(any())).willReturn(strategy("AAPL", StrategyType.MA_BAND, "1"));
+    String trailing = ",\"trailingStopRate\":0.99,\"trailingSellRate\":1}";
+
+    for (String path : List.of("conditional", "ma-cross", "ma-band")) {
+      postJson("/strategy/" + path, sellingBody(path) + trailing).andExpect(status().isOk());
+    }
+
+    BigDecimal stop = new BigDecimal("0.99");
+    verify(backtestAnalysisService).runConditionalStrategy(argThat(r ->
+      r.getTrailingStopRate().compareTo(stop) == 0 && r.getTrailingSellRate().compareTo(BigDecimal.ONE) == 0));
+    verify(backtestAnalysisService).runMaCrossStrategy(argThat((MaCrossStrategyRequest r) ->
+      r.getTrailingStopRate().compareTo(stop) == 0 && r.getTrailingSellRate().compareTo(BigDecimal.ONE) == 0));
+    verify(backtestAnalysisService).runMaBandStrategy(argThat((MaBandStrategyRequest r) ->
+      r.getTrailingStopRate().compareTo(stop) == 0 && r.getTrailingSellRate().compareTo(BigDecimal.ONE) == 0));
+  }
+
+  @ParameterizedTest(name = "{0} {1}")
+  @CsvSource(delimiter = '|', value = {
+    "conditional|하락 비율 0|\"trailingStopRate\":0",
+    "conditional|팔 비율만|\"trailingSellRate\":0.5",
+    "ma-cross|하락 비율 1|\"trailingStopRate\":1",
+    "ma-cross|팔 비율 0|\"trailingStopRate\":0.1,\"trailingSellRate\":0",
+    "ma-cross|팔 비율만|\"trailingSellRate\":0.5",
+    "ma-band|팔 비율 1 초과|\"trailingStopRate\":0.1,\"trailingSellRate\":1.01",
+    "ma-band|팔 비율만|\"trailingSellRate\":0.5"})
+  @DisplayName("트레일링 스탑 하락 비율이 0 초과 1 미만 밖이거나 팔 비율이 0 초과 1 이하 밖이거나 팔 비율만 있으면 400 이고 서비스까지 가지 않는다")
+  void trailingStopRejected(String path, String label, String fields) throws Exception {
+    postJson("/strategy/" + path, sellingBody(path) + "," + fields + "}")
+      .andExpect(status().isBadRequest());
+
+    verify(backtestAnalysisService, never()).runConditionalStrategy(any());
+    verify(backtestAnalysisService, never()).runMaCrossStrategy(any());
+    verify(backtestAnalysisService, never()).runMaBandStrategy(any());
+  }
+
   @Test
   @DisplayName("종목 비교는 종목 목록을 넘기고 최고 수익 종목을 돌려준다")
   void compareSymbols() throws Exception {

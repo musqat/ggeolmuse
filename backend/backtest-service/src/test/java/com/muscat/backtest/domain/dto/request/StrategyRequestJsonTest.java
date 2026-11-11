@@ -77,6 +77,26 @@ class StrategyRequestJsonTest {
   }
 
   @Test
+  @DisplayName("조건부 · 이동평균 교차 · 밴드는 트레일링 스탑 두 칸을 이력 JSON 에 저장하고 칸 검사 값은 넣지 않는다")
+  void trailingStopSaved() throws Exception {
+    ConditionalStrategyRequest conditional = conditional();
+    conditional.setTrailingStopRate(new BigDecimal("0.1"));
+    conditional.setTrailingSellRate(new BigDecimal("0.5"));
+    MaCrossStrategyRequest maCross = maCross();
+    maCross.setTrailingStopRate(new BigDecimal("0.1"));
+    MaBandStrategyRequest maBand = maBand();
+    maBand.setTrailingStopRate(new BigDecimal("0.15"));
+    maBand.setTrailingSellRate(BigDecimal.ONE);
+
+    assertThat(objectMapper.writeValueAsString(conditional))
+      .contains("\"trailingStopRate\":0.1", "\"trailingSellRate\":0.5").doesNotContain("trailingSellWithStop");
+    assertThat(objectMapper.writeValueAsString(maCross))
+      .contains("\"trailingStopRate\":0.1").doesNotContain("trailingSellWithStop");
+    assertThat(objectMapper.writeValueAsString(maBand))
+      .contains("\"trailingStopRate\":0.15", "\"trailingSellRate\":1").doesNotContain("trailingSellWithStop");
+  }
+
+  @Test
   @DisplayName("적립식 회당 금액은 amountPerPurchase 로 저장하고 monthlyAmount 도 읽으며 주기를 비우면 매달")
   void dcaAmountAlias() throws Exception {
     DcaStrategyRequest old = objectMapper.readValue("{\"symbol\":\"AAPL\",\"monthlyAmount\":1000,\"purchaseDay\":1}",

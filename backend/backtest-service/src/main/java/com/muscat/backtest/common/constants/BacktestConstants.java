@@ -66,6 +66,9 @@ public final class BacktestConstants {
 
     /** 판 해의 양도세를 다음 해 5월 판 돈에서 냄 */
     public static final String CAPITAL_GAINS_TAX_PAYMENT = "양도세 납부";
+
+    /** 종가가 기준가보다 정한 비율 이상 내린 날 보유의 정한 몫을 팖 (뒤에 기준가 대비 하락 %) */
+    public static final String TRAILING_STOP = "고점 대비 하락 매도";
   }
 
   /**
@@ -132,6 +135,19 @@ public final class BacktestConstants {
 
     /** 밴드 검사 오류 문구 */
     public static final String MESSAGE = "밴드 기간은 2 ~ 250, 위 · 아래 비율은 0% 이상 100% 미만이어야 합니다";
+  }
+
+  /**
+   * 조건부 · 이동평균 교차 · 밴드 공통 매도 규칙
+   */
+  public static final class SellRule {
+    private SellRule() {
+      throw new UnsupportedOperationException("Constants class cannot be instantiated");
+    }
+
+    /** 트레일링 스탑 검사 오류 문구 */
+    public static final String TRAILING_STOP_MESSAGE =
+      "고점 대비 하락 비율은 0% 초과 100% 미만, 팔 비율은 하락 비율과 함께 0% 초과 100% 이하여야 합니다";
   }
 
   /**

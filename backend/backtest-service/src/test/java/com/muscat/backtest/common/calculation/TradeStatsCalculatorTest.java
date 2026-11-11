@@ -35,9 +35,13 @@ class TradeStatsCalculatorTest {
 
   // 판 거래(실현 손익 USD)
   private static StrategyTransaction sell(LocalDate date, String shares, String realized) {
+    return sell(date, shares, realized, "매도");
+  }
+
+  private static StrategyTransaction sell(LocalDate date, String shares, String realized, String trigger) {
     return StrategyTransaction.builder().date(date).actualDate(date).shares(new BigDecimal(shares).negate())
       .price(BigDecimal.ONE).amount(BigDecimal.ZERO).proceeds(BigDecimal.ONE).fxRate(new BigDecimal("1300"))
-      .realizedProfit(new BigDecimal(realized)).trigger("매도").build();
+      .realizedProfit(new BigDecimal(realized)).trigger(trigger).build();
   }
 
   private static StrategyTransaction taxPayment(LocalDate date) {
@@ -133,6 +137,21 @@ class TradeStatsCalculatorTest {
 
     assertStats(none, new TradeStats(0, 0, 0, false, 0, 0, null, null, null, null, null, number("0.00"), 0, 0));
     assertStats(holding, new TradeStats(1, 0, 0, true, 0, 0, null, null, null, null, null, number("2.01"), 0, 0));
+  }
+
+  @Test
+  @DisplayName("트레일링 스탑으로 판 거래 수를 세고, 일부만 판 매도는 사이클을 끝내지 않는다")
+  void trailingStopCount() {
+    List<StrategyTransaction> transactions = List.of(
+      // 1000달러로 사서 절반을 트레일링 스탑으로 팔고 22일 뒤 나머지를 팔아 40달러 이익(+4%)
+      buy(on(1, 10), "10"), sell(on(1, 20), "5", "50", "고점 대비 하락 매도 10.0%"), sell(on(2, 1), "5", "-10", "데드 크로스"),
+      // 1000달러로 사서 9일 뒤 트레일링 스탑으로 전량 팔아 100달러 손실(-10%)
+      buy(on(3, 1), "10"), sell(on(3, 10), "10", "-100", "고점 대비 하락 매도 12.5%"));
+
+    TradeStats stats = TradeStatsCalculator.of(transactions, START, on(12, 31));
+
+    assertStats(stats, new TradeStats(2, 3, 2, false, 1, 1, number("50.00"), number("4.00"), number("10.00"),
+      number("0.40"), number("15.5"), number("2.00"), 2, 0));
   }
 
   @Test
