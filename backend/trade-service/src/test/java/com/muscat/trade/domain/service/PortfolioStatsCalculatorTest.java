@@ -18,6 +18,9 @@ import com.muscat.trade.domain.dto.response.ProfitDetailResponse.Sale;
 import com.muscat.trade.domain.dto.response.ProfitFlowResponse.ProfitPoint;
 import com.muscat.trade.domain.dto.response.SymbolContributionResponse;
 import com.muscat.trade.domain.dto.response.SymbolContributionResponse.SymbolContribution;
+import com.muscat.trade.domain.dto.response.TradingHabitsResponse;
+import com.muscat.trade.domain.dto.response.TradingHabitsResponse.SymbolTrades;
+import com.muscat.trade.domain.dto.response.TradingHabitsResponse.WeekdayTrades;
 import com.muscat.trade.domain.entity.DividendPayout;
 import com.muscat.trade.domain.entity.Trade;
 import com.muscat.trade.domain.service.PortfolioStatsCalculator.Replay;
@@ -26,6 +29,7 @@ import com.muscat.trade.domain.service.PortfolioStatsCalculator.SymbolTotals;
 import com.muscat.trade.domain.service.ProfitFlowCalculator.DailyProfit;
 import com.muscat.trade.infra.client.dto.ExchangeRecordDto;
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
@@ -34,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -173,14 +178,14 @@ class PortfolioStatsCalculatorTest {
         LocalDate.of(2024, 9, 2), "1500", LocalDate.of(2024, 9, 30), "3000", LocalDate.of(2024, 10, 1), "2500",
         LocalDate.of(2024, 10, 15), "4000");
 
-      ProfitDetailResponse response = PortfolioStatsCalculator.profitDetail(points, LocalDate.of(2024, 9, 1),
+      ProfitDetailResponse response = PortfolioStatsCalculator.profitDetail(points, LocalDate.of(2024, 8, 30),
         List.of(), List.of(), Map.of(), Map.of(), TODAY);
 
       assertThat(response.monthly()).extracting(MonthlyProfit::month)
-        .containsExactly(YearMonth.of(2024, 9), YearMonth.of(2024, 10));
+        .containsExactly(YearMonth.of(2024, 8), YearMonth.of(2024, 9), YearMonth.of(2024, 10));
       assertThat(response.monthly()).extracting(MonthlyProfit::profitKrw)
         .usingElementComparator(BigDecimal::compareTo)
-        .containsExactly(new BigDecimal("2000"), new BigDecimal("1000"));
+        .containsExactly(new BigDecimal("300"), new BigDecimal("2000"), new BigDecimal("1000"));
     }
 
     @Test
@@ -645,6 +650,143 @@ class PortfolioStatsCalculatorTest {
       assertThat(noTodayRate.exchanges()).extracting(Exchange::effectKrw)
         .usingElementComparator(BigDecimal::compareTo)
         .containsExactly(BigDecimal.ZERO, BigDecimal.ZERO);
+    }
+  }
+
+  @Nested
+  @DisplayName("거래 패턴")
+  class Habits {
+
+    private static final LocalDate START = BEFORE.plusDays(1);
+
+    private TradingHabitsResponse habits(List<Trade> trades) {
+      return PortfolioStatsCalculator.habits(List.of(trades), START, TODAY, 2);
+    }
+
+    private Trade otherAccount(TradeType type, String symbol, String quantity, String price, LocalDate tradeDate) {
+      return trade(4L, type, symbol, quantity, price, "0.00", tradeDate, TradeStatus.COMPLETED);
+    }
+
+    @Test
+    @DisplayName("기간 첫 날부터 오늘까지 거래일의 완료 체결만 매수 · 매도 수 · 거래한 날 · 요일마다 체결 수로 세고 요일은 월요일부터 일요일까지 7개다")
+    void habits_CountsTradesInPeriod() {
+      TradingHabitsResponse response = habits(List.of(
+        buy("AAPL", "10", "100.00", "0.00", BEFORE),
+        buy("AAPL", "5", "110.00", "0.00", START),
+        buy("MSFT", "2", "50.00", "0.00", START),
+        sell("AAPL", "3", "120.00", "0.00", LocalDate.of(2024, 10, 14)),
+        trade(3L, TradeType.SELL, "AAPL", "1", "120.00", "0.00", LocalDate.of(2024, 10, 15), TradeStatus.PENDING),
+        trade(3L, TradeType.BUY, "AAPL", "1", "120.00", "0.00", LocalDate.of(2024, 10, 16), TradeStatus.CANCELLED),
+        buy("AAPL", "1", "130.00", "0.00", LocalDate.of(2024, 10, 19)),
+        buy("MSFT", "1", "55.00", "0.00", TODAY)));
+
+      assertThat(response.buyCount()).isEqualTo(4);
+      assertThat(response.sellCount()).isEqualTo(1);
+      assertThat(response.tradingDays()).isEqualTo(4);
+      assertThat(response.weekdays()).extracting(WeekdayTrades::weekday).containsExactly(DayOfWeek.values());
+      assertThat(response.weekdays()).extracting(WeekdayTrades::count).containsExactly(1, 0, 0, 0, 2, 1, 1);
+    }
+
+    @Test
+    @DisplayName("평균 보유 기간은 기간 안 매도마다 판 수량을 계좌 · 종목마다 먼저 산 매수부터 짝짓고 기간 앞 매도가 쓴 수량은 빼며 짝지은 수량으로 가중 평균해 소수 첫째에서 반올림한다")
+    void habits_AverageHoldingDaysFirstInFirstOut() {
+      List<Trade> account = List.of(
+        buy("AAPL", "4", "100.00", "0.00", LocalDate.of(2024, 9, 2)),
+        buy("AAPL", "6", "100.00", "0.00", LocalDate.of(2024, 10, 2)),
+        sell("AAPL", "2", "100.00", "0.00", LocalDate.of(2024, 10, 5)),
+        sell("AAPL", "5", "100.00", "0.00", LocalDate.of(2024, 10, 21)),
+        buy("AAPL", "3", "100.00", "0.00", LocalDate.of(2024, 10, 25)),
+        sell("AAPL", "4", "100.00", "0.00", LocalDate.of(2024, 11, 4)),
+        buy("MSFT", "2", "50.00", "0.00", LocalDate.of(2024, 9, 2)));
+      List<Trade> other = List.of(
+        otherAccount(TradeType.BUY, "MSFT", "2", "50.00", LocalDate.of(2024, 10, 14)),
+        otherAccount(TradeType.SELL, "MSFT", "2", "50.00", LocalDate.of(2024, 10, 21)));
+
+      TradingHabitsResponse response = PortfolioStatsCalculator.habits(List.of(account, other), START, TODAY, 2);
+
+      assertThat(response.averageHoldingDays()).isEqualByComparingTo("25.3").hasScaleOf(1);
+    }
+
+    @Test
+    @DisplayName("보유보다 많이 판 매도는 들고 있던 수량만 짝짓고, 들고 있던 것이 없는 매도뿐이면 평균 보유 기간은 비우고 패로 센다")
+    void habits_OversoldAndUncoveredSells() {
+      TradingHabitsResponse oversold = habits(List.of(
+        buy("AAPL", "2", "100.00", "0.00", LocalDate.of(2024, 10, 14)),
+        sell("AAPL", "5", "110.00", "0.00", LocalDate.of(2024, 10, 21)),
+        buy("AAPL", "1", "100.00", "0.00", LocalDate.of(2024, 10, 22)),
+        sell("AAPL", "1", "100.00", "0.00", LocalDate.of(2024, 11, 1))));
+      TradingHabitsResponse uncovered = habits(List.of(
+        sell("AAPL", "1", "110.00", "0.00", LocalDate.of(2024, 10, 21))));
+
+      assertThat(oversold.averageHoldingDays()).isEqualByComparingTo("8.0");
+      assertThat(oversold.winCount()).isEqualTo(1);
+      assertThat(uncovered.averageHoldingDays()).isNull();
+      assertThat(uncovered.sellCount()).isEqualTo(1);
+      assertThat(uncovered.winCount()).isZero();
+      assertThat(uncovered.lossCount()).isEqualTo(1);
+      assertThat(uncovered.winRatePercent()).isEqualByComparingTo("0.00");
+    }
+
+    @Test
+    @DisplayName("수익 낸 매도(승)는 소수 둘째에서 반올림한 실현 손익이 0 보다 큰 기간 안 매도이고 수수료는 실현 손익에 넣지 않으며 승률은 승 수 ÷ 매도 수 × 100 이다")
+    void habits_WinsAndLosses() {
+      TradingHabitsResponse response = habits(List.of(
+        buy("AAPL", "2", "100.00", "0.00", LocalDate.of(2024, 10, 1)),
+        sell("AAPL", "1", "200.00", "0.00", BEFORE),
+        sell("AAPL", "1", "110.00", "25.00", LocalDate.of(2024, 10, 15)),
+        buy("MSFT", "3", "100.00", "0.00", LocalDate.of(2024, 10, 1)),
+        sell("MSFT", "1", "100.00", "0.00", LocalDate.of(2024, 10, 16)),
+        buy("KO", "1", "50.00", "0.00", LocalDate.of(2024, 10, 1)),
+        sell("KO", "1", "40.00", "0.00", LocalDate.of(2024, 10, 17))));
+
+      assertThat(response.sellCount()).isEqualTo(3);
+      assertThat(response.winCount()).isEqualTo(1);
+      assertThat(response.lossCount()).isEqualTo(2);
+      assertThat(response.winRatePercent()).isEqualByComparingTo("33.33").hasScaleOf(2);
+    }
+
+    @Test
+    @DisplayName("많이 거래한 종목은 기간 안 체결 수 많은 순 5개이고 같으면 체결 금액 큰 순, 그다음 종목 이름 순이며 체결 금액은 수수료를 넣지 않은 수량 × 체결가 합이다")
+    void habits_TopSymbols() {
+      TradingHabitsResponse response = habits(List.of(
+        buy("AMZN", "1", "10.00", "0.00", BEFORE),
+        buy("AMZN", "1", "10.00", "0.00", BEFORE),
+        buy("AMZN", "1", "10.00", "0.00", BEFORE),
+        buy("AMZN", "1", "150.00", "0.00", START),
+        buy("AAPL", "2", "100.00", "1.00", START),
+        buy("AAPL", "1", "110.00", "1.00", START),
+        sell("AAPL", "1", "120.00", "1.00", LocalDate.of(2024, 10, 14)),
+        buy("MSFT", "1", "300.00", "0.00", START),
+        sell("MSFT", "1", "310.00", "0.00", LocalDate.of(2024, 10, 14)),
+        buy("NVDA", "1", "100.00", "0.00", START),
+        buy("NVDA", "1", "81.50", "0.00", START),
+        buy("KO", "2", "60.00", "0.00", START),
+        buy("KO", "0.5", "123.00", "0.00", START),
+        buy("TSLA", "0.333333", "600.00", "0.00", START)));
+
+      assertThat(response.topSymbols()).extracting(SymbolTrades::symbol)
+        .containsExactly("AAPL", "MSFT", "KO", "NVDA", "TSLA");
+      assertThat(response.topSymbols()).extracting(SymbolTrades::amountUsd)
+        .usingElementComparator(BigDecimal::compareTo)
+        .containsExactly(new BigDecimal("430.00"), new BigDecimal("610.00"), new BigDecimal("181.50"),
+          new BigDecimal("181.50"), new BigDecimal("200.00"));
+      SymbolTrades aapl = response.topSymbols().getFirst();
+      assertThat(aapl.tradeCount()).isEqualTo(3);
+      assertThat(aapl.buyCount()).isEqualTo(2);
+      assertThat(aapl.sellCount()).isEqualTo(1);
+      assertThat(response.topSymbols().getLast().amountUsd()).hasScaleOf(2);
+    }
+
+    @Test
+    @DisplayName("기간 안 체결이 없으면 수는 0 · 평균 보유 기간과 승률은 비우고 요일 7개는 모두 0 · 많이 거래한 종목은 빈 목록이다")
+    void habits_NoTradesInPeriod() {
+      TradingHabitsResponse empty = new TradingHabitsResponse(0, 0, 0, null, 0, 0, null,
+        Stream.of(DayOfWeek.values()).map(weekday -> new WeekdayTrades(weekday, 0)).toList(), List.of());
+
+      assertThat(PortfolioStatsCalculator.habits(List.of(), START, TODAY, 2)).isEqualTo(empty);
+      assertThat(habits(List.of(
+        buy("AAPL", "1", "100.00", "0.00", D1),
+        sell("AAPL", "1", "110.00", "0.00", BEFORE)))).isEqualTo(empty);
     }
   }
 }

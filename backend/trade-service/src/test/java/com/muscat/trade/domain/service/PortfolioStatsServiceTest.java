@@ -30,6 +30,9 @@ import com.muscat.trade.domain.dto.response.ProfitDetailResponse.Sale;
 import com.muscat.trade.domain.dto.response.ProfitFlowResponse.ProfitPoint;
 import com.muscat.trade.domain.dto.response.SymbolContributionResponse;
 import com.muscat.trade.domain.dto.response.SymbolContributionResponse.SymbolContribution;
+import com.muscat.trade.domain.dto.response.TradingHabitsResponse;
+import com.muscat.trade.domain.dto.response.TradingHabitsResponse.SymbolTrades;
+import com.muscat.trade.domain.dto.response.TradingHabitsResponse.WeekdayTrades;
 import com.muscat.trade.domain.entity.DividendPayout;
 import com.muscat.trade.domain.entity.Trade;
 import com.muscat.trade.domain.repository.DividendPayoutRepository;
@@ -428,7 +431,63 @@ class PortfolioStatsServiceTest {
   }
 
   @Test
-  @DisplayName("체결이 없는 계좌는 빈 목록 · 합 0 이고 시세는 부르지 않는다")
+  @DisplayName("거래 패턴은 그 계좌의 기간 안 완료 체결로 세고 보유 기간은 기간 앞 매수부터 짝지으며 시세 · 환율은 부르지 않는다")
+  void habits_OneAccount() {
+    ownAccount(List.of(
+        buy(ACCOUNT, "AAPL", "10", "100.00", "0.00", LocalDate.of(2024, 9, 2)),
+        buy(ACCOUNT, "AAPL", "5", "110.00", "1.00", LocalDate.of(2024, 10, 14)),
+        sell(ACCOUNT, "AAPL", "12", "120.00", "1.00", LocalDate.of(2024, 10, 21)),
+        trade(ACCOUNT, TradeType.SELL, "AAPL", "1", "130.00", "0.00", LocalDate.of(2024, 11, 5),
+          TradeStatus.PENDING),
+        sell(ACCOUNT, "AAPL", "3", "100.00", "0.00", CLOSE_DATE)),
+      payout("AAPL", LocalDate.of(2024, 10, 15), "2.00"));
+
+    TradingHabitsResponse response = service.habits(USER, "3", FlowPeriod.ONE_MONTH);
+
+    assertThat(response.buyCount()).isEqualTo(1);
+    assertThat(response.sellCount()).isEqualTo(2);
+    assertThat(response.tradingDays()).isEqualTo(3);
+    assertThat(response.averageHoldingDays()).isEqualByComparingTo("38.6");
+    assertThat(response.winCount()).isEqualTo(1);
+    assertThat(response.lossCount()).isEqualTo(1);
+    assertThat(response.winRatePercent()).isEqualByComparingTo("50.00");
+    assertThat(response.weekdays()).extracting(WeekdayTrades::count).containsExactly(2, 0, 0, 0, 1, 0, 0);
+    assertThat(response.topSymbols()).hasSize(1);
+    SymbolTrades aapl = response.topSymbols().getFirst();
+    assertThat(aapl.symbol()).isEqualTo("AAPL");
+    assertThat(aapl.tradeCount()).isEqualTo(3);
+    assertThat(aapl.buyCount()).isEqualTo(1);
+    assertThat(aapl.sellCount()).isEqualTo(2);
+    assertThat(aapl.amountUsd()).isEqualByComparingTo("2290.00");
+    verifyNoInteractions(marketServiceClientWrapper, profitFlowService, userServiceClientWrapper);
+  }
+
+  @Test
+  @DisplayName("전체 계좌 거래 패턴은 보유 기간을 계좌마다 짝짓고 거래한 날과 많이 거래한 종목은 계좌를 합친다")
+  void habits_AllAccounts() {
+    LocalDate sameDay = LocalDate.of(2024, 10, 21);
+    given(tradeRepository.findByUserId(USER)).willReturn(List.of(
+      buy(ACCOUNT, "MSFT", "1", "50.00", "0.00", sameDay),
+      sell(4L, "AAPL", "1", "110.00", "0.00", sameDay),
+      buy(4L, "AAPL", "1", "100.00", "0.00", LocalDate.of(2024, 10, 14)),
+      buy(ACCOUNT, "AAPL", "1", "100.00", "0.00", LocalDate.of(2024, 9, 2))));
+    given(dividendPayoutRepository.findByUserId(USER)).willReturn(List.of());
+
+    TradingHabitsResponse response = service.habits(USER, "all", FlowPeriod.ALL);
+
+    assertThat(response.buyCount()).isEqualTo(3);
+    assertThat(response.sellCount()).isEqualTo(1);
+    assertThat(response.tradingDays()).isEqualTo(3);
+    assertThat(response.averageHoldingDays()).isEqualByComparingTo("7.0");
+    assertThat(response.winRatePercent()).isEqualByComparingTo("100.00");
+    assertThat(response.topSymbols()).extracting(SymbolTrades::symbol).containsExactly("AAPL", "MSFT");
+    assertThat(response.topSymbols().getFirst().tradeCount()).isEqualTo(3);
+    assertThat(response.topSymbols().getFirst().amountUsd()).isEqualByComparingTo("310.00");
+    verify(tradeRepository, never()).findFirstByAccountIdOrderByIdAsc(any());
+  }
+
+  @Test
+  @DisplayName("체결이 없는 계좌는 빈 목록 · 합 0 · 수 0 이고 시세는 부르지 않는다")
   void emptyAccount_NoMarketCalls() {
     given(tradeRepository.findFirstByAccountIdOrderByIdAsc(ACCOUNT)).willReturn(Optional.empty());
     given(tradeRepository.findByUserIdAndAccountId(USER, ACCOUNT)).willReturn(List.of());
@@ -437,6 +496,7 @@ class PortfolioStatsServiceTest {
     ProfitDetailResponse profit = service.profit(USER, "3", FlowPeriod.THREE_MONTHS);
     SymbolContributionResponse symbols = service.symbols(USER, "3", FlowPeriod.ONE_YEAR);
     DividendStatsResponse dividends = service.dividends(USER, "3", FlowPeriod.ALL);
+    TradingHabitsResponse habits = service.habits(USER, "3", FlowPeriod.ONE_MONTH);
 
     assertThat(profit.monthly()).isEmpty();
     assertThat(profit.sales()).isEmpty();
@@ -447,6 +507,13 @@ class PortfolioStatsServiceTest {
     assertThat(symbols.totalKrw()).isEqualByComparingTo("0");
     assertThat(dividends.payouts()).isEmpty();
     assertThat(dividends.netKrw()).isEqualByComparingTo("0");
+    assertThat(habits.buyCount()).isZero();
+    assertThat(habits.sellCount()).isZero();
+    assertThat(habits.tradingDays()).isZero();
+    assertThat(habits.averageHoldingDays()).isNull();
+    assertThat(habits.winRatePercent()).isNull();
+    assertThat(habits.weekdays()).extracting(WeekdayTrades::count).containsExactly(0, 0, 0, 0, 0, 0, 0);
+    assertThat(habits.topSymbols()).isEmpty();
     verifyNoInteractions(marketServiceClientWrapper);
   }
 
@@ -463,6 +530,8 @@ class PortfolioStatsServiceTest {
       .isInstanceOf(TradeException.class)
       .hasFieldOrPropertyWithValue("errorCode", TradeResponse.ACCOUNT_ACCESS_DENIED.name());
     assertThatThrownBy(() -> service.dividends(USER, "3", FlowPeriod.ALL))
+      .hasFieldOrPropertyWithValue("errorCode", TradeResponse.ACCOUNT_ACCESS_DENIED.name());
+    assertThatThrownBy(() -> service.habits(USER, "3", FlowPeriod.ALL))
       .hasFieldOrPropertyWithValue("errorCode", TradeResponse.ACCOUNT_ACCESS_DENIED.name());
     assertThatThrownBy(() -> service.fx(USER, "3", FlowPeriod.ALL))
       .hasFieldOrPropertyWithValue("errorCode", TradeResponse.ACCOUNT_ACCESS_DENIED.name());

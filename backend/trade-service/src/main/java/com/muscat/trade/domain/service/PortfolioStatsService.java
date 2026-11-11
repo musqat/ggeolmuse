@@ -8,6 +8,7 @@ import com.muscat.trade.domain.dto.response.FxStatsResponse;
 import com.muscat.trade.domain.dto.response.ProfitDetailResponse;
 import com.muscat.trade.domain.dto.response.ProfitFlowResponse.ProfitPoint;
 import com.muscat.trade.domain.dto.response.SymbolContributionResponse;
+import com.muscat.trade.domain.dto.response.TradingHabitsResponse;
 import com.muscat.trade.domain.entity.DividendPayout;
 import com.muscat.trade.domain.entity.Trade;
 import com.muscat.trade.domain.service.PortfolioStatsCalculator.Replay;
@@ -127,6 +128,14 @@ public class PortfolioStatsService {
       fxDates.add(start.minusDays(1));
     }
     return PortfolioStatsCalculator.fx(exchanges, start, today, portfolioStatsReader.fxRates(fxDates));
+  }
+
+  // 기간 안 거래일의 완료 체결로 센 거래 패턴, accountId 는 계좌 ID 또는 all
+  public TradingHabitsResponse habits(String userId, String accountId, FlowPeriod period) {
+    List<AccountActivity> activities = portfolioStatsReader.activities(userId, accountId);
+    LocalDate today = LocalDate.now(clock);
+    return PortfolioStatsCalculator.habits(activities.stream().map(AccountActivity::trades).toList(),
+      period.startFrom(today), today, tradeProperties.getCalculation().getPricePrecision());
   }
 
   private List<Replay> replay(List<AccountActivity> activities, LocalDate until) {
