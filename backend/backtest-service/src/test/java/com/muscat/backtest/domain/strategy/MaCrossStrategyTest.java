@@ -19,6 +19,7 @@ import com.muscat.backtest.common.enums.type.SkipReason;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
+import com.muscat.backtest.domain.dto.request.PartialTakeProfit;
 import com.muscat.backtest.domain.dto.request.MaCrossStrategyRequest;
 import com.muscat.backtest.domain.dto.response.CapitalGainsTax;
 import com.muscat.backtest.domain.dto.response.SignalChart;
@@ -646,7 +647,7 @@ class MaCrossStrategyTest {
     }
 
     @Test
-    @DisplayName("팔 비율을 주면 보유의 그만큼만 팔고, 같은 날 데드 크로스가 나면 데드 크로스로 남은 주식을 팔며 판 돈을 모아 다음 골든 크로스에 산다")
+    @DisplayName("팔 비율을 주면 보유의 그만큼만 팔고, 그 뒤 데드 크로스가 나면 데드 크로스로 남은 주식을 팔며 판 돈을 모아 다음 골든 크로스에 산다")
     void partialSaleThenDeadCross() {
       stubMarket(trailing());
 
@@ -678,6 +679,89 @@ class MaCrossStrategyTest {
         tuple(START.plusDays(1), "10", "골든 크로스", "100"),
         tuple(START.plusDays(6), "12", "데드 크로스", "-100"),
         tuple(START.plusDays(8), "40", "골든 크로스", "30"));
+    }
+  }
+
+  private static PartialTakeProfit step(String gainRate, String sellRate) {
+    return new PartialTakeProfit(new BigDecimal(gainRate), new BigDecimal(sellRate));
+  }
+
+  @Nested
+  @DisplayName("부분 익절")
+  class PartialTakeProfits {
+
+    @Test
+    @DisplayName("종가가 평균 단가 × (1 + 수익률) 이상인 날 그 종가에 보유의 팔 비율만큼 하루에 한 단계씩 팔고, 데드 크로스로 남은 주식을 팔아 판 돈을 모아 다음 골든 크로스에 산다")
+    void sellsStepsThenDeadCross() {
+      stubMarket(trailing());
+
+      StrategyResponse response = strategy.execute(request(8)
+        .partialTakeProfits(List.of(step("0.5", "0.5"), step("1", "0.5"))).build());
+
+      // 평균 단가 10: 2일째 20 은 두 단계를 다 넘어 첫 단계만, 3일째 22 에 둘째 단계
+      assertThat(trades()).containsExactly(
+        tuple(START.plusDays(1), "10", "골든 크로스", "100"),
+        tuple(START.plusDays(2), "20", "부분 익절 +50%", "-50"),
+        tuple(START.plusDays(3), "22", "부분 익절 +100%", "-25"),
+        tuple(START.plusDays(6), "12", "데드 크로스", "-25"),
+        tuple(START.plusDays(8), "40", "골든 크로스", "46.25"));
+      List<StrategyTransaction> trades = executed();
+      // 원가 1000달러를 판 수량 비율만큼: 1000 - 500, 550 - 250, 300 - 250
+      assertThat(trades.subList(1, 4)).extracting(StrategyTransaction::getRealizedProfit)
+        .usingElementComparator(BigDecimal::compareTo)
+        .containsExactly(new BigDecimal("500"), new BigDecimal("300"), new BigDecimal("50"));
+      assertThat(trades.get(4).getCashUsed()).isEqualByComparingTo("1850");
+      assertThat(response.getTradeStats().partialTakeProfitCount()).isEqualTo(2);
+      assertThat(response.getTradeStats().cycleCount()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("트레일링 스탑이 판 날은 부분 익절을 보지 않고 다음 날 본다")
+    void trailingStopFirst() {
+      stubMarket(trailing());
+
+      strategy.execute(request(8).trailingStopRate(new BigDecimal("0.1")).trailingSellRate(new BigDecimal("0.5"))
+        .partialTakeProfits(List.of(step("0.5", "0.1"), step("0.6", "0.1"), step("0.7", "0.1"))).build());
+
+      // 4일째 19.8 은 고점 22 대비 -10% 이면서 셋째 단계(17) 위
+      assertThat(trades()).containsExactly(
+        tuple(START.plusDays(1), "10", "골든 크로스", "100"),
+        tuple(START.plusDays(2), "20", "부분 익절 +50%", "-10"),
+        tuple(START.plusDays(3), "22", "부분 익절 +60%", "-9"),
+        tuple(START.plusDays(4), "19.8", "고점 대비 하락 매도 10.0%", "-40.5"),
+        tuple(START.plusDays(5), "25", "부분 익절 +70%", "-4.05"),
+        tuple(START.plusDays(6), "12", "데드 크로스", "-36.45"),
+        tuple(START.plusDays(8), "40", "골든 크로스", "43.46375"));
+    }
+
+    @Test
+    @DisplayName("팔 비율 100% 단계로 다 팔면 짧은 선이 위에 있어도 다음 골든 크로스에 판 돈 전부로 다시 산다")
+    void fullSaleWaitsForNextGoldenCross() {
+      stubMarket(trailing());
+
+      strategy.execute(request(8).partialTakeProfits(List.of(step("0.5", "1"))).build());
+
+      assertThat(trades()).containsExactly(
+        tuple(START.plusDays(1), "10", "골든 크로스", "100"),
+        tuple(START.plusDays(2), "20", "부분 익절 +50%", "-100"),
+        tuple(START.plusDays(8), "40", "골든 크로스", "50"));
+    }
+
+    @Test
+    @DisplayName("다 판 뒤 다음 골든 크로스에 다시 사면 새 사이클은 첫 단계부터 본다")
+    void reopensLadderOnNextCycle() {
+      List<OHLCPriceDto> prices = new ArrayList<>(trailing());
+      // 다시 산 값 40 의 +50%, 짧은 선이 아직 위
+      prices.add(day(9, "60"));
+      stubMarket(prices);
+
+      strategy.execute(request(9).partialTakeProfits(List.of(step("0.5", "1"))).build());
+
+      assertThat(trades()).containsExactly(
+        tuple(START.plusDays(1), "10", "골든 크로스", "100"),
+        tuple(START.plusDays(2), "20", "부분 익절 +50%", "-100"),
+        tuple(START.plusDays(8), "40", "골든 크로스", "50"),
+        tuple(START.plusDays(9), "60", "부분 익절 +50%", "-50"));
     }
   }
 
@@ -800,12 +884,16 @@ class MaCrossStrategyTest {
       invalid("트레일링 스탑 하락 비율 0", b -> b.trailingStopRate(BigDecimal.ZERO), BacktestResponse.INVALID_TRAILING_STOP),
       invalid("트레일링 스탑 팔 비율만", b -> b.trailingSellRate(new BigDecimal("0.5")),
         BacktestResponse.INVALID_TRAILING_STOP),
+      invalid("부분 익절 수익률이 앞 단계보다 작음", b -> b.partialTakeProfits(List.of(step("0.3", "0.5"), step("0.2", "0.5"))),
+        BacktestResponse.INVALID_PARTIAL_TAKE_PROFIT),
+      invalid("부분 익절 팔 비율 0", b -> b.partialTakeProfits(List.of(step("0.2", "0"))),
+        BacktestResponse.INVALID_PARTIAL_TAKE_PROFIT),
       invalid("배당 재투자", b -> b.reinvestDividends(true), BacktestResponse.SELL_WITH_REINVEST));
   }
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("invalidRequests")
-  @DisplayName("종목 · 기간 · 원금 · 이동평균 기간 · 트레일링 스탑이 맞지 않거나 배당 재투자를 켜면 시세를 받기 전에 막는다")
+  @DisplayName("종목 · 기간 · 원금 · 이동평균 기간 · 트레일링 스탑 · 부분 익절이 맞지 않거나 배당 재투자를 켜면 시세를 받기 전에 막는다")
   void rejects(String label, UnaryOperator<MaCrossStrategyRequest.MaCrossStrategyRequestBuilder> change,
     BacktestResponse code) {
     MaCrossStrategyRequest request = change.apply(request(7)).build();

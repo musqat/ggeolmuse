@@ -69,6 +69,9 @@ public final class BacktestConstants {
 
     /** 종가가 기준가보다 정한 비율 이상 내린 날 보유의 정한 몫을 팖 (뒤에 기준가 대비 하락 %) */
     public static final String TRAILING_STOP = "고점 대비 하락 매도";
+
+    /** 종가가 평균 단가보다 단계 수익률 이상 오른 날 보유의 단계 몫을 팖 (뒤에 단계 수익률 +%) */
+    public static final String PARTIAL_TAKE_PROFIT = "부분 익절";
   }
 
   /**
@@ -148,6 +151,13 @@ public final class BacktestConstants {
     /** 트레일링 스탑 검사 오류 문구 */
     public static final String TRAILING_STOP_MESSAGE =
       "고점 대비 하락 비율은 0% 초과 100% 미만, 팔 비율은 하락 비율과 함께 0% 초과 100% 이하여야 합니다";
+
+    /** 부분 익절 단계 수 상한 */
+    public static final int MAX_PARTIAL_TAKE_PROFITS = 5;
+
+    /** 부분 익절 검사 오류 문구 */
+    public static final String PARTIAL_TAKE_PROFIT_MESSAGE =
+      "부분 익절은 5단계까지, 수익률은 0% 초과로 앞 단계보다 크고 팔 비율은 0% 초과 100% 이하여야 합니다";
   }
 
   /**

@@ -11,12 +11,14 @@ import { FirstDateField } from './FirstDateField'
 import { ConditionField } from './ConditionField'
 import { SellField } from './SellField'
 import { TrailingStopField } from './TrailingStopField'
+import { PartialTakeProfitField } from './PartialTakeProfitField'
 import { MaxField } from './MaxField'
 import { WindowsField } from './WindowsField'
 import { BandField } from './BandField'
 import { SymbolField, SymbolsField } from './SymbolFields'
 import { SignalSymbolField } from './SignalSymbolField'
 import type { AmountUnitState } from '../shared/amountUnit'
+import type { TakeProfitStep } from '../shared/partialTakeProfit'
 
 // 기대값은 TZ=Asia/Seoul 전제 (vitest.config.ts 에서 고정)
 const dayButton = (day: string) =>
@@ -389,6 +391,91 @@ describe('TrailingStopField', () => {
     expect(stopInput()).not.toHaveAttribute('aria-invalid')
     expect(sellInput()).toHaveAttribute('aria-invalid', 'true')
     expect(sellInput()).toHaveAttribute('aria-describedby', screen.getByText('하락 비율과 함께').id)
+  })
+})
+
+describe('PartialTakeProfitField', () => {
+  const ok = { gain: null, sell: null }
+  const gainInput = (n: number) => screen.getByRole('textbox', { name: `${n}단계 수익률(평균 단가 대비 퍼센트)` })
+  const sellInput = (n: number) => screen.getByRole('textbox', { name: `${n}단계 팔 비율(보유 대비 퍼센트)` })
+  const addButton = () => screen.getByRole('button', { name: '＋ 단계 더하기' })
+  const steps = (...pairs: [string, string][]): TakeProfitStep[] => pairs.map(([gain, sell]) => ({ gain, sell }))
+
+  // 단계를 화면 상태로 들고 있는 칸
+  const Harness = ({ initial }: { initial: TakeProfitStep[] }) => {
+    const [value, setValue] = useState(initial)
+    return <PartialTakeProfitField steps={value} onStepsChange={setValue} messages={value.map(() => ok)} />
+  }
+
+  it('단계가 없으면 이름 줄의 평균 단가 대비와 안 함 · 단계 더하기만 보이고, 더하면 빈 단계를 뒤에 잇는다', async () => {
+    const onSteps = vi.fn()
+    render(<PartialTakeProfitField steps={[]} onStepsChange={onSteps} messages={[]} />)
+
+    expect(screen.getByText('부분 익절')).toBeInTheDocument()
+    expect(screen.getByText('평균 단가 대비')).toBeInTheDocument()
+    expect(screen.getByText('안 함')).toBeInTheDocument()
+    expect(screen.queryByRole('textbox')).toBeNull()
+
+    await userEvent.click(addButton())
+    expect(onSteps).toHaveBeenLastCalledWith([{ gain: '', sell: '' }])
+  })
+
+  it('단계마다 + 수익률 % 오르면 · 보유의 팔 비율 % 팔기와 지우기 단추를 두고, 소수까지 넘기며 지우면 그 단계만 뺀다', async () => {
+    const onSteps = vi.fn()
+    render(<PartialTakeProfitField steps={steps(['20', '25'], ['50', '100'])} onStepsChange={onSteps} messages={[ok, ok]} />)
+
+    expect(gainInput(1)).toHaveValue('20')
+    expect(sellInput(2)).toHaveValue('100')
+    expect(gainInput(1).closest('[data-step]')).toHaveTextContent('+%오르면· 보유의%팔기')
+    expect(screen.queryByText('안 함')).toBeNull()
+
+    fireEvent.change(gainInput(2), { target: { value: '7..5%' } })
+    expect(onSteps).toHaveBeenLastCalledWith(steps(['20', '25'], ['7.5', '100']))
+    fireEvent.change(sellInput(1), { target: { value: '33.3%' } })
+    expect(onSteps).toHaveBeenLastCalledWith(steps(['20', '33.3'], ['50', '100']))
+
+    await userEvent.click(screen.getByRole('button', { name: '1단계 지우기' }))
+    expect(onSteps).toHaveBeenLastCalledWith(steps(['50', '100']))
+  })
+
+  it('더하면 새 단계의 수익률 칸으로, 지우면 그 자리 단계(없으면 앞 단계, 다 지우면 더하기 단추)로 포커스를 옮긴다', async () => {
+    render(<Harness initial={steps(['10', '50'])} />)
+
+    await userEvent.click(addButton())
+    await vi.waitFor(() => expect(gainInput(2)).toHaveFocus())
+
+    await userEvent.click(screen.getByRole('button', { name: '2단계 지우기' }))
+    await vi.waitFor(() => expect(gainInput(1)).toHaveFocus())
+    await userEvent.click(screen.getByRole('button', { name: '1단계 지우기' }))
+    await vi.waitFor(() => expect(addButton()).toHaveFocus())
+  })
+
+  it('5단계면 더하기 단추 대신 최대 5단계를 보인다', () => {
+    const five = steps(['10', '10'], ['20', '10'], ['30', '10'], ['40', '10'], ['50', '10'])
+    render(<PartialTakeProfitField steps={five} onStepsChange={vi.fn()} messages={five.map(() => ok)} />)
+
+    expect(screen.queryByRole('button', { name: '＋ 단계 더하기' })).toBeNull()
+    expect(screen.getByText('최대 5단계')).toBeInTheDocument()
+  })
+
+  it('오류가 있는 칸만 오류로 두고 칸 아래 한 줄은 앞 단계 것 하나, 그 글을 낸 칸만 그 줄과 잇는다', () => {
+    render(
+      <PartialTakeProfitField
+        steps={steps(['20', '25'], ['20', ''])}
+        onStepsChange={vi.fn()}
+        messages={[
+          ok,
+          { gain: { kind: 'error', text: '2단계 수익률 앞 단계보다 크게' }, sell: { kind: 'error', text: '2단계 팔 비율 비어 있음' } },
+        ]}
+      />
+    )
+
+    expect(gainInput(1)).not.toHaveAttribute('aria-invalid')
+    expect(gainInput(2)).toHaveAttribute('aria-invalid', 'true')
+    expect(gainInput(2)).toHaveAttribute('aria-describedby', screen.getByText('2단계 수익률 앞 단계보다 크게').id)
+    expect(sellInput(2)).toHaveAttribute('aria-invalid', 'true')
+    expect(sellInput(2)).not.toHaveAttribute('aria-describedby')
+    expect(screen.queryByText('2단계 팔 비율 비어 있음')).toBeNull()
   })
 })
 

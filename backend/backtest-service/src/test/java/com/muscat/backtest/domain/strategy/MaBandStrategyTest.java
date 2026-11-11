@@ -19,6 +19,7 @@ import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.domain.dto.request.MaBandStrategyRequest;
 import com.muscat.backtest.domain.dto.request.MaCrossStrategyRequest;
+import com.muscat.backtest.domain.dto.request.PartialTakeProfit;
 import com.muscat.backtest.domain.dto.response.CapitalGainsTax;
 import com.muscat.backtest.domain.dto.response.SignalChart;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
@@ -393,6 +394,33 @@ class MaBandStrategyTest {
     }
   }
 
+  private static PartialTakeProfit step(String gainRate, String sellRate) {
+    return new PartialTakeProfit(new BigDecimal(gainRate), new BigDecimal(sellRate));
+  }
+
+  @Nested
+  @DisplayName("부분 익절")
+  class PartialTakeProfits {
+
+    @Test
+    @DisplayName("팔 비율 100% 단계로 다 판 날 위 선 위였으면 위 선 아래로 한 번 내려온 뒤 다시 올라선 날 판 돈 전부로 산다")
+    void fullSaleWaitsBelowUpper() {
+      // 3일 평균 · 위 0% · 아래 10%: 평균 단가 20 에서 2일째 30(+50%) 에 다 팔고, 6일째 39 는 평균(39.33) 아래, 7일째 45 는 위
+      stubMarket(List.of(day(-2, "10"), day(-1, "10"), day(0, "10"), day(1, "20"), day(2, "30"), day(3, "40"),
+        day(4, "38"), day(5, "41"), day(6, "39"), day(7, "45")));
+
+      StrategyResponse response = strategy.execute(request(7).upperRate(BigDecimal.ZERO)
+        .partialTakeProfits(List.of(step("0.5", "1"))).build());
+
+      assertThat(trades()).containsExactly(
+        tuple(START.plusDays(1), "20", "밴드 위 매수", "50"),
+        tuple(START.plusDays(2), "30", "부분 익절 +50%", "-50"),
+        tuple(START.plusDays(7), "45", "밴드 위 매수", "33.33333333"));
+      assertThat(executed().getLast().getCashUsed()).isEqualByComparingTo("1500");
+      assertThat(response.getTradeStats().partialTakeProfitCount()).isEqualTo(1);
+    }
+  }
+
   // 시작일에서 offset 일 뒤 밴드 점(평균이 null 이면 세 칸 없음)
   private static SignalChart.Point point(int offset, String close, String average, String upper, String lower) {
     return SignalChart.Point.band(START.plusDays(offset), new BigDecimal(close),
@@ -462,12 +490,16 @@ class MaBandStrategyTest {
       invalid("트레일링 스탑 하락 비율 1", b -> b.trailingStopRate(BigDecimal.ONE), BacktestResponse.INVALID_TRAILING_STOP),
       invalid("트레일링 스탑 팔 비율 1 초과", b -> b.trailingStopRate(new BigDecimal("0.1"))
         .trailingSellRate(new BigDecimal("1.01")), BacktestResponse.INVALID_TRAILING_STOP),
+      invalid("부분 익절 6단계", b -> b.partialTakeProfits(List.of(step("0.1", "0.1"), step("0.2", "0.1"), step("0.3", "0.1"),
+        step("0.4", "0.1"), step("0.5", "0.1"), step("0.6", "0.1"))), BacktestResponse.INVALID_PARTIAL_TAKE_PROFIT),
+      invalid("부분 익절 팔 비율 1 초과", b -> b.partialTakeProfits(List.of(step("0.2", "1.01"))),
+        BacktestResponse.INVALID_PARTIAL_TAKE_PROFIT),
       invalid("배당 재투자", b -> b.reinvestDividends(true), BacktestResponse.SELL_WITH_REINVEST));
   }
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("invalidRequests")
-  @DisplayName("종목 · 기간 · 원금 · 밴드 기간 · 비율 · 트레일링 스탑이 맞지 않거나 배당 재투자를 켜면 시세를 받기 전에 막는다")
+  @DisplayName("종목 · 기간 · 원금 · 밴드 기간 · 비율 · 트레일링 스탑 · 부분 익절이 맞지 않거나 배당 재투자를 켜면 시세를 받기 전에 막는다")
   void rejects(String label, UnaryOperator<MaBandStrategyRequest.MaBandStrategyRequestBuilder> change,
     BacktestResponse code) {
     MaBandStrategyRequest request = change.apply(request(7)).build();

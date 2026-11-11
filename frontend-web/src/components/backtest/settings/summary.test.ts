@@ -6,6 +6,7 @@ import {
   detailParts,
   maBandHow,
   maCrossHow,
+  partialTakeProfitText,
   sellText,
   simpleHow,
   trailingText,
@@ -149,6 +150,44 @@ describe('요약 둘째 줄', () => {
     )
     expect(maBandHow({ amount: '1000000', window: '200', upper: '2.5', lower: '2.5', signal: '^GSPC', trailing })).toBe(
       `원금 100만원 · 신호 ^GSPC · 200일선 +2.5% 위로 오르면 가진 돈 전부로 사고, -2.5% 아래로 내려가면 전부 팜 · ${trailing}`
+    )
+  })
+
+  it('부분 익절은 단계가 없으면 빈 글, 단계마다 수익률에 보유의 팔 비율(100 이상은 전량, 빈 칸은 ?)을 평균 단가 기준으로 적는다', () => {
+    expect(partialTakeProfitText([])).toBe('')
+    expect(partialTakeProfitText([{ gain: ' 20 ', sell: '25' }])).toBe('부분 익절 +20%에 보유의 25%(평균 단가 기준)')
+    expect(
+      partialTakeProfitText([
+        { gain: '20', sell: '25' },
+        { gain: '50', sell: '100' },
+        { gain: '', sell: '' },
+      ])
+    ).toBe('부분 익절 +20%에 보유의 25%, +50%에 전량, +?%에 보유의 ?%(평균 단가 기준)')
+  })
+
+  it('조건부 · 이동평균 · 밴드 요약은 트레일링 스탑 뒤에 부분 익절 글을 잇는다', () => {
+    const trailing = '고점 대비 하락 매도 -10%(전량)'
+    const partial = '부분 익절 +20%에 보유의 25%(평균 단가 기준)'
+
+    expect(
+      conditionalHow({
+        percent: '5',
+        direction: 'DROP',
+        unit: won,
+        budget: '1000000',
+        maxPurchases: '',
+        weekdays: 260,
+        takeProfit: '',
+        stopLoss: '',
+        trailing,
+        partial,
+      })
+    ).toBe(`전날보다 5% 내릴 때마다 10만원 · 예산으로 최대 10회 ≈ 100만원 · ${trailing} · ${partial}`)
+    expect(maCrossHow({ amount: '1000000', short: '20', long: '60', partial })).toBe(
+      `원금 100만원 · 20일 선이 60일 선을 넘으면 가진 돈 전부로 사고, 아래로 내려가면 전부 팜 · ${partial}`
+    )
+    expect(maBandHow({ amount: '1000000', window: '200', upper: '2.5', lower: '2.5', trailing, partial })).toBe(
+      `원금 100만원 · 200일선 +2.5% 위로 오르면 가진 돈 전부로 사고, -2.5% 아래로 내려가면 전부 팜 · ${trailing} · ${partial}`
     )
   })
 

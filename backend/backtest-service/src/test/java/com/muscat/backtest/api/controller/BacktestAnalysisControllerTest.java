@@ -22,6 +22,7 @@ import com.muscat.backtest.config.SecurityConfig;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
 import com.muscat.backtest.domain.dto.request.MaBandStrategyRequest;
 import com.muscat.backtest.domain.dto.request.MaCrossStrategyRequest;
+import com.muscat.backtest.domain.dto.request.PartialTakeProfit;
 import com.muscat.backtest.domain.model.ComparisonItem;
 import com.muscat.backtest.domain.dto.response.ComparisonResponse;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
@@ -434,6 +435,48 @@ class BacktestAnalysisControllerTest {
   @DisplayName("트레일링 스탑 하락 비율이 0 초과 1 미만 밖이거나 팔 비율이 0 초과 1 이하 밖이거나 팔 비율만 있으면 400 이고 서비스까지 가지 않는다")
   void trailingStopRejected(String path, String label, String fields) throws Exception {
     postJson("/strategy/" + path, sellingBody(path) + "," + fields + "}")
+      .andExpect(status().isBadRequest());
+
+    verify(backtestAnalysisService, never()).runConditionalStrategy(any());
+    verify(backtestAnalysisService, never()).runMaCrossStrategy(any());
+    verify(backtestAnalysisService, never()).runMaBandStrategy(any());
+  }
+
+  @Test
+  @DisplayName("조건부 · 이동평균 교차 · 밴드 전략은 부분 익절 단계를 순서대로 그대로 넘긴다")
+  void partialTakeProfitsPassedThrough() throws Exception {
+    given(backtestAnalysisService.runConditionalStrategy(any()))
+      .willReturn(strategy("AAPL", StrategyType.CONDITIONAL_PURCHASE, "1"));
+    given(backtestAnalysisService.runMaCrossStrategy(any())).willReturn(strategy("AAPL", StrategyType.MA_CROSS, "1"));
+    given(backtestAnalysisService.runMaBandStrategy(any())).willReturn(strategy("AAPL", StrategyType.MA_BAND, "1"));
+    String ladder = ",\"partialTakeProfits\":[{\"gainRate\":0.1,\"sellRate\":0.5},{\"gainRate\":0.3,\"sellRate\":1}]}";
+
+    for (String path : List.of("conditional", "ma-cross", "ma-band")) {
+      postJson("/strategy/" + path, sellingBody(path) + ladder).andExpect(status().isOk());
+    }
+
+    List<PartialTakeProfit> steps = List.of(new PartialTakeProfit(new BigDecimal("0.1"), new BigDecimal("0.5")),
+      new PartialTakeProfit(new BigDecimal("0.3"), BigDecimal.ONE));
+    verify(backtestAnalysisService).runConditionalStrategy(argThat(r -> steps.equals(r.getPartialTakeProfits())));
+    verify(backtestAnalysisService).runMaCrossStrategy(argThat((MaCrossStrategyRequest r) ->
+      steps.equals(r.getPartialTakeProfits())));
+    verify(backtestAnalysisService).runMaBandStrategy(argThat((MaBandStrategyRequest r) ->
+      steps.equals(r.getPartialTakeProfits())));
+  }
+
+  @ParameterizedTest(name = "{0} {1}")
+  @CsvSource(delimiter = '|', value = {
+    "conditional|6단계|[{\"gainRate\":0.1,\"sellRate\":0.1},{\"gainRate\":0.2,\"sellRate\":0.1},{\"gainRate\":0.3,\"sellRate\":0.1},{\"gainRate\":0.4,\"sellRate\":0.1},{\"gainRate\":0.5,\"sellRate\":0.1},{\"gainRate\":0.6,\"sellRate\":0.1}]",
+    "conditional|수익률 0|[{\"gainRate\":0,\"sellRate\":0.5}]",
+    "ma-cross|수익률이 앞 단계와 같음|[{\"gainRate\":0.2,\"sellRate\":0.5},{\"gainRate\":0.2,\"sellRate\":0.5}]",
+    "ma-cross|팔 비율 0|[{\"gainRate\":0.2,\"sellRate\":0}]",
+    "ma-cross|수익률 비움|[{\"gainRate\":0.1,\"sellRate\":0.5},{\"sellRate\":0.5}]",
+    "ma-band|팔 비율 1 초과|[{\"gainRate\":0.2,\"sellRate\":1.01}]",
+    "ma-band|팔 비율 비움|[{\"gainRate\":0.2}]",
+    "ma-band|비운 단계|[null]"})
+  @DisplayName("부분 익절이 6단계 이상이거나 수익률이 0 초과 오름차순이 아니거나 팔 비율이 0 초과 1 이하 밖이거나 비운 칸이 있으면 400 이고 서비스까지 가지 않는다")
+  void partialTakeProfitsRejected(String path, String label, String steps) throws Exception {
+    postJson("/strategy/" + path, sellingBody(path) + ",\"partialTakeProfits\":" + steps + "}")
       .andExpect(status().isBadRequest());
 
     verify(backtestAnalysisService, never()).runConditionalStrategy(any());

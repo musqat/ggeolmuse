@@ -7,6 +7,7 @@ import com.muscat.backtest.common.enums.type.PriceDirection;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
@@ -15,8 +16,10 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -85,6 +88,11 @@ public class ConditionalStrategyRequest implements StrategyRequest {
   @DecimalMax(value = "1", message = SellRule.TRAILING_STOP_MESSAGE)
   private BigDecimal trailingSellRate;
 
+  @Schema(description = "부분 익절 단계: 수익률이 낮은 단계부터 사이클에 한 번씩, 하루에 한 단계 보유의 팔 비율만큼 팜 (5단계까지, 비우면 안 함)")
+  @Size(max = SellRule.MAX_PARTIAL_TAKE_PROFITS, message = SellRule.PARTIAL_TAKE_PROFIT_MESSAGE)
+  @Valid
+  private List<@NotNull(message = SellRule.PARTIAL_TAKE_PROFIT_MESSAGE) PartialTakeProfit> partialTakeProfits;
+
   @Schema(description = "최대 매수 횟수 (비우면 제한 없음, 예산과 먼저 닿는 쪽에서 멈춤)", example = "10")
   @Positive(message = "최대 매수 횟수는 0보다 커야 합니다")
   private Integer maxPurchases;
@@ -138,6 +146,14 @@ public class ConditionalStrategyRequest implements StrategyRequest {
   @AssertTrue(message = SellRule.TRAILING_STOP_MESSAGE)
   public boolean isTrailingSellWithStop() {
     return trailingSellRate == null || trailingStopRate != null;
+  }
+
+  // 부분 익절 수익률은 앞 단계보다 큼
+  @JsonIgnore
+  @Schema(hidden = true)
+  @AssertTrue(message = SellRule.PARTIAL_TAKE_PROFIT_MESSAGE)
+  public boolean isPartialTakeProfitAscending() {
+    return PartialTakeProfit.ascending(partialTakeProfits);
   }
 
   // 회당 금액 · 주식 수 표시("100000원" · "2주")

@@ -32,7 +32,7 @@ class TrailingStopTest {
     assertThat(stop.check(number("120"), number("10"), number("1000"))).isNull();
     assertThat(stop.check(number("108.01"), number("10"), number("1000"))).isNull();
     assertThat(stop.check(number("108"), number("10"), number("1000")))
-      .isEqualTo(new TrailingStop.Exit(number("10"), number("1000"), true, "고점 대비 하락 매도 10.0%"));
+      .isEqualTo(new SaleShare(number("10"), number("1000"), true, "고점 대비 하락 매도 10.0%"));
   }
 
   @Test
@@ -41,14 +41,14 @@ class TrailingStopTest {
     TrailingStop stop = TrailingStop.of(number("0.1"), number("0.5"));
     stop.open(number("100"), number("100"));
 
-    TrailingStop.Exit first = stop.check(number("90"), number("10"), number("1000"));
+    SaleShare first = stop.check(number("90"), number("10"), number("1000"));
     stop.sold(number("90"));
 
-    assertThat(first).isEqualTo(new TrailingStop.Exit(number("5.00000000"), number("500.00000000"), false,
+    assertThat(first).isEqualTo(new SaleShare(number("5.00000000"), number("500.00000000"), false,
       "고점 대비 하락 매도 10.0%"));
     assertThat(stop.check(number("81.01"), number("5"), number("500"))).isNull();
     assertThat(stop.check(number("81"), number("5"), number("500")))
-      .isEqualTo(new TrailingStop.Exit(number("2.50000000"), number("250.00000000"), false, "고점 대비 하락 매도 10.0%"));
+      .isEqualTo(new SaleShare(number("2.50000000"), number("250.00000000"), false, "고점 대비 하락 매도 10.0%"));
   }
 
   @Test
@@ -58,7 +58,7 @@ class TrailingStopTest {
     stop.open(number("100"), number("100"));
 
     assertThat(stop.check(number("90"), number("1"), number("100")))
-      .isEqualTo(new TrailingStop.Exit(number("0.12345679"), number("12.34567900"), false, "고점 대비 하락 매도 10.0%"));
+      .isEqualTo(new SaleShare(number("0.12345679"), number("12.34567900"), false, "고점 대비 하락 매도 10.0%"));
     assertThat(stop.check(number("90"), number("0.00000001"), number("1"))).isNull();
   }
 
@@ -69,6 +69,6 @@ class TrailingStopTest {
     stop.open(number("100"), number("100"));
 
     assertThat(stop.check(number("89.66"), number("3.5"), number("350")))
-      .isEqualTo(new TrailingStop.Exit(number("3.5"), number("350"), true, "고점 대비 하락 매도 10.3%"));
+      .isEqualTo(new SaleShare(number("3.5"), number("350"), true, "고점 대비 하락 매도 10.3%"));
   }
 }

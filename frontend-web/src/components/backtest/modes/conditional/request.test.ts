@@ -120,6 +120,35 @@ describe('buildConditionalRequest', () => {
     expect(buildConditionalRequest({ ...values, ...patch }, 'AAPL', ctx)).toEqual({ error })
   })
 
+  it('부분 익절 단계는 수익률 · 팔 퍼센트를 비율로 싣고, 함께 못 쓰는 배당 재투자는 끈다', () => {
+    const partialTakeProfits = [
+      { gain: '20', sell: '25' },
+      { gain: '50', sell: '100' },
+    ]
+    expect(buildConditionalRequest({ ...values, partialTakeProfits, reinvestDividends: true }, 'AAPL', ctx)).toMatchObject({
+      request: {
+        partialTakeProfits: [
+          { gainRate: 0.2, sellRate: 0.25 },
+          { gainRate: 0.5, sellRate: 1 },
+        ],
+        reinvestDividends: false,
+      },
+    })
+    const off = buildConditionalRequest({ ...values, partialTakeProfits: [], reinvestDividends: true }, 'AAPL', ctx)
+    expect('request' in off && off.request).toMatchObject({ reinvestDividends: true })
+    expect('request' in off && 'partialTakeProfits' in off.request).toBe(false)
+  })
+
+  it('부분 익절 수익률이 앞 단계보다 크지 않으면 막는다', () => {
+    const partialTakeProfits = [
+      { gain: '20', sell: '25' },
+      { gain: '20', sell: '25' },
+    ]
+    expect(buildConditionalRequest({ ...values, partialTakeProfits }, 'AAPL', ctx)).toEqual({
+      error: '부분 익절 2단계 수익률은 0보다 크고 앞 단계보다 커야 합니다.',
+    })
+  })
+
   it.each([
     [{ takeProfit: '0' }, '익절 비율은 0보다 커야 합니다.'],
     [{ stopLoss: '100' }, '손절 비율은 0보다 크고 100보다 작아야 합니다.'],

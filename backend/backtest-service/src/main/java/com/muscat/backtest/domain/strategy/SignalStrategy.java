@@ -31,7 +31,7 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 
 // 신호 전략 공통 매매: 시작일부터 매매 종목 일봉마다 그 날짜까지의 신호로 들고 있을지 정하고, 양도세를 낸 뒤 그 날짜 종가에
-// 가진 돈 전부로 사거나 전량 팜(처음은 원금, 그 뒤는 판 돈, 신호 종목은 시작일 전 일봉을 더 받아 시작일부터 신호를 봄)
+// 가진 돈 전부로 사거나 전량 팜(트레일링 스탑 · 부분 익절은 정한 몫, 처음 매수는 원금, 그 뒤는 판 돈, 신호 종목은 시작일 전 일봉을 더 받아 시작일부터 신호를 봄)
 @Slf4j
 abstract class SignalStrategy<R extends SignalStrategyRequest> implements InvestmentStrategy {
 
@@ -112,7 +112,7 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
     }
   }
 
-  // 종목 · 기간 · 원금 · 신호 · 트레일링 스탑 칸 검사, 배당 재투자는 막음
+  // 종목 · 기간 · 원금 · 신호 · 트레일링 스탑 · 부분 익절 칸 검사, 배당 재투자는 막음
   private void validate(R request) {
     BacktestRequestValidator.requireNonNull(request);
     BacktestRequestValidator.requireSymbol(request.getSymbol());
@@ -122,6 +122,7 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
     }
     validateSignal(request);
     BacktestRequestValidator.requireTrailingStop(request.getTrailingStopRate(), request.getTrailingSellRate());
+    BacktestRequestValidator.requirePartialTakeProfits(request.getPartialTakeProfits());
     // 재투자 주식은 신호 매매 뒤에 더해져 매도와 순서가 맞지 않음
     if (Boolean.TRUE.equals(request.getReinvestDividends())) {
       throw new BacktestException(BacktestResponse.SELL_WITH_REINVEST);
@@ -138,7 +139,7 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
   }
 
   // 시작일부터 매매 종목 일봉마다 그 날짜까지의 신호로 보유 여부를 정하고 양도세를 낸 뒤 사고팖(계산이 실패한 날은 이유를 남기고 다음 거래일에 다시 봄)
-  // 트레일링 스탑은 신호로 팔지 않는 날만 보고, 다 팔면 새 매수 신호까지 사지 않음
+  // 트레일링 스탑 다음 부분 익절을 신호로 팔지 않는 날만 보고, 다 팔면 새 매수 신호까지 사지 않음
   private StrategyPurchases trade(R request, Map<LocalDate, OHLCPriceDto> priceMap, SignalPrices signalPrices,
     TradeSignal signal, LocalDate actualEndDate, CapitalGainsTaxPayer taxPayer) {
     LocalDate start = request.getStartDate();
@@ -166,10 +167,11 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
     List<OHLCPriceDto> signals = signalPrices.candles();
     int seen = 0;
     boolean wanted = false;
-    // 마지막으로 본 신호가 매수인지 · 트레일링 스탑으로 다 판 뒤 매수가 아닌 신호를 기다리는지
+    // 마지막으로 본 신호가 매수인지 · 트레일링 스탑 · 부분 익절로 다 판 뒤 매수가 아닌 신호를 기다리는지
     boolean lastBuy = false;
     boolean waiting = false;
     TrailingStop trailing = TrailingStop.of(request.getTrailingStopRate(), request.getTrailingSellRate());
+    TakeProfitLadder ladder = TakeProfitLadder.of(request.getPartialTakeProfits());
 
     for (OHLCPriceDto candle : candles) {
       LocalDate date = candle.date();
@@ -202,6 +204,7 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
           heldCost = buy.costUsd();
           cash = BigDecimal.ZERO;
           trailing.open(buy.getPrice(), buy.getPrice());
+          ladder.open();
         } else if (holding && !wanted) {
           StrategyTransaction sale = sell(request, candle, fxRates, heldShares, heldCost, signal.sellTrigger());
           transactions.add(sale);
@@ -209,11 +212,17 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
           heldShares = BigDecimal.ZERO;
           heldCost = BigDecimal.ZERO;
         } else if (holding) {
-          TrailingStop.Exit exit = trailing.check(PriceLookup.effectiveClose(candle), heldShares, heldCost);
+          BigDecimal close = PriceLookup.effectiveClose(candle);
+          SaleShare trailed = trailing.check(close, heldShares, heldCost);
+          SaleShare exit = trailed != null ? trailed : ladder.check(close, heldShares, heldCost);
           if (exit != null) {
             StrategyTransaction sale = sell(request, candle, fxRates, exit.shares(), exit.cost(), exit.trigger());
             transactions.add(sale);
-            trailing.sold(sale.getPrice());
+            if (exit == trailed) {
+              trailing.sold(sale.getPrice());
+            } else {
+              ladder.sold();
+            }
             cash = cash.add(sale.getProceeds());
             heldShares = heldShares.subtract(exit.shares());
             heldCost = heldCost.subtract(exit.cost());

@@ -65,7 +65,7 @@ describe('DetailSettings', () => {
 
     expect(reinvest()).toHaveAttribute('aria-disabled', 'true')
     expect(reinvest()).toHaveAttribute('aria-checked', 'false')
-    expect(reinvest()).toHaveAccessibleDescription('익절 · 손절 · 고점 대비 하락 매도가 있으면 배당은 현금으로')
+    expect(reinvest()).toHaveAccessibleDescription('익절 · 손절 · 고점 대비 하락 매도 · 부분 익절이 있으면 배당은 현금으로')
     expect(options.reinvestDividends).toBe(true)
     rerender(<Harness startOpen seen={(o) => (options = o)} />)
     expect(reinvest()).toHaveAttribute('aria-checked', 'true')
@@ -76,7 +76,7 @@ describe('DetailSettings', () => {
 
     expect(screen.getByRole('radio', { name: '재투자' })).toHaveAttribute('aria-disabled', 'true')
     expect(screen.getByRole('radio', { name: '재투자' })).toHaveAccessibleDescription('이동평균 교차는 배당을 현금으로')
-    expect(screen.queryByText('익절 · 손절 · 고점 대비 하락 매도가 있으면 배당은 현금으로')).toBeNull()
+    expect(screen.queryByText('익절 · 손절 · 고점 대비 하락 매도 · 부분 익절이 있으면 배당은 현금으로')).toBeNull()
   })
 
   it('막힌 재투자는 눌러도 고르지 않는다', async () => {
