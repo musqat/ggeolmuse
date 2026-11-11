@@ -16,6 +16,7 @@ import { RiskDetail } from './RiskDetail';
 import { detailMeta, pickMetrics, purchaseCount, sellCount } from './resultValues';
 import { strategyDeposits } from './assetSeries';
 import { CapitalGainsTaxFold } from './CapitalGainsTaxFold';
+import { TradeStatsCard } from './TradeStatsCard';
 
 type StrategyKind = 'dca' | 'conditional' | 'ma-cross';
 
@@ -60,7 +61,7 @@ const unusedBudget = (budget: number | undefined, invested: number | null | unde
   return unused > 0 ? unused : null;
 };
 
-// 적립식 · 조건부 · 이동평균 결과: 카드 · 자산 추이 · 주가 추이 탭(이동평균 교차는 주가 추이 앞에 이동평균 탭), 그 아래 예상 양도세 · 상세 · 매매 내역을 접어 둠
+// 적립식 · 조건부 · 이동평균 결과: 카드 · 매매 통계(조건부 · 이동평균) · 자산 추이 · 주가 추이 탭(이동평균 교차는 주가 추이 앞에 이동평균 탭), 그 아래 예상 양도세 · 상세 · 매매 내역을 접어 둠
 export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
   kind,
   result,
@@ -117,6 +118,7 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
             />
           )
         }
+        belowCards={result.tradeStats && <TradeStatsCard stats={result.tradeStats} />}
         chartTabs={[
           ...(kind === 'ma-cross'
             ? [

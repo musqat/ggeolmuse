@@ -368,6 +368,46 @@ describe('DcaConditionalResult', () => {
     expect(screen.getByRole('row', { name: /2023년/ })).toHaveTextContent('₩110,000')
   })
 
+  it('매매 통계가 있으면 지표 카드 아래 · 차트와 예상 양도세 위에 카드를 두고, 없으면 두지 않는다', () => {
+    const tradeStats = {
+      buyCount: 2,
+      sellCount: 1,
+      cycleCount: 1,
+      openCycle: true,
+      winCount: 1,
+      lossCount: 0,
+      winRatePercent: 100,
+      averageWinPercent: 20,
+      averageLossPercent: null,
+      profitLossRatio: null,
+      averageHoldingDays: 3,
+      cyclesPerYear: 1.2,
+      trailingStopCount: 0,
+      partialTakeProfitCount: 0,
+    }
+    const tax = {
+      years: [],
+      totalTaxKrw: 0,
+      paidTaxKrw: 0,
+      unpaidTaxKrw: 0,
+      cashKrw: 0,
+      stockKrw: 1350000,
+      afterTaxValueKrw: 1350000,
+      afterTaxReturnPercent: 12.5,
+    }
+    const after = (first: Node, second: Node) =>
+      (first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
+    const { rerender } = render(<DcaConditionalResult result={{ ...result, capitalGainsTax: tax }} {...props} />)
+    expect(screen.queryByRole('heading', { name: '매매 통계' })).toBeNull()
+
+    rerender(<DcaConditionalResult result={{ ...result, capitalGainsTax: tax, tradeStats }} {...props} />)
+    const heading = screen.getByRole('heading', { name: '매매 통계' })
+    expect(screen.getByText('사이클 1번 · 진행 중')).toBeInTheDocument()
+    expect(after(card('평가 가치'), heading)).toBe(true)
+    expect(after(heading, screen.getByRole('tab', { name: '자산 추이' }))).toBe(true)
+    expect(after(heading, screen.getByText('예상 양도세'))).toBe(true)
+  })
+
   it('위 카드 평가 가치는 배당 현금까지 넣은 총자산, 투자 정보는 주식 평가액만 보여준다', async () => {
     render(<DcaConditionalResult result={{ ...result, currentValueKrw: 1300000 }} {...props} />)
     await open('상세')
