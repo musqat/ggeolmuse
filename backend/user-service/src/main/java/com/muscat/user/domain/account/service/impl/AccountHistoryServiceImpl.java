@@ -6,6 +6,7 @@ import com.muscat.user.common.enums.response.AccountResponse;
 import com.muscat.user.common.enums.type.TransactionType;
 import com.muscat.user.common.exception.AccountException;
 import com.muscat.user.common.exception.AccountHistoryException;
+import com.muscat.user.domain.account.dto.response.ExchangeRecordDto;
 import com.muscat.user.domain.account.dto.response.HistoryResponseDto;
 import com.muscat.user.domain.account.entity.Account;
 import com.muscat.user.domain.account.entity.AccountHistory;
@@ -13,6 +14,7 @@ import com.muscat.user.domain.account.repository.AccountHistoryRepository;
 import com.muscat.user.domain.account.repository.AccountRepository;
 import com.muscat.user.domain.account.service.AccountHistoryService;
 import java.math.BigDecimal;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,7 +29,7 @@ public class AccountHistoryServiceImpl implements AccountHistoryService {
   private final AccountHistoryRepository accountHistoryRepository;
   private final AccountRepository accountRepository;
 
-  // 입금 거래 내역 생성 (내부 호출용)
+  // 입금 거래 내역 생성
   @Override
   @Transactional
   public HistoryResponseDto createDepositHistory(Long accountId, BigDecimal amount,
@@ -59,7 +61,7 @@ public class AccountHistoryServiceImpl implements AccountHistoryService {
     return HistoryResponseDto.from(savedHistory);
   }
 
-  // 환전 거래 내역 생성 (내부 호출용)
+  // 환전 거래 내역 생성
   @Override
   @Transactional
   public HistoryResponseDto createExchangeHistory(Long accountId, String fromCurrency,
@@ -96,9 +98,18 @@ public class AccountHistoryServiceImpl implements AccountHistoryService {
     return HistoryResponseDto.from(savedHistory);
   }
 
+  @Override
+  public List<ExchangeRecordDto> getExchangeRecords(Long userId) {
+    return accountHistoryRepository
+      .findByAccount_User_IdAndTransactionTypeOrderByCreatedAtAscIdAsc(userId, TransactionType.EXCHANGE)
+      .stream()
+      .map(ExchangeRecordDto::from)
+      .toList();
+  }
+
   // ========== 내부 메서드들 ==========
 
-  // 계좌 조회 (내부 호출용)
+  // 계좌 조회
   private Account getAccountByIdInternal(Long accountId) {
     return accountRepository.findById(accountId)
       .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
