@@ -27,7 +27,7 @@ public final class ProfitFlowCalculator {
     BigDecimal investedUsd, BigDecimal investedKrw) {
   }
 
-  private static final Comparator<Trade> TRADE_ORDER = Comparator.comparing(Trade::getTradeDate)
+  static final Comparator<Trade> TRADE_ORDER = Comparator.comparing(Trade::getTradeDate)
     .thenComparing(Trade::getExecutedAt, Comparator.nullsFirst(Comparator.<LocalDateTime>naturalOrder()))
     .thenComparing(Trade::getId, Comparator.nullsFirst(Comparator.<Long>naturalOrder()));
 
@@ -78,7 +78,7 @@ public final class ProfitFlowCalculator {
   }
 
   // 보유에 반영하고 매도면 실현 손익(체결 금액 − 줄어든 투자금액, 보유보다 많은 매도는 들고 있던 수량만)
-  private static BigDecimal apply(Map<String, Holdings> positions, Trade trade, int pricePrecision) {
+  static BigDecimal apply(Map<String, Holdings> positions, Trade trade, int pricePrecision) {
     Holdings before = positions.get(trade.getSymbol());
     BigDecimal heldQuantity = before == null ? BigDecimal.ZERO : before.getTotalQuantity();
     BigDecimal investedBefore = before == null ? BigDecimal.ZERO : before.getTotalInvestedAmount();

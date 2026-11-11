@@ -87,8 +87,9 @@ class ProfitFlowServiceTest {
   @BeforeEach
   void setUp() {
     Clock clock = Clock.fixed(Instant.parse("2024-01-31T01:00:00Z"), ZoneId.of("Asia/Seoul"));
-    service = new ProfitFlowService(tradeRepository, dividendPayoutRepository, accountProfitDailyRepository,
-      accountProfitStore, marketServiceClientWrapper, new TradeProperties(), clock);
+    service = new ProfitFlowService(
+      new PortfolioStatsReader(tradeRepository, dividendPayoutRepository, marketServiceClientWrapper),
+      accountProfitDailyRepository, accountProfitStore, new TradeProperties(), clock);
   }
 
   private Trade trade(long accountId, TradeType type, String symbol, String quantity, String price, String fee,

@@ -41,6 +41,62 @@ export type ProfitFlowResponse = {
   currentProfitKrw: number;
 };
 
+// 달 하나(YYYY-MM)의 원화 수익 변화(그 달 마지막 점 − 앞 달 마지막 점)
+export type MonthlyProfit = { month: string; profitKrw: number };
+
+// 매도 하나의 실현 손익(판 날 환율이 없으면 fxRate null · 원화 0)
+export type ProfitSale = {
+  tradeId: number;
+  accountId: number;
+  date: string;
+  symbol: string;
+  quantity: number;
+  priceUsd: number;
+  realizedUsd: number;
+  fxRate: number | null;
+  realizedKrw: number;
+  returnPercent: number;
+};
+
+// 기간 끝에 들고 있는 종목 하나의 평가 손익(종가를 못 받으면 closeUsd · closeDate null)
+export type ProfitHolding = {
+  symbol: string;
+  quantity: number;
+  averagePriceUsd: number;
+  closeUsd: number | null;
+  closeDate: string | null;
+  unrealizedUsd: number;
+  unrealizedKrw: number;
+  returnPercent: number;
+};
+
+// 수익 탭 자세히(달마다 수익 · 판 거래 · 들고 있는 종목, 맨 위 원화는 줄 값의 합)
+export type ProfitDetailResponse = {
+  monthly: MonthlyProfit[];
+  realizedKrw: number;
+  unrealizedKrw: number;
+  sales: ProfitSale[];
+  holdings: ProfitHolding[];
+};
+
+// 종목 하나의 기간 기여(칸마다 기간 끝 값 − 기간 시작 전 값, 원화, 수수료는 뺀 금액을 양수로)
+export type SymbolContribution = {
+  symbol: string;
+  realizedKrw: number;
+  unrealizedKrw: number;
+  dividendKrw: number;
+  feeKrw: number;
+  totalKrw: number;
+  sharePercent: number;
+  held: boolean;
+};
+
+// 종목별 기여(합 큰 것부터, totalKrw 는 종목 합)
+export type SymbolContributionResponse = {
+  totalKrw: number;
+  symbols: SymbolContribution[];
+};
+
 export const portfolioApi = {
   // 전체 포트폴리오 조회
   getPortfolio: () =>
@@ -57,4 +113,12 @@ export const portfolioApi = {
   // 계좌 하나 또는 전체 계좌의 기간 수익 흐름
   getProfitFlow: (accountId: number | 'all', period: ProfitFlowPeriod) =>
     apiClient.get<ProfitFlowResponse>('/portfolio/stats/flow', { params: { accountId, period } }),
+
+  // 계좌 하나 또는 전체 계좌의 기간 수익 탭 자세히
+  getProfitDetail: (accountId: number | 'all', period: ProfitFlowPeriod) =>
+    apiClient.get<ProfitDetailResponse>('/portfolio/stats/profit', { params: { accountId, period } }),
+
+  // 계좌 하나 또는 전체 계좌의 기간 종목별 기여
+  getSymbolContributions: (accountId: number | 'all', period: ProfitFlowPeriod) =>
+    apiClient.get<SymbolContributionResponse>('/portfolio/stats/symbols', { params: { accountId, period } }),
 };
