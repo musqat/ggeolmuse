@@ -90,12 +90,13 @@ describe('FxTab', () => {
     expect(screen.getByText('환전한 때와 지금의 환율 차이 · 수익 흐름에는 들어가지 않음')).toBeInTheDocument()
   })
 
-  it('자세히 펼치기를 열면 환전 기록 표를 최근부터 보인다', async () => {
+  it('자세히 펼치기는 닫힌 채 기간 안 환전 횟수를 보이고, 열면 환전 기록 표를 최근부터 보인다', async () => {
     const user = userEvent.setup()
     renderTab()
 
     const fold = await screen.findByRole('button', { name: /자세히 펼치기/ })
     expect(fold).toHaveAttribute('aria-expanded', 'false')
+    expect(fold).toHaveTextContent('자세히 펼치기환전 4회')
     await user.click(fold)
 
     expect(rows('환전 기록')).toEqual([

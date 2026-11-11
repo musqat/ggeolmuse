@@ -1,7 +1,7 @@
 import React from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { portfolioApi, type FxDirection, type FxExchange, type ProfitFlowPeriod } from '../../../services/api';
-import { formatFxRate } from '../../../utils/format';
+import { formatFxRate, formatNumber } from '../../../utils/format';
 import { gainLossClass } from '../../../utils/gainLoss';
 import { SignedStat, StatsCards, StatsLoadError, StatsLoading, StatsNotice, ValueStat } from './StatsCards';
 import { StatsFold } from './StatsFold';
@@ -81,7 +81,7 @@ export const FxTab: React.FC<FxTabProps> = ({ accountId, period, accountNames })
             <ValueStat label="환전한 달러 원금" value={usd(heldUsd)} detail="받은 달러 − 판 달러" />,
             <ValueStat
               label="기간 안 환전"
-              value={`${exchangeCount}회`}
+              value={`${formatNumber(exchangeCount)}회`}
               detail={
                 <>
                   <span className="block">원화→달러 {krw(krwToUsdKrw)}</span>
@@ -93,7 +93,7 @@ export const FxTab: React.FC<FxTabProps> = ({ accountId, period, accountNames })
         />
         <p className="text-xs text-tx-2">환전한 때와 지금의 환율 차이 · 수익 흐름에는 들어가지 않음</p>
       </div>
-      <StatsFold>
+      <StatsFold summary={`환전 ${formatNumber(exchanges.length)}회`}>
         <StatsTable
           title="환전 기록"
           columns={accountId === 'all' ? withAccountColumn(columns, accountNames) : columns}

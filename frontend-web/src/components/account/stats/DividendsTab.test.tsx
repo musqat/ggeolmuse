@@ -127,12 +127,13 @@ describe('DividendsTab', () => {
     ])
   })
 
-  it('자세히 펼치기를 열면 종목별 표와 지급 내역 표를 보이고 환율이 없는 배당은 환율 · 세후 원화가 - 이다', async () => {
+  it('자세히 펼치기는 닫힌 채 종목 수 · 지급 횟수를 보이고, 열면 종목별 표와 지급 내역 표를 보이며 환율이 없는 배당은 환율 · 세후 원화가 - 이다', async () => {
     const user = userEvent.setup()
     renderTab()
 
     const fold = await screen.findByRole('button', { name: /자세히 펼치기/ })
     expect(fold).toHaveAttribute('aria-expanded', 'false')
+    expect(fold).toHaveTextContent('자세히 펼치기종목 3개 · 지급 7회')
     await user.click(fold)
 
     expect(rows('종목별 배당')).toEqual([
@@ -218,6 +219,25 @@ describe('DividendsTab', () => {
     resolve({ data: { ...DIVIDENDS, payouts: [DIVIDENDS.payouts[0]] } })
     await waitFor(() => expect(rows('지급 내역')).toHaveLength(2))
     expect(screen.getByRole('button', { name: /자세히 펼치기/ })).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('천이 넘는 지급 횟수는 카드 · 표 · 펼침 요약에 천 단위 쉼표를 둔다', async () => {
+    const user = userEvent.setup()
+    vi.mocked(portfolioApi.getDividendStats).mockResolvedValue({
+      data: {
+        ...DIVIDENDS,
+        payoutCount: 1_234,
+        symbols: [{ ...DIVIDENDS.symbols[0], payoutCount: 1_234, sharePercent: 100 }],
+      },
+    } as never)
+    renderTab()
+
+    const fold = await screen.findByRole('button', { name: /자세히 펼치기/ })
+    expect(stat('지급 횟수')).toHaveTextContent('지급 횟수1,234회종목 1개')
+    expect(fold).toHaveTextContent('자세히 펼치기종목 1개 · 지급 1,234회')
+    await user.click(fold)
+
+    expect(rows('종목별 배당')[1]).toEqual(['KO', '1,234', '$30.10', '₩40,100', '100.00%'])
   })
 
   it('이 기간에 배당이 없으면 카드 대신 안내 한 줄을 보인다', async () => {

@@ -187,6 +187,16 @@ export type TradingHabitsResponse = {
   topSymbols: SymbolTrades[];
 };
 
+// 거래일 하나의 SPY 원화 수익
+export type MarketPoint = { date: string; profitKrw: number };
+
+// 같은 날짜에 같은 돈을 SPY 에 넣었을 때의 수익 흐름(수익 흐름 점과 같은 날짜, SPY 종가나 그 날짜 환율이 없으면 빈 points · 0)
+export type MarketComparisonResponse = {
+  symbol: string;
+  points: MarketPoint[];
+  currentProfitKrw: number;
+};
+
 export const portfolioApi = {
   // 전체 포트폴리오 조회
   getPortfolio: () =>
@@ -223,4 +233,8 @@ export const portfolioApi = {
   // 계좌 하나 또는 전체 계좌의 기간 거래 패턴
   getTradingHabits: (accountId: number | 'all', period: ProfitFlowPeriod) =>
     apiClient.get<TradingHabitsResponse>('/portfolio/stats/habits', { params: { accountId, period } }),
+
+  // 계좌 하나 또는 전체 계좌의 기간 S&P 500(SPY) 비교
+  getMarketComparison: (accountId: number | 'all', period: ProfitFlowPeriod) =>
+    apiClient.get<MarketComparisonResponse>('/portfolio/stats/market', { params: { accountId, period } }),
 };

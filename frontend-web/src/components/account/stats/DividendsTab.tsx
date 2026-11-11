@@ -17,7 +17,7 @@ const symbolTone = (item: SymbolDividend) => (noKrw(item) ? NO_VALUE_CLASS : 'te
 
 const SYMBOL_COLUMNS: StatsColumn<SymbolDividend>[] = [
   { header: '종목', cell: (item) => item.symbol },
-  { header: '횟수', numeric: true, cell: (item) => item.payoutCount },
+  { header: '횟수', numeric: true, cell: (item) => formatNumber(item.payoutCount) },
   { header: '세후 $', numeric: true, cell: (item) => usd(item.netUsd) },
   { header: '세후 ₩', numeric: true, tone: symbolTone, cell: (item) => (noKrw(item) ? '-' : krw(item.netKrw)) },
   {
@@ -82,6 +82,7 @@ export const DividendsTab: React.FC<DividendsTabProps> = ({ accountId, period, a
   const bars = monthly
     .filter((month) => !noKrw(month))
     .map((month) => ({ label: month.month, value: month.netKrw }));
+  const symbolCount = `종목 ${formatNumber(symbols.length)}개`;
 
   return (
     <div className="space-y-6">
@@ -94,7 +95,7 @@ export const DividendsTab: React.FC<DividendsTabProps> = ({ accountId, period, a
               value={noKrw({ netKrw, netUsd }) ? '-' : krw(netKrw)}
               detail={usd(netUsd)}
             />,
-            <ValueStat label="지급 횟수" value={`${payoutCount}회`} detail={`종목 ${symbols.length}개`} />,
+            <ValueStat label="지급 횟수" value={`${formatNumber(payoutCount)}회`} detail={symbolCount} />,
           ]}
           bottom={[
             <SignedStat
@@ -122,7 +123,7 @@ export const DividendsTab: React.FC<DividendsTabProps> = ({ accountId, period, a
           />
         </ChartCard>
       )}
-      <StatsFold>
+      <StatsFold summary={`${symbolCount} · 지급 ${formatNumber(payoutCount)}회`}>
         <StatsTable title="종목별 배당" columns={SYMBOL_COLUMNS} rows={symbols} rowKey={(item) => item.symbol} />
         <StatsTable
           title="지급 내역"

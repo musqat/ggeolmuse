@@ -79,7 +79,7 @@ describe('ProfitTab', () => {
     const labels = () => [...document.querySelectorAll('[data-stat]')].map((element) => element.getAttribute('data-stat'))
     expect(labels()).toEqual(['오늘 총자산', '현재 수익', '최고 수익', '최저 수익'])
     expect(document.querySelector('[data-stat="현재 수익"]')).toHaveTextContent(
-      '현재 수익+₩160,000(13.33%)2024-11-08 기준 · 원금 ₩1,200,000'
+      '현재 수익+₩160,000(+13.33%)2024-11-08 기준 · 원금 ₩1,200,000'
     )
     await screen.findByTestId('bars')
   })
