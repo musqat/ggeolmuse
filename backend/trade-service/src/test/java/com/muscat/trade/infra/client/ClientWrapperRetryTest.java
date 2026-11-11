@@ -12,6 +12,7 @@ import com.muscat.commonlib.dto.StockPriceDto;
 import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.infra.client.dto.AccountBalanceDto;
 import com.muscat.trade.infra.client.dto.DividendDto;
+import com.muscat.trade.infra.client.dto.ExchangeRecordDto;
 import feign.FeignException;
 import feign.Request;
 import feign.Response;
@@ -19,6 +20,7 @@ import io.github.resilience4j.springboot3.circuitbreaker.autoconfigure.CircuitBr
 import io.github.resilience4j.springboot3.retry.autoconfigure.RetryAutoConfiguration;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -150,6 +152,33 @@ class ClientWrapperRetryTest {
 
     assertThat(userWrapper.getAccountBalance(20L)).isSameAs(balance);
     verify(userClient, times(3)).getAccountBalance(20L);
+  }
+
+  @Test
+  @DisplayName("환전 기록이 5xx 로 두 번 실패해도 다시 불러 받은 값을 돌려준다")
+  void exchangeRecords_RetriesServerError() {
+    List<ExchangeRecordDto> records = List.of(new ExchangeRecordDto(3L, LocalDateTime.of(2024, 9, 2, 10, 0), "KRW",
+      "USD", new BigDecimal("1300000.00"), new BigDecimal("1000.00"), new BigDecimal("1300.000000")));
+    given(userClient.getExchangeRecords()).willThrow(serverError(), serverError()).willReturn(records);
+
+    assertThat(userWrapper.getExchangeRecords()).isSameAs(records);
+    verify(userClient, times(3)).getExchangeRecords();
+  }
+
+  @Test
+  @DisplayName("환전 기록이 4xx 면 다시 부르지 않고 사용자 서비스 오류 코드로 예외가 난다")
+  void exchangeRecords_ClientError_UserServiceError() {
+    Request request = Request.create(Request.HttpMethod.GET, "/api/internal/accounts/exchanges", Map.of(), null,
+      StandardCharsets.UTF_8, null);
+    FeignException unauthorized = FeignException.errorStatus("UserServiceClient#getExchangeRecords",
+      Response.builder().status(401).reason("Unauthorized").request(request).headers(Map.of()).build());
+    given(userClient.getExchangeRecords()).willThrow(unauthorized);
+
+    assertThatThrownBy(() -> userWrapper.getExchangeRecords())
+      .isInstanceOf(TradeException.class)
+      .hasFieldOrPropertyWithValue("errorCode", "USER_SERVICE_ERROR")
+      .hasCause(unauthorized);
+    verify(userClient, times(1)).getExchangeRecords();
   }
 
   private static FeignException serverError() {

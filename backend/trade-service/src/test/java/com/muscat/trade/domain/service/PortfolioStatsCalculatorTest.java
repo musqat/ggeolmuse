@@ -4,6 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.common.enums.type.TradeType;
+import com.muscat.trade.domain.dto.response.DividendStatsResponse;
+import com.muscat.trade.domain.dto.response.DividendStatsResponse.MonthlyDividend;
+import com.muscat.trade.domain.dto.response.DividendStatsResponse.Payout;
+import com.muscat.trade.domain.dto.response.DividendStatsResponse.SymbolDividend;
+import com.muscat.trade.domain.dto.response.FxStatsResponse;
+import com.muscat.trade.domain.dto.response.FxStatsResponse.Direction;
+import com.muscat.trade.domain.dto.response.FxStatsResponse.Exchange;
 import com.muscat.trade.domain.dto.response.ProfitDetailResponse;
 import com.muscat.trade.domain.dto.response.ProfitDetailResponse.Holding;
 import com.muscat.trade.domain.dto.response.ProfitDetailResponse.MonthlyProfit;
@@ -17,6 +24,7 @@ import com.muscat.trade.domain.service.PortfolioStatsCalculator.Replay;
 import com.muscat.trade.domain.service.PortfolioStatsCalculator.SellResult;
 import com.muscat.trade.domain.service.PortfolioStatsCalculator.SymbolTotals;
 import com.muscat.trade.domain.service.ProfitFlowCalculator.DailyProfit;
+import com.muscat.trade.infra.client.dto.ExchangeRecordDto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -396,6 +404,247 @@ class PortfolioStatsCalculatorTest {
       assertThat(empty.totalKrw()).isEqualByComparingTo("0");
       assertThat(flat.symbols()).hasSize(1);
       assertThat(flat.symbols().getFirst().sharePercent()).isEqualByComparingTo("0");
+    }
+  }
+
+  @Nested
+  @DisplayName("배당")
+  class Dividends {
+
+    private static final LocalDate START = BEFORE.plusDays(1);
+
+    private static DividendPayout paid(long accountId, String symbol, LocalDate exDate, String perShare,
+      String shares, String gross, String tax, String net) {
+      return DividendPayout.of("user-1", accountId, symbol, exDate,
+        new DividendAmounts(new BigDecimal(perShare), new BigDecimal(shares), new BigDecimal(gross),
+          new BigDecimal(tax), new BigDecimal(net)), LocalDateTime.of(2024, 9, 1, 9, 0));
+    }
+
+    @Test
+    @DisplayName("배당락일이 기간 첫 날부터 오늘까지인 배당만 남기고 수량이 0 인 몫은 뺀다")
+    void paidInPeriod_ExDateInPeriodAndShares() {
+      DividendPayout first = paid(3L, "KO", START, "0.485", "10", "4.85", "0.73", "4.12");
+      DividendPayout last = paid(3L, "KO", TODAY, "0.485", "10", "4.85", "0.73", "4.12");
+      DividendPayout earlier = paid(3L, "KO", BEFORE, "0.485", "10", "4.85", "0.73", "4.12");
+      List<DividendPayout> payouts = List.of(earlier, first,
+        paid(3L, "AAPL", LocalDate.of(2024, 10, 20), "0.25", "0", "0.00", "0.00", "0.00"), last,
+        paid(3L, "KO", TODAY.plusDays(1), "0.485", "10", "4.85", "0.73", "4.12"));
+
+      assertThat(PortfolioStatsCalculator.paidInPeriod(payouts, START, TODAY)).containsExactly(first, last);
+      assertThat(PortfolioStatsCalculator.paidInPeriod(payouts, null, TODAY)).containsExactly(earlier, first, last);
+    }
+
+    @Test
+    @DisplayName("원화는 배당락일 환율로 바꾸고 달마다 · 종목마다 합과 맨 위 합을 줄 값의 합으로 낸다")
+    void dividends_MonthlySymbolsAndPayouts() {
+      LocalDate koFirst = LocalDate.of(2024, 9, 13);
+      LocalDate aaplDay = LocalDate.of(2024, 9, 20);
+      LocalDate koSecond = LocalDate.of(2024, 10, 15);
+      LocalDate msftDay = LocalDate.of(2024, 11, 1);
+      List<DividendPayout> paid = List.of(
+        paid(3L, "KO", koFirst, "0.485", "10", "4.85", "0.73", "4.12"),
+        paid(3L, "AAPL", aaplDay, "0.25", "4", "1.00", "0.15", "0.85"),
+        paid(4L, "KO", koSecond, "0.485", "20", "9.70", "1.46", "8.24"),
+        paid(3L, "KO", koSecond, "0.485", "2", "0.97", "0.15", "0.82"),
+        paid(3L, "MSFT", msftDay, "0.83", "1", "0.83", "0.12", "0.71"));
+
+      DividendStatsResponse response = PortfolioStatsCalculator.dividends(paid, Map.of(
+        koFirst, new BigDecimal("1330.5"), aaplDay, new BigDecimal("1320"), koSecond, new BigDecimal("1350")));
+
+      assertThat(response.netKrw()).isEqualByComparingTo("18835");
+      assertThat(response.netUsd()).isEqualByComparingTo("14.74");
+      assertThat(response.grossUsd()).isEqualByComparingTo("17.35");
+      assertThat(response.taxUsd()).isEqualByComparingTo("2.61");
+      assertThat(response.payoutCount()).isEqualTo(5);
+      assertThat(response.monthly()).extracting(MonthlyDividend::month)
+        .containsExactly(YearMonth.of(2024, 9), YearMonth.of(2024, 10), YearMonth.of(2024, 11));
+      assertThat(response.monthly()).extracting(MonthlyDividend::netUsd)
+        .usingElementComparator(BigDecimal::compareTo)
+        .containsExactly(new BigDecimal("4.97"), new BigDecimal("9.06"), new BigDecimal("0.71"));
+      assertThat(response.monthly()).extracting(MonthlyDividend::netKrw)
+        .usingElementComparator(BigDecimal::compareTo)
+        .containsExactly(new BigDecimal("6604"), new BigDecimal("12231"), new BigDecimal("0"));
+      assertThat(response.symbols()).extracting(SymbolDividend::symbol).containsExactly("KO", "AAPL", "MSFT");
+      SymbolDividend ko = response.symbols().getFirst();
+      assertThat(ko.netUsd()).isEqualByComparingTo("13.18");
+      assertThat(ko.netKrw()).isEqualByComparingTo("17713");
+      assertThat(ko.payoutCount()).isEqualTo(3);
+      assertThat(ko.sharePercent()).isEqualByComparingTo("94.04");
+      assertThat(response.symbols().get(1).sharePercent()).isEqualByComparingTo("5.96");
+      assertThat(response.symbols().getLast().sharePercent()).isEqualByComparingTo("0");
+      assertThat(response.payouts()).extracting(Payout::exDate)
+        .containsExactly(msftDay, koSecond, koSecond, aaplDay, koFirst);
+      assertThat(response.payouts()).extracting(Payout::accountId).containsExactly(3L, 3L, 4L, 3L, 3L);
+      Payout msft = response.payouts().getFirst();
+      assertThat(msft.fxRate()).isNull();
+      assertThat(msft.netKrw()).isEqualByComparingTo("0");
+      Payout first = response.payouts().getLast();
+      assertThat(first.symbol()).isEqualTo("KO");
+      assertThat(first.shares()).isEqualByComparingTo("10").hasScaleOf(6);
+      assertThat(first.dividendPerShareUsd()).isEqualByComparingTo("0.485").hasScaleOf(6);
+      assertThat(first.grossUsd()).isEqualByComparingTo("4.85");
+      assertThat(first.taxUsd()).isEqualByComparingTo("0.73");
+      assertThat(first.netUsd()).isEqualByComparingTo("4.12");
+      assertThat(first.fxRate()).isEqualByComparingTo("1330.50").hasScaleOf(2);
+      assertThat(first.netKrw()).isEqualByComparingTo("5482");
+    }
+
+    @Test
+    @DisplayName("배당이 없으면 빈 목록 · 합 0 이고, 세후 원화 합이 0 이면 비율은 0 이다")
+    void dividends_EmptyAndZeroShare() {
+      DividendStatsResponse empty = PortfolioStatsCalculator.dividends(List.of(), Map.of());
+      DividendStatsResponse noRate = PortfolioStatsCalculator.dividends(
+        List.of(paid(3L, "MSFT", TODAY, "0.83", "1", "0.83", "0.12", "0.71")), Map.of());
+
+      assertThat(empty.netKrw()).isEqualByComparingTo("0");
+      assertThat(empty.netUsd()).isEqualByComparingTo("0");
+      assertThat(empty.payoutCount()).isZero();
+      assertThat(empty.monthly()).isEmpty();
+      assertThat(empty.symbols()).isEmpty();
+      assertThat(empty.payouts()).isEmpty();
+      assertThat(noRate.symbols().getFirst().sharePercent()).isEqualByComparingTo("0");
+    }
+  }
+
+  @Nested
+  @DisplayName("환율 효과")
+  class FxEffect {
+
+    private static final LocalDate START = BEFORE.plusDays(1);
+    private static final Map<LocalDate, BigDecimal> RATES = Map.of(TODAY, new BigDecimal("1385.2"),
+      BEFORE, new BigDecimal("1340"));
+
+    private static ExchangeRecordDto krwToUsd(long accountId, LocalDateTime at, String krw, String usd,
+      String rate) {
+      return new ExchangeRecordDto(accountId, at, "KRW", "USD", new BigDecimal(krw), new BigDecimal(usd),
+        new BigDecimal(rate));
+    }
+
+    private static ExchangeRecordDto usdToKrw(long accountId, LocalDateTime at, String usd, String krw,
+      String rate) {
+      return new ExchangeRecordDto(accountId, at, "USD", "KRW", new BigDecimal(usd), new BigDecimal(krw),
+        new BigDecimal(rate));
+    }
+
+    private static List<ExchangeRecordDto> exchanges() {
+      return List.of(
+        krwToUsd(3L, LocalDateTime.of(2024, 9, 2, 10, 15, 30), "1300000.00", "1000.00", "1300.000000"),
+        krwToUsd(3L, LocalDateTime.of(2024, 10, 20, 9, 0), "1350000.00", "1000.00", "1350.000000"),
+        usdToKrw(4L, LocalDateTime.of(2024, 11, 1, 14, 0), "300.00", "414000.00", "1380.000000"));
+    }
+
+    @Test
+    @DisplayName("효과는 기간 끝 효과 − 시작 전날 효과이고 기간 안 환전만 최근부터 지금 환율 기준 효과와 함께 낸다")
+    void fx_EndMinusDayBeforePeriod() {
+      FxStatsResponse response = PortfolioStatsCalculator.fx(exchanges(), START, TODAY, RATES);
+
+      assertThat(response.fxEffectKrw()).isEqualByComparingTo("78840");
+      assertThat(response.currentRate()).isEqualByComparingTo("1385.20").hasScaleOf(2);
+      assertThat(response.averageRate()).isEqualByComparingTo("1315.29");
+      assertThat(response.heldUsd()).isEqualByComparingTo("1700.00");
+      assertThat(response.krwToUsdKrw()).isEqualByComparingTo("1350000");
+      assertThat(response.usdToKrwUsd()).isEqualByComparingTo("300.00");
+      assertThat(response.exchangeCount()).isEqualTo(2);
+      assertThat(response.exchanges()).extracting(Exchange::date)
+        .containsExactly(LocalDate.of(2024, 11, 1), LocalDate.of(2024, 10, 20));
+      Exchange sold = response.exchanges().getFirst();
+      assertThat(sold.accountId()).isEqualTo(4L);
+      assertThat(sold.direction()).isEqualTo(Direction.USD_TO_KRW);
+      assertThat(sold.krwAmount()).isEqualByComparingTo("414000").hasScaleOf(0);
+      assertThat(sold.usdAmount()).isEqualByComparingTo("300.00");
+      assertThat(sold.rate()).isEqualByComparingTo("1380.00").hasScaleOf(2);
+      assertThat(sold.effectKrw()).isEqualByComparingTo("-1560");
+      Exchange bought = response.exchanges().getLast();
+      assertThat(bought.direction()).isEqualTo(Direction.KRW_TO_USD);
+      assertThat(bought.krwAmount()).isEqualByComparingTo("1350000");
+      assertThat(bought.usdAmount()).isEqualByComparingTo("1000.00");
+      assertThat(bought.effectKrw()).isEqualByComparingTo("35200");
+    }
+
+    @Test
+    @DisplayName("기간 첫 날 환전은 기간 안 환전으로, 시작 전날 환전은 시작 전 효과로 센다")
+    void fx_PeriodStartBoundary() {
+      List<ExchangeRecordDto> exchanges = List.of(
+        krwToUsd(3L, BEFORE.atTime(23, 59, 59), "1300000.00", "1000.00", "1300.000000"),
+        krwToUsd(3L, START.atStartOfDay(), "1350000.00", "1000.00", "1350.000000"));
+
+      FxStatsResponse response = PortfolioStatsCalculator.fx(exchanges, START, TODAY, RATES);
+
+      assertThat(response.exchanges()).extracting(Exchange::date).containsExactly(START);
+      assertThat(response.exchanges().getFirst().effectKrw()).isEqualByComparingTo("35200");
+      assertThat(response.fxEffectKrw()).isEqualByComparingTo("80400");
+      assertThat(response.exchangeCount()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("전체 기간이면 효과는 모든 환전의 지금 환율 기준 효과 합이다")
+    void fx_AllPeriodSumsRows() {
+      FxStatsResponse response = PortfolioStatsCalculator.fx(exchanges(), null, TODAY, RATES);
+
+      assertThat(response.fxEffectKrw()).isEqualByComparingTo("118840");
+      assertThat(response.exchanges()).extracting(Exchange::effectKrw)
+        .usingElementComparator(BigDecimal::compareTo)
+        .containsExactly(new BigDecimal("-1560"), new BigDecimal("35200"), new BigDecimal("85200"));
+      assertThat(response.krwToUsdKrw()).isEqualByComparingTo("2650000");
+      assertThat(response.exchangeCount()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("같은 시각 환전은 뒤 기록이 앞에 오고, 효과는 원 단위로 반올림한 환전마다 효과의 합이다")
+    void fx_SameTimeOrderAndRounding() {
+      LocalDateTime at = LocalDateTime.of(2024, 10, 20, 9, 0);
+      ExchangeRecordDto first = krwToUsd(3L, at, "1000000.40", "740.33", "1351.270000");
+      ExchangeRecordDto second = krwToUsd(5L, at, "500000.00", "370.01", "1351.270000");
+
+      FxStatsResponse response = PortfolioStatsCalculator.fx(List.of(first, second), START, TODAY, RATES);
+
+      assertThat(response.exchanges()).extracting(Exchange::accountId).containsExactly(5L, 3L);
+      assertThat(response.exchanges().getLast().krwAmount()).isEqualByComparingTo("1000000");
+      assertThat(response.exchanges().getLast().effectKrw()).isEqualByComparingTo("25119");
+      assertThat(response.exchanges().getFirst().effectKrw()).isEqualByComparingTo("12554");
+      assertThat(response.fxEffectKrw()).isEqualByComparingTo("37673");
+    }
+
+    @Test
+    @DisplayName("판 달러가 받은 달러보다 많으면 들고 있는 달러는 0 · 평균 환율은 비우고, 기록이 없으면 효과 0 · 빈 목록이다")
+    void fx_SoldMoreThanBoughtAndEmpty() {
+      FxStatsResponse oversold = PortfolioStatsCalculator.fx(List.of(
+          krwToUsd(3L, LocalDateTime.of(2024, 9, 2, 10, 0), "130000.00", "100.00", "1300.000000"),
+          usdToKrw(3L, LocalDateTime.of(2024, 11, 1, 10, 0), "300.00", "414000.00", "1380.000000")),
+        null, TODAY, RATES);
+      FxStatsResponse empty = PortfolioStatsCalculator.fx(List.of(), START, TODAY, RATES);
+
+      assertThat(oversold.heldUsd()).isEqualByComparingTo("0");
+      assertThat(oversold.averageRate()).isNull();
+      assertThat(oversold.fxEffectKrw()).isEqualByComparingTo("6960");
+      assertThat(empty.fxEffectKrw()).isEqualByComparingTo("0");
+      assertThat(empty.heldUsd()).isEqualByComparingTo("0");
+      assertThat(empty.averageRate()).isNull();
+      assertThat(empty.currentRate()).isEqualByComparingTo("1385.20");
+      assertThat(empty.exchanges()).isEmpty();
+      assertThat(empty.exchangeCount()).isZero();
+      assertThat(empty.krwToUsdKrw()).isEqualByComparingTo("0");
+      assertThat(empty.usdToKrwUsd()).isEqualByComparingTo("0");
+    }
+
+    @Test
+    @DisplayName("시작 전날 환율이 없으면 시작 전 효과는 0, 오늘 환율이 없으면 지금 환율은 비우고 효과는 모두 0 이다")
+    void fx_MissingRates() {
+      List<ExchangeRecordDto> before = List.of(
+        krwToUsd(3L, LocalDateTime.of(2024, 9, 2, 10, 0), "1300000.00", "1000.00", "1300.000000"));
+
+      FxStatsResponse noBeforeRate = PortfolioStatsCalculator.fx(before, START, TODAY,
+        Map.of(TODAY, new BigDecimal("1385.2")));
+      FxStatsResponse noTodayRate = PortfolioStatsCalculator.fx(exchanges(), START, TODAY,
+        Map.of(BEFORE, new BigDecimal("1340")));
+
+      assertThat(noBeforeRate.fxEffectKrw()).isEqualByComparingTo("85200");
+      assertThat(noBeforeRate.exchanges()).isEmpty();
+      assertThat(noTodayRate.currentRate()).isNull();
+      assertThat(noTodayRate.fxEffectKrw()).isEqualByComparingTo("0");
+      assertThat(noTodayRate.exchanges()).extracting(Exchange::effectKrw)
+        .usingElementComparator(BigDecimal::compareTo)
+        .containsExactly(BigDecimal.ZERO, BigDecimal.ZERO);
     }
   }
 }

@@ -40,14 +40,10 @@ public class PortfolioStatsReader {
 
   // accountId 는 계좌 ID 또는 all, 남의 계좌면 접근 거부, 체결이 있는 계좌만 계좌 ID 순
   public List<AccountActivity> activities(String userId, String accountId) {
-    Long account = parseAccount(accountId);
-    List<Trade> trades;
-    if (account == null) {
-      trades = tradeRepository.findByUserId(userId);
-    } else {
-      checkOwner(userId, account);
-      trades = tradeRepository.findByUserIdAndAccountId(userId, account);
-    }
+    Long account = account(userId, accountId);
+    List<Trade> trades = account == null
+      ? tradeRepository.findByUserId(userId)
+      : tradeRepository.findByUserIdAndAccountId(userId, account);
     Map<Long, List<DividendPayout>> payouts = dividendPayoutRepository.findByUserId(userId).stream()
       .collect(Collectors.groupingBy(DividendPayout::getAccountId));
     return trades.stream()
@@ -56,6 +52,15 @@ public class PortfolioStatsReader {
       .map(entry -> new AccountActivity(entry.getKey(), entry.getValue(),
         payouts.getOrDefault(entry.getKey(), List.of())))
       .toList();
+  }
+
+  // 계좌 ID(all 이면 null), 남의 계좌면 접근 거부
+  public Long account(String userId, String accountId) {
+    Long account = parseAccount(accountId);
+    if (account != null) {
+      checkOwner(userId, account);
+    }
+    return account;
   }
 
   private static Long parseAccount(String accountId) {
@@ -73,7 +78,7 @@ public class PortfolioStatsReader {
     throw new TradeException(TradeResponse.INVALID_ACCOUNT_ID);
   }
 
-  // 체결 테이블의 계좌 주인(체결이 없는 계좌는 보여 줄 값이 없어 넘어감)
+  // 체결 테이블의 계좌 주인 확인(체결이 없는 계좌는 넘어감)
   private void checkOwner(String userId, Long accountId) {
     tradeRepository.findFirstByAccountIdOrderByIdAsc(accountId)
       .filter(trade -> !trade.getUserId().equals(userId))

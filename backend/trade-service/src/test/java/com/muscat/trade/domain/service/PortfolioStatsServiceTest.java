@@ -18,6 +18,11 @@ import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.common.enums.type.TradeType;
 import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.config.TradeProperties;
+import com.muscat.trade.domain.dto.response.DividendStatsResponse;
+import com.muscat.trade.domain.dto.response.DividendStatsResponse.Payout;
+import com.muscat.trade.domain.dto.response.DividendStatsResponse.SymbolDividend;
+import com.muscat.trade.domain.dto.response.FxStatsResponse;
+import com.muscat.trade.domain.dto.response.FxStatsResponse.Exchange;
 import com.muscat.trade.domain.dto.response.ProfitDetailResponse;
 import com.muscat.trade.domain.dto.response.ProfitDetailResponse.Holding;
 import com.muscat.trade.domain.dto.response.ProfitDetailResponse.MonthlyProfit;
@@ -30,6 +35,8 @@ import com.muscat.trade.domain.entity.Trade;
 import com.muscat.trade.domain.repository.DividendPayoutRepository;
 import com.muscat.trade.domain.repository.TradeRepository;
 import com.muscat.trade.infra.client.MarketServiceClientWrapper;
+import com.muscat.trade.infra.client.UserServiceClientWrapper;
+import com.muscat.trade.infra.client.dto.ExchangeRecordDto;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -68,6 +75,9 @@ class PortfolioStatsServiceTest {
   @Mock
   private ProfitFlowService profitFlowService;
 
+  @Mock
+  private UserServiceClientWrapper userServiceClientWrapper;
+
   private PortfolioStatsService service;
 
   private long ids = 1;
@@ -77,7 +87,7 @@ class PortfolioStatsServiceTest {
     Clock clock = Clock.fixed(Instant.parse("2024-11-10T01:00:00Z"), ZoneId.of("Asia/Seoul"));
     service = new PortfolioStatsService(
       new PortfolioStatsReader(tradeRepository, dividendPayoutRepository, marketServiceClientWrapper),
-      profitFlowService, new TradeProperties(), clock);
+      profitFlowService, userServiceClientWrapper, new TradeProperties(), clock);
   }
 
   private Trade trade(long accountId, TradeType type, String symbol, String quantity, String price, String fee,
@@ -108,7 +118,11 @@ class PortfolioStatsServiceTest {
   }
 
   private static DividendPayout payout(String symbol, LocalDate exDate, String net) {
-    return DividendPayout.of(USER, ACCOUNT, symbol, exDate,
+    return payout(ACCOUNT, symbol, exDate, net);
+  }
+
+  private static DividendPayout payout(long accountId, String symbol, LocalDate exDate, String net) {
+    return DividendPayout.of(USER, accountId, symbol, exDate,
       new DividendAmounts(new BigDecimal("0.20"), new BigDecimal("10"), new BigDecimal(net), BigDecimal.ZERO,
         new BigDecimal(net)), LocalDateTime.of(2024, 9, 1, 9, 0));
   }
@@ -129,12 +143,26 @@ class PortfolioStatsServiceTest {
       .willReturn(rates);
   }
 
+  private static ExchangeRecordDto krwToUsd(long accountId, LocalDate date, String usd, String rate) {
+    BigDecimal dollars = new BigDecimal(usd);
+    BigDecimal fxRate = new BigDecimal(rate);
+    return new ExchangeRecordDto(accountId, date.atTime(10, 15, 30), "KRW", "USD", dollars.multiply(fxRate), dollars,
+      fxRate);
+  }
+
+  private static ExchangeRecordDto usdToKrw(long accountId, LocalDate date, String usd, String rate) {
+    BigDecimal dollars = new BigDecimal(usd);
+    BigDecimal fxRate = new BigDecimal(rate);
+    return new ExchangeRecordDto(accountId, date.atTime(10, 15, 30), "USD", "KRW", dollars, dollars.multiply(fxRate),
+      fxRate);
+  }
+
   private static ProfitPoint point(LocalDate date, String profitKrw) {
     return new ProfitPoint(date, new BigDecimal(profitKrw), BigDecimal.ZERO);
   }
 
   @Test
-  @DisplayName("수익 자세히는 기간 안 매도를 판 날 환율로, 기간 끝에 들고 있는 종목을 오늘 종가 · 환율로 내고 달마다 수익은 수익 흐름 점으로 낸다")
+  @DisplayName("수익 자세히는 기간 안 매도를 판 날 환율로, 들고 있는 종목을 수익 흐름 마지막 날 종가 · 환율로 내고 달마다 수익은 수익 흐름 점으로 낸다")
   void profit_OneAccount() {
     Trade inPeriod = sell(ACCOUNT, "AAPL", "2", "120.00", "0.00", LocalDate.of(2024, 10, 20));
     ownAccount(List.of(
@@ -148,7 +176,7 @@ class PortfolioStatsServiceTest {
       point(CLOSE_DATE, "1200")));
     given(marketServiceClientWrapper.getOHLCPriceRange("AAPL", "2024-10-27", "2024-11-10"))
       .willReturn(List.of(candle("AAPL", CLOSE_DATE, "125.00")));
-    fx(Map.of("2024-10-20", new BigDecimal("1350"), "2024-11-10", new BigDecimal("1400")));
+    fx(Map.of("2024-10-20", new BigDecimal("1350"), "2024-11-08", new BigDecimal("1380")));
 
     ProfitDetailResponse response = service.profit(USER, "3", FlowPeriod.ONE_MONTH);
 
@@ -173,9 +201,9 @@ class PortfolioStatsServiceTest {
     assertThat(holding.closeUsd()).isEqualByComparingTo("125.00");
     assertThat(holding.closeDate()).isEqualTo(CLOSE_DATE);
     assertThat(holding.unrealizedUsd()).isEqualByComparingTo("100.00");
-    assertThat(holding.unrealizedKrw()).isEqualByComparingTo("140000");
+    assertThat(holding.unrealizedKrw()).isEqualByComparingTo("138000");
     assertThat(holding.returnPercent()).isEqualByComparingTo("25.00");
-    assertThat(response.unrealizedKrw()).isEqualByComparingTo("140000");
+    assertThat(response.unrealizedKrw()).isEqualByComparingTo("138000");
     verify(profitFlowService).points(eq(USER),
       argThat(activities -> activities.size() == 1 && activities.getFirst().accountId() == ACCOUNT
         && activities.getFirst().trades().size() == 4),
@@ -194,16 +222,16 @@ class PortfolioStatsServiceTest {
     given(tradeRepository.findByUserId(USER)).willReturn(List.of(msftSell, aaplSell, msftBuy, otherAaplBuy, aaplBuy));
     given(dividendPayoutRepository.findByUserId(USER)).willReturn(List.of());
     given(profitFlowService.points(eq(USER), anyList(), eq(TODAY))).willReturn(List.of(
-      point(LocalDate.of(2024, 9, 30), "100"), point(soldOn, "300")));
+      point(LocalDate.of(2024, 9, 30), "100"), point(soldOn, "300"), point(CLOSE_DATE, "300")));
     given(marketServiceClientWrapper.getOHLCPriceRange("AAPL", "2024-10-27", "2024-11-10"))
       .willReturn(List.of(candle("AAPL", CLOSE_DATE, "120.00")));
-    fx(Map.of("2024-10-01", new BigDecimal("1300"), "2024-11-10", new BigDecimal("1400")));
+    fx(Map.of("2024-10-01", new BigDecimal("1300"), "2024-11-08", new BigDecimal("1400")));
 
     ProfitDetailResponse response = service.profit(USER, "all", FlowPeriod.ALL);
 
     assertThat(response.monthly()).extracting(MonthlyProfit::profitKrw)
       .usingElementComparator(BigDecimal::compareTo)
-      .containsExactly(new BigDecimal("100"), new BigDecimal("200"));
+      .containsExactly(new BigDecimal("100"), new BigDecimal("200"), BigDecimal.ZERO);
     assertThat(response.sales()).extracting(Sale::tradeId).containsExactly(msftSell.getId(), aaplSell.getId());
     assertThat(response.sales()).extracting(Sale::realizedKrw)
       .usingElementComparator(BigDecimal::compareTo)
@@ -245,7 +273,22 @@ class PortfolioStatsServiceTest {
     assertThat(response.symbols().getLast().totalKrw()).isEqualByComparingTo("7000");
     assertThat(response.symbols().getLast().sharePercent()).isEqualByComparingTo("4.17");
     assertThat(response.totalKrw()).isEqualByComparingTo("168000");
-    verifyNoInteractions(profitFlowService);
+  }
+
+  @Test
+  @DisplayName("종목별 기여는 오늘 환율이 들어와도 수익 흐름 마지막 날의 종가 · 환율로 내서 현재 수익과 같다")
+  void symbols_ValuesAtLastFlowDay() {
+    ownAccount(List.of(buy(ACCOUNT, "AAPL", "1", "100.00", "0.00", LocalDate.of(2024, 9, 2))));
+    given(profitFlowService.points(eq(USER), anyList(), eq(TODAY))).willReturn(List.of(
+      point(LocalDate.of(2024, 10, 31), "20000"), point(CLOSE_DATE, "27600")));
+    given(marketServiceClientWrapper.getOHLCPriceRange("AAPL", "2024-10-27", "2024-11-10"))
+      .willReturn(List.of(candle("AAPL", CLOSE_DATE, "120.00")));
+    fx(Map.of("2024-11-08", new BigDecimal("1380")));
+
+    SymbolContributionResponse response = service.symbols(USER, "3", FlowPeriod.ALL);
+
+    assertThat(response.symbols().getFirst().unrealizedKrw()).isEqualByComparingTo("27600");
+    assertThat(response.totalKrw()).isEqualByComparingTo("27600");
   }
 
   @Test
@@ -269,6 +312,122 @@ class PortfolioStatsServiceTest {
   }
 
   @Test
+  @DisplayName("배당은 배당락일이 기간 안인 배당만 배당락일 환율로 바꾼다")
+  void dividends_OneAccountInPeriod() {
+    ownAccount(List.of(buy(ACCOUNT, "KO", "10", "60.00", "0.00", LocalDate.of(2024, 9, 2))),
+      payout("KO", LocalDate.of(2024, 10, 10), "1.00"), payout("KO", LocalDate.of(2024, 10, 15), "2.00"),
+      payout("AAPL", LocalDate.of(2024, 11, 1), "0.50"));
+    fx(Map.of("2024-10-15", new BigDecimal("1350"), "2024-11-01", new BigDecimal("1400")));
+
+    DividendStatsResponse response = service.dividends(USER, "3", FlowPeriod.ONE_MONTH);
+
+    assertThat(response.netKrw()).isEqualByComparingTo("3400");
+    assertThat(response.netUsd()).isEqualByComparingTo("2.50");
+    assertThat(response.payoutCount()).isEqualTo(2);
+    assertThat(response.payouts()).extracting(Payout::exDate)
+      .containsExactly(LocalDate.of(2024, 11, 1), LocalDate.of(2024, 10, 15));
+    assertThat(response.payouts()).extracting(Payout::netKrw)
+      .usingElementComparator(BigDecimal::compareTo)
+      .containsExactly(new BigDecimal("700"), new BigDecimal("2700"));
+    assertThat(response.symbols()).extracting(SymbolDividend::symbol).containsExactly("KO", "AAPL");
+    verifyNoInteractions(profitFlowService, userServiceClientWrapper);
+  }
+
+  @Test
+  @DisplayName("전체 계좌 배당은 계좌마다 배당 줄을 두고 종목 합은 계좌를 합친다")
+  void dividends_AllAccounts() {
+    LocalDate exDate = LocalDate.of(2024, 10, 15);
+    given(tradeRepository.findByUserId(USER)).willReturn(List.of(
+      buy(ACCOUNT, "KO", "10", "60.00", "0.00", LocalDate.of(2024, 9, 2)),
+      buy(4L, "KO", "5", "60.00", "0.00", LocalDate.of(2024, 9, 3))));
+    given(dividendPayoutRepository.findByUserId(USER)).willReturn(List.of(
+      payout(4L, "KO", exDate, "1.00"), payout("KO", exDate, "2.00")));
+    fx(Map.of("2024-10-15", new BigDecimal("1350")));
+
+    DividendStatsResponse response = service.dividends(USER, "all", FlowPeriod.ALL);
+
+    assertThat(response.payouts()).extracting(Payout::accountId).containsExactly(ACCOUNT, 4L);
+    assertThat(response.symbols()).hasSize(1);
+    assertThat(response.symbols().getFirst().netUsd()).isEqualByComparingTo("3.00");
+    assertThat(response.symbols().getFirst().payoutCount()).isEqualTo(2);
+    assertThat(response.netKrw()).isEqualByComparingTo("4050");
+    verify(tradeRepository, never()).findFirstByAccountIdOrderByIdAsc(any());
+  }
+
+  @Test
+  @DisplayName("환율 효과는 그 계좌의 환전 기록만 오늘과 기간 시작 전날 환율로 내고 체결이 없는 계좌도 낸다")
+  void fx_OneAccountWithDayBeforePeriod() {
+    given(tradeRepository.findFirstByAccountIdOrderByIdAsc(ACCOUNT)).willReturn(Optional.empty());
+    given(userServiceClientWrapper.getExchangeRecords()).willReturn(List.of(
+      krwToUsd(ACCOUNT, LocalDate.of(2024, 9, 2), "1000.00", "1300"),
+      krwToUsd(4L, LocalDate.of(2024, 10, 20), "500.00", "1350"),
+      krwToUsd(ACCOUNT, LocalDate.of(2024, 10, 20), "1000.00", "1350")));
+    fx(Map.of("2024-10-10", new BigDecimal("1340"), "2024-11-10", new BigDecimal("1385.2")));
+
+    FxStatsResponse response = service.fx(USER, "3", FlowPeriod.ONE_MONTH);
+
+    assertThat(response.fxEffectKrw()).isEqualByComparingTo("80400");
+    assertThat(response.heldUsd()).isEqualByComparingTo("2000.00");
+    assertThat(response.averageRate()).isEqualByComparingTo("1325.00");
+    assertThat(response.currentRate()).isEqualByComparingTo("1385.20");
+    assertThat(response.exchanges()).extracting(Exchange::accountId).containsExactly(ACCOUNT);
+    assertThat(response.exchanges().getFirst().effectKrw()).isEqualByComparingTo("35200");
+    verify(tradeRepository, never()).findByUserIdAndAccountId(any(), any());
+    verifyNoInteractions(dividendPayoutRepository, profitFlowService);
+  }
+
+  @Test
+  @DisplayName("전체 계좌 · 전체 기간 환율 효과는 모든 계좌의 환전 기록을 오늘 환율 하나로 낸다")
+  void fx_AllAccountsAllPeriod() {
+    given(userServiceClientWrapper.getExchangeRecords()).willReturn(List.of(
+      krwToUsd(ACCOUNT, LocalDate.of(2024, 9, 2), "1000.00", "1300"),
+      usdToKrw(4L, LocalDate.of(2024, 11, 1), "300.00", "1380")));
+    fx(Map.of("2024-11-10", new BigDecimal("1385.2")));
+
+    FxStatsResponse response = service.fx(USER, "all", FlowPeriod.ALL);
+
+    assertThat(response.fxEffectKrw()).isEqualByComparingTo("83640");
+    assertThat(response.exchangeCount()).isEqualTo(2);
+    assertThat(response.krwToUsdKrw()).isEqualByComparingTo("1300000");
+    assertThat(response.usdToKrwUsd()).isEqualByComparingTo("300.00");
+    verifyNoInteractions(tradeRepository);
+  }
+
+  @Test
+  @DisplayName("환전 기록이 없으면 효과 0 · 빈 목록이고 지금 환율만 낸다")
+  void fx_NoExchanges() {
+    given(userServiceClientWrapper.getExchangeRecords()).willReturn(List.of());
+    fx(Map.of("2024-11-10", new BigDecimal("1385.2")));
+
+    FxStatsResponse response = service.fx(USER, "all", FlowPeriod.ONE_YEAR);
+
+    assertThat(response.fxEffectKrw()).isEqualByComparingTo("0");
+    assertThat(response.heldUsd()).isEqualByComparingTo("0");
+    assertThat(response.averageRate()).isNull();
+    assertThat(response.currentRate()).isEqualByComparingTo("1385.20");
+    assertThat(response.exchanges()).isEmpty();
+  }
+
+  @Test
+  @DisplayName("환전 기록을 못 받으면 사용자 서비스 오류로 예외가 나고 시세는 부르지 않는다")
+  void fx_UserServiceError() {
+    given(userServiceClientWrapper.getExchangeRecords())
+      .willThrow(new TradeException(TradeResponse.USER_SERVICE_ERROR));
+
+    assertThatThrownBy(() -> service.fx(USER, "all", FlowPeriod.ALL))
+      .hasFieldOrPropertyWithValue("errorCode", TradeResponse.USER_SERVICE_ERROR.name());
+    verifyNoInteractions(marketServiceClientWrapper);
+  }
+
+  @Test
+  @DisplayName("환율 효과도 계좌 값이 숫자 · all 이 아니면 잘못된 계좌로 예외가 나고 사용자 서비스는 부르지 않는다")
+  void fx_InvalidAccount_NoUserCall() {
+    assertThatThrownBy(() -> service.fx(USER, "abc", FlowPeriod.ALL))
+      .hasFieldOrPropertyWithValue("errorCode", TradeResponse.INVALID_ACCOUNT_ID.name());
+    verifyNoInteractions(userServiceClientWrapper, tradeRepository);
+  }
+
+  @Test
   @DisplayName("체결이 없는 계좌는 빈 목록 · 합 0 이고 시세는 부르지 않는다")
   void emptyAccount_NoMarketCalls() {
     given(tradeRepository.findFirstByAccountIdOrderByIdAsc(ACCOUNT)).willReturn(Optional.empty());
@@ -277,6 +436,7 @@ class PortfolioStatsServiceTest {
 
     ProfitDetailResponse profit = service.profit(USER, "3", FlowPeriod.THREE_MONTHS);
     SymbolContributionResponse symbols = service.symbols(USER, "3", FlowPeriod.ONE_YEAR);
+    DividendStatsResponse dividends = service.dividends(USER, "3", FlowPeriod.ALL);
 
     assertThat(profit.monthly()).isEmpty();
     assertThat(profit.sales()).isEmpty();
@@ -285,11 +445,13 @@ class PortfolioStatsServiceTest {
     assertThat(profit.unrealizedKrw()).isEqualByComparingTo("0");
     assertThat(symbols.symbols()).isEmpty();
     assertThat(symbols.totalKrw()).isEqualByComparingTo("0");
+    assertThat(dividends.payouts()).isEmpty();
+    assertThat(dividends.netKrw()).isEqualByComparingTo("0");
     verifyNoInteractions(marketServiceClientWrapper);
   }
 
   @Test
-  @DisplayName("체결 테이블의 계좌 주인이 다르면 계좌 접근 거부로 예외가 나고 수익 흐름 · 시세는 부르지 않는다")
+  @DisplayName("체결 테이블의 계좌 주인이 다르면 계좌 접근 거부로 예외가 나고 수익 흐름 · 시세 · 사용자 서비스는 부르지 않는다")
   void otherUsersAccount_AccessDenied() {
     Trade others = buy(ACCOUNT, "AAPL", "1", "100.00", "0.00", LocalDate.of(2024, 9, 2));
     others.setUserId("user-2");
@@ -300,6 +462,10 @@ class PortfolioStatsServiceTest {
     assertThatThrownBy(() -> service.symbols(USER, "3", FlowPeriod.ALL))
       .isInstanceOf(TradeException.class)
       .hasFieldOrPropertyWithValue("errorCode", TradeResponse.ACCOUNT_ACCESS_DENIED.name());
-    verifyNoInteractions(profitFlowService, marketServiceClientWrapper);
+    assertThatThrownBy(() -> service.dividends(USER, "3", FlowPeriod.ALL))
+      .hasFieldOrPropertyWithValue("errorCode", TradeResponse.ACCOUNT_ACCESS_DENIED.name());
+    assertThatThrownBy(() -> service.fx(USER, "3", FlowPeriod.ALL))
+      .hasFieldOrPropertyWithValue("errorCode", TradeResponse.ACCOUNT_ACCESS_DENIED.name());
+    verifyNoInteractions(profitFlowService, marketServiceClientWrapper, userServiceClientWrapper);
   }
 }

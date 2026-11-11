@@ -2,6 +2,8 @@ package com.muscat.trade.infra.client;
 
 import com.muscat.trade.infra.client.dto.AccountBalanceDto;
 import com.muscat.trade.infra.client.dto.DividendSettlementPageDto;
+import com.muscat.trade.infra.client.dto.ExchangeRecordDto;
+import java.util.List;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -18,4 +20,8 @@ public interface UserServiceClient {
   // user 관리자 경로라 관리자 토큰으로만 됨
   @GetMapping("/api/admin/users/dividend-settlements")
   DividendSettlementPageDto getDividendSettlements(@RequestParam("page") int page, @RequestParam("size") int size);
+
+  // 토큰 사용자의 모든 계좌 환전 기록(오래된 것부터)
+  @GetMapping("/api/internal/accounts/exchanges")
+  List<ExchangeRecordDto> getExchangeRecords();
 }

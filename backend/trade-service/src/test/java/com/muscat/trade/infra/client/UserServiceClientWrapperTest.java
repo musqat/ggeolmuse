@@ -8,16 +8,19 @@ import static org.mockito.Mockito.mock;
 import com.muscat.trade.common.enums.response.TradeResponse;
 import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.infra.client.dto.AccountBalanceDto;
+import com.muscat.trade.infra.client.dto.ExchangeRecordDto;
 import feign.FeignException;
 import feign.Request;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
-@DisplayName("사용자 서비스 잔액 호출과 대체 동작")
+@DisplayName("사용자 서비스 잔액 · 환전 기록 호출과 대체 동작")
 class UserServiceClientWrapperTest {
 
   private final UserServiceClient client = mock(UserServiceClient.class);
@@ -52,5 +55,32 @@ class UserServiceClientWrapperTest {
 
     assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(wrapper, "getAccountBalanceFallback", 20L, notFound))
       .isSameAs(notFound);
+  }
+
+  @Test
+  @DisplayName("환전 기록은 사용자 서비스가 준 목록을 그대로 돌려준다")
+  void exchangeRecords_Delegates() {
+    List<ExchangeRecordDto> records = List.of(new ExchangeRecordDto(3L, LocalDateTime.of(2024, 9, 2, 10, 15, 30),
+      "KRW", "USD", new BigDecimal("1300000.00"), new BigDecimal("1000.00"), new BigDecimal("1300.000000")));
+    given(client.getExchangeRecords()).willReturn(records);
+
+    assertThat(wrapper.getExchangeRecords()).isSameAs(records);
+  }
+
+  @Test
+  @DisplayName("환전 기록을 못 받으면 4xx 도 원인을 담은 사용자 서비스 오류 예외가 난다")
+  void exchangeRecordsFallback_AnyError_UserServiceError() {
+    Request request = Request.create(Request.HttpMethod.GET, "/api/internal/accounts/exchanges", Map.of(), null,
+      StandardCharsets.UTF_8, null);
+    FeignException.NotFound notFound = new FeignException.NotFound("Not Found", request, null, Map.of());
+    RuntimeException down = new RuntimeException("down");
+
+    assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(wrapper, "getExchangeRecordsFallback", notFound))
+      .isInstanceOf(TradeException.class)
+      .hasMessage(TradeResponse.USER_SERVICE_ERROR.getMessage())
+      .hasCause(notFound);
+    assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(wrapper, "getExchangeRecordsFallback", down))
+      .isInstanceOf(TradeException.class)
+      .hasCause(down);
   }
 }
