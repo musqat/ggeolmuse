@@ -51,11 +51,13 @@ const DETAIL: ProfitDetailResponse = {
 
 const EMPTY: ProfitDetailResponse = { monthly: [], realizedKrw: 0, unrealizedKrw: 0, sales: [], holdings: [] }
 
-function renderTab() {
+const NAMES = { 3: '연습', 5: '배당' }
+
+function renderTab(accountId: number | 'all' = 'all') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={client}>
-      <ProfitTab accountId="all" period="ALL" flow={FLOW} assets={1_972_500} scope="2개 계좌" />
+      <ProfitTab accountId={accountId} period="ALL" flow={FLOW} assets={1_972_500} scope="2개 계좌" accountNames={NAMES} />
     </QueryClientProvider>
   )
 }
@@ -107,9 +109,9 @@ describe('ProfitTab', () => {
 
     expect(fold).toHaveAttribute('aria-expanded', 'true')
     expect(rows('판 거래')).toEqual([
-      ['날짜', '종목', '수량', '판 가격 $', '실현 손익 $', '실현 손익 ₩', '수익률'],
-      ['2024-09-18', 'AAPL', '2', '$220.15', '+$35.20', '+₩46,834', '+8.69%'],
-      ['2024-09-02', 'TSLA', '0.5', '$200.00', '-$10.50', '-', '-9.50%'],
+      ['날짜', '계좌', '종목', '수량', '판 가격 $', '실현 손익 $', '실현 손익 ₩', '수익률'],
+      ['2024-09-18', '연습', 'AAPL', '2', '$220.15', '+$35.20', '+₩46,834', '+8.69%'],
+      ['2024-09-02', '연습', 'TSLA', '0.5', '$200.00', '-$10.50', '-', '-9.50%'],
     ])
     expect(rows('들고 있는 종목')).toEqual([
       ['종목', '수량', '평균 단가 $', '종가 $', '평가 손익 $', '평가 손익 ₩', '수익률'],
@@ -123,7 +125,7 @@ describe('ProfitTab', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const tab = (period: '1M' | 'ALL') => (
       <QueryClientProvider client={client}>
-        <ProfitTab accountId="all" period={period} flow={FLOW} assets={1_972_500} scope="2개 계좌" />
+        <ProfitTab accountId="all" period={period} flow={FLOW} assets={1_972_500} scope="2개 계좌" accountNames={NAMES} />
       </QueryClientProvider>
     )
     const { rerender } = render(tab('ALL'))
@@ -150,13 +152,23 @@ describe('ProfitTab', () => {
     await user.click(await screen.findByRole('button', { name: /자세히 펼치기/ }))
 
     expect(rows('판 거래')).toEqual([
-      ['날짜', '종목', '수량', '판 가격 $', '실현 손익 $', '실현 손익 ₩', '수익률'],
+      ['날짜', '계좌', '종목', '수량', '판 가격 $', '실현 손익 $', '실현 손익 ₩', '수익률'],
       ['이 기간에 판 거래가 없습니다'],
     ])
     expect(rows('들고 있는 종목')).toEqual([
       ['종목', '수량', '평균 단가 $', '종가 $', '평가 손익 $', '평가 손익 ₩', '수익률'],
       ['들고 있는 종목이 없습니다'],
     ])
+  })
+
+  it('계좌 하나면 판 거래 표에 계좌 칸이 없다', async () => {
+    const user = userEvent.setup()
+    renderTab(3)
+
+    await user.click(await screen.findByRole('button', { name: /자세히 펼치기/ }))
+
+    expect(portfolioApi.getProfitDetail).toHaveBeenCalledWith(3, 'ALL')
+    expect(rows('판 거래')[0]).toEqual(['날짜', '종목', '수량', '판 가격 $', '실현 손익 $', '실현 손익 ₩', '수익률'])
   })
 
   it('이 기간에 거래가 없으면 막대와 펼침 대신 안내 한 줄을 보인다', async () => {

@@ -97,6 +97,69 @@ export type SymbolContributionResponse = {
   symbols: SymbolContribution[];
 };
 
+// 배당락일 달 하나(YYYY-MM)의 세후 배당 합
+export type MonthlyDividend = { month: string; netUsd: number; netKrw: number };
+
+// 종목 하나의 기간 세후 배당 합(sharePercent 는 전체 세후 원화 대비)
+export type SymbolDividend = {
+  symbol: string;
+  netUsd: number;
+  netKrw: number;
+  payoutCount: number;
+  sharePercent: number;
+};
+
+// 계좌 · 종목 · 배당락일 하나의 배당(배당락일 환율이 없으면 fxRate null · 원화 0)
+export type DividendPayout = {
+  exDate: string;
+  accountId: number;
+  symbol: string;
+  shares: number;
+  dividendPerShareUsd: number;
+  grossUsd: number;
+  taxUsd: number;
+  netUsd: number;
+  fxRate: number | null;
+  netKrw: number;
+};
+
+// 배당락일이 기간 안인 배당(달은 오래된 달부터, 종목은 세후 원화 큰 것부터, 내역은 최근부터, 맨 위 합은 줄 값의 합)
+export type DividendStatsResponse = {
+  netKrw: number;
+  netUsd: number;
+  grossUsd: number;
+  taxUsd: number;
+  payoutCount: number;
+  monthly: MonthlyDividend[];
+  symbols: SymbolDividend[];
+  payouts: DividendPayout[];
+};
+
+export type FxDirection = 'KRW_TO_USD' | 'USD_TO_KRW';
+
+// 환전 한 건(원화→달러는 낸 원화 · 받은 달러, 달러→원화는 받은 원화 · 판 달러, 효과는 기간 끝 환율 기준)
+export type FxExchange = {
+  date: string;
+  accountId: number;
+  direction: FxDirection;
+  krwAmount: number;
+  usdAmount: number;
+  rate: number;
+  effectKrw: number;
+};
+
+// 환전한 원금의 환율 효과(기간 끝 환율이 없으면 currentRate null, 환전 달러 합이 0 이하면 averageRate null)
+export type FxStatsResponse = {
+  fxEffectKrw: number;
+  currentRate: number | null;
+  averageRate: number | null;
+  heldUsd: number;
+  krwToUsdKrw: number;
+  usdToKrwUsd: number;
+  exchangeCount: number;
+  exchanges: FxExchange[];
+};
+
 export const portfolioApi = {
   // 전체 포트폴리오 조회
   getPortfolio: () =>
@@ -121,4 +184,12 @@ export const portfolioApi = {
   // 계좌 하나 또는 전체 계좌의 기간 종목별 기여
   getSymbolContributions: (accountId: number | 'all', period: ProfitFlowPeriod) =>
     apiClient.get<SymbolContributionResponse>('/portfolio/stats/symbols', { params: { accountId, period } }),
+
+  // 계좌 하나 또는 전체 계좌의 기간 배당
+  getDividendStats: (accountId: number | 'all', period: ProfitFlowPeriod) =>
+    apiClient.get<DividendStatsResponse>('/portfolio/stats/dividends', { params: { accountId, period } }),
+
+  // 계좌 하나 또는 전체 계좌의 기간 환율 효과
+  getFxStats: (accountId: number | 'all', period: ProfitFlowPeriod) =>
+    apiClient.get<FxStatsResponse>('/portfolio/stats/fx', { params: { accountId, period } }),
 };
