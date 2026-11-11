@@ -20,7 +20,7 @@ public record ProfitDetailResponse(
   @Schema(description = "기간 안 거래일의 매도(최근 날짜부터, 같은 날짜는 체결 ID 큰 것부터)")
   List<Sale> sales,
 
-  @Schema(description = "기간 끝에 들고 있는 종목(평가 손익 원화 큰 것부터, 전체 계좌는 종목마다 합침)")
+  @Schema(description = "기간 끝(기간 안 마지막 수익 흐름 점 날짜, 없으면 오늘)에 들고 있는 종목(평가 손익 원화 큰 것부터, 전체 계좌는 종목마다 합침)")
   List<Holding> holdings
 ) {
 
@@ -80,7 +80,7 @@ public record ProfitDetailResponse(
     @Schema(description = "투자금액 ÷ 수량(USD)", example = "180.00")
     BigDecimal averagePriceUsd,
 
-    @Schema(description = "오늘 이하 가장 늦은 종가(USD, 못 받으면 null)", example = "225.40")
+    @Schema(description = "기간 끝 이하 가장 늦은 종가(USD, 못 받으면 null)", example = "225.40")
     BigDecimal closeUsd,
 
     @Schema(description = "종가 날짜(못 받으면 null)", example = "2024-11-08")
@@ -89,7 +89,7 @@ public record ProfitDetailResponse(
     @Schema(description = "수량 × 종가 − 투자금액(USD, 종가가 없으면 −투자금액)", example = "136.20")
     BigDecimal unrealizedUsd,
 
-    @Schema(description = "평가 손익을 오늘 환율로 바꾼 원화", example = "190680")
+    @Schema(description = "평가 손익을 기간 끝 환율로 바꾼 원화", example = "190680")
     BigDecimal unrealizedKrw,
 
     @Schema(description = "평가 손익 ÷ 투자금액 × 100", example = "25.22")

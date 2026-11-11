@@ -11,6 +11,8 @@ import com.muscat.trade.domain.dto.response.DividendStatsResponse.SymbolDividend
 import com.muscat.trade.domain.dto.response.FxStatsResponse;
 import com.muscat.trade.domain.dto.response.FxStatsResponse.Direction;
 import com.muscat.trade.domain.dto.response.FxStatsResponse.Exchange;
+import com.muscat.trade.domain.dto.response.MarketComparisonResponse;
+import com.muscat.trade.domain.dto.response.MarketComparisonResponse.MarketPoint;
 import com.muscat.trade.domain.dto.response.ProfitDetailResponse;
 import com.muscat.trade.domain.dto.response.ProfitDetailResponse.Holding;
 import com.muscat.trade.domain.dto.response.ProfitDetailResponse.MonthlyProfit;
@@ -26,6 +28,7 @@ import com.muscat.trade.domain.entity.Holdings;
 import com.muscat.trade.domain.entity.Trade;
 import com.muscat.trade.infra.client.dto.ExchangeRecordDto;
 import java.math.BigDecimal;
+import java.math.MathContext;
 import java.math.RoundingMode;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -46,7 +49,7 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-// 계좌 통계 탭 계산(완료 체결은 수익 흐름 계산과 같은 순서 · 실현 손익 식, 원화는 그 날짜 환율)
+// 계좌 통계 탭 · 시장 비교 계산(완료 체결은 수익 흐름 계산과 같은 순서 · 실현 손익 식, 원화는 그 날짜 환율)
 public final class PortfolioStatsCalculator {
 
   private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
@@ -141,19 +144,19 @@ public final class PortfolioStatsCalculator {
     return merged;
   }
 
-  // 수익 탭 자세히(sells 는 기간 안 매도, holdings 는 기간 끝에 들고 있는 종목을 asOf 종가 · 환율로, start 가 null 이면 전체 기간)
+  // 수익 탭 자세히(sells 는 기간 안 매도, holdings 는 기간 끝에 들고 있는 종목, start 가 null 이면 전체 기간)
   public static ProfitDetailResponse profitDetail(List<ProfitPoint> points, LocalDate start,
     List<SellResult> sells, Collection<SymbolTotals> holdings, Map<String, NavigableMap<LocalDate, BigDecimal>> closes,
-    Map<LocalDate, BigDecimal> fxRates, LocalDate asOf) {
+    Map<LocalDate, BigDecimal> fxRates, LocalDate end) {
     List<Sale> sales = sells.stream()
       .sorted(Comparator.comparing((SellResult sell) -> sell.trade().getTradeDate())
         .thenComparing(sell -> sell.trade().getId())
         .reversed())
       .map(sell -> sale(sell, fxRates.get(sell.trade().getTradeDate())))
       .toList();
-    BigDecimal asOfRate = fxRates.get(asOf);
+    BigDecimal endRate = fxRates.get(end);
     List<Holding> held = holdings.stream()
-      .map(totals -> holding(totals, close(closes, totals.symbol(), asOf), asOfRate))
+      .map(totals -> holding(totals, close(closes, totals.symbol(), end), endRate))
       .sorted(Comparator.comparing(Holding::unrealizedKrw).reversed().thenComparing(Holding::symbol))
       .toList();
     return new ProfitDetailResponse(monthly(points, start), sum(sales.stream().map(Sale::realizedKrw)),
@@ -194,11 +197,11 @@ public final class PortfolioStatsCalculator {
       usd(unrealized), krw(unrealized, fxRate), percent(unrealized, totals.investedUsd()));
   }
 
-  // 종목별 기여(칸마다 기간 끝 asOf 값 − 기간 시작 전 값, before 가 null 이면 시작 전 값 0, 시작 전날 환율이 없으면 기간 끝 환율)
+  // 종목별 기여(칸마다 기간 끝 값 − 기간 시작 전 값, before 가 null 이면 시작 전 값 0, 시작 전날 환율이 없으면 기간 끝 환율)
   public static SymbolContributionResponse symbolContributions(Map<String, SymbolTotals> end,
     Map<String, SymbolTotals> previous, Map<String, NavigableMap<LocalDate, BigDecimal>> closes,
-    Map<LocalDate, BigDecimal> fxRates, LocalDate asOf, LocalDate before) {
-    BigDecimal endRate = fxRates.get(asOf);
+    Map<LocalDate, BigDecimal> fxRates, LocalDate endDate, LocalDate before) {
+    BigDecimal endRate = fxRates.get(endDate);
     BigDecimal beforeRate = before == null ? null : fxRates.getOrDefault(before, endRate);
     Set<String> symbols = new TreeSet<>(end.keySet());
     symbols.addAll(previous.keySet());
@@ -209,7 +212,7 @@ public final class PortfolioStatsCalculator {
       SymbolTotals first = previous.getOrDefault(symbol, SymbolTotals.empty(symbol));
       Change change = new Change(symbol,
         change(last.realizedUsd(), endRate, first.realizedUsd(), beforeRate),
-        change(last.unrealizedUsd(closeValue(closes, symbol, asOf)), endRate,
+        change(last.unrealizedUsd(closeValue(closes, symbol, endDate)), endRate,
           first.unrealizedUsd(before == null ? null : closeValue(closes, symbol, before)), beforeRate),
         change(last.dividendUsd(), endRate, first.dividendUsd(), beforeRate),
         change(last.feeUsd(), endRate, first.feeUsd(), beforeRate),
@@ -440,6 +443,98 @@ public final class PortfolioStatsCalculator {
     return start == null || !trade.getTradeDate().isBefore(start);
   }
 
+  // 계좌 하나의 모든 상태 체결과 수익 흐름 점
+  public record AccountFlow(List<Trade> trades, List<ProfitPoint> points) {
+  }
+
+  // 기간 첫 날부터의 점과 그 앞 마지막 점(start 가 null 이면 모든 점)
+  public static List<ProfitPoint> periodPoints(List<ProfitPoint> points, LocalDate start) {
+    if (start == null) {
+      return points;
+    }
+    List<ProfitPoint> kept = new ArrayList<>();
+    ProfitPoint lastBefore = null;
+    for (ProfitPoint point : points) {
+      if (point.date().isBefore(start)) {
+        lastBefore = point;
+      } else {
+        kept.add(point);
+      }
+    }
+    if (lastBefore != null) {
+      kept.addFirst(lastBefore);
+    }
+    return kept;
+  }
+
+  // 시장 비교(계좌마다 셈한 SPY 수익을 날짜마다 더해 기간 첫 날부터, 종가 · 환율이 빠진 날짜가 있으면 빈 값)
+  public static MarketComparisonResponse market(List<AccountFlow> accounts,
+    NavigableMap<LocalDate, BigDecimal> closes, Map<LocalDate, BigDecimal> fxRates, LocalDate start,
+    int pricePrecision) {
+    List<List<ProfitPoint>> series = new ArrayList<>();
+    for (AccountFlow account : accounts) {
+      List<ProfitPoint> points = marketPoints(account, closes, fxRates, pricePrecision);
+      if (points == null) {
+        return MarketComparisonResponse.empty();
+      }
+      series.add(points);
+    }
+    List<MarketPoint> points = ProfitFlowCalculator.sumByDate(series).stream()
+      .filter(point -> start == null || !point.date().isBefore(start))
+      .map(point -> new MarketPoint(point.date(), point.profitKrw()))
+      .toList();
+    return new MarketComparisonResponse(MarketComparisonResponse.SYMBOL, points,
+      points.isEmpty() ? ZERO : points.getLast().profitKrw());
+  }
+
+  // 계좌 하나의 점 날짜마다 SPY 원화 수익(매수는 체결 금액 + 수수료만큼 사고 매도는 줄어든 투자금액 비율만큼 팜, 종가 · 환율이 빠지면 null)
+  private static List<ProfitPoint> marketPoints(AccountFlow account, NavigableMap<LocalDate, BigDecimal> closes,
+    Map<LocalDate, BigDecimal> fxRates, int pricePrecision) {
+    List<Trade> completed = account.trades().stream()
+      .filter(trade -> trade.getStatus() == TradeStatus.COMPLETED)
+      .sorted(ProfitFlowCalculator.TRADE_ORDER)
+      .toList();
+    Map<String, Holdings> positions = new HashMap<>();
+    BigDecimal shares = ZERO;
+    BigDecimal cost = ZERO;
+    BigDecimal realized = ZERO;
+    int next = 0;
+    List<ProfitPoint> points = new ArrayList<>();
+    for (ProfitPoint flowPoint : account.points()) {
+      LocalDate day = flowPoint.date();
+      while (next < completed.size() && !completed.get(next).getTradeDate().isAfter(day)) {
+        Trade trade = completed.get(next++);
+        BigDecimal close = floorValue(closes, trade.getTradeDate());
+        if (close == null) {
+          return null;
+        }
+        BigDecimal investedBefore = sum(positions.values().stream().map(Holdings::getTotalInvestedAmount));
+        BigDecimal symbolBefore = invested(positions.get(trade.getSymbol()));
+        ProfitFlowCalculator.apply(positions, trade, pricePrecision);
+        if (trade.getTradeType() == TradeType.BUY) {
+          BigDecimal amount = trade.getQuantity().multiply(trade.getPrice()).add(trade.getFee());
+          shares = shares.add(amount.divide(close, MathContext.DECIMAL128));
+          cost = cost.add(amount);
+        } else if (investedBefore.signum() > 0) {
+          BigDecimal ratio = symbolBefore.subtract(invested(positions.get(trade.getSymbol())))
+            .divide(investedBefore, MathContext.DECIMAL128);
+          BigDecimal soldShares = shares.multiply(ratio);
+          BigDecimal soldCost = cost.multiply(ratio);
+          realized = realized.add(soldShares.multiply(close)).subtract(soldCost);
+          shares = shares.subtract(soldShares);
+          cost = cost.subtract(soldCost);
+        }
+      }
+      BigDecimal close = floorValue(closes, day);
+      BigDecimal fxRate = fxRates.get(day);
+      if (close == null || fxRate == null) {
+        return null;
+      }
+      points.add(new ProfitPoint(day, krw(shares.multiply(close).subtract(cost).add(realized), fxRate), ZERO));
+    }
+    return points;
+  }
+
   // 그 날짜 이하 가장 늦은 종가
   private static Map.Entry<LocalDate, BigDecimal> close(Map<String, NavigableMap<LocalDate, BigDecimal>> closes,
     String symbol, LocalDate day) {
@@ -450,6 +545,11 @@ public final class PortfolioStatsCalculator {
   private static BigDecimal closeValue(Map<String, NavigableMap<LocalDate, BigDecimal>> closes, String symbol,
     LocalDate day) {
     Map.Entry<LocalDate, BigDecimal> close = close(closes, symbol, day);
+    return close == null ? null : close.getValue();
+  }
+
+  private static BigDecimal floorValue(NavigableMap<LocalDate, BigDecimal> closes, LocalDate day) {
+    Map.Entry<LocalDate, BigDecimal> close = closes.floorEntry(day);
     return close == null ? null : close.getValue();
   }
 

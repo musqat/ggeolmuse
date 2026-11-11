@@ -17,6 +17,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Objects;
+import java.util.TreeMap;
+import java.util.TreeSet;
 
 // 완료 체결 · 배당 몫 · 종가 · 환율로 거래일마다 계좌 수익 계산(USD 로 더한 뒤 그 날짜 환율로 원화)
 public final class ProfitFlowCalculator {
@@ -116,6 +119,33 @@ public final class ProfitFlowCalculator {
 
   private static BigDecimal krw(BigDecimal usd, BigDecimal fxRate) {
     return usd.multiply(fxRate).setScale(0, RoundingMode.HALF_UP);
+  }
+
+  // 계좌마다의 점(수익 · 투자 원금)을 날짜마다 더함(그 날짜에 점이 없는 계좌는 직전 점, 첫 점 전은 0)
+  public static List<ProfitPoint> sumByDate(List<List<ProfitPoint>> series) {
+    if (series.size() == 1) {
+      return series.getFirst();
+    }
+    List<NavigableMap<LocalDate, ProfitPoint>> byDate = new ArrayList<>();
+    TreeSet<LocalDate> dates = new TreeSet<>();
+    for (List<ProfitPoint> points : series) {
+      NavigableMap<LocalDate, ProfitPoint> map = new TreeMap<>();
+      points.forEach(point -> map.put(point.date(), point));
+      byDate.add(map);
+      dates.addAll(map.keySet());
+    }
+    return dates.stream()
+      .map(date -> {
+        List<ProfitPoint> latest = byDate.stream()
+          .map(map -> map.floorEntry(date))
+          .filter(Objects::nonNull)
+          .map(Map.Entry::getValue)
+          .toList();
+        return new ProfitPoint(date,
+          latest.stream().map(ProfitPoint::profitKrw).reduce(BigDecimal.ZERO, BigDecimal::add),
+          latest.stream().map(ProfitPoint::investedKrw).reduce(BigDecimal.ZERO, BigDecimal::add));
+      })
+      .toList();
   }
 
   // 기간 안 수익 점의 최고 · 최저 · 현재 수익(같은 값이면 먼저 나온 날)
