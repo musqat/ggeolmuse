@@ -159,6 +159,17 @@ export type MaCrossStrategyRequest = BacktestCommonRequest & {
   longWindow?: number;                  // 긴 이동평균 거래일 수 (비우면 60, 2 ≤ 짧은 기간 < 긴 기간 ≤ 250)
 };
 
+// 이동평균 밴드 전략 요청(수정 종가가 평균 위 선보다 높으면 가진 돈 전부로 사고 아래 선보다 낮으면 전부 팜)
+export type MaBandStrategyRequest = BacktestCommonRequest & {
+  symbol: string;                       // 종목 심볼
+  startDate: string;                    // 시작일
+  endDate: string;                      // 종료일
+  investmentAmount: number;             // 원금 (KRW)
+  bandWindow?: number;                  // 평균 거래일 수 (2 ~ 250, 비우면 200)
+  upperRate?: number;                   // 위 선 비율 (0.025 = 2.5%, 0 이상 1 미만, 비우면 0.025)
+  lowerRate?: number;                   // 아래 선 비율 (0.025 = 2.5%, 0 이상 1 미만, 비우면 0.025)
+};
+
 // 종목 비교 요청
 export type SymbolComparisonRequest = BacktestCommonRequest & {
   symbols: string[];                    // 비교할 종목 목록
@@ -208,7 +219,7 @@ export type StrategyTransaction = {
   shares: number;
   amount: number;                       // 투자금 (KRW)
   fxRate: number;
-  trigger?: string;                     // 적립식은 "월정액" · "매주 정액" · "매일 정액", 조건부는 "5.0%하락" · "5.0%상승" · "20.0%익절" · "10.0%손절" 같은 값, 이동평균은 "골든 크로스" · "데드 크로스", 기간 끝에 판 거래는 "기간 끝 매도", 양도세를 낸 줄은 "양도세 납부"
+  trigger?: string;                     // 적립식은 "월정액" · "매주 정액" · "매일 정액", 조건부는 "5.0%하락" · "5.0%상승" · "20.0%익절" · "10.0%손절" 같은 값, 이동평균은 "골든 크로스" · "데드 크로스", 밴드는 "밴드 위 매수" · "밴드 아래 매도", 기간 끝에 판 거래는 "기간 끝 매도", 양도세를 낸 줄은 "양도세 납부"
   fee?: number | null;                  // 매매 수수료 (USD, 배당 재투자는 없음)
   proceeds?: number | null;             // 매도로 받은 돈 (USD, 수수료 뺀 값, 매도는 수량이 음수)
   cashUsed?: number | null;             // 매수에 쓴 판 돈 (USD)
@@ -232,12 +243,15 @@ export type SkippedSpan = {
   reason: SkipReason;
 };
 
-// 이동평균 차트의 하루 값(USD, N 거래일이 안 찬 평균은 칸 없음)
+// 이동평균 · 밴드 차트의 하루 값(USD, N 거래일이 안 찬 평균은 칸 없음)
 export type SignalPoint = {
   date: string;
   close: number;                        // 이동평균에 넣은 값(수정 종가)
-  shortAverage?: number;
+  shortAverage?: number;                // 이동평균 교차
   longAverage?: number;
+  average?: number;                     // 밴드
+  upperBand?: number;                   // 평균 × (1 + 위 비율)
+  lowerBand?: number;                   // 평균 × (1 - 아래 비율)
 };
 
 // 짧은 선이 긴 선을 아래에서 위로(GOLDEN) · 위에서 아래로(DEAD) 넘은 날
@@ -246,11 +260,11 @@ export type SignalCross = {
   type: 'GOLDEN' | 'DEAD';
 };
 
-// 이동평균을 본 종목의 날마다 수정 종가 · 두 이동평균과 교차한 날(보유와 상관없이 모두)
+// 이동평균을 본 종목의 날마다 수정 종가 · 이동평균 값과 교차한 날(보유와 상관없이 모두)
 export type SignalChartData = {
   symbol: string;
   points: SignalPoint[];                // 시작일 ~ 평가일, 오래된 날부터
-  crosses: SignalCross[];
+  crosses: SignalCross[];               // 밴드는 빈 목록
 };
 
 // 파는 전략의 사이클(보유 0 에서 산 날 ~ 전부 판 날, 기간 끝 매도 포함) 매매 통계
@@ -303,8 +317,8 @@ export type StrategyResponse = {
   metricsUsd?: PerformanceMetrics | null;   // 달러 기준 지표
   dailyValues?: DailyValue[];               // 첫 매수일 ~ 평가일(마지막 날은 총자산)
   capitalGainsTax?: CapitalGainsTax | null;
-  signalChart?: SignalChartData | null;     // 이동평균 교차만(비교 항목은 없음)
-  tradeStats?: TradeStats | null;           // 조건부 · 이동평균 교차만
+  signalChart?: SignalChartData | null;     // 이동평균 교차 · 밴드만(비교 항목은 없음)
+  tradeStats?: TradeStats | null;           // 조건부 · 이동평균 교차 · 밴드만
 };
 
 // 비교 항목의 원래 응답(SimulationResponse 또는 StrategyResponse 라 두 쪽 칸 모두 선택)
@@ -396,6 +410,10 @@ export const backtestApi = {
   // 이동평균 교차 전략 실행
   runMaCrossStrategy: (data: MaCrossStrategyRequest) =>
     apiClient.post<StrategyResponse>('/analysis/strategy/ma-cross', data),
+
+  // 이동평균 밴드 전략 실행
+  runMaBandStrategy: (data: MaBandStrategyRequest) =>
+    apiClient.post<StrategyResponse>('/analysis/strategy/ma-band', data),
 
   // 종목 비교 분석
   compareSymbols: (data: SymbolComparisonRequest) =>

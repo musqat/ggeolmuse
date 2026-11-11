@@ -12,6 +12,7 @@ import { ConditionField } from './ConditionField'
 import { SellField } from './SellField'
 import { MaxField } from './MaxField'
 import { WindowsField } from './WindowsField'
+import { BandField } from './BandField'
 import { SymbolField, SymbolsField } from './SymbolFields'
 import type { AmountUnitState } from '../shared/amountUnit'
 
@@ -393,6 +394,85 @@ describe('WindowsField', () => {
     expect(screen.getAllByText('2 ~ 250 사이 정수')).toHaveLength(1)
     expect(screen.getByRole('textbox', { name: '짧은 기간(일)' })).toHaveAttribute('aria-invalid', 'true')
     expect(screen.getByRole('textbox', { name: '긴 기간(일)' })).toHaveAttribute('aria-invalid', 'true')
+  })
+})
+
+describe('BandField', () => {
+  const noMessages = { window: null, upper: null, lower: null }
+
+  it('평균 기간은 일 수 · 위 · 아래 비율은 퍼센트로 받고, 기간은 숫자만 · 비율은 소수까지 넘긴다', () => {
+    const onWindow = vi.fn()
+    const onUpper = vi.fn()
+    const onLower = vi.fn()
+    render(
+      <BandField
+        window="200"
+        onWindowChange={onWindow}
+        upper="2.5"
+        onUpperChange={onUpper}
+        lower="2.5"
+        onLowerChange={onLower}
+        messages={noMessages}
+      />
+    )
+
+    expect(screen.getByText('밴드')).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: '평균 기간(일)' })).toHaveValue('200')
+    expect(screen.getByRole('textbox', { name: '위 비율(평균 대비 퍼센트)' })).toHaveValue('2.5')
+    expect(screen.getByRole('textbox', { name: '아래 비율(평균 대비 퍼센트)' })).toHaveValue('2.5')
+    fireEvent.change(screen.getByRole('textbox', { name: '평균 기간(일)' }), { target: { value: '120일' } })
+    fireEvent.change(screen.getByRole('textbox', { name: '위 비율(평균 대비 퍼센트)' }), { target: { value: '3.5%' } })
+    fireEvent.change(screen.getByRole('textbox', { name: '아래 비율(평균 대비 퍼센트)' }), { target: { value: '1..5' } })
+
+    expect(onWindow).toHaveBeenLastCalledWith('120')
+    expect(onUpper).toHaveBeenLastCalledWith('3.5')
+    expect(onLower).toHaveBeenLastCalledWith('1.5')
+  })
+
+  it('휴대폰은 평균 기간 한 줄 · 비율 두 칸 한 줄로 나누고 넓은 화면은 한 줄로 둔다', () => {
+    render(
+      <BandField window="200" onWindowChange={vi.fn()} upper="2.5" onUpperChange={vi.fn()} lower="2.5" onLowerChange={vi.fn()} messages={noMessages} />
+    )
+
+    const windowGroup = screen.getByRole('textbox', { name: '평균 기간(일)' }).parentElement!
+    expect(windowGroup).toHaveClass('basis-full', 'sm:basis-auto')
+    expect(windowGroup).toHaveTextContent('일선')
+  })
+
+  it('오류가 있는 칸만 오류로 두고 칸 아래 한 줄과 잇는다, 칩 설정이면 칸 이름을 바꾼다', () => {
+    const range = { kind: 'error' as const, text: '0 이상 100 미만' }
+    const { rerender } = render(
+      <BandField
+        window="200"
+        onWindowChange={vi.fn()}
+        upper="2.5"
+        onUpperChange={vi.fn()}
+        lower="120"
+        onLowerChange={vi.fn()}
+        messages={{ window: null, upper: null, lower: range }}
+      />
+    )
+
+    const lower = screen.getByRole('textbox', { name: '아래 비율(평균 대비 퍼센트)' })
+    expect(screen.getByRole('textbox', { name: '평균 기간(일)' })).not.toHaveAttribute('aria-invalid')
+    expect(lower).toHaveAttribute('aria-invalid', 'true')
+    expect(lower).toHaveAttribute('aria-describedby', screen.getByText('0 이상 100 미만').id)
+
+    rerender(
+      <BandField
+        label="밴드 2 설정"
+        window="1"
+        onWindowChange={vi.fn()}
+        upper="2.5"
+        onUpperChange={vi.fn()}
+        lower="120"
+        onLowerChange={vi.fn()}
+        messages={{ window: { kind: 'error', text: '2 ~ 250 사이 정수' }, upper: null, lower: range }}
+      />
+    )
+    expect(screen.getByText('밴드 2 설정')).toBeInTheDocument()
+    expect(screen.getByText('2 ~ 250 사이 정수')).toBeInTheDocument()
+    expect(screen.queryByText('0 이상 100 미만')).toBeNull()
   })
 })
 

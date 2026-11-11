@@ -1,10 +1,12 @@
 import type { ComparisonResponse, SimulationResponse, StrategyResponse } from "../../../services/api";
+import type { BandSetting } from "./maBand";
 
 export type BacktestMode =
   | "simple"
   | "dca"
   | "conditional"
   | "ma-cross"
+  | "ma-band"
   | "compare-symbols"
   | "compare-strategies";
 
@@ -25,8 +27,9 @@ export { STRATEGY_NAMES } from "../comparison/catalog";
 export type BacktestResult =
   | (SimulationResponse & { mode: "simple" })
   | (StrategyResponse & {
-      mode: "dca" | "conditional" | "ma-cross";
+      mode: "dca" | "conditional" | "ma-cross" | "ma-band";
       budget?: number;
       windows?: { short: number; long: number };
+      band?: BandSetting;
     })
   | (ComparisonResponse & { mode: "compare-symbols" | "compare-strategies" });

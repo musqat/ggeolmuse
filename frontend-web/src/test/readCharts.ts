@@ -16,6 +16,11 @@ export function readCharts() {
     refLines: within(chart)
       .queryAllByTestId('ref-line')
       .map((line) => JSON.parse(line.dataset.ref ?? '{}')),
+    // 점선으로 그린 선
+    dashed: within(chart)
+      .queryAllByTestId('line')
+      .filter((line) => line.dataset.dash)
+      .map((line) => line.dataset.key),
     // 영역의 기준값(없는 선은 뺌)
     bases: within(chart)
       .queryAllByTestId('line')
