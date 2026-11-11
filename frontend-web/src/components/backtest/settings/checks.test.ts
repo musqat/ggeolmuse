@@ -15,6 +15,7 @@ import {
   signalIssue,
   symbolIssue,
   symbolsIssue,
+  trailingIssues,
   windowIssues,
 } from './checks'
 
@@ -91,6 +92,17 @@ describe('설정 칸 검사', () => {
     expect(sellIssue('20', '10')).toBeNull()
     expect(sellIssue('0', '')).toEqual(error('0 보다 크게'))
     expect(sellIssue('', '100')).toEqual(error('손절은 100 아래'))
+  })
+
+  it('트레일링 스탑: 둘 다 비면 끔, 하락은 0 초과 100 미만, 팔 비율은 하락과 함께 0 초과 100 이하', () => {
+    expect(trailingIssues('', '')).toEqual({ stop: null, sell: null })
+    expect(trailingIssues('10', '')).toEqual({ stop: null, sell: null })
+    expect(trailingIssues('99.9', '100')).toEqual({ stop: null, sell: null })
+    expect(trailingIssues('0', '')).toEqual({ stop: error('0 초과 100 미만'), sell: null })
+    expect(trailingIssues('100', '50')).toEqual({ stop: error('0 초과 100 미만'), sell: null })
+    expect(trailingIssues('10', '0')).toEqual({ stop: null, sell: error('0 초과 100 이하') })
+    expect(trailingIssues('10', '100.1')).toEqual({ stop: null, sell: error('0 초과 100 이하') })
+    expect(trailingIssues('', '50')).toEqual({ stop: null, sell: error('하락 비율과 함께') })
   })
 
   it('최대 횟수: 비면 제한 없음, 적으면 1 이상 정수', () => {

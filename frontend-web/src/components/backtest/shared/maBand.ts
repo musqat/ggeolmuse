@@ -28,7 +28,7 @@ export const parseBand = (window: string, upper: string, lower: string): BandSet
 };
 
 // 퍼센트 → 소수 비율(나눗셈 끝자리 오차를 버림)
-const toRate = (percent: number) => Number((percent / 100).toFixed(8));
+export const toRate = (percent: number) => Number((percent / 100).toFixed(8));
 
 // 비율 → 짧은 퍼센트 글(0.025 → 2.5%)
 export const bandPercent = (rate: number) => `${Number((rate * 100).toFixed(4))}%`;

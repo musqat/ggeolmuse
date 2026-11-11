@@ -91,10 +91,10 @@ describe('TradeStatsCard', () => {
 
   it('트레일링 스탑 · 부분 익절로 판 거래가 있으면 카드 아래 한 줄에 횟수를 보인다', () => {
     const { rerender } = render(<TradeStatsCard stats={stats} />)
-    expect(screen.queryByText(/트레일링 스탑|부분 익절/)).toBeNull()
+    expect(screen.queryByText(/고점 대비 하락 매도|부분 익절/)).toBeNull()
 
     rerender(<TradeStatsCard stats={{ ...stats, trailingStopCount: 2, partialTakeProfitCount: 1 }} />)
-    expect(screen.getByText('트레일링 스탑 2번 · 부분 익절 1번')).toBeInTheDocument()
+    expect(screen.getByText('고점 대비 하락 매도 2번 · 부분 익절 1번')).toBeInTheDocument()
 
     rerender(<TradeStatsCard stats={{ ...stats, partialTakeProfitCount: 3 }} />)
     expect(screen.getByText('부분 익절 3번')).toBeInTheDocument()

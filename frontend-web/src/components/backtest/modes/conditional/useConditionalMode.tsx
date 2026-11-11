@@ -8,6 +8,7 @@ import { strategyRun } from '../strategyRun';
 import { buildConditionalRequest } from './request';
 import { AMOUNT_UNITS, useAmountUnit, useRoundCost } from '../../shared/amountUnit';
 import { hasSellRates } from '../../shared/sellRates';
+import { useTrailingStop } from '../useTrailingStop';
 import { DIRECTION_ORDER } from '../../shared/priceDirection';
 import { countRounds } from '../../shared/dcaSchedule';
 import { amountIssue, budgetIssue, countErrors, maxIssue, percentIssue, sellIssue } from '../../settings/checks';
@@ -39,6 +40,7 @@ export const useConditionalMode = (shared: SharedModeProps): ModeController => {
   const [takeProfit, setTakeProfit] = useState(DEFAULTS.takeProfit); // 비우면 익절 안 함
   const [stopLoss, setStopLoss] = useState(DEFAULTS.stopLoss); // 비우면 손절 안 함
   const { end, symbolField, periodField, symbolMessage, periodMessage } = commonFields(shared);
+  const trailing = useTrailingStop();
 
   const byShares = amountUnit.unit === 'SHARES';
   const { perRound, defaultFx } = useRoundCost({
@@ -49,7 +51,7 @@ export const useConditionalMode = (shared: SharedModeProps): ModeController => {
     amount: amountPerPurchase,
     options,
   });
-  const sells = hasSellRates(takeProfit, stopLoss);
+  const sells = hasSellRates(takeProfit, stopLoss) || trailing.on;
 
   const amountMessage = amountIssue({ byShares, amount: amountPerPurchase, shares: amountUnit.shares, label: LABEL });
   const budgetMessage = budgetIssue({ budget: totalInvestment, perRound, byShares });
@@ -90,6 +92,7 @@ export const useConditionalMode = (shared: SharedModeProps): ModeController => {
           onStopLossChange: setStopLoss,
           message: sellMessage,
         }}
+        trailing={trailing.field}
         max={{
           value: maxPurchases,
           onChange: setMaxPurchases,
@@ -109,9 +112,19 @@ export const useConditionalMode = (shared: SharedModeProps): ModeController => {
         weekdays: countRounds('DAILY', 1, period.start, end),
         takeProfit,
         stopLoss,
+        trailing: trailing.text,
       }),
     },
-    errorCount: countErrors([symbolMessage, periodMessage, amountMessage, budgetMessage, percentMessage, sellMessage, maxMessage]),
+    errorCount: countErrors([
+      symbolMessage,
+      periodMessage,
+      amountMessage,
+      budgetMessage,
+      percentMessage,
+      sellMessage,
+      ...trailing.messages,
+      maxMessage,
+    ]),
     reinvestLocked: sells,
     saved: {
       amount: amountPerPurchase,
@@ -123,6 +136,7 @@ export const useConditionalMode = (shared: SharedModeProps): ModeController => {
       percent: dropPercentage,
       takeProfit,
       stopLoss,
+      ...trailing.saved,
     },
     load: (saved) => {
       const next = pickValues(DEFAULTS, saved);
@@ -135,6 +149,7 @@ export const useConditionalMode = (shared: SharedModeProps): ModeController => {
       setDropPercentage(next.percent);
       setTakeProfit(next.takeProfit);
       setStopLoss(next.stopLoss);
+      trailing.load(saved);
     },
     prepare: (ctx) => {
       const built = buildConditionalRequest(
@@ -150,6 +165,8 @@ export const useConditionalMode = (shared: SharedModeProps): ModeController => {
           dropPercentage,
           takeProfit,
           stopLoss,
+          trailingStop: trailing.stop,
+          trailingSell: trailing.sell,
           ...options,
         },
         symbol,

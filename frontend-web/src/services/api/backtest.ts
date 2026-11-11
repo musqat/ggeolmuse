@@ -134,8 +134,14 @@ export type DcaStrategyRequest = BacktestCommonRequest & {
 // 조건부 매수가 보는 전 거래일 종가 대비 방향
 export type PriceDirection = 'DROP' | 'RISE' | 'BOTH';
 
+// 조건부 · 이동평균 · 밴드의 트레일링 스탑(종가가 기준가 대비 하락 비율만큼 내리면 보유의 팔 비율만큼 팜)
+export type TrailingStopRequest = {
+  trailingStopRate?: number;            // 하락 비율 (0.1 = 10%, 0 초과 1 미만, 비우면 안 함)
+  trailingSellRate?: number;            // 팔 비율 (0.5 = 50%, 0 초과 1 이하, 비우면 전량, 하락 비율과 함께)
+};
+
 // 조건부 매수 전략 요청
-export type ConditionalStrategyRequest = BacktestCommonRequest & {
+export type ConditionalStrategyRequest = BacktestCommonRequest & TrailingStopRequest & {
   symbol: string;                       // 종목 심볼
   startDate: string;                    // 시작일
   endDate: string;                      // 종료일
@@ -150,7 +156,7 @@ export type ConditionalStrategyRequest = BacktestCommonRequest & {
 };
 
 // 이동평균 교차 전략 요청(골든 크로스에 가진 돈 전부로 사고 데드 크로스에 전부 팜)
-export type MaCrossStrategyRequest = BacktestCommonRequest & {
+export type MaCrossStrategyRequest = BacktestCommonRequest & TrailingStopRequest & {
   symbol: string;                       // 종목 심볼
   startDate: string;                    // 시작일
   endDate: string;                      // 종료일
@@ -161,7 +167,7 @@ export type MaCrossStrategyRequest = BacktestCommonRequest & {
 };
 
 // 이동평균 밴드 전략 요청(수정 종가가 평균 위 선보다 높으면 가진 돈 전부로 사고 아래 선보다 낮으면 전부 팜)
-export type MaBandStrategyRequest = BacktestCommonRequest & {
+export type MaBandStrategyRequest = BacktestCommonRequest & TrailingStopRequest & {
   symbol: string;                       // 종목 심볼
   startDate: string;                    // 시작일
   endDate: string;                      // 종료일

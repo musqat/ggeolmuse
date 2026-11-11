@@ -1,5 +1,15 @@
 import { describe, it, expect } from 'vitest'
-import { changedOptions, conditionalHow, dcaHow, detailParts, maBandHow, maCrossHow, sellText, simpleHow } from './summary'
+import {
+  changedOptions,
+  conditionalHow,
+  dcaHow,
+  detailParts,
+  maBandHow,
+  maCrossHow,
+  sellText,
+  simpleHow,
+  trailingText,
+} from './summary'
 
 const NB = ' '
 const won = { byShares: false, amount: '100000', shares: '1' }
@@ -109,6 +119,37 @@ describe('요약 둘째 줄', () => {
   it('매도 조건은 적은 쪽만, 둘 다 비면 빈 글', () => {
     expect(sellText('20', '')).toBe('+20% 익절(평균 단가 기준 전량)')
     expect(sellText('', '')).toBe('')
+  })
+
+  it('트레일링 스탑은 하락을 비우면 빈 글, 팔 비율이 비거나 100 이면 전량 · 아니면 보유의 그 비율씩', () => {
+    expect(trailingText('', '50')).toBe('')
+    expect(trailingText('10', '')).toBe('고점 대비 하락 매도 -10%(전량)')
+    expect(trailingText('10', '100')).toBe('고점 대비 하락 매도 -10%(전량)')
+    expect(trailingText(' 7.5 ', '50')).toBe('고점 대비 하락 매도 -7.5%(보유의 50%씩)')
+  })
+
+  it('조건부 · 이동평균 · 밴드 요약은 매도 규칙 뒤에 트레일링 스탑 글을 잇는다', () => {
+    const trailing = '고점 대비 하락 매도 -10%(전량)'
+
+    expect(
+      conditionalHow({
+        percent: '5',
+        direction: 'DROP',
+        unit: won,
+        budget: '1000000',
+        maxPurchases: '',
+        weekdays: 260,
+        takeProfit: '20',
+        stopLoss: '',
+        trailing,
+      })
+    ).toBe(`전날보다 5% 내릴 때마다 10만원 · 예산으로 최대 10회 ≈ 100만원 · +20% 익절(평균 단가 기준 전량) · ${trailing}`)
+    expect(maCrossHow({ amount: '1000000', short: '20', long: '60', trailing })).toBe(
+      `원금 100만원 · 20일 선이 60일 선을 넘으면 가진 돈 전부로 사고, 아래로 내려가면 전부 팜 · ${trailing}`
+    )
+    expect(maBandHow({ amount: '1000000', window: '200', upper: '2.5', lower: '2.5', signal: '^GSPC', trailing })).toBe(
+      `원금 100만원 · 신호 ^GSPC · 200일선 +2.5% 위로 오르면 가진 돈 전부로 사고, -2.5% 아래로 내려가면 전부 팜 · ${trailing}`
+    )
   })
 
   it('바꾼 설정: 기본값과 다른 옵션만, 재투자는 막혔으면 뺌', () => {

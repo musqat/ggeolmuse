@@ -10,6 +10,7 @@ import { CadenceField } from './CadenceField'
 import { FirstDateField } from './FirstDateField'
 import { ConditionField } from './ConditionField'
 import { SellField } from './SellField'
+import { TrailingStopField } from './TrailingStopField'
 import { MaxField } from './MaxField'
 import { WindowsField } from './WindowsField'
 import { BandField } from './BandField'
@@ -333,6 +334,61 @@ describe('SellField', () => {
 
     expect(onTakeProfit).toHaveBeenCalledWith('')
     expect(onStopLoss).toHaveBeenCalledWith('')
+  })
+})
+
+describe('TrailingStopField', () => {
+  const noMessages = { stop: null, sell: null }
+  const stopInput = () => screen.getByRole('textbox', { name: '고점 대비 하락 비율(퍼센트)' })
+  const sellInput = () => screen.getByRole('textbox', { name: '고점 대비 하락 때 팔 비율(보유 대비 퍼센트)' })
+
+  it('둘 다 비면 안 함만, 하락을 적으면 - · % 마다와 100 을 흐린 글로 둔 팔 비율 칸을 보인다', () => {
+    const { rerender } = render(
+      <TrailingStopField stop="" onStopChange={vi.fn()} sell="" onSellChange={vi.fn()} messages={noMessages} />
+    )
+
+    expect(screen.getByText('고점 대비 하락 매도')).toBeInTheDocument()
+    expect(screen.queryByText('고점 대비')).toBeNull()
+    expect(stopInput()).toHaveAttribute('placeholder', '안 함')
+    expect(screen.queryByRole('textbox', { name: '고점 대비 하락 때 팔 비율(보유 대비 퍼센트)' })).toBeNull()
+    expect(screen.queryByText('-')).toBeNull()
+    expect(screen.queryByText('마다')).toBeNull()
+    expect(screen.queryByRole('button', { name: '고점 대비 하락 매도 비우기' })).toBeNull()
+
+    rerender(<TrailingStopField stop="10" onStopChange={vi.fn()} sell="" onSellChange={vi.fn()} messages={noMessages} />)
+    expect(sellInput()).toHaveAttribute('placeholder', '100')
+    expect(stopInput().closest('[data-field-value]')).toHaveTextContent('-%마다· 보유의%팔기')
+  })
+
+  it('하락 · 팔 비율은 소수까지 넘기고, 비우기 단추는 두 칸을 비운다', async () => {
+    const onStop = vi.fn()
+    const onSell = vi.fn()
+    render(<TrailingStopField stop="10" onStopChange={onStop} sell="50" onSellChange={onSell} messages={noMessages} />)
+
+    fireEvent.change(stopInput(), { target: { value: '7..5%' } })
+    fireEvent.change(sellInput(), { target: { value: '33.3%' } })
+    expect(onStop).toHaveBeenLastCalledWith('7.5')
+    expect(onSell).toHaveBeenLastCalledWith('33.3')
+
+    await userEvent.click(screen.getByRole('button', { name: '고점 대비 하락 매도 비우기' }))
+    expect(onStop).toHaveBeenLastCalledWith('')
+    expect(onSell).toHaveBeenLastCalledWith('')
+  })
+
+  it('오류가 있는 칸만 오류로 두고 칸 아래 한 줄과 잇는다', () => {
+    render(
+      <TrailingStopField
+        stop=""
+        onStopChange={vi.fn()}
+        sell="50"
+        onSellChange={vi.fn()}
+        messages={{ stop: null, sell: { kind: 'error', text: '하락 비율과 함께' } }}
+      />
+    )
+
+    expect(stopInput()).not.toHaveAttribute('aria-invalid')
+    expect(sellInput()).toHaveAttribute('aria-invalid', 'true')
+    expect(sellInput()).toHaveAttribute('aria-describedby', screen.getByText('하락 비율과 함께').id)
   })
 })
 
