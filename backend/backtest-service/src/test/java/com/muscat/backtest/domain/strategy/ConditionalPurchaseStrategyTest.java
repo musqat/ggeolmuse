@@ -22,6 +22,7 @@ import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.util.BacktestCalculationUtils;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
+import com.muscat.backtest.domain.dto.request.PartialTakeProfit;
 import com.muscat.backtest.domain.dto.response.CapitalGainsTax;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.dto.response.TradeStats;
@@ -1399,6 +1400,110 @@ class ConditionalPurchaseStrategyTest {
             .isInstanceOf(BacktestException.class).extracting("code").isEqualTo(BacktestResponse.INVALID_TRAILING_STOP);
           assertThatThrownBy(() -> strategy.execute(selling(2, 10).trailingSellRate(new BigDecimal("0.5")).build()))
             .isInstanceOf(BacktestException.class).extracting("code").isEqualTo(BacktestResponse.INVALID_TRAILING_STOP);
+          verifyNoInteractions(marketDataClient);
+        }
+      }
+
+      @Nested
+      @DisplayName("부분 익절")
+      class PartialTakeProfitTests {
+
+        private static PartialTakeProfit step(String gainRate, String sellRate) {
+          return new PartialTakeProfit(new BigDecimal(gainRate), new BigDecimal(sellRate));
+        }
+
+        @Test
+        @DisplayName("종가가 평균 단가 × (1 + 수익률) 이상이면 그 종가에 보유의 팔 비율만큼 팔고, 넘은 단계가 더 있으면 다음 날 판다")
+        void sellsOneStepPerDay() {
+          ConditionalStrategyRequest request = selling(6, 10)
+            .partialTakeProfits(List.of(step("0.1", "0.5"), step("0.2", "0.5"))).build();
+          // 평균 단가 100: 105 는 아래, 125 는 두 단계를 다 넘음
+          stubMarket(request, afterEntry(day(2, "105"), day(3, "125"), day(4, "125"), day(5, "130")), false);
+
+          StrategyResponse response = strategy.execute(request);
+
+          assertThat(trades()).containsExactly(ENTRY, tuple("125", "부분 익절 +10%", -1),
+            tuple("125", "부분 익절 +20%", -1));
+          List<StrategyTransaction> sales = executed().subList(1, 3);
+          assertThat(sales).extracting(StrategyTransaction::getShares)
+            .usingElementComparator(BigDecimal::compareTo)
+            .containsExactly(new BigDecimal("-5"), new BigDecimal("-2.5"));
+          // 원가 1000달러를 판 수량 비율만큼: 625 - 500, 312.5 - 250
+          assertThat(sales).extracting(StrategyTransaction::getRealizedProfit)
+            .usingElementComparator(BigDecimal::compareTo)
+            .containsExactly(new BigDecimal("125"), new BigDecimal("62.5"));
+          assertThat(response.getTradeStats().partialTakeProfitCount()).isEqualTo(2);
+        }
+
+        @Test
+        @DisplayName("트레일링 스탑이 판 날은 부분 익절을 보지 않고 다음 날 본다")
+        void trailingStopFirst() {
+          ConditionalStrategyRequest request = selling(4, 10).trailingStopRate(new BigDecimal("0.1"))
+            .trailingSellRate(new BigDecimal("0.5")).partialTakeProfits(List.of(step("0.2", "0.5"))).build();
+          // 시가 100 에 사고 150 에 마감, 다음 날 130 은 고점 대비 -13.3% 이면서 평균 단가 대비 +30%
+          stubMarket(request, List.of(day(0, "120"), candle(1, "100", "150", "100", "150"), day(2, "130"),
+            day(3, "130")), false);
+
+          strategy.execute(request);
+
+          assertThat(trades()).containsExactly(ENTRY, tuple("130", "고점 대비 하락 매도 13.3%", -1),
+            tuple("130", "부분 익절 +20%", -1));
+        }
+
+        @Test
+        @DisplayName("팔 비율 100% 단계로 다 팔면 다음 조건에 판 돈으로 다시 사고, 새 사이클은 첫 단계부터 본다")
+        void reopensLadderAfterFullSale() {
+          ConditionalStrategyRequest request = selling(5, 10).partialTakeProfits(List.of(step("0.1", "1"))).build();
+          // 110 에 다 팔고 99 에 판 돈 1000달러로 사서 평균 단가 99, 110 은 그 +10% 위
+          stubMarket(request, afterEntry(day(2, "110"), day(3, "99"), day(4, "110")), false);
+
+          StrategyResponse response = strategy.execute(request);
+
+          assertThat(trades()).containsExactly(ENTRY, tuple("110", "부분 익절 +10%", -1), tuple("99", "10.0%하락", 1),
+            tuple("110", "부분 익절 +10%", -1));
+          assertThat(executed().get(2).getCashUsed()).isEqualByComparingTo("1000");
+          assertThat(response.getTradeStats().cycleCount()).isEqualTo(2);
+        }
+
+        @Test
+        @DisplayName("부분 익절만 켜도 최대 횟수를 다 쓴 뒤 끝까지 보고 판다")
+        void runsToEndWithLadderOnly() {
+          ConditionalStrategyRequest request = selling(4, 1).partialTakeProfits(List.of(step("0.1", "0.5"))).build();
+          stubMarket(request, afterEntry(day(2, "105"), day(3, "115")), false);
+
+          strategy.execute(request);
+
+          assertThat(trades()).containsExactly(ENTRY, tuple("115", "부분 익절 +10%", -1));
+        }
+
+        @Test
+        @DisplayName("빈 단계 목록은 끈 것과 같아 배당 재투자와 함께 돌고 팔지 않는다")
+        void emptyStepsOff() {
+          ConditionalStrategyRequest request = selling(3, 10).partialTakeProfits(List.of()).reinvestDividends(true)
+            .build();
+          stubMarket(request, afterEntry(day(2, "130")), false);
+
+          strategy.execute(request);
+
+          assertThat(trades()).containsExactly(ENTRY);
+        }
+
+        @Test
+        @DisplayName("켜면 배당 재투자와 함께 막고, 6단계이거나 수익률이 앞 단계보다 크지 않거나 팔 비율이 0 이면 INVALID_PARTIAL_TAKE_PROFIT")
+        void rejects() {
+          assertThatThrownBy(() -> strategy.execute(selling(2, 10).partialTakeProfits(List.of(step("0.1", "0.5")))
+            .reinvestDividends(true).build()))
+            .isInstanceOf(BacktestException.class).extracting("code").isEqualTo(BacktestResponse.SELL_WITH_REINVEST);
+          List<List<PartialTakeProfit>> invalid = List.of(
+            List.of(step("0.1", "0.1"), step("0.2", "0.1"), step("0.3", "0.1"), step("0.4", "0.1"), step("0.5", "0.1"),
+              step("0.6", "0.1")),
+            List.of(step("0.2", "0.5"), step("0.2", "0.5")),
+            List.of(step("0.2", "0")));
+          for (List<PartialTakeProfit> steps : invalid) {
+            assertThatThrownBy(() -> strategy.execute(selling(2, 10).partialTakeProfits(steps).build()))
+              .isInstanceOf(BacktestException.class).extracting("code")
+              .isEqualTo(BacktestResponse.INVALID_PARTIAL_TAKE_PROFIT);
+          }
           verifyNoInteractions(marketDataClient);
         }
       }

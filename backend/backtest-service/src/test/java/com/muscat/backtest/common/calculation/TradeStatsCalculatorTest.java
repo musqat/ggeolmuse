@@ -155,6 +155,20 @@ class TradeStatsCalculatorTest {
   }
 
   @Test
+  @DisplayName("부분 익절로 판 거래 수를 트레일링 스탑과 따로 센다")
+  void partialTakeProfitCount() {
+    List<StrategyTransaction> transactions = List.of(
+      // 1000달러로 사서 두 단계 부분 익절 뒤 나머지를 트레일링 스탑으로 팔아 170달러 이익(+17%)
+      buy(on(1, 10), "10"), sell(on(1, 20), "5", "100", "부분 익절 +20%"), sell(on(1, 25), "2.5", "80", "부분 익절 +50%"),
+      sell(on(2, 1), "2.5", "-10", "고점 대비 하락 매도 10.0%"));
+
+    TradeStats stats = TradeStatsCalculator.of(transactions, START, on(12, 31));
+
+    assertStats(stats, new TradeStats(1, 3, 1, false, 1, 0, number("100.00"), number("17.00"), null, null,
+      number("22.0"), number("1.00"), 1, 2));
+  }
+
+  @Test
   @DisplayName("시작일과 평가일이 같으면 1년 사이클 수를 비운다")
   void sameDayPeriod() {
     TradeStats stats = TradeStatsCalculator.of(List.of(buy(START, "10")), START, START);

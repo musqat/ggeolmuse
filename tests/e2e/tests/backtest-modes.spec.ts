@@ -129,6 +129,44 @@ test('트레일링 스탑 팔 비율만 주면 400', async () => {
   expect(res.status(), `팔 비율만 준 요청이 400 이 아니다: ${await res.text()}`).toBe(400);
 });
 
+test('조건부 매수에 부분 익절 단계를 켜면 매매 통계에 거래 내역과 같은 부분 익절 수를 싣는다', async () => {
+  const res = await postUntilAllowed(`${API_URL}/analysis/strategy/conditional`, {
+    data: {
+      symbol,
+      startDate: start,
+      endDate: end,
+      amountPerPurchase: 200_000,
+      dropPercentage: 0.02,
+      partialTakeProfits: [
+        { gainRate: 0.005, sellRate: 0.5 },
+        { gainRate: 0.01, sellRate: 1 },
+      ],
+    },
+  });
+
+  expect(res.status(), `부분 익절을 켠 조건부가 실패했다: ${await res.text()}`).toBe(200);
+  const body = await res.json();
+  const steps = body.transactions.filter((tx: { trigger: string }) => tx.trigger.startsWith('부분 익절'));
+  expect(body.tradeStats.partialTakeProfitCount, '부분 익절 수가 거래 내역과 다르다').toBe(steps.length);
+});
+
+test('부분 익절 수익률이 앞 단계보다 크지 않으면 400', async () => {
+  const res = await postUntilAllowed(`${API_URL}/analysis/strategy/ma-cross`, {
+    data: {
+      symbol,
+      startDate: start,
+      endDate: end,
+      investmentAmount: 1_000_000,
+      partialTakeProfits: [
+        { gainRate: 0.2, sellRate: 0.5 },
+        { gainRate: 0.1, sellRate: 0.5 },
+      ],
+    },
+  });
+
+  expect(res.status(), `수익률이 줄어드는 단계가 400 이 아니다: ${await res.text()}`).toBe(400);
+});
+
 test('이동평균 교차가 다른 종목을 신호로 보고 신호 차트에 그 종목을 싣는다', async () => {
   // 두 종목 시세가 다 있는 기간
   const other = await priceRange(api, second);

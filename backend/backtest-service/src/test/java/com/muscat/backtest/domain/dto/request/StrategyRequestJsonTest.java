@@ -9,6 +9,7 @@ import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.domain.model.StrategyParameter;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -94,6 +95,26 @@ class StrategyRequestJsonTest {
       .contains("\"trailingStopRate\":0.1").doesNotContain("trailingSellWithStop");
     assertThat(objectMapper.writeValueAsString(maBand))
       .contains("\"trailingStopRate\":0.15", "\"trailingSellRate\":1").doesNotContain("trailingSellWithStop");
+  }
+
+  @Test
+  @DisplayName("조건부 · 이동평균 교차 · 밴드는 부분 익절 단계를 이력 JSON 에 저장하고 다시 읽으며 칸 검사 값은 넣지 않는다")
+  void partialTakeProfitsSaved() throws Exception {
+    List<PartialTakeProfit> steps = List.of(new PartialTakeProfit(new BigDecimal("0.2"), new BigDecimal("0.25")),
+      new PartialTakeProfit(new BigDecimal("0.5"), BigDecimal.ONE));
+    ConditionalStrategyRequest conditional = conditional();
+    conditional.setPartialTakeProfits(steps);
+    MaCrossStrategyRequest maCross = maCross();
+    maCross.setPartialTakeProfits(steps);
+    MaBandStrategyRequest maBand = maBand();
+    maBand.setPartialTakeProfits(steps);
+    String saved = "\"partialTakeProfits\":[{\"gainRate\":0.2,\"sellRate\":0.25},{\"gainRate\":0.5,\"sellRate\":1}]";
+
+    for (Object request : List.of(conditional, maCross, maBand)) {
+      assertThat(objectMapper.writeValueAsString(request)).contains(saved).doesNotContain("partialTakeProfitAscending");
+    }
+    MaBandStrategyRequest read = objectMapper.readValue(objectMapper.writeValueAsString(maBand), MaBandStrategyRequest.class);
+    assertThat(read.getPartialTakeProfits()).isEqualTo(steps);
   }
 
   @Test

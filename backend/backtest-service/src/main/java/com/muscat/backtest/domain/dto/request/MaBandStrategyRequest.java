@@ -7,6 +7,7 @@ import com.muscat.backtest.common.constants.BacktestConstants.SellRule;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
@@ -15,8 +16,10 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -105,6 +108,11 @@ public class MaBandStrategyRequest implements SignalStrategyRequest {
   @DecimalMax(value = "1", message = SellRule.TRAILING_STOP_MESSAGE)
   private BigDecimal trailingSellRate;
 
+  @Schema(description = "부분 익절 단계: 수익률이 낮은 단계부터 사이클에 한 번씩, 하루에 한 단계 보유의 팔 비율만큼 팜, 다 팔면 위 선 아래로 내려왔다 다시 올라선 날 삼 (5단계까지, 비우면 안 함)")
+  @Size(max = SellRule.MAX_PARTIAL_TAKE_PROFITS, message = SellRule.PARTIAL_TAKE_PROFIT_MESSAGE)
+  @Valid
+  private List<@NotNull(message = SellRule.PARTIAL_TAKE_PROFIT_MESSAGE) PartialTakeProfit> partialTakeProfits;
+
   // 이력 저장 JSON 에는 넣지 않음
   @JsonIgnore
   @Override
@@ -118,6 +126,14 @@ public class MaBandStrategyRequest implements SignalStrategyRequest {
   @AssertTrue(message = SellRule.TRAILING_STOP_MESSAGE)
   public boolean isTrailingSellWithStop() {
     return trailingSellRate == null || trailingStopRate != null;
+  }
+
+  // 부분 익절 수익률은 앞 단계보다 큼
+  @JsonIgnore
+  @Schema(hidden = true)
+  @AssertTrue(message = SellRule.PARTIAL_TAKE_PROFIT_MESSAGE)
+  public boolean isPartialTakeProfitAscending() {
+    return PartialTakeProfit.ascending(partialTakeProfits);
   }
 
   // 평균 기간(비우면 200)

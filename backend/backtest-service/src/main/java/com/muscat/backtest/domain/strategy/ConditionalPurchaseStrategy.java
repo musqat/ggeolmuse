@@ -37,7 +37,7 @@ import org.springframework.stereotype.Component;
 
 // 조건부 매수 전략: 전 거래일 종가보다 장중에 정한 비율만큼 떨어진(또는 오른) 날마다 회당 금액이나 정한 주식 수만큼 한 번 삼(분할만 조정된 가격, 기간 첫 거래일은 기준 종가만)
 // 한도는 예산 · 최대 횟수 가운데 먼저 닿는 쪽(둘 다 비우면 제한 없음), 예산을 넘는 회차부터는 예산 부족 구간으로 셈
-// 익절 · 손절을 켜면 보유분 평균 단가 기준으로 전량, 트레일링 스탑을 켜면 고점 대비 내린 날 정한 몫을 팔고, 다음 조건이 오면 판 돈부터 써서 다시 삼
+// 익절 · 손절은 보유분 평균 단가 기준으로 전량, 트레일링 스탑은 고점 대비 내린 날 · 부분 익절은 평균 단가 대비 단계만큼 오른 날 정한 몫을 팔고, 다음 조건이 오면 판 돈부터 써서 다시 삼
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -153,16 +153,18 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
       throw new BacktestException(BacktestResponse.INVALID_SELL_RATE);
     }
     BacktestRequestValidator.requireTrailingStop(request.getTrailingStopRate(), request.getTrailingSellRate());
+    BacktestRequestValidator.requirePartialTakeProfits(request.getPartialTakeProfits());
     // 재투자 주식은 루프 뒤에 더해져 매도와 순서가 맞지 않음
     if (sells(request) && Boolean.TRUE.equals(request.getReinvestDividends())) {
       throw new BacktestException(BacktestResponse.SELL_WITH_REINVEST);
     }
   }
 
-  // 익절 · 손절 · 트레일링 스탑 가운데 하나라도 켰는지
+  // 익절 · 손절 · 트레일링 스탑 · 부분 익절 가운데 하나라도 켰는지
   private static boolean sells(ConditionalStrategyRequest request) {
     return request.getTakeProfitRate() != null || request.getStopLossRate() != null
-      || request.getTrailingStopRate() != null;
+      || request.getTrailingStopRate() != null
+      || (request.getPartialTakeProfits() != null && !request.getPartialTakeProfits().isEmpty());
   }
 
   // 최대 횟수(null 이면 제한 없음)에 닿았는지
@@ -211,12 +213,13 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     List<SkippedRound> skippedRounds = new ArrayList<>();
     boolean sells = sells(request);
     TrailingStop trailing = TrailingStop.of(request.getTrailingStopRate(), request.getTrailingSellRate());
+    TakeProfitLadder ladder = TakeProfitLadder.of(request.getPartialTakeProfits());
     // 보유 주식 · 그 원가(USD, 매수 수수료 포함) · 판 돈(USD)
     BigDecimal heldShares = BigDecimal.ZERO;
     BigDecimal heldCost = BigDecimal.ZERO;
     BigDecimal cash = BigDecimal.ZERO;
 
-    // 메모리에서 데이터 조회 (API 호출 없음), 익절 · 손절을 켜면 새 돈 회차를 다 쓴 뒤에도 끝까지 봄
+    // 메모리에서 데이터 조회 (API 호출 없음), 파는 규칙을 켜면 새 돈 회차를 다 쓴 뒤에도 끝까지 봄
     while (!currentDate.isAfter(actualEndDate) && (sells || !reached(maxPurchases, purchaseCount + shortRounds))) {
       OHLCPriceDto priceData = priceMap.get(currentDate);
       boolean usable = PriceLookup.isUsable(priceData);
@@ -230,12 +233,15 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
             transactions.add(payment);
             cash = cash.subtract(payment.getTaxPaid());
           }
-          // 익절 · 손절 다음 트레일링 스탑을 보고 판 날은 사지 않음(그 날짜에 산 주식은 매도를 본 뒤라 팔지 않음)
+          // 익절 · 손절 → 트레일링 스탑 → 부분 익절 차례로 보고 판 날은 사지 않음(그 날짜에 산 주식은 매도를 본 뒤라 팔지 않음)
           StrategyTransaction sale = sells && heldShares.signum() > 0
             ? sellIfTriggered(request, priceData, currentDate, heldShares, heldCost, fxRateMap)
             : null;
           if (sale == null && heldShares.signum() > 0) {
             sale = trailingSale(request, priceData, currentDate, heldShares, heldCost, fxRateMap, trailing);
+          }
+          if (sale == null && heldShares.signum() > 0) {
+            sale = ladderSale(request, priceData, currentDate, heldShares, heldCost, fxRateMap, ladder);
           }
           if (sale != null) {
             transactions.add(sale);
@@ -272,6 +278,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
               }
               if (heldShares.signum() == 0) {
                 trailing.open(transaction.getPrice(), PriceLookup.effectiveClose(priceData));
+                ladder.open();
               }
               heldShares = heldShares.add(transaction.getShares());
               heldCost = heldCost.add(transaction.costUsd());
@@ -396,13 +403,27 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
   private StrategyTransaction trailingSale(ConditionalStrategyRequest request, OHLCPriceDto priceData, LocalDate date,
     BigDecimal shares, BigDecimal cost, FxRates fxRateMap, TrailingStop trailing) {
     BigDecimal close = PriceLookup.effectiveClose(priceData);
-    TrailingStop.Exit exit = trailing.check(close, shares, cost);
+    SaleShare exit = trailing.check(close, shares, cost);
     if (exit == null) {
       return null;
     }
     StrategyTransaction sale = sale(request, priceData, date, exit.shares(), exit.cost(), close, exit.trigger(),
       fxRateMap);
     trailing.sold(close);
+    return sale;
+  }
+
+  // 그 날짜 종가가 부분 익절 단계에 닿으면 보유의 단계 팔 비율만큼 그 종가에 팔고 그 단계를 씀(아니면 null)
+  private StrategyTransaction ladderSale(ConditionalStrategyRequest request, OHLCPriceDto priceData, LocalDate date,
+    BigDecimal shares, BigDecimal cost, FxRates fxRateMap, TakeProfitLadder ladder) {
+    BigDecimal close = PriceLookup.effectiveClose(priceData);
+    SaleShare exit = ladder.check(close, shares, cost);
+    if (exit == null) {
+      return null;
+    }
+    StrategyTransaction sale = sale(request, priceData, date, exit.shares(), exit.cost(), close, exit.trigger(),
+      fxRateMap);
+    ladder.sold();
     return sale;
   }
 
