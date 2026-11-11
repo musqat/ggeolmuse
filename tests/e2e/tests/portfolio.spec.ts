@@ -78,3 +78,36 @@ test('계좌 통계는 수익 흐름을 받고, 계좌 화면 통계 단추로 �
     await expect(page.getByText(label, { exact: true })).toBeVisible();
   }
 });
+
+test('계좌 통계 수익 · 종목 탭은 수익 내역과 종목별 기여를 받고, 종목 탭을 누르면 종목 패널로 바뀐다', async ({ page }) => {
+  const auth = await authContext();
+
+  const profit = await auth.get(`${API_URL}/portfolio/stats/profit?accountId=all&period=ALL`);
+  expect(profit.status(), `수익 내역이 실패했다: ${await profit.text()}`).toBe(200);
+  const detail = await profit.json();
+  for (const list of ['monthly', 'sales', 'holdings']) {
+    expect(Array.isArray(detail[list]), `${list} 목록이 없다`).toBe(true);
+  }
+
+  const symbols = await auth.get(`${API_URL}/portfolio/stats/symbols?accountId=all&period=1Y`);
+  expect(symbols.status(), `종목별 기여가 실패했다: ${await symbols.text()}`).toBe(200);
+  const contributions = await symbols.json();
+  expect(Array.isArray(contributions.symbols), '종목 목록이 없다').toBe(true);
+  expect(typeof contributions.totalKrw, '종목 합이 숫자가 아니다').toBe('number');
+
+  // 계좌 값은 숫자 · all 만
+  const wrong = await auth.get(`${API_URL}/portfolio/stats/symbols?accountId=abc&period=ALL`);
+  expect(wrong.status(), '모르는 계좌 값이 400 이 아니다').toBe(400);
+  await auth.dispose();
+
+  await page.goto('/account/stats');
+  await expect(page.getByRole('tab', { name: '수익' })).toHaveAttribute('aria-selected', 'true', { timeout: 30_000 });
+  await page.getByRole('tab', { name: '종목' }).click();
+
+  await expect(page.getByRole('tab', { name: '종목' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#stats-panel-symbols')).toBeVisible();
+  // 시드 사용자 체결 여부에 따라 종목 카드 또는 안내
+  await expect(
+    page.getByText('기간 수익', { exact: true }).or(page.getByText('이 기간에 거래한 종목이 없습니다'))
+  ).toBeVisible({ timeout: 30_000 });
+});
