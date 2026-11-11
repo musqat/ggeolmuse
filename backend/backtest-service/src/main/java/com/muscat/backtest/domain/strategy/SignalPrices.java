@@ -13,16 +13,21 @@ import java.util.Map;
 record SignalPrices(List<OHLCPriceDto> candles, BigDecimal[] sums) {
 
   static SignalPrices of(Map<LocalDate, OHLCPriceDto> priceMap) {
-    List<OHLCPriceDto> candles = priceMap.values().stream()
-      .filter(PriceLookup::isUsable)
-      .sorted(Comparator.comparing(OHLCPriceDto::date))
-      .toList();
+    List<OHLCPriceDto> candles = usable(priceMap);
     BigDecimal[] sums = new BigDecimal[candles.size() + 1];
     sums[0] = BigDecimal.ZERO;
     for (int i = 0; i < candles.size(); i++) {
       sums[i + 1] = sums[i].add(value(candles.get(i)));
     }
     return new SignalPrices(candles, sums);
+  }
+
+  // 쓸 수 있는 일봉(오래된 날부터)
+  static List<OHLCPriceDto> usable(Map<LocalDate, OHLCPriceDto> priceMap) {
+    return priceMap.values().stream()
+      .filter(PriceLookup::isUsable)
+      .sorted(Comparator.comparing(OHLCPriceDto::date))
+      .toList();
   }
 
   // 신호 값(수정 종가, 없거나 0 이하면 종가)

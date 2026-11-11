@@ -38,6 +38,7 @@ public enum BacktestResponse implements ErrorCode {
   INVALID_INVESTMENT_AMOUNT("투자금액은 0보다 커야 합니다.", HttpStatus.BAD_REQUEST),
   INVALID_MA_WINDOWS("이동평균 기간은 2 ~ 250 사이이고 짧은 기간이 긴 기간보다 작아야 합니다.", HttpStatus.BAD_REQUEST),
   INVALID_BAND("밴드 기간은 2 ~ 250, 위 · 아래 비율은 0% 이상 100% 미만이어야 합니다.", HttpStatus.BAD_REQUEST),
+  INDEX_NOT_TRADABLE("지수는 신호 종목으로만 고를 수 있습니다.", HttpStatus.BAD_REQUEST),
 
 
 

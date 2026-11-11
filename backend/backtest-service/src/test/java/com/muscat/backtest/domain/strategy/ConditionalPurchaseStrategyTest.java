@@ -213,6 +213,23 @@ class ConditionalPurchaseStrategyTest {
     }
 
     @Test
+    @DisplayName("지수를 사는 요청은 INDEX_NOT_TRADABLE")
+    void validateRequest_IndexSymbol_ThrowsException() {
+      ConditionalStrategyRequest request = ConditionalStrategyRequest.builder()
+        .symbol("^NDX")
+        .startDate(LocalDate.of(2023, 1, 1))
+        .endDate(LocalDate.of(2023, 12, 31))
+        .amountPerPurchase(BigDecimal.valueOf(10000))
+        .dropPercentage(BigDecimal.valueOf(10))
+        .build();
+
+      assertThatThrownBy(() -> strategy.execute(request))
+        .isInstanceOf(BacktestException.class)
+        .extracting("code")
+        .isEqualTo(BacktestResponse.INDEX_NOT_TRADABLE);
+    }
+
+    @Test
     @DisplayName("심볼이 빈 문자열이면 예외 발생")
     void validateRequest_EmptySymbol_ThrowsException() {
       ConditionalStrategyRequest request = ConditionalStrategyRequest.builder()

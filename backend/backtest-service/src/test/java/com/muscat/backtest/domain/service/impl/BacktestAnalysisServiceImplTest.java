@@ -917,6 +917,44 @@ class BacktestAnalysisServiceImplTest {
     }
 
     @Test
+    @DisplayName("종목 비교에 지수가 있으면 어느 종목도 돌리지 않고 INDEX_NOT_TRADABLE 이고 이력은 남기지 않는다")
+    void symbolComparisonRejectsIndex() {
+      SymbolComparisonRequest request = new SymbolComparisonRequest();
+      request.setSymbols(List.of("AAPL", "^GSPC"));
+      request.setStartDate(LocalDate.of(2023, 1, 1));
+      request.setInvestmentAmount(BigDecimal.valueOf(10000));
+      request.setUserId("user123");
+
+      assertThatThrownBy(() -> backtestAnalysisService.compareSymbols(request))
+        .isInstanceOf(BacktestException.class)
+        .extracting("code")
+        .isEqualTo(BacktestResponse.INDEX_NOT_TRADABLE);
+      verify(tradingSimulationService, never()).runSimulation(any(), eq(false));
+      verify(backtestHistoryUtils, never()).saveBacktestHistory(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("전략 비교의 종목이 지수면 어느 전략도 돌리지 않고 INDEX_NOT_TRADABLE 이고 이력은 남기지 않는다")
+    void strategyComparisonRejectsIndex() {
+      StrategyParameter maCross = new StrategyParameter();
+      maCross.setStrategyType(StrategyType.MA_CROSS);
+      StrategyComparisonRequest request = new StrategyComparisonRequest();
+      request.setSymbol("^NDX");
+      request.setStartDate(LocalDate.of(2023, 1, 1));
+      request.setEndDate(LocalDate.of(2024, 1, 1));
+      request.setInvestmentAmount(BigDecimal.valueOf(12000));
+      request.setUserId("user123");
+      request.setStrategies(List.of(maCross));
+
+      assertThatThrownBy(() -> backtestAnalysisService.compareStrategies(request))
+        .isInstanceOf(BacktestException.class)
+        .extracting("code")
+        .isEqualTo(BacktestResponse.INDEX_NOT_TRADABLE);
+      verify(maCrossStrategy, never()).execute(any());
+      verify(backtestHistoryUtils, never()).saveBacktestHistory(any(), any(), any());
+    }
+
+    @Test
     @DisplayName("등록된 전략이 없으면 STRATEGY_TYPE_MISMATCH")
     void missingStrategy() {
       BacktestAnalysisServiceImpl dcaOnly = new BacktestAnalysisServiceImpl(tradingSimulationService,

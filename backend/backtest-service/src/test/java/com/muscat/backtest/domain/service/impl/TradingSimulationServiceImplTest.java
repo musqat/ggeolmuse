@@ -127,6 +127,19 @@ class TradingSimulationServiceImplTest {
     }
 
     @Test
+    @DisplayName("지수를 사는 시뮬레이션은 시세를 받기 전에 INDEX_NOT_TRADABLE 이고 히스토리를 남기지 않는다")
+    void runSimulation_Index_Rejected() {
+      testSimulationRequest.setSymbol("^GSPC");
+
+      assertThatThrownBy(() -> tradingSimulationService.runSimulation(testSimulationRequest))
+        .isInstanceOf(BacktestException.class)
+        .extracting("code")
+        .isEqualTo(BacktestResponse.INDEX_NOT_TRADABLE);
+      verify(marketDataClientWrapper, never()).getOHLCPriceRange(anyString(), anyString(), anyString());
+      verify(backtestHistoryUtils, never()).saveBacktestHistory(any(), any(), any());
+    }
+
+    @Test
     @DisplayName("기본 runSimulation 메서드는 recordHistory=true로 위임한다")
     void runSimulation_DefaultMethod_DelegatesToOverloaded() {
       // given

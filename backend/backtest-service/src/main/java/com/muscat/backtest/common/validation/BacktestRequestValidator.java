@@ -6,9 +6,12 @@ import com.muscat.backtest.common.exception.BacktestException;
 import java.time.LocalDate;
 
 /**
- * 백테스트 전략 요청의 공통 검증(null · 심볼 · 기간 · 주식 수 · 첫 매수일)
+ * 백테스트 전략 요청의 공통 검증(null · 심볼 · 지수 · 기간 · 주식 수 · 첫 매수일)
  */
 public final class BacktestRequestValidator {
+
+  // 지수 심볼 앞말(^GSPC · ^NDX)
+  private static final String INDEX_PREFIX = "^";
 
   private BacktestRequestValidator() {}
 
@@ -19,10 +22,18 @@ public final class BacktestRequestValidator {
     }
   }
 
-  /** 심볼 null/공백 검사 */
+  /** 심볼 null/공백 · 지수 검사 */
   public static void requireSymbol(String symbol) {
     if (symbol == null || symbol.trim().isEmpty()) {
       throw new BacktestException(BacktestResponse.STRATEGY_SYMBOL_REQUIRED);
+    }
+    requireTradable(symbol);
+  }
+
+  /** 지수 심볼 검사(비우면 통과) */
+  public static void requireTradable(String symbol) {
+    if (symbol != null && symbol.trim().startsWith(INDEX_PREFIX)) {
+      throw new BacktestException(BacktestResponse.INDEX_NOT_TRADABLE);
     }
   }
 

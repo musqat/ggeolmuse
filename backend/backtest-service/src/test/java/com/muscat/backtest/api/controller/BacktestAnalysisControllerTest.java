@@ -299,19 +299,19 @@ class BacktestAnalysisControllerTest {
   }
 
   @Test
-  @DisplayName("이동평균 교차 전략은 원금 · 짧은 · 긴 기간 · 양도세 · 기간 끝 선택을 그대로 넘기고 종류 ma_cross · 성공으로 지표에 한 건 남긴다")
+  @DisplayName("이동평균 교차 전략은 원금 · 짧은 · 긴 기간 · 신호 종목 · 양도세 · 기간 끝 선택을 그대로 넘기고 종류 ma_cross · 성공으로 지표에 한 건 남긴다")
   void maCross() throws Exception {
     given(backtestAnalysisService.runMaCrossStrategy(any())).willReturn(strategy("AAPL", StrategyType.MA_CROSS, "12.5"));
 
     postJson("/strategy/ma-cross", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":10000000,"
-      + "\"shortWindow\":5,\"longWindow\":20,\"capitalGainsTax\":true,\"periodEnd\":\"SELL_AT_END\"}")
+      + "\"shortWindow\":5,\"longWindow\":20,\"signalSymbol\":\"^GSPC\",\"capitalGainsTax\":true,\"periodEnd\":\"SELL_AT_END\"}")
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.strategyType").value("MA_CROSS"))
       .andExpect(jsonPath("$.totalReturnPercent").value(12.5));
 
     verify(backtestAnalysisService).runMaCrossStrategy(argThat((MaCrossStrategyRequest r) ->
       r.getSymbol().equals("AAPL") && r.getInvestmentAmount().intValue() == 10000000 && r.getShortWindow() == 5
-        && r.getLongWindow() == 20 && Boolean.TRUE.equals(r.getCapitalGainsTax())
+        && r.getLongWindow() == 20 && "^GSPC".equals(r.getSignalSymbol()) && Boolean.TRUE.equals(r.getCapitalGainsTax())
         && r.getPeriodEnd() == PeriodEnd.SELL_AT_END));
     assertThat(meterRegistry.get("backtest.run").tags("kind", "ma_cross", "outcome", "success").timer().count())
       .isEqualTo(1);
@@ -344,12 +344,12 @@ class BacktestAnalysisControllerTest {
   }
 
   @Test
-  @DisplayName("이동평균 밴드 전략은 원금 · 평균 기간 · 위 · 아래 비율 · 양도세 · 기간 끝 선택을 그대로 넘기고 종류 ma_band · 성공으로 지표에 한 건 남긴다")
+  @DisplayName("이동평균 밴드 전략은 원금 · 평균 기간 · 위 · 아래 비율 · 신호 종목 · 양도세 · 기간 끝 선택을 그대로 넘기고 종류 ma_band · 성공으로 지표에 한 건 남긴다")
   void maBand() throws Exception {
     given(backtestAnalysisService.runMaBandStrategy(any())).willReturn(strategy("SPY", StrategyType.MA_BAND, "8.5"));
 
     postJson("/strategy/ma-band", "{\"symbol\":\"SPY\"," + PERIOD + ",\"investmentAmount\":10000000,"
-      + "\"bandWindow\":200,\"upperRate\":0.025,\"lowerRate\":0.03,\"capitalGainsTax\":true,\"periodEnd\":\"SELL_AT_END\"}")
+      + "\"bandWindow\":200,\"upperRate\":0.025,\"lowerRate\":0.03,\"signalSymbol\":\"^NDX\",\"capitalGainsTax\":true,\"periodEnd\":\"SELL_AT_END\"}")
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.strategyType").value("MA_BAND"))
       .andExpect(jsonPath("$.totalReturnPercent").value(8.5));
@@ -357,7 +357,8 @@ class BacktestAnalysisControllerTest {
     verify(backtestAnalysisService).runMaBandStrategy(argThat((MaBandStrategyRequest r) ->
       r.getSymbol().equals("SPY") && r.getInvestmentAmount().intValue() == 10000000 && r.getBandWindow() == 200
         && r.getUpperRate().compareTo(new BigDecimal("0.025")) == 0 && r.getLowerRate().compareTo(new BigDecimal("0.03")) == 0
-        && Boolean.TRUE.equals(r.getCapitalGainsTax()) && r.getPeriodEnd() == PeriodEnd.SELL_AT_END));
+        && "^NDX".equals(r.getSignalSymbol()) && Boolean.TRUE.equals(r.getCapitalGainsTax())
+        && r.getPeriodEnd() == PeriodEnd.SELL_AT_END));
     assertThat(meterRegistry.get("backtest.run").tags("kind", "ma_band", "outcome", "success").timer().count())
       .isEqualTo(1);
   }

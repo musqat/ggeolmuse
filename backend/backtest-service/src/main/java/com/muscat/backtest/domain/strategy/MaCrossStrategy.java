@@ -9,8 +9,8 @@ import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.infra.client.MarketDataClientWrapper;
 import org.springframework.stereotype.Component;
 
-// 이동평균 교차 전략: 수정 종가 단순 이동평균의 짧은 선이 긴 선을 아래에서 위로 넘는 날(골든 크로스) 그 날짜 종가에 가진 돈 전부로 사고,
-// 위에서 아래로 넘는 날(데드 크로스) 전량 팜(처음은 원금, 그 뒤는 판 돈, 시작일 전 일봉을 더 받아 시작일부터 교차를 봄)
+// 이동평균 교차 전략: 신호 종목(비우면 매매 종목) 수정 종가 단순 이동평균의 짧은 선이 긴 선을 아래에서 위로 넘으면(골든 크로스)
+// 매매 종목의 그 날짜(쉬는 날이면 다음 거래일) 종가에 가진 돈 전부로 사고, 위에서 아래로 넘으면(데드 크로스) 전량 팜
 @Component
 public class MaCrossStrategy extends SignalStrategy<MaCrossStrategyRequest> {
 

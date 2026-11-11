@@ -9,7 +9,7 @@ import java.util.List;
 // 매매 신호를 본 종목의 날마다 수정 종가 · 이동평균 값과 짧은 선이 긴 선을 넘은 날
 @Schema(description = "매매 신호 차트(날마다 수정 종가와 두 이동평균 또는 밴드 · 교차한 날)")
 public record SignalChart(
-  @Schema(description = "이동평균을 본 종목", example = "AAPL")
+  @Schema(description = "이동평균 · 밴드를 본 신호 종목(따로 주지 않았으면 종목 코드)", example = "^GSPC")
   String symbol,
   @Schema(description = "시작일 ~ 평가일 쓸 수 있는 일봉마다 값(오래된 날부터)")
   List<Point> points,

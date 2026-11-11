@@ -10,8 +10,8 @@ import com.muscat.backtest.infra.client.MarketDataClientWrapper;
 import java.math.BigDecimal;
 import org.springframework.stereotype.Component;
 
-// 이동평균 밴드 전략: 들고 있지 않을 때 수정 종가가 N 거래일 평균의 위 선보다 높으면 그 날짜 종가에 가진 돈 전부로 사고,
-// 들고 있을 때 아래 선보다 낮으면 전량 팜(처음은 원금, 그 뒤는 판 돈, 시작일 전 일봉을 더 받아 시작일부터 밴드를 봄)
+// 이동평균 밴드 전략: 신호 종목(비우면 매매 종목) 수정 종가가 N 거래일 평균의 위 선보다 높으면 매매 종목의 그 날짜(쉬는 날이면
+// 다음 거래일) 종가에 가진 돈 전부로 사고, 아래 선보다 낮으면 전량 팜(사이는 그대로)
 @Component
 public class MaBandStrategy extends SignalStrategy<MaBandStrategyRequest> {
 

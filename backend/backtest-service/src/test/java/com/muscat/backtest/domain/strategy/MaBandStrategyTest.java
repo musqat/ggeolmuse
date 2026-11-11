@@ -318,6 +318,43 @@ class MaBandStrategyTest {
     }
   }
 
+  private static final String SIGNAL = "^IDX";
+
+  // 신호 종목의 시작일에서 offset 일 뒤 일봉
+  private static OHLCPriceDto signalDay(int offset, String close) {
+    BigDecimal price = new BigDecimal(close);
+    return new OHLCPriceDto(SIGNAL, START.plusDays(offset), price, price, price, price, price, 1_000L, "USD", true);
+  }
+
+  @Nested
+  @DisplayName("신호 종목 따로")
+  class SignalSymbol {
+
+    @Test
+    @DisplayName("신호 종목을 주면 그 종목의 밴드로 들고 있을지 정하고 매매 종목이 쉬는 날 바뀐 것은 다음 거래일 종가에 사고판다")
+    void tradesOnSignalSymbolBand() {
+      // 신호는 banded() 값: 1 · 2일째 위 선 위, 3일째 사이, 4일째 아래 선 아래, 5일째 사이, 6 · 7일째 위 선 위
+      List<OHLCPriceDto> signals = banded().stream()
+        .map(candle -> signalDay((int) (candle.date().toEpochDay() - START.toEpochDay()), candle.closePrice().toPlainString()))
+        .toList();
+      // 매매 종목은 1 · 2 · 4일째가 쉬는 날
+      given(marketDataClient.getOHLCPriceRange(eq(SIGNAL), anyString(), anyString())).willReturn(signals);
+      stubMarket(List.of(day(0, "50"), day(3, "40"), day(5, "64"), day(6, "80"), day(7, "81")));
+
+      StrategyResponse response = strategy.execute(request(7).signalSymbol(SIGNAL).build());
+
+      assertThat(trades()).containsExactly(
+        tuple(START.plusDays(3), "40", "밴드 위 매수", "25"),
+        tuple(START.plusDays(5), "64", "밴드 아래 매도", "-25"),
+        tuple(START.plusDays(6), "80", "밴드 위 매수", "20"));
+      verify(marketDataClient).getOHLCPriceRange(SIGNAL, START.minusDays(18).toString(), START.plusDays(7).toString());
+      verify(marketDataClient).getOHLCPriceRange(SYMBOL, START.toString(), START.plusDays(7).toString());
+      SignalChart chart = response.getSignalChart();
+      assertThat(chart.symbol()).isEqualTo(SIGNAL);
+      assertThat(chart.points()).hasSize(8).first().isEqualTo(point(0, "10.00", "10.00", "11.00", "9.00"));
+    }
+  }
+
   // 시작일에서 offset 일 뒤 밴드 점(평균이 null 이면 세 칸 없음)
   private static SignalChart.Point point(int offset, String close, String average, String upper, String lower) {
     return SignalChart.Point.band(START.plusDays(offset), new BigDecimal(close),
@@ -373,6 +410,7 @@ class MaBandStrategyTest {
   static Stream<Arguments> invalidRequests() {
     return Stream.of(
       invalid("종목 없음", b -> b.symbol(" "), BacktestResponse.STRATEGY_SYMBOL_REQUIRED),
+      invalid("지수를 매매 종목으로", b -> b.symbol("^NDX"), BacktestResponse.INDEX_NOT_TRADABLE),
       invalid("시작일이 종료일 뒤", b -> b.startDate(START.plusDays(3)).endDate(START),
         BacktestResponse.STRATEGY_DATE_RANGE_INVALID),
       invalid("원금 없음", b -> b.investmentAmount(null), BacktestResponse.INVALID_INVESTMENT_AMOUNT),

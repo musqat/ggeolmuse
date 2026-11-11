@@ -93,6 +93,37 @@ test('이동평균 밴드가 돌고 밴드 차트 · 매매 통계를 싣는다'
   expect(body.tradeStats, '밴드 응답에 매매 통계가 없다').toBeTruthy();
 });
 
+test('이동평균 교차가 다른 종목을 신호로 보고 신호 차트에 그 종목을 싣는다', async () => {
+  // 두 종목 시세가 다 있는 기간
+  const other = await priceRange(api, second);
+  const from = start > other.start ? start : other.start;
+  const to = end < other.end ? end : other.end;
+  const res = await postUntilAllowed(`${API_URL}/analysis/strategy/ma-cross`, {
+    data: {
+      symbol,
+      signalSymbol: second,
+      startDate: from,
+      endDate: to,
+      investmentAmount: 1_000_000,
+      shortWindow: 5,
+      longWindow: 20,
+    },
+  });
+
+  expect(res.status(), `신호 종목을 따로 준 이동평균이 실패했다: ${await res.text()}`).toBe(200);
+  const body = await res.json();
+  expect(body.symbol).toBe(symbol);
+  expect(body.signalChart?.symbol, '신호 차트가 신호 종목 값이 아니다').toBe(second);
+});
+
+test('지수는 매매 종목으로 고를 수 없다', async () => {
+  const res = await postUntilAllowed(`${API_URL}/analysis/strategy/ma-band`, {
+    data: { symbol: '^GSPC', startDate: start, endDate: end, investmentAmount: 1_000_000 },
+  });
+
+  expect(res.status(), `지수 매매가 400 이 아니다: ${await res.text()}`).toBe(400);
+});
+
 test('주식 수로 단순 · 적립식 · 조건부가 돈다', async () => {
   const runs: [string, object][] = [
     ['trading-simulation/simulation', { purchaseDate: start, saleDate: end }],

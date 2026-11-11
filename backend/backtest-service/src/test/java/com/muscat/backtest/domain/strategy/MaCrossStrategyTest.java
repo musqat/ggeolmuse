@@ -50,6 +50,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -401,19 +403,20 @@ class MaCrossStrategyTest {
     }
 
     @Test
-    @DisplayName("골든 크로스 날 계산이 실패하면(환율 0) 사지 않고 계산 오류로 남긴 뒤 다음 골든 크로스에 원금으로 산다")
-    void calculationFailureWaitsForNextCross() {
+    @DisplayName("골든 크로스 날 계산이 실패하면(환율 0) 사지 않고 계산 오류로 남긴 뒤 다음 거래일에 원금으로 산다")
+    void calculationFailureBuysNextTradingDay() {
       stubMarket(crossing());
       stubDailyFx(7, Map.of(1, "0"));
 
       strategy.execute(request(7).purchaseFxRate(null).build());
 
       assertThat(skippedRounds()).containsExactly(new SkippedRound(START.plusDays(1), SkipReason.CALCULATION_ERROR));
-      assertThat(executed()).singleElement().satisfies(tx -> {
-        assertThat(tx.getDate()).isEqualTo(START.plusDays(6));
-        assertThat(tx.getAmount()).isEqualByComparingTo("1300000");
-        assertThat(tx.getCashUsed()).isNull();
-      });
+      assertThat(trades()).containsExactly(
+        tuple(START.plusDays(2), "20", "골든 크로스", "50"),
+        tuple(START.plusDays(4), "12", "데드 크로스", "-50"),
+        tuple(START.plusDays(6), "30", "골든 크로스", "20"));
+      assertThat(executed().getFirst().getAmount()).isEqualByComparingTo("1300000");
+      assertThat(executed().getFirst().getCashUsed()).isNull();
     }
 
     @Test
@@ -490,6 +493,126 @@ class MaCrossStrategyTest {
 
       assertThat(executed()).hasSize(1);
       verify(marketDataClient).getOHLCPriceRange(SYMBOL, today.minusDays(3).minusDays(18).toString(), today.toString());
+    }
+  }
+
+  private static final String SIGNAL = "^IDX";
+
+  // 신호 종목의 시작일에서 offset 일 뒤 일봉
+  private static OHLCPriceDto signalDay(int offset, String close) {
+    BigDecimal price = new BigDecimal(close);
+    return new OHLCPriceDto(SIGNAL, START.plusDays(offset), price, price, price, price, price, 1_000L, "USD", true);
+  }
+
+  // crossing() 과 같은 값의 신호 종목 일봉: 1일째 골든 크로스, 4일째 데드 크로스, 6일째 골든 크로스
+  private static List<OHLCPriceDto> signalCrossing() {
+    return List.of(signalDay(-2, "8"), signalDay(-1, "8"), signalDay(0, "8"), signalDay(1, "10"), signalDay(2, "20"),
+      signalDay(3, "22"), signalDay(4, "12"), signalDay(5, "8"), signalDay(6, "30"), signalDay(7, "31"));
+  }
+
+  // 매매 종목 시세에 더해 신호 종목 기간 시세
+  private void stubSignalMarket(List<OHLCPriceDto> prices, List<OHLCPriceDto> signals) {
+    stubMarket(prices);
+    given(marketDataClient.getOHLCPriceRange(eq(SIGNAL), anyString(), anyString())).willReturn(signals);
+  }
+
+  @Nested
+  @DisplayName("신호 종목 따로")
+  class SignalSymbol {
+
+    @Test
+    @DisplayName("신호 종목을 주면 그 종목의 교차로 사고팔 날을 정하고 매매 종목의 그 날짜 종가에 사고판다")
+    void tradesOnSignalSymbolCrosses() {
+      stubSignalMarket(List.of(day(0, "50"), day(1, "40"), day(2, "45"), day(3, "47"), day(4, "64"), day(5, "55"),
+        day(6, "80"), day(7, "81")), signalCrossing());
+
+      StrategyResponse response = strategy.execute(request(7).signalSymbol(SIGNAL).build());
+
+      assertThat(trades()).containsExactly(
+        tuple(START.plusDays(1), "40", "골든 크로스", "25"),
+        tuple(START.plusDays(4), "64", "데드 크로스", "-25"),
+        tuple(START.plusDays(6), "80", "골든 크로스", "20"));
+      verify(marketDataClient).getOHLCPriceRange(SIGNAL, START.minusDays(18).toString(), START.plusDays(7).toString());
+      verify(marketDataClient).getOHLCPriceRange(SYMBOL, START.toString(), START.plusDays(7).toString());
+      SignalChart chart = response.getSignalChart();
+      assertThat(chart.symbol()).isEqualTo(SIGNAL);
+      assertThat(chart.points()).hasSize(8).first().isEqualTo(point(0, "8.00", "8.00", "8.00"));
+      assertThat(chart.crosses()).containsExactly(
+        cross(1, SignalChart.CrossType.GOLDEN),
+        cross(4, SignalChart.CrossType.DEAD),
+        cross(6, SignalChart.CrossType.GOLDEN));
+    }
+
+    @Test
+    @DisplayName("신호가 매매 종목이 쉬는 날 나면 매매 종목의 다음 거래일 종가에 사고판다")
+    void tradesOnNextTradingDay() {
+      // 매매 종목은 1 · 4 · 6일째가 쉬는 날
+      stubSignalMarket(List.of(day(0, "50"), day(2, "40"), day(3, "47"), day(5, "64"), day(7, "80")), signalCrossing());
+
+      strategy.execute(request(7).signalSymbol(SIGNAL).build());
+
+      assertThat(trades()).containsExactly(
+        tuple(START.plusDays(2), "40", "골든 크로스", "25"),
+        tuple(START.plusDays(5), "64", "데드 크로스", "-25"),
+        tuple(START.plusDays(7), "80", "골든 크로스", "20"));
+    }
+
+    @Test
+    @DisplayName("매매 종목이 쉬는 동안 골든 크로스와 데드 크로스가 함께 나면 들고 있지 않은 채 그대로라 사고팔지 않는다")
+    void opposingSignalsWhileClosed() {
+      // 매매 종목은 1 ~ 4 · 6일째가 쉬는 날
+      stubSignalMarket(List.of(day(0, "50"), day(5, "64"), day(7, "80")), signalCrossing());
+
+      strategy.execute(request(7).signalSymbol(SIGNAL).build());
+
+      assertThat(trades()).containsExactly(tuple(START.plusDays(7), "80", "골든 크로스", "12.5"));
+    }
+
+    @Test
+    @DisplayName("시작일 전 신호 종목의 교차로는 사지 않는다")
+    void ignoresSignalBeforeStart() {
+      // 신호 종목은 시작일 전날 골든 크로스, 2일째 데드 크로스, 3일째 골든 크로스
+      stubSignalMarket(List.of(day(0, "50"), day(1, "51"), day(2, "52"), day(3, "40")),
+        List.of(signalDay(-4, "8"), signalDay(-3, "8"), signalDay(-2, "8"), signalDay(-1, "10"), signalDay(0, "12"),
+          signalDay(1, "13"), signalDay(2, "5"), signalDay(3, "25")));
+
+      strategy.execute(request(3).signalSymbol(SIGNAL).build());
+
+      assertThat(trades()).containsExactly(tuple(START.plusDays(3), "40", "골든 크로스", "25"));
+    }
+
+    @ParameterizedTest(name = "신호 종목 [{0}]")
+    @NullSource
+    @ValueSource(strings = {" ", "MAX", "max"})
+    @DisplayName("신호 종목을 비우거나 매매 종목과 같게 주면 매매 종목 시세만 한 번 받아 그 종목의 교차로 사고판다")
+    void sameAsTradedSymbol(String signalSymbol) {
+      stubMarket(crossing());
+
+      StrategyResponse response = strategy.execute(request(7).signalSymbol(signalSymbol).build());
+
+      assertThat(executed()).extracting(StrategyTransaction::getDate)
+        .containsExactly(START.plusDays(1), START.plusDays(4), START.plusDays(6));
+      verify(marketDataClient).getOHLCPriceRange(anyString(), anyString(), anyString());
+      verify(marketDataClient).getOHLCPriceRange(SYMBOL, START.minusDays(18).toString(), START.plusDays(7).toString());
+      assertThat(response.getSignalChart().symbol()).isEqualTo(SYMBOL);
+    }
+
+    @Test
+    @DisplayName("신호 종목 시세가 하루도 없거나 시작일 전 것뿐이면 DATA_NOT_FOUND")
+    void noSignalDataInPeriod() {
+      lenient().when(marketDataClient.getOHLCPriceRange(eq(SYMBOL), anyString(), anyString())).thenReturn(crossing());
+      given(marketDataClient.getOHLCPriceRange(eq(SIGNAL), anyString(), anyString()))
+        .willReturn(List.of())
+        .willReturn(List.of(signalDay(-2, "10"), signalDay(-1, "10")));
+      MaCrossStrategyRequest request = request(7).signalSymbol(SIGNAL).build();
+
+      for (int run = 0; run < 2; run++) {
+        assertThatThrownBy(() -> strategy.execute(request))
+          .isInstanceOf(BacktestException.class)
+          .hasMessage("신호 종목 시세가 없습니다")
+          .extracting("code")
+          .isEqualTo(BacktestResponse.DATA_NOT_FOUND);
+      }
     }
   }
 
@@ -600,6 +723,7 @@ class MaCrossStrategyTest {
   static Stream<Arguments> invalidRequests() {
     return Stream.of(
       invalid("종목 없음", b -> b.symbol(" "), BacktestResponse.STRATEGY_SYMBOL_REQUIRED),
+      invalid("지수를 매매 종목으로", b -> b.symbol("^GSPC").signalSymbol("^GSPC"), BacktestResponse.INDEX_NOT_TRADABLE),
       invalid("시작일이 종료일 뒤", b -> b.startDate(START.plusDays(3)).endDate(START),
         BacktestResponse.STRATEGY_DATE_RANGE_INVALID),
       invalid("원금 없음", b -> b.investmentAmount(null), BacktestResponse.INVALID_INVESTMENT_AMOUNT),

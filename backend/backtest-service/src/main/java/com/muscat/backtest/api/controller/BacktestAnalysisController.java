@@ -139,7 +139,7 @@ public class BacktestAnalysisController {
 
   @Operation(
       summary = "이동평균 교차 전략 백테스팅",
-      description = "짧은 이동평균이 긴 이동평균을 아래에서 위로 넘는 날 가진 돈 전부로 사고, 위에서 아래로 넘는 날 전량 파는 전략의 백테스팅을 실행합니다"
+      description = "짧은 이동평균이 긴 이동평균을 아래에서 위로 넘는 날 가진 돈 전부로 사고, 위에서 아래로 넘는 날 전량 파는 전략의 백테스팅을 실행합니다. 신호 종목을 주면 그 종목의 이동평균으로 사고팔 날을 정합니다"
   )
   @ApiResponses(value = {
       @ApiResponse(
@@ -179,7 +179,7 @@ public class BacktestAnalysisController {
 
   @Operation(
       summary = "이동평균 밴드 전략 백테스팅",
-      description = "수정 종가가 N 거래일 평균 × (1 + 위 비율) 보다 높은 날 가진 돈 전부로 사고, 평균 × (1 - 아래 비율) 보다 낮은 날 전량 파는 전략의 백테스팅을 실행합니다"
+      description = "수정 종가가 N 거래일 평균 × (1 + 위 비율) 보다 높은 날 가진 돈 전부로 사고, 평균 × (1 - 아래 비율) 보다 낮은 날 전량 파는 전략의 백테스팅을 실행합니다. 신호 종목을 주면 그 종목의 밴드로 사고팔 날을 정합니다"
   )
   @ApiResponses(value = {
       @ApiResponse(

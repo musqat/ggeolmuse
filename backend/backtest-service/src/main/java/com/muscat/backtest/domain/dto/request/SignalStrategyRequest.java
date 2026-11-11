@@ -21,4 +21,12 @@ public interface SignalStrategyRequest extends StrategyRequest {
   Boolean getCapitalGainsTax();
 
   PeriodEnd getPeriodEnd();
+
+  String getSignalSymbol();
+
+  // 신호를 보는 종목(비우거나 매매 종목과 같으면 매매 종목)
+  default String signalSymbolOrDefault() {
+    String signal = getSignalSymbol() == null ? "" : getSignalSymbol().trim();
+    return signal.isEmpty() || signal.equalsIgnoreCase(getSymbol()) ? getSymbol() : signal;
+  }
 }

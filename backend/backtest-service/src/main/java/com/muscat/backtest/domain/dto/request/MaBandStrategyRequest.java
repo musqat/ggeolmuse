@@ -27,7 +27,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class MaBandStrategyRequest implements SignalStrategyRequest {
 
-  @Schema(description = "종목 코드", example = "SPY", required = true)
+  @Schema(description = "종목 코드 (사고파는 종목, 지수는 안 됨)", example = "SPY", required = true)
   @NotBlank(message = "종목 코드는 필수입니다")
   private String symbol;
 
@@ -89,6 +89,9 @@ public class MaBandStrategyRequest implements SignalStrategyRequest {
 
   @Schema(description = "기간이 끝나면 (HOLD 끝까지 보유, SELL_AT_END 마지막 거래일 종가에 남은 주식 전량 매도, 비우면 HOLD)", example = "HOLD")
   private PeriodEnd periodEnd;
+
+  @Schema(description = "신호 종목: 밴드를 보는 종목 (지수 ^GSPC · ^NDX 도 됨, 비우면 종목 코드)", example = "^GSPC")
+  private String signalSymbol;
 
   // 이력 저장 JSON 에는 넣지 않음
   @JsonIgnore

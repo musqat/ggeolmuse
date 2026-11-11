@@ -84,6 +84,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
 
   // 시뮬레이션 입력 컨텍스트 구성 (매수가·환율·평가일 시세·배당이력 조회)
   private SimulationContext prepareSimulationContext(SimulationRequest request) {
+    BacktestRequestValidator.requireTradable(request.getSymbol());
     if (request.getSaleDate() != null) {
       BacktestRequestValidator.requireDateRange(request.getPurchaseDate(), request.getSaleDate());
     }

@@ -36,7 +36,7 @@ class StrategyRequestJsonTest {
   }
 
   @Test
-  @DisplayName("이동평균 교차는 원금 · 짧은 · 긴 기간을 이력 JSON 에 저장하고 기간 검사 값은 넣지 않으며 비운 기간은 20 · 60 으로 본다")
+  @DisplayName("이동평균 교차는 원금 · 짧은 · 긴 기간 · 신호 종목을 이력 JSON 에 저장하고 기간 검사 값은 넣지 않으며 비운 기간은 20 · 60, 비운 신호 종목은 매매 종목으로 본다")
   void maCrossWindowsSaved() throws Exception {
     MaCrossStrategyRequest saved = objectMapper.readValue(objectMapper.writeValueAsString(maCross()),
       MaCrossStrategyRequest.class);
@@ -44,16 +44,18 @@ class StrategyRequestJsonTest {
       MaCrossStrategyRequest.class);
 
     assertThat(objectMapper.writeValueAsString(maCross()))
-      .contains("\"investmentAmount\":10000", "\"shortWindow\":5", "\"longWindow\":20")
+      .contains("\"investmentAmount\":10000", "\"shortWindow\":5", "\"longWindow\":20", "\"signalSymbol\":\"^GSPC\"")
       .doesNotContain("windowOrder").doesNotContain("OrDefault");
     assertThat(saved.shortWindowOrDefault()).isEqualTo(5);
     assertThat(saved.longWindowOrDefault()).isEqualTo(20);
     assertThat(empty.shortWindowOrDefault()).isEqualTo(20);
     assertThat(empty.longWindowOrDefault()).isEqualTo(60);
+    assertThat(saved.signalSymbolOrDefault()).isEqualTo("^GSPC");
+    assertThat(empty.signalSymbolOrDefault()).isEqualTo("AAPL");
   }
 
   @Test
-  @DisplayName("이동평균 밴드는 원금 · 평균 기간 · 위 · 아래 비율을 이력 JSON 에 저장하고 비운 칸은 200 · 0.025 · 0.025 로 본다")
+  @DisplayName("이동평균 밴드는 원금 · 평균 기간 · 위 · 아래 비율 · 신호 종목을 이력 JSON 에 저장하고 비운 칸은 200 · 0.025 · 0.025 · 매매 종목으로 본다")
   void maBandSaved() throws Exception {
     MaBandStrategyRequest saved = objectMapper.readValue(objectMapper.writeValueAsString(maBand()),
       MaBandStrategyRequest.class);
@@ -61,7 +63,8 @@ class StrategyRequestJsonTest {
       MaBandStrategyRequest.class);
 
     assertThat(objectMapper.writeValueAsString(maBand()))
-      .contains("\"investmentAmount\":10000", "\"bandWindow\":100", "\"upperRate\":0.03", "\"lowerRate\":0.05")
+      .contains("\"investmentAmount\":10000", "\"bandWindow\":100", "\"upperRate\":0.03", "\"lowerRate\":0.05",
+        "\"signalSymbol\":\"^NDX\"")
       .doesNotContain("OrDefault");
     assertThat(saved.bandWindowOrDefault()).isEqualTo(100);
     assertThat(saved.upperRateOrDefault()).isEqualByComparingTo("0.03");
@@ -69,6 +72,8 @@ class StrategyRequestJsonTest {
     assertThat(empty.bandWindowOrDefault()).isEqualTo(200);
     assertThat(empty.upperRateOrDefault()).isEqualByComparingTo("0.025");
     assertThat(empty.lowerRateOrDefault()).isEqualByComparingTo("0.025");
+    assertThat(saved.signalSymbolOrDefault()).isEqualTo("^NDX");
+    assertThat(empty.signalSymbolOrDefault()).isEqualTo("SPY");
   }
 
   @Test
@@ -141,13 +146,13 @@ class StrategyRequestJsonTest {
 
   private MaCrossStrategyRequest maCross() {
     return MaCrossStrategyRequest.builder().symbol("AAPL").startDate(LocalDate.of(2023, 1, 1)).endDate(LocalDate.of(2024, 1, 1))
-      .investmentAmount(BigDecimal.valueOf(10000)).shortWindow(5).longWindow(20).userId("user-1").build();
+      .investmentAmount(BigDecimal.valueOf(10000)).shortWindow(5).longWindow(20).signalSymbol("^GSPC").userId("user-1").build();
   }
 
   private MaBandStrategyRequest maBand() {
     return MaBandStrategyRequest.builder().symbol("SPY").startDate(LocalDate.of(2023, 1, 1)).endDate(LocalDate.of(2024, 1, 1))
       .investmentAmount(BigDecimal.valueOf(10000)).bandWindow(100).upperRate(new BigDecimal("0.03"))
-      .lowerRate(new BigDecimal("0.05")).userId("user-1").build();
+      .lowerRate(new BigDecimal("0.05")).signalSymbol("^NDX").userId("user-1").build();
   }
 
   private ConditionalStrategyRequest conditional() {

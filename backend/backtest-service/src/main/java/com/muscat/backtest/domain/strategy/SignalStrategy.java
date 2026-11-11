@@ -30,8 +30,8 @@ import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 
-// 신호 전략 공통 매매: 시작일부터 일봉마다 양도세를 낸 뒤 매수 신호 날 그 날짜 종가에 가진 돈 전부로 사고 매도 신호 날 전량 팜
-// (처음은 원금, 그 뒤는 판 돈, 시작일 전 일봉을 더 받아 시작일부터 신호를 봄)
+// 신호 전략 공통 매매: 시작일부터 매매 종목 일봉마다 그 날짜까지의 신호로 들고 있을지 정하고, 양도세를 낸 뒤 그 날짜 종가에
+// 가진 돈 전부로 사거나 전량 팜(처음은 원금, 그 뒤는 판 돈, 신호 종목은 시작일 전 일봉을 더 받아 시작일부터 신호를 봄)
 @Slf4j
 abstract class SignalStrategy<R extends SignalStrategyRequest> implements InvestmentStrategy {
 
@@ -72,16 +72,21 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
     BacktestLogger.setStrategyContext(request.getUserId(), getStrategyType().name(), request.getSymbol());
 
     try {
-      log.info("{} 전략 실행 시작: {} - 신호 기간 {}일, 원금 {}원",
-        label(), request.getSymbol(), window(request), request.getInvestmentAmount());
+      String signalSymbol = request.signalSymbolOrDefault();
+      log.info("{} 전략 실행 시작: {} - 신호 {} · 신호 기간 {}일, 원금 {}원",
+        label(), request.getSymbol(), signalSymbol, window(request), request.getInvestmentAmount());
 
       LocalDate today = LocalDate.now();
       LocalDate actualEndDate = request.getEndDate().isAfter(today) ? today : request.getEndDate();
 
       CapitalGainsTaxPayer taxPayer = new CapitalGainsTaxPayer(Boolean.TRUE.equals(request.getCapitalGainsTax()));
+      boolean separate = !signalSymbol.equals(request.getSymbol());
+      LocalDate signalFrom = request.getStartDate().minusDays(lookbackDays(window(request)));
       Map<LocalDate, OHLCPriceDto> priceMap = BacktestDataUtils.buildPriceMap(
-        marketData, request.getSymbol(), request.getStartDate().minusDays(lookbackDays(window(request))), actualEndDate);
-      SignalPrices prices = SignalPrices.of(priceMap);
+        marketData, request.getSymbol(), separate ? request.getStartDate() : signalFrom, actualEndDate);
+      SignalPrices prices = separate
+        ? signalPrices(signalSymbol, signalFrom, request.getStartDate(), actualEndDate)
+        : SignalPrices.of(priceMap);
       TradeSignal signal = signal(request, prices);
       StrategyPurchases trades = trade(request, priceMap, prices, signal, actualEndDate, taxPayer);
 
@@ -98,7 +103,7 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
       response.setCapitalGainsTax(Boolean.TRUE.equals(request.getCapitalGainsTax())
         ? finalized.capitalGainsTax(taxPayer.payments())
         : null);
-      response.setSignalChart(signal.chart(request.getSymbol(), request.getStartDate()));
+      response.setSignalChart(signal.chart(signalSymbol, request.getStartDate()));
       response.setTradeStats(TradeStatsCalculator.of(finalized.transactions(), request.getStartDate(), actualEndDate));
       return response;
 
@@ -122,11 +127,20 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
     }
   }
 
-  // 시작일부터 일봉마다 양도세를 낸 뒤 신호대로 사고팖(계산이 실패한 날은 사고팔지 않고 이유를 남김)
-  private StrategyPurchases trade(R request, Map<LocalDate, OHLCPriceDto> priceMap, SignalPrices prices,
+  // 신호 종목 일봉(기간 안 일봉이 없으면 DATA_NOT_FOUND)
+  private SignalPrices signalPrices(String symbol, LocalDate from, LocalDate start, LocalDate end) {
+    SignalPrices prices = SignalPrices.of(BacktestDataUtils.buildPriceMap(marketData, symbol, from, end));
+    if (prices.candles().isEmpty() || prices.candles().getLast().date().isBefore(start)) {
+      throw new BacktestException(BacktestResponse.DATA_NOT_FOUND, "신호 종목 시세가 없습니다");
+    }
+    return prices;
+  }
+
+  // 시작일부터 매매 종목 일봉마다 그 날짜까지의 신호로 보유 여부를 정하고 양도세를 낸 뒤 사고팖(계산이 실패한 날은 이유를 남기고 다음 거래일에 다시 봄)
+  private StrategyPurchases trade(R request, Map<LocalDate, OHLCPriceDto> priceMap, SignalPrices signalPrices,
     TradeSignal signal, LocalDate actualEndDate, CapitalGainsTaxPayer taxPayer) {
     LocalDate start = request.getStartDate();
-    List<OHLCPriceDto> candles = prices.candles();
+    List<OHLCPriceDto> candles = SignalPrices.usable(priceMap);
     LocalDate firstInPeriod = candles.stream()
       .map(OHLCPriceDto::date)
       .filter(date -> !date.isBefore(start))
@@ -146,16 +160,24 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
     BigDecimal heldShares = BigDecimal.ZERO;
     BigDecimal heldCost = BigDecimal.ZERO;
     BigDecimal cash = null;
+    // 본 신호 일봉 수 · 신호로 정한 보유 여부(시작일 전 신호는 보지 않음)
+    List<OHLCPriceDto> signals = signalPrices.candles();
+    int seen = 0;
+    boolean wanted = false;
 
-    for (int i = 0; i < candles.size(); i++) {
-      OHLCPriceDto candle = candles.get(i);
-      if (candle.date().isBefore(start)) {
+    for (OHLCPriceDto candle : candles) {
+      LocalDate date = candle.date();
+      if (date.isBefore(start)) {
         continue;
       }
-      TradeSignal.Action action = signal.at(i);
+      for (; seen < signals.size() && !signals.get(seen).date().isAfter(date); seen++) {
+        TradeSignal.Action action = signals.get(seen).date().isBefore(start) ? null : signal.at(seen);
+        if (action != null) {
+          wanted = action == TradeSignal.Action.BUY;
+        }
+      }
       boolean holding = heldShares.signum() > 0;
       try {
-        LocalDate date = candle.date();
         StrategyTransaction payment = taxPayer.pay(date, transactions, cash, fxOn(request, fxRates, date),
           fxRates.isDefault(date));
         if (payment != null) {
@@ -163,13 +185,13 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
           cash = cash.subtract(payment.getTaxPaid());
         }
         // 판 돈을 양도세로 다 냈으면 사지 않음
-        if (!holding && action == TradeSignal.Action.BUY && (cash == null || cash.signum() > 0)) {
+        if (!holding && wanted && (cash == null || cash.signum() > 0)) {
           StrategyTransaction buy = buy(request, candle, fxRates, cash, signal.buyTrigger());
           transactions.add(buy);
           heldShares = buy.getShares();
           heldCost = buy.costUsd();
           cash = BigDecimal.ZERO;
-        } else if (holding && action == TradeSignal.Action.SELL) {
+        } else if (holding && !wanted) {
           StrategyTransaction sale = sell(request, candle, fxRates, heldShares, heldCost, signal.sellTrigger());
           transactions.add(sale);
           cash = sale.getProceeds();
