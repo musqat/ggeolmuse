@@ -3,6 +3,7 @@ import { DIRECTIONS } from '../../shared/priceDirection';
 import type { BuildResult, RunContext } from '../types';
 import { toOptionFields, type BacktestOptions } from '../../shared/backtestOptions';
 import { hasSellRates, toSellRates } from '../../shared/sellRates';
+import { hasTrailingStop, toTrailingStop } from '../../shared/trailingStop';
 import { parseShares, type AmountUnitValues } from '../../shared/amountUnit';
 
 export interface ConditionalValues extends BacktestOptions, AmountUnitValues {
@@ -15,6 +16,9 @@ export interface ConditionalValues extends BacktestOptions, AmountUnitValues {
   dropPercentage: string;
   takeProfit: string;
   stopLoss: string;
+  // 트레일링 스탑 고점 대비 하락 % · 보유의 팔 %(비우면 끔 · 전량)
+  trailingStop?: string;
+  trailingSell?: string;
 }
 
 // 빈 칸은 undefined, 아니면 숫자(못 읽으면 NaN)
@@ -58,6 +62,10 @@ export const buildConditionalRequest = (
   if ('error' in sell) {
     return sell;
   }
+  const trailing = toTrailingStop(values.trailingStop ?? '', values.trailingSell ?? '');
+  if ('error' in trailing) {
+    return trailing;
+  }
 
   // 종료일이 비어있으면 오늘
   const effectiveEndDate = values.endDate || ctx.today;
@@ -76,9 +84,10 @@ export const buildConditionalRequest = (
     ...(maxCount !== undefined && { maxPurchases: maxCount }),
     ...toOptionFields(values),
     ...sell.rates,
+    ...trailing.fields,
   };
-  // 익절 · 손절은 배당 재투자와 함께 못 씀
-  if (hasSellRates(values.takeProfit, values.stopLoss)) {
+  // 익절 · 손절 · 트레일링 스탑은 배당 재투자와 함께 못 씀
+  if (hasSellRates(values.takeProfit, values.stopLoss) || hasTrailingStop(values.trailingStop)) {
     request.reinvestDividends = false;
   }
   return { request };

@@ -38,7 +38,7 @@ const FX_OPTIONS = [
   { value: 'auto' as const, label: '자동' },
   { value: 'manual' as const, label: '직접 입력' },
 ];
-const LOCKED_NOTE = '익절 · 손절이 있으면 배당은 현금으로';
+const LOCKED_NOTE = '익절 · 손절 · 고점 대비 하락 매도가 있으면 배당은 현금으로';
 
 // 접는 세부 설정: 기간 끝 · 세금 · 배당 · 수수료 · 환율(접힌 줄에 기본값도 값으로, 바꾼 것은 진하게)
 export const DetailSettings = ({ options, open, onToggle, reinvestLocked = false, reinvestNote, messages = {} }: DetailSettingsProps) => {

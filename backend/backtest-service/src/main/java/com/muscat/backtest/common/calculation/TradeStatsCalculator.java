@@ -41,7 +41,7 @@ public final class TradeStatsCalculator {
     }
   }
 
-  // 양도세 납부를 뺀 거래(거래일 순서)의 매수 · 매도 수와 사이클 통계, 1년 사이클 수는 시작일 ~ 평가일 기준
+  // 양도세 납부를 뺀 거래(거래일 순서)의 매수 · 매도 · 트레일링 스탑 수와 사이클 통계, 1년 사이클 수는 시작일 ~ 평가일 기준
   public static TradeStats of(List<StrategyTransaction> transactions, LocalDate start, LocalDate valuationDate) {
     List<StrategyTransaction> trades = transactions.stream()
       .filter(tx -> !tx.isTaxPayment())
@@ -49,6 +49,7 @@ public final class TradeStatsCalculator {
       .toList();
     int buys = 0;
     int sells = 0;
+    int trailingStops = 0;
     List<Cycle> cycles = new ArrayList<>();
     BigDecimal shares = BigDecimal.ZERO;
     BigDecimal cost = BigDecimal.ZERO;
@@ -66,6 +67,9 @@ public final class TradeStatsCalculator {
         continue;
       }
       sells++;
+      if (tx.getTrigger() != null && tx.getTrigger().startsWith(TransactionTrigger.TRAILING_STOP)) {
+        trailingStops++;
+      }
       realized = realized.add(tx.getRealizedProfit() != null ? tx.getRealizedProfit() : BigDecimal.ZERO);
       if (opened != null && shares.signum() <= 0) {
         cycles.add(new Cycle(opened, tx.tradedOn(), cost, realized));
@@ -86,7 +90,7 @@ public final class TradeStatsCalculator {
       ratio(BigDecimal.valueOf(wins.size()).multiply(HUNDRED), BigDecimal.valueOf(cycles.size())),
       averageWin, averageLoss, ratio(averageWin, averageLoss),
       average(cycles.stream().map(cycle -> BigDecimal.valueOf(cycle.holdingDays())).toList(), 1),
-      perYear(cycles.size() + (open ? 1 : 0), start, valuationDate), 0, 0);
+      perYear(cycles.size() + (open ? 1 : 0), start, valuationDate), trailingStops, 0);
   }
 
   // 평균(값이 없으면 null)

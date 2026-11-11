@@ -120,6 +120,8 @@ const common = { reinvestDividends: false, tradingFeeRate: 0, dividendTaxRate: 0
 const detailToggle = () => screen.getByRole('button', { name: /세부 설정/ })
 const reinvestRadio = () => within(screen.getByRole('radiogroup', { name: '배당' })).getByRole('radio', { name: '재투자' })
 const amountInput = () => screen.getByRole('textbox', { name: '금액(원)' })
+const trailingStopInput = () => screen.getByRole('textbox', { name: '고점 대비 하락 비율(퍼센트)' })
+const trailingSellInput = () => screen.getByRole('textbox', { name: '고점 대비 하락 때 팔 비율(보유 대비 퍼센트)' })
 
 describe('Backtest 페이지 모드 · 기록', () => {
   it('모드는 하나만 고르는 묶음이고 지난 기록은 모드 대신 제목 옆 링크로 따로 본다', () => {
@@ -632,6 +634,62 @@ describe('Backtest 페이지 칸 오류 · 요약', () => {
 
     expect(screen.getByRole('radio', { name: '나스닥 100' })).toHaveAttribute('aria-checked', 'true')
     expect(summary()).toHaveTextContent('신호 ^NDX')
+  })
+
+  it('조건부: 트레일링 스탑을 적으면 요약에 적고 배당 재투자를 막으며 하락 · 팔 비율로 요청한다', async () => {
+    renderPage()
+    await selectMode('조건부')
+    await userEvent.type(trailingStopInput(), '10')
+    await userEvent.type(trailingSellInput(), '50')
+
+    expect(summary()).toHaveTextContent('고점 대비 하락 매도 -10%(보유의 50%씩)')
+    await userEvent.click(detailToggle())
+    expect(reinvestRadio()).toHaveAttribute('aria-disabled', 'true')
+    await runBacktest()
+    expect(vi.mocked(backtestApi.runConditionalStrategy).mock.calls[0][0]).toMatchObject({
+      trailingStopRate: 0.1,
+      trailingSellRate: 0.5,
+      reinvestDividends: false,
+    })
+  })
+
+  it('이동평균 밴드: 트레일링 하락을 지우고 팔 비율만 남기면 그 칸으로 가며 요청하지 않고, 하락을 다시 적으면 두 비율로 요청한다', async () => {
+    renderPage()
+    await selectMode('이동평균 밴드')
+    await userEvent.type(trailingStopInput(), '15')
+    await userEvent.type(trailingSellInput(), '50')
+    await userEvent.clear(trailingStopInput())
+
+    expect(screen.getByText('하락 비율과 함께')).toBeInTheDocument()
+    expect(summary()).toHaveTextContent('고칠 칸 1개')
+    await runBacktest()
+    expect(trailingSellInput()).toHaveFocus()
+    expect(backtestApi.runMaBandStrategy).not.toHaveBeenCalled()
+
+    await userEvent.type(trailingStopInput(), '15')
+    expect(summary()).toHaveTextContent('-2.5% 아래로 내려가면 전부 팜 · 고점 대비 하락 매도 -15%(보유의 50%씩)')
+    await runBacktest()
+    expect(vi.mocked(backtestApi.runMaBandStrategy).mock.calls[0][0]).toMatchObject({
+      trailingStopRate: 0.15,
+      trailingSellRate: 0.5,
+    })
+  })
+
+  it('이동평균: 트레일링 스탑을 적으면 요약에 적고 하락 비율로 요청하며, 직전 설정으로 되살리고 설정 초기화로 비운다', async () => {
+    renderPage()
+    await selectMode('이동평균')
+    await userEvent.type(trailingStopInput(), '8')
+
+    expect(summary()).toHaveTextContent('아래로 내려가면 전부 팜 · 고점 대비 하락 매도 -8%(전량)')
+    await runBacktest()
+    expect(vi.mocked(backtestApi.runMaCrossStrategy).mock.calls[0][0]).toMatchObject({ trailingStopRate: 0.08 })
+    expect(vi.mocked(backtestApi.runMaCrossStrategy).mock.calls[0][0]).not.toHaveProperty('trailingSellRate')
+
+    await userEvent.click(screen.getByRole('button', { name: '설정 초기화' }))
+    await selectMode('이동평균')
+    expect(trailingStopInput()).toHaveValue('')
+    await userEvent.click(screen.getByRole('button', { name: '직전 설정' }))
+    expect(trailingStopInput()).toHaveValue('8')
   })
 
   it('주식 수 추정에 쓸 시작일 환율이 없으면 칸 · 요약에 기본 환율 기준을 적는다', async () => {

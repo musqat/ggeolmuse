@@ -27,7 +27,7 @@ const SignedLine: React.FC<{ value: number | null }> = ({ value }) => (
 // 파는 전략 결과의 매매 통계 카드(승률 · 평균 익절 · 손절 · 손익비 · 연평균 거래, 끝난 사이클이 없으면 안내 한 줄)
 export const TradeStatsCard: React.FC<{ stats: TradeStats }> = ({ stats }) => {
   const sold = [
-    stats.trailingStopCount > 0 && `트레일링 스탑 ${formatNumber(stats.trailingStopCount)}번`,
+    stats.trailingStopCount > 0 && `고점 대비 하락 매도 ${formatNumber(stats.trailingStopCount)}번`,
     stats.partialTakeProfitCount > 0 && `부분 익절 ${formatNumber(stats.partialTakeProfitCount)}번`,
   ].filter(Boolean);
 

@@ -616,6 +616,71 @@ class MaCrossStrategyTest {
     }
   }
 
+  // 2 · 3일 선: 1일째 골든 크로스(10), 3일째 고점 22 에서 4일째 19.8(-10%) · 5일째 25 는 짧은 선이 위, 6일째 데드 크로스(12),
+  // 8일째 골든 크로스(40)
+  private static List<OHLCPriceDto> trailing() {
+    return List.of(day(-2, "8"), day(-1, "8"), day(0, "8"), day(1, "10"), day(2, "20"), day(3, "22"),
+      day(4, "19.8"), day(5, "25"), day(6, "12"), day(7, "30"), day(8, "40"));
+  }
+
+  @Nested
+  @DisplayName("트레일링 스탑")
+  class TrailingStops {
+
+    @Test
+    @DisplayName("켜면 산 다음 날부터 종가가 고점 대비 하락 비율 이상 내린 날 그 종가에 전량 팔고, 짧은 선이 위에 있어도 다음 골든 크로스에 판 돈 전부로 다시 산다")
+    void sellsAllAndWaitsForNextGoldenCross() {
+      stubMarket(trailing());
+
+      StrategyResponse response = strategy.execute(request(8).trailingStopRate(new BigDecimal("0.1")).build());
+
+      assertThat(trades()).containsExactly(
+        tuple(START.plusDays(1), "10", "골든 크로스", "100"),
+        tuple(START.plusDays(4), "19.8", "고점 대비 하락 매도 10.0%", "-100"),
+        tuple(START.plusDays(8), "40", "골든 크로스", "49.5"));
+      List<StrategyTransaction> trades = executed();
+      assertThat(trades.get(1).getProceeds()).isEqualByComparingTo("1980");
+      assertThat(trades.get(1).getRealizedProfit()).isEqualByComparingTo("980");
+      assertThat(trades.get(2).getCashUsed()).isEqualByComparingTo("1980");
+      assertThat(response.getTradeStats().trailingStopCount()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("팔 비율을 주면 보유의 그만큼만 팔고, 같은 날 데드 크로스가 나면 데드 크로스로 남은 주식을 팔며 판 돈을 모아 다음 골든 크로스에 산다")
+    void partialSaleThenDeadCross() {
+      stubMarket(trailing());
+
+      StrategyResponse response = strategy.execute(request(8).trailingStopRate(new BigDecimal("0.1"))
+        .trailingSellRate(new BigDecimal("0.5")).build());
+
+      assertThat(trades()).containsExactly(
+        tuple(START.plusDays(1), "10", "골든 크로스", "100"),
+        tuple(START.plusDays(4), "19.8", "고점 대비 하락 매도 10.0%", "-50"),
+        tuple(START.plusDays(6), "12", "데드 크로스", "-50"),
+        tuple(START.plusDays(8), "40", "골든 크로스", "39.75"));
+      List<StrategyTransaction> trades = executed();
+      // 원가 1000달러의 절반씩: 990 - 500, 600 - 500
+      assertThat(trades.get(1).getRealizedProfit()).isEqualByComparingTo("490");
+      assertThat(trades.get(2).getRealizedProfit()).isEqualByComparingTo("100");
+      assertThat(trades.get(3).getCashUsed()).isEqualByComparingTo("1590");
+      assertThat(response.getTradeStats().trailingStopCount()).isEqualTo(1);
+      assertThat(response.getTradeStats().cycleCount()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("끄면 고점 대비 크게 내려도 데드 크로스까지 들고 있는다")
+    void offKeepsUntilDeadCross() {
+      stubMarket(trailing());
+
+      strategy.execute(request(8).build());
+
+      assertThat(trades()).containsExactly(
+        tuple(START.plusDays(1), "10", "골든 크로스", "100"),
+        tuple(START.plusDays(6), "12", "데드 크로스", "-100"),
+        tuple(START.plusDays(8), "40", "골든 크로스", "30"));
+    }
+  }
+
   // 시작일에서 offset 일 뒤 점(평균이 null 이면 그 칸 없음)
   private static SignalChart.Point point(int offset, String close, String shortAverage, String longAverage) {
     return SignalChart.Point.averages(START.plusDays(offset), new BigDecimal(close),
@@ -732,12 +797,15 @@ class MaCrossStrategyTest {
       invalid("긴 기간 251", b -> b.longWindow(251), BacktestResponse.INVALID_MA_WINDOWS),
       invalid("두 기간이 같음", b -> b.shortWindow(60).longWindow(60), BacktestResponse.INVALID_MA_WINDOWS),
       invalid("짧은 기간 70 · 긴 기간 비움", b -> b.shortWindow(70).longWindow(null), BacktestResponse.INVALID_MA_WINDOWS),
+      invalid("트레일링 스탑 하락 비율 0", b -> b.trailingStopRate(BigDecimal.ZERO), BacktestResponse.INVALID_TRAILING_STOP),
+      invalid("트레일링 스탑 팔 비율만", b -> b.trailingSellRate(new BigDecimal("0.5")),
+        BacktestResponse.INVALID_TRAILING_STOP),
       invalid("배당 재투자", b -> b.reinvestDividends(true), BacktestResponse.SELL_WITH_REINVEST));
   }
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("invalidRequests")
-  @DisplayName("종목 · 기간 · 원금 · 이동평균 기간이 맞지 않거나 배당 재투자를 켜면 시세를 받기 전에 막는다")
+  @DisplayName("종목 · 기간 · 원금 · 이동평균 기간 · 트레일링 스탑이 맞지 않거나 배당 재투자를 켜면 시세를 받기 전에 막는다")
   void rejects(String label, UnaryOperator<MaCrossStrategyRequest.MaCrossStrategyRequestBuilder> change,
     BacktestResponse code) {
     MaCrossStrategyRequest request = change.apply(request(7)).build();

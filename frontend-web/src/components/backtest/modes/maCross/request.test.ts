@@ -52,6 +52,15 @@ describe('buildMaCrossRequest', () => {
     })
   })
 
+  it('트레일링 스탑은 적은 때만 하락 · 팔 퍼센트를 비율로 싣는다', () => {
+    expect(buildMaCrossRequest({ ...values, trailingStop: '12.5', trailingSell: '100' }, 'SPY', ctx)).toMatchObject({
+      request: { trailingStopRate: 0.125, trailingSellRate: 1 },
+    })
+    const off = buildMaCrossRequest(values, 'SPY', ctx)
+    expect('request' in off && 'trailingStopRate' in off.request).toBe(false)
+    expect('request' in off && 'trailingSellRate' in off.request).toBe(false)
+  })
+
   it('짧은 기간 2 · 긴 기간 250 까지 보낸다', () => {
     expect(buildMaCrossRequest({ ...values, shortWindow: '2', longWindow: '250' }, 'AAPL', ctx)).toMatchObject({
       request: { shortWindow: 2, longWindow: 250 },
@@ -67,6 +76,8 @@ describe('buildMaCrossRequest', () => {
     [{ shortWindow: '20.5' }, '이동평균 기간은 2 ~ 250 사이 정수로, 짧은 기간을 긴 기간보다 짧게 입력해주세요.'],
     [{ shortWindow: '60' }, '이동평균 기간은 2 ~ 250 사이 정수로, 짧은 기간을 긴 기간보다 짧게 입력해주세요.'],
     [{ shortWindow: '90' }, '이동평균 기간은 2 ~ 250 사이 정수로, 짧은 기간을 긴 기간보다 짧게 입력해주세요.'],
+    [{ trailingStop: '0' }, '고점 대비 하락 비율은 0보다 크고 100보다 작아야 합니다.'],
+    [{ trailingStop: '10', trailingSell: '101' }, '고점 대비 하락 때 팔 비율은 0보다 크고 100 이하여야 합니다.'],
     [{ endDate: '2022-01-01' }, '시작일은 종료일보다 빠른 날짜여야 합니다.'],
     [{ endDate: '2023-01-01' }, '시작일은 종료일보다 빠른 날짜여야 합니다.'],
   ])('%o 는 막는다', (patch, error) => {

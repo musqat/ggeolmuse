@@ -56,6 +56,16 @@ export const sellText = (takeProfit: string, stopLoss: string) => {
   return parts.length ? `${parts.join(' · ')}(평균 단가 기준 전량)` : '';
 };
 
+// 트레일링 스탑(종가 고점 대비, 팔 비율이 비거나 100 이면 전량), 하락을 비우면 빈 글
+export const trailingText = (stop: string, sell: string) => {
+  const drop = stop.trim();
+  const share = sell.trim();
+  if (!drop) return '';
+  return !share || Number(share) >= 100
+    ? `고점 대비 하락 매도 -${drop}%(전량)`
+    : `고점 대비 하락 매도 -${drop}%(보유의 ${share}%씩)`;
+};
+
 interface ConditionalSummary {
   percent: string;
   direction: PriceDirection;
@@ -66,6 +76,8 @@ interface ConditionalSummary {
   weekdays: number;
   takeProfit: string;
   stopLoss: string;
+  // 트레일링 스탑 글(끄면 빈 글)
+  trailing?: string;
 }
 
 // 횟수는 예산 ÷ 한 번 살 돈과 최대 횟수 가운데 먼저 닿는 쪽
@@ -83,11 +95,12 @@ const limitText = ({ unit, budget, maxPurchases, weekdays }: ConditionalSummary)
 };
 
 export const conditionalHow = (summary: ConditionalSummary) => {
-  const { percent, direction, unit, takeProfit, stopLoss } = summary;
+  const { percent, direction, unit, takeProfit, stopLoss, trailing } = summary;
   const parts = [
     `전날보다 ${percent.trim() || '?'}% ${DIRECTIONS[direction].verb} 때마다 ${unitText(unit)}`,
     limitText(summary),
     sellText(takeProfit, stopLoss),
+    trailing,
   ];
   return parts.filter(Boolean).join(' · ');
 };
@@ -100,8 +113,23 @@ export const maCrossText = (short: string, long: string) =>
 const signalLead = (amount: string, signal?: string) =>
   [`원금 ${formatReadableWon(parseFloat(amount))}`, signal && `신호 ${signal}`].filter(Boolean).join(' · ');
 
-export const maCrossHow = ({ amount, short, long, signal }: { amount: string; short: string; long: string; signal?: string }) =>
-  `${signalLead(amount, signal)} · ${maCrossText(short, long)}`;
+// 원금 · 신호 종목과 신호 규칙 뒤에 트레일링 스탑 글(끄면 빈 글)
+const signalHow = (amount: string, signal: string | undefined, rule: string, trailing?: string) =>
+  [signalLead(amount, signal), rule, trailing].filter(Boolean).join(' · ');
+
+export const maCrossHow = ({
+  amount,
+  short,
+  long,
+  signal,
+  trailing,
+}: {
+  amount: string;
+  short: string;
+  long: string;
+  signal?: string;
+  trailing?: string;
+}) => signalHow(amount, signal, maCrossText(short, long), trailing);
 
 // 이동평균 밴드 규칙(빈 칸은 ?)
 export const maBandText = (window: string, upper: string, lower: string) =>
@@ -113,13 +141,15 @@ export const maBandHow = ({
   upper,
   lower,
   signal,
+  trailing,
 }: {
   amount: string;
   window: string;
   upper: string;
   lower: string;
   signal?: string;
-}) => `${signalLead(amount, signal)} · ${maBandText(window, upper, lower)}`;
+  trailing?: string;
+}) => signalHow(amount, signal, maBandText(window, upper, lower), trailing);
 
 type DetailInput = Pick<
   BacktestOptions,

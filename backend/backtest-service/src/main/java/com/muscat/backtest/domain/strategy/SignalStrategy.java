@@ -112,7 +112,7 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
     }
   }
 
-  // 종목 · 기간 · 원금 · 신호 칸 검사, 배당 재투자는 막음
+  // 종목 · 기간 · 원금 · 신호 · 트레일링 스탑 칸 검사, 배당 재투자는 막음
   private void validate(R request) {
     BacktestRequestValidator.requireNonNull(request);
     BacktestRequestValidator.requireSymbol(request.getSymbol());
@@ -121,6 +121,7 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
       throw new BacktestException(BacktestResponse.INVALID_INVESTMENT_AMOUNT);
     }
     validateSignal(request);
+    BacktestRequestValidator.requireTrailingStop(request.getTrailingStopRate(), request.getTrailingSellRate());
     // 재투자 주식은 신호 매매 뒤에 더해져 매도와 순서가 맞지 않음
     if (Boolean.TRUE.equals(request.getReinvestDividends())) {
       throw new BacktestException(BacktestResponse.SELL_WITH_REINVEST);
@@ -137,6 +138,7 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
   }
 
   // 시작일부터 매매 종목 일봉마다 그 날짜까지의 신호로 보유 여부를 정하고 양도세를 낸 뒤 사고팖(계산이 실패한 날은 이유를 남기고 다음 거래일에 다시 봄)
+  // 트레일링 스탑은 신호로 팔지 않는 날만 보고, 다 팔면 새 매수 신호까지 사지 않음
   private StrategyPurchases trade(R request, Map<LocalDate, OHLCPriceDto> priceMap, SignalPrices signalPrices,
     TradeSignal signal, LocalDate actualEndDate, CapitalGainsTaxPayer taxPayer) {
     LocalDate start = request.getStartDate();
@@ -164,6 +166,10 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
     List<OHLCPriceDto> signals = signalPrices.candles();
     int seen = 0;
     boolean wanted = false;
+    // 마지막으로 본 신호가 매수인지 · 트레일링 스탑으로 다 판 뒤 매수가 아닌 신호를 기다리는지
+    boolean lastBuy = false;
+    boolean waiting = false;
+    TrailingStop trailing = TrailingStop.of(request.getTrailingStopRate(), request.getTrailingSellRate());
 
     for (OHLCPriceDto candle : candles) {
       LocalDate date = candle.date();
@@ -172,8 +178,12 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
       }
       for (; seen < signals.size() && !signals.get(seen).date().isAfter(date); seen++) {
         TradeSignal.Action action = signals.get(seen).date().isBefore(start) ? null : signal.at(seen);
-        if (action != null) {
-          wanted = action == TradeSignal.Action.BUY;
+        lastBuy = action == TradeSignal.Action.BUY;
+        if (lastBuy) {
+          wanted = wanted || !waiting;
+        } else {
+          waiting = false;
+          wanted = wanted && action != TradeSignal.Action.SELL;
         }
       }
       boolean holding = heldShares.signum() > 0;
@@ -191,12 +201,28 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
           heldShares = buy.getShares();
           heldCost = buy.costUsd();
           cash = BigDecimal.ZERO;
+          trailing.open(buy.getPrice(), buy.getPrice());
         } else if (holding && !wanted) {
           StrategyTransaction sale = sell(request, candle, fxRates, heldShares, heldCost, signal.sellTrigger());
           transactions.add(sale);
-          cash = sale.getProceeds();
+          cash = cash.add(sale.getProceeds());
           heldShares = BigDecimal.ZERO;
           heldCost = BigDecimal.ZERO;
+        } else if (holding) {
+          TrailingStop.Exit exit = trailing.check(PriceLookup.effectiveClose(candle), heldShares, heldCost);
+          if (exit != null) {
+            StrategyTransaction sale = sell(request, candle, fxRates, exit.shares(), exit.cost(), exit.trigger());
+            transactions.add(sale);
+            trailing.sold(sale.getPrice());
+            cash = cash.add(sale.getProceeds());
+            heldShares = heldShares.subtract(exit.shares());
+            heldCost = heldCost.subtract(exit.cost());
+            if (exit.all()) {
+              // 다음 매수 신호부터, 마지막 신호가 매수였으면 매수가 아닌 신호를 한 번 본 뒤부터 다시 삼
+              wanted = false;
+              waiting = lastBuy;
+            }
+          }
         }
       } catch (RuntimeException e) {
         skippedRounds.add(new SkippedRound(candle.date(), SkipReason.CALCULATION_ERROR));
@@ -239,7 +265,7 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
       .build();
   }
 
-  // 그 날짜 종가에 전량 팔고 매도 수수료를 뺀 판 돈 · 보유분 원가 대비 실현 손익을 남김
+  // 그 날짜 종가에 정한 주식을 팔고 매도 수수료를 뺀 판 돈 · 판 몫의 원가 대비 실현 손익을 남김
   private static StrategyTransaction sell(SignalStrategyRequest request, OHLCPriceDto candle, FxRates fxRates,
     BigDecimal shares, BigDecimal cost, String trigger) {
     LocalDate date = candle.date();

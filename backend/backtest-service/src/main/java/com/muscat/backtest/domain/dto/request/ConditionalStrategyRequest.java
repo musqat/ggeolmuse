@@ -1,6 +1,7 @@
 package com.muscat.backtest.domain.dto.request;
 
 import com.muscat.backtest.common.constants.BacktestConstants.RequestLimit;
+import com.muscat.backtest.common.constants.BacktestConstants.SellRule;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.PriceDirection;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -74,6 +75,16 @@ public class ConditionalStrategyRequest implements StrategyRequest {
   @DecimalMax(value = "1", inclusive = false, message = "손절 비율은 1보다 작아야 합니다")
   private BigDecimal stopLossRate;
 
+  @Schema(description = "트레일링 스탑 하락 비율: 종가가 기준가(사이클 첫 매수가에서 시작한 종가 고점, 판 뒤에는 판 값)보다 이만큼 내리면 팜 (10% = 0.1, 0 초과 1 미만, 비우면 안 함)", example = "0.1")
+  @DecimalMin(value = "0", inclusive = false, message = SellRule.TRAILING_STOP_MESSAGE)
+  @DecimalMax(value = "1", inclusive = false, message = SellRule.TRAILING_STOP_MESSAGE)
+  private BigDecimal trailingStopRate;
+
+  @Schema(description = "트레일링 스탑 팔 비율: 그때마다 보유의 이만큼 팜 (50% = 0.5, 0 초과 1 이하, 비우면 전량, 하락 비율과 함께)", example = "0.5")
+  @DecimalMin(value = "0", inclusive = false, message = SellRule.TRAILING_STOP_MESSAGE)
+  @DecimalMax(value = "1", message = SellRule.TRAILING_STOP_MESSAGE)
+  private BigDecimal trailingSellRate;
+
   @Schema(description = "최대 매수 횟수 (비우면 제한 없음, 예산과 먼저 닿는 쪽에서 멈춤)", example = "10")
   @Positive(message = "최대 매수 횟수는 0보다 커야 합니다")
   private Integer maxPurchases;
@@ -119,6 +130,14 @@ public class ConditionalStrategyRequest implements StrategyRequest {
   @AssertTrue(message = "회당 금액과 주식 수 가운데 하나만 넣어 주세요")
   public boolean isAmountOrShares() {
     return (amountPerPurchase == null) != (sharesPerPurchase == null);
+  }
+
+  // 팔 비율은 하락 비율과 함께
+  @JsonIgnore
+  @Schema(hidden = true)
+  @AssertTrue(message = SellRule.TRAILING_STOP_MESSAGE)
+  public boolean isTrailingSellWithStop() {
+    return trailingSellRate == null || trailingStopRate != null;
   }
 
   // 회당 금액 · 주식 수 표시("100000원" · "2주")

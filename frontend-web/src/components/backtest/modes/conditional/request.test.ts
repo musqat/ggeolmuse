@@ -101,6 +101,25 @@ describe('buildConditionalRequest', () => {
       .toMatchObject({ request: { takeProfitRate: 0.2, stopLossRate: 0.1, reinvestDividends: false } })
   })
 
+  it('트레일링 스탑은 하락 · 팔 퍼센트를 비율로 싣고, 하락만 적어도 함께 못 쓰는 배당 재투자는 끈다', () => {
+    expect(
+      buildConditionalRequest({ ...values, trailingStop: '10', trailingSell: '50', reinvestDividends: true }, 'AAPL', ctx)
+    ).toMatchObject({ request: { trailingStopRate: 0.1, trailingSellRate: 0.5, reinvestDividends: false } })
+    expect(buildConditionalRequest({ ...values, trailingStop: '10', reinvestDividends: true }, 'AAPL', ctx)).toMatchObject({
+      request: { trailingStopRate: 0.1, reinvestDividends: false },
+    })
+    const off = buildConditionalRequest({ ...values, reinvestDividends: true }, 'AAPL', ctx)
+    expect('request' in off && off.request).toMatchObject({ reinvestDividends: true })
+    expect('request' in off && 'trailingStopRate' in off.request).toBe(false)
+  })
+
+  it.each([
+    [{ trailingStop: '100' }, '고점 대비 하락 비율은 0보다 크고 100보다 작아야 합니다.'],
+    [{ trailingSell: '50' }, '고점 대비 하락 때 팔 비율은 하락 비율과 함께 입력해주세요.'],
+  ])('트레일링 스탑 %o 는 막는다', (patch, error) => {
+    expect(buildConditionalRequest({ ...values, ...patch }, 'AAPL', ctx)).toEqual({ error })
+  })
+
   it.each([
     [{ takeProfit: '0' }, '익절 비율은 0보다 커야 합니다.'],
     [{ stopLoss: '100' }, '손절 비율은 0보다 크고 100보다 작아야 합니다.'],

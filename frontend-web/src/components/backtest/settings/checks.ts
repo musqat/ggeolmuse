@@ -100,6 +100,17 @@ export const sellIssue = (takeProfit: string, stopLoss: string): FieldMessage | 
   return null;
 };
 
+// 트레일링 스탑 칸 오류(하락 0 초과 100 미만, 팔 비율은 하락과 함께 0 초과 100 이하, 둘 다 비면 끔)
+export const trailingIssues = (stop: string, sell: string): { stop: FieldMessage | null; sell: FieldMessage | null } => {
+  const stopValue = Number(stop.trim());
+  const sellValue = Number(sell.trim());
+  const sellMessage = !stop.trim() ? error('하락 비율과 함께') : sellValue > 0 && sellValue <= 100 ? null : error('0 초과 100 이하');
+  return {
+    stop: stop.trim() && !(stopValue > 0 && stopValue < 100) ? error('0 초과 100 미만') : null,
+    sell: sell.trim() ? sellMessage : null,
+  };
+};
+
 export const maxIssue = (max: string): FieldMessage | null => {
   if (!max.trim()) return null;
   const value = Number(max);

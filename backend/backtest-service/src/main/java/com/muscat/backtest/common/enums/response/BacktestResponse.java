@@ -34,11 +34,12 @@ public enum BacktestResponse implements ErrorCode {
   INVALID_FIRST_PURCHASE_DATE("첫 매수일은 시작일과 종료일 사이여야 합니다.", HttpStatus.BAD_REQUEST),
   INVALID_MAX_PURCHASES("최대 매수 횟수는 0보다 커야 합니다.", HttpStatus.BAD_REQUEST),
   INVALID_SELL_RATE("익절 · 손절 비율은 0보다 크고, 손절은 1보다 작아야 합니다.", HttpStatus.BAD_REQUEST),
-  SELL_WITH_REINVEST("익절 · 손절 · 이동평균 교차 · 밴드는 배당 재투자와 함께 쓸 수 없습니다.", HttpStatus.BAD_REQUEST),
+  SELL_WITH_REINVEST("익절 · 손절 · 고점 대비 하락 매도 · 이동평균 교차 · 밴드는 배당 재투자와 함께 쓸 수 없습니다.", HttpStatus.BAD_REQUEST),
   INVALID_INVESTMENT_AMOUNT("투자금액은 0보다 커야 합니다.", HttpStatus.BAD_REQUEST),
   INVALID_MA_WINDOWS("이동평균 기간은 2 ~ 250 사이이고 짧은 기간이 긴 기간보다 작아야 합니다.", HttpStatus.BAD_REQUEST),
   INVALID_BAND("밴드 기간은 2 ~ 250, 위 · 아래 비율은 0% 이상 100% 미만이어야 합니다.", HttpStatus.BAD_REQUEST),
   INDEX_NOT_TRADABLE("지수는 신호 종목으로만 고를 수 있습니다.", HttpStatus.BAD_REQUEST),
+  INVALID_TRAILING_STOP("고점 대비 하락 비율은 0% 초과 100% 미만, 팔 비율은 하락 비율과 함께 0% 초과 100% 이하여야 합니다.", HttpStatus.BAD_REQUEST),
 
 
 
