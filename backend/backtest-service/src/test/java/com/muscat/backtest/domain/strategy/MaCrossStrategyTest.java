@@ -23,6 +23,7 @@ import com.muscat.backtest.domain.dto.request.MaCrossStrategyRequest;
 import com.muscat.backtest.domain.dto.response.CapitalGainsTax;
 import com.muscat.backtest.domain.dto.response.SignalChart;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
+import com.muscat.backtest.domain.dto.response.TradeStats;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.domain.model.SkippedRound;
 import com.muscat.backtest.domain.model.StrategyTransaction;
@@ -33,6 +34,7 @@ import com.muscat.commonlib.dto.StockPriceDto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -295,6 +297,20 @@ class MaCrossStrategyTest {
       strategy.execute(request(7).periodEnd(PeriodEnd.SELL_AT_END).build());
 
       assertThat(trades()).last().isEqualTo(tuple(START.plusDays(7), "31", "기간 끝 매도", "-40"));
+    }
+
+    @Test
+    @DisplayName("매매 통계에 매수 · 매도 수와 끝난 사이클의 승률 · 평균 익절 · 보유일, 들고 있는 사이클을 싣는다")
+    void tradeStats() {
+      stubMarket(crossing());
+
+      TradeStats stats = strategy.execute(request(7).build()).getTradeStats();
+
+      // 1일째 1000달러로 사서 4일째 200달러 이익, 6일째 판 돈으로 다시 사서 들고 있음, 7일 동안 시작한 사이클 2
+      assertThat(stats).usingRecursiveComparison()
+        .withComparatorForType(Comparator.nullsFirst(BigDecimal::compareTo), BigDecimal.class)
+        .isEqualTo(new TradeStats(2, 1, 1, true, 1, 0, new BigDecimal("100"), new BigDecimal("20"), null, null,
+          new BigDecimal("3"), new BigDecimal("104.36"), 0, 0));
     }
 
     @Test

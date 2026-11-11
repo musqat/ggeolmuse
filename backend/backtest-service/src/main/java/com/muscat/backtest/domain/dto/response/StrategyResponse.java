@@ -81,6 +81,9 @@ public class StrategyResponse {
   @Schema(description = "날마다 수정 종가 · 두 이동평균과 교차한 날 (이동평균 교차만, 다른 전략 · 전략 비교 항목은 null)")
   private SignalChart signalChart;
 
+  @Schema(description = "사이클 승률 · 평균 익절 · 손절 · 손익비 · 평균 보유일 (조건부 · 이동평균 교차만, 단순 · 적립식은 null)")
+  private TradeStats tradeStats;
+
   // 미매수 회차
   @Schema(description = "미매수 회차(계획된 매수일 · 이유)")
   private List<SkippedRound> skippedRounds;

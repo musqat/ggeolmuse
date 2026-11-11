@@ -24,6 +24,7 @@ import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
 import com.muscat.backtest.domain.dto.response.CapitalGainsTax;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
+import com.muscat.backtest.domain.dto.response.TradeStats;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.domain.model.SkippedRound;
 import com.muscat.backtest.domain.model.SkippedSpan;
@@ -33,6 +34,7 @@ import com.muscat.backtest.infra.client.dto.FxRateDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
 import org.assertj.core.groups.Tuple;
 import org.junit.jupiter.api.BeforeEach;
@@ -1203,6 +1205,23 @@ class ConditionalPurchaseStrategyTest {
         strategy.execute(request);
 
         assertThat(trades()).containsExactly(ENTRY, tuple("110", "10.0%익절", -1));
+      }
+
+      @Test
+      @DisplayName("매매 통계는 기간 끝 매도까지 넣어 사이클 · 승률 · 평균 익절 · 손절 · 손익비를 싣는다")
+      void tradeStatsWithPeriodEndSale() {
+        ConditionalStrategyRequest request = selling(4, 10).stopLossRate(new BigDecimal("0.1"))
+          .periodEnd(PeriodEnd.SELL_AT_END).build();
+        // 3일째 90 에 손절(-10%), 4일째 82.8 에 1000달러어치 사서 그 날짜 종가 85 에 기간 끝 매도(+2.66%)
+        stubMarket(request, afterEntry(candle(2, "95", "96", "89", "92"), bar(3, "83", "82", "85")), false);
+
+        TradeStats stats = strategy.execute(request).getTradeStats();
+
+        // 보유일 (1 + 0) ÷ 2, 3일 동안 시작한 사이클 2
+        assertThat(stats).usingRecursiveComparison()
+          .withComparatorForType(Comparator.nullsFirst(BigDecimal::compareTo), BigDecimal.class)
+          .isEqualTo(new TradeStats(2, 2, 2, false, 1, 1, new BigDecimal("50"), new BigDecimal("2.66"),
+            new BigDecimal("10"), new BigDecimal("0.27"), new BigDecimal("0.5"), new BigDecimal("243.50"), 0, 0));
       }
 
       @Test

@@ -1,5 +1,6 @@
 package com.muscat.backtest.domain.strategy;
 
+import com.muscat.backtest.common.calculation.TradeStatsCalculator;
 import com.muscat.backtest.common.engine.CapitalGainsTaxPayer;
 import com.muscat.backtest.common.engine.StrategyFinalizer;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
@@ -106,6 +107,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
       response.setCapitalGainsTax(Boolean.TRUE.equals(request.getCapitalGainsTax())
         ? finalized.capitalGainsTax(taxPayer.payments())
         : null);
+      response.setTradeStats(TradeStatsCalculator.of(finalized.transactions(), request.getStartDate(), actualEndDate));
       return response;
 
     } finally {
@@ -262,7 +264,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
                 cash = cash.subtract(transaction.getCashUsed());
               }
               heldShares = heldShares.add(transaction.getShares());
-              heldCost = heldCost.add(costOf(transaction));
+              heldCost = heldCost.add(transaction.costUsd());
               log.debug("조건부 매수 실행: {} - {} ({}원 투자, {}주 매수)",
                 currentDate, purchaseDecision.trigger(), transaction.getAmount(), transaction.getShares());
             }
@@ -392,14 +394,6 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
       .defaultFxDate(Boolean.TRUE.equals(request.getCapitalGainsTax()) && fxRateMap.isDefault(date) ? date : null)
       .trigger(String.format(exit == profit ? "%.1f%%익절" : "%.1f%%손절", change))
       .build();
-  }
-
-  // 매수 원가(USD, 새로 넣은 돈을 그 날짜 환율로 바꾼 값 + 쓴 판 돈, 수수료 포함)
-  private static BigDecimal costOf(StrategyTransaction transaction) {
-    BigDecimal cost = Decimals.isPositive(transaction.getAmount())
-      ? transaction.getAmount().divide(transaction.getFxRate(), 8, RoundingMode.HALF_UP)
-      : BigDecimal.ZERO;
-    return transaction.getCashUsed() != null ? cost.add(transaction.getCashUsed()) : cost;
   }
 
   // 그 날짜 환율(수동 환율이 있으면 그 값)
