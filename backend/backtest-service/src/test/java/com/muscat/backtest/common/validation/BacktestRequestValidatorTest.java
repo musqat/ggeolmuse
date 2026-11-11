@@ -31,6 +31,18 @@ class BacktestRequestValidatorTest {
   }
 
   @Test
+  @DisplayName("^ 로 시작하는 지수 심볼 → INDEX_NOT_TRADABLE")
+  void requireSymbol_index() {
+    assertThatThrownBy(() -> BacktestRequestValidator.requireSymbol("^GSPC"))
+        .isInstanceOf(BacktestException.class)
+        .extracting("code").isEqualTo(BacktestResponse.INDEX_NOT_TRADABLE);
+    assertThatThrownBy(() -> BacktestRequestValidator.requireTradable(" ^NDX"))
+        .isInstanceOf(BacktestException.class)
+        .extracting("code").isEqualTo(BacktestResponse.INDEX_NOT_TRADABLE);
+    assertThatCode(() -> BacktestRequestValidator.requireTradable(null)).doesNotThrowAnyException();
+  }
+
+  @Test
   @DisplayName("시작일 null / 종료일 null / 역전 각각 해당 에러")
   void requireDateRange() {
     LocalDate s = LocalDate.of(2025, 1, 1);
@@ -52,6 +64,7 @@ class BacktestRequestValidatorTest {
     assertThatCode(() -> {
       BacktestRequestValidator.requireNonNull("x");
       BacktestRequestValidator.requireSymbol("AAPL");
+      BacktestRequestValidator.requireTradable("BRK.B");
       BacktestRequestValidator.requireDateRange(LocalDate.of(2025, 1, 1), LocalDate.of(2026, 1, 1));
     }).doesNotThrowAnyException();
   }

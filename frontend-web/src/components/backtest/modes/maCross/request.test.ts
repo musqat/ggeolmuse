@@ -46,6 +46,12 @@ describe('buildMaCrossRequest', () => {
     })
   })
 
+  it('따로 고른 신호 종목은 signalSymbol 로 싣는다', () => {
+    expect(buildMaCrossRequest({ ...values, signalSymbol: '^GSPC' }, 'SPY', ctx)).toMatchObject({
+      request: { symbol: 'SPY', signalSymbol: '^GSPC' },
+    })
+  })
+
   it('짧은 기간 2 · 긴 기간 250 까지 보낸다', () => {
     expect(buildMaCrossRequest({ ...values, shortWindow: '2', longWindow: '250' }, 'AAPL', ctx)).toMatchObject({
       request: { shortWindow: 2, longWindow: 250 },

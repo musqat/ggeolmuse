@@ -14,6 +14,7 @@ import { MaxField } from './MaxField'
 import { WindowsField } from './WindowsField'
 import { BandField } from './BandField'
 import { SymbolField, SymbolsField } from './SymbolFields'
+import { SignalSymbolField } from './SignalSymbolField'
 import type { AmountUnitState } from '../shared/amountUnit'
 
 // 기대값은 TZ=Asia/Seoul 전제 (vitest.config.ts 에서 고정)
@@ -512,5 +513,49 @@ describe('SymbolField · SymbolsField', () => {
 
     expect(screen.getByText('10 / 10')).toBeInTheDocument()
     expect(screen.queryByRole('combobox', { name: '종목 더하기' })).toBeNull()
+  })
+})
+
+describe('SignalSymbolField', () => {
+  const field = (patch: Partial<Parameters<typeof SignalSymbolField>[0]> = {}) => ({
+    choice: 'same' as const,
+    onChoiceChange: vi.fn(),
+    other: '',
+    onOtherChange: vi.fn(),
+    supportedSymbols: ['AAPL', 'MSFT'],
+    ...patch,
+  })
+
+  it('매매 종목과 같게 · S&P 500 · 나스닥 100 · 다른 종목을 하나만 고르고, 같게 · 지수면 종목 칸이 없다', async () => {
+    const props = field()
+    const { rerender } = render(<SignalSymbolField {...props} />)
+
+    const group = screen.getByRole('radiogroup', { name: '신호 종목' })
+    expect(within(group).getAllByRole('radio').map((radio) => radio.textContent)).toEqual([
+      '매매 종목과 같게',
+      'S&P 500',
+      '나스닥 100',
+      '다른 종목',
+    ])
+    expect(screen.getByRole('radio', { name: '매매 종목과 같게' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.queryByRole('combobox', { name: '신호 종목' })).toBeNull()
+    await userEvent.click(screen.getByRole('radio', { name: 'S&P 500' }))
+    expect(props.onChoiceChange).toHaveBeenCalledWith('^GSPC')
+
+    rerender(<SignalSymbolField {...props} choice="^NDX" />)
+    expect(screen.getByRole('radio', { name: '나스닥 100' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.queryByRole('combobox', { name: '신호 종목' })).toBeNull()
+  })
+
+  it('다른 종목이면 목록에서 고르는 종목 칸을 보이고 오류를 칸과 잇는다', async () => {
+    const props = field({ choice: 'other', message: { kind: 'error', text: '신호 종목 비어 있음' } })
+    render(<SignalSymbolField {...props} />)
+
+    const input = screen.getByRole('combobox', { name: '신호 종목' })
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+    expect(input).toHaveAttribute('aria-describedby', screen.getByText('신호 종목 비어 있음').id)
+    await userEvent.type(input, 'ms')
+    await userEvent.click(screen.getByRole('option', { name: /MSFT/ }))
+    expect(props.onOtherChange).toHaveBeenCalledWith('MSFT')
   })
 })

@@ -96,15 +96,30 @@ export const conditionalHow = (summary: ConditionalSummary) => {
 export const maCrossText = (short: string, long: string) =>
   `${short.trim() || '?'}일 선이 ${long.trim() || '?'}일 선을 넘으면 가진 돈 전부로 사고, 아래로 내려가면 전부 팜`;
 
-export const maCrossHow = ({ amount, short, long }: { amount: string; short: string; long: string }) =>
-  `원금 ${formatReadableWon(parseFloat(amount))} · ${maCrossText(short, long)}`;
+// 원금과 따로 고른 신호 종목
+const signalLead = (amount: string, signal?: string) =>
+  [`원금 ${formatReadableWon(parseFloat(amount))}`, signal && `신호 ${signal}`].filter(Boolean).join(' · ');
+
+export const maCrossHow = ({ amount, short, long, signal }: { amount: string; short: string; long: string; signal?: string }) =>
+  `${signalLead(amount, signal)} · ${maCrossText(short, long)}`;
 
 // 이동평균 밴드 규칙(빈 칸은 ?)
 export const maBandText = (window: string, upper: string, lower: string) =>
   `${window.trim() || '?'}일선 +${upper.trim() || '?'}% 위로 오르면 가진 돈 전부로 사고, -${lower.trim() || '?'}% 아래로 내려가면 전부 팜`;
 
-export const maBandHow = ({ amount, window, upper, lower }: { amount: string; window: string; upper: string; lower: string }) =>
-  `원금 ${formatReadableWon(parseFloat(amount))} · ${maBandText(window, upper, lower)}`;
+export const maBandHow = ({
+  amount,
+  window,
+  upper,
+  lower,
+  signal,
+}: {
+  amount: string;
+  window: string;
+  upper: string;
+  lower: string;
+  signal?: string;
+}) => `${signalLead(amount, signal)} · ${maBandText(window, upper, lower)}`;
 
 type DetailInput = Pick<
   BacktestOptions,

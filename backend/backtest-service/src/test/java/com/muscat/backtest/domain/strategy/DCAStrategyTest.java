@@ -957,6 +957,18 @@ class DCAStrategyTest {
     }
 
     @Test
+    @DisplayName("지수를 사는 요청은 시세를 받기 전에 INDEX_NOT_TRADABLE")
+    void indexSymbol() {
+      DcaStrategyRequest request = base().symbol("^GSPC").build();
+
+      assertThatThrownBy(() -> dcaStrategy.execute(request))
+        .isInstanceOf(BacktestException.class)
+        .extracting("code")
+        .isEqualTo(BacktestResponse.INDEX_NOT_TRADABLE);
+      verifyNoInteractions(marketDataClient);
+    }
+
+    @Test
     @DisplayName("회당 금액 · 주식 수가 둘 다 있으면 AMOUNT_OR_SHARES_REQUIRED")
     void bothAmountAndShares() {
       DcaStrategyRequest request = base().sharesPerPurchase(1).build();

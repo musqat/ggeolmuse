@@ -10,16 +10,18 @@ import { MA_WINDOWS } from '../../shared/maWindows';
 import { amountIssue, countErrors, windowIssues } from '../../settings/checks';
 import { maCrossHow } from '../../settings/summary';
 import { pickValues } from '../../settings/snapshot';
+import { useSignalSymbol } from '../useSignalSymbol';
 
 const LABEL = '원금';
 const DEFAULTS = { amount: '1000000', short: MA_WINDOWS.short, long: MA_WINDOWS.long };
 
 export const useMaCrossMode = (shared: SharedModeProps): ModeController => {
-  const { symbol, period, options } = shared;
+  const { symbol, supportedSymbols, period, options } = shared;
   const [investment, setInvestment] = useState(DEFAULTS.amount);
   const [shortWindow, setShortWindow] = useState(DEFAULTS.short);
   const [longWindow, setLongWindow] = useState(DEFAULTS.long);
   const { symbolField, periodField, symbolMessage, periodMessage } = commonFields(shared);
+  const signal = useSignalSymbol(symbol, supportedSymbols);
 
   const amountMessage = amountIssue({ byShares: false, amount: investment, shares: '', label: LABEL });
   const windowMessages = windowIssues(shortWindow, longWindow);
@@ -40,21 +42,30 @@ export const useMaCrossMode = (shared: SharedModeProps): ModeController => {
           onLongChange: setLongWindow,
           messages: windowMessages,
         }}
+        signal={signal.field}
       />
     ),
     summary: {
       subject: symbol,
-      how: maCrossHow({ amount: investment, short: shortWindow, long: longWindow }),
+      how: maCrossHow({ amount: investment, short: shortWindow, long: longWindow, signal: signal.signalSymbol }),
     },
-    errorCount: countErrors([symbolMessage, periodMessage, amountMessage, windowMessages.short, windowMessages.long]),
+    errorCount: countErrors([
+      symbolMessage,
+      periodMessage,
+      amountMessage,
+      windowMessages.short,
+      windowMessages.long,
+      signal.message,
+    ]),
     reinvestLocked: true,
     reinvestNote: '이동평균 교차는 배당을 현금으로',
-    saved: { amount: investment, short: shortWindow, long: longWindow },
+    saved: { amount: investment, short: shortWindow, long: longWindow, ...signal.saved },
     load: (saved) => {
       const next = pickValues(DEFAULTS, saved);
       setInvestment(next.amount);
       setShortWindow(next.short);
       setLongWindow(next.long);
+      signal.load(saved);
     },
     prepare: (ctx) => {
       const built = buildMaCrossRequest(
@@ -64,6 +75,7 @@ export const useMaCrossMode = (shared: SharedModeProps): ModeController => {
           investment,
           shortWindow,
           longWindow,
+          signalSymbol: signal.signalSymbol,
           ...options,
         },
         symbol,

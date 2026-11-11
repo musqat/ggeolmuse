@@ -12,6 +12,7 @@ import {
   monthsIssue,
   percentIssue,
   sellIssue,
+  signalIssue,
   symbolIssue,
   symbolsIssue,
   windowIssues,
@@ -28,6 +29,14 @@ describe('설정 칸 검사', () => {
     expect(symbolIssue('ZZZZ', [])).toBeNull()
     expect(symbolsIssue(['AAPL'])).toEqual(error('종목을 둘 이상'))
     expect(symbolsIssue(['AAPL', 'MSFT'])).toBeNull()
+  })
+
+  it('신호 종목: 다른 종목일 때만 비었거나 목록에 없으면 오류', () => {
+    expect(signalIssue('same', '', ['AAPL'])).toBeNull()
+    expect(signalIssue('^GSPC', '', ['AAPL'])).toBeNull()
+    expect(signalIssue('other', ' ', ['AAPL'])).toEqual(error('신호 종목 비어 있음'))
+    expect(signalIssue('other', 'ZZZZ', ['AAPL'])).toEqual(error('목록에서 고르기'))
+    expect(signalIssue('other', 'msft', ['AAPL', 'MSFT'])).toBeNull()
   })
 
   it('금액: 비면 칸 이름 + 비어 있음, 0 이하면 0 보다 크게, 주식 수는 1 ~ 1,000,000 정수이고 넘으면 상한 안내', () => {

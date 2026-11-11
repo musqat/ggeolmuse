@@ -586,6 +586,54 @@ describe('Backtest 페이지 칸 오류 · 요약', () => {
     expect(alertSpy).not.toHaveBeenCalled()
   })
 
+  it('이동평균: 신호 종목으로 S&P 500 을 고르면 ^GSPC 로 요청하고 요약에 신호를 적으며, 매매 종목과 같게로 돌리면 신호 종목을 보내지 않는다', async () => {
+    renderPage()
+    await selectMode('이동평균')
+    expect(screen.getByRole('radio', { name: '매매 종목과 같게' })).toHaveAttribute('aria-checked', 'true')
+    await userEvent.click(screen.getByRole('radio', { name: 'S&P 500' }))
+
+    expect(summary()).toHaveTextContent('원금 100만원 · 신호 ^GSPC · 20일 선이 60일 선을 넘으면')
+    await runBacktest()
+    expect(vi.mocked(backtestApi.runMaCrossStrategy).mock.calls[0][0]).toMatchObject({ symbol: 'AAPL', signalSymbol: '^GSPC' })
+
+    await userEvent.click(screen.getByRole('radio', { name: '매매 종목과 같게' }))
+    await runBacktest()
+    expect(vi.mocked(backtestApi.runMaCrossStrategy).mock.calls[1][0]).not.toHaveProperty('signalSymbol')
+  })
+
+  it('이동평균 밴드: 신호를 다른 종목으로 고르면 비었을 때 그 칸으로 가며 요청하지 않고, 목록에서 고른 종목으로 요청한다', async () => {
+    renderPage()
+    await selectMode('이동평균 밴드')
+    await userEvent.click(screen.getByRole('radio', { name: '다른 종목' }))
+
+    expect(screen.getByText('신호 종목 비어 있음')).toBeInTheDocument()
+    expect(summary()).toHaveTextContent('고칠 칸 1개')
+    await runBacktest()
+    expect(screen.getByRole('combobox', { name: '신호 종목' })).toHaveFocus()
+    expect(backtestApi.runMaBandStrategy).not.toHaveBeenCalled()
+
+    await userEvent.type(screen.getByRole('combobox', { name: '신호 종목' }), 'MS')
+    await userEvent.click(screen.getByRole('option', { name: /MSFT/ }))
+    expect(summary()).toHaveTextContent('원금 100만원 · 신호 MSFT · 200일선')
+    await runBacktest()
+    expect(vi.mocked(backtestApi.runMaBandStrategy).mock.calls[0][0]).toMatchObject({ symbol: 'AAPL', signalSymbol: 'MSFT' })
+  })
+
+  it('신호 종목 고르기도 직전 설정으로 되살리고 설정 초기화로 매매 종목과 같게로 돌린다', async () => {
+    renderPage()
+    await selectMode('이동평균')
+    await userEvent.click(screen.getByRole('radio', { name: '나스닥 100' }))
+    await runBacktest()
+
+    await userEvent.click(screen.getByRole('button', { name: '설정 초기화' }))
+    await selectMode('이동평균')
+    expect(screen.getByRole('radio', { name: '매매 종목과 같게' })).toHaveAttribute('aria-checked', 'true')
+    await userEvent.click(screen.getByRole('button', { name: '직전 설정' }))
+
+    expect(screen.getByRole('radio', { name: '나스닥 100' })).toHaveAttribute('aria-checked', 'true')
+    expect(summary()).toHaveTextContent('신호 ^NDX')
+  })
+
   it('주식 수 추정에 쓸 시작일 환율이 없으면 칸 · 요약에 기본 환율 기준을 적는다', async () => {
     vi.mocked(stockApi.getOHLCData).mockResolvedValue({ data: [{ symbol: 'AAPL', date: START, closePrice: 200, adjustedClose: 200 }] } as never)
     renderPage()

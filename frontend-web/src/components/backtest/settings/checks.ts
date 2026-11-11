@@ -3,6 +3,7 @@ import { MAX_SHARES, parseShares } from '../shared/amountUnit';
 import { isMonthly, parseMonths, type DcaCadence } from '../shared/dcaSchedule';
 import { parseWindow } from '../shared/maWindows';
 import { parseBandPercent } from '../shared/maBand';
+import type { SignalChoice } from '../shared/signalSymbol';
 import type { BacktestOptions } from '../shared/backtestOptions';
 
 // 칸 아래 한 줄(오류는 실행을 막고 경고는 안 막음), 글 뒤에 작은 단추 하나
@@ -27,6 +28,12 @@ export const symbolIssue = (symbol: string, supportedSymbols: string[]): FieldMe
 };
 
 export const symbolsIssue = (symbols: string[]): FieldMessage | null => (symbols.length < 2 ? error('종목을 둘 이상') : null);
+
+// 신호 종목은 다른 종목을 고른 때만 봄
+export const signalIssue = (choice: SignalChoice, other: string, supportedSymbols: string[]): FieldMessage | null => {
+  if (choice !== 'other') return null;
+  return other.trim() ? symbolIssue(other, supportedSymbols) : error('신호 종목 비어 있음');
+};
 
 interface AmountCheck {
   byShares: boolean;

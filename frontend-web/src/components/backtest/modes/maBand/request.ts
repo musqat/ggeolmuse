@@ -10,9 +10,11 @@ export interface MaBandValues extends BacktestOptions {
   bandWindow: string;
   upperPercent: string;
   lowerPercent: string;
+  // 따로 고른 신호 종목(매매 종목과 같으면 비움)
+  signalSymbol?: string;
 }
 
-// 이동평균 밴드 요청(검사에 걸리면 alert 문구), 금액은 원금 · 밴드 세 칸은 늘 채움 · 배당 재투자는 늘 끔
+// 이동평균 밴드 요청(검사에 걸리면 alert 문구), 금액은 원금 · 밴드 세 칸은 늘 채움 · 신호 종목은 고른 때만 · 배당 재투자는 늘 끔
 export const buildMaBandRequest = (
   values: MaBandValues,
   symbol: string,
@@ -42,6 +44,7 @@ export const buildMaBandRequest = (
       bandWindow: band.window,
       upperRate: band.upperRate,
       lowerRate: band.lowerRate,
+      ...(values.signalSymbol && { signalSymbol: values.signalSymbol }),
       ...toOptionFields(values),
       reinvestDividends: false,
     },

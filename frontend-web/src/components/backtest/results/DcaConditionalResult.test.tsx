@@ -161,7 +161,7 @@ describe('DcaConditionalResult', () => {
     }
     render(
       <DcaConditionalResult
-        result={{ ...result, signalChart }}
+        result={{ ...result, symbol: 'SPY', signalChart }}
         {...props}
         kind="ma-band"
         band={{ window: 200, upperRate: 0.025, lowerRate: 0.025 }}
@@ -169,10 +169,38 @@ describe('DcaConditionalResult', () => {
     )
 
     expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['자산 추이', '밴드', '주가 추이'])
+    expect(screen.queryByText(/사고파는 것은/)).toBeNull()
 
     await userEvent.click(screen.getByRole('tab', { name: '밴드' }))
 
     expect(screen.getByText('밴드 차트 SPY 2일 · 거래 1건 · 200일 0.025 · 0.025')).toBeVisible()
+  })
+
+  it('신호 종목을 따로 본 결과는 위에 신호 · 사고판 종목을 한 줄로 알리고 이동평균 · 밴드 탭 이름에 신호 종목을 적는다', () => {
+    const points = [
+      { date: '2023-01-03', close: 3824.14, average: 3900.2 },
+      { date: '2023-01-04', close: 3852.97, average: 3901.1 },
+    ]
+    const { rerender } = render(
+      <DcaConditionalResult
+        result={{ ...result, symbol: 'SPY', signalChart: { symbol: '^GSPC', points, crosses: [] } }}
+        {...props}
+        kind="ma-cross"
+      />
+    )
+
+    expect(screen.getByRole('note')).toHaveTextContent('신호는 S&P 500(^GSPC), 사고파는 것은 SPY')
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['자산 추이', '이동평균 · ^GSPC', '주가 추이'])
+
+    rerender(
+      <DcaConditionalResult
+        result={{ ...result, symbol: 'TQQQ', signalChart: { symbol: 'QQQ', points, crosses: [] } }}
+        {...props}
+        kind="ma-band"
+      />
+    )
+    expect(screen.getByRole('note')).toHaveTextContent('신호는 QQQ, 사고파는 것은 TQQQ')
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['자산 추이', '밴드 · QQQ', '주가 추이'])
   })
 
   it('밴드 매수 0회는 밴드 위로 올라선 날이 없다고 알리고, 수익률 기준은 원금, 미매수가 없으면 세지 않는다', () => {

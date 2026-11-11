@@ -96,6 +96,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
   @Override
   public ComparisonResponse compareSymbols(SymbolComparisonRequest request) {
     log.info("종목 비교 분석: symbols={}", request.getSymbols());
+    request.getSymbols().forEach(BacktestRequestValidator::requireTradable);
 
     List<ComparisonItem> items = collectComparisonItems(
       request.getSymbols(),
@@ -119,6 +120,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
   public ComparisonResponse compareStrategies(StrategyComparisonRequest request) {
     log.info("전략 비교 분석: {} - {}개 전략", request.getSymbol(),
       request.getStrategies() != null ? request.getStrategies().size() : 0);
+    BacktestRequestValidator.requireTradable(request.getSymbol());
     requireFirstPurchasesInPeriod(request);
 
     List<ComparisonItem> items = collectComparisonItems(
