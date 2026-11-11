@@ -68,10 +68,19 @@ jobs:
 
       - name: Playwright 설치
         working-directory: tests/e2e
+        timeout-minutes: 10
         run: |
           npm ci
-          # apt 미러가 잠깐 실패할 때가 있어 한 번 더
-          npx playwright install --with-deps chromium || { sleep 20; npx playwright install --with-deps chromium; }
+          npx playwright install chromium
+          # 러너에 깔린 라이브러리로 브라우저가 뜨면 우분투 저장소를 부르지 않음
+          if node -e "require('@playwright/test').chromium.launch().then((browser) => browser.close())"; then
+            exit 0
+          fi
+          echo "::warning::브라우저가 뜨지 않아 의존 패키지를 apt 로 받는다"
+          # 우분투 저장소 주소가 안 풀려도 오래 붙잡히지 않게 apt 대기와 전체 시간을 짧게
+          printf 'Acquire::Retries "1";\nAcquire::http::Timeout "20";\nAcquire::https::Timeout "20";\n' \
+            | sudo tee /etc/apt/apt.conf.d/99-e2e-timeouts > /dev/null
+          timeout 240 npx playwright install-deps chromium
 
       # 게이트웨이 대기는 setup 프로젝트 몫
       - name: E2E 실행
