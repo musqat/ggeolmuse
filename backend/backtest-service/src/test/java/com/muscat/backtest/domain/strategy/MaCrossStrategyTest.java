@@ -495,7 +495,7 @@ class MaCrossStrategyTest {
 
   // 시작일에서 offset 일 뒤 점(평균이 null 이면 그 칸 없음)
   private static SignalChart.Point point(int offset, String close, String shortAverage, String longAverage) {
-    return new SignalChart.Point(START.plusDays(offset), new BigDecimal(close),
+    return SignalChart.Point.averages(START.plusDays(offset), new BigDecimal(close),
       shortAverage == null ? null : new BigDecimal(shortAverage),
       longAverage == null ? null : new BigDecimal(longAverage));
   }

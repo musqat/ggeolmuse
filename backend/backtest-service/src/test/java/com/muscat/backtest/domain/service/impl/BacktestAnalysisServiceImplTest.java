@@ -23,6 +23,7 @@ import com.muscat.backtest.domain.dto.request.BaseComparisonRequest;
 import com.muscat.backtest.common.enums.type.PriceDirection;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
+import com.muscat.backtest.domain.dto.request.MaBandStrategyRequest;
 import com.muscat.backtest.domain.dto.request.MaCrossStrategyRequest;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
 import com.muscat.backtest.domain.dto.request.StrategyComparisonRequest;
@@ -37,6 +38,7 @@ import com.muscat.backtest.domain.service.TradingSimulationService;
 import com.muscat.backtest.domain.strategy.ConditionalPurchaseStrategy;
 import com.muscat.backtest.domain.strategy.DCAStrategy;
 import com.muscat.backtest.domain.strategy.InvestmentStrategy;
+import com.muscat.backtest.domain.strategy.MaBandStrategy;
 import com.muscat.backtest.domain.strategy.MaCrossStrategy;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -70,6 +72,9 @@ class BacktestAnalysisServiceImplTest {
   private MaCrossStrategy maCrossStrategy;
 
   @Mock
+  private MaBandStrategy maBandStrategy;
+
+  @Mock
   private ResponseMapper responseMapper;
 
   @Mock
@@ -83,8 +88,10 @@ class BacktestAnalysisServiceImplTest {
     given(conditionalPurchaseStrategy.getStrategyType()).willReturn(
       StrategyType.CONDITIONAL_PURCHASE);
     given(maCrossStrategy.getStrategyType()).willReturn(StrategyType.MA_CROSS);
+    given(maBandStrategy.getStrategyType()).willReturn(StrategyType.MA_BAND);
 
-    List<InvestmentStrategy> strategies = Arrays.asList(dcaStrategy, conditionalPurchaseStrategy, maCrossStrategy);
+    List<InvestmentStrategy> strategies = Arrays.asList(dcaStrategy, conditionalPurchaseStrategy, maCrossStrategy,
+      maBandStrategy);
 
     backtestAnalysisService = new BacktestAnalysisServiceImpl(
       tradingSimulationService,
@@ -229,6 +236,33 @@ class BacktestAnalysisServiceImplTest {
         eq(BacktestType.STRATEGY_SIMULATION),
         eq(request)
       );
+    }
+  }
+
+  @Nested
+  @DisplayName("이동평균 밴드 전략 테스트")
+  class MaBandStrategyTests {
+
+    @Test
+    @DisplayName("이동평균 밴드 전략을 실행하고 전략 실행 이력을 남긴다")
+    void runMaBandStrategy_Success() {
+      MaBandStrategyRequest request = MaBandStrategyRequest.builder()
+        .symbol("SPY")
+        .startDate(LocalDate.of(2015, 1, 1))
+        .endDate(LocalDate.of(2024, 12, 31))
+        .investmentAmount(BigDecimal.valueOf(10_000_000))
+        .userId("user789")
+        .build();
+      StrategyResponse expectedResponse = StrategyResponse.builder()
+        .symbol("SPY")
+        .strategyType(StrategyType.MA_BAND)
+        .build();
+      given(maBandStrategy.execute(request)).willReturn(expectedResponse);
+
+      StrategyResponse result = backtestAnalysisService.runMaBandStrategy(request);
+
+      assertThat(result).isSameAs(expectedResponse);
+      verify(backtestHistoryUtils).saveBacktestHistory("user789", BacktestType.STRATEGY_SIMULATION, request);
     }
   }
 

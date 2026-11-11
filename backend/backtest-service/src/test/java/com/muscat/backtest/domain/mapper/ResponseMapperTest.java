@@ -11,6 +11,7 @@ import com.muscat.backtest.common.enums.type.SkipReason;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
+import com.muscat.backtest.domain.dto.request.MaBandStrategyRequest;
 import com.muscat.backtest.domain.dto.request.MaCrossStrategyRequest;
 import com.muscat.backtest.domain.dto.request.SymbolComparisonRequest;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
@@ -162,6 +163,22 @@ class ResponseMapperTest {
         mapper.toStrategyResponse(request, transactions(2), calculation(), price("120.5"), NONE);
 
       assertThat(result.getStrategyType()).isEqualTo(StrategyType.MA_CROSS);
+      assertThat(result.getSymbol()).isEqualTo(SYMBOL);
+      assertThat(result.getStartDate()).isEqualTo(START);
+      assertThat(result.getEndDate()).isEqualTo(END);
+    }
+
+    @Test
+    @DisplayName("이동평균 밴드 요청이면 strategyType 이 MA_BAND 이고 종목 · 기간을 그대로 싣는다")
+    void 밴드_타입() {
+      MaBandStrategyRequest request = MaBandStrategyRequest.builder()
+        .symbol(SYMBOL).startDate(START).endDate(END).investmentAmount(new BigDecimal("1000000"))
+        .build();
+
+      StrategyResponse result =
+        mapper.toStrategyResponse(request, transactions(2), calculation(), price("120.5"), NONE);
+
+      assertThat(result.getStrategyType()).isEqualTo(StrategyType.MA_BAND);
       assertThat(result.getSymbol()).isEqualTo(SYMBOL);
       assertThat(result.getStartDate()).isEqualTo(START);
       assertThat(result.getEndDate()).isEqualTo(END);
@@ -647,8 +664,8 @@ class ResponseMapperTest {
     @DisplayName("전략 비교 항목의 원래 응답에는 이동평균 차트를 싣지 않고, 단일 응답 JSON 에서 평균이 안 찬 날은 평균 칸이 없다")
     void 이동평균_차트_뺌() {
       SignalChart chart = new SignalChart(SYMBOL,
-        List.of(new SignalChart.Point(LocalDate.of(2024, 1, 2), new BigDecimal("185.64"), null, null),
-          new SignalChart.Point(LocalDate.of(2024, 1, 3), new BigDecimal("186.10"), new BigDecimal("185.87"),
+        List.of(SignalChart.Point.averages(LocalDate.of(2024, 1, 2), new BigDecimal("185.64"), null, null),
+          SignalChart.Point.averages(LocalDate.of(2024, 1, 3), new BigDecimal("186.10"), new BigDecimal("185.87"),
             new BigDecimal("184.20"))),
         List.of(new SignalChart.Cross(LocalDate.of(2024, 1, 3), SignalChart.CrossType.GOLDEN)));
       StrategyResponse strategy = StrategyResponse.builder().symbol(SYMBOL).signalChart(chart).build();
@@ -662,6 +679,26 @@ class ResponseMapperTest {
       assertThat(single.get("points").get(0).has("longAverage")).isFalse();
       assertThat(single.get("points").get(1).get("longAverage").decimalValue()).isEqualByComparingTo("184.20");
       assertThat(single.get("crosses").get(0).get("type").asText()).isEqualTo("GOLDEN");
+    }
+
+    @Test
+    @DisplayName("밴드 점은 JSON 에 평균 · 위 선 · 아래 선만 싣고 두 이동평균 칸은 없으며, 평균이 안 찬 날은 세 칸이 없다")
+    void 밴드_차트_칸() {
+      SignalChart chart = new SignalChart(SYMBOL,
+        List.of(SignalChart.Point.band(LocalDate.of(2024, 1, 2), new BigDecimal("185.64"), null, null, null),
+          SignalChart.Point.band(LocalDate.of(2024, 1, 3), new BigDecimal("186.10"), new BigDecimal("180.20"),
+            new BigDecimal("184.71"), new BigDecimal("175.70"))),
+        List.of());
+
+      JsonNode points = toJson(StrategyResponse.builder().symbol(SYMBOL).signalChart(chart).build())
+        .get("signalChart").get("points");
+
+      assertThat(points.get(0).size()).isEqualTo(2);
+      assertThat(points.get(1).has("shortAverage")).isFalse();
+      assertThat(points.get(1).has("longAverage")).isFalse();
+      assertThat(points.get(1).get("average").decimalValue()).isEqualByComparingTo("180.20");
+      assertThat(points.get(1).get("upperBand").decimalValue()).isEqualByComparingTo("184.71");
+      assertThat(points.get(1).get("lowerBand").decimalValue()).isEqualByComparingTo("175.70");
     }
 
     @Test

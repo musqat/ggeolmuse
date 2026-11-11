@@ -25,7 +25,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class MaCrossStrategyRequest implements StrategyRequest {
+public class MaCrossStrategyRequest implements SignalStrategyRequest {
 
   @Schema(description = "종목 코드", example = "AAPL", required = true)
   @NotBlank(message = "종목 코드는 필수입니다")

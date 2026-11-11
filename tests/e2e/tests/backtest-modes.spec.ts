@@ -72,6 +72,27 @@ test('조건부 매수가 돈다', async () => {
   expect(typeof body.totalReturnPercent, '조건부 응답에 수익률이 없다').toBe('number');
 });
 
+test('이동평균 밴드가 돌고 밴드 차트 · 매매 통계를 싣는다', async () => {
+  const res = await postUntilAllowed(`${API_URL}/analysis/strategy/ma-band`, {
+    data: {
+      symbol,
+      startDate: start,
+      endDate: end,
+      investmentAmount: 1_000_000,
+      bandWindow: 20,
+      upperRate: 0.01,
+      lowerRate: 0.01,
+    },
+  });
+
+  expect(res.status(), `이동평균 밴드가 실패했다: ${await res.text()}`).toBe(200);
+  const body = await res.json();
+  expect(body.strategyType).toBe('MA_BAND');
+  expect(body.signalChart?.points?.length, '밴드 차트 점이 없다').toBeGreaterThan(0);
+  expect(body.signalChart.crosses, '밴드 차트에 교차가 있다').toEqual([]);
+  expect(body.tradeStats, '밴드 응답에 매매 통계가 없다').toBeTruthy();
+});
+
 test('주식 수로 단순 · 적립식 · 조건부가 돈다', async () => {
   const runs: [string, object][] = [
     ['trading-simulation/simulation', { purchaseDate: start, saleDate: end }],

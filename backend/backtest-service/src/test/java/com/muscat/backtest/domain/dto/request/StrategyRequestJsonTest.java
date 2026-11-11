@@ -23,6 +23,7 @@ class StrategyRequestJsonTest {
     assertThat(dca().getStrategyType()).isEqualTo(StrategyType.DCA);
     assertThat(conditional().getStrategyType()).isEqualTo(StrategyType.CONDITIONAL_PURCHASE);
     assertThat(maCross().getStrategyType()).isEqualTo(StrategyType.MA_CROSS);
+    assertThat(maBand().getStrategyType()).isEqualTo(StrategyType.MA_BAND);
   }
 
   @Test
@@ -31,6 +32,7 @@ class StrategyRequestJsonTest {
     assertThat(objectMapper.writeValueAsString(dca())).doesNotContain("strategyType").contains("\"symbol\":\"AAPL\"");
     assertThat(objectMapper.writeValueAsString(conditional())).doesNotContain("strategyType");
     assertThat(objectMapper.writeValueAsString(maCross())).doesNotContain("strategyType");
+    assertThat(objectMapper.writeValueAsString(maBand())).doesNotContain("strategyType");
   }
 
   @Test
@@ -48,6 +50,25 @@ class StrategyRequestJsonTest {
     assertThat(saved.longWindowOrDefault()).isEqualTo(20);
     assertThat(empty.shortWindowOrDefault()).isEqualTo(20);
     assertThat(empty.longWindowOrDefault()).isEqualTo(60);
+  }
+
+  @Test
+  @DisplayName("이동평균 밴드는 원금 · 평균 기간 · 위 · 아래 비율을 이력 JSON 에 저장하고 비운 칸은 200 · 0.025 · 0.025 로 본다")
+  void maBandSaved() throws Exception {
+    MaBandStrategyRequest saved = objectMapper.readValue(objectMapper.writeValueAsString(maBand()),
+      MaBandStrategyRequest.class);
+    MaBandStrategyRequest empty = objectMapper.readValue("{\"symbol\":\"SPY\",\"investmentAmount\":1000}",
+      MaBandStrategyRequest.class);
+
+    assertThat(objectMapper.writeValueAsString(maBand()))
+      .contains("\"investmentAmount\":10000", "\"bandWindow\":100", "\"upperRate\":0.03", "\"lowerRate\":0.05")
+      .doesNotContain("OrDefault");
+    assertThat(saved.bandWindowOrDefault()).isEqualTo(100);
+    assertThat(saved.upperRateOrDefault()).isEqualByComparingTo("0.03");
+    assertThat(saved.lowerRateOrDefault()).isEqualByComparingTo("0.05");
+    assertThat(empty.bandWindowOrDefault()).isEqualTo(200);
+    assertThat(empty.upperRateOrDefault()).isEqualByComparingTo("0.025");
+    assertThat(empty.lowerRateOrDefault()).isEqualByComparingTo("0.025");
   }
 
   @Test
@@ -111,6 +132,12 @@ class StrategyRequestJsonTest {
   private MaCrossStrategyRequest maCross() {
     return MaCrossStrategyRequest.builder().symbol("AAPL").startDate(LocalDate.of(2023, 1, 1)).endDate(LocalDate.of(2024, 1, 1))
       .investmentAmount(BigDecimal.valueOf(10000)).shortWindow(5).longWindow(20).userId("user-1").build();
+  }
+
+  private MaBandStrategyRequest maBand() {
+    return MaBandStrategyRequest.builder().symbol("SPY").startDate(LocalDate.of(2023, 1, 1)).endDate(LocalDate.of(2024, 1, 1))
+      .investmentAmount(BigDecimal.valueOf(10000)).bandWindow(100).upperRate(new BigDecimal("0.03"))
+      .lowerRate(new BigDecimal("0.05")).userId("user-1").build();
   }
 
   private ConditionalStrategyRequest conditional() {
