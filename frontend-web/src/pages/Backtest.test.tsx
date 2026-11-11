@@ -710,6 +710,49 @@ describe('Backtest 페이지 전략 비교 칩', () => {
     expect(reinvestRadio()).toHaveAccessibleDescription('익절 · 손절이 있는 조건부 매수 · 이동평균은 재투자 안 함')
   })
 
+  it('＋ 밴드로 칩을 더하면 밴드 설정이 열리고, 바꾼 칸과 밴드 규칙 요약 줄로 보내며 배당 칸에 재투자 안 함을 안내한다', async () => {
+    renderPage()
+    await selectMode('전략 비교')
+    await userEvent.click(strategyChips().getByRole('button', { name: '＋ 밴드' }))
+
+    expect(strategyChips().getByRole('button', { name: '밴드' })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByText('밴드 설정')).toBeInTheDocument()
+    expect(summary()).toHaveTextContent('밴드: 200일선 +2.5% 위로 오르면 가진 돈 전부로 사고, -2.5% 아래로 내려가면 전부 팜')
+    fireEvent.change(screen.getByRole('textbox', { name: '평균 기간(일)' }), { target: { value: '100' } })
+    fireEvent.change(screen.getByRole('textbox', { name: '아래 비율(평균 대비 퍼센트)' }), { target: { value: '5' } })
+    await userEvent.click(detailToggle())
+    expect(reinvestRadio()).toHaveAccessibleDescription('밴드는 재투자 안 함')
+    await userEvent.click(strategyChips().getByRole('button', { name: '＋ 이동평균' }))
+    expect(reinvestRadio()).toHaveAccessibleDescription('이동평균 · 밴드는 재투자 안 함')
+    await runBacktest()
+
+    const request = vi.mocked(backtestApi.compareStrategies).mock.calls[0][0]
+    expect(request.strategies[2]).toEqual({
+      strategyType: 'MA_BAND',
+      name: 'MA_BAND',
+      bandWindow: 100,
+      upperRate: 0.025,
+      lowerRate: 0.05,
+    })
+  })
+
+  it('밴드 칩의 비율이 맞지 않으면 그 칩을 고칠 칩으로 두고 요청하지 않는다', async () => {
+    renderPage()
+    await selectMode('전략 비교')
+    await userEvent.click(strategyChips().getByRole('button', { name: '＋ 밴드' }))
+    fireEvent.change(screen.getByRole('textbox', { name: '위 비율(평균 대비 퍼센트)' }), { target: { value: '100' } })
+
+    expect(
+      strategyChips().getByRole('button', {
+        name: '밴드 (고칠 것: 밴드 기간은 2 ~ 250 사이 정수로, 위 · 아래 비율은 0 이상 100 미만으로 입력해주세요.)',
+      })
+    ).toBeInTheDocument()
+    expect(screen.getByText('0 이상 100 미만')).toBeInTheDocument()
+    await runBacktest()
+
+    expect(backtestApi.compareStrategies).not.toHaveBeenCalled()
+  })
+
   it('적립식 칩 설정에서 매주를 고르면 그 칩만 바꾸고 요약 줄도 바뀐다', async () => {
     renderPage()
     await selectMode('전략 비교')

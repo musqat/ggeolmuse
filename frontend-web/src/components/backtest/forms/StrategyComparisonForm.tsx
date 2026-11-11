@@ -92,7 +92,7 @@ export const StrategyComparisonForm: React.FC<StrategyComparisonFormProps> = ({
 
       <SettingField
         label="견줄 전략"
-        right={<span>적립식 · 조건부 · 이동평균은 눌러서 설정</span>}
+        right={<span>적립식 · 조건부 · 이동평균 · 밴드는 눌러서 설정</span>}
         message={chipsMessage}
         messageId={messageId}
       >

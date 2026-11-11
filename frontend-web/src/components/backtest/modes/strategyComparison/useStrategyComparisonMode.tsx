@@ -84,10 +84,16 @@ export const useStrategyComparisonMode = (shared: SharedModeProps): ModeControll
   const conditionalSells = views.some(
     (view) => view.chip.type === 'CONDITIONAL_PURCHASE' && hasSellRates(view.params.takeProfit, view.params.stopLoss),
   );
-  const maCross = chips.some((chip) => chip.type === 'MA_CROSS');
-  // 재투자하지 않는 칩 안내
-  const noReinvest = [conditionalSells && '익절 · 손절이 있는 조건부 매수', maCross && '이동평균'].filter(Boolean);
-  const reinvestNote = noReinvest.length ? `${noReinvest.join(' · ')}${maCross ? '은' : '는'} 재투자 안 함` : undefined;
+  const has = (type: ComparisonStrategyType) => chips.some((chip) => chip.type === type);
+  // 재투자하지 않는 칩 안내(조사는 끝 이름에 맞춤)
+  const noReinvest = [
+    conditionalSells && '익절 · 손절이 있는 조건부 매수',
+    has('MA_CROSS') && '이동평균',
+    has('MA_BAND') && '밴드',
+  ].filter((name): name is string => Boolean(name));
+  const reinvestNote = noReinvest.length
+    ? `${noReinvest.join(' · ')}${noReinvest[noReinvest.length - 1] === '이동평균' ? '은' : '는'} 재투자 안 함`
+    : undefined;
 
   // 설정할 칸이 있는 칩만 더하면서 엶
   const addChip = (type: ComparisonStrategyType) => {

@@ -6,8 +6,14 @@ const year2023 = { startDate: '2023-01-01', endDate: '2023-12-31', investment: '
 
 describe('비교 전략 카탈로그', () => {
   it('버튼 순서와 이름', () => {
-    expect(COMPARISON_STRATEGIES.map((s) => s.type)).toEqual(['SIMPLE', 'DCA', 'CONDITIONAL_PURCHASE', 'MA_CROSS'])
-    expect(STRATEGY_NAMES).toEqual({ SIMPLE: '단순 매수', DCA: '적립식', CONDITIONAL_PURCHASE: '조건부 매수', MA_CROSS: '이동평균' })
+    expect(COMPARISON_STRATEGIES.map((s) => s.type)).toEqual(['SIMPLE', 'DCA', 'CONDITIONAL_PURCHASE', 'MA_CROSS', 'MA_BAND'])
+    expect(STRATEGY_NAMES).toEqual({
+      SIMPLE: '단순 매수',
+      DCA: '적립식',
+      CONDITIONAL_PURCHASE: '조건부 매수',
+      MA_CROSS: '이동평균',
+      MA_BAND: '밴드',
+    })
   })
 
   it('고를 때 채우는 기본값', () => {
@@ -25,6 +31,41 @@ describe('비교 전략 카탈로그', () => {
       direction: 'DROP',
     })
     expect(strategyByType('MA_CROSS').defaultParams).toEqual({ shortWindow: '20', longWindow: '60' })
+    expect(strategyByType('MA_BAND').defaultParams).toEqual({ bandWindow: '200', upperPercent: '2.5', lowerPercent: '2.5' })
+  })
+
+  it('밴드는 평균 기간을 숫자로 · 위 · 아래 퍼센트를 소수 비율로 싣고 원금은 싣지 않는다', () => {
+    expect(strategyByType('MA_BAND').toRequest({}, common)).toEqual({
+      strategyType: 'MA_BAND',
+      name: 'MA_BAND',
+      bandWindow: 200,
+      upperRate: 0.025,
+      lowerRate: 0.025,
+    })
+    expect(strategyByType('MA_BAND').toRequest({ bandWindow: '100', upperPercent: '3', lowerPercent: '5.5' }, common)).toMatchObject({
+      bandWindow: 100,
+      upperRate: 0.03,
+      lowerRate: 0.055,
+    })
+  })
+
+  it('밴드 검사: 평균 기간이 2 ~ 250 정수가 아니거나 비율이 0 이상 100 미만 밖이면 막는다', () => {
+    const check = (params: Record<string, string>) => strategyByType('MA_BAND').check(params, common)
+    const message = '밴드 기간은 2 ~ 250 사이 정수로, 위 · 아래 비율은 0 이상 100 미만으로 입력해주세요.'
+    expect(check({})).toBeNull()
+    expect(check({ bandWindow: '2', upperPercent: '0', lowerPercent: '99.9' })).toBeNull()
+    expect(check({ bandWindow: '251' })).toBe(message)
+    expect(check({ upperPercent: '' })).toBe(message)
+    expect(check({ lowerPercent: '100' })).toBe(message)
+  })
+
+  it('요약: 밴드는 평균 기간 · 위 · 아래 비율의 규칙', () => {
+    expect(strategyByType('MA_BAND').summary({}, year2023)).toEqual({
+      text: '200일선 +2.5% 위로 오르면 가진 돈 전부로 사고, -2.5% 아래로 내려가면 전부 팜',
+    })
+    expect(strategyByType('MA_BAND').summary({ bandWindow: '100', upperPercent: '3', lowerPercent: '5' }, year2023)).toEqual({
+      text: '100일선 +3% 위로 오르면 가진 돈 전부로 사고, -5% 아래로 내려가면 전부 팜',
+    })
   })
 
   it('이동평균은 두 기간을 숫자로 싣고 원금은 싣지 않는다', () => {

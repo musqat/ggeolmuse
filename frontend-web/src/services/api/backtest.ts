@@ -180,7 +180,7 @@ export type SymbolComparisonRequest = BacktestCommonRequest & {
 
 // 전략 비교 칩 하나의 설정(예산은 요청의 전략마다 원금)
 export type StrategyParameter = {
-  strategyType: 'SIMPLE' | 'DCA' | 'CONDITIONAL_PURCHASE' | 'MA_CROSS';  // 전략 유형
+  strategyType: 'SIMPLE' | 'DCA' | 'CONDITIONAL_PURCHASE' | 'MA_CROSS' | 'MA_BAND';  // 전략 유형
   name?: string;                        // 전략명
   amountPerPurchase?: number;           // 적립식 · 조건부 회당 금액 (KRW)
   // 적립식
@@ -197,6 +197,10 @@ export type StrategyParameter = {
   // 이동평균 교차
   shortWindow?: number;                 // 짧은 이동평균 거래일 수 (비우면 20)
   longWindow?: number;                  // 긴 이동평균 거래일 수 (비우면 60)
+  // 이동평균 밴드
+  bandWindow?: number;                  // 평균 거래일 수 (비우면 200)
+  upperRate?: number;                   // 위 선 비율 (비우면 0.025)
+  lowerRate?: number;                   // 아래 선 비율 (비우면 0.025)
   // 단순 매수
   purchaseDate?: string;                // 매수일
 };
@@ -206,7 +210,7 @@ export type StrategyComparisonRequest = BacktestCommonRequest & {
   symbol: string;                       // 종목 심볼
   startDate: string;                    // 시작일
   endDate: string;                      // 종료일
-  investmentAmount: number;             // 전략마다 원금 (단순은 시작일 매수 금액, 적립식 · 조건부는 예산, 이동평균은 첫 매수 금액)
+  investmentAmount: number;             // 전략마다 원금 (단순은 시작일 매수 금액, 적립식 · 조건부는 예산, 이동평균 · 밴드는 첫 매수 금액)
   strategies: StrategyParameter[];      // 비교할 전략 목록
 };
 
