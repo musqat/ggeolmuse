@@ -50,6 +50,12 @@ describe('buildMaBandRequest', () => {
     })
   })
 
+  it('따로 고른 신호 종목은 signalSymbol 로 싣는다', () => {
+    expect(buildMaBandRequest({ ...values, signalSymbol: '^NDX' }, 'QQQ', ctx)).toMatchObject({
+      request: { symbol: 'QQQ', signalSymbol: '^NDX' },
+    })
+  })
+
   it('평균 기간 2 · 250 과 비율 0 · 99.9 까지 보낸다', () => {
     expect(buildMaBandRequest({ ...values, bandWindow: '2', upperPercent: '0', lowerPercent: '99.9' }, 'SPY', ctx)).toMatchObject({
       request: { bandWindow: 2, upperRate: 0, lowerRate: 0.999 },

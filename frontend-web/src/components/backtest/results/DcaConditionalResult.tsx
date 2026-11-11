@@ -19,6 +19,7 @@ import { strategyDeposits } from './assetSeries';
 import { CapitalGainsTaxFold } from './CapitalGainsTaxFold';
 import { TradeStatsCard } from './TradeStatsCard';
 import type { BandSetting } from '../shared/maBand';
+import { isSeparateSignal, signalName } from '../shared/signalSymbol';
 
 type StrategyKind = 'dca' | 'conditional' | 'ma-cross' | 'ma-band';
 
@@ -56,6 +57,8 @@ const SIGNAL_KINDS: StrategyKind[] = ['ma-cross', 'ma-band'];
 
 const NOTICE_CLASS = 'text-sm text-warning bg-warning-soft/10 border border-warning-soft/40 rounded-lg px-3 py-2';
 
+const INFO_CLASS = 'text-sm text-tx-2 border border-line rounded-lg px-3 py-2';
+
 // 매수 0회 · 예산 부족 구간 안내 한 줄(없으면 null)
 const purchaseNotice = (kind: StrategyKind, bought: number, span: StrategyResponse['skippedSpan']) => {
   const shortfall = span ? `예산이 모자라 ${span.firstDate}부터 ${span.rounds}회를 사지 않았습니다.` : null;
@@ -71,6 +74,7 @@ const unusedBudget = (budget: number | undefined, invested: number | null | unde
 };
 
 // 적립식 · 조건부 · 이동평균 · 밴드 결과: 카드 · 매매 통계(조건부 · 이동평균 · 밴드) · 자산 추이 · 주가 추이 탭(주가 추이 앞에 이동평균 교차는 이동평균 탭 · 밴드는 밴드 탭), 그 아래 예상 양도세 · 상세 · 매매 내역을 접어 둠
+// 신호 종목을 따로 본 결과는 맨 위에 신호 · 사고판 종목 한 줄, 이동평균 · 밴드 탭 이름에 신호 종목
 export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
   kind,
   result,
@@ -96,9 +100,19 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
   const skipped = skippedRounds.length + (result.skippedSpan?.rounds ?? 0);
   // 정한 회차가 없는 이동평균 · 밴드는 미매수가 있을 때만
   const skippedText = !SIGNAL_KINDS.includes(kind) || skipped > 0 ? ` · 미매수 ${skipped}회` : '';
+  const traded = result.symbol || symbol;
+  // 사고판 종목과 다른 신호 종목(같으면 null)
+  const chartSymbol = result.signalChart?.symbol;
+  const signal = isSeparateSignal(chartSymbol, traded) ? chartSymbol : null;
+  const signalTab = (label: string) => (signal ? `${label} · ${signal}` : label);
 
   return (
     <div className="space-y-6">
+      {signal && (
+        <p role="note" className={INFO_CLASS}>
+          신호는 {signalName(signal)}, 사고파는 것은 {traded}
+        </p>
+      )}
       {notice && <p className={NOTICE_CLASS}>{notice}</p>}
       {later > 0 && (
         <p className={NOTICE_CLASS}>투자일이 휴장일이면 다음 거래일 종가로 삽니다(이번 결과 {later}번).</p>
@@ -134,7 +148,7 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
             ? [
                 {
                   key: 'signal',
-                  label: '이동평균',
+                  label: signalTab('이동평균'),
                   render: () => <SignalChart chart={result.signalChart} windows={windows} />,
                 },
               ]
@@ -143,7 +157,7 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
             ? [
                 {
                   key: 'band',
-                  label: '밴드',
+                  label: signalTab('밴드'),
                   render: () => <BandChart chart={result.signalChart} transactions={transactions} band={band} />,
                 },
               ]

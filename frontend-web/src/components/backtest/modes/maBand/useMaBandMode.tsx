@@ -10,17 +10,19 @@ import { MA_BAND } from '../../shared/maBand';
 import { amountIssue, bandIssues, countErrors } from '../../settings/checks';
 import { maBandHow } from '../../settings/summary';
 import { pickValues } from '../../settings/snapshot';
+import { useSignalSymbol } from '../useSignalSymbol';
 
 const LABEL = '원금';
 const DEFAULTS = { amount: '1000000', window: MA_BAND.window, upper: MA_BAND.upper, lower: MA_BAND.lower };
 
 export const useMaBandMode = (shared: SharedModeProps): ModeController => {
-  const { symbol, period, options } = shared;
+  const { symbol, supportedSymbols, period, options } = shared;
   const [investment, setInvestment] = useState(DEFAULTS.amount);
   const [bandWindow, setBandWindow] = useState(DEFAULTS.window);
   const [upper, setUpper] = useState(DEFAULTS.upper);
   const [lower, setLower] = useState(DEFAULTS.lower);
   const { symbolField, periodField, symbolMessage, periodMessage } = commonFields(shared);
+  const signal = useSignalSymbol(symbol, supportedSymbols);
 
   const amountMessage = amountIssue({ byShares: false, amount: investment, shares: '', label: LABEL });
   const bandMessages = bandIssues(bandWindow, upper, lower);
@@ -43,11 +45,12 @@ export const useMaBandMode = (shared: SharedModeProps): ModeController => {
           onLowerChange: setLower,
           messages: bandMessages,
         }}
+        signal={signal.field}
       />
     ),
     summary: {
       subject: symbol,
-      how: maBandHow({ amount: investment, window: bandWindow, upper, lower }),
+      how: maBandHow({ amount: investment, window: bandWindow, upper, lower, signal: signal.signalSymbol }),
     },
     errorCount: countErrors([
       symbolMessage,
@@ -56,16 +59,18 @@ export const useMaBandMode = (shared: SharedModeProps): ModeController => {
       bandMessages.window,
       bandMessages.upper,
       bandMessages.lower,
+      signal.message,
     ]),
     reinvestLocked: true,
     reinvestNote: '밴드는 배당을 현금으로',
-    saved: { amount: investment, window: bandWindow, upper, lower },
+    saved: { amount: investment, window: bandWindow, upper, lower, ...signal.saved },
     load: (saved) => {
       const next = pickValues(DEFAULTS, saved);
       setInvestment(next.amount);
       setBandWindow(next.window);
       setUpper(next.upper);
       setLower(next.lower);
+      signal.load(saved);
     },
     prepare: (ctx) => {
       const built = buildMaBandRequest(
@@ -76,6 +81,7 @@ export const useMaBandMode = (shared: SharedModeProps): ModeController => {
           bandWindow,
           upperPercent: upper,
           lowerPercent: lower,
+          signalSymbol: signal.signalSymbol,
           ...options,
         },
         symbol,

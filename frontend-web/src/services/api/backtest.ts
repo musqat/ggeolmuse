@@ -157,6 +157,7 @@ export type MaCrossStrategyRequest = BacktestCommonRequest & {
   investmentAmount: number;             // 원금 (KRW)
   shortWindow?: number;                 // 짧은 이동평균 거래일 수 (비우면 20)
   longWindow?: number;                  // 긴 이동평균 거래일 수 (비우면 60, 2 ≤ 짧은 기간 < 긴 기간 ≤ 250)
+  signalSymbol?: string;                // 교차를 보는 신호 종목 (지수 ^GSPC · ^NDX 도 됨, 비우면 종목 심볼)
 };
 
 // 이동평균 밴드 전략 요청(수정 종가가 평균 위 선보다 높으면 가진 돈 전부로 사고 아래 선보다 낮으면 전부 팜)
@@ -168,6 +169,7 @@ export type MaBandStrategyRequest = BacktestCommonRequest & {
   bandWindow?: number;                  // 평균 거래일 수 (2 ~ 250, 비우면 200)
   upperRate?: number;                   // 위 선 비율 (0.025 = 2.5%, 0 이상 1 미만, 비우면 0.025)
   lowerRate?: number;                   // 아래 선 비율 (0.025 = 2.5%, 0 이상 1 미만, 비우면 0.025)
+  signalSymbol?: string;                // 밴드를 보는 신호 종목 (지수 ^GSPC · ^NDX 도 됨, 비우면 종목 심볼)
 };
 
 // 종목 비교 요청
@@ -264,9 +266,9 @@ export type SignalCross = {
   type: 'GOLDEN' | 'DEAD';
 };
 
-// 이동평균을 본 종목의 날마다 수정 종가 · 이동평균 값과 교차한 날(보유와 상관없이 모두)
+// 이동평균 · 밴드를 본 종목의 날마다 수정 종가 · 이동평균 값과 교차한 날(보유와 상관없이 모두)
 export type SignalChartData = {
-  symbol: string;
+  symbol: string;                       // 신호 종목 (따로 고르지 않았으면 종목 심볼)
   points: SignalPoint[];                // 시작일 ~ 평가일, 오래된 날부터
   crosses: SignalCross[];               // 밴드는 빈 목록
 };

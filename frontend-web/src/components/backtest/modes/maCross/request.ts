@@ -9,9 +9,11 @@ export interface MaCrossValues extends BacktestOptions {
   investment: string;
   shortWindow: string;
   longWindow: string;
+  // 따로 고른 신호 종목(매매 종목과 같으면 비움)
+  signalSymbol?: string;
 }
 
-// 이동평균 교차 요청(검사에 걸리면 alert 문구), 금액은 원금 · 두 기간은 늘 채움 · 배당 재투자는 늘 끔
+// 이동평균 교차 요청(검사에 걸리면 alert 문구), 금액은 원금 · 두 기간은 늘 채움 · 신호 종목은 고른 때만 · 배당 재투자는 늘 끔
 export const buildMaCrossRequest = (
   values: MaCrossValues,
   symbol: string,
@@ -39,6 +41,7 @@ export const buildMaCrossRequest = (
       endDate: effectiveEndDate,
       investmentAmount: principal,
       ...windows,
+      ...(values.signalSymbol && { signalSymbol: values.signalSymbol }),
       ...toOptionFields(values),
       reinvestDividends: false,
     },
