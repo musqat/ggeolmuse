@@ -11,6 +11,7 @@ import {
   type ProfitDetailResponse,
   type ProfitFlowResponse,
   type SymbolContributionResponse,
+  type TradingHabitsResponse,
 } from '../services/api'
 import { useAuth } from '../hooks/useAuth'
 import AccountStats from './AccountStats'
@@ -25,6 +26,7 @@ vi.mock('../services/api', () => ({
     getSymbolContributions: vi.fn(),
     getDividendStats: vi.fn(),
     getFxStats: vi.fn(),
+    getTradingHabits: vi.fn(),
   },
 }))
 vi.mock('../components/account/stats/StatsBarChart', () => ({ StatsBarChart: () => <i data-testid="bars" /> }))
@@ -93,6 +95,16 @@ const FX: FxStatsResponse = {
   ],
 }
 
+const HABITS: TradingHabitsResponse = {
+  buyCount: 2, sellCount: 1, tradingDays: 2, averageHoldingDays: 5, winCount: 1, lossCount: 0, winRatePercent: 100,
+  weekdays: [
+    { weekday: 'MONDAY', count: 1 }, { weekday: 'TUESDAY', count: 0 }, { weekday: 'WEDNESDAY', count: 2 },
+    { weekday: 'THURSDAY', count: 0 }, { weekday: 'FRIDAY', count: 0 }, { weekday: 'SATURDAY', count: 0 },
+    { weekday: 'SUNDAY', count: 0 },
+  ],
+  topSymbols: [{ symbol: 'AAPL', tradeCount: 3, buyCount: 2, sellCount: 1, amountUsd: 5_955 }],
+}
+
 const BALANCES: Record<number, { balanceKrw: number; balanceUsd: number }> = {
   3: { balanceKrw: 1_000_000, balanceUsd: 100 },
   5: { balanceKrw: 500_000, balanceUsd: 0 },
@@ -135,6 +147,7 @@ beforeEach(() => {
   vi.mocked(portfolioApi.getSymbolContributions).mockResolvedValue({ data: SYMBOLS } as never)
   vi.mocked(portfolioApi.getDividendStats).mockResolvedValue({ data: DIVIDENDS } as never)
   vi.mocked(portfolioApi.getFxStats).mockResolvedValue({ data: FX } as never)
+  vi.mocked(portfolioApi.getTradingHabits).mockResolvedValue({ data: HABITS } as never)
 })
 
 describe('AccountStats', () => {
@@ -217,11 +230,11 @@ describe('AccountStats', () => {
     expect(portfolioApi.getProfitFlow).toHaveBeenCalledTimes(2)
   })
 
-  it('주제 탭은 수익 · 종목 · 배당 · 환율이고 처음에는 수익 패널만 열어 수익 내역만 묻는다', async () => {
+  it('주제 탭은 수익 · 종목 · 배당 · 환율 · 거래 패턴이고 처음에는 수익 패널만 열어 수익 내역만 묻는다', async () => {
     renderPage()
 
     const panel = await screen.findByRole('tabpanel')
-    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['수익', '종목', '배당', '환율'])
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['수익', '종목', '배당', '환율', '거래 패턴'])
     expect(screen.getByRole('tab', { name: '수익' })).toHaveAttribute('tabindex', '0')
     expect(screen.getByRole('tab', { name: '수익' })).toHaveAttribute('aria-controls', 'stats-panel-profit')
     expect(screen.getByRole('tab', { name: '종목' })).toHaveAttribute('tabindex', '-1')
@@ -234,6 +247,7 @@ describe('AccountStats', () => {
     expect(portfolioApi.getSymbolContributions).not.toHaveBeenCalled()
     expect(portfolioApi.getDividendStats).not.toHaveBeenCalled()
     expect(portfolioApi.getFxStats).not.toHaveBeenCalled()
+    expect(portfolioApi.getTradingHabits).not.toHaveBeenCalled()
   })
 
   it('종목 탭을 누르면 종목 패널로 바뀌어 종목별 기여를 묻고 수익 흐름 그래프는 그대로 보인다', async () => {
@@ -262,9 +276,10 @@ describe('AccountStats', () => {
       ['{ArrowRight}', '종목'],
       ['{ArrowRight}', '배당'],
       ['{ArrowRight}', '환율'],
+      ['{ArrowRight}', '거래 패턴'],
       ['{ArrowRight}', '수익'],
+      ['{ArrowLeft}', '거래 패턴'],
       ['{ArrowLeft}', '환율'],
-      ['{ArrowLeft}', '배당'],
     ]) {
       await user.keyboard(key)
       expect(screen.getByRole('tab', { name })).toHaveAttribute('aria-selected', 'true')
@@ -307,6 +322,20 @@ describe('AccountStats', () => {
 
     await waitFor(() => expect(stat('받은 배당')).toHaveTextContent('받은 배당세후₩5,482$4.12'))
     expect(screen.queryByText('환율 효과를 불러오지 못했습니다')).toBeNull()
+  })
+
+  it('거래 패턴 탭을 누르면 그 패널로 바뀌어 거래 패턴을 묻고 수익 흐름 그래프는 그대로 보인다', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('+₩250,000')
+
+    await user.click(screen.getByRole('tab', { name: '거래 패턴' }))
+
+    expect(screen.getByRole('tab', { name: '거래 패턴' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tabpanel')).toHaveAttribute('id', 'stats-panel-habits')
+    await waitFor(() => expect(stat('거래 횟수')).toHaveTextContent('거래 횟수매수 2회 · 매도 1회'))
+    expect(portfolioApi.getTradingHabits).toHaveBeenCalledWith('all', 'ALL')
+    expect(screen.getByTestId('line-chart')).toBeInTheDocument()
   })
 
   it('기간을 바꾸면 고른 탭도 그 기간으로 다시 묻는다', async () => {

@@ -152,3 +152,32 @@ test('계좌 통계 배당 · 환율 탭은 배당과 환율 효과를 받고, �
     page.getByText('환율 효과', { exact: true }).or(page.getByText('이 기간에 환전 기록이 없습니다'))
   ).toBeVisible({ timeout: 30_000 });
 });
+
+test('계좌 통계 거래 패턴 탭은 거래 패턴을 받고, 탭을 누르면 그 패널로 바뀐다', async ({ page }) => {
+  const auth = await authContext();
+
+  const habits = await auth.get(`${API_URL}/portfolio/stats/habits?accountId=all&period=ALL`);
+  expect(habits.status(), `거래 패턴이 실패했다: ${await habits.text()}`).toBe(200);
+  const body = await habits.json();
+  // 요일은 월요일부터 일요일까지 늘 7개
+  expect(body.weekdays.map((day: { weekday: string }) => day.weekday), '요일 목록이 다르다').toEqual([
+    'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY',
+  ]);
+  expect(Array.isArray(body.topSymbols), '종목 목록이 없다').toBe(true);
+  expect(typeof body.buyCount, '매수 수가 숫자가 아니다').toBe('number');
+
+  // 계좌 값은 숫자 · all 만
+  const wrong = await auth.get(`${API_URL}/portfolio/stats/habits?accountId=abc&period=ALL`);
+  expect(wrong.status(), '모르는 계좌 값이 400 이 아니다').toBe(400);
+  await auth.dispose();
+
+  await page.goto('/account/stats');
+  await page.getByRole('tab', { name: '거래 패턴' }).click({ timeout: 30_000 });
+
+  await expect(page.getByRole('tab', { name: '거래 패턴' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#stats-panel-habits')).toBeVisible();
+  // 시드 사용자 체결 여부에 따라 거래 패턴 카드 또는 안내
+  await expect(
+    page.getByText('거래 횟수', { exact: true }).or(page.getByText('이 기간에 거래가 없습니다'))
+  ).toBeVisible({ timeout: 30_000 });
+});

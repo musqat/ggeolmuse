@@ -11,6 +11,7 @@ import { ProfitTab } from '../components/account/stats/ProfitTab';
 import { SymbolsTab } from '../components/account/stats/SymbolsTab';
 import { DividendsTab } from '../components/account/stats/DividendsTab';
 import { FxTab } from '../components/account/stats/FxTab';
+import { HabitsTab } from '../components/account/stats/HabitsTab';
 import { CARD_CLASS, StatsLoadError, StatsLoading } from '../components/account/stats/StatsCards';
 import { portfolioApi, type ProfitFlowPeriod } from '../services/api';
 
@@ -21,13 +22,14 @@ const PERIODS: { value: ProfitFlowPeriod; label: string }[] = [
   { value: 'ALL', label: '전체' },
 ];
 
-type StatsTab = 'profit' | 'symbols' | 'dividends' | 'fx';
+type StatsTab = 'profit' | 'symbols' | 'dividends' | 'fx' | 'habits';
 
 const TABS: { value: StatsTab; label: string }[] = [
   { value: 'profit', label: '수익' },
   { value: 'symbols', label: '종목' },
   { value: 'dividends', label: '배당' },
   { value: 'fx', label: '환율' },
+  { value: 'habits', label: '거래 패턴' },
 ];
 
 // 계좌 통계 화면(계좌 · 기간마다 수익 흐름 그래프와 주제 탭)
@@ -115,6 +117,8 @@ const AccountStats: React.FC = () => {
         return <DividendsTab accountId={accountId} period={period} accountNames={accountNames} />;
       case 'fx':
         return <FxTab accountId={accountId} period={period} accountNames={accountNames} />;
+      case 'habits':
+        return <HabitsTab accountId={accountId} period={period} />;
     }
   };
 
