@@ -1,0 +1,49 @@
+import type { MaBandStrategyRequest } from '@services/api';
+import type { BuildResult, RunContext } from '../types';
+import { toOptionFields, type BacktestOptions } from '../../shared/backtestOptions';
+import { BAND_ERROR, parseBand } from '../../shared/maBand';
+
+export interface MaBandValues extends BacktestOptions {
+  startDate: string;
+  endDate: string;
+  investment: string;
+  bandWindow: string;
+  upperPercent: string;
+  lowerPercent: string;
+}
+
+// 이동평균 밴드 요청(검사에 걸리면 alert 문구), 금액은 원금 · 밴드 세 칸은 늘 채움 · 배당 재투자는 늘 끔
+export const buildMaBandRequest = (
+  values: MaBandValues,
+  symbol: string,
+  ctx: RunContext,
+): BuildResult<MaBandStrategyRequest & { bandWindow: number; upperRate: number; lowerRate: number }> => {
+  const principal = parseFloat(values.investment);
+  if (!(principal > 0)) {
+    return { error: '올바른 원금을 입력해주세요.' };
+  }
+  const band = parseBand(values.bandWindow, values.upperPercent, values.lowerPercent);
+  if (!band) {
+    return { error: BAND_ERROR };
+  }
+
+  // 빈 종료일은 오늘로 채워 검사
+  const effectiveEndDate = values.endDate || ctx.today;
+  if (values.startDate >= effectiveEndDate) {
+    return { error: '시작일은 종료일보다 빠른 날짜여야 합니다.' };
+  }
+
+  return {
+    request: {
+      symbol,
+      startDate: values.startDate,
+      endDate: effectiveEndDate,
+      investmentAmount: principal,
+      bandWindow: band.window,
+      upperRate: band.upperRate,
+      lowerRate: band.lowerRate,
+      ...toOptionFields(values),
+      reinvestDividends: false,
+    },
+  };
+};

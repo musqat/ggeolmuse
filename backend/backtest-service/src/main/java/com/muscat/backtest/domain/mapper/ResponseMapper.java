@@ -8,7 +8,7 @@ import com.muscat.backtest.common.util.Decimals;
 import com.muscat.backtest.domain.dto.request.BaseComparisonRequest;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
-import com.muscat.backtest.domain.dto.request.MaCrossStrategyRequest;
+import com.muscat.backtest.domain.dto.request.SignalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
 import com.muscat.backtest.domain.dto.response.ComparisonResponse;
 import com.muscat.backtest.domain.dto.response.DailyValue;
@@ -50,13 +50,13 @@ public class ResponseMapper {
   }
 
   public StrategyResponse toStrategyResponse(
-    MaCrossStrategyRequest request,
+    SignalStrategyRequest request,
     List<StrategyTransaction> transactions,
     StrategyCalculationResult calculation,
     StockPriceDto currentPrice,
     List<SkippedRound> skippedRounds) {
 
-    return buildStrategyResponse(StrategyType.MA_CROSS, request.getSymbol(), request.getStartDate(),
+    return buildStrategyResponse(request.getStrategyType(), request.getSymbol(), request.getStartDate(),
       request.getEndDate(), transactions, calculation, currentPrice, skippedRounds);
   }
 

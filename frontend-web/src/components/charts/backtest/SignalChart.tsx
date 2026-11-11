@@ -12,6 +12,7 @@ import {
   formatUsdTick,
 } from './shared/chartStyle';
 import { ChartMessage } from './shared/ChartPanel';
+import { ChartLegend, type LegendItem } from './shared/ChartLegend';
 import { markerDots } from './shared/markers';
 
 interface SignalChartProps {
@@ -58,9 +59,6 @@ const crossDots = (points: SignalPoint[], crosses: SignalCross[], type: SignalCr
     });
 };
 
-const LINE_SWATCH = 'inline-block w-4 h-0.5';
-const DOT_SWATCH = 'inline-block w-2.5 h-2.5 rounded-full';
-
 // 이동평균 결과의 수정 종가 · 짧은 선 · 긴 선과 골든 · 데드 크로스 점(결과 기간 전체, 값은 응답 그대로)
 export const SignalChart: React.FC<SignalChartProps> = ({ chart, windows }) => {
   const names: LineNames = {
@@ -77,12 +75,12 @@ export const SignalChart: React.FC<SignalChartProps> = ({ chart, windows }) => {
     return <ChartMessage plain>이 결과에는 이동평균 값이 없습니다</ChartMessage>;
   }
 
-  const legend = [
-    { name: names.close, color: SIGNAL_COLORS.close, swatch: LINE_SWATCH },
-    { name: names.short, color: SIGNAL_COLORS.short, swatch: LINE_SWATCH },
-    { name: names.long, color: SIGNAL_COLORS.long, swatch: LINE_SWATCH },
-    { name: '골든 크로스', color: SIGNAL_COLORS.golden, swatch: DOT_SWATCH },
-    { name: '데드 크로스', color: SIGNAL_COLORS.dead, swatch: DOT_SWATCH },
+  const legend: LegendItem[] = [
+    { name: names.close, color: SIGNAL_COLORS.close, shape: 'line' },
+    { name: names.short, color: SIGNAL_COLORS.short, shape: 'line' },
+    { name: names.long, color: SIGNAL_COLORS.long, shape: 'line' },
+    { name: '골든 크로스', color: SIGNAL_COLORS.golden, shape: 'dot' },
+    { name: '데드 크로스', color: SIGNAL_COLORS.dead, shape: 'dot' },
   ];
 
   return (
@@ -124,14 +122,7 @@ export const SignalChart: React.FC<SignalChartProps> = ({ chart, windows }) => {
           {markerDots(dead, 'value', SIGNAL_COLORS.dead, 'dead')}
         </LineChart>
       </ResponsiveContainer>
-      <ul aria-label="차트 범례" className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-tx-2">
-        {legend.map((item) => (
-          <li key={item.name} className="flex items-center gap-1.5">
-            <span aria-hidden="true" className={item.swatch} style={{ backgroundColor: item.color }} />
-            {item.name}
-          </li>
-        ))}
-      </ul>
+      <ChartLegend items={legend} />
     </div>
   );
 };

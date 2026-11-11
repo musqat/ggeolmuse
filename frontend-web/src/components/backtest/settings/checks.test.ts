@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   amountIssue,
+  bandIssues,
   budgetIssue,
   countErrors,
   feeIssue,
@@ -98,6 +99,17 @@ describe('설정 칸 검사', () => {
     expect(windowIssues('20', '20.5')).toEqual({ short: null, long: error('2 ~ 250 사이 정수') })
     expect(windowIssues('60', '60')).toEqual({ short: error('긴 기간보다 짧게'), long: null })
     expect(windowIssues('90', '60')).toEqual({ short: error('긴 기간보다 짧게'), long: null })
+  })
+
+  it('밴드: 평균 기간은 2 ~ 250 정수, 위 · 아래 비율은 비면 비어 있음 · 0 이상 100 미만', () => {
+    expect(bandIssues('200', '2.5', '2.5')).toEqual({ window: null, upper: null, lower: null })
+    expect(bandIssues('2', '0', '99.9')).toEqual({ window: null, upper: null, lower: null })
+    expect(bandIssues('1', '', '100')).toEqual({
+      window: error('2 ~ 250 사이 정수'),
+      upper: error('% 비어 있음'),
+      lower: error('0 이상 100 미만'),
+    })
+    expect(bandIssues('251', '.', '2.5')).toEqual({ window: error('2 ~ 250 사이 정수'), upper: error('0 이상 100 미만'), lower: null })
   })
 
   it('수수료: 비면 0, 숫자가 아니면 숫자로, 100 이상이면 100 아래', () => {

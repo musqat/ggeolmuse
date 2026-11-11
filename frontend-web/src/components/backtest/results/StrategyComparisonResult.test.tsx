@@ -273,7 +273,30 @@ describe('StrategyComparisonResult', () => {
     await userEvent.click(row('이동평균'))
     expect(screen.getByText('매수 횟수').nextElementSibling).toHaveTextContent('1회')
     expect(screen.getByText('매도 횟수').nextElementSibling).toHaveTextContent('1회')
-    expect(screen.getByText('그때까지 넣은 돈 대비 몇 % 인지 · 점은 적립식 · 조건부 · 이동평균이 돈을 넣은 날')).toBeInTheDocument()
+    expect(screen.getByText('그때까지 넣은 돈 대비 몇 % 인지 · 점은 적립식 · 조건부 · 이동평균 · 밴드가 돈을 넣은 날')).toBeInTheDocument()
+  })
+
+  it('밴드 전략은 한글 이름 밴드로 보이고 펼치면 매수 · 매도 횟수를 보인다', async () => {
+    const band = {
+      name: 'MA_BAND',
+      code: 'AAPL',
+      totalInvested: 1000000,
+      currentValueKrw: 0,
+      totalReturnPercent: 3,
+      totalReturnKrw: 30000,
+      additionalData: {
+        symbol: 'AAPL',
+        transactions: [
+          { date: '2024-01-10', price: 100, shares: 7, amount: 1000000, fxRate: 1300, trigger: '밴드 위 매수' },
+          { date: '2024-01-25', price: 103, shares: -7, amount: 0, fxRate: 1300, trigger: '밴드 아래 매도' },
+        ],
+      },
+    }
+    renderResult({ ...result, items: [...result.items, band] })
+
+    await userEvent.click(row('밴드'))
+    expect(screen.getByText('매수 횟수').nextElementSibling).toHaveTextContent('1회')
+    expect(screen.getByText('매도 횟수').nextElementSibling).toHaveTextContent('1회')
   })
 
   it('주가 추이 비교는 접어 두고 열 때 그린다', async () => {

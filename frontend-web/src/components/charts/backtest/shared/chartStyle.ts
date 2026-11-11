@@ -35,6 +35,13 @@ export const SIGNAL_COLORS = {
   dead: 'rgb(var(--loss))',
 };
 
+// 밴드 차트 선 색(평균 · 위 · 아래 선은 주황, 위 · 아래 선은 점선)
+export const BAND_COLORS = {
+  close: 'rgb(var(--text-2))',
+  average: '#f59e0b',
+};
+export const BAND_DASH = '5 4';
+
 // 마커 기본 모양(색은 따로)
 export const MARKER_PROPS = { r: 4, stroke: '#fff', strokeWidth: 2 };
 // 최적 시점 마커(밝은 금색이라 진한 테두리)

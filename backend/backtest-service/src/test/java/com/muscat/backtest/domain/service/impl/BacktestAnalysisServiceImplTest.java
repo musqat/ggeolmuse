@@ -23,6 +23,7 @@ import com.muscat.backtest.domain.dto.request.BaseComparisonRequest;
 import com.muscat.backtest.common.enums.type.PriceDirection;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
+import com.muscat.backtest.domain.dto.request.MaBandStrategyRequest;
 import com.muscat.backtest.domain.dto.request.MaCrossStrategyRequest;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
 import com.muscat.backtest.domain.dto.request.StrategyComparisonRequest;
@@ -37,6 +38,7 @@ import com.muscat.backtest.domain.service.TradingSimulationService;
 import com.muscat.backtest.domain.strategy.ConditionalPurchaseStrategy;
 import com.muscat.backtest.domain.strategy.DCAStrategy;
 import com.muscat.backtest.domain.strategy.InvestmentStrategy;
+import com.muscat.backtest.domain.strategy.MaBandStrategy;
 import com.muscat.backtest.domain.strategy.MaCrossStrategy;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -70,6 +72,9 @@ class BacktestAnalysisServiceImplTest {
   private MaCrossStrategy maCrossStrategy;
 
   @Mock
+  private MaBandStrategy maBandStrategy;
+
+  @Mock
   private ResponseMapper responseMapper;
 
   @Mock
@@ -83,8 +88,10 @@ class BacktestAnalysisServiceImplTest {
     given(conditionalPurchaseStrategy.getStrategyType()).willReturn(
       StrategyType.CONDITIONAL_PURCHASE);
     given(maCrossStrategy.getStrategyType()).willReturn(StrategyType.MA_CROSS);
+    given(maBandStrategy.getStrategyType()).willReturn(StrategyType.MA_BAND);
 
-    List<InvestmentStrategy> strategies = Arrays.asList(dcaStrategy, conditionalPurchaseStrategy, maCrossStrategy);
+    List<InvestmentStrategy> strategies = Arrays.asList(dcaStrategy, conditionalPurchaseStrategy, maCrossStrategy,
+      maBandStrategy);
 
     backtestAnalysisService = new BacktestAnalysisServiceImpl(
       tradingSimulationService,
@@ -229,6 +236,33 @@ class BacktestAnalysisServiceImplTest {
         eq(BacktestType.STRATEGY_SIMULATION),
         eq(request)
       );
+    }
+  }
+
+  @Nested
+  @DisplayName("이동평균 밴드 전략 테스트")
+  class MaBandStrategyTests {
+
+    @Test
+    @DisplayName("이동평균 밴드 전략을 실행하고 전략 실행 이력을 남긴다")
+    void runMaBandStrategy_Success() {
+      MaBandStrategyRequest request = MaBandStrategyRequest.builder()
+        .symbol("SPY")
+        .startDate(LocalDate.of(2015, 1, 1))
+        .endDate(LocalDate.of(2024, 12, 31))
+        .investmentAmount(BigDecimal.valueOf(10_000_000))
+        .userId("user789")
+        .build();
+      StrategyResponse expectedResponse = StrategyResponse.builder()
+        .symbol("SPY")
+        .strategyType(StrategyType.MA_BAND)
+        .build();
+      given(maBandStrategy.execute(request)).willReturn(expectedResponse);
+
+      StrategyResponse result = backtestAnalysisService.runMaBandStrategy(request);
+
+      assertThat(result).isSameAs(expectedResponse);
+      verify(backtestHistoryUtils).saveBacktestHistory("user789", BacktestType.STRATEGY_SIMULATION, request);
     }
   }
 
@@ -742,6 +776,58 @@ class BacktestAnalysisServiceImplTest {
         MaCrossStrategyRequest sent = (MaCrossStrategyRequest) r;
         return sent.getTradingFeeRate().signum() == 0 && sent.getDividendTaxRate().signum() == 0
           && sent.getShortWindow() == null && sent.getLongWindow() == null;
+      }));
+    }
+
+    @Test
+    @DisplayName("전략 비교의 밴드 칩은 비교 원금 · 칩의 평균 기간 · 위 · 아래 비율과 공통 옵션을 넘기고 배당 재투자는 끈다")
+    void compareStrategies_MaBandPassesBand() {
+      StrategyParameter maBand = strategy(StrategyType.MA_BAND);
+      maBand.setBandWindow(100);
+      maBand.setUpperRate(new BigDecimal("0.03"));
+      maBand.setLowerRate(new BigDecimal("0.05"));
+      StrategyComparisonRequest request = strategyRequest(maBand);
+      withOptions(request);
+      given(maBandStrategy.execute(any())).willReturn(StrategyResponse.builder().build());
+      given(responseMapper.toComparisonItemFromStrategy(any(), eq("MA_BAND"))).willReturn(item);
+      stubComparisonResponse();
+
+      backtestAnalysisService.compareStrategies(request);
+
+      ArgumentCaptor<MaBandStrategyRequest> maBandRequest = ArgumentCaptor.forClass(MaBandStrategyRequest.class);
+      verify(maBandStrategy).execute(maBandRequest.capture());
+      MaBandStrategyRequest sent = maBandRequest.getValue();
+      assertThat(sent.getSymbol()).isEqualTo("AAPL");
+      assertThat(sent.getStartDate()).isEqualTo(LocalDate.of(2023, 1, 1));
+      assertThat(sent.getEndDate()).isEqualTo(LocalDate.of(2024, 1, 1));
+      assertThat(sent.getUserId()).isEqualTo("user123");
+      assertThat(sent.getInvestmentAmount()).isEqualByComparingTo(BigDecimal.valueOf(1_000_000));
+      assertThat(sent.getBandWindow()).isEqualTo(100);
+      assertThat(sent.getUpperRate()).isEqualByComparingTo("0.03");
+      assertThat(sent.getLowerRate()).isEqualByComparingTo("0.05");
+      assertThat(sent.getReinvestDividends()).isFalse();
+      assertThat(sent.getPurchaseFxRate()).isEqualByComparingTo(new BigDecimal("1300"));
+      assertThat(sent.getCurrentFxRate()).isEqualByComparingTo(new BigDecimal("1350"));
+      assertThat(sent.getDividendTaxRate()).isEqualByComparingTo(new BigDecimal("0.15"));
+      assertThat(sent.getTradingFeeRate()).isEqualByComparingTo(new BigDecimal("0.0025"));
+      assertThat(sent.getCapitalGainsTax()).isTrue();
+      assertThat(sent.getPeriodEnd()).isEqualTo(PeriodEnd.SELL_AT_END);
+    }
+
+    @Test
+    @DisplayName("전략 비교의 밴드 칩 옵션이 비면 수수료 0 · 배당세 0 으로 넘기고 비운 밴드 칸은 그대로 둔다")
+    void compareStrategies_MaBandEmptyOptions() {
+      StrategyComparisonRequest request = strategyRequest(strategy(StrategyType.MA_BAND));
+      given(maBandStrategy.execute(any())).willReturn(StrategyResponse.builder().build());
+      given(responseMapper.toComparisonItemFromStrategy(any(), any())).willReturn(item);
+      stubComparisonResponse();
+
+      backtestAnalysisService.compareStrategies(request);
+
+      verify(maBandStrategy).execute(argThat(r -> {
+        MaBandStrategyRequest sent = (MaBandStrategyRequest) r;
+        return sent.getTradingFeeRate().signum() == 0 && sent.getDividendTaxRate().signum() == 0
+          && sent.getBandWindow() == null && sent.getUpperRate() == null && sent.getLowerRate() == null;
       }));
     }
 

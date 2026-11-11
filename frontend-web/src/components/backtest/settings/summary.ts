@@ -99,6 +99,13 @@ export const maCrossText = (short: string, long: string) =>
 export const maCrossHow = ({ amount, short, long }: { amount: string; short: string; long: string }) =>
   `원금 ${formatReadableWon(parseFloat(amount))} · ${maCrossText(short, long)}`;
 
+// 이동평균 밴드 규칙(빈 칸은 ?)
+export const maBandText = (window: string, upper: string, lower: string) =>
+  `${window.trim() || '?'}일선 +${upper.trim() || '?'}% 위로 오르면 가진 돈 전부로 사고, -${lower.trim() || '?'}% 아래로 내려가면 전부 팜`;
+
+export const maBandHow = ({ amount, window, upper, lower }: { amount: string; window: string; upper: string; lower: string }) =>
+  `원금 ${formatReadableWon(parseFloat(amount))} · ${maBandText(window, upper, lower)}`;
+
 type DetailInput = Pick<
   BacktestOptions,
   'periodEnd' | 'tradingFeeRate' | 'dividendTax' | 'capitalGainsTax' | 'reinvestDividends' | 'fxMode'

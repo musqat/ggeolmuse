@@ -2,6 +2,7 @@ import { formatNumber, formatReadableWon } from '../../../utils/format';
 import { MAX_SHARES, parseShares } from '../shared/amountUnit';
 import { isMonthly, parseMonths, type DcaCadence } from '../shared/dcaSchedule';
 import { parseWindow } from '../shared/maWindows';
+import { parseBandPercent } from '../shared/maBand';
 import type { BacktestOptions } from '../shared/backtestOptions';
 
 // 칸 아래 한 줄(오류는 실행을 막고 경고는 안 막음), 글 뒤에 작은 단추 하나
@@ -107,6 +108,19 @@ export const windowIssues = (short: string, long: string) => {
   return {
     short: shortWindow === undefined ? range : tooLong ? error('긴 기간보다 짧게') : null,
     long: longWindow === undefined ? range : null,
+  };
+};
+
+// 밴드 칸 오류(평균 기간 2 ~ 250 정수, 위 · 아래 비율 0 이상 100 미만)
+export const bandIssues = (window: string, upper: string, lower: string) => {
+  const rate = (text: string) => {
+    if (!text.trim()) return error('% 비어 있음');
+    return parseBandPercent(text) === undefined ? error('0 이상 100 미만') : null;
+  };
+  return {
+    window: parseWindow(window) === undefined ? error('2 ~ 250 사이 정수') : null,
+    upper: rate(upper),
+    lower: rate(lower),
   };
 };
 

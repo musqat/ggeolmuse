@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { AccumulationChart } from '@components/charts/backtest/AccumulationChart';
 import { SignalChart } from '@components/charts/backtest/SignalChart';
+import { BandChart } from '@components/charts/backtest/BandChart';
 import type { StrategyResponse } from '../../../services/api';
 import { gainLossClass } from '../../../utils/gainLoss';
 import { formatBalanceAmount, formatKrw, formatPercent, formatSigned, formatNumber, formatUsd } from '../../../utils/format';
@@ -17,8 +18,9 @@ import { detailMeta, pickMetrics, purchaseCount, sellCount } from './resultValue
 import { strategyDeposits } from './assetSeries';
 import { CapitalGainsTaxFold } from './CapitalGainsTaxFold';
 import { TradeStatsCard } from './TradeStatsCard';
+import type { BandSetting } from '../shared/maBand';
 
-type StrategyKind = 'dca' | 'conditional' | 'ma-cross';
+type StrategyKind = 'dca' | 'conditional' | 'ma-cross' | 'ma-band';
 
 interface DcaConditionalResultProps {
   kind: StrategyKind;
@@ -30,20 +32,27 @@ interface DcaConditionalResultProps {
   budget?: number;
   // 실행한 요청의 이동평균 짧은 · 긴 기간
   windows?: { short: number; long: number };
+  // 실행한 요청의 밴드 평균 기간 · 위 · 아래 비율
+  band?: BandSetting;
 }
 
 const EMPTY_REASON: Record<StrategyKind, string> = {
   dca: '기간 안에 산 회차가 없습니다.',
   conditional: '기간 안에 조건이 맞아 산 날이 없습니다.',
   'ma-cross': '기간 안에 짧은 선이 긴 선을 아래에서 위로 넘은 날이 없습니다.',
+  'ma-band': '기간 안에 밴드 위로 올라선 날이 없습니다.',
 };
 
-// 수익률 기준 투자금 이름(이동평균은 첫 매수에 쓴 원금)
+// 수익률 기준 투자금 이름(이동평균 · 밴드는 첫 매수에 쓴 원금)
 const INVESTED_LABEL: Record<StrategyKind, string> = {
   dca: '누적 매수액',
   conditional: '누적 매수액',
   'ma-cross': '원금',
+  'ma-band': '원금',
 };
+
+// 정한 회차 없이 신호로 사고파는 결과
+const SIGNAL_KINDS: StrategyKind[] = ['ma-cross', 'ma-band'];
 
 const NOTICE_CLASS = 'text-sm text-warning bg-warning-soft/10 border border-warning-soft/40 rounded-lg px-3 py-2';
 
@@ -61,7 +70,7 @@ const unusedBudget = (budget: number | undefined, invested: number | null | unde
   return unused > 0 ? unused : null;
 };
 
-// 적립식 · 조건부 · 이동평균 결과: 카드 · 매매 통계(조건부 · 이동평균) · 자산 추이 · 주가 추이 탭(이동평균 교차는 주가 추이 앞에 이동평균 탭), 그 아래 예상 양도세 · 상세 · 매매 내역을 접어 둠
+// 적립식 · 조건부 · 이동평균 · 밴드 결과: 카드 · 매매 통계(조건부 · 이동평균 · 밴드) · 자산 추이 · 주가 추이 탭(주가 추이 앞에 이동평균 교차는 이동평균 탭 · 밴드는 밴드 탭), 그 아래 예상 양도세 · 상세 · 매매 내역을 접어 둠
 export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
   kind,
   result,
@@ -69,6 +78,7 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
   startDate,
   budget,
   windows,
+  band,
 }) => {
   const [currency, setCurrency] = useState<MetricCurrency>('KRW');
   const investedLabel = INVESTED_LABEL[kind];
@@ -84,8 +94,8 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
   const notice = purchaseNotice(kind, purchaseCount(transactions), result.skippedSpan);
   // 시세 없음 · 계산 오류 회차와 예산 부족 구간 회차
   const skipped = skippedRounds.length + (result.skippedSpan?.rounds ?? 0);
-  // 정한 회차가 없는 이동평균은 미매수가 있을 때만
-  const skippedText = kind !== 'ma-cross' || skipped > 0 ? ` · 미매수 ${skipped}회` : '';
+  // 정한 회차가 없는 이동평균 · 밴드는 미매수가 있을 때만
+  const skippedText = !SIGNAL_KINDS.includes(kind) || skipped > 0 ? ` · 미매수 ${skipped}회` : '';
 
   return (
     <div className="space-y-6">
@@ -126,6 +136,15 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
                   key: 'signal',
                   label: '이동평균',
                   render: () => <SignalChart chart={result.signalChart} windows={windows} />,
+                },
+              ]
+            : []),
+          ...(kind === 'ma-band'
+            ? [
+                {
+                  key: 'band',
+                  label: '밴드',
+                  render: () => <BandChart chart={result.signalChart} transactions={transactions} band={band} />,
                 },
               ]
             : []),

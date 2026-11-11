@@ -20,6 +20,7 @@ import com.muscat.backtest.common.exception.GlobalExceptionHandler;
 import com.muscat.backtest.common.metrics.BacktestMetrics;
 import com.muscat.backtest.config.SecurityConfig;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
+import com.muscat.backtest.domain.dto.request.MaBandStrategyRequest;
 import com.muscat.backtest.domain.dto.request.MaCrossStrategyRequest;
 import com.muscat.backtest.domain.model.ComparisonItem;
 import com.muscat.backtest.domain.dto.response.ComparisonResponse;
@@ -343,6 +344,54 @@ class BacktestAnalysisControllerTest {
   }
 
   @Test
+  @DisplayName("이동평균 밴드 전략은 원금 · 평균 기간 · 위 · 아래 비율 · 양도세 · 기간 끝 선택을 그대로 넘기고 종류 ma_band · 성공으로 지표에 한 건 남긴다")
+  void maBand() throws Exception {
+    given(backtestAnalysisService.runMaBandStrategy(any())).willReturn(strategy("SPY", StrategyType.MA_BAND, "8.5"));
+
+    postJson("/strategy/ma-band", "{\"symbol\":\"SPY\"," + PERIOD + ",\"investmentAmount\":10000000,"
+      + "\"bandWindow\":200,\"upperRate\":0.025,\"lowerRate\":0.03,\"capitalGainsTax\":true,\"periodEnd\":\"SELL_AT_END\"}")
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.strategyType").value("MA_BAND"))
+      .andExpect(jsonPath("$.totalReturnPercent").value(8.5));
+
+    verify(backtestAnalysisService).runMaBandStrategy(argThat((MaBandStrategyRequest r) ->
+      r.getSymbol().equals("SPY") && r.getInvestmentAmount().intValue() == 10000000 && r.getBandWindow() == 200
+        && r.getUpperRate().compareTo(new BigDecimal("0.025")) == 0 && r.getLowerRate().compareTo(new BigDecimal("0.03")) == 0
+        && Boolean.TRUE.equals(r.getCapitalGainsTax()) && r.getPeriodEnd() == PeriodEnd.SELL_AT_END));
+    assertThat(meterRegistry.get("backtest.run").tags("kind", "ma_band", "outcome", "success").timer().count())
+      .isEqualTo(1);
+  }
+
+  @ParameterizedTest(name = "[{index}] {0}")
+  @ValueSource(strings = {"", ",\"bandWindow\":2,\"upperRate\":0,\"lowerRate\":0",
+    ",\"bandWindow\":250,\"upperRate\":0.99,\"lowerRate\":0.99"})
+  @DisplayName("이동평균 밴드 전략의 평균 기간 · 비율은 비우거나 2 ~ 250 · 0 이상 1 미만이면 통과한다")
+  void maBandAccepted(String band) throws Exception {
+    given(backtestAnalysisService.runMaBandStrategy(any())).willReturn(strategy("SPY", StrategyType.MA_BAND, "1"));
+
+    postJson("/strategy/ma-band", "{\"symbol\":\"SPY\"," + PERIOD + ",\"investmentAmount\":10000000" + band + "}")
+      .andExpect(status().isOk());
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @CsvSource(delimiter = '|', value = {
+    "원금 없음|\"bandWindow\":200",
+    "원금 0|\"investmentAmount\":0",
+    "평균 기간 1|\"investmentAmount\":10000000,\"bandWindow\":1",
+    "평균 기간 251|\"investmentAmount\":10000000,\"bandWindow\":251",
+    "위 비율 음수|\"investmentAmount\":10000000,\"upperRate\":-0.01",
+    "위 비율 1|\"investmentAmount\":10000000,\"upperRate\":1",
+    "아래 비율 음수|\"investmentAmount\":10000000,\"lowerRate\":-0.01",
+    "아래 비율 1|\"investmentAmount\":10000000,\"lowerRate\":1"})
+  @DisplayName("이동평균 밴드 전략의 원금이 없거나 0 이거나 평균 기간이 2 ~ 250 밖이거나 비율이 0 이상 1 미만 밖이면 400 이고 서비스까지 가지 않는다")
+  void maBandRejected(String label, String fields) throws Exception {
+    postJson("/strategy/ma-band", "{\"symbol\":\"SPY\"," + PERIOD + "," + fields + "}")
+      .andExpect(status().isBadRequest());
+
+    verify(backtestAnalysisService, never()).runMaBandStrategy(any());
+  }
+
+  @Test
   @DisplayName("종목 비교는 종목 목록을 넘기고 최고 수익 종목을 돌려준다")
   void compareSymbols() throws Exception {
     given(backtestAnalysisService.compareSymbols(any())).willReturn(comparison("MSFT"));
@@ -431,6 +480,38 @@ class BacktestAnalysisControllerTest {
   }
 
   @Test
+  @DisplayName("전략 비교의 밴드 칩은 회당 금액 없이 평균 기간 · 위 · 아래 비율을 받아 그대로 넘기고 비워도 된다")
+  void compareStrategies_MaBandChip() throws Exception {
+    given(backtestAnalysisService.compareStrategies(any())).willReturn(comparison("밴드"));
+
+    postJson("/compare/strategies", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":1000000,"
+      + "\"strategies\":[{\"strategyType\":\"MA_BAND\",\"name\":\"밴드\",\"bandWindow\":100,\"upperRate\":0.03,"
+      + "\"lowerRate\":0.05},{\"strategyType\":\"MA_BAND\"},{\"strategyType\":\"SIMPLE\"}]}")
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.bestPerformer.name").value("밴드"));
+
+    verify(backtestAnalysisService).compareStrategies(argThat(r -> r.getStrategies().size() == 3
+      && r.getStrategies().get(0).getStrategyType() == StrategyType.MA_BAND
+      && r.getStrategies().get(0).getBandWindow() == 100
+      && r.getStrategies().get(0).getUpperRate().compareTo(new BigDecimal("0.03")) == 0
+      && r.getStrategies().get(0).getLowerRate().compareTo(new BigDecimal("0.05")) == 0
+      && r.getStrategies().get(1).getBandWindow() == null && r.getStrategies().get(1).getUpperRate() == null
+      && r.getStrategies().get(1).getLowerRate() == null));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @ValueSource(strings = {"\"bandWindow\":1", "\"bandWindow\":251", "\"upperRate\":-0.01", "\"upperRate\":1",
+    "\"lowerRate\":-0.01", "\"lowerRate\":1"})
+  @DisplayName("전략 비교의 밴드 칩 평균 기간이 2 ~ 250 밖이거나 비율이 0 이상 1 미만 밖이면 400 이고 서비스까지 가지 않는다")
+  void compareStrategies_InvalidMaBandChip(String band) throws Exception {
+    postJson("/compare/strategies", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":1000000,"
+      + "\"strategies\":[{\"strategyType\":\"MA_BAND\"," + band + "},{\"strategyType\":\"SIMPLE\"}]}")
+      .andExpect(status().isBadRequest());
+
+    verify(backtestAnalysisService, never()).compareStrategies(any());
+  }
+
+  @Test
   @DisplayName("전략 비교의 모든 전략이 매수 0회라 최고 수익 항목이 없어도 200 이다")
   void compareStrategies_NoBestPerformer() throws Exception {
     ComparisonItem none = ComparisonItem.builder().name("DCA").totalInvested(BigDecimal.ZERO)
@@ -445,7 +526,7 @@ class BacktestAnalysisControllerTest {
   }
 
   @Test
-  @DisplayName("분석 다섯 경로 모두 이력 주인을 본문이 아니라 토큰의 사용자로 정한다")
+  @DisplayName("분석 여섯 경로 모두 이력 주인을 본문이 아니라 토큰의 사용자로 정한다")
   void ownerFromToken() throws Exception {
     given(jwtDecoder.decode(TOKEN)).willReturn(Jwt.withTokenValue(TOKEN).header("alg", "none").subject(USER)
       .claim("email", EMAIL).build());
@@ -453,6 +534,7 @@ class BacktestAnalysisControllerTest {
     given(backtestAnalysisService.runConditionalStrategy(any()))
       .willReturn(strategy("TSLA", StrategyType.CONDITIONAL_PURCHASE, "1"));
     given(backtestAnalysisService.runMaCrossStrategy(any())).willReturn(strategy("AAPL", StrategyType.MA_CROSS, "1"));
+    given(backtestAnalysisService.runMaBandStrategy(any())).willReturn(strategy("SPY", StrategyType.MA_BAND, "1"));
     given(backtestAnalysisService.compareSymbols(any())).willReturn(comparison("MSFT"));
     given(backtestAnalysisService.compareStrategies(any())).willReturn(comparison("DCA"));
 
@@ -463,6 +545,8 @@ class BacktestAnalysisControllerTest {
       .andExpect(status().isOk());
     postJsonWithToken("/strategy/ma-cross", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":1000000" + VICTIM)
       .andExpect(status().isOk());
+    postJsonWithToken("/strategy/ma-band", "{\"symbol\":\"SPY\"," + PERIOD + ",\"investmentAmount\":1000000" + VICTIM)
+      .andExpect(status().isOk());
     postJsonWithToken("/compare/symbols", "{\"symbols\":[\"AAPL\",\"MSFT\"]," + PERIOD + ",\"investmentAmount\":1000000" + VICTIM)
       .andExpect(status().isOk());
     postJsonWithToken("/compare/strategies", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":1000000,"
@@ -472,6 +556,7 @@ class BacktestAnalysisControllerTest {
     verify(backtestAnalysisService).runDcaStrategy(argThat(r -> USER.equals(r.getUserId())));
     verify(backtestAnalysisService).runConditionalStrategy(argThat(r -> USER.equals(r.getUserId())));
     verify(backtestAnalysisService).runMaCrossStrategy(argThat(r -> USER.equals(r.getUserId())));
+    verify(backtestAnalysisService).runMaBandStrategy(argThat(r -> USER.equals(r.getUserId())));
     verify(backtestAnalysisService).compareSymbols(argThat(r -> USER.equals(r.getUserId())));
     verify(backtestAnalysisService).compareStrategies(argThat(r -> USER.equals(r.getUserId())));
   }

@@ -22,6 +22,24 @@ vi.mock('@components/charts/backtest/SignalChart', () => ({
   ),
 }))
 
+// 밴드 차트는 받은 종목 · 점 수 · 거래 수 · 밴드 설정만 보임
+vi.mock('@components/charts/backtest/BandChart', () => ({
+  BandChart: ({
+    chart,
+    transactions,
+    band,
+  }: {
+    chart?: { symbol: string; points: unknown[] } | null;
+    transactions: unknown[];
+    band?: { window: number; upperRate: number; lowerRate: number };
+  }) => (
+    <div>
+      밴드 차트 {chart ? `${chart.symbol} ${chart.points.length}일` : '없음'} · 거래 {transactions.length}건 ·{' '}
+      {band ? `${band.window}일 ${band.upperRate} · ${band.lowerRate}` : '설정 모름'}
+    </div>
+  ),
+}))
+
 const result = {
   symbol: 'AAPL',
   startDate: '2023-01-01',
@@ -130,6 +148,48 @@ describe('DcaConditionalResult', () => {
 
     rerender(<DcaConditionalResult result={result} {...props} kind="dca" />)
     expect(screen.queryByRole('tab', { name: '이동평균' })).toBeNull()
+  })
+
+  it('밴드 결과는 주가 추이 앞에 밴드 탭을 두고, 고르면 결과의 밴드 값 · 거래와 실행한 밴드 설정으로 그린다', async () => {
+    const signalChart = {
+      symbol: 'SPY',
+      points: [
+        { date: '2023-01-03', close: 380.8, average: 390.2, upperBand: 399.96, lowerBand: 380.45 },
+        { date: '2023-01-04', close: 383.8, average: 390.1, upperBand: 399.85, lowerBand: 380.35 },
+      ],
+      crosses: [],
+    }
+    render(
+      <DcaConditionalResult
+        result={{ ...result, signalChart }}
+        {...props}
+        kind="ma-band"
+        band={{ window: 200, upperRate: 0.025, lowerRate: 0.025 }}
+      />
+    )
+
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['자산 추이', '밴드', '주가 추이'])
+
+    await userEvent.click(screen.getByRole('tab', { name: '밴드' }))
+
+    expect(screen.getByText('밴드 차트 SPY 2일 · 거래 1건 · 200일 0.025 · 0.025')).toBeVisible()
+  })
+
+  it('밴드 매수 0회는 밴드 위로 올라선 날이 없다고 알리고, 수익률 기준은 원금, 미매수가 없으면 세지 않는다', () => {
+    const { rerender } = render(
+      <DcaConditionalResult result={{ ...result, transactions: [], totalInvested: 0 }} {...props} kind="ma-band" />
+    )
+
+    expect(screen.getByText('매수 0회: 기간 안에 밴드 위로 올라선 날이 없습니다.')).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: '이동평균' })).toBeNull()
+
+    const transactions = [
+      { date: '2023-03-01', shares: 6, price: 150, amount: 1000000, fxRate: 1300, trigger: '밴드 위 매수' },
+      { date: '2023-08-01', shares: -6, price: 170, amount: 0, fxRate: 1300, trigger: '밴드 아래 매도', proceeds: 1020, realizedProfit: 120 },
+    ]
+    rerender(<DcaConditionalResult result={{ ...result, transactions }} {...props} kind="ma-band" />)
+    expect(screen.getByText('· 매수 1회 · 매도 1회')).toBeInTheDocument()
+    expect(screen.getAllByText(/원금 기준/).length).toBeGreaterThan(0)
   })
 
   it('이동평균 매수 0회는 짧은 선이 긴 선을 위로 넘은 날이 없다고 알린다', () => {

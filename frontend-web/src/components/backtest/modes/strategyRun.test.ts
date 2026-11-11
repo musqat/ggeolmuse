@@ -33,4 +33,13 @@ describe('strategyRun', () => {
 
     await expect(run.execute()).resolves.toEqual({ symbol: 'AAPL', mode: 'ma-cross', windows: { short: 5, long: 120 } })
   })
+
+  it('밴드 설정이 있으면 결과에 그 설정을 같이 담는다', async () => {
+    const call = vi.fn().mockResolvedValue({ data: { symbol: 'SPY' } })
+    const band = { window: 200, upperRate: 0.025, lowerRate: 0.03 }
+
+    const run = strategyRun({ request: {}, call, mode: 'ma-band', fxMode: 'auto', failureMessage: '', band })
+
+    await expect(run.execute()).resolves.toEqual({ symbol: 'SPY', mode: 'ma-band', band })
+  })
 })

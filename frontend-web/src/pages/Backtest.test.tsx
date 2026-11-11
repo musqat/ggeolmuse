@@ -15,6 +15,7 @@ vi.mock('../services/api', () => ({
     runDcaStrategy: vi.fn(),
     runConditionalStrategy: vi.fn(),
     runMaCrossStrategy: vi.fn(),
+    runMaBandStrategy: vi.fn(),
     compareSymbols: vi.fn(),
     compareStrategies: vi.fn(),
     getHistory: vi.fn(),
@@ -42,15 +43,18 @@ vi.mock('@components/backtest/results/DcaConditionalResult', () => ({
     result,
     budget,
     windows,
+    band,
   }: {
     result: { mode: string };
     budget?: number;
     windows?: { short: number; long: number };
+    band?: { window: number; upperRate: number; lowerRate: number };
   }) => (
     <>
       <div>결과: {result.mode}</div>
       {budget !== undefined && <div>예산: {budget}</div>}
       {windows && <div>이동평균 기간: {`${windows.short} · ${windows.long}`}</div>}
+      {band && <div>밴드: {`${band.window} · ${band.upperRate} · ${band.lowerRate}`}</div>}
     </>
   ),
 }))
@@ -101,6 +105,7 @@ beforeEach(() => {
   vi.mocked(backtestApi.runDcaStrategy).mockResolvedValue({ data: {} } as never)
   vi.mocked(backtestApi.runConditionalStrategy).mockResolvedValue({ data: {} } as never)
   vi.mocked(backtestApi.runMaCrossStrategy).mockResolvedValue({ data: {} } as never)
+  vi.mocked(backtestApi.runMaBandStrategy).mockResolvedValue({ data: {} } as never)
   vi.mocked(backtestApi.compareSymbols).mockResolvedValue({ data: {} } as never)
   vi.mocked(backtestApi.compareStrategies).mockResolvedValue({ data: {} } as never)
 })
@@ -120,7 +125,7 @@ describe('Backtest 페이지 모드 · 기록', () => {
   it('모드는 하나만 고르는 묶음이고 지난 기록은 모드 대신 제목 옆 링크로 따로 본다', () => {
     renderPage()
 
-    expect(modes().getAllByRole('radio').map((radio) => radio.textContent)).toEqual(['단순', '적립식', '조건부', '이동평균', '종목 비교', '전략 비교'])
+    expect(modes().getAllByRole('radio').map((radio) => radio.textContent)).toEqual(['단순', '적립식', '조건부', '이동평균', '이동평균 밴드', '종목 비교', '전략 비교'])
     expect(modes().getByRole('radio', { name: '단순' })).toHaveAttribute('aria-checked', 'true')
     expect(screen.queryByText('히스토리')).toBeNull()
     expect(screen.getByRole('link', { name: '지난 백테스트 기록 →' })).toHaveAttribute('href', '/backtest/history')
@@ -489,6 +494,83 @@ describe('Backtest 페이지 칸 오류 · 요약', () => {
     expect(summary()).toHaveTextContent('횟수 제한 없음 · 많아야 약 261회')
   })
 
+  it('이동평균 밴드: 기본값은 원금 100만원 · 200일선 · 위 · 아래 2.5% 로 요청하고 결과는 그 설정과 함께 전략 결과로 그린다', async () => {
+    renderPage()
+    await selectMode('이동평균 밴드')
+    await runBacktest()
+
+    expect(backtestApi.runMaBandStrategy).toHaveBeenCalledWith({
+      symbol: 'AAPL',
+      startDate: START,
+      endDate: TODAY,
+      investmentAmount: 1000000,
+      bandWindow: 200,
+      upperRate: 0.025,
+      lowerRate: 0.025,
+      ...common,
+    })
+    expect(await screen.findByText('결과: ma-band')).toBeInTheDocument()
+    expect(screen.getByText('밴드: 200 · 0.025 · 0.025')).toBeInTheDocument()
+  })
+
+  it('이동평균 밴드: 바꾼 원금 · 평균 기간 · 비율로 요청하고, 배당 재투자를 막고 false 로 보낸다', async () => {
+    renderPage()
+    await selectMode('적립식')
+    await userEvent.click(detailToggle())
+    await userEvent.click(reinvestRadio())
+    await selectMode('이동평균 밴드')
+    fireEvent.change(screen.getByRole('textbox', { name: '원금(원)' }), { target: { value: '3,000,000' } })
+    fireEvent.change(screen.getByRole('textbox', { name: '평균 기간(일)' }), { target: { value: '120' } })
+    fireEvent.change(screen.getByRole('textbox', { name: '위 비율(평균 대비 퍼센트)' }), { target: { value: '3' } })
+    fireEvent.change(screen.getByRole('textbox', { name: '아래 비율(평균 대비 퍼센트)' }), { target: { value: '5' } })
+
+    expect(reinvestRadio()).toHaveAttribute('aria-disabled', 'true')
+    expect(reinvestRadio()).toHaveAccessibleDescription('밴드는 배당을 현금으로')
+    await runBacktest()
+
+    expect(vi.mocked(backtestApi.runMaBandStrategy).mock.calls[0][0]).toMatchObject({
+      investmentAmount: 3000000,
+      bandWindow: 120,
+      upperRate: 0.03,
+      lowerRate: 0.05,
+      reinvestDividends: false,
+    })
+    expect(await screen.findByText('밴드: 120 · 0.03 · 0.05')).toBeInTheDocument()
+  })
+
+  it('이동평균 밴드 요약은 원금과 밴드 규칙을 보이고, 비율이 100 이상이면 그 칸으로 가며 요청하지 않는다', async () => {
+    renderPage()
+    await selectMode('이동평균 밴드')
+    expect(summary()).toHaveTextContent('원금 100만원 · 200일선 +2.5% 위로 오르면 가진 돈 전부로 사고, -2.5% 아래로 내려가면 전부 팜')
+
+    fireEvent.change(screen.getByRole('textbox', { name: '아래 비율(평균 대비 퍼센트)' }), { target: { value: '100' } })
+    expect(screen.getByText('0 이상 100 미만')).toBeInTheDocument()
+    expect(summary()).toHaveTextContent('고칠 칸 1개')
+    await runBacktest()
+
+    expect(screen.getByRole('textbox', { name: '아래 비율(평균 대비 퍼센트)' })).toHaveFocus()
+    expect(backtestApi.runMaBandStrategy).not.toHaveBeenCalled()
+  })
+
+  it('이동평균 밴드 원금 · 밴드 칸도 직전 설정으로 되살리고 설정 초기화로 기본값으로 돌린다', async () => {
+    renderPage()
+    await selectMode('이동평균 밴드')
+    fireEvent.change(screen.getByRole('textbox', { name: '평균 기간(일)' }), { target: { value: '150' } })
+    fireEvent.change(screen.getByRole('textbox', { name: '위 비율(평균 대비 퍼센트)' }), { target: { value: '4' } })
+    await runBacktest()
+
+    await userEvent.click(screen.getByRole('button', { name: '설정 초기화' }))
+    await selectMode('이동평균 밴드')
+    expect(screen.getByRole('textbox', { name: '평균 기간(일)' })).toHaveValue('200')
+    expect(screen.getByRole('textbox', { name: '위 비율(평균 대비 퍼센트)' })).toHaveValue('2.5')
+    await userEvent.click(screen.getByRole('button', { name: '직전 설정' }))
+
+    expect(modes().getByRole('radio', { name: '이동평균 밴드' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('textbox', { name: '평균 기간(일)' })).toHaveValue('150')
+    expect(screen.getByRole('textbox', { name: '위 비율(평균 대비 퍼센트)' })).toHaveValue('4')
+    expect(screen.getByRole('textbox', { name: '아래 비율(평균 대비 퍼센트)' })).toHaveValue('2.5')
+  })
+
   it('이동평균 요약은 원금과 교차 규칙을 보이고, 짧은 기간이 긴 기간 이상이면 그 칸으로 가며 요청하지 않는다', async () => {
     renderPage()
     await selectMode('이동평균')
@@ -626,6 +708,49 @@ describe('Backtest 페이지 전략 비교 칩', () => {
     await userEvent.click(strategyChips().getByRole('button', { name: '＋ 조건부 매수' }))
     await userEvent.type(screen.getByRole('textbox', { name: '익절(평균 단가 대비 퍼센트)' }), '20')
     expect(reinvestRadio()).toHaveAccessibleDescription('익절 · 손절이 있는 조건부 매수 · 이동평균은 재투자 안 함')
+  })
+
+  it('＋ 밴드로 칩을 더하면 밴드 설정이 열리고, 바꾼 칸과 밴드 규칙 요약 줄로 보내며 배당 칸에 재투자 안 함을 안내한다', async () => {
+    renderPage()
+    await selectMode('전략 비교')
+    await userEvent.click(strategyChips().getByRole('button', { name: '＋ 밴드' }))
+
+    expect(strategyChips().getByRole('button', { name: '밴드' })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByText('밴드 설정')).toBeInTheDocument()
+    expect(summary()).toHaveTextContent('밴드: 200일선 +2.5% 위로 오르면 가진 돈 전부로 사고, -2.5% 아래로 내려가면 전부 팜')
+    fireEvent.change(screen.getByRole('textbox', { name: '평균 기간(일)' }), { target: { value: '100' } })
+    fireEvent.change(screen.getByRole('textbox', { name: '아래 비율(평균 대비 퍼센트)' }), { target: { value: '5' } })
+    await userEvent.click(detailToggle())
+    expect(reinvestRadio()).toHaveAccessibleDescription('밴드는 재투자 안 함')
+    await userEvent.click(strategyChips().getByRole('button', { name: '＋ 이동평균' }))
+    expect(reinvestRadio()).toHaveAccessibleDescription('이동평균 · 밴드는 재투자 안 함')
+    await runBacktest()
+
+    const request = vi.mocked(backtestApi.compareStrategies).mock.calls[0][0]
+    expect(request.strategies[2]).toEqual({
+      strategyType: 'MA_BAND',
+      name: 'MA_BAND',
+      bandWindow: 100,
+      upperRate: 0.025,
+      lowerRate: 0.05,
+    })
+  })
+
+  it('밴드 칩의 비율이 맞지 않으면 그 칩을 고칠 칩으로 두고 요청하지 않는다', async () => {
+    renderPage()
+    await selectMode('전략 비교')
+    await userEvent.click(strategyChips().getByRole('button', { name: '＋ 밴드' }))
+    fireEvent.change(screen.getByRole('textbox', { name: '위 비율(평균 대비 퍼센트)' }), { target: { value: '100' } })
+
+    expect(
+      strategyChips().getByRole('button', {
+        name: '밴드 (고칠 것: 밴드 기간은 2 ~ 250 사이 정수로, 위 · 아래 비율은 0 이상 100 미만으로 입력해주세요.)',
+      })
+    ).toBeInTheDocument()
+    expect(screen.getByText('0 이상 100 미만')).toBeInTheDocument()
+    await runBacktest()
+
+    expect(backtestApi.compareStrategies).not.toHaveBeenCalled()
   })
 
   it('적립식 칩 설정에서 매주를 고르면 그 칩만 바꾸고 요약 줄도 바뀐다', async () => {

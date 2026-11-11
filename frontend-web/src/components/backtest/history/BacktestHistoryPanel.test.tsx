@@ -105,4 +105,22 @@ describe('BacktestHistoryPanel', () => {
     expect(screen.getByText('이동평균')).toBeInTheDocument()
     expect(screen.queryByText('단순')).toBeNull()
   })
+
+  it('밴드 기록은 평균 기간 칸으로 이동평균보다 먼저 이동평균 밴드로 보인다', () => {
+    const band = (id: string, params: object) => ({
+      backtestId: id,
+      userId: 'u',
+      backtestType: 'STRATEGY_SIMULATION' as const,
+      requestParams: JSON.stringify({ symbol: 'SPY', startDate: '2015-01-01', endDate: '2024-12-31', investmentAmount: 1000000, ...params }),
+      fxRateMode: 'auto' as const,
+      createdAt: '2026-11-12T09:00:00',
+    })
+    renderPanel({
+      historyData: [band('1', { bandWindow: 200, upperRate: 0.025, lowerRate: 0.025 }), band('2', { bandWindow: 100, shortWindow: 20 })],
+      historyTotalPages: 1,
+    })
+
+    expect(screen.getAllByText('이동평균 밴드')).toHaveLength(2)
+    expect(screen.queryByText('이동평균')).toBeNull()
+  })
 })

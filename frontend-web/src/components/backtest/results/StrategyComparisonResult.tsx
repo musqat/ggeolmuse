@@ -107,7 +107,7 @@ export const StrategyComparisonResult: React.FC<StrategyComparisonResultProps> =
     const shares = item.totalShares ?? data.totalShares ?? data.shares;
     const sold = sellCount(transactions);
     const span = data.skippedSpan;
-    // 적립식 · 조건부 · 이동평균이 원금 가운데 사지 않고 남긴 돈
+    // 적립식 · 조건부 · 이동평균 · 밴드가 원금 가운데 사지 않고 남긴 돈
     const unused = data.transactions && result.investmentAmount ? Math.round(result.investmentAmount - (item.totalInvested ?? 0)) : 0;
     return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -192,7 +192,7 @@ export const StrategyComparisonResult: React.FC<StrategyComparisonResultProps> =
 
       <ReturnLinesChart
         title="수익률 추이"
-        subtitle="그때까지 넣은 돈 대비 몇 % 인지 · 점은 적립식 · 조건부 · 이동평균이 돈을 넣은 날"
+        subtitle="그때까지 넣은 돈 대비 몇 % 인지 · 점은 적립식 · 조건부 · 이동평균 · 밴드가 돈을 넣은 날"
         series={series}
         scale="linear"
         highlightedKey={expanded}

@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { DcaFields } from './DcaFields'
 import { ConditionalFields } from './ConditionalFields'
 import { MaCrossFields } from './MaCrossFields'
+import { MaBandFields } from './MaBandFields'
 
 // 기대값은 TZ=Asia/Seoul 전제 (vitest.config.ts 에서 고정)
 const COMMON = { startDate: '2023-01-02', endDate: '2023-12-29', investment: '1000000' }
@@ -78,6 +79,29 @@ describe('전략 칩 설정 칸', () => {
 
     expect(screen.getByText('긴 기간보다 짧게')).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: '짧은 기간(일)' })).toHaveAttribute('aria-invalid', 'true')
+  })
+
+  it('밴드 칩은 칩 이름으로 시작하는 밴드 칸 하나이고 바꾼 값을 키와 함께 넘기며, 맞지 않는 칸에 오류', () => {
+    const onChange = vi.fn()
+    render(
+      <MaBandFields
+        name="밴드 2"
+        params={{ bandWindow: '200', upperPercent: '2.5', lowerPercent: '100' }}
+        onChange={onChange}
+        common={COMMON}
+      />
+    )
+
+    expect(screen.getByText('밴드 2 설정')).toBeInTheDocument()
+    expect(screen.getByText('0 이상 100 미만')).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: '아래 비율(평균 대비 퍼센트)' })).toHaveAttribute('aria-invalid', 'true')
+    fireEvent.change(screen.getByRole('textbox', { name: '평균 기간(일)' }), { target: { value: '100' } })
+    fireEvent.change(screen.getByRole('textbox', { name: '위 비율(평균 대비 퍼센트)' }), { target: { value: '3' } })
+    fireEvent.change(screen.getByRole('textbox', { name: '아래 비율(평균 대비 퍼센트)' }), { target: { value: '5' } })
+
+    expect(onChange).toHaveBeenCalledWith('bandWindow', '100')
+    expect(onChange).toHaveBeenCalledWith('upperPercent', '3')
+    expect(onChange).toHaveBeenCalledWith('lowerPercent', '5')
   })
 
   it('조건부 칩의 조건 % 를 비우면 그 칸에 오류', () => {

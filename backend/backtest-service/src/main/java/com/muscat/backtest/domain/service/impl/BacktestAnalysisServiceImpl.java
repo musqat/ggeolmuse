@@ -11,6 +11,7 @@ import com.muscat.backtest.common.validation.BacktestRequestValidator;
 import com.muscat.backtest.domain.dto.request.BaseComparisonRequest;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
+import com.muscat.backtest.domain.dto.request.MaBandStrategyRequest;
 import com.muscat.backtest.domain.dto.request.MaCrossStrategyRequest;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
 import com.muscat.backtest.domain.dto.request.StrategyComparisonRequest;
@@ -67,6 +68,11 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
   @Override
   public StrategyResponse runMaCrossStrategy(MaCrossStrategyRequest request) {
     return runStrategy("이동평균 교차", request);
+  }
+
+  @Override
+  public StrategyResponse runMaBandStrategy(MaBandStrategyRequest request) {
+    return runStrategy("이동평균 밴드", request);
   }
 
   // 전략 실행 · 이력 저장과 걸린 시간 로그
@@ -272,6 +278,30 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
         .build();
 
       StrategyResponse result = execute(maCrossRequest);
+      return responseMapper.toComparisonItemFromStrategy(result, strategyName);
+    }
+
+    if (strategyType == StrategyType.MA_BAND) {
+      MaBandStrategyRequest maBandRequest = MaBandStrategyRequest.builder()
+        .symbol(request.getSymbol())
+        .startDate(request.getStartDate())
+        .endDate(request.getEndDate())
+        .userId(request.getUserId())
+        .investmentAmount(request.getInvestmentAmount())
+        .bandWindow(strategyConfig.getBandWindow())
+        .upperRate(strategyConfig.getUpperRate())
+        .lowerRate(strategyConfig.getLowerRate())
+        .purchaseFxRate(request.getPurchaseFxRate())
+        .currentFxRate(request.getCurrentFxRate())
+        // 밴드 아래에서 전량 팔아 재투자 끔
+        .reinvestDividends(false)
+        .dividendTaxRate(orZero(request.getDividendTaxRate()))
+        .tradingFeeRate(orZero(request.getTradingFeeRate()))
+        .capitalGainsTax(request.getCapitalGainsTax())
+        .periodEnd(request.getPeriodEnd())
+        .build();
+
+      StrategyResponse result = execute(maBandRequest);
       return responseMapper.toComparisonItemFromStrategy(result, strategyName);
     }
 

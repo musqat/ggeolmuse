@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { changedOptions, conditionalHow, dcaHow, detailParts, maCrossHow, sellText, simpleHow } from './summary'
+import { changedOptions, conditionalHow, dcaHow, detailParts, maBandHow, maCrossHow, sellText, simpleHow } from './summary'
 
 const NB = ' '
 const won = { byShares: false, amount: '100000', shares: '1' }
@@ -88,6 +88,15 @@ describe('요약 둘째 줄', () => {
     )
     expect(maCrossHow({ amount: '500000', short: '5', long: ' ' })).toBe(
       '원금 50만원 · 5일 선이 ?일 선을 넘으면 가진 돈 전부로 사고, 아래로 내려가면 전부 팜'
+    )
+  })
+
+  it('이동평균 밴드: 원금과 평균 기간 · 위 · 아래 비율의 규칙, 빈 칸은 ?', () => {
+    expect(maBandHow({ amount: '1000000', window: '200', upper: '2.5', lower: '2.5' })).toBe(
+      '원금 100만원 · 200일선 +2.5% 위로 오르면 가진 돈 전부로 사고, -2.5% 아래로 내려가면 전부 팜'
+    )
+    expect(maBandHow({ amount: '500000', window: '', upper: '3', lower: ' ' })).toBe(
+      '원금 50만원 · ?일선 +3% 위로 오르면 가진 돈 전부로 사고, -?% 아래로 내려가면 전부 팜'
     )
   })
 

@@ -58,6 +58,12 @@ public final class BacktestConstants {
     /** 짧은 이동평균이 긴 이동평균을 위에서 아래로 넘은 날 매도 */
     public static final String DEAD_CROSS = "데드 크로스";
 
+    /** 수정 종가가 밴드 위 선보다 높은 날 매수 */
+    public static final String BAND_BUY = "밴드 위 매수";
+
+    /** 수정 종가가 밴드 아래 선보다 낮은 날 매도 */
+    public static final String BAND_SELL = "밴드 아래 매도";
+
     /** 판 해의 양도세를 다음 해 5월 판 돈에서 냄 */
     public static final String CAPITAL_GAINS_TAX_PAYMENT = "양도세 납부";
   }
@@ -87,7 +93,7 @@ public final class BacktestConstants {
   }
 
   /**
-   * 이동평균 교차 기간 (거래일)
+   * 이동평균 기간 (거래일)
    */
   public static final class MovingAverage {
     private MovingAverage() {
@@ -108,6 +114,24 @@ public final class BacktestConstants {
 
     /** 기간 검사 오류 문구 */
     public static final String WINDOW_MESSAGE = "이동평균 기간은 2 ~ 250 사이이고 짧은 기간이 긴 기간보다 작아야 합니다";
+  }
+
+  /**
+   * 이동평균 밴드 (기간 범위는 이동평균과 같음)
+   */
+  public static final class Band {
+    private Band() {
+      throw new UnsupportedOperationException("Constants class cannot be instantiated");
+    }
+
+    /** 평균 기간 기본값 (거래일) */
+    public static final int DEFAULT_WINDOW = 200;
+
+    /** 위 · 아래 비율 기본값 (2.5%) */
+    public static final BigDecimal DEFAULT_RATE = new BigDecimal("0.025");
+
+    /** 밴드 검사 오류 문구 */
+    public static final String MESSAGE = "밴드 기간은 2 ~ 250, 위 · 아래 비율은 0% 이상 100% 미만이어야 합니다";
   }
 
   /**

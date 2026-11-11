@@ -23,11 +23,13 @@ export const Line = ({
   name,
   strokeOpacity,
   baseValue,
+  strokeDasharray,
 }: {
   dataKey: string;
   name?: string;
   strokeOpacity?: number;
   baseValue?: number;
+  strokeDasharray?: string;
 }) => (
   <i
     data-testid="line"
@@ -35,6 +37,7 @@ export const Line = ({
     data-name={name ?? ''}
     data-opacity={strokeOpacity ?? ''}
     data-base={baseValue ?? ''}
+    data-dash={strokeDasharray ?? ''}
   />
 );
 

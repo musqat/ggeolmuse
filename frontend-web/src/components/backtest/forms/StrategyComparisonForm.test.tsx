@@ -49,7 +49,7 @@ describe('StrategyComparisonForm', () => {
     })
 
     expect(screen.getByText('전략마다 원금')).toBeInTheDocument()
-    expect(screen.getByText('적립식 · 조건부 · 이동평균은 눌러서 설정')).toBeInTheDocument()
+    expect(screen.getByText('적립식 · 조건부 · 이동평균 · 밴드는 눌러서 설정')).toBeInTheDocument()
     expect(chips().getByRole('button', { name: '적립식' })).toHaveAttribute('aria-expanded', 'true')
     expect(chips().getByRole('button', { name: '조건부 매수' })).toHaveAttribute('aria-expanded', 'false')
     expect(screen.getByText('열린 칩 설정')).toBeInTheDocument()
@@ -98,10 +98,12 @@ describe('StrategyComparisonForm', () => {
     await userEvent.click(chips().getByRole('button', { name: '＋ 적립식' }))
     await userEvent.click(chips().getByRole('button', { name: '＋ 조건부 매수' }))
     await userEvent.click(chips().getByRole('button', { name: '＋ 이동평균' }))
+    await userEvent.click(chips().getByRole('button', { name: '＋ 밴드' }))
 
     expect(props.onAdd).toHaveBeenNthCalledWith(1, 'DCA')
     expect(props.onAdd).toHaveBeenNthCalledWith(2, 'CONDITIONAL_PURCHASE')
     expect(props.onAdd).toHaveBeenNthCalledWith(3, 'MA_CROSS')
+    expect(props.onAdd).toHaveBeenNthCalledWith(4, 'MA_BAND')
   })
 
   it('단순 매수 칩이 없으면 ＋ 단순 매수를 보인다', () => {
