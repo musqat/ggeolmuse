@@ -18,17 +18,24 @@ import com.muscat.trade.domain.dto.response.ProfitDetailResponse.Sale;
 import com.muscat.trade.domain.dto.response.ProfitFlowResponse.ProfitPoint;
 import com.muscat.trade.domain.dto.response.SymbolContributionResponse;
 import com.muscat.trade.domain.dto.response.SymbolContributionResponse.SymbolContribution;
+import com.muscat.trade.domain.dto.response.TradingHabitsResponse;
+import com.muscat.trade.domain.dto.response.TradingHabitsResponse.SymbolTrades;
+import com.muscat.trade.domain.dto.response.TradingHabitsResponse.WeekdayTrades;
 import com.muscat.trade.domain.entity.DividendPayout;
 import com.muscat.trade.domain.entity.Holdings;
 import com.muscat.trade.domain.entity.Trade;
 import com.muscat.trade.infra.client.dto.ExchangeRecordDto;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,6 +51,7 @@ public final class PortfolioStatsCalculator {
 
   private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
   private static final int QUANTITY_SCALE = 6;
+  private static final int TOP_SYMBOLS = 5;
 
   // 매도 하나의 실현 손익과 줄어든 투자금액(USD, 반올림 전)
   public record SellResult(Trade trade, BigDecimal realizedUsd, BigDecimal costUsd) {
@@ -87,11 +95,7 @@ public final class PortfolioStatsCalculator {
     Map<String, BigDecimal> fees = new HashMap<>();
     Map<String, BigDecimal> dividends = new HashMap<>();
     List<SellResult> sells = new ArrayList<>();
-    List<Trade> completed = trades.stream()
-      .filter(trade -> trade.getStatus() == TradeStatus.COMPLETED && !trade.getTradeDate().isAfter(until))
-      .sorted(ProfitFlowCalculator.TRADE_ORDER)
-      .toList();
-    for (Trade trade : completed) {
+    for (Trade trade : completedUntil(trades, until)) {
       String symbol = trade.getSymbol();
       BigDecimal investedBefore = invested(positions.get(symbol));
       BigDecimal gain = ProfitFlowCalculator.apply(positions, trade, pricePrecision);
@@ -115,6 +119,14 @@ public final class PortfolioStatsCalculator {
         fees.getOrDefault(symbol, ZERO)));
     }
     return new Replay(sells, totals);
+  }
+
+  // until 이하 거래일의 완료 체결(수익 흐름 계산과 같은 순서)
+  private static List<Trade> completedUntil(List<Trade> trades, LocalDate until) {
+    return trades.stream()
+      .filter(trade -> trade.getStatus() == TradeStatus.COMPLETED && !trade.getTradeDate().isAfter(until))
+      .sorted(ProfitFlowCalculator.TRADE_ORDER)
+      .toList();
   }
 
   private static BigDecimal invested(Holdings position) {
@@ -328,6 +340,104 @@ public final class PortfolioStatsCalculator {
   // 환전 달러(판 달러는 음수) × (그 날짜 환율 − 환전 환율), 환율이 없으면 0
   private static BigDecimal effect(BigDecimal signedUsd, BigDecimal fxRate, BigDecimal exchangeRate) {
     return fxRate == null ? ZERO : signedUsd.multiply(fxRate.subtract(exchangeRate));
+  }
+
+  // 거래 패턴(accounts 는 계좌마다 모든 상태 체결, start 가 null 이면 전체 기간)
+  public static TradingHabitsResponse habits(List<List<Trade>> accounts, LocalDate start, LocalDate today,
+    int pricePrecision) {
+    List<Trade> traded = new ArrayList<>();
+    List<SellResult> sells = new ArrayList<>();
+    HeldDays held = HeldDays.NONE;
+    for (List<Trade> trades : accounts) {
+      List<Trade> completed = completedUntil(trades, today);
+      completed.stream().filter(trade -> inPeriod(trade, start)).forEach(traded::add);
+      replay(trades, List.of(), today, pricePrecision).sells().stream()
+        .filter(sell -> inPeriod(sell.trade(), start))
+        .forEach(sells::add);
+      held = held.plus(heldDays(completed, start));
+    }
+
+    Map<DayOfWeek, Long> byWeekday = traded.stream()
+      .collect(Collectors.groupingBy(trade -> trade.getTradeDate().getDayOfWeek(), Collectors.counting()));
+    List<WeekdayTrades> weekdays = Stream.of(DayOfWeek.values())
+      .map(weekday -> new WeekdayTrades(weekday, byWeekday.getOrDefault(weekday, 0L).intValue()))
+      .toList();
+    List<SymbolTrades> topSymbols = traded.stream()
+      .collect(Collectors.groupingBy(Trade::getSymbol))
+      .entrySet().stream()
+      .map(symbol -> symbolTrades(symbol.getKey(), symbol.getValue()))
+      .sorted(Comparator.comparingInt(SymbolTrades::tradeCount).reversed()
+        .thenComparing(SymbolTrades::amountUsd, Comparator.reverseOrder())
+        .thenComparing(SymbolTrades::symbol))
+      .limit(TOP_SYMBOLS)
+      .toList();
+    int winCount = (int) sells.stream().filter(sell -> usd(sell.realizedUsd()).signum() > 0).count();
+    return new TradingHabitsResponse(buyCount(traded), sells.size(),
+      (int) traded.stream().map(Trade::getTradeDate).distinct().count(), held.average(), winCount,
+      sells.size() - winCount,
+      sells.isEmpty() ? null : percent(BigDecimal.valueOf(winCount), BigDecimal.valueOf(sells.size())),
+      weekdays, topSymbols);
+  }
+
+  // 짝지은 매수 수량 합과 수량 × 보유 일수 합
+  private record HeldDays(BigDecimal quantity, BigDecimal quantityDays) {
+
+    static final HeldDays NONE = new HeldDays(ZERO, ZERO);
+
+    HeldDays plus(HeldDays other) {
+      return new HeldDays(quantity.add(other.quantity), quantityDays.add(other.quantityDays));
+    }
+
+    // 짝지은 수량이 없으면 null
+    BigDecimal average() {
+      return quantity.signum() == 0 ? null : quantityDays.divide(quantity, 1, RoundingMode.HALF_UP);
+    }
+  }
+
+  // 아직 짝짓지 않은 매수 수량
+  private record Lot(LocalDate tradeDate, BigDecimal quantity) {
+  }
+
+  // 매도마다 판 수량을 종목마다 먼저 산 매수부터 짝지은 보유 일수(기간 안 매도만, 보유보다 많이 판 수량은 짝 없음)
+  private static HeldDays heldDays(List<Trade> completed, LocalDate start) {
+    Map<String, Deque<Lot>> lots = new HashMap<>();
+    HeldDays held = HeldDays.NONE;
+    for (Trade trade : completed) {
+      Deque<Lot> symbolLots = lots.computeIfAbsent(trade.getSymbol(), symbol -> new ArrayDeque<>());
+      if (trade.getTradeType() == TradeType.BUY) {
+        symbolLots.addLast(new Lot(trade.getTradeDate(), trade.getQuantity()));
+        continue;
+      }
+      BigDecimal remaining = trade.getQuantity();
+      while (remaining.signum() > 0 && !symbolLots.isEmpty()) {
+        Lot lot = symbolLots.pollFirst();
+        BigDecimal matched = lot.quantity().min(remaining);
+        if (lot.quantity().compareTo(matched) > 0) {
+          symbolLots.addFirst(new Lot(lot.tradeDate(), lot.quantity().subtract(matched)));
+        }
+        remaining = remaining.subtract(matched);
+        if (inPeriod(trade, start)) {
+          long days = ChronoUnit.DAYS.between(lot.tradeDate(), trade.getTradeDate());
+          held = held.plus(new HeldDays(matched, matched.multiply(BigDecimal.valueOf(days))));
+        }
+      }
+    }
+    return held;
+  }
+
+  private static SymbolTrades symbolTrades(String symbol, List<Trade> trades) {
+    int buyCount = buyCount(trades);
+    return new SymbolTrades(symbol, trades.size(), buyCount, trades.size() - buyCount,
+      usd(sum(trades.stream().map(trade -> trade.getQuantity().multiply(trade.getPrice())))));
+  }
+
+  private static int buyCount(List<Trade> trades) {
+    return (int) trades.stream().filter(trade -> trade.getTradeType() == TradeType.BUY).count();
+  }
+
+  // 거래일이 start(null 이면 처음)부터
+  private static boolean inPeriod(Trade trade, LocalDate start) {
+    return start == null || !trade.getTradeDate().isBefore(start);
   }
 
   // 그 날짜 이하 가장 늦은 종가

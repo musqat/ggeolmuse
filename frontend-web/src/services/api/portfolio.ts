@@ -160,6 +160,33 @@ export type FxStatsResponse = {
   exchanges: FxExchange[];
 };
 
+export type Weekday = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY';
+
+// 거래일 요일 하나의 체결 수
+export type WeekdayTrades = { weekday: Weekday; count: number };
+
+// 종목 하나의 체결 수와 체결 금액(수량 × 체결가 합, 수수료 제외)
+export type SymbolTrades = {
+  symbol: string;
+  tradeCount: number;
+  buyCount: number;
+  sellCount: number;
+  amountUsd: number;
+};
+
+// 기간 안 거래일의 완료 체결 패턴(들고 있던 수량을 판 매도가 없으면 averageHoldingDays null, 매도가 없으면 winRatePercent null, 요일은 월요일부터 7개)
+export type TradingHabitsResponse = {
+  buyCount: number;
+  sellCount: number;
+  tradingDays: number;
+  averageHoldingDays: number | null;
+  winCount: number;
+  lossCount: number;
+  winRatePercent: number | null;
+  weekdays: WeekdayTrades[];
+  topSymbols: SymbolTrades[];
+};
+
 export const portfolioApi = {
   // 전체 포트폴리오 조회
   getPortfolio: () =>
@@ -192,4 +219,8 @@ export const portfolioApi = {
   // 계좌 하나 또는 전체 계좌의 기간 환율 효과
   getFxStats: (accountId: number | 'all', period: ProfitFlowPeriod) =>
     apiClient.get<FxStatsResponse>('/portfolio/stats/fx', { params: { accountId, period } }),
+
+  // 계좌 하나 또는 전체 계좌의 기간 거래 패턴
+  getTradingHabits: (accountId: number | 'all', period: ProfitFlowPeriod) =>
+    apiClient.get<TradingHabitsResponse>('/portfolio/stats/habits', { params: { accountId, period } }),
 };

@@ -31,6 +31,9 @@ vi.mock('recharts', async () => ({
       data-label={labelFormatter ? String(labelFormatter('2024-09')) : ''}
     />
   ),
+  YAxis: ({ allowDecimals }: { allowDecimals?: boolean }) => (
+    <i data-testid="y-axis" data-decimals={String(allowDecimals ?? true)} />
+  ),
 }))
 
 const signedKrw = (value: number) => formatSigned(Math.round(value), formatKrw)
@@ -48,6 +51,7 @@ const readBars = () => {
       .map((line) => JSON.parse(line.dataset.ref ?? '{}')),
     tooltip: JSON.parse(within(chart).getByTestId('tooltip').dataset.sample ?? 'null'),
     tooltipLabel: within(chart).getByTestId('tooltip').dataset.label,
+    decimals: within(chart).getByTestId('y-axis').dataset.decimals,
   }
 }
 
@@ -78,6 +82,28 @@ describe('StatsBarChart', () => {
     expect(bars.refLines).toEqual([{ y: 0 }])
     expect(bars.tooltip).toEqual(['+₩1,234,568', '수익'])
     expect(bars.tooltipLabel).toBe('24.9')
+    expect(bars.decimals).toBe('true')
+  })
+
+  it('개수 막대는 모든 막대를 한 색으로 칠하고 값 축 눈금을 정수로만 둔다', () => {
+    render(
+      <StatsBarChart
+        counts
+        data={[
+          { label: '월', value: 3 },
+          { label: '화', value: 0 },
+        ]}
+        name="체결 수"
+        formatValue={(value) => `${value}회`}
+        formatAxis={(value) => `${value}`}
+      />
+    )
+
+    const bars = readBars()
+    expect(bars.layout).toBe('horizontal')
+    expect(bars.fills).toEqual(['var(--accent-dark)', 'var(--accent-dark)'])
+    expect(bars.decimals).toBe('false')
+    expect(bars.tooltip).toEqual(['1234567.891회', '체결 수'])
   })
 
   it('가로 막대는 이름을 세로 축에 두고 같은 색 규칙을 쓴다', () => {

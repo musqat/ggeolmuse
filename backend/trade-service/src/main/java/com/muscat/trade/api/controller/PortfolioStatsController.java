@@ -6,6 +6,7 @@ import com.muscat.trade.domain.dto.response.FxStatsResponse;
 import com.muscat.trade.domain.dto.response.ProfitDetailResponse;
 import com.muscat.trade.domain.dto.response.ProfitFlowResponse;
 import com.muscat.trade.domain.dto.response.SymbolContributionResponse;
+import com.muscat.trade.domain.dto.response.TradingHabitsResponse;
 import com.muscat.trade.domain.service.PortfolioStatsService;
 import com.muscat.trade.domain.service.ProfitFlowService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -106,5 +107,18 @@ public class PortfolioStatsController {
     @Parameter(description = PERIOD, schema = @Schema(type = "string", allowableValues = {"1M", "3M", "1Y", "ALL"}))
     @RequestParam("period") FlowPeriod period) {
     return ResponseEntity.ok(portfolioStatsService.fx(jwt.getSubject(), accountId, period));
+  }
+
+  @Operation(summary = "거래 패턴 조회",
+    description = "기간 안 완료 체결의 매수 · 매도 수 · 거래한 날 · 평균 보유 일수 · 승률 · 요일마다 체결 수 · "
+      + "많이 거래한 종목 5개(남의 계좌는 403)")
+  @GetMapping("/habits")
+  public ResponseEntity<TradingHabitsResponse> habits(
+    @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
+    @Parameter(description = ACCOUNT, example = "all")
+    @RequestParam("accountId") String accountId,
+    @Parameter(description = PERIOD, schema = @Schema(type = "string", allowableValues = {"1M", "3M", "1Y", "ALL"}))
+    @RequestParam("period") FlowPeriod period) {
+    return ResponseEntity.ok(portfolioStatsService.habits(jwt.getSubject(), accountId, period));
   }
 }

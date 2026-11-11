@@ -28,9 +28,13 @@ import com.muscat.trade.domain.dto.response.ProfitFlowResponse;
 import com.muscat.trade.domain.dto.response.ProfitFlowResponse.ProfitPoint;
 import com.muscat.trade.domain.dto.response.SymbolContributionResponse;
 import com.muscat.trade.domain.dto.response.SymbolContributionResponse.SymbolContribution;
+import com.muscat.trade.domain.dto.response.TradingHabitsResponse;
+import com.muscat.trade.domain.dto.response.TradingHabitsResponse.SymbolTrades;
+import com.muscat.trade.domain.dto.response.TradingHabitsResponse.WeekdayTrades;
 import com.muscat.trade.domain.service.PortfolioStatsService;
 import com.muscat.trade.domain.service.ProfitFlowService;
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
@@ -57,6 +61,7 @@ class PortfolioStatsControllerTest {
   private static final String SYMBOLS = "/api/portfolio/stats/symbols";
   private static final String DIVIDENDS = "/api/portfolio/stats/dividends";
   private static final String FX = "/api/portfolio/stats/fx";
+  private static final String HABITS = "/api/portfolio/stats/habits";
 
   @Autowired
   private MockMvc mockMvc;
@@ -260,8 +265,37 @@ class PortfolioStatsControllerTest {
       .andExpect(jsonPath("$.errorCode").value("USER_SERVICE_ERROR"));
   }
 
+  @Test
+  @DisplayName("거래 패턴은 토큰 주인의 매수 · 매도 수 · 거래한 날 · 평균 보유 기간 · 승률 · 요일마다 체결 수 · 많이 거래한 종목을 돌려준다")
+  void habits_ReturnsStats() throws Exception {
+    given(portfolioStatsService.habits("user-1", "3", FlowPeriod.THREE_MONTHS)).willReturn(new TradingHabitsResponse(
+      12, 4, 10, new BigDecimal("42.5"), 3, 1, new BigDecimal("75.00"),
+      List.of(new WeekdayTrades(DayOfWeek.MONDAY, 3), new WeekdayTrades(DayOfWeek.TUESDAY, 0)),
+      List.of(new SymbolTrades("AAPL", 6, 4, 2, new BigDecimal("2450.30")))));
+
+    mockMvc.perform(get(HABITS).param("accountId", "3").param("period", "3M")
+        .with(jwt().jwt(t -> t.subject("user-1"))))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.buyCount").value(12))
+      .andExpect(jsonPath("$.sellCount").value(4))
+      .andExpect(jsonPath("$.tradingDays").value(10))
+      .andExpect(jsonPath("$.averageHoldingDays").value(42.5))
+      .andExpect(jsonPath("$.winCount").value(3))
+      .andExpect(jsonPath("$.lossCount").value(1))
+      .andExpect(jsonPath("$.winRatePercent").value(75.00))
+      .andExpect(jsonPath("$.weekdays[0].weekday").value("MONDAY"))
+      .andExpect(jsonPath("$.weekdays[0].count").value(3))
+      .andExpect(jsonPath("$.weekdays[1].weekday").value("TUESDAY"))
+      .andExpect(jsonPath("$.weekdays[1].count").value(0))
+      .andExpect(jsonPath("$.topSymbols[0].symbol").value("AAPL"))
+      .andExpect(jsonPath("$.topSymbols[0].tradeCount").value(6))
+      .andExpect(jsonPath("$.topSymbols[0].buyCount").value(4))
+      .andExpect(jsonPath("$.topSymbols[0].sellCount").value(2))
+      .andExpect(jsonPath("$.topSymbols[0].amountUsd").value(2450.30));
+  }
+
   @ParameterizedTest(name = "{0}")
-  @ValueSource(strings = {PROFIT, SYMBOLS, DIVIDENDS, FX})
+  @ValueSource(strings = {PROFIT, SYMBOLS, DIVIDENDS, FX, HABITS})
   @DisplayName("통계 탭도 기간 값이 1M · 3M · 1Y · ALL 이 아니면 400, 토큰이 없으면 401 이고 서비스까지 가지 않는다")
   void tabs_InvalidPeriodOrNoToken(String path) throws Exception {
     mockMvc.perform(get(path).param("accountId", "all").param("period", "2W").with(jwt()))
@@ -279,6 +313,8 @@ class PortfolioStatsControllerTest {
       .willThrow(new TradeException(TradeResponse.ACCOUNT_ACCESS_DENIED));
     given(portfolioStatsService.symbols("user-1", "abc", FlowPeriod.ALL))
       .willThrow(new TradeException(TradeResponse.INVALID_ACCOUNT_ID));
+    given(portfolioStatsService.habits("user-1", "7", FlowPeriod.ONE_YEAR))
+      .willThrow(new TradeException(TradeResponse.ACCOUNT_ACCESS_DENIED));
 
     mockMvc.perform(get(PROFIT).param("accountId", "7").param("period", "ALL")
         .with(jwt().jwt(t -> t.subject("user-1"))))
@@ -286,5 +322,8 @@ class PortfolioStatsControllerTest {
     mockMvc.perform(get(SYMBOLS).param("accountId", "abc").param("period", "ALL")
         .with(jwt().jwt(t -> t.subject("user-1"))))
       .andExpect(status().isBadRequest());
+    mockMvc.perform(get(HABITS).param("accountId", "7").param("period", "1Y")
+        .with(jwt().jwt(t -> t.subject("user-1"))))
+      .andExpect(status().isForbidden());
   }
 }

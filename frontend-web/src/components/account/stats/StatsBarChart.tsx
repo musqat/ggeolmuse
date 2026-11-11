@@ -10,6 +10,7 @@ import {
 
 const GAIN_COLOR = 'rgb(var(--gain))';
 const LOSS_COLOR = 'rgb(var(--loss))';
+const COUNT_COLOR = 'var(--accent-dark)';
 
 // 가로 막대 한 줄 높이와 값 축 자리
 const ROW_HEIGHT = 32;
@@ -30,9 +31,11 @@ interface StatsBarChartProps {
   formatLabel?: (label: string) => string;
   // 이름 축을 세로로 둔 가로 막대
   horizontal?: boolean;
+  // 체결 수처럼 개수인 막대(한 색 · 정수 눈금)
+  counts?: boolean;
 }
 
-// 막대마다 이익 · 손실 색인 막대 그래프(0 에 기준선)
+// 막대마다 이익 · 손실 색인 막대 그래프(개수 막대는 한 색, 0 에 기준선)
 export const StatsBarChart: React.FC<StatsBarChartProps> = ({
   data,
   name,
@@ -40,8 +43,9 @@ export const StatsBarChart: React.FC<StatsBarChartProps> = ({
   formatAxis,
   formatLabel,
   horizontal = false,
+  counts = false,
 }) => {
-  const valueAxis = { ...AXIS_PROPS, type: 'number' as const, tickFormatter: formatAxis };
+  const valueAxis = { ...AXIS_PROPS, type: 'number' as const, tickFormatter: formatAxis, allowDecimals: !counts };
   const labelAxis = { ...AXIS_PROPS, type: 'category' as const, dataKey: 'label', tickFormatter: formatLabel };
   return (
     <ResponsiveContainer
@@ -61,7 +65,7 @@ export const StatsBarChart: React.FC<StatsBarChartProps> = ({
         <ReferenceLine {...(horizontal ? { x: 0 } : { y: 0 })} stroke="rgb(var(--line-strong))" />
         <Bar dataKey="value" name={name} maxBarSize={40}>
           {data.map((bar) => (
-            <Cell key={bar.label} fill={bar.value >= 0 ? GAIN_COLOR : LOSS_COLOR} />
+            <Cell key={bar.label} fill={counts ? COUNT_COLOR : bar.value >= 0 ? GAIN_COLOR : LOSS_COLOR} />
           ))}
         </Bar>
       </BarChart>
