@@ -122,12 +122,7 @@ public class StrategyCalculator {
                     cost = cost.subtract(cost.multiply(tx.getShares().negate()).divide(shares, 8, RoundingMode.HALF_UP));
                 }
             } else {
-                if (Decimals.isPositive(tx.getAmount())) {
-                    cost = cost.add(tx.getAmount().divide(tx.getFxRate(), 8, RoundingMode.HALF_UP));
-                }
-                if (tx.getCashUsed() != null) {
-                    cost = cost.add(tx.getCashUsed());
-                }
+                cost = cost.add(tx.costUsd());
             }
             shares = shares.add(tx.getShares());
         }

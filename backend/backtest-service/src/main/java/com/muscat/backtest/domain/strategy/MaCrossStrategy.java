@@ -1,5 +1,6 @@
 package com.muscat.backtest.domain.strategy;
 
+import com.muscat.backtest.common.calculation.TradeStatsCalculator;
 import com.muscat.backtest.common.constants.BacktestConstants.MovingAverage;
 import com.muscat.backtest.common.constants.BacktestConstants.TransactionTrigger;
 import com.muscat.backtest.common.engine.CapitalGainsTaxPayer;
@@ -96,6 +97,7 @@ public class MaCrossStrategy implements InvestmentStrategy {
         ? finalized.capitalGainsTax(taxPayer.payments())
         : null);
       response.setSignalChart(averages.chart(request.getSymbol(), request.getStartDate()));
+      response.setTradeStats(TradeStatsCalculator.of(finalized.transactions(), request.getStartDate(), actualEndDate));
       return response;
 
     } finally {
@@ -167,9 +169,7 @@ public class MaCrossStrategy implements InvestmentStrategy {
           StrategyTransaction buy = buy(request, candle, fxRates, cash);
           transactions.add(buy);
           heldShares = buy.getShares();
-          heldCost = buy.getCashUsed() != null
-            ? buy.getCashUsed()
-            : buy.getAmount().divide(buy.getFxRate(), 8, RoundingMode.HALF_UP);
+          heldCost = buy.costUsd();
           cash = BigDecimal.ZERO;
         } else if (holding && cross == SignalChart.CrossType.DEAD) {
           StrategyTransaction sale = sell(request, candle, fxRates, heldShares, heldCost);

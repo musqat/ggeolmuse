@@ -33,11 +33,13 @@ interface ResultOverviewProps {
   timeWeighted?: boolean;
   // 카드 줄 끝에 더할 카드
   extraCard?: React.ReactNode;
+  // 카드 줄 아래 · 자산 추이 위에 둘 카드
+  belowCards?: React.ReactNode;
   // 있으면 자산 추이 뒤에 탭으로 묶을 차트
   chartTabs?: { key: string; label: string; render: () => React.ReactNode }[];
 }
 
-// 결과 위쪽: 지표 기준 통화 · 카드 한 줄 · 자산 추이(차트 탭이 있으면 탭으로 묶음)
+// 결과 위쪽: 지표 기준 통화 · 카드 한 줄(+ 아래 카드) · 자산 추이(차트 탭이 있으면 탭으로 묶음)
 export const ResultOverview: React.FC<ResultOverviewProps> = ({
   result,
   investedLabel,
@@ -49,6 +51,7 @@ export const ResultOverview: React.FC<ResultOverviewProps> = ({
   returnRateTestId,
   timeWeighted,
   extraCard,
+  belowCards,
   chartTabs,
 }) => {
   const { metrics, other, otherLabel, hasMetrics } = pickMetrics(result, currency);
@@ -76,6 +79,7 @@ export const ResultOverview: React.FC<ResultOverviewProps> = ({
         returnRateTestId={returnRateTestId}
         extra={extraCard}
       />
+      {belowCards}
       {chartTabs?.length ? (
         <ChartTabs
           label="결과 차트"

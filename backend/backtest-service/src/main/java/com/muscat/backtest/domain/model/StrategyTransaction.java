@@ -1,6 +1,7 @@
 package com.muscat.backtest.domain.model;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Builder;
@@ -51,5 +52,12 @@ public class StrategyTransaction {
     BigDecimal in = proceeds != null ? proceeds : BigDecimal.ZERO;
     BigDecimal out = cashUsed != null ? cashUsed : BigDecimal.ZERO;
     return in.subtract(out).subtract(taxPaid != null ? taxPaid : BigDecimal.ZERO);
+  }
+
+  // 매수 원가(USD, 넣은 원화를 그 날짜 환율로 바꾼 값 + 쓴 판 돈, 수수료 포함, 배당 재투자는 0)
+  @JsonIgnore
+  public BigDecimal costUsd() {
+    BigDecimal deposit = amount.signum() > 0 ? amount.divide(fxRate, 8, RoundingMode.HALF_UP) : BigDecimal.ZERO;
+    return cashUsed != null ? deposit.add(cashUsed) : deposit;
   }
 }

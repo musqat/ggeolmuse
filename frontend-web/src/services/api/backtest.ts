@@ -253,6 +253,24 @@ export type SignalChartData = {
   crosses: SignalCross[];
 };
 
+// 파는 전략의 사이클(보유 0 에서 산 날 ~ 전부 판 날, 기간 끝 매도 포함) 매매 통계
+export type TradeStats = {
+  buyCount: number;
+  sellCount: number;
+  cycleCount: number;                   // 끝난 사이클 수
+  openCycle: boolean;                   // 평가일에 들고 있음
+  winCount: number;
+  lossCount: number;
+  winRatePercent: number | null;        // 끝난 사이클이 없으면 null
+  averageWinPercent: number | null;     // 이긴 사이클 수익률 평균(%)
+  averageLossPercent: number | null;    // 진 사이클 수익률 절댓값 평균(%, 양수)
+  profitLossRatio: number | null;       // 평균 익절 ÷ 평균 손절
+  averageHoldingDays: number | null;
+  cyclesPerYear: number | null;         // 1년에 시작한 사이클 수
+  trailingStopCount: number;
+  partialTakeProfitCount: number;
+};
+
 // 적립식 · 조건부 · 이동평균 전략 응답
 export type StrategyResponse = {
   symbol: string;
@@ -286,6 +304,7 @@ export type StrategyResponse = {
   dailyValues?: DailyValue[];               // 첫 매수일 ~ 평가일(마지막 날은 총자산)
   capitalGainsTax?: CapitalGainsTax | null;
   signalChart?: SignalChartData | null;     // 이동평균 교차만(비교 항목은 없음)
+  tradeStats?: TradeStats | null;           // 조건부 · 이동평균 교차만
 };
 
 // 비교 항목의 원래 응답(SimulationResponse 또는 StrategyResponse 라 두 쪽 칸 모두 선택)
