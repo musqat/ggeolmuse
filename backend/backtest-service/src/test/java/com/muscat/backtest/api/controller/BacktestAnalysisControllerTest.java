@@ -480,6 +480,38 @@ class BacktestAnalysisControllerTest {
   }
 
   @Test
+  @DisplayName("전략 비교의 밴드 칩은 회당 금액 없이 평균 기간 · 위 · 아래 비율을 받아 그대로 넘기고 비워도 된다")
+  void compareStrategies_MaBandChip() throws Exception {
+    given(backtestAnalysisService.compareStrategies(any())).willReturn(comparison("밴드"));
+
+    postJson("/compare/strategies", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":1000000,"
+      + "\"strategies\":[{\"strategyType\":\"MA_BAND\",\"name\":\"밴드\",\"bandWindow\":100,\"upperRate\":0.03,"
+      + "\"lowerRate\":0.05},{\"strategyType\":\"MA_BAND\"},{\"strategyType\":\"SIMPLE\"}]}")
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.bestPerformer.name").value("밴드"));
+
+    verify(backtestAnalysisService).compareStrategies(argThat(r -> r.getStrategies().size() == 3
+      && r.getStrategies().get(0).getStrategyType() == StrategyType.MA_BAND
+      && r.getStrategies().get(0).getBandWindow() == 100
+      && r.getStrategies().get(0).getUpperRate().compareTo(new BigDecimal("0.03")) == 0
+      && r.getStrategies().get(0).getLowerRate().compareTo(new BigDecimal("0.05")) == 0
+      && r.getStrategies().get(1).getBandWindow() == null && r.getStrategies().get(1).getUpperRate() == null
+      && r.getStrategies().get(1).getLowerRate() == null));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @ValueSource(strings = {"\"bandWindow\":1", "\"bandWindow\":251", "\"upperRate\":-0.01", "\"upperRate\":1",
+    "\"lowerRate\":-0.01", "\"lowerRate\":1"})
+  @DisplayName("전략 비교의 밴드 칩 평균 기간이 2 ~ 250 밖이거나 비율이 0 이상 1 미만 밖이면 400 이고 서비스까지 가지 않는다")
+  void compareStrategies_InvalidMaBandChip(String band) throws Exception {
+    postJson("/compare/strategies", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":1000000,"
+      + "\"strategies\":[{\"strategyType\":\"MA_BAND\"," + band + "},{\"strategyType\":\"SIMPLE\"}]}")
+      .andExpect(status().isBadRequest());
+
+    verify(backtestAnalysisService, never()).compareStrategies(any());
+  }
+
+  @Test
   @DisplayName("전략 비교의 모든 전략이 매수 0회라 최고 수익 항목이 없어도 200 이다")
   void compareStrategies_NoBestPerformer() throws Exception {
     ComparisonItem none = ComparisonItem.builder().name("DCA").totalInvested(BigDecimal.ZERO)

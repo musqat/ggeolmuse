@@ -281,6 +281,30 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
       return responseMapper.toComparisonItemFromStrategy(result, strategyName);
     }
 
+    if (strategyType == StrategyType.MA_BAND) {
+      MaBandStrategyRequest maBandRequest = MaBandStrategyRequest.builder()
+        .symbol(request.getSymbol())
+        .startDate(request.getStartDate())
+        .endDate(request.getEndDate())
+        .userId(request.getUserId())
+        .investmentAmount(request.getInvestmentAmount())
+        .bandWindow(strategyConfig.getBandWindow())
+        .upperRate(strategyConfig.getUpperRate())
+        .lowerRate(strategyConfig.getLowerRate())
+        .purchaseFxRate(request.getPurchaseFxRate())
+        .currentFxRate(request.getCurrentFxRate())
+        // 밴드 아래에서 전량 팔아 재투자 끔
+        .reinvestDividends(false)
+        .dividendTaxRate(orZero(request.getDividendTaxRate()))
+        .tradingFeeRate(orZero(request.getTradingFeeRate()))
+        .capitalGainsTax(request.getCapitalGainsTax())
+        .periodEnd(request.getPeriodEnd())
+        .build();
+
+      StrategyResponse result = execute(maBandRequest);
+      return responseMapper.toComparisonItemFromStrategy(result, strategyName);
+    }
+
     if (strategyType == StrategyType.SIMPLE) {
       SimulationRequest simulationRequest = simulationWithOptions(request)
         .symbol(request.getSymbol())

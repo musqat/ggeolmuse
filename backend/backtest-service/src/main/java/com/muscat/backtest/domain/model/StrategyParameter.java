@@ -2,12 +2,15 @@ package com.muscat.backtest.domain.model;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.muscat.backtest.common.constants.BacktestConstants.Band;
 import com.muscat.backtest.common.constants.BacktestConstants.MovingAverage;
 import com.muscat.backtest.common.enums.type.DcaFrequency;
 import com.muscat.backtest.common.enums.type.PriceDirection;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -55,6 +58,17 @@ public class StrategyParameter {
   @Max(value = MovingAverage.MAX_WINDOW, message = MovingAverage.WINDOW_MESSAGE)
   private Integer longWindow;               // 비우면 60
 
+  // 이동평균 밴드용 (거래일 · 소수 비율)
+  @Min(value = MovingAverage.MIN_WINDOW, message = Band.MESSAGE)
+  @Max(value = MovingAverage.MAX_WINDOW, message = Band.MESSAGE)
+  private Integer bandWindow;               // 비우면 200
+  @DecimalMin(value = "0", message = Band.MESSAGE)
+  @DecimalMax(value = "1", inclusive = false, message = Band.MESSAGE)
+  private BigDecimal upperRate;             // 비우면 0.025
+  @DecimalMin(value = "0", message = Band.MESSAGE)
+  @DecimalMax(value = "1", inclusive = false, message = Band.MESSAGE)
+  private BigDecimal lowerRate;             // 비우면 0.025
+
   // 일시불용 (Simulation)
   private LocalDate purchaseDate;
 
@@ -64,7 +78,7 @@ public class StrategyParameter {
   @AssertTrue(message = "적립식 · 조건부 전략에는 회당 금액을 넣어 주세요")
   public boolean isAmountForPurchases() {
     return strategyType == null || strategyType == StrategyType.SIMPLE || strategyType == StrategyType.MA_CROSS
-      || amountPerPurchase != null;
+      || strategyType == StrategyType.MA_BAND || amountPerPurchase != null;
   }
 
   // 이동평균 교차는 짧은 기간 < 긴 기간(비운 칸은 기본값)

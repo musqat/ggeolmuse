@@ -780,6 +780,58 @@ class BacktestAnalysisServiceImplTest {
     }
 
     @Test
+    @DisplayName("전략 비교의 밴드 칩은 비교 원금 · 칩의 평균 기간 · 위 · 아래 비율과 공통 옵션을 넘기고 배당 재투자는 끈다")
+    void compareStrategies_MaBandPassesBand() {
+      StrategyParameter maBand = strategy(StrategyType.MA_BAND);
+      maBand.setBandWindow(100);
+      maBand.setUpperRate(new BigDecimal("0.03"));
+      maBand.setLowerRate(new BigDecimal("0.05"));
+      StrategyComparisonRequest request = strategyRequest(maBand);
+      withOptions(request);
+      given(maBandStrategy.execute(any())).willReturn(StrategyResponse.builder().build());
+      given(responseMapper.toComparisonItemFromStrategy(any(), eq("MA_BAND"))).willReturn(item);
+      stubComparisonResponse();
+
+      backtestAnalysisService.compareStrategies(request);
+
+      ArgumentCaptor<MaBandStrategyRequest> maBandRequest = ArgumentCaptor.forClass(MaBandStrategyRequest.class);
+      verify(maBandStrategy).execute(maBandRequest.capture());
+      MaBandStrategyRequest sent = maBandRequest.getValue();
+      assertThat(sent.getSymbol()).isEqualTo("AAPL");
+      assertThat(sent.getStartDate()).isEqualTo(LocalDate.of(2023, 1, 1));
+      assertThat(sent.getEndDate()).isEqualTo(LocalDate.of(2024, 1, 1));
+      assertThat(sent.getUserId()).isEqualTo("user123");
+      assertThat(sent.getInvestmentAmount()).isEqualByComparingTo(BigDecimal.valueOf(1_000_000));
+      assertThat(sent.getBandWindow()).isEqualTo(100);
+      assertThat(sent.getUpperRate()).isEqualByComparingTo("0.03");
+      assertThat(sent.getLowerRate()).isEqualByComparingTo("0.05");
+      assertThat(sent.getReinvestDividends()).isFalse();
+      assertThat(sent.getPurchaseFxRate()).isEqualByComparingTo(new BigDecimal("1300"));
+      assertThat(sent.getCurrentFxRate()).isEqualByComparingTo(new BigDecimal("1350"));
+      assertThat(sent.getDividendTaxRate()).isEqualByComparingTo(new BigDecimal("0.15"));
+      assertThat(sent.getTradingFeeRate()).isEqualByComparingTo(new BigDecimal("0.0025"));
+      assertThat(sent.getCapitalGainsTax()).isTrue();
+      assertThat(sent.getPeriodEnd()).isEqualTo(PeriodEnd.SELL_AT_END);
+    }
+
+    @Test
+    @DisplayName("전략 비교의 밴드 칩 옵션이 비면 수수료 0 · 배당세 0 으로 넘기고 비운 밴드 칸은 그대로 둔다")
+    void compareStrategies_MaBandEmptyOptions() {
+      StrategyComparisonRequest request = strategyRequest(strategy(StrategyType.MA_BAND));
+      given(maBandStrategy.execute(any())).willReturn(StrategyResponse.builder().build());
+      given(responseMapper.toComparisonItemFromStrategy(any(), any())).willReturn(item);
+      stubComparisonResponse();
+
+      backtestAnalysisService.compareStrategies(request);
+
+      verify(maBandStrategy).execute(argThat(r -> {
+        MaBandStrategyRequest sent = (MaBandStrategyRequest) r;
+        return sent.getTradingFeeRate().signum() == 0 && sent.getDividendTaxRate().signum() == 0
+          && sent.getBandWindow() == null && sent.getUpperRate() == null && sent.getLowerRate() == null;
+      }));
+    }
+
+    @Test
     @DisplayName("옵션이 비면 재투자 끔 · 수수료 0 · 배당세 0 · 투자 주기 1 로, 적립식 한도는 원금으로 넘긴다")
     void compareStrategies_EmptyOptions_UsesDefaults() {
       StrategyParameter simple = strategy(StrategyType.SIMPLE);

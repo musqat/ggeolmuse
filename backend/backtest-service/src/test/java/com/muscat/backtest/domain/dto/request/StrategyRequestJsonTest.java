@@ -129,6 +129,16 @@ class StrategyRequestJsonTest {
       .doesNotContain("windowOrder");
   }
 
+  @Test
+  @DisplayName("전략 비교의 밴드 칩은 평균 기간 · 위 · 아래 비율을 이력 JSON 에 저장한다")
+  void comparisonChipBandSaved() throws Exception {
+    StrategyParameter chip = objectMapper.readValue(
+      "{\"strategyType\":\"MA_BAND\",\"bandWindow\":100,\"upperRate\":0.03,\"lowerRate\":0.05}", StrategyParameter.class);
+
+    assertThat(objectMapper.writeValueAsString(chip))
+      .contains("\"strategyType\":\"MA_BAND\"", "\"bandWindow\":100", "\"upperRate\":0.03", "\"lowerRate\":0.05");
+  }
+
   private MaCrossStrategyRequest maCross() {
     return MaCrossStrategyRequest.builder().symbol("AAPL").startDate(LocalDate.of(2023, 1, 1)).endDate(LocalDate.of(2024, 1, 1))
       .investmentAmount(BigDecimal.valueOf(10000)).shortWindow(5).longWindow(20).userId("user-1").build();
