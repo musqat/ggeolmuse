@@ -2,6 +2,7 @@ import type { PriceDirection } from '@services/api';
 import { formatReadableWon } from '../../../utils/format';
 import { DIRECTIONS } from '../shared/priceDirection';
 import type { BacktestOptions } from '../shared/backtestOptions';
+import type { TakeProfitStep } from '../shared/partialTakeProfit';
 
 // 한 회차에 사는 단위와 그 돈(주식 수면 시작일 시세로 추정, 모르면 perRound 없음, defaultFx 는 기본 환율로 셈)
 export interface RoundUnit {
@@ -66,6 +67,16 @@ export const trailingText = (stop: string, sell: string) => {
     : `고점 대비 하락 매도 -${drop}%(보유의 ${share}%씩)`;
 };
 
+// 부분 익절 단계마다 평균 단가 대비 수익률에 보유의 팔 비율(100 이상은 전량, 빈 칸은 ?), 단계가 없으면 빈 글
+export const partialTakeProfitText = (steps: TakeProfitStep[]) => {
+  if (!steps.length) return '';
+  const parts = steps.map(({ gain, sell }) => {
+    const share = sell.trim();
+    return `+${gain.trim() || '?'}%에 ${share && Number(share) >= 100 ? '전량' : `보유의 ${share || '?'}%`}`;
+  });
+  return `부분 익절 ${parts.join(', ')}(평균 단가 기준)`;
+};
+
 interface ConditionalSummary {
   percent: string;
   direction: PriceDirection;
@@ -76,8 +87,9 @@ interface ConditionalSummary {
   weekdays: number;
   takeProfit: string;
   stopLoss: string;
-  // 트레일링 스탑 글(끄면 빈 글)
+  // 트레일링 스탑 · 부분 익절 글(끄면 빈 글)
   trailing?: string;
+  partial?: string;
 }
 
 // 횟수는 예산 ÷ 한 번 살 돈과 최대 횟수 가운데 먼저 닿는 쪽
@@ -95,12 +107,13 @@ const limitText = ({ unit, budget, maxPurchases, weekdays }: ConditionalSummary)
 };
 
 export const conditionalHow = (summary: ConditionalSummary) => {
-  const { percent, direction, unit, takeProfit, stopLoss, trailing } = summary;
+  const { percent, direction, unit, takeProfit, stopLoss, trailing, partial } = summary;
   const parts = [
     `전날보다 ${percent.trim() || '?'}% ${DIRECTIONS[direction].verb} 때마다 ${unitText(unit)}`,
     limitText(summary),
     sellText(takeProfit, stopLoss),
     trailing,
+    partial,
   ];
   return parts.filter(Boolean).join(' · ');
 };
@@ -113,9 +126,9 @@ export const maCrossText = (short: string, long: string) =>
 const signalLead = (amount: string, signal?: string) =>
   [`원금 ${formatReadableWon(parseFloat(amount))}`, signal && `신호 ${signal}`].filter(Boolean).join(' · ');
 
-// 원금 · 신호 종목과 신호 규칙 뒤에 트레일링 스탑 글(끄면 빈 글)
-const signalHow = (amount: string, signal: string | undefined, rule: string, trailing?: string) =>
-  [signalLead(amount, signal), rule, trailing].filter(Boolean).join(' · ');
+// 원금 · 신호 종목과 신호 규칙 뒤에 트레일링 스탑 · 부분 익절 글(끄면 빈 글)
+const signalHow = (amount: string, signal: string | undefined, rule: string, ...sells: (string | undefined)[]) =>
+  [signalLead(amount, signal), rule, ...sells].filter(Boolean).join(' · ');
 
 export const maCrossHow = ({
   amount,
@@ -123,13 +136,15 @@ export const maCrossHow = ({
   long,
   signal,
   trailing,
+  partial,
 }: {
   amount: string;
   short: string;
   long: string;
   signal?: string;
   trailing?: string;
-}) => signalHow(amount, signal, maCrossText(short, long), trailing);
+  partial?: string;
+}) => signalHow(amount, signal, maCrossText(short, long), trailing, partial);
 
 // 이동평균 밴드 규칙(빈 칸은 ?)
 export const maBandText = (window: string, upper: string, lower: string) =>
@@ -142,6 +157,7 @@ export const maBandHow = ({
   lower,
   signal,
   trailing,
+  partial,
 }: {
   amount: string;
   window: string;
@@ -149,7 +165,8 @@ export const maBandHow = ({
   lower: string;
   signal?: string;
   trailing?: string;
-}) => signalHow(amount, signal, maBandText(window, upper, lower), trailing);
+  partial?: string;
+}) => signalHow(amount, signal, maBandText(window, upper, lower), trailing, partial);
 
 type DetailInput = Pick<
   BacktestOptions,

@@ -10,6 +10,7 @@ import {
   fxRateIssue,
   maxIssue,
   monthsIssue,
+  partialTakeProfitIssues,
   percentIssue,
   sellIssue,
   signalIssue,
@@ -103,6 +104,27 @@ describe('설정 칸 검사', () => {
     expect(trailingIssues('10', '0')).toEqual({ stop: null, sell: error('0 초과 100 이하') })
     expect(trailingIssues('10', '100.1')).toEqual({ stop: null, sell: error('0 초과 100 이하') })
     expect(trailingIssues('', '50')).toEqual({ stop: null, sell: error('하락 비율과 함께') })
+  })
+
+  it('부분 익절: 단계마다 수익률은 0 초과로 앞 단계보다 크게, 팔 비율은 0 초과 100 이하, 빈 칸은 오류', () => {
+    const step = (gain: string, sell: string) => ({ gain, sell })
+    const ok = { gain: null, sell: null }
+
+    expect(partialTakeProfitIssues([])).toEqual([])
+    expect(partialTakeProfitIssues([step('20', '25'), step('50', '100')])).toEqual([ok, ok])
+    expect(partialTakeProfitIssues([step('', '')])).toEqual([
+      { gain: error('1단계 수익률 비어 있음'), sell: error('1단계 팔 비율 비어 있음') },
+    ])
+    expect(partialTakeProfitIssues([step('0', '0'), step('10', '100.1')])).toEqual([
+      { gain: error('1단계 수익률 0 초과'), sell: error('1단계 팔 비율 0 초과 100 이하') },
+      { gain: null, sell: error('2단계 팔 비율 0 초과 100 이하') },
+    ])
+    expect(partialTakeProfitIssues([step('20', '25'), step('20', '25'), step('', '25'), step('15', '25')])).toEqual([
+      ok,
+      { gain: error('2단계 수익률 앞 단계보다 크게'), sell: null },
+      { gain: error('3단계 수익률 비어 있음'), sell: null },
+      { gain: error('4단계 수익률 앞 단계보다 크게'), sell: null },
+    ])
   })
 
   it('최대 횟수: 비면 제한 없음, 적으면 1 이상 정수', () => {

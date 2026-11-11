@@ -4,6 +4,7 @@ import { isMonthly, parseMonths, type DcaCadence } from '../shared/dcaSchedule';
 import { parseWindow } from '../shared/maWindows';
 import { parseBandPercent } from '../shared/maBand';
 import type { SignalChoice } from '../shared/signalSymbol';
+import { stepRate, type TakeProfitStep } from '../shared/partialTakeProfit';
 import type { BacktestOptions } from '../shared/backtestOptions';
 
 // 칸 아래 한 줄(오류는 실행을 막고 경고는 안 막음), 글 뒤에 작은 단추 하나
@@ -109,6 +110,32 @@ export const trailingIssues = (stop: string, sell: string): { stop: FieldMessage
     stop: stop.trim() && !(stopValue > 0 && stopValue < 100) ? error('0 초과 100 미만') : null,
     sell: sell.trim() ? sellMessage : null,
   };
+};
+
+// 부분 익절 단계마다 칸 오류(수익률은 0 초과로 앞 단계들보다 크게, 팔 비율은 0 초과 100 이하, 요청 비율로 바꾼 값으로 봄)
+export const partialTakeProfitIssues = (
+  steps: TakeProfitStep[],
+): { gain: FieldMessage | null; sell: FieldMessage | null }[] => {
+  let highest = 0;
+  return steps.map((step, index) => {
+    const n = index + 1;
+    const gainRate = stepRate(step.gain);
+    const sellRate = stepRate(step.sell);
+    const gain = !step.gain.trim()
+      ? error(`${n}단계 수익률 비어 있음`)
+      : !(gainRate > 0)
+        ? error(`${n}단계 수익률 0 초과`)
+        : gainRate <= highest
+          ? error(`${n}단계 수익률 앞 단계보다 크게`)
+          : null;
+    if (gainRate > highest) highest = gainRate;
+    const sell = !step.sell.trim()
+      ? error(`${n}단계 팔 비율 비어 있음`)
+      : sellRate > 0 && sellRate <= 1
+        ? null
+        : error(`${n}단계 팔 비율 0 초과 100 이하`);
+    return { gain, sell };
+  });
 };
 
 export const maxIssue = (max: string): FieldMessage | null => {

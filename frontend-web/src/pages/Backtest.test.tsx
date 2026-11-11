@@ -122,6 +122,9 @@ const reinvestRadio = () => within(screen.getByRole('radiogroup', { name: '배�
 const amountInput = () => screen.getByRole('textbox', { name: '금액(원)' })
 const trailingStopInput = () => screen.getByRole('textbox', { name: '고점 대비 하락 비율(퍼센트)' })
 const trailingSellInput = () => screen.getByRole('textbox', { name: '고점 대비 하락 때 팔 비율(보유 대비 퍼센트)' })
+const addStep = () => userEvent.click(screen.getByRole('button', { name: '＋ 단계 더하기' }))
+const stepGainInput = (n: number) => screen.getByRole('textbox', { name: `${n}단계 수익률(평균 단가 대비 퍼센트)` })
+const stepSellInput = (n: number) => screen.getByRole('textbox', { name: `${n}단계 팔 비율(보유 대비 퍼센트)` })
 
 describe('Backtest 페이지 모드 · 기록', () => {
   it('모드는 하나만 고르는 묶음이고 지난 기록은 모드 대신 제목 옆 링크로 따로 본다', () => {
@@ -690,6 +693,73 @@ describe('Backtest 페이지 칸 오류 · 요약', () => {
     expect(trailingStopInput()).toHaveValue('')
     await userEvent.click(screen.getByRole('button', { name: '직전 설정' }))
     expect(trailingStopInput()).toHaveValue('8')
+  })
+
+  it('조건부: 부분 익절 단계를 더해 적으면 요약에 적고 배당 재투자를 막으며 단계 비율로 요청한다', async () => {
+    renderPage()
+    await selectMode('조건부')
+    await addStep()
+    await userEvent.type(stepGainInput(1), '20')
+    await userEvent.type(stepSellInput(1), '25')
+    await addStep()
+    await userEvent.type(stepGainInput(2), '50')
+    await userEvent.type(stepSellInput(2), '100')
+
+    expect(summary()).toHaveTextContent('부분 익절 +20%에 보유의 25%, +50%에 전량(평균 단가 기준)')
+    await userEvent.click(detailToggle())
+    expect(reinvestRadio()).toHaveAttribute('aria-disabled', 'true')
+    await runBacktest()
+    expect(vi.mocked(backtestApi.runConditionalStrategy).mock.calls[0][0]).toMatchObject({
+      partialTakeProfits: [
+        { gainRate: 0.2, sellRate: 0.25 },
+        { gainRate: 0.5, sellRate: 1 },
+      ],
+      reinvestDividends: false,
+    })
+  })
+
+  it('이동평균 밴드: 부분 익절 수익률이 앞 단계보다 작으면 그 칸으로 가며 요청하지 않고, 앞 단계를 지우면 남은 단계로 요청한다', async () => {
+    renderPage()
+    await selectMode('이동평균 밴드')
+    await addStep()
+    await userEvent.type(stepGainInput(1), '30')
+    await userEvent.type(stepSellInput(1), '50')
+    await addStep()
+    await userEvent.type(stepGainInput(2), '10')
+    await userEvent.type(stepSellInput(2), '50')
+
+    expect(screen.getByText('2단계 수익률 앞 단계보다 크게')).toBeInTheDocument()
+    expect(summary()).toHaveTextContent('고칠 칸 1개')
+    await runBacktest()
+    expect(stepGainInput(2)).toHaveFocus()
+    expect(backtestApi.runMaBandStrategy).not.toHaveBeenCalled()
+
+    await userEvent.click(screen.getByRole('button', { name: '1단계 지우기' }))
+    await runBacktest()
+    expect(vi.mocked(backtestApi.runMaBandStrategy).mock.calls[0][0]).toMatchObject({
+      partialTakeProfits: [{ gainRate: 0.1, sellRate: 0.5 }],
+    })
+  })
+
+  it('이동평균: 부분 익절 단계를 요약에 적고 요청하며, 직전 설정으로 되살리고 설정 초기화로 비운다', async () => {
+    renderPage()
+    await selectMode('이동평균')
+    await addStep()
+    await userEvent.type(stepGainInput(1), '15')
+    await userEvent.type(stepSellInput(1), '30')
+
+    expect(summary()).toHaveTextContent('아래로 내려가면 전부 팜 · 부분 익절 +15%에 보유의 30%(평균 단가 기준)')
+    await runBacktest()
+    expect(vi.mocked(backtestApi.runMaCrossStrategy).mock.calls[0][0]).toMatchObject({
+      partialTakeProfits: [{ gainRate: 0.15, sellRate: 0.3 }],
+    })
+
+    await userEvent.click(screen.getByRole('button', { name: '설정 초기화' }))
+    await selectMode('이동평균')
+    expect(screen.queryByRole('textbox', { name: '1단계 수익률(평균 단가 대비 퍼센트)' })).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: '직전 설정' }))
+    expect(stepGainInput(1)).toHaveValue('15')
+    expect(stepSellInput(1)).toHaveValue('30')
   })
 
   it('주식 수 추정에 쓸 시작일 환율이 없으면 칸 · 요약에 기본 환율 기준을 적는다', async () => {

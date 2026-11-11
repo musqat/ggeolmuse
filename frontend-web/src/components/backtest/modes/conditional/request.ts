@@ -4,6 +4,7 @@ import type { BuildResult, RunContext } from '../types';
 import { toOptionFields, type BacktestOptions } from '../../shared/backtestOptions';
 import { hasSellRates, toSellRates } from '../../shared/sellRates';
 import { hasTrailingStop, toTrailingStop } from '../../shared/trailingStop';
+import { hasPartialTakeProfits, toPartialTakeProfits, type TakeProfitStep } from '../../shared/partialTakeProfit';
 import { parseShares, type AmountUnitValues } from '../../shared/amountUnit';
 
 export interface ConditionalValues extends BacktestOptions, AmountUnitValues {
@@ -19,6 +20,8 @@ export interface ConditionalValues extends BacktestOptions, AmountUnitValues {
   // 트레일링 스탑 고점 대비 하락 % · 보유의 팔 %(비우면 끔 · 전량)
   trailingStop?: string;
   trailingSell?: string;
+  // 부분 익절 단계(비우면 끔)
+  partialTakeProfits?: TakeProfitStep[];
 }
 
 // 빈 칸은 undefined, 아니면 숫자(못 읽으면 NaN)
@@ -66,6 +69,10 @@ export const buildConditionalRequest = (
   if ('error' in trailing) {
     return trailing;
   }
+  const partial = toPartialTakeProfits(values.partialTakeProfits ?? []);
+  if ('error' in partial) {
+    return partial;
+  }
 
   // 종료일이 비어있으면 오늘
   const effectiveEndDate = values.endDate || ctx.today;
@@ -85,9 +92,14 @@ export const buildConditionalRequest = (
     ...toOptionFields(values),
     ...sell.rates,
     ...trailing.fields,
+    ...partial.fields,
   };
-  // 익절 · 손절 · 트레일링 스탑은 배당 재투자와 함께 못 씀
-  if (hasSellRates(values.takeProfit, values.stopLoss) || hasTrailingStop(values.trailingStop)) {
+  // 익절 · 손절 · 트레일링 스탑 · 부분 익절은 배당 재투자와 함께 못 씀
+  if (
+    hasSellRates(values.takeProfit, values.stopLoss) ||
+    hasTrailingStop(values.trailingStop) ||
+    hasPartialTakeProfits(values.partialTakeProfits)
+  ) {
     request.reinvestDividends = false;
   }
   return { request };

@@ -3,6 +3,7 @@ import type { BuildResult, RunContext } from '../types';
 import { toOptionFields, type BacktestOptions } from '../../shared/backtestOptions';
 import { parseWindows, WINDOWS_ERROR } from '../../shared/maWindows';
 import { toTrailingStop } from '../../shared/trailingStop';
+import { toPartialTakeProfits, type TakeProfitStep } from '../../shared/partialTakeProfit';
 
 export interface MaCrossValues extends BacktestOptions {
   startDate: string;
@@ -15,9 +16,11 @@ export interface MaCrossValues extends BacktestOptions {
   // 트레일링 스탑 고점 대비 하락 % · 보유의 팔 %(비우면 끔 · 전량)
   trailingStop?: string;
   trailingSell?: string;
+  // 부분 익절 단계(비우면 끔)
+  partialTakeProfits?: TakeProfitStep[];
 }
 
-// 이동평균 교차 요청(검사에 걸리면 alert 문구), 금액은 원금 · 두 기간은 늘 채움 · 신호 종목 · 트레일링 스탑은 적은 때만 · 배당 재투자는 늘 끔
+// 이동평균 교차 요청(검사에 걸리면 alert 문구), 금액은 원금 · 두 기간은 늘 채움 · 신호 종목 · 트레일링 스탑 · 부분 익절은 적은 때만 · 배당 재투자는 늘 끔
 export const buildMaCrossRequest = (
   values: MaCrossValues,
   symbol: string,
@@ -35,6 +38,10 @@ export const buildMaCrossRequest = (
   if ('error' in trailing) {
     return trailing;
   }
+  const partial = toPartialTakeProfits(values.partialTakeProfits ?? []);
+  if ('error' in partial) {
+    return partial;
+  }
 
   // 빈 종료일은 오늘로 채워 검사
   const effectiveEndDate = values.endDate || ctx.today;
@@ -51,6 +58,7 @@ export const buildMaCrossRequest = (
       ...windows,
       ...(values.signalSymbol && { signalSymbol: values.signalSymbol }),
       ...trailing.fields,
+      ...partial.fields,
       ...toOptionFields(values),
       reinvestDividends: false,
     },

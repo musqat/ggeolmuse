@@ -140,8 +140,19 @@ export type TrailingStopRequest = {
   trailingSellRate?: number;            // 팔 비율 (0.5 = 50%, 0 초과 1 이하, 비우면 전량, 하락 비율과 함께)
 };
 
+// 부분 익절 한 단계(종가가 평균 단가 대비 수익률만큼 오르면 보유의 팔 비율만큼 팜)
+export type PartialTakeProfit = {
+  gainRate: number;                     // 수익률 (0.2 = 20%, 0 초과, 앞 단계보다 크게)
+  sellRate: number;                     // 팔 비율 (0.25 = 25%, 0 초과 1 이하)
+};
+
+// 조건부 · 이동평균 · 밴드의 부분 익절 단계(낮은 단계부터 사이클에 한 번씩, 하루에 한 단계)
+export type PartialTakeProfitRequest = {
+  partialTakeProfits?: PartialTakeProfit[]; // 5단계까지, 비우면 안 함
+};
+
 // 조건부 매수 전략 요청
-export type ConditionalStrategyRequest = BacktestCommonRequest & TrailingStopRequest & {
+export type ConditionalStrategyRequest = BacktestCommonRequest & TrailingStopRequest & PartialTakeProfitRequest & {
   symbol: string;                       // 종목 심볼
   startDate: string;                    // 시작일
   endDate: string;                      // 종료일
@@ -156,7 +167,7 @@ export type ConditionalStrategyRequest = BacktestCommonRequest & TrailingStopReq
 };
 
 // 이동평균 교차 전략 요청(골든 크로스에 가진 돈 전부로 사고 데드 크로스에 전부 팜)
-export type MaCrossStrategyRequest = BacktestCommonRequest & TrailingStopRequest & {
+export type MaCrossStrategyRequest = BacktestCommonRequest & TrailingStopRequest & PartialTakeProfitRequest & {
   symbol: string;                       // 종목 심볼
   startDate: string;                    // 시작일
   endDate: string;                      // 종료일
@@ -167,7 +178,7 @@ export type MaCrossStrategyRequest = BacktestCommonRequest & TrailingStopRequest
 };
 
 // 이동평균 밴드 전략 요청(수정 종가가 평균 위 선보다 높으면 가진 돈 전부로 사고 아래 선보다 낮으면 전부 팜)
-export type MaBandStrategyRequest = BacktestCommonRequest & TrailingStopRequest & {
+export type MaBandStrategyRequest = BacktestCommonRequest & TrailingStopRequest & PartialTakeProfitRequest & {
   symbol: string;                       // 종목 심볼
   startDate: string;                    // 시작일
   endDate: string;                      // 종료일
