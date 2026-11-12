@@ -28,6 +28,13 @@ export const MAX_ROWS = 10;
 
 export const STRATEGIES: readonly PortfolioStrategyType[] = ['LUMP_SUM', 'DCA', 'MA_CROSS', 'MA_BAND'];
 
+export const STRATEGY_LABELS: Record<PortfolioStrategyType, string> = {
+  LUMP_SUM: '한 번에',
+  DCA: '적립식',
+  MA_CROSS: '이동평균',
+  MA_BAND: '밴드',
+};
+
 const SIGNAL_DEFAULTS = {
   shortWindow: MA_WINDOWS.short,
   longWindow: MA_WINDOWS.long,

@@ -23,6 +23,7 @@ vi.mock('../AssetChart', () => ({
 
 const asset = (patch: Partial<PortfolioAssetResult>): PortfolioAssetResult => ({
   symbol: 'SPY',
+  strategyType: 'LUMP_SUM',
   investedKrw: 6000000,
   valueKrw: 8650000,
   soldKrw: 0,
@@ -67,6 +68,7 @@ const result: PortfolioBacktestResponse = {
     asset({}),
     asset({
       symbol: 'QQQ',
+      strategyType: 'DCA',
       investedKrw: 4000000,
       valueKrw: 5450000,
       soldKrw: 120000,
@@ -157,21 +159,30 @@ describe('PortfolioResult', () => {
     expect(card('연평균 수익률')).toHaveTextContent('1년 미만이면 내지 않음')
   })
 
-  it('종목별 표는 요청 순서 줄마다 넣은 돈 · 지금 가치(판 돈 · 배당) · 수익률 · 기여 · 비중 처음 → 지금, 맨 아래 현금 줄과 종목 밖 이익 줄을 둔다', () => {
+  it('종목별 표는 요청 순서 줄마다 전략 · 넣은 돈 · 지금 가치(판 돈 · 배당) · 수익률 · 기여 · 비중 처음 → 지금, 맨 아래 현금 줄과 종목 밖 이익 줄을 둔다', () => {
     render(<PortfolioResult result={result} />)
 
     expect(screen.getByRole('heading', { name: '종목별' })).toBeInTheDocument()
     expect(screen.getByText('평가일 환율 ₩1,385.20')).toBeInTheDocument()
+    expect(within(screen.getByRole('table')).getAllByRole('columnheader').map((th) => th.textContent)).toEqual([
+      '종목',
+      '전략',
+      '넣은 돈',
+      '지금 가치',
+      '수익률',
+      '기여',
+      '비중 처음 → 지금',
+    ])
     const [spy, qqq, cash, other] = rows()
     const cells = (row: HTMLElement) => within(row).getAllByRole('cell').map((cell) => cell.textContent)
     expect(within(spy).getByRole('rowheader')).toHaveTextContent('SPY')
-    expect(cells(spy)).toEqual(['₩6,000,000', '₩8,650,000배당 ₩410,000', '+51.00%', '+₩3,060,000 · 72.00%', '60.00% → 60.70%'])
-    expect(cells(qqq)).toEqual(['₩4,000,000', '₩5,450,000판 돈 ₩120,000', '+36.25%', '+₩1,450,000 · 34.12%', '40.00% → 38.25%'])
+    expect(cells(spy)).toEqual(['한 번에', '₩6,000,000', '₩8,650,000배당 ₩410,000', '+51.00%', '+₩3,060,000 · 72.00%', '60.00% → 60.70%'])
+    expect(cells(qqq)).toEqual(['적립식', '₩4,000,000', '₩5,450,000판 돈 ₩120,000', '+36.25%', '+₩1,450,000 · 34.12%', '40.00% → 38.25%'])
     expect(within(qqq).getByText('+36.25%')).toHaveClass('text-gain')
     expect(within(cash).getByRole('rowheader')).toHaveTextContent('현금')
-    expect(cells(cash)).toEqual(['-', '₩150,000', '-', '-', '- → 1.05%'])
+    expect(cells(cash)).toEqual(['-', '-', '₩150,000', '-', '-', '- → 1.05%'])
     expect(within(other).getByRole('rowheader')).toHaveTextContent('현금 환율 차 · 양도세')
-    expect(cells(other)).toEqual(['-', '-', '-', '-₩260,000', '-'])
+    expect(cells(other)).toEqual(['-', '-', '-', '-', '-₩260,000', '-'])
     expect(within(other).getByText('-₩260,000')).toHaveClass('text-loss')
   })
 
@@ -190,8 +201,27 @@ describe('PortfolioResult', () => {
 
     expect(rows()).toHaveLength(2)
     const cells = within(rows()[0]).getAllByRole('cell').map((cell) => cell.textContent)
-    expect(cells).toEqual(['₩0', '₩0', '-', '₩0 · -', '60.00% → 0.00%'])
-    expect(within(rows()[1]).getAllByRole('cell').map((cell) => cell.textContent)).toEqual(['-', '₩0', '-', '-', '- → 0.00%'])
+    expect(cells).toEqual(['한 번에', '₩0', '₩0', '-', '₩0 · -', '60.00% → 0.00%'])
+    expect(within(rows()[1]).getAllByRole('cell').map((cell) => cell.textContent)).toEqual(['-', '-', '₩0', '-', '-', '- → 0.00%'])
+  })
+
+  it('이동평균 · 밴드 종목은 전략 이름을 보이고, 기간 안 매수 신호가 없어 사지 않았으면 그 아래 매수 신호 없음', () => {
+    render(
+      <PortfolioResult
+        result={{
+          ...result,
+          assets: [
+            asset({ strategyType: 'MA_CROSS', investedKrw: 0, valueKrw: 0, dividendKrw: 0, profitKrw: 0, returnPercent: null, buyCount: 0 }),
+            asset({ symbol: 'QQQ', strategyType: 'MA_BAND', buyCount: 3, sellCount: 2 }),
+            asset({ symbol: 'IAU', strategyType: 'DCA', investedKrw: 0, buyCount: 0 }),
+          ],
+        }}
+      />
+    )
+
+    const strategy = (row: HTMLElement) => within(row).getAllByRole('cell')[0].textContent
+    expect(rows().slice(0, 3).map(strategy)).toEqual(['이동평균매수 신호 없음', '밴드', '적립식'])
+    expect(within(rows()[0]).getByText('매수 신호 없음')).toHaveClass('text-xs')
   })
 
   it('판 것이 없으면 실현 손익 카드 · 매매 내역 · 예상 양도세가 없다', () => {

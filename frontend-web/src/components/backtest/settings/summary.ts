@@ -1,8 +1,9 @@
-import type { PortfolioRebalance, PriceDirection } from '@services/api';
+import type { PortfolioRebalance, PortfolioStrategyType, PriceDirection } from '@services/api';
 import { formatReadableWon } from '../../../utils/format';
 import { DIRECTIONS } from '../shared/priceDirection';
 import type { BacktestOptions } from '../shared/backtestOptions';
 import type { TakeProfitStep } from '../shared/partialTakeProfit';
+import { STRATEGY_LABELS } from '../shared/portfolioRows';
 
 // 한 회차에 사는 단위와 그 돈(주식 수면 시작일 시세로 추정, 모르면 perRound 없음, defaultFx 는 기본 환율로 셈)
 export interface RoundUnit {
@@ -52,11 +53,8 @@ export const dcaHow = ({ unit, cadenceLabel, rounds, daily, budget }: DcaSummary
 };
 
 interface PortfolioSummary {
-  // 종목 줄 수
-  count: number;
-  // 한 번(적립식은 회당)에 넣는 줄 금액 합(원)
-  perRound: number;
-  dca: boolean;
+  // 줄마다 전략과 금액(원, 적립식은 회당, 이동평균 · 밴드는 첫 매수 신호에)
+  lines: { strategy: PortfolioStrategyType; amount: number }[];
   cadenceLabel: string;
   rounds: number;
   daily: boolean;
@@ -72,11 +70,29 @@ const REBALANCE_TEXT: Record<PortfolioRebalance, string> = {
   MONTHLY: '매달 처음 비중으로 리밸런싱',
 };
 
-// 포트폴리오: 종목 수와 한 번에 넣는 합계(적립식은 적립식 요약), 줄 익절 · 손절 글, 리밸런싱하면 그 주기
-export const portfolioHow = ({ count, perRound, dca, cadenceLabel, rounds, daily, sell, rebalance }: PortfolioSummary) => {
-  const unit = { byShares: false, amount: String(perRound), shares: '' };
-  const buy = dca ? dcaHow({ unit, cadenceLabel, rounds, daily, budget: '' }) : `한 번에 ${formatReadableWon(perRound)}`;
-  return [`종목 ${count}개`, buy, sell, REBALANCE_TEXT[rebalance]].filter(Boolean).join(' · ');
+const SIGNALS: readonly PortfolioStrategyType[] = ['MA_CROSS', 'MA_BAND'];
+
+// 포트폴리오: 종목 수와 전략마다 넣는 합계(한 번에 · 적립식 요약 · 이동평균 · 밴드는 첫 매수 신호에, 전략이 섞이면 전략마다 줄 수), 줄 익절 · 손절 글, 리밸런싱하면 그 주기(이동평균 · 밴드 줄은 빼고)
+export const portfolioHow = ({ lines, cadenceLabel, rounds, daily, sell, rebalance }: PortfolioSummary) => {
+  const pick = (strategies: readonly PortfolioStrategyType[]) => lines.filter((line) => strategies.includes(line.strategy));
+  const total = (picked: PortfolioSummary['lines']) => picked.reduce((sum, line) => sum + line.amount, 0);
+  const mixed = new Set(lines.map((line) => line.strategy)).size > 1;
+  const lump = pick(['LUMP_SUM']);
+  const dca = pick(['DCA']);
+  const signals = pick(SIGNALS);
+  const signalNames = SIGNALS.filter((strategy) => pick([strategy]).length).map((strategy) => STRATEGY_LABELS[strategy]);
+  const unit = { byShares: false, amount: String(total(dca)), shares: '' };
+  const rebalanced = REBALANCE_TEXT[rebalance] && signals.length < lines.length;
+  return [
+    `종목 ${lines.length}개`,
+    lump.length > 0 && `한 번에 ${mixed ? `${lump.length}개 ` : ''}${formatReadableWon(total(lump))}`,
+    dca.length > 0 && `${mixed ? `적립식 ${dca.length}개 ` : ''}${dcaHow({ unit, cadenceLabel, rounds, daily, budget: '' })}`,
+    signals.length > 0 && `${signalNames.join(' · ')} ${signals.length}개 첫 매수 신호에 ${formatReadableWon(total(signals))}`,
+    sell,
+    rebalanced && `${REBALANCE_TEXT[rebalance]}${signals.length ? '(이동평균 · 밴드 빼고)' : ''}`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 };
 
 // 익절 · 손절(평균 단가 기준 전량 매도), 둘 다 비면 빈 글

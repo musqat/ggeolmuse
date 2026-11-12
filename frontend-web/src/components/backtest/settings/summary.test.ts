@@ -17,6 +17,13 @@ const NB = ' '
 const won = { byShares: false, amount: '100000', shares: '1' }
 const oneShare = (perRound?: number) => ({ byShares: true, amount: '', shares: '1', perRound })
 
+// 포트폴리오 줄 전략과 금액(원, 적립식은 회당)
+const lump = (amount: number) => ({ strategy: 'LUMP_SUM' as const, amount })
+const dca = (amount: number) => ({ strategy: 'DCA' as const, amount })
+const cross = (amount: number) => ({ strategy: 'MA_CROSS' as const, amount })
+const band = (amount: number) => ({ strategy: 'MA_BAND' as const, amount })
+const schedule = { cadenceLabel: '매달 8일', rounds: 12, daily: false }
+
 describe('요약 둘째 줄', () => {
   it('단순: 시작일에 금액 매수, 주식 수면 추정 금액과 기준', () => {
     expect(simpleHow({ byShares: false, amount: '1000000', shares: '1' })).toBe('시작일에 100만원 매수')
@@ -45,27 +52,46 @@ describe('요약 둘째 줄', () => {
   })
 
   it('포트폴리오: 종목 수와 한 번에 넣는 합계, 적립식은 주기 · 회당 합계 · 회차 · 총액', () => {
-    const base = { count: 2, perRound: 10000000, dca: false, cadenceLabel: '매달 8일', rounds: 12, daily: false, rebalance: 'NONE' as const }
+    const base = { lines: [lump(6000000), lump(4000000)], ...schedule, rebalance: 'NONE' as const }
 
     expect(portfolioHow(base)).toBe('종목 2개 · 한 번에 1,000만원')
-    expect(portfolioHow({ ...base, count: 3, perRound: 1000000, dca: true })).toBe('종목 3개 · 매달 8일 100만원 · 12회 ≈ 1,200만원')
-    expect(portfolioHow({ ...base, perRound: 100000, dca: true, cadenceLabel: '거래일마다', rounds: 250, daily: true })).toBe(
+    expect(portfolioHow({ ...base, lines: [dca(500000), dca(300000), dca(200000)] })).toBe('종목 3개 · 매달 8일 100만원 · 12회 ≈ 1,200만원')
+    expect(portfolioHow({ ...base, lines: [dca(60000), dca(40000)], cadenceLabel: '거래일마다', rounds: 250, daily: true })).toBe(
       '종목 2개 · 거래일마다 10만원 · 약 250회 ≈ 2,500만원'
     )
   })
 
+  it('포트폴리오 줄 전략이 섞이면 한 번에 · 적립식 · 이동평균 · 밴드마다 줄 수와 금액, 이동평균 · 밴드는 첫 매수 신호에 넣는 합계', () => {
+    expect(portfolioHow({ lines: [lump(6000000), dca(1000000), cross(3000000), band(2000000)], ...schedule, rebalance: 'NONE' })).toBe(
+      '종목 4개 · 한 번에 1개 600만원 · 적립식 1개 매달 8일 100만원 · 12회 ≈ 1,200만원 · 이동평균 · 밴드 2개 첫 매수 신호에 500만원'
+    )
+    expect(portfolioHow({ lines: [lump(6000000), lump(1000000), cross(3000000)], ...schedule, rebalance: 'NONE' })).toBe(
+      '종목 3개 · 한 번에 2개 700만원 · 이동평균 1개 첫 매수 신호에 300만원'
+    )
+    expect(portfolioHow({ lines: [band(10000000)], ...schedule, rebalance: 'NONE' })).toBe('종목 1개 · 밴드 1개 첫 매수 신호에 1,000만원')
+  })
+
   it('포트폴리오 리밸런싱: 고른 주기마다 처음 비중으로 다시 나눈다는 글을 뒤에', () => {
-    const base = { count: 2, perRound: 10000000, dca: false, cadenceLabel: '매달 8일', rounds: 12, daily: false }
+    const base = { lines: [lump(6000000), lump(4000000)], ...schedule }
 
     expect(portfolioHow({ ...base, rebalance: 'YEARLY' })).toBe('종목 2개 · 한 번에 1,000만원 · 매년 처음 비중으로 리밸런싱')
     expect(portfolioHow({ ...base, rebalance: 'QUARTERLY' })).toBe('종목 2개 · 한 번에 1,000만원 · 분기마다 처음 비중으로 리밸런싱')
-    expect(portfolioHow({ ...base, perRound: 1000000, dca: true, rebalance: 'MONTHLY' })).toBe(
+    expect(portfolioHow({ ...base, lines: [dca(600000), dca(400000)], rebalance: 'MONTHLY' })).toBe(
       '종목 2개 · 매달 8일 100만원 · 12회 ≈ 1,200만원 · 매달 처음 비중으로 리밸런싱'
     )
   })
 
+  it('포트폴리오 리밸런싱은 이동평균 · 밴드 줄을 빼고 나눈다고 적고, 모든 줄이 이동평균 · 밴드면 적지 않음', () => {
+    expect(portfolioHow({ lines: [lump(6000000), cross(4000000)], ...schedule, rebalance: 'YEARLY' })).toBe(
+      '종목 2개 · 한 번에 1개 600만원 · 이동평균 1개 첫 매수 신호에 400만원 · 매년 처음 비중으로 리밸런싱(이동평균 · 밴드 빼고)'
+    )
+    expect(portfolioHow({ lines: [cross(6000000), band(4000000)], ...schedule, rebalance: 'YEARLY' })).toBe(
+      '종목 2개 · 이동평균 · 밴드 2개 첫 매수 신호에 1,000만원'
+    )
+  })
+
   it('포트폴리오 익절 · 손절: 줄 글을 매수 글 뒤 · 리밸런싱 앞에, 빈 글이면 넣지 않음', () => {
-    const base = { count: 2, perRound: 10000000, dca: false, cadenceLabel: '매달 8일', rounds: 12, daily: false }
+    const base = { lines: [lump(6000000), lump(4000000)], ...schedule }
     const sell = '1개 종목에 익절 · 손절(평균 단가 기준 전량)'
 
     expect(portfolioHow({ ...base, rebalance: 'NONE', sell })).toBe(`종목 2개 · 한 번에 1,000만원 · ${sell}`)

@@ -2,14 +2,7 @@ import type { PortfolioMethod, PortfolioStrategyType } from '@services/api';
 import { digitsOnly, oneDecimal } from '../../settings/inputText';
 import { isError, type FieldMessage, type PortfolioRowMessages } from '../../settings/checks';
 import { LEAD, UNIT, VALUE_ROW } from '../../settings/styles';
-import { STRATEGIES, chosenStrategy, rowStrategy, type PortfolioRow } from '../../shared/portfolioRows';
-
-const STRATEGY_LABELS: Record<PortfolioStrategyType, string> = {
-  LUMP_SUM: '한 번에',
-  DCA: '적립식',
-  MA_CROSS: '이동평균',
-  MA_BAND: '밴드',
-};
+import { STRATEGIES, STRATEGY_LABELS, chosenStrategy, rowStrategy, type PortfolioRow } from '../../shared/portfolioRows';
 
 type SignalKey = 'shortWindow' | 'longWindow' | 'bandWindow' | 'upper' | 'lower';
 

@@ -2,10 +2,12 @@ import React from 'react';
 import type { PortfolioAssetResult, PortfolioBacktestResponse } from '../../../../services/api';
 import { gainLossClass } from '../../../../utils/gainLoss';
 import { formatFxRate, formatKrw, formatPercent, formatSigned } from '../../../../utils/format';
+import { STRATEGY_LABELS } from '../../shared/portfolioRows';
 
 const HEAD = 'px-3 py-2 text-xs font-medium text-tx-2';
 const NAME = 'px-3 py-2 text-left font-medium text-tx-1';
 const NUMBER = 'px-3 py-2 text-right tabular-nums';
+const TEXT = 'px-3 py-2 text-left';
 const EMPTY = 'text-tx-3';
 
 const percentOrDash = (value: number | null) => (value == null ? '-' : formatPercent(value));
@@ -18,6 +20,8 @@ const besides = (asset: PortfolioAssetResult) =>
 
 const Dash: React.FC = () => <span className={EMPTY}>-</span>;
 
+const isSignal = (asset: PortfolioAssetResult) => asset.strategyType === 'MA_CROSS' || asset.strategyType === 'MA_BAND';
+
 const AssetRow: React.FC<{ asset: PortfolioAssetResult }> = ({ asset }) => {
   const extra = besides(asset);
   return (
@@ -25,6 +29,10 @@ const AssetRow: React.FC<{ asset: PortfolioAssetResult }> = ({ asset }) => {
       <th scope="row" className={NAME}>
         {asset.symbol}
       </th>
+      <td className={TEXT}>
+        <div>{STRATEGY_LABELS[asset.strategyType]}</div>
+        {isSignal(asset) && asset.buyCount === 0 && <div className="text-xs text-tx-2">매수 신호 없음</div>}
+      </td>
       <td className={NUMBER}>{formatKrw(asset.investedKrw)}</td>
       <td className={NUMBER}>
         <div>{formatKrw(asset.valueKrw)}</div>
@@ -48,7 +56,7 @@ const AssetRow: React.FC<{ asset: PortfolioAssetResult }> = ({ asset }) => {
   );
 };
 
-// 포트폴리오 종목별 표: 줄마다 넣은 돈 · 지금 가치 · 수익률 · 기여(이익 · 전체 이익 중 몫) · 비중 처음 → 지금, 맨 아래 현금 줄과 종목 밖 이익(0 이 아닐 때) 줄
+// 포트폴리오 종목별 표: 줄마다 전략(이동평균 · 밴드 줄이 사지 않았으면 매수 신호 없음) · 넣은 돈 · 지금 가치 · 수익률 · 기여(이익 · 전체 이익 중 몫) · 비중 처음 → 지금, 맨 아래 현금 줄과 종목 밖 이익(0 이 아닐 때) 줄
 export const PortfolioAssetTable: React.FC<{ result: PortfolioBacktestResponse }> = ({ result }) => {
   const cashWeight = result.totalAssetKrw > 0 ? Math.round((result.cashKrw / result.totalAssetKrw) * 10000) / 100 : 0;
   return (
@@ -62,6 +70,7 @@ export const PortfolioAssetTable: React.FC<{ result: PortfolioBacktestResponse }
           <thead>
             <tr className="border-b border-line">
               <th scope="col" className={`${HEAD} text-left`}>종목</th>
+              <th scope="col" className={`${HEAD} text-left`}>전략</th>
               <th scope="col" className={`${HEAD} text-right`}>넣은 돈</th>
               <th scope="col" className={`${HEAD} text-right`}>지금 가치</th>
               <th scope="col" className={`${HEAD} text-right`}>수익률</th>
@@ -77,6 +86,9 @@ export const PortfolioAssetTable: React.FC<{ result: PortfolioBacktestResponse }
               <th scope="row" className={NAME}>
                 현금
               </th>
+              <td className={TEXT}>
+                <Dash />
+              </td>
               <td className={NUMBER}>
                 <Dash />
               </td>
@@ -96,6 +108,9 @@ export const PortfolioAssetTable: React.FC<{ result: PortfolioBacktestResponse }
                 <th scope="row" className={`${NAME} font-normal text-tx-2`}>
                   현금 환율 차 · 양도세
                 </th>
+                <td className={TEXT}>
+                  <Dash />
+                </td>
                 <td className={NUMBER}>
                   <Dash />
                 </td>

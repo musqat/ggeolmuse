@@ -94,4 +94,28 @@ describe('PortfolioTrades', () => {
     await userEvent.selectOptions(screen.getByRole('combobox', { name: '이유' }), '익절')
     expect(rows().map((row) => cells(row)[1])).toEqual(['SPY'])
   })
+
+  it('이동평균 · 밴드 줄의 전략 매수 · 매도는 거래 글과 새 돈 또는 줄 몫 현금으로 보이고 이유 고르기는 손절 다음 전략 매수 · 전략 매도 순서', async () => {
+    const signals: PortfolioTransaction[] = [
+      transactions[0],
+      { symbol: 'QQQ', reason: 'STRATEGY_BUY', date: '2020-02-03', actualDate: '2020-02-03', trigger: '골든 크로스', shares: 10, price: 300, amount: 3600000, fxRate: 1200 },
+      { symbol: 'QQQ', reason: 'STOP_LOSS', date: '2020-03-09', actualDate: '2020-03-09', trigger: '5.0%손절', shares: -10, price: 285, amount: 0, fxRate: 1210, proceeds: 2843, realizedProfit: -157 },
+      { symbol: 'QQQ', reason: 'STRATEGY_BUY', date: '2020-06-01', actualDate: '2020-06-01', trigger: '밴드 위 매수', shares: 9.5, price: 299, amount: 0, fxRate: 1220, cashUsed: 2843 },
+      { symbol: 'QQQ', reason: 'STRATEGY_SELL', date: '2020-09-08', actualDate: '2020-09-08', trigger: '밴드 아래 매도', shares: -9.5, price: 280, amount: 0, fxRate: 1180, proceeds: 2653.35, realizedProfit: -189.65 },
+    ]
+    render(<PortfolioTrades transactions={signals} symbols={['SPY', 'QQQ']} />)
+
+    expect(rows().slice(1).map(cells)).toEqual([
+      ['2020-02-03', 'QQQ', '골든 크로스', '10주', '$3,000.00', '-'],
+      ['2020-03-09', 'QQQ', '5.0%손절', '10주', '$2,843.00', '-$157.00'],
+      ['2020-06-01', 'QQQ', '밴드 위 매수', '9.5주', '$2,843.00', '-'],
+      ['2020-09-08', 'QQQ', '밴드 아래 매도', '9.5주', '$2,653.35', '-$189.65'],
+    ])
+    expect(options('이유')).toEqual(['모든 이유', '한 번에 매수', '손절', '전략 매수', '전략 매도'])
+
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: '이유' }), '전략 매수')
+    expect(rows().map((row) => cells(row)[2])).toEqual(['골든 크로스', '밴드 위 매수'])
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: '이유' }), '전략 매도')
+    expect(rows().map((row) => cells(row)[0])).toEqual(['2020-09-08'])
+  })
 })

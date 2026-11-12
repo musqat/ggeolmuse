@@ -402,7 +402,9 @@ export type TradeReason =
   | 'REBALANCE_BUY'
   | 'REBALANCE_SELL'
   | 'TAKE_PROFIT'
-  | 'STOP_LOSS';
+  | 'STOP_LOSS'
+  | 'STRATEGY_BUY'
+  | 'STRATEGY_SELL';
 
 // 포트폴리오 매매 한 건(양도세 납부 줄은 종목 없음)
 export type PortfolioTransaction = StrategyTransaction & {
@@ -413,6 +415,7 @@ export type PortfolioTransaction = StrategyTransaction & {
 // 포트폴리오 종목 줄 결과(원화는 정수, 비율은 %)
 export type PortfolioAssetResult = {
   symbol: string;
+  strategyType: PortfolioStrategyType;  // 줄 전략 (줄에 없으면 요청의 매수 방식)
   investedKrw: number;                  // 매수 원가 합 (새 돈 + 쓴 현금 × 그 날짜 환율)
   valueKrw: number;                     // 평가일 보유 × 종가 × 평가일 환율
   soldKrw: number;                      // 판 돈 × 판 날 환율 합

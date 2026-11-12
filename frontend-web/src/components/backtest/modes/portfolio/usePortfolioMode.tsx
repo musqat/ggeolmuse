@@ -20,6 +20,7 @@ import {
   isAllDca,
   newRow,
   rowAmounts,
+  rowStrategy,
   rowsSellText,
   rowsSubject,
   savedRows,
@@ -73,7 +74,7 @@ export const usePortfolioMode = (shared: SharedModeProps): ModeController => {
   // 고른 날의 며칠(그 달에 없어 말일로 옮겨도 그대로)
   const monthDay = firstPick.date ? dayOfMonth(firstPick.date) : undefined;
   const rounds = countRounds(cadence, parseMonths(months) ?? 1, first, end, monthDay);
-  const perRound = rowAmounts(rows, allocation, total).reduce((a, b) => a + b, 0);
+  const amounts = rowAmounts(rows, allocation, total);
 
   const rowMessages = portfolioRowIssues(rows, allocation, supportedSymbols);
   const totalLabel = perRoundOnly ? '회당 총액' : '총액';
@@ -127,9 +128,7 @@ export const usePortfolioMode = (shared: SharedModeProps): ModeController => {
     summary: {
       subject: rowsSubject(rows),
       how: portfolioHow({
-        count: rows.length,
-        perRound,
-        dca: perRoundOnly,
+        lines: rows.map((row, index) => ({ strategy: rowStrategy(row, method), amount: amounts[index] })),
         cadenceLabel: cadenceText(cadence, months, first, monthDay),
         rounds,
         daily: cadence === 'DAILY',

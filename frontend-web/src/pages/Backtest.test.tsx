@@ -1048,6 +1048,22 @@ describe('Backtest 페이지 포트폴리오', () => {
     expect(rowField(3, '위 비율(평균 대비 퍼센트)')).toHaveValue('1.5')
   })
 
+  it('줄 전략이 섞이면 요약에 전략마다 줄 수와 금액을 적고, 리밸런싱은 이동평균 · 밴드 줄을 빼고 나눈다고 적는다', async () => {
+    renderPage()
+    await selectMode('포트폴리오')
+    await addRow()
+    await pickSymbol(rowSymbol(2), 'ms', /MSFT/)
+    fireEvent.change(rowAmount(2), { target: { value: '3,000,000' } })
+    await userEvent.selectOptions(rowStrategy(2), '이동평균')
+
+    expect(summary()).toHaveTextContent('종목 2개 · 한 번에 1개 1,000만원 · 이동평균 1개 첫 매수 신호에 300만원')
+    await userEvent.click(rebalance('매년'))
+    expect(summary()).toHaveTextContent('· 매년 처음 비중으로 리밸런싱(이동평균 · 밴드 빼고)')
+    await userEvent.selectOptions(rowStrategy(1), '적립식')
+    expect(summary()).toHaveTextContent('종목 2개 · 적립식 1개 매달 8일 1,000만원 · 12회')
+    expect(summary()).toHaveTextContent('· 이동평균 1개 첫 매수 신호에 300만원 · 매년 처음 비중으로 리밸런싱(이동평균 · 밴드 빼고)')
+  })
+
   it('빈 줄이 있으면 그 줄 종목 칸으로 가며 요청하지 않고, 비율 합이 100 이 아니면 알림으로 막는다', async () => {
     renderPage()
     await selectMode('포트폴리오')
