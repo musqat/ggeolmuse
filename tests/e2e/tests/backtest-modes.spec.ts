@@ -216,6 +216,31 @@ test('포트폴리오가 두 종목을 현금 하나로 돌리고 종목 줄 지
   expect(lines + body.cashKrw, '종목 줄 지금 가치 + 현금이 총 자산과 다르다').toBe(body.totalAssetKrw);
 });
 
+test('포트폴리오를 마지막 거래일에 팔면 종목마다 기간 끝 매도와 실현 손익 · 매매 통계를 싣는다', async () => {
+  const { from, to } = await sharedRange();
+  const res = await postUntilAllowed(`${API_URL}/analysis/portfolio`, {
+    data: {
+      startDate: from,
+      endDate: to,
+      assets: [
+        { symbol, amount: 600_000 },
+        { symbol: second, amount: 400_000 },
+      ],
+      periodEnd: 'SELL_AT_END',
+    },
+  });
+
+  expect(res.status(), `기간 끝에 파는 포트폴리오가 실패했다: ${await res.text()}`).toBe(200);
+  const body = await res.json();
+  const sales = body.transactions.filter((tx: { reason: string }) => tx.reason === 'PERIOD_END_SALE');
+  expect(sales.map((tx: { symbol: string }) => tx.symbol).sort(), '종목마다 기간 끝 매도가 하나씩이 아니다').toEqual([symbol, second].sort());
+  expect(body.sellCount).toBe(2);
+  expect(body.tradeStats, '판 거래가 있는데 매매 통계가 없다').toBeTruthy();
+  const realized = body.assets.reduce((sum: number, a: { realizedProfitKrw: number }) => sum + a.realizedProfitKrw, 0);
+  // 줄마다 원 단위로 반올림해 줄 수만큼 차이가 남을 수 있음
+  expect(Math.abs(realized - body.realizedProfitKrw), '종목 줄 실현 손익 합이 전체 실현 손익과 다르다').toBeLessThanOrEqual(body.assets.length);
+});
+
 test('포트폴리오 비율 합이 100 이 아니면 400', async () => {
   const res = await postUntilAllowed(`${API_URL}/analysis/portfolio`, {
     data: {

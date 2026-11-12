@@ -8,19 +8,25 @@ import { CurrencyToggle, type MetricCurrency } from '../CurrencyToggle';
 import { DefaultFxNotice } from '../DefaultFxNotice';
 import { strategyDeposits } from '../assetSeries';
 import { percentOrDash, pickMetrics } from '../resultValues';
+import { ResultFold } from '../ResultFold';
+import { CapitalGainsTaxFold } from '../CapitalGainsTaxFold';
 import { PortfolioAssetTable } from './PortfolioAssetTable';
+import { PortfolioTradeCards } from './PortfolioTradeCards';
+import { PortfolioTrades } from './PortfolioTrades';
 
 interface PortfolioResultProps {
   result: PortfolioBacktestResponse;
 }
 
-// 포트폴리오 결과: 지표 카드 넷(총 평가 · 총 수익률 · 연평균 · 최대 낙폭) · 합친 자산 추이 · 종목별 표
+// 포트폴리오 결과: 지표 카드 넷(총 평가 · 총 수익률 · 연평균 · 최대 낙폭) · 합친 자산 추이 · 종목별 표, 판 것이 있으면 매매 카드 줄 · 매매 내역 · 예상 양도세
 export const PortfolioResult: React.FC<PortfolioResultProps> = ({ result }) => {
   const [currency, setCurrency] = useState<MetricCurrency>('KRW');
   const { metrics, other, otherLabel, hasMetrics } = pickMetrics(result, currency);
   const deposits = useMemo(() => strategyDeposits(result.transactions ?? []), [result.transactions]);
   const cagr = metrics?.cagr;
   const mdd = metrics?.mdd;
+  const sold = result.sellCount > 0;
+  const symbols = useMemo(() => result.assets.map((asset) => asset.symbol), [result.assets]);
 
   return (
     <div className="space-y-6">
@@ -73,6 +79,15 @@ export const PortfolioResult: React.FC<PortfolioResultProps> = ({ result }) => {
         <AssetChart dailyValues={result.dailyValues} deposits={deposits} currency={hasMetrics ? currency : 'KRW'} />
       </div>
       <PortfolioAssetTable result={result} />
+      {sold && (
+        <>
+          <PortfolioTradeCards result={result} />
+          <ResultFold title="매매 내역" meta={`거래 ${result.transactions.length}건`}>
+            <PortfolioTrades transactions={result.transactions} symbols={symbols} />
+          </ResultFold>
+          {result.capitalGainsTax && <CapitalGainsTaxFold tax={result.capitalGainsTax} returnBasis="넣은 돈 기준" />}
+        </>
+      )}
     </div>
   );
 };

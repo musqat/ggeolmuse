@@ -87,6 +87,33 @@ const result: PortfolioBacktestResponse = {
   defaultFxDates: [],
 }
 
+const tax = {
+  years: [{ year: 2023, realizedGainKrw: 9000000, deductionKrw: 2500000, taxKrw: 1330000, dueDate: '2024-05-01', paidKrw: 1000000 }],
+  totalTaxKrw: 1330000,
+  paidTaxKrw: 1000000,
+  unpaidTaxKrw: 330000,
+  cashKrw: 30000000,
+  stockKrw: 0,
+  afterTaxValueKrw: 29670000,
+  afterTaxReturnPercent: 196.7,
+}
+
+// 기간 끝에 두 종목을 판 결과(양도세 납부 한 번)
+const sold: PortfolioBacktestResponse = {
+  ...result,
+  periodEnd: 'SELL_AT_END',
+  realizedProfitKrw: 9000000,
+  sellCount: 2,
+  assets: [asset({ valueKrw: 0, soldKrw: 15000000 }), asset({ symbol: 'QQQ', valueKrw: 0, soldKrw: 5120000 })],
+  transactions: [
+    ...result.transactions,
+    { reason: 'TAX_PAYMENT', date: '2024-05-01', trigger: '양도세 납부', shares: 0, price: 0, amount: 0, fxRate: 1400, taxPaid: 714.29 },
+    { symbol: 'SPY', reason: 'PERIOD_END_SALE', date: '2024-12-31', trigger: '기간 끝 매도', shares: -20.6, price: 590, amount: 0, fxRate: 1450, proceeds: 12154, realizedProfit: 5300 },
+    { symbol: 'QQQ', reason: 'PERIOD_END_SALE', date: '2024-12-31', trigger: '기간 끝 매도', shares: -10, price: 520, amount: 0, fxRate: 1450, proceeds: 5200, realizedProfit: 2200 },
+  ],
+  capitalGainsTax: tax,
+}
+
 const card = (label: string) => screen.getByText(label).parentElement as HTMLElement
 const value = (label: string) => card(label).querySelector('p:nth-of-type(2)') as HTMLElement
 const rows = () => within(screen.getByRole('table')).getAllByRole('row').slice(1)
@@ -164,6 +191,42 @@ describe('PortfolioResult', () => {
     const cells = within(rows()[0]).getAllByRole('cell').map((cell) => cell.textContent)
     expect(cells).toEqual(['₩0', '₩0', '-', '₩0 · -', '60.00% → 0.00%'])
     expect(within(rows()[1]).getAllByRole('cell').map((cell) => cell.textContent)).toEqual(['-', '₩0', '-', '-', '- → 0.00%'])
+  })
+
+  it('판 것이 없으면 실현 손익 카드 · 매매 내역 · 예상 양도세가 없다', () => {
+    render(<PortfolioResult result={{ ...result, capitalGainsTax: tax }} />)
+
+    expect(screen.queryByText('실현 손익')).toBeNull()
+    expect(screen.queryByText('매매 내역')).toBeNull()
+    expect(screen.queryByText('예상 양도세')).toBeNull()
+  })
+
+  it('판 것이 있으면 실현 손익 · 낸 양도세 · 매수 · 매도 카드와 매매 내역 · 예상 양도세 접는 칸을 둔다', async () => {
+    render(<PortfolioResult result={sold} />)
+
+    expect(value('실현 손익')).toHaveTextContent('+₩9,000,000')
+    expect(value('실현 손익')).toHaveClass('text-gain')
+    expect(card('실현 손익')).toHaveTextContent('판 돈 ₩20,120,000')
+    expect(value('낸 양도세')).toHaveTextContent('₩1,000,000')
+    expect(card('낸 양도세')).toHaveTextContent('남은 양도세 ₩330,000')
+    expect(value('매수 · 매도')).toHaveTextContent('2번 · 2번')
+    expect(card('매수 · 매도')).toHaveTextContent('배당 재투자 1번 · 양도세 납부 1번')
+    expect(screen.getByText('· 거래 6건')).toBeInTheDocument()
+    expect(screen.getByText('예상 양도세')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByText('매매 내역'))
+    expect(screen.getByRole('combobox', { name: '종목' })).toBeInTheDocument()
+    expect(within(screen.getAllByRole('table')[1]).getAllByRole('row')).toHaveLength(7)
+  })
+
+  it('양도세를 끄면 낸 양도세 카드는 - 와 끔 안내이고 예상 양도세 칸이 없다', () => {
+    const transactions = sold.transactions.filter((tx) => tx.reason !== 'TAX_PAYMENT')
+    render(<PortfolioResult result={{ ...sold, capitalGainsTax: null, transactions }} />)
+
+    expect(value('낸 양도세')).toHaveTextContent('-')
+    expect(card('낸 양도세')).toHaveTextContent('양도세 계산 끔')
+    expect(card('매수 · 매도')).not.toHaveTextContent('양도세 납부')
+    expect(screen.queryByText('예상 양도세')).toBeNull()
   })
 
   it('기본 환율로 계산한 날이 있으면 맨 위에 알린다', () => {
