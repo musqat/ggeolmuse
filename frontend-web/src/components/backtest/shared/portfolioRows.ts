@@ -1,7 +1,12 @@
-import type { PortfolioAllocation } from '@services/api';
+import type { PortfolioAllocation, PortfolioMethod, PortfolioStrategyType } from '@services/api';
 import { hasSellRates } from './sellRates';
+import { MA_WINDOWS } from './maWindows';
+import { MA_BAND } from './maBand';
 
-// 포트폴리오 종목 줄 칸(종목 · 원화 금액 · 비율 % · 평균 단가 대비 익절 % · 손절 %, 금액 · 비율 방식을 바꿔도 두 칸 다 남음)
+// 줄 전략(빈 값은 방식대로)
+export type RowStrategy = '' | PortfolioStrategyType;
+
+// 포트폴리오 종목 줄 칸(종목 · 원화 금액 · 비율 % · 평균 단가 대비 익절 % · 손절 % · 전략과 이동평균 · 밴드 칸, 방식 · 전략을 바꿔도 칸 값은 남음)
 export interface PortfolioRow {
   symbol: string;
   amount: string;
@@ -9,18 +14,51 @@ export interface PortfolioRow {
   // 비우면 안 함
   takeProfit: string;
   stopLoss: string;
+  strategy: RowStrategy;
+  // 이동평균 짧은 · 긴 기간(일)
+  shortWindow: string;
+  longWindow: string;
+  // 밴드 평균 기간(일) · 위 · 아래 비율(%)
+  bandWindow: string;
+  upper: string;
+  lower: string;
 }
 
 export const MAX_ROWS = 10;
 
-// 익절 · 손절이 빈 줄
+export const STRATEGIES: readonly PortfolioStrategyType[] = ['LUMP_SUM', 'DCA', 'MA_CROSS', 'MA_BAND'];
+
+const SIGNAL_DEFAULTS = {
+  shortWindow: MA_WINDOWS.short,
+  longWindow: MA_WINDOWS.long,
+  bandWindow: MA_BAND.window,
+  upper: MA_BAND.upper,
+  lower: MA_BAND.lower,
+};
+
+// 익절 · 손절이 비고 방식대로인 줄(이동평균 · 밴드 칸은 기본값)
 export const newRow = (symbol = '', amount = '', weight = ''): PortfolioRow => ({
   symbol,
   amount,
   weight,
   takeProfit: '',
   stopLoss: '',
+  strategy: '',
+  ...SIGNAL_DEFAULTS,
 });
+
+// 방식대로인 줄은 방식
+export const rowStrategy = (row: PortfolioRow, method: PortfolioMethod): PortfolioStrategyType => row.strategy || method;
+
+// 방식과 같은 전략을 고르면 방식대로
+export const chosenStrategy = (picked: PortfolioStrategyType, method: PortfolioMethod): RowStrategy =>
+  picked === method ? '' : picked;
+
+export const hasDcaRow = (rows: PortfolioRow[], method: PortfolioMethod) =>
+  rows.some((row) => rowStrategy(row, method) === 'DCA');
+
+export const isAllDca = (rows: PortfolioRow[], method: PortfolioMethod) =>
+  rows.every((row) => rowStrategy(row, method) === 'DCA');
 
 // 첫 줄 금액 · 비율 방식 총액의 기본값
 export const FIRST_AMOUNT = '10000000';
@@ -67,7 +105,7 @@ export const weightSum = (rows: PortfolioRow[]): number => weightUnits(rows) / W
 export const isWeightSumOk = (rows: PortfolioRow[]): boolean =>
   Math.abs(weightUnits(rows) - 100 * WEIGHT_UNIT) <= WEIGHT_TOLERANCE;
 
-type SavedRow = Pick<PortfolioRow, 'symbol' | 'amount' | 'weight'> & { takeProfit?: unknown; stopLoss?: unknown };
+type SavedRow = Pick<PortfolioRow, 'symbol' | 'amount' | 'weight'> & Partial<Record<Exclude<keyof PortfolioRow, 'symbol' | 'amount' | 'weight'>, unknown>>;
 
 const isRow = (value: unknown): value is SavedRow =>
   typeof value === 'object' &&
@@ -76,19 +114,25 @@ const isRow = (value: unknown): value is SavedRow =>
   typeof (value as SavedRow).amount === 'string' &&
   typeof (value as SavedRow).weight === 'string';
 
-const textOr = (value: unknown) => (typeof value === 'string' ? value : '');
+const textOr = (value: unknown, fallback = '') => (typeof value === 'string' ? value : fallback);
 
-// 직전 설정에 저장한 줄(종목 · 금액 · 비율이 글 칸인 것만 10개까지, 익절 · 손절은 글이 아니면 빈 칸)
+// 직전 설정에 저장한 줄(종목 · 금액 · 비율이 글 칸인 것만 10개까지, 익절 · 손절은 글이 아니면 빈 칸, 전략은 고를 수 있는 값만, 이동평균 · 밴드 칸은 글이 아니면 기본값)
 export const savedRows = (saved: unknown[]): PortfolioRow[] =>
   saved
     .filter(isRow)
     .slice(0, MAX_ROWS)
-    .map(({ symbol, amount, weight, takeProfit, stopLoss }) => ({
-      symbol,
-      amount,
-      weight,
-      takeProfit: textOr(takeProfit),
-      stopLoss: textOr(stopLoss),
+    .map((row) => ({
+      symbol: row.symbol,
+      amount: row.amount,
+      weight: row.weight,
+      takeProfit: textOr(row.takeProfit),
+      stopLoss: textOr(row.stopLoss),
+      strategy: STRATEGIES.includes(row.strategy as PortfolioStrategyType) ? (row.strategy as PortfolioStrategyType) : '',
+      shortWindow: textOr(row.shortWindow, SIGNAL_DEFAULTS.shortWindow),
+      longWindow: textOr(row.longWindow, SIGNAL_DEFAULTS.longWindow),
+      bandWindow: textOr(row.bandWindow, SIGNAL_DEFAULTS.bandWindow),
+      upper: textOr(row.upper, SIGNAL_DEFAULTS.upper),
+      lower: textOr(row.lower, SIGNAL_DEFAULTS.lower),
     }));
 
 // 요약 첫 줄 종목(빈 줄은 빼고 셋까지, 나머지는 외 N)

@@ -14,8 +14,25 @@ import {
   type DcaCadence,
   type FirstPick,
 } from '../../shared/dcaSchedule';
-import { FIRST_AMOUNT, newRow, rowAmounts, rowsSellText, rowsSubject, savedRows, type PortfolioRow } from '../../shared/portfolioRows';
-import { amountIssue, countErrors, firstIssue, monthsIssue, portfolioRowIssues } from '../../settings/checks';
+import {
+  FIRST_AMOUNT,
+  hasDcaRow,
+  isAllDca,
+  newRow,
+  rowAmounts,
+  rowsSellText,
+  rowsSubject,
+  savedRows,
+  type PortfolioRow,
+} from '../../shared/portfolioRows';
+import {
+  amountIssue,
+  countErrors,
+  firstIssue,
+  monthsIssue,
+  portfolioRowIssues,
+  portfolioRowMessageList,
+} from '../../settings/checks';
 import { portfolioHow } from '../../settings/summary';
 import { oneOf, pickValues } from '../../settings/snapshot';
 
@@ -48,7 +65,9 @@ export const usePortfolioMode = (shared: SharedModeProps): ModeController => {
   const [firstPick, setFirstPick] = useState<FirstPick>(NO_PICK);
   const [rebalance, setRebalance] = useState<PortfolioRebalance>('NONE');
 
-  const dca = method === 'DCA';
+  // 적립식 줄이 있으면 주기 · 첫 매수일 칸, 모든 줄이 적립식이면 금액 · 총액이 회당
+  const dca = hasDcaRow(rows, method);
+  const perRoundOnly = isAllDca(rows, method);
   const first = (dca && resolveFirstPurchase(period.start, cadence, firstPick)) || period.start;
   const { end, periodField, periodMessage } = commonFields(shared, { from: first });
   // 고른 날의 며칠(그 달에 없어 말일로 옮겨도 그대로)
@@ -57,7 +76,7 @@ export const usePortfolioMode = (shared: SharedModeProps): ModeController => {
   const perRound = rowAmounts(rows, allocation, total).reduce((a, b) => a + b, 0);
 
   const rowMessages = portfolioRowIssues(rows, allocation, supportedSymbols);
-  const totalLabel = dca ? '회당 총액' : '총액';
+  const totalLabel = perRoundOnly ? '회당 총액' : '총액';
   const totalMessage =
     allocation === 'WEIGHT' ? amountIssue({ byShares: false, amount: total, shares: '', label: totalLabel }) : null;
   const monthsMessage = dca ? monthsIssue(cadence, months) : null;
@@ -76,7 +95,8 @@ export const usePortfolioMode = (shared: SharedModeProps): ModeController => {
           onAllocationChange: setAllocation,
           total,
           onTotalChange: setTotal,
-          perRound: dca,
+          perRound: perRoundOnly,
+          method,
           supportedSymbols,
           messages: rowMessages,
           totalMessage,
@@ -109,7 +129,7 @@ export const usePortfolioMode = (shared: SharedModeProps): ModeController => {
       how: portfolioHow({
         count: rows.length,
         perRound,
-        dca,
+        dca: perRoundOnly,
         cadenceLabel: cadenceText(cadence, months, first, monthDay),
         rounds,
         daily: cadence === 'DAILY',
@@ -120,7 +140,7 @@ export const usePortfolioMode = (shared: SharedModeProps): ModeController => {
     errorCount: countErrors([
       periodMessage,
       totalMessage,
-      ...rowMessages.flatMap((row) => [row.symbol, row.value, row.takeProfit, row.stopLoss]),
+      ...rowMessages.flatMap(portfolioRowMessageList),
       monthsMessage,
       firstMessage,
     ]),

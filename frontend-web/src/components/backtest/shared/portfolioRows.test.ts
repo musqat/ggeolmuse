@@ -1,16 +1,23 @@
 import { describe, it, expect } from 'vitest'
 import {
   amountShares,
+  chosenStrategy,
+  hasDcaRow,
+  isAllDca,
   isWeightSumOk,
   newRow,
   rowAmounts,
+  rowStrategy,
   rowSymbol,
   rowsSellText,
   rowsSubject,
   savedRows,
   weightSum,
   type PortfolioRow,
+  type RowStrategy,
 } from './portfolioRows'
+
+const SIGNAL_DEFAULTS = { strategy: '' as RowStrategy, shortWindow: '20', longWindow: '60', bandWindow: '200', upper: '2.5', lower: '2.5' }
 
 const row = (symbol: string, amount = '', weight = '', takeProfit = '', stopLoss = ''): PortfolioRow => ({
   symbol,
@@ -18,7 +25,10 @@ const row = (symbol: string, amount = '', weight = '', takeProfit = '', stopLoss
   weight,
   takeProfit,
   stopLoss,
+  ...SIGNAL_DEFAULTS,
 })
+
+const withStrategy = (strategy: RowStrategy, symbol = 'SPY'): PortfolioRow => ({ ...row(symbol, '1'), strategy })
 
 describe('포트폴리오 종목 줄', () => {
   it('종목은 앞뒤 공백을 빼고 대문자로 본다', () => {
@@ -48,9 +58,52 @@ describe('포트폴리오 종목 줄', () => {
     expect(isWeightSumOk([row('SPY', '', '100')])).toBe(true)
   })
 
-  it('새 줄은 익절 · 손절 칸이 비어 있다', () => {
-    expect(newRow()).toEqual(row(''))
+  it('새 줄은 익절 · 손절이 비고 전략은 방식대로, 이동평균 · 밴드 칸은 20 · 60일 선 · 200일선 ±2.5%', () => {
+    expect(newRow()).toEqual({
+      symbol: '',
+      amount: '',
+      weight: '',
+      takeProfit: '',
+      stopLoss: '',
+      strategy: '',
+      shortWindow: '20',
+      longWindow: '60',
+      bandWindow: '200',
+      upper: '2.5',
+      lower: '2.5',
+    })
     expect(newRow('SPY', '10000000', '100')).toEqual(row('SPY', '10000000', '100'))
+  })
+
+  it('줄 전략은 고른 전략, 방식대로인 줄은 방식(한 번에 · 적립식)', () => {
+    expect(rowStrategy(withStrategy(''), 'LUMP_SUM')).toBe('LUMP_SUM')
+    expect(rowStrategy(withStrategy(''), 'DCA')).toBe('DCA')
+    expect(rowStrategy(withStrategy('DCA'), 'LUMP_SUM')).toBe('DCA')
+    expect(rowStrategy(withStrategy('LUMP_SUM'), 'DCA')).toBe('LUMP_SUM')
+    expect(rowStrategy(withStrategy('MA_CROSS'), 'DCA')).toBe('MA_CROSS')
+    expect(rowStrategy(withStrategy('MA_BAND'), 'LUMP_SUM')).toBe('MA_BAND')
+  })
+
+  it('방식과 같은 전략을 고르면 방식대로(빈 값), 다른 전략은 그 전략으로 둔다', () => {
+    expect(chosenStrategy('LUMP_SUM', 'LUMP_SUM')).toBe('')
+    expect(chosenStrategy('DCA', 'DCA')).toBe('')
+    expect(chosenStrategy('DCA', 'LUMP_SUM')).toBe('DCA')
+    expect(chosenStrategy('LUMP_SUM', 'DCA')).toBe('LUMP_SUM')
+    expect(chosenStrategy('MA_CROSS', 'LUMP_SUM')).toBe('MA_CROSS')
+    expect(chosenStrategy('MA_BAND', 'DCA')).toBe('MA_BAND')
+  })
+
+  it('적립식 줄이 하나라도 있는지 · 모든 줄이 적립식인지는 방식대로인 줄을 방식으로 본다', () => {
+    const rows = [withStrategy(''), withStrategy('MA_CROSS', 'QQQ')]
+
+    expect(hasDcaRow(rows, 'LUMP_SUM')).toBe(false)
+    expect(hasDcaRow(rows, 'DCA')).toBe(true)
+    expect(hasDcaRow([withStrategy('DCA'), withStrategy('', 'QQQ')], 'LUMP_SUM')).toBe(true)
+    expect(isAllDca([withStrategy(''), withStrategy('', 'QQQ')], 'DCA')).toBe(true)
+    expect(isAllDca([withStrategy('DCA'), withStrategy('', 'QQQ')], 'DCA')).toBe(true)
+    expect(isAllDca(rows, 'DCA')).toBe(false)
+    expect(isAllDca([withStrategy('DCA')], 'LUMP_SUM')).toBe(true)
+    expect(isAllDca([withStrategy('LUMP_SUM')], 'DCA')).toBe(false)
   })
 
   it('직전 설정의 줄은 종목 · 금액 · 비율 글 칸 셋인 것만 10개까지 되살리고, 익절 · 손절은 글이 아니면 빈 칸으로', () => {
@@ -68,6 +121,22 @@ describe('포트폴리오 종목 줄', () => {
     expect(rows[0]).toEqual(row('SPY', '1', '10', '30', '10'))
     expect(rows[1]).toEqual(row('TLT', '2', ''))
     expect(rows[2]).toEqual(row('S0', '1', '1'))
+  })
+
+  it('직전 설정의 줄 전략은 고를 수 있는 값만(아니면 방식대로), 이동평균 · 밴드 칸은 글이 아니면 기본값으로', () => {
+    const saved = [
+      { ...row('SPY', '1'), strategy: 'MA_CROSS', shortWindow: '5', longWindow: '30' },
+      { ...row('QQQ', '1'), strategy: 'MA_BAND', bandWindow: '120', upper: '1', lower: '0' },
+      { ...row('IAU', '1'), strategy: 'CONDITIONAL', shortWindow: 5 },
+      { symbol: 'TLT', amount: '1', weight: '', strategy: 'DCA' },
+    ]
+
+    expect(savedRows(saved)).toEqual([
+      { ...row('SPY', '1'), strategy: 'MA_CROSS', shortWindow: '5', longWindow: '30' },
+      { ...row('QQQ', '1'), strategy: 'MA_BAND', bandWindow: '120', upper: '1', lower: '0' },
+      row('IAU', '1'),
+      { ...row('TLT', '1'), strategy: 'DCA' },
+    ])
   })
 
   it('요약 익절 · 손절 글은 적은 줄 수와 적은 쪽만, 하나도 없으면 빈 글', () => {

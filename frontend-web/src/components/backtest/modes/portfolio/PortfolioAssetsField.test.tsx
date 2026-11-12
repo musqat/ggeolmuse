@@ -4,14 +4,22 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { PortfolioAllocation } from '@services/api'
 import { PortfolioAssetsField, type PortfolioAssetsFieldProps } from './PortfolioAssetsField'
-import type { PortfolioRow } from '../../shared/portfolioRows'
+import { newRow, type PortfolioRow } from '../../shared/portfolioRows'
 
-const ok = { symbol: null, value: null, takeProfit: null, stopLoss: null }
+const ok = {
+  symbol: null,
+  value: null,
+  takeProfit: null,
+  stopLoss: null,
+  shortWindow: null,
+  longWindow: null,
+  bandWindow: null,
+  upper: null,
+  lower: null,
+}
 const error = (text: string) => ({ kind: 'error' as const, text })
 const row = (symbol: string, amount = '', weight = '', takeProfit = '', stopLoss = ''): PortfolioRow => ({
-  symbol,
-  amount,
-  weight,
+  ...newRow(symbol, amount, weight),
   takeProfit,
   stopLoss,
 })
@@ -21,6 +29,12 @@ const amountInput = (n: number) => screen.getByRole('textbox', { name: `${n}번 
 const weightInput = (n: number) => screen.getByRole('textbox', { name: `${n}번 비율(퍼센트)` })
 const takeProfitInput = (n: number) => screen.getByRole('textbox', { name: `${n}번 익절(평균 단가 대비 퍼센트)` })
 const stopLossInput = (n: number) => screen.getByRole('textbox', { name: `${n}번 손절(평균 단가 대비 퍼센트)` })
+const strategySelect = (n: number) => screen.getByRole('combobox', { name: `${n}번 전략` })
+const shortInput = (n: number) => screen.getByRole('textbox', { name: `${n}번 짧은 기간(일)` })
+const longInput = (n: number) => screen.getByRole('textbox', { name: `${n}번 긴 기간(일)` })
+const bandWindowInput = (n: number) => screen.getByRole('textbox', { name: `${n}번 평균 기간(일)` })
+const upperInput = (n: number) => screen.getByRole('textbox', { name: `${n}번 위 비율(평균 대비 퍼센트)` })
+const lowerInput = (n: number) => screen.getByRole('textbox', { name: `${n}번 아래 비율(평균 대비 퍼센트)` })
 const removeButton = (n: number) => screen.getByRole('button', { name: `${n}번 종목 지우기` })
 const addButton = () => screen.getByRole('button', { name: '＋ 종목 더하기' })
 const sum = () => screen.getByTestId('portfolio-sum')
@@ -39,6 +53,7 @@ const Harness = ({ initial, patch = {} }: { initial: PortfolioRow[]; patch?: Par
       total={total}
       onTotalChange={setTotal}
       perRound={false}
+      method="LUMP_SUM"
       supportedSymbols={['SPY', 'QQQ', 'MSFT']}
       messages={rows.map(() => ok)}
       totalMessage={null}
@@ -200,6 +215,90 @@ describe('PortfolioAssetsField', () => {
     expect(amountInput(2)).toHaveAttribute('aria-invalid', 'true')
     expect(symbolInput(2)).toHaveAccessibleDescription('2번 줄 종목 비어 있음')
     expect(amountInput(2)).not.toHaveAttribute('aria-describedby')
+  })
+
+  it('줄마다 전략은 방식대로면 방식(한 번에 · 적립식)을 보이고, 고르면 그 줄만 바꾸며 방식과 같은 전략을 고르면 방식대로로 둔다', async () => {
+    const onRows = vi.fn()
+    const rows = [row('SPY', '1'), { ...row('QQQ', '2'), strategy: 'DCA' as const }]
+    const { rerender } = render(<Harness initial={rows} patch={{ onRowsChange: onRows, rows }} />)
+
+    expect(within(strategySelect(1)).getAllByRole('option').map((option) => option.textContent)).toEqual([
+      '한 번에',
+      '적립식',
+      '이동평균',
+      '밴드',
+    ])
+    expect(strategySelect(1)).toHaveValue('LUMP_SUM')
+    expect(strategySelect(2)).toHaveValue('DCA')
+    await userEvent.selectOptions(strategySelect(1), '이동평균')
+    expect(onRows).toHaveBeenLastCalledWith([{ ...row('SPY', '1'), strategy: 'MA_CROSS' }, rows[1]])
+    await userEvent.selectOptions(strategySelect(2), '한 번에')
+    expect(onRows).toHaveBeenLastCalledWith([rows[0], { ...rows[1], strategy: '' }])
+
+    rerender(<Harness initial={rows} patch={{ onRowsChange: onRows, rows, method: 'DCA' }} />)
+    expect(strategySelect(1)).toHaveValue('DCA')
+    await userEvent.selectOptions(strategySelect(1), '한 번에')
+    expect(onRows).toHaveBeenLastCalledWith([{ ...rows[0], strategy: 'LUMP_SUM' }, rows[1]])
+  })
+
+  it('이동평균 줄은 짧은 · 긴 기간 칸, 밴드 줄은 평균 기간 · 위 + · 아래 - 비율 칸을 그 줄에 보이고 값은 그 줄에만 넣는다', async () => {
+    render(<Harness initial={[row('SPY', '1'), row('QQQ', '2')]} />)
+
+    expect(screen.queryByRole('textbox', { name: '1번 짧은 기간(일)' })).toBeNull()
+    expect(screen.queryByRole('textbox', { name: '1번 평균 기간(일)' })).toBeNull()
+    await userEvent.selectOptions(strategySelect(1), '이동평균')
+    expect(shortInput(1)).toHaveValue('20')
+    expect(longInput(1)).toHaveValue('60')
+    fireEvent.change(shortInput(1), { target: { value: '5일' } })
+    fireEvent.change(longInput(1), { target: { value: '3.0' } })
+    expect(shortInput(1)).toHaveValue('5')
+    expect(longInput(1)).toHaveValue('30')
+    expect(screen.queryByRole('textbox', { name: '2번 짧은 기간(일)' })).toBeNull()
+
+    await userEvent.selectOptions(strategySelect(2), '밴드')
+    expect(bandWindowInput(2)).toHaveValue('200')
+    expect(upperInput(2)).toHaveValue('2.5')
+    expect(lowerInput(2)).toHaveValue('2.5')
+    fireEvent.change(upperInput(2), { target: { value: '1..5%' } })
+    fireEvent.change(lowerInput(2), { target: { value: '0' } })
+    fireEvent.change(bandWindowInput(2), { target: { value: '120.5' } })
+    expect(upperInput(2)).toHaveValue('1.5')
+    expect(lowerInput(2)).toHaveValue('0')
+    expect(bandWindowInput(2)).toHaveValue('1205')
+    expect(shortInput(1)).toHaveValue('5')
+
+    await userEvent.selectOptions(strategySelect(1), '한 번에')
+    expect(screen.queryByRole('textbox', { name: '1번 짧은 기간(일)' })).toBeNull()
+    await userEvent.selectOptions(strategySelect(1), '이동평균')
+    expect(shortInput(1)).toHaveValue('5')
+  })
+
+  it('이동평균 · 밴드 칸 오류는 익절 · 손절 오류 다음 차례로 칸 아래에 보이고 그 글을 낸 칸만 그 줄과 잇는다', () => {
+    const cross = { ...row('SPY', '1'), strategy: 'MA_CROSS' as const, shortWindow: '60' }
+    const band = { ...row('QQQ', '1'), strategy: 'MA_BAND' as const, upper: '' }
+    const { unmount } = render(
+      <Harness
+        initial={[cross, band]}
+        patch={{
+          messages: [
+            { ...ok, shortWindow: error('1번 줄 짧은 기간 긴 기간보다 짧게') },
+            { ...ok, stopLoss: error('2번 줄 손절 100 아래'), upper: error('2번 줄 위 비율 비어 있음') },
+          ],
+        }}
+      />
+    )
+
+    expect(screen.getByText('1번 줄 짧은 기간 긴 기간보다 짧게')).toBeInTheDocument()
+    expect(shortInput(1)).toHaveAttribute('aria-invalid', 'true')
+    expect(shortInput(1)).toHaveAccessibleDescription('1번 줄 짧은 기간 긴 기간보다 짧게')
+    expect(longInput(1)).not.toHaveAttribute('aria-invalid')
+    expect(upperInput(2)).toHaveAttribute('aria-invalid', 'true')
+    expect(upperInput(2)).not.toHaveAttribute('aria-describedby')
+    unmount()
+
+    render(<Harness initial={[band]} patch={{ messages: [{ ...ok, stopLoss: error('1번 줄 손절 100 아래'), upper: error('1번 줄 위 비율 비어 있음') }] }} />)
+    expect(screen.getByText('1번 줄 손절 100 아래')).toBeInTheDocument()
+    expect(screen.queryByText('1번 줄 위 비율 비어 있음')).toBeNull()
   })
 
   it('비율 방식 총액 오류는 줄 오류보다 먼저 칸 아래에 보인다', async () => {

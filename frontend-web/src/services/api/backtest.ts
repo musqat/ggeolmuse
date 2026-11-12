@@ -353,13 +353,27 @@ export type PortfolioMethod = 'LUMP_SUM' | 'DCA';
 // 포트폴리오 리밸런싱 주기(주기마다 처음 비중으로 팔고 삼)
 export type PortfolioRebalance = 'NONE' | 'YEARLY' | 'QUARTERLY' | 'MONTHLY';
 
+// 포트폴리오 종목 줄 전략(한 번에 · 적립식 회차 · 이동평균 교차 · 이동평균 밴드)
+export type PortfolioStrategyType = 'LUMP_SUM' | 'DCA' | 'MA_CROSS' | 'MA_BAND';
+
+// 포트폴리오 종목 줄 전략 요청(이동평균 칸은 MA_CROSS, 밴드 칸은 MA_BAND 에서만)
+export type PortfolioAssetStrategy = {
+  type: PortfolioStrategyType;
+  shortWindow?: number;                 // 짧은 이동평균 기간 (거래일)
+  longWindow?: number;                  // 긴 이동평균 기간 (거래일)
+  bandWindow?: number;                  // 밴드 평균 기간 (거래일)
+  upperRate?: number;                   // 밴드 위 선 비율 (0.025 = 2.5%)
+  lowerRate?: number;                   // 밴드 아래 선 비율 (0.025 = 2.5%)
+};
+
 // 포트폴리오 종목 줄 요청(금액 방식은 금액, 비율 방식은 비율)
 export type PortfolioAssetRequest = {
   symbol: string;
-  amount?: number;                      // 금액 (KRW, 적립식이면 회당)
+  amount?: number;                      // 금액 (KRW, 적립식 줄은 회당, 이동평균 · 밴드 줄은 첫 매수 신호에)
   weightPercent?: number;               // 비율 (%, 줄 합 100)
   takeProfitRate?: number;              // 그 종목 평균 단가 대비 익절 비율 (0.3 = 30%, 비우면 안 함)
   stopLossRate?: number;                // 그 종목 평균 단가 대비 손절 비율 (0.1 = 10%, 1 미만, 비우면 안 함)
+  strategy?: PortfolioAssetStrategy;    // 비우면 요청의 매수 방식
 };
 
 // 포트폴리오 백테스트 요청(여러 종목을 현금 하나로 사고 평가)
@@ -367,10 +381,10 @@ export type PortfolioBacktestRequest = BacktestCommonRequest & {
   startDate: string;
   endDate: string;
   allocation?: PortfolioAllocation;     // 비우면 금액
-  totalAmount?: number;                 // 총액 (KRW, 비율 방식만, 적립식이면 회당)
+  totalAmount?: number;                 // 총액 (KRW, 비율 방식만, 적립식 줄 몫은 회당)
   assets: PortfolioAssetRequest[];      // 1 ~ 10개, 같은 종목은 한 번만
-  method?: PortfolioMethod;             // 비우면 한 번에 사기
-  // 적립식만(적립식 요청과 같은 칸 · 기본값, 모든 줄이 같은 주기)
+  method?: PortfolioMethod;             // 줄 전략이 없는 줄의 방식, 비우면 한 번에 사기
+  // 적립식 줄이 있을 때만(적립식 요청과 같은 칸 · 기본값, 적립식 줄이 모두 같은 주기)
   frequency?: DcaFrequency;
   firstPurchaseDate?: string;
   purchaseDay?: number;

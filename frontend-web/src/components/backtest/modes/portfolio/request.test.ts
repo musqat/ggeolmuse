@@ -1,16 +1,16 @@
 import { describe, it, expect } from 'vitest'
 import { buildPortfolioRequest, type PortfolioValues } from './request'
-import type { PortfolioRow } from '../../shared/portfolioRows'
+import { newRow, type PortfolioRow } from '../../shared/portfolioRows'
 
 const ctx = { today: '2026-10-08' }
 
 const row = (symbol: string, amount: string, weight = '', takeProfit = '', stopLoss = ''): PortfolioRow => ({
-  symbol,
-  amount,
-  weight,
+  ...newRow(symbol, amount, weight),
   takeProfit,
   stopLoss,
 })
+
+const withStrategy = (base: PortfolioRow, patch: Partial<PortfolioRow>): PortfolioRow => ({ ...base, ...patch })
 
 const values: PortfolioValues = {
   startDate: '2023-01-01',
@@ -114,6 +114,62 @@ describe('buildPortfolioRequest', () => {
     )
     expect(weekly).toMatchObject({ request: { frequency: 'WEEKLY', firstPurchaseDate: '2023-01-04' } })
     expect('request' in weekly && weekly.request).not.toHaveProperty('purchaseDay')
+  })
+
+  it('방식대로인 줄은 전략을 싣지 않고, 고른 줄은 한 번에 · 적립식은 종류만 · 이동평균은 두 기간 · 밴드는 평균 기간과 위 · 아래 비율(2.5% = 0.025)을 싣는다', () => {
+    const rows = [
+      row('SPY', '4000000'),
+      withStrategy(row('QQQ', '3000000'), { strategy: 'MA_CROSS', shortWindow: '5', longWindow: '30', bandWindow: '' }),
+      withStrategy(row('IAU', '2000000', '', '20'), { strategy: 'MA_BAND', bandWindow: '120', upper: '1.5', lower: '0', shortWindow: '' }),
+      withStrategy(row('TLT', '1000000'), { strategy: 'LUMP_SUM' }),
+    ]
+
+    const built = buildPortfolioRequest({ ...values, method: 'DCA', rows }, ctx)
+    expect('request' in built && built.request.assets).toStrictEqual([
+      { symbol: 'SPY', amount: 4000000 },
+      { symbol: 'QQQ', amount: 3000000, strategy: { type: 'MA_CROSS', shortWindow: 5, longWindow: 30 } },
+      { symbol: 'IAU', amount: 2000000, takeProfitRate: 0.2, strategy: { type: 'MA_BAND', bandWindow: 120, upperRate: 0.015, lowerRate: 0 } },
+      { symbol: 'TLT', amount: 1000000, strategy: { type: 'LUMP_SUM' } },
+    ])
+  })
+
+  it('적립식 칸은 방식과 상관없이 적립식 줄이 하나라도 있으면 싣고 보며, 없으면 적립식 방식이라도 싣지 않는다', () => {
+    const dcaRow = withStrategy(row('QQQ', '1000000'), { strategy: 'DCA' })
+    const lump = buildPortfolioRequest({ ...values, rows: [row('SPY', '6000000'), dcaRow] }, ctx)
+    expect(lump).toMatchObject({
+      request: {
+        method: 'LUMP_SUM',
+        assets: [{ symbol: 'SPY', amount: 6000000 }, { symbol: 'QQQ', amount: 1000000, strategy: { type: 'DCA' } }],
+        frequency: 'MONTHLY',
+        purchaseDay: 1,
+        investmentInterval: 1,
+      },
+    })
+    expect(buildPortfolioRequest({ ...values, rows: [dcaRow], cadence: 'MONTHS', months: '13' }, ctx)).toEqual({
+      error: '개월 수는 1~12 사이의 정수로 입력해주세요.',
+    })
+
+    const signals = [
+      withStrategy(row('SPY', '1'), { strategy: 'MA_CROSS' }),
+      withStrategy(row('QQQ', '1'), { strategy: 'LUMP_SUM' }),
+    ]
+    const noDca = buildPortfolioRequest({ ...values, method: 'DCA', rows: signals, cadence: 'MONTHS', months: '' }, ctx)
+    expect(noDca).toMatchObject({ request: { method: 'DCA' } })
+    expect('request' in noDca && noDca.request).not.toHaveProperty('frequency')
+  })
+
+  it.each([
+    ['이동평균 짧은 기간 1', { strategy: 'MA_CROSS', shortWindow: '1' }, '이동평균 기간은 2 ~ 250 사이 정수로, 짧은 기간을 긴 기간보다 짧게 입력해주세요.'],
+    ['이동평균 짧은 기간 = 긴 기간', { strategy: 'MA_CROSS', shortWindow: '60' }, '이동평균 기간은 2 ~ 250 사이 정수로, 짧은 기간을 긴 기간보다 짧게 입력해주세요.'],
+    ['밴드 평균 기간 251', { strategy: 'MA_BAND', bandWindow: '251' }, '밴드 기간은 2 ~ 250 사이 정수로, 위 · 아래 비율은 0 이상 100 미만으로 입력해주세요.'],
+    ['밴드 빈 아래 비율', { strategy: 'MA_BAND', lower: '' }, '밴드 기간은 2 ~ 250 사이 정수로, 위 · 아래 비율은 0 이상 100 미만으로 입력해주세요.'],
+  ] as [string, Partial<PortfolioRow>, string][])('%s: 그 줄 전략 칸이 맞지 않으면 막는다', (_name, patch, error) => {
+    expect(buildPortfolioRequest({ ...values, rows: [row('SPY', '1'), withStrategy(row('QQQ', '1'), patch)] }, ctx)).toEqual({ error })
+  })
+
+  it('익절 · 손절 검사가 전략 칸 검사보다 먼저다', () => {
+    const rows = [withStrategy(row('SPY', '1', '', '0'), { strategy: 'MA_CROSS', shortWindow: '1' })]
+    expect(buildPortfolioRequest({ ...values, rows }, ctx)).toEqual({ error: '익절 비율은 0보다 커야 합니다.' })
   })
 
   it.each([

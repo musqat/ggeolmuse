@@ -13,6 +13,7 @@ import {
   partialTakeProfitIssues,
   percentIssue,
   portfolioRowIssues,
+  portfolioRowMessageList,
   sellIssue,
   signalIssue,
   symbolIssue,
@@ -135,23 +136,30 @@ describe('설정 칸 검사', () => {
       weight,
       takeProfit,
       stopLoss,
+      strategy: '' as const,
+      shortWindow: '20',
+      longWindow: '60',
+      bandWindow: '200',
+      upper: '2.5',
+      lower: '2.5',
     })
     const noSell = { takeProfit: null, stopLoss: null }
-    const ok = { symbol: null, value: null, ...noSell }
+    const noSignal = { shortWindow: null, longWindow: null, bandWindow: null, upper: null, lower: null }
+    const ok = { symbol: null, value: null, ...noSell, ...noSignal }
     const list = ['SPY', 'QQQ', 'IAU', 'TLT']
 
     it('종목은 비었거나 목록에 없거나 앞 줄과 같으면, 금액 방식은 금액 · 비율 방식은 0 초과 100 이하 비율이 아니면 그 줄 오류', () => {
       expect(portfolioRowIssues([row('SPY', '6000000', ''), row('qqq', '4000000', '')], 'AMOUNT', list)).toEqual([ok, ok])
       expect(portfolioRowIssues([row('', '', '50'), row('ZZZ', '0', '50'), row(' spy ', '1', '')], 'AMOUNT', list)).toEqual([
-        { symbol: error('1번 줄 종목 비어 있음'), value: error('1번 줄 금액 비어 있음'), ...noSell },
-        { symbol: error('2번 줄 종목 목록에서 고르기'), value: error('2번 줄 금액 0 보다 크게'), ...noSell },
+        { symbol: error('1번 줄 종목 비어 있음'), value: error('1번 줄 금액 비어 있음'), ...noSell, ...noSignal },
+        { symbol: error('2번 줄 종목 목록에서 고르기'), value: error('2번 줄 금액 0 보다 크게'), ...noSell, ...noSignal },
         ok,
       ])
       expect(portfolioRowIssues([row('SPY', '', '60'), row('QQQ', '', ''), row(' spy ', '', '100.5'), row('QQQ', '', '0')], 'WEIGHT', list)).toEqual([
         ok,
-        { symbol: null, value: error('2번 줄 비율 비어 있음'), ...noSell },
-        { symbol: error('3번 줄 종목이 앞 줄과 같음'), value: error('3번 줄 비율 0 초과 100 이하'), ...noSell },
-        { symbol: error('4번 줄 종목이 앞 줄과 같음'), value: error('4번 줄 비율 0 초과 100 이하'), ...noSell },
+        { symbol: null, value: error('2번 줄 비율 비어 있음'), ...noSell, ...noSignal },
+        { symbol: error('3번 줄 종목이 앞 줄과 같음'), value: error('3번 줄 비율 0 초과 100 이하'), ...noSell, ...noSignal },
+        { symbol: error('4번 줄 종목이 앞 줄과 같음'), value: error('4번 줄 비율 0 초과 100 이하'), ...noSell, ...noSignal },
       ])
       expect(portfolioRowIssues([row('ZZZ', '1', '')], 'AMOUNT', [])).toEqual([ok])
     })
@@ -168,6 +176,59 @@ describe('설정 칸 검사', () => {
       expect(portfolioRowIssues(rows, 'AMOUNT', list)).toEqual(expected)
       expect(portfolioRowIssues(rows, 'WEIGHT', list)).toEqual(expected)
       expect(portfolioRowIssues([row('SPY', '1', '', '250', '99.9')], 'AMOUNT', list)).toEqual([ok])
+    })
+
+    it('이동평균 줄은 두 기간이 2 ~ 250 정수이고 짧은 기간이 긴 기간보다 짧은지, 밴드 줄은 평균 기간과 위 · 아래 비율을 본다', () => {
+      const cross = (shortWindow: string, longWindow: string) => ({ ...row('SPY', '1', ''), strategy: 'MA_CROSS' as const, shortWindow, longWindow })
+      const band = (bandWindow: string, upper: string, lower: string) => ({ ...row('QQQ', '1', ''), strategy: 'MA_BAND' as const, bandWindow, upper, lower })
+
+      expect(portfolioRowIssues([cross('20', '60'), band('200', '2.5', '0')], 'AMOUNT', list)).toEqual([ok, ok])
+      expect(portfolioRowIssues([cross('1', '251'), band('', '', '100')], 'AMOUNT', list)).toEqual([
+        { ...ok, shortWindow: error('1번 줄 짧은 기간 2 ~ 250 사이 정수'), longWindow: error('1번 줄 긴 기간 2 ~ 250 사이 정수') },
+        {
+          ...ok,
+          bandWindow: error('2번 줄 밴드 기간 2 ~ 250 사이 정수'),
+          upper: error('2번 줄 위 비율 비어 있음'),
+          lower: error('2번 줄 아래 비율 0 이상 100 미만'),
+        },
+      ])
+      expect(portfolioRowIssues([cross('60', '60'), band('2.5', '-1', '2.5')], 'WEIGHT', list)).toEqual([
+        { ...ok, value: error('1번 줄 비율 비어 있음'), shortWindow: error('1번 줄 짧은 기간 긴 기간보다 짧게') },
+        { ...ok, value: error('2번 줄 비율 비어 있음'), bandWindow: error('2번 줄 밴드 기간 2 ~ 250 사이 정수'), upper: error('2번 줄 위 비율 0 이상 100 미만') },
+      ])
+    })
+
+    it('한 번에 · 적립식 줄은 남아 있는 이동평균 · 밴드 칸을 보지 않는다', () => {
+      const idle = { shortWindow: '1', longWindow: '', bandWindow: 'x', upper: '', lower: '100' }
+
+      expect(
+        portfolioRowIssues(
+          [
+            { ...row('SPY', '1', ''), ...idle },
+            { ...row('QQQ', '1', ''), ...idle, strategy: 'DCA' as const },
+            { ...row('IAU', '1', ''), ...idle, strategy: 'LUMP_SUM' as const },
+          ],
+          'AMOUNT',
+          list,
+        ),
+      ).toEqual([ok, ok, ok])
+    })
+
+    it('줄 칸 오류는 종목 · 금액 · 익절 · 손절 · 이동평균 · 밴드 칸 차례로', () => {
+      const typed = (text: string) => ({ kind: 'error' as const, text })
+      const messages = {
+        symbol: typed('a'),
+        value: typed('b'),
+        takeProfit: typed('c'),
+        stopLoss: typed('d'),
+        shortWindow: typed('e'),
+        longWindow: typed('f'),
+        bandWindow: typed('g'),
+        upper: typed('h'),
+        lower: typed('i'),
+      }
+
+      expect(portfolioRowMessageList(messages).map((message) => message?.text)).toEqual(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'])
     })
   })
 

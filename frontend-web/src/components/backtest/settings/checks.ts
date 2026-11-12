@@ -140,13 +140,31 @@ export const partialTakeProfitIssues = (
   });
 };
 
-// 포트폴리오 줄 하나의 종목 칸 · 금액(비율) 칸 · 익절 칸 · 손절 칸 오류
+// 포트폴리오 줄 하나의 종목 칸 · 금액(비율) 칸 · 익절 칸 · 손절 칸 · 이동평균 두 기간 칸 · 밴드 세 칸 오류
 export interface PortfolioRowMessages {
   symbol: FieldMessage | null;
   value: FieldMessage | null;
   takeProfit: FieldMessage | null;
   stopLoss: FieldMessage | null;
+  shortWindow: FieldMessage | null;
+  longWindow: FieldMessage | null;
+  bandWindow: FieldMessage | null;
+  upper: FieldMessage | null;
+  lower: FieldMessage | null;
 }
+
+// 줄 칸 오류를 칸 차례로(종목 · 금액 · 익절 · 손절 · 이동평균 · 밴드)
+export const portfolioRowMessageList = (messages: PortfolioRowMessages): (FieldMessage | null)[] => [
+  messages.symbol,
+  messages.value,
+  messages.takeProfit,
+  messages.stopLoss,
+  messages.shortWindow,
+  messages.longWindow,
+  messages.bandWindow,
+  messages.upper,
+  messages.lower,
+];
 
 // 포트폴리오 줄 익절 · 손절 칸 오류(비면 안 함, 0 초과, 손절은 100 미만)
 const rowSellIssues = (row: PortfolioRow, n: string) => {
@@ -161,7 +179,26 @@ const rowSellIssues = (row: PortfolioRow, n: string) => {
   };
 };
 
-// 포트폴리오 줄마다 칸 오류(종목은 비었거나 목록에 없거나 앞 줄과 대문자로 같으면, 금액 방식은 0 초과 금액 · 비율 방식은 0 초과 100 이하 비율, 익절 · 손절은 적은 때만)
+// 포트폴리오 줄 이동평균 · 밴드 칸 오류(그 전략 줄만, 기간은 2 ~ 250 정수, 짧은 기간은 긴 기간보다 짧게, 비율은 0 이상 100 미만)
+const rowSignalIssues = (row: PortfolioRow, n: string) => {
+  const none = { shortWindow: null, longWindow: null, bandWindow: null, upper: null, lower: null };
+  const prefixed = (name: string, message: FieldMessage | null) => message && error(`${n} ${name} ${message.text}`);
+  if (row.strategy === 'MA_CROSS') {
+    const windows = windowIssues(row.shortWindow, row.longWindow);
+    return { ...none, shortWindow: prefixed('짧은 기간', windows.short), longWindow: prefixed('긴 기간', windows.long) };
+  }
+  if (row.strategy !== 'MA_BAND') return none;
+  const rate = (name: string, text: string) =>
+    !text.trim() ? error(`${n} ${name} 비어 있음`) : parseBandPercent(text) === undefined ? error(`${n} ${name} 0 이상 100 미만`) : null;
+  return {
+    ...none,
+    bandWindow: parseWindow(row.bandWindow) === undefined ? error(`${n} 밴드 기간 2 ~ 250 사이 정수`) : null,
+    upper: rate('위 비율', row.upper),
+    lower: rate('아래 비율', row.lower),
+  };
+};
+
+// 포트폴리오 줄마다 칸 오류(종목은 비었거나 목록에 없거나 앞 줄과 대문자로 같으면, 금액 방식은 0 초과 금액 · 비율 방식은 0 초과 100 이하 비율, 익절 · 손절은 적은 때만, 이동평균 · 밴드 칸은 그 전략 줄만)
 export const portfolioRowIssues = (
   rows: PortfolioRow[],
   allocation: PortfolioAllocation,
@@ -178,11 +215,11 @@ export const portfolioRowIssues = (
         : repeated
           ? error(`${n} 종목이 앞 줄과 같음`)
           : null;
-    const sells = rowSellIssues(row, n);
+    const others = { ...rowSellIssues(row, n), ...rowSignalIssues(row, n) };
     if (allocation === 'AMOUNT') {
       const amount = rowAmount(row);
       const value = !row.amount.trim() ? error(`${n} 금액 비어 있음`) : amount > 0 ? null : error(`${n} 금액 0 보다 크게`);
-      return { symbol, value, ...sells };
+      return { symbol, value, ...others };
     }
     const weight = rowWeight(row);
     const value = !row.weight.trim()
@@ -190,7 +227,7 @@ export const portfolioRowIssues = (
       : weight > 0 && weight <= 100
         ? null
         : error(`${n} 비율 0 초과 100 이하`);
-    return { symbol, value, ...sells };
+    return { symbol, value, ...others };
   });
 
 export const maxIssue = (max: string): FieldMessage | null => {

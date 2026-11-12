@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef } from 'react';
-import type { PortfolioAllocation } from '@services/api';
+import type { PortfolioAllocation, PortfolioMethod } from '@services/api';
 import StockSearchInput from '../../../common/StockSearchInput';
 import { NumberInput } from '../../../common/NumberInput';
 import { formatKrw, formatNumber, formatReadableWon } from '../../../../utils/format';
@@ -7,7 +7,7 @@ import { ClearButton, SettingField } from '../../settings/SettingField';
 import { RadioGroup } from '../../settings/radio';
 import { useMessageLink } from '../../settings/messageLink';
 import { oneDecimal } from '../../settings/inputText';
-import { isError, type FieldMessage, type PortfolioRowMessages } from '../../settings/checks';
+import { isError, portfolioRowMessageList, type FieldMessage, type PortfolioRowMessages } from '../../settings/checks';
 import { AFTER_VALUE, LEAD, SEG_GROUP, SEG_OPTION, UNIT, VALUE_ROW } from '../../settings/styles';
 import {
   MAX_ROWS,
@@ -18,6 +18,7 @@ import {
   weightSum,
   type PortfolioRow,
 } from '../../shared/portfolioRows';
+import { RowSignalFields, RowStrategySelect } from './RowStrategyFields';
 
 export interface PortfolioAssetsFieldProps {
   rows: PortfolioRow[];
@@ -26,8 +27,10 @@ export interface PortfolioAssetsFieldProps {
   onAllocationChange: (allocation: PortfolioAllocation) => void;
   total: string;
   onTotalChange: (total: string) => void;
-  // 적립식이면 금액 · 총액이 회당
+  // 모든 줄이 적립식이면 금액 · 총액이 회당
   perRound: boolean;
+  // 방식대로인 줄의 전략
+  method: PortfolioMethod;
   supportedSymbols: string[];
   messages: PortfolioRowMessages[];
   totalMessage: FieldMessage | null;
@@ -38,21 +41,34 @@ const ALLOCATIONS: { value: PortfolioAllocation; label: string }[] = [
   { value: 'WEIGHT', label: '비율' },
 ];
 
-// 휴대폰 · 태블릿은 줄마다 카드(첫 줄 종목 + 지우기, 둘째 줄 금액 · 비율과 익절 · 손절), 넓은 화면은 한 줄
+// 휴대폰 · 태블릿은 줄마다 카드(첫 줄 종목 + 지우기, 둘째 줄 금액 · 비율과 익절 · 손절, 셋째 줄 전략, 그 아래 이동평균 · 밴드 칸), 넓은 화면은 한 줄과 그 아래 이동평균 · 밴드 칸
 const ROW =
   'grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-0.5 rounded-lg border border-line/70 px-2.5 py-1.5 ' +
-  'lg:grid-cols-[minmax(0,1fr)_minmax(0,30rem)_2.25rem] lg:rounded-none lg:border-0 lg:border-t lg:border-line/50 lg:px-0 lg:first:border-t-0';
+  'lg:grid-cols-[minmax(0,1fr)_minmax(0,39rem)_2.25rem] lg:rounded-none lg:border-0 lg:border-t lg:border-line/50 lg:px-0 lg:first:border-t-0';
 
-// 좁으면 익절 · 손절이 금액 · 비율 아래 줄로, 넓은 화면은 두 칸
+// 좁으면 익절 · 손절과 전략이 금액 · 비율 아래 줄로, 넓은 화면은 세 칸
 const VALUES =
   'col-span-2 row-start-2 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-0.5 ' +
-  'lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:grid lg:grid-cols-[minmax(0,16rem)_minmax(0,13rem)] lg:gap-x-3';
+  'lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:grid lg:grid-cols-[minmax(0,16rem)_minmax(0,13rem)_8rem] lg:gap-x-3';
+
+// 이동평균 · 밴드 칸은 전략 아래 줄(넓은 화면은 금액 칸 아래부터)
+const SIGNAL = 'col-span-2 row-start-3 lg:col-span-1 lg:col-start-2 lg:row-start-2';
 
 const percentText = (value: number) => `${formatNumber(value, { maximumFractionDigits: 1 })}%`;
 
-const NO_MESSAGES: PortfolioRowMessages = { symbol: null, value: null, takeProfit: null, stopLoss: null };
+const NO_MESSAGES: PortfolioRowMessages = {
+  symbol: null,
+  value: null,
+  takeProfit: null,
+  stopLoss: null,
+  shortWindow: null,
+  longWindow: null,
+  bandWindow: null,
+  upper: null,
+  lower: null,
+};
 
-// 포트폴리오 종목 칸: 이름 줄 오른쪽 금액 | 비율, 비율이면 총액 줄, 줄마다 [종목] [₩ 금액 · 몫 % 또는 비율 % · 어림 금액] [익절 +% · 손절 -%] [지우기], 아래 "＋ 종목 더하기"(10줄이면 "최대 10개") · 합계 줄
+// 포트폴리오 종목 칸: 이름 줄 오른쪽 금액 | 비율, 비율이면 총액 줄, 줄마다 [종목] [₩ 금액 · 몫 % 또는 비율 % · 어림 금액] [익절 +% · 손절 -%] [전략] [지우기]와 이동평균 · 밴드 칸, 아래 "＋ 종목 더하기"(10줄이면 "최대 10개") · 합계 줄
 export const PortfolioAssetsField = ({
   rows,
   onRowsChange,
@@ -61,12 +77,13 @@ export const PortfolioAssetsField = ({
   total,
   onTotalChange,
   perRound,
+  method,
   supportedSymbols,
   messages,
   totalMessage,
 }: PortfolioAssetsFieldProps) => {
   const weighted = allocation === 'WEIGHT';
-  const rowMessages = messages.flatMap((row) => [row.symbol, row.value, row.takeProfit, row.stopLoss]);
+  const rowMessages = messages.flatMap(portfolioRowMessageList);
   const message = [weighted ? totalMessage : null, ...rowMessages].find(Boolean) ?? null;
   const { messageId, describedBy } = useMessageLink(message);
   const listRef = useRef<HTMLDivElement>(null);
@@ -80,7 +97,7 @@ export const PortfolioAssetsField = ({
     listRef.current?.querySelectorAll<HTMLElement>('[data-row]')[index]?.querySelector('input')?.focus();
   });
 
-  const change = (index: number, key: keyof PortfolioRow, value: string) =>
+  const change = <K extends keyof PortfolioRow>(index: number, key: K, value: PortfolioRow[K]) =>
     onRowsChange(rows.map((row, i) => (i === index ? { ...row, [key]: value } : row)));
   const add = () => {
     focusAfter.current = rows.length;
@@ -208,7 +225,16 @@ export const PortfolioAssetsField = ({
                   {sellInput('stopLoss', '손절', own.stopLoss)}
                   {row.stopLoss && <span className={UNIT}>%</span>}
                 </div>
+                <RowStrategySelect n={n} row={row} method={method} onChange={(key, value) => change(index, key, value)} />
               </div>
+              <RowSignalFields
+                n={n}
+                row={row}
+                onChange={(key, value) => change(index, key, value)}
+                messages={own}
+                describedBy={(ownMessage) => link(ownMessage).describedBy}
+                className={SIGNAL}
+              />
               {rows.length > 1 && (
                 <span className="col-start-2 row-start-1 lg:col-start-3">
                   <ClearButton label={`${n}번 종목 지우기`} onClick={() => remove(index)} />
