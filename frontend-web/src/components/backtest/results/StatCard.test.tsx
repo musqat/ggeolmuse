@@ -23,6 +23,14 @@ describe('StatCard', () => {
     expect(screen.getByText('₩300,000')).toHaveClass('text-tx-1')
   })
 
+  it('좁은 카드는 휴대폰에서 안쪽 여백 · 값 글자를 줄이고 긴 값을 칸 안에서 줄바꿈한다', () => {
+    const { container } = render(<StatCard label="총 평가" value="₩1,234,567,890" compact />)
+
+    expect(container.firstChild).toHaveClass('min-w-0', 'p-4', 'sm:p-5')
+    expect(screen.getByText('₩1,234,567,890')).toHaveClass('text-xl', 'sm:text-2xl', 'break-words')
+    expect(screen.getByText('₩1,234,567,890')).not.toHaveClass('text-2xl')
+  })
+
   it('아이콘을 그리지 않는다', () => {
     const { container } = render(<StatCard label="수익률" value="-3.20%" />)
 

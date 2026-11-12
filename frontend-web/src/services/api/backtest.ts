@@ -242,7 +242,7 @@ export type StrategyTransaction = {
   shares: number;
   amount: number;                       // 투자금 (KRW)
   fxRate: number;
-  trigger?: string;                     // 적립식은 "월정액" · "매주 정액" · "매일 정액", 조건부는 "5.0%하락" · "5.0%상승" · "20.0%익절" · "10.0%손절" 같은 값, 이동평균은 "골든 크로스" · "데드 크로스", 밴드는 "밴드 위 매수" · "밴드 아래 매도", 기간 끝에 판 거래는 "기간 끝 매도", 양도세를 낸 줄은 "양도세 납부"
+  trigger?: string;                     // 적립식은 "월정액" · "매주 정액" · "매일 정액", 조건부는 "5.0%하락" · "5.0%상승" · "20.0%익절" · "10.0%손절" 같은 값, 이동평균은 "골든 크로스" · "데드 크로스", 밴드는 "밴드 위 매수" · "밴드 아래 매도", 포트폴리오 한 번에 사기는 "한 번에 매수", 기간 끝에 판 거래는 "기간 끝 매도", 양도세를 낸 줄은 "양도세 납부"
   fee?: number | null;                  // 매매 수수료 (USD, 배당 재투자는 없음)
   proceeds?: number | null;             // 매도로 받은 돈 (USD, 수수료 뺀 값, 매도는 수량이 음수)
   cashUsed?: number | null;             // 매수에 쓴 판 돈 (USD)
@@ -344,6 +344,89 @@ export type StrategyResponse = {
   tradeStats?: TradeStats | null;           // 조건부 · 이동평균 교차 · 밴드만
 };
 
+// 포트폴리오 줄 금액 방식(줄마다 원화 금액 · 총액 × 줄마다 비율)
+export type PortfolioAllocation = 'AMOUNT' | 'WEIGHT';
+
+// 포트폴리오 매수 방식(줄마다 첫 거래일에 한 번에 · 적립식 회차마다)
+export type PortfolioMethod = 'LUMP_SUM' | 'DCA';
+
+// 포트폴리오 종목 줄 요청(금액 방식은 금액, 비율 방식은 비율)
+export type PortfolioAssetRequest = {
+  symbol: string;
+  amount?: number;                      // 금액 (KRW, 적립식이면 회당)
+  weightPercent?: number;               // 비율 (%, 줄 합 100)
+};
+
+// 포트폴리오 백테스트 요청(여러 종목을 현금 하나로 사고 평가)
+export type PortfolioBacktestRequest = BacktestCommonRequest & {
+  startDate: string;
+  endDate: string;
+  allocation?: PortfolioAllocation;     // 비우면 금액
+  totalAmount?: number;                 // 총액 (KRW, 비율 방식만, 적립식이면 회당)
+  assets: PortfolioAssetRequest[];      // 1 ~ 10개, 같은 종목은 한 번만
+  method?: PortfolioMethod;             // 비우면 한 번에 사기
+  // 적립식만(적립식 요청과 같은 칸 · 기본값, 모든 줄이 같은 주기)
+  frequency?: DcaFrequency;
+  firstPurchaseDate?: string;
+  purchaseDay?: number;
+  investmentInterval?: number;
+};
+
+// 포트폴리오 거래 이유
+export type TradeReason = 'BUY' | 'DCA_BUY' | 'PERIOD_END_SALE' | 'DIVIDEND_REINVESTMENT' | 'TAX_PAYMENT';
+
+// 포트폴리오 매매 한 건(양도세 납부 줄은 종목 없음)
+export type PortfolioTransaction = StrategyTransaction & {
+  symbol?: string;
+  reason?: TradeReason;
+};
+
+// 포트폴리오 종목 줄 결과(원화는 정수, 비율은 %)
+export type PortfolioAssetResult = {
+  symbol: string;
+  investedKrw: number;                  // 매수 원가 합 (새 돈 + 쓴 현금 × 그 날짜 환율)
+  valueKrw: number;                     // 평가일 보유 × 종가 × 평가일 환율
+  soldKrw: number;                      // 판 돈 × 판 날 환율 합
+  dividendKrw: number;                  // 세후 배당 × 배당락일 환율 합 (재투자 포함)
+  profitKrw: number;                    // 지금 가치 + 판 돈 + 배당 - 넣은 돈
+  returnPercent: number | null;         // 넣은 돈이 0 이면 null
+  contributionPercent: number | null;   // 이익 ÷ 총 수익 × 100 (총 수익이 0 이면 null)
+  startWeightPercent: number;           // 줄 금액 ÷ 줄 금액 합
+  endWeightPercent: number;             // 지금 가치 ÷ 총 자산
+  shares: number;
+  realizedProfitKrw: number;
+  buyCount: number;
+  sellCount: number;
+};
+
+// 포트폴리오 백테스트 응답
+export type PortfolioBacktestResponse = {
+  startDate: string;                    // 기간 안 첫 거래일
+  endDate: string;                      // 평가일
+  method: PortfolioMethod;
+  periodEnd: PeriodEnd;
+  totalInvestedKrw: number;             // 새로 넣은 원화 합
+  totalAssetKrw: number;                // 주식 평가 + 현금
+  stockValueKrw: number;
+  cashKrw: number;                      // 판 돈 · 현금 배당에서 쓰고 남은 돈 (낸 양도세 뺌)
+  cashUsd: number;
+  totalReturnKrw: number;
+  totalReturnPercent: number;
+  realizedProfitKrw: number;            // 판 거래의 원화 실현 이익 합
+  otherProfitKrw: number;               // 총 수익 - 종목 이익 합 (현금의 환율 차 · 낸 양도세)
+  currentFxRate: number;
+  buyCount: number;                     // 배당 재투자 · 양도세 납부 빼고
+  sellCount: number;
+  metricsKrw?: PerformanceMetrics | null;   // 산 것이 없으면 null
+  metricsUsd?: PerformanceMetrics | null;
+  dailyValues: DailyValue[];                // 첫 매수일 ~ 평가일(마지막 날은 총 자산)
+  assets: PortfolioAssetResult[];           // 요청 순서
+  transactions: PortfolioTransaction[];     // 거래일 순서
+  tradeStats?: TradeStats | null;           // 판 거래가 없으면 null
+  capitalGainsTax?: CapitalGainsTax | null; // 포트폴리오 전체, 끄면 null
+  defaultFxDates?: string[];
+};
+
 // 비교 항목의 원래 응답(SimulationResponse 또는 StrategyResponse 라 두 쪽 칸 모두 선택)
 export type ComparisonDetail = Partial<SimulationResponse> & Partial<StrategyResponse>;
 
@@ -437,6 +520,10 @@ export const backtestApi = {
   // 이동평균 밴드 전략 실행
   runMaBandStrategy: (data: MaBandStrategyRequest) =>
     apiClient.post<StrategyResponse>('/analysis/strategy/ma-band', data),
+
+  // 포트폴리오 백테스트 실행
+  runPortfolio: (data: PortfolioBacktestRequest) =>
+    apiClient.post<PortfolioBacktestResponse>('/analysis/portfolio', data),
 
   // 종목 비교 분석
   compareSymbols: (data: SymbolComparisonRequest) =>

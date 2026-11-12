@@ -1,4 +1,4 @@
-import type { ComparisonResponse, SimulationResponse, StrategyResponse } from "../../../services/api";
+import type { ComparisonResponse, PortfolioBacktestResponse, SimulationResponse, StrategyResponse } from "../../../services/api";
 import type { BandSetting } from "./maBand";
 
 export type BacktestMode =
@@ -7,6 +7,7 @@ export type BacktestMode =
   | "conditional"
   | "ma-cross"
   | "ma-band"
+  | "portfolio"
   | "compare-symbols"
   | "compare-strategies";
 
@@ -32,4 +33,5 @@ export type BacktestResult =
       windows?: { short: number; long: number };
       band?: BandSetting;
     })
+  | (PortfolioBacktestResponse & { mode: "portfolio" })
   | (ComparisonResponse & { mode: "compare-symbols" | "compare-strategies" });

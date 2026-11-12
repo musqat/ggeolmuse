@@ -6,6 +6,8 @@ import { parseBandPercent } from '../shared/maBand';
 import type { SignalChoice } from '../shared/signalSymbol';
 import { stepRate, type TakeProfitStep } from '../shared/partialTakeProfit';
 import type { BacktestOptions } from '../shared/backtestOptions';
+import type { PortfolioAllocation } from '@services/api';
+import { rowAmount, rowSymbol, rowWeight, type PortfolioRow } from '../shared/portfolioRows';
 
 // 칸 아래 한 줄(오류는 실행을 막고 경고는 안 막음), 글 뒤에 작은 단추 하나
 export interface FieldMessage {
@@ -137,6 +139,43 @@ export const partialTakeProfitIssues = (
     return { gain, sell };
   });
 };
+
+// 포트폴리오 줄 하나의 종목 칸 · 금액(비율) 칸 오류
+export interface PortfolioRowMessages {
+  symbol: FieldMessage | null;
+  value: FieldMessage | null;
+}
+
+// 포트폴리오 줄마다 칸 오류(종목은 비었거나 목록에 없거나 앞 줄과 대문자로 같으면, 금액 방식은 0 초과 금액 · 비율 방식은 0 초과 100 이하 비율)
+export const portfolioRowIssues = (
+  rows: PortfolioRow[],
+  allocation: PortfolioAllocation,
+  supportedSymbols: string[],
+): PortfolioRowMessages[] =>
+  rows.map((row, index) => {
+    const n = `${index + 1}번 줄`;
+    const listed = supportedSymbols.length === 0 || supportedSymbols.includes(rowSymbol(row));
+    const repeated = rows.slice(0, index).some((before) => rowSymbol(before) === rowSymbol(row));
+    const symbol = !row.symbol.trim()
+      ? error(`${n} 종목 비어 있음`)
+      : !listed
+        ? error(`${n} 종목 목록에서 고르기`)
+        : repeated
+          ? error(`${n} 종목이 앞 줄과 같음`)
+          : null;
+    if (allocation === 'AMOUNT') {
+      const amount = rowAmount(row);
+      const value = !row.amount.trim() ? error(`${n} 금액 비어 있음`) : amount > 0 ? null : error(`${n} 금액 0 보다 크게`);
+      return { symbol, value };
+    }
+    const weight = rowWeight(row);
+    const value = !row.weight.trim()
+      ? error(`${n} 비율 비어 있음`)
+      : weight > 0 && weight <= 100
+        ? null
+        : error(`${n} 비율 0 초과 100 이하`);
+    return { symbol, value };
+  });
 
 export const maxIssue = (max: string): FieldMessage | null => {
   if (!max.trim()) return null;

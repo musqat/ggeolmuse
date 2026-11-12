@@ -1,0 +1,97 @@
+import type { PortfolioAllocation, PortfolioAssetRequest, PortfolioBacktestRequest, PortfolioMethod } from '@services/api';
+import type { BuildResult, RunContext } from '../types';
+import { toOptionFields, type BacktestOptions } from '../../shared/backtestOptions';
+import { dayOfMonth, parseMonths, resolveFirstPurchase, scheduleFields, type DcaCadence } from '../../shared/dcaSchedule';
+import {
+  MAX_ROWS,
+  isWeightSumOk,
+  rowAmount,
+  rowAmounts,
+  rowSymbol,
+  rowWeight,
+  type PortfolioRow,
+} from '../../shared/portfolioRows';
+
+export interface PortfolioValues extends BacktestOptions {
+  startDate: string;
+  endDate: string;
+  rows: PortfolioRow[];
+  allocation: PortfolioAllocation;
+  // 비율 방식의 총액(적립식이면 회당)
+  total: string;
+  method: PortfolioMethod;
+  cadence: DcaCadence;
+  // N개월마다의 개월 수
+  months: string;
+  // 고른 첫 매수일과 고를 때의 시작일(비면 시작일을 따라감)
+  firstPurchaseDate: string;
+  firstPickedStart: string;
+}
+
+const ROWS_ERROR = '종목은 1 ~ 10개, 같은 종목은 한 번만 넣어 주세요.';
+const AMOUNT_ERROR = '종목마다 0보다 큰 금액을 넣어 주세요.';
+const TOTAL_ERROR = '총액은 0보다 크게 넣어 주세요.';
+const WEIGHT_ERROR = '비율은 줄마다 0보다 크게, 합이 100% 가 되게 넣어 주세요.';
+
+// 줄마다 금액 방식은 금액, 비율 방식은 비율(줄 금액이 1원 아래로 내려가는 비율은 막음)
+const assetsOf = (values: PortfolioValues, symbols: string[]): { assets: PortfolioAssetRequest[] } | { error: string } => {
+  if (values.allocation === 'AMOUNT') {
+    const amounts = values.rows.map(rowAmount);
+    if (amounts.some((amount) => !(amount > 0))) return { error: AMOUNT_ERROR };
+    return { assets: symbols.map((symbol, i) => ({ symbol, amount: amounts[i] })) };
+  }
+  const weights = values.rows.map(rowWeight);
+  const lineAmounts = rowAmounts(values.rows, 'WEIGHT', values.total);
+  const badWeight = weights.some((weight, i) => !(weight > 0 && weight <= 100) || lineAmounts[i] < 1);
+  if (badWeight || !isWeightSumOk(values.rows)) return { error: WEIGHT_ERROR };
+  return { assets: symbols.map((symbol, i) => ({ symbol, weightPercent: weights[i] })) };
+};
+
+// 포트폴리오 요청(검사에 걸리면 alert 문구), 적립식 칸은 적립식에서만 보고 싣는 것도 적립식 요청과 같음
+export const buildPortfolioRequest = (values: PortfolioValues, ctx: RunContext): BuildResult<PortfolioBacktestRequest> => {
+  const symbols = values.rows.map(rowSymbol);
+  if (!symbols.length || symbols.length > MAX_ROWS || symbols.some((symbol) => !symbol) || new Set(symbols).size !== symbols.length) {
+    return { error: ROWS_ERROR };
+  }
+  const weight = values.allocation === 'WEIGHT';
+  const totalAmount = parseFloat(values.total);
+  if (weight && !(totalAmount > 0)) return { error: TOTAL_ERROR };
+  const built = assetsOf(values, symbols);
+  if ('error' in built) return built;
+
+  const dca = values.method === 'DCA';
+  const months = values.cadence === 'MONTHS' ? parseMonths(values.months) : 1;
+  if (dca && months === undefined) {
+    return { error: '개월 수는 1~12 사이의 정수로 입력해주세요.' };
+  }
+  // 종료일이 비어있으면 오늘
+  const endDate = values.endDate || ctx.today;
+  if (values.startDate >= endDate) {
+    return { error: '시작일은 종료일보다 빠른 날짜여야 합니다.' };
+  }
+  const picked = values.firstPurchaseDate;
+  const first = resolveFirstPurchase(values.startDate, values.cadence, { date: picked, start: values.firstPickedStart });
+  if (dca && first > endDate) {
+    return { error: '첫 매수일은 시작일과 종료일 사이로 골라주세요.' };
+  }
+
+  const request: PortfolioBacktestRequest = {
+    startDate: values.startDate,
+    endDate,
+    allocation: values.allocation,
+    ...(weight && { totalAmount }),
+    assets: built.assets,
+    method: values.method,
+    ...(dca &&
+      scheduleFields({
+        cadence: values.cadence,
+        months: months ?? 1,
+        firstPurchaseDate: first,
+        monthDay: picked ? dayOfMonth(picked) : undefined,
+        startDate: values.startDate,
+        endDate,
+      })),
+    ...toOptionFields(values),
+  };
+  return { request };
+};

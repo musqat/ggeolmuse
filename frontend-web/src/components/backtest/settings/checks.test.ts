@@ -12,6 +12,7 @@ import {
   monthsIssue,
   partialTakeProfitIssues,
   percentIssue,
+  portfolioRowIssues,
   sellIssue,
   signalIssue,
   symbolIssue,
@@ -125,6 +126,26 @@ describe('설정 칸 검사', () => {
       { gain: error('3단계 수익률 비어 있음'), sell: null },
       { gain: error('4단계 수익률 앞 단계보다 크게'), sell: null },
     ])
+  })
+
+  it('포트폴리오 줄: 종목은 비었거나 목록에 없거나 앞 줄과 같으면, 금액 방식은 금액 · 비율 방식은 0 초과 100 이하 비율이 아니면 그 줄 오류', () => {
+    const row = (symbol: string, amount: string, weight: string) => ({ symbol, amount, weight })
+    const ok = { symbol: null, value: null }
+    const list = ['SPY', 'QQQ']
+
+    expect(portfolioRowIssues([row('SPY', '6000000', ''), row('qqq', '4000000', '')], 'AMOUNT', list)).toEqual([ok, ok])
+    expect(portfolioRowIssues([row('', '', '50'), row('ZZZ', '0', '50'), row(' spy ', '1', '')], 'AMOUNT', list)).toEqual([
+      { symbol: error('1번 줄 종목 비어 있음'), value: error('1번 줄 금액 비어 있음') },
+      { symbol: error('2번 줄 종목 목록에서 고르기'), value: error('2번 줄 금액 0 보다 크게') },
+      ok,
+    ])
+    expect(portfolioRowIssues([row('SPY', '', '60'), row('QQQ', '', ''), row(' spy ', '', '100.5'), row('QQQ', '', '0')], 'WEIGHT', list)).toEqual([
+      ok,
+      { symbol: null, value: error('2번 줄 비율 비어 있음') },
+      { symbol: error('3번 줄 종목이 앞 줄과 같음'), value: error('3번 줄 비율 0 초과 100 이하') },
+      { symbol: error('4번 줄 종목이 앞 줄과 같음'), value: error('4번 줄 비율 0 초과 100 이하') },
+    ])
+    expect(portfolioRowIssues([row('ZZZ', '1', '')], 'AMOUNT', [])).toEqual([ok])
   })
 
   it('최대 횟수: 비면 제한 없음, 적으면 1 이상 정수', () => {

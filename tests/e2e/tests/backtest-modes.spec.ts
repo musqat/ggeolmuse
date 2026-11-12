@@ -38,6 +38,12 @@ async function postUntilAllowed(url: string, options: { data: object }): Promise
   return res;
 }
 
+// 두 종목 시세가 다 있는 기간
+async function sharedRange() {
+  const other = await priceRange(api, second);
+  return { from: start > other.start ? start : other.start, to: end < other.end ? end : other.end };
+}
+
 test('적립식(DCA) 이 돈다', async () => {
   const res = await postUntilAllowed(`${API_URL}/analysis/strategy/dca`, {
     data: {
@@ -168,10 +174,7 @@ test('부분 익절 수익률이 앞 단계보다 크지 않으면 400', async (
 });
 
 test('이동평균 교차가 다른 종목을 신호로 보고 신호 차트에 그 종목을 싣는다', async () => {
-  // 두 종목 시세가 다 있는 기간
-  const other = await priceRange(api, second);
-  const from = start > other.start ? start : other.start;
-  const to = end < other.end ? end : other.end;
+  const { from, to } = await sharedRange();
   const res = await postUntilAllowed(`${API_URL}/analysis/strategy/ma-cross`, {
     data: {
       symbol,
@@ -188,6 +191,71 @@ test('이동평균 교차가 다른 종목을 신호로 보고 신호 차트에 
   const body = await res.json();
   expect(body.symbol).toBe(symbol);
   expect(body.signalChart?.symbol, '신호 차트가 신호 종목 값이 아니다').toBe(second);
+});
+
+test('포트폴리오가 두 종목을 현금 하나로 돌리고 종목 줄 지금 가치와 현금의 합을 총 자산으로 싣는다', async () => {
+  const { from, to } = await sharedRange();
+  const res = await postUntilAllowed(`${API_URL}/analysis/portfolio`, {
+    data: {
+      startDate: from,
+      endDate: to,
+      assets: [
+        { symbol, amount: 600_000 },
+        { symbol: second, amount: 400_000 },
+      ],
+    },
+  });
+
+  expect(res.status(), `포트폴리오가 실패했다: ${await res.text()}`).toBe(200);
+  const body = await res.json();
+  const assets: { symbol: string; startWeightPercent: number; valueKrw: number }[] = body.assets;
+  expect(assets.map((a) => a.symbol), '종목 줄이 요청 순서가 아니다').toEqual([symbol, second]);
+  expect(assets.map((a) => a.startWeightPercent)).toEqual([60, 40]);
+  expect(body.dailyValues.length, '합친 일별 가치가 없다').toBeGreaterThan(0);
+  const lines = assets.reduce((sum, a) => sum + a.valueKrw, 0);
+  expect(lines + body.cashKrw, '종목 줄 지금 가치 + 현금이 총 자산과 다르다').toBe(body.totalAssetKrw);
+});
+
+test('포트폴리오를 마지막 거래일에 팔면 종목마다 기간 끝 매도와 실현 손익 · 매매 통계를 싣는다', async () => {
+  const { from, to } = await sharedRange();
+  const res = await postUntilAllowed(`${API_URL}/analysis/portfolio`, {
+    data: {
+      startDate: from,
+      endDate: to,
+      assets: [
+        { symbol, amount: 600_000 },
+        { symbol: second, amount: 400_000 },
+      ],
+      periodEnd: 'SELL_AT_END',
+    },
+  });
+
+  expect(res.status(), `기간 끝에 파는 포트폴리오가 실패했다: ${await res.text()}`).toBe(200);
+  const body = await res.json();
+  const sales = body.transactions.filter((tx: { reason: string }) => tx.reason === 'PERIOD_END_SALE');
+  expect(sales.map((tx: { symbol: string }) => tx.symbol).sort(), '종목마다 기간 끝 매도가 하나씩이 아니다').toEqual([symbol, second].sort());
+  expect(body.sellCount).toBe(2);
+  expect(body.tradeStats, '판 거래가 있는데 매매 통계가 없다').toBeTruthy();
+  const realized = body.assets.reduce((sum: number, a: { realizedProfitKrw: number }) => sum + a.realizedProfitKrw, 0);
+  // 줄마다 원 단위로 반올림해 줄 수만큼 차이가 남을 수 있음
+  expect(Math.abs(realized - body.realizedProfitKrw), '종목 줄 실현 손익 합이 전체 실현 손익과 다르다').toBeLessThanOrEqual(body.assets.length);
+});
+
+test('포트폴리오 비율 합이 100 이 아니면 400', async () => {
+  const res = await postUntilAllowed(`${API_URL}/analysis/portfolio`, {
+    data: {
+      startDate: start,
+      endDate: end,
+      allocation: 'WEIGHT',
+      totalAmount: 1_000_000,
+      assets: [
+        { symbol, weightPercent: 60 },
+        { symbol: second, weightPercent: 30 },
+      ],
+    },
+  });
+
+  expect(res.status(), `비율 합 90 이 400 이 아니다: ${await res.text()}`).toBe(400);
 });
 
 test('지수는 매매 종목으로 고를 수 없다', async () => {

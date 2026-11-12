@@ -123,4 +123,27 @@ describe('BacktestHistoryPanel', () => {
     expect(screen.getAllByText('이동평균 밴드')).toHaveLength(2)
     expect(screen.queryByText('이동평균')).toBeNull()
   })
+
+  it('포트폴리오 기록은 종목 줄로 다른 전략보다 먼저 포트폴리오로 보이고, 종목 칸에 줄 종목을 잇는다', () => {
+    const portfolio = {
+      backtestId: '1',
+      userId: 'u',
+      backtestType: 'STRATEGY_SIMULATION' as const,
+      requestParams: JSON.stringify({
+        startDate: '2020-01-01',
+        endDate: '2024-12-31',
+        assets: [{ symbol: 'SPY', amount: 6000000 }, { symbol: 'QQQ', amount: 4000000 }, { amount: 1 }],
+        method: 'DCA',
+        frequency: 'MONTHLY',
+      }),
+      fxRateMode: 'auto' as const,
+      createdAt: '2026-11-13T09:00:00',
+    }
+    renderPanel({ historyData: [portfolio], historyTotalPages: 1 })
+
+    expect(screen.getByText('포트폴리오')).toBeInTheDocument()
+    expect(screen.queryByText('적립식')).toBeNull()
+    expect(screen.getByText('SPY,QQQ')).toBeInTheDocument()
+    expect(screen.getByText('(2020-01-01 ~ 2024-12-31)')).toBeInTheDocument()
+  })
 })
