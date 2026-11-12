@@ -1,18 +1,26 @@
 import { describe, it, expect, vi } from 'vitest'
 import { useState } from 'react'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { PortfolioAllocation } from '@services/api'
 import { PortfolioAssetsField, type PortfolioAssetsFieldProps } from './PortfolioAssetsField'
 import type { PortfolioRow } from '../../shared/portfolioRows'
 
-const ok = { symbol: null, value: null }
+const ok = { symbol: null, value: null, takeProfit: null, stopLoss: null }
 const error = (text: string) => ({ kind: 'error' as const, text })
-const row = (symbol: string, amount = '', weight = ''): PortfolioRow => ({ symbol, amount, weight })
+const row = (symbol: string, amount = '', weight = '', takeProfit = '', stopLoss = ''): PortfolioRow => ({
+  symbol,
+  amount,
+  weight,
+  takeProfit,
+  stopLoss,
+})
 
 const symbolInput = (n: number) => screen.getByRole('combobox', { name: `${n}번 종목` })
 const amountInput = (n: number) => screen.getByRole('textbox', { name: `${n}번 금액(원)` })
 const weightInput = (n: number) => screen.getByRole('textbox', { name: `${n}번 비율(퍼센트)` })
+const takeProfitInput = (n: number) => screen.getByRole('textbox', { name: `${n}번 익절(평균 단가 대비 퍼센트)` })
+const stopLossInput = (n: number) => screen.getByRole('textbox', { name: `${n}번 손절(평균 단가 대비 퍼센트)` })
 const removeButton = (n: number) => screen.getByRole('button', { name: `${n}번 종목 지우기` })
 const addButton = () => screen.getByRole('button', { name: '＋ 종목 더하기' })
 const sum = () => screen.getByTestId('portfolio-sum')
@@ -77,6 +85,58 @@ describe('PortfolioAssetsField', () => {
     expect(sum()).not.toHaveClass('text-warning')
   })
 
+  it('줄마다 익절 · 손절 칸은 비면 안 함, 적으면 + · - 부호와 % 를 보이고 그 줄 값만 바꾼다', async () => {
+    render(<Harness initial={[row('SPY', '6000000'), row('QQQ', '4000000', '', '', '5')]} />)
+    const first = amountInput(1).closest('[data-row]') as HTMLElement
+
+    expect(takeProfitInput(1)).toHaveValue('')
+    expect(takeProfitInput(1)).toHaveAttribute('placeholder', '안 함')
+    expect(stopLossInput(1)).toHaveAttribute('placeholder', '안 함')
+    expect(within(first).queryByText('+')).toBeNull()
+    expect(within(first).queryByText('%')).toBeNull()
+    expect(stopLossInput(2)).toHaveValue('5')
+
+    fireEvent.change(takeProfitInput(1), { target: { value: '3..5%' } })
+    fireEvent.change(stopLossInput(1), { target: { value: '10' } })
+    expect(takeProfitInput(1)).toHaveValue('3.5')
+    expect(stopLossInput(1)).toHaveValue('10')
+    expect(within(first).getByText('+')).toBeInTheDocument()
+    expect(within(first).getByText('-')).toBeInTheDocument()
+    expect(within(first).getAllByText('%')).toHaveLength(2)
+    expect(stopLossInput(2)).toHaveValue('5')
+    expect(takeProfitInput(2)).toHaveValue('')
+
+    await userEvent.click(screen.getByRole('radio', { name: '비율' }))
+    expect(takeProfitInput(1)).toHaveValue('3.5')
+    expect(stopLossInput(2)).toHaveValue('5')
+  })
+
+  it('＋ 종목 더하기의 새 줄은 익절 · 손절이 비어 있다', async () => {
+    const onRows = vi.fn()
+    const rows = [row('SPY', '6000000', '', '30', '10')]
+    render(<Harness initial={rows} patch={{ onRowsChange: onRows, rows }} />)
+
+    await userEvent.click(addButton())
+    expect(onRows).toHaveBeenLastCalledWith([row('SPY', '6000000', '', '30', '10'), row('')])
+  })
+
+  it('익절 · 손절 오류는 두 칸 다 오류로 두고 칸 아래 한 줄은 익절 것, 그 글을 낸 익절 칸만 그 줄과 잇는다', () => {
+    render(
+      <Harness
+        initial={[row('SPY', '1', '', '0', '100')]}
+        patch={{ messages: [{ ...ok, takeProfit: error('1번 줄 익절 0 보다 크게'), stopLoss: error('1번 줄 손절 100 아래') }] }}
+      />
+    )
+
+    expect(screen.getByText('1번 줄 익절 0 보다 크게')).toBeInTheDocument()
+    expect(screen.queryByText('1번 줄 손절 100 아래')).toBeNull()
+    expect(amountInput(1)).not.toHaveAttribute('aria-invalid')
+    expect(takeProfitInput(1)).toHaveAttribute('aria-invalid', 'true')
+    expect(stopLossInput(1)).toHaveAttribute('aria-invalid', 'true')
+    expect(takeProfitInput(1)).toHaveAccessibleDescription('1번 줄 익절 0 보다 크게')
+    expect(stopLossInput(1)).not.toHaveAttribute('aria-describedby')
+  })
+
   it('적립식이면 총액 · 합계가 회당이다', async () => {
     render(<Harness initial={[row('SPY', '1000000', '100')]} patch={{ perRound: true }} />)
     expect(sum()).toHaveTextContent('회당 합계 ₩1,000,000')
@@ -129,7 +189,7 @@ describe('PortfolioAssetsField', () => {
     render(
       <Harness
         initial={[row('SPY', '1'), row('', '0')]}
-        patch={{ messages: [ok, { symbol: error('2번 줄 종목 비어 있음'), value: error('2번 줄 금액 0 보다 크게') }] }}
+        patch={{ messages: [ok, { ...ok, symbol: error('2번 줄 종목 비어 있음'), value: error('2번 줄 금액 0 보다 크게') }] }}
       />
     )
 
@@ -146,7 +206,7 @@ describe('PortfolioAssetsField', () => {
     render(
       <Harness
         initial={[row('', '1', '100')]}
-        patch={{ totalMessage: error('총액 비어 있음'), messages: [{ symbol: error('1번 줄 종목 비어 있음'), value: null }] }}
+        patch={{ totalMessage: error('총액 비어 있음'), messages: [{ ...ok, symbol: error('1번 줄 종목 비어 있음') }] }}
       />
     )
     await userEvent.click(screen.getByRole('radio', { name: '비율' }))

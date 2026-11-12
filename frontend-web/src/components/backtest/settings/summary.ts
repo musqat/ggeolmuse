@@ -60,6 +60,8 @@ interface PortfolioSummary {
   cadenceLabel: string;
   rounds: number;
   daily: boolean;
+  // 줄 익절 · 손절 글(없으면 빈 글)
+  sell?: string;
   rebalance: PortfolioRebalance;
 }
 
@@ -70,11 +72,11 @@ const REBALANCE_TEXT: Record<PortfolioRebalance, string> = {
   MONTHLY: '매달 처음 비중으로 리밸런싱',
 };
 
-// 포트폴리오: 종목 수와 한 번에 넣는 합계(적립식은 적립식 요약), 리밸런싱하면 그 주기
-export const portfolioHow = ({ count, perRound, dca, cadenceLabel, rounds, daily, rebalance }: PortfolioSummary) => {
+// 포트폴리오: 종목 수와 한 번에 넣는 합계(적립식은 적립식 요약), 줄 익절 · 손절 글, 리밸런싱하면 그 주기
+export const portfolioHow = ({ count, perRound, dca, cadenceLabel, rounds, daily, sell, rebalance }: PortfolioSummary) => {
   const unit = { byShares: false, amount: String(perRound), shares: '' };
   const buy = dca ? dcaHow({ unit, cadenceLabel, rounds, daily, budget: '' }) : `한 번에 ${formatReadableWon(perRound)}`;
-  return [`종목 ${count}개`, buy, REBALANCE_TEXT[rebalance]].filter(Boolean).join(' · ');
+  return [`종목 ${count}개`, buy, sell, REBALANCE_TEXT[rebalance]].filter(Boolean).join(' · ');
 };
 
 // 익절 · 손절(평균 단가 기준 전량 매도), 둘 다 비면 빈 글

@@ -4,7 +4,13 @@ import type { PortfolioRow } from '../../shared/portfolioRows'
 
 const ctx = { today: '2026-10-08' }
 
-const row = (symbol: string, amount: string, weight = ''): PortfolioRow => ({ symbol, amount, weight })
+const row = (symbol: string, amount: string, weight = '', takeProfit = '', stopLoss = ''): PortfolioRow => ({
+  symbol,
+  amount,
+  weight,
+  takeProfit,
+  stopLoss,
+})
 
 const values: PortfolioValues = {
   startDate: '2023-01-01',
@@ -77,6 +83,23 @@ describe('buildPortfolioRequest', () => {
     expect('request' in built && built.request.assets[2]).not.toHaveProperty('amount')
   })
 
+  it('익절 · 손절은 적은 줄에만 퍼센트를 요청 비율로 바꿔 싣고(10% = 0.1), 비율 방식도 같다', () => {
+    const rows = [row('SPY', '6000000', '60', '30', '10'), row('QQQ', '4000000', '40', '', '5.5'), row('IAU', '1000000', '0', ' ', '')]
+
+    const built = buildPortfolioRequest({ ...values, rows }, ctx)
+    expect('request' in built && built.request.assets).toStrictEqual([
+      { symbol: 'SPY', amount: 6000000, takeProfitRate: 0.3, stopLossRate: 0.1 },
+      { symbol: 'QQQ', amount: 4000000, stopLossRate: 0.055 },
+      { symbol: 'IAU', amount: 1000000 },
+    ])
+
+    const weighted = buildPortfolioRequest({ ...values, allocation: 'WEIGHT', rows: rows.slice(0, 2) }, ctx)
+    expect('request' in weighted && weighted.request.assets).toStrictEqual([
+      { symbol: 'SPY', weightPercent: 60, takeProfitRate: 0.3, stopLossRate: 0.1 },
+      { symbol: 'QQQ', weightPercent: 40, stopLossRate: 0.055 },
+    ])
+  })
+
   it('적립식은 적립식 요청과 같은 주기 칸을 싣고, 매주는 고른 첫 매수일을 보낸다', () => {
     expect(buildPortfolioRequest({ ...values, method: 'DCA' }, ctx)).toMatchObject({
       request: { method: 'DCA', frequency: 'MONTHLY', purchaseDay: 1, investmentInterval: 1 },
@@ -104,6 +127,9 @@ describe('buildPortfolioRequest', () => {
     ['비율 합 90', { allocation: 'WEIGHT', rows: [row('SPY', '', '60'), row('QQQ', '', '30')] }, '비율은 줄마다 0보다 크게, 합이 100% 가 되게 넣어 주세요.'],
     ['0 비율 줄', { allocation: 'WEIGHT', rows: [row('SPY', '', '100'), row('QQQ', '', '0')] }, '비율은 줄마다 0보다 크게, 합이 100% 가 되게 넣어 주세요.'],
     ['1원이 안 되는 비율 줄', { allocation: 'WEIGHT', total: '100', rows: [row('SPY', '', '99.6'), row('QQQ', '', '0.4')] }, '비율은 줄마다 0보다 크게, 합이 100% 가 되게 넣어 주세요.'],
+    ['0 익절 줄', { rows: [row('SPY', '1'), row('QQQ', '1', '', '0')] }, '익절 비율은 0보다 커야 합니다.'],
+    ['100 손절 줄', { rows: [row('SPY', '1', '', '30', '100')] }, '손절 비율은 0보다 크고 100보다 작아야 합니다.'],
+    ['비율 방식 0 손절 줄', { allocation: 'WEIGHT', rows: [row('SPY', '', '100', '', '0')] }, '손절 비율은 0보다 크고 100보다 작아야 합니다.'],
     ['개월 수 13', { method: 'DCA', cadence: 'MONTHS', months: '13' }, '개월 수는 1~12 사이의 정수로 입력해주세요.'],
     ['시작일 = 종료일', { endDate: '2023-01-01' }, '시작일은 종료일보다 빠른 날짜여야 합니다.'],
     ['종료일 뒤 첫 매수일', { method: 'DCA', endDate: '2023-03-01', firstPurchaseDate: '2023-04-01', firstPickedStart: '2023-01-01' }, '첫 매수일은 시작일과 종료일 사이로 골라주세요.'],

@@ -281,6 +281,46 @@ test('포트폴리오를 매달 리밸런싱하면 일부만 파는 리밸런싱
   }
 });
 
+test('포트폴리오 종목에 익절 · 손절을 걸면 그 종목만 한 번 전량 팔고 판 돈은 현금으로 남는다', async () => {
+  const { from, to } = await sharedRange();
+  const res = await postUntilAllowed(`${API_URL}/analysis/portfolio`, {
+    data: {
+      startDate: from,
+      endDate: to,
+      assets: [
+        { symbol, amount: 6_000_000, takeProfitRate: 0.01, stopLossRate: 0.01 },
+        { symbol: second, amount: 4_000_000 },
+      ],
+    },
+  });
+
+  expect(res.status(), `익절 · 손절을 건 포트폴리오가 실패했다: ${await res.text()}`).toBe(200);
+  const body = await res.json();
+  const transactions: { symbol?: string; reason: string; trigger: string; shares: number }[] = body.transactions;
+  const exits = transactions.filter((tx) => tx.reason === 'TAKE_PROFIT' || tx.reason === 'STOP_LOSS');
+  expect(exits.length, '1% 익절 · 손절 매도가 한 번이 아니다').toBe(1);
+  expect(exits[0].symbol).toBe(symbol);
+  expect(exits[0].trigger, '익절 · 손절 거래 글 꼴이 다르다').toMatch(/^\d+\.\d%(익절|손절)$/);
+  const bought = transactions.filter((tx) => tx.symbol === symbol && tx.shares > 0).reduce((sum, tx) => sum + tx.shares, 0);
+  expect(-exits[0].shares, '익절 · 손절이 전량을 팔지 않았다').toBeCloseTo(bought, 6);
+  expect(body.assets[0].shares).toBe(0);
+  expect(body.assets[0].valueKrw).toBe(0);
+  expect(body.cashKrw, '판 돈이 현금에 없다').toBeGreaterThan(0);
+  expect(body.tradeStats, '판 거래가 있는데 매매 통계가 없다').toBeTruthy();
+});
+
+test('포트폴리오 손절 비율이 100% 이상이면 400', async () => {
+  const res = await postUntilAllowed(`${API_URL}/analysis/portfolio`, {
+    data: {
+      startDate: start,
+      endDate: end,
+      assets: [{ symbol, amount: 1_000_000, stopLossRate: 1 }],
+    },
+  });
+
+  expect(res.status(), `손절 100% 가 400 이 아니다: ${await res.text()}`).toBe(400);
+});
+
 test('포트폴리오 비율 합이 100 이 아니면 400', async () => {
   const res = await postUntilAllowed(`${API_URL}/analysis/portfolio`, {
     data: {

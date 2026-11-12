@@ -8,6 +8,7 @@ import type {
 import type { BuildResult, RunContext } from '../types';
 import { toOptionFields, type BacktestOptions } from '../../shared/backtestOptions';
 import { dayOfMonth, parseMonths, resolveFirstPurchase, scheduleFields, type DcaCadence } from '../../shared/dcaSchedule';
+import { toSellRates } from '../../shared/sellRates';
 import {
   MAX_ROWS,
   isWeightSumOk,
@@ -40,18 +41,33 @@ const AMOUNT_ERROR = '종목마다 0보다 큰 금액을 넣어 주세요.';
 const TOTAL_ERROR = '총액은 0보다 크게 넣어 주세요.';
 const WEIGHT_ERROR = '비율은 줄마다 0보다 크게, 합이 100% 가 되게 넣어 주세요.';
 
+type PortfolioAssetSize = Pick<PortfolioAssetRequest, 'amount' | 'weightPercent'>;
+
 // 줄마다 금액 방식은 금액, 비율 방식은 비율(줄 금액이 1원 아래로 내려가는 비율은 막음)
-const assetsOf = (values: PortfolioValues, symbols: string[]): { assets: PortfolioAssetRequest[] } | { error: string } => {
+const sizesOf = (values: PortfolioValues): { sizes: PortfolioAssetSize[] } | { error: string } => {
   if (values.allocation === 'AMOUNT') {
     const amounts = values.rows.map(rowAmount);
     if (amounts.some((amount) => !(amount > 0))) return { error: AMOUNT_ERROR };
-    return { assets: symbols.map((symbol, i) => ({ symbol, amount: amounts[i] })) };
+    return { sizes: amounts.map((amount) => ({ amount })) };
   }
   const weights = values.rows.map(rowWeight);
   const lineAmounts = rowAmounts(values.rows, 'WEIGHT', values.total);
   const badWeight = weights.some((weight, i) => !(weight > 0 && weight <= 100) || lineAmounts[i] < 1);
   if (badWeight || !isWeightSumOk(values.rows)) return { error: WEIGHT_ERROR };
-  return { assets: symbols.map((symbol, i) => ({ symbol, weightPercent: weights[i] })) };
+  return { sizes: weights.map((weightPercent) => ({ weightPercent })) };
+};
+
+// 줄마다 종목 · 금액(비율) · 적은 익절 · 손절 비율
+const assetsOf = (values: PortfolioValues, symbols: string[]): { assets: PortfolioAssetRequest[] } | { error: string } => {
+  const built = sizesOf(values);
+  if ('error' in built) return built;
+  const assets: PortfolioAssetRequest[] = [];
+  for (const [i, row] of values.rows.entries()) {
+    const sell = toSellRates(row.takeProfit, row.stopLoss);
+    if ('error' in sell) return sell;
+    assets.push({ symbol: symbols[i], ...built.sizes[i], ...sell.rates });
+  }
+  return { assets };
 };
 
 // 포트폴리오 요청(검사에 걸리면 alert 문구), 적립식 칸은 적립식에서만 보고 싣는 것도 적립식 요청과 같음

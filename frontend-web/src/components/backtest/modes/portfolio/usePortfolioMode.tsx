@@ -14,7 +14,7 @@ import {
   type DcaCadence,
   type FirstPick,
 } from '../../shared/dcaSchedule';
-import { FIRST_AMOUNT, rowAmounts, rowsSubject, savedRows, type PortfolioRow } from '../../shared/portfolioRows';
+import { FIRST_AMOUNT, newRow, rowAmounts, rowsSellText, rowsSubject, savedRows, type PortfolioRow } from '../../shared/portfolioRows';
 import { amountIssue, countErrors, firstIssue, monthsIssue, portfolioRowIssues } from '../../settings/checks';
 import { portfolioHow } from '../../settings/summary';
 import { oneOf, pickValues } from '../../settings/snapshot';
@@ -39,7 +39,7 @@ export const usePortfolioMode = (shared: SharedModeProps): ModeController => {
   const { symbol, supportedSymbols, period, options } = shared;
   // 고치기 전에는 줄 하나(보던 종목 · 첫 금액)
   const [edited, setEdited] = useState<PortfolioRow[] | null>(null);
-  const rows = edited ?? [{ symbol, amount: FIRST_AMOUNT, weight: '100' }];
+  const rows = edited ?? [newRow(symbol, FIRST_AMOUNT, '100')];
   const [allocation, setAllocation] = useState<PortfolioAllocation>('AMOUNT');
   const [total, setTotal] = useState(FIRST_AMOUNT);
   const [method, setMethod] = useState<PortfolioMethod>('LUMP_SUM');
@@ -113,13 +113,14 @@ export const usePortfolioMode = (shared: SharedModeProps): ModeController => {
         cadenceLabel: cadenceText(cadence, months, first, monthDay),
         rounds,
         daily: cadence === 'DAILY',
+        sell: rowsSellText(rows),
         rebalance,
       }),
     },
     errorCount: countErrors([
       periodMessage,
       totalMessage,
-      ...rowMessages.flatMap((row) => [row.symbol, row.value]),
+      ...rowMessages.flatMap((row) => [row.symbol, row.value, row.takeProfit, row.stopLoss]),
       monthsMessage,
       firstMessage,
     ]),
