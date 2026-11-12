@@ -66,12 +66,12 @@ public final class PortfolioRequestValidator {
     }
   }
 
-  /** 금액 방식은 줄마다 금액 0 초과 · 비율 비움, 비율 방식은 총액 0 초과 · 줄마다 비율 0 초과 · 줄 금액 1원 이상 · 합 100(±0.01) */
+  /** 금액 방식은 줄마다 원 단위 금액 0 초과 · 비율 비움, 비율 방식은 원 단위 총액 0 초과 · 줄마다 비율 0 초과 · 줄 금액 1원 이상 · 합 100(±0.01) */
   private static void requireAmounts(PortfolioRequest request) {
     List<PortfolioAsset> assets = request.getAssets();
     boolean valid = PortfolioAllocation.orAmount(request.getAllocation()) == PortfolioAllocation.AMOUNT
-      ? assets.stream().allMatch(asset -> positive(asset.amount()) && asset.weightPercent() == null)
-      : positive(request.getTotalAmount())
+      ? assets.stream().allMatch(asset -> positiveWon(asset.amount()) && asset.weightPercent() == null)
+      : positiveWon(request.getTotalAmount())
         && assets.stream().allMatch(asset -> positive(asset.weightPercent()) && positive(request.amountOf(asset)))
         && assets.stream().map(PortfolioAsset::weightPercent).reduce(BigDecimal.ZERO, BigDecimal::add)
           .subtract(HUNDRED).abs().compareTo(Portfolio.WEIGHT_TOLERANCE) <= 0;
@@ -96,5 +96,10 @@ public final class PortfolioRequestValidator {
 
   private static boolean positive(BigDecimal value) {
     return value != null && value.signum() > 0;
+  }
+
+  // 0 초과 · 원 미만 자리 없음
+  private static boolean positiveWon(BigDecimal value) {
+    return positive(value) && value.stripTrailingZeros().scale() <= 0;
   }
 }

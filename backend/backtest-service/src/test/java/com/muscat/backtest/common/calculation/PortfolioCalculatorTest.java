@@ -77,12 +77,20 @@ class PortfolioCalculatorTest {
     return new PortfolioAsset(symbol, number(amount), null, null, null, null);
   }
 
-  private static PortfolioResponse.Asset row(String symbol, PortfolioStrategyType type, String invested, String value,
-    String sold, String dividend, String profit, String returnPercent, String contribution, String startWeight, String endWeight, String shares,
-    String realized, int buys, int sells) {
-    return new PortfolioResponse.Asset(symbol, type, number(invested), number(value), number(sold), number(dividend),
-      number(profit), number(returnPercent), number(contribution), number(startWeight), number(endWeight),
-      number(shares), number(realized), buys, sells);
+  private static PortfolioResponse.Asset row(String symbol, PortfolioStrategyType type, String invested, String bought,
+    String value, String sold, String dividend, String profit, String returnPercent, String contribution,
+    String startWeight, String endWeight, String shares, String realized, int buys, int sells) {
+    return new PortfolioResponse.Asset(symbol, type, number(invested), number(bought), number(value), number(sold),
+      number(dividend), number(profit), number(returnPercent), number(contribution), number(startWeight),
+      number(endWeight), number(shares), number(realized), buys, sells);
+  }
+
+  // 줄 원금 합 = 넣은 돈, 줄 이익 합 + 나머지 이익 = 총 수익
+  private static void assertRowsAddUp(PortfolioResponse response) {
+    assertThat(response.assets().stream().map(PortfolioResponse.Asset::investedKrw).reduce(BigDecimal.ZERO,
+      BigDecimal::add)).isEqualByComparingTo(response.totalInvestedKrw());
+    assertThat(response.assets().stream().map(PortfolioResponse.Asset::profitKrw).reduce(BigDecimal.ZERO,
+      BigDecimal::add).add(response.otherProfitKrw())).isEqualByComparingTo(response.totalReturnKrw());
   }
 
   // 환율 1000 에 AAA 60달러 100주 보유(배당 200달러, 1050) · BBB 40달러 100주를 6월 3일 50달러에 판매(1100), 평가일 AAA 66달러 · 1300
@@ -98,21 +106,24 @@ class PortfolioCalculatorTest {
   }
 
   @Test
-  @DisplayName("종목 줄마다 전략 · 넣은 돈 · 지금 가치 · 판 돈 · 배당 · 이익 · 수익률 · 기여 · 처음과 지금 비중을 내고 나머지 이익은 따로 낸다")
+  @DisplayName("종목 줄마다 전략 · 원금 · 산 돈 · 지금 가치 · 판 돈 · 배당 · 이익 · 수익률 · 기여 · 처음과 지금 비중을 내고 나머지 이익은 따로 낸다")
   void assetRows() {
     PortfolioResponse response = PortfolioCalculator.of(
       request(asset("AAA", "6000000"), asset("BBB", "4000000")).periodEnd(PeriodEnd.SELL_AT_END).build(),
       soldOne(new StrategyPerformance.Result(List.of(), null, null)));
 
     assertThat(response.assets()).usingRecursiveFieldByFieldElementComparator(NUMBERS).containsExactly(
-      row("AAA", LUMP_SUM, "6000000", "8580000", "0", "210000", "2790000", "46.50", "52.25", "60.00", "55.93", "100", "0", 1, 0),
-      row("BBB", LUMP_SUM, "4000000", "0", "5500000", "0", "1500000", "37.50", "28.09", "40.00", "0.00", "0", "1500000", 1, 1));
+      row("AAA", LUMP_SUM, "6000000", "6000000", "8580000", "0", "210000", "2790000", "46.50", "52.25", "60.00", "55.93",
+        "100", "0", 1, 0),
+      row("BBB", LUMP_SUM, "4000000", "4000000", "0", "5500000", "0", "1500000", "37.50", "28.09", "40.00", "0.00", "0",
+        "1500000", 1, 1));
     // 현금 5200달러의 환율 차: 1300원 평가 - 받은 날 원화(550만원 + 21만원)
     assertThat(response.otherProfitKrw()).isEqualByComparingTo("1050000");
     assertThat(response.totalReturnKrw()).isEqualByComparingTo("5340000");
     assertThat(response.totalReturnPercent()).isEqualByComparingTo("53.40");
     assertThat(response.realizedProfitKrw()).isEqualByComparingTo("1500000");
     assertThat(response.assets().getFirst().shares().scale()).isEqualTo(6);
+    assertRowsAddUp(response);
   }
 
   @Test
@@ -163,7 +174,7 @@ class PortfolioCalculatorTest {
   }
 
   @Test
-  @DisplayName("리밸런싱 주기를 싣고 리밸런싱으로 판 돈 · 쓴 현금은 그 날짜 환율로 종목 줄의 판 돈 · 넣은 돈과 매수 · 매도 수에 든다")
+  @DisplayName("리밸런싱 주기를 싣고 리밸런싱으로 판 돈 · 쓴 현금은 그 날짜 환율로 종목 줄의 판 돈 · 산 돈과 매수 · 매도 수에 들고 원금은 그대로다")
   void rebalanceRows() {
     StrategyTransaction sell = StrategyTransaction.builder().symbol("BBB").reason(TradeReason.REBALANCE_SELL)
       .date(JUNE).actualDate(JUNE).price(number("25")).shares(number("-14.4")).amount(BigDecimal.ZERO)
@@ -183,18 +194,55 @@ class PortfolioCalculatorTest {
     PortfolioResponse response = PortfolioCalculator.of(
       request(asset("AAA", "780000"), asset("BBB", "520000")).rebalance(PortfolioRebalance.QUARTERLY).build(), result);
 
-    // AAA 넣은 돈 78만원 + 360달러 × 1400, BBB 판 돈 360달러 × 1400 · 실현 50만 4천원 - 원가 52만원 × 14.4 ÷ 40
+    // AAA 원금 78만원 · 산 돈 78만원 + 360달러 × 1400, BBB 판 돈 360달러 × 1400 · 실현 50만 4천원 - 원가 52만원 × 14.4 ÷ 40
     assertThat(response.assets()).usingRecursiveFieldByFieldElementComparator(NUMBERS).containsExactly(
-      row("AAA", LUMP_SUM, "1284000", "1478400", "0", "0", "194400", "15.14", "18.09", "60.00", "62.26", "96", "0", 2, 0),
-      row("BBB", LUMP_SUM, "520000", "896000", "504000", "0", "880000", "169.23", "81.91", "40.00", "37.74", "25.6", "316800", 1, 1));
+      row("AAA", LUMP_SUM, "780000", "1284000", "1478400", "0", "0", "194400", "24.92", "18.09", "60.00", "62.26", "96",
+        "0", 2, 0),
+      row("BBB", LUMP_SUM, "520000", "520000", "896000", "504000", "0", "880000", "169.23", "81.91", "40.00", "37.74",
+        "25.6", "316800", 1, 1));
     assertThat(response.rebalance()).isEqualTo(PortfolioRebalance.QUARTERLY);
     assertThat(response.otherProfitKrw()).isEqualByComparingTo("0");
     assertThat(response.realizedProfitKrw()).isEqualByComparingTo("316800");
     assertThat(tuple(response.buyCount(), response.sellCount())).isEqualTo(tuple(3, 1));
+    assertRowsAddUp(response);
   }
 
   @Test
-  @DisplayName("배당 재투자는 넣은 돈 · 배당에 같이 들어가 이익에서 상쇄되고 매수 수에는 세지 않는다")
+  @DisplayName("신호 줄이 판 돈으로 다시 산 것은 산 돈에만 들고 원금은 처음 새로 넣은 돈이라 수익률은 원금 대비 이익이다")
+  void signalRebuyRow() {
+    LocalDate september = LocalDate.of(2024, 9, 2);
+    StrategyTransaction first = StrategyTransaction.builder().symbol("QQQ").reason(TradeReason.STRATEGY_BUY)
+      .date(START).actualDate(START).price(number("10")).shares(number("100")).amount(number("1300000"))
+      .fee(BigDecimal.ZERO).fxRate(number("1300")).trigger(TransactionTrigger.GOLDEN_CROSS).build();
+    StrategyTransaction sell = StrategyTransaction.builder().symbol("QQQ").reason(TradeReason.STRATEGY_SELL)
+      .date(JUNE).actualDate(JUNE).price(number("8")).shares(number("-100")).amount(BigDecimal.ZERO)
+      .fee(BigDecimal.ZERO).proceeds(number("800")).realizedProfit(number("-200")).fxRate(number("1250"))
+      .trigger(TransactionTrigger.DEAD_CROSS).build();
+    StrategyTransaction rebuy = StrategyTransaction.builder().symbol("QQQ").reason(TradeReason.STRATEGY_BUY)
+      .date(september).actualDate(september).price(number("8")).shares(number("100")).amount(BigDecimal.ZERO)
+      .fee(BigDecimal.ZERO).cashUsed(number("800")).fxRate(number("1250")).trigger(TransactionTrigger.GOLDEN_CROSS)
+      .build();
+    PortfolioEngine.Result result = new PortfolioEngine.Result(START, END,
+      List.of(buy("SPY", START, "20", "100", "2600000", "1300"), first, sell, rebuy),
+      List.of(), List.of(position("SPY", "2600000", "100", "22", "2860000"),
+        position("QQQ", PortfolioStrategyType.MA_CROSS, "1300000", "100", "6", "780000")),
+      number("3900000"), BigDecimal.ZERO, BigDecimal.ZERO, number("3640000"), number("3640000"), number("1300"),
+      new StrategyPerformance.Result(List.of(), null, null), CapitalGainsTaxCalculator.Payments.NONE, List.of());
+
+    PortfolioResponse response = PortfolioCalculator.of(
+      request(asset("SPY", "2600000"), asset("QQQ", "1300000")).build(), result);
+
+    // QQQ 130만원으로 사고 100만원에 판 뒤 그 돈으로 다시 사 지금 78만원: 78만 + 100만 - 230만
+    assertThat(response.assets()).usingRecursiveFieldByFieldElementComparator(NUMBERS).containsExactly(
+      row("SPY", LUMP_SUM, "2600000", "2600000", "2860000", "0", "0", "260000", "10.00", "-100.00", "66.67", "78.57",
+        "100", "0", 1, 0),
+      row("QQQ", PortfolioStrategyType.MA_CROSS, "1300000", "2300000", "780000", "1000000", "0", "-520000", "-40.00",
+        "200.00", "33.33", "21.43", "100", "-300000", 2, 1));
+    assertRowsAddUp(response);
+  }
+
+  @Test
+  @DisplayName("배당 재투자는 산 돈 · 배당에 같이 들어가 이익에서 상쇄되고 원금 · 매수 수에는 세지 않는다")
   void reinvestedDividendRow() {
     LocalDate exDate = START.plusDays(2);
     StrategyTransaction reinvest = StrategyTransaction.builder().symbol("AAA").reason(TradeReason.DIVIDEND_REINVESTMENT)
@@ -210,7 +258,8 @@ class PortfolioCalculatorTest {
     PortfolioResponse response = PortfolioCalculator.of(request(asset("AAA", "1300000")).build(), result);
 
     assertThat(response.assets()).usingRecursiveFieldByFieldElementComparator(NUMBERS).containsExactly(
-      row("AAA", LUMP_SUM, "1365000", "1690000", "0", "65000", "390000", "28.57", "100.00", "100.00", "100.00", "104", "0", 1, 0));
+      row("AAA", LUMP_SUM, "1300000", "1365000", "1690000", "0", "65000", "390000", "30.00", "100.00", "100.00", "100.00",
+        "104", "0", 1, 0));
     assertThat(response.otherProfitKrw()).isEqualByComparingTo("0");
     assertThat(response.buyCount()).isEqualTo(1);
     assertThat(response.tradeStats()).isNull();
@@ -228,7 +277,7 @@ class PortfolioCalculatorTest {
       request(asset("AAA", "130000")).method(PortfolioMethod.DCA).build(), result);
 
     assertThat(response.assets()).usingRecursiveFieldByFieldElementComparator(NUMBERS).containsExactly(
-      row("AAA", DCA, "0", "0", "0", "0", "0", null, null, "100.00", "0", "0", "0", 0, 0));
+      row("AAA", DCA, "0", "0", "0", "0", "0", "0", null, null, "100.00", "0", "0", "0", 0, 0));
     assertThat(response.totalReturnKrw()).isEqualByComparingTo("0");
     assertThat(response.totalReturnPercent()).isEqualByComparingTo("0");
     assertThat(response.method()).isEqualTo(PortfolioMethod.DCA);

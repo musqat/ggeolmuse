@@ -14,7 +14,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 
-// 포트폴리오 엔진 결과로 합계 · 종목 줄(넣은 돈 · 지금 가치 · 판 돈 · 배당 · 이익 · 기여 · 비중) · 매매 통계 · 양도세를 내는 계산기
+// 포트폴리오 엔진 결과로 합계 · 종목 줄(원금 · 산 돈 · 지금 가치 · 판 돈 · 배당 · 이익 · 기여 · 비중) · 매매 통계 · 양도세를 내는 계산기
 public final class PortfolioCalculator {
 
   private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
@@ -68,14 +68,17 @@ public final class PortfolioCalculator {
       .build();
   }
 
-  // 종목 줄 하나(넣은 돈 = 매수마다 새 돈 + 쓴 현금 × 그 날짜 환율, 판 돈 = 판 돈 × 판 날 환율, 배당 = 세후 배당 × 배당락일 환율)
+  // 종목 줄 하나(원금 = 새 돈 원화 합, 산 돈 = 새 돈 + 쓴 현금 × 그 날짜 환율, 판 돈 = 판 돈 × 판 날 환율, 배당 = 세후 배당 × 배당락일 환율)
   private static PortfolioResponse.Asset asset(PortfolioEngine.Position position, PortfolioEngine.Result result,
     BigDecimal totalReturn, BigDecimal plannedSum) {
     List<StrategyTransaction> own = result.transactions().stream()
       .filter(tx -> position.symbol().equals(tx.getSymbol()))
       .toList();
-    BigDecimal invested = MoneyUtils.roundKrw(own.stream()
-      .filter(tx -> !tx.isSell())
+    List<StrategyTransaction> buys = own.stream().filter(tx -> !tx.isSell()).toList();
+    BigDecimal invested = MoneyUtils.roundKrw(buys.stream()
+      .map(StrategyTransaction::getAmount)
+      .reduce(BigDecimal.ZERO, BigDecimal::add));
+    BigDecimal bought = MoneyUtils.roundKrw(buys.stream()
       .map(PortfolioCalculator::costKrw)
       .reduce(BigDecimal.ZERO, BigDecimal::add));
     BigDecimal sold = MoneyUtils.roundKrw(own.stream()
@@ -87,11 +90,12 @@ public final class PortfolioCalculator {
       .map(paid -> paid.amountUsd().multiply(paid.fxRate()))
       .reduce(BigDecimal.ZERO, BigDecimal::add));
     BigDecimal value = position.valueKrw();
-    BigDecimal profit = value.add(sold).add(dividend).subtract(invested);
+    BigDecimal profit = value.add(sold).add(dividend).subtract(bought);
     return PortfolioResponse.Asset.builder()
       .symbol(position.symbol())
       .strategyType(position.strategyType())
       .investedKrw(invested)
+      .boughtKrw(bought)
       .valueKrw(value)
       .soldKrw(sold)
       .dividendKrw(dividend)
@@ -104,8 +108,8 @@ public final class PortfolioCalculator {
         : BigDecimal.ZERO)
       .shares(position.shares().setScale(6, RoundingMode.HALF_UP))
       .realizedProfitKrw(MoneyUtils.roundKrw(sum(CapitalGainsTaxCalculator.realizedGains(own))))
-      .buyCount((int) own.stream()
-        .filter(tx -> !tx.isSell() && tx.getReason() != TradeReason.DIVIDEND_REINVESTMENT)
+      .buyCount((int) buys.stream()
+        .filter(tx -> tx.getReason() != TradeReason.DIVIDEND_REINVESTMENT)
         .count())
       .sellCount((int) own.stream().filter(StrategyTransaction::isSell).count())
       .build();
