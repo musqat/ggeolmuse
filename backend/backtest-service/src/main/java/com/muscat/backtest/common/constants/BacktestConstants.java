@@ -52,6 +52,9 @@ public final class BacktestConstants {
     /** 기간 마지막 거래일 전량 매도 */
     public static final String PERIOD_END_SALE = "기간 끝 매도";
 
+    /** 포트폴리오 줄의 기간 안 첫 거래일 금액 전부 매수 */
+    public static final String LUMP_SUM_PURCHASE = "한 번에 매수";
+
     /** 짧은 이동평균이 긴 이동평균을 아래에서 위로 넘은 날 매수 */
     public static final String GOLDEN_CROSS = "골든 크로스";
 
@@ -158,6 +161,21 @@ public final class BacktestConstants {
     /** 부분 익절 검사 오류 문구 */
     public static final String PARTIAL_TAKE_PROFIT_MESSAGE =
       "부분 익절은 5단계까지, 수익률은 0% 초과로 앞 단계보다 크고 팔 비율은 0% 초과 100% 이하여야 합니다";
+  }
+
+  /**
+   * 포트폴리오 요청 범위
+   */
+  public static final class Portfolio {
+    private Portfolio() {
+      throw new UnsupportedOperationException("Constants class cannot be instantiated");
+    }
+
+    /** 종목 줄 수 상한 */
+    public static final int MAX_ASSETS = 10;
+
+    /** 비율 합이 100% 와 달라도 되는 차이 (%p) */
+    public static final BigDecimal WEIGHT_TOLERANCE = new BigDecimal("0.01");
   }
 
   /**

@@ -7,9 +7,11 @@ import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
 import com.muscat.backtest.domain.dto.request.MaBandStrategyRequest;
 import com.muscat.backtest.domain.dto.request.MaCrossStrategyRequest;
+import com.muscat.backtest.domain.dto.request.PortfolioRequest;
 import com.muscat.backtest.domain.dto.request.StrategyComparisonRequest;
 import com.muscat.backtest.domain.dto.request.SymbolComparisonRequest;
 import com.muscat.backtest.domain.dto.response.ComparisonResponse;
+import com.muscat.backtest.domain.dto.response.PortfolioResponse;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.service.BacktestAnalysisService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -217,6 +219,51 @@ public class BacktestAnalysisController {
     return ResponseEntity.ok(result);
   }
 
+  @Operation(
+      summary = "포트폴리오 백테스팅",
+      description = "여러 종목을 줄마다 금액이나 총액 × 비율로 한 번에 또는 적립식으로 사고, 현금 하나로 날마다 합쳐 평가합니다. 결과에 종목별 넣은 돈 · 지금 가치 · 기여 · 비중과 매매 내역이 있습니다"
+  )
+  @ApiResponses(value = {
+      @ApiResponse(
+          responseCode = "200",
+          description = "포트폴리오 백테스팅 성공",
+          content = @Content(
+              mediaType = "application/json",
+              schema = @Schema(implementation = PortfolioResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "400",
+          description = "잘못된 요청 데이터 (종목 줄 INVALID_PORTFOLIO, 금액 · 비율 INVALID_PORTFOLIO_AMOUNT 등)",
+          content = @Content(
+              mediaType = "application/json",
+              schema = @Schema(implementation = ProblemDetail.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "404",
+          description = "줄 하나라도 기간 안 시세가 없음",
+          content = @Content(
+              mediaType = "application/json",
+              schema = @Schema(implementation = ProblemDetail.class)
+          )
+      )
+  })
+  @PostMapping("/portfolio")
+  public ResponseEntity<PortfolioResponse> runPortfolio(
+      @Parameter(description = "포트폴리오 백테스팅 요청 정보", required = true)
+      @Valid @RequestBody PortfolioRequest request,
+      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
+    request.setUserId(TokenOwner.sub(jwt));
+
+    log.info("포트폴리오 백테스팅 요청: {} ~ {}", request.getStartDate(), request.getEndDate());
+
+    PortfolioResponse result = backtestMetrics.record("portfolio", () -> backtestAnalysisService.runPortfolio(request));
+
+    log.info("포트폴리오 완료: 수익률 {}%", result.totalReturnPercent());
+
+    return ResponseEntity.ok(result);
+  }
 
   @Operation(
       summary = "종목별 성과 비교 분석",

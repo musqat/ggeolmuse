@@ -14,6 +14,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.DcaFrequency;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
+import com.muscat.backtest.common.enums.type.PortfolioAllocation;
+import com.muscat.backtest.common.enums.type.PortfolioMethod;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.exception.GlobalExceptionHandler;
@@ -23,8 +25,10 @@ import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
 import com.muscat.backtest.domain.dto.request.MaBandStrategyRequest;
 import com.muscat.backtest.domain.dto.request.MaCrossStrategyRequest;
 import com.muscat.backtest.domain.dto.request.PartialTakeProfit;
+import com.muscat.backtest.domain.dto.request.PortfolioRequest;
 import com.muscat.backtest.domain.model.ComparisonItem;
 import com.muscat.backtest.domain.dto.response.ComparisonResponse;
+import com.muscat.backtest.domain.dto.response.PortfolioResponse;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.service.BacktestAnalysisService;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -64,6 +68,10 @@ class BacktestAnalysisControllerTest {
   private static final String EMAIL = "user@example.com";
   private static final String USER = "user-1";
   private static final String VICTIM = ",\"userId\":\"victim@example.com\"}";
+  // 총액 1000만원 · SPY 60% · QQQ 40% 적립식(닫는 괄호 없음)
+  private static final String PORTFOLIO = "{" + PERIOD + ",\"allocation\":\"WEIGHT\",\"totalAmount\":10000000,"
+    + "\"assets\":[{\"symbol\":\"SPY\",\"weightPercent\":60},{\"symbol\":\"QQQ\",\"weightPercent\":40}],"
+    + "\"method\":\"DCA\",\"frequency\":\"MONTHLY\"";
 
   @Autowired
   private MockMvc mockMvc;
@@ -619,7 +627,46 @@ class BacktestAnalysisControllerTest {
   }
 
   @Test
-  @DisplayName("분석 여섯 경로 모두 이력 주인을 본문이 아니라 토큰의 사용자로 정한다")
+  @DisplayName("포트폴리오는 토큰 없이 실행되고 줄 금액 방식 · 종목 줄 · 매수 방식을 그대로 넘긴다")
+  void portfolio() throws Exception {
+    given(backtestAnalysisService.runPortfolio(any()))
+      .willReturn(PortfolioResponse.builder().totalReturnPercent(new BigDecimal("42.50")).assets(List.of()).build());
+
+    postJson("/portfolio", PORTFOLIO + "}")
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.totalReturnPercent").value(42.50));
+
+    verify(backtestAnalysisService).runPortfolio(argThat((PortfolioRequest r) ->
+      r.getAllocation() == PortfolioAllocation.WEIGHT && r.getTotalAmount().intValue() == 10000000
+        && r.getAssets().size() == 2 && "QQQ".equals(r.getAssets().get(1).symbol())
+        && r.getAssets().get(0).weightPercent().intValue() == 60 && r.getMethod() == PortfolioMethod.DCA
+        && r.getUserId() == null));
+    assertThat(meterRegistry.get("backtest.run").tags("kind", "portfolio", "outcome", "success").timer().count())
+      .isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName("포트폴리오 요청 검사가 실패하면 400 과 그 코드를 돌려준다")
+  void portfolio_InvalidRequest() throws Exception {
+    given(backtestAnalysisService.runPortfolio(any())).willThrow(new BacktestException(BacktestResponse.INVALID_PORTFOLIO));
+
+    postJson("/portfolio", "{" + PERIOD + "}")
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.errorCode").value("INVALID_PORTFOLIO"));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @ValueSource(strings = {"\"tradingFeeRate\":1", "\"tradingFeeRate\":-0.1", "\"purchaseFxRate\":0", "\"currentFxRate\":-1"})
+  @DisplayName("포트폴리오의 수수료율이 0 이상 1 미만 밖이거나 수동 환율이 0 이하면 400 이고 서비스까지 가지 않는다")
+  void portfolio_RateOutOfRange(String field) throws Exception {
+    postJson("/portfolio", PORTFOLIO + "," + field + "}")
+      .andExpect(status().isBadRequest());
+
+    verify(backtestAnalysisService, never()).runPortfolio(any());
+  }
+
+  @Test
+  @DisplayName("분석 일곱 경로 모두 이력 주인을 본문이 아니라 토큰의 사용자로 정한다")
   void ownerFromToken() throws Exception {
     given(jwtDecoder.decode(TOKEN)).willReturn(Jwt.withTokenValue(TOKEN).header("alg", "none").subject(USER)
       .claim("email", EMAIL).build());
@@ -630,6 +677,7 @@ class BacktestAnalysisControllerTest {
     given(backtestAnalysisService.runMaBandStrategy(any())).willReturn(strategy("SPY", StrategyType.MA_BAND, "1"));
     given(backtestAnalysisService.compareSymbols(any())).willReturn(comparison("MSFT"));
     given(backtestAnalysisService.compareStrategies(any())).willReturn(comparison("DCA"));
+    given(backtestAnalysisService.runPortfolio(any())).willReturn(PortfolioResponse.builder().build());
 
     postJsonWithToken("/strategy/dca", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"monthlyAmount\":100000,\"purchaseDay\":15" + VICTIM)
       .andExpect(status().isOk());
@@ -645,7 +693,10 @@ class BacktestAnalysisControllerTest {
     postJsonWithToken("/compare/strategies", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":1000000,"
       + "\"strategies\":[{\"strategyType\":\"DCA\",\"monthlyAmount\":100000},{\"strategyType\":\"SIMPLE\"}]" + VICTIM)
       .andExpect(status().isOk());
+    postJsonWithToken("/portfolio", PORTFOLIO + VICTIM)
+      .andExpect(status().isOk());
 
+    verify(backtestAnalysisService).runPortfolio(argThat(r -> USER.equals(r.getUserId())));
     verify(backtestAnalysisService).runDcaStrategy(argThat(r -> USER.equals(r.getUserId())));
     verify(backtestAnalysisService).runConditionalStrategy(argThat(r -> USER.equals(r.getUserId())));
     verify(backtestAnalysisService).runMaCrossStrategy(argThat(r -> USER.equals(r.getUserId())));

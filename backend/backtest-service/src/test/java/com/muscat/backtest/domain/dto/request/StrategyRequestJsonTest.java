@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.muscat.backtest.common.enums.type.DcaFrequency;
+import com.muscat.backtest.common.enums.type.PortfolioAllocation;
+import com.muscat.backtest.common.enums.type.PortfolioMethod;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.domain.model.StrategyParameter;
 import java.math.BigDecimal;
@@ -194,6 +196,25 @@ class StrategyRequestJsonTest {
     return MaBandStrategyRequest.builder().symbol("SPY").startDate(LocalDate.of(2023, 1, 1)).endDate(LocalDate.of(2024, 1, 1))
       .investmentAmount(BigDecimal.valueOf(10000)).bandWindow(100).upperRate(new BigDecimal("0.03"))
       .lowerRate(new BigDecimal("0.05")).signalSymbol("^NDX").userId("user-1").build();
+  }
+
+  @Test
+  @DisplayName("포트폴리오는 줄 금액 방식 · 총액 · 종목 줄 · 매수 방식을 이력 JSON 에 저장하고 다시 읽으며 줄 금액 셈 값은 넣지 않는다")
+  void portfolioSaved() throws Exception {
+    PortfolioRequest request = PortfolioRequest.builder().startDate(LocalDate.of(2023, 1, 1))
+      .endDate(LocalDate.of(2024, 1, 1)).allocation(PortfolioAllocation.WEIGHT).totalAmount(BigDecimal.valueOf(1000000))
+      .assets(List.of(new PortfolioAsset(" spy", null, BigDecimal.valueOf(60)),
+        new PortfolioAsset("QQQ", null, BigDecimal.valueOf(40))))
+      .method(PortfolioMethod.DCA).frequency(DcaFrequency.WEEKLY).userId("user-1").build();
+
+    String json = objectMapper.writeValueAsString(request);
+    PortfolioRequest saved = objectMapper.readValue(json, PortfolioRequest.class);
+
+    assertThat(json).contains("\"allocation\":\"WEIGHT\"", "\"totalAmount\":1000000",
+        "\"assets\":[{\"symbol\":\" spy\",\"amount\":null,\"weightPercent\":60}", "\"method\":\"DCA\"")
+      .doesNotContain("normalizedSymbol").doesNotContain("amountOf");
+    assertThat(saved.getAssets()).extracting(PortfolioAsset::normalizedSymbol).containsExactly("SPY", "QQQ");
+    assertThat(saved.amountOf(saved.getAssets().get(1))).isEqualByComparingTo("400000");
   }
 
   private ConditionalStrategyRequest conditional() {

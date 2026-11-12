@@ -56,6 +56,11 @@ class TradeStatsCalculatorTest {
       .trigger(TransactionTrigger.DIVIDEND_REINVESTMENT).build();
   }
 
+  private static StrategyTransaction symbol(String symbol, StrategyTransaction tx) {
+    tx.setSymbol(symbol);
+    return tx;
+  }
+
   private static void assertStats(TradeStats actual, TradeStats expected) {
     assertThat(actual).usingRecursiveComparison()
       .withComparatorForType(Comparator.nullsFirst(BigDecimal::compareTo), BigDecimal.class)
@@ -166,6 +171,21 @@ class TradeStatsCalculatorTest {
 
     assertStats(stats, new TradeStats(1, 3, 1, false, 1, 0, number("100.00"), number("17.00"), null, null,
       number("22.0"), number("1.00"), 1, 2));
+  }
+
+  @Test
+  @DisplayName("종목이 있는 거래는 종목마다 보유 0 에서 다시 0 이 될 때까지를 사이클로 보고 들고 있는 종목마다 진행 중으로 센다")
+  void cyclesPerSymbol() {
+    List<StrategyTransaction> transactions = List.of(
+      // AAA · BBB 를 1000달러씩 사서 BBB 만 40일 뒤 전량 팔아 100달러 이익(+10%), AAA · CCC 는 평가일에 들고 있음
+      symbol("AAA", buy(on(1, 10), "10")), symbol("BBB", buy(on(1, 10), "5")),
+      symbol("BBB", sell(on(2, 19), "5", "100")), symbol("CCC", buy(on(3, 1), "10")));
+
+    TradeStats stats = TradeStatsCalculator.of(transactions, START, on(12, 31));
+
+    // 시작한 사이클 3(끝난 1 + 들고 있는 2) ÷ (365일 ÷ 365.25)
+    assertStats(stats, new TradeStats(3, 1, 1, true, 1, 0, number("100.00"), number("10.00"), null, null,
+      number("40.0"), number("3.00"), 0, 0));
   }
 
   @Test

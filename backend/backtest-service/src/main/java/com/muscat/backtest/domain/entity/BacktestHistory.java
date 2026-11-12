@@ -27,7 +27,7 @@ public class BacktestHistory {
     @Enumerated(EnumType.STRING)
     private BacktestType backtestType;
 
-    @Column(length = 2000)
+    @Column(columnDefinition = "TEXT")
     private String requestParams; // 요청 파라미터 (JSON 형태)
 
     @Column(length = 20)

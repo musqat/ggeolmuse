@@ -10,8 +10,10 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 
 // 판 거래의 원화 실현 이익으로 연도별 양도소득세 · 납부와 세후 평가를 내는 계산기
@@ -22,28 +24,34 @@ public final class CapitalGainsTaxCalculator {
 
   private CapitalGainsTaxCalculator() {}
 
-  // 판 거래마다 판 날 환율로 바꾼 판 돈(수수료 뺌) - 보유분 평균 원가(산 날 환율, 수수료 포함), 거래일 순서
+  // 종목 하나의 보유 주식 수 · 원화 원가
+  private static final class Holding {
+    private BigDecimal shares = BigDecimal.ZERO;
+    private BigDecimal cost = BigDecimal.ZERO;
+  }
+
+  // 판 거래마다 판 날 환율로 바꾼 판 돈(수수료 뺌) - 그 종목 보유분 평균 원가(산 날 환율, 수수료 포함, 종목이 없으면 한 묶음), 거래일 순서
   public static List<Gain> realizedGains(List<StrategyTransaction> transactions) {
     List<StrategyTransaction> ordered = transactions.stream()
       .filter(tx -> !tx.isTaxPayment())
       .sorted(Comparator.comparing(StrategyTransaction::tradedOn))
       .toList();
     List<Gain> gains = new ArrayList<>();
-    BigDecimal shares = BigDecimal.ZERO;
-    BigDecimal cost = BigDecimal.ZERO;
+    Map<String, Holding> holdings = new HashMap<>();
     for (StrategyTransaction tx : ordered) {
+      Holding holding = holdings.computeIfAbsent(Objects.requireNonNullElse(tx.getSymbol(), ""), key -> new Holding());
       if (!tx.isSell()) {
-        shares = shares.add(tx.getShares());
-        cost = cost.add(costKrw(tx));
+        holding.shares = holding.shares.add(tx.getShares());
+        holding.cost = holding.cost.add(costKrw(tx));
         continue;
       }
       BigDecimal sold = tx.getShares().negate();
-      BigDecimal soldCost = Decimals.isPositive(shares)
-        ? cost.multiply(sold.min(shares)).divide(shares, 8, RoundingMode.HALF_UP)
+      BigDecimal soldCost = Decimals.isPositive(holding.shares)
+        ? holding.cost.multiply(sold.min(holding.shares)).divide(holding.shares, 8, RoundingMode.HALF_UP)
         : BigDecimal.ZERO;
       gains.add(new Gain(tx.tradedOn(), tx.getProceeds().multiply(tx.getFxRate()).subtract(soldCost)));
-      shares = shares.subtract(sold);
-      cost = cost.subtract(soldCost);
+      holding.shares = holding.shares.subtract(sold);
+      holding.cost = holding.cost.subtract(soldCost);
     }
     return gains;
   }

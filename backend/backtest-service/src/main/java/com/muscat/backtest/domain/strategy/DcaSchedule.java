@@ -11,15 +11,15 @@ import java.util.NavigableMap;
 import java.util.TreeMap;
 
 // 적립식 회차: 주기마다 계획일과 그 회차에 사는 거래일 시세
-final class DcaSchedule {
+public final class DcaSchedule {
 
   // 계획일 · 사는 날 시세(쓸 거래일이 없으면 null)
-  record Round(LocalDate planned, OHLCPriceDto trade) {}
+  public record Round(LocalDate planned, OHLCPriceDto trade) {}
 
   private DcaSchedule() {}
 
   // 첫 매수일 ~ 종료일의 회차, 투자일 · 투자 주기는 매달에만 씀
-  static List<Round> rounds(Map<LocalDate, OHLCPriceDto> priceMap, DcaFrequency frequency, LocalDate first,
+  public static List<Round> rounds(Map<LocalDate, OHLCPriceDto> priceMap, DcaFrequency frequency, LocalDate first,
       LocalDate end, int purchaseDay, int interval) {
     NavigableMap<LocalDate, OHLCPriceDto> days = new TreeMap<>(priceMap);
     return switch (frequency) {

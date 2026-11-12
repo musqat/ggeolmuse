@@ -35,6 +35,11 @@ class CapitalGainsTaxCalculatorTest {
       .build();
   }
 
+  private static StrategyTransaction symbol(String symbol, StrategyTransaction tx) {
+    tx.setSymbol(symbol);
+    return tx;
+  }
+
   private static List<BigDecimal> amounts(List<Gain> gains) {
     return gains.stream().map(Gain::amountKrw).toList();
   }
@@ -117,6 +122,17 @@ class CapitalGainsTaxCalculatorTest {
         buy(JAN, "10", "100", "1300000", "1300"), payment, sell(JUL, "10", "1200", "1400")));
 
       assertThat(gains).extracting(Gain::date).containsExactly(JUL);
+      assertThat(amounts(gains)).usingElementComparator(BigDecimal::compareTo).containsExactly(new BigDecimal("380000"));
+    }
+
+    @Test
+    @DisplayName("종목이 있는 거래는 종목마다 보유 · 평균 원가를 따로 센다")
+    void costPerSymbol() {
+      // AAA 10주 130만원 · BBB 10주 260만원, AAA 10주를 1400원일 때 1200달러에 판매
+      List<Gain> gains = CapitalGainsTaxCalculator.realizedGains(List.of(
+        symbol("AAA", buy(JAN, "10", "100", "1300000", "1300")), symbol("BBB", buy(JAN, "10", "200", "2600000", "1300")),
+        symbol("AAA", sell(MAR, "10", "1200", "1400"))));
+
       assertThat(amounts(gains)).usingElementComparator(BigDecimal::compareTo).containsExactly(new BigDecimal("380000"));
     }
 

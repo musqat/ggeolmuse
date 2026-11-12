@@ -10,7 +10,10 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 // 거래 내역을 사이클(보유 0 에서 산 날 ~ 다시 0 이 된 날)로 나눠 매매 통계를 내는 계산기
 public final class TradeStatsCalculator {
@@ -41,7 +44,15 @@ public final class TradeStatsCalculator {
     }
   }
 
-  // 양도세 납부를 뺀 거래(거래일 순서)의 매수 · 매도 · 트레일링 스탑 · 부분 익절 수와 사이클 통계, 1년 사이클 수는 시작일 ~ 평가일 기준
+  // 종목 하나의 진행 중 사이클(보유 주식 · 매수 원가 합 USD · 매도 실현 손익 합 USD · 산 날)
+  private static final class Holding {
+    private BigDecimal shares = BigDecimal.ZERO;
+    private BigDecimal cost = BigDecimal.ZERO;
+    private BigDecimal realized = BigDecimal.ZERO;
+    private LocalDate opened;
+  }
+
+  // 양도세 납부를 뺀 거래(거래일 순서)의 매수 · 매도 · 트레일링 스탑 · 부분 익절 수와 종목마다 사이클 통계(종목이 없으면 한 묶음), 1년 사이클 수는 시작일 ~ 평가일 기준
   public static TradeStats of(List<StrategyTransaction> transactions, LocalDate start, LocalDate valuationDate) {
     List<StrategyTransaction> trades = transactions.stream()
       .filter(tx -> !tx.isTaxPayment())
@@ -52,18 +63,16 @@ public final class TradeStatsCalculator {
     int trailingStops = 0;
     int partialTakeProfits = 0;
     List<Cycle> cycles = new ArrayList<>();
-    BigDecimal shares = BigDecimal.ZERO;
-    BigDecimal cost = BigDecimal.ZERO;
-    BigDecimal realized = BigDecimal.ZERO;
-    LocalDate opened = null;
+    Map<String, Holding> holdings = new HashMap<>();
     for (StrategyTransaction tx : trades) {
-      shares = shares.add(tx.getShares());
+      Holding holding = holdings.computeIfAbsent(Objects.requireNonNullElse(tx.getSymbol(), ""), key -> new Holding());
+      holding.shares = holding.shares.add(tx.getShares());
       if (!tx.isSell()) {
         // 배당 재투자 주식은 보유에만 더함(원가 0)
         if (!TransactionTrigger.DIVIDEND_REINVESTMENT.equals(tx.getTrigger())) {
           buys++;
-          opened = opened == null ? tx.tradedOn() : opened;
-          cost = cost.add(tx.costUsd());
+          holding.opened = holding.opened == null ? tx.tradedOn() : holding.opened;
+          holding.cost = holding.cost.add(tx.costUsd());
         }
         continue;
       }
@@ -74,17 +83,15 @@ public final class TradeStatsCalculator {
       if (soldBy(tx, TransactionTrigger.PARTIAL_TAKE_PROFIT)) {
         partialTakeProfits++;
       }
-      realized = realized.add(tx.getRealizedProfit() != null ? tx.getRealizedProfit() : BigDecimal.ZERO);
-      if (opened != null && shares.signum() <= 0) {
-        cycles.add(new Cycle(opened, tx.tradedOn(), cost, realized));
-        shares = BigDecimal.ZERO;
-        cost = BigDecimal.ZERO;
-        realized = BigDecimal.ZERO;
-        opened = null;
+      holding.realized = holding.realized.add(tx.getRealizedProfit() != null ? tx.getRealizedProfit() : BigDecimal.ZERO);
+      if (holding.opened != null && holding.shares.signum() <= 0) {
+        cycles.add(new Cycle(holding.opened, tx.tradedOn(), holding.cost, holding.realized));
+        holdings.remove(Objects.requireNonNullElse(tx.getSymbol(), ""));
       }
     }
 
-    boolean open = opened != null;
+    int openCycles = (int) holdings.values().stream().filter(holding -> holding.opened != null).count();
+    boolean open = openCycles > 0;
     List<BigDecimal> wins = cycles.stream().filter(Cycle::won).map(Cycle::returnPercent).toList();
     List<BigDecimal> losses = cycles.stream().filter(cycle -> !cycle.won()).map(cycle -> cycle.returnPercent().abs())
       .toList();
@@ -94,7 +101,7 @@ public final class TradeStatsCalculator {
       ratio(BigDecimal.valueOf(wins.size()).multiply(HUNDRED), BigDecimal.valueOf(cycles.size())),
       averageWin, averageLoss, ratio(averageWin, averageLoss),
       average(cycles.stream().map(cycle -> BigDecimal.valueOf(cycle.holdingDays())).toList(), 1),
-      perYear(cycles.size() + (open ? 1 : 0), start, valuationDate), trailingStops, partialTakeProfits);
+      perYear(cycles.size() + openCycles, start, valuationDate), trailingStops, partialTakeProfits);
   }
 
   // 거래 이유가 그 규칙 이름으로 시작하는지
