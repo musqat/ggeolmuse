@@ -6,9 +6,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.PortfolioAllocation;
 import com.muscat.backtest.common.enums.type.PortfolioMethod;
+import com.muscat.backtest.common.enums.type.PortfolioStrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.domain.dto.request.PortfolioAsset;
 import com.muscat.backtest.domain.dto.request.PortfolioRequest;
+import com.muscat.backtest.domain.dto.request.PortfolioStrategy;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -32,11 +34,11 @@ class PortfolioRequestValidatorTest {
   }
 
   private static PortfolioAsset amount(String symbol, String amount) {
-    return new PortfolioAsset(symbol, number(amount), null, null, null);
+    return new PortfolioAsset(symbol, number(amount), null, null, null, null);
   }
 
   private static PortfolioAsset weight(String symbol, String weight) {
-    return new PortfolioAsset(symbol, null, number(weight), null, null);
+    return new PortfolioAsset(symbol, null, number(weight), null, null, null);
   }
 
   private static PortfolioRequest.PortfolioRequestBuilder request(PortfolioAsset... assets) {
@@ -120,7 +122,7 @@ class PortfolioRequestValidatorTest {
     void amountAllocation() {
       assertCode(request(amount("SPY", null)).build(), BacktestResponse.INVALID_PORTFOLIO_AMOUNT);
       assertCode(request(amount("SPY", "0")).build(), BacktestResponse.INVALID_PORTFOLIO_AMOUNT);
-      assertCode(request(new PortfolioAsset("SPY", number("1000"), number("100"), null, null)).build(),
+      assertCode(request(new PortfolioAsset("SPY", number("1000"), number("100"), null, null, null)).build(),
         BacktestResponse.INVALID_PORTFOLIO_AMOUNT);
     }
 
@@ -159,7 +161,7 @@ class PortfolioRequestValidatorTest {
   class SellRates {
 
     private PortfolioAsset selling(String takeProfitRate, String stopLossRate) {
-      return new PortfolioAsset("QQQ", number("1000"), null, number(takeProfitRate), number(stopLossRate));
+      return new PortfolioAsset("QQQ", number("1000"), null, number(takeProfitRate), number(stopLossRate), null);
     }
 
     @Test
@@ -182,7 +184,7 @@ class PortfolioRequestValidatorTest {
     @Test
     @DisplayName("금액 검사가 익절 · 손절 검사보다 먼저다")
     void amountsFirst() {
-      assertCode(request(new PortfolioAsset("SPY", number("0"), null, number("0"), null)).build(),
+      assertCode(request(new PortfolioAsset("SPY", number("0"), null, number("0"), null, null)).build(),
         BacktestResponse.INVALID_PORTFOLIO_AMOUNT);
     }
   }
@@ -222,6 +224,19 @@ class PortfolioRequestValidatorTest {
         dca().purchaseDay(31).investmentInterval(12).firstPurchaseDate(END).build())).doesNotThrowAnyException();
       assertThatCode(() -> PortfolioRequestValidator.validate(request(amount("SPY", "100000")).purchaseDay(0)
         .investmentInterval(0).firstPurchaseDate(END.plusDays(1)).build())).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("한 번에 사기 요청이라도 적립식 줄이 있으면 적립식 칸을 검사하고 적립식 요청의 줄이 모두 한 번에 사기면 보지 않는다")
+    void lineStrategies() {
+      assertCode(request(amount("SPY", "100000"), planned("QQQ", PortfolioStrategyType.DCA)).purchaseDay(32).build(),
+        BacktestResponse.INVALID_PURCHASE_DAY);
+      assertThatCode(() -> PortfolioRequestValidator.validate(request(planned("SPY", PortfolioStrategyType.LUMP_SUM))
+        .method(PortfolioMethod.DCA).purchaseDay(0).build())).doesNotThrowAnyException();
+    }
+
+    private PortfolioAsset planned(String symbol, PortfolioStrategyType type) {
+      return new PortfolioAsset(symbol, number("100000"), null, null, null, new PortfolioStrategy(type));
     }
   }
 

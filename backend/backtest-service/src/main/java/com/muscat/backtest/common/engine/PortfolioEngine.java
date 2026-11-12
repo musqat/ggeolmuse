@@ -9,6 +9,7 @@ import com.muscat.backtest.common.enums.type.DcaFrequency;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.PortfolioMethod;
 import com.muscat.backtest.common.enums.type.PortfolioRebalance;
+import com.muscat.backtest.common.enums.type.PortfolioStrategyType;
 import com.muscat.backtest.common.enums.type.TradeReason;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.util.BacktestCalculationUtils;
@@ -58,9 +59,9 @@ public class PortfolioEngine {
   /** 받은 세후 배당(USD)과 배당락일 환율 */
   public record Dividend(String symbol, LocalDate exDate, BigDecimal amountUsd, BigDecimal fxRate) {}
 
-  /** 요청 순서 줄마다 줄 금액 · 평가일 보유 주식 수 · 종가(USD) · 평가 원화 */
-  public record Position(String symbol, BigDecimal plannedKrw, BigDecimal shares, BigDecimal closeUsd,
-                         BigDecimal valueKrw) {}
+  /** 요청 순서 줄마다 전략 · 줄 금액 · 평가일 보유 주식 수 · 종가(USD) · 평가 원화 */
+  public record Position(String symbol, PortfolioStrategyType strategyType, BigDecimal plannedKrw, BigDecimal shares,
+                         BigDecimal closeUsd, BigDecimal valueKrw) {}
 
   /** 기간 첫 거래일 · 평가일 · 거래 · 배당 · 줄마다 보유 · 합계 · 일별 가치와 지표 · 양도세 납부 · 기본 환율 날 */
   public record Result(LocalDate startDate, LocalDate valuationDate, List<StrategyTransaction> transactions,
@@ -96,9 +97,10 @@ public class PortfolioEngine {
     return result;
   }
 
-  // 줄의 기간 안 쓸 수 있는 일봉 · 매수 회차 · 배당락일 순서 배당 · 익절 · 손절(일봉이 없으면 DATA_NOT_FOUND)
+  // 줄의 전략 · 기간 안 쓸 수 있는 일봉 · 매수 회차 · 배당락일 순서 배당 · 익절 · 손절(일봉이 없으면 DATA_NOT_FOUND)
   private Line line(PortfolioRequest request, PortfolioAsset asset, LocalDate valuationDate) {
     String symbol = asset.normalizedSymbol();
+    PortfolioStrategyType type = request.strategyOf(asset);
     NavigableMap<LocalDate, OHLCPriceDto> candles = new TreeMap<>();
     BacktestDataUtils.buildPriceMap(marketData, symbol, request.getStartDate(), valuationDate).values().stream()
       .filter(PriceLookup::isUsable)
@@ -111,14 +113,14 @@ public class PortfolioEngine {
       .filter(dividend -> dividend.getExDate() != null)
       .sorted(Comparator.comparing(DividendPayment::getExDate))
       .toList();
-    return new Line(symbol, request.amountOf(asset), candles, rounds(request, candles, valuationDate), dividends,
-      TakeProfitStopLoss.of(asset.takeProfitRate(), asset.stopLossRate()));
+    return new Line(symbol, type, request.amountOf(asset), candles, rounds(request, type, candles, valuationDate),
+      dividends, TakeProfitStopLoss.of(asset.takeProfitRate(), asset.stopLossRate()));
   }
 
-  // 사는 거래일 → 계획일(한 번에 사기는 기간 안 첫 거래일 하나, 적립식은 쓸 거래일이 있는 회차)
-  private static Map<LocalDate, LocalDate> rounds(PortfolioRequest request,
+  // 사는 거래일 → 계획일(한 번에 사기 줄은 기간 안 첫 거래일 하나, 적립식 줄은 요청의 주기로 쓸 거래일이 있는 회차)
+  private static Map<LocalDate, LocalDate> rounds(PortfolioRequest request, PortfolioStrategyType type,
     NavigableMap<LocalDate, OHLCPriceDto> candles, LocalDate valuationDate) {
-    if (PortfolioMethod.orLumpSum(request.getMethod()) == PortfolioMethod.LUMP_SUM) {
+    if (type == PortfolioStrategyType.LUMP_SUM) {
       return Map.of(candles.firstKey(), candles.firstKey());
     }
     LocalDate first = request.getFirstPurchaseDate() != null ? request.getFirstPurchaseDate() : request.getStartDate();
@@ -136,9 +138,10 @@ public class PortfolioEngine {
     return request.getFrequency() != null ? request.getFrequency() : DcaFrequency.MONTHLY;
   }
 
-  // 종목 줄 하나의 일봉 · 회차 · 배당 · 익절 · 손절과 보유 주식 · 원가(USD, 수수료 포함) · 그 날짜까지 마지막 종가 · 첫 매수일
+  // 종목 줄 하나의 전략 · 일봉 · 회차 · 배당 · 익절 · 손절과 보유 주식 · 원가(USD, 수수료 포함) · 그 날짜까지 마지막 종가 · 첫 매수일
   private static final class Line {
     private final String symbol;
+    private final PortfolioStrategyType type;
     private final BigDecimal plannedKrw;
     private final NavigableMap<LocalDate, OHLCPriceDto> candles;
     private final Map<LocalDate, LocalDate> rounds;
@@ -150,9 +153,11 @@ public class PortfolioEngine {
     private BigDecimal lastClose;
     private LocalDate firstBought;
 
-    private Line(String symbol, BigDecimal plannedKrw, NavigableMap<LocalDate, OHLCPriceDto> candles,
-      Map<LocalDate, LocalDate> rounds, List<DividendPayment> dividends, TakeProfitStopLoss exits) {
+    private Line(String symbol, PortfolioStrategyType type, BigDecimal plannedKrw,
+      NavigableMap<LocalDate, OHLCPriceDto> candles, Map<LocalDate, LocalDate> rounds, List<DividendPayment> dividends,
+      TakeProfitStopLoss exits) {
       this.symbol = symbol;
+      this.type = type;
       this.plannedKrw = plannedKrw;
       this.candles = candles;
       this.rounds = rounds;
@@ -286,7 +291,7 @@ public class PortfolioEngine {
 
     // 줄 금액만큼 그 날짜 종가에 삼, 공용 현금을 먼저 쓰고 모자란 만큼 새 돈(원 단위)
     private void buy(Line line, LocalDate date, LocalDate planned, BigDecimal fx) {
-      boolean lumpSum = PortfolioMethod.orLumpSum(request.getMethod()) == PortfolioMethod.LUMP_SUM;
+      boolean lumpSum = line.type == PortfolioStrategyType.LUMP_SUM;
       BigDecimal price = PriceLookup.effectiveClose(line.candles.get(date));
       StrategyTransaction.StrategyTransactionBuilder builder = StrategyTransaction.builder()
         .symbol(line.symbol)
@@ -473,7 +478,7 @@ public class PortfolioEngine {
     private Result finish(LocalDate startDate, FxRateDto currentFx) {
       BigDecimal rate = currentFx.rate();
       List<Position> positions = lines.stream()
-        .map(line -> new Position(line.symbol, line.plannedKrw, line.shares, line.lastClose,
+        .map(line -> new Position(line.symbol, line.type, line.plannedKrw, line.shares, line.lastClose,
           MoneyUtils.roundKrw(line.valueUsd().multiply(rate))))
         .toList();
       BigDecimal stockValueKrw = positions.stream().map(Position::valueKrw).reduce(BigDecimal.ZERO, BigDecimal::add);

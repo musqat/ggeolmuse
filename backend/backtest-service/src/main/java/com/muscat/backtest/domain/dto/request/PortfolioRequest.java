@@ -5,6 +5,7 @@ import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.PortfolioAllocation;
 import com.muscat.backtest.common.enums.type.PortfolioMethod;
 import com.muscat.backtest.common.enums.type.PortfolioRebalance;
+import com.muscat.backtest.common.enums.type.PortfolioStrategyType;
 import com.muscat.commonlib.util.MoneyUtils;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMax;
@@ -40,16 +41,16 @@ public class PortfolioRequest {
   @Schema(description = "줄 금액 방식 (AMOUNT 줄마다 금액, WEIGHT 총액 × 줄마다 비율, 비우면 AMOUNT)", example = "AMOUNT")
   private PortfolioAllocation allocation;
 
-  @Schema(description = "총액 (WEIGHT 에서만, KRW, 적립식이면 회당 총액)", example = "10000000")
+  @Schema(description = "총액 (WEIGHT 에서만, KRW, 적립식 줄은 총액 × 비율이 회당 금액)", example = "10000000")
   private BigDecimal totalAmount;
 
   @Schema(description = "종목 줄 (1 ~ 10개, 결과 줄도 이 순서)", required = true)
   private List<PortfolioAsset> assets;
 
-  @Schema(description = "매수 방식 (LUMP_SUM 줄마다 기간 안 첫 거래일에 금액 전부, DCA 줄마다 회차일에 회당 금액, 비우면 LUMP_SUM)", example = "LUMP_SUM")
+  @Schema(description = "매수 방식 (LUMP_SUM 줄마다 기간 안 첫 거래일에 금액 전부, DCA 줄마다 회차일에 회당 금액, 줄 전략이 있는 줄은 줄 전략, 비우면 LUMP_SUM)", example = "LUMP_SUM")
   private PortfolioMethod method;
 
-  @Schema(description = "적립식 매수 주기 (DCA 에서만, 모든 줄이 같은 주기, 비우면 MONTHLY)", example = "MONTHLY")
+  @Schema(description = "적립식 매수 주기 (적립식 줄에서만, 모든 적립식 줄이 같은 주기, 비우면 MONTHLY)", example = "MONTHLY")
   private DcaFrequency frequency;
 
   @Schema(description = "적립식 첫 매수일 (시작일 ~ 종료일, 비우면 시작일)", example = "2020-01-15")
@@ -95,5 +96,10 @@ public class PortfolioRequest {
       return asset.amount();
     }
     return MoneyUtils.roundKrw(totalAmount.multiply(asset.weightPercent()).divide(HUNDRED, 8, RoundingMode.HALF_UP));
+  }
+
+  // 줄 전략(줄에 없으면 매수 방식)
+  public PortfolioStrategyType strategyOf(PortfolioAsset asset) {
+    return PortfolioStrategyType.orMethod(asset.strategy() == null ? null : asset.strategy().type(), method);
   }
 }

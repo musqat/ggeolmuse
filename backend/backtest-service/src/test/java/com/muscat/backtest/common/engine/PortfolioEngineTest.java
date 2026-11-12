@@ -15,10 +15,12 @@ import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.PortfolioAllocation;
 import com.muscat.backtest.common.enums.type.PortfolioMethod;
 import com.muscat.backtest.common.enums.type.PortfolioRebalance;
+import com.muscat.backtest.common.enums.type.PortfolioStrategyType;
 import com.muscat.backtest.common.enums.type.TradeReason;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.domain.dto.request.PortfolioAsset;
 import com.muscat.backtest.domain.dto.request.PortfolioRequest;
+import com.muscat.backtest.domain.dto.request.PortfolioStrategy;
 import com.muscat.backtest.domain.dto.response.DailyValue;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.backtest.infra.client.MarketDataClientWrapper;
@@ -96,7 +98,12 @@ class PortfolioEngineTest {
   private static PortfolioAsset selling(String symbol, String amount, String takeProfitRate, String stopLossRate) {
     return new PortfolioAsset(symbol, new BigDecimal(amount), null,
       takeProfitRate == null ? null : new BigDecimal(takeProfitRate),
-      stopLossRate == null ? null : new BigDecimal(stopLossRate));
+      stopLossRate == null ? null : new BigDecimal(stopLossRate), null);
+  }
+
+  // 줄 전략이 있는 금액 줄
+  private static PortfolioAsset planned(String symbol, String amount, PortfolioStrategyType type) {
+    return new PortfolioAsset(symbol, new BigDecimal(amount), null, null, null, new PortfolioStrategy(type));
   }
 
   // 시작일 ~ 종료일 · 매수 · 현재 환율 1300 고정 · 수수료 없음
@@ -172,8 +179,8 @@ class PortfolioEngineTest {
       prices("BBB", candle("BBB", day(0), "10"));
 
       PortfolioEngine.Result result = engine.run(request(day(0),
-        new PortfolioAsset("AAA", null, new BigDecimal("33.33"), null, null),
-        new PortfolioAsset("BBB", null, new BigDecimal("66.67"), null, null))
+        new PortfolioAsset("AAA", null, new BigDecimal("33.33"), null, null, null),
+        new PortfolioAsset("BBB", null, new BigDecimal("66.67"), null, null, null))
         .allocation(PortfolioAllocation.WEIGHT).totalAmount(new BigDecimal("1000001")).build());
 
       assertThat(result.transactions()).extracting(tx -> plain(tx.getAmount())).containsExactly("333300", "666701");
@@ -293,6 +300,47 @@ class PortfolioEngineTest {
       assertThat(plain(result.totalAssetKrw())).isEqualTo("0");
       assertThat(result.defaultFxDates()).containsExactly(day(6));
       assertThat(plain(result.currentFxRate())).isEqualTo("1350");
+    }
+  }
+
+  @Nested
+  @DisplayName("줄마다 한 번에 사기 · 적립식")
+  class LineMethods {
+
+    @Test
+    @DisplayName("한 번에 사기 요청에서 적립식 줄은 요청의 적립식 주기로 회차마다 사고 나머지 줄은 첫 거래일에 한 번 산다")
+    void dcaLineInLumpSumRequest() {
+      monthly("AAA", "10", "20", "25");
+      monthly("BBB", "50", "40", "100");
+
+      PortfolioEngine.Result result = engine.run(request(MAY, asset("AAA", "130000"),
+        planned("BBB", "260000", PortfolioStrategyType.DCA)).build());
+
+      assertThat(trades(result)).containsExactly(
+        tuple("AAA", TradeReason.BUY, START, "한 번에 매수", "10", "10", "130000"),
+        tuple("BBB", TradeReason.DCA_BUY, START, "월정액", "50", "4", "260000"),
+        tuple("BBB", TradeReason.DCA_BUY, APR, "월정액", "40", "5", "260000"),
+        tuple("BBB", TradeReason.DCA_BUY, MAY, "월정액", "100", "2", "260000"));
+      assertThat(result.positions()).extracting(PortfolioEngine.Position::strategyType)
+        .containsExactly(PortfolioStrategyType.LUMP_SUM, PortfolioStrategyType.DCA);
+      assertThat(plain(result.totalInvestedKrw())).isEqualTo("910000");
+    }
+
+    @Test
+    @DisplayName("적립식 요청에서 한 번에 사기 줄은 첫 매수일과 상관없이 그 종목 첫 거래일에 금액 전부로 한 번만 산다")
+    void lumpSumLineInDcaRequest() {
+      monthly("AAA", "10", "20", "25");
+      monthly("BBB", "50", "40", "100");
+
+      PortfolioEngine.Result result = engine.run(request(MAY, planned("AAA", "130000", PortfolioStrategyType.LUMP_SUM),
+        asset("BBB", "260000")).method(PortfolioMethod.DCA).firstPurchaseDate(APR).build());
+
+      assertThat(trades(result)).containsExactly(
+        tuple("AAA", TradeReason.BUY, START, "한 번에 매수", "10", "10", "130000"),
+        tuple("BBB", TradeReason.DCA_BUY, APR, "월정액", "40", "5", "260000"),
+        tuple("BBB", TradeReason.DCA_BUY, MAY, "월정액", "100", "2", "260000"));
+      assertThat(result.positions()).extracting(PortfolioEngine.Position::strategyType)
+        .containsExactly(PortfolioStrategyType.LUMP_SUM, PortfolioStrategyType.DCA);
     }
   }
 

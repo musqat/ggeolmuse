@@ -3,7 +3,7 @@ package com.muscat.backtest.common.validation;
 import com.muscat.backtest.common.constants.BacktestConstants.Portfolio;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.PortfolioAllocation;
-import com.muscat.backtest.common.enums.type.PortfolioMethod;
+import com.muscat.backtest.common.enums.type.PortfolioStrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.domain.dto.request.PortfolioAsset;
 import com.muscat.backtest.domain.dto.request.PortfolioRequest;
@@ -22,7 +22,7 @@ public final class PortfolioRequestValidator {
 
   private PortfolioRequestValidator() {}
 
-  /** 기간 → 종목 줄 → 금액 · 비율 → 줄마다 익절 · 손절 → 적립식 칸(적립식만) 차례로 검사 */
+  /** 기간 → 종목 줄 → 금액 · 비율 → 줄마다 익절 · 손절 → 적립식 칸(적립식 줄이 있을 때만) 차례로 검사 */
   public static void validate(PortfolioRequest request) {
     BacktestRequestValidator.requireNonNull(request);
     BacktestRequestValidator.requireDateRange(request.getStartDate(), request.getEndDate());
@@ -30,7 +30,7 @@ public final class PortfolioRequestValidator {
     requireAmounts(request);
     request.getAssets().forEach(asset ->
       BacktestRequestValidator.requireSellRates(asset.takeProfitRate(), asset.stopLossRate()));
-    if (PortfolioMethod.orLumpSum(request.getMethod()) == PortfolioMethod.DCA) {
+    if (request.getAssets().stream().anyMatch(asset -> request.strategyOf(asset) == PortfolioStrategyType.DCA)) {
       requireSchedule(request);
     }
   }
