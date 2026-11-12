@@ -832,6 +832,8 @@ describe('Backtest 페이지 포트폴리오', () => {
   const rowSymbol = (n: number) => screen.getByRole('combobox', { name: `${n}번 종목` })
   const rowAmount = (n: number) => screen.getByRole('textbox', { name: `${n}번 금액(원)` })
   const rowWeight = (n: number) => screen.getByRole('textbox', { name: `${n}번 비율(퍼센트)` })
+  const rowTakeProfit = (n: number) => screen.getByRole('textbox', { name: `${n}번 익절(평균 단가 대비 퍼센트)` })
+  const rowStopLoss = (n: number) => screen.getByRole('textbox', { name: `${n}번 손절(평균 단가 대비 퍼센트)` })
   const addRow = () => userEvent.click(screen.getByRole('button', { name: '＋ 종목 더하기' }))
   const method = (name: string) => within(screen.getByRole('radiogroup', { name: '방식' })).getByRole('radio', { name })
   const rebalance = (name: string) => within(screen.getByRole('radiogroup', { name: '리밸런싱' })).getByRole('radio', { name })
@@ -942,6 +944,51 @@ describe('Backtest 페이지 포트폴리오', () => {
     expect(summary()).toHaveTextContent('종목 1개 · 한 번에 1,000만원 · 분기마다 처음 비중으로 리밸런싱')
     await runBacktest()
     expect(backtestApi.runPortfolio).toHaveBeenCalledWith(expect.objectContaining({ method: 'LUMP_SUM', rebalance: 'QUARTERLY' }))
+  })
+
+  it('줄마다 익절 · 손절을 적으면 요약에 적고 그 줄에만 비율로 싣고, 범위 밖이면 고칠 칸으로 세며, 배당 재투자를 잠그지 않고 직전 설정으로 되살린다', async () => {
+    renderPage()
+    await selectMode('포트폴리오')
+    await addRow()
+    await pickSymbol(rowSymbol(2), 'ms', /MSFT/)
+    fireEvent.change(rowAmount(2), { target: { value: '3,000,000' } })
+
+    expect(rowTakeProfit(1)).toHaveValue('')
+    expect(summary()).not.toHaveTextContent('익절')
+    fireEvent.change(rowTakeProfit(1), { target: { value: '30' } })
+    fireEvent.change(rowStopLoss(1), { target: { value: '10' } })
+    expect(summary()).toHaveTextContent('종목 2개 · 한 번에 1,300만원 · 1개 종목에 익절 · 손절(평균 단가 기준 전량)')
+    await userEvent.click(detailToggle())
+    await userEvent.click(reinvestRadio())
+    expect(reinvestRadio()).not.toHaveAttribute('aria-disabled')
+    expect(reinvestRadio()).toHaveAttribute('aria-checked', 'true')
+
+    fireEvent.change(rowStopLoss(2), { target: { value: '100' } })
+    expect(screen.getByText('2번 줄 손절 100 아래')).toBeInTheDocument()
+    expect(summary()).toHaveTextContent('고칠 칸 1개')
+    await runBacktest()
+    expect(rowStopLoss(2)).toHaveFocus()
+    expect(backtestApi.runPortfolio).not.toHaveBeenCalled()
+
+    fireEvent.change(rowStopLoss(2), { target: { value: '' } })
+    await runBacktest()
+    expect(backtestApi.runPortfolio).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assets: [
+          { symbol: 'AAPL', amount: 10000000, takeProfitRate: 0.3, stopLossRate: 0.1 },
+          { symbol: 'MSFT', amount: 3000000 },
+        ],
+        reinvestDividends: true,
+      })
+    )
+
+    await userEvent.click(screen.getByRole('button', { name: '설정 초기화' }))
+    await selectMode('포트폴리오')
+    expect(rowStopLoss(1)).toHaveValue('')
+    await userEvent.click(screen.getByRole('button', { name: '직전 설정' }))
+    expect(rowTakeProfit(1)).toHaveValue('30')
+    expect(rowStopLoss(1)).toHaveValue('10')
+    expect(rowTakeProfit(2)).toHaveValue('')
   })
 
   it('빈 줄이 있으면 그 줄 종목 칸으로 가며 요청하지 않고, 비율 합이 100 이 아니면 알림으로 막는다', async () => {

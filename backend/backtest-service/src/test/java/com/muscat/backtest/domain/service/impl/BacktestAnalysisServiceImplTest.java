@@ -118,7 +118,8 @@ class BacktestAnalysisServiceImplTest {
     private PortfolioRequest request(String... symbols) {
       return PortfolioRequest.builder().userId("user123").startDate(LocalDate.of(2024, 1, 1))
         .endDate(LocalDate.of(2024, 12, 31))
-        .assets(Arrays.stream(symbols).map(symbol -> new PortfolioAsset(symbol, BigDecimal.valueOf(1000000), null))
+        .assets(Arrays.stream(symbols)
+          .map(symbol -> new PortfolioAsset(symbol, BigDecimal.valueOf(1000000), null, null, null))
           .toList())
         .build();
     }

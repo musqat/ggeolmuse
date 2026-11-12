@@ -12,6 +12,7 @@ import { AFTER_VALUE, LEAD, SEG_GROUP, SEG_OPTION, UNIT, VALUE_ROW } from '../..
 import {
   MAX_ROWS,
   amountShares,
+  newRow,
   isWeightSumOk,
   rowAmounts,
   weightSum,
@@ -37,14 +38,21 @@ const ALLOCATIONS: { value: PortfolioAllocation; label: string }[] = [
   { value: 'WEIGHT', label: '비율' },
 ];
 
-// 휴대폰은 줄마다 카드(첫 줄 종목 + 지우기, 둘째 줄 금액 · 비율), 넓은 화면은 한 줄
+// 휴대폰 · 태블릿은 줄마다 카드(첫 줄 종목 + 지우기, 둘째 줄 금액 · 비율과 익절 · 손절), 넓은 화면은 한 줄
 const ROW =
   'grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-0.5 rounded-lg border border-line/70 px-2.5 py-1.5 ' +
-  'md:grid-cols-[minmax(0,1fr)_minmax(0,16rem)_2.25rem] md:rounded-none md:border-0 md:border-t md:border-line/50 md:px-0 md:first:border-t-0';
+  'lg:grid-cols-[minmax(0,1fr)_minmax(0,30rem)_2.25rem] lg:rounded-none lg:border-0 lg:border-t lg:border-line/50 lg:px-0 lg:first:border-t-0';
+
+// 좁으면 익절 · 손절이 금액 · 비율 아래 줄로, 넓은 화면은 두 칸
+const VALUES =
+  'col-span-2 row-start-2 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-0.5 ' +
+  'lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:grid lg:grid-cols-[minmax(0,16rem)_minmax(0,13rem)] lg:gap-x-3';
 
 const percentText = (value: number) => `${formatNumber(value, { maximumFractionDigits: 1 })}%`;
 
-// 포트폴리오 종목 칸: 이름 줄 오른쪽 금액 | 비율, 비율이면 총액 줄, 줄마다 [종목] [₩ 금액 · 몫 % 또는 비율 % · 어림 금액] [지우기], 아래 "＋ 종목 더하기"(10줄이면 "최대 10개") · 합계 줄
+const NO_MESSAGES: PortfolioRowMessages = { symbol: null, value: null, takeProfit: null, stopLoss: null };
+
+// 포트폴리오 종목 칸: 이름 줄 오른쪽 금액 | 비율, 비율이면 총액 줄, 줄마다 [종목] [₩ 금액 · 몫 % 또는 비율 % · 어림 금액] [익절 +% · 손절 -%] [지우기], 아래 "＋ 종목 더하기"(10줄이면 "최대 10개") · 합계 줄
 export const PortfolioAssetsField = ({
   rows,
   onRowsChange,
@@ -58,8 +66,8 @@ export const PortfolioAssetsField = ({
   totalMessage,
 }: PortfolioAssetsFieldProps) => {
   const weighted = allocation === 'WEIGHT';
-  const message =
-    [weighted ? totalMessage : null, ...messages.flatMap((row) => [row.symbol, row.value])].find(Boolean) ?? null;
+  const rowMessages = messages.flatMap((row) => [row.symbol, row.value, row.takeProfit, row.stopLoss]);
+  const message = [weighted ? totalMessage : null, ...rowMessages].find(Boolean) ?? null;
   const { messageId, describedBy } = useMessageLink(message);
   const listRef = useRef<HTMLDivElement>(null);
   // 다시 그린 뒤 포커스할 줄(그 줄의 종목 칸)
@@ -76,7 +84,7 @@ export const PortfolioAssetsField = ({
     onRowsChange(rows.map((row, i) => (i === index ? { ...row, [key]: value } : row)));
   const add = () => {
     focusAfter.current = rows.length;
-    onRowsChange([...rows, { symbol: '', amount: '', weight: '' }]);
+    onRowsChange([...rows, newRow()]);
   };
   // 지운 자리의 줄(없으면 앞 줄)로
   const remove = (index: number) => {
@@ -128,10 +136,23 @@ export const PortfolioAssetsField = ({
           />
         </div>
       )}
-      <div ref={listRef} className="space-y-2 md:space-y-0">
+      <div ref={listRef} className="space-y-2 lg:space-y-0">
         {rows.map((row, index) => {
           const n = index + 1;
-          const own = messages[index] ?? { symbol: null, value: null };
+          const own = messages[index] ?? NO_MESSAGES;
+          // 익절 · 손절 퍼센트 칸(비면 안 함)
+          const sellInput = (key: 'takeProfit' | 'stopLoss', name: string, ownMessage: FieldMessage | null) => (
+            <input
+              className="input-inline"
+              inputMode="decimal"
+              placeholder="안 함"
+              aria-label={`${n}번 ${name}(평균 단가 대비 퍼센트)`}
+              aria-invalid={isError(ownMessage) || undefined}
+              aria-describedby={link(ownMessage).describedBy}
+              value={row[key]}
+              onChange={(e) => change(index, key, oneDecimal(e.target.value))}
+            />
+          );
           return (
             <div key={index} data-row className={ROW}>
               <div className="relative col-start-1 row-start-1 flex min-w-0 items-center">
@@ -145,39 +166,51 @@ export const PortfolioAssetsField = ({
                   {...link(own.symbol)}
                 />
               </div>
-              <div className={`${VALUE_ROW} col-span-2 row-start-2 md:col-span-1 md:col-start-2 md:row-start-1`}>
-                {weighted ? (
-                  <>
-                    <input
-                      className="input-inline"
-                      inputMode="decimal"
-                      aria-label={`${n}번 비율(퍼센트)`}
-                      aria-invalid={isError(own.value) || undefined}
-                      aria-describedby={link(own.value).describedBy}
-                      value={row.weight}
-                      onChange={(e) => change(index, 'weight', oneDecimal(e.target.value))}
-                    />
-                    <span className={UNIT}>%</span>
-                    {amounts[index] > 0 && <span className={AFTER_VALUE}>≈ {formatReadableWon(amounts[index])}</span>}
-                  </>
-                ) : (
-                  <>
-                    <span className={UNIT}>₩</span>
-                    <NumberInput
-                      variant="inline"
-                      value={row.amount}
-                      onChange={(amount) => change(index, 'amount', amount)}
-                      placeholder=""
-                      showKoreanHint={false}
-                      ariaLabel={`${n}번 금액(원)`}
-                      {...link(own.value)}
-                    />
-                    {shares[index] > 0 && <span className={AFTER_VALUE}>{percentText(shares[index])}</span>}
-                  </>
-                )}
+              <div className={VALUES}>
+                <div className={`${VALUE_ROW} flex-1 basis-36`}>
+                  {weighted ? (
+                    <>
+                      <input
+                        className="input-inline"
+                        inputMode="decimal"
+                        aria-label={`${n}번 비율(퍼센트)`}
+                        aria-invalid={isError(own.value) || undefined}
+                        aria-describedby={link(own.value).describedBy}
+                        value={row.weight}
+                        onChange={(e) => change(index, 'weight', oneDecimal(e.target.value))}
+                      />
+                      <span className={UNIT}>%</span>
+                      {amounts[index] > 0 && <span className={AFTER_VALUE}>≈ {formatReadableWon(amounts[index])}</span>}
+                    </>
+                  ) : (
+                    <>
+                      <span className={UNIT}>₩</span>
+                      <NumberInput
+                        variant="inline"
+                        value={row.amount}
+                        onChange={(amount) => change(index, 'amount', amount)}
+                        placeholder=""
+                        showKoreanHint={false}
+                        ariaLabel={`${n}번 금액(원)`}
+                        {...link(own.value)}
+                      />
+                      {shares[index] > 0 && <span className={AFTER_VALUE}>{percentText(shares[index])}</span>}
+                    </>
+                  )}
+                </div>
+                <div className={`${VALUE_ROW} basis-52`}>
+                  <span className={LEAD}>익절</span>
+                  {row.takeProfit && <span className={UNIT}>+</span>}
+                  {sellInput('takeProfit', '익절', own.takeProfit)}
+                  {row.takeProfit && <span className={UNIT}>%</span>}
+                  <span className={`${LEAD} ml-1`}>· 손절</span>
+                  {row.stopLoss && <span className={UNIT}>-</span>}
+                  {sellInput('stopLoss', '손절', own.stopLoss)}
+                  {row.stopLoss && <span className={UNIT}>%</span>}
+                </div>
               </div>
               {rows.length > 1 && (
-                <span className="col-start-2 row-start-1 md:col-start-3">
+                <span className="col-start-2 row-start-1 lg:col-start-3">
                   <ClearButton label={`${n}번 종목 지우기`} onClick={() => remove(index)} />
                 </span>
               )}

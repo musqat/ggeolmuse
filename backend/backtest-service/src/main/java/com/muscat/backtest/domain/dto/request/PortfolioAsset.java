@@ -14,7 +14,13 @@ public record PortfolioAsset(
   BigDecimal amount,
 
   @Schema(description = "비율 (WEIGHT 에서만, %, 줄 합 100)", example = "60")
-  BigDecimal weightPercent
+  BigDecimal weightPercent,
+
+  @Schema(description = "익절 비율: 그 종목 평균 단가(수수료 포함)보다 장중에 이만큼 오르면 전량 매도 (10% = 0.1, 비우면 안 함)", example = "0.3")
+  BigDecimal takeProfitRate,
+
+  @Schema(description = "손절 비율: 그 종목 평균 단가(수수료 포함)보다 장중에 이만큼 내리면 전량 매도 (10% = 0.1, 1 미만, 비우면 안 함)", example = "0.1")
+  BigDecimal stopLossRate
 ) {
 
   // 앞뒤 공백을 뺀 대문자 종목 코드

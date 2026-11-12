@@ -358,6 +358,8 @@ export type PortfolioAssetRequest = {
   symbol: string;
   amount?: number;                      // 금액 (KRW, 적립식이면 회당)
   weightPercent?: number;               // 비율 (%, 줄 합 100)
+  takeProfitRate?: number;              // 그 종목 평균 단가 대비 익절 비율 (0.3 = 30%, 비우면 안 함)
+  stopLossRate?: number;                // 그 종목 평균 단가 대비 손절 비율 (0.1 = 10%, 1 미만, 비우면 안 함)
 };
 
 // 포트폴리오 백테스트 요청(여러 종목을 현금 하나로 사고 평가)
@@ -384,7 +386,9 @@ export type TradeReason =
   | 'DIVIDEND_REINVESTMENT'
   | 'TAX_PAYMENT'
   | 'REBALANCE_BUY'
-  | 'REBALANCE_SELL';
+  | 'REBALANCE_SELL'
+  | 'TAKE_PROFIT'
+  | 'STOP_LOSS';
 
 // 포트폴리오 매매 한 건(양도세 납부 줄은 종목 없음)
 export type PortfolioTransaction = StrategyTransaction & {

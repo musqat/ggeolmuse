@@ -69,6 +69,23 @@ class BacktestRequestValidatorTest {
     return value == null ? null : new BigDecimal(value);
   }
 
+  @ParameterizedTest(name = "익절 {0} · 손절 {1}")
+  @CsvSource({"0,", "-0.1,", ",0", ",-0.1", ",1", ",1.5"})
+  @DisplayName("익절 비율이 0 이하이거나 손절 비율이 0 이하 · 1 이상이면 INVALID_SELL_RATE")
+  void requireSellRates_rejected(String takeProfitRate, String stopLossRate) {
+    assertThatThrownBy(() -> BacktestRequestValidator.requireSellRates(rate(takeProfitRate), rate(stopLossRate)))
+        .isInstanceOf(BacktestException.class)
+        .extracting("code").isEqualTo(BacktestResponse.INVALID_SELL_RATE);
+  }
+
+  @ParameterizedTest(name = "익절 {0} · 손절 {1}")
+  @CsvSource({",", "0.01,", ",0.99", "5,0.5"})
+  @DisplayName("익절 · 손절은 비우거나 익절 비율이 0 초과이고 손절 비율이 0 초과 1 미만이면 통과한다")
+  void requireSellRates_accepted(String takeProfitRate, String stopLossRate) {
+    assertThatCode(() -> BacktestRequestValidator.requireSellRates(rate(takeProfitRate), rate(stopLossRate)))
+        .doesNotThrowAnyException();
+  }
+
   @ParameterizedTest(name = "하락 {0} · 팔 {1}")
   @CsvSource({"0,", "1,", "-0.1,", "0.1,0", "0.1,1.01", "0.1,-0.5", ",0.5"})
   @DisplayName("트레일링 스탑 하락 비율이 0 초과 1 미만 밖이거나 팔 비율이 0 초과 1 이하 밖이거나 팔 비율만 있으면 INVALID_TRAILING_STOP")

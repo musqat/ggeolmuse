@@ -18,6 +18,8 @@ const REASON_LABELS: Record<TradeReason, string> = {
   TAX_PAYMENT: '양도세 납부',
   REBALANCE_BUY: '리밸런싱 매수',
   REBALANCE_SELL: '리밸런싱 매도',
+  TAKE_PROFIT: '익절',
+  STOP_LOSS: '손절',
 };
 
 const HEAD = 'px-3 py-2 text-xs font-medium text-tx-2';

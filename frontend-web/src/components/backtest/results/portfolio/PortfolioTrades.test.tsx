@@ -71,4 +71,27 @@ describe('PortfolioTrades', () => {
     await userEvent.selectOptions(screen.getByRole('combobox', { name: '이유' }), '리밸런싱 매도')
     expect(rows().map((row) => cells(row)[1])).toEqual(['SPY'])
   })
+
+  it('익절 · 손절은 전량 수량 · 받은 돈 · 실현 손익과 거래 글로 보이고 이유 고르기는 리밸런싱 다음 익절 · 손절 순서', async () => {
+    const exits: PortfolioTransaction[] = [
+      transactions[0],
+      transactions[1],
+      { symbol: 'QQQ', reason: 'STOP_LOSS', date: '2020-03-16', actualDate: '2020-03-16', trigger: '10.0%손절', shares: -10, price: 270.75, amount: 0, fxRate: 1230, proceeds: 2700.98, realizedProfit: -299.02 },
+      { symbol: 'SPY', reason: 'REBALANCE_SELL', date: '2021-01-04', actualDate: '2021-01-04', trigger: '리밸런싱 매도', shares: -2.5, price: 370, amount: 0, fxRate: 1100, proceeds: 922.69, realizedProfit: 110.5 },
+      { symbol: 'SPY', reason: 'TAKE_PROFIT', date: '2021-08-10', actualDate: '2021-08-10', trigger: '35.0%익절', shares: -17.62345678, price: 440.1, amount: 0, fxRate: 1160, proceeds: 7736.94, realizedProfit: 2005.12 },
+    ]
+    render(<PortfolioTrades transactions={exits} symbols={['SPY', 'QQQ']} />)
+
+    expect(rows().slice(2).map(cells)).toEqual([
+      ['2020-03-16', 'QQQ', '10.0%손절', '10주', '$2,700.98', '-$299.02'],
+      ['2021-01-04', 'SPY', '리밸런싱 매도', '2.5주', '$922.69', '+$110.50'],
+      ['2021-08-10', 'SPY', '35.0%익절', '17.623457주', '$7,736.94', '+$2,005.12'],
+    ])
+    expect(options('이유')).toEqual(['모든 이유', '한 번에 매수', '리밸런싱 매도', '익절', '손절'])
+
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: '이유' }), '손절')
+    expect(rows().map((row) => cells(row)[2])).toEqual(['10.0%손절'])
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: '이유' }), '익절')
+    expect(rows().map((row) => cells(row)[1])).toEqual(['SPY'])
+  })
 })

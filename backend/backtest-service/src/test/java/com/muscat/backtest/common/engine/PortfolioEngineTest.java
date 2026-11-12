@@ -65,6 +65,12 @@ class PortfolioEngineTest {
     return new OHLCPriceDto(symbol, date, price, price, price, price, price, 1_000L, "USD", true);
   }
 
+  // 그 날짜 시가 · 고가 · 저가 · 종가(수정 종가는 종가) 일봉
+  private static OHLCPriceDto bar(String symbol, LocalDate date, String open, String high, String low, String close) {
+    return new OHLCPriceDto(symbol, date, new BigDecimal(open), new BigDecimal(high), new BigDecimal(low),
+      new BigDecimal(close), new BigDecimal(close), 1_000L, "USD", true);
+  }
+
   private static LocalDate day(int offset) {
     return START.plusDays(offset);
   }
@@ -83,7 +89,14 @@ class PortfolioEngineTest {
   }
 
   private static PortfolioAsset asset(String symbol, String amount) {
-    return new PortfolioAsset(symbol, new BigDecimal(amount), null);
+    return selling(symbol, amount, null, null);
+  }
+
+  // 익절 · 손절 비율이 있는 금액 줄
+  private static PortfolioAsset selling(String symbol, String amount, String takeProfitRate, String stopLossRate) {
+    return new PortfolioAsset(symbol, new BigDecimal(amount), null,
+      takeProfitRate == null ? null : new BigDecimal(takeProfitRate),
+      stopLossRate == null ? null : new BigDecimal(stopLossRate));
   }
 
   // 시작일 ~ 종료일 · 매수 · 현재 환율 1300 고정 · 수수료 없음
@@ -159,7 +172,8 @@ class PortfolioEngineTest {
       prices("BBB", candle("BBB", day(0), "10"));
 
       PortfolioEngine.Result result = engine.run(request(day(0),
-        new PortfolioAsset("AAA", null, new BigDecimal("33.33")), new PortfolioAsset("BBB", null, new BigDecimal("66.67")))
+        new PortfolioAsset("AAA", null, new BigDecimal("33.33"), null, null),
+        new PortfolioAsset("BBB", null, new BigDecimal("66.67"), null, null))
         .allocation(PortfolioAllocation.WEIGHT).totalAmount(new BigDecimal("1000001")).build());
 
       assertThat(result.transactions()).extracting(tx -> plain(tx.getAmount())).containsExactly("333300", "666701");
@@ -557,6 +571,98 @@ class PortfolioEngineTest {
 
       assertThat(result.transactions()).extracting(StrategyTransaction::getReason).containsExactly(
         TradeReason.BUY, TradeReason.BUY, TradeReason.PERIOD_END_SALE, TradeReason.PERIOD_END_SALE);
+    }
+  }
+
+  @Nested
+  @DisplayName("익절 · 손절")
+  class SellRules {
+
+    @Test
+    @DisplayName("줄마다 평균 단가 대비 익절 · 손절 기준가에 닿은 날 그 값에 전량 팔고 판 돈은 공용 현금에 두며 산 날 · 일봉이 없는 날은 보지 않는다")
+    void sellsEachLineAtItsTrigger() {
+      prices("AAA", bar("AAA", day(0), "10", "12", "10", "10"), bar("AAA", day(1), "10.5", "11.2", "10.4", "11"),
+        candle("AAA", day(2), "12"));
+      prices("BBB", candle("BBB", day(0), "10"), bar("BBB", day(2), "9", "9", "7.5", "8"));
+
+      PortfolioEngine.Result result = engine.run(request(day(2), selling("AAA", "1300000", "0.1", null),
+        selling("BBB", "1300000", null, "0.2")).periodEnd(PeriodEnd.SELL_AT_END).build());
+
+      assertThat(trades(result)).containsExactly(
+        tuple("AAA", TradeReason.BUY, day(0), "한 번에 매수", "10", "100", "1300000"),
+        tuple("BBB", TradeReason.BUY, day(0), "한 번에 매수", "10", "100", "1300000"),
+        tuple("AAA", TradeReason.TAKE_PROFIT, day(1), "10.0%익절", "11", "-100", "0"),
+        tuple("BBB", TradeReason.STOP_LOSS, day(2), "20.0%손절", "8", "-100", "0"));
+      assertThat(result.transactions()).extracting(tx -> tuple(plain(tx.getProceeds()), plain(tx.getRealizedProfit())))
+        .containsExactly(tuple(null, null), tuple(null, null), tuple("1100", "100"), tuple("800", "-200"));
+      assertThat(daily(result)).containsExactly(
+        tuple(day(0), "2000", "2600000"), tuple(day(1), "2100", "2730000"), tuple(day(2), "1900", "2470000"));
+      assertThat(positions(result)).containsExactly(
+        tuple("AAA", "1300000", "0", "12", "0"), tuple("BBB", "1300000", "0", "8", "0"));
+      assertThat(plain(result.cashUsd())).isEqualTo("1900");
+      assertThat(plain(result.totalAssetKrw())).isEqualTo("2470000");
+    }
+
+    @Test
+    @DisplayName("판 돈은 공용 현금이라 그 날짜부터 회차 매수가 먼저 쓰고 판 종목도 회차에 다시 산다")
+    void proceedsFundRounds() {
+      prices("AAA", candle("AAA", START, "10"), bar("AAA", APR, "10.5", "11.5", "10", "10"), candle("AAA", MAY, "10"));
+      monthly("BBB", "10", "10", "10");
+
+      PortfolioEngine.Result result = engine.run(request(MAY, selling("AAA", "1300000", "0.1", null),
+        asset("BBB", "1300000")).method(PortfolioMethod.DCA).build());
+
+      assertThat(trades(result)).containsExactly(
+        tuple("AAA", TradeReason.DCA_BUY, START, "월정액", "10", "100", "1300000"),
+        tuple("BBB", TradeReason.DCA_BUY, START, "월정액", "10", "100", "1300000"),
+        tuple("AAA", TradeReason.TAKE_PROFIT, APR, "10.0%익절", "11", "-100", "0"),
+        tuple("AAA", TradeReason.DCA_BUY, APR, "월정액", "10", "100", "0"),
+        tuple("BBB", TradeReason.DCA_BUY, APR, "월정액", "10", "100", "1170000"),
+        tuple("AAA", TradeReason.DCA_BUY, MAY, "월정액", "10", "100", "1300000"),
+        tuple("BBB", TradeReason.DCA_BUY, MAY, "월정액", "10", "100", "1300000"));
+      // 판 돈 1100 달러 가운데 AAA 회차가 1000 달러, BBB 회차가 남은 100 달러
+      assertThat(result.transactions()).extracting(tx -> plain(tx.getCashUsed()))
+        .containsExactly(null, null, null, "1000", "100", null, null);
+      assertThat(plain(result.totalInvestedKrw())).isEqualTo("6370000");
+      assertThat(result.positions()).extracting(position -> plain(position.shares())).containsExactly("200", "300");
+    }
+
+    @Test
+    @DisplayName("평균 단가는 매수 수수료를 넣은 원가로 보고 판 돈에서 매도 수수료를 뺀다")
+    void fees() {
+      prices("AAA", candle("AAA", START, "10"), bar("AAA", day(1), "12", "12", "11.9", "12"));
+
+      PortfolioEngine.Result result = engine.run(request(day(1), selling("AAA", "1300000", "0.1", null))
+        .tradingFeeRate(new BigDecimal("0.01")).build());
+
+      // 원가 1000 달러 ÷ 99주 대비 시가 12 달러, 1188 달러에서 수수료 11.88 달러
+      StrategyTransaction sale = result.transactions().get(1);
+      assertThat(tuple(sale.getReason(), sale.getTrigger(), plain(sale.getShares()), plain(sale.getFee()),
+        plain(sale.getProceeds()), plain(sale.getRealizedProfit())))
+        .isEqualTo(tuple(TradeReason.TAKE_PROFIT, "18.8%익절", "-99", "11.88", "1176.12", "176.12"));
+      assertThat(plain(result.cashUsd())).isEqualTo("1176.12");
+    }
+
+    @Test
+    @DisplayName("판 종목은 다음 리밸런싱이 판 돈으로 처음 비중까지 다시 산다")
+    void rebalanceBuysBack() {
+      LocalDate april1 = LocalDate.of(2024, 4, 1);
+      prices("AAA", candle("AAA", START, "10"), bar("AAA", day(1), "10.5", "11.5", "10.4", "11"),
+        candle("AAA", april1, "10.5"));
+      prices("BBB", candle("BBB", START, "10"), candle("BBB", april1, "10"));
+
+      PortfolioEngine.Result result = engine.run(request(april1, selling("AAA", "1300000", "0.1", null),
+        asset("BBB", "1300000")).rebalance(PortfolioRebalance.MONTHLY).build());
+
+      // 4월 1일 BBB 1000 + 현금 1100 달러의 반 1050 달러씩
+      assertThat(trades(result)).containsExactly(
+        tuple("AAA", TradeReason.BUY, START, "한 번에 매수", "10", "100", "1300000"),
+        tuple("BBB", TradeReason.BUY, START, "한 번에 매수", "10", "100", "1300000"),
+        tuple("AAA", TradeReason.TAKE_PROFIT, day(1), "10.0%익절", "11", "-100", "0"),
+        tuple("AAA", TradeReason.REBALANCE_BUY, april1, "리밸런싱 매수", "10.5", "100", "0"),
+        tuple("BBB", TradeReason.REBALANCE_BUY, april1, "리밸런싱 매수", "10", "5", "0"));
+      assertThat(plain(result.cashUsd())).isEqualTo("0");
+      assertThat(plain(result.totalAssetKrw())).isEqualTo("2730000");
     }
   }
 }

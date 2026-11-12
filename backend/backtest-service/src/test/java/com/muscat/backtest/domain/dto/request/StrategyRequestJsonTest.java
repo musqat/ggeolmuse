@@ -200,12 +200,12 @@ class StrategyRequestJsonTest {
   }
 
   @Test
-  @DisplayName("포트폴리오는 줄 금액 방식 · 총액 · 종목 줄 · 매수 방식 · 리밸런싱 주기를 이력 JSON 에 저장하고 다시 읽으며 줄 금액 셈 값은 넣지 않는다")
+  @DisplayName("포트폴리오는 줄 금액 방식 · 총액 · 종목 줄(익절 · 손절 포함) · 매수 방식 · 리밸런싱 주기를 이력 JSON 에 저장하고 다시 읽으며 줄 금액 셈 값은 넣지 않는다")
   void portfolioSaved() throws Exception {
     PortfolioRequest request = PortfolioRequest.builder().startDate(LocalDate.of(2023, 1, 1))
       .endDate(LocalDate.of(2024, 1, 1)).allocation(PortfolioAllocation.WEIGHT).totalAmount(BigDecimal.valueOf(1000000))
-      .assets(List.of(new PortfolioAsset(" spy", null, BigDecimal.valueOf(60)),
-        new PortfolioAsset("QQQ", null, BigDecimal.valueOf(40))))
+      .assets(List.of(new PortfolioAsset(" spy", null, BigDecimal.valueOf(60), null, null),
+        new PortfolioAsset("QQQ", null, BigDecimal.valueOf(40), new BigDecimal("0.3"), new BigDecimal("0.1"))))
       .method(PortfolioMethod.DCA).frequency(DcaFrequency.WEEKLY).rebalance(PortfolioRebalance.QUARTERLY)
       .userId("user-1").build();
 
@@ -213,10 +213,13 @@ class StrategyRequestJsonTest {
     PortfolioRequest saved = objectMapper.readValue(json, PortfolioRequest.class);
 
     assertThat(json).contains("\"allocation\":\"WEIGHT\"", "\"totalAmount\":1000000",
-        "\"assets\":[{\"symbol\":\" spy\",\"amount\":null,\"weightPercent\":60}", "\"method\":\"DCA\"",
-        "\"rebalance\":\"QUARTERLY\"")
+        "\"assets\":[{\"symbol\":\" spy\",\"amount\":null,\"weightPercent\":60,\"takeProfitRate\":null,\"stopLossRate\":null}",
+        "{\"symbol\":\"QQQ\",\"amount\":null,\"weightPercent\":40,\"takeProfitRate\":0.3,\"stopLossRate\":0.1}",
+        "\"method\":\"DCA\"", "\"rebalance\":\"QUARTERLY\"")
       .doesNotContain("normalizedSymbol").doesNotContain("amountOf");
     assertThat(saved.getAssets()).extracting(PortfolioAsset::normalizedSymbol).containsExactly("SPY", "QQQ");
+    assertThat(saved.getAssets().get(1).takeProfitRate()).isEqualByComparingTo("0.3");
+    assertThat(saved.getAssets().get(1).stopLossRate()).isEqualByComparingTo("0.1");
     assertThat(saved.getRebalance()).isEqualTo(PortfolioRebalance.QUARTERLY);
     assertThat(saved.amountOf(saved.getAssets().get(1))).isEqualByComparingTo("400000");
   }

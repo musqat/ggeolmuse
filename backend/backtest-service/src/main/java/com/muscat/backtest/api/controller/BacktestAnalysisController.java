@@ -221,7 +221,7 @@ public class BacktestAnalysisController {
 
   @Operation(
       summary = "포트폴리오 백테스팅",
-      description = "여러 종목을 줄마다 금액이나 총액 × 비율로 한 번에 또는 적립식으로 사고, 현금 하나로 날마다 합쳐 평가합니다. 리밸런싱 주기를 주면 주기마다 처음 비중으로 팔고 삽니다. 결과에 종목별 넣은 돈 · 지금 가치 · 기여 · 비중과 매매 내역이 있습니다"
+      description = "여러 종목을 줄마다 금액이나 총액 × 비율로 한 번에 또는 적립식으로 사고, 현금 하나로 날마다 합쳐 평가합니다. 줄마다 익절 · 손절 비율을 주면 그 종목 평균 단가 기준으로 전량 팔고 판 돈은 현금으로 두어 다음 매수 · 리밸런싱에 씁니다. 리밸런싱 주기를 주면 주기마다 처음 비중으로 팔고 삽니다. 결과에 종목별 넣은 돈 · 지금 가치 · 기여 · 비중과 매매 내역이 있습니다"
   )
   @ApiResponses(value = {
       @ApiResponse(
@@ -234,7 +234,7 @@ public class BacktestAnalysisController {
       ),
       @ApiResponse(
           responseCode = "400",
-          description = "잘못된 요청 데이터 (종목 줄 INVALID_PORTFOLIO, 금액 · 비율 INVALID_PORTFOLIO_AMOUNT 등)",
+          description = "잘못된 요청 데이터 (종목 줄 INVALID_PORTFOLIO, 금액 · 비율 INVALID_PORTFOLIO_AMOUNT, 익절 · 손절 INVALID_SELL_RATE 등)",
           content = @Content(
               mediaType = "application/json",
               schema = @Schema(implementation = ProblemDetail.class)

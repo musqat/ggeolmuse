@@ -64,6 +64,15 @@ describe('요약 둘째 줄', () => {
     )
   })
 
+  it('포트폴리오 익절 · 손절: 줄 글을 매수 글 뒤 · 리밸런싱 앞에, 빈 글이면 넣지 않음', () => {
+    const base = { count: 2, perRound: 10000000, dca: false, cadenceLabel: '매달 8일', rounds: 12, daily: false }
+    const sell = '1개 종목에 익절 · 손절(평균 단가 기준 전량)'
+
+    expect(portfolioHow({ ...base, rebalance: 'NONE', sell })).toBe(`종목 2개 · 한 번에 1,000만원 · ${sell}`)
+    expect(portfolioHow({ ...base, rebalance: 'YEARLY', sell })).toBe(`종목 2개 · 한 번에 1,000만원 · ${sell} · 매년 처음 비중으로 리밸런싱`)
+    expect(portfolioHow({ ...base, rebalance: 'NONE', sell: '' })).toBe('종목 2개 · 한 번에 1,000만원')
+  })
+
   it('적립식 주식 수: 예산이 모자라면 산 회차와 나머지 미매수, 시세를 아직 모르면 회차만', () => {
     expect(dcaHow({ unit: oneShare(337500), cadenceLabel: '매주 첫 거래일', rounds: 52, daily: false, budget: '5000000' })).toBe(
       `매주 첫 거래일 1주 · 52회 중 14회 ≈ 472만${NB}5,000원(시작일 값 기준) · 나머지 미매수`

@@ -46,9 +46,6 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
   private final MarketDataClientWrapper marketData;
   private final ResponseMapper responseMapper;
 
-  // 기준가로 살 때 매수가 소수 자릿수
-  private static final int TRIGGER_PRICE_SCALE = 8;
-
   private static final PurchaseDecision NO_BUY = new PurchaseDecision(false, null, "");
 
   @Override
@@ -146,12 +143,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
       || !Decimals.isPositive(request.getDropPercentage())) {
       throw new BacktestException(BacktestResponse.STRATEGY_DROP_PERCENTAGE_REQUIRED);
     }
-    BigDecimal takeProfit = request.getTakeProfitRate();
-    BigDecimal stopLoss = request.getStopLossRate();
-    if ((takeProfit != null && !Decimals.isPositive(takeProfit))
-      || (stopLoss != null && (!Decimals.isPositive(stopLoss) || stopLoss.compareTo(BigDecimal.ONE) >= 0))) {
-      throw new BacktestException(BacktestResponse.INVALID_SELL_RATE);
-    }
+    BacktestRequestValidator.requireSellRates(request.getTakeProfitRate(), request.getStopLossRate());
     BacktestRequestValidator.requireTrailingStop(request.getTrailingStopRate(), request.getTrailingSellRate());
     BacktestRequestValidator.requirePartialTakeProfits(request.getPartialTakeProfits());
     // 재투자 주식은 루프 뒤에 더해져 매도와 순서가 맞지 않음
@@ -212,6 +204,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     LocalDate shortFrom = null;
     List<SkippedRound> skippedRounds = new ArrayList<>();
     boolean sells = sells(request);
+    TakeProfitStopLoss exits = TakeProfitStopLoss.of(request.getTakeProfitRate(), request.getStopLossRate());
     TrailingStop trailing = TrailingStop.of(request.getTrailingStopRate(), request.getTrailingSellRate());
     TakeProfitLadder ladder = TakeProfitLadder.of(request.getPartialTakeProfits());
     // 보유 주식 · 그 원가(USD, 매수 수수료 포함) · 판 돈(USD)
@@ -235,7 +228,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
           }
           // 익절 · 손절 → 트레일링 스탑 → 부분 익절 차례로 보고 판 날은 사지 않음(그 날짜에 산 주식은 매도를 본 뒤라 팔지 않음)
           StrategyTransaction sale = sells && heldShares.signum() > 0
-            ? sellIfTriggered(request, priceData, currentDate, heldShares, heldCost, fxRateMap)
+            ? sellIfTriggered(request, priceData, currentDate, heldShares, heldCost, fxRateMap, exits)
             : null;
           if (sale == null && heldShares.signum() > 0) {
             sale = trailingSale(request, priceData, currentDate, heldShares, heldCost, fxRateMap, trailing);
@@ -379,24 +372,11 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     return partial == null ? null : new Fill(partial.shares(), partial.feeUsd(), BigDecimal.ZERO, partial.costUsd());
   }
 
-  // 보유분 평균 단가(수수료 포함)의 익절 · 손절 기준가에 닿으면 전량 매도, 둘 다 닿은 날은 시가부터 익절 기준가 위면 익절 · 아니면 손절
+  // 보유분 평균 단가(수수료 포함)의 익절 · 손절 기준가에 닿으면 그 값에 전량 매도(아니면 null)
   private StrategyTransaction sellIfTriggered(ConditionalStrategyRequest request, OHLCPriceDto priceData,
-    LocalDate date, BigDecimal shares, BigDecimal cost, FxRates fxRateMap) {
-    BigDecimal average = cost.divide(shares, 8, RoundingMode.HALF_UP);
-    PurchaseDecision profit = request.getTakeProfitRate() == null
-      ? NO_BUY : crossed(average, priceData, request.getTakeProfitRate(), true);
-    PurchaseDecision loss = request.getStopLossRate() == null
-      ? NO_BUY : crossed(average, priceData, request.getStopLossRate(), false);
-    boolean gapUp = profit.shouldBuy() && positive(priceData.openPrice())
-      && profit.price().compareTo(priceData.openPrice()) == 0;
-    PurchaseDecision exit = loss.shouldBuy() && !gapUp ? loss : profit;
-    if (!exit.shouldBuy()) {
-      return null;
-    }
-
-    BigDecimal change = MoneyUtils.calculateReturnRate(average, exit.price()).abs();
-    return sale(request, priceData, date, shares, cost, exit.price(),
-      String.format(exit == profit ? "%.1f%%익절" : "%.1f%%손절", change), fxRateMap);
+    LocalDate date, BigDecimal shares, BigDecimal cost, FxRates fxRateMap, TakeProfitStopLoss exits) {
+    TakeProfitStopLoss.Exit exit = exits.check(priceData, shares, cost);
+    return exit == null ? null : sale(request, priceData, date, shares, cost, exit.price(), exit.trigger(), fxRateMap);
   }
 
   // 그 날짜 종가가 트레일링 스탑 기준가 × (1 - 하락 비율) 이하면 보유의 팔 비율만큼 그 종가에 팔고 판 값을 새 기준가로(아니면 null)
@@ -463,42 +443,14 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
   // 방향에 맞는 기준가를 넘은 날 매수, 둘 다 닿은 날은 시가부터 하락 기준가 아래면 하락 · 아니면 상승 기준가
   private PurchaseDecision evaluatePurchaseCondition(BigDecimal previousClose, OHLCPriceDto price,
     BigDecimal percentage, PriceDirection direction) {
-    PurchaseDecision drop = direction == PriceDirection.RISE
-      ? NO_BUY : crossed(previousClose, price, percentage, false);
-    PurchaseDecision rise = direction == PriceDirection.DROP
-      ? NO_BUY : crossed(previousClose, price, percentage, true);
-    boolean gapDown = drop.shouldBuy() && positive(price.openPrice())
-      && drop.price().compareTo(price.openPrice()) == 0;
-    return rise.shouldBuy() && !gapDown ? rise : drop;
-  }
-
-  // 저가가 전 거래일 종가 × (1 - 비율) 이하(상승은 고가가 전 거래일 종가 × (1 + 비율) 이상)면 그 값, 시가부터 넘었으면 시가
-  // 보는 쪽(저가 · 고가)이 없거나 0 이하인 날 · 종가가 조정종가뿐인 날은 시가와 그 값을 종가로 봄
-  private PurchaseDecision crossed(BigDecimal previousClose, OHLCPriceDto price, BigDecimal percentage,
-    boolean rise) {
-    BigDecimal close = PriceLookup.effectiveClose(price);
-    BigDecimal trigger = previousClose.multiply(
-      rise ? BigDecimal.ONE.add(percentage) : BigDecimal.ONE.subtract(percentage));
-    BigDecimal extreme = rise ? price.highPrice() : price.lowPrice();
-    boolean hasRange = price.closePrice() != null && positive(extreme);
-    if (!beyond(hasRange ? extreme : close, trigger, rise)) {
-      return NO_BUY;
-    }
-
-    BigDecimal open = hasRange ? price.openPrice() : close;
-    BigDecimal buyPrice = positive(open) && beyond(open, trigger, rise)
-      ? open : trigger.setScale(TRIGGER_PRICE_SCALE, RoundingMode.HALF_UP);
-    BigDecimal change = MoneyUtils.calculateReturnRate(previousClose, buyPrice).abs();
-    return new PurchaseDecision(true, buyPrice, String.format(rise ? "%.1f%%상승" : "%.1f%%하락", change));
-  }
-
-  // 상승이면 기준가 이상, 하락이면 기준가 이하
-  private static boolean beyond(BigDecimal value, BigDecimal trigger, boolean rise) {
-    int compared = value.compareTo(trigger);
-    return rise ? compared >= 0 : compared <= 0;
-  }
-
-  private static boolean positive(BigDecimal value) {
-    return value != null && value.signum() > 0;
+    BigDecimal drop = direction == PriceDirection.RISE
+      ? null : IntradayCross.price(previousClose, price, percentage, false);
+    BigDecimal rise = direction == PriceDirection.DROP
+      ? null : IntradayCross.price(previousClose, price, percentage, true);
+    boolean rising = rise != null && !IntradayCross.atOpen(drop, price);
+    BigDecimal buyPrice = rising ? rise : drop;
+    return buyPrice == null
+      ? NO_BUY
+      : new PurchaseDecision(true, buyPrice, IntradayCross.label(previousClose, buyPrice, rising ? "상승" : "하락"));
   }
 }

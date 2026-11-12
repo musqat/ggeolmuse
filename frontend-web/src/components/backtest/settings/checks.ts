@@ -140,13 +140,28 @@ export const partialTakeProfitIssues = (
   });
 };
 
-// 포트폴리오 줄 하나의 종목 칸 · 금액(비율) 칸 오류
+// 포트폴리오 줄 하나의 종목 칸 · 금액(비율) 칸 · 익절 칸 · 손절 칸 오류
 export interface PortfolioRowMessages {
   symbol: FieldMessage | null;
   value: FieldMessage | null;
+  takeProfit: FieldMessage | null;
+  stopLoss: FieldMessage | null;
 }
 
-// 포트폴리오 줄마다 칸 오류(종목은 비었거나 목록에 없거나 앞 줄과 대문자로 같으면, 금액 방식은 0 초과 금액 · 비율 방식은 0 초과 100 이하 비율)
+// 포트폴리오 줄 익절 · 손절 칸 오류(비면 안 함, 0 초과, 손절은 100 미만)
+const rowSellIssues = (row: PortfolioRow, n: string) => {
+  const notPositive = (text: string) => text.trim() && !(parseFloat(text) > 0);
+  return {
+    takeProfit: notPositive(row.takeProfit) ? error(`${n} 익절 0 보다 크게`) : null,
+    stopLoss: notPositive(row.stopLoss)
+      ? error(`${n} 손절 0 보다 크게`)
+      : row.stopLoss.trim() && parseFloat(row.stopLoss) >= 100
+        ? error(`${n} 손절 100 아래`)
+        : null,
+  };
+};
+
+// 포트폴리오 줄마다 칸 오류(종목은 비었거나 목록에 없거나 앞 줄과 대문자로 같으면, 금액 방식은 0 초과 금액 · 비율 방식은 0 초과 100 이하 비율, 익절 · 손절은 적은 때만)
 export const portfolioRowIssues = (
   rows: PortfolioRow[],
   allocation: PortfolioAllocation,
@@ -163,10 +178,11 @@ export const portfolioRowIssues = (
         : repeated
           ? error(`${n} 종목이 앞 줄과 같음`)
           : null;
+    const sells = rowSellIssues(row, n);
     if (allocation === 'AMOUNT') {
       const amount = rowAmount(row);
       const value = !row.amount.trim() ? error(`${n} 금액 비어 있음`) : amount > 0 ? null : error(`${n} 금액 0 보다 크게`);
-      return { symbol, value };
+      return { symbol, value, ...sells };
     }
     const weight = rowWeight(row);
     const value = !row.weight.trim()
@@ -174,7 +190,7 @@ export const portfolioRowIssues = (
       : weight > 0 && weight <= 100
         ? null
         : error(`${n} 비율 0 초과 100 이하`);
-    return { symbol, value };
+    return { symbol, value, ...sells };
   });
 
 export const maxIssue = (max: string): FieldMessage | null => {
