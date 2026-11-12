@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.muscat.backtest.common.enums.type.TradeReason;
 import lombok.Builder;
 import lombok.Data;
 
@@ -12,6 +14,10 @@ import lombok.Data;
 @Builder
 public class StrategyTransaction {
 
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  private String symbol;                // 거래 종목 (포트폴리오만)
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  private TradeReason reason;           // 거래 이유 (포트폴리오만)
   private LocalDate date;               // 계획된 매수일
   private LocalDate actualDate;         // 실제 거래일 (주말/휴장일 조정)
   private BigDecimal price;             // USD 주가

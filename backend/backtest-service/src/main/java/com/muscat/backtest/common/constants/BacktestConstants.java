@@ -52,6 +52,9 @@ public final class BacktestConstants {
     /** 기간 마지막 거래일 전량 매도 */
     public static final String PERIOD_END_SALE = "기간 끝 매도";
 
+    /** 포트폴리오 줄의 기간 안 첫 거래일 금액 전부 매수 */
+    public static final String LUMP_SUM_PURCHASE = "한 번에 매수";
+
     /** 짧은 이동평균이 긴 이동평균을 아래에서 위로 넘은 날 매수 */
     public static final String GOLDEN_CROSS = "골든 크로스";
 

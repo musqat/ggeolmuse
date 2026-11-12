@@ -1,0 +1,10 @@
+package com.muscat.backtest.common.enums.type;
+
+// 포트폴리오 거래 이유
+public enum TradeReason {
+  BUY,                    // 한 번에 매수
+  DCA_BUY,                // 적립식 회차 매수
+  PERIOD_END_SALE,        // 기간 마지막 거래일 전량 매도
+  DIVIDEND_REINVESTMENT,  // 배당 재투자
+  TAX_PAYMENT             // 양도세 납부
+}

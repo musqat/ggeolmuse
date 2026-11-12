@@ -27,8 +27,8 @@ public final class StrategyPerformance {
   public record Result(List<DailyValue> dailyValues, PerformanceMetrics metricsKrw,
                        PerformanceMetrics metricsUsd) {}
 
-  // 하루 평가 가치(화면 값 · 반올림 전 달러)와 앞 점 다음 날부터 그 날짜까지의 입금(달러) · 그 날짜 환율
-  private record Point(DailyValue value, BigDecimal rawUsd, BigDecimal depositUsd, BigDecimal fxRate) {}
+  /** 하루 평가 가치(화면 값 · 반올림 전 달러)와 앞 점 다음 날부터 그 날짜까지의 입금(달러) · 그 날짜 환율 */
+  public record Point(DailyValue value, BigDecimal rawUsd, BigDecimal depositUsd, BigDecimal fxRate) {}
 
   private StrategyPerformance() {}
 
@@ -70,18 +70,22 @@ public final class StrategyPerformance {
     DailyValue last = new DailyValue(valuationDate, lastRawUsd.setScale(2, RoundingMode.HALF_UP), totalAssetKrw);
     points.add(new Point(last, lastRawUsd, depositUsd(transactions, previous, valuationDate), currentFxRate));
 
-    List<LocalDate> dates = points.stream().map(point -> point.value().date()).toList();
-    List<Double> usdIndex = timeWeighted(points);
     // 원화 지수의 기준은 첫 매수 환율
-    double firstFx = transactions.stream()
+    BigDecimal firstFx = transactions.stream()
         .filter(tx -> Decimals.isPositive(tx.getAmount()))
         .min(Comparator.comparing(StrategyTransaction::tradedOn))
         .map(StrategyTransaction::getFxRate)
-        .orElse(points.getFirst().fxRate())
-        .doubleValue();
+        .orElse(points.getFirst().fxRate());
+    return measure(points, firstFx, requestStart);
+  }
+
+  // 날마다 평가 가치 · 입금의 낙폭을 채운 일별 가치와 입금을 뺀 시간가중 통화별 지표(원화 지수 기준은 firstFx)
+  public static Result measure(List<Point> points, BigDecimal firstFx, LocalDate requestStart) {
+    List<LocalDate> dates = points.stream().map(point -> point.value().date()).toList();
+    List<Double> usdIndex = timeWeighted(points);
     List<Double> krwIndex = new ArrayList<>();
     for (int i = 0; i < points.size(); i++) {
-      krwIndex.add(usdIndex.get(i) * points.get(i).fxRate().doubleValue() / firstFx);
+      krwIndex.add(usdIndex.get(i) * points.get(i).fxRate().doubleValue() / firstFx.doubleValue());
     }
 
     return new Result(
