@@ -59,6 +59,13 @@ vi.mock('@components/backtest/results/DcaConditionalResult', () => ({
     </>
   ),
 }))
+vi.mock('@components/backtest/results/portfolio/PortfolioResult', () => ({
+  PortfolioResult: ({ result }: { result: { mode: string; totalReturnPercent?: number } }) => (
+    <div>
+      결과: {result.mode} {result.totalReturnPercent}
+    </div>
+  ),
+}))
 vi.mock('@components/backtest/results/SymbolComparisonResult', () => ({
   SymbolComparisonResult: () => <div>결과: compare-symbols</div>,
 }))
@@ -853,6 +860,18 @@ describe('Backtest 페이지 포트폴리오', () => {
       method: 'LUMP_SUM',
       ...common,
     })
+    expect(await screen.findByText('결과: portfolio')).toBeInTheDocument()
+  })
+
+  it('결과는 포트폴리오 결과 화면으로 그리고, 모드를 바꾸면 지운다', async () => {
+    vi.mocked(backtestApi.runPortfolio).mockResolvedValue({ data: { totalReturnPercent: 12.5 } } as never)
+    renderPage()
+    await selectMode('포트폴리오')
+    await runBacktest()
+
+    expect(await screen.findByText('결과: portfolio 12.5')).toBeInTheDocument()
+    await selectMode('단순')
+    expect(screen.queryByText(/결과: portfolio/)).toBeNull()
   })
 
   it('처음 줄은 고치기 전까지 보던 종목을 따라가고, 고친 뒤에는 그대로 둔다', async () => {

@@ -3,6 +3,7 @@ import { backtestApi, type PortfolioAllocation, type PortfolioMethod } from '@se
 import type { ModeController, SharedModeProps } from '../types';
 import { commonFields } from '../commonFields';
 import { PortfolioForm } from './PortfolioForm';
+import { PortfolioResult } from '../../results/portfolio/PortfolioResult';
 import { buildPortfolioRequest } from './request';
 import {
   cadenceText,
@@ -155,6 +156,6 @@ export const usePortfolioMode = (shared: SharedModeProps): ModeController => {
         failureMessage: '포트폴리오 실행에 실패했습니다.',
       };
     },
-    renderResult: () => null,
+    renderResult: (result) => (result.mode === 'portfolio' ? <PortfolioResult result={result} /> : null),
   };
 };

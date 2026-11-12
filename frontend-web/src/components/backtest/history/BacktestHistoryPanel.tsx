@@ -12,6 +12,13 @@ interface BacktestHistoryPanelProps {
   historyTotalPages: number;
 }
 
+// 포트폴리오 요청 줄의 종목(종목 칸이 글인 줄만)
+const portfolioSymbols = (assets: unknown[]) =>
+  assets
+    .map((asset) => (typeof asset === "object" && asset !== null ? (asset as { symbol?: unknown }).symbol : undefined))
+    .filter((symbol): symbol is string => typeof symbol === "string")
+    .join(",");
+
 export const BacktestHistoryPanel: React.FC<BacktestHistoryPanelProps> = ({
   historyData,
   historyLoading,
@@ -68,12 +75,17 @@ export const BacktestHistoryPanel: React.FC<BacktestHistoryPanelProps> = ({
                     console.warn('백테스트 내역의 파라미터를 읽지 못했습니다', history.backtestId, e);
                   }
 
+                  // 포트폴리오 종목 줄(종목 · 금액 객체 목록)
+                  const assets: unknown = (params as Record<string, unknown>).assets;
+
                   // 파라미터를 기반으로 상세 백테스트 유형 결정
                   let backtestTypeLabel: string = history.backtestType;
 
                   if (history.backtestType === "STRATEGY_SIMULATION") {
                     // 전략별 파라미터를 확인하여 유형 결정
-                    if (params.bandWindow !== undefined) {
+                    if (Array.isArray(assets)) {
+                      backtestTypeLabel = "포트폴리오";
+                    } else if (params.bandWindow !== undefined) {
                       backtestTypeLabel = "이동평균 밴드";
                     } else if (params.shortWindow !== undefined || params.longWindow !== undefined) {
                       backtestTypeLabel = "이동평균";
@@ -142,6 +154,11 @@ export const BacktestHistoryPanel: React.FC<BacktestHistoryPanelProps> = ({
                         {params.symbol && (
                           <span className="font-medium">
                             {params.symbol}
+                          </span>
+                        )}
+                        {Array.isArray(assets) && (
+                          <span className="font-medium">
+                            {portfolioSymbols(assets)}
                           </span>
                         )}
                         {params.symbols && (
