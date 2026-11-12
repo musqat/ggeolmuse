@@ -321,6 +321,49 @@ test('포트폴리오 손절 비율이 100% 이상이면 400', async () => {
   expect(res.status(), `손절 100% 가 400 이 아니다: ${await res.text()}`).toBe(400);
 });
 
+test('포트폴리오 종목마다 전략을 고르면 종목 줄에 그 전략을 싣고 이동평균 줄은 교차 신호로만 사고판다', async () => {
+  const { from, to } = await sharedRange();
+  const res = await postUntilAllowed(`${API_URL}/analysis/portfolio`, {
+    data: {
+      startDate: from,
+      endDate: to,
+      method: 'DCA',
+      assets: [
+        { symbol, amount: 6_000_000, strategy: { type: 'LUMP_SUM' } },
+        { symbol: second, amount: 4_000_000, strategy: { type: 'MA_CROSS', shortWindow: 5, longWindow: 20 } },
+      ],
+    },
+  });
+
+  expect(res.status(), `줄 전략을 고른 포트폴리오가 실패했다: ${await res.text()}`).toBe(200);
+  const body = await res.json();
+  expect(body.method).toBe('DCA');
+  expect(body.assets.map((a: { strategyType: string }) => a.strategyType), '종목 줄 전략이 요청과 다르다').toEqual(['LUMP_SUM', 'MA_CROSS']);
+  const transactions: { symbol?: string; reason: string; trigger: string }[] = body.transactions;
+  expect(transactions.filter((tx) => tx.symbol === symbol).map((tx) => tx.reason), '한 번에 줄이 한 번만 사지 않았다').toEqual(['BUY']);
+
+  // 이동평균 줄 거래는 골든 크로스 매수 · 데드 크로스 매도 차례
+  const signal = transactions.filter((tx) => tx.symbol === second);
+  signal.forEach((tx, i) => {
+    expect(tx.reason, '이동평균 줄에 신호 밖 거래가 있다').toBe(i % 2 === 0 ? 'STRATEGY_BUY' : 'STRATEGY_SELL');
+    expect(tx.trigger).toBe(i % 2 === 0 ? '골든 크로스' : '데드 크로스');
+  });
+  expect(signal.length > 0 || body.assets[1].investedKrw === 0, '매수 신호가 없는데 넣은 돈이 있다').toBe(true);
+});
+
+test('포트폴리오 이동평균 줄의 짧은 기간이 긴 기간보다 길면 400 INVALID_MA_WINDOWS', async () => {
+  const res = await postUntilAllowed(`${API_URL}/analysis/portfolio`, {
+    data: {
+      startDate: start,
+      endDate: end,
+      assets: [{ symbol, amount: 1_000_000, strategy: { type: 'MA_CROSS', shortWindow: 60, longWindow: 20 } }],
+    },
+  });
+
+  expect(res.status(), `짧은 기간 60 · 긴 기간 20 이 400 이 아니다: ${await res.text()}`).toBe(400);
+  expect((await res.json()).errorCode).toBe('INVALID_MA_WINDOWS');
+});
+
 test('포트폴리오 비율 합이 100 이 아니면 400', async () => {
   const res = await postUntilAllowed(`${API_URL}/analysis/portfolio`, {
     data: {

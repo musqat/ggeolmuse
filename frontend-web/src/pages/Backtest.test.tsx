@@ -834,6 +834,8 @@ describe('Backtest 페이지 포트폴리오', () => {
   const rowWeight = (n: number) => screen.getByRole('textbox', { name: `${n}번 비율(퍼센트)` })
   const rowTakeProfit = (n: number) => screen.getByRole('textbox', { name: `${n}번 익절(평균 단가 대비 퍼센트)` })
   const rowStopLoss = (n: number) => screen.getByRole('textbox', { name: `${n}번 손절(평균 단가 대비 퍼센트)` })
+  const rowStrategy = (n: number) => screen.getByRole('combobox', { name: `${n}번 전략` })
+  const rowField = (n: number, name: string) => screen.getByRole('textbox', { name: `${n}번 ${name}` })
   const addRow = () => userEvent.click(screen.getByRole('button', { name: '＋ 종목 더하기' }))
   const method = (name: string) => within(screen.getByRole('radiogroup', { name: '방식' })).getByRole('radio', { name })
   const rebalance = (name: string) => within(screen.getByRole('radiogroup', { name: '리밸런싱' })).getByRole('radio', { name })
@@ -989,6 +991,77 @@ describe('Backtest 페이지 포트폴리오', () => {
     expect(rowTakeProfit(1)).toHaveValue('30')
     expect(rowStopLoss(1)).toHaveValue('10')
     expect(rowTakeProfit(2)).toHaveValue('')
+  })
+
+  it('줄마다 전략을 고르면 그 줄에 이동평균 · 밴드 칸을 보이고 그 줄에만 전략을 싣고, 적립식 줄이 있으면 한 번에 사기라도 주기 칸을 보이며(합계는 회당이 아님) 직전 설정으로 되살린다', async () => {
+    renderPage()
+    await selectMode('포트폴리오')
+    await addRow()
+    await pickSymbol(rowSymbol(2), 'ms', /MSFT/)
+    fireEvent.change(rowAmount(2), { target: { value: '3,000,000' } })
+    await addRow()
+    await pickSymbol(rowSymbol(3), 'nv', /NVDA/)
+    fireEvent.change(rowAmount(3), { target: { value: '2,000,000' } })
+
+    expect(rowStrategy(1)).toHaveValue('LUMP_SUM')
+    expect(screen.queryByRole('radiogroup', { name: '언제' })).toBeNull()
+    await userEvent.selectOptions(rowStrategy(2), '이동평균')
+    fireEvent.change(rowField(2, '짧은 기간(일)'), { target: { value: '5' } })
+    await userEvent.selectOptions(rowStrategy(3), '밴드')
+    fireEvent.change(rowField(3, '위 비율(평균 대비 퍼센트)'), { target: { value: '1.5' } })
+    await userEvent.selectOptions(rowStrategy(1), '적립식')
+    expect(method('한 번에 사기')).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('radiogroup', { name: '언제' })).toBeInTheDocument()
+    expect(screen.getByTestId('portfolio-sum')).toHaveTextContent(/^합계 ₩15,000,000$/)
+
+    fireEvent.change(rowField(2, '긴 기간(일)'), { target: { value: '5' } })
+    expect(screen.getByText('2번 줄 짧은 기간 긴 기간보다 짧게')).toBeInTheDocument()
+    expect(summary()).toHaveTextContent('고칠 칸 1개')
+    await runBacktest()
+    expect(rowField(2, '짧은 기간(일)')).toHaveFocus()
+    expect(backtestApi.runPortfolio).not.toHaveBeenCalled()
+
+    fireEvent.change(rowField(2, '긴 기간(일)'), { target: { value: '30' } })
+    await runBacktest()
+    expect(backtestApi.runPortfolio).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assets: [
+          { symbol: 'AAPL', amount: 10000000, strategy: { type: 'DCA' } },
+          { symbol: 'MSFT', amount: 3000000, strategy: { type: 'MA_CROSS', shortWindow: 5, longWindow: 30 } },
+          { symbol: 'NVDA', amount: 2000000, strategy: { type: 'MA_BAND', bandWindow: 200, upperRate: 0.015, lowerRate: 0.025 } },
+        ],
+        method: 'LUMP_SUM',
+        frequency: 'MONTHLY',
+        purchaseDay: 8,
+        investmentInterval: 1,
+      })
+    )
+
+    await userEvent.click(screen.getByRole('button', { name: '설정 초기화' }))
+    await selectMode('포트폴리오')
+    expect(rowStrategy(1)).toHaveValue('LUMP_SUM')
+    await userEvent.click(screen.getByRole('button', { name: '직전 설정' }))
+    expect(rowStrategy(1)).toHaveValue('DCA')
+    expect(rowStrategy(2)).toHaveValue('MA_CROSS')
+    expect(rowField(2, '긴 기간(일)')).toHaveValue('30')
+    expect(rowStrategy(3)).toHaveValue('MA_BAND')
+    expect(rowField(3, '위 비율(평균 대비 퍼센트)')).toHaveValue('1.5')
+  })
+
+  it('줄 전략이 섞이면 요약에 전략마다 줄 수와 금액을 적고, 리밸런싱은 이동평균 · 밴드 줄을 빼고 나눈다고 적는다', async () => {
+    renderPage()
+    await selectMode('포트폴리오')
+    await addRow()
+    await pickSymbol(rowSymbol(2), 'ms', /MSFT/)
+    fireEvent.change(rowAmount(2), { target: { value: '3,000,000' } })
+    await userEvent.selectOptions(rowStrategy(2), '이동평균')
+
+    expect(summary()).toHaveTextContent('종목 2개 · 한 번에 1개 1,000만원 · 이동평균 1개 첫 매수 신호에 300만원')
+    await userEvent.click(rebalance('매년'))
+    expect(summary()).toHaveTextContent('· 매년 처음 비중으로 리밸런싱(이동평균 · 밴드 빼고)')
+    await userEvent.selectOptions(rowStrategy(1), '적립식')
+    expect(summary()).toHaveTextContent('종목 2개 · 적립식 1개 매달 8일 1,000만원 · 12회')
+    expect(summary()).toHaveTextContent('· 이동평균 1개 첫 매수 신호에 300만원 · 매년 처음 비중으로 리밸런싱(이동평균 · 밴드 빼고)')
   })
 
   it('빈 줄이 있으면 그 줄 종목 칸으로 가며 요청하지 않고, 비율 합이 100 이 아니면 알림으로 막는다', async () => {

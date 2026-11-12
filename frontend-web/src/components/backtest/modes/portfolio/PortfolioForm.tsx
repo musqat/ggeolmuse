@@ -26,14 +26,14 @@ interface PortfolioFormProps {
   period: PeriodFieldProps;
   method: PortfolioMethod;
   onMethodChange: (method: PortfolioMethod) => void;
-  // 적립식일 때만
+  // 적립식 줄이 있을 때만
   cadence?: CadenceFieldProps;
   first?: FirstDateFieldProps;
   rebalance: PortfolioRebalance;
   onRebalanceChange: (rebalance: PortfolioRebalance) => void;
 }
 
-// 포트폴리오: 종목 줄마다 금액(또는 총액 × 비율)으로 한 번에 사거나 주기마다 삼, 현금 하나로 평가하고 고른 주기마다 처음 비중으로 리밸런싱
+// 포트폴리오: 종목 줄마다 금액(또는 총액 × 비율)을 줄 전략(비우면 방식)으로 사고팖, 현금 하나로 평가하고 고른 주기마다 처음 비중으로 리밸런싱
 export const PortfolioForm: React.FC<PortfolioFormProps> = ({
   assets,
   period,

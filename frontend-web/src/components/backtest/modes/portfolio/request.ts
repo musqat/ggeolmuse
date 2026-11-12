@@ -1,6 +1,7 @@
 import type {
   PortfolioAllocation,
   PortfolioAssetRequest,
+  PortfolioAssetStrategy,
   PortfolioBacktestRequest,
   PortfolioMethod,
   PortfolioRebalance,
@@ -9,8 +10,11 @@ import type { BuildResult, RunContext } from '../types';
 import { toOptionFields, type BacktestOptions } from '../../shared/backtestOptions';
 import { dayOfMonth, parseMonths, resolveFirstPurchase, scheduleFields, type DcaCadence } from '../../shared/dcaSchedule';
 import { toSellRates } from '../../shared/sellRates';
+import { WINDOWS_ERROR, parseWindows } from '../../shared/maWindows';
+import { BAND_ERROR, parseBand } from '../../shared/maBand';
 import {
   MAX_ROWS,
+  hasDcaRow,
   isWeightSumOk,
   rowAmount,
   rowAmounts,
@@ -24,7 +28,7 @@ export interface PortfolioValues extends BacktestOptions {
   endDate: string;
   rows: PortfolioRow[];
   allocation: PortfolioAllocation;
-  // 비율 방식의 총액(적립식이면 회당)
+  // 비율 방식의 총액(적립식 줄 몫은 회당)
   total: string;
   method: PortfolioMethod;
   cadence: DcaCadence;
@@ -57,7 +61,22 @@ const sizesOf = (values: PortfolioValues): { sizes: PortfolioAssetSize[] } | { e
   return { sizes: weights.map((weightPercent) => ({ weightPercent })) };
 };
 
-// 줄마다 종목 · 금액(비율) · 적은 익절 · 손절 비율
+// 고른 줄 전략(방식대로면 싣지 않음, 이동평균은 두 기간 · 밴드는 평균 기간과 위 · 아래 비율)
+const strategyOf = (row: PortfolioRow): { strategy?: PortfolioAssetStrategy } | { error: string } => {
+  if (row.strategy === 'MA_CROSS') {
+    const windows = parseWindows(row.shortWindow, row.longWindow);
+    return windows ? { strategy: { type: 'MA_CROSS', ...windows } } : { error: WINDOWS_ERROR };
+  }
+  if (row.strategy === 'MA_BAND') {
+    const band = parseBand(row.bandWindow, row.upper, row.lower);
+    return band
+      ? { strategy: { type: 'MA_BAND', bandWindow: band.window, upperRate: band.upperRate, lowerRate: band.lowerRate } }
+      : { error: BAND_ERROR };
+  }
+  return row.strategy ? { strategy: { type: row.strategy } } : {};
+};
+
+// 줄마다 종목 · 금액(비율) · 적은 익절 · 손절 비율 · 고른 전략
 const assetsOf = (values: PortfolioValues, symbols: string[]): { assets: PortfolioAssetRequest[] } | { error: string } => {
   const built = sizesOf(values);
   if ('error' in built) return built;
@@ -65,12 +84,14 @@ const assetsOf = (values: PortfolioValues, symbols: string[]): { assets: Portfol
   for (const [i, row] of values.rows.entries()) {
     const sell = toSellRates(row.takeProfit, row.stopLoss);
     if ('error' in sell) return sell;
-    assets.push({ symbol: symbols[i], ...built.sizes[i], ...sell.rates });
+    const strategy = strategyOf(row);
+    if ('error' in strategy) return strategy;
+    assets.push({ symbol: symbols[i], ...built.sizes[i], ...sell.rates, ...strategy });
   }
   return { assets };
 };
 
-// 포트폴리오 요청(검사에 걸리면 alert 문구), 적립식 칸은 적립식에서만 보고 싣는 것도 적립식 요청과 같음
+// 포트폴리오 요청(검사에 걸리면 alert 문구), 적립식 칸은 적립식 줄이 있을 때만 보고 싣는 것도 적립식 요청과 같음
 export const buildPortfolioRequest = (values: PortfolioValues, ctx: RunContext): BuildResult<PortfolioBacktestRequest> => {
   const symbols = values.rows.map(rowSymbol);
   if (!symbols.length || symbols.length > MAX_ROWS || symbols.some((symbol) => !symbol) || new Set(symbols).size !== symbols.length) {
@@ -82,7 +103,7 @@ export const buildPortfolioRequest = (values: PortfolioValues, ctx: RunContext):
   const built = assetsOf(values, symbols);
   if ('error' in built) return built;
 
-  const dca = values.method === 'DCA';
+  const dca = hasDcaRow(values.rows, values.method);
   const months = values.cadence === 'MONTHS' ? parseMonths(values.months) : 1;
   if (dca && months === undefined) {
     return { error: '개월 수는 1~12 사이의 정수로 입력해주세요.' };

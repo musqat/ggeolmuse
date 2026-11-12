@@ -20,6 +20,8 @@ const REASON_LABELS: Record<TradeReason, string> = {
   REBALANCE_SELL: '리밸런싱 매도',
   TAKE_PROFIT: '익절',
   STOP_LOSS: '손절',
+  STRATEGY_BUY: '전략 매수',
+  STRATEGY_SELL: '전략 매도',
 };
 
 const HEAD = 'px-3 py-2 text-xs font-medium text-tx-2';
