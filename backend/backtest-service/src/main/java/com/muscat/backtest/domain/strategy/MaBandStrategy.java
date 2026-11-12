@@ -1,13 +1,10 @@
 package com.muscat.backtest.domain.strategy;
 
-import com.muscat.backtest.common.constants.BacktestConstants.MovingAverage;
-import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.StrategyType;
-import com.muscat.backtest.common.exception.BacktestException;
+import com.muscat.backtest.common.validation.BacktestRequestValidator;
 import com.muscat.backtest.domain.dto.request.MaBandStrategyRequest;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.infra.client.MarketDataClientWrapper;
-import java.math.BigDecimal;
 import org.springframework.stereotype.Component;
 
 // 이동평균 밴드 전략: 신호 종목(비우면 매매 종목) 수정 종가가 N 거래일 평균의 위 선보다 높으면 매매 종목의 그 날짜(쉬는 날이면
@@ -32,15 +29,8 @@ public class MaBandStrategy extends SignalStrategy<MaBandStrategyRequest> {
   // 2 ~ 250 거래일, 위 · 아래 비율 0 이상 1 미만
   @Override
   void validateSignal(MaBandStrategyRequest request) {
-    int window = request.bandWindowOrDefault();
-    if (window < MovingAverage.MIN_WINDOW || window > MovingAverage.MAX_WINDOW
-      || !isRate(request.upperRateOrDefault()) || !isRate(request.lowerRateOrDefault())) {
-      throw new BacktestException(BacktestResponse.INVALID_BAND);
-    }
-  }
-
-  private static boolean isRate(BigDecimal rate) {
-    return rate.signum() >= 0 && rate.compareTo(BigDecimal.ONE) < 0;
+    BacktestRequestValidator.requireBand(request.bandWindowOrDefault(), request.upperRateOrDefault(),
+      request.lowerRateOrDefault());
   }
 
   @Override

@@ -236,7 +236,65 @@ class PortfolioRequestValidatorTest {
     }
 
     private PortfolioAsset planned(String symbol, PortfolioStrategyType type) {
-      return new PortfolioAsset(symbol, number("100000"), null, null, null, new PortfolioStrategy(type));
+      return new PortfolioAsset(symbol, number("100000"), null, null, null,
+        new PortfolioStrategy(type, null, null, null, null, null));
+    }
+  }
+
+  @Nested
+  @DisplayName("이동평균 · 밴드 줄")
+  class SignalLines {
+
+    private PortfolioAsset signal(PortfolioStrategy strategy) {
+      return new PortfolioAsset("QQQ", number("1000"), null, null, null, strategy);
+    }
+
+    private PortfolioStrategy cross(Integer shortWindow, Integer longWindow) {
+      return new PortfolioStrategy(PortfolioStrategyType.MA_CROSS, shortWindow, longWindow, null, null, null);
+    }
+
+    private PortfolioStrategy band(Integer window, String upperRate, String lowerRate) {
+      return new PortfolioStrategy(PortfolioStrategyType.MA_BAND, null, null, window, number(upperRate),
+        number(lowerRate));
+    }
+
+    @Test
+    @DisplayName("이동평균 기간 · 밴드 기간과 비율을 비우거나 단일 전략과 같은 범위 안이면 통과한다")
+    void accepts() {
+      assertThatCode(() -> PortfolioRequestValidator.validate(request(amount("SPY", "1000"), signal(cross(null, null)))
+        .build())).doesNotThrowAnyException();
+      assertThatCode(() -> PortfolioRequestValidator.validate(request(signal(cross(2, 250))).build()))
+        .doesNotThrowAnyException();
+      assertThatCode(() -> PortfolioRequestValidator.validate(request(signal(band(null, null, null))).build()))
+        .doesNotThrowAnyException();
+      assertThatCode(() -> PortfolioRequestValidator.validate(request(signal(band(250, "0", "0.99"))).build()))
+        .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("이동평균 줄의 기간이 2 ~ 250 밖이거나 짧은 기간이 긴 기간보다 짧지 않으면 INVALID_MA_WINDOWS")
+    void crossRejects() {
+      assertCode(request(amount("SPY", "1000"), signal(cross(1, 60))).build(), BacktestResponse.INVALID_MA_WINDOWS);
+      assertCode(request(signal(cross(20, 251))).build(), BacktestResponse.INVALID_MA_WINDOWS);
+      assertCode(request(signal(cross(60, 60))).build(), BacktestResponse.INVALID_MA_WINDOWS);
+      // 긴 기간을 비우면 60
+      assertCode(request(signal(cross(70, null))).build(), BacktestResponse.INVALID_MA_WINDOWS);
+    }
+
+    @Test
+    @DisplayName("밴드 줄의 기간이 2 ~ 250 밖이거나 위 · 아래 비율이 0 이상 1 미만 밖이면 INVALID_BAND")
+    void bandRejects() {
+      assertCode(request(signal(band(1, null, null))).build(), BacktestResponse.INVALID_BAND);
+      assertCode(request(signal(band(251, null, null))).build(), BacktestResponse.INVALID_BAND);
+      assertCode(request(signal(band(null, "-0.01", null))).build(), BacktestResponse.INVALID_BAND);
+      assertCode(request(signal(band(null, null, "1"))).build(), BacktestResponse.INVALID_BAND);
+    }
+
+    @Test
+    @DisplayName("한 번에 사기 · 적립식 줄은 이동평균 · 밴드 칸을 보지 않는다")
+    void ignoresOtherLines() {
+      assertThatCode(() -> PortfolioRequestValidator.validate(request(signal(new PortfolioStrategy(
+        PortfolioStrategyType.LUMP_SUM, 1, 1, 1, number("-1"), number("1")))).build())).doesNotThrowAnyException();
     }
   }
 

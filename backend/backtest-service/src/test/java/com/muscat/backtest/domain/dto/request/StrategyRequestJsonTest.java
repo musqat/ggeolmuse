@@ -207,7 +207,7 @@ class StrategyRequestJsonTest {
       .endDate(LocalDate.of(2024, 1, 1)).allocation(PortfolioAllocation.WEIGHT).totalAmount(BigDecimal.valueOf(1000000))
       .assets(List.of(new PortfolioAsset(" spy", null, BigDecimal.valueOf(60), null, null, null),
         new PortfolioAsset("QQQ", null, BigDecimal.valueOf(40), new BigDecimal("0.3"), new BigDecimal("0.1"),
-          new PortfolioStrategy(PortfolioStrategyType.LUMP_SUM))))
+          new PortfolioStrategy(PortfolioStrategyType.MA_CROSS, 20, 60, null, null, null))))
       .method(PortfolioMethod.DCA).frequency(DcaFrequency.WEEKLY).rebalance(PortfolioRebalance.QUARTERLY)
       .userId("user-1").build();
 
@@ -218,16 +218,19 @@ class StrategyRequestJsonTest {
         "\"assets\":[{\"symbol\":\" spy\",\"amount\":null,\"weightPercent\":60,\"takeProfitRate\":null,\"stopLossRate\":null,"
           + "\"strategy\":null}",
         "{\"symbol\":\"QQQ\",\"amount\":null,\"weightPercent\":40,\"takeProfitRate\":0.3,\"stopLossRate\":0.1,"
-          + "\"strategy\":{\"type\":\"LUMP_SUM\"}}",
+          + "\"strategy\":{\"type\":\"MA_CROSS\",\"shortWindow\":20,\"longWindow\":60,\"bandWindow\":null,"
+          + "\"upperRate\":null,\"lowerRate\":null}}",
         "\"method\":\"DCA\"", "\"rebalance\":\"QUARTERLY\"")
-      .doesNotContain("normalizedSymbol").doesNotContain("amountOf").doesNotContain("strategyOf");
+      .doesNotContain("normalizedSymbol").doesNotContain("amountOf").doesNotContain("strategyOf")
+      .doesNotContain("OrDefault");
     assertThat(saved.getAssets()).extracting(PortfolioAsset::normalizedSymbol).containsExactly("SPY", "QQQ");
     assertThat(saved.getAssets().get(1).takeProfitRate()).isEqualByComparingTo("0.3");
     assertThat(saved.getAssets().get(1).stopLossRate()).isEqualByComparingTo("0.1");
     assertThat(saved.getRebalance()).isEqualTo(PortfolioRebalance.QUARTERLY);
     assertThat(saved.amountOf(saved.getAssets().get(1))).isEqualByComparingTo("400000");
     assertThat(saved.getAssets()).extracting(saved::strategyOf)
-      .containsExactly(PortfolioStrategyType.DCA, PortfolioStrategyType.LUMP_SUM);
+      .containsExactly(PortfolioStrategyType.DCA, PortfolioStrategyType.MA_CROSS);
+    assertThat(saved.getAssets().get(1).strategy().longWindowOrDefault()).isEqualTo(60);
   }
 
   private ConditionalStrategyRequest conditional() {

@@ -81,7 +81,7 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
 
       CapitalGainsTaxPayer taxPayer = new CapitalGainsTaxPayer(Boolean.TRUE.equals(request.getCapitalGainsTax()));
       boolean separate = !signalSymbol.equals(request.getSymbol());
-      LocalDate signalFrom = request.getStartDate().minusDays(lookbackDays(window(request)));
+      LocalDate signalFrom = request.getStartDate().minusDays(SignalHolding.lookbackDays(window(request)));
       Map<LocalDate, OHLCPriceDto> priceMap = BacktestDataUtils.buildPriceMap(
         marketData, request.getSymbol(), separate ? request.getStartDate() : signalFrom, actualEndDate);
       SignalPrices prices = separate
@@ -163,13 +163,7 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
     BigDecimal heldShares = BigDecimal.ZERO;
     BigDecimal heldCost = BigDecimal.ZERO;
     BigDecimal cash = null;
-    // 본 신호 일봉 수 · 신호로 정한 보유 여부(시작일 전 신호는 보지 않음)
-    List<OHLCPriceDto> signals = signalPrices.candles();
-    int seen = 0;
-    boolean wanted = false;
-    // 마지막으로 본 신호가 매수인지 · 트레일링 스탑 · 부분 익절로 다 판 뒤 매수가 아닌 신호를 기다리는지
-    boolean lastBuy = false;
-    boolean waiting = false;
+    SignalHolding target = new SignalHolding(signal, signalPrices, start);
     TrailingStop trailing = TrailingStop.of(request.getTrailingStopRate(), request.getTrailingSellRate());
     TakeProfitLadder ladder = TakeProfitLadder.of(request.getPartialTakeProfits());
 
@@ -178,16 +172,7 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
       if (date.isBefore(start)) {
         continue;
       }
-      for (; seen < signals.size() && !signals.get(seen).date().isAfter(date); seen++) {
-        TradeSignal.Action action = signals.get(seen).date().isBefore(start) ? null : signal.at(seen);
-        lastBuy = action == TradeSignal.Action.BUY;
-        if (lastBuy) {
-          wanted = wanted || !waiting;
-        } else {
-          waiting = false;
-          wanted = wanted && action != TradeSignal.Action.SELL;
-        }
-      }
+      boolean wanted = target.wanted(date);
       boolean holding = heldShares.signum() > 0;
       try {
         StrategyTransaction payment = taxPayer.pay(date, transactions, cash, fxOn(request, fxRates, date),
@@ -227,9 +212,7 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
             heldShares = heldShares.subtract(exit.shares());
             heldCost = heldCost.subtract(exit.cost());
             if (exit.all()) {
-              // 다음 매수 신호부터, 마지막 신호가 매수였으면 매수가 아닌 신호를 한 번 본 뒤부터 다시 삼
-              wanted = false;
-              waiting = lastBuy;
+              target.soldOut();
             }
           }
         }
@@ -241,11 +224,6 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
 
     log.info("{} 전략 완료: 거래 {}건, 계산 실패 {}회", label(), transactions.size(), skippedRounds.size());
     return new StrategyPurchases(transactions, skippedRounds, priceMap, fxRates);
-  }
-
-  // 신호 기간 거래일이 넉넉히 들어가는 달력 날수
-  private static int lookbackDays(int window) {
-    return window * 3 / 2 + 14;
   }
 
   // 그 날짜 종가에 원금(첫 매수) 또는 판 돈 전부로 삼(수수료를 뺀 달러로 소수 주)
