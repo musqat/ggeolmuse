@@ -7,6 +7,7 @@ import {
   maBandHow,
   maCrossHow,
   partialTakeProfitText,
+  portfolioHow,
   sellText,
   simpleHow,
   trailingText,
@@ -40,6 +41,16 @@ describe('요약 둘째 줄', () => {
     )
     expect(dcaHow({ unit: won, cadenceLabel: '거래일마다', rounds: 250, daily: true, budget: '' })).toBe(
       '거래일마다 10만원 · 약 250회 ≈ 2,500만원'
+    )
+  })
+
+  it('포트폴리오: 종목 수와 한 번에 넣는 합계, 적립식은 주기 · 회당 합계 · 회차 · 총액', () => {
+    const base = { count: 2, perRound: 10000000, dca: false, cadenceLabel: '매달 8일', rounds: 12, daily: false }
+
+    expect(portfolioHow(base)).toBe('종목 2개 · 한 번에 1,000만원')
+    expect(portfolioHow({ ...base, count: 3, perRound: 1000000, dca: true })).toBe('종목 3개 · 매달 8일 100만원 · 12회 ≈ 1,200만원')
+    expect(portfolioHow({ ...base, perRound: 100000, dca: true, cadenceLabel: '거래일마다', rounds: 250, daily: true })).toBe(
+      '종목 2개 · 거래일마다 10만원 · 약 250회 ≈ 2,500만원'
     )
   })
 

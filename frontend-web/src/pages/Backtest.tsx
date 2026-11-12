@@ -12,6 +12,7 @@ import { useDcaMode } from "@components/backtest/modes/dca/useDcaMode";
 import { useConditionalMode } from "@components/backtest/modes/conditional/useConditionalMode";
 import { useMaCrossMode } from "@components/backtest/modes/maCross/useMaCrossMode";
 import { useMaBandMode } from "@components/backtest/modes/maBand/useMaBandMode";
+import { usePortfolioMode } from "@components/backtest/modes/portfolio/usePortfolioMode";
 import { useSymbolComparisonMode } from "@components/backtest/modes/symbolComparison/useSymbolComparisonMode";
 import { useStrategyComparisonMode } from "@components/backtest/modes/strategyComparison/useStrategyComparisonMode";
 import { usePeriod } from "@components/backtest/settings/period";
@@ -34,7 +35,7 @@ import { dismissToast, notify, readToasts } from '@/components/common/notify';
 
 const SUMMARY_ID = "backtest-summary";
 const DEFAULT_SYMBOL = "AAPL";
-const MODE_IDS: BacktestMode[] = ["simple", "dca", "conditional", "ma-cross", "ma-band", "compare-symbols", "compare-strategies"];
+const MODE_IDS: BacktestMode[] = ["simple", "dca", "conditional", "ma-cross", "ma-band", "portfolio", "compare-symbols", "compare-strategies"];
 // 설정 초기화가 돌아가는 값(빈 칸은 기본값)
 const DEFAULT_SETTINGS = makeSnapshot({ mode: "simple", symbol: DEFAULT_SYMBOL, period: undefined, options: undefined, modes: {} });
 // 오류 칸(세부 설정 안이면 연 뒤에 찾음)
@@ -61,7 +62,7 @@ const Backtest: React.FC = () => {
   const settingsRef = useRef<HTMLDivElement>(null);
 
   const [mode, setMode] = useState<BacktestMode>("simple");
-  // 단순 · 적립식 · 조건부 · 이동평균 · 밴드 · 전략 비교가 같이 쓰는 종목
+  // 단순 · 적립식 · 조건부 · 이동평균 · 밴드 · 전략 비교가 같이 쓰는 종목(포트폴리오는 고치기 전 첫 줄)
   const [symbol, setSymbol] = useState(DEFAULT_SYMBOL);
   const period = usePeriod();
   const options = useBacktestOptions();
@@ -97,10 +98,11 @@ const Backtest: React.FC = () => {
   const conditional = useConditionalMode(shared);
   const maCross = useMaCrossMode(shared);
   const maBand = useMaBandMode(shared);
+  const portfolio = usePortfolioMode(shared);
   const symbolComparison = useSymbolComparisonMode(shared);
   const strategyComparison = useStrategyComparisonMode(shared);
   // 모드 고르기 순서
-  const modes = [simple, dca, conditional, maCross, maBand, symbolComparison, strategyComparison];
+  const modes = [simple, dca, conditional, maCross, maBand, portfolio, symbolComparison, strategyComparison];
   const current = modes.find((m) => m.id === mode) ?? simple;
   const detailMessages = detailIssues(options);
   const detailErrors = countErrors(Object.values(detailMessages));

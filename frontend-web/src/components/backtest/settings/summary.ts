@@ -51,6 +51,25 @@ export const dcaHow = ({ unit, cadenceLabel, rounds, daily, budget }: DcaSummary
   return `${head} · ${about}${rounds}회 ≈ ${formatReadableWon(cost * rounds)}${estimate(unit)}`;
 };
 
+interface PortfolioSummary {
+  // 종목 줄 수
+  count: number;
+  // 한 번(적립식은 회당)에 넣는 줄 금액 합(원)
+  perRound: number;
+  dca: boolean;
+  cadenceLabel: string;
+  rounds: number;
+  daily: boolean;
+}
+
+// 포트폴리오: 종목 수와 한 번에 넣는 합계, 적립식은 적립식 요약(주기 · 회당 합계 · 회차 · 넣을 돈)
+export const portfolioHow = ({ count, perRound, dca, cadenceLabel, rounds, daily }: PortfolioSummary) => {
+  const head = `종목 ${count}개`;
+  if (!dca) return `${head} · 한 번에 ${formatReadableWon(perRound)}`;
+  const unit = { byShares: false, amount: String(perRound), shares: '' };
+  return `${head} · ${dcaHow({ unit, cadenceLabel, rounds, daily, budget: '' })}`;
+};
+
 // 익절 · 손절(평균 단가 기준 전량 매도), 둘 다 비면 빈 글
 export const sellText = (takeProfit: string, stopLoss: string) => {
   const parts = [takeProfit.trim() && `+${takeProfit.trim()}% 익절`, stopLoss.trim() && `-${stopLoss.trim()}% 손절`].filter(Boolean);

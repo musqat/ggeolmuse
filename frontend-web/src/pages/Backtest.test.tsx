@@ -16,6 +16,7 @@ vi.mock('../services/api', () => ({
     runConditionalStrategy: vi.fn(),
     runMaCrossStrategy: vi.fn(),
     runMaBandStrategy: vi.fn(),
+    runPortfolio: vi.fn(),
     compareSymbols: vi.fn(),
     compareStrategies: vi.fn(),
     getHistory: vi.fn(),
@@ -106,6 +107,7 @@ beforeEach(() => {
   vi.mocked(backtestApi.runConditionalStrategy).mockResolvedValue({ data: {} } as never)
   vi.mocked(backtestApi.runMaCrossStrategy).mockResolvedValue({ data: {} } as never)
   vi.mocked(backtestApi.runMaBandStrategy).mockResolvedValue({ data: {} } as never)
+  vi.mocked(backtestApi.runPortfolio).mockResolvedValue({ data: {} } as never)
   vi.mocked(backtestApi.compareSymbols).mockResolvedValue({ data: {} } as never)
   vi.mocked(backtestApi.compareStrategies).mockResolvedValue({ data: {} } as never)
 })
@@ -130,7 +132,7 @@ describe('Backtest 페이지 모드 · 기록', () => {
   it('모드는 하나만 고르는 묶음이고 지난 기록은 모드 대신 제목 옆 링크로 따로 본다', () => {
     renderPage()
 
-    expect(modes().getAllByRole('radio').map((radio) => radio.textContent)).toEqual(['단순', '적립식', '조건부', '이동평균', '이동평균 밴드', '종목 비교', '전략 비교'])
+    expect(modes().getAllByRole('radio').map((radio) => radio.textContent)).toEqual(['단순', '적립식', '조건부', '이동평균', '이동평균 밴드', '포트폴리오', '종목 비교', '전략 비교'])
     expect(modes().getByRole('radio', { name: '단순' })).toHaveAttribute('aria-checked', 'true')
     expect(screen.queryByText('히스토리')).toBeNull()
     expect(screen.getByRole('link', { name: '지난 백테스트 기록 →' })).toHaveAttribute('href', '/backtest/history')
@@ -816,6 +818,134 @@ describe('Backtest 페이지 칸 오류 · 요약', () => {
 
     expect(screen.getByText('3 / 10')).toBeInTheDocument()
     expect(summary()).toHaveTextContent('NVDA, AAPL, MSFT · 2025.10.08')
+  })
+})
+
+describe('Backtest 페이지 포트폴리오', () => {
+  const rowSymbol = (n: number) => screen.getByRole('combobox', { name: `${n}번 종목` })
+  const rowAmount = (n: number) => screen.getByRole('textbox', { name: `${n}번 금액(원)` })
+  const rowWeight = (n: number) => screen.getByRole('textbox', { name: `${n}번 비율(퍼센트)` })
+  const addRow = () => userEvent.click(screen.getByRole('button', { name: '＋ 종목 더하기' }))
+  const method = (name: string) => within(screen.getByRole('radiogroup', { name: '방식' })).getByRole('radio', { name })
+  const pickSymbol = async (input: HTMLElement, text: string, name: RegExp) => {
+    await userEvent.clear(input)
+    await userEvent.type(input, text)
+    await userEvent.click(await screen.findByRole('option', { name }))
+  }
+
+  it('처음 줄 하나(지금 종목 · ₩10,000,000)를 한 번에 사기로 요청하고 요약에 종목 수 · 합계를 적는다', async () => {
+    renderPage()
+    await selectMode('포트폴리오')
+
+    expect(screen.queryByRole('combobox', { name: '종목' })).toBeNull()
+    expect(rowSymbol(1)).toHaveValue('AAPL')
+    expect(rowAmount(1)).toHaveValue('10,000,000')
+    expect(method('한 번에 사기')).toHaveAttribute('aria-checked', 'true')
+    expect(summary()).toHaveTextContent('AAPL · 2025.10.08 → 2026.10.08')
+    expect(summary()).toHaveTextContent('종목 1개 · 한 번에 1,000만원')
+    await runBacktest()
+
+    expect(backtestApi.runPortfolio).toHaveBeenCalledWith({
+      startDate: START,
+      endDate: TODAY,
+      allocation: 'AMOUNT',
+      assets: [{ symbol: 'AAPL', amount: 10000000 }],
+      method: 'LUMP_SUM',
+      ...common,
+    })
+  })
+
+  it('처음 줄은 고치기 전까지 보던 종목을 따라가고, 고친 뒤에는 그대로 둔다', async () => {
+    renderPage()
+    await pickSymbol(screen.getByRole('combobox', { name: '종목' }), 'nv', /NVDA/)
+    await selectMode('포트폴리오')
+    expect(rowSymbol(1)).toHaveValue('NVDA')
+
+    fireEvent.change(rowAmount(1), { target: { value: '5,000,000' } })
+    await selectMode('단순')
+    await pickSymbol(screen.getByRole('combobox', { name: '종목' }), 'ms', /MSFT/)
+    await selectMode('포트폴리오')
+
+    expect(rowSymbol(1)).toHaveValue('NVDA')
+    expect(rowAmount(1)).toHaveValue('5,000,000')
+  })
+
+  it('종목을 더해 비율로 나누고 적립식을 고르면 총액 · 비율 · 주기로 요청하고 요약에 회당 합계 · 회차를 적는다', async () => {
+    renderPage()
+    await selectMode('포트폴리오')
+    await addRow()
+    await pickSymbol(rowSymbol(2), 'ms', /MSFT/)
+    await userEvent.click(screen.getByRole('radio', { name: '비율' }))
+    fireEvent.change(rowWeight(1), { target: { value: '60' } })
+    fireEvent.change(rowWeight(2), { target: { value: '40' } })
+    await userEvent.click(method('적립식'))
+
+    expect(screen.getByRole('textbox', { name: '회당 총액(원)' })).toHaveValue('10,000,000')
+    expect(screen.getByRole('radiogroup', { name: '언제' })).toBeInTheDocument()
+    expect(summary()).toHaveTextContent('AAPL, MSFT · 2025.10.08')
+    expect(summary()).toHaveTextContent('종목 2개 · 매달 8일 1,000만원 · 12회')
+    await runBacktest()
+
+    expect(backtestApi.runPortfolio).toHaveBeenCalledWith({
+      startDate: START,
+      endDate: TODAY,
+      allocation: 'WEIGHT',
+      totalAmount: 10000000,
+      assets: [
+        { symbol: 'AAPL', weightPercent: 60 },
+        { symbol: 'MSFT', weightPercent: 40 },
+      ],
+      method: 'DCA',
+      frequency: 'MONTHLY',
+      purchaseDay: 8,
+      investmentInterval: 1,
+      ...common,
+    })
+  })
+
+  it('빈 줄이 있으면 그 줄 종목 칸으로 가며 요청하지 않고, 비율 합이 100 이 아니면 알림으로 막는다', async () => {
+    renderPage()
+    await selectMode('포트폴리오')
+    await addRow()
+
+    expect(screen.getByText('2번 줄 종목 비어 있음')).toBeInTheDocument()
+    expect(summary()).toHaveTextContent('고칠 칸 2개')
+    rowAmount(1).focus()
+    await runBacktest()
+    expect(rowSymbol(2)).toHaveFocus()
+    expect(backtestApi.runPortfolio).not.toHaveBeenCalled()
+
+    await pickSymbol(rowSymbol(2), 'ms', /MSFT/)
+    await userEvent.click(screen.getByRole('radio', { name: '비율' }))
+    fireEvent.change(rowWeight(2), { target: { value: '30' } })
+    expect(screen.getByTestId('portfolio-sum')).toHaveTextContent('합계 130%')
+    expect(summary()).not.toHaveTextContent('고칠 칸')
+    await runBacktest()
+
+    expect(alertSpy).toHaveBeenCalledWith('비율은 줄마다 0보다 크게, 합이 100% 가 되게 넣어 주세요.')
+    expect(backtestApi.runPortfolio).not.toHaveBeenCalled()
+  })
+
+  it('포트폴리오 줄 · 방식도 직전 설정으로 되살리고 설정 초기화로 처음 줄 하나로 돌린다', async () => {
+    renderPage()
+    await selectMode('포트폴리오')
+    await addRow()
+    await pickSymbol(rowSymbol(2), 'ms', /MSFT/)
+    fireEvent.change(rowAmount(2), { target: { value: '3,000,000' } })
+    await userEvent.click(method('적립식'))
+    await runBacktest()
+
+    await userEvent.click(screen.getByRole('button', { name: '설정 초기화' }))
+    await selectMode('포트폴리오')
+    expect(rowSymbol(1)).toHaveValue('AAPL')
+    expect(screen.queryByRole('combobox', { name: '2번 종목' })).toBeNull()
+    expect(method('한 번에 사기')).toHaveAttribute('aria-checked', 'true')
+    await userEvent.click(screen.getByRole('button', { name: '직전 설정' }))
+
+    expect(modes().getByRole('radio', { name: '포트폴리오' })).toHaveAttribute('aria-checked', 'true')
+    expect(rowSymbol(2)).toHaveValue('MSFT')
+    expect(rowAmount(2)).toHaveValue('3,000,000')
+    expect(method('적립식')).toHaveAttribute('aria-checked', 'true')
   })
 })
 
