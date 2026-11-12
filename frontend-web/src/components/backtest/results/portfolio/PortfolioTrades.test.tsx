@@ -52,4 +52,23 @@ describe('PortfolioTrades', () => {
     await userEvent.selectOptions(screen.getByRole('combobox', { name: '종목' }), '모든 종목')
     expect(rows().map((row) => cells(row)[2])).toEqual(['양도세 납부'])
   })
+
+  it('리밸런싱 매도는 일부 수량 · 받은 돈 · 실현 손익, 리밸런싱 매수는 쓴 현금으로 보이고 이유 고르기는 리밸런싱 매수 · 리밸런싱 매도 순서', async () => {
+    const rebalanced: PortfolioTransaction[] = [
+      transactions[0],
+      transactions[1],
+      { symbol: 'SPY', reason: 'REBALANCE_SELL', date: '2021-01-04', actualDate: '2021-01-04', trigger: '리밸런싱 매도', shares: -2.5, price: 370, amount: 0, fxRate: 1100, proceeds: 922.69, realizedProfit: 110.5 },
+      { symbol: 'QQQ', reason: 'REBALANCE_BUY', date: '2021-01-04', actualDate: '2021-01-04', trigger: '리밸런싱 매수', shares: 2.97, price: 310, amount: 0, fxRate: 1100, cashUsed: 922.69 },
+    ]
+    render(<PortfolioTrades transactions={rebalanced} symbols={['SPY', 'QQQ']} />)
+
+    expect(rows().slice(2).map(cells)).toEqual([
+      ['2021-01-04', 'SPY', '리밸런싱 매도', '2.5주', '$922.69', '+$110.50'],
+      ['2021-01-04', 'QQQ', '리밸런싱 매수', '2.97주', '$922.69', '-'],
+    ])
+    expect(options('이유')).toEqual(['모든 이유', '한 번에 매수', '리밸런싱 매수', '리밸런싱 매도'])
+
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: '이유' }), '리밸런싱 매도')
+    expect(rows().map((row) => cells(row)[1])).toEqual(['SPY'])
+  })
 })

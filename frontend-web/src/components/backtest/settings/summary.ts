@@ -1,4 +1,4 @@
-import type { PriceDirection } from '@services/api';
+import type { PortfolioRebalance, PriceDirection } from '@services/api';
 import { formatReadableWon } from '../../../utils/format';
 import { DIRECTIONS } from '../shared/priceDirection';
 import type { BacktestOptions } from '../shared/backtestOptions';
@@ -60,14 +60,21 @@ interface PortfolioSummary {
   cadenceLabel: string;
   rounds: number;
   daily: boolean;
+  rebalance: PortfolioRebalance;
 }
 
-// 포트폴리오: 종목 수와 한 번에 넣는 합계, 적립식은 적립식 요약(주기 · 회당 합계 · 회차 · 넣을 돈)
-export const portfolioHow = ({ count, perRound, dca, cadenceLabel, rounds, daily }: PortfolioSummary) => {
-  const head = `종목 ${count}개`;
-  if (!dca) return `${head} · 한 번에 ${formatReadableWon(perRound)}`;
+const REBALANCE_TEXT: Record<PortfolioRebalance, string> = {
+  NONE: '',
+  YEARLY: '매년 처음 비중으로 리밸런싱',
+  QUARTERLY: '분기마다 처음 비중으로 리밸런싱',
+  MONTHLY: '매달 처음 비중으로 리밸런싱',
+};
+
+// 포트폴리오: 종목 수와 한 번에 넣는 합계(적립식은 적립식 요약), 리밸런싱하면 그 주기
+export const portfolioHow = ({ count, perRound, dca, cadenceLabel, rounds, daily, rebalance }: PortfolioSummary) => {
   const unit = { byShares: false, amount: String(perRound), shares: '' };
-  return `${head} · ${dcaHow({ unit, cadenceLabel, rounds, daily, budget: '' })}`;
+  const buy = dca ? dcaHow({ unit, cadenceLabel, rounds, daily, budget: '' }) : `한 번에 ${formatReadableWon(perRound)}`;
+  return [`종목 ${count}개`, buy, REBALANCE_TEXT[rebalance]].filter(Boolean).join(' · ');
 };
 
 // 익절 · 손절(평균 단가 기준 전량 매도), 둘 다 비면 빈 글

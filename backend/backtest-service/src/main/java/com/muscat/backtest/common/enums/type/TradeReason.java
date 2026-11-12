@@ -6,5 +6,7 @@ public enum TradeReason {
   DCA_BUY,                // 적립식 회차 매수
   PERIOD_END_SALE,        // 기간 마지막 거래일 전량 매도
   DIVIDEND_REINVESTMENT,  // 배당 재투자
-  TAX_PAYMENT             // 양도세 납부
+  TAX_PAYMENT,            // 양도세 납부
+  REBALANCE_SELL,         // 리밸런싱으로 목표 비중까지 매도
+  REBALANCE_BUY           // 리밸런싱으로 목표 비중까지 매수
 }

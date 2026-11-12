@@ -43,6 +43,7 @@ const result: PortfolioBacktestResponse = {
   startDate: '2020-01-02',
   endDate: '2024-12-31',
   method: 'LUMP_SUM',
+  rebalance: 'NONE',
   periodEnd: 'HOLD',
   totalInvestedKrw: 10000000,
   totalAssetKrw: 14250000,

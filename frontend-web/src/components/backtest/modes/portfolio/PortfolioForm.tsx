@@ -1,5 +1,5 @@
 import React, { useId } from 'react';
-import type { PortfolioMethod } from '@services/api';
+import type { PortfolioMethod, PortfolioRebalance } from '@services/api';
 import { PeriodField, type PeriodFieldProps } from '../../settings/PeriodField';
 import { CadenceField, type CadenceFieldProps } from '../../settings/CadenceField';
 import { FirstDateField, type FirstDateFieldProps } from '../../settings/FirstDateField';
@@ -14,6 +14,13 @@ const METHODS: { value: PortfolioMethod; label: string }[] = [
   { value: 'DCA', label: '적립식' },
 ];
 
+const REBALANCES: { value: PortfolioRebalance; label: string }[] = [
+  { value: 'NONE', label: '없음' },
+  { value: 'YEARLY', label: '매년' },
+  { value: 'QUARTERLY', label: '분기마다' },
+  { value: 'MONTHLY', label: '매달' },
+];
+
 interface PortfolioFormProps {
   assets: PortfolioAssetsFieldProps;
   period: PeriodFieldProps;
@@ -22,11 +29,23 @@ interface PortfolioFormProps {
   // 적립식일 때만
   cadence?: CadenceFieldProps;
   first?: FirstDateFieldProps;
+  rebalance: PortfolioRebalance;
+  onRebalanceChange: (rebalance: PortfolioRebalance) => void;
 }
 
-// 포트폴리오: 종목 줄마다 금액(또는 총액 × 비율)으로 한 번에 사거나 주기마다 삼, 현금 하나로 평가
-export const PortfolioForm: React.FC<PortfolioFormProps> = ({ assets, period, method, onMethodChange, cadence, first }) => {
+// 포트폴리오: 종목 줄마다 금액(또는 총액 × 비율)으로 한 번에 사거나 주기마다 삼, 현금 하나로 평가하고 고른 주기마다 처음 비중으로 리밸런싱
+export const PortfolioForm: React.FC<PortfolioFormProps> = ({
+  assets,
+  period,
+  method,
+  onMethodChange,
+  cadence,
+  first,
+  rebalance,
+  onRebalanceChange,
+}) => {
   const methodId = useId();
+  const rebalanceId = useId();
   return (
     <div className="space-y-4">
       <PortfolioAssetsField {...assets} />
@@ -44,6 +63,16 @@ export const PortfolioForm: React.FC<PortfolioFormProps> = ({ assets, period, me
         </SettingField>
         {cadence && <CadenceField {...cadence} />}
         {first && <FirstDateField {...first} />}
+        <SettingField label="리밸런싱" labelId={rebalanceId}>
+          <RadioGroup
+            labelledBy={rebalanceId}
+            options={REBALANCES}
+            value={rebalance}
+            onChange={onRebalanceChange}
+            className="flex flex-wrap items-center gap-1.5"
+            optionClassName={PILL}
+          />
+        </SettingField>
       </div>
     </div>
   );

@@ -350,6 +350,9 @@ export type PortfolioAllocation = 'AMOUNT' | 'WEIGHT';
 // 포트폴리오 매수 방식(줄마다 첫 거래일에 한 번에 · 적립식 회차마다)
 export type PortfolioMethod = 'LUMP_SUM' | 'DCA';
 
+// 포트폴리오 리밸런싱 주기(주기마다 처음 비중으로 팔고 삼)
+export type PortfolioRebalance = 'NONE' | 'YEARLY' | 'QUARTERLY' | 'MONTHLY';
+
 // 포트폴리오 종목 줄 요청(금액 방식은 금액, 비율 방식은 비율)
 export type PortfolioAssetRequest = {
   symbol: string;
@@ -370,10 +373,18 @@ export type PortfolioBacktestRequest = BacktestCommonRequest & {
   firstPurchaseDate?: string;
   purchaseDay?: number;
   investmentInterval?: number;
+  rebalance?: PortfolioRebalance;      // 비우면 안 함
 };
 
 // 포트폴리오 거래 이유
-export type TradeReason = 'BUY' | 'DCA_BUY' | 'PERIOD_END_SALE' | 'DIVIDEND_REINVESTMENT' | 'TAX_PAYMENT';
+export type TradeReason =
+  | 'BUY'
+  | 'DCA_BUY'
+  | 'PERIOD_END_SALE'
+  | 'DIVIDEND_REINVESTMENT'
+  | 'TAX_PAYMENT'
+  | 'REBALANCE_BUY'
+  | 'REBALANCE_SELL';
 
 // 포트폴리오 매매 한 건(양도세 납부 줄은 종목 없음)
 export type PortfolioTransaction = StrategyTransaction & {
@@ -404,6 +415,7 @@ export type PortfolioBacktestResponse = {
   startDate: string;                    // 기간 안 첫 거래일
   endDate: string;                      // 평가일
   method: PortfolioMethod;
+  rebalance: PortfolioRebalance;
   periodEnd: PeriodEnd;
   totalInvestedKrw: number;             // 새로 넣은 원화 합
   totalAssetKrw: number;                // 주식 평가 + 현금

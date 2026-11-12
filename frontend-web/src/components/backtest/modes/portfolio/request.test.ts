@@ -17,6 +17,7 @@ const values: PortfolioValues = {
   months: '3',
   firstPurchaseDate: '',
   firstPickedStart: '',
+  rebalance: 'NONE',
   reinvestDividends: true,
   tradingFeeRate: '0.25',
   dividendTax: true,
@@ -41,8 +42,18 @@ describe('buildPortfolioRequest', () => {
           { symbol: 'QQQ', amount: 4000000 },
         ],
         method: 'LUMP_SUM',
+        rebalance: 'NONE',
         ...options,
       },
+    })
+  })
+
+  it('리밸런싱 주기는 방식과 상관없이 고른 값 그대로 싣는다', () => {
+    expect(buildPortfolioRequest({ ...values, rebalance: 'QUARTERLY' }, ctx)).toMatchObject({
+      request: { method: 'LUMP_SUM', rebalance: 'QUARTERLY' },
+    })
+    expect(buildPortfolioRequest({ ...values, method: 'DCA', rebalance: 'YEARLY' }, ctx)).toMatchObject({
+      request: { method: 'DCA', frequency: 'MONTHLY', rebalance: 'YEARLY' },
     })
   })
 

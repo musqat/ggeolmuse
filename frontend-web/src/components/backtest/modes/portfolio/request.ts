@@ -1,4 +1,10 @@
-import type { PortfolioAllocation, PortfolioAssetRequest, PortfolioBacktestRequest, PortfolioMethod } from '@services/api';
+import type {
+  PortfolioAllocation,
+  PortfolioAssetRequest,
+  PortfolioBacktestRequest,
+  PortfolioMethod,
+  PortfolioRebalance,
+} from '@services/api';
 import type { BuildResult, RunContext } from '../types';
 import { toOptionFields, type BacktestOptions } from '../../shared/backtestOptions';
 import { dayOfMonth, parseMonths, resolveFirstPurchase, scheduleFields, type DcaCadence } from '../../shared/dcaSchedule';
@@ -26,6 +32,7 @@ export interface PortfolioValues extends BacktestOptions {
   // 고른 첫 매수일과 고를 때의 시작일(비면 시작일을 따라감)
   firstPurchaseDate: string;
   firstPickedStart: string;
+  rebalance: PortfolioRebalance;
 }
 
 const ROWS_ERROR = '종목은 1 ~ 10개, 같은 종목은 한 번만 넣어 주세요.';
@@ -91,6 +98,7 @@ export const buildPortfolioRequest = (values: PortfolioValues, ctx: RunContext):
         startDate: values.startDate,
         endDate,
       })),
+    rebalance: values.rebalance,
     ...toOptionFields(values),
   };
   return { request };

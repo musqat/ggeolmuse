@@ -3,6 +3,7 @@ package com.muscat.backtest.common.calculation;
 import com.muscat.backtest.common.engine.PortfolioEngine;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.PortfolioMethod;
+import com.muscat.backtest.common.enums.type.PortfolioRebalance;
 import com.muscat.backtest.common.enums.type.TradeReason;
 import com.muscat.backtest.common.util.Decimals;
 import com.muscat.backtest.domain.dto.request.PortfolioRequest;
@@ -38,6 +39,7 @@ public final class PortfolioCalculator {
       .startDate(result.startDate())
       .endDate(result.valuationDate())
       .method(PortfolioMethod.orLumpSum(request.getMethod()))
+      .rebalance(PortfolioRebalance.orNone(request.getRebalance()))
       .periodEnd(request.getPeriodEnd() != null ? request.getPeriodEnd() : PeriodEnd.HOLD)
       .totalInvestedKrw(invested)
       .totalAssetKrw(totalAsset)

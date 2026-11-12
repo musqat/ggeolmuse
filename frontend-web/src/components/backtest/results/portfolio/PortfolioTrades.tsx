@@ -16,6 +16,8 @@ const REASON_LABELS: Record<TradeReason, string> = {
   PERIOD_END_SALE: '기간 끝 매도',
   DIVIDEND_REINVESTMENT: '배당 재투자',
   TAX_PAYMENT: '양도세 납부',
+  REBALANCE_BUY: '리밸런싱 매수',
+  REBALANCE_SELL: '리밸런싱 매도',
 };
 
 const HEAD = 'px-3 py-2 text-xs font-medium text-tx-2';
