@@ -90,6 +90,7 @@ public final class PortfolioCalculator {
     BigDecimal profit = value.add(sold).add(dividend).subtract(invested);
     return PortfolioResponse.Asset.builder()
       .symbol(position.symbol())
+      .strategyType(position.strategyType())
       .investedKrw(invested)
       .valueKrw(value)
       .soldKrw(sold)

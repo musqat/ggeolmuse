@@ -1,9 +1,7 @@
 package com.muscat.backtest.domain.strategy;
 
-import com.muscat.backtest.common.constants.BacktestConstants.MovingAverage;
-import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.StrategyType;
-import com.muscat.backtest.common.exception.BacktestException;
+import com.muscat.backtest.common.validation.BacktestRequestValidator;
 import com.muscat.backtest.domain.dto.request.MaCrossStrategyRequest;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.infra.client.MarketDataClientWrapper;
@@ -31,11 +29,7 @@ public class MaCrossStrategy extends SignalStrategy<MaCrossStrategyRequest> {
   // 2 ~ 250 거래일, 짧은 기간 < 긴 기간
   @Override
   void validateSignal(MaCrossStrategyRequest request) {
-    int shortWindow = request.shortWindowOrDefault();
-    int longWindow = request.longWindowOrDefault();
-    if (shortWindow < MovingAverage.MIN_WINDOW || longWindow > MovingAverage.MAX_WINDOW || shortWindow >= longWindow) {
-      throw new BacktestException(BacktestResponse.INVALID_MA_WINDOWS);
-    }
+    BacktestRequestValidator.requireMaWindows(request.shortWindowOrDefault(), request.longWindowOrDefault());
   }
 
   @Override

@@ -1,5 +1,6 @@
 package com.muscat.backtest.common.validation;
 
+import com.muscat.backtest.common.constants.BacktestConstants.MovingAverage;
 import com.muscat.backtest.common.constants.BacktestConstants.RequestLimit;
 import com.muscat.backtest.common.constants.BacktestConstants.SellRule;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
@@ -10,7 +11,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * 백테스트 전략 요청의 공통 검증(null · 심볼 · 지수 · 기간 · 주식 수 · 익절 · 손절 · 트레일링 스탑 · 부분 익절 · 첫 매수일)
+ * 백테스트 전략 요청의 공통 검증(null · 심볼 · 지수 · 기간 · 주식 수 · 익절 · 손절 · 이동평균 · 밴드 · 트레일링 스탑 · 부분 익절 · 첫 매수일)
  */
 public final class BacktestRequestValidator {
 
@@ -74,6 +75,25 @@ public final class BacktestRequestValidator {
     if (takeProfitOutside || stopLossOutside) {
       throw new BacktestException(BacktestResponse.INVALID_SELL_RATE);
     }
+  }
+
+  /** 이동평균 짧은 · 긴 기간 2 ~ 250 거래일 · 짧은 기간 < 긴 기간 검사 */
+  public static void requireMaWindows(int shortWindow, int longWindow) {
+    if (shortWindow < MovingAverage.MIN_WINDOW || longWindow > MovingAverage.MAX_WINDOW || shortWindow >= longWindow) {
+      throw new BacktestException(BacktestResponse.INVALID_MA_WINDOWS);
+    }
+  }
+
+  /** 밴드 평균 기간 2 ~ 250 거래일 · 위 · 아래 비율 0 이상 1 미만 검사 */
+  public static void requireBand(int window, BigDecimal upperRate, BigDecimal lowerRate) {
+    if (window < MovingAverage.MIN_WINDOW || window > MovingAverage.MAX_WINDOW
+      || !isBandRate(upperRate) || !isBandRate(lowerRate)) {
+      throw new BacktestException(BacktestResponse.INVALID_BAND);
+    }
+  }
+
+  private static boolean isBandRate(BigDecimal rate) {
+    return rate.signum() >= 0 && rate.compareTo(BigDecimal.ONE) < 0;
   }
 
   /** 트레일링 스탑 하락 비율 0 초과 1 미만 · 팔 비율 0 초과 1 이하(하락 비율과 함께) 검사(둘 다 비우면 통과) */

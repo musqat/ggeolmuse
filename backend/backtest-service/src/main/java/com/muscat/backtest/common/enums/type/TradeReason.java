@@ -10,5 +10,7 @@ public enum TradeReason {
   REBALANCE_SELL,         // 리밸런싱으로 목표 비중까지 매도
   REBALANCE_BUY,          // 리밸런싱으로 목표 비중까지 매수
   TAKE_PROFIT,            // 평균 단가 대비 익절 기준가에 전량 매도
-  STOP_LOSS               // 평균 단가 대비 손절 기준가에 전량 매도
+  STOP_LOSS,              // 평균 단가 대비 손절 기준가에 전량 매도
+  STRATEGY_BUY,           // 이동평균 · 밴드 줄의 매수 신호에 줄 몫 현금 전부로 매수
+  STRATEGY_SELL           // 이동평균 · 밴드 줄의 매도 신호에 전량 매도
 }

@@ -3,10 +3,11 @@ package com.muscat.backtest.common.validation;
 import com.muscat.backtest.common.constants.BacktestConstants.Portfolio;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.PortfolioAllocation;
-import com.muscat.backtest.common.enums.type.PortfolioMethod;
+import com.muscat.backtest.common.enums.type.PortfolioStrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.domain.dto.request.PortfolioAsset;
 import com.muscat.backtest.domain.dto.request.PortfolioRequest;
+import com.muscat.backtest.domain.dto.request.PortfolioStrategy;
 import java.math.BigDecimal;
 import java.util.HashSet;
 import java.util.List;
@@ -14,7 +15,7 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * 포트폴리오 요청 검증(기간 · 종목 줄 · 금액 · 비율 · 익절 · 손절 · 적립식 칸)
+ * 포트폴리오 요청 검증(기간 · 종목 줄 · 금액 · 비율 · 익절 · 손절 · 이동평균 · 밴드 · 적립식 칸)
  */
 public final class PortfolioRequestValidator {
 
@@ -22,16 +23,28 @@ public final class PortfolioRequestValidator {
 
   private PortfolioRequestValidator() {}
 
-  /** 기간 → 종목 줄 → 금액 · 비율 → 줄마다 익절 · 손절 → 적립식 칸(적립식만) 차례로 검사 */
+  /** 기간 → 종목 줄 → 금액 · 비율 → 줄마다 익절 · 손절 · 이동평균 · 밴드 칸 → 적립식 칸(적립식 줄이 있을 때만) 차례로 검사 */
   public static void validate(PortfolioRequest request) {
     BacktestRequestValidator.requireNonNull(request);
     BacktestRequestValidator.requireDateRange(request.getStartDate(), request.getEndDate());
     requireAssets(request.getAssets());
     requireAmounts(request);
-    request.getAssets().forEach(asset ->
-      BacktestRequestValidator.requireSellRates(asset.takeProfitRate(), asset.stopLossRate()));
-    if (PortfolioMethod.orLumpSum(request.getMethod()) == PortfolioMethod.DCA) {
+    request.getAssets().forEach(asset -> {
+      BacktestRequestValidator.requireSellRates(asset.takeProfitRate(), asset.stopLossRate());
+      requireSignal(request.strategyOf(asset), asset.strategy());
+    });
+    if (request.getAssets().stream().anyMatch(asset -> request.strategyOf(asset) == PortfolioStrategyType.DCA)) {
       requireSchedule(request);
+    }
+  }
+
+  /** 이동평균 교차 줄은 단일 전략과 같은 기간 검사, 밴드 줄은 같은 밴드 검사(비운 칸은 기본값) */
+  private static void requireSignal(PortfolioStrategyType type, PortfolioStrategy strategy) {
+    if (type == PortfolioStrategyType.MA_CROSS) {
+      BacktestRequestValidator.requireMaWindows(strategy.shortWindowOrDefault(), strategy.longWindowOrDefault());
+    } else if (type == PortfolioStrategyType.MA_BAND) {
+      BacktestRequestValidator.requireBand(strategy.bandWindowOrDefault(), strategy.upperRateOrDefault(),
+        strategy.lowerRateOrDefault());
     }
   }
 

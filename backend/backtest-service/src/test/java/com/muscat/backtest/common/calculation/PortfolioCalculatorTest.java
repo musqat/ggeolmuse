@@ -1,5 +1,7 @@
 package com.muscat.backtest.common.calculation;
 
+import static com.muscat.backtest.common.enums.type.PortfolioStrategyType.DCA;
+import static com.muscat.backtest.common.enums.type.PortfolioStrategyType.LUMP_SUM;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
@@ -9,6 +11,7 @@ import com.muscat.backtest.common.engine.StrategyPerformance;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.PortfolioMethod;
 import com.muscat.backtest.common.enums.type.PortfolioRebalance;
+import com.muscat.backtest.common.enums.type.PortfolioStrategyType;
 import com.muscat.backtest.common.enums.type.TradeReason;
 import com.muscat.backtest.domain.dto.request.PortfolioAsset;
 import com.muscat.backtest.domain.dto.request.PortfolioRequest;
@@ -58,7 +61,12 @@ class PortfolioCalculatorTest {
 
   private static PortfolioEngine.Position position(String symbol, String planned, String shares, String close,
     String value) {
-    return new PortfolioEngine.Position(symbol, number(planned), number(shares), number(close), number(value));
+    return position(symbol, LUMP_SUM, planned, shares, close, value);
+  }
+
+  private static PortfolioEngine.Position position(String symbol, PortfolioStrategyType type, String planned,
+    String shares, String close, String value) {
+    return new PortfolioEngine.Position(symbol, type, number(planned), number(shares), number(close), number(value));
   }
 
   private static PortfolioRequest.PortfolioRequestBuilder request(PortfolioAsset... assets) {
@@ -66,13 +74,13 @@ class PortfolioCalculatorTest {
   }
 
   private static PortfolioAsset asset(String symbol, String amount) {
-    return new PortfolioAsset(symbol, number(amount), null, null, null);
+    return new PortfolioAsset(symbol, number(amount), null, null, null, null);
   }
 
-  private static PortfolioResponse.Asset row(String symbol, String invested, String value, String sold, String dividend,
-    String profit, String returnPercent, String contribution, String startWeight, String endWeight, String shares,
+  private static PortfolioResponse.Asset row(String symbol, PortfolioStrategyType type, String invested, String value,
+    String sold, String dividend, String profit, String returnPercent, String contribution, String startWeight, String endWeight, String shares,
     String realized, int buys, int sells) {
-    return new PortfolioResponse.Asset(symbol, number(invested), number(value), number(sold), number(dividend),
+    return new PortfolioResponse.Asset(symbol, type, number(invested), number(value), number(sold), number(dividend),
       number(profit), number(returnPercent), number(contribution), number(startWeight), number(endWeight),
       number(shares), number(realized), buys, sells);
   }
@@ -90,15 +98,15 @@ class PortfolioCalculatorTest {
   }
 
   @Test
-  @DisplayName("종목 줄마다 넣은 돈 · 지금 가치 · 판 돈 · 배당 · 이익 · 수익률 · 기여 · 처음과 지금 비중을 내고 나머지 이익은 따로 낸다")
+  @DisplayName("종목 줄마다 전략 · 넣은 돈 · 지금 가치 · 판 돈 · 배당 · 이익 · 수익률 · 기여 · 처음과 지금 비중을 내고 나머지 이익은 따로 낸다")
   void assetRows() {
     PortfolioResponse response = PortfolioCalculator.of(
       request(asset("AAA", "6000000"), asset("BBB", "4000000")).periodEnd(PeriodEnd.SELL_AT_END).build(),
       soldOne(new StrategyPerformance.Result(List.of(), null, null)));
 
     assertThat(response.assets()).usingRecursiveFieldByFieldElementComparator(NUMBERS).containsExactly(
-      row("AAA", "6000000", "8580000", "0", "210000", "2790000", "46.50", "52.25", "60.00", "55.93", "100", "0", 1, 0),
-      row("BBB", "4000000", "0", "5500000", "0", "1500000", "37.50", "28.09", "40.00", "0.00", "0", "1500000", 1, 1));
+      row("AAA", LUMP_SUM, "6000000", "8580000", "0", "210000", "2790000", "46.50", "52.25", "60.00", "55.93", "100", "0", 1, 0),
+      row("BBB", LUMP_SUM, "4000000", "0", "5500000", "0", "1500000", "37.50", "28.09", "40.00", "0.00", "0", "1500000", 1, 1));
     // 현금 5200달러의 환율 차: 1300원 평가 - 받은 날 원화(550만원 + 21만원)
     assertThat(response.otherProfitKrw()).isEqualByComparingTo("1050000");
     assertThat(response.totalReturnKrw()).isEqualByComparingTo("5340000");
@@ -177,8 +185,8 @@ class PortfolioCalculatorTest {
 
     // AAA 넣은 돈 78만원 + 360달러 × 1400, BBB 판 돈 360달러 × 1400 · 실현 50만 4천원 - 원가 52만원 × 14.4 ÷ 40
     assertThat(response.assets()).usingRecursiveFieldByFieldElementComparator(NUMBERS).containsExactly(
-      row("AAA", "1284000", "1478400", "0", "0", "194400", "15.14", "18.09", "60.00", "62.26", "96", "0", 2, 0),
-      row("BBB", "520000", "896000", "504000", "0", "880000", "169.23", "81.91", "40.00", "37.74", "25.6", "316800", 1, 1));
+      row("AAA", LUMP_SUM, "1284000", "1478400", "0", "0", "194400", "15.14", "18.09", "60.00", "62.26", "96", "0", 2, 0),
+      row("BBB", LUMP_SUM, "520000", "896000", "504000", "0", "880000", "169.23", "81.91", "40.00", "37.74", "25.6", "316800", 1, 1));
     assertThat(response.rebalance()).isEqualTo(PortfolioRebalance.QUARTERLY);
     assertThat(response.otherProfitKrw()).isEqualByComparingTo("0");
     assertThat(response.realizedProfitKrw()).isEqualByComparingTo("316800");
@@ -202,7 +210,7 @@ class PortfolioCalculatorTest {
     PortfolioResponse response = PortfolioCalculator.of(request(asset("AAA", "1300000")).build(), result);
 
     assertThat(response.assets()).usingRecursiveFieldByFieldElementComparator(NUMBERS).containsExactly(
-      row("AAA", "1365000", "1690000", "0", "65000", "390000", "28.57", "100.00", "100.00", "100.00", "104", "0", 1, 0));
+      row("AAA", LUMP_SUM, "1365000", "1690000", "0", "65000", "390000", "28.57", "100.00", "100.00", "100.00", "104", "0", 1, 0));
     assertThat(response.otherProfitKrw()).isEqualByComparingTo("0");
     assertThat(response.buyCount()).isEqualTo(1);
     assertThat(response.tradeStats()).isNull();
@@ -212,7 +220,7 @@ class PortfolioCalculatorTest {
   @DisplayName("산 것이 없으면 합 0 · 수익률 0 이고 줄마다 수익률 · 기여는 null, 지금 비중은 0 이다")
   void noPurchases() {
     PortfolioEngine.Result result = new PortfolioEngine.Result(START, END, List.of(), List.of(),
-      List.of(position("AAA", "130000", "0", "10", "0")), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+      List.of(position("AAA", DCA, "130000", "0", "10", "0")), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
       BigDecimal.ZERO, BigDecimal.ZERO, number("1350"), new StrategyPerformance.Result(List.of(), null, null),
       CapitalGainsTaxCalculator.Payments.NONE, List.of(END));
 
@@ -220,7 +228,7 @@ class PortfolioCalculatorTest {
       request(asset("AAA", "130000")).method(PortfolioMethod.DCA).build(), result);
 
     assertThat(response.assets()).usingRecursiveFieldByFieldElementComparator(NUMBERS).containsExactly(
-      row("AAA", "0", "0", "0", "0", "0", null, null, "100.00", "0", "0", "0", 0, 0));
+      row("AAA", DCA, "0", "0", "0", "0", "0", null, null, "100.00", "0", "0", "0", 0, 0));
     assertThat(response.totalReturnKrw()).isEqualByComparingTo("0");
     assertThat(response.totalReturnPercent()).isEqualByComparingTo("0");
     assertThat(response.method()).isEqualTo(PortfolioMethod.DCA);

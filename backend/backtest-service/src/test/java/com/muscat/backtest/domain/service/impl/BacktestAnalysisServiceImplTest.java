@@ -19,6 +19,7 @@ import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.BacktestType;
 import com.muscat.backtest.common.enums.type.DcaFrequency;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
+import com.muscat.backtest.common.enums.type.PortfolioStrategyType;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.util.BacktestHistoryUtils;
@@ -119,7 +120,7 @@ class BacktestAnalysisServiceImplTest {
       return PortfolioRequest.builder().userId("user123").startDate(LocalDate.of(2024, 1, 1))
         .endDate(LocalDate.of(2024, 12, 31))
         .assets(Arrays.stream(symbols)
-          .map(symbol -> new PortfolioAsset(symbol, BigDecimal.valueOf(1000000), null, null, null))
+          .map(symbol -> new PortfolioAsset(symbol, BigDecimal.valueOf(1000000), null, null, null, null))
           .toList())
         .build();
     }
@@ -130,8 +131,8 @@ class BacktestAnalysisServiceImplTest {
       PortfolioRequest request = request("SPY");
       LocalDate start = LocalDate.of(2024, 1, 2);
       given(portfolioEngine.run(request)).willReturn(new PortfolioEngine.Result(start, request.getEndDate(), List.of(),
-        List.of(), List.of(new PortfolioEngine.Position("SPY", BigDecimal.valueOf(1000000), BigDecimal.ZERO,
-          BigDecimal.TEN, BigDecimal.ZERO)), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+        List.of(), List.of(new PortfolioEngine.Position("SPY", PortfolioStrategyType.LUMP_SUM, BigDecimal.valueOf(1000000),
+          BigDecimal.ZERO, BigDecimal.TEN, BigDecimal.ZERO)), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
         BigDecimal.ZERO, BigDecimal.valueOf(1300), new StrategyPerformance.Result(List.of(), null, null),
         CapitalGainsTaxCalculator.Payments.NONE, List.of()));
 

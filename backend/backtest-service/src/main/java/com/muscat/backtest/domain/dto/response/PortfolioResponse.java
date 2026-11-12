@@ -3,6 +3,7 @@ package com.muscat.backtest.domain.dto.response;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.PortfolioMethod;
 import com.muscat.backtest.common.enums.type.PortfolioRebalance;
+import com.muscat.backtest.common.enums.type.PortfolioStrategyType;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
@@ -18,7 +19,7 @@ public record PortfolioResponse(
   LocalDate startDate,
   @Schema(description = "평가일 (종료일, 오늘 뒤면 오늘)", example = "2024-12-31")
   LocalDate endDate,
-  @Schema(description = "매수 방식", example = "LUMP_SUM")
+  @Schema(description = "매수 방식 (줄 전략이 없는 줄의 방식)", example = "LUMP_SUM")
   PortfolioMethod method,
   @Schema(description = "리밸런싱 주기", example = "NONE")
   PortfolioRebalance rebalance,
@@ -72,6 +73,8 @@ public record PortfolioResponse(
   public record Asset(
     @Schema(description = "종목 코드", example = "SPY")
     String symbol,
+    @Schema(description = "줄 전략 (줄에 없으면 요청의 매수 방식)", example = "LUMP_SUM")
+    PortfolioStrategyType strategyType,
     @Schema(description = "넣은 돈 (그 종목 매수 원가 합: 새 돈 원화 + 쓴 현금 × 그 날짜 환율, KRW)", example = "6000000")
     BigDecimal investedKrw,
     @Schema(description = "지금 가치 (평가일 보유 × 종가 × 평가일 환율, KRW)", example = "8650000")

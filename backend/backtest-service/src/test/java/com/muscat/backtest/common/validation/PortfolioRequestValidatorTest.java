@@ -6,9 +6,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.PortfolioAllocation;
 import com.muscat.backtest.common.enums.type.PortfolioMethod;
+import com.muscat.backtest.common.enums.type.PortfolioStrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.domain.dto.request.PortfolioAsset;
 import com.muscat.backtest.domain.dto.request.PortfolioRequest;
+import com.muscat.backtest.domain.dto.request.PortfolioStrategy;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -32,11 +34,11 @@ class PortfolioRequestValidatorTest {
   }
 
   private static PortfolioAsset amount(String symbol, String amount) {
-    return new PortfolioAsset(symbol, number(amount), null, null, null);
+    return new PortfolioAsset(symbol, number(amount), null, null, null, null);
   }
 
   private static PortfolioAsset weight(String symbol, String weight) {
-    return new PortfolioAsset(symbol, null, number(weight), null, null);
+    return new PortfolioAsset(symbol, null, number(weight), null, null, null);
   }
 
   private static PortfolioRequest.PortfolioRequestBuilder request(PortfolioAsset... assets) {
@@ -120,7 +122,7 @@ class PortfolioRequestValidatorTest {
     void amountAllocation() {
       assertCode(request(amount("SPY", null)).build(), BacktestResponse.INVALID_PORTFOLIO_AMOUNT);
       assertCode(request(amount("SPY", "0")).build(), BacktestResponse.INVALID_PORTFOLIO_AMOUNT);
-      assertCode(request(new PortfolioAsset("SPY", number("1000"), number("100"), null, null)).build(),
+      assertCode(request(new PortfolioAsset("SPY", number("1000"), number("100"), null, null, null)).build(),
         BacktestResponse.INVALID_PORTFOLIO_AMOUNT);
     }
 
@@ -159,7 +161,7 @@ class PortfolioRequestValidatorTest {
   class SellRates {
 
     private PortfolioAsset selling(String takeProfitRate, String stopLossRate) {
-      return new PortfolioAsset("QQQ", number("1000"), null, number(takeProfitRate), number(stopLossRate));
+      return new PortfolioAsset("QQQ", number("1000"), null, number(takeProfitRate), number(stopLossRate), null);
     }
 
     @Test
@@ -182,7 +184,7 @@ class PortfolioRequestValidatorTest {
     @Test
     @DisplayName("금액 검사가 익절 · 손절 검사보다 먼저다")
     void amountsFirst() {
-      assertCode(request(new PortfolioAsset("SPY", number("0"), null, number("0"), null)).build(),
+      assertCode(request(new PortfolioAsset("SPY", number("0"), null, number("0"), null, null)).build(),
         BacktestResponse.INVALID_PORTFOLIO_AMOUNT);
     }
   }
@@ -222,6 +224,77 @@ class PortfolioRequestValidatorTest {
         dca().purchaseDay(31).investmentInterval(12).firstPurchaseDate(END).build())).doesNotThrowAnyException();
       assertThatCode(() -> PortfolioRequestValidator.validate(request(amount("SPY", "100000")).purchaseDay(0)
         .investmentInterval(0).firstPurchaseDate(END.plusDays(1)).build())).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("한 번에 사기 요청이라도 적립식 줄이 있으면 적립식 칸을 검사하고 적립식 요청의 줄이 모두 한 번에 사기면 보지 않는다")
+    void lineStrategies() {
+      assertCode(request(amount("SPY", "100000"), planned("QQQ", PortfolioStrategyType.DCA)).purchaseDay(32).build(),
+        BacktestResponse.INVALID_PURCHASE_DAY);
+      assertThatCode(() -> PortfolioRequestValidator.validate(request(planned("SPY", PortfolioStrategyType.LUMP_SUM))
+        .method(PortfolioMethod.DCA).purchaseDay(0).build())).doesNotThrowAnyException();
+    }
+
+    private PortfolioAsset planned(String symbol, PortfolioStrategyType type) {
+      return new PortfolioAsset(symbol, number("100000"), null, null, null,
+        new PortfolioStrategy(type, null, null, null, null, null));
+    }
+  }
+
+  @Nested
+  @DisplayName("이동평균 · 밴드 줄")
+  class SignalLines {
+
+    private PortfolioAsset signal(PortfolioStrategy strategy) {
+      return new PortfolioAsset("QQQ", number("1000"), null, null, null, strategy);
+    }
+
+    private PortfolioStrategy cross(Integer shortWindow, Integer longWindow) {
+      return new PortfolioStrategy(PortfolioStrategyType.MA_CROSS, shortWindow, longWindow, null, null, null);
+    }
+
+    private PortfolioStrategy band(Integer window, String upperRate, String lowerRate) {
+      return new PortfolioStrategy(PortfolioStrategyType.MA_BAND, null, null, window, number(upperRate),
+        number(lowerRate));
+    }
+
+    @Test
+    @DisplayName("이동평균 기간 · 밴드 기간과 비율을 비우거나 단일 전략과 같은 범위 안이면 통과한다")
+    void accepts() {
+      assertThatCode(() -> PortfolioRequestValidator.validate(request(amount("SPY", "1000"), signal(cross(null, null)))
+        .build())).doesNotThrowAnyException();
+      assertThatCode(() -> PortfolioRequestValidator.validate(request(signal(cross(2, 250))).build()))
+        .doesNotThrowAnyException();
+      assertThatCode(() -> PortfolioRequestValidator.validate(request(signal(band(null, null, null))).build()))
+        .doesNotThrowAnyException();
+      assertThatCode(() -> PortfolioRequestValidator.validate(request(signal(band(250, "0", "0.99"))).build()))
+        .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("이동평균 줄의 기간이 2 ~ 250 밖이거나 짧은 기간이 긴 기간보다 짧지 않으면 INVALID_MA_WINDOWS")
+    void crossRejects() {
+      assertCode(request(amount("SPY", "1000"), signal(cross(1, 60))).build(), BacktestResponse.INVALID_MA_WINDOWS);
+      assertCode(request(signal(cross(20, 251))).build(), BacktestResponse.INVALID_MA_WINDOWS);
+      assertCode(request(signal(cross(60, 60))).build(), BacktestResponse.INVALID_MA_WINDOWS);
+      // 긴 기간을 비우면 60
+      assertCode(request(signal(cross(70, null))).build(), BacktestResponse.INVALID_MA_WINDOWS);
+    }
+
+    @Test
+    @DisplayName("밴드 줄의 기간이 2 ~ 250 밖이거나 위 · 아래 비율이 0 이상 1 미만 밖이면 INVALID_BAND")
+    void bandRejects() {
+      assertCode(request(signal(band(1, null, null))).build(), BacktestResponse.INVALID_BAND);
+      assertCode(request(signal(band(251, null, null))).build(), BacktestResponse.INVALID_BAND);
+      assertCode(request(signal(band(null, "-0.01", null))).build(), BacktestResponse.INVALID_BAND);
+      assertCode(request(signal(band(null, null, "1"))).build(), BacktestResponse.INVALID_BAND);
+    }
+
+    @Test
+    @DisplayName("한 번에 사기 · 적립식 줄은 이동평균 · 밴드 칸을 보지 않는다")
+    void ignoresOtherLines() {
+      assertThatCode(() -> PortfolioRequestValidator.validate(request(signal(new PortfolioStrategy(
+        PortfolioStrategyType.LUMP_SUM, 1, 1, 1, number("-1"), number("1")))).build())).doesNotThrowAnyException();
     }
   }
 
