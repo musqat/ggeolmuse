@@ -205,7 +205,7 @@ describe('PortfolioResult', () => {
     expect(within(rows()[1]).getAllByRole('cell').map((cell) => cell.textContent)).toEqual(['-', '-', '₩0', '-', '-', '- → 0.00%'])
   })
 
-  it('이동평균 · 밴드 종목은 전략 이름을 보이고, 기간 안 매수 신호가 없어 사지 않았으면 그 아래 매수 신호 없음', () => {
+  it('이동평균 교차 · 밴드 종목은 전략 이름을 보이고, 기간 안 매수 신호가 없어 사지 않았으면 그 아래 매수 신호 없음', () => {
     render(
       <PortfolioResult
         result={{
@@ -220,7 +220,7 @@ describe('PortfolioResult', () => {
     )
 
     const strategy = (row: HTMLElement) => within(row).getAllByRole('cell')[0].textContent
-    expect(rows().slice(0, 3).map(strategy)).toEqual(['이동평균매수 신호 없음', '밴드', '적립식'])
+    expect(rows().slice(0, 3).map(strategy)).toEqual(['이동평균 교차매수 신호 없음', '밴드', '적립식'])
     expect(within(rows()[0]).getByText('매수 신호 없음')).toHaveClass('text-xs')
   })
 

@@ -45,16 +45,16 @@ const chips = () => within(screen.getByRole('group', { name: '견줄 전략' }))
 describe('StrategyComparisonForm', () => {
   it('칩은 누르면 아래 설정을 여는 단추이고, 열린 칩의 설정을 보인다', async () => {
     const props = renderForm({
-      chips: [chip('s2', 'DCA', '적립식'), chip('s3', 'CONDITIONAL_PURCHASE', '조건부 매수'), chip('s4', 'MA_CROSS', '이동평균')],
+      chips: [chip('s2', 'DCA', '적립식'), chip('s3', 'CONDITIONAL_PURCHASE', '조건부 매수'), chip('s4', 'MA_CROSS', '이동평균 교차')],
     })
 
     expect(screen.getByText('전략마다 원금')).toBeInTheDocument()
-    expect(screen.getByText('적립식 · 조건부 · 이동평균 · 밴드는 눌러서 설정')).toBeInTheDocument()
+    expect(screen.getByText('적립식 · 조건부 · 이동평균 교차 · 밴드는 눌러서 설정')).toBeInTheDocument()
     expect(chips().getByRole('button', { name: '적립식' })).toHaveAttribute('aria-expanded', 'true')
     expect(chips().getByRole('button', { name: '조건부 매수' })).toHaveAttribute('aria-expanded', 'false')
     expect(screen.getByText('열린 칩 설정')).toBeInTheDocument()
     await userEvent.click(chips().getByRole('button', { name: '조건부 매수' }))
-    await userEvent.click(chips().getByRole('button', { name: '이동평균' }))
+    await userEvent.click(chips().getByRole('button', { name: '이동평균 교차' }))
 
     expect(props.onOpen).toHaveBeenNthCalledWith(1, 's3')
     expect(props.onOpen).toHaveBeenNthCalledWith(2, 's4')
@@ -97,7 +97,7 @@ describe('StrategyComparisonForm', () => {
     expect(chips().queryByRole('button', { name: '＋ 단순 매수' })).toBeNull()
     await userEvent.click(chips().getByRole('button', { name: '＋ 적립식' }))
     await userEvent.click(chips().getByRole('button', { name: '＋ 조건부 매수' }))
-    await userEvent.click(chips().getByRole('button', { name: '＋ 이동평균' }))
+    await userEvent.click(chips().getByRole('button', { name: '＋ 이동평균 교차' }))
     await userEvent.click(chips().getByRole('button', { name: '＋ 밴드' }))
 
     expect(props.onAdd).toHaveBeenNthCalledWith(1, 'DCA')

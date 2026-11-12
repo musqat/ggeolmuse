@@ -120,7 +120,7 @@ describe('DcaConditionalResult', () => {
     expect(screen.queryByText(/조건이 맞아/)).toBeNull()
   })
 
-  it('이동평균 결과는 주가 추이 앞에 이동평균 탭을 두고, 고르면 결과의 이동평균 값과 실행한 기간으로 그린다', async () => {
+  it('이동평균 교차 결과는 주가 추이 앞에 이동평균선 탭을 두고, 고르면 결과의 이동평균 값과 실행한 기간으로 그린다', async () => {
     const signalChart = {
       symbol: 'AAPL',
       points: [
@@ -133,21 +133,21 @@ describe('DcaConditionalResult', () => {
       <DcaConditionalResult result={{ ...result, signalChart }} {...props} kind="ma-cross" windows={{ short: 5, long: 120 }} />
     )
 
-    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['자산 추이', '이동평균', '주가 추이'])
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['자산 추이', '이동평균선', '주가 추이'])
     expect(screen.queryByText(/이동평균 차트/)).toBeNull()
 
-    await userEvent.click(screen.getByRole('tab', { name: '이동평균' }))
+    await userEvent.click(screen.getByRole('tab', { name: '이동평균선' }))
 
     expect(screen.getByText('이동평균 차트 AAPL 2일 · 5 · 120')).toBeVisible()
   })
 
-  it('적립식 · 조건부 결과에는 이동평균 탭이 없다', () => {
+  it('적립식 · 조건부 결과에는 이동평균선 탭이 없다', () => {
     const { rerender } = render(<DcaConditionalResult result={result} {...props} />)
 
     expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['자산 추이', '주가 추이'])
 
     rerender(<DcaConditionalResult result={result} {...props} kind="dca" />)
-    expect(screen.queryByRole('tab', { name: '이동평균' })).toBeNull()
+    expect(screen.queryByRole('tab', { name: '이동평균선' })).toBeNull()
   })
 
   it('밴드 결과는 주가 추이 앞에 밴드 탭을 두고, 고르면 결과의 밴드 값 · 거래와 실행한 밴드 설정으로 그린다', async () => {
@@ -176,7 +176,7 @@ describe('DcaConditionalResult', () => {
     expect(screen.getByText('밴드 차트 SPY 2일 · 거래 1건 · 200일 0.025 · 0.025')).toBeVisible()
   })
 
-  it('신호 종목을 따로 본 결과는 위에 신호 · 사고판 종목을 한 줄로 알리고 이동평균 · 밴드 탭 이름에 신호 종목을 적는다', () => {
+  it('신호 종목을 따로 본 결과는 위에 신호 · 사고판 종목을 한 줄로 알리고 이동평균선 · 밴드 탭 이름에 신호 종목을 적는다', () => {
     const points = [
       { date: '2023-01-03', close: 3824.14, average: 3900.2 },
       { date: '2023-01-04', close: 3852.97, average: 3901.1 },
@@ -190,7 +190,7 @@ describe('DcaConditionalResult', () => {
     )
 
     expect(screen.getByRole('note')).toHaveTextContent('신호는 S&P 500(^GSPC), 사고파는 것은 SPY')
-    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['자산 추이', '이동평균 · ^GSPC', '주가 추이'])
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['자산 추이', '이동평균선 · ^GSPC', '주가 추이'])
 
     rerender(
       <DcaConditionalResult
@@ -209,7 +209,7 @@ describe('DcaConditionalResult', () => {
     )
 
     expect(screen.getByText('매수 0회: 기간 안에 밴드 위로 올라선 날이 없습니다.')).toBeInTheDocument()
-    expect(screen.queryByRole('tab', { name: '이동평균' })).toBeNull()
+    expect(screen.queryByRole('tab', { name: '이동평균선' })).toBeNull()
 
     const transactions = [
       { date: '2023-03-01', shares: 6, price: 150, amount: 1000000, fxRate: 1300, trigger: '밴드 위 매수' },
@@ -220,13 +220,13 @@ describe('DcaConditionalResult', () => {
     expect(screen.getAllByText(/원금 기준/).length).toBeGreaterThan(0)
   })
 
-  it('이동평균 매수 0회는 짧은 선이 긴 선을 위로 넘은 날이 없다고 알린다', () => {
+  it('이동평균 교차 매수 0회는 짧은 선이 긴 선을 위로 넘은 날이 없다고 알린다', () => {
     render(<DcaConditionalResult result={{ ...result, transactions: [], totalInvested: 0 }} {...props} kind="ma-cross" />)
 
     expect(screen.getByText('매수 0회: 기간 안에 짧은 선이 긴 선을 아래에서 위로 넘은 날이 없습니다.')).toBeInTheDocument()
   })
 
-  it('이동평균 매매 내역 제목 줄은 미매수 회차가 없으면 미매수를 세지 않는다', () => {
+  it('이동평균 교차 매매 내역 제목 줄은 미매수 회차가 없으면 미매수를 세지 않는다', () => {
     const transactions = [
       { date: '2023-03-01', shares: 6, price: 150, amount: 1000000, fxRate: 1300, trigger: '골든 크로스' },
       { date: '2023-08-01', shares: -6, price: 170, amount: 0, fxRate: 1300, trigger: '데드 크로스', proceeds: 1020, realizedProfit: 120 },
@@ -390,7 +390,7 @@ describe('DcaConditionalResult', () => {
     expect(screen.getByText('누적 매수액', { selector: 'span' }).nextElementSibling).toHaveTextContent('₩1,200,000')
   })
 
-  it('이동평균은 수익률 기준 · 상세 · 세후 수익률의 투자금을 원금으로 부른다', async () => {
+  it('이동평균 교차는 수익률 기준 · 상세 · 세후 수익률의 투자금을 원금으로 부른다', async () => {
     const tax = {
       years: [],
       totalTaxKrw: 0,

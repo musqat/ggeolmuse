@@ -16,6 +16,8 @@ interface RadioGroupProps<T extends string> {
   onChange: (value: T) => void;
   label?: string;
   labelledBy?: string;
+  // 묶음 설명 글의 id
+  describedBy?: string;
   className?: string;
   optionClassName: (checked: boolean) => string;
 }
@@ -27,12 +29,20 @@ export function RadioGroup<T extends string>({
   onChange,
   label,
   labelledBy,
+  describedBy,
   className,
   optionClassName,
 }: RadioGroupProps<T>) {
   const hasValue = options.some((option) => option.value === value);
   return (
-    <div role="radiogroup" aria-label={label} aria-labelledby={labelledBy} className={className} onKeyDown={onRadioKeys}>
+    <div
+      role="radiogroup"
+      aria-label={label}
+      aria-labelledby={labelledBy}
+      aria-describedby={describedBy}
+      className={className}
+      onKeyDown={onRadioKeys}
+    >
       {options.map((option, index) => {
         const checked = option.value === value;
         return (

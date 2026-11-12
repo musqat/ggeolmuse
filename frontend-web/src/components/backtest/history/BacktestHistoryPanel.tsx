@@ -88,7 +88,7 @@ export const BacktestHistoryPanel: React.FC<BacktestHistoryPanelProps> = ({
                     } else if (params.bandWindow !== undefined) {
                       backtestTypeLabel = "이동평균 밴드";
                     } else if (params.shortWindow !== undefined || params.longWindow !== undefined) {
-                      backtestTypeLabel = "이동평균";
+                      backtestTypeLabel = "이동평균 교차";
                     } else if (
                       params.frequency !== undefined ||
                       params.monthlyAmount !== undefined ||

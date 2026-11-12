@@ -32,6 +32,7 @@ export const useSimpleMode = (shared: SharedModeProps): ModeController => {
   return {
     id: 'simple',
     label: '단순',
+    description: '시작일에 한 번에 사서 끝까지 보유',
     showsChartLink: true,
     form: (
       <SimpleStrategyForm

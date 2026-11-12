@@ -64,6 +64,7 @@ export const useConditionalMode = (shared: SharedModeProps): ModeController => {
   return {
     id: 'conditional',
     label: '조건부',
+    description: '전날보다 정한 % 내리거나 오른 날 매수',
     showsChartLink: true,
     form: (
       <ConditionalStrategyForm

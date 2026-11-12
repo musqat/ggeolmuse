@@ -66,6 +66,7 @@ export const useDcaMode = (shared: SharedModeProps): ModeController => {
   return {
     id: 'dca',
     label: '적립식',
+    description: '정한 주기마다 같은 금액으로 매수',
     showsChartLink: true,
     form: (
       <DCAStrategyForm

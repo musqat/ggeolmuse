@@ -526,7 +526,7 @@ describe('WindowsField', () => {
 
     rerender(
       <WindowsField
-        label="이동평균 2 기간"
+        label="이동평균 교차 2 기간"
         short="1"
         onShortChange={vi.fn()}
         long="300"
@@ -534,7 +534,7 @@ describe('WindowsField', () => {
         messages={{ short: range, long: range }}
       />
     )
-    expect(screen.getByText('이동평균 2 기간')).toBeInTheDocument()
+    expect(screen.getByText('이동평균 교차 2 기간')).toBeInTheDocument()
     expect(screen.getAllByText('2 ~ 250 사이 정수')).toHaveLength(1)
     expect(screen.getByRole('textbox', { name: '짧은 기간(일)' })).toHaveAttribute('aria-invalid', 'true')
     expect(screen.getByRole('textbox', { name: '긴 기간(일)' })).toHaveAttribute('aria-invalid', 'true')

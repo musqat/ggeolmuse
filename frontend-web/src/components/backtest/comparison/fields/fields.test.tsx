@@ -62,11 +62,11 @@ describe('전략 칩 설정 칸', () => {
     expect(onChange).toHaveBeenCalledWith('takeProfit', '20')
   })
 
-  it('이동평균 칩은 칩 이름으로 시작하는 기간 칸 하나이고 바꾼 기간을 키와 함께 넘긴다', () => {
+  it('이동평균 교차 칩은 칩 이름으로 시작하는 기간 칸 하나이고 바꾼 기간을 키와 함께 넘긴다', () => {
     const onChange = vi.fn()
-    render(<MaCrossFields name="이동평균 2" params={{ shortWindow: '20', longWindow: '60' }} onChange={onChange} common={COMMON} />)
+    render(<MaCrossFields name="이동평균 교차 2" params={{ shortWindow: '20', longWindow: '60' }} onChange={onChange} common={COMMON} />)
 
-    expect(screen.getByText('이동평균 2 기간')).toBeInTheDocument()
+    expect(screen.getByText('이동평균 교차 2 기간')).toBeInTheDocument()
     fireEvent.change(screen.getByRole('textbox', { name: '짧은 기간(일)' }), { target: { value: '5' } })
     fireEvent.change(screen.getByRole('textbox', { name: '긴 기간(일)' }), { target: { value: '120' } })
 
@@ -74,8 +74,8 @@ describe('전략 칩 설정 칸', () => {
     expect(onChange).toHaveBeenCalledWith('longWindow', '120')
   })
 
-  it('이동평균 칩의 짧은 기간이 긴 기간 이상이면 그 칸에 오류', () => {
-    render(<MaCrossFields name="이동평균" params={{ shortWindow: '60', longWindow: '60' }} onChange={vi.fn()} common={COMMON} />)
+  it('이동평균 교차 칩의 짧은 기간이 긴 기간 이상이면 그 칸에 오류', () => {
+    render(<MaCrossFields name="이동평균 교차" params={{ shortWindow: '60', longWindow: '60' }} onChange={vi.fn()} common={COMMON} />)
 
     expect(screen.getByText('긴 기간보다 짧게')).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: '짧은 기간(일)' })).toHaveAttribute('aria-invalid', 'true')

@@ -8,7 +8,7 @@ import { strategyRun } from '../strategyRun';
 import { buildMaCrossRequest } from './request';
 import { MA_WINDOWS } from '../../shared/maWindows';
 import { amountIssue, countErrors, windowIssues } from '../../settings/checks';
-import { maCrossHow } from '../../settings/summary';
+import { maCrossAbout, maCrossHow } from '../../settings/summary';
 import { pickValues } from '../../settings/snapshot';
 import { useSignalSymbol } from '../useSignalSymbol';
 import { useTrailingStop } from '../useTrailingStop';
@@ -32,7 +32,8 @@ export const useMaCrossMode = (shared: SharedModeProps): ModeController => {
 
   return {
     id: 'ma-cross',
-    label: '이동평균',
+    label: '이동평균 교차',
+    description: maCrossAbout(shortWindow, longWindow),
     showsChartLink: true,
     form: (
       <MaCrossStrategyForm
@@ -107,7 +108,7 @@ export const useMaCrossMode = (shared: SharedModeProps): ModeController => {
         call: backtestApi.runMaCrossStrategy,
         mode: 'ma-cross',
         fxMode: options.fxMode,
-        failureMessage: '이동평균 전략 실행에 실패했습니다.',
+        failureMessage: '이동평균 교차 전략 실행에 실패했습니다.',
         windows: { short: built.request.shortWindow, long: built.request.longWindow },
       });
     },

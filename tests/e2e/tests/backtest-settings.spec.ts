@@ -47,6 +47,7 @@ async function runUntilAllowed(page: Page, path: string): Promise<Response> {
 }
 
 const radio = (page: Page, name: string) => page.getByRole('radio', { name, exact: true });
+const tab = (page: Page, name: string) => page.getByRole('tab', { name, exact: true });
 const button = (page: Page, name: string) => page.getByRole('button', { name, exact: true });
 const summary = (page: Page) => page.getByTestId('backtest-summary');
 
@@ -96,6 +97,7 @@ test('세부 설정 · 주식 수로 돌린 설정을 설정 초기화 뒤 되�
 
 test('전략 비교 칩마다 고친 설정이 요청 · 결과로 가고 설정 초기화를 되돌리면 칩이 돌아온다', async ({ page }) => {
   await page.goto('/backtest');
+  await tab(page, '비교 매매').click();
   await radio(page, '전략 비교').click();
   await fillSymbolAndPeriod(page);
   const chips = page.getByRole('group', { name: '견줄 전략' });

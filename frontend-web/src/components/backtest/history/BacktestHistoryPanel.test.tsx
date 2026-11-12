@@ -84,7 +84,7 @@ describe('BacktestHistoryPanel', () => {
     expect(screen.queryByText('조건부 매수')).toBeNull()
   })
 
-  it('이동평균 기록은 짧은 · 긴 기간 칸으로 이동평균으로 보인다', () => {
+  it('이동평균 교차 기록은 짧은 · 긴 기간 칸으로 이동평균 교차로 보인다', () => {
     const maCross = {
       backtestId: '1',
       userId: 'u',
@@ -102,11 +102,11 @@ describe('BacktestHistoryPanel', () => {
     }
     renderPanel({ historyData: [maCross], historyTotalPages: 1 })
 
-    expect(screen.getByText('이동평균')).toBeInTheDocument()
+    expect(screen.getByText('이동평균 교차')).toBeInTheDocument()
     expect(screen.queryByText('단순')).toBeNull()
   })
 
-  it('밴드 기록은 평균 기간 칸으로 이동평균보다 먼저 이동평균 밴드로 보인다', () => {
+  it('밴드 기록은 평균 기간 칸으로 이동평균 교차보다 먼저 이동평균 밴드로 보인다', () => {
     const band = (id: string, params: object) => ({
       backtestId: id,
       userId: 'u',
@@ -121,7 +121,7 @@ describe('BacktestHistoryPanel', () => {
     })
 
     expect(screen.getAllByText('이동평균 밴드')).toHaveLength(2)
-    expect(screen.queryByText('이동평균')).toBeNull()
+    expect(screen.queryByText('이동평균 교차')).toBeNull()
   })
 
   it('포트폴리오 기록은 종목 줄로 다른 전략보다 먼저 포트폴리오로 보이고, 종목 칸에 줄 종목을 잇는다', () => {

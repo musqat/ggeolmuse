@@ -3,7 +3,7 @@ import type { StrategyFieldsProps } from '../types';
 import { WindowsField } from '../../settings/WindowsField';
 import { windowIssues } from '../../settings/checks';
 
-// 이동평균 칩 칸: 짧은 · 긴 기간(원금은 전략마다 원금)
+// 이동평균 교차 칩 칸: 짧은 · 긴 기간(원금은 전략마다 원금)
 export const MaCrossFields: FC<StrategyFieldsProps> = ({ name, params, onChange }) => {
   const short = params.shortWindow ?? '';
   const long = params.longWindow ?? '';

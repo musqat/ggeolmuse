@@ -31,7 +31,7 @@ export const STRATEGIES: readonly PortfolioStrategyType[] = ['LUMP_SUM', 'DCA', 
 export const STRATEGY_LABELS: Record<PortfolioStrategyType, string> = {
   LUMP_SUM: '한 번에',
   DCA: '적립식',
-  MA_CROSS: '이동평균',
+  MA_CROSS: '이동평균 교차',
   MA_BAND: '밴드',
 };
 

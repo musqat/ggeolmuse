@@ -89,7 +89,7 @@ export const portfolioHow = ({ lines, cadenceLabel, rounds, daily, sell, rebalan
     dca.length > 0 && `${mixed ? `적립식 ${dca.length}개 ` : ''}${dcaHow({ unit, cadenceLabel, rounds, daily, budget: '' })}`,
     signals.length > 0 && `${signalNames.join(' · ')} ${signals.length}개 첫 매수 신호에 ${formatReadableWon(total(signals))}`,
     sell,
-    rebalanced && `${REBALANCE_TEXT[rebalance]}${signals.length ? '(이동평균 · 밴드 빼고)' : ''}`,
+    rebalanced && `${REBALANCE_TEXT[rebalance]}${signals.length ? '(이동평균 교차 · 밴드 빼고)' : ''}`,
   ]
     .filter(Boolean)
     .join(' · ');
@@ -166,6 +166,10 @@ export const conditionalHow = (summary: ConditionalSummary) => {
 export const maCrossText = (short: string, long: string) =>
   `${short.trim() || '?'}일 선이 ${long.trim() || '?'}일 선을 넘으면 가진 돈 전부로 사고, 아래로 내려가면 전부 팜`;
 
+// 이동평균 교차 모드 설명(빈 기간은 ?)
+export const maCrossAbout = (short: string, long: string) =>
+  `최근 ${short.trim() || '?'}일 평균 가격이 ${long.trim() || '?'}일 평균보다 높아지면 매수, 낮아지면 매도`;
+
 // 원금과 따로 고른 신호 종목
 const signalLead = (amount: string, signal?: string) =>
   [`원금 ${formatReadableWon(parseFloat(amount))}`, signal && `신호 ${signal}`].filter(Boolean).join(' · ');
@@ -193,6 +197,10 @@ export const maCrossHow = ({
 // 이동평균 밴드 규칙(빈 칸은 ?)
 export const maBandText = (window: string, upper: string, lower: string) =>
   `${window.trim() || '?'}일선 +${upper.trim() || '?'}% 위로 오르면 가진 돈 전부로 사고, -${lower.trim() || '?'}% 아래로 내려가면 전부 팜`;
+
+// 이동평균 밴드 모드 설명(빈 칸은 ?)
+export const maBandAbout = (window: string, upper: string, lower: string) =>
+  `주가가 ${window.trim() || '?'}일 평균 가격보다 ${upper.trim() || '?'}% 넘게 오르면 매수, ${lower.trim() || '?'}% 넘게 내려가면 매도`;
 
 export const maBandHow = ({
   amount,

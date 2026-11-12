@@ -16,8 +16,8 @@ import { usePortfolioMode } from "@components/backtest/modes/portfolio/usePortfo
 import { useSymbolComparisonMode } from "@components/backtest/modes/symbolComparison/useSymbolComparisonMode";
 import { useStrategyComparisonMode } from "@components/backtest/modes/strategyComparison/useStrategyComparisonMode";
 import { usePeriod } from "@components/backtest/settings/period";
-import { RadioGroup } from "@components/backtest/settings/radio";
-import { MODE_OPTION } from "@components/backtest/settings/styles";
+import { ModePicker } from "@components/backtest/settings/ModePicker";
+import { MODE_IDS } from "@components/backtest/settings/modeGroups";
 import { SettingsSummary } from "@components/backtest/settings/SettingsSummary";
 import { DetailSettings } from "@components/backtest/settings/DetailSettings";
 import { countErrors, detailIssues } from "@components/backtest/settings/checks";
@@ -35,7 +35,6 @@ import { dismissToast, notify, readToasts } from '@/components/common/notify';
 
 const SUMMARY_ID = "backtest-summary";
 const DEFAULT_SYMBOL = "AAPL";
-const MODE_IDS: BacktestMode[] = ["simple", "dca", "conditional", "ma-cross", "ma-band", "portfolio", "compare-symbols", "compare-strategies"];
 // 설정 초기화가 돌아가는 값(빈 칸은 기본값)
 const DEFAULT_SETTINGS = makeSnapshot({ mode: "simple", symbol: DEFAULT_SYMBOL, period: undefined, options: undefined, modes: {} });
 // 오류 칸(세부 설정 안이면 연 뒤에 찾음)
@@ -62,7 +61,7 @@ const Backtest: React.FC = () => {
   const settingsRef = useRef<HTMLDivElement>(null);
 
   const [mode, setMode] = useState<BacktestMode>("simple");
-  // 단순 · 적립식 · 조건부 · 이동평균 · 밴드 · 전략 비교가 같이 쓰는 종목(포트폴리오는 고치기 전 첫 줄)
+  // 단순 · 적립식 · 조건부 · 이동평균 교차 · 밴드 · 전략 비교가 같이 쓰는 종목(포트폴리오는 고치기 전 첫 줄)
   const [symbol, setSymbol] = useState(DEFAULT_SYMBOL);
   const period = usePeriod();
   const options = useBacktestOptions();
@@ -101,7 +100,6 @@ const Backtest: React.FC = () => {
   const portfolio = usePortfolioMode(shared);
   const symbolComparison = useSymbolComparisonMode(shared);
   const strategyComparison = useStrategyComparisonMode(shared);
-  // 모드 고르기 순서
   const modes = [simple, dca, conditional, maCross, maBand, portfolio, symbolComparison, strategyComparison];
   const current = modes.find((m) => m.id === mode) ?? simple;
   const detailMessages = detailIssues(options);
@@ -216,32 +214,30 @@ const Backtest: React.FC = () => {
 
       {/* 설정 */}
       <div ref={settingsRef} className="bg-surface rounded-xl shadow-sm border border-line/50 p-4 sm:p-6 mb-6">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <RadioGroup
-            label="백테스트 모드"
-            options={modes.map(({ id, label }) => ({ value: id, label }))}
-            value={mode}
-            onChange={handleModeChange}
-            className="flex flex-wrap gap-2"
-            optionClassName={MODE_OPTION}
-          />
-          <div className="flex flex-wrap items-center gap-1">
-            {current.showsChartLink && symbol && (
-              <Link to={`/charts?symbol=${symbol}`} className={`${TOOL} text-brand hover:text-brand-dark`}>
-                <span>상세 차트 보기</span>
-                <ExternalLink aria-hidden className="w-4 h-4" />
-              </Link>
-            )}
-            <button type="button" onClick={restoreLast} title="마지막으로 실행한 설정을 불러옴" className={TOOL}>
-              <History aria-hidden className="h-4 w-4" />
-              직전 설정
-            </button>
-            <button type="button" onClick={resetSettings} title="모드 · 값을 처음으로(되돌리기 있음)" className={TOOL}>
-              <RotateCcw aria-hidden className="h-4 w-4" />
-              설정 초기화
-            </button>
-          </div>
-        </div>
+        <ModePicker
+          modes={modes}
+          value={mode}
+          onChange={handleModeChange}
+          description={current.description}
+          tools={
+            <div className="flex flex-wrap items-center gap-1">
+              {current.showsChartLink && symbol && (
+                <Link to={`/charts?symbol=${symbol}`} className={`${TOOL} text-brand hover:text-brand-dark`}>
+                  <span>상세 차트 보기</span>
+                  <ExternalLink aria-hidden className="w-4 h-4" />
+                </Link>
+              )}
+              <button type="button" onClick={restoreLast} title="마지막으로 실행한 설정을 불러옴" className={TOOL}>
+                <History aria-hidden className="h-4 w-4" />
+                직전 설정
+              </button>
+              <button type="button" onClick={resetSettings} title="모드 · 값을 처음으로(되돌리기 있음)" className={TOOL}>
+                <RotateCcw aria-hidden className="h-4 w-4" />
+                설정 초기화
+              </button>
+            </div>
+          }
+        />
 
         {current.form}
 
