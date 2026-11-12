@@ -8,5 +8,7 @@ public enum TradeReason {
   DIVIDEND_REINVESTMENT,  // 배당 재투자
   TAX_PAYMENT,            // 양도세 납부
   REBALANCE_SELL,         // 리밸런싱으로 목표 비중까지 매도
-  REBALANCE_BUY           // 리밸런싱으로 목표 비중까지 매수
+  REBALANCE_BUY,          // 리밸런싱으로 목표 비중까지 매수
+  TAKE_PROFIT,            // 평균 단가 대비 익절 기준가에 전량 매도
+  STOP_LOSS               // 평균 단가 대비 손절 기준가에 전량 매도
 }

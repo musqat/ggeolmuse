@@ -14,7 +14,7 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * 포트폴리오 요청 검증(기간 · 종목 줄 · 금액 · 비율 · 적립식 칸)
+ * 포트폴리오 요청 검증(기간 · 종목 줄 · 금액 · 비율 · 익절 · 손절 · 적립식 칸)
  */
 public final class PortfolioRequestValidator {
 
@@ -22,12 +22,14 @@ public final class PortfolioRequestValidator {
 
   private PortfolioRequestValidator() {}
 
-  /** 기간 → 종목 줄 → 금액 · 비율 → 적립식 칸(적립식만) 차례로 검사 */
+  /** 기간 → 종목 줄 → 금액 · 비율 → 줄마다 익절 · 손절 → 적립식 칸(적립식만) 차례로 검사 */
   public static void validate(PortfolioRequest request) {
     BacktestRequestValidator.requireNonNull(request);
     BacktestRequestValidator.requireDateRange(request.getStartDate(), request.getEndDate());
     requireAssets(request.getAssets());
     requireAmounts(request);
+    request.getAssets().forEach(asset ->
+      BacktestRequestValidator.requireSellRates(asset.takeProfitRate(), asset.stopLossRate()));
     if (PortfolioMethod.orLumpSum(request.getMethod()) == PortfolioMethod.DCA) {
       requireSchedule(request);
     }

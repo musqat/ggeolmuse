@@ -32,11 +32,11 @@ class PortfolioRequestValidatorTest {
   }
 
   private static PortfolioAsset amount(String symbol, String amount) {
-    return new PortfolioAsset(symbol, number(amount), null);
+    return new PortfolioAsset(symbol, number(amount), null, null, null);
   }
 
   private static PortfolioAsset weight(String symbol, String weight) {
-    return new PortfolioAsset(symbol, null, number(weight));
+    return new PortfolioAsset(symbol, null, number(weight), null, null);
   }
 
   private static PortfolioRequest.PortfolioRequestBuilder request(PortfolioAsset... assets) {
@@ -120,7 +120,7 @@ class PortfolioRequestValidatorTest {
     void amountAllocation() {
       assertCode(request(amount("SPY", null)).build(), BacktestResponse.INVALID_PORTFOLIO_AMOUNT);
       assertCode(request(amount("SPY", "0")).build(), BacktestResponse.INVALID_PORTFOLIO_AMOUNT);
-      assertCode(request(new PortfolioAsset("SPY", number("1000"), number("100"))).build(),
+      assertCode(request(new PortfolioAsset("SPY", number("1000"), number("100"), null, null)).build(),
         BacktestResponse.INVALID_PORTFOLIO_AMOUNT);
     }
 
@@ -150,6 +150,39 @@ class PortfolioRequestValidatorTest {
     void weightRoundsToZero() {
       // 총액 10원의 1% = 0.1원
       assertCode(weighted(weight("SPY", "99"), weight("QQQ", "1")).totalAmount(number("10")).build(),
+        BacktestResponse.INVALID_PORTFOLIO_AMOUNT);
+    }
+  }
+
+  @Nested
+  @DisplayName("익절 · 손절")
+  class SellRates {
+
+    private PortfolioAsset selling(String takeProfitRate, String stopLossRate) {
+      return new PortfolioAsset("QQQ", number("1000"), null, number(takeProfitRate), number(stopLossRate));
+    }
+
+    @Test
+    @DisplayName("줄마다 익절 비율은 비우거나 0 초과, 손절 비율은 비우거나 0 초과 1 미만이면 통과한다")
+    void accepts() {
+      assertThatCode(() -> PortfolioRequestValidator.validate(
+        request(amount("SPY", "1000"), selling("2", "0.99")).build())).doesNotThrowAnyException();
+      assertThatCode(() -> PortfolioRequestValidator.validate(request(selling("0.01", null)).build()))
+        .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("줄 하나라도 익절 비율이 0 이하이거나 손절 비율이 0 이하 · 1 이상이면 INVALID_SELL_RATE")
+    void rejects() {
+      assertCode(request(amount("SPY", "1000"), selling("0", null)).build(), BacktestResponse.INVALID_SELL_RATE);
+      assertCode(request(amount("SPY", "1000"), selling(null, "1")).build(), BacktestResponse.INVALID_SELL_RATE);
+      assertCode(request(selling(null, "0")).build(), BacktestResponse.INVALID_SELL_RATE);
+    }
+
+    @Test
+    @DisplayName("금액 검사가 익절 · 손절 검사보다 먼저다")
+    void amountsFirst() {
+      assertCode(request(new PortfolioAsset("SPY", number("0"), null, number("0"), null)).build(),
         BacktestResponse.INVALID_PORTFOLIO_AMOUNT);
     }
   }

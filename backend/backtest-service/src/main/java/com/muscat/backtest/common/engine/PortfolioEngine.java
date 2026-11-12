@@ -22,6 +22,7 @@ import com.muscat.backtest.domain.dto.request.PortfolioRequest;
 import com.muscat.backtest.domain.dto.response.DailyValue;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.backtest.domain.strategy.DcaSchedule;
+import com.muscat.backtest.domain.strategy.TakeProfitStopLoss;
 import com.muscat.backtest.infra.client.MarketDataClientWrapper;
 import com.muscat.backtest.infra.client.dto.DividendHistoryDto.DividendPayment;
 import com.muscat.backtest.infra.client.dto.FxRateDto;
@@ -46,7 +47,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-// 포트폴리오 엔진: 여러 종목을 현금 하나(USD)로 날마다 양도세 납부 → 배당 → 회차 매수 → 리밸런싱 → 기간 끝 매도 → 평가 순서로 돌림
+// 포트폴리오 엔진: 여러 종목을 현금 하나(USD)로 날마다 양도세 납부 → 배당 → 익절 · 손절 → 회차 매수 → 리밸런싱 → 기간 끝 매도 → 평가 순서로 돌림
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -95,7 +96,7 @@ public class PortfolioEngine {
     return result;
   }
 
-  // 줄의 기간 안 쓸 수 있는 일봉 · 매수 회차 · 배당락일 순서 배당(일봉이 없으면 DATA_NOT_FOUND)
+  // 줄의 기간 안 쓸 수 있는 일봉 · 매수 회차 · 배당락일 순서 배당 · 익절 · 손절(일봉이 없으면 DATA_NOT_FOUND)
   private Line line(PortfolioRequest request, PortfolioAsset asset, LocalDate valuationDate) {
     String symbol = asset.normalizedSymbol();
     NavigableMap<LocalDate, OHLCPriceDto> candles = new TreeMap<>();
@@ -110,7 +111,8 @@ public class PortfolioEngine {
       .filter(dividend -> dividend.getExDate() != null)
       .sorted(Comparator.comparing(DividendPayment::getExDate))
       .toList();
-    return new Line(symbol, request.amountOf(asset), candles, rounds(request, candles, valuationDate), dividends);
+    return new Line(symbol, request.amountOf(asset), candles, rounds(request, candles, valuationDate), dividends,
+      TakeProfitStopLoss.of(asset.takeProfitRate(), asset.stopLossRate()));
   }
 
   // 사는 거래일 → 계획일(한 번에 사기는 기간 안 첫 거래일 하나, 적립식은 쓸 거래일이 있는 회차)
@@ -134,13 +136,14 @@ public class PortfolioEngine {
     return request.getFrequency() != null ? request.getFrequency() : DcaFrequency.MONTHLY;
   }
 
-  // 종목 줄 하나의 일봉 · 회차 · 배당과 보유 주식 · 원가(USD, 수수료 포함) · 그 날짜까지 마지막 종가 · 첫 매수일
+  // 종목 줄 하나의 일봉 · 회차 · 배당 · 익절 · 손절과 보유 주식 · 원가(USD, 수수료 포함) · 그 날짜까지 마지막 종가 · 첫 매수일
   private static final class Line {
     private final String symbol;
     private final BigDecimal plannedKrw;
     private final NavigableMap<LocalDate, OHLCPriceDto> candles;
     private final Map<LocalDate, LocalDate> rounds;
     private final List<DividendPayment> dividends;
+    private final TakeProfitStopLoss exits;
     private int nextDividend;
     private BigDecimal shares = BigDecimal.ZERO;
     private BigDecimal cost = BigDecimal.ZERO;
@@ -148,12 +151,13 @@ public class PortfolioEngine {
     private LocalDate firstBought;
 
     private Line(String symbol, BigDecimal plannedKrw, NavigableMap<LocalDate, OHLCPriceDto> candles,
-      Map<LocalDate, LocalDate> rounds, List<DividendPayment> dividends) {
+      Map<LocalDate, LocalDate> rounds, List<DividendPayment> dividends, TakeProfitStopLoss exits) {
       this.symbol = symbol;
       this.plannedKrw = plannedKrw;
       this.candles = candles;
       this.rounds = rounds;
       this.dividends = dividends;
+      this.exits = exits;
     }
 
     // 보유 × 마지막 종가(USD, 첫 일봉 전은 0)
@@ -191,7 +195,7 @@ public class PortfolioEngine {
       this.rebalance = PortfolioRebalance.orNone(request.getRebalance());
     }
 
-    // 양도세 납부 → 배당 → 회차 매수 → 리밸런싱 → 기간 끝 매도 → 평가(평가일은 마무리에서)
+    // 양도세 납부 → 배당 → 익절 · 손절 → 회차 매수 → 리밸런싱 → 기간 끝 매도 → 평가(평가일은 마무리에서)
     private void day(LocalDate date) {
       BigDecimal fx = fxOn(date);
       lines.forEach(line -> {
@@ -207,6 +211,7 @@ public class PortfolioEngine {
         cash = cash.subtract(payment.getTaxPaid());
       }
       receiveDividends(date, Boolean.TRUE.equals(request.getReinvestDividends()));
+      lines.forEach(line -> sellIfTriggered(line, date, fx));
       for (Line line : lines) {
         LocalDate planned = line.rounds.get(date);
         if (planned != null) {
@@ -325,6 +330,19 @@ public class PortfolioEngine {
       bought = true;
     }
 
+    // 그 날짜 일봉이 줄의 평균 단가 대비 익절 · 손절 기준가에 닿으면 그 값에 전량 팖(일봉 · 보유가 없으면 그대로)
+    private void sellIfTriggered(Line line, LocalDate date, BigDecimal fx) {
+      OHLCPriceDto candle = line.candles.get(date);
+      if (candle == null || line.shares.signum() <= 0) {
+        return;
+      }
+      TakeProfitStopLoss.Exit exit = line.exits.check(candle, line.shares, line.cost);
+      if (exit != null) {
+        TradeReason reason = exit.takeProfit() ? TradeReason.TAKE_PROFIT : TradeReason.STOP_LOSS;
+        sell(line, line.shares, line.cost, exit.price(), reason, exit.trigger(), date, fx);
+      }
+    }
+
     // 줄의 마지막 거래일 종가에 남은 주식 전량을 팔고 판 돈을 공용 현금에 넣음(남은 주식이 없으면 그대로)
     private void sellAtEnd(Line line, LocalDate date, BigDecimal fx) {
       StrategyTransaction sale = PeriodEndSale.of(line.shares, line.candles, valuationDate, line.lastClose,
@@ -382,17 +400,23 @@ public class PortfolioEngine {
       }
     }
 
-    // 넘는 달러만큼 그 날짜 종가에 팔고 판 몫의 원가(보유 원가 × 판 수량 ÷ 보유 수량) 대비 실현 손익, 판 돈은 공용 현금
+    // 넘는 달러만큼 그 날짜 종가에 팔고 판 몫의 원가는 보유 원가 × 판 수량 ÷ 보유 수량
     private void sellExcess(Line line, BigDecimal excessUsd, LocalDate date, BigDecimal fx) {
       BigDecimal price = line.lastClose;
       BigDecimal shares = excessUsd.divide(price, Money.SHARES_SCALE, RoundingMode.HALF_UP).min(line.shares);
+      BigDecimal soldCost = line.cost.multiply(shares).divide(line.shares, 8, RoundingMode.HALF_UP);
+      sell(line, shares, soldCost, price, TradeReason.REBALANCE_SELL, TransactionTrigger.REBALANCE_SELL, date, fx);
+    }
+
+    // 정한 주식을 그 값에 팔아 매도 수수료를 뺀 판 돈 · 판 몫의 원가 대비 실현 손익을 남기고 판 돈은 공용 현금
+    private void sell(Line line, BigDecimal shares, BigDecimal soldCost, BigDecimal price, TradeReason reason,
+      String trigger, LocalDate date, BigDecimal fx) {
       BigDecimal gross = shares.multiply(price).setScale(8, RoundingMode.HALF_UP);
       BigDecimal fee = BacktestCalculationUtils.calculateTradingFee(gross, request.getTradingFeeRate());
       BigDecimal proceeds = gross.subtract(fee);
-      BigDecimal soldCost = line.cost.multiply(shares).divide(line.shares, 8, RoundingMode.HALF_UP);
       transactions.add(StrategyTransaction.builder()
         .symbol(line.symbol)
-        .reason(TradeReason.REBALANCE_SELL)
+        .reason(reason)
         .date(date)
         .actualDate(date)
         .price(price)
@@ -403,7 +427,7 @@ public class PortfolioEngine {
         .realizedProfit(proceeds.subtract(soldCost))
         .fxRate(fx)
         .defaultFxDate(saleDefaultFx(date))
-        .trigger(TransactionTrigger.REBALANCE_SELL)
+        .trigger(trigger)
         .build());
       cash = cash.add(proceeds);
       line.shares = line.shares.subtract(shares);

@@ -10,7 +10,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * 백테스트 전략 요청의 공통 검증(null · 심볼 · 지수 · 기간 · 주식 수 · 트레일링 스탑 · 부분 익절 · 첫 매수일)
+ * 백테스트 전략 요청의 공통 검증(null · 심볼 · 지수 · 기간 · 주식 수 · 익절 · 손절 · 트레일링 스탑 · 부분 익절 · 첫 매수일)
  */
 public final class BacktestRequestValidator {
 
@@ -63,6 +63,16 @@ public final class BacktestRequestValidator {
   public static void requireShares(Integer shares) {
     if (shares != null && (shares < 1 || shares > RequestLimit.MAX_SHARES)) {
       throw new BacktestException(BacktestResponse.INVALID_SHARES_PER_PURCHASE);
+    }
+  }
+
+  /** 익절 비율 0 초과 · 손절 비율 0 초과 1 미만 검사(비우면 통과) */
+  public static void requireSellRates(BigDecimal takeProfitRate, BigDecimal stopLossRate) {
+    boolean takeProfitOutside = takeProfitRate != null && takeProfitRate.signum() <= 0;
+    boolean stopLossOutside = stopLossRate != null
+      && (stopLossRate.signum() <= 0 || stopLossRate.compareTo(BigDecimal.ONE) >= 0);
+    if (takeProfitOutside || stopLossOutside) {
+      throw new BacktestException(BacktestResponse.INVALID_SELL_RATE);
     }
   }
 
