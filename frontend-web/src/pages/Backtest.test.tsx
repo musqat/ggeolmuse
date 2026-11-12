@@ -834,6 +834,7 @@ describe('Backtest 페이지 포트폴리오', () => {
   const rowWeight = (n: number) => screen.getByRole('textbox', { name: `${n}번 비율(퍼센트)` })
   const addRow = () => userEvent.click(screen.getByRole('button', { name: '＋ 종목 더하기' }))
   const method = (name: string) => within(screen.getByRole('radiogroup', { name: '방식' })).getByRole('radio', { name })
+  const rebalance = (name: string) => within(screen.getByRole('radiogroup', { name: '리밸런싱' })).getByRole('radio', { name })
   const pickSymbol = async (input: HTMLElement, text: string, name: RegExp) => {
     await userEvent.clear(input)
     await userEvent.type(input, text)
@@ -858,6 +859,7 @@ describe('Backtest 페이지 포트폴리오', () => {
       allocation: 'AMOUNT',
       assets: [{ symbol: 'AAPL', amount: 10000000 }],
       method: 'LUMP_SUM',
+      rebalance: 'NONE',
       ...common,
     })
     expect(await screen.findByText('결과: portfolio')).toBeInTheDocument()
@@ -918,8 +920,28 @@ describe('Backtest 페이지 포트폴리오', () => {
       frequency: 'MONTHLY',
       purchaseDay: 8,
       investmentInterval: 1,
+      rebalance: 'NONE',
       ...common,
     })
+  })
+
+  it('리밸런싱은 처음에 없음, 주기를 고르면 요약에 적고 그 주기로 요청한다', async () => {
+    renderPage()
+    await selectMode('포트폴리오')
+
+    expect(within(screen.getByRole('radiogroup', { name: '리밸런싱' })).getAllByRole('radio').map((radio) => radio.textContent)).toEqual([
+      '없음',
+      '매년',
+      '분기마다',
+      '매달',
+    ])
+    expect(rebalance('없음')).toHaveAttribute('aria-checked', 'true')
+    expect(summary()).not.toHaveTextContent('리밸런싱')
+    await userEvent.click(rebalance('분기마다'))
+
+    expect(summary()).toHaveTextContent('종목 1개 · 한 번에 1,000만원 · 분기마다 처음 비중으로 리밸런싱')
+    await runBacktest()
+    expect(backtestApi.runPortfolio).toHaveBeenCalledWith(expect.objectContaining({ method: 'LUMP_SUM', rebalance: 'QUARTERLY' }))
   })
 
   it('빈 줄이 있으면 그 줄 종목 칸으로 가며 요청하지 않고, 비율 합이 100 이 아니면 알림으로 막는다', async () => {
@@ -945,13 +967,14 @@ describe('Backtest 페이지 포트폴리오', () => {
     expect(backtestApi.runPortfolio).not.toHaveBeenCalled()
   })
 
-  it('포트폴리오 줄 · 방식도 직전 설정으로 되살리고 설정 초기화로 처음 줄 하나로 돌린다', async () => {
+  it('포트폴리오 줄 · 방식 · 리밸런싱도 직전 설정으로 되살리고 설정 초기화로 처음 줄 하나로 돌린다', async () => {
     renderPage()
     await selectMode('포트폴리오')
     await addRow()
     await pickSymbol(rowSymbol(2), 'ms', /MSFT/)
     fireEvent.change(rowAmount(2), { target: { value: '3,000,000' } })
     await userEvent.click(method('적립식'))
+    await userEvent.click(rebalance('매년'))
     await runBacktest()
 
     await userEvent.click(screen.getByRole('button', { name: '설정 초기화' }))
@@ -959,12 +982,14 @@ describe('Backtest 페이지 포트폴리오', () => {
     expect(rowSymbol(1)).toHaveValue('AAPL')
     expect(screen.queryByRole('combobox', { name: '2번 종목' })).toBeNull()
     expect(method('한 번에 사기')).toHaveAttribute('aria-checked', 'true')
+    expect(rebalance('없음')).toHaveAttribute('aria-checked', 'true')
     await userEvent.click(screen.getByRole('button', { name: '직전 설정' }))
 
     expect(modes().getByRole('radio', { name: '포트폴리오' })).toHaveAttribute('aria-checked', 'true')
     expect(rowSymbol(2)).toHaveValue('MSFT')
     expect(rowAmount(2)).toHaveValue('3,000,000')
     expect(method('적립식')).toHaveAttribute('aria-checked', 'true')
+    expect(rebalance('매년')).toHaveAttribute('aria-checked', 'true')
   })
 })
 

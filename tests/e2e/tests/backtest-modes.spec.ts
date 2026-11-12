@@ -241,6 +241,46 @@ test('포트폴리오를 마지막 거래일에 팔면 종목마다 기간 끝 �
   expect(Math.abs(realized - body.realizedProfitKrw), '종목 줄 실현 손익 합이 전체 실현 손익과 다르다').toBeLessThanOrEqual(body.assets.length);
 });
 
+test('포트폴리오를 매달 리밸런싱하면 일부만 파는 리밸런싱 매도와 현금으로 사는 리밸런싱 매수를 싣고 새 돈은 넣지 않는다', async () => {
+  const { from, to } = await sharedRange();
+  const res = await postUntilAllowed(`${API_URL}/analysis/portfolio`, {
+    data: {
+      startDate: from,
+      endDate: to,
+      assets: [
+        { symbol, amount: 6_000_000 },
+        { symbol: second, amount: 4_000_000 },
+      ],
+      rebalance: 'MONTHLY',
+    },
+  });
+
+  expect(res.status(), `매달 리밸런싱 포트폴리오가 실패했다: ${await res.text()}`).toBe(200);
+  const body = await res.json();
+  expect(body.rebalance).toBe('MONTHLY');
+  const transactions: { symbol?: string; reason: string; shares: number; amount: number; cashUsed?: number }[] = body.transactions;
+  const sells = transactions.filter((tx) => tx.reason === 'REBALANCE_SELL');
+  const buys = transactions.filter((tx) => tx.reason === 'REBALANCE_BUY');
+  expect(sells.length, '리밸런싱 매도가 없다').toBeGreaterThan(0);
+  expect(buys.length, '리밸런싱 매수가 없다').toBeGreaterThan(0);
+  for (const buy of buys) {
+    expect(buy.amount, '리밸런싱 매수에 새 돈이 들어갔다').toBe(0);
+    expect(buy.cashUsed ?? 0, '리밸런싱 매수가 현금을 쓰지 않았다').toBeGreaterThan(0);
+  }
+  expect(body.totalInvestedKrw, '넣은 돈이 줄 금액 합과 다르다').toBe(10_000_000);
+
+  // 거래일 순서로 더한 종목 보유와 리밸런싱 매도 수량 비교
+  const held = new Map<string, number>();
+  for (const tx of transactions) {
+    if (!tx.symbol) continue;
+    const before = held.get(tx.symbol) ?? 0;
+    if (tx.reason === 'REBALANCE_SELL') {
+      expect(-tx.shares, `${tx.symbol} 리밸런싱 매도가 보유를 다 팔았다`).toBeLessThan(before);
+    }
+    held.set(tx.symbol, before + tx.shares);
+  }
+});
+
 test('포트폴리오 비율 합이 100 이 아니면 400', async () => {
   const res = await postUntilAllowed(`${API_URL}/analysis/portfolio`, {
     data: {

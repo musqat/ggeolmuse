@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { backtestApi, type PortfolioAllocation, type PortfolioMethod } from '@services/api';
+import { backtestApi, type PortfolioAllocation, type PortfolioMethod, type PortfolioRebalance } from '@services/api';
 import type { ModeController, SharedModeProps } from '../types';
 import { commonFields } from '../commonFields';
 import { PortfolioForm } from './PortfolioForm';
@@ -23,6 +23,7 @@ const NO_PICK: FirstPick = { date: '', start: '' };
 const ALLOCATIONS: readonly PortfolioAllocation[] = ['AMOUNT', 'WEIGHT'];
 const METHODS: readonly PortfolioMethod[] = ['LUMP_SUM', 'DCA'];
 const CADENCES: readonly DcaCadence[] = ['DAILY', 'WEEKLY', 'MONTHLY', 'MONTHS'];
+const REBALANCES: readonly PortfolioRebalance[] = ['NONE', 'YEARLY', 'QUARTERLY', 'MONTHLY'];
 const DEFAULTS = {
   rows: [] as unknown[],
   allocation: 'AMOUNT',
@@ -31,6 +32,7 @@ const DEFAULTS = {
   cadence: 'MONTHLY',
   months: '3',
   firstPick: NO_PICK,
+  rebalance: 'NONE',
 };
 
 export const usePortfolioMode = (shared: SharedModeProps): ModeController => {
@@ -44,6 +46,7 @@ export const usePortfolioMode = (shared: SharedModeProps): ModeController => {
   const [cadence, setCadence] = useState<DcaCadence>('MONTHLY');
   const [months, setMonths] = useState(DEFAULTS.months);
   const [firstPick, setFirstPick] = useState<FirstPick>(NO_PICK);
+  const [rebalance, setRebalance] = useState<PortfolioRebalance>('NONE');
 
   const dca = method === 'DCA';
   const first = (dca && resolveFirstPurchase(period.start, cadence, firstPick)) || period.start;
@@ -97,6 +100,8 @@ export const usePortfolioMode = (shared: SharedModeProps): ModeController => {
               }
             : undefined
         }
+        rebalance={rebalance}
+        onRebalanceChange={setRebalance}
       />
     ),
     summary: {
@@ -108,6 +113,7 @@ export const usePortfolioMode = (shared: SharedModeProps): ModeController => {
         cadenceLabel: cadenceText(cadence, months, first, monthDay),
         rounds,
         daily: cadence === 'DAILY',
+        rebalance,
       }),
     },
     errorCount: countErrors([
@@ -117,7 +123,7 @@ export const usePortfolioMode = (shared: SharedModeProps): ModeController => {
       monthsMessage,
       firstMessage,
     ]),
-    saved: { rows, allocation, total, method, cadence, months, firstPick },
+    saved: { rows, allocation, total, method, cadence, months, firstPick, rebalance },
     load: (saved) => {
       const next = pickValues(DEFAULTS, saved);
       const restored = savedRows(next.rows);
@@ -128,6 +134,7 @@ export const usePortfolioMode = (shared: SharedModeProps): ModeController => {
       setCadence(oneOf(next.cadence, CADENCES, 'MONTHLY'));
       setMonths(next.months);
       setFirstPick(next.firstPick);
+      setRebalance(oneOf(next.rebalance, REBALANCES, 'NONE'));
     },
     prepare: (ctx) => {
       const built = buildPortfolioRequest(
@@ -142,6 +149,7 @@ export const usePortfolioMode = (shared: SharedModeProps): ModeController => {
           months,
           firstPurchaseDate: firstPick.date,
           firstPickedStart: firstPick.start,
+          rebalance,
           ...options,
         },
         ctx,
