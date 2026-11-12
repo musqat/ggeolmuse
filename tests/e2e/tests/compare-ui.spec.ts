@@ -13,6 +13,7 @@ test('종목 비교가 화면에서 끝까지 돈다', async ({ page }) => {
   await api.dispose();
 
   await page.goto('/backtest');
+  await page.getByRole('tab', { name: '비교 매매', exact: true }).click();
   await page.getByRole('radio', { name: '종목 비교', exact: true }).click();
 
   // 기본으로 담긴 AAPL, MSFT 는 로컬 스택에 시세가 없어 먼저 비움

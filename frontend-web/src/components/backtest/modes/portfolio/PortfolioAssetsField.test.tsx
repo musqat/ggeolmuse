@@ -225,12 +225,12 @@ describe('PortfolioAssetsField', () => {
     expect(within(strategySelect(1)).getAllByRole('option').map((option) => option.textContent)).toEqual([
       '한 번에',
       '적립식',
-      '이동평균',
+      '이동평균 교차',
       '밴드',
     ])
     expect(strategySelect(1)).toHaveValue('LUMP_SUM')
     expect(strategySelect(2)).toHaveValue('DCA')
-    await userEvent.selectOptions(strategySelect(1), '이동평균')
+    await userEvent.selectOptions(strategySelect(1), '이동평균 교차')
     expect(onRows).toHaveBeenLastCalledWith([{ ...row('SPY', '1'), strategy: 'MA_CROSS' }, rows[1]])
     await userEvent.selectOptions(strategySelect(2), '한 번에')
     expect(onRows).toHaveBeenLastCalledWith([rows[0], { ...rows[1], strategy: '' }])
@@ -241,12 +241,12 @@ describe('PortfolioAssetsField', () => {
     expect(onRows).toHaveBeenLastCalledWith([{ ...rows[0], strategy: 'LUMP_SUM' }, rows[1]])
   })
 
-  it('이동평균 줄은 짧은 · 긴 기간 칸, 밴드 줄은 평균 기간 · 위 + · 아래 - 비율 칸을 그 줄에 보이고 값은 그 줄에만 넣는다', async () => {
+  it('이동평균 교차 줄은 짧은 · 긴 기간 칸, 밴드 줄은 평균 기간 · 위 + · 아래 - 비율 칸을 그 줄에 보이고 값은 그 줄에만 넣는다', async () => {
     render(<Harness initial={[row('SPY', '1'), row('QQQ', '2')]} />)
 
     expect(screen.queryByRole('textbox', { name: '1번 짧은 기간(일)' })).toBeNull()
     expect(screen.queryByRole('textbox', { name: '1번 평균 기간(일)' })).toBeNull()
-    await userEvent.selectOptions(strategySelect(1), '이동평균')
+    await userEvent.selectOptions(strategySelect(1), '이동평균 교차')
     expect(shortInput(1)).toHaveValue('20')
     expect(longInput(1)).toHaveValue('60')
     fireEvent.change(shortInput(1), { target: { value: '5일' } })
@@ -269,7 +269,7 @@ describe('PortfolioAssetsField', () => {
 
     await userEvent.selectOptions(strategySelect(1), '한 번에')
     expect(screen.queryByRole('textbox', { name: '1번 짧은 기간(일)' })).toBeNull()
-    await userEvent.selectOptions(strategySelect(1), '이동평균')
+    await userEvent.selectOptions(strategySelect(1), '이동평균 교차')
     expect(shortInput(1)).toHaveValue('5')
   })
 

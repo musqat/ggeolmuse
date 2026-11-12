@@ -1,10 +1,19 @@
 // 백테스트 설정 칸의 고르기 단추 모양(주황은 모드 · 실행 단추만, 나머지 고른 상태는 중립색)
 
+// 모드 묶음 탭(고른 탭은 주황 밑줄)
+export const GROUP_TAB = (selected: boolean) =>
+  `-mb-px shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-base font-semibold transition-colors ${
+    selected ? 'border-brand text-tx-1' : 'border-transparent text-tx-2 hover:text-tx-1'
+  }`;
+
 // 모드 고르기
 export const MODE_OPTION = (checked: boolean) =>
   `min-h-10 sm:min-h-0 rounded-full border px-4 py-[7px] text-sm transition-colors ${
     checked ? 'border-brand bg-brand-bg text-brand font-semibold' : 'border-line-strong text-tx-2 hover:text-tx-1'
   }`;
+
+// 모드 칩 아래 설명 글
+export const MODE_ABOUT = 'mt-2 text-[13px] text-tx-2 [word-break:keep-all]';
 
 // 칸 이름 줄 오른쪽의 작은 고르기 묶음(금액 | 주식 수, 주 | 달 | 년)
 export const SEG_GROUP = 'inline-flex shrink-0 overflow-hidden rounded-full border border-line-strong';

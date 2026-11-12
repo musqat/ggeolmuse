@@ -14,7 +14,7 @@ const read = (params: StrategyParams) => {
 // 골든 크로스에 가진 돈 전부로 사고 데드 크로스에 전부 팜(처음 돈은 전략마다 원금)
 export const maCrossStrategy: ComparisonStrategyDef = {
   type: 'MA_CROSS',
-  name: '이동평균',
+  name: '이동평균 교차',
   defaultParams: DEFAULTS,
   check: (params) => {
     const { short, long } = read(params);

@@ -11,7 +11,7 @@ describe('비교 전략 카탈로그', () => {
       SIMPLE: '단순 매수',
       DCA: '적립식',
       CONDITIONAL_PURCHASE: '조건부 매수',
-      MA_CROSS: '이동평균',
+      MA_CROSS: '이동평균 교차',
       MA_BAND: '밴드',
     })
   })
@@ -68,7 +68,7 @@ describe('비교 전략 카탈로그', () => {
     })
   })
 
-  it('이동평균은 두 기간을 숫자로 싣고 원금은 싣지 않는다', () => {
+  it('이동평균 교차는 두 기간을 숫자로 싣고 원금은 싣지 않는다', () => {
     expect(strategyByType('MA_CROSS').toRequest({}, common)).toEqual({
       strategyType: 'MA_CROSS',
       name: 'MA_CROSS',
@@ -81,7 +81,7 @@ describe('비교 전략 카탈로그', () => {
     })
   })
 
-  it('이동평균 검사: 기간이 2 ~ 250 정수가 아니거나 짧은 기간이 긴 기간 이상이면 막는다', () => {
+  it('이동평균 교차 검사: 기간이 2 ~ 250 정수가 아니거나 짧은 기간이 긴 기간 이상이면 막는다', () => {
     const check = (params: Record<string, string>) => strategyByType('MA_CROSS').check(params, common)
     const message = '이동평균 기간은 2 ~ 250 사이 정수로, 짧은 기간을 긴 기간보다 짧게 입력해주세요.'
     expect(check({})).toBeNull()
@@ -92,7 +92,7 @@ describe('비교 전략 카탈로그', () => {
     expect(check({ shortWindow: '60' })).toBe(message)
   })
 
-  it('요약: 이동평균은 두 기간의 교차 규칙', () => {
+  it('요약: 이동평균 교차는 두 기간의 교차 규칙', () => {
     expect(strategyByType('MA_CROSS').summary({}, year2023)).toEqual({
       text: '20일 선이 60일 선을 넘으면 가진 돈 전부로 사고, 아래로 내려가면 전부 팜',
     })

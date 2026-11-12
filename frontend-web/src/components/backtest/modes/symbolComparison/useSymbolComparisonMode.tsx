@@ -37,6 +37,7 @@ export const useSymbolComparisonMode = (shared: SharedModeProps): ModeController
   return {
     id: 'compare-symbols',
     label: '종목 비교',
+    description: '같은 방식으로 여러 종목의 결과 비교',
     showsChartLink: false,
     form: (
       <SymbolComparisonForm

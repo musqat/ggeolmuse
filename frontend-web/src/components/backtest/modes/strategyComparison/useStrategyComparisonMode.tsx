@@ -35,6 +35,10 @@ const defaultChips = () => [newChip('s1', 'SIMPLE'), newChip('s2', 'DCA')];
 const DEFAULTS = { investment: '1000000', chips: [] as unknown[], openId: 's2' };
 const TYPES = COMPARISON_STRATEGIES.map((def) => def.type);
 
+// 이동평균 교차 칩의 옛 이름(이동평균 · 이동평균 N)은 지금 이름으로
+const chipName = (type: ComparisonStrategyType, name: string) =>
+  type === 'MA_CROSS' ? name.replace(/^이동평균(?=$| \d+$)/, strategyByType(type).name) : name;
+
 // 저장한 칩 가운데 모양이 맞는 것(값은 글자 칸만)
 const savedChips = (items: unknown[]): StrategyChip[] =>
   items.flatMap((item) => {
@@ -44,7 +48,7 @@ const savedChips = (items: unknown[]): StrategyChip[] =>
     const raw = (item as { params?: unknown }).params;
     const entries = typeof raw === 'object' && raw !== null ? Object.entries(raw) : [];
     const params = Object.fromEntries(entries.filter((entry): entry is [string, string] => typeof entry[1] === 'string'));
-    return [{ id: chip.id, type, name: chip.name, params }];
+    return [{ id: chip.id, type, name: chipName(type, chip.name), params }];
   });
 
 // 칩 id(s1, s2 …)의 다음 번호
@@ -85,14 +89,14 @@ export const useStrategyComparisonMode = (shared: SharedModeProps): ModeControll
     (view) => view.chip.type === 'CONDITIONAL_PURCHASE' && hasSellRates(view.params.takeProfit, view.params.stopLoss),
   );
   const has = (type: ComparisonStrategyType) => chips.some((chip) => chip.type === type);
-  // 재투자하지 않는 칩 안내(조사는 끝 이름에 맞춤)
+  // 재투자하지 않는 칩 안내
   const noReinvest = [
     conditionalSells && '익절 · 손절이 있는 조건부 매수',
-    has('MA_CROSS') && '이동평균',
+    has('MA_CROSS') && '이동평균 교차',
     has('MA_BAND') && '밴드',
   ].filter((name): name is string => Boolean(name));
   const reinvestNote = noReinvest.length
-    ? `${noReinvest.join(' · ')}${noReinvest[noReinvest.length - 1] === '이동평균' ? '은' : '는'} 재투자 안 함`
+    ? `${noReinvest.join(' · ')}는 재투자 안 함`
     : undefined;
 
   // 설정할 칸이 있는 칩만 더하면서 엶
@@ -118,6 +122,7 @@ export const useStrategyComparisonMode = (shared: SharedModeProps): ModeControll
   return {
     id: 'compare-strategies',
     label: '전략 비교',
+    description: '한 종목에 여러 방식의 결과 비교',
     showsChartLink: false,
     form: (
       <StrategyComparisonForm

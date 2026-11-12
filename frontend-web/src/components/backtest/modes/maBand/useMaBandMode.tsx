@@ -8,7 +8,7 @@ import { strategyRun } from '../strategyRun';
 import { buildMaBandRequest } from './request';
 import { MA_BAND } from '../../shared/maBand';
 import { amountIssue, bandIssues, countErrors } from '../../settings/checks';
-import { maBandHow } from '../../settings/summary';
+import { maBandAbout, maBandHow } from '../../settings/summary';
 import { pickValues } from '../../settings/snapshot';
 import { useSignalSymbol } from '../useSignalSymbol';
 import { useTrailingStop } from '../useTrailingStop';
@@ -34,6 +34,7 @@ export const useMaBandMode = (shared: SharedModeProps): ModeController => {
   return {
     id: 'ma-band',
     label: '이동평균 밴드',
+    description: maBandAbout(bandWindow, upper, lower),
     showsChartLink: true,
     form: (
       <MaBandStrategyForm

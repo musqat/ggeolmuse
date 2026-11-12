@@ -252,7 +252,7 @@ describe('StrategyComparisonResult', () => {
     expect(chart.dots.map((d: { x: string }) => d.x)).toEqual(['2024-01-02', '2024-02-01'])
   })
 
-  it('이동평균 전략은 한글 이름으로 보이고 펼치면 매수 · 매도 횟수, 수익률 추이 안내의 점에 이동평균을 넣는다', async () => {
+  it('이동평균 교차 전략은 한글 이름으로 보이고 펼치면 매수 · 매도 횟수, 수익률 추이 안내의 점에 이동평균 교차를 넣는다', async () => {
     const maCross = {
       name: 'MA_CROSS',
       code: 'AAPL',
@@ -270,10 +270,10 @@ describe('StrategyComparisonResult', () => {
     }
     renderResult({ ...result, items: [...result.items, maCross] })
 
-    await userEvent.click(row('이동평균'))
+    await userEvent.click(row('이동평균 교차'))
     expect(screen.getByText('매수 횟수').nextElementSibling).toHaveTextContent('1회')
     expect(screen.getByText('매도 횟수').nextElementSibling).toHaveTextContent('1회')
-    expect(screen.getByText('그때까지 넣은 돈 대비 몇 % 인지 · 점은 적립식 · 조건부 · 이동평균 · 밴드가 돈을 넣은 날')).toBeInTheDocument()
+    expect(screen.getByText('그때까지 넣은 돈 대비 몇 % 인지 · 점은 적립식 · 조건부 · 이동평균 교차 · 밴드가 돈을 넣은 날')).toBeInTheDocument()
   })
 
   it('밴드 전략은 한글 이름 밴드로 보이고 펼치면 매수 · 매도 횟수를 보인다', async () => {

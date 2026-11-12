@@ -5,7 +5,7 @@ import { isError, type FieldMessage } from './checks';
 import { LEAD, UNIT, VALUE_ROW } from './styles';
 
 export interface WindowsFieldProps {
-  // 칩 설정이면 "이동평균 2 기간"
+  // 칩 설정이면 "이동평균 교차 2 기간"
   label?: string;
   short: string;
   onShortChange: (value: string) => void;

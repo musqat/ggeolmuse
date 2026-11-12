@@ -73,8 +73,8 @@ const unusedBudget = (budget: number | undefined, invested: number | null | unde
   return unused > 0 ? unused : null;
 };
 
-// 적립식 · 조건부 · 이동평균 · 밴드 결과: 카드 · 매매 통계(조건부 · 이동평균 · 밴드) · 자산 추이 · 주가 추이 탭(주가 추이 앞에 이동평균 교차는 이동평균 탭 · 밴드는 밴드 탭), 그 아래 예상 양도세 · 상세 · 매매 내역을 접어 둠
-// 신호 종목을 따로 본 결과는 맨 위에 신호 · 사고판 종목 한 줄, 이동평균 · 밴드 탭 이름에 신호 종목
+// 적립식 · 조건부 · 이동평균 · 밴드 결과: 카드 · 매매 통계(조건부 · 이동평균 · 밴드) · 자산 추이 · 주가 추이 탭(주가 추이 앞에 이동평균 교차는 이동평균선 탭 · 밴드는 밴드 탭), 그 아래 예상 양도세 · 상세 · 매매 내역을 접어 둠
+// 신호 종목을 따로 본 결과는 맨 위에 신호 · 사고판 종목 한 줄, 이동평균선 · 밴드 탭 이름에 신호 종목
 export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
   kind,
   result,
@@ -148,7 +148,7 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
             ? [
                 {
                   key: 'signal',
-                  label: signalTab('이동평균'),
+                  label: signalTab('이동평균선'),
                   render: () => <SignalChart chart={result.signalChart} windows={windows} />,
                 },
               ]

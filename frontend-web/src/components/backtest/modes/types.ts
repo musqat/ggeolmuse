@@ -43,6 +43,8 @@ export interface ModeController {
   id: RunMode;
   // 모드 고르기 이름
   label: string;
+  // 모드 칩 아래 한 줄 설명
+  description: string;
   // 상세 차트 보기 링크
   showsChartLink: boolean;
   form: ReactNode;

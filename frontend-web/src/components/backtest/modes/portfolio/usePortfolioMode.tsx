@@ -86,6 +86,7 @@ export const usePortfolioMode = (shared: SharedModeProps): ModeController => {
   return {
     id: 'portfolio',
     label: '포트폴리오',
+    description: '여러 종목을 비중대로 한 계좌에 담아 운용',
     showsChartLink: false,
     form: (
       <PortfolioForm
