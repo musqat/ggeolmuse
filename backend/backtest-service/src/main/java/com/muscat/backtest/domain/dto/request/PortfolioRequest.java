@@ -6,6 +6,9 @@ import com.muscat.backtest.common.enums.type.PortfolioAllocation;
 import com.muscat.backtest.common.enums.type.PortfolioMethod;
 import com.muscat.commonlib.util.MoneyUtils;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Positive;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -61,15 +64,19 @@ public class PortfolioRequest {
   private PeriodEnd periodEnd;
 
   @Schema(description = "매수 시 환율 (수동 설정 시, null이면 자동)", example = "1300.00")
+  @Positive(message = "매수 환율은 0보다 커야 합니다")
   private BigDecimal purchaseFxRate;
 
   @Schema(description = "현재 환율 (수동 설정 시, null이면 자동)", example = "1350.00")
+  @Positive(message = "현재 환율은 0보다 커야 합니다")
   private BigDecimal currentFxRate;
 
   @Schema(description = "배당금 재투자 여부 (켜면 배당락일에 그 종목을 그 날짜 종가로 삼, 끄면 현금)", example = "false")
   private Boolean reinvestDividends;
 
   @Schema(description = "매매 수수료율 (0.25% = 0.0025, 매수 · 매도마다 차감)", example = "0.0025")
+  @DecimalMin(value = "0", message = "수수료율은 0 이상 1 미만이어야 합니다")
+  @DecimalMax(value = "1", inclusive = false, message = "수수료율은 0 이상 1 미만이어야 합니다")
   private BigDecimal tradingFeeRate;
 
   @Schema(description = "배당 원천징수세율 (미국 원천징수 15% = 0.15, 미적용 시 0)", example = "0.15")

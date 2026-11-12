@@ -2,6 +2,8 @@ package com.muscat.backtest.domain.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.muscat.backtest.common.enums.type.BacktestType;
+import com.muscat.backtest.domain.entity.BacktestHistory;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,11 +30,28 @@ class BacktestMigrationIT {
   @Autowired
   private JdbcTemplate jdbcTemplate;
 
+  @Autowired
+  private BacktestHistoryRepository backtestHistoryRepository;
+
   @Test
   @DisplayName("보유 종목 투자 결과 테이블은 지우고 백테스트 이력 테이블은 남긴다")
   void dropsInvestmentResultTable() {
     assertThat(tableExists("investment_backtest_result")).isFalse();
     assertThat(tableExists("backtest_history")).isTrue();
+  }
+
+  @Test
+  @DisplayName("이력 요청 칸은 길이 제한 없는 text 라 2000자 넘는 요청 JSON 도 저장한다")
+  void requestParamsIsText() {
+    String type = jdbcTemplate.queryForObject(
+      "SELECT data_type FROM information_schema.columns WHERE table_name = 'backtest_history' AND column_name = 'request_params'",
+      String.class);
+    BacktestHistory saved = backtestHistoryRepository.save(BacktestHistory.builder().userId("user-1")
+      .backtestType(BacktestType.STRATEGY_SIMULATION).requestParams("x".repeat(5000)).fxRateMode("auto").build());
+
+    assertThat(type).isEqualTo("text");
+    assertThat(backtestHistoryRepository.findById(saved.getId())).get()
+      .extracting(BacktestHistory::getRequestParams).asString().hasSize(5000);
   }
 
   private boolean tableExists(String name) {

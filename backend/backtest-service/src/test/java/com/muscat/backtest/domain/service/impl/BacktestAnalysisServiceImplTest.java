@@ -12,6 +12,9 @@ import static org.mockito.BDDMockito.verify;
 import static org.mockito.BDDMockito.willDoNothing;
 import static org.mockito.BDDMockito.willThrow;
 
+import com.muscat.backtest.common.calculation.CapitalGainsTaxCalculator;
+import com.muscat.backtest.common.engine.PortfolioEngine;
+import com.muscat.backtest.common.engine.StrategyPerformance;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.BacktestType;
 import com.muscat.backtest.common.enums.type.DcaFrequency;
@@ -25,10 +28,13 @@ import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
 import com.muscat.backtest.domain.dto.request.MaBandStrategyRequest;
 import com.muscat.backtest.domain.dto.request.MaCrossStrategyRequest;
+import com.muscat.backtest.domain.dto.request.PortfolioAsset;
+import com.muscat.backtest.domain.dto.request.PortfolioRequest;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
 import com.muscat.backtest.domain.dto.request.StrategyComparisonRequest;
 import com.muscat.backtest.domain.dto.request.SymbolComparisonRequest;
 import com.muscat.backtest.domain.dto.response.ComparisonResponse;
+import com.muscat.backtest.domain.dto.response.PortfolioResponse;
 import com.muscat.backtest.domain.dto.response.SimulationResponse;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
@@ -80,6 +86,9 @@ class BacktestAnalysisServiceImplTest {
   @Mock
   private BacktestHistoryUtils backtestHistoryUtils;
 
+  @Mock
+  private PortfolioEngine portfolioEngine;
+
   private BacktestAnalysisServiceImpl backtestAnalysisService;
 
   @BeforeEach
@@ -97,8 +106,52 @@ class BacktestAnalysisServiceImplTest {
       tradingSimulationService,
       strategies,
       responseMapper,
-      backtestHistoryUtils
+      backtestHistoryUtils,
+      portfolioEngine
     );
+  }
+
+  @Nested
+  @DisplayName("포트폴리오")
+  class PortfolioTests {
+
+    private PortfolioRequest request(String... symbols) {
+      return PortfolioRequest.builder().userId("user123").startDate(LocalDate.of(2024, 1, 1))
+        .endDate(LocalDate.of(2024, 12, 31))
+        .assets(Arrays.stream(symbols).map(symbol -> new PortfolioAsset(symbol, BigDecimal.valueOf(1000000), null))
+          .toList())
+        .build();
+    }
+
+    @Test
+    @DisplayName("요청을 검사한 뒤 엔진 결과로 응답을 만들고 투자 전략 시뮬레이션 이력에 요청을 남긴다")
+    void runsAndSavesHistory() {
+      PortfolioRequest request = request("SPY");
+      LocalDate start = LocalDate.of(2024, 1, 2);
+      given(portfolioEngine.run(request)).willReturn(new PortfolioEngine.Result(start, request.getEndDate(), List.of(),
+        List.of(), List.of(new PortfolioEngine.Position("SPY", BigDecimal.valueOf(1000000), BigDecimal.ZERO,
+          BigDecimal.TEN, BigDecimal.ZERO)), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+        BigDecimal.ZERO, BigDecimal.valueOf(1300), new StrategyPerformance.Result(List.of(), null, null),
+        CapitalGainsTaxCalculator.Payments.NONE, List.of()));
+
+      PortfolioResponse response = backtestAnalysisService.runPortfolio(request);
+
+      assertThat(response.startDate()).isEqualTo(start);
+      assertThat(response.assets()).extracting(PortfolioResponse.Asset::symbol).containsExactly("SPY");
+      verify(backtestHistoryUtils).saveBacktestHistory("user123", BacktestType.STRATEGY_SIMULATION, request);
+    }
+
+    @Test
+    @DisplayName("같은 종목이 두 번 있으면 엔진을 돌리지 않고 이력도 남기지 않는다")
+    void invalidRequestStopsBeforeEngine() {
+      assertThatThrownBy(() -> backtestAnalysisService.runPortfolio(request("SPY", "spy")))
+        .isInstanceOf(BacktestException.class)
+        .extracting("code")
+        .isEqualTo(BacktestResponse.INVALID_PORTFOLIO);
+
+      verify(portfolioEngine, never()).run(any());
+      verify(backtestHistoryUtils, never()).saveBacktestHistory(any(), any(), any());
+    }
   }
 
   @Nested
@@ -958,7 +1011,7 @@ class BacktestAnalysisServiceImplTest {
     @DisplayName("등록된 전략이 없으면 STRATEGY_TYPE_MISMATCH")
     void missingStrategy() {
       BacktestAnalysisServiceImpl dcaOnly = new BacktestAnalysisServiceImpl(tradingSimulationService,
-        List.of(dcaStrategy), responseMapper, backtestHistoryUtils);
+        List.of(dcaStrategy), responseMapper, backtestHistoryUtils, portfolioEngine);
 
       assertThatThrownBy(() -> dcaOnly.runConditionalStrategy(conditionalRequest()))
         .isInstanceOf(BacktestException.class)
@@ -1070,7 +1123,7 @@ class BacktestAnalysisServiceImplTest {
     @DisplayName("요청 타입의 전략이 등록되지 않았으면 전략 타입 불일치로 막는다")
     void runDcaStrategy_NoRegisteredStrategy_Rejected() {
       BacktestAnalysisServiceImpl onlyConditional = new BacktestAnalysisServiceImpl(tradingSimulationService,
-        List.of(conditionalPurchaseStrategy), responseMapper, backtestHistoryUtils);
+        List.of(conditionalPurchaseStrategy), responseMapper, backtestHistoryUtils, portfolioEngine);
       DcaStrategyRequest request = DcaStrategyRequest.builder().symbol("AAPL").startDate(LocalDate.of(2023, 1, 1))
         .endDate(LocalDate.of(2024, 1, 1)).amountPerPurchase(BigDecimal.valueOf(1000)).purchaseDay(1).userId("user123").build();
 

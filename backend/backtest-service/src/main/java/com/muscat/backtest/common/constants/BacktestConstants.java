@@ -164,6 +164,21 @@ public final class BacktestConstants {
   }
 
   /**
+   * 포트폴리오 요청 범위
+   */
+  public static final class Portfolio {
+    private Portfolio() {
+      throw new UnsupportedOperationException("Constants class cannot be instantiated");
+    }
+
+    /** 종목 줄 수 상한 */
+    public static final int MAX_ASSETS = 10;
+
+    /** 비율 합이 100% 와 달라도 되는 차이 (%p) */
+    public static final BigDecimal WEIGHT_TOLERANCE = new BigDecimal("0.01");
+  }
+
+  /**
    * 해외 주식 양도소득세
    */
   public static final class CapitalGains {

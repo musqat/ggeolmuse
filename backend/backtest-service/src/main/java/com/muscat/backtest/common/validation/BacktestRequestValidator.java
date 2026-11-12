@@ -36,9 +36,14 @@ public final class BacktestRequestValidator {
 
   /** 지수 심볼 검사(비우면 통과) */
   public static void requireTradable(String symbol) {
-    if (symbol != null && symbol.trim().startsWith(INDEX_PREFIX)) {
+    if (isIndex(symbol)) {
       throw new BacktestException(BacktestResponse.INDEX_NOT_TRADABLE);
     }
+  }
+
+  /** 지수 심볼인지(비우면 아님) */
+  public static boolean isIndex(String symbol) {
+    return symbol != null && symbol.trim().startsWith(INDEX_PREFIX);
   }
 
   /** 시작일/종료일 null + 역전 검사 */

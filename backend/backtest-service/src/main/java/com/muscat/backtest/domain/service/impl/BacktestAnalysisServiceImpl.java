@@ -2,22 +2,27 @@ package com.muscat.backtest.domain.service.impl;
 
 import com.muscat.backtest.common.calculation.ComparisonCalculationResult;
 import com.muscat.backtest.common.calculation.ComparisonCalculator;
+import com.muscat.backtest.common.calculation.PortfolioCalculator;
+import com.muscat.backtest.common.engine.PortfolioEngine;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.BacktestType;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.util.BacktestHistoryUtils;
 import com.muscat.backtest.common.validation.BacktestRequestValidator;
+import com.muscat.backtest.common.validation.PortfolioRequestValidator;
 import com.muscat.backtest.domain.dto.request.BaseComparisonRequest;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
 import com.muscat.backtest.domain.dto.request.MaBandStrategyRequest;
 import com.muscat.backtest.domain.dto.request.MaCrossStrategyRequest;
+import com.muscat.backtest.domain.dto.request.PortfolioRequest;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
 import com.muscat.backtest.domain.dto.request.StrategyComparisonRequest;
 import com.muscat.backtest.domain.dto.request.StrategyRequest;
 import com.muscat.backtest.domain.dto.request.SymbolComparisonRequest;
 import com.muscat.backtest.domain.dto.response.ComparisonResponse;
+import com.muscat.backtest.domain.dto.response.PortfolioResponse;
 import com.muscat.backtest.domain.dto.response.SimulationResponse;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
@@ -44,13 +49,15 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
   private final Map<StrategyType, InvestmentStrategy> strategyMap;
   private final ResponseMapper responseMapper;
   private final BacktestHistoryUtils backtestHistoryUtils;
+  private final PortfolioEngine portfolioEngine;
 
   public BacktestAnalysisServiceImpl(TradingSimulationService tradingSimulationService,
     List<InvestmentStrategy> strategies, ResponseMapper responseMapper,
-    BacktestHistoryUtils backtestHistoryUtils) {
+    BacktestHistoryUtils backtestHistoryUtils, PortfolioEngine portfolioEngine) {
     this.tradingSimulationService = tradingSimulationService;
     this.responseMapper = responseMapper;
     this.backtestHistoryUtils = backtestHistoryUtils;
+    this.portfolioEngine = portfolioEngine;
     this.strategyMap = strategies.stream()
       .collect(Collectors.toMap(InvestmentStrategy::getStrategyType, Function.identity()));
   }
@@ -73,6 +80,18 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
   @Override
   public StrategyResponse runMaBandStrategy(MaBandStrategyRequest request) {
     return runStrategy("이동평균 밴드", request);
+  }
+
+  // 요청 검사 → 엔진 → 결과 계산, 이력은 투자 전략 시뮬레이션으로 요청 JSON 저장
+  @Override
+  public PortfolioResponse runPortfolio(PortfolioRequest request) {
+    long startTime = System.currentTimeMillis();
+    PortfolioRequestValidator.validate(request);
+    PortfolioResponse response = PortfolioCalculator.of(request, portfolioEngine.run(request));
+    backtestHistoryUtils.saveBacktestHistory(request.getUserId(), BacktestType.STRATEGY_SIMULATION, request);
+    log.info("포트폴리오 백테스팅 완료: {}개 종목, 수익률={}%, 실행시간={}ms", request.getAssets().size(),
+      response.totalReturnPercent(), System.currentTimeMillis() - startTime);
+    return response;
   }
 
   // 전략 실행 · 이력 저장과 걸린 시간 로그

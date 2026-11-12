@@ -4,9 +4,11 @@ import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
 import com.muscat.backtest.domain.dto.request.MaBandStrategyRequest;
 import com.muscat.backtest.domain.dto.request.MaCrossStrategyRequest;
+import com.muscat.backtest.domain.dto.request.PortfolioRequest;
 import com.muscat.backtest.domain.dto.request.StrategyComparisonRequest;
 import com.muscat.backtest.domain.dto.request.SymbolComparisonRequest;
 import com.muscat.backtest.domain.dto.response.ComparisonResponse;
+import com.muscat.backtest.domain.dto.response.PortfolioResponse;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 
 // 백테스트 전략 실행과 종목 · 전략 비교 분석
@@ -23,6 +25,9 @@ public interface BacktestAnalysisService {
 
   // 수정 종가가 평균 위 선보다 높은 날 가진 돈 전부로 사고 아래 선보다 낮은 날 전량 팜
   StrategyResponse runMaBandStrategy(MaBandStrategyRequest request);
+
+  // 여러 종목을 현금 하나로 한 번에 또는 적립식으로 사고 날마다 합쳐 평가함
+  PortfolioResponse runPortfolio(PortfolioRequest request);
 
   // 같은 기간 · 조건으로 여러 종목을 견줌
   ComparisonResponse compareSymbols(SymbolComparisonRequest request);
