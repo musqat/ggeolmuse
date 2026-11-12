@@ -1230,6 +1230,22 @@ describe('Backtest 페이지 포트폴리오', () => {
     expect(backtestApi.runPortfolio).not.toHaveBeenCalled()
   })
 
+  it('줄 금액 · 총액에 원 미만이 있으면 칸 아래 오류를 보이고 고칠 칸으로 센다', async () => {
+    renderPage()
+    await selectMode('포트폴리오')
+    fireEvent.change(rowAmount(1), { target: { value: '1,000,000.5' } })
+
+    expect(screen.getByText('1번 줄 금액 원 단위로')).toBeInTheDocument()
+    expect(summary()).toHaveTextContent('고칠 칸 1개')
+
+    await userEvent.click(screen.getByRole('radio', { name: '비율' }))
+    fireEvent.change(screen.getByRole('textbox', { name: '총액(원)' }), { target: { value: '10,000,000.5' } })
+    expect(screen.getByText('원 단위로')).toBeInTheDocument()
+    expect(summary()).toHaveTextContent('고칠 칸 1개')
+    await runBacktest()
+    expect(backtestApi.runPortfolio).not.toHaveBeenCalled()
+  })
+
   it('포트폴리오 줄 · 방식 · 리밸런싱도 직전 설정으로 되살리고 설정 초기화로 처음 줄 하나로 돌린다', async () => {
     renderPage()
     await selectMode('포트폴리오')

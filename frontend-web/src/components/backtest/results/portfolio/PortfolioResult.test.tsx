@@ -25,6 +25,7 @@ const asset = (patch: Partial<PortfolioAssetResult>): PortfolioAssetResult => ({
   symbol: 'SPY',
   strategyType: 'LUMP_SUM',
   investedKrw: 6000000,
+  boughtKrw: 6000000,
   valueKrw: 8650000,
   soldKrw: 0,
   dividendKrw: 410000,
@@ -70,6 +71,7 @@ const result: PortfolioBacktestResponse = {
       symbol: 'QQQ',
       strategyType: 'DCA',
       investedKrw: 4000000,
+      boughtKrw: 4000000,
       valueKrw: 5450000,
       soldKrw: 120000,
       dividendKrw: 0,
@@ -159,7 +161,7 @@ describe('PortfolioResult', () => {
     expect(card('연평균 수익률')).toHaveTextContent('1년 미만이면 내지 않음')
   })
 
-  it('종목별 표는 요청 순서 줄마다 전략 · 넣은 돈 · 지금 가치(판 돈 · 배당) · 수익률 · 기여 · 비중 처음 → 지금, 맨 아래 현금 줄과 종목 밖 이익 줄을 둔다', () => {
+  it('종목별 표는 요청 순서 줄마다 전략 · 원금 · 지금 가치(판 돈 · 배당) · 수익률 · 기여 · 비중 처음 → 지금, 맨 아래 현금 줄과 종목 밖 이익 줄을 둔다', () => {
     render(<PortfolioResult result={result} />)
 
     expect(screen.getByRole('heading', { name: '종목별' })).toBeInTheDocument()
@@ -167,7 +169,7 @@ describe('PortfolioResult', () => {
     expect(within(screen.getByRole('table')).getAllByRole('columnheader').map((th) => th.textContent)).toEqual([
       '종목',
       '전략',
-      '넣은 돈',
+      '원금',
       '지금 가치',
       '수익률',
       '기여',
@@ -186,7 +188,37 @@ describe('PortfolioResult', () => {
     expect(within(other).getByText('-₩260,000')).toHaveClass('text-loss')
   })
 
-  it('종목 밖 이익이 0 이면 그 줄이 없고, 넣은 돈 · 총 수익이 0 인 줄은 수익률 · 기여를 - 로 둔다', () => {
+  it('판 돈으로 다시 산 줄은 원금 칸에 처음 넣은 돈만 보이고 수익률은 원금 대비다', () => {
+    render(
+      <PortfolioResult
+        result={{
+          ...result,
+          assets: [
+            asset({
+              symbol: 'QQQ',
+              strategyType: 'MA_CROSS',
+              investedKrw: 1300000,
+              boughtKrw: 2300000,
+              valueKrw: 780000,
+              soldKrw: 1000000,
+              dividendKrw: 0,
+              profitKrw: -520000,
+              returnPercent: -40,
+              contributionPercent: -12.24,
+              buyCount: 2,
+              sellCount: 1,
+            }),
+          ],
+        }}
+      />
+    )
+
+    const cells = within(rows()[0]).getAllByRole('cell').map((cell) => cell.textContent)
+    expect(cells.slice(0, 4)).toEqual(['이동평균 교차', '₩1,300,000', '₩780,000판 돈 ₩1,000,000', '-40.00%'])
+    expect(within(rows()[0]).getByText('-40.00%')).toHaveClass('text-loss')
+  })
+
+  it('종목 밖 이익이 0 이면 그 줄이 없고, 원금 · 총 수익이 0 인 줄은 수익률 · 기여를 - 로 둔다', () => {
     render(
       <PortfolioResult
         result={{
@@ -194,7 +226,7 @@ describe('PortfolioResult', () => {
           otherProfitKrw: 0,
           totalAssetKrw: 0,
           cashKrw: 0,
-          assets: [asset({ investedKrw: 0, valueKrw: 0, dividendKrw: 0, profitKrw: 0, returnPercent: null, contributionPercent: null, endWeightPercent: 0 })],
+          assets: [asset({ investedKrw: 0, boughtKrw: 0, valueKrw: 0, dividendKrw: 0, profitKrw: 0, returnPercent: null, contributionPercent: null, endWeightPercent: 0 })],
         }}
       />
     )
@@ -211,9 +243,9 @@ describe('PortfolioResult', () => {
         result={{
           ...result,
           assets: [
-            asset({ strategyType: 'MA_CROSS', investedKrw: 0, valueKrw: 0, dividendKrw: 0, profitKrw: 0, returnPercent: null, buyCount: 0 }),
+            asset({ strategyType: 'MA_CROSS', investedKrw: 0, boughtKrw: 0, valueKrw: 0, dividendKrw: 0, profitKrw: 0, returnPercent: null, buyCount: 0 }),
             asset({ symbol: 'QQQ', strategyType: 'MA_BAND', buyCount: 3, sellCount: 2 }),
-            asset({ symbol: 'IAU', strategyType: 'DCA', investedKrw: 0, buyCount: 0 }),
+            asset({ symbol: 'IAU', strategyType: 'DCA', investedKrw: 0, boughtKrw: 0, buyCount: 0 }),
           ],
         }}
       />

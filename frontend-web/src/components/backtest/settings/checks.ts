@@ -55,6 +55,11 @@ export const amountIssue = ({ byShares, amount, shares, label }: AmountCheck): F
   return parseFloat(amount) > 0 ? null : error('0 보다 크게');
 };
 
+// 금액 칸 검사에 원 미만 금액 오류를 더함
+export const wonIssue = (amount: string, label: string): FieldMessage | null =>
+  amountIssue({ byShares: false, amount, shares: '', label }) ??
+  (Number.isInteger(Number(amount)) ? null : error('원 단위로'));
+
 interface BudgetCheck {
   budget: string;
   // 한 회차에 쓸 돈(주식 수는 추정, 모르면 undefined)
@@ -198,7 +203,7 @@ const rowSignalIssues = (row: PortfolioRow, n: string) => {
   };
 };
 
-// 포트폴리오 줄마다 칸 오류(종목은 비었거나 목록에 없거나 앞 줄과 대문자로 같으면, 금액 방식은 0 초과 금액 · 비율 방식은 0 초과 100 이하 비율, 익절 · 손절은 적은 때만, 이동평균 · 밴드 칸은 그 전략 줄만)
+// 포트폴리오 줄마다 칸 오류(종목은 비었거나 목록에 없거나 앞 줄과 대문자로 같으면, 금액 방식은 0 초과 원 단위 금액 · 비율 방식은 0 초과 100 이하 비율, 익절 · 손절은 적은 때만, 이동평균 · 밴드 칸은 그 전략 줄만)
 export const portfolioRowIssues = (
   rows: PortfolioRow[],
   allocation: PortfolioAllocation,
@@ -218,7 +223,13 @@ export const portfolioRowIssues = (
     const others = { ...rowSellIssues(row, n), ...rowSignalIssues(row, n) };
     if (allocation === 'AMOUNT') {
       const amount = rowAmount(row);
-      const value = !row.amount.trim() ? error(`${n} 금액 비어 있음`) : amount > 0 ? null : error(`${n} 금액 0 보다 크게`);
+      const value = !row.amount.trim()
+        ? error(`${n} 금액 비어 있음`)
+        : !(amount > 0)
+          ? error(`${n} 금액 0 보다 크게`)
+          : Number.isInteger(amount)
+            ? null
+            : error(`${n} 금액 원 단위로`);
       return { symbol, value, ...others };
     }
     const weight = rowWeight(row);
