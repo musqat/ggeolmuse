@@ -16,6 +16,7 @@ import com.muscat.backtest.common.enums.type.DcaFrequency;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.PortfolioAllocation;
 import com.muscat.backtest.common.enums.type.PortfolioMethod;
+import com.muscat.backtest.common.enums.type.PortfolioRebalance;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.exception.GlobalExceptionHandler;
@@ -68,10 +69,10 @@ class BacktestAnalysisControllerTest {
   private static final String EMAIL = "user@example.com";
   private static final String USER = "user-1";
   private static final String VICTIM = ",\"userId\":\"victim@example.com\"}";
-  // 총액 1000만원 · SPY 60% · QQQ 40% 적립식(닫는 괄호 없음)
+  // 총액 1000만원 · SPY 60% · QQQ 40% 적립식 · 분기마다 리밸런싱(닫는 괄호 없음)
   private static final String PORTFOLIO = "{" + PERIOD + ",\"allocation\":\"WEIGHT\",\"totalAmount\":10000000,"
     + "\"assets\":[{\"symbol\":\"SPY\",\"weightPercent\":60},{\"symbol\":\"QQQ\",\"weightPercent\":40}],"
-    + "\"method\":\"DCA\",\"frequency\":\"MONTHLY\"";
+    + "\"method\":\"DCA\",\"frequency\":\"MONTHLY\",\"rebalance\":\"QUARTERLY\"";
 
   @Autowired
   private MockMvc mockMvc;
@@ -627,7 +628,7 @@ class BacktestAnalysisControllerTest {
   }
 
   @Test
-  @DisplayName("포트폴리오는 토큰 없이 실행되고 줄 금액 방식 · 종목 줄 · 매수 방식을 그대로 넘긴다")
+  @DisplayName("포트폴리오는 토큰 없이 실행되고 줄 금액 방식 · 종목 줄 · 매수 방식 · 리밸런싱 주기를 그대로 넘긴다")
   void portfolio() throws Exception {
     given(backtestAnalysisService.runPortfolio(any()))
       .willReturn(PortfolioResponse.builder().totalReturnPercent(new BigDecimal("42.50")).assets(List.of()).build());
@@ -640,7 +641,7 @@ class BacktestAnalysisControllerTest {
       r.getAllocation() == PortfolioAllocation.WEIGHT && r.getTotalAmount().intValue() == 10000000
         && r.getAssets().size() == 2 && "QQQ".equals(r.getAssets().get(1).symbol())
         && r.getAssets().get(0).weightPercent().intValue() == 60 && r.getMethod() == PortfolioMethod.DCA
-        && r.getUserId() == null));
+        && r.getRebalance() == PortfolioRebalance.QUARTERLY && r.getUserId() == null));
     assertThat(meterRegistry.get("backtest.run").tags("kind", "portfolio", "outcome", "success").timer().count())
       .isEqualTo(1);
   }
@@ -653,6 +654,15 @@ class BacktestAnalysisControllerTest {
     postJson("/portfolio", "{" + PERIOD + "}")
       .andExpect(status().isBadRequest())
       .andExpect(jsonPath("$.errorCode").value("INVALID_PORTFOLIO"));
+  }
+
+  @Test
+  @DisplayName("포트폴리오 리밸런싱 주기가 없음 · 매년 · 분기마다 · 매달 밖이면 400 이고 서비스까지 가지 않는다")
+  void portfolio_RebalanceInvalid() throws Exception {
+    postJson("/portfolio", "{" + PERIOD + ",\"rebalance\":\"WEEKLY\"}")
+      .andExpect(status().isBadRequest());
+
+    verify(backtestAnalysisService, never()).runPortfolio(any());
   }
 
   @ParameterizedTest(name = "{0}")

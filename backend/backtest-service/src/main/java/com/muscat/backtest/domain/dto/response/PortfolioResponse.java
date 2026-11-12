@@ -2,6 +2,7 @@ package com.muscat.backtest.domain.dto.response;
 
 import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.PortfolioMethod;
+import com.muscat.backtest.common.enums.type.PortfolioRebalance;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
@@ -19,6 +20,8 @@ public record PortfolioResponse(
   LocalDate endDate,
   @Schema(description = "매수 방식", example = "LUMP_SUM")
   PortfolioMethod method,
+  @Schema(description = "리밸런싱 주기", example = "NONE")
+  PortfolioRebalance rebalance,
   @Schema(description = "기간 끝 처리", example = "HOLD")
   PeriodEnd periodEnd,
   @Schema(description = "넣은 돈 (새로 넣은 원화 합, KRW)", example = "10000000")

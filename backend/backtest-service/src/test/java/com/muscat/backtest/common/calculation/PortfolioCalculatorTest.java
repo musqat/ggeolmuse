@@ -1,12 +1,14 @@
 package com.muscat.backtest.common.calculation;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import com.muscat.backtest.common.constants.BacktestConstants.TransactionTrigger;
 import com.muscat.backtest.common.engine.PortfolioEngine;
 import com.muscat.backtest.common.engine.StrategyPerformance;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.PortfolioMethod;
+import com.muscat.backtest.common.enums.type.PortfolioRebalance;
 import com.muscat.backtest.common.enums.type.TradeReason;
 import com.muscat.backtest.domain.dto.request.PortfolioAsset;
 import com.muscat.backtest.domain.dto.request.PortfolioRequest;
@@ -118,6 +120,7 @@ class PortfolioCalculatorTest {
     assertThat(response.startDate()).isEqualTo(START);
     assertThat(response.endDate()).isEqualTo(END);
     assertThat(response.method()).isEqualTo(PortfolioMethod.LUMP_SUM);
+    assertThat(response.rebalance()).isEqualTo(PortfolioRebalance.NONE);
     assertThat(response.periodEnd()).isEqualTo(PeriodEnd.SELL_AT_END);
     assertThat(response.totalInvestedKrw()).isEqualByComparingTo("10000000");
     assertThat(response.totalAssetKrw()).isEqualByComparingTo("15340000");
@@ -149,6 +152,37 @@ class PortfolioCalculatorTest {
       List.of(new CapitalGainsTax.Year(2024, number("1500000"), number("1500000"), number("0"), null, number("0"))),
       number("0"), number("0"), number("0"), number("6760000"), number("8580000"), number("15340000"),
       number("53.40")));
+  }
+
+  @Test
+  @DisplayName("리밸런싱 주기를 싣고 리밸런싱으로 판 돈 · 쓴 현금은 그 날짜 환율로 종목 줄의 판 돈 · 넣은 돈과 매수 · 매도 수에 든다")
+  void rebalanceRows() {
+    StrategyTransaction sell = StrategyTransaction.builder().symbol("BBB").reason(TradeReason.REBALANCE_SELL)
+      .date(JUNE).actualDate(JUNE).price(number("25")).shares(number("-14.4")).amount(BigDecimal.ZERO)
+      .fee(BigDecimal.ZERO).proceeds(number("360")).realizedProfit(number("216")).fxRate(number("1400"))
+      .trigger(TransactionTrigger.REBALANCE_SELL).build();
+    StrategyTransaction buy = StrategyTransaction.builder().symbol("AAA").reason(TradeReason.REBALANCE_BUY)
+      .date(JUNE).actualDate(JUNE).price(number("10")).shares(number("36")).amount(BigDecimal.ZERO)
+      .fee(BigDecimal.ZERO).cashUsed(number("360")).fxRate(number("1400")).trigger(TransactionTrigger.REBALANCE_BUY)
+      .build();
+    PortfolioEngine.Result result = new PortfolioEngine.Result(START, END,
+      List.of(buy("AAA", START, "10", "60", "780000", "1300"), buy("BBB", START, "10", "40", "520000", "1300"), sell,
+        buy),
+      List.of(), List.of(position("AAA", "780000", "96", "11", "1478400"), position("BBB", "520000", "25.6", "25", "896000")),
+      number("1300000"), BigDecimal.ZERO, BigDecimal.ZERO, number("2374400"), number("2374400"), number("1400"),
+      new StrategyPerformance.Result(List.of(), null, null), CapitalGainsTaxCalculator.Payments.NONE, List.of());
+
+    PortfolioResponse response = PortfolioCalculator.of(
+      request(asset("AAA", "780000"), asset("BBB", "520000")).rebalance(PortfolioRebalance.QUARTERLY).build(), result);
+
+    // AAA 넣은 돈 78만원 + 360달러 × 1400, BBB 판 돈 360달러 × 1400 · 실현 50만 4천원 - 원가 52만원 × 14.4 ÷ 40
+    assertThat(response.assets()).usingRecursiveFieldByFieldElementComparator(NUMBERS).containsExactly(
+      row("AAA", "1284000", "1478400", "0", "0", "194400", "15.14", "18.09", "60.00", "62.26", "96", "0", 2, 0),
+      row("BBB", "520000", "896000", "504000", "0", "880000", "169.23", "81.91", "40.00", "37.74", "25.6", "316800", 1, 1));
+    assertThat(response.rebalance()).isEqualTo(PortfolioRebalance.QUARTERLY);
+    assertThat(response.otherProfitKrw()).isEqualByComparingTo("0");
+    assertThat(response.realizedProfitKrw()).isEqualByComparingTo("316800");
+    assertThat(tuple(response.buyCount(), response.sellCount())).isEqualTo(tuple(3, 1));
   }
 
   @Test

@@ -75,6 +75,12 @@ public final class BacktestConstants {
 
     /** 종가가 평균 단가보다 단계 수익률 이상 오른 날 보유의 단계 몫을 팖 (뒤에 단계 수익률 +%) */
     public static final String PARTIAL_TAKE_PROFIT = "부분 익절";
+
+    /** 포트폴리오 종목이 목표 비중보다 커져 넘는 몫을 팖 */
+    public static final String REBALANCE_SELL = "리밸런싱 매도";
+
+    /** 포트폴리오 종목이 목표 비중보다 작아져 모자란 몫을 공용 현금으로 삼 */
+    public static final String REBALANCE_BUY = "리밸런싱 매수";
   }
 
   /**
@@ -176,6 +182,9 @@ public final class BacktestConstants {
 
     /** 비율 합이 100% 와 달라도 되는 차이 (%p) */
     public static final BigDecimal WEIGHT_TOLERANCE = new BigDecimal("0.01");
+
+    /** 리밸런싱에서 사고파는 가장 작은 금액 (USD, 목표와 차이가 이보다 작으면 건너뜀) */
+    public static final BigDecimal MIN_REBALANCE_USD = BigDecimal.ONE;
   }
 
   /**

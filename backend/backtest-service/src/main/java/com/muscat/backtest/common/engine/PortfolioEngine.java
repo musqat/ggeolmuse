@@ -1,11 +1,14 @@
 package com.muscat.backtest.common.engine;
 
 import com.muscat.backtest.common.calculation.CapitalGainsTaxCalculator;
+import com.muscat.backtest.common.constants.BacktestConstants.Money;
+import com.muscat.backtest.common.constants.BacktestConstants.Portfolio;
 import com.muscat.backtest.common.constants.BacktestConstants.TransactionTrigger;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.DcaFrequency;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.PortfolioMethod;
+import com.muscat.backtest.common.enums.type.PortfolioRebalance;
 import com.muscat.backtest.common.enums.type.TradeReason;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.util.BacktestCalculationUtils;
@@ -43,7 +46,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-// 포트폴리오 엔진: 여러 종목을 현금 하나(USD)로 날마다 양도세 납부 → 배당 → 회차 매수 → 기간 끝 매도 → 평가 순서로 돌림
+// 포트폴리오 엔진: 여러 종목을 현금 하나(USD)로 날마다 양도세 납부 → 배당 → 회차 매수 → 리밸런싱 → 기간 끝 매도 → 평가 순서로 돌림
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -131,7 +134,7 @@ public class PortfolioEngine {
     return request.getFrequency() != null ? request.getFrequency() : DcaFrequency.MONTHLY;
   }
 
-  // 종목 줄 하나의 일봉 · 회차 · 배당과 보유 주식 · 원가(USD, 수수료 포함) · 그 날짜까지 마지막 종가
+  // 종목 줄 하나의 일봉 · 회차 · 배당과 보유 주식 · 원가(USD, 수수료 포함) · 그 날짜까지 마지막 종가 · 첫 매수일
   private static final class Line {
     private final String symbol;
     private final BigDecimal plannedKrw;
@@ -142,6 +145,7 @@ public class PortfolioEngine {
     private BigDecimal shares = BigDecimal.ZERO;
     private BigDecimal cost = BigDecimal.ZERO;
     private BigDecimal lastClose;
+    private LocalDate firstBought;
 
     private Line(String symbol, BigDecimal plannedKrw, NavigableMap<LocalDate, OHLCPriceDto> candles,
       Map<LocalDate, LocalDate> rounds, List<DividendPayment> dividends) {
@@ -161,13 +165,14 @@ public class PortfolioEngine {
   // 평가일 전 하루의 반올림 전 가치(USD)와 앞 날 다음부터 그 날짜까지의 입금(USD)
   private record Day(LocalDate date, BigDecimal rawUsd, BigDecimal depositUsd) {}
 
-  // 한 번 돌리는 동안의 공용 현금(USD) · 거래 · 배당 · 넣은 돈 · 일별 가치
+  // 한 번 돌리는 동안의 공용 현금(USD) · 거래 · 배당 · 넣은 돈 · 일별 가치 · 마지막으로 리밸런싱한 주기
   private static final class Run {
     private final PortfolioRequest request;
     private final List<Line> lines;
     private final FxRates fxRates;
     private final LocalDate valuationDate;
     private final CapitalGainsTaxPayer taxPayer;
+    private final PortfolioRebalance rebalance;
     private final List<StrategyTransaction> transactions = new ArrayList<>();
     private final List<Dividend> dividends = new ArrayList<>();
     private final List<Day> days = new ArrayList<>();
@@ -175,6 +180,7 @@ public class PortfolioEngine {
     private BigDecimal invested = BigDecimal.ZERO;
     private BigDecimal pendingDepositUsd = BigDecimal.ZERO;
     private boolean bought;
+    private int rebalancedPeriod = Integer.MIN_VALUE;
 
     private Run(PortfolioRequest request, List<Line> lines, FxRates fxRates, LocalDate valuationDate) {
       this.request = request;
@@ -182,9 +188,10 @@ public class PortfolioEngine {
       this.fxRates = fxRates;
       this.valuationDate = valuationDate;
       this.taxPayer = new CapitalGainsTaxPayer(Boolean.TRUE.equals(request.getCapitalGainsTax()));
+      this.rebalance = PortfolioRebalance.orNone(request.getRebalance());
     }
 
-    // 양도세 납부 → 배당 → 회차 매수 → 기간 끝 매도 → 평가(평가일은 마무리에서)
+    // 양도세 납부 → 배당 → 회차 매수 → 리밸런싱 → 기간 끝 매도 → 평가(평가일은 마무리에서)
     private void day(LocalDate date) {
       BigDecimal fx = fxOn(date);
       lines.forEach(line -> {
@@ -205,6 +212,9 @@ public class PortfolioEngine {
         if (planned != null) {
           buy(line, date, planned, fx);
         }
+      }
+      if (rebalanceDue(date)) {
+        rebalance(date, fx);
       }
       if (PeriodEnd.sells(request.getPeriodEnd())) {
         lines.stream().filter(line -> date.equals(line.candles.lastKey())).forEach(line -> sellAtEnd(line, date, fx));
@@ -263,7 +273,7 @@ public class PortfolioEngine {
         .amount(BigDecimal.ZERO)
         .cashUsed(usd)
         .fxRate(fx)
-        .defaultFxDate(fxRates.isDefault(exDate) ? exDate : null)
+        .defaultFxDate(defaultFx(exDate))
         .trigger(TransactionTrigger.DIVIDEND_REINVESTMENT)
         .build();
       record(line, tx);
@@ -280,7 +290,7 @@ public class PortfolioEngine {
         .actualDate(date)
         .price(price)
         .fxRate(fx)
-        .defaultFxDate(fxRates.isDefault(date) ? date : null)
+        .defaultFxDate(defaultFx(date))
         .trigger(lumpSum ? TransactionTrigger.LUMP_SUM_PURCHASE : frequency(request).trigger());
       BigDecimal amount = line.plannedKrw;
       if (!Decimals.isPositive(cash)) {
@@ -299,11 +309,14 @@ public class PortfolioEngine {
         .amount(deposit).cashUsed(cashUsed).build());
     }
 
-    // 매수 거래를 남기고 공용 현금 · 줄 보유 · 원가 · 넣은 돈에 반영
+    // 매수 거래를 남기고 공용 현금 · 줄 보유 · 원가 · 넣은 돈 · 첫 매수일에 반영
     private void record(Line line, StrategyTransaction tx) {
       transactions.add(tx);
       if (tx.getCashUsed() != null) {
         cash = cash.subtract(tx.getCashUsed());
+      }
+      if (line.firstBought == null) {
+        line.firstBought = tx.tradedOn();
       }
       line.shares = line.shares.add(tx.getShares());
       line.cost = line.cost.add(tx.costUsd());
@@ -322,16 +335,114 @@ public class PortfolioEngine {
       sale.setSymbol(line.symbol);
       sale.setReason(TradeReason.PERIOD_END_SALE);
       sale.setRealizedProfit(sale.getProceeds().subtract(line.cost));
-      sale.setDefaultFxDate(Boolean.TRUE.equals(request.getCapitalGainsTax()) && fxRates.isDefault(date) ? date : null);
+      sale.setDefaultFxDate(saleDefaultFx(date));
       transactions.add(sale);
       cash = cash.add(sale.getProceeds());
       line.shares = BigDecimal.ZERO;
       line.cost = BigDecimal.ZERO;
     }
 
+    // 모든 줄의 처음 매수가 끝난 주기 다음 주기부터 주기마다 한 번, 줄이 모두 그 날짜 일봉이 있고 기간 끝에 파는 날이 아닌 첫 날
+    private boolean rebalanceDue(LocalDate date) {
+      if (!rebalance.enabled()) {
+        return false;
+      }
+      boolean sellsAtEnd = PeriodEnd.sells(request.getPeriodEnd());
+      LocalDate allBought = null;
+      for (Line line : lines) {
+        if (line.firstBought == null || !line.candles.containsKey(date)
+          || sellsAtEnd && date.equals(line.candles.lastKey())) {
+          return false;
+        }
+        allBought = allBought == null || line.firstBought.isAfter(allBought) ? line.firstBought : allBought;
+      }
+      int period = rebalance.period(date);
+      return period > rebalance.period(allBought) && period > rebalancedPeriod;
+    }
+
+    // 목표 = 처음 비중 × (줄 평가 합 + 공용 현금), 넘는 줄을 먼저 팔고 모자란 줄을 요청 순서로 남은 현금만큼 삼(1달러 미만 매매는 건너뜀)
+    private void rebalance(LocalDate date, BigDecimal fx) {
+      rebalancedPeriod = rebalance.period(date);
+      BigDecimal plannedSum = lines.stream().map(line -> line.plannedKrw).reduce(BigDecimal.ZERO, BigDecimal::add);
+      BigDecimal base = lines.stream().map(Line::valueUsd).reduce(cash, BigDecimal::add);
+      List<BigDecimal> gaps = lines.stream()
+        .map(line -> base.multiply(line.plannedKrw).divide(plannedSum, 8, RoundingMode.HALF_UP).subtract(line.valueUsd()))
+        .toList();
+      for (int i = 0; i < lines.size(); i++) {
+        BigDecimal excess = gaps.get(i).negate();
+        if (excess.compareTo(Portfolio.MIN_REBALANCE_USD) >= 0) {
+          sellExcess(lines.get(i), excess, date, fx);
+        }
+      }
+      for (int i = 0; i < lines.size(); i++) {
+        BigDecimal spend = gaps.get(i).min(cash);
+        if (spend.compareTo(Portfolio.MIN_REBALANCE_USD) >= 0) {
+          buyShortfall(lines.get(i), spend, date, fx);
+        }
+      }
+    }
+
+    // 넘는 달러만큼 그 날짜 종가에 팔고 판 몫의 원가(보유 원가 × 판 수량 ÷ 보유 수량) 대비 실현 손익, 판 돈은 공용 현금
+    private void sellExcess(Line line, BigDecimal excessUsd, LocalDate date, BigDecimal fx) {
+      BigDecimal price = line.lastClose;
+      BigDecimal shares = excessUsd.divide(price, Money.SHARES_SCALE, RoundingMode.HALF_UP).min(line.shares);
+      BigDecimal gross = shares.multiply(price).setScale(8, RoundingMode.HALF_UP);
+      BigDecimal fee = BacktestCalculationUtils.calculateTradingFee(gross, request.getTradingFeeRate());
+      BigDecimal proceeds = gross.subtract(fee);
+      BigDecimal soldCost = line.cost.multiply(shares).divide(line.shares, 8, RoundingMode.HALF_UP);
+      transactions.add(StrategyTransaction.builder()
+        .symbol(line.symbol)
+        .reason(TradeReason.REBALANCE_SELL)
+        .date(date)
+        .actualDate(date)
+        .price(price)
+        .shares(shares.negate())
+        .fee(fee)
+        .amount(BigDecimal.ZERO)
+        .proceeds(proceeds)
+        .realizedProfit(proceeds.subtract(soldCost))
+        .fxRate(fx)
+        .defaultFxDate(saleDefaultFx(date))
+        .trigger(TransactionTrigger.REBALANCE_SELL)
+        .build());
+      cash = cash.add(proceeds);
+      line.shares = line.shares.subtract(shares);
+      line.cost = line.cost.subtract(soldCost);
+    }
+
+    // 공용 현금 달러로 그 날짜 종가에 삼(수수료는 쓴 달러에서 뺌, 새 돈 없음)
+    private void buyShortfall(Line line, BigDecimal spendUsd, LocalDate date, BigDecimal fx) {
+      BigDecimal price = line.lastClose;
+      BigDecimal fee = BacktestCalculationUtils.calculateTradingFee(spendUsd, request.getTradingFeeRate());
+      record(line, StrategyTransaction.builder()
+        .symbol(line.symbol)
+        .reason(TradeReason.REBALANCE_BUY)
+        .date(date)
+        .actualDate(date)
+        .price(price)
+        .shares(spendUsd.subtract(fee).divide(price, 8, RoundingMode.HALF_UP))
+        .fee(fee)
+        .amount(BigDecimal.ZERO)
+        .cashUsed(spendUsd)
+        .fxRate(fx)
+        .defaultFxDate(defaultFx(date))
+        .trigger(TransactionTrigger.REBALANCE_BUY)
+        .build());
+    }
+
     // 그 날짜 환율(수동 환율이 있으면 그 값)
     private BigDecimal fxOn(LocalDate date) {
       return request.getPurchaseFxRate() != null ? request.getPurchaseFxRate() : fxRates.get(date);
+    }
+
+    // 산 날의 기본 환율 날(아니면 null)
+    private LocalDate defaultFx(LocalDate date) {
+      return fxRates.isDefault(date) ? date : null;
+    }
+
+    // 판 날의 기본 환율 날(양도세를 켰을 때만)
+    private LocalDate saleDefaultFx(LocalDate date) {
+      return Boolean.TRUE.equals(request.getCapitalGainsTax()) ? defaultFx(date) : null;
     }
 
     // 평가일 환율로 줄마다 평가 · 현금 · 총 자산을 내고 날마다 가치(그 날짜 환율)와 시간가중 지표를 냄

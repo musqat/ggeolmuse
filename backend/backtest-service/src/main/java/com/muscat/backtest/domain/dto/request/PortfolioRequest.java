@@ -4,6 +4,7 @@ import com.muscat.backtest.common.enums.type.DcaFrequency;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.PortfolioAllocation;
 import com.muscat.backtest.common.enums.type.PortfolioMethod;
+import com.muscat.backtest.common.enums.type.PortfolioRebalance;
 import com.muscat.commonlib.util.MoneyUtils;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMax;
@@ -59,6 +60,9 @@ public class PortfolioRequest {
 
   @Schema(description = "투자 주기 (개월 단위 1-12, MONTHLY 에서만, 비우면 1)", example = "1")
   private Integer investmentInterval;
+
+  @Schema(description = "리밸런싱 주기 (YEARLY 매년 · QUARTERLY 분기마다 · MONTHLY 매달, 처음 매수가 끝난 다음 주기부터 종목이 모두 일봉이 있는 첫 날 처음 비중으로 팔고 삼, 비우면 NONE 안 함)", example = "YEARLY")
+  private PortfolioRebalance rebalance;
 
   @Schema(description = "기간이 끝나면 (HOLD 끝까지 보유, SELL_AT_END 종목마다 마지막 거래일 종가에 전량 매도, 비우면 HOLD)", example = "HOLD")
   private PeriodEnd periodEnd;

@@ -221,7 +221,7 @@ public class BacktestAnalysisController {
 
   @Operation(
       summary = "포트폴리오 백테스팅",
-      description = "여러 종목을 줄마다 금액이나 총액 × 비율로 한 번에 또는 적립식으로 사고, 현금 하나로 날마다 합쳐 평가합니다. 결과에 종목별 넣은 돈 · 지금 가치 · 기여 · 비중과 매매 내역이 있습니다"
+      description = "여러 종목을 줄마다 금액이나 총액 × 비율로 한 번에 또는 적립식으로 사고, 현금 하나로 날마다 합쳐 평가합니다. 리밸런싱 주기를 주면 주기마다 처음 비중으로 팔고 삽니다. 결과에 종목별 넣은 돈 · 지금 가치 · 기여 · 비중과 매매 내역이 있습니다"
   )
   @ApiResponses(value = {
       @ApiResponse(
