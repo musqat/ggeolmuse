@@ -67,7 +67,7 @@ public record PortfolioResponse(
   List<LocalDate> defaultFxDates
 ) {
 
-  // 종목 줄 하나의 넣은 돈 · 지금 가치 · 판 돈 · 배당 · 이익 · 기여 · 비중
+  // 종목 줄 하나의 원금 · 산 돈 · 지금 가치 · 판 돈 · 배당 · 이익 · 기여 · 비중
   @Schema(description = "포트폴리오 종목 줄")
   @Builder
   public record Asset(
@@ -75,17 +75,19 @@ public record PortfolioResponse(
     String symbol,
     @Schema(description = "줄 전략 (줄에 없으면 요청의 매수 방식)", example = "LUMP_SUM")
     PortfolioStrategyType strategyType,
-    @Schema(description = "넣은 돈 (그 종목 매수 원가 합: 새 돈 원화 + 쓴 현금 × 그 날짜 환율, KRW)", example = "6000000")
+    @Schema(description = "원금 (그 종목에 새로 넣은 원화 합: 한 번에 사기 · 적립식 회차 · 신호 줄 첫 매수, KRW)", example = "6000000")
     BigDecimal investedKrw,
+    @Schema(description = "산 돈 (그 종목 매수 원가 합: 새 돈 원화 + 쓴 현금 × 그 날짜 환율, 배당 재투자 · 리밸런싱 매수 포함, KRW)", example = "6000000")
+    BigDecimal boughtKrw,
     @Schema(description = "지금 가치 (평가일 보유 × 종가 × 평가일 환율, KRW)", example = "8650000")
     BigDecimal valueKrw,
     @Schema(description = "판 돈 (수수료 뺀 판 돈 × 판 날 환율 합, KRW)", example = "0")
     BigDecimal soldKrw,
     @Schema(description = "배당 (세후 배당 × 배당락일 환율 합, 재투자 포함, KRW)", example = "410000")
     BigDecimal dividendKrw,
-    @Schema(description = "이익 (지금 가치 + 판 돈 + 배당 - 넣은 돈, KRW)", example = "3060000")
+    @Schema(description = "이익 (지금 가치 + 판 돈 + 배당 - 산 돈, KRW)", example = "3060000")
     BigDecimal profitKrw,
-    @Schema(description = "수익률 (이익 ÷ 넣은 돈 × 100, 넣은 돈이 0 이면 null)", example = "51.00")
+    @Schema(description = "수익률 (이익 ÷ 원금 × 100, 원금이 0 이면 null)", example = "51.00")
     BigDecimal returnPercent,
     @Schema(description = "기여 (이익 ÷ 총 수익 × 100, 총 수익이 0 이면 null)", example = "72.00")
     BigDecimal contributionPercent,

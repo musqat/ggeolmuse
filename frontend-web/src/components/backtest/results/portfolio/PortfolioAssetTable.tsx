@@ -56,7 +56,7 @@ const AssetRow: React.FC<{ asset: PortfolioAssetResult }> = ({ asset }) => {
   );
 };
 
-// 포트폴리오 종목별 표: 줄마다 전략(이동평균 · 밴드 줄이 사지 않았으면 매수 신호 없음) · 넣은 돈 · 지금 가치 · 수익률 · 기여(이익 · 전체 이익 중 몫) · 비중 처음 → 지금, 맨 아래 현금 줄과 종목 밖 이익(0 이 아닐 때) 줄
+// 포트폴리오 종목별 표: 줄마다 전략(이동평균 · 밴드 줄이 사지 않았으면 매수 신호 없음) · 원금 · 지금 가치 · 수익률 · 기여(이익 · 전체 이익 중 몫) · 비중 처음 → 지금, 맨 아래 현금 줄과 종목 밖 이익(0 이 아닐 때) 줄
 export const PortfolioAssetTable: React.FC<{ result: PortfolioBacktestResponse }> = ({ result }) => {
   const cashWeight = result.totalAssetKrw > 0 ? Math.round((result.cashKrw / result.totalAssetKrw) * 10000) / 100 : 0;
   return (
@@ -71,7 +71,7 @@ export const PortfolioAssetTable: React.FC<{ result: PortfolioBacktestResponse }
             <tr className="border-b border-line">
               <th scope="col" className={`${HEAD} text-left`}>종목</th>
               <th scope="col" className={`${HEAD} text-left`}>전략</th>
-              <th scope="col" className={`${HEAD} text-right`}>넣은 돈</th>
+              <th scope="col" className={`${HEAD} text-right`}>원금</th>
               <th scope="col" className={`${HEAD} text-right`}>지금 가치</th>
               <th scope="col" className={`${HEAD} text-right`}>수익률</th>
               <th scope="col" className={`${HEAD} text-right`}>기여</th>

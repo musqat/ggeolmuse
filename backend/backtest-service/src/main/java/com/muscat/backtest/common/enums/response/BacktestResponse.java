@@ -42,7 +42,7 @@ public enum BacktestResponse implements ErrorCode {
   INVALID_TRAILING_STOP("고점 대비 하락 비율은 0% 초과 100% 미만, 팔 비율은 하락 비율과 함께 0% 초과 100% 이하여야 합니다.", HttpStatus.BAD_REQUEST),
   INVALID_PARTIAL_TAKE_PROFIT("부분 익절은 5단계까지, 수익률은 0% 초과로 앞 단계보다 크고 팔 비율은 0% 초과 100% 이하여야 합니다.", HttpStatus.BAD_REQUEST),
   INVALID_PORTFOLIO("종목은 1 ~ 10개, 같은 종목은 한 번만 넣어 주세요.", HttpStatus.BAD_REQUEST),
-  INVALID_PORTFOLIO_AMOUNT("금액 방식은 줄마다 0보다 큰 금액을, 비율 방식은 총액과 줄마다 0보다 크고 합이 100% 인 비율을 넣어 주세요.", HttpStatus.BAD_REQUEST),
+  INVALID_PORTFOLIO_AMOUNT("금액 방식은 줄마다 0보다 큰 원 단위 금액을, 비율 방식은 원 단위 총액과 줄마다 0보다 크고 합이 100% 인 비율을 넣어 주세요.", HttpStatus.BAD_REQUEST),
 
 
 

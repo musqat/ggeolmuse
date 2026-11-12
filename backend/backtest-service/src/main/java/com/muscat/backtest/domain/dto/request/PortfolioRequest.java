@@ -41,7 +41,7 @@ public class PortfolioRequest {
   @Schema(description = "줄 금액 방식 (AMOUNT 줄마다 금액, WEIGHT 총액 × 줄마다 비율, 비우면 AMOUNT)", example = "AMOUNT")
   private PortfolioAllocation allocation;
 
-  @Schema(description = "총액 (WEIGHT 에서만, KRW, 적립식 줄은 총액 × 비율이 회당 금액)", example = "10000000")
+  @Schema(description = "총액 (WEIGHT 에서만, KRW 원 단위, 적립식 줄은 총액 × 비율이 회당 금액)", example = "10000000")
   private BigDecimal totalAmount;
 
   @Schema(description = "종목 줄 (1 ~ 10개, 결과 줄도 이 순서)", required = true)

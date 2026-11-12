@@ -10,7 +10,7 @@ public record PortfolioAsset(
   @Schema(description = "종목 코드 (지수는 안 됨, 대문자로 같은 종목은 한 번만)", example = "SPY", required = true)
   String symbol,
 
-  @Schema(description = "금액 (AMOUNT 에서만, KRW, 적립식 줄은 회당 금액, 이동평균 · 밴드 줄은 첫 매수 신호에 넣는 금액)", example = "6000000")
+  @Schema(description = "금액 (AMOUNT 에서만, KRW 원 단위, 적립식 줄은 회당 금액, 이동평균 · 밴드 줄은 첫 매수 신호에 넣는 금액)", example = "6000000")
   BigDecimal amount,
 
   @Schema(description = "비율 (WEIGHT 에서만, %, 줄 합 100)", example = "60")

@@ -27,12 +27,12 @@ import {
   type PortfolioRow,
 } from '../../shared/portfolioRows';
 import {
-  amountIssue,
   countErrors,
   firstIssue,
   monthsIssue,
   portfolioRowIssues,
   portfolioRowMessageList,
+  wonIssue,
 } from '../../settings/checks';
 import { portfolioHow } from '../../settings/summary';
 import { oneOf, pickValues } from '../../settings/snapshot';
@@ -79,7 +79,7 @@ export const usePortfolioMode = (shared: SharedModeProps): ModeController => {
   const rowMessages = portfolioRowIssues(rows, allocation, supportedSymbols);
   const totalLabel = perRoundOnly ? '회당 총액' : '총액';
   const totalMessage =
-    allocation === 'WEIGHT' ? amountIssue({ byShares: false, amount: total, shares: '', label: totalLabel }) : null;
+    allocation === 'WEIGHT' ? wonIssue(total, totalLabel) : null;
   const monthsMessage = dca ? monthsIssue(cadence, months) : null;
   const firstMessage = dca ? firstIssue({ first, end, cadence, monthDay: monthDay ?? dayOfMonth(first) }) : null;
 

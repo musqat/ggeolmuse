@@ -41,17 +41,20 @@ export interface PortfolioValues extends BacktestOptions {
 }
 
 const ROWS_ERROR = '종목은 1 ~ 10개, 같은 종목은 한 번만 넣어 주세요.';
-const AMOUNT_ERROR = '종목마다 0보다 큰 금액을 넣어 주세요.';
-const TOTAL_ERROR = '총액은 0보다 크게 넣어 주세요.';
+const AMOUNT_ERROR = '종목마다 0보다 큰 원 단위 금액을 넣어 주세요.';
+const TOTAL_ERROR = '총액은 0보다 큰 원 단위로 넣어 주세요.';
 const WEIGHT_ERROR = '비율은 줄마다 0보다 크게, 합이 100% 가 되게 넣어 주세요.';
 
 type PortfolioAssetSize = Pick<PortfolioAssetRequest, 'amount' | 'weightPercent'>;
 
-// 줄마다 금액 방식은 금액, 비율 방식은 비율(줄 금액이 1원 아래로 내려가는 비율은 막음)
+// 0 보다 큰 원 단위 금액
+const isWon = (amount: number) => amount > 0 && Number.isInteger(amount);
+
+// 줄마다 금액 방식은 원 단위 금액, 비율 방식은 비율(줄 금액이 1원 아래로 내려가는 비율은 막음)
 const sizesOf = (values: PortfolioValues): { sizes: PortfolioAssetSize[] } | { error: string } => {
   if (values.allocation === 'AMOUNT') {
     const amounts = values.rows.map(rowAmount);
-    if (amounts.some((amount) => !(amount > 0))) return { error: AMOUNT_ERROR };
+    if (amounts.some((amount) => !isWon(amount))) return { error: AMOUNT_ERROR };
     return { sizes: amounts.map((amount) => ({ amount })) };
   }
   const weights = values.rows.map(rowWeight);
@@ -99,7 +102,7 @@ export const buildPortfolioRequest = (values: PortfolioValues, ctx: RunContext):
   }
   const weight = values.allocation === 'WEIGHT';
   const totalAmount = parseFloat(values.total);
-  if (weight && !(totalAmount > 0)) return { error: TOTAL_ERROR };
+  if (weight && !isWon(totalAmount)) return { error: TOTAL_ERROR };
   const built = assetsOf(values, symbols);
   if ('error' in built) return built;
 

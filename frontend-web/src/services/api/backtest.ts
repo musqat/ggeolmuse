@@ -416,12 +416,13 @@ export type PortfolioTransaction = StrategyTransaction & {
 export type PortfolioAssetResult = {
   symbol: string;
   strategyType: PortfolioStrategyType;  // 줄 전략 (줄에 없으면 요청의 매수 방식)
-  investedKrw: number;                  // 매수 원가 합 (새 돈 + 쓴 현금 × 그 날짜 환율)
+  investedKrw: number;                  // 원금 (새로 넣은 원화 합)
+  boughtKrw: number;                    // 매수 원가 합 (새 돈 + 쓴 현금 × 그 날짜 환율)
   valueKrw: number;                     // 평가일 보유 × 종가 × 평가일 환율
   soldKrw: number;                      // 판 돈 × 판 날 환율 합
   dividendKrw: number;                  // 세후 배당 × 배당락일 환율 합 (재투자 포함)
-  profitKrw: number;                    // 지금 가치 + 판 돈 + 배당 - 넣은 돈
-  returnPercent: number | null;         // 넣은 돈이 0 이면 null
+  profitKrw: number;                    // 지금 가치 + 판 돈 + 배당 - 산 돈
+  returnPercent: number | null;         // 이익 ÷ 원금 × 100 (원금이 0 이면 null)
   contributionPercent: number | null;   // 이익 ÷ 총 수익 × 100 (총 수익이 0 이면 null)
   startWeightPercent: number;           // 줄 금액 ÷ 줄 금액 합
   endWeightPercent: number;             // 지금 가치 ÷ 총 자산

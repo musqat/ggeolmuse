@@ -20,6 +20,7 @@ import {
   symbolsIssue,
   trailingIssues,
   windowIssues,
+  wonIssue,
 } from './checks'
 
 const error = (text: string) => ({ kind: 'error', text })
@@ -53,6 +54,14 @@ describe('설정 칸 검사', () => {
     expect(amountIssue({ byShares: true, amount: '', shares: '1000001', label: '금액' })).toEqual(
       error('한 번에 1,000,000주까지 계산 · 더 크면 금액으로')
     )
+  })
+
+  it('원 단위 금액: 금액 검사에 더해 원 미만이 있으면 원 단위로', () => {
+    expect(wonIssue('10000000', '총액')).toBeNull()
+    expect(wonIssue('10000000.0', '총액')).toBeNull()
+    expect(wonIssue('', '회당 총액')).toEqual(error('회당 총액 비어 있음'))
+    expect(wonIssue('0', '총액')).toEqual(error('0 보다 크게'))
+    expect(wonIssue('10000000.5', '총액')).toEqual(error('원 단위로'))
   })
 
   it('예산: 비면 제한 없음, 0 이하면 오류, 한 번 살 돈보다 적으면 금액은 오류 · 주식 수는 추정이라 경고', () => {
@@ -162,6 +171,13 @@ describe('설정 칸 검사', () => {
         { symbol: error('4번 줄 종목이 앞 줄과 같음'), value: error('4번 줄 비율 0 초과 100 이하'), ...noSell, ...noSignal },
       ])
       expect(portfolioRowIssues([row('ZZZ', '1', '')], 'AMOUNT', [])).toEqual([ok])
+    })
+
+    it('금액 방식 줄 금액에 원 미만이 있으면 원 단위로, 소수 자리가 0 뿐이면 통과', () => {
+      expect(portfolioRowIssues([row('SPY', '1000000.5', ''), row('QQQ', '1000000.0', '')], 'AMOUNT', list)).toEqual([
+        { ...ok, value: error('1번 줄 금액 원 단위로') },
+        ok,
+      ])
     })
 
     it('익절 · 손절은 비면 안 함, 0 이하나 못 읽는 글이면 0 보다 크게, 손절이 100 이상이면 100 아래(금액 · 비율 방식 같음)', () => {

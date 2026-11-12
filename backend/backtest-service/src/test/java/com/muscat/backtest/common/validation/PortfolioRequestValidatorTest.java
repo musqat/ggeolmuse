@@ -148,6 +148,24 @@ class PortfolioRequestValidatorTest {
     }
 
     @Test
+    @DisplayName("줄 금액 · 총액에 원 미만이 있으면 INVALID_PORTFOLIO_AMOUNT")
+    void subWonAmounts() {
+      assertCode(request(amount("SPY", "1000000.5"), amount("QQQ", "1000000")).build(),
+        BacktestResponse.INVALID_PORTFOLIO_AMOUNT);
+      assertCode(weighted(weight("SPY", "100")).totalAmount(number("10000000.5")).build(),
+        BacktestResponse.INVALID_PORTFOLIO_AMOUNT);
+    }
+
+    @Test
+    @DisplayName("줄 금액 · 총액의 소수 자리가 0 뿐이면 통과한다")
+    void wholeWonWithZeroDecimals() {
+      assertThatCode(() -> PortfolioRequestValidator.validate(request(amount("SPY", "1000000.00")).build()))
+        .doesNotThrowAnyException();
+      assertThatCode(() -> PortfolioRequestValidator.validate(
+        weighted(weight("SPY", "100")).totalAmount(number("10000000.0")).build())).doesNotThrowAnyException();
+    }
+
+    @Test
     @DisplayName("비율 방식의 줄 금액이 원 단위 반올림으로 0 이면 INVALID_PORTFOLIO_AMOUNT")
     void weightRoundsToZero() {
       // 총액 10원의 1% = 0.1원
