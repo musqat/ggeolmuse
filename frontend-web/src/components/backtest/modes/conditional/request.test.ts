@@ -23,6 +23,7 @@ const values: ConditionalValues = {
   fxMode: 'auto',
   manualPurchaseFxRate: '1300',
   manualCurrentFxRate: '1350',
+  taxSale: 'NONE',
 }
 
 const base = {
@@ -39,6 +40,14 @@ const base = {
 }
 
 describe('buildConditionalRequest', () => {
+  it('양도세를 켜고 현금이 모자랄 때 팔아 내기를 고르면 taxSale 로 싣고, 양도세를 끄면 싣지 않는다', () => {
+    expect(buildConditionalRequest({ ...values, capitalGainsTax: true, taxSale: 'SELL' }, 'AAPL', ctx)).toMatchObject({
+      request: { capitalGainsTax: true, taxSale: 'SELL' },
+    })
+    expect(buildConditionalRequest({ ...values, capitalGainsTax: false, taxSale: 'SELL' }, 'AAPL', ctx)).not.toHaveProperty('request.taxSale')
+    expect(buildConditionalRequest({ ...values, capitalGainsTax: true }, 'AAPL', ctx)).not.toHaveProperty('request.taxSale')
+  })
+
   it('회당 금액 · 예산을 보내고 비운 최대 횟수는 싣지 않는다', () => {
     expect(buildConditionalRequest(values, 'AAPL', ctx)).toStrictEqual({
       request: { ...base, amountPerPurchase: 100000, totalInvestment: 1000000 },

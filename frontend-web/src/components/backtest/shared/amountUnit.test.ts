@@ -94,7 +94,7 @@ describe('estimateRoundCost', () => {
 describe('useRoundCost', () => {
   const options: BacktestOptions = {
     periodEnd: 'HOLD', reinvestDividends: false, tradingFeeRate: '0', dividendTax: false, capitalGainsTax: false, fxMode: 'auto',
-    manualPurchaseFxRate: '1300', manualCurrentFxRate: '1350',
+    manualPurchaseFxRate: '1300', manualCurrentFxRate: '1350', taxSale: 'NONE',
   }
   const wrapper = ({ children }: { children: ReactNode }) =>
     createElement(QueryClientProvider, { client: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }, children)

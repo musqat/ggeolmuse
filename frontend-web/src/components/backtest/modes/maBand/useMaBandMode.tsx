@@ -10,6 +10,7 @@ import { MA_BAND } from '../../shared/maBand';
 import { amountIssue, bandIssues, countErrors } from '../../settings/checks';
 import { maBandAbout, maBandHow } from '../../settings/summary';
 import { pickValues } from '../../settings/snapshot';
+import { singleTaxSale } from '../../shared/taxSale';
 import { useSignalSymbol } from '../useSignalSymbol';
 import { useTrailingStop } from '../useTrailingStop';
 import { usePartialTakeProfit } from '../usePartialTakeProfit';
@@ -80,6 +81,7 @@ export const useMaBandMode = (shared: SharedModeProps): ModeController => {
     ]),
     reinvestLocked: true,
     reinvestNote: '밴드는 배당을 현금으로',
+    taxSale: singleTaxSale(options),
     saved: { amount: investment, window: bandWindow, upper, lower, ...signal.saved, ...trailing.saved, ...partial.saved },
     load: (saved) => {
       const next = pickValues(DEFAULTS, saved);

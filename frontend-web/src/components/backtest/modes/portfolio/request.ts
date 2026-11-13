@@ -5,6 +5,7 @@ import type {
   PortfolioBacktestRequest,
   PortfolioMethod,
   PortfolioRebalance,
+  PortfolioTaxSale,
 } from '@services/api';
 import type { BuildResult, RunContext } from '../types';
 import { toOptionFields, type BacktestOptions } from '../../shared/backtestOptions';
@@ -20,10 +21,11 @@ import {
   rowAmounts,
   rowSymbol,
   rowWeight,
+  saleRanks,
   type PortfolioRow,
 } from '../../shared/portfolioRows';
 
-export interface PortfolioValues extends BacktestOptions {
+export interface PortfolioValues extends Omit<BacktestOptions, 'taxSale'> {
   startDate: string;
   endDate: string;
   rows: PortfolioRow[];
@@ -38,6 +40,8 @@ export interface PortfolioValues extends BacktestOptions {
   firstPurchaseDate: string;
   firstPickedStart: string;
   rebalance: PortfolioRebalance;
+  // 양도세 낼 현금이 모자랄 때 파는 방식(양도세를 켰을 때만 보냄)
+  taxSale: PortfolioTaxSale;
 }
 
 const ROWS_ERROR = '종목은 1 ~ 10개, 같은 종목은 한 번만 넣어 주세요.';
@@ -79,17 +83,22 @@ const strategyOf = (row: PortfolioRow): { strategy?: PortfolioAssetStrategy } | 
   return row.strategy ? { strategy: { type: row.strategy } } : {};
 };
 
-// 줄마다 종목 · 금액(비율) · 적은 익절 · 손절 비율 · 고른 전략
+// 고른 판매 방식(양도세를 끄면 현금이 생길 때 냄)
+const taxSaleOf = (values: PortfolioValues): PortfolioTaxSale =>
+  values.capitalGainsTax ? values.taxSale : 'NONE';
+
+// 줄마다 종목 · 금액(비율) · 적은 익절 · 손절 비율 · 고른 전략 · 정한 순서로 팔면 판매 차례
 const assetsOf = (values: PortfolioValues, symbols: string[]): { assets: PortfolioAssetRequest[] } | { error: string } => {
   const built = sizesOf(values);
   if ('error' in built) return built;
+  const orders = taxSaleOf(values) === 'CUSTOM_ORDER' ? saleRanks(values.rows) : undefined;
   const assets: PortfolioAssetRequest[] = [];
   for (const [i, row] of values.rows.entries()) {
     const sell = toSellRates(row.takeProfit, row.stopLoss);
     if ('error' in sell) return sell;
     const strategy = strategyOf(row);
     if ('error' in strategy) return strategy;
-    assets.push({ symbol: symbols[i], ...built.sizes[i], ...sell.rates, ...strategy });
+    assets.push({ symbol: symbols[i], ...built.sizes[i], ...sell.rates, ...strategy, ...(orders && { taxSaleOrder: orders[i] }) });
   }
   return { assets };
 };
@@ -140,6 +149,7 @@ export const buildPortfolioRequest = (values: PortfolioValues, ctx: RunContext):
       })),
     rebalance: values.rebalance,
     ...toOptionFields(values),
+    ...(taxSaleOf(values) !== 'NONE' && { taxSale: values.taxSale }),
   };
   return { request };
 };

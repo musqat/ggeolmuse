@@ -4,16 +4,35 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { DetailSettings } from './DetailSettings'
 import { useBacktestOptions, type BacktestOptionsState } from '../shared/backtestOptions'
+import { portfolioTaxSale, singleTaxSale } from '../shared/taxSale'
 
 type Props = Omit<ComponentProps<typeof DetailSettings>, 'options' | 'open' | 'onToggle'>
 
 // 실제 옵션 상태로 그리고 바뀐 값을 밖에서 봄
-function Harness({ startOpen = false, seen, ...props }: Props & { startOpen?: boolean; seen?: (options: BacktestOptionsState) => void }) {
+function Harness({
+  startOpen = false,
+  seen,
+  single = false,
+  ...props
+}: Props & { startOpen?: boolean; seen?: (options: BacktestOptionsState) => void; single?: boolean }) {
   const options = useBacktestOptions()
   const [open, setOpen] = useState(startOpen)
   seen?.(options)
-  return <DetailSettings options={options} open={open} onToggle={() => setOpen(!open)} {...props} />
+  return (
+    <DetailSettings
+      options={options}
+      open={open}
+      onToggle={() => setOpen(!open)}
+      {...(single && { taxSale: singleTaxSale(options) })}
+      {...props}
+    />
+  )
 }
+
+const taxSaleGroup = () => screen.queryByRole('radiogroup', { name: '현금이 모자라면' })
+const taxSaleSelect = () => screen.queryByRole('combobox', { name: '현금이 모자라면' })
+const saleList = () => screen.queryByRole('list', { name: '먼저 팔 종목부터' })
+const noMove = { names: ['SPY'], onMove: () => {} }
 
 const toggle = () => screen.getByRole('button', { name: /세부 설정/ })
 
@@ -139,6 +158,98 @@ describe('DetailSettings', () => {
 
     expect(screen.getByRole('textbox', { name: '끝 날짜 환율(원)' })).toHaveAttribute('aria-invalid', 'true')
     expect(screen.getByRole('textbox', { name: '매수 환율(원)' })).not.toHaveAttribute('aria-invalid')
+  })
+
+  it('판매 설정을 주면 양도세를 켰을 때 세금 칸 아래에 현금이 모자라면 고르기를 보이고, 고르면 접힌 줄에 진하게 적는다', async () => {
+    let options!: BacktestOptionsState
+    render(<Harness startOpen single seen={(o) => (options = o)} />)
+
+    const group = within(taxSaleGroup()!)
+    expect(group.getAllByRole('radio').map((radio) => radio.textContent)).toEqual(['현금이 생길 때 냄', '주식을 팔아 냄'])
+    expect(group.getByRole('radio', { name: '현금이 생길 때 냄' })).toHaveAttribute('aria-checked', 'true')
+    await userEvent.click(group.getByRole('radio', { name: '주식을 팔아 냄' }))
+
+    expect(options.taxSale).toBe('SELL')
+    await userEvent.click(toggle())
+    expect(toggle()).toHaveTextContent('끝까지 보유 · 배당세 15% · 양도세 22% · 모자라면 팔아 냄 · 배당 현금')
+    expect(within(toggle()).getByText('모자라면 팔아 냄').tagName).toBe('B')
+  })
+
+  it('양도세를 끄면 현금이 모자라면 고르기를 숨기고 접힌 줄에서도 뺀다', async () => {
+    render(<Harness startOpen single />)
+    await userEvent.click(within(taxSaleGroup()!).getByRole('radio', { name: '주식을 팔아 냄' }))
+    await userEvent.click(screen.getByRole('button', { name: '양도세 22%(연 250만원 공제)' }))
+
+    expect(taxSaleGroup()).toBeNull()
+    await userEvent.click(toggle())
+    expect(toggle()).not.toHaveTextContent('모자라면')
+  })
+
+  it('판매 설정을 주지 않으면 현금이 모자라면 고르기가 없다', () => {
+    render(<Harness startOpen />)
+
+    expect(taxSaleGroup()).toBeNull()
+  })
+
+  it('포트폴리오 판매 방식은 다섯 가지 드롭다운이고 고른 방식 이름을 접힌 줄에 적으며, 정한 순서가 아니면 순서 목록이 없다', async () => {
+    const onChange = vi.fn()
+    render(<Harness taxSale={portfolioTaxSale('LOSS_FIRST', onChange, noMove)} />)
+
+    expect(toggle()).toHaveTextContent('양도세 22% · 모자라면 손실 종목부터 팖 · 배당 현금')
+    await userEvent.click(toggle())
+    expect(taxSaleGroup()).toBeNull()
+    expect(within(taxSaleSelect()!).getAllByRole('option').map((option) => option.textContent)).toEqual([
+      '현금이 생길 때 냄',
+      '목표 비중에 맞춰 팖',
+      '정한 순서로 팖',
+      '손실 종목부터 팖',
+      '이익 · 손실 섞어 새 이익 0',
+    ])
+    expect(taxSaleSelect()).toHaveValue('LOSS_FIRST')
+    expect(saleList()).toBeNull()
+    await userEvent.selectOptions(taxSaleSelect()!, '정한 순서로 팖')
+    expect(onChange).toHaveBeenCalledWith('CUSTOM_ORDER')
+  })
+
+  it('정한 순서로 팔면 드롭다운 아래 먼저 팔 종목부터 목록에 줄마다 위 · 아래 단추를 두고, 맨 위는 위 · 맨 아래는 아래 단추를 막는다', async () => {
+    const onMove = vi.fn()
+    render(<Harness startOpen taxSale={portfolioTaxSale('CUSTOM_ORDER', vi.fn(), { names: ['QQQ', 'SPY', '3번 종목'], onMove })} />)
+
+    const list = within(saleList()!)
+    expect(list.getAllByRole('listitem')).toHaveLength(3)
+    expect(list.getAllByRole('button').map((button) => button.getAttribute('aria-label'))).toEqual([
+      'QQQ 위로',
+      'QQQ 아래로',
+      'SPY 위로',
+      'SPY 아래로',
+      '3번 종목 위로',
+      '3번 종목 아래로',
+    ])
+    expect(list.getByRole('button', { name: 'QQQ 위로' })).toBeDisabled()
+    expect(list.getByRole('button', { name: '3번 종목 아래로' })).toBeDisabled()
+    expect(list.getByRole('button', { name: 'SPY 위로' })).toBeEnabled()
+    await userEvent.click(list.getByRole('button', { name: 'SPY 위로' }))
+    expect(onMove).toHaveBeenLastCalledWith(1, -1)
+    await userEvent.click(list.getByRole('button', { name: 'QQQ 아래로' }))
+    expect(onMove).toHaveBeenLastCalledWith(0, 1)
+  })
+
+  it('위 · 아래 단추로 옮기면 옮긴 종목의 같은 쪽 단추에 포커스를 두고, 끝에 닿아 막히면 다른 쪽 단추로', async () => {
+    const Ordered = () => {
+      const [names, setNames] = useState(['QQQ', 'SPY', 'IAU'])
+      const onMove = (position: number, step: -1 | 1) =>
+        setNames((before) => before.map((name, i) => (i === position ? before[position + step] : i === position + step ? before[position] : name)))
+      return <Harness startOpen taxSale={portfolioTaxSale('CUSTOM_ORDER', vi.fn(), { names, onMove })} />
+    }
+    render(<Ordered />)
+    const button = (name: string) => within(saleList()!).getByRole('button', { name })
+
+    await userEvent.click(button('IAU 위로'))
+    expect(button('IAU 위로')).toHaveFocus()
+    await userEvent.click(button('IAU 위로'))
+    expect(button('IAU 아래로')).toHaveFocus()
+    await userEvent.click(button('IAU 아래로'))
+    expect(button('IAU 아래로')).toHaveFocus()
   })
 
   it('세금 칩은 누를 때마다 켜고 끈다', async () => {

@@ -182,7 +182,7 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
       />
 
       {result.capitalGainsTax && (
-        <CapitalGainsTaxFold tax={result.capitalGainsTax} returnBasis={`${investedLabel} 기준`} />
+        <CapitalGainsTaxFold tax={result.capitalGainsTax} returnBasis={`${investedLabel} 기준`} sellsForTax={kind !== 'dca'} />
       )}
 
       <ResultFold

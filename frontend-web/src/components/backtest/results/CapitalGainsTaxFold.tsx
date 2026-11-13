@@ -59,10 +59,12 @@ interface CapitalGainsTaxFoldProps {
   tax: CapitalGainsTax;
   // 세후 수익률 기준(투자금 · 누적 매수액 · 원금)
   returnBasis: string;
+  // 현금이 모자랄 때 주식을 팔지 고르는 결과
+  sellsForTax?: boolean;
 }
 
 // 예상 양도세 접는 칸: 낸 양도세를 뺀 현금 · 주식 · 남은 양도세 · 세후 총 평가와 연도별 양도세 · 납부
-export const CapitalGainsTaxFold: React.FC<CapitalGainsTaxFoldProps> = ({ tax, returnBasis }) => (
+export const CapitalGainsTaxFold: React.FC<CapitalGainsTaxFoldProps> = ({ tax, returnBasis, sellsForTax = false }) => (
   <ResultFold
     title="예상 양도세"
     meta={`${formatKrw(tax.totalTaxKrw)} · 낸 ${formatKrw(tax.paidTaxKrw)} · 세후 수익률 ${formatSigned(tax.afterTaxReturnPercent, formatPercent)}`}
@@ -84,7 +86,8 @@ export const CapitalGainsTaxFold: React.FC<CapitalGainsTaxFoldProps> = ({ tax, r
       <DetailSection title="연도별" className="min-w-0 lg:col-span-2">
         <TaxYearTable years={tax.years} />
         <p className="pt-2 text-xs text-tx-2">
-          판 해마다 원화 실현 이익에서 250만원까지 공제하고 22% · 다음 해 5월 첫 거래일에 현금에서 냄(모자라면 다음 매도 뒤)
+          판 해마다 원화 실현 이익에서 250만원까지 공제하고 22% · 다음 해 5월 첫 거래일에 현금에서 냄(모자라면{' '}
+          {sellsForTax ? '정한 대로 주식을 팔거나 현금이 생길 때' : '현금이 생길 때'})
         </p>
       </DetailSection>
     </div>

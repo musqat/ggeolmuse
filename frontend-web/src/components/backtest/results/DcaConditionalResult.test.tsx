@@ -456,6 +456,29 @@ describe('DcaConditionalResult', () => {
     expect(screen.getByRole('row', { name: /2023년/ })).toHaveTextContent('₩110,000')
   })
 
+  it('예상 양도세 설명 줄은 조건부 · 이동평균 · 밴드면 정한 대로 주식을 팔거나 현금이 생길 때, 적립식이면 현금이 생길 때 낸다고 적는다', async () => {
+    const tax = {
+      years: [],
+      totalTaxKrw: 0,
+      paidTaxKrw: 0,
+      unpaidTaxKrw: 0,
+      cashKrw: 0,
+      stockKrw: 1350000,
+      afterTaxValueKrw: 1350000,
+      afterTaxReturnPercent: 12.5,
+    }
+    const { rerender } = render(<DcaConditionalResult result={{ ...result, capitalGainsTax: tax }} {...props} />)
+    await open('예상 양도세')
+
+    expect(screen.getByText(/냄\(모자라면 정한 대로 주식을 팔거나 현금이 생길 때\)$/)).toBeInTheDocument()
+    for (const kind of ['ma-cross', 'ma-band'] as const) {
+      rerender(<DcaConditionalResult result={{ ...result, capitalGainsTax: tax }} {...props} kind={kind} />)
+      expect(screen.getByText(/냄\(모자라면 정한 대로 주식을 팔거나 현금이 생길 때\)$/)).toBeInTheDocument()
+    }
+    rerender(<DcaConditionalResult result={{ ...result, capitalGainsTax: tax }} {...props} kind="dca" />)
+    expect(screen.getByText(/냄\(모자라면 현금이 생길 때\)$/)).toBeInTheDocument()
+  })
+
   it('매매 통계가 있으면 지표 카드 아래 · 차트와 예상 양도세 위에 카드를 두고, 없으면 두지 않는다', () => {
     const tradeStats = {
       buyCount: 2,

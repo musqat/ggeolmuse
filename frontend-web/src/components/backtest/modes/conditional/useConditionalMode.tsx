@@ -15,6 +15,7 @@ import { countRounds } from '../../shared/dcaSchedule';
 import { amountIssue, budgetIssue, countErrors, maxIssue, percentIssue, sellIssue } from '../../settings/checks';
 import { conditionalHow } from '../../settings/summary';
 import { oneOf, pickValues } from '../../settings/snapshot';
+import { singleTaxSale } from '../../shared/taxSale';
 
 const LABEL = '회당 금액';
 const DEFAULTS = {
@@ -132,6 +133,7 @@ export const useConditionalMode = (shared: SharedModeProps): ModeController => {
       ...partial.messages,
     ]),
     reinvestLocked: sells,
+    taxSale: singleTaxSale(options),
     saved: {
       amount: amountPerPurchase,
       unit: amountUnit.unit,

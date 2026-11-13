@@ -5,6 +5,9 @@ import { apiClient } from './client';
 // 기간이 끝날 때 남은 주식(끝까지 보유 · 마지막 거래일 종가에 전량 매도)
 export type PeriodEnd = 'HOLD' | 'SELL_AT_END';
 
+// 양도세 낼 현금이 모자랄 때(현금이 생길 때 냄 · 그 날짜 종가에 모자란 만큼 팔아 냄)
+export type TaxSale = 'NONE' | 'SELL';
+
 // 백테스트 요청 공통 칸(환율은 fxMode 가 manual 일 때만)
 type BacktestCommonRequest = {
   reinvestDividends?: boolean;          // 배당 재투자 여부
@@ -151,8 +154,13 @@ export type PartialTakeProfitRequest = {
   partialTakeProfits?: PartialTakeProfit[]; // 5단계까지, 비우면 안 함
 };
 
+// 양도세 낼 현금이 모자랄 때 팔아 낼지
+export type TaxSaleRequest = {
+  taxSale?: TaxSale;                    // 비우면 현금이 생길 때 냄
+};
+
 // 조건부 매수 전략 요청
-export type ConditionalStrategyRequest = BacktestCommonRequest & TrailingStopRequest & PartialTakeProfitRequest & {
+export type ConditionalStrategyRequest = BacktestCommonRequest & TrailingStopRequest & PartialTakeProfitRequest & TaxSaleRequest & {
   symbol: string;                       // 종목 심볼
   startDate: string;                    // 시작일
   endDate: string;                      // 종료일
@@ -167,7 +175,7 @@ export type ConditionalStrategyRequest = BacktestCommonRequest & TrailingStopReq
 };
 
 // 이동평균 교차 전략 요청(골든 크로스에 가진 돈 전부로 사고 데드 크로스에 전부 팜)
-export type MaCrossStrategyRequest = BacktestCommonRequest & TrailingStopRequest & PartialTakeProfitRequest & {
+export type MaCrossStrategyRequest = BacktestCommonRequest & TrailingStopRequest & PartialTakeProfitRequest & TaxSaleRequest & {
   symbol: string;                       // 종목 심볼
   startDate: string;                    // 시작일
   endDate: string;                      // 종료일
@@ -178,7 +186,7 @@ export type MaCrossStrategyRequest = BacktestCommonRequest & TrailingStopRequest
 };
 
 // 이동평균 밴드 전략 요청(수정 종가가 평균 위 선보다 높으면 가진 돈 전부로 사고 아래 선보다 낮으면 전부 팜)
-export type MaBandStrategyRequest = BacktestCommonRequest & TrailingStopRequest & PartialTakeProfitRequest & {
+export type MaBandStrategyRequest = BacktestCommonRequest & TrailingStopRequest & PartialTakeProfitRequest & TaxSaleRequest & {
   symbol: string;                       // 종목 심볼
   startDate: string;                    // 시작일
   endDate: string;                      // 종료일
@@ -353,6 +361,9 @@ export type PortfolioMethod = 'LUMP_SUM' | 'DCA';
 // 포트폴리오 리밸런싱 주기(주기마다 처음 비중으로 팔고 삼)
 export type PortfolioRebalance = 'NONE' | 'YEARLY' | 'QUARTERLY' | 'MONTHLY';
 
+// 포트폴리오에서 양도세 낼 현금이 모자랄 때 파는 방식(현금이 생길 때 냄 · 목표 비중보다 커진 종목부터 · 줄마다 정한 순서 · 손실 큰 종목부터 · 손실 · 이익을 섞어 판 이익 0)
+export type PortfolioTaxSale = 'NONE' | 'TARGET_WEIGHT' | 'CUSTOM_ORDER' | 'LOSS_FIRST' | 'GAIN_NEUTRAL';
+
 // 포트폴리오 종목 줄 전략(한 번에 · 적립식 회차 · 이동평균 교차 · 이동평균 밴드)
 export type PortfolioStrategyType = 'LUMP_SUM' | 'DCA' | 'MA_CROSS' | 'MA_BAND';
 
@@ -374,6 +385,7 @@ export type PortfolioAssetRequest = {
   takeProfitRate?: number;              // 그 종목 평균 단가 대비 익절 비율 (0.3 = 30%, 비우면 안 함)
   stopLossRate?: number;                // 그 종목 평균 단가 대비 손절 비율 (0.1 = 10%, 1 미만, 비우면 안 함)
   strategy?: PortfolioAssetStrategy;    // 비우면 요청의 매수 방식
+  taxSaleOrder?: number;                // 판매 순서 (CUSTOM_ORDER 에서만, 1 ~ 종목 수, 서로 다르게)
 };
 
 // 포트폴리오 백테스트 요청(여러 종목을 현금 하나로 사고 평가)
@@ -390,6 +402,7 @@ export type PortfolioBacktestRequest = BacktestCommonRequest & {
   purchaseDay?: number;
   investmentInterval?: number;
   rebalance?: PortfolioRebalance;      // 비우면 안 함
+  taxSale?: PortfolioTaxSale;          // 비우면 현금이 생길 때 냄
 };
 
 // 포트폴리오 거래 이유
@@ -404,7 +417,8 @@ export type TradeReason =
   | 'TAKE_PROFIT'
   | 'STOP_LOSS'
   | 'STRATEGY_BUY'
-  | 'STRATEGY_SELL';
+  | 'STRATEGY_SELL'
+  | 'TAX_SALE';
 
 // 포트폴리오 매매 한 건(양도세 납부 줄은 종목 없음)
 export type PortfolioTransaction = StrategyTransaction & {

@@ -294,15 +294,16 @@ describe('PortfolioResult', () => {
     expect(within(screen.getAllByRole('table')[1]).getAllByRole('row')).toHaveLength(7)
   })
 
-  it('매수 · 매도 카드 아래 줄에 매도를 전략 · 익절 · 손절 · 리밸런싱 · 기간 끝 차례로 이유마다 세고 0 인 이유는 뺀다', () => {
+  it('매수 · 매도 카드 아래 줄에 매도를 전략 · 익절 · 손절 · 리밸런싱 · 기간 끝 · 양도세 납부용 차례로 이유마다 세고 0 인 이유는 뺀다', () => {
     const sell = (reason: TradeReason) => ({ symbol: 'SPY', reason, date: '2023-06-01', trigger: reason, shares: -1, price: 400, amount: 0, fxRate: 1300 })
     const { rerender } = render(
       <PortfolioResult
         result={{
           ...sold,
-          sellCount: 6,
+          sellCount: 7,
           transactions: [
             ...result.transactions,
+            sell('TAX_SALE'),
             sell('PERIOD_END_SALE'),
             sell('REBALANCE_SELL'),
             sell('STOP_LOSS'),
@@ -313,7 +314,7 @@ describe('PortfolioResult', () => {
         }}
       />
     )
-    expect(screen.getByText('전략 1번 · 익절 2번 · 손절 1번 · 리밸런싱 1번 · 기간 끝 1번')).toBeInTheDocument()
+    expect(screen.getByText('전략 1번 · 익절 2번 · 손절 1번 · 리밸런싱 1번 · 기간 끝 1번 · 납부용 1번')).toBeInTheDocument()
     expect(screen.getByText('배당 재투자 1번')).toBeInTheDocument()
 
     rerender(<PortfolioResult result={{ ...sold, sellCount: 1, transactions: [result.transactions[0], sell('TAKE_PROFIT')] }} />)

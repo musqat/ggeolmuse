@@ -285,6 +285,27 @@ describe('요약 둘째 줄', () => {
     expect(changedOptions(changed, true)).toEqual(['마지막 거래일에 팔기', '배당세 끔', '양도세 끔', '수수료 0.1%', '환율 직접 입력'])
   })
 
+  it('양도세를 켜고 현금이 모자랄 때 팔기를 고르면 양도세 글 뒤에 바꾼 것으로 적고, 양도세를 끄면 적지 않는다', () => {
+    const base = {
+      periodEnd: 'HOLD' as const,
+      tradingFeeRate: '0',
+      dividendTax: true,
+      capitalGainsTax: true,
+      reinvestDividends: false,
+      fxMode: 'auto' as const,
+    }
+
+    expect(detailParts(base, false, '모자라면 팔아 냄').slice(2, 4)).toEqual([
+      { text: '양도세 22%', changed: false },
+      { text: '모자라면 팔아 냄', changed: true },
+    ])
+    expect(detailParts(base, false, '')).toHaveLength(6)
+    expect(detailParts({ ...base, capitalGainsTax: false }, false, '모자라면 팔아 냄').map((part) => part.text)).not.toContain(
+      '모자라면 팔아 냄'
+    )
+    expect(changedOptions(base, false, '모자라면 손실 종목부터 팖')).toEqual(['모자라면 손실 종목부터 팖'])
+  })
+
   it('접힌 세부 설정: 기본값도 값으로 쓰고 바꾼 것만 표시, 수수료 빈 칸은 0%', () => {
     const base = {
       periodEnd: 'HOLD' as const,

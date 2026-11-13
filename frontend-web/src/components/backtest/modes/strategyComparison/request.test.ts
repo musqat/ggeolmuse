@@ -24,6 +24,7 @@ const values: StrategyComparisonValues = {
   fxMode: 'auto',
   manualPurchaseFxRate: '1300',
   manualCurrentFxRate: '1350',
+  taxSale: 'NONE',
 }
 
 describe('buildStrategyComparisonRequest', () => {

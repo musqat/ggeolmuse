@@ -22,6 +22,7 @@ import { SettingsSummary } from "@components/backtest/settings/SettingsSummary";
 import { DetailSettings } from "@components/backtest/settings/DetailSettings";
 import { countErrors, detailIssues } from "@components/backtest/settings/checks";
 import { changedOptions } from "@components/backtest/settings/summary";
+import { taxSaleSummary } from "@components/backtest/shared/taxSale";
 import {
   makeSnapshot,
   oneOf,
@@ -248,6 +249,7 @@ const Backtest: React.FC = () => {
           reinvestLocked={current.reinvestLocked}
           reinvestNote={current.reinvestNote}
           messages={detailMessages}
+          taxSale={current.taxSale}
         />
 
         {/* 요약 두 줄 · 실행 */}
@@ -255,7 +257,7 @@ const Backtest: React.FC = () => {
           <SettingsSummary
             id={SUMMARY_ID}
             {...current.summary}
-            changed={changedOptions(options, !!current.reinvestLocked)}
+            changed={changedOptions(options, !!current.reinvestLocked, taxSaleSummary(current.taxSale))}
             start={period.start}
             end={period.end || getTodayString()}
             errorCount={errorCount}

@@ -5,12 +5,16 @@ import {
   hasDcaRow,
   isAllDca,
   isWeightSumOk,
+  moveSaleOrder,
   newRow,
+  removeRow,
   rowAmounts,
   rowStrategy,
   rowSymbol,
   rowsSellText,
   rowsSubject,
+  saleOrder,
+  saleRanks,
   savedRows,
   weightSum,
   type PortfolioRow,
@@ -26,6 +30,7 @@ const row = (symbol: string, amount = '', weight = '', takeProfit = '', stopLoss
   takeProfit,
   stopLoss,
   ...SIGNAL_DEFAULTS,
+  taxSaleOrder: 1,
 })
 
 const withStrategy = (strategy: RowStrategy, symbol = 'SPY'): PortfolioRow => ({ ...row(symbol, '1'), strategy })
@@ -71,8 +76,37 @@ describe('포트폴리오 종목 줄', () => {
       bandWindow: '200',
       upper: '2.5',
       lower: '2.5',
+      taxSaleOrder: 1,
     })
     expect(newRow('SPY', '10000000', '100')).toEqual(row('SPY', '10000000', '100'))
+    expect(newRow('', '', '', 3).taxSaleOrder).toBe(3)
+  })
+
+  describe('판매 차례', () => {
+    const ordered = (orders: number[]) => orders.map((order, i) => ({ ...row(`S${i}`), taxSaleOrder: order }))
+
+    it('먼저 팔 줄부터 줄 번호를 내고, 차례가 같으면 줄 차례대로', () => {
+      expect(saleOrder(ordered([2, 3, 1]))).toEqual([2, 0, 1])
+      expect(saleOrder(ordered([2, 2, 1]))).toEqual([2, 0, 1])
+    })
+
+    it('줄마다 판매 차례는 1 ~ 줄 수, 차례가 같으면 앞 줄이 먼저', () => {
+      expect(saleRanks(ordered([3, 1, 2]))).toEqual([3, 1, 2])
+      expect(saleRanks(ordered([2, 2, 1]))).toEqual([2, 3, 1])
+    })
+
+    it('차례 하나를 위 · 아래 차례와 바꾸고 모든 줄 차례를 1부터 다시 매기며, 끝을 넘으면 그대로 둔다', () => {
+      expect(moveSaleOrder(ordered([1, 2, 3]), 1, -1).map((r) => r.taxSaleOrder)).toEqual([2, 1, 3])
+      expect(moveSaleOrder(ordered([3, 1, 2]), 0, 1).map((r) => r.taxSaleOrder)).toEqual([3, 2, 1])
+      expect(moveSaleOrder(ordered([2, 2, 1]), 0, -1).map((r) => r.taxSaleOrder)).toEqual([2, 3, 1])
+      expect(moveSaleOrder(ordered([1, 2]), 1, 1).map((r) => r.taxSaleOrder)).toEqual([1, 2])
+    })
+
+    it('줄을 지우면 남은 줄 차례를 앞뒤 그대로 1부터 다시 매긴다', () => {
+      expect(removeRow(ordered([3, 1, 2]), 2).map((r) => r.taxSaleOrder)).toEqual([2, 1])
+      expect(removeRow(ordered([1, 2, 3]), 0).map((r) => r.taxSaleOrder)).toEqual([1, 2])
+      expect(removeRow(ordered([2, 2, 1]), 2).map((r) => r.taxSaleOrder)).toEqual([1, 2])
+    })
   })
 
   it('줄 전략은 고른 전략, 방식대로인 줄은 방식(한 번에 · 적립식)', () => {
@@ -119,8 +153,18 @@ describe('포트폴리오 종목 줄', () => {
     const rows = savedRows(saved)
     expect(rows).toHaveLength(10)
     expect(rows[0]).toEqual(row('SPY', '1', '10', '30', '10'))
-    expect(rows[1]).toEqual(row('TLT', '2', ''))
+    expect(rows[1]).toEqual({ ...row('TLT', '2', ''), taxSaleOrder: 2 })
     expect(rows[2]).toEqual(row('S0', '1', '1'))
+  })
+
+  it('직전 설정의 줄 판매 차례는 정수면 그대로, 아니면 줄 차례', () => {
+    const saved = [
+      { ...row('SPY', '1'), taxSaleOrder: 2 },
+      { symbol: 'QQQ', amount: '1', weight: '', taxSaleOrder: '1' },
+      { symbol: 'IAU', amount: '1', weight: '', taxSaleOrder: 1.5 },
+    ]
+
+    expect(savedRows(saved).map((r) => r.taxSaleOrder)).toEqual([2, 2, 3])
   })
 
   it('직전 설정의 줄 전략은 고를 수 있는 값만(아니면 방식대로), 이동평균 · 밴드 칸은 글이 아니면 기본값으로', () => {
@@ -135,7 +179,7 @@ describe('포트폴리오 종목 줄', () => {
       { ...row('SPY', '1'), strategy: 'MA_CROSS', shortWindow: '5', longWindow: '30' },
       { ...row('QQQ', '1'), strategy: 'MA_BAND', bandWindow: '120', upper: '1', lower: '0' },
       row('IAU', '1'),
-      { ...row('TLT', '1'), strategy: 'DCA' },
+      { ...row('TLT', '1'), strategy: 'DCA', taxSaleOrder: 4 },
     ])
   })
 
