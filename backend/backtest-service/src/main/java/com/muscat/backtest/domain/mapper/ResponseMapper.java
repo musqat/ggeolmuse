@@ -161,7 +161,7 @@ public class ResponseMapper {
       .endDate(endDate)
       .strategyType(strategyType)
       .transactions(transactions)
-      .totalTransactions((int) transactions.stream().filter(tx -> !tx.isTaxPayment()).count())
+      .totalTransactions((int) transactions.stream().filter(tx -> !tx.isTaxPayment() && !tx.isYearEndHarvest()).count())
       .totalInvested(MoneyUtils.roundKrw(calculation.getTotalInvested()))
       .totalShares(calculation.getTotalShares().setScale(6, MoneyUtils.ROUND_MODE))
       .averagePrice(calculation.getAveragePrice() != null ? MoneyUtils.roundUsd(calculation.getAveragePrice()) : null)

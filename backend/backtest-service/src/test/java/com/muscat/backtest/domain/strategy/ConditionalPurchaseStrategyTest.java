@@ -1259,6 +1259,58 @@ class ConditionalPurchaseStrategyTest {
       }
 
       @Test
+      @DisplayName("연말 정리를 켜면 그해 실현 이익이 공제보다 많을 때 결제가 그해 안에 끝나는 마지막 거래일에 손실 난 보유를 공제까지 내려가도록 팔고 같은 값에 다시 산다")
+      void offsetsLossAtYearEnd() {
+        // 10주씩, 410 에 익절(403만원 이익) · 다음 날 390 에 판 돈으로 10주, 12월 30일(시작일 + 301일) 250
+        ConditionalStrategyRequest request = selling(303, 10).amountPerPurchase(null).sharesPerPurchase(10)
+          .takeProfitRate(new BigDecimal("3.1")).stopLossRate(new BigDecimal("0.5")).capitalGainsTax(true)
+          .yearEndHarvest(true).build();
+        stubMarket(request, afterEntry(candle(2, "400", "440", "395", "434"), bar(3, "390", "390", "390"),
+          day(200, "360"), day(250, "330"), day(280, "300"), day(295, "275"), day(301, "250"), day(302, "250")), false);
+
+        StrategyResponse response = strategy.execute(request);
+
+        // 내릴 153만원 ÷ 주당 손실 18만 2,000원(250 × 1300 - 50만 7,000원)
+        assertThat(trades()).containsExactly(ENTRY, tuple("410", "310.0%익절", -1), tuple("390", "10.1%하락", 1),
+          tuple("250", "손실 상계 매도", -1), tuple("250", "손실 상계 재매수", 1));
+        assertThat(executed().get(3).getDate()).isEqualTo(START.plusDays(301));
+        assertThat(executed().get(3).getShares()).isEqualByComparingTo("-8.40659340");
+        assertThat(executed().get(4).getShares()).isEqualByComparingTo("8.40659340");
+        assertThat(executed().get(4).getCashUsed()).isEqualByComparingTo(executed().get(3).getProceeds());
+        assertThat(response.getCapitalGainsTax().years()).containsExactly(
+          new CapitalGainsTax.Year(2024, new BigDecimal("2500000"), new BigDecimal("2500000"), new BigDecimal("0"), null,
+            BigDecimal.ZERO));
+        // 남은 1.5934066주의 원가 621.428574달러 + 다시 산 2101.64835달러를 10주로
+        assertThat(calculation().getAveragePrice()).isEqualByComparingTo("272.3076924");
+      }
+
+      @Test
+      @DisplayName("매도 규칙을 끄고 연말 정리를 켜면 마무리에서 결제가 그해 안에 끝나는 마지막 거래일에 공제를 채우도록 팔고 다시 산다")
+      void fillsDeductionWithoutSellRules() {
+        // 10주가 12월 30일 200, 130만원 이익은 공제 안이라 전부
+        ConditionalStrategyRequest request = selling(303, 10).capitalGainsTax(true).yearEndHarvest(true).build();
+        stubMarket(request, afterEntry(day(301, "200"), day(302, "200")), false);
+
+        strategy.execute(request);
+
+        assertThat(trades()).containsExactly(ENTRY, tuple("200", "공제 채우기 매도", -1), tuple("200", "공제 채우기 재매수", 1));
+        assertThat(executed().get(1).getDate()).isEqualTo(START.plusDays(301));
+        assertThat(executed().get(1).getRealizedProfit()).isEqualByComparingTo("1000");
+      }
+
+      @Test
+      @DisplayName("연말 정리 날에 들고 있지 않으면 팔지 않는다")
+      void noHarvestWithoutHolding() {
+        ConditionalStrategyRequest request = selling(303, 10).takeProfitRate(new BigDecimal("0.1")).capitalGainsTax(true)
+          .yearEndHarvest(true).build();
+        stubMarket(request, afterEntry(candle(2, "101", "111", "100", "105"), day(301, "105"), day(302, "105")), false);
+
+        strategy.execute(request);
+
+        assertThat(trades()).containsExactly(ENTRY, tuple("110", "10.0%익절", -1));
+      }
+
+      @Test
       @DisplayName("기간 끝 매도를 고르면 익절 · 손절이 없어도 남은 주식을 마지막 거래일 종가에 판다")
       void sellAtEnd() {
         ConditionalStrategyRequest holding = selling(3, 10).periodEnd(PeriodEnd.SELL_AT_END).build();

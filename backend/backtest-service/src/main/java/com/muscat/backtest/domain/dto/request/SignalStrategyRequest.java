@@ -27,6 +27,8 @@ public interface SignalStrategyRequest extends StrategyRequest {
 
   TaxSale getTaxSale();
 
+  Boolean getYearEndHarvest();
+
   String getSignalSymbol();
 
   BigDecimal getTrailingStopRate();

@@ -7,6 +7,7 @@ import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.logging.BacktestLogger;
 import com.muscat.backtest.common.engine.StrategyFinalizer;
+import com.muscat.backtest.common.engine.YearEndHarvest;
 import com.muscat.backtest.common.util.RoundPurchase;
 import com.muscat.backtest.common.util.BacktestDataUtils;
 import com.muscat.backtest.common.util.Decimals;
@@ -82,7 +83,7 @@ public class DCAStrategy implements InvestmentStrategy {
         marketData, request.getSymbol(), request.getStartDate(), actualEndDate, request.getCurrentFxRate(),
         request.getPurchaseFxRate(), Boolean.TRUE.equals(request.getReinvestDividends()),
         request.getDividendTaxRate(), transactions, purchases.priceMap(), purchases.dailyFx(), request.getPeriodEnd(),
-        request.getTradingFeeRate());
+        request.getTradingFeeRate(), YearEndHarvest.enabled(request.getCapitalGainsTax(), request.getYearEndHarvest()));
 
       log.info("DCA 전략 실행 완료: {} - {}회 투자, 수익률 {}%",
         request.getSymbol(), finalized.transactions().size(),

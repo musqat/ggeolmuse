@@ -318,6 +318,44 @@ class MaCrossStrategyTest {
     }
 
     @Test
+    @DisplayName("연말 정리로 다 팔고 다시 사도 매매 통계의 매수 · 매도 수와 사이클에 세지 않고 사이클을 이어 간다")
+    void tradeStatsSkipYearEndHarvest() {
+      // 6일째 30 에 40주를 다시 사서 12월 30일(시작일 + 301일) 60, 주당 이익 3만 9,000원 × 40주는 공제 안이라 전부
+      List<OHLCPriceDto> prices = new ArrayList<>(crossing());
+      prices.addAll(List.of(day(301, "60"), day(302, "60")));
+      stubMarket(prices);
+
+      StrategyResponse response = strategy.execute(request(302).capitalGainsTax(true).yearEndHarvest(true).build());
+
+      assertThat(trades()).containsExactly(
+        tuple(START.plusDays(1), "10", "골든 크로스", "100"),
+        tuple(START.plusDays(4), "12", "데드 크로스", "-100"),
+        tuple(START.plusDays(6), "30", "골든 크로스", "40"),
+        tuple(START.plusDays(301), "60", "공제 채우기 매도", "-40"),
+        tuple(START.plusDays(301), "60", "공제 채우기 재매수", "40"));
+      // 시작한 사이클 2 ÷ (302일 ÷ 365.25)
+      assertThat(response.getTradeStats()).usingRecursiveComparison()
+        .withComparatorForType(Comparator.nullsFirst(BigDecimal::compareTo), BigDecimal.class)
+        .isEqualTo(new TradeStats(2, 1, 1, true, 1, 0, new BigDecimal("100"), new BigDecimal("20"), null, null,
+          new BigDecimal("3"), new BigDecimal("2.42"), 0, 0));
+      // 26만원 + 40주 × 30달러 × 1300원
+      assertThat(response.getCapitalGainsTax().years()).singleElement()
+        .satisfies(year -> assertThat(year.realizedGainKrw()).isEqualByComparingTo("1820000"));
+    }
+
+    @Test
+    @DisplayName("연말 정리 날에 들고 있지 않으면 팔지 않는다")
+    void noHarvestWithoutHolding() {
+      stubMarket(taxedCrossing(day(301, "30"), day(302, "30")));
+
+      strategy.execute(request(302).capitalGainsTax(true).yearEndHarvest(true).build());
+
+      assertThat(trades()).containsExactly(
+        tuple(START.plusDays(1), "10", "골든 크로스", "100"),
+        tuple(START.plusDays(4), "49", "데드 크로스", "-100"));
+    }
+
+    @Test
     @DisplayName("양도세를 켜면 판 해의 원화 실현 이익 · 공제 · 세금을 싣고, 비우면 싣지 않는다")
     void capitalGainsTax() {
       stubMarket(crossing());

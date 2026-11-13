@@ -1360,6 +1360,126 @@ class DCAStrategyTest {
   }
 
   @Nested
+  @DisplayName("연말 정리")
+  class YearEndHarvestTests {
+
+    private final LocalDate start = LocalDate.of(2021, 1, 1);
+    private final LocalDate end = LocalDate.of(2024, 1, 31);
+
+    // 평일마다 하루 step 달러씩 바뀌는 첫 값부터의 일봉 · 날마다 환율 1300 · 배당
+    private void stubMarket(String first, String step, List<DividendDto> dividends) {
+      List<OHLCPriceDto> prices = new ArrayList<>();
+      BigDecimal close = new BigDecimal(first);
+      for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
+        if (date.getDayOfWeek().getValue() <= 5) {
+          prices.add(createOHLC(date, close));
+          close = close.add(new BigDecimal(step));
+        }
+      }
+      given(marketDataClient.getOHLCPriceRange(eq(symbol), anyString(), anyString())).willReturn(prices);
+      lenient().when(marketDataClient.getBulkFxRates(any())).thenAnswer(invocation -> {
+        List<String> dates = invocation.getArgument(0);
+        return dates.stream().collect(java.util.stream.Collectors.toMap(date -> date, date -> new BigDecimal("1300")));
+      });
+      given(marketDataClient.getOHLCPrice(eq(symbol), anyString())).willReturn(prices.getLast());
+      lenient().when(marketDataClient.getFxRate(anyString())).thenReturn(new FxRateDto(end, new BigDecimal("1300")));
+      given(marketDataClient.getDividendHistory(eq(symbol), anyString(), anyString())).willReturn(dividends);
+    }
+
+    // 평일마다 하루 0.2 달러씩 오르는 100 달러부터의 일봉 · 배당 없음
+    private void stubRisingMarket() {
+      stubMarket("100.00", "0.20", List.of());
+    }
+
+    // 매달 15일 260만원 · 수수료 0.25% · 양도세 · 기간 끝 매도
+    private DcaStrategyRequest.DcaStrategyRequestBuilder request() {
+      return DcaStrategyRequest.builder().userId(userId).symbol(symbol).startDate(start).endDate(end)
+        .amountPerPurchase(new BigDecimal("2600000")).purchaseDay(15).tradingFeeRate(new BigDecimal("0.0025"))
+        .capitalGainsTax(true).periodEnd(PeriodEnd.SELL_AT_END);
+    }
+
+    @Test
+    @DisplayName("켜면 해마다 결제가 그해 안에 끝나는 마지막 거래일(T+2)에 공제를 채울 만큼 팔고 같은 값에 다시 사서 그해 세금이 0 이고 기간 끝 매도 세금이 끌 때보다 적다")
+    void fillsDeductionEveryYear() {
+      stubRisingMarket();
+
+      CapitalGainsTax harvested = dcaStrategy.execute(request().yearEndHarvest(true).build()).getCapitalGainsTax();
+      List<StrategyTransaction> transactions = executedFirst();
+      BigDecimal heldTax = dcaStrategy.execute(request().yearEndHarvest(false).build()).getCapitalGainsTax().totalTaxKrw();
+
+      assertThat(transactions).filteredOn(StrategyTransaction::isYearEndHarvest)
+        .extracting(StrategyTransaction::tradedOn, StrategyTransaction::getTrigger)
+        .containsExactly(
+          org.assertj.core.groups.Tuple.tuple(LocalDate.of(2021, 12, 29), "공제 채우기 매도"),
+          org.assertj.core.groups.Tuple.tuple(LocalDate.of(2021, 12, 29), "공제 채우기 재매수"),
+          org.assertj.core.groups.Tuple.tuple(LocalDate.of(2022, 12, 28), "공제 채우기 매도"),
+          org.assertj.core.groups.Tuple.tuple(LocalDate.of(2022, 12, 28), "공제 채우기 재매수"),
+          org.assertj.core.groups.Tuple.tuple(LocalDate.of(2023, 12, 27), "공제 채우기 매도"),
+          org.assertj.core.groups.Tuple.tuple(LocalDate.of(2023, 12, 27), "공제 채우기 재매수"));
+      assertThat(transactions).extracting(StrategyTransaction::tradedOn).isSorted();
+      assertThat(harvested.years()).filteredOn(year -> year.year() < 2024).hasSize(3).allSatisfy(year -> {
+        assertThat(year.realizedGainKrw()).isBetween(new BigDecimal("2499900"), new BigDecimal("2500000"));
+        assertThat(year.taxKrw()).isEqualByComparingTo("0");
+      });
+      assertThat(harvested.totalTaxKrw()).isPositive().isLessThan(heldTax);
+    }
+
+    @Test
+    @DisplayName("배당을 재투자하면 연말 정리 뒤 배당은 연말 정리로 바뀐 주식 수로 받고 거래는 거래일 순서다")
+    void reinvestsAfterHarvestWithNewShares() {
+      stubMarket("100.00", "0.20", List.of(
+        new DividendDto(symbol, LocalDate.of(2021, 6, 1), LocalDate.of(2021, 6, 10), null, new BigDecimal("0.5"), "USD", "test"),
+        new DividendDto(symbol, LocalDate.of(2022, 3, 1), LocalDate.of(2022, 3, 10), null, new BigDecimal("0.5"), "USD", "test")));
+
+      dcaStrategy.execute(request().reinvestDividends(true).yearEndHarvest(true).build());
+
+      List<StrategyTransaction> transactions = executedFirst();
+      assertThat(transactions).extracting(StrategyTransaction::tradedOn).isSorted();
+      StrategyTransaction march = transactions.stream()
+        .filter(tx -> "배당 재투자".equals(tx.getTrigger()) && tx.tradedOn().getYear() == 2022)
+        .findFirst().orElseThrow();
+      List<StrategyTransaction> before = transactions.stream().filter(tx -> tx.tradedOn().isBefore(march.tradedOn()))
+        .toList();
+      BigDecimal held = before.stream().map(StrategyTransaction::getShares).reduce(BigDecimal.ZERO, BigDecimal::add);
+      BigDecimal withoutHarvest = before.stream().filter(tx -> !tx.isYearEndHarvest())
+        .map(StrategyTransaction::getShares).reduce(BigDecimal.ZERO, BigDecimal::add);
+      // 연말 정리 수수료만큼 줄어든 주식 수 × 0.5달러로 그 날짜 종가에 삼
+      assertThat(held).isLessThan(withoutHarvest);
+      assertThat(march.getShares()).isEqualByComparingTo(new BigDecimal("0.5").multiply(held)
+        .setScale(2, java.math.RoundingMode.HALF_UP).divide(march.getPrice(), 8, java.math.RoundingMode.HALF_UP));
+    }
+
+    @Test
+    @DisplayName("첫 매수 전 12월과 이익 난 보유가 없는 해는 연말 정리를 하지 않는다")
+    void skipsYearsWithoutGain() {
+      stubMarket("200.00", "-0.10", List.of());
+
+      dcaStrategy.execute(request().firstPurchaseDate(LocalDate.of(2022, 1, 14)).purchaseFxRate(new BigDecimal("1300"))
+        .periodEnd(PeriodEnd.HOLD).yearEndHarvest(true).build());
+
+      assertThat(executedFirst()).isNotEmpty().noneMatch(StrategyTransaction::isYearEndHarvest);
+    }
+
+    @Test
+    @DisplayName("양도세를 끄면 연말 정리를 켜도 팔지 않는다")
+    void offWithoutCapitalGainsTax() {
+      stubRisingMarket();
+
+      dcaStrategy.execute(request().capitalGainsTax(false).yearEndHarvest(true).build());
+
+      assertThat(executedFirst()).noneMatch(StrategyTransaction::isYearEndHarvest);
+    }
+
+    private List<StrategyTransaction> executedFirst() {
+      @SuppressWarnings("unchecked")
+      ArgumentCaptor<List<StrategyTransaction>> captor = ArgumentCaptor.forClass(List.class);
+      verify(responseMapper, org.mockito.Mockito.atLeastOnce())
+        .toStrategyResponse(any(DcaStrategyRequest.class), captor.capture(), any(), any(), any());
+      return captor.getAllValues().getFirst();
+    }
+  }
+
+  @Nested
   @DisplayName("요청 타입 검사")
   class RequestTypeTests {
 

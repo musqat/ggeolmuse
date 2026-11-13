@@ -28,7 +28,7 @@ public class StrategyResponse {
   // 투자 실행 내역
   @Schema(description = "전략 거래 내역 목록 (양도세를 켜면 양도세 납부 줄 포함)")
   private List<StrategyTransaction> transactions;
-  @Schema(description = "총 거래 횟수 (양도세 납부 줄 제외)", example = "9")
+  @Schema(description = "총 거래 횟수 (양도세 납부 · 연말 정리 줄 제외)", example = "9")
   private Integer totalTransactions;
 
   // 투자 금액 요약

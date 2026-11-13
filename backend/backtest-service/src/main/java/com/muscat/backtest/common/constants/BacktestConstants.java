@@ -84,6 +84,18 @@ public final class BacktestConstants {
 
     /** 포트폴리오 종목이 목표 비중보다 작아져 모자란 몫을 공용 현금으로 삼 */
     public static final String REBALANCE_BUY = "리밸런싱 매수";
+
+    /** 결제가 그해 안에 끝나는 마지막 거래일에 그해 실현 이익이 연 공제까지 차도록 이익 난 보유분을 팖 */
+    public static final String HARVEST_GAIN_SELL = "공제 채우기 매도";
+
+    /** 공제 채우기로 판 돈 전부로 같은 날 같은 값에 다시 삼 */
+    public static final String HARVEST_GAIN_BUY = "공제 채우기 재매수";
+
+    /** 결제가 그해 안에 끝나는 마지막 거래일에 그해 실현 이익이 연 공제까지 내려가도록 손실 난 보유분을 팖 */
+    public static final String HARVEST_LOSS_SELL = "손실 상계 매도";
+
+    /** 손실 상계로 판 돈 전부로 같은 날 같은 값에 다시 삼 */
+    public static final String HARVEST_LOSS_BUY = "손실 상계 재매수";
   }
 
   /**

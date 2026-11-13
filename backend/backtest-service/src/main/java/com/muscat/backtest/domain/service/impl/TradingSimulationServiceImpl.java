@@ -2,9 +2,11 @@ package com.muscat.backtest.domain.service.impl;
 
 import com.muscat.backtest.common.calculation.CapitalGainsTaxCalculator;
 import com.muscat.backtest.common.calculation.PerformanceCalculator;
+import com.muscat.backtest.common.calculation.StrategyCalculator;
 import com.muscat.backtest.common.constants.BacktestConstants;
 import com.muscat.backtest.common.engine.PeriodEndSale;
 import com.muscat.backtest.common.engine.PurchaseDayReturns;
+import com.muscat.backtest.common.engine.YearEndHarvest;
 import com.muscat.backtest.common.enums.type.BacktestType;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.logging.BacktestLogger;
@@ -41,6 +43,7 @@ import java.util.HashMap;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableSet;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -67,8 +70,13 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
 
     try {
       SimulationContext context = prepareSimulationContext(request);
-      SimulationCalculationResult calculation = calculateSimulation(context);
-      SimulationResponse response = buildSimulationResponse(context, calculation);
+      // 매수일 ~ 평가일 일봉과 그 날짜 환율
+      List<OHLCPriceDto> candles = candlesBetween(context.priceMap(), context.purchaseData().date(),
+        context.valuationDate());
+      Map<String, BigDecimal> fxRates = bulkFxRates(candles);
+      Function<LocalDate, BigDecimal> fx = fxPath(context, fxRates);
+      SimulationCalculationResult calculation = calculateSimulation(context, fx);
+      SimulationResponse response = buildSimulationResponse(context, calculation, candles, fxRates, fx);
 
       if (recordHistory) {
         recordSimulationHistory(request);
@@ -133,8 +141,9 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
       currentFxRate, dividendHistory, valuationDate, priceMap);
   }
 
-  // 손익 계산 (매수가·주식수·수수료·배당재투자·환차익 → 총자산/수익률)
-  private SimulationCalculationResult calculateSimulation(SimulationContext context) {
+  // 손익 계산 (매수가·주식수·수수료·배당재투자·연말 정리·환차익 → 총자산/수익률)
+  private SimulationCalculationResult calculateSimulation(SimulationContext context,
+    Function<LocalDate, BigDecimal> fx) {
     BigDecimal purchasePriceUsd = PriceLookup.effectiveClose(context.purchaseData());
     BigDecimal purchaseFxRate = context.purchaseFxRate().rate();
     BigDecimal currentFxRate = context.currentFxRate().rate();
@@ -167,9 +176,14 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
     }
     BigDecimal buyCostUsd = shares.multiply(purchasePriceUsd).add(tradingFee);
 
-    // 매수일부터의 보유 단계
+    // 매수일부터의 보유 단계 · 양도세 계산 거래(산 것 · 재투자 · 연말 정리 · 기간 끝 매도)
+    LocalDate tradeDate = context.purchaseData().date();
     List<HoldingStep> holdingSteps = new ArrayList<>();
-    holdingSteps.add(new HoldingStep(context.purchaseData().date(), shares, remainingCash));
+    holdingSteps.add(new HoldingStep(tradeDate, shares, remainingCash));
+    List<StrategyTransaction> taxTransactions = new ArrayList<>();
+    taxTransactions.add(StrategyTransaction.builder().date(tradeDate).actualDate(tradeDate).price(purchasePriceUsd)
+      .shares(shares).fee(tradingFee).cashUsed(buyCostUsd).fxRate(purchaseFxRate).build());
+    YearEnd yearEnd = new YearEnd(harvestDates(context), context, fx, taxTransactions, holdingSteps);
 
     BigDecimal stockReturn = currentPriceUsd.subtract(purchasePriceUsd);
     BigDecimal stockReturnPercent = MoneyUtils.calculateReturnRate(purchasePriceUsd,
@@ -180,7 +194,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
     // 재투자된 배당금 추적
     BigDecimal dividendsReinvested = BigDecimal.ZERO;
     BigDecimal grossDividends = BigDecimal.ZERO; // 배당마다 그때 주식 수로 받은 세전 배당의 합
-    List<SimulationCalculationResult.Reinvestment> reinvestments = new ArrayList<>(); // 배당 재투자 날짜 · 금액
+    List<LocalDate> reinvestDates = new ArrayList<>(); // 배당 재투자 날짜
 
     // 배당금 재투자 처리 - 각 배당일에 순차적으로 재투자
     if (Boolean.TRUE.equals(context.request().getReinvestDividends())
@@ -201,6 +215,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
         .toList();
 
       for (var dividend : dividends) {
+        shares = yearEnd.before(dividend.getExDate(), shares, remainingCash);
         // 이 배당금 계산 (현재 보유 주식수 기준)
         BigDecimal dividendAmount = dividend.getAmount().multiply(shares)
           .setScale(BacktestConstants.Money.SCALE, BacktestConstants.Money.ROUNDING_MODE);
@@ -231,8 +246,12 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
 
         shares = shares.add(additionalShares);
         dividendsReinvested = dividendsReinvested.add(afterTaxDividend);
-        reinvestments.add(new SimulationCalculationResult.Reinvestment(dividend.getExDate(), afterTaxDividend));
+        reinvestDates.add(dividend.getExDate());
         holdingSteps.add(new HoldingStep(dividend.getExDate(), shares, remainingCash));
+        // 재투자 주식의 원가는 세후 배당 × 배당락일 환율
+        taxTransactions.add(StrategyTransaction.builder().date(dividend.getExDate()).actualDate(dividend.getExDate())
+          .price(dividendDayPrice).shares(additionalShares).amount(BigDecimal.ZERO).cashUsed(afterTaxDividend)
+          .fxRate(fx.apply(dividend.getExDate())).build());
 
         log.info("배당 재투자: {} - ${} ({}주 보유) -> {}주 추가 매수 @${}",
           dividend.getExDate(), afterTaxDividend, shares, additionalShares, dividendDayPrice);
@@ -241,15 +260,25 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
       log.info("배당금 재투자 완료: 총 ${} 재투자, 최종 보유 {}주", dividendsReinvested, shares);
     }
 
-    // 받은 배당 총액(세전, 재투자했으면 위에서 더한 값, 아니면 처음 주식 수로)
+    // 재투자를 끄면 배당락일마다 그때 주식 수로 받은 세후 배당이 현금으로 쌓임
     boolean reinvested = Boolean.TRUE.equals(context.request().getReinvestDividends());
+    BigDecimal cash = remainingCash;
     if (!reinvested) {
-      holdingSteps.addAll(cashDividendSteps(context, shares, remainingCash));
+      BigDecimal taxRate = context.request().getDividendTaxRate();
+      for (DividendHistoryDto.DividendPayment dividend : cashDividends(context)) {
+        shares = yearEnd.before(dividend.getExDate(), shares, cash);
+        BigDecimal gross = dividend.getAmount().multiply(shares);
+        grossDividends = grossDividends.add(gross);
+        cash = cash.add(taxRate != null && Decimals.isPositive(taxRate) ? gross.subtract(gross.multiply(taxRate)) : gross);
+        holdingSteps.add(new HoldingStep(dividend.getExDate(), shares, cash));
+      }
     }
+    shares = yearEnd.before(context.valuationDate().plusDays(1), shares, cash);
+    tradingFee = tradingFee.add(yearEnd.fees());
+    // 받은 배당 총액(세전, 배당마다 그때 주식 수로)
     BigDecimal totalDividends = reinvested
       ? grossDividends
-      : BacktestCalculationUtils.calculateTotalDividends(
-        context.dividendHistory(), shares, context.purchaseData().date(), context.valuationDate());
+      : grossDividends.setScale(BacktestConstants.Money.SCALE, BacktestConstants.Money.ROUNDING_MODE);
 
     BigDecimal dividendYield = BacktestCalculationUtils.calculateDividendYield(
       totalDividends, shares, currentPriceUsd);
@@ -271,6 +300,8 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
       : null;
     BigDecimal heldShares = shares;
     if (endSale != null) {
+      endSale.setRealizedProfit(endSale.getProceeds().subtract(StrategyCalculator.holdingCost(taxTransactions)));
+      taxTransactions.add(endSale);
       heldShares = BigDecimal.ZERO;
       remainingCash = remainingCash.add(endSale.getProceeds());
       tradingFee = tradingFee.add(endSale.getFee());
@@ -302,45 +333,91 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
       stockReturn, stockReturnPercent, purchaseFxRate, currentFxRate, fxReturn, fxReturnPercent,
       totalDividends, dividendYield, tradingFee, remainingCash, totalAssetKrw, totalReturnKrw,
       totalReturnPercent,
-      dividendsReinvested, reinvestments, holdingSteps, buyCostUsd, endSale);
+      dividendsReinvested, reinvestDates, holdingSteps, taxTransactions, yearEnd.transactions(endSale));
   }
 
-  // 재투자를 끄면 배당락일마다 세후 배당이 현금으로 쌓임
-  private static List<HoldingStep> cashDividendSteps(SimulationContext context, BigDecimal shares,
-    BigDecimal remainingCash) {
+  // 매수일 뒤 평가일까지 배당락일이 온 금액 있는 배당(배당락일 순서)
+  private static List<DividendHistoryDto.DividendPayment> cashDividends(SimulationContext context) {
     if (context.dividendHistory() == null || context.dividendHistory().getDividends() == null) {
       return List.of();
     }
     LocalDate purchaseDate = context.purchaseData().date();
-    BigDecimal taxRate = context.request().getDividendTaxRate();
-    List<DividendHistoryDto.DividendPayment> received = context.dividendHistory().getDividends().stream()
+    return context.dividendHistory().getDividends().stream()
       .filter(d -> d.getExDate() != null && d.getAmount() != null)
       .filter(d -> BacktestCalculationUtils.receivesDividend(purchaseDate, d.getExDate())
         && !d.getExDate().isAfter(context.valuationDate()))
       .sorted(Comparator.comparing(DividendHistoryDto.DividendPayment::getExDate))
       .toList();
+  }
 
-    List<HoldingStep> steps = new ArrayList<>();
-    BigDecimal cash = remainingCash;
-    for (DividendHistoryDto.DividendPayment dividend : received) {
-      BigDecimal gross = dividend.getAmount().multiply(shares);
-      BigDecimal afterTax = taxRate != null && Decimals.isPositive(taxRate)
-        ? gross.subtract(gross.multiply(taxRate))
-        : gross;
-      cash = cash.add(afterTax);
-      steps.add(new HoldingStep(dividend.getExDate(), shares, cash));
+  // 양도세와 연말 정리를 켜면 매수일 뒤 연말 정리 날, 아니면 null
+  private static NavigableSet<LocalDate> harvestDates(SimulationContext context) {
+    SimulationRequest request = context.request();
+    return YearEndHarvest.enabled(request.getCapitalGainsTax(), request.getYearEndHarvest())
+      ? YearEndHarvest.dates(context.priceMap(), context.purchaseData().date(), context.valuationDate())
+      : null;
+  }
+
+  // 연말 정리 날마다 그 날짜 종가에 연말 정리하고 보유 단계 · 양도세 계산 거래 · 연말 정리 거래를 남김(날이 null 이면 끔)
+  private static final class YearEnd {
+    private final NavigableSet<LocalDate> dates;
+    private final SimulationContext context;
+    private final Function<LocalDate, BigDecimal> fx;
+    private final List<StrategyTransaction> taxTransactions;
+    private final List<HoldingStep> steps;
+    private final List<StrategyTransaction> trades = new ArrayList<>();
+
+    private YearEnd(NavigableSet<LocalDate> dates, SimulationContext context, Function<LocalDate, BigDecimal> fx,
+      List<StrategyTransaction> taxTransactions, List<HoldingStep> steps) {
+      this.dates = dates;
+      this.context = context;
+      this.fx = fx;
+      this.taxTransactions = taxTransactions;
+      this.steps = steps;
     }
-    return steps;
+
+    // before 앞 연말 정리 날마다 연말 정리한 뒤 주식 수(현금은 그대로)
+    private BigDecimal before(LocalDate before, BigDecimal shares, BigDecimal cash) {
+      BigDecimal held = shares;
+      while (dates != null && !dates.isEmpty() && dates.first().isBefore(before)) {
+        LocalDate date = dates.pollFirst();
+        YearEndHarvest.Trade trade = YearEndHarvest.single(date, taxTransactions,
+          PriceLookup.effectiveClose(context.priceMap().get(date)), held, StrategyCalculator.holdingCost(taxTransactions),
+          context.request().getTradingFeeRate(), fx.apply(date), false);
+        if (trade != null) {
+          List.of(trade.sale(), trade.rebuy()).forEach(tx -> {
+            taxTransactions.add(tx);
+            trades.add(tx);
+          });
+          held = held.add(trade.sharesChange());
+          steps.add(new HoldingStep(date, held, cash));
+        }
+      }
+      return held;
+    }
+
+    // 연말 정리 매도 · 재매수 수수료 합(USD)
+    private BigDecimal fees() {
+      return trades.stream().map(StrategyTransaction::getFee).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    // 연말 정리 거래와 기간 끝 매도(끄면 null)
+    private List<StrategyTransaction> transactions(StrategyTransaction endSale) {
+      if (dates == null) {
+        return null;
+      }
+      List<StrategyTransaction> all = new ArrayList<>(trades);
+      if (endSale != null) {
+        all.add(endSale);
+      }
+      return all;
+    }
   }
 
   // 최적 타이밍 · 일별 가치 · 지표를 더한 응답
   private SimulationResponse buildSimulationResponse(SimulationContext context,
-    SimulationCalculationResult calculation) {
-
-    // 매수일 ~ 평가일 일봉과 그 날짜 환율
-    List<OHLCPriceDto> candles = candlesBetween(context.priceMap(), context.purchaseData().date(),
-      context.valuationDate());
-    Map<String, BigDecimal> fxRates = bulkFxRates(candles);
+    SimulationCalculationResult calculation, List<OHLCPriceDto> candles, Map<String, BigDecimal> fxRates,
+    Function<LocalDate, BigDecimal> fx) {
     OptimalTiming optimalTiming = calculateOptimalTiming(candles, fxRates);
 
     SimulationResponse response = responseMapper.toSimulationResponse(
@@ -375,11 +452,12 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
     response.setInvestmentAmount(calculation.investmentKrw());
     response.setDefaultFxDates(defaultFxDates(context));
 
-    Function<LocalDate, BigDecimal> fx = fxPath(context, calculation, fxRates);
     response.setCapitalGainsTax(Boolean.TRUE.equals(context.request().getCapitalGainsTax())
-      ? CapitalGainsTaxCalculator.of(realizedGains(calculation, fx), CapitalGainsTaxCalculator.Payments.NONE,
-        calculation.totalAssetKrw(), calculation.currentValueKrw(), calculation.investmentKrw())
+      ? CapitalGainsTaxCalculator.of(CapitalGainsTaxCalculator.realizedGains(calculation.taxTransactions()),
+        CapitalGainsTaxCalculator.Payments.NONE, calculation.totalAssetKrw(), calculation.currentValueKrw(),
+        calculation.investmentKrw())
       : null);
+    response.setTransactions(calculation.transactions());
     List<DailyValue> dailyValues = dailyValues(candles, fx, calculation, context);
     // 원금: 원화는 투자금, 달러는 그것을 매수 환율로 바꾼 값
     BigDecimal krwCapital = calculation.investmentKrw();
@@ -394,21 +472,6 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
       PerformanceCalculator.drawdownPercents(usdIndex), PerformanceCalculator.drawdownPercents(krwIndex)));
     response.setPurchaseDayReturns(purchaseDayReturns(candles, context, calculation, fxRates));
     return response;
-  }
-
-  // 기간 끝 매도의 원화 실현 이익(판 돈 × 평가일 환율 - 산 날 환율 원가, 재투자 주식은 배당락일 환율), 끝까지 보유면 없음
-  private static List<CapitalGainsTaxCalculator.Gain> realizedGains(SimulationCalculationResult calculation,
-    Function<LocalDate, BigDecimal> fx) {
-    StrategyTransaction sale = calculation.endSale();
-    if (sale == null) {
-      return List.of();
-    }
-    BigDecimal cost = calculation.buyCostUsd().multiply(calculation.purchaseFxRate());
-    for (SimulationCalculationResult.Reinvestment reinvestment : calculation.reinvestments()) {
-      cost = cost.add(reinvestment.amountUsd().multiply(fx.apply(reinvestment.exDate())));
-    }
-    return List.of(new CapitalGainsTaxCalculator.Gain(sale.tradedOn(),
-      sale.getProceeds().multiply(sale.getFxRate()).subtract(cost)));
   }
 
   // 매수일별 수익률(기간 환율을 못 받았거나 계산이 실패하면 빈 목록, 결과는 그대로)
@@ -483,15 +546,15 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
   }
 
   // 일별 원화 환율: 수동 환율이거나 기간 환율 기록이 없으면 매수 · 평가일 환율을 날짜 비례로, 아니면 시장 환율
-  private static Function<LocalDate, BigDecimal> fxPath(SimulationContext context,
-    SimulationCalculationResult calculation, Map<String, BigDecimal> fxRates) {
+  private static Function<LocalDate, BigDecimal> fxPath(SimulationContext context, Map<String, BigDecimal> fxRates) {
     SimulationRequest request = context.request();
+    BigDecimal purchaseFxRate = context.purchaseFxRate().rate();
     if (request.getPurchaseFxRate() != null || request.getCurrentFxRate() != null
       || fxRates == null || fxRates.isEmpty()) {
-      return FxPath.interpolated(context.purchaseData().date(), calculation.purchaseFxRate(),
-        context.valuationDate(), calculation.currentFxRate());
+      return FxPath.interpolated(context.purchaseData().date(), purchaseFxRate,
+        context.valuationDate(), context.currentFxRate().rate());
     }
-    return FxPath.market(fxRecords(fxRates), calculation.purchaseFxRate());
+    return FxPath.market(fxRecords(fxRates), purchaseFxRate);
   }
 
   // 날짜 문자열 키를 날짜로 바꾼 환율

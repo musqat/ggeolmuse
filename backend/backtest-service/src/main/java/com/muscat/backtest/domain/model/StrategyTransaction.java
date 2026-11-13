@@ -3,8 +3,10 @@ package com.muscat.backtest.domain.model;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.Set;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.muscat.backtest.common.constants.BacktestConstants.TransactionTrigger;
 import com.muscat.backtest.common.enums.type.TradeReason;
 import lombok.Builder;
 import lombok.Data;
@@ -13,6 +15,9 @@ import lombok.Data;
 @Data
 @Builder
 public class StrategyTransaction {
+
+  private static final Set<String> YEAR_END_HARVEST = Set.of(TransactionTrigger.HARVEST_GAIN_SELL,
+    TransactionTrigger.HARVEST_GAIN_BUY, TransactionTrigger.HARVEST_LOSS_SELL, TransactionTrigger.HARVEST_LOSS_BUY);
 
   @JsonInclude(JsonInclude.Include.NON_NULL)
   private String symbol;                // 거래 종목 (포트폴리오만)
@@ -50,6 +55,12 @@ public class StrategyTransaction {
   @JsonIgnore
   public boolean isTaxPayment() {
     return taxPaid != null;
+  }
+
+  // 연말 정리 매도 · 재매수 줄
+  @JsonIgnore
+  public boolean isYearEndHarvest() {
+    return trigger != null && YEAR_END_HARVEST.contains(trigger);
   }
 
   // 그 날짜 계좌 현금 변화(USD, 매도로 받은 돈 - 매수에 쓴 현금 - 낸 양도세)

@@ -3,6 +3,7 @@ package com.muscat.backtest.domain.strategy;
 import com.muscat.backtest.common.calculation.TradeStatsCalculator;
 import com.muscat.backtest.common.engine.CapitalGainsTaxPayer;
 import com.muscat.backtest.common.engine.StrategyFinalizer;
+import com.muscat.backtest.common.engine.YearEndHarvest;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.SkipReason;
 import com.muscat.backtest.common.validation.BacktestRequestValidator;
@@ -32,6 +33,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -39,6 +41,7 @@ import org.springframework.stereotype.Component;
 // 조건부 매수 전략: 전 거래일 종가보다 장중에 정한 비율만큼 떨어진(또는 오른) 날마다 회당 금액이나 정한 주식 수만큼 한 번 삼(분할만 조정된 가격, 기간 첫 거래일은 기준 종가만)
 // 한도는 예산 · 최대 횟수 가운데 먼저 닿는 쪽(둘 다 비우면 제한 없음), 예산을 넘는 회차부터는 예산 부족 구간으로 셈
 // 익절 · 손절은 보유분 평균 단가 기준으로 전량, 트레일링 스탑은 고점 대비 내린 날 · 부분 익절은 평균 단가 대비 단계만큼 오른 날 정한 몫을 팔고, 다음 조건이 오면 판 돈부터 써서 다시 삼
+// 연말 정리를 켜면 결제가 그해 안에 끝나는 마지막 거래일에 그해 실현 이익이 공제에 맞도록 팔고 같은 값에 다시 삼(다시 산 값이 평균 단가에 들어감)
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -93,7 +96,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
         marketData, request.getSymbol(), request.getStartDate(), actualEndDate, request.getCurrentFxRate(),
         request.getPurchaseFxRate(), Boolean.TRUE.equals(request.getReinvestDividends()),
         request.getDividendTaxRate(), transactions, purchases.priceMap(), purchases.dailyFx(), request.getPeriodEnd(),
-        request.getTradingFeeRate());
+        request.getTradingFeeRate(), !sells(request) && harvests(request));
 
       log.info("조건부 매수 전략 실행 완료: {} - {}회 투자, 수익률 {}%",
         request.getSymbol(), finalized.transactions().size(),
@@ -160,6 +163,11 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
       || (request.getPartialTakeProfits() != null && !request.getPartialTakeProfits().isEmpty());
   }
 
+  // 양도세와 연말 정리를 둘 다 켰는지
+  private static boolean harvests(ConditionalStrategyRequest request) {
+    return YearEndHarvest.enabled(request.getCapitalGainsTax(), request.getYearEndHarvest());
+  }
+
   // 최대 횟수(null 이면 제한 없음)에 닿았는지
   private static boolean reached(Integer maxPurchases, int rounds) {
     return maxPurchases != null && rounds >= maxPurchases;
@@ -212,6 +220,10 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     BigDecimal heldShares = BigDecimal.ZERO;
     BigDecimal heldCost = BigDecimal.ZERO;
     BigDecimal cash = BigDecimal.ZERO;
+    // 매도 규칙을 켠 요청의 연말 정리 날
+    Set<LocalDate> harvestDates = sells && harvests(request)
+      ? YearEndHarvest.dates(priceMap, request.getStartDate(), actualEndDate)
+      : Set.of();
 
     // 메모리에서 데이터 조회 (API 호출 없음), 파는 규칙을 켜면 새 돈 회차를 다 쓴 뒤에도 끝까지 봄
     while (!currentDate.isAfter(actualEndDate) && (sells || !reached(maxPurchases, purchaseCount + shortRounds))) {
@@ -293,6 +305,17 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
               log.debug("조건부 매수 실행: {} - {} ({}원 투자, {}주 매수)",
                 currentDate, purchaseDecision.trigger(), transaction.getAmount(), transaction.getShares());
             }
+          }
+          // 그 날짜 사고팔기 뒤 연말 정리
+          YearEndHarvest.Trade harvest = harvestDates.contains(currentDate) && heldShares.signum() > 0
+            ? YearEndHarvest.single(currentDate, transactions, PriceLookup.effectiveClose(priceData), heldShares,
+              heldCost, request.getTradingFeeRate(), fx, fxRateMap.isDefault(currentDate))
+            : null;
+          if (harvest != null) {
+            transactions.add(harvest.sale());
+            transactions.add(harvest.rebuy());
+            heldShares = heldShares.add(harvest.sharesChange());
+            heldCost = heldCost.add(harvest.costChange());
           }
         }
 

@@ -78,6 +78,9 @@ public class SimulationRequest {
   @Schema(description = "기간이 끝나면 (HOLD 끝까지 보유, SELL_AT_END 평가일까지 마지막 거래일 종가에 전량 매도, 비우면 HOLD)", example = "HOLD")
   private PeriodEnd periodEnd;
 
+  @Schema(description = "연말 정리 (양도세를 켰을 때만, 해마다 결제(2024-05-28 전 T+2, 그 뒤 T+1)가 그해 안에 끝나는 마지막 거래일에 그해 원화 실현 이익이 연 250만원 공제에 맞도록 이익 난 보유분이나 손실 난 보유분을 팔고 같은 값에 다시 삼, 비우면 끔)", example = "true")
+  private Boolean yearEndHarvest;
+
   // 평가일(매도일이 없거나 오늘 이후면 오늘)
   public LocalDate valuationDate(LocalDate today) {
     return saleDate != null && saleDate.isBefore(today) ? saleDate : today;

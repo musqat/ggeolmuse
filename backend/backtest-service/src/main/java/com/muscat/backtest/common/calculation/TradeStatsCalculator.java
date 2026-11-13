@@ -52,7 +52,7 @@ public final class TradeStatsCalculator {
     private LocalDate opened;
   }
 
-  // 양도세 납부를 뺀 거래(거래일 순서)의 매수 · 매도 · 트레일링 스탑 · 부분 익절 수와 종목마다 사이클 통계(종목이 없으면 한 묶음), 1년 사이클 수는 시작일 ~ 평가일 기준
+  // 양도세 납부를 뺀 거래(거래일 순서)의 매수 · 매도 · 트레일링 스탑 · 부분 익절 수(연말 정리 빼고)와 종목마다 사이클 통계(종목이 없으면 한 묶음), 1년 사이클 수는 시작일 ~ 평가일 기준
   public static TradeStats of(List<StrategyTransaction> transactions, LocalDate start, LocalDate valuationDate) {
     List<StrategyTransaction> trades = transactions.stream()
       .filter(tx -> !tx.isTaxPayment())
@@ -67,6 +67,13 @@ public final class TradeStatsCalculator {
     for (StrategyTransaction tx : trades) {
       Holding holding = holdings.computeIfAbsent(Objects.requireNonNullElse(tx.getSymbol(), ""), key -> new Holding());
       holding.shares = holding.shares.add(tx.getShares());
+      // 연말 정리는 보유만 바꾸고 판 실현 손익만 진행 중 사이클에 더함
+      if (tx.isYearEndHarvest()) {
+        if (tx.isSell()) {
+          holding.realized = holding.realized.add(tx.getRealizedProfit());
+        }
+        continue;
+      }
       if (!tx.isSell()) {
         // 배당 재투자 주식은 보유에만 더함(원가 0)
         if (!TransactionTrigger.DIVIDEND_REINVESTMENT.equals(tx.getTrigger())) {
