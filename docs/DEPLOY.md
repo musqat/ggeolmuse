@@ -61,10 +61,16 @@ ArgoCD 가 그 커밋을 보고 롤아웃한다. CI 의 이미지 빌드는 Triv
 - 더 새 커밋이 나간 서비스는 건너뛴다(옛 실행을 다시 돌려도 안 되돌아감)
 - Hub 에 같은 태그가 있으면 이미지 레이블의 커밋을 대조해 같으면 빌드를 건너뛰고, 다르면 실패한다
 - 태그 커밋 직전에 버전 하한과 이미지 레이블을 다시 본다
-- 봇 커밋 제목은 `chore(release): backtest-service 1.8.0 · frontend-web (8fbaacf)` 모양이고, 끝 괄호가 빌드한 커밋이다
+- 봇 커밋 제목은 `chore(release): backtest-service 1.8.0 · frontend-web (8fbaacf)` 모양이고, 끝 괄호가 빌드한 커밋이다.
+  본문의 `[skip ci]` 로 그 커밋에서는 CI · E2E · 릴리스가 돌지 않는다
 - 마이그레이션도 바로 나간다. 옛 이미지로도 돌게 쓰고(열 추가 먼저, `DROP` 은 다음 PR), 데이터를 지우면 머지 전 RDS 수동 스냅숏
-- 되돌리기는 봇 태그 커밋 revert(메시지에 `[skip ci]`), DB 는 RDS 자동 백업(7일)
-- push 토큰은 `DOCKERHUB_PUSH_TOKEN`(GitHub 시크릿)
+- 되돌리기는 봇 태그 커밋을 revert 하는 PR(`[skip ci]` 없이), DB 는 RDS 자동 백업(7일)
+- push 토큰은 `DOCKERHUB_PUSH_TOKEN`, 태그 커밋은 환경 `release` 의 쓰기 배포 키 `RELEASE_DEPLOY_KEY` 로 올린다.
+  키가 없으면 첫 단계에서 멈추니 키를 넣고 실패한 작업만 다시 돌린다
+
+처음 머지 전 준비: Deploy keys 에 쓰기 키 하나 등록 → 환경 `release`(배포 브랜치 master)에 `RELEASE_DEPLOY_KEY` →
+ruleset `master` 우회 대상에 Deploy keys(Always), 규칙은 삭제 · 강제 푸시 금지 · PR 필수 · 필수 검사(`changes` · `tools` · `terraform` ·
+`scan-manifests`) → enforcement Active.
 
 Java 서비스는 멀티스테이지 Dockerfile 이고 빌드 컨텍스트가 레포 루트다.
 `ggeolmuse-bom` 을 먼저 설치해야 해서다. frontend 와 chat-service 만 자기 폴더가
